@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0ea5e9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="512" height="512" rx="120" fill="white" />
+  
+  <g transform="translate(106, 106) scale(0.6)">
+    <!-- Outer Hexagon / Cube Outline -->
+    <path d="M250 50 L450 150 L450 350 L250 450 L50 350 L50 150 Z" 
+          fill="none" 
+          stroke="url(#grad1)" 
+          stroke-width="24" 
+          stroke-linejoin="round" 
+          stroke-linecap="round"/>
+          
+    <!-- Inner Y Shape to form 3D Cube -->
+    <path d="M250 250 L250 450 M250 250 L50 150 M250 250 L450 150" 
+          stroke="url(#grad1)" 
+          stroke-width="24" 
+          stroke-linecap="round"/>
+          
+    <!-- Floating Particle Circle -->
+    <circle cx="250" cy="180" r="30" fill="#0ea5e9" opacity="0.8"/>
+  </g>
+</svg>

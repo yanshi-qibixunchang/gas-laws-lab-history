@@ -1,0 +1,5 @@
+{
+  "name": "Hard Sphere Lab",
+  "description": "Scientific visualization of Hard Sphere Gas dynamics with Andersen Thermostat, featuring real-time Maxwell-Boltzmann distribution verification.",
+  "requestFramePermissions": []
+}

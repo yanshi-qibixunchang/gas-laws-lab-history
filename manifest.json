@@ -1,0 +1,21 @@
+{
+  "name": "Hard Sphere Lab",
+  "short_name": "Hard Sphere",
+  "description": "Hard Sphere Molecular Dynamics Simulation",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0ea5e9",
+  "icons": [
+    {
+      "src": "/appfig.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/appfig.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

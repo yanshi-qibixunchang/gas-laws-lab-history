@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, interactive-widget=resizes-content" />
+    <title>Hard Sphere Lab</title>
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="manifest" href="/manifest.json" />
+    <!-- Keep Tailwind CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class', 
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"],
+              serif: ["Playfair Display", "serif"],
+            },
+            colors: {
+              sciblue: {
+                50: '#f0f9ff',
+                100: '#e0f2fe',
+                200: '#bae6fd',
+                300: '#7dd3fc',
+                400: '#38bdf8',
+                500: '#0ea5e9',
+                600: '#0284c7',
+                700: '#0369a1',
+                800: '#075985',
+                900: '#0c4a6e',
+                950: '#082f49',
+              },
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.6s ease-out',
+              'slide-up': 'slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+              'spin-slow': 'spin 3s linear infinite',
+              'float': 'float 8s ease-in-out infinite',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              slideUp: {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-15px)' },
+              }
+            }
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        background-color: #f8fafc; /* Slate-50 base */
+        color: #0f172a; /* Darker default text */
+        overflow-x: hidden;
+        position: relative;
+        min-height: 100vh;
+        transition: background-color 0.5s ease, color 0.5s ease;
+      }
+
+      /* Dark Mode Body Override */
+      .dark body {
+        background-color: #020617; /* Slate-950 base */
+        color: #f1f5f9; /* Slate-100 */
+      }
+
+      /* --- Tech Grid v3.0 --- */
+      .bg-tech-grid {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -2;
+        background-image: 
+            linear-gradient(rgba(14, 165, 233, 0.25) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(14, 165, 233, 0.25) 1px, transparent 1px);
+        background-size: 50px 50px;
+        mask-image: radial-gradient(circle at center, black 50%, transparent 100%);
+        -webkit-mask-image: radial-gradient(circle at center, black 50%, transparent 100%);
+        transition: background-image 0.5s ease;
+      }
+      
+      .dark .bg-tech-grid {
+        background-image: 
+            linear-gradient(rgba(56, 189, 248, 0.15) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(56, 189, 248, 0.15) 1px, transparent 1px);
+        mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+        -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+      }
+
+      .bg-tech-grid::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: 
+            radial-gradient(circle at 1px 1px, rgba(14, 165, 233, 0.6) 2px, transparent 0);
+        background-size: 50px 50px;
+        background-position: -1px -1px;
+        opacity: 0.6;
+        transition: opacity 0.5s ease;
+      }
+      
+      .dark .bg-tech-grid::after {
+          opacity: 0.3;
+      }
+
+      /* --- Ambient Orbs --- */
+      .ambient-orb {
+        position: fixed;
+        border-radius: 50%;
+        filter: blur(90px);
+        z-index: -1;
+        opacity: 0.6;
+        mix-blend-mode: multiply; 
+        animation: orbFloat 25s infinite ease-in-out alternate;
+        transition: background 0.5s ease, opacity 0.5s ease;
+      }
+      
+      .dark .ambient-orb {
+          mix-blend-mode: screen;
+          opacity: 0.15;
+          filter: blur(100px);
+      }
+      
+      .orb-1 {
+        top: -15%;
+        left: -5%;
+        width: 900px;
+        height: 900px;
+        background: radial-gradient(circle, #e0f2fe 0%, transparent 70%);
+        animation-duration: 35s;
+      }
+      
+      .dark .orb-1 {
+         background: radial-gradient(circle, #0ea5e9 0%, transparent 70%);
+      }
+      
+      .orb-2 {
+        bottom: -15%;
+        right: -5%;
+        width: 800px;
+        height: 900px;
+        background: radial-gradient(circle, #f0f9ff 0%, transparent 70%);
+        animation-duration: 40s;
+        animation-delay: -10s;
+      }
+      
+      .dark .orb-2 {
+         background: radial-gradient(circle, #0284c7 0%, transparent 70%);
+      }
+
+      @keyframes orbFloat {
+        0% { transform: translate(0, 0) scale(1); opacity: 0.5; }
+        50% { transform: translate(30px, 40px) scale(1.1); opacity: 0.7; }
+        100% { transform: translate(-30px, -20px) scale(0.95); opacity: 0.5; }
+      }
+
+      /* --- Metallic Text --- */
+      .text-metallic {
+        color: #0369a1;
+        background: linear-gradient(
+          110deg,
+          #0c4a6e 45%,
+          #38bdf8 49%,
+          #e0f2fe 50%,
+          #38bdf8 51%,
+          #0c4a6e 55%
+        );
+        background-size: 250% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0px 2px 0px rgba(255,255,255,0.8)) drop-shadow(0px 4px 6px rgba(14, 165, 233, 0.15));
+        animation: sharpShine 10s linear infinite;
+      }
+      
+      .dark .text-metallic {
+        color: #e0f2fe;
+        background: linear-gradient(
+          110deg,
+          #bae6fd 45%,
+          #ffffff 49%,
+          #7dd3fc 50%,
+          #ffffff 51%,
+          #bae6fd 55%
+        );
+        background-size: 250% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0px 2px 0px rgba(0,0,0,0.8)) drop-shadow(0px 0px 15px rgba(14, 165, 233, 0.4));
+      }
+
+      @keyframes sharpShine {
+        0% { background-position: -150% 0; }
+        100% { background-position: 150% 0; }
+      }
+      
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+      .dark ::-webkit-scrollbar-thumb { background: #475569; }
+      .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "recharts": "https://esm.sh/recharts@^3.6.0",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div class="bg-tech-grid"></div>
+    <div class="ambient-orb orb-1"></div>
+    <div class="ambient-orb orb-2"></div>
+    <div id="root" style="position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100vh;"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
