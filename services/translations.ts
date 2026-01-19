@@ -46,6 +46,7 @@ export const translations: Record<LanguageCode, Translation> = {
     },
     messages: {
       resetRequired: "参数已更改或系统需刷新，请先点击【重置系统】",
+      resetBeforeStart: "请先重置系统",
       resetSuccess: "系统重置成功，环境已就绪",
       alreadyLatest: "当前已是最新重置状态，无需重复操作",
       resetFailed: "重置失败，请重试",
@@ -200,6 +201,7 @@ export const translations: Record<LanguageCode, Translation> = {
     },
     messages: {
       resetRequired: "參數已更改或系統需刷新，請先點擊【重置系統】",
+      resetBeforeStart: "請先重置系統",
       resetSuccess: "系統重置成功，環境已就緒",
       alreadyLatest: "當前已是最新重置狀態，無需重複操作",
       resetFailed: "重置失敗，請重試",
@@ -354,6 +356,7 @@ export const translations: Record<LanguageCode, Translation> = {
     },
     messages: {
       resetRequired: "Parameters changed. Please click [Reset System] first.",
+      resetBeforeStart: "Please reset the system first.",
       resetSuccess: "System reset successfully. Ready to run.",
       alreadyLatest: "System is already reset and up to date.",
       resetFailed: "Reset failed. Please try again.",
@@ -508,6 +511,7 @@ export const translations: Record<LanguageCode, Translation> = {
     },
     messages: {
       resetRequired: "Parameters changed. Please click [Reset System] first.",
+      resetBeforeStart: "Please reset the system first.",
       resetSuccess: "System reset successfully. Ready to run.",
       alreadyLatest: "System is already reset and up to date.",
       resetFailed: "Reset failed. Please try again.",

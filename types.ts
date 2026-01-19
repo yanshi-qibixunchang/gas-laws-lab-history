@@ -105,6 +105,7 @@ export interface Translation {
   };
   messages: {
     resetRequired: string;
+    resetBeforeStart: string;
     resetSuccess: string;
     alreadyLatest: string;
     resetFailed: string;

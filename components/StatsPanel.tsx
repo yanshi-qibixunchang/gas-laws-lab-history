@@ -9,8 +9,31 @@ interface StatsPanelProps {
   t: Translation;
 }
 
+interface StatItemProps {
+  label: React.ReactNode;
+  value: number;
+  unit: string;
+  icon: React.ReactElement;
+  colorClass?: string;
+}
+
+const renderRmsLabel = (label: string) => {
+  const token = 'v_rms';
+  const tokenIndex = label.indexOf(token);
+  if (tokenIndex === -1) return label;
+  const before = label.slice(0, tokenIndex);
+  const after = label.slice(tokenIndex + token.length);
+  return (
+    <>
+      {before}
+      v<sub className="text-[8px] align-sub normal-case">rms</sub>
+      {after}
+    </>
+  );
+};
+
 // Tech-styled Stat Item
-const StatItem = ({ label, value, unit, icon, colorClass = "text-sciblue-500" }: any) => (
+const StatItem = ({ label, value, unit, icon, colorClass = "text-sciblue-500" }: StatItemProps) => (
   <div className="flex flex-col bg-white/60 dark:bg-slate-800/60 backdrop-blur-md p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm relative group overflow-hidden hover:shadow-md transition-shadow">
     <div className={`absolute top-0 right-0 p-1.5 opacity-10 group-hover:opacity-20 transition-opacity ${colorClass}`}>
         {React.cloneElement(icon, { size: 32 })}
@@ -65,7 +88,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ stats, eqTime, statDuration, t 
            <StatItem label={t.stats.temperature} value={stats.temperature} unit="K" icon={<Thermometer/>} colorClass="text-rose-500 dark:text-rose-400"/>
            <StatItem label={t.stats.pressure} value={stats.pressure} unit="Pa" icon={<Gauge/>} colorClass="text-violet-500 dark:text-violet-400"/>
            <StatItem label={t.stats.meanSpeed} value={stats.meanSpeed} unit="m/s" icon={<Wind/>} colorClass="text-sciblue-500 dark:text-sciblue-400"/>
-           <StatItem label={t.stats.rmsSpeed} value={stats.rmsSpeed} unit="m/s" icon={<Activity/>} colorClass="text-emerald-500 dark:text-emerald-400"/>
+           <StatItem label={renderRmsLabel(t.stats.rmsSpeed)} value={stats.rmsSpeed} unit="m/s" icon={<Activity/>} colorClass="text-emerald-500 dark:text-emerald-400"/>
 
            {/* Status Bar - Tech Style */}
            <div className="col-span-2 md:col-span-4 mt-2 px-1">

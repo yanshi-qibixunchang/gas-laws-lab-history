@@ -147,7 +147,7 @@ const Footer: React.FC<FooterProps> = ({ t, showNotification }) => {
              <h3 className={HeaderStyle}>{t.footer.links}</h3>
              <div className="flex flex-col gap-2">
                 {/* GitHub */}
-                <a href="https://github.com/yanshi-qibixunchang/-project" target="_blank" rel="noopener noreferrer" 
+                <a href="https://github.com/yanshi-qibixunchang/gas-laws-lab-history" target="_blank" rel="noopener noreferrer" 
                    className="flex items-center gap-3 text-sm text-slate-300 hover:text-white transition-all group p-2 hover:bg-slate-800 rounded-lg -ml-2"
                 >
                     <Github size={18} className="group-hover:scale-110 transition-transform"/> 

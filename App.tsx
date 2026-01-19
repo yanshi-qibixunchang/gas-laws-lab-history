@@ -61,6 +61,7 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [needsReset, setNeedsReset] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isLandscapeMode, setIsLandscapeMode] = useState(false);
   
   // KEYBOARD/SHORT SCREEN DETECTION
   // When keyboard is open, height shrinks significantly. We need to detect this to change layout.
@@ -129,17 +130,28 @@ function App() {
     }, duration);
   };
 
-  // Dark Mode Logic
+  const isSidebarOverlay = isMobile || (isLandscapeMode && isTouchLikeViewport());
+  const sidebarWidthClass = isSidebarOverlay ? 'w-[85vw]' : 'w-[300px]';
+  const sidebarInnerWidthClass = isSidebarOverlay ? 'w-[85vw] min-w-[300px]' : 'w-[300px] min-w-[300px]';
+  const sidebarHeaderPaddingClass = 'pt-14';
+  const sidebarHeaderStackClass = 'flex flex-col gap-6 mb-4';
+  const sidebarSubtitleClass = 'text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider';
+  const sidebarSectionSpacingClass = 'space-y-4';
+  const sidebarContentWidthClass = 'w-[85%] mx-auto';
+  const paramLayoutClass = 'space-y-2';
+  const paramItemWidthClass = 'w-[85%] mx-auto';
+  const bottomPaddingClass = 'pb-8';
+  const actionButtonWrapClass = 'flex flex-col gap-2 items-center';
+  const actionButtonWidthClass = 'w-[85%]';
+  const actionButtonPaddingClass = 'py-2';
+  const actionButtonTextClass = 'text-xs md:text-sm';
+  const actionCollapseClass = 'justify-center text-[10px] mt-1';
+
+  // Dark Mode Logic: always start in light mode
   useEffect(() => {
-    const storedTheme = localStorage.getItem('theme');
-    // Only set to Dark if explicitly stored as 'dark'. Default is Light.
-    if (storedTheme === 'dark') {
-        setIsDarkMode(true);
-        document.documentElement.classList.add('dark');
-    } else {
-        setIsDarkMode(false);
-        document.documentElement.classList.remove('dark');
-    }
+    setIsDarkMode(false);
+    document.documentElement.classList.remove('dark');
+    localStorage.setItem('theme', 'light');
   }, []);
 
   const toggleDarkMode = () => {
@@ -159,10 +171,10 @@ function App() {
   const updateViewportState = useCallback(() => {
     const layoutHeight = window.innerHeight;
     const layoutWidth = window.innerWidth;
-    const isLandscape = layoutWidth > layoutHeight;
+    const orientationIsLandscape = layoutWidth > layoutHeight;
     const visualViewport = window.visualViewport;
     const visualHeight = visualViewport ? Math.round(visualViewport.height) : layoutHeight;
-    const orientationKey = isLandscape ? 'landscape' : 'portrait';
+    const orientationKey = orientationIsLandscape ? 'landscape' : 'portrait';
 
     const baselineCandidate = Math.max(visualHeight, layoutHeight);
     const previousBaseline = viewportBaselineRef.current[orientationKey];
@@ -173,7 +185,7 @@ function App() {
     const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
     const hasEditableFocus = isEditableElement(activeElement);
     const keyboardThreshold = Math.max(80, nextBaseline * 0.18);
-    const shortHeightThreshold = isLandscape ? 480 : 600;
+    const shortHeightThreshold = orientationIsLandscape ? 480 : 600;
     const constrainedHeight = visualHeight < shortHeightThreshold;
 
     if (!hasEditableFocus && !keyboardOpenRef.current && heightDelta > keyboardThreshold) {
@@ -189,6 +201,7 @@ function App() {
     }
 
     setIsMobile(layoutWidth < 768);
+    setIsLandscapeMode(orientationIsLandscape);
     setIsShortHeight(constrainedHeight || keyboardActive || keyboardOpenRef.current);
   }, []);
 
@@ -500,7 +513,7 @@ function App() {
       setHasUserInteracted(true);
       
       if (needsReset) {
-          showNotification(t.messages.resetRequired, 2500, 'warning');
+          showNotification(t.messages.resetBeforeStart, 2500, 'warning');
           if (!isSidebarOpen) setIsSidebarOpen(true);
           return;
       }
@@ -587,7 +600,7 @@ function App() {
   }, [isRunning, tick]);
 
   const handleOverlayClick = () => {
-      if (isMobile && isSidebarOpen) setIsSidebarOpen(false);
+      if (isSidebarOverlay && isSidebarOpen) setIsSidebarOpen(false);
   };
 
   return (
@@ -608,16 +621,16 @@ function App() {
 
       {/* --- SIDEBAR (CONTROLS) --- */}
       <div 
-        className={`fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40 transition-opacity duration-500 md:hidden ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 bg-slate-900/40 backdrop-blur-md z-40 transition-opacity duration-500 ${isSidebarOverlay ? 'block' : 'hidden'} ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={handleOverlayClick}
       />
 
       <aside 
         className={`
-            fixed md:relative z-[45] h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 shadow-2xl md:shadow-none
+            ${isSidebarOverlay ? 'fixed' : 'fixed md:relative'} z-[45] h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 shadow-2xl md:shadow-none
             transition-[width,transform,background-color] duration-500 cubic-bezier(0.25, 1, 0.5, 1) flex flex-col
-            /* MODIFIED: Width 85vw on mobile, 300px desktop */
-            ${isSidebarOpen ? 'w-[85vw] md:w-[300px] translate-x-0' : 'w-0 -translate-x-full md:w-0 md:translate-x-0'}
+            /* MODIFIED: Sidebar overlays content in landscape touch mode */
+            ${isSidebarOpen ? `${sidebarWidthClass} translate-x-0` : 'w-0 -translate-x-full'}
             overflow-hidden
             landscape:block landscape:overflow-y-auto landscape:md:flex landscape:md:overflow-hidden
         `}
@@ -625,7 +638,7 @@ function App() {
         {/* NEW LAYOUT: Dynamic Container Mode based on Height */}
         {/* If isShortHeight (keyboard open or landscape mobile), use BLOCK layout with scrolling, else FLEX layout with fixed footer */}
         <div className={`
-            w-[85vw] md:w-[300px] min-w-[300px] bg-white dark:bg-slate-900
+            ${sidebarInnerWidthClass} bg-white dark:bg-slate-900
             ${isShortHeight ? 'block h-full overflow-y-auto' : 'flex flex-col h-full'}
             landscape:block landscape:h-auto landscape:md:h-full landscape:md:flex
         `}>
@@ -637,22 +650,21 @@ function App() {
                     ${isShortHeight ? 'overflow-visible' : 'flex-1 overflow-y-auto'}
                     landscape:flex-none landscape:overflow-visible landscape:md:flex-1 landscape:md:overflow-y-auto
                 `}
-                style={{ scrollbarGutter: 'stable' }}
             >
                 {/* Compact Padding for sidebar header */}
-                <div className="p-3 pt-14 md:p-5 md:pt-5 pb-2">
+                <div className={`p-3 ${sidebarHeaderPaddingClass} md:p-5 md:pt-5 pb-2`}>
                     
                     {/* Header */}
-                    <div className="flex flex-col gap-6 mb-4">
-                        {/* MODIFIED: Added w-[85%] mx-auto to match input fields symmetry */}
-                        <div className="flex items-center justify-between w-[85%] mx-auto">
+                    <div className={sidebarHeaderStackClass}>
+                        {/* Align header width with form content */}
+                        <div className={`flex items-center justify-between ${sidebarContentWidthClass}`}>
                             <div className="flex items-center gap-3 select-none">
                                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sciblue-500 to-indigo-600 flex items-center justify-center border border-white/20 text-white shadow-inner">
                                     <Atom size={18} />
                                 </div>
                                 <div className="flex flex-col leading-none">
                                 <span className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">{t.brand.name}</span>
-                                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t.brand.subtitle}</span>
+                                <span className={sidebarSubtitleClass}>{t.brand.subtitle}</span>
                                 </div>
                             </div>
                             <button onClick={handleCloseSidebar} className={`p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors ${isCanvasLocked ? 'opacity-50 cursor-not-allowed' : ''}`} title={t.tooltips.closeSidebar}>
@@ -662,14 +674,14 @@ function App() {
                     </div>
 
                     {/* Inputs Group */}
-                    <div className={`space-y-4 ${isCanvasLocked ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <div className={`${sidebarSectionSpacingClass} ${isCanvasLocked ? 'opacity-50 pointer-events-none' : ''}`}>
                         
                         {/* STORAGE SECTION (COLLAPSIBLE) */}
                         <div className="pb-3 border-b border-slate-100 dark:border-slate-800">
-                            {/* MODIFIED: Added w-[85%] mx-auto to center the Header Row */}
+                            {/* Align section header with content width */}
                             <div 
                                 onClick={() => setIsStorageOpen(!isStorageOpen)}
-                                className="w-[85%] mx-auto flex items-center justify-between cursor-pointer group mb-2 py-1 select-none"
+                                className={`${sidebarContentWidthClass} flex items-center justify-between cursor-pointer group mb-2 py-1 select-none`}
                             >
                                 <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase tracking-wider group-hover:text-sciblue-600 dark:group-hover:text-sciblue-400 transition-colors">
                                     <Archive size={14} className="text-slate-400 dark:text-slate-500 group-hover:text-sciblue-500 transition-colors group-hover:scale-110 duration-300"/> 
@@ -685,8 +697,8 @@ function App() {
                             
                             {/* Smoother cubic-bezier transition for collapse */}
                             <div className={`overflow-hidden transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isStorageOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                                {/* Save Current - Centered & Width 85% */}
-                                <div className="flex gap-2 mb-3 mt-1 w-[85%] mx-auto">
+                                {/* Save Current */}
+                                <div className={`flex gap-2 mb-3 mt-1 ${sidebarContentWidthClass}`}>
                                     <input 
                                         type="text" 
                                         placeholder={t.storage.placeholder}
@@ -700,18 +712,18 @@ function App() {
                                     </button>
                                 </div>
 
-                                {/* Default Button - Centered & Width 85% */}
+                                {/* Default Button */}
                                 <button 
                                     onClick={handleSetCustomDefault} 
-                                    className="w-[85%] mx-auto mb-3 text-[10px] text-slate-400 hover:text-sciblue-600 dark:hover:text-sciblue-400 flex items-center justify-center gap-1 py-1 border border-dashed border-slate-200 dark:border-slate-700 rounded hover:border-sciblue-300 transition-colors group"
+                                    className={`${sidebarContentWidthClass} mb-3 text-[10px] text-slate-400 hover:text-sciblue-600 dark:hover:text-sciblue-400 flex items-center justify-center gap-1 py-1 border border-dashed border-slate-200 dark:border-slate-700 rounded hover:border-sciblue-300 transition-colors group`}
                                     title={t.storage.setDefault}
                                 >
                                     <CheckCircle2 size={10} className="text-slate-300 group-hover:text-sciblue-500 transition-colors"/> 
                                     <span className="group-hover:font-semibold transition-all">{t.storage.setDefault}</span>
                                 </button>
 
-                                {/* List - Centered & Width 85% */}
-                                <div className="space-y-2 pb-2 w-[85%] mx-auto">
+                                {/* List */}
+                                <div className={`space-y-2 pb-2 ${sidebarContentWidthClass}`}>
                                     {savedConfigs.length === 1 && <div className="text-[10px] text-center text-slate-400 italic py-2">{t.storage.empty}</div>}
                                     {savedConfigs.map(config => (
                                         <div 
@@ -752,10 +764,10 @@ function App() {
 
                         {/* PARAMETER SECTION (COLLAPSIBLE) */}
                         <div className="pt-2">
-                            {/* MODIFIED: Added w-[85%] mx-auto to center the Header Row */}
+                            {/* Align section header with content width */}
                             <div 
                                 onClick={() => setIsParamsOpen(!isParamsOpen)}
-                                className="w-[85%] mx-auto flex items-center justify-between cursor-pointer group mb-2 py-1 select-none"
+                                className={`${sidebarContentWidthClass} flex items-center justify-between cursor-pointer group mb-2 py-1 select-none`}
                             >
                                 <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase tracking-wider group-hover:text-sciblue-600 dark:group-hover:text-sciblue-400 transition-colors">
                                     <SlidersHorizontal size={14} className="text-slate-400 dark:text-slate-500 group-hover:text-sciblue-500 transition-colors group-hover:scale-110 duration-300"/> 
@@ -781,7 +793,7 @@ function App() {
 
                             {/* Smoother cubic-bezier transition for collapse */}
                             <div className={`overflow-hidden transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isParamsOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                                <div className="space-y-2 pb-2 px-0.5">
+                                <div className={`${paramLayoutClass} pb-2 px-0.5`}>
                                     {[
                                     { key: 'N', label: t.controls.particles, step: 1, min: 1 },
                                     { key: 'r', label: t.controls.radius, step: 0.05, min: 0.01 },
@@ -789,8 +801,8 @@ function App() {
                                     { key: 'equilibriumTime', label: t.controls.equilTime, min: 0 },
                                     { key: 'statsDuration', label: t.controls.statsDuration, min: 0 },
                                     ].map((field) => (
-                                        // CENTERED INPUT CONTAINER w-[85%] mx-auto
-                                        <div key={field.key} className="group relative last:mb-0 w-[85%] mx-auto">
+                                        // Centered input container
+                                        <div key={field.key} className={`group relative last:mb-0 ${paramItemWidthClass}`}>
                                             {/* Reduced label margin */}
                                             <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase block mb-0.5">{field.label}</label>
                                             <div className="relative">
@@ -818,16 +830,14 @@ function App() {
             {/* 2. BOTTOM BUTTONS (PINNED TO BOTTOM NORMALLY, STATIC FLOW IN SHORT HEIGHT/MOBILE LANDSCAPE) */}
             <div className={`
                 p-3 pt-2 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10 
-                ${isShortHeight ? 'static pb-8 border-t-0' : 'flex-none'}
-                landscape:border-t-0 landscape:pb-8 landscape:flex-none landscape:static
+                ${isShortHeight ? `static ${bottomPaddingClass} border-t-0` : 'flex-none'}
             `}>
-                 <div className="flex flex-col gap-2 items-center">
+                 <div className={actionButtonWrapClass}>
                     <button 
                         onClick={handleStartPause}
-                        disabled={needsReset} 
-                        // MODIFIED: w-[85%]
+                        aria-disabled={needsReset}
                         className={`
-                            w-[85%] font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all text-xs md:text-sm shadow-sm
+                            ${actionButtonWidthClass} font-bold ${actionButtonPaddingClass} px-4 rounded-lg flex items-center justify-center gap-2 transition-all ${actionButtonTextClass} shadow-sm
                             ${needsReset 
                                 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-200 dark:border-slate-700' 
                                 : !isRunning 
@@ -847,9 +857,8 @@ function App() {
                     
                     <button 
                     onClick={handleReset}
-                    // MODIFIED: w-[85%]
                     className={`
-                        w-[85%] font-medium py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all border text-xs md:text-sm
+                        ${actionButtonWidthClass} font-medium ${actionButtonPaddingClass} px-4 rounded-lg flex items-center justify-center gap-2 transition-all border ${actionButtonTextClass}
                         ${isRunning 
                             ? 'bg-slate-50 dark:bg-slate-800 text-slate-300 dark:text-slate-600 border-slate-100 dark:border-slate-800 cursor-not-allowed'
                             : needsReset 
@@ -865,7 +874,7 @@ function App() {
                     
                     <button 
                         onClick={handleCloseSidebar}
-                        className={`flex items-center justify-center gap-2 mt-1 text-[10px] font-bold text-slate-400 dark:text-slate-500 hover:text-sciblue-600 dark:hover:text-sciblue-400 transition-colors py-1 uppercase tracking-widest ${isCanvasLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`flex items-center ${actionCollapseClass} font-bold text-slate-400 dark:text-slate-500 hover:text-sciblue-600 dark:hover:text-sciblue-400 transition-colors py-1 uppercase tracking-widest ${isCanvasLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title={t.common.collapse}
                     >
                         <PanelLeftClose size={12}/> {t.common.collapse}

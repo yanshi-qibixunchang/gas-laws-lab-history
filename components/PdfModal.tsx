@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Download, FileText, Loader2, X } from 'lucide-react';
+import { Download, FileText, Loader2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
@@ -18,10 +19,26 @@ interface PdfModalProps {
 
 const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, showNotification }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const resizeTimeoutRef = useRef<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [renderTick, setRenderTick] = useState(0);
+  const [zoom, setZoom] = useState(1);
+
+  const ZOOM_MIN = 0.6;
+  const ZOOM_MAX = 3;
+  const ZOOM_STEP = 0.2;
+
+  const clampZoom = (value: number) =>
+    Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number(value.toFixed(2))));
+
+  const handleZoomOut = () => setZoom((prev) => clampZoom(prev - ZOOM_STEP));
+  const handleZoomIn = () => setZoom((prev) => clampZoom(prev + ZOOM_STEP));
+  const handleZoomReset = () => setZoom(1);
+  const zoomPercent = Math.round(zoom * 100);
+  const canZoomOut = zoom > ZOOM_MIN + 0.01;
+  const canZoomIn = zoom < ZOOM_MAX - 0.01;
 
   const pdfUrl = new URL(pdfPath, window.location.origin).toString();
   const fileName = pdfPath.split('/').pop() ?? 'report.pdf';
@@ -47,6 +64,21 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKey);
+    };
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (isOpen) setZoom(1);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !Capacitor.isNativePlatform()) return;
+    const listener = App.addListener('backButton', () => {
+      onClose();
+    });
+
+    return () => {
+      listener.remove();
     };
   }, [isOpen, onClose]);
 
@@ -94,14 +126,24 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
 
       loadingTask = getDocument({ url: pdfUrl });
       const pdf = await loadingTask.promise;
-      const containerWidth = container.clientWidth || 800;
+      const scrollArea = scrollAreaRef.current;
+      const scrollStyles = scrollArea ? window.getComputedStyle(scrollArea) : null;
+      const paddingX = scrollStyles
+        ? parseFloat(scrollStyles.paddingLeft) + parseFloat(scrollStyles.paddingRight)
+        : 0;
+      const availableWidth = scrollArea ? scrollArea.clientWidth - paddingX : container.clientWidth;
+      const baseWidth = availableWidth > 0 ? availableWidth : (container.clientWidth || 800);
+      const scaledWidth = Math.max(1, Math.floor(baseWidth * zoom));
+      container.style.width = `${scaledWidth}px`;
+      container.style.maxWidth = zoom > 1 ? 'none' : '';
+      container.style.margin = zoom <= 1 ? '0 auto' : '0';
       const outputScale = window.devicePixelRatio || 1;
 
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
         if (cancelled) break;
         const page = await pdf.getPage(pageNum);
         const baseViewport = page.getViewport({ scale: 1 });
-        const scale = containerWidth / baseViewport.width;
+        const scale = (baseWidth / baseViewport.width) * zoom;
         const viewport = page.getViewport({ scale });
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
@@ -134,7 +176,7 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
       if (loadingTask) loadingTask.destroy();
       if (containerRef.current) containerRef.current.innerHTML = '';
     };
-  }, [isOpen, pdfUrl, renderTick]);
+  }, [isOpen, pdfUrl, renderTick, zoom]);
 
   const handleExport = useCallback(async () => {
     try {
@@ -190,12 +232,43 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
         aria-label="Close"
       />
       <div className="relative z-[121] flex h-full w-full flex-col bg-white dark:bg-slate-900 md:h-[92vh] md:w-[92vw] md:rounded-2xl md:border md:border-slate-200 md:shadow-2xl dark:md:border-slate-800">
-        <div className="flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
             <FileText size={16} className="text-sciblue-500" />
             <span className="truncate">{title}</span>
           </div>
           <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-1 py-1 text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              <button
+                type="button"
+                onClick={handleZoomOut}
+                disabled={!canZoomOut}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full transition hover:text-sciblue-600 disabled:cursor-not-allowed disabled:opacity-40"
+                title="Zoom out"
+                aria-label="Zoom out"
+              >
+                <ZoomOut size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={handleZoomReset}
+                className="px-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500 transition hover:text-sciblue-600 dark:text-slate-300"
+                title="Reset zoom"
+                aria-label="Reset zoom"
+              >
+                {zoomPercent}%
+              </button>
+              <button
+                type="button"
+                onClick={handleZoomIn}
+                disabled={!canZoomIn}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full transition hover:text-sciblue-600 disabled:cursor-not-allowed disabled:opacity-40"
+                title="Zoom in"
+                aria-label="Zoom in"
+              >
+                <ZoomIn size={14} />
+              </button>
+            </div>
             <button
               type="button"
               onClick={handleExport}
@@ -215,7 +288,7 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
             </button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-4 py-6 md:px-6">
+        <div ref={scrollAreaRef} className="flex-1 overflow-y-auto overflow-x-auto px-4 py-6 md:px-6">
           {isLoading && (
             <div className="mb-6 flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
               <Loader2 size={16} className="animate-spin" />
