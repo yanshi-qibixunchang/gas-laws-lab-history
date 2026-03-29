@@ -15,7 +15,9 @@ const ZOOM_MIN = 0.8;
 const ZOOM_MAX = 3;
 const ZOOM_STEP = 0.2;
 const PAGE_GAP = 24;
-const NEARBY_PAGES = 1;
+const HIGH_RES_NEARBY_PAGES = 1;
+const LOW_RES_PREVIEW_SCALE = 0.4;
+const LOW_RES_OUTPUT_SCALE = 0.75;
 
 interface PdfModalProps {
   isOpen: boolean;
@@ -23,9 +25,10 @@ interface PdfModalProps {
   pdfPath: string;
   title: string;
   showNotification: (text: string, duration?: number, type?: 'info' | 'success' | 'warning') => void;
+  supportsHover?: boolean;
 }
 
-const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, showNotification }) => {
+const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, showNotification, supportsHover = true }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const resizeTimeoutRef = useRef<number | null>(null);
@@ -59,6 +62,8 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
   const pinchZoomRef = useRef<number | null>(null);
   const latestPinchZoomRef = useRef(1);
   const pinchIdleTimeoutRef = useRef<number | null>(null);
+  const scrollRafRef = useRef<number | null>(null);
+  const focusPageRef = useRef(1);
   const renderTokenRef = useRef(0);
   const renderingRef = useRef(false);
   const pendingRenderRef = useRef<{ zoom: number; url: string } | null>(null);
@@ -77,18 +82,6 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
     []
   );
 
-  const handleZoomOut = () => {
-    setPinchZoomValue(null);
-    setZoom((prev) => clampZoom(prev - ZOOM_STEP));
-  };
-  const handleZoomIn = () => {
-    setPinchZoomValue(null);
-    setZoom((prev) => clampZoom(prev + ZOOM_STEP));
-  };
-  const handleZoomReset = () => {
-    setPinchZoomValue(null);
-    setZoom(1);
-  };
   const displayZoom = pinchZoom ?? zoom;
   const zoomPercent = Math.round(displayZoom * 100);
   const canZoomOut = displayZoom > ZOOM_MIN + 0.01;
@@ -123,6 +116,53 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
     container.style.willChange = '';
     previewTransformRef.current = null;
   }, []);
+
+  const captureViewportAnchor = useCallback(() => {
+    const scrollArea = scrollAreaRef.current;
+    const container = containerRef.current;
+    if (!scrollArea || !container) return null;
+
+    const scrollRect = scrollArea.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const centerX = scrollArea.clientWidth / 2;
+    const centerY = scrollArea.clientHeight / 2;
+    const offsetLeft = containerRect.left - scrollRect.left + scrollArea.scrollLeft;
+    const offsetTop = containerRect.top - scrollRect.top + scrollArea.scrollTop;
+
+    return {
+      contentX: (scrollArea.scrollLeft + centerX - offsetLeft) / zoomRef.current,
+      contentY: (scrollArea.scrollTop + centerY - offsetTop) / zoomRef.current,
+      centerX,
+      centerY
+    };
+  }, []);
+
+  const queueAnchoredZoom = useCallback((nextZoom: number) => {
+    const clamped = clampZoom(nextZoom);
+    const anchor = captureViewportAnchor();
+    setPinchZoomValue(null);
+    if (anchor) {
+      pendingAnchorRef.current = anchor;
+      clearPreviewOnRenderRef.current = true;
+      releaseZoomRef.current = clamped;
+    } else {
+      pendingAnchorRef.current = null;
+      clearPreviewOnRenderRef.current = false;
+      releaseZoomRef.current = null;
+    }
+    latestPinchZoomRef.current = clamped;
+    setZoom(clamped);
+  }, [captureViewportAnchor, clampZoom, setPinchZoomValue]);
+
+  const handleZoomOut = () => {
+    queueAnchoredZoom(zoomRef.current - ZOOM_STEP);
+  };
+  const handleZoomIn = () => {
+    queueAnchoredZoom(zoomRef.current + ZOOM_STEP);
+  };
+  const handleZoomReset = () => {
+    queueAnchoredZoom(1);
+  };
 
   const pdfUrl = new URL(pdfPath, window.location.origin).toString();
   const fileName = pdfPath.split('/').pop() ?? 'report.pdf';
@@ -176,6 +216,11 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
     pinchZoomRef.current = null;
     pageSizesRef.current = null;
     forceFullRenderRef.current = false;
+    focusPageRef.current = 1;
+    if (scrollRafRef.current) {
+      window.cancelAnimationFrame(scrollRafRef.current);
+      scrollRafRef.current = null;
+    }
     renderTokenRef.current += 1;
     pendingRenderRef.current = null;
     renderingRef.current = false;
@@ -187,12 +232,21 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
 
   useEffect(() => {
     if (!isOpen || !Capacitor.isNativePlatform()) return;
-    const listener = App.addListener('backButton', () => {
+    let active = true;
+    let listenerHandle: Awaited<ReturnType<typeof App.addListener>> | null = null;
+    App.addListener('backButton', () => {
       onClose();
+    }).then((handle) => {
+      if (!active) {
+        handle.remove();
+        return;
+      }
+      listenerHandle = handle;
     });
 
     return () => {
-      listener.remove();
+      active = false;
+      listenerHandle?.remove();
     };
   }, [isOpen, onClose]);
 
@@ -219,6 +273,49 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
       if (resizeTimeoutRef.current) {
         window.clearTimeout(resizeTimeoutRef.current);
         resizeTimeoutRef.current = null;
+      }
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const scrollArea = scrollAreaRef.current;
+    const container = containerRef.current;
+    if (!scrollArea || !container) return;
+
+    const updateFocusedPage = () => {
+      scrollRafRef.current = null;
+      if (pinchStateRef.current.active) return;
+
+      const wrappers = Array.from(container.querySelectorAll<HTMLDivElement>('[data-page]'));
+      if (!wrappers.length) return;
+
+      const centerY = scrollArea.scrollTop + scrollArea.clientHeight / 2;
+      let nextFocusPage = Number(wrappers[0].dataset.page ?? 1);
+      for (const wrapper of wrappers) {
+        const top = wrapper.offsetTop;
+        const bottom = top + wrapper.offsetHeight + PAGE_GAP / 2;
+        nextFocusPage = Number(wrapper.dataset.page ?? nextFocusPage);
+        if (centerY < bottom) break;
+      }
+
+      if (nextFocusPage !== focusPageRef.current) {
+        focusPageRef.current = nextFocusPage;
+        setRenderTick((prev) => prev + 1);
+      }
+    };
+
+    const handleScroll = () => {
+      if (scrollRafRef.current !== null) return;
+      scrollRafRef.current = window.requestAnimationFrame(updateFocusedPage);
+    };
+
+    scrollArea.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      scrollArea.removeEventListener('scroll', handleScroll);
+      if (scrollRafRef.current !== null) {
+        window.cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = null;
       }
     };
   }, [isOpen]);
@@ -490,8 +587,8 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
         const baseOutputScale = window.devicePixelRatio || 1;
         const fragment = document.createDocumentFragment();
         const isPinching = pinchStateRef.current.active;
-        const renderAllPages = !isPinching || forceFullRenderRef.current;
-        const outputScale = renderAllPages ? baseOutputScale : Math.max(0.7, Math.min(1, baseOutputScale));
+        const highResOutputScale = isPinching ? Math.max(0.75, Math.min(1, baseOutputScale)) : baseOutputScale;
+        const lowResOutputScale = Math.max(0.55, Math.min(LOW_RES_OUTPUT_SCALE, baseOutputScale));
 
         const pageLayouts: Array<{
           top: number;
@@ -508,8 +605,8 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
           cursorY += pageHeight + PAGE_GAP;
         }
 
-        let focusPage = 1;
-        if (!renderAllPages && pageLayouts.length > 0 && scrollArea) {
+        let focusPage = focusPageRef.current;
+        if (pageLayouts.length > 0 && scrollArea) {
           let focusY = scrollArea.scrollTop - paddingTop + scrollArea.clientHeight / 2;
           const anchor = pendingAnchorRef.current;
           if (anchor) {
@@ -518,23 +615,18 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
           focusY = Math.max(0, focusY);
           for (let index = 0; index < pageLayouts.length; index += 1) {
             const { top, height } = pageLayouts[index];
-            if (focusY < top + height) {
-              focusPage = index + 1;
+            focusPage = index + 1;
+            if (focusY < top + height + PAGE_GAP / 2) {
               break;
             }
           }
         }
+        focusPageRef.current = focusPage;
 
-        const pagesToRender = new Set<number>();
-        if (renderAllPages) {
-          for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
-            pagesToRender.add(pageNum);
-          }
-        } else {
-          for (let offset = -NEARBY_PAGES; offset <= NEARBY_PAGES; offset += 1) {
-            const pageNum = focusPage + offset;
-            if (pageNum >= 1 && pageNum <= pdf.numPages) pagesToRender.add(pageNum);
-          }
+        const highResPages = new Set<number>();
+        for (let offset = -HIGH_RES_NEARBY_PAGES; offset <= HIGH_RES_NEARBY_PAGES; offset += 1) {
+          const pageNum = focusPage + offset;
+          if (pageNum >= 1 && pageNum <= pdf.numPages) highResPages.add(pageNum);
         }
 
         const wrappers: HTMLDivElement[] = [];
@@ -546,9 +638,7 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
           wrapper.className =
             'w-full overflow-hidden rounded-lg bg-white shadow-sm dark:bg-slate-900/60';
           wrapper.style.height = `${layout.height}px`;
-          if (!pagesToRender.has(pageNum)) {
-            wrapper.classList.add('bg-slate-100', 'dark:bg-slate-800/40');
-          }
+          wrapper.classList.add('bg-slate-100', 'dark:bg-slate-800/40');
           fragment.appendChild(wrapper);
           wrappers.push(wrapper);
         }
@@ -559,44 +649,61 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
         container.style.margin = targetZoom <= 1 ? '0 auto' : '0';
         container.replaceChildren(fragment);
         zoomRef.current = targetZoom;
+        const shouldRestoreAnchorImmediately =
+          clearPreviewOnRenderRef.current &&
+          !previewTransformRef.current &&
+          releaseZoomRef.current !== null &&
+          Math.abs(releaseZoomRef.current - targetZoom) < 0.001;
+        if (shouldRestoreAnchorImmediately) {
+          const restore = pendingAnchorRef.current;
+          if (restore && scrollArea) {
+            applyAnchorScroll(restore, targetZoom);
+            if (pendingAnchorRef.current === restore) {
+              pendingAnchorRef.current = null;
+            }
+          }
+          clearPreviewOnRenderRef.current = false;
+          releaseZoomRef.current = null;
+        }
         if (forceFullRenderRef.current && !pinchStateRef.current.active) {
           forceFullRenderRef.current = false;
         }
 
-        const orderedPages = Array.from(pagesToRender);
-        if (!renderAllPages) {
-          orderedPages.sort((a, b) => Math.abs(a - focusPage) - Math.abs(b - focusPage));
-        }
-
-        for (const pageNum of orderedPages) {
+        const renderPageIntoWrapper = async (pageNum: number, mode: 'high' | 'preview') => {
           if (isStale()) return;
           const layout = pageLayouts[pageNum - 1];
           const wrapper = wrappers[pageNum - 1];
-          if (!wrapper) continue;
+          if (!wrapper || !layout) return;
           const page = await pdf.getPage(pageNum);
-          const viewport = page.getViewport({ scale: layout.scale });
+          const viewportScale = mode === 'high' ? layout.scale : layout.scale * LOW_RES_PREVIEW_SCALE;
+          const viewport = page.getViewport({ scale: viewportScale });
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
-          if (!context) continue;
-          canvas.width = Math.floor(viewport.width * outputScale);
-          canvas.height = Math.floor(viewport.height * outputScale);
-          canvas.style.width = `${viewport.width}px`;
-          canvas.style.height = `${viewport.height}px`;
-          canvas.className = 'block h-full w-full';
+          if (!context) return;
+          const outputScale = mode === 'high' ? highResOutputScale : lowResOutputScale;
+          canvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
+          canvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
+          canvas.style.width = `${layout.width}px`;
+          canvas.style.height = `${layout.height}px`;
+          canvas.className = mode === 'high' ? 'block h-full w-full' : 'block h-full w-full opacity-90';
+          if (mode === 'preview') {
+            canvas.style.filter = 'blur(0.25px)';
+          }
           context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
           const renderTask = page.render({ canvasContext: context, viewport });
           await renderTask.promise;
           wrapper.classList.remove('bg-slate-100', 'dark:bg-slate-800/40');
           wrapper.replaceChildren(canvas);
-        }
+        };
 
-        if (isStale()) return;
-        const shouldFinalizePreview =
-          clearPreviewOnRenderRef.current &&
-          !pinchStateRef.current.active &&
-          releaseZoomRef.current !== null &&
-          Math.abs(releaseZoomRef.current - targetZoom) < 0.001;
-        if (shouldFinalizePreview) {
+        const finalizePreviewAnchor = () => {
+          const shouldFinalizePreview =
+            clearPreviewOnRenderRef.current &&
+            !pinchStateRef.current.active &&
+            releaseZoomRef.current !== null &&
+            Math.abs(releaseZoomRef.current - targetZoom) < 0.001;
+          if (!shouldFinalizePreview) return;
+
           const restore = pendingAnchorRef.current;
           if (restore && scrollArea && container) {
             applyAnchorScroll(restore, targetZoom);
@@ -607,7 +714,33 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
           clearPreviewOnRenderRef.current = false;
           releaseZoomRef.current = null;
           clearPreviewTransform();
+        };
+
+        const orderedHighResPages = Array.from(highResPages).sort((a, b) => Math.abs(a - focusPage) - Math.abs(b - focusPage));
+        for (const pageNum of orderedHighResPages) {
+          await renderPageIntoWrapper(pageNum, 'high');
         }
+
+        if (isStale()) return;
+        finalizePreviewAnchor();
+
+        if (!isPinching) {
+          const previewPages: number[] = [];
+          for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
+            if (!highResPages.has(pageNum)) previewPages.push(pageNum);
+          }
+
+          for (const pageNum of previewPages) {
+            await renderPageIntoWrapper(pageNum, 'preview');
+            if (isStale()) return;
+            await new Promise<void>((resolve) => {
+              window.requestAnimationFrame(() => resolve());
+            });
+          }
+        }
+
+        if (isStale()) return;
+        finalizePreviewAnchor();
       } catch (err) {
         console.error(err);
         if (renderTokenRef.current === token) setLoadError('Failed to load PDF');
@@ -709,7 +842,7 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
                 type="button"
                 onClick={handleZoomOut}
                 disabled={!canZoomOut}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full transition hover:text-sciblue-600 disabled:cursor-not-allowed disabled:opacity-40"
+                className={`inline-flex h-7 w-7 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${supportsHover ? 'hover:text-sciblue-600' : ''}`}
                 title="Zoom out"
                 aria-label="Zoom out"
               >
@@ -718,7 +851,7 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
               <button
                 type="button"
                 onClick={handleZoomReset}
-                className="w-12 px-2 text-center text-[10px] font-semibold uppercase tabular-nums tracking-wide text-slate-500 transition hover:text-sciblue-600 dark:text-slate-300"
+                className={`w-12 px-2 text-center text-[10px] font-semibold uppercase tabular-nums tracking-wide text-slate-500 transition dark:text-slate-300 ${supportsHover ? 'hover:text-sciblue-600' : ''}`}
                 title="Reset zoom"
                 aria-label="Reset zoom"
               >
@@ -728,7 +861,7 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
                 type="button"
                 onClick={handleZoomIn}
                 disabled={!canZoomIn}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full transition hover:text-sciblue-600 disabled:cursor-not-allowed disabled:opacity-40"
+                className={`inline-flex h-7 w-7 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${supportsHover ? 'hover:text-sciblue-600' : ''}`}
                 title="Zoom in"
                 aria-label="Zoom in"
               >
@@ -738,7 +871,7 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
             <button
               type="button"
               onClick={handleExport}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-sciblue-400 hover:text-sciblue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-sciblue-400"
+              className={`inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 ${supportsHover ? 'hover:border-sciblue-400 hover:text-sciblue-600 dark:hover:border-sciblue-400' : ''}`}
               aria-label="Export"
             >
               <Download size={14} />
@@ -747,7 +880,7 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${supportsHover ? 'hover:text-slate-800' : ''}`}
               aria-label="Close"
             >
               <X size={14} />

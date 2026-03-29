@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, RotateCcw, Box, Activity, Globe, ChevronRight, Lock, Unlock, MousePointer2, User, Atom, AlertCircle, CheckCircle2, PanelLeftClose, SlidersHorizontal, X, Undo2, LayoutDashboard, Moon, Sun, ArrowLeft, Save, Download, Trash2, Archive, ShieldCheck, ChevronDown, LogOut, Info, Check } from 'lucide-react';
 import { PhysicsEngine } from './services/PhysicsEngine';
-import { SimulationParams, SimulationStats, ChartData, LanguageCode, SavedConfig } from './types';
+import { SimulationParams, SimulationStats, ChartData, LanguageCode, SavedConfig, InputCapabilities, Translation } from './types';
 import { translations } from './services/translations';
 import SimulationCanvas from './components/SimulationCanvas';
 import CollapsibleCard from './components/CollapsibleCard';
-import DistributionCharts from './components/DistributionCharts';
 import StatsPanel from './components/StatsPanel';
-import StackedResults from './components/StackedResults';
 import Footer from './components/Footer';
 
 // Default Constants
@@ -22,6 +20,8 @@ const DEFAULT_PARAMS: SimulationParams = {
   equilibriumTime: 10,
   statsDuration: 60
 };
+
+const APP_VERSION = '3.3.3';
 
 const isEditableElement = (element: Element | null) => {
   if (!(element instanceof HTMLElement)) return false;
@@ -44,6 +44,50 @@ const isTouchLikeViewport = () =>
   mediaMatches('(hover: none)') ||
   (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0);
 
+const DistributionCharts = lazy(() => import('./components/DistributionCharts'));
+const StackedResults = lazy(() => import('./components/StackedResults'));
+
+const ChartPanelFallback: React.FC<{ heightClass: string }> = ({ heightClass }) => (
+  <div className={`w-full ${heightClass} animate-pulse rounded-xl border border-slate-200/70 bg-slate-50/80 p-4 dark:border-slate-700/70 dark:bg-slate-800/60`}>
+    <div className="mb-4 h-3 w-32 rounded bg-slate-200 dark:bg-slate-700" />
+    <div className="grid h-[calc(100%-1rem)] grid-cols-6 gap-2">
+      {Array.from({ length: 18 }).map((_, index) => (
+        <div
+          key={index}
+          className="self-end rounded-t bg-gradient-to-t from-sciblue-200 to-sciblue-100 dark:from-sciblue-800/60 dark:to-sciblue-700/20"
+          style={{ height: `${35 + ((index * 17) % 55)}%` }}
+        />
+      ))}
+    </div>
+  </div>
+);
+
+const ResultsPlaceholder: React.FC<{ t: Translation }> = ({ t }) => (
+  <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/70">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.08),transparent_45%)]" />
+    <div className="relative">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">{t.views.finalStats}</div>
+          <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{t.stats.collecting}</div>
+        </div>
+        <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
+          {t.stats.overallProgress}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="rounded-xl border border-slate-200/80 bg-slate-50/80 p-3 dark:border-slate-700/80 dark:bg-slate-800/60">
+            <div className="mb-3 h-3 w-28 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="h-44 animate-pulse rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700" />
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
 function App() {
   // Language State
   const [lang, setLang] = useState<LanguageCode>('zh-CN');
@@ -60,8 +104,16 @@ function App() {
   // UI Control State
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [needsReset, setNeedsReset] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [isLandscapeMode, setIsLandscapeMode] = useState(false);
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0, visualHeight: 0, visualOffsetTop: 0 });
+  const [inputCapabilities, setInputCapabilities] = useState<InputCapabilities>({
+    supportsHover: false,
+    finePointer: false,
+    touchLike: false,
+    isCompactLandscape: false,
+    isCompactWidth: false
+  });
+  const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   
   // KEYBOARD/SHORT SCREEN DETECTION
   // When keyboard is open, height shrinks significantly. We need to detect this to change layout.
@@ -103,6 +155,7 @@ function App() {
   const bottomElasticRef = useRef<HTMLDivElement | null>(null);
   const bottomElasticStateRef = useRef({ current: 0, target: 0, raf: 0 });
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const langMenuRef = useRef<HTMLDivElement | null>(null);
   const interactionRafRef = useRef<number>(0);
   const [interactionRect, setInteractionRect] = useState<{
     top: number;
@@ -410,26 +463,76 @@ function App() {
     releaseBottomElastic();
   }, [releaseBottomElastic, releaseMainStretch]);
 
+  const supportsHover = inputCapabilities.supportsHover;
+  const finePointer = inputCapabilities.finePointer;
+  const touchLike = inputCapabilities.touchLike;
+  const isCompactLandscape = inputCapabilities.isCompactLandscape;
+  const isCompactWidth = inputCapabilities.isCompactWidth;
+  const isMobile = isCompactWidth;
+  const isDesktopLike = supportsHover && finePointer;
   const versionLabel = lang.startsWith('en') ? 'Official Release' : '\u6b63\u5f0f\u7248';
-  const versionBadgeText = `${t.header.systemOp} \u00b7 v3.2.1 ${versionLabel}`;
+  const versionBadgeText = `${t.header.systemOp} \u00b7 v${APP_VERSION} ${versionLabel}`;
 
-  const isSidebarOverlay = isMobile || (isLandscapeMode && isTouchLikeViewport());
+  const isSidebarOverlay = touchLike && (isCompactWidth || isLandscapeMode);
+  const isSidebarInputMode = touchLike && isShortHeight;
+  const resolvedViewportHeight = touchLike
+    ? (viewportSize.visualHeight || viewportSize.height || 0)
+    : (viewportSize.height || 0);
+  const appFrameStyle = resolvedViewportHeight
+    ? { height: `${resolvedViewportHeight}px` }
+    : undefined;
+  const overlayFrameStyle = resolvedViewportHeight
+    ? {
+        height: `${resolvedViewportHeight}px`,
+        top: touchLike ? `${viewportSize.visualOffsetTop}px` : '0px'
+      }
+    : undefined;
+  const sidebarFrameStyle = resolvedViewportHeight
+    ? {
+        height: `${resolvedViewportHeight}px`,
+        top: touchLike ? `${viewportSize.visualOffsetTop}px` : '0px'
+      }
+    : undefined;
   const sidebarWidthClass = isSidebarOverlay ? 'w-[85vw] max-w-[360px]' : 'w-[300px]';
-  const sidebarInnerWidthClass = isSidebarOverlay ? 'w-full' : 'w-[300px]';
-  const sidebarHeaderPaddingClass = 'pt-14';
-  const sidebarHeaderStackClass = 'flex flex-col gap-6 mb-4';
+  const sidebarHeaderPaddingClass = isSidebarInputMode ? 'pt-8' : 'pt-14';
+  const sidebarHeaderStackClass = isSidebarInputMode ? 'flex flex-col gap-4' : 'flex flex-col gap-6';
   const sidebarSubtitleClass = 'text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider';
   const sidebarSectionSpacingClass = 'space-y-4';
-  const sidebarContentWidthClass = 'w-full px-3 md:px-4';
+  const sidebarContentWidthClass = isSidebarInputMode ? 'w-full px-4' : 'w-full px-3 md:px-4';
   const paramLayoutClass = 'space-y-2';
   const paramItemWidthClass = 'w-full';
-  const bottomPaddingClass = 'pb-8';
-  const actionButtonWrapClass = 'flex flex-col gap-2 items-center w-full px-3 md:px-4';
+  const sidebarSectionBottomPaddingClass = isSidebarInputMode ? 'pb-5' : 'pb-6';
+  const bottomPaddingClass = isSidebarInputMode ? 'pb-[calc(env(safe-area-inset-bottom)+12px)]' : 'pb-[calc(env(safe-area-inset-bottom)+16px)]';
+  const actionButtonWrapClass = isShortHeight
+    ? 'grid w-full grid-cols-2 gap-2 px-3 md:px-4'
+    : 'flex w-full flex-col items-center gap-2 px-3 md:px-4';
   const actionButtonWidthClass = 'w-full';
   const actionButtonPaddingClass = 'py-2';
   const actionButtonTextClass = 'text-xs md:text-sm';
-  const actionCollapseClass = 'justify-center text-[10px] mt-1 w-full';
+  const actionCollapseClass = `justify-center text-[10px] w-full ${isShortHeight ? 'col-span-2 mt-0' : 'mt-1'}`;
   const sidebarToggleButtonClass = 'w-8 h-8 flex items-center justify-center rounded-full';
+  const sidebarInputTextClass = touchLike ? 'text-base md:text-sm' : 'text-xs md:text-sm';
+  const sidebarInputPaddingClass = touchLike ? 'py-2' : 'py-1';
+  const sidebarInputScrollMarginStyle = {
+    scrollMarginTop: isSidebarInputMode ? '96px' : '72px',
+    scrollMarginBottom: isSidebarInputMode ? '160px' : '112px'
+  };
+  const compactLandscapeCanvasHeight = isCompactLandscape
+    ? Math.max(220, Math.min(viewportSize.visualHeight - 230, 320))
+    : null;
+  const overlayControlHidden = isSidebarOverlay && isSidebarOpen;
+  const sidebarHoverClass = isDesktopLike ? 'hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' : '';
+  const sectionHoverTextClass = isDesktopLike ? 'group-hover:text-sciblue-600 dark:group-hover:text-sciblue-400' : '';
+  const sectionHoverIconClass = isDesktopLike ? 'group-hover:text-sciblue-500 group-hover:scale-110' : '';
+  const sectionHoverButtonClass = isDesktopLike ? 'group-hover:bg-slate-100 dark:group-hover:bg-slate-800' : '';
+  const floatingButtonHoverClass = isDesktopLike ? 'hover:shadow-[0_8px_30px_rgb(14,165,233,0.15)] hover:scale-105' : '';
+  const floatingTextHoverClass = isDesktopLike ? 'group-hover:text-sciblue-600 dark:group-hover:text-sciblue-400' : '';
+  const floatingAccentHoverClass = isDesktopLike ? 'group-hover:text-sciblue-400 dark:group-hover:text-sciblue-300' : '';
+  const floatingIconHoverClass = isDesktopLike ? 'group-hover:rotate-12' : '';
+  const surfaceHoverClass = isDesktopLike ? 'hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors' : '';
+  const toolButtonHoverClass = isDesktopLike ? 'hover:bg-white/90 dark:hover:bg-slate-900/80 hover:text-slate-800 dark:hover:text-slate-200' : '';
+  const themeButtonHoverClass = isDesktopLike ? 'hover:bg-white/90 dark:hover:bg-slate-900/80 hover:text-amber-500 dark:hover:text-sciblue-300' : '';
+  const languageItemHoverClass = isDesktopLike ? 'hover:bg-slate-50 dark:hover:bg-slate-700' : '';
 
   // Dark Mode Logic: always start in light mode
   useEffect(() => {
@@ -458,6 +561,12 @@ function App() {
     const orientationIsLandscape = layoutWidth > layoutHeight;
     const visualViewport = window.visualViewport;
     const visualHeight = visualViewport ? Math.round(visualViewport.height) : layoutHeight;
+    const visualOffsetTop = visualViewport ? Math.round(visualViewport.offsetTop) : 0;
+    const supportsHoverMedia = mediaMatches('(hover: hover)');
+    const finePointerMedia = mediaMatches('(pointer: fine)');
+    const touchLikeViewport = isTouchLikeViewport();
+    const compactWidth = layoutWidth < 768;
+    const compactLandscape = touchLikeViewport && orientationIsLandscape && visualHeight < 560;
     const orientationKey = orientationIsLandscape ? 'landscape' : 'portrait';
 
     const baselineCandidate = Math.max(visualHeight, layoutHeight);
@@ -484,7 +593,14 @@ function App() {
       keyboardOpenRef.current = false;
     }
 
-    setIsMobile(layoutWidth < 768);
+    setViewportSize({ width: layoutWidth, height: layoutHeight, visualHeight, visualOffsetTop });
+    setInputCapabilities({
+      supportsHover: supportsHoverMedia,
+      finePointer: finePointerMedia,
+      touchLike: touchLikeViewport,
+      isCompactLandscape: compactLandscape,
+      isCompactWidth: compactWidth
+    });
     setIsLandscapeMode(orientationIsLandscape);
     setIsShortHeight(constrainedHeight || keyboardActive || keyboardOpenRef.current);
   }, []);
@@ -521,8 +637,7 @@ function App() {
     // 1. Initial Check on Mount
     updateViewportState();
     
-    // Only set Sidebar to closed INITIALLY if on mobile.
-    if (window.innerWidth < 768) {
+    if (isTouchLikeViewport()) {
         setIsSidebarOpen(false);
     }
 
@@ -534,6 +649,7 @@ function App() {
 
     const visualViewport = window.visualViewport;
     visualViewport?.addEventListener('resize', handleResize);
+    visualViewport?.addEventListener('scroll', handleResize);
 
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -541,12 +657,40 @@ function App() {
       window.removeEventListener('focusin', handleFocusIn);
       window.removeEventListener('focusout', handleFocusOut);
       visualViewport?.removeEventListener('resize', handleResize);
+      visualViewport?.removeEventListener('scroll', handleResize);
       if (keyboardResetRef.current) {
         window.clearTimeout(keyboardResetRef.current);
         keyboardResetRef.current = null;
       }
     };
   }, [updateViewportState]);
+
+  useEffect(() => {
+    if (!isLangMenuOpen) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      if (!langMenuRef.current) return;
+      if (!langMenuRef.current.contains(event.target as Node)) {
+        setIsLangMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsLangMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isLangMenuOpen]);
 
   // Storage Logic: Load on Mount (Merge System + Local)
   useEffect(() => {
@@ -577,7 +721,7 @@ function App() {
   // Mobile Hint Timer Logic
   useEffect(() => {
     let timer: number;
-    if (isMobile && !isSidebarOpen && !isRunning && !hasUserInteracted) {
+    if (touchLike && !supportsHover && !isSidebarOpen && !isRunning && !hasUserInteracted) {
         timer = window.setTimeout(() => {
             setShowMobileHint(true);
         }, 2000);
@@ -585,7 +729,7 @@ function App() {
         setShowMobileHint(false);
     }
     return () => clearTimeout(timer);
-  }, [isMobile, isSidebarOpen, isRunning, hasUserInteracted]);
+  }, [touchLike, supportsHover, isSidebarOpen, isRunning, hasUserInteracted]);
 
   // Initial Load & Animation smoothing
   useEffect(() => {
@@ -630,10 +774,10 @@ function App() {
   // --- Mobile Keyboard Helper ---
   // When input is focused on mobile, ensure it scrolls into view
   const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-      if (isMobile) {
+      if (touchLike) {
           // Add a delay to allow keyboard animation to start/finish
           setTimeout(() => {
-              e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
           }, 300);
       }
   };
@@ -804,8 +948,7 @@ function App() {
 
       if (!isRunning) {
           setIsRunning(true);
-          // Smoother close for sidebar
-          if (isSidebarOpen && isMobile) {
+          if (isSidebarOpen && isSidebarOverlay) {
               setIsSidebarOpen(false); 
           }
       } else {
@@ -834,11 +977,46 @@ function App() {
     }
   };
 
+  const getLangLabel = (l: LanguageCode | string) => {
+    switch (l) {
+      case 'zh-CN':
+        return '简体中文';
+      case 'zh-TW':
+        return '繁體中文';
+      case 'en-GB':
+        return 'English (UK)';
+      case 'en-US':
+        return 'English (US)';
+      default:
+        return l;
+    }
+  };
+
+  const formatLangLabel = (l: LanguageCode | string) => {
+    switch (l) {
+      case 'zh-CN':
+        return '简体中文';
+      case 'zh-TW':
+        return '繁體中文';
+      case 'en-GB':
+        return 'English (UK)';
+      case 'en-US':
+        return 'English (US)';
+      default:
+        return l;
+    }
+  };
+
   const handleLangChange = (l: LanguageCode) => {
       if (lang !== l) {
           setLang(l);
-          showNotification(getLangName(l), 1500, 'success', 'center');
       }
+      setIsLangMenuOpen(false);
+      showNotification(formatLangLabel(l), 1500, 'success', 'center');
+  };
+
+  const handleLangMenuToggle = () => {
+      setIsLangMenuOpen(prev => !prev);
   };
 
   const tick = useCallback(() => {
@@ -887,8 +1065,14 @@ function App() {
       if (isSidebarOverlay && isSidebarOpen) setIsSidebarOpen(false);
   };
 
+  const showResultsPlaceholder = stats.phase === 'collecting' && !finalChartData;
+  const showFinalResults = !!finalChartData;
+
   return (
-    <div className="h-screen w-screen font-sans flex overflow-hidden relative selection:bg-sciblue-200 selection:text-sciblue-900 dark:selection:bg-sciblue-900 dark:selection:text-sciblue-100 transition-colors duration-800">
+    <div
+      className="w-screen font-sans flex overflow-hidden relative selection:bg-sciblue-200 selection:text-sciblue-900 dark:selection:bg-sciblue-900 dark:selection:text-sciblue-100 transition-colors duration-800"
+      style={appFrameStyle}
+    >
       
       {/* GLOBAL INTERACTION LOCK BACKDROP (OUTSIDE CANVAS ONLY) */}
       {isCanvasLocked && interactionRect && (
@@ -934,73 +1118,62 @@ function App() {
 
       {/* --- SIDEBAR (CONTROLS) --- */}
       <div 
-        className={`fixed inset-0 bg-slate-900/40 backdrop-blur-md z-40 transition-opacity duration-500 ${isSidebarOverlay ? 'block' : 'hidden'} ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-x-0 left-0 bg-slate-900/40 backdrop-blur-md z-40 transition-opacity duration-500 ${isSidebarOverlay ? 'block' : 'hidden'} ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        style={overlayFrameStyle}
         onClick={handleOverlayClick}
       />
 
+      {!isSidebarOverlay && (
+        <div
+          aria-hidden="true"
+          className={`shrink-0 transition-[width] duration-500 cubic-bezier(0.25,1,0.5,1) ${isSidebarOpen ? 'w-[300px]' : 'w-0'}`}
+        />
+      )}
+
       <aside 
         className={`
-            ${isSidebarOverlay ? 'fixed' : 'fixed md:relative'} z-[45] h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 shadow-2xl md:shadow-none
-            transition-[width,transform,background-color] duration-500 cubic-bezier(0.25, 1, 0.5, 1) flex flex-col
-            /* MODIFIED: Sidebar overlays content in landscape touch mode */
-            ${isSidebarOpen ? `${sidebarWidthClass} translate-x-0` : 'w-0 -translate-x-full'}
-            overflow-hidden
-            landscape:block landscape:overflow-y-auto landscape:md:flex landscape:md:overflow-hidden
+            fixed left-0 z-[45] ${sidebarWidthClass}
+            bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 shadow-2xl
+            transition-[transform,opacity,background-color] duration-500 cubic-bezier(0.25, 1, 0.5, 1) flex flex-col overflow-hidden
+            ${isSidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-[calc(100%+24px)] opacity-0 pointer-events-none'}
         `}
+        style={sidebarFrameStyle}
       >
-        {/* NEW LAYOUT: Dynamic Container Mode based on Height */}
-        {/* If isShortHeight (keyboard open or landscape mobile), use BLOCK layout with scrolling, else FLEX layout with fixed footer */}
-        <div className={`
-            ${sidebarInnerWidthClass} bg-transparent
-            ${isShortHeight ? 'block h-full overflow-y-auto' : 'flex flex-col h-full'}
-            landscape:block landscape:h-auto landscape:md:h-full landscape:md:flex
-        `}>
-            
-            {/* 1. TOP & MIDDLE: Header + Scrollable Parameters */}
-            <div 
-                className={`
-                    min-h-0 flex flex-col sidebar-scroll
-                    ${isShortHeight ? 'overflow-visible' : 'flex-1 overflow-y-auto'}
-                    landscape:flex-none landscape:overflow-visible landscape:md:flex-1 landscape:md:overflow-y-auto
-                `}
-            >
-                {/* Compact Padding for sidebar header */}
-                <div className={`p-3 ${sidebarHeaderPaddingClass} md:p-5 md:pt-5 pb-2`}>
-                    
-                    {/* Header */}
-                    <div className={sidebarHeaderStackClass}>
-                        {/* Align header width with form content */}
-                        <div className={`flex items-center justify-between ${sidebarContentWidthClass}`}>
-                            <div className="flex items-center gap-3 select-none">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sciblue-500 to-indigo-600 flex items-center justify-center border border-white/20 text-white shadow-inner">
-                                    <Atom size={18} />
-                                </div>
-                                <div className="flex flex-col leading-none">
-                                <span className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">{t.brand.name}</span>
-                                <span className={sidebarSubtitleClass}>{t.brand.subtitle}</span>
-                                </div>
+        <div className="flex h-full min-h-0 flex-col bg-transparent">
+            <div className={`shrink-0 p-3 ${sidebarHeaderPaddingClass} pb-3 md:p-5 md:pt-5`}>
+                <div className={sidebarHeaderStackClass}>
+                    <div className={`flex items-center justify-between gap-3 ${sidebarContentWidthClass}`}>
+                        <div className="flex min-w-0 items-center gap-3 select-none">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sciblue-500 to-indigo-600 flex items-center justify-center border border-white/20 text-white shadow-inner">
+                                <Atom size={18} />
                             </div>
-                            <button onClick={handleCloseSidebar} className={`${sidebarToggleButtonClass} text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${isCanvasLocked ? 'opacity-50 cursor-not-allowed' : ''}`} title={t.tooltips.closeSidebar}>
-                                <X size={18}/>
-                            </button>
+                            <div className="flex min-w-0 flex-col leading-none">
+                              <span className="truncate whitespace-nowrap text-sm font-bold tracking-tight text-slate-900 dark:text-slate-100">{t.brand.name}</span>
+                              <span className={sidebarSubtitleClass}>{t.brand.subtitle}</span>
+                            </div>
                         </div>
+                        <button onClick={handleCloseSidebar} className={`${sidebarToggleButtonClass} text-slate-400 dark:text-slate-500 transition-colors ${sidebarHoverClass} ${isCanvasLocked ? 'opacity-50 cursor-not-allowed' : ''}`} title={t.tooltips.closeSidebar}>
+                            <X size={18}/>
+                        </button>
                     </div>
+                </div>
+            </div>
 
-                    {/* Inputs Group */}
-                    <div className={`${sidebarSectionSpacingClass} ${isCanvasLocked ? 'opacity-50 pointer-events-none' : ''}`}>
-                        
+            <div className={`min-h-0 flex-1 overflow-y-auto sidebar-scroll ${isCanvasLocked ? 'opacity-50 pointer-events-none' : ''}`}>
+                <div className={`space-y-4 ${sidebarSectionBottomPaddingClass}`}>
+                    <div className={`${sidebarSectionSpacingClass}`}>
                         {/* STORAGE SECTION (COLLAPSIBLE) */}
-                        <div className="pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <div className="border-b border-slate-100 pb-3 dark:border-slate-800">
                             {/* Align section header with content width */}
                             <div 
                                 onClick={() => setIsStorageOpen(!isStorageOpen)}
-                                className={`${sidebarContentWidthClass} flex items-center justify-between cursor-pointer group mb-2 py-1 select-none`}
+                                className={`${sidebarContentWidthClass} flex items-center justify-between gap-3 cursor-pointer group mb-2 py-1 select-none`}
                             >
-                                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase tracking-wider group-hover:text-sciblue-600 dark:group-hover:text-sciblue-400 transition-colors">
-                                    <Archive size={14} className="text-slate-400 dark:text-slate-500 group-hover:text-sciblue-500 transition-colors group-hover:scale-110 duration-300"/> 
-                                    {t.storage.title}
+                                <div className={`min-w-0 flex items-center gap-2 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase tracking-wider transition-colors ${sectionHoverTextClass}`}>
+                                    <Archive size={14} className={`text-slate-400 dark:text-slate-500 transition-colors duration-300 ${sectionHoverIconClass}`}/> 
+                                    <span className="truncate whitespace-nowrap">{t.storage.title}</span>
                                 </div>
-                                <div className={`${sidebarToggleButtonClass} group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors`}>
+                                <div className={`${sidebarToggleButtonClass} transition-colors ${sectionHoverButtonClass}`}>
                                     <ChevronDown 
                                         size={14} 
                                         className={`text-slate-400 dark:text-slate-500 transition-transform duration-300 ${isStorageOpen ? 'rotate-180 text-sciblue-500' : 'rotate-0'}`}
@@ -1011,16 +1184,17 @@ function App() {
                             {/* Smoother cubic-bezier transition for collapse */}
                             <div className={`overflow-hidden transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isStorageOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
                                 {/* Save Current */}
-                                <div className={`flex gap-2 mb-3 mt-1 ${sidebarContentWidthClass}`}>
+                                <div className={`flex items-stretch gap-2 mb-3 mt-1 ${sidebarContentWidthClass}`}>
                                     <input 
                                         type="text" 
                                         placeholder={t.storage.placeholder}
                                         value={newConfigName}
                                         onChange={(e) => setNewConfigName(e.target.value)}
                                         onFocus={handleInputFocus} // ADDED FOCUS HANDLER
-                                        className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-sciblue-500 w-full"
+                                        style={sidebarInputScrollMarginStyle}
+                                        className={`flex-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-slate-700 focus:outline-none focus:border-sciblue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 ${sidebarInputTextClass} ${sidebarInputPaddingClass}`}
                                     />
-                                    <button onClick={handleSaveConfig} className="bg-slate-100 dark:bg-slate-800 hover:bg-sciblue-500 hover:text-white text-slate-500 dark:text-slate-400 p-1.5 rounded-md border border-slate-200 dark:border-slate-700 transition-colors shadow-sm shrink-0">
+                                    <button onClick={handleSaveConfig} className={`bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 p-1.5 rounded-md border border-slate-200 dark:border-slate-700 transition-colors shadow-sm shrink-0 ${isDesktopLike ? 'hover:bg-sciblue-500 hover:text-white' : ''}`}>
                                         <Save size={16} />
                                     </button>
                                 </div>
@@ -1028,11 +1202,11 @@ function App() {
                                 {/* Default Button */}
                                 <button 
                                     onClick={handleSetCustomDefault} 
-                                    className={`${sidebarContentWidthClass} mb-3 text-[10px] text-slate-400 hover:text-sciblue-600 dark:hover:text-sciblue-400 flex items-center justify-center gap-1 py-1 border border-dashed border-slate-200 dark:border-slate-700 rounded hover:border-sciblue-300 transition-colors group`}
+                                    className={`${sidebarContentWidthClass} mb-3 text-[10px] text-slate-400 flex items-center justify-center gap-1 py-1 border border-dashed border-slate-200 dark:border-slate-700 rounded transition-colors group ${isDesktopLike ? 'hover:text-sciblue-600 dark:hover:text-sciblue-400 hover:border-sciblue-300' : ''}`}
                                     title={t.storage.setDefault}
                                 >
-                                    <CheckCircle2 size={10} className="text-slate-300 group-hover:text-sciblue-500 transition-colors"/> 
-                                    <span className="group-hover:font-semibold transition-all">{t.storage.setDefault}</span>
+                                    <CheckCircle2 size={10} className={`text-slate-300 transition-colors ${isDesktopLike ? 'group-hover:text-sciblue-500' : ''}`}/> 
+                                    <span className={`${isDesktopLike ? 'group-hover:font-semibold' : ''} transition-all`}>{t.storage.setDefault}</span>
                                 </button>
 
                                 {/* List */}
@@ -1043,12 +1217,12 @@ function App() {
                                             key={config.id} 
                                             onClick={() => handleSelectPreset(config)}
                                             className={`
-                                                relative flex items-center justify-between p-1.5 rounded border cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-sm group
+                                                relative flex items-center justify-between p-1.5 rounded border cursor-pointer transition-all duration-200 group
                                                 ${selectedPresetId === config.id 
                                                     ? 'bg-sciblue-50 dark:bg-sciblue-900/20 border-sciblue-400 dark:border-sciblue-600 ring-1 ring-sciblue-400 dark:ring-sciblue-600' 
                                                     : config.isSystem 
-                                                        ? 'bg-indigo-50/50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/30' 
-                                                        : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800'
+                                                        ? `bg-indigo-50/50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800/50 ${isDesktopLike ? 'hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:scale-[1.02] hover:shadow-sm' : ''}` 
+                                                        : `bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700 ${isDesktopLike ? 'hover:bg-white dark:hover:bg-slate-800 hover:scale-[1.02] hover:shadow-sm' : ''}`
                                                 }
                                             `}
                                         >
@@ -1061,7 +1235,7 @@ function App() {
                                                     <>
                                                         <button 
                                                             onClick={(e) => handleDeleteConfig(config.id, e)} 
-                                                            className="text-rose-400 hover:text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/30 p-1 rounded transition-colors" 
+                                                            className={`text-rose-400 p-1 rounded transition-colors ${isDesktopLike ? 'hover:text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/30' : ''}`} 
                                                             title={t.storage.delete}
                                                         >
                                                             <Trash2 size={12}/>
@@ -1080,22 +1254,22 @@ function App() {
                             {/* Align section header with content width */}
                             <div 
                                 onClick={() => setIsParamsOpen(!isParamsOpen)}
-                                className={`${sidebarContentWidthClass} flex items-center justify-between cursor-pointer group mb-2 py-1 select-none`}
+                                className={`${sidebarContentWidthClass} flex items-start justify-between gap-3 cursor-pointer group mb-2 py-1 select-none`}
                             >
-                                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase tracking-wider group-hover:text-sciblue-600 dark:group-hover:text-sciblue-400 transition-colors">
-                                    <SlidersHorizontal size={14} className="text-slate-400 dark:text-slate-500 group-hover:text-sciblue-500 transition-colors group-hover:scale-110 duration-300"/> 
-                                    <span>{t.controls.title}</span>
+                                <div className={`min-w-0 flex flex-1 items-center gap-2 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase tracking-wider transition-colors ${sectionHoverTextClass}`}>
+                                    <SlidersHorizontal size={14} className={`text-slate-400 dark:text-slate-500 transition-colors duration-300 ${sectionHoverIconClass}`}/> 
+                                    <span className="truncate whitespace-nowrap">{t.controls.title}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="shrink-0 flex items-center gap-1 md:gap-2">
                                      <button 
                                         onClick={handleRestoreDefaults}
                                         disabled={isRunning}
-                                        className={`text-[10px] font-medium flex items-center gap-1 py-0.5 px-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors z-10 relative ${isRunning ? 'text-slate-300 dark:text-slate-600' : isCanvasLocked ? 'text-slate-400 dark:text-slate-600 opacity-50 cursor-not-allowed' : 'text-slate-500 dark:text-slate-400'}`}
+                                        className={`text-[10px] font-medium flex items-center gap-1 py-0.5 px-2 rounded transition-colors z-10 relative whitespace-nowrap ${isDesktopLike ? 'hover:bg-slate-100 dark:hover:bg-slate-800' : ''} ${isRunning ? 'text-slate-300 dark:text-slate-600' : isCanvasLocked ? 'text-slate-400 dark:text-slate-600 opacity-50 cursor-not-allowed' : 'text-slate-500 dark:text-slate-400'}`}
                                         title={t.controls.restoreDefaults}
                                     >
                                         <Undo2 size={12}/> {t.controls.default}
                                     </button>
-                                    <div className={`${sidebarToggleButtonClass} group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors`}>
+                                    <div className={`${sidebarToggleButtonClass} transition-colors ${sectionHoverButtonClass}`}>
                                         <ChevronDown 
                                             size={14} 
                                             className={`text-slate-400 dark:text-slate-500 transition-transform duration-300 ${isParamsOpen ? 'rotate-180 text-sciblue-500' : 'rotate-0'}`}
@@ -1125,8 +1299,9 @@ function App() {
                                                 disabled={isRunning || isCanvasLocked}
                                                 onChange={(e) => handleParamChange(field.key as keyof SimulationParams, e.target.value)}
                                                 onFocus={handleInputFocus} // ADDED FOCUS HANDLER
+                                                style={sidebarInputScrollMarginStyle}
                                                 /* MODIFIED: Compact input styles (text-xs, py-1, px-2) to fit 70vw */
-                                                className={`w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs md:text-sm text-slate-700 dark:text-slate-200 font-mono outline-none transition-all focus:bg-white dark:focus:bg-slate-700 ${isRunning ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-900' : 'focus:border-sciblue-500 focus:ring-1 focus:ring-sciblue-500/20 hover:border-slate-300 dark:hover:border-slate-600'}`}
+                                                className={`w-full rounded-md border border-slate-200 bg-slate-50 px-3 font-mono text-slate-700 outline-none transition-all focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:bg-slate-700 ${sidebarInputTextClass} ${sidebarInputPaddingClass} ${isRunning ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-900' : 'focus:border-sciblue-500 focus:ring-1 focus:ring-sciblue-500/20 hover:border-slate-300 dark:hover:border-slate-600'}`}
                                                 />
                                                 {isRunning && <Lock size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"/>}
                                             </div>
@@ -1142,8 +1317,8 @@ function App() {
 
             {/* 2. BOTTOM BUTTONS (PINNED TO BOTTOM NORMALLY, STATIC FLOW IN SHORT HEIGHT/MOBILE LANDSCAPE) */}
             <div className={`
-                p-3 pt-2 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10 
-                ${isShortHeight ? `static ${bottomPaddingClass} border-t-0` : 'flex-none'}
+                shrink-0 border-t border-slate-100 bg-white/95 p-3 pt-2 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/95 z-10
+                ${bottomPaddingClass}
             `}>
                  <div className={actionButtonWrapClass}>
                     <button 
@@ -1154,8 +1329,8 @@ function App() {
                             ${needsReset 
                                 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-200 dark:border-slate-700' 
                                 : !isRunning 
-                                    ? 'bg-slate-900 dark:bg-sciblue-600 hover:bg-slate-800 dark:hover:bg-sciblue-500 text-white active:scale-95'
-                                    : 'bg-white dark:bg-slate-800 border-2 border-amber-500 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-slate-700'
+                                    ? `${isDesktopLike ? 'hover:bg-slate-800 dark:hover:bg-sciblue-500' : ''} bg-slate-900 dark:bg-sciblue-600 text-white active:scale-95`
+                                    : `${isDesktopLike ? 'hover:bg-amber-50 dark:hover:bg-slate-700' : ''} bg-white dark:bg-slate-800 border-2 border-amber-500 text-amber-600 dark:text-amber-500`
                             }
                             ${isCanvasLocked ? 'hover:scale-105 shadow-md ring-2 ring-sciblue-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' : ''}
                         `}
@@ -1175,8 +1350,8 @@ function App() {
                         ${isRunning 
                             ? 'bg-slate-50 dark:bg-slate-800 text-slate-300 dark:text-slate-600 border-slate-100 dark:border-slate-800 cursor-not-allowed'
                             : needsReset 
-                                ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-500 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30 hover:border-amber-300 shadow-sm' 
-                                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white'
+                                ? `${isDesktopLike ? 'hover:bg-amber-100 dark:hover:bg-amber-900/30 hover:border-amber-300' : ''} bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-500 border-amber-200 dark:border-amber-800 shadow-sm` 
+                                : `${isDesktopLike ? 'hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white' : ''} bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700`
                         }
                         ${isCanvasLocked ? 'opacity-50 cursor-not-allowed hover:bg-auto' : ''}
                     `}
@@ -1187,7 +1362,7 @@ function App() {
                     
                     <button 
                         onClick={handleCloseSidebar}
-                        className={`flex items-center ${actionCollapseClass} font-bold text-slate-400 dark:text-slate-500 hover:text-sciblue-600 dark:hover:text-sciblue-400 transition-colors py-1 uppercase tracking-widest ${isCanvasLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`flex items-center ${actionCollapseClass} font-bold text-slate-400 dark:text-slate-500 transition-colors py-1 uppercase tracking-widest ${isDesktopLike ? 'hover:text-sciblue-600 dark:hover:text-sciblue-400' : ''} ${isCanvasLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title={t.common.collapse}
                     >
                         <PanelLeftClose size={12}/> {t.common.collapse}
@@ -1209,9 +1384,7 @@ function App() {
         className="flex-1 h-full overflow-y-auto overflow-x-hidden relative flex flex-col scroll-smooth main-scroll"
       >
         <div ref={mainContentRef} className="flex flex-col min-h-full will-change-transform">
-        {/* Modern Header Area */}
-        {/* Landscape Optimization: Reduced top/bottom padding to maximize vertical space */}
-        <header className="pt-24 pb-4 landscape:pt-6 landscape:pb-1 md:pt-24 md:pb-6 px-6 max-w-4xl mx-auto text-center animate-fade-in w-full shrink-0">
+        <header className={`px-6 max-w-4xl mx-auto text-center animate-fade-in w-full shrink-0 ${isCompactLandscape ? 'pt-14 pb-2' : 'pt-24 pb-4 landscape:pt-6 landscape:pb-1 md:pt-24 md:pb-6'}`}>
             {/* Version Badge - Centered Above Title */}
             <div className={`flex justify-center overflow-hidden transition-all duration-300 ${hideVersionBadge ? 'mb-0 max-h-0 opacity-0 -translate-y-2' : 'mb-5 landscape:mb-2 max-h-12 opacity-100 translate-y-0'}`}>
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-slate-200/70 dark:border-slate-700/70 text-slate-600 dark:text-slate-200 text-[9px] sm:text-[10px] font-bold tracking-[0.12em] shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis">
@@ -1220,8 +1393,7 @@ function App() {
                 </div>
             </div>
             
-            {/* Metallic Title with CSS Animation - Adjusted for mobile wrapping */}
-            <h1 className="text-2xl sm:text-4xl landscape:text-3xl md:text-6xl font-serif font-black mb-4 landscape:mb-1 tracking-tight text-metallic whitespace-nowrap">
+            <h1 className={`font-serif font-black tracking-tight text-metallic leading-tight ${isCompactLandscape ? 'text-2xl mb-2' : 'text-2xl sm:text-4xl landscape:text-3xl md:text-6xl mb-4 landscape:mb-1'} sm:whitespace-nowrap`}>
                 {t.title}
             </h1>
             
@@ -1231,7 +1403,7 @@ function App() {
         </header>
 
         {/* Content Container */}
-        <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pb-10 landscape:pb-4 space-y-6">
+        <div className={`flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 ${isCompactLandscape ? 'pb-4 space-y-4' : 'pb-10 landscape:pb-4 space-y-6'}`}>
             
             {/* 3D View Card - Z-Index 100 when locked ensures it sits ABOVE the global z-[90] backdrop */}
             <div ref={canvasContainerRef} className={`${isCanvasLocked ? 'relative z-[120]' : ''}`}>
@@ -1242,21 +1414,24 @@ function App() {
                 showNotification={(txt) => showNotification(txt, 2000, 'warning')}
                 className="border-slate-200 shadow-sm bg-white"
                 expandText={t.common.expandView}
+                supportsHover={isDesktopLike}
                 >
-                {/* PASS isMobile PROP */}
                 <SimulationCanvas 
                     particles={engineRef.current?.particles || []} L={activeParams.L} r={activeParams.r} isRunning={isRunning} t={t}
                     isFocused={isCanvasLocked} onFocusChange={setIsCanvasLocked} showNotification={(txt, dur) => showNotification(txt, dur, 'info')}
-                    isMobile={isMobile}
+                    supportsHover={isDesktopLike}
+                    touchLike={touchLike}
+                    isCompactLandscape={isCompactLandscape}
+                    canvasHeight={compactLandscapeCanvasHeight}
                 />
                 <div className="mt-4">
-                    <StatsPanel stats={stats} eqTime={params.equilibriumTime} statDuration={params.statsDuration} t={t} />
+                    <StatsPanel stats={stats} eqTime={params.equilibriumTime} statDuration={params.statsDuration} t={t} supportsHover={isDesktopLike} />
                 </div>
                 </CollapsibleCard>
             </div>
 
             {/* Realtime Monitor */}
-            {!finalChartData ? (
+            {!showFinalResults && (
                 <CollapsibleCard 
                     title={t.views.realtimeCharts} 
                     icon={<Activity size={18} className="text-emerald-500"/>} 
@@ -1264,34 +1439,48 @@ function App() {
                     contentClassName="p-0"
                     className="border-slate-200 shadow-sm bg-white overflow-hidden"
                     expandText={t.common.expandCharts}
+                    supportsHover={isDesktopLike}
                 >
-                   <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 dark:divide-slate-800">
-                      <div className="p-4 md:p-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                         <DistributionCharts data={chartData} type="speed" t={t} heightClass="h-[240px] md:h-[260px]" isDarkMode={isDarkMode}/>
+                   <div className="grid grid-cols-1 divide-slate-100 dark:divide-slate-800 lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+                      <div className={`p-4 md:p-6 ${surfaceHoverClass}`}>
+                        <Suspense fallback={<ChartPanelFallback heightClass="h-[240px] md:h-[260px]" />}>
+                          <DistributionCharts data={chartData} type="speed" t={t} heightClass="h-[240px] md:h-[260px]" isDarkMode={isDarkMode}/>
+                        </Suspense>
                       </div>
-                      <div className="p-4 md:p-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                         <DistributionCharts data={chartData} type="energy" t={t} heightClass="h-[240px] md:h-[260px]" isDarkMode={isDarkMode} />
+                      <div className={`p-4 md:p-6 ${surfaceHoverClass}`}>
+                        <Suspense fallback={<ChartPanelFallback heightClass="h-[240px] md:h-[260px]" />}>
+                          <DistributionCharts data={chartData} type="energy" t={t} heightClass="h-[240px] md:h-[260px]" isDarkMode={isDarkMode} />
+                        </Suspense>
                       </div>
                    </div>
                 </CollapsibleCard>
-            ) : (
-                <div className="animate-slide-up">
-                    <CollapsibleCard 
-                        title={t.views.finalStats} 
-                        icon={<LayoutDashboard size={18} className="text-amber-500"/>} 
-                        t={t}
-                        expandText={t.common.expandResults}
-                    >
-                        <StackedResults data={finalChartData} t={t} isDarkMode={isDarkMode} />
-                    </CollapsibleCard>
-                </div>
+            )}
+
+            {(showResultsPlaceholder || showFinalResults) && (
+              <div className={showFinalResults ? 'animate-slide-up' : ''}>
+                <CollapsibleCard 
+                    title={t.views.finalStats} 
+                    icon={<LayoutDashboard size={18} className="text-amber-500"/>} 
+                    t={t}
+                    expandText={t.common.expandResults}
+                    supportsHover={isDesktopLike}
+                >
+                  {showFinalResults && finalChartData ? (
+                    <Suspense fallback={<ResultsPlaceholder t={t} />}>
+                      <StackedResults data={finalChartData} t={t} isDarkMode={isDarkMode} supportsHover={isDesktopLike} />
+                    </Suspense>
+                  ) : (
+                    <ResultsPlaceholder t={t} />
+                  )}
+                </CollapsibleCard>
+              </div>
             )}
             
         </div>
         
         {/* Footer (Also check interaction lock on footer links if needed, but usually just footer actions) */}
         <div onClick={(e) => { if(isCanvasLocked) { e.preventDefault(); e.stopPropagation(); showNotification(t.canvas.interactionLocked, 2000, 'warning'); } }}>
-             <Footer t={t} showNotification={(msg, dur, type) => showNotification(msg, dur, type)} />
+             <Footer t={t} showNotification={(msg, dur, type) => showNotification(msg, dur, type)} supportsHover={isDesktopLike} />
         </div>
         </div>
 
@@ -1311,22 +1500,19 @@ function App() {
                 <button
                     onClick={handleOpenSidebar}
                     title={t.tooltips.openSidebar}
-                    // Reduced padding on mobile: pr-3 pl-1 py-1
-                    // Added ring animation support for mobile hint
                     className={`
-                        relative flex items-center gap-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md pr-3 pl-1 py-1 md:pr-5 md:pl-1.5 md:py-1.5 rounded-full border shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:shadow-[0_8px_30px_rgb(14,165,233,0.15)] hover:scale-105 active:scale-95 transition-all group z-10
+                        relative flex items-center gap-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md pr-3 pl-1 py-1 md:pr-5 md:pl-1.5 md:py-1.5 rounded-full border shadow-[0_8px_30px_rgb(0,0,0,0.08)] active:scale-95 transition-all group z-10
+                        ${floatingButtonHoverClass}
                         ${showMobileHint && !isCanvasLocked ? 'border-sciblue-400 ring-2 ring-sciblue-400/30' : 'border-slate-200/60 dark:border-slate-700/60'}
                         ${isCanvasLocked ? 'opacity-50 cursor-not-allowed hover:scale-100' : ''}
                     `}
                 >
-                     {/* Reduced size: w-6 h-6 on mobile */}
-                     <div className="w-6 h-6 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-sciblue-500 to-indigo-600 flex items-center justify-center border border-white/20 text-white shadow-inner group-hover:rotate-12 transition-transform duration-500">
+                     <div className={`w-6 h-6 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-sciblue-500 to-indigo-600 flex items-center justify-center border border-white/20 text-white shadow-inner transition-transform duration-500 ${floatingIconHoverClass}`}>
                         <Atom size={isMobile ? 12 : 18} />
                      </div>
-                     <div className="flex flex-col items-start leading-none group-hover:text-sciblue-600 dark:group-hover:text-sciblue-400 transition-colors duration-300">
-                       {/* Reduced font size */}
-                       <span className="text-[8px] md:text-[11px] font-extrabold text-slate-700 dark:text-slate-200 tracking-widest uppercase font-mono group-hover:text-sciblue-600 dark:group-hover:text-sciblue-400">Project Institution</span>
-                       <span className="text-[8px] md:text-[9px] font-bold text-slate-400 dark:text-slate-500 tracking-wide group-hover:text-sciblue-400 dark:group-hover:text-sciblue-300">WEIHAI</span>
+                     <div className={`flex flex-col items-start leading-none transition-colors duration-300 ${floatingTextHoverClass}`}>
+                       <span className={`text-[8px] md:text-[11px] font-extrabold text-slate-700 dark:text-slate-200 tracking-widest uppercase font-mono ${floatingTextHoverClass}`}>Project Institution</span>
+                       <span className={`text-[8px] md:text-[9px] font-bold text-slate-400 dark:text-slate-500 tracking-wide ${floatingAccentHoverClass}`}>WEIHAI</span>
                     </div>
                 </button>
 
@@ -1351,8 +1537,8 @@ function App() {
                     className={`
                         w-8 h-8 md:w-11 md:h-11 rounded-full shadow-lg border backdrop-blur-md transition-all active:scale-90 flex items-center justify-center
                         ${isRunning 
-                            ? 'bg-amber-400/80 dark:bg-amber-400/25 border-amber-300/70 dark:border-amber-300/40 text-amber-900 dark:text-amber-200 hover:bg-amber-400/90 hover:shadow-amber-200/40' 
-                            : 'bg-slate-900/70 dark:bg-white/10 border-slate-700/60 dark:border-white/20 text-white dark:text-slate-100 hover:bg-slate-800/80 dark:hover:bg-white/15 hover:shadow-slate-300/40'
+                            ? `${isDesktopLike ? 'hover:bg-amber-400/90 hover:shadow-amber-200/40' : ''} bg-amber-400/80 dark:bg-amber-400/25 border-amber-300/70 dark:border-amber-300/40 text-amber-900 dark:text-amber-200`
+                            : `${isDesktopLike ? 'hover:bg-slate-800/80 dark:hover:bg-white/15 hover:shadow-slate-300/40' : ''} bg-slate-900/70 dark:bg-white/10 border-slate-700/60 dark:border-white/20 text-white dark:text-slate-100`
                         }
                         ${isCanvasLocked ? 'opacity-50 cursor-not-allowed hover:bg-auto' : ''}
                     `}
@@ -1417,30 +1603,46 @@ function App() {
 
       {/* RIGHT TOP CONTROLS: Dark Mode + Language */}
       {/* Increased z-index to 60 to stay above canvas interaction when locked */}
-      <div className={`fixed top-14 right-4 md:top-6 md:right-6 z-[60] flex items-center gap-3 transition-opacity duration-300 ${isMobile && isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      <div className={`fixed top-14 right-4 md:top-6 md:right-6 z-[60] flex items-center gap-3 transition-opacity duration-300 ${overlayControlHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         {/* Dark Mode Toggle */}
         <button 
             onClick={toggleDarkMode}
             title={t.tooltips.themeToggle}
-            className="flex items-center justify-center w-9 h-9 md:w-11 md:h-11 bg-white/70 dark:bg-slate-900/60 hover:bg-white/90 dark:hover:bg-slate-900/80 backdrop-blur-md text-slate-600 dark:text-slate-100 hover:text-amber-500 dark:hover:text-sciblue-300 rounded-full border border-slate-200/60 dark:border-slate-700/60 transition-all active:scale-95 shadow-sm"
+            className={`flex items-center justify-center w-9 h-9 md:w-11 md:h-11 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md text-slate-600 dark:text-slate-100 rounded-full border border-slate-200/60 dark:border-slate-700/60 transition-all active:scale-95 shadow-sm ${themeButtonHoverClass}`}
         >
             {isDarkMode ? <Moon size={16} /> : <Sun size={16} />}
             <span className="sr-only">{isDarkMode ? t.common.modeDark : t.common.modeLight}</span>
         </button>
 
         {/* Language Menu */}
-        <div className="group relative">
+        <div
+            ref={langMenuRef}
+            className="relative"
+            onMouseEnter={() => {
+                if (isDesktopLike) setIsLangMenuOpen(true);
+            }}
+        >
             <button 
                 title={t.tooltips.langToggle}
-                className="flex items-center justify-center w-9 h-9 md:w-11 md:h-11 bg-white/70 dark:bg-slate-900/60 hover:bg-white/90 dark:hover:bg-slate-900/80 backdrop-blur-md text-slate-600 dark:text-slate-100 hover:text-slate-800 dark:hover:text-slate-200 rounded-full border border-slate-200/60 dark:border-slate-700/60 transition-all active:scale-95 shadow-sm"
+                aria-expanded={isLangMenuOpen}
+                aria-haspopup="menu"
+                onClick={handleLangMenuToggle}
+                onFocus={() => {
+                    if (isDesktopLike) setIsLangMenuOpen(true);
+                }}
+                className={`flex items-center justify-center w-9 h-9 md:w-11 md:h-11 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md text-slate-600 dark:text-slate-100 rounded-full border border-slate-200/60 dark:border-slate-700/60 transition-all active:scale-95 shadow-sm ${toolButtonHoverClass}`}
             >
                 <Globe size={16} />
                 <span className="sr-only">{t.header.language}</span>
             </button>
-            <div className="absolute right-0 top-full mt-2 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right scale-95 group-hover:scale-100 z-50">
+            <div className={`absolute right-0 top-full w-48 pt-2 transition-all duration-200 transform origin-top-right z-50 ${isLangMenuOpen ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95 pointer-events-none'}`}>
                 <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden py-1">
                     {['zh-CN', 'zh-TW', 'en-GB', 'en-US'].map((l) => (
-                        <button key={l} onClick={() => handleLangChange(l as LanguageCode)} className={`w-full text-left px-4 py-3 text-sm flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 font-medium ${lang === l ? 'text-sciblue-600 dark:text-sciblue-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                        <button key={l} onClick={() => handleLangChange(l as LanguageCode)} className={`relative w-full text-left px-4 py-3 text-sm flex items-center justify-between font-medium text-transparent ${languageItemHoverClass} ${lang === l ? 'text-sciblue-600 dark:text-sciblue-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                            <span className={`pointer-events-none absolute inset-y-0 left-4 right-4 flex items-center justify-between ${lang === l ? 'text-sciblue-600 dark:text-sciblue-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                <span>{formatLangLabel(l)}</span>
+                                {lang === l && <ChevronRight size={14}/>}
+                            </span>
                             {l === 'zh-CN' ? '简体中文' : l === 'zh-TW' ? '繁體中文' : l === 'en-GB' ? 'English (UK)' : 'English (US)'}
                             {lang === l && <ChevronRight size={14}/>}
                         </button>

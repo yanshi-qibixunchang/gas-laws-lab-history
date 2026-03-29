@@ -18,6 +18,7 @@ interface CollapsibleCardProps {
   hideFooter?: boolean;       // Option to hide the footer expand button
   contentClassName?: string;  // Allow custom content padding
   expandText?: string;        // Custom text for the footer expand button
+  supportsHover?: boolean;
 }
 
 const CollapsibleCard: React.FC<CollapsibleCardProps> = ({ 
@@ -35,7 +36,8 @@ const CollapsibleCard: React.FC<CollapsibleCardProps> = ({
   showNotification,
   hideFooter = false,
   contentClassName = "p-4 md:p-6",
-  expandText
+  expandText,
+  supportsHover = true
 }) => {
   const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
 
@@ -58,6 +60,13 @@ const CollapsibleCard: React.FC<CollapsibleCardProps> = ({
           setInternalExpanded(!internalExpanded);
       }
   };
+
+  const toggleButtonHoverClass = supportsHover
+    ? 'hover:bg-white dark:hover:bg-slate-700 hover:text-sciblue-600 dark:hover:text-sciblue-400 hover:border-sciblue-200 dark:hover:border-sciblue-900 hover:shadow-md hover:shadow-sciblue-100 dark:hover:shadow-none'
+    : '';
+  const footerHoverClass = supportsHover
+    ? 'hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-sciblue-600 dark:hover:text-sciblue-400'
+    : '';
 
   return (
     <div 
@@ -90,7 +99,7 @@ const CollapsibleCard: React.FC<CollapsibleCardProps> = ({
                 w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full
                 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500
                 transition-all duration-200 ease-out
-                hover:bg-white dark:hover:bg-slate-700 hover:text-sciblue-600 dark:hover:text-sciblue-400 hover:border-sciblue-200 dark:hover:border-sciblue-900 hover:shadow-md hover:shadow-sciblue-100 dark:hover:shadow-none
+                ${toggleButtonHoverClass}
                 active:scale-90 active:bg-slate-100 dark:active:bg-slate-800
                 ${isLocked ? 'cursor-not-allowed opacity-50 grayscale' : 'cursor-pointer'}
             `}
@@ -118,7 +127,7 @@ const CollapsibleCard: React.FC<CollapsibleCardProps> = ({
       {/* Footer "Expand" bar */}
       {!isExpanded && !hideFooter && (
         <div 
-            className="h-9 md:h-10 flex items-center justify-center text-slate-400 dark:text-slate-500 text-xs font-medium bg-slate-50/30 dark:bg-slate-800/30 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-sciblue-600 dark:hover:text-sciblue-400 transition-colors border-t border-slate-100 dark:border-slate-800 tracking-wide uppercase group"
+            className={`h-9 md:h-10 flex items-center justify-center text-slate-400 dark:text-slate-500 text-xs font-medium bg-slate-50/30 dark:bg-slate-800/30 cursor-pointer transition-colors border-t border-slate-100 dark:border-slate-800 tracking-wide uppercase group ${footerHoverClass}`}
             onClick={handleToggle}
         >
             <span className="flex items-center gap-2 group-active:scale-95 transition-transform">

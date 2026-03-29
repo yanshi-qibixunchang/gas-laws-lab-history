@@ -7,9 +7,10 @@ interface StackedResultsProps {
   data: ChartData;
   t: Translation;
   isDarkMode?: boolean;
+  supportsHover?: boolean;
 }
 
-const StackedResults: React.FC<StackedResultsProps> = ({ data, t, isDarkMode = false }) => {
+const StackedResults: React.FC<StackedResultsProps> = ({ data, t, isDarkMode = false, supportsHover = true }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -31,6 +32,12 @@ const StackedResults: React.FC<StackedResultsProps> = ({ data, t, isDarkMode = f
   // Desktop: 160px
   const histHeight = isFullscreen ? "h-[320px]" : "h-[250px] landscape:h-[130px] md:h-[160px]"; 
   const singleHeight = isFullscreen ? "h-[450px]" : "h-[420px] landscape:h-[260px] md:h-[260px]";
+  const subtleHoverClass = supportsHover
+    ? "hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white"
+    : "";
+  const accentHoverClass = supportsHover
+    ? "hover:text-sciblue-600 dark:hover:text-sciblue-400 hover:border-sciblue-200 dark:hover:border-sciblue-800 hover:shadow-md"
+    : "";
 
   // Group 1: Histograms (Speed + Energy) - Compact Grid
   // Mobile Landscape: Force grid-cols-2 (side-by-side) to save vertical space
@@ -189,7 +196,7 @@ const StackedResults: React.FC<StackedResultsProps> = ({ data, t, isDarkMode = f
     >
         <button 
             onClick={toggleFullscreen}
-            className="absolute top-3 right-3 z-50 p-2 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-all border border-slate-200 dark:border-slate-700"
+            className={`absolute top-3 right-3 z-50 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all border border-slate-200 dark:border-slate-700 ${subtleHoverClass}`}
             title={isFullscreen ? t.common.collapse : t.common.expandAll}
         >
             {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
@@ -224,7 +231,7 @@ const StackedResults: React.FC<StackedResultsProps> = ({ data, t, isDarkMode = f
                         className="absolute w-full max-w-4xl h-[600px] landscape:h-[300px] md:h-[360px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] dark:shadow-none overflow-hidden flex flex-col cursor-grab active:cursor-grabbing"
                         style={getCardStyle(index)}
                     >
-                        <div className="h-6 w-full flex items-center justify-center cursor-ns-resize opacity-30 hover:opacity-60 shrink-0">
+                        <div className={`h-6 w-full flex items-center justify-center cursor-ns-resize opacity-30 shrink-0 ${supportsHover ? 'hover:opacity-60' : ''}`}>
                              <div className="w-8 h-1 bg-slate-400 rounded-full"></div>
                         </div>
                         <div className="flex-1 px-3 pb-3 pt-0 relative flex flex-col min-h-0">
@@ -249,14 +256,14 @@ const StackedResults: React.FC<StackedResultsProps> = ({ data, t, isDarkMode = f
                 >
                      <button 
                         onClick={handlePrev}
-                        className="pointer-events-auto w-10 h-10 md:w-8 md:h-8 bg-white dark:bg-slate-800 shadow-lg md:shadow-sm rounded-full text-slate-500 dark:text-slate-400 hover:text-sciblue-600 dark:hover:text-sciblue-400 hover:border-sciblue-200 dark:hover:border-sciblue-800 hover:shadow-md transition-all border border-slate-200 dark:border-slate-700 active:scale-95 flex items-center justify-center"
+                        className={`pointer-events-auto w-10 h-10 md:w-8 md:h-8 bg-white dark:bg-slate-800 shadow-lg md:shadow-sm rounded-full text-slate-500 dark:text-slate-400 transition-all border border-slate-200 dark:border-slate-700 active:scale-95 flex items-center justify-center ${accentHoverClass}`}
                         title={t.common.prev}
                      >
                         <ChevronUp size={20} />
                      </button>
                      <button 
                         onClick={handleNext}
-                        className="pointer-events-auto w-10 h-10 md:w-8 md:h-8 bg-white dark:bg-slate-800 shadow-lg md:shadow-sm rounded-full text-slate-500 dark:text-slate-400 hover:text-sciblue-600 dark:hover:text-sciblue-400 hover:border-sciblue-200 dark:hover:border-sciblue-800 hover:shadow-md transition-all border border-slate-200 dark:border-slate-700 active:scale-95 flex items-center justify-center"
+                        className={`pointer-events-auto w-10 h-10 md:w-8 md:h-8 bg-white dark:bg-slate-800 shadow-lg md:shadow-sm rounded-full text-slate-500 dark:text-slate-400 transition-all border border-slate-200 dark:border-slate-700 active:scale-95 flex items-center justify-center ${accentHoverClass}`}
                         title={t.common.next}
                      >
                         <ChevronDown size={20} />

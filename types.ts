@@ -38,7 +38,7 @@ export interface SimulationStats {
   meanSpeed: number;
   rmsSpeed: number;
   isEquilibrated: boolean;
-  progress: number; // 0 to 1 based on total duration
+  progress: number; // 0 to 1 based on the current phase duration
   phase: 'idle' | 'equilibrating' | 'collecting' | 'finished';
 }
 
@@ -59,6 +59,14 @@ export interface ChartData {
 
 // Translation Types
 export type LanguageCode = 'zh-CN' | 'zh-TW' | 'en-GB' | 'en-US';
+
+export interface InputCapabilities {
+  supportsHover: boolean;
+  finePointer: boolean;
+  touchLike: boolean;
+  isCompactLandscape: boolean;
+  isCompactWidth: boolean;
+}
 
 export interface Translation {
   brand: {
@@ -143,6 +151,11 @@ export interface Translation {
     meanSpeed: string;
     rmsSpeed: string;
     status: string;
+    phaseProgress: string;
+    overallProgress: string;
+    phaseTime: string;
+    overallTime: string;
+    remaining: string;
     idle: string;
     equilibrating: string;
     collecting: string;
