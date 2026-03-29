@@ -8,6 +8,7 @@ interface FooterProps {
   t: Translation;
   showNotification: (text: string, duration?: number, type?: 'info' | 'success' | 'warning') => void;
   supportsHover?: boolean;
+  compactLinks?: boolean;
 }
 
 const PdfModalFallback = () => (
@@ -18,13 +19,28 @@ const PdfModalFallback = () => (
   </div>
 );
 
-const Footer: React.FC<FooterProps> = ({ t, showNotification, supportsHover = true }) => {
+const Footer: React.FC<FooterProps> = ({ t, showNotification, supportsHover = true, compactLinks = false }) => {
   const [emailCopied, setEmailCopied] = useState(false);
   const [isPdfOpen, setIsPdfOpen] = useState(false);
 
   const iconLiftClass = supportsHover ? 'group-hover:scale-110' : '';
   const accentHoverClass = supportsHover ? 'group-hover:text-sciblue-400' : '';
   const linkHoverClass = supportsHover ? 'hover:bg-slate-800 hover:text-white' : '';
+  const compactLinkCardClass = supportsHover
+    ? 'hover:border-sciblue-500/40 hover:bg-slate-800/50 hover:text-white'
+    : '';
+  const linksSectionClass = compactLinks
+    ? 'order-last w-full basis-full'
+    : 'w-full min-w-0 flex-[0.8_1_200px] sm:min-w-[180px] sm:max-w-[260px]';
+  const linksListClass = compactLinks
+    ? 'grid gap-3 sm:grid-cols-3'
+    : 'flex flex-col gap-2';
+  const linkItemClass = compactLinks
+    ? `group flex min-h-[56px] items-center gap-3 rounded-xl border border-slate-700/50 bg-slate-800/30 px-4 py-3 text-sm text-slate-300 transition-all ${compactLinkCardClass}`
+    : `group -ml-2 flex items-center gap-3 rounded-lg p-2 text-sm text-slate-300 transition-all ${linkHoverClass}`;
+  const linkButtonClass = compactLinks
+    ? `group flex min-h-[56px] w-full items-center gap-3 rounded-xl border border-slate-700/50 bg-slate-800/30 px-4 py-3 text-left text-sm text-slate-300 transition-all ${compactLinkCardClass}`
+    : `group -ml-2 flex w-full items-center gap-3 rounded-lg p-2 text-left text-sm text-slate-300 transition-all ${linkHoverClass}`;
 
   const handleEmailClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -48,7 +64,7 @@ const Footer: React.FC<FooterProps> = ({ t, showNotification, supportsHover = tr
     setIsPdfOpen(true);
   };
 
-  const headerStyle = 'mb-6 flex h-5 items-center text-xs font-bold uppercase tracking-widest text-slate-300';
+  const headerStyle = 'mb-5 flex h-5 items-center text-xs font-bold uppercase tracking-widest text-slate-300';
 
   return (
     <>
@@ -56,8 +72,8 @@ const Footer: React.FC<FooterProps> = ({ t, showNotification, supportsHover = tr
         <div className="absolute left-0 top-0 h-px w-full bg-gradient-to-r from-transparent via-sciblue-500/50 to-transparent" />
 
         <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
-          <div className="grid grid-cols-1 gap-y-12 md:grid-cols-12 md:gap-x-12">
-            <div className="flex flex-col items-start pr-4 md:col-span-4">
+          <div className="flex flex-wrap gap-x-12 gap-y-12">
+            <div className="flex w-full min-w-0 flex-[1.2_1_280px] flex-col items-start pr-4 sm:min-w-[240px] sm:max-w-[360px]">
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800/80 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-sciblue-300 shadow-sm">
                 Project Institution 2025
               </div>
@@ -75,7 +91,7 @@ const Footer: React.FC<FooterProps> = ({ t, showNotification, supportsHover = tr
               <p className="mt-auto font-mono text-xs text-slate-400">{t.footer.version}</p>
             </div>
 
-            <div className="md:col-span-3">
+            <div className="w-full min-w-0 flex-[0.95_1_260px] sm:min-w-[220px] sm:max-w-[340px]">
               <h3 className={headerStyle}>{t.footer.team}</h3>
               <ul className="space-y-5">
                 <li className="group flex flex-col gap-1">
@@ -102,19 +118,19 @@ const Footer: React.FC<FooterProps> = ({ t, showNotification, supportsHover = tr
                   </div>
                 </li>
 
-                <li className="border-t border-slate-800/50 pt-2">
-                  <div className="flex flex-col">
-                    <span className="mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.footer.role_research}</span>
-                    <p className="text-xs leading-relaxed text-slate-300">申杰霖、季唐羽、欧一帅、张子航</p>
+                <li className="group border-t border-slate-800/50 pt-2">
+                  <div className={`rounded-xl border border-transparent px-3 py-2.5 transition-all ${supportsHover ? 'hover:border-slate-700/60 hover:bg-slate-800/30 hover:shadow-sm' : ''}`}>
+                    <p className={`text-[13px] font-semibold leading-7 text-slate-300 transition-colors ${supportsHover ? 'group-hover:text-sciblue-300' : ''}`}>申杰霖、季唐羽、欧一帅、张子航</p>
+                    <span className="mt-1 block text-[11px] font-medium leading-5 text-slate-400">{t.footer.role_research}</span>
                   </div>
                 </li>
               </ul>
             </div>
 
-            <div className="flex flex-col gap-8 md:col-span-3">
+            <div className="flex w-full min-w-0 flex-[1_1_300px] flex-col gap-7 sm:min-w-[250px] sm:max-w-[360px]">
               <div>
                 <h3 className={headerStyle}>{t.footer.supervisor}</h3>
-                <div className={`group flex items-center gap-3 rounded-lg border border-slate-700/50 bg-slate-800/40 p-3 transition-colors ${supportsHover ? 'hover:bg-slate-800' : ''}`}>
+                <div className={`group flex w-full max-w-[320px] items-center gap-3 rounded-xl border border-slate-700/50 bg-slate-800/40 p-3 transition-colors ${supportsHover ? 'hover:bg-slate-800' : ''}`}>
                   <div className={`rounded-full bg-slate-700/50 p-2 text-slate-300 transition-colors ${supportsHover ? 'group-hover:text-white' : ''}`}>
                     <GraduationCap size={16} />
                   </div>
@@ -124,23 +140,23 @@ const Footer: React.FC<FooterProps> = ({ t, showNotification, supportsHover = tr
 
               <div>
                 <h3 className={headerStyle}>Acknowledgements</h3>
-                <div className={`group rounded-xl border border-slate-700 bg-slate-800/30 p-4 text-xs leading-relaxed text-slate-300 transition-colors ${supportsHover ? 'hover:border-sciblue-500/30' : ''}`}>
+                <div className={`group w-full max-w-[320px] rounded-[20px] border border-slate-700/80 bg-slate-800/25 px-4 py-3 text-slate-300 transition-colors ${supportsHover ? 'hover:border-sciblue-500/30' : ''}`}>
                   <p className="flex items-start gap-3">
                     <Sparkles size={16} className={`mt-0.5 shrink-0 fill-amber-500/20 text-amber-400 ${supportsHover ? 'group-hover:animate-pulse' : ''}`} />
-                    <span className="whitespace-pre-line leading-5">{t.footer.acknowledgement}</span>
+                    <span className="whitespace-pre-line text-[12px] leading-6 sm:text-[13px] [text-wrap:balance]">{t.footer.acknowledgement}</span>
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="md:col-span-2">
+            <div className={linksSectionClass}>
               <h3 className={headerStyle}>{t.footer.links}</h3>
-              <div className="flex flex-col gap-2">
+              <div className={linksListClass}>
                 <a
                   href="https://github.com/yanshi-qibixunchang/gas-laws-lab-history"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`group -ml-2 flex items-center gap-3 rounded-lg p-2 text-sm text-slate-300 transition-all ${linkHoverClass}`}
+                  className={linkItemClass}
                 >
                   <Github size={18} className={`transition-transform ${iconLiftClass}`} />
                   <span>{t.footer.github}</span>
@@ -149,7 +165,7 @@ const Footer: React.FC<FooterProps> = ({ t, showNotification, supportsHover = tr
                 <a
                   href="#"
                   onClick={handleOpenPdf}
-                  className={`group -ml-2 flex items-center gap-3 rounded-lg p-2 text-sm text-slate-300 transition-all ${linkHoverClass}`}
+                  className={linkItemClass}
                 >
                   <FileText size={18} className={`transition-all ${accentHoverClass} ${iconLiftClass}`} />
                   <span>{t.footer.report}</span>
@@ -157,7 +173,7 @@ const Footer: React.FC<FooterProps> = ({ t, showNotification, supportsHover = tr
 
                 <button
                   onClick={handleEmailClick}
-                  className={`group -ml-2 flex w-full items-center gap-3 rounded-lg p-2 text-left text-sm text-slate-300 transition-all ${linkHoverClass}`}
+                  className={linkButtonClass}
                 >
                   {emailCopied ? (
                     <Check size={18} className="text-emerald-400" />
@@ -192,6 +208,8 @@ const Footer: React.FC<FooterProps> = ({ t, showNotification, supportsHover = tr
             onClose={() => setIsPdfOpen(false)}
             pdfPath="/Project_Report.pdf"
             title={t.footer.report}
+            exportLabel={t.footer.exportPdf}
+            exportFailedMessage={t.footer.exportFailed}
             showNotification={showNotification}
             supportsHover={supportsHover}
           />

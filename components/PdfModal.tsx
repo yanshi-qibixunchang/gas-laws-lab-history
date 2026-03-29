@@ -24,11 +24,22 @@ interface PdfModalProps {
   onClose: () => void;
   pdfPath: string;
   title: string;
+  exportLabel: string;
+  exportFailedMessage: string;
   showNotification: (text: string, duration?: number, type?: 'info' | 'success' | 'warning') => void;
   supportsHover?: boolean;
 }
 
-const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, showNotification, supportsHover = true }) => {
+const PdfModal: React.FC<PdfModalProps> = ({
+  isOpen,
+  onClose,
+  pdfPath,
+  title,
+  exportLabel,
+  exportFailedMessage,
+  showNotification,
+  supportsHover = true
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const resizeTimeoutRef = useRef<number | null>(null);
@@ -816,9 +827,9 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
       });
     } catch (err) {
       console.error(err);
-      showNotification('Export failed', 2000, 'warning');
-    }
-  }, [fileName, pdfUrl, showNotification, title]);
+        showNotification(exportFailedMessage, 2000, 'warning');
+      }
+  }, [exportFailedMessage, fileName, pdfUrl, showNotification, title]);
 
   if (!isOpen || typeof document === 'undefined') return null;
 
@@ -872,11 +883,11 @@ const PdfModal: React.FC<PdfModalProps> = ({ isOpen, onClose, pdfPath, title, sh
               type="button"
               onClick={handleExport}
               className={`inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 ${supportsHover ? 'hover:border-sciblue-400 hover:text-sciblue-600 dark:hover:border-sciblue-400' : ''}`}
-              aria-label="Export"
-            >
-              <Download size={14} />
-              <span className="hidden sm:inline">Export</span>
-            </button>
+                aria-label={exportLabel}
+              >
+                <Download size={14} />
+                <span className="hidden sm:inline">{exportLabel}</span>
+              </button>
             <button
               type="button"
               onClick={onClose}

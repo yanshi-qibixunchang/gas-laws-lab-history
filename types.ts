@@ -227,6 +227,8 @@ export interface Translation {
     links: string;        
     github: string;       
     report: string;       
+    exportPdf: string;
+    exportFailed: string;
     contact: string;
     copied: string;       
     emailCopiedMsg: string; // Added

@@ -1,6 +1,6 @@
 {
   "name": "hard-sphere-lab",
-  "version": "3.3.5",
+  "version": "3.3.6",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -21,7 +21,7 @@ const DEFAULT_PARAMS: SimulationParams = {
   statsDuration: 60
 };
 
-const APP_VERSION = '3.3.5';
+const APP_VERSION = '3.3.6';
 
 const areParamsEqual = (a: SimulationParams, b: SimulationParams) => (
   a.N === b.N &&
@@ -51,10 +51,17 @@ const mediaMatches = (query: string) =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia(query).matches;
 
-const isTouchLikeViewport = () =>
-  mediaMatches('(pointer: coarse)') ||
-  mediaMatches('(hover: none)') ||
-  (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0);
+const isTouchLikeViewport = () => {
+  const coarsePointer = mediaMatches('(pointer: coarse)');
+  const noHover = mediaMatches('(hover: none)');
+  const finePointer = mediaMatches('(pointer: fine)');
+  const supportsHover = mediaMatches('(hover: hover)');
+  const hasTouchPoints = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
+
+  if (coarsePointer || noHover) return true;
+  if (finePointer && supportsHover) return false;
+  return hasTouchPoints;
+};
 
 const DistributionCharts = lazy(() => import('./components/DistributionCharts'));
 const StackedResults = lazy(() => import('./components/StackedResults'));
@@ -512,7 +519,7 @@ function App() {
       }
     : undefined;
   const sidebarWidthClass = isSidebarOverlay ? 'w-[85vw] max-w-[360px]' : 'w-[300px]';
-  const sidebarHeaderPaddingClass = isSidebarInputMode ? 'pt-8' : 'pt-14';
+  const sidebarHeaderPaddingClass = isSidebarInputMode ? 'pt-6' : 'pt-8';
   const sidebarHeaderStackClass = isSidebarInputMode ? 'flex flex-col gap-4' : 'flex flex-col gap-6';
   const sidebarSubtitleClass = 'text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider';
   const sidebarSectionSpacingClass = 'space-y-4';
@@ -1276,7 +1283,7 @@ function App() {
         style={sidebarFrameStyle}
       >
         <div className="flex h-full min-h-0 flex-col bg-transparent">
-            <div className={`shrink-0 p-3 ${sidebarHeaderPaddingClass} pb-3 md:p-5 md:pt-5`}>
+            <div className={`shrink-0 ${sidebarHeaderPaddingClass} pb-3 md:pb-4`}>
                 <div className={sidebarHeaderStackClass}>
                     <div className={`flex items-center justify-between gap-3 ${sidebarContentWidthClass}`}>
                         <div className="flex min-w-0 items-center gap-3 select-none">
@@ -1289,7 +1296,7 @@ function App() {
                             </div>
                         </div>
                         <button onClick={handleCloseSidebar} className={`${sidebarToggleButtonClass} text-slate-400 dark:text-slate-500 transition-colors ${sidebarHoverClass} ${isCanvasLocked ? 'opacity-50 cursor-not-allowed' : ''}`} title={t.tooltips.closeSidebar}>
-                            <X size={18}/>
+                            <X size={14}/>
                         </button>
                     </div>
                 </div>
@@ -1617,7 +1624,12 @@ function App() {
         
         {/* Footer (Also check interaction lock on footer links if needed, but usually just footer actions) */}
         <div onClick={(e) => { if(isCanvasLocked) { e.preventDefault(); e.stopPropagation(); showNotification(t.canvas.interactionLocked, 2000, 'warning'); } }}>
-             <Footer t={t} showNotification={(msg, dur, type) => showNotification(msg, dur, type)} supportsHover={isDesktopLike} />
+             <Footer
+               t={t}
+               showNotification={(msg, dur, type) => showNotification(msg, dur, type)}
+               supportsHover={isDesktopLike}
+               compactLinks={isSidebarOpen && !isSidebarOverlay}
+             />
         </div>
         </div>
 
@@ -1750,38 +1762,35 @@ function App() {
             {isDarkMode ? <Moon size={16} /> : <Sun size={16} />}
             <span className="sr-only">{isDarkMode ? t.common.modeDark : t.common.modeLight}</span>
         </button>
-
         {/* Language Menu */}
         <div
             ref={langMenuRef}
             className="relative"
-            onMouseEnter={() => {
-                if (isDesktopLike) setIsLangMenuOpen(true);
-            }}
         >
             <button 
+                type="button"
                 title={t.tooltips.langToggle}
                 aria-expanded={isLangMenuOpen}
                 aria-haspopup="menu"
                 onClick={handleLangMenuToggle}
-                onFocus={() => {
-                    if (isDesktopLike) setIsLangMenuOpen(true);
-                }}
                 className={`flex items-center justify-center w-9 h-9 md:w-11 md:h-11 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md text-slate-600 dark:text-slate-100 rounded-full border border-slate-200/60 dark:border-slate-700/60 transition-all active:scale-95 shadow-sm ${toolButtonHoverClass}`}
             >
                 <Globe size={16} />
                 <span className="sr-only">{t.header.language}</span>
             </button>
-            <div className={`absolute right-0 top-full w-48 pt-2 transition-all duration-200 transform origin-top-right z-50 ${isLangMenuOpen ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95 pointer-events-none'}`}>
+            <div className={`absolute right-0 top-full w-48 pt-2 transition-all duration-200 origin-top-right z-50 ${isLangMenuOpen ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95 pointer-events-none'}`}>
                 <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden py-1">
                     {['zh-CN', 'zh-TW', 'en-GB', 'en-US'].map((l) => (
-                        <button key={l} onClick={() => handleLangChange(l as LanguageCode)} className={`relative w-full text-left px-4 py-3 text-sm flex items-center justify-between font-medium text-transparent ${languageItemHoverClass} ${lang === l ? 'text-sciblue-600 dark:text-sciblue-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                            <span className={`pointer-events-none absolute inset-y-0 left-4 right-4 flex items-center justify-between ${lang === l ? 'text-sciblue-600 dark:text-sciblue-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                        <button
+                            type="button"
+                            key={l}
+                            onClick={() => handleLangChange(l as LanguageCode)}
+                            className={`w-full px-4 py-3 text-left text-sm font-medium ${languageItemHoverClass} ${lang === l ? 'text-sciblue-600 dark:text-sciblue-400' : 'text-slate-500 dark:text-slate-400'}`}
+                        >
+                            <span className="flex items-center justify-between">
                                 <span>{formatLangLabel(l)}</span>
                                 {lang === l && <ChevronRight size={14}/>}
                             </span>
-                            {l === 'zh-CN' ? '简体中文' : l === 'zh-TW' ? '繁體中文' : l === 'en-GB' ? 'English (UK)' : 'English (US)'}
-                            {lang === l && <ChevronRight size={14}/>}
                         </button>
                     ))}
                 </div>
@@ -1906,3 +1915,4 @@ function App() {
 }
 
 export default App;
+

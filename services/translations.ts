@@ -156,18 +156,20 @@ export const translations: Record<LanguageCode, Translation> = {
       references: "参考资料",
       visitorCount: "您是本站第 {count} 位访客",
       school: "Project Institution\n环境工程",
-    version: "v3.3.5 正式版",
+    version: "v3.3.6 正式版",
       links: "相关链接",
       github: "GitHub 仓库",
       report: "查看报告 (PDF)",
+      exportPdf: "导出 PDF",
+      exportFailed: "PDF 导出失败",
       contact: "联系组长",
       copied: "已复制！",
       emailCopiedMsg: "联系邮箱已复制到剪贴板",
-      acknowledgement: "特别致谢 AI 助手 Google Gemini\n与 OpenAI ChatGPT 提供开发支持",
+      acknowledgement: "特别致谢 AI 助手\nOpenAI\u00A0ChatGPT / Google\u00A0Gemini\n提供开发支持",
       designedBy: "网页设计与开发: Project Team",
       role_leader: "组长 / 网页 & 算法设计",
       role_algo: "Matlab 算法协助",
-      role_research: "文献调研与报告撰写"
+      role_research: "参与文献调研与报告撰写"
     }
   },
   'zh-TW': {
@@ -325,18 +327,20 @@ export const translations: Record<LanguageCode, Translation> = {
       references: "參考資料",
       visitorCount: "您是本站第 {count} 位访客",
       school: "Project Institution（威海）\n環境工程",
-    version: "v3.3.5 正式版",
+    version: "v3.3.6 正式版",
       links: "相關連結",
       github: "GitHub 倉庫",
       report: "查看報告 (PDF)",
+      exportPdf: "匯出 PDF",
+      exportFailed: "PDF 匯出失敗",
       contact: "聯繫組長",
       copied: "已複製！",
       emailCopiedMsg: "聯繫郵箱已複製到剪貼簿",
-      acknowledgement: "特別致谢 AI 助手 Google Gemini\n與 OpenAI ChatGPT 提供開發支持",
+      acknowledgement: "特別致谢 AI 助手\nOpenAI\u00A0ChatGPT / Google\u00A0Gemini\n提供開發支持",
       designedBy: "網頁設計與開發: Project Team",
       role_leader: "組長 / 網頁 & 算法設計",
       role_algo: "Matlab 演算法協助",
-      role_research: "文獻調研與報告撰寫"
+      role_research: "參與文獻調研與報告撰寫"
     }
   },
   'en-GB': {
@@ -494,18 +498,20 @@ export const translations: Record<LanguageCode, Translation> = {
       references: "References",
       visitorCount: "You are the {count}th visitor",
       school: "Project Institution\nEnvironmental Eng.",
-    version: "v3.3.5 Official",
+    version: "v3.3.6 Official",
       links: "Links",
       github: "GitHub Repo",
       report: "View Report (PDF)",
+      exportPdf: "Export PDF",
+      exportFailed: "PDF export failed",
       contact: "Contact Leader",
       copied: "Copied!",
       emailCopiedMsg: "Email address copied to clipboard",
-      acknowledgement: "Special thanks to AI assistants Google Gemini\n& OpenAI ChatGPT for development support.",
+      acknowledgement: "Special thanks to AI assistants\nOpenAI\u00A0ChatGPT / Google\u00A0Gemini\nfor development support.",
       designedBy: "Designed by Project Team",
       role_leader: "Leader / Web & Algo Design",
       role_algo: "Matlab Algo Support",
-      role_research: "Literature & Report"
+      role_research: "Contributed to literature review and report writing"
     }
   },
   'en-US': {
@@ -663,18 +669,20 @@ export const translations: Record<LanguageCode, Translation> = {
       references: "References",
       visitorCount: "You are the {count}th visitor",
       school: "Project Institution\nEnvironmental Eng.",
-    version: "v3.3.5 Official",
+    version: "v3.3.6 Official",
       links: "Links",
       github: "GitHub Repo",
       report: "View Report (PDF)",
+      exportPdf: "Export PDF",
+      exportFailed: "PDF export failed",
       contact: "Contact Leader",
       copied: "Copied!",
       emailCopiedMsg: "Email address copied to clipboard",
-      acknowledgement: "Special thanks to AI assistants Google Gemini\n& OpenAI ChatGPT for development support.",
+      acknowledgement: "Special thanks to AI assistants\nOpenAI\u00A0ChatGPT / Google\u00A0Gemini\nfor development support.",
       designedBy: "Designed by Project Team",
       role_leader: "Leader / Web & Algo Design",
       role_algo: "Matlab Algo Support",
-      role_research: "Literature & Report"
+      role_research: "Contributed to literature review and report writing"
     }
   }
 };
