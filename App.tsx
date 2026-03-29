@@ -96,8 +96,31 @@ function App() {
   const [isCanvasLocked, setIsCanvasLocked] = useState(false);
   
   // Notification State with unique ID for animation resetting
-  const [notification, setNotification] = useState<{text: string, visible: boolean, type?: 'info'|'success'|'warning', id: number}>({ text: '', visible: false, type: 'info', id: 0 });
+  const [notification, setNotification] = useState<{text: string, visible: boolean, type?: 'info'|'success'|'warning', id: number, position: 'bottom'|'center'}>({ text: '', visible: false, type: 'info', id: 0, position: 'bottom' });
   const notificationTimeoutRef = useRef<number>(0);
+  const mainScrollRef = useRef<HTMLDivElement | null>(null);
+  const mainContentRef = useRef<HTMLDivElement | null>(null);
+  const bottomElasticRef = useRef<HTMLDivElement | null>(null);
+  const bottomElasticStateRef = useRef({ current: 0, target: 0, raf: 0 });
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const interactionRafRef = useRef<number>(0);
+  const [interactionRect, setInteractionRect] = useState<{
+    top: number;
+    left: number;
+    right: number;
+    bottom: number;
+  } | null>(null);
+  const [hideVersionBadge, setHideVersionBadge] = useState(false);
+  const stretchStateRef = useRef({
+    startY: 0,
+    active: false,
+    atTop: false,
+    atBottom: false,
+    edge: null as 'top' | 'bottom' | null,
+    edgeStartY: 0,
+    currentOffset: 0,
+    raf: 0
+  });
 
   // Visitor Counter
   const [visitorCount, setVisitorCount] = useState<number>(0);
@@ -116,36 +139,297 @@ function App() {
       isSystem: true
   };
 
-  const showNotification = (text: string, duration = 1500, type: 'info'|'success'|'warning' = 'info') => {
+  const showNotification = (text: string, duration = 1500, type: 'info'|'success'|'warning' = 'info', position: 'bottom'|'center' = 'bottom') => {
     // Clear existing timer to prevent premature closing of new notification
     if (notificationTimeoutRef.current) clearTimeout(notificationTimeoutRef.current);
     
     // Use Date.now() as a unique ID.
     // When ID changes, React re-mounts the component (via key prop), forcing the CSS animation to replay instantly.
     const newId = Date.now();
-    setNotification({ text, visible: true, type, id: newId });
+    setNotification({ text, visible: true, type, id: newId, position });
 
     notificationTimeoutRef.current = window.setTimeout(() => {
         setNotification(prev => ({ ...prev, visible: false }));
     }, duration);
   };
 
+  const handleInteractionBackdropClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    setIsCanvasLocked(false);
+    showNotification(t.canvas.autoExit, 1500);
+  }, [t.canvas.autoExit]);
+
+  const updateInteractionRect = useCallback(() => {
+    if (!isCanvasLocked) return;
+    const container = canvasContainerRef.current;
+    if (!container) {
+      setInteractionRect(null);
+      return;
+    }
+    const rect = container.getBoundingClientRect();
+    const minSize = 80;
+    if (rect.width < minSize || rect.height < minSize) {
+      setInteractionRect(null);
+      if (!interactionRafRef.current) {
+        interactionRafRef.current = window.requestAnimationFrame(() => {
+          interactionRafRef.current = 0;
+          updateInteractionRect();
+        });
+      }
+      return;
+    }
+    setInteractionRect({
+      top: Math.max(0, rect.top),
+      left: Math.max(0, rect.left),
+      right: Math.min(window.innerWidth, rect.right),
+      bottom: Math.min(window.innerHeight, rect.bottom)
+    });
+  }, [isCanvasLocked]);
+
+  const handleMainScroll = useCallback(() => {
+    const scrollTop = mainScrollRef.current?.scrollTop ?? 0;
+    const shouldHide = scrollTop > 24;
+    setHideVersionBadge(prev => (prev !== shouldHide ? shouldHide : prev));
+    if (isCanvasLocked) updateInteractionRect();
+  }, [isCanvasLocked, updateInteractionRect]);
+
+  useEffect(() => {
+    if (!isCanvasLocked) {
+      if (interactionRect) setInteractionRect(null);
+      if (interactionRafRef.current) {
+        window.cancelAnimationFrame(interactionRafRef.current);
+        interactionRafRef.current = 0;
+      }
+      return;
+    }
+    updateInteractionRect();
+    const handleResize = () => updateInteractionRect();
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [interactionRect, isCanvasLocked, updateInteractionRect]);
+
+  const applyMainStretch = useCallback((offset: number) => {
+    const container = mainContentRef.current;
+    if (!container) return;
+    const clamped = Math.max(-70, Math.min(70, offset));
+    const scale = 1 + Math.min(Math.abs(clamped) / 360, 0.09);
+    container.style.transition = 'none';
+    if (Math.abs(clamped) < 0.01) {
+      container.style.transform = 'translateY(0px) scaleY(1)';
+      container.style.transformOrigin = 'center';
+      return;
+    }
+    container.style.transform = `translateY(${clamped}px) scaleY(${scale})`;
+    container.style.transformOrigin = clamped > 0 ? 'top' : 'bottom';
+  }, []);
+
+  const getDampedStretch = useCallback((delta: number) => {
+    const magnitude = Math.abs(delta);
+    if (magnitude < 1) return 0;
+    const maxStretch = 72;
+    const resistance = 180;
+    const eased = 1 - Math.exp(-magnitude / resistance);
+    return Math.sign(delta) * maxStretch * eased;
+  }, []);
+
+  const applyBottomElastic = useCallback((height: number) => {
+    const indicator = bottomElasticRef.current;
+    if (!indicator) return;
+    const clamped = Math.max(0, Math.min(90, height));
+    const ratio = clamped / 90;
+    indicator.style.height = `${clamped}px`;
+    indicator.style.opacity = clamped > 0 ? `${0.1 + ratio * 0.6}` : '0';
+    indicator.style.transform = `scaleY(${1 + ratio * 0.12})`;
+  }, []);
+
+  const stepBottomElastic = useCallback(() => {
+    const state = bottomElasticStateRef.current;
+    const diff = state.target - state.current;
+    state.current += diff * 0.22;
+    if (Math.abs(diff) < 0.4) {
+      state.current = state.target;
+    }
+    applyBottomElastic(state.current);
+    if (Math.abs(state.current - state.target) > 0.4) {
+      state.raf = window.requestAnimationFrame(stepBottomElastic);
+    } else {
+      state.raf = 0;
+    }
+  }, [applyBottomElastic]);
+
+  const scheduleBottomElastic = useCallback((height: number) => {
+    const state = bottomElasticStateRef.current;
+    state.target = height;
+    if (state.raf) return;
+    state.raf = window.requestAnimationFrame(stepBottomElastic);
+  }, [stepBottomElastic]);
+
+  const releaseBottomElastic = useCallback(() => {
+    scheduleBottomElastic(0);
+  }, [scheduleBottomElastic]);
+
+  const cancelMainStretch = useCallback(() => {
+    const state = stretchStateRef.current;
+    if (state.raf) {
+      window.cancelAnimationFrame(state.raf);
+      state.raf = 0;
+    }
+  }, []);
+
+  const releaseMainStretch = useCallback(() => {
+    const state = stretchStateRef.current;
+    cancelMainStretch();
+    const startOffset = state.currentOffset;
+    if (Math.abs(startOffset) < 0.5) {
+      state.currentOffset = 0;
+      applyMainStretch(0);
+      return;
+    }
+    const duration = 220;
+    const startTime = performance.now();
+    const step = (now: number) => {
+      const t = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const next = startOffset * (1 - eased);
+      state.currentOffset = next;
+      applyMainStretch(next);
+      if (!state.active && t < 1) {
+        state.raf = window.requestAnimationFrame(step);
+      } else {
+        state.raf = 0;
+        state.currentOffset = 0;
+        applyMainStretch(0);
+      }
+    };
+    state.raf = window.requestAnimationFrame(step);
+  }, [applyMainStretch, cancelMainStretch]);
+
+  const handleMainTouchStart = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 1) return;
+    const scrollEl = mainScrollRef.current;
+    const state = stretchStateRef.current;
+    cancelMainStretch();
+    scheduleBottomElastic(0);
+    state.active = true;
+    state.startY = event.touches[0].clientY;
+    state.edgeStartY = event.touches[0].clientY;
+    if (Math.abs(state.currentOffset) > 0.5) {
+      state.currentOffset = 0;
+      applyMainStretch(0);
+    }
+    if (!scrollEl) {
+      state.atTop = false;
+      state.atBottom = false;
+      state.edge = null;
+      return;
+    }
+    const edgeThreshold = 1;
+    state.atTop = scrollEl.scrollTop <= edgeThreshold;
+    state.atBottom = scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - edgeThreshold;
+    state.edge = state.atTop ? 'top' : null;
+    if (state.edge) {
+      state.edgeStartY = event.touches[0].clientY;
+    }
+  }, [applyMainStretch, cancelMainStretch, scheduleBottomElastic]);
+
+  const handleMainTouchMove = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
+    const state = stretchStateRef.current;
+    if (!state.active || event.touches.length !== 1) return;
+    const scrollEl = mainScrollRef.current;
+    if (!scrollEl) return;
+
+    const touchY = event.touches[0].clientY;
+    const delta = touchY - state.startY;
+    const edgeThreshold = 1;
+    const atTop = scrollEl.scrollTop <= edgeThreshold;
+    const atBottom = scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - edgeThreshold;
+    state.atTop = atTop;
+    state.atBottom = atBottom;
+
+    if (!state.edge) {
+      if (atTop && delta > 0) {
+        state.edge = 'top';
+        state.edgeStartY = touchY;
+      } else if (atBottom && delta < 0) {
+        state.edge = 'bottom';
+        state.edgeStartY = touchY;
+      }
+    }
+
+    if (state.edge === 'top') {
+      const edgeDelta = touchY - state.edgeStartY;
+      if (edgeDelta <= 0) {
+        state.edge = null;
+        state.currentOffset = 0;
+        applyMainStretch(0);
+        scheduleBottomElastic(0);
+        return;
+      }
+      const stretch = getDampedStretch(edgeDelta);
+      state.currentOffset = stretch;
+      applyMainStretch(stretch);
+      scheduleBottomElastic(0);
+      event.preventDefault();
+      return;
+    }
+
+    if (state.edge === 'bottom') {
+      const edgeDelta = touchY - state.edgeStartY;
+      if (edgeDelta >= 0) {
+        state.edge = null;
+        scheduleBottomElastic(0);
+        return;
+      }
+      if (state.currentOffset !== 0) {
+        state.currentOffset = 0;
+        applyMainStretch(0);
+      }
+      const stretch = Math.abs(getDampedStretch(edgeDelta));
+      scheduleBottomElastic(stretch);
+      event.preventDefault();
+      return;
+    }
+
+    if (state.currentOffset !== 0) {
+      state.currentOffset = 0;
+      applyMainStretch(0);
+    }
+    scheduleBottomElastic(0);
+  }, [applyMainStretch, getDampedStretch, scheduleBottomElastic]);
+
+  const handleMainTouchEnd = useCallback(() => {
+    const state = stretchStateRef.current;
+    state.active = false;
+    state.atTop = false;
+    state.atBottom = false;
+    state.edge = null;
+    state.edgeStartY = 0;
+    releaseMainStretch();
+    releaseBottomElastic();
+  }, [releaseBottomElastic, releaseMainStretch]);
+
+  const versionLabel = lang.startsWith('en') ? 'Official Release' : '\u6b63\u5f0f\u7248';
+  const versionBadgeText = `${t.header.systemOp} \u00b7 v3.2.1 ${versionLabel}`;
+
   const isSidebarOverlay = isMobile || (isLandscapeMode && isTouchLikeViewport());
-  const sidebarWidthClass = isSidebarOverlay ? 'w-[85vw]' : 'w-[300px]';
-  const sidebarInnerWidthClass = isSidebarOverlay ? 'w-[85vw] min-w-[300px]' : 'w-[300px] min-w-[300px]';
+  const sidebarWidthClass = isSidebarOverlay ? 'w-[85vw] max-w-[360px]' : 'w-[300px]';
+  const sidebarInnerWidthClass = isSidebarOverlay ? 'w-full' : 'w-[300px]';
   const sidebarHeaderPaddingClass = 'pt-14';
   const sidebarHeaderStackClass = 'flex flex-col gap-6 mb-4';
   const sidebarSubtitleClass = 'text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider';
   const sidebarSectionSpacingClass = 'space-y-4';
-  const sidebarContentWidthClass = 'w-[85%] mx-auto';
+  const sidebarContentWidthClass = 'w-full px-3 md:px-4';
   const paramLayoutClass = 'space-y-2';
-  const paramItemWidthClass = 'w-[85%] mx-auto';
+  const paramItemWidthClass = 'w-full';
   const bottomPaddingClass = 'pb-8';
-  const actionButtonWrapClass = 'flex flex-col gap-2 items-center';
-  const actionButtonWidthClass = 'w-[85%]';
+  const actionButtonWrapClass = 'flex flex-col gap-2 items-center w-full px-3 md:px-4';
+  const actionButtonWidthClass = 'w-full';
   const actionButtonPaddingClass = 'py-2';
   const actionButtonTextClass = 'text-xs md:text-sm';
-  const actionCollapseClass = 'justify-center text-[10px] mt-1';
+  const actionCollapseClass = 'justify-center text-[10px] mt-1 w-full';
+  const sidebarToggleButtonClass = 'w-8 h-8 flex items-center justify-center rounded-full';
 
   // Dark Mode Logic: always start in light mode
   useEffect(() => {
@@ -553,7 +837,7 @@ function App() {
   const handleLangChange = (l: LanguageCode) => {
       if (lang !== l) {
           setLang(l);
-          showNotification(getLangName(l), 1500, 'success');
+          showNotification(getLangName(l), 1500, 'success', 'center');
       }
   };
 
@@ -604,19 +888,48 @@ function App() {
   };
 
   return (
-    <div className="h-screen w-screen font-sans flex overflow-hidden relative selection:bg-sciblue-200 selection:text-sciblue-900 dark:selection:bg-sciblue-900 dark:selection:text-sciblue-100 transition-colors duration-500">
+    <div className="h-screen w-screen font-sans flex overflow-hidden relative selection:bg-sciblue-200 selection:text-sciblue-900 dark:selection:bg-sciblue-900 dark:selection:text-sciblue-100 transition-colors duration-800">
       
-      {/* GLOBAL INTERACTION LOCK BACKDROP - z-[90] */}
-      {isCanvasLocked && (
-        <div 
-            className="fixed inset-0 z-[90] bg-black/10 cursor-crosshair backdrop-blur-[1px]" 
-            onClick={(e) => {
-                e.stopPropagation();
-                setIsCanvasLocked(false);
-                showNotification(t.canvas.autoExit, 1500); // Trigger Notification on Click Outside
-            }}
+      {/* GLOBAL INTERACTION LOCK BACKDROP (OUTSIDE CANVAS ONLY) */}
+      {isCanvasLocked && interactionRect && (
+        <>
+          <div
+            className="fixed left-0 right-0 top-0 z-[110] bg-black/10 cursor-crosshair backdrop-blur-[1px]"
+            style={{ height: Math.max(0, interactionRect.top) }}
+            onClick={handleInteractionBackdropClick}
             title={t.canvas.clickToRelease}
-        />
+          />
+          <div
+            className="fixed left-0 right-0 z-[110] bg-black/10 cursor-crosshair backdrop-blur-[1px]"
+            style={{
+              top: interactionRect.bottom,
+              height: Math.max(0, window.innerHeight - interactionRect.bottom)
+            }}
+            onClick={handleInteractionBackdropClick}
+            title={t.canvas.clickToRelease}
+          />
+          <div
+            className="fixed left-0 z-[110] bg-black/10 cursor-crosshair backdrop-blur-[1px]"
+            style={{
+              top: interactionRect.top,
+              height: Math.max(0, interactionRect.bottom - interactionRect.top),
+              width: Math.max(0, interactionRect.left)
+            }}
+            onClick={handleInteractionBackdropClick}
+            title={t.canvas.clickToRelease}
+          />
+          <div
+            className="fixed z-[110] bg-black/10 cursor-crosshair backdrop-blur-[1px]"
+            style={{
+              top: interactionRect.top,
+              height: Math.max(0, interactionRect.bottom - interactionRect.top),
+              left: interactionRect.right,
+              width: Math.max(0, window.innerWidth - interactionRect.right)
+            }}
+            onClick={handleInteractionBackdropClick}
+            title={t.canvas.clickToRelease}
+          />
+        </>
       )}
 
       {/* --- SIDEBAR (CONTROLS) --- */}
@@ -638,7 +951,7 @@ function App() {
         {/* NEW LAYOUT: Dynamic Container Mode based on Height */}
         {/* If isShortHeight (keyboard open or landscape mobile), use BLOCK layout with scrolling, else FLEX layout with fixed footer */}
         <div className={`
-            ${sidebarInnerWidthClass} bg-white dark:bg-slate-900
+            ${sidebarInnerWidthClass} bg-transparent
             ${isShortHeight ? 'block h-full overflow-y-auto' : 'flex flex-col h-full'}
             landscape:block landscape:h-auto landscape:md:h-full landscape:md:flex
         `}>
@@ -646,7 +959,7 @@ function App() {
             {/* 1. TOP & MIDDLE: Header + Scrollable Parameters */}
             <div 
                 className={`
-                    min-h-0 flex flex-col 
+                    min-h-0 flex flex-col sidebar-scroll
                     ${isShortHeight ? 'overflow-visible' : 'flex-1 overflow-y-auto'}
                     landscape:flex-none landscape:overflow-visible landscape:md:flex-1 landscape:md:overflow-y-auto
                 `}
@@ -667,7 +980,7 @@ function App() {
                                 <span className={sidebarSubtitleClass}>{t.brand.subtitle}</span>
                                 </div>
                             </div>
-                            <button onClick={handleCloseSidebar} className={`p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors ${isCanvasLocked ? 'opacity-50 cursor-not-allowed' : ''}`} title={t.tooltips.closeSidebar}>
+                            <button onClick={handleCloseSidebar} className={`${sidebarToggleButtonClass} text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${isCanvasLocked ? 'opacity-50 cursor-not-allowed' : ''}`} title={t.tooltips.closeSidebar}>
                                 <X size={18}/>
                             </button>
                         </div>
@@ -687,7 +1000,7 @@ function App() {
                                     <Archive size={14} className="text-slate-400 dark:text-slate-500 group-hover:text-sciblue-500 transition-colors group-hover:scale-110 duration-300"/> 
                                     {t.storage.title}
                                 </div>
-                                <div className="p-1 rounded-full group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors">
+                                <div className={`${sidebarToggleButtonClass} group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors`}>
                                     <ChevronDown 
                                         size={14} 
                                         className={`text-slate-400 dark:text-slate-500 transition-transform duration-300 ${isStorageOpen ? 'rotate-180 text-sciblue-500' : 'rotate-0'}`}
@@ -782,7 +1095,7 @@ function App() {
                                     >
                                         <Undo2 size={12}/> {t.controls.default}
                                     </button>
-                                    <div className="p-1 rounded-full group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors">
+                                    <div className={`${sidebarToggleButtonClass} group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors`}>
                                         <ChevronDown 
                                             size={14} 
                                             className={`text-slate-400 dark:text-slate-500 transition-transform duration-300 ${isParamsOpen ? 'rotate-180 text-sciblue-500' : 'rotate-0'}`}
@@ -793,7 +1106,7 @@ function App() {
 
                             {/* Smoother cubic-bezier transition for collapse */}
                             <div className={`overflow-hidden transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isParamsOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                                <div className={`${paramLayoutClass} pb-2 px-0.5`}>
+                                <div className={`${paramLayoutClass} pb-2 ${sidebarContentWidthClass}`}>
                                     {[
                                     { key: 'N', label: t.controls.particles, step: 1, min: 1 },
                                     { key: 'r', label: t.controls.radius, step: 0.05, min: 0.01 },
@@ -886,16 +1199,24 @@ function App() {
 
       {/* --- MAIN CONTENT AREA --- */}
       {/* REMOVED Z-0 TO FIX STACKING CONTEXT ISSUE WITH BACKDROP */}
-      <main className="flex-1 h-full overflow-y-auto overflow-x-hidden relative flex flex-col scroll-smooth">
-        
+      <main
+        ref={mainScrollRef}
+        onScroll={handleMainScroll}
+        onTouchStart={handleMainTouchStart}
+        onTouchMove={handleMainTouchMove}
+        onTouchEnd={handleMainTouchEnd}
+        onTouchCancel={handleMainTouchEnd}
+        className="flex-1 h-full overflow-y-auto overflow-x-hidden relative flex flex-col scroll-smooth main-scroll"
+      >
+        <div ref={mainContentRef} className="flex flex-col min-h-full will-change-transform">
         {/* Modern Header Area */}
         {/* Landscape Optimization: Reduced top/bottom padding to maximize vertical space */}
         <header className="pt-24 pb-4 landscape:pt-6 landscape:pb-1 md:pt-24 md:pb-6 px-6 max-w-4xl mx-auto text-center animate-fade-in w-full shrink-0">
             {/* Version Badge - Centered Above Title */}
-            <div className="flex justify-center mb-5 landscape:mb-2">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-bold tracking-[0.2em] uppercase shadow-sm ring-1 ring-slate-100 dark:ring-slate-800">
+            <div className={`flex justify-center overflow-hidden transition-all duration-300 ${hideVersionBadge ? 'mb-0 max-h-0 opacity-0 -translate-y-2' : 'mb-5 landscape:mb-2 max-h-12 opacity-100 translate-y-0'}`}>
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-slate-200/70 dark:border-slate-700/70 text-slate-600 dark:text-slate-200 text-[9px] sm:text-[10px] font-bold tracking-[0.12em] shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.6)]"></span>
-                    {t.header.systemOp} · v2.2
+                    <span className="truncate" title={versionBadgeText}>{versionBadgeText}</span>
                 </div>
             </div>
             
@@ -913,7 +1234,7 @@ function App() {
         <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pb-10 landscape:pb-4 space-y-6">
             
             {/* 3D View Card - Z-Index 100 when locked ensures it sits ABOVE the global z-[90] backdrop */}
-            <div className={`${isCanvasLocked ? 'relative z-[100]' : ''}`}>
+            <div ref={canvasContainerRef} className={`${isCanvasLocked ? 'relative z-[120]' : ''}`}>
                 <CollapsibleCard 
                 title={t.views.mdView} icon={<Box size={18} className="text-sciblue-600 dark:text-sciblue-400"/>} t={t}
                 isLocked={isCanvasLocked || isRunning} // Locked during interaction OR running
@@ -972,6 +1293,7 @@ function App() {
         <div onClick={(e) => { if(isCanvasLocked) { e.preventDefault(); e.stopPropagation(); showNotification(t.canvas.interactionLocked, 2000, 'warning'); } }}>
              <Footer t={t} showNotification={(msg, dur, type) => showNotification(msg, dur, type)} />
         </div>
+        </div>
 
         {/* --- FLOATING CONTROLS (Left Top) --- */}
         <div 
@@ -1029,8 +1351,8 @@ function App() {
                     className={`
                         w-8 h-8 md:w-11 md:h-11 rounded-full shadow-lg border backdrop-blur-md transition-all active:scale-90 flex items-center justify-center
                         ${isRunning 
-                            ? 'bg-amber-500 border-amber-400 text-white hover:bg-amber-400 hover:shadow-amber-200/50' 
-                            : 'bg-slate-800 dark:bg-sciblue-600 border-slate-700 dark:border-sciblue-500 text-white hover:bg-slate-700 dark:hover:bg-sciblue-500 hover:shadow-slate-300/50'
+                            ? 'bg-amber-400/80 dark:bg-amber-400/25 border-amber-300/70 dark:border-amber-300/40 text-amber-900 dark:text-amber-200 hover:bg-amber-400/90 hover:shadow-amber-200/40' 
+                            : 'bg-slate-900/70 dark:bg-white/10 border-slate-700/60 dark:border-white/20 text-white dark:text-slate-100 hover:bg-slate-800/80 dark:hover:bg-white/15 hover:shadow-slate-300/40'
                         }
                         ${isCanvasLocked ? 'opacity-50 cursor-not-allowed hover:bg-auto' : ''}
                     `}
@@ -1041,6 +1363,20 @@ function App() {
         </div>
 
       </main>
+
+      <div
+        ref={bottomElasticRef}
+        aria-hidden="true"
+        className="fixed bottom-0 left-0 right-0 z-20 pointer-events-none"
+        style={{
+          height: 0,
+          opacity: 0,
+          transform: 'scaleY(1)',
+          transformOrigin: 'bottom',
+          background: 'linear-gradient(to top, rgba(14,165,233,0.22), rgba(14,165,233,0))',
+          boxShadow: '0 -18px 40px rgba(14,165,233,0.18)'
+        }}
+      />
 
       {/* VISITOR TOAST - MOVED TO BOTTOM */}
       <div className={`fixed bottom-24 md:bottom-10 left-1/2 transform -translate-x-1/2 z-[100] transition-all duration-700 ease-in-out ${showVisitorToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8 pointer-events-none'}`}>
@@ -1054,12 +1390,15 @@ function App() {
       </div>
 
       {/* NOTIFICATION */}
-      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-[100] pointer-events-none">
+      <div className={`fixed z-[100] pointer-events-none ${notification.position === 'center' ? 'inset-0 flex items-center justify-center' : 'bottom-8 left-1/2 -translate-x-1/2'}`}>
         <div 
             key={notification.id}
             className={`
                 transition-all duration-500 ease-out
-                ${notification.visible ? 'animate-slide-up opacity-100' : 'opacity-0 translate-y-8'}
+                ${notification.visible 
+                    ? (notification.position === 'center' ? 'animate-fade-in opacity-100 scale-100' : 'animate-slide-up opacity-100') 
+                    : (notification.position === 'center' ? 'opacity-0 scale-95' : 'opacity-0 translate-y-8')
+                }
             `}
         >
             <div className={`
@@ -1083,21 +1422,20 @@ function App() {
         <button 
             onClick={toggleDarkMode}
             title={t.tooltips.themeToggle}
-            className="flex items-center justify-center w-8 h-8 md:w-auto md:px-3 md:py-1.5 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 backdrop-blur-sm text-slate-500 dark:text-slate-400 hover:text-amber-500 dark:hover:text-sciblue-400 rounded-lg border border-transparent hover:border-slate-200 dark:hover:border-slate-600 transition-all active:scale-95 shadow-sm"
+            className="flex items-center justify-center w-9 h-9 md:w-11 md:h-11 bg-white/70 dark:bg-slate-900/60 hover:bg-white/90 dark:hover:bg-slate-900/80 backdrop-blur-md text-slate-600 dark:text-slate-100 hover:text-amber-500 dark:hover:text-sciblue-300 rounded-full border border-slate-200/60 dark:border-slate-700/60 transition-all active:scale-95 shadow-sm"
         >
             {isDarkMode ? <Moon size={16} /> : <Sun size={16} />}
-            <span className="hidden md:inline-block text-xs font-bold tracking-wide ml-2">{isDarkMode ? t.common.modeDark : t.common.modeLight}</span>
+            <span className="sr-only">{isDarkMode ? t.common.modeDark : t.common.modeLight}</span>
         </button>
 
         {/* Language Menu */}
         <div className="group relative">
             <button 
                 title={t.tooltips.langToggle}
-                className="flex items-center gap-2 px-3 py-1.5 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 backdrop-blur-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 rounded-lg border border-transparent hover:border-slate-200 dark:hover:border-slate-600 transition-all active:scale-95 shadow-sm"
+                className="flex items-center justify-center w-9 h-9 md:w-11 md:h-11 bg-white/70 dark:bg-slate-900/60 hover:bg-white/90 dark:hover:bg-slate-900/80 backdrop-blur-md text-slate-600 dark:text-slate-100 hover:text-slate-800 dark:hover:text-slate-200 rounded-full border border-slate-200/60 dark:border-slate-700/60 transition-all active:scale-95 shadow-sm"
             >
                 <Globe size={16} />
-                {/* HIDDEN ON MOBILE */}
-                <span className="hidden md:inline-block text-xs font-bold tracking-wide">{t.header.language}</span>
+                <span className="sr-only">{t.header.language}</span>
             </button>
             <div className="absolute right-0 top-full mt-2 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right scale-95 group-hover:scale-100 z-50">
                 <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden py-1">

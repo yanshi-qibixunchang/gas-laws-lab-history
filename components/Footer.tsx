@@ -15,20 +15,20 @@ const Footer: React.FC<FooterProps> = ({ t, showNotification }) => {
   const handleEmailClick = (e: React.MouseEvent) => {
     e.preventDefault();
     const email = "project-team@users.noreply.github.com";
-    
-    // Copy to clipboard first
-    navigator.clipboard.writeText(email).then(() => {
-      setEmailCopied(true);
-      showNotification(t.footer.emailCopiedMsg, 2000, 'success');
-      
-      // Reset copied state after animation
-      setTimeout(() => setEmailCopied(false), 2000); 
-      
-      // Add delay before opening mail client so user sees the notification
-      setTimeout(() => {
-          window.location.href = `mailto:${email}`;
-      }, 1000);
-    });
+
+    // Trigger mail client immediately (needs direct user gesture)
+    window.location.href = `mailto:${email}`;
+
+    // Best-effort copy to clipboard without blocking the mailto
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(email).then(() => {
+        setEmailCopied(true);
+        showNotification(t.footer.emailCopiedMsg, 2000, 'success');
+        setTimeout(() => setEmailCopied(false), 2000);
+      }).catch(() => {
+        // Ignore clipboard failures
+      });
+    }
   };
 
   const handleOpenPdf = (e: React.MouseEvent) => {

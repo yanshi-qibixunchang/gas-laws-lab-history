@@ -1,9 +1,9 @@
-import { Translation, LanguageCode } from '../types';
+﻿import { Translation, LanguageCode } from '../types';
 
 export const translations: Record<LanguageCode, Translation> = {
   'zh-CN': {
     brand: {
-      name: "硬球模型",
+      name: "硬球模拟3",
       subtitle: "交互仿真"
     },
     title: "硬球模型气体仿真",
@@ -142,7 +142,7 @@ export const translations: Record<LanguageCode, Translation> = {
       references: "参考资料",
       visitorCount: "您是本站第 {count} 位访客",
       school: "Project Institution\n环境工程",
-      version: "2025.12 Edition",
+      version: "v3.2.1 正式版",
       links: "相关链接",
       github: "GitHub 仓库",
       report: "查看报告 (PDF)",
@@ -158,7 +158,7 @@ export const translations: Record<LanguageCode, Translation> = {
   },
   'zh-TW': {
     brand: {
-      name: "硬球模型",
+      name: "硬球模擬3",
       subtitle: "交互仿真"
     },
     title: "硬球模型氣體模擬",
@@ -297,7 +297,7 @@ export const translations: Record<LanguageCode, Translation> = {
       references: "參考資料",
       visitorCount: "您是本站第 {count} 位访客",
       school: "Project Institution（威海）\n環境工程",
-      version: "2025.12 Edition",
+      version: "v3.2.1 正式版",
       links: "相關連結",
       github: "GitHub 倉庫",
       report: "查看報告 (PDF)",
@@ -313,7 +313,7 @@ export const translations: Record<LanguageCode, Translation> = {
   },
   'en-GB': {
     brand: {
-      name: "Hard Sphere",
+      name: "Hard Sphere 3",
       subtitle: "Simulation"
     },
     title: "Hard Sphere Simulation",
@@ -452,7 +452,7 @@ export const translations: Record<LanguageCode, Translation> = {
       references: "References",
       visitorCount: "You are the {count}th visitor",
       school: "Project Institution\nEnvironmental Eng.",
-      version: "2025.12 Edition",
+      version: "v3.2.1 Official",
       links: "Links",
       github: "GitHub Repo",
       report: "View Report (PDF)",
@@ -468,7 +468,7 @@ export const translations: Record<LanguageCode, Translation> = {
   },
   'en-US': {
     brand: {
-      name: "Hard Sphere",
+      name: "Hard Sphere 3",
       subtitle: "Simulation"
     },
     title: "Hard Sphere Simulation",
@@ -607,7 +607,7 @@ export const translations: Record<LanguageCode, Translation> = {
       references: "References",
       visitorCount: "You are the {count}th visitor",
       school: "Project Institution\nEnvironmental Eng.",
-      version: "2025.12 Edition",
+      version: "v3.2.1 Official",
       links: "Links",
       github: "GitHub Repo",
       report: "View Report (PDF)",
@@ -622,3 +622,5 @@ export const translations: Record<LanguageCode, Translation> = {
     }
   }
 };
+
+

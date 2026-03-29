@@ -21,14 +21,15 @@ const renderRmsLabel = (label: string) => {
   const token = 'v_rms';
   const tokenIndex = label.indexOf(token);
   if (tokenIndex === -1) return label;
-  const before = label.slice(0, tokenIndex);
-  const after = label.slice(tokenIndex + token.length);
+  const before = label.slice(0, tokenIndex).trimEnd();
+  const after = label.slice(tokenIndex + token.length).trimStart();
   return (
-    <>
-      {before}
-      v<sub className="text-[8px] align-sub normal-case">rms</sub>
-      {after}
-    </>
+    <span className="inline-flex items-baseline gap-0.5 whitespace-nowrap">
+      {before && <span className="mr-0.5">{before}</span>}
+      <span className="font-mono">v</span>
+      <sub className="text-[9px] font-semibold relative -bottom-0.5 normal-case">rms</sub>
+      {after && <span className="ml-0.5">{after}</span>}
+    </span>
   );
 };
 
@@ -40,7 +41,7 @@ const StatItem = ({ label, value, unit, icon, colorClass = "text-sciblue-500" }:
     </div>
     
     {/* Label: Darkened from slate-400 to slate-600 for better contrast */}
-    <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 mb-1 text-[10px] uppercase tracking-widest font-bold font-mono">
+    <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 mb-1 text-[10px] uppercase tracking-wide font-bold font-mono whitespace-nowrap">
       <span className={colorClass}>{React.cloneElement(icon, { size: 12 })}</span> {label}
     </div>
     
@@ -104,7 +105,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ stats, eqTime, statDuration, t 
              </div>
              
              {/* Progress Track */}
-             <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-sm h-1.5 overflow-hidden border border-slate-300/50 dark:border-slate-700/50">
+             <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-sm h-1.5 overflow-hidden border border-slate-300/50 dark:border-slate-700/50 hidden md:block">
                 <div 
                     className={`h-full rounded-sm transition-all duration-300 ${progressColor} relative`} 
                     style={{ width: `${Math.min(100, (stats.time / totalDuration) * 100)}%` }}
