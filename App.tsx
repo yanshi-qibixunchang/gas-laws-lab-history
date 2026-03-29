@@ -21,7 +21,7 @@ const DEFAULT_PARAMS: SimulationParams = {
   statsDuration: 60
 };
 
-const APP_VERSION = '3.3.6';
+const APP_VERSION = '3.3.7';
 
 const areParamsEqual = (a: SimulationParams, b: SimulationParams) => (
   a.N === b.N &&
@@ -200,8 +200,6 @@ function App() {
     raf: 0
   });
 
-  // Visitor Counter
-  const [visitorCount, setVisitorCount] = useState<number>(0);
   const [showVisitorToast, setShowVisitorToast] = useState(false);
 
   const engineRef = useRef<PhysicsEngine | null>(null);
@@ -817,32 +815,20 @@ function App() {
 
   // Initial Load & Animation smoothing
   useEffect(() => {
-    const storedCount = localStorage.getItem('hs_visitor_count');
-    const storedDate = localStorage.getItem('hs_visitor_date');
-    const today = new Date().toDateString();
-    let finalCount = 0;
-    if (storedCount && storedDate === today) {
-        finalCount = parseInt(storedCount);
-    } else {
-        const now = new Date();
-        const startOfYear = new Date(now.getFullYear(), 0, 0);
-        const dayOfYear = Math.floor((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24));
-        finalCount = 3500 + (dayOfYear * 25) + Math.floor(Math.random() * 15);
-        localStorage.setItem('hs_visitor_count', finalCount.toString());
-        localStorage.setItem('hs_visitor_date', today);
-    }
-    setVisitorCount(finalCount);
-    
     // Init Engine
     // Note: If we loaded custom params, params is already set. engine uses current params state.
     engineRef.current = new PhysicsEngine(params);
     setChartData(engineRef.current.getHistogramData(false));
     setNeedsReset(false);
 
-    setTimeout(() => {
+    const showToastTimer = window.setTimeout(() => {
         setShowVisitorToast(true);
-        setTimeout(() => setShowVisitorToast(false), 6000);
+        window.setTimeout(() => setShowVisitorToast(false), 6000);
     }, 1500);
+
+    return () => {
+      window.clearTimeout(showToastTimer);
+    };
   }, []); 
 
   // --- Interaction Checker ---
@@ -1717,9 +1703,8 @@ function App() {
       <div className={`fixed bottom-24 md:bottom-10 left-1/2 transform -translate-x-1/2 z-[100] transition-all duration-700 ease-in-out ${showVisitorToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8 pointer-events-none'}`}>
         <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-slate-600 dark:text-slate-200 px-5 py-2 rounded-full shadow-xl border border-slate-100 dark:border-slate-700 flex items-center gap-3">
             <span className="bg-emerald-100 dark:bg-emerald-900/40 p-1 rounded-full"><User size={12} className="text-emerald-600 dark:text-emerald-400"/></span>
-            {/* Localized Visitor String */}
             <span className="text-xs font-medium tracking-wide">
-                {t.footer.visitorCount.replace('{count}', visitorCount.toLocaleString())}
+                {t.footer.visitorCount}
             </span>
         </div>
       </div>

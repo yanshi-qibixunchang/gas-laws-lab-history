@@ -135,10 +135,6 @@ const ProgressBar = ({
           <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
           <span className="truncate">{firstStageLabel}</span>
         </div>
-        <div className="flex items-center gap-1 rounded-full border border-slate-200/80 bg-white/70 px-2 py-0.5 text-[9px] text-slate-500 shadow-sm dark:border-slate-700/80 dark:bg-slate-900/70 dark:text-slate-300">
-          <span className="font-mono">{normalizedDivider.toFixed(0)}%</span>
-          <span>|</span>
-        </div>
         <div className="flex min-w-0 items-center gap-2 text-right">
           <span className="truncate">{secondStageLabel}</span>
           <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />

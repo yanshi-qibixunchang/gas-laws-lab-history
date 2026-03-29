@@ -1,4 +1,4 @@
-# Hard Sphere Lab v3.3.6
+# Hard Sphere Lab v3.3.7
 
 Hard Sphere Lab is a React + Vite simulation app for hard-sphere molecular dynamics with an Andersen thermostat. The current release packages the web app and a Capacitor Android shell under the product name `硬球模拟3`.
 
@@ -94,7 +94,7 @@ android/app/build/outputs/apk/debug/app-debug.apk
 
 ## Version alignment
 
-The current repository state is aligned to version `3.3.6` across:
+The current repository state is aligned to version `3.3.7` across:
 
 - `package.json`
 - Android app metadata
