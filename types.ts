@@ -97,6 +97,15 @@ export interface Translation {
   storage: {
     title: string;
     save: string;
+    newPreset: string;
+    createTitle: string;
+    confirmCreate: string;
+    cancel: string;
+    rename: string;
+    renameTitle: string;
+    confirmRename: string;
+    renameSuccess: string;
+    moreActions: string;
     load: string;
     delete: string;
     duplicateName: string; // New: Duplicate name warning

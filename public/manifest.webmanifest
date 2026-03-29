@@ -1,7 +1,7 @@
 {
   "name": "硬球模拟3",
   "short_name": "硬球模拟3",
-  "version": "3.3.3",
+  "version": "3.3.5",
   "description": "Hard sphere molecular dynamics simulation with Andersen thermostat, responsive controls, and built-in report viewing.",
   "start_url": "/",
   "display": "standalone",

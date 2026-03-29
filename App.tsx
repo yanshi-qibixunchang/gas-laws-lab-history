@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Box, Activity, Globe, ChevronRight, Lock, Unlock, MousePointer2, User, Atom, AlertCircle, CheckCircle2, PanelLeftClose, SlidersHorizontal, X, Undo2, LayoutDashboard, Moon, Sun, ArrowLeft, Save, Download, Trash2, Archive, ShieldCheck, ChevronDown, LogOut, Info, Check } from 'lucide-react';
+import { Play, Pause, RotateCcw, Box, Activity, Globe, ChevronRight, Lock, Unlock, MousePointer2, User, Atom, AlertCircle, CheckCircle2, PanelLeftClose, SlidersHorizontal, X, Undo2, LayoutDashboard, Moon, Sun, ArrowLeft, Save, Download, Trash2, Archive, ShieldCheck, ChevronDown, LogOut, Info, Check, Plus, MoreHorizontal, Pencil } from 'lucide-react';
 import { PhysicsEngine } from './services/PhysicsEngine';
 import { SimulationParams, SimulationStats, ChartData, LanguageCode, SavedConfig, InputCapabilities, Translation } from './types';
 import { translations } from './services/translations';
@@ -21,7 +21,19 @@ const DEFAULT_PARAMS: SimulationParams = {
   statsDuration: 60
 };
 
-const APP_VERSION = '3.3.3';
+const APP_VERSION = '3.3.5';
+
+const areParamsEqual = (a: SimulationParams, b: SimulationParams) => (
+  a.N === b.N &&
+  a.L === b.L &&
+  a.r === b.r &&
+  a.m === b.m &&
+  a.k === b.k &&
+  a.dt === b.dt &&
+  a.nu === b.nu &&
+  a.equilibriumTime === b.equilibriumTime &&
+  a.statsDuration === b.statsDuration
+);
 
 const isEditableElement = (element: Element | null) => {
   if (!(element instanceof HTMLElement)) return false;
@@ -123,8 +135,8 @@ function App() {
   const keyboardResetRef = useRef<number | null>(null);
 
   // SECTION COLLAPSE STATES
-  // Default: Storage Collapsed (false), Params Expanded (true)
-  const [isStorageOpen, setIsStorageOpen] = useState(false);
+  // Default: Storage Expanded, Params Expanded
+  const [isStorageOpen, setIsStorageOpen] = useState(true);
   const [isParamsOpen, setIsParamsOpen] = useState(true);
   
   // New State: Mobile Hint Guide & Interaction Tracking
@@ -135,6 +147,10 @@ function App() {
   const [savedConfigs, setSavedConfigs] = useState<SavedConfig[]>([]);
   const [newConfigName, setNewConfigName] = useState('');
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
+  const [isCreatePresetModalOpen, setIsCreatePresetModalOpen] = useState(false);
+  const [presetModalMode, setPresetModalMode] = useState<'create' | 'rename'>('create');
+  const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
+  const [presetActionMenu, setPresetActionMenu] = useState<{ id: string; top: number; left: number } | null>(null);
 
   const [stats, setStats] = useState<SimulationStats>({
     time: 0, temperature: 0, pressure: 0, meanSpeed: 0, rmsSpeed: 0,
@@ -156,6 +172,8 @@ function App() {
   const bottomElasticStateRef = useRef({ current: 0, target: 0, raf: 0 });
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const langMenuRef = useRef<HTMLDivElement | null>(null);
+  const presetNameInputRef = useRef<HTMLInputElement | null>(null);
+  const presetActionMenuRef = useRef<HTMLDivElement | null>(null);
   const interactionRafRef = useRef<number>(0);
   const [interactionRect, setInteractionRect] = useState<{
     top: number;
@@ -521,6 +539,9 @@ function App() {
     ? Math.max(220, Math.min(viewportSize.visualHeight - 230, 320))
     : null;
   const overlayControlHidden = isSidebarOverlay && isSidebarOpen;
+  const activePresetMenuConfig = presetActionMenu
+    ? savedConfigs.find((config) => config.id === presetActionMenu.id) ?? null
+    : null;
   const sidebarHoverClass = isDesktopLike ? 'hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' : '';
   const sectionHoverTextClass = isDesktopLike ? 'group-hover:text-sciblue-600 dark:group-hover:text-sciblue-400' : '';
   const sectionHoverIconClass = isDesktopLike ? 'group-hover:text-sciblue-500 group-hover:scale-110' : '';
@@ -692,6 +713,62 @@ function App() {
     };
   }, [isLangMenuOpen]);
 
+  useEffect(() => {
+    if (!presetActionMenu) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      if (!presetActionMenuRef.current) return;
+      if (!presetActionMenuRef.current.contains(event.target as Node)) {
+        setPresetActionMenu(null);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setPresetActionMenu(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [presetActionMenu]);
+
+  useEffect(() => {
+    if (!isCreatePresetModalOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const focusTimer = window.setTimeout(() => {
+      presetNameInputRef.current?.focus();
+      presetNameInputRef.current?.select();
+    }, 60);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsCreatePresetModalOpen(false);
+        setPresetModalMode('create');
+        setEditingPresetId(null);
+        setNewConfigName('');
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.clearTimeout(focusTimer);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isCreatePresetModalOpen]);
+
   // Storage Logic: Load on Mount (Merge System + Local)
   useEffect(() => {
     // Ensure the system preset name updates with language change
@@ -783,39 +860,82 @@ function App() {
   };
 
   // --- Storage Handlers ---
-  const handleSaveConfig = () => {
-      const nameToSave = newConfigName.trim();
+  const closeCreatePresetModal = () => {
+      setIsCreatePresetModalOpen(false);
+      setPresetModalMode('create');
+      setEditingPresetId(null);
+      setNewConfigName('');
+  };
+
+  const openCreatePresetModal = () => {
+      setIsStorageOpen(true);
+      setPresetActionMenu(null);
+      setPresetModalMode('create');
+      setEditingPresetId(null);
+      setNewConfigName('');
+      setIsCreatePresetModalOpen(true);
+  };
+
+  const openRenamePresetModal = (config: SavedConfig) => {
+      if (config.isSystem) return;
+      setPresetActionMenu(null);
+      setSelectedPresetId(config.id);
+      setPresetModalMode('rename');
+      setEditingPresetId(config.id);
+      setNewConfigName(config.name);
+      setIsCreatePresetModalOpen(true);
+  };
+
+  const openPresetActionMenu = (config: SavedConfig, top: number, left: number) => {
+      const menuWidth = 196;
+      const menuHeight = config.isSystem ? 64 : 148;
+      const maxLeft = Math.max(12, window.innerWidth - menuWidth - 12);
+      const maxTop = Math.max(12, window.innerHeight - menuHeight - 12);
+
+      setSelectedPresetId(config.id);
+      setPresetActionMenu({
+          id: config.id,
+          top: Math.max(12, Math.min(top, maxTop)),
+          left: Math.max(12, Math.min(left, maxLeft))
+      });
+  };
+
+  const handleSaveConfig = (rawName = newConfigName) => {
+      const nameToSave = rawName.trim();
       if (!nameToSave) {
           showNotification(t.messages.checkInputs, 1500, 'warning');
-          return;
+          return false;
       }
-      
-      // 1. Check for duplicate NAMES (including system preset)
-      const isNameDuplicate = savedConfigs.some(c => c.name === nameToSave);
+
+      const isNameDuplicate = savedConfigs.some(c => c.name === nameToSave && c.id !== editingPresetId);
       if (isNameDuplicate) {
           showNotification(t.storage.duplicateName, 2000, 'warning');
-          return;
+          return false;
       }
 
-      // 2. Check for duplicate PARAMETERS (including system preset)
-      const isParamsDuplicate = savedConfigs.some(c => {
-          const p = c.params;
-          return (
-              p.N === params.N &&
-              p.L === params.L &&
-              p.r === params.r &&
-              p.m === params.m &&
-              p.k === params.k &&
-              p.dt === params.dt &&
-              p.nu === params.nu &&
-              p.equilibriumTime === params.equilibriumTime &&
-              p.statsDuration === params.statsDuration
-          );
-      });
+      if (presetModalMode === 'rename' && editingPresetId) {
+          const targetConfig = savedConfigs.find((config) => config.id === editingPresetId);
+          if (!targetConfig || targetConfig.isSystem) {
+              return false;
+          }
 
+          const updated = savedConfigs.map((config) =>
+              config.id === editingPresetId ? { ...config, name: nameToSave } : config
+          );
+
+          const userConfigs = updated.filter(c => !c.isSystem);
+          setSavedConfigs(updated);
+          localStorage.setItem('hsl_favorites', JSON.stringify(userConfigs));
+          setSelectedPresetId(editingPresetId);
+          closeCreatePresetModal();
+          showNotification(t.storage.renameSuccess, 2000, 'success');
+          return true;
+      }
+
+      const isParamsDuplicate = savedConfigs.some(c => areParamsEqual(c.params, params));
       if (isParamsDuplicate) {
           showNotification(t.storage.duplicateParams, 2500, 'warning');
-          return;
+          return false;
       }
 
       const newConfig: SavedConfig = {
@@ -835,39 +955,55 @@ function App() {
       setNewConfigName('');
       // Auto-select the newly saved config
       setSelectedPresetId(newConfig.id);
+      closeCreatePresetModal();
       showNotification(t.storage.saveSuccess, 2000, 'success');
+      return true;
   };
 
   const handleSelectPreset = (config: SavedConfig) => {
+      setPresetActionMenu(null);
       setSelectedPresetId(config.id);
       // Automatically load parameters when selected
       setParams(config.params);
       setNeedsReset(true);
   };
 
-  const handleDeleteConfig = (id: string, e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation(); // Prevent selection when deleting
+  const handleDeleteConfig = (id: string) => {
+      const configToDelete = savedConfigs.find((config) => config.id === id);
+      if (!configToDelete || configToDelete.isSystem) return;
+
       if(confirm(t.storage.confirmDelete)) {
           const userConfigs = savedConfigs.filter(c => !c.isSystem && c.id !== id);
-          // Re-add system preset + remaining user configs
+          const storedDefault = localStorage.getItem('hsl_custom_default');
+
+          if (storedDefault) {
+              try {
+                  const parsedDefault = JSON.parse(storedDefault) as SimulationParams;
+                  if (areParamsEqual(parsedDefault, configToDelete.params)) {
+                      localStorage.removeItem('hsl_custom_default');
+                  }
+              } catch (error) {
+                  console.error('Failed to parse startup default', error);
+              }
+          }
+
           setSavedConfigs([savedConfigs[0], ...userConfigs]);
           localStorage.setItem('hsl_favorites', JSON.stringify(userConfigs));
           if (selectedPresetId === id) setSelectedPresetId(null);
+          setPresetActionMenu(null);
       }
   };
 
-  const handleSetCustomDefault = () => {
-      if (!selectedPresetId) {
-          showNotification(t.storage.selectFirst, 2000, 'warning');
-          return;
+  const handleSetStartupPreset = (config: SavedConfig) => {
+      if (config.isSystem) {
+          localStorage.removeItem('hsl_custom_default');
+      } else {
+          localStorage.setItem('hsl_custom_default', JSON.stringify(config.params));
       }
-      
-      const configToSet = savedConfigs.find(c => c.id === selectedPresetId);
-      if (configToSet) {
-          localStorage.setItem('hsl_custom_default', JSON.stringify(configToSet.params));
-          showNotification(t.storage.defaultSet, 2000, 'success');
-      }
+
+      setSelectedPresetId(config.id);
+      setPresetActionMenu(null);
+      showNotification(t.storage.defaultSet, 2000, 'success');
   };
 
   // --- Standard Handlers ---
@@ -1173,42 +1309,30 @@ function App() {
                                     <Archive size={14} className={`text-slate-400 dark:text-slate-500 transition-colors duration-300 ${sectionHoverIconClass}`}/> 
                                     <span className="truncate whitespace-nowrap">{t.storage.title}</span>
                                 </div>
-                                <div className={`${sidebarToggleButtonClass} transition-colors ${sectionHoverButtonClass}`}>
-                                    <ChevronDown 
-                                        size={14} 
-                                        className={`text-slate-400 dark:text-slate-500 transition-transform duration-300 ${isStorageOpen ? 'rotate-180 text-sciblue-500' : 'rotate-0'}`}
-                                    />
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            openCreatePresetModal();
+                                        }}
+                                        className={`inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold tracking-wide text-slate-500 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${isDesktopLike ? 'hover:border-sciblue-300 hover:text-sciblue-600 dark:hover:border-sciblue-500 dark:hover:text-sciblue-300' : 'active:scale-95'}`}
+                                        title={t.storage.newPreset}
+                                    >
+                                        <Plus size={11} />
+                                        <span className="whitespace-nowrap">{t.storage.newPreset}</span>
+                                    </button>
+                                    <div className={`${sidebarToggleButtonClass} transition-colors ${sectionHoverButtonClass}`}>
+                                        <ChevronDown 
+                                            size={14} 
+                                            className={`text-slate-400 dark:text-slate-500 transition-transform duration-300 ${isStorageOpen ? 'rotate-180 text-sciblue-500' : 'rotate-0'}`}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                             
                             {/* Smoother cubic-bezier transition for collapse */}
                             <div className={`overflow-hidden transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isStorageOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                                {/* Save Current */}
-                                <div className={`flex items-stretch gap-2 mb-3 mt-1 ${sidebarContentWidthClass}`}>
-                                    <input 
-                                        type="text" 
-                                        placeholder={t.storage.placeholder}
-                                        value={newConfigName}
-                                        onChange={(e) => setNewConfigName(e.target.value)}
-                                        onFocus={handleInputFocus} // ADDED FOCUS HANDLER
-                                        style={sidebarInputScrollMarginStyle}
-                                        className={`flex-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-slate-700 focus:outline-none focus:border-sciblue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 ${sidebarInputTextClass} ${sidebarInputPaddingClass}`}
-                                    />
-                                    <button onClick={handleSaveConfig} className={`bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 p-1.5 rounded-md border border-slate-200 dark:border-slate-700 transition-colors shadow-sm shrink-0 ${isDesktopLike ? 'hover:bg-sciblue-500 hover:text-white' : ''}`}>
-                                        <Save size={16} />
-                                    </button>
-                                </div>
-
-                                {/* Default Button */}
-                                <button 
-                                    onClick={handleSetCustomDefault} 
-                                    className={`${sidebarContentWidthClass} mb-3 text-[10px] text-slate-400 flex items-center justify-center gap-1 py-1 border border-dashed border-slate-200 dark:border-slate-700 rounded transition-colors group ${isDesktopLike ? 'hover:text-sciblue-600 dark:hover:text-sciblue-400 hover:border-sciblue-300' : ''}`}
-                                    title={t.storage.setDefault}
-                                >
-                                    <CheckCircle2 size={10} className={`text-slate-300 transition-colors ${isDesktopLike ? 'group-hover:text-sciblue-500' : ''}`}/> 
-                                    <span className={`${isDesktopLike ? 'group-hover:font-semibold' : ''} transition-all`}>{t.storage.setDefault}</span>
-                                </button>
-
                                 {/* List */}
                                 <div className={`space-y-2 pb-2 ${sidebarContentWidthClass}`}>
                                     {savedConfigs.length === 1 && <div className="text-[10px] text-center text-slate-400 italic py-2">{t.storage.empty}</div>}
@@ -1216,6 +1340,11 @@ function App() {
                                         <div 
                                             key={config.id} 
                                             onClick={() => handleSelectPreset(config)}
+                                            onContextMenu={(event) => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                openPresetActionMenu(config, event.clientY, event.clientX);
+                                            }}
                                             className={`
                                                 relative flex items-center justify-between p-1.5 rounded border cursor-pointer transition-all duration-200 group
                                                 ${selectedPresetId === config.id 
@@ -1231,17 +1360,25 @@ function App() {
                                                 <span className={`text-xs font-medium truncate max-w-[100px] ${config.isSystem ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-300'}`}>{config.name}</span>
                                             </div>
                                             <div className="flex gap-1 relative z-10">
-                                                {!config.isSystem && (
-                                                    <>
-                                                        <button 
-                                                            onClick={(e) => handleDeleteConfig(config.id, e)} 
-                                                            className={`text-rose-400 p-1 rounded transition-colors ${isDesktopLike ? 'hover:text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/30' : ''}`} 
-                                                            title={t.storage.delete}
-                                                        >
-                                                            <Trash2 size={12}/>
-                                                        </button>
-                                                    </>
-                                                )}
+                                                <button 
+                                                    type="button"
+                                                    onClick={(event) => {
+                                                        event.preventDefault();
+                                                        event.stopPropagation();
+                                                        const rect = event.currentTarget.getBoundingClientRect();
+                                                        const menuTop = rect.bottom + 8;
+                                                        const menuLeft = rect.right - 188;
+                                                        if (presetActionMenu?.id === config.id) {
+                                                            setPresetActionMenu(null);
+                                                            return;
+                                                        }
+                                                        openPresetActionMenu(config, menuTop, menuLeft);
+                                                    }} 
+                                                    className={`text-slate-400 p-1 rounded transition-colors ${isDesktopLike ? 'hover:text-sciblue-600 hover:bg-sciblue-50 dark:hover:bg-sciblue-900/30' : ''}`} 
+                                                    title={t.storage.moreActions}
+                                                >
+                                                    <MoreHorizontal size={13}/>
+                                                </button>
                                             </div>
                                         </div>
                                     ))}
@@ -1651,6 +1788,118 @@ function App() {
             </div>
         </div>
       </div>
+
+      {isCreatePresetModalOpen && (
+        <div
+          className="fixed inset-0 z-[130] flex items-center justify-center px-4"
+          style={overlayFrameStyle}
+          onClick={closeCreatePresetModal}
+        >
+          <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-sm" />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-preset-title"
+            className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 id="create-preset-title" className="text-base font-bold text-slate-800 dark:text-slate-100">
+                  {presetModalMode === 'rename' ? t.storage.renameTitle : t.storage.createTitle}
+                </h2>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {t.storage.placeholder}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeCreatePresetModal}
+                className={`flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500 ${sidebarHoverClass}`}
+                title={t.common.closeCard}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <input
+                ref={presetNameInputRef}
+                type="text"
+                placeholder={t.storage.placeholder}
+                value={newConfigName}
+                onChange={(event) => setNewConfigName(event.target.value)}
+                onFocus={handleInputFocus}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    handleSaveConfig(newConfigName);
+                  }
+                }}
+                style={sidebarInputScrollMarginStyle}
+                className={`w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-slate-700 focus:border-sciblue-500 focus:outline-none focus:ring-2 focus:ring-sciblue-500/15 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 ${sidebarInputTextClass} ${sidebarInputPaddingClass}`}
+              />
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeCreatePresetModal}
+                  className={`inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-500 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${isDesktopLike ? 'hover:border-slate-300 hover:text-slate-700 dark:hover:border-slate-600 dark:hover:text-slate-100' : 'active:scale-95'}`}
+                >
+                  {t.storage.cancel}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveConfig(newConfigName)}
+                  className={`inline-flex items-center justify-center gap-2 rounded-xl border border-sciblue-500 bg-sciblue-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all ${isDesktopLike ? 'hover:bg-sciblue-600 hover:border-sciblue-600' : 'active:scale-95'}`}
+                >
+                  {presetModalMode === 'rename' ? <Pencil size={14} /> : <Save size={14} />}
+                  <span>{presetModalMode === 'rename' ? t.storage.confirmRename : t.storage.confirmCreate}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {presetActionMenu && activePresetMenuConfig && (
+        <div
+          ref={presetActionMenuRef}
+          className="fixed z-[128] w-48 overflow-hidden rounded-xl border border-slate-200/80 bg-white/95 p-1 shadow-[0_20px_50px_rgba(15,23,42,0.22)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
+          style={{ top: `${presetActionMenu.top}px`, left: `${presetActionMenu.left}px` }}
+        >
+          <button
+            type="button"
+            onClick={() => handleSetStartupPreset(activePresetMenuConfig)}
+            className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-600 transition-colors dark:text-slate-200 ${isDesktopLike ? 'hover:bg-slate-100 dark:hover:bg-slate-800' : 'active:scale-[0.99]'}`}
+          >
+            <Check size={14} className="text-emerald-500" />
+            <span>{t.storage.setDefault}</span>
+          </button>
+
+          {!activePresetMenuConfig.isSystem && (
+            <>
+              <button
+                type="button"
+                onClick={() => openRenamePresetModal(activePresetMenuConfig)}
+                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-600 transition-colors dark:text-slate-200 ${isDesktopLike ? 'hover:bg-slate-100 dark:hover:bg-slate-800' : 'active:scale-[0.99]'}`}
+              >
+                <Pencil size={14} className="text-sciblue-500" />
+                <span>{t.storage.rename}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDeleteConfig(activePresetMenuConfig.id)}
+                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-rose-500 transition-colors ${isDesktopLike ? 'hover:bg-rose-50 dark:hover:bg-rose-900/20' : 'active:scale-[0.99]'}`}
+              >
+                <Trash2 size={14} />
+                <span>{t.storage.delete}</span>
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
     </div>
   );
