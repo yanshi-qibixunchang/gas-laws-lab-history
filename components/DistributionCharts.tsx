@@ -37,7 +37,7 @@ const CustomTooltip = ({ active, payload, label, isDarkMode }: any) => {
 };
 
 const DistributionCharts: React.FC<ChartProps> = ({ data, type, isFinal = false, t, heightClass = "h-[220px]", isDarkMode = false }) => {
-  const containerClass = `w-full ${heightClass} flex flex-col`;
+  const containerClass = `w-full ${heightClass} flex flex-col pb-2`;
   
   // High Contrast Color Palette - Adapted for Dark Mode
   const colors = {
@@ -65,8 +65,15 @@ const DistributionCharts: React.FC<ChartProps> = ({ data, type, isFinal = false,
 
   const formatTick = (val: any) => Number(val).toFixed(2);
   
-  // Tighter margins to maximize space
-  const commonMargin = { top: 5, right: 10, left: 0, bottom: 5 };
+  // Leave enough space for axis labels so they stay fully visible inside cards.
+  const commonMargin = { top: 8, right: 10, left: 0, bottom: 24 };
+  const xAxisLabel = (value: string) => ({
+    value,
+    position: 'bottom' as const,
+    offset: 6,
+    ...labelStyle,
+    fontSize: 10
+  });
 
   if (type === 'speed') {
     const maxTheoretical = Math.max(...data.speed.map(b => b.theoretical || 0));
@@ -90,10 +97,11 @@ const DistributionCharts: React.FC<ChartProps> = ({ data, type, isFinal = false,
               <XAxis 
                 dataKey="val" 
                 tick={axisStyle}
+                height={44}
                 tickLine={false}
                 axisLine={{ stroke: colors.grid }}
                 tickFormatter={formatTick}
-                label={{ value: t.charts.speedX, position: 'insideBottom', offset: -5, ...labelStyle, fontSize: 10 }}
+                label={xAxisLabel(t.charts.speedX)}
               />
               <YAxis 
                  tick={axisStyle}
@@ -137,10 +145,11 @@ const DistributionCharts: React.FC<ChartProps> = ({ data, type, isFinal = false,
               <XAxis 
                 dataKey="val" 
                 tick={axisStyle}
+                height={44}
                 tickLine={false}
                 axisLine={{ stroke: colors.grid }}
                 tickFormatter={formatTick}
-                label={{ value: t.charts.energyX, position: 'insideBottom', offset: -5, ...labelStyle, fontSize: 10 }}
+                label={xAxisLabel(t.charts.energyX)}
               />
               <YAxis 
                  tick={axisStyle}
@@ -174,11 +183,12 @@ const DistributionCharts: React.FC<ChartProps> = ({ data, type, isFinal = false,
                           dataKey="energy" 
                           name="Energy" 
                           tick={axisStyle}
+                          height={44}
                           tickLine={false}
                           axisLine={{ stroke: colors.grid }}
                           tickFormatter={formatTick}
                           domain={['dataMin', 'dataMax']}
-                          label={{ value: t.charts.energyX, position: 'insideBottom', offset: -5, ...labelStyle, fontSize: 10 }}
+                          label={xAxisLabel(t.charts.energyX)}
                       />
                       <YAxis 
                           type="number" 
@@ -230,10 +240,11 @@ const DistributionCharts: React.FC<ChartProps> = ({ data, type, isFinal = false,
                       <XAxis 
                           dataKey="time" 
                           tick={axisStyle}
+                          height={44}
                           tickLine={false}
                           axisLine={{ stroke: colors.grid }}
                           tickFormatter={formatTick}
-                          label={{ value: t.charts.timeX, position: 'insideBottom', offset: -5, ...labelStyle, fontSize: 10 }}
+                          label={xAxisLabel(t.charts.timeX)}
                       />
                       <YAxis 
                           tick={axisStyle}
@@ -261,10 +272,11 @@ const DistributionCharts: React.FC<ChartProps> = ({ data, type, isFinal = false,
                     <XAxis 
                         dataKey="time" 
                         tick={axisStyle}
+                        height={44}
                         tickLine={false}
                         axisLine={{ stroke: colors.grid }}
                         tickFormatter={formatTick}
-                        label={{ value: t.charts.timeX, position: 'insideBottom', offset: -5, ...labelStyle, fontSize: 10 }}
+                        label={xAxisLabel(t.charts.timeX)}
                     />
                     <YAxis 
                         tick={axisStyle}

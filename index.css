@@ -114,13 +114,65 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --app-font-ui-zh-cn: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --app-font-ui-zh-tw: "Inter", "PingFang TC", "Hiragino Sans CNS", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+  --app-font-ui-en: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --app-font-display: "Playfair Display", "Times New Roman", serif;
+  --app-font-data: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+html {
+  font-family: var(--app-font-ui-en);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html:lang(zh-CN) {
+  font-family: var(--app-font-ui-zh-cn);
+}
+
+html:lang(zh-TW) {
+  font-family: var(--app-font-ui-zh-tw);
+}
+
+html:lang(en),
+html:lang(en-GB),
+html:lang(en-US) {
+  font-family: var(--app-font-ui-en);
+}
+
 body {
+  font-family: inherit;
   background-color: #f8fafc; /* Slate-50 base */
   color: #0f172a; /* Darker default text */
   overflow-x: hidden;
   position: relative;
   min-height: 100vh;
   transition: background-color 0.8s ease, color 0.8s ease;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+.font-sans,
+.font-ui {
+  font-family: inherit !important;
+}
+
+.font-serif,
+.font-display {
+  font-family: var(--app-font-display) !important;
+}
+
+.font-mono,
+.font-data {
+  font-family: var(--app-font-data) !important;
 }
 
 /* Dark Mode Body Override */
@@ -265,6 +317,25 @@ body {
 @keyframes sharpShine {
   0% { background-position: -150% 0; }
   100% { background-position: 150% 0; }
+}
+
+@keyframes attentionBreathe {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.16);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 10px rgba(14, 165, 233, 0.08);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(14, 165, 233, 0);
+  }
+}
+
+.animate-breathe-attention {
+  animation: attentionBreathe 1.8s ease-in-out infinite;
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }

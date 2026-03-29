@@ -202,6 +202,12 @@ export interface Translation {
     themeToggle: string;
     langToggle: string;
   };
+  hints: {
+    viewModeTitle: string;
+    viewModeBody: string;
+    sidebarTitle: string;
+    sidebarBody: string;
+  };
   common: {
     expandDetails: string;
     expandView: string;    // New

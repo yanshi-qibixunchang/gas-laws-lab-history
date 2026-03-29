@@ -1,11 +1,12 @@
 import React, { Suspense, lazy, useState } from 'react';
-import { Translation } from '../types';
+import { LanguageCode, Translation } from '../types';
 import { Github, FileText, Mail, GraduationCap, Sparkles, Check, User } from 'lucide-react';
 
 const PdfModal = lazy(() => import('./PdfModal'));
 
 interface FooterProps {
   t: Translation;
+  lang: LanguageCode;
   showNotification: (text: string, duration?: number, type?: 'info' | 'success' | 'warning') => void;
   supportsHover?: boolean;
   compactLinks?: boolean;
@@ -19,9 +20,10 @@ const PdfModalFallback = () => (
   </div>
 );
 
-const Footer: React.FC<FooterProps> = ({ t, showNotification, supportsHover = true, compactLinks = false }) => {
+const Footer: React.FC<FooterProps> = ({ t, lang, showNotification, supportsHover = true, compactLinks = false }) => {
   const [emailCopied, setEmailCopied] = useState(false);
   const [isPdfOpen, setIsPdfOpen] = useState(false);
+  const isEnglishUI = lang.startsWith('en');
 
   const iconLiftClass = supportsHover ? 'group-hover:scale-110' : '';
   const accentHoverClass = supportsHover ? 'group-hover:text-sciblue-400' : '';
@@ -64,7 +66,12 @@ const Footer: React.FC<FooterProps> = ({ t, showNotification, supportsHover = tr
     setIsPdfOpen(true);
   };
 
-  const headerStyle = 'mb-5 flex h-5 items-center text-xs font-bold uppercase tracking-widest text-slate-300';
+  const headerStyle = isEnglishUI
+    ? 'mb-5 flex h-5 items-center text-[11px] font-bold uppercase tracking-[0.18em] text-slate-300'
+    : 'mb-5 flex h-5 items-center text-sm font-semibold tracking-[0.04em] text-slate-200';
+  const footerMetaClass = isEnglishUI
+    ? 'text-[10px] uppercase tracking-[0.18em] text-slate-400'
+    : 'text-[11px] tracking-[0.05em] text-slate-400';
 
   return (
     <>
@@ -74,7 +81,7 @@ const Footer: React.FC<FooterProps> = ({ t, showNotification, supportsHover = tr
         <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
           <div className="flex flex-wrap gap-x-12 gap-y-12">
             <div className="flex w-full min-w-0 flex-[1.2_1_280px] flex-col items-start pr-4 sm:min-w-[240px] sm:max-w-[360px]">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800/80 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-sciblue-300 shadow-sm">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800/80 px-3 py-1 text-[10px] font-semibold tracking-[0.16em] text-sciblue-300 shadow-sm">
                 Project Institution 2025
               </div>
 
@@ -188,7 +195,7 @@ const Footer: React.FC<FooterProps> = ({ t, showNotification, supportsHover = tr
         </div>
 
         <div className="border-t border-slate-800 bg-slate-950/50 py-6">
-          <div className="mx-auto flex max-w-7xl flex-col items-center justify-between px-6 text-center text-[10px] uppercase tracking-widest text-slate-400 md:flex-row md:text-left lg:px-8">
+          <div className={`mx-auto flex max-w-7xl flex-col items-center justify-between px-6 text-center md:flex-row md:text-left lg:px-8 ${footerMetaClass}`}>
             <p>
               © 2025 Hard Sphere Project. <br className="md:hidden" />
               All rights reserved.

@@ -57,17 +57,17 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
 
   useEffect(() => {
     let timer: number;
-    if (isFocused && touchLike && !hasToggledPan.current) {
+    if (isFocused && !hasToggledPan.current) {
       timer = window.setTimeout(() => {
         if (!hasToggledPan.current && isFocused) {
           setShowPanHint(true);
         }
-      }, 2000);
+      }, 5000);
     } else {
       setShowPanHint(false);
     }
     return () => clearTimeout(timer);
-  }, [isFocused, touchLike]);
+  }, [isFocused]);
 
   useEffect(() => {
     if (!isFocused) {
@@ -470,12 +470,18 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
 
         {isFocused && showPanHint && (
           <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[110] pointer-events-none flex flex-col items-center justify-center animate-fade-in">
-            <div className="bg-black/70 backdrop-blur-md border border-white/20 p-4 rounded-xl shadow-2xl flex flex-col items-center gap-2">
-              <Hand size={32} className="text-amber-400 animate-pulse" />
-              <span className="text-white font-bold text-sm tracking-wide text-center">
-                {t.tooltips.tryToggle}
-              </span>
-              <div className="w-0 h-0 border-x-[8px] border-x-transparent border-t-[8px] border-t-black/70 mt-2 opacity-50" />
+            <div className="max-w-[min(74vw,280px)] rounded-2xl border border-white/20 bg-black/75 px-5 py-4 shadow-2xl backdrop-blur-md">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-400/12 ring-1 ring-amber-300/30">
+                  <Hand size={28} className="text-amber-400 animate-pulse" />
+                </div>
+                <p className="text-sm font-bold tracking-wide text-white">
+                  {t.hints.viewModeTitle}
+                </p>
+                <p className="text-xs leading-relaxed text-slate-200">
+                  {t.hints.viewModeBody}
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -493,6 +499,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
                     ? 'bg-sciblue-600 text-white border-sciblue-300 shadow-[0_0_20px_rgba(14,165,233,0.6)] scale-110'
                     : `bg-white/10 text-white border-white/20 ${controlButtonHoverClass}`
                   }
+                  ${showPanHint ? 'animate-breathe-attention ring-2 ring-amber-300/45' : ''}
                 `}
                 title={isPanMode ? t.tooltips.rotateMode : t.tooltips.panMode}
               >

@@ -1,5 +1,5 @@
 import React from 'react';
-import { SimulationStats, Translation } from '../types';
+import { LanguageCode, SimulationStats, Translation } from '../types';
 import { Activity, Gauge, Thermometer, Wind } from 'lucide-react';
 
 interface StatsPanelProps {
@@ -7,6 +7,7 @@ interface StatsPanelProps {
   eqTime: number;
   statDuration: number;
   t: Translation;
+  lang: LanguageCode;
   supportsHover?: boolean;
 }
 
@@ -16,6 +17,7 @@ interface StatItemProps {
   unit: string;
   icon: React.ReactElement;
   colorClass?: string;
+  isEnglishUI?: boolean;
   supportsHover?: boolean;
 }
 
@@ -24,6 +26,7 @@ interface ProgressBarProps {
   dividerProgress: number;
   firstStageLabel: string;
   secondStageLabel: string;
+  isEnglishUI: boolean;
 }
 
 const renderRmsLabel = (label: string) => {
@@ -48,6 +51,7 @@ const StatItem = ({
   unit,
   icon,
   colorClass = 'text-sciblue-500',
+  isEnglishUI = false,
   supportsHover = true
 }: StatItemProps) => (
   <div
@@ -57,7 +61,7 @@ const StatItem = ({
       {React.cloneElement(icon, { size: 32 })}
     </div>
 
-    <div className="mb-1 flex items-center gap-2 whitespace-nowrap font-mono text-[10px] font-bold uppercase tracking-wide text-slate-600 dark:text-slate-400">
+    <div className={`mb-1 flex items-center gap-2 whitespace-nowrap text-slate-600 dark:text-slate-400 ${isEnglishUI ? 'font-data text-[10px] font-bold uppercase tracking-[0.08em]' : 'text-[11px] font-semibold tracking-[0.04em]'}`}>
       <span className={colorClass}>{React.cloneElement(icon, { size: 12 })}</span>
       {label}
     </div>
@@ -75,7 +79,8 @@ const ProgressBar = ({
   progress,
   dividerProgress,
   firstStageLabel,
-  secondStageLabel
+  secondStageLabel,
+  isEnglishUI
 }: ProgressBarProps) => {
   const normalizedProgress = Math.min(100, Math.max(0, progress));
   const normalizedDivider = Math.min(100, Math.max(0, dividerProgress));
@@ -130,7 +135,7 @@ const ProgressBar = ({
           style={{ left: currentMarkerLeft }}
         />
       </div>
-      <div className="flex items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+      <div className={`flex items-center justify-between gap-3 text-slate-500 dark:text-slate-400 ${isEnglishUI ? 'text-[10px] font-bold uppercase tracking-[0.14em]' : 'text-[11px] font-semibold tracking-[0.04em]'}`}>
         <div className="flex min-w-0 items-center gap-2">
           <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
           <span className="truncate">{firstStageLabel}</span>
@@ -144,7 +149,8 @@ const ProgressBar = ({
   );
 };
 
-const StatsPanel: React.FC<StatsPanelProps> = ({ stats, eqTime, statDuration, t, supportsHover = true }) => {
+const StatsPanel: React.FC<StatsPanelProps> = ({ stats, eqTime, statDuration, t, lang, supportsHover = true }) => {
+  const isEnglishUI = lang.startsWith('en');
   const totalDuration = eqTime + statDuration;
   const phaseDuration =
     stats.phase === 'equilibrating'
@@ -191,40 +197,46 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ stats, eqTime, statDuration, t,
 
   const phaseDurationLabel = `${phaseElapsed.toFixed(1)} / ${phaseDuration.toFixed(1)}s`;
   const totalDurationLabel = `${totalElapsed.toFixed(1)} / ${totalDuration.toFixed(1)}s`;
+  const metaLabelClass = isEnglishUI
+    ? 'text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400'
+    : 'text-[11px] font-semibold tracking-[0.04em] text-slate-500 dark:text-slate-400';
+  const statCardLabelClass = isEnglishUI
+    ? 'mb-1 text-[9px] uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500'
+    : 'mb-1 text-[10px] tracking-[0.04em] text-slate-400 dark:text-slate-500';
 
   return (
     <div className={`overflow-hidden transition-all duration-700 ease-in-out ${isFinished ? 'max-h-[360px] opacity-100' : 'max-h-[420px] opacity-100'}`}>
       <div className="grid w-full grid-cols-2 gap-3 pt-4 md:grid-cols-4">
-        <StatItem label={t.stats.temperature} value={stats.temperature} unit="K" icon={<Thermometer />} colorClass="text-rose-500 dark:text-rose-400" supportsHover={supportsHover} />
-        <StatItem label={t.stats.pressure} value={stats.pressure} unit="Pa" icon={<Gauge />} colorClass="text-violet-500 dark:text-violet-400" supportsHover={supportsHover} />
-        <StatItem label={t.stats.meanSpeed} value={stats.meanSpeed} unit="m/s" icon={<Wind />} colorClass="text-sciblue-500 dark:text-sciblue-400" supportsHover={supportsHover} />
-        <StatItem label={renderRmsLabel(t.stats.rmsSpeed)} value={stats.rmsSpeed} unit="m/s" icon={<Activity />} colorClass="text-emerald-500 dark:text-emerald-400" supportsHover={supportsHover} />
+        <StatItem label={t.stats.temperature} value={stats.temperature} unit="K" icon={<Thermometer />} colorClass="text-rose-500 dark:text-rose-400" isEnglishUI={isEnglishUI} supportsHover={supportsHover} />
+        <StatItem label={t.stats.pressure} value={stats.pressure} unit="Pa" icon={<Gauge />} colorClass="text-violet-500 dark:text-violet-400" isEnglishUI={isEnglishUI} supportsHover={supportsHover} />
+        <StatItem label={t.stats.meanSpeed} value={stats.meanSpeed} unit="m/s" icon={<Wind />} colorClass="text-sciblue-500 dark:text-sciblue-400" isEnglishUI={isEnglishUI} supportsHover={supportsHover} />
+        <StatItem label={renderRmsLabel(t.stats.rmsSpeed)} value={stats.rmsSpeed} unit="m/s" icon={<Activity />} colorClass="text-emerald-500 dark:text-emerald-400" isEnglishUI={isEnglishUI} supportsHover={supportsHover} />
 
         <div className="col-span-2 mt-2 rounded-xl border border-slate-200/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-slate-700/70 dark:bg-slate-900/60 md:col-span-4">
           <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider font-mono ${statusColor}`}>
+            <div className={`flex items-center gap-2 ${statusColor} ${isEnglishUI ? 'font-data text-[10px] font-bold uppercase tracking-[0.14em]' : 'text-[11px] font-semibold tracking-[0.04em]'}`}>
               <span className={`h-1.5 w-1.5 rounded-sm ${progressColor} animate-pulse`} />
               <span>{t.stats.status}: {statusText}</span>
             </div>
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <div className={metaLabelClass}>
               {isFinished ? `${t.stats.remaining}: ${t.stats.done}` : `${t.stats.remaining}: ${remainingPhaseTime.toFixed(1)}s`}
             </div>
           </div>
 
-          <div className="mb-4 grid grid-cols-1 gap-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 md:grid-cols-2">
+          <div className={`mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 ${metaLabelClass}`}>
             <div className="rounded-lg border border-slate-200/80 bg-slate-50/80 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/60">
-              <div className="mb-1 text-[9px] text-slate-400 dark:text-slate-500">{t.stats.phaseTime}</div>
+              <div className={statCardLabelClass}>{t.stats.phaseTime}</div>
               <div className="font-mono text-xs text-slate-700 dark:text-slate-200">{phaseDurationLabel}</div>
             </div>
             <div className="rounded-lg border border-slate-200/80 bg-slate-50/80 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/60">
-              <div className="mb-1 text-[9px] text-slate-400 dark:text-slate-500">{t.stats.overallTime}</div>
+              <div className={statCardLabelClass}>{t.stats.overallTime}</div>
               <div className="font-mono text-xs text-slate-700 dark:text-slate-200">{totalDurationLabel}</div>
             </div>
           </div>
 
           <div className="space-y-3">
             <div>
-              <div className="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <div className={`mb-1 flex items-center justify-between ${metaLabelClass}`}>
                 <span>{t.stats.overallProgress}</span>
                 <span className="font-mono">{overallProgress.toFixed(0)}%</span>
               </div>
@@ -233,6 +245,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ stats, eqTime, statDuration, t,
                 dividerProgress={totalDuration > 0 ? (eqTime / totalDuration) * 100 : 0}
                 firstStageLabel={t.stats.equilibrating}
                 secondStageLabel={t.stats.collecting}
+                isEnglishUI={isEnglishUI}
               />
             </div>
           </div>

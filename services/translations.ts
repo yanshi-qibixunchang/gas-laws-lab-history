@@ -135,6 +135,12 @@ export const translations: Record<LanguageCode, Translation> = {
       themeToggle: "切换亮色/深色模式",
       langToggle: "切换语言",
     },
+    hints: {
+      viewModeTitle: "点击切换视角模式",
+      viewModeBody: "试试上方视角切换键，在旋转与平移间切换。",
+      sidebarTitle: "先从这里开始",
+      sidebarBody: "点击此按钮展开设置，调整参数或直接开始模拟。"
+    },
     common: {
       expandDetails: "展开参数设置",
       expandView: "展开视图设置",
@@ -305,6 +311,12 @@ export const translations: Record<LanguageCode, Translation> = {
       tryToggle: "點擊切換視角模式",
       themeToggle: "切換亮色/深色模式",
       langToggle: "切換語言",
+    },
+    hints: {
+      viewModeTitle: "點擊切換視角模式",
+      viewModeBody: "試試上方視角切換鍵，在旋轉與平移之間切換。",
+      sidebarTitle: "先從這裡開始",
+      sidebarBody: "點擊此按鈕展開設置，調整參數或直接開始模擬。"
     },
     common: {
       expandDetails: "展開參數設置",
@@ -477,6 +489,12 @@ export const translations: Record<LanguageCode, Translation> = {
       themeToggle: "Toggle Light/Dark Mode",
       langToggle: "Switch Language",
     },
+    hints: {
+      viewModeTitle: "Try switching view modes",
+      viewModeBody: "Use the top-left mode button to switch between rotate and pan.",
+      sidebarTitle: "Start here",
+      sidebarBody: "Open the settings panel to adjust parameters or run the simulation."
+    },
     common: {
       expandDetails: "Show Parameters",
       expandView: "View Settings",
@@ -647,6 +665,12 @@ export const translations: Record<LanguageCode, Translation> = {
       tryToggle: "Try switching view modes",
       themeToggle: "Toggle Light/Dark Mode",
       langToggle: "Switch Language",
+    },
+    hints: {
+      viewModeTitle: "Try switching view modes",
+      viewModeBody: "Use the top-left mode button to switch between rotate and pan.",
+      sidebarTitle: "Start here",
+      sidebarBody: "Open the settings panel to adjust parameters or run the simulation."
     },
     common: {
       expandDetails: "Show Parameters",

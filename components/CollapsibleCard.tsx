@@ -72,7 +72,7 @@ const CollapsibleCard: React.FC<CollapsibleCardProps> = ({
     <div 
       className={`
         bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800
-        rounded-2xl overflow-hidden transition-all duration-300 ease-out
+        rounded-2xl overflow-visible transition-all duration-300 ease-out
         shadow-sm shadow-slate-100 dark:shadow-none
         ${className}
       `}
@@ -80,7 +80,7 @@ const CollapsibleCard: React.FC<CollapsibleCardProps> = ({
       {/* Header Container: No longer clickable as a whole, cursor default */}
       <div 
         className={`
-            p-3 md:p-4 flex items-center justify-between bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 cursor-default
+            relative z-10 min-h-[64px] p-3 md:p-4 flex items-center justify-between bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 cursor-default overflow-visible
             transition-colors
         `}
       >
@@ -89,14 +89,14 @@ const CollapsibleCard: React.FC<CollapsibleCardProps> = ({
           <h3 className="font-bold text-slate-800 dark:text-slate-200 tracking-tight text-sm md:text-base select-none">{title}</h3>
         </div>
         
-        <div className="flex items-center gap-3 md:gap-4">
+        <div className="flex shrink-0 items-center gap-3 md:gap-4">
           {extraHeader}
           
           {/* Dedicated Toggle Button */}
           <button 
             onClick={handleToggle}
             className={`
-                w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full
+                shrink-0 w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full
                 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500
                 transition-all duration-200 ease-out
                 ${toggleButtonHoverClass}

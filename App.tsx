@@ -81,16 +81,19 @@ const ChartPanelFallback: React.FC<{ heightClass: string }> = ({ heightClass }) 
   </div>
 );
 
-const ResultsPlaceholder: React.FC<{ t: Translation }> = ({ t }) => (
+const ResultsPlaceholder: React.FC<{ t: Translation; lang: LanguageCode }> = ({ t, lang }) => {
+  const isEnglishUI = lang.startsWith('en');
+
+  return (
   <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/70">
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.08),transparent_45%)]" />
     <div className="relative">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <div className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">{t.views.finalStats}</div>
+          <div className={`text-slate-400 dark:text-slate-500 ${isEnglishUI ? 'text-[10px] font-bold uppercase tracking-[0.18em]' : 'text-xs font-semibold tracking-[0.04em]'}`}>{t.views.finalStats}</div>
           <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{t.stats.collecting}</div>
         </div>
-        <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
+        <div className={`rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300 ${isEnglishUI ? 'text-[10px] font-bold uppercase tracking-[0.16em]' : 'text-[11px] font-semibold tracking-[0.04em]'}`}>
           {t.stats.overallProgress}
         </div>
       </div>
@@ -105,7 +108,8 @@ const ResultsPlaceholder: React.FC<{ t: Translation }> = ({ t }) => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 function App() {
   // Language State
@@ -121,7 +125,7 @@ function App() {
   const [isRunning, setIsRunning] = useState(false);
   
   // UI Control State
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [needsReset, setNeedsReset] = useState(false);
   const [isLandscapeMode, setIsLandscapeMode] = useState(false);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0, visualHeight: 0, visualOffsetTop: 0 });
@@ -146,9 +150,10 @@ function App() {
   const [isStorageOpen, setIsStorageOpen] = useState(true);
   const [isParamsOpen, setIsParamsOpen] = useState(true);
   
-  // New State: Mobile Hint Guide & Interaction Tracking
-  const [showMobileHint, setShowMobileHint] = useState(false);
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  // Startup guide state
+  const [showSidebarGuide, setShowSidebarGuide] = useState(false);
+  const [hasOpenedSidebarOnce, setHasOpenedSidebarOnce] = useState(false);
+  const [hasStartedOnce, setHasStartedOnce] = useState(false);
 
   // Storage State
   const [savedConfigs, setSavedConfigs] = useState<SavedConfig[]>([]);
@@ -205,6 +210,12 @@ function App() {
   const engineRef = useRef<PhysicsEngine | null>(null);
   const reqRef = useRef<number>(0);
   const frameCountRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang;
+    }
+  }, [lang]);
 
   // Define Immutable System Preset
   const SYSTEM_PRESET: SavedConfig = {
@@ -493,6 +504,7 @@ function App() {
   const isCompactWidth = inputCapabilities.isCompactWidth;
   const isMobile = isCompactWidth;
   const isDesktopLike = supportsHover && finePointer;
+  const isEnglishUI = lang.startsWith('en');
   const versionLabel = lang.startsWith('en') ? 'Official Release' : '\u6b63\u5f0f\u7248';
   const versionBadgeText = `${t.header.systemOp} \u00b7 v${APP_VERSION} ${versionLabel}`;
 
@@ -519,7 +531,9 @@ function App() {
   const sidebarWidthClass = isSidebarOverlay ? 'w-[85vw] max-w-[360px]' : 'w-[300px]';
   const sidebarHeaderPaddingClass = isSidebarInputMode ? 'pt-6' : 'pt-8';
   const sidebarHeaderStackClass = isSidebarInputMode ? 'flex flex-col gap-4' : 'flex flex-col gap-6';
-  const sidebarSubtitleClass = 'text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider';
+  const sidebarSubtitleClass = isEnglishUI
+    ? 'text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-[0.16em]'
+    : 'text-[11px] font-medium text-slate-500 dark:text-slate-400 tracking-[0.04em]';
   const sidebarSectionSpacingClass = 'space-y-4';
   const sidebarContentWidthClass = isSidebarInputMode ? 'w-full px-4' : 'w-full px-3 md:px-4';
   const paramLayoutClass = 'space-y-2';
@@ -536,6 +550,24 @@ function App() {
   const sidebarToggleButtonClass = 'w-8 h-8 flex items-center justify-center rounded-full';
   const sidebarInputTextClass = touchLike ? 'text-base md:text-sm' : 'text-xs md:text-sm';
   const sidebarInputPaddingClass = touchLike ? 'py-2' : 'py-1';
+  const sectionTitleClass = isEnglishUI
+    ? 'min-w-0 flex items-center gap-2 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase tracking-[0.14em] transition-colors'
+    : 'min-w-0 flex items-center gap-2 text-slate-600 dark:text-slate-300 font-semibold text-sm tracking-[0.04em] transition-colors';
+  const presetActionButtonTextClass = isEnglishUI
+    ? 'text-[10px] font-bold tracking-[0.08em]'
+    : 'text-[11px] font-semibold tracking-[0.03em]';
+  const defaultActionTextClass = isEnglishUI
+    ? 'text-[10px] font-medium tracking-[0.08em]'
+    : 'text-[11px] font-medium tracking-[0.03em]';
+  const fieldLabelClass = isEnglishUI
+    ? 'mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400'
+    : 'mb-0.5 block text-[11px] font-semibold tracking-[0.04em] text-slate-500 dark:text-slate-400';
+  const collapseActionTextClass = isEnglishUI
+    ? 'uppercase tracking-[0.16em]'
+    : 'tracking-[0.05em]';
+  const versionBadgeClass = isEnglishUI
+    ? 'inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-slate-200/70 dark:border-slate-700/70 text-slate-600 dark:text-slate-200 text-[9px] sm:text-[10px] font-bold tracking-[0.12em] shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis'
+    : 'inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-slate-200/70 dark:border-slate-700/70 text-slate-600 dark:text-slate-200 text-[10px] sm:text-[11px] font-semibold tracking-[0.05em] shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis';
   const sidebarInputScrollMarginStyle = {
     scrollMarginTop: isSidebarInputMode ? '96px' : '72px',
     scrollMarginBottom: isSidebarInputMode ? '160px' : '112px'
@@ -663,10 +695,6 @@ function App() {
     // 1. Initial Check on Mount
     updateViewportState();
     
-    if (isTouchLikeViewport()) {
-        setIsSidebarOpen(false);
-    }
-
     // 2. Resize/Viewport/Keyboard Listeners
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
@@ -800,18 +828,18 @@ function App() {
     }
   }, [lang]); // Re-run when lang changes to update System Preset name
 
-  // Mobile Hint Timer Logic
+  // Startup Guide Timer Logic
   useEffect(() => {
     let timer: number;
-    if (touchLike && !supportsHover && !isSidebarOpen && !isRunning && !hasUserInteracted) {
+    if (!isSidebarOpen && !isRunning && !hasOpenedSidebarOnce && !hasStartedOnce) {
         timer = window.setTimeout(() => {
-            setShowMobileHint(true);
-        }, 2000);
+            setShowSidebarGuide(true);
+        }, 5000);
     } else {
-        setShowMobileHint(false);
+        setShowSidebarGuide(false);
     }
     return () => clearTimeout(timer);
-  }, [touchLike, supportsHover, isSidebarOpen, isRunning, hasUserInteracted]);
+  }, [isSidebarOpen, isRunning, hasOpenedSidebarOnce, hasStartedOnce]);
 
   // Initial Load & Animation smoothing
   useEffect(() => {
@@ -1067,7 +1095,7 @@ function App() {
 
   const handleStartPause = (e?: React.MouseEvent) => {
       // NOTE: Removed checkInteractionLock check here to allow start/pause during interaction
-      setHasUserInteracted(true);
+      setHasStartedOnce(true);
       
       if (needsReset) {
           showNotification(t.messages.resetBeforeStart, 2500, 'warning');
@@ -1087,8 +1115,8 @@ function App() {
 
   const handleOpenSidebar = (e?: React.MouseEvent) => {
       if(checkInteractionLock(e)) return;
+      setHasOpenedSidebarOnce(true);
       setIsSidebarOpen(true);
-      setHasUserInteracted(true); 
   };
   
   const handleCloseSidebar = (e?: React.MouseEvent) => {
@@ -1298,7 +1326,7 @@ function App() {
                                 onClick={() => setIsStorageOpen(!isStorageOpen)}
                                 className={`${sidebarContentWidthClass} flex items-center justify-between gap-3 cursor-pointer group mb-2 py-1 select-none`}
                             >
-                                <div className={`min-w-0 flex items-center gap-2 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase tracking-wider transition-colors ${sectionHoverTextClass}`}>
+                                <div className={`${sectionTitleClass} ${sectionHoverTextClass}`}>
                                     <Archive size={14} className={`text-slate-400 dark:text-slate-500 transition-colors duration-300 ${sectionHoverIconClass}`}/> 
                                     <span className="truncate whitespace-nowrap">{t.storage.title}</span>
                                 </div>
@@ -1309,7 +1337,7 @@ function App() {
                                             event.stopPropagation();
                                             openCreatePresetModal();
                                         }}
-                                        className={`inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold tracking-wide text-slate-500 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${isDesktopLike ? 'hover:border-sciblue-300 hover:text-sciblue-600 dark:hover:border-sciblue-500 dark:hover:text-sciblue-300' : 'active:scale-95'}`}
+                                        className={`inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-500 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${presetActionButtonTextClass} ${isDesktopLike ? 'hover:border-sciblue-300 hover:text-sciblue-600 dark:hover:border-sciblue-500 dark:hover:text-sciblue-300' : 'active:scale-95'}`}
                                         title={t.storage.newPreset}
                                     >
                                         <Plus size={11} />
@@ -1386,7 +1414,7 @@ function App() {
                                 onClick={() => setIsParamsOpen(!isParamsOpen)}
                                 className={`${sidebarContentWidthClass} flex items-start justify-between gap-3 cursor-pointer group mb-2 py-1 select-none`}
                             >
-                                <div className={`min-w-0 flex flex-1 items-center gap-2 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase tracking-wider transition-colors ${sectionHoverTextClass}`}>
+                                <div className={`${sectionTitleClass} flex-1 ${sectionHoverTextClass}`}>
                                     <SlidersHorizontal size={14} className={`text-slate-400 dark:text-slate-500 transition-colors duration-300 ${sectionHoverIconClass}`}/> 
                                     <span className="truncate whitespace-nowrap">{t.controls.title}</span>
                                 </div>
@@ -1394,7 +1422,7 @@ function App() {
                                      <button 
                                         onClick={handleRestoreDefaults}
                                         disabled={isRunning}
-                                        className={`text-[10px] font-medium flex items-center gap-1 py-0.5 px-2 rounded transition-colors z-10 relative whitespace-nowrap ${isDesktopLike ? 'hover:bg-slate-100 dark:hover:bg-slate-800' : ''} ${isRunning ? 'text-slate-300 dark:text-slate-600' : isCanvasLocked ? 'text-slate-400 dark:text-slate-600 opacity-50 cursor-not-allowed' : 'text-slate-500 dark:text-slate-400'}`}
+                                        className={`flex items-center gap-1 py-0.5 px-2 rounded transition-colors z-10 relative whitespace-nowrap ${defaultActionTextClass} ${isDesktopLike ? 'hover:bg-slate-100 dark:hover:bg-slate-800' : ''} ${isRunning ? 'text-slate-300 dark:text-slate-600' : isCanvasLocked ? 'text-slate-400 dark:text-slate-600 opacity-50 cursor-not-allowed' : 'text-slate-500 dark:text-slate-400'}`}
                                         title={t.controls.restoreDefaults}
                                     >
                                         <Undo2 size={12}/> {t.controls.default}
@@ -1421,7 +1449,7 @@ function App() {
                                         // Centered input container
                                         <div key={field.key} className={`group relative last:mb-0 ${paramItemWidthClass}`}>
                                             {/* Reduced label margin */}
-                                            <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase block mb-0.5">{field.label}</label>
+                                            <label className={fieldLabelClass}>{field.label}</label>
                                             <div className="relative">
                                                 <input 
                                                 type="number" step={field.step} min={field.min}
@@ -1492,7 +1520,7 @@ function App() {
                     
                     <button 
                         onClick={handleCloseSidebar}
-                        className={`flex items-center ${actionCollapseClass} font-bold text-slate-400 dark:text-slate-500 transition-colors py-1 uppercase tracking-widest ${isDesktopLike ? 'hover:text-sciblue-600 dark:hover:text-sciblue-400' : ''} ${isCanvasLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`flex items-center ${actionCollapseClass} font-bold text-slate-400 dark:text-slate-500 transition-colors py-1 ${collapseActionTextClass} ${isDesktopLike ? 'hover:text-sciblue-600 dark:hover:text-sciblue-400' : ''} ${isCanvasLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title={t.common.collapse}
                     >
                         <PanelLeftClose size={12}/> {t.common.collapse}
@@ -1517,7 +1545,7 @@ function App() {
         <header className={`px-6 max-w-4xl mx-auto text-center animate-fade-in w-full shrink-0 ${isCompactLandscape ? 'pt-14 pb-2' : 'pt-24 pb-4 landscape:pt-6 landscape:pb-1 md:pt-24 md:pb-6'}`}>
             {/* Version Badge - Centered Above Title */}
             <div className={`flex justify-center overflow-hidden transition-all duration-300 ${hideVersionBadge ? 'mb-0 max-h-0 opacity-0 -translate-y-2' : 'mb-5 landscape:mb-2 max-h-12 opacity-100 translate-y-0'}`}>
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-slate-200/70 dark:border-slate-700/70 text-slate-600 dark:text-slate-200 text-[9px] sm:text-[10px] font-bold tracking-[0.12em] shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis">
+                <div className={versionBadgeClass}>
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.6)]"></span>
                     <span className="truncate" title={versionBadgeText}>{versionBadgeText}</span>
                 </div>
@@ -1555,7 +1583,7 @@ function App() {
                     canvasHeight={compactLandscapeCanvasHeight}
                 />
                 <div className="mt-4">
-                    <StatsPanel stats={stats} eqTime={params.equilibriumTime} statDuration={params.statsDuration} t={t} supportsHover={isDesktopLike} />
+                    <StatsPanel stats={stats} eqTime={params.equilibriumTime} statDuration={params.statsDuration} t={t} lang={lang} supportsHover={isDesktopLike} />
                 </div>
                 </CollapsibleCard>
             </div>
@@ -1596,11 +1624,11 @@ function App() {
                     supportsHover={isDesktopLike}
                 >
                   {showFinalResults && finalChartData ? (
-                    <Suspense fallback={<ResultsPlaceholder t={t} />}>
+                    <Suspense fallback={<ResultsPlaceholder t={t} lang={lang} />}>
                       <StackedResults data={finalChartData} t={t} isDarkMode={isDarkMode} supportsHover={isDesktopLike} />
                     </Suspense>
                   ) : (
-                    <ResultsPlaceholder t={t} />
+                    <ResultsPlaceholder t={t} lang={lang} />
                   )}
                 </CollapsibleCard>
               </div>
@@ -1612,6 +1640,7 @@ function App() {
         <div onClick={(e) => { if(isCanvasLocked) { e.preventDefault(); e.stopPropagation(); showNotification(t.canvas.interactionLocked, 2000, 'warning'); } }}>
              <Footer
                t={t}
+               lang={lang}
                showNotification={(msg, dur, type) => showNotification(msg, dur, type)}
                supportsHover={isDesktopLike}
                compactLinks={isSidebarOpen && !isSidebarOverlay}
@@ -1628,8 +1657,8 @@ function App() {
         >
             <div className="relative">
                 {/* Mobile Hint Ping Animation Layer */}
-                {showMobileHint && !isCanvasLocked && (
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sciblue-400 opacity-75"></span>
+                {showSidebarGuide && !isCanvasLocked && (
+                    <span className="animate-breathe-attention absolute inset-0 inline-flex rounded-full bg-sciblue-400/20"></span>
                 )}
                 
                 <button
@@ -1638,7 +1667,7 @@ function App() {
                     className={`
                         relative flex items-center gap-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md pr-3 pl-1 py-1 md:pr-5 md:pl-1.5 md:py-1.5 rounded-full border shadow-[0_8px_30px_rgb(0,0,0,0.08)] active:scale-95 transition-all group z-10
                         ${floatingButtonHoverClass}
-                        ${showMobileHint && !isCanvasLocked ? 'border-sciblue-400 ring-2 ring-sciblue-400/30' : 'border-slate-200/60 dark:border-slate-700/60'}
+                        ${showSidebarGuide && !isCanvasLocked ? 'animate-breathe-attention border-sciblue-400 ring-2 ring-sciblue-400/30' : 'border-slate-200/60 dark:border-slate-700/60'}
                         ${isCanvasLocked ? 'opacity-50 cursor-not-allowed hover:scale-100' : ''}
                     `}
                 >
@@ -1652,14 +1681,19 @@ function App() {
                 </button>
 
                 {/* Mobile Tooltip Guide - MOVED INSIDE RELATIVE WRAPPER & POSITIONED BELOW */}
-                {showMobileHint && !isCanvasLocked && (
-                   <div className="absolute top-full left-0 mt-2 flex flex-col items-start animate-fade-in pointer-events-none z-50 w-max">
+                {showSidebarGuide && !isCanvasLocked && (
+                   <div className="absolute top-full left-0 mt-2 flex flex-col items-start animate-fade-in pointer-events-none z-50 w-[min(72vw,280px)]">
                       {/* Arrow pointing up */}
                       <div className="w-0 h-0 border-x-[6px] border-x-transparent border-b-[8px] border-b-sciblue-500 ml-3 drop-shadow-sm"></div>
                       {/* Text Bubble */}
-                      <span className="bg-sciblue-50 dark:bg-sciblue-900/95 text-sciblue-700 dark:text-sciblue-100 text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-lg border border-sciblue-500 whitespace-nowrap">
-                         {t.tooltips.openSidebar}
-                      </span>
+                      <div className="rounded-xl border border-sciblue-500 bg-sciblue-50 px-3 py-2 shadow-lg dark:bg-sciblue-900/95">
+                        <p className="text-[11px] font-bold text-sciblue-700 dark:text-sciblue-50">
+                          {t.hints.sidebarTitle}
+                        </p>
+                        <p className="mt-1 text-[10px] leading-relaxed text-sciblue-700/90 dark:text-sciblue-100/90">
+                          {t.hints.sidebarBody}
+                        </p>
+                      </div>
                    </div>
                 )}
             </div>
