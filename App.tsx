@@ -1,5 +1,7 @@
 import React, { Suspense, lazy, useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Box, Activity, Globe, ChevronRight, Lock, Unlock, MousePointer2, User, Atom, AlertCircle, CheckCircle2, PanelLeftClose, SlidersHorizontal, X, Undo2, LayoutDashboard, Moon, Sun, ArrowLeft, Save, Download, Trash2, Archive, ShieldCheck, ChevronDown, LogOut, Info, Check, Plus, MoreHorizontal, Pencil } from 'lucide-react';
+import { Play, Pause, RotateCcw, Box, Activity, Globe, ChevronRight, Lock, Unlock, MousePointer2, User, Atom, AlertCircle, CheckCircle2, PanelLeftClose, SlidersHorizontal, X, Undo2, LayoutDashboard, Moon, Sun, ArrowLeft, Save, Download, Trash2, Archive, ShieldCheck, ChevronDown, LogOut, Info, Check, FolderPlus, MoreHorizontal, Pencil } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import { PhysicsEngine } from './services/PhysicsEngine';
 import { SimulationParams, SimulationStats, ChartData, LanguageCode, SavedConfig, InputCapabilities, Translation } from './types';
 import { translations } from './services/translations';
@@ -21,7 +23,7 @@ const DEFAULT_PARAMS: SimulationParams = {
   statsDuration: 60
 };
 
-const APP_VERSION = '3.3.7';
+const APP_VERSION = '3.4.0';
 
 const areParamsEqual = (a: SimulationParams, b: SimulationParams) => (
   a.N === b.N &&
@@ -180,8 +182,13 @@ function App() {
   const notificationTimeoutRef = useRef<number>(0);
   const mainScrollRef = useRef<HTMLDivElement | null>(null);
   const mainContentRef = useRef<HTMLDivElement | null>(null);
+  const topElasticRef = useRef<HTMLDivElement | null>(null);
   const bottomElasticRef = useRef<HTMLDivElement | null>(null);
-  const bottomElasticStateRef = useRef({ current: 0, target: 0, raf: 0 });
+  const edgeElasticStateRef = useRef({
+    top: { current: 0, target: 0 },
+    bottom: { current: 0, target: 0 },
+    raf: 0
+  });
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const langMenuRef = useRef<HTMLDivElement | null>(null);
   const presetNameInputRef = useRef<HTMLInputElement | null>(null);
@@ -301,15 +308,21 @@ function App() {
     const container = mainContentRef.current;
     if (!container) return;
     const clamped = Math.max(-70, Math.min(70, offset));
-    const scale = 1 + Math.min(Math.abs(clamped) / 360, 0.09);
     container.style.transition = 'none';
     if (Math.abs(clamped) < 0.01) {
       container.style.transform = 'translateY(0px) scaleY(1)';
       container.style.transformOrigin = 'center';
       return;
     }
-    container.style.transform = `translateY(${clamped}px) scaleY(${scale})`;
-    container.style.transformOrigin = clamped > 0 ? 'top' : 'bottom';
+    if (clamped > 0) {
+      const scale = 1 + Math.min(clamped / 360, 0.09);
+      container.style.transform = `translateY(${clamped}px) scaleY(${scale})`;
+      container.style.transformOrigin = 'top';
+      return;
+    }
+    const translate = clamped * 0.72;
+    container.style.transform = `translateY(${translate}px)`;
+    container.style.transformOrigin = 'bottom';
   }, []);
 
   const getDampedStretch = useCallback((delta: number) => {
@@ -321,41 +334,60 @@ function App() {
     return Math.sign(delta) * maxStretch * eased;
   }, []);
 
-  const applyBottomElastic = useCallback((height: number) => {
-    const indicator = bottomElasticRef.current;
+  const applyEdgeElastic = useCallback((edge: 'top' | 'bottom', height: number) => {
+    const indicator = edge === 'top' ? topElasticRef.current : bottomElasticRef.current;
     if (!indicator) return;
-    const clamped = Math.max(0, Math.min(90, height));
-    const ratio = clamped / 90;
+    const maxHeight = edge === 'bottom' ? 120 : 90;
+    const clamped = Math.max(0, Math.min(maxHeight, height));
+    const ratio = clamped / maxHeight;
     indicator.style.height = `${clamped}px`;
-    indicator.style.opacity = clamped > 0 ? `${0.1 + ratio * 0.6}` : '0';
-    indicator.style.transform = `scaleY(${1 + ratio * 0.12})`;
+    indicator.style.opacity = clamped > 0 ? `${edge === 'bottom' ? 0.18 + ratio * 0.68 : 0.1 + ratio * 0.6}` : '0';
+    indicator.style.transform = `scaleY(${1 + ratio * (edge === 'bottom' ? 0.18 : 0.12)})`;
   }, []);
 
-  const stepBottomElastic = useCallback(() => {
-    const state = bottomElasticStateRef.current;
-    const diff = state.target - state.current;
-    state.current += diff * 0.22;
-    if (Math.abs(diff) < 0.4) {
-      state.current = state.target;
+  const stepEdgeElastic = useCallback(() => {
+    const state = edgeElasticStateRef.current;
+    const topDiff = state.top.target - state.top.current;
+    const bottomDiff = state.bottom.target - state.bottom.current;
+
+    state.top.current += topDiff * 0.22;
+    state.bottom.current += bottomDiff * 0.22;
+
+    if (Math.abs(topDiff) < 0.4) {
+      state.top.current = state.top.target;
     }
-    applyBottomElastic(state.current);
-    if (Math.abs(state.current - state.target) > 0.4) {
-      state.raf = window.requestAnimationFrame(stepBottomElastic);
+    if (Math.abs(bottomDiff) < 0.4) {
+      state.bottom.current = state.bottom.target;
+    }
+
+    applyEdgeElastic('top', state.top.current);
+    applyEdgeElastic('bottom', state.bottom.current);
+
+    if (
+      Math.abs(state.top.current - state.top.target) > 0.4 ||
+      Math.abs(state.bottom.current - state.bottom.target) > 0.4
+    ) {
+      state.raf = window.requestAnimationFrame(stepEdgeElastic);
     } else {
       state.raf = 0;
     }
-  }, [applyBottomElastic]);
+  }, [applyEdgeElastic]);
 
-  const scheduleBottomElastic = useCallback((height: number) => {
-    const state = bottomElasticStateRef.current;
-    state.target = height;
+  const scheduleEdgeElastic = useCallback((edge: 'top' | 'bottom', height: number) => {
+    const state = edgeElasticStateRef.current;
+    state[edge].target = height;
     if (state.raf) return;
-    state.raf = window.requestAnimationFrame(stepBottomElastic);
-  }, [stepBottomElastic]);
+    state.raf = window.requestAnimationFrame(stepEdgeElastic);
+  }, [stepEdgeElastic]);
 
-  const releaseBottomElastic = useCallback(() => {
-    scheduleBottomElastic(0);
-  }, [scheduleBottomElastic]);
+  const releaseEdgeElastic = useCallback((edge?: 'top' | 'bottom') => {
+    if (edge) {
+      scheduleEdgeElastic(edge, 0);
+      return;
+    }
+    scheduleEdgeElastic('top', 0);
+    scheduleEdgeElastic('bottom', 0);
+  }, [scheduleEdgeElastic]);
 
   const cancelMainStretch = useCallback(() => {
     const state = stretchStateRef.current;
@@ -398,7 +430,7 @@ function App() {
     const scrollEl = mainScrollRef.current;
     const state = stretchStateRef.current;
     cancelMainStretch();
-    scheduleBottomElastic(0);
+    releaseEdgeElastic();
     state.active = true;
     state.startY = event.touches[0].clientY;
     state.edgeStartY = event.touches[0].clientY;
@@ -415,11 +447,11 @@ function App() {
     const edgeThreshold = 1;
     state.atTop = scrollEl.scrollTop <= edgeThreshold;
     state.atBottom = scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - edgeThreshold;
-    state.edge = state.atTop ? 'top' : null;
+    state.edge = state.atTop ? 'top' : state.atBottom ? 'bottom' : null;
     if (state.edge) {
       state.edgeStartY = event.touches[0].clientY;
     }
-  }, [applyMainStretch, cancelMainStretch, scheduleBottomElastic]);
+  }, [applyMainStretch, cancelMainStretch, releaseEdgeElastic]);
 
   const handleMainTouchMove = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
     const state = stretchStateRef.current;
@@ -451,13 +483,14 @@ function App() {
         state.edge = null;
         state.currentOffset = 0;
         applyMainStretch(0);
-        scheduleBottomElastic(0);
+        releaseEdgeElastic('top');
         return;
       }
       const stretch = getDampedStretch(edgeDelta);
       state.currentOffset = stretch;
       applyMainStretch(stretch);
-      scheduleBottomElastic(0);
+      scheduleEdgeElastic('top', Math.abs(stretch));
+      scheduleEdgeElastic('bottom', 0);
       event.preventDefault();
       return;
     }
@@ -466,15 +499,16 @@ function App() {
       const edgeDelta = touchY - state.edgeStartY;
       if (edgeDelta >= 0) {
         state.edge = null;
-        scheduleBottomElastic(0);
-        return;
-      }
-      if (state.currentOffset !== 0) {
         state.currentOffset = 0;
         applyMainStretch(0);
+        releaseEdgeElastic('bottom');
+        return;
       }
-      const stretch = Math.abs(getDampedStretch(edgeDelta));
-      scheduleBottomElastic(stretch);
+      const stretch = getDampedStretch(edgeDelta) * 1.18;
+      state.currentOffset = stretch;
+      applyMainStretch(stretch);
+      scheduleEdgeElastic('bottom', Math.abs(stretch) * 1.3);
+      scheduleEdgeElastic('top', 0);
       event.preventDefault();
       return;
     }
@@ -483,8 +517,8 @@ function App() {
       state.currentOffset = 0;
       applyMainStretch(0);
     }
-    scheduleBottomElastic(0);
-  }, [applyMainStretch, getDampedStretch, scheduleBottomElastic]);
+    releaseEdgeElastic();
+  }, [applyMainStretch, getDampedStretch, releaseEdgeElastic, scheduleEdgeElastic]);
 
   const handleMainTouchEnd = useCallback(() => {
     const state = stretchStateRef.current;
@@ -494,8 +528,8 @@ function App() {
     state.edge = null;
     state.edgeStartY = 0;
     releaseMainStretch();
-    releaseBottomElastic();
-  }, [releaseBottomElastic, releaseMainStretch]);
+    releaseEdgeElastic();
+  }, [releaseEdgeElastic, releaseMainStretch]);
 
   const supportsHover = inputCapabilities.supportsHover;
   const finePointer = inputCapabilities.finePointer;
@@ -553,9 +587,6 @@ function App() {
   const sectionTitleClass = isEnglishUI
     ? 'min-w-0 flex items-center gap-2 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase tracking-[0.14em] transition-colors'
     : 'min-w-0 flex items-center gap-2 text-slate-600 dark:text-slate-300 font-semibold text-sm tracking-[0.04em] transition-colors';
-  const presetActionButtonTextClass = isEnglishUI
-    ? 'text-[10px] font-bold tracking-[0.08em]'
-    : 'text-[11px] font-semibold tracking-[0.03em]';
   const defaultActionTextClass = isEnglishUI
     ? 'text-[10px] font-medium tracking-[0.08em]'
     : 'text-[11px] font-medium tracking-[0.03em]';
@@ -1124,6 +1155,50 @@ function App() {
       setIsSidebarOpen(false);
   }
 
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let active = true;
+    let listenerHandle: Awaited<ReturnType<typeof CapacitorApp.addListener>> | null = null;
+
+    CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+      if (isCreatePresetModalOpen) {
+        closeCreatePresetModal();
+        return;
+      }
+      if (presetActionMenu) {
+        setPresetActionMenu(null);
+        return;
+      }
+      if (isLangMenuOpen) {
+        setIsLangMenuOpen(false);
+        return;
+      }
+      if (isSidebarOpen) {
+        setIsSidebarOpen(false);
+        return;
+      }
+
+      if (canGoBack) {
+        window.history.back();
+        return;
+      }
+
+      CapacitorApp.exitApp();
+    }).then((handle) => {
+      if (!active) {
+        handle.remove();
+        return;
+      }
+      listenerHandle = handle;
+    });
+
+    return () => {
+      active = false;
+      listenerHandle?.remove();
+    };
+  }, [isCreatePresetModalOpen, presetActionMenu, isLangMenuOpen, isSidebarOpen]);
+
   const getLangName = (l: string) => {
     switch(l) {
         case 'zh-CN': return '简体中文';
@@ -1169,7 +1244,7 @@ function App() {
           setLang(l);
       }
       setIsLangMenuOpen(false);
-      showNotification(formatLangLabel(l), 1500, 'success', 'center');
+      showNotification(formatLangLabel(l), 1500, 'success');
   };
 
   const handleLangMenuToggle = () => {
@@ -1337,11 +1412,12 @@ function App() {
                                             event.stopPropagation();
                                             openCreatePresetModal();
                                         }}
-                                        className={`inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-500 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${presetActionButtonTextClass} ${isDesktopLike ? 'hover:border-sciblue-300 hover:text-sciblue-600 dark:hover:border-sciblue-500 dark:hover:text-sciblue-300' : 'active:scale-95'}`}
+                                        aria-label={t.storage.newPreset}
+                                        className={`inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${isDesktopLike ? 'hover:border-sciblue-300 hover:text-sciblue-600 dark:hover:border-sciblue-500 dark:hover:text-sciblue-300' : 'active:scale-95'}`}
                                         title={t.storage.newPreset}
                                     >
-                                        <Plus size={11} />
-                                        <span className="whitespace-nowrap">{t.storage.newPreset}</span>
+                                        <FolderPlus size={15} strokeWidth={1.8} />
+                                        <span className="sr-only">{t.storage.newPreset}</span>
                                     </button>
                                     <div className={`${sidebarToggleButtonClass} transition-colors ${sectionHoverButtonClass}`}>
                                         <ChevronDown 
@@ -1682,15 +1758,15 @@ function App() {
 
                 {/* Mobile Tooltip Guide - MOVED INSIDE RELATIVE WRAPPER & POSITIONED BELOW */}
                 {showSidebarGuide && !isCanvasLocked && (
-                   <div className="absolute top-full left-0 mt-2 flex flex-col items-start animate-fade-in pointer-events-none z-50 w-[min(72vw,280px)]">
+                   <div className="absolute top-full left-0 mt-2 flex w-max max-w-[min(92vw,360px)] flex-col items-start animate-fade-in pointer-events-none z-50">
                       {/* Arrow pointing up */}
-                      <div className="w-0 h-0 border-x-[6px] border-x-transparent border-b-[8px] border-b-sciblue-500 ml-3 drop-shadow-sm"></div>
+                      <div className="ml-3 h-0 w-0 border-x-[6px] border-x-transparent border-b-[8px] border-b-white/80 drop-shadow-sm dark:border-b-slate-900/70"></div>
                       {/* Text Bubble */}
-                      <div className="rounded-xl border border-sciblue-500 bg-sciblue-50 px-3 py-2 shadow-lg dark:bg-sciblue-900/95">
-                        <p className="text-[11px] font-bold text-sciblue-700 dark:text-sciblue-50">
+                      <div className="max-w-full rounded-xl border border-sciblue-400/60 bg-white/[0.8] px-3 py-2 shadow-lg backdrop-blur-md dark:bg-slate-900/[0.72]">
+                        <p className="whitespace-nowrap text-[11px] font-bold text-sciblue-700 dark:text-sciblue-50">
                           {t.hints.sidebarTitle}
                         </p>
-                        <p className="mt-1 text-[10px] leading-relaxed text-sciblue-700/90 dark:text-sciblue-100/90">
+                        <p className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-[9.5px] leading-none text-sciblue-700/85 dark:text-sciblue-100/80 sm:text-[10px]">
                           {t.hints.sidebarBody}
                         </p>
                       </div>
@@ -1720,16 +1796,30 @@ function App() {
       </main>
 
       <div
+        ref={topElasticRef}
+        aria-hidden="true"
+        className="fixed top-0 left-0 right-0 z-[70] pointer-events-none"
+        style={{
+          height: 0,
+          opacity: 0,
+          transform: 'scaleY(1)',
+          transformOrigin: 'top',
+          background: 'linear-gradient(to bottom, rgba(14,165,233,0.24), rgba(14,165,233,0))',
+          boxShadow: '0 18px 40px rgba(14,165,233,0.14)'
+        }}
+      />
+
+      <div
         ref={bottomElasticRef}
         aria-hidden="true"
-        className="fixed bottom-0 left-0 right-0 z-20 pointer-events-none"
+        className="fixed bottom-0 left-0 right-0 z-[90] pointer-events-none"
         style={{
           height: 0,
           opacity: 0,
           transform: 'scaleY(1)',
           transformOrigin: 'bottom',
-          background: 'linear-gradient(to top, rgba(14,165,233,0.22), rgba(14,165,233,0))',
-          boxShadow: '0 -18px 40px rgba(14,165,233,0.18)'
+          background: 'linear-gradient(to top, rgba(14,165,233,0.34), rgba(14,165,233,0.08) 48%, rgba(14,165,233,0))',
+          boxShadow: '0 -24px 52px rgba(14,165,233,0.22)'
         }}
       />
 

@@ -127,6 +127,9 @@ html {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 html:lang(zh-CN) {
@@ -151,6 +154,9 @@ body {
   position: relative;
   min-height: 100vh;
   transition: background-color 0.8s ease, color 0.8s ease;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 button,
@@ -158,6 +164,14 @@ input,
 select,
 textarea {
   font-family: inherit;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 .font-sans,

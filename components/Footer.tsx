@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { LanguageCode, Translation } from '../types';
 import { Github, FileText, Mail, GraduationCap, Sparkles, Check, User } from 'lucide-react';
 
@@ -23,6 +23,8 @@ const PdfModalFallback = () => (
 const Footer: React.FC<FooterProps> = ({ t, lang, showNotification, supportsHover = true, compactLinks = false }) => {
   const [emailCopied, setEmailCopied] = useState(false);
   const [isPdfOpen, setIsPdfOpen] = useState(false);
+  const emailLaunchTimeoutRef = useRef<number | null>(null);
+  const emailCopiedResetTimeoutRef = useRef<number | null>(null);
   const isEnglishUI = lang.startsWith('en');
 
   const iconLiftClass = supportsHover ? 'group-hover:scale-110' : '';
@@ -44,21 +46,69 @@ const Footer: React.FC<FooterProps> = ({ t, lang, showNotification, supportsHove
     ? `group flex min-h-[56px] w-full items-center gap-3 rounded-xl border border-slate-700/50 bg-slate-800/30 px-4 py-3 text-left text-sm text-slate-300 transition-all ${compactLinkCardClass}`
     : `group -ml-2 flex w-full items-center gap-3 rounded-lg p-2 text-left text-sm text-slate-300 transition-all ${linkHoverClass}`;
 
-  const handleEmailClick = (e: React.MouseEvent) => {
+  useEffect(() => {
+    return () => {
+      if (emailLaunchTimeoutRef.current !== null) {
+        window.clearTimeout(emailLaunchTimeoutRef.current);
+        emailLaunchTimeoutRef.current = null;
+      }
+      if (emailCopiedResetTimeoutRef.current !== null) {
+        window.clearTimeout(emailCopiedResetTimeoutRef.current);
+        emailCopiedResetTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  const copyTextToClipboard = async (text: string) => {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.setAttribute('readonly', '');
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+    textArea.style.pointerEvents = 'none';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+      return document.execCommand('copy');
+    } finally {
+      document.body.removeChild(textArea);
+    }
+  };
+
+  const handleEmailClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     const email = 'project-team@users.noreply.github.com';
 
-    window.location.href = `mailto:${email}`;
+    try {
+      await copyTextToClipboard(email);
+      setEmailCopied(true);
+      showNotification(t.footer.emailCopiedMsg, 1000, 'success');
 
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(email).then(() => {
-        setEmailCopied(true);
-        showNotification(t.footer.emailCopiedMsg, 2000, 'success');
-        window.setTimeout(() => setEmailCopied(false), 2000);
-      }).catch(() => {
-        // Ignore clipboard failures.
-      });
+      if (emailCopiedResetTimeoutRef.current !== null) {
+        window.clearTimeout(emailCopiedResetTimeoutRef.current);
+      }
+      emailCopiedResetTimeoutRef.current = window.setTimeout(() => {
+        setEmailCopied(false);
+        emailCopiedResetTimeoutRef.current = null;
+      }, 1600);
+    } catch {
+      // Keep the delayed mail attempt even if clipboard access is blocked.
     }
+
+    if (emailLaunchTimeoutRef.current !== null) {
+      window.clearTimeout(emailLaunchTimeoutRef.current);
+    }
+    emailLaunchTimeoutRef.current = window.setTimeout(() => {
+      window.location.href = `mailto:${email}`;
+      emailLaunchTimeoutRef.current = null;
+    }, 1000);
   };
 
   const handleOpenPdf = (e: React.MouseEvent) => {

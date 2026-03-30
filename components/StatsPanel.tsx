@@ -205,7 +205,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ stats, eqTime, statDuration, t,
     : 'mb-1 text-[10px] tracking-[0.04em] text-slate-400 dark:text-slate-500';
 
   return (
-    <div className={`overflow-hidden transition-all duration-700 ease-in-out ${isFinished ? 'max-h-[360px] opacity-100' : 'max-h-[420px] opacity-100'}`}>
+    <div className="overflow-visible opacity-100 transition-opacity duration-500 ease-out">
       <div className="grid w-full grid-cols-2 gap-3 pt-4 md:grid-cols-4">
         <StatItem label={t.stats.temperature} value={stats.temperature} unit="K" icon={<Thermometer />} colorClass="text-rose-500 dark:text-rose-400" isEnglishUI={isEnglishUI} supportsHover={supportsHover} />
         <StatItem label={t.stats.pressure} value={stats.pressure} unit="Pa" icon={<Gauge />} colorClass="text-violet-500 dark:text-violet-400" isEnglishUI={isEnglishUI} supportsHover={supportsHover} />

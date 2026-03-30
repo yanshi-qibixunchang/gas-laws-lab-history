@@ -139,7 +139,7 @@ export const translations: Record<LanguageCode, Translation> = {
       viewModeTitle: "点击切换视角模式",
       viewModeBody: "试试上方视角切换键，在旋转与平移间切换。",
       sidebarTitle: "先从这里开始",
-      sidebarBody: "点击此按钮展开设置，调整参数或直接开始模拟。"
+      sidebarBody: "点击按钮展开设置，或直接开始模拟。"
     },
     common: {
       expandDetails: "展开参数设置",
@@ -162,7 +162,7 @@ export const translations: Record<LanguageCode, Translation> = {
       references: "参考资料",
       visitorCount: "欢迎访问本站",
       school: "Project Institution\n环境工程",
-    version: "v3.3.7 正式版",
+    version: "v3.4.0 正式版",
       links: "相关链接",
       github: "GitHub 仓库",
       report: "查看报告 (PDF)",
@@ -316,7 +316,7 @@ export const translations: Record<LanguageCode, Translation> = {
       viewModeTitle: "點擊切換視角模式",
       viewModeBody: "試試上方視角切換鍵，在旋轉與平移之間切換。",
       sidebarTitle: "先從這裡開始",
-      sidebarBody: "點擊此按鈕展開設置，調整參數或直接開始模擬。"
+      sidebarBody: "點擊按鈕展開設置，或直接開始模擬。"
     },
     common: {
       expandDetails: "展開參數設置",
@@ -339,7 +339,7 @@ export const translations: Record<LanguageCode, Translation> = {
       references: "參考資料",
       visitorCount: "歡迎訪問本站",
       school: "Project Institution（威海）\n環境工程",
-    version: "v3.3.7 正式版",
+    version: "v3.4.0 正式版",
       links: "相關連結",
       github: "GitHub 倉庫",
       report: "查看報告 (PDF)",
@@ -493,7 +493,7 @@ export const translations: Record<LanguageCode, Translation> = {
       viewModeTitle: "Try switching view modes",
       viewModeBody: "Use the top-left mode button to switch between rotate and pan.",
       sidebarTitle: "Start here",
-      sidebarBody: "Open the settings panel to adjust parameters or run the simulation."
+      sidebarBody: "Open settings or start the simulation."
     },
     common: {
       expandDetails: "Show Parameters",
@@ -516,7 +516,7 @@ export const translations: Record<LanguageCode, Translation> = {
       references: "References",
       visitorCount: "Welcome to the site",
       school: "Project Institution\nEnvironmental Eng.",
-    version: "v3.3.7 Official",
+    version: "v3.4.0 Official",
       links: "Links",
       github: "GitHub Repo",
       report: "View Report (PDF)",
@@ -670,7 +670,7 @@ export const translations: Record<LanguageCode, Translation> = {
       viewModeTitle: "Try switching view modes",
       viewModeBody: "Use the top-left mode button to switch between rotate and pan.",
       sidebarTitle: "Start here",
-      sidebarBody: "Open the settings panel to adjust parameters or run the simulation."
+      sidebarBody: "Open settings or start the simulation."
     },
     common: {
       expandDetails: "Show Parameters",
@@ -693,7 +693,7 @@ export const translations: Record<LanguageCode, Translation> = {
       references: "References",
       visitorCount: "Welcome to the site",
       school: "Project Institution\nEnvironmental Eng.",
-    version: "v3.3.7 Official",
+    version: "v3.4.0 Official",
       links: "Links",
       github: "GitHub Repo",
       report: "View Report (PDF)",

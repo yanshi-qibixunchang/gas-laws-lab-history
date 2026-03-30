@@ -23,9 +23,13 @@ coverage/
 
 # Local Codex workspace state
 .codex/
+output/
 
 # Android local state and signing materials
 android/.gradle/
+android/.idea/
+android/.kotlin/
+android/build/
 android/local.properties
 android/key.properties
 android/keystore/

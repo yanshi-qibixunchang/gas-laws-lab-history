@@ -73,6 +73,8 @@ const PdfModal: React.FC<PdfModalProps> = ({
   const pinchZoomRef = useRef<number | null>(null);
   const latestPinchZoomRef = useRef(1);
   const pinchIdleTimeoutRef = useRef<number | null>(null);
+  const refineRenderTimeoutRef = useRef<number | null>(null);
+  const anchorRestoreRafRef = useRef<number | null>(null);
   const scrollRafRef = useRef<number | null>(null);
   const focusPageRef = useRef(1);
   const renderTokenRef = useRef(0);
@@ -133,12 +135,10 @@ const PdfModal: React.FC<PdfModalProps> = ({
     const container = containerRef.current;
     if (!scrollArea || !container) return null;
 
-    const scrollRect = scrollArea.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
     const centerX = scrollArea.clientWidth / 2;
     const centerY = scrollArea.clientHeight / 2;
-    const offsetLeft = containerRect.left - scrollRect.left + scrollArea.scrollLeft;
-    const offsetTop = containerRect.top - scrollRect.top + scrollArea.scrollTop;
+    const offsetLeft = container.offsetLeft;
+    const offsetTop = container.offsetTop;
 
     return {
       contentX: (scrollArea.scrollLeft + centerX - offsetLeft) / zoomRef.current,
@@ -221,6 +221,14 @@ const PdfModal: React.FC<PdfModalProps> = ({
     if (pinchIdleTimeoutRef.current) {
       window.clearTimeout(pinchIdleTimeoutRef.current);
       pinchIdleTimeoutRef.current = null;
+    }
+    if (refineRenderTimeoutRef.current) {
+      window.clearTimeout(refineRenderTimeoutRef.current);
+      refineRenderTimeoutRef.current = null;
+    }
+    if (anchorRestoreRafRef.current !== null) {
+      window.cancelAnimationFrame(anchorRestoreRafRef.current);
+      anchorRestoreRafRef.current = null;
     }
     pendingAnchorRef.current = null;
     releaseZoomRef.current = null;
@@ -336,10 +344,8 @@ const PdfModal: React.FC<PdfModalProps> = ({
       const scrollArea = scrollAreaRef.current;
       const container = containerRef.current;
       if (!scrollArea || !container) return;
-      const scrollRect = scrollArea.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-      const offsetLeft = containerRect.left - scrollRect.left + scrollArea.scrollLeft;
-      const offsetTop = containerRect.top - scrollRect.top + scrollArea.scrollTop;
+      const offsetLeft = container.offsetLeft;
+      const offsetTop = container.offsetTop;
       const targetLeft = offsetLeft + anchor.contentX * zoomValue - anchor.centerX;
       const targetTop = offsetTop + anchor.contentY * zoomValue - anchor.centerY;
       const maxLeft = Math.max(0, scrollArea.scrollWidth - scrollArea.clientWidth);
@@ -423,7 +429,6 @@ const PdfModal: React.FC<PdfModalProps> = ({
       const container = containerRef.current;
       if (!container) return;
       const scrollRect = scrollArea.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
       const centerX =
         (event.touches[0].clientX + event.touches[1].clientX) / 2 - scrollRect.left;
       const centerY =
@@ -431,8 +436,8 @@ const PdfModal: React.FC<PdfModalProps> = ({
       const baseZoom = zoomRef.current;
       const startScrollLeft = scrollArea.scrollLeft;
       const startScrollTop = scrollArea.scrollTop;
-      const offsetLeft = containerRect.left - scrollRect.left + scrollArea.scrollLeft;
-      const offsetTop = containerRect.top - scrollRect.top + scrollArea.scrollTop;
+      const offsetLeft = container.offsetLeft;
+      const offsetTop = container.offsetTop;
       const contentX = (scrollArea.scrollLeft + centerX - offsetLeft) / baseZoom;
       const contentY = (scrollArea.scrollTop + centerY - offsetTop) / baseZoom;
       pinchStateRef.current = {
@@ -546,10 +551,36 @@ const PdfModal: React.FC<PdfModalProps> = ({
         window.clearTimeout(pinchIdleTimeoutRef.current);
         pinchIdleTimeoutRef.current = null;
       }
+      if (refineRenderTimeoutRef.current) {
+        window.clearTimeout(refineRenderTimeoutRef.current);
+        refineRenderTimeoutRef.current = null;
+      }
+      if (anchorRestoreRafRef.current !== null) {
+        window.cancelAnimationFrame(anchorRestoreRafRef.current);
+        anchorRestoreRafRef.current = null;
+      }
       clearPreviewTransform();
       setPinchZoomValue(null);
     };
   }, [isOpen, clampZoom, applyPreviewTransform, clearPreviewTransform, setPinchZoomValue]);
+
+  useEffect(() => {
+    if (!isOpen || pinchStateRef.current.active) return;
+    if (refineRenderTimeoutRef.current) {
+      window.clearTimeout(refineRenderTimeoutRef.current);
+    }
+    refineRenderTimeoutRef.current = window.setTimeout(() => {
+      forceFullRenderRef.current = true;
+      setRenderTick((prev) => prev + 1);
+    }, 90);
+
+    return () => {
+      if (refineRenderTimeoutRef.current) {
+        window.clearTimeout(refineRenderTimeoutRef.current);
+        refineRenderTimeoutRef.current = null;
+      }
+    };
+  }, [isOpen, zoom]);
 
   const renderPdf = useCallback(
     async (targetZoom: number, targetUrl: string, token: number) => {
@@ -660,22 +691,44 @@ const PdfModal: React.FC<PdfModalProps> = ({
         container.style.margin = targetZoom <= 1 ? '0 auto' : '0';
         container.replaceChildren(fragment);
         zoomRef.current = targetZoom;
-        const shouldRestoreAnchorImmediately =
-          clearPreviewOnRenderRef.current &&
-          !previewTransformRef.current &&
-          releaseZoomRef.current !== null &&
-          Math.abs(releaseZoomRef.current - targetZoom) < 0.001;
-        if (shouldRestoreAnchorImmediately) {
+        const restorePendingAnchor = () => {
+          const shouldRestore =
+            clearPreviewOnRenderRef.current &&
+            !pinchStateRef.current.active &&
+            releaseZoomRef.current !== null &&
+            Math.abs(releaseZoomRef.current - targetZoom) < 0.001;
+          if (!shouldRestore) return;
+
           const restore = pendingAnchorRef.current;
-          if (restore && scrollArea) {
-            applyAnchorScroll(restore, targetZoom);
-            if (pendingAnchorRef.current === restore) {
-              pendingAnchorRef.current = null;
+          const commitRestore = () => {
+            anchorRestoreRafRef.current = null;
+            if (isStale()) return;
+
+            if (restore && scrollArea) {
+              applyAnchorScroll(restore, targetZoom);
+              if (pendingAnchorRef.current === restore) {
+                pendingAnchorRef.current = null;
+              }
             }
+            clearPreviewOnRenderRef.current = false;
+            releaseZoomRef.current = null;
+          };
+
+          if (anchorRestoreRafRef.current !== null) {
+            window.cancelAnimationFrame(anchorRestoreRafRef.current);
+            anchorRestoreRafRef.current = null;
           }
-          clearPreviewOnRenderRef.current = false;
-          releaseZoomRef.current = null;
-        }
+
+          if (previewTransformRef.current) {
+            clearPreviewTransform();
+            anchorRestoreRafRef.current = window.requestAnimationFrame(commitRestore);
+            return;
+          }
+
+          commitRestore();
+        };
+
+        restorePendingAnchor();
         if (forceFullRenderRef.current && !pinchStateRef.current.active) {
           forceFullRenderRef.current = false;
         }
@@ -708,28 +761,16 @@ const PdfModal: React.FC<PdfModalProps> = ({
         };
 
         const finalizePreviewAnchor = () => {
-          const shouldFinalizePreview =
-            clearPreviewOnRenderRef.current &&
-            !pinchStateRef.current.active &&
-            releaseZoomRef.current !== null &&
-            Math.abs(releaseZoomRef.current - targetZoom) < 0.001;
-          if (!shouldFinalizePreview) return;
-
-          const restore = pendingAnchorRef.current;
-          if (restore && scrollArea && container) {
-            applyAnchorScroll(restore, targetZoom);
-            if (pendingAnchorRef.current === restore) {
-              pendingAnchorRef.current = null;
-            }
-          }
-          clearPreviewOnRenderRef.current = false;
-          releaseZoomRef.current = null;
-          clearPreviewTransform();
+          restorePendingAnchor();
         };
 
         const orderedHighResPages = Array.from(highResPages).sort((a, b) => Math.abs(a - focusPage) - Math.abs(b - focusPage));
-        for (const pageNum of orderedHighResPages) {
-          await renderPageIntoWrapper(pageNum, 'high');
+        for (let index = 0; index < orderedHighResPages.length; index += 1) {
+          await renderPageIntoWrapper(orderedHighResPages[index], 'high');
+          if (index === 0) {
+            if (isStale()) return;
+            finalizePreviewAnchor();
+          }
         }
 
         if (isStale()) return;
