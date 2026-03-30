@@ -165,6 +165,7 @@ function App() {
   const [presetModalMode, setPresetModalMode] = useState<'create' | 'rename'>('create');
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
   const [presetActionMenu, setPresetActionMenu] = useState<{ id: string; top: number; left: number } | null>(null);
+  const [deleteConfirmConfig, setDeleteConfirmConfig] = useState<SavedConfig | null>(null);
 
   const [stats, setStats] = useState<SimulationStats>({
     time: 0, temperature: 0, pressure: 0, meanSpeed: 0, rmsSpeed: 0,
@@ -543,9 +544,12 @@ function App() {
   const versionBadgeText = `${t.header.systemOp} \u00b7 v${APP_VERSION} ${versionLabel}`;
 
   const isSidebarOverlay = touchLike && (isCompactWidth || isLandscapeMode);
+  const keyboardOverlayActive = touchLike && keyboardOpenRef.current;
+  const activeOrientationKey = isLandscapeMode ? 'landscape' : 'portrait';
+  const stableViewportHeight = viewportBaselineRef.current[activeOrientationKey] || viewportSize.height || viewportSize.visualHeight || 0;
   const isSidebarInputMode = touchLike && isShortHeight;
   const resolvedViewportHeight = touchLike
-    ? (viewportSize.visualHeight || viewportSize.height || 0)
+    ? (keyboardOverlayActive ? stableViewportHeight : (viewportSize.visualHeight || viewportSize.height || 0))
     : (viewportSize.height || 0);
   const appFrameStyle = resolvedViewportHeight
     ? { height: `${resolvedViewportHeight}px` }
@@ -553,13 +557,13 @@ function App() {
   const overlayFrameStyle = resolvedViewportHeight
     ? {
         height: `${resolvedViewportHeight}px`,
-        top: touchLike ? `${viewportSize.visualOffsetTop}px` : '0px'
+        top: keyboardOverlayActive ? '0px' : (touchLike ? `${viewportSize.visualOffsetTop}px` : '0px')
       }
     : undefined;
   const sidebarFrameStyle = resolvedViewportHeight
     ? {
         height: `${resolvedViewportHeight}px`,
-        top: touchLike ? `${viewportSize.visualOffsetTop}px` : '0px'
+        top: keyboardOverlayActive ? '0px' : (touchLike ? `${viewportSize.visualOffsetTop}px` : '0px')
       }
     : undefined;
   const sidebarWidthClass = isSidebarOverlay ? 'w-[85vw] max-w-[360px]' : 'w-[300px]';
@@ -597,8 +601,15 @@ function App() {
     ? 'uppercase tracking-[0.16em]'
     : 'tracking-[0.05em]';
   const versionBadgeClass = isEnglishUI
-    ? 'inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-slate-200/70 dark:border-slate-700/70 text-slate-600 dark:text-slate-200 text-[9px] sm:text-[10px] font-bold tracking-[0.12em] shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis'
-    : 'inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-slate-200/70 dark:border-slate-700/70 text-slate-600 dark:text-slate-200 text-[10px] sm:text-[11px] font-semibold tracking-[0.05em] shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 whitespace-nowrap max-w-[90vw] overflow-hidden text-ellipsis';
+    ? `inline-flex items-center justify-center gap-2 rounded-2xl bg-white/70 px-4 py-1.5 text-slate-600 shadow-sm ring-1 ring-slate-100 backdrop-blur-md dark:bg-slate-800/70 dark:text-slate-200 dark:ring-slate-800 border border-slate-200/70 dark:border-slate-700/70 text-[9px] sm:text-[10px] font-bold tracking-[0.12em] ${isMobile ? 'max-w-[min(92vw,18rem)]' : 'max-w-[90vw]'}`
+    : `inline-flex items-center justify-center gap-2 rounded-2xl bg-white/70 px-4 py-1.5 text-slate-600 shadow-sm ring-1 ring-slate-100 backdrop-blur-md dark:bg-slate-800/70 dark:text-slate-200 dark:ring-slate-800 border border-slate-200/70 dark:border-slate-700/70 text-[10px] sm:text-[11px] font-semibold tracking-[0.05em] ${isMobile ? 'max-w-[min(92vw,18rem)]' : 'max-w-[90vw]'}`;
+  const versionBadgeTextClass = isMobile
+    ? 'min-w-0 max-w-[22ch] text-center leading-tight break-words [overflow-wrap:anywhere]'
+    : 'truncate whitespace-nowrap';
+  const guideBubbleTextWidthClass = isEnglishUI ? 'max-w-[24ch]' : 'max-w-[20ch]';
+  const notificationTextWidthClass = isEnglishUI ? 'max-w-[24ch]' : 'max-w-[16ch]';
+  const deleteDialogTextWidthClass = isEnglishUI ? 'max-w-[28ch]' : 'max-w-[18ch]';
+  const presetActionTextWidthClass = isEnglishUI ? 'max-w-[12ch]' : 'max-w-[7ch]';
   const sidebarInputScrollMarginStyle = {
     scrollMarginTop: isSidebarInputMode ? '96px' : '72px',
     scrollMarginBottom: isSidebarInputMode ? '160px' : '112px'
@@ -606,6 +617,11 @@ function App() {
   const compactLandscapeCanvasHeight = isCompactLandscape
     ? Math.max(220, Math.min(viewportSize.visualHeight - 230, 320))
     : null;
+  const mainHeaderSpacingClass = isCompactLandscape
+    ? 'pt-14 pb-2'
+    : isMobile
+      ? 'pt-36 pb-4'
+      : 'pt-24 pb-4 landscape:pt-6 landscape:pb-1 md:pt-24 md:pb-6';
   const overlayControlHidden = isSidebarOverlay && isSidebarOpen;
   const activePresetMenuConfig = presetActionMenu
     ? savedConfigs.find((config) => config.id === presetActionMenu.id) ?? null
@@ -622,6 +638,7 @@ function App() {
   const toolButtonHoverClass = isDesktopLike ? 'hover:bg-white/90 dark:hover:bg-slate-900/80 hover:text-slate-800 dark:hover:text-slate-200' : '';
   const themeButtonHoverClass = isDesktopLike ? 'hover:bg-white/90 dark:hover:bg-slate-900/80 hover:text-amber-500 dark:hover:text-sciblue-300' : '';
   const languageItemHoverClass = isDesktopLike ? 'hover:bg-slate-50 dark:hover:bg-slate-700' : '';
+  const shouldHideVersionBadge = hideVersionBadge || (isMobile && showSidebarGuide && !isCanvasLocked);
 
   // Dark Mode Logic: always start in light mode
   useEffect(() => {
@@ -655,7 +672,6 @@ function App() {
     const finePointerMedia = mediaMatches('(pointer: fine)');
     const touchLikeViewport = isTouchLikeViewport();
     const compactWidth = layoutWidth < 768;
-    const compactLandscape = touchLikeViewport && orientationIsLandscape && visualHeight < 560;
     const orientationKey = orientationIsLandscape ? 'landscape' : 'portrait';
 
     const baselineCandidate = Math.max(visualHeight, layoutHeight);
@@ -667,8 +683,6 @@ function App() {
     const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
     const hasEditableFocus = isEditableElement(activeElement);
     const keyboardThreshold = Math.max(80, nextBaseline * 0.18);
-    const shortHeightThreshold = orientationIsLandscape ? 480 : 600;
-    const constrainedHeight = visualHeight < shortHeightThreshold;
 
     if (!hasEditableFocus && !keyboardOpenRef.current && heightDelta > keyboardThreshold) {
       viewportBaselineRef.current[orientationKey] = baselineCandidate;
@@ -677,6 +691,10 @@ function App() {
 
     const keyboardLikely = heightDelta > keyboardThreshold;
     const keyboardActive = keyboardLikely && (hasEditableFocus || keyboardOpenRef.current);
+    const effectiveLayoutHeight = keyboardActive ? nextBaseline : visualHeight;
+    const compactLandscape = touchLikeViewport && orientationIsLandscape && effectiveLayoutHeight < 560;
+    const shortHeightThreshold = orientationIsLandscape ? 480 : 600;
+    const constrainedHeight = effectiveLayoutHeight < shortHeightThreshold;
 
     if (keyboardOpenRef.current && !keyboardLikely && !hasEditableFocus && heightDelta < keyboardThreshold * 0.5) {
       keyboardOpenRef.current = false;
@@ -691,7 +709,7 @@ function App() {
       isCompactWidth: compactWidth
     });
     setIsLandscapeMode(orientationIsLandscape);
-    setIsShortHeight(constrainedHeight || keyboardActive || keyboardOpenRef.current);
+    setIsShortHeight(constrainedHeight);
   }, []);
 
   // Screen Size Listener & Mobile Init Logic
@@ -833,6 +851,26 @@ function App() {
     };
   }, [isCreatePresetModalOpen]);
 
+  useEffect(() => {
+    if (!deleteConfirmConfig) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeDeleteConfirm();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [deleteConfirmConfig]);
+
   // Storage Logic: Load on Mount (Merge System + Local)
   useEffect(() => {
     // Ensure the system preset name updates with language change
@@ -918,6 +956,9 @@ function App() {
       setEditingPresetId(null);
       setNewConfigName('');
   };
+  const closeDeleteConfirm = () => {
+      setDeleteConfirmConfig(null);
+  };
 
   const openCreatePresetModal = () => {
       setIsStorageOpen(true);
@@ -955,13 +996,13 @@ function App() {
   const handleSaveConfig = (rawName = newConfigName) => {
       const nameToSave = rawName.trim();
       if (!nameToSave) {
-          showNotification(t.messages.checkInputs, 1500, 'warning');
+          showNotification(t.messages.checkInputs, 1800, 'warning');
           return false;
       }
 
       const isNameDuplicate = savedConfigs.some(c => c.name === nameToSave && c.id !== editingPresetId);
       if (isNameDuplicate) {
-          showNotification(t.storage.duplicateName, 2000, 'warning');
+          showNotification(t.storage.duplicateName, 2200, 'warning');
           return false;
       }
 
@@ -986,7 +1027,7 @@ function App() {
 
       const isParamsDuplicate = savedConfigs.some(c => areParamsEqual(c.params, params));
       if (isParamsDuplicate) {
-          showNotification(t.storage.duplicateParams, 2500, 'warning');
+          showNotification(t.storage.duplicateParams, 2600, 'warning');
           return false;
       }
 
@@ -1020,30 +1061,35 @@ function App() {
       setNeedsReset(true);
   };
 
-  const handleDeleteConfig = (id: string) => {
-      const configToDelete = savedConfigs.find((config) => config.id === id);
+  const requestDeleteConfig = (config: SavedConfig) => {
+      if (config.isSystem) return;
+      setPresetActionMenu(null);
+      setDeleteConfirmConfig(config);
+  };
+
+  const handleDeleteConfig = () => {
+      const configToDelete = deleteConfirmConfig;
       if (!configToDelete || configToDelete.isSystem) return;
+      const { id } = configToDelete;
 
-      if(confirm(t.storage.confirmDelete)) {
-          const userConfigs = savedConfigs.filter(c => !c.isSystem && c.id !== id);
-          const storedDefault = localStorage.getItem('hsl_custom_default');
+      const userConfigs = savedConfigs.filter(c => !c.isSystem && c.id !== id);
+      const storedDefault = localStorage.getItem('hsl_custom_default');
 
-          if (storedDefault) {
-              try {
-                  const parsedDefault = JSON.parse(storedDefault) as SimulationParams;
-                  if (areParamsEqual(parsedDefault, configToDelete.params)) {
-                      localStorage.removeItem('hsl_custom_default');
-                  }
-              } catch (error) {
-                  console.error('Failed to parse startup default', error);
+      if (storedDefault) {
+          try {
+              const parsedDefault = JSON.parse(storedDefault) as SimulationParams;
+              if (areParamsEqual(parsedDefault, configToDelete.params)) {
+                  localStorage.removeItem('hsl_custom_default');
               }
+          } catch (error) {
+              console.error('Failed to parse startup default', error);
           }
-
-          setSavedConfigs([savedConfigs[0], ...userConfigs]);
-          localStorage.setItem('hsl_favorites', JSON.stringify(userConfigs));
-          if (selectedPresetId === id) setSelectedPresetId(null);
-          setPresetActionMenu(null);
       }
+
+      setSavedConfigs([savedConfigs[0], ...userConfigs]);
+      localStorage.setItem('hsl_favorites', JSON.stringify(userConfigs));
+      if (selectedPresetId === id) setSelectedPresetId(null);
+      closeDeleteConfirm();
   };
 
   const handleSetStartupPreset = (config: SavedConfig) => {
@@ -1162,6 +1208,10 @@ function App() {
     let listenerHandle: Awaited<ReturnType<typeof CapacitorApp.addListener>> | null = null;
 
     CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+      if (deleteConfirmConfig) {
+        closeDeleteConfirm();
+        return;
+      }
       if (isCreatePresetModalOpen) {
         closeCreatePresetModal();
         return;
@@ -1197,7 +1247,7 @@ function App() {
       active = false;
       listenerHandle?.remove();
     };
-  }, [isCreatePresetModalOpen, presetActionMenu, isLangMenuOpen, isSidebarOpen]);
+  }, [deleteConfirmConfig, isCreatePresetModalOpen, presetActionMenu, isLangMenuOpen, isSidebarOpen]);
 
   const getLangName = (l: string) => {
     switch(l) {
@@ -1618,12 +1668,12 @@ function App() {
         className="flex-1 h-full overflow-y-auto overflow-x-hidden relative flex flex-col scroll-smooth main-scroll"
       >
         <div ref={mainContentRef} className="flex flex-col min-h-full will-change-transform">
-        <header className={`px-6 max-w-4xl mx-auto text-center animate-fade-in w-full shrink-0 ${isCompactLandscape ? 'pt-14 pb-2' : 'pt-24 pb-4 landscape:pt-6 landscape:pb-1 md:pt-24 md:pb-6'}`}>
+        <header className={`px-6 max-w-4xl mx-auto text-center animate-fade-in w-full shrink-0 ${mainHeaderSpacingClass}`}>
             {/* Version Badge - Centered Above Title */}
-            <div className={`flex justify-center overflow-hidden transition-all duration-300 ${hideVersionBadge ? 'mb-0 max-h-0 opacity-0 -translate-y-2' : 'mb-5 landscape:mb-2 max-h-12 opacity-100 translate-y-0'}`}>
+            <div className={`flex justify-center overflow-hidden transition-all duration-300 ${shouldHideVersionBadge ? 'mb-0 max-h-0 opacity-0 -translate-y-2' : 'mb-5 landscape:mb-2 max-h-20 opacity-100 translate-y-0'}`}>
                 <div className={versionBadgeClass}>
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.6)]"></span>
-                    <span className="truncate" title={versionBadgeText}>{versionBadgeText}</span>
+                    <span className={versionBadgeTextClass} title={versionBadgeText}>{versionBadgeText}</span>
                 </div>
             </div>
             
@@ -1762,11 +1812,11 @@ function App() {
                       {/* Arrow pointing up */}
                       <div className="ml-3 h-0 w-0 border-x-[6px] border-x-transparent border-b-[8px] border-b-white/80 drop-shadow-sm dark:border-b-slate-900/70"></div>
                       {/* Text Bubble */}
-                      <div className="max-w-full rounded-xl border border-sciblue-400/60 bg-white/[0.8] px-3 py-2 shadow-lg backdrop-blur-md dark:bg-slate-900/[0.72]">
-                        <p className="whitespace-nowrap text-[11px] font-bold text-sciblue-700 dark:text-sciblue-50">
+                      <div className="min-w-[10rem] max-w-full rounded-xl border border-sciblue-400/60 bg-white/[0.8] px-3 py-2.5 shadow-lg backdrop-blur-md dark:bg-slate-900/[0.72]">
+                        <p className={`mx-auto text-center text-[11px] font-bold leading-snug text-sciblue-700 dark:text-sciblue-50 break-words [overflow-wrap:anywhere] ${guideBubbleTextWidthClass}`}>
                           {t.hints.sidebarTitle}
                         </p>
-                        <p className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-[9.5px] leading-none text-sciblue-700/85 dark:text-sciblue-100/80 sm:text-[10px]">
+                        <p className={`mx-auto mt-1.5 text-center text-[9.5px] leading-[1.45] text-sciblue-700/85 dark:text-sciblue-100/80 break-words [overflow-wrap:anywhere] sm:text-[10px] ${guideBubbleTextWidthClass}`}>
                           {t.hints.sidebarBody}
                         </p>
                       </div>
@@ -1834,7 +1884,7 @@ function App() {
       </div>
 
       {/* NOTIFICATION */}
-      <div className={`fixed z-[100] pointer-events-none ${notification.position === 'center' ? 'inset-0 flex items-center justify-center' : 'bottom-8 left-1/2 -translate-x-1/2'}`}>
+      <div className={`fixed pointer-events-none ${isCreatePresetModalOpen ? 'z-[150]' : 'z-[100]'} ${notification.position === 'center' ? 'inset-0 flex items-center justify-center px-4' : 'inset-x-0 bottom-8 flex justify-center px-4'}`}>
         <div 
             key={notification.id}
             className={`
@@ -1846,7 +1896,7 @@ function App() {
             `}
         >
             <div className={`
-                px-5 py-2.5 rounded-lg shadow-xl flex items-center gap-3 border backdrop-blur-md
+                min-h-[48px] max-w-[min(92vw,24rem)] px-4 py-2.5 rounded-2xl shadow-xl flex items-center justify-center gap-3 border backdrop-blur-md
                 ${notification.type === 'success' ? 'bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900' : 
                   notification.type === 'warning' ? 'bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-900' : 
                   'bg-slate-800 dark:bg-white text-white dark:text-slate-900 border-slate-700 dark:border-slate-200'}
@@ -1854,7 +1904,7 @@ function App() {
                 {notification.type === 'success' ? <CheckCircle2 size={16} className="text-emerald-500"/> :
                  notification.type === 'warning' ? <AlertCircle size={16} className="text-amber-500"/> :
                  (notification.text.includes(t.canvas.locked.split('·')[0]) ? <Lock size={16} className="text-sciblue-400"/> : <MousePointer2 size={16} className="text-amber-400"/>)}
-                <span className="font-medium text-sm">{notification.text}</span>
+                <span className={`font-medium text-sm leading-snug text-center break-words [overflow-wrap:anywhere] ${notificationTextWidthClass}`}>{notification.text}</span>
             </div>
         </div>
       </div>
@@ -1958,23 +2008,86 @@ function App() {
                 className={`w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-slate-700 focus:border-sciblue-500 focus:outline-none focus:ring-2 focus:ring-sciblue-500/15 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 ${sidebarInputTextClass} ${sidebarInputPaddingClass}`}
               />
 
-              <div className="flex items-center justify-end gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={closeCreatePresetModal}
-                  className={`inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-500 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${isDesktopLike ? 'hover:border-slate-300 hover:text-slate-700 dark:hover:border-slate-600 dark:hover:text-slate-100' : 'active:scale-95'}`}
+                  className={`inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-500 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${isDesktopLike ? 'hover:border-slate-300 hover:text-slate-700 dark:hover:border-slate-600 dark:hover:text-slate-100' : 'active:scale-95'}`}
                 >
-                  {t.storage.cancel}
+                  <span className={`mx-auto text-center leading-tight break-words [overflow-wrap:anywhere] ${presetActionTextWidthClass}`}>{t.storage.cancel}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSaveConfig(newConfigName)}
-                  className={`inline-flex items-center justify-center gap-2 rounded-xl border border-sciblue-500 bg-sciblue-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all ${isDesktopLike ? 'hover:bg-sciblue-600 hover:border-sciblue-600' : 'active:scale-95'}`}
+                  className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-sciblue-500 bg-sciblue-500 px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition-all ${isDesktopLike ? 'hover:bg-sciblue-600 hover:border-sciblue-600' : 'active:scale-95'}`}
                 >
-                  {presetModalMode === 'rename' ? <Pencil size={14} /> : <Save size={14} />}
-                  <span>{presetModalMode === 'rename' ? t.storage.confirmRename : t.storage.confirmCreate}</span>
+                  {presetModalMode === 'rename' ? <Pencil size={14} className="hidden shrink-0 sm:block" /> : <Save size={14} className="hidden shrink-0 sm:block" />}
+                  <span className={`mx-auto text-center leading-tight break-words [overflow-wrap:anywhere] ${presetActionTextWidthClass}`}>{presetModalMode === 'rename' ? t.storage.confirmRename : t.storage.confirmCreate}</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirmConfig && (
+        <div
+          className="fixed inset-0 z-[132] flex items-center justify-center px-4"
+          style={overlayFrameStyle}
+          onClick={closeDeleteConfirm}
+        >
+          <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-sm" />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-preset-title"
+            className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 id="delete-preset-title" className="text-base font-bold text-slate-800 dark:text-slate-100">
+                  {t.storage.delete}
+                </h2>
+                <p className={`mt-2 text-sm leading-[1.45] text-slate-500 dark:text-slate-400 break-words [overflow-wrap:anywhere] ${deleteDialogTextWidthClass}`}>
+                  {t.storage.confirmDelete}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeDeleteConfirm}
+                className={`flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500 ${sidebarHoverClass}`}
+                title={t.common.closeCard}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="mb-4 rounded-2xl border border-rose-100 bg-rose-50/80 px-4 py-3 text-rose-600 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-200">
+              <div className="flex items-center gap-2">
+                <Trash2 size={16} className="shrink-0" />
+                <span className={`text-sm font-semibold leading-snug break-words [overflow-wrap:anywhere] ${deleteDialogTextWidthClass}`}>
+                  {deleteConfirmConfig.name}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={closeDeleteConfirm}
+                className={`inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-500 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${isDesktopLike ? 'hover:border-slate-300 hover:text-slate-700 dark:hover:border-slate-600 dark:hover:text-slate-100' : 'active:scale-95'}`}
+              >
+                <span className={`mx-auto text-center leading-tight break-words [overflow-wrap:anywhere] ${presetActionTextWidthClass}`}>{t.storage.cancel}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfig}
+                className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-rose-500 bg-rose-500 px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition-all ${isDesktopLike ? 'hover:border-rose-600 hover:bg-rose-600' : 'active:scale-95'}`}
+              >
+                <Trash2 size={14} className="hidden shrink-0 sm:block" />
+                <span className={`mx-auto text-center leading-tight break-words [overflow-wrap:anywhere] ${presetActionTextWidthClass}`}>{t.storage.delete}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -2008,7 +2121,7 @@ function App() {
 
               <button
                 type="button"
-                onClick={() => handleDeleteConfig(activePresetMenuConfig.id)}
+                onClick={() => requestDeleteConfig(activePresetMenuConfig)}
                 className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-rose-500 transition-colors ${isDesktopLike ? 'hover:bg-rose-50 dark:hover:bg-rose-900/20' : 'active:scale-[0.99]'}`}
               >
                 <Trash2 size={14} />
