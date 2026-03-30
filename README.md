@@ -1,8 +1,15 @@
-# Hard Sphere Lab v3.4.0
+# Hard Sphere Lab v3.4.1
 
 [中文说明](./README.zh-CN.md)
 
 Hard Sphere Lab is a hard-sphere molecular dynamics simulation platform built with React, Vite, and Capacitor. It provides a browser-based interface for real-time particle motion, statistical observation, 3D interaction, preset management, and built-in report viewing.
+
+## Release highlights in v3.4.1
+
+- updated mobile keyboard handling so opening the soft keyboard no longer compresses the sidebar layout
+- moved preset validation feedback to bottom-level global notifications that stay above modal blur layers
+- replaced the browser-native delete confirmation with an in-app React confirmation dialog
+- refreshed app icons, favicon, manifest metadata, and packaged app branding around the HSS release build
 
 ## What this repository contains
 

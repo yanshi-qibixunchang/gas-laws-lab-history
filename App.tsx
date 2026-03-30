@@ -23,7 +23,7 @@ const DEFAULT_PARAMS: SimulationParams = {
   statsDuration: 60
 };
 
-const APP_VERSION = '3.4.0';
+const APP_VERSION = '3.4.1';
 
 const areParamsEqual = (a: SimulationParams, b: SimulationParams) => (
   a.N === b.N &&
@@ -2137,4 +2137,3 @@ function App() {
 }
 
 export default App;
-
