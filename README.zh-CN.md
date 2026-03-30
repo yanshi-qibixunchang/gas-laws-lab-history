@@ -1,10 +1,12 @@
-# Hard Sphere Lab v3.4.1
+# Hard Sphere Lab v3.4.2
 
 [English README](./README.md)
 
 Hard Sphere Lab 是一个基于 React、Vite 和 Capacitor 构建的硬球分子动力学仿真平台，提供浏览器端和 Android 端一致的交互体验，可用于实时观察粒子运动、统计量变化、三维交互以及报告查看。
 
-## v3.4.1 更新要点
+## v3.4.2 更新要点
+
+- Android 原生返回键在 PDF 查看器打开时会优先关闭 PDF，并返回应用主页面，而不是直接退出到桌面
 
 - 优化移动端键盘弹出时的布局处理，避免侧边栏结构被压缩重排
 - 预设校验提示统一改为底部全局提示，并确保显示在模糊层上方

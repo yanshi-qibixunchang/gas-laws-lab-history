@@ -1,11 +1,12 @@
-# Hard Sphere Lab v3.4.1
+# Hard Sphere Lab v3.4.2
 
 [中文说明](./README.zh-CN.md)
 
 Hard Sphere Lab is a hard-sphere molecular dynamics simulation platform built with React, Vite, and Capacitor. It provides a browser-based interface for real-time particle motion, statistical observation, 3D interaction, preset management, and built-in report viewing.
 
-## Release highlights in v3.4.1
+## Release highlights in v3.4.2
 
+- native Android back handling now closes the in-app PDF viewer first and returns to the main page instead of exiting the app
 - updated mobile keyboard handling so opening the soft keyboard no longer compresses the sidebar layout
 - moved preset validation feedback to bottom-level global notifications that stay above modal blur layers
 - replaced the browser-native delete confirmation with an in-app React confirmation dialog
@@ -116,7 +117,7 @@ The production bundle should be served through HTTP instead of being opened dire
 Important:
 
 - If parameters have changed, the app may require a reset before starting.
-- On mobile, the native back key can close the sidebar and other transient panels before exiting the app.
+- On mobile, the native back key closes transient UI in order, including the PDF viewer, then returns to the main page before exiting the app.
 
 ### 3D view interaction
 
@@ -157,6 +158,8 @@ Supported interactions include:
 - reset zoom
 - mobile pinch zoom
 - PDF export / share on supported platforms
+
+On Android, if the PDF viewer is open, pressing the native back key closes the PDF and returns you to the main app page instead of exiting to the launcher.
 
 ### Contact leader
 

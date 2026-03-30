@@ -10,6 +10,9 @@ interface FooterProps {
   showNotification: (text: string, duration?: number, type?: 'info' | 'success' | 'warning') => void;
   supportsHover?: boolean;
   compactLinks?: boolean;
+  isPdfOpen: boolean;
+  onOpenPdf: () => void;
+  onClosePdf: () => void;
 }
 
 const PdfModalFallback = () => (
@@ -20,9 +23,17 @@ const PdfModalFallback = () => (
   </div>
 );
 
-const Footer: React.FC<FooterProps> = ({ t, lang, showNotification, supportsHover = true, compactLinks = false }) => {
+const Footer: React.FC<FooterProps> = ({
+  t,
+  lang,
+  showNotification,
+  supportsHover = true,
+  compactLinks = false,
+  isPdfOpen,
+  onOpenPdf,
+  onClosePdf
+}) => {
   const [emailCopied, setEmailCopied] = useState(false);
-  const [isPdfOpen, setIsPdfOpen] = useState(false);
   const emailLaunchTimeoutRef = useRef<number | null>(null);
   const emailCopiedResetTimeoutRef = useRef<number | null>(null);
   const isEnglishUI = lang.startsWith('en');
@@ -113,7 +124,7 @@ const Footer: React.FC<FooterProps> = ({ t, lang, showNotification, supportsHove
 
   const handleOpenPdf = (e: React.MouseEvent) => {
     e.preventDefault();
-    setIsPdfOpen(true);
+    onOpenPdf();
   };
 
   const headerStyle = isEnglishUI
@@ -262,7 +273,7 @@ const Footer: React.FC<FooterProps> = ({ t, lang, showNotification, supportsHove
         <Suspense fallback={<PdfModalFallback />}>
           <PdfModal
             isOpen={isPdfOpen}
-            onClose={() => setIsPdfOpen(false)}
+            onClose={onClosePdf}
             pdfPath="/Project_Report.pdf"
             title={t.footer.report}
             exportLabel={t.footer.exportPdf}

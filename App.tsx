@@ -23,7 +23,7 @@ const DEFAULT_PARAMS: SimulationParams = {
   statsDuration: 60
 };
 
-const APP_VERSION = '3.4.1';
+const APP_VERSION = '3.4.2';
 
 const areParamsEqual = (a: SimulationParams, b: SimulationParams) => (
   a.N === b.N &&
@@ -166,6 +166,7 @@ function App() {
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
   const [presetActionMenu, setPresetActionMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const [deleteConfirmConfig, setDeleteConfirmConfig] = useState<SavedConfig | null>(null);
+  const [isPdfOpen, setIsPdfOpen] = useState(false);
 
   const [stats, setStats] = useState<SimulationStats>({
     time: 0, temperature: 0, pressure: 0, meanSpeed: 0, rmsSpeed: 0,
@@ -1201,6 +1202,14 @@ function App() {
       setIsSidebarOpen(false);
   }
 
+  const handleOpenPdf = useCallback(() => {
+    setIsPdfOpen(true);
+  }, []);
+
+  const handleClosePdf = useCallback(() => {
+    setIsPdfOpen(false);
+  }, []);
+
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
@@ -1222,6 +1231,10 @@ function App() {
       }
       if (isLangMenuOpen) {
         setIsLangMenuOpen(false);
+        return;
+      }
+      if (isPdfOpen) {
+        setIsPdfOpen(false);
         return;
       }
       if (isSidebarOpen) {
@@ -1247,7 +1260,7 @@ function App() {
       active = false;
       listenerHandle?.remove();
     };
-  }, [deleteConfirmConfig, isCreatePresetModalOpen, presetActionMenu, isLangMenuOpen, isSidebarOpen]);
+  }, [deleteConfirmConfig, isCreatePresetModalOpen, presetActionMenu, isLangMenuOpen, isPdfOpen, isSidebarOpen]);
 
   const getLangName = (l: string) => {
     switch(l) {
@@ -1764,13 +1777,16 @@ function App() {
         
         {/* Footer (Also check interaction lock on footer links if needed, but usually just footer actions) */}
         <div onClick={(e) => { if(isCanvasLocked) { e.preventDefault(); e.stopPropagation(); showNotification(t.canvas.interactionLocked, 2000, 'warning'); } }}>
-             <Footer
-               t={t}
-               lang={lang}
-               showNotification={(msg, dur, type) => showNotification(msg, dur, type)}
-               supportsHover={isDesktopLike}
-               compactLinks={isSidebarOpen && !isSidebarOverlay}
-             />
+            <Footer 
+              t={t}
+              lang={lang}
+              showNotification={(msg, dur, type) => showNotification(msg, dur, type)}
+              supportsHover={isDesktopLike}
+              compactLinks={isSidebarOpen && !isSidebarOverlay}
+              isPdfOpen={isPdfOpen}
+              onOpenPdf={handleOpenPdf}
+              onClosePdf={handleClosePdf}
+            />
         </div>
         </div>
 

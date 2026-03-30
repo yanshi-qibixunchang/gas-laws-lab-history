@@ -1,7 +1,7 @@
 {
   "name": "HSS",
   "short_name": "HSS",
-  "version": "3.4.0",
+  "version": "3.4.2",
   "description": "Hard sphere molecular dynamics simulation with Andersen thermostat, responsive controls, and built-in report viewing.",
   "start_url": "/",
   "display": "standalone",
