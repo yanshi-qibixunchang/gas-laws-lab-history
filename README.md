@@ -1,8 +1,10 @@
 # Hard Sphere Lab v3.4.0
 
+[中文说明](./README.zh-CN.md)
+
 Hard Sphere Lab is a hard-sphere molecular dynamics simulation platform built with React, Vite, and Capacitor. It provides a browser-based interface for real-time particle motion, statistical observation, 3D interaction, preset management, and built-in report viewing.
 
-This repository contains:
+## What this repository contains
 
 - the web application source code
 - the Capacitor Android project used for APK packaging
@@ -10,7 +12,7 @@ This repository contains:
 
 ## Overview
 
-The project focuses on visualizing hard-sphere gas dynamics under an Andersen thermostat. Users can:
+The project visualizes hard-sphere gas dynamics under an Andersen thermostat. Users can:
 
 - adjust core simulation parameters
 - reset and start the simulation from the UI
@@ -20,7 +22,7 @@ The project focuses on visualizing hard-sphere gas dynamics under an Andersen th
 - save parameter presets and reuse them later
 - open the built-in PDF report directly inside the app
 
-## Main Features
+## Main features
 
 - Real-time hard-sphere simulation
 - 3D molecular dynamics view with rotate / pan mode switching
@@ -39,7 +41,7 @@ The project focuses on visualizing hard-sphere gas dynamics under an Andersen th
 
 No runtime environment variables are required for normal web usage.
 
-## Quick Start
+## Quick start
 
 ### 1. Clone the repository
 
@@ -66,7 +68,7 @@ Expected local preview URL:
 http://127.0.0.1:5173
 ```
 
-## Production Preview
+## Production preview
 
 Build the project:
 
@@ -94,11 +96,9 @@ dist/index.html
 
 The production bundle should be served through HTTP instead of being opened directly from the filesystem.
 
-## User Guide
+## User guide
 
 ### Basic workflow
-
-For the normal simulation flow:
 
 1. Open the settings sidebar.
 2. Adjust particle count, radius, box size, and timing parameters.
@@ -153,7 +153,7 @@ Supported interactions include:
 
 ### Contact leader
 
-The `Contact Leader` / `联系组长` button intentionally uses a two-step flow:
+The `Contact Leader` button intentionally uses a two-step flow:
 
 1. The email address is copied to the clipboard immediately.
 2. A bottom toast confirms the copy operation.
@@ -169,7 +169,7 @@ project-team@users.noreply.github.com
 
 For automatic jump success, the device should have a default mail app configured, such as QQ Mail, Outlook, Gmail, or another app that supports `mailto:` links.
 
-## Android Packaging
+## Android packaging
 
 Sync the latest web build into the Capacitor Android project:
 
@@ -196,7 +196,7 @@ Notes:
 - Release signing files such as `android/key.properties` and keystores are intentionally not committed.
 - If you want to build a release APK, add your own signing configuration locally first.
 
-## Common Questions
+## Common questions
 
 ### Why can I not start the simulation after changing parameters?
 
@@ -216,7 +216,7 @@ In those cases, use the copied email address manually.
 
 This repository is intentionally source-only. Local artifacts such as `dist/`, `output/`, APK files, Android cache files, and local signing materials are ignored so the GitHub repository stays clean and reproducible.
 
-## Repository Layout
+## Repository layout
 
 - `App.tsx`: main app shell and high-level interaction logic
 - `components/`: UI components such as the simulation canvas, footer, stats panel, and PDF modal
@@ -225,7 +225,7 @@ This repository is intentionally source-only. Local artifacts such as `dist/`, `
 - `android/`: Capacitor Android project
 - `assets/`: project artwork and packaging-related resources
 
-## Development Notes
+## Development notes
 
 Useful commands:
 
