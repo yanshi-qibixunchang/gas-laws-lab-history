@@ -1,34 +1,60 @@
 # Hard Sphere Lab v3.4.0
 
-Hard Sphere Lab is a React + Vite simulation app for hard-sphere molecular dynamics with an Andersen thermostat. This repository contains both the web application and the Capacitor Android shell used to package the same interface as a mobile app.
+Hard Sphere Lab is a hard-sphere molecular dynamics simulation platform built with React, Vite, and Capacitor. It provides a browser-based interface for real-time particle motion, statistical observation, 3D interaction, preset management, and built-in report viewing.
 
-## Highlights
+This repository contains:
 
-- Real-time hard-sphere gas simulation with adjustable parameters
-- 3D interaction mode with mobile onboarding hints
-- Statistical cards and distribution charts for temperature, pressure, speed, and energy
-- Preset save / load workflow
-- Built-in PDF report viewer with mobile zoom handling
-- Multi-language UI in Simplified Chinese, Traditional Chinese, and English
-- Web preview plus Android packaging support
+- the web application source code
+- the Capacitor Android project used for APK packaging
+- public assets such as the PDF report and PWA manifest
+
+## Overview
+
+The project focuses on visualizing hard-sphere gas dynamics under an Andersen thermostat. Users can:
+
+- adjust core simulation parameters
+- reset and start the simulation from the UI
+- observe temperature, pressure, mean speed, RMS speed, and distributions
+- switch between multiple interface languages
+- interact with the 3D view on desktop and mobile
+- save parameter presets and reuse them later
+- open the built-in PDF report directly inside the app
+
+## Main Features
+
+- Real-time hard-sphere simulation
+- 3D molecular dynamics view with rotate / pan mode switching
+- Progress tracking for equilibration and statistical collection
+- Preset creation, selection, rename, delete, and startup-default setting
+- Responsive layout for desktop and mobile
+- Built-in PDF viewer with zoom support
+- Web deployment support and Android APK packaging
+- Simplified Chinese, Traditional Chinese, and English UI
 
 ## Requirements
 
 - Node.js 18 or newer
 - npm
-- Android Studio + Android SDK only if you want to build the Android app
+- Android Studio and Android SDK only if you want to build the Android app
 
-The web app does not require any runtime environment variables.
+No runtime environment variables are required for normal web usage.
 
 ## Quick Start
 
-Install dependencies:
+### 1. Clone the repository
+
+```powershell
+git clone https://github.com/yanshi-qibixunchang/gas-laws-lab-history.git
+cd hard-sphere-lab
+```
+
+### 2. Install dependencies
 
 ```powershell
 npm install
 ```
 
-Start the development server:
+### 3. Start the development server
 
 ```powershell
 npm run dev
@@ -42,13 +68,13 @@ http://127.0.0.1:5173
 
 ## Production Preview
 
-Build the web bundle:
+Build the project:
 
 ```powershell
 npm run build
 ```
 
-Preview the production build locally:
+Preview the production bundle locally:
 
 ```powershell
 npm run preview -- --host 127.0.0.1 --port 4173
@@ -60,13 +86,88 @@ Expected preview URL:
 http://127.0.0.1:4173
 ```
 
-The generated production entry is:
+The generated production entry file is:
 
 ```text
 dist/index.html
 ```
 
-Because the asset paths are absolute, the production bundle should be served by a local HTTP server instead of being opened directly from the filesystem.
+The production bundle should be served through HTTP instead of being opened directly from the filesystem.
+
+## User Guide
+
+### Basic workflow
+
+For the normal simulation flow:
+
+1. Open the settings sidebar.
+2. Adjust particle count, radius, box size, and timing parameters.
+3. Click `Reset System` after changing parameters.
+4. Click `Run` / `Start Simulation`.
+5. Observe the 3D view, statistics cards, and distribution charts.
+
+Important:
+
+- If parameters have changed, the app may require a reset before starting.
+- On mobile, the native back key can close the sidebar and other transient panels before exiting the app.
+
+### 3D view interaction
+
+The app supports two common 3D interaction modes:
+
+- rotate mode
+- pan mode
+
+If you enter the 3D interaction area and do not switch modes for a short time, the interface may show a visual hint guiding you to the view-mode toggle button.
+
+### Presets
+
+The preset section allows you to:
+
+- create a new preset
+- load an existing preset
+- rename or delete a preset
+- set a preset as the startup default
+
+The create action is exposed as a compact icon button in the preset area.
+
+### Theme and language
+
+The top-right floating controls let you:
+
+- switch between light and dark mode
+- switch UI language
+
+The language change and theme change both show bottom toast feedback.
+
+### PDF report
+
+The footer includes a `View Report (PDF)` entry. It opens the report inside the built-in modal PDF viewer.
+
+Supported interactions include:
+
+- toolbar zoom in / zoom out
+- reset zoom
+- mobile pinch zoom
+- PDF export / share on supported platforms
+
+### Contact leader
+
+The `Contact Leader` / `联系组长` button intentionally uses a two-step flow:
+
+1. The email address is copied to the clipboard immediately.
+2. A bottom toast confirms the copy operation.
+3. About 1 second later, the app attempts to open the default mail client through `mailto:`.
+
+This behavior is intentional. It helps in cases where direct email jumps fail on mobile browsers or embedded WebViews. Even if the jump does not succeed, the email address is already copied and can be pasted manually.
+
+Email address:
+
+```text
+project-team@users.noreply.github.com
+```
+
+For automatic jump success, the device should have a default mail app configured, such as QQ Mail, Outlook, Gmail, or another app that supports `mailto:` links.
 
 ## Android Packaging
 
@@ -77,7 +178,7 @@ npm run build
 npx cap sync android
 ```
 
-Build a debug APK from the Android project:
+Build a debug APK:
 
 ```powershell
 Set-Location android
@@ -92,61 +193,55 @@ android/app/build/outputs/apk/debug/app-debug.apk
 
 Notes:
 
-- Release signing materials such as `android/key.properties` and keystore files are intentionally not committed.
-- If you want to generate a release APK, add your own signing config locally before building.
+- Release signing files such as `android/key.properties` and keystores are intentionally not committed.
+- If you want to build a release APK, add your own signing configuration locally first.
 
-## Contact Leader Behavior
+## Common Questions
 
-The `Contact Leader` / `联系组长` button intentionally uses a two-step interaction:
+### Why can I not start the simulation after changing parameters?
 
-1. It copies the email address to the clipboard immediately.
-2. A bottom toast confirms that the address has been copied.
-3. After about 1 second, the app attempts a `mailto:` jump.
+Because the app requires a reset after parameter changes. Click `Reset System` first, then start the simulation again.
 
-This design reduces failure ambiguity on mobile devices. If the jump does not open successfully, the most common reasons are:
+### Why did the email not open automatically?
 
-- no default mail app is configured on the device
-- the current browser or embedded WebView blocks direct `mailto:` handling
-- the system does not have a registered mail handler
+Common reasons:
 
-If that happens, the copied address can still be pasted manually into your mail client:
+- no default mail app is configured
+- the current browser blocks `mailto:` jumps
+- the app is running inside an embedded WebView without a registered email handler
 
-```text
-project-team@users.noreply.github.com
+In those cases, use the copied email address manually.
+
+### Why is the repository missing APK files and build outputs?
+
+This repository is intentionally source-only. Local artifacts such as `dist/`, `output/`, APK files, Android cache files, and local signing materials are ignored so the GitHub repository stays clean and reproducible.
+
+## Repository Layout
+
+- `App.tsx`: main app shell and high-level interaction logic
+- `components/`: UI components such as the simulation canvas, footer, stats panel, and PDF modal
+- `services/`: physics engine and translation resources
+- `public/`: static files, PDF report, icons, and manifest
+- `android/`: Capacitor Android project
+- `assets/`: project artwork and packaging-related resources
+
+## Development Notes
+
+Useful commands:
+
+```powershell
+npm run dev
+npm run build
+npm run preview
 ```
 
-For the jump to work automatically, make sure the device or browser has a default mail client such as QQ Mail, Outlook, Gmail, or another app that has registered `mailto:` links.
-
-## Repository Hygiene
-
-This repository is intentionally kept source-only for GitHub distribution. Local-only files are ignored, including:
+Ignored local-only content includes:
 
 - `node_modules/`
 - `dist/`
 - `output/`
 - `.codex/`
+- `.env.local`
 - Android build caches and IDE state
-- local env files such as `.env.local`
-- APK / AAB build artifacts
+- APK / AAB artifacts
 - local Android signing materials
-
-That means a fresh clone stays clean, while other developers can still install dependencies and build the project normally.
-
-## Project Layout
-
-- `App.tsx` and `components/` contain the main UI and interaction logic
-- `services/` contains simulation and translation logic
-- `public/` contains static assets such as the PDF report and PWA manifest
-- `android/` contains the Capacitor Android project
-- `assets/` contains artwork and packaging-related source assets
-
-## Version Alignment
-
-Version `3.4.0` is aligned across:
-
-- `package.json`
-- `package-lock.json`
-- `App.tsx`
-- `services/translations.ts`
-- `public/manifest.webmanifest`
-- `android/app/build.gradle`
