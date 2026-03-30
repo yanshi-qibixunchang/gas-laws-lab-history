@@ -625,8 +625,10 @@ function App() {
       : 'pt-24 pb-4 landscape:pt-6 landscape:pb-1 md:pt-24 md:pb-6';
   const overlayControlHidden = isSidebarOverlay && isSidebarOpen;
   const activePresetMenuConfig = presetActionMenu
-    ? savedConfigs.find((config) => config.id === presetActionMenu.id) ?? null
-    : null;
+  ? savedConfigs.find((config) => config.id === presetActionMenu.id) ?? null
+  : null;
+  const systemPresetConfig = savedConfigs.find((config) => config.isSystem) ?? null;
+  const customSavedConfigs = savedConfigs.filter((config) => !config.isSystem);
   const sidebarHoverClass = isDesktopLike ? 'hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' : '';
   const sectionHoverTextClass = isDesktopLike ? 'group-hover:text-sciblue-600 dark:group-hover:text-sciblue-400' : '';
   const sectionHoverIconClass = isDesktopLike ? 'group-hover:text-sciblue-500 group-hover:scale-110' : '';
@@ -1495,8 +1497,46 @@ function App() {
                             <div className={`overflow-hidden transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isStorageOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
                                 {/* List */}
                                 <div className={`space-y-2 pb-2 ${sidebarContentWidthClass}`}>
-                                    {savedConfigs.length === 1 && <div className="text-[10px] text-center text-slate-400 italic py-2">{t.storage.empty}</div>}
-                                    {savedConfigs.map(config => (
+                                    {systemPresetConfig && (
+                                        <div 
+                                            key={systemPresetConfig.id} 
+                                            onClick={() => handleSelectPreset(systemPresetConfig)}
+                                            onContextMenu={(event) => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                openPresetActionMenu(systemPresetConfig, event.clientY, event.clientX);
+                                            }}
+                                            className={`
+                                                relative flex items-center justify-between p-1.5 rounded border cursor-pointer transition-all duration-200 group
+                                                ${selectedPresetId === systemPresetConfig.id
+                                                    ? 'bg-sciblue-50 dark:bg-sciblue-900/20 border-sciblue-400 dark:border-sciblue-600 ring-1 ring-sciblue-400 dark:ring-sciblue-600'
+                                                    : `bg-indigo-50/50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800/50 ${isDesktopLike ? 'hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:scale-[1.02] hover:shadow-sm' : ''}`
+                                                }
+                                            `}
+                                        >
+                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                <ShieldCheck size={12} className="text-indigo-400 shrink-0"/>
+                                                <span className="text-xs font-medium truncate max-w-[100px] text-indigo-600 dark:text-indigo-300">{systemPresetConfig.name}</span>
+                                            </div>
+                                            <div className="flex gap-1 relative z-10">
+                                                <button 
+                                                    type="button"
+                                                    onClick={(event) => {
+                                                        event.preventDefault();
+                                                        event.stopPropagation();
+                                                        const rect = event.currentTarget.getBoundingClientRect();
+                                                        openPresetActionMenu(systemPresetConfig, rect.bottom + 8, rect.left - 160);
+                                                    }}
+                                                    className={`p-1 rounded transition-colors ${isDesktopLike ? 'hover:bg-indigo-100 dark:hover:bg-indigo-800/40' : ''}`}
+                                                    title={t.storage.actions}
+                                                >
+                                                    <MoreHorizontal size={12} className="text-slate-400"/>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {customSavedConfigs.length === 0 && <div className="text-[10px] text-center text-slate-400 italic py-2">{t.storage.empty}</div>}
+                                    {customSavedConfigs.map(config => (
                                         <div 
                                             key={config.id} 
                                             onClick={() => handleSelectPreset(config)}
@@ -1509,15 +1549,12 @@ function App() {
                                                 relative flex items-center justify-between p-1.5 rounded border cursor-pointer transition-all duration-200 group
                                                 ${selectedPresetId === config.id 
                                                     ? 'bg-sciblue-50 dark:bg-sciblue-900/20 border-sciblue-400 dark:border-sciblue-600 ring-1 ring-sciblue-400 dark:ring-sciblue-600' 
-                                                    : config.isSystem 
-                                                        ? `bg-indigo-50/50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800/50 ${isDesktopLike ? 'hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:scale-[1.02] hover:shadow-sm' : ''}` 
-                                                        : `bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700 ${isDesktopLike ? 'hover:bg-white dark:hover:bg-slate-800 hover:scale-[1.02] hover:shadow-sm' : ''}`
+                                                    : `bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700 ${isDesktopLike ? 'hover:bg-white dark:hover:bg-slate-800 hover:scale-[1.02] hover:shadow-sm' : ''}`
                                                 }
                                             `}
                                         >
                                             <div className="flex items-center gap-2 overflow-hidden">
-                                                {config.isSystem ? <ShieldCheck size={12} className="text-indigo-400 shrink-0"/> : null}
-                                                <span className={`text-xs font-medium truncate max-w-[100px] ${config.isSystem ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-300'}`}>{config.name}</span>
+                                                <span className="text-xs font-medium truncate max-w-[100px] text-slate-600 dark:text-slate-300">{config.name}</span>
                                             </div>
                                             <div className="flex gap-1 relative z-10">
                                                 <button 
