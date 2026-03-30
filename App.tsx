@@ -621,7 +621,7 @@ function App() {
   const mainHeaderSpacingClass = isCompactLandscape
     ? 'pt-14 pb-2'
     : isMobile
-      ? 'pt-36 pb-4'
+      ? 'pt-28 pb-3'
       : 'pt-24 pb-4 landscape:pt-6 landscape:pb-1 md:pt-24 md:pb-6';
   const overlayControlHidden = isSidebarOverlay && isSidebarOpen;
   const activePresetMenuConfig = presetActionMenu
@@ -1720,7 +1720,7 @@ function App() {
         <div ref={mainContentRef} className="flex flex-col min-h-full will-change-transform">
         <header className={`px-6 max-w-4xl mx-auto text-center animate-fade-in w-full shrink-0 ${mainHeaderSpacingClass}`}>
             {/* Version Badge - Centered Above Title */}
-            <div className={`flex justify-center overflow-hidden transition-all duration-300 ${shouldHideVersionBadge ? 'mb-0 max-h-0 opacity-0 -translate-y-2' : 'mb-5 landscape:mb-2 max-h-20 opacity-100 translate-y-0'}`}>
+            <div className={`flex justify-center overflow-hidden transition-all duration-300 ${shouldHideVersionBadge ? 'mb-0 max-h-0 opacity-0 -translate-y-2' : 'mb-3 landscape:mb-2 max-h-20 opacity-100 translate-y-0'}`}>
                 <div className={versionBadgeClass}>
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.6)]"></span>
                     <span className={versionBadgeTextClass} title={versionBadgeText}>{versionBadgeText}</span>
