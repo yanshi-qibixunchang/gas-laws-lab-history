@@ -23,7 +23,7 @@ const DEFAULT_PARAMS: SimulationParams = {
   statsDuration: 60
 };
 
-const APP_VERSION = '3.4.2';
+const APP_VERSION = '3.4.3';
 
 const areParamsEqual = (a: SimulationParams, b: SimulationParams) => (
   a.N === b.N &&
@@ -69,7 +69,7 @@ const DistributionCharts = lazy(() => import('./components/DistributionCharts'))
 const StackedResults = lazy(() => import('./components/StackedResults'));
 
 const ChartPanelFallback: React.FC<{ heightClass: string }> = ({ heightClass }) => (
-  <div className={`w-full ${heightClass} animate-pulse rounded-xl border border-slate-200/70 bg-slate-50/80 p-4 dark:border-slate-700/70 dark:bg-slate-800/60`}>
+  <div className={`w-full ${heightClass} animate-pulse rounded-lg border border-slate-200/70 bg-slate-50/80 p-4 dark:border-slate-700/70 dark:bg-slate-800/60`}>
     <div className="mb-4 h-3 w-32 rounded bg-slate-200 dark:bg-slate-700" />
     <div className="grid h-[calc(100%-1rem)] grid-cols-6 gap-2">
       {Array.from({ length: 18 }).map((_, index) => (
@@ -87,7 +87,7 @@ const ResultsPlaceholder: React.FC<{ t: Translation; lang: LanguageCode }> = ({ 
   const isEnglishUI = lang.startsWith('en');
 
   return (
-  <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/70">
+  <div className="relative overflow-hidden rounded-lg border border-slate-200/80 bg-white/80 p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/70">
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.08),transparent_45%)]" />
     <div className="relative">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -102,7 +102,7 @@ const ResultsPlaceholder: React.FC<{ t: Translation; lang: LanguageCode }> = ({ 
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="rounded-xl border border-slate-200/80 bg-slate-50/80 p-3 dark:border-slate-700/80 dark:bg-slate-800/60">
+          <div key={index} className="rounded-lg border border-slate-200/80 bg-slate-50/80 p-3 dark:border-slate-700/80 dark:bg-slate-800/60">
             <div className="mb-3 h-3 w-28 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
             <div className="h-44 animate-pulse rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700" />
           </div>
@@ -1865,7 +1865,7 @@ function App() {
                       {/* Arrow pointing up */}
                       <div className="ml-3 h-0 w-0 border-x-[6px] border-x-transparent border-b-[8px] border-b-white/80 drop-shadow-sm dark:border-b-slate-900/70"></div>
                       {/* Text Bubble */}
-                      <div className="min-w-[10rem] max-w-full rounded-xl border border-sciblue-400/60 bg-white/[0.8] px-3 py-2.5 shadow-lg backdrop-blur-md dark:bg-slate-900/[0.72]">
+                      <div className="min-w-[10rem] max-w-full rounded-lg border border-sciblue-400/60 bg-white/[0.8] px-3 py-2.5 shadow-lg backdrop-blur-md dark:bg-slate-900/[0.72]">
                         <p className={`mx-auto text-center text-[11px] font-bold leading-snug text-sciblue-700 dark:text-sciblue-50 break-words [overflow-wrap:anywhere] ${guideBubbleTextWidthClass}`}>
                           {t.hints.sidebarTitle}
                         </p>
@@ -1949,7 +1949,7 @@ function App() {
             `}
         >
             <div className={`
-                min-h-[48px] max-w-[min(92vw,24rem)] px-4 py-2.5 rounded-2xl shadow-xl flex items-center justify-center gap-3 border backdrop-blur-md
+                min-h-[48px] max-w-[min(92vw,24rem)] px-4 py-2.5 rounded-lg shadow-xl flex items-center justify-center gap-3 border backdrop-blur-md
                 ${notification.type === 'success' ? 'bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900' : 
                   notification.type === 'warning' ? 'bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-900' : 
                   'bg-slate-800 dark:bg-white text-white dark:text-slate-900 border-slate-700 dark:border-slate-200'}
@@ -1991,7 +1991,7 @@ function App() {
                 <span className="sr-only">{t.header.language}</span>
             </button>
             <div className={`absolute right-0 top-full w-48 pt-2 transition-all duration-200 origin-top-right z-50 ${isLangMenuOpen ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95 pointer-events-none'}`}>
-                <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden py-1">
+                <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg shadow-xl overflow-hidden py-1">
                     {['zh-CN', 'zh-TW', 'en-GB', 'en-US'].map((l) => (
                         <button
                             type="button"
@@ -2021,7 +2021,7 @@ function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-preset-title"
-            className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
+            className="relative z-10 w-full max-w-sm rounded-lg border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -2094,7 +2094,7 @@ function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-preset-title"
-            className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
+            className="relative z-10 w-full max-w-sm rounded-lg border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -2116,7 +2116,7 @@ function App() {
               </button>
             </div>
 
-            <div className="mb-4 rounded-2xl border border-rose-100 bg-rose-50/80 px-4 py-3 text-rose-600 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-200">
+            <div className="mb-4 rounded-lg border border-rose-100 bg-rose-50/80 px-4 py-3 text-rose-600 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-200">
               <div className="flex items-center gap-2">
                 <Trash2 size={16} className="shrink-0" />
                 <span className={`text-sm font-semibold leading-snug break-words [overflow-wrap:anywhere] ${deleteDialogTextWidthClass}`}>
@@ -2149,7 +2149,7 @@ function App() {
       {presetActionMenu && activePresetMenuConfig && (
         <div
           ref={presetActionMenuRef}
-          className="fixed z-[128] w-48 overflow-hidden rounded-xl border border-slate-200/80 bg-white/95 p-1 shadow-[0_20px_50px_rgba(15,23,42,0.22)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
+          className="fixed z-[128] w-48 overflow-hidden rounded-lg border border-slate-200/80 bg-white/95 p-1 shadow-[0_20px_50px_rgba(15,23,42,0.22)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
           style={{ top: `${presetActionMenu.top}px`, left: `${presetActionMenu.left}px` }}
         >
           <button

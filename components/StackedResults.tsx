@@ -205,7 +205,7 @@ const StackedResults: React.FC<StackedResultsProps> = ({ data, t, isDarkMode = f
         {isFullscreen ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-7xl mx-auto pt-10">
                 {cardGroups.map((group) => (
-                    <div key={group.id} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-slate-200 dark:border-slate-800">
+                    <div key={group.id} className="bg-white dark:bg-slate-900 rounded-lg shadow-sm p-6 border border-slate-200 dark:border-slate-800">
                          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 px-3 border-l-4 border-sciblue-500">{group.title}</h3>
                         <div className="h-full">
                             {group.content}
@@ -228,7 +228,7 @@ const StackedResults: React.FC<StackedResultsProps> = ({ data, t, isDarkMode = f
                     <div
                         key={group.id}
                         // Mobile Landscape Card: Adjusted to h-[300px] to fit within the h-[340px] container with margins
-                        className="absolute w-full max-w-4xl h-[600px] landscape:h-[300px] md:h-[360px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] dark:shadow-none overflow-hidden flex flex-col cursor-grab active:cursor-grabbing"
+                        className="absolute w-full max-w-4xl h-[600px] landscape:h-[300px] md:h-[360px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] dark:shadow-none overflow-hidden flex flex-col cursor-grab active:cursor-grabbing"
                         style={getCardStyle(index)}
                     >
                         <div className={`h-6 w-full flex items-center justify-center cursor-ns-resize opacity-30 shrink-0 ${supportsHover ? 'hover:opacity-60' : ''}`}>

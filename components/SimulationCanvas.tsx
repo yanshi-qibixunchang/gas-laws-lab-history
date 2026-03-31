@@ -435,7 +435,6 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
             : `scale-100 shadow-inner border border-slate-700 ${containerHoverClass}`
           }
           ${touchLike ? 'cursor-default' : isDragging.current ? 'cursor-grabbing' : 'cursor-grab'}
-          ${isCompactLandscape ? 'rounded-xl' : ''}
         `}
       >
         <canvas

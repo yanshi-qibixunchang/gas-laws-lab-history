@@ -72,7 +72,7 @@ const CollapsibleCard: React.FC<CollapsibleCardProps> = ({
     <div 
       className={`
         bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800
-        rounded-2xl overflow-visible transition-all duration-300 ease-out
+        rounded-lg overflow-hidden transition-all duration-300 ease-out
         shadow-sm shadow-slate-100 dark:shadow-none
         ${className}
       `}
@@ -80,7 +80,7 @@ const CollapsibleCard: React.FC<CollapsibleCardProps> = ({
       {/* Header Container: No longer clickable as a whole, cursor default */}
       <div 
         className={`
-            relative z-10 min-h-[64px] p-3 md:p-4 flex items-center justify-between bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 cursor-default overflow-visible
+            relative z-10 min-h-[64px] p-3 md:p-4 flex items-center justify-between bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 cursor-default
             transition-colors
         `}
       >

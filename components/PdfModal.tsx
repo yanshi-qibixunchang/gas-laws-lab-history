@@ -882,7 +882,7 @@ const PdfModal: React.FC<PdfModalProps> = ({
         onClick={onClose}
         aria-label="Close"
       />
-      <div className="pdf-modal relative z-[201] flex h-full w-full flex-col bg-white dark:bg-slate-900 md:h-[92vh] md:w-[92vw] md:rounded-2xl md:border md:border-slate-200 md:shadow-2xl dark:md:border-slate-800">
+      <div className="pdf-modal relative z-[201] flex h-full w-full flex-col bg-white dark:bg-slate-900 md:h-[92vh] md:w-[92vw] md:rounded-lg md:border md:border-slate-200 md:shadow-2xl dark:md:border-slate-800">
         <div className="pdf-modal-toolbar flex items-center justify-between border-b border-slate-200 bg-white/80 pb-2 pt-[calc(env(safe-area-inset-top)+6px)] pl-[calc(12px+env(safe-area-inset-left))] pr-[calc(12px+env(safe-area-inset-right))] backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 sm:pb-3">
           <div className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
             <FileText size={16} className="text-sciblue-500" />

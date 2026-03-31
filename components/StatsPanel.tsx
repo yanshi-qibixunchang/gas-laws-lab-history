@@ -212,7 +212,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ stats, eqTime, statDuration, t,
         <StatItem label={t.stats.meanSpeed} value={stats.meanSpeed} unit="m/s" icon={<Wind />} colorClass="text-sciblue-500 dark:text-sciblue-400" isEnglishUI={isEnglishUI} supportsHover={supportsHover} />
         <StatItem label={renderRmsLabel(t.stats.rmsSpeed)} value={stats.rmsSpeed} unit="m/s" icon={<Activity />} colorClass="text-emerald-500 dark:text-emerald-400" isEnglishUI={isEnglishUI} supportsHover={supportsHover} />
 
-        <div className="col-span-2 mt-2 rounded-xl border border-slate-200/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-slate-700/70 dark:bg-slate-900/60 md:col-span-4">
+        <div className="col-span-2 mt-2 rounded-lg border border-slate-200/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-slate-700/70 dark:bg-slate-900/60 md:col-span-4">
           <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className={`flex items-center gap-2 ${statusColor} ${isEnglishUI ? 'font-data text-[10px] font-bold uppercase tracking-[0.14em]' : 'text-[11px] font-semibold tracking-[0.04em]'}`}>
               <span className={`h-1.5 w-1.5 rounded-sm ${progressColor} animate-pulse`} />
