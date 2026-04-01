@@ -17,7 +17,7 @@ interface FooterProps {
 
 const PdfModalFallback = () => (
   <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/75 backdrop-blur-sm">
-    <div className="rounded-lg border border-slate-700 bg-slate-900/90 px-5 py-4 text-sm font-medium text-slate-200 shadow-2xl">
+    <div className="rounded-[1.5rem] border border-slate-700 bg-slate-900/90 px-5 py-4 text-sm font-medium text-slate-200 shadow-2xl">
       Loading PDF viewer...
     </div>
   </div>
@@ -51,11 +51,11 @@ const Footer: React.FC<FooterProps> = ({
     ? 'grid gap-3 sm:grid-cols-3'
     : 'flex flex-col gap-2';
   const linkItemClass = compactLinks
-    ? `group flex min-h-[56px] items-center gap-3 rounded-lg border border-slate-700/50 bg-slate-800/30 px-4 py-3 text-sm text-slate-300 transition-all ${compactLinkCardClass}`
-    : `group -ml-2 flex items-center gap-3 rounded-lg p-2 text-sm text-slate-300 transition-all ${linkHoverClass}`;
+    ? `group flex min-h-[56px] items-center gap-3 rounded-[1.15rem] border border-slate-700/50 bg-slate-800/30 px-4 py-3 text-sm text-slate-300 transition-all ${compactLinkCardClass}`
+    : `group -ml-2 flex items-center gap-3 rounded-[1rem] p-2 text-sm text-slate-300 transition-all ${linkHoverClass}`;
   const linkButtonClass = compactLinks
-    ? `group flex min-h-[56px] w-full items-center gap-3 rounded-lg border border-slate-700/50 bg-slate-800/30 px-4 py-3 text-left text-sm text-slate-300 transition-all ${compactLinkCardClass}`
-    : `group -ml-2 flex w-full items-center gap-3 rounded-lg p-2 text-left text-sm text-slate-300 transition-all ${linkHoverClass}`;
+    ? `group flex min-h-[56px] w-full items-center gap-3 rounded-[1.15rem] border border-slate-700/50 bg-slate-800/30 px-4 py-3 text-left text-sm text-slate-300 transition-all ${compactLinkCardClass}`
+    : `group -ml-2 flex w-full items-center gap-3 rounded-[1rem] p-2 text-left text-sm text-slate-300 transition-all ${linkHoverClass}`;
 
   useEffect(() => {
     return () => {
@@ -187,7 +187,7 @@ const Footer: React.FC<FooterProps> = ({
                 </li>
 
                 <li className="group border-t border-slate-800/50 pt-2">
-                  <div className={`rounded-lg border border-transparent px-3 py-2.5 transition-all ${supportsHover ? 'hover:border-slate-700/60 hover:bg-slate-800/30 hover:shadow-sm' : ''}`}>
+                  <div className={`rounded-[1.15rem] border border-transparent px-3 py-2.5 transition-all ${supportsHover ? 'hover:border-slate-700/60 hover:bg-slate-800/30 hover:shadow-sm' : ''}`}>
                     <p className={`text-[13px] font-semibold leading-7 text-slate-300 transition-colors ${supportsHover ? 'group-hover:text-sciblue-300' : ''}`}>申杰霖、季唐羽、欧一帅、张子航</p>
                     <span className="mt-1 block text-[11px] font-medium leading-5 text-slate-400">{t.footer.role_research}</span>
                   </div>
@@ -198,7 +198,7 @@ const Footer: React.FC<FooterProps> = ({
             <div className="flex w-full min-w-0 flex-[1_1_300px] flex-col gap-7 sm:min-w-[250px] sm:max-w-[360px]">
               <div>
                 <h3 className={headerStyle}>{t.footer.supervisor}</h3>
-                <div className={`group flex w-full max-w-[320px] items-center gap-3 rounded-lg border border-slate-700/50 bg-slate-800/40 p-3 transition-colors ${supportsHover ? 'hover:bg-slate-800' : ''}`}>
+                <div className={`group flex w-full max-w-[320px] items-center gap-3 rounded-[1.15rem] border border-slate-700/50 bg-slate-800/40 p-3 transition-colors ${supportsHover ? 'hover:bg-slate-800' : ''}`}>
                   <div className={`rounded-full bg-slate-700/50 p-2 text-slate-300 transition-colors ${supportsHover ? 'group-hover:text-white' : ''}`}>
                     <GraduationCap size={16} />
                   </div>
@@ -208,7 +208,7 @@ const Footer: React.FC<FooterProps> = ({
 
               <div>
                 <h3 className={headerStyle}>Acknowledgements</h3>
-                <div className={`group w-full max-w-[320px] rounded-lg border border-slate-700/80 bg-slate-800/25 px-4 py-3 text-slate-300 transition-colors ${supportsHover ? 'hover:border-sciblue-500/30' : ''}`}>
+                <div className={`group w-full max-w-[320px] rounded-[1.15rem] border border-slate-700/80 bg-slate-800/25 px-4 py-3 text-slate-300 transition-colors ${supportsHover ? 'hover:border-sciblue-500/30' : ''}`}>
                   <p className="flex items-start gap-3">
                     <Sparkles size={16} className={`mt-0.5 shrink-0 fill-amber-500/20 text-amber-400 ${supportsHover ? 'group-hover:animate-pulse' : ''}`} />
                     <span className="whitespace-pre-line text-[12px] leading-6 sm:text-[13px] [text-wrap:balance]">{t.footer.acknowledgement}</span>

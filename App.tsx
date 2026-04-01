@@ -69,16 +69,27 @@ const DistributionCharts = lazy(() => import('./components/DistributionCharts'))
 const StackedResults = lazy(() => import('./components/StackedResults'));
 
 const ChartPanelFallback: React.FC<{ heightClass: string }> = ({ heightClass }) => (
-  <div className={`w-full ${heightClass} animate-pulse rounded-lg border border-slate-200/70 bg-slate-50/80 p-4 dark:border-slate-700/70 dark:bg-slate-800/60`}>
-    <div className="mb-4 h-3 w-32 rounded bg-slate-200 dark:bg-slate-700" />
-    <div className="grid h-[calc(100%-1rem)] grid-cols-6 gap-2">
-      {Array.from({ length: 18 }).map((_, index) => (
+  <div className="w-full animate-pulse rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-4 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.35)] dark:border-slate-800/80 dark:bg-slate-950/75">
+    <div className="mb-3 flex items-center justify-between gap-3 border-b border-slate-200/70 pb-3 dark:border-slate-800">
+      <div>
+        <div className="mb-2 h-2.5 w-20 rounded-full bg-slate-200 dark:bg-slate-800" />
+        <div className="h-4 w-44 rounded bg-slate-200 dark:bg-slate-700" />
+      </div>
+      <div className="flex gap-2">
+        <div className="h-7 w-20 rounded-full bg-slate-100 dark:bg-slate-800" />
+        <div className="h-7 w-20 rounded-full bg-slate-100 dark:bg-slate-800" />
+      </div>
+    </div>
+    <div className={`rounded-[1.15rem] border border-slate-200/70 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70 ${heightClass}`}>
+      <div className="grid h-full grid-cols-6 gap-2">
+        {Array.from({ length: 18 }).map((_, index) => (
         <div
           key={index}
           className="self-end rounded-t bg-gradient-to-t from-sciblue-200 to-sciblue-100 dark:from-sciblue-800/60 dark:to-sciblue-700/20"
           style={{ height: `${35 + ((index * 17) % 55)}%` }}
         />
       ))}
+      </div>
     </div>
   </div>
 );
@@ -87,7 +98,7 @@ const ResultsPlaceholder: React.FC<{ t: Translation; lang: LanguageCode }> = ({ 
   const isEnglishUI = lang.startsWith('en');
 
   return (
-  <div className="relative overflow-hidden rounded-lg border border-slate-200/80 bg-white/80 p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/70">
+  <div className="relative overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white/80 p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/70">
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.08),transparent_45%)]" />
     <div className="relative">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -102,9 +113,9 @@ const ResultsPlaceholder: React.FC<{ t: Translation; lang: LanguageCode }> = ({ 
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="rounded-lg border border-slate-200/80 bg-slate-50/80 p-3 dark:border-slate-700/80 dark:bg-slate-800/60">
+          <div key={index} className="rounded-[1.15rem] border border-slate-200/80 bg-slate-50/80 p-3 dark:border-slate-700/80 dark:bg-slate-800/60">
             <div className="mb-3 h-3 w-28 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-            <div className="h-44 animate-pulse rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700" />
+            <div className="h-44 animate-pulse rounded-[1.15rem] bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700" />
           </div>
         ))}
       </div>
@@ -619,10 +630,10 @@ function App() {
     ? Math.max(220, Math.min(viewportSize.visualHeight - 230, 320))
     : null;
   const mainHeaderSpacingClass = isCompactLandscape
-    ? 'pt-14 pb-2'
+    ? 'pt-11 pb-1.5'
     : isMobile
-      ? 'pt-28 pb-3'
-      : 'pt-24 pb-4 landscape:pt-6 landscape:pb-1 md:pt-24 md:pb-6';
+      ? 'pt-24 pb-2'
+      : 'pt-20 pb-4 landscape:pt-4 landscape:pb-1 md:pt-22 md:pb-6';
   const overlayControlHidden = isSidebarOverlay && isSidebarOpen;
   const activePresetMenuConfig = presetActionMenu
   ? savedConfigs.find((config) => config.id === presetActionMenu.id) ?? null
@@ -1718,7 +1729,7 @@ function App() {
         className="flex-1 h-full overflow-y-auto overflow-x-hidden relative flex flex-col scroll-smooth main-scroll"
       >
         <div ref={mainContentRef} className="flex flex-col min-h-full will-change-transform">
-        <header className={`px-6 max-w-4xl mx-auto text-center animate-fade-in w-full shrink-0 ${mainHeaderSpacingClass}`}>
+        <header className={`px-4 sm:px-6 max-w-5xl mx-auto text-center animate-fade-in w-full shrink-0 ${mainHeaderSpacingClass}`}>
             {/* Version Badge - Centered Above Title */}
             <div className={`flex justify-center overflow-hidden transition-all duration-300 ${shouldHideVersionBadge ? 'mb-0 max-h-0 opacity-0 -translate-y-2' : 'mb-3 landscape:mb-2 max-h-20 opacity-100 translate-y-0'}`}>
                 <div className={versionBadgeClass}>
@@ -1737,7 +1748,7 @@ function App() {
         </header>
 
         {/* Content Container */}
-        <div className={`flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 ${isCompactLandscape ? 'pb-4 space-y-4' : 'pb-10 landscape:pb-4 space-y-6'}`}>
+        <div className={`flex-1 max-w-[88rem] mx-auto w-full px-4 sm:px-6 lg:px-8 ${isCompactLandscape ? 'pb-3 space-y-3' : 'pb-10 landscape:pb-4 space-y-5 md:space-y-6'}`}>
             
             {/* 3D View Card - Z-Index 100 when locked ensures it sits ABOVE the global z-[90] backdrop */}
             <div ref={canvasContainerRef} className={`${isCanvasLocked ? 'relative z-[120]' : ''}`}>
@@ -1771,19 +1782,19 @@ function App() {
                     icon={<Activity size={18} className="text-emerald-500"/>} 
                     t={t} 
                     contentClassName="p-0"
-                    className="border-slate-200 shadow-sm bg-white overflow-hidden"
+                    className="border-slate-200 shadow-sm bg-white overflow-visible"
                     expandText={t.common.expandCharts}
                     supportsHover={isDesktopLike}
                 >
-                   <div className="grid grid-cols-1 divide-slate-100 dark:divide-slate-800 lg:grid-cols-2 lg:divide-x lg:divide-y-0">
-                      <div className={`p-4 md:p-6 ${surfaceHoverClass}`}>
-                        <Suspense fallback={<ChartPanelFallback heightClass="h-[240px] md:h-[260px]" />}>
-                          <DistributionCharts data={chartData} type="speed" t={t} heightClass="h-[240px] md:h-[260px]" isDarkMode={isDarkMode}/>
+                   <div className="grid grid-cols-1 gap-3 bg-slate-50/40 p-3.5 dark:bg-slate-950/20 sm:gap-4 sm:p-4 md:p-5 lg:grid-cols-2">
+                      <div className={`min-w-0 ${surfaceHoverClass}`}>
+                        <Suspense fallback={<ChartPanelFallback heightClass="h-[280px] sm:h-[300px] md:h-[330px]" />}>
+                          <DistributionCharts data={chartData} type="speed" t={t} heightClass="h-[280px] sm:h-[300px] md:h-[330px]" isDarkMode={isDarkMode}/>
                         </Suspense>
                       </div>
-                      <div className={`p-4 md:p-6 ${surfaceHoverClass}`}>
-                        <Suspense fallback={<ChartPanelFallback heightClass="h-[240px] md:h-[260px]" />}>
-                          <DistributionCharts data={chartData} type="energy" t={t} heightClass="h-[240px] md:h-[260px]" isDarkMode={isDarkMode} />
+                      <div className={`min-w-0 ${surfaceHoverClass}`}>
+                        <Suspense fallback={<ChartPanelFallback heightClass="h-[280px] sm:h-[300px] md:h-[330px]" />}>
+                          <DistributionCharts data={chartData} type="energy" t={t} heightClass="h-[280px] sm:h-[300px] md:h-[330px]" isDarkMode={isDarkMode} />
                         </Suspense>
                       </div>
                    </div>
@@ -1796,6 +1807,7 @@ function App() {
                     title={t.views.finalStats} 
                     icon={<LayoutDashboard size={18} className="text-amber-500"/>} 
                     t={t}
+                    className="border-slate-200 shadow-sm bg-white overflow-visible"
                     expandText={t.common.expandResults}
                     supportsHover={isDesktopLike}
                 >
@@ -1865,7 +1877,7 @@ function App() {
                       {/* Arrow pointing up */}
                       <div className="ml-3 h-0 w-0 border-x-[6px] border-x-transparent border-b-[8px] border-b-white/80 drop-shadow-sm dark:border-b-slate-900/70"></div>
                       {/* Text Bubble */}
-                      <div className="min-w-[10rem] max-w-full rounded-lg border border-sciblue-400/60 bg-white/[0.8] px-3 py-2.5 shadow-lg backdrop-blur-md dark:bg-slate-900/[0.72]">
+                      <div className="min-w-[10rem] max-w-full rounded-[1.15rem] border border-sciblue-400/60 bg-white/[0.8] px-3 py-2.5 shadow-lg backdrop-blur-md dark:bg-slate-900/[0.72]">
                         <p className={`mx-auto text-center text-[11px] font-bold leading-snug text-sciblue-700 dark:text-sciblue-50 break-words [overflow-wrap:anywhere] ${guideBubbleTextWidthClass}`}>
                           {t.hints.sidebarTitle}
                         </p>
@@ -1926,9 +1938,9 @@ function App() {
         }}
       />
 
-      {/* VISITOR TOAST - MOVED TO BOTTOM */}
-      <div className={`fixed bottom-24 md:bottom-10 left-1/2 transform -translate-x-1/2 z-[100] transition-all duration-700 ease-in-out ${showVisitorToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8 pointer-events-none'}`}>
-        <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-slate-600 dark:text-slate-200 px-5 py-2 rounded-full shadow-xl border border-slate-100 dark:border-slate-700 flex items-center gap-3">
+      {/* VISITOR TOAST */}
+      <div className={`fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 transform transition-all duration-700 ease-in-out md:bottom-8 ${showVisitorToast && !isRunning && !showResultsPlaceholder && !showFinalResults ? 'opacity-100 translate-y-0' : 'pointer-events-none opacity-0 translate-y-8'}`}>
+        <div className="flex items-center gap-3 rounded-full border border-slate-100 bg-white/92 px-5 py-2 text-slate-600 shadow-xl backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-200">
             <span className="bg-emerald-100 dark:bg-emerald-900/40 p-1 rounded-full"><User size={12} className="text-emerald-600 dark:text-emerald-400"/></span>
             <span className="text-xs font-medium tracking-wide">
                 {t.footer.visitorCount}
@@ -1949,7 +1961,7 @@ function App() {
             `}
         >
             <div className={`
-                min-h-[48px] max-w-[min(92vw,24rem)] px-4 py-2.5 rounded-lg shadow-xl flex items-center justify-center gap-3 border backdrop-blur-md
+                min-h-[48px] max-w-[min(92vw,24rem)] px-4 py-2.5 rounded-[1.15rem] shadow-xl flex items-center justify-center gap-3 border backdrop-blur-md
                 ${notification.type === 'success' ? 'bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900' : 
                   notification.type === 'warning' ? 'bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-900' : 
                   'bg-slate-800 dark:bg-white text-white dark:text-slate-900 border-slate-700 dark:border-slate-200'}
@@ -1991,7 +2003,7 @@ function App() {
                 <span className="sr-only">{t.header.language}</span>
             </button>
             <div className={`absolute right-0 top-full w-48 pt-2 transition-all duration-200 origin-top-right z-50 ${isLangMenuOpen ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95 pointer-events-none'}`}>
-                <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg shadow-xl overflow-hidden py-1">
+                <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[1.15rem] shadow-xl overflow-hidden py-1">
                     {['zh-CN', 'zh-TW', 'en-GB', 'en-US'].map((l) => (
                         <button
                             type="button"
@@ -2021,7 +2033,7 @@ function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-preset-title"
-            className="relative z-10 w-full max-w-sm rounded-lg border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
+            className="relative z-10 w-full max-w-sm rounded-[1.5rem] border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -2094,7 +2106,7 @@ function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-preset-title"
-            className="relative z-10 w-full max-w-sm rounded-lg border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
+            className="relative z-10 w-full max-w-sm rounded-[1.5rem] border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -2116,7 +2128,7 @@ function App() {
               </button>
             </div>
 
-            <div className="mb-4 rounded-lg border border-rose-100 bg-rose-50/80 px-4 py-3 text-rose-600 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-200">
+            <div className="mb-4 rounded-[1.15rem] border border-rose-100 bg-rose-50/80 px-4 py-3 text-rose-600 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-200">
               <div className="flex items-center gap-2">
                 <Trash2 size={16} className="shrink-0" />
                 <span className={`text-sm font-semibold leading-snug break-words [overflow-wrap:anywhere] ${deleteDialogTextWidthClass}`}>
@@ -2149,13 +2161,13 @@ function App() {
       {presetActionMenu && activePresetMenuConfig && (
         <div
           ref={presetActionMenuRef}
-          className="fixed z-[128] w-48 overflow-hidden rounded-lg border border-slate-200/80 bg-white/95 p-1 shadow-[0_20px_50px_rgba(15,23,42,0.22)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
+          className="fixed z-[128] w-48 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white/95 p-1 shadow-[0_20px_50px_rgba(15,23,42,0.22)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
           style={{ top: `${presetActionMenu.top}px`, left: `${presetActionMenu.left}px` }}
         >
           <button
             type="button"
             onClick={() => handleSetStartupPreset(activePresetMenuConfig)}
-            className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-600 transition-colors dark:text-slate-200 ${isDesktopLike ? 'hover:bg-slate-100 dark:hover:bg-slate-800' : 'active:scale-[0.99]'}`}
+            className={`flex w-full items-center gap-2 rounded-[1rem] px-3 py-2 text-left text-xs font-medium text-slate-600 transition-colors dark:text-slate-200 ${isDesktopLike ? 'hover:bg-slate-100 dark:hover:bg-slate-800' : 'active:scale-[0.99]'}`}
           >
             <Check size={14} className="text-emerald-500" />
             <span>{t.storage.setDefault}</span>
@@ -2166,7 +2178,7 @@ function App() {
               <button
                 type="button"
                 onClick={() => openRenamePresetModal(activePresetMenuConfig)}
-                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-600 transition-colors dark:text-slate-200 ${isDesktopLike ? 'hover:bg-slate-100 dark:hover:bg-slate-800' : 'active:scale-[0.99]'}`}
+                className={`flex w-full items-center gap-2 rounded-[1rem] px-3 py-2 text-left text-xs font-medium text-slate-600 transition-colors dark:text-slate-200 ${isDesktopLike ? 'hover:bg-slate-100 dark:hover:bg-slate-800' : 'active:scale-[0.99]'}`}
               >
                 <Pencil size={14} className="text-sciblue-500" />
                 <span>{t.storage.rename}</span>
@@ -2175,7 +2187,7 @@ function App() {
               <button
                 type="button"
                 onClick={() => requestDeleteConfig(activePresetMenuConfig)}
-                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-rose-500 transition-colors ${isDesktopLike ? 'hover:bg-rose-50 dark:hover:bg-rose-900/20' : 'active:scale-[0.99]'}`}
+                className={`flex w-full items-center gap-2 rounded-[1rem] px-3 py-2 text-left text-xs font-medium text-rose-500 transition-colors ${isDesktopLike ? 'hover:bg-rose-50 dark:hover:bg-rose-900/20' : 'active:scale-[0.99]'}`}
               >
                 <Trash2 size={14} />
                 <span>{t.storage.delete}</span>

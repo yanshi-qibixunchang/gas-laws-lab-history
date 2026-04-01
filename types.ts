@@ -145,6 +145,12 @@ export interface Translation {
     tempError: string;
     totalEnergy: string;
     distributions: string; 
+    diagnostics: string;
+    summaryMetrics: string;
+    speedDeviation: string;
+    energyDeviation: string;
+    meanTempError: string;
+    energyDrift: string;
     speedX: string;
     energyX: string;
     probY: string;

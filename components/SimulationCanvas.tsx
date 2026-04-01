@@ -427,7 +427,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
           isDragging.current = false;
         }}
         className={`
-          relative w-full rounded-lg overflow-hidden bg-slate-900 select-none
+          relative w-full rounded-[1.5rem] overflow-hidden bg-slate-900 select-none
           h-[45vh] sm:h-[450px] md:h-[500px] lg:h-[550px]
           transition-all duration-300 cubic-bezier(0.34, 1.56, 0.64, 1)
           ${isFocused
@@ -452,11 +452,11 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
           style={{ width: '100%', height: '100%' }}
         />
 
-        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent pointer-events-none rounded-b-lg z-10" />
+        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent pointer-events-none rounded-b-[1.5rem] z-10" />
 
         {showDesktopHoverHint && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-            <div className="max-w-[min(90vw,420px)] rounded-xl border border-white/15 bg-slate-950/70 px-4 py-3 text-center shadow-2xl backdrop-blur-md">
+            <div className="max-w-[min(90vw,420px)] rounded-[1.15rem] border border-white/15 bg-slate-950/70 px-4 py-3 text-center shadow-2xl backdrop-blur-md">
               <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-sciblue-300 mb-1">
                 {t.canvas.clickToInteract}
               </p>
@@ -469,7 +469,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
 
         {isFocused && showPanHint && (
           <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[110] pointer-events-none flex flex-col items-center justify-center animate-fade-in">
-            <div className="max-w-[min(74vw,280px)] rounded-2xl border border-white/20 bg-black/75 px-5 py-4 shadow-2xl backdrop-blur-md">
+            <div className="max-w-[min(74vw,280px)] rounded-[1.5rem] border border-white/20 bg-black/75 px-5 py-4 shadow-2xl backdrop-blur-md">
               <div className="flex flex-col items-center gap-2 text-center">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-400/12 ring-1 ring-amber-300/30">
                   <Hand size={28} className="text-amber-400 animate-pulse" />
@@ -525,7 +525,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
 
         <div className="absolute bottom-4 left-4 pointer-events-none select-none z-20">
           {isFocused ? (
-            <div className="text-xs text-sciblue-100 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/10 shadow-lg animate-fade-in-up">
+            <div className="text-xs text-sciblue-100 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-[1.15rem] border border-white/10 shadow-lg animate-fade-in-up">
               <p className="font-medium">
                 {touchLike ? t.canvas.instructionsFocused_mobile : t.canvas.instructionsFocused_desktop}
               </p>
