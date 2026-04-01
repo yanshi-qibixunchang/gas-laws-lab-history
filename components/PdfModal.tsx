@@ -678,7 +678,7 @@ const PdfModal: React.FC<PdfModalProps> = ({
           const wrapper = document.createElement('div');
           wrapper.dataset.page = String(pageNum);
           wrapper.className =
-            'w-full overflow-hidden rounded-lg bg-white shadow-sm dark:bg-slate-900/60';
+            'w-full overflow-hidden rounded-[1.15rem] bg-white shadow-sm dark:bg-slate-900/60';
           wrapper.style.height = `${layout.height}px`;
           wrapper.classList.add('bg-slate-100', 'dark:bg-slate-800/40');
           fragment.appendChild(wrapper);
@@ -882,7 +882,7 @@ const PdfModal: React.FC<PdfModalProps> = ({
         onClick={onClose}
         aria-label="Close"
       />
-      <div className="pdf-modal relative z-[201] flex h-full w-full flex-col bg-white dark:bg-slate-900 md:h-[92vh] md:w-[92vw] md:rounded-lg md:border md:border-slate-200 md:shadow-2xl dark:md:border-slate-800">
+      <div className="pdf-modal relative z-[201] flex h-full w-full flex-col bg-white dark:bg-slate-900 md:h-[92vh] md:w-[92vw] md:rounded-[1.5rem] md:border md:border-slate-200 md:shadow-2xl dark:md:border-slate-800">
         <div className="pdf-modal-toolbar flex items-center justify-between border-b border-slate-200 bg-white/80 pb-2 pt-[calc(env(safe-area-inset-top)+6px)] pl-[calc(12px+env(safe-area-inset-left))] pr-[calc(12px+env(safe-area-inset-right))] backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 sm:pb-3">
           <div className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
             <FileText size={16} className="text-sciblue-500" />
@@ -945,7 +945,7 @@ const PdfModal: React.FC<PdfModalProps> = ({
           style={{ touchAction: 'pan-x pan-y' }}
         >
           {loadError && (
-            <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900 dark:bg-amber-900/30 dark:text-amber-300">
+            <div className="mb-6 rounded-[1.15rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900 dark:bg-amber-900/30 dark:text-amber-300">
               {loadError}
             </div>
           )}

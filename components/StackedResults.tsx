@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { ChartData, Translation } from '../types';
+import React, { useEffect, useRef, useState } from 'react';
+import { Maximize2, Minimize2 } from 'lucide-react';
+import { ChartData, HistogramBin, Translation } from '../types';
 import DistributionCharts from './DistributionCharts';
-import { ChevronUp, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
 
 interface StackedResultsProps {
   data: ChartData;
@@ -10,267 +10,286 @@ interface StackedResultsProps {
   supportsHover?: boolean;
 }
 
-const StackedResults: React.FC<StackedResultsProps> = ({ data, t, isDarkMode = false, supportsHover = true }) => {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  // Drag/Touch State
-  const isDragging = useRef(false);
-  const startY = useRef(0);
-  const currentY = useRef(0);
-  const [dragOffset, setDragOffset] = useState(0);
+interface SummaryMetric {
+  label: string;
+  value: string;
+  formula: string;
+}
 
-  // --- HEIGHT MANAGEMENT ---
-  // Optimized heights for mobile visibility
-  // Mobile Portrait: Taller (h-[600px]) to stack charts vertically.
-  // Mobile Landscape: Shorter (h-[340px]) but wider layout to fit screen.
-  
-  // Chart container heights inside the cards
-  // Portrait: 250px (Tall)
-  // Landscape: 130px (Compact, side-by-side)
-  // Desktop: 160px
-  const histHeight = isFullscreen ? "h-[320px]" : "h-[250px] landscape:h-[130px] md:h-[160px]"; 
-  const singleHeight = isFullscreen ? "h-[450px]" : "h-[420px] landscape:h-[260px] md:h-[260px]";
-  const subtleHoverClass = supportsHover
-    ? "hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white"
-    : "";
-  const accentHoverClass = supportsHover
-    ? "hover:text-sciblue-600 dark:hover:text-sciblue-400 hover:border-sciblue-200 dark:hover:border-sciblue-800 hover:shadow-md"
-    : "";
+const meanAbsoluteDifference = (bins: HistogramBin[]) => {
+  const differences = bins
+    .map((bin) => {
+      const theoretical = bin.theoretical;
+      if (typeof theoretical !== 'number' || !Number.isFinite(theoretical)) return null;
+      const difference = Math.abs(bin.probability - theoretical);
+      return Number.isFinite(difference) ? difference : null;
+    })
+    .filter((value): value is number => value !== null);
 
-  // Group 1: Histograms (Speed + Energy) - Compact Grid
-  // Mobile Landscape: Force grid-cols-2 (side-by-side) to save vertical space
-  const HistogramGroup = () => (
-    <div className={`grid grid-cols-1 landscape:grid-cols-2 md:grid-cols-2 gap-2 h-full ${isFullscreen ? 'p-4' : 'p-0 overflow-y-hidden'}`}>
-      <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-2 border border-slate-100 dark:border-slate-700 flex flex-col justify-center">
-         <DistributionCharts data={data} type="speed" isFinal={true} t={t} heightClass={histHeight} isDarkMode={isDarkMode} />
+  if (differences.length === 0) return null;
+  return differences.reduce((sum, value) => sum + value, 0) / differences.length;
+};
+
+const meanAbsoluteValue = (values: number[]) => {
+  const filtered = values.filter((value) => Number.isFinite(value));
+  if (filtered.length === 0) return null;
+  return filtered.reduce((sum, value) => sum + Math.abs(value), 0) / filtered.length;
+};
+
+const energyDriftAmplitude = (values: number[]) => {
+  const filtered = values.filter((value) => Number.isFinite(value));
+  if (filtered.length === 0) return null;
+
+  const mean = filtered.reduce((sum, value) => sum + value, 0) / filtered.length;
+  if (!Number.isFinite(mean) || mean === 0) return null;
+
+  return ((Math.max(...filtered) - Math.min(...filtered)) / mean) * 100;
+};
+
+const formatMetricValue = (value: number | null, variant: 'density' | 'percent') => {
+  if (value === null || !Number.isFinite(value)) return '--';
+
+  if (variant === 'percent') {
+    return `${value.toFixed(2)}%`;
+  }
+
+  if (Math.abs(value) >= 0.01) return value.toFixed(4);
+  return value.toExponential(2);
+};
+
+const SummaryCard: React.FC<{
+  metric: SummaryMetric;
+  isDarkMode: boolean;
+}> = ({ metric, isDarkMode }) => {
+  const shellClass = isDarkMode
+    ? 'border-slate-800/90 bg-slate-950/70'
+    : 'border-slate-200/90 bg-white/92';
+  const labelClass = isDarkMode ? 'text-slate-400' : 'text-slate-500';
+  const valueClass = isDarkMode ? 'text-slate-50' : 'text-slate-900';
+  const formulaClass = isDarkMode ? 'text-slate-500' : 'text-slate-400';
+
+  return (
+    <div className={`rounded-[1.15rem] border px-4 py-3.5 shadow-[0_16px_40px_-34px_rgba(15,23,42,0.35)] ${shellClass}`}>
+      <div className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${labelClass}`}>
+        {metric.label}
       </div>
-      <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-2 border border-slate-100 dark:border-slate-700 flex flex-col justify-center">
-         <DistributionCharts data={data} type="energy" isFinal={true} t={t} heightClass={histHeight} isDarkMode={isDarkMode} />
+      <div className={`mt-2 font-data text-xl font-semibold ${valueClass}`}>
+        {metric.value}
+      </div>
+      <div className={`mt-1 text-[11px] leading-5 ${formulaClass}`}>
+        {metric.formula}
       </div>
     </div>
   );
+};
 
-  const cardGroups = [
-    { id: 'histograms', content: <HistogramGroup />, title: t.charts.distributions },
-    { id: 'semilog', content: <DistributionCharts data={data} type="semilog" isFinal={true} t={t} heightClass={singleHeight} isDarkMode={isDarkMode} />, title: t.charts.semilog },
-    { id: 'totalEnergy', content: <DistributionCharts data={data} type="totalEnergy" t={t} heightClass={singleHeight} isDarkMode={isDarkMode} />, title: t.charts.totalEnergy },
-    { id: 'tempError', content: <DistributionCharts data={data} type="tempError" t={t} heightClass={singleHeight} isDarkMode={isDarkMode} />, title: t.charts.tempError },
+const StackedResults: React.FC<StackedResultsProps> = ({
+  data,
+  t,
+  isDarkMode = false,
+  supportsHover = true,
+}) => {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const summaryShell = isDarkMode
+    ? 'border-slate-800/90 bg-slate-950/74 text-slate-200'
+    : 'border-slate-200/90 bg-white/94 text-slate-800';
+  const detailShell = isDarkMode
+    ? 'border-slate-800/90 bg-slate-950/74'
+    : 'border-slate-200/90 bg-white/94';
+  const hoverClass = supportsHover
+    ? 'hover:border-sciblue-300 dark:hover:border-sciblue-700 hover:text-sciblue-600 dark:hover:text-sciblue-300'
+    : '';
+
+  const histogramHeight = isFullscreen ? 'h-[340px] md:h-[390px]' : 'h-[280px] sm:h-[300px] xl:h-[300px]';
+  const semilogHeight = isFullscreen ? 'h-[360px] md:h-[400px]' : 'h-[300px] sm:h-[330px] xl:h-[320px]';
+  const diagnosticHeight = isFullscreen ? 'h-[220px] md:h-[250px]' : 'h-[210px] sm:h-[220px] xl:h-[205px]';
+
+  const metrics: SummaryMetric[] = [
+    {
+      label: t.charts.speedDeviation,
+      value: formatMetricValue(meanAbsoluteDifference(data.speed), 'density'),
+      formula: 'mean |dP(v)|',
+    },
+    {
+      label: t.charts.energyDeviation,
+      value: formatMetricValue(meanAbsoluteDifference(data.energy), 'density'),
+      formula: 'mean |dP(E)|',
+    },
+    {
+      label: t.charts.meanTempError,
+      value: formatMetricValue(meanAbsoluteValue(data.tempHistory.map((point) => point.error)), 'percent'),
+      formula: 'mean |dT/T|',
+    },
+    {
+      label: t.charts.energyDrift,
+      value: formatMetricValue(energyDriftAmplitude(data.tempHistory.map((point) => point.totalEnergy)), 'percent'),
+      formula: '(Emax-Emin)/Emean',
+    },
   ];
 
-  const handleNext = () => {
-    setActiveIndex((prev) => (prev + 1) % cardGroups.length);
-  };
-
-  const handlePrev = () => {
-    setActiveIndex((prev) => (prev - 1 + cardGroups.length) % cardGroups.length);
-  };
-
-  // --- MOUSE HANDLERS ---
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if(isFullscreen) return; 
-    isDragging.current = true;
-    startY.current = e.clientY;
-    setDragOffset(0);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current || isFullscreen) return;
-    currentY.current = e.clientY;
-    setDragOffset(currentY.current - startY.current);
-  };
-
-  const handleMouseUp = () => {
-    endDrag();
-  };
-
-  const handleMouseLeave = () => {
-      isDragging.current = false;
-      setDragOffset(0);
-  };
-
-  // --- TOUCH HANDLERS (Mobile Swipe) ---
-  const handleTouchStart = (e: React.TouchEvent) => {
-      if(isFullscreen) return;
-      isDragging.current = true;
-      startY.current = e.touches[0].clientY;
-      setDragOffset(0);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-      if (!isDragging.current || isFullscreen) return;
-      currentY.current = e.touches[0].clientY;
-      setDragOffset(currentY.current - startY.current);
-  };
-
-  const handleTouchEnd = () => {
-      endDrag();
-  };
-
-  // Shared End Logic
-  const endDrag = () => {
-    if (!isDragging.current || isFullscreen) return;
-    isDragging.current = false;
-    
-    const threshold = 50; 
-    if (dragOffset < -threshold) {
-       handleNext(); 
-    } else if (dragOffset > threshold) {
-       handlePrev(); 
-    }
-    setDragOffset(0);
-  };
-
-  // Fullscreen Logic
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
 
     if (!document.fullscreenElement) {
-        containerRef.current.requestFullscreen().catch(err => {
-            console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-        });
-    } else {
-        document.exitFullscreen();
+      containerRef.current.requestFullscreen().catch((error) => {
+        console.error(`Unable to enter fullscreen: ${error.message} (${error.name})`);
+      });
+      return;
     }
+
+    document.exitFullscreen().catch(() => {
+      // Ignore exit errors triggered by external state changes.
+    });
   };
 
   useEffect(() => {
-    const handleFsChange = () => {
-        setIsFullscreen(!!document.fullscreenElement);
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === containerRef.current);
     };
-    document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  const getCardStyle = (index: number) => {
-    if (isFullscreen) return {};
-
-    let offset = index - activeIndex;
-    if (offset < 0) offset += cardGroups.length;
-
-    const isActive = index === activeIndex;
-    const isNext = index === (activeIndex + 1) % cardGroups.length;
-    const isPrev = index === (activeIndex - 1 + cardGroups.length) % cardGroups.length;
-
-    let zIndex = 0;
-    let opacity = 0;
-    let scale = 0.8;
-    let translateY = 0; 
-
-    if (isActive) {
-        zIndex = 10;
-        opacity = 1;
-        scale = 1;
-        translateY = dragOffset; 
-    } else if (isNext) {
-        zIndex = 5;
-        opacity = 0.6;
-        scale = 0.95;
-        translateY = 35; // Tighter stack
-    } else if (isPrev) {
-        zIndex = 1; 
-        opacity = 0; 
-        scale = 0.9;
-        translateY = -35;
-    } else {
-        zIndex = 0;
-        opacity = 0;
-    }
-
-    return {
-        zIndex,
-        opacity,
-        transform: `scale(${scale}) translateY(${translateY}px)`,
-        transition: isDragging.current && isActive ? 'none' : 'all 0.5s cubic-bezier(0.19, 1, 0.22, 1)',
-        pointerEvents: isActive ? 'auto' : 'none'
-    } as React.CSSProperties;
-  };
+  const twoColumnGridClass = isFullscreen ? 'grid items-start gap-4 2xl:grid-cols-2' : 'grid items-start gap-4 xl:grid-cols-2';
+  const bottomRowGridClass = isFullscreen
+    ? 'grid items-start gap-4 2xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]'
+    : 'grid items-start gap-4 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]';
 
   return (
-    <div 
-        ref={containerRef} 
-        // Landscape Optimization: h-[340px] for mobile landscape (usually ~360-400px height)
-        // Mobile Portrait: h-[660px]
-        className={`relative transition-all duration-500 bg-white dark:bg-slate-900 ${isFullscreen ? 'p-10 overflow-y-auto' : 'h-[660px] landscape:h-[340px] md:h-[400px] perspective-[1000px] select-none'}`}
+    <div
+      ref={containerRef}
+      className={`relative ${isFullscreen ? 'min-h-screen overflow-auto bg-slate-50 px-4 py-6 dark:bg-slate-950 md:px-8 md:py-8' : ''}`}
     >
-        <button 
-            onClick={toggleFullscreen}
-            className={`absolute top-3 right-3 z-50 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all border border-slate-200 dark:border-slate-700 ${subtleHoverClass}`}
-            title={isFullscreen ? t.common.collapse : t.common.expandAll}
+      <div className={`${isFullscreen ? 'mx-auto max-w-[1540px]' : ''}`}>
+        <button
+          onClick={toggleFullscreen}
+          className={`absolute right-0 top-0 z-20 inline-flex h-10 w-10 items-center justify-center rounded-[1rem] border border-slate-200 bg-white text-slate-500 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 ${hoverClass}`}
+          title={isFullscreen ? t.common.collapse : t.common.expandAll}
         >
-            {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+          {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
         </button>
 
-        {isFullscreen ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-7xl mx-auto pt-10">
-                {cardGroups.map((group) => (
-                    <div key={group.id} className="bg-white dark:bg-slate-900 rounded-lg shadow-sm p-6 border border-slate-200 dark:border-slate-800">
-                         <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 px-3 border-l-4 border-sciblue-500">{group.title}</h3>
-                        <div className="h-full">
-                            {group.content}
-                        </div>
-                    </div>
-                ))}
-            </div>
-        ) : (
-            <div 
-                className="w-full h-full relative flex items-center justify-center touch-none" 
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseLeave}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-            >
-                {cardGroups.map((group, index) => (
-                    <div
-                        key={group.id}
-                        // Mobile Landscape Card: Adjusted to h-[300px] to fit within the h-[340px] container with margins
-                        className="absolute w-full max-w-4xl h-[600px] landscape:h-[300px] md:h-[360px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] dark:shadow-none overflow-hidden flex flex-col cursor-grab active:cursor-grabbing"
-                        style={getCardStyle(index)}
-                    >
-                        <div className={`h-6 w-full flex items-center justify-center cursor-ns-resize opacity-30 shrink-0 ${supportsHover ? 'hover:opacity-60' : ''}`}>
-                             <div className="w-8 h-1 bg-slate-400 rounded-full"></div>
-                        </div>
-                        <div className="flex-1 px-3 pb-3 pt-0 relative flex flex-col min-h-0">
-                             <div className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 select-none text-center">{group.title}</div>
-                             <div className="flex-1 min-h-0 w-full relative">
-                                {group.content}
-                             </div>
-                        </div>
-                    </div>
-                ))}
-
-                {/* Navigation Buttons */}
-                {/* 
-                   Portrait Mobile: Bottom Center, Horizontal (flex-row).
-                   Landscape Mobile: Right Center, Vertical (flex-col) - Mimics Desktop behavior to save vertical space.
-                   Desktop: Right Center, Vertical.
-                */}
-                <div className="absolute z-20 pointer-events-none flex 
-                    bottom-4 left-1/2 -translate-x-1/2 flex-row gap-8
-                    landscape:top-1/2 landscape:right-4 landscape:bottom-auto landscape:left-auto landscape:translate-x-0 landscape:-translate-y-1/2 landscape:flex-col landscape:gap-2
-                    md:top-1/2 md:right-4 md:bottom-auto md:left-auto md:translate-x-0 md:-translate-y-1/2 md:flex-col md:gap-2"
-                >
-                     <button 
-                        onClick={handlePrev}
-                        className={`pointer-events-auto w-10 h-10 md:w-8 md:h-8 bg-white dark:bg-slate-800 shadow-lg md:shadow-sm rounded-full text-slate-500 dark:text-slate-400 transition-all border border-slate-200 dark:border-slate-700 active:scale-95 flex items-center justify-center ${accentHoverClass}`}
-                        title={t.common.prev}
-                     >
-                        <ChevronUp size={20} />
-                     </button>
-                     <button 
-                        onClick={handleNext}
-                        className={`pointer-events-auto w-10 h-10 md:w-8 md:h-8 bg-white dark:bg-slate-800 shadow-lg md:shadow-sm rounded-full text-slate-500 dark:text-slate-400 transition-all border border-slate-200 dark:border-slate-700 active:scale-95 flex items-center justify-center ${accentHoverClass}`}
-                        title={t.common.next}
-                     >
-                        <ChevronDown size={20} />
-                     </button>
+        <div className="pr-14">
+          <div className={`rounded-[1.5rem] border px-4 py-4 shadow-[0_20px_55px_-38px_rgba(15,23,42,0.4)] md:px-5 md:py-5 ${summaryShell}`}>
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div className="min-w-0">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
+                  {t.views.completed}
                 </div>
+                <h3 className="mt-1 text-base font-semibold tracking-[0.01em] md:text-lg">
+                  {t.views.finalStats}
+                </h3>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+                  {`${t.charts.distributions} + ${t.charts.diagnostics}`}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full border border-slate-200/90 bg-white/88 px-3 py-1 text-[11px] font-medium text-slate-600 dark:border-slate-700/80 dark:bg-slate-900/70 dark:text-slate-300">
+                  {t.charts.simulation}
+                </span>
+                <span className="rounded-full border border-slate-200/90 bg-white/88 px-3 py-1 text-[11px] font-medium text-slate-600 dark:border-slate-700/80 dark:bg-slate-900/70 dark:text-slate-300">
+                  {t.charts.theory}
+                </span>
+                <span className="rounded-full border border-slate-200/90 bg-white/88 px-3 py-1 text-[11px] font-medium text-slate-600 dark:border-slate-700/80 dark:bg-slate-900/70 dark:text-slate-300">
+                  {t.charts.timeX}
+                </span>
+              </div>
             </div>
-        )}
+          </div>
+
+          <div className="mt-4 grid gap-4">
+            <div className={twoColumnGridClass}>
+              <DistributionCharts
+                data={data}
+                type="speed"
+                isFinal={true}
+                t={t}
+                heightClass={histogramHeight}
+                isDarkMode={isDarkMode}
+              />
+              <DistributionCharts
+                data={data}
+                type="energy"
+                isFinal={true}
+                t={t}
+                heightClass={histogramHeight}
+                isDarkMode={isDarkMode}
+              />
+            </div>
+
+            <div className={bottomRowGridClass}>
+              <div className="grid gap-4">
+                <DistributionCharts
+                  data={data}
+                  type="semilog"
+                  isFinal={true}
+                  t={t}
+                  heightClass={semilogHeight}
+                  isDarkMode={isDarkMode}
+                />
+
+                <div className={`rounded-[1.5rem] border px-4 py-4 shadow-[0_20px_55px_-38px_rgba(15,23,42,0.4)] md:px-5 md:py-5 ${detailShell}`}>
+                  <div className="border-b border-slate-200/80 pb-3 dark:border-slate-800">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
+                      {t.views.completed}
+                    </div>
+                    <h3 className="mt-1 text-base font-semibold tracking-[0.01em] text-slate-900 dark:text-slate-50 md:text-lg">
+                      {t.charts.summaryMetrics}
+                    </h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                      {`${t.charts.speedDeviation} / ${t.charts.energyDeviation}`}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {metrics.map((metric) => (
+                      <SummaryCard key={metric.label} metric={metric} isDarkMode={isDarkMode} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className={`rounded-[1.5rem] border px-4 py-4 shadow-[0_20px_55px_-38px_rgba(15,23,42,0.4)] md:px-5 md:py-5 ${detailShell}`}
+              >
+                <div className="border-b border-slate-200/80 pb-3 dark:border-slate-800">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
+                    {t.views.completed}
+                  </div>
+                  <h3 className="mt-1 text-base font-semibold tracking-[0.01em] text-slate-900 dark:text-slate-50 md:text-lg">
+                    {t.charts.diagnostics}
+                  </h3>
+                  <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                    {`${t.charts.totalEnergy} / ${t.charts.tempError}`}
+                  </p>
+                </div>
+
+                <div className="mt-4 grid gap-4">
+                  <DistributionCharts
+                    data={data}
+                    type="totalEnergy"
+                    t={t}
+                    heightClass={diagnosticHeight}
+                    isDarkMode={isDarkMode}
+                    embedded={true}
+                  />
+                  <DistributionCharts
+                    data={data}
+                    type="tempError"
+                    t={t}
+                    heightClass={diagnosticHeight}
+                    isDarkMode={isDarkMode}
+                    embedded={true}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

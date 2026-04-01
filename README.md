@@ -1,16 +1,16 @@
-# Hard Sphere Lab v3.4.2
+# Hard Sphere Lab v3.4.3
 
 [中文说明](./README.zh-CN.md)
 
-Hard Sphere Lab is a hard-sphere molecular dynamics simulation platform built with React, Vite, and Capacitor. It provides a browser-based interface for real-time particle motion, statistical observation, 3D interaction, preset management, and built-in report viewing.
+Hard Sphere Lab is a hard-sphere molecular dynamics simulation platform built with React, Vite, and Capacitor. It combines a browser-based simulation UI, a 3D particle view, statistical diagnostics, preset management, and a built-in PDF report viewer in one project.
 
-## Release highlights in v3.4.2
+## Release highlights in v3.4.3
 
-- native Android back handling now closes the in-app PDF viewer first and returns to the main page instead of exiting the app
-- updated mobile keyboard handling so opening the soft keyboard no longer compresses the sidebar layout
-- moved preset validation feedback to bottom-level global notifications that stay above modal blur layers
-- replaced the browser-native delete confirmation with an in-app React confirmation dialog
-- refreshed app icons, favicon, manifest metadata, and packaged app branding around the HSS release build
+- rebuilt the real-time and final-result charts with a more scientific plotting style
+- replaced the old stacked final-results flow with a fixed analysis board for desktop and a cleaner mobile layout
+- added a statistical summary block below the semi-log distribution plot to remove dead space and expose fit / stability metrics
+- tuned container sizing, fullscreen behavior, and short-height responsiveness so chart headers and controls do not clip
+- unified window-level corner radii across cards, analysis panels, modals, and chart shells
 
 ## What this repository contains
 
@@ -18,28 +18,16 @@ Hard Sphere Lab is a hard-sphere molecular dynamics simulation platform built wi
 - the Capacitor Android project used for APK packaging
 - public assets such as the PDF report and PWA manifest
 
-## Overview
-
-The project visualizes hard-sphere gas dynamics under an Andersen thermostat. Users can:
-
-- adjust core simulation parameters
-- reset and start the simulation from the UI
-- observe temperature, pressure, mean speed, RMS speed, and distributions
-- switch between multiple interface languages
-- interact with the 3D view on desktop and mobile
-- save parameter presets and reuse them later
-- open the built-in PDF report directly inside the app
-
 ## Main features
 
-- Real-time hard-sphere simulation
-- 3D molecular dynamics view with rotate / pan mode switching
-- Progress tracking for equilibration and statistical collection
-- Preset creation, selection, rename, delete, and startup-default setting
-- Responsive layout for desktop and mobile
-- Built-in PDF viewer with zoom support
-- Web deployment support and Android APK packaging
+- hard-sphere gas simulation under an Andersen thermostat
+- 3D molecular dynamics view with rotate / pan interaction
+- real-time temperature, pressure, mean-speed, and RMS-speed monitoring
+- scientific-style velocity, energy, semi-log, and diagnostic charts
+- preset creation, loading, rename, delete, and startup-default selection
+- built-in PDF viewer with zoom and export / share support
 - Simplified Chinese, Traditional Chinese, and English UI
+- web preview workflow and Android packaging path
 
 ## Requirements
 
@@ -104,80 +92,56 @@ dist/index.html
 
 The production bundle should be served through HTTP instead of being opened directly from the filesystem.
 
-## User guide
+## Usage notes
 
 ### Basic workflow
 
 1. Open the settings sidebar.
 2. Adjust particle count, radius, box size, and timing parameters.
 3. Click `Reset System` after changing parameters.
-4. Click `Run` / `Start Simulation`.
-5. Observe the 3D view, statistics cards, and distribution charts.
+4. Click `Start Simulation`.
+5. Observe the 3D view, statistics panel, and analysis charts.
 
 Important:
 
-- If parameters have changed, the app may require a reset before starting.
-- On mobile, the native back key closes transient UI in order, including the PDF viewer, then returns to the main page before exiting the app.
+- after parameter changes, the app may require a reset before starting
+- on mobile, the native back key closes transient UI in order, including the PDF viewer, before exiting the app
 
-### 3D view interaction
+### Charts and diagnostics
 
-The app supports two common 3D interaction modes:
+The analysis area now includes:
 
-- rotate mode
-- pan mode
-
-If you enter the 3D interaction area and do not switch modes for a short time, the interface may show a visual hint guiding you to the view-mode toggle button.
+- velocity distribution
+- energy distribution
+- semi-log energy distribution
+- total-energy trace
+- temperature-error trace
+- statistical summary metrics for fit quality and stability
 
 ### Presets
 
-The preset section allows you to:
+The preset section supports:
 
-- create a new preset
-- load an existing preset
-- rename or delete a preset
-- set a preset as the startup default
-
-The create action is exposed as a compact icon button in the preset area.
+- creating a new preset
+- loading an existing preset
+- renaming and deleting custom presets
+- setting a preset as the startup default
 
 ### Theme and language
 
-The top-right floating controls let you:
+The floating controls in the top-right corner let you:
 
 - switch between light and dark mode
-- switch UI language
-
-The language change and theme change both show bottom toast feedback.
+- change UI language
 
 ### PDF report
 
-The footer includes a `View Report (PDF)` entry. It opens the report inside the built-in modal PDF viewer.
+The footer includes a `View Report (PDF)` entry. It opens the report inside the built-in modal PDF viewer with:
 
-Supported interactions include:
-
-- toolbar zoom in / zoom out
+- zoom in / zoom out
 - reset zoom
 - mobile pinch zoom
-- PDF export / share on supported platforms
-
-On Android, if the PDF viewer is open, pressing the native back key closes the PDF and returns you to the main app page instead of exiting to the launcher.
-
-### Contact leader
-
-The `Contact Leader` button intentionally uses a two-step flow:
-
-1. The email address is copied to the clipboard immediately.
-2. A bottom toast confirms the copy operation.
-3. About 1 second later, the app attempts to open the default mail client through `mailto:`.
-
-This behavior is intentional. It helps in cases where direct email jumps fail on mobile browsers or embedded WebViews. Even if the jump does not succeed, the email address is already copied and can be pasted manually.
-
-Email address:
-
-```text
-project-team@users.noreply.github.com
-```
-
-For automatic jump success, the device should have a default mail app configured, such as QQ Mail, Outlook, Gmail, or another app that supports `mailto:` links.
+- export / share on supported platforms
 
 ## Android packaging
 
@@ -201,35 +165,10 @@ Expected APK output:
 android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Notes:
-
-- Release signing files such as `android/key.properties` and keystores are intentionally not committed.
-- If you want to build a release APK, add your own signing configuration locally first.
-
-## Common questions
-
-### Why can I not start the simulation after changing parameters?
-
-Because the app requires a reset after parameter changes. Click `Reset System` first, then start the simulation again.
-
-### Why did the email not open automatically?
-
-Common reasons:
-
-- no default mail app is configured
-- the current browser blocks `mailto:` jumps
-- the app is running inside an embedded WebView without a registered email handler
-
-In those cases, use the copied email address manually.
-
-### Why is the repository missing APK files and build outputs?
-
-This repository is intentionally source-only. Local artifacts such as `dist/`, `output/`, APK files, Android cache files, and local signing materials are ignored so the GitHub repository stays clean and reproducible.
-
 ## Repository layout
 
 - `App.tsx`: main app shell and high-level interaction logic
-- `components/`: UI components such as the simulation canvas, footer, stats panel, and PDF modal
+- `components/`: UI components such as the simulation canvas, charts, footer, stats panel, and PDF modal
 - `services/`: physics engine and translation resources
 - `public/`: static files, PDF report, icons, and manifest
 - `android/`: Capacitor Android project
