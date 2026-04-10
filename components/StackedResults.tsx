@@ -69,7 +69,7 @@ const SummaryCard: React.FC<{
   const formulaClass = isDarkMode ? 'text-slate-500' : 'text-slate-400';
 
   return (
-    <div className={`rounded-[1.15rem] border px-4 py-3.5 shadow-[0_16px_40px_-34px_rgba(15,23,42,0.35)] ${shellClass}`}>
+    <div className={`rounded-panel border px-4 py-3.5 shadow-[0_16px_40px_-34px_rgba(15,23,42,0.35)] ${shellClass}`}>
       <div className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${labelClass}`}>
         {metric.label}
       </div>
@@ -166,14 +166,14 @@ const StackedResults: React.FC<StackedResultsProps> = ({
       <div className={`${isFullscreen ? 'mx-auto max-w-[1540px]' : ''}`}>
         <button
           onClick={toggleFullscreen}
-          className={`absolute right-0 top-0 z-20 inline-flex h-10 w-10 items-center justify-center rounded-[1rem] border border-slate-200 bg-white text-slate-500 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 ${hoverClass}`}
+          className={`absolute right-0 top-0 z-20 inline-flex h-10 w-10 items-center justify-center rounded-panel border border-slate-200 bg-white text-slate-500 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 ${hoverClass}`}
           title={isFullscreen ? t.common.collapse : t.common.expandAll}
         >
           {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
         </button>
 
         <div className="pr-14">
-          <div className={`rounded-[1.5rem] border px-4 py-4 shadow-[0_20px_55px_-38px_rgba(15,23,42,0.4)] md:px-5 md:py-5 ${summaryShell}`}>
+          <div className={`rounded-panel border px-4 py-4 shadow-[0_20px_55px_-38px_rgba(15,23,42,0.4)] md:px-5 md:py-5 ${summaryShell}`}>
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div className="min-w-0">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
@@ -231,7 +231,7 @@ const StackedResults: React.FC<StackedResultsProps> = ({
                   isDarkMode={isDarkMode}
                 />
 
-                <div className={`rounded-[1.5rem] border px-4 py-4 shadow-[0_20px_55px_-38px_rgba(15,23,42,0.4)] md:px-5 md:py-5 ${detailShell}`}>
+                <div className={`rounded-panel border px-4 py-4 shadow-[0_20px_55px_-38px_rgba(15,23,42,0.4)] md:px-5 md:py-5 ${detailShell}`}>
                   <div className="border-b border-slate-200/80 pb-3 dark:border-slate-800">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
                       {t.views.completed}
@@ -253,7 +253,7 @@ const StackedResults: React.FC<StackedResultsProps> = ({
               </div>
 
               <div
-                className={`rounded-[1.5rem] border px-4 py-4 shadow-[0_20px_55px_-38px_rgba(15,23,42,0.4)] md:px-5 md:py-5 ${detailShell}`}
+                className={`rounded-panel border px-4 py-4 shadow-[0_20px_55px_-38px_rgba(15,23,42,0.4)] md:px-5 md:py-5 ${detailShell}`}
               >
                 <div className="border-b border-slate-200/80 pb-3 dark:border-slate-800">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">

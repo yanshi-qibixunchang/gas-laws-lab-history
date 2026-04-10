@@ -72,7 +72,7 @@ const CollapsibleCard: React.FC<CollapsibleCardProps> = ({
     <div 
       className={`
         bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800
-        rounded-[1.5rem] overflow-hidden transition-all duration-300 ease-out
+        rounded-panel overflow-hidden transition-all duration-300 ease-out
         shadow-sm shadow-slate-100 dark:shadow-none
         ${className}
       `}
@@ -85,7 +85,7 @@ const CollapsibleCard: React.FC<CollapsibleCardProps> = ({
         `}
       >
         <div className="flex items-center gap-3">
-          {icon && <span className="text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-2 rounded-[1rem]">{icon}</span>}
+          {icon && <span className="text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-2 rounded-panel">{icon}</span>}
           <h3 className="font-bold text-slate-800 dark:text-slate-200 tracking-tight text-sm md:text-base select-none">{title}</h3>
         </div>
         

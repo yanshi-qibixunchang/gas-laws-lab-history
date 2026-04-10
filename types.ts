@@ -58,7 +58,7 @@ export interface ChartData {
 }
 
 // Translation Types
-export type LanguageCode = 'zh-CN' | 'zh-TW' | 'en-GB' | 'en-US';
+export type LanguageCode = 'zh-CN' | 'zh-TW' | 'en-GB';
 
 export interface InputCapabilities {
   supportsHover: boolean;

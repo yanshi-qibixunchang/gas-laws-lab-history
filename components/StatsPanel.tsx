@@ -55,7 +55,7 @@ const StatItem = ({
   supportsHover = true
 }: StatItemProps) => (
   <div
-    className={`group relative flex flex-col overflow-hidden rounded-[1.15rem] border border-slate-200 bg-white/60 p-4 shadow-sm backdrop-blur-md transition-shadow dark:border-slate-700 dark:bg-slate-800/60 ${supportsHover ? 'hover:shadow-md' : ''}`}
+    className={`group relative flex flex-col overflow-hidden rounded-panel border border-slate-200 bg-white/60 p-4 shadow-sm backdrop-blur-md transition-shadow dark:border-slate-700 dark:bg-slate-800/60 ${supportsHover ? 'hover:shadow-md' : ''}`}
   >
     <div className={`absolute right-0 top-0 p-1.5 opacity-10 transition-opacity ${colorClass} ${supportsHover ? 'group-hover:opacity-20' : ''}`}>
       {React.cloneElement(icon, { size: 32 })}
@@ -212,7 +212,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ stats, eqTime, statDuration, t,
         <StatItem label={t.stats.meanSpeed} value={stats.meanSpeed} unit="m/s" icon={<Wind />} colorClass="text-sciblue-500 dark:text-sciblue-400" isEnglishUI={isEnglishUI} supportsHover={supportsHover} />
         <StatItem label={renderRmsLabel(t.stats.rmsSpeed)} value={stats.rmsSpeed} unit="m/s" icon={<Activity />} colorClass="text-emerald-500 dark:text-emerald-400" isEnglishUI={isEnglishUI} supportsHover={supportsHover} />
 
-        <div className="col-span-2 mt-2 rounded-[1.15rem] border border-slate-200/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-slate-700/70 dark:bg-slate-900/60 md:col-span-4">
+        <div className="col-span-2 mt-2 rounded-panel border border-slate-200/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-slate-700/70 dark:bg-slate-900/60 md:col-span-4">
           <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className={`flex items-center gap-2 ${statusColor} ${isEnglishUI ? 'font-data text-[10px] font-bold uppercase tracking-[0.14em]' : 'text-[11px] font-semibold tracking-[0.04em]'}`}>
               <span className={`h-1.5 w-1.5 rounded-sm ${progressColor} animate-pulse`} />
@@ -224,11 +224,11 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ stats, eqTime, statDuration, t,
           </div>
 
           <div className={`mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 ${metaLabelClass}`}>
-            <div className="rounded-[1rem] border border-slate-200/80 bg-slate-50/80 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/60">
+            <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/60">
               <div className={statCardLabelClass}>{t.stats.phaseTime}</div>
               <div className="font-mono text-xs text-slate-700 dark:text-slate-200">{phaseDurationLabel}</div>
             </div>
-            <div className="rounded-[1rem] border border-slate-200/80 bg-slate-50/80 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/60">
+            <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/60">
               <div className={statCardLabelClass}>{t.stats.overallTime}</div>
               <div className="font-mono text-xs text-slate-700 dark:text-slate-200">{totalDurationLabel}</div>
             </div>

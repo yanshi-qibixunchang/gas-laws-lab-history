@@ -29,6 +29,9 @@ module.exports = {
           950: '#082f49'
         }
       },
+      borderRadius: {
+        panel: '1.25rem'
+      },
       animation: {
         'fade-in': 'fadeIn 0.6s ease-out',
         'slide-up': 'slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)',

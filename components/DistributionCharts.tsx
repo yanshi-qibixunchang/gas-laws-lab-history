@@ -121,7 +121,7 @@ const ChartTooltip = ({
   const tooltipMuted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
 
   return (
-    <div className={`min-w-[150px] rounded-[1.15rem] border px-3 py-2.5 text-[11px] ${tooltipShell}`}>
+    <div className={`min-w-[150px] rounded-panel border px-3 py-2.5 text-[11px] ${tooltipShell}`}>
       <div className="border-b border-slate-200/70 pb-2 dark:border-slate-800">
         <div className={`text-[10px] uppercase tracking-[0.18em] ${tooltipMuted}`}>{headerLabel}</div>
         <div className="mt-1 font-data text-sm font-semibold">{formatTooltipValue(Number(label))}</div>
@@ -286,8 +286,8 @@ const DistributionCharts: React.FC<ChartProps> = ({
   };
 
   const shellClass = embedded
-    ? `rounded-[1.15rem] border ${theme.border} ${theme.surface} px-3.5 py-3.5 md:px-4 md:py-4`
-    : `rounded-[1.5rem] border ${theme.border} ${theme.surface} px-4 py-4 shadow-[0_20px_48px_-34px_rgba(15,23,42,0.42)] md:px-5 md:py-5`;
+    ? `rounded-panel border ${theme.border} ${theme.surface} px-3.5 py-3.5 md:px-4 md:py-4`
+    : `rounded-panel border ${theme.border} ${theme.surface} px-4 py-4 shadow-[0_20px_48px_-34px_rgba(15,23,42,0.42)] md:px-5 md:py-5`;
   const plotAreaClass = embedded ? 'mt-3' : 'mt-4';
 
   const commonMargin = embedded
@@ -524,7 +524,7 @@ const DistributionCharts: React.FC<ChartProps> = ({
 
   return (
     <div className={`w-full ${shellClass}`}>
-      <div className={`rounded-[1.15rem] border border-transparent bg-gradient-to-b ${theme.badgeBackground}`}>
+      <div className={`rounded-panel border border-transparent bg-gradient-to-b ${theme.badgeBackground}`}>
         <div className={embedded ? 'pb-2.5' : 'pb-3'}>
           <div className={`text-[10px] font-semibold uppercase tracking-[0.22em] ${theme.eyebrow}`}>
             {eyebrowMap[type]}
@@ -550,7 +550,7 @@ const DistributionCharts: React.FC<ChartProps> = ({
           </div>
         </div>
         <div
-          className={`rounded-[1.15rem] border ${theme.border} overflow-hidden`}
+          className={`rounded-panel border ${theme.border} overflow-hidden`}
           style={{ backgroundColor: theme.plotSurface }}
         >
           <div className={`relative w-full ${plotAreaClass} ${heightClass}`}>{renderChart()}</div>

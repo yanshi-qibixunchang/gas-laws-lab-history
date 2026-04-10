@@ -141,8 +141,7 @@ html:lang(zh-TW) {
 }
 
 html:lang(en),
-html:lang(en-GB),
-html:lang(en-US) {
+html:lang(en-GB) {
   font-family: var(--app-font-ui-en);
 }
 

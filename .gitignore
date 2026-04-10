@@ -30,6 +30,7 @@ android/.gradle/
 android/.idea/
 android/.kotlin/
 android/build/
+android/local-maven/
 android/local.properties
 android/key.properties
 android/keystore/

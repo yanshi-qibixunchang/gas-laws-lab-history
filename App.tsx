@@ -69,7 +69,7 @@ const DistributionCharts = lazy(() => import('./components/DistributionCharts'))
 const StackedResults = lazy(() => import('./components/StackedResults'));
 
 const ChartPanelFallback: React.FC<{ heightClass: string }> = ({ heightClass }) => (
-  <div className="w-full animate-pulse rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-4 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.35)] dark:border-slate-800/80 dark:bg-slate-950/75">
+  <div className="w-full animate-pulse rounded-panel border border-slate-200/80 bg-white/90 p-4 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.35)] dark:border-slate-800/80 dark:bg-slate-950/75">
     <div className="mb-3 flex items-center justify-between gap-3 border-b border-slate-200/70 pb-3 dark:border-slate-800">
       <div>
         <div className="mb-2 h-2.5 w-20 rounded-full bg-slate-200 dark:bg-slate-800" />
@@ -80,7 +80,7 @@ const ChartPanelFallback: React.FC<{ heightClass: string }> = ({ heightClass }) 
         <div className="h-7 w-20 rounded-full bg-slate-100 dark:bg-slate-800" />
       </div>
     </div>
-    <div className={`rounded-[1.15rem] border border-slate-200/70 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70 ${heightClass}`}>
+    <div className={`rounded-panel border border-slate-200/70 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70 ${heightClass}`}>
       <div className="grid h-full grid-cols-6 gap-2">
         {Array.from({ length: 18 }).map((_, index) => (
         <div
@@ -98,7 +98,7 @@ const ResultsPlaceholder: React.FC<{ t: Translation; lang: LanguageCode }> = ({ 
   const isEnglishUI = lang.startsWith('en');
 
   return (
-  <div className="relative overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white/80 p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/70">
+  <div className="relative overflow-hidden rounded-panel border border-slate-200/80 bg-white/80 p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/70">
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.08),transparent_45%)]" />
     <div className="relative">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -113,9 +113,9 @@ const ResultsPlaceholder: React.FC<{ t: Translation; lang: LanguageCode }> = ({ 
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="rounded-[1.15rem] border border-slate-200/80 bg-slate-50/80 p-3 dark:border-slate-700/80 dark:bg-slate-800/60">
+          <div key={index} className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-3 dark:border-slate-700/80 dark:bg-slate-800/60">
             <div className="mb-3 h-3 w-28 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-            <div className="h-44 animate-pulse rounded-[1.15rem] bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700" />
+            <div className="h-44 animate-pulse rounded-panel bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700" />
           </div>
         ))}
       </div>
@@ -613,8 +613,8 @@ function App() {
     ? 'uppercase tracking-[0.16em]'
     : 'tracking-[0.05em]';
   const versionBadgeClass = isEnglishUI
-    ? `inline-flex items-center justify-center gap-2 rounded-2xl bg-white/70 px-4 py-1.5 text-slate-600 shadow-sm ring-1 ring-slate-100 backdrop-blur-md dark:bg-slate-800/70 dark:text-slate-200 dark:ring-slate-800 border border-slate-200/70 dark:border-slate-700/70 text-[9px] sm:text-[10px] font-bold tracking-[0.12em] ${isMobile ? 'max-w-[min(92vw,18rem)]' : 'max-w-[90vw]'}`
-    : `inline-flex items-center justify-center gap-2 rounded-2xl bg-white/70 px-4 py-1.5 text-slate-600 shadow-sm ring-1 ring-slate-100 backdrop-blur-md dark:bg-slate-800/70 dark:text-slate-200 dark:ring-slate-800 border border-slate-200/70 dark:border-slate-700/70 text-[10px] sm:text-[11px] font-semibold tracking-[0.05em] ${isMobile ? 'max-w-[min(92vw,18rem)]' : 'max-w-[90vw]'}`;
+    ? `inline-flex items-center justify-center gap-2 rounded-panel bg-white/70 px-4 py-1.5 text-slate-600 shadow-sm ring-1 ring-slate-100 backdrop-blur-md dark:bg-slate-800/70 dark:text-slate-200 dark:ring-slate-800 border border-slate-200/70 dark:border-slate-700/70 text-[9px] sm:text-[10px] font-bold tracking-[0.12em] ${isMobile ? 'max-w-[min(92vw,18rem)]' : 'max-w-[90vw]'}`
+    : `inline-flex items-center justify-center gap-2 rounded-panel bg-white/70 px-4 py-1.5 text-slate-600 shadow-sm ring-1 ring-slate-100 backdrop-blur-md dark:bg-slate-800/70 dark:text-slate-200 dark:ring-slate-800 border border-slate-200/70 dark:border-slate-700/70 text-[10px] sm:text-[11px] font-semibold tracking-[0.05em] ${isMobile ? 'max-w-[min(92vw,18rem)]' : 'max-w-[90vw]'}`;
   const versionBadgeTextClass = isMobile
     ? 'min-w-0 max-w-[22ch] text-center leading-tight break-words [overflow-wrap:anywhere]'
     : 'truncate whitespace-nowrap';
@@ -1279,8 +1279,7 @@ function App() {
     switch(l) {
         case 'zh-CN': return '简体中文';
         case 'zh-TW': return '繁體中文';
-        case 'en-GB': return 'English (UK)';
-        case 'en-US': return 'English (US)';
+        case 'en-GB': return 'English';
         default: return l;
     }
   };
@@ -1292,9 +1291,7 @@ function App() {
       case 'zh-TW':
         return '繁體中文';
       case 'en-GB':
-        return 'English (UK)';
-      case 'en-US':
-        return 'English (US)';
+        return 'English';
       default:
         return l;
     }
@@ -1307,9 +1304,7 @@ function App() {
       case 'zh-TW':
         return '繁體中文';
       case 'en-GB':
-        return 'English (UK)';
-      case 'en-US':
-        return 'English (US)';
+        return 'English';
       default:
         return l;
     }
@@ -1489,7 +1484,7 @@ function App() {
                                             openCreatePresetModal();
                                         }}
                                         aria-label={t.storage.newPreset}
-                                        className={`inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${isDesktopLike ? 'hover:border-sciblue-300 hover:text-sciblue-600 dark:hover:border-sciblue-500 dark:hover:text-sciblue-300' : 'active:scale-95'}`}
+                                        className={`inline-flex h-8 w-8 items-center justify-center rounded-panel border border-slate-200 bg-white text-slate-500 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${isDesktopLike ? 'hover:border-sciblue-300 hover:text-sciblue-600 dark:hover:border-sciblue-500 dark:hover:text-sciblue-300' : 'active:scale-95'}`}
                                         title={t.storage.newPreset}
                                     >
                                         <FolderPlus size={15} strokeWidth={1.8} />
@@ -1646,7 +1641,7 @@ function App() {
                                                 onFocus={handleInputFocus} // ADDED FOCUS HANDLER
                                                 style={sidebarInputScrollMarginStyle}
                                                 /* MODIFIED: Compact input styles (text-xs, py-1, px-2) to fit 70vw */
-                                                className={`w-full rounded-md border border-slate-200 bg-slate-50 px-3 font-mono text-slate-700 outline-none transition-all focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:bg-slate-700 ${sidebarInputTextClass} ${sidebarInputPaddingClass} ${isRunning ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-900' : 'focus:border-sciblue-500 focus:ring-1 focus:ring-sciblue-500/20 hover:border-slate-300 dark:hover:border-slate-600'}`}
+                                                className={`w-full rounded-panel border border-slate-200 bg-slate-50 px-3 font-mono text-slate-700 outline-none transition-all focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:bg-slate-700 ${sidebarInputTextClass} ${sidebarInputPaddingClass} ${isRunning ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-900' : 'focus:border-sciblue-500 focus:ring-1 focus:ring-sciblue-500/20 hover:border-slate-300 dark:hover:border-slate-600'}`}
                                                 />
                                                 {isRunning && <Lock size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"/>}
                                             </div>
@@ -1670,7 +1665,7 @@ function App() {
                         onClick={handleStartPause}
                         aria-disabled={needsReset}
                         className={`
-                            ${actionButtonWidthClass} font-bold ${actionButtonPaddingClass} px-4 rounded-lg flex items-center justify-center gap-2 transition-all ${actionButtonTextClass} shadow-sm
+                            ${actionButtonWidthClass} font-bold ${actionButtonPaddingClass} px-4 rounded-panel flex items-center justify-center gap-2 transition-all ${actionButtonTextClass} shadow-sm
                             ${needsReset 
                                 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-200 dark:border-slate-700' 
                                 : !isRunning 
@@ -1691,7 +1686,7 @@ function App() {
                     <button 
                     onClick={handleReset}
                     className={`
-                        ${actionButtonWidthClass} font-medium ${actionButtonPaddingClass} px-4 rounded-lg flex items-center justify-center gap-2 transition-all border ${actionButtonTextClass}
+                        ${actionButtonWidthClass} font-medium ${actionButtonPaddingClass} px-4 rounded-panel flex items-center justify-center gap-2 transition-all border ${actionButtonTextClass}
                         ${isRunning 
                             ? 'bg-slate-50 dark:bg-slate-800 text-slate-300 dark:text-slate-600 border-slate-100 dark:border-slate-800 cursor-not-allowed'
                             : needsReset 
@@ -1877,7 +1872,7 @@ function App() {
                       {/* Arrow pointing up */}
                       <div className="ml-3 h-0 w-0 border-x-[6px] border-x-transparent border-b-[8px] border-b-white/80 drop-shadow-sm dark:border-b-slate-900/70"></div>
                       {/* Text Bubble */}
-                      <div className="min-w-[10rem] max-w-full rounded-[1.15rem] border border-sciblue-400/60 bg-white/[0.8] px-3 py-2.5 shadow-lg backdrop-blur-md dark:bg-slate-900/[0.72]">
+                      <div className="min-w-[10rem] max-w-full rounded-panel border border-sciblue-400/60 bg-white/[0.8] px-3 py-2.5 shadow-lg backdrop-blur-md dark:bg-slate-900/[0.72]">
                         <p className={`mx-auto text-center text-[11px] font-bold leading-snug text-sciblue-700 dark:text-sciblue-50 break-words [overflow-wrap:anywhere] ${guideBubbleTextWidthClass}`}>
                           {t.hints.sidebarTitle}
                         </p>
@@ -1961,7 +1956,7 @@ function App() {
             `}
         >
             <div className={`
-                min-h-[48px] max-w-[min(92vw,24rem)] px-4 py-2.5 rounded-[1.15rem] shadow-xl flex items-center justify-center gap-3 border backdrop-blur-md
+                min-h-[48px] max-w-[min(92vw,24rem)] px-4 py-2.5 rounded-panel shadow-xl flex items-center justify-center gap-3 border backdrop-blur-md
                 ${notification.type === 'success' ? 'bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900' : 
                   notification.type === 'warning' ? 'bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-900' : 
                   'bg-slate-800 dark:bg-white text-white dark:text-slate-900 border-slate-700 dark:border-slate-200'}
@@ -2003,8 +1998,8 @@ function App() {
                 <span className="sr-only">{t.header.language}</span>
             </button>
             <div className={`absolute right-0 top-full w-48 pt-2 transition-all duration-200 origin-top-right z-50 ${isLangMenuOpen ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95 pointer-events-none'}`}>
-                <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[1.15rem] shadow-xl overflow-hidden py-1">
-                    {['zh-CN', 'zh-TW', 'en-GB', 'en-US'].map((l) => (
+                <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-panel shadow-xl overflow-hidden py-1">
+                    {['zh-CN', 'zh-TW', 'en-GB'].map((l) => (
                         <button
                             type="button"
                             key={l}
@@ -2033,7 +2028,7 @@ function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-preset-title"
-            className="relative z-10 w-full max-w-sm rounded-[1.5rem] border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
+            className="relative z-10 w-full max-w-sm rounded-panel border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -2070,21 +2065,21 @@ function App() {
                   }
                 }}
                 style={sidebarInputScrollMarginStyle}
-                className={`w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-slate-700 focus:border-sciblue-500 focus:outline-none focus:ring-2 focus:ring-sciblue-500/15 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 ${sidebarInputTextClass} ${sidebarInputPaddingClass}`}
+                className={`w-full rounded-panel border border-slate-200 bg-slate-50 px-4 text-slate-700 focus:border-sciblue-500 focus:outline-none focus:ring-2 focus:ring-sciblue-500/15 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 ${sidebarInputTextClass} ${sidebarInputPaddingClass}`}
               />
 
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={closeCreatePresetModal}
-                  className={`inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-500 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${isDesktopLike ? 'hover:border-slate-300 hover:text-slate-700 dark:hover:border-slate-600 dark:hover:text-slate-100' : 'active:scale-95'}`}
+                  className={`inline-flex min-h-[44px] w-full items-center justify-center rounded-panel border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-500 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${isDesktopLike ? 'hover:border-slate-300 hover:text-slate-700 dark:hover:border-slate-600 dark:hover:text-slate-100' : 'active:scale-95'}`}
                 >
                   <span className={`mx-auto text-center leading-tight break-words [overflow-wrap:anywhere] ${presetActionTextWidthClass}`}>{t.storage.cancel}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSaveConfig(newConfigName)}
-                  className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-sciblue-500 bg-sciblue-500 px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition-all ${isDesktopLike ? 'hover:bg-sciblue-600 hover:border-sciblue-600' : 'active:scale-95'}`}
+                  className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-panel border border-sciblue-500 bg-sciblue-500 px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition-all ${isDesktopLike ? 'hover:bg-sciblue-600 hover:border-sciblue-600' : 'active:scale-95'}`}
                 >
                   {presetModalMode === 'rename' ? <Pencil size={14} className="hidden shrink-0 sm:block" /> : <Save size={14} className="hidden shrink-0 sm:block" />}
                   <span className={`mx-auto text-center leading-tight break-words [overflow-wrap:anywhere] ${presetActionTextWidthClass}`}>{presetModalMode === 'rename' ? t.storage.confirmRename : t.storage.confirmCreate}</span>
@@ -2106,7 +2101,7 @@ function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-preset-title"
-            className="relative z-10 w-full max-w-sm rounded-[1.5rem] border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
+            className="relative z-10 w-full max-w-sm rounded-panel border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -2128,7 +2123,7 @@ function App() {
               </button>
             </div>
 
-            <div className="mb-4 rounded-[1.15rem] border border-rose-100 bg-rose-50/80 px-4 py-3 text-rose-600 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-200">
+            <div className="mb-4 rounded-panel border border-rose-100 bg-rose-50/80 px-4 py-3 text-rose-600 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-200">
               <div className="flex items-center gap-2">
                 <Trash2 size={16} className="shrink-0" />
                 <span className={`text-sm font-semibold leading-snug break-words [overflow-wrap:anywhere] ${deleteDialogTextWidthClass}`}>
@@ -2141,14 +2136,14 @@ function App() {
               <button
                 type="button"
                 onClick={closeDeleteConfirm}
-                className={`inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-500 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${isDesktopLike ? 'hover:border-slate-300 hover:text-slate-700 dark:hover:border-slate-600 dark:hover:text-slate-100' : 'active:scale-95'}`}
+                className={`inline-flex min-h-[44px] w-full items-center justify-center rounded-panel border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-500 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${isDesktopLike ? 'hover:border-slate-300 hover:text-slate-700 dark:hover:border-slate-600 dark:hover:text-slate-100' : 'active:scale-95'}`}
               >
                 <span className={`mx-auto text-center leading-tight break-words [overflow-wrap:anywhere] ${presetActionTextWidthClass}`}>{t.storage.cancel}</span>
               </button>
               <button
                 type="button"
                 onClick={handleDeleteConfig}
-                className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-rose-500 bg-rose-500 px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition-all ${isDesktopLike ? 'hover:border-rose-600 hover:bg-rose-600' : 'active:scale-95'}`}
+                className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-panel border border-rose-500 bg-rose-500 px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition-all ${isDesktopLike ? 'hover:border-rose-600 hover:bg-rose-600' : 'active:scale-95'}`}
               >
                 <Trash2 size={14} className="hidden shrink-0 sm:block" />
                 <span className={`mx-auto text-center leading-tight break-words [overflow-wrap:anywhere] ${presetActionTextWidthClass}`}>{t.storage.delete}</span>
@@ -2161,13 +2156,13 @@ function App() {
       {presetActionMenu && activePresetMenuConfig && (
         <div
           ref={presetActionMenuRef}
-          className="fixed z-[128] w-48 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white/95 p-1 shadow-[0_20px_50px_rgba(15,23,42,0.22)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
+          className="fixed z-[128] w-48 overflow-hidden rounded-panel border border-slate-200/80 bg-white/95 p-1 shadow-[0_20px_50px_rgba(15,23,42,0.22)] backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/95"
           style={{ top: `${presetActionMenu.top}px`, left: `${presetActionMenu.left}px` }}
         >
           <button
             type="button"
             onClick={() => handleSetStartupPreset(activePresetMenuConfig)}
-            className={`flex w-full items-center gap-2 rounded-[1rem] px-3 py-2 text-left text-xs font-medium text-slate-600 transition-colors dark:text-slate-200 ${isDesktopLike ? 'hover:bg-slate-100 dark:hover:bg-slate-800' : 'active:scale-[0.99]'}`}
+            className={`flex w-full items-center gap-2 rounded-panel px-3 py-2 text-left text-xs font-medium text-slate-600 transition-colors dark:text-slate-200 ${isDesktopLike ? 'hover:bg-slate-100 dark:hover:bg-slate-800' : 'active:scale-[0.99]'}`}
           >
             <Check size={14} className="text-emerald-500" />
             <span>{t.storage.setDefault}</span>
@@ -2178,7 +2173,7 @@ function App() {
               <button
                 type="button"
                 onClick={() => openRenamePresetModal(activePresetMenuConfig)}
-                className={`flex w-full items-center gap-2 rounded-[1rem] px-3 py-2 text-left text-xs font-medium text-slate-600 transition-colors dark:text-slate-200 ${isDesktopLike ? 'hover:bg-slate-100 dark:hover:bg-slate-800' : 'active:scale-[0.99]'}`}
+                className={`flex w-full items-center gap-2 rounded-panel px-3 py-2 text-left text-xs font-medium text-slate-600 transition-colors dark:text-slate-200 ${isDesktopLike ? 'hover:bg-slate-100 dark:hover:bg-slate-800' : 'active:scale-[0.99]'}`}
               >
                 <Pencil size={14} className="text-sciblue-500" />
                 <span>{t.storage.rename}</span>
@@ -2187,7 +2182,7 @@ function App() {
               <button
                 type="button"
                 onClick={() => requestDeleteConfig(activePresetMenuConfig)}
-                className={`flex w-full items-center gap-2 rounded-[1rem] px-3 py-2 text-left text-xs font-medium text-rose-500 transition-colors ${isDesktopLike ? 'hover:bg-rose-50 dark:hover:bg-rose-900/20' : 'active:scale-[0.99]'}`}
+                className={`flex w-full items-center gap-2 rounded-panel px-3 py-2 text-left text-xs font-medium text-rose-500 transition-colors ${isDesktopLike ? 'hover:bg-rose-50 dark:hover:bg-rose-900/20' : 'active:scale-[0.99]'}`}
               >
                 <Trash2 size={14} />
                 <span>{t.storage.delete}</span>
