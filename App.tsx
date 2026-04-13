@@ -10,6 +10,11 @@ import CollapsibleCard from './components/CollapsibleCard';
 import StatsPanel from './components/StatsPanel';
 import Footer from './components/Footer';
 
+interface DeferredInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
+
 // Default Constants
 const DEFAULT_PARAMS: SimulationParams = {
   L: 15,
@@ -24,6 +29,7 @@ const DEFAULT_PARAMS: SimulationParams = {
 };
 
 const APP_VERSION = '3.4.3';
+const APP_ANDROID_APK_PATH = '/downloads/HSS-android-v3.4.3.apk';
 
 const areParamsEqual = (a: SimulationParams, b: SimulationParams) => (
   a.N === b.N &&
@@ -124,6 +130,120 @@ const ResultsPlaceholder: React.FC<{ t: Translation; lang: LanguageCode }> = ({ 
   );
 };
 
+const InstallPromptModal: React.FC<{
+  t: Translation;
+  mode: 'desktop' | 'android' | 'ios';
+  isDarkMode: boolean;
+  supportsHover: boolean;
+  frameStyle?: React.CSSProperties;
+  onInstall?: () => void;
+  onDownloadApk?: () => void;
+  onClose: () => void;
+}> = ({ t, mode, isDarkMode, supportsHover, frameStyle, onInstall, onDownloadApk, onClose }) => {
+  const isInstallMode = mode === 'desktop' || mode === 'android';
+  const title = mode === 'desktop'
+    ? t.installPrompt.desktopTitle
+    : mode === 'android'
+      ? t.installPrompt.androidTitle
+      : t.installPrompt.iosTitle;
+  const body = mode === 'desktop'
+    ? t.installPrompt.desktopBody
+    : mode === 'android'
+      ? t.installPrompt.androidBody
+      : t.installPrompt.iosBody;
+  const installLabel = mode === 'android' ? t.installPrompt.androidConfirm : t.installPrompt.desktopConfirm;
+  const shellClass = isDarkMode
+    ? 'border-slate-700/80 bg-slate-900/95 text-slate-100'
+    : 'border-slate-200/80 bg-white/95 text-slate-900';
+  const closeHoverClass = supportsHover
+    ? 'hover:border-sciblue-300 hover:text-sciblue-600 dark:hover:border-sciblue-600 dark:hover:text-sciblue-300'
+    : '';
+  const secondaryHoverClass = supportsHover
+    ? 'hover:border-slate-300 hover:text-slate-700 dark:hover:border-slate-600 dark:hover:text-slate-100'
+    : '';
+
+  return (
+    <div className="fixed inset-0 z-[140] flex items-center justify-center px-4" style={frameStyle}>
+      <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-sm" onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="install-prompt-title"
+        className={`relative z-10 w-full max-w-md rounded-panel border p-5 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-md ${shellClass}`}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-sciblue-500 dark:text-sciblue-300">
+              HSS
+            </p>
+            <h2 id="install-prompt-title" className="mt-1 text-xl font-bold tracking-tight">
+              {title}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className={`flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500 ${closeHoverClass}`}
+            title={t.common.closeCard}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
+          {body}
+        </p>
+
+        {mode === 'ios' && (
+          <ol className="mt-4 space-y-3">
+            {[t.installPrompt.iosStepOne, t.installPrompt.iosStepTwo, t.installPrompt.iosStepThree].map((step, index) => (
+              <li
+                key={step}
+                className="flex items-start gap-3 rounded-panel border border-slate-200/80 bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-600 dark:border-slate-700/80 dark:bg-slate-800/70 dark:text-slate-300"
+              >
+                <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sciblue-500/10 font-data text-xs font-semibold text-sciblue-600 dark:text-sciblue-300">
+                  {index + 1}
+                </span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className={`inline-flex min-h-[44px] items-center justify-center rounded-panel border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-500 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 ${secondaryHoverClass}`}
+          >
+            {isInstallMode ? t.installPrompt.later : t.installPrompt.gotIt}
+          </button>
+          {mode === 'android' && onDownloadApk && (
+            <button
+              type="button"
+              onClick={onDownloadApk}
+              className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded-panel border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 ${secondaryHoverClass}`}
+            >
+              <Download size={16} />
+              {t.installPrompt.androidDownload}
+            </button>
+          )}
+          {isInstallMode && onInstall && (
+            <button
+              type="button"
+              onClick={onInstall}
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-panel border border-sciblue-500 bg-sciblue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:border-sciblue-600 hover:bg-sciblue-600"
+            >
+              <Download size={16} />
+              {installLabel}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function App() {
   // Language State
   const [lang, setLang] = useState<LanguageCode>('zh-CN');
@@ -178,6 +298,8 @@ function App() {
   const [presetActionMenu, setPresetActionMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const [deleteConfirmConfig, setDeleteConfirmConfig] = useState<SavedConfig | null>(null);
   const [isPdfOpen, setIsPdfOpen] = useState(false);
+  const [installPromptMode, setInstallPromptMode] = useState<'desktop' | 'android' | 'ios' | null>(null);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<DeferredInstallPromptEvent | null>(null);
 
   const [stats, setStats] = useState<SimulationStats>({
     time: 0, temperature: 0, pressure: 0, meanSpeed: 0, rmsSpeed: 0,
@@ -214,6 +336,7 @@ function App() {
     bottom: number;
   } | null>(null);
   const [hideVersionBadge, setHideVersionBadge] = useState(false);
+  const installPromptTimeoutRef = useRef<number | null>(null);
   const stretchStateRef = useRef({
     startY: 0,
     active: false,
@@ -836,6 +959,36 @@ function App() {
     };
   }, [presetActionMenu]);
 
+  const closeInstallPrompt = useCallback(() => {
+    localStorage.setItem('hsl_install_prompt_dismissed', '1');
+    setInstallPromptMode(null);
+    setDeferredInstallPrompt(null);
+  }, []);
+
+  const handleInstallPromptConfirm = useCallback(async () => {
+    if (!deferredInstallPrompt) {
+      closeInstallPrompt();
+      return;
+    }
+
+    try {
+      await deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+      if (choice.outcome === 'accepted') {
+        localStorage.setItem('hsl_install_prompt_dismissed', '1');
+      }
+    } finally {
+      setInstallPromptMode(null);
+      setDeferredInstallPrompt(null);
+    }
+  }, [closeInstallPrompt, deferredInstallPrompt]);
+
+  const handleDownloadApk = useCallback(() => {
+    localStorage.setItem('hsl_install_prompt_dismissed', '1');
+    setInstallPromptMode(null);
+    window.location.href = APP_ANDROID_APK_PATH;
+  }, []);
+
   useEffect(() => {
     if (!isCreatePresetModalOpen) return;
 
@@ -884,6 +1037,85 @@ function App() {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [deleteConfirmConfig]);
+
+  useEffect(() => {
+    if (!installPromptMode) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeInstallPrompt();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [closeInstallPrompt, installPromptMode]);
+
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) return;
+
+    const dismissedKey = 'hsl_install_prompt_dismissed';
+    const standaloneNavigator = navigator as Navigator & { standalone?: boolean };
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      standaloneNavigator.standalone === true;
+
+    if (isStandalone || localStorage.getItem(dismissedKey) === '1') return;
+
+    const userAgent = navigator.userAgent;
+    const isIOS = /iPhone|iPad|iPod/i.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/i.test(userAgent);
+    const isDesktop = !isIOS && !isAndroid;
+
+    const queuePrompt = (mode: 'desktop' | 'android' | 'ios') => {
+      if (installPromptTimeoutRef.current !== null) {
+        window.clearTimeout(installPromptTimeoutRef.current);
+      }
+      installPromptTimeoutRef.current = window.setTimeout(() => {
+        setInstallPromptMode(mode);
+        installPromptTimeoutRef.current = null;
+      }, 1800);
+    };
+
+    const handleBeforeInstallPrompt = (event: Event) => {
+      const installEvent = event as DeferredInstallPromptEvent;
+      installEvent.preventDefault();
+
+      if (!isDesktop && !isAndroid) return;
+
+      setDeferredInstallPrompt(installEvent);
+      queuePrompt(isAndroid ? 'android' : 'desktop');
+    };
+
+    const handleAppInstalled = () => {
+      setDeferredInstallPrompt(null);
+      setInstallPromptMode(null);
+      localStorage.setItem(dismissedKey, '1');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    if (isIOS) {
+      queuePrompt('ios');
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+      if (installPromptTimeoutRef.current !== null) {
+        window.clearTimeout(installPromptTimeoutRef.current);
+        installPromptTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // Storage Logic: Load on Mount (Merge System + Local)
   useEffect(() => {
@@ -2016,6 +2248,19 @@ function App() {
             </div>
         </div>
       </div>
+
+      {installPromptMode && (
+        <InstallPromptModal
+          t={t}
+          mode={installPromptMode}
+          isDarkMode={isDarkMode}
+          supportsHover={isDesktopLike}
+          frameStyle={overlayFrameStyle}
+          onInstall={installPromptMode === 'ios' ? undefined : handleInstallPromptConfirm}
+          onDownloadApk={installPromptMode === 'android' ? handleDownloadApk : undefined}
+          onClose={closeInstallPrompt}
+        />
+      )}
 
       {isCreatePresetModalOpen && (
         <div

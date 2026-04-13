@@ -147,6 +147,22 @@ export const translations: Record<LanguageCode, Translation> = {
       sidebarTitle: "先从这里开始",
       sidebarBody: "点击按钮展开设置，或直接开始模拟。"
     },
+    installPrompt: {
+      desktopTitle: "安装 HSS 应用",
+      desktopBody: "将 HSS 作为桌面应用安装，后续可更快打开并获得更沉浸的使用体验。",
+      desktopConfirm: "立即安装",
+      androidTitle: "安装 HSS 或下载 APK",
+      androidBody: "你可以将 HSS 安装为网页应用，也可以直接下载 Android APK 安装包。",
+      androidConfirm: "安装网页应用",
+      androidDownload: "下载 Android APK",
+      iosTitle: "添加到主屏幕",
+      iosBody: "iPhone / iPad 无法直接弹出安装确认，请按下面步骤将 HSS 添加到主屏幕。",
+      iosStepOne: "点击浏览器底部或顶部的“分享”按钮。",
+      iosStepTwo: "在菜单中找到“添加到主屏幕”。",
+      iosStepThree: "确认添加后，即可像应用一样从主屏幕打开。",
+      gotIt: "我知道了",
+      later: "以后再说"
+    },
     common: {
       expandDetails: "展开参数设置",
       expandView: "展开视图设置",
@@ -167,11 +183,12 @@ export const translations: Record<LanguageCode, Translation> = {
       supervisor: "指导教师",
       references: "参考资料",
       visitorCount: "欢迎访问本站",
-      school: "Project Institution\n环境工程",
+      school: "Project Institution",
     version: "v3.4.3 正式版",
       links: "相关链接",
       github: "GitHub 仓库",
       report: "查看报告 (PDF)",
+      androidApk: "下载 Android APK",
       exportPdf: "导出 PDF",
       exportFailed: "PDF 导出失败",
       contact: "联系组长",
@@ -330,6 +347,22 @@ export const translations: Record<LanguageCode, Translation> = {
       sidebarTitle: "先從這裡開始",
       sidebarBody: "點擊按鈕展開設置，或直接開始模擬。"
     },
+    installPrompt: {
+      desktopTitle: "安裝 HSS 應用",
+      desktopBody: "將 HSS 作為桌面應用安裝，之後可更快開啟並獲得更沉浸的使用體驗。",
+      desktopConfirm: "立即安裝",
+      androidTitle: "安裝 HSS 或下載 APK",
+      androidBody: "你可以將 HSS 安裝為網頁應用，也可以直接下載 Android APK 安裝包。",
+      androidConfirm: "安裝網頁應用",
+      androidDownload: "下載 Android APK",
+      iosTitle: "加入主畫面",
+      iosBody: "iPhone / iPad 無法直接彈出安裝確認，請依照以下步驟將 HSS 加入主畫面。",
+      iosStepOne: "點擊瀏覽器底部或頂部的「分享」按鈕。",
+      iosStepTwo: "在選單中找到「加入主畫面」。",
+      iosStepThree: "確認加入後，即可像應用程式一樣從主畫面開啟。",
+      gotIt: "我知道了",
+      later: "以後再說"
+    },
     common: {
       expandDetails: "展開參數設置",
       expandView: "展開視圖設置",
@@ -350,11 +383,12 @@ export const translations: Record<LanguageCode, Translation> = {
       supervisor: "指導教師",
       references: "參考資料",
       visitorCount: "歡迎訪問本站",
-      school: "Project Institution（威海）\n環境工程",
+      school: "Project Institution（威海）",
     version: "v3.4.3 正式版",
       links: "相關連結",
       github: "GitHub 倉庫",
       report: "查看報告 (PDF)",
+      androidApk: "下載 Android APK",
       exportPdf: "匯出 PDF",
       exportFailed: "PDF 匯出失敗",
       contact: "聯繫組長",
@@ -513,6 +547,22 @@ export const translations: Record<LanguageCode, Translation> = {
       sidebarTitle: "Start here",
       sidebarBody: "Open settings or start the simulation."
     },
+    installPrompt: {
+      desktopTitle: "Install HSS",
+      desktopBody: "Install HSS as a desktop app for faster launching and a more focused full-window experience.",
+      desktopConfirm: "Install now",
+      androidTitle: "Install HSS or Download APK",
+      androidBody: "You can install HSS as a web app, or download the Android APK directly if you want the packaged app.",
+      androidConfirm: "Install web app",
+      androidDownload: "Download Android APK",
+      iosTitle: "Add to Home Screen",
+      iosBody: "On iPhone and iPad, installation cannot be triggered directly. Use the steps below to add HSS to your Home Screen.",
+      iosStepOne: "Tap the browser Share button.",
+      iosStepTwo: "Choose Add to Home Screen from the menu.",
+      iosStepThree: "Confirm, then launch HSS from your Home Screen like an app.",
+      gotIt: "Got it",
+      later: "Maybe later"
+    },
     common: {
       expandDetails: "Show Parameters",
       expandView: "View Settings",
@@ -533,11 +583,12 @@ export const translations: Record<LanguageCode, Translation> = {
       supervisor: "Supervisor",
       references: "References",
       visitorCount: "Welcome to the site",
-      school: "Project Institution\nEnvironmental Eng.",
+      school: "Project Institution",
     version: "v3.4.3 Official",
       links: "Links",
       github: "GitHub Repo",
       report: "View Report (PDF)",
+      androidApk: "Download Android APK",
       exportPdf: "Export PDF",
       exportFailed: "PDF export failed",
       contact: "Contact Leader",
@@ -551,4 +602,3 @@ export const translations: Record<LanguageCode, Translation> = {
     }
   }
 };
-

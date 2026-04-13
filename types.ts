@@ -214,6 +214,22 @@ export interface Translation {
     sidebarTitle: string;
     sidebarBody: string;
   };
+  installPrompt: {
+    desktopTitle: string;
+    desktopBody: string;
+    desktopConfirm: string;
+    androidTitle: string;
+    androidBody: string;
+    androidConfirm: string;
+    androidDownload: string;
+    iosTitle: string;
+    iosBody: string;
+    iosStepOne: string;
+    iosStepTwo: string;
+    iosStepThree: string;
+    gotIt: string;
+    later: string;
+  };
   common: {
     expandDetails: string;
     expandView: string;    // New
@@ -239,6 +255,7 @@ export interface Translation {
     links: string;        
     github: string;       
     report: string;       
+    androidApk: string;
     exportPdf: string;
     exportFailed: string;
     contact: string;
