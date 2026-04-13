@@ -172,7 +172,7 @@ const StackedResults: React.FC<StackedResultsProps> = ({
           {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
         </button>
 
-        <div className="pr-14">
+        <div className="pt-12 md:pt-0 md:pr-14">
           <div className={`rounded-panel border px-4 py-4 shadow-[0_20px_55px_-38px_rgba(15,23,42,0.4)] md:px-5 md:py-5 ${summaryShell}`}>
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div className="min-w-0">

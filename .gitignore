@@ -23,6 +23,7 @@ coverage/
 
 # Local Codex workspace state
 .codex/
+.playwright-cli/
 output/
 
 # Android local state and signing materials
