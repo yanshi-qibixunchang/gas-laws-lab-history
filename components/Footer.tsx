@@ -296,7 +296,7 @@ const Footer: React.FC<FooterProps> = ({
           <PdfModal
             isOpen={isPdfOpen}
             onClose={onClosePdf}
-            pdfPath="/Project_Report.pdf"
+            pdfPath="/Report.pdf"
             title={t.footer.report}
             exportLabel={t.footer.exportPdf}
             exportFailedMessage={t.footer.exportFailed}
