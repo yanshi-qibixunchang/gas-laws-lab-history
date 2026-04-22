@@ -1462,6 +1462,12 @@ function App() {
     let listenerHandle: Awaited<ReturnType<typeof CapacitorApp.addListener>> | null = null;
 
     CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {
+          // Ignore exit errors if fullscreen state already changed.
+        });
+        return;
+      }
       if (deleteConfirmConfig) {
         closeDeleteConfirm();
         return;

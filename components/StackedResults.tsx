@@ -91,6 +91,12 @@ const StackedResults: React.FC<StackedResultsProps> = ({
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const fullscreenButtonStyle = isFullscreen
+    ? {
+        top: 'max(env(safe-area-inset-top), 0.9rem)',
+        right: 'max(env(safe-area-inset-right), 0.25rem)',
+      }
+    : undefined;
 
   const summaryShell = isDarkMode
     ? 'border-slate-800/90 bg-slate-950/74 text-slate-200'
@@ -167,6 +173,7 @@ const StackedResults: React.FC<StackedResultsProps> = ({
         <button
           onClick={toggleFullscreen}
           className={`absolute right-0 top-0 z-20 inline-flex h-10 w-10 items-center justify-center rounded-panel border border-slate-200 bg-white text-slate-500 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 ${hoverClass}`}
+          style={fullscreenButtonStyle}
           title={isFullscreen ? t.common.collapse : t.common.expandAll}
         >
           {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
