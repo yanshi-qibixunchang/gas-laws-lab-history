@@ -1632,8 +1632,117 @@ const IdealGasExperimentMode: React.FC<IdealGasExperimentModeProps> = ({
                 }`}>
                   {advancedRelationNote}
                 </div>
+
+                {relation === 'pv' && (
+                  <>
+                    <div className={`my-5 h-px ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'}`} />
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${mutedTextClass}`}>
+                          {t.experiment.runTitle}
+                        </div>
+                        <h2 className="mt-1 text-base font-semibold md:text-lg">{t.views.mdView}</h2>
+                      </div>
+                      <div className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+                        {phaseLabel}
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <SimulationCanvas
+                        particles={engineRef.current?.particles || []}
+                        L={activeParams.L}
+                        r={activeParams.r}
+                        isRunning={isRunning}
+                        t={t}
+                        isFocused={isCanvasFocused}
+                        onFocusChange={setIsCanvasFocused}
+                        showNotification={(text, duration) => notify(text, duration)}
+                        supportsHover={supportsHover}
+                        touchLike={touchLike}
+                        isCompactLandscape={isCompactLandscape}
+                        canvasHeight={320}
+                      />
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      {[
+                        { label: t.experiment.targetTemperature, value: formatScalar(params.targetTemperature), accent: 'text-rose-500' },
+                        { label: t.experiment.currentTemperature, value: formatScalar(stats.temperature), accent: 'text-emerald-500' },
+                        { label: t.experiment.measuredPressure, value: formatScalar(currentMeasuredPressure), accent: 'text-violet-500' },
+                        { label: t.experiment.idealReference, value: formatScalar(currentIdealReference), accent: 'text-amber-500' },
+                      ].map((item) => (
+                        <div key={item.label} className={`rounded-panel border px-4 py-3 ${isDarkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-slate-50'}`}>
+                          <div className={`text-[11px] font-semibold ${mutedTextClass}`}>{item.label}</div>
+                          <div className={`mt-2 font-data text-xl font-semibold ${item.accent}`}>{item.value}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                      <div className="flex flex-col gap-1.5">
+                        <div className={`text-sm ${secondaryTextClass}`}>
+                          {t.experiment.progress}: <span className="font-data font-semibold">{(stats.progress * 100).toFixed(0)}%</span>
+                        </div>
+                        {showResetHint && (
+                          <div className={`text-sm font-semibold ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
+                            {t.experiment.resetRequired}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={handleStartPause}
+                          className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded-panel border px-4 py-2.5 text-sm font-semibold transition-colors ${
+                            isRunning
+                              ? isDarkMode
+                                ? 'border-amber-400/60 bg-amber-950 text-amber-200'
+                                : 'border-amber-300 bg-amber-50 text-amber-700'
+                              : showResetHint
+                                ? isDarkMode
+                                  ? 'border-slate-700 bg-slate-900 text-slate-400'
+                                  : 'border-slate-200 bg-slate-100 text-slate-400'
+                                : 'border-sciblue-500 bg-sciblue-500 text-white'
+                          } ${!isRunning && !showResetHint && supportsHover ? 'hover:border-sciblue-600 hover:bg-sciblue-600' : ''}`}
+                        >
+                          {isRunning ? <Pause size={15} /> : <Play size={15} />}
+                          {startButtonLabel}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isRunning}
+                          onClick={() =>
+                            resetCurrentPoint(
+                              true,
+                              hasRecordedCurrentVariable(relation, relationPoints, params)
+                                ? {
+                                    advancePresetTemperature: relation === 'pt',
+                                    advancePresetBoxLength: relation === 'pv',
+                                  }
+                                : {},
+                            )
+                          }
+                          className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded-panel border px-4 py-2.5 text-sm font-semibold transition-colors ${
+                            showResetHint
+                              ? isDarkMode
+                                ? 'border-amber-400/60 bg-amber-950 text-amber-200'
+                                : 'border-amber-300 bg-amber-50 text-amber-700 shadow-sm'
+                              : isDarkMode
+                                ? 'border-slate-700 bg-slate-900 text-slate-200'
+                                : 'border-slate-200 bg-white text-slate-700'
+                          } ${supportsHover && !showResetHint ? interactiveHoverClass : ''} ${isRunning ? 'opacity-60' : ''}`}
+                        >
+                          <RotateCcw size={15} className={showResetHint ? 'animate-spin-slow' : ''} />
+                          {t.experiment.resetPoint}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </section>
 
+              {relation !== 'pv' && (
               <section className={`rounded-panel border p-4 shadow-[0_20px_55px_-38px_rgba(15,23,42,0.4)] md:p-5 ${cardClass}`}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -1738,6 +1847,7 @@ const IdealGasExperimentMode: React.FC<IdealGasExperimentModeProps> = ({
                   </div>
                 </div>
               </section>
+              )}
             </div>
 
             <div className="grid gap-4">
@@ -1830,76 +1940,6 @@ const IdealGasExperimentMode: React.FC<IdealGasExperimentModeProps> = ({
               {relation === 'pv' && (
                 <>
                   <section className={`rounded-panel border p-4 shadow-[0_20px_55px_-38px_rgba(15,23,42,0.4)] md:p-5 ${cardClass}`}>
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${mutedTextClass}`}>
-                          {t.experiment.resultsTitle}
-                        </div>
-                        <h2 className="mt-1 text-base font-semibold md:text-lg">{localeCopy.chartTitle.pv}</h2>
-                      </div>
-                      <div className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
-                        {sortedPoints.length} {localeCopy.pointsUnit}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {[
-                        { label: t.experiment.measuredSeries, color: 'bg-sciblue-500' },
-                        { label: localeCopy.theoryCurveLabel, color: 'bg-amber-500' },
-                      ].map((item) => (
-                        <span key={item.label} className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium ${isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-300' : 'border-slate-200 bg-white text-slate-600'}`}>
-                          <span className={`h-2.5 w-2.5 rounded-full ${item.color}`} />
-                          {item.label}
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="mt-4 h-[300px]">
-                      {pvOriginalData.length === 0 ? (
-                        <div className={`flex h-full items-center justify-center rounded-panel border border-dashed ${isDarkMode ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-500'}`}>
-                          {localeCopy.noPoints.pv}
-                        </div>
-                      ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={pvOriginalData} margin={{ top: 8, right: 16, left: 0, bottom: 14 }}>
-                            <CartesianGrid vertical={false} stroke={isDarkMode ? '#243244' : '#dbe4f0'} strokeDasharray="4 5" />
-                            <XAxis
-                              type="number"
-                              dataKey="volume"
-                              domain={pvVolumeDomain}
-                              tick={{ fill: isDarkMode ? '#93a4b8' : '#64748b', fontSize: 10, fontFamily: 'var(--app-font-data)' }}
-                              tickLine={false}
-                              axisLine={{ stroke: isDarkMode ? '#334155' : '#cbd5e1' }}
-                              tickFormatter={formatAxisValue}
-                              label={{ value: localeCopy.xLabelVolume, position: 'bottom', offset: 2, fill: isDarkMode ? '#e2e8f0' : '#0f172a', fontSize: 11, fontWeight: 600 }}
-                            />
-                            <YAxis
-                              tick={{ fill: isDarkMode ? '#93a4b8' : '#64748b', fontSize: 10, fontFamily: 'var(--app-font-data)' }}
-                              tickLine={false}
-                              axisLine={false}
-                              tickFormatter={formatAxisValue}
-                              width={56}
-                              label={{ value: localeCopy.yLabelPressure, angle: -90, position: 'insideLeft', offset: 8, fill: isDarkMode ? '#e2e8f0' : '#0f172a', fontSize: 11, fontWeight: 600 }}
-                            />
-                            <Tooltip
-                              contentStyle={{
-                                borderRadius: 18,
-                                borderColor: isDarkMode ? '#334155' : '#e2e8f0',
-                                background: isDarkMode ? 'rgba(2,6,23,0.94)' : 'rgba(255,255,255,0.96)',
-                                color: isDarkMode ? '#f8fafc' : '#0f172a',
-                              }}
-                              formatter={(value: number, name: string) => [formatScalar(value), name]}
-                              labelFormatter={(value) => `${localeCopy.xLabelVolume}: ${formatScalar(Number(value))}`}
-                            />
-                            <Line type="monotone" dataKey="theoryPressure" name={localeCopy.theoryCurveLabel} stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="6 4" isAnimationActive={false} />
-                            <Scatter data={pvOriginalData} dataKey="measuredPressure" name={t.experiment.measuredSeries} fill="#4f7fe8" line={false} isAnimationActive={false} />
-                          </ComposedChart>
-                        </ResponsiveContainer>
-                      )}
-                    </div>
-                  </section>
-
-                  <section className={`rounded-panel border p-4 shadow-[0_20px_55px_-38px_rgba(15,23,42,0.4)] md:p-5 ${cardClass}`}>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <div className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${mutedTextClass}`}>
@@ -1934,7 +1974,7 @@ const IdealGasExperimentMode: React.FC<IdealGasExperimentModeProps> = ({
                       {localeCopy.verdictBasisPv}
                     </div>
 
-                    <div className="mt-4 h-[300px]">
+                    <div className="mt-4 h-[360px]">
                       {pvLinearData.length === 0 ? (
                         <div className={`flex h-full items-center justify-center rounded-panel border border-dashed ${isDarkMode ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-500'}`}>
                           {localeCopy.noPoints.pv}
@@ -1974,6 +2014,80 @@ const IdealGasExperimentMode: React.FC<IdealGasExperimentModeProps> = ({
                             <Line type="monotone" dataKey="fitPressure" name={t.experiment.fitSeries} stroke="#22c55e" strokeWidth={2} dot={false} isAnimationActive={false} />
                             <Line type="monotone" dataKey="theoryPressure" name={t.experiment.theorySeries} stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="6 4" isAnimationActive={false} />
                             <Scatter data={pvLinearData} dataKey="measuredPressure" name={t.experiment.measuredSeries} fill="#4f7fe8" line={false} isAnimationActive={false} />
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      )}
+                    </div>
+                  </section>
+
+                  <section className={`rounded-panel border p-4 shadow-[0_20px_55px_-38px_rgba(15,23,42,0.4)] md:p-5 ${cardClass}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${mutedTextClass}`}>
+                          {t.experiment.resultsTitle}
+                        </div>
+                        <h2 className="mt-1 text-base font-semibold md:text-lg">{localeCopy.chartTitle.pv}</h2>
+                      </div>
+                      <div className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+                        {sortedPoints.length} {localeCopy.pointsUnit}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {[
+                        { label: t.experiment.measuredSeries, color: 'bg-sciblue-500' },
+                        { label: localeCopy.theoryCurveLabel, color: 'bg-amber-500' },
+                      ].map((item) => (
+                        <span key={item.label} className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium ${isDarkMode ? 'border-slate-700 bg-slate-900 text-slate-300' : 'border-slate-200 bg-white text-slate-600'}`}>
+                          <span className={`h-2.5 w-2.5 rounded-full ${item.color}`} />
+                          {item.label}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 text-xs font-medium text-slate-500 dark:text-slate-400">
+                      {lang === 'en-GB' ? 'This chart keeps the original inverse relation as the physical picture.' : lang === 'zh-TW' ? '這張圖保留原始反比關係，作為物理直觀展示。' : '这张图保留原始反比关系，作为物理直观展示。'}
+                    </div>
+
+                    <div className="mt-4 h-[260px]">
+                      {pvOriginalData.length === 0 ? (
+                        <div className={`flex h-full items-center justify-center rounded-panel border border-dashed ${isDarkMode ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-500'}`}>
+                          {localeCopy.noPoints.pv}
+                        </div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <ComposedChart data={pvOriginalData} margin={{ top: 8, right: 16, left: 0, bottom: 14 }}>
+                            <CartesianGrid vertical={false} stroke={isDarkMode ? '#243244' : '#dbe4f0'} strokeDasharray="4 5" />
+                            <XAxis
+                              type="number"
+                              dataKey="volume"
+                              domain={pvVolumeDomain}
+                              tick={{ fill: isDarkMode ? '#93a4b8' : '#64748b', fontSize: 10, fontFamily: 'var(--app-font-data)' }}
+                              tickLine={false}
+                              axisLine={{ stroke: isDarkMode ? '#334155' : '#cbd5e1' }}
+                              tickFormatter={formatAxisValue}
+                              label={{ value: localeCopy.xLabelVolume, position: 'bottom', offset: 2, fill: isDarkMode ? '#e2e8f0' : '#0f172a', fontSize: 11, fontWeight: 600 }}
+                            />
+                            <YAxis
+                              tick={{ fill: isDarkMode ? '#93a4b8' : '#64748b', fontSize: 10, fontFamily: 'var(--app-font-data)' }}
+                              tickLine={false}
+                              axisLine={false}
+                              tickFormatter={formatAxisValue}
+                              width={56}
+                              label={{ value: localeCopy.yLabelPressure, angle: -90, position: 'insideLeft', offset: 8, fill: isDarkMode ? '#e2e8f0' : '#0f172a', fontSize: 11, fontWeight: 600 }}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                borderRadius: 18,
+                                borderColor: isDarkMode ? '#334155' : '#e2e8f0',
+                                background: isDarkMode ? 'rgba(2,6,23,0.94)' : 'rgba(255,255,255,0.96)',
+                                color: isDarkMode ? '#f8fafc' : '#0f172a',
+                              }}
+                              formatter={(value: number, name: string) => [formatScalar(value), name]}
+                              labelFormatter={(value) => `${localeCopy.xLabelVolume}: ${formatScalar(Number(value))}`}
+                            />
+                            <Line type="monotone" dataKey="theoryPressure" name={localeCopy.theoryCurveLabel} stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="6 4" isAnimationActive={false} />
+                            <Scatter data={pvOriginalData} dataKey="measuredPressure" name={t.experiment.measuredSeries} fill="#4f7fe8" line={false} isAnimationActive={false} />
                           </ComposedChart>
                         </ResponsiveContainer>
                       )}
