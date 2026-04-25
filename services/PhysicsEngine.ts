@@ -1,4 +1,14 @@
-import { SimulationParams, Particle, HistogramBin, ChartData, SimulationStats } from '../types';
+import {
+  SimulationParams,
+  Particle,
+  HistogramBin,
+  ChartData,
+  SimulationStats,
+  PressureMeasurementSummary,
+  PressureWindowPoint,
+} from '../types';
+
+const PRESSURE_EPSILON = 1e-9;
 
 export class PhysicsEngine {
   params: SimulationParams;
@@ -10,6 +20,8 @@ export class PhysicsEngine {
   // Optimization: Limit size to prevent memory leaks over long runs
   private readonly MAX_SAMPLES = 2000; 
   private readonly MAX_HISTORY = 300; 
+  private readonly MAX_PRESSURE_HISTORY = 800;
+  private readonly PRESSURE_SAMPLE_WINDOW = 0.1;
 
   collectedSpeeds: number[] = [];
   collectedEnergies: number[] = [];
@@ -19,6 +31,10 @@ export class PhysicsEngine {
   private speedBins: HistogramBin[] = [];
   private energyBins: HistogramBin[] = [];
   private lastSampleTime: number = -1;
+  private pressureWindowStartTime: number = 0;
+  private pressureWindowMomentum: number = 0;
+  private pressureHistory: PressureWindowPoint[] = [];
+  private latestMeasuredPressure: number = 0;
 
   constructor(params: SimulationParams) {
     this.params = params;
@@ -32,6 +48,10 @@ export class PhysicsEngine {
     this.collectedEnergies = [];
     this.tempHistory = [];
     this.lastSampleTime = -1;
+    this.pressureWindowStartTime = 0;
+    this.pressureWindowMomentum = 0;
+    this.pressureHistory = [];
+    this.latestMeasuredPressure = 0;
 
     // Safety: Prevent infinite loop if N is too high for Box L
     // Packing fraction check approx (Volume of spheres / Volume of box)
@@ -80,8 +100,18 @@ export class PhysicsEngine {
 
     // Calculate initial Target Temperature
     const totalEnergy = this.particles.reduce((sum, p) => sum + p.energy, 0);
+    const explicitTargetTemperature =
+      typeof this.params.targetTemperature === 'number' && Number.isFinite(this.params.targetTemperature)
+        ? this.params.targetTemperature
+        : null;
+
     // Avoid divide by zero if N=0
-    this.targetTemperature = this.params.N > 0 ? (2 * totalEnergy) / (3 * this.params.N * this.params.k) : 300;
+    this.targetTemperature =
+      explicitTargetTemperature && explicitTargetTemperature > 0
+        ? explicitTargetTemperature
+        : this.params.N > 0
+          ? (2 * totalEnergy) / (3 * this.params.N * this.params.k)
+          : 300;
 
     // Initialize Fixed Bins (Locks the Chart Axes)
     this.initBins();
@@ -142,10 +172,134 @@ export class PhysicsEngine {
     return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
   }
 
+  private getCurrentTemperature(): number {
+    const totalEnergy = this.particles.reduce((sum, p) => sum + p.energy, 0);
+    return this.params.N > 0 ? (2 * totalEnergy) / (3 * this.params.N * this.params.k) : 0;
+  }
+
+  private getIdealPressureFromTemperature(temperature: number): number {
+    const volume = Math.pow(this.params.L, 3);
+    if (volume <= 0) return 0;
+    return (this.params.N * this.params.k * temperature) / volume;
+  }
+
+  private finalizePressureWindow(windowEndTime: number) {
+    const duration = windowEndTime - this.pressureWindowStartTime;
+    if (duration <= PRESSURE_EPSILON) return;
+
+    const wallArea = 6 * this.params.L * this.params.L;
+    const measuredPressure = wallArea > 0 ? this.pressureWindowMomentum / (wallArea * duration) : 0;
+    const idealPressure = this.getIdealPressureFromTemperature(this.getCurrentTemperature());
+    const statsEnd = this.params.equilibriumTime + this.params.statsDuration;
+
+    this.latestMeasuredPressure = measuredPressure;
+    this.pressureHistory.push({
+      time: windowEndTime,
+      duration,
+      measuredPressure,
+      idealPressure,
+      isCollectionWindow:
+        this.pressureWindowStartTime >= this.params.equilibriumTime - PRESSURE_EPSILON &&
+        windowEndTime <= statsEnd + PRESSURE_EPSILON,
+    });
+
+    if (this.pressureHistory.length > this.MAX_PRESSURE_HISTORY) {
+      this.pressureHistory.shift();
+    }
+  }
+
+  private commitPressureStep(startTime: number, endTime: number, wallMomentum: number) {
+    const totalDuration = endTime - startTime;
+    if (totalDuration <= PRESSURE_EPSILON) return;
+
+    let cursor = startTime;
+    const collectionStart = this.params.equilibriumTime;
+    const collectionEnd = this.params.equilibriumTime + this.params.statsDuration;
+
+    while (cursor < endTime - PRESSURE_EPSILON) {
+      const sampleBoundary = this.pressureWindowStartTime + this.PRESSURE_SAMPLE_WINDOW;
+      let nextBoundary = Math.min(endTime, sampleBoundary);
+
+      if (collectionStart > cursor + PRESSURE_EPSILON && collectionStart < nextBoundary - PRESSURE_EPSILON) {
+        nextBoundary = collectionStart;
+      }
+      if (collectionEnd > cursor + PRESSURE_EPSILON && collectionEnd < nextBoundary - PRESSURE_EPSILON) {
+        nextBoundary = collectionEnd;
+      }
+
+      const segmentDuration = nextBoundary - cursor;
+      this.pressureWindowMomentum += wallMomentum * (segmentDuration / totalDuration);
+      cursor = nextBoundary;
+
+      const hitSampleBoundary = Math.abs(nextBoundary - sampleBoundary) <= PRESSURE_EPSILON;
+      const hitCollectionStart = Math.abs(nextBoundary - collectionStart) <= PRESSURE_EPSILON;
+      const hitCollectionEnd = Math.abs(nextBoundary - collectionEnd) <= PRESSURE_EPSILON;
+
+      if (hitSampleBoundary || hitCollectionStart || hitCollectionEnd) {
+        this.finalizePressureWindow(nextBoundary);
+        this.pressureWindowStartTime = nextBoundary;
+        this.pressureWindowMomentum = 0;
+      }
+    }
+  }
+
+  public flushPressureMeasurement() {
+    if (this.time - this.pressureWindowStartTime <= PRESSURE_EPSILON) return;
+    this.finalizePressureWindow(this.time);
+    this.pressureWindowStartTime = this.time;
+    this.pressureWindowMomentum = 0;
+  }
+
+  public getPressureMeasurementSummary(): PressureMeasurementSummary {
+    const collectionHistory = this.pressureHistory.filter((point) => point.isCollectionWindow);
+    const totalDuration = collectionHistory.reduce((sum, point) => sum + point.duration, 0);
+
+    if (totalDuration <= PRESSURE_EPSILON) {
+      return {
+        latestPressure: this.latestMeasuredPressure,
+        meanPressure: null,
+        meanIdealPressure: null,
+        meanTemperature: null,
+        relativeGap: null,
+        sampleCount: 0,
+        history: [...this.pressureHistory],
+      };
+    }
+
+    const meanPressure = collectionHistory.reduce(
+      (sum, point) => sum + point.measuredPressure * point.duration,
+      0,
+    ) / totalDuration;
+    const meanIdealPressure = collectionHistory.reduce(
+      (sum, point) => sum + point.idealPressure * point.duration,
+      0,
+    ) / totalDuration;
+    const meanTemperature =
+      this.params.N > 0 && this.params.k > 0
+        ? (meanIdealPressure * Math.pow(this.params.L, 3)) / (this.params.N * this.params.k)
+        : null;
+    const relativeGap =
+      meanIdealPressure > PRESSURE_EPSILON
+        ? ((meanPressure - meanIdealPressure) / meanIdealPressure) * 100
+        : null;
+
+    return {
+      latestPressure: this.latestMeasuredPressure,
+      meanPressure,
+      meanIdealPressure,
+      meanTemperature,
+      relativeGap,
+      sampleCount: collectionHistory.length,
+      history: [...this.pressureHistory],
+    };
+  }
+
   public step() {
     const { dt, L, r, nu, m, k } = this.params;
     const pColl = nu * dt; 
     const thermalSigma = Math.sqrt(k * this.targetTemperature / m);
+    const stepStartTime = this.time;
+    let wallMomentumTransfer = 0;
     
     // Pre-calculate squares for efficiency
     const minDist = 2 * r;
@@ -157,14 +311,38 @@ export class PhysicsEngine {
       p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
 
       // Simple wall reflection
-      if (p.x < r) { p.x = r; p.vx *= -1; }
-      else if (p.x > L - r) { p.x = L - r; p.vx *= -1; }
+      if (p.x < r) {
+        wallMomentumTransfer += 2 * m * Math.abs(p.vx);
+        p.x = r;
+        p.vx *= -1;
+      }
+      else if (p.x > L - r) {
+        wallMomentumTransfer += 2 * m * Math.abs(p.vx);
+        p.x = L - r;
+        p.vx *= -1;
+      }
       
-      if (p.y < r) { p.y = r; p.vy *= -1; }
-      else if (p.y > L - r) { p.y = L - r; p.vy *= -1; }
+      if (p.y < r) {
+        wallMomentumTransfer += 2 * m * Math.abs(p.vy);
+        p.y = r;
+        p.vy *= -1;
+      }
+      else if (p.y > L - r) {
+        wallMomentumTransfer += 2 * m * Math.abs(p.vy);
+        p.y = L - r;
+        p.vy *= -1;
+      }
       
-      if (p.z < r) { p.z = r; p.vz *= -1; }
-      else if (p.z > L - r) { p.z = L - r; p.vz *= -1; }
+      if (p.z < r) {
+        wallMomentumTransfer += 2 * m * Math.abs(p.vz);
+        p.z = r;
+        p.vz *= -1;
+      }
+      else if (p.z > L - r) {
+        wallMomentumTransfer += 2 * m * Math.abs(p.vz);
+        p.z = L - r;
+        p.vz *= -1;
+      }
 
       // Andersen Thermostat (Randomizes velocity)
       if (Math.random() < pColl) {
@@ -236,6 +414,7 @@ export class PhysicsEngine {
     }
 
     this.time += dt;
+    this.commitPressureStep(stepStartTime, this.time, wallMomentumTransfer);
   }
 
   public collectSamples() {

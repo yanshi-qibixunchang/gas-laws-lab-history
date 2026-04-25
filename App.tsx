@@ -1,14 +1,15 @@
-import React, { Suspense, lazy, useState, useEffect, useRef, useCallback } from 'react';
+import React, { Suspense, lazy, startTransition, useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, RotateCcw, Box, Activity, Globe, ChevronRight, Lock, Unlock, MousePointer2, User, Atom, AlertCircle, CheckCircle2, PanelLeftClose, SlidersHorizontal, X, Undo2, LayoutDashboard, Moon, Sun, ArrowLeft, Save, Download, Trash2, Archive, ShieldCheck, ChevronDown, LogOut, Info, Check, FolderPlus, MoreHorizontal, Pencil } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { PhysicsEngine } from './services/PhysicsEngine';
-import { SimulationParams, SimulationStats, ChartData, LanguageCode, SavedConfig, InputCapabilities, Translation } from './types';
+import { AppMode, SimulationParams, SimulationStats, ChartData, LanguageCode, SavedConfig, InputCapabilities, Translation } from './types';
 import { translations } from './services/translations';
 import SimulationCanvas from './components/SimulationCanvas';
 import CollapsibleCard from './components/CollapsibleCard';
 import StatsPanel from './components/StatsPanel';
 import Footer from './components/Footer';
+import ModeSwitch from './components/ModeSwitch';
 
 interface DeferredInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -73,6 +74,7 @@ const isTouchLikeViewport = () => {
 
 const DistributionCharts = lazy(() => import('./components/DistributionCharts'));
 const StackedResults = lazy(() => import('./components/StackedResults'));
+const IdealGasExperimentMode = lazy(() => import('./components/IdealGasExperimentMode'));
 
 const ChartPanelFallback: React.FC<{ heightClass: string }> = ({ heightClass }) => (
   <div className="w-full animate-pulse rounded-panel border border-slate-200/80 bg-white/90 p-4 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.35)] dark:border-slate-800/80 dark:bg-slate-950/75">
@@ -253,6 +255,7 @@ function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Simulation State
+  const [appMode, setAppMode] = useState<AppMode>('standard');
   const [params, setParams] = useState<SimulationParams>(DEFAULT_PARAMS);
   const [activeParams, setActiveParams] = useState<SimulationParams>(DEFAULT_PARAMS);
   const [isRunning, setIsRunning] = useState(false);
@@ -353,6 +356,28 @@ function App() {
   const engineRef = useRef<PhysicsEngine | null>(null);
   const reqRef = useRef<number>(0);
   const frameCountRef = useRef<number>(0);
+
+  useEffect(() => {
+    void import('./components/IdealGasExperimentMode');
+  }, []);
+
+  const handleModeChange = useCallback((nextMode: AppMode) => {
+    if (nextMode === appMode) return;
+    startTransition(() => {
+      setAppMode(nextMode);
+    });
+  }, [appMode]);
+
+  useEffect(() => {
+    if (appMode !== 'experiment') return;
+
+    if (reqRef.current) cancelAnimationFrame(reqRef.current);
+    setIsRunning(false);
+    setIsSidebarOpen(false);
+    setIsCanvasLocked(false);
+    setShowSidebarGuide(false);
+    setIsLangMenuOpen(false);
+  }, [appMode]);
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -752,11 +777,16 @@ function App() {
   const compactLandscapeCanvasHeight = isCompactLandscape
     ? Math.max(220, Math.min(viewportSize.visualHeight - 230, 320))
     : null;
-  const mainHeaderSpacingClass = isCompactLandscape
-    ? 'pt-11 pb-1.5'
+  const modeSwitchSpacingClass = isCompactLandscape
+    ? 'pt-11 pb-0'
     : isMobile
-      ? 'pt-24 pb-2'
-      : 'pt-20 pb-4 landscape:pt-4 landscape:pb-1 md:pt-22 md:pb-6';
+      ? 'pt-24 pb-0'
+      : 'pt-20 pb-0 landscape:pt-4 md:pt-22';
+  const mainHeaderSpacingClass = isCompactLandscape
+    ? 'pb-1.5'
+    : isMobile
+      ? 'pb-2'
+      : 'pb-4 landscape:pb-1 md:pb-6';
   const overlayControlHidden = isSidebarOverlay && isSidebarOpen;
   const activePresetMenuConfig = presetActionMenu
   ? savedConfigs.find((config) => config.id === presetActionMenu.id) ?? null
@@ -1614,7 +1644,8 @@ function App() {
       className="w-screen font-sans flex overflow-hidden relative selection:bg-sciblue-200 selection:text-sciblue-900 dark:selection:bg-sciblue-900 dark:selection:text-sciblue-100 transition-colors duration-800"
       style={appFrameStyle}
     >
-      
+      {appMode === 'standard' ? (
+      <>
       {/* GLOBAL INTERACTION LOCK BACKDROP (OUTSIDE CANVAS ONLY) */}
       {isCanvasLocked && interactionRect && (
         <>
@@ -1962,6 +1993,17 @@ function App() {
         className="flex-1 h-full overflow-y-auto overflow-x-hidden relative flex flex-col scroll-smooth main-scroll"
       >
         <div ref={mainContentRef} className="flex flex-col min-h-full will-change-transform">
+        <div className={`mx-auto w-full max-w-5xl shrink-0 px-4 text-center sm:px-6 ${modeSwitchSpacingClass}`}>
+            <div className="mb-4 flex justify-center">
+                <ModeSwitch
+                    mode={appMode}
+                    onChange={handleModeChange}
+                    t={t}
+                    isDarkMode={isDarkMode}
+                    supportsHover={isDesktopLike}
+                />
+            </div>
+        </div>
         <header className={`px-4 sm:px-6 max-w-5xl mx-auto text-center animate-fade-in w-full shrink-0 ${mainHeaderSpacingClass}`}>
             {/* Version Badge - Centered Above Title */}
             <div className={`flex justify-center overflow-hidden transition-all duration-300 ${shouldHideVersionBadge ? 'mb-0 max-h-0 opacity-0 -translate-y-2' : 'mb-3 landscape:mb-2 max-h-20 opacity-100 translate-y-0'}`}>
@@ -2180,6 +2222,39 @@ function App() {
             </span>
         </div>
       </div>
+      </>
+      ) : (
+      <div className="flex min-h-full w-full flex-col">
+        <Suspense fallback={<ResultsPlaceholder t={t} lang={lang} />}>
+          <IdealGasExperimentMode
+            mode={appMode}
+            onModeChange={handleModeChange}
+            defaultParams={DEFAULT_PARAMS}
+            t={t}
+            lang={lang}
+            modeSwitchSpacingClass={modeSwitchSpacingClass}
+            headerSpacingClass={mainHeaderSpacingClass}
+            isDarkMode={isDarkMode}
+            supportsHover={isDesktopLike}
+            touchLike={touchLike}
+            isCompactLandscape={isCompactLandscape}
+            onNotify={showNotification}
+            footer={
+              <Footer
+                t={t}
+                lang={lang}
+                showNotification={(msg, dur, type) => showNotification(msg, dur, type)}
+                supportsHover={isDesktopLike}
+                compactLinks={false}
+                isPdfOpen={isPdfOpen}
+                onOpenPdf={handleOpenPdf}
+                onClosePdf={handleClosePdf}
+              />
+            }
+          />
+        </Suspense>
+      </div>
+      )}
 
       {/* NOTIFICATION */}
       <div className={`fixed pointer-events-none ${isCreatePresetModalOpen ? 'z-[150]' : 'z-[100]'} ${notification.position === 'center' ? 'inset-0 flex items-center justify-center px-4' : 'inset-x-0 bottom-8 flex justify-center px-4'}`}>

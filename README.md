@@ -21,6 +21,7 @@ Hard Sphere Lab is a hard-sphere molecular dynamics simulation platform built wi
 ## Main features
 
 - hard-sphere gas simulation under an Andersen thermostat
+- ideal-gas experiment mode with manual P-T verification at fixed volume
 - 3D molecular dynamics view with rotate / pan interaction
 - real-time temperature, pressure, mean-speed, and RMS-speed monitoring
 - scientific-style velocity, energy, semi-log, and diagnostic charts
@@ -106,6 +107,15 @@ Important:
 
 - after parameter changes, the app may require a reset before starting
 - on mobile, the native back key closes transient UI in order, including the PDF viewer, before exiting the app
+
+### Ideal-gas experiment mode
+
+The header now includes a mode switch between the standard simulation view and an independent ideal-gas lab.
+
+- v1 of the lab focuses on the constant-volume `P-T` relation
+- users choose a target temperature, run one point at a time, and accumulate a data table manually
+- the lab fits a straight line to the measured `P-T` points and compares it with the theoretical slope `Nk/V`
+- `P-1/V` and `P-N` are reserved in the UI for future expansion
 
 ### Charts and diagnostics
 

@@ -8,9 +8,13 @@ export interface SimulationParams {
   k: number;       // Boltzmann constant (normalized)
   dt: number;      // Time step
   nu: number;      // Andersen collision frequency
+  targetTemperature?: number; // Optional explicit thermostat target (experiment mode)
   equilibriumTime: number; // Time to wait before collecting stats
   statsDuration: number;   // Duration to collect stats
 }
+
+export type AppMode = 'standard' | 'experiment';
+export type ExperimentRelation = 'pt' | 'pv' | 'vt';
 
 export interface SavedConfig {
   id: string;
@@ -40,6 +44,38 @@ export interface SimulationStats {
   isEquilibrated: boolean;
   progress: number; // 0 to 1 based on the current phase duration
   phase: 'idle' | 'equilibrating' | 'collecting' | 'finished';
+}
+
+export interface PressureWindowPoint {
+  time: number;
+  duration: number;
+  measuredPressure: number;
+  idealPressure: number;
+  isCollectionWindow: boolean;
+}
+
+export interface PressureMeasurementSummary {
+  latestPressure: number;
+  meanPressure: number | null;
+  meanIdealPressure: number | null;
+  meanTemperature: number | null;
+  relativeGap: number | null;
+  sampleCount: number;
+  history: PressureWindowPoint[];
+}
+
+export interface IdealGasExperimentPoint {
+  id: string;
+  relation: ExperimentRelation;
+  targetTemperature: number;
+  meanTemperature: number;
+  meanPressure: number;
+  idealPressure: number;
+  relativeGap: number;
+  timestamp: number;
+  boxLength?: number | null;
+  volume?: number | null;
+  inverseVolume?: number | null;
 }
 
 export interface HistogramBin {
@@ -213,6 +249,75 @@ export interface Translation {
     viewModeBody: string;
     sidebarTitle: string;
     sidebarBody: string;
+  };
+  experiment: {
+    modeLabel: string;
+    standardMode: string;
+    experimentMode: string;
+    title: string;
+    subtitle: string;
+    relationTitle: string;
+    relationPt: string;
+    relationPv: string;
+    relationVt: string;
+    relationReady: string;
+    relationComingSoon: string;
+    relationLocked: string;
+    setupTitle: string;
+    constantsTitle: string;
+    temperatureTitle: string;
+    runTitle: string;
+    resultsTitle: string;
+    historyTitle: string;
+    targetTemperature: string;
+    presetTemperatures: string;
+    customTemperature: string;
+    temperatureHint: string;
+    runPoint: string;
+    resetPoint: string;
+    clearPoints: string;
+    currentTemperature: string;
+    measuredPressure: string;
+    idealReference: string;
+    progress: string;
+    chartTitle: string;
+    xTemperature: string;
+    yPressure: string;
+    measuredSeries: string;
+    fitSeries: string;
+    theorySeries: string;
+    tableTitle: string;
+    noPoints: string;
+    targetTempColumn: string;
+    meanTempColumn: string;
+    meanPressureColumn: string;
+    idealPressureColumn: string;
+    relativeGapColumn: string;
+    timeColumn: string;
+    removePoint: string;
+    verdictTitle: string;
+    insufficient: string;
+    verified: string;
+    preliminary: string;
+    notYet: string;
+    slope: string;
+    intercept: string;
+    rSquared: string;
+    theoreticalSlope: string;
+    slopeError: string;
+    conditionSummary: string;
+    conclusionSummary: string;
+    recommendationTitle: string;
+    recommendationNeedMore: string;
+    recommendationNeedRange: string;
+    recommendationGood: string;
+    pointsCleared: string;
+    pointRecorded: string;
+    conditionsChanged: string;
+    resetRequired: string;
+    historyBodyOne: string;
+    historyBodyTwo: string;
+    historyBodyThree: string;
   };
   installPrompt: {
     desktopTitle: string;
