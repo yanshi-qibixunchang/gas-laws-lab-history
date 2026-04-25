@@ -38,7 +38,7 @@ const Footer: React.FC<FooterProps> = ({
   const emailLaunchTimeoutRef = useRef<number | null>(null);
   const emailCopiedResetTimeoutRef = useRef<number | null>(null);
   const isEnglishUI = lang.startsWith('en');
-  const androidApkPath = '/downloads/HSS-android-v3.4.3.apk';
+  const androidApkPath = '/downloads/HSS-android-v3.4.4.apk';
 
   const iconLiftClass = supportsHover ? 'group-hover:scale-110' : '';
   const accentHoverClass = supportsHover ? 'group-hover:text-sciblue-400' : '';
@@ -253,7 +253,7 @@ const Footer: React.FC<FooterProps> = ({
                 {showAndroidApkDownload && (
                   <a
                     href={androidApkPath}
-                    download="HSS-android-v3.4.3.apk"
+                download="HSS-android-v3.4.4.apk"
                     className={linkItemClass}
                   >
                     <Download size={18} className={`transition-transform ${iconLiftClass}`} />

@@ -13,6 +13,7 @@ import {
   YAxis,
 } from 'recharts';
 import { ChartData, Translation } from '../types';
+import { formatScientificWithSuperscript } from '../utils/numberFormat';
 
 interface ChartProps {
   data: ChartData;
@@ -35,7 +36,7 @@ const formatAxisValue = (value: number) => {
 
   const absolute = Math.abs(value);
   if (absolute >= 1000 || (absolute > 0 && absolute < 0.01)) {
-    return value.toExponential(1);
+    return formatScientificWithSuperscript(value, 1);
   }
   if (absolute >= 100) return value.toFixed(0);
   if (absolute >= 10) return value.toFixed(1);
@@ -47,7 +48,7 @@ const formatTooltipValue = (value: number) => {
 
   const absolute = Math.abs(value);
   if (absolute >= 1000 || (absolute > 0 && absolute < 0.0001)) {
-    return value.toExponential(2);
+    return formatScientificWithSuperscript(value, 2);
   }
   if (absolute >= 100) return value.toFixed(2);
   if (absolute >= 1) return value.toFixed(3);

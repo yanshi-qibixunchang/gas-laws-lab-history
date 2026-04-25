@@ -1,10 +1,10 @@
-# Hard Sphere Lab v3.4.3
+# Hard Sphere Lab v3.4.4
 
 [中文说明](./README.zh-CN.md)
 
 Hard Sphere Lab is a hard-sphere molecular dynamics simulation platform built with React, Vite, and Capacitor. It combines a browser-based simulation UI, a 3D particle view, statistical diagnostics, preset management, and a built-in PDF report viewer in one project.
 
-## Release highlights in v3.4.3
+## Release highlights in v3.4.4
 
 - rebuilt the real-time and final-result charts with a more scientific plotting style
 - replaced the old stacked final-results flow with a fixed analysis board for desktop and a cleaner mobile layout

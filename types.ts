@@ -14,7 +14,7 @@ export interface SimulationParams {
 }
 
 export type AppMode = 'standard' | 'experiment';
-export type ExperimentRelation = 'pt' | 'pv' | 'vt';
+export type ExperimentRelation = 'pt' | 'pv' | 'pn';
 
 export interface SavedConfig {
   id: string;
@@ -76,6 +76,7 @@ export interface IdealGasExperimentPoint {
   boxLength?: number | null;
   volume?: number | null;
   inverseVolume?: number | null;
+  particleCount?: number | null;
 }
 
 export interface HistogramBin {
@@ -259,7 +260,7 @@ export interface Translation {
     relationTitle: string;
     relationPt: string;
     relationPv: string;
-    relationVt: string;
+    relationPn: string;
     relationReady: string;
     relationComingSoon: string;
     relationLocked: string;
@@ -306,11 +307,33 @@ export interface Translation {
     theoreticalSlope: string;
     slopeError: string;
     conditionSummary: string;
+    currentAssessmentTitle: string;
+    failureReasonTitle: string;
     conclusionSummary: string;
     recommendationTitle: string;
     recommendationNeedMore: string;
     recommendationNeedRange: string;
     recommendationGood: string;
+    recommendationPreliminary: string;
+    recommendationWeakFit: string;
+    recommendationSlopeMismatch: string;
+    recommendationStablePreset: string;
+    failureReasonInsufficientPoints: string;
+    failureReasonInsufficientRange: string;
+    failureReasonWeakFit: string;
+    failureReasonSlopeMismatch: string;
+    failureReasonPreliminary: string;
+    failureReasonVerified: string;
+    failureModalTitle: string;
+    failureModalBody: string;
+    failureMetricsTitle: string;
+    failureActionsTitle: string;
+    continueSampling: string;
+    switchStablePreset: string;
+    acknowledgeFailure: string;
+    presetRoundComplete: string;
+    pointsCountLabel: string;
+    coveredRangeLabel: string;
     pointsCleared: string;
     pointRecorded: string;
     conditionsChanged: string;

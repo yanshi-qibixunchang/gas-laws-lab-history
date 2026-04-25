@@ -1,10 +1,10 @@
-# Hard Sphere Lab v3.4.3
+# Hard Sphere Lab v3.4.4
 
 [English README](./README.md)
 
 Hard Sphere Lab 是一个基于 React、Vite 和 Capacitor 构建的硬球分子动力学模拟平台，集成了浏览器端仿真界面、三维粒子视图、统计诊断图表、预设管理和内置 PDF 报告查看器。
 
-## v3.4.3 更新要点
+## v3.4.4 更新要点
 
 - 实时图表和最终结果图表重构为更接近科研绘图风格的展示形式
 - 最终结果区改为固定分析面板，桌面端和移动端的阅读结构更清晰

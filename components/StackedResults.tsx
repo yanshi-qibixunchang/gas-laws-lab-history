@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { ChartData, HistogramBin, Translation } from '../types';
+import { formatScientificWithSuperscript } from '../utils/numberFormat';
 import DistributionCharts from './DistributionCharts';
 
 interface StackedResultsProps {
@@ -54,7 +55,7 @@ const formatMetricValue = (value: number | null, variant: 'density' | 'percent')
   }
 
   if (Math.abs(value) >= 0.01) return value.toFixed(4);
-  return value.toExponential(2);
+  return formatScientificWithSuperscript(value, 2);
 };
 
 const SummaryCard: React.FC<{

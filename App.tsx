@@ -29,8 +29,8 @@ const DEFAULT_PARAMS: SimulationParams = {
   statsDuration: 60
 };
 
-const APP_VERSION = '3.4.3';
-const APP_ANDROID_APK_PATH = '/downloads/HSS-android-v3.4.3.apk';
+const APP_VERSION = '3.4.4';
+const APP_ANDROID_APK_PATH = '/downloads/HSS-android-v3.4.4.apk';
 
 const areParamsEqual = (a: SimulationParams, b: SimulationParams) => (
   a.N === b.N &&
