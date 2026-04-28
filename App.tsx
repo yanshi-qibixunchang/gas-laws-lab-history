@@ -10,6 +10,7 @@ import CollapsibleCard from './components/CollapsibleCard';
 import StatsPanel from './components/StatsPanel';
 import Footer from './components/Footer';
 import ModeSwitch from './components/ModeSwitch';
+import WorkbenchStudioPrototype from './components/WorkbenchStudioPrototype';
 
 interface DeferredInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -31,6 +32,7 @@ const DEFAULT_PARAMS: SimulationParams = {
 
 const APP_VERSION = '3.4.4';
 const APP_ANDROID_APK_PATH = '/downloads/HSS-android-v3.4.4.apk';
+const SHOW_WORKBENCH_PROTOTYPE = true;
 
 const areParamsEqual = (a: SimulationParams, b: SimulationParams) => (
   a.N === b.N &&
@@ -247,6 +249,10 @@ const InstallPromptModal: React.FC<{
 };
 
 function App() {
+  if (SHOW_WORKBENCH_PROTOTYPE) {
+    return <WorkbenchStudioPrototype />;
+  }
+
   // Language State
   const [lang, setLang] = useState<LanguageCode>('zh-CN');
   const t = translations[lang];
