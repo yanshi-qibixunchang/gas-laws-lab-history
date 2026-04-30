@@ -586,6 +586,7 @@
   gap: 4px;
   margin-left: auto;
   border: 1px solid rgba(153, 168, 186, 0.22);
+  border-radius: 8px;
   background: rgba(153, 168, 186, 0.06);
   color: var(--studio-subtle);
   padding: 0 6px;
@@ -858,6 +859,7 @@
   align-items: center;
   gap: 4px;
   border: 1px solid var(--studio-border-soft);
+  border-radius: 8px;
   background: #11161d;
   color: var(--studio-muted);
   padding: 0 7px;
@@ -1541,6 +1543,7 @@
   display: inline-flex;
   width: fit-content;
   border: 1px solid rgba(123, 201, 155, 0.28);
+  border-radius: 8px;
   background: rgba(123, 201, 155, 0.08);
   color: var(--studio-success);
   padding: 2px 6px;
@@ -1591,6 +1594,7 @@
   min-width: 0;
   gap: 3px;
   border: 1px solid var(--studio-border-soft);
+  border-radius: 8px;
   background: #0d1117;
   color: var(--studio-muted);
   padding: 7px 8px;
@@ -1665,6 +1669,7 @@
 .studio-ideal-scan-input {
   width: min(100%, 106px);
   border: 1px solid rgba(110, 168, 254, 0.36);
+  border-radius: 8px;
   background: #10151b;
   color: var(--studio-text);
   padding: 4px 6px;
@@ -1827,6 +1832,7 @@
   justify-content: space-between;
   gap: 10px;
   border: 1px solid var(--studio-border);
+  border-radius: 8px;
   background: #0d1117;
   color: var(--studio-text);
   padding: 8px 10px;
@@ -1998,6 +2004,7 @@
   min-width: 0;
   height: 26px;
   border: 1px solid var(--studio-border);
+  border-radius: 8px;
   background: #0d1117;
   color: var(--studio-text);
   padding: 0 7px;
@@ -2021,6 +2028,7 @@
   gap: 5px;
   margin-top: 10px;
   border: 1px solid rgba(223, 123, 123, 0.36);
+  border-radius: 8px;
   background: rgba(223, 123, 123, 0.09);
   color: var(--studio-danger);
   padding: 8px;
@@ -2254,6 +2262,7 @@
   align-items: center;
   gap: 5px;
   border: 1px solid var(--studio-border-soft);
+  border-radius: 8px;
   background: #11161d;
   color: var(--studio-muted);
   padding: 0 8px;
@@ -2502,6 +2511,7 @@
   align-items: center;
   gap: 6px;
   border: 1px solid rgba(110, 168, 254, 0.34);
+  border-radius: 8px;
   background: rgba(110, 168, 254, 0.08);
   color: var(--studio-accent-strong);
   padding: 0 9px;
@@ -2860,6 +2870,7 @@
 .studio-figure-row em {
   justify-self: end;
   border: 1px solid var(--studio-border-soft);
+  border-radius: 8px;
   padding: 2px 6px;
   font-family: "JetBrains Mono", Consolas, monospace;
   font-size: 9px;
