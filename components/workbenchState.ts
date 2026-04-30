@@ -1,0 +1,264 @@
+import type {
+  ChartData,
+  ExperimentRelation,
+  Particle,
+  PressureMeasurementSummary,
+  SimulationParams,
+  SimulationStats,
+} from '../types';
+import {
+  createEmptyPointsByRelation,
+  type PointsByRelation,
+} from '../utils/idealGasExperiment';
+
+export type WorkbenchFileKind = 'standard' | 'ideal';
+export type WorkbenchRunState = 'idle' | 'running' | 'paused' | 'finished' | 'needs-reset';
+export type WorkbenchExportEnvironmentStatus =
+  | 'checking'
+  | 'available-system'
+  | 'available-bundled'
+  | 'unavailable'
+  | 'error';
+export type WorkbenchPanelKey =
+  | 'preview'
+  | 'realtime'
+  | 'results'
+  | 'experimentPoints'
+  | 'verification'
+  | 'history';
+export type WorkbenchIdealResultWindowKey = 'experimentPoints' | 'verification';
+
+export const IDEAL_RESULT_SINGLE_HEIGHT_RATIO = 0.5;
+export const IDEAL_RESULT_BACK_HEIGHT_RATIO = 0.75;
+export const IDEAL_RESULT_FRONT_HEIGHT_RATIO = 0.5;
+
+export interface WorkbenchIdealWindowLayout {
+  openPanels: WorkbenchIdealResultWindowKey[];
+  backHeightRatio: number;
+  frontHeightRatio: number;
+  hasCustomHeights: boolean;
+}
+
+export interface WorkbenchParameterRow {
+  key: keyof SimulationParams | 'relation';
+  label: string;
+  value: string;
+  unit?: string;
+  editable: boolean;
+}
+
+export interface WorkbenchValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+interface WorkbenchFileBase {
+  id: string;
+  name: string;
+  kind: WorkbenchFileKind;
+  visiblePanels: WorkbenchPanelKey[];
+  params: SimulationParams;
+  appliedParams: SimulationParams;
+  runState: WorkbenchRunState;
+  stats: SimulationStats;
+  chartData: ChartData;
+  finalChartData: ChartData | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface WorkbenchStandardState extends WorkbenchFileBase {
+  kind: 'standard';
+  particles: Particle[];
+}
+
+export interface WorkbenchIdealState extends WorkbenchFileBase {
+  kind: 'ideal';
+  relation: ExperimentRelation;
+  activeParams: SimulationParams;
+  pointsByRelation: PointsByRelation;
+  latestPressureSummary: PressureMeasurementSummary | null;
+  needsReset: boolean;
+  particles: Particle[];
+  verificationState: 'not-started' | 'collecting' | 'verified' | 'failed';
+  historyUnlocked: boolean;
+  idealWindowLayout: WorkbenchIdealWindowLayout;
+}
+
+export type WorkbenchFileState = WorkbenchStandardState | WorkbenchIdealState;
+
+export const DEFAULT_STANDARD_PARAMS: SimulationParams = {
+  L: 15,
+  N: 200,
+  r: 0.2,
+  m: 1.0,
+  k: 1.0,
+  dt: 0.01,
+  nu: 1.0,
+  equilibriumTime: 10,
+  statsDuration: 60,
+};
+
+export const DEFAULT_IDEAL_PARAMS: SimulationParams = {
+  L: 12,
+  N: 128,
+  r: 0.16,
+  m: 1.0,
+  k: 1.0,
+  dt: 0.01,
+  nu: 0.8,
+  targetTemperature: 1.0,
+  equilibriumTime: 4,
+  statsDuration: 12,
+};
+
+export const createIdleStats = (): SimulationStats => ({
+  time: 0,
+  temperature: 0,
+  pressure: 0,
+  meanSpeed: 0,
+  rmsSpeed: 0,
+  isEquilibrated: false,
+  progress: 0,
+  phase: 'idle',
+});
+
+export const createEmptyChartData = (): ChartData => ({
+  speed: [],
+  energy: [],
+  energyLog: [],
+  tempHistory: [],
+});
+
+export const cloneParams = (params: SimulationParams): SimulationParams => ({ ...params });
+
+export const createDefaultIdealWindowLayout = (
+  defaults?: Partial<Pick<WorkbenchIdealWindowLayout, 'backHeightRatio' | 'frontHeightRatio'>>,
+): WorkbenchIdealWindowLayout => ({
+  openPanels: [],
+  backHeightRatio: defaults?.backHeightRatio ?? IDEAL_RESULT_BACK_HEIGHT_RATIO,
+  frontHeightRatio: defaults?.frontHeightRatio ?? IDEAL_RESULT_FRONT_HEIGHT_RATIO,
+  hasCustomHeights: false,
+});
+
+const formatNumber = (value: number | undefined) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '--';
+  if (Number.isInteger(value)) return String(value);
+  return value.toFixed(value < 1 ? 3 : 2).replace(/0+$/, '').replace(/\.$/, '');
+};
+
+const createBaseFile = (
+  kind: WorkbenchFileKind,
+  index: number,
+  params: SimulationParams,
+): Omit<WorkbenchFileBase, 'kind'> => {
+  const paddedIndex = String(index).padStart(3, '0');
+  const now = Date.now();
+
+  return {
+    id: `${kind}-${paddedIndex}`,
+    name: `${kind === 'standard' ? 'Standard Simulation' : 'Ideal Gas Simulation'} - ${paddedIndex}`,
+    visiblePanels: ['preview', 'realtime'],
+    params: cloneParams(params),
+    appliedParams: cloneParams(params),
+    runState: 'idle',
+    stats: createIdleStats(),
+    chartData: createEmptyChartData(),
+    finalChartData: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+};
+
+export const createDefaultStandardFile = (index = 1): WorkbenchStandardState => ({
+  ...createBaseFile('standard', index, DEFAULT_STANDARD_PARAMS),
+  kind: 'standard',
+  particles: [],
+});
+
+export const createDefaultIdealFile = (index = 1): WorkbenchIdealState => ({
+  ...createBaseFile('ideal', index, DEFAULT_IDEAL_PARAMS),
+  kind: 'ideal',
+  relation: 'pt',
+  activeParams: cloneParams(DEFAULT_IDEAL_PARAMS),
+  pointsByRelation: createEmptyPointsByRelation(),
+  latestPressureSummary: null,
+  needsReset: false,
+  particles: [],
+  verificationState: 'not-started',
+  historyUnlocked: false,
+  idealWindowLayout: createDefaultIdealWindowLayout(),
+});
+
+export const createInitialWorkbenchFiles = (): WorkbenchFileState[] => [
+  createDefaultStandardFile(1),
+  createDefaultIdealFile(1),
+];
+
+export const areWorkbenchParamsEqual = (a: SimulationParams, b: SimulationParams) => (
+  a.N === b.N &&
+  a.L === b.L &&
+  a.r === b.r &&
+  a.m === b.m &&
+  a.k === b.k &&
+  a.dt === b.dt &&
+  a.nu === b.nu &&
+  a.equilibriumTime === b.equilibriumTime &&
+  a.statsDuration === b.statsDuration &&
+  a.targetTemperature === b.targetTemperature
+);
+
+export const getWorkbenchParameterRows = (file: WorkbenchFileState): WorkbenchParameterRow[] => {
+  const rows: WorkbenchParameterRow[] = [
+    { key: 'N', label: 'N', value: formatNumber(file.params.N), unit: 'particles', editable: true },
+    { key: 'r', label: 'r', value: formatNumber(file.params.r), editable: true },
+    { key: 'L', label: 'L', value: formatNumber(file.params.L), editable: true },
+    { key: 'dt', label: 'dt', value: formatNumber(file.params.dt), editable: true },
+    { key: 'nu', label: 'nu', value: formatNumber(file.params.nu), editable: true },
+    { key: 'equilibriumTime', label: 'equilibriumTime', value: formatNumber(file.params.equilibriumTime), unit: 's', editable: true },
+    { key: 'statsDuration', label: 'statsDuration', value: formatNumber(file.params.statsDuration), unit: 's', editable: true },
+  ];
+
+  if (file.kind === 'ideal') {
+    rows.push(
+      {
+        key: 'targetTemperature',
+        label: 'targetTemperature',
+        value: formatNumber(file.params.targetTemperature),
+        unit: 'K*',
+        editable: true,
+      },
+      {
+        key: 'relation',
+        label: 'verification',
+        value: file.relation === 'pt' ? 'P-T relation' : file.relation === 'pv' ? 'P-V relation' : 'P-N relation',
+        editable: false,
+      },
+    );
+  }
+
+  return rows;
+};
+
+export const validateWorkbenchParams = (params: SimulationParams): WorkbenchValidationResult => {
+  const errors: string[] = [];
+
+  if (!Number.isFinite(params.N) || params.N <= 0) errors.push('N must be greater than 0.');
+  if (!Number.isFinite(params.L) || params.L <= 0) errors.push('L must be greater than 0.');
+  if (!Number.isFinite(params.r) || params.r <= 0) errors.push('r must be greater than 0.');
+  if (!Number.isFinite(params.dt) || params.dt <= 0) errors.push('dt must be greater than 0.');
+  if (!Number.isFinite(params.equilibriumTime) || params.equilibriumTime < 0) {
+    errors.push('equilibriumTime must be 0 or greater.');
+  }
+  if (!Number.isFinite(params.statsDuration) || params.statsDuration <= 0) {
+    errors.push('statsDuration must be greater than 0.');
+  }
+  if (typeof params.targetTemperature === 'number' && (!Number.isFinite(params.targetTemperature) || params.targetTemperature <= 0)) {
+    errors.push('targetTemperature must be greater than 0.');
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+};

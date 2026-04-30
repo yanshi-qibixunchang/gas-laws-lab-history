@@ -15,6 +15,7 @@ interface SimulationCanvasProps {
   touchLike?: boolean;
   isCompactLandscape?: boolean;
   canvasHeight?: number | null;
+  variant?: 'classic' | 'workbench';
 }
 
 const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
@@ -29,7 +30,8 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
   supportsHover = true,
   touchLike = false,
   isCompactLandscape = false,
-  canvasHeight = null
+  canvasHeight = null,
+  variant = 'classic'
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -402,23 +404,27 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
   const showDesktopHoverHint = supportsHover && !touchLike && !isFocused && isHovering;
   const showControls = isFocused || (supportsHover && !touchLike && isHovering);
   const containerHeightStyle = canvasHeight ? { height: `${canvasHeight}px` } : undefined;
+  const isWorkbench = variant === 'workbench';
   const containerHoverClass = supportsHover ? 'hover:border-sciblue-400/50' : '';
   const controlButtonHoverClass = supportsHover ? 'hover:bg-white/20 hover:scale-105' : '';
   const resetButtonHoverClass = supportsHover ? 'hover:bg-sciblue-500' : '';
 
   return (
-    <div className="flex flex-col gap-2 relative">
-      <div className="flex justify-between items-center px-1 text-[10px] text-sciblue-600 dark:text-sciblue-400 uppercase tracking-widest font-bold">
+    <div className={`flex flex-col relative ${isWorkbench ? 'simulation-canvas-workbench gap-0 h-full min-h-0' : 'gap-2'}`}>
+      <div className={isWorkbench
+        ? 'simulation-canvas-workbench-status'
+        : 'flex justify-between items-center px-1 text-[10px] text-sciblue-600 dark:text-sciblue-400 uppercase tracking-widest font-bold'
+      }>
         <span className="flex items-center gap-1">
           {isFocused ? <Lock size={10} /> : <Unlock size={10} />}
-          {isFocused ? t.canvas.locked : t.canvas.scrollEnabled}
+          {isWorkbench ? (isFocused ? '3D controls active' : '3D view standby') : (isFocused ? t.canvas.locked : t.canvas.scrollEnabled)}
         </span>
-        <span>{isFocused ? t.canvas.clickToRelease : t.canvas.clickToInteract}</span>
+        <span>{isWorkbench ? 'Wheel zoom / drag rotate / right-drag pan' : (isFocused ? t.canvas.clickToRelease : t.canvas.clickToInteract)}</span>
       </div>
 
       <div
         ref={containerRef}
-        style={{ touchAction: isFocused ? 'none' : 'pan-x pan-y', ...containerHeightStyle }}
+        style={{ touchAction: isFocused ? 'none' : 'pan-x pan-y', ...(isWorkbench ? { height: '100%', minHeight: 0 } : containerHeightStyle) }}
         onMouseEnter={() => {
           if (supportsHover && !touchLike) setIsHovering(true);
         }}
@@ -426,16 +432,22 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
           setIsHovering(false);
           isDragging.current = false;
         }}
-        className={`
-          relative w-full rounded-panel overflow-hidden bg-slate-900 select-none
-          h-[45vh] sm:h-[450px] md:h-[500px] lg:h-[550px]
-          transition-all duration-300 cubic-bezier(0.34, 1.56, 0.64, 1)
-          ${isFocused
-            ? 'scale-[1.01] shadow-[0_0_0_4px_rgba(56,189,248,0.3)] ring-2 ring-sciblue-500 z-10'
-            : `scale-100 shadow-inner border border-slate-700 ${containerHoverClass}`
-          }
-          ${touchLike ? 'cursor-default' : isDragging.current ? 'cursor-grabbing' : 'cursor-grab'}
-        `}
+        className={isWorkbench
+          ? `
+            simulation-canvas-workbench-frame
+            ${isFocused ? 'simulation-canvas-workbench-frame-active' : ''}
+            ${touchLike ? 'cursor-default' : isDragging.current ? 'cursor-grabbing' : 'cursor-grab'}
+          `
+          : `
+            relative w-full rounded-panel overflow-hidden bg-slate-900 select-none
+            h-[45vh] sm:h-[450px] md:h-[500px] lg:h-[550px]
+            transition-all duration-300 cubic-bezier(0.34, 1.56, 0.64, 1)
+            ${isFocused
+              ? 'scale-[1.01] shadow-[0_0_0_4px_rgba(56,189,248,0.3)] ring-2 ring-sciblue-500 z-10'
+              : `scale-100 shadow-inner border border-slate-700 ${containerHoverClass}`
+            }
+            ${touchLike ? 'cursor-default' : isDragging.current ? 'cursor-grabbing' : 'cursor-grab'}
+          `}
       >
         <canvas
           ref={canvasRef}
@@ -452,9 +464,11 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
           style={{ width: '100%', height: '100%' }}
         />
 
-        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent pointer-events-none rounded-b-[1.5rem] z-10" />
+        {!isWorkbench ? (
+          <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent pointer-events-none rounded-b-[1.5rem] z-10" />
+        ) : null}
 
-        {showDesktopHoverHint && (
+        {!isWorkbench && showDesktopHoverHint && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
             <div className="max-w-[min(90vw,420px)] rounded-panel border border-white/15 bg-slate-950/70 px-4 py-3 text-center shadow-2xl backdrop-blur-md">
               <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-sciblue-300 mb-1">
@@ -467,7 +481,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
           </div>
         )}
 
-        {isFocused && showPanHint && (
+        {!isWorkbench && isFocused && showPanHint && (
           <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[110] pointer-events-none flex flex-col items-center justify-center animate-fade-in">
             <div className="max-w-[min(74vw,280px)] rounded-panel border border-white/20 bg-black/75 px-5 py-4 shadow-2xl backdrop-blur-md">
               <div className="flex flex-col items-center gap-2 text-center">
@@ -485,24 +499,29 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
           </div>
         )}
 
-        <div className={`absolute top-0 left-0 w-full p-4 flex justify-between pointer-events-none transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+        <div className={isWorkbench
+          ? `simulation-canvas-workbench-tools ${showControls ? 'simulation-canvas-workbench-tools-visible' : ''}`
+          : `absolute top-0 left-0 w-full p-4 flex justify-between pointer-events-none transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`
+        }>
           <div className="pointer-events-auto relative z-[120]">
             {isFocused && (
               <button
                 onClick={togglePanMode}
                 onMouseDown={(event) => event.stopPropagation()}
                 onTouchStart={(event) => event.stopPropagation()}
-                className={`
-                  p-3 rounded-full shadow-xl border backdrop-blur-md transition-all active:scale-95 flex items-center justify-center relative
-                  ${isPanMode
-                    ? 'bg-sciblue-600 text-white border-sciblue-300 shadow-[0_0_20px_rgba(14,165,233,0.6)] scale-110'
-                    : `bg-white/10 text-white border-white/20 ${controlButtonHoverClass}`
-                  }
-                  ${showPanHint ? 'animate-breathe-attention ring-2 ring-amber-300/45' : ''}
-                `}
+                className={isWorkbench
+                  ? `simulation-canvas-workbench-tool ${isPanMode ? 'simulation-canvas-workbench-tool-active' : ''}`
+                  : `
+                    p-3 rounded-full shadow-xl border backdrop-blur-md transition-all active:scale-95 flex items-center justify-center relative
+                    ${isPanMode
+                      ? 'bg-sciblue-600 text-white border-sciblue-300 shadow-[0_0_20px_rgba(14,165,233,0.6)] scale-110'
+                      : `bg-white/10 text-white border-white/20 ${controlButtonHoverClass}`
+                    }
+                    ${showPanHint ? 'animate-breathe-attention ring-2 ring-amber-300/45' : ''}
+                  `}
                 title={isPanMode ? t.tooltips.rotateMode : t.tooltips.panMode}
               >
-                {isPanMode ? <Hand size={22} strokeWidth={2.5} /> : <Rotate3d size={22} strokeWidth={2} />}
+                {isPanMode ? <Hand size={isWorkbench ? 14 : 22} strokeWidth={2.5} /> : <Rotate3d size={isWorkbench ? 14 : 22} strokeWidth={2} />}
                 {showPanHint && (
                   <span className="absolute inset-0 rounded-full ring-4 ring-amber-400/50 animate-ping" />
                 )}
@@ -515,24 +534,26 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
               onClick={resetView}
               onMouseDown={(event) => event.stopPropagation()}
               onTouchStart={(event) => event.stopPropagation()}
-              className={`bg-sciblue-600 text-white text-xs px-3 py-1.5 rounded-full shadow-lg border border-sciblue-400/50 backdrop-blur-sm transition-transform active:scale-95 flex items-center gap-1 ${resetButtonHoverClass}`}
+              className={isWorkbench
+                ? 'simulation-canvas-workbench-reset'
+                : `bg-sciblue-600 text-white text-xs px-3 py-1.5 rounded-full shadow-lg border border-sciblue-400/50 backdrop-blur-sm transition-transform active:scale-95 flex items-center gap-1 ${resetButtonHoverClass}`}
               title={t.tooltips.resetCamera}
             >
-              <Maximize size={12} /> {t.canvas.resetView}
+              <Maximize size={12} /> {isWorkbench ? 'Reset view' : t.canvas.resetView}
             </button>
           </div>
         </div>
 
-        <div className="absolute bottom-4 left-4 pointer-events-none select-none z-20">
+        <div className={isWorkbench ? 'simulation-canvas-workbench-hint' : 'absolute bottom-4 left-4 pointer-events-none select-none z-20'}>
           {isFocused ? (
-            <div className="text-xs text-sciblue-100 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-panel border border-white/10 shadow-lg animate-fade-in-up">
+            <div className={isWorkbench ? 'simulation-canvas-workbench-hint-pill' : 'text-xs text-sciblue-100 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-panel border border-white/10 shadow-lg animate-fade-in-up'}>
               <p className="font-medium">
-                {touchLike ? t.canvas.instructionsFocused_mobile : t.canvas.instructionsFocused_desktop}
+                {isWorkbench ? (isPanMode ? 'Pan mode active' : 'Rotate mode active') : (touchLike ? t.canvas.instructionsFocused_mobile : t.canvas.instructionsFocused_desktop)}
               </p>
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-xs text-amber-400 font-bold tracking-wide animate-pulse">
-              <MousePointer2 size={14} /> {t.canvas.instructionsIdle}
+            <div className={isWorkbench ? 'simulation-canvas-workbench-hint-idle' : 'flex items-center gap-2 text-xs text-amber-400 font-bold tracking-wide animate-pulse'}>
+              <MousePointer2 size={14} /> {isWorkbench ? 'Click to activate 3D controls' : t.canvas.instructionsIdle}
             </div>
           )}
         </div>

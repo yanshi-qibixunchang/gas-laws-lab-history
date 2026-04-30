@@ -305,7 +305,6 @@ const WorkbenchPrototype: React.FC = () => {
             ))}
             {renderRibbonGroup('Simulation', (
               <>
-                {renderToolButton('Apply Params', <SlidersHorizontal size={16} />)}
                 {renderToolButton('Run', <Play size={16} />, 'success', true)}
                 {renderToolButton('Pause', <Pause size={16} />, 'warning')}
                 {renderToolButton('Reset System', <RotateCcw size={16} />, 'warning')}
