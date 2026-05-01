@@ -7,7 +7,7 @@ const cssSource = readFileSync(new URL('../components/WorkbenchStudioPrototype.c
 assert.doesNotMatch(
   source,
   /studio-param-apply-button/,
-  'Current Parameters should not render a separate Apply button when Reset is the runtime rebuild action',
+  'Current Parameters should not render a separate Apply button when Start applies pending values',
 );
 assert.doesNotMatch(
   source,
@@ -21,18 +21,18 @@ assert.doesNotMatch(
 );
 assert.match(
   source,
-  /saved parameter changes are pending Reset\. Run was not started\./,
-  'Run warning should point users to Reset after saved parameter changes',
+  /const prepareActiveFileForRun = \(\): boolean => \{[\s\S]*?parametersDirty[\s\S]*?applyActiveFileParams\(undefined,\s*\{ silent: true/,
+  'Start should apply saved pending parameter changes instead of warning users to press Reset',
 );
 assert.match(
   source,
-  /if \(parametersDirty \|\| \(activeFile\.kind === 'ideal' && activeFile\.needsReset\)\) \{[\s\S]*?applyActiveFileParams\(\);[\s\S]*?return;/,
-  'Reset should rebuild from saved pending parameters when it replaces Apply',
+  /activeFile\.kind === 'ideal' && activeFile\.needsReset[\s\S]*?applyActiveFileParams\(undefined,\s*\{ silent: true/,
+  'Start should rebuild ideal runtimes that need applied scan parameters',
 );
-assert.match(
+assert.doesNotMatch(
   source,
   /reset the ideal-gas runtime before running the next sample point\./,
-  'ideal run warning should point users to Reset, not reset/apply',
+  'ideal run should not warn users to press Reset before recording the next sample point',
 );
 
 console.log('workbenchRemoveApplyAction tests passed');

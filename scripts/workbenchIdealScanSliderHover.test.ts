@@ -24,6 +24,16 @@ assert.match(
   /isPointerOnIdealScanThumb/,
   'ideal scan slider should distinguish thumb hover from track hover',
 );
+assert.match(
+  source,
+  /const getIdealScanPositionPercent = \(value: number,\s*scanMin: number,\s*scanRange: number\) =>[\s\S]*?clamp\(\(\(value - scanMin\) \/ scanRange\) \* 100,\s*0,\s*100\)/,
+  'ideal scan slider and tick labels should share the same value-to-position calculation',
+);
+assert.match(
+  source,
+  /'--studio-ideal-scan-tick-position': `\$\{getIdealScanPositionPercent\(value,\s*scanMin,\s*scanRange\)\}%`/,
+  'recommended scan value buttons should be positioned by numeric value instead of equal spacing',
+);
 
 assert.match(
   cssSource,
@@ -94,6 +104,16 @@ assert.match(
   cssSource,
   /\.studio-ideal-scan-slider-dragging::?-moz-range-thumb[\s\S]*?width:\s*15\.6px[\s\S]*?height:\s*15\.6px/,
   'dragging the ideal scan slider should grow the Firefox thumb to 15.6px',
+);
+assert.match(
+  cssSource,
+  /\.studio-ideal-scan-ticks[\s\S]*?position:\s*relative[\s\S]*?margin-inline:\s*calc\(13px \/ 2\)/,
+  'recommended scan value row should use the same effective track inset as the range thumb center',
+);
+assert.match(
+  cssSource,
+  /\.studio-ideal-scan-tick-button[\s\S]*?position:\s*absolute[\s\S]*?left:\s*var\(--studio-ideal-scan-tick-position\)[\s\S]*?transform:\s*translateX\(-50%\)/,
+  'recommended scan value buttons should center themselves over their numeric track position',
 );
 
 console.log('workbenchIdealScanSliderHover tests passed');

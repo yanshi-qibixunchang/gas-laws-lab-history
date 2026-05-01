@@ -106,6 +106,15 @@ interface StandardEngineRuntime {
   animationFrameId: number | null;
 }
 
+interface ApplyActiveFileParamsOptions {
+  silent?: boolean;
+  forceReset?: boolean;
+}
+
+interface UpdateIdealScanVariableOptions {
+  snap?: boolean;
+}
+
 const workbenchTranslation = translations['zh-CN'];
 const LOCKED_PANEL_KEYS: WorkbenchPanelKey[] = ['preview', 'realtime'];
 const LEFT_SIDEBAR_MIN = 220;
@@ -115,6 +124,11 @@ const PARAM_SIDEBAR_MAX = 420;
 const EDIT_HISTORY_LIMIT = 50;
 const IDEAL_SCAN_THUMB_SIZE = 13;
 const IDEAL_SCAN_THUMB_HIT_RADIUS = 9.1;
+const IDEAL_SCAN_SNAP_THRESHOLD: Record<ExperimentRelation, number> = {
+  pt: 0.04,
+  pv: 0.25,
+  pn: 8,
+};
 const IDEAL_RESULT_MIN_HEIGHT_RATIO = 0.25;
 const IDEAL_RESULT_MAX_HEIGHT_RATIO = 1;
 const IDEAL_RESULT_WINDOW_DEFAULTS_STORAGE_KEY = 'hsl_workbench_ideal_result_window_defaults';
@@ -154,6 +168,33 @@ const formatMetric = (value: number, digits = 3) => {
   if (!Number.isFinite(value)) return '--';
   return value.toFixed(digits);
 };
+
+const getIdealScanStep = (relation: ExperimentRelation) => (
+  relation === 'pn' ? 1 : relation === 'pv' ? 0.1 : 0.01
+);
+
+const getIdealScanDecimals = (relation: ExperimentRelation) => (
+  relation === 'pn' ? 0 : relation === 'pv' ? 1 : 2
+);
+
+const getIdealScanStepLabel = (relation: ExperimentRelation) => (
+  relation === 'pt' ? '0.01' : relation === 'pv' ? '0.1' : '1'
+);
+
+const getIdealScanInputLabel = (relation: ExperimentRelation) => (
+  relation === 'pt' ? 'Target temperature' : relation === 'pv' ? 'L' : 'N'
+);
+
+const isIdealScanValueOnStep = (rawValue: string, relation: ExperimentRelation) => {
+  if (relation === 'pn') return /^\d+$/.test(rawValue.trim());
+  const fractionalPart = rawValue.trim().split('.')[1] ?? '';
+  const trimmedFractionalPart = fractionalPart.replace(/0+$/, '');
+  return trimmedFractionalPart.length <= getIdealScanDecimals(relation);
+};
+
+const getIdealScanPositionPercent = (value: number, scanMin: number, scanRange: number) => (
+  scanRange > 0 ? clamp(((value - scanMin) / scanRange) * 100, 0, 100) : 0
+);
 
 const formatMaybeMetric = (value: number | null | undefined, digits = 3) => (
   typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '--'
@@ -217,27 +258,6 @@ const getIdealVerificationState = (
   if (analysis.isVerified) return 'verified';
   if (analysis.verdictState === 'insufficient') return 'collecting';
   return analysis.sortedPoints.length === 0 ? 'not-started' : 'failed';
-};
-
-const invalidateIdealPointsForKeys = (
-  pointsByRelation: WorkbenchIdealState['pointsByRelation'],
-  changedKeys: ExperimentParamKey[],
-) => {
-  if (changedKeys.length === 0) return pointsByRelation;
-
-  let didClear = false;
-  const nextPointsByRelation = clonePointsByRelation(pointsByRelation);
-
-  idealRelationKeys.forEach((relation) => {
-    if (pointsByRelation[relation].length === 0) return;
-    const shouldClear = changedKeys.some((key) => !isVariableKeyForRelation(relation, key));
-    if (!shouldClear) return;
-
-    didClear = true;
-    nextPointsByRelation[relation] = [];
-  });
-
-  return didClear ? nextPointsByRelation : pointsByRelation;
 };
 
 const standardPanels: PanelDefinition[] = [
@@ -433,13 +453,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [pendingDeleteFileId, setPendingDeleteFileId] = useState<string | null>(null);
   const [pendingRemovePointId, setPendingRemovePointId] = useState<string | null>(null);
   const [pendingClearRelationKey, setPendingClearRelationKey] = useState<string | null>(null);
-  const [realtimeCompact, setRealtimeCompact] = useState(false);
   const [resultsActiveSection, setResultsActiveSection] = useState<ResultsSectionKey>('summary');
   const [resultsChildrenCollapsed, setResultsChildrenCollapsed] = useState(false);
   const [samplingPresetMenuOpen, setSamplingPresetMenuOpen] = useState(false);
   const [parametersEditing, setParametersEditing] = useState(false);
   const [parameterDraft, setParameterDraft] = useState<Record<string, string>>({});
   const [parameterErrors, setParameterErrors] = useState<string[]>([]);
+  const [scanInputDraft, setScanInputDraft] = useState('');
+  const [scanInputFocused, setScanInputFocused] = useState(false);
+  const [scanInputError, setScanInputError] = useState<string | null>(null);
+  const [scanInputToast, setScanInputToast] = useState<string | null>(null);
   const [scanSliderThumbHover, setScanSliderThumbHover] = useState(false);
   const [scanSliderDragging, setScanSliderDragging] = useState(false);
   const [isCanvasFocused, setIsCanvasFocused] = useState(false);
@@ -449,11 +472,22 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const idealRuntimeRef = useRef<Record<string, StandardEngineRuntime>>({});
   const filesRef = useRef<WorkbenchFileState[]>(initialFiles);
   const activeFileIdRef = useRef(initialFiles[0].id);
+  const renamingFileIdRef = useRef<string | null>(null);
+  const scanInputRef = useRef<HTMLInputElement | null>(null);
+  const topCommandsRef = useRef<HTMLElement | null>(null);
+  const topMenuRef = useRef<HTMLDivElement | null>(null);
+  const fileMenuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const fileMenuRef = useRef<HTMLDivElement | null>(null);
+  const renameInputRef = useRef<HTMLInputElement | null>(null);
+  const renameSelectionModeRef = useRef<'initial' | 'normal'>('normal');
+  const lastScanInputErrorRef = useRef<string | null>(null);
   const samplingPresetSelectRef = useRef<HTMLDivElement | null>(null);
   const centerWorkspaceRef = useRef<HTMLDivElement | null>(null);
   const idealResultWindowRegionRef = useRef<HTMLDivElement | null>(null);
 
-  const activeFile = files.find((file) => file.id === activeFileId) ?? files[0];
+  const emptyWorkbenchFile = useMemo(() => createDefaultStandardFile(0), []);
+  const isWorkbenchEmpty = files.length === 0;
+  const activeFile = files.find((file) => file.id === activeFileId) ?? emptyWorkbenchFile;
   const availablePanels = activeFile.kind === 'standard' ? standardPanels : idealPanels;
   const activePanelTitle = availablePanels.find((panel) => panel.key === selectedPanel)?.title ?? '3D Preview';
   const primaryPanels = availablePanels.filter((panel) => panel.key === 'preview' || panel.key === 'realtime');
@@ -482,8 +516,24 @@ const WorkbenchStudioPrototype: React.FC = () => {
     ),
     [activeFile],
   );
+  const editableCurrentParameters = currentParameters.filter((param) => !(activeFile.kind === 'ideal' && param.key === 'targetTemperature'));
   const parametersDirty = !areWorkbenchParamsEqual(activeFile.params, activeFile.appliedParams);
   const parameterControlsLocked = activeFile.runState === 'running' || activeFile.runState === 'paused';
+  const controlledVariableLockHint = 'To keep controlled variables fixed, this parameter cannot be changed while the current data table has rows. Clear the table first to edit it.';
+  const currentIdealRelationHasPoints = activeFile.kind === 'ideal' && activeFile.pointsByRelation[activeFile.relation].length > 0;
+  const isIdealControlledVariableLocked = (
+    key: keyof SimulationParams | 'relation',
+  ) => (
+    activeFile.kind === 'ideal'
+    && currentIdealRelationHasPoints
+    && key !== 'relation'
+    && !isVariableKeyForRelation(activeFile.relation, key as ExperimentParamKey)
+  );
+  const getLockedIdealControlledVariableKeys = (nextParams: SimulationParams): ExperimentParamKey[] => (
+    activeFile.kind === 'ideal' && currentIdealRelationHasPoints
+      ? getChangedIdealParamKeys(activeFile.params, nextParams).filter((key) => !isVariableKeyForRelation(activeFile.relation, key))
+      : []
+  );
   const exportEnvironmentStatus = getExportEnvironmentStatus();
   const workbenchStyle = {
     '--studio-left-width': `${leftSidebarWidth}px`,
@@ -497,6 +547,36 @@ const WorkbenchStudioPrototype: React.FC = () => {
   useEffect(() => {
     activeFileIdRef.current = activeFileId;
   }, [activeFileId]);
+
+  useEffect(() => {
+    renamingFileIdRef.current = renamingFileId;
+  }, [renamingFileId]);
+
+  useEffect(() => {
+    if (!renamingFileId) return undefined;
+
+    const frameId = window.requestAnimationFrame(() => {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [renamingFileId]);
+
+  useEffect(() => {
+    if (activeFile.kind !== 'ideal' || scanInputFocused) return;
+    const value = getRelationVariableNumericValue(activeFile.relation, activeFile.params);
+    setScanInputDraft(formatMetric(value, getIdealScanDecimals(activeFile.relation)));
+    setScanInputError(null);
+  }, [activeFile.kind, activeFile.relation, activeFile.params, scanInputFocused]);
+
+  useEffect(() => {
+    if (!scanInputToast) return undefined;
+    const timeoutId = window.setTimeout(() => setScanInputToast(null), 2600);
+    return () => window.clearTimeout(timeoutId);
+  }, [scanInputToast]);
 
   useEffect(() => {
     if (!samplingPresetMenuOpen) return undefined;
@@ -610,6 +690,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setPendingDeleteFileId(null);
     setPendingRemovePointId(null);
     setPendingClearRelationKey(null);
+    renamingFileIdRef.current = null;
     setRenamingFileId(null);
     setRenameDraft('');
     setOpenTopMenu(null);
@@ -1076,6 +1157,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return nextParams;
   };
 
+  const rejectLockedIdealControlledVariables = (nextParams: SimulationParams) => {
+    const lockedKeys = getLockedIdealControlledVariableKeys(nextParams);
+    if (lockedKeys.length === 0) return false;
+
+    const message = `${activeFile.name}: controlled variables are locked while ${getRelationLabel(activeFile.relation)} data table has rows. Clear the table before changing ${lockedKeys.join(', ')}.`;
+    setParameterErrors([message]);
+    pushLog(message, 'warning');
+    return true;
+  };
+
   const saveParameterDraft = () => {
     if (parameterControlsLocked) {
       pushLog(`${activeFile.name}: pause the simulation before saving parameters.`, 'warning');
@@ -1084,6 +1175,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     const nextParams = parseParameterDraft();
     if (!nextParams) return;
+    if (rejectLockedIdealControlledVariables(nextParams)) return;
 
     if (!areWorkbenchParamsEqual(nextParams, activeFile.params)) {
       captureUndoSnapshot('saved parameters');
@@ -1100,29 +1192,35 @@ const WorkbenchStudioPrototype: React.FC = () => {
     pushLog(`${activeFile.name}: parameters saved to this workbench file.`, 'success');
   };
 
-  const applyActiveFileParams = (paramsOverride?: SimulationParams) => {
+  const applyActiveFileParams = (
+    paramsOverride?: SimulationParams,
+    options: ApplyActiveFileParamsOptions = {},
+  ): StandardEngineRuntime | null => {
     if (activeFile.runState === 'running') {
-      pushLog(`${activeFile.name}: pause the simulation before resetting saved parameters.`, 'warning');
-      return;
+      if (!options.silent) pushLog(`${activeFile.name}: pause the simulation before applying saved parameters.`, 'warning');
+      return null;
     }
 
     const nextParams = paramsOverride ? cloneParams(paramsOverride) : cloneParams(activeFile.params);
+    if (rejectLockedIdealControlledVariables(nextParams)) return null;
+
     const hasOverride = Boolean(paramsOverride);
     const nextParamsAlreadyApplied = areWorkbenchParamsEqual(nextParams, activeFile.appliedParams);
     const willChangeSavedParams = !areWorkbenchParamsEqual(nextParams, activeFile.params);
     const willChangeAppliedParams = !nextParamsAlreadyApplied;
+    const forceReset = options.forceReset === true;
 
-    if (activeFile.kind === 'ideal' && !hasOverride && !parametersDirty && !activeFile.needsReset) {
-      pushLog(`${activeFile.name}: ideal runtime is already reset for the saved parameters.`);
-      return;
+    if (activeFile.kind === 'ideal' && !forceReset && !hasOverride && !parametersDirty && !activeFile.needsReset) {
+      if (!options.silent) pushLog(`${activeFile.name}: ideal runtime is already applied for the saved parameters.`);
+      return getIdealRuntime(activeFile);
     }
 
-    if (activeFile.kind === 'standard' && !hasOverride && !parametersDirty) {
-      pushLog(`${activeFile.name}: no saved parameter changes to reset.`);
-      return;
+    if (activeFile.kind === 'standard' && !forceReset && !hasOverride && !parametersDirty) {
+      if (!options.silent) pushLog(`${activeFile.name}: no saved parameter changes to apply.`);
+      return getStandardRuntime(activeFile);
     }
 
-    if (activeFile.kind === 'standard' && hasOverride && nextParamsAlreadyApplied) {
+    if (activeFile.kind === 'standard' && !forceReset && hasOverride && nextParamsAlreadyApplied) {
       if (willChangeSavedParams) {
         captureUndoSnapshot('saved parameters');
       }
@@ -1134,8 +1232,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
       setParametersEditing(false);
       setParameterDraft({});
       setParameterErrors([]);
-      pushLog(`${activeFile.name}: edited parameters match the applied runtime. No rebuild needed.`);
-      return;
+      if (!options.silent) pushLog(`${activeFile.name}: edited parameters match the applied runtime. No rebuild needed.`);
+      return getStandardRuntime(activeFile);
     }
 
     if (activeFile.kind === 'ideal') {
@@ -1143,7 +1241,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       if (!validation.valid) {
         setParameterErrors(validation.errors);
         validation.errors.forEach((error) => pushLog(`${activeFile.name}: ${error}`, 'error'));
-        return;
+        return null;
       }
 
       const changedKeys = getChangedIdealParamKeys(activeFile.activeParams, nextParams);
@@ -1153,10 +1251,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
         frameCount: 0,
         animationFrameId: null,
       };
-      const nextPointsByRelation = invalidateIdealPointsForKeys(activeFile.pointsByRelation, changedKeys);
+      const nextPointsByRelation = activeFile.pointsByRelation;
       const analysis = getIdealGasAnalysis(activeFile.relation, nextPointsByRelation, nextActiveParams);
 
-      if (willChangeSavedParams || willChangeAppliedParams || activeFile.needsReset) {
+      if (willChangeSavedParams || willChangeAppliedParams || activeFile.needsReset || forceReset) {
         captureUndoSnapshot(hasOverride ? 'saved and applied ideal parameters' : 'applied ideal parameters');
       }
 
@@ -1185,11 +1283,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
       setParametersEditing(false);
       setParameterDraft({});
       setParameterErrors([]);
-      pushLog(
-        `${activeFile.name}: ideal runtime reset for ${getRelationLabel(activeFile.relation)}; changed keys: ${changedKeys.length > 0 ? changedKeys.join(', ') : 'none'}.`,
-        'success',
-      );
-      return;
+      if (!options.silent) {
+        pushLog(
+          `${activeFile.name}: ideal runtime applied for ${getRelationLabel(activeFile.relation)}; changed keys: ${changedKeys.length > 0 ? changedKeys.join(', ') : 'none'}.`,
+          'success',
+        );
+      }
+      return nextRuntime;
     }
 
     const nextAppliedParams = cloneParams(nextParams);
@@ -1199,7 +1299,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       animationFrameId: null,
     };
 
-    if (willChangeSavedParams || willChangeAppliedParams) {
+    if (willChangeSavedParams || willChangeAppliedParams || forceReset) {
       captureUndoSnapshot(hasOverride ? 'saved and applied parameters' : 'applied parameters');
     }
     cancelRuntimeFrame(activeFile.id);
@@ -1218,20 +1318,35 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setParametersEditing(false);
     setParameterDraft({});
     setParameterErrors([]);
-    pushLog(
-        `${activeFile.name}: parameters ${hasOverride ? 'saved and reset' : 'reset'}; runtime rebuilt and ready to run.`,
+    if (!options.silent) {
+      pushLog(
+        `${activeFile.name}: parameters ${hasOverride ? 'saved and applied' : 'applied'}; runtime rebuilt and ready to run.`,
         'success',
       );
+    }
+    return nextRuntime;
+  };
+
+  const prepareActiveFileForRun = (): boolean => {
+    if (activeFile.runState === 'paused') return true;
+
+    if (parametersEditing) {
+      setParametersEditing(false);
+      setParameterDraft({});
+      setParameterErrors([]);
+    }
+
+    if (parametersDirty || (activeFile.kind === 'ideal' && activeFile.needsReset) || activeFile.runState === 'finished') {
+      const appliedRuntime = applyActiveFileParams(undefined, { silent: true, forceReset: activeFile.runState === 'finished' });
+      if (!appliedRuntime) return false;
+      return true;
+    }
+
+    return true;
   };
 
   const runActiveFile = () => {
-    if (parametersDirty) {
-      pushLog(`${activeFile.name}: saved parameter changes are pending Reset. Run was not started.`, 'warning');
-      return;
-    }
-
-    if (activeFile.kind === 'ideal' && activeFile.needsReset) {
-      pushLog(`${activeFile.name}: reset the ideal-gas runtime before running the next sample point.`, 'warning');
+    if (!prepareActiveFileForRun()) {
       return;
     }
 
@@ -1240,7 +1355,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setParameterErrors([]);
     setSamplingPresetMenuOpen(false);
     pauseRunningFilesExcept(activeFile.id);
-    const runtime = activeFile.kind === 'standard' ? getStandardRuntime(activeFile) : getIdealRuntime(activeFile);
+    const runtime = activeFile.kind === 'standard'
+      ? standardRuntimeRef.current[activeFile.id] ?? getStandardRuntime(activeFile)
+      : idealRuntimeRef.current[activeFile.id] ?? getIdealRuntime(activeFile);
     if (!runtime) {
       pushLog(`${activeFile.name}: failed to create a ${activeFile.kind} simulation runtime.`, 'error');
       return;
@@ -1696,7 +1813,108 @@ const WorkbenchStudioPrototype: React.FC = () => {
     });
   };
 
-  const updateIdealScanVariable = (rawValue: number) => {
+  const getSnappedIdealScanValue = (relation: ExperimentRelation, rawValue: number) => {
+    const presetSequence = getPresetSequence(relation);
+    const threshold = IDEAL_SCAN_SNAP_THRESHOLD[relation];
+    const closest = presetSequence.reduce(
+      (best, preset) => {
+        const distance = Math.abs(preset - rawValue);
+        return distance < best.distance ? { value: preset, distance } : best;
+      },
+      { value: rawValue, distance: Number.POSITIVE_INFINITY },
+    );
+
+    return closest.distance <= threshold ? closest.value : rawValue;
+  };
+
+  const showScanInputError = (message: string, options: { refocus?: boolean; rawValue?: string } = {}) => {
+    setScanInputError(message);
+    setParameterErrors([message]);
+    setScanInputToast(message);
+    const errorKey = `${message}\n${options.rawValue ?? ''}`;
+    if (lastScanInputErrorRef.current !== errorKey) {
+      lastScanInputErrorRef.current = errorKey;
+      pushLog(`${activeFile.name}: ${message}`, 'error');
+    }
+    if (options.refocus) {
+      window.setTimeout(() => {
+        scanInputRef.current?.focus();
+        scanInputRef.current?.select();
+      }, 0);
+    }
+  };
+
+  const clearScanInputError = () => {
+    lastScanInputErrorRef.current = null;
+    setScanInputError(null);
+    setParameterErrors([]);
+  };
+
+  const parseIdealScanInput = (
+    rawValue: string,
+    relation: ExperimentRelation,
+    scanMin: number,
+    scanMax: number,
+  ): { valid: true; value: number } | { valid: false; message: string } => {
+    const trimmedValue = rawValue.trim();
+    const relationKey = getRelationVariableKey(relation);
+    const decimalPattern = /^(?:\d+(?:\.\d*)?|\.\d+)$/;
+    const integerPattern = /^\d+$/;
+    const formatName = relationKey === 'N' ? 'positive integer' : 'decimal number';
+    const decimals = getIdealScanDecimals(relation);
+
+    if (!trimmedValue) {
+      return { valid: false, message: `${String(relationKey)} requires a ${formatName}.` };
+    }
+
+    if (relationKey === 'N' && !integerPattern.test(trimmedValue)) {
+      return { valid: false, message: 'N only supports positive integer input. N minimum step is 1.' };
+    }
+
+    if (relationKey !== 'N' && !decimalPattern.test(trimmedValue)) {
+      return { valid: false, message: `${String(relationKey)} only supports ordinary decimal input.` };
+    }
+
+    const parsedValue = Number(trimmedValue);
+    if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+      return { valid: false, message: `${String(relationKey)} must be greater than 0.` };
+    }
+
+    if (!isIdealScanValueOnStep(trimmedValue, relation)) {
+      return {
+        valid: false,
+        message: `${getIdealScanInputLabel(relation)} minimum step is ${getIdealScanStepLabel(relation)}.`,
+      };
+    }
+
+    if (parsedValue < scanMin || parsedValue > scanMax) {
+      return {
+        valid: false,
+        message: `${String(relationKey)} must stay between ${formatMetric(scanMin, decimals)} and ${formatMetric(scanMax, decimals)}.`,
+      };
+    }
+
+    return { valid: true, value: relationKey === 'N' ? Math.round(parsedValue) : parsedValue };
+  };
+
+  const validateIdealScanDraft = (rawValue: string) => {
+    if (activeFile.kind !== 'ideal') return true;
+    const presetSequence = getPresetSequence(activeFile.relation);
+    const relationVariableValue = getRelationVariableNumericValue(activeFile.relation, activeFile.params);
+    const scanMin = Math.min(...presetSequence, relationVariableValue);
+    const scanMax = Math.max(...presetSequence, relationVariableValue);
+    const parsed = parseIdealScanInput(rawValue, activeFile.relation, scanMin, scanMax);
+
+    if (!parsed.valid) {
+      showScanInputError(parsed.message, { rawValue });
+      return false;
+    }
+
+    clearScanInputError();
+    return true;
+  };
+
+  const updateIdealScanVariable = (rawValue: number, options: UpdateIdealScanVariableOptions = {}) => {
     if (activeFile.kind !== 'ideal') return;
     if (activeFile.runState === 'running') {
       pushLog(`${activeFile.name}: pause the current ideal run before changing the scan variable.`, 'warning');
@@ -1705,7 +1923,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     const relationKey = getRelationVariableKey(activeFile.relation);
     const nextParams = cloneParams(activeFile.params);
-    const nextValue = relationKey === 'N' ? Math.round(rawValue) : rawValue;
+    const snappedValue = options.snap === false ? rawValue : getSnappedIdealScanValue(activeFile.relation, rawValue);
+    const nextValue = relationKey === 'N' ? Math.round(snappedValue) : snappedValue;
     const currentValue = getRelationVariableNumericValue(activeFile.relation, activeFile.params);
 
     if (Math.abs(nextValue - currentValue) <= 1e-6) return;
@@ -1734,6 +1953,29 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setParametersEditing(false);
     setParameterDraft({});
     setParameterErrors([]);
+    setScanInputError(null);
+    setScanInputDraft(formatMetric(nextValue, getIdealScanDecimals(activeFile.relation)));
+  };
+
+  const commitIdealScanInput = () => {
+    if (activeFile.kind !== 'ideal') return;
+    if (parameterControlsLocked) return;
+
+    const presetSequence = getPresetSequence(activeFile.relation);
+    const relationVariableValue = getRelationVariableNumericValue(activeFile.relation, activeFile.params);
+    const scanMin = Math.min(...presetSequence, relationVariableValue);
+    const scanMax = Math.max(...presetSequence, relationVariableValue);
+    const parsed = parseIdealScanInput(scanInputDraft, activeFile.relation, scanMin, scanMax);
+
+    if (!parsed.valid) {
+      showScanInputError(parsed.message, { refocus: true, rawValue: scanInputDraft });
+      return;
+    }
+
+    updateIdealScanVariable(parsed.value, { snap: false });
+    scanInputRef.current?.blur();
+    setScanInputFocused(false);
+    clearScanInputError();
   };
 
   const isPointerOnIdealScanThumb = (
@@ -1842,8 +2084,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const beginRenameFile = (file: WorkbenchFileState) => {
     setOpenFileMenuId(null);
     setPendingDeleteFileId(null);
+    renamingFileIdRef.current = file.id;
+    renameSelectionModeRef.current = 'initial';
     setRenamingFileId(file.id);
     setRenameDraft(file.name);
+  };
+
+  const selectRenameNumericSuffix = (input: HTMLInputElement) => {
+    const numericSuffix = input.value.match(/\d+$/);
+    if (!numericSuffix || numericSuffix.index === undefined) {
+      input.setSelectionRange(input.value.length, input.value.length);
+      return;
+    }
+
+    input.setSelectionRange(numericSuffix.index, input.value.length);
   };
 
   const commitRenameFile = (fileId: string) => {
@@ -1866,22 +2120,101 @@ const WorkbenchStudioPrototype: React.FC = () => {
       name: nextName,
       updatedAt: Date.now(),
     }));
+    renamingFileIdRef.current = null;
+    renameSelectionModeRef.current = 'normal';
     setRenamingFileId(null);
     setRenameDraft('');
     pushLog(`Workbench file renamed to ${nextName}.`, 'success');
   };
 
   const cancelRenameFile = () => {
+    renamingFileIdRef.current = null;
+    renameSelectionModeRef.current = 'normal';
     setRenamingFileId(null);
     setRenameDraft('');
   };
 
-  const deleteWorkbenchFile = (fileId: string) => {
-    if (files.length <= 1) {
-      pushLog('The last open file cannot be deleted.', 'warning');
+  const commitRenameFileFromOutside = () => {
+    const fileId = renamingFileIdRef.current;
+    if (!fileId) return;
+
+    const nextName = renameDraft.trim();
+    if (!nextName) {
+      pushLog('File name cannot be empty.', 'error');
+      renamingFileIdRef.current = null;
+      renameSelectionModeRef.current = 'normal';
+      setRenamingFileId(null);
+      setRenameDraft('');
       return;
     }
 
+    const targetFile = filesRef.current.find((file) => file.id === fileId);
+    if (targetFile && targetFile.name === nextName) {
+      cancelRenameFile();
+      pushLog(`${nextName}: name unchanged.`);
+      return;
+    }
+
+    captureUndoSnapshot('renamed file');
+    updateFileById(fileId, (file) => ({
+      ...file,
+      name: nextName,
+      updatedAt: Date.now(),
+    }));
+    renamingFileIdRef.current = null;
+    renameSelectionModeRef.current = 'normal';
+    setRenamingFileId(null);
+    setRenameDraft('');
+    pushLog(`Workbench file renamed to ${nextName}.`, 'success');
+  };
+
+  useEffect(() => {
+    if (!openTopMenu) return undefined;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (topMenuRef.current?.contains(target) || topCommandsRef.current?.contains(target)) return;
+      setOpenTopMenu(null);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [openTopMenu]);
+
+  useEffect(() => {
+    if (!openFileMenuId) return undefined;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (fileMenuRef.current?.contains(target) || fileMenuButtonRef.current?.contains(target)) return;
+      setOpenFileMenuId(null);
+      setPendingDeleteFileId(null);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [openFileMenuId]);
+
+  useEffect(() => {
+    if (!renamingFileId) return undefined;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (renameInputRef.current?.contains(target)) return;
+      commitRenameFileFromOutside();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [renamingFileId, renameDraft]);
+
+  const deleteWorkbenchFile = (fileId: string) => {
     const index = files.findIndex((file) => file.id === fileId);
     const file = files[index];
     if (!file) return;
@@ -1897,27 +2230,22 @@ const WorkbenchStudioPrototype: React.FC = () => {
       : activeFile;
 
     setWorkbenchFiles(() => remainingFiles);
-    if (nextActiveFile) {
-      setActiveFileId(nextActiveFile.id);
-      activeFileIdRef.current = nextActiveFile.id;
-      setSelectedPanel('preview');
-    }
+    setActiveFileId(nextActiveFile?.id ?? '');
+    activeFileIdRef.current = nextActiveFile?.id ?? '';
+    setSelectedPanel('preview');
     setOpenFileMenuId(null);
     setPendingDeleteFileId(null);
     setPendingRemovePointId(null);
     setPendingClearRelationKey(null);
+    renamingFileIdRef.current = null;
     setRenamingFileId(null);
     setParameterDraft({});
     setParametersEditing(false);
+    setParameterErrors([]);
     pushLog(`${file.name}: removed from the current workbench session.`, 'warning');
   };
 
   const requestDeleteWorkbenchFile = (file: WorkbenchFileState) => {
-    if (files.length <= 1) {
-      pushLog('The last open file cannot be deleted.', 'warning');
-      return;
-    }
-
     if (pendingDeleteFileId === file.id) {
       deleteWorkbenchFile(file.id);
       return;
@@ -1929,6 +2257,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const cancelDeleteWorkbenchFile = () => {
     setPendingDeleteFileId(null);
+    setOpenFileMenuId(null);
   };
 
   const resetLayout = () => {
@@ -1981,6 +2310,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setPendingDeleteFileId(null);
     setPendingRemovePointId(null);
     setPendingClearRelationKey(null);
+    renamingFileIdRef.current = null;
     setRenamingFileId(null);
     setSamplingPresetMenuOpen(false);
     pushLog(`File tab selected: ${file.name}`);
@@ -1995,12 +2325,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const volume = Math.pow(activeFile.params.L, 3);
     const scanMin = Math.min(...presetSequence, relationVariableValue);
     const scanMax = Math.max(...presetSequence, relationVariableValue);
-    const scanStep = activeFile.relation === 'pn' ? 1 : activeFile.relation === 'pv' ? 0.1 : 0.01;
-    const scanDecimals = activeFile.relation === 'pn' ? 0 : 3;
+    const scanStep = getIdealScanStep(activeFile.relation);
+    const scanDecimals = getIdealScanDecimals(activeFile.relation);
     const scanRange = scanMax - scanMin;
-    const scanProgressPercent = scanRange > 0
-      ? clamp(((relationVariableValue - scanMin) / scanRange) * 100, 0, 100)
-      : 0;
+    const scanProgressPercent = getIdealScanPositionPercent(relationVariableValue, scanMin, scanRange);
+    const scanDisplayValue = scanInputFocused
+      ? scanInputDraft
+      : formatMetric(relationVariableValue, scanDecimals);
     const scanTitle =
       relationVariableKey === 'targetTemperature'
         ? 'Target temperature'
@@ -2011,6 +2342,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
       'studio-ideal-scan-slider',
       scanSliderThumbHover ? 'studio-ideal-scan-slider-thumb-hover' : '',
       scanSliderDragging ? 'studio-ideal-scan-slider-dragging' : '',
+    ].filter(Boolean).join(' ');
+    const scanInputClass = [
+      'studio-ideal-scan-input',
+      scanInputError ? 'studio-ideal-scan-input-error' : '',
     ].filter(Boolean).join(' ');
     const activeSamplingPreset = idealSamplingPresets.find(
       (preset) =>
@@ -2050,15 +2385,37 @@ const WorkbenchStudioPrototype: React.FC = () => {
               <div>
                 <span>{scanTitle}</span>
                 <input
-                  className="studio-ideal-scan-input"
-                  type="number"
-                  min={scanMin}
-                  max={scanMax}
-                  step={scanStep}
-                  value={formatMetric(relationVariableValue, scanDecimals)}
+                  className={scanInputClass}
+                  type="text"
+                  inputMode={activeFile.relation === 'pn' ? 'numeric' : 'decimal'}
+                  value={scanDisplayValue}
                   disabled={parameterControlsLocked}
                   aria-label={`Set ${scanTitle}`}
-                  onChange={(event) => updateIdealScanVariable(Number(event.target.value))}
+                  aria-invalid={scanInputError ? true : undefined}
+                  ref={scanInputRef}
+                  onFocus={() => {
+                    setScanInputFocused(true);
+                    if (!scanInputFocused) {
+                      setScanInputDraft(formatMetric(relationVariableValue, scanDecimals));
+                    }
+                  }}
+                  onChange={(event) => {
+                    setScanInputDraft(event.target.value);
+                    validateIdealScanDraft(event.target.value);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      commitIdealScanInput();
+                    }
+                    if (event.key === 'Escape') {
+                      event.preventDefault();
+                      setScanInputDraft(formatMetric(relationVariableValue, scanDecimals));
+                      setScanInputFocused(false);
+                      clearScanInputError();
+                    }
+                  }}
+                  onBlur={() => commitIdealScanInput()}
                 />
               </div>
               <span className="studio-ideal-scan-key">{String(relationVariableKey)}</span>
@@ -2109,9 +2466,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
               }}
               onChange={(event) => updateIdealScanVariable(Number(event.target.value))}
             />
-            <div className="studio-ideal-scan-ticks" aria-hidden="true">
+            <div className="studio-ideal-scan-ticks" aria-label={`${scanTitle} recommended values`}>
               {presetSequence.map((value) => (
-                <span key={`${activeFile.relation}-${value}`}>{formatMetric(value, scanDecimals)}</span>
+                <button
+                  type="button"
+                  key={`${activeFile.relation}-${value}`}
+                  className={`studio-ideal-scan-tick-button ${Math.abs(value - relationVariableValue) <= 1e-6 ? 'studio-ideal-scan-tick-active' : ''}`}
+                  disabled={parameterControlsLocked}
+                  onClick={() => updateIdealScanVariable(value)}
+                  style={{
+                    '--studio-ideal-scan-tick-position': `${getIdealScanPositionPercent(value, scanMin, scanRange)}%`,
+                  } as React.CSSProperties}
+                >
+                  {formatMetric(value, scanDecimals)}
+                </button>
               ))}
             </div>
             {activeFile.relation === 'pv' ? (
@@ -2193,7 +2561,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const renderTopMenu = () => {
     if (openTopMenu === 'new') {
       return (
-        <div className="studio-command-menu studio-command-menu-new">
+        <div className="studio-command-menu studio-command-menu-new" ref={topMenuRef}>
           <button type="button" onClick={() => createFile('standard')}>
             <Activity size={14} />
             <span>Standard Simulation Study</span>
@@ -2208,7 +2576,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     if (openTopMenu === 'edit') {
       return (
-        <div className="studio-command-menu studio-command-menu-edit">
+        <div className="studio-command-menu studio-command-menu-edit" ref={topMenuRef}>
           <button type="button" onClick={undoLastEdit} disabled={undoStack.length === 0}>
             <Undo2 size={14} />
             <span>Undo</span>
@@ -2230,7 +2598,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     if (openTopMenu === 'window') {
       return (
-        <div className="studio-command-menu studio-command-menu-window">
+        <div className="studio-command-menu studio-command-menu-window" ref={topMenuRef}>
           <div className="studio-command-menu-title">Panels for {activeFile.name}</div>
           {availablePanels.map((panel) => {
             const locked = LOCKED_PANEL_KEYS.includes(panel.key);
@@ -2259,7 +2627,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       const exportCopy = exportEnvironmentCopy[exportEnvironmentStatus];
 
       return (
-        <div className="studio-command-menu studio-command-menu-settings">
+        <div className="studio-command-menu studio-command-menu-settings" ref={topMenuRef}>
           <button type="button" onClick={() => handleAction('Switch theme')}>
             <Settings size={14} />
             <span>Theme: Dark / Light</span>
@@ -2304,7 +2672,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     if (openTopMenu === 'help') {
       return (
-        <div className="studio-command-menu studio-command-menu-help">
+        <div className="studio-command-menu studio-command-menu-help" ref={topMenuRef}>
           <button type="button" onClick={() => handleAction('Open user guide')}>
             <BookOpen size={14} />
             <span>User Guide</span>
@@ -2323,6 +2691,40 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     return null;
   };
+
+  const renderEmptyStudyActions = (className = 'studio-empty-actions') => (
+    <div className={className}>
+      <button type="button" onClick={() => createFile('standard')}>
+        <Activity size={14} />
+        Create a Standard Simulation Study
+      </button>
+      <button type="button" onClick={() => createFile('ideal')}>
+        <FlaskConical size={14} />
+        Create an Ideal Gas Simulation Study
+      </button>
+    </div>
+  );
+
+  const renderEmptyWorkbench = () => (
+    <div className="studio-empty-workbench">
+      <div>
+        <span className="studio-empty-kicker">No open study</span>
+        <h2>Start a new hard-sphere workbench file</h2>
+        <p>Create a standard simulation or an ideal-gas relation study to restore the preview, charts, results, and parameter panels.</p>
+        {renderEmptyStudyActions()}
+      </div>
+    </div>
+  );
+
+  const renderEmptyCurrentParameters = () => (
+    <div className="studio-current-params-body studio-empty-params">
+      <div className="studio-param-file">
+        <strong>No open file</strong>
+        <span>Create a study to show editable simulation parameters here.</span>
+      </div>
+      {renderEmptyStudyActions('studio-empty-param-actions')}
+    </div>
+  );
 
   const renderPreviewPanel = () => (
     <div className="studio-preview">
@@ -2450,13 +2852,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <div><span>Ideal P</span><strong>{formatMaybeMetric(summary?.meanIdealPressure, 4)}</strong></div>
         <div><span>Gap</span><strong>{summary?.relativeGap === null || summary?.relativeGap === undefined ? '--' : `${formatMetric(summary.relativeGap * 100, 2)}%`}</strong></div>
         <div><span>Verdict</span><strong>{analysis?.verdictState ?? 'insufficient'}</strong></div>
-        <div><span>State</span><strong>{activeFile.needsReset ? 'needs reset' : activeFile.runState}</strong></div>
+        <div><span>State</span><strong>{activeFile.needsReset ? 'will apply on Start' : activeFile.runState}</strong></div>
       </div>
     );
   };
 
   const renderRealtimePanel = () => (
-    <div className={`studio-realtime-panel ${activeFile.kind === 'ideal' ? 'studio-realtime-panel-ideal' : 'studio-realtime-panel-standard'} ${realtimeCompact ? 'studio-realtime-panel-compact' : ''}`}>
+    <div className={`studio-realtime-panel ${activeFile.kind === 'ideal' ? 'studio-realtime-panel-ideal' : 'studio-realtime-panel-standard'}`}>
       <div className={`studio-realtime-summary ${activeFile.kind === 'ideal' ? 'studio-realtime-summary-ideal' : 'studio-realtime-summary-standard'}`}>
         {activeFile.kind === 'ideal' ? (
           <>
@@ -2960,7 +3362,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             <div><span>Active</span><strong>{getRelationLabel(activeFile.relation)}</strong></div>
             <div><span>Points</span><strong>{idealAnalysis.sortedPoints.length}</strong></div>
             <div><span>Verdict</span><strong>{idealAnalysis.verdictState}</strong></div>
-            <div><span>Sampling</span><strong>{activeFile.needsReset ? 'needs reset' : activeFile.runState}</strong></div>
+            <div><span>Sampling</span><strong>{activeFile.needsReset ? 'will apply on Start' : activeFile.runState}</strong></div>
           </div>
         </div>
         {renderExperimentPointsPanel()}
@@ -3119,7 +3521,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 <div><span>Active</span><strong>{getRelationLabel(activeFile.relation)}</strong></div>
                 <div><span>Points</span><strong>{points.length}</strong></div>
                 <div><span>Verdict</span><strong>{idealAnalysis.verdictState}</strong></div>
-                <div><span>Sampling</span><strong>{activeFile.needsReset ? 'needs reset' : activeFile.runState}</strong></div>
+                <div><span>Sampling</span><strong>{activeFile.needsReset ? 'will apply on Start' : activeFile.runState}</strong></div>
               </div>
             </div>
 
@@ -3357,41 +3759,47 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     return (
       <div className="studio-verification-panel">
-        <div className={`studio-result-status ${idealAnalysis.isVerified ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
-          <strong>{getRelationLabel(activeFile.relation)} verdict: {idealAnalysis.verdictState}</strong>
-          <span>{idealAnalysis.diagnosis.recommendation}</span>
-        </div>
+        <div className="studio-verification-main-layout">
+          <div className="studio-verification-chart-column">
+            <section className="studio-verification-chart-section">
+              <div className="studio-results-subheader">
+                <div>
+                  <strong>{activeFile.relation === 'pv' ? 'P - 1/V linearized validation' : `${getRelationLabel(activeFile.relation)} validation`}</strong>
+                  <span>Measured scatter with fit and theoretical reference.</span>
+                </div>
+              </div>
+              {renderIdealValidationChart(idealAnalysis)}
+            </section>
 
-        <div className="studio-analysis-grid">
-          <div className="studio-analysis-cell"><span>Points</span><strong>{idealAnalysis.sortedPoints.length}</strong></div>
-          <div className="studio-analysis-cell"><span>R2</span><strong>{formatMaybeMetric(idealAnalysis.regression.rSquared, 5)}</strong></div>
-          <div className="studio-analysis-cell"><span>Slope</span><strong>{formatMaybeMetric(idealAnalysis.regression.slope, 6)}</strong></div>
-          <div className="studio-analysis-cell"><span>Theory slope</span><strong>{formatMaybeMetric(idealAnalysis.theoreticalSlope, 6)}</strong></div>
-          <div className="studio-analysis-cell"><span>Slope error</span><strong>{idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`}</strong></div>
-          <div className="studio-analysis-cell"><span>Failure reason</span><strong>{idealAnalysis.diagnosis.failureReason ?? 'none'}</strong></div>
-        </div>
+            {activeFile.relation === 'pv' ? (
+              <section className="studio-verification-chart-section">
+                <div className="studio-results-subheader">
+                  <div>
+                    <strong>Original P - V physical view</strong>
+                    <span>Shows the inverse relation directly while verdict uses the linearized view.</span>
+                  </div>
+                </div>
+                {renderIdealValidationChart(idealAnalysis, 'pvRaw')}
+              </section>
+            ) : null}
+          </div>
 
-        <section className="studio-verification-chart-section">
-          <div className="studio-results-subheader">
-            <div>
-              <strong>{activeFile.relation === 'pv' ? 'P - 1/V linearized validation' : `${getRelationLabel(activeFile.relation)} validation`}</strong>
-              <span>Measured scatter with fit and theoretical reference.</span>
+          <div className="studio-verification-side">
+            <div className={`studio-result-status ${idealAnalysis.isVerified ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
+              <strong>{getRelationLabel(activeFile.relation)} verdict: {idealAnalysis.verdictState}</strong>
+              <span>{idealAnalysis.diagnosis.recommendation}</span>
+            </div>
+
+            <div className="studio-analysis-grid">
+              <div className="studio-analysis-cell"><span>Points</span><strong>{idealAnalysis.sortedPoints.length}</strong></div>
+              <div className="studio-analysis-cell"><span>R2</span><strong>{formatMaybeMetric(idealAnalysis.regression.rSquared, 5)}</strong></div>
+              <div className="studio-analysis-cell"><span>Slope</span><strong>{formatMaybeMetric(idealAnalysis.regression.slope, 6)}</strong></div>
+              <div className="studio-analysis-cell"><span>Theory slope</span><strong>{formatMaybeMetric(idealAnalysis.theoreticalSlope, 6)}</strong></div>
+              <div className="studio-analysis-cell"><span>Slope error</span><strong>{idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`}</strong></div>
+              <div className="studio-analysis-cell"><span>Failure reason</span><strong>{idealAnalysis.diagnosis.failureReason ?? 'none'}</strong></div>
             </div>
           </div>
-          {renderIdealValidationChart(idealAnalysis)}
-        </section>
-
-        {activeFile.relation === 'pv' ? (
-          <section className="studio-verification-chart-section">
-            <div className="studio-results-subheader">
-              <div>
-                <strong>Original P - V physical view</strong>
-                <span>Shows the inverse relation directly while verdict uses the linearized view.</span>
-              </div>
-            </div>
-            {renderIdealValidationChart(idealAnalysis, 'pvRaw')}
-          </section>
-        ) : null}
+        </div>
       </div>
     );
   };
@@ -3472,15 +3880,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
               <Square size={13} strokeWidth={2.5} />
             </button>
           ) : null}
-          {panel.key === 'preview' ? (
-            <button type="button" onClick={resetActiveFile}><RotateCcw size={13} />Reset</button>
-          ) : null}
-        </div>
-      ) : panel.key === 'realtime' ? (
-        <div className="studio-panel-actions">
-          <button type="button" onClick={() => setRealtimeCompact((current) => !current)}>
-            {realtimeCompact ? 'Expand' : 'Compact'}
-          </button>
         </div>
       ) : null}
     </div>
@@ -3598,6 +3997,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   return (
     <div className="studio-workbench">
+      {scanInputToast ? (
+        <div className="studio-scan-input-toast" role="status">
+          {scanInputToast}
+        </div>
+      ) : null}
       <div className="studio-shell">
         <header className="studio-menu">
           <div className="studio-brand">
@@ -3606,7 +4010,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             </span>
             <span>Hard Sphere Workbench</span>
           </div>
-          <nav className="studio-top-commands" aria-label="Top commands">
+          <nav className="studio-top-commands" aria-label="Top commands" ref={topCommandsRef}>
             {renderTopCommand('new', 'New Study', <FilePlus2 size={14} />)}
             {renderTopCommand('edit', 'Edit', <Undo2 size={14} />)}
             {renderTopCommand('window', 'Window', <Wrench size={14} />)}
@@ -3630,10 +4034,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
               </button>
             </div>
             <div className="studio-sidebar-body">
-              <section className="studio-tree-section">
+              <section className={`studio-tree-section ${openFileMenuId ? 'studio-tree-section-menu-open' : ''}`}>
                 {renderSectionTitle('Files', filesSectionCollapsed, () => setFilesSectionCollapsed((current) => !current))}
                 <div className={`studio-tree-section-content ${filesSectionCollapsed ? 'studio-tree-section-content-collapsed' : ''}`} aria-hidden={filesSectionCollapsed}>
-                  {files.map((file) => {
+                  {isWorkbenchEmpty ? (
+                    <div className="studio-empty-files">
+                      <strong>No open files</strong>
+                      <span>Create a study to populate the workbench.</span>
+                      {renderEmptyStudyActions('studio-empty-file-actions')}
+                    </div>
+                  ) : files.map((file) => {
                     const isRenaming = renamingFileId === file.id;
                     const menuOpen = openFileMenuId === file.id;
                     const pendingDelete = pendingDeleteFileId === file.id;
@@ -3643,7 +4053,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                         role="button"
                         tabIndex={filesSectionCollapsed ? -1 : 0}
                         key={file.id}
-                        className={`studio-tree-row studio-file-row ${file.id === activeFile.id ? 'studio-tree-row-active' : ''}`}
+                        className={`studio-tree-row studio-file-row ${file.id === activeFile.id ? 'studio-tree-row-active' : ''} ${menuOpen ? 'studio-file-row-menu-open' : ''} ${isRenaming ? 'studio-file-row-renaming' : ''}`}
                         onClick={() => {
                           if (!isRenaming && !filesSectionCollapsed) selectFile(file);
                         }}
@@ -3653,14 +4063,45 @@ const WorkbenchStudioPrototype: React.FC = () => {
                         {isRenaming ? (
                           <input
                             className="studio-file-rename-input"
+                            ref={renameInputRef}
                             value={renameDraft}
-                            autoFocus
                             onClick={(event) => event.stopPropagation()}
-                            onChange={(event) => setRenameDraft(event.target.value)}
+                            onMouseDown={() => {
+                              renameSelectionModeRef.current = 'normal';
+                            }}
+                            onChange={(event) => {
+                              renameSelectionModeRef.current = 'normal';
+                              setRenameDraft(event.target.value);
+                            }}
+                            onBlur={() => commitRenameFileFromOutside()}
                             onKeyDown={(event) => {
                               event.stopPropagation();
-                              if (event.key === 'Enter') commitRenameFile(file.id);
-                              if (event.key === 'Escape') cancelRenameFile();
+                              if (event.key === 'ArrowRight' && renameSelectionModeRef.current === 'initial') {
+                                event.preventDefault();
+                                selectRenameNumericSuffix(event.currentTarget);
+                                renameSelectionModeRef.current = 'normal';
+                                return;
+                              }
+                              if (event.key === 'Enter') {
+                                renameSelectionModeRef.current = 'normal';
+                                commitRenameFile(file.id);
+                                return;
+                              }
+                              if (event.key === 'Escape') {
+                                renameSelectionModeRef.current = 'normal';
+                                cancelRenameFile();
+                                return;
+                              }
+                              if (
+                                event.key === 'ArrowLeft'
+                                || event.key === 'Home'
+                                || event.key === 'End'
+                                || event.key === 'Delete'
+                                || event.key === 'Backspace'
+                                || event.key.length === 1
+                              ) {
+                                renameSelectionModeRef.current = 'normal';
+                              }
                             }}
                           />
                         ) : (
@@ -3672,6 +4113,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                           className="studio-file-menu-button"
                           aria-label={`Open actions for ${file.name}`}
                           tabIndex={filesSectionCollapsed ? -1 : 0}
+                          ref={menuOpen ? fileMenuButtonRef : undefined}
                           onClick={(event) => {
                             event.stopPropagation();
                             setOpenFileMenuId((current) => (current === file.id ? null : file.id));
@@ -3681,7 +4123,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
                           <MoreHorizontal size={14} />
                         </button>
                         {menuOpen ? (
-                          <div className="studio-file-menu" onClick={(event) => event.stopPropagation()}>
+                          <div
+                            className={pendingDelete ? 'studio-file-menu studio-file-menu-pending' : 'studio-file-menu'}
+                            ref={fileMenuRef}
+                            onClick={(event) => event.stopPropagation()}
+                          >
                             <button type="button" onClick={() => beginRenameFile(file)}>
                               <Pencil size={13} />
                               Rename
@@ -3715,9 +4161,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
               </section>
 
               <section className="studio-tree-section">
-                {renderSectionTitle(`${activeFile.name} / Panels`, panelsSectionCollapsed, () => setPanelsSectionCollapsed((current) => !current))}
+                {renderSectionTitle(isWorkbenchEmpty ? 'No open file / Panels' : `${activeFile.name} / Panels`, panelsSectionCollapsed, () => setPanelsSectionCollapsed((current) => !current))}
                 <div className={`studio-tree-section-content ${panelsSectionCollapsed ? 'studio-tree-section-content-collapsed' : ''}`} aria-hidden={panelsSectionCollapsed}>
-                {availablePanels.filter((panel) => !(activeFile.kind === 'ideal' && isIdealResultWindowKey(panel.key))).map((panel) => {
+                {isWorkbenchEmpty ? (
+                  <div className="studio-empty-panel-tree">
+                    <span>No panels are available until a study is open.</span>
+                  </div>
+                ) : availablePanels.filter((panel) => !(activeFile.kind === 'ideal' && isIdealResultWindowKey(panel.key))).map((panel) => {
                   const visible = activeFile.visiblePanels.includes(panel.key);
                   const locked = LOCKED_PANEL_KEYS.includes(panel.key);
                   return (
@@ -3869,7 +4319,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
           <section className="studio-layout" aria-label="File workspace">
             <div className="studio-file-tabs">
-              {files.map((file) => (
+              {isWorkbenchEmpty ? (
+                <div className="studio-file-tabs-empty">No open files</div>
+              ) : files.map((file) => (
                 <button
                   key={file.id}
                   type="button"
@@ -3885,29 +4337,35 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
             <div className={`studio-workspace-shell ${parametersCollapsed ? 'studio-params-collapsed' : ''}`}>
               <div
-                className={`studio-center-workspace ${resultsPanel || idealResultPanels.length > 0 ? 'studio-results-open' : ''}`}
+                className={`studio-center-workspace ${!isWorkbenchEmpty && (resultsPanel || idealResultPanels.length > 0) ? 'studio-results-open' : ''} ${isWorkbenchEmpty ? 'studio-center-workspace-empty' : ''}`}
                 ref={centerWorkspaceRef}
               >
-                <div className="studio-live-workspace">
-                  {primaryPanels.map((panel) => renderDockPanel(panel))}
-                  {auxiliaryPanels.length > 0 ? (
-                    <div className="studio-optional-panels">
-                      {auxiliaryPanels.map((panel) => renderDockPanel(panel, true))}
+                {isWorkbenchEmpty ? (
+                  renderEmptyWorkbench()
+                ) : (
+                  <>
+                    <div className="studio-live-workspace">
+                      {primaryPanels.map((panel) => renderDockPanel(panel))}
+                      {auxiliaryPanels.length > 0 ? (
+                        <div className="studio-optional-panels">
+                          {auxiliaryPanels.map((panel) => renderDockPanel(panel, true))}
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-                {resultsPanel ? (
-                  <div className="studio-results-region">
-                    {renderDockPanel(resultsPanel, true)}
-                  </div>
-                ) : null}
-                {renderIdealResultWindows()}
+                    {resultsPanel ? (
+                      <div className="studio-results-region">
+                        {renderDockPanel(resultsPanel, true)}
+                      </div>
+                    ) : null}
+                    {renderIdealResultWindows()}
+                  </>
+                )}
               </div>
 
               <aside
-                className={`studio-current-params ${parameterControlsLocked ? 'studio-current-params-locked' : ''}`}
+                className={`studio-current-params ${parameterControlsLocked ? 'studio-current-params-locked' : ''} ${isWorkbenchEmpty ? 'studio-current-params-empty' : ''}`}
                 aria-label="Current Parameters"
-                aria-disabled={parameterControlsLocked}
+                aria-disabled={parameterControlsLocked || isWorkbenchEmpty}
               >
                 <div
                   className="studio-params-resizer"
@@ -3918,7 +4376,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 <div className="studio-current-params-header">
                   <div>
                     <span>Current Parameters</span>
-                    <small>{parameterControlsLocked ? 'locked until reset or finished' : parametersEditing ? 'mock edit mode' : 'current file values'}</small>
+                    <small>{isWorkbenchEmpty ? 'No open file' : parameterControlsLocked ? 'locked until stopped or finished' : parametersEditing ? 'edit values; Save before Start to use them' : 'current file values'}</small>
                   </div>
                   <button
                     type="button"
@@ -3929,30 +4387,37 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     Hide
                   </button>
                 </div>
+                {isWorkbenchEmpty ? renderEmptyCurrentParameters() : (
                 <div className="studio-current-params-body">
                   <div className="studio-param-file">
                     <strong>{activeFile.kind === 'standard' ? 'Standard Simulation' : 'Ideal Gas Simulation'}</strong>
                     <span>{activeFile.name}</span>
                     <span className={`studio-param-state ${parametersDirty || (activeFile.kind === 'ideal' && activeFile.needsReset) ? 'studio-param-state-pending' : ''}`}>
                       {parametersDirty
-                        ? 'saved changes pending Reset'
+                        ? 'saved changes apply on Start'
                         : activeFile.kind === 'ideal' && activeFile.needsReset
-                          ? 'ideal runtime needs reset'
+                          ? 'ideal runtime will apply on Start'
                           : 'parameters applied'}
                     </span>
                   </div>
                   {renderIdealControls()}
-                  {currentParameters.map((param) => {
+                  {editableCurrentParameters.map((param) => {
                     const displayLabel = param.unit ? `${param.label} (${param.unit})` : param.label;
+                    const isParamLocked = parameterControlsLocked || isIdealControlledVariableLocked(param.key);
+                    const paramLockHint = isIdealControlledVariableLocked(param.key) ? controlledVariableLockHint : undefined;
 
                     return (
-                      <div className={`studio-param-row ${parametersEditing ? 'studio-param-row-editing' : ''}`} key={param.label}>
+                      <div
+                        className={`studio-param-row ${parametersEditing ? 'studio-param-row-editing' : ''} ${isParamLocked ? 'studio-param-row-locked' : ''}`}
+                        key={param.label}
+                        title={paramLockHint}
+                        aria-disabled={isParamLocked}
+                      >
                         <span>{displayLabel}</span>
-                        {parametersEditing && param.editable ? (
+                        {parametersEditing && param.editable && !isParamLocked ? (
                           <input
                             aria-label={`Edit parameter ${param.label}`}
                             value={parameterDraft[param.key] ?? param.value}
-                            disabled={parameterControlsLocked}
                             onChange={(event) => {
                               const nextValue = event.target.value;
                               setParameterDraft((current) => ({ ...current, [param.key]: nextValue }));
@@ -3995,12 +4460,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   ) : null}
                   <div className="studio-readonly-note">
                     {parametersEditing
-                      ? 'Save writes these values to the active file. Reset rebuilds the active runtime from saved values.'
+                      ? 'Save writes these values to the active file. Start without Save keeps the pre-edit parameters.'
                       : activeFile.kind === 'standard'
-                        ? 'Standard files now own an applied PhysicsEngine runtime. Edit values, save them, then Reset to rebuild the runtime.'
-                        : 'Ideal-gas files use PhysicsEngine sampling points. Change relation or scan value, Reset, then Run to record a point.'}
+                        ? 'Standard files own an applied PhysicsEngine runtime. Edit values, save them, or press Start to apply and run.'
+                        : 'Ideal-gas files use PhysicsEngine sampling points. Change relation or scan value, then press Start to apply and record a point.'}
                   </div>
                 </div>
+                )}
               </aside>
 
               {parametersCollapsed ? (
@@ -4035,13 +4501,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <footer className="studio-status">
           <div className="studio-status-group">
             <span>Branch: react-workbench</span>
-            <span>Active file: {activeFile.name}</span>
-            <span>Selected block: {activePanelTitle}</span>
+            <span>Active file: {isWorkbenchEmpty ? 'none' : activeFile.name}</span>
+            <span>Selected block: {isWorkbenchEmpty ? 'none' : activePanelTitle}</span>
           </div>
           <div className="studio-status-group">
             <span>Workbench integration batch 4/6 prep</span>
             <span>
-              {activeFile.kind === 'standard'
+              {isWorkbenchEmpty ? 'No runtime connected' : activeFile.kind === 'standard'
                 ? 'Standard realtime data connected'
                 : `Ideal runtime connected / ${getRelationLabel(activeFile.relation)} / ${idealAnalysis?.verdictState ?? 'insufficient'}`}
             </span>

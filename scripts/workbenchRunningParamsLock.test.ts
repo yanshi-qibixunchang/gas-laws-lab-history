@@ -21,12 +21,12 @@ assert.match(
 );
 assert.match(
   source,
-  /className=\{`studio-current-params \$\{parameterControlsLocked \? 'studio-current-params-locked' : ''\}`\}/,
+  /className=\{`studio-current-params \$\{parameterControlsLocked \? 'studio-current-params-locked' : ''\}[\s\S]*?`\}/,
   'right parameter sidebar should receive a locked class while a simulation round is in progress',
 );
 assert.match(
   source,
-  /locked until reset or finished/,
+  /locked until stopped or finished/,
   'right parameter sidebar should explain that pause does not unlock parameters',
 );
 assert.match(
