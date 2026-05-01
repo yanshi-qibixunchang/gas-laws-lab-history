@@ -6,6 +6,8 @@ These rules apply only to this repository.
 
 - Prefer Chinese for plans and implementation summaries.
 - Before changing UI behavior, confirm the exact control or area the user means. When the user points to a location, treat that location as authoritative, but you may mention similar controls and ask the user to confirm the intended modification scope first.
+- For user modification requests, actively analyze possible ambiguity before implementing, especially around scope, affected controls, success criteria, and whether similar UI patterns should also change.
+- Ask the user clarifying questions more proactively when ambiguity could lead to inconsistent interaction behavior, unintended scope expansion, or rework. Prefer concise, concrete questions that name the candidate controls or behaviors.
 
 ## Fixed Preview Port
 
