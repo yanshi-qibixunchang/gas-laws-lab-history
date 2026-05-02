@@ -41,7 +41,6 @@ import {
   createDefaultIdealWindowLayout,
   createDefaultStandardFile,
   createDefaultStandardResultsLayout,
-  createInitialWorkbenchFiles,
   getWorkbenchParameterRows,
   IDEAL_RESULT_HEIGHT_RATIO,
   validateWorkbenchParams,
@@ -56,13 +55,23 @@ import {
   type WorkbenchStandardResultsTab,
 } from './workbenchState';
 import {
+  createWorkbenchExportPayload,
   createWorkbenchFigureSpecs,
   createWorkbenchResultSummary,
+  type WorkbenchExportMode,
 } from './workbenchResults';
+import {
+  encodeWorkbenchSession,
+  loadWorkbenchSession,
+  persistWorkbenchSession,
+} from './workbenchSession.ts';
 import {
   clonePointsByRelation,
   createIdealGasExperimentPoint,
+  getIdealFailureReasonText,
   getIdealGasAnalysis,
+  getIdealHistoryContent,
+  getIdealRecommendationText,
   getPresetSequence,
   getRelationLabel,
   getRelationVariableKey,
@@ -75,6 +84,7 @@ import {
 import './WorkbenchStudioPrototype.css';
 
 type LogKind = 'info' | 'warning' | 'success' | 'error';
+type ConsoleTab = 'logs' | 'warnings' | 'summary';
 type TopMenu = 'new' | 'edit' | 'window' | 'settings' | 'help' | null;
 type ResultsSectionKey = WorkbenchStandardResultsTab;
 
@@ -405,31 +415,14 @@ const idealSamplingPresets = [
 ] as const;
 type IdealSamplingPreset = typeof idealSamplingPresets[number];
 
-const idealHistoryCopy: Record<ExperimentRelation, { title: string; body: string }> = {
-  pt: {
-    title: 'P-T history: Amontons / Gay-Lussac',
-    body: 'The pressure-temperature relation is commonly linked to Guillaume Amontons and Joseph-Louis Gay-Lussac. In this workbench, pressure is measured from wall momentum transfer and compared against the fitted P-T trend.',
-  },
-  pv: {
-    title: 'P-V history: Boyle / Mariotte',
-    body: 'Boyle and Mariotte established the inverse pressure-volume relation. The workbench keeps both the linear P-1/V view for fitting and the original P-V view for physical intuition.',
-  },
-  pn: {
-    title: 'P-N history: particle-count relation',
-    body: 'The P-N relation links a microscopic count to macroscopic pressure. The workbench holds temperature and volume fixed while the particle count changes.',
-  },
-};
-
-const initialFiles = createInitialWorkbenchFiles();
-
-const initialLogs: ConsoleLog[] = [
-  { id: 1, time: '00:00:00', kind: 'info', message: 'Workbench studio prototype initialized.' },
-  { id: 2, time: '00:00:01', kind: 'success', message: 'Default layout: 3D Preview, Realtime Data / Charts, Current Parameters.' },
-  { id: 3, time: '00:00:02', kind: 'success', message: 'Standard Simulation runtime, 3D preview, and realtime chart data are connected.' },
-  { id: 4, time: '00:00:03', kind: 'warning', message: 'Scientific PDF export remains disabled until the future desktop exporter check is available.' },
-];
-
 const formatTime = () => new Date().toLocaleTimeString('en-GB', { hour12: false });
+
+const createInitialLogs = (): ConsoleLog[] => [
+  { id: 1, time: formatTime(), kind: 'info', message: 'Workbench studio prototype initialized.' },
+  { id: 2, time: formatTime(), kind: 'success', message: 'Default layout: 3D Preview, Realtime Data / Charts, Current Parameters.' },
+  { id: 3, time: formatTime(), kind: 'success', message: 'Standard Simulation runtime, 3D preview, and realtime chart data are connected.' },
+  { id: 4, time: formatTime(), kind: 'warning', message: 'Scientific PDF export remains disabled until the future desktop exporter check is available.' },
+];
 
 const isEditableElement = (element: EventTarget | Element | null) => {
   if (!(element instanceof HTMLElement)) return false;
@@ -490,21 +483,26 @@ const cloneWorkbenchFiles = (filesToClone: WorkbenchFileState[]): WorkbenchFileS
 );
 
 const WorkbenchStudioPrototype: React.FC = () => {
+  const [initialSession] = useState(() => loadWorkbenchSession());
   const [idealResultWindowDefaults, setIdealResultWindowDefaults] = useState<IdealResultWindowDefaults>(() => loadIdealResultWindowDefaults());
   const [files, setFiles] = useState<WorkbenchFileState[]>(() => {
     const defaults = loadIdealResultWindowDefaults();
-    return initialFiles.map((file) => (
+    return initialSession.files.map((file) => (
       file.kind === 'ideal'
         ? {
             ...file,
-            idealWindowLayout: createDefaultIdealWindowLayout(defaults),
+            idealWindowLayout: normalizeIdealWindowLayoutState(file.idealWindowLayout, defaults),
           }
-        : file
+        : {
+            ...file,
+            standardResultsLayout: normalizeStandardResultsLayout(file.standardResultsLayout),
+          }
     ));
   });
-  const [activeFileId, setActiveFileId] = useState(initialFiles[0].id);
-  const [selectedPanel, setSelectedPanel] = useState<WorkbenchPanelKey>('preview');
-  const [logs, setLogs] = useState<ConsoleLog[]>(initialLogs);
+  const [activeFileId, setActiveFileId] = useState(initialSession.activeFileId);
+  const [selectedPanel, setSelectedPanel] = useState<WorkbenchPanelKey>(initialSession.selectedPanel);
+  const [logs, setLogs] = useState<ConsoleLog[]>(() => createInitialLogs());
+  const [consoleTab, setConsoleTab] = useState<ConsoleTab>('logs');
   const [openTopMenu, setOpenTopMenu] = useState<TopMenu>(null);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [parametersCollapsed, setParametersCollapsed] = useState(false);
@@ -536,8 +534,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [redoStack, setRedoStack] = useState<WorkbenchEditSnapshot[]>([]);
   const standardRuntimeRef = useRef<Record<string, StandardEngineRuntime>>({});
   const idealRuntimeRef = useRef<Record<string, StandardEngineRuntime>>({});
-  const filesRef = useRef<WorkbenchFileState[]>(initialFiles);
-  const activeFileIdRef = useRef(initialFiles[0].id);
+  const filesRef = useRef<WorkbenchFileState[]>(initialSession.files);
+  const activeFileIdRef = useRef(initialSession.activeFileId);
   const renamingFileIdRef = useRef<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement | null>(null);
   const topCommandsRef = useRef<HTMLElement | null>(null);
@@ -548,6 +546,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const renameSelectionModeRef = useRef<'initial' | 'normal'>('normal');
   const lastScanInputErrorRef = useRef<string | null>(null);
   const samplingPresetSelectRef = useRef<HTMLDivElement | null>(null);
+  const consoleBodyRef = useRef<HTMLDivElement | null>(null);
   const currentParametersBodyRef = useRef<HTMLDivElement | null>(null);
   const idealAdvancedSettingsBodyRef = useRef<HTMLDivElement | null>(null);
   const idealAdvancedSettingsPreviousScrollTopRef = useRef(0);
@@ -612,6 +611,32 @@ const WorkbenchStudioPrototype: React.FC = () => {
     '--studio-left-width': `${leftSidebarWidth}px`,
     '--studio-params-width': `${parameterSidebarWidth}px`,
   } as React.CSSProperties;
+  const displayedLogs = useMemo(
+    () => (
+      consoleTab === 'warnings'
+        ? logs.filter((log) => log.kind === 'warning' || log.kind === 'error')
+        : logs
+    ),
+    [consoleTab, logs],
+  );
+  const consoleSummary = useMemo(() => {
+    const counts = logs.reduce<Record<LogKind, number>>(
+      (nextCounts, log) => ({
+        ...nextCounts,
+        [log.kind]: nextCounts[log.kind] + 1,
+      }),
+      { info: 0, warning: 0, success: 0, error: 0 },
+    );
+    return {
+      counts,
+      latest: logs[logs.length - 1] ?? null,
+      runtime: isWorkbenchEmpty
+        ? 'No runtime connected'
+        : activeFile.kind === 'standard'
+          ? 'Standard realtime data connected'
+          : `Ideal runtime connected / ${getRelationLabel(activeFile.relation)} / ${idealAnalysis?.verdictState ?? 'insufficient'}`,
+    };
+  }, [activeFile, idealAnalysis?.verdictState, isWorkbenchEmpty, logs]);
 
   const animateCurrentParametersScroll = (
     targetTop: number,
@@ -672,6 +697,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   useEffect(() => {
     activeFileIdRef.current = activeFileId;
   }, [activeFileId]);
+
+  useEffect(() => {
+    persistWorkbenchSession(encodeWorkbenchSession(files, activeFileId, selectedPanel));
+  }, [files, activeFileId, selectedPanel]);
 
   useEffect(() => {
     renamingFileIdRef.current = renamingFileId;
@@ -774,6 +803,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
       },
     ]);
   };
+
+  useEffect(() => {
+    if (consoleTab === 'summary') return;
+    const body = consoleBodyRef.current;
+    if (!body) return;
+    body.scrollTop = body.scrollHeight;
+  }, [consoleTab, displayedLogs.length, logs.length]);
 
   const setWorkbenchFiles = (updater: (current: WorkbenchFileState[]) => WorkbenchFileState[]) => {
     setFiles((current) => {
@@ -1713,8 +1749,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   useEffect(() => {
     filesRef.current
-      .filter((file) => file.particles.length === 0)
       .forEach((file) => {
+        const runtimeExists = file.kind === 'standard'
+          ? Boolean(standardRuntimeRef.current[file.id])
+          : Boolean(idealRuntimeRef.current[file.id]);
+        if (runtimeExists) return;
+
         const runtime = file.kind === 'standard' ? createStandardRuntime(file) : createIdealRuntime(file);
         if (!runtime) return;
 
@@ -1723,6 +1763,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
         } else {
           idealRuntimeRef.current[file.id] = runtime;
         }
+        if (file.particles.length > 0) return;
+
         updateFileById(file.id, (currentFile) => {
           const initializedFile = {
             ...currentFile,
@@ -3535,70 +3577,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const renderResultsDataTable = () => {
-    if (activeFile.kind === 'ideal' && idealAnalysis) {
-      const points = idealAnalysis.sortedPoints;
-      return (
-        <div className="studio-data-table-panel">
-          <section className="studio-data-table-section">
-            <h4>{getRelationLabel(activeFile.relation)} point table</h4>
-            {points.length === 0 ? (
-              <div className="studio-panel-note">No ideal-gas points have been recorded for this relation yet.</div>
-            ) : (
-              <table className="studio-table studio-ideal-points-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>x</th>
-                    <th>mean T</th>
-                    <th>measured P</th>
-                    <th>ideal P</th>
-                    <th>gap</th>
-                    {activeFile.relation === 'pv' ? <><th>L</th><th>V</th><th>1/V</th></> : null}
-                    {activeFile.relation === 'pn' ? <th>N</th> : null}
-                  </tr>
-                </thead>
-                <tbody>
-                  {points.map((point, index) => (
-                    <tr key={`result-${point.id}`}>
-                      <td>{index + 1}</td>
-                      <td>{formatMetric(getRelationXValue(activeFile.relation, point), activeFile.relation === 'pn' ? 0 : 5)}</td>
-                      <td>{formatMetric(point.meanTemperature, 3)}</td>
-                      <td>{formatMetric(point.meanPressure, 5)}</td>
-                      <td>{formatMetric(point.idealPressure, 5)}</td>
-                      <td>{formatMetric(point.relativeGap * 100, 2)}%</td>
-                      {activeFile.relation === 'pv' ? (
-                        <>
-                          <td>{formatMaybeMetric(point.boxLength, 2)}</td>
-                          <td>{formatMaybeMetric(point.volume, 1)}</td>
-                          <td>{formatMaybeMetric(point.inverseVolume, 6)}</td>
-                        </>
-                      ) : null}
-                      {activeFile.relation === 'pn' ? <td>{formatMaybeMetric(point.particleCount, 0)}</td> : null}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
-          <section className="studio-data-table-section">
-            <h4>Diagnostics</h4>
-            <table className="studio-table">
-              <tbody>
-                <tr><th>Metric</th><th>Value</th><th>Status</th></tr>
-                <tr><td>verdict</td><td>{idealAnalysis.verdictState}</td><td>{activeFile.verificationState}</td></tr>
-                <tr><td>failure reason</td><td>{idealAnalysis.diagnosis.failureReason ?? 'none'}</td><td>diagnostic</td></tr>
-                <tr><td>recommendation</td><td>{idealAnalysis.diagnosis.recommendation}</td><td>next step</td></tr>
-                <tr><td>slope</td><td>{formatMaybeMetric(idealAnalysis.regression.slope, 6)}</td><td>fit</td></tr>
-                <tr><td>theory slope</td><td>{formatMaybeMetric(idealAnalysis.theoreticalSlope, 6)}</td><td>reference</td></tr>
-                <tr><td>slope error</td><td>{idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`}</td><td>fit</td></tr>
-                <tr><td>R2</td><td>{formatMaybeMetric(idealAnalysis.regression.rSquared, 5)}</td><td>fit</td></tr>
-              </tbody>
-            </table>
-          </section>
-        </div>
-      );
-    }
-
     return (
       <div className="studio-data-table-panel">
         <section className="studio-data-table-section">
@@ -3625,16 +3603,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
     ? Boolean(idealAnalysis && idealAnalysis.sortedPoints.length > 0)
     : resultSummary.ready;
 
-  const handleExportAction = (mode: 'report' | 'figuresZip' | 'verificationFigure' | 'pointsCsv') => {
-    if (!exportAvailable) {
-      pushLog(`${activeFile.name}: ${exportCopy.detail}`, 'warning');
-      return;
-    }
-
+  const handleExportAction = (mode: WorkbenchExportMode) => {
     if (!currentResultsReady) {
       pushLog(`${activeFile.name}: result data is not ready for scientific export.`, 'warning');
       return;
     }
+
+    const payload = createWorkbenchExportPayload(activeFile, mode);
 
     const exportLabel =
       mode === 'report'
@@ -3644,37 +3619,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
           : mode === 'pointsCsv'
             ? 'points CSV'
             : 'all result figures ZIP';
-    pushLog(`${activeFile.name}: ${exportLabel} export requested.`, 'info');
+    if (!exportAvailable) {
+      pushLog(`${activeFile.name}: ${exportLabel} payload prepared as ${payload.filename}; ${exportCopy.detail}`, 'warning');
+      return;
+    }
+
+    pushLog(`${activeFile.name}: ${exportLabel} payload prepared as ${payload.filename}.`, 'info');
   };
 
   const renderResultsSummary = () => {
-    if (activeFile.kind === 'ideal' && idealAnalysis) {
-      return (
-        <div className="studio-results-section">
-          <div className={`studio-result-status ${idealAnalysis.isVerified ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
-            <strong>{idealAnalysis.isVerified ? 'Ideal relation verified' : 'Ideal relation not verified yet'}</strong>
-            <span>
-              {idealAnalysis.isVerified
-                ? `${getRelationLabel(activeFile.relation)} has enough agreement for History and Results.`
-                : `${getRelationLabel(activeFile.relation)} needs more or cleaner points before History unlocks.`}
-            </span>
-          </div>
-
-          <div className="studio-analysis-grid">
-            <div className="studio-analysis-cell"><span>Relation</span><strong>{getRelationLabel(activeFile.relation)}</strong></div>
-            <div className="studio-analysis-cell"><span>Points</span><strong>{idealAnalysis.sortedPoints.length}</strong></div>
-            <div className="studio-analysis-cell"><span>Verdict</span><strong>{idealAnalysis.verdictState}</strong></div>
-            <div className="studio-analysis-cell"><span>R2</span><strong>{formatMaybeMetric(idealAnalysis.regression.rSquared, 5)}</strong></div>
-            <div className="studio-analysis-cell"><span>Slope</span><strong>{formatMaybeMetric(idealAnalysis.regression.slope, 6)}</strong></div>
-            <div className="studio-analysis-cell"><span>Theory slope</span><strong>{formatMaybeMetric(idealAnalysis.theoreticalSlope, 6)}</strong></div>
-            <div className="studio-analysis-cell"><span>Slope error</span><strong>{idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`}</strong></div>
-            <div className="studio-analysis-cell"><span>Failure reason</span><strong>{idealAnalysis.diagnosis.failureReason ?? 'none'}</strong></div>
-            <div className="studio-analysis-cell"><span>Recommendation</span><strong>{idealAnalysis.diagnosis.recommendation}</strong></div>
-          </div>
-        </div>
-      );
-    }
-
     return (
       <div className="studio-results-section">
         <div className={`studio-result-status ${resultSummary.ready ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
@@ -3735,29 +3688,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const renderResultsFigures = () => {
-    const renderFigurePreview = (figureId: string) => {
-      if (activeFile.kind === 'ideal' && idealAnalysis) {
-        if (figureId === 'ideal-verification') return renderIdealValidationChart(idealAnalysis);
-        if (figureId === 'ideal-raw-pv') return renderIdealValidationChart(idealAnalysis, 'pvRaw');
-        if (figureId === 'ideal-points') {
-          return (
-            <div className="studio-final-figure-empty">
-              {idealAnalysis.sortedPoints.length} point rows ready for CSV export
-            </div>
-          );
-        }
-        if (figureId === 'ideal-history') {
-          return (
-            <div className="studio-final-figure-empty">
-              {idealAnalysis.isVerified ? idealHistoryCopy[activeFile.relation].title : 'locked until verified'}
-            </div>
-          );
-        }
-      }
-
-      return renderFinalFigurePreview(figureId);
-    };
-
     return (
       <div className="studio-results-section">
         <div className="studio-results-subheader">
@@ -3767,7 +3697,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           </div>
           <button
             type="button"
-            disabled={!exportAvailable || !currentResultsReady}
+            disabled={!currentResultsReady}
             onClick={() => handleExportAction('figuresZip')}
           >
             <FileArchive size={13} />
@@ -3799,7 +3729,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 <strong>{figure.title}</strong>
                 <span>{figure.status}</span>
               </div>
-              {renderFigurePreview(figure.id)}
+              {renderFinalFigurePreview(figure.id)}
             </section>
           ))}
         </div>
@@ -3856,6 +3786,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const rawPvSpec = figureSpecs.find((figure) => figure.id === 'ideal-raw-pv');
     const pointsSpec = figureSpecs.find((figure) => figure.id === 'ideal-points');
     const historySpec = figureSpecs.find((figure) => figure.id === 'ideal-history');
+    const historyContent = getIdealHistoryContent('en-GB', activeFile.relation);
+    const failureReasonText = getIdealFailureReasonText(idealAnalysis.diagnosis.failureReason, 'en-GB');
+    const recommendationText = getIdealRecommendationText(
+      idealAnalysis.diagnosis.failureReason,
+      idealAnalysis.verdictState,
+      activeFile.relation,
+      'en-GB',
+    );
     const exportSpecs = figureSpecs.filter((figure) => (
       figure.id === 'ideal-verification' ||
       figure.id === 'ideal-raw-pv' ||
@@ -3869,14 +3807,36 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <div className={`studio-ideal-results-card ${idealAnalysis.isVerified ? 'studio-ideal-history-unlocked' : 'studio-ideal-history-locked'}`}>
           <div className="studio-ideal-results-card-header">
             <div>
-              <strong>{idealAnalysis.isVerified ? idealHistoryCopy[activeFile.relation].title : `History locked for ${getRelationLabel(activeFile.relation)}`}</strong>
+              <strong>{idealAnalysis.isVerified ? historyContent.title : `History locked for ${getRelationLabel(activeFile.relation)}`}</strong>
               <span>{idealAnalysis.isVerified ? 'Unlocked by verified experiment data.' : 'Unlocks after a successful verification.'}</span>
             </div>
           </div>
           {idealAnalysis.isVerified ? (
-            <p>{idealHistoryCopy[activeFile.relation].body}</p>
+            <div className="studio-ideal-history-grid">
+              <div>
+                <span>Historical context</span>
+                <strong>{historyContent.discovery}</strong>
+              </div>
+              <div>
+                <span>Workbench interpretation</span>
+                <strong>{historyContent.simulation}</strong>
+              </div>
+              <div>
+                <span>Key figures</span>
+                <strong>R2 {formatMaybeMetric(idealAnalysis.regression.rSquared, 5)} / slope error {idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`}</strong>
+              </div>
+            </div>
           ) : (
-            <p>Record enough preset coverage with a strong fit and acceptable slope error. Current verdict: {idealAnalysis.verdictState}; reason: {idealAnalysis.diagnosis.failureReason ?? 'insufficient evidence'}.</p>
+            <div className="studio-ideal-history-grid">
+              <div>
+                <span>Why it is locked</span>
+                <strong>{failureReasonText}</strong>
+              </div>
+              <div>
+                <span>Recommended next step</span>
+                <strong>{recommendationText}</strong>
+              </div>
+            </div>
           )}
         </div>
 
@@ -3888,15 +3848,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
             </div>
           </div>
           <div className="studio-ideal-export-actions">
-            <button type="button" disabled={!exportAvailable || !currentResultsReady} onClick={() => handleExportAction('report')}>
+            <button type="button" disabled={!currentResultsReady} onClick={() => handleExportAction('report')}>
               <Download size={13} />
               Report PDF
             </button>
-            <button type="button" disabled={!exportAvailable || !currentResultsReady} onClick={() => handleExportAction('verificationFigure')}>
+            <button type="button" disabled={!currentResultsReady} onClick={() => handleExportAction('verificationFigure')}>
               <BarChart3 size={13} />
               Verification Figure
             </button>
-            <button type="button" disabled={!exportAvailable || !currentResultsReady} onClick={() => handleExportAction('pointsCsv')}>
+            <button type="button" disabled={!currentResultsReady} onClick={() => handleExportAction('pointsCsv')}>
               <Table2 size={13} />
               Points CSV
             </button>
@@ -3919,227 +3879,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
               </div>
             ))}
           </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderIdealResultsPanel = () => {
-    if (activeFile.kind !== 'ideal' || !idealAnalysis) {
-      return (
-        <div className="studio-empty">
-          <div>
-            <strong>No ideal-gas results</strong>
-            <p>Select an ideal-gas file to review experiment results.</p>
-          </div>
-        </div>
-      );
-    }
-
-    const points = idealAnalysis.sortedPoints;
-    const clearKey = `${activeFile.id}:${activeFile.relation}`;
-    const verificationSpec = figureSpecs.find((figure) => figure.id === 'ideal-verification');
-    const rawPvSpec = figureSpecs.find((figure) => figure.id === 'ideal-raw-pv');
-    const pointsSpec = figureSpecs.find((figure) => figure.id === 'ideal-points');
-    const historySpec = figureSpecs.find((figure) => figure.id === 'ideal-history');
-    const exportSpecs = figureSpecs.filter((figure) => (
-      figure.id === 'ideal-verification' ||
-      figure.id === 'ideal-raw-pv' ||
-      figure.id === 'ideal-points' ||
-      figure.id === 'ideal-history'
-    ));
-
-    return (
-      <div className="studio-results-panel studio-results-panel-ideal">
-        <div className="studio-results-toolbar">
-          <div className="studio-results-title">
-            <strong>Results</strong>
-            <span>{getRelationLabel(activeFile.relation)} experiment workspace / {points.length} points / {idealAnalysis.verdictState}</span>
-          </div>
-          <div className="studio-results-actions">
-            <button
-              type="button"
-              disabled={!exportAvailable || !currentResultsReady}
-              onClick={() => handleExportAction('report')}
-            >
-              <Download size={13} />
-              Export Report
-            </button>
-            <button
-              type="button"
-              aria-label="Close Results"
-              onClick={(event) => {
-                event.stopPropagation();
-                closePanel('results');
-              }}
-            >
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-
-        <div className="studio-ideal-results-body">
-          <section className="studio-ideal-results-left" aria-label="Ideal experiment points">
-            <div className="studio-ideal-results-card">
-              <div className="studio-ideal-results-card-header">
-                <div>
-                  <strong>Experiment status</strong>
-                  <span>{getRelationLabel(activeFile.relation)} / {points.length} points / {idealAnalysis.verdictState}</span>
-                </div>
-              </div>
-              <div className="studio-ideal-results-status-grid">
-                <div><span>Active</span><strong>{getRelationLabel(activeFile.relation)}</strong></div>
-                <div><span>Points</span><strong>{points.length}</strong></div>
-                <div><span>Verdict</span><strong>{idealAnalysis.verdictState}</strong></div>
-                <div><span>Sampling</span><strong>{activeFile.needsReset ? 'will apply on Start' : activeFile.runState}</strong></div>
-              </div>
-            </div>
-
-            <div className="studio-ideal-results-card studio-ideal-results-points-card">
-              <div className="studio-ideal-results-card-header">
-                <div>
-                  <strong>{getRelationLabel(activeFile.relation)} points</strong>
-                  <span>Measured pressure records for the active relation.</span>
-                </div>
-                <button type="button" onClick={requestClearIdealRelation} disabled={points.length === 0}>
-                  <Trash2 size={13} />
-                  {pendingClearRelationKey === clearKey ? 'Confirm Clear' : 'Clear'}
-                </button>
-              </div>
-              {points.length === 0 ? (
-                <div className="studio-panel-note">
-                  Run the active ideal-gas point to record measured pressure, ideal pressure, and relation metadata.
-                </div>
-              ) : (
-                <div className="studio-ideal-results-table-scroll">
-                  <table className="studio-table studio-ideal-points-table">
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        {activeFile.relation === 'pt' ? <th>target T</th> : null}
-                        {activeFile.relation === 'pv' ? <><th>L</th><th>V</th><th>1/V</th></> : null}
-                        {activeFile.relation === 'pn' ? <th>N</th> : null}
-                        <th>mean T</th>
-                        <th>measured P</th>
-                        <th>ideal P</th>
-                        <th>gap</th>
-                        <th>time</th>
-                        <th>action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {points.map((point, index) => (
-                        <tr key={`ideal-results-${point.id}`}>
-                          <td>{index + 1}</td>
-                          {activeFile.relation === 'pt' ? <td>{formatMetric(point.targetTemperature, 2)}</td> : null}
-                          {activeFile.relation === 'pv' ? (
-                            <>
-                              <td>{formatMaybeMetric(point.boxLength, 2)}</td>
-                              <td>{formatMaybeMetric(point.volume, 1)}</td>
-                              <td>{formatMaybeMetric(point.inverseVolume, 6)}</td>
-                            </>
-                          ) : null}
-                          {activeFile.relation === 'pn' ? <td>{formatMaybeMetric(point.particleCount, 0)}</td> : null}
-                          <td>{formatMetric(point.meanTemperature, 3)}</td>
-                          <td>{formatMetric(point.meanPressure, 5)}</td>
-                          <td>{formatMetric(point.idealPressure, 5)}</td>
-                          <td>{formatMetric(point.relativeGap * 100, 2)}%</td>
-                          <td>{new Date(point.timestamp).toLocaleTimeString('en-GB', { hour12: false })}</td>
-                          <td>{renderIdealPointRemoveAction(point)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="studio-ideal-results-right" aria-label="Ideal verification and export">
-            <div className="studio-ideal-results-card">
-              <div className="studio-ideal-results-card-header">
-                <div>
-                  <strong>{activeFile.relation === 'pv' ? 'P - 1/V linearized verification' : `${getRelationLabel(activeFile.relation)} verification`}</strong>
-                  <span>{idealAnalysis.diagnosis.recommendation}</span>
-                </div>
-              </div>
-              <div className="studio-ideal-results-status-grid studio-ideal-results-status-grid-wide">
-                <div><span>R2</span><strong>{formatMaybeMetric(idealAnalysis.regression.rSquared, 5)}</strong></div>
-                <div><span>Slope</span><strong>{formatMaybeMetric(idealAnalysis.regression.slope, 6)}</strong></div>
-                <div><span>Theory slope</span><strong>{formatMaybeMetric(idealAnalysis.theoreticalSlope, 6)}</strong></div>
-                <div><span>Slope error</span><strong>{idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`}</strong></div>
-                <div><span>Failure reason</span><strong>{idealAnalysis.diagnosis.failureReason ?? 'none'}</strong></div>
-                <div><span>State</span><strong>{activeFile.verificationState}</strong></div>
-              </div>
-              <div className="studio-ideal-results-chart-stack">
-                {renderIdealValidationChart(idealAnalysis)}
-                {activeFile.relation === 'pv' ? (
-                  <div>
-                    <div className="studio-ideal-results-mini-title">
-                      <strong>Original P - V physical view</strong>
-                      <span>Verdict still uses the linearized chart above.</span>
-                    </div>
-                    {renderIdealValidationChart(idealAnalysis, 'pvRaw')}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            <div className={`studio-ideal-results-card ${idealAnalysis.isVerified ? 'studio-ideal-history-unlocked' : 'studio-ideal-history-locked'}`}>
-              <div className="studio-ideal-results-card-header">
-                <div>
-                  <strong>{idealAnalysis.isVerified ? idealHistoryCopy[activeFile.relation].title : `History locked for ${getRelationLabel(activeFile.relation)}`}</strong>
-                  <span>{idealAnalysis.isVerified ? 'Unlocked by verified experiment data.' : 'Unlocks after a successful verification.'}</span>
-                </div>
-              </div>
-              {idealAnalysis.isVerified ? (
-                <p>{idealHistoryCopy[activeFile.relation].body}</p>
-              ) : (
-                <p>Record enough preset coverage with a strong fit and acceptable slope error. Current verdict: {idealAnalysis.verdictState}; reason: {idealAnalysis.diagnosis.failureReason ?? 'insufficient evidence'}.</p>
-              )}
-            </div>
-
-            <div className="studio-ideal-results-card">
-              <div className="studio-ideal-results-card-header">
-                <div>
-                  <strong>Export</strong>
-                  <span>{exportCopy.label}</span>
-                </div>
-              </div>
-              <div className="studio-ideal-export-actions">
-                <button type="button" disabled={!exportAvailable || !currentResultsReady} onClick={() => handleExportAction('report')}>
-                  <Download size={13} />
-                  Report PDF
-                </button>
-                <button type="button" disabled={!exportAvailable || !currentResultsReady} onClick={() => handleExportAction('verificationFigure')}>
-                  <BarChart3 size={13} />
-                  Verification Figure
-                </button>
-                <button type="button" disabled={!exportAvailable || !currentResultsReady} onClick={() => handleExportAction('pointsCsv')}>
-                  <Table2 size={13} />
-                  Points CSV
-                </button>
-              </div>
-              <div className="studio-ideal-export-files">
-                {verificationSpec ? <div><span>Verification</span><strong>{verificationSpec.recommendedFilename}</strong></div> : null}
-                {rawPvSpec ? <div><span>Raw P-V</span><strong>{rawPvSpec.recommendedFilename}</strong></div> : null}
-                {pointsSpec ? <div><span>Points CSV</span><strong>{pointsSpec.recommendedFilename}</strong></div> : null}
-                {historySpec ? <div><span>History</span><strong>{historySpec.recommendedFilename}</strong></div> : null}
-              </div>
-              <div className="studio-figure-list studio-ideal-export-specs">
-                {exportSpecs.map((figure) => (
-                  <div className="studio-figure-row" key={`ideal-export-${figure.id}`}>
-                    <div>
-                      <strong>{figure.title}</strong>
-                      <small>{figure.recommendedFilename}</small>
-                    </div>
-                    <span>{figure.dataCount}</span>
-                    <em className={`studio-figure-status-${figure.status}`}>{figure.status}</em>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
         </div>
       </div>
     );
@@ -4171,7 +3910,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div className="studio-results-actions">
             <button
               type="button"
-              disabled={!exportAvailable || !currentResultsReady}
+              disabled={!currentResultsReady}
               onClick={() => handleExportAction('report')}
             >
               <Download size={13} />
@@ -4249,6 +3988,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
       );
     }
 
+    const failureReasonText = getIdealFailureReasonText(idealAnalysis.diagnosis.failureReason, 'en-GB');
+    const recommendationText = getIdealRecommendationText(
+      idealAnalysis.diagnosis.failureReason,
+      idealAnalysis.verdictState,
+      activeFile.relation,
+      'en-GB',
+    );
+
     return (
       <div className="studio-verification-panel">
         <div className="studio-verification-main-layout">
@@ -4279,7 +4026,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div className="studio-verification-side">
             <div className={`studio-result-status ${idealAnalysis.isVerified ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
               <strong>{getRelationLabel(activeFile.relation)} verdict: {idealAnalysis.verdictState}</strong>
-              <span>{idealAnalysis.diagnosis.recommendation}</span>
+              <span>{getIdealRecommendationText(idealAnalysis.diagnosis.failureReason, idealAnalysis.verdictState, activeFile.relation, 'en-GB')}</span>
             </div>
 
             <div className="studio-analysis-grid">
@@ -4289,6 +4036,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
               <div className="studio-analysis-cell"><span>Theory slope</span><strong>{formatMaybeMetric(idealAnalysis.theoreticalSlope, 6)}</strong></div>
               <div className="studio-analysis-cell"><span>Slope error</span><strong>{idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`}</strong></div>
               <div className="studio-analysis-cell"><span>Failure reason</span><strong>{idealAnalysis.diagnosis.failureReason ?? 'none'}</strong></div>
+            </div>
+
+            <div className="studio-ideal-diagnosis-card">
+              <div>
+                <span>Why it happened</span>
+                <strong>{failureReasonText}</strong>
+              </div>
+              <div>
+                <span>Recommended next step</span>
+                <strong>{recommendationText}</strong>
+              </div>
             </div>
           </div>
         </div>
@@ -4301,15 +4059,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
       <div className="studio-history">
         {idealAnalysis.isVerified ? (
           <>
-            <p><strong>{idealHistoryCopy[activeFile.relation].title}</strong></p>
-            <p>{idealHistoryCopy[activeFile.relation].body}</p>
+            <p><strong>{getIdealHistoryContent('en-GB', activeFile.relation).title}</strong></p>
+            <p>{getIdealHistoryContent('en-GB', activeFile.relation).discovery}</p>
+            <p>{getIdealHistoryContent('en-GB', activeFile.relation).simulation}</p>
             <p>Current verification: R2 {formatMaybeMetric(idealAnalysis.regression.rSquared, 5)}, slope error {idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`}.</p>
           </>
         ) : (
           <>
             <p><strong>History locked for {getRelationLabel(activeFile.relation)}.</strong></p>
-            <p>Record a verified relation first. Required evidence: enough preset coverage, a strong linear fit, and acceptable slope error.</p>
-            <p>Current verdict: {idealAnalysis.verdictState}. Recommendation: {idealAnalysis.diagnosis.recommendation}</p>
+            <p>{getIdealFailureReasonText(idealAnalysis.diagnosis.failureReason, 'en-GB')}</p>
+            <p>Current verdict: {idealAnalysis.verdictState}. Recommendation: {getIdealRecommendationText(idealAnalysis.diagnosis.failureReason, idealAnalysis.verdictState, activeFile.relation, 'en-GB')}</p>
           </>
         )}
       </div>
@@ -5078,30 +4837,57 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div className="studio-console-header">
             <span>Console / Output</span>
             <div className="studio-console-tabs">
-              <span>Logs</span>
-              <span>Warnings</span>
-              <span>Summary</span>
+              {(['logs', 'warnings', 'summary'] as const).map((tab) => (
+                <button
+                  type="button"
+                  key={tab}
+                  className={consoleTab === tab ? 'studio-console-tab-active' : undefined}
+                  onClick={() => setConsoleTab(tab)}
+                >
+                  {tab === 'logs' ? 'Logs' : tab === 'warnings' ? 'Warnings' : 'Summary'}
+                </button>
+              ))}
             </div>
           </div>
-          <div className="studio-console-body">
-            {logs.map((log) => (
-              <div className="studio-log" key={log.id}>
-                <span className="studio-log-time">{log.time}</span>
-                <span className={`studio-log-kind-${log.kind}`}>{log.kind.toUpperCase()}</span>
-                <span>{log.message}</span>
+          <div className="studio-console-body" ref={consoleBodyRef}>
+            {consoleTab === 'summary' ? (
+              <div className="studio-console-summary">
+                <div><span>Total</span><strong>{logs.length}</strong></div>
+                <div><span>Info</span><strong>{consoleSummary.counts.info}</strong></div>
+                <div><span>Success</span><strong>{consoleSummary.counts.success}</strong></div>
+                <div><span>Warnings</span><strong>{consoleSummary.counts.warning}</strong></div>
+                <div><span>Errors</span><strong>{consoleSummary.counts.error}</strong></div>
+                <div className="studio-console-summary-wide">
+                  <span>Latest</span>
+                  <strong>{consoleSummary.latest ? `${consoleSummary.latest.time} ${consoleSummary.latest.message}` : 'No log entries yet.'}</strong>
+                </div>
+                <div className="studio-console-summary-wide">
+                  <span>Runtime</span>
+                  <strong>{consoleSummary.runtime}</strong>
+                </div>
               </div>
-            ))}
+            ) : displayedLogs.length > 0 ? (
+              displayedLogs.map((log) => (
+                <div className="studio-log" key={log.id}>
+                  <span className="studio-log-time">{log.time}</span>
+                  <span className={`studio-log-kind-${log.kind}`}>{log.kind.toUpperCase()}</span>
+                  <span>{log.message}</span>
+                </div>
+              ))
+            ) : (
+              <div className="studio-console-empty">
+                {consoleTab === 'warnings' ? 'No warnings or errors yet.' : 'No log entries yet.'}
+              </div>
+            )}
           </div>
         </section>
 
         <footer className="studio-status">
           <div className="studio-status-group">
-            <span>Branch: react-workbench</span>
             <span>Active file: {isWorkbenchEmpty ? 'none' : activeFile.name}</span>
             <span>Selected block: {isWorkbenchEmpty ? 'none' : activePanelTitle}</span>
           </div>
           <div className="studio-status-group">
-            <span>Workbench integration batch 4/6 prep</span>
             <span>
               {isWorkbenchEmpty ? 'No runtime connected' : activeFile.kind === 'standard'
                 ? 'Standard realtime data connected'

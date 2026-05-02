@@ -1,6 +1,7 @@
 import type { HistogramBin } from '../types';
-import type { WorkbenchFileState, WorkbenchRunState } from './workbenchState';
-import { getIdealGasAnalysis } from '../utils/idealGasExperiment';
+import type { IdealGasExperimentPoint } from '../types';
+import type { WorkbenchFileState, WorkbenchRunState } from './workbenchState.ts';
+import { getIdealGasAnalysis, getRelationXValue } from '../utils/idealGasExperiment.ts';
 
 export type WorkbenchFigureCode =
   | 'speed-distribution'
@@ -42,6 +43,22 @@ export interface WorkbenchFigureSpec {
   dataCount: number;
   recommendedFilename: string;
 }
+
+export type WorkbenchExportMode = 'report' | 'figuresZip' | 'verificationFigure' | 'pointsCsv';
+
+export interface WorkbenchCsvExportPayload {
+  kind: 'csv';
+  filename: string;
+  content: string;
+}
+
+export interface WorkbenchJsonExportPayload {
+  kind: 'json';
+  filename: string;
+  data: Record<string, any>;
+}
+
+export type WorkbenchExportPayload = WorkbenchCsvExportPayload | WorkbenchJsonExportPayload;
 
 const countHistogramSamples = (bins: HistogramBin[]) => bins.reduce((sum, bin) => sum + bin.count, 0);
 
@@ -191,4 +208,127 @@ export const createWorkbenchFigureSpecs = (file: WorkbenchFileState): WorkbenchF
     dataCount: spec.dataCount,
     recommendedFilename: formatWorkbenchExportFilename(file, spec.code),
   }));
+};
+
+const csvEscape = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined) return '';
+  const text = String(value);
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+
+const createCsv = (headers: string[], rows: Array<Array<string | number | null | undefined>>) => [
+  headers.map(csvEscape).join(','),
+  ...rows.map((row) => row.map(csvEscape).join(',')),
+].join('\n');
+
+const formatCsvNumber = (value: number | null | undefined, digits = 7) => (
+  typeof value === 'number' && Number.isFinite(value) ? Number(value.toPrecision(digits)) : ''
+);
+
+const createIdealPointsCsv = (file: WorkbenchFileState) => {
+  if (file.kind !== 'ideal') return '';
+  const analysis = getIdealGasAnalysis(file.relation, file.pointsByRelation, file.activeParams);
+  return createCsv(
+    [
+      'relation',
+      'scanValue',
+      'meanTemperature',
+      'measuredPressure',
+      'idealPressure',
+      'relativeGap',
+      'timestamp',
+      'boxLength',
+      'volume',
+      'inverseVolume',
+      'particleCount',
+    ],
+    analysis.sortedPoints.map((point: IdealGasExperimentPoint) => [
+      point.relation,
+      formatCsvNumber(getRelationXValue(file.relation, point)),
+      formatCsvNumber(point.meanTemperature),
+      formatCsvNumber(point.meanPressure),
+      formatCsvNumber(point.idealPressure),
+      formatCsvNumber(point.relativeGap),
+      new Date(point.timestamp).toISOString(),
+      formatCsvNumber(point.boxLength),
+      formatCsvNumber(point.volume),
+      formatCsvNumber(point.inverseVolume),
+      formatCsvNumber(point.particleCount),
+    ]),
+  );
+};
+
+const createStandardResultCsv = (file: WorkbenchFileState) => {
+  if (file.kind !== 'standard' || !file.finalChartData) return '';
+  return createCsv(
+    ['time', 'temperature', 'targetTemperature', 'error', 'totalEnergy'],
+    file.finalChartData.tempHistory.map((point) => [
+      formatCsvNumber(point.time),
+      formatCsvNumber(point.temperature),
+      formatCsvNumber(point.targetTemperature),
+      formatCsvNumber(point.error),
+      formatCsvNumber(point.totalEnergy),
+    ]),
+  );
+};
+
+const createIdealReportData = (file: WorkbenchFileState) => {
+  if (file.kind !== 'ideal') return {};
+  const analysis = getIdealGasAnalysis(file.relation, file.pointsByRelation, file.activeParams);
+  return {
+    fileName: file.name,
+    relation: file.relation,
+    params: file.activeParams,
+    summary: createWorkbenchResultSummary(file),
+    verification: {
+      verdictState: analysis.verdictState,
+      isVerified: analysis.isVerified,
+      slope: analysis.regression.slope,
+      intercept: analysis.regression.intercept,
+      rSquared: analysis.regression.rSquared,
+      slopeError: analysis.regression.slopeError,
+      theoreticalSlope: analysis.theoreticalSlope,
+      failureReason: analysis.diagnosis.failureReason,
+      recommendationReason: analysis.diagnosis.failureReason,
+    },
+    points: analysis.sortedPoints,
+    figureSpecs: createWorkbenchFigureSpecs(file),
+  };
+};
+
+const createStandardReportData = (file: WorkbenchFileState) => ({
+  fileName: file.name,
+  params: file.appliedParams,
+  summary: createWorkbenchResultSummary(file),
+  finalChartData: file.kind === 'standard' ? file.finalChartData : null,
+  figureSpecs: createWorkbenchFigureSpecs(file),
+});
+
+export const createWorkbenchExportPayload = (
+  file: WorkbenchFileState,
+  mode: WorkbenchExportMode,
+): WorkbenchExportPayload => {
+  if (mode === 'pointsCsv') {
+    return {
+      kind: 'csv',
+      filename: file.kind === 'ideal'
+        ? formatWorkbenchExportFilename(file, 'ideal-points')
+        : formatWorkbenchExportFilename(file, 'temperature-error').replace(/\.pdf$/, '.csv'),
+      content: file.kind === 'ideal' ? createIdealPointsCsv(file) : createStandardResultCsv(file),
+    };
+  }
+
+  const figureCode: WorkbenchFigureCode =
+    file.kind === 'ideal'
+      ? 'ideal-verification'
+      : mode === 'verificationFigure' ? 'temperature-error' : 'speed-distribution';
+  const baseFilename = mode === 'figuresZip'
+    ? formatWorkbenchExportFilename(file, figureCode).replace(/\.pdf$/, '.figures.json')
+    : formatWorkbenchExportFilename(file, figureCode).replace(/\.pdf$/, '.json');
+
+  return {
+    kind: 'json',
+    filename: baseFilename,
+    data: file.kind === 'ideal' ? createIdealReportData(file) : createStandardReportData(file),
+  };
 };

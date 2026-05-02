@@ -29,6 +29,12 @@ import {
   TEMPERATURE_PRESET_SEQUENCE,
   type ExperimentFailureReason,
 } from '../utils/experimentFailureDiagnostics';
+import {
+  calculateLinearRegression,
+  getIdealHistoryContent,
+  getRelationXValue as getSharedRelationXValue,
+  getTheoreticalSlope as getSharedTheoreticalSlope,
+} from '../utils/idealGasExperiment.ts';
 import { formatScientificWithSuperscript } from '../utils/numberFormat';
 import SimulationCanvas from './SimulationCanvas';
 import ModeSwitch from './ModeSwitch';
@@ -980,11 +986,11 @@ const IdealGasExperimentMode: React.FC<IdealGasExperimentModeProps> = ({
   const localeCopy = LOCAL_COPY[lang];
   const advancedCopy = ADVANCED_PANEL_COPY[lang];
   const relationPoints = pointsByRelation[relation];
-  const sortedPoints = [...relationPoints].sort((a, b) => getRelationXValue(relation, a) - getRelationXValue(relation, b));
-  const theoreticalSlope = getTheoreticalSlope(relation, params);
-  const regression = calculateRegression(
+  const sortedPoints = [...relationPoints].sort((a, b) => getSharedRelationXValue(relation, a) - getSharedRelationXValue(relation, b));
+  const theoreticalSlope = getSharedTheoreticalSlope(relation, params);
+  const regression = calculateLinearRegression(
     sortedPoints,
-    (point) => getRelationXValue(relation, point),
+    (point) => getSharedRelationXValue(relation, point),
     (point) => point.meanPressure,
     theoreticalSlope,
   );
@@ -1538,7 +1544,7 @@ const IdealGasExperimentMode: React.FC<IdealGasExperimentModeProps> = ({
     minute: '2-digit',
     second: '2-digit',
   });
-  const currentHistoryContent = historyModalRelation ? HISTORY_CONTENT[lang][historyModalRelation] : null;
+  const currentHistoryContent = historyModalRelation ? getIdealHistoryContent(lang, historyModalRelation) : null;
   const failureReasonForModal = failurePromptState ? getFailureReasonText(failurePromptState.reason, t) : '';
   const inverseVolumeAxisLabel =
     lang === 'en-GB'

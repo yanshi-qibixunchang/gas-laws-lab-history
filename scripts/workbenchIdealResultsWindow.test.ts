@@ -200,8 +200,58 @@ assert.match(
 );
 assert.match(
   getRuleBody('.studio-ideal-results-status-grid div'),
-  /min-height:\s*\d+px/,
-  'ideal Results metric blocks should use stable compact heights',
+  /min-height:\s*64px/,
+  'ideal Results metric blocks should use stable compact heights without excessive blank space',
+);
+assert.match(
+  source,
+  /type ConsoleTab = 'logs' \| 'warnings' \| 'summary'/,
+  'Console Output should define clickable log filter tabs',
+);
+assert.match(
+  source,
+  /const \[consoleTab,\s*setConsoleTab\]/,
+  'Console Output should store the active log tab',
+);
+assert.match(
+  source,
+  /consoleBodyRef[\s\S]*?scrollTop\s*=\s*body\.scrollHeight/,
+  'Console Output should auto-scroll to the newest log entry',
+);
+assert.match(
+  source,
+  /<button[\s\S]*?setConsoleTab\(tab\)/,
+  'Console Output tabs should render as clickable buttons',
+);
+assert.match(
+  source,
+  /createInitialLogs/,
+  'initial Console Output rows should be generated at component startup',
+);
+assert.doesNotMatch(
+  source,
+  /time:\s*'00:00:0\d'/,
+  'initial Console Output rows should not use hard-coded fake timestamps',
+);
+assert.doesNotMatch(
+  source,
+  /Branch:\s*react-workbench/,
+  'footer status should no longer show the branch label',
+);
+assert.doesNotMatch(
+  source,
+  /Workbench integration batch 4\/6 prep/,
+  'footer status should no longer show the internal workbench batch label',
+);
+assert.match(
+  source,
+  /studio-ideal-diagnosis-card/,
+  'ideal Verification should surface shared failure diagnosis and recommendation text',
+);
+assert.match(
+  cssSource,
+  /\.studio-ideal-history-grid/,
+  'ideal Verification should provide a visible shared history content grid',
 );
 assert.match(
   getRuleBody('.studio-ideal-scan-derived'),

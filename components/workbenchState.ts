@@ -9,7 +9,7 @@ import type {
 import {
   createEmptyPointsByRelation,
   type PointsByRelation,
-} from '../utils/idealGasExperiment';
+} from '../utils/idealGasExperiment.ts';
 
 export type WorkbenchFileKind = 'standard' | 'ideal';
 export type WorkbenchRunState = 'idle' | 'running' | 'paused' | 'finished' | 'needs-reset';

@@ -2693,41 +2693,6 @@
   padding: 10px;
 }
 
-.studio-results-panel-ideal {
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.studio-ideal-results-body {
-  display: grid;
-  min-height: 0;
-  grid-template-columns: minmax(360px, 0.9fr) minmax(440px, 1.1fr);
-  gap: 10px;
-  overflow: hidden;
-  padding: 10px;
-  background: #171b20;
-}
-
-.studio-ideal-results-left,
-.studio-ideal-results-right {
-  display: grid;
-  min-width: 0;
-  min-height: 0;
-  gap: 10px;
-}
-
-.studio-ideal-results-left {
-  align-content: start;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding-bottom: 12px;
-  scrollbar-gutter: stable;
-}
-
-.studio-ideal-results-right {
-  align-content: start;
-  overflow: auto;
-}
-
 .studio-ideal-results-card {
   display: grid;
   min-width: 0;
@@ -2821,12 +2786,13 @@
 
 .studio-ideal-results-status-grid div {
   display: grid;
+  align-content: center;
   min-width: 0;
-  min-height: 112px;
+  min-height: 64px;
   gap: 4px;
   border: 1px solid var(--studio-border-soft);
   background: #171b20;
-  padding: 8px;
+  padding: 7px 8px;
 }
 
 .studio-ideal-results-status-grid span {
@@ -2846,6 +2812,48 @@
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.studio-ideal-diagnosis-card,
+.studio-ideal-history-grid {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.studio-ideal-diagnosis-card {
+  margin-top: 10px;
+}
+
+.studio-ideal-history-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.studio-ideal-diagnosis-card div,
+.studio-ideal-history-grid div {
+  min-width: 0;
+  border: 1px solid var(--studio-border-soft);
+  background: #171b20;
+  padding: 9px 10px;
+}
+
+.studio-ideal-diagnosis-card span,
+.studio-ideal-history-grid span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--studio-subtle);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.studio-ideal-diagnosis-card strong,
+.studio-ideal-history-grid strong {
+  display: block;
+  color: var(--studio-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
 }
 
 .studio-ideal-results-table-scroll {
@@ -3633,10 +3641,27 @@
 
 .studio-console-tabs {
   display: flex;
-  gap: 10px;
-  color: var(--studio-muted);
+  gap: 4px;
   font-weight: 500;
   text-transform: none;
+}
+
+.studio-console-tabs button {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--studio-muted);
+  cursor: pointer;
+  font: inherit;
+  padding: 2px 6px;
+}
+
+.studio-console-tabs button:hover,
+.studio-console-tabs button:focus-visible,
+.studio-console-tabs .studio-console-tab-active {
+  border-color: var(--studio-border-strong);
+  background: rgba(76, 139, 245, 0.12);
+  color: var(--studio-text);
+  outline: none;
 }
 
 .studio-console-body {
@@ -3646,6 +3671,49 @@
   font-family: "JetBrains Mono", Consolas, monospace;
   font-size: 12px;
   line-height: 1.65;
+}
+
+.studio-console-empty {
+  color: var(--studio-subtle);
+}
+
+.studio-console-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  color: var(--studio-muted);
+  font-family: "Inter", "Segoe UI", sans-serif;
+  line-height: 1.35;
+}
+
+.studio-console-summary div {
+  min-width: 0;
+  border: 1px solid var(--studio-border-soft);
+  background: #11161b;
+  padding: 6px 8px;
+}
+
+.studio-console-summary span {
+  display: block;
+  color: var(--studio-subtle);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.studio-console-summary strong {
+  display: block;
+  overflow: hidden;
+  color: var(--studio-text);
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-console-summary-wide {
+  grid-column: span 5;
 }
 
 .studio-log {
@@ -3740,16 +3808,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .studio-ideal-results-body {
-    grid-template-columns: minmax(0, 1fr);
-    overflow: auto;
-  }
-
-  .studio-ideal-results-left,
-  .studio-ideal-results-right {
-    overflow: visible;
-  }
-
   .studio-verification-main-layout {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -3794,16 +3852,13 @@
     min-height: 200px;
   }
 
-  .studio-ideal-results-body {
-    padding: 8px;
-  }
-
   .studio-ideal-export-actions {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .studio-ideal-results-status-grid,
-  .studio-ideal-results-status-grid-wide {
+  .studio-ideal-results-status-grid-wide,
+  .studio-ideal-history-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
