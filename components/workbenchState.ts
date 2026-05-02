@@ -27,16 +27,21 @@ export type WorkbenchPanelKey =
   | 'verification'
   | 'history';
 export type WorkbenchIdealResultWindowKey = 'experimentPoints' | 'verification';
+export type WorkbenchStandardResultsTab = 'summary' | 'dataTable' | 'figures';
 
-export const IDEAL_RESULT_SINGLE_HEIGHT_RATIO = 0.5;
-export const IDEAL_RESULT_BACK_HEIGHT_RATIO = 0.75;
-export const IDEAL_RESULT_FRONT_HEIGHT_RATIO = 0.5;
+export const IDEAL_RESULT_HEIGHT_RATIO = 0.5;
+
+export interface WorkbenchStandardResultsLayout {
+  openTabs: WorkbenchStandardResultsTab[];
+  activeTab: WorkbenchStandardResultsTab;
+  heightRatio: number;
+}
 
 export interface WorkbenchIdealWindowLayout {
-  openPanels: WorkbenchIdealResultWindowKey[];
-  backHeightRatio: number;
-  frontHeightRatio: number;
-  hasCustomHeights: boolean;
+  openTabs: WorkbenchIdealResultWindowKey[];
+  activeIdealResultTab: WorkbenchIdealResultWindowKey;
+  heightRatio: number;
+  hasCustomHeight: boolean;
 }
 
 export interface WorkbenchParameterRow {
@@ -70,6 +75,7 @@ interface WorkbenchFileBase {
 export interface WorkbenchStandardState extends WorkbenchFileBase {
   kind: 'standard';
   particles: Particle[];
+  standardResultsLayout: WorkbenchStandardResultsLayout;
 }
 
 export interface WorkbenchIdealState extends WorkbenchFileBase {
@@ -107,7 +113,7 @@ export const DEFAULT_IDEAL_PARAMS: SimulationParams = {
   k: 1.0,
   dt: 0.01,
   nu: 0.8,
-  targetTemperature: 1.0,
+  targetTemperature: 0.6,
   equilibriumTime: 4,
   statsDuration: 12,
 };
@@ -132,13 +138,19 @@ export const createEmptyChartData = (): ChartData => ({
 
 export const cloneParams = (params: SimulationParams): SimulationParams => ({ ...params });
 
+export const createDefaultStandardResultsLayout = (): WorkbenchStandardResultsLayout => ({
+  openTabs: ['summary', 'dataTable', 'figures'],
+  activeTab: 'summary',
+  heightRatio: IDEAL_RESULT_HEIGHT_RATIO,
+});
+
 export const createDefaultIdealWindowLayout = (
-  defaults?: Partial<Pick<WorkbenchIdealWindowLayout, 'backHeightRatio' | 'frontHeightRatio'>>,
+  defaults?: Partial<Pick<WorkbenchIdealWindowLayout, 'heightRatio'>>,
 ): WorkbenchIdealWindowLayout => ({
-  openPanels: [],
-  backHeightRatio: defaults?.backHeightRatio ?? IDEAL_RESULT_BACK_HEIGHT_RATIO,
-  frontHeightRatio: defaults?.frontHeightRatio ?? IDEAL_RESULT_FRONT_HEIGHT_RATIO,
-  hasCustomHeights: false,
+  openTabs: ['experimentPoints', 'verification'],
+  activeIdealResultTab: 'experimentPoints',
+  heightRatio: defaults?.heightRatio ?? IDEAL_RESULT_HEIGHT_RATIO,
+  hasCustomHeight: false,
 });
 
 const formatNumber = (value: number | undefined) => {
@@ -174,6 +186,7 @@ export const createDefaultStandardFile = (index = 1): WorkbenchStandardState => 
   ...createBaseFile('standard', index, DEFAULT_STANDARD_PARAMS),
   kind: 'standard',
   particles: [],
+  standardResultsLayout: createDefaultStandardResultsLayout(),
 });
 
 export const createDefaultIdealFile = (index = 1): WorkbenchIdealState => ({

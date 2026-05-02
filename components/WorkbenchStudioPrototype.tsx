@@ -40,11 +40,10 @@ import {
   createDefaultIdealFile,
   createDefaultIdealWindowLayout,
   createDefaultStandardFile,
+  createDefaultStandardResultsLayout,
   createInitialWorkbenchFiles,
   getWorkbenchParameterRows,
-  IDEAL_RESULT_BACK_HEIGHT_RATIO,
-  IDEAL_RESULT_FRONT_HEIGHT_RATIO,
-  IDEAL_RESULT_SINGLE_HEIGHT_RATIO,
+  IDEAL_RESULT_HEIGHT_RATIO,
   validateWorkbenchParams,
   type WorkbenchExportEnvironmentStatus,
   type WorkbenchFileKind,
@@ -53,6 +52,8 @@ import {
   type WorkbenchIdealResultWindowKey,
   type WorkbenchIdealWindowLayout,
   type WorkbenchPanelKey,
+  type WorkbenchStandardResultsLayout,
+  type WorkbenchStandardResultsTab,
 } from './workbenchState';
 import {
   createWorkbenchFigureSpecs,
@@ -75,7 +76,7 @@ import './WorkbenchStudioPrototype.css';
 
 type LogKind = 'info' | 'warning' | 'success' | 'error';
 type TopMenu = 'new' | 'edit' | 'window' | 'settings' | 'help' | null;
-type ResultsSectionKey = 'summary' | 'dataTable' | 'figures';
+type ResultsSectionKey = WorkbenchStandardResultsTab;
 
 interface ConsoleLog {
   id: number;
@@ -122,6 +123,7 @@ const LEFT_SIDEBAR_MAX = 420;
 const PARAM_SIDEBAR_MIN = 240;
 const PARAM_SIDEBAR_MAX = 420;
 const EDIT_HISTORY_LIMIT = 50;
+const IDEAL_ADVANCED_SCROLL_DURATION_MS = 420;
 const IDEAL_SCAN_THUMB_SIZE = 13;
 const IDEAL_SCAN_THUMB_HIT_RADIUS = 9.1;
 const IDEAL_SCAN_SNAP_THRESHOLD: Record<ExperimentRelation, number> = {
@@ -133,7 +135,7 @@ const IDEAL_RESULT_MIN_HEIGHT_RATIO = 0.25;
 const IDEAL_RESULT_MAX_HEIGHT_RATIO = 1;
 const IDEAL_RESULT_WINDOW_DEFAULTS_STORAGE_KEY = 'hsl_workbench_ideal_result_window_defaults';
 
-type IdealResultWindowDefaults = Pick<WorkbenchIdealWindowLayout, 'backHeightRatio' | 'frontHeightRatio'>;
+type IdealResultWindowDefaults = Pick<WorkbenchIdealWindowLayout, 'heightRatio'>;
 
 const exportEnvironmentCopy: Record<WorkbenchExportEnvironmentStatus, { label: string; detail: string }> = {
   checking: {
@@ -287,6 +289,7 @@ const idealRelationOptions: Array<{ key: ExperimentRelation; label: string; hint
 ];
 
 const idealRelationKeys: ExperimentRelation[] = ['pt', 'pv', 'pn'];
+const standardResultsTabKeys: WorkbenchStandardResultsTab[] = ['summary', 'dataTable', 'figures'];
 const idealResultWindowKeys: WorkbenchIdealResultWindowKey[] = ['experimentPoints', 'verification'];
 const idealResultWindowPanels = idealPanels.filter(
   (panel): panel is PanelDefinition & { key: WorkbenchIdealResultWindowKey } => (
@@ -298,16 +301,82 @@ const isIdealResultWindowKey = (key: WorkbenchPanelKey): key is WorkbenchIdealRe
   key === 'experimentPoints' || key === 'verification'
 );
 
+const isStandardResultsTab = (key: string): key is WorkbenchStandardResultsTab => (
+  standardResultsTabKeys.includes(key as WorkbenchStandardResultsTab)
+);
+
 const clampIdealResultHeightRatio = (value: number) => (
   clamp(value, IDEAL_RESULT_MIN_HEIGHT_RATIO, IDEAL_RESULT_MAX_HEIGHT_RATIO)
 );
 
+const normalizeIdealWindowLayoutState = (
+  layout: WorkbenchIdealWindowLayout | (Partial<WorkbenchIdealWindowLayout> & {
+    openPanels?: WorkbenchIdealResultWindowKey[];
+    frontHeightRatio?: number;
+    backHeightRatio?: number;
+    hasCustomHeights?: boolean;
+  }) | null | undefined,
+  defaults?: Partial<IdealResultWindowDefaults>,
+): WorkbenchIdealWindowLayout => {
+  const openTabs = layout?.openTabs?.filter(isIdealResultWindowKey);
+  const activeIdealResultTab = layout?.activeIdealResultTab
+    ?? layout?.openPanels?.filter(isIdealResultWindowKey).slice(-1)[0]
+    ?? 'experimentPoints';
+  const normalizedOpenTabs = openTabs?.length ? openTabs : ['experimentPoints', 'verification'];
+  const heightRatio = clampIdealResultHeightRatio(
+    layout?.heightRatio
+    ?? layout?.frontHeightRatio
+    ?? layout?.backHeightRatio
+    ?? defaults?.heightRatio
+    ?? IDEAL_RESULT_HEIGHT_RATIO,
+  );
+
+  return {
+    openTabs: normalizedOpenTabs,
+    activeIdealResultTab: normalizedOpenTabs.includes(activeIdealResultTab) ? activeIdealResultTab : normalizedOpenTabs[0],
+    heightRatio,
+    hasCustomHeight: Boolean(layout?.hasCustomHeight ?? layout?.hasCustomHeights),
+  };
+};
+
+const normalizeStandardResultsLayout = (
+  layout: Partial<WorkbenchStandardResultsLayout> | null | undefined,
+): WorkbenchStandardResultsLayout => {
+  const openTabs = layout?.openTabs?.filter(isStandardResultsTab);
+  const normalizedOpenTabs = openTabs?.length ? openTabs : ['summary', 'dataTable', 'figures'];
+  const activeTab = layout?.activeTab && normalizedOpenTabs.includes(layout.activeTab)
+    ? layout.activeTab
+    : normalizedOpenTabs[0];
+
+  return {
+    openTabs: normalizedOpenTabs,
+    activeTab,
+    heightRatio: clampIdealResultHeightRatio(layout?.heightRatio ?? IDEAL_RESULT_HEIGHT_RATIO),
+  };
+};
+
+const pickNextOpenTab = <T extends string>(tabs: T[], closingTab: T) => {
+  const closingIndex = tabs.indexOf(closingTab);
+  if (closingIndex < 0) return tabs[0] ?? null;
+  return tabs[closingIndex + 1] ?? tabs[closingIndex - 1] ?? null;
+};
+
 const sanitizeIdealResultWindowDefaults = (
   defaults: Partial<IdealResultWindowDefaults> | null | undefined,
-): IdealResultWindowDefaults => ({
-  backHeightRatio: clampIdealResultHeightRatio(defaults?.backHeightRatio ?? IDEAL_RESULT_BACK_HEIGHT_RATIO),
-  frontHeightRatio: clampIdealResultHeightRatio(defaults?.frontHeightRatio ?? IDEAL_RESULT_FRONT_HEIGHT_RATIO),
-});
+): IdealResultWindowDefaults => {
+  const legacyDefaults = defaults as Partial<IdealResultWindowDefaults> & {
+    frontHeightRatio?: number;
+    backHeightRatio?: number;
+  } | null | undefined;
+  return {
+    heightRatio: clampIdealResultHeightRatio(
+      legacyDefaults?.heightRatio
+      ?? legacyDefaults?.frontHeightRatio
+      ?? legacyDefaults?.backHeightRatio
+      ?? IDEAL_RESULT_HEIGHT_RATIO,
+    ),
+  };
+};
 
 const loadIdealResultWindowDefaults = (): IdealResultWindowDefaults => {
   if (typeof window === 'undefined') return sanitizeIdealResultWindowDefaults(null);
@@ -397,6 +466,7 @@ const cloneWorkbenchFiles = (filesToClone: WorkbenchFileState[]): WorkbenchFileS
       ? {
           kind: 'standard' as const,
           particles: file.particles.map((particle) => ({ ...particle })),
+          standardResultsLayout: normalizeStandardResultsLayout(file.standardResultsLayout),
         }
       : {
           kind: 'ideal' as const,
@@ -413,12 +483,7 @@ const cloneWorkbenchFiles = (filesToClone: WorkbenchFileState[]): WorkbenchFileS
           particles: file.particles.map((particle) => ({ ...particle })),
           verificationState: file.verificationState,
           historyUnlocked: file.historyUnlocked,
-          idealWindowLayout: {
-            openPanels: [...file.idealWindowLayout.openPanels],
-            backHeightRatio: file.idealWindowLayout.backHeightRatio,
-            frontHeightRatio: file.idealWindowLayout.frontHeightRatio,
-            hasCustomHeights: file.idealWindowLayout.hasCustomHeights,
-          },
+          idealWindowLayout: normalizeIdealWindowLayoutState(file.idealWindowLayout),
         }),
     visiblePanels: [...file.visiblePanels],
   }))
@@ -453,10 +518,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [pendingDeleteFileId, setPendingDeleteFileId] = useState<string | null>(null);
   const [pendingRemovePointId, setPendingRemovePointId] = useState<string | null>(null);
   const [pendingClearRelationKey, setPendingClearRelationKey] = useState<string | null>(null);
-  const [resultsActiveSection, setResultsActiveSection] = useState<ResultsSectionKey>('summary');
   const [resultsChildrenCollapsed, setResultsChildrenCollapsed] = useState(false);
   const [samplingPresetMenuOpen, setSamplingPresetMenuOpen] = useState(false);
   const [parametersEditing, setParametersEditing] = useState(false);
+  const [idealAdvancedSettingsOpen, setIdealAdvancedSettingsOpen] = useState(false);
+  const [idealAdvancedSettingsBodyVisible, setIdealAdvancedSettingsBodyVisible] = useState(false);
   const [parameterDraft, setParameterDraft] = useState<Record<string, string>>({});
   const [parameterErrors, setParameterErrors] = useState<string[]>([]);
   const [scanInputDraft, setScanInputDraft] = useState('');
@@ -482,12 +548,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const renameSelectionModeRef = useRef<'initial' | 'normal'>('normal');
   const lastScanInputErrorRef = useRef<string | null>(null);
   const samplingPresetSelectRef = useRef<HTMLDivElement | null>(null);
+  const currentParametersBodyRef = useRef<HTMLDivElement | null>(null);
+  const idealAdvancedSettingsBodyRef = useRef<HTMLDivElement | null>(null);
+  const idealAdvancedSettingsPreviousScrollTopRef = useRef(0);
+  const idealAdvancedScrollFrameRef = useRef<number | null>(null);
   const centerWorkspaceRef = useRef<HTMLDivElement | null>(null);
   const idealResultWindowRegionRef = useRef<HTMLDivElement | null>(null);
 
   const emptyWorkbenchFile = useMemo(() => createDefaultStandardFile(0), []);
   const isWorkbenchEmpty = files.length === 0;
   const activeFile = files.find((file) => file.id === activeFileId) ?? emptyWorkbenchFile;
+  const standardResultsLayout = activeFile.kind === 'standard'
+    ? normalizeStandardResultsLayout(activeFile.standardResultsLayout)
+    : normalizeStandardResultsLayout(null);
   const availablePanels = activeFile.kind === 'standard' ? standardPanels : idealPanels;
   const activePanelTitle = availablePanels.find((panel) => panel.key === selectedPanel)?.title ?? '3D Preview';
   const primaryPanels = availablePanels.filter((panel) => panel.key === 'preview' || panel.key === 'realtime');
@@ -516,7 +589,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     ),
     [activeFile],
   );
-  const editableCurrentParameters = currentParameters.filter((param) => !(activeFile.kind === 'ideal' && param.key === 'targetTemperature'));
+  const editableCurrentParameters = currentParameters.filter((param) => !(activeFile.kind === 'ideal' && (param.key === 'targetTemperature' || param.key === 'relation')));
   const parametersDirty = !areWorkbenchParamsEqual(activeFile.params, activeFile.appliedParams);
   const parameterControlsLocked = activeFile.runState === 'running' || activeFile.runState === 'paused';
   const controlledVariableLockHint = 'To keep controlled variables fixed, this parameter cannot be changed while the current data table has rows. Clear the table first to edit it.';
@@ -540,6 +613,58 @@ const WorkbenchStudioPrototype: React.FC = () => {
     '--studio-params-width': `${parameterSidebarWidth}px`,
   } as React.CSSProperties;
 
+  const animateCurrentParametersScroll = (
+    targetTop: number,
+    onComplete?: () => void,
+    duration = IDEAL_ADVANCED_SCROLL_DURATION_MS,
+  ) => {
+    const container = currentParametersBodyRef.current;
+
+    if (!container) {
+      onComplete?.();
+      return;
+    }
+
+    if (idealAdvancedScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(idealAdvancedScrollFrameRef.current);
+    }
+
+    const startTop = container.scrollTop;
+    const distance = targetTop - startTop;
+    const startTime = window.performance.now();
+    const easeInOut = (value: number) => (
+      value < 0.5
+        ? 4 * value * value * value
+        : 1 - Math.pow(-2 * value + 2, 3) / 2
+    );
+
+    const step = (time: number) => {
+      const progress = Math.min(1, (time - startTime) / duration);
+      container.scrollTop = startTop + distance * easeInOut(progress);
+
+      if (progress < 1) {
+        idealAdvancedScrollFrameRef.current = window.requestAnimationFrame(step);
+        return;
+      }
+
+      idealAdvancedScrollFrameRef.current = null;
+      container.scrollTop = targetTop;
+      onComplete?.();
+    };
+
+    idealAdvancedScrollFrameRef.current = window.requestAnimationFrame(step);
+  };
+
+  const toggleIdealAdvancedSettings = () => {
+    setIdealAdvancedSettingsOpen((current) => {
+      if (!current) {
+        idealAdvancedSettingsPreviousScrollTopRef.current = currentParametersBodyRef.current?.scrollTop ?? 0;
+        setIdealAdvancedSettingsBodyVisible(true);
+      }
+      return !current;
+    });
+  };
+
   useEffect(() => {
     filesRef.current = files;
   }, [files]);
@@ -551,6 +676,39 @@ const WorkbenchStudioPrototype: React.FC = () => {
   useEffect(() => {
     renamingFileIdRef.current = renamingFileId;
   }, [renamingFileId]);
+
+  useEffect(() => {
+    if (activeFile.kind !== 'ideal') return undefined;
+    if (!idealAdvancedSettingsOpen && !idealAdvancedSettingsBodyVisible) return undefined;
+
+    const frameId = window.requestAnimationFrame(() => {
+      if (idealAdvancedSettingsOpen) {
+        const container = currentParametersBodyRef.current;
+        const body = idealAdvancedSettingsBodyRef.current;
+        if (!container || !body) return;
+
+        const containerRect = container.getBoundingClientRect();
+        const bodyRect = body.getBoundingClientRect();
+        const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+        const targetTop = clamp(container.scrollTop + bodyRect.top - containerRect.top, 0, maxScrollTop);
+        animateCurrentParametersScroll(targetTop);
+        return;
+      }
+
+      animateCurrentParametersScroll(
+        idealAdvancedSettingsPreviousScrollTopRef.current,
+        () => setIdealAdvancedSettingsBodyVisible(false),
+      );
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      if (idealAdvancedScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(idealAdvancedScrollFrameRef.current);
+        idealAdvancedScrollFrameRef.current = null;
+      }
+    };
+  }, [idealAdvancedSettingsOpen, idealAdvancedSettingsBodyVisible, activeFile.kind]);
 
   useEffect(() => {
     if (!renamingFileId) return undefined;
@@ -686,6 +844,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setParametersEditing(false);
     setParameterDraft({});
     setParameterErrors([]);
+    setIdealAdvancedSettingsOpen(false);
+    setIdealAdvancedSettingsBodyVisible(false);
     setOpenFileMenuId(null);
     setPendingDeleteFileId(null);
     setPendingRemovePointId(null);
@@ -786,10 +946,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     window.addEventListener('mouseup', handleUp);
   };
 
-  const startIdealResultWindowResize = (
-    layer: 'back' | 'front',
-    event: React.MouseEvent,
-  ) => {
+  const startIdealResultWindowResize = (event: React.MouseEvent) => {
     if (activeFile.kind !== 'ideal') return;
     event.preventDefault();
     event.stopPropagation();
@@ -801,9 +958,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     const snapshot = createEditSnapshot('resized ideal result window');
     const startY = event.clientY;
-    const startRatio = layer === 'back'
-      ? activeFile.idealWindowLayout.backHeightRatio
-      : activeFile.idealWindowLayout.frontHeightRatio;
+    const startRatio = activeFile.idealWindowLayout.heightRatio;
     let didResize = false;
 
     const handleMove = (moveEvent: MouseEvent) => {
@@ -817,9 +972,52 @@ const WorkbenchStudioPrototype: React.FC = () => {
           ...file,
           idealWindowLayout: {
             ...file.idealWindowLayout,
-            backHeightRatio: layer === 'back' ? clampedRatio : file.idealWindowLayout.backHeightRatio,
-            frontHeightRatio: layer === 'front' ? clampedRatio : file.idealWindowLayout.frontHeightRatio,
-            hasCustomHeights: true,
+            heightRatio: clampedRatio,
+            hasCustomHeight: true,
+          },
+          updatedAt: Date.now(),
+        };
+      });
+    };
+
+    const handleUp = () => {
+      document.body.classList.remove('studio-vertical-resizing');
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+      if (didResize) {
+        pushUndoSnapshot(snapshot);
+      }
+    };
+
+    document.body.classList.add('studio-vertical-resizing');
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+  };
+
+  const startStandardResultsResize = (event: React.MouseEvent) => {
+    if (activeFile.kind !== 'standard') return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const workspaceHeight = centerWorkspaceRef.current?.getBoundingClientRect().height ?? 0;
+    if (workspaceHeight <= 0) return;
+
+    const snapshot = createEditSnapshot('resized standard Results window');
+    const startY = event.clientY;
+    const startRatio = normalizeStandardResultsLayout(activeFile.standardResultsLayout).heightRatio;
+    let didResize = false;
+
+    const handleMove = (moveEvent: MouseEvent) => {
+      const deltaRatio = (startY - moveEvent.clientY) / workspaceHeight;
+      const nextRatio = startRatio + deltaRatio;
+      didResize = true;
+      updateActiveFile((file) => {
+        if (file.kind !== 'standard') return file;
+        return {
+          ...file,
+          standardResultsLayout: {
+            ...normalizeStandardResultsLayout(file.standardResultsLayout),
+            heightRatio: clamp(nextRatio, IDEAL_RESULT_MIN_HEIGHT_RATIO, IDEAL_RESULT_MAX_HEIGHT_RATIO),
           },
           updatedAt: Date.now(),
         };
@@ -847,21 +1045,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
 
     const nextDefaults = sanitizeIdealResultWindowDefaults({
-      backHeightRatio: activeFile.idealWindowLayout.backHeightRatio,
-      frontHeightRatio: activeFile.idealWindowLayout.frontHeightRatio,
+      heightRatio: activeFile.idealWindowLayout.heightRatio,
     });
 
     captureUndoSnapshot('saved ideal result window defaults');
     setIdealResultWindowDefaults(nextDefaults);
     persistIdealResultWindowDefaults(nextDefaults);
     setWorkbenchFiles((current) => current.map((file) => (
-      file.kind === 'ideal' && !file.idealWindowLayout.hasCustomHeights
+      file.kind === 'ideal' && !file.idealWindowLayout.hasCustomHeight
         ? {
             ...file,
             idealWindowLayout: {
               ...file.idealWindowLayout,
-              backHeightRatio: nextDefaults.backHeightRatio,
-              frontHeightRatio: nextDefaults.frontHeightRatio,
+              heightRatio: nextDefaults.heightRatio,
             },
           }
         : file
@@ -1591,6 +1787,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setParametersEditing(false);
     setParameterDraft({});
     setParameterErrors([]);
+    setIdealAdvancedSettingsOpen(false);
+    setIdealAdvancedSettingsBodyVisible(false);
     setOpenTopMenu(null);
     pushLog(`Workbench file created: ${file.name}`, 'success');
   };
@@ -1605,87 +1803,222 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const normalizeIdealResultLayout = (
     file: WorkbenchIdealState,
-    nextOpenPanels: WorkbenchIdealResultWindowKey[],
+    visible: boolean,
+    tab: WorkbenchIdealResultWindowKey = file.idealWindowLayout.activeIdealResultTab,
+    openAllTabs = false,
+    replaceOpenTabs = false,
     defaults = idealResultWindowDefaults,
   ): WorkbenchIdealState => {
-    const uniqueOpenPanels = nextOpenPanels.filter((panel, index, panels) => panels.indexOf(panel) === index).slice(-2);
+    const currentLayout = normalizeIdealWindowLayoutState(file.idealWindowLayout, defaults);
+    const openTabs = openAllTabs
+      ? idealResultWindowKeys
+      : replaceOpenTabs
+        ? [tab]
+        : currentLayout.openTabs.includes(tab)
+        ? currentLayout.openTabs
+        : [...currentLayout.openTabs, tab];
     return {
       ...file,
-      visiblePanels: [
-        ...file.visiblePanels.filter((panel) => !isIdealResultWindowKey(panel) && panel !== 'results'),
-        ...uniqueOpenPanels,
-      ],
+      visiblePanels: visible
+        ? [
+            ...file.visiblePanels.filter((panel) => !isIdealResultWindowKey(panel) && panel !== 'results'),
+            'results',
+          ]
+        : file.visiblePanels.filter((panel) => !isIdealResultWindowKey(panel) && panel !== 'results'),
       idealWindowLayout: {
-        ...file.idealWindowLayout,
-        openPanels: uniqueOpenPanels,
-        backHeightRatio: uniqueOpenPanels.length > 1
-          ? clampIdealResultHeightRatio(file.idealWindowLayout.backHeightRatio)
-          : clampIdealResultHeightRatio(defaults.backHeightRatio),
-        frontHeightRatio: clampIdealResultHeightRatio(
-          uniqueOpenPanels.length > 0 ? file.idealWindowLayout.frontHeightRatio : defaults.frontHeightRatio,
-        ),
+        ...currentLayout,
+        openTabs,
+        activeIdealResultTab: tab,
+        heightRatio: clampIdealResultHeightRatio(currentLayout.heightRatio),
       },
       updatedAt: Date.now(),
     };
   };
 
-  const openIdealResultWindow = (panel: WorkbenchIdealResultWindowKey) => {
+  const setActiveIdealResultTab = (tab: WorkbenchIdealResultWindowKey) => {
     if (activeFile.kind !== 'ideal') return;
-    setSelectedPanel(panel);
+    setSelectedPanel(tab);
+    updateActiveFile((file) => {
+      if (file.kind !== 'ideal') return file;
+      return {
+        ...file,
+        idealWindowLayout: {
+          ...normalizeIdealWindowLayoutState(file.idealWindowLayout, idealResultWindowDefaults),
+          activeIdealResultTab: tab,
+        },
+        updatedAt: Date.now(),
+      };
+    });
+  };
 
-    const openPanels = activeFile.idealWindowLayout.openPanels.filter((item) => activeFile.visiblePanels.includes(item));
-    if (openPanels.includes(panel)) {
-      focusIdealResultWindow(panel);
+  const openIdealResultTab = (tab: WorkbenchIdealResultWindowKey, options: { openAllTabs?: boolean; replaceOpenTabs?: boolean } = {}) => {
+    if (activeFile.kind !== 'ideal') return;
+    setResultsChildrenCollapsed(false);
+    setSelectedPanel(tab);
+
+    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, idealResultWindowDefaults);
+    const nextOpenTabs = options.openAllTabs
+      ? idealResultWindowKeys
+      : options.replaceOpenTabs
+        ? [tab]
+        : layout.openTabs.includes(tab)
+        ? layout.openTabs
+        : [...layout.openTabs, tab];
+    const isLayoutChange = !activeFile.visiblePanels.includes('results')
+      || nextOpenTabs.length !== layout.openTabs.length
+      || nextOpenTabs.some((item) => !layout.openTabs.includes(item));
+
+    if (!isLayoutChange) {
+      setActiveIdealResultTab(tab);
       return;
     }
 
-    captureUndoSnapshot(`opened ${panel === 'experimentPoints' ? 'Points' : 'Verification'} window`);
+    captureUndoSnapshot(activeFile.visiblePanels.includes('results') ? `opened ${tab} tab` : 'opened ideal Results window');
     updateActiveFile((file) => {
       if (file.kind !== 'ideal') return file;
-      const currentPanels = file.idealWindowLayout.openPanels.filter((item) => file.visiblePanels.includes(item));
-      const nextOpenPanels = [...currentPanels, panel].slice(-2);
-      return normalizeIdealResultLayout(file, nextOpenPanels);
+      return normalizeIdealResultLayout(file, true, tab, Boolean(options.openAllTabs), Boolean(options.replaceOpenTabs));
     });
-    pushLog(`${activeFile.name}: opened ideal result window ${panel}.`);
+    pushLog(`${activeFile.name}: opened ideal Results window on ${tab}.`);
   };
 
-  const focusIdealResultWindow = (panel: WorkbenchIdealResultWindowKey) => {
+  const openIdealResultsWindow = (tab: WorkbenchIdealResultWindowKey = 'experimentPoints', openAllTabs = false, replaceOpenTabs = false) => {
+    openIdealResultTab(tab, { openAllTabs, replaceOpenTabs });
+  };
+
+  const openIdealResultWindow = (panel: WorkbenchIdealResultWindowKey) => {
+    const replaceOpenTabs = !activeFile.visiblePanels.includes('results');
+    openIdealResultsWindow(panel, false, replaceOpenTabs);
+  };
+
+  const closeIdealResultsWindow = (recordUndo = true) => {
     if (activeFile.kind !== 'ideal') return;
-    setSelectedPanel(panel);
+    if (!activeFile.visiblePanels.includes('results')) return;
 
-    const openPanels = activeFile.idealWindowLayout.openPanels.filter((item) => activeFile.visiblePanels.includes(item));
-    if (openPanels.length < 2 || openPanels[openPanels.length - 1] === panel) return;
-
-    captureUndoSnapshot(`focused ${panel === 'experimentPoints' ? 'Points' : 'Verification'} window`);
+    if (recordUndo) captureUndoSnapshot('closed ideal Results window');
     updateActiveFile((file) => {
       if (file.kind !== 'ideal') return file;
-      const currentPanels = file.idealWindowLayout.openPanels.filter((item) => file.visiblePanels.includes(item));
-      if (currentPanels.length < 2 || currentPanels[currentPanels.length - 1] === panel) return file;
-      return normalizeIdealResultLayout(file, [...currentPanels.filter((item) => item !== panel), panel]);
+      return normalizeIdealResultLayout(file, false);
+    });
+    if (isIdealResultWindowKey(selectedPanel)) setSelectedPanel('preview');
+    pushLog(`${activeFile.name}: closed ideal Results window.`);
+  };
+
+  const closeIdealResultTab = (tab: WorkbenchIdealResultWindowKey) => {
+    if (activeFile.kind !== 'ideal') return;
+    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, idealResultWindowDefaults);
+    if (!layout.openTabs.includes(tab)) return;
+
+    captureUndoSnapshot(`closed ${idealResultWindowPanels.find((panel) => panel.key === tab)?.title ?? tab} tab`);
+    if (layout.openTabs.length <= 1) {
+      closeIdealResultsWindow(false);
+      return;
+    }
+
+    const nextOpenTabs = layout.openTabs.filter((item) => item !== tab);
+    const nextActiveTab = layout.activeIdealResultTab === tab
+      ? pickNextOpenTab(layout.openTabs, tab) ?? nextOpenTabs[0]
+      : layout.activeIdealResultTab;
+    setSelectedPanel(nextActiveTab);
+    updateActiveFile((file) => {
+      if (file.kind !== 'ideal') return file;
+      return {
+        ...file,
+        idealWindowLayout: {
+          ...normalizeIdealWindowLayoutState(file.idealWindowLayout, idealResultWindowDefaults),
+          openTabs: nextOpenTabs,
+          activeIdealResultTab: nextActiveTab,
+        },
+        updatedAt: Date.now(),
+      };
     });
   };
 
   const closeIdealResultWindow = (panel: WorkbenchIdealResultWindowKey) => {
-    if (activeFile.kind !== 'ideal') return;
-    if (!activeFile.visiblePanels.includes(panel)) return;
+    closeIdealResultTab(panel);
+  };
 
-    captureUndoSnapshot(`closed ${panel === 'experimentPoints' ? 'Points' : 'Verification'} window`);
+  const setActiveStandardResultsTab = (tab: WorkbenchStandardResultsTab) => {
+    if (activeFile.kind !== 'standard') return;
+    setSelectedPanel('results');
     updateActiveFile((file) => {
-      if (file.kind !== 'ideal') return file;
-      const nextOpenPanels = file.idealWindowLayout.openPanels.filter((item) => item !== panel);
-      return normalizeIdealResultLayout(
-        {
-          ...file,
-          idealWindowLayout: {
-            ...file.idealWindowLayout,
-            frontHeightRatio: idealResultWindowDefaults.frontHeightRatio,
-          },
+      if (file.kind !== 'standard') return file;
+      return {
+        ...file,
+        standardResultsLayout: {
+          ...normalizeStandardResultsLayout(file.standardResultsLayout),
+          activeTab: tab,
         },
-        nextOpenPanels,
-      );
+        updatedAt: Date.now(),
+      };
     });
-    if (selectedPanel === panel) setSelectedPanel('preview');
-    pushLog(`${activeFile.name}: closed ideal result window ${panel}.`);
+  };
+
+  const openStandardResultsWindow = (tab: WorkbenchStandardResultsTab = 'summary', openAllTabs = false, replaceOpenTabs = false) => {
+    if (activeFile.kind !== 'standard') return;
+    setResultsChildrenCollapsed(false);
+    setSelectedPanel('results');
+
+    const layout = normalizeStandardResultsLayout(activeFile.standardResultsLayout);
+    const nextOpenTabs = openAllTabs
+      ? standardResultsTabKeys
+      : replaceOpenTabs
+        ? [tab]
+        : layout.openTabs.includes(tab)
+        ? layout.openTabs
+        : [...layout.openTabs, tab];
+    const isLayoutChange = !activeFile.visiblePanels.includes('results')
+      || nextOpenTabs.length !== layout.openTabs.length
+      || nextOpenTabs.some((item) => !layout.openTabs.includes(item));
+
+    if (!isLayoutChange) {
+      setActiveStandardResultsTab(tab);
+      return;
+    }
+
+    captureUndoSnapshot(activeFile.visiblePanels.includes('results') ? `opened ${tab} tab` : 'opened Results panel');
+    updateActiveFile((file) => {
+      if (file.kind !== 'standard') return file;
+      return {
+        ...file,
+        visiblePanels: file.visiblePanels.includes('results') ? file.visiblePanels : [...file.visiblePanels, 'results'],
+        standardResultsLayout: {
+          ...normalizeStandardResultsLayout(file.standardResultsLayout),
+          openTabs: nextOpenTabs,
+          activeTab: tab,
+        },
+        updatedAt: Date.now(),
+      };
+    });
+    pushLog(`${activeFile.name}: opened Results window on ${tab}.`);
+  };
+
+  const closeStandardResultsTab = (tab: WorkbenchStandardResultsTab) => {
+    if (activeFile.kind !== 'standard') return;
+    const layout = normalizeStandardResultsLayout(activeFile.standardResultsLayout);
+    if (!layout.openTabs.includes(tab)) return;
+
+    captureUndoSnapshot(`closed ${resultsSections.find((section) => section.key === tab)?.title ?? tab} tab`);
+    if (layout.openTabs.length <= 1) {
+      closePanel('results', false);
+      return;
+    }
+
+    const nextOpenTabs = layout.openTabs.filter((item) => item !== tab);
+    const nextActiveTab = layout.activeTab === tab
+      ? pickNextOpenTab(layout.openTabs, tab) ?? nextOpenTabs[0]
+      : layout.activeTab;
+    updateActiveFile((file) => {
+      if (file.kind !== 'standard') return file;
+      return {
+        ...file,
+        standardResultsLayout: {
+          ...normalizeStandardResultsLayout(file.standardResultsLayout),
+          openTabs: nextOpenTabs,
+          activeTab: nextActiveTab,
+        },
+        updatedAt: Date.now(),
+      };
+    });
   };
 
   const openPanel = (panel: WorkbenchPanelKey) => {
@@ -1697,13 +2030,18 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     if (activeFile.kind === 'ideal') {
       if (panel === 'results') {
-        setResultsChildrenCollapsed(false);
+        openIdealResultsWindow('experimentPoints', true);
         return;
       }
       if (isIdealResultWindowKey(panel)) {
-        openIdealResultWindow(panel);
+        openIdealResultsWindow(panel);
         return;
       }
+    }
+
+    if (activeFile.kind === 'standard' && panel === 'results') {
+      openStandardResultsWindow('summary', true);
+      return;
     }
 
     if (activeFile.visiblePanels.includes(panel)) return;
@@ -1721,20 +2059,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
     pushLog(`${activeFile.name}: opened panel ${panel}`);
   };
 
-  const closePanel = (panel: WorkbenchPanelKey) => {
+  const closePanel = (panel: WorkbenchPanelKey, recordUndo = true) => {
     if (LOCKED_PANEL_KEYS.includes(panel)) {
       handleLockedPanel(availablePanels.find((item) => item.key === panel)?.title ?? panel);
       return;
     }
 
     if (activeFile.kind === 'ideal' && isIdealResultWindowKey(panel)) {
-      closeIdealResultWindow(panel);
+      closeIdealResultsWindow();
       return;
     }
 
     if (!activeFile.visiblePanels.includes(panel)) return;
 
-    captureUndoSnapshot(`closed ${availablePanels.find((item) => item.key === panel)?.title ?? panel} panel`);
+    if (recordUndo) captureUndoSnapshot(`closed ${availablePanels.find((item) => item.key === panel)?.title ?? panel} panel`);
     setWorkbenchFiles((current) =>
       current.map((file) => {
         if (file.id !== activeFile.id) return file;
@@ -1762,12 +2100,137 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
   };
 
-  const selectResultsSection = (section: ResultsSectionKey, openResults = false) => {
-    setResultsActiveSection(section);
-    setSelectedPanel('results');
-    if (openResults || activeFile.visiblePanels.includes('results')) {
-      openPanel('results');
+  const isWindowPanelVisible = (panel: WorkbenchPanelKey) => (
+    activeFile.visiblePanels.includes(panel)
+  );
+
+  const toggleWindowPanel = (panel: WorkbenchPanelKey) => {
+    if (LOCKED_PANEL_KEYS.includes(panel)) {
+      setSelectedPanel(panel);
+      handleLockedPanel(availablePanels.find((item) => item.key === panel)?.title ?? panel);
+      return;
     }
+
+    if (activeFile.kind === 'ideal' && panel === 'results') {
+      if (isWindowPanelVisible(panel)) {
+        closeIdealResultsWindow();
+      } else {
+        openIdealResultsWindow('experimentPoints', true);
+      }
+      return;
+    }
+
+    if (activeFile.kind === 'standard' && panel === 'results') {
+      if (isWindowPanelVisible(panel)) {
+        closePanel('results');
+      } else {
+        openStandardResultsWindow('summary', true);
+      }
+      return;
+    }
+
+    togglePanel(panel);
+  };
+
+  const toggleWindowIdealResultTab = (tab: WorkbenchIdealResultWindowKey) => {
+    const state = getIdealResultTabState(tab);
+    if (state === 'off') {
+      const replaceOpenTabs = !activeFile.visiblePanels.includes('results');
+      openIdealResultsWindow(tab, false, replaceOpenTabs);
+    } else {
+      closeIdealResultTab(tab);
+    }
+  };
+
+  const toggleWindowStandardResultsTab = (tab: WorkbenchStandardResultsTab) => {
+    const state = getStandardResultsTabState(tab);
+    if (state === 'off') {
+      const replaceOpenTabs = !activeFile.visiblePanels.includes('results');
+      openStandardResultsWindow(tab, false, replaceOpenTabs);
+    } else {
+      closeStandardResultsTab(tab);
+    }
+  };
+
+  const selectResultsSection = (section: ResultsSectionKey, openResults = false) => {
+    setSelectedPanel('results');
+    if (activeFile.kind !== 'standard') return;
+    if (openResults) {
+      const replaceOpenTabs = !activeFile.visiblePanels.includes('results');
+      openStandardResultsWindow(section, false, replaceOpenTabs);
+    }
+  };
+
+  const getIdealResultTabState = (tab: WorkbenchIdealResultWindowKey) => {
+    if (activeFile.kind !== 'ideal' || !activeFile.visiblePanels.includes('results')) return 'off';
+    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, idealResultWindowDefaults);
+    if (layout.activeIdealResultTab === tab) return 'active';
+    return layout.openTabs.includes(tab) ? 'open' : 'off';
+  };
+
+  const getStandardResultsTabState = (tab: WorkbenchStandardResultsTab) => {
+    if (activeFile.kind !== 'standard' || !activeFile.visiblePanels.includes('results')) return 'off';
+    const layout = normalizeStandardResultsLayout(activeFile.standardResultsLayout);
+    if (layout.activeTab === tab) return 'active';
+    return layout.openTabs.includes(tab) ? 'open' : 'off';
+  };
+
+  const renderWindowResultsChildRows = () => {
+    if (activeFile.kind === 'ideal') {
+      return idealResultWindowPanels.map((panel) => {
+        const state = getIdealResultTabState(panel.key);
+        const visible = state !== 'off';
+        return (
+          <div className="studio-window-panel-row studio-window-panel-child-row" key={`window-${panel.key}`}>
+            {panel.icon}
+            <span>{panel.title}</span>
+            <span className="studio-window-panel-status">{state}</span>
+            <button
+              type="button"
+              className={`studio-window-switch ${visible ? 'studio-window-switch-on' : 'studio-window-switch-off'}`}
+              role="switch"
+              aria-checked={visible}
+              aria-label={`${panel.title} ${state}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleWindowIdealResultTab(panel.key);
+              }}
+            >
+              <span className="studio-window-switch-thumb" />
+            </button>
+          </div>
+        );
+      });
+    }
+
+    if (activeFile.kind === 'standard') {
+      return resultsSections.map((section) => {
+        const state = getStandardResultsTabState(section.key);
+        const visible = state !== 'off';
+        return (
+          <div className="studio-window-panel-row studio-window-panel-child-row" key={`window-${section.key}`}>
+            {section.icon}
+            <span>{section.title}</span>
+            <span className="studio-window-panel-status">{state}</span>
+            <button
+              type="button"
+              className={`studio-window-switch ${visible ? 'studio-window-switch-on' : 'studio-window-switch-off'}`}
+              role="switch"
+              aria-checked={visible}
+              aria-label={`${section.title} ${state}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleWindowStandardResultsTab(section.key);
+              }}
+            >
+              <span className="studio-window-switch-thumb" />
+            </button>
+          </div>
+        );
+      });
+    }
+
+    return null;
   };
 
   const changeIdealRelation = (nextRelation: ExperimentRelation) => {
@@ -2242,6 +2705,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setParameterDraft({});
     setParametersEditing(false);
     setParameterErrors([]);
+    setIdealAdvancedSettingsOpen(false);
+    setIdealAdvancedSettingsBodyVisible(false);
     pushLog(`${file.name}: removed from the current workbench session.`, 'warning');
   };
 
@@ -2280,7 +2745,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               visiblePanels: ['preview', 'realtime'],
               ...(file.kind === 'ideal'
                 ? { idealWindowLayout: createDefaultIdealWindowLayout(idealResultWindowDefaults) }
-                : {}),
+                : { standardResultsLayout: createDefaultStandardResultsLayout() }),
             }
           : file,
       ),
@@ -2306,6 +2771,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setParametersEditing(false);
     setParameterDraft({});
     setParameterErrors([]);
+    setIdealAdvancedSettingsOpen(false);
+    setIdealAdvancedSettingsBodyVisible(false);
     setOpenFileMenuId(null);
     setPendingDeleteFileId(null);
     setPendingRemovePointId(null);
@@ -2600,18 +3067,31 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return (
         <div className="studio-command-menu studio-command-menu-window" ref={topMenuRef}>
           <div className="studio-command-menu-title">Panels for {activeFile.name}</div>
-          {availablePanels.map((panel) => {
+          {availablePanels.filter((panel) => !(activeFile.kind === 'ideal' && isIdealResultWindowKey(panel.key))).map((panel) => {
             const locked = LOCKED_PANEL_KEYS.includes(panel.key);
+            const visible = isWindowPanelVisible(panel.key);
             return (
-              <button
-                type="button"
-                key={panel.key}
-                onClick={() => (locked ? handleLockedPanel(panel.title) : togglePanel(panel.key))}
-              >
-                {locked ? <LockKeyhole size={14} /> : panel.icon}
-                <span>{panel.title}</span>
-                <strong>{locked ? 'locked' : activeFile.visiblePanels.includes(panel.key) ? 'shown' : 'off'}</strong>
-              </button>
+              <React.Fragment key={panel.key}>
+                <div className="studio-window-panel-row">
+                  {locked ? <LockKeyhole size={14} /> : panel.icon}
+                  <span>{panel.title}</span>
+                  <span className="studio-window-panel-status">{locked ? 'locked' : visible ? 'shown' : 'off'}</span>
+                  <button
+                    type="button"
+                    className={`studio-window-switch ${visible ? 'studio-window-switch-on' : 'studio-window-switch-off'}${locked ? ' studio-window-switch-locked' : ''}`}
+                    role="switch"
+                    aria-checked={visible}
+                    aria-label={`${panel.title} ${visible ? 'shown' : 'off'}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleWindowPanel(panel.key);
+                    }}
+                  >
+                    <span className="studio-window-switch-thumb" />
+                  </button>
+                </div>
+                {panel.key === 'results' ? renderWindowResultsChildRows() : null}
+              </React.Fragment>
             );
           })}
           <button type="button" onClick={resetLayout}>
@@ -2648,7 +3128,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <button type="button" onClick={saveCurrentIdealResultWindowLayoutAsDefault}>
             <Archive size={14} />
             <span>Save Current Ideal Result Window Layout as Default</span>
-            <strong>{`${Math.round(idealResultWindowDefaults.backHeightRatio * 100)} / ${Math.round(idealResultWindowDefaults.frontHeightRatio * 100)}%`}</strong>
+            <strong>{`${Math.round(idealResultWindowDefaults.heightRatio * 100)}%`}</strong>
           </button>
           <div className="studio-command-menu-title">Keyboard Shortcuts</div>
           <button type="button" onClick={undoLastEdit} disabled={undoStack.length === 0}>
@@ -2713,16 +3193,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <p>Create a standard simulation or an ideal-gas relation study to restore the preview, charts, results, and parameter panels.</p>
         {renderEmptyStudyActions()}
       </div>
-    </div>
-  );
-
-  const renderEmptyCurrentParameters = () => (
-    <div className="studio-current-params-body studio-empty-params">
-      <div className="studio-param-file">
-        <strong>No open file</strong>
-        <span>Create a study to show editable simulation parameters here.</span>
-      </div>
-      {renderEmptyStudyActions('studio-empty-param-actions')}
     </div>
   );
 
@@ -3721,25 +4191,47 @@ const WorkbenchStudioPrototype: React.FC = () => {
         </div>
 
         <div className="studio-results-tabs" role="tablist" aria-label="Results sections">
-          {resultsSections.map((section) => (
-            <button
+          {(() => {
+            const openStandardResultTabs = resultsSections.filter((section) => standardResultsLayout.openTabs.includes(section.key));
+            return openStandardResultTabs.map((section) => (
+              <button
               type="button"
               key={section.key}
-              className={resultsActiveSection === section.key ? 'studio-results-tab-active' : ''}
-              onClick={() => setResultsActiveSection(section.key)}
+              className={standardResultsLayout.activeTab === section.key ? 'studio-results-tab-active' : ''}
+              onClick={() => setActiveStandardResultsTab(section.key)}
               role="tab"
-              aria-selected={resultsActiveSection === section.key}
+              aria-selected={standardResultsLayout.activeTab === section.key}
             >
               {section.icon}
               <span>{section.title}</span>
+              <span
+                role="button"
+                tabIndex={0}
+                className="studio-results-tab-close"
+                aria-label={`Close ${section.title} tab`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  closeStandardResultsTab(section.key);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeStandardResultsTab(section.key);
+                  }
+                }}
+              >
+                <X size={12} />
+              </span>
             </button>
-          ))}
+            ));
+          })()}
         </div>
 
         <div className="studio-results-body">
-          {resultsActiveSection === 'summary' ? renderResultsSummary() : null}
-          {resultsActiveSection === 'dataTable' ? renderResultsDataTable() : null}
-          {resultsActiveSection === 'figures' ? renderResultsFigures() : null}
+          {standardResultsLayout.activeTab === 'summary' ? renderResultsSummary() : null}
+          {standardResultsLayout.activeTab === 'dataTable' ? renderResultsDataTable() : null}
+          {standardResultsLayout.activeTab === 'figures' ? renderResultsFigures() : null}
         </div>
       </div>
     );
@@ -3896,79 +4388,87 @@ const WorkbenchStudioPrototype: React.FC = () => {
     </section>
   );
 
-  const renderIdealResultWindowLayer = (
-    panel: PanelDefinition & { key: WorkbenchIdealResultWindowKey },
-    layer: 'back' | 'front',
-    isSingle: boolean,
-  ) => {
-    const heightRatio = isSingle
-      ? activeFile.kind === 'ideal' ? activeFile.idealWindowLayout.frontHeightRatio : IDEAL_RESULT_SINGLE_HEIGHT_RATIO
-      : activeFile.kind === 'ideal' && layer === 'back'
-        ? activeFile.idealWindowLayout.backHeightRatio
-        : activeFile.kind === 'ideal'
-          ? activeFile.idealWindowLayout.frontHeightRatio
-          : IDEAL_RESULT_FRONT_HEIGHT_RATIO;
-
-    return (
-      <section
-        className={`studio-ideal-result-window-layer ${layer === 'back' && !isSingle ? 'studio-ideal-result-window-back' : 'studio-ideal-result-window-front'} ${selectedPanel === panel.key ? 'studio-ideal-result-window-selected' : ''}`}
-        key={`ideal-result-window-${panel.key}`}
-        style={{ height: `${clampIdealResultHeightRatio(heightRatio) * 100}%` }}
-        onClick={() => focusIdealResultWindow(panel.key)}
-        aria-label={`${panel.title} result window`}
-      >
-        <div
-          className="studio-ideal-result-window-resizer"
-          role="separator"
-          aria-orientation="horizontal"
-          onMouseDown={(event) => startIdealResultWindowResize(isSingle ? 'front' : layer, event)}
-        />
-        <div className="studio-results-toolbar studio-ideal-result-window-toolbar">
-          <div className="studio-results-title">
-            <strong>{panel.title}</strong>
-            <span>{panel.hint}</span>
-          </div>
-          <div className="studio-results-actions">
-            <button
-              type="button"
-              aria-label={`Close ${panel.title}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                closeIdealResultWindow(panel.key);
-              }}
-            >
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-        {renderPanelContent(panel)}
-      </section>
-    );
-  };
-
   const renderIdealResultWindows = () => {
     if (activeFile.kind !== 'ideal') return null;
 
-    const orderedOpenPanels = activeFile.idealWindowLayout.openPanels
-      .filter((panel) => activeFile.visiblePanels.includes(panel));
-    const panels = orderedOpenPanels
-      .map((panelKey) => idealResultWindowPanels.find((panel) => panel.key === panelKey))
-      .filter((panel): panel is PanelDefinition & { key: WorkbenchIdealResultWindowKey } => Boolean(panel));
+    if (!activeFile.visiblePanels.includes('results')) return null;
 
-    if (panels.length === 0) return null;
-    const isSingle = panels.length === 1;
+    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, idealResultWindowDefaults);
+    const activePanel = idealResultWindowPanels.find((panel) => panel.key === layout.activeIdealResultTab)
+      ?? idealResultWindowPanels[0];
+    const openIdealResultTabs = idealResultWindowPanels.filter((panel) => layout.openTabs.includes(panel.key));
 
     return (
       <div
         className="studio-ideal-results-region"
         ref={idealResultWindowRegionRef}
-        aria-label="Ideal result child windows"
+        aria-label="Ideal result window"
       >
-        {panels.map((panel, index) => renderIdealResultWindowLayer(
-          panel,
-          !isSingle && index === 0 ? 'back' : 'front',
-          isSingle,
-        ))}
+        <section
+          className={`studio-ideal-result-window-layer ${selectedPanel === activePanel.key ? 'studio-ideal-result-window-selected' : ''}`}
+          style={{ height: `${clampIdealResultHeightRatio(layout.heightRatio) * 100}%` }}
+          aria-label="Ideal Results window"
+        >
+          <div
+            className="studio-ideal-result-window-resizer"
+            role="separator"
+            aria-orientation="horizontal"
+            onMouseDown={startIdealResultWindowResize}
+          />
+          <div className="studio-results-toolbar studio-ideal-result-window-toolbar">
+            <div className="studio-results-title">
+              <strong>Results</strong>
+              <span>{activePanel.hint}</span>
+            </div>
+            <div className="studio-results-actions">
+              <button
+                type="button"
+                aria-label="Close ideal Results"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  closeIdealResultsWindow();
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+          <div className="studio-results-tabs studio-ideal-results-tabs" role="tablist" aria-label="Ideal Results sections">
+            {openIdealResultTabs.map((panel) => (
+              <button
+                type="button"
+                key={panel.key}
+                role="tab"
+                aria-selected={layout.activeIdealResultTab === panel.key}
+                className={layout.activeIdealResultTab === panel.key ? 'studio-results-tab-active' : ''}
+                onClick={() => setActiveIdealResultTab(panel.key)}
+              >
+                {panel.icon}
+                <span>{panel.title}</span>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="studio-results-tab-close"
+                  aria-label={`Close ${panel.title} tab`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    closeIdealResultTab(panel.key);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      closeIdealResultTab(panel.key);
+                    }
+                  }}
+                >
+                  <X size={12} />
+                </span>
+              </button>
+            ))}
+          </div>
+          {renderPanelContent(activePanel)}
+        </section>
       </div>
     );
   };
@@ -4185,6 +4685,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
                           if (panelsSectionCollapsed) return;
                           if (locked) {
                             handleLockedPanel(panel.title);
+                          } else if (panel.key === 'results' && activeFile.kind === 'ideal') {
+                            openIdealResultsWindow('experimentPoints', true);
                           } else {
                             openPanel(panel.key);
                           }
@@ -4194,7 +4696,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
                             setSelectedPanel(panel.key);
                             handleLockedPanel(panel.title);
                           } else if (panel.key === 'results') {
-                            setSelectedPanel(panel.key);
+                            if (activeFile.kind === 'ideal') {
+                              openIdealResultsWindow('experimentPoints', true);
+                            } else {
+                              openStandardResultsWindow('summary', true);
+                            }
                           } else {
                             openPanel(panel.key);
                           }
@@ -4214,6 +4720,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
                             }}
                             onDoubleClick={(event) => {
                               event.stopPropagation();
+                              if (activeFile.kind === 'ideal') {
+                                openIdealResultsWindow('experimentPoints', true);
+                              } else {
+                                openStandardResultsWindow('summary', true);
+                              }
                             }}
                           >
                             <span className="studio-tree-folder-icon">
@@ -4262,12 +4773,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
                                 event.stopPropagation();
                                 openIdealResultWindow(childPanel.key);
                               }}
-                              title="Double-click to open this ideal Results child window."
+                              title="Open this ideal Results tab."
                             >
                               {childPanel.icon}
                               <span>{childPanel.title}</span>
                               <span className="studio-tree-meta">
-                                {activeFile.visiblePanels.includes(childPanel.key) ? 'shown' : 'off'}
+                                {getIdealResultTabState(childPanel.key)}
                               </span>
                             </button>
                           ))}
@@ -4279,11 +4790,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
                             <button
                               type="button"
                               key={section.key}
-                              className={resultsActiveSection === section.key && selectedPanel === 'results' ? 'studio-results-nav-active' : ''}
+                              className={getStandardResultsTabState(section.key) === 'active' && selectedPanel === 'results' ? 'studio-results-nav-active' : ''}
                               tabIndex={panelsSectionCollapsed ? -1 : 0}
                               onClick={(event) => {
                                 event.stopPropagation();
-                                selectResultsSection(section.key, false);
+                                setSelectedPanel('results');
                               }}
                               onDoubleClick={(event) => {
                                 event.stopPropagation();
@@ -4293,6 +4804,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                             >
                               {section.icon}
                               <span>{section.title}</span>
+                              <span className="studio-tree-meta">{getStandardResultsTabState(section.key)}</span>
                             </button>
                           ))}
                         </div>
@@ -4335,9 +4847,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
               ))}
             </div>
 
-            <div className={`studio-workspace-shell ${parametersCollapsed ? 'studio-params-collapsed' : ''}`}>
+            <div className={`studio-workspace-shell ${isWorkbenchEmpty ? 'studio-workspace-shell-empty' : 'studio-workspace-shell-active'} ${!isWorkbenchEmpty && parametersCollapsed ? 'studio-params-collapsed' : ''}`}>
               <div
-                className={`studio-center-workspace ${!isWorkbenchEmpty && (resultsPanel || idealResultPanels.length > 0) ? 'studio-results-open' : ''} ${isWorkbenchEmpty ? 'studio-center-workspace-empty' : ''}`}
+                className={`studio-center-workspace ${!isWorkbenchEmpty ? 'studio-center-workspace-active' : ''} ${!isWorkbenchEmpty && (resultsPanel || idealResultPanels.length > 0) ? 'studio-results-open' : ''} ${isWorkbenchEmpty ? 'studio-center-workspace-empty' : ''}`}
                 ref={centerWorkspaceRef}
               >
                 {isWorkbenchEmpty ? (
@@ -4352,8 +4864,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
                         </div>
                       ) : null}
                     </div>
-                    {resultsPanel ? (
-                      <div className="studio-results-region">
+                    {resultsPanel && activeFile.kind === 'standard' ? (
+                      <div
+                        className="studio-results-region"
+                        style={{ height: `${clampIdealResultHeightRatio(standardResultsLayout.heightRatio) * 100}%` }}
+                      >
+                        <div
+                          className="studio-results-window-resizer"
+                          role="separator"
+                          aria-orientation="horizontal"
+                          onMouseDown={startStandardResultsResize}
+                        />
                         {renderDockPanel(resultsPanel, true)}
                       </div>
                     ) : null}
@@ -4362,10 +4883,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 )}
               </div>
 
+              {!isWorkbenchEmpty ? (
               <aside
-                className={`studio-current-params ${parameterControlsLocked ? 'studio-current-params-locked' : ''} ${isWorkbenchEmpty ? 'studio-current-params-empty' : ''}`}
+                className={`studio-current-params ${parameterControlsLocked ? 'studio-current-params-locked' : ''}`}
                 aria-label="Current Parameters"
-                aria-disabled={parameterControlsLocked || isWorkbenchEmpty}
+                aria-disabled={parameterControlsLocked}
               >
                 <div
                   className="studio-params-resizer"
@@ -4376,7 +4898,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 <div className="studio-current-params-header">
                   <div>
                     <span>Current Parameters</span>
-                    <small>{isWorkbenchEmpty ? 'No open file' : parameterControlsLocked ? 'locked until stopped or finished' : parametersEditing ? 'edit values; Save before Start to use them' : 'current file values'}</small>
+                    <small>{parameterControlsLocked ? 'locked until stopped or finished' : parametersEditing ? 'edit values; Save before Start to use them' : 'current file values'}</small>
                   </div>
                   <button
                     type="button"
@@ -4387,8 +4909,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     Hide
                   </button>
                 </div>
-                {isWorkbenchEmpty ? renderEmptyCurrentParameters() : (
-                <div className="studio-current-params-body">
+                <div className="studio-current-params-body" ref={currentParametersBodyRef}>
                   <div className="studio-param-file">
                     <strong>{activeFile.kind === 'standard' ? 'Standard Simulation' : 'Ideal Gas Simulation'}</strong>
                     <span>{activeFile.name}</span>
@@ -4401,56 +4922,131 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     </span>
                   </div>
                   {renderIdealControls()}
-                  {editableCurrentParameters.map((param) => {
-                    const displayLabel = param.unit ? `${param.label} (${param.unit})` : param.label;
-                    const isParamLocked = parameterControlsLocked || isIdealControlledVariableLocked(param.key);
-                    const paramLockHint = isIdealControlledVariableLocked(param.key) ? controlledVariableLockHint : undefined;
+                  {activeFile.kind === 'ideal' ? (
+                    <section className={`studio-param-advanced ${idealAdvancedSettingsOpen ? 'studio-param-advanced-open' : ''}`}>
+                      <button
+                        type="button"
+                        className="studio-param-advanced-toggle"
+                        aria-expanded={idealAdvancedSettingsOpen}
+                        onClick={toggleIdealAdvancedSettings}
+                      >
+                        <span>
+                          <strong>Advanced settings</strong>
+                          <small>{idealAdvancedSettingsOpen ? 'Hide model constants and sampling values' : 'Show model constants and sampling values'}</small>
+                        </span>
+                        <ChevronDown
+                          size={15}
+                          className={`studio-param-advanced-chevron ${idealAdvancedSettingsOpen ? 'studio-param-advanced-chevron-open' : ''}`}
+                        />
+                      </button>
+                      {idealAdvancedSettingsBodyVisible ? (
+                        <div className="studio-param-advanced-body" ref={idealAdvancedSettingsBodyRef} aria-hidden={!idealAdvancedSettingsOpen}>
+                          {editableCurrentParameters.map((param) => {
+                            const displayLabel = param.unit ? `${param.label} (${param.unit})` : param.label;
+                            const isParamLocked = parameterControlsLocked || isIdealControlledVariableLocked(param.key);
+                            const paramLockHint = isIdealControlledVariableLocked(param.key) ? controlledVariableLockHint : undefined;
 
-                    return (
-                      <div
-                        className={`studio-param-row ${parametersEditing ? 'studio-param-row-editing' : ''} ${isParamLocked ? 'studio-param-row-locked' : ''}`}
-                        key={param.label}
-                        title={paramLockHint}
-                        aria-disabled={isParamLocked}
-                      >
-                        <span>{displayLabel}</span>
-                        {parametersEditing && param.editable && !isParamLocked ? (
-                          <input
-                            aria-label={`Edit parameter ${param.label}`}
-                            value={parameterDraft[param.key] ?? param.value}
-                            onChange={(event) => {
-                              const nextValue = event.target.value;
-                              setParameterDraft((current) => ({ ...current, [param.key]: nextValue }));
-                            }}
-                          />
-                        ) : (
-                          <strong>{param.value}</strong>
-                        )}
+                            return (
+                              <div
+                                className={`studio-param-row ${parametersEditing ? 'studio-param-row-editing' : ''} ${isParamLocked ? 'studio-param-row-locked' : ''}`}
+                                key={param.label}
+                                title={paramLockHint}
+                                aria-disabled={isParamLocked}
+                              >
+                                <span>{displayLabel}</span>
+                                {parametersEditing && param.editable && !isParamLocked ? (
+                                  <input
+                                    aria-label={`Edit parameter ${param.label}`}
+                                    value={parameterDraft[param.key] ?? param.value}
+                                    onChange={(event) => {
+                                      const nextValue = event.target.value;
+                                      setParameterDraft((current) => ({ ...current, [param.key]: nextValue }));
+                                    }}
+                                  />
+                                ) : (
+                                  <strong>{param.value}</strong>
+                                )}
+                              </div>
+                            );
+                          })}
+                          <div className={`studio-param-actions ${parametersEditing ? 'studio-param-actions-editing' : 'studio-param-actions-reading'}`}>
+                            {!parametersEditing ? (
+                              <button
+                                type="button"
+                                className="studio-param-edit-button"
+                                disabled={parameterControlsLocked}
+                                onClick={startParameterEdit}
+                              >
+                                Edit
+                              </button>
+                            ) : null}
+                            {parametersEditing ? (
+                              <button
+                                type="button"
+                                className="studio-param-save-button"
+                                disabled={parameterControlsLocked}
+                                onClick={saveParameterDraft}
+                              >
+                                Save
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : null}
+                    </section>
+                  ) : (
+                    <>
+                      {editableCurrentParameters.map((param) => {
+                        const displayLabel = param.unit ? `${param.label} (${param.unit})` : param.label;
+                        const isParamLocked = parameterControlsLocked || isIdealControlledVariableLocked(param.key);
+                        const paramLockHint = isIdealControlledVariableLocked(param.key) ? controlledVariableLockHint : undefined;
+
+                        return (
+                          <div
+                            className={`studio-param-row ${parametersEditing ? 'studio-param-row-editing' : ''} ${isParamLocked ? 'studio-param-row-locked' : ''}`}
+                            key={param.label}
+                            title={paramLockHint}
+                          >
+                            <span>{displayLabel}</span>
+                            {parametersEditing && param.editable && !isParamLocked ? (
+                              <input
+                                aria-label={`Edit parameter ${param.label}`}
+                                value={parameterDraft[param.key] ?? param.value}
+                                onChange={(event) => {
+                                  const nextValue = event.target.value;
+                                  setParameterDraft((current) => ({ ...current, [param.key]: nextValue }));
+                                }}
+                              />
+                            ) : (
+                              <strong>{param.value}</strong>
+                            )}
+                          </div>
+                        );
+                      })}
+                      <div className={`studio-param-actions ${parametersEditing ? 'studio-param-actions-editing' : 'studio-param-actions-reading'}`}>
+                        {!parametersEditing ? (
+                          <button
+                            type="button"
+                            className="studio-param-edit-button"
+                            disabled={parameterControlsLocked}
+                            onClick={startParameterEdit}
+                          >
+                            Edit
+                          </button>
+                        ) : null}
+                        {parametersEditing ? (
+                          <button
+                            type="button"
+                            className="studio-param-save-button"
+                            disabled={parameterControlsLocked}
+                            onClick={saveParameterDraft}
+                          >
+                            Save
+                          </button>
+                        ) : null}
                       </div>
-                    );
-                  })}
-                  <div className={`studio-param-actions ${parametersEditing ? 'studio-param-actions-editing' : 'studio-param-actions-reading'}`}>
-                    {!parametersEditing ? (
-                      <button
-                        type="button"
-                        className="studio-param-edit-button"
-                        disabled={parameterControlsLocked}
-                        onClick={startParameterEdit}
-                      >
-                        Edit
-                      </button>
-                    ) : null}
-                    {parametersEditing ? (
-                      <button
-                        type="button"
-                        className="studio-param-save-button"
-                        disabled={parameterControlsLocked}
-                        onClick={saveParameterDraft}
-                      >
-                        Save
-                      </button>
-                    ) : null}
-                  </div>
+                    </>
+                  )}
                   {parameterErrors.length > 0 ? (
                     <div className="studio-param-errors">
                       {parameterErrors.map((error) => (
@@ -4466,10 +5062,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
                         : 'Ideal-gas files use PhysicsEngine sampling points. Change relation or scan value, then press Start to apply and record a point.'}
                   </div>
                 </div>
-                )}
               </aside>
+              ) : null}
 
-              {parametersCollapsed ? (
+              {!isWorkbenchEmpty && parametersCollapsed ? (
                 <button type="button" className="studio-rail-button studio-right-rail" onClick={() => setParametersCollapsed(false)}>
                   Current Parameters
                 </button>

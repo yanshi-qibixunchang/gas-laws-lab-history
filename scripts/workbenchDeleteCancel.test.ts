@@ -90,7 +90,7 @@ assert.match(
 
 assert.match(
   cssSource,
-  /\.studio-file-menu-cancel:hover,\s*\.studio-file-menu-cancel:focus-visible\s*\{[\s\S]*?background:\s*rgba\(110,\s*168,\s*254,\s*0\.16\)\s*!important;[\s\S]*?color:\s*#dbeafe\s*!important;[\s\S]*?box-shadow:\s*none;[\s\S]*?outline:\s*none;/,
+  /\.studio-file-menu-cancel:hover,\s*\.studio-file-menu-cancel:focus-visible\s*\{[\s\S]*?background:\s*rgba\(79,\s*127,\s*184,\s*0\.16\)\s*!important;[\s\S]*?color:\s*#dbeafe\s*!important;[\s\S]*?box-shadow:\s*none;[\s\S]*?outline:\s*none;/,
   'file Cancel hover and keyboard focus should use segmented row feedback without a button box',
 );
 
@@ -138,26 +138,38 @@ assert.match(
 
 assert.match(
   cssSource,
-  /\.studio-table-action-row-pending > button[\s\S]*?border-radius:\s*999px/,
-  'ideal point confirmation buttons should each use a standalone rounded shape',
+  /\.studio-table-action-row-pending > button[\s\S]*?border-radius:\s*4px/,
+  'ideal point confirmation buttons should use compact engineering radius',
 );
 
 assert.match(
   cssSource,
-  /\.studio-table-action-confirm[\s\S]*?background:\s*#dc2626[\s\S]*?color:\s*#fff/,
-  'ideal point Confirm Remove should use a vivid solid red background with pure white text',
+  /\.studio-table-action-confirm[\s\S]*?background:\s*#a95e62[\s\S]*?color:\s*#fff/,
+  'ideal point Confirm Remove should use a muted solid danger background with white text',
 );
 
 assert.match(
   cssSource,
-  /\.studio-table-action-confirm:hover,\s*\.studio-table-action-confirm:focus-visible\s*\{[\s\S]*?box-shadow:[^;]+;[\s\S]*?transform:\s*translateY\(-1px\);/,
-  'ideal point Confirm Remove hover and keyboard focus should use capsule shadow and lift feedback',
+  /\.studio-table-action-confirm:hover,\s*\.studio-table-action-confirm:focus-visible\s*\{[\s\S]*?background:\s*#b8666b[\s\S]*?outline:\s*none;/,
+  'ideal point Confirm Remove hover and keyboard focus should use flat segmented feedback',
+);
+
+assert.doesNotMatch(
+  cssSource,
+  /\.studio-table-action-confirm:hover,\s*\.studio-table-action-confirm:focus-visible\s*\{[^}]*?(box-shadow|transform):/,
+  'ideal point Confirm Remove hover should not use plastic shadow or lift feedback',
 );
 
 assert.match(
   cssSource,
-  /\.studio-table-action-cancel:hover,\s*\.studio-table-action-cancel:focus-visible\s*\{[\s\S]*?background:\s*#33465d;[\s\S]*?box-shadow:[^;]+;[\s\S]*?transform:\s*translateY\(-1px\);/,
-  'ideal point Cancel hover and keyboard focus should use capsule brightening, shadow, and lift feedback',
+  /\.studio-table-action-cancel:hover,\s*\.studio-table-action-cancel:focus-visible\s*\{[\s\S]*?background:\s*rgba\(79,\s*127,\s*184,\s*0\.14\);[\s\S]*?outline:\s*none;/,
+  'ideal point Cancel hover and keyboard focus should use flat muted accent feedback',
+);
+
+assert.doesNotMatch(
+  cssSource,
+  /\.studio-table-action-cancel:hover,\s*\.studio-table-action-cancel:focus-visible\s*\{[^}]*?(box-shadow|transform):/,
+  'ideal point Cancel hover should not use plastic shadow or lift feedback',
 );
 
 console.log('workbenchDeleteCancel tests passed');

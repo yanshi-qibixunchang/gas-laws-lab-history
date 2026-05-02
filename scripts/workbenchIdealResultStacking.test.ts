@@ -8,22 +8,12 @@ const cssSource = readFileSync(new URL('../components/WorkbenchStudioPrototype.c
 assert.match(
   stateSource,
   /export interface WorkbenchIdealWindowLayout/,
-  'ideal files should store per-file result child window layout state',
+  'ideal files should store per-file result window layout state',
 );
 assert.match(
   stateSource,
-  /IDEAL_RESULT_SINGLE_HEIGHT_RATIO\s*=\s*0\.5/,
-  'single ideal child result window should default to half height',
-);
-assert.match(
-  stateSource,
-  /IDEAL_RESULT_BACK_HEIGHT_RATIO\s*=\s*0\.75/,
-  'back ideal child result window should default to three-quarter height',
-);
-assert.match(
-  stateSource,
-  /IDEAL_RESULT_FRONT_HEIGHT_RATIO\s*=\s*0\.5/,
-  'front ideal child result window should default to half height',
+  /IDEAL_RESULT_HEIGHT_RATIO\s*=\s*0\.5/,
+  'ideal result window should default to half height',
 );
 assert.match(
   stateSource,
@@ -49,12 +39,12 @@ assert.match(
 assert.match(
   source,
   /openIdealResultWindow/,
-  'workbench should open ideal Points and Verification child windows through a dedicated path',
+  'workbench should open ideal Points and Verification tabs through a dedicated path',
 );
-assert.match(
+assert.doesNotMatch(
   source,
   /focusIdealResultWindow/,
-  'clicking an exposed back child window should swap it to the foreground layer',
+  'clicking inside the tabbed result window should not swap foreground layers',
 );
 assert.match(
   source,
@@ -80,27 +70,32 @@ assert.match(
 assert.match(
   cssSource,
   /\.studio-ideal-result-window-resizer[\s\S]*?cursor:\s*ns-resize/,
-  'ideal child result windows should expose a normal vertical resize affordance on their top edge',
+  'ideal result window should expose a normal vertical resize affordance on its top edge',
+);
+assert.match(
+  source,
+  /className="studio-results-tabs studio-ideal-results-tabs"[\s\S]*?role="tablist"/,
+  'ideal result window should render its tabs as the same full-width tab row used by standard Results',
 );
 assert.match(
   cssSource,
   /\.studio-ideal-results-region[\s\S]*?position:\s*absolute/,
-  'ideal child result window stack should occupy the bottom workspace as absolute layers',
+  'ideal result window should occupy the bottom workspace as an absolute layer',
 );
 assert.match(
   cssSource,
   /\.studio-ideal-results-region[\s\S]*?inset:\s*10px/,
-  'ideal child result windows should be sized inside the usable workspace inset so they do not touch hidden workspace edges',
+  'ideal result window should be sized inside the usable workspace inset so it does not touch hidden workspace edges',
 );
 assert.match(
   cssSource,
   /\.studio-ideal-result-window-layer[\s\S]*?left:\s*0[\s\S]*?right:\s*0[\s\S]*?bottom:\s*0/,
-  'ideal child result windows should span the full usable result region width',
+  'ideal result window should span the full usable result region width',
 );
 assert.doesNotMatch(
   cssSource,
   /\.studio-ideal-result-window-layer[\s\S]*?min-height:\s*180px/,
-  'ideal child result windows should not force a pixel minimum that can exceed the available workspace height',
+  'ideal result window should not force a pixel minimum that can exceed the available workspace height',
 );
 
 console.log('workbenchIdealResultStacking tests passed');

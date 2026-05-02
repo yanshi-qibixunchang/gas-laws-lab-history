@@ -64,7 +64,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
         if (!hasToggledPan.current && isFocused) {
           setShowPanHint(true);
         }
-      }, 5000);
+      }, 3000);
     } else {
       setShowPanHint(false);
     }
@@ -510,7 +510,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
                 onMouseDown={(event) => event.stopPropagation()}
                 onTouchStart={(event) => event.stopPropagation()}
                 className={isWorkbench
-                  ? `simulation-canvas-workbench-tool ${isPanMode ? 'simulation-canvas-workbench-tool-active' : ''}`
+                  ? `simulation-canvas-workbench-tool ${isPanMode ? 'simulation-canvas-workbench-tool-active' : ''} ${showPanHint ? 'simulation-canvas-workbench-tool-attention' : ''}`
                   : `
                     p-3 rounded-full shadow-xl border backdrop-blur-md transition-all active:scale-95 flex items-center justify-center relative
                     ${isPanMode
@@ -521,8 +521,8 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
                   `}
                 title={isPanMode ? t.tooltips.rotateMode : t.tooltips.panMode}
               >
-                {isPanMode ? <Hand size={isWorkbench ? 14 : 22} strokeWidth={2.5} /> : <Rotate3d size={isWorkbench ? 14 : 22} strokeWidth={2} />}
-                {showPanHint && (
+                {isPanMode ? <Hand size={isWorkbench ? 16 : 22} strokeWidth={2.5} /> : <Rotate3d size={isWorkbench ? 16 : 22} strokeWidth={2} />}
+                {!isWorkbench && showPanHint && (
                   <span className="absolute inset-0 rounded-full ring-4 ring-amber-400/50 animate-ping" />
                 )}
               </button>
@@ -539,7 +539,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
                 : `bg-sciblue-600 text-white text-xs px-3 py-1.5 rounded-full shadow-lg border border-sciblue-400/50 backdrop-blur-sm transition-transform active:scale-95 flex items-center gap-1 ${resetButtonHoverClass}`}
               title={t.tooltips.resetCamera}
             >
-              <Maximize size={12} /> {isWorkbench ? 'Reset view' : t.canvas.resetView}
+              <Maximize size={isWorkbench ? 16 : 12} /> {isWorkbench ? 'Reset view' : t.canvas.resetView}
             </button>
           </div>
         </div>

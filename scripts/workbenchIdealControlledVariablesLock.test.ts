@@ -41,8 +41,8 @@ assert.match(
 
 assert.match(
   source,
-  /const editableCurrentParameters = currentParameters\.filter\(\(param\) => !\(activeFile\.kind === 'ideal' && param\.key === 'targetTemperature'\)\);/,
-  'targetTemperature should be omitted from the lower Current Parameters table because the scan control owns temperature editing',
+  /const editableCurrentParameters = currentParameters\.filter\(\(param\) => !\(activeFile\.kind === 'ideal' && \(param\.key === 'targetTemperature' \|\| param\.key === 'relation'\)\)\);/,
+  'targetTemperature and the read-only relation row should be omitted from the lower ideal Current Parameters table',
 );
 
 assert.match(

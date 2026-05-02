@@ -34,10 +34,28 @@ assert.match(
   'empty workbench should render a dedicated main welcome surface',
 );
 
+assert.doesNotMatch(
+  source,
+  /studio-current-params-empty/,
+  'empty workbench should not render a placeholder Current Parameters panel',
+);
+
+assert.doesNotMatch(
+  source,
+  /\{parametersCollapsed \? \([\s\S]*?studio-right-rail[\s\S]*?\) : null\}/,
+  'empty workbench should not render the Current Parameters rail unconditionally',
+);
+
 assert.match(
   source,
-  /No open file/,
-  'empty workbench should explain in the right panel that no file is open',
+  /!isWorkbenchEmpty \? \([\s\S]*?<aside[\s\S]*?className=\{`studio-current-params/,
+  'Current Parameters panel should only render after a study file exists',
+);
+
+assert.match(
+  source,
+  /!isWorkbenchEmpty && parametersCollapsed \? \([\s\S]*?studio-right-rail[\s\S]*?\) : null/,
+  'Current Parameters rail should only render after a study file exists',
 );
 
 assert.match(
@@ -66,8 +84,50 @@ assert.match(
 
 assert.match(
   cssSource,
-  /\.studio-empty-param-actions[\s\S]*?display:\s*grid/,
-  'empty current-parameters panel should style its creation actions',
+  /\.studio-workspace-shell-empty[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/,
+  'empty workbench should use a single-column workspace shell',
+);
+
+assert.match(
+  cssSource,
+  /\.studio-empty-actions\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(280px,\s*auto\)\)/,
+  'empty workbench action buttons should be wide enough for the ideal-gas label',
+);
+
+assert.match(
+  cssSource,
+  /\.studio-empty-actions button[\s\S]*?white-space:\s*nowrap/,
+  'empty workbench action labels should stay on one line',
+);
+
+assert.match(
+  cssSource,
+  /\.studio-center-workspace-active[\s\S]*?animation:\s*studio-main-reveal 160ms/,
+  'main workspace should have a fast reveal animation after a file is created',
+);
+
+assert.match(
+  cssSource,
+  /@keyframes studio-main-reveal[\s\S]*?opacity:\s*0[\s\S]*?transform:\s*translateY\(6px\)/,
+  'main workspace reveal animation should fade in with a slight upward settle',
+);
+
+assert.match(
+  cssSource,
+  /\.studio-current-params[\s\S]*?animation:\s*studio-params-slide-in 180ms/,
+  'Current Parameters panel should slide in quickly from the right',
+);
+
+assert.match(
+  cssSource,
+  /@keyframes studio-params-slide-in[\s\S]*?transform:\s*translateX\(18px\)/,
+  'Current Parameters animation should enter from the right',
+);
+
+assert.match(
+  cssSource,
+  /\.studio-rail-button\s*\{[\s\S]*?border:\s*1px solid rgba\(125,\s*170,\s*219,\s*0\.72\)[\s\S]*?color:\s*#d6e8ff/,
+  'collapsed rail buttons should use a brighter border and label color',
 );
 
 console.log('workbenchEmptyFiles tests passed');

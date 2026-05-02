@@ -36,19 +36,19 @@ assert.match(
 
 assert.match(
   cssSource,
-  /\.studio-panel-actions \.studio-run-control[\s\S]*?width:\s*28px;[\s\S]*?height:\s*28px;[\s\S]*?border-radius:\s*7px;/,
+  /\.studio-panel-actions \.studio-run-control[\s\S]*?width:\s*28px;[\s\S]*?height:\s*28px;[\s\S]*?border-radius:\s*4px;/,
   'run controls should be compact rounded-square icon buttons that do not fill the dock header height',
 );
 
 assert.match(
   cssSource,
-  /\.studio-run-control-start[\s\S]*?background:\s*#42454b;[\s\S]*?color:\s*#73d787;/,
+  /\.studio-run-control-start[\s\S]*?background:\s*#3f474f;[\s\S]*?color:\s*#7bb88b;/,
   'start/resume control should use the dark tile and green outline treatment',
 );
 
 assert.match(
   cssSource,
-  /\.studio-run-control-stop[\s\S]*?background:\s*#e85d64;[\s\S]*?color:\s*#ffffff;/,
+  /\.studio-run-control-stop[\s\S]*?background:\s*#c96a6f;[\s\S]*?color:\s*#ffffff;/,
   'stop control should use the red tile and white outline treatment',
 );
 
