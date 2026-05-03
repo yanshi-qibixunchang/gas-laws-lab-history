@@ -12,6 +12,8 @@ export interface WorkbenchSessionState {
 }
 
 const panelKeys: WorkbenchPanelKey[] = ['preview', 'realtime', 'results', 'experimentPoints', 'verification', 'history'];
+const standardPanelKeys: WorkbenchPanelKey[] = ['preview', 'realtime', 'results'];
+const idealPanelKeys: WorkbenchPanelKey[] = ['preview', 'realtime', 'results', 'experimentPoints', 'verification', 'history'];
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null
@@ -33,6 +35,12 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
     : file
 );
 
+const isPanelValidForFile = (panel: WorkbenchPanelKey, file: WorkbenchFileState) => (
+  file.kind === 'ideal'
+    ? idealPanelKeys.includes(panel)
+    : standardPanelKeys.includes(panel)
+);
+
 export const decodeWorkbenchSession = (value: unknown): WorkbenchSessionState => {
   if (!isRecord(value) || value.version !== WORKBENCH_SESSION_VERSION || !Array.isArray(value.files)) {
     return fallbackSession();
@@ -49,8 +57,12 @@ export const decodeWorkbenchSession = (value: unknown): WorkbenchSessionState =>
 
   const requestedActiveId = typeof value.activeFileId === 'string' ? value.activeFileId : '';
   const activeFileId = files.some((file) => file.id === requestedActiveId) ? requestedActiveId : files[0].id;
-  const selectedPanel = panelKeys.includes(value.selectedPanel as WorkbenchPanelKey)
+  const activeFile = files.find((file) => file.id === activeFileId) ?? files[0];
+  const requestedPanel = panelKeys.includes(value.selectedPanel as WorkbenchPanelKey)
     ? value.selectedPanel as WorkbenchPanelKey
+    : 'preview';
+  const selectedPanel = isPanelValidForFile(requestedPanel, activeFile)
+    ? requestedPanel
     : 'preview';
 
   return {

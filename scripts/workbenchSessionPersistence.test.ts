@@ -101,4 +101,16 @@ assert.deepEqual(
 );
 assert.equal(fallback.selectedPanel, 'preview');
 
+const standardOnlyRestore = decodeWorkbenchSession({
+  version: WORKBENCH_SESSION_VERSION,
+  activeFileId: standard.id,
+  selectedPanel: 'verification',
+  files: [{ ...standard, updatedAt: now }],
+});
+assert.equal(
+  standardOnlyRestore.selectedPanel,
+  'preview',
+  'standard-file sessions should not restore ideal-only panels such as Verification',
+);
+
 console.log('workbenchSessionPersistence tests passed');
