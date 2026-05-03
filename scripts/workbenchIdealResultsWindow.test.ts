@@ -189,6 +189,46 @@ assert.match(
   'ideal compact realtime mode should hide the current point strip',
 );
 assert.match(
+  source,
+  /studio-verification-panel-\$\{activeFile\.relation\}/,
+  'ideal Verification should add a relation-specific panel class',
+);
+assert.match(
+  source,
+  /studio-verification-layout-pv/,
+  'ideal P-V Verification should use a dedicated double-chart layout class',
+);
+assert.match(
+  source,
+  /studio-verification-layout-single/,
+  'ideal P-T and P-N Verification should use a dedicated single-chart layout class',
+);
+assert.match(
+  source,
+  /studio-verification-chart-primary[\s\S]*?renderIdealValidationChart\(idealAnalysis\)/,
+  'ideal Verification should render the linearized validation chart as the primary chart',
+);
+assert.match(
+  source,
+  /isPvVerification \? \([\s\S]*?studio-verification-chart-secondary[\s\S]*?renderIdealValidationChart\(idealAnalysis,\s*'pvRaw'\)/,
+  'ideal P-V Verification should render the raw P-V chart only in the P-V branch',
+);
+assert.match(
+  cssSource,
+  /\.studio-verification-panel[\s\S]*?height:\s*clamp\(420px,\s*56vh,\s*620px\)[\s\S]*?overflow:\s*hidden/,
+  'ideal Verification should use a fixed internal workspace instead of an unconstrained content flow',
+);
+assert.match(
+  cssSource,
+  /\.studio-verification-layout-pv[\s\S]*?grid-template-columns/,
+  'ideal P-V Verification should have relation-specific layout CSS',
+);
+assert.match(
+  cssSource,
+  /\.studio-verification-layout-single[\s\S]*?grid-template-columns/,
+  'ideal P-T and P-N Verification should have relation-specific layout CSS',
+);
+assert.match(
   getRuleBody('.studio-ideal-child-window-body'),
   /align-content:\s*start/,
   'ideal Results child content should stay top-aligned when the result window is stretched taller',

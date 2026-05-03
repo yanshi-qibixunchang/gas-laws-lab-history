@@ -3995,23 +3995,24 @@ const WorkbenchStudioPrototype: React.FC = () => {
       activeFile.relation,
       'en-GB',
     );
+    const isPvVerification = activeFile.relation === 'pv';
 
     return (
-      <div className="studio-verification-panel">
-        <div className="studio-verification-main-layout">
+      <div className={`studio-verification-panel studio-verification-panel-${activeFile.relation}`}>
+        <div className={`studio-verification-main-layout ${isPvVerification ? 'studio-verification-layout-pv' : 'studio-verification-layout-single'}`}>
           <div className="studio-verification-chart-column">
-            <section className="studio-verification-chart-section">
+            <section className="studio-verification-chart-section studio-verification-chart-primary">
               <div className="studio-results-subheader">
                 <div>
-                  <strong>{activeFile.relation === 'pv' ? 'P - 1/V linearized validation' : `${getRelationLabel(activeFile.relation)} validation`}</strong>
+                  <strong>{isPvVerification ? 'P - 1/V linearized validation' : `${getRelationLabel(activeFile.relation)} validation`}</strong>
                   <span>Measured scatter with fit and theoretical reference.</span>
                 </div>
               </div>
               {renderIdealValidationChart(idealAnalysis)}
             </section>
 
-            {activeFile.relation === 'pv' ? (
-              <section className="studio-verification-chart-section">
+            {isPvVerification ? (
+              <section className="studio-verification-chart-section studio-verification-chart-secondary">
                 <div className="studio-results-subheader">
                   <div>
                     <strong>Original P - V physical view</strong>
