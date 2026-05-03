@@ -13,6 +13,8 @@ dist/
 dist-ssr/
 coverage/
 *.tsbuildinfo
+__pycache__/
+*.py[cod]
 
 # Local environment files
 .env
@@ -25,6 +27,7 @@ coverage/
 .codex/
 .playwright-cli/
 output/
+tools/exporter/examples/*.json
 
 # Android local state and signing materials
 android/.gradle/
