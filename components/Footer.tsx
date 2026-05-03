@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { LanguageCode, Translation } from '../types';
-import { Github, FileText, Mail, GraduationCap, Sparkles, Check, User, Download } from 'lucide-react';
+import { Github, FileText, Mail, GraduationCap, Sparkles, Check, User } from 'lucide-react';
 
 const PdfModal = lazy(() => import('./PdfModal'));
 
@@ -34,11 +34,9 @@ const Footer: React.FC<FooterProps> = ({
   onClosePdf
 }) => {
   const [emailCopied, setEmailCopied] = useState(false);
-  const [showAndroidApkDownload, setShowAndroidApkDownload] = useState(false);
   const emailLaunchTimeoutRef = useRef<number | null>(null);
   const emailCopiedResetTimeoutRef = useRef<number | null>(null);
   const isEnglishUI = lang.startsWith('en');
-  const androidApkPath = '/downloads/HSS-android-v3.4.4.apk';
 
   const iconLiftClass = supportsHover ? 'group-hover:scale-110' : '';
   const accentHoverClass = supportsHover ? 'group-hover:text-sciblue-400' : '';
@@ -58,15 +56,6 @@ const Footer: React.FC<FooterProps> = ({
   const linkButtonClass = compactLinks
     ? `group flex min-h-[56px] w-full items-center gap-3 rounded-panel border border-slate-700/50 bg-slate-800/30 px-4 py-3 text-left text-sm text-slate-300 transition-all ${compactLinkCardClass}`
     : `group -ml-2 flex w-full items-center gap-3 rounded-panel p-2 text-left text-sm text-slate-300 transition-all ${linkHoverClass}`;
-
-  useEffect(() => {
-    const isAndroidBrowser =
-      typeof navigator !== 'undefined' &&
-      /Android/i.test(navigator.userAgent) &&
-      !/iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    setShowAndroidApkDownload(isAndroidBrowser);
-  }, []);
 
   useEffect(() => {
     return () => {
@@ -249,17 +238,6 @@ const Footer: React.FC<FooterProps> = ({
                   <FileText size={18} className={`transition-all ${accentHoverClass} ${iconLiftClass}`} />
                   <span>{t.footer.report}</span>
                 </a>
-
-                {showAndroidApkDownload && (
-                  <a
-                    href={androidApkPath}
-                download="HSS-android-v3.4.4.apk"
-                    className={linkItemClass}
-                  >
-                    <Download size={18} className={`transition-transform ${iconLiftClass}`} />
-                    <span>{t.footer.androidApk}</span>
-                  </a>
-                )}
 
                 <button
                   onClick={handleEmailClick}

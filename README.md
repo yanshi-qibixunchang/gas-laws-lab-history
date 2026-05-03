@@ -1,206 +1,126 @@
-# Hard Sphere Lab v3.4.4
+# Hard Sphere Lab v3.5.0
 
-[中文说明](./README.zh-CN.md)
+[简体中文说明](./README.zh-CN.md)
 
-Hard Sphere Lab is a hard-sphere molecular dynamics simulation platform built with React, Vite, and Capacitor. It combines a browser-based simulation UI, a 3D particle view, statistical diagnostics, preset management, and a built-in PDF report viewer in one project.
+Hard Sphere Lab is a desktop-first engineering workbench for hard-sphere molecular dynamics and ideal-gas relation verification. It is built with React and Vite, and is intended to run in a desktop browser as an interactive simulation, data inspection, and reporting tool.
 
-## Release highlights in v3.4.4
+## Design Purpose
 
-- rebuilt the real-time and final-result charts with a more scientific plotting style
-- replaced the old stacked final-results flow with a fixed analysis board for desktop and a cleaner mobile layout
-- added a statistical summary block below the semi-log distribution plot to remove dead space and expose fit / stability metrics
-- tuned container sizing, fullscreen behavior, and short-height responsiveness so chart headers and controls do not clip
-- unified window-level corner radii across cards, analysis panels, modals, and chart shells
+The project is designed for physics teaching, experiment preparation, and engineering-style exploration of gas simulation data. It combines a controllable molecular dynamics scene, parameter history, experiment files, live diagnostics, and result windows so users can run repeatable simulation studies instead of only watching a single animation.
 
-## What this repository contains
+The current product direction is desktop Web usage. Mobile packaging material is kept only as a frozen legacy archive and is not part of the active release workflow.
 
-- the web application source code
-- the Capacitor Android project used for APK packaging
-- public assets such as the PDF report and PWA manifest
+## Main Features
 
-## Main features
-
-- hard-sphere gas simulation under an Andersen thermostat
-- ideal-gas experiment mode with manual P-T verification at fixed volume
-- 3D molecular dynamics view with rotate / pan interaction
-- real-time temperature, pressure, mean-speed, and RMS-speed monitoring
-- scientific-style velocity, energy, semi-log, and diagnostic charts
-- preset creation, loading, rename, delete, and startup-default selection
-- built-in PDF viewer with zoom and export / share support
-- Simplified Chinese, Traditional Chinese, and English UI
-- web preview workflow and Android packaging path
+- Standard hard-sphere gas simulation with Andersen thermostat parameters.
+- Ideal-gas workbench for `P-T`, `P-V`, and `P-N` relation studies.
+- File-style workbench with standard simulation files and ideal-gas study files.
+- 3D particle view with desktop pointer interaction.
+- Real-time temperature, pressure, speed, and diagnostic chart panels.
+- Results windows with tabs for summaries, tables, figures, points, and verification views.
+- Editable current-parameter sidebar, reset/start flow, undo/redo, and saved workbench state.
+- Built-in PDF report viewer.
+- Simplified Chinese, Traditional Chinese, and English UI strings.
 
 ## Requirements
 
 - Node.js 18 or newer
 - npm
-- Android Studio and Android SDK only if you want to build the Android app
+- A modern desktop browser
 
-No runtime environment variables are required for normal web usage.
+No runtime environment variables are required for normal local use.
 
-## Quick start
+## Local Development
 
-### 1. Clone the repository
+Clone the repository:
 
 ```powershell
 git clone https://github.com/yanshi-qibixunchang/gas-laws-lab-history.git
-cd hard-sphere-lab
+cd hard-sphere-lab-1
 ```
 
-### 2. Install dependencies
+Install dependencies:
 
 ```powershell
-npm install
+npm.cmd install
 ```
 
-### 3. Start the development server
+Start the fixed-port development preview:
 
 ```powershell
-npm run dev
+npm.cmd run dev -- --host 127.0.0.1 --port 5174 --strictPort
 ```
 
-Expected local preview URL:
+Preview URL:
 
 ```text
-http://127.0.0.1:5173
+http://127.0.0.1:5174/
 ```
 
-## Production preview
+Use `npm.cmd` on Windows PowerShell to avoid script-execution policy issues with `npm.ps1`.
 
-Build the project:
+## Build And Deployment
+
+Create a production build:
 
 ```powershell
-npm run build
+npm.cmd run build
 ```
 
 Preview the production bundle locally:
 
 ```powershell
-npm run preview -- --host 127.0.0.1 --port 4173
+npm.cmd run preview -- --host 127.0.0.1 --port 4173
 ```
 
-Expected preview URL:
-
-```text
-http://127.0.0.1:4173
-```
-
-The generated production entry file is:
+Production entry point:
 
 ```text
 dist/index.html
 ```
 
-The production bundle should be served through HTTP instead of being opened directly from the filesystem.
+The production bundle should be served through HTTP. Do not open `dist/index.html` directly from the filesystem.
 
-## Usage notes
+Netlify deployment uses the checked-in `netlify.toml`:
 
-### Basic workflow
+```toml
+[build]
+command = "npm run build"
+publish = "dist"
+```
 
-1. Open the settings sidebar.
-2. Adjust particle count, radius, box size, and timing parameters.
-3. Click `Reset System` after changing parameters.
-4. Click `Start Simulation`.
-5. Observe the 3D view, statistics panel, and analysis charts.
+## Usage Guide
 
-Important:
+1. Open the workbench in a desktop browser.
+2. Create or select a simulation file from the left file area.
+3. Adjust the current parameters in the right sidebar.
+4. Use Reset before starting when parameters have changed.
+5. Start the simulation and inspect the 3D view, real-time charts, and status values.
+6. Open Results to review summaries, tables, figures, point data, or verification charts.
+7. Use the PDF report viewer when you need the bundled project report.
 
-- after parameter changes, the app may require a reset before starting
-- on mobile, the native back key closes transient UI in order, including the PDF viewer, before exiting the app
+For ideal-gas studies, choose the target relation, select the scan variable, run points, and review the verification tab. For standard simulations, use the Results tabs to inspect final statistics and exported analysis views.
 
-### Ideal-gas experiment mode
+## Repository Layout
 
-The header now includes a mode switch between the standard simulation view and an independent ideal-gas lab.
+- `App.tsx`: application shell and legacy standard-mode entry point.
+- `components/`: workbench UI, canvas, charts, results, footer, and PDF viewer components.
+- `services/`: physics engine, translations, and legacy APK path constants for future Help integration.
+- `utils/`: ideal-gas analysis, diagnostics, and number-format helpers.
+- `scripts/`: targeted regression tests for workbench behavior.
+- `public/`: static runtime assets, icons, manifest, and report PDF.
+- `legacy-apk/`: frozen legacy mobile packaging archive; not part of the active desktop release path.
 
-- v1 of the lab focuses on the constant-volume `P-T` relation
-- users choose a target temperature, run one point at a time, and accumulate a data table manually
-- the lab fits a straight line to the measured `P-T` points and compares it with the theoretical slope `Nk/V`
-- `P-1/V` and `P-N` are reserved in the UI for future expansion
-
-### Charts and diagnostics
-
-The analysis area now includes:
-
-- velocity distribution
-- energy distribution
-- semi-log energy distribution
-- total-energy trace
-- temperature-error trace
-- statistical summary metrics for fit quality and stability
-
-### Presets
-
-The preset section supports:
-
-- creating a new preset
-- loading an existing preset
-- renaming and deleting custom presets
-- setting a preset as the startup default
-
-### Theme and language
-
-The floating controls in the top-right corner let you:
-
-- switch between light and dark mode
-- change UI language
-
-### PDF report
-
-The footer includes a `View Report (PDF)` entry. It opens the report inside the built-in modal PDF viewer with:
-
-- zoom in / zoom out
-- reset zoom
-- mobile pinch zoom
-- export / share on supported platforms
-
-## Android packaging
-
-Sync the latest web build into the Capacitor Android project:
+## Verification Commands
 
 ```powershell
-npm run build
-npx cap sync android
+npm.cmd run build
 ```
 
-Build a debug APK:
+Optional local preview:
 
 ```powershell
-Set-Location android
-.\gradlew.bat assembleDebug
+npm.cmd run dev -- --host 127.0.0.1 --port 5174 --strictPort
 ```
 
-Expected APK output:
-
-```text
-android/app/build/outputs/apk/debug/app-debug.apk
-```
-
-## Repository layout
-
-- `App.tsx`: main app shell and high-level interaction logic
-- `components/`: UI components such as the simulation canvas, charts, footer, stats panel, and PDF modal
-- `services/`: physics engine and translation resources
-- `public/`: static files, PDF report, icons, and manifest
-- `android/`: Capacitor Android project
-- `assets/`: project artwork and packaging-related resources
-
-## Development notes
-
-Useful commands:
-
-```powershell
-npm run dev
-npm run build
-npm run preview
-```
-
-Ignored local-only content includes:
-
-- `node_modules/`
-- `dist/`
-- `output/`
-- `.codex/`
-- `.env.local`
-- Android build caches and IDE state
-- APK / AAB artifacts
-- local Android signing materials
+Ignored local-only content includes dependency folders, build outputs, caches, logs, local environment files, and generated package artifacts.

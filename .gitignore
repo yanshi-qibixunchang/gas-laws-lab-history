@@ -36,6 +36,15 @@ android/local.properties
 android/key.properties
 android/keystore/
 android/app/build/
+legacy-apk/android/.gradle/
+legacy-apk/android/.idea/
+legacy-apk/android/.kotlin/
+legacy-apk/android/build/
+legacy-apk/android/local-maven/
+legacy-apk/android/local.properties
+legacy-apk/android/key.properties
+legacy-apk/android/keystore/
+legacy-apk/android/app/build/
 *.apk
 *.aar
 *.ap_

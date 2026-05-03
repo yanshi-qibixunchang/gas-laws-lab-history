@@ -30,8 +30,7 @@ const DEFAULT_PARAMS: SimulationParams = {
   statsDuration: 60
 };
 
-const APP_VERSION = '3.4.4';
-const APP_ANDROID_APK_PATH = '/downloads/HSS-android-v3.4.4.apk';
+const APP_VERSION = '3.5.0';
 const SHOW_WORKBENCH_PROTOTYPE = true;
 
 const areParamsEqual = (a: SimulationParams, b: SimulationParams) => (
@@ -141,9 +140,8 @@ const InstallPromptModal: React.FC<{
   supportsHover: boolean;
   frameStyle?: React.CSSProperties;
   onInstall?: () => void;
-  onDownloadApk?: () => void;
   onClose: () => void;
-}> = ({ t, mode, isDarkMode, supportsHover, frameStyle, onInstall, onDownloadApk, onClose }) => {
+}> = ({ t, mode, isDarkMode, supportsHover, frameStyle, onInstall, onClose }) => {
   const isInstallMode = mode === 'desktop' || mode === 'android';
   const title = mode === 'desktop'
     ? t.installPrompt.desktopTitle
@@ -222,16 +220,6 @@ const InstallPromptModal: React.FC<{
           >
             {isInstallMode ? t.installPrompt.later : t.installPrompt.gotIt}
           </button>
-          {mode === 'android' && onDownloadApk && (
-            <button
-              type="button"
-              onClick={onDownloadApk}
-              className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded-panel border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 ${secondaryHoverClass}`}
-            >
-              <Download size={16} />
-              {t.installPrompt.androidDownload}
-            </button>
-          )}
           {isInstallMode && onInstall && (
             <button
               type="button"
@@ -1019,12 +1007,6 @@ function App() {
     }
   }, [closeInstallPrompt, deferredInstallPrompt]);
 
-  const handleDownloadApk = useCallback(() => {
-    localStorage.setItem('hsl_install_prompt_dismissed', '1');
-    setInstallPromptMode(null);
-    window.location.href = APP_ANDROID_APK_PATH;
-  }, []);
-
   useEffect(() => {
     if (!isCreatePresetModalOpen) return;
 
@@ -1124,10 +1106,10 @@ function App() {
       const installEvent = event as DeferredInstallPromptEvent;
       installEvent.preventDefault();
 
-      if (!isDesktop && !isAndroid) return;
+      if (!isDesktop) return;
 
       setDeferredInstallPrompt(installEvent);
-      queuePrompt(isAndroid ? 'android' : 'desktop');
+      queuePrompt('desktop');
     };
 
     const handleAppInstalled = () => {
@@ -2344,7 +2326,6 @@ function App() {
           supportsHover={isDesktopLike}
           frameStyle={overlayFrameStyle}
           onInstall={installPromptMode === 'ios' ? undefined : handleInstallPromptConfirm}
-          onDownloadApk={installPromptMode === 'android' ? handleDownloadApk : undefined}
           onClose={closeInstallPrompt}
         />
       )}
