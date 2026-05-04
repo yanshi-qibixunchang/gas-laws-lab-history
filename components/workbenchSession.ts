@@ -1,5 +1,8 @@
-import type { WorkbenchFileState, WorkbenchPanelKey } from './workbenchState.ts';
-import { createInitialWorkbenchFiles } from './workbenchState.ts';
+import {
+  clampWorkbenchLiveSplitRatio,
+  type WorkbenchFileState,
+  type WorkbenchPanelKey,
+} from './workbenchState.ts';
 
 export const WORKBENCH_SESSION_VERSION = 1;
 export const WORKBENCH_SESSION_STORAGE_KEY = 'hsl_workbench_session_v1';
@@ -18,20 +21,19 @@ const isRecord = (value: unknown): value is Record<string, unknown> => (
 );
 
 const fallbackSession = (): WorkbenchSessionState => {
-  const files = createInitialWorkbenchFiles();
   return {
     version: WORKBENCH_SESSION_VERSION,
-    files,
-    activeFileId: files[0]?.id ?? '',
+    files: [],
+    activeFileId: '',
     selectedPanel: 'preview',
   };
 };
 
-const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => (
-  file.runState === 'running'
-    ? { ...file, runState: 'paused' }
-    : file
-);
+const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => ({
+  ...file,
+  runState: file.runState === 'running' ? 'paused' : file.runState,
+  liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
+});
 
 export const decodeWorkbenchSession = (value: unknown): WorkbenchSessionState => {
   if (!isRecord(value) || value.version !== WORKBENCH_SESSION_VERSION || !Array.isArray(value.files)) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   Archive,
@@ -13,7 +13,6 @@ import {
   Folder,
   FolderOpen,
   Gauge,
-  Keyboard,
   Languages,
   LockKeyhole,
   MoreHorizontal,
@@ -43,6 +42,10 @@ import {
   createDefaultStandardResultsLayout,
   getWorkbenchParameterRows,
   IDEAL_RESULT_HEIGHT_RATIO,
+  WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
+  WORKBENCH_LIVE_SPLIT_MIN_RATIO,
+  WORKBENCH_LIVE_SPLIT_MAX_RATIO,
+  clampWorkbenchLiveSplitRatio,
   validateWorkbenchParams,
   type WorkbenchExportEnvironmentStatus,
   type WorkbenchFileKind,
@@ -51,6 +54,7 @@ import {
   type WorkbenchIdealResultWindowKey,
   type WorkbenchIdealWindowLayout,
   type WorkbenchPanelKey,
+  type WorkbenchParameterRow,
   type WorkbenchStandardResultsLayout,
   type WorkbenchStandardResultsTab,
 } from './workbenchState';
@@ -89,6 +93,7 @@ type TopMenu = 'new' | 'edit' | 'window' | 'settings' | 'help' | null;
 type ResultsSectionKey = WorkbenchStandardResultsTab;
 type WorkbenchThemePreference = 'system' | 'light' | 'dark';
 type WorkbenchLanguagePreference = 'zh-CN' | 'zh-TW' | 'en';
+type IdealSamplingPresetKey = 'fast' | 'balanced' | 'stable';
 
 interface ConsoleLog {
   id: number;
@@ -102,7 +107,7 @@ interface WorkbenchEditSnapshot {
   files: WorkbenchFileState[];
   activeFileId: string;
   selectedPanel: WorkbenchPanelKey;
-  idealResultWindowDefaults: IdealResultWindowDefaults;
+  workbenchLayoutDefaults: WorkbenchLayoutDefaults;
 }
 
 interface PanelDefinition {
@@ -133,7 +138,219 @@ interface WorkbenchGeneralSettings {
   language: WorkbenchLanguagePreference;
 }
 
-const workbenchTranslation = translations['zh-CN'];
+interface WorkbenchCopy {
+  menus: {
+    newStudy: string;
+    edit: string;
+    window: string;
+    settings: string;
+    help: string;
+    general: string;
+    standardStudy: string;
+    idealStudy: string;
+    undo: string;
+    redo: string;
+    empty: string;
+    clearEditHistory: string;
+    panelsFor: (name: string) => string;
+    resetDefaultLayout: string;
+    default: string;
+    performanceMode: string;
+    exportEnvironment: string;
+    saveWorkbenchLayoutDefault: string;
+    userGuide: string;
+    theoryPdf: string;
+    about: string;
+  };
+  settings: {
+    title: string;
+    subtitle: string;
+    closeAria: string;
+    theme: string;
+    themeHint: string;
+    themeOptions: Record<WorkbenchThemePreference, { label: string; hint: string }>;
+    language: string;
+    languageHint: string;
+    languageOptions: Record<WorkbenchLanguagePreference, { label: string; hint: string }>;
+  };
+  files: {
+    openFiles: string;
+    files: string;
+    panels: string;
+    noOpenFiles: string;
+    emptyHint: string;
+    noOpenStudy: string;
+    emptyTitle: string;
+    emptyBody: string;
+    createStandard: string;
+    createIdeal: string;
+    rename: string;
+    delete: string;
+    confirmDelete: string;
+    cancel: string;
+    locked: string;
+    shown: string;
+    open: string;
+    active: string;
+    off: string;
+    std: string;
+    ideal: string;
+  };
+  panels: {
+    previewTitle: string;
+    previewHint: string;
+    realtimeTitle: string;
+    standardRealtimeHint: string;
+    idealRealtimeHint: string;
+    standardResultsTitle: string;
+    standardResultsHint: string;
+    idealResultsTitle: string;
+    idealResultsHint: string;
+    pointsTitle: string;
+    pointsHint: string;
+    verificationTitle: string;
+    verificationHint: string;
+    summaryTitle: string;
+    dataTableTitle: string;
+    figuresTitle: string;
+  };
+  parameters: {
+    title: string;
+    currentFileValues: string;
+    lockedUntilStopped: string;
+    editValues: string;
+    hide: string;
+    standardSimulation: string;
+    idealSimulation: string;
+    savedChangesOnStart: string;
+    idealRuntimeOnStart: string;
+    applied: string;
+    relation: string;
+    scanVariable: string;
+    samplingPreset: string;
+    targetTemperature: string;
+    boxLength: string;
+    particleCount: string;
+    customPreset: string;
+    setSamplingPrecision: string;
+    parameterLabels: Record<ExperimentParamKey | 'relation', string>;
+    samplingPresets: Record<IdealSamplingPresetKey, string>;
+    samplingDuration: (equilibriumTime: number, statsDuration: number) => string;
+    advancedSettings: string;
+    advancedShow: string;
+    advancedHide: string;
+    edit: string;
+    save: string;
+    saveHint: string;
+    standardReadonlyNote: string;
+    idealReadonlyNote: string;
+    controlledLockHint: string;
+  };
+  results: {
+    title: string;
+    experimentStatus: string;
+    scan: string;
+    measuredPressure: string;
+    idealPressure: string;
+    gap: string;
+    pointsTitle: (relation: string) => string;
+    recordedPoints: (count: number) => string;
+    clearRelation: string;
+    confirmClear: string;
+    remove: string;
+    confirmRemove: string;
+    cancel: string;
+    noPoints: string;
+    runToRecord: string;
+    tableAction: string;
+    tableTime: string;
+    finalState: string;
+    meanSpeed: string;
+    measuredBars: string;
+    idealLine: string;
+    samples: (count: number) => string;
+    waiting: string;
+    finalSpeedSamples: string;
+    finalEnergySamples: string;
+    tempHistorySamples: string;
+    finalDataReady: string;
+    energyDrift: string;
+    meanAbsTempError: string;
+    tempSamples: string;
+    resultsReady: (relation: string) => string;
+    waitingForRecordedPoints: (relation: string) => string;
+    metric: string;
+    value: string;
+    status: string;
+    ready: string;
+    notReady: string;
+    yes: string;
+    no: string;
+    diagnostic: string;
+    export: string;
+    reportPdf: string;
+    verificationFigure: string;
+    pointsCsv: string;
+  };
+  actions: {
+    start: string;
+    pause: string;
+    stop: string;
+    close: string;
+    resetView: string;
+    hide: string;
+    cancel: string;
+  };
+  shortcuts: {
+    title: string;
+    hint: string;
+    undo: string;
+    redo: string;
+    closeSettings: string;
+  };
+  console: {
+    title: string;
+    tabs: Record<ConsoleTab, string>;
+    total: string;
+    info: string;
+    success: string;
+    warnings: string;
+    errors: string;
+    latest: string;
+    runtime: string;
+    noLogs: string;
+    noWarnings: string;
+  };
+  status: {
+    activeFile: (name: string) => string;
+    selectedBlock: (name: string) => string;
+    none: string;
+    noRuntime: string;
+    standardRuntime: string;
+    idealRuntime: (relation: string, verdict: string) => string;
+    runStates: Record<WorkbenchFileState['runState'], string>;
+    verdictStates: Record<string, string>;
+  };
+  logs: {
+    initialized: string;
+    defaultLayout: string;
+    standardConnected: string;
+    exportBridgeRequired: string;
+    autoPausedSingleRuntime: (name: string) => string;
+    autoPausedCreateFile: (name: string) => string;
+    autoPausedSwitchFile: (name: string) => string;
+    fileCreated: (name: string) => string;
+    mockAction: (label: string) => string;
+    lockedPanel: (title: string) => string;
+    layoutReset: (name: string) => string;
+    idealResultsOpened: (name: string, tab: string) => string;
+    idealResultsClosed: (name: string) => string;
+    fileSelected: (name: string) => string;
+    confirmClear: (name: string, relation: string) => string;
+    clearedRelation: (name: string, relation: string) => string;
+  };
+}
+
 const LOCKED_PANEL_KEYS: WorkbenchPanelKey[] = ['preview', 'realtime'];
 const LEFT_SIDEBAR_MIN = 220;
 const LEFT_SIDEBAR_MAX = 420;
@@ -151,6 +368,7 @@ const IDEAL_SCAN_SNAP_THRESHOLD: Record<ExperimentRelation, number> = {
 const IDEAL_RESULT_MIN_HEIGHT_RATIO = 0.25;
 const IDEAL_RESULT_MAX_HEIGHT_RATIO = 1;
 const IDEAL_RESULT_WINDOW_DEFAULTS_STORAGE_KEY = 'hsl_workbench_ideal_result_window_defaults';
+const WORKBENCH_LAYOUT_DEFAULTS_STORAGE_KEY = 'hsl_workbench_layout_defaults_v1';
 const WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY = 'hsl_workbench_general_settings';
 
 const defaultWorkbenchGeneralSettings: WorkbenchGeneralSettings = {
@@ -158,7 +376,159 @@ const defaultWorkbenchGeneralSettings: WorkbenchGeneralSettings = {
   language: 'zh-CN',
 };
 
-type IdealResultWindowDefaults = Pick<WorkbenchIdealWindowLayout, 'heightRatio'>;
+const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
+  'zh-CN': {
+    menus: {
+      newStudy: '新建研究', edit: '编辑', window: '窗口', settings: '设置', help: '帮助', general: '通用',
+      standardStudy: '标准模拟研究', idealStudy: '理想气体模拟研究', undo: '撤销', redo: '重做', empty: '空',
+      clearEditHistory: '清空编辑历史', panelsFor: (name) => name + ' 的面板', resetDefaultLayout: '恢复默认布局', default: '默认',
+      performanceMode: '性能模式', exportEnvironment: '导出环境', saveWorkbenchLayoutDefault: '保存当前窗口布局为默认',
+      userGuide: '用户指南', theoryPdf: '理论文档 PDF', about: '关于 Hard Sphere Workbench',
+    },
+    settings: {
+      title: '通用设置', subtitle: '主题、语言、快捷键和布局偏好', closeAria: '关闭通用设置', theme: '主题', themeHint: '使用系统、亮色或暗色模式',
+      themeOptions: { system: { label: '跟随系统', hint: '遵循系统偏好' }, light: { label: '亮色', hint: '亮色工作区预览' }, dark: { label: '暗色', hint: '暗色工作区预览' } },
+      language: '语言', languageHint: '选择界面语言',
+      languageOptions: { 'zh-CN': { label: '简体中文', hint: '简体中文界面' }, 'zh-TW': { label: '繁體中文', hint: '繁體中文介面' }, en: { label: 'English', hint: 'English interface' } },
+    },
+    files: {
+      openFiles: '打开文件', files: '文件', panels: '面板', noOpenFiles: '没有打开的文件', emptyHint: '创建一个研究以填充工作区。',
+      noOpenStudy: '没有打开的研究', emptyTitle: '开始新的硬球工作台文件', emptyBody: '创建标准模拟或理想气体关系研究，以恢复预览、图表、结果和参数面板。',
+      createStandard: '创建标准模拟研究', createIdeal: '创建理想气体模拟研究', rename: '重命名', delete: '删除', confirmDelete: '确认删除', cancel: '取消',
+      locked: '锁定', shown: '显示', open: '打开', active: '活动', off: '关闭', std: '标准', ideal: '理想',
+    },
+    panels: {
+      previewTitle: '3D 预览', previewHint: '实时分子视口', realtimeTitle: '实时数据 / 图表', standardRealtimeHint: '实时温度、压力和图表轨迹', idealRealtimeHint: '实时 T、P、关系和图表轨迹',
+      standardResultsTitle: '结果', standardResultsHint: '实验状态、数据表和图像', idealResultsTitle: '结果', idealResultsHint: '验证图、历史解锁和导出详情',
+      pointsTitle: '点', pointsHint: '已记录的关系点', verificationTitle: '验证', verificationHint: '验证图、诊断和导出详情',
+      summaryTitle: '摘要', dataTableTitle: '数据表', figuresTitle: '图像',
+    },
+    parameters: {
+      title: '当前参数', currentFileValues: '当前文件值', lockedUntilStopped: '停止或完成前锁定', editValues: '编辑参数值', hide: '隐藏',
+      standardSimulation: '标准模拟', idealSimulation: '理想气体模拟', savedChangesOnStart: '启动时已保存参数', idealRuntimeOnStart: '理想运行时将在开始时连接', applied: '参数已应用',
+      relation: '关系', scanVariable: '扫描变量', samplingPreset: '采样预设', targetTemperature: '目标温度', boxLength: '盒长 L', particleCount: '粒子数 N', customPreset: '自定义', setSamplingPrecision: '设置采样精度',
+      parameterLabels: { N: 'N（粒子）', r: 'r', L: 'L', dt: 'dt', nu: 'nu', targetTemperature: '目标温度', equilibriumTime: '平衡时间（s）', statsDuration: '统计时长（s）', relation: '关系' },
+      samplingPresets: { fast: '快速', balanced: '平衡', stable: '稳定' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's 平衡 / ' + statsDuration + 's 统计',
+      advancedSettings: '高级设置', advancedShow: '显示模型常数和采样值', advancedHide: '隐藏模型常数和采样值', edit: '编辑', save: '保存', saveHint: '保存高级参数到当前工作台文件',
+      standardReadonlyNote: '标准模拟参数在这里直接显示。', idealReadonlyNote: '关系、扫描变量和采样预设在上方控制。', controlledLockHint: '当前关系已有数据，受控变量已锁定。',
+    },
+    results: {
+      title: '结果', experimentStatus: '实验状态', scan: '扫描', measuredPressure: '实测 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 点', recordedPoints: (count) => count + ' 个记录点',
+      clearRelation: '清空关系', confirmClear: '确认清空', remove: '移除', confirmRemove: '确认移除', cancel: '取消', noPoints: '没有点', runToRecord: '运行实验以记录点。', tableAction: '操作', tableTime: '时间',
+      finalState: '最终状态', meanSpeed: '平均速度', measuredBars: '实测柱', idealLine: '理想线', samples: (count) => count + ' 个样本', waiting: '等待中', finalSpeedSamples: '最终速度样本', finalEnergySamples: '最终能量样本', tempHistorySamples: '温度历史样本', finalDataReady: '最终数据就绪', energyDrift: '能量漂移', meanAbsTempError: '平均绝对温度误差', tempSamples: '温度样本', resultsReady: (relation) => relation + ' 实验结果已就绪', waitingForRecordedPoints: (relation) => relation + ' 等待记录点',
+      metric: '指标', value: '值', status: '状态', ready: '就绪', notReady: '未就绪', yes: '是', no: '否', diagnostic: '诊断', export: '导出', reportPdf: '报告 PDF', verificationFigure: '验证图', pointsCsv: '点 CSV',
+    },
+    actions: { start: '开始', pause: '暂停', stop: '停止', close: '关闭', resetView: '重置视图', hide: '隐藏', cancel: '取消' },
+    shortcuts: { title: '快捷键', hint: '常用工作台快捷键', undo: '撤销', redo: '重做', closeSettings: '关闭设置' },
+    console: { title: '控制台 / 输出', tabs: { logs: '日志', warnings: '警告', summary: '摘要' }, total: '总计', info: '信息', success: '成功', warnings: '警告', errors: '错误', latest: '最新', runtime: '运行时', noLogs: '暂无日志。', noWarnings: '暂无警告或错误。' },
+    status: { activeFile: (name) => '当前文件：' + name, selectedBlock: (name) => '选中板块：' + name, none: '无', noRuntime: '未连接运行时', standardRuntime: '标准运行时已连接', idealRuntime: (relation, verdict) => '理想运行时已连接 / ' + relation + ' / ' + verdict, runStates: { idle: '空闲', running: '运行中', paused: '已暂停', finished: '已完成', 'needs-reset': '需要重置' }, verdictStates: { insufficient: '数据不足', collecting: '采集中', verified: '已验证', failed: '未通过', preliminary: '初步成立', notYet: '尚未成立', 'not-started': '尚未开始' } },
+    logs: { initialized: 'Workbench 工作台原型已初始化。', defaultLayout: '默认布局：3D 预览、实时数据 / 图表、当前参数。', standardConnected: '标准模拟运行时、3D 预览和实时图表数据已连接。', exportBridgeRequired: '科学 PDF 导出需要桌面运行时桥接。', autoPausedSingleRuntime: (name) => name + '：由于一次只能运行一个工作台运行时，已自动暂停。', autoPausedCreateFile: (name) => name + '：创建新文件时已自动暂停。', autoPausedSwitchFile: (name) => name + '：切换文件时已自动暂停。', fileCreated: (name) => '已创建工作台文件：' + name, mockAction: (label) => '模拟操作：' + label, lockedPanel: (title) => title + ' 是默认工作区的一部分，不能隐藏。', layoutReset: (name) => name + '：布局已恢复为 3D 预览 + 实时数据 / 图表', idealResultsOpened: (name, tab) => name + '：已在 ' + tab + ' 打开理想结果窗口。', idealResultsClosed: (name) => name + '：已关闭理想结果窗口。', fileSelected: (name) => '已选择文件标签：' + name, confirmClear: (name, relation) => name + '：点击确认清空以删除全部 ' + relation + ' 点。', clearedRelation: (name, relation) => name + '：已清空 ' + relation + ' 点。' },
+  },
+  'zh-TW': {
+    menus: {
+      newStudy: '新增研究', edit: '編輯', window: '視窗', settings: '設定', help: '說明', general: '一般',
+      standardStudy: '標準模擬研究', idealStudy: '理想氣體模擬研究', undo: '復原', redo: '重做', empty: '空',
+      clearEditHistory: '清除編輯記錄', panelsFor: (name) => name + ' 的面板', resetDefaultLayout: '還原預設版面', default: '預設',
+      performanceMode: '效能模式', exportEnvironment: '匯出環境', saveWorkbenchLayoutDefault: '將目前視窗版面存為預設',
+      userGuide: '使用指南', theoryPdf: '理論文件 PDF', about: '關於 Hard Sphere Workbench',
+    },
+    settings: {
+      title: '一般設定', subtitle: '主題、語言、快捷鍵與版面偏好', closeAria: '關閉一般設定', theme: '主題', themeHint: '使用系統、亮色或暗色模式',
+      themeOptions: { system: { label: '跟隨系統', hint: '依照系統偏好' }, light: { label: '亮色', hint: '亮色工作區預覽' }, dark: { label: '暗色', hint: '暗色工作區預覽' } },
+      language: '語言', languageHint: '選擇介面語言',
+      languageOptions: { 'zh-CN': { label: '简体中文', hint: '簡體中文介面' }, 'zh-TW': { label: '繁體中文', hint: '繁體中文介面' }, en: { label: 'English', hint: 'English interface' } },
+    },
+    files: {
+      openFiles: '開啟檔案', files: '檔案', panels: '面板', noOpenFiles: '沒有開啟的檔案', emptyHint: '建立一個研究以填入工作區。',
+      noOpenStudy: '沒有開啟的研究', emptyTitle: '開始新的硬球工作台檔案', emptyBody: '建立標準模擬或理想氣體關係研究，以恢復預覽、圖表、結果和參數面板。',
+      createStandard: '建立標準模擬研究', createIdeal: '建立理想氣體模擬研究', rename: '重新命名', delete: '刪除', confirmDelete: '確認刪除', cancel: '取消',
+      locked: '鎖定', shown: '顯示', open: '開啟', active: '作用中', off: '關閉', std: '標準', ideal: '理想',
+    },
+    panels: {
+      previewTitle: '3D 預覽', previewHint: '即時分子視口', realtimeTitle: '即時資料 / 圖表', standardRealtimeHint: '即時溫度、壓力和圖表軌跡', idealRealtimeHint: '即時 T、P、關係和圖表軌跡',
+      standardResultsTitle: '結果', standardResultsHint: '實驗狀態、資料表和圖像', idealResultsTitle: '結果', idealResultsHint: '驗證圖、歷史解鎖和匯出詳情',
+      pointsTitle: '點', pointsHint: '已記錄的關係點', verificationTitle: '驗證', verificationHint: '驗證圖、診斷和匯出詳情',
+      summaryTitle: '摘要', dataTableTitle: '資料表', figuresTitle: '圖像',
+    },
+    parameters: {
+      title: '目前參數', currentFileValues: '目前檔案值', lockedUntilStopped: '停止或完成前鎖定', editValues: '編輯參數值', hide: '隱藏',
+      standardSimulation: '標準模擬', idealSimulation: '理想氣體模擬', savedChangesOnStart: '啟動時已儲存參數', idealRuntimeOnStart: '理想執行階段將在開始時連接', applied: '參數已套用',
+      relation: '關係', scanVariable: '掃描變量', samplingPreset: '採樣預設', targetTemperature: '目標溫度', boxLength: '盒長 L', particleCount: '粒子數 N', customPreset: '自訂', setSamplingPrecision: '設定採樣精度',
+      parameterLabels: { N: 'N（粒子）', r: 'r', L: 'L', dt: 'dt', nu: 'nu', targetTemperature: '目標溫度', equilibriumTime: '平衡時間（s）', statsDuration: '統計時長（s）', relation: '關係' },
+      samplingPresets: { fast: '快速', balanced: '平衡', stable: '穩定' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's 平衡 / ' + statsDuration + 's 統計',
+      advancedSettings: '進階設定', advancedShow: '顯示模型常數和採樣值', advancedHide: '隱藏模型常數和採樣值', edit: '編輯', save: '儲存', saveHint: '將進階參數儲存到目前工作台檔案',
+      standardReadonlyNote: '標準模擬參數在這裡直接顯示。', idealReadonlyNote: '關係、掃描變量和採樣預設在上方控制。', controlledLockHint: '目前關係已有資料，受控變量已鎖定。',
+    },
+    results: {
+      title: '結果', experimentStatus: '實驗狀態', scan: '掃描', measuredPressure: '實測 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 點', recordedPoints: (count) => count + ' 個記錄點',
+      clearRelation: '清空關係', confirmClear: '確認清空', remove: '移除', confirmRemove: '確認移除', cancel: '取消', noPoints: '沒有點', runToRecord: '執行實驗以記錄點。', tableAction: '操作', tableTime: '時間',
+      finalState: '最終狀態', meanSpeed: '平均速度', measuredBars: '實測柱', idealLine: '理想線', samples: (count) => count + ' 個樣本', waiting: '等待中', finalSpeedSamples: '最終速度樣本', finalEnergySamples: '最終能量樣本', tempHistorySamples: '溫度歷史樣本', finalDataReady: '最終資料就緒', energyDrift: '能量漂移', meanAbsTempError: '平均絕對溫度誤差', tempSamples: '溫度樣本', resultsReady: (relation) => relation + ' 實驗結果已就緒', waitingForRecordedPoints: (relation) => relation + ' 等待記錄點',
+      metric: '指標', value: '值', status: '狀態', ready: '就緒', notReady: '未就緒', yes: '是', no: '否', diagnostic: '診斷', export: '匯出', reportPdf: '報告 PDF', verificationFigure: '驗證圖', pointsCsv: '點 CSV',
+    },
+    actions: { start: '開始', pause: '暫停', stop: '停止', close: '關閉', resetView: '重置視圖', hide: '隱藏', cancel: '取消' },
+    shortcuts: { title: '快捷鍵', hint: '常用工作台快捷鍵', undo: '復原', redo: '重做', closeSettings: '關閉設定' },
+    console: { title: '控制台 / 輸出', tabs: { logs: '日誌', warnings: '警告', summary: '摘要' }, total: '總計', info: '資訊', success: '成功', warnings: '警告', errors: '錯誤', latest: '最新', runtime: '執行階段', noLogs: '暫無日誌。', noWarnings: '暫無警告或錯誤。' },
+    status: { activeFile: (name) => '目前檔案：' + name, selectedBlock: (name) => '選取區塊：' + name, none: '無', noRuntime: '未連接執行階段', standardRuntime: '標準執行階段已連接', idealRuntime: (relation, verdict) => '理想執行階段已連接 / ' + relation + ' / ' + verdict, runStates: { idle: '閒置', running: '執行中', paused: '已暫停', finished: '已完成', 'needs-reset': '需要重置' }, verdictStates: { insufficient: '資料不足', collecting: '採集中', verified: '已驗證', failed: '未通過', preliminary: '初步成立', notYet: '尚未成立', 'not-started': '尚未開始' } },
+    logs: { initialized: 'Workbench 工作台原型已初始化。', defaultLayout: '預設版面：3D 預覽、即時資料 / 圖表、目前參數。', standardConnected: '標準模擬執行階段、3D 預覽和即時圖表資料已連接。', exportBridgeRequired: '科學 PDF 匯出需要桌面執行階段橋接。', autoPausedSingleRuntime: (name) => name + '：由於一次只能執行一個工作台執行階段，已自動暫停。', autoPausedCreateFile: (name) => name + '：建立新檔案時已自動暫停。', autoPausedSwitchFile: (name) => name + '：切換檔案時已自動暫停。', fileCreated: (name) => '已建立工作台檔案：' + name, mockAction: (label) => '模擬操作：' + label, lockedPanel: (title) => title + ' 是預設工作區的一部分，不能隱藏。', layoutReset: (name) => name + '：版面已還原為 3D 預覽 + 即時資料 / 圖表', idealResultsOpened: (name, tab) => name + '：已在 ' + tab + ' 開啟理想結果視窗。', idealResultsClosed: (name) => name + '：已關閉理想結果視窗。', fileSelected: (name) => '已選擇檔案分頁：' + name, confirmClear: (name, relation) => name + '：點擊確認清空以刪除全部 ' + relation + ' 點。', clearedRelation: (name, relation) => name + '：已清空 ' + relation + ' 點。' },
+  },
+  en: {
+    menus: {
+      newStudy: 'New Study', edit: 'Edit', window: 'Window', settings: 'Settings', help: 'Help', general: 'General',
+      standardStudy: 'Standard Simulation Study', idealStudy: 'Ideal Gas Simulation Study', undo: 'Undo', redo: 'Redo', empty: 'empty',
+      clearEditHistory: 'Clear Edit History', panelsFor: (name) => 'Panels for ' + name, resetDefaultLayout: 'Reset Default Layout', default: 'default',
+      performanceMode: 'Performance Mode', exportEnvironment: 'Export Environment', saveWorkbenchLayoutDefault: 'Save Current Window Layout as Default',
+      userGuide: 'User Guide', theoryPdf: 'Theory Document PDF', about: 'About Hard Sphere Workbench',
+    },
+    settings: {
+      title: 'General Settings', subtitle: 'Theme, language, shortcuts, and layout preferences', closeAria: 'Close General Settings', theme: 'Theme', themeHint: 'Use system, light, or dark mode',
+      themeOptions: { system: { label: 'System', hint: 'Follow OS preference' }, light: { label: 'Light', hint: 'Bright workspace preview' }, dark: { label: 'Dark', hint: 'Dark workspace preview' } },
+      language: 'Language', languageHint: 'Choose the interface language',
+      languageOptions: { 'zh-CN': { label: '简体中文', hint: 'Simplified Chinese interface' }, 'zh-TW': { label: '繁體中文', hint: 'Traditional Chinese interface' }, en: { label: 'English', hint: 'English interface' } },
+    },
+    files: {
+      openFiles: 'Open Files', files: 'Files', panels: 'Panels', noOpenFiles: 'No open files', emptyHint: 'Create a study to populate the workbench.',
+      noOpenStudy: 'No open study', emptyTitle: 'Start a new hard sphere workbench file', emptyBody: 'Create a standard simulation or ideal gas relation study to restore previews, charts, results, and parameter panels.',
+      createStandard: 'Create Standard Simulation Study', createIdeal: 'Create Ideal Gas Simulation Study', rename: 'Rename', delete: 'Delete', confirmDelete: 'Confirm Delete', cancel: 'Cancel',
+      locked: 'locked', shown: 'shown', open: 'open', active: 'active', off: 'off', std: 'STD', ideal: 'IDEAL',
+    },
+    panels: {
+      previewTitle: '3D Preview', previewHint: 'Realtime molecular viewport', realtimeTitle: 'Realtime Data / Charts', standardRealtimeHint: 'Live temperature, pressure, and chart traces', idealRealtimeHint: 'Live T, P, relation, and chart traces',
+      standardResultsTitle: 'Results', standardResultsHint: 'Experiment status, data table, and figures', idealResultsTitle: 'Results', idealResultsHint: 'Verification chart, history unlock, and export details',
+      pointsTitle: 'Points', pointsHint: 'Recorded relation points', verificationTitle: 'Verification', verificationHint: 'Verification chart, diagnostics, and export details',
+      summaryTitle: 'Summary', dataTableTitle: 'Data Table', figuresTitle: 'Figures',
+    },
+    parameters: {
+      title: 'Current Parameters', currentFileValues: 'current file values', lockedUntilStopped: 'locked until stopped or finished', editValues: 'edit parameter values', hide: 'Hide',
+      standardSimulation: 'Standard Simulation', idealSimulation: 'Ideal Gas Simulation', savedChangesOnStart: 'parameters saved on start', idealRuntimeOnStart: 'ideal runtime will connect on start', applied: 'parameters applied',
+      relation: 'Relation', scanVariable: 'Scan Variable', samplingPreset: 'Sampling Preset', targetTemperature: 'Target Temperature', boxLength: 'Box Length L', particleCount: 'Particle Count N', customPreset: 'Custom', setSamplingPrecision: 'Set sampling precision',
+      parameterLabels: { N: 'N (particles)', r: 'r', L: 'L', dt: 'dt', nu: 'nu', targetTemperature: 'Target temperature', equilibriumTime: 'equilibriumTime (s)', statsDuration: 'statsDuration (s)', relation: 'Relation' },
+      samplingPresets: { fast: 'Fast', balanced: 'Balanced', stable: 'Stable' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's eq / ' + statsDuration + 's stats',
+      advancedSettings: 'Advanced settings', advancedShow: 'Show model constants and sampling values', advancedHide: 'Hide model constants and sampling values', edit: 'Edit', save: 'Save', saveHint: 'Save advanced parameters to this workbench file',
+      standardReadonlyNote: 'Standard simulation parameters are shown directly here.', idealReadonlyNote: 'Relation, scan variable, and sampling preset are controlled above.', controlledLockHint: 'This relation already has data, so controlled variables are locked.',
+    },
+    results: {
+      title: 'Results', experimentStatus: 'Experiment status', scan: 'Scan', measuredPressure: 'Measured P', idealPressure: 'Ideal P', gap: 'Gap', pointsTitle: (relation) => relation + ' points', recordedPoints: (count) => count + ' recorded points',
+      clearRelation: 'Clear Relation', confirmClear: 'Confirm Clear', remove: 'Remove', confirmRemove: 'Confirm Remove', cancel: 'Cancel', noPoints: 'no points', runToRecord: 'Run the experiment to record points.', tableAction: 'Action', tableTime: 'Time',
+      finalState: 'Final state', meanSpeed: 'Mean speed', measuredBars: 'measured bars', idealLine: 'ideal line', samples: (count) => count + ' samples', waiting: 'waiting', finalSpeedSamples: 'final speed samples', finalEnergySamples: 'final energy samples', tempHistorySamples: 'temp history samples', finalDataReady: 'final data ready', energyDrift: 'energy drift', meanAbsTempError: 'mean abs temp error', tempSamples: 'Temp samples', resultsReady: (relation) => relation + ' experiment result ready', waitingForRecordedPoints: (relation) => relation + ' waiting for recorded points',
+      metric: 'Metric', value: 'Value', status: 'Status', ready: 'ready', notReady: 'not-ready', yes: 'yes', no: 'no', diagnostic: 'Diagnostic', export: 'Export', reportPdf: 'Report PDF', verificationFigure: 'Verification Figure', pointsCsv: 'Points CSV',
+    },
+    actions: { start: 'Start', pause: 'Pause', stop: 'Stop', close: 'Close', resetView: 'Reset view', hide: 'Hide', cancel: 'Cancel' },
+    shortcuts: { title: 'Shortcuts', hint: 'Common workbench shortcuts', undo: 'Undo', redo: 'Redo', closeSettings: 'Close settings' },
+    console: { title: 'Console / Output', tabs: { logs: 'Logs', warnings: 'Warnings', summary: 'Summary' }, total: 'Total', info: 'Info', success: 'Success', warnings: 'Warnings', errors: 'Errors', latest: 'Latest', runtime: 'Runtime', noLogs: 'No log entries yet.', noWarnings: 'No warnings or errors yet.' },
+    status: { activeFile: (name) => 'Active file: ' + name, selectedBlock: (name) => 'Selected block: ' + name, none: 'none', noRuntime: 'No runtime connected', standardRuntime: 'Standard runtime connected', idealRuntime: (relation, verdict) => 'Ideal runtime connected / ' + relation + ' / ' + verdict, runStates: { idle: 'idle', running: 'running', paused: 'paused', finished: 'finished', 'needs-reset': 'needs reset' }, verdictStates: { insufficient: 'insufficient', collecting: 'collecting', verified: 'verified', failed: 'failed', preliminary: 'preliminary', notYet: 'not yet', 'not-started': 'not started' } },
+    logs: { initialized: 'Workbench studio prototype initialized.', defaultLayout: 'Default layout: 3D Preview, Realtime Data / Charts, Current Parameters.', standardConnected: 'Standard Simulation runtime, 3D preview, and realtime chart data are connected.', exportBridgeRequired: 'Scientific PDF export requires the desktop runtime bridge.', autoPausedSingleRuntime: (name) => name + ': auto-paused because only one workbench runtime can run at a time.', autoPausedCreateFile: (name) => name + ': auto-paused when creating a new file.', autoPausedSwitchFile: (name) => name + ': auto-paused when switching files.', fileCreated: (name) => 'Workbench file created: ' + name, mockAction: (label) => 'Mock action: ' + label, lockedPanel: (title) => title + ' is locked as part of the default workspace and cannot be hidden.', layoutReset: (name) => name + ': layout reset to 3D Preview + Realtime Data / Charts', idealResultsOpened: (name, tab) => name + ': opened ideal Results window on ' + tab + '.', idealResultsClosed: (name) => name + ': closed ideal Results window.', fileSelected: (name) => 'File tab selected: ' + name, confirmClear: (name, relation) => name + ': click Confirm Clear to clear all ' + relation + ' points.', clearedRelation: (name, relation) => name + ': cleared ' + relation + ' points.' },
+  },
+};
+
+interface WorkbenchLayoutDefaultState {
+  resultsHeightRatio: number;
+  liveWorkspaceSplitRatio: number;
+}
+
+interface WorkbenchLayoutDefaults {
+  standard: WorkbenchLayoutDefaultState;
+  ideal: WorkbenchLayoutDefaultState;
+}
 
 const exportEnvironmentCopy: Record<WorkbenchExportEnvironmentStatus, { label: string; detail: string }> = {
   checking: {
@@ -322,24 +692,24 @@ const getIdealVerificationState = (
   return analysis.sortedPoints.length === 0 ? 'not-started' : 'failed';
 };
 
-const standardPanels: PanelDefinition[] = [
-  { key: 'preview', title: '3D Preview', hint: 'Realtime molecular viewport', icon: <Activity size={13} />, defaultVisible: true },
-  { key: 'realtime', title: 'Realtime Data / Charts', hint: 'Live temperature, pressure, speed traces', icon: <BarChart3 size={13} />, defaultVisible: true },
-  { key: 'results', title: 'Results', hint: 'Final summary, data table, figures, and export', icon: <Gauge size={13} /> },
+const createStandardPanels = (copy: WorkbenchCopy): PanelDefinition[] => [
+  { key: 'preview', title: copy.panels.previewTitle, hint: copy.panels.previewHint, icon: <Activity size={13} />, defaultVisible: true },
+  { key: 'realtime', title: copy.panels.realtimeTitle, hint: copy.panels.standardRealtimeHint, icon: <BarChart3 size={13} />, defaultVisible: true },
+  { key: 'results', title: copy.panels.standardResultsTitle, hint: copy.panels.standardResultsHint, icon: <Gauge size={13} /> },
 ];
 
-const idealPanels: PanelDefinition[] = [
-  { key: 'preview', title: '3D Preview', hint: 'Realtime molecular viewport', icon: <Activity size={13} />, defaultVisible: true },
-  { key: 'realtime', title: 'Realtime Data / Charts', hint: 'Live T, P, relation and chart traces', icon: <BarChart3 size={13} />, defaultVisible: true },
-  { key: 'results', title: 'Results', hint: 'Ideal-gas points, verification, history, and export', icon: <Gauge size={13} /> },
-  { key: 'experimentPoints', title: 'Points', hint: 'Experiment status and measured pressure point table', icon: <Table2 size={13} /> },
-  { key: 'verification', title: 'Verification', hint: 'Verification chart, history unlock, and export details', icon: <BarChart3 size={13} /> },
+const createIdealPanels = (copy: WorkbenchCopy): PanelDefinition[] => [
+  { key: 'preview', title: copy.panels.previewTitle, hint: copy.panels.previewHint, icon: <Activity size={13} />, defaultVisible: true },
+  { key: 'realtime', title: copy.panels.realtimeTitle, hint: copy.panels.idealRealtimeHint, icon: <BarChart3 size={13} />, defaultVisible: true },
+  { key: 'results', title: copy.panels.idealResultsTitle, hint: copy.panels.idealResultsHint, icon: <Gauge size={13} /> },
+  { key: 'experimentPoints', title: copy.panels.pointsTitle, hint: copy.panels.pointsHint, icon: <Table2 size={13} /> },
+  { key: 'verification', title: copy.panels.verificationTitle, hint: copy.panels.verificationHint, icon: <BarChart3 size={13} /> },
 ];
 
-const resultsSections: Array<{ key: ResultsSectionKey; title: string; icon: React.ReactNode }> = [
-  { key: 'summary', title: 'Summary', icon: <Gauge size={12} /> },
-  { key: 'dataTable', title: 'Data Table', icon: <Table2 size={12} /> },
-  { key: 'figures', title: 'Figures', icon: <BarChart3 size={12} /> },
+const createResultsSections = (copy: WorkbenchCopy): Array<{ key: ResultsSectionKey; title: string; icon: React.ReactNode }> => [
+  { key: 'summary', title: copy.panels.summaryTitle, icon: <Gauge size={12} /> },
+  { key: 'dataTable', title: copy.panels.dataTableTitle, icon: <Table2 size={12} /> },
+  { key: 'figures', title: copy.panels.figuresTitle, icon: <BarChart3 size={12} /> },
 ];
 
 const idealRelationOptions: Array<{ key: ExperimentRelation; label: string; hint: string }> = [
@@ -351,11 +721,6 @@ const idealRelationOptions: Array<{ key: ExperimentRelation; label: string; hint
 const idealRelationKeys: ExperimentRelation[] = ['pt', 'pv', 'pn'];
 const standardResultsTabKeys: WorkbenchStandardResultsTab[] = ['summary', 'dataTable', 'figures'];
 const idealResultWindowKeys: WorkbenchIdealResultWindowKey[] = ['experimentPoints', 'verification'];
-const idealResultWindowPanels = idealPanels.filter(
-  (panel): panel is PanelDefinition & { key: WorkbenchIdealResultWindowKey } => (
-    panel.key === 'experimentPoints' || panel.key === 'verification'
-  ),
-);
 
 const isIdealResultWindowKey = (key: WorkbenchPanelKey): key is WorkbenchIdealResultWindowKey => (
   key === 'experimentPoints' || key === 'verification'
@@ -376,7 +741,7 @@ const normalizeIdealWindowLayoutState = (
     backHeightRatio?: number;
     hasCustomHeights?: boolean;
   }) | null | undefined,
-  defaults?: Partial<IdealResultWindowDefaults>,
+  defaults?: Partial<WorkbenchLayoutDefaultState>,
 ): WorkbenchIdealWindowLayout => {
   const openTabs = layout?.openTabs?.filter(isIdealResultWindowKey);
   const activeIdealResultTab = layout?.activeIdealResultTab
@@ -387,7 +752,7 @@ const normalizeIdealWindowLayoutState = (
     layout?.heightRatio
     ?? layout?.frontHeightRatio
     ?? layout?.backHeightRatio
-    ?? defaults?.heightRatio
+    ?? defaults?.resultsHeightRatio
     ?? IDEAL_RESULT_HEIGHT_RATIO,
   );
 
@@ -401,6 +766,7 @@ const normalizeIdealWindowLayoutState = (
 
 const normalizeStandardResultsLayout = (
   layout: Partial<WorkbenchStandardResultsLayout> | null | undefined,
+  defaults?: Partial<WorkbenchLayoutDefaultState>,
 ): WorkbenchStandardResultsLayout => {
   const openTabs = layout?.openTabs?.filter(isStandardResultsTab);
   const normalizedOpenTabs = openTabs?.length ? openTabs : ['summary', 'dataTable', 'figures'];
@@ -411,7 +777,7 @@ const normalizeStandardResultsLayout = (
   return {
     openTabs: normalizedOpenTabs,
     activeTab,
-    heightRatio: clampIdealResultHeightRatio(layout?.heightRatio ?? IDEAL_RESULT_HEIGHT_RATIO),
+    heightRatio: clampIdealResultHeightRatio(layout?.heightRatio ?? defaults?.resultsHeightRatio ?? IDEAL_RESULT_HEIGHT_RATIO),
   };
 };
 
@@ -421,44 +787,78 @@ const pickNextOpenTab = <T extends string>(tabs: T[], closingTab: T) => {
   return tabs[closingIndex + 1] ?? tabs[closingIndex - 1] ?? null;
 };
 
+const createDefaultWorkbenchLayoutDefaults = (): WorkbenchLayoutDefaults => ({
+  standard: {
+    resultsHeightRatio: IDEAL_RESULT_HEIGHT_RATIO,
+    liveWorkspaceSplitRatio: WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
+  },
+  ideal: {
+    resultsHeightRatio: IDEAL_RESULT_HEIGHT_RATIO,
+    liveWorkspaceSplitRatio: WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
+  },
+});
+
+const sanitizeWorkbenchLayoutDefaultState = (
+  defaults: Partial<WorkbenchLayoutDefaultState> | null | undefined,
+): WorkbenchLayoutDefaultState => ({
+  resultsHeightRatio: clampIdealResultHeightRatio(defaults?.resultsHeightRatio ?? IDEAL_RESULT_HEIGHT_RATIO),
+  liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(defaults?.liveWorkspaceSplitRatio),
+});
+
 const sanitizeIdealResultWindowDefaults = (
-  defaults: Partial<IdealResultWindowDefaults> | null | undefined,
-): IdealResultWindowDefaults => {
-  const legacyDefaults = defaults as Partial<IdealResultWindowDefaults> & {
+  defaults: Partial<Pick<WorkbenchIdealWindowLayout, 'heightRatio'>> | null | undefined,
+): WorkbenchLayoutDefaultState => {
+  const legacyDefaults = defaults as Partial<Pick<WorkbenchIdealWindowLayout, 'heightRatio'>> & {
     frontHeightRatio?: number;
     backHeightRatio?: number;
   } | null | undefined;
   return {
-    heightRatio: clampIdealResultHeightRatio(
+    resultsHeightRatio: clampIdealResultHeightRatio(
       legacyDefaults?.heightRatio
       ?? legacyDefaults?.frontHeightRatio
       ?? legacyDefaults?.backHeightRatio
       ?? IDEAL_RESULT_HEIGHT_RATIO,
     ),
+    liveWorkspaceSplitRatio: WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
   };
 };
 
-const loadIdealResultWindowDefaults = (): IdealResultWindowDefaults => {
-  if (typeof window === 'undefined') return sanitizeIdealResultWindowDefaults(null);
+const sanitizeWorkbenchLayoutDefaults = (
+  defaults: Partial<WorkbenchLayoutDefaults> | null | undefined,
+): WorkbenchLayoutDefaults => {
+  const fallback = createDefaultWorkbenchLayoutDefaults();
+  return {
+    standard: sanitizeWorkbenchLayoutDefaultState(defaults?.standard ?? fallback.standard),
+    ideal: sanitizeWorkbenchLayoutDefaultState(defaults?.ideal ?? fallback.ideal),
+  };
+};
+
+const loadWorkbenchLayoutDefaults = (): WorkbenchLayoutDefaults => {
+  if (typeof window === 'undefined') return createDefaultWorkbenchLayoutDefaults();
 
   try {
-    const stored = window.localStorage.getItem(IDEAL_RESULT_WINDOW_DEFAULTS_STORAGE_KEY);
-    if (!stored) return sanitizeIdealResultWindowDefaults(null);
-    return sanitizeIdealResultWindowDefaults(JSON.parse(stored) as Partial<IdealResultWindowDefaults>);
+    const stored = window.localStorage.getItem(WORKBENCH_LAYOUT_DEFAULTS_STORAGE_KEY);
+    if (stored) return sanitizeWorkbenchLayoutDefaults(JSON.parse(stored) as Partial<WorkbenchLayoutDefaults>);
+
+    const legacyStored = window.localStorage.getItem(IDEAL_RESULT_WINDOW_DEFAULTS_STORAGE_KEY);
+    if (!legacyStored) return createDefaultWorkbenchLayoutDefaults();
+    return sanitizeWorkbenchLayoutDefaults({
+      ideal: sanitizeIdealResultWindowDefaults(JSON.parse(legacyStored)),
+    });
   } catch {
-    return sanitizeIdealResultWindowDefaults(null);
+    return createDefaultWorkbenchLayoutDefaults();
   }
 };
 
-const persistIdealResultWindowDefaults = (defaults: IdealResultWindowDefaults) => {
+const persistWorkbenchLayoutDefaults = (defaults: WorkbenchLayoutDefaults) => {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
-    IDEAL_RESULT_WINDOW_DEFAULTS_STORAGE_KEY,
-    JSON.stringify(sanitizeIdealResultWindowDefaults(defaults)),
+    WORKBENCH_LAYOUT_DEFAULTS_STORAGE_KEY,
+    JSON.stringify(sanitizeWorkbenchLayoutDefaults(defaults)),
   );
 };
 
-const idealSamplingPresets = [
+const idealSamplingPresets: Array<{ key: IdealSamplingPresetKey; label: string; equilibriumTime: number; statsDuration: number }> = [
   { key: 'fast', label: 'Fast', equilibriumTime: 2, statsDuration: 6 },
   { key: 'balanced', label: 'Balanced', equilibriumTime: 4, statsDuration: 12 },
   { key: 'stable', label: 'Stable', equilibriumTime: 6, statsDuration: 20 },
@@ -467,12 +867,24 @@ type IdealSamplingPreset = typeof idealSamplingPresets[number];
 
 const formatTime = () => new Date().toLocaleTimeString('en-GB', { hour12: false });
 
-const createInitialLogs = (): ConsoleLog[] => [
-  { id: 1, time: formatTime(), kind: 'info', message: 'Workbench studio prototype initialized.' },
-  { id: 2, time: formatTime(), kind: 'success', message: 'Default layout: 3D Preview, Realtime Data / Charts, Current Parameters.' },
-  { id: 3, time: formatTime(), kind: 'success', message: 'Standard Simulation runtime, 3D preview, and realtime chart data are connected.' },
-  { id: 4, time: formatTime(), kind: 'warning', message: 'Scientific PDF export requires the desktop runtime bridge.' },
+const createInitialLogs = (language: WorkbenchLanguagePreference): ConsoleLog[] => {
+  const copy = workbenchCopies[language].logs;
+  return [
+  { id: 1, time: formatTime(), kind: 'info', message: copy.initialized },
+  { id: 2, time: formatTime(), kind: 'success', message: copy.defaultLayout },
+  { id: 3, time: formatTime(), kind: 'success', message: copy.standardConnected },
+  { id: 4, time: formatTime(), kind: 'warning', message: copy.exportBridgeRequired },
 ];
+};
+
+const getWorkbenchParameterDisplayLabel = (
+  param: WorkbenchParameterRow,
+  copy: WorkbenchCopy,
+) => copy.parameters.parameterLabels[param.key] ?? (param.unit ? `${param.label} (${param.unit})` : param.label);
+
+const getLocalizedStatusValue = (value: string | undefined, copy: WorkbenchCopy) => (
+  value ? copy.status.verdictStates[value] ?? copy.status.runStates[value as WorkbenchFileState['runState']] ?? value : copy.status.none
+);
 
 const isEditableElement = (element: EventTarget | Element | null) => {
   if (!(element instanceof HTMLElement)) return false;
@@ -534,25 +946,27 @@ const cloneWorkbenchFiles = (filesToClone: WorkbenchFileState[]): WorkbenchFileS
 
 const WorkbenchStudioPrototype: React.FC = () => {
   const [initialSession] = useState(() => loadWorkbenchSession());
-  const [idealResultWindowDefaults, setIdealResultWindowDefaults] = useState<IdealResultWindowDefaults>(() => loadIdealResultWindowDefaults());
+  const [workbenchLayoutDefaults, setWorkbenchLayoutDefaults] = useState<WorkbenchLayoutDefaults>(() => loadWorkbenchLayoutDefaults());
   const [files, setFiles] = useState<WorkbenchFileState[]>(() => {
-    const defaults = loadIdealResultWindowDefaults();
+    const defaults = loadWorkbenchLayoutDefaults();
     return initialSession.files.map((file) => (
       file.kind === 'ideal'
         ? {
             ...file,
-            idealWindowLayout: normalizeIdealWindowLayoutState(file.idealWindowLayout, defaults),
+            liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
+            idealWindowLayout: normalizeIdealWindowLayoutState(file.idealWindowLayout, defaults.ideal),
           }
         : {
             ...file,
-            standardResultsLayout: normalizeStandardResultsLayout(file.standardResultsLayout),
+            liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
+            standardResultsLayout: normalizeStandardResultsLayout(file.standardResultsLayout, defaults.standard),
       }
     ));
   });
   const initialGeneralSettings = useMemo(() => loadWorkbenchGeneralSettings(), []);
   const [activeFileId, setActiveFileId] = useState(initialSession.activeFileId);
   const [selectedPanel, setSelectedPanel] = useState<WorkbenchPanelKey>(initialSession.selectedPanel);
-  const [logs, setLogs] = useState<ConsoleLog[]>(() => createInitialLogs());
+  const [logs, setLogs] = useState<ConsoleLog[]>(() => createInitialLogs(initialGeneralSettings.language));
   const [exportEnvironmentStatus, setExportEnvironmentStatus] = useState<WorkbenchExportEnvironmentStatus>(() => (
     hasDesktopExportBridge() ? 'checking' : 'unavailable'
   ));
@@ -564,6 +978,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [settingsThemePreference, setSettingsThemePreference] = useState<WorkbenchThemePreference>(() => initialGeneralSettings.theme);
   const [settingsLanguagePreference, setSettingsLanguagePreference] = useState<WorkbenchLanguagePreference>(() => initialGeneralSettings.language);
   const [settingsLanguageMenuOpen, setSettingsLanguageMenuOpen] = useState(false);
+  const workbenchCopy = workbenchCopies[settingsLanguagePreference];
+  const workbenchTranslation = translations[settingsLanguagePreference === 'en' ? 'en-GB' : settingsLanguagePreference];
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [parametersCollapsed, setParametersCollapsed] = useState(false);
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(286);
@@ -590,6 +1006,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [scanSliderThumbHover, setScanSliderThumbHover] = useState(false);
   const [scanSliderDragging, setScanSliderDragging] = useState(false);
   const [isCanvasFocused, setIsCanvasFocused] = useState(false);
+  const [liveWorkspaceResizing, setLiveWorkspaceResizing] = useState(false);
   const [undoStack, setUndoStack] = useState<WorkbenchEditSnapshot[]>([]);
   const [redoStack, setRedoStack] = useState<WorkbenchEditSnapshot[]>([]);
   const standardRuntimeRef = useRef<Record<string, StandardEngineRuntime>>({});
@@ -617,6 +1034,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const emptyWorkbenchFile = useMemo(() => createDefaultStandardFile(0), []);
   const isWorkbenchEmpty = files.length === 0;
   const activeFile = files.find((file) => file.id === activeFileId) ?? emptyWorkbenchFile;
+  const standardPanels = useMemo(() => createStandardPanels(workbenchCopy), [workbenchCopy]);
+  const idealPanels = useMemo(() => createIdealPanels(workbenchCopy), [workbenchCopy]);
+  const resultsSections = useMemo(() => createResultsSections(workbenchCopy), [workbenchCopy]);
+  const idealResultWindowPanels = useMemo(
+    () => idealPanels.filter(
+      (panel): panel is PanelDefinition & { key: WorkbenchIdealResultWindowKey } => (
+        panel.key === 'experimentPoints' || panel.key === 'verification'
+      ),
+    ),
+    [idealPanels],
+  );
   const standardResultsLayout = activeFile.kind === 'standard'
     ? normalizeStandardResultsLayout(activeFile.standardResultsLayout)
     : normalizeStandardResultsLayout(null);
@@ -639,7 +1067,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const currentParameters = useMemo(() => getWorkbenchParameterRows(activeFile), [activeFile]);
   const resultSummary = useMemo(() => createWorkbenchResultSummary(activeFile), [activeFile]);
-  const figureSpecs = useMemo(() => createWorkbenchFigureSpecs(activeFile), [activeFile]);
+  const figureSpecs = useMemo(
+    () => createWorkbenchFigureSpecs(activeFile, settingsLanguagePreference),
+    [activeFile, settingsLanguagePreference],
+  );
   const idealAnalysis: IdealGasAnalysis | null = useMemo(
     () => (
       activeFile.kind === 'ideal'
@@ -651,7 +1082,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const editableCurrentParameters = currentParameters.filter((param) => !(activeFile.kind === 'ideal' && (param.key === 'targetTemperature' || param.key === 'relation')));
   const parametersDirty = !areWorkbenchParamsEqual(activeFile.params, activeFile.appliedParams);
   const parameterControlsLocked = activeFile.runState === 'running' || activeFile.runState === 'paused';
-  const controlledVariableLockHint = 'To keep controlled variables fixed, this parameter cannot be changed while the current data table has rows. Clear the table first to edit it.';
+  const controlledVariableLockHint = workbenchCopy.parameters.controlledLockHint;
   const currentIdealRelationHasPoints = activeFile.kind === 'ideal' && activeFile.pointsByRelation[activeFile.relation].length > 0;
   const isIdealControlledVariableLocked = (
     key: keyof SimulationParams | 'relation',
@@ -669,6 +1100,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const workbenchStyle = {
     '--studio-left-width': `${leftSidebarWidth}px`,
     '--studio-params-width': `${parameterSidebarWidth}px`,
+  } as React.CSSProperties;
+  const liveWorkspaceSplitRatio = clampWorkbenchLiveSplitRatio(activeFile.liveWorkspaceSplitRatio);
+  const liveWorkspaceStyle = {
+    '--studio-live-preview-ratio': `${(liveWorkspaceSplitRatio * 100).toFixed(3)}%`,
+    '--studio-live-realtime-ratio': `${((1 - liveWorkspaceSplitRatio) * 100).toFixed(3)}%`,
   } as React.CSSProperties;
   const displayedLogs = useMemo(
     () => (
@@ -690,12 +1126,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
       counts,
       latest: logs[logs.length - 1] ?? null,
       runtime: isWorkbenchEmpty
-        ? 'No runtime connected'
+        ? workbenchCopy.status.noRuntime
         : activeFile.kind === 'standard'
-          ? 'Standard realtime data connected'
-          : `Ideal runtime connected / ${getRelationLabel(activeFile.relation)} / ${idealAnalysis?.verdictState ?? 'insufficient'}`,
+          ? workbenchCopy.status.standardRuntime
+          : workbenchCopy.status.idealRuntime(
+              getRelationLabel(activeFile.relation),
+              getLocalizedStatusValue(idealAnalysis?.verdictState ?? 'insufficient', workbenchCopy),
+            ),
     };
-  }, [activeFile, idealAnalysis?.verdictState, isWorkbenchEmpty, logs]);
+  }, [activeFile, idealAnalysis?.verdictState, isWorkbenchEmpty, logs, workbenchCopy]);
 
   const animateCurrentParametersScroll = (
     targetTop: number,
@@ -975,7 +1414,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     files: cloneWorkbenchFiles(filesRef.current),
     activeFileId: activeFileIdRef.current,
     selectedPanel,
-    idealResultWindowDefaults: { ...idealResultWindowDefaults },
+    workbenchLayoutDefaults: sanitizeWorkbenchLayoutDefaults(workbenchLayoutDefaults),
   });
 
   const reconcileRuntimesAfterRestore = (restoredFiles: WorkbenchFileState[]) => {
@@ -1018,8 +1457,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setActiveFileId(nextActiveFileId);
     activeFileIdRef.current = nextActiveFileId;
     setSelectedPanel(snapshot.selectedPanel);
-    setIdealResultWindowDefaults(snapshot.idealResultWindowDefaults);
-    persistIdealResultWindowDefaults(snapshot.idealResultWindowDefaults);
+    setWorkbenchLayoutDefaults(snapshot.workbenchLayoutDefaults);
+    persistWorkbenchLayoutDefaults(snapshot.workbenchLayoutDefaults);
     setParametersEditing(false);
     setParameterDraft({});
     setParameterErrors([]);
@@ -1217,32 +1656,74 @@ const WorkbenchStudioPrototype: React.FC = () => {
     window.addEventListener('mouseup', handleUp);
   };
 
-  const saveCurrentIdealResultWindowLayoutAsDefault = () => {
-    if (activeFile.kind !== 'ideal') {
-      pushLog('Open an ideal-gas file before saving ideal result window defaults.', 'warning');
+  const startLiveWorkspaceResize = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (isWorkbenchEmpty) return;
+    const workspace = event.currentTarget.parentElement;
+    if (!workspace) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const initialWorkspaceRect = workspace.getBoundingClientRect();
+    const resizerWidth = event.currentTarget.getBoundingClientRect().width || 8;
+    if (initialWorkspaceRect.width <= resizerWidth) return;
+
+    const getNextRatio = (clientX: number) => {
+      const workspaceRect = workspace.getBoundingClientRect();
+      const availableWidth = workspaceRect.width - resizerWidth;
+      if (availableWidth <= 0) return clampWorkbenchLiveSplitRatio(activeFile.liveWorkspaceSplitRatio);
+      return clamp(
+        (clientX - workspaceRect.left - resizerWidth / 2) / availableWidth,
+        WORKBENCH_LIVE_SPLIT_MIN_RATIO,
+        WORKBENCH_LIVE_SPLIT_MAX_RATIO,
+      );
+    };
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      const nextRatio = getNextRatio(moveEvent.clientX);
+      updateActiveFile((file) => ({
+        ...file,
+        liveWorkspaceSplitRatio: nextRatio,
+        updatedAt: Date.now(),
+      }));
+    };
+
+    const handleUp = () => {
+      setLiveWorkspaceResizing(false);
+      document.body.classList.remove('studio-horizontal-resizing');
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      window.removeEventListener('pointercancel', handleUp);
+    };
+
+    setLiveWorkspaceResizing(true);
+    document.body.classList.add('studio-horizontal-resizing');
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+    window.addEventListener('pointercancel', handleUp);
+  };
+
+  const saveCurrentWorkbenchLayoutAsDefault = () => {
+    if (isWorkbenchEmpty) {
+      pushLog('Create or open a workbench file before saving layout defaults.', 'warning');
       return;
     }
 
-    const nextDefaults = sanitizeIdealResultWindowDefaults({
-      heightRatio: activeFile.idealWindowLayout.heightRatio,
+    const nextFileDefaults = sanitizeWorkbenchLayoutDefaultState({
+      resultsHeightRatio: activeFile.kind === 'ideal'
+        ? normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, workbenchLayoutDefaults.ideal).heightRatio
+        : normalizeStandardResultsLayout(activeFile.standardResultsLayout, workbenchLayoutDefaults.standard).heightRatio,
+      liveWorkspaceSplitRatio: activeFile.liveWorkspaceSplitRatio,
+    });
+    const nextDefaults = sanitizeWorkbenchLayoutDefaults({
+      ...workbenchLayoutDefaults,
+      [activeFile.kind]: nextFileDefaults,
     });
 
-    captureUndoSnapshot('saved ideal result window defaults');
-    setIdealResultWindowDefaults(nextDefaults);
-    persistIdealResultWindowDefaults(nextDefaults);
-    setWorkbenchFiles((current) => current.map((file) => (
-      file.kind === 'ideal' && !file.idealWindowLayout.hasCustomHeight
-        ? {
-            ...file,
-            idealWindowLayout: {
-              ...file.idealWindowLayout,
-              heightRatio: nextDefaults.heightRatio,
-            },
-          }
-        : file
-    )));
+    setWorkbenchLayoutDefaults(nextDefaults);
+    persistWorkbenchLayoutDefaults(nextDefaults);
     setOpenTopMenu(null);
-    pushLog('Saved current ideal result window layout as the default.', 'success');
+    pushLog(`Saved current ${activeFile.kind} workbench layout as the default.`, 'success');
   };
 
   const cancelRuntimeFrame = (fileId: string) => {
@@ -1317,7 +1798,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         runState: 'paused',
         updatedAt: Date.now(),
       }));
-      pushLog(`${file.name}: auto-paused because only one workbench runtime can run at a time.`, 'warning');
+        pushLog(workbenchCopy.logs.autoPausedSingleRuntime(file.name), 'warning');
     });
   };
 
@@ -1929,13 +2410,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const createFile = (kind: WorkbenchFileKind) => {
     captureUndoSnapshot(`created ${kind} file`);
     const index = files.filter((file) => file.kind === kind).length + 1;
-    let file: WorkbenchFileState = kind === 'standard' ? createDefaultStandardFile(index) : createDefaultIdealFile(index);
-    if (file.kind === 'ideal') {
-      file = {
-        ...file,
-        idealWindowLayout: createDefaultIdealWindowLayout(idealResultWindowDefaults),
-      };
-    }
+    let file: WorkbenchFileState = kind === 'standard'
+      ? createDefaultStandardFile(index, workbenchLayoutDefaults.standard)
+      : createDefaultIdealFile(index, workbenchLayoutDefaults.ideal);
 
     if (file.kind === 'standard' || file.kind === 'ideal') {
       const runtime = file.kind === 'standard' ? createStandardRuntime(file) : createIdealRuntime(file);
@@ -1962,7 +2439,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         runState: 'paused',
         updatedAt: Date.now(),
       }));
-      pushLog(`${activeFile.name}: auto-paused when creating a new file.`, 'warning');
+      pushLog(workbenchCopy.logs.autoPausedCreateFile(activeFile.name), 'warning');
     }
 
     setWorkbenchFiles((current) => [...current, file]);
@@ -1975,15 +2452,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setIdealAdvancedSettingsOpen(false);
     setIdealAdvancedSettingsBodyVisible(false);
     setOpenTopMenu(null);
-    pushLog(`Workbench file created: ${file.name}`, 'success');
+    pushLog(workbenchCopy.logs.fileCreated(file.name), 'success');
   };
 
   const handleAction = (label: string, kind: LogKind = 'info') => {
-    pushLog(`Mock action: ${label}`, kind);
+    pushLog(workbenchCopy.logs.mockAction(label), kind);
   };
 
   const handleLockedPanel = (title: string) => {
-    pushLog(`${title} is locked as part of the default workspace and cannot be hidden.`, 'warning');
+    pushLog(workbenchCopy.logs.lockedPanel(title), 'warning');
   };
 
   const normalizeIdealResultLayout = (
@@ -1992,7 +2469,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     tab: WorkbenchIdealResultWindowKey = file.idealWindowLayout.activeIdealResultTab,
     openAllTabs = false,
     replaceOpenTabs = false,
-    defaults = idealResultWindowDefaults,
+    defaults = workbenchLayoutDefaults.ideal,
   ): WorkbenchIdealState => {
     const currentLayout = normalizeIdealWindowLayoutState(file.idealWindowLayout, defaults);
     const openTabs = openAllTabs
@@ -2028,7 +2505,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return {
         ...file,
         idealWindowLayout: {
-          ...normalizeIdealWindowLayoutState(file.idealWindowLayout, idealResultWindowDefaults),
+          ...normalizeIdealWindowLayoutState(file.idealWindowLayout, workbenchLayoutDefaults.ideal),
           activeIdealResultTab: tab,
         },
         updatedAt: Date.now(),
@@ -2041,7 +2518,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setResultsChildrenCollapsed(false);
     setSelectedPanel(tab);
 
-    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, idealResultWindowDefaults);
+    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, workbenchLayoutDefaults.ideal);
     const nextOpenTabs = options.openAllTabs
       ? idealResultWindowKeys
       : options.replaceOpenTabs
@@ -2063,7 +2540,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       if (file.kind !== 'ideal') return file;
       return normalizeIdealResultLayout(file, true, tab, Boolean(options.openAllTabs), Boolean(options.replaceOpenTabs));
     });
-    pushLog(`${activeFile.name}: opened ideal Results window on ${tab}.`);
+    pushLog(workbenchCopy.logs.idealResultsOpened(activeFile.name, tab));
   };
 
   const openIdealResultsWindow = (tab: WorkbenchIdealResultWindowKey = 'experimentPoints', openAllTabs = false, replaceOpenTabs = false) => {
@@ -2085,12 +2562,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return normalizeIdealResultLayout(file, false);
     });
     if (isIdealResultWindowKey(selectedPanel)) setSelectedPanel('preview');
-    pushLog(`${activeFile.name}: closed ideal Results window.`);
+    pushLog(workbenchCopy.logs.idealResultsClosed(activeFile.name));
   };
 
   const closeIdealResultTab = (tab: WorkbenchIdealResultWindowKey) => {
     if (activeFile.kind !== 'ideal') return;
-    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, idealResultWindowDefaults);
+    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, workbenchLayoutDefaults.ideal);
     if (!layout.openTabs.includes(tab)) return;
 
     captureUndoSnapshot(`closed ${idealResultWindowPanels.find((panel) => panel.key === tab)?.title ?? tab} tab`);
@@ -2109,7 +2586,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return {
         ...file,
         idealWindowLayout: {
-          ...normalizeIdealWindowLayoutState(file.idealWindowLayout, idealResultWindowDefaults),
+          ...normalizeIdealWindowLayoutState(file.idealWindowLayout, workbenchLayoutDefaults.ideal),
           openTabs: nextOpenTabs,
           activeIdealResultTab: nextActiveTab,
         },
@@ -2348,7 +2825,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const getIdealResultTabState = (tab: WorkbenchIdealResultWindowKey) => {
     if (activeFile.kind !== 'ideal' || !activeFile.visiblePanels.includes('results')) return 'off';
-    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, idealResultWindowDefaults);
+    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, workbenchLayoutDefaults.ideal);
     if (layout.activeIdealResultTab === tab) return 'active';
     return layout.openTabs.includes(tab) ? 'open' : 'off';
   };
@@ -2360,6 +2837,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return layout.openTabs.includes(tab) ? 'open' : 'off';
   };
 
+  const getLocalizedTreeState = (state: 'locked' | 'shown' | 'open' | 'active' | 'off') => workbenchCopy.files[state];
+
   const renderWindowResultsChildRows = () => {
     if (activeFile.kind === 'ideal') {
       return idealResultWindowPanels.map((panel) => {
@@ -2369,13 +2848,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div className="studio-window-panel-row studio-window-panel-child-row" key={`window-${panel.key}`}>
             {panel.icon}
             <span>{panel.title}</span>
-            <span className="studio-window-panel-status">{state}</span>
+            <span className="studio-window-panel-status">{getLocalizedTreeState(state)}</span>
             <button
               type="button"
               className={`studio-window-switch ${visible ? 'studio-window-switch-on' : 'studio-window-switch-off'}`}
               role="switch"
               aria-checked={visible}
-              aria-label={`${panel.title} ${state}`}
+              aria-label={`${panel.title} ${getLocalizedTreeState(state)}`}
               onClick={(event) => {
                 event.stopPropagation();
                 toggleWindowIdealResultTab(panel.key);
@@ -2396,13 +2875,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div className="studio-window-panel-row studio-window-panel-child-row" key={`window-${section.key}`}>
             {section.icon}
             <span>{section.title}</span>
-            <span className="studio-window-panel-status">{state}</span>
+            <span className="studio-window-panel-status">{getLocalizedTreeState(state)}</span>
             <button
               type="button"
               className={`studio-window-switch ${visible ? 'studio-window-switch-on' : 'studio-window-switch-off'}`}
               role="switch"
               aria-checked={visible}
-              aria-label={`${section.title} ${state}`}
+              aria-label={`${section.title} ${getLocalizedTreeState(state)}`}
               onClick={(event) => {
                 event.stopPropagation();
                 toggleWindowStandardResultsTab(section.key);
@@ -2681,16 +3160,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
         className={`studio-table-action ${pendingRemovePointId === point.id ? 'studio-table-action-confirm' : ''}`}
         onClick={() => requestRemoveIdealPoint(point)}
       >
-        {pendingRemovePointId === point.id ? 'Confirm Remove' : 'Remove'}
+        {pendingRemovePointId === point.id ? workbenchCopy.results.confirmRemove : workbenchCopy.results.remove}
       </button>
       {pendingRemovePointId === point.id ? (
         <button
           type="button"
           className="studio-table-action studio-table-action-cancel"
-          aria-label={`Cancel removing ideal gas point ${point.id}`}
+          aria-label={`${workbenchCopy.results.cancel} ${point.id}`}
           onClick={cancelRemoveIdealPoint}
         >
-          Cancel
+          {workbenchCopy.results.cancel}
         </button>
       ) : null}
     </div>
@@ -2708,7 +3187,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const clearKey = `${activeFile.id}:${activeFile.relation}`;
     if (pendingClearRelationKey !== clearKey) {
       setPendingClearRelationKey(clearKey);
-      pushLog(`${activeFile.name}: click Confirm Clear to clear all ${getRelationLabel(activeFile.relation)} points.`, 'warning');
+      pushLog(workbenchCopy.logs.confirmClear(activeFile.name, getRelationLabel(activeFile.relation)), 'warning');
       return;
     }
 
@@ -2730,7 +3209,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     });
     setPendingClearRelationKey(null);
     setPendingRemovePointId(null);
-    pushLog(`${activeFile.name}: ${getRelationLabel(activeFile.relation)} points cleared.`, 'warning');
+    pushLog(workbenchCopy.logs.clearedRelation(activeFile.name, getRelationLabel(activeFile.relation)), 'warning');
   };
 
   const beginRenameFile = (file: WorkbenchFileState) => {
@@ -2933,14 +3412,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
               ...file,
               visiblePanels: ['preview', 'realtime'],
               ...(file.kind === 'ideal'
-                ? { idealWindowLayout: createDefaultIdealWindowLayout(idealResultWindowDefaults) }
-                : { standardResultsLayout: createDefaultStandardResultsLayout() }),
+                ? {
+                    idealWindowLayout: createDefaultIdealWindowLayout({ heightRatio: workbenchLayoutDefaults.ideal.resultsHeightRatio }),
+                    liveWorkspaceSplitRatio: workbenchLayoutDefaults.ideal.liveWorkspaceSplitRatio,
+                  }
+                : {
+                    standardResultsLayout: createDefaultStandardResultsLayout({ heightRatio: workbenchLayoutDefaults.standard.resultsHeightRatio }),
+                    liveWorkspaceSplitRatio: workbenchLayoutDefaults.standard.liveWorkspaceSplitRatio,
+                  }),
             }
           : file,
       ),
     );
     setOpenTopMenu(null);
-    pushLog(`${activeFile.name}: layout reset to 3D Preview + Realtime Data / Charts`, 'warning');
+    pushLog(workbenchCopy.logs.layoutReset(activeFile.name), 'warning');
   };
 
   const selectFile = (file: WorkbenchFileState) => {
@@ -2951,7 +3436,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         runState: 'paused',
         updatedAt: Date.now(),
       }));
-      pushLog(`${activeFile.name}: auto-paused when switching files.`, 'warning');
+      pushLog(workbenchCopy.logs.autoPausedSwitchFile(activeFile.name), 'warning');
     }
 
     setActiveFileId(file.id);
@@ -2969,7 +3454,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     renamingFileIdRef.current = null;
     setRenamingFileId(null);
     setSamplingPresetMenuOpen(false);
-    pushLog(`File tab selected: ${file.name}`);
+    pushLog(workbenchCopy.logs.fileSelected(file.name));
   };
 
   const renderIdealControls = () => {
@@ -2990,10 +3475,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
       : formatMetric(relationVariableValue, scanDecimals);
     const scanTitle =
       relationVariableKey === 'targetTemperature'
-        ? 'Target temperature'
+        ? workbenchCopy.parameters.targetTemperature
         : relationVariableKey === 'L'
-          ? 'Box length L'
-          : 'Particle count N';
+          ? workbenchCopy.parameters.boxLength
+          : workbenchCopy.parameters.particleCount;
     const scanSliderClass = [
       'studio-ideal-scan-slider',
       scanSliderThumbHover ? 'studio-ideal-scan-slider-thumb-hover' : '',
@@ -3008,16 +3493,21 @@ const WorkbenchStudioPrototype: React.FC = () => {
         preset.equilibriumTime === activeFile.params.equilibriumTime &&
         preset.statsDuration === activeFile.params.statsDuration,
     );
-    const samplingPresetLabel = activeSamplingPreset?.label ?? 'Custom';
+    const samplingPresetLabel = activeSamplingPreset
+      ? workbenchCopy.parameters.samplingPresets[activeSamplingPreset.key]
+      : workbenchCopy.parameters.customPreset;
     const samplingPresetDescription = activeSamplingPreset
-      ? `${activeSamplingPreset.equilibriumTime}s eq / ${activeSamplingPreset.statsDuration}s stats`
-      : `${formatMetric(activeFile.params.equilibriumTime, 1)}s eq / ${formatMetric(activeFile.params.statsDuration, 1)}s stats`;
+      ? workbenchCopy.parameters.samplingDuration(activeSamplingPreset.equilibriumTime, activeSamplingPreset.statsDuration)
+      : workbenchCopy.parameters.samplingDuration(
+          Number(formatMetric(activeFile.params.equilibriumTime, 1)),
+          Number(formatMetric(activeFile.params.statsDuration, 1)),
+        );
 
     return (
       <div className="studio-ideal-controls" aria-disabled={parameterControlsLocked}>
         <section>
-          <h4>Relation</h4>
-          <div className="studio-ideal-relation-buttons" role="tablist" aria-label="Ideal gas relation">
+          <h4>{workbenchCopy.parameters.relation}</h4>
+          <div className="studio-ideal-relation-buttons" role="tablist" aria-label={workbenchCopy.parameters.relation}>
             {idealRelationOptions.map((option) => (
               <button
                 type="button"
@@ -3035,7 +3525,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         </section>
 
         <section>
-          <h4>Scan variable</h4>
+          <h4>{workbenchCopy.parameters.scanVariable}</h4>
           <div className="studio-ideal-variable-card studio-ideal-scan-control">
             <div className="studio-ideal-scan-value-row">
               <div>
@@ -3148,7 +3638,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         </section>
 
         <section>
-          <h4>Sampling preset</h4>
+          <h4>{workbenchCopy.parameters.samplingPreset}</h4>
           <div
             ref={samplingPresetSelectRef}
             className={`studio-ideal-preset-select ${samplingPresetMenuOpen ? 'studio-ideal-preset-select-open' : ''}`}
@@ -3170,11 +3660,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 className={`studio-ideal-preset-chevron ${samplingPresetMenuOpen ? 'studio-ideal-preset-chevron-open' : ''}`}
               />
             </button>
-            <span className="studio-ideal-preset-tooltip" role="tooltip">Set sampling precision</span>
+            <span className="studio-ideal-preset-tooltip" role="tooltip">{workbenchCopy.parameters.setSamplingPrecision}</span>
             <div
               className="studio-ideal-preset-menu studio-ideal-preset-menu-overlay"
               role="listbox"
-              aria-label="Sampling preset"
+              aria-label={workbenchCopy.parameters.samplingPreset}
               aria-hidden={!samplingPresetMenuOpen}
             >
               {idealSamplingPresets.map((preset) => (
@@ -3191,8 +3681,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     applyIdealSamplingPreset(preset);
                   }}
                 >
-                  <strong>{preset.label}</strong>
-                  <span>{preset.equilibriumTime}s eq / {preset.statsDuration}s stats</span>
+                  <strong>{workbenchCopy.parameters.samplingPresets[preset.key]}</strong>
+                  <span>{workbenchCopy.parameters.samplingDuration(preset.equilibriumTime, preset.statsDuration)}</span>
                 </button>
               ))}
             </div>
@@ -3205,16 +3695,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const renderGeneralSettingsWindow = () => {
     if (!settingsGeneralOpen) return null;
 
-    const themeOptions: Array<{ key: WorkbenchThemePreference; label: string; hint: string }> = [
-      { key: 'system', label: 'System', hint: 'Follow OS preference' },
-      { key: 'light', label: 'Light', hint: 'Bright workspace preview' },
-      { key: 'dark', label: 'Dark', hint: 'Dark workspace preview' },
-    ];
-    const languageOptions: Array<{ key: WorkbenchLanguagePreference; label: string; hint: string }> = [
-      { key: 'zh-CN', label: '简体中文', hint: 'Simplified Chinese interface' },
-      { key: 'zh-TW', label: '繁體中文', hint: 'Traditional Chinese interface' },
-      { key: 'en', label: 'English', hint: 'English interface' },
-    ];
+    const themeOptions: Array<{ key: WorkbenchThemePreference; label: string; hint: string }> = (
+      ['system', 'light', 'dark'] as WorkbenchThemePreference[]
+    ).map((key) => ({ key, ...workbenchCopy.settings.themeOptions[key] }));
+    const languageOptions: Array<{ key: WorkbenchLanguagePreference; label: string; hint: string }> = (
+      ['zh-CN', 'zh-TW', 'en'] as WorkbenchLanguagePreference[]
+    ).map((key) => ({ key, ...workbenchCopy.settings.languageOptions[key] }));
     const activeLanguage = languageOptions.find((option) => option.key === settingsLanguagePreference) ?? languageOptions[0];
 
     return (
@@ -3228,10 +3714,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
         >
           <div className="studio-settings-header">
             <div>
-              <strong id="studio-settings-title">General Settings</strong>
-              <span>Theme and language preferences</span>
+              <strong id="studio-settings-title">{workbenchCopy.settings.title}</strong>
+              <span>{workbenchCopy.settings.subtitle}</span>
             </div>
-            <button type="button" className="studio-settings-close" aria-label="Close General Settings" onClick={closeGeneralSettings}>
+            <button type="button" className="studio-settings-close" aria-label={workbenchCopy.settings.closeAria} onClick={closeGeneralSettings}>
               <X size={15} />
             </button>
           </div>
@@ -3239,10 +3725,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div className="studio-settings-body">
             <section className="studio-settings-section">
               <div className="studio-settings-section-title">
-                <strong>Theme</strong>
-                <span>Use system, light, or dark mode</span>
+                <strong>{workbenchCopy.settings.theme}</strong>
+                <span>{workbenchCopy.settings.themeHint}</span>
               </div>
-              <div className="studio-settings-theme-grid" role="radiogroup" aria-label="Theme">
+              <div className="studio-settings-theme-grid" role="radiogroup" aria-label={workbenchCopy.settings.theme}>
                 {themeOptions.map((option) => (
                   <button
                     type="button"
@@ -3270,8 +3756,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
             <section className="studio-settings-section">
               <div className="studio-settings-section-title">
-                <strong>Language</strong>
-                <span>Choose the interface language</span>
+                <strong>{workbenchCopy.settings.language}</strong>
+                <span>{workbenchCopy.settings.languageHint}</span>
               </div>
               <div className={`studio-settings-language-select ${settingsLanguageMenuOpen ? 'studio-settings-language-select-open' : ''}`}>
                 <button
@@ -3290,7 +3776,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     className={`studio-settings-language-chevron ${settingsLanguageMenuOpen ? 'studio-settings-language-chevron-open' : ''}`}
                   />
                 </button>
-                <div className="studio-settings-language-menu" role="listbox" aria-label="Language" aria-hidden={!settingsLanguageMenuOpen}>
+                <div className="studio-settings-language-menu" role="listbox" aria-label={workbenchCopy.settings.language} aria-hidden={!settingsLanguageMenuOpen}>
                   {languageOptions.map((option) => (
                     <button
                       type="button"
@@ -3305,6 +3791,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
                       <span>{option.hint}</span>
                     </button>
                   ))}
+                </div>
+              </div>
+            </section>
+
+            <section className="studio-settings-section">
+              <div className="studio-settings-shortcuts-card">
+                <div className="studio-settings-shortcuts-copy">
+                  <strong>{workbenchCopy.shortcuts.title}</strong>
+                  <span>{workbenchCopy.shortcuts.hint}</span>
+                </div>
+                <div className="studio-settings-shortcuts-list" aria-label={workbenchCopy.shortcuts.title}>
+                  <span><kbd>Ctrl+Z</kbd>{workbenchCopy.shortcuts.undo}</span>
+                  <span><kbd>Ctrl+Y</kbd><kbd>Ctrl+Shift+Z</kbd>{workbenchCopy.shortcuts.redo}</span>
+                  <span><kbd>Esc</kbd>{workbenchCopy.shortcuts.closeSettings}</span>
                 </div>
               </div>
             </section>
@@ -3332,11 +3832,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <div className="studio-command-menu studio-command-menu-new" ref={topMenuRef}>
           <button type="button" onClick={() => createFile('standard')}>
             <Activity size={14} />
-            <span>Standard Simulation Study</span>
+            <span>{workbenchCopy.menus.standardStudy}</span>
           </button>
           <button type="button" onClick={() => createFile('ideal')}>
             <FlaskConical size={14} />
-            <span>Ideal Gas Simulation Study</span>
+            <span>{workbenchCopy.menus.idealStudy}</span>
           </button>
         </div>
       );
@@ -3347,17 +3847,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <div className="studio-command-menu studio-command-menu-edit" ref={topMenuRef}>
           <button type="button" onClick={undoLastEdit} disabled={undoStack.length === 0}>
             <Undo2 size={14} />
-            <span>Undo</span>
-            <strong>{undoStack[undoStack.length - 1]?.label ?? 'empty'}</strong>
+            <span>{workbenchCopy.menus.undo}</span>
+            <strong>{undoStack[undoStack.length - 1]?.label ?? workbenchCopy.menus.empty}</strong>
           </button>
           <button type="button" onClick={redoLastEdit} disabled={redoStack.length === 0}>
             <Redo2 size={14} />
-            <span>Redo</span>
-            <strong>{redoStack[redoStack.length - 1]?.label ?? 'empty'}</strong>
+            <span>{workbenchCopy.menus.redo}</span>
+            <strong>{redoStack[redoStack.length - 1]?.label ?? workbenchCopy.menus.empty}</strong>
           </button>
           <button type="button" onClick={clearEditHistory} disabled={undoStack.length === 0 && redoStack.length === 0}>
             <RotateCcw size={14} />
-            <span>Clear Edit History</span>
+            <span>{workbenchCopy.menus.clearEditHistory}</span>
             <strong>{undoStack.length + redoStack.length}</strong>
           </button>
         </div>
@@ -3367,22 +3867,23 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (openTopMenu === 'window') {
       return (
         <div className="studio-command-menu studio-command-menu-window" ref={topMenuRef}>
-          <div className="studio-command-menu-title">Panels for {activeFile.name}</div>
+          <div className="studio-command-menu-title">{workbenchCopy.menus.panelsFor(activeFile.name)}</div>
           {availablePanels.filter((panel) => !(activeFile.kind === 'ideal' && isIdealResultWindowKey(panel.key))).map((panel) => {
             const locked = LOCKED_PANEL_KEYS.includes(panel.key);
             const visible = isWindowPanelVisible(panel.key);
+            const switchOn = locked || visible;
             return (
               <React.Fragment key={panel.key}>
                 <div className="studio-window-panel-row">
                   {locked ? <LockKeyhole size={14} /> : panel.icon}
                   <span>{panel.title}</span>
-                  <span className="studio-window-panel-status">{locked ? 'locked' : visible ? 'shown' : 'off'}</span>
+                  <span className="studio-window-panel-status">{locked ? workbenchCopy.files.locked : visible ? workbenchCopy.files.shown : workbenchCopy.files.off}</span>
                   <button
                     type="button"
-                    className={`studio-window-switch ${visible ? 'studio-window-switch-on' : 'studio-window-switch-off'}${locked ? ' studio-window-switch-locked' : ''}`}
+                    className={`studio-window-switch ${switchOn ? 'studio-window-switch-on' : 'studio-window-switch-off'}${locked ? ' studio-window-switch-locked' : ''}`}
                     role="switch"
-                    aria-checked={visible}
-                    aria-label={`${panel.title} ${visible ? 'shown' : 'off'}`}
+                    aria-checked={switchOn}
+                    aria-label={`${panel.title} ${locked ? workbenchCopy.files.locked : visible ? workbenchCopy.files.shown : workbenchCopy.files.off}`}
                     onClick={(event) => {
                       event.stopPropagation();
                       toggleWindowPanel(panel.key);
@@ -3397,8 +3898,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
           })}
           <button type="button" onClick={resetLayout}>
             <RotateCcw size={14} />
-            <span>Reset Default Layout</span>
-            <strong>default</strong>
+            <span>{workbenchCopy.menus.resetDefaultLayout}</span>
+            <strong>{workbenchCopy.menus.default}</strong>
           </button>
         </div>
       );
@@ -3411,38 +3912,22 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <div className="studio-command-menu studio-command-menu-settings" ref={topMenuRef}>
           <button type="button" onClick={openGeneralSettings}>
             <Settings size={14} />
-            <span>General</span>
+            <span>{workbenchCopy.menus.general}</span>
             <strong>{`${settingsThemePreference} / ${settingsLanguagePreference}`}</strong>
           </button>
           <button type="button" onClick={() => handleAction('Performance mode')}>
             <Wrench size={14} />
-            <span>Performance Mode</span>
+            <span>{workbenchCopy.menus.performanceMode}</span>
           </button>
           <button type="button" onClick={() => pushLog(exportEnvironmentDetail ?? exportCopy.detail, exportAvailable ? 'info' : 'warning')}>
             <Download size={14} />
-            <span>Export Environment</span>
+            <span>{workbenchCopy.menus.exportEnvironment}</span>
             <strong>{exportEnvironmentStatus}</strong>
           </button>
-          <button type="button" onClick={saveCurrentIdealResultWindowLayoutAsDefault}>
+          <button type="button" onClick={saveCurrentWorkbenchLayoutAsDefault}>
             <Archive size={14} />
-            <span>Save Current Ideal Result Window Layout as Default</span>
-            <strong>{`${Math.round(idealResultWindowDefaults.heightRatio * 100)}%`}</strong>
-          </button>
-          <div className="studio-command-menu-title">Keyboard Shortcuts</div>
-          <button type="button" onClick={undoLastEdit} disabled={undoStack.length === 0}>
-            <Undo2 size={14} />
-            <span>Undo Edit</span>
-            <strong>Ctrl+Z</strong>
-          </button>
-          <button type="button" onClick={redoLastEdit} disabled={redoStack.length === 0}>
-            <Redo2 size={14} />
-            <span>Redo Edit</span>
-            <strong>Ctrl+Y</strong>
-          </button>
-          <button type="button" onClick={() => pushLog('Redo shortcut: Ctrl+Y or Ctrl+Shift+Z. Undo shortcut: Ctrl+Z.', 'info')}>
-            <Keyboard size={14} />
-            <span>Shortcut Help</span>
-            <strong>Ctrl+Shift+Z</strong>
+            <span>{workbenchCopy.menus.saveWorkbenchLayoutDefault}</span>
+            <strong>{`${Math.round((activeFile.kind === 'ideal' ? workbenchLayoutDefaults.ideal.resultsHeightRatio : workbenchLayoutDefaults.standard.resultsHeightRatio) * 100)}% / ${Math.round((activeFile.kind === 'ideal' ? workbenchLayoutDefaults.ideal.liveWorkspaceSplitRatio : workbenchLayoutDefaults.standard.liveWorkspaceSplitRatio) * 100)}%`}</strong>
           </button>
         </div>
       );
@@ -3453,15 +3938,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <div className="studio-command-menu studio-command-menu-help" ref={topMenuRef}>
           <button type="button" onClick={() => handleAction('Open user guide')}>
             <BookOpen size={14} />
-            <span>User Guide</span>
+            <span>{workbenchCopy.menus.userGuide}</span>
           </button>
           <button type="button" onClick={() => handleAction('Open theory PDF')}>
             <FileText size={14} />
-            <span>Theory Document PDF</span>
+            <span>{workbenchCopy.menus.theoryPdf}</span>
           </button>
           <button type="button" onClick={() => handleAction('About workbench')}>
             <Archive size={14} />
-            <span>About Hard Sphere Workbench</span>
+            <span>{workbenchCopy.menus.about}</span>
           </button>
         </div>
       );
@@ -3474,11 +3959,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
     <div className={className}>
       <button type="button" onClick={() => createFile('standard')}>
         <Activity size={14} />
-        Create a Standard Simulation Study
+        {workbenchCopy.files.createStandard}
       </button>
       <button type="button" onClick={() => createFile('ideal')}>
         <FlaskConical size={14} />
-        Create an Ideal Gas Simulation Study
+        {workbenchCopy.files.createIdeal}
       </button>
     </div>
   );
@@ -3486,9 +3971,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const renderEmptyWorkbench = () => (
     <div className="studio-empty-workbench">
       <div>
-        <span className="studio-empty-kicker">No open study</span>
-        <h2>Start a new hard-sphere workbench file</h2>
-        <p>Create a standard simulation or an ideal-gas relation study to restore the preview, charts, results, and parameter panels.</p>
+        <span className="studio-empty-kicker">{workbenchCopy.files.noOpenStudy}</span>
+        <h2>{workbenchCopy.files.emptyTitle}</h2>
+        <p>{workbenchCopy.files.emptyBody}</p>
         {renderEmptyStudyActions()}
       </div>
     </div>
@@ -3517,8 +4002,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
       <div className="studio-preview-metrics">
         <div className="studio-metric"><span>Temperature</span><strong>{activeFile.stats.temperature.toFixed(3)}</strong></div>
         <div className="studio-metric"><span>Pressure</span><strong>{activeFile.stats.pressure.toFixed(4)}</strong></div>
-        <div className="studio-metric"><span>Mean speed</span><strong>{activeFile.stats.meanSpeed.toFixed(3)}</strong></div>
-        <div className="studio-metric"><span>Run state</span><strong>{activeFile.runState}</strong></div>
+        <div className="studio-metric"><span>{workbenchCopy.results.meanSpeed}</span><strong>{activeFile.stats.meanSpeed.toFixed(3)}</strong></div>
+        <div className="studio-metric"><span>{workbenchCopy.results.finalState}</span><strong>{getLocalizedStatusValue(activeFile.runState, workbenchCopy)}</strong></div>
       </div>
     </div>
   );
@@ -3532,7 +4017,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       <div className={`studio-live-chart studio-live-chart-${accent}`}>
         <div className="studio-live-chart-header">
           <span>{title}</span>
-          <strong>{sampleCount > 0 ? `${sampleCount} samples` : 'waiting'}</strong>
+            <strong>{sampleCount > 0 ? workbenchCopy.results.samples(sampleCount) : workbenchCopy.results.waiting}</strong>
         </div>
         <div className="studio-live-chart-bars">
           {compactBins.length > 0 ? (
@@ -3576,7 +4061,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       <div className="studio-live-chart studio-ideal-pressure-chart">
         <div className="studio-live-chart-header">
           <span>{getRelationLabel(activeFile.relation)} pressure trace</span>
-          <strong>{summary ? `${summary.sampleCount} samples` : 'waiting'}</strong>
+            <strong>{summary ? workbenchCopy.results.samples(summary.sampleCount) : workbenchCopy.results.waiting}</strong>
         </div>
         <div className="studio-ideal-pressure-bars">
           {history.length > 0 ? (
@@ -3598,8 +4083,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
           )}
         </div>
         <div className="studio-live-chart-axis">
-          <span>measured bars</span>
-          <span>ideal line</span>
+          <span>{workbenchCopy.results.measuredBars}</span>
+          <span>{workbenchCopy.results.idealLine}</span>
           <span>{getRelationLabel(activeFile.relation)}</span>
         </div>
       </div>
@@ -3615,12 +4100,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     return (
       <div className="studio-ideal-point-strip">
-        <div><span>Scan</span><strong>{formatMetric(relationValue, activeFile.relation === 'pn' ? 0 : 3)}</strong></div>
-        <div><span>Measured P</span><strong>{formatMaybeMetric(summary?.meanPressure, 4)}</strong></div>
-        <div><span>Ideal P</span><strong>{formatMaybeMetric(summary?.meanIdealPressure, 4)}</strong></div>
-        <div><span>Gap</span><strong>{summary?.relativeGap === null || summary?.relativeGap === undefined ? '--' : `${formatMetric(summary.relativeGap * 100, 2)}%`}</strong></div>
-        <div><span>Verdict</span><strong>{analysis?.verdictState ?? 'insufficient'}</strong></div>
-        <div><span>State</span><strong>{activeFile.needsReset ? 'will apply on Start' : activeFile.runState}</strong></div>
+        <div><span>{workbenchCopy.results.scan}</span><strong>{formatMetric(relationValue, activeFile.relation === 'pn' ? 0 : 3)}</strong></div>
+        <div><span>{workbenchCopy.results.measuredPressure}</span><strong>{formatMaybeMetric(summary?.meanPressure, 4)}</strong></div>
+        <div><span>{workbenchCopy.results.idealPressure}</span><strong>{formatMaybeMetric(summary?.meanIdealPressure, 4)}</strong></div>
+        <div><span>{workbenchCopy.results.gap}</span><strong>{summary?.relativeGap === null || summary?.relativeGap === undefined ? '--' : `${formatMetric(summary.relativeGap * 100, 2)}%`}</strong></div>
+        <div><span>{workbenchCopy.results.status}</span><strong>{getLocalizedStatusValue(analysis?.verdictState ?? 'insufficient', workbenchCopy)}</strong></div>
+        <div><span>{workbenchCopy.results.finalState}</span><strong>{activeFile.needsReset ? workbenchCopy.parameters.idealRuntimeOnStart : getLocalizedStatusValue(activeFile.runState, workbenchCopy)}</strong></div>
       </div>
     );
   };
@@ -3684,8 +4169,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <section className="studio-data-table-section">
           <div className="studio-results-subheader">
             <div>
-              <strong>{getRelationLabel(activeFile.relation)} points</strong>
-              <span>{points.length} recorded points for the active relation</span>
+              <strong>{workbenchCopy.results.pointsTitle(getRelationLabel(activeFile.relation))}</strong>
+              <span>{workbenchCopy.results.recordedPoints(points.length)}</span>
             </div>
             <div className={`studio-results-clear-actions ${pendingClearRelationKey === clearKey ? 'studio-results-clear-actions-pending' : ''}`}>
               <button
@@ -3695,7 +4180,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 disabled={points.length === 0}
               >
                 <Trash2 size={13} />
-                {pendingClearRelationKey === clearKey ? 'Confirm Clear' : 'Clear Relation'}
+                {pendingClearRelationKey === clearKey ? workbenchCopy.results.confirmClear : workbenchCopy.results.clearRelation}
               </button>
               {pendingClearRelationKey === clearKey ? (
                 <button
@@ -3703,14 +4188,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   className="studio-results-clear-button studio-results-clear-cancel"
                   onClick={cancelClearIdealRelation}
                 >
-                  Cancel
+                  {workbenchCopy.results.cancel}
                 </button>
               ) : null}
             </div>
           </div>
           {points.length === 0 ? (
             <div className="studio-panel-note">
-              Run the active ideal-gas point to record measured pressure, ideal pressure, and relation metadata.
+              {workbenchCopy.results.runToRecord}
             </div>
           ) : (
             <table className="studio-table studio-ideal-points-table">
@@ -3724,8 +4209,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   <th>measured P</th>
                   <th>ideal P</th>
                   <th>gap</th>
-                  <th>time</th>
-                  <th>action</th>
+                  <th>{workbenchCopy.results.tableTime}</th>
+                  <th>{workbenchCopy.results.tableAction}</th>
                 </tr>
               </thead>
               <tbody>
@@ -3773,7 +4258,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.measured) && point.x > 0);
 
     if (points.length === 0) {
-      return <div className="studio-final-figure-empty">no points</div>;
+      return <div className="studio-final-figure-empty">{workbenchCopy.results.noPoints}</div>;
     }
 
     const xValues = points.map((point) => point.x);
@@ -3852,16 +4337,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return (
       <div className="studio-data-table-panel">
         <section className="studio-data-table-section">
-          <h4>Final result state</h4>
+          <h4>{workbenchCopy.results.finalState}</h4>
           <table className="studio-table">
             <tbody>
-              <tr><th>Metric</th><th>Value</th><th>Status</th></tr>
-              <tr><td>final speed samples</td><td>{resultSummary.speedSampleCount}</td><td>{resultSummary.ready ? 'ready' : 'not ready'}</td></tr>
-              <tr><td>final energy samples</td><td>{resultSummary.energySampleCount}</td><td>{resultSummary.ready ? 'ready' : 'not ready'}</td></tr>
-              <tr><td>temp history samples</td><td>{resultSummary.tempHistoryCount}</td><td>{resultSummary.ready ? 'ready' : 'not ready'}</td></tr>
-              <tr><td>final data ready</td><td>{resultSummary.ready ? 'yes' : 'no'}</td><td>{resultSummary.runState}</td></tr>
-              <tr><td>energy drift</td><td>{resultSummary.energyDriftPercent === null ? '--' : `${formatMetric(resultSummary.energyDriftPercent, 4)}%`}</td><td>diagnostic</td></tr>
-              <tr><td>mean abs temp error</td><td>{resultSummary.temperatureErrorMeanAbs === null ? '--' : formatMetric(resultSummary.temperatureErrorMeanAbs, 5)}</td><td>diagnostic</td></tr>
+              <tr><th>{workbenchCopy.results.metric}</th><th>{workbenchCopy.results.value}</th><th>{workbenchCopy.results.status}</th></tr>
+              <tr><td>{workbenchCopy.results.finalSpeedSamples}</td><td>{resultSummary.speedSampleCount}</td><td>{resultSummary.ready ? workbenchCopy.results.ready : workbenchCopy.results.notReady}</td></tr>
+              <tr><td>{workbenchCopy.results.finalEnergySamples}</td><td>{resultSummary.energySampleCount}</td><td>{resultSummary.ready ? workbenchCopy.results.ready : workbenchCopy.results.notReady}</td></tr>
+              <tr><td>{workbenchCopy.results.tempHistorySamples}</td><td>{resultSummary.tempHistoryCount}</td><td>{resultSummary.ready ? workbenchCopy.results.ready : workbenchCopy.results.notReady}</td></tr>
+                <tr><td>{workbenchCopy.results.finalDataReady}</td><td>{resultSummary.ready ? workbenchCopy.results.yes : workbenchCopy.results.no}</td><td>{getLocalizedStatusValue(resultSummary.runState, workbenchCopy)}</td></tr>
+              <tr><td>{workbenchCopy.results.energyDrift}</td><td>{resultSummary.energyDriftPercent === null ? '--' : `${formatMetric(resultSummary.energyDriftPercent, 4)}%`}</td><td>{workbenchCopy.results.diagnostic}</td></tr>
+              <tr><td>{workbenchCopy.results.meanAbsTempError}</td><td>{resultSummary.temperatureErrorMeanAbs === null ? '--' : formatMetric(resultSummary.temperatureErrorMeanAbs, 5)}</td><td>{workbenchCopy.results.diagnostic}</td></tr>
             </tbody>
           </table>
         </section>
@@ -3898,7 +4383,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           : mode === 'pointsCsv'
             ? 'points CSV'
             : 'result figures';
-    const payload = createWorkbenchExportPayload(activeFile, mode);
+    const payload = createWorkbenchExportPayload(activeFile, mode, settingsLanguagePreference);
     const bridge = window.hardSphereLabExporter;
 
     if (!exportAvailable) {
@@ -3966,12 +4451,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div className="studio-analysis-cell"><span>Final time</span><strong>{formatMetric(resultSummary.finalTime, 2)} s</strong></div>
           <div className="studio-analysis-cell"><span>Final temperature</span><strong>{formatMetric(resultSummary.temperature)}</strong></div>
           <div className="studio-analysis-cell"><span>Final pressure</span><strong>{formatMetric(resultSummary.pressure, 4)}</strong></div>
-          <div className="studio-analysis-cell"><span>Mean speed</span><strong>{formatMetric(resultSummary.meanSpeed)}</strong></div>
+            <div className="studio-analysis-cell"><span>{workbenchCopy.results.meanSpeed}</span><strong>{formatMetric(resultSummary.meanSpeed)}</strong></div>
           <div className="studio-analysis-cell"><span>RMS speed</span><strong>{formatMetric(resultSummary.rmsSpeed)}</strong></div>
-          <div className="studio-analysis-cell"><span>Energy drift</span><strong>{resultSummary.energyDriftPercent === null ? '--' : `${formatMetric(resultSummary.energyDriftPercent, 4)}%`}</strong></div>
+            <div className="studio-analysis-cell"><span>{workbenchCopy.results.energyDrift}</span><strong>{resultSummary.energyDriftPercent === null ? '--' : `${formatMetric(resultSummary.energyDriftPercent, 4)}%`}</strong></div>
           <div className="studio-analysis-cell"><span>Speed bins</span><strong>{resultSummary.speedBinCount}</strong></div>
           <div className="studio-analysis-cell"><span>Energy bins</span><strong>{resultSummary.energyBinCount}</strong></div>
-          <div className="studio-analysis-cell"><span>Temp samples</span><strong>{resultSummary.tempHistoryCount}</strong></div>
+            <div className="studio-analysis-cell"><span>{workbenchCopy.results.tempSamples}</span><strong>{resultSummary.tempHistoryCount}</strong></div>
         </div>
       </div>
     );
@@ -4078,14 +4563,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div className="studio-ideal-results-card-header">
             <div>
               <strong>Experiment status</strong>
-              <span>{getRelationLabel(activeFile.relation)} / {idealAnalysis.sortedPoints.length} points / {idealAnalysis.verdictState}</span>
+              <span>
+                {getRelationLabel(activeFile.relation)} / {workbenchCopy.results.recordedPoints(idealAnalysis.sortedPoints.length)} / {getLocalizedStatusValue(idealAnalysis.verdictState, workbenchCopy)}
+              </span>
             </div>
           </div>
           <div className="studio-ideal-results-status-grid">
             <div><span>Active</span><strong>{getRelationLabel(activeFile.relation)}</strong></div>
             <div><span>Points</span><strong>{idealAnalysis.sortedPoints.length}</strong></div>
-            <div><span>Verdict</span><strong>{idealAnalysis.verdictState}</strong></div>
-            <div><span>Sampling</span><strong>{activeFile.needsReset ? 'will apply on Start' : activeFile.runState}</strong></div>
+            <div><span>{workbenchCopy.results.status}</span><strong>{getLocalizedStatusValue(idealAnalysis.verdictState, workbenchCopy)}</strong></div>
+            <div><span>{workbenchCopy.results.finalState}</span><strong>{activeFile.needsReset ? workbenchCopy.parameters.idealRuntimeOnStart : getLocalizedStatusValue(activeFile.runState, workbenchCopy)}</strong></div>
           </div>
         </div>
         {renderExperimentPointsPanel()}
@@ -4212,8 +4699,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return (
         <div className="studio-empty">
           <div>
-            <strong>Open a Results child window</strong>
-            <p>Use Points or Verification under the Results folder.</p>
+            <strong>{workbenchCopy.results.title}</strong>
+            <p>{workbenchCopy.panels.pointsTitle} / {workbenchCopy.panels.verificationTitle}</p>
           </div>
         </div>
       );
@@ -4223,11 +4710,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
       <div className="studio-results-panel">
         <div className="studio-results-toolbar">
           <div className="studio-results-title">
-            <strong>Results</strong>
+            <strong>{workbenchCopy.results.title}</strong>
             <span>
               {activeFile.kind === 'ideal'
-                ? `${getRelationLabel(activeFile.relation)} ${currentResultsReady ? 'experiment result ready' : 'waiting for recorded points'}`
-                : resultSummary.ready ? 'final result package ready' : 'waiting for completed standard simulation'}
+                ? (currentResultsReady ? workbenchCopy.results.resultsReady(getRelationLabel(activeFile.relation)) : workbenchCopy.results.waitingForRecordedPoints(getRelationLabel(activeFile.relation)))
+                : resultSummary.ready ? workbenchCopy.results.ready : workbenchCopy.results.notReady}
             </span>
           </div>
           <div className="studio-results-actions">
@@ -4237,11 +4724,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
               onClick={() => handleExportAction('report')}
             >
               <Download size={13} />
-              Export Report
+              {workbenchCopy.results.reportPdf}
             </button>
             <button
               type="button"
-              aria-label="Close Results"
+              aria-label={`${workbenchCopy.actions.close} ${workbenchCopy.results.title}`}
               onClick={(event) => {
                 event.stopPropagation();
                 closePanel('results');
@@ -4252,7 +4739,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           </div>
         </div>
 
-        <div className="studio-results-tabs" role="tablist" aria-label="Results sections">
+        <div className="studio-results-tabs" role="tablist" aria-label={workbenchCopy.results.title}>
           {(() => {
             const openStandardResultTabs = resultsSections.filter((section) => standardResultsLayout.openTabs.includes(section.key));
             return openStandardResultTabs.map((section) => (
@@ -4270,7 +4757,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 role="button"
                 tabIndex={0}
                 className="studio-results-tab-close"
-                aria-label={`Close ${section.title} tab`}
+                aria-label={`${workbenchCopy.actions.close} ${section.title}`}
                 onClick={(event) => {
                   event.stopPropagation();
                   closeStandardResultsTab(section.key);
@@ -4435,8 +4922,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
             type="button"
             className={`studio-run-control studio-run-control-${activeFile.runState === 'running' ? 'pause' : 'start'}`}
             onClick={toggleActiveFileRunState}
-            title={activeFile.runState === 'running' ? 'Pause' : activeFile.runState === 'paused' ? 'Resume' : 'Run'}
-            aria-label={activeFile.runState === 'running' ? 'Pause active simulation' : 'Run active simulation'}
+            title={activeFile.runState === 'running' ? workbenchCopy.actions.pause : workbenchCopy.actions.start}
+            aria-label={activeFile.runState === 'running' ? workbenchCopy.actions.pause : workbenchCopy.actions.start}
           >
             {activeFile.runState === 'running' ? (
               <Pause size={14} strokeWidth={2.5} />
@@ -4449,8 +4936,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
               type="button"
               className="studio-run-control studio-run-control-stop"
               onClick={stopActiveFile}
-              title="Stop"
-              aria-label="Stop active simulation"
+              title={workbenchCopy.actions.stop}
+              aria-label={workbenchCopy.actions.stop}
             >
               <Square size={13} strokeWidth={2.5} />
             </button>
@@ -4476,7 +4963,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     if (!activeFile.visiblePanels.includes('results')) return null;
 
-    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, idealResultWindowDefaults);
+    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, workbenchLayoutDefaults.ideal);
     const activePanel = idealResultWindowPanels.find((panel) => panel.key === layout.activeIdealResultTab)
       ?? idealResultWindowPanels[0];
     const openIdealResultTabs = idealResultWindowPanels.filter((panel) => layout.openTabs.includes(panel.key));
@@ -4506,7 +4993,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             <div className="studio-results-actions">
               <button
                 type="button"
-                aria-label="Close ideal Results"
+                aria-label={`${workbenchCopy.actions.close} ${workbenchCopy.results.title}`}
                 onClick={(event) => {
                   event.stopPropagation();
                   closeIdealResultsWindow();
@@ -4532,7 +5019,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   role="button"
                   tabIndex={0}
                   className="studio-results-tab-close"
-                  aria-label={`Close ${panel.title} tab`}
+                  aria-label={`${workbenchCopy.actions.close} ${panel.title}`}
                   onClick={(event) => {
                     event.stopPropagation();
                     closeIdealResultTab(panel.key);
@@ -4581,7 +5068,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const resolvedWorkbenchTheme = settingsThemePreference === 'system' ? 'dark' : settingsThemePreference;
 
   return (
-    <div className={`studio-workbench studio-theme-${resolvedWorkbenchTheme}`}>
+    <div className={`studio-workbench studio-theme-${resolvedWorkbenchTheme}`} data-workbench-language={settingsLanguagePreference}>
       {scanInputToast ? (
         <div className="studio-scan-input-toast" role="status">
           {scanInputToast}
@@ -4596,37 +5083,37 @@ const WorkbenchStudioPrototype: React.FC = () => {
             <span>Hard Sphere Workbench</span>
           </div>
           <nav className="studio-top-commands" aria-label="Top commands" ref={topCommandsRef}>
-            {renderTopCommand('new', 'New Study', <FilePlus2 size={14} />)}
-            {renderTopCommand('edit', 'Edit', <Undo2 size={14} />)}
-            {renderTopCommand('window', 'Window', <Wrench size={14} />)}
-            {renderTopCommand('settings', 'Settings', <Settings size={14} />)}
-            {renderTopCommand('help', 'Help', <BookOpen size={14} />)}
+            {renderTopCommand('new', workbenchCopy.menus.newStudy, <FilePlus2 size={14} />)}
+            {renderTopCommand('edit', workbenchCopy.menus.edit, <Undo2 size={14} />)}
+            {renderTopCommand('window', workbenchCopy.menus.window, <Wrench size={14} />)}
+            {renderTopCommand('settings', workbenchCopy.menus.settings, <Settings size={14} />)}
+            {renderTopCommand('help', workbenchCopy.menus.help, <BookOpen size={14} />)}
           </nav>
           {renderTopMenu()}
         </header>
         {renderGeneralSettingsWindow()}
 
         <main className={`studio-body ${leftCollapsed ? 'studio-left-collapsed' : ''}`} style={workbenchStyle}>
-          <aside className="studio-sidebar" aria-label="Open Files and Panels">
+          <aside className="studio-sidebar" aria-label={`${workbenchCopy.files.openFiles} ${workbenchCopy.files.panels}`}>
             <div className="studio-panel-header">
-              <span>Open Files</span>
+              <span>{workbenchCopy.files.openFiles}</span>
               <button
                 type="button"
                 className="studio-panel-collapse"
-                aria-label="Collapse Open Files sidebar"
+                aria-label={`${workbenchCopy.actions.hide} ${workbenchCopy.files.openFiles}`}
                 onClick={() => setLeftCollapsed(true)}
               >
-                Hide
+                {workbenchCopy.actions.hide}
               </button>
             </div>
             <div className="studio-sidebar-body">
               <section className={`studio-tree-section ${openFileMenuId ? 'studio-tree-section-menu-open' : ''}`}>
-                {renderSectionTitle('Files', filesSectionCollapsed, () => setFilesSectionCollapsed((current) => !current))}
+                {renderSectionTitle(workbenchCopy.files.files, filesSectionCollapsed, () => setFilesSectionCollapsed((current) => !current))}
                 <div className={`studio-tree-section-content ${filesSectionCollapsed ? 'studio-tree-section-content-collapsed' : ''}`} aria-hidden={filesSectionCollapsed}>
                   {isWorkbenchEmpty ? (
                     <div className="studio-empty-files">
-                      <strong>No open files</strong>
-                      <span>Create a study to populate the workbench.</span>
+                      <strong>{workbenchCopy.files.noOpenFiles}</strong>
+                      <span>{workbenchCopy.files.emptyHint}</span>
                       {renderEmptyStudyActions('studio-empty-file-actions')}
                     </div>
                   ) : files.map((file) => {
@@ -4716,7 +5203,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                           >
                             <button type="button" onClick={() => beginRenameFile(file)}>
                               <Pencil size={13} />
-                              Rename
+                              {workbenchCopy.files.rename}
                             </button>
                             <div className={`studio-file-menu-confirm-row ${pendingDelete ? 'studio-file-menu-confirm-row-pending' : ''}`}>
                               <button
@@ -4725,16 +5212,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
                                 onClick={() => requestDeleteWorkbenchFile(file)}
                               >
                                 <Trash2 size={13} />
-                                {pendingDelete ? 'Confirm Delete' : 'Delete'}
+                                {pendingDelete ? workbenchCopy.files.confirmDelete : workbenchCopy.files.delete}
                               </button>
                               {pendingDelete ? (
                                 <button
                                   type="button"
                                   className="studio-file-menu-cancel"
-                                  aria-label={`Cancel deleting ${file.name}`}
+                                  aria-label={`${workbenchCopy.files.cancel} ${file.name}`}
                                   onClick={cancelDeleteWorkbenchFile}
                                 >
-                                  Cancel
+                                  {workbenchCopy.files.cancel}
                                 </button>
                               ) : null}
                             </div>
@@ -4747,11 +5234,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
               </section>
 
               <section className="studio-tree-section">
-                {renderSectionTitle(isWorkbenchEmpty ? 'No open file / Panels' : `${activeFile.name} / Panels`, panelsSectionCollapsed, () => setPanelsSectionCollapsed((current) => !current))}
+                {renderSectionTitle(isWorkbenchEmpty ? `${workbenchCopy.files.noOpenFiles} / ${workbenchCopy.files.panels}` : `${activeFile.name} / ${workbenchCopy.files.panels}`, panelsSectionCollapsed, () => setPanelsSectionCollapsed((current) => !current))}
                 <div className={`studio-tree-section-content ${panelsSectionCollapsed ? 'studio-tree-section-content-collapsed' : ''}`} aria-hidden={panelsSectionCollapsed}>
                 {isWorkbenchEmpty ? (
                   <div className="studio-empty-panel-tree">
-                    <span>No panels are available until a study is open.</span>
+                    <span>{workbenchCopy.files.emptyHint}</span>
                   </div>
                 ) : availablePanels.filter((panel) => !(activeFile.kind === 'ideal' && isIdealResultWindowKey(panel.key))).map((panel) => {
                   const visible = activeFile.visiblePanels.includes(panel.key);
@@ -4829,7 +5316,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                           <button
                             type="button"
                             className="studio-panel-lock-button"
-                            aria-label={`${panel.title} is locked`}
+                            aria-label={`${panel.title} ${workbenchCopy.files.locked}`}
                             tabIndex={panelsSectionCollapsed ? -1 : 0}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -4837,10 +5324,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
                             }}
                           >
                             <LockKeyhole size={12} />
-                            locked
+                            {workbenchCopy.files.locked}
                           </button>
                         ) : (
-                          <span className="studio-tree-meta">{visible ? 'shown' : 'off'}</span>
+                          <span className="studio-tree-meta">{visible ? workbenchCopy.files.shown : workbenchCopy.files.off}</span>
                         )}
                       </div>
                       {panel.key === 'results' && activeFile.kind === 'ideal' && !resultsChildrenCollapsed ? (
@@ -4864,7 +5351,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                               {childPanel.icon}
                               <span>{childPanel.title}</span>
                               <span className="studio-tree-meta">
-                                {getIdealResultTabState(childPanel.key)}
+                                {getLocalizedTreeState(getIdealResultTabState(childPanel.key))}
                               </span>
                             </button>
                           ))}
@@ -4890,7 +5377,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                             >
                               {section.icon}
                               <span>{section.title}</span>
-                              <span className="studio-tree-meta">{getStandardResultsTabState(section.key)}</span>
+                              <span className="studio-tree-meta">{getLocalizedTreeState(getStandardResultsTabState(section.key))}</span>
                             </button>
                           ))}
                         </div>
@@ -4911,14 +5398,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
           {leftCollapsed ? (
             <button type="button" className="studio-rail-button studio-left-rail" onClick={() => setLeftCollapsed(false)}>
-              Open Files
+              {workbenchCopy.files.openFiles}
             </button>
           ) : null}
 
           <section className="studio-layout" aria-label="File workspace">
             <div className="studio-file-tabs">
               {isWorkbenchEmpty ? (
-                <div className="studio-file-tabs-empty">No open files</div>
+                <div className="studio-file-tabs-empty">{workbenchCopy.files.noOpenFiles}</div>
               ) : files.map((file) => (
                 <button
                   key={file.id}
@@ -4928,7 +5415,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 >
                   {file.kind === 'standard' ? <Activity size={13} /> : <FlaskConical size={13} />}
                   <span>{file.name}</span>
-                  <span className="studio-file-kind">{file.kind === 'standard' ? 'STD' : 'IDEAL'}</span>
+                  <span className="studio-file-kind">{file.kind === 'standard' ? workbenchCopy.files.std : workbenchCopy.files.ideal}</span>
                 </button>
               ))}
             </div>
@@ -4942,8 +5429,18 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   renderEmptyWorkbench()
                 ) : (
                   <>
-                    <div className="studio-live-workspace">
-                      {primaryPanels.map((panel) => renderDockPanel(panel))}
+                    <div
+                      className={`studio-live-workspace ${liveWorkspaceResizing ? 'studio-live-workspace-resizing' : ''}`}
+                      style={liveWorkspaceStyle}
+                    >
+                      {primaryPanels[0] ? renderDockPanel(primaryPanels[0]) : null}
+                      <button
+                        type="button"
+                        className="studio-live-workspace-resizer"
+                        aria-label="Resize 3D Preview and Realtime Data"
+                        onPointerDown={startLiveWorkspaceResize}
+                      />
+                      {primaryPanels[1] ? renderDockPanel(primaryPanels[1]) : null}
                       {auxiliaryPanels.length > 0 ? (
                         <div className="studio-optional-panels">
                           {auxiliaryPanels.map((panel) => renderDockPanel(panel, true))}
@@ -4972,7 +5469,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               {!isWorkbenchEmpty ? (
               <aside
                 className={`studio-current-params ${parameterControlsLocked ? 'studio-current-params-locked' : ''}`}
-                aria-label="Current Parameters"
+                aria-label={workbenchCopy.parameters.title}
                 aria-disabled={parameterControlsLocked}
               >
                 <div
@@ -4983,28 +5480,28 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 />
                 <div className="studio-current-params-header">
                   <div>
-                    <span>Current Parameters</span>
-                    <small>{parameterControlsLocked ? 'locked until stopped or finished' : parametersEditing ? 'edit values; Save before Start to use them' : 'current file values'}</small>
+                    <span>{workbenchCopy.parameters.title}</span>
+                    <small>{parameterControlsLocked ? workbenchCopy.parameters.lockedUntilStopped : parametersEditing ? workbenchCopy.parameters.editValues : workbenchCopy.parameters.currentFileValues}</small>
                   </div>
                   <button
                     type="button"
                     className="studio-panel-collapse"
-                    aria-label="Collapse Current Parameters panel"
+                    aria-label={`${workbenchCopy.actions.hide} ${workbenchCopy.parameters.title}`}
                     onClick={() => setParametersCollapsed(true)}
                   >
-                    Hide
+                    {workbenchCopy.actions.hide}
                   </button>
                 </div>
                 <div className="studio-current-params-body" ref={currentParametersBodyRef}>
                   <div className="studio-param-file">
-                    <strong>{activeFile.kind === 'standard' ? 'Standard Simulation' : 'Ideal Gas Simulation'}</strong>
+                    <strong>{activeFile.kind === 'standard' ? workbenchCopy.parameters.standardSimulation : workbenchCopy.parameters.idealSimulation}</strong>
                     <span>{activeFile.name}</span>
                     <span className={`studio-param-state ${parametersDirty || (activeFile.kind === 'ideal' && activeFile.needsReset) ? 'studio-param-state-pending' : ''}`}>
                       {parametersDirty
-                        ? 'saved changes apply on Start'
+                        ? workbenchCopy.parameters.savedChangesOnStart
                         : activeFile.kind === 'ideal' && activeFile.needsReset
-                          ? 'ideal runtime will apply on Start'
-                          : 'parameters applied'}
+                          ? workbenchCopy.parameters.idealRuntimeOnStart
+                          : workbenchCopy.parameters.applied}
                     </span>
                   </div>
                   {renderIdealControls()}
@@ -5017,8 +5514,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
                         onClick={toggleIdealAdvancedSettings}
                       >
                         <span>
-                          <strong>Advanced settings</strong>
-                          <small>{idealAdvancedSettingsOpen ? 'Hide model constants and sampling values' : 'Show model constants and sampling values'}</small>
+                          <strong>{workbenchCopy.parameters.advancedSettings}</strong>
+                          <small>{idealAdvancedSettingsOpen ? workbenchCopy.parameters.advancedHide : workbenchCopy.parameters.advancedShow}</small>
                         </span>
                         <ChevronDown
                           size={15}
@@ -5028,7 +5525,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                       {idealAdvancedSettingsBodyVisible ? (
                         <div className="studio-param-advanced-body" ref={idealAdvancedSettingsBodyRef} aria-hidden={!idealAdvancedSettingsOpen}>
                           {editableCurrentParameters.map((param) => {
-                            const displayLabel = param.unit ? `${param.label} (${param.unit})` : param.label;
+                            const displayLabel = getWorkbenchParameterDisplayLabel(param, workbenchCopy);
                             const isParamLocked = parameterControlsLocked || isIdealControlledVariableLocked(param.key);
                             const paramLockHint = isIdealControlledVariableLocked(param.key) ? controlledVariableLockHint : undefined;
 
@@ -5042,7 +5539,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                                 <span>{displayLabel}</span>
                                 {parametersEditing && param.editable && !isParamLocked ? (
                                   <input
-                                    aria-label={`Edit parameter ${param.label}`}
+                                    aria-label={`${workbenchCopy.parameters.edit} ${displayLabel}`}
                                     value={parameterDraft[param.key] ?? param.value}
                                     onChange={(event) => {
                                       const nextValue = event.target.value;
@@ -5063,7 +5560,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                                 disabled={parameterControlsLocked}
                                 onClick={startParameterEdit}
                               >
-                                Edit
+                                {workbenchCopy.parameters.edit}
                               </button>
                             ) : null}
                             {parametersEditing ? (
@@ -5073,7 +5570,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                                 disabled={parameterControlsLocked}
                                 onClick={saveParameterDraft}
                               >
-                                Save
+                                {workbenchCopy.parameters.save}
                               </button>
                             ) : null}
                           </div>
@@ -5083,7 +5580,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   ) : (
                     <>
                       {editableCurrentParameters.map((param) => {
-                        const displayLabel = param.unit ? `${param.label} (${param.unit})` : param.label;
+                        const displayLabel = getWorkbenchParameterDisplayLabel(param, workbenchCopy);
                         const isParamLocked = parameterControlsLocked || isIdealControlledVariableLocked(param.key);
                         const paramLockHint = isIdealControlledVariableLocked(param.key) ? controlledVariableLockHint : undefined;
 
@@ -5096,7 +5593,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                             <span>{displayLabel}</span>
                             {parametersEditing && param.editable && !isParamLocked ? (
                               <input
-                                aria-label={`Edit parameter ${param.label}`}
+                                aria-label={`${workbenchCopy.parameters.edit} ${displayLabel}`}
                                 value={parameterDraft[param.key] ?? param.value}
                                 onChange={(event) => {
                                   const nextValue = event.target.value;
@@ -5117,7 +5614,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                             disabled={parameterControlsLocked}
                             onClick={startParameterEdit}
                           >
-                            Edit
+                            {workbenchCopy.parameters.edit}
                           </button>
                         ) : null}
                         {parametersEditing ? (
@@ -5127,7 +5624,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                             disabled={parameterControlsLocked}
                             onClick={saveParameterDraft}
                           >
-                            Save
+                            {workbenchCopy.parameters.save}
                           </button>
                         ) : null}
                       </div>
@@ -5142,10 +5639,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   ) : null}
                   <div className="studio-readonly-note">
                     {parametersEditing
-                      ? 'Save writes these values to the active file. Start without Save keeps the pre-edit parameters.'
+                      ? workbenchCopy.parameters.saveHint
                       : activeFile.kind === 'standard'
-                        ? 'Standard files own an applied PhysicsEngine runtime. Edit values, save them, or press Start to apply and run.'
-                        : 'Ideal-gas files use PhysicsEngine sampling points. Change relation or scan value, then press Start to apply and record a point.'}
+                        ? workbenchCopy.parameters.standardReadonlyNote
+                        : workbenchCopy.parameters.idealReadonlyNote}
                   </div>
                 </div>
               </aside>
@@ -5153,16 +5650,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
               {!isWorkbenchEmpty && parametersCollapsed ? (
                 <button type="button" className="studio-rail-button studio-right-rail" onClick={() => setParametersCollapsed(false)}>
-                  Current Parameters
+                  {workbenchCopy.parameters.title}
                 </button>
               ) : null}
             </div>
           </section>
         </main>
 
-        <section className="studio-console" aria-label="Console Output">
+        <section className="studio-console" aria-label={workbenchCopy.console.title}>
           <div className="studio-console-header">
-            <span>Console / Output</span>
+            <span>{workbenchCopy.console.title}</span>
             <div className="studio-console-tabs">
               {(['logs', 'warnings', 'summary'] as const).map((tab) => (
                 <button
@@ -5171,7 +5668,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   className={consoleTab === tab ? 'studio-console-tab-active' : undefined}
                   onClick={() => setConsoleTab(tab)}
                 >
-                  {tab === 'logs' ? 'Logs' : tab === 'warnings' ? 'Warnings' : 'Summary'}
+                  {workbenchCopy.console.tabs[tab]}
                 </button>
               ))}
             </div>
@@ -5179,17 +5676,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div className="studio-console-body" ref={consoleBodyRef}>
             {consoleTab === 'summary' ? (
               <div className="studio-console-summary">
-                <div><span>Total</span><strong>{logs.length}</strong></div>
-                <div><span>Info</span><strong>{consoleSummary.counts.info}</strong></div>
-                <div><span>Success</span><strong>{consoleSummary.counts.success}</strong></div>
-                <div><span>Warnings</span><strong>{consoleSummary.counts.warning}</strong></div>
-                <div><span>Errors</span><strong>{consoleSummary.counts.error}</strong></div>
+                <div><span>{workbenchCopy.console.total}</span><strong>{logs.length}</strong></div>
+                <div><span>{workbenchCopy.console.info}</span><strong>{consoleSummary.counts.info}</strong></div>
+                <div><span>{workbenchCopy.console.success}</span><strong>{consoleSummary.counts.success}</strong></div>
+                <div><span>{workbenchCopy.console.warnings}</span><strong>{consoleSummary.counts.warning}</strong></div>
+                <div><span>{workbenchCopy.console.errors}</span><strong>{consoleSummary.counts.error}</strong></div>
                 <div className="studio-console-summary-wide">
-                  <span>Latest</span>
-                  <strong>{consoleSummary.latest ? `${consoleSummary.latest.time} ${consoleSummary.latest.message}` : 'No log entries yet.'}</strong>
+                  <span>{workbenchCopy.console.latest}</span>
+                  <strong>{consoleSummary.latest ? `${consoleSummary.latest.time} ${consoleSummary.latest.message}` : workbenchCopy.console.noLogs}</strong>
                 </div>
                 <div className="studio-console-summary-wide">
-                  <span>Runtime</span>
+                  <span>{workbenchCopy.console.runtime}</span>
                   <strong>{consoleSummary.runtime}</strong>
                 </div>
               </div>
@@ -5197,13 +5694,21 @@ const WorkbenchStudioPrototype: React.FC = () => {
               displayedLogs.map((log) => (
                 <div className="studio-log" key={log.id}>
                   <span className="studio-log-time">{log.time}</span>
-                  <span className={`studio-log-kind-${log.kind}`}>{log.kind.toUpperCase()}</span>
+                  <span className={`studio-log-kind-${log.kind}`}>
+                    {log.kind === 'info'
+                      ? workbenchCopy.console.info
+                      : log.kind === 'success'
+                        ? workbenchCopy.console.success
+                        : log.kind === 'warning'
+                          ? workbenchCopy.console.warnings
+                          : workbenchCopy.console.errors}
+                  </span>
                   <span>{log.message}</span>
                 </div>
               ))
             ) : (
               <div className="studio-console-empty">
-                {consoleTab === 'warnings' ? 'No warnings or errors yet.' : 'No log entries yet.'}
+                {consoleTab === 'warnings' ? workbenchCopy.console.noWarnings : workbenchCopy.console.noLogs}
               </div>
             )}
           </div>
@@ -5211,14 +5716,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
         <footer className="studio-status">
           <div className="studio-status-group">
-            <span>Active file: {isWorkbenchEmpty ? 'none' : activeFile.name}</span>
-            <span>Selected block: {isWorkbenchEmpty ? 'none' : activePanelTitle}</span>
+            <span>{workbenchCopy.status.activeFile(isWorkbenchEmpty ? workbenchCopy.status.none : activeFile.name)}</span>
+            <span>{workbenchCopy.status.selectedBlock(isWorkbenchEmpty ? workbenchCopy.status.none : activePanelTitle)}</span>
           </div>
           <div className="studio-status-group">
             <span>
-              {isWorkbenchEmpty ? 'No runtime connected' : activeFile.kind === 'standard'
-                ? 'Standard realtime data connected'
-                : `Ideal runtime connected / ${getRelationLabel(activeFile.relation)} / ${idealAnalysis?.verdictState ?? 'insufficient'}`}
+              {consoleSummary.runtime}
             </span>
           </div>
         </footer>
@@ -5228,3 +5731,4 @@ const WorkbenchStudioPrototype: React.FC = () => {
 };
 
 export default WorkbenchStudioPrototype;
+

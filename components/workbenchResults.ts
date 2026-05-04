@@ -3,6 +3,8 @@ import type { IdealGasExperimentPoint } from '../types';
 import type { WorkbenchFileState, WorkbenchRunState } from './workbenchState.ts';
 import { getIdealGasAnalysis, getRelationXValue } from '../utils/idealGasExperiment.ts';
 
+export type WorkbenchExportLanguage = 'zh-CN' | 'zh-TW' | 'en';
+
 export type WorkbenchFigureCode =
   | 'speed-distribution'
   | 'energy-distribution'
@@ -59,6 +61,86 @@ export interface WorkbenchJsonExportPayload {
 }
 
 export type WorkbenchExportPayload = WorkbenchCsvExportPayload | WorkbenchJsonExportPayload;
+
+const exportCopies = {
+  'zh-CN': {
+    figures: {
+      speedDistribution: '速度分布',
+      energyDistribution: '能量分布',
+      semilogEnergy: '半对数能量分布',
+      temperatureError: '温度误差历史',
+      totalEnergy: '总能量历史',
+      idealVerification: (relation: string) => `${relation} 验证图`,
+      idealRawPv: 'P-V 原始物理图',
+      idealPoints: (relation: string) => `${relation} 点表`,
+      idealHistory: (relation: string) => `${relation} 历史记录`,
+    },
+    report: {
+      language: '简体中文',
+      fileName: '文件名',
+      relation: '关系',
+      params: '参数',
+      summary: '摘要',
+      verification: '验证',
+      points: '点',
+      figureSpecs: '图表',
+      finalChartData: '最终图表数据',
+    },
+  },
+  'zh-TW': {
+    figures: {
+      speedDistribution: '速度分布',
+      energyDistribution: '能量分布',
+      semilogEnergy: '半對數能量分布',
+      temperatureError: '溫度誤差歷史',
+      totalEnergy: '總能量歷史',
+      idealVerification: (relation: string) => `${relation} 驗證圖`,
+      idealRawPv: 'P-V 原始物理圖',
+      idealPoints: (relation: string) => `${relation} 點表`,
+      idealHistory: (relation: string) => `${relation} 歷史記錄`,
+    },
+    report: {
+      language: '繁體中文',
+      fileName: '檔名',
+      relation: '關係',
+      params: '參數',
+      summary: '摘要',
+      verification: '驗證',
+      points: '點',
+      figureSpecs: '圖表',
+      finalChartData: '最終圖表資料',
+    },
+  },
+  en: {
+    figures: {
+      speedDistribution: 'Speed distribution',
+      energyDistribution: 'Energy distribution',
+      semilogEnergy: 'Semilog energy distribution',
+      temperatureError: 'Temperature error history',
+      totalEnergy: 'Total energy history',
+      idealVerification: (relation: string) => `${relation} verification chart`,
+      idealRawPv: 'P-V raw physical chart',
+      idealPoints: (relation: string) => `${relation} point table`,
+      idealHistory: (relation: string) => `${relation} history note`,
+    },
+    report: {
+      language: 'English',
+      fileName: 'File name',
+      relation: 'Relation',
+      params: 'Parameters',
+      summary: 'Summary',
+      verification: 'Verification',
+      points: 'Points',
+      figureSpecs: 'Figures',
+      finalChartData: 'Final chart data',
+    },
+  },
+} satisfies Record<WorkbenchExportLanguage, {
+  figures: Record<string, string | ((relation: string) => string)>;
+  report: Record<string, string>;
+}>;
+
+const getExportCopy = (language: WorkbenchExportLanguage = 'en') => exportCopies[language] ?? exportCopies.en;
 
 const countHistogramSamples = (bins: HistogramBin[]) => bins.reduce((sum, bin) => sum + bin.count, 0);
 
@@ -153,21 +235,25 @@ export const createWorkbenchResultSummary = (file: WorkbenchFileState): Workbenc
   };
 };
 
-export const createWorkbenchFigureSpecs = (file: WorkbenchFileState): WorkbenchFigureSpec[] => {
+export const createWorkbenchFigureSpecs = (
+  file: WorkbenchFileState,
+  language: WorkbenchExportLanguage = 'en',
+): WorkbenchFigureSpec[] => {
+  const copy = getExportCopy(language).figures;
   if (file.kind === 'ideal') {
     const analysis = getIdealGasAnalysis(file.relation, file.pointsByRelation, file.activeParams);
     const pointCount = analysis.sortedPoints.length;
     const hasPoints = pointCount > 0;
     const baseSpecs: Array<{ code: WorkbenchFigureCode; title: string; dataCount: number; ready: boolean }> = [
-      { code: 'ideal-verification', title: `${file.relation.toUpperCase()} verification chart`, dataCount: pointCount, ready: hasPoints },
-      { code: 'ideal-points', title: `${file.relation.toUpperCase()} point table`, dataCount: pointCount, ready: hasPoints },
-      { code: 'ideal-history', title: `${file.relation.toUpperCase()} history note`, dataCount: analysis.isVerified ? 1 : 0, ready: analysis.isVerified },
+      { code: 'ideal-verification', title: (copy.idealVerification as (relation: string) => string)(file.relation.toUpperCase()), dataCount: pointCount, ready: hasPoints },
+      { code: 'ideal-points', title: (copy.idealPoints as (relation: string) => string)(file.relation.toUpperCase()), dataCount: pointCount, ready: hasPoints },
+      { code: 'ideal-history', title: (copy.idealHistory as (relation: string) => string)(file.relation.toUpperCase()), dataCount: analysis.isVerified ? 1 : 0, ready: analysis.isVerified },
     ];
 
     if (file.relation === 'pv') {
       baseSpecs.splice(1, 0, {
         code: 'ideal-raw-pv',
-        title: 'P-V raw physical chart',
+        title: copy.idealRawPv as string,
         dataCount: pointCount,
         ready: hasPoints,
       });
@@ -193,11 +279,11 @@ export const createWorkbenchFigureSpecs = (file: WorkbenchFileState): WorkbenchF
   const speedSampleCount = finalData ? countHistogramSamples(finalData.speed) : 0;
   const energySampleCount = finalData ? countHistogramSamples(finalData.energy) : 0;
   const specs: Array<{ code: WorkbenchFigureCode; title: string; dataCount: number }> = [
-    { code: 'speed-distribution', title: 'Speed distribution', dataCount: speedSampleCount },
-    { code: 'energy-distribution', title: 'Energy distribution', dataCount: energySampleCount },
-    { code: 'semilog-energy', title: 'Semilog energy distribution', dataCount: finalData?.energyLog.length ?? 0 },
-    { code: 'temperature-error', title: 'Temperature error history', dataCount: finalData?.tempHistory.length ?? 0 },
-    { code: 'total-energy', title: 'Total energy history', dataCount: finalData?.tempHistory.length ?? 0 },
+    { code: 'speed-distribution', title: copy.speedDistribution as string, dataCount: speedSampleCount },
+    { code: 'energy-distribution', title: copy.energyDistribution as string, dataCount: energySampleCount },
+    { code: 'semilog-energy', title: copy.semilogEnergy as string, dataCount: finalData?.energyLog.length ?? 0 },
+    { code: 'temperature-error', title: copy.temperatureError as string, dataCount: finalData?.tempHistory.length ?? 0 },
+    { code: 'total-energy', title: copy.totalEnergy as string, dataCount: finalData?.tempHistory.length ?? 0 },
   ];
 
   return specs.map((spec) => ({
@@ -272,10 +358,16 @@ const createStandardResultCsv = (file: WorkbenchFileState) => {
   );
 };
 
-const createIdealReportData = (file: WorkbenchFileState) => {
+const createIdealReportData = (
+  file: WorkbenchFileState,
+  language: WorkbenchExportLanguage,
+) => {
   if (file.kind !== 'ideal') return {};
   const analysis = getIdealGasAnalysis(file.relation, file.pointsByRelation, file.activeParams);
+  const copy = getExportCopy(language).report;
   return {
+    language,
+    labels: copy,
     fileName: file.name,
     relation: file.relation,
     params: file.activeParams,
@@ -292,21 +384,27 @@ const createIdealReportData = (file: WorkbenchFileState) => {
       recommendationReason: analysis.diagnosis.failureReason,
     },
     points: analysis.sortedPoints,
-    figureSpecs: createWorkbenchFigureSpecs(file),
+    figureSpecs: createWorkbenchFigureSpecs(file, language),
   };
 };
 
-const createStandardReportData = (file: WorkbenchFileState) => ({
+const createStandardReportData = (
+  file: WorkbenchFileState,
+  language: WorkbenchExportLanguage,
+) => ({
+  language,
+  labels: getExportCopy(language).report,
   fileName: file.name,
   params: file.appliedParams,
   summary: createWorkbenchResultSummary(file),
   finalChartData: file.kind === 'standard' ? file.finalChartData : null,
-  figureSpecs: createWorkbenchFigureSpecs(file),
+  figureSpecs: createWorkbenchFigureSpecs(file, language),
 });
 
 export const createWorkbenchExportPayload = (
   file: WorkbenchFileState,
   mode: WorkbenchExportMode,
+  language: WorkbenchExportLanguage = 'en',
 ): WorkbenchExportPayload => {
   if (mode === 'pointsCsv') {
     return {
@@ -329,6 +427,6 @@ export const createWorkbenchExportPayload = (
   return {
     kind: 'json',
     filename: baseFilename,
-    data: file.kind === 'ideal' ? createIdealReportData(file) : createStandardReportData(file),
+    data: file.kind === 'ideal' ? createIdealReportData(file, language) : createStandardReportData(file, language),
   };
 };

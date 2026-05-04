@@ -72,8 +72,8 @@ assert.match(
 
 assert.match(
   source,
-  /<span>General<\/span>/,
-  'Settings menu should include a General first-level item',
+  /\{workbenchCopy\.menus\.general\}/,
+  'Settings menu should include a localized General first-level item',
 );
 
 assert.doesNotMatch(
@@ -88,8 +88,23 @@ assert.match(
   'general settings window should render theme cards and language choices',
 );
 
-for (const label of ['General Settings', 'System', 'Light', 'Dark', '简体中文', '繁體中文', 'English']) {
-  assert.match(source, new RegExp(label), `general settings window should include ${label}`);
+assert.match(
+  source,
+  /const workbenchCopy = workbenchCopies\[settingsLanguagePreference\];/,
+  'language preference should drive the current workbench copy source',
+);
+
+for (const expression of [
+  'workbenchCopy.settings.title',
+  'workbenchCopy.settings.themeOptions[key]',
+  'workbenchCopy.settings.languageOptions[key]',
+  'workbenchCopy.settings.languageHint',
+  'workbenchCopy.shortcuts.title',
+  'workbenchCopy.shortcuts.undo',
+  'workbenchCopy.shortcuts.redo',
+  'workbenchCopy.shortcuts.closeSettings',
+]) {
+  assert.ok(source.includes(expression), `general settings window should use ${expression}`);
 }
 
 const generalWindowSource = source.slice(
@@ -104,6 +119,12 @@ assert.doesNotMatch(
 );
 
 assert.match(
+  generalWindowSource,
+  /studio-settings-shortcuts-card[\s\S]*Ctrl\+Z[\s\S]*Ctrl\+Y[\s\S]*Ctrl\+Shift\+Z[\s\S]*Esc/,
+  'general settings window should show shortcut help inline instead of routing it through the console',
+);
+
+assert.match(
   source,
   /\{renderGeneralSettingsWindow\(\)\}/,
   'general settings window should render above the main interface',
@@ -113,6 +134,12 @@ assert.match(
   styles,
   /\.studio-settings-overlay[\s\S]*position: fixed;[\s\S]*\.studio-settings-window[\s\S]*\.studio-settings-theme-grid[\s\S]*\.studio-settings-language-select/,
   'settings window CSS should define a fixed overlay, modal window, theme grid, and language capsule',
+);
+
+assert.match(
+  styles,
+  /\.studio-settings-shortcuts-card[\s\S]*\.studio-settings-shortcuts-list[\s\S]*kbd/,
+  'settings window CSS should define an inline shortcut-help card',
 );
 
 assert.match(

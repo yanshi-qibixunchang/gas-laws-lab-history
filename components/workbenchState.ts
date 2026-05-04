@@ -30,6 +30,16 @@ export type WorkbenchIdealResultWindowKey = 'experimentPoints' | 'verification';
 export type WorkbenchStandardResultsTab = 'summary' | 'dataTable' | 'figures';
 
 export const IDEAL_RESULT_HEIGHT_RATIO = 0.5;
+export const WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO = 0.48;
+export const WORKBENCH_LIVE_SPLIT_MIN_RATIO = 0.34;
+export const WORKBENCH_LIVE_SPLIT_MAX_RATIO = 0.66;
+
+export const clampWorkbenchLiveSplitRatio = (value: unknown) => {
+  const ratio = typeof value === 'number' && Number.isFinite(value)
+    ? value
+    : WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO;
+  return Math.min(WORKBENCH_LIVE_SPLIT_MAX_RATIO, Math.max(WORKBENCH_LIVE_SPLIT_MIN_RATIO, ratio));
+};
 
 export interface WorkbenchStandardResultsLayout {
   openTabs: WorkbenchStandardResultsTab[];
@@ -68,6 +78,7 @@ interface WorkbenchFileBase {
   stats: SimulationStats;
   chartData: ChartData;
   finalChartData: ChartData | null;
+  liveWorkspaceSplitRatio: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -138,10 +149,12 @@ export const createEmptyChartData = (): ChartData => ({
 
 export const cloneParams = (params: SimulationParams): SimulationParams => ({ ...params });
 
-export const createDefaultStandardResultsLayout = (): WorkbenchStandardResultsLayout => ({
+export const createDefaultStandardResultsLayout = (
+  defaults?: Partial<Pick<WorkbenchStandardResultsLayout, 'heightRatio'>>,
+): WorkbenchStandardResultsLayout => ({
   openTabs: ['summary', 'dataTable', 'figures'],
   activeTab: 'summary',
-  heightRatio: IDEAL_RESULT_HEIGHT_RATIO,
+  heightRatio: defaults?.heightRatio ?? IDEAL_RESULT_HEIGHT_RATIO,
 });
 
 export const createDefaultIdealWindowLayout = (
@@ -163,6 +176,7 @@ const createBaseFile = (
   kind: WorkbenchFileKind,
   index: number,
   params: SimulationParams,
+  defaults?: Partial<Pick<WorkbenchFileBase, 'liveWorkspaceSplitRatio'>>,
 ): Omit<WorkbenchFileBase, 'kind'> => {
   const paddedIndex = String(index).padStart(3, '0');
   const now = Date.now();
@@ -177,20 +191,32 @@ const createBaseFile = (
     stats: createIdleStats(),
     chartData: createEmptyChartData(),
     finalChartData: null,
+    liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(defaults?.liveWorkspaceSplitRatio),
     createdAt: now,
     updatedAt: now,
   };
 };
 
-export const createDefaultStandardFile = (index = 1): WorkbenchStandardState => ({
-  ...createBaseFile('standard', index, DEFAULT_STANDARD_PARAMS),
+export interface WorkbenchFileLayoutDefaults {
+  resultsHeightRatio?: number;
+  liveWorkspaceSplitRatio?: number;
+}
+
+export const createDefaultStandardFile = (
+  index = 1,
+  defaults?: WorkbenchFileLayoutDefaults,
+): WorkbenchStandardState => ({
+  ...createBaseFile('standard', index, DEFAULT_STANDARD_PARAMS, defaults),
   kind: 'standard',
   particles: [],
-  standardResultsLayout: createDefaultStandardResultsLayout(),
+  standardResultsLayout: createDefaultStandardResultsLayout({ heightRatio: defaults?.resultsHeightRatio }),
 });
 
-export const createDefaultIdealFile = (index = 1): WorkbenchIdealState => ({
-  ...createBaseFile('ideal', index, DEFAULT_IDEAL_PARAMS),
+export const createDefaultIdealFile = (
+  index = 1,
+  defaults?: WorkbenchFileLayoutDefaults,
+): WorkbenchIdealState => ({
+  ...createBaseFile('ideal', index, DEFAULT_IDEAL_PARAMS, defaults),
   kind: 'ideal',
   relation: 'pt',
   activeParams: cloneParams(DEFAULT_IDEAL_PARAMS),
@@ -200,7 +226,7 @@ export const createDefaultIdealFile = (index = 1): WorkbenchIdealState => ({
   particles: [],
   verificationState: 'not-started',
   historyUnlocked: false,
-  idealWindowLayout: createDefaultIdealWindowLayout(),
+  idealWindowLayout: createDefaultIdealWindowLayout({ heightRatio: defaults?.resultsHeightRatio }),
 });
 
 export const createInitialWorkbenchFiles = (): WorkbenchFileState[] => [
