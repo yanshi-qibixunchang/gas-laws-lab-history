@@ -8,7 +8,61 @@
     "build": "vite build",
     "desktop:dev": "vite build && electron .",
     "desktop:build": "vite build",
+    "desktop:installer": "vite build && electron-builder --win nsis --x64",
+    "desktop:portable": "vite build && electron-builder --win portable --x64",
+    "exporter:bundle": "node scripts/bundleExporter.cjs",
     "preview": "vite preview"
+  },
+  "build": {
+    "appId": "com.hardspherelab.desktop",
+    "productName": "Hard Sphere Lab",
+    "electronDist": "node_modules/electron/dist",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/exporter",
+        "to": "exporter",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "tools/exporter/hsl_exporter.py",
+        "to": "exporter/hsl_exporter.py"
+      }
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Hard Sphere Lab"
+    }
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
@@ -29,6 +83,7 @@
     "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "^10.4.18",
     "electron": "^41.5.0",
+    "electron-builder": "^26.8.1",
     "playwright": "^1.58.2",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.4",

@@ -11,6 +11,7 @@ lerna-debug.log*
 node_modules/
 dist/
 dist-ssr/
+release/
 coverage/
 *.tsbuildinfo
 __pycache__/
@@ -28,6 +29,10 @@ __pycache__/
 .playwright-cli/
 output/
 tools/exporter/examples/*.json
+build-exporter/
+dist-exporter/
+resources/exporter/hsl-exporter.exe
+resources/exporter/*.spec
 
 # Android local state and signing materials
 android/.gradle/

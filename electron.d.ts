@@ -25,6 +25,7 @@ declare global {
     message?: string;
     stdout?: string;
     stderr?: string;
+    runtime?: 'system' | 'bundled' | 'desktop-file-writer';
   }
 
   interface Window {
