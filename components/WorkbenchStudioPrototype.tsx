@@ -87,6 +87,8 @@ type LogKind = 'info' | 'warning' | 'success' | 'error';
 type ConsoleTab = 'logs' | 'warnings' | 'summary';
 type TopMenu = 'new' | 'edit' | 'window' | 'settings' | 'help' | null;
 type ResultsSectionKey = WorkbenchStandardResultsTab;
+type WorkbenchThemePreference = 'system' | 'light' | 'dark';
+type WorkbenchLanguagePreference = 'zh-CN' | 'zh-TW' | 'en';
 
 interface ConsoleLog {
   id: number;
@@ -126,6 +128,11 @@ interface UpdateIdealScanVariableOptions {
   snap?: boolean;
 }
 
+interface WorkbenchGeneralSettings {
+  theme: WorkbenchThemePreference;
+  language: WorkbenchLanguagePreference;
+}
+
 const workbenchTranslation = translations['zh-CN'];
 const LOCKED_PANEL_KEYS: WorkbenchPanelKey[] = ['preview', 'realtime'];
 const LEFT_SIDEBAR_MIN = 220;
@@ -144,6 +151,12 @@ const IDEAL_SCAN_SNAP_THRESHOLD: Record<ExperimentRelation, number> = {
 const IDEAL_RESULT_MIN_HEIGHT_RATIO = 0.25;
 const IDEAL_RESULT_MAX_HEIGHT_RATIO = 1;
 const IDEAL_RESULT_WINDOW_DEFAULTS_STORAGE_KEY = 'hsl_workbench_ideal_result_window_defaults';
+const WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY = 'hsl_workbench_general_settings';
+
+const defaultWorkbenchGeneralSettings: WorkbenchGeneralSettings = {
+  theme: 'system',
+  language: 'zh-CN',
+};
 
 type IdealResultWindowDefaults = Pick<WorkbenchIdealWindowLayout, 'heightRatio'>;
 
@@ -154,11 +167,11 @@ const exportEnvironmentCopy: Record<WorkbenchExportEnvironmentStatus, { label: s
   },
   'available-system': {
     label: 'System Python exporter available',
-    detail: 'Scientific PDF and ZIP export will use this computer\'s Python/Matplotlib environment.',
+    detail: 'Scientific report and figure export will use this computer\'s Python/Matplotlib environment.',
   },
   'available-bundled': {
     label: 'Bundled exporter available',
-    detail: 'Scientific PDF and ZIP export will use the exporter packaged with the desktop app.',
+    detail: 'Scientific report and figure export will use the exporter packaged with the desktop app.',
   },
   unavailable: {
     label: 'PDF export unavailable in web preview',
@@ -170,7 +183,44 @@ const exportEnvironmentCopy: Record<WorkbenchExportEnvironmentStatus, { label: s
   },
 };
 
-const getExportEnvironmentStatus = (): WorkbenchExportEnvironmentStatus => 'unavailable';
+const hasDesktopExportBridge = () => (
+  typeof window !== 'undefined' && Boolean(window.hardSphereLabExporter)
+);
+
+const isWorkbenchThemePreference = (value: unknown): value is WorkbenchThemePreference => (
+  value === 'system' || value === 'light' || value === 'dark'
+);
+
+const isWorkbenchLanguagePreference = (value: unknown): value is WorkbenchLanguagePreference => (
+  value === 'zh-CN' || value === 'zh-TW' || value === 'en'
+);
+
+const loadWorkbenchGeneralSettings = (): WorkbenchGeneralSettings => {
+  if (typeof window === 'undefined') return defaultWorkbenchGeneralSettings;
+
+  try {
+    const raw = window.localStorage.getItem(WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY);
+    if (!raw) return defaultWorkbenchGeneralSettings;
+
+    const parsed = JSON.parse(raw) as Partial<WorkbenchGeneralSettings>;
+    return {
+      theme: isWorkbenchThemePreference(parsed.theme) ? parsed.theme : defaultWorkbenchGeneralSettings.theme,
+      language: isWorkbenchLanguagePreference(parsed.language) ? parsed.language : defaultWorkbenchGeneralSettings.language,
+    };
+  } catch {
+    return defaultWorkbenchGeneralSettings;
+  }
+};
+
+const persistWorkbenchGeneralSettings = (settings: WorkbenchGeneralSettings) => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    // Settings are UI preferences; failing to persist should not affect simulation work.
+  }
+};
 
 const snapshotParticles = (engine: PhysicsEngine): Particle[] => (
   engine.particles.map((particle) => ({ ...particle }))
@@ -421,7 +471,7 @@ const createInitialLogs = (): ConsoleLog[] => [
   { id: 1, time: formatTime(), kind: 'info', message: 'Workbench studio prototype initialized.' },
   { id: 2, time: formatTime(), kind: 'success', message: 'Default layout: 3D Preview, Realtime Data / Charts, Current Parameters.' },
   { id: 3, time: formatTime(), kind: 'success', message: 'Standard Simulation runtime, 3D preview, and realtime chart data are connected.' },
-  { id: 4, time: formatTime(), kind: 'warning', message: 'Scientific PDF export remains disabled until the future desktop exporter check is available.' },
+  { id: 4, time: formatTime(), kind: 'warning', message: 'Scientific PDF export requires the desktop runtime bridge.' },
 ];
 
 const isEditableElement = (element: EventTarget | Element | null) => {
@@ -496,14 +546,24 @@ const WorkbenchStudioPrototype: React.FC = () => {
         : {
             ...file,
             standardResultsLayout: normalizeStandardResultsLayout(file.standardResultsLayout),
-          }
+      }
     ));
   });
+  const initialGeneralSettings = useMemo(() => loadWorkbenchGeneralSettings(), []);
   const [activeFileId, setActiveFileId] = useState(initialSession.activeFileId);
   const [selectedPanel, setSelectedPanel] = useState<WorkbenchPanelKey>(initialSession.selectedPanel);
   const [logs, setLogs] = useState<ConsoleLog[]>(() => createInitialLogs());
+  const [exportEnvironmentStatus, setExportEnvironmentStatus] = useState<WorkbenchExportEnvironmentStatus>(() => (
+    hasDesktopExportBridge() ? 'checking' : 'unavailable'
+  ));
+  const [exportEnvironmentDetail, setExportEnvironmentDetail] = useState<string | null>(null);
+  const [exportInProgress, setExportInProgress] = useState(false);
   const [consoleTab, setConsoleTab] = useState<ConsoleTab>('logs');
   const [openTopMenu, setOpenTopMenu] = useState<TopMenu>(null);
+  const [settingsGeneralOpen, setSettingsGeneralOpen] = useState(false);
+  const [settingsThemePreference, setSettingsThemePreference] = useState<WorkbenchThemePreference>(() => initialGeneralSettings.theme);
+  const [settingsLanguagePreference, setSettingsLanguagePreference] = useState<WorkbenchLanguagePreference>(() => initialGeneralSettings.language);
+  const [settingsLanguageMenuOpen, setSettingsLanguageMenuOpen] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [parametersCollapsed, setParametersCollapsed] = useState(false);
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(286);
@@ -606,7 +666,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
       ? getChangedIdealParamKeys(activeFile.params, nextParams).filter((key) => !isVariableKeyForRelation(activeFile.relation, key))
       : []
   );
-  const exportEnvironmentStatus = getExportEnvironmentStatus();
   const workbenchStyle = {
     '--studio-left-width': `${leftSidebarWidth}px`,
     '--studio-params-width': `${parameterSidebarWidth}px`,
@@ -690,6 +749,28 @@ const WorkbenchStudioPrototype: React.FC = () => {
     });
   };
 
+  const closeGeneralSettings = () => {
+    setSettingsGeneralOpen(false);
+    setSettingsLanguageMenuOpen(false);
+  };
+
+  const openGeneralSettings = () => {
+    setOpenTopMenu(null);
+    setSettingsLanguageMenuOpen(false);
+    setSettingsGeneralOpen(true);
+  };
+
+  const updateSettingsThemePreference = (theme: WorkbenchThemePreference) => {
+    setSettingsThemePreference(theme);
+    persistWorkbenchGeneralSettings({ theme, language: settingsLanguagePreference });
+  };
+
+  const updateSettingsLanguagePreference = (language: WorkbenchLanguagePreference) => {
+    setSettingsLanguagePreference(language);
+    setSettingsLanguageMenuOpen(false);
+    persistWorkbenchGeneralSettings({ theme: settingsThemePreference, language });
+  };
+
   useEffect(() => {
     filesRef.current = files;
   }, [files]);
@@ -705,6 +786,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
   useEffect(() => {
     renamingFileIdRef.current = renamingFileId;
   }, [renamingFileId]);
+
+  useEffect(() => {
+    if (!settingsGeneralOpen) return undefined;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeGeneralSettings();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [settingsGeneralOpen]);
 
   useEffect(() => {
     if (activeFile.kind !== 'ideal') return undefined;
@@ -803,6 +897,55 @@ const WorkbenchStudioPrototype: React.FC = () => {
       },
     ]);
   };
+
+  useEffect(() => {
+    const bridge = window.hardSphereLabExporter;
+    if (!bridge) {
+      setExportEnvironmentStatus('unavailable');
+      setExportEnvironmentDetail(exportEnvironmentCopy.unavailable.detail);
+      return;
+    }
+
+    let cancelled = false;
+    setExportEnvironmentStatus('checking');
+    setExportEnvironmentDetail(exportEnvironmentCopy.checking.detail);
+
+    bridge.checkExportEnvironment()
+      .then((result) => {
+        if (cancelled) return;
+        const nextStatus = result.status === 'available-bundled' ? 'available-bundled' : result.status;
+        setExportEnvironmentStatus(nextStatus);
+        setExportEnvironmentDetail(result.message ?? exportEnvironmentCopy[nextStatus].detail);
+        setLogs((current) => [
+          ...current,
+          {
+            id: current.length + 1,
+            time: formatTime(),
+            kind: nextStatus === 'available-system' || nextStatus === 'available-bundled' ? 'success' : 'warning',
+            message: result.message ?? exportEnvironmentCopy[nextStatus].detail,
+          },
+        ]);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        const message = error instanceof Error ? error.message : 'Desktop export environment check failed.';
+        setExportEnvironmentStatus('error');
+        setExportEnvironmentDetail(message);
+        setLogs((current) => [
+          ...current,
+          {
+            id: current.length + 1,
+            time: formatTime(),
+            kind: 'error',
+            message,
+          },
+        ]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (consoleTab === 'summary') return;
@@ -2527,6 +2670,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setPendingRemovePointId(null);
   };
 
+  const cancelClearIdealRelation = () => {
+    setPendingClearRelationKey(null);
+  };
+
   const renderIdealPointRemoveAction = (point: IdealGasExperimentPoint) => (
     <div className={`studio-table-action-row ${pendingRemovePointId === point.id ? 'studio-table-action-row-pending' : ''}`}>
       <button
@@ -3055,6 +3202,118 @@ const WorkbenchStudioPrototype: React.FC = () => {
     );
   };
 
+  const renderGeneralSettingsWindow = () => {
+    if (!settingsGeneralOpen) return null;
+
+    const themeOptions: Array<{ key: WorkbenchThemePreference; label: string; hint: string }> = [
+      { key: 'system', label: 'System', hint: 'Follow OS preference' },
+      { key: 'light', label: 'Light', hint: 'Bright workspace preview' },
+      { key: 'dark', label: 'Dark', hint: 'Dark workspace preview' },
+    ];
+    const languageOptions: Array<{ key: WorkbenchLanguagePreference; label: string; hint: string }> = [
+      { key: 'zh-CN', label: '简体中文', hint: 'Simplified Chinese interface' },
+      { key: 'zh-TW', label: '繁體中文', hint: 'Traditional Chinese interface' },
+      { key: 'en', label: 'English', hint: 'English interface' },
+    ];
+    const activeLanguage = languageOptions.find((option) => option.key === settingsLanguagePreference) ?? languageOptions[0];
+
+    return (
+      <div className="studio-settings-overlay" role="presentation" onMouseDown={closeGeneralSettings}>
+        <section
+          className="studio-settings-window"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="studio-settings-title"
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <div className="studio-settings-header">
+            <div>
+              <strong id="studio-settings-title">General Settings</strong>
+              <span>Theme and language preferences</span>
+            </div>
+            <button type="button" className="studio-settings-close" aria-label="Close General Settings" onClick={closeGeneralSettings}>
+              <X size={15} />
+            </button>
+          </div>
+
+          <div className="studio-settings-body">
+            <section className="studio-settings-section">
+              <div className="studio-settings-section-title">
+                <strong>Theme</strong>
+                <span>Use system, light, or dark mode</span>
+              </div>
+              <div className="studio-settings-theme-grid" role="radiogroup" aria-label="Theme">
+                {themeOptions.map((option) => (
+                  <button
+                    type="button"
+                    key={option.key}
+                    role="radio"
+                    aria-checked={settingsThemePreference === option.key}
+                    className={`studio-settings-theme-card studio-settings-theme-${option.key} ${settingsThemePreference === option.key ? 'studio-settings-theme-card-active' : ''}`}
+                    onClick={() => updateSettingsThemePreference(option.key)}
+                  >
+                    <span className="studio-settings-theme-card-copy">
+                      <strong>{option.label}</strong>
+                      <small>{option.hint}</small>
+                    </span>
+                    <span className="studio-settings-preview" aria-hidden="true">
+                      <i className="studio-settings-preview-menu" />
+                      <i className="studio-settings-preview-left" />
+                      <i className="studio-settings-preview-main" />
+                      <i className="studio-settings-preview-right" />
+                      <i className="studio-settings-preview-chart" />
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="studio-settings-section">
+              <div className="studio-settings-section-title">
+                <strong>Language</strong>
+                <span>Choose the interface language</span>
+              </div>
+              <div className={`studio-settings-language-select ${settingsLanguageMenuOpen ? 'studio-settings-language-select-open' : ''}`}>
+                <button
+                  type="button"
+                  className="studio-settings-language-trigger"
+                  aria-haspopup="listbox"
+                  aria-expanded={settingsLanguageMenuOpen}
+                  onClick={() => setSettingsLanguageMenuOpen((current) => !current)}
+                >
+                  <span>
+                    <strong>{activeLanguage.label}</strong>
+                    <small>{activeLanguage.hint}</small>
+                  </span>
+                  <ChevronDown
+                    size={15}
+                    className={`studio-settings-language-chevron ${settingsLanguageMenuOpen ? 'studio-settings-language-chevron-open' : ''}`}
+                  />
+                </button>
+                <div className="studio-settings-language-menu" role="listbox" aria-label="Language" aria-hidden={!settingsLanguageMenuOpen}>
+                  {languageOptions.map((option) => (
+                    <button
+                      type="button"
+                      key={option.key}
+                      role="option"
+                      aria-selected={settingsLanguagePreference === option.key}
+                      tabIndex={settingsLanguageMenuOpen ? 0 : -1}
+                      className={settingsLanguagePreference === option.key ? 'studio-settings-language-active' : ''}
+                      onClick={() => updateSettingsLanguagePreference(option.key)}
+                    >
+                      <strong>{option.label}</strong>
+                      <span>{option.hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+      </div>
+    );
+  };
+
   const renderTopCommand = (menu: Exclude<TopMenu, null>, label: string, icon: React.ReactNode) => (
     <button
       type="button"
@@ -3150,19 +3409,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
       return (
         <div className="studio-command-menu studio-command-menu-settings" ref={topMenuRef}>
-          <button type="button" onClick={() => handleAction('Switch theme')}>
+          <button type="button" onClick={openGeneralSettings}>
             <Settings size={14} />
-            <span>Theme: Dark / Light</span>
-          </button>
-          <button type="button" onClick={() => handleAction('Switch language')}>
-            <Languages size={14} />
-            <span>Language: Chinese / English</span>
+            <span>General</span>
+            <strong>{`${settingsThemePreference} / ${settingsLanguagePreference}`}</strong>
           </button>
           <button type="button" onClick={() => handleAction('Performance mode')}>
             <Wrench size={14} />
             <span>Performance Mode</span>
           </button>
-          <button type="button" onClick={() => pushLog(exportCopy.detail, 'warning')}>
+          <button type="button" onClick={() => pushLog(exportEnvironmentDetail ?? exportCopy.detail, exportAvailable ? 'info' : 'warning')}>
             <Download size={14} />
             <span>Export Environment</span>
             <strong>{exportEnvironmentStatus}</strong>
@@ -3431,10 +3687,26 @@ const WorkbenchStudioPrototype: React.FC = () => {
               <strong>{getRelationLabel(activeFile.relation)} points</strong>
               <span>{points.length} recorded points for the active relation</span>
             </div>
-            <button type="button" onClick={requestClearIdealRelation} disabled={points.length === 0}>
-              <Trash2 size={13} />
-              {pendingClearRelationKey === clearKey ? 'Confirm Clear' : 'Clear Relation'}
-            </button>
+            <div className={`studio-results-clear-actions ${pendingClearRelationKey === clearKey ? 'studio-results-clear-actions-pending' : ''}`}>
+              <button
+                type="button"
+                className={`studio-results-clear-button ${pendingClearRelationKey === clearKey ? 'studio-results-clear-confirm' : ''}`}
+                onClick={requestClearIdealRelation}
+                disabled={points.length === 0}
+              >
+                <Trash2 size={13} />
+                {pendingClearRelationKey === clearKey ? 'Confirm Clear' : 'Clear Relation'}
+              </button>
+              {pendingClearRelationKey === clearKey ? (
+                <button
+                  type="button"
+                  className="studio-results-clear-button studio-results-clear-cancel"
+                  onClick={cancelClearIdealRelation}
+                >
+                  Cancel
+                </button>
+              ) : null}
+            </div>
           </div>
           {points.length === 0 ? (
             <div className="studio-panel-note">
@@ -3603,13 +3875,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
     ? Boolean(idealAnalysis && idealAnalysis.sortedPoints.length > 0)
     : resultSummary.ready;
 
-  const handleExportAction = (mode: WorkbenchExportMode) => {
+  const handleExportAction = async (mode: WorkbenchExportMode) => {
     if (!currentResultsReady) {
       pushLog(`${activeFile.name}: result data is not ready for scientific export.`, 'warning');
       return;
     }
 
-    const payload = createWorkbenchExportPayload(activeFile, mode);
+    if (
+      activeFile.kind === 'ideal'
+      && mode !== 'pointsCsv'
+      && (!idealAnalysis || idealAnalysis.sortedPoints.length < 2)
+    ) {
+      pushLog(`${activeFile.name}: at least 2 points are required for a fitted report or figure export.`, 'warning');
+      return;
+    }
 
     const exportLabel =
       mode === 'report'
@@ -3618,13 +3897,57 @@ const WorkbenchStudioPrototype: React.FC = () => {
           ? 'verification figure'
           : mode === 'pointsCsv'
             ? 'points CSV'
-            : 'all result figures ZIP';
+            : 'result figures';
+    const payload = createWorkbenchExportPayload(activeFile, mode);
+    const bridge = window.hardSphereLabExporter;
+
     if (!exportAvailable) {
-      pushLog(`${activeFile.name}: ${exportLabel} payload prepared as ${payload.filename}; ${exportCopy.detail}`, 'warning');
+      const detail = exportEnvironmentDetail ?? exportCopy.detail;
+      pushLog(`${activeFile.name}: ${exportLabel} payload prepared as ${payload.filename}; ${detail}`, 'warning');
       return;
     }
 
-    pushLog(`${activeFile.name}: ${exportLabel} payload prepared as ${payload.filename}.`, 'info');
+    if (!bridge) {
+      pushLog(`${activeFile.name}: ${exportLabel} payload prepared as ${payload.filename}; ${exportEnvironmentCopy.unavailable.detail}`, 'warning');
+      return;
+    }
+
+    setExportInProgress(true);
+    pushLog(`${activeFile.name}: preparing ${exportLabel} export...`, 'info');
+
+    try {
+      const result = await bridge.exportWorkbenchPayload(payload, {
+        mode,
+        fileName: activeFile.name,
+        defaultDirName: `${activeFile.name} Export`,
+      });
+
+      if (result.status === 'cancelled') {
+        pushLog(`${activeFile.name}: ${exportLabel} export cancelled.`, 'warning');
+        return;
+      }
+
+      if (result.status !== 'ok') {
+        pushLog(`${activeFile.name}: ${exportLabel} export failed: ${result.message ?? 'unknown exporter error'}`, 'error');
+        return;
+      }
+
+      const fileCount = result.files?.length ?? 0;
+      if (mode === 'pointsCsv') {
+        pushLog(`${activeFile.name}: points CSV saved to ${result.files?.[0] ?? result.outDir ?? 'selected location'}.`, 'success');
+        return;
+      }
+
+      const figureHint = mode === 'verificationFigure' || mode === 'figuresZip'
+        ? ' Figure files are inside the figures subfolders.'
+        : '';
+      pushLog(`${activeFile.name}: ${exportLabel} exported to ${result.outDir ?? 'selected folder'} (${fileCount} files).${figureHint}`, 'success');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown exporter error';
+      pushLog(`${activeFile.name}: ${exportLabel} export failed: ${message}`, 'error');
+    } finally {
+      setExportInProgress(false);
+    }
   };
 
   const renderResultsSummary = () => {
@@ -3697,18 +4020,18 @@ const WorkbenchStudioPrototype: React.FC = () => {
           </div>
           <button
             type="button"
-            disabled={!currentResultsReady}
+            disabled={!currentResultsReady || exportInProgress}
             onClick={() => handleExportAction('figuresZip')}
           >
             <FileArchive size={13} />
-            Export Figures ZIP
+            Export Figures
           </button>
         </div>
 
         <div className="studio-figure-list">
           <div className="studio-figure-list-header">
             <strong>Figure data</strong>
-            <span>prepared for future scientific PDF export</span>
+            <span>prepared for desktop scientific export</span>
           </div>
           {figureSpecs.map((figure) => (
             <div className="studio-figure-row" key={figure.id}>
@@ -3848,15 +4171,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
             </div>
           </div>
           <div className="studio-ideal-export-actions">
-            <button type="button" disabled={!currentResultsReady} onClick={() => handleExportAction('report')}>
+            <button type="button" disabled={!currentResultsReady || exportInProgress} onClick={() => handleExportAction('report')}>
               <Download size={13} />
               Report PDF
             </button>
-            <button type="button" disabled={!currentResultsReady} onClick={() => handleExportAction('verificationFigure')}>
+            <button type="button" disabled={!currentResultsReady || exportInProgress} onClick={() => handleExportAction('verificationFigure')}>
               <BarChart3 size={13} />
               Verification Figure
             </button>
-            <button type="button" disabled={!currentResultsReady} onClick={() => handleExportAction('pointsCsv')}>
+            <button type="button" disabled={!currentResultsReady || exportInProgress} onClick={() => handleExportAction('pointsCsv')}>
               <Table2 size={13} />
               Points CSV
             </button>
@@ -3910,7 +4233,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div className="studio-results-actions">
             <button
               type="button"
-              disabled={!currentResultsReady}
+              disabled={!currentResultsReady || exportInProgress}
               onClick={() => handleExportAction('report')}
             >
               <Download size={13} />
@@ -4255,8 +4578,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     </button>
   );
 
+  const resolvedWorkbenchTheme = settingsThemePreference === 'system' ? 'dark' : settingsThemePreference;
+
   return (
-    <div className="studio-workbench">
+    <div className={`studio-workbench studio-theme-${resolvedWorkbenchTheme}`}>
       {scanInputToast ? (
         <div className="studio-scan-input-toast" role="status">
           {scanInputToast}
@@ -4279,6 +4604,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           </nav>
           {renderTopMenu()}
         </header>
+        {renderGeneralSettingsWindow()}
 
         <main className={`studio-body ${leftCollapsed ? 'studio-left-collapsed' : ''}`} style={workbenchStyle}>
           <aside className="studio-sidebar" aria-label="Open Files and Panels">
