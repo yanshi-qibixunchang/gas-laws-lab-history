@@ -95,6 +95,11 @@ for (const expression of [
   'workbenchCopy.results.clearRelation',
   'workbenchCopy.results.confirmClear',
   'workbenchCopy.results.remove',
+  'workbenchCopy.results.exportFigures',
+  'workbenchCopy.results.reportPdf',
+  'workbenchCopy.results.verificationFigure',
+  'workbenchCopy.results.pointsCsv',
+  'workbenchCopy.exportEnvironment[exportEnvironmentStatus]',
   'workbenchCopy.console.tabs[tab]',
   'workbenchCopy.status.activeFile',
   'workbenchCopy.status.idealRuntime',
@@ -163,8 +168,26 @@ for (const dynamicLogCall of [
   'workbenchCopy.logs.autoPausedSwitchFile',
   'workbenchCopy.logs.fileCreated',
   'workbenchCopy.logs.layoutReset',
+  'workbenchCopy.logs.exportPayloadPrepared',
+  'workbenchCopy.logs.exportNeedsTwoPoints',
+  'workbenchCopy.logs.exportCsvSaved',
+  'workbenchCopy.logs.fileNameCannotBeEmpty',
+  'workbenchCopy.logs.confirmDeleteFile',
 ]) {
   assert.ok(source.includes(dynamicLogCall), `${dynamicLogCall} should localize common dynamic logs`);
+}
+
+for (const exportHardcodedCall of [
+  'payload prepared as',
+  'result data is not ready for scientific export',
+  'at least 2 points are required for a fitted report or figure export',
+  'PDF export unavailable in web preview',
+  '<span>Verification</span><strong>{verificationSpec.recommendedFilename}</strong>',
+  '<span>Raw P-V</span><strong>{rawPvSpec.recommendedFilename}</strong>',
+  '<span>Points CSV</span><strong>{pointsSpec.recommendedFilename}</strong>',
+  '<span>History</span><strong>{historySpec.recommendedFilename}</strong>',
+]) {
+  assert.ok(!renderSource.includes(exportHardcodedCall), `Export UI/log text should not be hardcoded as ${exportHardcodedCall}`);
 }
 
 for (const forbiddenJsxText of [

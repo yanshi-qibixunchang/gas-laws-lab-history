@@ -30,7 +30,7 @@ const DEFAULT_PARAMS: SimulationParams = {
   statsDuration: 60
 };
 
-const APP_VERSION = '3.5.0';
+const APP_VERSION = '3.5.1';
 const SHOW_WORKBENCH_PROTOTYPE = true;
 
 const areParamsEqual = (a: SimulationParams, b: SimulationParams) => (

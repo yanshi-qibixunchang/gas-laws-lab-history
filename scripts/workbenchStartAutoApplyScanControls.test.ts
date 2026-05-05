@@ -3,6 +3,12 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../components/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../components/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
+const saveParameterDraftBody = source.slice(
+  source.indexOf('  const saveParameterDraft = () => {'),
+  source.indexOf('  const applyActiveFileParams = ('),
+);
+
+assert.ok(saveParameterDraftBody.length > 0, 'saveParameterDraft function body should be located for scoped assertions');
 
 assert.doesNotMatch(
   source,
@@ -20,6 +26,18 @@ assert.match(
   source,
   /const prepareActiveFileForRun = \(\): boolean => \{[\s\S]*?if \(parametersEditing\) \{[\s\S]*?setParametersEditing\(false\)[\s\S]*?setParameterDraft\(\{\}\)[\s\S]*?setParameterErrors\(\[\]\)[\s\S]*?\}[\s\S]*?parametersDirty[\s\S]*?applyActiveFileParams\(undefined,\s*\{ silent: true/,
   'starting while Edit is open should ignore unsaved draft values and keep the pre-edit saved parameters',
+);
+
+assert.match(
+  saveParameterDraftBody,
+  /const saveParameterDraft = \(\) => \{[\s\S]*?const nextParams = parseParameterDraft\(\);[\s\S]*?if \(!nextParams\) return;[\s\S]*?if \(rejectLockedIdealControlledVariables\(nextParams\)\) return;[\s\S]*?applyActiveFileParams\(nextParams\);[\s\S]*?\};/,
+  'right-sidebar Save should immediately apply saved parameter values and rebuild the 3D runtime',
+);
+
+assert.doesNotMatch(
+  saveParameterDraftBody,
+  /updateActiveFile\(\(file\) => \(\{[\s\S]*?params: nextParams[\s\S]*?needsReset: true/,
+  'right-sidebar Save should not only save params and defer the runtime rebuild until Start',
 );
 
 assert.doesNotMatch(

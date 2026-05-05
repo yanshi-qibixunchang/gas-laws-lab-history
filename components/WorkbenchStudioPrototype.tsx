@@ -288,9 +288,13 @@ interface WorkbenchCopy {
     no: string;
     diagnostic: string;
     export: string;
+    exportFigures: string;
     reportPdf: string;
     verificationFigure: string;
     pointsCsv: string;
+    verification: string;
+    rawPv: string;
+    history: string;
   };
   actions: {
     start: string;
@@ -331,6 +335,7 @@ interface WorkbenchCopy {
     runStates: Record<WorkbenchFileState['runState'], string>;
     verdictStates: Record<string, string>;
   };
+  exportEnvironment: Record<WorkbenchExportEnvironmentStatus, { label: string; detail: string }>;
   logs: {
     initialized: string;
     defaultLayout: string;
@@ -348,6 +353,25 @@ interface WorkbenchCopy {
     fileSelected: (name: string) => string;
     confirmClear: (name: string, relation: string) => string;
     clearedRelation: (name: string, relation: string) => string;
+    exportLabels: Record<WorkbenchExportMode, string>;
+    exportNotReady: (name: string) => string;
+    exportNeedsTwoPoints: (name: string) => string;
+    exportPayloadPrepared: (name: string, label: string, filename: string, detail: string) => string;
+    exportPreparing: (name: string, label: string) => string;
+    exportCancelled: (name: string, label: string) => string;
+    exportFailed: (name: string, label: string, message: string) => string;
+    exportCsvSaved: (name: string, target: string) => string;
+    exportCompleted: (name: string, label: string, outDir: string, fileCount: number, figureHint: string) => string;
+    exportFigureHint: string;
+    unknownExporterError: string;
+    selectedLocation: string;
+    selectedFolder: string;
+    fileNameCannotBeEmpty: string;
+    fileNameUnchanged: (name: string) => string;
+    fileRenamed: (name: string) => string;
+    fileRemoved: (name: string) => string;
+    confirmDeleteFile: (name: string) => string;
+    layoutAlreadyDefault: (name: string) => string;
   };
 }
 
@@ -416,13 +440,20 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       title: '结果', experimentStatus: '实验状态', scan: '扫描', measuredPressure: '实测 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 点', recordedPoints: (count) => count + ' 个记录点',
       clearRelation: '清空关系', confirmClear: '确认清空', remove: '移除', confirmRemove: '确认移除', cancel: '取消', noPoints: '没有点', runToRecord: '运行实验以记录点。', tableAction: '操作', tableTime: '时间',
       finalState: '最终状态', meanSpeed: '平均速度', measuredBars: '实测柱', idealLine: '理想线', samples: (count) => count + ' 个样本', waiting: '等待中', finalSpeedSamples: '最终速度样本', finalEnergySamples: '最终能量样本', tempHistorySamples: '温度历史样本', finalDataReady: '最终数据就绪', energyDrift: '能量漂移', meanAbsTempError: '平均绝对温度误差', tempSamples: '温度样本', resultsReady: (relation) => relation + ' 实验结果已就绪', waitingForRecordedPoints: (relation) => relation + ' 等待记录点',
-      metric: '指标', value: '值', status: '状态', ready: '就绪', notReady: '未就绪', yes: '是', no: '否', diagnostic: '诊断', export: '导出', reportPdf: '报告 PDF', verificationFigure: '验证图', pointsCsv: '点 CSV',
+      metric: '指标', value: '值', status: '状态', ready: '就绪', notReady: '未就绪', yes: '是', no: '否', diagnostic: '诊断', export: '导出', exportFigures: '导出图像', reportPdf: '报告 PDF', verificationFigure: '验证图', pointsCsv: '点 CSV', verification: '验证', rawPv: '原始 P-V', history: '历史',
     },
     actions: { start: '开始', pause: '暂停', stop: '停止', close: '关闭', resetView: '重置视图', hide: '隐藏', cancel: '取消' },
     shortcuts: { title: '快捷键', hint: '常用工作台快捷键', undo: '撤销', redo: '重做', closeSettings: '关闭设置' },
     console: { title: '控制台 / 输出', tabs: { logs: '日志', warnings: '警告', summary: '摘要' }, total: '总计', info: '信息', success: '成功', warnings: '警告', errors: '错误', latest: '最新', runtime: '运行时', noLogs: '暂无日志。', noWarnings: '暂无警告或错误。' },
     status: { activeFile: (name) => '当前文件：' + name, selectedBlock: (name) => '选中板块：' + name, none: '无', noRuntime: '未连接运行时', standardRuntime: '标准运行时已连接', idealRuntime: (relation, verdict) => '理想运行时已连接 / ' + relation + ' / ' + verdict, runStates: { idle: '空闲', running: '运行中', paused: '已暂停', finished: '已完成', 'needs-reset': '需要重置' }, verdictStates: { insufficient: '数据不足', collecting: '采集中', verified: '已验证', failed: '未通过', preliminary: '初步成立', notYet: '尚未成立', 'not-started': '尚未开始' } },
-    logs: { initialized: 'Workbench 工作台原型已初始化。', defaultLayout: '默认布局：3D 预览、实时数据 / 图表、当前参数。', standardConnected: '标准模拟运行时、3D 预览和实时图表数据已连接。', exportBridgeRequired: '科学 PDF 导出需要桌面运行时桥接。', autoPausedSingleRuntime: (name) => name + '：由于一次只能运行一个工作台运行时，已自动暂停。', autoPausedCreateFile: (name) => name + '：创建新文件时已自动暂停。', autoPausedSwitchFile: (name) => name + '：切换文件时已自动暂停。', fileCreated: (name) => '已创建工作台文件：' + name, mockAction: (label) => '模拟操作：' + label, lockedPanel: (title) => title + ' 是默认工作区的一部分，不能隐藏。', layoutReset: (name) => name + '：布局已恢复为 3D 预览 + 实时数据 / 图表', idealResultsOpened: (name, tab) => name + '：已在 ' + tab + ' 打开理想结果窗口。', idealResultsClosed: (name) => name + '：已关闭理想结果窗口。', fileSelected: (name) => '已选择文件标签：' + name, confirmClear: (name, relation) => name + '：点击确认清空以删除全部 ' + relation + ' 点。', clearedRelation: (name, relation) => name + '：已清空 ' + relation + ' 点。' },
+    exportEnvironment: {
+      checking: { label: '正在检查导出环境', detail: '正在检查本机 Python/Matplotlib 和内置导出器是否可用。' },
+      'available-system': { label: '系统 Python 导出器可用', detail: '科学报告和图像导出将使用本机 Python/Matplotlib 环境。' },
+      'available-bundled': { label: '内置导出器可用', detail: '科学报告和图像导出将使用桌面程序随附的导出器。' },
+      unavailable: { label: '桌面导出桥接不可用', detail: '当前环境不能直接导出 PDF/图像。请在 Hard Sphere Lab 桌面程序中使用本地导出。' },
+      error: { label: '导出环境异常', detail: '导出器检测失败。模拟、实时图表和结果预览仍可使用。' },
+    },
+    logs: { initialized: 'Workbench 工作台原型已初始化。', defaultLayout: '默认布局：3D 预览、实时数据 / 图表、当前参数。', standardConnected: '标准模拟运行时、3D 预览和实时图表数据已连接。', exportBridgeRequired: '科学 PDF 导出需要桌面运行时桥接。', autoPausedSingleRuntime: (name) => name + '：由于一次只能运行一个工作台运行时，已自动暂停。', autoPausedCreateFile: (name) => name + '：创建新文件时已自动暂停。', autoPausedSwitchFile: (name) => name + '：切换文件时已自动暂停。', fileCreated: (name) => '已创建工作台文件：' + name, mockAction: (label) => '模拟操作：' + label, lockedPanel: (title) => title + ' 是默认工作区的一部分，不能隐藏。', layoutReset: (name) => name + '：布局已恢复为 3D 预览 + 实时数据 / 图表', idealResultsOpened: (name, tab) => name + '：已在 ' + tab + ' 打开理想结果窗口。', idealResultsClosed: (name) => name + '：已关闭理想结果窗口。', fileSelected: (name) => '已选择文件标签：' + name, confirmClear: (name, relation) => name + '：点击确认清空以删除全部 ' + relation + ' 点。', clearedRelation: (name, relation) => name + '：已清空 ' + relation + ' 点。', exportLabels: { report: '报告 PDF', verificationFigure: '验证图', pointsCsv: '点 CSV', figuresZip: '结果图像' }, exportNotReady: (name) => name + '：结果数据尚未满足导出条件。', exportNeedsTwoPoints: (name) => name + '：拟合报告或验证图至少需要 2 个记录点。', exportPayloadPrepared: (name, label, filename, detail) => name + '：' + label + ' 载荷已准备为 ' + filename + '；' + detail, exportPreparing: (name, label) => name + '：正在准备导出 ' + label + '。', exportCancelled: (name, label) => name + '：已取消导出 ' + label + '。', exportFailed: (name, label, message) => name + '：' + label + ' 导出失败：' + message, exportCsvSaved: (name, target) => name + '：点 CSV 已保存到 ' + target + '。', exportCompleted: (name, label, outDir, fileCount, figureHint) => name + '：' + label + ' 已导出到 ' + outDir + '（' + fileCount + ' 个文件）。' + figureHint, exportFigureHint: '图像文件位于 figures 子文件夹内。', unknownExporterError: '未知导出器错误', selectedLocation: '选定位置', selectedFolder: '选定文件夹', fileNameCannotBeEmpty: '文件名不能为空。', fileNameUnchanged: (name) => name + '：名称未改变。', fileRenamed: (name) => '工作台文件已重命名为 ' + name + '。', fileRemoved: (name) => name + '：已从当前工作台会话移除。', confirmDeleteFile: (name) => name + '：点击确认删除以从工作台会话移除此打开文件。', layoutAlreadyDefault: (name) => name + '：布局已经使用默认面板。' },
   },
   'zh-TW': {
     menus: {
@@ -463,13 +494,20 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       title: '結果', experimentStatus: '實驗狀態', scan: '掃描', measuredPressure: '實測 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 點', recordedPoints: (count) => count + ' 個記錄點',
       clearRelation: '清空關係', confirmClear: '確認清空', remove: '移除', confirmRemove: '確認移除', cancel: '取消', noPoints: '沒有點', runToRecord: '執行實驗以記錄點。', tableAction: '操作', tableTime: '時間',
       finalState: '最終狀態', meanSpeed: '平均速度', measuredBars: '實測柱', idealLine: '理想線', samples: (count) => count + ' 個樣本', waiting: '等待中', finalSpeedSamples: '最終速度樣本', finalEnergySamples: '最終能量樣本', tempHistorySamples: '溫度歷史樣本', finalDataReady: '最終資料就緒', energyDrift: '能量漂移', meanAbsTempError: '平均絕對溫度誤差', tempSamples: '溫度樣本', resultsReady: (relation) => relation + ' 實驗結果已就緒', waitingForRecordedPoints: (relation) => relation + ' 等待記錄點',
-      metric: '指標', value: '值', status: '狀態', ready: '就緒', notReady: '未就緒', yes: '是', no: '否', diagnostic: '診斷', export: '匯出', reportPdf: '報告 PDF', verificationFigure: '驗證圖', pointsCsv: '點 CSV',
+      metric: '指標', value: '值', status: '狀態', ready: '就緒', notReady: '未就緒', yes: '是', no: '否', diagnostic: '診斷', export: '匯出', exportFigures: '匯出圖像', reportPdf: '報告 PDF', verificationFigure: '驗證圖', pointsCsv: '點 CSV', verification: '驗證', rawPv: '原始 P-V', history: '歷史',
     },
     actions: { start: '開始', pause: '暫停', stop: '停止', close: '關閉', resetView: '重置視圖', hide: '隱藏', cancel: '取消' },
     shortcuts: { title: '快捷鍵', hint: '常用工作台快捷鍵', undo: '復原', redo: '重做', closeSettings: '關閉設定' },
     console: { title: '控制台 / 輸出', tabs: { logs: '日誌', warnings: '警告', summary: '摘要' }, total: '總計', info: '資訊', success: '成功', warnings: '警告', errors: '錯誤', latest: '最新', runtime: '執行階段', noLogs: '暫無日誌。', noWarnings: '暫無警告或錯誤。' },
     status: { activeFile: (name) => '目前檔案：' + name, selectedBlock: (name) => '選取區塊：' + name, none: '無', noRuntime: '未連接執行階段', standardRuntime: '標準執行階段已連接', idealRuntime: (relation, verdict) => '理想執行階段已連接 / ' + relation + ' / ' + verdict, runStates: { idle: '閒置', running: '執行中', paused: '已暫停', finished: '已完成', 'needs-reset': '需要重置' }, verdictStates: { insufficient: '資料不足', collecting: '採集中', verified: '已驗證', failed: '未通過', preliminary: '初步成立', notYet: '尚未成立', 'not-started': '尚未開始' } },
-    logs: { initialized: 'Workbench 工作台原型已初始化。', defaultLayout: '預設版面：3D 預覽、即時資料 / 圖表、目前參數。', standardConnected: '標準模擬執行階段、3D 預覽和即時圖表資料已連接。', exportBridgeRequired: '科學 PDF 匯出需要桌面執行階段橋接。', autoPausedSingleRuntime: (name) => name + '：由於一次只能執行一個工作台執行階段，已自動暫停。', autoPausedCreateFile: (name) => name + '：建立新檔案時已自動暫停。', autoPausedSwitchFile: (name) => name + '：切換檔案時已自動暫停。', fileCreated: (name) => '已建立工作台檔案：' + name, mockAction: (label) => '模擬操作：' + label, lockedPanel: (title) => title + ' 是預設工作區的一部分，不能隱藏。', layoutReset: (name) => name + '：版面已還原為 3D 預覽 + 即時資料 / 圖表', idealResultsOpened: (name, tab) => name + '：已在 ' + tab + ' 開啟理想結果視窗。', idealResultsClosed: (name) => name + '：已關閉理想結果視窗。', fileSelected: (name) => '已選擇檔案分頁：' + name, confirmClear: (name, relation) => name + '：點擊確認清空以刪除全部 ' + relation + ' 點。', clearedRelation: (name, relation) => name + '：已清空 ' + relation + ' 點。' },
+    exportEnvironment: {
+      checking: { label: '正在檢查匯出環境', detail: '正在檢查本機 Python/Matplotlib 和內建匯出器是否可用。' },
+      'available-system': { label: '系統 Python 匯出器可用', detail: '科學報告和圖像匯出將使用本機 Python/Matplotlib 環境。' },
+      'available-bundled': { label: '內建匯出器可用', detail: '科學報告和圖像匯出將使用桌面程式隨附的匯出器。' },
+      unavailable: { label: '桌面匯出橋接不可用', detail: '目前環境不能直接匯出 PDF/圖像。請在 Hard Sphere Lab 桌面程式中使用本地匯出。' },
+      error: { label: '匯出環境異常', detail: '匯出器偵測失敗。模擬、即時圖表和結果預覽仍可使用。' },
+    },
+    logs: { initialized: 'Workbench 工作台原型已初始化。', defaultLayout: '預設版面：3D 預覽、即時資料 / 圖表、目前參數。', standardConnected: '標準模擬執行階段、3D 預覽和即時圖表資料已連接。', exportBridgeRequired: '科學 PDF 匯出需要桌面執行階段橋接。', autoPausedSingleRuntime: (name) => name + '：由於一次只能執行一個工作台執行階段，已自動暫停。', autoPausedCreateFile: (name) => name + '：建立新檔案時已自動暫停。', autoPausedSwitchFile: (name) => name + '：切換檔案時已自動暫停。', fileCreated: (name) => '已建立工作台檔案：' + name, mockAction: (label) => '模擬操作：' + label, lockedPanel: (title) => title + ' 是預設工作區的一部分，不能隱藏。', layoutReset: (name) => name + '：版面已還原為 3D 預覽 + 即時資料 / 圖表', idealResultsOpened: (name, tab) => name + '：已在 ' + tab + ' 開啟理想結果視窗。', idealResultsClosed: (name) => name + '：已關閉理想結果視窗。', fileSelected: (name) => '已選擇檔案分頁：' + name, confirmClear: (name, relation) => name + '：點擊確認清空以刪除全部 ' + relation + ' 點。', clearedRelation: (name, relation) => name + '：已清空 ' + relation + ' 點。', exportLabels: { report: '報告 PDF', verificationFigure: '驗證圖', pointsCsv: '點 CSV', figuresZip: '結果圖像' }, exportNotReady: (name) => name + '：結果資料尚未滿足匯出條件。', exportNeedsTwoPoints: (name) => name + '：擬合報告或驗證圖至少需要 2 個記錄點。', exportPayloadPrepared: (name, label, filename, detail) => name + '：' + label + ' 載荷已準備為 ' + filename + '；' + detail, exportPreparing: (name, label) => name + '：正在準備匯出 ' + label + '。', exportCancelled: (name, label) => name + '：已取消匯出 ' + label + '。', exportFailed: (name, label, message) => name + '：' + label + ' 匯出失敗：' + message, exportCsvSaved: (name, target) => name + '：點 CSV 已儲存到 ' + target + '。', exportCompleted: (name, label, outDir, fileCount, figureHint) => name + '：' + label + ' 已匯出到 ' + outDir + '（' + fileCount + ' 個檔案）。' + figureHint, exportFigureHint: '圖像檔案位於 figures 子資料夾內。', unknownExporterError: '未知匯出器錯誤', selectedLocation: '選定位置', selectedFolder: '選定資料夾', fileNameCannotBeEmpty: '檔案名稱不能為空。', fileNameUnchanged: (name) => name + '：名稱未改變。', fileRenamed: (name) => '工作台檔案已重新命名為 ' + name + '。', fileRemoved: (name) => name + '：已從目前工作台工作階段移除。', confirmDeleteFile: (name) => name + '：點擊確認刪除以從工作台工作階段移除此開啟檔案。', layoutAlreadyDefault: (name) => name + '：版面已經使用預設面板。' },
   },
   en: {
     menus: {
@@ -510,13 +548,20 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       title: 'Results', experimentStatus: 'Experiment status', scan: 'Scan', measuredPressure: 'Measured P', idealPressure: 'Ideal P', gap: 'Gap', pointsTitle: (relation) => relation + ' points', recordedPoints: (count) => count + ' recorded points',
       clearRelation: 'Clear Relation', confirmClear: 'Confirm Clear', remove: 'Remove', confirmRemove: 'Confirm Remove', cancel: 'Cancel', noPoints: 'no points', runToRecord: 'Run the experiment to record points.', tableAction: 'Action', tableTime: 'Time',
       finalState: 'Final state', meanSpeed: 'Mean speed', measuredBars: 'measured bars', idealLine: 'ideal line', samples: (count) => count + ' samples', waiting: 'waiting', finalSpeedSamples: 'final speed samples', finalEnergySamples: 'final energy samples', tempHistorySamples: 'temp history samples', finalDataReady: 'final data ready', energyDrift: 'energy drift', meanAbsTempError: 'mean abs temp error', tempSamples: 'Temp samples', resultsReady: (relation) => relation + ' experiment result ready', waitingForRecordedPoints: (relation) => relation + ' waiting for recorded points',
-      metric: 'Metric', value: 'Value', status: 'Status', ready: 'ready', notReady: 'not-ready', yes: 'yes', no: 'no', diagnostic: 'Diagnostic', export: 'Export', reportPdf: 'Report PDF', verificationFigure: 'Verification Figure', pointsCsv: 'Points CSV',
+      metric: 'Metric', value: 'Value', status: 'Status', ready: 'ready', notReady: 'not-ready', yes: 'yes', no: 'no', diagnostic: 'Diagnostic', export: 'Export', exportFigures: 'Export Figures', reportPdf: 'Report PDF', verificationFigure: 'Verification Figure', pointsCsv: 'Points CSV', verification: 'Verification', rawPv: 'Raw P-V', history: 'History',
     },
     actions: { start: 'Start', pause: 'Pause', stop: 'Stop', close: 'Close', resetView: 'Reset view', hide: 'Hide', cancel: 'Cancel' },
     shortcuts: { title: 'Shortcuts', hint: 'Common workbench shortcuts', undo: 'Undo', redo: 'Redo', closeSettings: 'Close settings' },
     console: { title: 'Console / Output', tabs: { logs: 'Logs', warnings: 'Warnings', summary: 'Summary' }, total: 'Total', info: 'Info', success: 'Success', warnings: 'Warnings', errors: 'Errors', latest: 'Latest', runtime: 'Runtime', noLogs: 'No log entries yet.', noWarnings: 'No warnings or errors yet.' },
-    status: { activeFile: (name) => 'Active file: ' + name, selectedBlock: (name) => 'Selected block: ' + name, none: 'none', noRuntime: 'No runtime connected', standardRuntime: 'Standard runtime connected', idealRuntime: (relation, verdict) => 'Ideal runtime connected / ' + relation + ' / ' + verdict, runStates: { idle: 'idle', running: 'running', paused: 'paused', finished: 'finished', 'needs-reset': 'needs reset' }, verdictStates: { insufficient: 'insufficient', collecting: 'collecting', verified: 'verified', failed: 'failed', preliminary: 'preliminary', notYet: 'not yet', 'not-started': 'not started' } },
-    logs: { initialized: 'Workbench studio prototype initialized.', defaultLayout: 'Default layout: 3D Preview, Realtime Data / Charts, Current Parameters.', standardConnected: 'Standard Simulation runtime, 3D preview, and realtime chart data are connected.', exportBridgeRequired: 'Scientific PDF export requires the desktop runtime bridge.', autoPausedSingleRuntime: (name) => name + ': auto-paused because only one workbench runtime can run at a time.', autoPausedCreateFile: (name) => name + ': auto-paused when creating a new file.', autoPausedSwitchFile: (name) => name + ': auto-paused when switching files.', fileCreated: (name) => 'Workbench file created: ' + name, mockAction: (label) => 'Mock action: ' + label, lockedPanel: (title) => title + ' is locked as part of the default workspace and cannot be hidden.', layoutReset: (name) => name + ': layout reset to 3D Preview + Realtime Data / Charts', idealResultsOpened: (name, tab) => name + ': opened ideal Results window on ' + tab + '.', idealResultsClosed: (name) => name + ': closed ideal Results window.', fileSelected: (name) => 'File tab selected: ' + name, confirmClear: (name, relation) => name + ': click Confirm Clear to clear all ' + relation + ' points.', clearedRelation: (name, relation) => name + ': cleared ' + relation + ' points.' },
+    status: { activeFile: (name) => 'Active file: ' + name, selectedBlock: (name) => 'Selected block: ' + name, none: 'none', noRuntime: 'No runtime connected', standardRuntime: 'Standard runtime connected', idealRuntime: (relation, verdict) => 'Ideal runtime connected / ' + relation + ' / ' + verdict, runStates: { idle: 'idle', running: 'running', paused: 'paused', finished: 'finished', 'needs-reset': 'runtime refresh needed' }, verdictStates: { insufficient: 'insufficient', collecting: 'collecting', verified: 'verified', failed: 'failed', preliminary: 'preliminary', notYet: 'not yet', 'not-started': 'not started' } },
+    exportEnvironment: {
+      checking: { label: 'Checking export environment', detail: 'Desktop runtime is checking local Python/Matplotlib and bundled exporter availability.' },
+      'available-system': { label: 'System Python exporter available', detail: 'Scientific report and figure export will use this computer\'s Python/Matplotlib environment.' },
+      'available-bundled': { label: 'Bundled exporter available', detail: 'Scientific report and figure export will use the exporter packaged with the desktop app.' },
+      unavailable: { label: 'Desktop export bridge unavailable', detail: 'This environment cannot export PDF or figures directly. Use local export in the Hard Sphere Lab desktop app.' },
+      error: { label: 'Export environment error', detail: 'Exporter detection failed. Simulation, realtime charts, and result previews remain available.' },
+    },
+    logs: { initialized: 'Workbench studio prototype initialized.', defaultLayout: 'Default layout: 3D Preview, Realtime Data / Charts, Current Parameters.', standardConnected: 'Standard Simulation runtime, 3D preview, and realtime chart data are connected.', exportBridgeRequired: 'Scientific PDF export requires the desktop runtime bridge.', autoPausedSingleRuntime: (name) => name + ': auto-paused because only one workbench runtime can run at a time.', autoPausedCreateFile: (name) => name + ': auto-paused when creating a new file.', autoPausedSwitchFile: (name) => name + ': auto-paused when switching files.', fileCreated: (name) => 'Workbench file created: ' + name, mockAction: (label) => 'Mock action: ' + label, lockedPanel: (title) => title + ' is locked as part of the default workspace and cannot be hidden.', layoutReset: (name) => name + ': layout reset to 3D Preview + Realtime Data / Charts', idealResultsOpened: (name, tab) => name + ': opened ideal Results window on ' + tab + '.', idealResultsClosed: (name) => name + ': closed ideal Results window.', fileSelected: (name) => 'File tab selected: ' + name, confirmClear: (name, relation) => name + ': click Confirm Clear to clear all ' + relation + ' points.', clearedRelation: (name, relation) => name + ': cleared ' + relation + ' points.', exportLabels: { report: 'report PDF', verificationFigure: 'verification figure', pointsCsv: 'points CSV', figuresZip: 'result figures' }, exportNotReady: (name) => name + ': result data does not meet export requirements yet.', exportNeedsTwoPoints: (name) => name + ': at least 2 recorded points are required for a fitted report or verification figure.', exportPayloadPrepared: (name, label, filename, detail) => name + ': ' + label + ' payload prepared as ' + filename + '; ' + detail, exportPreparing: (name, label) => name + ': preparing ' + label + ' export.', exportCancelled: (name, label) => name + ': ' + label + ' export cancelled.', exportFailed: (name, label, message) => name + ': ' + label + ' export failed: ' + message, exportCsvSaved: (name, target) => name + ': points CSV saved to ' + target + '.', exportCompleted: (name, label, outDir, fileCount, figureHint) => name + ': ' + label + ' exported to ' + outDir + ' (' + fileCount + ' files).' + figureHint, exportFigureHint: 'Figure files are inside the figures subfolders.', unknownExporterError: 'unknown exporter error', selectedLocation: 'selected location', selectedFolder: 'selected folder', fileNameCannotBeEmpty: 'File name cannot be empty.', fileNameUnchanged: (name) => name + ': name unchanged.', fileRenamed: (name) => 'Workbench file renamed to ' + name + '.', fileRemoved: (name) => name + ': removed from the current workbench session.', confirmDeleteFile: (name) => name + ': click Confirm Delete to remove this open file from the workbench session.', layoutAlreadyDefault: (name) => name + ': layout is already using the default panels.' },
   },
 };
 
@@ -529,29 +574,6 @@ interface WorkbenchLayoutDefaults {
   standard: WorkbenchLayoutDefaultState;
   ideal: WorkbenchLayoutDefaultState;
 }
-
-const exportEnvironmentCopy: Record<WorkbenchExportEnvironmentStatus, { label: string; detail: string }> = {
-  checking: {
-    label: 'Checking export environment',
-    detail: 'Desktop runtime is checking local Python/Matplotlib and bundled exporter availability.',
-  },
-  'available-system': {
-    label: 'System Python exporter available',
-    detail: 'Scientific report and figure export will use this computer\'s Python/Matplotlib environment.',
-  },
-  'available-bundled': {
-    label: 'Bundled exporter available',
-    detail: 'Scientific report and figure export will use the exporter packaged with the desktop app.',
-  },
-  unavailable: {
-    label: 'PDF export unavailable in web preview',
-    detail: 'Simulation, realtime charts, and result previews still work. Desktop packaging will add system-then-bundled exporter detection.',
-  },
-  error: {
-    label: 'Export environment error',
-    detail: 'Exporter detection failed. Simulation and realtime charts remain available.',
-  },
-};
 
 const hasDesktopExportBridge = () => (
   typeof window !== 'undefined' && Boolean(window.hardSphereLabExporter)
@@ -1341,33 +1363,34 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const bridge = window.hardSphereLabExporter;
     if (!bridge) {
       setExportEnvironmentStatus('unavailable');
-      setExportEnvironmentDetail(exportEnvironmentCopy.unavailable.detail);
+      setExportEnvironmentDetail(workbenchCopy.exportEnvironment.unavailable.detail);
       return;
     }
 
     let cancelled = false;
     setExportEnvironmentStatus('checking');
-    setExportEnvironmentDetail(exportEnvironmentCopy.checking.detail);
+    setExportEnvironmentDetail(workbenchCopy.exportEnvironment.checking.detail);
 
     bridge.checkExportEnvironment()
       .then((result) => {
         if (cancelled) return;
         const nextStatus = result.status === 'available-bundled' ? 'available-bundled' : result.status;
+        const localizedDetail = workbenchCopy.exportEnvironment[nextStatus].detail;
         setExportEnvironmentStatus(nextStatus);
-        setExportEnvironmentDetail(result.message ?? exportEnvironmentCopy[nextStatus].detail);
+        setExportEnvironmentDetail(localizedDetail);
         setLogs((current) => [
           ...current,
           {
             id: current.length + 1,
             time: formatTime(),
             kind: nextStatus === 'available-system' || nextStatus === 'available-bundled' ? 'success' : 'warning',
-            message: result.message ?? exportEnvironmentCopy[nextStatus].detail,
+            message: localizedDetail,
           },
         ]);
       })
-      .catch((error: unknown) => {
+      .catch(() => {
         if (cancelled) return;
-        const message = error instanceof Error ? error.message : 'Desktop export environment check failed.';
+        const message = workbenchCopy.exportEnvironment.error.detail;
         setExportEnvironmentStatus('error');
         setExportEnvironmentDetail(message);
         setLogs((current) => [
@@ -1384,7 +1407,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [workbenchCopy.exportEnvironment]);
 
   useEffect(() => {
     if (consoleTab === 'summary') return;
@@ -2033,19 +2056,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (!nextParams) return;
     if (rejectLockedIdealControlledVariables(nextParams)) return;
 
-    if (!areWorkbenchParamsEqual(nextParams, activeFile.params)) {
-      captureUndoSnapshot('saved parameters');
-    }
-    updateActiveFile((file) => ({
-      ...file,
-      params: nextParams,
-      ...(file.kind === 'ideal' ? { needsReset: true as const } : {}),
-      updatedAt: Date.now(),
-    }));
-    setParametersEditing(false);
-    setParameterDraft({});
-    setParameterErrors([]);
-    pushLog(`${activeFile.name}: parameters saved to this workbench file.`, 'success');
+    applyActiveFileParams(nextParams);
   };
 
   const applyActiveFileParams = (
@@ -3234,14 +3245,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const commitRenameFile = (fileId: string) => {
     const nextName = renameDraft.trim();
     if (!nextName) {
-      pushLog('File name cannot be empty.', 'error');
+      pushLog(workbenchCopy.logs.fileNameCannotBeEmpty, 'error');
       return;
     }
 
     const targetFile = files.find((file) => file.id === fileId);
     if (targetFile && targetFile.name === nextName) {
       cancelRenameFile();
-      pushLog(`${nextName}: name unchanged.`);
+      pushLog(workbenchCopy.logs.fileNameUnchanged(nextName));
       return;
     }
 
@@ -3255,7 +3266,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     renameSelectionModeRef.current = 'normal';
     setRenamingFileId(null);
     setRenameDraft('');
-    pushLog(`Workbench file renamed to ${nextName}.`, 'success');
+    pushLog(workbenchCopy.logs.fileRenamed(nextName), 'success');
   };
 
   const cancelRenameFile = () => {
@@ -3271,7 +3282,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     const nextName = renameDraft.trim();
     if (!nextName) {
-      pushLog('File name cannot be empty.', 'error');
+      pushLog(workbenchCopy.logs.fileNameCannotBeEmpty, 'error');
       renamingFileIdRef.current = null;
       renameSelectionModeRef.current = 'normal';
       setRenamingFileId(null);
@@ -3282,7 +3293,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const targetFile = filesRef.current.find((file) => file.id === fileId);
     if (targetFile && targetFile.name === nextName) {
       cancelRenameFile();
-      pushLog(`${nextName}: name unchanged.`);
+      pushLog(workbenchCopy.logs.fileNameUnchanged(nextName));
       return;
     }
 
@@ -3296,7 +3307,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     renameSelectionModeRef.current = 'normal';
     setRenamingFileId(null);
     setRenameDraft('');
-    pushLog(`Workbench file renamed to ${nextName}.`, 'success');
+    pushLog(workbenchCopy.logs.fileRenamed(nextName), 'success');
   };
 
   useEffect(() => {
@@ -3375,7 +3386,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setParameterErrors([]);
     setIdealAdvancedSettingsOpen(false);
     setIdealAdvancedSettingsBodyVisible(false);
-    pushLog(`${file.name}: removed from the current workbench session.`, 'warning');
+    pushLog(workbenchCopy.logs.fileRemoved(file.name), 'warning');
   };
 
   const requestDeleteWorkbenchFile = (file: WorkbenchFileState) => {
@@ -3385,7 +3396,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
 
     setPendingDeleteFileId(file.id);
-    pushLog(`${file.name}: click Confirm Delete to remove this open file from the workbench session.`, 'warning');
+    pushLog(workbenchCopy.logs.confirmDeleteFile(file.name), 'warning');
   };
 
   const cancelDeleteWorkbenchFile = () => {
@@ -3400,7 +3411,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       activeFile.visiblePanels.includes('realtime')
     ) {
       setOpenTopMenu(null);
-      pushLog(`${activeFile.name}: layout is already using the default panels.`);
+      pushLog(workbenchCopy.logs.layoutAlreadyDefault(activeFile.name));
       return;
     }
 
@@ -3906,7 +3917,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
 
     if (openTopMenu === 'settings') {
-      const exportCopy = exportEnvironmentCopy[exportEnvironmentStatus];
+      const exportCopy = workbenchCopy.exportEnvironment[exportEnvironmentStatus];
 
       return (
         <div className="studio-command-menu studio-command-menu-settings" ref={topMenuRef}>
@@ -4355,50 +4366,48 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const exportAvailable = exportEnvironmentStatus === 'available-system' || exportEnvironmentStatus === 'available-bundled';
-  const exportCopy = exportEnvironmentCopy[exportEnvironmentStatus];
+  const exportCopy = workbenchCopy.exportEnvironment[exportEnvironmentStatus];
+  const idealPointCount = idealAnalysis?.sortedPoints.length ?? 0;
   const currentResultsReady = activeFile.kind === 'ideal'
-    ? Boolean(idealAnalysis && idealAnalysis.sortedPoints.length > 0)
+    ? idealPointCount > 0
     : resultSummary.ready;
+  const isExportModeDataReady = (mode: WorkbenchExportMode) => (
+    activeFile.kind === 'ideal'
+      ? mode === 'pointsCsv'
+        ? idealPointCount > 0
+        : idealPointCount >= 2
+      : resultSummary.ready
+  );
 
   const handleExportAction = async (mode: WorkbenchExportMode) => {
-    if (!currentResultsReady) {
-      pushLog(`${activeFile.name}: result data is not ready for scientific export.`, 'warning');
+    const exportLabel = workbenchCopy.logs.exportLabels[mode];
+
+    if (!isExportModeDataReady(mode)) {
+      pushLog(
+        activeFile.kind === 'ideal' && mode !== 'pointsCsv' && idealPointCount > 0
+          ? workbenchCopy.logs.exportNeedsTwoPoints(activeFile.name)
+          : workbenchCopy.logs.exportNotReady(activeFile.name),
+        'warning',
+      );
       return;
     }
 
-    if (
-      activeFile.kind === 'ideal'
-      && mode !== 'pointsCsv'
-      && (!idealAnalysis || idealAnalysis.sortedPoints.length < 2)
-    ) {
-      pushLog(`${activeFile.name}: at least 2 points are required for a fitted report or figure export.`, 'warning');
-      return;
-    }
-
-    const exportLabel =
-      mode === 'report'
-        ? 'report PDF'
-        : mode === 'verificationFigure'
-          ? 'verification figure'
-          : mode === 'pointsCsv'
-            ? 'points CSV'
-            : 'result figures';
     const payload = createWorkbenchExportPayload(activeFile, mode, settingsLanguagePreference);
     const bridge = window.hardSphereLabExporter;
 
     if (!exportAvailable) {
       const detail = exportEnvironmentDetail ?? exportCopy.detail;
-      pushLog(`${activeFile.name}: ${exportLabel} payload prepared as ${payload.filename}; ${detail}`, 'warning');
+      pushLog(workbenchCopy.logs.exportPayloadPrepared(activeFile.name, exportLabel, payload.filename, detail), 'warning');
       return;
     }
 
     if (!bridge) {
-      pushLog(`${activeFile.name}: ${exportLabel} payload prepared as ${payload.filename}; ${exportEnvironmentCopy.unavailable.detail}`, 'warning');
+      pushLog(workbenchCopy.logs.exportPayloadPrepared(activeFile.name, exportLabel, payload.filename, workbenchCopy.exportEnvironment.unavailable.detail), 'warning');
       return;
     }
 
     setExportInProgress(true);
-    pushLog(`${activeFile.name}: preparing ${exportLabel} export...`, 'info');
+    pushLog(workbenchCopy.logs.exportPreparing(activeFile.name, exportLabel), 'info');
 
     try {
       const result = await bridge.exportWorkbenchPayload(payload, {
@@ -4408,28 +4417,28 @@ const WorkbenchStudioPrototype: React.FC = () => {
       });
 
       if (result.status === 'cancelled') {
-        pushLog(`${activeFile.name}: ${exportLabel} export cancelled.`, 'warning');
+        pushLog(workbenchCopy.logs.exportCancelled(activeFile.name, exportLabel), 'warning');
         return;
       }
 
       if (result.status !== 'ok') {
-        pushLog(`${activeFile.name}: ${exportLabel} export failed: ${result.message ?? 'unknown exporter error'}`, 'error');
+        pushLog(workbenchCopy.logs.exportFailed(activeFile.name, exportLabel, result.message ?? workbenchCopy.logs.unknownExporterError), 'error');
         return;
       }
 
       const fileCount = result.files?.length ?? 0;
       if (mode === 'pointsCsv') {
-        pushLog(`${activeFile.name}: points CSV saved to ${result.files?.[0] ?? result.outDir ?? 'selected location'}.`, 'success');
+        pushLog(workbenchCopy.logs.exportCsvSaved(activeFile.name, result.files?.[0] ?? result.outDir ?? workbenchCopy.logs.selectedLocation), 'success');
         return;
       }
 
       const figureHint = mode === 'verificationFigure' || mode === 'figuresZip'
-        ? ' Figure files are inside the figures subfolders.'
+        ? ` ${workbenchCopy.logs.exportFigureHint}`
         : '';
-      pushLog(`${activeFile.name}: ${exportLabel} exported to ${result.outDir ?? 'selected folder'} (${fileCount} files).${figureHint}`, 'success');
+      pushLog(workbenchCopy.logs.exportCompleted(activeFile.name, exportLabel, result.outDir ?? workbenchCopy.logs.selectedFolder, fileCount, figureHint), 'success');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown exporter error';
-      pushLog(`${activeFile.name}: ${exportLabel} export failed: ${message}`, 'error');
+      const message = error instanceof Error ? error.message : workbenchCopy.logs.unknownExporterError;
+      pushLog(workbenchCopy.logs.exportFailed(activeFile.name, exportLabel, message), 'error');
     } finally {
       setExportInProgress(false);
     }
@@ -4505,11 +4514,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
           </div>
           <button
             type="button"
-            disabled={!currentResultsReady || exportInProgress}
+            disabled={!isExportModeDataReady('figuresZip') || exportInProgress}
             onClick={() => handleExportAction('figuresZip')}
           >
             <FileArchive size={13} />
-            Export Figures
+            {workbenchCopy.results.exportFigures}
           </button>
         </div>
 
@@ -4658,24 +4667,24 @@ const WorkbenchStudioPrototype: React.FC = () => {
             </div>
           </div>
           <div className="studio-ideal-export-actions">
-            <button type="button" disabled={!currentResultsReady || exportInProgress} onClick={() => handleExportAction('report')}>
+            <button type="button" disabled={!isExportModeDataReady('report') || exportInProgress} onClick={() => handleExportAction('report')}>
               <Download size={13} />
-              Report PDF
+              {workbenchCopy.results.reportPdf}
             </button>
-            <button type="button" disabled={!currentResultsReady || exportInProgress} onClick={() => handleExportAction('verificationFigure')}>
+            <button type="button" disabled={!isExportModeDataReady('verificationFigure') || exportInProgress} onClick={() => handleExportAction('verificationFigure')}>
               <BarChart3 size={13} />
-              Verification Figure
+              {workbenchCopy.results.verificationFigure}
             </button>
-            <button type="button" disabled={!currentResultsReady || exportInProgress} onClick={() => handleExportAction('pointsCsv')}>
+            <button type="button" disabled={!isExportModeDataReady('pointsCsv') || exportInProgress} onClick={() => handleExportAction('pointsCsv')}>
               <Table2 size={13} />
-              Points CSV
+              {workbenchCopy.results.pointsCsv}
             </button>
           </div>
           <div className="studio-ideal-export-files">
-            {verificationSpec ? <div><span>Verification</span><strong>{verificationSpec.recommendedFilename}</strong></div> : null}
-            {rawPvSpec ? <div><span>Raw P-V</span><strong>{rawPvSpec.recommendedFilename}</strong></div> : null}
-            {pointsSpec ? <div><span>Points CSV</span><strong>{pointsSpec.recommendedFilename}</strong></div> : null}
-            {historySpec ? <div><span>History</span><strong>{historySpec.recommendedFilename}</strong></div> : null}
+            {verificationSpec ? <div><span>{workbenchCopy.results.verification}</span><strong>{verificationSpec.recommendedFilename}</strong></div> : null}
+            {rawPvSpec ? <div><span>{workbenchCopy.results.rawPv}</span><strong>{rawPvSpec.recommendedFilename}</strong></div> : null}
+            {pointsSpec ? <div><span>{workbenchCopy.results.pointsCsv}</span><strong>{pointsSpec.recommendedFilename}</strong></div> : null}
+            {historySpec ? <div><span>{workbenchCopy.results.history}</span><strong>{historySpec.recommendedFilename}</strong></div> : null}
           </div>
           <div className="studio-figure-list studio-ideal-export-specs">
             {exportSpecs.map((figure) => (
@@ -4720,7 +4729,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div className="studio-results-actions">
             <button
               type="button"
-              disabled={!currentResultsReady || exportInProgress}
+              disabled={!isExportModeDataReady('report') || exportInProgress}
               onClick={() => handleExportAction('report')}
             >
               <Download size={13} />

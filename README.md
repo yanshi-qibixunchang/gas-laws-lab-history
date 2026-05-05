@@ -1,64 +1,115 @@
-# Hard Sphere Workbench
+# Hard Sphere Lab v3.5.1
 
 [简体中文说明](./README.zh-CN.md)
 
-Hard Sphere Workbench is a desktop-first React/Vite/Electron prototype for hard-sphere and ideal-gas simulation studies. The current workbench opens into an empty workspace, lets the user create studies explicitly, and persists each created workbench file, window layout, theme preference, and UI language setting locally.
+Hard Sphere Lab is a Windows desktop engineering workbench for hard-sphere molecular dynamics and ideal-gas relation verification. The active release path is the Electron desktop app, not the older browser-only workflow and not the frozen Android/APK archive.
 
-## Current Focus
+The GitHub default branch `main` is the source of truth for current desktop packaging. Clone or package from `main` unless a maintainer explicitly asks you to test another branch.
 
-This branch focuses on the Workbench experience:
+## Current Product Direction
 
-- Empty-start workflow with user-created Standard Simulation and Ideal Gas Simulation studies.
-- Desktop export bridge for reports and figures, with localized report and figure text while preserving scientific symbols and generated file names.
-- Workbench settings under Settings -> General for theme, language, shortcut reference, and layout defaults.
-- Light, dark, and system theme preferences with persistent storage.
-- Simplified Chinese, Traditional Chinese, and English Workbench UI copy.
-- Draggable 3D Preview / Realtime Data split layout, saved per file and as per-study default layout.
-- Results window layout memory for both standard and ideal-gas studies.
+- Windows desktop engineering software built with React, Vite, Electron, and a local Python exporter.
+- Standard hard-sphere simulation and ideal-gas `P-T`, `P-V`, `P-N` study templates.
+- Local high-quality export for PDF reports, figures, and CSV data.
+- System Python is used first when available; the packaged PyInstaller exporter is used as the fallback.
+- Simplified Chinese, Traditional Chinese, and English UI copy.
+- Legacy Android/APK material is preserved under `legacy-apk/` only as a frozen archive.
 
-## Local Development
+## Install And Package
 
-Install dependencies first:
+Install dependencies:
 
 ```powershell
 npm.cmd install
 ```
 
-Run the desktop preview used for Workbench verification:
+Build the bundled exporter before creating distributable desktop packages:
+
+```powershell
+npm.cmd run exporter:bundle
+```
+
+Create the official Windows installer:
+
+```powershell
+npm.cmd run desktop:installer
+```
+
+Create the portable build:
+
+```powershell
+npm.cmd run desktop:portable
+```
+
+The generated files are written to `release/`. For normal user distribution, use:
+
+```text
+release/Hard Sphere Lab Setup 3.5.1.exe
+```
+
+## Release Folder Guide
+
+- `Hard Sphere Lab Setup 3.5.1.exe`: official Windows installer. Use this for the full install, use, and uninstall workflow.
+- `Hard Sphere Lab 3.5.1.exe`: portable no-install app. Double-click to run; close it before running the installer.
+- `win-unpacked/`: unpacked application folder for developer inspection.
+- `Hard Sphere Lab Setup 3.5.1.exe.blockmap`: update metadata for differential update flows.
+- `latest.yml`: update metadata.
+- `builder-debug.yml`: local electron-builder debug output.
+
+Only the `Setup` executable is the formal installer.
+
+## Desktop Development
+
+Run the local desktop preview:
 
 ```powershell
 npm.cmd run desktop:dev
 ```
 
-A browser-only Vite preview is still available when needed:
+The browser-only Vite command is available for low-level UI debugging, but it is not the main acceptance path for this desktop release:
 
 ```powershell
 npm.cmd run dev -- --host 127.0.0.1 --port 5174 --strictPort
 ```
 
-## Verification
+## Main Features
 
-The targeted Workbench checks are plain Node scripts plus the production build:
+- File-style workbench for standard simulation and ideal-gas studies.
+- Interactive 3D particle preview and live chart panels.
+- Editable current-parameter sidebar with immediate runtime refresh after Save.
+- Results windows with tabs for summaries, data tables, figures, points, and verification views.
+- Desktop bridge for report, figure, and CSV export.
+- Default export archive under `Documents\Hard Sphere Lab Exports\<study-name>_<YYYYMMDD-HHmmss>\`.
+- Local PDF/PNG/CSV export with system Python first and bundled exporter fallback.
+- Persistent workbench session, layout defaults, theme, and language settings.
+
+## Verification Commands
 
 ```powershell
+node scripts\workbenchRemoveApplyAction.test.ts
+node scripts\workbenchStartAutoApplyScanControls.test.ts
+node scripts\workbenchRunningParamsLock.test.ts
+node scripts\workbenchExportButtonReadiness.test.ts
 node scripts\workbenchLanguageMode.test.ts
-node scripts\workbenchSettingsGeneral.test.ts
-node scripts\workbenchLightTheme.test.ts
-node scripts\workbenchLayoutExport.test.ts
-node scripts\workbenchEmptySession.test.ts
-node scripts\workbenchClickOutsideDismiss.test.ts
 npm.cmd run build
 ```
 
-## Project Structure
+Before publishing a Windows installer, also run:
 
-- `components/WorkbenchStudioPrototype.tsx` - main Workbench UI, state, settings, language copy, layout controls, and desktop bridge calls.
-- `components/WorkbenchStudioPrototype.css` - Workbench dark/light styling and responsive layout rules.
-- `components/workbenchState.ts` - Workbench file/session state helpers and layout defaults.
-- `components/workbenchSession.ts` - persistent Workbench session encoding and decoding.
-- `components/workbenchResults.ts` - report and figure export payload generation.
-- `scripts/workbench*.test.ts` - focused static and behavior checks for Workbench regressions.
+```powershell
+npm.cmd run exporter:bundle
+npm.cmd run desktop:installer
+```
 
-## Notes
+Then install `release/Hard Sphere Lab Setup 3.5.1.exe` into a clean test directory, launch the app, verify local export, and uninstall it through Windows Apps or `Uninstall Hard Sphere Lab.exe`.
 
-The app intentionally does not translate scientific variables, relation names, units, generated filenames, or low-level exporter errors. UI language preferences only affect Workbench-facing labels, logs, panels, reports, and figure text.
+## Repository Layout
+
+- `components/`: workbench UI, canvas, results, export payload, and session helpers.
+- `electron/`: desktop main and preload bridge for local export.
+- `tools/exporter/`: Python PDF, figure, and CSV exporter.
+- `scripts/`: targeted regression checks and exporter bundling script.
+- `resources/exporter/`: ignored local PyInstaller fallback executable output.
+- `legacy-apk/`: frozen mobile packaging archive, not an active development path.
+
+Generated packages, build outputs, exporter examples, logs, and local installation test directories are intentionally ignored.

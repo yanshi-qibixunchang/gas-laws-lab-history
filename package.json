@@ -1,6 +1,6 @@
 {
   "name": "hard-sphere-lab",
-  "version": "3.5.0",
+  "version": "3.5.1",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {

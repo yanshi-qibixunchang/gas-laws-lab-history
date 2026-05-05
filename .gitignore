@@ -28,6 +28,7 @@ __pycache__/
 .codex/
 .playwright-cli/
 output/
+install-test/
 tools/exporter/examples/*.json
 build-exporter/
 dist-exporter/
