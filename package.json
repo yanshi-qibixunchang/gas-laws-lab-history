@@ -8,15 +8,16 @@
     "build": "vite build",
     "desktop:dev": "vite build && electron .",
     "desktop:build": "vite build",
-    "desktop:installer": "vite build && electron-builder --win nsis --x64",
-    "desktop:portable": "vite build && electron-builder --win portable --x64",
+    "desktop:installer": "vite build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win nsis --x64",
+    "desktop:portable": "vite build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win portable --x64",
     "exporter:bundle": "node scripts/bundleExporter.cjs",
     "preview": "vite preview"
   },
-  "build": {
+    "build": {
     "appId": "com.hardspherelab.desktop",
     "productName": "Hard Sphere Lab",
     "electronDist": "node_modules/electron/dist",
+    "afterPack": "build/afterPack.cjs",
     "directories": {
       "output": "release"
     },
@@ -26,6 +27,13 @@
       "package.json"
     ],
     "extraResources": [
+      {
+        "from": "resources/app-icon",
+        "to": "app-icon",
+        "filter": [
+          "**/*"
+        ]
+      },
       {
         "from": "resources/exporter",
         "to": "exporter",
@@ -39,6 +47,7 @@
       }
     ],
     "win": {
+      "icon": "resources/app-icon/icon.ico",
       "signAndEditExecutable": false,
       "target": [
         {
@@ -59,6 +68,9 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
+      "include": "build/installer.nsh",
+      "installerIcon": "resources/app-icon/icon.ico",
+      "uninstallerIcon": "resources/app-icon/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Hard Sphere Lab"

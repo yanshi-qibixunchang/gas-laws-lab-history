@@ -269,6 +269,7 @@ interface WorkbenchCopy {
     measuredBars: string;
     idealLine: string;
     samples: (count: number) => string;
+    sampleWindows: (count: number) => string;
     waiting: string;
     finalSpeedSamples: string;
     finalEnergySamples: string;
@@ -391,6 +392,8 @@ const IDEAL_SCAN_SNAP_THRESHOLD: Record<ExperimentRelation, number> = {
 };
 const IDEAL_RESULT_MIN_HEIGHT_RATIO = 0.25;
 const IDEAL_RESULT_MAX_HEIGHT_RATIO = 1;
+const STANDARD_RESULTS_BOTTOM_INSET = 10;
+const RESIZER_GRAB_SAFE_SPACE = 14;
 const IDEAL_RESULT_WINDOW_DEFAULTS_STORAGE_KEY = 'hsl_workbench_ideal_result_window_defaults';
 const WORKBENCH_LAYOUT_DEFAULTS_STORAGE_KEY = 'hsl_workbench_layout_defaults_v1';
 const WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY = 'hsl_workbench_general_settings';
@@ -439,7 +442,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
     results: {
       title: '结果', experimentStatus: '实验状态', scan: '扫描', measuredPressure: '实测 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 点', recordedPoints: (count) => count + ' 个记录点',
       clearRelation: '清空关系', confirmClear: '确认清空', remove: '移除', confirmRemove: '确认移除', cancel: '取消', noPoints: '没有点', runToRecord: '运行实验以记录点。', tableAction: '操作', tableTime: '时间',
-      finalState: '最终状态', meanSpeed: '平均速度', measuredBars: '实测柱', idealLine: '理想线', samples: (count) => count + ' 个样本', waiting: '等待中', finalSpeedSamples: '最终速度样本', finalEnergySamples: '最终能量样本', tempHistorySamples: '温度历史样本', finalDataReady: '最终数据就绪', energyDrift: '能量漂移', meanAbsTempError: '平均绝对温度误差', tempSamples: '温度样本', resultsReady: (relation) => relation + ' 实验结果已就绪', waitingForRecordedPoints: (relation) => relation + ' 等待记录点',
+      finalState: '最终状态', meanSpeed: '平均速度', measuredBars: '实测柱', idealLine: '理想线', samples: (count) => count + ' 个样本', sampleWindows: (count) => count + ' 次采样', waiting: '等待中', finalSpeedSamples: '最终速度样本', finalEnergySamples: '最终能量样本', tempHistorySamples: '温度历史样本', finalDataReady: '最终数据就绪', energyDrift: '能量漂移', meanAbsTempError: '平均绝对温度误差', tempSamples: '温度样本', resultsReady: (relation) => relation + ' 实验结果已就绪', waitingForRecordedPoints: (relation) => relation + ' 等待记录点',
       metric: '指标', value: '值', status: '状态', ready: '就绪', notReady: '未就绪', yes: '是', no: '否', diagnostic: '诊断', export: '导出', exportFigures: '导出图像', reportPdf: '报告 PDF', verificationFigure: '验证图', pointsCsv: '点 CSV', verification: '验证', rawPv: '原始 P-V', history: '历史',
     },
     actions: { start: '开始', pause: '暂停', stop: '停止', close: '关闭', resetView: '重置视图', hide: '隐藏', cancel: '取消' },
@@ -493,7 +496,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
     results: {
       title: '結果', experimentStatus: '實驗狀態', scan: '掃描', measuredPressure: '實測 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 點', recordedPoints: (count) => count + ' 個記錄點',
       clearRelation: '清空關係', confirmClear: '確認清空', remove: '移除', confirmRemove: '確認移除', cancel: '取消', noPoints: '沒有點', runToRecord: '執行實驗以記錄點。', tableAction: '操作', tableTime: '時間',
-      finalState: '最終狀態', meanSpeed: '平均速度', measuredBars: '實測柱', idealLine: '理想線', samples: (count) => count + ' 個樣本', waiting: '等待中', finalSpeedSamples: '最終速度樣本', finalEnergySamples: '最終能量樣本', tempHistorySamples: '溫度歷史樣本', finalDataReady: '最終資料就緒', energyDrift: '能量漂移', meanAbsTempError: '平均絕對溫度誤差', tempSamples: '溫度樣本', resultsReady: (relation) => relation + ' 實驗結果已就緒', waitingForRecordedPoints: (relation) => relation + ' 等待記錄點',
+      finalState: '最終狀態', meanSpeed: '平均速度', measuredBars: '實測柱', idealLine: '理想線', samples: (count) => count + ' 個樣本', sampleWindows: (count) => count + ' 次採樣', waiting: '等待中', finalSpeedSamples: '最終速度樣本', finalEnergySamples: '最終能量樣本', tempHistorySamples: '溫度歷史樣本', finalDataReady: '最終資料就緒', energyDrift: '能量漂移', meanAbsTempError: '平均絕對溫度誤差', tempSamples: '溫度樣本', resultsReady: (relation) => relation + ' 實驗結果已就緒', waitingForRecordedPoints: (relation) => relation + ' 等待記錄點',
       metric: '指標', value: '值', status: '狀態', ready: '就緒', notReady: '未就緒', yes: '是', no: '否', diagnostic: '診斷', export: '匯出', exportFigures: '匯出圖像', reportPdf: '報告 PDF', verificationFigure: '驗證圖', pointsCsv: '點 CSV', verification: '驗證', rawPv: '原始 P-V', history: '歷史',
     },
     actions: { start: '開始', pause: '暫停', stop: '停止', close: '關閉', resetView: '重置視圖', hide: '隱藏', cancel: '取消' },
@@ -547,7 +550,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
     results: {
       title: 'Results', experimentStatus: 'Experiment status', scan: 'Scan', measuredPressure: 'Measured P', idealPressure: 'Ideal P', gap: 'Gap', pointsTitle: (relation) => relation + ' points', recordedPoints: (count) => count + ' recorded points',
       clearRelation: 'Clear Relation', confirmClear: 'Confirm Clear', remove: 'Remove', confirmRemove: 'Confirm Remove', cancel: 'Cancel', noPoints: 'no points', runToRecord: 'Run the experiment to record points.', tableAction: 'Action', tableTime: 'Time',
-      finalState: 'Final state', meanSpeed: 'Mean speed', measuredBars: 'measured bars', idealLine: 'ideal line', samples: (count) => count + ' samples', waiting: 'waiting', finalSpeedSamples: 'final speed samples', finalEnergySamples: 'final energy samples', tempHistorySamples: 'temp history samples', finalDataReady: 'final data ready', energyDrift: 'energy drift', meanAbsTempError: 'mean abs temp error', tempSamples: 'Temp samples', resultsReady: (relation) => relation + ' experiment result ready', waitingForRecordedPoints: (relation) => relation + ' waiting for recorded points',
+      finalState: 'Final state', meanSpeed: 'Mean speed', measuredBars: 'measured bars', idealLine: 'ideal line', samples: (count) => count + ' samples', sampleWindows: (count) => count + ' sampling windows', waiting: 'waiting', finalSpeedSamples: 'final speed samples', finalEnergySamples: 'final energy samples', tempHistorySamples: 'temp history samples', finalDataReady: 'final data ready', energyDrift: 'energy drift', meanAbsTempError: 'mean abs temp error', tempSamples: 'Temp samples', resultsReady: (relation) => relation + ' experiment result ready', waitingForRecordedPoints: (relation) => relation + ' waiting for recorded points',
       metric: 'Metric', value: 'Value', status: 'Status', ready: 'ready', notReady: 'not-ready', yes: 'yes', no: 'no', diagnostic: 'Diagnostic', export: 'Export', exportFigures: 'Export Figures', reportPdf: 'Report PDF', verificationFigure: 'Verification Figure', pointsCsv: 'Points CSV', verification: 'Verification', rawPv: 'Raw P-V', history: 'History',
     },
     actions: { start: 'Start', pause: 'Pause', stop: 'Stop', close: 'Close', resetView: 'Reset view', hide: 'Hide', cancel: 'Cancel' },
@@ -1051,6 +1054,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const idealAdvancedSettingsPreviousScrollTopRef = useRef(0);
   const idealAdvancedScrollFrameRef = useRef<number | null>(null);
   const centerWorkspaceRef = useRef<HTMLDivElement | null>(null);
+  const fileTabsRef = useRef<HTMLDivElement | null>(null);
   const idealResultWindowRegionRef = useRef<HTMLDivElement | null>(null);
 
   const emptyWorkbenchFile = useMemo(() => createDefaultStandardFile(0), []);
@@ -1635,6 +1639,23 @@ const WorkbenchStudioPrototype: React.FC = () => {
     window.addEventListener('mouseup', handleUp);
   };
 
+  const getStandardResultsMaxHeightRatio = () => {
+    const workspaceRect = centerWorkspaceRef.current?.getBoundingClientRect();
+    const fileTabsRect = fileTabsRef.current?.getBoundingClientRect();
+    if (!workspaceRect || workspaceRect.height <= 0) return IDEAL_RESULT_MAX_HEIGHT_RATIO;
+
+    const fileTabOverlap = fileTabsRect
+      ? Math.max(0, fileTabsRect.bottom - workspaceRect.top)
+      : 0;
+    const reservedTopSpace = Math.max(RESIZER_GRAB_SAFE_SPACE, fileTabOverlap + RESIZER_GRAB_SAFE_SPACE);
+    const availableHeight = workspaceRect.height - STANDARD_RESULTS_BOTTOM_INSET - reservedTopSpace;
+    return clamp(
+      availableHeight / workspaceRect.height,
+      IDEAL_RESULT_MIN_HEIGHT_RATIO,
+      IDEAL_RESULT_MAX_HEIGHT_RATIO,
+    );
+  };
+
   const startStandardResultsResize = (event: React.MouseEvent) => {
     if (activeFile.kind !== 'standard') return;
     event.preventDefault();
@@ -1646,6 +1667,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const snapshot = createEditSnapshot('resized standard Results window');
     const startY = event.clientY;
     const startRatio = normalizeStandardResultsLayout(activeFile.standardResultsLayout).heightRatio;
+    const maxHeightRatio = getStandardResultsMaxHeightRatio();
     let didResize = false;
 
     const handleMove = (moveEvent: MouseEvent) => {
@@ -1658,7 +1680,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           ...file,
           standardResultsLayout: {
             ...normalizeStandardResultsLayout(file.standardResultsLayout),
-            heightRatio: clamp(nextRatio, IDEAL_RESULT_MIN_HEIGHT_RATIO, IDEAL_RESULT_MAX_HEIGHT_RATIO),
+            heightRatio: clamp(nextRatio, IDEAL_RESULT_MIN_HEIGHT_RATIO, maxHeightRatio),
           },
           updatedAt: Date.now(),
         };
@@ -4022,13 +4044,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const renderRealtimeHistogram = (title: string, bins: HistogramBin[], accent: 'blue' | 'violet') => {
     const compactBins = getCompactHistogramBins(bins);
     const maxProbability = Math.max(0.0001, ...compactBins.map((bin) => bin.probability), ...compactBins.map((bin) => bin.theoretical ?? 0));
-    const sampleCount = getHistogramSampleCount(bins);
+    const runtime = activeFile.kind === 'standard' ? standardRuntimeRef.current[activeFile.id] : null;
+    const sampleCount = activeFile.kind === 'standard' ? runtime?.engine.getCollectedSampleCount() ?? 0 : 0;
 
     return (
       <div className={`studio-live-chart studio-live-chart-${accent}`}>
         <div className="studio-live-chart-header">
           <span>{title}</span>
-            <strong>{sampleCount > 0 ? workbenchCopy.results.samples(sampleCount) : workbenchCopy.results.waiting}</strong>
+            <strong>{sampleCount > 0 ? workbenchCopy.results.sampleWindows(sampleCount) : workbenchCopy.results.waiting}</strong>
         </div>
         <div className="studio-live-chart-bars">
           {compactBins.length > 0 ? (
@@ -5085,12 +5108,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
       ) : null}
       <div className="studio-shell">
         <header className="studio-menu">
-          <div className="studio-brand">
-            <span className="studio-brand-mark">
-              <img src="/appfig.png" alt="" />
-            </span>
-            <span>Hard Sphere Workbench</span>
-          </div>
           <nav className="studio-top-commands" aria-label="Top commands" ref={topCommandsRef}>
             {renderTopCommand('new', workbenchCopy.menus.newStudy, <FilePlus2 size={14} />)}
             {renderTopCommand('edit', workbenchCopy.menus.edit, <Undo2 size={14} />)}
@@ -5412,7 +5429,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           ) : null}
 
           <section className="studio-layout" aria-label="File workspace">
-            <div className="studio-file-tabs">
+            <div className="studio-file-tabs" ref={fileTabsRef}>
               {isWorkbenchEmpty ? (
                 <div className="studio-file-tabs-empty">{workbenchCopy.files.noOpenFiles}</div>
               ) : files.map((file) => (
@@ -5740,4 +5757,3 @@ const WorkbenchStudioPrototype: React.FC = () => {
 };
 
 export default WorkbenchStudioPrototype;
-

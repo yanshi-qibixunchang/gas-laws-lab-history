@@ -15,7 +15,7 @@ const getRuleBody = (selector: string) => {
 
 assert.match(
   source,
-  /standardResultsLayout:\s*\{[\s\S]*?heightRatio:\s*clamp\(nextRatio,\s*IDEAL_RESULT_MIN_HEIGHT_RATIO,\s*IDEAL_RESULT_MAX_HEIGHT_RATIO\)/,
+  /standardResultsLayout:\s*\{[\s\S]*?heightRatio:\s*clamp\(nextRatio,\s*IDEAL_RESULT_MIN_HEIGHT_RATIO,\s*maxHeightRatio\)/,
   'standard Results should store its resizable height ratio in the active file layout',
 );
 
@@ -33,8 +33,20 @@ assert.match(
 
 assert.match(
   source,
-  /heightRatio:\s*clamp\(nextRatio,\s*IDEAL_RESULT_MIN_HEIGHT_RATIO,\s*IDEAL_RESULT_MAX_HEIGHT_RATIO\)/,
-  'standard Results resize should clamp to the same height ratio range as ideal Results',
+  /const maxHeightRatio = getStandardResultsMaxHeightRatio\(\)/,
+  'standard Results resize should compute a workspace-aware maximum height ratio',
+);
+
+assert.match(
+  source,
+  /heightRatio:\s*clamp\(nextRatio,\s*IDEAL_RESULT_MIN_HEIGHT_RATIO,\s*maxHeightRatio\)/,
+  'standard Results resize should clamp to the workspace-aware maximum height ratio',
+);
+
+assert.match(
+  source,
+  /const getStandardResultsMaxHeightRatio = \(\) => \{[\s\S]*?fileTabsRect[\s\S]*?RESIZER_GRAB_SAFE_SPACE[\s\S]*?IDEAL_RESULT_MAX_HEIGHT_RATIO/,
+  'standard Results maximum height should reserve file-tab and resizer-safe space',
 );
 
 assert.match(

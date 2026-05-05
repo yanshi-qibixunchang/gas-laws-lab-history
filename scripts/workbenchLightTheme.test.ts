@@ -70,6 +70,12 @@ for (const selector of [
   '.studio-theme-light .studio-param-edit-button:hover',
   '.studio-theme-light .studio-param-save-button:hover',
   '.studio-theme-light .studio-ideal-chart-card',
+  '.studio-theme-light .studio-final-figure-card',
+  '.studio-theme-light .studio-final-bars',
+  '.studio-theme-light .studio-final-line',
+  '.studio-theme-light .studio-final-bars span',
+  '.studio-theme-light .studio-final-line span',
+  '.studio-theme-light .studio-final-figure-empty',
   '.studio-theme-light .simulation-canvas-workbench-tool',
   '.studio-theme-light .simulation-canvas-workbench-hint-pill',
 ]) {

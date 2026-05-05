@@ -1,4 +1,5 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu } = require('electron');
+const fsSync = require('node:fs');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
@@ -6,8 +7,17 @@ const { spawn } = require('node:child_process');
 
 const rootDir = path.resolve(__dirname, '..');
 const preloadPath = path.join(__dirname, 'preload.cjs');
+const appTitle = 'Hard Sphere Lab';
 const exportRootFolderName = 'Hard Sphere Lab Exports';
 let selectedExporterRuntime = null;
+
+const getAppIconPath = () => {
+  const candidates = [
+    path.join(process.resourcesPath || '', 'app-icon', 'icon.ico'),
+    path.join(rootDir, 'resources', 'app-icon', 'icon.ico'),
+  ];
+  return candidates.find((candidate) => fsSync.existsSync(candidate));
+};
 
 const getSystemExporterCandidates = () => ([
   path.join(process.resourcesPath || '', 'exporter', 'hsl_exporter.py'),
@@ -192,10 +202,12 @@ const resolveExporterRuntime = async () => {
 
 const createMainWindow = async () => {
   const mainWindow = new BrowserWindow({
+    title: appTitle,
     width: 1440,
     height: 920,
     minWidth: 1180,
     minHeight: 760,
+    icon: getAppIconPath(),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -308,6 +320,8 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
 });
 
 app.whenReady().then(async () => {
+  app.setName(appTitle);
+  Menu.setApplicationMenu(null);
   await ensureDefaultExportRoot();
   await createMainWindow();
 });

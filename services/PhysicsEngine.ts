@@ -25,6 +25,7 @@ export class PhysicsEngine {
 
   collectedSpeeds: number[] = [];
   collectedEnergies: number[] = [];
+  collectedSampleWindowTotal: number = 0;
   tempHistory: { time: number; error: number; totalEnergy: number }[] = [];
 
   // Fixed Bins for Stable Charts
@@ -46,6 +47,7 @@ export class PhysicsEngine {
     this.time = 0;
     this.collectedSpeeds = [];
     this.collectedEnergies = [];
+    this.collectedSampleWindowTotal = 0;
     this.tempHistory = [];
     this.lastSampleTime = -1;
     this.pressureWindowStartTime = 0;
@@ -426,6 +428,7 @@ export class PhysicsEngine {
       this.collectedSpeeds.push(p.speed);
       this.collectedEnergies.push(p.energy);
     }
+    this.collectedSampleWindowTotal += 1;
     
     // MEMORY OPTIMIZATION: Shift old data if array gets too big
     if (this.collectedSpeeds.length > this.MAX_SAMPLES) {
@@ -445,6 +448,10 @@ export class PhysicsEngine {
     if (this.tempHistory.length > this.MAX_HISTORY) {
         this.tempHistory.shift();
     }
+  }
+
+  public getCollectedSampleCount(): number {
+    return this.collectedSampleWindowTotal;
   }
 
   public getStats(): SimulationStats {

@@ -1,6 +1,6 @@
 {
-  "name": "HSS",
-  "short_name": "HSS",
+  "name": "Hard Sphere Lab",
+  "short_name": "Hard Sphere Lab",
   "version": "3.5.1",
   "description": "Hard sphere molecular dynamics simulation with Andersen thermostat, responsive controls, and built-in report viewing.",
   "start_url": "/",
