@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../components/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../components/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
+const electronSource = readFileSync(new URL('../electron/main.cjs', import.meta.url), 'utf8');
 
 assert.match(
   source,
@@ -20,6 +21,47 @@ assert.match(
   source,
   /const stopActiveFile = \(\) => \{[\s\S]*?cancelRuntimeFrame\(activeFile\.id\);[\s\S]*?runState: 'idle'/,
   'preview should expose a stop action that terminates the active runtime',
+);
+
+assert.match(
+  source,
+  /const SIMULATION_TICK_INTERVAL_MS = 16;/,
+  'simulation runtime should use a fixed foreground-equivalent tick interval',
+);
+
+assert.match(
+  source,
+  /interface StandardEngineRuntime \{[\s\S]*?simulationTimerId: number \| null;[\s\S]*?\}/,
+  'simulation runtimes should track a timer handle instead of a render frame handle',
+);
+
+for (const schedulerName of ['scheduleStandardFrame', 'scheduleIdealFrame']) {
+  const schedulerStart = source.indexOf(`const ${schedulerName} = (fileId: string) => {`);
+  assert.notEqual(schedulerStart, -1, `${schedulerName} should exist`);
+  const schedulerEnd = source.indexOf('\n  const run', schedulerStart);
+  assert.notEqual(schedulerEnd, -1, `${schedulerName} body should be followed by a run function`);
+  const schedulerBody = source.slice(schedulerStart, schedulerEnd);
+
+  assert.ok(
+    schedulerBody.includes('window.setTimeout') && schedulerBody.includes('SIMULATION_TICK_INTERVAL_MS'),
+    `${schedulerName} should schedule physics with a fixed timer so background windows keep running`,
+  );
+  assert.ok(
+    !schedulerBody.includes('requestAnimationFrame'),
+    `${schedulerName} should not depend on requestAnimationFrame for physics progression`,
+  );
+}
+
+assert.match(
+  source,
+  /const cancelRuntimeFrame = \(fileId: string\) => \{[\s\S]*?window\.clearTimeout\(runtime\.simulationTimerId\);[\s\S]*?runtime\.simulationTimerId = null;/,
+  'runtime cancellation should clear the fixed simulation timer',
+);
+
+assert.match(
+  electronSource,
+  /webPreferences:\s*\{[\s\S]*?backgroundThrottling:\s*false/,
+  'Electron should disable background throttling for the desktop simulation window',
 );
 
 assert.match(

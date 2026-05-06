@@ -1429,6 +1429,178 @@
   outline: none;
 }
 
+.studio-theme-light .studio-command-button,
+.studio-theme-light .studio-command-menu button,
+.studio-theme-light .studio-file-menu button,
+.studio-theme-light .studio-panel-actions button,
+.studio-theme-light .studio-results-actions button,
+.studio-theme-light .studio-results-subheader button,
+.studio-theme-light .studio-console-tabs button,
+.studio-theme-light .studio-param-edit-button,
+.studio-theme-light .studio-param-save-button,
+.studio-theme-light .studio-ideal-results-card-header button,
+.studio-theme-light .studio-ideal-export-actions button,
+.studio-theme-light .studio-export-actions button,
+.studio-theme-light .studio-table-action,
+.studio-theme-light .studio-panel-collapse,
+.studio-theme-light .studio-panel-lock-button,
+.studio-theme-light .studio-ideal-scan-tick-button {
+  color: var(--studio-muted);
+}
+
+.studio-theme-light .studio-command-menu-title,
+.studio-theme-light .studio-command-menu strong,
+.studio-theme-light .studio-settings-language-menu strong,
+.studio-theme-light .studio-ideal-preset-menu strong,
+.studio-theme-light .studio-ideal-preset-trigger strong,
+.studio-theme-light .studio-ideal-relation-buttons strong,
+.studio-theme-light .studio-param-advanced-toggle strong {
+  color: var(--studio-text);
+}
+
+.studio-theme-light .studio-command-menu button:disabled,
+.studio-theme-light .studio-command-menu button:disabled:hover,
+.studio-theme-light .studio-current-params-locked button,
+.studio-theme-light .studio-current-params-locked button:hover,
+.studio-theme-light .studio-current-params-locked input,
+.studio-theme-light .studio-ideal-results-card-header button:disabled,
+.studio-theme-light .studio-ideal-export-actions button:disabled,
+.studio-theme-light .studio-export-actions button:disabled {
+  background: #eef2f7 !important;
+  border-color: #d7e0ec !important;
+  color: #7a8da6 !important;
+  box-shadow: none !important;
+  opacity: 1;
+}
+
+.studio-theme-light .studio-panel-collapse:hover,
+.studio-theme-light .studio-panel-collapse:focus-visible,
+.studio-theme-light .studio-panel-lock-button:hover,
+.studio-theme-light .studio-panel-lock-button:focus-visible,
+.studio-theme-light .studio-results-folder-button:hover,
+.studio-theme-light .studio-results-folder-button:focus-visible,
+.studio-theme-light .studio-tree-title-button:hover,
+.studio-theme-light .studio-tree-title-button:focus-visible,
+.studio-theme-light .studio-results-tab-close:hover,
+.studio-theme-light .studio-results-tab-close:focus-visible,
+.studio-theme-light .studio-console-tabs button:hover,
+.studio-theme-light .studio-console-tabs button:focus-visible,
+.studio-theme-light .studio-console-tabs .studio-console-tab-active,
+.studio-theme-light .studio-ideal-scan-tick-button:hover,
+.studio-theme-light .studio-ideal-scan-tick-button:focus-visible,
+.studio-theme-light .studio-ideal-scan-tick-active,
+.studio-theme-light .studio-param-advanced-toggle:hover,
+.studio-theme-light .studio-param-advanced-toggle:focus-visible,
+.studio-theme-light .studio-ideal-results-card-header button:hover,
+.studio-theme-light .studio-ideal-results-card-header button:focus-visible,
+.studio-theme-light .studio-ideal-export-actions button:hover,
+.studio-theme-light .studio-ideal-export-actions button:focus-visible,
+.studio-theme-light .studio-export-actions button:hover,
+.studio-theme-light .studio-export-actions button:focus-visible {
+  background: #eaf2ff;
+  border-color: rgba(37, 99, 235, 0.42);
+  color: var(--studio-text);
+  outline: none;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08);
+}
+
+.studio-theme-light .studio-panel-lock-button {
+  background: #f8fafc;
+  border-color: rgba(161, 98, 7, 0.26);
+  color: #83580d;
+}
+
+.studio-theme-light .studio-panel-lock-button:hover,
+.studio-theme-light .studio-panel-lock-button:focus-visible {
+  background: #fffbeb;
+  border-color: rgba(161, 98, 7, 0.42);
+  color: #92400e;
+}
+
+.studio-theme-light .studio-results-folder-button,
+.studio-theme-light .studio-tree-title-button {
+  background: transparent;
+  border-color: transparent;
+  color: var(--studio-subtle);
+}
+
+.studio-theme-light .studio-results-folder-button:hover,
+.studio-theme-light .studio-results-folder-button:focus-visible,
+.studio-theme-light .studio-tree-title-button:hover,
+.studio-theme-light .studio-tree-title-button:focus-visible {
+  background: transparent;
+  box-shadow: none;
+}
+
+.studio-theme-light .studio-results-tab-close {
+  background: transparent;
+  color: var(--studio-muted);
+}
+
+.studio-theme-light .studio-results-tab-close:hover,
+.studio-theme-light .studio-results-tab-close:focus-visible {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.studio-theme-light .studio-file-rename-input {
+  background: #ffffff;
+  border-color: rgba(37, 99, 235, 0.5);
+  color: var(--studio-text);
+}
+
+.studio-theme-light .studio-file-tabs-empty,
+.studio-theme-light .studio-file-menu-confirm-row,
+.studio-theme-light .studio-file-menu-confirm-row-pending > button + button,
+.studio-theme-light .studio-table-action-row-pending > button,
+.studio-theme-light .studio-results-subheader > .studio-results-clear-actions-pending {
+  border-color: var(--studio-border);
+}
+
+.studio-theme-light .studio-ideal-results-card-header button,
+.studio-theme-light .studio-ideal-export-actions button,
+.studio-theme-light .studio-export-actions button {
+  background: #f8fafc;
+  border-color: var(--studio-border);
+  color: var(--studio-muted);
+}
+
+.studio-theme-light .studio-ideal-export-actions button:not(:disabled),
+.studio-theme-light .studio-export-actions button:not(:disabled) {
+  background: #eef6ff;
+  border-color: rgba(37, 99, 235, 0.32);
+  color: #2563eb;
+}
+
+.studio-theme-light .studio-panel-actions .studio-run-control-start:hover,
+.studio-theme-light .studio-panel-actions .studio-run-control-pause:hover {
+  background: #bbf7d0;
+  border-color: rgba(22, 101, 52, 0.36);
+  color: #14532d;
+}
+
+.studio-theme-light .studio-panel-actions .studio-run-control-stop:hover {
+  background: #fecaca;
+  border-color: rgba(153, 27, 27, 0.36);
+  color: #7f1d1d;
+}
+
+.studio-theme-light .studio-ideal-scan-input:hover,
+.studio-theme-light .studio-ideal-scan-input:focus {
+  background: #ffffff;
+  border-color: rgba(37, 99, 235, 0.56);
+  color: var(--studio-text);
+}
+
+.studio-theme-light .studio-ideal-scan-input:disabled,
+.studio-theme-light .studio-ideal-scan-tick-button:disabled,
+.studio-theme-light .studio-ideal-scan-tick-button:disabled:hover {
+  background: #eef2f7 !important;
+  border-color: #d7e0ec !important;
+  color: #7a8da6 !important;
+  opacity: 1;
+}
+
 .studio-theme-light .studio-status {
   background: #f8fafc;
   border-color: var(--studio-border);

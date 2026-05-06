@@ -29,7 +29,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import type { ExperimentRelation, HistogramBin, IdealGasExperimentPoint, Particle, SimulationParams } from '../types';
+import type { ExperimentRelation, HistogramBin, IdealGasExperimentPoint, Particle, SimulationParams, SimulationStats } from '../types';
 import { PhysicsEngine } from '../services/PhysicsEngine';
 import { translations } from '../services/translations';
 import SimulationCanvas from './SimulationCanvas';
@@ -84,6 +84,7 @@ import {
   isVariableKeyForRelation,
   type ExperimentParamKey,
   type IdealGasAnalysis,
+  type IdealExperimentLanguageCode,
 } from '../utils/idealGasExperiment';
 import './WorkbenchStudioPrototype.css';
 
@@ -121,7 +122,7 @@ interface PanelDefinition {
 interface StandardEngineRuntime {
   engine: PhysicsEngine;
   frameCount: number;
-  animationFrameId: number | null;
+  simulationTimerId: number | null;
 }
 
 interface ApplyActiveFileParamsOptions {
@@ -296,6 +297,77 @@ interface WorkbenchCopy {
     verification: string;
     rawPv: string;
     history: string;
+    resultReadyStatus: string;
+    resultNotReadyStatus: string;
+    resultReadyDetail: string;
+    resultNotReadyDetail: string;
+    finalTime: string;
+    finalTemperature: string;
+    finalPressure: string;
+    rmsSpeed: string;
+    speedBins: string;
+    energyBins: string;
+    notReadyPreview: string;
+    figuresHint: string;
+    noIdealPointsTitle: string;
+    noIdealPointsBody: string;
+    activeRelation: string;
+    noIdealVerificationTitle: string;
+    noIdealVerificationBody: string;
+    historyLockedFor: (relation: string) => string;
+    historyUnlocked: string;
+    historyUnlockHint: string;
+    historicalContext: string;
+    workbenchInterpretation: string;
+    keyFigures: string;
+    keyFiguresValue: (rSquared: string, slopeError: string) => string;
+    whyLocked: string;
+    whyItHappened: string;
+    recommendedNextStep: string;
+    exportFilesHint: string;
+    pvLinearizedValidation: string;
+    relationValidation: (relation: string) => string;
+    measuredScatterHint: string;
+    originalPvPhysicalView: string;
+    originalPvPhysicalHint: string;
+    verdictLabel: (relation: string, verdict: string) => string;
+    pointsMetric: string;
+    rSquared: string;
+    slope: string;
+    theorySlope: string;
+    slopeError: string;
+    failureReason: string;
+    noneValue: string;
+    currentVerification: (rSquared: string, slopeError: string) => string;
+    currentVerdictRecommendation: (verdict: string, recommendation: string) => string;
+    noIdealHistoryTitle: string;
+    noIdealHistoryBody: string;
+    noVerificationChartTitle: string;
+    noVerificationChartBody: string;
+    panelNotConnectedTitle: string;
+    panelNotConnectedBody: string;
+    measuredLegend: string;
+    fitLegend: string;
+    theoryLegend: string;
+    idealPressureTrace: (relation: string) => string;
+    currentIdealPressureHint: string;
+    meanTemperature: string;
+    relativeGap: string;
+    samplingProgress: string;
+    speedDistribution: string;
+    energyDistribution: string;
+    phase: string;
+    phaseStates: Record<SimulationStats['phase'], string>;
+    probabilityDensity: string;
+    experimentPointTableTitle: string;
+    experimentPointTableBody: string;
+    idealResultsSectionsAria: string;
+    openIdealResultsTabTitle: string;
+    resultsTreeExpandAria: string;
+    resultsTreeCollapseAria: string;
+    resultsOpenHint: string;
+    resultsJumpHint: string;
+    figureStatus: Record<'ready' | 'not-ready' | 'not-applicable', string>;
   };
   actions: {
     start: string;
@@ -350,6 +422,7 @@ interface WorkbenchCopy {
     lockedPanel: (title: string) => string;
     layoutReset: (name: string) => string;
     idealResultsOpened: (name: string, tab: string) => string;
+    standardResultsOpened: (name: string, tab: string) => string;
     idealResultsClosed: (name: string) => string;
     fileSelected: (name: string) => string;
     confirmClear: (name: string, relation: string) => string;
@@ -382,6 +455,7 @@ const LEFT_SIDEBAR_MAX = 420;
 const PARAM_SIDEBAR_MIN = 240;
 const PARAM_SIDEBAR_MAX = 420;
 const EDIT_HISTORY_LIMIT = 50;
+const SIMULATION_TICK_INTERVAL_MS = 16;
 const IDEAL_ADVANCED_SCROLL_DURATION_MS = 420;
 const IDEAL_SCAN_THUMB_SIZE = 13;
 const IDEAL_SCAN_THUMB_HIT_RADIUS = 9.1;
@@ -444,6 +518,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       clearRelation: '清空关系', confirmClear: '确认清空', remove: '移除', confirmRemove: '确认移除', cancel: '取消', noPoints: '没有点', runToRecord: '运行实验以记录点。', tableAction: '操作', tableTime: '时间',
       finalState: '最终状态', meanSpeed: '平均速度', measuredBars: '实测柱', idealLine: '理想线', samples: (count) => count + ' 个样本', sampleWindows: (count) => count + ' 次采样', waiting: '等待中', finalSpeedSamples: '最终速度样本', finalEnergySamples: '最终能量样本', tempHistorySamples: '温度历史样本', finalDataReady: '最终数据就绪', energyDrift: '能量漂移', meanAbsTempError: '平均绝对温度误差', tempSamples: '温度样本', resultsReady: (relation) => relation + ' 实验结果已就绪', waitingForRecordedPoints: (relation) => relation + ' 等待记录点',
       metric: '指标', value: '值', status: '状态', ready: '就绪', notReady: '未就绪', yes: '是', no: '否', diagnostic: '诊断', export: '导出', exportFigures: '导出图像', reportPdf: '报告 PDF', verificationFigure: '验证图', pointsCsv: '点 CSV', verification: '验证', rawPv: '原始 P-V', history: '历史',
+      resultReadyStatus: '结果就绪', resultNotReadyStatus: '结果未就绪', resultReadyDetail: '最终数据已捕获，可用于摘要、表格、图像和后续报告导出。', resultNotReadyDetail: '运行标准模拟，直到采集阶段结束后生成最终结果数据。', finalTime: '最终时间', finalTemperature: '最终温度', finalPressure: '最终压力', rmsSpeed: '均方根速度', speedBins: '速度分箱', energyBins: '能量分箱', notReadyPreview: '未就绪', figuresHint: '图像就绪状态、推荐文件名和预览。', noIdealPointsTitle: '没有理想气体点', noIdealPointsBody: '选择理想气体文件以查看实验点。', activeRelation: '当前关系', noIdealVerificationTitle: '没有验证图', noIdealVerificationBody: '验证图仅适用于理想气体文件。', historyLockedFor: (relation) => relation + ' 的历史内容已锁定', historyUnlocked: '已由验证通过的实验数据解锁。', historyUnlockHint: '通过一次成功验证后解锁。', historicalContext: '历史背景', workbenchInterpretation: '工作台解释', keyFigures: '关键数值', keyFiguresValue: (rSquared, slopeError) => 'R2 ' + rSquared + ' / 斜率误差 ' + slopeError, whyLocked: '为什么锁定', whyItHappened: '原因说明', recommendedNextStep: '建议下一步', exportFilesHint: '导出环境和推荐文件。', pvLinearizedValidation: 'P - 1/V 线性化验证', relationValidation: (relation) => relation + ' 验证', measuredScatterHint: '实测散点、拟合线与理论参考。', originalPvPhysicalView: '原始 P - V 物理视图', originalPvPhysicalHint: '直接显示反比关系，判定仍使用线性化视图。', verdictLabel: (relation, verdict) => relation + ' 判定：' + verdict, pointsMetric: '点数', rSquared: 'R2', slope: '拟合斜率', theorySlope: '理论斜率', slopeError: '斜率误差', failureReason: '未通过原因', noneValue: '无', currentVerification: (rSquared, slopeError) => '当前验证：R2 ' + rSquared + '，斜率误差 ' + slopeError + '。', currentVerdictRecommendation: (verdict, recommendation) => '当前判定：' + verdict + '。建议：' + recommendation, noIdealHistoryTitle: '没有理想气体历史内容', noIdealHistoryBody: '理想气体验证通过后会解锁历史内容。', noVerificationChartTitle: '没有验证图', noVerificationChartBody: '验证图仅适用于理想气体文件。', panelNotConnectedTitle: '面板尚未连接', panelNotConnectedBody: '该面板将在后续工作台集成批次中接入。', measuredLegend: '实测', fitLegend: '拟合', theoryLegend: '理论', idealPressureTrace: (relation) => relation + ' 压强轨迹', currentIdealPressureHint: '运行当前理想气体点以采集压强窗口。', meanTemperature: '平均温度', relativeGap: '相对差值', samplingProgress: '采样进度', speedDistribution: '速度分布', energyDistribution: '能量分布', phase: '阶段', phaseStates: { idle: '空闲', equilibrating: '热平衡中', collecting: '采集中', finished: '已完成' }, probabilityDensity: '概率密度', experimentPointTableTitle: '没有实验点表', experimentPointTableBody: '实验点表仅适用于理想气体文件。', idealResultsSectionsAria: '理想气体结果分页', openIdealResultsTabTitle: '打开此理想气体结果分页。', resultsTreeExpandAria: '展开结果分区', resultsTreeCollapseAria: '折叠结果分区', resultsOpenHint: '点击选择，双击打开。', resultsJumpHint: '双击打开结果并跳转到此分区。', figureStatus: { ready: '就绪', 'not-ready': '未就绪', 'not-applicable': '不适用' },
     },
     actions: { start: '开始', pause: '暂停', stop: '停止', close: '关闭', resetView: '重置视图', hide: '隐藏', cancel: '取消' },
     shortcuts: { title: '快捷键', hint: '常用工作台快捷键', undo: '撤销', redo: '重做', closeSettings: '关闭设置' },
@@ -456,7 +531,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       unavailable: { label: '桌面导出桥接不可用', detail: '当前环境不能直接导出 PDF/图像。请在 Hard Sphere Lab 桌面程序中使用本地导出。' },
       error: { label: '导出环境异常', detail: '导出器检测失败。模拟、实时图表和结果预览仍可使用。' },
     },
-    logs: { initialized: 'Workbench 工作台原型已初始化。', defaultLayout: '默认布局：3D 预览、实时数据 / 图表、当前参数。', standardConnected: '标准模拟运行时、3D 预览和实时图表数据已连接。', exportBridgeRequired: '科学 PDF 导出需要桌面运行时桥接。', autoPausedSingleRuntime: (name) => name + '：由于一次只能运行一个工作台运行时，已自动暂停。', autoPausedCreateFile: (name) => name + '：创建新文件时已自动暂停。', autoPausedSwitchFile: (name) => name + '：切换文件时已自动暂停。', fileCreated: (name) => '已创建工作台文件：' + name, mockAction: (label) => '模拟操作：' + label, lockedPanel: (title) => title + ' 是默认工作区的一部分，不能隐藏。', layoutReset: (name) => name + '：布局已恢复为 3D 预览 + 实时数据 / 图表', idealResultsOpened: (name, tab) => name + '：已在 ' + tab + ' 打开理想结果窗口。', idealResultsClosed: (name) => name + '：已关闭理想结果窗口。', fileSelected: (name) => '已选择文件标签：' + name, confirmClear: (name, relation) => name + '：点击确认清空以删除全部 ' + relation + ' 点。', clearedRelation: (name, relation) => name + '：已清空 ' + relation + ' 点。', exportLabels: { report: '报告 PDF', verificationFigure: '验证图', pointsCsv: '点 CSV', figuresZip: '结果图像' }, exportNotReady: (name) => name + '：结果数据尚未满足导出条件。', exportNeedsTwoPoints: (name) => name + '：拟合报告或验证图至少需要 2 个记录点。', exportPayloadPrepared: (name, label, filename, detail) => name + '：' + label + ' 载荷已准备为 ' + filename + '；' + detail, exportPreparing: (name, label) => name + '：正在准备导出 ' + label + '。', exportCancelled: (name, label) => name + '：已取消导出 ' + label + '。', exportFailed: (name, label, message) => name + '：' + label + ' 导出失败：' + message, exportCsvSaved: (name, target) => name + '：点 CSV 已保存到 ' + target + '。', exportCompleted: (name, label, outDir, fileCount, figureHint) => name + '：' + label + ' 已导出到 ' + outDir + '（' + fileCount + ' 个文件）。' + figureHint, exportFigureHint: '图像文件位于 figures 子文件夹内。', unknownExporterError: '未知导出器错误', selectedLocation: '选定位置', selectedFolder: '选定文件夹', fileNameCannotBeEmpty: '文件名不能为空。', fileNameUnchanged: (name) => name + '：名称未改变。', fileRenamed: (name) => '工作台文件已重命名为 ' + name + '。', fileRemoved: (name) => name + '：已从当前工作台会话移除。', confirmDeleteFile: (name) => name + '：点击确认删除以从工作台会话移除此打开文件。', layoutAlreadyDefault: (name) => name + '：布局已经使用默认面板。' },
+    logs: { initialized: 'Workbench 工作台原型已初始化。', defaultLayout: '默认布局：3D 预览、实时数据 / 图表、当前参数。', standardConnected: '标准模拟运行时、3D 预览和实时图表数据已连接。', exportBridgeRequired: '科学 PDF 导出需要桌面运行时桥接。', autoPausedSingleRuntime: (name) => name + '：由于一次只能运行一个工作台运行时，已自动暂停。', autoPausedCreateFile: (name) => name + '：创建新文件时已自动暂停。', autoPausedSwitchFile: (name) => name + '：切换文件时已自动暂停。', fileCreated: (name) => '已创建工作台文件：' + name, mockAction: (label) => '模拟操作：' + label, lockedPanel: (title) => title + ' 是默认工作区的一部分，不能隐藏。', layoutReset: (name) => name + '：布局已恢复为 3D 预览 + 实时数据 / 图表', idealResultsOpened: (name, tab) => name + '：已在 ' + tab + ' 打开理想结果窗口。', standardResultsOpened: (name, tab) => name + '：已打开结果窗口并切换到 ' + tab + '。', idealResultsClosed: (name) => name + '：已关闭理想结果窗口。', fileSelected: (name) => '已选择文件标签：' + name, confirmClear: (name, relation) => name + '：点击确认清空以删除全部 ' + relation + ' 点。', clearedRelation: (name, relation) => name + '：已清空 ' + relation + ' 点。', exportLabels: { report: '报告 PDF', verificationFigure: '验证图', pointsCsv: '点 CSV', figuresZip: '结果图像' }, exportNotReady: (name) => name + '：结果数据尚未满足导出条件。', exportNeedsTwoPoints: (name) => name + '：拟合报告或验证图至少需要 2 个记录点。', exportPayloadPrepared: (name, label, filename, detail) => name + '：' + label + ' 载荷已准备为 ' + filename + '；' + detail, exportPreparing: (name, label) => name + '：正在准备导出 ' + label + '。', exportCancelled: (name, label) => name + '：已取消导出 ' + label + '。', exportFailed: (name, label, message) => name + '：' + label + ' 导出失败：' + message, exportCsvSaved: (name, target) => name + '：点 CSV 已保存到 ' + target + '。', exportCompleted: (name, label, outDir, fileCount, figureHint) => name + '：' + label + ' 已导出到 ' + outDir + '（' + fileCount + ' 个文件）。' + figureHint, exportFigureHint: '图像文件位于 figures 子文件夹内。', unknownExporterError: '未知导出器错误', selectedLocation: '选定位置', selectedFolder: '选定文件夹', fileNameCannotBeEmpty: '文件名不能为空。', fileNameUnchanged: (name) => name + '：名称未改变。', fileRenamed: (name) => '工作台文件已重命名为 ' + name + '。', fileRemoved: (name) => name + '：已从当前工作台会话移除。', confirmDeleteFile: (name) => name + '：点击确认删除以从工作台会话移除此打开文件。', layoutAlreadyDefault: (name) => name + '：布局已经使用默认面板。' },
   },
   'zh-TW': {
     menus: {
@@ -498,6 +573,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       clearRelation: '清空關係', confirmClear: '確認清空', remove: '移除', confirmRemove: '確認移除', cancel: '取消', noPoints: '沒有點', runToRecord: '執行實驗以記錄點。', tableAction: '操作', tableTime: '時間',
       finalState: '最終狀態', meanSpeed: '平均速度', measuredBars: '實測柱', idealLine: '理想線', samples: (count) => count + ' 個樣本', sampleWindows: (count) => count + ' 次採樣', waiting: '等待中', finalSpeedSamples: '最終速度樣本', finalEnergySamples: '最終能量樣本', tempHistorySamples: '溫度歷史樣本', finalDataReady: '最終資料就緒', energyDrift: '能量漂移', meanAbsTempError: '平均絕對溫度誤差', tempSamples: '溫度樣本', resultsReady: (relation) => relation + ' 實驗結果已就緒', waitingForRecordedPoints: (relation) => relation + ' 等待記錄點',
       metric: '指標', value: '值', status: '狀態', ready: '就緒', notReady: '未就緒', yes: '是', no: '否', diagnostic: '診斷', export: '匯出', exportFigures: '匯出圖像', reportPdf: '報告 PDF', verificationFigure: '驗證圖', pointsCsv: '點 CSV', verification: '驗證', rawPv: '原始 P-V', history: '歷史',
+      resultReadyStatus: '結果就緒', resultNotReadyStatus: '結果未就緒', resultReadyDetail: '最終資料已擷取，可用於摘要、表格、圖像和後續報告匯出。', resultNotReadyDetail: '執行標準模擬，直到採集階段結束後產生最終結果資料。', finalTime: '最終時間', finalTemperature: '最終溫度', finalPressure: '最終壓力', rmsSpeed: '均方根速度', speedBins: '速度分箱', energyBins: '能量分箱', notReadyPreview: '未就緒', figuresHint: '圖像就緒狀態、建議檔名和預覽。', noIdealPointsTitle: '沒有理想氣體點', noIdealPointsBody: '選擇理想氣體檔案以查看實驗點。', activeRelation: '目前關係', noIdealVerificationTitle: '沒有驗證圖', noIdealVerificationBody: '驗證圖僅適用於理想氣體檔案。', historyLockedFor: (relation) => relation + ' 的歷史內容已鎖定', historyUnlocked: '已由驗證通過的實驗資料解鎖。', historyUnlockHint: '通過一次成功驗證後解鎖。', historicalContext: '歷史背景', workbenchInterpretation: '工作台解釋', keyFigures: '關鍵數值', keyFiguresValue: (rSquared, slopeError) => 'R2 ' + rSquared + ' / 斜率誤差 ' + slopeError, whyLocked: '為什麼鎖定', whyItHappened: '原因說明', recommendedNextStep: '建議下一步', exportFilesHint: '匯出環境和建議檔案。', pvLinearizedValidation: 'P - 1/V 線性化驗證', relationValidation: (relation) => relation + ' 驗證', measuredScatterHint: '實測散點、擬合線與理論參考。', originalPvPhysicalView: '原始 P - V 物理視圖', originalPvPhysicalHint: '直接顯示反比關係，判定仍使用線性化視圖。', verdictLabel: (relation, verdict) => relation + ' 判定：' + verdict, pointsMetric: '點數', rSquared: 'R2', slope: '擬合斜率', theorySlope: '理論斜率', slopeError: '斜率誤差', failureReason: '未通過原因', noneValue: '無', currentVerification: (rSquared, slopeError) => '目前驗證：R2 ' + rSquared + '，斜率誤差 ' + slopeError + '。', currentVerdictRecommendation: (verdict, recommendation) => '目前判定：' + verdict + '。建議：' + recommendation, noIdealHistoryTitle: '沒有理想氣體歷史內容', noIdealHistoryBody: '理想氣體驗證通過後會解鎖歷史內容。', noVerificationChartTitle: '沒有驗證圖', noVerificationChartBody: '驗證圖僅適用於理想氣體檔案。', panelNotConnectedTitle: '面板尚未連接', panelNotConnectedBody: '該面板將在後續工作台整合批次中接入。', measuredLegend: '實測', fitLegend: '擬合', theoryLegend: '理論', idealPressureTrace: (relation) => relation + '壓強軌跡', currentIdealPressureHint: '執行目前理想氣體點以採集壓強窗口。', meanTemperature: '平均溫度', relativeGap: '相對差值', samplingProgress: '採樣進度', speedDistribution: '速度分布', energyDistribution: '能量分布', phase: '階段', phaseStates: { idle: '閒置', equilibrating: '熱平衡中', collecting: '採集中', finished: '已完成' }, probabilityDensity: '機率密度', experimentPointTableTitle: '沒有實驗點表', experimentPointTableBody: '實驗點表僅適用於理想氣體檔案。', idealResultsSectionsAria: '理想氣體結果分頁', openIdealResultsTabTitle: '開啟此理想氣體結果分頁。', resultsTreeExpandAria: '展開結果分區', resultsTreeCollapseAria: '摺疊結果分區', resultsOpenHint: '點選選取，雙擊開啟。', resultsJumpHint: '雙擊開啟結果並跳至此分區。', figureStatus: { ready: '就緒', 'not-ready': '未就緒', 'not-applicable': '不適用' },
     },
     actions: { start: '開始', pause: '暫停', stop: '停止', close: '關閉', resetView: '重置視圖', hide: '隱藏', cancel: '取消' },
     shortcuts: { title: '快捷鍵', hint: '常用工作台快捷鍵', undo: '復原', redo: '重做', closeSettings: '關閉設定' },
@@ -510,7 +586,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       unavailable: { label: '桌面匯出橋接不可用', detail: '目前環境不能直接匯出 PDF/圖像。請在 Hard Sphere Lab 桌面程式中使用本地匯出。' },
       error: { label: '匯出環境異常', detail: '匯出器偵測失敗。模擬、即時圖表和結果預覽仍可使用。' },
     },
-    logs: { initialized: 'Workbench 工作台原型已初始化。', defaultLayout: '預設版面：3D 預覽、即時資料 / 圖表、目前參數。', standardConnected: '標準模擬執行階段、3D 預覽和即時圖表資料已連接。', exportBridgeRequired: '科學 PDF 匯出需要桌面執行階段橋接。', autoPausedSingleRuntime: (name) => name + '：由於一次只能執行一個工作台執行階段，已自動暫停。', autoPausedCreateFile: (name) => name + '：建立新檔案時已自動暫停。', autoPausedSwitchFile: (name) => name + '：切換檔案時已自動暫停。', fileCreated: (name) => '已建立工作台檔案：' + name, mockAction: (label) => '模擬操作：' + label, lockedPanel: (title) => title + ' 是預設工作區的一部分，不能隱藏。', layoutReset: (name) => name + '：版面已還原為 3D 預覽 + 即時資料 / 圖表', idealResultsOpened: (name, tab) => name + '：已在 ' + tab + ' 開啟理想結果視窗。', idealResultsClosed: (name) => name + '：已關閉理想結果視窗。', fileSelected: (name) => '已選擇檔案分頁：' + name, confirmClear: (name, relation) => name + '：點擊確認清空以刪除全部 ' + relation + ' 點。', clearedRelation: (name, relation) => name + '：已清空 ' + relation + ' 點。', exportLabels: { report: '報告 PDF', verificationFigure: '驗證圖', pointsCsv: '點 CSV', figuresZip: '結果圖像' }, exportNotReady: (name) => name + '：結果資料尚未滿足匯出條件。', exportNeedsTwoPoints: (name) => name + '：擬合報告或驗證圖至少需要 2 個記錄點。', exportPayloadPrepared: (name, label, filename, detail) => name + '：' + label + ' 載荷已準備為 ' + filename + '；' + detail, exportPreparing: (name, label) => name + '：正在準備匯出 ' + label + '。', exportCancelled: (name, label) => name + '：已取消匯出 ' + label + '。', exportFailed: (name, label, message) => name + '：' + label + ' 匯出失敗：' + message, exportCsvSaved: (name, target) => name + '：點 CSV 已儲存到 ' + target + '。', exportCompleted: (name, label, outDir, fileCount, figureHint) => name + '：' + label + ' 已匯出到 ' + outDir + '（' + fileCount + ' 個檔案）。' + figureHint, exportFigureHint: '圖像檔案位於 figures 子資料夾內。', unknownExporterError: '未知匯出器錯誤', selectedLocation: '選定位置', selectedFolder: '選定資料夾', fileNameCannotBeEmpty: '檔案名稱不能為空。', fileNameUnchanged: (name) => name + '：名稱未改變。', fileRenamed: (name) => '工作台檔案已重新命名為 ' + name + '。', fileRemoved: (name) => name + '：已從目前工作台工作階段移除。', confirmDeleteFile: (name) => name + '：點擊確認刪除以從工作台工作階段移除此開啟檔案。', layoutAlreadyDefault: (name) => name + '：版面已經使用預設面板。' },
+    logs: { initialized: 'Workbench 工作台原型已初始化。', defaultLayout: '預設版面：3D 預覽、即時資料 / 圖表、目前參數。', standardConnected: '標準模擬執行階段、3D 預覽和即時圖表資料已連接。', exportBridgeRequired: '科學 PDF 匯出需要桌面執行階段橋接。', autoPausedSingleRuntime: (name) => name + '：由於一次只能執行一個工作台執行階段，已自動暫停。', autoPausedCreateFile: (name) => name + '：建立新檔案時已自動暫停。', autoPausedSwitchFile: (name) => name + '：切換檔案時已自動暫停。', fileCreated: (name) => '已建立工作台檔案：' + name, mockAction: (label) => '模擬操作：' + label, lockedPanel: (title) => title + ' 是預設工作區的一部分，不能隱藏。', layoutReset: (name) => name + '：版面已還原為 3D 預覽 + 即時資料 / 圖表', idealResultsOpened: (name, tab) => name + '：已在 ' + tab + ' 開啟理想結果視窗。', standardResultsOpened: (name, tab) => name + '：已開啟結果視窗並切換到 ' + tab + '。', idealResultsClosed: (name) => name + '：已關閉理想結果視窗。', fileSelected: (name) => '已選擇檔案分頁：' + name, confirmClear: (name, relation) => name + '：點擊確認清空以刪除全部 ' + relation + ' 點。', clearedRelation: (name, relation) => name + '：已清空 ' + relation + ' 點。', exportLabels: { report: '報告 PDF', verificationFigure: '驗證圖', pointsCsv: '點 CSV', figuresZip: '結果圖像' }, exportNotReady: (name) => name + '：結果資料尚未滿足匯出條件。', exportNeedsTwoPoints: (name) => name + '：擬合報告或驗證圖至少需要 2 個記錄點。', exportPayloadPrepared: (name, label, filename, detail) => name + '：' + label + ' 載荷已準備為 ' + filename + '；' + detail, exportPreparing: (name, label) => name + '：正在準備匯出 ' + label + '。', exportCancelled: (name, label) => name + '：已取消匯出 ' + label + '。', exportFailed: (name, label, message) => name + '：' + label + ' 匯出失敗：' + message, exportCsvSaved: (name, target) => name + '：點 CSV 已儲存到 ' + target + '。', exportCompleted: (name, label, outDir, fileCount, figureHint) => name + '：' + label + ' 已匯出到 ' + outDir + '（' + fileCount + ' 個檔案）。' + figureHint, exportFigureHint: '圖像檔案位於 figures 子資料夾內。', unknownExporterError: '未知匯出器錯誤', selectedLocation: '選定位置', selectedFolder: '選定資料夾', fileNameCannotBeEmpty: '檔案名稱不能為空。', fileNameUnchanged: (name) => name + '：名稱未改變。', fileRenamed: (name) => '工作台檔案已重新命名為 ' + name + '。', fileRemoved: (name) => name + '：已從目前工作台工作階段移除。', confirmDeleteFile: (name) => name + '：點擊確認刪除以從工作台工作階段移除此開啟檔案。', layoutAlreadyDefault: (name) => name + '：版面已經使用預設面板。' },
   },
   en: {
     menus: {
@@ -552,6 +628,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       clearRelation: 'Clear Relation', confirmClear: 'Confirm Clear', remove: 'Remove', confirmRemove: 'Confirm Remove', cancel: 'Cancel', noPoints: 'no points', runToRecord: 'Run the experiment to record points.', tableAction: 'Action', tableTime: 'Time',
       finalState: 'Final state', meanSpeed: 'Mean speed', measuredBars: 'measured bars', idealLine: 'ideal line', samples: (count) => count + ' samples', sampleWindows: (count) => count + ' sampling windows', waiting: 'waiting', finalSpeedSamples: 'final speed samples', finalEnergySamples: 'final energy samples', tempHistorySamples: 'temp history samples', finalDataReady: 'final data ready', energyDrift: 'energy drift', meanAbsTempError: 'mean abs temp error', tempSamples: 'Temp samples', resultsReady: (relation) => relation + ' experiment result ready', waitingForRecordedPoints: (relation) => relation + ' waiting for recorded points',
       metric: 'Metric', value: 'Value', status: 'Status', ready: 'ready', notReady: 'not-ready', yes: 'yes', no: 'no', diagnostic: 'Diagnostic', export: 'Export', exportFigures: 'Export Figures', reportPdf: 'Report PDF', verificationFigure: 'Verification Figure', pointsCsv: 'Points CSV', verification: 'Verification', rawPv: 'Raw P-V', history: 'History',
+      resultReadyStatus: 'Results ready', resultNotReadyStatus: 'Results not ready', resultReadyDetail: 'Final data has been captured for summary, tables, figures, and future report export.', resultNotReadyDetail: 'Run the standard simulation until the collecting phase finishes to prepare final result data.', finalTime: 'Final time', finalTemperature: 'Final temperature', finalPressure: 'Final pressure', rmsSpeed: 'RMS speed', speedBins: 'Speed bins', energyBins: 'Energy bins', notReadyPreview: 'not ready', figuresHint: 'Figure readiness, recommended filenames, and preview.', noIdealPointsTitle: 'No ideal-gas points', noIdealPointsBody: 'Select an ideal-gas file to review experiment points.', activeRelation: 'Active', noIdealVerificationTitle: 'No ideal-gas verification', noIdealVerificationBody: 'Select an ideal-gas file to review verification results.', historyLockedFor: (relation) => 'History locked for ' + relation, historyUnlocked: 'Unlocked by verified experiment data.', historyUnlockHint: 'Unlocks after a successful verification.', historicalContext: 'Historical context', workbenchInterpretation: 'Workbench interpretation', keyFigures: 'Key figures', keyFiguresValue: (rSquared, slopeError) => 'R2 ' + rSquared + ' / slope error ' + slopeError, whyLocked: 'Why it is locked', whyItHappened: 'Why it happened', recommendedNextStep: 'Recommended next step', exportFilesHint: 'Export environment and recommended files.', pvLinearizedValidation: 'P - 1/V linearized validation', relationValidation: (relation) => relation + ' validation', measuredScatterHint: 'Measured scatter with fit and theoretical reference.', originalPvPhysicalView: 'Original P - V physical view', originalPvPhysicalHint: 'Shows the inverse relation directly while verdict uses the linearized view.', verdictLabel: (relation, verdict) => relation + ' verdict: ' + verdict, pointsMetric: 'Points', rSquared: 'R2', slope: 'Slope', theorySlope: 'Theory slope', slopeError: 'Slope error', failureReason: 'Failure reason', noneValue: 'none', currentVerification: (rSquared, slopeError) => 'Current verification: R2 ' + rSquared + ', slope error ' + slopeError + '.', currentVerdictRecommendation: (verdict, recommendation) => 'Current verdict: ' + verdict + '. Recommendation: ' + recommendation, noIdealHistoryTitle: 'No ideal-gas history', noIdealHistoryBody: 'History unlocks after ideal-gas verification.', noVerificationChartTitle: 'No verification chart', noVerificationChartBody: 'Verification charts are available for ideal-gas files.', panelNotConnectedTitle: 'Panel not connected', panelNotConnectedBody: 'This panel will be wired in a later Workbench integration batch.', measuredLegend: 'measured', fitLegend: 'fit', theoryLegend: 'theory', idealPressureTrace: (relation) => relation + ' pressure trace', currentIdealPressureHint: 'Run the current ideal point to collect pressure windows.', meanTemperature: 'Mean temperature', relativeGap: 'Relative gap', samplingProgress: 'Sampling progress', speedDistribution: 'Speed distribution', energyDistribution: 'Energy distribution', phase: 'Phase', phaseStates: { idle: 'idle', equilibrating: 'equilibrating', collecting: 'collecting', finished: 'finished' }, probabilityDensity: 'probability density', experimentPointTableTitle: 'No experiment point table', experimentPointTableBody: 'Experiment points are available for ideal-gas files.', idealResultsSectionsAria: 'Ideal Results sections', openIdealResultsTabTitle: 'Open this ideal Results tab.', resultsTreeExpandAria: 'Expand Results sections', resultsTreeCollapseAria: 'Collapse Results sections', resultsOpenHint: 'Click to select, double-click to open.', resultsJumpHint: 'Double-click to open Results and jump to this section.', figureStatus: { ready: 'ready', 'not-ready': 'not-ready', 'not-applicable': 'not applicable' },
     },
     actions: { start: 'Start', pause: 'Pause', stop: 'Stop', close: 'Close', resetView: 'Reset view', hide: 'Hide', cancel: 'Cancel' },
     shortcuts: { title: 'Shortcuts', hint: 'Common workbench shortcuts', undo: 'Undo', redo: 'Redo', closeSettings: 'Close settings' },
@@ -564,7 +641,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       unavailable: { label: 'Desktop export bridge unavailable', detail: 'This environment cannot export PDF or figures directly. Use local export in the Hard Sphere Lab desktop app.' },
       error: { label: 'Export environment error', detail: 'Exporter detection failed. Simulation, realtime charts, and result previews remain available.' },
     },
-    logs: { initialized: 'Workbench studio prototype initialized.', defaultLayout: 'Default layout: 3D Preview, Realtime Data / Charts, Current Parameters.', standardConnected: 'Standard Simulation runtime, 3D preview, and realtime chart data are connected.', exportBridgeRequired: 'Scientific PDF export requires the desktop runtime bridge.', autoPausedSingleRuntime: (name) => name + ': auto-paused because only one workbench runtime can run at a time.', autoPausedCreateFile: (name) => name + ': auto-paused when creating a new file.', autoPausedSwitchFile: (name) => name + ': auto-paused when switching files.', fileCreated: (name) => 'Workbench file created: ' + name, mockAction: (label) => 'Mock action: ' + label, lockedPanel: (title) => title + ' is locked as part of the default workspace and cannot be hidden.', layoutReset: (name) => name + ': layout reset to 3D Preview + Realtime Data / Charts', idealResultsOpened: (name, tab) => name + ': opened ideal Results window on ' + tab + '.', idealResultsClosed: (name) => name + ': closed ideal Results window.', fileSelected: (name) => 'File tab selected: ' + name, confirmClear: (name, relation) => name + ': click Confirm Clear to clear all ' + relation + ' points.', clearedRelation: (name, relation) => name + ': cleared ' + relation + ' points.', exportLabels: { report: 'report PDF', verificationFigure: 'verification figure', pointsCsv: 'points CSV', figuresZip: 'result figures' }, exportNotReady: (name) => name + ': result data does not meet export requirements yet.', exportNeedsTwoPoints: (name) => name + ': at least 2 recorded points are required for a fitted report or verification figure.', exportPayloadPrepared: (name, label, filename, detail) => name + ': ' + label + ' payload prepared as ' + filename + '; ' + detail, exportPreparing: (name, label) => name + ': preparing ' + label + ' export.', exportCancelled: (name, label) => name + ': ' + label + ' export cancelled.', exportFailed: (name, label, message) => name + ': ' + label + ' export failed: ' + message, exportCsvSaved: (name, target) => name + ': points CSV saved to ' + target + '.', exportCompleted: (name, label, outDir, fileCount, figureHint) => name + ': ' + label + ' exported to ' + outDir + ' (' + fileCount + ' files).' + figureHint, exportFigureHint: 'Figure files are inside the figures subfolders.', unknownExporterError: 'unknown exporter error', selectedLocation: 'selected location', selectedFolder: 'selected folder', fileNameCannotBeEmpty: 'File name cannot be empty.', fileNameUnchanged: (name) => name + ': name unchanged.', fileRenamed: (name) => 'Workbench file renamed to ' + name + '.', fileRemoved: (name) => name + ': removed from the current workbench session.', confirmDeleteFile: (name) => name + ': click Confirm Delete to remove this open file from the workbench session.', layoutAlreadyDefault: (name) => name + ': layout is already using the default panels.' },
+    logs: { initialized: 'Workbench studio prototype initialized.', defaultLayout: 'Default layout: 3D Preview, Realtime Data / Charts, Current Parameters.', standardConnected: 'Standard Simulation runtime, 3D preview, and realtime chart data are connected.', exportBridgeRequired: 'Scientific PDF export requires the desktop runtime bridge.', autoPausedSingleRuntime: (name) => name + ': auto-paused because only one workbench runtime can run at a time.', autoPausedCreateFile: (name) => name + ': auto-paused when creating a new file.', autoPausedSwitchFile: (name) => name + ': auto-paused when switching files.', fileCreated: (name) => 'Workbench file created: ' + name, mockAction: (label) => 'Mock action: ' + label, lockedPanel: (title) => title + ' is locked as part of the default workspace and cannot be hidden.', layoutReset: (name) => name + ': layout reset to 3D Preview + Realtime Data / Charts', idealResultsOpened: (name, tab) => name + ': opened ideal Results window on ' + tab + '.', standardResultsOpened: (name, tab) => name + ': opened Results window on ' + tab + '.', idealResultsClosed: (name) => name + ': closed ideal Results window.', fileSelected: (name) => 'File tab selected: ' + name, confirmClear: (name, relation) => name + ': click Confirm Clear to clear all ' + relation + ' points.', clearedRelation: (name, relation) => name + ': cleared ' + relation + ' points.', exportLabels: { report: 'report PDF', verificationFigure: 'verification figure', pointsCsv: 'points CSV', figuresZip: 'result figures' }, exportNotReady: (name) => name + ': result data does not meet export requirements yet.', exportNeedsTwoPoints: (name) => name + ': at least 2 recorded points are required for a fitted report or verification figure.', exportPayloadPrepared: (name, label, filename, detail) => name + ': ' + label + ' payload prepared as ' + filename + '; ' + detail, exportPreparing: (name, label) => name + ': preparing ' + label + ' export.', exportCancelled: (name, label) => name + ': ' + label + ' export cancelled.', exportFailed: (name, label, message) => name + ': ' + label + ' export failed: ' + message, exportCsvSaved: (name, target) => name + ': points CSV saved to ' + target + '.', exportCompleted: (name, label, outDir, fileCount, figureHint) => name + ': ' + label + ' exported to ' + outDir + ' (' + fileCount + ' files).' + figureHint, exportFigureHint: 'Figure files are inside the figures subfolders.', unknownExporterError: 'unknown exporter error', selectedLocation: 'selected location', selectedFolder: 'selected folder', fileNameCannotBeEmpty: 'File name cannot be empty.', fileNameUnchanged: (name) => name + ': name unchanged.', fileRenamed: (name) => 'Workbench file renamed to ' + name + '.', fileRemoved: (name) => name + ': removed from the current workbench session.', confirmDeleteFile: (name) => name + ': click Confirm Delete to remove this open file from the workbench session.', layoutAlreadyDefault: (name) => name + ': layout is already using the default panels.' },
   },
 };
 
@@ -684,6 +761,12 @@ const getCompactHistogramBins = (bins: HistogramBin[], maxBars = 36) => {
 
   return compactBins;
 };
+
+const getIdealExperimentLanguageCode = (
+  language: WorkbenchLanguagePreference,
+): IdealExperimentLanguageCode => (
+  language === 'en' ? 'en-GB' : language
+);
 
 const idealParamKeys: ExperimentParamKey[] = [
   'N',
@@ -1340,13 +1423,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   useEffect(() => () => {
     Object.values(standardRuntimeRef.current).forEach((runtime) => {
-      if (runtime.animationFrameId !== null) {
-        cancelAnimationFrame(runtime.animationFrameId);
+      if (runtime.simulationTimerId !== null) {
+        window.clearTimeout(runtime.simulationTimerId);
       }
     });
     Object.values(idealRuntimeRef.current).forEach((runtime) => {
-      if (runtime.animationFrameId !== null) {
-        cancelAnimationFrame(runtime.animationFrameId);
+      if (runtime.simulationTimerId !== null) {
+        window.clearTimeout(runtime.simulationTimerId);
       }
     });
   }, []);
@@ -1773,10 +1856,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const cancelRuntimeFrame = (fileId: string) => {
     const runtime = standardRuntimeRef.current[fileId] ?? idealRuntimeRef.current[fileId];
-    if (!runtime || runtime.animationFrameId === null) return;
+    if (!runtime || runtime.simulationTimerId === null) return;
 
-    cancelAnimationFrame(runtime.animationFrameId);
-    runtime.animationFrameId = null;
+    window.clearTimeout(runtime.simulationTimerId);
+    runtime.simulationTimerId = null;
   };
 
   const createStandardRuntime = (file: WorkbenchFileState): StandardEngineRuntime | null => {
@@ -1785,7 +1868,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return {
       engine: new PhysicsEngine(cloneParams(file.appliedParams)),
       frameCount: 0,
-      animationFrameId: null,
+      simulationTimerId: null,
     };
   };
 
@@ -1795,7 +1878,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return {
       engine: new PhysicsEngine(cloneParams(file.activeParams)),
       frameCount: 0,
-      animationFrameId: null,
+      simulationTimerId: null,
     };
   };
 
@@ -1849,12 +1932,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const scheduleStandardFrame = (fileId: string) => {
     const runtime = standardRuntimeRef.current[fileId];
-    if (!runtime || runtime.animationFrameId !== null) return;
+    if (!runtime || runtime.simulationTimerId !== null) return;
 
-    runtime.animationFrameId = requestAnimationFrame(() => {
-      runtime.animationFrameId = null;
+    runtime.simulationTimerId = window.setTimeout(() => {
+      runtime.simulationTimerId = null;
       runStandardFrame(fileId);
-    });
+    }, SIMULATION_TICK_INTERVAL_MS);
   };
 
   const runStandardFrame = (fileId: string) => {
@@ -1905,12 +1988,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const scheduleIdealFrame = (fileId: string) => {
     const runtime = idealRuntimeRef.current[fileId];
-    if (!runtime || runtime.animationFrameId !== null) return;
+    if (!runtime || runtime.simulationTimerId !== null) return;
 
-    runtime.animationFrameId = requestAnimationFrame(() => {
-      runtime.animationFrameId = null;
+    runtime.simulationTimerId = window.setTimeout(() => {
+      runtime.simulationTimerId = null;
       runIdealFrame(fileId);
-    });
+    }, SIMULATION_TICK_INTERVAL_MS);
   };
 
   const runIdealFrame = (fileId: string) => {
@@ -2138,7 +2221,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       const nextRuntime: StandardEngineRuntime = {
         engine: new PhysicsEngine(nextActiveParams),
         frameCount: 0,
-        animationFrameId: null,
+        simulationTimerId: null,
       };
       const nextPointsByRelation = activeFile.pointsByRelation;
       const analysis = getIdealGasAnalysis(activeFile.relation, nextPointsByRelation, nextActiveParams);
@@ -2185,7 +2268,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const nextRuntime: StandardEngineRuntime = {
       engine: new PhysicsEngine(nextAppliedParams),
       frameCount: 0,
-      animationFrameId: null,
+      simulationTimerId: null,
     };
 
     if (willChangeSavedParams || willChangeAppliedParams || forceReset) {
@@ -2684,7 +2767,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
         updatedAt: Date.now(),
       };
     });
-    pushLog(`${activeFile.name}: opened Results window on ${tab}.`);
+    pushLog(workbenchCopy.logs.standardResultsOpened(
+      activeFile.name,
+      resultsSections.find((section) => section.key === tab)?.title ?? tab,
+    ));
   };
 
   const closeStandardResultsTab = (tab: WorkbenchStandardResultsTab) => {
@@ -4073,7 +4159,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         </div>
         <div className="studio-live-chart-axis">
           <span>{compactBins[0]?.binStart.toFixed(2) ?? '0.00'}</span>
-          <span>probability density</span>
+          <span>{workbenchCopy.results.probabilityDensity}</span>
           <span>{compactBins[compactBins.length - 1]?.binEnd.toFixed(2) ?? '0.00'}</span>
         </div>
       </div>
@@ -4094,7 +4180,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return (
       <div className="studio-live-chart studio-ideal-pressure-chart">
         <div className="studio-live-chart-header">
-          <span>{getRelationLabel(activeFile.relation)} pressure trace</span>
+          <span>{workbenchCopy.results.idealPressureTrace(getRelationLabel(activeFile.relation))}</span>
             <strong>{summary ? workbenchCopy.results.samples(summary.sampleCount) : workbenchCopy.results.waiting}</strong>
         </div>
         <div className="studio-ideal-pressure-bars">
@@ -4113,7 +4199,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               );
             })
           ) : (
-            <div className="studio-live-chart-empty">Run the current ideal point to collect pressure windows.</div>
+            <div className="studio-live-chart-empty">{workbenchCopy.results.currentIdealPressureHint}</div>
           )}
         </div>
         <div className="studio-live-chart-axis">
@@ -4149,29 +4235,29 @@ const WorkbenchStudioPrototype: React.FC = () => {
       <div className={`studio-realtime-summary ${activeFile.kind === 'ideal' ? 'studio-realtime-summary-ideal' : 'studio-realtime-summary-standard'}`}>
         {activeFile.kind === 'ideal' ? (
           <>
-            <div title="Mean temperature"><span>T</span><strong>{formatMaybeMetric(activeFile.latestPressureSummary?.meanTemperature ?? activeFile.stats.temperature)}</strong></div>
-            <div title="Measured pressure"><span>Measured P</span><strong>{formatMaybeMetric(activeFile.latestPressureSummary?.meanPressure ?? activeFile.stats.pressure, 4)}</strong></div>
-            <div title="Ideal pressure"><span>Ideal P</span><strong>{formatMaybeMetric(activeFile.latestPressureSummary?.meanIdealPressure, 4)}</strong></div>
-            <div title="Relative gap"><span>Gap</span><strong>{activeFile.latestPressureSummary?.relativeGap === null || activeFile.latestPressureSummary?.relativeGap === undefined ? '--' : `${formatMetric(activeFile.latestPressureSummary.relativeGap * 100, 2)}%`}</strong></div>
-            <div title="Active relation"><span>Relation</span><strong>{getRelationLabel(activeFile.relation)}</strong></div>
-            <div title="Sampling progress"><span>Progress</span><strong>{formatPercent(activeFile.stats.progress)}</strong></div>
+            <div title={workbenchCopy.results.meanTemperature}><span>T</span><strong>{formatMaybeMetric(activeFile.latestPressureSummary?.meanTemperature ?? activeFile.stats.temperature)}</strong></div>
+            <div title={workbenchCopy.results.measuredPressure}><span>{workbenchCopy.results.measuredPressure}</span><strong>{formatMaybeMetric(activeFile.latestPressureSummary?.meanPressure ?? activeFile.stats.pressure, 4)}</strong></div>
+            <div title={workbenchCopy.results.idealPressure}><span>{workbenchCopy.results.idealPressure}</span><strong>{formatMaybeMetric(activeFile.latestPressureSummary?.meanIdealPressure, 4)}</strong></div>
+            <div title={workbenchCopy.results.relativeGap}><span>{workbenchCopy.results.gap}</span><strong>{activeFile.latestPressureSummary?.relativeGap === null || activeFile.latestPressureSummary?.relativeGap === undefined ? '--' : `${formatMetric(activeFile.latestPressureSummary.relativeGap * 100, 2)}%`}</strong></div>
+            <div title={workbenchCopy.results.activeRelation}><span>{workbenchCopy.parameters.relation}</span><strong>{getRelationLabel(activeFile.relation)}</strong></div>
+            <div title={workbenchCopy.results.samplingProgress}><span>{workbenchCopy.results.samplingProgress}</span><strong>{formatPercent(activeFile.stats.progress)}</strong></div>
           </>
         ) : (
           <>
             <div><span>T</span><strong>{formatMetric(activeFile.stats.temperature)}</strong></div>
             <div><span>P</span><strong>{formatMetric(activeFile.stats.pressure, 4)}</strong></div>
-            <div><span>v mean</span><strong>{formatMetric(activeFile.stats.meanSpeed)}</strong></div>
-            <div><span>v rms</span><strong>{formatMetric(activeFile.stats.rmsSpeed)}</strong></div>
-            <div><span>Phase</span><strong>{activeFile.stats.phase}</strong></div>
-            <div><span>Progress</span><strong>{formatPercent(activeFile.stats.progress)}</strong></div>
+            <div><span>{workbenchCopy.results.meanSpeed}</span><strong>{formatMetric(activeFile.stats.meanSpeed)}</strong></div>
+            <div><span>{workbenchCopy.results.rmsSpeed}</span><strong>{formatMetric(activeFile.stats.rmsSpeed)}</strong></div>
+            <div><span>{workbenchCopy.results.phase}</span><strong>{workbenchCopy.results.phaseStates[activeFile.stats.phase]}</strong></div>
+            <div><span>{workbenchCopy.results.samplingProgress}</span><strong>{formatPercent(activeFile.stats.progress)}</strong></div>
           </>
         )}
       </div>
       <div className={`studio-live-charts ${activeFile.kind === 'ideal' ? 'studio-live-charts-ideal' : ''}`}>
         {activeFile.kind === 'standard' ? (
           <>
-            {renderRealtimeHistogram('Speed distribution', activeFile.chartData.speed, 'blue')}
-            {renderRealtimeHistogram('Energy distribution', activeFile.chartData.energy, 'violet')}
+            {renderRealtimeHistogram(workbenchCopy.results.speedDistribution, activeFile.chartData.speed, 'blue')}
+            {renderRealtimeHistogram(workbenchCopy.results.energyDistribution, activeFile.chartData.energy, 'violet')}
           </>
         ) : (
           <>
@@ -4188,8 +4274,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return (
         <div className="studio-empty">
           <div>
-            <strong>No experiment point table</strong>
-            <p>Experiment points are available for ideal-gas files.</p>
+            <strong>{workbenchCopy.results.experimentPointTableTitle}</strong>
+            <p>{workbenchCopy.results.experimentPointTableBody}</p>
           </div>
         </div>
       );
@@ -4236,13 +4322,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
               <thead>
                 <tr>
                   <th>#</th>
-                  {activeFile.relation === 'pt' ? <th>target T</th> : null}
+                  {activeFile.relation === 'pt' ? <th>{workbenchCopy.parameters.targetTemperature}</th> : null}
                   {activeFile.relation === 'pv' ? <><th>L</th><th>V</th><th>1/V</th></> : null}
                   {activeFile.relation === 'pn' ? <th>N</th> : null}
-                  <th>mean T</th>
-                  <th>measured P</th>
-                  <th>ideal P</th>
-                  <th>gap</th>
+                  <th>{workbenchCopy.results.meanTemperature}</th>
+                  <th>{workbenchCopy.results.measuredPressure}</th>
+                  <th>{workbenchCopy.results.idealPressure}</th>
+                  <th>{workbenchCopy.results.relativeGap}</th>
                   <th>{workbenchCopy.results.tableTime}</th>
                   <th>{workbenchCopy.results.tableAction}</th>
                 </tr>
@@ -4359,9 +4445,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <text x="8" y="25">P</text>
         </svg>
         <div className="studio-ideal-chart-legend">
-          <span><i className="studio-ideal-legend-measured-dot" />measured</span>
-          <span><i className="studio-ideal-legend-fit" />fit</span>
-          <span><i className="studio-ideal-legend-theory" />theory</span>
+          <span><i className="studio-ideal-legend-measured-dot" />{workbenchCopy.results.measuredLegend}</span>
+          <span><i className="studio-ideal-legend-fit" />{workbenchCopy.results.fitLegend}</span>
+          <span><i className="studio-ideal-legend-theory" />{workbenchCopy.results.theoryLegend}</span>
         </div>
       </div>
     );
@@ -4471,23 +4557,23 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return (
       <div className="studio-results-section">
         <div className={`studio-result-status ${resultSummary.ready ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
-          <strong>{resultSummary.ready ? 'Results ready' : 'Results not ready'}</strong>
+          <strong>{resultSummary.ready ? workbenchCopy.results.resultReadyStatus : workbenchCopy.results.resultNotReadyStatus}</strong>
           <span>
             {resultSummary.ready
-              ? 'Final data has been captured for summary, tables, figures, and future report export.'
-              : 'Run the standard simulation until the collecting phase finishes to prepare final result data.'}
+              ? workbenchCopy.results.resultReadyDetail
+              : workbenchCopy.results.resultNotReadyDetail}
           </span>
         </div>
 
         <div className="studio-analysis-grid">
-          <div className="studio-analysis-cell"><span>Final time</span><strong>{formatMetric(resultSummary.finalTime, 2)} s</strong></div>
-          <div className="studio-analysis-cell"><span>Final temperature</span><strong>{formatMetric(resultSummary.temperature)}</strong></div>
-          <div className="studio-analysis-cell"><span>Final pressure</span><strong>{formatMetric(resultSummary.pressure, 4)}</strong></div>
+          <div className="studio-analysis-cell"><span>{workbenchCopy.results.finalTime}</span><strong>{formatMetric(resultSummary.finalTime, 2)} s</strong></div>
+          <div className="studio-analysis-cell"><span>{workbenchCopy.results.finalTemperature}</span><strong>{formatMetric(resultSummary.temperature)}</strong></div>
+          <div className="studio-analysis-cell"><span>{workbenchCopy.results.finalPressure}</span><strong>{formatMetric(resultSummary.pressure, 4)}</strong></div>
             <div className="studio-analysis-cell"><span>{workbenchCopy.results.meanSpeed}</span><strong>{formatMetric(resultSummary.meanSpeed)}</strong></div>
-          <div className="studio-analysis-cell"><span>RMS speed</span><strong>{formatMetric(resultSummary.rmsSpeed)}</strong></div>
+          <div className="studio-analysis-cell"><span>{workbenchCopy.results.rmsSpeed}</span><strong>{formatMetric(resultSummary.rmsSpeed)}</strong></div>
             <div className="studio-analysis-cell"><span>{workbenchCopy.results.energyDrift}</span><strong>{resultSummary.energyDriftPercent === null ? '--' : `${formatMetric(resultSummary.energyDriftPercent, 4)}%`}</strong></div>
-          <div className="studio-analysis-cell"><span>Speed bins</span><strong>{resultSummary.speedBinCount}</strong></div>
-          <div className="studio-analysis-cell"><span>Energy bins</span><strong>{resultSummary.energyBinCount}</strong></div>
+          <div className="studio-analysis-cell"><span>{workbenchCopy.results.speedBins}</span><strong>{resultSummary.speedBinCount}</strong></div>
+          <div className="studio-analysis-cell"><span>{workbenchCopy.results.energyBins}</span><strong>{resultSummary.energyBinCount}</strong></div>
             <div className="studio-analysis-cell"><span>{workbenchCopy.results.tempSamples}</span><strong>{resultSummary.tempHistoryCount}</strong></div>
         </div>
       </div>
@@ -4496,7 +4582,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const renderFinalFigurePreview = (figureId: string) => {
     if (!resultSummary.ready || !activeFile.finalChartData) {
-      return <div className="studio-final-figure-empty">not ready</div>;
+      return <div className="studio-final-figure-empty">{workbenchCopy.results.notReadyPreview}</div>;
     }
 
     if (figureId === 'temperature-error' || figureId === 'total-energy') {
@@ -4532,8 +4618,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
       <div className="studio-results-section">
         <div className="studio-results-subheader">
           <div>
-            <strong>Figures</strong>
-            <span>Figure readiness, recommended filenames, and preview.</span>
+            <strong>{workbenchCopy.panels.figuresTitle}</strong>
+            <span>{workbenchCopy.results.figuresHint}</span>
           </div>
           <button
             type="button"
@@ -4567,7 +4653,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             <section className="studio-final-figure-card" key={`preview-${figure.id}`}>
               <div>
                 <strong>{figure.title}</strong>
-                <span>{figure.status}</span>
+                <span>{workbenchCopy.results.figureStatus[figure.status]}</span>
               </div>
               {renderFinalFigurePreview(figure.id)}
             </section>
@@ -4582,8 +4668,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return (
         <div className="studio-empty">
           <div>
-            <strong>No ideal-gas points</strong>
-            <p>Select an ideal-gas file to review experiment points.</p>
+            <strong>{workbenchCopy.results.noIdealPointsTitle}</strong>
+            <p>{workbenchCopy.results.noIdealPointsBody}</p>
           </div>
         </div>
       );
@@ -4594,15 +4680,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <div className="studio-ideal-results-card">
           <div className="studio-ideal-results-card-header">
             <div>
-              <strong>Experiment status</strong>
+              <strong>{workbenchCopy.results.experimentStatus}</strong>
               <span>
                 {getRelationLabel(activeFile.relation)} / {workbenchCopy.results.recordedPoints(idealAnalysis.sortedPoints.length)} / {getLocalizedStatusValue(idealAnalysis.verdictState, workbenchCopy)}
               </span>
             </div>
           </div>
           <div className="studio-ideal-results-status-grid">
-            <div><span>Active</span><strong>{getRelationLabel(activeFile.relation)}</strong></div>
-            <div><span>Points</span><strong>{idealAnalysis.sortedPoints.length}</strong></div>
+            <div><span>{workbenchCopy.results.activeRelation}</span><strong>{getRelationLabel(activeFile.relation)}</strong></div>
+            <div><span>{workbenchCopy.results.pointsMetric}</span><strong>{idealAnalysis.sortedPoints.length}</strong></div>
             <div><span>{workbenchCopy.results.status}</span><strong>{getLocalizedStatusValue(idealAnalysis.verdictState, workbenchCopy)}</strong></div>
             <div><span>{workbenchCopy.results.finalState}</span><strong>{activeFile.needsReset ? workbenchCopy.parameters.idealRuntimeOnStart : getLocalizedStatusValue(activeFile.runState, workbenchCopy)}</strong></div>
           </div>
@@ -4617,8 +4703,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return (
         <div className="studio-empty">
           <div>
-            <strong>No ideal-gas verification</strong>
-            <p>Select an ideal-gas file to review verification results.</p>
+            <strong>{workbenchCopy.results.noIdealVerificationTitle}</strong>
+            <p>{workbenchCopy.results.noIdealVerificationBody}</p>
           </div>
         </div>
       );
@@ -4628,13 +4714,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const rawPvSpec = figureSpecs.find((figure) => figure.id === 'ideal-raw-pv');
     const pointsSpec = figureSpecs.find((figure) => figure.id === 'ideal-points');
     const historySpec = figureSpecs.find((figure) => figure.id === 'ideal-history');
-    const historyContent = getIdealHistoryContent('en-GB', activeFile.relation);
-    const failureReasonText = getIdealFailureReasonText(idealAnalysis.diagnosis.failureReason, 'en-GB');
+    const idealLanguage = getIdealExperimentLanguageCode(settingsLanguagePreference);
+    const historyContent = getIdealHistoryContent(idealLanguage, activeFile.relation);
+    const failureReasonText = getIdealFailureReasonText(idealAnalysis.diagnosis.failureReason, idealLanguage);
     const recommendationText = getIdealRecommendationText(
       idealAnalysis.diagnosis.failureReason,
       idealAnalysis.verdictState,
       activeFile.relation,
-      'en-GB',
+      idealLanguage,
     );
     const exportSpecs = figureSpecs.filter((figure) => (
       figure.id === 'ideal-verification' ||
@@ -4649,33 +4736,33 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <div className={`studio-ideal-results-card ${idealAnalysis.isVerified ? 'studio-ideal-history-unlocked' : 'studio-ideal-history-locked'}`}>
           <div className="studio-ideal-results-card-header">
             <div>
-              <strong>{idealAnalysis.isVerified ? historyContent.title : `History locked for ${getRelationLabel(activeFile.relation)}`}</strong>
-              <span>{idealAnalysis.isVerified ? 'Unlocked by verified experiment data.' : 'Unlocks after a successful verification.'}</span>
+              <strong>{idealAnalysis.isVerified ? historyContent.title : workbenchCopy.results.historyLockedFor(getRelationLabel(activeFile.relation))}</strong>
+              <span>{idealAnalysis.isVerified ? workbenchCopy.results.historyUnlocked : workbenchCopy.results.historyUnlockHint}</span>
             </div>
           </div>
           {idealAnalysis.isVerified ? (
             <div className="studio-ideal-history-grid">
               <div>
-                <span>Historical context</span>
+                <span>{workbenchCopy.results.historicalContext}</span>
                 <strong>{historyContent.discovery}</strong>
               </div>
               <div>
-                <span>Workbench interpretation</span>
+                <span>{workbenchCopy.results.workbenchInterpretation}</span>
                 <strong>{historyContent.simulation}</strong>
               </div>
               <div>
-                <span>Key figures</span>
-                <strong>R2 {formatMaybeMetric(idealAnalysis.regression.rSquared, 5)} / slope error {idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`}</strong>
+                <span>{workbenchCopy.results.keyFigures}</span>
+                <strong>{workbenchCopy.results.keyFiguresValue(formatMaybeMetric(idealAnalysis.regression.rSquared, 5), idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`)}</strong>
               </div>
             </div>
           ) : (
             <div className="studio-ideal-history-grid">
               <div>
-                <span>Why it is locked</span>
+                <span>{workbenchCopy.results.whyLocked}</span>
                 <strong>{failureReasonText}</strong>
               </div>
               <div>
-                <span>Recommended next step</span>
+                <span>{workbenchCopy.results.recommendedNextStep}</span>
                 <strong>{recommendationText}</strong>
               </div>
             </div>
@@ -4685,8 +4772,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <div className="studio-ideal-results-card">
           <div className="studio-ideal-results-card-header">
             <div>
-              <strong>Export</strong>
-              <span>{exportCopy.label}</span>
+              <strong>{workbenchCopy.results.export}</strong>
+              <span>{workbenchCopy.results.exportFilesHint} {exportCopy.label}</span>
             </div>
           </div>
           <div className="studio-ideal-export-actions">
@@ -4717,7 +4804,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   <small>{figure.recommendedFilename}</small>
                 </div>
                 <span>{figure.dataCount}</span>
-                <em className={`studio-figure-status-${figure.status}`}>{figure.status}</em>
+                <em className={`studio-figure-status-${figure.status}`}>{workbenchCopy.results.figureStatus[figure.status]}</em>
               </div>
             ))}
           </div>
@@ -4823,19 +4910,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return (
         <div className="studio-empty">
           <div>
-            <strong>No verification chart</strong>
-            <p>Verification charts are available for ideal-gas files.</p>
+            <strong>{workbenchCopy.results.noVerificationChartTitle}</strong>
+            <p>{workbenchCopy.results.noVerificationChartBody}</p>
           </div>
         </div>
       );
     }
 
-    const failureReasonText = getIdealFailureReasonText(idealAnalysis.diagnosis.failureReason, 'en-GB');
+    const idealLanguage = getIdealExperimentLanguageCode(settingsLanguagePreference);
+    const failureReasonText = getIdealFailureReasonText(idealAnalysis.diagnosis.failureReason, idealLanguage);
     const recommendationText = getIdealRecommendationText(
       idealAnalysis.diagnosis.failureReason,
       idealAnalysis.verdictState,
       activeFile.relation,
-      'en-GB',
+      idealLanguage,
     );
     const isPvVerification = activeFile.relation === 'pv';
 
@@ -4846,8 +4934,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
             <section className="studio-verification-chart-section studio-verification-chart-primary">
               <div className="studio-results-subheader">
                 <div>
-                  <strong>{isPvVerification ? 'P - 1/V linearized validation' : `${getRelationLabel(activeFile.relation)} validation`}</strong>
-                  <span>Measured scatter with fit and theoretical reference.</span>
+                  <strong>{isPvVerification ? workbenchCopy.results.pvLinearizedValidation : workbenchCopy.results.relationValidation(getRelationLabel(activeFile.relation))}</strong>
+                  <span>{workbenchCopy.results.measuredScatterHint}</span>
                 </div>
               </div>
               {renderIdealValidationChart(idealAnalysis)}
@@ -4857,8 +4945,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
               <section className="studio-verification-chart-section studio-verification-chart-secondary">
                 <div className="studio-results-subheader">
                   <div>
-                    <strong>Original P - V physical view</strong>
-                    <span>Shows the inverse relation directly while verdict uses the linearized view.</span>
+                    <strong>{workbenchCopy.results.originalPvPhysicalView}</strong>
+                    <span>{workbenchCopy.results.originalPvPhysicalHint}</span>
                   </div>
                 </div>
                 {renderIdealValidationChart(idealAnalysis, 'pvRaw')}
@@ -4868,26 +4956,26 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
           <div className="studio-verification-side">
             <div className={`studio-result-status ${idealAnalysis.isVerified ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
-              <strong>{getRelationLabel(activeFile.relation)} verdict: {idealAnalysis.verdictState}</strong>
-              <span>{getIdealRecommendationText(idealAnalysis.diagnosis.failureReason, idealAnalysis.verdictState, activeFile.relation, 'en-GB')}</span>
+              <strong>{workbenchCopy.results.verdictLabel(getRelationLabel(activeFile.relation), getLocalizedStatusValue(idealAnalysis.verdictState, workbenchCopy))}</strong>
+              <span>{recommendationText}</span>
             </div>
 
             <div className="studio-analysis-grid">
-              <div className="studio-analysis-cell"><span>Points</span><strong>{idealAnalysis.sortedPoints.length}</strong></div>
-              <div className="studio-analysis-cell"><span>R2</span><strong>{formatMaybeMetric(idealAnalysis.regression.rSquared, 5)}</strong></div>
-              <div className="studio-analysis-cell"><span>Slope</span><strong>{formatMaybeMetric(idealAnalysis.regression.slope, 6)}</strong></div>
-              <div className="studio-analysis-cell"><span>Theory slope</span><strong>{formatMaybeMetric(idealAnalysis.theoreticalSlope, 6)}</strong></div>
-              <div className="studio-analysis-cell"><span>Slope error</span><strong>{idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`}</strong></div>
-              <div className="studio-analysis-cell"><span>Failure reason</span><strong>{idealAnalysis.diagnosis.failureReason ?? 'none'}</strong></div>
+              <div className="studio-analysis-cell"><span>{workbenchCopy.results.pointsMetric}</span><strong>{idealAnalysis.sortedPoints.length}</strong></div>
+              <div className="studio-analysis-cell"><span>{workbenchCopy.results.rSquared}</span><strong>{formatMaybeMetric(idealAnalysis.regression.rSquared, 5)}</strong></div>
+              <div className="studio-analysis-cell"><span>{workbenchCopy.results.slope}</span><strong>{formatMaybeMetric(idealAnalysis.regression.slope, 6)}</strong></div>
+              <div className="studio-analysis-cell"><span>{workbenchCopy.results.theorySlope}</span><strong>{formatMaybeMetric(idealAnalysis.theoreticalSlope, 6)}</strong></div>
+              <div className="studio-analysis-cell"><span>{workbenchCopy.results.slopeError}</span><strong>{idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`}</strong></div>
+              <div className="studio-analysis-cell"><span>{workbenchCopy.results.failureReason}</span><strong>{idealAnalysis.diagnosis.failureReason ? failureReasonText : workbenchCopy.results.noneValue}</strong></div>
             </div>
 
             <div className="studio-ideal-diagnosis-card">
               <div>
-                <span>Why it happened</span>
+                <span>{workbenchCopy.results.whyItHappened}</span>
                 <strong>{failureReasonText}</strong>
               </div>
               <div>
-                <span>Recommended next step</span>
+                <span>{workbenchCopy.results.recommendedNextStep}</span>
                 <strong>{recommendationText}</strong>
               </div>
             </div>
@@ -4902,24 +4990,24 @@ const WorkbenchStudioPrototype: React.FC = () => {
       <div className="studio-history">
         {idealAnalysis.isVerified ? (
           <>
-            <p><strong>{getIdealHistoryContent('en-GB', activeFile.relation).title}</strong></p>
-            <p>{getIdealHistoryContent('en-GB', activeFile.relation).discovery}</p>
-            <p>{getIdealHistoryContent('en-GB', activeFile.relation).simulation}</p>
-            <p>Current verification: R2 {formatMaybeMetric(idealAnalysis.regression.rSquared, 5)}, slope error {idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`}.</p>
+            <p><strong>{getIdealHistoryContent(getIdealExperimentLanguageCode(settingsLanguagePreference), activeFile.relation).title}</strong></p>
+            <p>{getIdealHistoryContent(getIdealExperimentLanguageCode(settingsLanguagePreference), activeFile.relation).discovery}</p>
+            <p>{getIdealHistoryContent(getIdealExperimentLanguageCode(settingsLanguagePreference), activeFile.relation).simulation}</p>
+            <p>{workbenchCopy.results.currentVerification(formatMaybeMetric(idealAnalysis.regression.rSquared, 5), idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`)}</p>
           </>
         ) : (
           <>
-            <p><strong>History locked for {getRelationLabel(activeFile.relation)}.</strong></p>
-            <p>{getIdealFailureReasonText(idealAnalysis.diagnosis.failureReason, 'en-GB')}</p>
-            <p>Current verdict: {idealAnalysis.verdictState}. Recommendation: {getIdealRecommendationText(idealAnalysis.diagnosis.failureReason, idealAnalysis.verdictState, activeFile.relation, 'en-GB')}</p>
+            <p><strong>{workbenchCopy.results.historyLockedFor(getRelationLabel(activeFile.relation))}</strong></p>
+            <p>{getIdealFailureReasonText(idealAnalysis.diagnosis.failureReason, getIdealExperimentLanguageCode(settingsLanguagePreference))}</p>
+            <p>{workbenchCopy.results.currentVerdictRecommendation(getLocalizedStatusValue(idealAnalysis.verdictState, workbenchCopy), getIdealRecommendationText(idealAnalysis.diagnosis.failureReason, idealAnalysis.verdictState, activeFile.relation, getIdealExperimentLanguageCode(settingsLanguagePreference)))}</p>
           </>
         )}
       </div>
     ) : (
       <div className="studio-empty">
         <div>
-          <strong>No ideal-gas history</strong>
-          <p>History unlocks after ideal-gas verification.</p>
+          <strong>{workbenchCopy.results.noIdealHistoryTitle}</strong>
+          <p>{workbenchCopy.results.noIdealHistoryBody}</p>
         </div>
       </div>
     )
@@ -4935,8 +5023,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return (
       <div className="studio-empty">
         <div>
-          <strong>Panel not connected</strong>
-          <p>This panel will be wired in a later Workbench integration batch.</p>
+          <strong>{workbenchCopy.results.panelNotConnectedTitle}</strong>
+          <p>{workbenchCopy.results.panelNotConnectedBody}</p>
         </div>
       </div>
     );
@@ -5004,12 +5092,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
       <div
         className="studio-ideal-results-region"
         ref={idealResultWindowRegionRef}
-        aria-label="Ideal result window"
+        aria-label={workbenchCopy.results.title}
       >
         <section
           className={`studio-ideal-result-window-layer ${selectedPanel === activePanel.key ? 'studio-ideal-result-window-selected' : ''}`}
           style={{ height: `${clampIdealResultHeightRatio(layout.heightRatio) * 100}%` }}
-          aria-label="Ideal Results window"
+          aria-label={workbenchCopy.results.title}
         >
           <div
             className="studio-ideal-result-window-resizer"
@@ -5019,7 +5107,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           />
           <div className="studio-results-toolbar studio-ideal-result-window-toolbar">
             <div className="studio-results-title">
-              <strong>Results</strong>
+              <strong>{workbenchCopy.results.title}</strong>
               <span>{activePanel.hint}</span>
             </div>
             <div className="studio-results-actions">
@@ -5035,7 +5123,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               </button>
             </div>
           </div>
-          <div className="studio-results-tabs studio-ideal-results-tabs" role="tablist" aria-label="Ideal Results sections">
+          <div className="studio-results-tabs studio-ideal-results-tabs" role="tablist" aria-label={workbenchCopy.results.idealResultsSectionsAria}>
             {openIdealResultTabs.map((panel) => (
               <button
                 type="button"
@@ -5304,13 +5392,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
                             openPanel(panel.key);
                           }
                         })}
-                        title={locked ? panel.hint : panel.key === 'results' ? `${panel.hint}. Click to select, double-click to open.` : `${panel.hint}. Double-click to open.`}
+                        title={locked ? panel.hint : panel.key === 'results' ? `${panel.hint}. ${workbenchCopy.results.resultsOpenHint}` : `${panel.hint}. ${workbenchCopy.results.resultsJumpHint}`}
                       >
                         {panel.key === 'results' ? (
                           <button
                             type="button"
                             className={`studio-results-folder-button ${resultsChildrenCollapsed ? 'studio-tree-title-collapsed' : ''}`}
-                            aria-label={resultsChildrenCollapsed ? 'Expand Results sections' : 'Collapse Results sections'}
+                            aria-label={resultsChildrenCollapsed ? workbenchCopy.results.resultsTreeExpandAria : workbenchCopy.results.resultsTreeCollapseAria}
                             aria-expanded={!resultsChildrenCollapsed}
                             tabIndex={panelsSectionCollapsed ? -1 : 0}
                             onClick={(event) => {
@@ -5372,7 +5460,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                                 event.stopPropagation();
                                 openIdealResultWindow(childPanel.key);
                               }}
-                              title="Open this ideal Results tab."
+                              title={workbenchCopy.results.openIdealResultsTabTitle}
                             >
                               {childPanel.icon}
                               <span>{childPanel.title}</span>
@@ -5399,7 +5487,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                                 event.stopPropagation();
                                 selectResultsSection(section.key, true);
                               }}
-                              title="Double-click to open Results and jump to this section."
+                              title={workbenchCopy.results.resultsJumpHint}
                             >
                               {section.icon}
                               <span>{section.title}</span>

@@ -212,6 +212,7 @@ const createMainWindow = async () => {
       contextIsolation: true,
       nodeIntegration: false,
       preload: preloadPath,
+      backgroundThrottling: false,
     },
   });
 
