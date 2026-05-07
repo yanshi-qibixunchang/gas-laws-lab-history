@@ -214,14 +214,19 @@ export const createWorkbenchResultSummary = (file: WorkbenchFileState): Workbenc
   const finalData = file.kind === 'standard' ? file.finalChartData : null;
   const finalHistory = finalData?.tempHistory ?? [];
   const idealPointCount = file.kind === 'ideal' ? file.pointsByRelation[file.relation].length : 0;
+  const heatCapacityReady = file.kind === 'heatCapacity' ? Boolean(file.heatCapacityState.result) : false;
 
   return {
-    ready: file.kind === 'standard' ? Boolean(finalData) : idealPointCount > 0,
+    ready: file.kind === 'standard'
+      ? Boolean(finalData)
+      : file.kind === 'ideal'
+        ? idealPointCount > 0
+        : heatCapacityReady,
     fileName: file.name,
     runState: file.runState,
     finalTime: file.stats.time,
-    temperature: file.stats.temperature,
-    pressure: file.stats.pressure,
+    temperature: file.kind === 'heatCapacity' ? file.heatCapacityState.temperature : file.stats.temperature,
+    pressure: file.kind === 'heatCapacity' ? file.heatCapacityState.pressure : file.stats.pressure,
     meanSpeed: file.stats.meanSpeed,
     rmsSpeed: file.stats.rmsSpeed,
     speedSampleCount: finalData ? countHistogramSamples(finalData.speed) : 0,

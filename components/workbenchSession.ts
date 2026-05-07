@@ -1,5 +1,6 @@
 import {
   clampWorkbenchLiveSplitRatio,
+  migrateHeatCapacityDefaultName,
   type WorkbenchFileState,
   type WorkbenchPanelKey,
 } from './workbenchState.ts';
@@ -31,6 +32,7 @@ const fallbackSession = (): WorkbenchSessionState => {
 
 const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => ({
   ...file,
+  name: file.kind === 'heatCapacity' ? migrateHeatCapacityDefaultName(file.name) : file.name,
   runState: file.runState === 'running' ? 'paused' : file.runState,
   liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
 });
@@ -44,7 +46,7 @@ export const decodeWorkbenchSession = (value: unknown): WorkbenchSessionState =>
     isRecord(file) &&
     typeof file.id === 'string' &&
     typeof file.name === 'string' &&
-    (file.kind === 'standard' || file.kind === 'ideal')
+    (file.kind === 'standard' || file.kind === 'ideal' || file.kind === 'heatCapacity')
   )).map(normalizeRuntimeState);
 
   if (files.length === 0) return fallbackSession();

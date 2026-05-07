@@ -10,8 +10,13 @@ import {
   createEmptyPointsByRelation,
   type PointsByRelation,
 } from '../utils/idealGasExperiment.ts';
+import {
+  createHeatCapacityExperiment,
+  HARD_SPHERE_GAMMA,
+  type HeatCapacityState,
+} from '../utils/heatCapacityExperiment.ts';
 
-export type WorkbenchFileKind = 'standard' | 'ideal';
+export type WorkbenchFileKind = 'standard' | 'ideal' | 'heatCapacity';
 export type WorkbenchRunState = 'idle' | 'running' | 'paused' | 'finished' | 'needs-reset';
 export type WorkbenchExportEnvironmentStatus =
   | 'checking'
@@ -33,6 +38,7 @@ export const IDEAL_RESULT_HEIGHT_RATIO = 0.5;
 export const WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO = 0.48;
 export const WORKBENCH_LIVE_SPLIT_MIN_RATIO = 0.34;
 export const WORKBENCH_LIVE_SPLIT_MAX_RATIO = 0.66;
+export const HEAT_CAPACITY_LIVE_SPLIT_DEFAULT_RATIO = WORKBENCH_LIVE_SPLIT_MAX_RATIO;
 
 export const clampWorkbenchLiveSplitRatio = (value: unknown) => {
   const ratio = typeof value === 'number' && Number.isFinite(value)
@@ -55,7 +61,7 @@ export interface WorkbenchIdealWindowLayout {
 }
 
 export interface WorkbenchParameterRow {
-  key: keyof SimulationParams | 'relation';
+  key: keyof SimulationParams | 'relation' | 'heatGamma' | 'heatPhase' | 'heatP0' | 'heatP1' | 'heatP2';
   label: string;
   value: string;
   unit?: string;
@@ -102,7 +108,13 @@ export interface WorkbenchIdealState extends WorkbenchFileBase {
   idealWindowLayout: WorkbenchIdealWindowLayout;
 }
 
-export type WorkbenchFileState = WorkbenchStandardState | WorkbenchIdealState;
+export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
+  kind: 'heatCapacity';
+  heatCapacityState: HeatCapacityState;
+  theoreticalGamma: number;
+}
+
+export type WorkbenchFileState = WorkbenchStandardState | WorkbenchIdealState | WorkbenchHeatCapacityState;
 
 export const DEFAULT_STANDARD_PARAMS: SimulationParams = {
   L: 15,
@@ -125,6 +137,19 @@ export const DEFAULT_IDEAL_PARAMS: SimulationParams = {
   dt: 0.01,
   nu: 0.8,
   targetTemperature: 0.6,
+  equilibriumTime: 4,
+  statsDuration: 12,
+};
+
+export const DEFAULT_HEAT_CAPACITY_PARAMS: SimulationParams = {
+  L: 12,
+  N: 128,
+  r: 0.16,
+  m: 1.0,
+  k: 1.0,
+  dt: 0.01,
+  nu: 0.8,
+  targetTemperature: 1,
   equilibriumTime: 4,
   statsDuration: 12,
 };
@@ -172,6 +197,10 @@ const formatNumber = (value: number | undefined) => {
   return value.toFixed(value < 1 ? 3 : 2).replace(/0+$/, '').replace(/\.$/, '');
 };
 
+export const migrateHeatCapacityDefaultName = (name: string) => (
+  name.replace(/^Hard-Sphere Heat Capacity Ratio - (\d{3})$/, 'Heat Capacity Ratio - $1')
+);
+
 const createBaseFile = (
   kind: WorkbenchFileKind,
   index: number,
@@ -183,7 +212,13 @@ const createBaseFile = (
 
   return {
     id: `${kind}-${paddedIndex}`,
-    name: `${kind === 'standard' ? 'Standard Simulation' : 'Ideal Gas Simulation'} - ${paddedIndex}`,
+    name: `${
+      kind === 'standard'
+        ? 'Standard Simulation'
+        : kind === 'ideal'
+          ? 'Ideal Gas Simulation'
+          : 'Heat Capacity Ratio'
+    } - ${paddedIndex}`,
     visiblePanels: ['preview', 'realtime'],
     params: cloneParams(params),
     appliedParams: cloneParams(params),
@@ -229,6 +264,22 @@ export const createDefaultIdealFile = (
   idealWindowLayout: createDefaultIdealWindowLayout({ heightRatio: defaults?.resultsHeightRatio }),
 });
 
+export const createDefaultHeatCapacityFile = (
+  index = 1,
+  defaults?: WorkbenchFileLayoutDefaults,
+): WorkbenchHeatCapacityState => ({
+  ...createBaseFile('heatCapacity', index, DEFAULT_HEAT_CAPACITY_PARAMS, {
+    ...defaults,
+    liveWorkspaceSplitRatio: defaults?.liveWorkspaceSplitRatio ?? HEAT_CAPACITY_LIVE_SPLIT_DEFAULT_RATIO,
+  }),
+  kind: 'heatCapacity',
+  heatCapacityState: createHeatCapacityExperiment({
+    particleCount: DEFAULT_HEAT_CAPACITY_PARAMS.N,
+    vesselLength: DEFAULT_HEAT_CAPACITY_PARAMS.L,
+  }),
+  theoreticalGamma: HARD_SPHERE_GAMMA,
+});
+
 export const createInitialWorkbenchFiles = (): WorkbenchFileState[] => [
   createDefaultStandardFile(1),
   createDefaultIdealFile(1),
@@ -248,6 +299,19 @@ export const areWorkbenchParamsEqual = (a: SimulationParams, b: SimulationParams
 );
 
 export const getWorkbenchParameterRows = (file: WorkbenchFileState): WorkbenchParameterRow[] => {
+  if (file.kind === 'heatCapacity') {
+    const experiment = file.heatCapacityState;
+    return [
+      { key: 'heatGamma', label: 'theoretical gamma', value: file.theoreticalGamma.toFixed(3), editable: false },
+      { key: 'heatPhase', label: 'phase', value: experiment.phase, editable: false },
+      { key: 'heatP0', label: 'p0', value: formatNumber(experiment.recorded.p0 ?? undefined), unit: 'kPa', editable: false },
+      { key: 'heatP1', label: 'p1', value: formatNumber(experiment.recorded.p1 ?? undefined), unit: 'kPa', editable: false },
+      { key: 'heatP2', label: 'p2', value: formatNumber(experiment.recorded.p2 ?? undefined), unit: 'kPa', editable: false },
+      { key: 'N', label: 'N', value: formatNumber(file.params.N), unit: 'particles', editable: false },
+      { key: 'L', label: 'L', value: formatNumber(file.params.L), editable: false },
+    ];
+  }
+
   const rows: WorkbenchParameterRow[] = [
     { key: 'N', label: 'N', value: formatNumber(file.params.N), unit: 'particles', editable: true },
     { key: 'r', label: 'r', value: formatNumber(file.params.r), editable: true },
