@@ -18,6 +18,7 @@ import {
 
 export type WorkbenchFileKind = 'standard' | 'ideal' | 'heatCapacity';
 export type WorkbenchRunState = 'idle' | 'running' | 'paused' | 'finished' | 'needs-reset';
+export type HeatCapacityDemoStatus = 'idle' | 'prompt' | 'running' | 'paused' | 'completed';
 export type WorkbenchExportEnvironmentStatus =
   | 'checking'
   | 'available-system'
@@ -39,6 +40,8 @@ export const WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO = 0.48;
 export const WORKBENCH_LIVE_SPLIT_MIN_RATIO = 0.34;
 export const WORKBENCH_LIVE_SPLIT_MAX_RATIO = 0.66;
 export const HEAT_CAPACITY_LIVE_SPLIT_DEFAULT_RATIO = WORKBENCH_LIVE_SPLIT_MAX_RATIO;
+export const HEAT_CAPACITY_DEMO_PROMPT_MESSAGE = '点击顶部开始按钮观看完整教学演示。';
+export const HEAT_CAPACITY_DEMO_COMPLETED_MESSAGE = '教学演示已完成。结果已保留；新建热容比实验可重新观看。';
 
 export const clampWorkbenchLiveSplitRatio = (value: unknown) => {
   const ratio = typeof value === 'number' && Number.isFinite(value)
@@ -112,6 +115,10 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   kind: 'heatCapacity';
   heatCapacityState: HeatCapacityState;
   theoreticalGamma: number;
+  demoStatus: HeatCapacityDemoStatus;
+  demoStepIndex: number;
+  demoMessage: string;
+  demoCompletedOnce: boolean;
 }
 
 export type WorkbenchFileState = WorkbenchStandardState | WorkbenchIdealState | WorkbenchHeatCapacityState;
@@ -278,6 +285,10 @@ export const createDefaultHeatCapacityFile = (
     vesselLength: DEFAULT_HEAT_CAPACITY_PARAMS.L,
   }),
   theoreticalGamma: HARD_SPHERE_GAMMA,
+  demoStatus: 'prompt',
+  demoStepIndex: 0,
+  demoMessage: HEAT_CAPACITY_DEMO_PROMPT_MESSAGE,
+  demoCompletedOnce: false,
 });
 
 export const createInitialWorkbenchFiles = (): WorkbenchFileState[] => [

@@ -43,6 +43,8 @@ import {
   createDefaultStandardFile,
   createDefaultStandardResultsLayout,
   getWorkbenchParameterRows,
+  HEAT_CAPACITY_DEMO_COMPLETED_MESSAGE,
+  HEAT_CAPACITY_DEMO_PROMPT_MESSAGE,
   HEAT_CAPACITY_LIVE_SPLIT_DEFAULT_RATIO,
   IDEAL_RESULT_HEIGHT_RATIO,
   WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
@@ -62,7 +64,13 @@ import {
   type WorkbenchStandardResultsLayout,
   type WorkbenchStandardResultsTab,
 } from './workbenchState';
-import { applyHeatCapacityAction, type HeatCapacityAction } from '../utils/heatCapacityExperiment.ts';
+import {
+  advanceHeatCapacityDemoStep,
+  applyHeatCapacityAction,
+  createHeatCapacityDemoPlan,
+  getHeatCapacityInteractionDescriptor,
+  type HeatCapacityAction,
+} from '../utils/heatCapacityExperiment.ts';
 import {
   createWorkbenchExportPayload,
   createWorkbenchFigureSpecs,
@@ -991,6 +999,8 @@ const idealSamplingPresets: Array<{ key: IdealSamplingPresetKey; label: string; 
 ] as const;
 type IdealSamplingPreset = typeof idealSamplingPresets[number];
 
+const HEAT_CAPACITY_DEMO_STEP_INTERVAL_MS = 5000;
+
 const formatTime = () => new Date().toLocaleTimeString('en-GB', { hour12: false });
 
 const createInitialLogs = (language: WorkbenchLanguagePreference): ConsoleLog[] => {
@@ -1158,6 +1168,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [redoStack, setRedoStack] = useState<WorkbenchEditSnapshot[]>([]);
   const standardRuntimeRef = useRef<Record<string, StandardEngineRuntime>>({});
   const idealRuntimeRef = useRef<Record<string, StandardEngineRuntime>>({});
+  const heatCapacityDemoTimerRef = useRef<number | null>(null);
   const filesRef = useRef<WorkbenchFileState[]>(initialSession.files);
   const activeFileIdRef = useRef(initialSession.activeFileId);
   const renamingFileIdRef = useRef<string | null>(null);
@@ -1468,6 +1479,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   }, [samplingPresetMenuOpen]);
 
   useEffect(() => () => {
+    clearHeatCapacityDemoTimer();
     Object.values(standardRuntimeRef.current).forEach((runtime) => {
       if (runtime.simulationTimerId !== null) {
         window.clearTimeout(runtime.simulationTimerId);
@@ -1565,6 +1577,122 @@ const WorkbenchStudioPrototype: React.FC = () => {
     updateFileById(activeFileIdRef.current, updater);
   };
 
+  const clearHeatCapacityDemoTimer = () => {
+    if (heatCapacityDemoTimerRef.current === null) return;
+    window.clearTimeout(heatCapacityDemoTimerRef.current);
+    heatCapacityDemoTimerRef.current = null;
+  };
+
+  const scheduleHeatCapacityDemoStep = (fileId: string) => {
+    clearHeatCapacityDemoTimer();
+    heatCapacityDemoTimerRef.current = window.setTimeout(() => {
+      heatCapacityDemoTimerRef.current = null;
+      advanceHeatCapacityDemoForFile(fileId);
+    }, HEAT_CAPACITY_DEMO_STEP_INTERVAL_MS);
+  };
+
+  const advanceHeatCapacityDemoForFile = (fileId: string) => {
+    let shouldContinue = false;
+    let completedFileName: string | null = null;
+
+    setWorkbenchFiles((current) => current.map((file) => {
+      if (file.id !== fileId || file.kind !== 'heatCapacity' || file.demoStatus !== 'running') {
+        return file;
+      }
+
+      const resolution = advanceHeatCapacityDemoStep(file.heatCapacityState, file.demoStepIndex);
+      const heatCapacityState = resolution.actions.reduce(applyHeatCapacityAction, file.heatCapacityState);
+      const completed = resolution.completed || heatCapacityState.phase === 'completed';
+      const nextDemoStepIndex = completed ? createHeatCapacityDemoPlan().length - 1 : file.demoStepIndex + 1;
+      shouldContinue = !completed;
+      if (completed) completedFileName = file.name;
+
+      return {
+        ...file,
+        heatCapacityState,
+        demoStatus: completed ? 'completed' : 'running',
+        demoStepIndex: nextDemoStepIndex,
+        demoMessage: completed
+          ? HEAT_CAPACITY_DEMO_COMPLETED_MESSAGE
+          : createHeatCapacityDemoPlan()[nextDemoStepIndex]?.message ?? resolution.step.message,
+        demoCompletedOnce: completed ? true : file.demoCompletedOnce,
+        runState: completed ? 'finished' : 'running',
+        updatedAt: Date.now(),
+      };
+    }));
+
+    if (shouldContinue) {
+      scheduleHeatCapacityDemoStep(fileId);
+      return;
+    }
+
+    if (completedFileName) {
+      pushLog(`${completedFileName}: heat capacity teaching demo completed.`, 'success');
+    }
+  };
+
+  const startHeatCapacityDemo = () => {
+    if (activeFile.kind !== 'heatCapacity') return;
+
+    if (activeFile.demoCompletedOnce || activeFile.demoStatus === 'completed') {
+      pushLog(`${activeFile.name}: 教学演示已完成；新建热容比实验可重新观看。`, 'info');
+      return;
+    }
+
+    clearHeatCapacityDemoTimer();
+    const resumeFromPause = activeFile.demoStatus === 'paused';
+    updateActiveFile((file) => {
+      if (file.kind !== 'heatCapacity') return file;
+      return {
+        ...file,
+        heatCapacityState: resumeFromPause
+          ? file.heatCapacityState
+          : applyHeatCapacityAction(file.heatCapacityState, { type: 'reset' }),
+        demoStatus: 'running',
+        demoStepIndex: resumeFromPause ? file.demoStepIndex : 0,
+        demoMessage: resumeFromPause ? file.demoMessage : createHeatCapacityDemoPlan()[0].message,
+        demoCompletedOnce: false,
+        runState: 'running',
+        updatedAt: Date.now(),
+      };
+    });
+    pushLog(`${activeFile.name}: heat capacity teaching demo started.`, 'success');
+    scheduleHeatCapacityDemoStep(activeFile.id);
+  };
+
+  const pauseHeatCapacityDemo = () => {
+    if (activeFile.kind !== 'heatCapacity') return;
+    clearHeatCapacityDemoTimer();
+    updateActiveFile((file) => {
+      if (file.kind !== 'heatCapacity') return file;
+      return {
+        ...file,
+        demoStatus: file.demoStatus === 'running' ? 'paused' : file.demoStatus,
+        runState: file.runState === 'running' ? 'paused' : file.runState,
+        demoMessage: file.demoStatus === 'running' ? '教学演示已暂停。再次点击开始可继续。' : file.demoMessage,
+        updatedAt: Date.now(),
+      };
+    });
+    pushLog(`${activeFile.name}: heat capacity teaching demo paused.`, 'warning');
+  };
+
+  const stopHeatCapacityDemo = () => {
+    if (activeFile.kind !== 'heatCapacity') return;
+    clearHeatCapacityDemoTimer();
+    updateActiveFile((file) => {
+      if (file.kind !== 'heatCapacity') return file;
+      return {
+        ...file,
+        demoStatus: 'completed',
+        demoMessage: HEAT_CAPACITY_DEMO_COMPLETED_MESSAGE,
+        demoCompletedOnce: true,
+        runState: 'finished',
+        updatedAt: Date.now(),
+      };
+    });
+    pushLog(`${activeFile.name}: heat capacity teaching demo stopped.`, 'warning');
+  };
+
   const createEditSnapshot = (label: string): WorkbenchEditSnapshot => ({
     label,
     files: cloneWorkbenchFiles(filesRef.current),
@@ -1602,9 +1730,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const restoreSnapshot = (snapshot: WorkbenchEditSnapshot) => {
+    clearHeatCapacityDemoTimer();
     const restoredFiles = cloneWorkbenchFiles(snapshot.files).map((file) => (
       file.runState === 'running'
-        ? { ...file, runState: 'paused' as const }
+        ? {
+            ...file,
+            runState: 'paused' as const,
+            ...(file.kind === 'heatCapacity' ? { demoStatus: 'paused' as const } : {}),
+          }
         : file
     ));
     const activeExists = restoredFiles.some((file) => file.id === snapshot.activeFileId);
@@ -2369,7 +2502,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const runActiveFile = () => {
     if (activeFile.kind === 'heatCapacity') {
-      pushLog(`${activeFile.name}: use the guided controls inside the heat capacity experiment panel.`, 'info');
+      startHeatCapacityDemo();
       return;
     }
 
@@ -2421,6 +2554,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const pauseActiveFile = () => {
+    if (activeFile.kind === 'heatCapacity') {
+      pauseHeatCapacityDemo();
+      return;
+    }
+
     cancelRuntimeFrame(activeFile.id);
     updateActiveFile((file) => ({
       ...file,
@@ -2441,7 +2579,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const stopActiveFile = () => {
     if (activeFile.kind === 'heatCapacity') {
-      resetActiveFile();
+      stopHeatCapacityDemo();
       return;
     }
 
@@ -2494,11 +2632,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const resetActiveFile = () => {
     if (activeFile.kind === 'heatCapacity') {
+      clearHeatCapacityDemoTimer();
       updateActiveFile((file) => {
         if (file.kind !== 'heatCapacity') return file;
         return {
           ...file,
           heatCapacityState: applyHeatCapacityAction(file.heatCapacityState, { type: 'reset' }),
+          demoStatus: 'prompt',
+          demoStepIndex: 0,
+          demoMessage: HEAT_CAPACITY_DEMO_PROMPT_MESSAGE,
+          demoCompletedOnce: false,
+          runState: 'idle',
           updatedAt: Date.now(),
         };
       });
@@ -3548,6 +3692,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     captureUndoSnapshot('deleted file');
     cancelRuntimeFrame(fileId);
+    if (file.kind === 'heatCapacity') {
+      clearHeatCapacityDemoTimer();
+    }
     delete standardRuntimeRef.current[fileId];
     delete idealRuntimeRef.current[fileId];
 
@@ -3641,9 +3788,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const selectFile = (file: WorkbenchFileState) => {
     if (file.id !== activeFile.id && activeFile.runState === 'running') {
       cancelRuntimeFrame(activeFile.id);
+      if (activeFile.kind === 'heatCapacity') {
+        clearHeatCapacityDemoTimer();
+      }
       updateFileById(activeFile.id, (currentFile) => ({
         ...currentFile,
         runState: 'paused',
+        ...(currentFile.kind === 'heatCapacity' ? { demoStatus: 'paused' as const } : {}),
         updatedAt: Date.now(),
       }));
       pushLog(workbenchCopy.logs.autoPausedSwitchFile(activeFile.name), 'warning');
@@ -4201,6 +4352,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const handleHeatCapacityAction = (action: HeatCapacityAction) => {
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
+      if (file.demoStatus === 'running') {
+        return {
+          ...file,
+          demoMessage: '教学演示进行中，手动操作已锁定。',
+          updatedAt: Date.now(),
+        };
+      }
       const heatCapacityState = applyHeatCapacityAction(file.heatCapacityState, action);
       return {
         ...file,
@@ -4215,6 +4373,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
       <HeatCapacityExperiment
         state={activeFile.heatCapacityState}
         onAction={handleHeatCapacityAction}
+        demoStatus={activeFile.demoStatus}
+        demoMessage={activeFile.demoMessage}
+        demoCompletedOnce={activeFile.demoCompletedOnce}
       />
     ) : (
     <div className="studio-preview">
@@ -4349,34 +4510,57 @@ const WorkbenchStudioPrototype: React.FC = () => {
     );
   };
 
-  const renderHeatCapacityRealtimePanel = (file: WorkbenchHeatCapacityState) => (
-    <div className="studio-realtime-panel studio-realtime-panel-standard">
-      <div className="studio-realtime-summary studio-realtime-summary-standard">
-        <div><span>p0</span><strong>{formatMaybeMetric(file.heatCapacityState.recorded.p0, 2)}</strong></div>
-        <div><span>p1</span><strong>{formatMaybeMetric(file.heatCapacityState.recorded.p1, 2)}</strong></div>
-        <div><span>p2</span><strong>{formatMaybeMetric(file.heatCapacityState.recorded.p2, 2)}</strong></div>
-        <div><span>gamma</span><strong>{formatMaybeMetric(file.heatCapacityState.result?.gamma, 3)}</strong></div>
-        <div><span>theory</span><strong>{file.theoreticalGamma.toFixed(3)}</strong></div>
-        <div><span>error</span><strong>{formatMaybeMetric(file.heatCapacityState.result?.relativeErrorPercent, 2)}%</strong></div>
-      </div>
-      <div className="studio-live-charts">
-        <div className="studio-live-chart studio-live-chart-blue">
-          <div className="studio-live-chart-header">
-            <span>Heat capacity ratio result</span>
-            <strong>{file.heatCapacityState.phase}</strong>
+  const renderHeatCapacityRealtimePanel = (file: WorkbenchHeatCapacityState) => {
+    const experiment = file.heatCapacityState;
+    const descriptor = getHeatCapacityInteractionDescriptor(experiment);
+    const powerLabel = experiment.instrument.instrumentPowered ? '已开机' : '未开机';
+    const statusLabel = file.demoStatus === 'running'
+      ? '教学演示中'
+      : experiment.result
+        ? '结果已就绪'
+        : '等待操作';
+
+    return (
+      <div className="studio-realtime-panel studio-realtime-panel-standard">
+        <div className="studio-realtime-summary studio-realtime-summary-standard">
+          <div><span>阶段</span><strong>{experiment.phase}</strong></div>
+          <div><span>电源</span><strong>{powerLabel}</strong></div>
+          <div><span>压强</span><strong>{formatMaybeMetric(experiment.pressure, 2)} kPa</strong></div>
+          <div><span>温度</span><strong>{formatMaybeMetric(experiment.temperature, 3)}</strong></div>
+          <div><span>理论值</span><strong>{file.theoreticalGamma.toFixed(3)}</strong></div>
+          <div><span>状态</span><strong>{statusLabel}</strong></div>
+        </div>
+        <div className="studio-live-charts">
+          <div className="studio-live-chart studio-live-chart-blue">
+            <div className="studio-live-chart-header">
+              <span>当前步骤</span>
+              <strong>{descriptor.primaryPart ?? '完成'}</strong>
+            </div>
+            <div className="studio-empty">
+              <div>
+                <strong>{experiment.instrument.instrumentPowered ? descriptor.instruction : '请先打开仪表箱电源'}</strong>
+                <p>{file.demoMessage || descriptor.purpose}</p>
+              </div>
+            </div>
           </div>
-          <div className="studio-empty">
-            <div>
-              <strong>{file.heatCapacityState.result ? 'Gamma result ready' : 'Guided experiment in progress'}</strong>
-              <p>
-                Record p0, p1, and p2 from the 3D instrument controls. The manual data entry mode is reserved for a later batch.
-              </p>
+          <div className="studio-live-chart studio-live-chart-blue">
+            <div className="studio-live-chart-header">
+              <span>比热容比结果</span>
+              <strong>{experiment.result ? '结果已就绪' : '实验进行中'}</strong>
+            </div>
+            <div className="studio-realtime-summary studio-realtime-summary-standard">
+              <div><span>p0</span><strong>{formatMaybeMetric(experiment.recorded.p0, 2)}</strong></div>
+              <div><span>p1</span><strong>{formatMaybeMetric(experiment.recorded.p1, 2)}</strong></div>
+              <div><span>p2</span><strong>{formatMaybeMetric(experiment.recorded.p2, 2)}</strong></div>
+              <div><span>gamma</span><strong>{formatMaybeMetric(experiment.result?.gamma, 3)}</strong></div>
+              <div><span>误差</span><strong>{formatMaybeMetric(experiment.result?.relativeErrorPercent, 2)}%</strong></div>
+              <div><span>模式</span><strong>guided</strong></div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderRealtimePanel = () => (
     activeFile.kind === 'heatCapacity' ? renderHeatCapacityRealtimePanel(activeFile) : (
@@ -5180,42 +5364,56 @@ const WorkbenchStudioPrototype: React.FC = () => {
     );
   };
 
-  const renderDockHeader = (panel: PanelDefinition) => (
-    <div className="studio-dock-header">
-      <div>
-        <span>{panel.title}</span>
-        <small>{panel.hint}</small>
-      </div>
-      {panel.key === 'preview' ? (
-        <div className="studio-panel-actions">
-          <button
-            type="button"
-            className={`studio-run-control studio-run-control-${activeFile.runState === 'running' ? 'pause' : 'start'}`}
-            onClick={toggleActiveFileRunState}
-            title={activeFile.runState === 'running' ? workbenchCopy.actions.pause : workbenchCopy.actions.start}
-            aria-label={activeFile.runState === 'running' ? workbenchCopy.actions.pause : workbenchCopy.actions.start}
-          >
-            {activeFile.runState === 'running' ? (
-              <Pause size={14} strokeWidth={2.5} />
-            ) : (
-              <Play size={15} strokeWidth={2.5} />
-            )}
-          </button>
-          {(activeFile.runState === 'running' || activeFile.runState === 'paused') ? (
-            <button
-              type="button"
-              className="studio-run-control studio-run-control-stop"
-              onClick={stopActiveFile}
-              title={workbenchCopy.actions.stop}
-              aria-label={workbenchCopy.actions.stop}
-            >
-              <Square size={13} strokeWidth={2.5} />
-            </button>
-          ) : null}
+  const renderDockHeader = (panel: PanelDefinition) => {
+    const hideCompletedHeatDemoStart = activeFile.kind === 'heatCapacity' && activeFile.demoCompletedOnce;
+    const runTitle = activeFile.kind === 'heatCapacity'
+      ? activeFile.runState === 'running'
+        ? '暂停教学演示'
+        : '开始教学演示'
+      : activeFile.runState === 'running'
+        ? workbenchCopy.actions.pause
+        : workbenchCopy.actions.start;
+    const stopTitle = activeFile.kind === 'heatCapacity' ? '停止教学演示' : workbenchCopy.actions.stop;
+
+    return (
+      <div className="studio-dock-header">
+        <div>
+          <span>{panel.title}</span>
+          <small>{panel.hint}</small>
         </div>
-      ) : null}
-    </div>
-  );
+        {panel.key === 'preview' ? (
+          <div className="studio-panel-actions">
+            {!hideCompletedHeatDemoStart ? (
+              <button
+                type="button"
+                className={`studio-run-control studio-run-control-${activeFile.runState === 'running' ? 'pause' : 'start'}`}
+                onClick={toggleActiveFileRunState}
+                title={runTitle}
+                aria-label={runTitle}
+              >
+                {activeFile.runState === 'running' ? (
+                  <Pause size={14} strokeWidth={2.5} />
+                ) : (
+                  <Play size={15} strokeWidth={2.5} />
+                )}
+              </button>
+            ) : null}
+            {(activeFile.runState === 'running' || activeFile.runState === 'paused') ? (
+              <button
+                type="button"
+                className="studio-run-control studio-run-control-stop"
+                onClick={stopActiveFile}
+                title={stopTitle}
+                aria-label={stopTitle}
+              >
+                <Square size={13} strokeWidth={2.5} />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
 
   const renderDockPanel = (panel: PanelDefinition, optional = false) => (
     <section
@@ -5908,7 +6106,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                         ? workbenchCopy.parameters.standardReadonlyNote
                         : activeFile.kind === 'ideal'
                           ? workbenchCopy.parameters.idealReadonlyNote
-                          : 'p0, p1, p2, and gamma are generated by the guided instrument controls.'}
+                          : 'p0、p1、p2 和 gamma 由引导式仪器操作生成。'}
                   </div>
                 </div>
               </aside>

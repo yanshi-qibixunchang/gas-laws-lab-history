@@ -5,6 +5,7 @@ import {
   calculateGamma,
   calculateGammaSummary,
   createHeatCapacityExperiment,
+  resolveHeatCapacityPartAction,
 } from '../utils/heatCapacityExperiment.ts';
 
 const closeTo = (actual: number, expected: number, tolerance = 1e-6) => {
@@ -38,6 +39,9 @@ assert.ok(summary.relativeErrorPercent < 1);
 let state = createHeatCapacityExperiment({ ambientPressure: p0, ambientTemperature: 1 });
 assert.equal(state.phase, 'equalizing');
 assert.equal(state.mode, 'guided');
+assert.equal(state.instrument.instrumentPowered, false);
+state = applyHeatCapacityAction(state, { type: 'setInstrumentPower', powered: true });
+assert.equal(state.instrument.instrumentPowered, true);
 
 const sanitized = createHeatCapacityExperiment({
   ambientPressure: -1,
@@ -54,7 +58,7 @@ assert.equal(sanitized.temperature, sanitized.ambientTemperature);
 
 const blocked = applyHeatCapacityAction(state, { type: 'recordP1' });
 assert.equal(blocked.phase, 'equalizing');
-assert.equal(blocked.lastError, 'p1 cannot be recorded before the gas is pressurized and stable.');
+assert.equal(blocked.lastError, '气体尚未完成加压和稳定，不能记录 p1。');
 
 state = applyHeatCapacityAction(state, { type: 'recordP0' });
 assert.equal(state.phase, 'pumping');
@@ -71,15 +75,15 @@ assert.ok(state.instrument.pumpProgress > 0);
 state = applyHeatCapacityAction(state, { type: 'stabilizeP1' });
 assert.equal(state.phase, 'stabilizingP1');
 assert.equal(state.temperature, 1);
-assert.equal(state.instrument.highlightedPart, 'Pressure_Gauge_Needle');
+assert.equal(state.instrument.highlightedPart, 'Hit_Temperature_Display');
 
 const blockedRecordP1 = applyHeatCapacityAction(state, { type: 'recordP1' });
 assert.equal(blockedRecordP1.phase, 'stabilizingP1');
-assert.equal(blockedRecordP1.lastError, 'p1 can only be recorded after the high-pressure gas has stabilized.');
+assert.equal(blockedRecordP1.lastError, '必须等待高压气体稳定后才能记录 p1。');
 
 const blockedRelease = applyHeatCapacityAction(state, { type: 'release', durationMs: 420, closeDelayMs: 0 });
 assert.equal(blockedRelease.phase, 'stabilizingP1');
-assert.equal(blockedRelease.lastError, 'C2 can only release gas after p1 has been recorded.');
+assert.equal(blockedRelease.lastError, '只有记录 p1 后才能通过 C2 放气。');
 
 state = applyHeatCapacityAction(state, { type: 'stabilizeP1' });
 assert.equal(state.phase, 'recordP1');
@@ -119,6 +123,7 @@ assert.equal(resetAfterTrial.trials.length, 1);
 
 const idealRelease = createHeatCapacityExperiment({ ambientPressure: p0 });
 const idealPath = [
+  { type: 'setInstrumentPower' as const, powered: true },
   { type: 'recordP0' as const },
   { type: 'pump' as const, strokes: 6 },
   { type: 'stabilizeP1' as const },
@@ -131,6 +136,7 @@ const idealPath = [
 
 const poorRelease = createHeatCapacityExperiment({ ambientPressure: p0 });
 const poorPath = [
+  { type: 'setInstrumentPower' as const, powered: true },
   { type: 'recordP0' as const },
   { type: 'pump' as const, strokes: 6 },
   { type: 'stabilizeP1' as const },
@@ -144,5 +150,28 @@ const poorPath = [
 assert.ok(idealPath.result);
 assert.ok(poorPath.result);
 assert.ok(poorPath.result.relativeErrorPercent > idealPath.result.relativeErrorPercent);
+
+const clickModelPart = (
+  current: ReturnType<typeof createHeatCapacityExperiment>,
+  partId: Parameters<typeof resolveHeatCapacityPartAction>[1],
+) => {
+  const resolution = resolveHeatCapacityPartAction(current, partId);
+  assert.equal(resolution.accepted, true, resolution.message);
+  assert.ok(resolution.action);
+  return applyHeatCapacityAction(current, resolution.action);
+};
+
+let modelDrivenPath = createHeatCapacityExperiment({ ambientPressure: p0, ambientTemperature: 1 });
+modelDrivenPath = clickModelPart(modelDrivenPath, 'Instrument_Box_Power_Switch');
+modelDrivenPath = clickModelPart(modelDrivenPath, 'Hit_Pressure_Gauge');
+modelDrivenPath = clickModelPart(modelDrivenPath, 'Hit_Pump');
+modelDrivenPath = clickModelPart(modelDrivenPath, 'Hit_Temperature_Display');
+modelDrivenPath = clickModelPart(modelDrivenPath, 'Hit_Temperature_Display');
+modelDrivenPath = clickModelPart(modelDrivenPath, 'Hit_Pressure_Gauge');
+modelDrivenPath = clickModelPart(modelDrivenPath, 'Hit_C2');
+modelDrivenPath = clickModelPart(modelDrivenPath, 'Hit_Temperature_Display');
+modelDrivenPath = clickModelPart(modelDrivenPath, 'Hit_Pressure_Gauge');
+assert.equal(modelDrivenPath.phase, 'completed');
+assert.ok(modelDrivenPath.result);
 
 console.log('heatCapacityExperiment tests passed');

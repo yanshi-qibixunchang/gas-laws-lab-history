@@ -1,5 +1,7 @@
 import {
   clampWorkbenchLiveSplitRatio,
+  HEAT_CAPACITY_DEMO_COMPLETED_MESSAGE,
+  HEAT_CAPACITY_DEMO_PROMPT_MESSAGE,
   migrateHeatCapacityDefaultName,
   type WorkbenchFileState,
   type WorkbenchPanelKey,
@@ -30,12 +32,30 @@ const fallbackSession = (): WorkbenchSessionState => {
   };
 };
 
-const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => ({
-  ...file,
-  name: file.kind === 'heatCapacity' ? migrateHeatCapacityDefaultName(file.name) : file.name,
-  runState: file.runState === 'running' ? 'paused' : file.runState,
-  liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
-});
+const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => {
+  const runState = file.runState === 'running' ? 'paused' : file.runState;
+
+  if (file.kind === 'heatCapacity') {
+    const demoStatus = file.demoStatus === 'running' ? 'paused' : file.demoStatus ?? 'prompt';
+    return {
+      ...file,
+      name: migrateHeatCapacityDefaultName(file.name),
+      runState,
+      liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
+      demoStatus,
+      demoStepIndex: Number.isFinite(file.demoStepIndex) ? file.demoStepIndex : 0,
+      demoMessage: file.demoMessage
+        ?? (demoStatus === 'completed' ? HEAT_CAPACITY_DEMO_COMPLETED_MESSAGE : HEAT_CAPACITY_DEMO_PROMPT_MESSAGE),
+      demoCompletedOnce: Boolean(file.demoCompletedOnce),
+    };
+  }
+
+  return {
+    ...file,
+    runState,
+    liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
+  };
+};
 
 export const decodeWorkbenchSession = (value: unknown): WorkbenchSessionState => {
   if (!isRecord(value) || value.version !== WORKBENCH_SESSION_VERSION || !Array.isArray(value.files)) {
