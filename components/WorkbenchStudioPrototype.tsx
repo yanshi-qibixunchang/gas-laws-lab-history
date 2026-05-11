@@ -4620,6 +4620,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const pressureSignal = activeFile.powerOn
       ? (typeof activeFile.pressureSignalMv === 'number' ? `${formatMetric(activeFile.pressureSignalMv, 1)} mV` : '--.- mV')
       : '未通电';
+    const heatCapacityPoweredReadout = (displayValue: string) => activeFile.powerOn ? displayValue : '未通电';
+    const heatCapacityPoweredNumber = (displayValue: string) => activeFile.powerOn ? displayValue : '--';
     const pumpFrequencyStatusLabel = activeFile.pumpFrequencyStatus === 'idle'
       ? '空闲'
       : activeFile.pumpFrequencyStatus === 'tooSlow'
@@ -4636,19 +4638,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div><span>电源状态</span><strong>{powerLabel}</strong></div>
           <div><span>玻璃旋塞</span><strong>{stopcockStateLabel}</strong></div>
           <div><span>压力调零</span><strong>{activeFile.pressureZeroAdjusted ? '已调零' : canZeroHeatCapacityPressure(activeFile) ? '可调零' : '未就绪'}</strong></div>
-          <div><span>零点偏移</span><strong>{formatMetric(activeFile.pressureZeroOffset, 2)} mV</strong></div>
-          <div><span>显示压力</span><strong>{formatMetric(activeFile.pressureDisplayedPlaceholder, 2)} mV</strong></div>
+          <div><span>零点偏移</span><strong>{heatCapacityPoweredNumber(`${formatMetric(activeFile.pressureZeroOffset, 2)} mV`)}</strong></div>
+          <div><span>显示压力</span><strong>{heatCapacityPoweredNumber(`${formatMetric(activeFile.pressureDisplayedPlaceholder, 2)} mV`)}</strong></div>
           <div><span>温度信号</span><strong>{temperatureSignal}</strong></div>
           <div><span>压力信号</span><strong>{pressureSignal}</strong></div>
-          <div><span>实时压强</span><strong>{pressureValue}</strong></div>
-          <div><span>压强余量</span><strong>{typeof pressureHeadroom === 'number' ? `${formatMetric(pressureHeadroom, 2)} kPa` : '-- kPa'}</strong></div>
-          <div><span>当前温度</span><strong>{formatMaybeMetric(activeFile.params.targetTemperature, 3)}</strong></div>
+          <div><span>实时压强</span><strong>{heatCapacityPoweredReadout(pressureValue)}</strong></div>
+          <div><span>压强余量</span><strong>{heatCapacityPoweredNumber(typeof pressureHeadroom === 'number' ? `${formatMetric(pressureHeadroom, 2)} kPa` : '-- kPa')}</strong></div>
+          <div><span>当前温度</span><strong>{heatCapacityPoweredNumber(formatMaybeMetric(activeFile.params.targetTemperature, 3))}</strong></div>
           <div><span>打气阀门</span><strong>{activeFile.pumpValveOpen ? '已打开' : '已关闭'}</strong></div>
           <div><span>打气球状态</span><strong>{pumpBulbStateLabel}</strong></div>
           <div><span>打气频率</span><strong>{formatMetric(activeFile.pumpFrequency, 2)} 次/s</strong></div>
           <div><span>频率评价</span><strong>{pumpFrequencyStatusLabel}</strong></div>
-          <div><span>占位压强</span><strong>{formatMetric(activeFile.pressurePlaceholder, 2)} kPa</strong></div>
-          <div><span>占位温度</span><strong>{formatMetric(activeFile.temperaturePlaceholder, 3)}</strong></div>
+          <div><span>占位压强</span><strong>{heatCapacityPoweredNumber(`${formatMetric(activeFile.pressurePlaceholder, 2)} kPa`)}</strong></div>
+          <div><span>占位温度</span><strong>{heatCapacityPoweredNumber(formatMetric(activeFile.temperaturePlaceholder, 3))}</strong></div>
           <div><span>理论 gamma</span><strong>{formatMetric(activeFile.theoreticalGamma, 3)}</strong></div>
         </div>
         <div className="studio-heat-records">

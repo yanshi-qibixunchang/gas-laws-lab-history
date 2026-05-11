@@ -439,9 +439,36 @@ function InstrumentBox({
           <boxGeometry args={[0.36, 0.36, 0.22]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.11, 0.11, 0.08, 32]} />
-          <meshStandardMaterial color={zeroEnabled ? '#f59e0b' : '#64748b'} roughness={0.42} emissive={pressureZeroHovered ? '#0e7490' : '#000000'} emissiveIntensity={pressureZeroHovered ? NON_BULB_HOVER_EMISSIVE_INTENSITY : 0} />
+        {[-55, -28, 0, 28, 55].map((tickDeg) => {
+          const tickRad = THREE.MathUtils.degToRad(tickDeg - 90);
+          return (
+            <mesh
+              key={tickDeg}
+              name="PressureZeroScaleTick"
+              position={[Math.cos(tickRad) * 0.16, Math.sin(tickRad) * 0.16, 0.052]}
+              rotation={[0, 0, tickRad]}
+              raycast={DISABLE_RAYCAST}
+            >
+              <boxGeometry args={[0.026, 0.005, 0.008]} />
+              <meshStandardMaterial color="#475569" roughness={0.65} />
+            </mesh>
+          );
+        })}
+        <mesh name="PressureZeroKnobBody" rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.118, 0.108, 0.084, 48]} />
+          <meshStandardMaterial color={zeroEnabled ? '#b87516' : '#64748b'} roughness={0.5} metalness={0.08} emissive={pressureZeroHovered ? '#0e7490' : '#000000'} emissiveIntensity={pressureZeroHovered ? NON_BULB_HOVER_EMISSIVE_INTENSITY : 0} />
+        </mesh>
+        <mesh name="PressureZeroKnobFace" position={[0, 0, 0.048]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.096, 0.102, 0.014, 48]} />
+          <meshStandardMaterial color={zeroEnabled ? '#c0841a' : '#94a3b8'} roughness={0.46} metalness={0.04} emissive={pressureZeroHovered ? '#075985' : '#000000'} emissiveIntensity={pressureZeroHovered ? 0.16 : 0} />
+        </mesh>
+        <mesh name="PressureZeroKnobRim" position={[0, 0, 0.058]} raycast={DISABLE_RAYCAST}>
+          <torusGeometry args={[0.103, 0.006, 12, 48]} />
+          <meshStandardMaterial color={zeroEnabled ? '#7c4708' : '#475569'} roughness={0.4} metalness={0.16} />
+        </mesh>
+        <mesh name="PressureZeroKnobCenter" position={[0, 0, 0.068]} rotation={[Math.PI / 2, 0, 0]} raycast={DISABLE_RAYCAST}>
+          <cylinderGeometry args={[0.018, 0.018, 0.01, 24]} />
+          <meshStandardMaterial color="#1f2937" roughness={0.42} metalness={0.12} />
         </mesh>
         {pressureZeroHovered ? (
           <mesh name="PressureZeroHoverHalo" position={[0, 0, 0.047]} raycast={DISABLE_RAYCAST}>
@@ -450,13 +477,9 @@ function InstrumentBox({
           </mesh>
         ) : null}
         <group name="PressureZeroIndicatorGroup" rotation={[0, 0, THREE.MathUtils.degToRad(pressureZeroKnobAngle)]}>
-          <mesh name="PressureZeroPointerMark" position={[0.03, 0, 0.06]}>
-            <boxGeometry args={[0.1, 0.018, 0.016]} />
-            <meshStandardMaterial color="#1f2937" />
-          </mesh>
-          <mesh name="PressureZeroDirectionMark" position={[0.085, 0.032, 0.071]}>
-            <boxGeometry args={[0.045, 0.012, 0.014]} />
-            <meshStandardMaterial color="#dbeafe" emissive="#38bdf8" emissiveIntensity={0.16} />
+          <mesh name="PressureZeroIndicatorLine" position={[0.035, 0, 0.076]} raycast={DISABLE_RAYCAST}>
+            <boxGeometry args={[0.105, 0.013, 0.016]} />
+            <meshStandardMaterial color="#111827" roughness={0.34} />
           </mesh>
         </group>
       </group>
@@ -1117,8 +1140,8 @@ function CameraRig({
       nextPosition.set(1.02, 2.04, 2.64);
       nextTarget.set(-1.27, 0.79, 0.07);
     } else if (focusMode === 'instrument') {
-      nextPosition.set(2.08, 0.08, 3.05);
-      nextTarget.set(1.85, -0.5, 0.36);
+      nextPosition.set(2.18, 0.18, 3.42);
+      nextTarget.set(2.02, -0.76, 0.34);
     } else if (focusMode === 'pump') {
       nextPosition.set(2.95, 0.25, 3.35);
       nextTarget.set(1.65, -0.45, 0.95);
@@ -1185,6 +1208,8 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const pumpFrequencyStatusLabel = getPumpFrequencyStatusLabel(props.pumpFrequencyStatus);
   const temperatureDisplay = props.powerOn ? formatSignal(props.temperatureSignalMv) : '未通电';
   const pressureDisplay = props.powerOn ? formatSignal(props.pressureSignalMv) : '未通电';
+  const poweredInstrumentReadout = (displayValue: string) => props.powerOn ? displayValue : '未通电';
+  const poweredInstrumentNumber = (displayValue: string) => props.powerOn ? displayValue : '--';
   const interactionHints = getHeatCapacityInteractionHints(focusMode);
   const hoverTooltip = getHeatCapacityHoverTooltip(hoveredControl, props.pumpValveOpen);
   const canvasProps = useMemo(() => ({
@@ -1363,46 +1388,50 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           data-heat-capacity-focus-panel="instrument"
         >
           <div className="studio-heat-focus-title">仪表读数</div>
-          <div className="studio-heat-focus-grid">
-            <div className="studio-heat-focus-panel-row">
-              <span>电源状态</span>
-              <strong className={props.powerOn ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                {props.powerOn ? '已开机' : '未开机'}
-              </strong>
+          <div className="studio-heat-focus-instrument-columns">
+            <div className="studio-heat-focus-column">
+              <div className="studio-heat-focus-panel-row">
+                <span>电源状态</span>
+                <strong className={props.powerOn ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
+                  {props.powerOn ? '已开机' : '未开机'}
+                </strong>
+              </div>
+              <div className="studio-heat-focus-panel-row">
+                <span>U_T</span>
+                <strong>{poweredInstrumentReadout(temperatureDisplay)}</strong>
+              </div>
+              <div className="studio-heat-focus-panel-row">
+                <span>压力调零</span>
+                <strong className={props.pressureZeroAdjusted ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
+                  {props.pressureZeroAdjusted ? '已调零' : '未调零'}
+                </strong>
+              </div>
+              <div className="studio-heat-focus-panel-row">
+                <span>显示压力</span>
+                <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressureDisplayedPlaceholder, 2)} mV`)}</strong>
+              </div>
+              <div className="studio-heat-focus-panel-row">
+                <span>占位温度</span>
+                <strong>{poweredInstrumentNumber(formatPanelNumber(props.temperaturePlaceholder, 3))}</strong>
+              </div>
             </div>
-            <div className="studio-heat-focus-panel-row">
-              <span>当前阶段</span>
-              <strong>{props.phase}</strong>
-            </div>
-            <div className="studio-heat-focus-panel-row">
-              <span>U_T</span>
-              <strong>{temperatureDisplay}</strong>
-            </div>
-            <div className="studio-heat-focus-panel-row">
-              <span>U_P</span>
-              <strong>{pressureDisplay}</strong>
-            </div>
-            <div className="studio-heat-focus-panel-row">
-              <span>压力调零</span>
-              <strong className={props.pressureZeroAdjusted ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                {props.pressureZeroAdjusted ? '已调零' : '未调零'}
-              </strong>
-            </div>
-            <div className="studio-heat-focus-panel-row">
-              <span>零点偏移</span>
-              <strong>{formatPanelNumber(props.pressureZeroOffset, 2)} mV</strong>
-            </div>
-            <div className="studio-heat-focus-panel-row">
-              <span>显示压力</span>
-              <strong>{formatPanelNumber(props.pressureDisplayedPlaceholder, 2)} mV</strong>
-            </div>
-            <div className="studio-heat-focus-panel-row">
-              <span>占位压强</span>
-              <strong>{formatPanelNumber(props.pressurePlaceholder, 2)} kPa</strong>
-            </div>
-            <div className="studio-heat-focus-panel-row">
-              <span>占位温度</span>
-              <strong>{formatPanelNumber(props.temperaturePlaceholder, 3)}</strong>
+            <div className="studio-heat-focus-column">
+              <div className="studio-heat-focus-panel-row">
+                <span>当前阶段</span>
+                <strong>{props.phase}</strong>
+              </div>
+              <div className="studio-heat-focus-panel-row">
+                <span>U_P</span>
+                <strong>{poweredInstrumentReadout(pressureDisplay)}</strong>
+              </div>
+              <div className="studio-heat-focus-panel-row">
+                <span>零点偏移</span>
+                <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressureZeroOffset, 2)} mV`)}</strong>
+              </div>
+              <div className="studio-heat-focus-panel-row">
+                <span>占位压强</span>
+                <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressurePlaceholder, 2)} kPa`)}</strong>
+              </div>
             </div>
           </div>
           <div className="studio-heat-focus-panel-actions studio-heat-focus-panel-actions-single">

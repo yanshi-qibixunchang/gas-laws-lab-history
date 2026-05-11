@@ -73,8 +73,13 @@ assert.match(sceneSource, /PRESSURE_ZERO_DRAG_DIRECTION = -1/, 'pressure zero dr
 assert.match(sceneSource, /pressureZeroInteractionEnabled = focusMode === 'instrument'/, 'pressure zero knob should only rotate in instrument focus mode');
 assert.match(sceneSource, /onPointerDown=\{pressureZeroInteractionEnabled \? startPressureZeroDrag : undefined\}/, 'pressure zero drag should be disabled outside instrument focus mode');
 assert.match(sceneSource, /onWheel=\{pressureZeroInteractionEnabled \? handlePressureZeroWheel : undefined\}/, 'pressure zero wheel adjustment should be disabled outside instrument focus mode');
-assert.match(sceneSource, /name="PressureZeroDirectionMark"/, 'pressure zero knob should include a visible direction mark so rotation is readable');
-assert.match(sceneSource, /name="PressureZeroIndicatorGroup" rotation=\{\[0, 0, THREE\.MathUtils\.degToRad\(pressureZeroKnobAngle\)\]\}/, 'pressure zero pointer and direction mark should rotate as one readable group');
+assert.match(sceneSource, /name="PressureZeroKnobBody"/, 'pressure zero knob should use a named industrial knob body');
+assert.match(sceneSource, /name="PressureZeroKnobFace"/, 'pressure zero knob should expose a distinct front face');
+assert.match(sceneSource, /name="PressureZeroKnobCenter"/, 'pressure zero knob should show a clear centered hub');
+assert.match(sceneSource, /name="PressureZeroIndicatorLine"/, 'pressure zero knob should use one clear centered indicator line');
+assert.match(sceneSource, /name="PressureZeroScaleTick"/, 'pressure zero knob should have simple fixed reference ticks around it');
+assert.match(sceneSource, /name="PressureZeroIndicatorGroup" rotation=\{\[0, 0, THREE\.MathUtils\.degToRad\(pressureZeroKnobAngle\)\]\}[\s\S]*name="PressureZeroIndicatorLine"/, 'pressure zero indicator line should rotate as one centered group');
+assert.doesNotMatch(sceneSource, /name="PressureZeroDirectionMark"/, 'pressure zero knob should not keep the old second off-center direction mark');
 assert.doesNotMatch(sceneSource, /pressureZeroed=\{props\.pressureZeroed\}/, '3D scene should not keep the obsolete pressureZeroed visual prop path');
 assert.doesNotMatch(sceneSource, /setHoveredControl\('instrument'\)/, 'instrument front panel should not expose a hover prompt');
 assert.match(sceneSource, /name="StopcockRodHandleHoverHalo"/, 'stopcock hover should use a soft halo instead of a stark white edge');
@@ -185,11 +190,18 @@ assert.match(sceneSource, /focusMode/, '3D preview should track focused operatio
 assert.match(sceneSource, /onFocus\('stopcock'\)/, 'double-clicking the stopcock should enter stopcock focus mode');
 assert.match(sceneSource, /onFocus\('instrument'\)/, 'double-clicking the host should enter instrument focus mode');
 assert.match(sceneSource, /focusMode === 'stopcock'[\s\S]*nextPosition\.set\(1\.02, 2\.04, 2\.64\);[\s\S]*nextTarget\.set\(-1\.27, 0\.79, 0\.07\);/, 'stopcock and pump-valve focus view should keep the corrected angle while shifting the projected model left and down so the green vent arrow remains fully visible');
+assert.match(sceneSource, /focusMode === 'instrument'[\s\S]*nextPosition\.set\(2\.18, 0\.18, 3\.42\);[\s\S]*nextTarget\.set\(2\.02, -0\.76, 0\.34\);/, 'instrument focus view should shift the host upward and clear of the lower-right panel while keeping the left display visible');
 assert.doesNotMatch(sceneSource, /className="studio-heat-focus-exit"/, 'focused modes should not use a separate top-right exit button');
 assert.match(sceneSource, /data-heat-capacity-focus-panel="stopcock"/, 'stopcock focus mode should expose a compact lower-right focus panel');
 assert.match(sceneSource, /data-heat-capacity-focus-panel="pump"/, 'pump focus mode should expose its own lower-right focus panel');
 assert.match(sceneSource, /data-heat-capacity-focus-panel="instrument"/, 'instrument focus mode should expose its own lower-right focus panel');
 assert.match(sceneSource, /data-heat-capacity-focus-exit="true"/, 'each focus panel should include the unified exit focus control');
+assert.match(sceneSource, /const poweredInstrumentReadout = \(displayValue: string\) => props\.powerOn \? displayValue : '未通电'/, 'instrument focus panel should hide instrument readouts while powered off');
+assert.match(sceneSource, /const poweredInstrumentNumber = \(displayValue: string\) => props\.powerOn \? displayValue : '--'/, 'instrument focus panel should hide numeric placeholders while powered off');
+assert.match(sceneSource, /<strong>\{poweredInstrumentReadout\(temperatureDisplay\)\}<\/strong>/, 'instrument focus U_T should be guarded by power state');
+assert.match(sceneSource, /<strong>\{poweredInstrumentReadout\(pressureDisplay\)\}<\/strong>/, 'instrument focus U_P should be guarded by power state');
+assert.match(sceneSource, /<strong>\{poweredInstrumentNumber\(`\$\{formatPanelNumber\(props\.pressureDisplayedPlaceholder, 2\)\} mV`\)\}<\/strong>/, 'instrument focus displayed pressure should not leak values while powered off');
+assert.match(sceneSource, /<strong>\{poweredInstrumentNumber\(`\$\{formatPanelNumber\(props\.pressurePlaceholder, 2\)\} kPa`\)\}<\/strong>/, 'instrument focus placeholder pressure should not leak values while powered off');
 assert.match(sceneSource, /getPumpBulbDisplayLabel/, 'pump bulb display state should be mapped for user-facing UI');
 assert.match(sceneSource, /pumpValveOpen \? '已打开' : '已关闭'/, 'shared stopcock focus panel should show pump valve open-closed state');
 assert.match(sceneSource, /data-heat-capacity-stopcock-slider="true"/, 'stopcock focus mode should include a continuous backup angle slider');
@@ -206,9 +218,11 @@ assert.doesNotMatch(styleSource, /\.studio-heat-stopcock-panel \{[\s\S]*left: 14
 assert.match(styleSource, /\.studio-heat-focus-panel \{[\s\S]*padding: 9px;/, 'focus panel should be compacted by reducing padding rather than dropping font sizes');
 assert.match(styleSource, /\.studio-heat-focus-panel-pump \{[\s\S]*pointer-events: none;/, 'pump focus panel should not steal rapid pump clicks from the bulb behind non-control panel areas');
 assert.match(styleSource, /\.studio-heat-focus-panel-pump \.studio-heat-focus-panel-actions button \{[\s\S]*pointer-events: auto;/, 'pump focus panel exit button should remain clickable when the panel body passes pointer events through');
-assert.match(styleSource, /\.studio-heat-focus-panel-instrument \{[\s\S]*width: min\(338px, calc\(100% - 28px\)\);/, 'instrument focus panel should be slightly wider to keep value and units on one line');
-assert.match(styleSource, /\.studio-heat-focus-panel-instrument \.studio-heat-focus-panel-row \{[\s\S]*display: grid;[\s\S]*grid-template-columns: minmax\(58px, 0\.86fr\) minmax\(108px, 1\.14fr\);/, 'instrument focus rows should use stable columns instead of flex wrapping values');
-assert.match(styleSource, /\.studio-heat-focus-panel-instrument \.studio-heat-focus-panel-row strong \{[\s\S]*white-space: nowrap;/, 'instrument focus values should keep number and unit on one line');
+assert.match(sceneSource, /className="studio-heat-focus-instrument-columns"/, 'instrument focus panel should organize readouts into explicit left and right columns');
+assert.match(styleSource, /\.studio-heat-focus-panel-instrument \{[\s\S]*width: min\(390px, calc\(100% - 28px\)\);/, 'instrument focus panel should be wide enough for aligned readout values without moving from the lower-right corner');
+assert.match(styleSource, /\.studio-heat-focus-instrument-columns \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\);/, 'instrument focus readouts should use balanced two-column groups');
+assert.match(styleSource, /\.studio-heat-focus-panel-instrument \.studio-heat-focus-panel-row \{[\s\S]*grid-template-columns: 64px minmax\(0, 1fr\);/, 'instrument focus rows should use fixed label and value columns');
+assert.match(styleSource, /\.studio-heat-focus-panel-instrument \.studio-heat-focus-panel-row strong \{[\s\S]*white-space: nowrap;[\s\S]*overflow: hidden;/, 'instrument focus values should keep number and unit on one line without spilling outside the panel');
 assert.match(styleSource, /\.studio-heat-interaction-hints \{[\s\S]*position: absolute;[\s\S]*left: 12px;[\s\S]*bottom: 12px;/, 'interaction hints should sit in a low-interference corner');
 assert.match(styleSource, /\.studio-heat-hover-tooltip \{[\s\S]*pointer-events: none;/, 'hover tooltip should not steal canvas interactions');
 
@@ -232,6 +246,8 @@ assert.match(workbenchSource, /clearHeatCapacityPumpAnimationTimers/, 'new pump 
 assert.doesNotMatch(workbenchSource, /pumpBulbState === 'compressing'[\s\S]{0,80}return/, 'rapid pump clicks should not be ignored while the bulb is compressing');
 assert.doesNotMatch(workbenchSource, /pumpBulbState === 'releasing'[\s\S]{0,80}return/, 'rapid pump clicks should not be ignored while the bulb is releasing');
 assert.match(workbenchSource, /setInterval[\s\S]*refreshHeatCapacityPumpFrequency/, 'pump frequency should refresh on a sliding window even after clicking stops');
+assert.match(workbenchSource, /const heatCapacityPoweredReadout = \(displayValue: string\) => activeFile\.powerOn \? displayValue : '未通电'/, 'right realtime panel should hide instrument readouts while powered off');
+assert.match(workbenchSource, /const heatCapacityPoweredNumber = \(displayValue: string\) => activeFile\.powerOn \? displayValue : '--'/, 'right realtime panel should hide numeric placeholders while powered off');
 assert.match(workbenchSource, /getHeatCapacityPumpBulbDisplayLabel/, 'right realtime panel should map pump animation phases to user-facing labels');
 assert.match(workbenchSource, /activeFile\.pumpBulbState === 'idle' \? '待机' : '打气中'/, 'right realtime panel should only show idle or pumping for pump bulb state');
 assert.doesNotMatch(workbenchSource, /压缩中|回弹中|恢复中/, 'right realtime panel should not expose internal pump bulb animation phases');

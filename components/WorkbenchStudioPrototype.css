@@ -2751,7 +2751,7 @@
 }
 
 .studio-heat-focus-panel-instrument {
-  width: min(338px, calc(100% - 28px));
+  width: min(390px, calc(100% - 28px));
 }
 
 .studio-heat-focus-panel-pump {
@@ -2801,24 +2801,35 @@
   color: #cbd5e1;
 }
 
-.studio-heat-focus-panel-instrument .studio-heat-focus-grid {
-  gap: 4px 12px;
+.studio-heat-focus-instrument-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 5px 14px;
 }
 
 .studio-heat-focus-panel-instrument .studio-heat-focus-panel-row {
   display: grid;
-  grid-template-columns: minmax(58px, 0.86fr) minmax(108px, 1.14fr);
-  gap: 8px;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 7px;
+  min-height: 22px;
 }
 
 .studio-heat-focus-panel-instrument .studio-heat-focus-panel-row span {
+  overflow: hidden;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
 .studio-heat-focus-panel-instrument .studio-heat-focus-panel-row strong {
-  overflow: visible;
+  overflow: hidden;
   text-overflow: clip;
   white-space: nowrap;
+}
+
+.studio-heat-focus-column {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
 }
 
 .studio-heat-stopcock-slider-wrap {
