@@ -1,5 +1,11 @@
 import {
   clampWorkbenchLiveSplitRatio,
+  applyHeatCapacityPressureZero,
+  createDefaultHeatCapacityFile,
+  getHeatCapacityStopcockState,
+  normalizeHeatCapacityStopcockAngle,
+  normalizeHeatCapacityFileName,
+  WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
   type WorkbenchFileState,
   type WorkbenchPanelKey,
 } from './workbenchState.ts';
@@ -20,6 +26,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null
 );
 
+const normalizeNullableNumber = (value: unknown) => (
+  typeof value === 'number' && Number.isFinite(value) ? value : null
+);
+
 const fallbackSession = (): WorkbenchSessionState => {
   return {
     version: WORKBENCH_SESSION_VERSION,
@@ -29,11 +39,83 @@ const fallbackSession = (): WorkbenchSessionState => {
   };
 };
 
-const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => ({
-  ...file,
-  runState: file.runState === 'running' ? 'paused' : file.runState,
-  liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
-});
+const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => {
+  if (file.kind === 'heatCapacity') {
+    const fallback = createDefaultHeatCapacityFile(1);
+    const visiblePanels = file.visiblePanels.filter((panel) => panel === 'preview' || panel === 'realtime');
+    const hasSavedStopcockAngle = typeof file.stopcockAngleDeg === 'number' && Number.isFinite(file.stopcockAngleDeg);
+    const normalizedSavedStopcockAngle = hasSavedStopcockAngle
+      ? normalizeHeatCapacityStopcockAngle(file.stopcockAngleDeg)
+      : fallback.stopcockAngleDeg;
+    const savedStopcockState = getHeatCapacityStopcockState(normalizedSavedStopcockAngle);
+    const shouldMigrateBySavedState = (
+      (file.glassPistonState === 'open' || file.glassPistonState === 'closed') &&
+      (!hasSavedStopcockAngle || file.glassPistonState !== savedStopcockState)
+    );
+    const stopcockAngleDeg = shouldMigrateBySavedState
+      ? (file.glassPistonState === 'open' ? 90 : 0)
+      : normalizedSavedStopcockAngle;
+    const pressureRawPlaceholder = normalizeNullableNumber(file.pressureRawPlaceholder)
+      ?? fallback.pressureRawPlaceholder;
+    const pressureZeroOffset = normalizeNullableNumber(file.pressureZeroOffset)
+      ?? fallback.pressureZeroOffset;
+    const pressureDisplayedPlaceholder = normalizeNullableNumber(file.pressureDisplayedPlaceholder)
+      ?? applyHeatCapacityPressureZero(pressureRawPlaceholder, pressureZeroOffset);
+    const pressureZeroAdjusted = file.pressureZeroAdjusted === true || file.pressureZeroed === true;
+    const pressureZeroAdjustMode = file.pressureZeroAdjustMode === 'fineWheel' || file.pressureZeroAdjustMode === 'coarseDrag'
+      ? file.pressureZeroAdjustMode
+      : 'none';
+    return {
+      ...fallback,
+      ...file,
+      name: normalizeHeatCapacityFileName(file.name),
+      visiblePanels: visiblePanels.length > 0 ? visiblePanels : fallback.visiblePanels,
+      runState: file.runState === 'running' ? 'paused' : file.runState,
+      liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(
+        file.liveWorkspaceSplitRatio ?? WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
+      ),
+      selectedHeatCapacityPanel: file.selectedHeatCapacityPanel === 'realtime' ? 'realtime' : 'preview',
+      stopcockAngleDeg,
+      glassPistonState: getHeatCapacityStopcockState(stopcockAngleDeg),
+      pressureZeroed: pressureZeroAdjusted,
+      pressureZeroAdjusted,
+      pressureZeroKnobAngle: normalizeNullableNumber(file.pressureZeroKnobAngle) ?? fallback.pressureZeroKnobAngle,
+      pressureZeroOffset,
+      pressureZeroDisplayText: typeof file.pressureZeroDisplayText === 'string'
+        ? file.pressureZeroDisplayText
+        : fallback.pressureZeroDisplayText,
+      pressureRawPlaceholder,
+      pressureDisplayedPlaceholder,
+      pressureGaugeDisplayValue: normalizeNullableNumber(file.pressureGaugeDisplayValue) ?? pressureDisplayedPlaceholder,
+      pressureZeroAdjustMode,
+      temperatureSignalMv: normalizeNullableNumber(file.temperatureSignalMv),
+      pressureSignalMv: normalizeNullableNumber(file.pressureSignalMv),
+      pumpValveOpen: file.pumpValveOpen === true,
+      pumpValveState: file.pumpValveOpen === true ? 'open' : 'closed',
+      pumpBulbState: file.pumpBulbState === 'compressing' || file.pumpBulbState === 'releasing' ? file.pumpBulbState : 'idle',
+      pumpStrokeTimestamps: Array.isArray(file.pumpStrokeTimestamps)
+        ? file.pumpStrokeTimestamps.filter((timestamp): timestamp is number => typeof timestamp === 'number' && Number.isFinite(timestamp))
+        : [],
+      pumpFrequency: normalizeNullableNumber(file.pumpFrequency) ?? fallback.pumpFrequency,
+      pumpFrequencyStatus: file.pumpFrequencyStatus === 'tooSlow' || file.pumpFrequencyStatus === 'suitable' ? file.pumpFrequencyStatus : 'idle',
+      lastPumpTime: normalizeNullableNumber(file.lastPumpTime),
+      pumpStrokeCount: normalizeNullableNumber(file.pumpStrokeCount) ?? 0,
+      pumpHint: typeof file.pumpHint === 'string' ? file.pumpHint : fallback.pumpHint,
+      pressurePlaceholder: normalizeNullableNumber(file.pressurePlaceholder) ?? fallback.pressurePlaceholder,
+      temperaturePlaceholder: normalizeNullableNumber(file.temperaturePlaceholder) ?? fallback.temperaturePlaceholder,
+      recordedPressures: {
+        ...fallback.recordedPressures,
+        ...file.recordedPressures,
+      },
+    };
+  }
+
+  return {
+    ...file,
+    runState: file.runState === 'running' ? 'paused' : file.runState,
+    liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
+  };
+};
 
 export const decodeWorkbenchSession = (value: unknown): WorkbenchSessionState => {
   if (!isRecord(value) || value.version !== WORKBENCH_SESSION_VERSION || !Array.isArray(value.files)) {
@@ -44,16 +126,20 @@ export const decodeWorkbenchSession = (value: unknown): WorkbenchSessionState =>
     isRecord(file) &&
     typeof file.id === 'string' &&
     typeof file.name === 'string' &&
-    (file.kind === 'standard' || file.kind === 'ideal')
+    (file.kind === 'standard' || file.kind === 'ideal' || file.kind === 'heatCapacity')
   )).map(normalizeRuntimeState);
 
   if (files.length === 0) return fallbackSession();
 
   const requestedActiveId = typeof value.activeFileId === 'string' ? value.activeFileId : '';
   const activeFileId = files.some((file) => file.id === requestedActiveId) ? requestedActiveId : files[0].id;
-  const selectedPanel = panelKeys.includes(value.selectedPanel as WorkbenchPanelKey)
+  const restoredSelectedPanel = panelKeys.includes(value.selectedPanel as WorkbenchPanelKey)
     ? value.selectedPanel as WorkbenchPanelKey
     : 'preview';
+  const activeFile = files.find((file) => file.id === activeFileId);
+  const selectedPanel = activeFile?.kind === 'heatCapacity' && restoredSelectedPanel !== 'preview' && restoredSelectedPanel !== 'realtime'
+    ? 'preview'
+    : restoredSelectedPanel;
 
   return {
     version: WORKBENCH_SESSION_VERSION,
