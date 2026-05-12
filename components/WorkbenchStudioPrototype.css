@@ -3719,6 +3719,7 @@
   grid-template-rows: auto auto auto auto minmax(0, 1fr);
   gap: 6px;
   padding: 8px;
+  container-type: inline-size;
   overflow: auto;
 }
 
@@ -3742,7 +3743,7 @@
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .studio-heat-monitor-header strong {
@@ -3819,7 +3820,7 @@
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .studio-heat-reading-card strong {
@@ -3829,7 +3830,10 @@
   font-family: "JetBrains Mono", Consolas, monospace;
   font-size: 18px;
   line-height: 1.05;
-  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: normal;
+  white-space: nowrap;
+  word-break: normal;
 }
 
 .studio-heat-reading-card-primary {
@@ -3840,7 +3844,21 @@
 
 .studio-heat-reading-card-primary strong {
   color: #e0f2fe;
-  font-size: 22px;
+  font-size: 20px;
+}
+
+@container (max-width: 360px) {
+  .studio-heat-reading-card {
+    padding-inline: 8px;
+  }
+
+  .studio-heat-reading-card strong {
+    font-size: 13px;
+  }
+
+  .studio-heat-reading-card-primary strong {
+    font-size: 12px;
+  }
 }
 
 .studio-heat-reading-card em {
@@ -3976,18 +3994,21 @@
 
 .studio-heat-trace-charts {
   display: grid;
-  min-height: 260px;
-  grid-template-rows: repeat(2, minmax(120px, 1fr));
-  gap: 10px;
+  min-height: 288px;
+  grid-template-rows: repeat(2, minmax(136px, 1fr));
+  gap: 8px;
 }
 
 .studio-heat-trace-chart {
   display: grid;
   min-height: 0;
-  grid-template-rows: 24px minmax(0, 1fr) 18px;
+  grid-template-rows: 30px minmax(0, 1fr) 18px;
   overflow: hidden;
   border: 1px solid var(--studio-border-soft);
-  background: rgba(16, 21, 27, 0.78);
+  border-radius: 4px;
+  background:
+    linear-gradient(180deg, rgba(31, 41, 55, 0.52), rgba(13, 18, 24, 0.88)),
+    rgba(16, 21, 27, 0.9);
 }
 
 .studio-heat-trace-chart svg {
@@ -3995,24 +4016,94 @@
   width: 100%;
   height: 100%;
   min-height: 0;
-  padding: 8px;
+  padding: 5px 8px 3px;
 }
 
-.studio-heat-trace-chart polyline {
+.studio-heat-chart-header {
+  min-height: 30px;
+  background: rgba(11, 15, 20, 0.22);
+}
+
+.studio-heat-chart-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.studio-heat-chart-value strong {
+  color: #dbeafe;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.studio-heat-live-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  border-radius: 3px;
+  background: rgba(14, 165, 233, 0.12);
+  color: #bae6fd !important;
+  padding: 1px 4px;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 8px !important;
+  font-weight: 900 !important;
+  line-height: 1;
+}
+
+.studio-heat-trace-line,
+.studio-heat-trace-glow {
   fill: none;
   stroke: #7dd3fc;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2.4;
+  vector-effect: non-scaling-stroke;
 }
 
-.studio-heat-trace-pressure polyline {
+.studio-heat-trace-line {
+  stroke-width: 2;
+}
+
+.studio-heat-trace-glow {
+  opacity: 0.16;
+  stroke-width: 7;
+}
+
+.studio-heat-trace-pressure .studio-heat-trace-line,
+.studio-heat-trace-pressure .studio-heat-trace-glow {
   stroke: #86efac;
 }
 
+.studio-heat-trace-terminal-dot {
+  fill: #dbeafe;
+  stroke: rgba(15, 23, 42, 0.82);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.studio-heat-trace-pressure .studio-heat-trace-terminal-dot {
+  fill: #86efac;
+}
+
 .studio-heat-trace-grid {
-  stroke: rgba(148, 163, 184, 0.22);
+  stroke: rgba(148, 163, 184, 0.14);
   stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.studio-heat-trace-zero-line {
+  stroke: rgba(251, 191, 36, 0.32);
+  stroke-dasharray: 5 5;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.studio-heat-trace-y-label {
+  fill: rgba(148, 163, 184, 0.68);
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 8px;
+  font-weight: 700;
 }
 
 .studio-live-charts {

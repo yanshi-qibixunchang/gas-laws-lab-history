@@ -106,6 +106,96 @@ const roundNumber = (value: number, digits = 2) => {
   return Math.round(value * factor) / factor;
 };
 
+const getHeatCapacityDisplayNoiseSample = (seed: number) => {
+  const value = Math.sin(seed * 12.9898) * 43758.5453;
+  return value - Math.floor(value);
+};
+
+const getHeatCapacityDisplaySmoothNoise = (timeS: number, seed: number, intervalS: number) => {
+  const scaled = timeS / intervalS;
+  const base = Math.floor(scaled);
+  const local = scaled - base;
+  const eased = local * local * (3 - 2 * local);
+  const start = getHeatCapacityDisplayNoiseSample(base * 19.17 + seed) * 2 - 1;
+  const end = getHeatCapacityDisplayNoiseSample((base + 1) * 19.17 + seed) * 2 - 1;
+  return start + (end - start) * eased;
+};
+
+const getHeatCapacityDisplayPhaseAgeRatio = (runtime: HeatCapacityRuntimeState) => {
+  let samePhaseCount = 0;
+  for (let index = runtime.heatCapacityTrace.length - 1; index >= 0; index -= 1) {
+    if (runtime.heatCapacityTrace[index]?.phase !== runtime.heatCapacityPhase) break;
+    samePhaseCount += 1;
+  }
+  return Math.min(1, samePhaseCount / 28);
+};
+
+const getHeatCapacityDisplayNoiseAmplitude = (
+  phase: HeatCapacityRuntimePhase,
+  signal: 'pressure' | 'temperature',
+  pumpFrequency: number,
+  phaseAgeRatio: number,
+) => {
+  const isPressure = signal === 'pressure';
+  if (phase === 'powerOff' || phase === 'demoComplete') return 0;
+  if (phase === 'readyToZero' || phase === 'zeroed' || phase === 'readyToPump') {
+    return isPressure ? 0.11 : 0.16;
+  }
+  if (phase === 'pumping') {
+    return isPressure ? 0.52 + Math.min(0.2, pumpFrequency * 0.06) : 0.24;
+  }
+  if (phase === 'sealedStabilizing') {
+    return isPressure ? 0.38 * (1 - phaseAgeRatio) + 0.11 : 0.24 * (1 - phaseAgeRatio) + 0.13;
+  }
+  if (phase === 'releasing') {
+    return isPressure ? 0.62 : 0.22;
+  }
+  if (phase === 'recovering') {
+    return isPressure ? 0.24 * (1 - phaseAgeRatio) + 0.10 : 0.26 * (1 - phaseAgeRatio) + 0.12;
+  }
+  return isPressure ? 0.16 : 0.13;
+};
+
+const getHeatCapacityDisplayedSignalNoise = ({
+  phase,
+  signal,
+  timeS,
+  traceLength,
+  pumpFrequency,
+  phaseAgeRatio,
+}: {
+  phase: HeatCapacityRuntimePhase;
+  signal: 'pressure' | 'temperature';
+  timeS: number;
+  traceLength: number;
+  pumpFrequency: number;
+  phaseAgeRatio: number;
+}) => {
+  if (traceLength <= 1 && timeS <= 0.001) return 0;
+
+  const isPressure = signal === 'pressure';
+  const seed = isPressure ? 31.7 : 67.9;
+  const amplitude = getHeatCapacityDisplayNoiseAmplitude(phase, signal, pumpFrequency, phaseAgeRatio);
+  const lowNoise = getHeatCapacityDisplaySmoothNoise(timeS + traceLength * 0.037, seed, isPressure ? 1.8 : 2.8);
+  const midNoise = getHeatCapacityDisplaySmoothNoise(timeS + traceLength * 0.011, seed + 13.7, isPressure ? 0.72 : 1.15);
+  const highNoise = getHeatCapacityDisplaySmoothNoise(timeS + traceLength * 0.053, seed + 29.2, isPressure ? 0.28 : 0.46);
+  const pulseWindowS = isPressure ? 5.3 : 8.1;
+  const pulseWindow = Math.floor((timeS + seed) / pulseWindowS);
+  const pulseCenter = (pulseWindow - Math.floor(seed / pulseWindowS)) * pulseWindowS +
+    getHeatCapacityDisplayNoiseSample(pulseWindow * 41.3 + seed) * pulseWindowS;
+  const pulseDistance = Math.abs(timeS - pulseCenter);
+  const pulseEligible = isPressure && (phase === 'pumping' || phase === 'releasing')
+    ? getHeatCapacityDisplayNoiseSample(pulseWindow * 17.1 + seed) > 0.48
+    : getHeatCapacityDisplayNoiseSample(pulseWindow * 17.1 + seed) > 0.84;
+  const pulse = pulseEligible
+    ? Math.exp(-Math.pow(pulseDistance / (isPressure ? 0.22 : 0.36), 2)) *
+      (getHeatCapacityDisplayNoiseSample(pulseWindow * 23.9 + seed) * 2 - 1) *
+      amplitude *
+      (isPressure ? 1.15 : 0.55)
+    : 0;
+  return amplitude * (lowNoise * 0.55 + midNoise * 0.3 + highNoise * 0.15) + pulse;
+};
+
 const getHeatCapacityGaugeConfig = (file: Partial<WorkbenchHeatCapacityState> = {}) => {
   const gaugePressureMinKPa = Number.isFinite(file.gaugePressureMinKPa)
     ? Number(file.gaugePressureMinKPa)
@@ -586,8 +676,25 @@ const mergeHeatCapacityRuntimeState = (
         config: HEAT_CAPACITY_TEMPERATURE_DISPLAY_RESPONSE,
       })
     : null;
-  const pressureSignalDisplayRounded = pressureDisplayValue === null ? null : roundNumber(pressureDisplayValue, 1);
-  const temperatureSignalDisplayRounded = temperatureDisplayValue === null ? null : roundNumber(temperatureDisplayValue, 1);
+  const phaseAgeRatio = getHeatCapacityDisplayPhaseAgeRatio(runtime);
+  const pressureDisplayNoise = pressureDisplayValue === null ? 0 : getHeatCapacityDisplayedSignalNoise({
+    phase: runtime.heatCapacityPhase,
+    signal: 'pressure',
+    timeS: runtime.simulationTimeS,
+    traceLength: runtime.heatCapacityTrace.length,
+    pumpFrequency: file.pumpFrequency,
+    phaseAgeRatio,
+  });
+  const temperatureDisplayNoise = temperatureDisplayValue === null ? 0 : getHeatCapacityDisplayedSignalNoise({
+    phase: runtime.heatCapacityPhase,
+    signal: 'temperature',
+    timeS: runtime.simulationTimeS,
+    traceLength: runtime.heatCapacityTrace.length,
+    pumpFrequency: file.pumpFrequency,
+    phaseAgeRatio,
+  });
+  const displayedPressureSignalMv = pressureDisplayValue === null ? null : roundNumber(Math.max(-0.22, pressureDisplayValue + pressureDisplayNoise), 1);
+  const displayedTemperatureSignalMv = temperatureDisplayValue === null ? null : roundNumber(temperatureDisplayValue + temperatureDisplayNoise, 1);
   const gaugeTargetState = getHeatCapacityGaugePressureState(runtime.pressureDeltaKPa, powerOn, file);
   const pressureGaugeDisplayValue = getHeatCapacityGaugeDisplayValue({
     current: Number.isFinite(file.pressureGaugeDisplayValue) ? file.pressureGaugeDisplayValue : gaugeTargetState.pressureGaugeTargetValue,
@@ -606,8 +713,8 @@ const mergeHeatCapacityRuntimeState = (
         index === runtime.heatCapacityTrace.length - 1
           ? {
               ...point,
-              pressureSignalMv: pressureSignalDisplayRounded ?? point.pressureSignalMv,
-              temperatureSignalMv: temperatureSignalDisplayRounded ?? point.temperatureSignalMv,
+              pressureSignalMv: displayedPressureSignalMv ?? point.pressureSignalMv,
+              temperatureSignalMv: displayedTemperatureSignalMv ?? point.temperatureSignalMv,
             }
           : point
       ))
@@ -645,8 +752,8 @@ const mergeHeatCapacityRuntimeState = (
     pressureZeroMvPerTurn: HEAT_CAPACITY_PRESSURE_ZERO_MV_PER_TURN,
     pressureZeroAdjusted: runtime.pressureZeroAdjusted,
     pressureZeroed: runtime.pressureZeroAdjusted,
-    temperatureSignalMv: temperatureSignalDisplayRounded,
-    pressureSignalMv: pressureSignalDisplayRounded,
+    temperatureSignalMv: displayedTemperatureSignalMv,
+    pressureSignalMv: displayedPressureSignalMv,
     pressureKPa: powerOn ? roundNumber(runtime.gasPressureKPaAbs, 2) : null,
     visualizationMode: runtime.modelConfig.visualizationMode,
     calculationModel: runtime.modelConfig.calculationModel,

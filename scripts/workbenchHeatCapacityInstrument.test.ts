@@ -42,6 +42,7 @@ import {
 
 const defaultFile = createDefaultHeatCapacityFile(1);
 const initialTemperatureMv = getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.initialTemperatureMvRange);
+const getValueRange = (values: number[]) => Math.max(...values) - Math.min(...values);
 
 assert.equal(defaultFile.powerOn, false);
 assert.equal(defaultFile.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
@@ -159,6 +160,8 @@ assert.equal(poweredFile.pressureSignalMv, 0);
 assert.equal(poweredFile.temperatureSignalTargetMv, initialTemperatureMv);
 assert.equal(poweredFile.pressureSignalTargetMv, 0);
 assert.equal(poweredFile.heatCapacityTrace.length, 1);
+assert.equal(poweredFile.heatCapacityTrace[0]?.pressureSignalMv, poweredFile.pressureSignalMv);
+assert.equal(poweredFile.heatCapacityTrace[0]?.temperatureSignalMv, poweredFile.temperatureSignalMv);
 
 const pressureLoadedFile = {
   ...poweredFile,
@@ -173,6 +176,23 @@ const pressureLoadedFile = {
   pressureGaugeNeedleAngle: -116.16,
   pressureSignalMv: 3.2,
 };
+const steppedDisplayFile = stepHeatCapacityWorkbenchFile(pressureLoadedFile, 0.12, 1_180);
+assert.equal(steppedDisplayFile.heatCapacityTrace.at(-1)?.pressureSignalMv, steppedDisplayFile.pressureSignalMv);
+assert.equal(steppedDisplayFile.heatCapacityTrace.at(-1)?.temperatureSignalMv, steppedDisplayFile.temperatureSignalMv);
+
+let naturalDisplayFile = pressureLoadedFile;
+const naturalPressureValues: number[] = [];
+const naturalTemperatureValues: number[] = [];
+for (let index = 1; index <= 28; index += 1) {
+  naturalDisplayFile = stepHeatCapacityWorkbenchFile(naturalDisplayFile, 1_180 + index * 250);
+  if (typeof naturalDisplayFile.pressureSignalMv === 'number') naturalPressureValues.push(naturalDisplayFile.pressureSignalMv);
+  if (typeof naturalDisplayFile.temperatureSignalMv === 'number') naturalTemperatureValues.push(naturalDisplayFile.temperatureSignalMv);
+}
+assert.equal(naturalDisplayFile.heatCapacityTrace.at(-1)?.pressureSignalMv, naturalDisplayFile.pressureSignalMv);
+assert.equal(naturalDisplayFile.heatCapacityTrace.at(-1)?.temperatureSignalMv, naturalDisplayFile.temperatureSignalMv);
+assert.equal(getValueRange(naturalPressureValues) >= 0.2, true);
+assert.equal(getValueRange(naturalTemperatureValues) >= 0.2, true);
+
 const fineZero = adjustHeatCapacityPressureZeroFine({
   ...pressureLoadedFile,
 }, 1, 1_080);
@@ -186,7 +206,8 @@ assert.equal(fineZero.pressureSignalTargetMv, 3.194);
 assert.equal(fineZero.pressureSignalMv !== fineZero.pressureSignalTargetMv, true);
 assert.equal(fineZero.pressureGaugeDisplayValue, pressureLoadedFile.pressureDeltaKPa);
 assert.equal(fineZero.pressureOverLimit, false);
-assert.equal(fineZero.temperatureSignalMv, pressureLoadedFile.temperatureSignalMv);
+assert.equal(fineZero.heatCapacityTrace.at(-1)?.pressureSignalMv, fineZero.pressureSignalMv);
+assert.equal(fineZero.heatCapacityTrace.at(-1)?.temperatureSignalMv, fineZero.temperatureSignalMv);
 assert.equal(fineZero.temperatureSignalTargetMv, pressureLoadedFile.temperatureSignalTargetMv);
 assert.equal(fineZero.temperaturePlaceholder, pressureLoadedFile.temperaturePlaceholder);
 

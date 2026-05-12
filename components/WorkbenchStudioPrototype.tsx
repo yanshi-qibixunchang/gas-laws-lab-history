@@ -3358,6 +3358,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           pressurePlaceholder: file.ambientPressureKPa,
           temperaturePlaceholder: file.ambientTemperatureK,
           recordedPressures: { p0: file.ambientPressureKPa, p1: null, p2: null },
+          heatCapacityTrace: [],
           updatedAt: Date.now(),
         };
       });
@@ -5467,45 +5468,105 @@ const WorkbenchStudioPrototype: React.FC = () => {
       if (activeFile.heatCapacityPhase === 'recovering') return '等待 U_T 回稳后记录 U2。';
       return activeFile.pumpHint || '观察实时读数和曲线变化。';
     })();
+    const getHeatCapacityTraceTitle = (valueLabel: 'temperatureSignalMv' | 'pressureSignalMv') => {
+      if (settingsLanguagePreference === 'zh-CN') {
+        return valueLabel === 'pressureSignalMv' ? '压强差信号 U_p' : '温度信号 U_T';
+      }
+      if (settingsLanguagePreference === 'zh-TW') {
+        return valueLabel === 'pressureSignalMv' ? '壓強差信號 U_p' : '溫度訊號 U_T';
+      }
+      return valueLabel === 'pressureSignalMv' ? 'Pressure Signal U_p' : 'Temperature Signal U_T';
+    };
     const renderHeatCapacityTraceChart = (
-      title: string,
       valueLabel: 'temperatureSignalMv' | 'pressureSignalMv',
       className: string,
     ) => {
-      const history = activeFile.heatCapacityTrace.slice(-80);
-      const values = history.map((point) => point[valueLabel]);
-      const latest = values.at(-1);
-      const minValue = values.length > 0 ? Math.min(...values) : 0;
-      const maxValue = values.length > 0 ? Math.max(...values) : 1;
-      const valueRange = Math.max(0.1, maxValue - minValue);
-      const points = history.map((point, index) => {
-        const x = history.length <= 1 ? 0 : (index / (history.length - 1)) * 360;
-        const y = 112 - ((point[valueLabel] - minValue) / valueRange) * 96;
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      }).join(' ');
+      const getHeatCapacityTracePath = (pathPoints: Array<{ x: number; y: number }>) => {
+        if (pathPoints.length === 0) return '';
+        if (pathPoints.length === 1) return `M ${pathPoints[0].x.toFixed(1)},${pathPoints[0].y.toFixed(1)}`;
+        return pathPoints.slice(1).reduce((path, point, index) => {
+          const previous = pathPoints[index];
+          const controlX = (previous.x + point.x) / 2;
+          return `${path} C ${controlX.toFixed(1)},${previous.y.toFixed(1)} ${controlX.toFixed(1)},${point.y.toFixed(1)} ${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+        }, `M ${pathPoints[0].x.toFixed(1)},${pathPoints[0].y.toFixed(1)}`);
+      };
+      const history = activeFile.powerOn ? activeFile.heatCapacityTrace.slice(-80) : [];
+      const isCollecting = history.length < 2;
+      const title = getHeatCapacityTraceTitle(valueLabel);
+      const chartValues = history.map((point) => point[valueLabel]);
+      const latest = chartValues.at(-1);
+      const minValue = chartValues.length > 0 ? Math.min(...chartValues) : 0;
+      const maxValue = chartValues.length > 0 ? Math.max(...chartValues) : 1;
+      const valuePadding = Math.max(0.18, (maxValue - minValue) * 0.14);
+      const yMin = minValue - valuePadding;
+      const yMax = maxValue + valuePadding;
+      const valueRange = Math.max(0.25, yMax - yMin);
+      const chartLeft = 12;
+      const chartTop = 12;
+      const chartWidth = 336;
+      const chartHeight = 100;
+      const chartBottom = chartTop + chartHeight;
+      const chartPoints = chartValues.map((value, index) => {
+        const x = chartLeft + (history.length <= 1 ? 0 : (index / (history.length - 1)) * chartWidth);
+        const y = chartBottom - ((value - yMin) / valueRange) * chartHeight;
+        return { x, y, value };
+      });
+      const tracePath = getHeatCapacityTracePath(chartPoints);
+      const terminalPoint = chartPoints.at(-1);
+      const zeroLineY = valueLabel === 'pressureSignalMv' && yMin < 0 && yMax > 0
+        ? chartBottom - ((0 - yMin) / valueRange) * chartHeight
+        : null;
+      const signalSymbol = valueLabel === 'pressureSignalMv' ? 'U_p' : 'U_T';
+      const currentValue = typeof latest === 'number' ? `${signalSymbol} ${formatMetric(latest, 1)} mV` : 'waiting';
+      const liveStatus = typeof latest === 'number' ? 'LIVE' : 'IDLE';
 
       return (
         <div className={`studio-heat-trace-chart ${className}`}>
-          <div className="studio-live-chart-header">
+          <div className="studio-live-chart-header studio-heat-chart-header">
             <span>{renderScientificText(title)}</span>
-            <strong>{typeof latest === 'number' ? `${formatMetric(latest, 1)} mV` : 'waiting'}</strong>
+            <div className="studio-heat-chart-value">
+              <span className="studio-heat-live-pill">{liveStatus}</span>
+              <strong>{renderScientificText(currentValue)}</strong>
+            </div>
           </div>
-          {history.length > 1 ? (
-            <svg viewBox="0 0 360 120" role="img" aria-label={`${title} trace`}>
-              {[0.25, 0.5, 0.75].map((ratio) => (
+          {!isCollecting ? (
+            <svg viewBox="0 0 360 128" role="img" aria-label={`${title} realtime trace`}>
+              {[0, 0.25, 0.5, 0.75, 1].map((ratio) => (
                 <line
                   key={ratio}
                   className="studio-heat-trace-grid"
-                  x1="0"
-                  y1={(112 - ratio * 96).toFixed(1)}
-                  x2="360"
-                  y2={(112 - ratio * 96).toFixed(1)}
+                  x1={chartLeft.toFixed(1)}
+                  y1={(chartBottom - ratio * chartHeight).toFixed(1)}
+                  x2={(chartLeft + chartWidth).toFixed(1)}
+                  y2={(chartBottom - ratio * chartHeight).toFixed(1)}
                 />
               ))}
-              <polyline points={points} />
+              {zeroLineY !== null ? (
+                <line
+                  className="studio-heat-trace-zero-line"
+                  x1={chartLeft.toFixed(1)}
+                  y1={zeroLineY.toFixed(1)}
+                  x2={(chartLeft + chartWidth).toFixed(1)}
+                  y2={zeroLineY.toFixed(1)}
+                />
+              ) : null}
+              <text className="studio-heat-trace-y-label" x={chartLeft.toFixed(1)} y="10">{formatMetric(yMax, 1)}</text>
+              <text className="studio-heat-trace-y-label" x={chartLeft.toFixed(1)} y="124">{formatMetric(yMin, 1)}</text>
+              <path className="studio-heat-trace-glow" d={tracePath} />
+              <path className="studio-heat-trace-line" d={tracePath} />
+              {terminalPoint ? (
+                <circle
+                  className="studio-heat-trace-terminal-dot"
+                  cx={terminalPoint.x.toFixed(1)}
+                  cy={terminalPoint.y.toFixed(1)}
+                  r="3.2"
+                />
+              ) : null}
             </svg>
           ) : (
-            <div className="studio-live-chart-empty">{renderScientificText('开机后开始记录 U_T / U_p 过程曲线。')}</div>
+            <div className="studio-live-chart-empty">
+              {renderScientificText(activeFile.powerOn && history.length === 1 ? '正在采集实时数据...' : '打开电源后开始采集。')}
+            </div>
           )}
           <div className="studio-live-chart-axis">
             <span>{history[0]?.timeS.toFixed(1) ?? '0.0'}s</span>
@@ -5541,7 +5602,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             <em>压强差电压</em>
           </div>
           <div className="studio-heat-reading-card">
-            <span>{renderScientificText('Delta P / kPa')}</span>
+            <span>{renderScientificText('ΔP / kPa')}</span>
             <strong>{currentDeltaPValue}</strong>
             <em>由当前 {renderScientificText('U_p')} 换算</em>
           </div>
@@ -5566,8 +5627,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
             <strong>实时曲线观察</strong>
           </div>
           <div className="studio-heat-trace-charts">
-            {renderHeatCapacityTraceChart('U_p / mV', 'pressureSignalMv', 'studio-heat-trace-pressure')}
-            {renderHeatCapacityTraceChart('U_T / mV', 'temperatureSignalMv', 'studio-heat-trace-temperature')}
+            {renderHeatCapacityTraceChart('pressureSignalMv', 'studio-heat-trace-pressure')}
+            {renderHeatCapacityTraceChart('temperatureSignalMv', 'studio-heat-trace-temperature')}
           </div>
         </div>
       </div>
