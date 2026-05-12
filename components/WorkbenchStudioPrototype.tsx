@@ -44,6 +44,7 @@ import {
   createDefaultIdealWindowLayout,
   createDefaultStandardFile,
   createDefaultStandardResultsLayout,
+  getHeatCapacityStopcockTargetAngle,
   getHeatCapacityStopcockState,
   getHeatCapacityPressureZeroKnobAngleForOffset,
   getWorkbenchParameterRows,
@@ -1130,11 +1131,19 @@ const cloneWorkbenchFiles = (filesToClone: WorkbenchFileState[]): WorkbenchFileS
             pressureZeroDisplayText: file.pressureZeroDisplayText,
             pressureRawPlaceholder: file.pressureRawPlaceholder,
             pressureDisplayedPlaceholder: file.pressureDisplayedPlaceholder,
+            pressureGaugeTargetValue: file.pressureGaugeTargetValue,
             pressureGaugeDisplayValue: file.pressureGaugeDisplayValue,
+            pressureGaugeNeedleAngle: file.pressureGaugeNeedleAngle,
             gaugePressureMinKPa: file.gaugePressureMinKPa,
             gaugePressureMaxKPa: file.gaugePressureMaxKPa,
+            pressureWarningThresholdKPa: file.pressureWarningThresholdKPa,
+            pressureSafeThresholdKPa: file.pressureSafeThresholdKPa,
             pressureSafetyThresholdKPa: file.pressureSafetyThresholdKPa,
+            pressureSafetyStatus: file.pressureSafetyStatus,
+            pressureSafetyMessage: file.pressureSafetyMessage,
+            pressureBlockedPumping: file.pressureBlockedPumping,
             pressureOverLimit: file.pressureOverLimit,
+            pressureZeroMvPerTurn: file.pressureZeroMvPerTurn,
             pressureZeroAdjustMode: file.pressureZeroAdjustMode,
             temperatureSignalMv: file.temperatureSignalMv,
             pressureSignalMv: file.pressureSignalMv,
@@ -1275,6 +1284,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const heatCapacityAutoDemoCompleteToastTimerRef = useRef<number | null>(null);
   const heatCapacityAutoDemoStepPanelTimerRef = useRef<number | null>(null);
   const heatCapacityFocusModeRef = useRef<'none' | 'stopcock' | 'instrument' | 'pump'>('none');
+  const [heatCapacityFocusMode, setHeatCapacityFocusMode] = useState<'none' | 'stopcock' | 'instrument' | 'pump'>('none');
   const [heatCapacityPumpPulseId, setHeatCapacityPumpPulseId] = useState(0);
   const [autoDemoRunning, setAutoDemoRunning] = useState(false);
   const [autoDemoPaused, setAutoDemoPaused] = useState(false);
@@ -2020,6 +2030,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const currentFile = filesRef.current.find((file) => file.id === fileId);
     if (!currentFile || currentFile.kind !== 'heatCapacity') return;
     const startStopcockAngle = currentFile.stopcockAngleDeg;
+    const targetStopcockAngle = getHeatCapacityStopcockTargetAngle(false);
     const startZeroOffset = currentFile.pressureZeroOffset;
     const startZeroKnobAngle = currentFile.pressureZeroKnobAngle;
     const startTime = performance.now();
@@ -2050,7 +2061,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const step = (timestamp: number) => {
       const progress = Math.min(1, (timestamp - startTime) / durationMs);
       const eased = easeInOut(progress);
-      const nextStopcockAngle = startStopcockAngle + (0 - startStopcockAngle) * eased;
+      const nextStopcockAngle = startStopcockAngle + (targetStopcockAngle - startStopcockAngle) * eased;
       const nextZeroOffset = startZeroOffset + (0 - startZeroOffset) * eased;
       const nextZeroKnobAngle = startZeroKnobAngle + (0 - startZeroKnobAngle) * eased;
       updateFileById(fileId, (file) => {
@@ -2060,7 +2071,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           powerOn: false,
           runState: 'idle',
           glassPistonState: getHeatCapacityStopcockState(nextStopcockAngle),
-          stopcockAngleDeg: progress >= 1 ? 0 : nextStopcockAngle,
+          stopcockAngleDeg: progress >= 1 ? targetStopcockAngle : nextStopcockAngle,
           pumpValveOpen: false,
           pumpValveState: 'closed',
           pumpBulbState: 'idle',
@@ -2089,12 +2100,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
 
     if (action === 'closeStopcockForPumping' || action === 'closeStopcockForRecovery') {
-      animateHeatCapacityStopcockAngle(fileId, 0, 1000);
+      animateHeatCapacityStopcockAngle(fileId, getHeatCapacityStopcockTargetAngle(false), 1000);
       return;
     }
 
     if (action === 'openStopcockForRelease' || action === 'openStopcockForZero') {
-      animateHeatCapacityStopcockAngle(fileId, 90, 1000);
+      animateHeatCapacityStopcockAngle(fileId, getHeatCapacityStopcockTargetAngle(true), 1000);
       return;
     }
 
@@ -2261,6 +2272,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const timeline = getHeatCapacityAutoDemoTimeline(steps);
     setHeatCapacityFocusResetKey((key) => key + 1);
     heatCapacityFocusModeRef.current = 'none';
+    setHeatCapacityFocusMode('none');
     heatCapacityAutoDemoPausedElapsedMsRef.current = 0;
     heatCapacityAutoDemoPausedFileIdRef.current = null;
     showHeatCapacityAutoDemoStepPanel();
@@ -3309,7 +3321,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           heatCapacityPhase: 'setup',
           powerOn: false,
           glassPistonState: 'closed',
-          stopcockAngleDeg: 0,
+          stopcockAngleDeg: getHeatCapacityStopcockTargetAngle(false),
           pressureZeroed: false,
           pressureZeroAdjusted: false,
           pressureZeroKnobAngle: 0,
@@ -3317,11 +3329,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
           pressureZeroDisplayText: '未调零',
           pressureRawPlaceholder: 3.2,
           pressureDisplayedPlaceholder: 3.2,
+          pressureGaugeTargetValue: 0,
           pressureGaugeDisplayValue: 0,
+          pressureGaugeNeedleAngle: file.pressureGaugeNeedleAngle,
           gaugePressureMinKPa: file.gaugePressureMinKPa,
           gaugePressureMaxKPa: file.gaugePressureMaxKPa,
+          pressureWarningThresholdKPa: file.pressureWarningThresholdKPa,
+          pressureSafeThresholdKPa: file.pressureSafeThresholdKPa,
           pressureSafetyThresholdKPa: file.pressureSafetyThresholdKPa,
+          pressureSafetyStatus: 'normal',
+          pressureSafetyMessage: null,
+          pressureBlockedPumping: false,
           pressureOverLimit: false,
+          pressureZeroMvPerTurn: file.pressureZeroMvPerTurn,
           pressureZeroAdjustMode: 'none',
           temperatureSignalMv: null,
           pressureSignalMv: null,
@@ -5031,6 +5051,107 @@ const WorkbenchStudioPrototype: React.FC = () => {
     </div>
   );
 
+  const renderHeatCapacityStopcockMiniReadout = () => {
+    if (activeFile.kind !== 'heatCapacity') return null;
+    if (!(heatCapacityFocusMode === 'stopcock' && !autoDemoRunning && !autoDemoPaused && !autoDemoInteractionLocked)) {
+      return null;
+    }
+
+    const temperatureReadout = activeFile.powerOn && typeof activeFile.temperatureSignalMv === 'number'
+      ? `${formatMetric(activeFile.temperatureSignalMv, 1)} mV`
+      : '--.- mV';
+    const pressureReadout = activeFile.powerOn && typeof activeFile.pressureSignalMv === 'number'
+      ? `${formatMetric(activeFile.pressureSignalMv, 1)} mV`
+      : '--.- mV';
+    const gaugeNeedleAngle = Number.isFinite(activeFile.pressureGaugeNeedleAngle)
+      ? activeFile.pressureGaugeNeedleAngle
+      : -120;
+    const needleRadians = ((gaugeNeedleAngle - 90) * Math.PI) / 180;
+    const needleX = 70 + Math.cos(needleRadians) * 40;
+    const needleY = 70 + Math.sin(needleRadians) * 40;
+    const tickAngles = [-120, -60, 0, 60, 120];
+    const statusClass = activeFile.pressureSafetyStatus === 'danger'
+      ? 'studio-heat-stopcock-mini-readout-danger'
+      : activeFile.pressureSafetyStatus === 'warning'
+        ? 'studio-heat-stopcock-mini-readout-warning'
+        : 'studio-heat-stopcock-mini-readout-normal';
+    const statusText = !activeFile.powerOn
+      ? 'OFFLINE'
+      : activeFile.pressureSafetyStatus === 'danger'
+        ? 'LIMIT'
+        : activeFile.pressureSafetyStatus === 'warning'
+          ? 'WARN'
+          : 'ONLINE';
+    const gaugeStatusText = !activeFile.powerOn
+      ? 'OFFLINE'
+      : activeFile.pressureSafetyStatus === 'danger'
+        ? 'LIMIT'
+        : activeFile.pressureSafetyStatus === 'warning'
+          ? 'WARN'
+          : 'SAFE';
+
+    return (
+      <div
+        className={`studio-heat-stopcock-mini-readout ${statusClass}`}
+        data-heat-capacity-stopcock-mini-readout="true"
+        aria-label="玻璃旋塞聚焦模式主机示数"
+      >
+        <div className="studio-heat-stopcock-mini-statusbar">
+          <span>主机示数</span>
+          <em>{statusText}</em>
+        </div>
+        <div className="studio-heat-stopcock-mini-readout-rows">
+          <div className="studio-heat-stopcock-mini-readout-row">
+            <span>{renderScientificText('U_T')}</span>
+            <strong>{temperatureReadout.replace(' mV', '')}</strong>
+            <em>mV</em>
+          </div>
+          <div className="studio-heat-stopcock-mini-readout-row">
+            <span>{renderScientificText('U_p')}</span>
+            <strong>{pressureReadout.replace(' mV', '')}</strong>
+            <em>mV</em>
+          </div>
+        </div>
+        <div className="studio-heat-stopcock-mini-gauge-wrap">
+          <div className="studio-heat-stopcock-mini-gauge-label">
+            <span>GAUGE kPa</span>
+            <em>{gaugeStatusText}</em>
+          </div>
+          <svg className="studio-heat-stopcock-mini-gauge" viewBox="0 0 140 82" role="img" aria-label="简化指针压力表">
+            <path className="studio-heat-stopcock-mini-gauge-safe" d="M 22 64 A 48 48 0 0 1 78 16" />
+            <path className="studio-heat-stopcock-mini-gauge-warn" d="M 78 16 A 48 48 0 0 1 106 32" />
+            <path className="studio-heat-stopcock-mini-gauge-danger" d="M 106 32 A 48 48 0 0 1 118 64" />
+            {tickAngles.map((angle) => {
+              const tickRadians = ((angle - 90) * Math.PI) / 180;
+              const outerX = 70 + Math.cos(tickRadians) * 49;
+              const outerY = 64 + Math.sin(tickRadians) * 49;
+              const innerX = 70 + Math.cos(tickRadians) * 44;
+              const innerY = 64 + Math.sin(tickRadians) * 44;
+              return (
+                <line
+                  key={angle}
+                  className="studio-heat-stopcock-mini-gauge-tick"
+                  x1={innerX}
+                  y1={innerY}
+                  x2={outerX}
+                  y2={outerY}
+                />
+              );
+            })}
+            <line
+              className="studio-heat-stopcock-mini-gauge-needle"
+              x1="70"
+              y1="64"
+              x2={needleX}
+              y2={needleY - 6}
+            />
+            <circle className="studio-heat-stopcock-mini-gauge-hub" cx="70" cy="64" r="4.5" />
+          </svg>
+        </div>
+      </div>
+    );
+  };
+
   const renderPreviewPanel = () => (
     <div className={`studio-preview ${activeFile.kind === 'heatCapacity' ? 'studio-preview-heat-capacity' : ''}`}>
       <div className={`studio-preview-stage ${activeFile.kind === 'heatCapacity' ? 'studio-heat-preview-stage' : ''}`}>
@@ -5084,6 +5205,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               focusResetKey={heatCapacityFocusResetKey}
               onFocusModeChange={(mode) => {
                 heatCapacityFocusModeRef.current = mode;
+                setHeatCapacityFocusMode(mode);
               }}
               onLockedInteraction={showHeatCapacityAutoDemoLockedToast}
               onPowerToggle={updateHeatCapacityPower}
@@ -5094,10 +5216,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
               onPumpValveToggle={updateHeatCapacityPumpValve}
               onPumpBulbPress={pressHeatCapacityPumpBulb}
             />
+            {renderHeatCapacityStopcockMiniReadout()}
             {activeFile.pressureOverLimit ? (
               <div className="studio-heat-pressure-warning" data-heat-capacity-pressure-warning="true" role="alert">
-                <strong>压力超出安全范围</strong>
-                <span>当前压力已达到安全阈值，请立即停止打气。</span>
+                <div className="studio-heat-pressure-warning-kicker">
+                  <span>SAFETY LIMIT</span>
+                  <em>ACTIVE</em>
+                </div>
+                <strong>安全警告：瓶内压力过高</strong>
+                <span>{activeFile.pressureSafetyMessage ?? '压力超过安全阈值，请停止打气'}</span>
                 <em>请观察压力表回落情况。</em>
               </div>
             ) : null}
@@ -5118,12 +5245,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
             ) : null}
             {autoDemoToastMessage ? (
               <div className="studio-heat-demo-toast" data-heat-capacity-demo-toast="true">
-                {autoDemoToastMessage}
+                <span className="studio-heat-toast-kicker">NOTICE</span>
+                <strong>{autoDemoToastMessage}</strong>
               </div>
             ) : null}
             {autoDemoCompletionMessage ? (
               <div className="studio-heat-demo-complete-toast" data-heat-capacity-demo-complete-toast="true">
-                {autoDemoCompletionMessage}
+                <span className="studio-heat-toast-kicker">SYSTEM</span>
+                <strong>{autoDemoCompletionMessage}</strong>
               </div>
             ) : null}
           </div>
@@ -5285,6 +5414,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
       : activeFile.pumpFrequencyStatus === 'tooSlow'
         ? '打气过慢'
         : '打气频率合适';
+    const pressureSafetyStatusLabel = activeFile.pressureSafetyStatus === 'danger'
+      ? '超过安全阈值'
+      : activeFile.pressureSafetyStatus === 'warning'
+        ? '接近上限'
+        : '正常';
     const getHeatCapacityPumpBulbDisplayLabel = () => activeFile.pumpBulbState === 'idle' ? '待机' : '打气中';
     const pumpBulbStateLabel = getHeatCapacityPumpBulbDisplayLabel();
     const processSamples = [
@@ -5366,6 +5500,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div><span>打气频率</span><strong>{formatMetric(activeFile.pumpFrequency, 2)} 次/s</strong></div>
           <div><span>频率评价</span><strong>{pumpFrequencyStatusLabel}</strong></div>
           <div><span>压差</span><strong>{heatCapacityPoweredNumber(`${formatMetric(activeFile.pressureDeltaKPa, 2)} kPa`)}</strong></div>
+          <div><span>安全压力</span><strong>{heatCapacityPoweredReadout(pressureSafetyStatusLabel)}</strong></div>
           <div><span>采样占位</span><strong>{processSampleCount > 0 ? `已生成 ${processSampleCount}/5` : '--'}</strong></div>
         </div>
         <div className="studio-heat-records">

@@ -8,6 +8,10 @@ import {
   updateHeatCapacityRuntimeZeroOffset,
 } from '../components/heatCapacity/heatCapacityExperimentModel.ts';
 import {
+  HEAT_CAPACITY_VIDEO_PROFILE,
+  getHeatCapacityRangeMidpoint,
+} from '../components/heatCapacity/heatCapacityDisplayResponse.ts';
+import {
   applyPressureZero,
   mapHeatCapacitySignals,
 } from '../components/heatCapacity/heatCapacitySensorMapping.ts';
@@ -19,6 +23,7 @@ const baseControls = {
   pumpFrequency: 0,
   pumpFrequencyStatus: 'idle' as const,
 };
+const initialTemperatureMv = getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.initialTemperatureMvRange);
 
 assert.equal(applyPressureZero(8.4, 1.2), 7.2);
 
@@ -28,7 +33,7 @@ const ambientSignals = mapHeatCapacitySignals({
   pressureDeltaKPa: 0,
   pressureZeroOffset: 0,
 });
-assert.equal(ambientSignals.temperatureSignalMv, 1500);
+assert.equal(ambientSignals.temperatureSignalMv, initialTemperatureMv);
 assert.equal(ambientSignals.pressureSignalMvRaw, 0);
 assert.equal(ambientSignals.pressureSignalMvDisplayed, 0);
 
@@ -38,7 +43,7 @@ const powered = powerHeatCapacityRuntimeState(
   1_000,
 );
 assert.equal(powered.heatCapacityPhase, 'readyToZero');
-assert.equal(powered.temperatureSignalMv, 1500);
+assert.equal(powered.temperatureSignalMv, initialTemperatureMv);
 assert.equal(powered.pressureSignalMvRaw, 0);
 assert.equal(powered.pressureSignalMvDisplayed, 0);
 assert.equal(powered.heatCapacityTrace.length, 1);
@@ -92,6 +97,8 @@ assert.equal(slowPump.accepted, true);
 assert.equal(slowPump.state.heatCapacityPhase, 'pumping');
 assert.equal(slowPump.state.pressureDeltaKPa > powered.pressureDeltaKPa, true);
 assert.equal(slowPump.state.temperatureSignalMv > powered.temperatureSignalMv, true);
+assert.equal(slowPump.state.pressureSignalMvRaw >= 2, true);
+assert.equal(slowPump.state.pressureSignalMvRaw <= 6, true);
 
 const suitablePump = applyHeatCapacityPumpStroke(
   slowPump.state,
@@ -109,6 +116,9 @@ assert.equal(
     slowPump.state.pressureDeltaKPa - powered.pressureDeltaKPa,
   true,
 );
+const suitableGainMv = suitablePump.state.pressureSignalMvRaw - slowPump.state.pressureSignalMvRaw;
+assert.equal(suitableGainMv >= 10, true);
+assert.equal(suitableGainMv <= 25, true);
 
 const released = stepHeatCapacityExperiment(
   suitablePump.state,
@@ -118,7 +128,6 @@ const released = stepHeatCapacityExperiment(
 );
 assert.equal(released.heatCapacityPhase, 'releasing');
 assert.equal(released.pressureDeltaKPa < suitablePump.state.pressureDeltaKPa * 0.35, true);
-assert.equal(released.temperatureSignalMv < suitablePump.state.temperatureSignalMv, true);
 
 const recovered = stepHeatCapacityExperiment(
   released,
@@ -127,18 +136,60 @@ const recovered = stepHeatCapacityExperiment(
   4_400,
 );
 assert.equal(recovered.heatCapacityPhase === 'recovering' || recovered.heatCapacityPhase === 'sealedStabilizing', true);
-assert.equal(Math.abs(recovered.gasTemperatureK - recovered.ambientTemperatureK) < Math.abs(released.gasTemperatureK - released.ambientTemperatureK), true);
+assert.equal(recovered.temperatureSignalMv > released.temperatureSignalMv, true);
+assert.equal(recovered.pressureSignalMvRaw > released.pressureSignalMvRaw, true);
 
-const sampled = captureHeatCapacityProcessSample(recovered, 'afterReleaseSample', {
+let pumpedSeries = powered;
+for (let index = 0; index < 14; index += 1) {
+  pumpedSeries = applyHeatCapacityPumpStroke(
+    pumpedSeries,
+    {
+      ...baseControls,
+      pumpValveOpen: true,
+      pumpFrequencyStatus: 'suitable',
+      pumpFrequency: 0.9,
+    },
+    5_000 + index * 350,
+  ).state;
+}
+assert.equal(
+  pumpedSeries.pressureSignalMvRaw > HEAT_CAPACITY_VIDEO_PROFILE.pumpPeakPressureMvRange[1],
+  true,
+);
+
+const stableTargetMv = getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.stablePressureMvRange);
+const stabilized = stepHeatCapacityExperiment(
+  pumpedSeries,
+  baseControls,
+  8,
+  16_000,
+);
+assert.equal(stabilized.pressureSignalMvRaw <= pumpedSeries.pressureSignalMvRaw, true);
+assert.equal(
+  Math.abs(stabilized.pressureSignalMvRaw - stableTargetMv) <
+    Math.abs(pumpedSeries.pressureSignalMvRaw - stableTargetMv),
+  true,
+);
+
+const highPressureReleased = stepHeatCapacityExperiment(
+  stabilized,
+  { ...baseControls, stopcockOpen: true },
+  0.6,
+  16_600,
+);
+assert.equal(highPressureReleased.pressureSignalMvRaw < 1, true);
+assert.equal(highPressureReleased.temperatureSignalMv < stabilized.temperatureSignalMv, true);
+
+const sampled = captureHeatCapacityProcessSample(recovered, 'releaseLowSample', {
   pumpFrequency: 0.67,
   pumpValveOpen: true,
   stopcockOpen: true,
 });
-assert.equal(sampled.heatCapacityProcessSamples.afterReleaseSample?.phase, recovered.heatCapacityPhase);
-assert.equal(sampled.heatCapacityProcessSamples.afterReleaseSample?.pressureSignalMv, recovered.pressureSignalMvDisplayed);
-assert.equal(sampled.heatCapacityProcessSamples.afterReleaseSample?.pumpFrequency, 0.67);
-assert.equal(sampled.heatCapacityProcessSamples.afterReleaseSample?.pumpValveOpen, true);
-assert.equal(sampled.heatCapacityProcessSamples.afterReleaseSample?.stopcockOpen, true);
+assert.equal(sampled.heatCapacityProcessSamples.releaseLowSample?.phase, recovered.heatCapacityPhase);
+assert.equal(sampled.heatCapacityProcessSamples.releaseLowSample?.pressureSignalMv, recovered.pressureSignalMvDisplayed);
+assert.equal(sampled.heatCapacityProcessSamples.releaseLowSample?.pumpFrequency, 0.67);
+assert.equal(sampled.heatCapacityProcessSamples.releaseLowSample?.pumpValveOpen, true);
+assert.equal(sampled.heatCapacityProcessSamples.releaseLowSample?.stopcockOpen, true);
 assert.equal(sampled.heatCapacityTrace.length >= 2, true);
 
 console.log('heatCapacityExperimentModel tests passed');

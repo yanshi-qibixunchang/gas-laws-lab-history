@@ -2,6 +2,11 @@ import {
   mapHeatCapacitySignals,
   type HeatCapacitySensorMappingConfig,
 } from './heatCapacitySensorMapping.ts';
+import {
+  HEAT_CAPACITY_VIDEO_PROFILE,
+  getHeatCapacityRangeMidpoint,
+  getHeatCapacityRangeValue,
+} from './heatCapacityDisplayResponse.ts';
 
 export type HeatCapacityRuntimePhase =
   | 'powerOff'
@@ -31,9 +36,13 @@ export interface HeatCapacityTracePoint {
 
 export type HeatCapacityProcessSampleKey =
   | 'startSample'
+  | 'zeroedSample'
   | 'afterPumpSample'
+  | 'pumpPeakSample'
   | 'beforeReleaseSample'
+  | 'stableBeforeReleaseSample'
   | 'afterReleaseSample'
+  | 'releaseLowSample'
   | 'recoverySample';
 
 export type HeatCapacityProcessSamples = Partial<Record<HeatCapacityProcessSampleKey, HeatCapacityTracePoint>>;
@@ -49,6 +58,16 @@ export interface HeatCapacityModelConfig {
   thermalRelaxRate: number;
   releaseRate: number;
   releaseCoolingKPerKPa: number;
+  sealedPressureSettleRate: number;
+  recoveryPressureRate: number;
+  pumpHeatFollowRate: number;
+  recoveryHeatFollowRate: number;
+  pumpPressurePeakMv: number;
+  stablePressureMv: number;
+  recoveryPressureMv: number;
+  stableTemperatureMv: number;
+  releaseTemperatureMv: number;
+  recoveryTemperatureMv: number;
   maxTracePoints: number;
   sensor: HeatCapacitySensorMappingConfig;
 }
@@ -91,17 +110,27 @@ export const DEFAULT_HEAT_CAPACITY_MODEL_CONFIG: HeatCapacityModelConfig = {
   ambientPressureKPa: 101.33,
   ambientTemperatureK: 298.15,
   pressureLimitKPa: 500,
-  pumpPressureGainTooSlowKPa: 1.2,
-  pumpPressureGainSuitableKPa: 3.8,
-  pumpTemperatureGainTooSlowK: 0.22,
-  pumpTemperatureGainSuitableK: 0.82,
-  thermalRelaxRate: 0.72,
-  releaseRate: 6.5,
-  releaseCoolingKPerKPa: 0.24,
+  pumpPressureGainTooSlowKPa: 0.2,
+  pumpPressureGainSuitableKPa: 0.78,
+  pumpTemperatureGainTooSlowK: 0.03,
+  pumpTemperatureGainSuitableK: 0.16,
+  thermalRelaxRate: 0.18,
+  releaseRate: 9.5,
+  releaseCoolingKPerKPa: 0.54,
+  sealedPressureSettleRate: 0.42,
+  recoveryPressureRate: 0.34,
+  pumpHeatFollowRate: 0.72,
+  recoveryHeatFollowRate: 0.38,
+  pumpPressurePeakMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.pumpPeakPressureMvRange),
+  stablePressureMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.stablePressureMvRange),
+  recoveryPressureMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.recoveryPressureMvRange),
+  stableTemperatureMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.stableTemperatureMvRange),
+  releaseTemperatureMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.releaseTemperatureMvRange),
+  recoveryTemperatureMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.recoveryTemperatureMvRange),
   maxTracePoints: 720,
   sensor: {
     pressureSensitivityMvPerKPa: 20,
-    temperatureBaseMv: 1500,
+    temperatureBaseMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.initialTemperatureMvRange),
     temperatureSensitivityMvPerK: 4,
     noiseStdDevMv: 0,
   },
@@ -115,6 +144,36 @@ const roundNumber = (value: number, digits = 3) => {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
 };
+
+const mapPressureMvToDeltaKPa = (
+  pressureMv: number,
+  config: HeatCapacityModelConfig,
+) => pressureMv / config.sensor.pressureSensitivityMvPerKPa;
+
+const mapTemperatureMvToGasK = (
+  temperatureMv: number,
+  config: HeatCapacityModelConfig,
+) => config.ambientTemperatureK + (
+  (temperatureMv - config.sensor.temperatureBaseMv) / config.sensor.temperatureSensitivityMvPerK
+);
+
+const getDeterministicFraction = (
+  state: HeatCapacityRuntimeState,
+  now: number,
+  seed: number,
+) => {
+  const basis = state.simulationTimeS * 12.9898 + state.heatCapacityTrace.length * 78.233 + now * 0.00031 + seed;
+  return (Math.sin(basis) * 43758.5453) % 1 < 0
+    ? ((Math.sin(basis) * 43758.5453) % 1) + 1
+    : (Math.sin(basis) * 43758.5453) % 1;
+};
+
+const moveToward = (
+  current: number,
+  target: number,
+  rate: number,
+  dt: number,
+) => current + (target - current) * (1 - Math.exp(-rate * dt));
 
 const mergeModelConfig = (
   config?: Partial<HeatCapacityModelConfig>,
@@ -280,9 +339,19 @@ export const applyHeatCapacityPumpStroke = (
   }
 
   const suitable = controls.pumpFrequencyStatus === 'suitable';
-  const pressureGain = suitable
-    ? state.modelConfig.pumpPressureGainSuitableKPa
-    : state.modelConfig.pumpPressureGainTooSlowKPa;
+  const pressureGainMv = suitable
+    ? getHeatCapacityRangeValue(
+        HEAT_CAPACITY_VIDEO_PROFILE.pumpPressureIncrementSuitableMvRange,
+        getDeterministicFraction(state, now, 3.1),
+      )
+    : getHeatCapacityRangeValue(
+        HEAT_CAPACITY_VIDEO_PROFILE.pumpPressureIncrementTooSlowMvRange,
+        getDeterministicFraction(state, now, 8.7),
+      );
+  const pressureGain = Math.max(
+    0,
+    pressureGainMv / state.modelConfig.sensor.pressureSensitivityMvPerKPa,
+  );
   const temperatureGain = suitable
     ? state.modelConfig.pumpTemperatureGainSuitableK
     : state.modelConfig.pumpTemperatureGainTooSlowK;
@@ -335,18 +404,71 @@ export const stepHeatCapacityExperiment = (
   let gasTemperatureK = state.gasTemperatureK;
   let heatCapacityPhase = getPassivePhase(state, controls);
 
+  const stablePressureDelta = mapPressureMvToDeltaKPa(state.modelConfig.stablePressureMv, state.modelConfig);
+  const recoveryPressureDelta = mapPressureMvToDeltaKPa(state.modelConfig.recoveryPressureMv, state.modelConfig);
+  const stableTemperatureK = mapTemperatureMvToGasK(state.modelConfig.stableTemperatureMv, state.modelConfig);
+  const releaseTemperatureK = mapTemperatureMvToGasK(state.modelConfig.releaseTemperatureMv, state.modelConfig);
+  const recoveryTemperatureK = mapTemperatureMvToGasK(state.modelConfig.recoveryTemperatureMv, state.modelConfig);
+
   if (controls.stopcockOpen && state.pressureDeltaKPa > 0.02) {
     const releaseFraction = 1 - Math.exp(-state.modelConfig.releaseRate * dt);
     const releasedDelta = state.pressureDeltaKPa * releaseFraction;
     const nextDelta = Math.max(0, state.pressureDeltaKPa - releasedDelta);
     gasPressureKPaAbs = state.ambientPressureKPa + nextDelta;
-    gasTemperatureK -= Math.min(3.5, releasedDelta * state.modelConfig.releaseCoolingKPerKPa);
+    const releasedCooling = Math.min(7.5, releasedDelta * state.modelConfig.releaseCoolingKPerKPa);
+    gasTemperatureK = Math.max(
+      releaseTemperatureK,
+      moveToward(gasTemperatureK - releasedCooling, releaseTemperatureK, state.modelConfig.recoveryHeatFollowRate, dt),
+    );
     heatCapacityPhase = 'releasing';
   } else {
-    const thermalFraction = 1 - Math.exp(-state.modelConfig.thermalRelaxRate * dt);
-    gasTemperatureK += (state.ambientTemperatureK - gasTemperatureK) * thermalFraction;
+    if (state.pressureDeltaKPa > stablePressureDelta) {
+      const nextDelta = moveToward(
+        state.pressureDeltaKPa,
+        stablePressureDelta,
+        state.modelConfig.sealedPressureSettleRate,
+        dt,
+      );
+      gasPressureKPaAbs = state.ambientPressureKPa + nextDelta;
+    } else if (
+      (state.heatCapacityPhase === 'releasing' || state.heatCapacityPhase === 'recovering') &&
+      state.pressureDeltaKPa < recoveryPressureDelta
+    ) {
+      const nextDelta = moveToward(
+        state.pressureDeltaKPa,
+        recoveryPressureDelta,
+        state.modelConfig.recoveryPressureRate,
+        dt,
+      );
+      gasPressureKPaAbs = state.ambientPressureKPa + nextDelta;
+    }
+
+    if (state.pressureDeltaKPa > 0.35) {
+      gasTemperatureK = moveToward(
+        gasTemperatureK,
+        stableTemperatureK,
+        state.modelConfig.pumpHeatFollowRate,
+        dt,
+      );
+    } else if (state.heatCapacityPhase === 'releasing' || state.heatCapacityPhase === 'recovering') {
+      gasTemperatureK = moveToward(
+        gasTemperatureK,
+        recoveryTemperatureK,
+        state.modelConfig.recoveryHeatFollowRate,
+        dt,
+      );
+    } else {
+      gasTemperatureK = moveToward(
+        gasTemperatureK,
+        state.ambientTemperatureK,
+        state.modelConfig.thermalRelaxRate,
+        dt,
+      );
+    }
     heatCapacityPhase = getPassivePhase({
       ...state,
+      gasPressureKPaAbs,
+      pressureDeltaKPa: Math.max(0, gasPressureKPaAbs - state.ambientPressureKPa),
       gasTemperatureK,
     }, controls);
   }

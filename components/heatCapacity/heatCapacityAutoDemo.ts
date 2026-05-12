@@ -108,8 +108,8 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     observeDurationMs: DEFAULT_OBSERVE_MS,
     actions: [
       { action: 'observeInitialPressure' },
-      { action: 'captureSample', delayMs: 120, sampleKey: 'startSample' },
       { action: 'zeroPressure', delayMs: 180 },
+      { action: 'captureSample', delayMs: 1_100, sampleKey: 'zeroedSample' },
     ],
   },
   {
@@ -154,7 +154,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
       { action: 'pumpStroke', delayMs: 1_720 },
       { action: 'pumpStroke', delayMs: 2_150 },
       { action: 'pumpStroke', delayMs: 2_580 },
-      { action: 'captureSample', delayMs: 3_250, sampleKey: 'afterPumpSample' },
+      { action: 'captureSample', delayMs: 3_250, sampleKey: 'pumpPeakSample' },
     ],
   },
   {
@@ -179,7 +179,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: 2_900,
     observeDurationMs: DEFAULT_OBSERVE_MS,
-    actions: [{ action: 'captureSample', delayMs: 2_800, sampleKey: 'beforeReleaseSample' }],
+    actions: [{ action: 'captureSample', delayMs: 2_800, sampleKey: 'stableBeforeReleaseSample' }],
   },
   {
     id: 'release-and-close-stopcock',
@@ -193,7 +193,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     observeDurationMs: DEFAULT_OBSERVE_MS,
     actions: [
       { action: 'openStopcockForRelease' },
-      { action: 'captureSample', delayMs: 1_450, sampleKey: 'afterReleaseSample' },
+      { action: 'captureSample', delayMs: 1_450, sampleKey: 'releaseLowSample' },
       { action: 'closeStopcockForRecovery', delayMs: 1_650 },
     ],
   },

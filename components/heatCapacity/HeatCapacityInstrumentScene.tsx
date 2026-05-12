@@ -522,7 +522,12 @@ function InstrumentBox({
       <group name="AnalogPressureGauge" position={[0.58, 0.05, 0.52]}>
         <mesh name="AnalogPressureGaugeDial" rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.19, 0.19, 0.035, 48]} />
-          <meshStandardMaterial color="#eef2f6" roughness={0.45} />
+          <meshStandardMaterial
+            color={pressureOverLimit ? '#fee2e2' : '#eef2f6'}
+            roughness={0.45}
+            emissive={pressureOverLimit ? '#dc2626' : '#000000'}
+            emissiveIntensity={pressureOverLimit ? 0.22 : 0}
+          />
         </mesh>
         {PRESSURE_GAUGE_TICKS.map((tickRotation) => {
           const tickRadius = 0.135;
@@ -557,7 +562,7 @@ function InstrumentBox({
             </mesh>
           );
         })}
-        <group name="AnalogPressureGaugeNeedlePivot" ref={gaugeNeedlePivotRef} rotation={[0, 0, gaugeNeedleTargetRotation]}>
+        <group name="AnalogPressureGaugeNeedlePivot" ref={gaugeNeedlePivotRef} rotation={[0, 0, gaugeDisplayedRotationRef.current]}>
           <mesh name="AnalogPressureGaugeNeedle" position={[0.055, 0, 0.062]}>
             <boxGeometry args={[0.14, 0.014, 0.012]} />
             <meshStandardMaterial color={pressureOverLimit ? '#f97316' : powerOn ? '#e11d48' : '#64748b'} emissive={pressureOverLimit ? '#991b1b' : '#000000'} emissiveIntensity={pressureOverLimit ? 0.32 : 0} />
@@ -868,8 +873,8 @@ function GlassStopcock({
             <meshBasicMaterial color="#7dd3fc" transparent opacity={GLASS_HOVER_HALO_OPACITY} depthWrite={false} />
           </mesh>
         ) : null}
-        <mesh name="StopcockRotatingFlowChannel" position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.026, 0.026, 0.24, 16]} />
+        <mesh name="StopcockRotatingFlowChannel" position={[0, 0, 0]}>
+          <cylinderGeometry args={[0.03, 0.03, 0.24, 16]} />
           <meshStandardMaterial
             color={state === 'open' ? '#22c55e' : '#334155'}
             emissive={state === 'open' ? '#16a34a' : '#0891b2'}
@@ -1603,8 +1608,8 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
               <span className="studio-heat-stopcock-slider-track" />
               <span className="studio-heat-stopcock-slider-fill" />
               <span className="studio-heat-stopcock-slider-thumb" />
-              <span className="studio-heat-stopcock-open-mark" data-open-angle="90" style={{ left: angleToSliderPercent(90) }} />
-              <span className="studio-heat-stopcock-open-mark" data-open-angle="270" style={{ left: angleToSliderPercent(270) }} />
+              <span className="studio-heat-stopcock-open-mark" data-open-angle="0" style={{ left: angleToSliderPercent(HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG) }} />
+              <span className="studio-heat-stopcock-open-mark" data-open-angle="180" style={{ left: angleToSliderPercent(HEAT_CAPACITY_STOPCOCK_SECOND_OPEN_ANGLE_DEG) }} />
             </div>
             <input
               type="range"

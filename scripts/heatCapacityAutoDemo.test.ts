@@ -34,7 +34,7 @@ assert.equal(actionSequence.includes('powerOff'), true);
 assert.equal(actionSequence.includes('markDemoComplete'), true);
 assert.deepEqual(
   steps.flatMap((step) => step.actions.map((action) => action.sampleKey).filter(Boolean)),
-  ['startSample', 'afterPumpSample', 'beforeReleaseSample', 'afterReleaseSample', 'recoverySample'],
+  ['zeroedSample', 'pumpPeakSample', 'stableBeforeReleaseSample', 'releaseLowSample', 'recoverySample'],
 );
 assert.equal(steps.every((step) => step.id === 'zero-pressure' ? step.preHighlightMs === 8_000 : step.preHighlightMs === 5_000), true);
 assert.equal(steps[0].observeDurationMs, 4_000);

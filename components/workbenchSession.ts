@@ -2,6 +2,7 @@ import {
   clampWorkbenchLiveSplitRatio,
   applyHeatCapacityPressureZero,
   createDefaultHeatCapacityFile,
+  getHeatCapacityStopcockTargetAngle,
   getHeatCapacityStopcockState,
   normalizeHeatCapacityStopcockAngle,
   normalizeHeatCapacityFileName,
@@ -104,7 +105,7 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       (!hasSavedStopcockAngle || file.glassPistonState !== savedStopcockState)
     );
     const stopcockAngleDeg = shouldMigrateBySavedState
-      ? (file.glassPistonState === 'open' ? 90 : 0)
+      ? getHeatCapacityStopcockTargetAngle(file.glassPistonState === 'open')
       : normalizedSavedStopcockAngle;
     const pressureRawPlaceholder = normalizeNullableNumber(file.pressureRawPlaceholder)
       ?? fallback.pressureRawPlaceholder;

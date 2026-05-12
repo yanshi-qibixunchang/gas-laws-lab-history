@@ -21,7 +21,7 @@ export interface HeatCapacityMappedSignals {
 
 export const DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG: HeatCapacitySensorMappingConfig = {
   pressureSensitivityMvPerKPa: 20,
-  temperatureBaseMv: 1500,
+  temperatureBaseMv: 1499.05,
   temperatureSensitivityMvPerK: 4,
   noiseStdDevMv: 0,
 };
