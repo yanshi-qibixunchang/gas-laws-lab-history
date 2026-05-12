@@ -5392,43 +5392,81 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const renderHeatCapacityRealtimePanel = () => {
     if (activeFile.kind !== 'heatCapacity') return null;
 
-    const pressure = activeFile.pressureKPa;
-    const pressureHeadroom = typeof pressure === 'number'
-      ? Math.max(0, activeFile.pressureLimitKPa - pressure)
-      : null;
-    const phaseLabel = activeFile.heatCapacityPhase;
-    const pressureValue = typeof pressure === 'number' ? `${formatMetric(pressure, 2)} kPa` : '-- kPa';
+    const getHeatCapacityPhaseLabel = (phase: typeof activeFile.heatCapacityPhase) => {
+      if (phase === 'powerOff') return '未开机';
+      if (phase === 'readyToZero') return '等待调零';
+      if (phase === 'zeroed') return '已调零';
+      if (phase === 'readyToPump') return '准备打气';
+      if (phase === 'pumping') return '打气中';
+      if (phase === 'sealedStabilizing') return '封闭等待稳定';
+      if (phase === 'releasing') return '快速放气';
+      if (phase === 'recovering') return '等待回温';
+      if (phase === 'demoComplete') return '演示结束';
+      return '实验准备';
+    };
+    const phaseLabel = getHeatCapacityPhaseLabel(activeFile.heatCapacityPhase);
     const stopcockState = getHeatCapacityStopcockState(activeFile.stopcockAngleDeg);
-    const stopcockStateLabel = stopcockState === 'open' ? '通气 / 开' : '断气 / 关';
-    const powerLabel = activeFile.powerOn ? '已开机' : '未开机';
-    const temperatureSignal = activeFile.powerOn
-      ? (typeof activeFile.temperatureSignalMv === 'number' ? `${formatMetric(activeFile.temperatureSignalMv, 1)} mV` : '--.- mV')
-      : '未通电';
-    const pressureSignal = activeFile.powerOn
-      ? (typeof activeFile.pressureSignalMv === 'number' ? `${formatMetric(activeFile.pressureSignalMv, 1)} mV` : '--.- mV')
-      : '未通电';
-    const heatCapacityPoweredReadout = (displayValue: string) => activeFile.powerOn ? displayValue : '未通电';
-    const heatCapacityPoweredNumber = (displayValue: string) => activeFile.powerOn ? displayValue : '--';
-    const pumpFrequencyStatusLabel = activeFile.pumpFrequencyStatus === 'idle'
-      ? '空闲'
-      : activeFile.pumpFrequencyStatus === 'tooSlow'
-        ? '打气过慢'
-        : '打气频率合适';
+    const stopcockStateLabel = stopcockState === 'open' ? '打开' : '关闭';
+    const heatCapacityHeaderBadges = [
+      {
+        key: 'stage',
+        label: `阶段：${phaseLabel}`,
+        className: 'studio-heat-status-badge-stage',
+      },
+      ...(autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked
+        ? [{
+            key: 'demo',
+            label: autoDemoPaused ? '自动演示暂停' : autoDemoRunning ? '自动演示' : '自动演示准备',
+            className: 'studio-heat-status-badge-mode',
+          }]
+        : []),
+      ...(autoDemoInteractionLocked
+        ? [{
+            key: 'lock',
+            label: '操作锁定',
+            className: 'studio-heat-status-badge-warning',
+          }]
+        : []),
+    ];
+    const temperatureSignalValue = activeFile.powerOn && typeof activeFile.temperatureSignalMv === 'number'
+      ? formatMetric(activeFile.temperatureSignalMv, 1)
+      : '--.-';
+    const pressureSignalValue = activeFile.powerOn && typeof activeFile.pressureSignalMv === 'number'
+      ? formatMetric(activeFile.pressureSignalMv, 1)
+      : '--.-';
+    const currentDeltaPKPa = activeFile.powerOn &&
+      typeof activeFile.pressureSignalMv === 'number' &&
+      Number.isFinite(activeFile.pressureSensitivityMvPerKPa) &&
+      activeFile.pressureSensitivityMvPerKPa > 0
+      ? Math.max(0, activeFile.pressureSignalMv / activeFile.pressureSensitivityMvPerKPa)
+      : null;
+    const currentDeltaPValue = currentDeltaPKPa === null ? '--' : formatMetric(currentDeltaPKPa, 2);
     const pressureSafetyStatusLabel = activeFile.pressureSafetyStatus === 'danger'
-      ? '超过安全阈值'
+      ? '超出安全范围'
       : activeFile.pressureSafetyStatus === 'warning'
         ? '接近上限'
-        : '正常';
-    const getHeatCapacityPumpBulbDisplayLabel = () => activeFile.pumpBulbState === 'idle' ? '待机' : '打气中';
-    const pumpBulbStateLabel = getHeatCapacityPumpBulbDisplayLabel();
-    const processSamples = [
-      ['startSample', '起始'] as const,
-      ['afterPumpSample', '打气后'] as const,
-      ['beforeReleaseSample', '放气前'] as const,
-      ['afterReleaseSample', '放气后'] as const,
-      ['recoverySample', '恢复后'] as const,
-    ];
-    const processSampleCount = processSamples.filter(([key]) => activeFile.heatCapacityProcessSamples[key]).length;
+        : '安全';
+    const pressureSafetyNote = activeFile.pressureSafetyStatus === 'danger'
+      ? '停止打气'
+      : activeFile.pressureSafetyStatus === 'warning'
+        ? '注意压力表'
+        : '可继续观察';
+    const zeroStatusLabel = activeFile.pressureZeroAdjusted
+      ? '已完成'
+      : canZeroHeatCapacityPressure(activeFile)
+        ? '可调零'
+        : '未就绪';
+    const currentHint = (() => {
+      if (activeFile.heatCapacityPhase === 'demoComplete') return '自动演示已结束，可重新开始或查看后续数据处理结果。';
+      if (!activeFile.powerOn || activeFile.heatCapacityPhase === 'powerOff') return '请先打开电源。';
+      if (activeFile.heatCapacityPhase === 'readyToZero') return '请观察 U_p，并进行压强调零。';
+      if (activeFile.heatCapacityPhase === 'zeroed' || activeFile.heatCapacityPhase === 'readyToPump') return '请关闭玻璃旋塞并准备打气。';
+      if (activeFile.heatCapacityPhase === 'pumping') return '保持合适打气频率，并注意压力表安全范围。';
+      if (activeFile.heatCapacityPhase === 'sealedStabilizing') return '等待 U_p 和 U_T 小范围波动后进入放气步骤。';
+      if (activeFile.heatCapacityPhase === 'releasing') return '关闭玻璃旋塞，并等待回温稳定。';
+      if (activeFile.heatCapacityPhase === 'recovering') return '等待 U_T 回稳后记录 U2。';
+      return activeFile.pumpHint || '观察实时读数和曲线变化。';
+    })();
     const renderHeatCapacityTraceChart = (
       title: string,
       valueLabel: 'temperatureSignalMv' | 'pressureSignalMv',
@@ -5480,46 +5518,57 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     return (
       <div className="studio-realtime-panel studio-realtime-panel-heat">
-        <div className="studio-heat-data-grid">
-          <div><span>当前阶段</span><strong>{phaseLabel}</strong></div>
-          <div><span>当前状态</span><strong>{getLocalizedStatusValue(activeFile.runState, workbenchCopy)}</strong></div>
-          <div><span>电源状态</span><strong>{powerLabel}</strong></div>
-          <div><span>玻璃旋塞</span><strong>{stopcockStateLabel}</strong></div>
-          <div><span>压力调零</span><strong>{activeFile.pressureZeroAdjusted ? '已调零' : canZeroHeatCapacityPressure(activeFile) ? '可调零' : '未就绪'}</strong></div>
-          <div><span>零点偏移</span><strong>{heatCapacityPoweredNumber(`${formatMetric(activeFile.pressureZeroOffset, 2)} mV`)}</strong></div>
-          <div><span>显示压力</span><strong>{heatCapacityPoweredNumber(`${formatMetric(activeFile.pressureDisplayedPlaceholder, 2)} mV`)}</strong></div>
-          <div><span>温度信号</span><strong>{temperatureSignal}</strong></div>
-          <div><span>压力信号</span><strong>{pressureSignal}</strong></div>
-          <div><span>{renderScientificText('目标 U_T')}</span><strong>{heatCapacityPoweredNumber(`${formatMetric(activeFile.temperatureSignalTargetMv, 1)} mV`)}</strong></div>
-          <div><span>{renderScientificText('目标 U_p')}</span><strong>{heatCapacityPoweredNumber(`${formatMetric(activeFile.pressureSignalTargetMv, 1)} mV`)}</strong></div>
-          <div><span>实时压强</span><strong>{heatCapacityPoweredReadout(pressureValue)}</strong></div>
-          <div><span>压强余量</span><strong>{heatCapacityPoweredNumber(typeof pressureHeadroom === 'number' ? `${formatMetric(pressureHeadroom, 2)} kPa` : '-- kPa')}</strong></div>
-          <div><span>气体温度</span><strong>{heatCapacityPoweredNumber(`${formatMetric(activeFile.gasTemperatureK, 2)} K`)}</strong></div>
+        <div className="studio-heat-monitor-header" data-heat-capacity-realtime-header="true">
+          <div>
+            <span>Realtime Data / Charts</span>
+            <strong>空气比热容比实验</strong>
+          </div>
+          <div className="studio-heat-status-badges">
+            {heatCapacityHeaderBadges.map((badge) => (
+              <span key={badge.key} className={`studio-heat-status-badge ${badge.className}`}>{badge.label}</span>
+            ))}
+          </div>
+        </div>
+        <div className="studio-heat-live-readings" data-heat-capacity-live-readings="true">
+          <div className="studio-heat-reading-card studio-heat-reading-card-primary">
+            <span>{renderScientificText('U_T / mV')}</span>
+            <strong>{temperatureSignalValue}</strong>
+            <em>温度信号</em>
+          </div>
+          <div className="studio-heat-reading-card studio-heat-reading-card-primary">
+            <span>{renderScientificText('U_p / mV')}</span>
+            <strong>{pressureSignalValue}</strong>
+            <em>压强差电压</em>
+          </div>
+          <div className="studio-heat-reading-card">
+            <span>{renderScientificText('Delta P / kPa')}</span>
+            <strong>{currentDeltaPValue}</strong>
+            <em>由当前 {renderScientificText('U_p')} 换算</em>
+          </div>
+          <div className={`studio-heat-reading-card studio-heat-safety-card studio-heat-safety-${activeFile.pressureSafetyStatus}`}>
+            <span>压力状态</span>
+            <strong>{pressureSafetyStatusLabel}</strong>
+            <em>{pressureSafetyNote}</em>
+          </div>
+        </div>
+        <div className="studio-heat-operation-status" data-heat-capacity-operation-status="true">
           <div><span>打气阀门</span><strong>{activeFile.pumpValveOpen ? '已打开' : '已关闭'}</strong></div>
-          <div><span>打气球状态</span><strong>{pumpBulbStateLabel}</strong></div>
-          <div><span>打气频率</span><strong>{formatMetric(activeFile.pumpFrequency, 2)} 次/s</strong></div>
-          <div><span>频率评价</span><strong>{pumpFrequencyStatusLabel}</strong></div>
-          <div><span>压差</span><strong>{heatCapacityPoweredNumber(`${formatMetric(activeFile.pressureDeltaKPa, 2)} kPa`)}</strong></div>
-          <div><span>安全压力</span><strong>{heatCapacityPoweredReadout(pressureSafetyStatusLabel)}</strong></div>
-          <div><span>采样记录</span><strong>{processSampleCount > 0 ? `已生成 ${processSampleCount}/5` : '--'}</strong></div>
+          <div><span>玻璃旋塞</span><strong>{stopcockStateLabel}</strong></div>
+          <div><span>压强调零</span><strong>{zeroStatusLabel}</strong></div>
         </div>
-        <div className="studio-heat-records">
-          {processSamples.map(([key, label]) => {
-            const sample = activeFile.heatCapacityProcessSamples[key];
-            return (
-              <div key={key}>
-                <span>{label}</span>
-                <strong>{sample ? `${formatMetric(sample.timeS, 1)}s / ${formatMetric(sample.pressureSignalMv, 1)} mV` : '--'}</strong>
-              </div>
-            );
-          })}
+        <div className="studio-heat-current-hint" data-heat-capacity-current-hint="true">
+          <span>当前提示</span>
+          <strong>{renderScientificText(currentHint)}</strong>
         </div>
-        <div className="studio-heat-trace-charts">
-          {renderHeatCapacityTraceChart('U_T / mV', 'temperatureSignalMv', 'studio-heat-trace-temperature')}
-          {renderHeatCapacityTraceChart('U_p / mV', 'pressureSignalMv', 'studio-heat-trace-pressure')}
-        </div>
-        <div className="studio-panel-note">
-          {renderScientificText(`${activeFile.pumpHint}；粒子动画用于可视化气体分子运动状态。压缩时粒子运动更剧烈，放气膨胀时状态发生变化，回温时逐渐恢复。最终比热容比计算采用空气实验模型。`)}
+        <div className="studio-heat-live-chart-section" data-heat-capacity-live-charts="true">
+          <div className="studio-heat-section-title">
+            <span>Live Charts</span>
+            <strong>实时曲线观察</strong>
+          </div>
+          <div className="studio-heat-trace-charts">
+            {renderHeatCapacityTraceChart('U_p / mV', 'pressureSignalMv', 'studio-heat-trace-pressure')}
+            {renderHeatCapacityTraceChart('U_T / mV', 'temperatureSignalMv', 'studio-heat-trace-temperature')}
+          </div>
         </div>
       </div>
     );
