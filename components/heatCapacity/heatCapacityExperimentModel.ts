@@ -7,6 +7,9 @@ import {
   getHeatCapacityRangeMidpoint,
   getHeatCapacityRangeValue,
 } from './heatCapacityDisplayResponse.ts';
+import {
+  DEFAULT_HEAT_CAPACITY_RESULT_OPTIONS,
+} from './heatCapacityResultModel.ts';
 
 export type HeatCapacityRuntimePhase =
   | 'powerOff'
@@ -50,6 +53,9 @@ export type HeatCapacityProcessSamples = Partial<Record<HeatCapacityProcessSampl
 export interface HeatCapacityModelConfig {
   ambientPressureKPa: number;
   ambientTemperatureK: number;
+  visualizationMode: 'particle';
+  calculationModel: 'airHeatCapacityRatio';
+  theoreticalGamma: number;
   pressureLimitKPa: number;
   pumpPressureGainTooSlowKPa: number;
   pumpPressureGainSuitableKPa: number;
@@ -107,8 +113,11 @@ export interface HeatCapacityPumpStrokeResult {
 }
 
 export const DEFAULT_HEAT_CAPACITY_MODEL_CONFIG: HeatCapacityModelConfig = {
-  ambientPressureKPa: 101.33,
+  ambientPressureKPa: DEFAULT_HEAT_CAPACITY_RESULT_OPTIONS.atmosphericPressureKPa,
   ambientTemperatureK: 298.15,
+  visualizationMode: 'particle',
+  calculationModel: 'airHeatCapacityRatio',
+  theoreticalGamma: DEFAULT_HEAT_CAPACITY_RESULT_OPTIONS.theoreticalGamma,
   pressureLimitKPa: 500,
   pumpPressureGainTooSlowKPa: 0.2,
   pumpPressureGainSuitableKPa: 0.78,
@@ -129,7 +138,7 @@ export const DEFAULT_HEAT_CAPACITY_MODEL_CONFIG: HeatCapacityModelConfig = {
   recoveryTemperatureMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.recoveryTemperatureMvRange),
   maxTracePoints: 720,
   sensor: {
-    pressureSensitivityMvPerKPa: 20,
+    pressureSensitivityMvPerKPa: DEFAULT_HEAT_CAPACITY_RESULT_OPTIONS.pressureSensitivityMvPerKPa,
     temperatureBaseMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.initialTemperatureMvRange),
     temperatureSensitivityMvPerK: 4,
     noiseStdDevMv: 0,

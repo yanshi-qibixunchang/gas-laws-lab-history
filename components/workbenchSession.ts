@@ -33,9 +33,13 @@ const normalizeNullableNumber = (value: unknown) => (
 
 const heatCapacitySampleKeys = [
   'startSample',
+  'zeroedSample',
   'afterPumpSample',
+  'pumpPeakSample',
   'beforeReleaseSample',
+  'stableBeforeReleaseSample',
   'afterReleaseSample',
+  'releaseLowSample',
   'recoverySample',
 ] as const;
 
@@ -176,10 +180,15 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       pumpHint: typeof file.pumpHint === 'string' ? file.pumpHint : fallback.pumpHint,
       pressurePlaceholder: normalizeNullableNumber(file.pressurePlaceholder) ?? fallback.pressurePlaceholder,
       temperaturePlaceholder: normalizeNullableNumber(file.temperaturePlaceholder) ?? fallback.temperaturePlaceholder,
+      visualizationMode: file.visualizationMode === 'particle' ? file.visualizationMode : fallback.visualizationMode,
+      calculationModel: file.calculationModel === 'airHeatCapacityRatio' ? file.calculationModel : fallback.calculationModel,
+      pressureSensitivityMvPerKPa: normalizeNullableNumber(file.pressureSensitivityMvPerKPa) ?? fallback.pressureSensitivityMvPerKPa,
       recordedPressures: {
         ...fallback.recordedPressures,
         ...file.recordedPressures,
+        p0: normalizeNullableNumber(file.recordedPressures?.p0) ?? fallback.recordedPressures.p0,
       },
+      theoreticalGamma: normalizeNullableNumber(file.theoreticalGamma) ?? fallback.theoreticalGamma,
       heatCapacityTrace,
       heatCapacityProcessSamples: {
         ...fallback.heatCapacityProcessSamples,

@@ -29,6 +29,9 @@ assert.ok(
 assert.equal(heatOne.liveWorkspaceSplitRatio, WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO);
 assert.equal('standardResultsLayout' in heatOne, false, 'heatCapacity must not carry standard Results layout state');
 assert.equal('idealWindowLayout' in heatOne, false, 'heatCapacity must not carry ideal Results layout state');
+assert.equal(heatOne.theoreticalGamma, 1.4);
+assert.equal(heatOne.calculationModel, 'airHeatCapacityRatio');
+assert.equal(heatOne.visualizationMode, 'particle');
 
 const migrated = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
@@ -73,8 +76,9 @@ const workbenchSource = readFileSync(
   'utf8',
 );
 
-assert.match(workbenchSource, /heatCapacityStudy:\s*'硬球比热容比实验'/);
+assert.match(workbenchSource, /heatCapacityStudy:\s*'空气比热容比实验'/);
 assert.match(workbenchSource, /heatCapacityStudy:\s*'Heat Capacity Ratio Experiment'/);
+assert.doesNotMatch(workbenchSource, /data-heat-capacity-air-result/, 'this batch must not render a formal heat capacity result panel');
 assert.match(workbenchSource, /createHeatCapacityPanels/);
 assert.match(workbenchSource, /setParametersCollapsed\(file\.kind === 'heatCapacity'\)/);
 assert.match(workbenchSource, /workbenchLayoutDefaults\.heatCapacity\.liveWorkspaceSplitRatio/);

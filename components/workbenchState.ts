@@ -24,6 +24,13 @@ import {
   type HeatCapacityTracePoint,
 } from './heatCapacity/heatCapacityExperimentModel.ts';
 import {
+  calculateHeatCapacityGamma,
+  type HeatCapacityResult,
+} from './heatCapacity/heatCapacityResultModel.ts';
+import type {
+  HeatCapacitySample,
+} from './heatCapacity/heatCapacitySampling.ts';
+import {
   applyPressureZero,
 } from './heatCapacity/heatCapacitySensorMapping.ts';
 import {
@@ -482,6 +489,9 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   lastPumpTime: number | null;
   pumpStrokeCount: number;
   pumpHint: string;
+  visualizationMode: 'particle';
+  calculationModel: 'airHeatCapacityRatio';
+  pressureSensitivityMvPerKPa: number;
   pressurePlaceholder: number;
   temperaturePlaceholder: number;
   recordedPressures: {
@@ -519,6 +529,20 @@ const getHeatCapacityRuntimeStateFromFile = (
     heatCapacityPhase: file.heatCapacityPhase,
     heatCapacityTrace: Array.isArray(file.heatCapacityTrace) ? file.heatCapacityTrace : [],
     heatCapacityProcessSamples: file.heatCapacityProcessSamples ?? {},
+    modelConfig: {
+      ...fallback.modelConfig,
+      ambientPressureKPa: Number.isFinite(file.ambientPressureKPa) ? file.ambientPressureKPa : fallback.modelConfig.ambientPressureKPa,
+      ambientTemperatureK: Number.isFinite(file.ambientTemperatureK) ? file.ambientTemperatureK : fallback.modelConfig.ambientTemperatureK,
+      visualizationMode: file.visualizationMode === 'particle' ? file.visualizationMode : fallback.modelConfig.visualizationMode,
+      calculationModel: file.calculationModel === 'airHeatCapacityRatio' ? file.calculationModel : fallback.modelConfig.calculationModel,
+      theoreticalGamma: Number.isFinite(file.theoreticalGamma) ? file.theoreticalGamma : fallback.modelConfig.theoreticalGamma,
+      sensor: {
+        ...fallback.modelConfig.sensor,
+        pressureSensitivityMvPerKPa: Number.isFinite(file.pressureSensitivityMvPerKPa)
+          ? file.pressureSensitivityMvPerKPa
+          : fallback.modelConfig.sensor.pressureSensitivityMvPerKPa,
+      },
+    },
   };
 };
 
@@ -624,6 +648,9 @@ const mergeHeatCapacityRuntimeState = (
     temperatureSignalMv: temperatureSignalDisplayRounded,
     pressureSignalMv: pressureSignalDisplayRounded,
     pressureKPa: powerOn ? roundNumber(runtime.gasPressureKPaAbs, 2) : null,
+    visualizationMode: runtime.modelConfig.visualizationMode,
+    calculationModel: runtime.modelConfig.calculationModel,
+    pressureSensitivityMvPerKPa: runtime.modelConfig.sensor.pressureSensitivityMvPerKPa,
     pressurePlaceholder: roundNumber(runtime.gasPressureKPaAbs, 2),
     temperaturePlaceholder: roundNumber(runtime.gasTemperatureK, 3),
     heatCapacityPhase: runtime.heatCapacityPhase,
@@ -844,9 +871,12 @@ export const prepareHeatCapacityAutoDemoStart = (
     lastPumpTime: null,
     pumpStrokeCount: 0,
     pumpHint: '自动演示已启动',
+    visualizationMode: file.visualizationMode,
+    calculationModel: file.calculationModel,
+    pressureSensitivityMvPerKPa: file.pressureSensitivityMvPerKPa,
     pressurePlaceholder: file.ambientPressureKPa,
     temperaturePlaceholder: file.ambientTemperatureK,
-    recordedPressures: { p0: null, p1: null, p2: null },
+    recordedPressures: { p0: file.ambientPressureKPa, p1: null, p2: null },
     heatCapacityTrace: [],
     heatCapacityProcessSamples: {},
     updatedAt: now,
@@ -1150,14 +1180,70 @@ export const createDefaultHeatCapacityFile = (
     pressurePlaceholder: roundNumber(runtime.gasPressureKPaAbs, 2),
     temperaturePlaceholder: roundNumber(runtime.gasTemperatureK, 3),
     recordedPressures: {
-      p0: null,
+      p0: runtime.modelConfig.ambientPressureKPa,
       p1: null,
       p2: null,
     },
+    visualizationMode: runtime.modelConfig.visualizationMode,
+    calculationModel: runtime.modelConfig.calculationModel,
+    pressureSensitivityMvPerKPa: runtime.modelConfig.sensor.pressureSensitivityMvPerKPa,
     heatCapacityTrace: runtime.heatCapacityTrace,
     heatCapacityProcessSamples: runtime.heatCapacityProcessSamples,
-    theoreticalGamma: 5 / 3,
+    theoreticalGamma: runtime.modelConfig.theoreticalGamma,
   };
+};
+
+const createHeatCapacitySampleFromTrace = (
+  key: HeatCapacitySample['key'],
+  label: string,
+  note: string,
+  point: HeatCapacityTracePoint | undefined,
+): HeatCapacitySample | null => {
+  if (!point) return null;
+  return {
+    key,
+    label,
+    timeS: point.timeS,
+    phase: point.phase,
+    pressureSignalMv: point.pressureSignalMv,
+    temperatureSignalMv: point.temperatureSignalMv,
+    note,
+  };
+};
+
+export const getHeatCapacityAirGammaResult = (file: WorkbenchHeatCapacityState): HeatCapacityResult => {
+  const zeroedSample = file.heatCapacityProcessSamples.zeroedSample;
+  const beforeReleaseSample = file.heatCapacityProcessSamples.stableBeforeReleaseSample
+    ?? file.heatCapacityProcessSamples.beforeReleaseSample
+    ?? file.heatCapacityProcessSamples.pumpPeakSample
+    ?? null;
+  const recoverySample = file.heatCapacityProcessSamples.recoverySample ?? null;
+  const samples = [
+    createHeatCapacitySampleFromTrace(
+      'zeroed',
+      'U0 zeroed pressure signal',
+      'Pressure display is zeroed before formal pumping.',
+      zeroedSample,
+    ),
+    createHeatCapacitySampleFromTrace(
+      'beforeRelease',
+      'U1 before quick release',
+      'Bottle is sealed and stable before the quick release.',
+      beforeReleaseSample ?? undefined,
+    ),
+    createHeatCapacitySampleFromTrace(
+      'afterRecovery',
+      'U2 after thermal recovery',
+      'Stopcock is closed and the gas has recovered toward ambient temperature.',
+      recoverySample ?? undefined,
+    ),
+  ].filter((sample): sample is HeatCapacitySample => sample !== null);
+
+  return calculateHeatCapacityGamma(samples, {
+    atmosphericPressureKPa: file.ambientPressureKPa,
+    pressureSensitivityMvPerKPa: file.pressureSensitivityMvPerKPa,
+    theoreticalGamma: file.theoreticalGamma,
+  });
 };
 
 export const createInitialWorkbenchFiles = (): WorkbenchFileState[] => [

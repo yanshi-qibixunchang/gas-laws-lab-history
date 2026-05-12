@@ -70,6 +70,10 @@ const GLASS_HOVER_EMISSIVE_INTENSITY = 0.18;
 const GLASS_HOVER_HALO_OPACITY = 0.16;
 const PUMP_VALVE_TRANSITION_MS = 420;
 const DISABLE_RAYCAST: THREE.Object3D['raycast'] = () => undefined;
+const DEFAULT_CAMERA_POSITION: [number, number, number] = [4.15, 2.9, 8.25];
+const DEFAULT_CAMERA_TARGET: [number, number, number] = [0.25, -0.05, 0];
+const ORBIT_MIN_DISTANCE = 2.7;
+const ORBIT_MAX_DISTANCE = 11.5;
 
 const STOPCOCK_OPEN_ANGLES = [
   HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
@@ -1430,8 +1434,8 @@ function CameraRig({
       nextPosition.set(2.95, 0.25, 3.35);
       nextTarget.set(1.65, -0.45, 0.95);
     } else {
-      nextPosition.set(3.6, 2.55, 7);
-      nextTarget.set(0.25, -0.05, 0);
+      nextPosition.set(...DEFAULT_CAMERA_POSITION);
+      nextTarget.set(...DEFAULT_CAMERA_TARGET);
     }
 
     let frameId = 0;
@@ -1508,7 +1512,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const interactionHints = getHeatCapacityInteractionHints(focusMode);
   const hoverTooltip = getHeatCapacityHoverTooltip(hoveredControl, props.pumpValveOpen);
   const canvasProps = useMemo(() => ({
-    camera: { position: [3.6, 2.55, 7] as [number, number, number], fov: 38 },
+    camera: { position: DEFAULT_CAMERA_POSITION, fov: 38 },
     shadows: true,
   }), []);
 
@@ -1549,11 +1553,11 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           ref={controlsRef}
           makeDefault
           enabled={focusMode === 'none' && !props.interactionLocked}
-          target={[0.25, -0.05, 0]}
+          target={DEFAULT_CAMERA_TARGET}
           enablePan={true}
           enableZoom={true}
-          minDistance={3.2}
-          maxDistance={7.2}
+          minDistance={ORBIT_MIN_DISTANCE}
+          maxDistance={ORBIT_MAX_DISTANCE}
           minPolarAngle={0.62}
           maxPolarAngle={1.42}
         />

@@ -515,7 +515,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
   'zh-CN': {
     menus: {
       newStudy: '新建研究', edit: '编辑', window: '窗口', settings: '设置', help: '帮助', general: '通用',
-      standardStudy: '标准模拟研究', idealStudy: '理想气体模拟研究', heatCapacityStudy: '硬球比热容比实验', undo: '撤销', redo: '重做', empty: '空',
+      standardStudy: '标准模拟研究', idealStudy: '理想气体模拟研究', heatCapacityStudy: '空气比热容比实验', undo: '撤销', redo: '重做', empty: '空',
       clearEditHistory: '清空编辑历史', panelsFor: (name) => name + ' 的面板', resetDefaultLayout: '恢复默认布局', default: '默认',
       performanceMode: '性能模式', exportEnvironment: '导出环境', saveWorkbenchLayoutDefault: '保存当前窗口布局为默认',
       userGuide: '用户指南', theoryPdf: '理论文档 PDF', about: '关于 Hard Sphere Workbench',
@@ -529,7 +529,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
     files: {
       openFiles: '打开文件', files: '文件', panels: '面板', noOpenFiles: '没有打开的文件', emptyHint: '创建一个研究以填充工作区。',
       noOpenStudy: '没有打开的研究', emptyTitle: '开始新的硬球工作台文件', emptyBody: '创建标准模拟或理想气体关系研究，以恢复预览、图表、结果和参数面板。',
-      createStandard: '创建标准模拟研究', createIdeal: '创建理想气体模拟研究', createHeatCapacity: '创建硬球比热容比实验', rename: '重命名', delete: '删除', confirmDelete: '确认删除', cancel: '取消',
+      createStandard: '创建标准模拟研究', createIdeal: '创建理想气体模拟研究', createHeatCapacity: '创建空气比热容比实验', rename: '重命名', delete: '删除', confirmDelete: '确认删除', cancel: '取消',
       locked: '锁定', shown: '显示', open: '打开', active: '活动', off: '关闭', std: '标准', ideal: '理想', heat: 'HEAT',
     },
     panels: {
@@ -540,12 +540,12 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
     },
     parameters: {
       title: '当前参数', currentFileValues: '当前文件值', lockedUntilStopped: '停止或完成前锁定', editValues: '编辑参数值', hide: '隐藏',
-      standardSimulation: '标准模拟', idealSimulation: '理想气体模拟', heatCapacityExperiment: '硬球比热容比实验', savedChangesOnStart: '启动时已保存参数', idealRuntimeOnStart: '理想运行时将在开始时连接', applied: '参数已应用',
+      standardSimulation: '标准模拟', idealSimulation: '理想气体模拟', heatCapacityExperiment: '空气比热容比实验', savedChangesOnStart: '启动时已保存参数', idealRuntimeOnStart: '理想运行时将在开始时连接', applied: '参数已应用',
       relation: '关系', scanVariable: '扫描变量', samplingPreset: '采样预设', targetTemperature: '目标温度', boxLength: '盒长 L', particleCount: '粒子数 N', customPreset: '自定义', setSamplingPrecision: '设置采样精度',
       parameterLabels: { N: 'N（粒子）', r: 'r', L: 'L', dt: 'dt', nu: 'nu', targetTemperature: '目标温度', equilibriumTime: '平衡时间（s）', statsDuration: '统计时长（s）', relation: '关系' },
       samplingPresets: { fast: '快速', balanced: '平衡', stable: '稳定' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's 平衡 / ' + statsDuration + 's 统计',
       advancedSettings: '高级设置', advancedShow: '显示模型常数和采样值', advancedHide: '隐藏模型常数和采样值', edit: '编辑', save: '保存', saveHint: '保存高级参数到当前工作台文件',
-      standardReadonlyNote: '标准模拟参数在这里直接显示。', idealReadonlyNote: '关系、扫描变量和采样预设在上方控制。', heatCapacityReadonlyNote: '建议这里保留可调的骨架参数：粒子数、瓶体尺寸、硬球半径、时间步长、等待时间和记录窗口。', controlledLockHint: '当前关系已有数据，受控变量已锁定。',
+      standardReadonlyNote: '标准模拟参数在这里直接显示。', idealReadonlyNote: '关系、扫描变量和采样预设在上方控制。', heatCapacityReadonlyNote: '粒子动画仅用于可视化气体分子运动状态；最终比热容比按 FD-NCD-C 空气实验模型计算。', controlledLockHint: '当前关系已有数据，受控变量已锁定。',
     },
     results: {
       title: '结果', experimentStatus: '实验状态', scan: '扫描', measuredPressure: '实测 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 点', recordedPoints: (count) => count + ' 个记录点',
@@ -570,7 +570,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
   'zh-TW': {
     menus: {
       newStudy: '新增研究', edit: '編輯', window: '視窗', settings: '設定', help: '說明', general: '一般',
-      standardStudy: '標準模擬研究', idealStudy: '理想氣體模擬研究', heatCapacityStudy: '硬球比熱容比實驗', undo: '復原', redo: '重做', empty: '空',
+      standardStudy: '標準模擬研究', idealStudy: '理想氣體模擬研究', heatCapacityStudy: '空氣比熱容比實驗', undo: '復原', redo: '重做', empty: '空',
       clearEditHistory: '清除編輯記錄', panelsFor: (name) => name + ' 的面板', resetDefaultLayout: '還原預設版面', default: '預設',
       performanceMode: '效能模式', exportEnvironment: '匯出環境', saveWorkbenchLayoutDefault: '將目前視窗版面存為預設',
       userGuide: '使用指南', theoryPdf: '理論文件 PDF', about: '關於 Hard Sphere Workbench',
@@ -584,7 +584,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
     files: {
       openFiles: '開啟檔案', files: '檔案', panels: '面板', noOpenFiles: '沒有開啟的檔案', emptyHint: '建立一個研究以填入工作區。',
       noOpenStudy: '沒有開啟的研究', emptyTitle: '開始新的硬球工作台檔案', emptyBody: '建立標準模擬或理想氣體關係研究，以恢復預覽、圖表、結果和參數面板。',
-      createStandard: '建立標準模擬研究', createIdeal: '建立理想氣體模擬研究', createHeatCapacity: '建立硬球比熱容比實驗', rename: '重新命名', delete: '刪除', confirmDelete: '確認刪除', cancel: '取消',
+      createStandard: '建立標準模擬研究', createIdeal: '建立理想氣體模擬研究', createHeatCapacity: '建立空氣比熱容比實驗', rename: '重新命名', delete: '刪除', confirmDelete: '確認刪除', cancel: '取消',
       locked: '鎖定', shown: '顯示', open: '開啟', active: '作用中', off: '關閉', std: '標準', ideal: '理想', heat: 'HEAT',
     },
     panels: {
@@ -595,12 +595,12 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
     },
     parameters: {
       title: '目前參數', currentFileValues: '目前檔案值', lockedUntilStopped: '停止或完成前鎖定', editValues: '編輯參數值', hide: '隱藏',
-      standardSimulation: '標準模擬', idealSimulation: '理想氣體模擬', heatCapacityExperiment: '硬球比熱容比實驗', savedChangesOnStart: '啟動時已儲存參數', idealRuntimeOnStart: '理想執行階段將在開始時連接', applied: '參數已套用',
+      standardSimulation: '標準模擬', idealSimulation: '理想氣體模擬', heatCapacityExperiment: '空氣比熱容比實驗', savedChangesOnStart: '啟動時已儲存參數', idealRuntimeOnStart: '理想執行階段將在開始時連接', applied: '參數已套用',
       relation: '關係', scanVariable: '掃描變量', samplingPreset: '採樣預設', targetTemperature: '目標溫度', boxLength: '盒長 L', particleCount: '粒子數 N', customPreset: '自訂', setSamplingPrecision: '設定採樣精度',
       parameterLabels: { N: 'N（粒子）', r: 'r', L: 'L', dt: 'dt', nu: 'nu', targetTemperature: '目標溫度', equilibriumTime: '平衡時間（s）', statsDuration: '統計時長（s）', relation: '關係' },
       samplingPresets: { fast: '快速', balanced: '平衡', stable: '穩定' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's 平衡 / ' + statsDuration + 's 統計',
       advancedSettings: '進階設定', advancedShow: '顯示模型常數和採樣值', advancedHide: '隱藏模型常數和採樣值', edit: '編輯', save: '儲存', saveHint: '將進階參數儲存到目前工作台檔案',
-      standardReadonlyNote: '標準模擬參數在這裡直接顯示。', idealReadonlyNote: '關係、掃描變量和採樣預設在上方控制。', heatCapacityReadonlyNote: '建議這裡保留可調的骨架參數：粒子數、瓶體尺寸、硬球半徑、時間步長、等待時間和記錄窗口。', controlledLockHint: '目前關係已有資料，受控變量已鎖定。',
+      standardReadonlyNote: '標準模擬參數在這裡直接顯示。', idealReadonlyNote: '關係、掃描變量和採樣預設在上方控制。', heatCapacityReadonlyNote: '粒子動畫僅用於視覺化氣體分子運動狀態；最終比熱容比按 FD-NCD-C 空氣實驗模型計算。', controlledLockHint: '目前關係已有資料，受控變量已鎖定。',
     },
     results: {
       title: '結果', experimentStatus: '實驗狀態', scan: '掃描', measuredPressure: '實測 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 點', recordedPoints: (count) => count + ' 個記錄點',
@@ -2053,7 +2053,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         pumpFrequency: 0,
         pumpFrequencyStatus: 'idle',
         lastPumpTime: null,
-        pumpHint: '正在恢复默认状态，随后开始自动演示',
+        pumpHint: '系统正在自动恢复默认状态，稍后开始演示',
         updatedAt: Date.now(),
       };
     });
@@ -2282,13 +2282,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setAutoDemoStepCount(steps.length);
     setAutoDemoStepIndex(0);
     setAutoDemoStepTitle('准备演示');
-    setAutoDemoStepDescription('先恢复默认状态再演示');
-    setAutoDemoStepTarget('自动演示流程');
-    setAutoDemoStepNote('控件和视角正在恢复默认状态，随后从开启电源开始。');
+    setAutoDemoStepDescription('正在初始化自动演示');
+    setAutoDemoStepTarget('自动演示准备');
+    setAutoDemoStepNote('系统正在自动复位控件、视角和演示数据；完成后将从开启电源步骤开始。');
     setAutoDemoToastMessage(null);
     setAutoDemoCompletionMessage(null);
     setSelectedPanel('preview');
-    showHeatCapacityAutoDemoCompletionToast('先恢复默认状态再演示', HEAT_CAPACITY_AUTO_DEMO_RESET_MS);
+    showHeatCapacityAutoDemoCompletionToast('正在初始化自动演示', HEAT_CAPACITY_AUTO_DEMO_RESET_MS);
     animateHeatCapacityDefaultReset(demoFileId, HEAT_CAPACITY_AUTO_DEMO_RESET_MS);
     scheduleHeatCapacityAutoDemoTimeline(demoFileId, timeline, 0, HEAT_CAPACITY_AUTO_DEMO_RESET_MS);
     pushLog(`${activeFile.name}: heat-capacity 自动演示已启动。`, 'success');
@@ -3355,9 +3355,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
           lastPumpTime: null,
           pumpStrokeCount: 0,
           pumpHint: '未打气',
-          pressurePlaceholder: 101.33,
-          temperaturePlaceholder: 1,
-          recordedPressures: { p0: null, p1: null, p2: null },
+          pressurePlaceholder: file.ambientPressureKPa,
+          temperaturePlaceholder: file.ambientTemperatureK,
+          recordedPressures: { p0: file.ambientPressureKPa, p1: null, p2: null },
           updatedAt: Date.now(),
         };
       });
@@ -5501,7 +5501,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div><span>频率评价</span><strong>{pumpFrequencyStatusLabel}</strong></div>
           <div><span>压差</span><strong>{heatCapacityPoweredNumber(`${formatMetric(activeFile.pressureDeltaKPa, 2)} kPa`)}</strong></div>
           <div><span>安全压力</span><strong>{heatCapacityPoweredReadout(pressureSafetyStatusLabel)}</strong></div>
-          <div><span>采样占位</span><strong>{processSampleCount > 0 ? `已生成 ${processSampleCount}/5` : '--'}</strong></div>
+          <div><span>采样记录</span><strong>{processSampleCount > 0 ? `已生成 ${processSampleCount}/5` : '--'}</strong></div>
         </div>
         <div className="studio-heat-records">
           {processSamples.map(([key, label]) => {
@@ -5519,7 +5519,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           {renderHeatCapacityTraceChart('U_p / mV', 'pressureSignalMv', 'studio-heat-trace-pressure')}
         </div>
         <div className="studio-panel-note">
-          {renderScientificText(`${activeFile.pumpHint}；本批次仅保留过程采样和 U_T / U_p 曲线，不计算 gamma，也不正式记录 p0 / p1 / p2。`)}
+          {renderScientificText(`${activeFile.pumpHint}；粒子动画用于可视化气体分子运动状态。压缩时粒子运动更剧烈，放气膨胀时状态发生变化，回温时逐渐恢复。最终比热容比计算采用空气实验模型。`)}
         </div>
       </div>
     );

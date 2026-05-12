@@ -8,7 +8,7 @@ export const HEAT_CAPACITY_VIDEO_PROFILE = {
   stableTemperatureMvRange: [1525, 1527] as const,
   releasePressureMvRange: [-0.05, 0.1] as const,
   releaseTemperatureMvRange: [1499, 1502] as const,
-  recoveryPressureMvRange: [25, 35] as const,
+  recoveryPressureMvRange: [31, 33] as const,
   recoveryTemperatureMvRange: [1520, 1524] as const,
 };
 

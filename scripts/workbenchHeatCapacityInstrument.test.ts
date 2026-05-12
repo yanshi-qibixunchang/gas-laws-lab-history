@@ -10,6 +10,7 @@ import {
   getHeatCapacityGaugePressureState,
   getHeatCapacityPressureZeroKnobAngleForOffset,
   getHeatCapacityPressureZeroOffsetForKnobAngle,
+  getHeatCapacityAirGammaResult,
   getHeatCapacityStopcockTargetAngle,
   getHeatCapacityStopcockState,
   HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
@@ -51,9 +52,9 @@ assert.equal(defaultFile.pressureZeroKnobAngle, 0);
 assert.equal(defaultFile.pressureZeroOffset, 0);
 assert.equal(defaultFile.pressureZeroAdjustMode, 'none');
 assert.equal(defaultFile.heatCapacityPhase, 'powerOff');
-assert.equal(defaultFile.ambientPressureKPa, 101.33);
+assert.equal(defaultFile.ambientPressureKPa, 101.3);
 assert.equal(defaultFile.ambientTemperatureK, 298.15);
-assert.equal(defaultFile.gasPressureKPaAbs, 101.33);
+assert.equal(defaultFile.gasPressureKPaAbs, 101.3);
 assert.equal(defaultFile.gasTemperatureK, 298.15);
 assert.equal(defaultFile.pressureDeltaKPa, 0);
 assert.equal(defaultFile.pressureRawPlaceholder, 0);
@@ -84,12 +85,71 @@ assert.equal(defaultFile.pumpFrequency, 0);
 assert.equal(defaultFile.pumpFrequencyStatus, 'idle');
 assert.equal(defaultFile.lastPumpTime, null);
 assert.equal(defaultFile.pumpStrokeCount, 0);
-assert.equal(defaultFile.pressurePlaceholder, 101.33);
+assert.equal(defaultFile.visualizationMode, 'particle');
+assert.equal(defaultFile.calculationModel, 'airHeatCapacityRatio');
+assert.equal(defaultFile.pressureSensitivityMvPerKPa, 20);
+assert.equal(defaultFile.theoreticalGamma, 1.4);
+assert.equal(defaultFile.pressurePlaceholder, 101.3);
 assert.equal(defaultFile.temperaturePlaceholder, 298.15);
 assert.deepEqual(defaultFile.heatCapacityTrace, []);
 assert.deepEqual(defaultFile.heatCapacityProcessSamples, {});
 assert.equal(canZeroHeatCapacityPressure(defaultFile), false);
 assert.equal(applyHeatCapacityPressureZero(3.2, 0.7), 2.5);
+
+const defaultAirGamma = getHeatCapacityAirGammaResult(defaultFile);
+assert.equal(defaultAirGamma.status, 'missing-samples');
+assert.equal(defaultAirGamma.ready, false);
+assert.equal(defaultAirGamma.gamma, null);
+
+const readyAirGamma = getHeatCapacityAirGammaResult({
+  ...defaultFile,
+  heatCapacityProcessSamples: {
+    zeroedSample: {
+      timeS: 1,
+      phase: 'zeroed',
+      temperatureSignalMv: initialTemperatureMv,
+      pressureSignalMv: 0,
+      gasTemperatureK: 298.15,
+      gasPressureKPaAbs: 101.3,
+      pressureDeltaKPa: 0,
+      pumpFrequency: 0,
+      pumpValveOpen: false,
+      stopcockOpen: true,
+    },
+    stableBeforeReleaseSample: {
+      timeS: 2,
+      phase: 'sealedStabilizing',
+      temperatureSignalMv: 1526,
+      pressureSignalMv: 120,
+      gasTemperatureK: 304.9,
+      gasPressureKPaAbs: 107.3,
+      pressureDeltaKPa: 6,
+      pumpFrequency: 0.67,
+      pumpValveOpen: false,
+      stopcockOpen: false,
+    },
+    recoverySample: {
+      timeS: 3,
+      phase: 'recovering',
+      temperatureSignalMv: 1522,
+      pressureSignalMv: 32,
+      gasTemperatureK: 303.9,
+      gasPressureKPaAbs: 102.9,
+      pressureDeltaKPa: 1.6,
+      pumpFrequency: 0,
+      pumpValveOpen: false,
+      stopcockOpen: false,
+    },
+  },
+});
+assert.equal(readyAirGamma.status, 'ready');
+assert.equal(readyAirGamma.U1Mv, 120);
+assert.equal(readyAirGamma.U2Mv, 32);
+assert.equal(readyAirGamma.deltaP1KPa, 6);
+assert.equal(readyAirGamma.deltaP2KPa, 1.6);
+assert.equal(readyAirGamma.P1KPa, 107.3);
+assert.equal(readyAirGamma.P2KPa, 102.89999999999999);
+assert.equal(readyAirGamma.gamma !== null && readyAirGamma.gamma > 1.37 && readyAirGamma.gamma < 1.41, true);
 
 const poweredFile = powerHeatCapacityWorkbenchFile(defaultFile, true, 1_000);
 assert.equal(poweredFile.powerOn, true);
