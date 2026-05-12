@@ -28,6 +28,11 @@ __pycache__/
 .codex/
 .playwright-cli/
 output/
+output-*.png
+output-*.jpg
+output-*.jpeg
+output-*.webm
+output-*.mp4
 tmp/
 install-test/
 tools/exporter/examples/*.json

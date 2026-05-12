@@ -23,7 +23,7 @@ assert.match(
 
 assert.match(
   source,
-  /const commitRenameFileFromOutside = \(\) => \{[\s\S]*?pushLog\('File name cannot be empty\.', 'error'\);[\s\S]*?setRenamingFileId\(null\);[\s\S]*?setRenameDraft\(''\);[\s\S]*?\};/,
+  /const commitRenameFileFromOutside = \(\) => \{[\s\S]*?pushLog\(workbenchCopy\.logs\.fileNameCannotBeEmpty, 'error'\);[\s\S]*?setRenamingFileId\(null\);[\s\S]*?setRenameDraft\(''\);[\s\S]*?\};/,
   'outside rename commit should log the existing empty-name error and exit rename mode when the draft is blank',
 );
 

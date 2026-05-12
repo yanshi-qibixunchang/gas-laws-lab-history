@@ -66,7 +66,7 @@ assert.match(
 
 assert.match(
   source,
-  /className=\{`studio-window-switch \$\{visible \? 'studio-window-switch-on' : 'studio-window-switch-off'\}\$\{locked \? ' studio-window-switch-locked' : ''\}`\}/,
+  /className=\{`studio-window-switch \$\{switchOn \? 'studio-window-switch-on' : 'studio-window-switch-off'\}\$\{locked \? ' studio-window-switch-locked' : ''\}`\}/,
   'Window menu should render a stateful capsule switch for each panel',
 );
 
@@ -144,7 +144,7 @@ assert.match(
 
 assert.match(
   source,
-  /className=\{`studio-window-switch \$\{visible \? 'studio-window-switch-on' : 'studio-window-switch-off'\}\$\{locked \? ' studio-window-switch-locked' : ''\}`\}/,
+  /className=\{`studio-window-switch \$\{switchOn \? 'studio-window-switch-on' : 'studio-window-switch-off'\}\$\{locked \? ' studio-window-switch-locked' : ''\}`\}/,
   'locked visible panels should still render the capsule switch in the on position',
 );
 

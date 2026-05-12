@@ -977,11 +977,6 @@
   box-shadow: none !important;
 }
 
-.studio-theme-light .studio-file-menu-confirm {
-  background: #fff1f2;
-  color: #b42318 !important;
-}
-
 .studio-theme-light .studio-file-menu-cancel {
   color: var(--studio-muted) !important;
 }
@@ -2571,6 +2566,21 @@
   font-size: 0;
 }
 
+.studio-panel-actions .studio-heat-auto-demo-control {
+  display: inline-flex;
+  width: auto;
+  min-width: 76px;
+  gap: 5px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.studio-panel-actions .studio-heat-auto-demo-control span {
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .studio-panel-actions .studio-run-control:hover {
   color: inherit;
 }
@@ -2643,6 +2653,7 @@
 }
 
 .studio-heat-preview-mount {
+  position: relative;
   width: 100%;
   height: 100%;
   min-height: 360px;
@@ -2727,6 +2738,114 @@
   border-color: rgba(147, 197, 253, 0.75);
   background: rgba(30, 41, 59, 0.86);
   color: #eff6ff;
+}
+
+.studio-heat-demo-step-panel {
+  position: absolute;
+  right: 14px;
+  top: 48px;
+  z-index: 5;
+  display: grid;
+  gap: 7px;
+  width: min(330px, calc(100% - 28px));
+  border: 1px solid rgba(103, 232, 249, 0.42);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.78);
+  box-shadow: 0 16px 34px rgba(2, 8, 23, 0.34);
+  color: #dbeafe;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.35;
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+}
+
+.studio-heat-demo-step-kicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #67e8f9;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.studio-heat-demo-step-kicker i {
+  color: rgba(191, 219, 254, 0.72);
+  font-style: normal;
+}
+
+.studio-heat-demo-step-panel strong {
+  color: #7dd3fc;
+  font-size: 14px;
+}
+
+.studio-heat-demo-step-panel p {
+  margin: 0;
+  color: rgba(219, 234, 254, 0.92);
+}
+
+.studio-heat-demo-step-panel div:not(.studio-heat-demo-step-kicker) {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+
+.studio-heat-demo-step-panel span {
+  color: rgba(147, 197, 253, 0.82);
+}
+
+.studio-heat-demo-step-panel em {
+  overflow: hidden;
+  color: rgba(240, 249, 255, 0.9);
+  font-style: normal;
+  text-overflow: clip;
+}
+
+.studio-heat-demo-step-panel sub,
+.studio-realtime-panel-heat sub {
+  font-size: 0.7em;
+  line-height: 0;
+}
+
+.studio-heat-demo-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: 6;
+  min-width: 152px;
+  border: 1px solid rgba(186, 230, 253, 0.38);
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.86);
+  box-shadow: 0 14px 30px rgba(2, 8, 23, 0.38);
+  color: #f8fafc;
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 12px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.studio-heat-demo-complete-toast {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 7;
+  min-width: 168px;
+  border: 1px solid rgba(125, 211, 252, 0.54);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: 0 18px 40px rgba(2, 8, 23, 0.45);
+  color: #e0f2fe;
+  padding: 12px 18px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  backdrop-filter: blur(10px);
 }
 
 .studio-heat-focus-panel {
@@ -3289,7 +3408,7 @@
 }
 
 .studio-heat-records {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
 }
 
 .studio-heat-data-grid div,
@@ -3317,6 +3436,47 @@
   font-family: "JetBrains Mono", Consolas, monospace;
   font-size: 13px;
   line-height: 1.25;
+}
+
+.studio-heat-trace-charts {
+  display: grid;
+  min-height: 260px;
+  grid-template-rows: repeat(2, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.studio-heat-trace-chart {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: 24px minmax(0, 1fr) 18px;
+  overflow: hidden;
+  border: 1px solid var(--studio-border-soft);
+  background: rgba(16, 21, 27, 0.78);
+}
+
+.studio-heat-trace-chart svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 8px;
+}
+
+.studio-heat-trace-chart polyline {
+  fill: none;
+  stroke: #7dd3fc;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+}
+
+.studio-heat-trace-pressure polyline {
+  stroke: #86efac;
+}
+
+.studio-heat-trace-grid {
+  stroke: rgba(148, 163, 184, 0.22);
+  stroke-width: 1;
 }
 
 .studio-live-charts {

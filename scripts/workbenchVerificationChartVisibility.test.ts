@@ -16,6 +16,8 @@ const getRuleBody = (selector: string) => {
 const childWindowBody = getRuleBody('.studio-ideal-child-window-body');
 const verificationPanel = getRuleBody('.studio-verification-panel');
 const verificationLayout = getRuleBody('.studio-verification-main-layout');
+const verificationPvLayout = getRuleBody('.studio-verification-layout-pv');
+const verificationSingleLayout = getRuleBody('.studio-verification-layout-single');
 const verificationSide = getRuleBody('.studio-verification-side');
 const verificationSideGrid = getRuleBody('.studio-verification-side .studio-analysis-grid');
 
@@ -37,15 +39,15 @@ assert.doesNotMatch(
   'Verification panel must not create a nested scroll area that clips the chart',
 );
 
-assert.doesNotMatch(
+assert.match(
   verificationPanel,
   /min-height:\s*0/,
-  'Verification panel must contribute its chart height to the outer grid flow',
+  'Verification panel should allow the fixed internal workspace to size inside the result window',
 );
 
 assert.match(
   source,
-  /<div className="studio-verification-main-layout">[\s\S]*?<div className="studio-verification-chart-column">[\s\S]*?<section className="studio-verification-chart-section">[\s\S]*?renderIdealValidationChart\(idealAnalysis\)[\s\S]*?<div className="studio-verification-side">[\s\S]*?studio-result-status[\s\S]*?studio-analysis-grid[\s\S]*?<\/div>/,
+  /<div className=\{`studio-verification-main-layout \$\{isPvVerification \? 'studio-verification-layout-pv' : 'studio-verification-layout-single'\}`\}>[\s\S]*?<div className="studio-verification-chart-column">[\s\S]*?<section className="studio-verification-chart-section studio-verification-chart-primary">[\s\S]*?renderIdealValidationChart\(idealAnalysis\)[\s\S]*?<div className="studio-verification-side">[\s\S]*?studio-result-status[\s\S]*?studio-analysis-grid[\s\S]*?<\/div>/,
   'Verification window should lay out chart content on the left and status metrics on the right',
 );
 
@@ -57,8 +59,20 @@ assert.match(
 
 assert.match(
   verificationLayout,
-  /grid-template-columns:\s*minmax\(420px,\s*1fr\)\s+minmax\(360px,\s*0\.9fr\)/,
-  'Verification local layout should use chart-left and status-right columns on desktop',
+  /display:\s*grid/,
+  'Verification local layout should use a grid container',
+);
+
+assert.match(
+  verificationPvLayout,
+  /grid-template-columns:\s*minmax\(440px,\s*1fr\)\s+minmax\(340px,\s*0\.82fr\)/,
+  'P-V Verification local layout should use chart-left and status-right columns on desktop',
+);
+
+assert.match(
+  verificationSingleLayout,
+  /grid-template-columns:\s*minmax\(460px,\s*1\.12fr\)\s+minmax\(340px,\s*0\.88fr\)/,
+  'Single-chart Verification local layout should use chart-left and status-right columns on desktop',
 );
 
 assert.match(
@@ -75,26 +89,38 @@ assert.match(
 
 assert.match(
   getRuleBody('.studio-verification-chart-section'),
-  /min-height:\s*160px/,
-  'Verification chart sections should keep a visible chart-sized block in the outer scroll flow',
+  /min-height:\s*0/,
+  'Verification chart sections should allow the variant-specific chart sizing rules to fit the window',
+);
+
+assert.match(
+  getRuleBody('.studio-verification-layout-single .studio-verification-chart-primary'),
+  /min-height:\s*300px/,
+  'Single-chart Verification layout should reserve enough vertical space for the chart',
+);
+
+assert.match(
+  getRuleBody('.studio-verification-layout-pv .studio-verification-chart-primary'),
+  /min-height:\s*210px/,
+  'P-V Verification primary chart should keep a visible compact chart block',
+);
+
+assert.match(
+  getRuleBody('.studio-verification-layout-pv .studio-verification-chart-secondary'),
+  /min-height:\s*190px/,
+  'P-V Verification secondary chart should keep a visible compact chart block',
 );
 
 assert.match(
   getRuleBody('.studio-verification-chart-section .studio-ideal-chart-card'),
-  /height:\s*168px/,
-  'Verification chart card should use a compact fixed preview height',
+  /height:\s*100%/,
+  'Verification chart card should fill its variant-sized chart section',
 );
 
 assert.match(
-  getRuleBody('.studio-verification-chart-section .studio-ideal-chart-card svg'),
-  /height:\s*140px/,
-  'Verification chart SVG should not grow from its intrinsic aspect ratio',
-);
-
-assert.match(
-  getRuleBody('.studio-verification-chart-section .studio-ideal-chart-card svg'),
-  /min-height:\s*140px/,
-  'Verification chart SVG should be compact inside the left-column preview',
+  getRuleBody('.studio-verification-layout-pv .studio-verification-chart-primary .studio-ideal-chart-card svg'),
+  /min-height:\s*116px/,
+  'P-V Verification chart SVGs should remain compact inside the left-column preview',
 );
 
 console.log('workbenchVerificationChartVisibility tests passed');

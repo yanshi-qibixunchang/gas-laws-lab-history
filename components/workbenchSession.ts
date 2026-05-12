@@ -30,6 +30,57 @@ const normalizeNullableNumber = (value: unknown) => (
   typeof value === 'number' && Number.isFinite(value) ? value : null
 );
 
+const heatCapacitySampleKeys = [
+  'startSample',
+  'afterPumpSample',
+  'beforeReleaseSample',
+  'afterReleaseSample',
+  'recoverySample',
+] as const;
+
+const normalizeHeatCapacityTracePoint = (value: unknown) => {
+  if (!isRecord(value)) return null;
+  const timeS = normalizeNullableNumber(value.timeS);
+  const temperatureSignalMv = normalizeNullableNumber(value.temperatureSignalMv);
+  const pressureSignalMv = normalizeNullableNumber(value.pressureSignalMv);
+  const gasTemperatureK = normalizeNullableNumber(value.gasTemperatureK);
+  const gasPressureKPaAbs = normalizeNullableNumber(value.gasPressureKPaAbs);
+  const pressureDeltaKPa = normalizeNullableNumber(value.pressureDeltaKPa);
+  const pumpFrequency = normalizeNullableNumber(value.pumpFrequency);
+  if (
+    timeS === null ||
+    temperatureSignalMv === null ||
+    pressureSignalMv === null ||
+    gasTemperatureK === null ||
+    gasPressureKPaAbs === null ||
+    pressureDeltaKPa === null ||
+    pumpFrequency === null
+  ) {
+    return null;
+  }
+  return {
+    timeS,
+    phase: typeof value.phase === 'string' ? value.phase : 'readyToZero',
+    temperatureSignalMv,
+    pressureSignalMv,
+    gasTemperatureK,
+    gasPressureKPaAbs,
+    pressureDeltaKPa,
+    pumpFrequency,
+    pumpValveOpen: value.pumpValveOpen === true,
+    stopcockOpen: value.stopcockOpen === true,
+  };
+};
+
+const normalizeHeatCapacityProcessSamples = (value: unknown) => {
+  if (!isRecord(value)) return {};
+  return heatCapacitySampleKeys.reduce<Record<string, ReturnType<typeof normalizeHeatCapacityTracePoint>>>((samples, key) => {
+    const point = normalizeHeatCapacityTracePoint(value[key]);
+    if (point) samples[key] = point;
+    return samples;
+  }, {});
+};
+
 const fallbackSession = (): WorkbenchSessionState => {
   return {
     version: WORKBENCH_SESSION_VERSION,
@@ -65,6 +116,9 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
     const pressureZeroAdjustMode = file.pressureZeroAdjustMode === 'fineWheel' || file.pressureZeroAdjustMode === 'coarseDrag'
       ? file.pressureZeroAdjustMode
       : 'none';
+    const heatCapacityTrace = Array.isArray(file.heatCapacityTrace)
+      ? file.heatCapacityTrace.map(normalizeHeatCapacityTracePoint).filter((point): point is NonNullable<typeof point> => point !== null)
+      : fallback.heatCapacityTrace;
     return {
       ...fallback,
       ...file,
@@ -77,6 +131,18 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       selectedHeatCapacityPanel: file.selectedHeatCapacityPanel === 'realtime' ? 'realtime' : 'preview',
       stopcockAngleDeg,
       glassPistonState: getHeatCapacityStopcockState(stopcockAngleDeg),
+      ambientPressureKPa: normalizeNullableNumber(file.ambientPressureKPa) ?? fallback.ambientPressureKPa,
+      ambientTemperatureK: normalizeNullableNumber(file.ambientTemperatureK) ?? fallback.ambientTemperatureK,
+      gasPressureKPaAbs: normalizeNullableNumber(file.gasPressureKPaAbs) ?? fallback.gasPressureKPaAbs,
+      gasTemperatureK: normalizeNullableNumber(file.gasTemperatureK) ?? fallback.gasTemperatureK,
+      pressureDeltaKPa: normalizeNullableNumber(file.pressureDeltaKPa) ?? fallback.pressureDeltaKPa,
+      simulationTimeS: normalizeNullableNumber(file.simulationTimeS) ?? fallback.simulationTimeS,
+      lastUpdateMs: normalizeNullableNumber(file.lastUpdateMs),
+      pressureSignalMvRaw: normalizeNullableNumber(file.pressureSignalMvRaw) ?? pressureRawPlaceholder,
+      pressureSignalMvDisplayed: normalizeNullableNumber(file.pressureSignalMvDisplayed) ?? pressureDisplayedPlaceholder,
+      temperatureSignalTargetMv: normalizeNullableNumber(file.temperatureSignalTargetMv) ?? fallback.temperatureSignalTargetMv,
+      pressureSignalTargetMv: normalizeNullableNumber(file.pressureSignalTargetMv) ?? pressureDisplayedPlaceholder,
+      displayResponseLastUpdateMs: normalizeNullableNumber(file.displayResponseLastUpdateMs),
       pressureZeroed: pressureZeroAdjusted,
       pressureZeroAdjusted,
       pressureZeroKnobAngle: normalizeNullableNumber(file.pressureZeroKnobAngle) ?? fallback.pressureZeroKnobAngle,
@@ -106,6 +172,11 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       recordedPressures: {
         ...fallback.recordedPressures,
         ...file.recordedPressures,
+      },
+      heatCapacityTrace,
+      heatCapacityProcessSamples: {
+        ...fallback.heatCapacityProcessSamples,
+        ...normalizeHeatCapacityProcessSamples(file.heatCapacityProcessSamples),
       },
     };
   }

@@ -66,13 +66,13 @@ assert.match(
 
 assert.match(
   source,
-  /className=\{`studio-run-control studio-run-control-\$\{activeFile\.runState === 'running' \? 'pause' : 'start'\}`\}/,
+  /className=\{`studio-run-control studio-run-control-\$\{activeFile\.kind === 'heatCapacity'[\s\S]*?activeFile\.runState === 'running' \? 'pause' : 'start'\} \$\{activeFile\.kind === 'heatCapacity' \? 'studio-heat-auto-demo-control' : ''\}`\}/,
   'the combined run/pause button should carry state-specific green styling hooks',
 );
 
 assert.match(
   source,
-  /\{\(activeFile\.runState === 'running' \|\| activeFile\.runState === 'paused'\) \? \([\s\S]*?className="studio-run-control studio-run-control-stop"/,
+  /\{\(activeFile\.runState === 'running' \|\| activeFile\.runState === 'paused' \|\| \(activeFile\.kind === 'heatCapacity' && \(autoDemoRunning \|\| autoDemoPaused\)\)\) \? \([\s\S]*?className="studio-run-control studio-run-control-stop"/,
   'the stop button should only render after a simulation has started',
 );
 

@@ -17,7 +17,7 @@ assert.match(
 );
 assert.match(
   stateSource,
-  /idealWindowLayout:\s*createDefaultIdealWindowLayout\(\)/,
+  /idealWindowLayout:\s*createDefaultIdealWindowLayout\(\{ heightRatio: defaults\?\.resultsHeightRatio \}\)/,
   'new ideal files should receive default ideal result child window layout',
 );
 
@@ -28,12 +28,12 @@ assert.match(
 );
 assert.match(
   source,
-  /loadIdealResultWindowDefaults/,
+  /loadWorkbenchLayoutDefaults/,
   'workbench should load ideal result window defaults from localStorage',
 );
 assert.match(
   source,
-  /saveCurrentIdealResultWindowLayoutAsDefault/,
+  /saveCurrentWorkbenchLayoutAsDefault/,
   'Settings should save the current ideal result window layout as the global default',
 );
 assert.match(

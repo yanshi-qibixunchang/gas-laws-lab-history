@@ -10,6 +10,22 @@ import {
   createEmptyPointsByRelation,
   type PointsByRelation,
 } from '../utils/idealGasExperiment.ts';
+import {
+  applyHeatCapacityPumpStroke as applyHeatCapacityRuntimePumpStroke,
+  captureHeatCapacityProcessSample,
+  createDefaultHeatCapacityRuntimeState,
+  powerHeatCapacityRuntimeState,
+  stepHeatCapacityExperiment,
+  updateHeatCapacityRuntimeZeroOffset,
+  type HeatCapacityProcessSampleKey,
+  type HeatCapacityProcessSamples,
+  type HeatCapacityRuntimePhase,
+  type HeatCapacityRuntimeState,
+  type HeatCapacityTracePoint,
+} from './heatCapacity/heatCapacityExperimentModel.ts';
+import {
+  applyPressureZero,
+} from './heatCapacity/heatCapacitySensorMapping.ts';
 
 export type WorkbenchFileKind = 'standard' | 'ideal' | 'heatCapacity';
 export type WorkbenchRunState = 'idle' | 'running' | 'paused' | 'finished' | 'needs-reset';
@@ -56,16 +72,75 @@ export const HEAT_CAPACITY_PUMP_FREQUENCY_WINDOW_MS = 3000;
 export const HEAT_CAPACITY_MIN_PUMP_FREQUENCY = 0.5;
 export const HEAT_CAPACITY_PRESSURE_RAW_PLACEHOLDER_MV = 3.2;
 export const HEAT_CAPACITY_PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 2;
-export const HEAT_CAPACITY_PRESSURE_ZERO_FINE_OFFSET_STEP_MV = 0.05;
 export const HEAT_CAPACITY_PRESSURE_ZERO_COARSE_OFFSET_PER_DEG_MV = 0.01;
 export const HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MIN_MV = -6;
 export const HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MAX_MV = 6;
+export const HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG = -540;
+export const HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG = 540;
 
 const normalizeDegrees360 = (value: number) => ((value % 360) + 360) % 360;
 const clampNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const roundNumber = (value: number, digits = 2) => {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
+};
+
+const createHeatCapacityAutoDemoInitialBiasMv = () => {
+  const magnitude = 0.3 + Math.random() * 1.2;
+  const sign = Math.random() < 0.5 ? -1 : 1;
+  return roundNumber(magnitude * sign, 2);
+};
+
+const getHeatCapacityDisplayJitter = (
+  now: number,
+  amplitude: number,
+  seed: number,
+) => (
+  Math.sin(now / (117 + seed * 19) + seed) * amplitude
+  + Math.sin(now / (211 + seed * 23) + seed * 2.7) * amplitude * 0.38
+);
+
+const getHeatCapacityDisplayValue = ({
+  current,
+  target,
+  previousTarget,
+  elapsedS,
+  now,
+  riseRate,
+  fallRate,
+  overshootRatio,
+  settleNoiseAmplitude,
+  jitterSeed,
+}: {
+  current: number | null;
+  target: number;
+  previousTarget: number;
+  elapsedS: number;
+  now: number;
+  riseRate: number;
+  fallRate: number;
+  overshootRatio: number;
+  settleNoiseAmplitude: number;
+  jitterSeed: number;
+}) => {
+  if (current === null || !Number.isFinite(current)) return target;
+  const displayDt = clampNumber(elapsedS, 0, 0.18);
+  const delta = target - current;
+  const rate = delta >= 0 ? riseRate : fallRate;
+  const response = 1 - Math.exp(-rate * displayDt);
+  const targetDelta = target - previousTarget;
+  const overshoot = Math.abs(targetDelta) > 0.4
+    && Math.sign(targetDelta) === Math.sign(delta)
+    && Math.abs(delta) < Math.abs(targetDelta) * 0.22
+    ? targetDelta * overshootRatio
+    : 0;
+  let nextValue = current + delta * response + overshoot;
+
+  if (Math.abs(target - nextValue) <= Math.max(0.08, Math.abs(target) * 0.00012)) {
+    nextValue = target + getHeatCapacityDisplayJitter(now, settleNoiseAmplitude, jitterSeed);
+  }
+
+  return nextValue;
 };
 
 const isNearHeatCapacityOpenAngle = (angle: number, target: number) => (
@@ -115,8 +190,45 @@ export const getHeatCapacityPumpFrequencyState = (
 };
 
 export const applyHeatCapacityPressureZero = (rawPressure: number, zeroOffset: number) => (
-  roundNumber(rawPressure - zeroOffset, 2)
+  roundNumber(applyPressureZero(rawPressure, zeroOffset), 2)
 );
+
+export const clampHeatCapacityPressureZeroKnobAngle = (angleDeg: number) => (
+  roundNumber(clampNumber(
+    Number.isFinite(angleDeg) ? angleDeg : 0,
+    HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG,
+    HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG,
+  ), 2)
+);
+
+export const getHeatCapacityPressureZeroOffsetForKnobAngle = (angleDeg: number) => {
+  const clampedAngle = clampHeatCapacityPressureZeroKnobAngle(angleDeg);
+  const fraction = (
+    (clampedAngle - HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG) /
+    (HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG - HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG)
+  );
+  return roundNumber(
+    HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MIN_MV +
+    fraction * (HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MAX_MV - HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MIN_MV),
+    2,
+  );
+};
+
+export const getHeatCapacityPressureZeroKnobAngleForOffset = (zeroOffset: number) => {
+  const clampedOffset = clampNumber(
+    Number.isFinite(zeroOffset) ? zeroOffset : 0,
+    HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MIN_MV,
+    HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MAX_MV,
+  );
+  const fraction = (
+    (clampedOffset - HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MIN_MV) /
+    (HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MAX_MV - HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MIN_MV)
+  );
+  return clampHeatCapacityPressureZeroKnobAngle(
+    HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG +
+    fraction * (HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG - HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG),
+  );
+};
 
 const getHeatCapacityPressureZeroDisplayText = (adjusted: boolean, zeroOffset: number) => (
   adjusted ? `零点偏移：${zeroOffset >= 0 ? '+' : ''}${zeroOffset.toFixed(2)} mV` : '未调零'
@@ -126,33 +238,31 @@ export const setHeatCapacityPressureZeroOffset = (
   file: WorkbenchHeatCapacityState,
   zeroOffset: number,
   adjustMode: WorkbenchHeatCapacityPressureZeroAdjustMode = 'none',
-  knobAngle = file.pressureZeroKnobAngle,
+  knobAngle = getHeatCapacityPressureZeroKnobAngleForOffset(zeroOffset),
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
-  const pressureRawPlaceholder = Number.isFinite(file.pressureRawPlaceholder)
-    ? file.pressureRawPlaceholder
-    : HEAT_CAPACITY_PRESSURE_RAW_PLACEHOLDER_MV;
-  const pressureZeroOffset = roundNumber(clampNumber(
-    zeroOffset,
-    HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MIN_MV,
-    HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MAX_MV,
-  ), 2);
-  const pressureDisplayedPlaceholder = applyHeatCapacityPressureZero(pressureRawPlaceholder, pressureZeroOffset);
+  const pressureZeroKnobAngle = clampHeatCapacityPressureZeroKnobAngle(knobAngle);
+  const pressureZeroOffset = getHeatCapacityPressureZeroOffsetForKnobAngle(pressureZeroKnobAngle);
   const pressureZeroAdjusted = adjustMode !== 'none' || pressureZeroOffset !== 0;
-  return {
-    ...file,
-    pressureZeroed: pressureZeroAdjusted,
-    pressureZeroAdjusted,
-    pressureZeroKnobAngle: roundNumber(knobAngle, 2),
+  const runtime = updateHeatCapacityRuntimeZeroOffset(
+    {
+      ...getHeatCapacityRuntimeStateFromFile(file),
+      pressureZeroAdjusted,
+    },
     pressureZeroOffset,
+    now,
+  );
+  return mergeHeatCapacityRuntimeState({
+    ...file,
+    pressureZeroAdjusted,
+    pressureZeroed: pressureZeroAdjusted,
+    pressureZeroKnobAngle,
     pressureZeroDisplayText: getHeatCapacityPressureZeroDisplayText(pressureZeroAdjusted, pressureZeroOffset),
-    pressureRawPlaceholder,
-    pressureDisplayedPlaceholder,
-    pressureGaugeDisplayValue: pressureDisplayedPlaceholder,
-    pressureSignalMv: file.powerOn ? pressureDisplayedPlaceholder : file.pressureSignalMv,
     pressureZeroAdjustMode: adjustMode,
-    updatedAt: now,
-  };
+  }, {
+    ...runtime,
+    pressureZeroAdjusted,
+  }, now);
 };
 
 export const adjustHeatCapacityPressureZeroFine = (
@@ -161,11 +271,12 @@ export const adjustHeatCapacityPressureZeroFine = (
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
   const stepDirection = direction >= 0 ? 1 : -1;
+  const nextKnobAngle = file.pressureZeroKnobAngle + stepDirection * HEAT_CAPACITY_PRESSURE_ZERO_FINE_ANGLE_STEP_DEG;
   return setHeatCapacityPressureZeroOffset(
     file,
-    file.pressureZeroOffset + stepDirection * HEAT_CAPACITY_PRESSURE_ZERO_FINE_OFFSET_STEP_MV,
+    getHeatCapacityPressureZeroOffsetForKnobAngle(nextKnobAngle),
     'fineWheel',
-    file.pressureZeroKnobAngle + stepDirection * HEAT_CAPACITY_PRESSURE_ZERO_FINE_ANGLE_STEP_DEG,
+    nextKnobAngle,
     now,
   );
 };
@@ -176,7 +287,7 @@ export const adjustHeatCapacityPressureZeroCoarse = (
   now = Date.now(),
 ): WorkbenchHeatCapacityState => setHeatCapacityPressureZeroOffset(
   file,
-  file.pressureZeroOffset + angleDeltaDeg * HEAT_CAPACITY_PRESSURE_ZERO_COARSE_OFFSET_PER_DEG_MV,
+  getHeatCapacityPressureZeroOffsetForKnobAngle(file.pressureZeroKnobAngle + angleDeltaDeg),
   'coarseDrag',
   file.pressureZeroKnobAngle + angleDeltaDeg,
   now,
@@ -256,10 +367,22 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   kind: 'heatCapacity';
   particles: Particle[];
   selectedHeatCapacityPanel: Extract<WorkbenchPanelKey, 'preview' | 'realtime'>;
-  heatCapacityPhase: 'setup' | 'heating' | 'pumping' | 'recording' | 'complete';
+  heatCapacityPhase: HeatCapacityRuntimePhase;
   powerOn: boolean;
   glassPistonState: WorkbenchHeatCapacityStopcockState;
   stopcockAngleDeg: number;
+  ambientPressureKPa: number;
+  ambientTemperatureK: number;
+  gasPressureKPaAbs: number;
+  gasTemperatureK: number;
+  pressureDeltaKPa: number;
+  simulationTimeS: number;
+  lastUpdateMs: number | null;
+  pressureSignalMvRaw: number;
+  pressureSignalMvDisplayed: number;
+  temperatureSignalTargetMv: number;
+  pressureSignalTargetMv: number;
+  displayResponseLastUpdateMs: number | null;
   pressureZeroed: boolean;
   pressureZeroAdjusted: boolean;
   pressureZeroKnobAngle: number;
@@ -289,10 +412,142 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
     p1: number | null;
     p2: number | null;
   };
+  heatCapacityTrace: HeatCapacityTracePoint[];
+  heatCapacityProcessSamples: HeatCapacityProcessSamples;
   theoreticalGamma: number;
 }
 
 export type WorkbenchFileState = WorkbenchStandardState | WorkbenchIdealState | WorkbenchHeatCapacityState;
+
+const getHeatCapacityRuntimeStateFromFile = (
+  file: WorkbenchHeatCapacityState,
+): HeatCapacityRuntimeState => {
+  const fallback = createDefaultHeatCapacityRuntimeState(file.lastUpdateMs);
+  return {
+    ...fallback,
+    ambientPressureKPa: Number.isFinite(file.ambientPressureKPa) ? file.ambientPressureKPa : fallback.ambientPressureKPa,
+    ambientTemperatureK: Number.isFinite(file.ambientTemperatureK) ? file.ambientTemperatureK : fallback.ambientTemperatureK,
+    gasPressureKPaAbs: Number.isFinite(file.gasPressureKPaAbs) ? file.gasPressureKPaAbs : fallback.gasPressureKPaAbs,
+    gasTemperatureK: Number.isFinite(file.gasTemperatureK) ? file.gasTemperatureK : fallback.gasTemperatureK,
+    pressureDeltaKPa: Number.isFinite(file.pressureDeltaKPa) ? file.pressureDeltaKPa : fallback.pressureDeltaKPa,
+    simulationTimeS: Number.isFinite(file.simulationTimeS) ? file.simulationTimeS : fallback.simulationTimeS,
+    lastUpdateMs: typeof file.lastUpdateMs === 'number' && Number.isFinite(file.lastUpdateMs) ? file.lastUpdateMs : fallback.lastUpdateMs,
+    pressureSignalMvRaw: Number.isFinite(file.pressureSignalMvRaw) ? file.pressureSignalMvRaw : fallback.pressureSignalMvRaw,
+    pressureSignalMvDisplayed: Number.isFinite(file.pressureSignalMvDisplayed) ? file.pressureSignalMvDisplayed : fallback.pressureSignalMvDisplayed,
+    temperatureSignalMv: typeof file.temperatureSignalTargetMv === 'number' && Number.isFinite(file.temperatureSignalTargetMv)
+      ? file.temperatureSignalTargetMv
+      : fallback.temperatureSignalMv,
+    pressureZeroOffset: Number.isFinite(file.pressureZeroOffset) ? file.pressureZeroOffset : fallback.pressureZeroOffset,
+    pressureZeroAdjusted: file.pressureZeroAdjusted,
+    heatCapacityPhase: file.heatCapacityPhase,
+    heatCapacityTrace: Array.isArray(file.heatCapacityTrace) ? file.heatCapacityTrace : [],
+    heatCapacityProcessSamples: file.heatCapacityProcessSamples ?? {},
+  };
+};
+
+const getStatsPhaseForHeatCapacity = (
+  file: WorkbenchHeatCapacityState,
+  runtime: HeatCapacityRuntimeState,
+): SimulationStats['phase'] => {
+  if (runtime.heatCapacityPhase === 'demoComplete') return 'finished';
+  if (file.runState === 'running') return 'collecting';
+  return 'idle';
+};
+
+const mergeHeatCapacityRuntimeState = (
+  file: WorkbenchHeatCapacityState,
+  runtime: HeatCapacityRuntimeState,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  const powerOn = file.powerOn && runtime.heatCapacityPhase !== 'powerOff';
+  const elapsedS = file.displayResponseLastUpdateMs === null
+    ? 0
+    : (now - file.displayResponseLastUpdateMs) / 1000;
+  const pressureSignalTargetMv = roundNumber(runtime.pressureSignalMvDisplayed, 3);
+  const temperatureSignalTargetMv = roundNumber(runtime.temperatureSignalMv, 3);
+  const pressureDisplayValue = powerOn
+    ? getHeatCapacityDisplayValue({
+        current: file.pressureSignalMv,
+        target: pressureSignalTargetMv,
+        previousTarget: Number.isFinite(file.pressureSignalTargetMv) ? file.pressureSignalTargetMv : pressureSignalTargetMv,
+        elapsedS,
+        now,
+        riseRate: 8.5,
+        fallRate: 16,
+        overshootRatio: 0.035,
+        settleNoiseAmplitude: 0.045,
+        jitterSeed: 1.4,
+      })
+    : null;
+  const temperatureDisplayValue = powerOn
+    ? getHeatCapacityDisplayValue({
+        current: file.temperatureSignalMv,
+        target: temperatureSignalTargetMv,
+        previousTarget: Number.isFinite(file.temperatureSignalTargetMv) ? file.temperatureSignalTargetMv : temperatureSignalTargetMv,
+        elapsedS,
+        now,
+        riseRate: 1.55,
+        fallRate: 1.25,
+        overshootRatio: 0.008,
+        settleNoiseAmplitude: 0.035,
+        jitterSeed: 4.2,
+      })
+    : null;
+  const pressureSignalDisplayRounded = pressureDisplayValue === null ? null : roundNumber(pressureDisplayValue, 1);
+  const temperatureSignalDisplayRounded = temperatureDisplayValue === null ? null : roundNumber(temperatureDisplayValue, 1);
+  const pressureGaugeDisplayValue = pressureDisplayValue === null
+    ? roundNumber(runtime.pressureSignalMvDisplayed, 2)
+    : roundNumber(pressureDisplayValue, 2);
+  const heatCapacityTrace = runtime.heatCapacityTrace.length > 0 && powerOn
+    ? runtime.heatCapacityTrace.map((point, index) => (
+        index === runtime.heatCapacityTrace.length - 1
+          ? {
+              ...point,
+              pressureSignalMv: pressureSignalDisplayRounded ?? point.pressureSignalMv,
+              temperatureSignalMv: temperatureSignalDisplayRounded ?? point.temperatureSignalMv,
+            }
+          : point
+      ))
+    : runtime.heatCapacityTrace;
+
+  return {
+    ...file,
+    ambientPressureKPa: runtime.ambientPressureKPa,
+    ambientTemperatureK: runtime.ambientTemperatureK,
+    gasPressureKPaAbs: runtime.gasPressureKPaAbs,
+    gasTemperatureK: runtime.gasTemperatureK,
+    pressureDeltaKPa: runtime.pressureDeltaKPa,
+    simulationTimeS: runtime.simulationTimeS,
+    lastUpdateMs: runtime.lastUpdateMs,
+    pressureSignalMvRaw: runtime.pressureSignalMvRaw,
+    pressureSignalMvDisplayed: runtime.pressureSignalMvDisplayed,
+    temperatureSignalTargetMv,
+    pressureSignalTargetMv,
+    displayResponseLastUpdateMs: now,
+    pressureRawPlaceholder: roundNumber(runtime.pressureSignalMvRaw, 2),
+    pressureDisplayedPlaceholder: roundNumber(runtime.pressureSignalMvDisplayed, 2),
+    pressureGaugeDisplayValue,
+    pressureZeroOffset: roundNumber(runtime.pressureZeroOffset, 2),
+    pressureZeroAdjusted: runtime.pressureZeroAdjusted,
+    pressureZeroed: runtime.pressureZeroAdjusted,
+    temperatureSignalMv: temperatureSignalDisplayRounded,
+    pressureSignalMv: pressureSignalDisplayRounded,
+    pressureKPa: powerOn ? roundNumber(runtime.gasPressureKPaAbs, 2) : null,
+    pressurePlaceholder: roundNumber(runtime.gasPressureKPaAbs, 2),
+    temperaturePlaceholder: roundNumber(runtime.gasTemperatureK, 3),
+    heatCapacityPhase: runtime.heatCapacityPhase,
+    heatCapacityTrace,
+    heatCapacityProcessSamples: runtime.heatCapacityProcessSamples,
+    stats: {
+      ...file.stats,
+      time: roundNumber(runtime.simulationTimeS, 3),
+      temperature: roundNumber(runtime.gasTemperatureK, 3),
+      pressure: roundNumber(runtime.gasPressureKPaAbs, 3),
+      phase: getStatsPhaseForHeatCapacity(file, runtime),
+    },
+    updatedAt: now,
+  };
+};
 
 export const canZeroHeatCapacityPressure = (file: WorkbenchHeatCapacityState) => (
   file.powerOn && getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open'
@@ -302,6 +557,14 @@ export const registerHeatCapacityPumpStroke = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
+  if (!file.powerOn) {
+    return {
+      ...file,
+      pumpHint: '请先打开电源，再执行有效打气',
+      pumpBulbState: 'releasing',
+      updatedAt: now,
+    };
+  }
   if (!file.pumpValveOpen) {
     return {
       ...file,
@@ -312,40 +575,60 @@ export const registerHeatCapacityPumpStroke = (
   }
 
   const frequencyState = getHeatCapacityPumpFrequencyState([...file.pumpStrokeTimestamps, now], now);
-  const suitable = frequencyState.pumpFrequencyStatus === 'suitable';
-  const nextPressureRawPlaceholder = roundNumber(
-    Math.min(6, file.pressureRawPlaceholder + (suitable ? 0.35 : 0.08)),
-    2,
+  const pumpStroke = applyHeatCapacityRuntimePumpStroke(
+    getHeatCapacityRuntimeStateFromFile(file),
+    {
+      powerOn: file.powerOn,
+      pumpValveOpen: file.pumpValveOpen,
+      stopcockOpen: getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open',
+      pumpFrequency: frequencyState.pumpFrequency,
+      pumpFrequencyStatus: frequencyState.pumpFrequencyStatus,
+    },
+    now,
   );
-  const nextPressureDisplayedPlaceholder = applyHeatCapacityPressureZero(
-    nextPressureRawPlaceholder,
-    file.pressureZeroOffset,
-  );
-  return {
+  if (!pumpStroke.accepted) {
+    const pumpHint = pumpStroke.reason === 'powerOff'
+      ? '请先打开电源，再执行有效打气'
+      : pumpStroke.reason === 'stopcockOpen'
+        ? '玻璃旋塞已接通，无法形成有效加压'
+        : '打气阀门未打开，无法有效打气';
+    return {
+      ...file,
+      pumpHint,
+      pumpBulbState: 'releasing',
+      updatedAt: now,
+    };
+  }
+
+  return mergeHeatCapacityRuntimeState({
     ...file,
-    heatCapacityPhase: 'pumping',
     pumpBulbState: 'compressing',
     pumpStrokeTimestamps: frequencyState.timestamps,
     pumpFrequency: frequencyState.pumpFrequency,
     pumpFrequencyStatus: frequencyState.pumpFrequencyStatus,
     lastPumpTime: now,
     pumpStrokeCount: file.pumpStrokeCount + 1,
-    pressurePlaceholder: Math.min(file.pressureLimitKPa, file.pressurePlaceholder + (suitable ? 8 : 1.5)),
-    temperaturePlaceholder: file.temperaturePlaceholder + (suitable ? 0.035 : 0.008),
-    pressureKPa: Math.min(file.pressureLimitKPa, file.pressurePlaceholder + (suitable ? 8 : 1.5)),
-    pressureRawPlaceholder: nextPressureRawPlaceholder,
-    pressureDisplayedPlaceholder: nextPressureDisplayedPlaceholder,
-    pressureGaugeDisplayValue: nextPressureDisplayedPlaceholder,
-    pressureSignalMv: file.powerOn ? nextPressureDisplayedPlaceholder : file.pressureSignalMv,
-    pumpHint: suitable ? '打气频率合适，可以继续观察压强变化' : '打气频率过低，实验效果可能不明显',
-    updatedAt: now,
-  };
+    pumpHint: frequencyState.pumpFrequencyStatus === 'suitable'
+      ? '打气频率合适，可以继续观察压强变化'
+      : '打气频率过低，实验效果可能不明显',
+  }, pumpStroke.state, now);
 };
 
 export const refreshHeatCapacityPumpFrequency = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
+  if (file.heatCapacityPhase === 'demoComplete') {
+    return {
+      ...file,
+      pumpStrokeTimestamps: [],
+      pumpFrequency: 0,
+      pumpFrequencyStatus: 'idle',
+      pumpBulbState: 'idle',
+      pumpHint: '自动演示完成，过程采样已生成',
+      updatedAt: now,
+    };
+  }
   const frequencyState = getHeatCapacityPumpFrequencyState(file.pumpStrokeTimestamps, now);
   const pumpHint = frequencyState.pumpFrequencyStatus === 'idle'
     ? '未打气'
@@ -362,6 +645,172 @@ export const refreshHeatCapacityPumpFrequency = (
     updatedAt: now,
   };
 };
+
+export const powerHeatCapacityWorkbenchFile = (
+  file: WorkbenchHeatCapacityState,
+  nextPowerOn: boolean,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  const runtime = powerHeatCapacityRuntimeState(
+    getHeatCapacityRuntimeStateFromFile(file),
+    nextPowerOn,
+    now,
+  );
+  return mergeHeatCapacityRuntimeState({
+    ...file,
+    powerOn: nextPowerOn,
+    runState: nextPowerOn ? file.runState : 'idle',
+    pressureZeroed: nextPowerOn ? file.pressureZeroed : false,
+    pressureZeroAdjusted: nextPowerOn ? file.pressureZeroAdjusted : false,
+    pressureZeroDisplayText: nextPowerOn ? file.pressureZeroDisplayText : getHeatCapacityPressureZeroDisplayText(false, 0),
+  }, {
+    ...runtime,
+    pressureZeroAdjusted: nextPowerOn ? runtime.pressureZeroAdjusted : false,
+    pressureZeroOffset: nextPowerOn ? runtime.pressureZeroOffset : 0,
+  }, now);
+};
+
+export const prepareHeatCapacityAutoDemoStart = (
+  file: WorkbenchHeatCapacityState,
+  now = Date.now(),
+  createInitialBiasMv = createHeatCapacityAutoDemoInitialBiasMv,
+): WorkbenchHeatCapacityState => {
+  const initialPressureDisplayBiasMv = roundNumber(clampNumber(
+    createInitialBiasMv(),
+    -1.5,
+    1.5,
+  ), 2);
+  const visibleBiasMv = Math.abs(initialPressureDisplayBiasMv) < 0.3
+    ? (initialPressureDisplayBiasMv < 0 ? -0.75 : 0.75)
+    : initialPressureDisplayBiasMv;
+  const resetFile: WorkbenchHeatCapacityState = {
+    ...file,
+    powerOn: false,
+    runState: 'running',
+    heatCapacityPhase: 'powerOff',
+    glassPistonState: 'closed',
+    stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
+    gasPressureKPaAbs: file.ambientPressureKPa,
+    gasTemperatureK: file.ambientTemperatureK,
+    pressureDeltaKPa: 0,
+    simulationTimeS: 0,
+    lastUpdateMs: null,
+    pressureSignalMvRaw: 0,
+    pressureSignalMvDisplayed: visibleBiasMv,
+    temperatureSignalTargetMv: file.temperatureSignalTargetMv,
+    pressureSignalTargetMv: visibleBiasMv,
+    displayResponseLastUpdateMs: null,
+    pressureZeroOffset: -visibleBiasMv,
+    pressureZeroAdjusted: false,
+    pressureZeroed: false,
+    pressureZeroKnobAngle: 0,
+    pressureZeroAdjustMode: 'none',
+    pressureZeroDisplayText: getHeatCapacityPressureZeroDisplayText(false, -visibleBiasMv),
+    pressureRawPlaceholder: 0,
+    pressureDisplayedPlaceholder: visibleBiasMv,
+    pressureGaugeDisplayValue: visibleBiasMv,
+    temperatureSignalMv: null,
+    pressureSignalMv: null,
+    pressureKPa: null,
+    pumpValveOpen: false,
+    pumpValveState: 'closed',
+    pumpBulbState: 'idle',
+    pumpStrokeTimestamps: [],
+    pumpFrequency: 0,
+    pumpFrequencyStatus: 'idle',
+    lastPumpTime: null,
+    pumpStrokeCount: 0,
+    pumpHint: '自动演示已启动',
+    pressurePlaceholder: file.ambientPressureKPa,
+    temperaturePlaceholder: file.ambientTemperatureK,
+    recordedPressures: { p0: null, p1: null, p2: null },
+    heatCapacityTrace: [],
+    heatCapacityProcessSamples: {},
+    updatedAt: now,
+  };
+
+  const poweredFile = powerHeatCapacityWorkbenchFile(resetFile, true, now);
+  return {
+    ...poweredFile,
+    runState: 'running',
+    pressureZeroAdjusted: false,
+    pressureZeroed: false,
+    pumpHint: '自动演示已启动',
+  };
+};
+
+export const stepHeatCapacityWorkbenchFile = (
+  file: WorkbenchHeatCapacityState,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  const runtime = getHeatCapacityRuntimeStateFromFile(file);
+  const dtS = runtime.lastUpdateMs === null ? 0 : (now - runtime.lastUpdateMs) / 1000;
+  const nextRuntime = stepHeatCapacityExperiment(
+    runtime,
+    {
+      powerOn: file.powerOn,
+      pumpValveOpen: file.pumpValveOpen,
+      stopcockOpen: getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open',
+      pumpFrequency: file.pumpFrequency,
+      pumpFrequencyStatus: file.pumpFrequencyStatus,
+      demoComplete: file.heatCapacityPhase === 'demoComplete',
+    },
+    dtS,
+    now,
+  );
+  return mergeHeatCapacityRuntimeState(file, nextRuntime, now);
+};
+
+export const captureHeatCapacityWorkbenchSample = (
+  file: WorkbenchHeatCapacityState,
+  key: HeatCapacityProcessSampleKey,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => mergeHeatCapacityRuntimeState(
+  file,
+  {
+    ...captureHeatCapacityProcessSample(getHeatCapacityRuntimeStateFromFile(file), key, {
+      pumpFrequency: file.pumpFrequency,
+      pumpValveOpen: file.pumpValveOpen,
+      stopcockOpen: getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open',
+    }),
+    lastUpdateMs: now,
+  },
+  now,
+);
+
+export const markHeatCapacityDemoComplete = (
+  file: WorkbenchHeatCapacityState,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => mergeHeatCapacityRuntimeState(
+  {
+    ...file,
+    powerOn: false,
+    runState: 'finished',
+    glassPistonState: 'closed',
+    stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
+    pumpValveOpen: false,
+    pumpValveState: 'closed',
+    pumpBulbState: 'idle',
+    pumpStrokeTimestamps: [],
+    pumpFrequency: 0,
+    pumpFrequencyStatus: 'idle',
+    lastPumpTime: null,
+    pressureZeroed: false,
+    pressureZeroAdjusted: false,
+    pressureZeroKnobAngle: 0,
+    pressureZeroDisplayText: getHeatCapacityPressureZeroDisplayText(false, 0),
+    pressureZeroAdjustMode: 'none',
+    pumpHint: '自动演示完成，过程采样已生成',
+  },
+  {
+    ...getHeatCapacityRuntimeStateFromFile(file),
+    heatCapacityPhase: 'demoComplete',
+    pressureZeroOffset: 0,
+    pressureZeroAdjusted: false,
+    lastUpdateMs: now,
+  },
+  now,
+);
 
 export const DEFAULT_STANDARD_PARAMS: SimulationParams = {
   L: 15,
@@ -514,49 +963,66 @@ export const createDefaultIdealFile = (
 export const createDefaultHeatCapacityFile = (
   index = 1,
   defaults?: WorkbenchFileLayoutDefaults,
-): WorkbenchHeatCapacityState => ({
-  ...createBaseFile('heatCapacity', index, DEFAULT_HEAT_CAPACITY_PARAMS, {
-    ...defaults,
-    liveWorkspaceSplitRatio: defaults?.liveWorkspaceSplitRatio ?? WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
-  }),
-  kind: 'heatCapacity',
-  particles: [],
-  selectedHeatCapacityPanel: 'preview',
-  heatCapacityPhase: 'setup',
-  powerOn: false,
-  glassPistonState: 'closed',
-  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
-  pressureZeroed: false,
-  pressureZeroAdjusted: false,
-  pressureZeroKnobAngle: 0,
-  pressureZeroOffset: 0,
-  pressureZeroDisplayText: '未调零',
-  pressureRawPlaceholder: HEAT_CAPACITY_PRESSURE_RAW_PLACEHOLDER_MV,
-  pressureDisplayedPlaceholder: HEAT_CAPACITY_PRESSURE_RAW_PLACEHOLDER_MV,
-  pressureGaugeDisplayValue: HEAT_CAPACITY_PRESSURE_RAW_PLACEHOLDER_MV,
-  pressureZeroAdjustMode: 'none',
-  temperatureSignalMv: null,
-  pressureSignalMv: null,
-  pressureKPa: null,
-  pressureLimitKPa: 500,
-  pumpValveOpen: false,
-  pumpValveState: 'closed',
-  pumpBulbState: 'idle',
-  pumpStrokeTimestamps: [],
-  pumpFrequency: 0,
-  pumpFrequencyStatus: 'idle',
-  lastPumpTime: null,
-  pumpStrokeCount: 0,
-  pumpHint: '未打气',
-  pressurePlaceholder: 101.33,
-  temperaturePlaceholder: 1,
-  recordedPressures: {
-    p0: null,
-    p1: null,
-    p2: null,
-  },
-  theoreticalGamma: 5 / 3,
-});
+): WorkbenchHeatCapacityState => {
+  const runtime = createDefaultHeatCapacityRuntimeState();
+  return {
+    ...createBaseFile('heatCapacity', index, DEFAULT_HEAT_CAPACITY_PARAMS, {
+      ...defaults,
+      liveWorkspaceSplitRatio: defaults?.liveWorkspaceSplitRatio ?? WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
+    }),
+    kind: 'heatCapacity',
+    particles: [],
+    selectedHeatCapacityPanel: 'preview',
+    heatCapacityPhase: runtime.heatCapacityPhase,
+    powerOn: false,
+    glassPistonState: 'closed',
+    stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
+    ambientPressureKPa: runtime.ambientPressureKPa,
+    ambientTemperatureK: runtime.ambientTemperatureK,
+    gasPressureKPaAbs: runtime.gasPressureKPaAbs,
+    gasTemperatureK: runtime.gasTemperatureK,
+    pressureDeltaKPa: runtime.pressureDeltaKPa,
+    simulationTimeS: runtime.simulationTimeS,
+    lastUpdateMs: runtime.lastUpdateMs,
+    pressureSignalMvRaw: runtime.pressureSignalMvRaw,
+    pressureSignalMvDisplayed: runtime.pressureSignalMvDisplayed,
+    temperatureSignalTargetMv: runtime.temperatureSignalMv,
+    pressureSignalTargetMv: runtime.pressureSignalMvDisplayed,
+    displayResponseLastUpdateMs: null,
+    pressureZeroed: false,
+    pressureZeroAdjusted: false,
+    pressureZeroKnobAngle: 0,
+    pressureZeroOffset: 0,
+    pressureZeroDisplayText: '未调零',
+    pressureRawPlaceholder: roundNumber(runtime.pressureSignalMvRaw, 2),
+    pressureDisplayedPlaceholder: roundNumber(runtime.pressureSignalMvDisplayed, 2),
+    pressureGaugeDisplayValue: roundNumber(runtime.pressureSignalMvDisplayed, 2),
+    pressureZeroAdjustMode: 'none',
+    temperatureSignalMv: null,
+    pressureSignalMv: null,
+    pressureKPa: null,
+    pressureLimitKPa: runtime.modelConfig.pressureLimitKPa,
+    pumpValveOpen: false,
+    pumpValveState: 'closed',
+    pumpBulbState: 'idle',
+    pumpStrokeTimestamps: [],
+    pumpFrequency: 0,
+    pumpFrequencyStatus: 'idle',
+    lastPumpTime: null,
+    pumpStrokeCount: 0,
+    pumpHint: '未打气',
+    pressurePlaceholder: roundNumber(runtime.gasPressureKPaAbs, 2),
+    temperaturePlaceholder: roundNumber(runtime.gasTemperatureK, 3),
+    recordedPressures: {
+      p0: null,
+      p1: null,
+      p2: null,
+    },
+    heatCapacityTrace: runtime.heatCapacityTrace,
+    heatCapacityProcessSamples: runtime.heatCapacityProcessSamples,
+    theoreticalGamma: 5 / 3,
+  };
+};
 
 export const createInitialWorkbenchFiles = (): WorkbenchFileState[] => [
   createDefaultStandardFile(1),
