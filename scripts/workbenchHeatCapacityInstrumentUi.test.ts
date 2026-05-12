@@ -74,7 +74,11 @@ assert.match(sceneSource, /setHoveredControl\('pumpValve'\)/, 'pump valve should
 assert.match(sceneSource, /setHoveredControl\('stopcock'\)/, 'stopcock handle should expose hover feedback for dragging and wheel adjustment');
 assert.match(sceneSource, /setHoveredControl\('powerSwitch'\)/, 'power switch should expose hover feedback');
 assert.match(sceneSource, /setHoveredControl\('pressureZero'\)/, 'pressure zero knob should expose hover feedback');
-assert.match(sceneSource, /压力调零：拖拽粗调 \/ 滚轮精调/, 'pressure zero hover tooltip should explain coarse drag and fine wheel');
+assert.match(sceneSource, /玻璃旋塞：滚轮微调角度；双击进入聚焦/, 'stopcock hover tooltip should name the control before explaining interaction');
+assert.match(sceneSource, /打气阀门：点击切换开闭状态/, 'pump valve hover tooltip should name the control before explaining interaction');
+assert.match(sceneSource, /打气球：聚焦后点击打气/, 'pump bulb hover tooltip should name the control before explaining interaction');
+assert.match(sceneSource, /电源开关：点击开关电源/, 'power switch hover tooltip should name the control before explaining interaction');
+assert.match(sceneSource, /压力调零旋钮：拖拽粗调 \/ 滚轮精调/, 'pressure zero hover tooltip should name the control before explaining coarse drag and fine wheel');
 assert.match(sceneSource, /handlePressureZeroWheel/, 'pressure zero knob should support wheel fine adjustment');
 assert.match(sceneSource, /startPressureZeroDrag/, 'pressure zero knob should support drag coarse adjustment');
 assert.match(sceneSource, /PRESSURE_ZERO_FINE_ANGLE_STEP_DEG/, 'pressure zero fine adjustment should have a tunable angle step');
@@ -146,9 +150,13 @@ assert.match(
   'analog pressure gauge dial should be vertical on the instrument face',
 );
 assert.match(sceneSource, /PRESSURE_GAUGE_TICKS/, 'analog pressure gauge should expose visible dial ticks');
+assert.match(sceneSource, /PRESSURE_GAUGE_DANGER_MARKERS/, 'analog pressure gauge should render a threshold-derived danger area');
+assert.match(sceneSource, /mapPressureGaugeValueToRotation/, 'analog pressure gauge should use a linear clamp mapping from pressure to angle');
 assert.match(sceneSource, /getPressureGaugeNeedleRotation/, 'analog pressure gauge should derive needle rotation from pressure data');
-assert.match(sceneSource, /pressureKPa: number \| null/, 'instrument scene should receive pressureKPa for gauge data binding');
-assert.match(sceneSource, /pressureLimitKPa: number/, 'instrument scene should receive pressureLimitKPa for gauge data binding');
+assert.match(sceneSource, /gaugePressureMinKPa: number/, 'instrument scene should receive gauge min pressure for gauge data binding');
+assert.match(sceneSource, /gaugePressureMaxKPa: number/, 'instrument scene should receive gauge max pressure for gauge data binding');
+assert.match(sceneSource, /pressureSafetyThresholdKPa: number/, 'instrument scene should receive pressure safety threshold for warning and danger-area alignment');
+assert.match(sceneSource, /useFrame[\s\S]*gaugeNeedlePivotRef\.current\.rotation\.z/, 'analog pressure gauge needle should smoothly track the mapped target angle');
 assert.match(sceneSource, /name="TemperaturePositiveInputTerminal"/, 'instrument host should show the red temperature input terminal below the left display');
 assert.match(sceneSource, /name="TemperatureNegativeInputTerminal"/, 'instrument host should show the black temperature input terminal below the left display');
 assert.match(sceneSource, /name="PressureSensorInputPort"/, 'instrument host should show one central metal pressure sensor input below the pressure display');
@@ -256,6 +264,10 @@ assert.match(styleSource, /\.studio-heat-hover-tooltip \{[\s\S]*pointer-events: 
 assert.match(styleSource, /\.studio-heat-demo-step-panel \{[\s\S]*right: 14px;[\s\S]*top: 48px;/, 'auto demo step panel should sit inside the heat model window upper-right area');
 assert.match(styleSource, /\.studio-heat-demo-step-panel \{[\s\S]*width: min\(330px, calc\(100% - 28px\)\);/, 'auto demo step panel should stay compact and avoid covering the model window');
 assert.match(styleSource, /\.studio-heat-demo-step-panel div:not\(\.studio-heat-demo-step-kicker\) \{[\s\S]*grid-template-columns: 58px minmax\(0, 1fr\);/, 'step panel should keep the original compact field layout');
+assert.match(styleSource, /\.studio-heat-preview-mount \{[\s\S]*overflow: hidden;/, 'heat preview mount should clip the step panel as it slides out to the right');
+assert.match(styleSource, /\.studio-heat-demo-step-panel-visible \{[\s\S]*animation: heatDemoStepPanelIn 560ms/, 'auto demo step panel should slide in and fade in when the demo starts');
+assert.match(styleSource, /\.studio-heat-demo-step-panel-exiting \{[\s\S]*animation: heatDemoStepPanelOut 560ms/, 'auto demo step panel should slide right and fade out when the demo ends or is terminated');
+assert.match(styleSource, /\.studio-heat-pressure-warning \{[\s\S]*left: 50%;[\s\S]*top: 50%;[\s\S]*background:[\s\S]*rgba\(153, 27, 27/, 'pressure warning should be a red centered overlay inside the heat model window');
 assert.match(styleSource, /\.studio-heat-demo-toast \{[\s\S]*left: 50%;[\s\S]*bottom: 18px;/, 'locked interaction toast should sit centered near the bottom of the model window');
 assert.match(styleSource, /\.studio-heat-demo-complete-toast \{[\s\S]*left: 50%;[\s\S]*top: 50%;[\s\S]*transform: translate\(-50%, -50%\);/, 'normal auto demo completion should appear centered in the model window');
 assert.doesNotMatch(styleSource, /@keyframes heatDemoFocusPulse/, 'unused CSS keyframes should not remain after Three.js-driven focus halos');
@@ -269,6 +281,11 @@ assert.match(workbenchSource, /setHeatCapacityPumpPulseId\(\(pulseId\) => pulseI
 assert.match(workbenchSource, /pumpPulseId=\{heatCapacityPumpPulseId\}/, 'workbench should pass local pump pulse signal into the 3D scene');
 assert.match(workbenchSource, /pressureKPa={activeFile\.pressureKPa}/, 'workbench should pass current pressureKPa into the 3D gauge');
 assert.match(workbenchSource, /pressureLimitKPa={activeFile\.pressureLimitKPa}/, 'workbench should pass pressureLimitKPa into the 3D gauge');
+assert.match(workbenchSource, /gaugePressureMinKPa=\{activeFile\.gaugePressureMinKPa\}/, 'workbench should pass gauge pressure min into the 3D pressure gauge');
+assert.match(workbenchSource, /gaugePressureMaxKPa=\{activeFile\.gaugePressureMaxKPa\}/, 'workbench should pass gauge pressure max into the 3D pressure gauge');
+assert.match(workbenchSource, /pressureSafetyThresholdKPa=\{activeFile\.pressureSafetyThresholdKPa\}/, 'workbench should pass safety threshold into the 3D pressure gauge');
+assert.match(workbenchSource, /pressureOverLimit=\{activeFile\.pressureOverLimit\}/, 'workbench should pass pressure over-limit state into the 3D pressure gauge');
+assert.match(workbenchSource, /data-heat-capacity-pressure-warning="true"/, 'workbench should render a centered red pressure warning from pressureOverLimit');
 assert.match(workbenchSource, /temperatureSignalMv={activeFile\.temperatureSignalMv}/, 'instrument screens should read the display-response temperature channel');
 assert.match(workbenchSource, /pressureSignalMv={activeFile\.pressureSignalMv}/, 'instrument screens should read the display-response pressure channel');
 assert.match(workbenchSource, /updateHeatCapacityPower/);
@@ -297,6 +314,8 @@ assert.match(workbenchSource, /演示完成/, 'normal heat capacity demo complet
 assert.match(workbenchSource, /onFocusModeChange=\{\(mode\) => \{[\s\S]*heatCapacityFocusModeRef\.current = mode/, 'workbench should know when the scene is in a heat-capacity focus mode');
 assert.match(workbenchSource, /setHeatCapacityFocusResetKey\(\(key\) => key \+ 1\);[\s\S]*heatCapacityFocusModeRef\.current = 'none'/, 'auto demo should reset the heat scene to the default view before starting');
 assert.match(workbenchSource, /setAutoDemoStepCount\(steps\.length\)/, 'auto demo should prepare the current step count before the reset phase');
+assert.match(workbenchSource, /autoDemoStepPanelMode/, 'workbench should keep the auto demo step panel mounted long enough to animate in and out');
+assert.match(workbenchSource, /hideHeatCapacityAutoDemoStepPanel\(\)/, 'normal completion and termination should slide the auto demo step panel out instead of leaving it pinned');
 assert.match(workbenchSource, /timelineItem\.focusControlId/, 'auto demo timeline should support per-highlight focus targets inside one semantic step');
 assert.match(workbenchSource, /renderScientificText/, 'visible heat-capacity labels should render U variables with real subscripts');
 assert.match(workbenchSource, /autoDemoStepTitle/, 'workbench should drive the right-top auto demo step panel');

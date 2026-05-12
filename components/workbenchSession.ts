@@ -152,7 +152,13 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
         : fallback.pressureZeroDisplayText,
       pressureRawPlaceholder,
       pressureDisplayedPlaceholder,
-      pressureGaugeDisplayValue: normalizeNullableNumber(file.pressureGaugeDisplayValue) ?? pressureDisplayedPlaceholder,
+      pressureGaugeDisplayValue: normalizeNullableNumber(file.pressureGaugeDisplayValue) ?? fallback.pressureGaugeDisplayValue,
+      gaugePressureMinKPa: normalizeNullableNumber(file.gaugePressureMinKPa) ?? fallback.gaugePressureMinKPa,
+      gaugePressureMaxKPa: normalizeNullableNumber(file.gaugePressureMaxKPa) ?? fallback.gaugePressureMaxKPa,
+      pressureSafetyThresholdKPa: normalizeNullableNumber(file.pressureSafetyThresholdKPa) ?? fallback.pressureSafetyThresholdKPa,
+      pressureOverLimit: file.powerOn === true && (
+        normalizeNullableNumber(file.pressureDeltaKPa) ?? fallback.pressureDeltaKPa
+      ) >= (normalizeNullableNumber(file.pressureSafetyThresholdKPa) ?? fallback.pressureSafetyThresholdKPa),
       pressureZeroAdjustMode,
       temperatureSignalMv: normalizeNullableNumber(file.temperatureSignalMv),
       pressureSignalMv: normalizeNullableNumber(file.pressureSignalMv),

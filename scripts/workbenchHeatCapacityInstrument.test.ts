@@ -7,6 +7,7 @@ import {
   captureHeatCapacityWorkbenchSample,
   createDefaultHeatCapacityFile,
   getHeatCapacityPumpFrequencyState,
+  getHeatCapacityGaugePressureState,
   getHeatCapacityPressureZeroKnobAngleForOffset,
   getHeatCapacityPressureZeroOffsetForKnobAngle,
   getHeatCapacityStopcockState,
@@ -46,6 +47,10 @@ assert.equal(defaultFile.pressureDeltaKPa, 0);
 assert.equal(defaultFile.pressureRawPlaceholder, 0);
 assert.equal(defaultFile.pressureDisplayedPlaceholder, 0);
 assert.equal(defaultFile.pressureGaugeDisplayValue, 0);
+assert.equal(defaultFile.gaugePressureMinKPa, 0);
+assert.equal(defaultFile.gaugePressureMaxKPa, 30);
+assert.equal(defaultFile.pressureSafetyThresholdKPa, 24);
+assert.equal(defaultFile.pressureOverLimit, false);
 assert.equal(defaultFile.temperatureSignalMv, null);
 assert.equal(defaultFile.pressureSignalMv, null);
 assert.equal(defaultFile.temperatureSignalTargetMv, 1500);
@@ -97,7 +102,8 @@ assert.equal(fineZero.pressureZeroOffset, 0.02);
 assert.equal(fineZero.pressureDisplayedPlaceholder, 3.18);
 assert.equal(fineZero.pressureSignalTargetMv, 3.18);
 assert.equal(fineZero.pressureSignalMv !== fineZero.pressureSignalTargetMv, true);
-assert.equal(fineZero.pressureGaugeDisplayValue !== fineZero.pressureSignalTargetMv, true);
+assert.equal(fineZero.pressureGaugeDisplayValue, pressureLoadedFile.pressureDeltaKPa);
+assert.equal(fineZero.pressureOverLimit, false);
 assert.equal(fineZero.temperatureSignalMv, pressureLoadedFile.temperatureSignalMv);
 assert.equal(fineZero.temperatureSignalTargetMv, pressureLoadedFile.temperatureSignalTargetMv);
 assert.equal(fineZero.temperaturePlaceholder, pressureLoadedFile.temperaturePlaceholder);
@@ -200,10 +206,27 @@ assert.equal(pumpedTarget.pressureSignalTargetMv > demoStart.pressureSignalTarge
 assert.equal(pumpedTarget.pressureSignalMv < pumpedTarget.pressureSignalTargetMv, true);
 assert.equal(pumpedTarget.temperatureSignalTargetMv > demoStart.temperatureSignalTargetMv, true);
 assert.equal(pumpedTarget.temperatureSignalMv < pumpedTarget.temperatureSignalTargetMv, true);
+assert.equal(pumpedTarget.pressureGaugeDisplayValue, pumpedTarget.pressureDeltaKPa);
 
 const settledDisplay = stepHeatCapacityWorkbenchFile(pumpedTarget, 22_000);
 assert.equal(settledDisplay.pressureSignalMv > pumpedTarget.pressureSignalMv, true);
 assert.equal(settledDisplay.temperatureSignalMv > pumpedTarget.temperatureSignalMv, true);
+assert.equal(settledDisplay.pressureGaugeDisplayValue, settledDisplay.pressureDeltaKPa);
+
+assert.deepEqual(getHeatCapacityGaugePressureState(12, true, defaultFile), {
+  gaugePressureMinKPa: 0,
+  gaugePressureMaxKPa: 30,
+  pressureSafetyThresholdKPa: 24,
+  pressureGaugeDisplayValue: 12,
+  pressureOverLimit: false,
+});
+assert.deepEqual(getHeatCapacityGaugePressureState(32, true, defaultFile), {
+  gaugePressureMinKPa: 0,
+  gaugePressureMaxKPa: 30,
+  pressureSafetyThresholdKPa: 24,
+  pressureGaugeDisplayValue: 30,
+  pressureOverLimit: true,
+});
 
 assert.deepEqual(getHeatCapacityPumpFrequencyState([], 10_000), {
   timestamps: [],
@@ -249,6 +272,19 @@ assert.equal(openValvePump.pumpStrokeCount, 1);
 assert.equal(openValvePump.pumpFrequencyStatus, 'tooSlow');
 assert.equal(openValvePump.pressurePlaceholder > poweredFile.pressurePlaceholder, true);
 assert.equal(openValvePump.temperaturePlaceholder > poweredFile.temperaturePlaceholder, true);
+
+const overLimitPump = registerHeatCapacityPumpStroke({
+  ...poweredFile,
+  pumpValveOpen: true,
+  pumpValveState: 'open',
+  pressureDeltaKPa: poweredFile.pressureSafetyThresholdKPa,
+  pressureGaugeDisplayValue: poweredFile.pressureSafetyThresholdKPa,
+  pressureOverLimit: true,
+}, 10_000);
+assert.equal(overLimitPump.pumpStrokeCount, 0);
+assert.equal(overLimitPump.pressureDeltaKPa, poweredFile.pressureSafetyThresholdKPa);
+assert.equal(overLimitPump.pressureOverLimit, true);
+assert.match(overLimitPump.pumpHint, /安全阈值/);
 
 const sampledWorkbenchFile = captureHeatCapacityWorkbenchSample({
   ...openValvePump,

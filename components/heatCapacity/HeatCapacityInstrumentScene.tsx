@@ -23,6 +23,10 @@ interface HeatCapacityInstrumentSceneProps {
   pressureRawPlaceholder: number;
   pressureDisplayedPlaceholder: number;
   pressureGaugeDisplayValue: number;
+  gaugePressureMinKPa: number;
+  gaugePressureMaxKPa: number;
+  pressureSafetyThresholdKPa: number;
+  pressureOverLimit: boolean;
   pressureZeroAdjustMode: 'none' | 'fineWheel' | 'coarseDrag';
   pressureKPa: number | null;
   pressureLimitKPa: number;
@@ -150,11 +154,11 @@ const getHeatCapacityHoverTooltip = (
   hoveredControl: HeatCapacityHoveredControl,
   pumpValveOpen: boolean,
 ) => {
-  if (hoveredControl === 'stopcock') return '滚轮微调角度；双击进入聚焦';
-  if (hoveredControl === 'pumpValve') return '点击切换打气阀门';
-  if (hoveredControl === 'pumpBulb') return pumpValveOpen ? '聚焦后点击打气' : '需先打开打气阀门';
-  if (hoveredControl === 'powerSwitch') return '点击开关电源';
-  if (hoveredControl === 'pressureZero') return '压力调零：拖拽粗调 / 滚轮精调';
+  if (hoveredControl === 'stopcock') return '玻璃旋塞：滚轮微调角度；双击进入聚焦';
+  if (hoveredControl === 'pumpValve') return '打气阀门：点击切换开闭状态';
+  if (hoveredControl === 'pumpBulb') return pumpValveOpen ? '打气球：聚焦后点击打气' : '打气球：需先打开打气阀门';
+  if (hoveredControl === 'powerSwitch') return '电源开关：点击开关电源';
+  if (hoveredControl === 'pressureZero') return '压力调零旋钮：拖拽粗调 / 滚轮精调';
   return null;
 };
 
@@ -165,18 +169,31 @@ const formatPanelNumber = (value: number, digits = 2) => (
 const PRESSURE_GAUGE_MIN_ROTATION = -2.15;
 const PRESSURE_GAUGE_MAX_ROTATION = 2.15;
 const PRESSURE_GAUGE_TICKS = [-2.15, -1.43, -0.72, 0, 0.72, 1.43, 2.15];
+const PRESSURE_GAUGE_DANGER_MARKERS = Array.from({ length: 7 }, (_, index) => index);
+
+const clampSceneNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const mapPressureGaugeValueToRotation = (
+  pressureKPa: number,
+  gaugePressureMinKPa: number,
+  gaugePressureMaxKPa: number,
+) => {
+  const pressureRange = Math.max(0.001, gaugePressureMaxKPa - gaugePressureMinKPa);
+  const clampedPressure = clampSceneNumber(pressureKPa, gaugePressureMinKPa, gaugePressureMaxKPa);
+  const fraction = (clampedPressure - gaugePressureMinKPa) / pressureRange;
+  return PRESSURE_GAUGE_MIN_ROTATION + fraction * (PRESSURE_GAUGE_MAX_ROTATION - PRESSURE_GAUGE_MIN_ROTATION);
+};
 
 const getPressureGaugeNeedleRotation = (
-  pressureKPa: number | null,
-  pressureLimitKPa: number,
+  pressureGaugeDisplayValue: number,
+  gaugePressureMinKPa: number,
+  gaugePressureMaxKPa: number,
   powerOn: boolean,
 ) => {
-  if (!powerOn || typeof pressureKPa !== 'number' || !Number.isFinite(pressureKPa)) {
+  if (!powerOn || typeof pressureGaugeDisplayValue !== 'number' || !Number.isFinite(pressureGaugeDisplayValue)) {
     return PRESSURE_GAUGE_MIN_ROTATION;
   }
-  const safeLimit = Number.isFinite(pressureLimitKPa) && pressureLimitKPa > 0 ? pressureLimitKPa : 1;
-  const fraction = Math.min(1, Math.max(0, pressureKPa / safeLimit));
-  return PRESSURE_GAUGE_MIN_ROTATION + fraction * (PRESSURE_GAUGE_MAX_ROTATION - PRESSURE_GAUGE_MIN_ROTATION);
+  return mapPressureGaugeValueToRotation(pressureGaugeDisplayValue, gaugePressureMinKPa, gaugePressureMaxKPa);
 };
 
 function PanelText({
@@ -287,6 +304,10 @@ function InstrumentBox({
   powerOn,
   pressureZeroKnobAngle,
   pressureGaugeDisplayValue,
+  gaugePressureMinKPa,
+  gaugePressureMaxKPa,
+  pressureSafetyThresholdKPa,
+  pressureOverLimit,
   temperatureSignalMv,
   pressureSignalMv,
   onPowerToggle,
@@ -302,7 +323,7 @@ function InstrumentBox({
   demoFocusControlId,
   demoFocusPulseActive,
   onLockedInteraction,
-}: Pick<HeatCapacityInstrumentSceneProps, 'powerOn' | 'pressureZeroKnobAngle' | 'pressureGaugeDisplayValue' | 'temperatureSignalMv' | 'pressureSignalMv' | 'onPowerToggle' | 'onPressureZero' | 'onPressureZeroFineAdjust' | 'onPressureZeroCoarseAdjust' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'onLockedInteraction'> & {
+}: Pick<HeatCapacityInstrumentSceneProps, 'powerOn' | 'pressureZeroKnobAngle' | 'pressureGaugeDisplayValue' | 'gaugePressureMinKPa' | 'gaugePressureMaxKPa' | 'pressureSafetyThresholdKPa' | 'pressureOverLimit' | 'temperatureSignalMv' | 'pressureSignalMv' | 'onPowerToggle' | 'onPressureZero' | 'onPressureZeroFineAdjust' | 'onPressureZeroCoarseAdjust' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'onLockedInteraction'> & {
   zeroEnabled: boolean;
   onFocus: (mode: HeatCapacityFocusMode) => void;
   focusMode: HeatCapacityFocusMode;
@@ -327,6 +348,7 @@ function InstrumentBox({
     demoFocusControlId === 'instrumentPanel'
   );
   const { camera, gl } = useThree();
+  const gaugeNeedlePivotRef = useRef<THREE.Group | null>(null);
   const pressureZeroKnobRef = useRef<THREE.Group | null>(null);
   const pressureZeroDragRef = useRef({
     startKnobAngle: pressureZeroKnobAngle,
@@ -334,6 +356,30 @@ function InstrumentBox({
     totalDelta: 0,
     lastAppliedKnobAngle: pressureZeroKnobAngle,
     moved: false,
+  });
+  const gaugeNeedleTargetRotation = getPressureGaugeNeedleRotation(
+    pressureGaugeDisplayValue,
+    gaugePressureMinKPa,
+    gaugePressureMaxKPa,
+    powerOn,
+  );
+  const gaugeSafetyRotation = mapPressureGaugeValueToRotation(
+    pressureSafetyThresholdKPa,
+    gaugePressureMinKPa,
+    gaugePressureMaxKPa,
+  );
+  const gaugeDisplayedRotationRef = useRef(gaugeNeedleTargetRotation);
+
+  useFrame((_, delta) => {
+    const smoothing = 1 - Math.exp(-(pressureOverLimit ? 12 : 9) * delta);
+    gaugeDisplayedRotationRef.current = clampSceneNumber(
+      THREE.MathUtils.lerp(gaugeDisplayedRotationRef.current, gaugeNeedleTargetRotation, smoothing),
+      PRESSURE_GAUGE_MIN_ROTATION,
+      PRESSURE_GAUGE_MAX_ROTATION,
+    );
+    if (gaugeNeedlePivotRef.current) {
+      gaugeNeedlePivotRef.current.rotation.z = gaugeDisplayedRotationRef.current;
+    }
   });
 
   const getPressureZeroPointerAngle = useCallback((clientX: number, clientY: number) => {
@@ -493,10 +539,28 @@ function InstrumentBox({
             </mesh>
           );
         })}
-        <group name="AnalogPressureGaugeNeedlePivot" rotation={[0, 0, getPressureGaugeNeedleRotation(pressureGaugeDisplayValue, 6, powerOn)]}>
+        {PRESSURE_GAUGE_DANGER_MARKERS.map((markerIndex) => {
+          const dangerFraction = PRESSURE_GAUGE_DANGER_MARKERS.length <= 1
+            ? 1
+            : markerIndex / (PRESSURE_GAUGE_DANGER_MARKERS.length - 1);
+          const markerRotation = gaugeSafetyRotation + dangerFraction * (PRESSURE_GAUGE_MAX_ROTATION - gaugeSafetyRotation);
+          const markerRadius = 0.154;
+          return (
+            <mesh
+              key={markerIndex}
+              name="AnalogPressureGaugeDangerMarker"
+              position={[Math.cos(markerRotation) * markerRadius, Math.sin(markerRotation) * markerRadius, 0.058]}
+              rotation={[0, 0, markerRotation]}
+            >
+              <boxGeometry args={[0.034, 0.012, 0.012]} />
+              <meshStandardMaterial color="#dc2626" emissive="#7f1d1d" emissiveIntensity={pressureOverLimit ? 0.36 : 0.12} />
+            </mesh>
+          );
+        })}
+        <group name="AnalogPressureGaugeNeedlePivot" ref={gaugeNeedlePivotRef} rotation={[0, 0, gaugeNeedleTargetRotation]}>
           <mesh name="AnalogPressureGaugeNeedle" position={[0.055, 0, 0.062]}>
             <boxGeometry args={[0.14, 0.014, 0.012]} />
-            <meshStandardMaterial color={powerOn ? '#e11d48' : '#64748b'} />
+            <meshStandardMaterial color={pressureOverLimit ? '#f97316' : powerOn ? '#e11d48' : '#64748b'} emissive={pressureOverLimit ? '#991b1b' : '#000000'} emissiveIntensity={pressureOverLimit ? 0.32 : 0} />
           </mesh>
         </group>
         <mesh name="AnalogPressureGaugeHub" position={[0, 0.004, 0.055]}>
@@ -1310,6 +1374,10 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           powerOn={props.powerOn}
           pressureZeroKnobAngle={props.pressureZeroKnobAngle}
           pressureGaugeDisplayValue={props.pressureGaugeDisplayValue}
+          gaugePressureMinKPa={props.gaugePressureMinKPa}
+          gaugePressureMaxKPa={props.gaugePressureMaxKPa}
+          pressureSafetyThresholdKPa={props.pressureSafetyThresholdKPa}
+          pressureOverLimit={props.pressureOverLimit}
           temperatureSignalMv={props.temperatureSignalMv}
           pressureSignalMv={props.pressureSignalMv}
           onPowerToggle={props.onPowerToggle}

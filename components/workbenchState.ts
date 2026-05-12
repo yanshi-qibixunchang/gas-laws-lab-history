@@ -77,12 +77,51 @@ export const HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MIN_MV = -6;
 export const HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MAX_MV = 6;
 export const HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG = -540;
 export const HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG = 540;
+export const HEAT_CAPACITY_GAUGE_PRESSURE_MIN_KPA = 0;
+export const HEAT_CAPACITY_GAUGE_PRESSURE_MAX_KPA = 30;
+export const HEAT_CAPACITY_PRESSURE_SAFETY_THRESHOLD_KPA = HEAT_CAPACITY_GAUGE_PRESSURE_MAX_KPA * 0.8;
 
 const normalizeDegrees360 = (value: number) => ((value % 360) + 360) % 360;
 const clampNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const roundNumber = (value: number, digits = 2) => {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
+};
+
+const getHeatCapacityGaugeConfig = (file: Partial<WorkbenchHeatCapacityState> = {}) => {
+  const gaugePressureMinKPa = Number.isFinite(file.gaugePressureMinKPa)
+    ? Number(file.gaugePressureMinKPa)
+    : HEAT_CAPACITY_GAUGE_PRESSURE_MIN_KPA;
+  const configuredMax = Number.isFinite(file.gaugePressureMaxKPa)
+    ? Number(file.gaugePressureMaxKPa)
+    : HEAT_CAPACITY_GAUGE_PRESSURE_MAX_KPA;
+  const gaugePressureMaxKPa = Math.max(gaugePressureMinKPa + 1, configuredMax);
+  const configuredThreshold = Number.isFinite(file.pressureSafetyThresholdKPa)
+    ? Number(file.pressureSafetyThresholdKPa)
+    : HEAT_CAPACITY_PRESSURE_SAFETY_THRESHOLD_KPA;
+  const pressureSafetyThresholdKPa = clampNumber(configuredThreshold, gaugePressureMinKPa, gaugePressureMaxKPa);
+  return {
+    gaugePressureMinKPa,
+    gaugePressureMaxKPa,
+    pressureSafetyThresholdKPa,
+  };
+};
+
+export const getHeatCapacityGaugePressureState = (
+  pressureDeltaKPa: number,
+  powerOn: boolean,
+  file: Partial<WorkbenchHeatCapacityState> = {},
+) => {
+  const gaugeConfig = getHeatCapacityGaugeConfig(file);
+  const pressureForGauge = powerOn && Number.isFinite(pressureDeltaKPa) ? Math.max(0, pressureDeltaKPa) : 0;
+  return {
+    ...gaugeConfig,
+    pressureGaugeDisplayValue: roundNumber(
+      clampNumber(pressureForGauge, gaugeConfig.gaugePressureMinKPa, gaugeConfig.gaugePressureMaxKPa),
+      2,
+    ),
+    pressureOverLimit: powerOn && pressureForGauge >= gaugeConfig.pressureSafetyThresholdKPa,
+  };
 };
 
 const createHeatCapacityAutoDemoInitialBiasMv = () => {
@@ -391,6 +430,10 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   pressureRawPlaceholder: number;
   pressureDisplayedPlaceholder: number;
   pressureGaugeDisplayValue: number;
+  gaugePressureMinKPa: number;
+  gaugePressureMaxKPa: number;
+  pressureSafetyThresholdKPa: number;
+  pressureOverLimit: boolean;
   pressureZeroAdjustMode: WorkbenchHeatCapacityPressureZeroAdjustMode;
   temperatureSignalMv: number | null;
   pressureSignalMv: number | null;
@@ -495,9 +538,7 @@ const mergeHeatCapacityRuntimeState = (
     : null;
   const pressureSignalDisplayRounded = pressureDisplayValue === null ? null : roundNumber(pressureDisplayValue, 1);
   const temperatureSignalDisplayRounded = temperatureDisplayValue === null ? null : roundNumber(temperatureDisplayValue, 1);
-  const pressureGaugeDisplayValue = pressureDisplayValue === null
-    ? roundNumber(runtime.pressureSignalMvDisplayed, 2)
-    : roundNumber(pressureDisplayValue, 2);
+  const gaugePressureState = getHeatCapacityGaugePressureState(runtime.pressureDeltaKPa, powerOn, file);
   const heatCapacityTrace = runtime.heatCapacityTrace.length > 0 && powerOn
     ? runtime.heatCapacityTrace.map((point, index) => (
         index === runtime.heatCapacityTrace.length - 1
@@ -526,7 +567,11 @@ const mergeHeatCapacityRuntimeState = (
     displayResponseLastUpdateMs: now,
     pressureRawPlaceholder: roundNumber(runtime.pressureSignalMvRaw, 2),
     pressureDisplayedPlaceholder: roundNumber(runtime.pressureSignalMvDisplayed, 2),
-    pressureGaugeDisplayValue,
+    pressureGaugeDisplayValue: gaugePressureState.pressureGaugeDisplayValue,
+    gaugePressureMinKPa: gaugePressureState.gaugePressureMinKPa,
+    gaugePressureMaxKPa: gaugePressureState.gaugePressureMaxKPa,
+    pressureSafetyThresholdKPa: gaugePressureState.pressureSafetyThresholdKPa,
+    pressureOverLimit: gaugePressureState.pressureOverLimit,
     pressureZeroOffset: roundNumber(runtime.pressureZeroOffset, 2),
     pressureZeroAdjusted: runtime.pressureZeroAdjusted,
     pressureZeroed: runtime.pressureZeroAdjusted,
@@ -569,6 +614,18 @@ export const registerHeatCapacityPumpStroke = (
     return {
       ...file,
       pumpHint: '打气阀门未打开，无法有效打气',
+      pumpBulbState: 'releasing',
+      updatedAt: now,
+    };
+  }
+  if (
+    getHeatCapacityStopcockState(file.stopcockAngleDeg) !== 'open' &&
+    getHeatCapacityGaugePressureState(file.pressureDeltaKPa, file.powerOn, file).pressureOverLimit
+  ) {
+    return {
+      ...file,
+      pressureOverLimit: true,
+      pumpHint: '当前压力已达到安全阈值，请停止打气',
       pumpBulbState: 'releasing',
       updatedAt: now,
     };
@@ -683,6 +740,7 @@ export const prepareHeatCapacityAutoDemoStart = (
   const visibleBiasMv = Math.abs(initialPressureDisplayBiasMv) < 0.3
     ? (initialPressureDisplayBiasMv < 0 ? -0.75 : 0.75)
     : initialPressureDisplayBiasMv;
+  const gaugePressureState = getHeatCapacityGaugePressureState(0, true, file);
   const resetFile: WorkbenchHeatCapacityState = {
     ...file,
     powerOn: false,
@@ -708,7 +766,11 @@ export const prepareHeatCapacityAutoDemoStart = (
     pressureZeroDisplayText: getHeatCapacityPressureZeroDisplayText(false, -visibleBiasMv),
     pressureRawPlaceholder: 0,
     pressureDisplayedPlaceholder: visibleBiasMv,
-    pressureGaugeDisplayValue: visibleBiasMv,
+    pressureGaugeDisplayValue: gaugePressureState.pressureGaugeDisplayValue,
+    gaugePressureMinKPa: gaugePressureState.gaugePressureMinKPa,
+    gaugePressureMaxKPa: gaugePressureState.gaugePressureMaxKPa,
+    pressureSafetyThresholdKPa: gaugePressureState.pressureSafetyThresholdKPa,
+    pressureOverLimit: gaugePressureState.pressureOverLimit,
     temperatureSignalMv: null,
     pressureSignalMv: null,
     pressureKPa: null,
@@ -965,6 +1027,7 @@ export const createDefaultHeatCapacityFile = (
   defaults?: WorkbenchFileLayoutDefaults,
 ): WorkbenchHeatCapacityState => {
   const runtime = createDefaultHeatCapacityRuntimeState();
+  const gaugePressureState = getHeatCapacityGaugePressureState(runtime.pressureDeltaKPa, false);
   return {
     ...createBaseFile('heatCapacity', index, DEFAULT_HEAT_CAPACITY_PARAMS, {
       ...defaults,
@@ -996,7 +1059,11 @@ export const createDefaultHeatCapacityFile = (
     pressureZeroDisplayText: '未调零',
     pressureRawPlaceholder: roundNumber(runtime.pressureSignalMvRaw, 2),
     pressureDisplayedPlaceholder: roundNumber(runtime.pressureSignalMvDisplayed, 2),
-    pressureGaugeDisplayValue: roundNumber(runtime.pressureSignalMvDisplayed, 2),
+    pressureGaugeDisplayValue: gaugePressureState.pressureGaugeDisplayValue,
+    gaugePressureMinKPa: gaugePressureState.gaugePressureMinKPa,
+    gaugePressureMaxKPa: gaugePressureState.gaugePressureMaxKPa,
+    pressureSafetyThresholdKPa: gaugePressureState.pressureSafetyThresholdKPa,
+    pressureOverLimit: gaugePressureState.pressureOverLimit,
     pressureZeroAdjustMode: 'none',
     temperatureSignalMv: null,
     pressureSignalMv: null,

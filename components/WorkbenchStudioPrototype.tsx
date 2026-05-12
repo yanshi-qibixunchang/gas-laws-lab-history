@@ -503,6 +503,7 @@ const IDEAL_RESULT_WINDOW_DEFAULTS_STORAGE_KEY = 'hsl_workbench_ideal_result_win
 const WORKBENCH_LAYOUT_DEFAULTS_STORAGE_KEY = 'hsl_workbench_layout_defaults_v1';
 const WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY = 'hsl_workbench_general_settings';
 const HEAT_CAPACITY_AUTO_DEMO_RESET_MS = 1_800;
+const HEAT_CAPACITY_AUTO_DEMO_STEP_PANEL_EXIT_MS = 560;
 
 const defaultWorkbenchGeneralSettings: WorkbenchGeneralSettings = {
   theme: 'system',
@@ -1130,6 +1131,10 @@ const cloneWorkbenchFiles = (filesToClone: WorkbenchFileState[]): WorkbenchFileS
             pressureRawPlaceholder: file.pressureRawPlaceholder,
             pressureDisplayedPlaceholder: file.pressureDisplayedPlaceholder,
             pressureGaugeDisplayValue: file.pressureGaugeDisplayValue,
+            gaugePressureMinKPa: file.gaugePressureMinKPa,
+            gaugePressureMaxKPa: file.gaugePressureMaxKPa,
+            pressureSafetyThresholdKPa: file.pressureSafetyThresholdKPa,
+            pressureOverLimit: file.pressureOverLimit,
             pressureZeroAdjustMode: file.pressureZeroAdjustMode,
             temperatureSignalMv: file.temperatureSignalMv,
             pressureSignalMv: file.pressureSignalMv,
@@ -1268,6 +1273,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const heatCapacityAutoDemoPausedFileIdRef = useRef<string | null>(null);
   const heatCapacityAutoDemoToastTimerRef = useRef<number | null>(null);
   const heatCapacityAutoDemoCompleteToastTimerRef = useRef<number | null>(null);
+  const heatCapacityAutoDemoStepPanelTimerRef = useRef<number | null>(null);
   const heatCapacityFocusModeRef = useRef<'none' | 'stopcock' | 'instrument' | 'pump'>('none');
   const [heatCapacityPumpPulseId, setHeatCapacityPumpPulseId] = useState(0);
   const [autoDemoRunning, setAutoDemoRunning] = useState(false);
@@ -1284,6 +1290,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [autoDemoStepDescription, setAutoDemoStepDescription] = useState('');
   const [autoDemoStepTarget, setAutoDemoStepTarget] = useState('');
   const [autoDemoStepNote, setAutoDemoStepNote] = useState('');
+  const [autoDemoStepPanelMode, setAutoDemoStepPanelMode] = useState<'hidden' | 'visible' | 'exiting'>('hidden');
 
   const emptyWorkbenchFile = useMemo(() => createDefaultStandardFile(0), []);
   const isWorkbenchEmpty = files.length === 0;
@@ -1594,6 +1601,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
       window.clearTimeout(heatCapacityAutoDemoCompleteToastTimerRef.current);
       heatCapacityAutoDemoCompleteToastTimerRef.current = null;
     }
+    if (heatCapacityAutoDemoStepPanelTimerRef.current !== null) {
+      window.clearTimeout(heatCapacityAutoDemoStepPanelTimerRef.current);
+      heatCapacityAutoDemoStepPanelTimerRef.current = null;
+    }
   }, []);
 
   const pushLog = (message: string, kind: LogKind = 'info') => {
@@ -1839,6 +1850,26 @@ const WorkbenchStudioPrototype: React.FC = () => {
       heatCapacityAutoDemoCompleteToastTimerRef.current = null;
       setAutoDemoCompletionMessage(null);
     }, durationMs);
+  };
+
+  const showHeatCapacityAutoDemoStepPanel = () => {
+    if (heatCapacityAutoDemoStepPanelTimerRef.current !== null) {
+      window.clearTimeout(heatCapacityAutoDemoStepPanelTimerRef.current);
+      heatCapacityAutoDemoStepPanelTimerRef.current = null;
+    }
+    setAutoDemoStepPanelMode('visible');
+  };
+
+  const hideHeatCapacityAutoDemoStepPanel = () => {
+    if (heatCapacityAutoDemoStepPanelTimerRef.current !== null) {
+      window.clearTimeout(heatCapacityAutoDemoStepPanelTimerRef.current);
+      heatCapacityAutoDemoStepPanelTimerRef.current = null;
+    }
+    setAutoDemoStepPanelMode((currentMode) => (currentMode === 'hidden' ? 'hidden' : 'exiting'));
+    heatCapacityAutoDemoStepPanelTimerRef.current = window.setTimeout(() => {
+      heatCapacityAutoDemoStepPanelTimerRef.current = null;
+      setAutoDemoStepPanelMode('hidden');
+    }, HEAT_CAPACITY_AUTO_DEMO_STEP_PANEL_EXIT_MS);
   };
 
   const clearHeatCapacityAutoDemoUiState = () => {
@@ -2133,6 +2164,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     stage: HeatCapacityAutoDemoTimelineItem['stage'],
     focusControlId?: HeatCapacityAutoDemoTimelineItem['focusControlId'],
   ) => {
+    showHeatCapacityAutoDemoStepPanel();
     setAutoDemoStepIndex(stepIndex + 1);
     setAutoDemoStepTitle(step.title);
     setAutoDemoStepDescription(stage === 'preview'
@@ -2158,6 +2190,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     heatCapacityAutoDemoFileIdRef.current = null;
     heatCapacityAutoDemoPausedFileIdRef.current = null;
     heatCapacityAutoDemoPausedElapsedMsRef.current = 0;
+    hideHeatCapacityAutoDemoStepPanel();
     showHeatCapacityAutoDemoCompletionToast(message);
   };
 
@@ -2201,6 +2234,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     if (autoDemoPaused && activeFile.runState === 'paused' && heatCapacityAutoDemoPausedFileIdRef.current === activeFile.id) {
       clearHeatCapacityAutoDemoTimers({ cancelAnimation: false });
+      showHeatCapacityAutoDemoStepPanel();
       setAutoDemoRunning(true);
       setAutoDemoPaused(false);
       setAutoDemoInteractionLocked(true);
@@ -2229,6 +2263,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     heatCapacityFocusModeRef.current = 'none';
     heatCapacityAutoDemoPausedElapsedMsRef.current = 0;
     heatCapacityAutoDemoPausedFileIdRef.current = null;
+    showHeatCapacityAutoDemoStepPanel();
     setAutoDemoRunning(true);
     setAutoDemoPaused(false);
     setAutoDemoInteractionLocked(true);
@@ -3174,6 +3209,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setAutoDemoStepDescription('自动演示已停止，当前曲线和读数保留。');
     setAutoDemoStepTarget('自动演示流程');
     setAutoDemoStepNote('用户交互已恢复，可重新开始或手动操作。');
+    hideHeatCapacityAutoDemoStepPanel();
     showHeatCapacityAutoDemoCompletionToast('演示已终止');
     pushLog(`${activeFile.name}: heat-capacity 自动演示已终止。`, 'warning');
   };
@@ -3281,7 +3317,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
           pressureZeroDisplayText: '未调零',
           pressureRawPlaceholder: 3.2,
           pressureDisplayedPlaceholder: 3.2,
-          pressureGaugeDisplayValue: 3.2,
+          pressureGaugeDisplayValue: 0,
+          gaugePressureMinKPa: file.gaugePressureMinKPa,
+          gaugePressureMaxKPa: file.gaugePressureMaxKPa,
+          pressureSafetyThresholdKPa: file.pressureSafetyThresholdKPa,
+          pressureOverLimit: false,
           pressureZeroAdjustMode: 'none',
           temperatureSignalMv: null,
           pressureSignalMv: null,
@@ -5019,6 +5059,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
               pressureRawPlaceholder={activeFile.pressureRawPlaceholder}
               pressureDisplayedPlaceholder={activeFile.pressureDisplayedPlaceholder}
               pressureGaugeDisplayValue={activeFile.pressureGaugeDisplayValue}
+              gaugePressureMinKPa={activeFile.gaugePressureMinKPa}
+              gaugePressureMaxKPa={activeFile.gaugePressureMaxKPa}
+              pressureSafetyThresholdKPa={activeFile.pressureSafetyThresholdKPa}
+              pressureOverLimit={activeFile.pressureOverLimit}
               pressureZeroAdjustMode={activeFile.pressureZeroAdjustMode}
               pressureKPa={activeFile.pressureKPa}
               pressureLimitKPa={activeFile.pressureLimitKPa}
@@ -5050,8 +5094,18 @@ const WorkbenchStudioPrototype: React.FC = () => {
               onPumpValveToggle={updateHeatCapacityPumpValve}
               onPumpBulbPress={pressHeatCapacityPumpBulb}
             />
-            {(autoDemoRunning || autoDemoPaused || autoDemoStepTitle) ? (
-              <div className="studio-heat-demo-step-panel" data-heat-capacity-demo-step-panel="true">
+            {activeFile.pressureOverLimit ? (
+              <div className="studio-heat-pressure-warning" data-heat-capacity-pressure-warning="true" role="alert">
+                <strong>压力超出安全范围</strong>
+                <span>当前压力已达到安全阈值，请立即停止打气。</span>
+                <em>请观察压力表回落情况。</em>
+              </div>
+            ) : null}
+            {autoDemoStepPanelMode !== 'hidden' && (autoDemoRunning || autoDemoPaused || autoDemoStepTitle) ? (
+              <div
+                className={`studio-heat-demo-step-panel studio-heat-demo-step-panel-${autoDemoStepPanelMode}`}
+                data-heat-capacity-demo-step-panel="true"
+              >
                 <div className="studio-heat-demo-step-kicker">
                   <span>{autoDemoRunning || autoDemoPaused ? `Step ${autoDemoStepIndex} / ${autoDemoStepCount}` : '演示完成'}</span>
                   <i>{autoDemoPaused ? '已暂停' : autoDemoRunning ? '自动演示' : '已完成'}</i>
