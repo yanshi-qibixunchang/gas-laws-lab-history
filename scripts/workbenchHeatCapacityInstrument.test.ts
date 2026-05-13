@@ -91,7 +91,7 @@ assert.equal(defaultFile.pressureSensitivityMvPerKPa, 20);
 assert.equal(defaultFile.theoreticalGamma, 1.4);
 assert.equal(defaultFile.pressurePlaceholder, 101.3);
 assert.equal(defaultFile.temperaturePlaceholder, 298.15);
-assert.deepEqual(defaultFile.heatCapacityTrace, []);
+assert.equal('heatCapacityTrace' in defaultFile, false, 'heatCapacity files should not persist realtime chart trace history');
 assert.deepEqual(defaultFile.heatCapacityProcessSamples, {});
 assert.equal(canZeroHeatCapacityPressure(defaultFile), false);
 assert.equal(applyHeatCapacityPressureZero(3.2, 0.7), 2.5);
@@ -158,7 +158,7 @@ assert.equal(poweredFile.temperatureSignalMv, 1499.1);
 assert.equal(poweredFile.pressureSignalMv, 0);
 assert.equal(poweredFile.temperatureSignalTargetMv, initialTemperatureMv);
 assert.equal(poweredFile.pressureSignalTargetMv, 0);
-assert.equal(poweredFile.heatCapacityTrace.length, 1);
+assert.equal('heatCapacityTrace' in poweredFile, false, 'powering on should not create chart trace history');
 
 const pressureLoadedFile = {
   ...poweredFile,
@@ -244,6 +244,12 @@ assert.equal(demoStart.pressureDeltaKPa, 0);
 assert.equal(demoStart.gasPressureKPaAbs, defaultFile.ambientPressureKPa);
 assert.equal(demoStart.temperatureSignalTargetMv, initialTemperatureMv);
 assert.equal(demoStart.temperatureSignalMv, 1499.1);
+assert.equal(demoStart.heatCapacityExpectedTrialCount, 1);
+assert.equal(demoStart.heatCapacityExpectedTrialCountMode, 'custom');
+assert.equal(demoStart.heatCapacityTrials.length, 1);
+assert.equal(demoStart.heatCapacityTrials[0].status, 'waiting');
+assert.equal(demoStart.heatCapacityProcessingCalculated, false);
+assert.deepEqual(demoStart.heatCapacityProcessSamples, {});
 
 const completedDemo = markHeatCapacityDemoComplete({
   ...demoStart,

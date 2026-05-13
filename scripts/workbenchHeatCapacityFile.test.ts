@@ -32,6 +32,14 @@ assert.equal('idealWindowLayout' in heatOne, false, 'heatCapacity must not carry
 assert.equal(heatOne.theoreticalGamma, 1.4);
 assert.equal(heatOne.calculationModel, 'airHeatCapacityRatio');
 assert.equal(heatOne.visualizationMode, 'particle');
+assert.equal('heatCapacityTrace' in heatOne, false, 'heatCapacity files should not persist realtime chart trace history');
+assert.deepEqual(heatOne.openHeatCapacityTabs, []);
+assert.equal(heatOne.activeHeatCapacityTabId, null);
+assert.equal(heatOne.heatCapacityMaterialsExpanded, true);
+assert.equal(heatOne.heatCapacityTabContainerHeight, 0.5);
+assert.equal(heatOne.heatCapacityExpectedTrialCount, 3);
+assert.equal(heatOne.heatCapacityTrials.length, 3);
+assert.equal(heatOne.heatCapacityProcessingCalculated, false);
 
 const migrated = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
@@ -53,6 +61,33 @@ assert.equal(migrated.files[0].kind, 'heatCapacity');
 assert.equal(migrated.files[0].name, 'Heat Capacity Ratio - 007');
 assert.equal(migrated.files[0].liveWorkspaceSplitRatio, 0.62);
 assert.equal(migrated.selectedPanel, 'realtime');
+
+const oldHardSphereRestored = decodeWorkbenchSession({
+  version: WORKBENCH_SESSION_VERSION,
+  activeFileId: heatOne.id,
+  selectedPanel: 'heatCapacityProcessing',
+  files: [
+    {
+      ...heatOne,
+      theoreticalGamma: 5 / 3,
+      heatCapacityProcessingCalculated: true,
+      heatCapacityProcessingResult: {
+        ...heatOne.heatCapacityProcessingResult,
+        calculated: true,
+        theoreticalGamma: 5 / 3,
+        meanGamma: 5 / 3,
+        relativeErrorPercent: 0,
+      },
+    },
+  ],
+});
+
+const restoredHeatFile = oldHardSphereRestored.files[0];
+assert.equal(restoredHeatFile.kind, 'heatCapacity');
+if (restoredHeatFile.kind !== 'heatCapacity') throw new Error('expected heat capacity file');
+assert.equal(restoredHeatFile.theoreticalGamma, 1.4, 'restored heat-capacity files must use air gamma');
+assert.equal(restoredHeatFile.heatCapacityProcessingCalculated, false, 'old hard-sphere processing results must be recalculated');
+assert.equal(restoredHeatFile.heatCapacityProcessingResult.theoreticalGamma, 1.4);
 
 const customName = 'My Manual Heat Capacity Study';
 const customRestored = decodeWorkbenchSession({

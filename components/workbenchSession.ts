@@ -9,7 +9,15 @@ import {
   WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
   type WorkbenchFileState,
   type WorkbenchPanelKey,
+  type WorkbenchHeatCapacityTabId,
 } from './workbenchState.ts';
+import {
+  createDefaultHeatCapacityProcessingResult,
+  createHeatCapacityTrials,
+  normalizeHeatCapacityExpectedTrialCount,
+  normalizeHeatCapacityTrial,
+  resizeHeatCapacityTrials,
+} from './heatCapacity/heatCapacityTrialModel.ts';
 
 export const WORKBENCH_SESSION_VERSION = 1;
 export const WORKBENCH_SESSION_STORAGE_KEY = 'hsl_workbench_session_v1';
@@ -21,7 +29,8 @@ export interface WorkbenchSessionState {
   selectedPanel: WorkbenchPanelKey;
 }
 
-const panelKeys: WorkbenchPanelKey[] = ['preview', 'realtime', 'results', 'experimentPoints', 'verification', 'history'];
+const panelKeys: WorkbenchPanelKey[] = ['preview', 'realtime', 'results', 'experimentPoints', 'verification', 'heatCapacityGuide', 'heatCapacityRecords', 'heatCapacityProcessing', 'history'];
+const heatCapacityTabIds: WorkbenchHeatCapacityTabId[] = ['guide', 'records', 'processing'];
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null
@@ -43,7 +52,7 @@ const heatCapacitySampleKeys = [
   'recoverySample',
 ] as const;
 
-const normalizeHeatCapacityTracePoint = (value: unknown) => {
+const normalizeHeatCapacityProcessSamplePoint = (value: unknown) => {
   if (!isRecord(value)) return null;
   const timeS = normalizeNullableNumber(value.timeS);
   const temperatureSignalMv = normalizeNullableNumber(value.temperatureSignalMv);
@@ -79,8 +88,8 @@ const normalizeHeatCapacityTracePoint = (value: unknown) => {
 
 const normalizeHeatCapacityProcessSamples = (value: unknown) => {
   if (!isRecord(value)) return {};
-  return heatCapacitySampleKeys.reduce<Record<string, ReturnType<typeof normalizeHeatCapacityTracePoint>>>((samples, key) => {
-    const point = normalizeHeatCapacityTracePoint(value[key]);
+  return heatCapacitySampleKeys.reduce<Record<string, ReturnType<typeof normalizeHeatCapacityProcessSamplePoint>>>((samples, key) => {
+    const point = normalizeHeatCapacityProcessSamplePoint(value[key]);
     if (point) samples[key] = point;
     return samples;
   }, {});
@@ -98,7 +107,13 @@ const fallbackSession = (): WorkbenchSessionState => {
 const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => {
   if (file.kind === 'heatCapacity') {
     const fallback = createDefaultHeatCapacityFile(1);
-    const visiblePanels = file.visiblePanels.filter((panel) => panel === 'preview' || panel === 'realtime');
+    const heatCapacityVisiblePanels = file.visiblePanels.filter((panel) => (
+      panel === 'preview' ||
+      panel === 'realtime' ||
+      panel === 'heatCapacityGuide' ||
+      panel === 'heatCapacityRecords' ||
+      panel === 'heatCapacityProcessing'
+    ));
     const hasSavedStopcockAngle = typeof file.stopcockAngleDeg === 'number' && Number.isFinite(file.stopcockAngleDeg);
     const normalizedSavedStopcockAngle = hasSavedStopcockAngle
       ? normalizeHeatCapacityStopcockAngle(file.stopcockAngleDeg)
@@ -121,19 +136,52 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
     const pressureZeroAdjustMode = file.pressureZeroAdjustMode === 'fineWheel' || file.pressureZeroAdjustMode === 'coarseDrag'
       ? file.pressureZeroAdjustMode
       : 'none';
-    const heatCapacityTrace = Array.isArray(file.heatCapacityTrace)
-      ? file.heatCapacityTrace.map(normalizeHeatCapacityTracePoint).filter((point): point is NonNullable<typeof point> => point !== null)
-      : fallback.heatCapacityTrace;
+    const expectedTrialCount = normalizeHeatCapacityExpectedTrialCount(file.heatCapacityExpectedTrialCount);
+    const heatCapacityTrials = Array.isArray(file.heatCapacityTrials)
+      ? resizeHeatCapacityTrials(
+          file.heatCapacityTrials.map((trial, index) => normalizeHeatCapacityTrial(trial, index + 1)),
+          expectedTrialCount,
+        )
+      : createHeatCapacityTrials(expectedTrialCount);
+    const openHeatCapacityTabs = Array.isArray(file.openHeatCapacityTabs)
+      ? file.openHeatCapacityTabs.filter((tab): tab is WorkbenchHeatCapacityTabId => heatCapacityTabIds.includes(tab as WorkbenchHeatCapacityTabId))
+      : [];
+    const activeHeatCapacityTabId = file.activeHeatCapacityTabId && openHeatCapacityTabs.includes(file.activeHeatCapacityTabId)
+      ? file.activeHeatCapacityTabId
+      : openHeatCapacityTabs[0] ?? null;
+    const theoreticalGamma = fallback.theoreticalGamma;
+    const savedProcessingResult = file.heatCapacityProcessingResult;
+    const savedProcessingUsesAirTheory = savedProcessingResult?.calculated === true
+      && normalizeNullableNumber(savedProcessingResult.theoreticalGamma) === theoreticalGamma;
     return {
       ...fallback,
       ...file,
       name: normalizeHeatCapacityFileName(file.name),
-      visiblePanels: visiblePanels.length > 0 ? visiblePanels : fallback.visiblePanels,
+      visiblePanels: heatCapacityVisiblePanels.length > 0 ? heatCapacityVisiblePanels : fallback.visiblePanels,
       runState: file.runState === 'running' ? 'paused' : file.runState,
       liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(
         file.liveWorkspaceSplitRatio ?? WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
       ),
-      selectedHeatCapacityPanel: file.selectedHeatCapacityPanel === 'realtime' ? 'realtime' : 'preview',
+      selectedHeatCapacityPanel: panelKeys.includes(file.selectedHeatCapacityPanel as WorkbenchPanelKey)
+        ? file.selectedHeatCapacityPanel
+        : 'preview',
+      openHeatCapacityTabs,
+      activeHeatCapacityTabId,
+      heatCapacityMaterialsExpanded: file.heatCapacityMaterialsExpanded !== false,
+      heatCapacityTabContainerHeight: normalizeNullableNumber(file.heatCapacityTabContainerHeight) ?? fallback.heatCapacityTabContainerHeight,
+      heatCapacityExpectedTrialCount: expectedTrialCount,
+      heatCapacityExpectedTrialCountMode: file.heatCapacityExpectedTrialCountMode === '5' || file.heatCapacityExpectedTrialCountMode === 'custom'
+        ? file.heatCapacityExpectedTrialCountMode
+        : '3',
+      heatCapacityTrials,
+      heatCapacityActiveTrialIndex: Math.min(
+        Math.max(0, normalizeNullableNumber(file.heatCapacityActiveTrialIndex) ?? 0),
+        Math.max(0, heatCapacityTrials.length - 1),
+      ),
+      heatCapacityProcessingCalculated: file.heatCapacityProcessingCalculated === true && savedProcessingUsesAirTheory,
+      heatCapacityProcessingResult: savedProcessingUsesAirTheory
+        ? savedProcessingResult
+        : createDefaultHeatCapacityProcessingResult(theoreticalGamma),
       stopcockAngleDeg,
       glassPistonState: getHeatCapacityStopcockState(stopcockAngleDeg),
       ambientPressureKPa: normalizeNullableNumber(file.ambientPressureKPa) ?? fallback.ambientPressureKPa,
@@ -188,8 +236,7 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
         ...file.recordedPressures,
         p0: normalizeNullableNumber(file.recordedPressures?.p0) ?? fallback.recordedPressures.p0,
       },
-      theoreticalGamma: normalizeNullableNumber(file.theoreticalGamma) ?? fallback.theoreticalGamma,
-      heatCapacityTrace,
+      theoreticalGamma,
       heatCapacityProcessSamples: {
         ...fallback.heatCapacityProcessSamples,
         ...normalizeHeatCapacityProcessSamples(file.heatCapacityProcessSamples),
@@ -224,7 +271,13 @@ export const decodeWorkbenchSession = (value: unknown): WorkbenchSessionState =>
     ? value.selectedPanel as WorkbenchPanelKey
     : 'preview';
   const activeFile = files.find((file) => file.id === activeFileId);
-  const selectedPanel = activeFile?.kind === 'heatCapacity' && restoredSelectedPanel !== 'preview' && restoredSelectedPanel !== 'realtime'
+  const selectedPanel = activeFile?.kind === 'heatCapacity' && !(
+    restoredSelectedPanel === 'preview' ||
+    restoredSelectedPanel === 'realtime' ||
+    restoredSelectedPanel === 'heatCapacityGuide' ||
+    restoredSelectedPanel === 'heatCapacityRecords' ||
+    restoredSelectedPanel === 'heatCapacityProcessing'
+  )
     ? 'preview'
     : restoredSelectedPanel;
 

@@ -13,15 +13,16 @@ import {
 import {
   applyHeatCapacityPumpStroke as applyHeatCapacityRuntimePumpStroke,
   captureHeatCapacityProcessSample,
+  DEFAULT_HEAT_CAPACITY_MODEL_CONFIG,
   createDefaultHeatCapacityRuntimeState,
   powerHeatCapacityRuntimeState,
   stepHeatCapacityExperiment,
   updateHeatCapacityRuntimeZeroOffset,
   type HeatCapacityProcessSampleKey,
+  type HeatCapacityProcessSamplePoint,
   type HeatCapacityProcessSamples,
   type HeatCapacityRuntimePhase,
   type HeatCapacityRuntimeState,
-  type HeatCapacityTracePoint,
 } from './heatCapacity/heatCapacityExperimentModel.ts';
 import {
   calculateHeatCapacityGamma,
@@ -39,6 +40,12 @@ import {
   HEAT_CAPACITY_VIDEO_PROFILE,
   getHeatCapacityDisplayValue,
 } from './heatCapacity/heatCapacityDisplayResponse.ts';
+import {
+  createDefaultHeatCapacityProcessingResult,
+  createHeatCapacityTrials,
+  type HeatCapacityProcessingResult,
+  type HeatCapacityTrial,
+} from './heatCapacity/heatCapacityTrialModel.ts';
 
 export type WorkbenchFileKind = 'standard' | 'ideal' | 'heatCapacity';
 export type WorkbenchRunState = 'idle' | 'running' | 'paused' | 'finished' | 'needs-reset';
@@ -54,9 +61,14 @@ export type WorkbenchPanelKey =
   | 'results'
   | 'experimentPoints'
   | 'verification'
+  | 'heatCapacityGuide'
+  | 'heatCapacityRecords'
+  | 'heatCapacityProcessing'
   | 'history';
 export type WorkbenchIdealResultWindowKey = 'experimentPoints' | 'verification';
 export type WorkbenchStandardResultsTab = 'summary' | 'dataTable' | 'figures';
+export type WorkbenchHeatCapacityPanelKey = 'heatCapacityGuide' | 'heatCapacityRecords' | 'heatCapacityProcessing';
+export type WorkbenchHeatCapacityTabId = 'guide' | 'records' | 'processing';
 
 export const IDEAL_RESULT_HEIGHT_RATIO = 0.5;
 export const WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO = 0.48;
@@ -438,7 +450,17 @@ export interface WorkbenchIdealState extends WorkbenchFileBase {
 export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   kind: 'heatCapacity';
   particles: Particle[];
-  selectedHeatCapacityPanel: Extract<WorkbenchPanelKey, 'preview' | 'realtime'>;
+  selectedHeatCapacityPanel: Extract<WorkbenchPanelKey, 'preview' | 'realtime'> | WorkbenchHeatCapacityPanelKey;
+  openHeatCapacityTabs: WorkbenchHeatCapacityTabId[];
+  activeHeatCapacityTabId: WorkbenchHeatCapacityTabId | null;
+  heatCapacityMaterialsExpanded: boolean;
+  heatCapacityTabContainerHeight: number;
+  heatCapacityExpectedTrialCount: number;
+  heatCapacityExpectedTrialCountMode: '3' | '5' | 'custom';
+  heatCapacityTrials: HeatCapacityTrial[];
+  heatCapacityActiveTrialIndex: number;
+  heatCapacityProcessingCalculated: boolean;
+  heatCapacityProcessingResult: HeatCapacityProcessingResult;
   heatCapacityPhase: HeatCapacityRuntimePhase;
   powerOn: boolean;
   glassPistonState: WorkbenchHeatCapacityStopcockState;
@@ -499,7 +521,6 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
     p1: number | null;
     p2: number | null;
   };
-  heatCapacityTrace: HeatCapacityTracePoint[];
   heatCapacityProcessSamples: HeatCapacityProcessSamples;
   theoreticalGamma: number;
 }
@@ -527,7 +548,6 @@ const getHeatCapacityRuntimeStateFromFile = (
     pressureZeroOffset: Number.isFinite(file.pressureZeroOffset) ? file.pressureZeroOffset : fallback.pressureZeroOffset,
     pressureZeroAdjusted: file.pressureZeroAdjusted,
     heatCapacityPhase: file.heatCapacityPhase,
-    heatCapacityTrace: Array.isArray(file.heatCapacityTrace) ? file.heatCapacityTrace : [],
     heatCapacityProcessSamples: file.heatCapacityProcessSamples ?? {},
     modelConfig: {
       ...fallback.modelConfig,
@@ -535,7 +555,7 @@ const getHeatCapacityRuntimeStateFromFile = (
       ambientTemperatureK: Number.isFinite(file.ambientTemperatureK) ? file.ambientTemperatureK : fallback.modelConfig.ambientTemperatureK,
       visualizationMode: file.visualizationMode === 'particle' ? file.visualizationMode : fallback.modelConfig.visualizationMode,
       calculationModel: file.calculationModel === 'airHeatCapacityRatio' ? file.calculationModel : fallback.modelConfig.calculationModel,
-      theoreticalGamma: Number.isFinite(file.theoreticalGamma) ? file.theoreticalGamma : fallback.modelConfig.theoreticalGamma,
+      theoreticalGamma: fallback.modelConfig.theoreticalGamma,
       sensor: {
         ...fallback.modelConfig.sensor,
         pressureSensitivityMvPerKPa: Number.isFinite(file.pressureSensitivityMvPerKPa)
@@ -601,18 +621,6 @@ const mergeHeatCapacityRuntimeState = (
     file,
     pressureGaugeDisplayValue,
   );
-  const heatCapacityTrace = runtime.heatCapacityTrace.length > 0 && powerOn
-    ? runtime.heatCapacityTrace.map((point, index) => (
-        index === runtime.heatCapacityTrace.length - 1
-          ? {
-              ...point,
-              pressureSignalMv: pressureSignalDisplayRounded ?? point.pressureSignalMv,
-              temperatureSignalMv: temperatureSignalDisplayRounded ?? point.temperatureSignalMv,
-            }
-          : point
-      ))
-    : runtime.heatCapacityTrace;
-
   return {
     ...file,
     ambientPressureKPa: runtime.ambientPressureKPa,
@@ -654,7 +662,6 @@ const mergeHeatCapacityRuntimeState = (
     pressurePlaceholder: roundNumber(runtime.gasPressureKPaAbs, 2),
     temperaturePlaceholder: roundNumber(runtime.gasTemperatureK, 3),
     heatCapacityPhase: runtime.heatCapacityPhase,
-    heatCapacityTrace,
     heatCapacityProcessSamples: runtime.heatCapacityProcessSamples,
     stats: {
       ...file.stats,
@@ -877,7 +884,12 @@ export const prepareHeatCapacityAutoDemoStart = (
     pressurePlaceholder: file.ambientPressureKPa,
     temperaturePlaceholder: file.ambientTemperatureK,
     recordedPressures: { p0: file.ambientPressureKPa, p1: null, p2: null },
-    heatCapacityTrace: [],
+    heatCapacityExpectedTrialCount: 1,
+    heatCapacityExpectedTrialCountMode: 'custom',
+    heatCapacityTrials: createHeatCapacityTrials(1),
+    heatCapacityActiveTrialIndex: 0,
+    heatCapacityProcessingCalculated: false,
+    heatCapacityProcessingResult: createDefaultHeatCapacityProcessingResult(file.theoreticalGamma),
     heatCapacityProcessSamples: {},
     updatedAt: now,
   };
@@ -1127,6 +1139,16 @@ export const createDefaultHeatCapacityFile = (
     kind: 'heatCapacity',
     particles: [],
     selectedHeatCapacityPanel: 'preview',
+    openHeatCapacityTabs: [],
+    activeHeatCapacityTabId: null,
+    heatCapacityMaterialsExpanded: true,
+    heatCapacityTabContainerHeight: 0.5,
+    heatCapacityExpectedTrialCount: 3,
+    heatCapacityExpectedTrialCountMode: '3',
+    heatCapacityTrials: createHeatCapacityTrials(3),
+    heatCapacityActiveTrialIndex: 0,
+    heatCapacityProcessingCalculated: false,
+    heatCapacityProcessingResult: createDefaultHeatCapacityProcessingResult(runtime.modelConfig.theoreticalGamma),
     heatCapacityPhase: runtime.heatCapacityPhase,
     powerOn: false,
     glassPistonState: 'closed',
@@ -1187,17 +1209,16 @@ export const createDefaultHeatCapacityFile = (
     visualizationMode: runtime.modelConfig.visualizationMode,
     calculationModel: runtime.modelConfig.calculationModel,
     pressureSensitivityMvPerKPa: runtime.modelConfig.sensor.pressureSensitivityMvPerKPa,
-    heatCapacityTrace: runtime.heatCapacityTrace,
     heatCapacityProcessSamples: runtime.heatCapacityProcessSamples,
     theoreticalGamma: runtime.modelConfig.theoreticalGamma,
   };
 };
 
-const createHeatCapacitySampleFromTrace = (
+const createHeatCapacitySampleFromProcessPoint = (
   key: HeatCapacitySample['key'],
   label: string,
   note: string,
-  point: HeatCapacityTracePoint | undefined,
+  point: HeatCapacityProcessSamplePoint | undefined,
 ): HeatCapacitySample | null => {
   if (!point) return null;
   return {
@@ -1219,19 +1240,19 @@ export const getHeatCapacityAirGammaResult = (file: WorkbenchHeatCapacityState):
     ?? null;
   const recoverySample = file.heatCapacityProcessSamples.recoverySample ?? null;
   const samples = [
-    createHeatCapacitySampleFromTrace(
+    createHeatCapacitySampleFromProcessPoint(
       'zeroed',
       'U0 zeroed pressure signal',
       'Pressure display is zeroed before formal pumping.',
       zeroedSample,
     ),
-    createHeatCapacitySampleFromTrace(
+    createHeatCapacitySampleFromProcessPoint(
       'beforeRelease',
       'U1 before quick release',
       'Bottle is sealed and stable before the quick release.',
       beforeReleaseSample ?? undefined,
     ),
-    createHeatCapacitySampleFromTrace(
+    createHeatCapacitySampleFromProcessPoint(
       'afterRecovery',
       'U2 after thermal recovery',
       'Stopcock is closed and the gas has recovered toward ambient temperature.',
@@ -1242,7 +1263,7 @@ export const getHeatCapacityAirGammaResult = (file: WorkbenchHeatCapacityState):
   return calculateHeatCapacityGamma(samples, {
     atmosphericPressureKPa: file.ambientPressureKPa,
     pressureSensitivityMvPerKPa: file.pressureSensitivityMvPerKPa,
-    theoreticalGamma: file.theoreticalGamma,
+    theoreticalGamma: DEFAULT_HEAT_CAPACITY_MODEL_CONFIG.theoreticalGamma,
   });
 };
 

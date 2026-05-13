@@ -46,7 +46,7 @@ assert.equal(powered.heatCapacityPhase, 'readyToZero');
 assert.equal(powered.temperatureSignalMv, initialTemperatureMv);
 assert.equal(powered.pressureSignalMvRaw, 0);
 assert.equal(powered.pressureSignalMvDisplayed, 0);
-assert.equal(powered.heatCapacityTrace.length, 1);
+assert.equal('heatCapacityTrace' in powered, false, 'runtime should not accumulate realtime chart trace history');
 
 const preOffsetState = {
   ...powered,
@@ -190,6 +190,6 @@ assert.equal(sampled.heatCapacityProcessSamples.releaseLowSample?.pressureSignal
 assert.equal(sampled.heatCapacityProcessSamples.releaseLowSample?.pumpFrequency, 0.67);
 assert.equal(sampled.heatCapacityProcessSamples.releaseLowSample?.pumpValveOpen, true);
 assert.equal(sampled.heatCapacityProcessSamples.releaseLowSample?.stopcockOpen, true);
-assert.equal(sampled.heatCapacityTrace.length >= 2, true);
+assert.equal('heatCapacityTrace' in sampled, false, 'process sampling should stay independent from realtime chart history');
 
 console.log('heatCapacityExperimentModel tests passed');

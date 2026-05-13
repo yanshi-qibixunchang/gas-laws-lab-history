@@ -24,7 +24,7 @@ export type HeatCapacityRuntimePhase =
 
 export type HeatCapacityPumpFrequencyStatus = 'idle' | 'tooSlow' | 'suitable';
 
-export interface HeatCapacityTracePoint {
+export interface HeatCapacityProcessSamplePoint {
   timeS: number;
   phase: HeatCapacityRuntimePhase;
   temperatureSignalMv: number;
@@ -48,7 +48,7 @@ export type HeatCapacityProcessSampleKey =
   | 'releaseLowSample'
   | 'recoverySample';
 
-export type HeatCapacityProcessSamples = Partial<Record<HeatCapacityProcessSampleKey, HeatCapacityTracePoint>>;
+export type HeatCapacityProcessSamples = Partial<Record<HeatCapacityProcessSampleKey, HeatCapacityProcessSamplePoint>>;
 
 export interface HeatCapacityModelConfig {
   ambientPressureKPa: number;
@@ -74,7 +74,6 @@ export interface HeatCapacityModelConfig {
   stableTemperatureMv: number;
   releaseTemperatureMv: number;
   recoveryTemperatureMv: number;
-  maxTracePoints: number;
   sensor: HeatCapacitySensorMappingConfig;
 }
 
@@ -92,7 +91,6 @@ export interface HeatCapacityRuntimeState {
   pressureZeroOffset: number;
   pressureZeroAdjusted: boolean;
   heatCapacityPhase: HeatCapacityRuntimePhase;
-  heatCapacityTrace: HeatCapacityTracePoint[];
   heatCapacityProcessSamples: HeatCapacityProcessSamples;
   modelConfig: HeatCapacityModelConfig;
 }
@@ -136,7 +134,6 @@ export const DEFAULT_HEAT_CAPACITY_MODEL_CONFIG: HeatCapacityModelConfig = {
   stableTemperatureMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.stableTemperatureMvRange),
   releaseTemperatureMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.releaseTemperatureMvRange),
   recoveryTemperatureMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.recoveryTemperatureMvRange),
-  maxTracePoints: 720,
   sensor: {
     pressureSensitivityMvPerKPa: DEFAULT_HEAT_CAPACITY_RESULT_OPTIONS.pressureSensitivityMvPerKPa,
     temperatureBaseMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.initialTemperatureMvRange),
@@ -171,7 +168,7 @@ const getDeterministicFraction = (
   now: number,
   seed: number,
 ) => {
-  const basis = state.simulationTimeS * 12.9898 + state.heatCapacityTrace.length * 78.233 + now * 0.00031 + seed;
+  const basis = state.simulationTimeS * 12.9898 + now * 0.00031 + seed;
   return (Math.sin(basis) * 43758.5453) % 1 < 0
     ? ((Math.sin(basis) * 43758.5453) % 1) + 1
     : (Math.sin(basis) * 43758.5453) % 1;
@@ -194,27 +191,6 @@ const mergeModelConfig = (
     ...config?.sensor,
   },
 });
-
-const appendTracePoint = (
-  state: HeatCapacityRuntimeState,
-  controls: Pick<HeatCapacityStepControls, 'pumpFrequency' | 'pumpValveOpen' | 'stopcockOpen'>,
-): HeatCapacityTracePoint[] => {
-  if (state.heatCapacityPhase === 'powerOff') return state.heatCapacityTrace;
-  const point: HeatCapacityTracePoint = {
-    timeS: roundNumber(state.simulationTimeS, 3),
-    phase: state.heatCapacityPhase,
-    temperatureSignalMv: roundNumber(state.temperatureSignalMv, 3),
-    pressureSignalMv: roundNumber(state.pressureSignalMvDisplayed, 3),
-    gasTemperatureK: roundNumber(state.gasTemperatureK, 3),
-    gasPressureKPaAbs: roundNumber(state.gasPressureKPaAbs, 3),
-    pressureDeltaKPa: roundNumber(state.pressureDeltaKPa, 3),
-    pumpFrequency: roundNumber(controls.pumpFrequency, 3),
-    pumpValveOpen: controls.pumpValveOpen,
-    stopcockOpen: controls.stopcockOpen,
-  };
-  const nextTrace = [...state.heatCapacityTrace, point];
-  return nextTrace.slice(-state.modelConfig.maxTracePoints);
-};
 
 const withMappedSignals = (
   state: HeatCapacityRuntimeState,
@@ -275,7 +251,6 @@ export const createDefaultHeatCapacityRuntimeState = (
     pressureZeroOffset: 0,
     pressureZeroAdjusted: false,
     heatCapacityPhase: 'powerOff',
-    heatCapacityTrace: [],
     heatCapacityProcessSamples: {},
     modelConfig,
   });
@@ -294,20 +269,11 @@ export const powerHeatCapacityRuntimeState = (
     });
   }
 
-  const nextState = withMappedSignals({
+  return withMappedSignals({
     ...state,
     lastUpdateMs: now,
     heatCapacityPhase: state.pressureZeroAdjusted ? 'zeroed' : 'readyToZero',
   });
-
-  return {
-    ...nextState,
-    heatCapacityTrace: appendTracePoint(nextState, {
-      pumpFrequency: 0,
-      pumpValveOpen: false,
-      stopcockOpen: false,
-    }),
-  };
 };
 
 export const updateHeatCapacityRuntimeZeroOffset = (
@@ -315,21 +281,13 @@ export const updateHeatCapacityRuntimeZeroOffset = (
   pressureZeroOffset: number,
   now = Date.now(),
 ): HeatCapacityRuntimeState => {
-  const nextState = withMappedSignals({
+  return withMappedSignals({
     ...state,
     pressureZeroOffset: roundNumber(pressureZeroOffset, 3),
     pressureZeroAdjusted: Math.abs(pressureZeroOffset) > 0.0001,
     heatCapacityPhase: Math.abs(pressureZeroOffset) > 0.0001 ? 'zeroed' : state.heatCapacityPhase,
     lastUpdateMs: now,
   });
-  return {
-    ...nextState,
-    heatCapacityTrace: appendTracePoint(nextState, {
-      pumpFrequency: 0,
-      pumpValveOpen: false,
-      stopcockOpen: false,
-    }),
-  };
 };
 
 export const applyHeatCapacityPumpStroke = (
@@ -380,10 +338,7 @@ export const applyHeatCapacityPumpStroke = (
   return {
     accepted: true,
     reason: 'accepted',
-    state: {
-      ...nextState,
-      heatCapacityTrace: appendTracePoint(nextState, controls),
-    },
+    state: nextState,
   };
 };
 
@@ -491,10 +446,7 @@ export const stepHeatCapacityExperiment = (
     heatCapacityPhase,
   });
 
-  return {
-    ...nextState,
-    heatCapacityTrace: appendTracePoint(nextState, controls),
-  };
+  return nextState;
 };
 
 export const captureHeatCapacityProcessSample = (
@@ -502,7 +454,7 @@ export const captureHeatCapacityProcessSample = (
   key: HeatCapacityProcessSampleKey,
   controls: Partial<Pick<HeatCapacityStepControls, 'pumpFrequency' | 'pumpValveOpen' | 'stopcockOpen'>> = {},
 ): HeatCapacityRuntimeState => {
-  const point: HeatCapacityTracePoint = {
+  const point: HeatCapacityProcessSamplePoint = {
     timeS: roundNumber(state.simulationTimeS, 3),
     phase: state.heatCapacityPhase,
     temperatureSignalMv: roundNumber(state.temperatureSignalMv, 3),
