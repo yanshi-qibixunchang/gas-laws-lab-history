@@ -25,6 +25,7 @@ import {
 } from './heatCapacity/heatCapacityExperimentModel.ts';
 import {
   calculateHeatCapacityGamma,
+  DEFAULT_HEAT_CAPACITY_RESULT_OPTIONS,
   type HeatCapacityResult,
 } from './heatCapacity/heatCapacityResultModel.ts';
 import type {
@@ -39,6 +40,12 @@ import {
   HEAT_CAPACITY_VIDEO_PROFILE,
   getHeatCapacityDisplayValue,
 } from './heatCapacity/heatCapacityDisplayResponse.ts';
+import {
+  createDefaultHeatCapacityProcessingResult,
+  createHeatCapacityTrials,
+  type HeatCapacityProcessingResult,
+  type HeatCapacityTrial,
+} from './heatCapacity/heatCapacityTrialModel.ts';
 
 export type WorkbenchFileKind = 'standard' | 'ideal' | 'heatCapacity';
 export type WorkbenchRunState = 'idle' | 'running' | 'paused' | 'finished' | 'needs-reset';
@@ -54,15 +61,25 @@ export type WorkbenchPanelKey =
   | 'results'
   | 'experimentPoints'
   | 'verification'
+  | 'heatCapacityGuide'
+  | 'heatCapacityRecords'
+  | 'heatCapacityProcessing'
   | 'history';
 export type WorkbenchIdealResultWindowKey = 'experimentPoints' | 'verification';
 export type WorkbenchStandardResultsTab = 'summary' | 'dataTable' | 'figures';
+export type WorkbenchHeatCapacityPanelKey = 'heatCapacityGuide' | 'heatCapacityRecords' | 'heatCapacityProcessing';
+export type WorkbenchHeatCapacityLeftTab = 'guide' | 'recording' | 'processing';
+export type WorkbenchHeatCapacityTabId = 'guide' | 'records' | 'processing';
 
 export const IDEAL_RESULT_HEIGHT_RATIO = 0.5;
 export const WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO = 0.48;
 export const WORKBENCH_LIVE_SPLIT_MIN_RATIO = 0.34;
 export const WORKBENCH_LIVE_SPLIT_MAX_RATIO = 0.66;
 export const WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO = 0.66;
+export const HEAT_CAPACITY_MATERIALS_HEIGHT_RATIO = 0.5;
+export const HEAT_CAPACITY_TAB_CONTAINER_DEFAULT_HEIGHT = 620;
+export const HEAT_CAPACITY_TAB_CONTAINER_MIN_HEIGHT = 320;
+export const HEAT_CAPACITY_TAB_CONTAINER_MAX_HEIGHT = 900;
 export const HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG = 0;
 export const HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG = 90;
 export const HEAT_CAPACITY_STOPCOCK_SECOND_OPEN_ANGLE_DEG = 180;
@@ -74,6 +91,18 @@ export const clampWorkbenchLiveSplitRatio = (value: unknown) => {
     : WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO;
   return Math.min(WORKBENCH_LIVE_SPLIT_MAX_RATIO, Math.max(WORKBENCH_LIVE_SPLIT_MIN_RATIO, ratio));
 };
+
+export const clampHeatCapacityTabContainerHeight = (value: unknown, maxHeight = HEAT_CAPACITY_TAB_CONTAINER_MAX_HEIGHT) => {
+  const height = typeof value === 'number' && Number.isFinite(value)
+    ? value
+    : HEAT_CAPACITY_TAB_CONTAINER_DEFAULT_HEIGHT;
+  const effectiveMax = Math.max(HEAT_CAPACITY_TAB_CONTAINER_MIN_HEIGHT, Math.min(HEAT_CAPACITY_TAB_CONTAINER_MAX_HEIGHT, maxHeight));
+  return Math.min(effectiveMax, Math.max(HEAT_CAPACITY_TAB_CONTAINER_MIN_HEIGHT, height));
+};
+
+const normalizeHeatCapacityTheoreticalGamma = () => (
+  DEFAULT_HEAT_CAPACITY_RESULT_OPTIONS.theoreticalGamma
+);
 
 export type WorkbenchHeatCapacityStopcockState = 'closed' | 'open';
 export type WorkbenchHeatCapacityPumpValveState = 'closed' | 'open';
@@ -529,6 +558,18 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   kind: 'heatCapacity';
   particles: Particle[];
   selectedHeatCapacityPanel: Extract<WorkbenchPanelKey, 'preview' | 'realtime'>;
+  selectedHeatCapacityLeftTab: WorkbenchHeatCapacityLeftTab;
+  openHeatCapacityTabs: WorkbenchHeatCapacityTabId[];
+  activeHeatCapacityTabId: WorkbenchHeatCapacityTabId | null;
+  heatCapacityMaterialsExpanded: boolean;
+  heatCapacityMaterialsHeightRatio: number;
+  heatCapacityTabContainerHeight: number;
+  heatCapacityExpectedTrialCount: number;
+  heatCapacityExpectedTrialCountMode: '3' | '5' | 'custom';
+  heatCapacityTrials: HeatCapacityTrial[];
+  heatCapacityActiveTrialIndex: number;
+  heatCapacityProcessingCalculated: boolean;
+  heatCapacityProcessingResult: HeatCapacityProcessingResult;
   heatCapacityPhase: HeatCapacityRuntimePhase;
   powerOn: boolean;
   glassPistonState: WorkbenchHeatCapacityStopcockState;
@@ -625,7 +666,7 @@ const getHeatCapacityRuntimeStateFromFile = (
       ambientTemperatureK: Number.isFinite(file.ambientTemperatureK) ? file.ambientTemperatureK : fallback.modelConfig.ambientTemperatureK,
       visualizationMode: file.visualizationMode === 'particle' ? file.visualizationMode : fallback.modelConfig.visualizationMode,
       calculationModel: file.calculationModel === 'airHeatCapacityRatio' ? file.calculationModel : fallback.modelConfig.calculationModel,
-      theoreticalGamma: Number.isFinite(file.theoreticalGamma) ? file.theoreticalGamma : fallback.modelConfig.theoreticalGamma,
+      theoreticalGamma: normalizeHeatCapacityTheoreticalGamma(),
       sensor: {
         ...fallback.modelConfig.sensor,
         pressureSensitivityMvPerKPa: Number.isFinite(file.pressureSensitivityMvPerKPa)
@@ -986,6 +1027,10 @@ export const prepareHeatCapacityAutoDemoStart = (
     recordedPressures: { p0: file.ambientPressureKPa, p1: null, p2: null },
     heatCapacityTrace: [],
     heatCapacityProcessSamples: {},
+    heatCapacityTrials: createHeatCapacityTrials(file.heatCapacityExpectedTrialCount),
+    heatCapacityActiveTrialIndex: 0,
+    heatCapacityProcessingCalculated: false,
+    heatCapacityProcessingResult: createDefaultHeatCapacityProcessingResult(normalizeHeatCapacityTheoreticalGamma()),
     updatedAt: now,
   };
 
@@ -1191,6 +1236,8 @@ export const normalizeHeatCapacityFileName = (name: string) => {
 export interface WorkbenchFileLayoutDefaults {
   resultsHeightRatio?: number;
   liveWorkspaceSplitRatio?: number;
+  heatCapacityMaterialsHeightRatio?: number;
+  heatCapacityTabContainerHeight?: number;
 }
 
 export const createDefaultStandardFile = (
@@ -1234,6 +1281,18 @@ export const createDefaultHeatCapacityFile = (
     kind: 'heatCapacity',
     particles: [],
     selectedHeatCapacityPanel: 'preview',
+    selectedHeatCapacityLeftTab: 'guide',
+    openHeatCapacityTabs: [],
+    activeHeatCapacityTabId: null,
+    heatCapacityMaterialsExpanded: true,
+    heatCapacityMaterialsHeightRatio: defaults?.heatCapacityMaterialsHeightRatio ?? defaults?.resultsHeightRatio ?? HEAT_CAPACITY_MATERIALS_HEIGHT_RATIO,
+    heatCapacityTabContainerHeight: clampHeatCapacityTabContainerHeight(defaults?.heatCapacityTabContainerHeight),
+    heatCapacityExpectedTrialCount: 3,
+    heatCapacityExpectedTrialCountMode: '3',
+    heatCapacityTrials: createHeatCapacityTrials(3),
+    heatCapacityActiveTrialIndex: 0,
+    heatCapacityProcessingCalculated: false,
+    heatCapacityProcessingResult: createDefaultHeatCapacityProcessingResult(normalizeHeatCapacityTheoreticalGamma()),
     heatCapacityPhase: runtime.heatCapacityPhase,
     powerOn: false,
     glassPistonState: 'closed',
@@ -1296,7 +1355,7 @@ export const createDefaultHeatCapacityFile = (
     pressureSensitivityMvPerKPa: runtime.modelConfig.sensor.pressureSensitivityMvPerKPa,
     heatCapacityTrace: runtime.heatCapacityTrace,
     heatCapacityProcessSamples: runtime.heatCapacityProcessSamples,
-    theoreticalGamma: runtime.modelConfig.theoreticalGamma,
+    theoreticalGamma: normalizeHeatCapacityTheoreticalGamma(),
   };
 };
 
@@ -1349,7 +1408,7 @@ export const getHeatCapacityAirGammaResult = (file: WorkbenchHeatCapacityState):
   return calculateHeatCapacityGamma(samples, {
     atmosphericPressureKPa: file.ambientPressureKPa,
     pressureSensitivityMvPerKPa: file.pressureSensitivityMvPerKPa,
-    theoreticalGamma: file.theoreticalGamma,
+    theoreticalGamma: normalizeHeatCapacityTheoreticalGamma(),
   });
 };
 

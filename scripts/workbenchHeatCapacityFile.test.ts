@@ -22,6 +22,16 @@ assert.equal(heatTwo.id, 'heatCapacity-002');
 assert.equal(heatTwo.name, 'Heat Capacity Ratio - 002');
 assert.deepEqual(heatOne.visiblePanels, ['preview', 'realtime']);
 assert.equal(heatOne.selectedHeatCapacityPanel, 'preview');
+assert.equal(heatOne.selectedHeatCapacityLeftTab, 'guide');
+assert.deepEqual(heatOne.openHeatCapacityTabs, []);
+assert.equal(heatOne.activeHeatCapacityTabId, null);
+assert.equal(heatOne.heatCapacityMaterialsHeightRatio, 0.5);
+assert.equal(heatOne.heatCapacityExpectedTrialCount, 3);
+assert.equal(heatOne.heatCapacityExpectedTrialCountMode, '3');
+assert.equal(heatOne.heatCapacityTrials.length, 3);
+assert.equal(heatOne.heatCapacityActiveTrialIndex, 0);
+assert.equal(heatOne.heatCapacityProcessingCalculated, false);
+assert.equal(heatOne.heatCapacityProcessingResult.status, 'not-calculated');
 assert.ok(
   heatOne.liveWorkspaceSplitRatio > 0.5,
   'heatCapacity preview area should be wider than realtime data by default',
@@ -53,6 +63,10 @@ assert.equal(migrated.files[0].kind, 'heatCapacity');
 assert.equal(migrated.files[0].name, 'Heat Capacity Ratio - 007');
 assert.equal(migrated.files[0].liveWorkspaceSplitRatio, 0.62);
 assert.equal(migrated.selectedPanel, 'realtime');
+if (migrated.files[0].kind === 'heatCapacity') {
+  assert.equal(migrated.files[0].selectedHeatCapacityLeftTab, 'guide');
+  assert.equal(migrated.files[0].heatCapacityTrials.length, 3);
+}
 
 const customName = 'My Manual Heat Capacity Study';
 const customRestored = decodeWorkbenchSession({
