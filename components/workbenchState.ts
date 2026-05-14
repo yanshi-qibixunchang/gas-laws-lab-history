@@ -82,8 +82,6 @@ export const WORKBENCH_LIVE_SPLIT_MAX_RATIO = 0.66;
 export const WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO = 0.66;
 export const HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG = 0;
 export const HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG = 90;
-export const HEAT_CAPACITY_STOPCOCK_SECOND_OPEN_ANGLE_DEG = 180;
-export const HEAT_CAPACITY_STOPCOCK_OPEN_MAGNET_DEG = 10;
 
 export const clampWorkbenchLiveSplitRatio = (value: unknown) => {
   const ratio = typeof value === 'number' && Number.isFinite(value)
@@ -229,15 +227,6 @@ const createHeatCapacityAutoDemoInitialBiasMv = () => {
   return roundNumber(magnitude * sign, 2);
 };
 
-const getCircularAngleDistance = (angle: number, target: number) => {
-  const delta = Math.abs(normalizeDegrees360(angle) - normalizeDegrees360(target));
-  return Math.min(delta, 360 - delta);
-};
-
-const isNearHeatCapacityOpenAngle = (angle: number, target: number) => (
-  getCircularAngleDistance(angle, target) <= HEAT_CAPACITY_STOPCOCK_OPEN_MAGNET_DEG
-);
-
 export const getHeatCapacityStopcockTargetAngle = (
   open: boolean,
 ) => (open ? HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG : HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
@@ -247,18 +236,14 @@ export const normalizeHeatCapacityStopcockAngle = (value: unknown) => {
     ? value
     : HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG;
   const normalized = normalizeDegrees360(angle);
-  if (isNearHeatCapacityOpenAngle(normalized, HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG)) {
-    return HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG;
-  }
-  if (isNearHeatCapacityOpenAngle(normalized, HEAT_CAPACITY_STOPCOCK_SECOND_OPEN_ANGLE_DEG)) {
-    return HEAT_CAPACITY_STOPCOCK_SECOND_OPEN_ANGLE_DEG;
-  }
-  return normalized;
+  const openHalfRangeDeg = 45;
+  return normalized <= openHalfRangeDeg || normalized >= (360 - openHalfRangeDeg)
+    ? HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG
+    : HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG;
 };
 
 export const getHeatCapacityStopcockState = (angleDeg: unknown): WorkbenchHeatCapacityStopcockState => (
-  normalizeHeatCapacityStopcockAngle(angleDeg) === HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG ||
-  normalizeHeatCapacityStopcockAngle(angleDeg) === HEAT_CAPACITY_STOPCOCK_SECOND_OPEN_ANGLE_DEG
+  normalizeHeatCapacityStopcockAngle(angleDeg) === HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG
     ? 'open'
     : 'closed'
 );
@@ -950,8 +935,8 @@ export const resetHeatCapacityForManualExperiment = (
       powerOn: false,
       runState: 'idle',
       heatCapacityPhase: 'powerOff',
-      glassPistonState: 'open',
-      stopcockAngleDeg: getHeatCapacityStopcockTargetAngle(true),
+      glassPistonState: 'closed',
+      stopcockAngleDeg: getHeatCapacityStopcockTargetAngle(false),
       gasPressureKPaAbs: file.ambientPressureKPa,
       gasTemperatureK: file.ambientTemperatureK,
       pressureDeltaKPa: 0,
@@ -1008,10 +993,10 @@ export const resetHeatCapacityForManualExperiment = (
     {
       ...runtime,
       lastUpdateMs: now,
-    pressureZeroOffset: -initialPressureDisplayBiasMv,
-    pressureSignalMvDisplayed: initialPressureDisplayBiasMv,
-    heatCapacityPhase: 'powerOff',
-    heatCapacityProcessSamples: {},
+      pressureZeroOffset: -initialPressureDisplayBiasMv,
+      pressureSignalMvDisplayed: initialPressureDisplayBiasMv,
+      heatCapacityPhase: 'powerOff',
+      heatCapacityProcessSamples: {},
     },
     now,
   );

@@ -15,7 +15,6 @@ import {
   getHeatCapacityStopcockState,
   HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
   HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
-  HEAT_CAPACITY_STOPCOCK_SECOND_OPEN_ANGLE_DEG,
   HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG,
   HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG,
   HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MAX_MV,
@@ -544,72 +543,34 @@ assert.equal(suitablePump.pumpFrequency >= 0.5, true);
 assert.equal(suitablePump.pressurePlaceholder > openValvePump.pressurePlaceholder, true);
 assert.equal(suitablePump.pumpHint, '打气频率合适，可以继续观察压强变化');
 
-assert.equal(normalizeHeatCapacityStopcockAngle(-90), 270);
+assert.equal(normalizeHeatCapacityStopcockAngle(-90), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
 assert.equal(normalizeHeatCapacityStopcockAngle(0), 0);
-assert.equal(normalizeHeatCapacityStopcockAngle(9), 0);
-assert.equal(normalizeHeatCapacityStopcockAngle(10), 0);
-assert.equal(normalizeHeatCapacityStopcockAngle(11), 11);
-assert.equal(normalizeHeatCapacityStopcockAngle(79), 79);
-assert.equal(normalizeHeatCapacityStopcockAngle(80), 80);
-assert.equal(normalizeHeatCapacityStopcockAngle(85), 85);
-assert.equal(normalizeHeatCapacityStopcockAngle(86), 86);
+assert.equal(normalizeHeatCapacityStopcockAngle(9), HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(44), HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(46), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
 assert.equal(normalizeHeatCapacityStopcockAngle(90), 90);
-assert.equal(normalizeHeatCapacityStopcockAngle(94), 94);
-assert.equal(normalizeHeatCapacityStopcockAngle(95), 95);
-assert.equal(normalizeHeatCapacityStopcockAngle(100), 100);
-assert.equal(normalizeHeatCapacityStopcockAngle(101), 101);
-assert.equal(normalizeHeatCapacityStopcockAngle(170), 180);
-assert.equal(normalizeHeatCapacityStopcockAngle(180), 180);
-assert.equal(normalizeHeatCapacityStopcockAngle(190), 180);
-assert.equal(normalizeHeatCapacityStopcockAngle(191), 191);
-assert.equal(normalizeHeatCapacityStopcockAngle(259), 259);
-assert.equal(normalizeHeatCapacityStopcockAngle(260), 260);
-assert.equal(normalizeHeatCapacityStopcockAngle(265), 265);
-assert.equal(normalizeHeatCapacityStopcockAngle(266), 266);
-assert.equal(normalizeHeatCapacityStopcockAngle(270), 270);
-assert.equal(normalizeHeatCapacityStopcockAngle(274), 274);
-assert.equal(normalizeHeatCapacityStopcockAngle(275), 275);
-assert.equal(normalizeHeatCapacityStopcockAngle(280), 280);
-assert.equal(normalizeHeatCapacityStopcockAngle(281), 281);
-assert.equal(normalizeHeatCapacityStopcockAngle(350), 0);
+assert.equal(normalizeHeatCapacityStopcockAngle(135), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(180), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(270), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(315), HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(350), HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
 assert.equal(normalizeHeatCapacityStopcockAngle(360), 0);
 assert.equal(normalizeHeatCapacityStopcockAngle(450), 90);
 
 assert.equal(getHeatCapacityStopcockTargetAngle(true), HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
 assert.equal(getHeatCapacityStopcockTargetAngle(false), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
 assert.equal(getHeatCapacityStopcockState(0), 'open');
-assert.equal(getHeatCapacityStopcockState(9), 'open');
-assert.equal(getHeatCapacityStopcockState(11), 'closed');
-assert.equal(getHeatCapacityStopcockState(79), 'closed');
-assert.equal(getHeatCapacityStopcockState(80), 'closed');
-assert.equal(getHeatCapacityStopcockState(85), 'closed');
-assert.equal(getHeatCapacityStopcockState(86), 'closed');
+assert.equal(getHeatCapacityStopcockState(44), 'open');
+assert.equal(getHeatCapacityStopcockState(46), 'closed');
 assert.equal(getHeatCapacityStopcockState(90), 'closed');
-assert.equal(getHeatCapacityStopcockState(94), 'closed');
-assert.equal(getHeatCapacityStopcockState(95), 'closed');
-assert.equal(getHeatCapacityStopcockState(101), 'closed');
-assert.equal(getHeatCapacityStopcockState(170), 'open');
-assert.equal(getHeatCapacityStopcockState(180), 'open');
-assert.equal(getHeatCapacityStopcockState(190), 'open');
-assert.equal(getHeatCapacityStopcockState(191), 'closed');
-assert.equal(getHeatCapacityStopcockState(259), 'closed');
-assert.equal(getHeatCapacityStopcockState(265), 'closed');
-assert.equal(getHeatCapacityStopcockState(266), 'closed');
+assert.equal(getHeatCapacityStopcockState(180), 'closed');
 assert.equal(getHeatCapacityStopcockState(270), 'closed');
-assert.equal(getHeatCapacityStopcockState(274), 'closed');
-assert.equal(getHeatCapacityStopcockState(275), 'closed');
-assert.equal(getHeatCapacityStopcockState(281), 'closed');
 assert.equal(getHeatCapacityStopcockState(350), 'open');
 
 assert.equal(canZeroHeatCapacityPressure({
   ...defaultFile,
   powerOn: true,
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
-}), true);
-assert.equal(canZeroHeatCapacityPressure({
-  ...defaultFile,
-  powerOn: true,
-  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_SECOND_OPEN_ANGLE_DEG,
 }), true);
 assert.equal(canZeroHeatCapacityPressure({
   ...defaultFile,

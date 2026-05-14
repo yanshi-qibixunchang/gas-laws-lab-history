@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Edges, Line, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -6,11 +6,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import {
   HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG,
   HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG,
-  HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
-  HEAT_CAPACITY_STOPCOCK_OPEN_MAGNET_DEG,
-  HEAT_CAPACITY_STOPCOCK_SECOND_OPEN_ANGLE_DEG,
   getHeatCapacityStopcockState,
-  normalizeHeatCapacityStopcockAngle,
 } from '../workbenchState';
 
 interface HeatCapacityInstrumentSceneProps {
@@ -48,11 +44,13 @@ interface HeatCapacityInstrumentSceneProps {
   interactionLocked: boolean;
   demoFocusControlId: string | null;
   demoFocusPulseActive: boolean;
+  manualRollbackAnimation: 'valveBounce' | 'stopcockBounce' | 'pumpBulbBounce' | 'knobBounce' | null;
+  manualRollbackKey: number;
   focusResetKey: number;
   onFocusModeChange: (mode: HeatCapacityFocusMode) => void;
   onLockedInteraction: (message?: string) => void;
   onPowerToggle: (nextPowerOn: boolean) => void;
-  onStopcockAngleChange: (nextAngleDeg: number) => void;
+  onStopcockOpenChange: (nextOpen: boolean) => void;
   onPressureZero: () => void;
   onPressureZeroFineAdjust: (direction: number) => void;
   onPressureZeroCoarseAdjust: (angleDeltaDeg: number) => void;
@@ -76,13 +74,13 @@ const heatCapacitySceneCopies = {
     frequencySlow: '打气过慢',
     frequencySuitable: '打气频率合适',
     hints: {
-      stopcock: ['聚焦模式：整体视角已锁定', '拖动旋塞手柄或悬停滚轮微调角度', '点击打气阀门切换通路，滑条可精确调节', '点击退出聚焦返回默认视角'],
+      stopcock: ['聚焦模式：整体视角已锁定', '玻璃旋塞与打气阀门只保留开 / 关状态', '点击退出聚焦返回默认视角'],
       pump: ['聚焦模式：点击打气球执行打气', '右下角面板显示阀门状态和打气频率', '点击退出聚焦返回默认视角'],
       instrument: ['聚焦模式：整体视角已锁定', '查看仪表读数、电源状态和占位数据', '点击退出聚焦返回默认视角'],
       normal: ['左键拖动：旋转模型', '右键拖动：平移模型', '滚轮：缩放模型', '双击高亮部件：进入聚焦', '悬停高亮表示可交互'],
     },
     tooltip: {
-      stopcock: '玻璃旋塞：滚轮微调角度；双击进入聚焦',
+      stopcock: '玻璃旋塞：点击切换玻璃旋塞状态',
       pumpValve: '打气阀门：点击切换开闭状态',
       pumpBulbReady: '打气球：聚焦后点击打气',
       pumpBulbClosed: '打气球：需先打开打气阀门',
@@ -91,16 +89,12 @@ const heatCapacitySceneCopies = {
     },
     focus: {
       stopcockTitle: '旋塞 / 阀门控制',
-      currentAngle: '当前角度',
       glassStopcock: '玻璃旋塞',
       connected: '已连通',
       disconnected: '未连通',
       pumpValve: '打气阀门',
       opened: '已打开',
       closed: '已关闭',
-      magneticRange: '磁吸范围',
-      stopcockAngleAria: '旋塞角度',
-      snapNearestOpen: '吸附到最近接通角',
       exit: '退出聚焦',
       pumpTitle: '打气球控制',
       pumpBulb: '打气球',
@@ -132,13 +126,13 @@ const heatCapacitySceneCopies = {
     frequencySlow: '打氣過慢',
     frequencySuitable: '打氣頻率合適',
     hints: {
-      stopcock: ['聚焦模式：整體視角已鎖定', '拖動旋塞手柄或懸停滾輪微調角度', '點擊打氣閥門切換通路，滑條可精確調節', '點擊退出聚焦返回預設視角'],
+      stopcock: ['聚焦模式：整體視角已鎖定', '玻璃旋塞與打氣閥門只保留開 / 關狀態', '點擊退出聚焦返回預設視角'],
       pump: ['聚焦模式：點擊打氣球執行打氣', '右下角面板顯示閥門狀態和打氣頻率', '點擊退出聚焦返回預設視角'],
       instrument: ['聚焦模式：整體視角已鎖定', '查看儀表讀數、電源狀態和占位資料', '點擊退出聚焦返回預設視角'],
       normal: ['左鍵拖動：旋轉模型', '右鍵拖動：平移模型', '滾輪：縮放模型', '雙擊高亮部件：進入聚焦', '懸停高亮表示可互動'],
     },
     tooltip: {
-      stopcock: '玻璃旋塞：滾輪微調角度；雙擊進入聚焦',
+      stopcock: '玻璃旋塞：點擊切換玻璃旋塞狀態',
       pumpValve: '打氣閥門：點擊切換開閉狀態',
       pumpBulbReady: '打氣球：聚焦後點擊打氣',
       pumpBulbClosed: '打氣球：需先打開打氣閥門',
@@ -147,16 +141,12 @@ const heatCapacitySceneCopies = {
     },
     focus: {
       stopcockTitle: '旋塞 / 閥門控制',
-      currentAngle: '目前角度',
       glassStopcock: '玻璃旋塞',
       connected: '已連通',
       disconnected: '未連通',
       pumpValve: '打氣閥門',
       opened: '已打開',
       closed: '已關閉',
-      magneticRange: '磁吸範圍',
-      stopcockAngleAria: '旋塞角度',
-      snapNearestOpen: '吸附到最近接通角',
       exit: '退出聚焦',
       pumpTitle: '打氣球控制',
       pumpBulb: '打氣球',
@@ -188,13 +178,13 @@ const heatCapacitySceneCopies = {
     frequencySlow: 'Too slow',
     frequencySuitable: 'Suitable rate',
     hints: {
-      stopcock: ['Focus mode: camera is locked', 'Drag the stopcock handle or use the wheel for fine angle adjustment', 'Click the pump valve to switch the air path; use the slider for precise control', 'Click exit focus to return to the default view'],
+      stopcock: ['Focus mode: camera is locked', 'Glass stopcock and pump valve use open / closed states only', 'Click exit focus to return to the default view'],
       pump: ['Focus mode: click the pump bulb to pump air', 'The lower-right panel shows valve state and pump frequency', 'Click exit focus to return to the default view'],
       instrument: ['Focus mode: camera is locked', 'Inspect instrument readings, power state, and placeholder values', 'Click exit focus to return to the default view'],
       normal: ['Left drag: rotate model', 'Right drag: pan model', 'Wheel: zoom model', 'Double-click highlighted parts: enter focus', 'Hover highlight means interactive'],
     },
     tooltip: {
-      stopcock: 'Glass stopcock: wheel fine-adjusts angle; double-click to focus',
+      stopcock: 'Glass stopcock: Click to toggle the glass stopcock state',
       pumpValve: 'Pump valve: click to switch open or closed',
       pumpBulbReady: 'Pump bulb: focus, then click to pump',
       pumpBulbClosed: 'Pump bulb: open the pump valve first',
@@ -203,16 +193,12 @@ const heatCapacitySceneCopies = {
     },
     focus: {
       stopcockTitle: 'Stopcock / Valve Control',
-      currentAngle: 'Current angle',
       glassStopcock: 'Glass stopcock',
       connected: 'Connected',
       disconnected: 'Disconnected',
       pumpValve: 'Pump valve',
       opened: 'Open',
       closed: 'Closed',
-      magneticRange: 'Magnetic range',
-      stopcockAngleAria: 'Stopcock angle',
-      snapNearestOpen: 'Snap to nearest open angle',
       exit: 'Exit focus',
       pumpTitle: 'Pump Bulb Control',
       pumpBulb: 'Pump bulb',
@@ -233,10 +219,8 @@ const heatCapacitySceneCopies = {
     },
   },
 } as const;
-
 type HeatCapacitySceneCopy = typeof heatCapacitySceneCopies['zh-CN'];
 
-const STOPCOCK_WHEEL_STEP_DEG = 3;
 const PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 2;
 const PRESSURE_ZERO_DRAG_DIRECTION = -1;
 const HOVER_CLEAR_DELAY_MS = 220;
@@ -253,33 +237,9 @@ const AUTO_DEMO_CAMERA_TARGET: [number, number, number] = [0.24, -0.05, 0.02];
 const ORBIT_MIN_DISTANCE = 2.7;
 const ORBIT_MAX_DISTANCE = 11.5;
 
-const STOPCOCK_OPEN_ANGLES = [
-  HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
-  HEAT_CAPACITY_STOPCOCK_SECOND_OPEN_ANGLE_DEG,
-];
-
-const normalizeDisplayAngle = (angleDeg: number) => ((angleDeg % 360) + 360) % 360;
-
-const getCircularAngleDistance = (angleDeg: number, targetDeg: number) => {
-  const delta = Math.abs(normalizeDisplayAngle(angleDeg) - normalizeDisplayAngle(targetDeg));
-  return Math.min(delta, 360 - delta);
-};
-
-const getNearestOpenAngle = (angleDeg: number) => (
-  STOPCOCK_OPEN_ANGLES.reduce((nearest, openAngle) => (
-    getCircularAngleDistance(angleDeg, openAngle) < getCircularAngleDistance(angleDeg, nearest)
-      ? openAngle
-      : nearest
-  ), STOPCOCK_OPEN_ANGLES[0])
-);
-
-const formatStopcockAngle = (angleDeg: number) => `${Math.round(normalizeDisplayAngle(angleDeg))}°`;
-
 const formatSignal = (value: number | null, fallback = '--.- mV') => (
   typeof value === 'number' && Number.isFinite(value) ? `${value.toFixed(1)} mV` : fallback
 );
-
-const angleToSliderPercent = (angleDeg: number) => `${(normalizeDisplayAngle(angleDeg) / 360) * 100}%`;
 
 const clampPressureZeroSceneKnobAngle = (angleDeg: number) => Math.min(
   HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG,
@@ -529,10 +489,12 @@ function InstrumentBox({
   interactionLocked,
   demoFocusControlId,
   demoFocusPulseActive,
+  manualRollbackAnimation,
+  manualRollbackKey,
   onLockedInteraction,
   interactionQualityReduced,
   sceneCopy,
-}: Pick<HeatCapacityInstrumentSceneProps, 'performanceMode' | 'powerOn' | 'pressureZeroKnobAngle' | 'pressureGaugeDisplayValue' | 'gaugePressureMinKPa' | 'gaugePressureMaxKPa' | 'pressureSafetyThresholdKPa' | 'pressureOverLimit' | 'temperatureSignalMv' | 'pressureSignalMv' | 'onPowerToggle' | 'onPressureZero' | 'onPressureZeroFineAdjust' | 'onPressureZeroCoarseAdjust' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'onLockedInteraction'> & {
+}: Pick<HeatCapacityInstrumentSceneProps, 'performanceMode' | 'powerOn' | 'pressureZeroKnobAngle' | 'pressureGaugeDisplayValue' | 'gaugePressureMinKPa' | 'gaugePressureMaxKPa' | 'pressureSafetyThresholdKPa' | 'pressureOverLimit' | 'temperatureSignalMv' | 'pressureSignalMv' | 'onPowerToggle' | 'onPressureZero' | 'onPressureZeroFineAdjust' | 'onPressureZeroCoarseAdjust' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
   zeroEnabled: boolean;
   onFocus: (mode: HeatCapacityFocusMode) => void;
   focusMode: HeatCapacityFocusMode;
@@ -562,6 +524,7 @@ function InstrumentBox({
   const invalidate = useThree((state) => state.invalidate);
   const gaugeNeedlePivotRef = useRef<THREE.Group | null>(null);
   const pressureZeroKnobRef = useRef<THREE.Group | null>(null);
+  const [pressureZeroRollbackOffsetDeg, setPressureZeroRollbackOffsetDeg] = useState(0);
   const pressureZeroDragRef = useRef({
     startKnobAngle: pressureZeroKnobAngle,
     lastPointerAngle: 0,
@@ -610,6 +573,27 @@ function InstrumentBox({
       invalidate();
     }
   });
+
+  useEffect(() => {
+    if (manualRollbackAnimation !== 'knobBounce' || manualRollbackKey <= 0) return undefined;
+    const startTime = performance.now();
+    let frameId = 0;
+    const animate = (timestamp: number) => {
+      const progress = Math.min(1, (timestamp - startTime) / 360);
+      setPressureZeroRollbackOffsetDeg(Math.sin(progress * Math.PI) * 18);
+      invalidate();
+      if (progress < 1) {
+        frameId = window.requestAnimationFrame(animate);
+      } else {
+        setPressureZeroRollbackOffsetDeg(0);
+      }
+    };
+    frameId = window.requestAnimationFrame(animate);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      setPressureZeroRollbackOffsetDeg(0);
+    };
+  }, [invalidate, manualRollbackAnimation, manualRollbackKey]);
 
   const getPressureZeroPointerAngle = useCallback((clientX: number, clientY: number) => {
     if (!pressureZeroKnobRef.current) return null;
@@ -715,6 +699,12 @@ function InstrumentBox({
 
       <PanelText name="InstrumentPanelTitleText" position={[0, 0.28, 0.505]} size={0.035}>
         FD-NCD-C
+      </PanelText>
+      <PanelText name="TemperatureDisplayChannelLabelText" position={[-0.64, 0.215, 0.505]} size={0.026}>
+        U_T / mV
+      </PanelText>
+      <PanelText name="PressureDisplayChannelLabelText" position={[0, 0.215, 0.505]} size={0.026}>
+        U_p / mV
       </PanelText>
 
       <mesh name="TemperatureDisplay" position={[-0.64, 0.1, 0.48]}>
@@ -911,7 +901,7 @@ function InstrumentBox({
             <meshBasicMaterial color="#7dd3fc" transparent opacity={NON_BULB_HOVER_HALO_OPACITY} depthWrite={false} />
           </mesh>
         ) : null}
-        <group name="PressureZeroIndicatorGroup" rotation={[0, 0, THREE.MathUtils.degToRad(pressureZeroKnobAngle)]}>
+        <group name="PressureZeroIndicatorGroup" rotation={[0, 0, THREE.MathUtils.degToRad(pressureZeroKnobAngle + pressureZeroRollbackOffsetDeg)]}>
           <mesh name="PressureZeroIndicatorLine" position={[0.035, 0, 0.076]} raycast={DISABLE_RAYCAST}>
             <boxGeometry args={[0.105, 0.013, 0.016]} />
             <meshStandardMaterial color="#111827" roughness={0.34} />
@@ -924,126 +914,88 @@ function InstrumentBox({
 
 function GlassStopcock({
   angleDeg,
-  onStopcockAngleChange,
-  onFocus,
-  focusMode,
+  onStopcockOpenChange,
   hoveredControl,
   setHoveredControl,
   interactionLocked,
   demoFocusControlId,
   demoFocusPulseActive,
+  manualRollbackAnimation,
+  manualRollbackKey,
   onLockedInteraction,
   interactionQualityReduced,
-}: Pick<HeatCapacityInstrumentSceneProps, 'onStopcockAngleChange' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'onLockedInteraction'> & {
+}: Pick<HeatCapacityInstrumentSceneProps, 'onStopcockOpenChange' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
   angleDeg: number;
-  onFocus: (mode: HeatCapacityFocusMode) => void;
-  focusMode: HeatCapacityFocusMode;
   hoveredControl: HeatCapacityHoveredControl;
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
   interactionQualityReduced: boolean;
 }) {
-  const { camera, gl } = useThree();
-  const assemblyRef = useRef<THREE.Group | null>(null);
-  const latestAngleRef = useRef(angleDeg);
-  const angleOffsetRef = useRef(0);
-  const interactionPlaneRef = useRef(new THREE.Plane());
-  const raycasterRef = useRef(new THREE.Raycaster());
-  const pointerRef = useRef(new THREE.Vector2());
-  const valvePivotRef = useRef(new THREE.Vector3());
-  const valveAxisRef = useRef(new THREE.Vector3());
-  const referenceVectorRef = useRef(new THREE.Vector3());
-  const signedVectorRef = useRef(new THREE.Vector3());
-  const hitPointRef = useRef(new THREE.Vector3());
-  const worldQuaternionRef = useRef(new THREE.Quaternion());
+  const [displayAngleDeg, setDisplayAngleDeg] = useState(angleDeg);
+  const displayAngleRef = useRef(angleDeg);
+  const [stopcockRollbackOffsetDeg, setStopcockRollbackOffsetDeg] = useState(0);
 
   useEffect(() => {
-    latestAngleRef.current = angleDeg;
+    const startAngle = displayAngleRef.current;
+    const targetAngle = angleDeg;
+    if (Math.abs(targetAngle - startAngle) < 0.01) {
+      displayAngleRef.current = targetAngle;
+      setDisplayAngleDeg(targetAngle);
+      return undefined;
+    }
+    const startTime = performance.now();
+    const durationMs = 850;
+    let frameId = 0;
+    const animate = (timestamp: number) => {
+      const progress = Math.min(1, (timestamp - startTime) / durationMs);
+      const eased = 1 - ((1 - progress) ** 3);
+      const nextAngle = startAngle + (targetAngle - startAngle) * eased;
+      displayAngleRef.current = nextAngle;
+      setDisplayAngleDeg(nextAngle);
+      if (progress < 1) frameId = window.requestAnimationFrame(animate);
+    };
+    frameId = window.requestAnimationFrame(animate);
+    return () => window.cancelAnimationFrame(frameId);
   }, [angleDeg]);
 
-  const getPointerAngleOnValvePlane = (clientX: number, clientY: number) => {
-    if (!assemblyRef.current) return null;
-    const rect = gl.domElement.getBoundingClientRect();
-    pointerRef.current.set(
-      ((clientX - rect.left) / rect.width) * 2 - 1,
-      -(((clientY - rect.top) / rect.height) * 2 - 1),
-    );
-    raycasterRef.current.setFromCamera(pointerRef.current, camera);
-    assemblyRef.current.getWorldPosition(valvePivotRef.current);
-    assemblyRef.current.getWorldQuaternion(worldQuaternionRef.current);
-
-    valveAxisRef.current.set(1, 0, 0).applyQuaternion(worldQuaternionRef.current).normalize();
-    referenceVectorRef.current.set(0, 0, 1).applyQuaternion(worldQuaternionRef.current).normalize();
-    signedVectorRef.current.set(0, -1, 0).applyQuaternion(worldQuaternionRef.current).normalize();
-    interactionPlaneRef.current.setFromNormalAndCoplanarPoint(valveAxisRef.current, valvePivotRef.current);
-
-    const hitPoint = raycasterRef.current.ray.intersectPlane(interactionPlaneRef.current, hitPointRef.current);
-    if (!hitPoint) return null;
-    const projected = hitPoint.sub(valvePivotRef.current);
-    projected.addScaledVector(valveAxisRef.current, -projected.dot(valveAxisRef.current));
-    if (projected.lengthSq() < 0.0001) return null;
-    projected.normalize();
-    return Math.atan2(
-      projected.dot(signedVectorRef.current),
-      projected.dot(referenceVectorRef.current),
-    ) * 180 / Math.PI;
-  };
-
-  const startDrag = (event: ThreeEvent<PointerEvent>) => {
-    event.stopPropagation();
-    event.nativeEvent.stopPropagation();
-    if (interactionLocked) {
-      onLockedInteraction();
-      return;
-    }
-    const startPointerAngle = getPointerAngleOnValvePlane(
-      event.nativeEvent.clientX,
-      event.nativeEvent.clientY,
-    );
-    if (startPointerAngle === null) return;
-    angleOffsetRef.current = latestAngleRef.current - startPointerAngle;
-
-    const handlePointerMove = (moveEvent: PointerEvent) => {
-      const currentPointerAngle = getPointerAngleOnValvePlane(moveEvent.clientX, moveEvent.clientY);
-      if (currentPointerAngle === null) return;
-      const nextAngle = currentPointerAngle + angleOffsetRef.current;
-      latestAngleRef.current = nextAngle;
-      onStopcockAngleChange(nextAngle);
+  useEffect(() => {
+    if (manualRollbackAnimation !== 'stopcockBounce' || manualRollbackKey <= 0) return undefined;
+    const startTime = performance.now();
+    let frameId = 0;
+    const direction = getHeatCapacityStopcockState(angleDeg) === 'open' ? -1 : 1;
+    const animate = (timestamp: number) => {
+      const progress = Math.min(1, (timestamp - startTime) / 360);
+      setStopcockRollbackOffsetDeg(Math.sin(progress * Math.PI) * 24 * direction);
+      if (progress < 1) {
+        frameId = window.requestAnimationFrame(animate);
+      } else {
+        setStopcockRollbackOffsetDeg(0);
+      }
     };
-
-    const handlePointerUp = () => {
-      onStopcockAngleChange(normalizeHeatCapacityStopcockAngle(latestAngleRef.current));
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
+    frameId = window.requestAnimationFrame(animate);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      setStopcockRollbackOffsetDeg(0);
     };
-
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp, { once: true });
-  };
-
-  const handleStopcockWheel = (event: ThreeEvent<WheelEvent>) => {
-    event.stopPropagation();
-    event.nativeEvent.stopPropagation();
-    event.nativeEvent.preventDefault();
-    if (interactionLocked) {
-      onLockedInteraction();
-      return;
-    }
-    const wheelStep = event.nativeEvent.altKey
-      ? 1
-      : event.nativeEvent.shiftKey
-        ? 10
-        : STOPCOCK_WHEEL_STEP_DEG;
-    const direction = event.nativeEvent.deltaY < 0 ? 1 : -1;
-    onStopcockAngleChange(normalizeHeatCapacityStopcockAngle(angleDeg + direction * wheelStep));
-  };
+  }, [angleDeg, manualRollbackAnimation, manualRollbackKey]);
 
   const state = getHeatCapacityStopcockState(angleDeg);
   const stopcockHovered = hoveredControl === 'stopcock';
   const stopcockDemoFocused = demoFocusPulseActive && demoFocusControlId === 'stopcock';
-  const angleRad = (angleDeg * Math.PI) / 180;
+  const angleRad = ((displayAngleDeg + stopcockRollbackOffsetDeg) * Math.PI) / 180;
+
+  const handleStopcockToggle = (event: ThreeEvent<PointerEvent>) => {
+    event.stopPropagation();
+    event.nativeEvent.stopPropagation();
+    event.nativeEvent.stopImmediatePropagation?.();
+    if (interactionLocked) {
+      onLockedInteraction();
+      return;
+    }
+    onStopcockOpenChange(state !== 'open');
+  };
 
   return (
-    <group name="GlassStopcockAssembly" ref={assemblyRef} position={[0, 1.58, 0]}>
+    <group name="GlassStopcockAssembly" position={[0, 1.58, 0]}>
       <mesh name="StopcockBody" rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.16, 0.16, 0.76, 32]} />
         <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.18} roughness={0.06} transmission={0.48} />
@@ -1063,24 +1015,16 @@ function GlassStopcock({
       <group
         name="StopcockRotatingCore"
         rotation={[angleRad, 0, 0]}
-        onDoubleClick={(event) => {
-          event.stopPropagation();
-          if (interactionLocked) {
-            onLockedInteraction();
-            return;
-          }
-          onFocus('stopcock');
-        }}
-        onPointerDown={focusMode === 'stopcock' ? startDrag : undefined}
-        onWheel={handleStopcockWheel}
+        onPointerDown={handleStopcockToggle}
         onPointerOver={(event) => {
           event.stopPropagation();
+          event.nativeEvent.stopPropagation();
           setHoveredControl('stopcock');
         }}
         onPointerOut={() => setHoveredControl(null)}
       >
         <mesh name="HitboxStopcockHandle">
-          <boxGeometry args={[1.62, 1.04, 0.64]} />
+          <boxGeometry args={[1.02, 0.72, 0.34]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
         <DemoFocusHalo active={stopcockDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloStopcock" rotation={[0, 0, Math.PI / 2]}>
@@ -1172,10 +1116,9 @@ function GlassStopcock({
     </group>
   );
 }
-
 function PressureBottle({
   stopcockAngleDeg,
-  onStopcockAngleChange,
+  onStopcockOpenChange,
   onFocus,
   focusMode,
   hoveredControl,
@@ -1183,9 +1126,11 @@ function PressureBottle({
   interactionLocked,
   demoFocusControlId,
   demoFocusPulseActive,
+  manualRollbackAnimation,
+  manualRollbackKey,
   onLockedInteraction,
   interactionQualityReduced,
-}: Pick<HeatCapacityInstrumentSceneProps, 'onStopcockAngleChange' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'onLockedInteraction'> & {
+}: Pick<HeatCapacityInstrumentSceneProps, 'onStopcockOpenChange' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
   stopcockAngleDeg: number;
   onFocus: (mode: HeatCapacityFocusMode) => void;
   focusMode: HeatCapacityFocusMode;
@@ -1242,14 +1187,14 @@ function PressureBottle({
       </mesh>
       <GlassStopcock
         angleDeg={stopcockAngleDeg}
-        onStopcockAngleChange={onStopcockAngleChange}
-        onFocus={onFocus}
-        focusMode={focusMode}
+        onStopcockOpenChange={onStopcockOpenChange}
         hoveredControl={hoveredControl}
         setHoveredControl={setHoveredControl}
         interactionLocked={interactionLocked}
         demoFocusControlId={demoFocusControlId}
         demoFocusPulseActive={demoFocusPulseActive}
+        manualRollbackAnimation={manualRollbackAnimation}
+        manualRollbackKey={manualRollbackKey}
         onLockedInteraction={onLockedInteraction}
         interactionQualityReduced={interactionQualityReduced}
       />
@@ -1325,9 +1270,11 @@ function PumpAssembly({
   interactionLocked,
   demoFocusControlId,
   demoFocusPulseActive,
+  manualRollbackAnimation,
+  manualRollbackKey,
   onLockedInteraction,
   interactionQualityReduced,
-}: Pick<HeatCapacityInstrumentSceneProps, 'pumpValveOpen' | 'pumpBulbState' | 'pumpPulseId' | 'onPumpValveToggle' | 'onPumpBulbPress' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'onLockedInteraction'> & {
+}: Pick<HeatCapacityInstrumentSceneProps, 'pumpValveOpen' | 'pumpBulbState' | 'pumpPulseId' | 'onPumpValveToggle' | 'onPumpBulbPress' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
   onFocus: (mode: HeatCapacityFocusMode) => void;
   focusMode: HeatCapacityFocusMode;
   hoveredControl: HeatCapacityHoveredControl;
@@ -1339,6 +1286,7 @@ function PumpAssembly({
   const pumpBulbDemoFocused = demoFocusPulseActive && demoFocusControlId === 'pumpBulb';
   const pumpValveDemoFocused = demoFocusPulseActive && demoFocusControlId === 'pumpValve';
   const [valveHandleAngle, setValveHandleAngle] = useState(pumpValveOpen ? 0 : Math.PI / 2);
+  const [valveRollbackOffset, setValveRollbackOffset] = useState(0);
   const pumpPulseTimersRef = useRef<{
     releaseTimerId: number | null;
     idleTimerId: number | null;
@@ -1368,6 +1316,7 @@ function PumpAssembly({
   const handlePumpBulbPointerDown = (event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation();
     event.nativeEvent.stopPropagation();
+    event.nativeEvent.stopImmediatePropagation?.();
     if (interactionLocked) {
       onLockedInteraction();
       return;
@@ -1392,6 +1341,27 @@ function PumpAssembly({
     frameId = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frameId);
   }, [pumpValveOpen]);
+
+  useEffect(() => {
+    if (manualRollbackAnimation !== 'valveBounce' || manualRollbackKey <= 0) return undefined;
+    const startTime = performance.now();
+    let frameId = 0;
+    const direction = pumpValveOpen ? 1 : -1;
+    const animate = (timestamp: number) => {
+      const progress = Math.min(1, (timestamp - startTime) / 320);
+      setValveRollbackOffset(Math.sin(progress * Math.PI) * 0.38 * direction);
+      if (progress < 1) {
+        frameId = window.requestAnimationFrame(animate);
+      } else {
+        setValveRollbackOffset(0);
+      }
+    };
+    frameId = window.requestAnimationFrame(animate);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      setValveRollbackOffset(0);
+    };
+  }, [manualRollbackAnimation, manualRollbackKey, pumpValveOpen]);
 
   useEffect(() => {
     if (pumpPulseId <= 0) return undefined;
@@ -1432,8 +1402,15 @@ function PumpAssembly({
       <group
         name="pumpValve"
         position={[-1.72, 0.9, 0.54]}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          event.nativeEvent.stopPropagation();
+          event.nativeEvent.stopImmediatePropagation?.();
+        }}
         onClick={(event) => {
           event.stopPropagation();
+          event.nativeEvent.stopPropagation();
+          event.nativeEvent.stopImmediatePropagation?.();
           if (interactionLocked) {
             onLockedInteraction();
             return;
@@ -1442,6 +1419,8 @@ function PumpAssembly({
         }}
         onDoubleClick={(event) => {
           event.stopPropagation();
+          event.nativeEvent.stopPropagation();
+          event.nativeEvent.stopImmediatePropagation?.();
           if (interactionLocked) {
             onLockedInteraction();
             return;
@@ -1450,6 +1429,7 @@ function PumpAssembly({
         }}
         onPointerOver={(event) => {
           event.stopPropagation();
+          event.nativeEvent.stopPropagation();
           setHoveredControl('pumpValve');
         }}
         onPointerOut={() => setHoveredControl(null)}
@@ -1478,7 +1458,7 @@ function PumpAssembly({
           <sphereGeometry args={[0.035, 16, 16]} />
           <meshStandardMaterial color={pumpValveOpen ? '#22c55e' : '#7f1d1d'} emissive={pumpValveOpen ? '#16a34a' : '#450a0a'} emissiveIntensity={0.22} roughness={0.45} />
         </mesh>
-        <group name="pumpValveHandle" position={[0, 0, 0]} rotation={[0, valveHandleAngle, 0]}>
+        <group name="pumpValveHandle" position={[0, 0, 0]} rotation={[0, valveHandleAngle + valveRollbackOffset, 0]}>
           <mesh name="pumpValveStem" position={[0, 0.09, 0]}>
             <cylinderGeometry args={[0.028, 0.028, 0.12, 18]} />
             <meshStandardMaterial color="#cbd5e1" roughness={0.36} metalness={0.48} />
@@ -1587,7 +1567,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
       <group name="HeatCapacityProceduralSkeleton" scale={0.9} position={[0, -0.08, 0]}>
         <PressureBottle
           stopcockAngleDeg={props.stopcockAngleDeg}
-          onStopcockAngleChange={props.onStopcockAngleChange}
+          onStopcockOpenChange={props.onStopcockOpenChange}
           onFocus={props.onFocus}
           focusMode={props.focusMode}
           hoveredControl={props.hoveredControl}
@@ -1595,6 +1575,8 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           interactionLocked={props.interactionLocked}
           demoFocusControlId={props.demoFocusControlId}
           demoFocusPulseActive={props.demoFocusPulseActive}
+          manualRollbackAnimation={props.manualRollbackAnimation}
+          manualRollbackKey={props.manualRollbackKey}
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
         />
@@ -1612,6 +1594,8 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           interactionLocked={props.interactionLocked}
           demoFocusControlId={props.demoFocusControlId}
           demoFocusPulseActive={props.demoFocusPulseActive}
+          manualRollbackAnimation={props.manualRollbackAnimation}
+          manualRollbackKey={props.manualRollbackKey}
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
         />
@@ -1638,6 +1622,8 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           interactionLocked={props.interactionLocked}
           demoFocusControlId={props.demoFocusControlId}
           demoFocusPulseActive={props.demoFocusPulseActive}
+          manualRollbackAnimation={props.manualRollbackAnimation}
+          manualRollbackKey={props.manualRollbackKey}
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
           sceneCopy={props.sceneCopy}
@@ -1795,12 +1781,8 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   useEffect(() => {
     triggerSmoothDefaultView();
   }, [props.focusResetKey, triggerSmoothDefaultView]);
-  const stopcockDisplayAngle = normalizeDisplayAngle(props.stopcockAngleDeg);
   const stopcockState = getHeatCapacityStopcockState(props.stopcockAngleDeg);
   const stopcockConnected = stopcockState === 'open';
-  const stopcockSliderStyle = {
-    '--heat-stopcock-angle-percent': angleToSliderPercent(stopcockDisplayAngle),
-  } as React.CSSProperties & Record<'--heat-stopcock-angle-percent', string>;
   const pumpBulbDisplayLabel = getPumpBulbDisplayLabel(props.pumpBulbState, sceneCopy);
   const pumpFrequencyStatusLabel = getPumpFrequencyStatusLabel(props.pumpFrequencyStatus, sceneCopy);
   const temperatureDisplay = props.powerOn ? formatSignal(props.temperatureSignalMv) : sceneCopy.unpowered;
@@ -1809,7 +1791,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const poweredInstrumentNumber = (displayValue: string) => props.powerOn ? displayValue : '--';
   const interactionHints = getHeatCapacityInteractionHints(focusMode, sceneCopy);
   const hoverTooltip = getHeatCapacityHoverTooltip(hoveredControl, props.pumpValveOpen, sceneCopy);
-  const sceneShouldAnimate = props.demoFocusPulseActive || props.pumpBulbState !== 'idle';
+  const sceneShouldAnimate = props.demoFocusPulseActive || props.pumpBulbState !== 'idle' || Boolean(props.manualRollbackAnimation);
   const interactionQualityReduced = isOrbitInteracting || props.performanceMode === 'performance';
   const canvasProps = useMemo(() => ({
     camera: { position: DEFAULT_CAMERA_POSITION, fov: 38 },
@@ -1900,10 +1882,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           <div className="studio-heat-focus-title">{sceneCopy.focus.stopcockTitle}</div>
           <div className="studio-heat-focus-grid">
             <div className="studio-heat-focus-panel-row">
-              <span>{sceneCopy.focus.currentAngle}</span>
-              <strong>{formatStopcockAngle(stopcockDisplayAngle)}</strong>
-            </div>
-            <div className="studio-heat-focus-panel-row">
               <span>{sceneCopy.focus.glassStopcock}</span>
               <strong className={stopcockConnected ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
                 {stopcockConnected ? sceneCopy.focus.connected : sceneCopy.focus.disconnected}
@@ -1915,45 +1893,8 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                 {props.pumpValveOpen ? sceneCopy.focus.opened : sceneCopy.focus.closed}
               </strong>
             </div>
-            <div className="studio-heat-focus-panel-row">
-              <span>{sceneCopy.focus.magneticRange}</span>
-              <strong>±{HEAT_CAPACITY_STOPCOCK_OPEN_MAGNET_DEG}°</strong>
-            </div>
-          </div>
-          <div className="studio-heat-stopcock-slider-wrap" style={stopcockSliderStyle}>
-            <div className="studio-heat-stopcock-slider-visual" aria-hidden="true">
-              <span className="studio-heat-stopcock-slider-track" />
-              <span className="studio-heat-stopcock-slider-fill" />
-              <span className="studio-heat-stopcock-slider-thumb" />
-              <span className="studio-heat-stopcock-open-mark" data-open-angle="0" style={{ left: angleToSliderPercent(HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG) }} />
-              <span className="studio-heat-stopcock-open-mark" data-open-angle="180" style={{ left: angleToSliderPercent(HEAT_CAPACITY_STOPCOCK_SECOND_OPEN_ANGLE_DEG) }} />
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="360"
-              step="1"
-              value={Math.round(stopcockDisplayAngle)}
-              data-heat-capacity-stopcock-slider="true"
-              aria-label={sceneCopy.focus.stopcockAngleAria}
-              disabled={props.interactionLocked}
-              onChange={(event) => props.onStopcockAngleChange(Number(event.currentTarget.value))}
-            />
           </div>
           <div className="studio-heat-focus-panel-actions">
-            <button
-              type="button"
-              disabled={props.interactionLocked}
-              onClick={() => {
-                if (props.interactionLocked) {
-                  props.onLockedInteraction();
-                  return;
-                }
-                props.onStopcockAngleChange(getNearestOpenAngle(stopcockDisplayAngle));
-              }}
-            >
-              {sceneCopy.focus.snapNearestOpen}
-            </button>
             <button
               type="button"
               data-heat-capacity-focus-exit="true"

@@ -24,6 +24,11 @@ assert.equal(first.u1MeasuredMv > 105 && first.u1MeasuredMv < 131, true);
 assert.equal(first.u2MeasuredMv > 25 && first.u2MeasuredMv < first.u1MeasuredMv, true);
 assert.equal(first.u0MeasuredMv >= -0.03 && first.u0MeasuredMv <= 0.03, true);
 assert.equal(first.gammaTarget >= 1.36 && first.gammaTarget <= 1.44, true);
+assert.equal(first.initialTemperatureMv >= 1498.8 && first.initialTemperatureMv <= 1499.3, true, 'initial U_T should match the FD-NCD-C room-temperature reference range');
+assert.equal(first.stableTemperatureMv >= 1525 && first.stableTemperatureMv <= 1527, true, 'stable-before-release U_T should match the experiment reference range');
+assert.equal(first.releaseTemperatureLowMv >= 1499 && first.releaseTemperatureLowMv <= 1502, true, 'release-low U_T should match the experiment reference range');
+assert.equal(first.recoveryTemperatureMv >= 1520 && first.recoveryTemperatureMv <= 1524, true, 'recovery U_T should match the experiment reference range');
+assert.equal(first.u2MeasuredMv / first.u1MeasuredMv > 0.24 && first.u2MeasuredMv / first.u1MeasuredMv < 0.32, true, 'air gamma data should keep U2 near 0.286 * U1 instead of hard-sphere 0.4 * U1');
 
 const targets = calculateAirHeatCapacityTargets(first);
 assert.equal(targets.gamma >= 1.36 && targets.gamma <= 1.44, true);
