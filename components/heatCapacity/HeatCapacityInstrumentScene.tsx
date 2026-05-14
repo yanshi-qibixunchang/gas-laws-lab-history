@@ -14,7 +14,8 @@ import {
 } from '../workbenchState';
 
 interface HeatCapacityInstrumentSceneProps {
-  performanceMode: 'standard' | 'performance';
+  performanceMode: 'standard' | 'balanced' | 'performance';
+  language: 'zh-CN' | 'zh-TW' | 'en';
   powerOn: boolean;
   stopcockAngleDeg: number;
   pressureZeroAdjusted: boolean;
@@ -60,6 +61,179 @@ interface HeatCapacityInstrumentSceneProps {
 
 type HeatCapacityFocusMode = 'none' | 'stopcock' | 'instrument' | 'pump';
 type HeatCapacityHoveredControl = null | 'stopcock' | 'pumpBulb' | 'pumpValve' | 'powerSwitch' | 'pressureZero';
+
+const heatCapacitySceneCopies = {
+  'zh-CN': {
+    defaultView: '默认视角',
+    interactionTitle: '操作提示',
+    unpowered: '未通电',
+    pressureZeroLimitUpper: '已到调节上限',
+    pressureZeroLimitLower: '已到调节下限',
+    pumpBulbIdle: '待机',
+    pumpBulbActive: '打气中',
+    frequencyIdle: '空闲',
+    frequencySlow: '打气过慢',
+    frequencySuitable: '打气频率合适',
+    hints: {
+      stopcock: ['聚焦模式：整体视角已锁定', '拖动旋塞手柄或悬停滚轮微调角度', '点击打气阀门切换通路，滑条可精确调节', '点击退出聚焦返回默认视角'],
+      pump: ['聚焦模式：点击打气球执行打气', '右下角面板显示阀门状态和打气频率', '点击退出聚焦返回默认视角'],
+      instrument: ['聚焦模式：整体视角已锁定', '查看仪表读数、电源状态和占位数据', '点击退出聚焦返回默认视角'],
+      normal: ['左键拖动：旋转模型', '右键拖动：平移模型', '滚轮：缩放模型', '双击高亮部件：进入聚焦', '悬停高亮表示可交互'],
+    },
+    tooltip: {
+      stopcock: '玻璃旋塞：滚轮微调角度；双击进入聚焦',
+      pumpValve: '打气阀门：点击切换开闭状态',
+      pumpBulbReady: '打气球：聚焦后点击打气',
+      pumpBulbClosed: '打气球：需先打开打气阀门',
+      powerSwitch: '电源开关：点击开关电源',
+      pressureZero: '压力调零旋钮：拖拽粗调 / 滚轮精调',
+    },
+    focus: {
+      stopcockTitle: '旋塞 / 阀门控制',
+      currentAngle: '当前角度',
+      glassStopcock: '玻璃旋塞',
+      connected: '已连通',
+      disconnected: '未连通',
+      pumpValve: '打气阀门',
+      opened: '已打开',
+      closed: '已关闭',
+      magneticRange: '磁吸范围',
+      stopcockAngleAria: '旋塞角度',
+      snapNearestOpen: '吸附到最近接通角',
+      exit: '退出聚焦',
+      pumpTitle: '打气球控制',
+      pumpBulb: '打气球',
+      pumpFrequency: '打气频率',
+      frequencyStatus: '频率评价',
+      instrumentTitle: '仪表读数',
+      powerStatus: '电源状态',
+      powerOn: '已开机',
+      powerOff: '未开机',
+      pressureZero: '压力调零',
+      zeroed: '已调零',
+      notZeroed: '未调零',
+      displayedPressure: '显示压力',
+      placeholderTemperature: '占位温度',
+      currentPhase: '当前阶段',
+      zeroOffset: '零点偏移',
+      placeholderPressure: '占位压强',
+    },
+  },
+  'zh-TW': {
+    defaultView: '預設視角',
+    interactionTitle: '操作提示',
+    unpowered: '未通電',
+    pressureZeroLimitUpper: '已到調節上限',
+    pressureZeroLimitLower: '已到調節下限',
+    pumpBulbIdle: '待機',
+    pumpBulbActive: '打氣中',
+    frequencyIdle: '閒置',
+    frequencySlow: '打氣過慢',
+    frequencySuitable: '打氣頻率合適',
+    hints: {
+      stopcock: ['聚焦模式：整體視角已鎖定', '拖動旋塞手柄或懸停滾輪微調角度', '點擊打氣閥門切換通路，滑條可精確調節', '點擊退出聚焦返回預設視角'],
+      pump: ['聚焦模式：點擊打氣球執行打氣', '右下角面板顯示閥門狀態和打氣頻率', '點擊退出聚焦返回預設視角'],
+      instrument: ['聚焦模式：整體視角已鎖定', '查看儀表讀數、電源狀態和占位資料', '點擊退出聚焦返回預設視角'],
+      normal: ['左鍵拖動：旋轉模型', '右鍵拖動：平移模型', '滾輪：縮放模型', '雙擊高亮部件：進入聚焦', '懸停高亮表示可互動'],
+    },
+    tooltip: {
+      stopcock: '玻璃旋塞：滾輪微調角度；雙擊進入聚焦',
+      pumpValve: '打氣閥門：點擊切換開閉狀態',
+      pumpBulbReady: '打氣球：聚焦後點擊打氣',
+      pumpBulbClosed: '打氣球：需先打開打氣閥門',
+      powerSwitch: '電源開關：點擊開關電源',
+      pressureZero: '壓力調零旋鈕：拖拽粗調 / 滾輪精調',
+    },
+    focus: {
+      stopcockTitle: '旋塞 / 閥門控制',
+      currentAngle: '目前角度',
+      glassStopcock: '玻璃旋塞',
+      connected: '已連通',
+      disconnected: '未連通',
+      pumpValve: '打氣閥門',
+      opened: '已打開',
+      closed: '已關閉',
+      magneticRange: '磁吸範圍',
+      stopcockAngleAria: '旋塞角度',
+      snapNearestOpen: '吸附到最近接通角',
+      exit: '退出聚焦',
+      pumpTitle: '打氣球控制',
+      pumpBulb: '打氣球',
+      pumpFrequency: '打氣頻率',
+      frequencyStatus: '頻率評價',
+      instrumentTitle: '儀表讀數',
+      powerStatus: '電源狀態',
+      powerOn: '已開機',
+      powerOff: '未開機',
+      pressureZero: '壓力調零',
+      zeroed: '已調零',
+      notZeroed: '未調零',
+      displayedPressure: '顯示壓力',
+      placeholderTemperature: '占位溫度',
+      currentPhase: '目前階段',
+      zeroOffset: '零點偏移',
+      placeholderPressure: '占位壓強',
+    },
+  },
+  en: {
+    defaultView: 'Default view',
+    interactionTitle: 'Operation hints',
+    unpowered: 'Not powered',
+    pressureZeroLimitUpper: 'Upper adjustment limit reached',
+    pressureZeroLimitLower: 'Lower adjustment limit reached',
+    pumpBulbIdle: 'Idle',
+    pumpBulbActive: 'Pumping',
+    frequencyIdle: 'Idle',
+    frequencySlow: 'Too slow',
+    frequencySuitable: 'Suitable rate',
+    hints: {
+      stopcock: ['Focus mode: camera is locked', 'Drag the stopcock handle or use the wheel for fine angle adjustment', 'Click the pump valve to switch the air path; use the slider for precise control', 'Click exit focus to return to the default view'],
+      pump: ['Focus mode: click the pump bulb to pump air', 'The lower-right panel shows valve state and pump frequency', 'Click exit focus to return to the default view'],
+      instrument: ['Focus mode: camera is locked', 'Inspect instrument readings, power state, and placeholder values', 'Click exit focus to return to the default view'],
+      normal: ['Left drag: rotate model', 'Right drag: pan model', 'Wheel: zoom model', 'Double-click highlighted parts: enter focus', 'Hover highlight means interactive'],
+    },
+    tooltip: {
+      stopcock: 'Glass stopcock: wheel fine-adjusts angle; double-click to focus',
+      pumpValve: 'Pump valve: click to switch open or closed',
+      pumpBulbReady: 'Pump bulb: focus, then click to pump',
+      pumpBulbClosed: 'Pump bulb: open the pump valve first',
+      powerSwitch: 'Power switch: click to toggle power',
+      pressureZero: 'Pressure-zero knob: drag for coarse adjustment / wheel for fine adjustment',
+    },
+    focus: {
+      stopcockTitle: 'Stopcock / Valve Control',
+      currentAngle: 'Current angle',
+      glassStopcock: 'Glass stopcock',
+      connected: 'Connected',
+      disconnected: 'Disconnected',
+      pumpValve: 'Pump valve',
+      opened: 'Open',
+      closed: 'Closed',
+      magneticRange: 'Magnetic range',
+      stopcockAngleAria: 'Stopcock angle',
+      snapNearestOpen: 'Snap to nearest open angle',
+      exit: 'Exit focus',
+      pumpTitle: 'Pump Bulb Control',
+      pumpBulb: 'Pump bulb',
+      pumpFrequency: 'Pump frequency',
+      frequencyStatus: 'Frequency status',
+      instrumentTitle: 'Instrument Readings',
+      powerStatus: 'Power state',
+      powerOn: 'Power on',
+      powerOff: 'Power off',
+      pressureZero: 'Pressure zero',
+      zeroed: 'Zeroed',
+      notZeroed: 'Not zeroed',
+      displayedPressure: 'Displayed pressure',
+      placeholderTemperature: 'Placeholder temperature',
+      currentPhase: 'Current phase',
+      zeroOffset: 'Zero offset',
+      placeholderPressure: 'Placeholder pressure',
+    },
+  },
+} as const;
+
+type HeatCapacitySceneCopy = typeof heatCapacitySceneCopies['zh-CN'];
 
 const STOPCOCK_WHEEL_STEP_DEG = 3;
 const PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 2;
@@ -109,61 +283,37 @@ const clampPressureZeroSceneKnobAngle = (angleDeg: number) => Math.min(
   Math.max(HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG, angleDeg),
 );
 
-const getPressureZeroLimitMessage = (requestedAngleDeg: number) => {
-  if (requestedAngleDeg > HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG) return '已到调节上限';
-  if (requestedAngleDeg < HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG) return '已到调节下限';
+const getPressureZeroLimitMessage = (requestedAngleDeg: number, copy: HeatCapacitySceneCopy) => {
+  if (requestedAngleDeg > HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG) return copy.pressureZeroLimitUpper;
+  if (requestedAngleDeg < HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG) return copy.pressureZeroLimitLower;
   return null;
 };
 
-const getPumpBulbDisplayLabel = (pumpBulbState: HeatCapacityInstrumentSceneProps['pumpBulbState']) => (
-  pumpBulbState === 'idle' ? '待机' : '打气中'
+const getPumpBulbDisplayLabel = (pumpBulbState: HeatCapacityInstrumentSceneProps['pumpBulbState'], copy: HeatCapacitySceneCopy) => (
+  pumpBulbState === 'idle' ? copy.pumpBulbIdle : copy.pumpBulbActive
 );
 
-const getPumpFrequencyStatusLabel = (status: HeatCapacityInstrumentSceneProps['pumpFrequencyStatus']) => (
-  status === 'idle' ? '空闲' : status === 'tooSlow' ? '打气过慢' : '打气频率合适'
+const getPumpFrequencyStatusLabel = (status: HeatCapacityInstrumentSceneProps['pumpFrequencyStatus'], copy: HeatCapacitySceneCopy) => (
+  status === 'idle' ? copy.frequencyIdle : status === 'tooSlow' ? copy.frequencySlow : copy.frequencySuitable
 );
 
-const getHeatCapacityInteractionHints = (focusMode: HeatCapacityFocusMode) => {
-  if (focusMode === 'stopcock') {
-    return [
-      '聚焦模式：整体视角已锁定',
-      '拖动旋塞手柄或悬停滚轮微调角度',
-      '点击打气阀门切换通路，滑条可精确调节',
-      '点击退出聚焦返回默认视角',
-    ];
-  }
-  if (focusMode === 'pump') {
-    return [
-      '聚焦模式：点击打气球执行打气',
-      '右下角面板显示阀门状态和打气频率',
-      '点击退出聚焦返回默认视角',
-    ];
-  }
-  if (focusMode === 'instrument') {
-    return [
-      '聚焦模式：整体视角已锁定',
-      '查看仪表读数、电源状态和占位数据',
-      '点击退出聚焦返回默认视角',
-    ];
-  }
-  return [
-    '左键拖动：旋转模型',
-    '右键拖动：平移模型',
-    '滚轮：缩放模型',
-    '双击高亮部件：进入聚焦',
-    '悬停高亮表示可交互',
-  ];
+const getHeatCapacityInteractionHints = (focusMode: HeatCapacityFocusMode, copy: HeatCapacitySceneCopy) => {
+  if (focusMode === 'stopcock') return [...copy.hints.stopcock];
+  if (focusMode === 'pump') return [...copy.hints.pump];
+  if (focusMode === 'instrument') return [...copy.hints.instrument];
+  return [...copy.hints.normal];
 };
 
 const getHeatCapacityHoverTooltip = (
   hoveredControl: HeatCapacityHoveredControl,
   pumpValveOpen: boolean,
+  copy: HeatCapacitySceneCopy,
 ) => {
-  if (hoveredControl === 'stopcock') return '玻璃旋塞：滚轮微调角度；双击进入聚焦';
-  if (hoveredControl === 'pumpValve') return '打气阀门：点击切换开闭状态';
-  if (hoveredControl === 'pumpBulb') return pumpValveOpen ? '打气球：聚焦后点击打气' : '打气球：需先打开打气阀门';
-  if (hoveredControl === 'powerSwitch') return '电源开关：点击开关电源';
-  if (hoveredControl === 'pressureZero') return '压力调零旋钮：拖拽粗调 / 滚轮精调';
+  if (hoveredControl === 'stopcock') return copy.tooltip.stopcock;
+  if (hoveredControl === 'pumpValve') return copy.tooltip.pumpValve;
+  if (hoveredControl === 'pumpBulb') return pumpValveOpen ? copy.tooltip.pumpBulbReady : copy.tooltip.pumpBulbClosed;
+  if (hoveredControl === 'powerSwitch') return copy.tooltip.powerSwitch;
+  if (hoveredControl === 'pressureZero') return copy.tooltip.pressureZero;
   return null;
 };
 
@@ -224,8 +374,8 @@ function PanelText({
   const latestStyleRef = useRef({ color, size });
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 64;
+    canvas.width = 384;
+    canvas.height = 96;
     canvasRef.current = canvas;
     const canvasTexture = new THREE.CanvasTexture(canvas);
     canvasTexture.minFilter = THREE.LinearFilter;
@@ -378,6 +528,7 @@ function InstrumentBox({
   demoFocusPulseActive,
   onLockedInteraction,
   interactionQualityReduced,
+  sceneCopy,
 }: Pick<HeatCapacityInstrumentSceneProps, 'performanceMode' | 'powerOn' | 'pressureZeroKnobAngle' | 'pressureGaugeDisplayValue' | 'gaugePressureMinKPa' | 'gaugePressureMaxKPa' | 'pressureSafetyThresholdKPa' | 'pressureOverLimit' | 'temperatureSignalMv' | 'pressureSignalMv' | 'onPowerToggle' | 'onPressureZero' | 'onPressureZeroFineAdjust' | 'onPressureZeroCoarseAdjust' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'onLockedInteraction'> & {
   zeroEnabled: boolean;
   onFocus: (mode: HeatCapacityFocusMode) => void;
@@ -385,6 +536,7 @@ function InstrumentBox({
   hoveredControl: HeatCapacityHoveredControl;
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
   interactionQualityReduced: boolean;
+  sceneCopy: HeatCapacitySceneCopy;
 }) {
   const temperatureText = powerOn ? formatSignal(temperatureSignalMv) : '';
   const pressureText = powerOn ? formatSignal(pressureSignalMv) : '';
@@ -429,7 +581,9 @@ function InstrumentBox({
   const gaugeDisplayedRotationRef = useRef(gaugeNeedleTargetRotation);
   const panelTextUpdateIntervalMs = performanceMode === 'performance'
     ? (interactionQualityReduced ? 1000 : 500)
-    : (interactionQualityReduced ? 1000 : 250);
+    : performanceMode === 'balanced'
+      ? (interactionQualityReduced ? 1000 : 350)
+      : (interactionQualityReduced ? 1000 : 250);
 
   useEffect(() => {
     gaugeNeedleTargetRotationRef.current = gaugeNeedleTargetRotation;
@@ -482,7 +636,7 @@ function InstrumentBox({
     const nextKnobAngle = clampPressureZeroSceneKnobAngle(requestedKnobAngle);
     const boundedDelta = nextKnobAngle - pressureZeroKnobAngle;
     if (Math.abs(boundedDelta) < 0.01) {
-      const limitMessage = getPressureZeroLimitMessage(requestedKnobAngle);
+      const limitMessage = getPressureZeroLimitMessage(requestedKnobAngle, sceneCopy);
       if (limitMessage) onLockedInteraction(limitMessage);
       return;
     }
@@ -517,7 +671,7 @@ function InstrumentBox({
       const nextKnobAngle = clampPressureZeroSceneKnobAngle(requestedKnobAngle);
       const incrementalDelta = nextKnobAngle - dragState.lastAppliedKnobAngle;
       if (Math.abs(incrementalDelta) < 0.15) {
-        const limitMessage = getPressureZeroLimitMessage(requestedKnobAngle);
+        const limitMessage = getPressureZeroLimitMessage(requestedKnobAngle, sceneCopy);
         if (limitMessage) onLockedInteraction(limitMessage);
         return;
       }
@@ -1411,6 +1565,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
   hoveredControl: HeatCapacityHoveredControl;
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
   interactionQualityReduced: boolean;
+  sceneCopy: HeatCapacitySceneCopy;
 }) {
   const stopcockState = getHeatCapacityStopcockState(props.stopcockAngleDeg);
   const zeroEnabled = props.powerOn && stopcockState === 'open';
@@ -1482,6 +1637,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           demoFocusPulseActive={props.demoFocusPulseActive}
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
+          sceneCopy={props.sceneCopy}
         />
       </group>
     </>
@@ -1602,6 +1758,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const [hoveredControl, setHoveredControl] = useState<HeatCapacityHoveredControl>(null);
   const [isOrbitInteracting, setIsOrbitInteracting] = useState(false);
   const [viewResetKey, setViewResetKey] = useState(0);
+  const sceneCopy = heatCapacitySceneCopies[props.language] ?? heatCapacitySceneCopies['zh-CN'];
   const clearHoverTimer = useCallback(() => {
     if (hoverClearTimerRef.current !== null) {
       window.clearTimeout(hoverClearTimerRef.current);
@@ -1636,19 +1793,23 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const stopcockSliderStyle = {
     '--heat-stopcock-angle-percent': angleToSliderPercent(stopcockDisplayAngle),
   } as React.CSSProperties & Record<'--heat-stopcock-angle-percent', string>;
-  const pumpBulbDisplayLabel = getPumpBulbDisplayLabel(props.pumpBulbState);
-  const pumpFrequencyStatusLabel = getPumpFrequencyStatusLabel(props.pumpFrequencyStatus);
-  const temperatureDisplay = props.powerOn ? formatSignal(props.temperatureSignalMv) : '未通电';
-  const pressureDisplay = props.powerOn ? formatSignal(props.pressureSignalMv) : '未通电';
-  const poweredInstrumentReadout = (displayValue: string) => props.powerOn ? displayValue : '未通电';
+  const pumpBulbDisplayLabel = getPumpBulbDisplayLabel(props.pumpBulbState, sceneCopy);
+  const pumpFrequencyStatusLabel = getPumpFrequencyStatusLabel(props.pumpFrequencyStatus, sceneCopy);
+  const temperatureDisplay = props.powerOn ? formatSignal(props.temperatureSignalMv) : sceneCopy.unpowered;
+  const pressureDisplay = props.powerOn ? formatSignal(props.pressureSignalMv) : sceneCopy.unpowered;
+  const poweredInstrumentReadout = (displayValue: string) => props.powerOn ? displayValue : sceneCopy.unpowered;
   const poweredInstrumentNumber = (displayValue: string) => props.powerOn ? displayValue : '--';
-  const interactionHints = getHeatCapacityInteractionHints(focusMode);
-  const hoverTooltip = getHeatCapacityHoverTooltip(hoveredControl, props.pumpValveOpen);
+  const interactionHints = getHeatCapacityInteractionHints(focusMode, sceneCopy);
+  const hoverTooltip = getHeatCapacityHoverTooltip(hoveredControl, props.pumpValveOpen, sceneCopy);
   const sceneShouldAnimate = props.demoFocusPulseActive || props.pumpBulbState !== 'idle';
   const interactionQualityReduced = isOrbitInteracting || props.performanceMode === 'performance';
   const canvasProps = useMemo(() => ({
     camera: { position: DEFAULT_CAMERA_POSITION, fov: 38 },
-    dpr: props.performanceMode === 'performance' ? [0.75, 1] as [number, number] : [1, 1.25] as [number, number],
+    dpr: props.performanceMode === 'performance'
+      ? [1, 1] as [number, number]
+      : props.performanceMode === 'balanced'
+        ? [1, 1.15] as [number, number]
+        : [1, 1.25] as [number, number],
     frameloop: 'demand' as const,
     shadows: false,
   }), [props.performanceMode]);
@@ -1673,7 +1834,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           triggerSmoothDefaultView();
         }}
       >
-        默认视角
+        {sceneCopy.defaultView}
       </button>
       <Canvas {...canvasProps}>
         {/* GLB replacement contract: preserve node names, pivots, and hitbox roles from this procedural skeleton. */}
@@ -1687,6 +1848,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           hoveredControl={hoveredControl}
           setHoveredControl={setStableHoveredControl}
           interactionQualityReduced={interactionQualityReduced}
+          sceneCopy={sceneCopy}
         />
         <HeatCapacityOrbitControls
           enabled={focusMode === 'none' && !props.interactionLocked}
@@ -1704,7 +1866,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
         className="studio-heat-interaction-hints"
         data-heat-capacity-interaction-hints="true"
       >
-        <strong>操作提示</strong>
+        <strong>{sceneCopy.interactionTitle}</strong>
         {interactionHints.map((hint) => (
           <span key={hint}>{hint}</span>
         ))}
@@ -1722,26 +1884,26 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           className="studio-heat-focus-panel studio-heat-focus-panel-stopcock"
           data-heat-capacity-focus-panel="stopcock"
         >
-          <div className="studio-heat-focus-title">旋塞 / 阀门控制</div>
+          <div className="studio-heat-focus-title">{sceneCopy.focus.stopcockTitle}</div>
           <div className="studio-heat-focus-grid">
             <div className="studio-heat-focus-panel-row">
-              <span>当前角度</span>
+              <span>{sceneCopy.focus.currentAngle}</span>
               <strong>{formatStopcockAngle(stopcockDisplayAngle)}</strong>
             </div>
             <div className="studio-heat-focus-panel-row">
-              <span>玻璃旋塞</span>
+              <span>{sceneCopy.focus.glassStopcock}</span>
               <strong className={stopcockConnected ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                {stopcockConnected ? '已联通' : '未联通'}
+                {stopcockConnected ? sceneCopy.focus.connected : sceneCopy.focus.disconnected}
               </strong>
             </div>
             <div className="studio-heat-focus-panel-row">
-              <span>打气阀门</span>
+              <span>{sceneCopy.focus.pumpValve}</span>
               <strong className={props.pumpValveOpen ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                {props.pumpValveOpen ? '已打开' : '已关闭'}
+                {props.pumpValveOpen ? sceneCopy.focus.opened : sceneCopy.focus.closed}
               </strong>
             </div>
             <div className="studio-heat-focus-panel-row">
-              <span>磁吸范围</span>
+              <span>{sceneCopy.focus.magneticRange}</span>
               <strong>±{HEAT_CAPACITY_STOPCOCK_OPEN_MAGNET_DEG}°</strong>
             </div>
           </div>
@@ -1760,7 +1922,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
               step="1"
               value={Math.round(stopcockDisplayAngle)}
               data-heat-capacity-stopcock-slider="true"
-              aria-label="旋塞角度"
+              aria-label={sceneCopy.focus.stopcockAngleAria}
               disabled={props.interactionLocked}
               onChange={(event) => props.onStopcockAngleChange(Number(event.currentTarget.value))}
             />
@@ -1777,7 +1939,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                 props.onStopcockAngleChange(getNearestOpenAngle(stopcockDisplayAngle));
               }}
             >
-              吸附到最近接通角
+              {sceneCopy.focus.snapNearestOpen}
             </button>
             <button
               type="button"
@@ -1791,7 +1953,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                 setFocusMode('none');
               }}
             >
-              退出聚焦
+              {sceneCopy.focus.exit}
             </button>
           </div>
         </div>
@@ -1801,26 +1963,26 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           className="studio-heat-focus-panel studio-heat-focus-panel-pump"
           data-heat-capacity-focus-panel="pump"
         >
-          <div className="studio-heat-focus-title">打气球控制</div>
+          <div className="studio-heat-focus-title">{sceneCopy.focus.pumpTitle}</div>
           <div className="studio-heat-focus-grid">
             <div className="studio-heat-focus-panel-row">
-              <span>打气球</span>
+              <span>{sceneCopy.focus.pumpBulb}</span>
               <strong className={props.pumpBulbState === 'idle' ? 'studio-heat-focus-muted' : 'studio-heat-focus-positive'}>
                 {pumpBulbDisplayLabel}
               </strong>
             </div>
             <div className="studio-heat-focus-panel-row">
-              <span>打气阀门</span>
+              <span>{sceneCopy.focus.pumpValve}</span>
               <strong className={props.pumpValveOpen ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                {props.pumpValveOpen ? '已打开' : '已关闭'}
+                {props.pumpValveOpen ? sceneCopy.focus.opened : sceneCopy.focus.closed}
               </strong>
             </div>
             <div className="studio-heat-focus-panel-row">
-              <span>打气频率</span>
-              <strong>{formatPanelNumber(props.pumpFrequency, 2)} 次/s</strong>
+              <span>{sceneCopy.focus.pumpFrequency}</span>
+              <strong>{formatPanelNumber(props.pumpFrequency, 2)} /s</strong>
             </div>
             <div className="studio-heat-focus-panel-row">
-              <span>频率评价</span>
+              <span>{sceneCopy.focus.frequencyStatus}</span>
               <strong className={props.pumpFrequencyStatus === 'suitable' ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
                 {pumpFrequencyStatusLabel}
               </strong>
@@ -1840,7 +2002,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                 setFocusMode('none');
               }}
             >
-              退出聚焦
+              {sceneCopy.focus.exit}
             </button>
           </div>
         </div>
@@ -1850,49 +2012,49 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           className="studio-heat-focus-panel studio-heat-focus-panel-instrument"
           data-heat-capacity-focus-panel="instrument"
         >
-          <div className="studio-heat-focus-title">仪表读数</div>
+          <div className="studio-heat-focus-title">{sceneCopy.focus.instrumentTitle}</div>
           <div className="studio-heat-focus-instrument-columns">
             <div className="studio-heat-focus-column">
               <div className="studio-heat-focus-panel-row">
-                <span>电源状态</span>
+                <span>{sceneCopy.focus.powerStatus}</span>
                 <strong className={props.powerOn ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                  {props.powerOn ? '已开机' : '未开机'}
+                  {props.powerOn ? sceneCopy.focus.powerOn : sceneCopy.focus.powerOff}
                 </strong>
               </div>
               <div className="studio-heat-focus-panel-row">
-                <span>U_T</span>
+                <span>U<sub>T</sub></span>
                 <strong>{poweredInstrumentReadout(temperatureDisplay)}</strong>
               </div>
               <div className="studio-heat-focus-panel-row">
-                <span>压力调零</span>
+                <span>{sceneCopy.focus.pressureZero}</span>
                 <strong className={props.pressureZeroAdjusted ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                  {props.pressureZeroAdjusted ? '已调零' : '未调零'}
+                  {props.pressureZeroAdjusted ? sceneCopy.focus.zeroed : sceneCopy.focus.notZeroed}
                 </strong>
               </div>
               <div className="studio-heat-focus-panel-row">
-                <span>显示压力</span>
+                <span>{sceneCopy.focus.displayedPressure}</span>
                 <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressureDisplayedPlaceholder, 2)} mV`)}</strong>
               </div>
               <div className="studio-heat-focus-panel-row">
-                <span>占位温度</span>
+                <span>{sceneCopy.focus.placeholderTemperature}</span>
                 <strong>{poweredInstrumentNumber(formatPanelNumber(props.temperaturePlaceholder, 3))}</strong>
               </div>
             </div>
             <div className="studio-heat-focus-column">
               <div className="studio-heat-focus-panel-row">
-                <span>当前阶段</span>
+                <span>{sceneCopy.focus.currentPhase}</span>
                 <strong>{props.phase}</strong>
               </div>
               <div className="studio-heat-focus-panel-row">
-                <span>U_P</span>
+                <span>U<sub>p</sub></span>
                 <strong>{poweredInstrumentReadout(pressureDisplay)}</strong>
               </div>
               <div className="studio-heat-focus-panel-row">
-                <span>零点偏移</span>
+                <span>{sceneCopy.focus.zeroOffset}</span>
                 <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressureZeroOffset, 2)} mV`)}</strong>
               </div>
               <div className="studio-heat-focus-panel-row">
-                <span>占位压强</span>
+                <span>{sceneCopy.focus.placeholderPressure}</span>
                 <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressurePlaceholder, 2)} kPa`)}</strong>
               </div>
             </div>
@@ -1910,7 +2072,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                 setFocusMode('none');
               }}
             >
-              退出聚焦
+              {sceneCopy.focus.exit}
             </button>
           </div>
         </div>

@@ -135,7 +135,7 @@ type TopMenu = 'new' | 'edit' | 'window' | 'settings' | 'help' | null;
 type ResultsSectionKey = WorkbenchStandardResultsTab;
 type WorkbenchThemePreference = 'system' | 'light' | 'dark';
 type WorkbenchLanguagePreference = 'zh-CN' | 'zh-TW' | 'en';
-type WorkbenchPerformanceMode = 'standard' | 'performance';
+type WorkbenchPerformanceMode = 'standard' | 'balanced' | 'performance';
 type IdealSamplingPresetKey = 'fast' | 'balanced' | 'stable';
 
 interface ConsoleLog {
@@ -220,6 +220,7 @@ interface WorkbenchCopy {
     performanceMode: string;
     performanceModeHint: string;
     performanceModeOff: string;
+    performanceModeBalanced: string;
     performanceModeOn: string;
     performanceModeSummary: Record<WorkbenchPerformanceMode, string>;
   };
@@ -252,6 +253,7 @@ interface WorkbenchCopy {
     previewTitle: string;
     previewHint: string;
     realtimeTitle: string;
+    heatRealtimeTitle: string;
     standardRealtimeHint: string;
     idealRealtimeHint: string;
     heatRealtimeHint: string;
@@ -551,10 +553,11 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       language: '语言', languageHint: '选择界面语言',
       languageOptions: { 'zh-CN': { label: '简体中文', hint: '简体中文界面' }, 'zh-TW': { label: '繁體中文', hint: '繁體中文介面' }, en: { label: 'English', hint: 'English interface' } },
       performanceMode: '性能模式',
-      performanceModeHint: '开启后降低 Heat Capacity 的刷新率和 3D 视觉负载',
+      performanceModeHint: '选择 Heat Capacity 的清晰度与刷新负载档位',
       performanceModeOff: '标准模式',
+      performanceModeBalanced: '均衡模式',
       performanceModeOn: '性能优先',
-      performanceModeSummary: { standard: 'standard', performance: 'performance' },
+      performanceModeSummary: { standard: '标准', balanced: '均衡', performance: '性能' },
     },
     files: {
       openFiles: '打开文件', files: '文件', panels: '面板', noOpenFiles: '没有打开的文件', emptyHint: '创建一个研究以填充工作区。',
@@ -563,7 +566,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       locked: '锁定', shown: '显示', open: '打开', active: '活动', off: '关闭', std: '标准', ideal: '理想', heat: 'HEAT',
     },
     panels: {
-      previewTitle: '3D 预览', previewHint: '实时分子视口', realtimeTitle: '实时数据 / 图表', standardRealtimeHint: '实时温度、压力和图表轨迹', idealRealtimeHint: '实时 T、P、关系和图表轨迹', heatRealtimeHint: 'U_T / U_p、压强和过程采样',
+      previewTitle: '3D 预览', previewHint: '实时分子视口', realtimeTitle: '实时数据 / 图表', heatRealtimeTitle: '实时数据', standardRealtimeHint: '实时温度、压力和图表轨迹', idealRealtimeHint: '实时 T、P、关系和图表轨迹', heatRealtimeHint: 'U_T / U_p、压强和过程采样',
       standardResultsTitle: '结果', standardResultsHint: '实验状态、数据表和图像', idealResultsTitle: '结果', idealResultsHint: '验证图、历史解锁和导出详情',
       pointsTitle: '点', pointsHint: '已记录的关系点', verificationTitle: '验证', verificationHint: '验证图、诊断和导出详情',
       summaryTitle: '摘要', dataTableTitle: '数据表', figuresTitle: '图像',
@@ -611,10 +614,11 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       language: '語言', languageHint: '選擇介面語言',
       languageOptions: { 'zh-CN': { label: '简体中文', hint: '簡體中文介面' }, 'zh-TW': { label: '繁體中文', hint: '繁體中文介面' }, en: { label: 'English', hint: 'English interface' } },
       performanceMode: '效能模式',
-      performanceModeHint: '開啟後降低 Heat Capacity 的刷新率與 3D 視覺負載',
+      performanceModeHint: '選擇 Heat Capacity 的清晰度與刷新負載檔位',
       performanceModeOff: '標準模式',
+      performanceModeBalanced: '均衡模式',
       performanceModeOn: '效能優先',
-      performanceModeSummary: { standard: 'standard', performance: 'performance' },
+      performanceModeSummary: { standard: '標準', balanced: '均衡', performance: '效能' },
     },
     files: {
       openFiles: '開啟檔案', files: '檔案', panels: '面板', noOpenFiles: '沒有開啟的檔案', emptyHint: '建立一個研究以填入工作區。',
@@ -623,7 +627,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       locked: '鎖定', shown: '顯示', open: '開啟', active: '作用中', off: '關閉', std: '標準', ideal: '理想', heat: 'HEAT',
     },
     panels: {
-      previewTitle: '3D 預覽', previewHint: '即時分子視口', realtimeTitle: '即時資料 / 圖表', standardRealtimeHint: '即時溫度、壓力和圖表軌跡', idealRealtimeHint: '即時 T、P、關係和圖表軌跡', heatRealtimeHint: 'U_T / U_p、壓強和過程採樣',
+      previewTitle: '3D 預覽', previewHint: '即時分子視口', realtimeTitle: '即時資料 / 圖表', heatRealtimeTitle: '即時資料', standardRealtimeHint: '即時溫度、壓力和圖表軌跡', idealRealtimeHint: '即時 T、P、關係和圖表軌跡', heatRealtimeHint: 'U_T / U_p、壓強和過程採樣',
       standardResultsTitle: '結果', standardResultsHint: '實驗狀態、資料表和圖像', idealResultsTitle: '結果', idealResultsHint: '驗證圖、歷史解鎖和匯出詳情',
       pointsTitle: '點', pointsHint: '已記錄的關係點', verificationTitle: '驗證', verificationHint: '驗證圖、診斷和匯出詳情',
       summaryTitle: '摘要', dataTableTitle: '資料表', figuresTitle: '圖像',
@@ -671,10 +675,11 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       language: 'Language', languageHint: 'Choose the interface language',
       languageOptions: { 'zh-CN': { label: '简体中文', hint: 'Simplified Chinese interface' }, 'zh-TW': { label: '繁體中文', hint: 'Traditional Chinese interface' }, en: { label: 'English', hint: 'English interface' } },
       performanceMode: 'Performance mode',
-      performanceModeHint: 'Lowers Heat Capacity refresh rate and 3D visual load when enabled',
+      performanceModeHint: 'Choose the Heat Capacity clarity and refresh-load tier',
       performanceModeOff: 'Standard mode',
+      performanceModeBalanced: 'Balanced mode',
       performanceModeOn: 'Performance first',
-      performanceModeSummary: { standard: 'standard', performance: 'performance' },
+      performanceModeSummary: { standard: 'standard', balanced: 'balanced', performance: 'performance' },
     },
     files: {
       openFiles: 'Open Files', files: 'Files', panels: 'Panels', noOpenFiles: 'No open files', emptyHint: 'Create a study to populate the workbench.',
@@ -683,7 +688,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       locked: 'locked', shown: 'shown', open: 'open', active: 'active', off: 'off', std: 'STD', ideal: 'IDEAL', heat: 'HEAT',
     },
     panels: {
-      previewTitle: '3D Preview', previewHint: 'Realtime molecular viewport', realtimeTitle: 'Realtime Data / Charts', standardRealtimeHint: 'Live temperature, pressure, and chart traces', idealRealtimeHint: 'Live T, P, relation, and chart traces', heatRealtimeHint: 'U_T / U_p, pressure, and process samples',
+      previewTitle: '3D Preview', previewHint: 'Realtime molecular viewport', realtimeTitle: 'Realtime Data / Charts', heatRealtimeTitle: 'Realtime Data', standardRealtimeHint: 'Live temperature, pressure, and chart traces', idealRealtimeHint: 'Live T, P, relation, and chart traces', heatRealtimeHint: 'U_T / U_p, pressure, and process samples',
       standardResultsTitle: 'Results', standardResultsHint: 'Experiment status, data table, and figures', idealResultsTitle: 'Results', idealResultsHint: 'Verification chart, history unlock, and export details',
       pointsTitle: 'Points', pointsHint: 'Recorded relation points', verificationTitle: 'Verification', verificationHint: 'Verification chart, diagnostics, and export details',
       summaryTitle: 'Summary', dataTableTitle: 'Data Table', figuresTitle: 'Figures',
@@ -731,12 +736,32 @@ const heatCapacityRealtimeCopies = {
     materialsHint: 'U₁ / U₂ 与空气比热容比计算',
     closeMaterialsAria: '关闭实验资料与结果',
     materialsGroupAria: '展开或收起实验资料与结果',
-    realtimeKicker: 'Realtime Data / Charts',
+    realtimePanelTitle: '实时数据',
+    realtimeKicker: '实时数据',
+    realtimeSubtitle: 'U_T / U_p、压强和过程采样',
     realtimeTitle: '空气比热容比实验',
     stagePrefix: '阶段：',
     demoPaused: '自动演示暂停',
     demoRunning: '自动演示',
     demoReady: '自动演示准备',
+    autoDemoStart: '自动演示',
+    autoDemoPause: '暂停演示',
+    autoDemoResume: '继续演示',
+    demoCompleteLabel: '演示完成',
+    demoPausedLabel: '已暂停',
+    demoDoneLabel: '已完成',
+    demoTargetLabel: '目标控件',
+    demoObservationLabel: '观察要点',
+    demoCompleteTitle: '演示完成',
+    demoCompleteDescription: '演示完成，可重新开始或手动操作。',
+    demoFallbackNote: '过程采样已保留。',
+    recordU1: '记录 U₁ / U_T1',
+    recordU2: '记录 U₂ / U_T2',
+    safetyLimit: '安全上限',
+    safetyActive: '激活',
+    pressureWarningTitle: '安全警告：瓶内压力过高',
+    pressureWarningFallback: '压力超过安全阈值，请停止打气',
+    pressureWarningObserve: '请观察压力表回落情况。',
     operationLocked: '操作锁定',
     phaseLabels: {
       powerOff: '未开机',
@@ -799,12 +824,32 @@ const heatCapacityRealtimeCopies = {
     materialsHint: 'U₁ / U₂ 與空氣比熱容比計算',
     closeMaterialsAria: '關閉實驗資料與結果',
     materialsGroupAria: '展開或收起實驗資料與結果',
-    realtimeKicker: 'Realtime Data / Charts',
+    realtimePanelTitle: '即時資料',
+    realtimeKicker: '即時資料',
+    realtimeSubtitle: 'U_T / U_p、壓強和過程採樣',
     realtimeTitle: '空氣比熱容比實驗',
     stagePrefix: '階段：',
     demoPaused: '自動演示暫停',
     demoRunning: '自動演示',
     demoReady: '自動演示準備',
+    autoDemoStart: '自動演示',
+    autoDemoPause: '暫停演示',
+    autoDemoResume: '繼續演示',
+    demoCompleteLabel: '演示完成',
+    demoPausedLabel: '已暫停',
+    demoDoneLabel: '已完成',
+    demoTargetLabel: '目標控件',
+    demoObservationLabel: '觀察要點',
+    demoCompleteTitle: '演示完成',
+    demoCompleteDescription: '演示完成，可重新開始或手動操作。',
+    demoFallbackNote: '過程採樣已保留。',
+    recordU1: '記錄 U₁ / U_T1',
+    recordU2: '記錄 U₂ / U_T2',
+    safetyLimit: '安全上限',
+    safetyActive: '啟用',
+    pressureWarningTitle: '安全警告：瓶內壓力過高',
+    pressureWarningFallback: '壓力超過安全閾值，請停止打氣',
+    pressureWarningObserve: '請觀察壓力表回落情況。',
     operationLocked: '操作鎖定',
     phaseLabels: {
       powerOff: '未開機',
@@ -867,12 +912,32 @@ const heatCapacityRealtimeCopies = {
     materialsHint: 'U₁ / U₂ and air heat capacity ratio calculation',
     closeMaterialsAria: 'Close experiment notes and results',
     materialsGroupAria: 'Expand or collapse experiment notes and results',
-    realtimeKicker: 'Realtime Data / Charts',
+    realtimePanelTitle: 'Realtime Data',
+    realtimeKicker: 'Realtime Data',
+    realtimeSubtitle: 'U_T / U_p, pressure, and process samples',
     realtimeTitle: 'Air Heat Capacity Ratio Experiment',
     stagePrefix: 'Stage: ',
     demoPaused: 'Auto demo paused',
     demoRunning: 'Auto demo',
     demoReady: 'Auto demo ready',
+    autoDemoStart: 'Auto demo',
+    autoDemoPause: 'Pause demo',
+    autoDemoResume: 'Resume demo',
+    demoCompleteLabel: 'Demo complete',
+    demoPausedLabel: 'Paused',
+    demoDoneLabel: 'Complete',
+    demoTargetLabel: 'Target control',
+    demoObservationLabel: 'Observation',
+    demoCompleteTitle: 'Demo complete',
+    demoCompleteDescription: 'Demo complete. You can restart or operate manually.',
+    demoFallbackNote: 'Process samples are retained.',
+    recordU1: 'Record U₁ / U_T1',
+    recordU2: 'Record U₂ / U_T2',
+    safetyLimit: 'Safety limit',
+    safetyActive: 'Active',
+    pressureWarningTitle: 'Safety warning: vessel pressure is too high',
+    pressureWarningFallback: 'Pressure exceeds the safety threshold. Stop pumping.',
+    pressureWarningObserve: 'Watch the pressure gauge return.',
     operationLocked: 'Operation locked',
     phaseLabels: {
       powerOff: 'Power off',
@@ -954,7 +1019,7 @@ const isWorkbenchLanguagePreference = (value: unknown): value is WorkbenchLangua
 );
 
 const isWorkbenchPerformanceMode = (value: unknown): value is WorkbenchPerformanceMode => (
-  value === 'standard' || value === 'performance'
+  value === 'standard' || value === 'balanced' || value === 'performance'
 );
 
 const loadWorkbenchGeneralSettings = (): WorkbenchGeneralSettings => {
@@ -1026,8 +1091,10 @@ const formatMaybeMetric = (value: number | null | undefined, digits = 3) => (
 );
 
 const renderScientificText = (text: string): React.ReactNode => {
-  const parts = text.split(/(U_T|U_p|U_P)/g);
+  const parts = text.split(/(U_T1|U_T2|U_T|U_p|U_P)/g);
   return parts.map((part, index) => {
+    if (part === 'U_T1') return <React.Fragment key={`${part}-${index}`}>U<sub>T1</sub></React.Fragment>;
+    if (part === 'U_T2') return <React.Fragment key={`${part}-${index}`}>U<sub>T2</sub></React.Fragment>;
     if (part === 'U_T') return <React.Fragment key={`${part}-${index}`}>U<sub>T</sub></React.Fragment>;
     if (part === 'U_p' || part === 'U_P') return <React.Fragment key={`${part}-${index}`}>U<sub>p</sub></React.Fragment>;
     return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
@@ -1119,7 +1186,7 @@ const createHeatCapacityPanels = (
   heatCopy: ReturnType<typeof getHeatCapacityRealtimeCopy>,
 ): PanelDefinition[] => [
   { key: 'preview', title: copy.panels.previewTitle, hint: copy.panels.previewHint, icon: <Gauge size={13} />, defaultVisible: true },
-  { key: 'realtime', title: copy.panels.realtimeTitle, hint: copy.panels.heatRealtimeHint, icon: <BarChart3 size={13} />, defaultVisible: true },
+  { key: 'realtime', title: copy.panels.heatRealtimeTitle, hint: copy.panels.heatRealtimeHint, icon: <BarChart3 size={13} />, defaultVisible: true },
   { key: 'heatCapacityGuide', title: heatCopy.guideTitle, hint: heatCopy.guideHint, icon: <BookOpen size={13} /> },
   { key: 'heatCapacityRecords', title: heatCopy.recordsTitle, hint: heatCopy.recordsHint, icon: <Table2 size={13} /> },
   { key: 'heatCapacityProcessing', title: heatCopy.processingTitle, hint: heatCopy.processingHint, icon: <BarChart3 size={13} /> },
@@ -1521,6 +1588,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [settingsPerformanceMode, setSettingsPerformanceMode] = useState<WorkbenchPerformanceMode>(() => initialGeneralSettings.performanceMode);
   const [settingsLanguageMenuOpen, setSettingsLanguageMenuOpen] = useState(false);
   const workbenchCopy = workbenchCopies[settingsLanguagePreference];
+  const performanceModeOptions = useMemo(() => ([
+    { mode: 'standard' as const, label: workbenchCopy.settings.performanceModeOff },
+    { mode: 'balanced' as const, label: workbenchCopy.settings.performanceModeBalanced },
+    { mode: 'performance' as const, label: workbenchCopy.settings.performanceModeOn },
+  ]), [workbenchCopy]);
   const workbenchTranslation = translations[settingsLanguagePreference === 'en' ? 'en-GB' : settingsLanguagePreference];
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [parametersCollapsed, setParametersCollapsed] = useState(() => (
@@ -2037,7 +2109,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         filesRef.current = nextFiles;
         return nextFiles;
       });
-    }, settingsPerformanceMode === 'performance' ? 200 : 100);
+    }, settingsPerformanceMode === 'performance' ? 240 : settingsPerformanceMode === 'balanced' ? 150 : 100);
     return () => window.clearInterval(intervalId);
   }, [settingsPerformanceMode]);
 
@@ -5486,30 +5558,28 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 <strong>{workbenchCopy.settings.performanceMode}</strong>
                 <span>{workbenchCopy.settings.performanceModeHint}</span>
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={settingsPerformanceMode === 'performance'}
-                className={`studio-settings-performance-switch ${settingsPerformanceMode === 'performance' ? 'studio-settings-performance-switch-on' : ''}`}
-                onClick={() => updateSettingsPerformanceMode(settingsPerformanceMode === 'performance' ? 'standard' : 'performance')}
+              <div
+                className={`studio-settings-performance-segmented studio-settings-performance-segmented-${settingsPerformanceMode}`}
+                role="radiogroup"
+                aria-label={workbenchCopy.settings.performanceMode}
               >
-                <span className="studio-settings-performance-switch-copy">
-                  <strong>
-                    {settingsPerformanceMode === 'performance'
-                      ? workbenchCopy.settings.performanceModeOn
-                      : workbenchCopy.settings.performanceModeOff}
-                  </strong>
-                  <small>{workbenchCopy.settings.performanceModeSummary[settingsPerformanceMode]}</small>
-                </span>
-                <span
-                  className={`studio-window-switch studio-settings-performance-toggle ${
-                    settingsPerformanceMode === 'performance' ? 'studio-window-switch-on' : 'studio-window-switch-off'
-                  }`}
-                  aria-hidden="true"
-                >
-                  <span className="studio-window-switch-thumb" />
-                </span>
-              </button>
+                <span className="studio-settings-performance-thumb" aria-hidden="true" />
+                {performanceModeOptions.map((option) => (
+                  <button
+                    key={option.mode}
+                    type="button"
+                    role="radio"
+                    aria-checked={settingsPerformanceMode === option.mode}
+                    className={`studio-settings-performance-option ${
+                      settingsPerformanceMode === option.mode ? 'studio-settings-performance-option-active' : ''
+                    }`}
+                    onClick={() => updateSettingsPerformanceMode(option.mode)}
+                  >
+                    <strong>{option.label}</strong>
+                    <small>{workbenchCopy.settings.performanceModeSummary[option.mode]}</small>
+                  </button>
+                ))}
+              </div>
             </section>
 
             <section className="studio-settings-section">
@@ -5821,6 +5891,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           >
             <HeatCapacityInstrumentScene
               performanceMode={settingsPerformanceMode}
+              language={settingsLanguagePreference}
               powerOn={activeFile.powerOn}
               stopcockAngleDeg={activeFile.stopcockAngleDeg}
               pressureZeroAdjusted={activeFile.pressureZeroAdjusted}
@@ -5870,12 +5941,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
             {activeFile.pressureOverLimit ? (
               <div className="studio-heat-pressure-warning" data-heat-capacity-pressure-warning="true" role="alert">
                 <div className="studio-heat-pressure-warning-kicker">
-                  <span>SAFETY LIMIT</span>
-                  <em>ACTIVE</em>
+                  <span>{heatCapacityRealtimeCopy.safetyLimit}</span>
+                  <em>{heatCapacityRealtimeCopy.safetyActive}</em>
                 </div>
-                <strong>安全警告：瓶内压力过高</strong>
-                <span>{activeFile.pressureSafetyMessage ?? '压力超过安全阈值，请停止打气'}</span>
-                <em>请观察压力表回落情况。</em>
+                <strong>{heatCapacityRealtimeCopy.pressureWarningTitle}</strong>
+                <span>{activeFile.pressureSafetyMessage ?? heatCapacityRealtimeCopy.pressureWarningFallback}</span>
+                <em>{heatCapacityRealtimeCopy.pressureWarningObserve}</em>
               </div>
             ) : null}
             {!autoDemoRunning && !autoDemoInteractionLocked && activeFile.powerOn && (
@@ -5886,12 +5957,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
               <div className="studio-heat-record-controls" data-heat-capacity-record-controls="true">
                 {activeFile.heatCapacityPhase === 'sealedStabilizing' ? (
                   <button type="button" onClick={() => recordHeatCapacityTrialReading('u1')}>
-                    记录 U<sub>1</sub> / UT<sub>1</sub>
+                    {renderScientificText(heatCapacityRealtimeCopy.recordU1)}
                   </button>
                 ) : null}
                 {(activeFile.heatCapacityPhase === 'recovering' || activeFile.heatCapacityPhase === 'demoComplete') ? (
                   <button type="button" onClick={() => recordHeatCapacityTrialReading('u2')}>
-                    记录 U<sub>2</sub> / UT<sub>2</sub>
+                    {renderScientificText(heatCapacityRealtimeCopy.recordU2)}
                   </button>
                 ) : null}
               </div>
@@ -5902,13 +5973,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 data-heat-capacity-demo-step-panel="true"
               >
                 <div className="studio-heat-demo-step-kicker">
-                  <span>{autoDemoRunning || autoDemoPaused ? `Step ${autoDemoStepIndex} / ${autoDemoStepCount}` : '演示完成'}</span>
-                  <i>{autoDemoPaused ? '已暂停' : autoDemoRunning ? '自动演示' : '已完成'}</i>
+                  <span>{autoDemoRunning || autoDemoPaused ? `Step ${autoDemoStepIndex} / ${autoDemoStepCount}` : heatCapacityRealtimeCopy.demoCompleteLabel}</span>
+                  <i>{autoDemoPaused ? heatCapacityRealtimeCopy.demoPausedLabel : autoDemoRunning ? heatCapacityRealtimeCopy.demoRunning : heatCapacityRealtimeCopy.demoDoneLabel}</i>
                 </div>
-                <strong>{renderScientificText(autoDemoStepTitle || '演示完成')}</strong>
-                <p>{renderScientificText(autoDemoStepDescription || '演示完成，可重新开始或手动操作。')}</p>
-                <div><span>目标控件</span><em>{renderScientificText(autoDemoStepTarget || '--')}</em></div>
-                <div><span>观察要点</span><em>{renderScientificText(autoDemoStepNote || '过程曲线和采样占位已保留。')}</em></div>
+                <strong>{renderScientificText(autoDemoStepTitle || heatCapacityRealtimeCopy.demoCompleteTitle)}</strong>
+                <p>{renderScientificText(autoDemoStepDescription || heatCapacityRealtimeCopy.demoCompleteDescription)}</p>
+                <div><span>{heatCapacityRealtimeCopy.demoTargetLabel}</span><em>{renderScientificText(autoDemoStepTarget || '--')}</em></div>
+                <div><span>{heatCapacityRealtimeCopy.demoObservationLabel}</span><em>{renderScientificText(autoDemoStepNote || heatCapacityRealtimeCopy.demoFallbackNote)}</em></div>
               </div>
             ) : null}
             {autoDemoToastMessage ? (
@@ -6141,6 +6212,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div>
             <span>{heatCapacityRealtimeCopy.realtimeKicker}</span>
             <strong>{heatCapacityRealtimeCopy.realtimeTitle}</strong>
+            <small>{renderScientificText(heatCapacityRealtimeCopy.realtimeSubtitle)}</small>
           </div>
           <div className="studio-heat-status-badges">
             {heatCapacityHeaderBadges.map((badge) => (
@@ -7000,7 +7072,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     <div className="studio-dock-header">
       <div>
         <span>{panel.title}</span>
-        <small>{panel.hint}</small>
+        <small>{renderScientificText(panel.hint)}</small>
       </div>
       {panel.key === 'preview' ? (
         <div className="studio-panel-actions">
@@ -7014,16 +7086,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
               ? (autoDemoRunning || activeFile.runState === 'running' ? pauseActiveFile : runHeatCapacityAutoDemo)
               : toggleActiveFileRunState}
             title={activeFile.kind === 'heatCapacity'
-              ? autoDemoPaused ? '继续演示' : autoDemoRunning || activeFile.runState === 'running' ? '暂停演示' : '自动演示'
+              ? autoDemoPaused ? heatCapacityRealtimeCopy.autoDemoResume : autoDemoRunning || activeFile.runState === 'running' ? heatCapacityRealtimeCopy.autoDemoPause : heatCapacityRealtimeCopy.autoDemoStart
               : activeFile.runState === 'running' ? workbenchCopy.actions.pause : workbenchCopy.actions.start}
             aria-label={activeFile.kind === 'heatCapacity'
-              ? autoDemoPaused ? '继续演示' : autoDemoRunning || activeFile.runState === 'running' ? '暂停演示' : '自动演示'
+              ? autoDemoPaused ? heatCapacityRealtimeCopy.autoDemoResume : autoDemoRunning || activeFile.runState === 'running' ? heatCapacityRealtimeCopy.autoDemoPause : heatCapacityRealtimeCopy.autoDemoStart
               : activeFile.runState === 'running' ? workbenchCopy.actions.pause : workbenchCopy.actions.start}
           >
             {activeFile.kind === 'heatCapacity' ? (
               <>
                 {autoDemoRunning || activeFile.runState === 'running' ? <Pause size={14} strokeWidth={2.5} /> : <Play size={15} strokeWidth={2.5} />}
-                <span>{autoDemoPaused ? '继续演示' : autoDemoRunning || activeFile.runState === 'running' ? '暂停演示' : '自动演示'}</span>
+                <span>{autoDemoPaused ? heatCapacityRealtimeCopy.autoDemoResume : autoDemoRunning || activeFile.runState === 'running' ? heatCapacityRealtimeCopy.autoDemoPause : heatCapacityRealtimeCopy.autoDemoStart}</span>
               </>
             ) : activeFile.runState === 'running' ? (
               <Pause size={14} strokeWidth={2.5} />

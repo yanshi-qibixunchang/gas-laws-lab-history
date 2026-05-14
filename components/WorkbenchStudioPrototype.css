@@ -710,6 +710,86 @@
   flex: 0 0 auto;
 }
 
+.studio-settings-performance-segmented {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgba(91, 137, 190, 0.42);
+  border-radius: 5px;
+  background: rgba(12, 18, 25, 0.62);
+  padding: 3px;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.06);
+}
+
+.studio-settings-performance-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / 3);
+  border: 1px solid rgba(120, 202, 230, 0.56);
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(50, 79, 112, 0.92), rgba(30, 48, 70, 0.94));
+  box-shadow: inset 0 0 0 1px rgba(220, 244, 255, 0.1), 0 8px 18px rgba(0, 0, 0, 0.18);
+  transition: transform 180ms ease, border-color 160ms ease, background 160ms ease;
+  pointer-events: none;
+}
+
+.studio-settings-performance-segmented-balanced .studio-settings-performance-thumb {
+  transform: translateX(100%);
+}
+
+.studio-settings-performance-segmented-performance .studio-settings-performance-thumb {
+  transform: translateX(200%);
+}
+
+.studio-settings-performance-option {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--studio-subtle);
+  padding: 8px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: color 140ms ease, background 140ms ease;
+}
+
+.studio-settings-performance-option:hover,
+.studio-settings-performance-option:focus-visible {
+  background: rgba(79, 127, 184, 0.12);
+  color: var(--studio-text);
+  outline: none;
+}
+
+.studio-settings-performance-option strong {
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-settings-performance-option small {
+  overflow: hidden;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 9px;
+  line-height: 1.2;
+  opacity: 0.78;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.studio-settings-performance-option-active {
+  color: #e5f5ff;
+}
+
 .studio-settings-language-menu button:hover,
 .studio-settings-language-menu button:focus-visible,
 .studio-settings-language-active {
@@ -850,10 +930,37 @@
 .studio-theme-light .studio-settings-theme-card,
 .studio-theme-light .studio-settings-language-trigger,
 .studio-theme-light .studio-settings-performance-switch,
+.studio-theme-light .studio-settings-performance-segmented,
 .studio-theme-light .studio-settings-language-menu {
   background: var(--studio-surface);
   border-color: var(--studio-border);
   color: var(--studio-text);
+}
+
+.studio-theme-light .studio-settings-performance-segmented {
+  background: #f8fafc;
+  border-color: rgba(100, 116, 139, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.14);
+}
+
+.studio-theme-light .studio-settings-performance-thumb {
+  background: linear-gradient(180deg, #ffffff, #e9f2ff);
+  border-color: rgba(37, 99, 235, 0.36);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.75), 0 6px 16px rgba(15, 23, 42, 0.12);
+}
+
+.studio-theme-light .studio-settings-performance-option {
+  color: var(--studio-subtle);
+}
+
+.studio-theme-light .studio-settings-performance-option:hover,
+.studio-theme-light .studio-settings-performance-option:focus-visible {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--studio-text);
+}
+
+.studio-theme-light .studio-settings-performance-option-active {
+  color: #0f172a;
 }
 
 .studio-theme-light .studio-command-button:hover,
@@ -2797,9 +2904,10 @@
 
 .studio-heat-hover-tooltip {
   position: absolute;
-  left: 12px;
-  bottom: 128px;
-  z-index: 4;
+  right: 12px;
+  bottom: 12px;
+  left: auto;
+  z-index: 3;
   max-width: 260px;
   border: 1px solid rgba(226, 232, 240, 0.34);
   border-radius: 4px;
@@ -3822,6 +3930,15 @@
   font-family: var(--studio-engineering-title-font);
   font-weight: 700;
   line-height: 1.2;
+}
+
+.studio-heat-monitor-header small {
+  display: block;
+  margin-top: 3px;
+  color: var(--studio-muted);
+  font-size: 10px;
+  line-height: 1.25;
+  letter-spacing: 0;
 }
 
 .studio-heat-status-badges {
