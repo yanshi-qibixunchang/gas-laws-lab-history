@@ -18,6 +18,9 @@ import {
   normalizeHeatCapacityTrial,
   resizeHeatCapacityTrials,
 } from './heatCapacity/heatCapacityTrialModel.ts';
+import type {
+  HeatCapacityExperimentProfile,
+} from './heatCapacity/heatCapacityExperimentRandom.ts';
 
 export const WORKBENCH_SESSION_VERSION = 1;
 export const WORKBENCH_SESSION_STORAGE_KEY = 'hsl_workbench_session_v1';
@@ -34,6 +37,12 @@ const heatCapacityTabIds: WorkbenchHeatCapacityTabId[] = ['guide', 'records', 'p
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null
+);
+
+const normalizeHeatCapacityExperimentProfile = (value: unknown): HeatCapacityExperimentProfile | null => (
+  isRecord(value) && normalizeNullableNumber(value.u1MeasuredMv) !== null && normalizeNullableNumber(value.u2MeasuredMv) !== null
+    ? value as unknown as HeatCapacityExperimentProfile
+    : null
 );
 
 const normalizeNullableNumber = (value: unknown) => (
@@ -182,6 +191,10 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       heatCapacityProcessingResult: savedProcessingUsesAirTheory
         ? savedProcessingResult
         : createDefaultHeatCapacityProcessingResult(theoreticalGamma),
+      heatCapacityExperimentSeed: typeof file.heatCapacityExperimentSeed === 'string' || typeof file.heatCapacityExperimentSeed === 'number'
+        ? file.heatCapacityExperimentSeed
+        : null,
+      heatCapacityExperimentProfile: normalizeHeatCapacityExperimentProfile(file.heatCapacityExperimentProfile),
       stopcockAngleDeg,
       glassPistonState: getHeatCapacityStopcockState(stopcockAngleDeg),
       ambientPressureKPa: normalizeNullableNumber(file.ambientPressureKPa) ?? fallback.ambientPressureKPa,

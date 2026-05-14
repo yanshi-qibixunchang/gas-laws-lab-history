@@ -196,7 +196,7 @@ export const calculateHeatCapacityGamma = (
     });
   }
 
-  const denominator = Math.log(P1KPa / P2KPa);
+  const denominator = U1Mv - U2Mv;
   if (Math.abs(denominator) < MIN_LOG_DENOMINATOR) {
     return createResult(normalizedOptions, {
       U0Mv,
@@ -208,11 +208,11 @@ export const calculateHeatCapacityGamma = (
       P1KPa,
       P2KPa,
       status: 'invalid-data',
-      message: 'log(P1 / P2) 过小，无法稳定计算。',
+      message: 'U1 - U2 过小，无法稳定计算。',
     });
   }
 
-  const gamma = Math.log(P1KPa / P0KPa) / denominator;
+  const gamma = U1Mv / denominator;
   if (!Number.isFinite(gamma) || gamma <= MIN_REASONABLE_GAMMA || gamma >= MAX_REASONABLE_GAMMA) {
     return createResult(normalizedOptions, {
       U0Mv,

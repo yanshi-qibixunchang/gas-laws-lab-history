@@ -50,15 +50,6 @@ export const getHeatCapacityRangeValue = (
   fraction: number,
 ) => range[0] + clampNumber(fraction, 0, 1) * (range[1] - range[0]);
 
-const getHeatCapacityDisplayJitter = (
-  now: number,
-  amplitude: number,
-  seed: number,
-) => (
-  Math.sin(now / (117 + seed * 19) + seed) * amplitude
-  + Math.sin(now / (211 + seed * 23) + seed * 2.7) * amplitude * 0.38
-);
-
 export const getHeatCapacityDisplayValue = ({
   current,
   target,
@@ -89,11 +80,7 @@ export const getHeatCapacityDisplayValue = ({
   let nextValue = current + delta * response + overshoot;
 
   if (Math.abs(target - nextValue) <= Math.max(0.08, Math.abs(target) * 0.00012)) {
-    nextValue = target + getHeatCapacityDisplayJitter(
-      now,
-      config.settleNoiseAmplitude,
-      config.jitterSeed,
-    );
+    nextValue = target;
   }
 
   return nextValue;

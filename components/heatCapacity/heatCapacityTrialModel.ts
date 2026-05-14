@@ -322,10 +322,10 @@ export const calculateHeatCapacityTrialResult = (
 
   if (P1KPa <= P2KPa || P2KPa <= P0KPa) return invalidTrialResult(trial, '绝对压强关系异常。');
 
-  const denominator = Math.log(P1KPa / P2KPa);
-  if (Math.abs(denominator) < LOG_DENOMINATOR_EPSILON) return invalidTrialResult(trial, '对数分母过小。');
+  const denominator = trial.U1Mv - trial.U2Mv;
+  if (Math.abs(denominator) < LOG_DENOMINATOR_EPSILON) return invalidTrialResult(trial, 'U1 - U2 过小。');
 
-  const gamma = roundNumber(Math.log(P1KPa / P0KPa) / denominator, 6);
+  const gamma = roundNumber(trial.U1Mv / denominator, 6);
   if (!Number.isFinite(gamma) || gamma < 1 || gamma > 2) return invalidTrialResult(trial, 'gamma 结果异常。');
 
   return {

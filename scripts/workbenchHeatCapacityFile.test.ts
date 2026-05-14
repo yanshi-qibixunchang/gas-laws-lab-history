@@ -62,6 +62,7 @@ assert.equal(migrated.files[0].name, 'Heat Capacity Ratio - 007');
 assert.equal(migrated.files[0].liveWorkspaceSplitRatio, 0.62);
 assert.equal(migrated.selectedPanel, 'realtime');
 
+const legacyHardSphereGamma = 1 + 2 / 3;
 const oldHardSphereRestored = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
   activeFileId: heatOne.id,
@@ -69,13 +70,13 @@ const oldHardSphereRestored = decodeWorkbenchSession({
   files: [
     {
       ...heatOne,
-      theoreticalGamma: 5 / 3,
+      theoreticalGamma: legacyHardSphereGamma,
       heatCapacityProcessingCalculated: true,
       heatCapacityProcessingResult: {
         ...heatOne.heatCapacityProcessingResult,
         calculated: true,
-        theoreticalGamma: 5 / 3,
-        meanGamma: 5 / 3,
+        theoreticalGamma: legacyHardSphereGamma,
+        meanGamma: legacyHardSphereGamma,
         relativeErrorPercent: 0,
       },
     },

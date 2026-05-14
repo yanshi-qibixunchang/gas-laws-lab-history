@@ -18,7 +18,7 @@ export type HeatCapacitySampleMap = Partial<Record<HeatCapacitySampleKey, HeatCa
 export const HEAT_CAPACITY_DETERMINISTIC_SAMPLE_VALUES = {
   U0Mv: 0,
   U1Mv: 120,
-  U2Mv: 32,
+  U2Mv: 34.3,
 } as const;
 
 const cloneSample = (sample: HeatCapacitySample): HeatCapacitySample => ({ ...sample });

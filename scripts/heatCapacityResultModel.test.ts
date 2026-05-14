@@ -29,12 +29,12 @@ assert.equal(deterministicResult.experimentObject, 'air');
 assert.equal(deterministicResult.theoreticalGamma, 1.4);
 assert.equal(deterministicResult.U0Mv, 0);
 assert.equal(deterministicResult.U1Mv, 120);
-assert.equal(deterministicResult.U2Mv, 32);
+assert.equal(deterministicResult.U2Mv, 34.3);
 assert.equal(deterministicResult.deltaP1KPa, 6);
-assert.equal(deterministicResult.deltaP2KPa, 1.6);
+nearlyEqual(deterministicResult.deltaP2KPa, 1.715);
 assert.equal(deterministicResult.P0KPa, 101.3);
 assert.equal(deterministicResult.P1KPa, 107.3);
-nearlyEqual(deterministicResult.P2KPa, 102.9);
+nearlyEqual(deterministicResult.P2KPa, 103.015);
 assert.equal(deterministicResult.gamma !== null && deterministicResult.gamma >= 1.37 && deterministicResult.gamma <= 1.41, true);
 assert.equal(deterministicResult.relativeErrorPercent !== null && deterministicResult.relativeErrorPercent >= 0, true);
 assert.equal(deterministicResult.message, '空气比热容比计算完成。');
@@ -58,7 +58,7 @@ assert.equal(calculateHeatCapacityGamma(withoutU2).ready, false);
 assert.equal(calculateHeatCapacityGamma(withoutU2).gamma, null);
 
 const reversedSignals = deterministicSamples.map((sample) => {
-  if (sample.key === 'beforeRelease') return { ...sample, pressureSignalMv: 32 };
+  if (sample.key === 'beforeRelease') return { ...sample, pressureSignalMv: 34.3 };
   if (sample.key === 'afterRecovery') return { ...sample, pressureSignalMv: 120 };
   return sample;
 });

@@ -51,7 +51,7 @@ const recordedU2 = recordHeatCapacityU2(recordedU1.trials, {
   activeTrialIndex: 0,
   phase: 'recovering',
   powerOn: true,
-  pressureSignalMv: 32,
+  pressureSignalMv: 34.3,
   temperatureSignalMv: 1522.3,
   pressureSafetyStatus: 'normal',
   pressureOverLimit: false,
@@ -59,7 +59,7 @@ const recordedU2 = recordHeatCapacityU2(recordedU1.trials, {
 });
 
 assert.equal(recordedU2.ok, true);
-assert.equal(recordedU2.trials[0].U2Mv, 32);
+assert.equal(recordedU2.trials[0].U2Mv, 34.3);
 assert.equal(recordedU2.trials[0].UT2Mv, 1522.3);
 assert.equal(recordedU2.trials[0].status, 'complete');
 
@@ -90,10 +90,10 @@ assert.equal(result.calculated, true);
 assert.equal(result.status, 'ready');
 assert.equal(result.validTrialCount, 1);
 assert.equal(result.trialResults[0].deltaP1KPa, 6);
-assert.equal(result.trialResults[0].deltaP2KPa, 1.6);
+assert.equal(result.trialResults[0].deltaP2KPa, 1.715);
 assert.equal(result.trialResults[0].P1KPa, 107.3);
-assert.equal(result.trialResults[0].P2KPa, 102.9);
-assert.ok(result.trialResults[0].gamma !== null && result.trialResults[0].gamma > 1.35 && result.trialResults[0].gamma < 1.41);
+assert.equal(result.trialResults[0].P2KPa, 103.015);
+assert.ok(result.trialResults[0].gamma !== null && result.trialResults[0].gamma > 1.39 && result.trialResults[0].gamma < 1.41);
 assert.equal(result.meanGamma, result.trialResults[0].gamma);
 assert.ok(result.relativeErrorPercent !== null && result.relativeErrorPercent > 0);
 

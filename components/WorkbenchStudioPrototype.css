@@ -63,7 +63,7 @@
 .studio-shell {
   display: grid;
   height: 100%;
-  grid-template-rows: 36px minmax(0, 1fr) 156px 24px;
+  grid-template-rows: 36px minmax(0, 1fr) var(--studio-console-height, 156px) 24px;
   background: var(--studio-bg);
 }
 
@@ -158,26 +158,13 @@
   padding: 6px;
 }
 
-.studio-command-menu-new {
-  left: 166px;
-}
-
+.studio-command-menu-new,
 .studio-command-menu-edit {
-  left: 272px;
   min-width: 270px;
 }
 
 .studio-command-menu-window {
-  left: 336px;
   min-width: 315px;
-}
-
-.studio-command-menu-settings {
-  left: 436px;
-}
-
-.studio-command-menu-help {
-  left: 544px;
 }
 
 .studio-command-menu-title {
@@ -710,27 +697,39 @@
   flex: 0 0 auto;
 }
 
+.studio-settings-performance-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 18px;
+}
+
+.studio-settings-performance-row .studio-settings-section-title {
+  min-width: 0;
+}
+
 .studio-settings-performance-segmented {
   position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
+  width: 270px;
   overflow: hidden;
   border: 1px solid rgba(91, 137, 190, 0.42);
-  border-radius: 5px;
+  border-radius: 3px;
   background: rgba(12, 18, 25, 0.62);
-  padding: 3px;
+  padding: 2px;
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.06);
 }
 
 .studio-settings-performance-thumb {
   position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 3px;
-  width: calc((100% - 6px) / 3);
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc((100% - 4px) / 3);
   border: 1px solid rgba(120, 202, 230, 0.56);
-  border-radius: 4px;
+  border-radius: 2px;
   background: linear-gradient(180deg, rgba(50, 79, 112, 0.92), rgba(30, 48, 70, 0.94));
   box-shadow: inset 0 0 0 1px rgba(220, 244, 255, 0.1), 0 8px 18px rgba(0, 0, 0, 0.18);
   transition: transform 180ms ease, border-color 160ms ease, background 160ms ease;
@@ -754,7 +753,7 @@
   border: 0;
   background: transparent;
   color: var(--studio-subtle);
-  padding: 8px 10px;
+  padding: 7px 9px;
   text-align: center;
   cursor: pointer;
   transition: color 140ms ease, background 140ms ease;
@@ -961,6 +960,38 @@
 
 .studio-theme-light .studio-settings-performance-option-active {
   color: #0f172a;
+}
+
+.studio-theme-light .studio-console-toggle {
+  background: #f8fafc;
+  border-color: rgba(100, 116, 139, 0.34);
+  color: #64748b;
+}
+
+.studio-theme-light .studio-console-toggle:hover,
+.studio-theme-light .studio-console-toggle:focus-visible {
+  background: #eaf2ff;
+  border-color: rgba(37, 99, 235, 0.36);
+  color: #1f3f67;
+}
+
+.studio-theme-light .studio-console-resizer:hover::after,
+.studio-theme-light .studio-console-resizer:focus-visible::after {
+  background: rgba(37, 99, 235, 0.42);
+}
+
+.studio-theme-light .studio-heat-manual-reset button {
+  background: #eaf2ff;
+  border-color: rgba(37, 99, 235, 0.36);
+  color: #1f3f67;
+  box-shadow: inset 3px 0 0 rgba(37, 99, 235, 0.34), 0 8px 18px rgba(15, 23, 42, 0.1);
+}
+
+.studio-theme-light .studio-heat-manual-reset button:hover,
+.studio-theme-light .studio-heat-manual-reset button:focus-visible {
+  background: #dbeafe;
+  border-color: rgba(37, 99, 235, 0.56);
+  color: #17345f;
 }
 
 .studio-theme-light .studio-command-button:hover,
@@ -4145,6 +4176,37 @@
 .studio-heat-record-controls button:hover {
   border-color: rgba(187, 247, 208, 0.78);
   background: rgba(21, 128, 61, 0.86);
+}
+
+.studio-heat-manual-reset {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 27;
+  pointer-events: auto;
+}
+
+.studio-heat-manual-reset button {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  border: 1px solid rgba(125, 211, 252, 0.52);
+  border-radius: 4px;
+  background: rgba(30, 64, 111, 0.82);
+  color: #e0f2fe;
+  padding: 0 13px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: inset 3px 0 0 rgba(56, 189, 248, 0.72), 0 10px 20px rgba(2, 8, 23, 0.26);
+}
+
+.studio-heat-manual-reset button:hover,
+.studio-heat-manual-reset button:focus-visible {
+  border-color: rgba(186, 230, 253, 0.82);
+  background: rgba(37, 99, 170, 0.9);
+  outline: none;
 }
 
 .studio-heat-data-grid,
@@ -7441,6 +7503,7 @@
 }
 
 .studio-console {
+  position: relative;
   display: grid;
   min-height: 0;
   grid-template-rows: 32px minmax(0, 1fr);
@@ -7449,10 +7512,45 @@
   background: #0c0f13;
 }
 
+.studio-console-resizer {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  z-index: 3;
+  width: 100%;
+  height: 7px;
+  cursor: ns-resize;
+}
+
+.studio-console-resizer::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: transparent;
+  transition: background 120ms ease;
+}
+
+.studio-console-resizer:hover::after,
+.studio-console-resizer:focus-visible::after {
+  background: rgba(100, 164, 220, 0.55);
+}
+
+.studio-console-collapsed {
+  grid-template-rows: 32px 0;
+}
+
+.studio-console-collapsed .studio-console-body,
+.studio-console-collapsed .studio-console-resizer {
+  display: none;
+}
+
 .studio-console-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   border-bottom: 1px solid var(--studio-border);
   background: #2d343d;
   padding: 0 10px;
@@ -7462,7 +7560,38 @@
   text-transform: uppercase;
 }
 
+.studio-console-toggle {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--studio-border-soft);
+  border-radius: 2px;
+  background: rgba(12, 18, 25, 0.24);
+  color: var(--studio-muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.studio-console-toggle svg {
+  transition: transform 140ms ease;
+}
+
+.studio-console-collapsed .studio-console-toggle svg {
+  transform: rotate(-90deg);
+}
+
+.studio-console-toggle:hover,
+.studio-console-toggle:focus-visible {
+  border-color: var(--studio-border-strong);
+  background: rgba(76, 139, 245, 0.12);
+  color: var(--studio-text);
+  outline: none;
+}
+
 .studio-console-tabs {
+  margin-left: auto;
   display: flex;
   gap: 4px;
   font-weight: 500;
@@ -7667,7 +7796,7 @@
 
 @media (max-width: 820px) {
   .studio-shell {
-    grid-template-rows: 68px minmax(0, 1fr) 156px 24px;
+    grid-template-rows: 68px minmax(0, 1fr) var(--studio-console-height, 156px) 24px;
   }
 
   .studio-menu {

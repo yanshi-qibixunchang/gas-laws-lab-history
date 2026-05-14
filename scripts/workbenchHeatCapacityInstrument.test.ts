@@ -26,6 +26,7 @@ import {
   HEAT_CAPACITY_GAUGE_PRESSURE_MAX_KPA,
   markHeatCapacityDemoComplete,
   registerHeatCapacityPumpStroke,
+  resetHeatCapacityForManualExperiment,
   normalizeHeatCapacityStopcockAngle,
   powerHeatCapacityWorkbenchFile,
   prepareHeatCapacityAutoDemoStart,
@@ -132,7 +133,7 @@ const readyAirGamma = getHeatCapacityAirGammaResult({
       timeS: 3,
       phase: 'recovering',
       temperatureSignalMv: 1522,
-      pressureSignalMv: 32,
+        pressureSignalMv: 34.3,
       gasTemperatureK: 303.9,
       gasPressureKPaAbs: 102.9,
       pressureDeltaKPa: 1.6,
@@ -144,12 +145,12 @@ const readyAirGamma = getHeatCapacityAirGammaResult({
 });
 assert.equal(readyAirGamma.status, 'ready');
 assert.equal(readyAirGamma.U1Mv, 120);
-assert.equal(readyAirGamma.U2Mv, 32);
+assert.equal(readyAirGamma.U2Mv, 34.3);
 assert.equal(readyAirGamma.deltaP1KPa, 6);
-assert.equal(readyAirGamma.deltaP2KPa, 1.6);
+assert.equal(Math.abs((readyAirGamma.deltaP2KPa ?? 0) - 1.715) < 1e-9, true);
 assert.equal(readyAirGamma.P1KPa, 107.3);
-assert.equal(readyAirGamma.P2KPa, 102.89999999999999);
-assert.equal(readyAirGamma.gamma !== null && readyAirGamma.gamma > 1.37 && readyAirGamma.gamma < 1.41, true);
+assert.equal(Math.abs((readyAirGamma.P2KPa ?? 0) - 103.015) < 1e-9, true);
+assert.equal(readyAirGamma.gamma !== null && readyAirGamma.gamma > 1.39 && readyAirGamma.gamma < 1.41, true);
 
 const poweredFile = powerHeatCapacityWorkbenchFile(defaultFile, true, 1_000);
 assert.equal(poweredFile.powerOn, true);
@@ -159,6 +160,28 @@ assert.equal(poweredFile.pressureSignalMv, 0);
 assert.equal(poweredFile.temperatureSignalTargetMv, initialTemperatureMv);
 assert.equal(poweredFile.pressureSignalTargetMv, 0);
 assert.equal('heatCapacityTrace' in poweredFile, false, 'powering on should not create chart trace history');
+
+let stableDisplayFile = {
+  ...poweredFile,
+  pressureSignalMv: poweredFile.pressureSignalTargetMv,
+  temperatureSignalMv: poweredFile.temperatureSignalTargetMv,
+  displayResponseLastUpdateMs: 1_000,
+};
+const stablePressureTargets = new Set<number>();
+const stablePressureDisplays = new Set<number>();
+const stableTemperatureTargets = new Set<number>();
+const stableTemperatureDisplays = new Set<number>();
+for (let index = 0; index < 20; index += 1) {
+  stableDisplayFile = stepHeatCapacityWorkbenchFile(stableDisplayFile, 1_100 + index * 180);
+  stablePressureTargets.add(stableDisplayFile.pressureSignalTargetMv);
+  stablePressureDisplays.add(stableDisplayFile.pressureSignalMv ?? Number.NaN);
+  stableTemperatureTargets.add(stableDisplayFile.temperatureSignalTargetMv);
+  stableTemperatureDisplays.add(stableDisplayFile.temperatureSignalMv ?? Number.NaN);
+}
+assert.equal(stablePressureTargets.size, 1, 'display jitter must not change the pressure target value');
+assert.equal(stableTemperatureTargets.size, 1, 'display jitter must not change the temperature target value');
+assert.equal(stablePressureDisplays.size > 1, true, 'stable pressure display should have small last-digit jitter');
+assert.equal(stableTemperatureDisplays.size > 1, true, 'stable temperature display should have small last-digit jitter');
 
 const pressureLoadedFile = {
   ...poweredFile,
@@ -242,8 +265,10 @@ assert.equal(demoStart.pressureZeroAdjusted, false);
 assert.equal(Math.abs(demoStart.pressureSignalTargetMv), 0.75);
 assert.equal(demoStart.pressureDeltaKPa, 0);
 assert.equal(demoStart.gasPressureKPaAbs, defaultFile.ambientPressureKPa);
-assert.equal(demoStart.temperatureSignalTargetMv, initialTemperatureMv);
-assert.equal(demoStart.temperatureSignalMv, 1499.1);
+assert.equal(demoStart.temperatureSignalTargetMv, demoStart.heatCapacityExperimentProfile?.initialTemperatureMv);
+assert.equal(demoStart.temperatureSignalMv, Math.round((demoStart.heatCapacityExperimentProfile?.initialTemperatureMv ?? 0) * 10) / 10);
+assert.equal(demoStart.heatCapacityExperimentSeed !== null, true);
+assert.equal(demoStart.heatCapacityExperimentProfile !== null, true);
 assert.equal(demoStart.heatCapacityExpectedTrialCount, 1);
 assert.equal(demoStart.heatCapacityExpectedTrialCountMode, 'custom');
 assert.equal(demoStart.heatCapacityTrials.length, 1);
@@ -286,6 +311,49 @@ assert.equal(completedDemo.pressureZeroOffset, 0);
 assert.equal(completedDemo.pressureZeroAdjustMode, 'none');
 assert.equal(completedDemo.temperatureSignalMv, null);
 assert.equal(completedDemo.pressureSignalMv, null);
+
+const manualResetAfterDemo = resetHeatCapacityForManualExperiment({
+  ...completedDemo,
+  heatCapacityProcessSamples: {
+    ...completedDemo.heatCapacityProcessSamples,
+    recoverySample: {
+      timeS: 114.3,
+      phase: 'recovering',
+      temperatureSignalMv: 1504.4,
+      pressureSignalMv: 31.77,
+      gasTemperatureK: 298.6,
+      gasPressureKPaAbs: completedDemo.ambientPressureKPa + 1.5885,
+      pressureDeltaKPa: 1.5885,
+      pumpFrequency: 0,
+      pumpValveOpen: false,
+      stopcockOpen: false,
+    },
+  },
+  pressureSignalMvDisplayed: 31.77,
+  pressureDisplayedPlaceholder: 31.77,
+  pressureDeltaKPa: 1.5885,
+  gasPressureKPaAbs: completedDemo.ambientPressureKPa + 1.5885,
+  heatCapacityProcessingCalculated: true,
+}, 31_000);
+assert.equal(manualResetAfterDemo.powerOn, false);
+assert.equal(manualResetAfterDemo.runState, 'idle');
+assert.equal(manualResetAfterDemo.heatCapacityPhase, 'powerOff');
+assert.equal(manualResetAfterDemo.pressureDeltaKPa, 0);
+assert.equal(manualResetAfterDemo.gasPressureKPaAbs, manualResetAfterDemo.ambientPressureKPa);
+assert.equal(Math.abs(manualResetAfterDemo.pressureDisplayedPlaceholder) <= 0.8, true);
+assert.equal(manualResetAfterDemo.heatCapacityExpectedTrialCount, 3);
+assert.equal(manualResetAfterDemo.heatCapacityExpectedTrialCountMode, '3');
+assert.equal(manualResetAfterDemo.heatCapacityTrials.length, 3);
+assert.equal(manualResetAfterDemo.heatCapacityTrials.every((trial) => trial.status === 'waiting'), true);
+assert.equal(manualResetAfterDemo.heatCapacityProcessingCalculated, false);
+assert.deepEqual(manualResetAfterDemo.heatCapacityProcessSamples, {});
+
+const poweredAfterManualReset = powerHeatCapacityWorkbenchFile(manualResetAfterDemo, true, 31_100);
+assert.equal(poweredAfterManualReset.powerOn, true);
+assert.equal(poweredAfterManualReset.heatCapacityPhase, 'readyToZero');
+assert.equal(poweredAfterManualReset.pressureDeltaKPa, 0);
+assert.equal(poweredAfterManualReset.gasPressureKPaAbs, poweredAfterManualReset.ambientPressureKPa);
+assert.equal(Math.abs(poweredAfterManualReset.pressureSignalMv ?? 0) <= 0.8, true);
 
 const pumpedTarget = registerHeatCapacityPumpStroke({
   ...demoStart,

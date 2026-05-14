@@ -120,6 +120,32 @@ const suitableGainMv = suitablePump.state.pressureSignalMvRaw - slowPump.state.p
 assert.equal(suitableGainMv >= 10, true);
 assert.equal(suitableGainMv <= 25, true);
 
+let warmedByPumping = suitablePump.state;
+for (let index = 0; index < 8; index += 1) {
+  warmedByPumping = applyHeatCapacityPumpStroke(
+    warmedByPumping,
+    {
+      ...baseControls,
+      pumpValveOpen: true,
+      pumpFrequencyStatus: 'suitable',
+      pumpFrequency: 0.82,
+    },
+    1_500 + index * 450,
+  ).state;
+}
+const warmedTemperatureMv = warmedByPumping.temperatureSignalMv;
+const sealedCooling = stepHeatCapacityExperiment(
+  warmedByPumping,
+  baseControls,
+  2,
+  7_000,
+);
+assert.equal(
+  sealedCooling.temperatureSignalMv < warmedTemperatureMv,
+  true,
+  'sealed waiting after pumping should allow over-heated temperature signal to fall toward the stable target',
+);
+
 const released = stepHeatCapacityExperiment(
   suitablePump.state,
   { ...baseControls, stopcockOpen: true },
@@ -179,6 +205,23 @@ const highPressureReleased = stepHeatCapacityExperiment(
 );
 assert.equal(highPressureReleased.pressureSignalMvRaw < 1, true);
 assert.equal(highPressureReleased.temperatureSignalMv < stabilized.temperatureSignalMv, true);
+
+const closedRecovery = stepHeatCapacityExperiment(
+  highPressureReleased,
+  { ...baseControls, stopcockOpen: false },
+  2.5,
+  19_100,
+);
+assert.equal(
+  closedRecovery.temperatureSignalMv > highPressureReleased.temperatureSignalMv,
+  true,
+  'closing the stopcock after release should recover temperature upward from the release low point',
+);
+assert.equal(
+  closedRecovery.temperatureSignalMv < stabilized.temperatureSignalMv,
+  true,
+  'thermal recovery should not jump back to the high pre-release stable temperature',
+);
 
 const sampled = captureHeatCapacityProcessSample(recovered, 'releaseLowSample', {
   pumpFrequency: 0.67,

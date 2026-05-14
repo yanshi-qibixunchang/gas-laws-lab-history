@@ -438,6 +438,12 @@ assert.match(workbenchSource, /calculateHeatCapacityMeanResult/, 'Heat Capacity 
 assert.match(workbenchSource, /createHeatCapacityTrialFromAutoDemoSamples/, 'auto demo completion should import one complete trial from process samples');
 assert.match(workbenchSource, /heatCapacityExpectedTrialCount:\s*1[\s\S]*heatCapacityExpectedTrialCountMode:\s*'custom'/, 'auto demo completion should force a single imported trial table');
 assert.match(workbenchSource, /activeHeatCapacityTabId:\s*'processing'[\s\S]*heatCapacityProcessingCalculated:\s*processingResult\.calculated/, 'auto demo completion should open data processing and show calculated results');
+assert.match(workbenchSource, /startManualExperiment:\s*'开始手动实验'/, 'auto-demo completion should expose a Simplified Chinese manual reset action');
+assert.match(workbenchSource, /startManualExperiment:\s*'開始手動實驗'/, 'auto-demo completion should expose a Traditional Chinese manual reset action');
+assert.match(workbenchSource, /startManualExperiment:\s*'Start Manual Trial'/, 'auto-demo completion should expose an English manual reset action');
+assert.match(workbenchSource, /data-heat-capacity-manual-reset="true"/, 'preview should render a manual-experiment reset button after demo completion');
+assert.match(workbenchSource, /resetHeatCapacityForManualExperiment/, 'Workbench should use the dedicated Heat Capacity manual reset helper');
+assert.match(workbenchSource, /nextPowerOn && source === 'user'[\s\S]*heatCapacityPhase === 'demoComplete'[\s\S]*runState === 'finished'[\s\S]*resetHeatCapacityForManualExperiment/, 'direct power-on after auto demo should defensively reset stale demo pressure state');
 assert.match(workbenchSource, /pressureSignalTargetMv/, 'right realtime panel should retain target pressure signal separately from displayed pressure');
 assert.match(workbenchSource, /temperatureSignalTargetMv/, 'right realtime panel should retain target temperature signal separately from displayed temperature');
 assert.doesNotMatch(workbenchSource, /打气过快|tooFast|频率偏高/, 'workbench should not show or calculate a too-fast pump state');

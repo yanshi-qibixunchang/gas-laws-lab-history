@@ -56,6 +56,7 @@ import {
   prepareHeatCapacityAutoDemoStart,
   refreshHeatCapacityPumpFrequency,
   registerHeatCapacityPumpStroke,
+  resetHeatCapacityForManualExperiment,
   setHeatCapacityPressureZeroOffset,
   stepHeatCapacityWorkbenchFile,
   WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
@@ -99,6 +100,10 @@ import {
   resizeHeatCapacityTrials,
   type HeatCapacityTrialRecordInput,
 } from './heatCapacity/heatCapacityTrialModel.ts';
+import {
+  createHeatCapacityExperimentProfile,
+  createHeatCapacityExperimentSeed,
+} from './heatCapacity/heatCapacityExperimentRandom.ts';
 import {
   createWorkbenchExportPayload,
   createWorkbenchFigureSpecs,
@@ -755,6 +760,7 @@ const heatCapacityRealtimeCopies = {
     demoCompleteTitle: '演示完成',
     demoCompleteDescription: '演示完成，可重新开始或手动操作。',
     demoFallbackNote: '过程采样已保留。',
+    startManualExperiment: '开始手动实验',
     recordU1: '记录 U₁ / U_T1',
     recordU2: '记录 U₂ / U_T2',
     safetyLimit: '安全上限',
@@ -843,6 +849,7 @@ const heatCapacityRealtimeCopies = {
     demoCompleteTitle: '演示完成',
     demoCompleteDescription: '演示完成，可重新開始或手動操作。',
     demoFallbackNote: '過程採樣已保留。',
+    startManualExperiment: '開始手動實驗',
     recordU1: '記錄 U₁ / U_T1',
     recordU2: '記錄 U₂ / U_T2',
     safetyLimit: '安全上限',
@@ -931,6 +938,7 @@ const heatCapacityRealtimeCopies = {
     demoCompleteTitle: 'Demo complete',
     demoCompleteDescription: 'Demo complete. You can restart or operate manually.',
     demoFallbackNote: 'Process samples are retained.',
+    startManualExperiment: 'Start Manual Trial',
     recordU1: 'Record U₁ / U_T1',
     recordU2: 'Record U₂ / U_T2',
     safetyLimit: 'Safety limit',
@@ -1473,6 +1481,8 @@ const cloneWorkbenchFiles = (filesToClone: WorkbenchFileState[]): WorkbenchFileS
               ...file.heatCapacityProcessingResult,
               trialResults: file.heatCapacityProcessingResult.trialResults.map((trial) => ({ ...trial })),
             },
+            heatCapacityExperimentSeed: file.heatCapacityExperimentSeed,
+            heatCapacityExperimentProfile: file.heatCapacityExperimentProfile ? { ...file.heatCapacityExperimentProfile } : null,
             heatCapacityPhase: file.heatCapacityPhase,
             powerOn: file.powerOn,
             glassPistonState: file.glassPistonState,
@@ -1581,7 +1591,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [exportEnvironmentDetail, setExportEnvironmentDetail] = useState<string | null>(null);
   const [exportInProgress, setExportInProgress] = useState(false);
   const [consoleTab, setConsoleTab] = useState<ConsoleTab>('logs');
+  const [consoleCollapsed, setConsoleCollapsed] = useState(false);
+  const [consoleHeightPx, setConsoleHeightPx] = useState(156);
   const [openTopMenu, setOpenTopMenu] = useState<TopMenu>(null);
+  const [topMenuLeft, setTopMenuLeft] = useState(10);
   const [settingsGeneralOpen, setSettingsGeneralOpen] = useState(false);
   const [settingsThemePreference, setSettingsThemePreference] = useState<WorkbenchThemePreference>(() => initialGeneralSettings.theme);
   const [settingsLanguagePreference, setSettingsLanguagePreference] = useState<WorkbenchLanguagePreference>(() => initialGeneralSettings.language);
@@ -1633,6 +1646,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const scanInputRef = useRef<HTMLInputElement | null>(null);
   const topCommandsRef = useRef<HTMLElement | null>(null);
   const topMenuRef = useRef<HTMLDivElement | null>(null);
+  const consoleResizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const fileMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const fileMenuRef = useRef<HTMLDivElement | null>(null);
   const renameInputRef = useRef<HTMLInputElement | null>(null);
@@ -1763,6 +1777,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     '--studio-left-width': `${leftSidebarWidth}px`,
     '--studio-params-width': `${parameterSidebarWidth}px`,
   } as React.CSSProperties;
+  const shellStyle = {
+    '--studio-console-height': consoleCollapsed ? '32px' : `${consoleHeightPx}px`,
+  } as React.CSSProperties & Record<'--studio-console-height', string>;
   const liveWorkspaceSplitRatio = clampWorkbenchLiveSplitRatio(activeFile.liveWorkspaceSplitRatio);
   const liveWorkspaceStyle = {
     '--studio-live-preview-ratio': `${(liveWorkspaceSplitRatio * 100).toFixed(3)}%`,
@@ -2132,16 +2149,33 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const createHeatCapacityTrialRecordInput = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
     now = Date.now(),
-  ): HeatCapacityTrialRecordInput => ({
-    activeTrialIndex: file.heatCapacityActiveTrialIndex,
-    phase: file.heatCapacityPhase,
-    powerOn: file.powerOn,
-    pressureSignalMv: file.pressureSignalMv,
-    temperatureSignalMv: file.temperatureSignalMv,
-    pressureSafetyStatus: file.pressureSafetyStatus,
-    pressureOverLimit: file.pressureOverLimit,
-    now,
-  });
+  ): HeatCapacityTrialRecordInput => {
+    const profile = file.heatCapacityExperimentProfile;
+    const profilePressureSignalMv = profile && (
+      file.heatCapacityPhase === 'sealedStabilizing' || file.heatCapacityPhase === 'pumping'
+    )
+      ? profile.u1MeasuredMv
+      : profile && (file.heatCapacityPhase === 'recovering' || file.heatCapacityPhase === 'demoComplete')
+        ? profile.u2MeasuredMv
+        : null;
+    const profileTemperatureSignalMv = profile && (
+      file.heatCapacityPhase === 'sealedStabilizing' || file.heatCapacityPhase === 'pumping'
+    )
+      ? profile.stableTemperatureMv
+      : profile && (file.heatCapacityPhase === 'recovering' || file.heatCapacityPhase === 'demoComplete')
+        ? profile.recoveryTemperatureMv
+        : null;
+    return {
+      activeTrialIndex: file.heatCapacityActiveTrialIndex,
+      phase: file.heatCapacityPhase,
+      powerOn: file.powerOn,
+      pressureSignalMv: profilePressureSignalMv ?? file.pressureSignalMv,
+      temperatureSignalMv: profileTemperatureSignalMv ?? file.temperatureSignalMv,
+      pressureSafetyStatus: file.pressureSafetyStatus,
+      pressureOverLimit: file.pressureOverLimit,
+      now,
+    };
+  };
 
   const setHeatCapacityExpectedTrialCount = (
     count: number,
@@ -2169,15 +2203,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
     let ok = false;
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
-      const input = createHeatCapacityTrialRecordInput(file, now);
+      const sampledFile = captureHeatCapacityWorkbenchSample(
+        file,
+        kind === 'u1' ? 'stableBeforeReleaseSample' : 'recoverySample',
+        now,
+      );
+      const input = createHeatCapacityTrialRecordInput(sampledFile, now);
       const result = kind === 'u1'
-        ? recordHeatCapacityU1(file.heatCapacityTrials, input)
-        : recordHeatCapacityU2(file.heatCapacityTrials, input);
+        ? recordHeatCapacityU1(sampledFile.heatCapacityTrials, input)
+        : recordHeatCapacityU2(sampledFile.heatCapacityTrials, input);
       message = result.message;
       ok = result.ok;
       if (!result.ok) return file;
       return {
-        ...file,
+        ...sampledFile,
         heatCapacityTrials: result.trials,
         heatCapacityActiveTrialIndex: result.nextActiveTrialIndex,
         heatCapacityProcessingCalculated: false,
@@ -2211,10 +2250,41 @@ const WorkbenchStudioPrototype: React.FC = () => {
       showHeatCapacityAutoDemoLockedToast();
       return;
     }
+    const now = Date.now();
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
-      return powerHeatCapacityWorkbenchFile(file, nextPowerOn, Date.now());
+      const cleanFile = nextPowerOn && source === 'user' && (file.heatCapacityPhase === 'demoComplete' || file.runState === 'finished')
+        ? resetHeatCapacityForManualExperiment(file, now)
+        : file;
+      if (nextPowerOn && !cleanFile.heatCapacityExperimentProfile) {
+        const experimentSeed = createHeatCapacityExperimentSeed();
+        return powerHeatCapacityWorkbenchFile({
+          ...cleanFile,
+          heatCapacityExperimentSeed: experimentSeed,
+          heatCapacityExperimentProfile: createHeatCapacityExperimentProfile(experimentSeed),
+        }, nextPowerOn, now);
+      }
+      return powerHeatCapacityWorkbenchFile(cleanFile, nextPowerOn, now);
     });
+  };
+
+  const startHeatCapacityManualExperiment = () => {
+    const now = Date.now();
+    clearHeatCapacityAutoDemoTimers({ cancelAnimation: true });
+    clearHeatCapacityPumpAnimationTimers();
+    clearHeatCapacityAutoDemoUiState();
+    setAutoDemoCompletionMessage(null);
+    setAutoDemoStepTitle('');
+    setAutoDemoStepDescription('');
+    setAutoDemoStepTarget('');
+    setAutoDemoStepNote('');
+    setAutoDemoStepPanelMode('hidden');
+    updateActiveFile((file) => (
+      file.kind === 'heatCapacity'
+        ? resetHeatCapacityForManualExperiment(file, now)
+        : file
+    ));
+    pushLog(`${activeFile.name}: heat-capacity manual experiment reset.`, 'success');
   };
 
   const updateHeatCapacityStopcockAngle = (nextAngleDeg: number, source: 'user' | 'autoDemo' = 'user') => {
@@ -2241,7 +2311,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity' || !canZeroHeatCapacityPressure(file)) return file;
-      return setHeatCapacityPressureZeroOffset(file, file.pressureRawPlaceholder, 'fineWheel');
+      return captureHeatCapacityWorkbenchSample(
+        setHeatCapacityPressureZeroOffset(file, file.pressureRawPlaceholder, 'fineWheel'),
+        'zeroedSample',
+      );
     });
   };
 
@@ -2664,6 +2737,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
           pressureSensitivityMvPerKPa: completedFile.pressureSensitivityMvPerKPa,
           theoreticalGamma: completedFile.theoreticalGamma,
         });
+        window.setTimeout(() => {
+          pushLog(
+            `${completedFile.name}: ${processingResult.status === 'ready' ? '自动演示数据已导入并完成计算。' : processingResult.message}`,
+            processingResult.status === 'ready' ? 'success' : 'warning',
+          );
+        }, 0);
         const openHeatCapacityTabs = completedFile.openHeatCapacityTabs.includes('processing')
           ? completedFile.openHeatCapacityTabs
           : [...completedFile.openHeatCapacityTabs, 'processing' as const];
@@ -3167,6 +3246,37 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     setLiveWorkspaceResizing(true);
     document.body.classList.add('studio-horizontal-resizing');
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+    window.addEventListener('pointercancel', handleUp);
+  };
+
+  const startConsoleResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (consoleCollapsed) return;
+    event.preventDefault();
+    event.stopPropagation();
+    consoleResizeRef.current = {
+      startY: event.clientY,
+      startHeight: consoleHeightPx,
+    };
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      const resizeState = consoleResizeRef.current;
+      if (!resizeState) return;
+      const maxHeight = Math.max(180, Math.min(420, Math.round(window.innerHeight * 0.48)));
+      const nextHeight = clamp(resizeState.startHeight + resizeState.startY - moveEvent.clientY, 96, maxHeight);
+      setConsoleHeightPx(nextHeight);
+    };
+
+    const handleUp = () => {
+      consoleResizeRef.current = null;
+      document.body.classList.remove('studio-vertical-resizing');
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      window.removeEventListener('pointercancel', handleUp);
+    };
+
+    document.body.classList.add('studio-vertical-resizing');
     window.addEventListener('pointermove', handleMove);
     window.addEventListener('pointerup', handleUp);
     window.addEventListener('pointercancel', handleUp);
@@ -3878,56 +3988,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       }
       updateActiveFile((file) => {
         if (file.kind !== 'heatCapacity') return file;
-        return {
-          ...file,
-          runState: 'idle',
-          heatCapacityPhase: 'setup',
-          powerOn: false,
-          glassPistonState: 'closed',
-          stopcockAngleDeg: getHeatCapacityStopcockTargetAngle(false),
-          pressureZeroed: false,
-          pressureZeroAdjusted: false,
-          pressureZeroKnobAngle: 0,
-          pressureZeroOffset: 0,
-          pressureZeroDisplayText: '未调零',
-          pressureRawPlaceholder: 3.2,
-          pressureDisplayedPlaceholder: 3.2,
-          pressureGaugeTargetValue: 0,
-          pressureGaugeDisplayValue: 0,
-          pressureGaugeNeedleAngle: file.pressureGaugeNeedleAngle,
-          gaugePressureMinKPa: file.gaugePressureMinKPa,
-          gaugePressureMaxKPa: file.gaugePressureMaxKPa,
-          pressureWarningThresholdKPa: file.pressureWarningThresholdKPa,
-          pressureSafeThresholdKPa: file.pressureSafeThresholdKPa,
-          pressureSafetyThresholdKPa: file.pressureSafetyThresholdKPa,
-          pressureSafetyStatus: 'normal',
-          pressureSafetyMessage: null,
-          pressureBlockedPumping: false,
-          pressureOverLimit: false,
-          pressureZeroMvPerTurn: file.pressureZeroMvPerTurn,
-          pressureZeroAdjustMode: 'none',
-          temperatureSignalMv: null,
-          pressureSignalMv: null,
-          pressureKPa: null,
-          pumpValveOpen: false,
-          pumpValveState: 'closed',
-          pumpBulbState: 'idle',
-          pumpStrokeTimestamps: [],
-          pumpFrequency: 0,
-          pumpFrequencyStatus: 'idle',
-          lastPumpTime: null,
-          pumpStrokeCount: 0,
-          pumpHint: '未打气',
-          pressurePlaceholder: file.ambientPressureKPa,
-          temperaturePlaceholder: file.ambientTemperatureK,
-          recordedPressures: { p0: file.ambientPressureKPa, p1: null, p2: null },
-          heatCapacityTrials: createHeatCapacityTrials(file.heatCapacityExpectedTrialCount),
-          heatCapacityActiveTrialIndex: 0,
-          heatCapacityProcessingCalculated: false,
-          heatCapacityProcessingResult: createDefaultHeatCapacityProcessingResult(file.theoreticalGamma),
-          heatCapacityProcessSamples: {},
-          updatedAt: Date.now(),
-        };
+        return resetHeatCapacityForManualExperiment(file, Date.now());
       });
       pushLog(`${activeFile.name}: heat-capacity UI state reset.`, 'warning');
       return;
@@ -5553,7 +5614,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               </div>
             </section>
 
-            <section className="studio-settings-section">
+            <section className="studio-settings-section studio-settings-performance-row">
               <div className="studio-settings-section-title">
                 <strong>{workbenchCopy.settings.performanceMode}</strong>
                 <span>{workbenchCopy.settings.performanceModeHint}</span>
@@ -5605,7 +5666,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     <button
       type="button"
       className={`studio-command-button ${openTopMenu === menu ? 'studio-command-button-active' : ''}`}
-      onClick={() => setOpenTopMenu((current) => (current === menu ? null : menu))}
+      onClick={(event) => {
+        setTopMenuLeft(event.currentTarget.offsetLeft);
+        setOpenTopMenu((current) => (current === menu ? null : menu));
+      }}
     >
       {icon}
       <span>{label}</span>
@@ -5616,7 +5680,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const renderTopMenu = () => {
     if (openTopMenu === 'new') {
       return (
-        <div className="studio-command-menu studio-command-menu-new" ref={topMenuRef}>
+        <div className="studio-command-menu studio-command-menu-new" ref={topMenuRef} style={{ left: topMenuLeft }}>
           <button type="button" onClick={() => createFile('standard')}>
             <Activity size={14} />
             <span>{workbenchCopy.menus.standardStudy}</span>
@@ -5635,7 +5699,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     if (openTopMenu === 'edit') {
       return (
-        <div className="studio-command-menu studio-command-menu-edit" ref={topMenuRef}>
+        <div className="studio-command-menu studio-command-menu-edit" ref={topMenuRef} style={{ left: topMenuLeft }}>
           <button type="button" onClick={undoLastEdit} disabled={undoStack.length === 0}>
             <Undo2 size={14} />
             <span>{workbenchCopy.menus.undo}</span>
@@ -5657,7 +5721,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     if (openTopMenu === 'window') {
       return (
-        <div className="studio-command-menu studio-command-menu-window" ref={topMenuRef}>
+        <div className="studio-command-menu studio-command-menu-window" ref={topMenuRef} style={{ left: topMenuLeft }}>
           <div className="studio-command-menu-title">{workbenchCopy.menus.panelsFor(activeFile.name)}</div>
           {availablePanels.filter((panel) => !(activeFile.kind === 'ideal' && isIdealResultWindowKey(panel.key))).map((panel) => {
             const locked = LOCKED_PANEL_KEYS.includes(panel.key);
@@ -5700,7 +5764,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       const exportCopy = workbenchCopy.exportEnvironment[exportEnvironmentStatus];
 
       return (
-        <div className="studio-command-menu studio-command-menu-settings" ref={topMenuRef}>
+        <div className="studio-command-menu studio-command-menu-settings" ref={topMenuRef} style={{ left: topMenuLeft }}>
           <button type="button" onClick={openGeneralSettings}>
             <Settings size={14} />
             <span>{workbenchCopy.menus.general}</span>
@@ -5722,7 +5786,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     if (openTopMenu === 'help') {
       return (
-        <div className="studio-command-menu studio-command-menu-help" ref={topMenuRef}>
+        <div className="studio-command-menu studio-command-menu-help" ref={topMenuRef} style={{ left: topMenuLeft }}>
           <button type="button" onClick={() => handleAction('Open user guide')}>
             <BookOpen size={14} />
             <span>{workbenchCopy.menus.userGuide}</span>
@@ -5892,6 +5956,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             <HeatCapacityInstrumentScene
               performanceMode={settingsPerformanceMode}
               language={settingsLanguagePreference}
+              autoDemoActive={autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked}
               powerOn={activeFile.powerOn}
               stopcockAngleDeg={activeFile.stopcockAngleDeg}
               pressureZeroAdjusted={activeFile.pressureZeroAdjusted}
@@ -5965,6 +6030,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     {renderScientificText(heatCapacityRealtimeCopy.recordU2)}
                   </button>
                 ) : null}
+              </div>
+            ) : null}
+            {!autoDemoRunning && !autoDemoPaused && !autoDemoInteractionLocked && (
+              activeFile.heatCapacityPhase === 'demoComplete' || activeFile.runState === 'finished'
+            ) ? (
+              <div className="studio-heat-manual-reset" data-heat-capacity-manual-reset="true">
+                <button type="button" onClick={startHeatCapacityManualExperiment}>
+                  {heatCapacityRealtimeCopy.startManualExperiment}
+                </button>
               </div>
             ) : null}
             {autoDemoStepPanelMode !== 'hidden' && (autoDemoRunning || autoDemoPaused || autoDemoStepTitle) ? (
@@ -7491,7 +7565,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           {scanInputToast}
         </div>
       ) : null}
-      <div className="studio-shell">
+      <div className={`studio-shell ${consoleCollapsed ? 'studio-shell-console-collapsed' : ''}`} style={shellStyle}>
         <header className="studio-menu">
           <nav className="studio-top-commands" aria-label="Top commands" ref={topCommandsRef}>
             {renderTopCommand('new', workbenchCopy.menus.newStudy, <FilePlus2 size={14} />)}
@@ -8074,8 +8148,24 @@ const WorkbenchStudioPrototype: React.FC = () => {
           </section>
         </main>
 
-        <section className="studio-console" aria-label={workbenchCopy.console.title}>
+        <section className={`studio-console ${consoleCollapsed ? 'studio-console-collapsed' : ''}`} aria-label={workbenchCopy.console.title}>
+          <div
+            className="studio-console-resizer"
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label={workbenchCopy.console.title}
+            onPointerDown={startConsoleResize}
+          />
           <div className="studio-console-header">
+            <button
+              type="button"
+              className="studio-console-toggle"
+              aria-expanded={!consoleCollapsed}
+              aria-label={workbenchCopy.console.title}
+              onClick={() => setConsoleCollapsed((current) => !current)}
+            >
+              <ChevronDown size={13} />
+            </button>
             <span>{workbenchCopy.console.title}</span>
             <div className="studio-console-tabs">
               {(['logs', 'warnings', 'summary'] as const).map((tab) => (

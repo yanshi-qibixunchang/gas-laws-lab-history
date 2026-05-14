@@ -119,8 +119,8 @@ export const DEFAULT_HEAT_CAPACITY_MODEL_CONFIG: HeatCapacityModelConfig = {
   pressureLimitKPa: 500,
   pumpPressureGainTooSlowKPa: 0.2,
   pumpPressureGainSuitableKPa: 0.78,
-  pumpTemperatureGainTooSlowK: 0.03,
-  pumpTemperatureGainSuitableK: 0.16,
+  pumpTemperatureGainTooSlowK: 0.35,
+  pumpTemperatureGainSuitableK: 1.15,
   thermalRelaxRate: 0.18,
   releaseRate: 9.5,
   releaseCoolingKPerKPa: 0.54,
@@ -407,18 +407,18 @@ export const stepHeatCapacityExperiment = (
       gasPressureKPaAbs = state.ambientPressureKPa + nextDelta;
     }
 
-    if (state.pressureDeltaKPa > 0.35) {
-      gasTemperatureK = moveToward(
-        gasTemperatureK,
-        stableTemperatureK,
-        state.modelConfig.pumpHeatFollowRate,
-        dt,
-      );
-    } else if (state.heatCapacityPhase === 'releasing' || state.heatCapacityPhase === 'recovering') {
+    if (state.heatCapacityPhase === 'releasing' || state.heatCapacityPhase === 'recovering') {
       gasTemperatureK = moveToward(
         gasTemperatureK,
         recoveryTemperatureK,
         state.modelConfig.recoveryHeatFollowRate,
+        dt,
+      );
+    } else if (state.pressureDeltaKPa > 0.35) {
+      gasTemperatureK = moveToward(
+        gasTemperatureK,
+        stableTemperatureK,
+        state.modelConfig.pumpHeatFollowRate,
         dt,
       );
     } else {

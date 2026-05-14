@@ -16,6 +16,7 @@ import {
 interface HeatCapacityInstrumentSceneProps {
   performanceMode: 'standard' | 'balanced' | 'performance';
   language: 'zh-CN' | 'zh-TW' | 'en';
+  autoDemoActive: boolean;
   powerOn: boolean;
   stopcockAngleDeg: number;
   pressureZeroAdjusted: boolean;
@@ -247,6 +248,8 @@ const PUMP_VALVE_TRANSITION_MS = 420;
 const DISABLE_RAYCAST: THREE.Object3D['raycast'] = () => undefined;
 const DEFAULT_CAMERA_POSITION: [number, number, number] = [4.15, 2.9, 8.25];
 const DEFAULT_CAMERA_TARGET: [number, number, number] = [0.25, -0.05, 0];
+const AUTO_DEMO_CAMERA_POSITION: [number, number, number] = [3.82, 2.68, 7.58];
+const AUTO_DEMO_CAMERA_TARGET: [number, number, number] = [0.24, -0.05, 0.02];
 const ORBIT_MIN_DISTANCE = 2.7;
 const ORBIT_MAX_DISTANCE = 11.5;
 
@@ -1648,10 +1651,12 @@ function CameraRig({
   controlsRef,
   focusMode,
   resetKey,
+  autoDemoActive,
 }: {
   controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
   focusMode: HeatCapacityFocusMode;
   resetKey: number;
+  autoDemoActive: boolean;
 }) {
   const { camera, invalidate } = useThree();
 
@@ -1669,6 +1674,9 @@ function CameraRig({
     } else if (focusMode === 'pump') {
       nextPosition.set(2.95, 0.25, 3.35);
       nextTarget.set(1.65, -0.45, 0.95);
+    } else if (autoDemoActive) {
+      nextPosition.set(...AUTO_DEMO_CAMERA_POSITION);
+      nextTarget.set(...AUTO_DEMO_CAMERA_TARGET);
     } else {
       nextPosition.set(...DEFAULT_CAMERA_POSITION);
       nextTarget.set(...DEFAULT_CAMERA_TARGET);
@@ -1695,7 +1703,7 @@ function CameraRig({
     };
     frameId = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frameId);
-  }, [camera, controlsRef, focusMode, invalidate, resetKey]);
+  }, [autoDemoActive, camera, controlsRef, focusMode, invalidate, resetKey]);
 
   return null;
 }
@@ -1840,7 +1848,12 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
         {/* GLB replacement contract: preserve node names, pivots, and hitbox roles from this procedural skeleton. */}
         <color attach="background" args={['#111827']} />
         <HeatCapacitySceneInvalidator active={sceneShouldAnimate} />
-        <CameraRig controlsRef={controlsRef} focusMode={focusMode} resetKey={viewResetKey} />
+        <CameraRig
+          controlsRef={controlsRef}
+          focusMode={focusMode}
+          resetKey={viewResetKey}
+          autoDemoActive={props.autoDemoActive}
+        />
         <InstrumentSceneContent
           {...props}
           onFocus={setFocusMode}

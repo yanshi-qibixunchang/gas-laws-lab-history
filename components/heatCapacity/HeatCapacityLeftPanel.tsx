@@ -639,7 +639,7 @@ const renderProcessingTab = (
             )}
             {renderFormulaPanel(
               copy.formula.gamma,
-              <span><VarGamma index="i" /> = log(<VarP index="1,i" /> / <VarP index={0} />) / log(<VarP index="1,i" /> / <VarP index="2,i" />)</span>,
+              <span><VarGamma index="i" /> = <VarU index="1,i" /> / (<VarU index="1,i" /> - <VarU index="2,i" />)</span>,
               <span>{copy.formula.result}: <VarGamma index="i" /> = {formatGamma(example?.gamma)}</span>,
             )}
             {renderFormulaPanel(
