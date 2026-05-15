@@ -303,7 +303,7 @@ assert.doesNotMatch(styleSource, /@keyframes heatDemoFocusPulse/, 'unused CSS ke
 
 const workbenchSource = readFileSync(workbenchPath, 'utf8');
 assert.match(workbenchSource, /HeatCapacityInstrumentScene/);
-assert.match(workbenchSource, /type ManualHeatCapacityStep =[\s\S]*openStopcockForZeroRequired[\s\S]*recordU0Required[\s\S]*recordU1Required[\s\S]*recordU2Required/, 'manual heat-capacity workflow should model stopcock-zeroing and U0/U1/U2 recording as required steps');
+assert.match(workbenchSource, /type ManualHeatCapacityStep =[\s\S]*openStopcockForZeroRequired[\s\S]*recordU0Required[\s\S]*recordU1Required[\s\S]*recordU2Required[\s\S]*nextTrialRequired[\s\S]*calculateRequired/, 'manual heat-capacity workflow should model stopcock-zeroing, U0/U1/U2 recording, and multi-trial continuation as required steps');
 assert.match(workbenchSource, /guardManualHeatCapacityAction/, 'manual heat-capacity controls should pass through one shared guard');
 assert.match(workbenchSource, /manualHeatCapacityActiveFileId/, 'manual heat-capacity tutorial should have an explicit active file binding');
 assert.match(workbenchSource, /manualHeatCapacityActiveFileId !== activeFile\.id\) return true/, 'manual guards should not constrain users before the manual tutorial is started');
@@ -312,12 +312,24 @@ assert.match(workbenchSource, /studio-heat-record-controls-pulse/, 'manual heat-
 assert.match(workbenchSource, /const recordHeatCapacityManualSample = \(kind: HeatCapacityManualRecordKind\)[\s\S]*const latestStep = getHeatCapacityManualStep\(file\)[\s\S]*latestStep !== requiredStep/, 'direct record buttons should revalidate against the latest manual workflow step');
 assert.match(workbenchSource, /kind === 'u0'[\s\S]*captureHeatCapacityWorkbenchSample\(file, 'zeroedSample', now\)/, 'direct U0 recording should write the zeroed sample through the shared sample structure');
 assert.match(workbenchSource, /manualHeatCapacityActiveFileId === activeFile\.id[\s\S]*recordU0Required[\s\S]*recordU1Required[\s\S]*recordU2Required/, 'manual mode should only show the record button required by the current workflow step');
+assert.doesNotMatch(workbenchSource, /manualHeatCapacityActiveFileId === activeFile\.id && activeFile\.powerOn[\s\S]*recordU0Required/, 'record buttons should not depend on a second powerOn gate once the manual workflow has reached a record step');
 assert.match(workbenchSource, /const isManualU1RecordReady =/, 'manual U1 record readiness should be centralized in a stable-window helper');
 assert.match(workbenchSource, /const isManualU2RecordReady =/, 'manual U2 record readiness should be centralized in a stable-window helper');
 assert.match(workbenchSource, /const getManualHeatCapacityDecisionPressureMv =[\s\S]*pressureSignalTargetMv/, 'manual record readiness should prefer target pressure over display jitter');
+assert.match(workbenchSource, /const getManualHeatCapacityDecisionTemperatureMv =[\s\S]*temperatureSignalTargetMv/, 'manual record readiness should prefer target temperature over display jitter');
+assert.match(workbenchSource, /const isManualHeatCapacityTemperatureAtAmbient =/, 'manual U1/U2 readiness should verify U_T has returned near room temperature');
+assert.match(workbenchSource, /const isManualHeatCapacityReleaseCompleteForU2 =/, 'manual U2 flow should verify quick release is complete before allowing stopcock closure and recovery');
+assert.match(workbenchSource, /if \(file\.heatCapacityPhase === 'recovering'\) return true;/, 'manual U2 release completion should remain true after the process has entered recovery');
+assert.match(workbenchSource, /if \(recordedU1Mv !== null\) return recordedU1Mv \* \(1 - 1 \/ file\.theoreticalGamma\);/, 'manual U2 readiness should derive the target from the recorded U1 before falling back to profile defaults');
+assert.match(workbenchSource, /const isManualU1RecordReady =[\s\S]*isManualHeatCapacityTemperatureAtAmbient\(file\)/, 'U1 recording should require temperature recovery to the room baseline');
+assert.match(workbenchSource, /const isManualU2RecordReady =[\s\S]*isManualHeatCapacityTemperatureAtAmbient\(file\)/, 'U2 recording should require temperature recovery to the room baseline');
+assert.match(workbenchSource, /if \(!releaseComplete\) return 'openStopcockReleaseRequired';[\s\S]*if \(stopcockState === 'open'\) return 'closeStopcockAfterReleaseRequired'/, 'manual release flow should keep the stopcock open until U_p has dropped near zero');
 assert.match(workbenchSource, /const u1Ready = isManualU1RecordReady\(file\)/, 'manual workflow should use the U1 stable-window helper');
 assert.match(workbenchSource, /const u2Ready = isManualU2RecordReady\(file\)/, 'manual workflow should use the U2 stable-window helper');
 assert.doesNotMatch(workbenchSource, /const u1Ready =[\s\S]*pressureValue >= 80[\s\S]*!file\.pressureOverLimit/, 'manual U1 record readiness should not depend on the old single 80 mV threshold');
+assert.doesNotMatch(workbenchSource, /expectedU1 \* 0\.62/, 'manual U1 readiness should not reintroduce the too-strict platform threshold');
+const u1ReadyBlock = workbenchSource.match(/const isManualU1RecordReady =[\s\S]*?const isManualU2RecordReady =/)?.[0] ?? '';
+assert.doesNotMatch(u1ReadyBlock, /file\.heatCapacityPhase === 'recovering'/, 'U1 readiness must not treat the post-release recovery phase as before-release stability');
 assert.match(workbenchSource, /const isManualU0ZeroReady =/, 'manual U0 recording should have a dedicated zero-ready helper');
 assert.match(workbenchSource, /const isManualU0ZeroAttempted =/, 'manual zero guidance should distinguish no adjustment from an incomplete adjustment');
 assert.match(workbenchSource, /if \(!isManualU0ZeroReady\(file\)\) return 'zeroAdjustRequired'/, 'manual workflow should not advance to U0 recording until the pressure-zero value is actually acceptable');
@@ -329,6 +341,10 @@ assert.match(workbenchSource, /--heat-record-focus-offset/, 'manual record contr
 assert.doesNotMatch(styleSource, /studio-heat-record-controls-focus-raised \{[\s\S]*translateY\(-122px\)/, 'manual record controls should not use one fixed lift value for every focus panel');
 assert.match(workbenchSource, /openStopcockForZeroRequired:\s*\['openStopcock'\]/, 'manual workflow should require opening the stopcock before pressure zeroing');
 assert.match(workbenchSource, /openStopcockReleaseRequired:\s*\['openStopcock'\]/, 'manual workflow should block release until the U1 step has been satisfied');
+assert.match(workbenchSource, /nextTrialRequired:\s*\['startNextTrial'\]/, 'manual workflow should expose a guarded next-trial action after each completed trial before the final one');
+assert.match(workbenchSource, /getHeatCapacityCompletedTrialCount\(file\.heatCapacityTrials\)[\s\S]*file\.heatCapacityExpectedTrialCount[\s\S]*return 'nextTrialRequired'/, 'manual workflow should require starting the next trial until expected trial count is complete');
+assert.match(workbenchSource, /const startNextHeatCapacityManualTrial =[\s\S]*getHeatCapacityNextActiveTrialIndex[\s\S]*heatCapacityProcessSamples: \{\}/, 'starting the next heat-capacity trial should preserve completed trials while clearing current process samples');
+assert.match(workbenchSource, /data-heat-capacity-next-trial="true"[\s\S]*startNextHeatCapacityManualTrial/, '3D preview should render a dedicated next-trial button during the nextTrialRequired step');
 assert.match(workbenchSource, /calculateRequired:\s*\['calculate'\]/, 'manual workflow should make calculation an explicit final step');
 assert.match(workbenchSource, /MANUAL_HEAT_CAPACITY_IDLE_HINT_DELAY_MS = 1000/, 'manual workflow idle hint should use the temporary 1s validation delay');
 assert.match(workbenchSource, /scheduleManualIdleHint\(MANUAL_HEAT_CAPACITY_IDLE_HINT_REPEAT_MS\)/, 'manual workflow hints should repeat while the user stays on the same step');

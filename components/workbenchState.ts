@@ -573,7 +573,7 @@ const getHeatCapacityRuntimeStateFromFile = (
         pressureSensitivityMvPerKPa: Number.isFinite(file.pressureSensitivityMvPerKPa)
           ? file.pressureSensitivityMvPerKPa
           : fallback.modelConfig.sensor.pressureSensitivityMvPerKPa,
-        temperatureBaseMv: experimentProfile?.initialTemperatureMv ?? fallback.modelConfig.sensor.temperatureBaseMv,
+        temperatureBaseMv: experimentProfile?.ambientTemperatureMv ?? experimentProfile?.initialTemperatureMv ?? fallback.modelConfig.sensor.temperatureBaseMv,
         noiseStdDevMv: experimentProfile?.displayNoiseLevel ?? fallback.modelConfig.sensor.noiseStdDevMv,
       },
     },
@@ -1129,16 +1129,17 @@ const applyHeatCapacityProfileToProcessSample = (
   if (!profile) return file;
   const sample = file.heatCapacityProcessSamples[key];
   if (!sample) return file;
+  const ambientTemperatureMv = profile.ambientTemperatureMv ?? profile.initialTemperatureMv;
 
   const overrides = key === 'zeroedSample'
     ? {
         pressureSignalMv: profile.u0MeasuredMv,
-        temperatureSignalMv: profile.initialTemperatureMv,
+        temperatureSignalMv: ambientTemperatureMv,
       }
     : key === 'stableBeforeReleaseSample' || key === 'beforeReleaseSample' || key === 'pumpPeakSample'
       ? {
           pressureSignalMv: key === 'pumpPeakSample' ? profile.pumpPeakPressureMv : profile.u1MeasuredMv,
-          temperatureSignalMv: profile.stableTemperatureMv,
+          temperatureSignalMv: key === 'pumpPeakSample' ? sample.temperatureSignalMv : ambientTemperatureMv,
         }
       : key === 'releaseLowSample' || key === 'afterReleaseSample'
         ? {

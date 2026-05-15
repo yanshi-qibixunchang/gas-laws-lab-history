@@ -994,6 +994,20 @@
   color: #17345f;
 }
 
+.studio-theme-light .studio-heat-next-trial-controls button {
+  background: #eaf2ff;
+  border-color: rgba(37, 99, 235, 0.36);
+  color: #1f3f67;
+  box-shadow: inset 3px 0 0 rgba(37, 99, 235, 0.34), 0 8px 18px rgba(15, 23, 42, 0.1);
+}
+
+.studio-theme-light .studio-heat-next-trial-controls button:hover,
+.studio-theme-light .studio-heat-next-trial-controls button:focus-visible {
+  background: #dbeafe;
+  border-color: rgba(37, 99, 235, 0.56);
+  color: #17345f;
+}
+
 .studio-theme-light .studio-command-button:hover,
 .studio-theme-light .studio-command-button-active {
   background: #eaf2ff;
@@ -4170,6 +4184,17 @@
 .studio-heat-record-controls button:hover {
   border-color: rgba(187, 247, 208, 0.78);
   background: rgba(21, 128, 61, 0.86);
+}
+
+.studio-heat-next-trial-controls button {
+  border-color: rgba(125, 211, 252, 0.5);
+  background: rgba(14, 116, 144, 0.82);
+  color: #e0faff;
+}
+
+.studio-heat-next-trial-controls button:hover {
+  border-color: rgba(186, 230, 253, 0.78);
+  background: rgba(8, 145, 178, 0.88);
 }
 
 .studio-heat-record-controls button:disabled {

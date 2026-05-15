@@ -11,6 +11,7 @@ export interface HeatCapacityExperimentProfile {
   pumpPeakPressureMv: number;
   stableBeforeReleaseMv: number;
   recoveryPressureMv: number;
+  ambientTemperatureMv: number;
   initialTemperatureMv: number;
   stableTemperatureMv: number;
   releaseTemperatureLowMv: number;
@@ -100,6 +101,15 @@ export const clampHeatCapacityExperimentProfile = (
 ): HeatCapacityExperimentProfile => {
   const u1MeasuredMv = clampNumber(profile.u1MeasuredMv, 105, 130);
   const u2MeasuredMv = clampNumber(profile.u2MeasuredMv, 25, u1MeasuredMv - 12);
+  const ambientTemperatureMv = clampNumber(
+    Number.isFinite(profile.ambientTemperatureMv) ? profile.ambientTemperatureMv : profile.initialTemperatureMv,
+    1498.8,
+    1499.3,
+  );
+  const initialTemperatureMv = clampNumber(profile.initialTemperatureMv, ambientTemperatureMv - 0.05, ambientTemperatureMv + 0.05);
+  const stableTemperatureMv = clampNumber(profile.stableTemperatureMv, ambientTemperatureMv - 0.18, ambientTemperatureMv + 0.18);
+  const releaseTemperatureLowMv = clampNumber(profile.releaseTemperatureLowMv, ambientTemperatureMv - 1.15, ambientTemperatureMv - 0.25);
+  const recoveryTemperatureMv = clampNumber(profile.recoveryTemperatureMv, ambientTemperatureMv - 0.18, ambientTemperatureMv + 0.18);
   return {
     ...profile,
     theoreticalGamma: AIR_THEORETICAL_GAMMA,
@@ -110,7 +120,11 @@ export const clampHeatCapacityExperimentProfile = (
     stableBeforeReleaseMv: u1MeasuredMv,
     recoveryPressureMv: u2MeasuredMv,
     pumpPeakPressureMv: clampNumber(Math.max(profile.pumpPeakPressureMv, u1MeasuredMv + 12), 124, 156),
-    releaseTemperatureLowMv: Math.min(profile.releaseTemperatureLowMv, profile.recoveryTemperatureMv - 0.5),
+    ambientTemperatureMv,
+    initialTemperatureMv: roundNumber(initialTemperatureMv, 2),
+    stableTemperatureMv: roundNumber(stableTemperatureMv, 2),
+    releaseTemperatureLowMv: roundNumber(releaseTemperatureLowMv, 2),
+    recoveryTemperatureMv: roundNumber(recoveryTemperatureMv, 2),
   };
 };
 
@@ -122,10 +136,11 @@ export const createHeatCapacityExperimentProfile = (
   const u1TargetMv = randomUniform(random, 105, 130);
   const u2TargetMv = u1TargetMv * (1 - 1 / gammaTarget);
   const u2MeasuredMv = u2TargetMv + randomNormal(random, 0, 0.4);
-  const initialTemperatureMv = randomUniform(random, 1498.8, 1499.3);
-  const stableTemperatureMv = randomUniform(random, 1525, 1527);
-  const releaseTemperatureLowMv = randomUniform(random, 1499, 1502);
-  const recoveryTemperatureMv = randomUniform(random, 1520, 1524);
+  const ambientTemperatureMv = randomUniform(random, 1498.8, 1499.3);
+  const initialTemperatureMv = ambientTemperatureMv;
+  const stableTemperatureMv = ambientTemperatureMv + randomUniform(random, -0.12, 0.12);
+  const releaseTemperatureLowMv = ambientTemperatureMv - randomUniform(random, 0.45, 0.95);
+  const recoveryTemperatureMv = ambientTemperatureMv + randomUniform(random, -0.12, 0.12);
   const u1MeasuredMv = u1TargetMv + randomNormal(random, 0, 0.25);
   const roundedU1MeasuredMv = roundNumber(u1MeasuredMv, 2);
   const roundedU2MeasuredMv = roundNumber(u2MeasuredMv, 2);
@@ -143,6 +158,7 @@ export const createHeatCapacityExperimentProfile = (
     pumpPeakPressureMv: roundNumber(u1TargetMv + randomUniform(random, 14, 24), 2),
     stableBeforeReleaseMv: roundedU1MeasuredMv,
     recoveryPressureMv: roundedU2MeasuredMv,
+    ambientTemperatureMv: roundNumber(ambientTemperatureMv, 2),
     initialTemperatureMv: roundNumber(initialTemperatureMv, 2),
     stableTemperatureMv: roundNumber(stableTemperatureMv, 2),
     releaseTemperatureLowMv: roundNumber(releaseTemperatureLowMv, 2),

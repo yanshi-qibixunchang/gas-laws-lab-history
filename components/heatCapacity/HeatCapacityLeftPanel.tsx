@@ -6,6 +6,7 @@ import type {
 } from '../workbenchState.ts';
 import {
   getHeatCapacityCompletedTrialCount,
+  getHeatCapacityNextActiveTrialIndex,
   type HeatCapacityProcessingTrialResult,
   type HeatCapacityTrialStatus,
 } from './heatCapacityTrialModel.ts';
@@ -69,7 +70,10 @@ const copyByLanguage = {
     sampleScope: '仅属于空气比热容比实验',
     recordingHint: '手动模式需在正确阶段使用 3D 预览中的记录按钮；自动演示会自动记录相同字段。',
     recordingComplete: '数据记录已完成。请前往数据处理页并点击“计算结果”。',
+    recordingNextTrial: '本组已完成，请开始下一组实验。',
+    recordingReadyToProcess: '数据记录已完成，可进入数据处理并计算结果。',
     expectedTrials: '预计组数',
+    currentTrial: (trialIndex: number) => `当前组：第 ${trialIndex} 组`,
     group: '组',
     custom: '自定义',
     customAria: '自定义预计组数',
@@ -183,7 +187,10 @@ const copyByLanguage = {
     sampleScope: '僅屬於空氣比熱容比實驗',
     recordingHint: '手動模式需在正確階段使用 3D 預覽中的記錄按鈕；自動演示會自動記錄相同欄位。',
     recordingComplete: '資料記錄已完成。請前往資料處理頁並點擊「計算結果」。',
+    recordingNextTrial: '本組已完成，請開始下一組實驗。',
+    recordingReadyToProcess: '資料記錄已完成，可進入資料處理並計算結果。',
     expectedTrials: '預計組數',
+    currentTrial: (trialIndex: number) => `目前組：第 ${trialIndex} 組`,
     group: '組',
     custom: '自訂',
     customAria: '自訂預計組數',
@@ -269,7 +276,10 @@ const copyByLanguage = {
     sampleScope: 'Heat Capacity only',
     recordingHint: 'Manual mode records through the stage buttons in the 3D preview. Auto demo records the same fields automatically.',
     recordingComplete: 'Data recording complete. Go to Data Processing and click Calculate Results.',
+    recordingNextTrial: 'This trial is complete. Start the next trial.',
+    recordingReadyToProcess: 'Data recording is complete. You can calculate results in Data Processing.',
     expectedTrials: 'Expected trials',
+    currentTrial: (trialIndex: number) => `Current trial: ${trialIndex}`,
     group: 'trials',
     custom: 'Custom',
     customAria: 'Custom expected trial count',
@@ -450,13 +460,35 @@ const renderRecordingTab = (
   onExpectedTrialCountChange: HeatCapacityLeftPanelProps['onExpectedTrialCountChange'],
 ) => {
   const completed = getHeatCapacityCompletedTrialCount(file.heatCapacityTrials);
+  const expected = file.heatCapacityExpectedTrialCount;
+  const allTrialsComplete = completed >= expected;
+  const nextActiveTrialIndex = getHeatCapacityNextActiveTrialIndex(file.heatCapacityTrials);
+  const currentTrialNumber = Math.min(expected, nextActiveTrialIndex + 1);
+  const currentTrial = file.heatCapacityTrials[nextActiveTrialIndex];
+  const processSampleCount = Object.keys(file.heatCapacityProcessSamples).length;
+  const waitingForNextTrial = completed > 0
+    && completed < expected
+    && currentTrial?.status === 'waiting'
+    && !file.powerOn
+    && processSampleCount === 0;
+  const recordingStatusTitle = allTrialsComplete
+    ? copy.recordingReadyToProcess
+    : waitingForNextTrial
+      ? copy.recordingNextTrial
+      : `${completed} ${copy.imported}`;
+  const recordingStatusBody = allTrialsComplete
+    ? copy.recordingComplete
+    : waitingForNextTrial
+      ? copy.recordingNextTrial
+      : copy.recordingHint;
   return (
     <div className="studio-heat-recording" data-heat-capacity-recording-tab="true">
       {renderProcessSampleStatus(file, copy)}
       <div className="studio-heat-recording-controls">
         <div className="studio-heat-recording-progress">
           <span>{copy.expectedTrials}</span>
-          <strong>{copy.progress(completed, file.heatCapacityExpectedTrialCount)}</strong>
+          <strong>{copy.progress(completed, expected)}</strong>
+          <span>{copy.currentTrial(currentTrialNumber)}</span>
         </div>
         <div className="studio-heat-trial-count">
           <button type="button" className={file.heatCapacityExpectedTrialCountMode === '3' ? 'studio-heat-trial-count-active' : ''} onClick={() => onExpectedTrialCountChange(3, '3')}>3 {copy.group}</button>
@@ -474,9 +506,9 @@ const renderRecordingTab = (
           ) : null}
         </div>
       </div>
-      <div className={`studio-result-status ${completed >= file.heatCapacityExpectedTrialCount ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
-        <strong>{completed >= file.heatCapacityExpectedTrialCount ? copy.recordingComplete : `${completed} ${copy.imported}`}</strong>
-        <span>{completed >= file.heatCapacityExpectedTrialCount ? copy.recordingComplete : copy.recordingHint}</span>
+      <div className={`studio-result-status ${allTrialsComplete ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
+        <strong>{recordingStatusTitle}</strong>
+        <span>{recordingStatusBody}</span>
       </div>
       <div className="studio-heat-table-scroll">
         <table className="studio-table studio-heat-recording-table">
@@ -618,7 +650,7 @@ const renderProcessingTab = (
       </div>
       <div className="studio-heat-calculate-row">
         <span>{completed} {copy.imported}</span>
-        <button type="button" onClick={onCalculateResults} disabled={completed === 0}>
+        <button type="button" onClick={onCalculateResults} disabled={completed < file.heatCapacityExpectedTrialCount}>
           <BarChart3 size={14} />
           {copy.calculate}
         </button>

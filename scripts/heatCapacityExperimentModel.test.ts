@@ -146,6 +146,31 @@ assert.equal(
   'sealed waiting after pumping should allow over-heated temperature signal to fall toward the stable target',
 );
 
+let sealedRoomRecovery = warmedByPumping;
+for (let index = 0; index < 12; index += 1) {
+  sealedRoomRecovery = stepHeatCapacityExperiment(
+    sealedRoomRecovery,
+    baseControls,
+    1,
+    7_500 + index * 1_000,
+  );
+}
+assert.equal(
+  sealedRoomRecovery.temperatureSignalMv < warmedTemperatureMv,
+  true,
+  'sealed waiting should keep cooling the pumped air instead of holding a high temperature plateau',
+);
+assert.equal(
+  Math.abs(sealedRoomRecovery.temperatureSignalMv - initialTemperatureMv) <= 0.6,
+  true,
+  'sealed waiting before U1 should return U_T close to the room-temperature baseline',
+);
+assert.equal(
+  sealedRoomRecovery.heatCapacityPhase,
+  'sealedStabilizing',
+  'pre-release high-pressure waiting should stay in the sealed-stabilizing phase, not recovery',
+);
+
 const released = stepHeatCapacityExperiment(
   suitablePump.state,
   { ...baseControls, stopcockOpen: true },
@@ -162,7 +187,11 @@ const recovered = stepHeatCapacityExperiment(
   4_400,
 );
 assert.equal(recovered.heatCapacityPhase === 'recovering' || recovered.heatCapacityPhase === 'sealedStabilizing', true);
-assert.equal(recovered.temperatureSignalMv > released.temperatureSignalMv, true);
+assert.equal(
+  Math.abs(recovered.temperatureSignalMv - initialTemperatureMv) < Math.abs(released.temperatureSignalMv - initialTemperatureMv),
+  true,
+  'closing the stopcock after release should move U_T toward the room-temperature baseline',
+);
 assert.equal(recovered.pressureSignalMvRaw > released.pressureSignalMvRaw, true);
 
 let pumpedSeries = powered;
@@ -221,6 +250,26 @@ assert.equal(
   closedRecovery.temperatureSignalMv < stabilized.temperatureSignalMv,
   true,
   'thermal recovery should not jump back to the high pre-release stable temperature',
+);
+
+let roomRecoveredAfterRelease = highPressureReleased;
+for (let index = 0; index < 14; index += 1) {
+  roomRecoveredAfterRelease = stepHeatCapacityExperiment(
+    roomRecoveredAfterRelease,
+    { ...baseControls, stopcockOpen: false },
+    1,
+    19_800 + index * 1_000,
+  );
+}
+assert.equal(
+  roomRecoveredAfterRelease.temperatureSignalMv > highPressureReleased.temperatureSignalMv,
+  true,
+  'closed recovery after release should warm back upward from the release low point',
+);
+assert.equal(
+  Math.abs(roomRecoveredAfterRelease.temperatureSignalMv - initialTemperatureMv) <= 0.6,
+  true,
+  'closed recovery before U2 should return U_T close to the room-temperature baseline',
 );
 
 const sampled = captureHeatCapacityProcessSample(recovered, 'releaseLowSample', {

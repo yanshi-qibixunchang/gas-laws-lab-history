@@ -5,11 +5,11 @@ export const HEAT_CAPACITY_VIDEO_PROFILE = {
   pumpPressureIncrementTooSlowMvRange: [2, 6] as const,
   pumpPeakPressureMvRange: [115, 130] as const,
   stablePressureMvRange: [110, 120] as const,
-  stableTemperatureMvRange: [1525, 1527] as const,
+  stableTemperatureMvRange: [1498.8, 1499.3] as const,
   releasePressureMvRange: [-0.05, 0.1] as const,
-  releaseTemperatureMvRange: [1499, 1502] as const,
+  releaseTemperatureMvRange: [1497.8, 1498.7] as const,
   recoveryPressureMvRange: [31, 33] as const,
-  recoveryTemperatureMvRange: [1520, 1524] as const,
+  recoveryTemperatureMvRange: [1498.8, 1499.3] as const,
 };
 
 export interface HeatCapacityDisplayResponseConfig {

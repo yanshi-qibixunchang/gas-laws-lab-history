@@ -225,7 +225,7 @@ const getPassivePhase = (
   if (state.pressureZeroAdjusted && controls.pumpValveOpen && state.pressureDeltaKPa <= 0.02) return 'readyToPump';
   if (state.pressureZeroAdjusted && state.pressureDeltaKPa <= 0.02) return 'zeroed';
   if (state.pressureDeltaKPa > 0.02) {
-    return Math.abs(state.gasTemperatureK - state.ambientTemperatureK) > 0.08
+    return state.heatCapacityPhase === 'releasing' || state.heatCapacityPhase === 'recovering'
       ? 'recovering'
       : 'sealedStabilizing';
   }
