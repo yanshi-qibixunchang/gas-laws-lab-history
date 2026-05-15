@@ -51,7 +51,6 @@ interface HeatCapacityInstrumentSceneProps {
   onLockedInteraction: (message?: string) => void;
   onPowerToggle: (nextPowerOn: boolean) => void;
   onStopcockOpenChange: (nextOpen: boolean) => void;
-  onPressureZero: () => void;
   onPressureZeroFineAdjust: (direction: number) => void;
   onPressureZeroCoarseAdjust: (angleDeltaDeg: number) => void;
   onPumpValveToggle: () => void;
@@ -95,6 +94,8 @@ const heatCapacitySceneCopies = {
       pumpValve: '打气阀门',
       opened: '已打开',
       closed: '已关闭',
+      openPumpValve: '打开打气阀门',
+      closePumpValve: '关闭打气阀门',
       exit: '退出聚焦',
       pumpTitle: '打气球控制',
       pumpBulb: '打气球',
@@ -147,6 +148,8 @@ const heatCapacitySceneCopies = {
       pumpValve: '打氣閥門',
       opened: '已打開',
       closed: '已關閉',
+      openPumpValve: '打開打氣閥門',
+      closePumpValve: '關閉打氣閥門',
       exit: '退出聚焦',
       pumpTitle: '打氣球控制',
       pumpBulb: '打氣球',
@@ -199,6 +202,8 @@ const heatCapacitySceneCopies = {
       pumpValve: 'Pump valve',
       opened: 'Open',
       closed: 'Closed',
+      openPumpValve: 'Open pump valve',
+      closePumpValve: 'Close pump valve',
       exit: 'Exit focus',
       pumpTitle: 'Pump Bulb Control',
       pumpBulb: 'Pump bulb',
@@ -221,7 +226,7 @@ const heatCapacitySceneCopies = {
 } as const;
 type HeatCapacitySceneCopy = typeof heatCapacitySceneCopies['zh-CN'];
 
-const PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 2;
+const PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 12;
 const PRESSURE_ZERO_DRAG_DIRECTION = -1;
 const HOVER_CLEAR_DELAY_MS = 220;
 const NON_BULB_HOVER_EMISSIVE_INTENSITY = 0.26;
@@ -478,7 +483,6 @@ function InstrumentBox({
   temperatureSignalMv,
   pressureSignalMv,
   onPowerToggle,
-  onPressureZero,
   onPressureZeroFineAdjust,
   onPressureZeroCoarseAdjust,
   zeroEnabled,
@@ -494,7 +498,7 @@ function InstrumentBox({
   onLockedInteraction,
   interactionQualityReduced,
   sceneCopy,
-}: Pick<HeatCapacityInstrumentSceneProps, 'performanceMode' | 'powerOn' | 'pressureZeroKnobAngle' | 'pressureGaugeDisplayValue' | 'gaugePressureMinKPa' | 'gaugePressureMaxKPa' | 'pressureSafetyThresholdKPa' | 'pressureOverLimit' | 'temperatureSignalMv' | 'pressureSignalMv' | 'onPowerToggle' | 'onPressureZero' | 'onPressureZeroFineAdjust' | 'onPressureZeroCoarseAdjust' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
+}: Pick<HeatCapacityInstrumentSceneProps, 'performanceMode' | 'powerOn' | 'pressureZeroKnobAngle' | 'pressureGaugeDisplayValue' | 'gaugePressureMinKPa' | 'gaugePressureMaxKPa' | 'pressureSafetyThresholdKPa' | 'pressureOverLimit' | 'temperatureSignalMv' | 'pressureSignalMv' | 'onPowerToggle' | 'onPressureZeroFineAdjust' | 'onPressureZeroCoarseAdjust' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
   zeroEnabled: boolean;
   onFocus: (mode: HeatCapacityFocusMode) => void;
   focusMode: HeatCapacityFocusMode;
@@ -613,7 +617,6 @@ function InstrumentBox({
 
   const handlePressureZeroWheel = (event: ThreeEvent<WheelEvent>) => {
     event.stopPropagation();
-    event.nativeEvent.preventDefault();
     if (interactionLocked) {
       onLockedInteraction();
       return;
@@ -841,7 +844,6 @@ function InstrumentBox({
             onLockedInteraction();
             return;
           }
-          if (pressureZeroInteractionEnabled && zeroEnabled && !pressureZeroDragRef.current.moved) onPressureZero();
         }}
         onDoubleClick={(event) => {
           event.stopPropagation();
@@ -1425,7 +1427,7 @@ function PumpAssembly({
             onLockedInteraction();
             return;
           }
-          onFocus('stopcock');
+          onFocus('pump');
         }}
         onPointerOver={(event) => {
           event.stopPropagation();
@@ -1611,7 +1613,6 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           temperatureSignalMv={props.temperatureSignalMv}
           pressureSignalMv={props.pressureSignalMv}
           onPowerToggle={props.onPowerToggle}
-          onPressureZero={props.onPressureZero}
           onPressureZeroFineAdjust={props.onPressureZeroFineAdjust}
           onPressureZeroCoarseAdjust={props.onPressureZeroCoarseAdjust}
           zeroEnabled={zeroEnabled}
@@ -1943,7 +1944,22 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
             </div>
           </div>
           <div className="studio-heat-focus-hint">{props.pumpHint}</div>
-          <div className="studio-heat-focus-panel-actions studio-heat-focus-panel-actions-single">
+          <div className="studio-heat-focus-panel-actions">
+            <button
+              type="button"
+              data-heat-capacity-pump-valve-toggle="true"
+              disabled={props.interactionLocked}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (props.interactionLocked) {
+                  props.onLockedInteraction();
+                  return;
+                }
+                props.onPumpValveToggle();
+              }}
+            >
+              {props.pumpValveOpen ? sceneCopy.focus.closePumpValve : sceneCopy.focus.openPumpValve}
+            </button>
             <button
               type="button"
               data-heat-capacity-focus-exit="true"

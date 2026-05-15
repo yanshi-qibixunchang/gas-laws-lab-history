@@ -272,7 +272,7 @@ export const recordHeatCapacityU2 = (
     ok: true,
     message: 'U2 / UT2 recorded. Trial complete.',
     trials: nextTrials,
-    nextActiveTrialIndex: getHeatCapacityNextActiveTrialIndex(nextTrials),
+    nextActiveTrialIndex: index,
   };
 };
 

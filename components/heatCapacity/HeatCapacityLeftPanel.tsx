@@ -53,6 +53,8 @@ const statusClass = (status: HeatCapacityTrialStatus) => (
   `studio-heat-trial-status studio-heat-trial-status-${status}`
 );
 
+const HEAT_CAPACITY_FORMULA_RESULT_PREVIEW_LIMIT = 3;
+
 const copyByLanguage = {
   'zh-CN': {
     guide: '实验指引',
@@ -70,7 +72,7 @@ const copyByLanguage = {
     sampleScope: '仅属于空气比热容比实验',
     recordingHint: '手动模式需在正确阶段使用 3D 预览中的记录按钮；自动演示会自动记录相同字段。',
     recordingComplete: '数据记录已完成。请前往数据处理页并点击“计算结果”。',
-    recordingNextTrial: '本组已完成，请开始下一组实验。',
+    recordingNextTrial: '本组已完成，已省略真实实验中约 5 分钟的恢复室温等待过程，可立即进入下一组实验。',
     recordingReadyToProcess: '数据记录已完成，可进入数据处理并计算结果。',
     expectedTrials: '预计组数',
     currentTrial: (trialIndex: number) => `当前组：第 ${trialIndex} 组`,
@@ -151,6 +153,9 @@ const copyByLanguage = {
       result: '结果',
       meanGamma: '平均 γ',
       relativeError: '相对误差',
+      showAllResults: '展开全部',
+      collapseResults: '收起',
+      previewLimitNotice: (visible: number, total: number) => `已显示前 ${visible} 组，共 ${total} 组`,
       resultStatus: '结果状态',
       valid: '有效',
       invalid: '异常',
@@ -187,7 +192,7 @@ const copyByLanguage = {
     sampleScope: '僅屬於空氣比熱容比實驗',
     recordingHint: '手動模式需在正確階段使用 3D 預覽中的記錄按鈕；自動演示會自動記錄相同欄位。',
     recordingComplete: '資料記錄已完成。請前往資料處理頁並點擊「計算結果」。',
-    recordingNextTrial: '本組已完成，請開始下一組實驗。',
+    recordingNextTrial: '本組已完成，已省略真實實驗中約 5 分鐘的恢復室溫等待過程，可立即進入下一組實驗。',
     recordingReadyToProcess: '資料記錄已完成，可進入資料處理並計算結果。',
     expectedTrials: '預計組數',
     currentTrial: (trialIndex: number) => `目前組：第 ${trialIndex} 組`,
@@ -240,6 +245,9 @@ const copyByLanguage = {
       result: '結果',
       meanGamma: '平均 γ',
       relativeError: '相對誤差',
+      showAllResults: '展開全部',
+      collapseResults: '收起',
+      previewLimitNotice: (visible: number, total: number) => `已顯示前 ${visible} 組，共 ${total} 組`,
       resultStatus: '結果狀態',
       valid: '有效',
       invalid: '異常',
@@ -276,7 +284,7 @@ const copyByLanguage = {
     sampleScope: 'Heat Capacity only',
     recordingHint: 'Manual mode records through the stage buttons in the 3D preview. Auto demo records the same fields automatically.',
     recordingComplete: 'Data recording complete. Go to Data Processing and click Calculate Results.',
-    recordingNextTrial: 'This trial is complete. Start the next trial.',
+    recordingNextTrial: 'This trial is complete. The real experiment recovery wait of about 5 minutes is omitted, so you can start the next trial immediately.',
     recordingReadyToProcess: 'Data recording is complete. You can calculate results in Data Processing.',
     expectedTrials: 'Expected trials',
     currentTrial: (trialIndex: number) => `Current trial: ${trialIndex}`,
@@ -329,6 +337,9 @@ const copyByLanguage = {
       result: 'Result',
       meanGamma: 'Mean γ',
       relativeError: 'Relative error',
+      showAllResults: 'Show all',
+      collapseResults: 'Collapse',
+      previewLimitNotice: (visible: number, total: number) => `Showing first ${visible} of ${total} trials`,
       resultStatus: 'Result status',
       valid: 'Valid',
       invalid: 'Invalid',
@@ -540,10 +551,6 @@ const renderRecordingTab = (
   );
 };
 
-const getFormulaExample = (trialResults: HeatCapacityProcessingTrialResult[]) => (
-  trialResults.find((trial) => trial.status === 'valid') ?? trialResults[0] ?? null
-);
-
 const renderFormulaPanel = (
   title: string,
   formula: React.ReactNode,
@@ -555,6 +562,43 @@ const renderFormulaPanel = (
     <div className="studio-heat-formula-result">{result}</div>
   </div>
 );
+
+const renderFormulaTrialResults = (
+  trialResults: HeatCapacityProcessingTrialResult[],
+  copy: LocalizedText,
+  formulaResultsExpanded: boolean,
+  setFormulaResultsExpanded: React.Dispatch<React.SetStateAction<boolean>>,
+  renderTrial: (trial: HeatCapacityProcessingTrialResult) => React.ReactNode,
+) => {
+  const shouldCollapse = trialResults.length > HEAT_CAPACITY_FORMULA_RESULT_PREVIEW_LIMIT;
+  const visibleResults = shouldCollapse && !formulaResultsExpanded
+    ? trialResults.slice(0, HEAT_CAPACITY_FORMULA_RESULT_PREVIEW_LIMIT)
+    : trialResults;
+  return (
+    <div className="studio-heat-formula-result-list">
+      {visibleResults.map((trial) => (
+        <div className="studio-heat-formula-result-row" key={trial.trialIndex}>
+          <strong>{copy.table.trial} {trial.trialIndex}</strong>
+          <span>{renderTrial(trial)}</span>
+        </div>
+      ))}
+      {shouldCollapse && !formulaResultsExpanded ? (
+        <span className="studio-heat-formula-preview-note">
+          {copy.formula.previewLimitNotice(HEAT_CAPACITY_FORMULA_RESULT_PREVIEW_LIMIT, trialResults.length)}
+        </span>
+      ) : null}
+      {shouldCollapse ? (
+        <button
+          className="studio-heat-formula-expand"
+          type="button"
+          onClick={() => setFormulaResultsExpanded((expanded) => !expanded)}
+        >
+          {formulaResultsExpanded ? copy.formula.collapseResults : copy.formula.showAllResults}
+        </button>
+      ) : null}
+    </div>
+  );
+};
 
 const renderGammaChart = (
   trialResults: HeatCapacityProcessingTrialResult[],
@@ -622,10 +666,12 @@ const renderProcessingTab = (
   file: WorkbenchHeatCapacityState,
   copy: LocalizedText,
   onCalculateResults: () => void,
+  formulaResultsExpanded: boolean,
+  setFormulaResultsExpanded: React.Dispatch<React.SetStateAction<boolean>>,
 ) => {
   const result = file.heatCapacityProcessingResult;
   const completed = getHeatCapacityCompletedTrialCount(file.heatCapacityTrials);
-  const example = getFormulaExample(result.trialResults);
+  const validFormulaResults = result.trialResults.filter((trial) => trial.status === 'valid' && trial.gamma !== null);
 
   return (
     <div className="studio-heat-processing" data-heat-capacity-processing-tab="true">
@@ -662,22 +708,49 @@ const renderProcessingTab = (
             {renderFormulaPanel(
               copy.formula.pressure,
               <span><VarDeltaP index="1,i" /> = <VarU index="1,i" /> / S; <VarDeltaP index="2,i" /> = <VarU index="2,i" /> / S</span>,
-              <span>{copy.formula.result}: <VarDeltaP index={1} /> = {formatNumber(example?.deltaP1KPa, 2)} kPa, <VarDeltaP index={2} /> = {formatNumber(example?.deltaP2KPa, 2)} kPa</span>,
+              renderFormulaTrialResults(
+                result.trialResults,
+                copy,
+                formulaResultsExpanded,
+                setFormulaResultsExpanded,
+                (trial) => <><VarDeltaP index={`1,${trial.trialIndex}`} /> = {formatNumber(trial.deltaP1KPa, 2)} kPa, <VarDeltaP index={`2,${trial.trialIndex}`} /> = {formatNumber(trial.deltaP2KPa, 2)} kPa</>,
+              ),
             )}
             {renderFormulaPanel(
               copy.formula.absolute,
               <span><VarP index="1,i" /> = <VarP index={0} /> + <VarDeltaP index="1,i" />; <VarP index="2,i" /> = <VarP index={0} /> + <VarDeltaP index="2,i" /></span>,
-              <span>{copy.formula.result}: <VarP index={1} /> = {formatNumber(example?.P1KPa, 2)} kPa, <VarP index={2} /> = {formatNumber(example?.P2KPa, 2)} kPa</span>,
+              renderFormulaTrialResults(
+                result.trialResults,
+                copy,
+                formulaResultsExpanded,
+                setFormulaResultsExpanded,
+                (trial) => <><VarP index={`1,${trial.trialIndex}`} /> = {formatNumber(trial.P1KPa, 2)} kPa, <VarP index={`2,${trial.trialIndex}`} /> = {formatNumber(trial.P2KPa, 2)} kPa</>,
+              ),
             )}
             {renderFormulaPanel(
               copy.formula.gamma,
               <span><VarGamma index="i" /> = <VarU index="1,i" /> / (<VarU index="1,i" /> - <VarU index="2,i" />)</span>,
-              <span>{copy.formula.result}: <VarGamma index="i" /> = {formatGamma(example?.gamma)}</span>,
+              renderFormulaTrialResults(
+                result.trialResults,
+                copy,
+                formulaResultsExpanded,
+                setFormulaResultsExpanded,
+                (trial) => <><VarGamma index={trial.trialIndex} /> = {formatGamma(trial.gamma)}</>,
+              ),
             )}
             {renderFormulaPanel(
               copy.formula.average,
               <span><GammaMean /> = average(<VarGamma index="i" />); ε = |<GammaMean /> - <GammaAir />| / <GammaAir /> × 100%</span>,
-              <span>{copy.formula.result}: {copy.formula.meanGamma} = {formatGamma(result.meanGamma)}, {copy.formula.relativeError} = {formatNumber(result.relativeErrorPercent, 2)}%</span>,
+              <div className="studio-heat-formula-average">
+                {renderFormulaTrialResults(
+                  validFormulaResults,
+                  copy,
+                  formulaResultsExpanded,
+                  setFormulaResultsExpanded,
+                  (trial) => <><VarGamma index={trial.trialIndex} /> = {formatGamma(trial.gamma)}</>,
+                )}
+                <span>{copy.formula.result}: {copy.formula.meanGamma} = {formatGamma(result.meanGamma)}, {copy.formula.relativeError} = {formatNumber(result.relativeErrorPercent, 2)}%</span>
+              </div>,
             )}
           </div>
           <div className={`studio-result-status ${result.status === 'ready' ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
@@ -734,6 +807,7 @@ export const HeatCapacityLeftPanel = ({
   onCalculateResults,
 }: HeatCapacityLeftPanelProps) => {
   const copy = text(language);
+  const [formulaResultsExpanded, setFormulaResultsExpanded] = useState(false);
   const contentTitle = useMemo(() => {
     if (panelKey === 'heatCapacityRecords') return copy.recording;
     if (panelKey === 'heatCapacityProcessing') return copy.processing;
@@ -751,7 +825,7 @@ export const HeatCapacityLeftPanel = ({
           ? renderGuideTab(language)
           : panelKey === 'heatCapacityRecords'
             ? renderRecordingTab(file, copy, onExpectedTrialCountChange)
-            : renderProcessingTab(file, copy, onCalculateResults)}
+            : renderProcessingTab(file, copy, onCalculateResults, formulaResultsExpanded, setFormulaResultsExpanded)}
       </div>
     </section>
   );

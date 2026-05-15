@@ -62,6 +62,7 @@ assert.equal(recordedU2.ok, true);
 assert.equal(recordedU2.trials[0].U2Mv, 34.3);
 assert.equal(recordedU2.trials[0].UT2Mv, 1522.3);
 assert.equal(recordedU2.trials[0].status, 'complete');
+assert.equal(recordedU2.nextActiveTrialIndex, 0, 'manual workflow should stay on the completed current trial until the user starts the next trial');
 
 const blockedFullTableRecord = recordHeatCapacityU1([recordedU2.trials[0]], {
   activeTrialIndex: 0,
@@ -96,6 +97,44 @@ assert.equal(result.trialResults[0].P2KPa, 103.015);
 assert.ok(result.trialResults[0].gamma !== null && result.trialResults[0].gamma > 1.39 && result.trialResults[0].gamma < 1.41);
 assert.equal(result.meanGamma, result.trialResults[0].gamma);
 assert.ok(result.relativeErrorPercent !== null && result.relativeErrorPercent > 0);
+
+const threeCompleteTrials = [
+  { ...recordedU2.trials[0], id: 'heat-trial-1', trialIndex: 1 },
+  {
+    ...recordedU2.trials[0],
+    id: 'heat-trial-2',
+    trialIndex: 2,
+    U1Mv: 126,
+    U2Mv: 35.6,
+    UT1Mv: 1525.8,
+    UT2Mv: 1521.9,
+  },
+  {
+    ...recordedU2.trials[0],
+    id: 'heat-trial-3',
+    trialIndex: 3,
+    U1Mv: 118.8,
+    U2Mv: 33.1,
+    UT1Mv: 1526.4,
+    UT2Mv: 1522.5,
+  },
+];
+const threeTrialResult = calculateHeatCapacityMeanResult(threeCompleteTrials, {
+  atmosphericPressureKPa: 101.3,
+  pressureSensitivityMvPerKPa: 20,
+  theoreticalGamma: 1.4,
+});
+const threeTrialGammas = threeTrialResult.trialResults
+  .map((trial) => trial.gamma)
+  .filter((gamma): gamma is number => gamma !== null);
+const expectedThreeTrialMean = Math.round(
+  threeTrialGammas.reduce((sum, gamma) => sum + gamma, 0) / threeTrialGammas.length * 1000000,
+) / 1000000;
+assert.equal(threeTrialResult.trialResults.length, 3);
+assert.equal(threeTrialResult.validTrialCount, 3);
+assert.equal(threeTrialGammas.length, 3);
+assert.equal(threeTrialResult.meanGamma, expectedThreeTrialMean);
+assert.notEqual(threeTrialResult.meanGamma, threeTrialResult.trialResults[0].gamma, 'mean gamma should come from all three trial gammas');
 
 const noValid = calculateHeatCapacityMeanResult(trials, {
   atmosphericPressureKPa: 101.3,

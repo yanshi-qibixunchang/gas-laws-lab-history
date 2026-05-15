@@ -9,6 +9,7 @@ export interface HeatCapacitySignalInput {
   ambientTemperatureK: number;
   gasTemperatureK: number;
   pressureDeltaKPa: number;
+  pressureInitialBiasMv?: number;
   pressureZeroOffset: number;
   config?: Partial<HeatCapacitySensorMappingConfig>;
 }
@@ -40,8 +41,9 @@ const mergeConfig = (
 
 export const applyPressureZero = (
   rawPressureMv: number,
+  pressureInitialBiasMv: number,
   pressureZeroOffset: number,
-) => roundSignal(rawPressureMv - pressureZeroOffset);
+) => roundSignal(rawPressureMv + pressureInitialBiasMv + pressureZeroOffset);
 
 export const mapPressureDeltaToSignalMv = (
   pressureDeltaKPa: number,
@@ -67,11 +69,12 @@ export const mapHeatCapacitySignals = ({
   ambientTemperatureK,
   gasTemperatureK,
   pressureDeltaKPa,
+  pressureInitialBiasMv = 0,
   pressureZeroOffset,
   config,
 }: HeatCapacitySignalInput): HeatCapacityMappedSignals => {
   const pressureSignalMvRaw = mapPressureDeltaToSignalMv(pressureDeltaKPa, config);
-  const pressureSignalMvDisplayed = applyPressureZero(pressureSignalMvRaw, pressureZeroOffset);
+  const pressureSignalMvDisplayed = applyPressureZero(pressureSignalMvRaw, pressureInitialBiasMv, pressureZeroOffset);
   const temperatureSignalMv = mapGasTemperatureToSignalMv(gasTemperatureK, ambientTemperatureK, config);
 
   return {

@@ -3345,27 +3345,6 @@
   line-height: 0;
 }
 
-.studio-heat-demo-toast {
-  position: absolute;
-  left: 50%;
-  bottom: 18px;
-  z-index: 6;
-  display: grid;
-  gap: 3px;
-  min-width: 176px;
-  border: 1px solid rgba(100, 116, 139, 0.66);
-  border-radius: 4px;
-  background: rgba(10, 15, 23, 0.9);
-  box-shadow: 0 16px 32px rgba(2, 8, 23, 0.42), inset 3px 0 0 rgba(56, 189, 248, 0.76), inset 0 1px 0 rgba(148, 163, 184, 0.12);
-  color: #e2e8f0;
-  padding: 8px 12px 9px;
-  text-align: center;
-  font-size: 12px;
-  transform: translateX(-50%);
-  pointer-events: none;
-  backdrop-filter: blur(10px);
-}
-
 .studio-heat-demo-complete-toast {
   position: absolute;
   left: 50%;
@@ -3388,7 +3367,6 @@
   backdrop-filter: blur(10px);
 }
 
-.studio-heat-demo-toast strong,
 .studio-heat-demo-complete-toast strong {
   color: #e2e8f0;
   font-size: 13px;
@@ -3398,17 +3376,21 @@
 .studio-heat-manual-step-hint {
   position: absolute;
   left: 50%;
-  top: 16px;
+  bottom: 18px;
   z-index: 34;
-  max-width: min(520px, calc(100% - 80px));
+  display: grid;
+  gap: 3px;
+  min-width: 220px;
+  max-width: min(560px, calc(100% - 80px));
   transform: translateX(-50%);
-  padding: 8px 14px;
+  padding: 9px 14px 10px;
   border: 1px solid rgba(125, 211, 252, 0.55);
   border-radius: 4px;
   background: rgba(15, 23, 42, 0.8);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.26);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.32), inset 3px 0 0 rgba(56, 189, 248, 0.78);
   backdrop-filter: blur(8px);
   pointer-events: none;
+  text-align: center;
 }
 
 .studio-heat-manual-step-hint strong {
@@ -3418,10 +3400,38 @@
   line-height: 1.45;
 }
 
+.studio-heat-manual-step-hint-warning {
+  border-color: rgba(245, 158, 11, 0.7);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.32), inset 3px 0 0 rgba(245, 158, 11, 0.86);
+}
+
+.studio-heat-manual-step-hint-danger {
+  border-color: rgba(248, 113, 113, 0.75);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.32), inset 3px 0 0 rgba(239, 68, 68, 0.92);
+}
+
+.studio-heat-manual-step-hint-warning .studio-heat-toast-kicker {
+  color: #fbbf24;
+}
+
+.studio-heat-manual-step-hint-danger .studio-heat-toast-kicker {
+  color: #fca5a5;
+}
+
 .studio-theme-light .studio-heat-manual-step-hint {
   border-color: rgba(37, 99, 235, 0.34);
   background: rgba(248, 250, 252, 0.94);
-  box-shadow: 0 12px 28px rgba(30, 41, 59, 0.16);
+  box-shadow: 0 12px 28px rgba(30, 41, 59, 0.16), inset 3px 0 0 rgba(37, 99, 235, 0.62);
+}
+
+.studio-theme-light .studio-heat-manual-step-hint-warning {
+  border-color: rgba(217, 119, 6, 0.48);
+  box-shadow: 0 12px 28px rgba(30, 41, 59, 0.16), inset 3px 0 0 rgba(217, 119, 6, 0.72);
+}
+
+.studio-theme-light .studio-heat-manual-step-hint-danger {
+  border-color: rgba(220, 38, 38, 0.52);
+  box-shadow: 0 12px 28px rgba(30, 41, 59, 0.16), inset 3px 0 0 rgba(220, 38, 38, 0.78);
 }
 
 .studio-theme-light .studio-heat-manual-step-hint strong {
@@ -6873,6 +6883,43 @@
   color: var(--studio-text);
 }
 
+.studio-heat-formula-result-list,
+.studio-heat-formula-average {
+  display: grid;
+  gap: 6px;
+}
+
+.studio-heat-formula-result-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.studio-heat-formula-result-row strong,
+.studio-heat-formula-preview-note {
+  color: var(--studio-subtle);
+  font-size: 11px;
+}
+
+.studio-heat-formula-expand {
+  justify-self: start;
+  border: 1px solid rgba(79, 127, 184, 0.34);
+  border-radius: 6px;
+  background: rgba(79, 127, 184, 0.14);
+  color: var(--studio-text);
+  padding: 3px 8px;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.studio-heat-formula-expand:hover,
+.studio-heat-formula-expand:focus-visible {
+  border-color: rgba(103, 156, 216, 0.58);
+  background: rgba(79, 127, 184, 0.22);
+}
+
 .studio-heat-gamma-chart {
   display: grid;
   justify-self: center;
@@ -7282,6 +7329,12 @@
   font-weight: 700;
 }
 
+.studio-heat-formula-result-row strong,
+.studio-heat-formula-preview-note {
+  color: var(--studio-subtle);
+  font-weight: 600;
+}
+
 .studio-heat-gamma-chart {
   width: min(520px, 100%);
   padding: 10px 12px;
@@ -7441,6 +7494,18 @@
 .studio-theme-light .studio-heat-table-scroll {
   border-color: #dbe4ef;
   background: #ffffff;
+}
+
+.studio-theme-light .studio-heat-formula-expand {
+  border-color: #b9cee7;
+  background: #f2f7fd;
+  color: #0f172a;
+}
+
+.studio-theme-light .studio-heat-formula-expand:hover,
+.studio-theme-light .studio-heat-formula-expand:focus-visible {
+  border-color: #7ea6d6;
+  background: #e7f1fc;
 }
 
 .studio-theme-light .studio-heat-thinking-trigger:hover,

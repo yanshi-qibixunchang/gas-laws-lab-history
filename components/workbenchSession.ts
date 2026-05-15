@@ -137,10 +137,12 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       : normalizedSavedStopcockAngle;
     const pressureRawPlaceholder = normalizeNullableNumber(file.pressureRawPlaceholder)
       ?? fallback.pressureRawPlaceholder;
+    const pressureInitialBiasMv = normalizeNullableNumber(file.pressureInitialBiasMv)
+      ?? fallback.pressureInitialBiasMv;
     const pressureZeroOffset = normalizeNullableNumber(file.pressureZeroOffset)
       ?? fallback.pressureZeroOffset;
     const pressureDisplayedPlaceholder = normalizeNullableNumber(file.pressureDisplayedPlaceholder)
-      ?? applyHeatCapacityPressureZero(pressureRawPlaceholder, pressureZeroOffset);
+      ?? applyHeatCapacityPressureZero(pressureRawPlaceholder, pressureInitialBiasMv, pressureZeroOffset);
     const pressureZeroAdjusted = file.pressureZeroAdjusted === true || file.pressureZeroed === true;
     const pressureZeroAdjustMode = file.pressureZeroAdjustMode === 'fineWheel' || file.pressureZeroAdjustMode === 'coarseDrag'
       ? file.pressureZeroAdjustMode
@@ -206,9 +208,20 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       lastUpdateMs: normalizeNullableNumber(file.lastUpdateMs),
       pressureSignalMvRaw: normalizeNullableNumber(file.pressureSignalMvRaw) ?? pressureRawPlaceholder,
       pressureSignalMvDisplayed: normalizeNullableNumber(file.pressureSignalMvDisplayed) ?? pressureDisplayedPlaceholder,
+      pressureInitialBiasMv,
       temperatureSignalTargetMv: normalizeNullableNumber(file.temperatureSignalTargetMv) ?? fallback.temperatureSignalTargetMv,
       pressureSignalTargetMv: normalizeNullableNumber(file.pressureSignalTargetMv) ?? pressureDisplayedPlaceholder,
       displayResponseLastUpdateMs: normalizeNullableNumber(file.displayResponseLastUpdateMs),
+      pressureZeroDisplayedSamples: Array.isArray(file.pressureZeroDisplayedSamples)
+        ? file.pressureZeroDisplayedSamples
+            .map((sample) => isRecord(sample)
+              ? {
+                  atMs: normalizeNullableNumber(sample.atMs),
+                  valueMv: normalizeNullableNumber(sample.valueMv),
+                }
+              : null)
+            .filter((sample): sample is { atMs: number; valueMv: number } => sample !== null && sample.atMs !== null && sample.valueMv !== null)
+        : [],
       pressureZeroed: pressureZeroAdjusted,
       pressureZeroAdjusted,
       pressureZeroKnobAngle: normalizeNullableNumber(file.pressureZeroKnobAngle) ?? fallback.pressureZeroKnobAngle,

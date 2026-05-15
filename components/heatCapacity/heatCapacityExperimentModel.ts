@@ -87,6 +87,7 @@ export interface HeatCapacityRuntimeState {
   lastUpdateMs: number | null;
   pressureSignalMvRaw: number;
   pressureSignalMvDisplayed: number;
+  pressureInitialBiasMv: number;
   temperatureSignalMv: number;
   pressureZeroOffset: number;
   pressureZeroAdjusted: boolean;
@@ -200,6 +201,7 @@ const withMappedSignals = (
     ambientTemperatureK: state.ambientTemperatureK,
     gasTemperatureK: state.gasTemperatureK,
     pressureDeltaKPa,
+    pressureInitialBiasMv: state.pressureInitialBiasMv,
     pressureZeroOffset: state.pressureZeroOffset,
     config: state.modelConfig.sensor,
   });
@@ -221,6 +223,9 @@ const getPassivePhase = (
 ): HeatCapacityRuntimePhase => {
   if (!controls.powerOn) return 'powerOff';
   if (controls.demoComplete) return 'demoComplete';
+  if (state.heatCapacityPhase === 'releasing' || state.heatCapacityPhase === 'recovering') {
+    return controls.stopcockOpen && state.pressureDeltaKPa > 0.02 ? 'releasing' : 'recovering';
+  }
   if (controls.stopcockOpen && state.pressureDeltaKPa > 0.02) return 'releasing';
   if (state.pressureZeroAdjusted && controls.pumpValveOpen && state.pressureDeltaKPa <= 0.02) return 'readyToPump';
   if (state.pressureZeroAdjusted && state.pressureDeltaKPa <= 0.02) return 'zeroed';
@@ -247,6 +252,7 @@ export const createDefaultHeatCapacityRuntimeState = (
     lastUpdateMs: now,
     pressureSignalMvRaw: 0,
     pressureSignalMvDisplayed: 0,
+    pressureInitialBiasMv: 0,
     temperatureSignalMv: modelConfig.sensor.temperatureBaseMv,
     pressureZeroOffset: 0,
     pressureZeroAdjusted: false,

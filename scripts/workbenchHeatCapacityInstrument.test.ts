@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import {
   adjustHeatCapacityPressureZeroCoarse,
   adjustHeatCapacityPressureZeroFine,
@@ -20,9 +20,14 @@ import {
   HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MAX_MV,
   HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MIN_MV,
   HEAT_CAPACITY_PRESSURE_ZERO_MV_PER_TURN,
-  HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_KPA,
-  HEAT_CAPACITY_PRESSURE_SAFETY_THRESHOLD_KPA,
+  HEAT_CAPACITY_PRESSURE_ZERO_TOLERANCE_MV,
+  HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV,
+  HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
+  HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV,
+  HEAT_CAPACITY_PUMP_RATE_SLOW_THRESHOLD_HZ,
   HEAT_CAPACITY_GAUGE_PRESSURE_MAX_KPA,
+  createHeatCapacityInitialPressureBiasMv,
+  isHeatCapacityPressureZeroWithinTolerance,
   markHeatCapacityDemoComplete,
   registerHeatCapacityPumpStroke,
   resetHeatCapacityForManualExperiment,
@@ -50,6 +55,8 @@ assert.equal(defaultFile.pressureZeroed, false);
 assert.equal(defaultFile.pressureZeroAdjusted, false);
 assert.equal(defaultFile.pressureZeroKnobAngle, 0);
 assert.equal(defaultFile.pressureZeroOffset, 0);
+assert.equal(defaultFile.pressureInitialBiasMv, 0);
+assert.deepEqual(defaultFile.pressureZeroDisplayedSamples, []);
 assert.equal(defaultFile.pressureZeroAdjustMode, 'none');
 assert.equal(defaultFile.heatCapacityPhase, 'powerOff');
 assert.equal(defaultFile.ambientPressureKPa, 101.3);
@@ -64,9 +71,13 @@ assert.equal(defaultFile.pressureGaugeDisplayValue, 0);
 assert.equal(defaultFile.pressureGaugeNeedleAngle, -120);
 assert.equal(defaultFile.gaugePressureMinKPa, 0);
 assert.equal(defaultFile.gaugePressureMaxKPa, HEAT_CAPACITY_GAUGE_PRESSURE_MAX_KPA);
-assert.equal(defaultFile.pressureWarningThresholdKPa, HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_KPA);
-assert.equal(defaultFile.pressureSafeThresholdKPa, HEAT_CAPACITY_PRESSURE_SAFETY_THRESHOLD_KPA);
-assert.equal(defaultFile.pressureSafetyThresholdKPa, HEAT_CAPACITY_PRESSURE_SAFETY_THRESHOLD_KPA);
+assert.equal(HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV, 100);
+assert.equal(HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, 120);
+assert.equal(HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, 140);
+assert.equal(HEAT_CAPACITY_PUMP_RATE_SLOW_THRESHOLD_HZ, 2);
+assert.equal(defaultFile.pressureWarningThresholdKPa, HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV / defaultFile.pressureSensitivityMvPerKPa);
+assert.equal(defaultFile.pressureSafeThresholdKPa, HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV / defaultFile.pressureSensitivityMvPerKPa);
+assert.equal(defaultFile.pressureSafetyThresholdKPa, HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV / defaultFile.pressureSensitivityMvPerKPa);
 assert.equal(defaultFile.pressureSafetyStatus, 'normal');
 assert.equal(defaultFile.pressureSafetyMessage, null);
 assert.equal(defaultFile.pressureBlockedPumping, false);
@@ -94,7 +105,30 @@ assert.equal(defaultFile.temperaturePlaceholder, 298.15);
 assert.equal('heatCapacityTrace' in defaultFile, false, 'heatCapacity files should not persist realtime chart trace history');
 assert.deepEqual(defaultFile.heatCapacityProcessSamples, {});
 assert.equal(canZeroHeatCapacityPressure(defaultFile), false);
-assert.equal(applyHeatCapacityPressureZero(3.2, 0.7), 2.5);
+assert.equal(HEAT_CAPACITY_PRESSURE_ZERO_TOLERANCE_MV, 0.1);
+assert.equal(applyHeatCapacityPressureZero(3.2, 0.4, -0.7), 2.9);
+assert.equal(getHeatCapacityPressureZeroKnobAngleForOffset(-0.6), -216);
+assert.equal(getHeatCapacityPressureZeroKnobAngleForOffset(0.8), 288);
+assert.equal(getHeatCapacityPressureZeroOffsetForKnobAngle(-216), -0.6);
+assert.equal(getHeatCapacityPressureZeroOffsetForKnobAngle(288), 0.8);
+for (let index = 0; index < 40; index += 1) {
+  const biasMv = createHeatCapacityInitialPressureBiasMv();
+  assert.equal(biasMv >= -1.5 && biasMv <= 1.5, true, 'initial pressure-zero bias should stay in the three-turn correction range');
+}
+assert.equal(isHeatCapacityPressureZeroWithinTolerance([
+  { atMs: 0, valueMv: 0.08 },
+  { atMs: 100, valueMv: -0.04 },
+  { atMs: 200, valueMv: 0.03 },
+  { atMs: 300, valueMv: -0.09 },
+  { atMs: 400, valueMv: 0.1 },
+]), true);
+assert.equal(isHeatCapacityPressureZeroWithinTolerance([
+  { atMs: 0, valueMv: 0.08 },
+  { atMs: 100, valueMv: -0.04 },
+  { atMs: 200, valueMv: 0.11 },
+  { atMs: 300, valueMv: -0.09 },
+  { atMs: 400, valueMv: 0.04 },
+]), false);
 
 const defaultAirGamma = getHeatCapacityAirGammaResult(defaultFile);
 assert.equal(defaultAirGamma.status, 'missing-samples');
@@ -199,12 +233,12 @@ const fineZero = adjustHeatCapacityPressureZeroFine({
   ...pressureLoadedFile,
 }, 1, 1_080);
 assert.equal(fineZero.pressureZeroAdjusted, true);
-assert.equal(fineZero.pressureZeroed, true);
+assert.equal(fineZero.pressureZeroed, false, 'a knob movement alone must not mark pressure zero as valid');
 assert.equal(fineZero.pressureZeroAdjustMode, 'fineWheel');
 assert.equal(fineZero.pressureZeroKnobAngle, 2);
 assert.equal(fineZero.pressureZeroOffset, 0.006);
-assert.equal(fineZero.pressureDisplayedPlaceholder, 3.19);
-assert.equal(fineZero.pressureSignalTargetMv, 3.194);
+assert.equal(fineZero.pressureDisplayedPlaceholder, 3.21);
+assert.equal(fineZero.pressureSignalTargetMv, 3.206);
 assert.equal(fineZero.pressureSignalMv !== fineZero.pressureSignalTargetMv, true);
 assert.equal(fineZero.pressureGaugeDisplayValue, pressureLoadedFile.pressureDeltaKPa);
 assert.equal(fineZero.pressureOverLimit, false);
@@ -218,7 +252,7 @@ const coarseZero = adjustHeatCapacityPressureZeroCoarse({
 assert.equal(coarseZero.pressureZeroAdjustMode, 'coarseDrag');
 assert.equal(coarseZero.pressureZeroKnobAngle, 92);
 assert.equal(coarseZero.pressureZeroOffset > fineZero.pressureZeroOffset, true);
-assert.equal(coarseZero.pressureDisplayedPlaceholder < fineZero.pressureDisplayedPlaceholder, true);
+assert.equal(coarseZero.pressureDisplayedPlaceholder > fineZero.pressureDisplayedPlaceholder, true);
 assert.equal(coarseZero.pressureZeroOffset, 0.256);
 assert.equal(coarseZero.temperatureSignalTargetMv, fineZero.temperatureSignalTargetMv);
 
@@ -339,7 +373,7 @@ assert.equal(manualResetAfterDemo.runState, 'idle');
 assert.equal(manualResetAfterDemo.heatCapacityPhase, 'powerOff');
 assert.equal(manualResetAfterDemo.pressureDeltaKPa, 0);
 assert.equal(manualResetAfterDemo.gasPressureKPaAbs, manualResetAfterDemo.ambientPressureKPa);
-assert.equal(Math.abs(manualResetAfterDemo.pressureDisplayedPlaceholder) <= 0.8, true);
+assert.equal(Math.abs(manualResetAfterDemo.pressureDisplayedPlaceholder) <= 1.5, true);
 assert.equal(manualResetAfterDemo.heatCapacityExpectedTrialCount, 3);
 assert.equal(manualResetAfterDemo.heatCapacityExpectedTrialCountMode, '3');
 assert.equal(manualResetAfterDemo.heatCapacityTrials.length, 3);
@@ -352,7 +386,8 @@ assert.equal(poweredAfterManualReset.powerOn, true);
 assert.equal(poweredAfterManualReset.heatCapacityPhase, 'readyToZero');
 assert.equal(poweredAfterManualReset.pressureDeltaKPa, 0);
 assert.equal(poweredAfterManualReset.gasPressureKPaAbs, poweredAfterManualReset.ambientPressureKPa);
-assert.equal(Math.abs(poweredAfterManualReset.pressureSignalMv ?? 0) <= 0.8, true);
+assert.equal(Math.abs(poweredAfterManualReset.pressureInitialBiasMv) <= 1.5, true);
+assert.equal(Math.abs(poweredAfterManualReset.pressureSignalMv ?? 0) <= 1.6, true);
 
 const pumpedTarget = registerHeatCapacityPumpStroke({
   ...demoStart,
@@ -378,42 +413,45 @@ assert.equal(settledDisplay.pressureGaugeDisplayValue > pumpedTarget.pressureGau
 assert.deepEqual(getHeatCapacityGaugePressureState(12, true, defaultFile), {
   gaugePressureMinKPa: 0,
   gaugePressureMaxKPa: 10,
-  pressureWarningThresholdKPa: 5,
-  pressureSafetyThresholdKPa: 6,
+  pressureSensitivityMvPerKPa: 20,
+  pressureWarningThresholdKPa: 6,
+  pressureSafetyThresholdKPa: 7,
   pressureGaugeTargetValue: 10,
   pressureGaugeDisplayValue: 10,
   pressureGaugeNeedleAngle: 120,
-  pressureSafeThresholdKPa: 6,
+  pressureSafeThresholdKPa: 7,
   pressureSafetyStatus: 'danger',
-  pressureSafetyMessage: '压力超过安全阈值，请停止打气',
+  pressureSafetyMessage: '压强超过安全阈值，请停止打气',
   pressureBlockedPumping: true,
   pressureOverLimit: true,
 });
-assert.deepEqual(getHeatCapacityGaugePressureState(5.5, true, defaultFile), {
+assert.deepEqual(getHeatCapacityGaugePressureState(6.2, true, defaultFile), {
   gaugePressureMinKPa: 0,
   gaugePressureMaxKPa: 10,
-  pressureWarningThresholdKPa: 5,
-  pressureSafetyThresholdKPa: 6,
-  pressureGaugeTargetValue: 5.5,
-  pressureGaugeDisplayValue: 5.5,
-  pressureGaugeNeedleAngle: 12,
-  pressureSafeThresholdKPa: 6,
+  pressureSensitivityMvPerKPa: 20,
+  pressureWarningThresholdKPa: 6,
+  pressureSafetyThresholdKPa: 7,
+  pressureGaugeTargetValue: 6.2,
+  pressureGaugeDisplayValue: 6.2,
+  pressureGaugeNeedleAngle: 28.8,
+  pressureSafeThresholdKPa: 7,
   pressureSafetyStatus: 'warning',
-  pressureSafetyMessage: '压力接近上限，请放慢或停止打气',
+  pressureSafetyMessage: '压强接近预警值，请注意',
   pressureBlockedPumping: false,
   pressureOverLimit: false,
 });
-assert.deepEqual(getHeatCapacityGaugePressureState(6.4, true, defaultFile, 6.2), {
+assert.deepEqual(getHeatCapacityGaugePressureState(7.2, true, defaultFile, 7.1), {
   gaugePressureMinKPa: 0,
   gaugePressureMaxKPa: 10,
-  pressureWarningThresholdKPa: 5,
-  pressureSafetyThresholdKPa: 6,
-  pressureGaugeTargetValue: 6.4,
-  pressureGaugeDisplayValue: 6.2,
-  pressureGaugeNeedleAngle: 28.8,
-  pressureSafeThresholdKPa: 6,
+  pressureSensitivityMvPerKPa: 20,
+  pressureWarningThresholdKPa: 6,
+  pressureSafetyThresholdKPa: 7,
+  pressureGaugeTargetValue: 7.2,
+  pressureGaugeDisplayValue: 7.1,
+  pressureGaugeNeedleAngle: 50.4,
+  pressureSafeThresholdKPa: 7,
   pressureSafetyStatus: 'danger',
-  pressureSafetyMessage: '压力超过安全阈值，请停止打气',
+  pressureSafetyMessage: '压强超过安全阈值，请停止打气',
   pressureBlockedPumping: true,
   pressureOverLimit: true,
 });
@@ -451,7 +489,7 @@ assert.equal(openStopcockPump.pumpFrequency, 0);
 assert.equal(openStopcockPump.pumpFrequencyStatus, 'idle');
 assert.equal(openStopcockPump.pressurePlaceholder, poweredFile.pressurePlaceholder);
 assert.equal(openStopcockPump.temperaturePlaceholder, poweredFile.temperaturePlaceholder);
-assert.equal(openStopcockPump.pumpHint, '玻璃旋塞已接通，无法形成有效加压');
+assert.equal(openStopcockPump.pumpHint, '玻璃旋塞已打开，无法形成有效加压');
 
 const openValvePump = registerHeatCapacityPumpStroke({
   ...poweredFile,
@@ -468,6 +506,9 @@ const overLimitPump = registerHeatCapacityPumpStroke({
   pumpValveOpen: true,
   pumpValveState: 'open',
   pressureDeltaKPa: poweredFile.pressureSafetyThresholdKPa,
+  pressureSignalMvRaw: HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV,
+  pressureSignalMvDisplayed: HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV,
+  pressureSignalTargetMv: HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV,
   pressureGaugeDisplayValue: poweredFile.pressureSafetyThresholdKPa,
   pressureOverLimit: true,
 }, 10_000);
@@ -480,21 +521,21 @@ const thresholdCrossingPump = registerHeatCapacityPumpStroke({
   ...poweredFile,
   pumpValveOpen: true,
   pumpValveState: 'open',
-  pressureDeltaKPa: 5.85,
-  gasPressureKPaAbs: poweredFile.ambientPressureKPa + 5.85,
-  pressureSignalMvRaw: 117,
-  pressureSignalMvDisplayed: 117,
-  pressureSignalTargetMv: 117,
-  pressureRawPlaceholder: 117,
-  pressureDisplayedPlaceholder: 117,
-  pressureGaugeTargetValue: 5.85,
-  pressureGaugeDisplayValue: 5.85,
+  pressureDeltaKPa: 6.85,
+  gasPressureKPaAbs: poweredFile.ambientPressureKPa + 6.85,
+  pressureSignalMvRaw: 137,
+  pressureSignalMvDisplayed: 137,
+  pressureSignalTargetMv: 137,
+  pressureRawPlaceholder: 137,
+  pressureDisplayedPlaceholder: 137,
+  pressureGaugeTargetValue: 6.85,
+  pressureGaugeDisplayValue: 6.85,
   pumpStrokeTimestamps: [8_800, 9_400],
   pumpFrequency: 0.7,
   pumpFrequencyStatus: 'suitable',
 }, 10_000);
 assert.equal(thresholdCrossingPump.pumpStrokeCount, 1);
-assert.equal(thresholdCrossingPump.pressureSignalTargetMv > 120, true);
+assert.equal(thresholdCrossingPump.pressureSignalTargetMv >= HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, true);
 assert.equal(thresholdCrossingPump.pressureDeltaKPa > poweredFile.pressureSafeThresholdKPa, true);
 assert.equal(thresholdCrossingPump.pressureBlockedPumping, true);
 assert.equal(thresholdCrossingPump.pressureOverLimit, true);

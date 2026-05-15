@@ -25,12 +25,14 @@ const baseControls = {
 };
 const initialTemperatureMv = getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.initialTemperatureMvRange);
 
-assert.equal(applyPressureZero(8.4, 1.2), 7.2);
+assert.equal(applyPressureZero(8.4, 0.6, -1.2), 7.8);
+assert.equal(applyPressureZero(0, 0.6, -0.6), 0);
 
 const ambientSignals = mapHeatCapacitySignals({
   ambientTemperatureK: 298.15,
   gasTemperatureK: 298.15,
   pressureDeltaKPa: 0,
+  pressureInitialBiasMv: 0,
   pressureZeroOffset: 0,
 });
 assert.equal(ambientSignals.temperatureSignalMv, initialTemperatureMv);
@@ -53,9 +55,10 @@ const preOffsetState = {
   gasPressureKPaAbs: powered.ambientPressureKPa + 0.5,
   pressureSignalMvRaw: 10,
   pressureSignalMvDisplayed: 10,
+  pressureInitialBiasMv: 0.6,
 };
-const offsetState = updateHeatCapacityRuntimeZeroOffset(preOffsetState, 4.25, 1_100);
-assert.equal(offsetState.pressureSignalMvDisplayed, 5.75);
+const offsetState = updateHeatCapacityRuntimeZeroOffset(preOffsetState, -4.25, 1_100);
+assert.equal(offsetState.pressureSignalMvDisplayed, 6.35);
 assert.equal(offsetState.temperatureSignalMv, powered.temperatureSignalMv);
 assert.equal(offsetState.gasPressureKPaAbs, preOffsetState.gasPressureKPaAbs);
 assert.equal(offsetState.pressureDeltaKPa, 0.5);
