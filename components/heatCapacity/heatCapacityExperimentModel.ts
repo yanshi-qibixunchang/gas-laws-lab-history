@@ -111,6 +111,8 @@ export interface HeatCapacityPumpStrokeResult {
   state: HeatCapacityRuntimeState;
 }
 
+export const HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA = 0.12;
+
 export const DEFAULT_HEAT_CAPACITY_MODEL_CONFIG: HeatCapacityModelConfig = {
   ambientPressureKPa: DEFAULT_HEAT_CAPACITY_RESULT_OPTIONS.atmosphericPressureKPa,
   ambientTemperatureK: 298.15,
@@ -224,9 +226,11 @@ const getPassivePhase = (
   if (!controls.powerOn) return 'powerOff';
   if (controls.demoComplete) return 'demoComplete';
   if (state.heatCapacityPhase === 'releasing' || state.heatCapacityPhase === 'recovering') {
-    return controls.stopcockOpen && state.pressureDeltaKPa > 0.02 ? 'releasing' : 'recovering';
+    return controls.stopcockOpen && state.pressureDeltaKPa > HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA
+      ? 'releasing'
+      : 'recovering';
   }
-  if (controls.stopcockOpen && state.pressureDeltaKPa > 0.02) return 'releasing';
+  if (controls.stopcockOpen && state.pressureDeltaKPa > HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA) return 'releasing';
   if (state.pressureZeroAdjusted && controls.pumpValveOpen && state.pressureDeltaKPa <= 0.02) return 'readyToPump';
   if (state.pressureZeroAdjusted && state.pressureDeltaKPa <= 0.02) return 'zeroed';
   if (state.pressureDeltaKPa > 0.02) {
@@ -380,7 +384,7 @@ export const stepHeatCapacityExperiment = (
   const releaseTemperatureK = mapTemperatureMvToGasK(state.modelConfig.releaseTemperatureMv, state.modelConfig);
   const recoveryTemperatureK = mapTemperatureMvToGasK(state.modelConfig.recoveryTemperatureMv, state.modelConfig);
 
-  if (controls.stopcockOpen && state.pressureDeltaKPa > 0.02) {
+  if (controls.stopcockOpen && state.pressureDeltaKPa > HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA) {
     const releaseFraction = 1 - Math.exp(-state.modelConfig.releaseRate * dt);
     const releasedDelta = state.pressureDeltaKPa * releaseFraction;
     const nextDelta = Math.max(0, state.pressureDeltaKPa - releasedDelta);
@@ -401,6 +405,7 @@ export const stepHeatCapacityExperiment = (
       );
       gasPressureKPaAbs = state.ambientPressureKPa + nextDelta;
     } else if (
+      !controls.stopcockOpen &&
       (state.heatCapacityPhase === 'releasing' || state.heatCapacityPhase === 'recovering') &&
       state.pressureDeltaKPa < recoveryPressureDelta
     ) {

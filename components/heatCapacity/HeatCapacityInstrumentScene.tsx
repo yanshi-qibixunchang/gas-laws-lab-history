@@ -8,6 +8,8 @@ import {
   HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG,
   getHeatCapacityStopcockState,
 } from '../workbenchState';
+import HeatCapacityHardSphereLayer from './HeatCapacityHardSphereLayer';
+import HeatCapacityHardSphereToggle from './HeatCapacityHardSphereToggle';
 
 interface HeatCapacityInstrumentSceneProps {
   performanceMode: 'standard' | 'balanced' | 'performance';
@@ -41,6 +43,10 @@ interface HeatCapacityInstrumentSceneProps {
   phase: string;
   temperatureSignalMv: number | null;
   pressureSignalMv: number | null;
+  pressureReleaseBurstActive: boolean;
+  hardSphereViewEnabled: boolean;
+  hardSphereParticleMultiplier: number;
+  hardSphereSpeedMultiplier: number;
   interactionLocked: boolean;
   demoFocusControlId: string | null;
   demoFocusPulseActive: boolean;
@@ -55,6 +61,7 @@ interface HeatCapacityInstrumentSceneProps {
   onPressureZeroCoarseAdjust: (angleDeltaDeg: number) => void;
   onPumpValveToggle: () => void;
   onPumpBulbPress: () => void;
+  onHardSphereViewToggle: () => void;
 }
 
 type HeatCapacityFocusMode = 'none' | 'stopcock' | 'instrument' | 'pump';
@@ -224,7 +231,40 @@ const heatCapacitySceneCopies = {
     },
   },
 } as const;
-type HeatCapacitySceneCopy = typeof heatCapacitySceneCopies['zh-CN'];
+type HeatCapacitySceneCopy = (typeof heatCapacitySceneCopies)[keyof typeof heatCapacitySceneCopies];
+
+const heatCapacityHardSphereNoteCopies = {
+  'zh-CN': {
+    title: '微观可视化',
+    initial: '分子随机运动，表示室温下的热运动。',
+    pumping: '瓶内粒子数量增加，碰撞频率提高，压强升高。',
+    warming: '粒子平均运动速度加快，温度信号升高。',
+    releasing: '部分粒子从出气方向流出，压强下降，温度短时降低。',
+    recovering: '粒子速度逐渐恢复到室温状态。',
+    poweredOff: '仪器未通电，微观教学层保持隐藏。',
+    footnote: '仅用于教学展示，不参与数据计算。',
+  },
+  'zh-TW': {
+    title: '微觀可視化',
+    initial: '分子隨機運動，表示室溫下的熱運動。',
+    pumping: '瓶內粒子數量增加，碰撞頻率提高，壓強升高。',
+    warming: '粒子平均運動速度加快，溫度訊號升高。',
+    releasing: '部分粒子從出氣方向流出，壓強下降，溫度短時降低。',
+    recovering: '粒子速度逐漸恢復到室溫狀態。',
+    poweredOff: '儀器未通電，微觀教學層保持隱藏。',
+    footnote: '僅用於教學展示，不參與資料計算。',
+  },
+  en: {
+    title: 'Hard-Sphere View',
+    initial: 'Molecules move randomly, representing thermal motion at room temperature.',
+    pumping: 'Particle density rises, collisions increase, and pressure climbs.',
+    warming: 'Average particle speed increases as the temperature signal rises.',
+    releasing: 'Some particles flow out through the vent direction while pressure drops and temperature dips.',
+    recovering: 'Particle speed gradually returns toward the room-temperature state.',
+    poweredOff: 'The instrument is not powered, so the microscopic teaching layer stays hidden.',
+    footnote: 'Teaching display only. Not used in data calculations.',
+  },
+} as const;
 
 const PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 12;
 const PRESSURE_ZERO_DRAG_DIRECTION = -1;
@@ -264,6 +304,23 @@ const getPumpBulbDisplayLabel = (pumpBulbState: HeatCapacityInstrumentSceneProps
 const getPumpFrequencyStatusLabel = (status: HeatCapacityInstrumentSceneProps['pumpFrequencyStatus'], copy: HeatCapacitySceneCopy) => (
   status === 'idle' ? copy.frequencyIdle : status === 'tooSlow' ? copy.frequencySlow : copy.frequencySuitable
 );
+
+const getHardSphereNoteText = (
+  props: HeatCapacityInstrumentSceneProps,
+  language: HeatCapacityInstrumentSceneProps['language'],
+) => {
+  const copy = heatCapacityHardSphereNoteCopies[language] ?? heatCapacityHardSphereNoteCopies['zh-CN'];
+  if (props.phase === 'demoComplete') return copy.recovering;
+  if (!props.powerOn || props.phase === 'powerOff') return copy.poweredOff;
+  if ((props.pressureReleaseBurstActive || props.phase === 'releasing') && getHeatCapacityStopcockState(props.stopcockAngleDeg) === 'open') return copy.releasing;
+  if (props.phase === 'recovering') return copy.recovering;
+  if (props.phase === 'pumping') {
+    const warming = props.temperatureSignalMv !== null && props.temperatureSignalMv >= 1510;
+    return warming ? copy.warming : copy.pumping;
+  }
+  if (props.phase === 'sealedStabilizing') return copy.warming;
+  return copy.initial;
+};
 
 const getHeatCapacityInteractionHints = (focusMode: HeatCapacityFocusMode, copy: HeatCapacitySceneCopy) => {
   if (focusMode === 'stopcock') return [...copy.hints.stopcock];
@@ -1148,16 +1205,16 @@ function PressureBottle({
       </mesh>
       <mesh name="VesselGlassCube">
         <boxGeometry args={[1.75, 1.75, 1.75]} />
-        <meshPhysicalMaterial color="#a7d8ff" transparent opacity={0.16} roughness={0.08} transmission={0.45} />
+        <meshPhysicalMaterial color="#a7d8ff" transparent opacity={0.16} roughness={0.08} transmission={0.45} depthWrite={false} />
         <Edges color="#d5efff" />
       </mesh>
       <mesh name="BottleMouthNeck" position={[0, 0.92, 0]}>
         <cylinderGeometry args={[0.43, 0.39, 0.34, 40]} />
-        <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.2} roughness={0.08} transmission={0.35} />
+        <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.2} roughness={0.08} transmission={0.35} depthWrite={false} />
       </mesh>
       <mesh name="BottleMouthRim" position={[0, 1.09, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.43, 0.025, 12, 48]} />
-        <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.28} roughness={0.08} transmission={0.3} />
+        <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.28} roughness={0.08} transmission={0.3} depthWrite={false} />
       </mesh>
       <mesh name="RubberStopper" position={[0, 1.02, 0]}>
         <cylinderGeometry args={[0.54, 0.42, 0.24, 40]} />
@@ -1177,7 +1234,7 @@ function PressureBottle({
       </mesh>
       <mesh name="TopNeck" position={[0, 1.28, 0]}>
         <cylinderGeometry args={[0.16, 0.18, 0.5, 32]} />
-        <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.3} roughness={0.08} transmission={0.25} />
+        <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.3} roughness={0.08} transmission={0.25} depthWrite={false} />
       </mesh>
       <mesh name="SensorStopperPort" position={[0.16, 0.96, 0.24]}>
         <cylinderGeometry args={[0.075, 0.075, 0.08, 20]} />
@@ -1582,6 +1639,19 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
         />
+        <HeatCapacityHardSphereLayer
+          enabled={props.hardSphereViewEnabled}
+          powerOn={props.powerOn}
+          temperatureMv={props.temperatureSignalMv}
+          pressureMv={props.pressureSignalMv}
+          phase={props.phase}
+          releaseBurstActive={props.pressureReleaseBurstActive}
+          glassStopcockOpen={stopcockState === 'open'}
+          pumpValveOpen={props.pumpValveOpen}
+          pumpBulbState={props.pumpBulbState}
+          particleMultiplier={props.hardSphereParticleMultiplier}
+          speedMultiplier={props.hardSphereSpeedMultiplier}
+        />
         <InstrumentLeads />
         <PumpAssembly
           pumpValveOpen={props.pumpValveOpen}
@@ -1792,7 +1862,9 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const poweredInstrumentNumber = (displayValue: string) => props.powerOn ? displayValue : '--';
   const interactionHints = getHeatCapacityInteractionHints(focusMode, sceneCopy);
   const hoverTooltip = getHeatCapacityHoverTooltip(hoveredControl, props.pumpValveOpen, sceneCopy);
-  const sceneShouldAnimate = props.demoFocusPulseActive || props.pumpBulbState !== 'idle' || Boolean(props.manualRollbackAnimation);
+  const hardSphereNoteCopy = heatCapacityHardSphereNoteCopies[props.language] ?? heatCapacityHardSphereNoteCopies['zh-CN'];
+  const hardSphereNoteText = getHardSphereNoteText(props, props.language);
+  const sceneShouldAnimate = props.hardSphereViewEnabled || props.demoFocusPulseActive || props.pumpBulbState !== 'idle' || Boolean(props.manualRollbackAnimation);
   const interactionQualityReduced = isOrbitInteracting || props.performanceMode === 'performance';
   const canvasProps = useMemo(() => ({
     camera: { position: DEFAULT_CAMERA_POSITION, fov: 38 },
@@ -1810,6 +1882,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       className="studio-heat-instrument-scene"
       data-heat-capacity-instrument-scene="true"
       data-heat-capacity-hovered-control={hoveredControl ?? undefined}
+      data-heat-capacity-hard-sphere-view={props.hardSphereViewEnabled ? 'true' : undefined}
       onPointerLeave={() => setStableHoveredControl(null)}
     >
       <button
@@ -1827,6 +1900,18 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       >
         {sceneCopy.defaultView}
       </button>
+      <HeatCapacityHardSphereToggle
+        enabled={props.hardSphereViewEnabled}
+        onToggle={props.onHardSphereViewToggle}
+        language={props.language}
+      />
+      {props.hardSphereViewEnabled ? (
+        <div className="studio-heat-hard-sphere-note" data-heat-capacity-hard-sphere-note="true">
+          <strong>{hardSphereNoteCopy.title}</strong>
+          <span>{hardSphereNoteText}</span>
+          <small>{hardSphereNoteCopy.footnote}</small>
+        </div>
+      ) : null}
       <Canvas {...canvasProps}>
         {/* GLB replacement contract: preserve node names, pivots, and hitbox roles from this procedural skeleton. */}
         <color attach="background" args={['#111827']} />

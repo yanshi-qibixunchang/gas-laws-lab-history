@@ -46,6 +46,7 @@ import {
   createDefaultStandardResultsLayout,
   getHeatCapacityStopcockTargetAngle,
   getHeatCapacityStopcockState,
+  getHeatCapacityPressureReleaseBurstUntilMs,
   getHeatCapacityPressureZeroKnobAngleForOffset,
   getHeatCapacityPressureZeroOffsetForKnobAngle,
   getHeatCapacityPumpFrequencyState,
@@ -376,6 +377,13 @@ interface WorkbenchCopy {
     standardReadonlyNote: string;
     idealReadonlyNote: string;
     heatCapacityReadonlyNote: string;
+    microscopicVisualization: string;
+    hardSphereView: string;
+    hardSphereOn: string;
+    hardSphereOff: string;
+    hardSphereParticleMultiplier: string;
+    hardSphereSpeedMultiplier: string;
+    hardSphereTeachingOnly: string;
     controlledLockHint: string;
   };
   results: {
@@ -653,7 +661,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       parameterLabels: { N: 'N（粒子）', r: 'r', L: 'L', dt: 'dt', nu: 'nu', targetTemperature: '目标温度', equilibriumTime: '平衡时间（s）', statsDuration: '统计时长（s）', relation: '关系' },
       samplingPresets: { fast: '快速', balanced: '平衡', stable: '稳定' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's 平衡 / ' + statsDuration + 's 统计',
       advancedSettings: '高级设置', advancedShow: '显示模型常数和采样值', advancedHide: '隐藏模型常数和采样值', edit: '编辑', save: '保存', saveHint: '保存高级参数到当前工作台文件',
-      standardReadonlyNote: '标准模拟参数在这里直接显示。', idealReadonlyNote: '关系、扫描变量和采样预设在上方控制。', heatCapacityReadonlyNote: '粒子动画仅用于可视化气体分子运动状态；最终比热容比按 FD-NCD-C 空气实验模型计算。', controlledLockHint: '当前关系已有数据，受控变量已锁定。',
+      standardReadonlyNote: '标准模拟参数在这里直接显示。', idealReadonlyNote: '关系、扫描变量和采样预设在上方控制。', heatCapacityReadonlyNote: '粒子动画仅用于可视化气体分子运动状态；最终比热容比按 FD-NCD-C 空气实验模型计算。', microscopicVisualization: '微观可视化', hardSphereView: '硬球可视化', hardSphereOn: '开', hardSphereOff: '关', hardSphereParticleMultiplier: '粒子数量倍率', hardSphereSpeedMultiplier: '粒子速度倍率', hardSphereTeachingOnly: '只影响三维教学显示，不参与 U_T、U_p、U0/U1/U2 或 gamma 计算。', controlledLockHint: '当前关系已有数据，受控变量已锁定。',
     },
     results: {
       title: '结果', experimentStatus: '实验状态', scan: '扫描', measuredPressure: '实测 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 点', recordedPoints: (count) => count + ' 个记录点',
@@ -714,7 +722,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       parameterLabels: { N: 'N（粒子）', r: 'r', L: 'L', dt: 'dt', nu: 'nu', targetTemperature: '目標溫度', equilibriumTime: '平衡時間（s）', statsDuration: '統計時長（s）', relation: '關係' },
       samplingPresets: { fast: '快速', balanced: '平衡', stable: '穩定' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's 平衡 / ' + statsDuration + 's 統計',
       advancedSettings: '進階設定', advancedShow: '顯示模型常數和採樣值', advancedHide: '隱藏模型常數和採樣值', edit: '編輯', save: '儲存', saveHint: '將進階參數儲存到目前工作台檔案',
-      standardReadonlyNote: '標準模擬參數在這裡直接顯示。', idealReadonlyNote: '關係、掃描變量和採樣預設在上方控制。', heatCapacityReadonlyNote: '粒子動畫僅用於視覺化氣體分子運動狀態；最終比熱容比按 FD-NCD-C 空氣實驗模型計算。', controlledLockHint: '目前關係已有資料，受控變量已鎖定。',
+      standardReadonlyNote: '標準模擬參數在這裡直接顯示。', idealReadonlyNote: '關係、掃描變量和採樣預設在上方控制。', heatCapacityReadonlyNote: '粒子動畫僅用於視覺化氣體分子運動狀態；最終比熱容比按 FD-NCD-C 空氣實驗模型計算。', microscopicVisualization: '微觀可視化', hardSphereView: '硬球可視化', hardSphereOn: '開', hardSphereOff: '關', hardSphereParticleMultiplier: '粒子數量倍率', hardSphereSpeedMultiplier: '粒子速度倍率', hardSphereTeachingOnly: '只影響三維教學顯示，不參與 U_T、U_p、U0/U1/U2 或 gamma 計算。', controlledLockHint: '目前關係已有資料，受控變量已鎖定。',
     },
     results: {
       title: '結果', experimentStatus: '實驗狀態', scan: '掃描', measuredPressure: '實測 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 點', recordedPoints: (count) => count + ' 個記錄點',
@@ -775,7 +783,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       parameterLabels: { N: 'N (particles)', r: 'r', L: 'L', dt: 'dt', nu: 'nu', targetTemperature: 'Target temperature', equilibriumTime: 'equilibriumTime (s)', statsDuration: 'statsDuration (s)', relation: 'Relation' },
       samplingPresets: { fast: 'Fast', balanced: 'Balanced', stable: 'Stable' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's eq / ' + statsDuration + 's stats',
       advancedSettings: 'Advanced settings', advancedShow: 'Show model constants and sampling values', advancedHide: 'Hide model constants and sampling values', edit: 'Edit', save: 'Save', saveHint: 'Save advanced parameters to this workbench file',
-      standardReadonlyNote: 'Standard simulation parameters are shown directly here.', idealReadonlyNote: 'Relation, scan variable, and sampling preset are controlled above.', heatCapacityReadonlyNote: 'Suggested adjustable skeleton parameters: particle count, vessel size, hard-sphere radius, timestep, wait time, and recording window.', controlledLockHint: 'This relation already has data, so controlled variables are locked.',
+      standardReadonlyNote: 'Standard simulation parameters are shown directly here.', idealReadonlyNote: 'Relation, scan variable, and sampling preset are controlled above.', heatCapacityReadonlyNote: 'The particle animation only visualizes molecular motion; the heat capacity ratio is still calculated by the FD-NCD-C air experiment model.', microscopicVisualization: 'Microscopic Visualization', hardSphereView: 'Hard-Sphere View', hardSphereOn: 'ON', hardSphereOff: 'OFF', hardSphereParticleMultiplier: 'Particle multiplier', hardSphereSpeedMultiplier: 'Speed multiplier', hardSphereTeachingOnly: 'Affects only the 3D teaching display. It is not used for U_T, U_p, U0/U1/U2, or gamma.', controlledLockHint: 'This relation already has data, so controlled variables are locked.',
     },
     results: {
       title: 'Results', experimentStatus: 'Experiment status', scan: 'Scan', measuredPressure: 'Measured P', idealPressure: 'Ideal P', gap: 'Gap', pointsTitle: (relation) => relation + ' points', recordedPoints: (count) => count + ' recorded points',
@@ -2279,6 +2287,30 @@ const WorkbenchStudioPrototype: React.FC = () => {
     updateFileById(activeFileIdRef.current, updater);
   };
 
+  const toggleHeatCapacityHardSphereView = () => {
+    updateActiveFile((file) => file.kind === 'heatCapacity'
+      ? {
+          ...file,
+          hardSphereViewEnabled: !file.hardSphereViewEnabled,
+          updatedAt: Date.now(),
+        }
+      : file);
+  };
+
+  const setHeatCapacityHardSphereMultiplier = (
+    key: 'hardSphereParticleMultiplier' | 'hardSphereSpeedMultiplier',
+    value: number,
+  ) => {
+    const nextValue = Math.min(1.25, Math.max(0.5, Number.isFinite(value) ? value : 1));
+    updateActiveFile((file) => file.kind === 'heatCapacity'
+      ? {
+          ...file,
+          [key]: Number(nextValue.toFixed(2)),
+          updatedAt: Date.now(),
+        }
+      : file);
+  };
+
   const createHeatCapacityTrialRecordInput = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
     now = Date.now(),
@@ -3117,6 +3149,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
       const now = Date.now();
+      const wasOpen = getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open';
+      const pressureReleaseBurstUntilMs = !wasOpen
+        ? getHeatCapacityPressureReleaseBurstUntilMs(file, nextOpen, now)
+        : file.pressureReleaseBurstUntilMs;
       const isManualReleaseClosure = source === 'user' &&
         !nextOpen &&
         manualHeatCapacityActiveFileId === file.id &&
@@ -3125,6 +3161,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
         ...file,
         stopcockAngleDeg,
         glassPistonState: nextOpen ? 'open' : 'closed',
+        pressureReleaseBurstUntilMs: nextOpen ? pressureReleaseBurstUntilMs : null,
+        pressureDisplayNextJitterAtMs: pressureReleaseBurstUntilMs ? now : file.pressureDisplayNextJitterAtMs,
         updatedAt: now,
       }, now);
       return isManualReleaseClosure
@@ -3312,10 +3350,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const stopcockAngleDeg = getHeatCapacityStopcockTargetAngle(nextOpen);
     updateFileById(fileId, (file) => {
       if (file.kind !== 'heatCapacity') return file;
+      const wasOpen = getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open';
+      const pressureReleaseBurstUntilMs = !wasOpen
+        ? getHeatCapacityPressureReleaseBurstUntilMs(file, nextOpen, now)
+        : file.pressureReleaseBurstUntilMs;
       return stepHeatCapacityWorkbenchFile({
         ...file,
         stopcockAngleDeg,
         glassPistonState: nextOpen ? 'open' : 'closed',
+        pressureReleaseBurstUntilMs: nextOpen ? pressureReleaseBurstUntilMs : null,
+        pressureDisplayNextJitterAtMs: pressureReleaseBurstUntilMs ? now : file.pressureDisplayNextJitterAtMs,
         updatedAt: now,
       }, now);
     });
@@ -6767,13 +6811,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
             className="studio-heat-preview-mount"
             aria-label="Heat capacity ratio 3D preview mount"
             data-heat-capacity-preview-mount="true"
-            onPointerDownCapture={() => {
+            onPointerDownCapture={(event) => {
+              const target = event.target instanceof Element ? event.target : null;
+              if (target?.closest('[data-heat-capacity-hard-sphere-toggle="true"]')) return;
               if (autoDemoInteractionLocked) showHeatCapacityAutoDemoLockedToast();
             }}
-            onMouseDownCapture={() => {
+            onMouseDownCapture={(event) => {
+              const target = event.target instanceof Element ? event.target : null;
+              if (target?.closest('[data-heat-capacity-hard-sphere-toggle="true"]')) return;
               if (autoDemoInteractionLocked) showHeatCapacityAutoDemoLockedToast();
             }}
-            onWheelCapture={() => {
+            onWheelCapture={(event) => {
+              const target = event.target instanceof Element ? event.target : null;
+              if (target?.closest('[data-heat-capacity-hard-sphere-toggle="true"]')) return;
               if (autoDemoInteractionLocked) showHeatCapacityAutoDemoLockedToast();
             }}
           >
@@ -6809,6 +6859,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
               phase={activeFile.heatCapacityPhase}
               temperatureSignalMv={activeFile.temperatureSignalMv}
               pressureSignalMv={activeFile.pressureSignalMv}
+              pressureReleaseBurstActive={typeof activeFile.pressureReleaseBurstUntilMs === 'number' && Date.now() <= activeFile.pressureReleaseBurstUntilMs}
+              hardSphereViewEnabled={activeFile.hardSphereViewEnabled}
+              hardSphereParticleMultiplier={activeFile.hardSphereParticleMultiplier}
+              hardSphereSpeedMultiplier={activeFile.hardSphereSpeedMultiplier}
               interactionLocked={autoDemoInteractionLocked}
               demoFocusControlId={manualHeatCapacityFocusControlId ?? demoFocusControlId}
               demoFocusPulseActive={demoFocusPulseActive || manualHeatCapacityPulseActive}
@@ -6826,6 +6880,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               onPressureZeroCoarseAdjust={adjustHeatCapacityPressureZeroCoarseFromScene}
               onPumpValveToggle={updateHeatCapacityPumpValve}
               onPumpBulbPress={pressHeatCapacityPumpBulb}
+              onHardSphereViewToggle={toggleHeatCapacityHardSphereView}
             />
             {renderHeatCapacityStopcockMiniReadout()}
             {activeFile.pressureOverLimit ? (
@@ -8867,7 +8922,51 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   </div>
                   {renderIdealControls()}
                   {activeFile.kind === 'heatCapacity' ? (
-                    <div className="studio-panel-note">{workbenchCopy.parameters.heatCapacityReadonlyNote}</div>
+                    <>
+                      <div className="studio-panel-note">{workbenchCopy.parameters.heatCapacityReadonlyNote}</div>
+                      <section className="studio-heat-visual-params" data-heat-capacity-hard-sphere-params="true">
+                        <div className="studio-heat-visual-params-header">
+                          <div>
+                            <strong>{workbenchCopy.parameters.microscopicVisualization}</strong>
+                            <span>{workbenchCopy.parameters.hardSphereTeachingOnly}</span>
+                          </div>
+                          <button
+                            type="button"
+                            className={`studio-heat-visual-switch ${activeFile.hardSphereViewEnabled ? 'studio-heat-visual-switch-on' : ''}`}
+                            data-heat-capacity-hard-sphere-sidebar-toggle="true"
+                            aria-pressed={activeFile.hardSphereViewEnabled}
+                            onClick={toggleHeatCapacityHardSphereView}
+                          >
+                            <span>{workbenchCopy.parameters.hardSphereView}</span>
+                            <strong>{activeFile.hardSphereViewEnabled ? workbenchCopy.parameters.hardSphereOn : workbenchCopy.parameters.hardSphereOff}</strong>
+                          </button>
+                        </div>
+                        <label className="studio-heat-visual-slider">
+                          <span>{workbenchCopy.parameters.hardSphereParticleMultiplier}</span>
+                          <input
+                            type="range"
+                            min="0.5"
+                            max="1.25"
+                            step="0.05"
+                            value={activeFile.hardSphereParticleMultiplier}
+                            onChange={(event) => setHeatCapacityHardSphereMultiplier('hardSphereParticleMultiplier', Number(event.target.value))}
+                          />
+                          <strong>{activeFile.hardSphereParticleMultiplier.toFixed(2)}x</strong>
+                        </label>
+                        <label className="studio-heat-visual-slider">
+                          <span>{workbenchCopy.parameters.hardSphereSpeedMultiplier}</span>
+                          <input
+                            type="range"
+                            min="0.5"
+                            max="1.25"
+                            step="0.05"
+                            value={activeFile.hardSphereSpeedMultiplier}
+                            onChange={(event) => setHeatCapacityHardSphereMultiplier('hardSphereSpeedMultiplier', Number(event.target.value))}
+                          />
+                          <strong>{activeFile.hardSphereSpeedMultiplier.toFixed(2)}x</strong>
+                        </label>
+                      </section>
+                    </>
                   ) : null}
                   {activeFile.kind === 'ideal' ? (
                     <section className={`studio-param-advanced ${idealAdvancedSettingsOpen ? 'studio-param-advanced-open' : ''}`}>
@@ -9006,7 +9105,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
                       ? workbenchCopy.parameters.saveHint
                       : activeFile.kind === 'standard'
                         ? workbenchCopy.parameters.standardReadonlyNote
-                        : workbenchCopy.parameters.idealReadonlyNote}
+                        : activeFile.kind === 'heatCapacity'
+                          ? workbenchCopy.parameters.heatCapacityReadonlyNote
+                          : workbenchCopy.parameters.idealReadonlyNote}
                   </div>
                 </div>
               </aside>

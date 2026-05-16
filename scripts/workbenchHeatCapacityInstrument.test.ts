@@ -8,6 +8,7 @@ import {
   createDefaultHeatCapacityFile,
   getHeatCapacityPumpFrequencyState,
   getHeatCapacityGaugePressureState,
+  getHeatCapacityPressureReleaseBurstUntilMs,
   getHeatCapacityPressureZeroKnobAngleForOffset,
   getHeatCapacityPressureZeroOffsetForKnobAngle,
   getHeatCapacityAirGammaResult,
@@ -24,6 +25,7 @@ import {
   HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV,
   HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
   HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV,
+  HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA,
   HEAT_CAPACITY_PUMP_RATE_SLOW_THRESHOLD_HZ,
   HEAT_CAPACITY_GAUGE_PRESSURE_MAX_KPA,
   createHeatCapacityInitialPressureBiasMv,
@@ -96,6 +98,10 @@ assert.equal(defaultFile.pumpFrequency, 0);
 assert.equal(defaultFile.pumpFrequencyStatus, 'idle');
 assert.equal(defaultFile.lastPumpTime, null);
 assert.equal(defaultFile.pumpStrokeCount, 0);
+assert.equal(defaultFile.hardSphereViewEnabled, false);
+assert.equal(defaultFile.hardSphereParticleMultiplier, 1);
+assert.equal(defaultFile.hardSphereSpeedMultiplier, 1);
+assert.equal(defaultFile.pressureReleaseBurstUntilMs, null);
 assert.equal(defaultFile.visualizationMode, 'particle');
 assert.equal(defaultFile.calculationModel, 'airHeatCapacityRatio');
 assert.equal(defaultFile.pressureSensitivityMvPerKPa, 20);
@@ -192,6 +198,7 @@ assert.equal(poweredFile.temperatureSignalMv, 1499.1);
 assert.equal(poweredFile.pressureSignalMv, 0);
 assert.equal(poweredFile.temperatureSignalTargetMv, initialTemperatureMv);
 assert.equal(poweredFile.pressureSignalTargetMv, 0);
+assert.equal(poweredFile.hardSphereViewEnabled, false, 'powering on should not automatically enable the teaching visualization');
 assert.equal('heatCapacityTrace' in poweredFile, false, 'powering on should not create chart trace history');
 
 let stableDisplayFile = {
@@ -309,8 +316,22 @@ assert.equal(demoStart.heatCapacityTrials[0].status, 'waiting');
 assert.equal(demoStart.heatCapacityProcessingCalculated, false);
 assert.deepEqual(demoStart.heatCapacityProcessSamples, {});
 
+const visualDemoStart = prepareHeatCapacityAutoDemoStart({
+  ...defaultFile,
+  hardSphereViewEnabled: true,
+  hardSphereParticleMultiplier: 1.15,
+  hardSphereSpeedMultiplier: 1.2,
+}, 20_500, () => 0.5);
+assert.equal(visualDemoStart.hardSphereViewEnabled, true, 'auto demo start should preserve the hard-sphere teaching toggle');
+assert.equal(visualDemoStart.hardSphereParticleMultiplier, 1.15);
+assert.equal(visualDemoStart.hardSphereSpeedMultiplier, 1.2);
+assert.equal(visualDemoStart.pressureReleaseBurstUntilMs, null);
+
 const completedDemo = markHeatCapacityDemoComplete({
   ...demoStart,
+  hardSphereViewEnabled: true,
+  hardSphereParticleMultiplier: 1.15,
+  hardSphereSpeedMultiplier: 1.2,
   powerOn: true,
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
   glassPistonState: 'open',
@@ -344,6 +365,10 @@ assert.equal(completedDemo.pressureZeroOffset, 0);
 assert.equal(completedDemo.pressureZeroAdjustMode, 'none');
 assert.equal(completedDemo.temperatureSignalMv, null);
 assert.equal(completedDemo.pressureSignalMv, null);
+assert.equal(completedDemo.hardSphereViewEnabled, true, 'auto demo completion should preserve the hard-sphere teaching toggle');
+assert.equal(completedDemo.hardSphereParticleMultiplier, 1.15);
+assert.equal(completedDemo.hardSphereSpeedMultiplier, 1.2);
+assert.equal(completedDemo.pressureReleaseBurstUntilMs, null);
 
 const manualResetAfterDemo = resetHeatCapacityForManualExperiment({
   ...completedDemo,
@@ -409,6 +434,80 @@ assert.equal(settledDisplay.pressureSignalMv > pumpedTarget.pressureSignalMv, tr
 assert.equal(settledDisplay.temperatureSignalMv > pumpedTarget.temperatureSignalMv, true);
 assert.equal(Math.abs(settledDisplay.pressureGaugeTargetValue - settledDisplay.pressureDeltaKPa) < 0.01, true);
 assert.equal(settledDisplay.pressureGaugeDisplayValue > pumpedTarget.pressureGaugeDisplayValue, true);
+
+assert.equal(HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA, 0.12);
+assert.equal(getHeatCapacityPressureReleaseBurstUntilMs({
+  ...poweredFile,
+  pressureDeltaKPa: HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA - 0.01,
+  pressureSignalTargetMv: (HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA - 0.01) * poweredFile.pressureSensitivityMvPerKPa,
+}, true, 40_000), null, 'opening the stopcock without a useful pressure difference should not start a release burst');
+assert.equal(getHeatCapacityPressureReleaseBurstUntilMs({
+  ...poweredFile,
+  pressureDeltaKPa: HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA + 0.01,
+  pressureSignalTargetMv: (HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA + 0.01) * poweredFile.pressureSensitivityMvPerKPa,
+}, true, 40_000), 41_000, 'opening the stopcock with pressure difference should start a one-second release burst');
+
+const releaseReadyFile = {
+  ...poweredFile,
+  powerOn: true,
+  pressureZeroAdjusted: true,
+  pressureZeroed: true,
+  heatCapacityPhase: 'sealedStabilizing',
+  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
+  glassPistonState: 'open',
+  gasPressureKPaAbs: poweredFile.ambientPressureKPa + 5,
+  pressureDeltaKPa: 5,
+  pressureSignalMvRaw: 100,
+  pressureSignalMvDisplayed: 100,
+  pressureSignalTargetMv: 100,
+  pressureSignalMv: 100,
+  pressureDisplayedPlaceholder: 100,
+  pressureGaugeTargetValue: 5,
+  pressureGaugeDisplayValue: 5,
+  lastUpdateMs: 22_000,
+  displayResponseLastUpdateMs: 22_000,
+  pressureReleaseBurstUntilMs: 23_000,
+};
+const releasedDuringBurst = stepHeatCapacityWorkbenchFile(releaseReadyFile, 22_700);
+assert.equal(releasedDuringBurst.heatCapacityPhase, 'releasing');
+assert.equal(releasedDuringBurst.pressureDeltaKPa < HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA, true, 'release should rapidly reduce pressure difference toward zero');
+assert.equal(releasedDuringBurst.pressureReleaseBurstUntilMs, 23_000);
+assert.equal(Math.abs(releasedDuringBurst.pressureSignalMv ?? 0) > 0.2, true, 'release burst should allow a short stronger near-zero display fluctuation');
+
+const releasedAfterBurst = stepHeatCapacityWorkbenchFile({
+  ...releasedDuringBurst,
+  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
+  glassPistonState: 'open',
+}, 23_200);
+assert.equal(releasedAfterBurst.heatCapacityPhase === 'releasing', false, 'release should not continue after the one-second burst window');
+assert.equal(releasedAfterBurst.pressureReleaseBurstUntilMs, null);
+assert.equal(releasedAfterBurst.pressureDeltaKPa <= HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA, true);
+const openStillAfterBurst = stepHeatCapacityWorkbenchFile({
+  ...releasedAfterBurst,
+  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
+  glassPistonState: 'open',
+}, 24_200);
+assert.equal(openStillAfterBurst.pressureDeltaKPa <= HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA, true, 'pressure should not recover while the stopcock remains open');
+
+const noPressureOpenFile = stepHeatCapacityWorkbenchFile({
+  ...poweredFile,
+  powerOn: true,
+  pressureZeroAdjusted: true,
+  pressureZeroed: true,
+  heatCapacityPhase: 'zeroed',
+  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
+  glassPistonState: 'open',
+  gasPressureKPaAbs: poweredFile.ambientPressureKPa,
+  pressureDeltaKPa: 0,
+  pressureSignalTargetMv: 0,
+  pressureSignalMv: 0,
+  pressureReleaseBurstUntilMs: null,
+  lastUpdateMs: 50_000,
+  displayResponseLastUpdateMs: 50_000,
+}, 50_600);
+assert.equal(noPressureOpenFile.heatCapacityPhase === 'releasing', false, 'opening the stopcock at zero pressure difference should stay a normal open state');
+assert.equal(noPressureOpenFile.pressureReleaseBurstUntilMs, null);
+assert.equal(Math.abs(noPressureOpenFile.pressureSignalMv ?? 0) < 0.2, true, 'zero-pressure stopcock opening should only show ordinary low-amplitude jitter');
 
 assert.deepEqual(getHeatCapacityGaugePressureState(12, true, defaultFile), {
   gaugePressureMinKPa: 0,
@@ -635,6 +734,7 @@ const restored = decodeWorkbenchSession({
     glassPistonState: 'open',
     pressureZeroed: true,
     pressureSignalMv: 0,
+    pressureReleaseBurstUntilMs: 123_456,
   }],
 });
 
@@ -644,6 +744,7 @@ assert.equal(restoredHeatFile.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_OPEN_ANGL
 assert.equal(restoredHeatFile.glassPistonState, 'open');
 assert.equal(restoredHeatFile.pressureZeroed, true);
 assert.equal(restoredHeatFile.pressureSignalMv, 0);
+assert.equal(restoredHeatFile.pressureReleaseBurstUntilMs, 123_456);
 
 const legacyFile = { ...defaultFile } as Record<string, unknown>;
 delete legacyFile.stopcockAngleDeg;
@@ -669,6 +770,7 @@ assert.equal(legacyHeatFile.pressureSignalMv, null);
 assert.equal(legacyHeatFile.pumpValveOpen, false);
 assert.equal(legacyHeatFile.pumpFrequencyStatus, 'idle');
 assert.deepEqual(legacyHeatFile.pumpStrokeTimestamps, []);
+assert.equal(legacyHeatFile.pressureReleaseBurstUntilMs, null);
 
 const legacyOpenFile = { ...defaultFile, stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG, glassPistonState: 'open' };
 const legacyOpenRestored = decodeWorkbenchSession({

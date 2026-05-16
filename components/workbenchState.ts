@@ -14,6 +14,7 @@ import {
   applyHeatCapacityPumpStroke as applyHeatCapacityRuntimePumpStroke,
   captureHeatCapacityProcessSample,
   DEFAULT_HEAT_CAPACITY_MODEL_CONFIG,
+  HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA,
   createDefaultHeatCapacityRuntimeState,
   powerHeatCapacityRuntimeState,
   stepHeatCapacityExperiment,
@@ -120,6 +121,7 @@ export const HEAT_CAPACITY_GAUGE_ANGLE_MIN_DEG = -120;
 export const HEAT_CAPACITY_GAUGE_ANGLE_MAX_DEG = 120;
 export const HEAT_CAPACITY_GAUGE_RISE_RATE = 3.2;
 export const HEAT_CAPACITY_GAUGE_FALL_RATE = 9.5;
+export { HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA };
 
 const normalizeDegrees360 = (value: number) => ((value % 360) + 360) % 360;
 const clampNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -520,6 +522,7 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   pressureZeroDisplayedSamples: HeatCapacityPressureZeroDisplayedSample[];
   pressureDisplayJitterOffset: number;
   pressureDisplayNextJitterAtMs: number;
+  pressureReleaseBurstUntilMs: number | null;
   temperatureDisplayJitterOffset: number;
   temperatureDisplayNextJitterAtMs: number;
   pressureZeroed: boolean;
@@ -556,6 +559,10 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   lastPumpTime: number | null;
   pumpStrokeCount: number;
   pumpHint: string;
+  hardSphereViewEnabled: boolean;
+  hardSphereParticleMultiplier: number;
+  hardSphereSpeedMultiplier: number;
+  hardSphereTrailsEnabled: boolean;
   visualizationMode: 'particle';
   calculationModel: 'airHeatCapacityRatio';
   pressureSensitivityMvPerKPa: number;
@@ -693,12 +700,27 @@ const updateHeatCapacityDisplayJitter = ({
   };
 };
 
+export const getHeatCapacityPressureReleaseBurstUntilMs = (
+  file: Pick<WorkbenchHeatCapacityState, 'powerOn' | 'pressureDeltaKPa' | 'pressureSignalTargetMv' | 'pressureSensitivityMvPerKPa'>,
+  nextOpen: boolean,
+  now = Date.now(),
+) => {
+  if (!nextOpen || !file.powerOn) return null;
+  const deltaFromSignal = Math.max(0, file.pressureSignalTargetMv) / Math.max(0.001, file.pressureSensitivityMvPerKPa);
+  const effectiveDeltaKPa = Math.max(file.pressureDeltaKPa, deltaFromSignal);
+  return effectiveDeltaKPa >= HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA ? now + 1000 : null;
+};
+
 const mergeHeatCapacityRuntimeState = (
   file: WorkbenchHeatCapacityState,
   runtime: HeatCapacityRuntimeState,
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
   const powerOn = file.powerOn && runtime.heatCapacityPhase !== 'powerOff';
+  const pressureReleaseBurstActive = powerOn &&
+    typeof file.pressureReleaseBurstUntilMs === 'number' &&
+    Number.isFinite(file.pressureReleaseBurstUntilMs) &&
+    now <= file.pressureReleaseBurstUntilMs;
   const elapsedS = file.displayResponseLastUpdateMs === null
     ? 0
     : (now - file.displayResponseLastUpdateMs) / 1000;
@@ -730,12 +752,12 @@ const mergeHeatCapacityRuntimeState = (
     baseValue: file.pressureSignalMv === null ? null : pressureDisplayValue,
     target: pressureSignalTargetMv,
     currentOffset: file.pressureDisplayJitterOffset,
-    nextJitterAtMs: file.pressureDisplayNextJitterAtMs,
+    nextJitterAtMs: pressureReleaseBurstActive ? Math.min(file.pressureDisplayNextJitterAtMs, now) : file.pressureDisplayNextJitterAtMs,
     channelSeed: 11.3,
-    amplitudeMv: 0.055,
-    minIntervalMs: 80,
-    maxIntervalMs: 250,
-    stableThresholdMv: 0.09,
+    amplitudeMv: pressureReleaseBurstActive ? 1.8 : 0.055,
+    minIntervalMs: pressureReleaseBurstActive ? 20 : 80,
+    maxIntervalMs: pressureReleaseBurstActive ? 55 : 250,
+    stableThresholdMv: pressureReleaseBurstActive ? 2.6 : 0.09,
   });
   const temperatureJitterState = updateHeatCapacityDisplayJitter({
     powerOn,
@@ -793,6 +815,7 @@ const mergeHeatCapacityRuntimeState = (
     pressureZeroDisplayedSamples,
     pressureDisplayJitterOffset: roundNumber(pressureJitterState.offset, 4),
     pressureDisplayNextJitterAtMs: pressureJitterState.nextJitterAtMs,
+    pressureReleaseBurstUntilMs: pressureReleaseBurstActive ? file.pressureReleaseBurstUntilMs : null,
     temperatureDisplayJitterOffset: roundNumber(temperatureJitterState.offset, 4),
     temperatureDisplayNextJitterAtMs: temperatureJitterState.nextJitterAtMs,
     pressureRawPlaceholder: roundNumber(runtime.pressureSignalMvRaw, 2),
@@ -968,6 +991,7 @@ export const powerHeatCapacityWorkbenchFile = (
     pressureZeroed: nextPowerOn ? file.pressureZeroed : false,
     pressureZeroAdjusted: nextPowerOn ? file.pressureZeroAdjusted : false,
     pressureZeroDisplayText: nextPowerOn ? file.pressureZeroDisplayText : getHeatCapacityPressureZeroDisplayText(false, 0),
+    pressureReleaseBurstUntilMs: null,
   }, {
     ...runtime,
     pressureZeroAdjusted: nextPowerOn ? runtime.pressureZeroAdjusted : false,
@@ -1029,6 +1053,7 @@ export const resetHeatCapacityForManualExperiment = (
       pressureZeroDisplayedSamples: [],
       pressureDisplayJitterOffset: 0,
       pressureDisplayNextJitterAtMs: now,
+      pressureReleaseBurstUntilMs: null,
       temperatureDisplayJitterOffset: 0,
       temperatureDisplayNextJitterAtMs: now,
       pumpValveOpen: false,
@@ -1099,6 +1124,7 @@ export const prepareHeatCapacityAutoDemoStart = (
     pressureZeroDisplayedSamples: [],
     pressureDisplayJitterOffset: 0,
     pressureDisplayNextJitterAtMs: now,
+    pressureReleaseBurstUntilMs: null,
     temperatureDisplayJitterOffset: 0,
     temperatureDisplayNextJitterAtMs: now,
     pressureZeroOffset: 0,
@@ -1267,6 +1293,7 @@ export const markHeatCapacityDemoComplete = (
     pumpFrequency: 0,
     pumpFrequencyStatus: 'idle',
     lastPumpTime: null,
+    pressureReleaseBurstUntilMs: null,
     pressureZeroed: false,
     pressureZeroAdjusted: false,
     pressureZeroKnobAngle: 0,
@@ -1478,6 +1505,7 @@ export const createDefaultHeatCapacityFile = (
     pressureZeroDisplayedSamples: [],
     pressureDisplayJitterOffset: 0,
     pressureDisplayNextJitterAtMs: 0,
+    pressureReleaseBurstUntilMs: null,
     temperatureDisplayJitterOffset: 0,
     temperatureDisplayNextJitterAtMs: 0,
     pressureZeroed: false,
@@ -1514,6 +1542,10 @@ export const createDefaultHeatCapacityFile = (
     lastPumpTime: null,
     pumpStrokeCount: 0,
     pumpHint: '未打气',
+    hardSphereViewEnabled: false,
+    hardSphereParticleMultiplier: 1,
+    hardSphereSpeedMultiplier: 1,
+    hardSphereTrailsEnabled: false,
     pressurePlaceholder: roundNumber(runtime.gasPressureKPaAbs, 2),
     temperaturePlaceholder: roundNumber(runtime.gasTemperatureK, 3),
     recordedPressures: {

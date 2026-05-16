@@ -212,6 +212,7 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       temperatureSignalTargetMv: normalizeNullableNumber(file.temperatureSignalTargetMv) ?? fallback.temperatureSignalTargetMv,
       pressureSignalTargetMv: normalizeNullableNumber(file.pressureSignalTargetMv) ?? pressureDisplayedPlaceholder,
       displayResponseLastUpdateMs: normalizeNullableNumber(file.displayResponseLastUpdateMs),
+      pressureReleaseBurstUntilMs: normalizeNullableNumber(file.pressureReleaseBurstUntilMs),
       pressureZeroDisplayedSamples: Array.isArray(file.pressureZeroDisplayedSamples)
         ? file.pressureZeroDisplayedSamples
             .map((sample) => isRecord(sample)
@@ -252,6 +253,10 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       lastPumpTime: normalizeNullableNumber(file.lastPumpTime),
       pumpStrokeCount: normalizeNullableNumber(file.pumpStrokeCount) ?? 0,
       pumpHint: typeof file.pumpHint === 'string' ? file.pumpHint : fallback.pumpHint,
+      hardSphereViewEnabled: file.hardSphereViewEnabled === true,
+      hardSphereParticleMultiplier: normalizeNullableNumber(file.hardSphereParticleMultiplier) ?? fallback.hardSphereParticleMultiplier,
+      hardSphereSpeedMultiplier: normalizeNullableNumber(file.hardSphereSpeedMultiplier) ?? fallback.hardSphereSpeedMultiplier,
+      hardSphereTrailsEnabled: file.hardSphereTrailsEnabled === true,
       pressurePlaceholder: normalizeNullableNumber(file.pressurePlaceholder) ?? fallback.pressurePlaceholder,
       temperaturePlaceholder: normalizeNullableNumber(file.temperaturePlaceholder) ?? fallback.temperaturePlaceholder,
       visualizationMode: file.visualizationMode === 'particle' ? file.visualizationMode : fallback.visualizationMode,
