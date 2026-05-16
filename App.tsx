@@ -294,7 +294,6 @@ function App() {
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
   const [presetActionMenu, setPresetActionMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const [deleteConfirmConfig, setDeleteConfirmConfig] = useState<SavedConfig | null>(null);
-  const [isPdfOpen, setIsPdfOpen] = useState(false);
   const [installPromptMode, setInstallPromptMode] = useState<'desktop' | 'android' | 'ios' | null>(null);
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<DeferredInstallPromptEvent | null>(null);
 
@@ -1465,14 +1464,6 @@ function App() {
       setIsSidebarOpen(false);
   }
 
-  const handleOpenPdf = useCallback(() => {
-    setIsPdfOpen(true);
-  }, []);
-
-  const handleClosePdf = useCallback(() => {
-    setIsPdfOpen(false);
-  }, []);
-
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
@@ -1502,10 +1493,6 @@ function App() {
         setIsLangMenuOpen(false);
         return;
       }
-      if (isPdfOpen) {
-        setIsPdfOpen(false);
-        return;
-      }
       if (isSidebarOpen) {
         setIsSidebarOpen(false);
         return;
@@ -1529,7 +1516,7 @@ function App() {
       active = false;
       listenerHandle?.remove();
     };
-  }, [deleteConfirmConfig, isCreatePresetModalOpen, presetActionMenu, isLangMenuOpen, isPdfOpen, isSidebarOpen]);
+  }, [deleteConfirmConfig, isCreatePresetModalOpen, presetActionMenu, isLangMenuOpen, isSidebarOpen]);
 
   const getLangName = (l: string) => {
     switch(l) {
@@ -2095,9 +2082,6 @@ function App() {
               showNotification={(msg, dur, type) => showNotification(msg, dur, type)}
               supportsHover={isDesktopLike}
               compactLinks={isSidebarOpen && !isSidebarOverlay}
-              isPdfOpen={isPdfOpen}
-              onOpenPdf={handleOpenPdf}
-              onClosePdf={handleClosePdf}
             />
         </div>
         </div>
@@ -2234,9 +2218,6 @@ function App() {
                 showNotification={(msg, dur, type) => showNotification(msg, dur, type)}
                 supportsHover={isDesktopLike}
                 compactLinks={false}
-                isPdfOpen={isPdfOpen}
-                onOpenPdf={handleOpenPdf}
-                onClosePdf={handleClosePdf}
               />
             }
           />

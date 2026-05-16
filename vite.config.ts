@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: 'dist',
+    emptyOutDir: true,
     target: 'es2015', // Increases compatibility for older Android phones
     rollupOptions: {
       output: {
