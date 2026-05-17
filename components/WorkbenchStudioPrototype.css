@@ -14,8 +14,8 @@
   --studio-warning: #c7a15a;
   --studio-danger: #c96f6f;
   --studio-engineering-title-font: "DengXian", "Arial Narrow", "Segoe UI", "Microsoft JhengHei UI", sans-serif;
-  height: 100vh;
-  width: 100vw;
+  height: 100%;
+  width: 100%;
   overflow: hidden;
   background: var(--studio-bg);
   color: var(--studio-text);
@@ -2888,9 +2888,94 @@
   overflow: hidden;
 }
 
+.studio-preview-stage,
+.studio-heat-preview-mount,
+.simulation-canvas-workbench-frame {
+  --studio-preview-overlay-inset: 18px;
+  --studio-preview-overlay-gap: 10px;
+}
+
+.studio-preview-overlay-layer {
+  --studio-overlay-enter-duration: 180ms;
+  --studio-overlay-exit-duration: 160ms;
+  --studio-overlay-displace-duration: 200ms;
+  --studio-overlay-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  position: absolute;
+  inset: 0;
+  z-index: 34;
+  pointer-events: none;
+}
+
+.studio-preview-overlay-slot {
+  position: absolute;
+  display: flex;
+  width: calc(100% - var(--studio-preview-overlay-inset) * 2);
+  max-width: calc(100% - var(--studio-preview-overlay-inset) * 2);
+  flex-direction: column;
+  gap: var(--studio-preview-overlay-gap);
+  pointer-events: none;
+}
+
+.studio-preview-overlay-slot > * {
+  pointer-events: auto;
+}
+
+[data-preview-overlay-item="heat-parent-top-right"] {
+  display: flex;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.studio-preview-overlay-slot-top-left {
+  top: var(--studio-preview-overlay-inset);
+  left: var(--studio-preview-overlay-inset);
+  align-items: flex-start;
+}
+
+.studio-preview-overlay-slot-top-right {
+  top: var(--studio-preview-overlay-inset);
+  right: var(--studio-preview-overlay-inset);
+  align-items: flex-end;
+}
+
+.studio-preview-overlay-slot-bottom-left {
+  bottom: var(--studio-preview-overlay-inset);
+  left: var(--studio-preview-overlay-inset);
+  align-items: flex-start;
+}
+
+.studio-preview-overlay-slot-bottom-right {
+  right: var(--studio-preview-overlay-inset);
+  bottom: var(--studio-preview-overlay-inset);
+  align-items: flex-end;
+}
+
+.studio-preview-overlay-center,
+.studio-preview-overlay-bottom-center {
+  position: absolute;
+  left: 50%;
+  display: grid;
+  width: min(440px, calc(100% - var(--studio-preview-overlay-inset) * 2));
+  justify-items: center;
+  pointer-events: none;
+}
+
+.studio-preview-overlay-center {
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.studio-preview-overlay-bottom-center {
+  bottom: var(--studio-preview-overlay-inset);
+  transform: translateX(-50%);
+}
+
+.studio-preview-overlay-center > *,
+.studio-preview-overlay-bottom-center > * {
+  pointer-events: auto;
+}
+
 .studio-heat-instrument-scene {
-  --heat-hard-sphere-left: clamp(24px, 2vw, 34px);
-  --heat-hard-sphere-top: clamp(124px, 18%, 188px);
   position: relative;
   width: 100%;
   height: 100%;
@@ -2903,10 +2988,6 @@
 }
 
 .studio-heat-interaction-hints {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  z-index: 2;
   display: grid;
   gap: 4px;
   max-width: min(320px, max(180px, calc(100% - 140px)));
@@ -2950,11 +3031,6 @@
 }
 
 .studio-heat-hover-tooltip {
-  position: absolute;
-  right: 18px;
-  bottom: 72px;
-  left: auto;
-  z-index: 24;
   max-width: 260px;
   border: 1px solid rgba(226, 232, 240, 0.34);
   border-radius: 4px;
@@ -2965,13 +3041,10 @@
   line-height: 1.35;
   pointer-events: none;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.28);
+  animation: studioOverlayEnterRight var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) both;
 }
 
 .studio-heat-preview-control-stack {
-  position: absolute;
-  right: 18px;
-  bottom: 18px;
-  z-index: 27;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -2980,10 +3053,6 @@
 }
 
 .studio-heat-view-reset {
-  position: absolute;
-  right: 12px;
-  top: 10px;
-  z-index: 2;
   height: 28px;
   border: 1px solid rgba(148, 163, 184, 0.44);
   border-radius: 4px;
@@ -3002,10 +3071,6 @@
 }
 
 .studio-heat-hard-sphere-toggle {
-  position: absolute;
-  left: var(--heat-hard-sphere-left);
-  top: var(--heat-hard-sphere-top);
-  z-index: 7;
   display: inline-grid;
   grid-template-columns: auto auto 38px;
   align-items: center;
@@ -3087,46 +3152,66 @@
   box-shadow: 0 0 10px rgba(125, 211, 252, 0.65);
 }
 
-.studio-heat-hard-sphere-note {
+.studio-heat-hard-sphere-tooltip-anchor {
+  position: relative;
+  display: inline-grid;
+  justify-items: start;
+}
+
+.studio-heat-hard-sphere-tooltip {
   position: absolute;
-  left: var(--heat-hard-sphere-left);
-  top: calc(var(--heat-hard-sphere-top) + 52px);
-  z-index: 6;
+  top: calc(100% + var(--studio-preview-overlay-gap));
+  left: 0;
+  z-index: 1;
   display: grid;
   gap: 4px;
-  width: min(210px, calc(100% - var(--heat-hard-sphere-left) - 32px));
+  width: 260px;
   border: 1px solid rgba(56, 189, 248, 0.42);
   border-radius: 5px;
-  background: rgba(8, 18, 30, 0.78);
+  background: rgba(8, 18, 30, 0.86);
   color: rgba(224, 242, 254, 0.94);
   padding: 8px 10px;
   font-size: 11px;
   line-height: 1.45;
+  opacity: 0;
+  transform: translate3d(-18px, 0, 0);
+  visibility: hidden;
   box-shadow: 0 12px 28px rgba(2, 6, 23, 0.22);
   backdrop-filter: blur(9px);
   pointer-events: none;
+  transition:
+    opacity var(--studio-overlay-exit-duration) var(--studio-overlay-motion-ease),
+    transform var(--studio-overlay-exit-duration) var(--studio-overlay-motion-ease),
+    visibility 0s linear var(--studio-overlay-exit-duration);
 }
 
-.studio-heat-hard-sphere-note strong {
+.studio-heat-hard-sphere-tooltip-anchor:hover .studio-heat-hard-sphere-tooltip,
+.studio-heat-hard-sphere-tooltip-anchor:focus-within .studio-heat-hard-sphere-tooltip {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  visibility: visible;
+  transition:
+    opacity var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease),
+    transform var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease),
+    visibility 0s linear 0s;
+}
+
+.studio-heat-hard-sphere-tooltip strong {
   color: #e0f2fe;
   font-family: "JetBrains Mono", Consolas, monospace;
   font-size: 10px;
   font-weight: 900;
 }
 
-.studio-heat-hard-sphere-note small {
+.studio-heat-hard-sphere-tooltip small {
   color: rgba(186, 230, 253, 0.72);
   font-size: 10px;
 }
 
 .studio-heat-stopcock-mini-readout {
-  position: absolute;
-  left: 12px;
-  top: 12px;
-  z-index: 4;
   display: grid;
   gap: 7px;
-  width: clamp(210px, 21%, 276px);
+  width: clamp(210px, 21vw, 276px);
   border: 1px solid rgba(100, 116, 139, 0.62);
   border-radius: 4px;
   background: rgba(10, 15, 23, 0.86);
@@ -3281,13 +3366,9 @@
 }
 
 .studio-heat-demo-step-panel {
-  position: absolute;
-  right: 14px;
-  top: 48px;
-  z-index: 5;
   display: grid;
   gap: 7px;
-  width: min(330px, calc(100% - 28px));
+  width: min(330px, 100%);
   border: 1px solid rgba(103, 232, 249, 0.42);
   border-radius: 6px;
   background: rgba(15, 23, 42, 0.78);
@@ -3302,21 +3383,17 @@
 }
 
 .studio-heat-demo-step-panel-visible {
-  animation: heatDemoStepPanelIn 560ms cubic-bezier(0.2, 0.78, 0.18, 1) both;
+  animation: studioOverlayEnterRight var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) both;
 }
 
 .studio-heat-demo-step-panel-exiting {
-  animation: heatDemoStepPanelOut 560ms cubic-bezier(0.42, 0, 0.74, 0.28) both;
+  animation: studioOverlayExitRight var(--studio-overlay-exit-duration) var(--studio-overlay-motion-ease) both;
 }
 
-@keyframes heatDemoStepPanelIn {
+@keyframes studioOverlayEnterRight {
   from {
     opacity: 0;
-    transform: translate3d(calc(100% + 32px), 0, 0);
-  }
-
-  62% {
-    opacity: 1;
+    transform: translate3d(18px, 0, 0);
   }
 
   to {
@@ -3325,7 +3402,7 @@
   }
 }
 
-@keyframes heatDemoStepPanelOut {
+@keyframes studioOverlayExitRight {
   from {
     opacity: 1;
     transform: translate3d(0, 0, 0);
@@ -3333,14 +3410,113 @@
 
   to {
     opacity: 0;
-    transform: translate3d(calc(100% + 32px), 0, 0);
+    transform: translate3d(18px, 0, 0);
+  }
+}
+
+@keyframes studioOverlayEnterLeft {
+  from {
+    opacity: 0;
+    transform: translate3d(-18px, 0, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes studioOverlayExitLeft {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate3d(-18px, 0, 0);
+  }
+}
+
+@keyframes studioOverlayBottomCenterIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes studioOverlayBottomCenterOut {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+}
+
+@keyframes studioOverlayTopCenterIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -12px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes studioOverlayTopCenterOut {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate3d(0, -12px, 0);
+  }
+}
+
+@keyframes studioOverlayFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes studioOverlayFadeOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .studio-heat-demo-step-panel-visible,
-  .studio-heat-demo-step-panel-exiting {
-    animation-duration: 160ms;
+  .studio-heat-demo-step-panel-exiting,
+  .studio-heat-pressure-warning,
+  .studio-heat-demo-complete-toast,
+  .studio-heat-manual-step-hint {
+    animation-duration: 80ms;
+  }
+
+  .studio-heat-hard-sphere-tooltip {
+    transition-duration: 80ms;
   }
 }
 
@@ -3389,22 +3565,19 @@
 }
 
 .studio-heat-pressure-warning {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 8;
   display: grid;
+  place-items: center;
   gap: 8px;
-  width: min(360px, calc(100% - 48px));
+  width: min(320px, calc(100% - 36px));
+  aspect-ratio: 1 / 1;
   border: 1px solid rgba(248, 113, 113, 0.64);
   border-radius: 4px;
-  background: rgba(10, 15, 23, 0.9);
+  background: rgba(92, 14, 18, 0.78);
   box-shadow: 0 22px 46px rgba(2, 8, 23, 0.5), inset 4px 0 0 rgba(239, 68, 68, 0.92), inset 0 1px 0 rgba(248, 113, 113, 0.16);
   color: #fee2e2;
-  padding: 13px 15px 14px;
-  text-align: left;
-  transform: translate(-50%, -50%);
-  animation: heatPressureWarningIn 180ms ease-out both;
+  padding: 26px;
+  text-align: center;
+  animation: studioOverlayFadeIn var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) both;
   pointer-events: none;
   backdrop-filter: blur(10px);
 }
@@ -3412,7 +3585,7 @@
 .studio-heat-pressure-warning-kicker {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
   padding-bottom: 7px;
   border-bottom: 1px solid rgba(127, 29, 29, 0.62);
@@ -3430,14 +3603,14 @@
 
 .studio-heat-pressure-warning strong {
   color: #fef2f2;
-  font-size: 16px;
+  font-size: 21px;
   font-weight: 900;
   letter-spacing: 0;
 }
 
 .studio-heat-pressure-warning span {
   color: rgba(254, 226, 226, 0.95);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -3447,18 +3620,6 @@
   font-style: normal;
 }
 
-@keyframes heatPressureWarningIn {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.96);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-
 .studio-heat-demo-step-panel sub,
 .studio-realtime-panel-heat sub {
   font-size: 0.7em;
@@ -3466,10 +3627,6 @@
 }
 
 .studio-heat-demo-complete-toast {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 7;
   display: grid;
   gap: 4px;
   min-width: 188px;
@@ -3482,9 +3639,11 @@
   text-align: center;
   font-size: 13px;
   font-weight: 700;
-  transform: translate(-50%, -50%);
   pointer-events: none;
   backdrop-filter: blur(10px);
+  animation:
+    studioOverlayFadeIn var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) both,
+    studioOverlayFadeOut var(--studio-overlay-exit-duration) var(--studio-overlay-motion-ease) 2.82s forwards;
 }
 
 .studio-heat-demo-complete-toast strong {
@@ -3494,15 +3653,10 @@
 }
 
 .studio-heat-manual-step-hint {
-  position: absolute;
-  left: 50%;
-  bottom: 18px;
-  z-index: 34;
   display: grid;
   gap: 3px;
   min-width: 220px;
   max-width: min(560px, calc(100% - 80px));
-  transform: translateX(-50%);
   padding: 9px 14px 10px;
   border: 1px solid rgba(125, 211, 252, 0.55);
   border-radius: 4px;
@@ -3511,6 +3665,9 @@
   backdrop-filter: blur(8px);
   pointer-events: none;
   text-align: center;
+  animation:
+    studioOverlayBottomCenterIn var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) both,
+    studioOverlayBottomCenterOut var(--studio-overlay-exit-duration) var(--studio-overlay-motion-ease) 1.82s forwards;
 }
 
 .studio-heat-manual-step-hint strong {
@@ -3568,11 +3725,7 @@
 }
 
 .studio-heat-focus-panel {
-  position: absolute;
-  right: 14px;
-  bottom: 14px;
-  z-index: 3;
-  width: min(316px, calc(100% - 28px));
+  width: min(316px, 100%);
   border: 1px solid rgba(100, 116, 139, 0.64);
   border-radius: 4px;
   background: rgba(10, 15, 23, 0.86);
@@ -3581,19 +3734,20 @@
   padding: 10px;
   font-size: 12px;
   backdrop-filter: blur(10px);
+  animation: studioOverlayEnterRight var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) both;
 }
 
 .studio-heat-focus-panel-pump,
 .studio-heat-focus-panel-instrument {
-  width: min(286px, calc(100% - 28px));
+  width: min(286px, 100%);
 }
 
 .studio-heat-focus-panel-stopcock {
-  width: min(360px, calc(100% - 28px));
+  width: min(360px, 100%);
 }
 
 .studio-heat-focus-panel-instrument {
-  width: min(390px, calc(100% - 28px));
+  width: min(390px, 100%);
 }
 
 .studio-heat-focus-panel-pump {
@@ -3718,6 +3872,126 @@
 .studio-heat-focus-panel-actions button:hover {
   border-color: rgba(165, 243, 252, 0.82);
   background: rgba(8, 145, 178, 0.88);
+}
+
+.studio-theme-light .studio-heat-preview-stage {
+  border-color: rgba(148, 163, 184, 0.38);
+  background: #eaf1f8;
+}
+
+.studio-theme-light .studio-heat-instrument-scene {
+  background: #eaf1f8;
+}
+
+.studio-theme-light .studio-heat-interaction-hints,
+.studio-theme-light .studio-heat-focus-panel {
+  border-color: rgba(100, 116, 139, 0.34);
+  background: rgba(248, 250, 252, 0.88);
+  box-shadow: 0 16px 34px rgba(71, 85, 105, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  color: #334155;
+}
+
+.studio-theme-light .studio-heat-interaction-hints strong,
+.studio-theme-light .studio-heat-focus-title {
+  border-bottom-color: rgba(148, 163, 184, 0.38);
+  color: #1e293b;
+}
+
+.studio-theme-light .studio-heat-interaction-hints span,
+.studio-theme-light .studio-heat-focus-panel-row {
+  color: rgba(51, 65, 85, 0.9);
+}
+
+.studio-theme-light .studio-heat-interaction-hints strong::before {
+  background: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.16);
+}
+
+.studio-theme-light .studio-heat-hover-tooltip,
+.studio-theme-light .studio-heat-hard-sphere-tooltip {
+  border-color: rgba(14, 116, 144, 0.28);
+  background: rgba(248, 250, 252, 0.92);
+  color: #1e293b;
+  box-shadow: 0 12px 26px rgba(71, 85, 105, 0.18);
+}
+
+.studio-theme-light .studio-heat-hard-sphere-tooltip strong {
+  color: #0f4f76;
+}
+
+.studio-theme-light .studio-heat-hard-sphere-tooltip small {
+  color: rgba(71, 85, 105, 0.78);
+}
+
+.studio-theme-light .studio-heat-view-reset,
+.studio-theme-light .studio-heat-hard-sphere-toggle {
+  border-color: rgba(100, 116, 139, 0.34);
+  background: rgba(248, 250, 252, 0.84);
+  color: #1e293b;
+  box-shadow: 0 10px 24px rgba(71, 85, 105, 0.14);
+}
+
+.studio-theme-light .studio-heat-view-reset:hover,
+.studio-theme-light .studio-heat-hard-sphere-toggle:hover {
+  border-color: rgba(14, 116, 144, 0.46);
+  background: rgba(255, 255, 255, 0.94);
+  color: #0f172a;
+}
+
+.studio-theme-light .studio-heat-hard-sphere-toggle-on {
+  border-color: rgba(8, 145, 178, 0.54);
+  background: rgba(207, 250, 254, 0.86);
+  box-shadow: 0 0 0 1px rgba(8, 145, 178, 0.1), 0 12px 28px rgba(14, 116, 144, 0.14);
+}
+
+.studio-theme-light .studio-heat-hard-sphere-toggle-state {
+  color: #075985;
+}
+
+.studio-theme-light .studio-heat-hard-sphere-switch {
+  border-color: rgba(100, 116, 139, 0.42);
+  background: rgba(203, 213, 225, 0.66);
+}
+
+.studio-theme-light .studio-heat-hard-sphere-switch span {
+  background: #f8fafc;
+  box-shadow: 0 1px 5px rgba(71, 85, 105, 0.28);
+}
+
+.studio-theme-light .studio-heat-hard-sphere-toggle-on .studio-heat-hard-sphere-switch {
+  border-color: rgba(8, 145, 178, 0.58);
+  background: rgba(14, 116, 144, 0.5);
+}
+
+.studio-theme-light .studio-heat-focus-panel-row {
+  border-bottom-color: rgba(148, 163, 184, 0.34);
+}
+
+.studio-theme-light .studio-heat-focus-panel-row strong {
+  color: #0f172a;
+}
+
+.studio-theme-light .studio-heat-focus-panel-row .studio-heat-focus-positive {
+  color: #15803d;
+}
+
+.studio-theme-light .studio-heat-focus-panel-row .studio-heat-focus-muted {
+  color: #475569;
+}
+
+.studio-theme-light .studio-heat-focus-hint {
+  color: #0369a1;
+}
+
+.studio-theme-light .studio-heat-focus-panel-actions button {
+  border-color: rgba(14, 116, 144, 0.34);
+  background: rgba(8, 145, 178, 0.82);
+  color: #f8fafc;
+}
+
+.studio-theme-light .studio-heat-focus-panel-actions button:hover {
+  border-color: rgba(14, 116, 144, 0.62);
+  background: rgba(3, 105, 161, 0.9);
 }
 
 .studio-heat-instrument-scene canvas {
@@ -3845,9 +4119,9 @@
 
 .simulation-canvas-workbench-tools {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  right: 8px;
+  top: var(--studio-preview-overlay-inset);
+  left: var(--studio-preview-overlay-inset);
+  right: var(--studio-preview-overlay-inset);
   z-index: 20;
   display: flex;
   justify-content: space-between;
@@ -3905,8 +4179,8 @@
 
 .simulation-canvas-workbench-hint {
   position: absolute;
-  left: 8px;
-  bottom: 8px;
+  left: var(--studio-preview-overlay-inset);
+  bottom: var(--studio-preview-overlay-inset);
   z-index: 20;
   pointer-events: none;
   user-select: none;
@@ -4284,10 +4558,6 @@
   transition:
     opacity 180ms ease,
     transform 180ms ease;
-}
-
-.studio-heat-record-controls-focus-raised {
-  transform: translateY(calc(-1 * var(--heat-record-focus-offset, 158px)));
 }
 
 .studio-heat-record-controls-exiting {

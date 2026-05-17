@@ -43,6 +43,15 @@ import {
   getHeatCapacityRangeMidpoint,
 } from '../components/heatCapacity/heatCapacityDisplayResponse.ts';
 import {
+  createHeatCapacityAutoDemoSteps,
+} from '../components/heatCapacity/heatCapacityAutoDemo.ts';
+import {
+  getHeatCapacityHardSphereVisualState,
+} from '../components/heatCapacity/heatCapacityHardSphereModel.ts';
+import {
+  removeHeatCapacityTrialRecord,
+} from '../components/heatCapacity/heatCapacityTrialModel.ts';
+import {
   WORKBENCH_SESSION_VERSION,
   decodeWorkbenchSession,
 } from '../components/workbenchSession.ts';
@@ -73,9 +82,20 @@ assert.equal(defaultFile.pressureGaugeDisplayValue, 0);
 assert.equal(defaultFile.pressureGaugeNeedleAngle, -120);
 assert.equal(defaultFile.gaugePressureMinKPa, 0);
 assert.equal(defaultFile.gaugePressureMaxKPa, HEAT_CAPACITY_GAUGE_PRESSURE_MAX_KPA);
-assert.equal(HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV, 100);
-assert.equal(HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, 120);
-assert.equal(HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, 140);
+const poweredOffHardSphereVisual = getHeatCapacityHardSphereVisualState({
+  powerOn: false,
+  temperatureMv: null,
+  pressureMv: null,
+  phase: 'powerOff',
+  glassStopcockOpen: false,
+  pumpValveOpen: false,
+  pumpBulbState: 'idle',
+});
+assert.equal(poweredOffHardSphereVisual.targetParticleCount > 0, true, 'hard-sphere teaching layer should remain visible before power is turned on');
+assert.equal(poweredOffHardSphereVisual.speedMultiplier > 0, true, 'powered-off hard-sphere teaching layer should still show room-temperature motion');
+assert.equal(HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV, 90);
+assert.equal(HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, 90);
+assert.equal(HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, 120);
 assert.equal(HEAT_CAPACITY_PUMP_RATE_SLOW_THRESHOLD_HZ, 2);
 assert.equal(defaultFile.pressureWarningThresholdKPa, HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV / defaultFile.pressureSensitivityMvPerKPa);
 assert.equal(defaultFile.pressureSafeThresholdKPa, HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV / defaultFile.pressureSensitivityMvPerKPa);
@@ -84,6 +104,10 @@ assert.equal(defaultFile.pressureSafetyStatus, 'normal');
 assert.equal(defaultFile.pressureSafetyMessage, null);
 assert.equal(defaultFile.pressureBlockedPumping, false);
 assert.equal(defaultFile.pressureOverLimit, false);
+assert.deepEqual(HEAT_CAPACITY_VIDEO_PROFILE.pumpPressureIncrementTooSlowMvRange, [6, 6]);
+assert.deepEqual(HEAT_CAPACITY_VIDEO_PROFILE.pumpPressureIncrementSuitableMvRange, [14, 14]);
+assert.equal(HEAT_CAPACITY_VIDEO_PROFILE.pumpPeakPressureMvRange[1] < HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, true, 'auto demo profile peak pressure must stay below the alarm threshold');
+assert.equal(HEAT_CAPACITY_VIDEO_PROFILE.stablePressureMvRange[1] < HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, true, 'auto demo stable pressure must stay below the alarm threshold');
 assert.equal(defaultFile.pressureZeroMvPerTurn, HEAT_CAPACITY_PRESSURE_ZERO_MV_PER_TURN);
 assert.equal(defaultFile.temperatureSignalMv, null);
 assert.equal(defaultFile.pressureSignalMv, null);
@@ -327,6 +351,25 @@ assert.equal(visualDemoStart.hardSphereParticleMultiplier, 1.15);
 assert.equal(visualDemoStart.hardSphereSpeedMultiplier, 1.2);
 assert.equal(visualDemoStart.pressureReleaseBurstUntilMs, null);
 
+const autoDemoPumpActionCount = createHeatCapacityAutoDemoSteps()
+  .flatMap((step) => step.actions)
+  .filter((action) => action.action === 'pumpStroke').length;
+assert.equal(autoDemoPumpActionCount, 7, 'auto demo should keep the teaching pump sequence below the alarm region');
+let autoDemoPressureFile = {
+  ...demoStart,
+  pumpValveOpen: true,
+  pumpValveState: 'open' as const,
+  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
+  glassPistonState: 'closed' as const,
+  pressureZeroAdjusted: true,
+  pressureZeroed: true,
+};
+for (let strokeIndex = 0; strokeIndex < autoDemoPumpActionCount; strokeIndex += 1) {
+  autoDemoPressureFile = registerHeatCapacityPumpStroke(autoDemoPressureFile, 21_000 + strokeIndex * 430);
+}
+assert.equal(autoDemoPressureFile.pressureSignalTargetMv < HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, true, 'auto demo pumping must never reach the alarm region');
+assert.equal(autoDemoPressureFile.pressureOverLimit, false, 'auto demo pumping must not set the alarm state');
+
 const completedDemo = markHeatCapacityDemoComplete({
   ...demoStart,
   hardSphereViewEnabled: true,
@@ -513,44 +556,74 @@ assert.deepEqual(getHeatCapacityGaugePressureState(12, true, defaultFile), {
   gaugePressureMinKPa: 0,
   gaugePressureMaxKPa: 10,
   pressureSensitivityMvPerKPa: 20,
-  pressureWarningThresholdKPa: 6,
-  pressureSafetyThresholdKPa: 7,
+  pressureWarningThresholdKPa: 4.5,
+  pressureSafetyThresholdKPa: 6,
   pressureGaugeTargetValue: 10,
   pressureGaugeDisplayValue: 10,
   pressureGaugeNeedleAngle: 120,
-  pressureSafeThresholdKPa: 7,
+  pressureSafeThresholdKPa: 6,
   pressureSafetyStatus: 'danger',
-  pressureSafetyMessage: '压强超过安全阈值，请停止打气',
+  pressureSafetyMessage: '压强已超过安全阈值，请停止打气。',
   pressureBlockedPumping: true,
   pressureOverLimit: true,
 });
-assert.deepEqual(getHeatCapacityGaugePressureState(6.2, true, defaultFile), {
+assert.deepEqual(getHeatCapacityGaugePressureState(4.49, true, defaultFile), {
   gaugePressureMinKPa: 0,
   gaugePressureMaxKPa: 10,
   pressureSensitivityMvPerKPa: 20,
-  pressureWarningThresholdKPa: 6,
-  pressureSafetyThresholdKPa: 7,
-  pressureGaugeTargetValue: 6.2,
-  pressureGaugeDisplayValue: 6.2,
-  pressureGaugeNeedleAngle: 28.8,
-  pressureSafeThresholdKPa: 7,
-  pressureSafetyStatus: 'warning',
-  pressureSafetyMessage: '压强接近预警值，请注意',
+  pressureWarningThresholdKPa: 4.5,
+  pressureSafetyThresholdKPa: 6,
+  pressureGaugeTargetValue: 4.49,
+  pressureGaugeDisplayValue: 4.49,
+  pressureGaugeNeedleAngle: -12.24,
+  pressureSafeThresholdKPa: 6,
+  pressureSafetyStatus: 'normal',
+  pressureSafetyMessage: null,
   pressureBlockedPumping: false,
   pressureOverLimit: false,
 });
-assert.deepEqual(getHeatCapacityGaugePressureState(7.2, true, defaultFile, 7.1), {
+assert.deepEqual(getHeatCapacityGaugePressureState(4.5, true, defaultFile), {
   gaugePressureMinKPa: 0,
   gaugePressureMaxKPa: 10,
   pressureSensitivityMvPerKPa: 20,
-  pressureWarningThresholdKPa: 6,
-  pressureSafetyThresholdKPa: 7,
-  pressureGaugeTargetValue: 7.2,
-  pressureGaugeDisplayValue: 7.1,
-  pressureGaugeNeedleAngle: 50.4,
-  pressureSafeThresholdKPa: 7,
+  pressureWarningThresholdKPa: 4.5,
+  pressureSafetyThresholdKPa: 6,
+  pressureGaugeTargetValue: 4.5,
+  pressureGaugeDisplayValue: 4.5,
+  pressureGaugeNeedleAngle: -12,
+  pressureSafeThresholdKPa: 6,
+  pressureSafetyStatus: 'warning',
+  pressureSafetyMessage: '压强接近安全阈值，请准备停止打气。',
+  pressureBlockedPumping: false,
+  pressureOverLimit: false,
+});
+assert.deepEqual(getHeatCapacityGaugePressureState(5.99, true, defaultFile), {
+  gaugePressureMinKPa: 0,
+  gaugePressureMaxKPa: 10,
+  pressureSensitivityMvPerKPa: 20,
+  pressureWarningThresholdKPa: 4.5,
+  pressureSafetyThresholdKPa: 6,
+  pressureGaugeTargetValue: 5.99,
+  pressureGaugeDisplayValue: 5.99,
+  pressureGaugeNeedleAngle: 23.76,
+  pressureSafeThresholdKPa: 6,
+  pressureSafetyStatus: 'warning',
+  pressureSafetyMessage: '压强接近安全阈值，请准备停止打气。',
+  pressureBlockedPumping: false,
+  pressureOverLimit: false,
+});
+assert.deepEqual(getHeatCapacityGaugePressureState(6, true, defaultFile, 5.98), {
+  gaugePressureMinKPa: 0,
+  gaugePressureMaxKPa: 10,
+  pressureSensitivityMvPerKPa: 20,
+  pressureWarningThresholdKPa: 4.5,
+  pressureSafetyThresholdKPa: 6,
+  pressureGaugeTargetValue: 6,
+  pressureGaugeDisplayValue: 5.98,
+  pressureGaugeNeedleAngle: 23.52,
+  pressureSafeThresholdKPa: 6,
   pressureSafetyStatus: 'danger',
-  pressureSafetyMessage: '压强超过安全阈值，请停止打气',
+  pressureSafetyMessage: '压强已超过安全阈值，请停止打气。',
   pressureBlockedPumping: true,
   pressureOverLimit: true,
 });
@@ -597,8 +670,47 @@ const openValvePump = registerHeatCapacityPumpStroke({
 }, 10_000);
 assert.equal(openValvePump.pumpStrokeCount, 1);
 assert.equal(openValvePump.pumpFrequencyStatus, 'tooSlow');
+assert.equal(openValvePump.pressureSignalTargetMv, 6);
 assert.equal(openValvePump.pressurePlaceholder > poweredFile.pressurePlaceholder, true);
 assert.equal(openValvePump.temperaturePlaceholder > poweredFile.temperaturePlaceholder, true);
+
+let pumpSequenceFile = {
+  ...poweredFile,
+  pumpValveOpen: true,
+  pumpValveState: 'open' as const,
+};
+const pumpSequence: Array<typeof pumpSequenceFile> = [];
+for (let strokeIndex = 0; strokeIndex < 10; strokeIndex += 1) {
+  pumpSequenceFile = registerHeatCapacityPumpStroke(pumpSequenceFile, 10_000 + strokeIndex * 430);
+  pumpSequence.push(pumpSequenceFile);
+}
+assert.equal(pumpSequence[5].pressureSignalTargetMv < HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, true, 'the sixth pump stroke should remain in the safe region');
+assert.equal(pumpSequence[6].pressureSignalTargetMv, HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, 'the seventh pump stroke should enter the warning region');
+assert.equal(pumpSequence[6].pressureSafetyStatus, 'warning');
+assert.equal(pumpSequence[8].pressureSignalTargetMv < HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, true, 'the ninth pump stroke should still give the user warning reaction time');
+assert.equal(pumpSequence[9].pressureSignalTargetMv >= HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, true, 'the tenth pump stroke should enter the alarm region');
+assert.equal(pumpSequence[9].pressureSafetyStatus, 'danger');
+
+const warningRegionPump = registerHeatCapacityPumpStroke({
+  ...poweredFile,
+  pumpValveOpen: true,
+  pumpValveState: 'open',
+  pressureDeltaKPa: 5.25,
+  gasPressureKPaAbs: poweredFile.ambientPressureKPa + 5.25,
+  pressureSignalMvRaw: 105,
+  pressureSignalMvDisplayed: 105,
+  pressureSignalTargetMv: 105,
+  pressureRawPlaceholder: 105,
+  pressureDisplayedPlaceholder: 105,
+  pressureGaugeTargetValue: 5.25,
+  pressureGaugeDisplayValue: 5.25,
+  pressureSafetyStatus: 'warning',
+  pumpStrokeTimestamps: [8_800, 9_400],
+  pumpFrequency: 0.7,
+  pumpFrequencyStatus: 'suitable',
+}, 10_000);
+assert.equal(warningRegionPump.pumpStrokeCount, 1, 'manual pumping around 105 mV should remain effective');
+assert.equal(warningRegionPump.pressureSignalTargetMv > 105, true, 'manual pumping should be able to proceed from warning toward alarm');
 
 const overLimitPump = registerHeatCapacityPumpStroke({
   ...poweredFile,
@@ -614,21 +726,21 @@ const overLimitPump = registerHeatCapacityPumpStroke({
 assert.equal(overLimitPump.pumpStrokeCount, 0);
 assert.equal(overLimitPump.pressureDeltaKPa, poweredFile.pressureSafetyThresholdKPa);
 assert.equal(overLimitPump.pressureOverLimit, true);
-assert.match(overLimitPump.pumpHint, /安全阈值/);
+assert.equal(overLimitPump.pumpHint, '压强已超过安全阈值，请停止打气。');
 
 const thresholdCrossingPump = registerHeatCapacityPumpStroke({
   ...poweredFile,
   pumpValveOpen: true,
   pumpValveState: 'open',
-  pressureDeltaKPa: 6.85,
-  gasPressureKPaAbs: poweredFile.ambientPressureKPa + 6.85,
-  pressureSignalMvRaw: 137,
-  pressureSignalMvDisplayed: 137,
-  pressureSignalTargetMv: 137,
-  pressureRawPlaceholder: 137,
-  pressureDisplayedPlaceholder: 137,
-  pressureGaugeTargetValue: 6.85,
-  pressureGaugeDisplayValue: 6.85,
+  pressureDeltaKPa: 5.9,
+  gasPressureKPaAbs: poweredFile.ambientPressureKPa + 5.9,
+  pressureSignalMvRaw: 118,
+  pressureSignalMvDisplayed: 118,
+  pressureSignalTargetMv: 118,
+  pressureRawPlaceholder: 118,
+  pressureDisplayedPlaceholder: 118,
+  pressureGaugeTargetValue: 5.9,
+  pressureGaugeDisplayValue: 5.9,
   pumpStrokeTimestamps: [8_800, 9_400],
   pumpFrequency: 0.7,
   pumpFrequencyStatus: 'suitable',
@@ -646,7 +758,7 @@ const blockedAfterCrossingPump = registerHeatCapacityPumpStroke({
 assert.equal(blockedAfterCrossingPump.pumpStrokeCount, thresholdCrossingPump.pumpStrokeCount);
 assert.equal(blockedAfterCrossingPump.pressureDeltaKPa, thresholdCrossingPump.pressureDeltaKPa);
 assert.equal(blockedAfterCrossingPump.pressureSignalTargetMv, thresholdCrossingPump.pressureSignalTargetMv);
-assert.match(blockedAfterCrossingPump.pumpHint, /安全阈值/);
+assert.equal(blockedAfterCrossingPump.pumpHint, '压强已超过安全阈值，请停止打气。');
 
 const sampledWorkbenchFile = captureHeatCapacityWorkbenchSample({
   ...openValvePump,
@@ -656,6 +768,87 @@ const sampledWorkbenchFile = captureHeatCapacityWorkbenchSample({
 assert.equal(sampledWorkbenchFile.heatCapacityProcessSamples.pumpPeakSample?.pumpValveOpen, true);
 assert.equal(sampledWorkbenchFile.heatCapacityProcessSamples.pumpPeakSample?.stopcockOpen, true);
 assert.equal(sampledWorkbenchFile.heatCapacityProcessSamples.pumpPeakSample?.pumpFrequency, 0.67);
+
+const profiledManualSampleSource = {
+  ...openValvePump,
+  pressureSignalMv: 88,
+  pressureSignalMvRaw: 88,
+  pressureSignalMvDisplayed: 88,
+  pressureSignalTargetMv: 88,
+  pressureDeltaKPa: 4.4,
+  temperatureSignalMv: initialTemperatureMv + 6,
+  temperatureSignalTargetMv: initialTemperatureMv + 6,
+  heatCapacityExperimentProfile: {
+    u0MeasuredMv: 0,
+    u1MeasuredMv: 116,
+    u2MeasuredMv: 33,
+    pumpPeakPressureMv: 118,
+    ambientTemperatureMv: initialTemperatureMv,
+    initialTemperatureMv,
+    stableTemperatureMv: initialTemperatureMv,
+    releaseTemperatureLowMv: initialTemperatureMv - 12,
+    recoveryTemperatureMv: initialTemperatureMv,
+  },
+};
+const profileAdjustedSample = captureHeatCapacityWorkbenchSample(
+  profiledManualSampleSource,
+  'stableBeforeReleaseSample',
+  10_300,
+);
+assert.equal(profileAdjustedSample.heatCapacityProcessSamples.stableBeforeReleaseSample?.pressureSignalMv, 116);
+const manualActualSample = captureHeatCapacityWorkbenchSample(
+  profiledManualSampleSource,
+  'stableBeforeReleaseSample',
+  10_300,
+  { applyProfile: false },
+);
+assert.equal(manualActualSample.heatCapacityProcessSamples.stableBeforeReleaseSample?.pressureSignalMv, 88, 'manual recording should preserve the current instrument reading instead of the profile U1');
+assert.equal(manualActualSample.heatCapacityProcessSamples.stableBeforeReleaseSample?.temperatureSignalMv, initialTemperatureMv + 6, 'manual recording should preserve the current temperature reading so unstable data is rejected upstream');
+
+const recordedHeatCapacityTrials = [
+  {
+    id: 'heat-trial-1',
+    trialIndex: 1,
+    U1Mv: 106.2,
+    U2Mv: 30.4,
+    UT1Mv: 1499.1,
+    UT2Mv: 1499,
+    status: 'complete' as const,
+    recordedU1At: 10_000,
+    recordedU2At: 12_000,
+  },
+  {
+    id: 'heat-trial-2',
+    trialIndex: 2,
+    U1Mv: 104.8,
+    U2Mv: 31.1,
+    UT1Mv: 1499,
+    UT2Mv: 1499.1,
+    status: 'complete' as const,
+    recordedU1At: 20_000,
+    recordedU2At: 22_000,
+  },
+];
+const removedU2Record = removeHeatCapacityTrialRecord(recordedHeatCapacityTrials, 0, 'u2');
+assert.equal(removedU2Record.nextActiveTrialIndex, 0);
+assert.equal(removedU2Record.trials[0].U1Mv, 106.2);
+assert.equal(removedU2Record.trials[0].UT1Mv, 1499.1);
+assert.equal(removedU2Record.trials[0].U2Mv, null);
+assert.equal(removedU2Record.trials[0].UT2Mv, null);
+assert.equal(removedU2Record.trials[0].recordedU2At, null);
+assert.equal(removedU2Record.trials[0].status, 'partial');
+assert.equal(removedU2Record.trials[1].status, 'complete', 'removing one heat-capacity record should not delete later independent trial groups');
+
+const removedU1Record = removeHeatCapacityTrialRecord(recordedHeatCapacityTrials, 0, 'u1');
+assert.equal(removedU1Record.nextActiveTrialIndex, 0);
+assert.equal(removedU1Record.trials[0].U1Mv, null);
+assert.equal(removedU1Record.trials[0].UT1Mv, null);
+assert.equal(removedU1Record.trials[0].U2Mv, null);
+assert.equal(removedU1Record.trials[0].UT2Mv, null);
+assert.equal(removedU1Record.trials[0].recordedU1At, null);
+assert.equal(removedU1Record.trials[0].recordedU2At, null);
+assert.equal(removedU1Record.trials[0].status, 'waiting');
+assert.equal(removedU1Record.trials[1].U1Mv, 104.8, 'removing U1 from one group should keep later groups intact');
 
 const rapidPumpSecondStroke = registerHeatCapacityPumpStroke({
   ...openValvePump,

@@ -100,9 +100,9 @@ export type WorkbenchHeatCapacityPressureZeroAdjustMode = 'none' | 'fineWheel' |
 export const HEAT_CAPACITY_PUMP_FREQUENCY_WINDOW_MS = 3000;
 export const HEAT_CAPACITY_MIN_PUMP_FREQUENCY = 0.5;
 export const HEAT_CAPACITY_PUMP_RATE_SLOW_THRESHOLD_HZ = 2;
-export const HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV = 100;
-export const HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 120;
-export const HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV = 140;
+export const HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV = 90;
+export const HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 90;
+export const HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV = 120;
 export const HEAT_CAPACITY_PRESSURE_RAW_PLACEHOLDER_MV = 3.2;
 export const HEAT_CAPACITY_PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 2;
 export const HEAT_CAPACITY_PRESSURE_ZERO_MV_PER_TURN = 1;
@@ -213,9 +213,9 @@ export const getHeatCapacityGaugePressureState = (
         ? 'warning'
         : 'normal';
   const pressureSafetyMessage = pressureSafetyStatus === 'danger'
-    ? '压强超过安全阈值，请停止打气'
+    ? '压强已超过安全阈值，请停止打气。'
     : pressureSafetyStatus === 'warning'
-      ? '压强接近预警值，请注意'
+      ? '压强接近安全阈值，请准备停止打气。'
       : null;
   return {
     ...gaugeConfig,
@@ -896,7 +896,7 @@ export const registerHeatCapacityPumpStroke = (
       pressureSafetyMessage: currentGaugePressureState.pressureSafetyMessage,
       pressureBlockedPumping: currentGaugePressureState.pressureBlockedPumping,
       pressureOverLimit: currentGaugePressureState.pressureOverLimit,
-      pumpHint: currentGaugePressureState.pressureSafetyMessage ?? '压强超过安全阈值，请停止打气',
+      pumpHint: currentGaugePressureState.pressureSafetyMessage ?? '压强已超过安全阈值，请停止打气。',
       pumpBulbState: 'releasing',
       updatedAt: now,
     };
@@ -1260,8 +1260,9 @@ export const captureHeatCapacityWorkbenchSample = (
   file: WorkbenchHeatCapacityState,
   key: HeatCapacityProcessSampleKey,
   now = Date.now(),
-): WorkbenchHeatCapacityState => applyHeatCapacityProfileToProcessSample(
-  mergeHeatCapacityRuntimeState(
+  options: { applyProfile?: boolean } = {},
+): WorkbenchHeatCapacityState => {
+  const sampledFile = mergeHeatCapacityRuntimeState(
     file,
     {
       ...captureHeatCapacityProcessSample(getHeatCapacityRuntimeStateFromFile(file), key, {
@@ -1272,9 +1273,11 @@ export const captureHeatCapacityWorkbenchSample = (
       lastUpdateMs: now,
     },
     now,
-  ),
-  key,
-);
+  );
+  return options.applyProfile === false
+    ? sampledFile
+    : applyHeatCapacityProfileToProcessSample(sampledFile, key);
+};
 
 export const markHeatCapacityDemoComplete = (
   file: WorkbenchHeatCapacityState,

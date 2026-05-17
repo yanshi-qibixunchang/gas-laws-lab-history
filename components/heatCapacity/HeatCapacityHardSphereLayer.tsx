@@ -11,6 +11,7 @@ import {
 
 interface HeatCapacityHardSphereLayerProps {
   enabled: boolean;
+  sceneTheme: 'dark' | 'light';
   powerOn: boolean;
   temperatureMv: number | null;
   pressureMv: number | null;
@@ -40,10 +41,22 @@ interface ParticleMotionState {
 const BOTTLE_INNER_HALF_SIZE = new THREE.Vector3(0.73, 0.73, 0.73);
 const PARTICLE_RADIUS = 0.048;
 const dummyObject = new THREE.Object3D();
-const particleEmissiveColor = new THREE.Color('#1fb6c9');
-const coldParticleColor = new THREE.Color('#60a5fa');
-const ambientParticleColor = new THREE.Color('#67e8f9');
-const hotParticleColor = new THREE.Color('#fde68a');
+const hardSphereParticlePalettes = {
+  dark: {
+    material: '#8eeeff',
+    emissive: '#1fb6c9',
+    cold: '#60a5fa',
+    ambient: '#67e8f9',
+    hot: '#fde68a',
+  },
+  light: {
+    material: '#0f9fb6',
+    emissive: '#0e7490',
+    cold: '#2563eb',
+    ambient: '#0891b2',
+    hot: '#b45309',
+  },
+} as const;
 const hiddenParticleColor = new THREE.Color('#000000');
 const scratchParticleColor = new THREE.Color();
 
@@ -117,10 +130,11 @@ const resetParticleInsideBottle = (
 const applyVisualMaterial = (
   material: THREE.MeshStandardMaterial | null,
   visualState: HeatCapacityHardSphereVisualState,
+  particleColors: ReturnType<typeof createParticleColors>,
 ) => {
   if (!material) return;
-  material.color.set('#ffffff');
-  material.emissive.copy(particleEmissiveColor);
+  material.color.copy(particleColors.material);
+  material.emissive.copy(particleColors.emissive);
   material.emissiveIntensity = clampNumber(0.22 + visualState.emissiveIntensity * 0.28, 0.24, 0.5);
   material.opacity = clampNumber(0.86 + visualState.emissiveIntensity * 0.08, 0.88, 0.94);
   material.needsUpdate = true;
@@ -129,16 +143,29 @@ const applyVisualMaterial = (
 const getParticleColor = (
   visualState: HeatCapacityHardSphereVisualState,
   particle: ParticleSeed,
+  particleColors: ReturnType<typeof createParticleColors>,
 ) => {
   const speedBand = clampNumber((visualState.speedMultiplier - 0.5) / 1.85 + (particle.thermalBias - 0.5) * 0.12, 0, 1);
   if (speedBand < 0.5) {
-    return scratchParticleColor.copy(coldParticleColor).lerp(ambientParticleColor, speedBand / 0.5);
+    return scratchParticleColor.copy(particleColors.cold).lerp(particleColors.ambient, speedBand / 0.5);
   }
-  return scratchParticleColor.copy(ambientParticleColor).lerp(hotParticleColor, (speedBand - 0.5) / 0.5);
+  return scratchParticleColor.copy(particleColors.ambient).lerp(particleColors.hot, (speedBand - 0.5) / 0.5);
+};
+
+const createParticleColors = (sceneTheme: HeatCapacityHardSphereLayerProps['sceneTheme']) => {
+  const palette = hardSphereParticlePalettes[sceneTheme];
+  return {
+    material: new THREE.Color(palette.material),
+    emissive: new THREE.Color(palette.emissive),
+    cold: new THREE.Color(palette.cold),
+    ambient: new THREE.Color(palette.ambient),
+    hot: new THREE.Color(palette.hot),
+  };
 };
 
 const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = ({
   enabled,
+  sceneTheme,
   powerOn,
   temperatureMv,
   pressureMv,
@@ -157,9 +184,10 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
   const particles = useMemo(() => createParticles(HEAT_CAPACITY_HARD_SPHERE_MAX_PARTICLES), []);
   const motionsRef = useRef<ParticleMotionState[]>(particles.map(createMotionState));
   const particleGeometry = useMemo(() => new THREE.SphereGeometry(1, 16, 16), []);
+  const particleColors = useMemo(() => createParticleColors(sceneTheme), [sceneTheme]);
   const particleMaterial = useMemo(() => new THREE.MeshStandardMaterial({
-    color: '#8eeeff',
-    emissive: particleEmissiveColor,
+    color: particleColors.material,
+    emissive: particleColors.emissive,
     emissiveIntensity: 0.32,
     transparent: true,
     opacity: 0.9,
@@ -169,7 +197,7 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     depthTest: true,
     depthWrite: false,
     toneMapped: false,
-  }), []);
+  }), [particleColors]);
   const visualState = useMemo(() => getHeatCapacityHardSphereVisualState({
     powerOn,
     temperatureMv,
@@ -198,8 +226,8 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
 
   useEffect(() => {
     visualStateRef.current = visualState;
-    applyVisualMaterial(particleMaterial, visualState);
-  }, [particleMaterial, visualState]);
+    applyVisualMaterial(particleMaterial, visualState, particleColors);
+  }, [particleColors, particleMaterial, visualState]);
 
   useEffect(() => () => {
     particleGeometry.dispose();
@@ -292,7 +320,7 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
       dummyObject.scale.setScalar(Math.max(0, scale));
       dummyObject.updateMatrix();
       mesh.setMatrixAt(index, dummyObject.matrix);
-      mesh.setColorAt(index, visible ? getParticleColor(currentVisual, particle) : hiddenParticleColor);
+      mesh.setColorAt(index, visible ? getParticleColor(currentVisual, particle, particleColors) : hiddenParticleColor);
     }
 
     mesh.instanceMatrix.needsUpdate = true;

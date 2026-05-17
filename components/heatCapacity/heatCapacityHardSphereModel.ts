@@ -74,19 +74,6 @@ export const getHeatCapacityHardSphereVisualState = (
   const upperTemperatureMv = finiteOrFallback(input.upperTemperatureMv, ambientTemperatureMv + 28);
   const nominalPressureMv = Math.max(20, finiteOrFallback(input.nominalPressureMv, 120));
 
-  if ((!input.powerOn && input.phase !== 'demoComplete') || input.phase === 'powerOff') {
-    return {
-      densityMultiplier: 0,
-      speedMultiplier: 0,
-      color: '#7dd3fc',
-      emissiveIntensity: 0,
-      outflowActive: false,
-      outflowIntensity: 0,
-      stability: 1,
-      targetParticleCount: 0,
-    };
-  }
-
   const smoothedTemperatureMv = roundToStep(finiteOrFallback(input.temperatureMv, ambientTemperatureMv), 0.4);
   const smoothedPressureMv = Math.max(0, roundToStep(finiteOrFallback(input.pressureMv, 0), 2));
   const temperatureFactor = normalizeClamped(smoothedTemperatureMv, ambientTemperatureMv - 10, upperTemperatureMv);

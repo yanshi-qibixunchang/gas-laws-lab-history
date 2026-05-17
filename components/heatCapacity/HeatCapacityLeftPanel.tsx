@@ -8,6 +8,7 @@ import {
   getHeatCapacityCompletedTrialCount,
   getHeatCapacityNextActiveTrialIndex,
   type HeatCapacityProcessingTrialResult,
+  type HeatCapacityTrialRecordRemovalKind,
   type HeatCapacityTrialStatus,
 } from './heatCapacityTrialModel.ts';
 
@@ -22,6 +23,15 @@ interface HeatCapacityLeftPanelProps {
     mode: WorkbenchHeatCapacityState['heatCapacityExpectedTrialCountMode'],
   ) => void;
   onCalculateResults: () => void;
+  pendingRemoveTrialRecord: {
+    trialIndex: number;
+    kind: HeatCapacityTrialRecordRemovalKind;
+  } | null;
+  onRemoveTrialRecord: (
+    trialIndex: number,
+    kind: HeatCapacityTrialRecordRemovalKind,
+  ) => void;
+  onCancelRemoveTrialRecord: () => void;
 }
 
 interface DocumentDisclosureProps {
@@ -172,6 +182,11 @@ const copyByLanguage = {
     table: {
       trial: '组次',
       status: '状态',
+      action: '操作',
+      deleteU1: '删除 U₁',
+      deleteU2: '删除 U₂',
+      confirmDelete: '确认删除',
+      cancel: '取消',
     },
     thinkingMeanTitle: '为什么多组实验应先分别计算 γᵢ，再对结果取平均？',
     thinkingMeanBody: '多组实验中，每组 U₁ᵢ 和 U₂ᵢ 是一对对应数据，应保持配对关系。本实验主公式是非线性公式，因此不应先平均多组 U₁ 和 U₂ 后只计算一次 γ。更合理的流程是每组先分别计算 γᵢ，再对所有有效 γᵢ 求平均。这样既保留每组实验内部数据的对应关系，也能让结果表显示每组实验的离散程度。',
@@ -264,6 +279,11 @@ const copyByLanguage = {
     table: {
       trial: '組次',
       status: '狀態',
+      action: '操作',
+      deleteU1: '刪除 U₁',
+      deleteU2: '刪除 U₂',
+      confirmDelete: '確認刪除',
+      cancel: '取消',
     },
     thinkingMeanTitle: '為什麼多組實驗應先分別計算 γᵢ，再對結果取平均？',
     thinkingMeanBody: '多組實驗中，每組 U₁ᵢ 和 U₂ᵢ 是一對對應資料，應保持配對關係。本實驗主公式是非線性公式，因此不應先平均多組 U₁ 和 U₂ 後只計算一次 γ。更合理的流程是每組先分別計算 γᵢ，再對所有有效 γᵢ 求平均。',
@@ -356,6 +376,11 @@ const copyByLanguage = {
     table: {
       trial: 'Trial',
       status: 'Status',
+      action: 'Action',
+      deleteU1: 'Delete U₁',
+      deleteU2: 'Delete U₂',
+      confirmDelete: 'Confirm Delete',
+      cancel: 'Cancel',
     },
     thinkingMeanTitle: 'Why calculate each γᵢ first, then average the results?',
     thinkingMeanBody: 'In repeated experiments, each U₁ᵢ and U₂ᵢ pair belongs to one trial and should remain paired. The main formula is nonlinear, so averaging all U₁ and U₂ values first and calculating a single γ would change that pairing. Calculating γᵢ for each valid trial first preserves the internal relationship of each trial and exposes trial-to-trial variation.',
@@ -469,6 +494,9 @@ const renderRecordingTab = (
   file: WorkbenchHeatCapacityState,
   copy: LocalizedText,
   onExpectedTrialCountChange: HeatCapacityLeftPanelProps['onExpectedTrialCountChange'],
+  pendingRemoveTrialRecord: HeatCapacityLeftPanelProps['pendingRemoveTrialRecord'],
+  onRemoveTrialRecord: HeatCapacityLeftPanelProps['onRemoveTrialRecord'],
+  onCancelRemoveTrialRecord: HeatCapacityLeftPanelProps['onCancelRemoveTrialRecord'],
 ) => {
   const completed = getHeatCapacityCompletedTrialCount(file.heatCapacityTrials);
   const expected = file.heatCapacityExpectedTrialCount;
@@ -492,6 +520,35 @@ const renderRecordingTab = (
     : waitingForNextTrial
       ? copy.recordingNextTrial
       : copy.recordingHint;
+  const renderRemoveRecordButton = (
+    trialIndex: number,
+    kind: HeatCapacityTrialRecordRemovalKind,
+    visible: boolean,
+  ) => {
+    if (!visible) return null;
+    const pending = pendingRemoveTrialRecord?.trialIndex === trialIndex &&
+      pendingRemoveTrialRecord.kind === kind;
+    return (
+      <span className={`studio-table-action-row ${pending ? 'studio-table-action-row-pending' : ''}`}>
+        <button
+          type="button"
+          className={`studio-table-action ${pending ? 'studio-table-action-confirm' : ''}`}
+          onClick={() => onRemoveTrialRecord(trialIndex, kind)}
+        >
+          {pending ? copy.table.confirmDelete : kind === 'u1' ? copy.table.deleteU1 : copy.table.deleteU2}
+        </button>
+        {pending ? (
+          <button
+            type="button"
+            className="studio-table-action studio-table-action-cancel"
+            onClick={onCancelRemoveTrialRecord}
+          >
+            {copy.table.cancel}
+          </button>
+        ) : null}
+      </span>
+    );
+  };
   return (
     <div className="studio-heat-recording" data-heat-capacity-recording-tab="true">
       {renderProcessSampleStatus(file, copy)}
@@ -531,10 +588,11 @@ const renderRecordingTab = (
               <th><VarUT index={1} /> / mV</th>
               <th><VarUT index={2} /> / mV</th>
               <th>{copy.table.status}</th>
+              <th>{copy.table.action}</th>
             </tr>
           </thead>
           <tbody>
-            {file.heatCapacityTrials.map((trial) => (
+            {file.heatCapacityTrials.map((trial, trialIndex) => (
               <tr key={trial.id}>
                 <td>{trial.trialIndex}</td>
                 <td>{formatNumber(trial.U1Mv, 2)}</td>
@@ -542,6 +600,12 @@ const renderRecordingTab = (
                 <td>{formatNumber(trial.UT1Mv, 1)}</td>
                 <td>{formatNumber(trial.UT2Mv, 1)}</td>
                 <td><span className={statusClass(trial.status)}>{copy.status[trial.status]}</span></td>
+                <td>
+                  <div className="studio-table-action-row">
+                    {renderRemoveRecordButton(trialIndex, 'u1', trial.U1Mv !== null || trial.UT1Mv !== null)}
+                    {renderRemoveRecordButton(trialIndex, 'u2', trial.U2Mv !== null || trial.UT2Mv !== null)}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -805,6 +869,9 @@ export const HeatCapacityLeftPanel = ({
   panelKey,
   onExpectedTrialCountChange,
   onCalculateResults,
+  pendingRemoveTrialRecord,
+  onRemoveTrialRecord,
+  onCancelRemoveTrialRecord,
 }: HeatCapacityLeftPanelProps) => {
   const copy = text(language);
   const [formulaResultsExpanded, setFormulaResultsExpanded] = useState(false);
@@ -824,7 +891,14 @@ export const HeatCapacityLeftPanel = ({
         {panelKey === 'heatCapacityGuide'
           ? renderGuideTab(language)
           : panelKey === 'heatCapacityRecords'
-            ? renderRecordingTab(file, copy, onExpectedTrialCountChange)
+            ? renderRecordingTab(
+                file,
+                copy,
+                onExpectedTrialCountChange,
+                pendingRemoveTrialRecord,
+                onRemoveTrialRecord,
+                onCancelRemoveTrialRecord,
+              )
             : renderProcessingTab(file, copy, onCalculateResults, formulaResultsExpanded, setFormulaResultsExpanded)}
       </div>
     </section>

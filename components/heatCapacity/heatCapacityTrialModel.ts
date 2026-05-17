@@ -36,6 +36,13 @@ export interface HeatCapacityTrialRecordResult {
   nextActiveTrialIndex: number;
 }
 
+export type HeatCapacityTrialRecordRemovalKind = 'u1' | 'u2';
+
+export interface HeatCapacityTrialRecordRemovalResult {
+  trials: HeatCapacityTrial[];
+  nextActiveTrialIndex: number;
+}
+
 export interface HeatCapacityProcessingTrialResult {
   trialIndex: number;
   U1Mv: number | null;
@@ -184,6 +191,40 @@ export const getHeatCapacityCompletedTrialCount = (trials: HeatCapacityTrial[]) 
 export const getHeatCapacityNextActiveTrialIndex = (trials: HeatCapacityTrial[]) => {
   const nextIndex = trials.findIndex((trial) => trial.status !== 'complete');
   return nextIndex >= 0 ? nextIndex : Math.max(0, trials.length - 1);
+};
+
+export const removeHeatCapacityTrialRecord = (
+  trials: HeatCapacityTrial[],
+  trialIndex: number,
+  kind: HeatCapacityTrialRecordRemovalKind,
+): HeatCapacityTrialRecordRemovalResult => {
+  const boundedIndex = Math.min(trials.length - 1, Math.max(0, trialIndex));
+  return {
+    trials: trials.map((trial, index) => {
+      if (index !== boundedIndex) return trial;
+      if (kind === 'u1') {
+        return {
+          ...trial,
+          U1Mv: null,
+          U2Mv: null,
+          UT1Mv: null,
+          UT2Mv: null,
+          recordedU1At: null,
+          recordedU2At: null,
+          status: 'waiting',
+        };
+      }
+      const hasU1 = trial.U1Mv !== null && trial.UT1Mv !== null;
+      return {
+        ...trial,
+        U2Mv: null,
+        UT2Mv: null,
+        recordedU2At: null,
+        status: hasU1 ? 'partial' : 'waiting',
+      };
+    }),
+    nextActiveTrialIndex: boundedIndex,
+  };
 };
 
 const getWritableTrial = (trials: HeatCapacityTrial[], activeTrialIndex: number) => {

@@ -4,6 +4,7 @@ interface HeatCapacityHardSphereToggleProps {
   enabled: boolean;
   onToggle: () => void;
   language: 'zh-CN' | 'zh-TW' | 'en';
+  descriptionId?: string;
 }
 
 const hardSphereToggleCopy = {
@@ -34,6 +35,7 @@ const HeatCapacityHardSphereToggle: React.FC<HeatCapacityHardSphereToggleProps> 
   enabled,
   onToggle,
   language,
+  descriptionId,
 }) => {
   const copy = hardSphereToggleCopy[language] ?? hardSphereToggleCopy['zh-CN'];
   const stateLabel = enabled ? copy.on : copy.off;
@@ -45,6 +47,7 @@ const HeatCapacityHardSphereToggle: React.FC<HeatCapacityHardSphereToggleProps> 
       data-heat-capacity-hard-sphere-toggle="true"
       data-heat-capacity-hard-sphere-enabled={enabled ? 'true' : 'false'}
       aria-pressed={enabled}
+      aria-describedby={descriptionId}
       title={enabled ? copy.tooltipOn : copy.tooltipOff}
       onPointerDown={(event) => {
         event.stopPropagation();

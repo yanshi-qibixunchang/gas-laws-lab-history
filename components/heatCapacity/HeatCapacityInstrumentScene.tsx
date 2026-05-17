@@ -8,11 +8,13 @@ import {
   HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG,
   getHeatCapacityStopcockState,
 } from '../workbenchState';
+import usePreviewOverlayMotion from '../usePreviewOverlayMotion';
 import HeatCapacityHardSphereLayer from './HeatCapacityHardSphereLayer';
 import HeatCapacityHardSphereToggle from './HeatCapacityHardSphereToggle';
 
 interface HeatCapacityInstrumentSceneProps {
   performanceMode: 'standard' | 'balanced' | 'performance';
+  sceneTheme: 'dark' | 'light';
   language: 'zh-CN' | 'zh-TW' | 'en';
   autoDemoActive: boolean;
   powerOn: boolean;
@@ -62,10 +64,16 @@ interface HeatCapacityInstrumentSceneProps {
   onPumpValveToggle: () => void;
   onPumpBulbPress: () => void;
   onHardSphereViewToggle: () => void;
+  overlayTopLeft?: React.ReactNode;
+  overlayTopRight?: React.ReactNode;
+  overlayBottomRight?: React.ReactNode;
+  overlayCenter?: React.ReactNode;
+  overlayBottomCenter?: React.ReactNode;
 }
 
 type HeatCapacityFocusMode = 'none' | 'stopcock' | 'instrument' | 'pump';
 type HeatCapacityHoveredControl = null | 'stopcock' | 'pumpBulb' | 'pumpValve' | 'powerSwitch' | 'pressureZero';
+type HeatCapacitySceneTheme = 'dark' | 'light';
 
 const heatCapacitySceneCopies = {
   'zh-CN': {
@@ -101,6 +109,8 @@ const heatCapacitySceneCopies = {
       pumpValve: '打气阀门',
       opened: '已打开',
       closed: '已关闭',
+      openStopcock: '连通玻璃旋塞',
+      closeStopcock: '关闭玻璃旋塞',
       openPumpValve: '打开打气阀门',
       closePumpValve: '关闭打气阀门',
       exit: '退出聚焦',
@@ -155,6 +165,8 @@ const heatCapacitySceneCopies = {
       pumpValve: '打氣閥門',
       opened: '已打開',
       closed: '已關閉',
+      openStopcock: '連通玻璃旋塞',
+      closeStopcock: '關閉玻璃旋塞',
       openPumpValve: '打開打氣閥門',
       closePumpValve: '關閉打氣閥門',
       exit: '退出聚焦',
@@ -209,6 +221,8 @@ const heatCapacitySceneCopies = {
       pumpValve: 'Pump valve',
       opened: 'Open',
       closed: 'Closed',
+      openStopcock: 'Open glass stopcock',
+      closeStopcock: 'Close glass stopcock',
       openPumpValve: 'Open pump valve',
       closePumpValve: 'Close pump valve',
       exit: 'Exit focus',
@@ -241,7 +255,7 @@ const heatCapacityHardSphereNoteCopies = {
     warming: '粒子平均运动速度加快，温度信号升高。',
     releasing: '部分粒子从出气方向流出，压强下降，温度短时降低。',
     recovering: '粒子速度逐渐恢复到室温状态。',
-    poweredOff: '仪器未通电，微观教学层保持隐藏。',
+    poweredOff: '仪器未通电，显示室温下的微观热运动。',
     footnote: '仅用于教学展示，不参与数据计算。',
   },
   'zh-TW': {
@@ -251,7 +265,7 @@ const heatCapacityHardSphereNoteCopies = {
     warming: '粒子平均運動速度加快，溫度訊號升高。',
     releasing: '部分粒子從出氣方向流出，壓強下降，溫度短時降低。',
     recovering: '粒子速度逐漸恢復到室溫狀態。',
-    poweredOff: '儀器未通電，微觀教學層保持隱藏。',
+    poweredOff: '儀器未通電，顯示室溫下的微觀熱運動。',
     footnote: '僅用於教學展示，不參與資料計算。',
   },
   en: {
@@ -261,10 +275,227 @@ const heatCapacityHardSphereNoteCopies = {
     warming: 'Average particle speed increases as the temperature signal rises.',
     releasing: 'Some particles flow out through the vent direction while pressure drops and temperature dips.',
     recovering: 'Particle speed gradually returns toward the room-temperature state.',
-    poweredOff: 'The instrument is not powered, so the microscopic teaching layer stays hidden.',
+    poweredOff: 'The instrument is not powered; the view shows room-temperature microscopic motion.',
     footnote: 'Teaching display only. Not used in data calculations.',
   },
 } as const;
+
+const heatCapacityScenePalettes = {
+  dark: {
+    scene: {
+      background: '#111827',
+      deck: '#202b3c',
+      ambientIntensity: 0.62,
+      directionalIntensity: 1.1,
+      pointIntensity: 0.52,
+      pointColor: '#8fd6ff',
+    },
+    glass: {
+      base: '#6b7280',
+      vessel: '#a7d8ff',
+      edge: '#d5efff',
+      clear: '#d9f5ff',
+      stopper: '#e5d1a8',
+      rubber: '#5b4631',
+      servicePort: '#1f2937',
+      trace: '#64748b',
+      sensorPort: '#9aa4b2',
+      sensorRod: '#cbd5e1',
+      hover: '#ecfeff',
+      hoverHalo: '#7dd3fc',
+      stopcockGlass: '#d9f5ff',
+      stopcockCore: '#d9f5ff',
+      stopcockEdge: '#67e8f9',
+      stopcockOutlineVisible: false,
+      stopcockBodyOpacity: 0.18,
+      stopcockPortOpacity: 0.3,
+      stopcockTubeOpacity: 0.28,
+      stopcockCoreOpacity: 0.24,
+      stopcockHoverOpacity: 0.34,
+      stopcockConnectorOpacity: 0.55,
+      stopcockConnectorHoverOpacity: 0.68,
+      stopcockHandleOpacity: 0.66,
+      stopcockHandleHoverOpacity: 0.78,
+      stopcockTipOpacity: 0.66,
+      stopcockBodyTransmission: 0.48,
+      stopcockPortTransmission: 0.25,
+      stopcockTubeTransmission: 0.25,
+      stopcockCoreTransmission: 0.36,
+      stopcockHandleTransmission: 0.22,
+      flowOpen: '#22c55e',
+      flowOpenEmissive: '#16a34a',
+      flowClosed: '#334155',
+      flowClosedEmissive: '#0891b2',
+      flowOpenEdge: '#bbf7d0',
+      flowClosedEdge: '#67e8f9',
+    },
+    instrument: {
+      body: '#dbe3ec',
+      face: '#c4ced9',
+      label: '#0f172a',
+      screenOn: '#34d5ff',
+      screenOff: '#1d3144',
+      screenGlowOn: '#8eeaff',
+      screenGlowOff: '#203345',
+      screenTextOn: '#062638',
+      screenTextOff: '#7f94a8',
+      terminalPositive: '#dc2626',
+      terminalNegative: '#111827',
+      terminalMetal: '#c7d0dc',
+      gaugeFace: '#eef2f6',
+      gaugeDangerFace: '#fee2e2',
+      gaugeTick: '#1f2937',
+      gaugeHub: '#111827',
+      knobBody: '#64748b',
+      knobFace: '#94a3b8',
+      knobCenter: '#475569',
+      knobIndicator: '#1f2937',
+      zeroEnabledBody: '#b87516',
+      zeroEnabledFace: '#c0841a',
+      zeroEnabledCenter: '#7c4708',
+      powerOn: '#16a34a',
+      powerOff: '#ef4444',
+      hoverHalo: '#7dd3fc',
+      hoverEmissive: '#0e7490',
+    },
+    leads: {
+      anchor: '#94a3b8',
+      positive: '#dc2626',
+      negative: '#374151',
+      pressure: '#cbd5e1',
+    },
+    pump: {
+      port: '#334155',
+      portEdge: '#dbeafe',
+      connector: '#7c8794',
+      tubeIdle: '#64748b',
+      tubeActive: '#7dd3fc',
+      valveBody: '#9aa4af',
+      valveNut: '#cbd5e1',
+      valveOpen: '#22c55e',
+      valveClosed: '#7f1d1d',
+      valveOpenEmissive: '#16a34a',
+      valveClosedEmissive: '#450a0a',
+      handleOpen: '#b91c1c',
+      handleClosed: '#991b1b',
+      handleGrip: '#e5e7eb',
+      bulbIdle: '#1f7a8c',
+      bulbActive: '#2098a8',
+      bulbBase: '#334155',
+      bulbHaloActive: '#67e8f9',
+      bulbHaloHover: '#bae6fd',
+      hoverEdge: '#ecfeff',
+    },
+  },
+  light: {
+    scene: {
+      background: '#eaf1f8',
+      deck: '#d8e4ef',
+      ambientIntensity: 0.86,
+      directionalIntensity: 0.92,
+      pointIntensity: 0.28,
+      pointColor: '#8fb7d8',
+    },
+    glass: {
+      base: '#b8c5d3',
+      vessel: '#d7efff',
+      edge: '#5f86a8',
+      clear: '#cdeeff',
+      stopper: '#d8c291',
+      rubber: '#6f5438',
+      servicePort: '#334155',
+      trace: '#7c8b9c',
+      sensorPort: '#7f8da0',
+      sensorRod: '#8fa1b4',
+      hover: '#f0fbff',
+      hoverHalo: '#0284c7',
+      stopcockGlass: '#b8e4f6',
+      stopcockCore: '#a8d8ee',
+      stopcockEdge: '#3f6f92',
+      stopcockOutlineVisible: true,
+      stopcockBodyOpacity: 0.32,
+      stopcockPortOpacity: 0.36,
+      stopcockTubeOpacity: 0.36,
+      stopcockCoreOpacity: 0.44,
+      stopcockHoverOpacity: 0.52,
+      stopcockConnectorOpacity: 0.76,
+      stopcockConnectorHoverOpacity: 0.86,
+      stopcockHandleOpacity: 0.82,
+      stopcockHandleHoverOpacity: 0.9,
+      stopcockTipOpacity: 0.84,
+      stopcockBodyTransmission: 0.24,
+      stopcockPortTransmission: 0.16,
+      stopcockTubeTransmission: 0.16,
+      stopcockCoreTransmission: 0.18,
+      stopcockHandleTransmission: 0.12,
+      flowOpen: '#15803d',
+      flowOpenEmissive: '#86efac',
+      flowClosed: '#475569',
+      flowClosedEmissive: '#7dd3fc',
+      flowOpenEdge: '#166534',
+      flowClosedEdge: '#0369a1',
+    },
+    instrument: {
+      body: '#d5dde7',
+      face: '#c3ceda',
+      label: '#172033',
+      screenOn: '#a7e7ef',
+      screenOff: '#d2dde8',
+      screenGlowOn: '#7dd3fc',
+      screenGlowOff: '#b6c6d7',
+      screenTextOn: '#102a3a',
+      screenTextOff: '#60758c',
+      terminalPositive: '#dc2626',
+      terminalNegative: '#111827',
+      terminalMetal: '#718096',
+      gaugeFace: '#f8fafc',
+      gaugeDangerFace: '#fee2e2',
+      gaugeTick: '#334155',
+      gaugeHub: '#1e293b',
+      knobBody: '#8998aa',
+      knobFace: '#b7c2cf',
+      knobCenter: '#64748b',
+      knobIndicator: '#1e293b',
+      zeroEnabledBody: '#c98218',
+      zeroEnabledFace: '#d99a28',
+      zeroEnabledCenter: '#8a520d',
+      powerOn: '#16a34a',
+      powerOff: '#dc2626',
+      hoverHalo: '#0284c7',
+      hoverEmissive: '#0e7490',
+    },
+    leads: {
+      anchor: '#64748b',
+      positive: '#dc2626',
+      negative: '#1f2937',
+      pressure: '#64748b',
+    },
+    pump: {
+      port: '#526174',
+      portEdge: '#2563eb',
+      connector: '#8391a3',
+      tubeIdle: '#7c8da1',
+      tubeActive: '#0891b2',
+      valveBody: '#8e9aa8',
+      valveNut: '#cbd5e1',
+      valveOpen: '#16a34a',
+      valveClosed: '#991b1b',
+      valveOpenEmissive: '#86efac',
+      valveClosedEmissive: '#fecaca',
+      handleOpen: '#b91c1c',
+      handleClosed: '#991b1b',
+      handleGrip: '#f8fafc',
+      bulbIdle: '#0f7f92',
+      bulbActive: '#0891b2',
+      bulbBase: '#64748b',
+      bulbHaloActive: '#0891b2',
+      bulbHaloHover: '#38bdf8',
+      hoverEdge: '#0369a1',
+    },
+  },
+} as const;
+
+type HeatCapacityScenePalette = (typeof heatCapacityScenePalettes)[HeatCapacitySceneTheme];
 
 const PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 12;
 const PRESSURE_ZERO_DRAG_DIRECTION = -1;
@@ -470,16 +701,18 @@ function PanelTerminal({
   position,
   color,
   radius = 0.04,
+  metalness = 0.08,
 }: {
   name: string;
   position: [number, number, number];
   color: string;
   radius?: number;
+  metalness?: number;
 }) {
   return (
     <mesh name={name} position={position} rotation={[Math.PI / 2, 0, 0]}>
       <cylinderGeometry args={[radius, radius, 0.035, 24]} />
-      <meshStandardMaterial color={color} roughness={0.38} metalness={color === '#c7d0dc' ? 0.45 : 0.08} />
+      <meshStandardMaterial color={color} roughness={0.38} metalness={metalness} />
     </mesh>
   );
 }
@@ -555,6 +788,7 @@ function InstrumentBox({
   onLockedInteraction,
   interactionQualityReduced,
   sceneCopy,
+  scenePalette,
 }: Pick<HeatCapacityInstrumentSceneProps, 'performanceMode' | 'powerOn' | 'pressureZeroKnobAngle' | 'pressureGaugeDisplayValue' | 'gaugePressureMinKPa' | 'gaugePressureMaxKPa' | 'pressureSafetyThresholdKPa' | 'pressureOverLimit' | 'temperatureSignalMv' | 'pressureSignalMv' | 'onPowerToggle' | 'onPressureZeroFineAdjust' | 'onPressureZeroCoarseAdjust' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
   zeroEnabled: boolean;
   onFocus: (mode: HeatCapacityFocusMode) => void;
@@ -563,11 +797,12 @@ function InstrumentBox({
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
   interactionQualityReduced: boolean;
   sceneCopy: HeatCapacitySceneCopy;
+  scenePalette: HeatCapacityScenePalette;
 }) {
   const temperatureText = powerOn ? formatSignal(temperatureSignalMv) : '';
   const pressureText = powerOn ? formatSignal(pressureSignalMv) : '';
-  const screenColor = powerOn ? '#34d5ff' : '#1d3144';
-  const screenGlow = powerOn ? '#8eeaff' : '#203345';
+  const screenColor = powerOn ? scenePalette.instrument.screenOn : scenePalette.instrument.screenOff;
+  const screenGlow = powerOn ? scenePalette.instrument.screenGlowOn : scenePalette.instrument.screenGlowOff;
   const powerSwitchHovered = hoveredControl === 'powerSwitch';
   const pressureZeroHovered = hoveredControl === 'pressureZero';
   const pressureZeroInteractionEnabled = focusMode === 'instrument';
@@ -750,20 +985,20 @@ function InstrumentBox({
     >
       <mesh name="InstrumentBox" position={[0, 0, 0]}>
         <boxGeometry args={[2.18, 0.78, 0.86]} />
-        <meshStandardMaterial color="#dbe3ec" roughness={0.58} metalness={0.05} />
+        <meshStandardMaterial color={scenePalette.instrument.body} roughness={0.58} metalness={0.05} />
       </mesh>
       <mesh name="InstrumentBoxFace" position={[0, 0.02, 0.44]}>
         <boxGeometry args={[2.04, 0.6, 0.04]} />
-        <meshStandardMaterial color="#c4ced9" roughness={0.7} />
+        <meshStandardMaterial color={scenePalette.instrument.face} roughness={0.7} />
       </mesh>
 
-      <PanelText name="InstrumentPanelTitleText" position={[0, 0.28, 0.505]} size={0.035}>
+      <PanelText name="InstrumentPanelTitleText" position={[0, 0.28, 0.505]} size={0.035} color={scenePalette.instrument.label}>
         FD-NCD-C
       </PanelText>
-      <PanelText name="TemperatureDisplayChannelLabelText" position={[-0.64, 0.215, 0.505]} size={0.026}>
+      <PanelText name="TemperatureDisplayChannelLabelText" position={[-0.64, 0.215, 0.505]} size={0.026} color={scenePalette.instrument.label}>
         U_T / mV
       </PanelText>
-      <PanelText name="PressureDisplayChannelLabelText" position={[0, 0.215, 0.505]} size={0.026}>
+      <PanelText name="PressureDisplayChannelLabelText" position={[0, 0.215, 0.505]} size={0.026} color={scenePalette.instrument.label}>
         U_p / mV
       </PanelText>
 
@@ -774,12 +1009,12 @@ function InstrumentBox({
       <DemoFocusHalo active={temperatureDisplayDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloTemperatureDisplay" position={[-0.64, 0.1, 0.508]}>
         <boxGeometry args={[0.5, 0.24, 0.02]} />
       </DemoFocusHalo>
-      <PanelText name="TemperatureDisplayText" position={[-0.64, 0.1, 0.505]} size={0.038} color={powerOn ? '#062638' : '#7f94a8'} updateIntervalMs={panelTextUpdateIntervalMs}>
+      <PanelText name="TemperatureDisplayText" position={[-0.64, 0.1, 0.505]} size={0.038} color={powerOn ? scenePalette.instrument.screenTextOn : scenePalette.instrument.screenTextOff} updateIntervalMs={panelTextUpdateIntervalMs}>
         {temperatureText || 'U_T'}
       </PanelText>
-      <PanelTerminal name="TemperaturePositiveInputTerminal" position={[-0.73, -0.12, 0.49]} color="#dc2626" />
-      <PanelTerminal name="TemperatureNegativeInputTerminal" position={[-0.55, -0.12, 0.49]} color="#111827" />
-      <PanelText name="TemperatureInputPortLabelText" position={[-0.64, -0.23, 0.505]} size={0.025}>
+      <PanelTerminal name="TemperaturePositiveInputTerminal" position={[-0.73, -0.12, 0.49]} color={scenePalette.instrument.terminalPositive} />
+      <PanelTerminal name="TemperatureNegativeInputTerminal" position={[-0.55, -0.12, 0.49]} color={scenePalette.instrument.terminalNegative} />
+      <PanelText name="TemperatureInputPortLabelText" position={[-0.64, -0.23, 0.505]} size={0.025} color={scenePalette.instrument.label}>
         INPUT +/-
       </PanelText>
 
@@ -790,11 +1025,11 @@ function InstrumentBox({
       <DemoFocusHalo active={pressureDisplayDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloPressureDisplay" position={[0, 0.1, 0.508]}>
         <boxGeometry args={[0.5, 0.24, 0.02]} />
       </DemoFocusHalo>
-      <PanelText name="PressureDisplayText" position={[0, 0.1, 0.505]} size={0.038} color={powerOn ? '#062638' : '#7f94a8'} updateIntervalMs={panelTextUpdateIntervalMs}>
+      <PanelText name="PressureDisplayText" position={[0, 0.1, 0.505]} size={0.038} color={powerOn ? scenePalette.instrument.screenTextOn : scenePalette.instrument.screenTextOff} updateIntervalMs={panelTextUpdateIntervalMs}>
         {pressureText || 'U_p'}
       </PanelText>
-      <PanelTerminal name="PressureSensorInputPort" position={[-0.08, -0.13, 0.49]} color="#c7d0dc" radius={0.055} />
-      <PanelText name="PressureInputPortLabelText" position={[-0.08, -0.24, 0.505]} size={0.025}>
+      <PanelTerminal name="PressureSensorInputPort" position={[-0.08, -0.13, 0.49]} color={scenePalette.instrument.terminalMetal} radius={0.055} metalness={0.45} />
+      <PanelText name="PressureInputPortLabelText" position={[-0.08, -0.24, 0.505]} size={0.025} color={scenePalette.instrument.label}>
         PRESS IN
       </PanelText>
 
@@ -802,7 +1037,7 @@ function InstrumentBox({
         <mesh name="AnalogPressureGaugeDial" rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.19, 0.19, 0.035, 48]} />
           <meshStandardMaterial
-            color={pressureOverLimit ? '#fee2e2' : '#eef2f6'}
+            color={pressureOverLimit ? scenePalette.instrument.gaugeDangerFace : scenePalette.instrument.gaugeFace}
             roughness={0.45}
             emissive={pressureOverLimit ? '#dc2626' : '#000000'}
             emissiveIntensity={pressureOverLimit ? 0.22 : 0}
@@ -819,7 +1054,7 @@ function InstrumentBox({
               rotation={[0, 0, tickRotation]}
             >
               <boxGeometry args={[majorTick ? 0.042 : 0.03, 0.008, 0.01]} />
-              <meshStandardMaterial color="#1f2937" />
+              <meshStandardMaterial color={scenePalette.instrument.gaugeTick} />
             </mesh>
           );
         })}
@@ -849,7 +1084,7 @@ function InstrumentBox({
         </group>
         <mesh name="AnalogPressureGaugeHub" position={[0, 0.004, 0.055]}>
           <sphereGeometry args={[0.018, 16, 16]} />
-          <meshStandardMaterial color="#111827" />
+          <meshStandardMaterial color={scenePalette.instrument.gaugeHub} />
         </mesh>
       </group>
 
@@ -879,12 +1114,12 @@ function InstrumentBox({
         </DemoFocusHalo>
         <mesh rotation={[powerOn ? -0.35 : 0.35, 0, 0]}>
           <boxGeometry args={[0.14, 0.28, 0.12]} />
-          <meshStandardMaterial color={powerOn ? '#16a34a' : '#ef4444'} roughness={0.45} emissive={powerSwitchHovered ? '#0e7490' : '#000000'} emissiveIntensity={powerSwitchHovered ? NON_BULB_HOVER_EMISSIVE_INTENSITY : 0} />
+          <meshStandardMaterial color={powerOn ? scenePalette.instrument.powerOn : scenePalette.instrument.powerOff} roughness={0.45} emissive={powerSwitchHovered ? scenePalette.instrument.hoverEmissive : '#000000'} emissiveIntensity={powerSwitchHovered ? NON_BULB_HOVER_EMISSIVE_INTENSITY : 0} />
         </mesh>
         {powerSwitchHovered ? (
           <mesh name="PowerSwitchHoverHalo" rotation={[powerOn ? -0.35 : 0.35, 0, 0]} raycast={DISABLE_RAYCAST}>
             <boxGeometry args={[0.19, 0.34, 0.15]} />
-            <meshBasicMaterial color="#7dd3fc" transparent opacity={NON_BULB_HOVER_HALO_OPACITY} depthWrite={false} />
+            <meshBasicMaterial color={scenePalette.instrument.hoverHalo} transparent opacity={NON_BULB_HOVER_HALO_OPACITY} depthWrite={false} />
           </mesh>
         ) : null}
       </group>
@@ -934,36 +1169,36 @@ function InstrumentBox({
               raycast={DISABLE_RAYCAST}
             >
               <boxGeometry args={[0.026, 0.005, 0.008]} />
-              <meshStandardMaterial color="#475569" roughness={0.65} />
+              <meshStandardMaterial color={scenePalette.instrument.knobCenter} roughness={0.65} />
             </mesh>
           );
         })}
         <mesh name="PressureZeroKnobBody" rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.118, 0.108, 0.084, 48]} />
-          <meshStandardMaterial color={zeroEnabled ? '#b87516' : '#64748b'} roughness={0.5} metalness={0.08} emissive={pressureZeroHovered ? '#0e7490' : '#000000'} emissiveIntensity={pressureZeroHovered ? NON_BULB_HOVER_EMISSIVE_INTENSITY : 0} />
+          <meshStandardMaterial color={zeroEnabled ? scenePalette.instrument.zeroEnabledBody : scenePalette.instrument.knobBody} roughness={0.5} metalness={0.08} emissive={pressureZeroHovered ? scenePalette.instrument.hoverEmissive : '#000000'} emissiveIntensity={pressureZeroHovered ? NON_BULB_HOVER_EMISSIVE_INTENSITY : 0} />
         </mesh>
         <mesh name="PressureZeroKnobFace" position={[0, 0, 0.048]} rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.096, 0.102, 0.014, 48]} />
-          <meshStandardMaterial color={zeroEnabled ? '#c0841a' : '#94a3b8'} roughness={0.46} metalness={0.04} emissive={pressureZeroHovered ? '#075985' : '#000000'} emissiveIntensity={pressureZeroHovered ? 0.16 : 0} />
+          <meshStandardMaterial color={zeroEnabled ? scenePalette.instrument.zeroEnabledFace : scenePalette.instrument.knobFace} roughness={0.46} metalness={0.04} emissive={pressureZeroHovered ? scenePalette.instrument.hoverEmissive : '#000000'} emissiveIntensity={pressureZeroHovered ? 0.16 : 0} />
         </mesh>
         <mesh name="PressureZeroKnobRim" position={[0, 0, 0.058]} raycast={DISABLE_RAYCAST}>
           <torusGeometry args={[0.103, 0.006, 12, 48]} />
-          <meshStandardMaterial color={zeroEnabled ? '#7c4708' : '#475569'} roughness={0.4} metalness={0.16} />
+          <meshStandardMaterial color={zeroEnabled ? scenePalette.instrument.zeroEnabledCenter : scenePalette.instrument.knobCenter} roughness={0.4} metalness={0.16} />
         </mesh>
         <mesh name="PressureZeroKnobCenter" position={[0, 0, 0.068]} rotation={[Math.PI / 2, 0, 0]} raycast={DISABLE_RAYCAST}>
           <cylinderGeometry args={[0.018, 0.018, 0.01, 24]} />
-          <meshStandardMaterial color="#1f2937" roughness={0.42} metalness={0.12} />
+          <meshStandardMaterial color={scenePalette.instrument.gaugeHub} roughness={0.42} metalness={0.12} />
         </mesh>
         {pressureZeroHovered ? (
           <mesh name="PressureZeroHoverHalo" position={[0, 0, 0.047]} raycast={DISABLE_RAYCAST}>
             <torusGeometry args={[0.135, 0.006, 12, 42]} />
-            <meshBasicMaterial color="#7dd3fc" transparent opacity={NON_BULB_HOVER_HALO_OPACITY} depthWrite={false} />
+            <meshBasicMaterial color={scenePalette.instrument.hoverHalo} transparent opacity={NON_BULB_HOVER_HALO_OPACITY} depthWrite={false} />
           </mesh>
         ) : null}
         <group name="PressureZeroIndicatorGroup" rotation={[0, 0, THREE.MathUtils.degToRad(pressureZeroKnobAngle + pressureZeroRollbackOffsetDeg)]}>
           <mesh name="PressureZeroIndicatorLine" position={[0.035, 0, 0.076]} raycast={DISABLE_RAYCAST}>
             <boxGeometry args={[0.105, 0.013, 0.016]} />
-            <meshStandardMaterial color="#111827" roughness={0.34} />
+            <meshStandardMaterial color={scenePalette.instrument.knobIndicator} roughness={0.34} />
           </mesh>
         </group>
       </group>
@@ -974,6 +1209,7 @@ function InstrumentBox({
 function GlassStopcock({
   angleDeg,
   onStopcockOpenChange,
+  onFocus,
   hoveredControl,
   setHoveredControl,
   interactionLocked,
@@ -983,11 +1219,14 @@ function GlassStopcock({
   manualRollbackKey,
   onLockedInteraction,
   interactionQualityReduced,
+  scenePalette,
 }: Pick<HeatCapacityInstrumentSceneProps, 'onStopcockOpenChange' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
   angleDeg: number;
+  onFocus: (mode: HeatCapacityFocusMode) => void;
   hoveredControl: HeatCapacityHoveredControl;
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
   interactionQualityReduced: boolean;
+  scenePalette: HeatCapacityScenePalette;
 }) {
   const [displayAngleDeg, setDisplayAngleDeg] = useState(angleDeg);
   const displayAngleRef = useRef(angleDeg);
@@ -1002,7 +1241,7 @@ function GlassStopcock({
       return undefined;
     }
     const startTime = performance.now();
-    const durationMs = 850;
+    const durationMs = PUMP_VALVE_TRANSITION_MS;
     let frameId = 0;
     const animate = (timestamp: number) => {
       const progress = Math.min(1, (timestamp - startTime) / durationMs);
@@ -1041,40 +1280,70 @@ function GlassStopcock({
   const stopcockHovered = hoveredControl === 'stopcock';
   const stopcockDemoFocused = demoFocusPulseActive && demoFocusControlId === 'stopcock';
   const angleRad = ((displayAngleDeg + stopcockRollbackOffsetDeg) * Math.PI) / 180;
+  const stopcockSingleClickTimerRef = useRef<number | null>(null);
 
-  const handleStopcockToggle = (event: ThreeEvent<PointerEvent>) => {
+  const clearStopcockSingleClickTimer = useCallback(() => {
+    if (stopcockSingleClickTimerRef.current !== null) {
+      window.clearTimeout(stopcockSingleClickTimerRef.current);
+      stopcockSingleClickTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => clearStopcockSingleClickTimer, [clearStopcockSingleClickTimer]);
+
+  const handleStopcockToggle = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
     event.nativeEvent.stopPropagation();
     event.nativeEvent.stopImmediatePropagation?.();
+    if ((event.nativeEvent as MouseEvent).detail > 1) return;
     if (interactionLocked) {
       onLockedInteraction();
       return;
     }
-    onStopcockOpenChange(state !== 'open');
+    clearStopcockSingleClickTimer();
+    stopcockSingleClickTimerRef.current = window.setTimeout(() => {
+      stopcockSingleClickTimerRef.current = null;
+      onStopcockOpenChange(state !== 'open');
+    }, 180);
   };
 
   return (
     <group name="GlassStopcockAssembly" position={[0, 1.58, 0]}>
       <mesh name="StopcockBody" rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.16, 0.16, 0.76, 32]} />
-        <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.18} roughness={0.06} transmission={0.48} />
+        <meshPhysicalMaterial color={scenePalette.glass.stopcockGlass} transparent opacity={scenePalette.glass.stopcockBodyOpacity} roughness={0.06} transmission={scenePalette.glass.stopcockBodyTransmission} />
+        {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
       </mesh>
       <mesh name="StopcockSidePort" position={[0.38, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.08, 0.08, 0.16, 20]} />
-        <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.3} roughness={0.08} transmission={0.25} />
+        <meshPhysicalMaterial color={scenePalette.glass.stopcockGlass} transparent opacity={scenePalette.glass.stopcockPortOpacity} roughness={0.08} transmission={scenePalette.glass.stopcockPortTransmission} />
+        {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
       </mesh>
       <mesh name="StopcockTopVentOutlet" position={[0, 0.25, 0]}>
         <cylinderGeometry args={[0.043, 0.048, 0.36, 24]} />
-        <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.28} roughness={0.08} transmission={0.25} />
+        <meshPhysicalMaterial color={scenePalette.glass.stopcockGlass} transparent opacity={scenePalette.glass.stopcockTubeOpacity} roughness={0.08} transmission={scenePalette.glass.stopcockTubeTransmission} />
+        {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
       </mesh>
       <mesh name="StopcockDownTube" position={[0, -0.36, 0]}>
         <cylinderGeometry args={[0.09, 0.09, 0.72, 24]} />
-        <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.28} roughness={0.08} transmission={0.25} />
+        <meshPhysicalMaterial color={scenePalette.glass.stopcockGlass} transparent opacity={scenePalette.glass.stopcockTubeOpacity} roughness={0.08} transmission={scenePalette.glass.stopcockTubeTransmission} />
+        {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
       </mesh>
       <group
         name="StopcockRotatingCore"
         rotation={[angleRad, 0, 0]}
-        onPointerDown={handleStopcockToggle}
+        onClick={handleStopcockToggle}
+        onDoubleClick={(event) => {
+          event.stopPropagation();
+          event.nativeEvent.stopPropagation();
+          event.nativeEvent.stopImmediatePropagation?.();
+          clearStopcockSingleClickTimer();
+          if (interactionLocked) {
+            onLockedInteraction();
+            return;
+          }
+          onFocus('stopcock');
+        }}
         onPointerOver={(event) => {
           event.stopPropagation();
           event.nativeEvent.stopPropagation();
@@ -1092,71 +1361,74 @@ function GlassStopcock({
         <mesh name="StopcockCorePlug" rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.14, 0.14, 0.34, 32]} />
           <meshPhysicalMaterial
-            color={stopcockHovered ? '#ecfeff' : '#d9f5ff'}
+            color={stopcockHovered ? scenePalette.glass.hover : scenePalette.glass.stopcockCore}
             transparent
-            opacity={stopcockHovered ? 0.34 : 0.24}
+            opacity={stopcockHovered ? scenePalette.glass.stopcockHoverOpacity : scenePalette.glass.stopcockCoreOpacity}
             roughness={0.06}
-            transmission={0.36}
-            emissive={stopcockHovered ? '#0e7490' : '#000000'}
+            transmission={scenePalette.glass.stopcockCoreTransmission}
+            emissive={stopcockHovered ? scenePalette.instrument.hoverEmissive : '#000000'}
             emissiveIntensity={stopcockHovered ? GLASS_HOVER_EMISSIVE_INTENSITY : 0}
           />
+          {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
         </mesh>
         {stopcockHovered ? (
           <mesh name="StopcockCoreHoverHalo" rotation={[0, 0, Math.PI / 2]} raycast={DISABLE_RAYCAST}>
             <cylinderGeometry args={[0.158, 0.158, 0.35, 32]} />
-            <meshBasicMaterial color="#7dd3fc" transparent opacity={GLASS_HOVER_HALO_OPACITY} depthWrite={false} />
+            <meshBasicMaterial color={scenePalette.glass.hoverHalo} transparent opacity={GLASS_HOVER_HALO_OPACITY} depthWrite={false} />
           </mesh>
         ) : null}
         <mesh name="StopcockRotatingFlowChannel" position={[0, 0, 0]}>
           <cylinderGeometry args={[0.03, 0.03, 0.24, 16]} />
           <meshStandardMaterial
-            color={state === 'open' ? '#22c55e' : '#334155'}
-            emissive={state === 'open' ? '#16a34a' : '#0891b2'}
+            color={state === 'open' ? scenePalette.glass.flowOpen : scenePalette.glass.flowClosed}
+            emissive={state === 'open' ? scenePalette.glass.flowOpenEmissive : scenePalette.glass.flowClosedEmissive}
             emissiveIntensity={state === 'open' ? 0.85 : 0.24}
             transparent
             opacity={state === 'open' ? 0.96 : 0.76}
             depthTest={false}
           />
-          <Edges color={state === 'open' ? '#bbf7d0' : '#67e8f9'} />
+          <Edges color={state === 'open' ? scenePalette.glass.flowOpenEdge : scenePalette.glass.flowClosedEdge} />
         </mesh>
         <group name="StopcockRodHandle" position={[0.44, 0, 0]}>
           <mesh name="StopcockRodHandleConnector" position={[-0.1, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
             <cylinderGeometry args={[0.028, 0.028, 0.24, 20]} />
             <meshPhysicalMaterial
-              color={stopcockHovered ? '#ecfeff' : '#d9f5ff'}
+              color={stopcockHovered ? scenePalette.glass.hover : scenePalette.glass.stopcockGlass}
               transparent
-              opacity={stopcockHovered ? 0.68 : 0.55}
+              opacity={stopcockHovered ? scenePalette.glass.stopcockConnectorHoverOpacity : scenePalette.glass.stopcockConnectorOpacity}
               roughness={0.08}
-              transmission={0.2}
-              emissive={stopcockHovered ? '#0e7490' : '#000000'}
+              transmission={scenePalette.glass.stopcockHandleTransmission}
+              emissive={stopcockHovered ? scenePalette.instrument.hoverEmissive : '#000000'}
               emissiveIntensity={stopcockHovered ? GLASS_HOVER_EMISSIVE_INTENSITY : 0}
             />
+            {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
           </mesh>
           <mesh name="StopcockRodHandleStem">
             <cylinderGeometry args={[0.035, 0.035, 0.58, 24]} />
             <meshPhysicalMaterial
-              color={stopcockHovered ? '#ecfeff' : '#d9f5ff'}
+              color={stopcockHovered ? scenePalette.glass.hover : scenePalette.glass.stopcockGlass}
               transparent
-              opacity={stopcockHovered ? 0.78 : 0.66}
+              opacity={stopcockHovered ? scenePalette.glass.stopcockHandleHoverOpacity : scenePalette.glass.stopcockHandleOpacity}
               roughness={0.08}
-              transmission={0.22}
-              emissive={stopcockHovered ? '#0e7490' : '#000000'}
+              transmission={scenePalette.glass.stopcockHandleTransmission}
+              emissive={stopcockHovered ? scenePalette.instrument.hoverEmissive : '#000000'}
               emissiveIntensity={stopcockHovered ? GLASS_HOVER_EMISSIVE_INTENSITY : 0}
             />
+            {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
           </mesh>
           {stopcockHovered ? (
             <mesh name="StopcockRodHandleHoverHalo" raycast={DISABLE_RAYCAST}>
               <cylinderGeometry args={[0.05, 0.05, 0.6, 24]} />
-              <meshBasicMaterial color="#7dd3fc" transparent opacity={GLASS_HOVER_HALO_OPACITY} depthWrite={false} />
+              <meshBasicMaterial color={scenePalette.glass.hoverHalo} transparent opacity={GLASS_HOVER_HALO_OPACITY} depthWrite={false} />
             </mesh>
           ) : null}
           <mesh name="StopcockRodHandleTipTop" position={[0, 0.31, 0]}>
             <sphereGeometry args={[0.04, 16, 16]} />
-            <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.66} roughness={0.08} transmission={0.22} />
+            <meshPhysicalMaterial color={scenePalette.glass.stopcockGlass} transparent opacity={scenePalette.glass.stopcockTipOpacity} roughness={0.08} transmission={scenePalette.glass.stopcockHandleTransmission} />
           </mesh>
           <mesh name="StopcockRodHandleTipBottom" position={[0, -0.31, 0]}>
             <sphereGeometry args={[0.04, 16, 16]} />
-            <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.66} roughness={0.08} transmission={0.22} />
+            <meshPhysicalMaterial color={scenePalette.glass.stopcockGlass} transparent opacity={scenePalette.glass.stopcockTipOpacity} roughness={0.08} transmission={scenePalette.glass.stopcockHandleTransmission} />
           </mesh>
         </group>
       </group>
@@ -1164,11 +1436,11 @@ function GlassStopcock({
         <group name="StopcockVentFlowArrow" position={[0, 0.62, 0]}>
           <mesh name="StopcockVentFlowArrowStem">
             <cylinderGeometry args={[0.018, 0.018, 0.24, 16]} />
-            <meshStandardMaterial color="#22c55e" emissive="#16a34a" emissiveIntensity={0.75} />
+            <meshStandardMaterial color={scenePalette.glass.flowOpen} emissive={scenePalette.glass.flowOpenEmissive} emissiveIntensity={0.75} />
           </mesh>
           <mesh name="StopcockVentFlowArrowHead" position={[0, 0.15, 0]}>
             <coneGeometry args={[0.055, 0.12, 20]} />
-            <meshStandardMaterial color="#22c55e" emissive="#16a34a" emissiveIntensity={0.75} />
+            <meshStandardMaterial color={scenePalette.glass.flowOpen} emissive={scenePalette.glass.flowOpenEmissive} emissiveIntensity={0.75} />
           </mesh>
         </group>
       ) : null}
@@ -1189,6 +1461,7 @@ function PressureBottle({
   manualRollbackKey,
   onLockedInteraction,
   interactionQualityReduced,
+  scenePalette,
 }: Pick<HeatCapacityInstrumentSceneProps, 'onStopcockOpenChange' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
   stopcockAngleDeg: number;
   onFocus: (mode: HeatCapacityFocusMode) => void;
@@ -1196,57 +1469,59 @@ function PressureBottle({
   hoveredControl: HeatCapacityHoveredControl;
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
   interactionQualityReduced: boolean;
+  scenePalette: HeatCapacityScenePalette;
 }) {
   return (
     <group name="SquareGlassPressureBottle" position={[-1.3, -0.28, 0]}>
       <mesh name="BottleBase" position={[0, -1.22, 0]}>
         <boxGeometry args={[1.85, 0.18, 1.85]} />
-        <meshStandardMaterial color="#6b7280" roughness={0.6} />
+        <meshStandardMaterial color={scenePalette.glass.base} roughness={0.6} />
       </mesh>
       <mesh name="VesselGlassCube">
         <boxGeometry args={[1.75, 1.75, 1.75]} />
-        <meshPhysicalMaterial color="#a7d8ff" transparent opacity={0.16} roughness={0.08} transmission={0.45} depthWrite={false} />
-        <Edges color="#d5efff" />
+        <meshPhysicalMaterial color={scenePalette.glass.vessel} transparent opacity={0.16} roughness={0.08} transmission={0.45} depthWrite={false} />
+        <Edges color={scenePalette.glass.edge} />
       </mesh>
       <mesh name="BottleMouthNeck" position={[0, 0.92, 0]}>
         <cylinderGeometry args={[0.43, 0.39, 0.34, 40]} />
-        <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.2} roughness={0.08} transmission={0.35} depthWrite={false} />
+        <meshPhysicalMaterial color={scenePalette.glass.clear} transparent opacity={0.2} roughness={0.08} transmission={0.35} depthWrite={false} />
       </mesh>
       <mesh name="BottleMouthRim" position={[0, 1.09, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.43, 0.025, 12, 48]} />
-        <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.28} roughness={0.08} transmission={0.3} depthWrite={false} />
+        <meshPhysicalMaterial color={scenePalette.glass.clear} transparent opacity={0.28} roughness={0.08} transmission={0.3} depthWrite={false} />
       </mesh>
       <mesh name="RubberStopper" position={[0, 1.02, 0]}>
         <cylinderGeometry args={[0.54, 0.42, 0.24, 40]} />
-        <meshStandardMaterial color="#e5d1a8" roughness={0.72} />
+        <meshStandardMaterial color={scenePalette.glass.stopper} roughness={0.72} />
       </mesh>
       <mesh name="CentralSensorStopperHole" position={[0.16, 1.16, 0.24]}>
         <cylinderGeometry args={[0.085, 0.085, 0.035, 24]} />
-        <meshStandardMaterial color="#5b4631" roughness={0.82} />
+        <meshStandardMaterial color={scenePalette.glass.rubber} roughness={0.82} />
       </mesh>
       <mesh name="SharedServiceCablePort" position={[0.2, 1.17, 0.36]}>
         <cylinderGeometry args={[0.06, 0.06, 0.045, 24]} />
-        <meshStandardMaterial color="#1f2937" roughness={0.78} />
+        <meshStandardMaterial color={scenePalette.glass.servicePort} roughness={0.78} />
       </mesh>
       <mesh name="SensorToServicePortTrace" position={[0.18, 1.176, 0.3]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.014, 0.014, 0.13, 16]} />
-        <meshStandardMaterial color="#64748b" roughness={0.66} />
+        <meshStandardMaterial color={scenePalette.glass.trace} roughness={0.66} />
       </mesh>
       <mesh name="TopNeck" position={[0, 1.28, 0]}>
         <cylinderGeometry args={[0.16, 0.18, 0.5, 32]} />
-        <meshPhysicalMaterial color="#d9f5ff" transparent opacity={0.3} roughness={0.08} transmission={0.25} depthWrite={false} />
+        <meshPhysicalMaterial color={scenePalette.glass.clear} transparent opacity={0.3} roughness={0.08} transmission={0.25} depthWrite={false} />
       </mesh>
       <mesh name="SensorStopperPort" position={[0.16, 0.96, 0.24]}>
         <cylinderGeometry args={[0.075, 0.075, 0.08, 20]} />
-        <meshStandardMaterial color="#9aa4b2" roughness={0.44} metalness={0.1} />
+        <meshStandardMaterial color={scenePalette.glass.sensorPort} roughness={0.44} metalness={0.1} />
       </mesh>
       <mesh name="SensorRod" position={[0.16, 0.52, 0.24]}>
         <cylinderGeometry args={[0.035, 0.035, 0.875, 16]} />
-        <meshStandardMaterial color="#cbd5e1" roughness={0.34} metalness={0.15} />
+        <meshStandardMaterial color={scenePalette.glass.sensorRod} roughness={0.34} metalness={0.15} />
       </mesh>
       <GlassStopcock
         angleDeg={stopcockAngleDeg}
         onStopcockOpenChange={onStopcockOpenChange}
+        onFocus={onFocus}
         hoveredControl={hoveredControl}
         setHoveredControl={setHoveredControl}
         interactionLocked={interactionLocked}
@@ -1256,25 +1531,30 @@ function PressureBottle({
         manualRollbackKey={manualRollbackKey}
         onLockedInteraction={onLockedInteraction}
         interactionQualityReduced={interactionQualityReduced}
+        scenePalette={scenePalette}
       />
     </group>
   );
 }
 
-function InstrumentLeads() {
+function InstrumentLeads({
+  scenePalette,
+}: {
+  scenePalette: HeatCapacityScenePalette;
+}) {
   return (
     <group name="InstrumentLeadSet">
       <mesh name="ServicePortBundleAnchor" position={[-1.1, 0.92, 1.1]}>
         <sphereGeometry args={[0.025, 12, 12]} />
-        <meshStandardMaterial color="#94a3b8" roughness={0.5} />
+        <meshStandardMaterial color={scenePalette.leads.anchor} roughness={0.5} />
       </mesh>
       <mesh name="ExternalTemperatureLeadAnchor" position={[-0.52, 0.36, 1.22]}>
         <sphereGeometry args={[0.025, 12, 12]} />
-        <meshStandardMaterial color="#94a3b8" roughness={0.5} />
+        <meshStandardMaterial color={scenePalette.leads.anchor} roughness={0.5} />
       </mesh>
       <mesh name="ExternalPressureLeadAnchor" position={[-0.28, 0.46, 1.42]}>
         <sphereGeometry args={[0.025, 12, 12]} />
-        <meshStandardMaterial color="#94a3b8" roughness={0.5} />
+        <meshStandardMaterial color={scenePalette.leads.anchor} roughness={0.5} />
       </mesh>
       <Line
         name="TemperaturePositiveLead"
@@ -1285,7 +1565,7 @@ function InstrumentLeads() {
           [0.52, -0.18, 1.02],
           [1.12, -0.62, 0.51],
         ]}
-        color="#dc2626"
+        color={scenePalette.leads.positive}
         lineWidth={2}
       />
       <Line
@@ -1297,7 +1577,7 @@ function InstrumentLeads() {
           [0.46, -0.28, 1.08],
           [1.3, -0.62, 0.51],
         ]}
-        color="#374151"
+        color={scenePalette.leads.negative}
         lineWidth={3}
       />
       <Line
@@ -1309,7 +1589,7 @@ function InstrumentLeads() {
           [0.84, -0.14, 1.14],
           [1.77, -0.63, 0.51],
         ]}
-        color="#cbd5e1"
+        color={scenePalette.leads.pressure}
         lineWidth={4}
       />
     </group>
@@ -1333,12 +1613,14 @@ function PumpAssembly({
   manualRollbackKey,
   onLockedInteraction,
   interactionQualityReduced,
+  scenePalette,
 }: Pick<HeatCapacityInstrumentSceneProps, 'pumpValveOpen' | 'pumpBulbState' | 'pumpPulseId' | 'onPumpValveToggle' | 'onPumpBulbPress' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
   onFocus: (mode: HeatCapacityFocusMode) => void;
   focusMode: HeatCapacityFocusMode;
   hoveredControl: HeatCapacityHoveredControl;
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
   interactionQualityReduced: boolean;
+  scenePalette: HeatCapacityScenePalette;
 }) {
   const bulbHovered = hoveredControl === 'pumpBulb';
   const valveHovered = hoveredControl === 'pumpValve';
@@ -1350,6 +1632,7 @@ function PumpAssembly({
     releaseTimerId: number | null;
     idleTimerId: number | null;
   }>({ releaseTimerId: null, idleTimerId: null });
+  const pumpValveSingleClickTimerRef = useRef<number | null>(null);
   const [pumpPulseVisualState, setPumpPulseVisualState] = useState<HeatCapacityInstrumentSceneProps['pumpBulbState']>('idle');
   const visualPumpBulbState = pumpPulseVisualState !== 'idle' ? pumpPulseVisualState : pumpBulbState;
   const pumpBulbScale: [number, number, number] = visualPumpBulbState === 'compressing'
@@ -1358,7 +1641,7 @@ function PumpAssembly({
       ? [1.02, 0.92, 1.01]
       : [1, 1, 1];
   const pumpBulbActive = visualPumpBulbState !== 'idle';
-  const tubeColor = pumpValveOpen && pumpBulbActive ? '#7dd3fc' : '#64748b';
+  const tubeColor = pumpValveOpen && pumpBulbActive ? scenePalette.pump.tubeActive : scenePalette.pump.tubeIdle;
 
   const clearPumpPulseTimers = () => {
     const timers = pumpPulseTimersRef.current;
@@ -1381,6 +1664,31 @@ function PumpAssembly({
       return;
     }
     onPumpBulbPress();
+  };
+
+  const clearPumpValveSingleClickTimer = useCallback(() => {
+    if (pumpValveSingleClickTimerRef.current !== null) {
+      window.clearTimeout(pumpValveSingleClickTimerRef.current);
+      pumpValveSingleClickTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => clearPumpValveSingleClickTimer, [clearPumpValveSingleClickTimer]);
+
+  const handlePumpValveClick = (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation();
+    event.nativeEvent.stopPropagation();
+    event.nativeEvent.stopImmediatePropagation?.();
+    if ((event.nativeEvent as MouseEvent).detail > 1) return;
+    if (interactionLocked) {
+      onLockedInteraction();
+      return;
+    }
+    clearPumpValveSingleClickTimer();
+    pumpValveSingleClickTimerRef.current = window.setTimeout(() => {
+      pumpValveSingleClickTimerRef.current = null;
+      onPumpValveToggle();
+    }, 180);
   };
 
   useEffect(() => {
@@ -1438,25 +1746,15 @@ function PumpAssembly({
   }, [pumpPulseId]);
 
   return (
-    <group
-      name="pumpAssembly"
-      onDoubleClick={(event) => {
-        event.stopPropagation();
-        if (interactionLocked) {
-          onLockedInteraction();
-          return;
-        }
-        onFocus('pump');
-      }}
-    >
+    <group name="pumpAssembly">
       <mesh name="pumpPortOnStopper" position={[-1.72, 0.9, 0.26]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.068, 0.068, 0.18, 24]} />
-        <meshStandardMaterial color="#334155" roughness={0.58} metalness={0.2} />
-        <Edges color="#dbeafe" />
+        <meshStandardMaterial color={scenePalette.pump.port} roughness={0.58} metalness={0.2} />
+        <Edges color={scenePalette.pump.portEdge} />
       </mesh>
       <mesh name="pumpShortConnectorIn" position={[-1.72, 0.9, 0.42]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.055, 0.055, 0.16, 24]} />
-        <meshStandardMaterial color="#7c8794" roughness={0.42} metalness={0.35} />
+        <meshStandardMaterial color={scenePalette.pump.connector} roughness={0.42} metalness={0.35} />
       </mesh>
       <group
         name="pumpValve"
@@ -1466,25 +1764,17 @@ function PumpAssembly({
           event.nativeEvent.stopPropagation();
           event.nativeEvent.stopImmediatePropagation?.();
         }}
-        onClick={(event) => {
-          event.stopPropagation();
-          event.nativeEvent.stopPropagation();
-          event.nativeEvent.stopImmediatePropagation?.();
-          if (interactionLocked) {
-            onLockedInteraction();
-            return;
-          }
-          onPumpValveToggle();
-        }}
+        onClick={handlePumpValveClick}
         onDoubleClick={(event) => {
           event.stopPropagation();
           event.nativeEvent.stopPropagation();
           event.nativeEvent.stopImmediatePropagation?.();
+          clearPumpValveSingleClickTimer();
           if (interactionLocked) {
             onLockedInteraction();
             return;
           }
-          onFocus('pump');
+          onFocus('stopcock');
         }}
         onPointerOver={(event) => {
           event.stopPropagation();
@@ -1502,43 +1792,43 @@ function PumpAssembly({
         </DemoFocusHalo>
         <mesh name="pumpValveBody" rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.09, 0.09, 0.32, 32]} />
-          <meshStandardMaterial color="#9aa4af" roughness={0.34} metalness={0.58} emissive={valveHovered ? '#0e7490' : '#000000'} emissiveIntensity={valveHovered ? NON_BULB_HOVER_EMISSIVE_INTENSITY : 0} />
-          {valveHovered && !interactionQualityReduced ? <Edges color="#e0f2fe" /> : null}
+          <meshStandardMaterial color={scenePalette.pump.valveBody} roughness={0.34} metalness={0.58} emissive={valveHovered ? scenePalette.instrument.hoverEmissive : '#000000'} emissiveIntensity={valveHovered ? NON_BULB_HOVER_EMISSIVE_INTENSITY : 0} />
+          {valveHovered && !interactionQualityReduced ? <Edges color={scenePalette.pump.hoverEdge} /> : null}
         </mesh>
         <mesh name="pumpValveHexNutLeft" position={[0, 0, -0.18]} rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.115, 0.105, 0.055, 6]} />
-          <meshStandardMaterial color="#cbd5e1" roughness={0.32} metalness={0.5} />
+          <meshStandardMaterial color={scenePalette.pump.valveNut} roughness={0.32} metalness={0.5} />
         </mesh>
         <mesh name="pumpValveHexNutRight" position={[0, 0, 0.18]} rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.105, 0.115, 0.055, 6]} />
-          <meshStandardMaterial color="#cbd5e1" roughness={0.32} metalness={0.5} />
+          <meshStandardMaterial color={scenePalette.pump.valveNut} roughness={0.32} metalness={0.5} />
         </mesh>
         <mesh name="pumpValveStateBadge" position={[0.13, 0.02, 0]}>
           <sphereGeometry args={[0.035, 16, 16]} />
-          <meshStandardMaterial color={pumpValveOpen ? '#22c55e' : '#7f1d1d'} emissive={pumpValveOpen ? '#16a34a' : '#450a0a'} emissiveIntensity={0.22} roughness={0.45} />
+          <meshStandardMaterial color={pumpValveOpen ? scenePalette.pump.valveOpen : scenePalette.pump.valveClosed} emissive={pumpValveOpen ? scenePalette.pump.valveOpenEmissive : scenePalette.pump.valveClosedEmissive} emissiveIntensity={0.22} roughness={0.45} />
         </mesh>
         <group name="pumpValveHandle" position={[0, 0, 0]} rotation={[0, valveHandleAngle + valveRollbackOffset, 0]}>
           <mesh name="pumpValveStem" position={[0, 0.09, 0]}>
             <cylinderGeometry args={[0.028, 0.028, 0.12, 18]} />
-            <meshStandardMaterial color="#cbd5e1" roughness={0.36} metalness={0.48} />
+            <meshStandardMaterial color={scenePalette.pump.valveNut} roughness={0.36} metalness={0.48} />
           </mesh>
           <mesh name="pumpValveWingHandle" position={[0, 0.18, 0]}>
             <boxGeometry args={[0.34, 0.052, 0.078]} />
-            <meshStandardMaterial color={pumpValveOpen ? '#b91c1c' : '#991b1b'} roughness={0.48} metalness={0.06} emissive={valveHovered ? '#7f1d1d' : '#000000'} emissiveIntensity={valveHovered ? NON_BULB_HOVER_EMISSIVE_INTENSITY : 0} />
+            <meshStandardMaterial color={pumpValveOpen ? scenePalette.pump.handleOpen : scenePalette.pump.handleClosed} roughness={0.48} metalness={0.06} emissive={valveHovered ? '#7f1d1d' : '#000000'} emissiveIntensity={valveHovered ? NON_BULB_HOVER_EMISSIVE_INTENSITY : 0} />
           </mesh>
           <mesh name="pumpValveWingHandleGripLeft" position={[-0.2, 0.18, 0]}>
             <sphereGeometry args={[0.055, 16, 12]} />
-            <meshStandardMaterial color="#e5e7eb" roughness={0.46} metalness={0.18} />
+            <meshStandardMaterial color={scenePalette.pump.handleGrip} roughness={0.46} metalness={0.18} />
           </mesh>
           <mesh name="pumpValveWingHandleGripRight" position={[0.2, 0.18, 0]}>
             <sphereGeometry args={[0.055, 16, 12]} />
-            <meshStandardMaterial color="#e5e7eb" roughness={0.46} metalness={0.18} />
+            <meshStandardMaterial color={scenePalette.pump.handleGrip} roughness={0.46} metalness={0.18} />
           </mesh>
         </group>
       </group>
       <mesh name="pumpShortConnectorOut" position={[-1.72, 0.9, 0.69]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.058, 0.058, 0.14, 24]} />
-        <meshStandardMaterial color="#7c8794" roughness={0.42} metalness={0.35} />
+        <meshStandardMaterial color={scenePalette.pump.connector} roughness={0.42} metalness={0.35} />
       </mesh>
       <Line
         name="pumpTube"
@@ -1585,16 +1875,16 @@ function PumpAssembly({
         </DemoFocusHalo>
         <mesh name="pumpBulbStatusHalo" visible={pumpBulbActive || bulbHovered} rotation={[Math.PI / 2, 0, 0]} raycast={DISABLE_RAYCAST}>
           <torusGeometry args={[0.29, 0.01, 12, 48]} />
-          <meshBasicMaterial color={pumpBulbActive ? '#67e8f9' : '#bae6fd'} transparent opacity={pumpBulbActive ? 0.34 : 0.2} depthWrite={false} />
+          <meshBasicMaterial color={pumpBulbActive ? scenePalette.pump.bulbHaloActive : scenePalette.pump.bulbHaloHover} transparent opacity={pumpBulbActive ? 0.34 : 0.2} depthWrite={false} />
         </mesh>
         <mesh name="pumpBulbRubber">
           <sphereGeometry args={[0.24, 32, 24]} />
-          <meshStandardMaterial color={pumpBulbActive ? '#2098a8' : '#1f7a8c'} roughness={0.5} metalness={0.02} emissive={bulbHovered || pumpBulbActive ? '#0e7490' : '#000000'} emissiveIntensity={pumpBulbActive ? 0.18 : bulbHovered ? 0.24 : 0} />
-          {bulbHovered && !interactionQualityReduced ? <Edges color="#ecfeff" /> : null}
+          <meshStandardMaterial color={pumpBulbActive ? scenePalette.pump.bulbActive : scenePalette.pump.bulbIdle} roughness={0.5} metalness={0.02} emissive={bulbHovered || pumpBulbActive ? scenePalette.instrument.hoverEmissive : '#000000'} emissiveIntensity={pumpBulbActive ? 0.18 : bulbHovered ? 0.24 : 0} />
+          {bulbHovered && !interactionQualityReduced ? <Edges color={scenePalette.pump.hoverEdge} /> : null}
         </mesh>
         <mesh name="pumpBulbBase" position={[0, -0.23, 0]}>
           <cylinderGeometry args={[0.18, 0.22, 0.08, 24]} />
-          <meshStandardMaterial color="#334155" roughness={0.65} />
+          <meshStandardMaterial color={scenePalette.pump.bulbBase} roughness={0.65} />
         </mesh>
       </group>
     </group>
@@ -1608,19 +1898,21 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
   interactionQualityReduced: boolean;
   sceneCopy: HeatCapacitySceneCopy;
+  scenePalette: HeatCapacityScenePalette;
 }) {
   const stopcockState = getHeatCapacityStopcockState(props.stopcockAngleDeg);
   const zeroEnabled = props.powerOn && stopcockState === 'open';
+  const scenePalette = props.scenePalette;
 
   return (
     <>
-      <ambientLight intensity={0.62} />
-      <directionalLight position={[3.4, 4.8, 4]} intensity={1.1} />
-      <pointLight position={[-3, 2.2, 3]} intensity={0.52} color="#8fd6ff" />
+      <ambientLight intensity={scenePalette.scene.ambientIntensity} />
+      <directionalLight position={[3.4, 4.8, 4]} intensity={scenePalette.scene.directionalIntensity} />
+      <pointLight position={[-3, 2.2, 3]} intensity={scenePalette.scene.pointIntensity} color={scenePalette.scene.pointColor} />
 
       <mesh name="WorkbenchDeck" rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.55, 0]}>
         <planeGeometry args={[6.3, 3.7]} />
-        <meshStandardMaterial color="#202b3c" roughness={0.82} />
+        <meshStandardMaterial color={scenePalette.scene.deck} roughness={0.82} />
       </mesh>
 
       <group name="HeatCapacityProceduralSkeleton" scale={0.9} position={[0, -0.08, 0]}>
@@ -1638,6 +1930,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           manualRollbackKey={props.manualRollbackKey}
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
+          scenePalette={scenePalette}
         />
         <HeatCapacityHardSphereLayer
           enabled={props.hardSphereViewEnabled}
@@ -1651,8 +1944,9 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           pumpBulbState={props.pumpBulbState}
           particleMultiplier={props.hardSphereParticleMultiplier}
           speedMultiplier={props.hardSphereSpeedMultiplier}
+          sceneTheme={props.sceneTheme}
         />
-        <InstrumentLeads />
+        <InstrumentLeads scenePalette={scenePalette} />
         <PumpAssembly
           pumpValveOpen={props.pumpValveOpen}
           pumpBulbState={props.pumpBulbState}
@@ -1670,6 +1964,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           manualRollbackKey={props.manualRollbackKey}
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
+          scenePalette={scenePalette}
         />
         <InstrumentBox
           performanceMode={props.performanceMode}
@@ -1698,6 +1993,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
           sceneCopy={props.sceneCopy}
+          scenePalette={scenePalette}
         />
       </group>
     </>
@@ -1723,8 +2019,8 @@ function CameraRig({
     const nextPosition = new THREE.Vector3();
     const nextTarget = new THREE.Vector3();
     if (focusMode === 'stopcock') {
-      nextPosition.set(1.02, 2.04, 2.64);
-      nextTarget.set(-1.27, 0.79, 0.07);
+      nextPosition.set(1.38, 2.18, 2.92);
+      nextTarget.set(-1.5, 0.82, 0.36);
     } else if (focusMode === 'instrument') {
       nextPosition.set(2.18, 0.18, 3.42);
       nextTarget.set(2.02, -0.76, 0.34);
@@ -1824,6 +2120,8 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const [isOrbitInteracting, setIsOrbitInteracting] = useState(false);
   const [viewResetKey, setViewResetKey] = useState(0);
   const sceneCopy = heatCapacitySceneCopies[props.language] ?? heatCapacitySceneCopies['zh-CN'];
+  const sceneTheme: HeatCapacitySceneTheme = props.sceneTheme === 'light' ? 'light' : 'dark';
+  const scenePalette = heatCapacityScenePalettes[sceneTheme];
   const clearHoverTimer = useCallback(() => {
     if (hoverClearTimerRef.current !== null) {
       window.clearTimeout(hoverClearTimerRef.current);
@@ -1849,6 +2147,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     setFocusMode('none');
     setViewResetKey((key) => key + 1);
   }, []);
+  const overlayMotionRef = usePreviewOverlayMotion<HTMLDivElement>();
   useEffect(() => {
     triggerSmoothDefaultView();
   }, [props.focusResetKey, triggerSmoothDefaultView]);
@@ -1864,6 +2163,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const hoverTooltip = getHeatCapacityHoverTooltip(hoveredControl, props.pumpValveOpen, sceneCopy);
   const hardSphereNoteCopy = heatCapacityHardSphereNoteCopies[props.language] ?? heatCapacityHardSphereNoteCopies['zh-CN'];
   const hardSphereNoteText = getHardSphereNoteText(props, props.language);
+  const hardSphereTooltipId = 'heat-capacity-hard-sphere-tooltip';
   const sceneShouldAnimate = props.hardSphereViewEnabled || props.demoFocusPulseActive || props.pumpBulbState !== 'idle' || Boolean(props.manualRollbackAnimation);
   const interactionQualityReduced = isOrbitInteracting || props.performanceMode === 'performance';
   const canvasProps = useMemo(() => ({
@@ -1881,40 +2181,14 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     <div
       className="studio-heat-instrument-scene"
       data-heat-capacity-instrument-scene="true"
+      data-heat-capacity-scene-theme={sceneTheme}
       data-heat-capacity-hovered-control={hoveredControl ?? undefined}
       data-heat-capacity-hard-sphere-view={props.hardSphereViewEnabled ? 'true' : undefined}
       onPointerLeave={() => setStableHoveredControl(null)}
     >
-      <button
-        type="button"
-        className="studio-heat-view-reset"
-        data-heat-capacity-view-reset="true"
-        disabled={props.interactionLocked}
-        onClick={() => {
-          if (props.interactionLocked) {
-            props.onLockedInteraction();
-            return;
-          }
-          triggerSmoothDefaultView();
-        }}
-      >
-        {sceneCopy.defaultView}
-      </button>
-      <HeatCapacityHardSphereToggle
-        enabled={props.hardSphereViewEnabled}
-        onToggle={props.onHardSphereViewToggle}
-        language={props.language}
-      />
-      {props.hardSphereViewEnabled ? (
-        <div className="studio-heat-hard-sphere-note" data-heat-capacity-hard-sphere-note="true">
-          <strong>{hardSphereNoteCopy.title}</strong>
-          <span>{hardSphereNoteText}</span>
-          <small>{hardSphereNoteCopy.footnote}</small>
-        </div>
-      ) : null}
       <Canvas {...canvasProps}>
         {/* GLB replacement contract: preserve node names, pivots, and hitbox roles from this procedural skeleton. */}
-        <color attach="background" args={['#111827']} />
+        <color attach="background" args={[scenePalette.scene.background]} />
         <HeatCapacitySceneInvalidator active={sceneShouldAnimate} />
         <CameraRig
           controlsRef={controlsRef}
@@ -1930,6 +2204,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           setHoveredControl={setStableHoveredControl}
           interactionQualityReduced={interactionQualityReduced}
           sceneCopy={sceneCopy}
+          scenePalette={scenePalette}
         />
         <HeatCapacityOrbitControls
           enabled={focusMode === 'none' && !props.interactionLocked}
@@ -1944,194 +2219,291 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
         />
       </Canvas>
       <div
-        className="studio-heat-interaction-hints"
-        data-heat-capacity-interaction-hints="true"
+        ref={overlayMotionRef}
+        className="studio-preview-overlay-layer studio-heat-overlay-layer"
+        data-preview-overlay-layer="heat-capacity"
       >
-        <strong>{sceneCopy.interactionTitle}</strong>
-        {interactionHints.map((hint) => (
-          <span key={hint}>{hint}</span>
-        ))}
+        <div className="studio-preview-overlay-slot studio-preview-overlay-slot-top-left">
+          {props.overlayTopLeft ? (
+            <div data-preview-overlay-item="heat-parent-top-left">
+              {props.overlayTopLeft}
+            </div>
+          ) : null}
+          <div
+            className="studio-heat-hard-sphere-tooltip-anchor"
+            data-preview-overlay-item="heat-hard-sphere-toggle"
+            title={`${hardSphereNoteCopy.title}: ${hardSphereNoteText} ${hardSphereNoteCopy.footnote}`}
+          >
+            <HeatCapacityHardSphereToggle
+              enabled={props.hardSphereViewEnabled}
+              onToggle={props.onHardSphereViewToggle}
+              language={props.language}
+              descriptionId={hardSphereTooltipId}
+            />
+            <div
+              id={hardSphereTooltipId}
+              className="studio-heat-hard-sphere-tooltip"
+              role="tooltip"
+              data-heat-capacity-hard-sphere-tooltip="true"
+            >
+              <strong>{hardSphereNoteCopy.title}</strong>
+              <span>{hardSphereNoteText}</span>
+              <small>{hardSphereNoteCopy.footnote}</small>
+            </div>
+          </div>
+        </div>
+        <div className="studio-preview-overlay-slot studio-preview-overlay-slot-top-right">
+          {props.overlayTopRight ? (
+            <div data-preview-overlay-item="heat-parent-top-right">
+              {props.overlayTopRight}
+            </div>
+          ) : null}
+          <button
+            type="button"
+            className="studio-heat-view-reset"
+            data-heat-capacity-view-reset="true"
+            data-preview-overlay-item="heat-view-reset"
+            disabled={props.interactionLocked}
+            onClick={() => {
+              if (props.interactionLocked) {
+                props.onLockedInteraction();
+                return;
+              }
+              triggerSmoothDefaultView();
+            }}
+          >
+            {sceneCopy.defaultView}
+          </button>
+        </div>
+        <div className="studio-preview-overlay-slot studio-preview-overlay-slot-bottom-left">
+          <div
+            className="studio-heat-interaction-hints"
+            data-heat-capacity-interaction-hints="true"
+            data-preview-overlay-item="heat-interaction-hints"
+          >
+            <strong>{sceneCopy.interactionTitle}</strong>
+            {interactionHints.map((hint) => (
+              <span key={hint}>{hint}</span>
+            ))}
+          </div>
+        </div>
+        <div className="studio-preview-overlay-slot studio-preview-overlay-slot-bottom-right">
+          {hoverTooltip ? (
+            <div data-preview-overlay-item="heat-hover-tooltip">
+              <div
+                className="studio-heat-hover-tooltip"
+                data-heat-capacity-hover-tooltip="true"
+              >
+                {hoverTooltip}
+              </div>
+            </div>
+          ) : null}
+          {props.overlayBottomRight ? (
+            <div data-preview-overlay-item="heat-parent-bottom-right">
+              {props.overlayBottomRight}
+            </div>
+          ) : null}
+          {focusMode === 'stopcock' ? (
+            <div data-preview-overlay-item="heat-focus-panel">
+              <div
+                className="studio-heat-focus-panel studio-heat-focus-panel-stopcock"
+                data-heat-capacity-focus-panel="stopcock"
+              >
+                <div className="studio-heat-focus-title">{sceneCopy.focus.stopcockTitle}</div>
+                <div className="studio-heat-focus-grid">
+                  <div className="studio-heat-focus-panel-row">
+                    <span>{sceneCopy.focus.glassStopcock}</span>
+                    <strong className={stopcockConnected ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
+                      {stopcockConnected ? sceneCopy.focus.connected : sceneCopy.focus.disconnected}
+                    </strong>
+                  </div>
+                  <div className="studio-heat-focus-panel-row">
+                    <span>{sceneCopy.focus.pumpValve}</span>
+                    <strong className={props.pumpValveOpen ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
+                      {props.pumpValveOpen ? sceneCopy.focus.opened : sceneCopy.focus.closed}
+                    </strong>
+                  </div>
+                </div>
+                <div className="studio-heat-focus-panel-actions">
+                  <button
+                    type="button"
+                    data-heat-capacity-valve-focus-stopcock-toggle="true"
+                    disabled={props.interactionLocked}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (props.interactionLocked) {
+                        props.onLockedInteraction();
+                        return;
+                      }
+                      props.onStopcockOpenChange(!stopcockConnected);
+                    }}
+                  >
+                    {stopcockConnected ? sceneCopy.focus.closeStopcock : sceneCopy.focus.openStopcock}
+                  </button>
+                  <button
+                    type="button"
+                    data-heat-capacity-valve-focus-pump-valve-toggle="true"
+                    disabled={props.interactionLocked}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (props.interactionLocked) {
+                        props.onLockedInteraction();
+                        return;
+                      }
+                      props.onPumpValveToggle();
+                    }}
+                  >
+                    {props.pumpValveOpen ? sceneCopy.focus.closePumpValve : sceneCopy.focus.openPumpValve}
+                  </button>
+                </div>
+                <div className="studio-heat-focus-panel-actions studio-heat-focus-panel-actions-single">
+                  <button
+                    type="button"
+                    data-heat-capacity-focus-exit="true"
+                    disabled={props.interactionLocked}
+                    onClick={() => {
+                      if (props.interactionLocked) {
+                        props.onLockedInteraction();
+                        return;
+                      }
+                      setFocusMode('none');
+                    }}
+                  >
+                    {sceneCopy.focus.exit}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {focusMode === 'pump' ? (
+            <div data-preview-overlay-item="heat-focus-panel">
+              <div
+                className="studio-heat-focus-panel studio-heat-focus-panel-pump"
+                data-heat-capacity-focus-panel="pump"
+              >
+                <div className="studio-heat-focus-title">{sceneCopy.focus.pumpTitle}</div>
+                <div className="studio-heat-focus-grid">
+                  <div className="studio-heat-focus-panel-row">
+                    <span>{sceneCopy.focus.pumpBulb}</span>
+                    <strong className={props.pumpBulbState === 'idle' ? 'studio-heat-focus-muted' : 'studio-heat-focus-positive'}>
+                      {pumpBulbDisplayLabel}
+                    </strong>
+                  </div>
+                  <div className="studio-heat-focus-panel-row">
+                    <span>{sceneCopy.focus.pumpFrequency}</span>
+                    <strong>{formatPanelNumber(props.pumpFrequency, 2)} /s</strong>
+                  </div>
+                  <div className="studio-heat-focus-panel-row">
+                    <span>{sceneCopy.focus.frequencyStatus}</span>
+                    <strong className={props.pumpFrequencyStatus === 'suitable' ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
+                      {pumpFrequencyStatusLabel}
+                    </strong>
+                  </div>
+                </div>
+                <div className="studio-heat-focus-hint">{props.pumpHint}</div>
+                <div className="studio-heat-focus-panel-actions studio-heat-focus-panel-actions-single">
+                  <button
+                    type="button"
+                    data-heat-capacity-focus-exit="true"
+                    disabled={props.interactionLocked}
+                    onClick={() => {
+                      if (props.interactionLocked) {
+                        props.onLockedInteraction();
+                        return;
+                      }
+                      setFocusMode('none');
+                    }}
+                  >
+                    {sceneCopy.focus.exit}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {focusMode === 'instrument' ? (
+            <div data-preview-overlay-item="heat-focus-panel">
+              <div
+                className="studio-heat-focus-panel studio-heat-focus-panel-instrument"
+                data-heat-capacity-focus-panel="instrument"
+              >
+                <div className="studio-heat-focus-title">{sceneCopy.focus.instrumentTitle}</div>
+                <div className="studio-heat-focus-instrument-columns">
+                  <div className="studio-heat-focus-column">
+                    <div className="studio-heat-focus-panel-row">
+                      <span>{sceneCopy.focus.powerStatus}</span>
+                      <strong className={props.powerOn ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
+                        {props.powerOn ? sceneCopy.focus.powerOn : sceneCopy.focus.powerOff}
+                      </strong>
+                    </div>
+                    <div className="studio-heat-focus-panel-row">
+                      <span>U<sub>T</sub></span>
+                      <strong>{poweredInstrumentReadout(temperatureDisplay)}</strong>
+                    </div>
+                    <div className="studio-heat-focus-panel-row">
+                      <span>{sceneCopy.focus.pressureZero}</span>
+                      <strong className={props.pressureZeroAdjusted ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
+                        {props.pressureZeroAdjusted ? sceneCopy.focus.zeroed : sceneCopy.focus.notZeroed}
+                      </strong>
+                    </div>
+                    <div className="studio-heat-focus-panel-row">
+                      <span>{sceneCopy.focus.displayedPressure}</span>
+                      <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressureDisplayedPlaceholder, 2)} mV`)}</strong>
+                    </div>
+                    <div className="studio-heat-focus-panel-row">
+                      <span>{sceneCopy.focus.placeholderTemperature}</span>
+                      <strong>{poweredInstrumentNumber(formatPanelNumber(props.temperaturePlaceholder, 3))}</strong>
+                    </div>
+                  </div>
+                  <div className="studio-heat-focus-column">
+                    <div className="studio-heat-focus-panel-row">
+                      <span>{sceneCopy.focus.currentPhase}</span>
+                      <strong>{props.phase}</strong>
+                    </div>
+                    <div className="studio-heat-focus-panel-row">
+                      <span>U<sub>p</sub></span>
+                      <strong>{poweredInstrumentReadout(pressureDisplay)}</strong>
+                    </div>
+                    <div className="studio-heat-focus-panel-row">
+                      <span>{sceneCopy.focus.zeroOffset}</span>
+                      <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressureZeroOffset, 2)} mV`)}</strong>
+                    </div>
+                    <div className="studio-heat-focus-panel-row">
+                      <span>{sceneCopy.focus.placeholderPressure}</span>
+                      <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressurePlaceholder, 2)} kPa`)}</strong>
+                    </div>
+                  </div>
+                </div>
+                <div className="studio-heat-focus-panel-actions studio-heat-focus-panel-actions-single">
+                  <button
+                    type="button"
+                    data-heat-capacity-focus-exit="true"
+                    disabled={props.interactionLocked}
+                    onClick={() => {
+                      if (props.interactionLocked) {
+                        props.onLockedInteraction();
+                        return;
+                      }
+                      setFocusMode('none');
+                    }}
+                  >
+                    {sceneCopy.focus.exit}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+        {props.overlayCenter ? (
+          <div className="studio-preview-overlay-center" data-preview-overlay-center="true">
+            {props.overlayCenter}
+          </div>
+        ) : null}
+        {props.overlayBottomCenter ? (
+          <div className="studio-preview-overlay-bottom-center" data-preview-overlay-bottom-center="true">
+            {props.overlayBottomCenter}
+          </div>
+        ) : null}
       </div>
-      {hoverTooltip ? (
-        <div
-          className="studio-heat-hover-tooltip"
-          data-heat-capacity-hover-tooltip="true"
-        >
-          {hoverTooltip}
-        </div>
-      ) : null}
-      {focusMode === 'stopcock' ? (
-        <div
-          className="studio-heat-focus-panel studio-heat-focus-panel-stopcock"
-          data-heat-capacity-focus-panel="stopcock"
-        >
-          <div className="studio-heat-focus-title">{sceneCopy.focus.stopcockTitle}</div>
-          <div className="studio-heat-focus-grid">
-            <div className="studio-heat-focus-panel-row">
-              <span>{sceneCopy.focus.glassStopcock}</span>
-              <strong className={stopcockConnected ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                {stopcockConnected ? sceneCopy.focus.connected : sceneCopy.focus.disconnected}
-              </strong>
-            </div>
-            <div className="studio-heat-focus-panel-row">
-              <span>{sceneCopy.focus.pumpValve}</span>
-              <strong className={props.pumpValveOpen ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                {props.pumpValveOpen ? sceneCopy.focus.opened : sceneCopy.focus.closed}
-              </strong>
-            </div>
-          </div>
-          <div className="studio-heat-focus-panel-actions">
-            <button
-              type="button"
-              data-heat-capacity-focus-exit="true"
-              disabled={props.interactionLocked}
-              onClick={() => {
-                if (props.interactionLocked) {
-                  props.onLockedInteraction();
-                  return;
-                }
-                setFocusMode('none');
-              }}
-            >
-              {sceneCopy.focus.exit}
-            </button>
-          </div>
-        </div>
-      ) : null}
-      {focusMode === 'pump' ? (
-        <div
-          className="studio-heat-focus-panel studio-heat-focus-panel-pump"
-          data-heat-capacity-focus-panel="pump"
-        >
-          <div className="studio-heat-focus-title">{sceneCopy.focus.pumpTitle}</div>
-          <div className="studio-heat-focus-grid">
-            <div className="studio-heat-focus-panel-row">
-              <span>{sceneCopy.focus.pumpBulb}</span>
-              <strong className={props.pumpBulbState === 'idle' ? 'studio-heat-focus-muted' : 'studio-heat-focus-positive'}>
-                {pumpBulbDisplayLabel}
-              </strong>
-            </div>
-            <div className="studio-heat-focus-panel-row">
-              <span>{sceneCopy.focus.pumpValve}</span>
-              <strong className={props.pumpValveOpen ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                {props.pumpValveOpen ? sceneCopy.focus.opened : sceneCopy.focus.closed}
-              </strong>
-            </div>
-            <div className="studio-heat-focus-panel-row">
-              <span>{sceneCopy.focus.pumpFrequency}</span>
-              <strong>{formatPanelNumber(props.pumpFrequency, 2)} /s</strong>
-            </div>
-            <div className="studio-heat-focus-panel-row">
-              <span>{sceneCopy.focus.frequencyStatus}</span>
-              <strong className={props.pumpFrequencyStatus === 'suitable' ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                {pumpFrequencyStatusLabel}
-              </strong>
-            </div>
-          </div>
-          <div className="studio-heat-focus-hint">{props.pumpHint}</div>
-          <div className="studio-heat-focus-panel-actions">
-            <button
-              type="button"
-              data-heat-capacity-pump-valve-toggle="true"
-              disabled={props.interactionLocked}
-              onClick={(event) => {
-                event.stopPropagation();
-                if (props.interactionLocked) {
-                  props.onLockedInteraction();
-                  return;
-                }
-                props.onPumpValveToggle();
-              }}
-            >
-              {props.pumpValveOpen ? sceneCopy.focus.closePumpValve : sceneCopy.focus.openPumpValve}
-            </button>
-            <button
-              type="button"
-              data-heat-capacity-focus-exit="true"
-              disabled={props.interactionLocked}
-              onClick={() => {
-                if (props.interactionLocked) {
-                  props.onLockedInteraction();
-                  return;
-                }
-                setFocusMode('none');
-              }}
-            >
-              {sceneCopy.focus.exit}
-            </button>
-          </div>
-        </div>
-      ) : null}
-      {focusMode === 'instrument' ? (
-        <div
-          className="studio-heat-focus-panel studio-heat-focus-panel-instrument"
-          data-heat-capacity-focus-panel="instrument"
-        >
-          <div className="studio-heat-focus-title">{sceneCopy.focus.instrumentTitle}</div>
-          <div className="studio-heat-focus-instrument-columns">
-            <div className="studio-heat-focus-column">
-              <div className="studio-heat-focus-panel-row">
-                <span>{sceneCopy.focus.powerStatus}</span>
-                <strong className={props.powerOn ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                  {props.powerOn ? sceneCopy.focus.powerOn : sceneCopy.focus.powerOff}
-                </strong>
-              </div>
-              <div className="studio-heat-focus-panel-row">
-                <span>U<sub>T</sub></span>
-                <strong>{poweredInstrumentReadout(temperatureDisplay)}</strong>
-              </div>
-              <div className="studio-heat-focus-panel-row">
-                <span>{sceneCopy.focus.pressureZero}</span>
-                <strong className={props.pressureZeroAdjusted ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                  {props.pressureZeroAdjusted ? sceneCopy.focus.zeroed : sceneCopy.focus.notZeroed}
-                </strong>
-              </div>
-              <div className="studio-heat-focus-panel-row">
-                <span>{sceneCopy.focus.displayedPressure}</span>
-                <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressureDisplayedPlaceholder, 2)} mV`)}</strong>
-              </div>
-              <div className="studio-heat-focus-panel-row">
-                <span>{sceneCopy.focus.placeholderTemperature}</span>
-                <strong>{poweredInstrumentNumber(formatPanelNumber(props.temperaturePlaceholder, 3))}</strong>
-              </div>
-            </div>
-            <div className="studio-heat-focus-column">
-              <div className="studio-heat-focus-panel-row">
-                <span>{sceneCopy.focus.currentPhase}</span>
-                <strong>{props.phase}</strong>
-              </div>
-              <div className="studio-heat-focus-panel-row">
-                <span>U<sub>p</sub></span>
-                <strong>{poweredInstrumentReadout(pressureDisplay)}</strong>
-              </div>
-              <div className="studio-heat-focus-panel-row">
-                <span>{sceneCopy.focus.zeroOffset}</span>
-                <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressureZeroOffset, 2)} mV`)}</strong>
-              </div>
-              <div className="studio-heat-focus-panel-row">
-                <span>{sceneCopy.focus.placeholderPressure}</span>
-                <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressurePlaceholder, 2)} kPa`)}</strong>
-              </div>
-            </div>
-          </div>
-          <div className="studio-heat-focus-panel-actions studio-heat-focus-panel-actions-single">
-            <button
-              type="button"
-              data-heat-capacity-focus-exit="true"
-              disabled={props.interactionLocked}
-              onClick={() => {
-                if (props.interactionLocked) {
-                  props.onLockedInteraction();
-                  return;
-                }
-                setFocusMode('none');
-              }}
-            >
-              {sceneCopy.focus.exit}
-            </button>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
