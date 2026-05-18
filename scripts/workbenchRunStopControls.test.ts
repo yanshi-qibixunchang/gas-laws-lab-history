@@ -66,14 +66,56 @@ assert.match(
 
 assert.match(
   source,
-  /className=\{`studio-run-control studio-run-control-\$\{activeFile\.kind === 'heatCapacity'[\s\S]*?activeFile\.runState === 'running' \? 'pause' : 'start'\} \$\{activeFile\.kind === 'heatCapacity' \? 'studio-heat-auto-demo-control' : ''\}`\}/,
-  'the combined run/pause button should carry state-specific green styling hooks',
+  /activeFile\.kind === 'heatCapacity' \? renderHeatCapacityModeControl\(\) : \([\s\S]*className=\{`studio-run-control studio-run-control-\$\{activeFile\.runState === 'running' \? 'pause' : 'start'\}`\}/,
+  'heat capacity should use the unified mode bar while standard previews keep the compact run/pause button',
 );
 
 assert.match(
   source,
-  /\{\(activeFile\.runState === 'running' \|\| activeFile\.runState === 'paused' \|\| \(activeFile\.kind === 'heatCapacity' && \(autoDemoRunning \|\| autoDemoPaused\)\)\) \? \([\s\S]*?className="studio-run-control studio-run-control-stop"/,
-  'the stop button should only render after a simulation has started',
+  /const startHeatCapacityManualExperiment = \(\) => \{[\s\S]*activateHeatCapacityManualExperiment\(guideFileId, guideFileName\);[\s\S]*showHeatCapacityAutoDemoCompletionToast\('正在启动引导模式', HEAT_CAPACITY_GUIDE_START_NOTICE_MS\);[\s\S]*\};/,
+  'guide mode should become active immediately so the exit button appears at the same time as the start notice',
+);
+
+assert.doesNotMatch(
+  source,
+  /showHeatCapacityAutoDemoCompletionToast\('正在启动引导模式'[\s\S]{0,700}window\.setTimeout/,
+  'guide mode start notice should not delay activation behind a timer',
+);
+
+assert.match(
+  source,
+  /activeFile\.kind !== 'heatCapacity' && \(activeFile\.runState === 'running' \|\| activeFile\.runState === 'paused'\) \? \([\s\S]*?className="studio-run-control studio-run-control-stop"/,
+  'the header stop button should remain for standard previews and heat capacity should stop through its mode bar',
+);
+
+assert.match(
+  source,
+  /className="studio-heat-mode-action studio-heat-mode-action-next-trial"/,
+  'next-trial guide action should have a dedicated attention class',
+);
+
+assert.match(
+  cssSource,
+  /\.studio-heat-mode-control[\s\S]*max-width 340ms cubic-bezier\(0\.2, 0, 0, 1\)/,
+  'mode control expansion should use a slower 340ms smooth transition',
+);
+
+assert.match(
+  cssSource,
+  /\.studio-heat-mode-actions[\s\S]*max-width 340ms cubic-bezier\(0\.2, 0, 0, 1\)/,
+  'mode action reveal should use the same slower 340ms smooth transition',
+);
+
+assert.match(
+  cssSource,
+  /@keyframes studio-heat-next-trial-breathe/,
+  'next-trial guide action should define a restrained breathing animation',
+);
+
+assert.match(
+  cssSource,
+  /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.studio-heat-mode-action-next-trial/,
+  'next-trial breathing should be disabled or softened for reduced motion users',
 );
 
 assert.match(

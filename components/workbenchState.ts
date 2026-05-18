@@ -530,6 +530,7 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   pressureZeroKnobAngle: number;
   pressureZeroOffset: number;
   pressureZeroDisplayText: string;
+  releaseRecoveryTargetDeltaKPa: number | null;
   pressureRawPlaceholder: number;
   pressureDisplayedPlaceholder: number;
   pressureGaugeTargetValue: number;
@@ -603,6 +604,9 @@ const getHeatCapacityRuntimeStateFromFile = (
     pressureZeroAdjusted: file.pressureZeroAdjusted,
     heatCapacityPhase: file.heatCapacityPhase,
     heatCapacityProcessSamples: file.heatCapacityProcessSamples ?? {},
+    releaseRecoveryTargetDeltaKPa: Number.isFinite(file.releaseRecoveryTargetDeltaKPa)
+      ? file.releaseRecoveryTargetDeltaKPa
+      : fallback.releaseRecoveryTargetDeltaKPa,
     modelConfig: {
       ...fallback.modelConfig,
       ambientPressureKPa: Number.isFinite(file.ambientPressureKPa) ? file.ambientPressureKPa : fallback.modelConfig.ambientPressureKPa,
@@ -833,6 +837,9 @@ const mergeHeatCapacityRuntimeState = (
     pressureBlockedPumping: gaugePressureState.pressureBlockedPumping,
     pressureOverLimit: gaugePressureState.pressureOverLimit,
     pressureZeroOffset: roundNumber(runtime.pressureZeroOffset, 3),
+    releaseRecoveryTargetDeltaKPa: runtime.releaseRecoveryTargetDeltaKPa === null
+      ? null
+      : roundNumber(runtime.releaseRecoveryTargetDeltaKPa, 4),
     pressureZeroMvPerTurn: HEAT_CAPACITY_PRESSURE_ZERO_MV_PER_TURN,
     pressureZeroAdjusted: runtime.pressureZeroAdjusted,
     pressureZeroed,
@@ -1516,6 +1523,7 @@ export const createDefaultHeatCapacityFile = (
     pressureZeroKnobAngle: 0,
     pressureZeroOffset: 0,
     pressureZeroDisplayText: '未调零',
+    releaseRecoveryTargetDeltaKPa: runtime.releaseRecoveryTargetDeltaKPa,
     pressureRawPlaceholder: roundNumber(runtime.pressureSignalMvRaw, 2),
     pressureDisplayedPlaceholder: roundNumber(runtime.pressureSignalMvDisplayed, 2),
     pressureGaugeTargetValue: gaugePressureState.pressureGaugeTargetValue,

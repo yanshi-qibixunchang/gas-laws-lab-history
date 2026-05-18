@@ -255,6 +255,33 @@ assert.equal(
   'thermal recovery should not jump back to the high pre-release stable temperature',
 );
 
+let heldOpenAfterRelease = highPressureReleased;
+for (let index = 0; index < 3; index += 1) {
+  heldOpenAfterRelease = stepHeatCapacityExperiment(
+    heldOpenAfterRelease,
+    { ...baseControls, stopcockOpen: true },
+    1,
+    17_600 + index * 1_000,
+  );
+}
+assert.equal(
+  heldOpenAfterRelease.temperatureSignalMv > highPressureReleased.temperatureSignalMv,
+  true,
+  'holding the stopcock open after release should still let the gas warm toward room temperature',
+);
+
+const longOpenClosedRecovery = stepHeatCapacityExperiment(
+  heldOpenAfterRelease,
+  { ...baseControls, stopcockOpen: false },
+  2.5,
+  21_100,
+);
+assert.equal(
+  longOpenClosedRecovery.pressureSignalMvRaw < closedRecovery.pressureSignalMvRaw * 0.75,
+  true,
+  'holding the stopcock open for several seconds should reduce the later sealed pressure rebound',
+);
+
 let roomRecoveredAfterRelease = highPressureReleased;
 for (let index = 0; index < 14; index += 1) {
   roomRecoveredAfterRelease = stepHeatCapacityExperiment(

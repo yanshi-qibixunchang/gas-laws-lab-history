@@ -32,6 +32,21 @@ assert.equal(recordedU1.trials[0].U1Mv, 120);
 assert.equal(recordedU1.trials[0].UT1Mv, 1526.1);
 assert.equal(recordedU1.trials[0].status, 'partial');
 
+const recordedDangerU1 = recordHeatCapacityU1(createHeatCapacityTrials(1), {
+  activeTrialIndex: 0,
+  phase: 'sealedStabilizing',
+  powerOn: true,
+  pressureSignalMv: 124,
+  temperatureSignalMv: 1526.4,
+  pressureSafetyStatus: 'danger',
+  pressureOverLimit: true,
+  now: 1500,
+});
+
+assert.equal(recordedDangerU1.ok, true, 'alarm-region U1 should remain recordable after the user closes the valve and waits for stability');
+assert.equal(recordedDangerU1.trials[0].U1Mv, 124);
+assert.equal(recordedDangerU1.trials[0].status, 'partial');
+
 const rejectedU2 = recordHeatCapacityU2(recordedU1.trials, {
   activeTrialIndex: 0,
   phase: 'recovering',

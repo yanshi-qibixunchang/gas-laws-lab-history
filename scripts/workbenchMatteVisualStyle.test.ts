@@ -40,6 +40,30 @@ assert.match(
 
 assert.match(
   cssSource,
+  /\.studio-shell\s*\{[\s\S]*transition:\s*grid-template-rows 240ms cubic-bezier\(0\.2, 0, 0, 1\);/,
+  'shell should animate console row height changes',
+);
+
+assert.match(
+  cssSource,
+  /\.studio-console\s*\{[\s\S]*transition:\s*grid-template-rows 240ms cubic-bezier\(0\.2, 0, 0, 1\);/,
+  'console internal body row should animate between expanded and collapsed',
+);
+
+assert.doesNotMatch(
+  cssSource,
+  /\.studio-console-collapsed \.studio-console-body,\s*\.studio-console-collapsed \.studio-console-resizer\s*\{[\s\S]*display:\s*none;/,
+  'console collapse should not use display none because it cuts off the animation',
+);
+
+assert.match(
+  cssSource,
+  /\.studio-console-collapsed \.studio-console-body\s*\{[\s\S]*opacity:\s*0;[\s\S]*pointer-events:\s*none;/,
+  'collapsed console body should fade out while height animates',
+);
+
+assert.match(
+  cssSource,
   /\.studio-status span\s*\{[^}]*?text-overflow:\s*ellipsis;/,
   'status bar labels should ellipsize in narrow viewports',
 );

@@ -32,6 +32,7 @@ interface HeatCapacityInstrumentSceneProps {
   pressureOverLimit: boolean;
   pressureZeroAdjustMode: 'none' | 'fineWheel' | 'coarseDrag';
   pressureKPa: number | null;
+  pressureDeltaKPa: number;
   pressureLimitKPa: number;
   pumpValveOpen: boolean;
   pumpValveState: 'open' | 'closed';
@@ -52,7 +53,7 @@ interface HeatCapacityInstrumentSceneProps {
   interactionLocked: boolean;
   demoFocusControlId: string | null;
   demoFocusPulseActive: boolean;
-  manualRollbackAnimation: 'valveBounce' | 'stopcockBounce' | 'pumpBulbBounce' | 'knobBounce' | null;
+  manualRollbackAnimation: 'valveBounce' | 'stopcockBounce' | 'pumpBulbBounce' | 'knobBounce' | 'powerBounce' | null;
   manualRollbackKey: number;
   focusResetKey: number;
   onFocusModeChange: (mode: HeatCapacityFocusMode) => void;
@@ -386,6 +387,19 @@ const heatCapacityScenePalettes = {
       bulbHaloHover: '#bae6fd',
       hoverEdge: '#ecfeff',
     },
+    effects: {
+      demoHalo: '#bae6fd',
+      demoHaloMinOpacity: 0.24,
+      demoHaloMaxOpacity: 0.52,
+      demoHaloBaseScale: 1.06,
+      demoHaloPulseScale: 0.14,
+      nonBulbHoverEmissiveIntensity: 0.26,
+      nonBulbHoverHaloOpacity: 0.22,
+      glassHoverEmissiveIntensity: 0.18,
+      glassHoverHaloOpacity: 0.16,
+      pumpBulbHoverEmissiveIntensity: 0.24,
+      pumpBulbHoverHaloOpacity: 0.2,
+    },
   },
   light: {
     scene: {
@@ -489,8 +503,21 @@ const heatCapacityScenePalettes = {
       bulbActive: '#0891b2',
       bulbBase: '#64748b',
       bulbHaloActive: '#0891b2',
-      bulbHaloHover: '#38bdf8',
-      hoverEdge: '#0369a1',
+      bulbHaloHover: '#0284c7',
+      hoverEdge: '#0f4f7a',
+    },
+    effects: {
+      demoHalo: '#0284c7',
+      demoHaloMinOpacity: 0.34,
+      demoHaloMaxOpacity: 0.72,
+      demoHaloBaseScale: 1.06,
+      demoHaloPulseScale: 0.16,
+      nonBulbHoverEmissiveIntensity: 0.36,
+      nonBulbHoverHaloOpacity: 0.34,
+      glassHoverEmissiveIntensity: 0.3,
+      glassHoverHaloOpacity: 0.3,
+      pumpBulbHoverEmissiveIntensity: 0.34,
+      pumpBulbHoverHaloOpacity: 0.36,
     },
   },
 } as const;
@@ -500,10 +527,6 @@ type HeatCapacityScenePalette = (typeof heatCapacityScenePalettes)[HeatCapacityS
 const PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 12;
 const PRESSURE_ZERO_DRAG_DIRECTION = -1;
 const HOVER_CLEAR_DELAY_MS = 220;
-const NON_BULB_HOVER_EMISSIVE_INTENSITY = 0.26;
-const NON_BULB_HOVER_HALO_OPACITY = 0.22;
-const GLASS_HOVER_EMISSIVE_INTENSITY = 0.18;
-const GLASS_HOVER_HALO_OPACITY = 0.16;
 const PUMP_VALVE_TRANSITION_MS = 420;
 const DISABLE_RAYCAST: THREE.Object3D['raycast'] = () => undefined;
 const DEFAULT_CAMERA_POSITION: [number, number, number] = [4.15, 2.9, 8.25];
@@ -723,6 +746,11 @@ function DemoFocusHalo({
   name = 'DemoFocusHalo',
   position = [0, 0, 0],
   rotation = [0, 0, 0],
+  focusHaloColor = '#bae6fd',
+  focusHaloMinOpacity = 0.24,
+  focusHaloMaxOpacity = 0.52,
+  focusHaloBaseScale = 1.06,
+  focusHaloPulseScale = 0.14,
   children,
 }: {
   active: boolean;
@@ -730,6 +758,11 @@ function DemoFocusHalo({
   name?: string;
   position?: [number, number, number];
   rotation?: [number, number, number];
+  focusHaloColor?: string;
+  focusHaloMinOpacity?: number;
+  focusHaloMaxOpacity?: number;
+  focusHaloBaseScale?: number;
+  focusHaloPulseScale?: number;
   children: React.ReactNode;
 }) {
   const meshRef = useRef<THREE.Mesh | null>(null);
@@ -739,9 +772,9 @@ function DemoFocusHalo({
     if (suspended) return;
     if (!meshRef.current || !materialRef.current) return;
     const pulse = (Math.sin(clock.elapsedTime * Math.PI * 1.5) + 1) / 2;
-    const scale = 1.06 + pulse * 0.14;
+    const scale = focusHaloBaseScale + pulse * focusHaloPulseScale;
     meshRef.current.scale.setScalar(scale);
-    materialRef.current.opacity = 0.24 + pulse * 0.28;
+    materialRef.current.opacity = focusHaloMinOpacity + pulse * (focusHaloMaxOpacity - focusHaloMinOpacity);
   });
 
   if (!active) return null;
@@ -751,9 +784,9 @@ function DemoFocusHalo({
       {children}
       <meshBasicMaterial
         ref={materialRef}
-        color="#bae6fd"
+        color={focusHaloColor}
         transparent
-        opacity={0.3}
+        opacity={focusHaloMinOpacity}
         depthWrite={false}
         depthTest={false}
       />
@@ -821,6 +854,7 @@ function InstrumentBox({
   const gaugeNeedlePivotRef = useRef<THREE.Group | null>(null);
   const pressureZeroKnobRef = useRef<THREE.Group | null>(null);
   const [pressureZeroRollbackOffsetDeg, setPressureZeroRollbackOffsetDeg] = useState(0);
+  const [powerSwitchRollbackOffset, setPowerSwitchRollbackOffset] = useState(0);
   const pressureZeroDragRef = useRef({
     startKnobAngle: pressureZeroKnobAngle,
     lastPointerAngle: 0,
@@ -890,6 +924,28 @@ function InstrumentBox({
       setPressureZeroRollbackOffsetDeg(0);
     };
   }, [invalidate, manualRollbackAnimation, manualRollbackKey]);
+
+  useEffect(() => {
+    if (manualRollbackAnimation !== 'powerBounce' || manualRollbackKey <= 0) return undefined;
+    const startTime = performance.now();
+    const direction = powerOn ? 1 : -1;
+    let frameId = 0;
+    const animate = (timestamp: number) => {
+      const progress = Math.min(1, (timestamp - startTime) / 320);
+      setPowerSwitchRollbackOffset(Math.sin(progress * Math.PI) * 0.7 * direction);
+      invalidate();
+      if (progress < 1) {
+        frameId = window.requestAnimationFrame(animate);
+      } else {
+        setPowerSwitchRollbackOffset(0);
+      }
+    };
+    frameId = window.requestAnimationFrame(animate);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      setPowerSwitchRollbackOffset(0);
+    };
+  }, [invalidate, manualRollbackAnimation, manualRollbackKey, powerOn]);
 
   const getPressureZeroPointerAngle = useCallback((clientX: number, clientY: number) => {
     if (!pressureZeroKnobRef.current) return null;
@@ -970,6 +1026,9 @@ function InstrumentBox({
     window.addEventListener('pointerup', handlePointerUp, { once: true });
   };
 
+  const powerSwitchRotation = powerOn ? -0.35 : 0.35;
+  const powerSwitchVisualRotation = powerSwitchRotation + powerSwitchRollbackOffset;
+
   return (
     <group
       name="InstrumentBoxRoot"
@@ -996,21 +1055,21 @@ function InstrumentBox({
         FD-NCD-C
       </PanelText>
       <PanelText name="TemperatureDisplayChannelLabelText" position={[-0.64, 0.215, 0.505]} size={0.026} color={scenePalette.instrument.label}>
-        U_T / mV
+        Uₜ / mV
       </PanelText>
       <PanelText name="PressureDisplayChannelLabelText" position={[0, 0.215, 0.505]} size={0.026} color={scenePalette.instrument.label}>
-        U_p / mV
+        Uₚ / mV
       </PanelText>
 
       <mesh name="TemperatureDisplay" position={[-0.64, 0.1, 0.48]}>
         <boxGeometry args={[0.42, 0.18, 0.035]} />
         <meshStandardMaterial color={screenColor} emissive={screenGlow} emissiveIntensity={powerOn ? 0.55 : 0.05} />
       </mesh>
-      <DemoFocusHalo active={temperatureDisplayDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloTemperatureDisplay" position={[-0.64, 0.1, 0.508]}>
+      <DemoFocusHalo active={temperatureDisplayDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloTemperatureDisplay" position={[-0.64, 0.1, 0.508]} focusHaloColor={scenePalette.effects.demoHalo} focusHaloMinOpacity={scenePalette.effects.demoHaloMinOpacity} focusHaloMaxOpacity={scenePalette.effects.demoHaloMaxOpacity} focusHaloBaseScale={scenePalette.effects.demoHaloBaseScale} focusHaloPulseScale={scenePalette.effects.demoHaloPulseScale}>
         <boxGeometry args={[0.5, 0.24, 0.02]} />
       </DemoFocusHalo>
       <PanelText name="TemperatureDisplayText" position={[-0.64, 0.1, 0.505]} size={0.038} color={powerOn ? scenePalette.instrument.screenTextOn : scenePalette.instrument.screenTextOff} updateIntervalMs={panelTextUpdateIntervalMs}>
-        {temperatureText || 'U_T'}
+        {temperatureText || 'Uₜ'}
       </PanelText>
       <PanelTerminal name="TemperaturePositiveInputTerminal" position={[-0.73, -0.12, 0.49]} color={scenePalette.instrument.terminalPositive} />
       <PanelTerminal name="TemperatureNegativeInputTerminal" position={[-0.55, -0.12, 0.49]} color={scenePalette.instrument.terminalNegative} />
@@ -1022,11 +1081,11 @@ function InstrumentBox({
         <boxGeometry args={[0.42, 0.18, 0.035]} />
         <meshStandardMaterial color={screenColor} emissive={screenGlow} emissiveIntensity={powerOn ? 0.55 : 0.05} />
       </mesh>
-      <DemoFocusHalo active={pressureDisplayDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloPressureDisplay" position={[0, 0.1, 0.508]}>
+      <DemoFocusHalo active={pressureDisplayDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloPressureDisplay" position={[0, 0.1, 0.508]} focusHaloColor={scenePalette.effects.demoHalo} focusHaloMinOpacity={scenePalette.effects.demoHaloMinOpacity} focusHaloMaxOpacity={scenePalette.effects.demoHaloMaxOpacity} focusHaloBaseScale={scenePalette.effects.demoHaloBaseScale} focusHaloPulseScale={scenePalette.effects.demoHaloPulseScale}>
         <boxGeometry args={[0.5, 0.24, 0.02]} />
       </DemoFocusHalo>
       <PanelText name="PressureDisplayText" position={[0, 0.1, 0.505]} size={0.038} color={powerOn ? scenePalette.instrument.screenTextOn : scenePalette.instrument.screenTextOff} updateIntervalMs={panelTextUpdateIntervalMs}>
-        {pressureText || 'U_p'}
+        {pressureText || 'Uₚ'}
       </PanelText>
       <PanelTerminal name="PressureSensorInputPort" position={[-0.08, -0.13, 0.49]} color={scenePalette.instrument.terminalMetal} radius={0.055} metalness={0.45} />
       <PanelText name="PressureInputPortLabelText" position={[-0.08, -0.24, 0.505]} size={0.025} color={scenePalette.instrument.label}>
@@ -1109,17 +1168,17 @@ function InstrumentBox({
           <boxGeometry args={[0.34, 0.34, 0.22]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
-        <DemoFocusHalo active={powerSwitchDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloPowerSwitch" rotation={[powerOn ? -0.35 : 0.35, 0, 0]}>
+        <DemoFocusHalo active={powerSwitchDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloPowerSwitch" rotation={[powerSwitchVisualRotation, 0, 0]} focusHaloColor={scenePalette.effects.demoHalo} focusHaloMinOpacity={scenePalette.effects.demoHaloMinOpacity} focusHaloMaxOpacity={scenePalette.effects.demoHaloMaxOpacity} focusHaloBaseScale={scenePalette.effects.demoHaloBaseScale} focusHaloPulseScale={scenePalette.effects.demoHaloPulseScale}>
           <boxGeometry args={[0.22, 0.38, 0.16]} />
         </DemoFocusHalo>
-        <mesh rotation={[powerOn ? -0.35 : 0.35, 0, 0]}>
+        <mesh rotation={[powerSwitchVisualRotation, 0, 0]}>
           <boxGeometry args={[0.14, 0.28, 0.12]} />
-          <meshStandardMaterial color={powerOn ? scenePalette.instrument.powerOn : scenePalette.instrument.powerOff} roughness={0.45} emissive={powerSwitchHovered ? scenePalette.instrument.hoverEmissive : '#000000'} emissiveIntensity={powerSwitchHovered ? NON_BULB_HOVER_EMISSIVE_INTENSITY : 0} />
+          <meshStandardMaterial color={powerOn ? scenePalette.instrument.powerOn : scenePalette.instrument.powerOff} roughness={0.45} emissive={powerSwitchHovered ? scenePalette.instrument.hoverEmissive : '#000000'} emissiveIntensity={powerSwitchHovered ? scenePalette.effects.nonBulbHoverEmissiveIntensity : 0} />
         </mesh>
         {powerSwitchHovered ? (
-          <mesh name="PowerSwitchHoverHalo" rotation={[powerOn ? -0.35 : 0.35, 0, 0]} raycast={DISABLE_RAYCAST}>
+          <mesh name="PowerSwitchHoverHalo" rotation={[powerSwitchVisualRotation, 0, 0]} raycast={DISABLE_RAYCAST}>
             <boxGeometry args={[0.19, 0.34, 0.15]} />
-            <meshBasicMaterial color={scenePalette.instrument.hoverHalo} transparent opacity={NON_BULB_HOVER_HALO_OPACITY} depthWrite={false} />
+            <meshBasicMaterial color={scenePalette.instrument.hoverHalo} transparent opacity={scenePalette.effects.nonBulbHoverHaloOpacity} depthWrite={false} />
           </mesh>
         ) : null}
       </group>
@@ -1155,7 +1214,7 @@ function InstrumentBox({
           <boxGeometry args={[0.36, 0.36, 0.22]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
-        <DemoFocusHalo active={pressureZeroDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloPressureZero" position={[0, 0, 0.065]}>
+        <DemoFocusHalo active={pressureZeroDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloPressureZero" position={[0, 0, 0.065]} focusHaloColor={scenePalette.effects.demoHalo} focusHaloMinOpacity={scenePalette.effects.demoHaloMinOpacity} focusHaloMaxOpacity={scenePalette.effects.demoHaloMaxOpacity} focusHaloBaseScale={scenePalette.effects.demoHaloBaseScale} focusHaloPulseScale={scenePalette.effects.demoHaloPulseScale}>
           <torusGeometry args={[0.145, 0.011, 12, 48]} />
         </DemoFocusHalo>
         {[-55, -28, 0, 28, 55].map((tickDeg) => {
@@ -1175,11 +1234,11 @@ function InstrumentBox({
         })}
         <mesh name="PressureZeroKnobBody" rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.118, 0.108, 0.084, 48]} />
-          <meshStandardMaterial color={zeroEnabled ? scenePalette.instrument.zeroEnabledBody : scenePalette.instrument.knobBody} roughness={0.5} metalness={0.08} emissive={pressureZeroHovered ? scenePalette.instrument.hoverEmissive : '#000000'} emissiveIntensity={pressureZeroHovered ? NON_BULB_HOVER_EMISSIVE_INTENSITY : 0} />
+          <meshStandardMaterial color={zeroEnabled ? scenePalette.instrument.zeroEnabledBody : scenePalette.instrument.knobBody} roughness={0.5} metalness={0.08} emissive={pressureZeroHovered ? scenePalette.instrument.hoverEmissive : '#000000'} emissiveIntensity={pressureZeroHovered ? scenePalette.effects.nonBulbHoverEmissiveIntensity : 0} />
         </mesh>
         <mesh name="PressureZeroKnobFace" position={[0, 0, 0.048]} rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.096, 0.102, 0.014, 48]} />
-          <meshStandardMaterial color={zeroEnabled ? scenePalette.instrument.zeroEnabledFace : scenePalette.instrument.knobFace} roughness={0.46} metalness={0.04} emissive={pressureZeroHovered ? scenePalette.instrument.hoverEmissive : '#000000'} emissiveIntensity={pressureZeroHovered ? 0.16 : 0} />
+          <meshStandardMaterial color={zeroEnabled ? scenePalette.instrument.zeroEnabledFace : scenePalette.instrument.knobFace} roughness={0.46} metalness={0.04} emissive={pressureZeroHovered ? scenePalette.instrument.hoverEmissive : '#000000'} emissiveIntensity={pressureZeroHovered ? scenePalette.effects.nonBulbHoverEmissiveIntensity * 0.62 : 0} />
         </mesh>
         <mesh name="PressureZeroKnobRim" position={[0, 0, 0.058]} raycast={DISABLE_RAYCAST}>
           <torusGeometry args={[0.103, 0.006, 12, 48]} />
@@ -1192,7 +1251,7 @@ function InstrumentBox({
         {pressureZeroHovered ? (
           <mesh name="PressureZeroHoverHalo" position={[0, 0, 0.047]} raycast={DISABLE_RAYCAST}>
             <torusGeometry args={[0.135, 0.006, 12, 42]} />
-            <meshBasicMaterial color={scenePalette.instrument.hoverHalo} transparent opacity={NON_BULB_HOVER_HALO_OPACITY} depthWrite={false} />
+            <meshBasicMaterial color={scenePalette.instrument.hoverHalo} transparent opacity={scenePalette.effects.nonBulbHoverHaloOpacity} depthWrite={false} />
           </mesh>
         ) : null}
         <group name="PressureZeroIndicatorGroup" rotation={[0, 0, THREE.MathUtils.degToRad(pressureZeroKnobAngle + pressureZeroRollbackOffsetDeg)]}>
@@ -1355,7 +1414,7 @@ function GlassStopcock({
           <boxGeometry args={[1.02, 0.72, 0.34]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
-        <DemoFocusHalo active={stopcockDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloStopcock" rotation={[0, 0, Math.PI / 2]}>
+        <DemoFocusHalo active={stopcockDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloStopcock" rotation={[0, 0, Math.PI / 2]} focusHaloColor={scenePalette.effects.demoHalo} focusHaloMinOpacity={scenePalette.effects.demoHaloMinOpacity} focusHaloMaxOpacity={scenePalette.effects.demoHaloMaxOpacity} focusHaloBaseScale={scenePalette.effects.demoHaloBaseScale} focusHaloPulseScale={scenePalette.effects.demoHaloPulseScale}>
           <cylinderGeometry args={[0.19, 0.19, 0.84, 32]} />
         </DemoFocusHalo>
         <mesh name="StopcockCorePlug" rotation={[0, 0, Math.PI / 2]}>
@@ -1367,14 +1426,14 @@ function GlassStopcock({
             roughness={0.06}
             transmission={scenePalette.glass.stopcockCoreTransmission}
             emissive={stopcockHovered ? scenePalette.instrument.hoverEmissive : '#000000'}
-            emissiveIntensity={stopcockHovered ? GLASS_HOVER_EMISSIVE_INTENSITY : 0}
+            emissiveIntensity={stopcockHovered ? scenePalette.effects.glassHoverEmissiveIntensity : 0}
           />
           {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
         </mesh>
         {stopcockHovered ? (
           <mesh name="StopcockCoreHoverHalo" rotation={[0, 0, Math.PI / 2]} raycast={DISABLE_RAYCAST}>
             <cylinderGeometry args={[0.158, 0.158, 0.35, 32]} />
-            <meshBasicMaterial color={scenePalette.glass.hoverHalo} transparent opacity={GLASS_HOVER_HALO_OPACITY} depthWrite={false} />
+            <meshBasicMaterial color={scenePalette.glass.hoverHalo} transparent opacity={scenePalette.effects.glassHoverHaloOpacity} depthWrite={false} />
           </mesh>
         ) : null}
         <mesh name="StopcockRotatingFlowChannel" position={[0, 0, 0]}>
@@ -1399,7 +1458,7 @@ function GlassStopcock({
               roughness={0.08}
               transmission={scenePalette.glass.stopcockHandleTransmission}
               emissive={stopcockHovered ? scenePalette.instrument.hoverEmissive : '#000000'}
-              emissiveIntensity={stopcockHovered ? GLASS_HOVER_EMISSIVE_INTENSITY : 0}
+              emissiveIntensity={stopcockHovered ? scenePalette.effects.glassHoverEmissiveIntensity : 0}
             />
             {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
           </mesh>
@@ -1412,14 +1471,14 @@ function GlassStopcock({
               roughness={0.08}
               transmission={scenePalette.glass.stopcockHandleTransmission}
               emissive={stopcockHovered ? scenePalette.instrument.hoverEmissive : '#000000'}
-              emissiveIntensity={stopcockHovered ? GLASS_HOVER_EMISSIVE_INTENSITY : 0}
+              emissiveIntensity={stopcockHovered ? scenePalette.effects.glassHoverEmissiveIntensity : 0}
             />
             {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
           </mesh>
           {stopcockHovered ? (
             <mesh name="StopcockRodHandleHoverHalo" raycast={DISABLE_RAYCAST}>
               <cylinderGeometry args={[0.05, 0.05, 0.6, 24]} />
-              <meshBasicMaterial color={scenePalette.glass.hoverHalo} transparent opacity={GLASS_HOVER_HALO_OPACITY} depthWrite={false} />
+              <meshBasicMaterial color={scenePalette.glass.hoverHalo} transparent opacity={scenePalette.effects.glassHoverHaloOpacity} depthWrite={false} />
             </mesh>
           ) : null}
           <mesh name="StopcockRodHandleTipTop" position={[0, 0.31, 0]}>
@@ -1787,12 +1846,12 @@ function PumpAssembly({
           <boxGeometry args={[0.48, 0.42, 0.48]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
-        <DemoFocusHalo active={pumpValveDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloPumpValve" position={[0, 0.04, 0]}>
+        <DemoFocusHalo active={pumpValveDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloPumpValve" position={[0, 0.04, 0]} focusHaloColor={scenePalette.effects.demoHalo} focusHaloMinOpacity={scenePalette.effects.demoHaloMinOpacity} focusHaloMaxOpacity={scenePalette.effects.demoHaloMaxOpacity} focusHaloBaseScale={scenePalette.effects.demoHaloBaseScale} focusHaloPulseScale={scenePalette.effects.demoHaloPulseScale}>
           <boxGeometry args={[0.56, 0.48, 0.52]} />
         </DemoFocusHalo>
         <mesh name="pumpValveBody" rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.09, 0.09, 0.32, 32]} />
-          <meshStandardMaterial color={scenePalette.pump.valveBody} roughness={0.34} metalness={0.58} emissive={valveHovered ? scenePalette.instrument.hoverEmissive : '#000000'} emissiveIntensity={valveHovered ? NON_BULB_HOVER_EMISSIVE_INTENSITY : 0} />
+          <meshStandardMaterial color={scenePalette.pump.valveBody} roughness={0.34} metalness={0.58} emissive={valveHovered ? scenePalette.instrument.hoverEmissive : '#000000'} emissiveIntensity={valveHovered ? scenePalette.effects.nonBulbHoverEmissiveIntensity : 0} />
           {valveHovered && !interactionQualityReduced ? <Edges color={scenePalette.pump.hoverEdge} /> : null}
         </mesh>
         <mesh name="pumpValveHexNutLeft" position={[0, 0, -0.18]} rotation={[Math.PI / 2, 0, 0]}>
@@ -1814,7 +1873,7 @@ function PumpAssembly({
           </mesh>
           <mesh name="pumpValveWingHandle" position={[0, 0.18, 0]}>
             <boxGeometry args={[0.34, 0.052, 0.078]} />
-            <meshStandardMaterial color={pumpValveOpen ? scenePalette.pump.handleOpen : scenePalette.pump.handleClosed} roughness={0.48} metalness={0.06} emissive={valveHovered ? '#7f1d1d' : '#000000'} emissiveIntensity={valveHovered ? NON_BULB_HOVER_EMISSIVE_INTENSITY : 0} />
+            <meshStandardMaterial color={pumpValveOpen ? scenePalette.pump.handleOpen : scenePalette.pump.handleClosed} roughness={0.48} metalness={0.06} emissive={valveHovered ? '#7f1d1d' : '#000000'} emissiveIntensity={valveHovered ? scenePalette.effects.nonBulbHoverEmissiveIntensity : 0} />
           </mesh>
           <mesh name="pumpValveWingHandleGripLeft" position={[-0.2, 0.18, 0]}>
             <sphereGeometry args={[0.055, 16, 12]} />
@@ -1870,16 +1929,16 @@ function PumpAssembly({
           <boxGeometry args={[0.62, 0.42, 0.62]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
-        <DemoFocusHalo active={pumpBulbDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloPumpBulb" rotation={[Math.PI / 2, 0, 0]}>
+        <DemoFocusHalo active={pumpBulbDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloPumpBulb" rotation={[Math.PI / 2, 0, 0]} focusHaloColor={scenePalette.effects.demoHalo} focusHaloMinOpacity={scenePalette.effects.demoHaloMinOpacity} focusHaloMaxOpacity={scenePalette.effects.demoHaloMaxOpacity} focusHaloBaseScale={scenePalette.effects.demoHaloBaseScale} focusHaloPulseScale={scenePalette.effects.demoHaloPulseScale}>
           <torusGeometry args={[0.32, 0.014, 12, 56]} />
         </DemoFocusHalo>
         <mesh name="pumpBulbStatusHalo" visible={pumpBulbActive || bulbHovered} rotation={[Math.PI / 2, 0, 0]} raycast={DISABLE_RAYCAST}>
           <torusGeometry args={[0.29, 0.01, 12, 48]} />
-          <meshBasicMaterial color={pumpBulbActive ? scenePalette.pump.bulbHaloActive : scenePalette.pump.bulbHaloHover} transparent opacity={pumpBulbActive ? 0.34 : 0.2} depthWrite={false} />
+          <meshBasicMaterial color={pumpBulbActive ? scenePalette.pump.bulbHaloActive : scenePalette.pump.bulbHaloHover} transparent opacity={pumpBulbActive ? 0.34 : scenePalette.effects.pumpBulbHoverHaloOpacity} depthWrite={false} />
         </mesh>
         <mesh name="pumpBulbRubber">
           <sphereGeometry args={[0.24, 32, 24]} />
-          <meshStandardMaterial color={pumpBulbActive ? scenePalette.pump.bulbActive : scenePalette.pump.bulbIdle} roughness={0.5} metalness={0.02} emissive={bulbHovered || pumpBulbActive ? scenePalette.instrument.hoverEmissive : '#000000'} emissiveIntensity={pumpBulbActive ? 0.18 : bulbHovered ? 0.24 : 0} />
+          <meshStandardMaterial color={pumpBulbActive ? scenePalette.pump.bulbActive : scenePalette.pump.bulbIdle} roughness={0.5} metalness={0.02} emissive={bulbHovered || pumpBulbActive ? scenePalette.instrument.hoverEmissive : '#000000'} emissiveIntensity={pumpBulbActive ? 0.18 : bulbHovered ? scenePalette.effects.pumpBulbHoverEmissiveIntensity : 0} />
           {bulbHovered && !interactionQualityReduced ? <Edges color={scenePalette.pump.hoverEdge} /> : null}
         </mesh>
         <mesh name="pumpBulbBase" position={[0, -0.23, 0]}>
@@ -1937,6 +1996,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           powerOn={props.powerOn}
           temperatureMv={props.temperatureSignalMv}
           pressureMv={props.pressureSignalMv}
+          pressureDeltaKPa={props.pressureDeltaKPa}
           phase={props.phase}
           releaseBurstActive={props.pressureReleaseBurstActive}
           glassStopcockOpen={stopcockState === 'open'}

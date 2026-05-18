@@ -230,6 +230,7 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       pressureZeroDisplayText: typeof file.pressureZeroDisplayText === 'string'
         ? file.pressureZeroDisplayText
         : fallback.pressureZeroDisplayText,
+      releaseRecoveryTargetDeltaKPa: normalizeNullableNumber(file.releaseRecoveryTargetDeltaKPa),
       pressureRawPlaceholder,
       pressureDisplayedPlaceholder,
       pressureGaugeDisplayValue: normalizeNullableNumber(file.pressureGaugeDisplayValue) ?? fallback.pressureGaugeDisplayValue,

@@ -80,9 +80,9 @@ const copyByLanguage = {
     imported: '组完整数据已导入',
     emptyProcessing: '请先在数据记录页完成至少一组有效数据，再进行计算。',
     sampleScope: '仅属于空气比热容比实验',
-    recordingHint: '手动模式需在正确阶段使用 3D 预览中的记录按钮；自动演示会自动记录相同字段。',
+    recordingHint: '引导模式需在正确阶段使用 3D 预览中的记录按钮；自动演示会自动记录相同字段。',
     recordingComplete: '数据记录已完成。请前往数据处理页并点击“计算结果”。',
-    recordingNextTrial: '本组已完成，已省略真实实验中约 5 分钟的恢复室温等待过程，可立即进入下一组实验。',
+    recordingNextTrial: '本组已完成；提示结束后可在上方模式栏点击“下一组实验”。',
     recordingReadyToProcess: '数据记录已完成，可进入数据处理并计算结果。',
     expectedTrials: '预计组数',
     currentTrial: (trialIndex: number) => `当前组：第 ${trialIndex} 组`,
@@ -116,7 +116,7 @@ const copyByLanguage = {
       aimTitle: '1. 实验目的',
       aimBody: '测定空气的比热容比 γ，并理解压缩、快速放气和回温三个过程对压强与温度信号的影响。',
       apparatusTitle: '2. 仪器与读数',
-      apparatusBody: '实验主要观察 U_p、U_T、指针压力表和玻璃旋塞状态。U_p 是压强差电压，U_T 是温度信号电压，最终计算采用空气实验的绝对压强对数公式。',
+      apparatusBody: '实验主要观察 Uₚ、Uₜ、指针压力表和玻璃旋塞状态。Uₚ 是压强差电压，Uₜ 是温度信号电压，最终计算采用空气实验的绝对压强对数公式。',
       procedureTitle: '3. 实验步骤',
       steps: [
         {
@@ -125,19 +125,19 @@ const copyByLanguage = {
         },
         {
           title: 'Step 2：压强调零',
-          body: '观察 U_p 是否接近 0，旋转压力调零旋钮，使 U_p 接近 0。调零只修正传感器显示基准，不改变瓶内真实气体状态。',
+          body: '观察 Uₚ 是否接近 0，旋转压力调零旋钮，使 Uₚ 接近 0。调零只修正传感器显示基准，不改变瓶内真实气体状态。',
           question: '调零的意义是什么？',
-          answer: '调零的意义不是改变瓶内气体状态，而是让压力传感器的显示基准回到零点附近。由于后续计算依赖放气前后的压强差电压，如果初始零点存在偏差，U₁ 和 U₂ 都可能带入系统误差。调零的目的就是尽量消除仪器初始偏移，使后续记录的 U_p 更接近真实压强差变化。',
+          answer: '调零的意义不是改变瓶内气体状态，而是让压力传感器的显示基准回到零点附近。由于后续计算依赖放气前后的压强差电压，如果初始零点存在偏差，U₁ 和 U₂ 都可能带入系统误差。调零的目的就是尽量消除仪器初始偏移，使后续记录的 Uₚ 更接近真实压强差变化。',
         },
         {
           title: 'Step 3：打气加压',
-          body: '关闭玻璃旋塞，打开打气阀门，连续打气，使瓶内压强升高。观察 U_p 快速升高，U_T 滞后变化，指针压力表同步上升。',
+          body: '关闭玻璃旋塞，打开打气阀门，连续打气，使瓶内压强升高。观察 Uₚ 快速升高，Uₜ 滞后变化，指针压力表同步上升。',
           question: '打气过程中 P、T、n 如何变化？',
-          answer: '打气向瓶内加入空气，瓶内气体的物质的量 n 增加。瓶体体积 V 在实验中近似固定，根据 PV = nRT，n 的增加会使压强 P 明显升高。短时间压缩也可能使温度 T 升高，但温度传感器存在热响应过程，因此 U_T 的变化通常慢于 U_p。',
+          answer: '打气向瓶内加入空气，瓶内气体的物质的量 n 增加。瓶体体积 V 在实验中近似固定，根据 PV = nRT，n 的增加会使压强 P 明显升高。短时间压缩也可能使温度 T 升高，但温度传感器存在热响应过程，因此 Uₜ 的变化通常慢于 Uₚ。',
         },
         {
           title: 'Step 4：封闭等待稳定',
-          body: '停止打气并保持瓶内封闭，等待 U_p 和 U_T 逐渐进入小范围波动。读数稳定后记录 U₁ / U_T1。',
+          body: '停止打气并保持瓶内封闭，等待 Uₚ 和 Uₜ 逐渐进入小范围波动。读数稳定后记录 U₁ / Uₜ₁。',
           question: '为什么要等待稳定后再记录？',
           answer: '打气结束后，瓶内气体仍在混合，传感器读数也可能继续变化，温度信号尤其容易滞后。如果在读数快速变化时记录，U₁ 不能代表放气前的稳定状态，从而影响 P₁ 和 γ 的计算。',
         },
@@ -149,7 +149,7 @@ const copyByLanguage = {
         },
         {
           title: 'Step 6：等待回温并记录',
-          body: '关闭玻璃旋塞后等待气体回温，直到 U_T 和 U_p 再次趋稳，然后记录 U₂ / U_T2。',
+          body: '关闭玻璃旋塞后等待气体回温，直到 Uₜ 和 Uₚ 再次趋稳，然后记录 U₂ / Uₜ₂。',
           question: '为什么 U₂ 不能取放气瞬间值？',
           answer: '放气瞬间瓶内压强接近外界大气压，但瓶内气体温度尚未恢复。真实计算所需的 P₂ 是关闭旋塞并等待气体回温后得到的稳定压强，而不是刚放气时的瞬时压强。',
         },
@@ -185,6 +185,7 @@ const copyByLanguage = {
       action: '操作',
       deleteU1: '删除 U₁',
       deleteU2: '删除 U₂',
+      deleteTrial: '删除本组',
       confirmDelete: '确认删除',
       cancel: '取消',
     },
@@ -205,9 +206,9 @@ const copyByLanguage = {
     imported: '組完整資料已匯入',
     emptyProcessing: '請先在資料記錄頁完成至少一組有效資料，再進行計算。',
     sampleScope: '僅屬於空氣比熱容比實驗',
-    recordingHint: '手動模式需在正確階段使用 3D 預覽中的記錄按鈕；自動演示會自動記錄相同欄位。',
+    recordingHint: '引導模式需在正確階段使用 3D 預覽中的記錄按鈕；自動演示會自動記錄相同欄位。',
     recordingComplete: '資料記錄已完成。請前往資料處理頁並點擊「計算結果」。',
-    recordingNextTrial: '本組已完成，已省略真實實驗中約 5 分鐘的恢復室溫等待過程，可立即進入下一組實驗。',
+    recordingNextTrial: '本組已完成；提示結束後可在上方模式列點擊「下一組實驗」。',
     recordingReadyToProcess: '資料記錄已完成，可進入資料處理並計算結果。',
     expectedTrials: '預計組數',
     currentTrial: (trialIndex: number) => `目前組：第 ${trialIndex} 組`,
@@ -241,15 +242,15 @@ const copyByLanguage = {
       aimTitle: '1. 實驗目的',
       aimBody: '測定空氣的比熱容比 γ，並理解壓縮、快速放氣和回溫三個過程對壓強與溫度信號的影響。',
       apparatusTitle: '2. 儀器與讀數',
-      apparatusBody: '實驗主要觀察 U_p、U_T、指針壓力表和玻璃旋塞狀態。U_p 是壓強差電壓，U_T 是溫度信號電壓，最終計算採用空氣實驗的絕對壓強對數公式。',
+      apparatusBody: '實驗主要觀察 Uₚ、Uₜ、指針壓力表和玻璃旋塞狀態。Uₚ 是壓強差電壓，Uₜ 是溫度信號電壓，最終計算採用空氣實驗的絕對壓強對數公式。',
       procedureTitle: '3. 實驗步驟',
       steps: [
         { title: 'Step 1：開啟電源', body: '打開主機電源，等待數位儀表進入工作狀態。未開機時讀數無效，實時窗口也不應顯示有效採集線。' },
-        { title: 'Step 2：壓強調零', body: '觀察 U_p 是否接近 0，旋轉壓力調零旋鈕，使 U_p 接近 0。調零只修正感測器顯示基準，不改變瓶內真實氣體狀態。', question: '調零的意義是什麼？', answer: '調零的意義不是改變瓶內氣體狀態，而是讓壓力感測器的顯示基準回到零點附近。後續計算依賴放氣前後的壓強差電壓，如果初始零點存在偏差，U₁ 和 U₂ 都可能帶入系統誤差。' },
-        { title: 'Step 3：打氣加壓', body: '關閉玻璃旋塞，打開打氣閥門，連續打氣，使瓶內壓強升高。觀察 U_p 快速升高，U_T 滯後變化，指針壓力表同步上升。', question: '打氣過程中 P、T、n 如何變化？', answer: '打氣向瓶內加入空氣，瓶內氣體的物質的量 n 增加。瓶體體積 V 近似固定，根據 PV = nRT，n 的增加會使壓強 P 明顯升高。短時間壓縮也可能使溫度 T 升高，但 U_T 的變化通常慢於 U_p。' },
-        { title: 'Step 4：封閉等待穩定', body: '停止打氣並保持瓶內封閉，等待 U_p 和 U_T 逐漸進入小範圍波動。讀數穩定後記錄 U₁ / U_T1。', question: '為什麼要等待穩定後再記錄？', answer: '打氣結束後，瓶內氣體仍在混合，感測器讀數也可能繼續變化。如果在讀數快速變化時記錄，U₁ 不能代表放氣前的穩定狀態，從而影響 P₁ 和 γ 的計算。' },
+        { title: 'Step 2：壓強調零', body: '觀察 Uₚ 是否接近 0，旋轉壓力調零旋鈕，使 Uₚ 接近 0。調零只修正感測器顯示基準，不改變瓶內真實氣體狀態。', question: '調零的意義是什麼？', answer: '調零的意義不是改變瓶內氣體狀態，而是讓壓力感測器的顯示基準回到零點附近。後續計算依賴放氣前後的壓強差電壓，如果初始零點存在偏差，U₁ 和 U₂ 都可能帶入系統誤差。' },
+        { title: 'Step 3：打氣加壓', body: '關閉玻璃旋塞，打開打氣閥門，連續打氣，使瓶內壓強升高。觀察 Uₚ 快速升高，Uₜ 滯後變化，指針壓力表同步上升。', question: '打氣過程中 P、T、n 如何變化？', answer: '打氣向瓶內加入空氣，瓶內氣體的物質的量 n 增加。瓶體體積 V 近似固定，根據 PV = nRT，n 的增加會使壓強 P 明顯升高。短時間壓縮也可能使溫度 T 升高，但 Uₜ 的變化通常慢於 Uₚ。' },
+        { title: 'Step 4：封閉等待穩定', body: '停止打氣並保持瓶內封閉，等待 Uₚ 和 Uₜ 逐漸進入小範圍波動。讀數穩定後記錄 U₁ / Uₜ₁。', question: '為什麼要等待穩定後再記錄？', answer: '打氣結束後，瓶內氣體仍在混合，感測器讀數也可能繼續變化。如果在讀數快速變化時記錄，U₁ 不能代表放氣前的穩定狀態，從而影響 P₁ 和 γ 的計算。' },
         { title: 'Step 5：快速放氣', body: '快速打開玻璃旋塞，使瓶內空氣與外界連通，放氣後及時關閉玻璃旋塞。不要在剛放氣瞬間記錄 U₂。', question: '為什麼放氣動作要盡量快速？', answer: '快速放氣可以讓瓶內氣體在短時間內膨脹並對外做功，這個過程更接近絕熱過程。若放氣太慢，氣體有更多時間與環境換熱，實驗計算會受到影響。' },
-        { title: 'Step 6：等待回溫並記錄', body: '關閉玻璃旋塞後等待氣體回溫，直到 U_T 和 U_p 再次趨穩，然後記錄 U₂ / U_T2。', question: '為什麼 U₂ 不能取放氣瞬間值？', answer: '放氣瞬間瓶內壓強接近外界大氣壓，但瓶內氣體溫度尚未恢復。真實計算所需的 P₂ 是關閉旋塞並等待氣體回溫後得到的穩定壓強，而不是剛放氣時的瞬時壓強。' },
+        { title: 'Step 6：等待回溫並記錄', body: '關閉玻璃旋塞後等待氣體回溫，直到 Uₜ 和 Uₚ 再次趨穩，然後記錄 U₂ / Uₜ₂。', question: '為什麼 U₂ 不能取放氣瞬間值？', answer: '放氣瞬間瓶內壓強接近外界大氣壓，但瓶內氣體溫度尚未恢復。真實計算所需的 P₂ 是關閉旋塞並等待氣體回溫後得到的穩定壓強，而不是剛放氣時的瞬時壓強。' },
       ],
     },
     formula: {
@@ -282,6 +283,7 @@ const copyByLanguage = {
       action: '操作',
       deleteU1: '刪除 U₁',
       deleteU2: '刪除 U₂',
+      deleteTrial: '刪除本組',
       confirmDelete: '確認刪除',
       cancel: '取消',
     },
@@ -302,9 +304,9 @@ const copyByLanguage = {
     imported: 'complete trial(s) imported',
     emptyProcessing: 'Complete at least one valid trial in Data Recording before calculating results.',
     sampleScope: 'Heat Capacity only',
-    recordingHint: 'Manual mode records through the stage buttons in the 3D preview. Auto demo records the same fields automatically.',
+    recordingHint: 'Guide mode records through the stage buttons in the 3D preview. Auto demo records the same fields automatically.',
     recordingComplete: 'Data recording complete. Go to Data Processing and click Calculate Results.',
-    recordingNextTrial: 'This trial is complete. The real experiment recovery wait of about 5 minutes is omitted, so you can start the next trial immediately.',
+    recordingNextTrial: 'This trial is complete. After the notice, use Next Trial in the mode bar.',
     recordingReadyToProcess: 'Data recording is complete. You can calculate results in Data Processing.',
     expectedTrials: 'Expected trials',
     currentTrial: (trialIndex: number) => `Current trial: ${trialIndex}`,
@@ -338,15 +340,15 @@ const copyByLanguage = {
       aimTitle: '1. Aim',
       aimBody: 'Measure the heat capacity ratio γ of air and understand how compression, quick release, and thermal recovery affect pressure and temperature signals.',
       apparatusTitle: '2. Apparatus and Readings',
-      apparatusBody: 'The experiment observes U_p, U_T, the pointer pressure gauge, and the glass stopcock. U_p is the pressure-difference voltage, U_T is the temperature signal voltage, and the final calculation uses the absolute-pressure logarithm formula for air.',
+      apparatusBody: 'The experiment observes Uₚ, Uₜ, the pointer pressure gauge, and the glass stopcock. Uₚ is the pressure-difference voltage, Uₜ is the temperature signal voltage, and the final calculation uses the absolute-pressure logarithm formula for air.',
       procedureTitle: '3. Procedure',
       steps: [
         { title: 'Step 1: Power on', body: 'Turn on the instrument and wait for the digital meters to enter working state. Before power-on, readings are invalid.' },
-        { title: 'Step 2: Zero the pressure signal', body: 'Observe whether U_p is close to 0 and rotate the pressure-zero knob until U_p approaches 0. Zeroing corrects the sensor display reference, not the real gas state.', question: 'What is the purpose of zeroing?', answer: 'Zeroing does not change the gas state inside the bottle. It brings the pressure sensor display reference back near zero. Because later calculations depend on pressure-difference voltages before and after release, an initial offset would introduce systematic error into both U₁ and U₂.' },
-        { title: 'Step 3: Pump and pressurize', body: 'Close the glass stopcock, open the pump valve, and pump continuously so that the bottle pressure rises. U_p rises quickly, U_T responds with delay, and the pointer pressure gauge rises.', question: 'How do P, T, and n change during pumping?', answer: 'Pumping adds air to the bottle, so the amount of gas n increases. With nearly fixed volume V, PV = nRT means that increasing n drives pressure P upward. Short compression may also raise temperature T, but U_T usually changes more slowly than U_p because of sensor thermal response.' },
-        { title: 'Step 4: Wait for sealed stabilization', body: 'Stop pumping and keep the bottle sealed until U_p and U_T enter small-range fluctuation. Record U₁ / U_T1 after readings stabilize.', question: 'Why record after stabilization?', answer: 'After pumping, gas mixing and sensor response continue for a short time. Recording while readings are changing would make U₁ fail to represent the stable state before release, affecting P₁ and γ.' },
+        { title: 'Step 2: Zero the pressure signal', body: 'Observe whether Uₚ is close to 0 and rotate the pressure-zero knob until Uₚ approaches 0. Zeroing corrects the sensor display reference, not the real gas state.', question: 'What is the purpose of zeroing?', answer: 'Zeroing does not change the gas state inside the bottle. It brings the pressure sensor display reference back near zero. Because later calculations depend on pressure-difference voltages before and after release, an initial offset would introduce systematic error into both U₁ and U₂.' },
+        { title: 'Step 3: Pump and pressurize', body: 'Close the glass stopcock, open the pump valve, and pump continuously so that the bottle pressure rises. Uₚ rises quickly, Uₜ responds with delay, and the pointer pressure gauge rises.', question: 'How do P, T, and n change during pumping?', answer: 'Pumping adds air to the bottle, so the amount of gas n increases. With nearly fixed volume V, PV = nRT means that increasing n drives pressure P upward. Short compression may also raise temperature T, but Uₜ usually changes more slowly than Uₚ because of sensor thermal response.' },
+        { title: 'Step 4: Wait for sealed stabilization', body: 'Stop pumping and keep the bottle sealed until Uₚ and Uₜ enter small-range fluctuation. Record U₁ / Uₜ₁ after readings stabilize.', question: 'Why record after stabilization?', answer: 'After pumping, gas mixing and sensor response continue for a short time. Recording while readings are changing would make U₁ fail to represent the stable state before release, affecting P₁ and γ.' },
         { title: 'Step 5: Quick release', body: 'Open the glass stopcock quickly to connect the bottle to the atmosphere, then close it promptly. Do not record U₂ at the release instant.', question: 'Why must release be quick?', answer: 'A quick release lets the gas expand and do work over a short period, which is closer to an adiabatic process. If release is too slow, heat exchange with the environment becomes significant and affects the calculation.' },
-        { title: 'Step 6: Recover and record', body: 'After closing the stopcock, wait for the gas to recover thermally until U_T and U_p stabilize again, then record U₂ / U_T2.', question: 'Why cannot U₂ be the instant release value?', answer: 'At the release instant, bottle pressure is near atmospheric pressure, but the gas temperature has not recovered. The required P₂ is the stable pressure after the closed bottle returns toward ambient temperature, not the transient pressure right after release.' },
+        { title: 'Step 6: Recover and record', body: 'After closing the stopcock, wait for the gas to recover thermally until Uₜ and Uₚ stabilize again, then record U₂ / Uₜ₂.', question: 'Why cannot U₂ be the instant release value?', answer: 'At the release instant, bottle pressure is near atmospheric pressure, but the gas temperature has not recovered. The required P₂ is the stable pressure after the closed bottle returns toward ambient temperature, not the transient pressure right after release.' },
       ],
     },
     formula: {
@@ -379,6 +381,7 @@ const copyByLanguage = {
       action: 'Action',
       deleteU1: 'Delete U₁',
       deleteU2: 'Delete U₂',
+      deleteTrial: 'Delete trial',
       confirmDelete: 'Confirm Delete',
       cancel: 'Cancel',
     },
@@ -409,15 +412,53 @@ const DocumentDisclosure = ({ id, title, children }: DocumentDisclosureProps) =>
   );
 };
 
-const renderProcessSampleStatus = (file: WorkbenchHeatCapacityState, copy: LocalizedText) => {
+const renderProcessSampleStatus = (
+  file: WorkbenchHeatCapacityState,
+  copy: LocalizedText,
+  renderRemoveRecordButton: (
+    trialIndex: number,
+    kind: HeatCapacityTrialRecordRemovalKind,
+    visible: boolean,
+  ) => React.ReactNode,
+) => {
   const beforeReleaseSample = file.heatCapacityProcessSamples.stableBeforeReleaseSample
     ?? file.heatCapacityProcessSamples.beforeReleaseSample
     ?? file.heatCapacityProcessSamples.pumpPeakSample
     ?? null;
+  const sampleTrialIndex = Math.min(
+    file.heatCapacityTrials.length - 1,
+    Math.max(0, file.heatCapacityActiveTrialIndex),
+  );
+  const sampleTrial = file.heatCapacityTrials[sampleTrialIndex] ?? null;
+  const hasSampleTrialU1Record = sampleTrial !== null &&
+    (sampleTrial.U1Mv !== null || sampleTrial.UT1Mv !== null);
+  const hasSampleTrialU2Record = sampleTrial !== null &&
+    (sampleTrial.U2Mv !== null || sampleTrial.UT2Mv !== null);
   const rows = [
-    { key: 'U₀', label: copy.sample.zeroLabel, phase: copy.sample.zeroPhase, sample: file.heatCapacityProcessSamples.zeroedSample ?? null },
-    { key: 'U₁', label: copy.sample.u1Label, phase: copy.sample.u1Phase, sample: beforeReleaseSample },
-    { key: 'U₂', label: copy.sample.u2Label, phase: copy.sample.u2Phase, sample: file.heatCapacityProcessSamples.recoverySample ?? null },
+    {
+      key: 'U₀',
+      label: copy.sample.zeroLabel,
+      phase: copy.sample.zeroPhase,
+      sample: file.heatCapacityProcessSamples.zeroedSample ?? null,
+      kind: null,
+      actionVisible: false,
+    },
+    {
+      key: 'U₁',
+      label: copy.sample.u1Label,
+      phase: copy.sample.u1Phase,
+      sample: beforeReleaseSample,
+      kind: 'u1' as const,
+      actionVisible: hasSampleTrialU1Record,
+    },
+    {
+      key: 'U₂',
+      label: copy.sample.u2Label,
+      phase: copy.sample.u2Phase,
+      sample: file.heatCapacityProcessSamples.recoverySample ?? null,
+      kind: 'u2' as const,
+      actionVisible: hasSampleTrialU2Record,
+    },
   ];
 
   return (
@@ -433,6 +474,7 @@ const renderProcessSampleStatus = (file: WorkbenchHeatCapacityState, copy: Local
           <span>{copy.sample.time}</span>
           <span>{copy.sample.phase}</span>
           <span>{copy.sample.status}</span>
+          <span>{copy.table.action}</span>
         </div>
         {rows.map((row) => (
           <div className="studio-heat-sample-row" key={row.key}>
@@ -442,6 +484,9 @@ const renderProcessSampleStatus = (file: WorkbenchHeatCapacityState, copy: Local
             <span>{row.phase}</span>
             <span className={row.sample ? 'studio-heat-sample-recorded' : 'studio-heat-sample-waiting'}>
               {row.sample ? copy.sample.recorded : copy.sample.pending}
+            </span>
+            <span>
+              {row.kind ? renderRemoveRecordButton(sampleTrialIndex, row.kind, row.actionVisible) : null}
             </span>
           </div>
         ))}
@@ -535,7 +580,13 @@ const renderRecordingTab = (
           className={`studio-table-action ${pending ? 'studio-table-action-confirm' : ''}`}
           onClick={() => onRemoveTrialRecord(trialIndex, kind)}
         >
-          {pending ? copy.table.confirmDelete : kind === 'u1' ? copy.table.deleteU1 : copy.table.deleteU2}
+          {pending
+            ? copy.table.confirmDelete
+            : kind === 'u1'
+              ? copy.table.deleteU1
+              : kind === 'u2'
+                ? copy.table.deleteU2
+                : copy.table.deleteTrial}
         </button>
         {pending ? (
           <button
@@ -551,7 +602,7 @@ const renderRecordingTab = (
   };
   return (
     <div className="studio-heat-recording" data-heat-capacity-recording-tab="true">
-      {renderProcessSampleStatus(file, copy)}
+      {renderProcessSampleStatus(file, copy, renderRemoveRecordButton)}
       <div className="studio-heat-recording-controls">
         <div className="studio-heat-recording-progress">
           <span>{copy.expectedTrials}</span>
@@ -602,8 +653,11 @@ const renderRecordingTab = (
                 <td><span className={statusClass(trial.status)}>{copy.status[trial.status]}</span></td>
                 <td>
                   <div className="studio-table-action-row">
-                    {renderRemoveRecordButton(trialIndex, 'u1', trial.U1Mv !== null || trial.UT1Mv !== null)}
-                    {renderRemoveRecordButton(trialIndex, 'u2', trial.U2Mv !== null || trial.UT2Mv !== null)}
+                    {renderRemoveRecordButton(
+                      trialIndex,
+                      'trial',
+                      trial.U1Mv !== null || trial.U2Mv !== null || trial.UT1Mv !== null || trial.UT2Mv !== null,
+                    )}
                   </div>
                 </td>
               </tr>

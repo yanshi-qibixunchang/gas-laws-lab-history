@@ -93,6 +93,7 @@ export interface HeatCapacityRuntimeState {
   pressureZeroAdjusted: boolean;
   heatCapacityPhase: HeatCapacityRuntimePhase;
   heatCapacityProcessSamples: HeatCapacityProcessSamples;
+  releaseRecoveryTargetDeltaKPa: number | null;
   modelConfig: HeatCapacityModelConfig;
 }
 
@@ -184,6 +185,27 @@ const moveToward = (
   dt: number,
 ) => current + (target - current) * (1 - Math.exp(-rate * dt));
 
+const getOpenStopcockHeatFollowRate = (
+  config: HeatCapacityModelConfig,
+) => config.recoveryHeatFollowRate / Math.max(1.001, config.theoreticalGamma);
+
+const getReleaseRecoveryBaseTargetDelta = ({
+  pressureDeltaKPa,
+  stablePressureDelta,
+  recoveryPressureDelta,
+}: {
+  pressureDeltaKPa: number;
+  stablePressureDelta: number;
+  recoveryPressureDelta: number;
+}) => {
+  const pressureFraction = clampNumber(
+    pressureDeltaKPa / Math.max(HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA, stablePressureDelta),
+    0,
+    1,
+  );
+  return recoveryPressureDelta * pressureFraction;
+};
+
 const mergeModelConfig = (
   config?: Partial<HeatCapacityModelConfig>,
 ): HeatCapacityModelConfig => ({
@@ -262,6 +284,7 @@ export const createDefaultHeatCapacityRuntimeState = (
     pressureZeroAdjusted: false,
     heatCapacityPhase: 'powerOff',
     heatCapacityProcessSamples: {},
+    releaseRecoveryTargetDeltaKPa: null,
     modelConfig,
   });
 };
@@ -342,6 +365,7 @@ export const applyHeatCapacityPumpStroke = (
     gasPressureKPaAbs: state.ambientPressureKPa + nextPressureDelta,
     gasTemperatureK: state.gasTemperatureK + temperatureGain,
     heatCapacityPhase: 'pumping',
+    releaseRecoveryTargetDeltaKPa: null,
     lastUpdateMs: now,
   });
 
@@ -377,6 +401,7 @@ export const stepHeatCapacityExperiment = (
   let gasPressureKPaAbs = state.gasPressureKPaAbs;
   let gasTemperatureK = state.gasTemperatureK;
   let heatCapacityPhase = getPassivePhase(state, controls);
+  let releaseRecoveryTargetDeltaKPa = state.releaseRecoveryTargetDeltaKPa;
 
   const stablePressureDelta = mapPressureMvToDeltaKPa(state.modelConfig.stablePressureMv, state.modelConfig);
   const recoveryPressureDelta = mapPressureMvToDeltaKPa(state.modelConfig.recoveryPressureMv, state.modelConfig);
@@ -394,8 +419,22 @@ export const stepHeatCapacityExperiment = (
       releaseTemperatureK,
       moveToward(gasTemperatureK - releasedCooling, releaseTemperatureK, state.modelConfig.recoveryHeatFollowRate, dt),
     );
+    const releaseBaseTargetDelta = getReleaseRecoveryBaseTargetDelta({
+      pressureDeltaKPa: state.pressureDeltaKPa,
+      stablePressureDelta,
+      recoveryPressureDelta,
+    });
+    releaseRecoveryTargetDeltaKPa = Math.max(
+      releaseRecoveryTargetDeltaKPa ?? 0,
+      releaseBaseTargetDelta,
+    );
     heatCapacityPhase = 'releasing';
   } else {
+    const recoveryPressureTargetDelta = clampNumber(
+      releaseRecoveryTargetDeltaKPa ?? recoveryPressureDelta,
+      0,
+      recoveryPressureDelta,
+    );
     if (state.pressureDeltaKPa > stablePressureDelta) {
       const nextDelta = moveToward(
         state.pressureDeltaKPa,
@@ -407,11 +446,11 @@ export const stepHeatCapacityExperiment = (
     } else if (
       !controls.stopcockOpen &&
       (state.heatCapacityPhase === 'releasing' || state.heatCapacityPhase === 'recovering') &&
-      state.pressureDeltaKPa < recoveryPressureDelta
+      state.pressureDeltaKPa < recoveryPressureTargetDelta
     ) {
       const nextDelta = moveToward(
         state.pressureDeltaKPa,
-        recoveryPressureDelta,
+        recoveryPressureTargetDelta,
         state.modelConfig.recoveryPressureRate,
         dt,
       );
@@ -422,9 +461,21 @@ export const stepHeatCapacityExperiment = (
       gasTemperatureK = moveToward(
         gasTemperatureK,
         recoveryTemperatureK,
-        state.modelConfig.recoveryHeatFollowRate,
+        controls.stopcockOpen
+          ? getOpenStopcockHeatFollowRate(state.modelConfig)
+          : state.modelConfig.recoveryHeatFollowRate,
         dt,
       );
+      if (controls.stopcockOpen) {
+        releaseRecoveryTargetDeltaKPa = releaseRecoveryTargetDeltaKPa === null
+          ? null
+          : moveToward(
+              releaseRecoveryTargetDeltaKPa,
+              0,
+              getOpenStopcockHeatFollowRate(state.modelConfig),
+              dt,
+            );
+      }
     } else if (state.pressureDeltaKPa > 0.35) {
       gasTemperatureK = moveToward(
         gasTemperatureK,
@@ -439,6 +490,7 @@ export const stepHeatCapacityExperiment = (
         state.modelConfig.thermalRelaxRate,
         dt,
       );
+      releaseRecoveryTargetDeltaKPa = null;
     }
     heatCapacityPhase = getPassivePhase({
       ...state,
@@ -455,6 +507,7 @@ export const stepHeatCapacityExperiment = (
     simulationTimeS: state.simulationTimeS + dt,
     lastUpdateMs: now,
     heatCapacityPhase,
+    releaseRecoveryTargetDeltaKPa,
   });
 
   return nextState;

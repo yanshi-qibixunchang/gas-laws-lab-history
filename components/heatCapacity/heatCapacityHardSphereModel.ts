@@ -23,7 +23,7 @@ export interface HeatCapacityHardSphereVisualInput {
 export interface HeatCapacityHardSphereVisualState {
   densityMultiplier: number;
   speedMultiplier: number;
-  color: string;
+  temperatureColorFactor: number;
   emissiveIntensity: number;
   outflowActive: boolean;
   outflowIntensity: number;
@@ -33,6 +33,8 @@ export interface HeatCapacityHardSphereVisualState {
 
 export const HEAT_CAPACITY_HARD_SPHERE_MAX_PARTICLES = 80;
 export const HEAT_CAPACITY_HARD_SPHERE_MIN_PARTICLES = 18;
+export const HEAT_CAPACITY_HARD_SPHERE_COLOR_MIN_MV = 1495;
+export const HEAT_CAPACITY_HARD_SPHERE_COLOR_MAX_MV = 1515;
 
 export const clampNumber = (value: number, min: number, max: number) => (
   Math.min(max, Math.max(min, value))
@@ -55,16 +57,6 @@ const roundToStep = (value: number, step: number) => (
   Math.round(value / step) * step
 );
 
-const getSpeedBandColor = (speedMultiplier: number) => {
-  const speedFactor = normalizeClamped(speedMultiplier, 0.55, 2.2);
-  if (speedFactor < 0.45) {
-    const local = normalizeClamped(speedFactor, 0, 0.45);
-    return local < 0.5 ? '#60a5fa' : '#67e8f9';
-  }
-  if (speedFactor < 0.72) return '#67e8f9';
-  return '#fde68a';
-};
-
 export const getHeatCapacityHardSphereVisualState = (
   input: HeatCapacityHardSphereVisualInput,
 ): HeatCapacityHardSphereVisualState => {
@@ -74,46 +66,52 @@ export const getHeatCapacityHardSphereVisualState = (
   const upperTemperatureMv = finiteOrFallback(input.upperTemperatureMv, ambientTemperatureMv + 28);
   const nominalPressureMv = Math.max(20, finiteOrFallback(input.nominalPressureMv, 120));
 
-  const smoothedTemperatureMv = roundToStep(finiteOrFallback(input.temperatureMv, ambientTemperatureMv), 0.4);
-  const smoothedPressureMv = Math.max(0, roundToStep(finiteOrFallback(input.pressureMv, 0), 2));
-  const temperatureFactor = normalizeClamped(smoothedTemperatureMv, ambientTemperatureMv - 10, upperTemperatureMv);
+  const pressureDeltaKPa = finiteOrFallback(input.pressureDeltaKPa, finiteOrFallback(input.pressureMv, 0) / 20);
+  const currentTemperatureMv = finiteOrFallback(input.temperatureMv, ambientTemperatureMv);
+  const smoothedTemperatureMv = roundToStep(currentTemperatureMv, 0.4);
+  const smoothedPressureMv = Math.max(0, roundToStep(finiteOrFallback(input.pressureMv, pressureDeltaKPa * 20), 2));
+  const temperatureColorFactor = normalizeClamped(
+    currentTemperatureMv,
+    HEAT_CAPACITY_HARD_SPHERE_COLOR_MIN_MV,
+    HEAT_CAPACITY_HARD_SPHERE_COLOR_MAX_MV,
+  );
   const pressureFactor = normalizeClamped(smoothedPressureMv, 0, nominalPressureMv);
-  const pressureDeltaKPa = finiteOrFallback(input.pressureDeltaKPa, smoothedPressureMv / 20);
   const releasePressureFactor = Math.max(pressureFactor, normalizeClamped(pressureDeltaKPa, 0, 6));
+  const compressionThermalFactor = Math.max(pressureFactor, normalizeClamped(pressureDeltaKPa, 0, 6));
   const phase = input.phase;
   const actualOutflow = input.releaseBurstActive === true && input.glassStopcockOpen;
   const activePump = phase === 'pumping' && input.pumpValveOpen && input.pumpBulbState === 'compressing';
 
   let baseCount = Math.round(lerpNumber(30, 72, pressureFactor));
   let densityMultiplier = lerpNumber(0.72, 1.85, pressureFactor);
-  let speedMultiplier = lerpNumber(0.55, 2.2, temperatureFactor);
-  let emissiveIntensity = lerpNumber(0.14, 0.34, temperatureFactor);
-  let stability = lerpNumber(0.92, 0.5, temperatureFactor);
+  let speedMultiplier = lerpNumber(0.55, 2.2, temperatureColorFactor);
+  let emissiveIntensity = lerpNumber(0.14, 0.34, temperatureColorFactor);
+  let stability = lerpNumber(0.92, 0.5, temperatureColorFactor);
   let outflowIntensity = 0;
 
   if (activePump) {
     baseCount += 8;
     densityMultiplier += 0.24;
-    speedMultiplier += 0.18;
-    emissiveIntensity = 0.42;
+    speedMultiplier += 0.22 + compressionThermalFactor * 0.36;
+    emissiveIntensity = 0.42 + compressionThermalFactor * 0.08;
     stability = 0.42;
   } else if (phase === 'pumping') {
     baseCount += 5;
     densityMultiplier += 0.16;
-    speedMultiplier += 0.1;
+    speedMultiplier += 0.12 + compressionThermalFactor * 0.22;
     stability = 0.52;
   }
 
   if (phase === 'sealedStabilizing') {
     densityMultiplier += 0.14;
-    speedMultiplier = lerpNumber(speedMultiplier, 1, 0.32);
+    speedMultiplier = lerpNumber(speedMultiplier, 1.04 + compressionThermalFactor * 0.12, 0.32);
     stability = 0.76;
   }
 
   if (actualOutflow) {
     baseCount = Math.round(lerpNumber(18, 32, pressureFactor));
     densityMultiplier = lerpNumber(0.46, 0.86, pressureFactor);
-    speedMultiplier = Math.min(speedMultiplier, 0.72);
+    speedMultiplier = Math.min(speedMultiplier * 0.72, 0.68 + (1 - releasePressureFactor) * 0.06);
     emissiveIntensity = 0.18;
     stability = 0.28;
     outflowIntensity = clampNumber(lerpNumber(0.72, 1.45, releasePressureFactor), 0.65, 1.45);
@@ -142,7 +140,7 @@ export const getHeatCapacityHardSphereVisualState = (
   return {
     densityMultiplier: clampNumber(densityMultiplier * particleMultiplier, 0.42, 2.05),
     speedMultiplier: visualSpeedMultiplier,
-    color: getSpeedBandColor(visualSpeedMultiplier),
+    temperatureColorFactor,
     emissiveIntensity,
     outflowActive: actualOutflow,
     outflowIntensity,

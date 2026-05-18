@@ -36,7 +36,7 @@ export interface HeatCapacityTrialRecordResult {
   nextActiveTrialIndex: number;
 }
 
-export type HeatCapacityTrialRecordRemovalKind = 'u1' | 'u2';
+export type HeatCapacityTrialRecordRemovalKind = 'u1' | 'u2' | 'trial';
 
 export interface HeatCapacityTrialRecordRemovalResult {
   trials: HeatCapacityTrial[];
@@ -198,7 +198,23 @@ export const removeHeatCapacityTrialRecord = (
   trialIndex: number,
   kind: HeatCapacityTrialRecordRemovalKind,
 ): HeatCapacityTrialRecordRemovalResult => {
+  if (trials.length === 0) return { trials, nextActiveTrialIndex: 0 };
   const boundedIndex = Math.min(trials.length - 1, Math.max(0, trialIndex));
+  if (kind === 'trial') {
+    const shiftedTrials = [
+      ...trials.slice(0, boundedIndex),
+      ...trials.slice(boundedIndex + 1),
+      createHeatCapacityTrial(trials.length),
+    ].map((trial, index) => ({
+      ...trial,
+      id: `heat-trial-${index + 1}`,
+      trialIndex: index + 1,
+    }));
+    return {
+      trials: shiftedTrials,
+      nextActiveTrialIndex: Math.min(boundedIndex, shiftedTrials.length - 1),
+    };
+  }
   return {
     trials: trials.map((trial, index) => {
       if (index !== boundedIndex) return trial;
@@ -262,11 +278,7 @@ export const recordHeatCapacityU1 = (
   if (!isFiniteNumber(input.pressureSignalMv) || !isFiniteNumber(input.temperatureSignalMv)) {
     return { ok: false, message: '当前仪表读数无效，无法记录。', trials, nextActiveTrialIndex: index };
   }
-  if (input.pressureSignalMv < MIN_U1_SIGNAL_MV) return { ok: false, message: 'U_p 过小，尚未形成有效加压状态。', trials, nextActiveTrialIndex: index };
-  if (input.pressureOverLimit || input.pressureSafetyStatus === 'danger') {
-    return { ok: false, message: '压力处于危险范围，禁止记录。', trials, nextActiveTrialIndex: index };
-  }
-
+  if (input.pressureSignalMv < MIN_U1_SIGNAL_MV) return { ok: false, message: 'Uₚ 过小，尚未形成有效加压状态。', trials, nextActiveTrialIndex: index };
   const nextTrial: HeatCapacityTrial = {
     ...trial,
     U1Mv: roundNumber(input.pressureSignalMv, 2),

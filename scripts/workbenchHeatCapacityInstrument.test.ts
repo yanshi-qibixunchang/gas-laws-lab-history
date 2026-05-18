@@ -93,6 +93,62 @@ const poweredOffHardSphereVisual = getHeatCapacityHardSphereVisualState({
 });
 assert.equal(poweredOffHardSphereVisual.targetParticleCount > 0, true, 'hard-sphere teaching layer should remain visible before power is turned on');
 assert.equal(poweredOffHardSphereVisual.speedMultiplier > 0, true, 'powered-off hard-sphere teaching layer should still show room-temperature motion');
+const poweredOffPressurizedHardSphereVisual = getHeatCapacityHardSphereVisualState({
+  powerOn: false,
+  temperatureMv: null,
+  pressureMv: null,
+  pressureDeltaKPa: 5.5,
+  phase: 'powerOff',
+  glassStopcockOpen: false,
+  pumpValveOpen: false,
+  pumpBulbState: 'idle',
+});
+assert.equal(
+  poweredOffPressurizedHardSphereVisual.targetParticleCount > poweredOffHardSphereVisual.targetParticleCount,
+  true,
+  'powered-off hard-sphere teaching layer should keep showing the extra pumped gas already inside the bottle',
+);
+const lowPressurePumpingHardSphereVisual = getHeatCapacityHardSphereVisualState({
+  powerOn: true,
+  temperatureMv: initialTemperatureMv + 8,
+  pressureMv: 20,
+  pressureDeltaKPa: 1,
+  phase: 'pumping',
+  glassStopcockOpen: false,
+  pumpValveOpen: true,
+  pumpBulbState: 'compressing',
+});
+const highPressurePumpingHardSphereVisual = getHeatCapacityHardSphereVisualState({
+  powerOn: true,
+  temperatureMv: initialTemperatureMv + 8,
+  pressureMv: 110,
+  pressureDeltaKPa: 5.5,
+  phase: 'pumping',
+  glassStopcockOpen: false,
+  pumpValveOpen: true,
+  pumpBulbState: 'compressing',
+});
+assert.equal(
+  highPressurePumpingHardSphereVisual.speedMultiplier >= lowPressurePumpingHardSphereVisual.speedMultiplier + 0.18,
+  true,
+  'hard-sphere speed should visibly increase as pumping raises pressure and gas temperature',
+);
+const releaseCoolingHardSphereVisual = getHeatCapacityHardSphereVisualState({
+  powerOn: true,
+  temperatureMv: initialTemperatureMv + 8,
+  pressureMv: 110,
+  pressureDeltaKPa: 5.5,
+  phase: 'release',
+  glassStopcockOpen: true,
+  pumpValveOpen: false,
+  pumpBulbState: 'idle',
+  releaseBurstActive: true,
+});
+assert.equal(
+  releaseCoolingHardSphereVisual.speedMultiplier <= lowPressurePumpingHardSphereVisual.speedMultiplier - 0.2,
+  true,
+  'hard-sphere speed should visibly drop during release cooling instead of staying close to the pumping speed',
+);
 assert.equal(HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV, 90);
 assert.equal(HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, 90);
 assert.equal(HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, 120);
