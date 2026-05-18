@@ -28,12 +28,22 @@ __pycache__/
 .codex/
 .playwright-cli/
 output/
+output-*.png
+output-*.jpg
+output-*.jpeg
+output-*.webm
+output-*.mp4
+tmp/
 install-test/
 tools/exporter/examples/*.json
 build-exporter/
 dist-exporter/
 resources/exporter/hsl-exporter.exe
 resources/exporter/*.spec
+
+# Project-only reference materials, not for GitHub or product releases
+仪器建模/
+仪器建模/**
 
 # Android local state and signing materials
 android/.gradle/

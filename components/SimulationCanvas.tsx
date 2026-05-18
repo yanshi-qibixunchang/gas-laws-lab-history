@@ -441,7 +441,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
           : `
             relative w-full rounded-panel overflow-hidden bg-slate-900 select-none
             h-[45vh] sm:h-[450px] md:h-[500px] lg:h-[550px]
-            transition-all duration-300 cubic-bezier(0.34, 1.56, 0.64, 1)
+            transition-all duration-200 cubic-bezier(0.2, 0, 0, 1)
             ${isFocused
               ? 'scale-[1.01] shadow-[0_0_0_4px_rgba(56,189,248,0.3)] ring-2 ring-sciblue-500 z-10'
               : `scale-100 shadow-inner border border-slate-700 ${containerHoverClass}`

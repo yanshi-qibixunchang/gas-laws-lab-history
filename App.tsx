@@ -32,6 +32,16 @@ const DEFAULT_PARAMS: SimulationParams = {
 
 const APP_VERSION = '3.5.1';
 const SHOW_WORKBENCH_PROTOTYPE = true;
+const WORKBENCH_FRAME_WIDTH = 1440;
+const WORKBENCH_FRAME_HEIGHT = 810;
+const WORKBENCH_FRAME_MIN_DESKTOP_WIDTH = 900;
+const WORKBENCH_FRAME_MIN_DESKTOP_HEIGHT = 560;
+
+interface WorkbenchFrameViewport {
+  width: number;
+  height: number;
+  touchLike: boolean;
+}
 
 const areParamsEqual = (a: SimulationParams, b: SimulationParams) => (
   a.N === b.N &&
@@ -71,6 +81,105 @@ const isTouchLikeViewport = () => {
   if (coarsePointer || noHover) return true;
   if (finePointer && supportsHover) return false;
   return hasTouchPoints;
+};
+
+const getWorkbenchFrameViewport = (): WorkbenchFrameViewport => {
+  if (typeof window === 'undefined') {
+    return {
+      width: WORKBENCH_FRAME_WIDTH,
+      height: WORKBENCH_FRAME_HEIGHT,
+      touchLike: false,
+    };
+  }
+
+  const visualViewport = window.visualViewport;
+  return {
+    width: visualViewport?.width ?? window.innerWidth,
+    height: visualViewport?.height ?? window.innerHeight,
+    touchLike: isTouchLikeViewport(),
+  };
+};
+
+const WorkbenchAspectFrame: React.FC = () => {
+  const [viewport, setViewport] = useState<WorkbenchFrameViewport>(() => getWorkbenchFrameViewport());
+
+  useEffect(() => {
+    const updateViewport = () => setViewport(getWorkbenchFrameViewport());
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    const visualViewport = window.visualViewport;
+    if (visualViewport) {
+      visualViewport.addEventListener('resize', updateViewport);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateViewport);
+      if (visualViewport) {
+        visualViewport.removeEventListener('resize', updateViewport);
+      }
+    };
+  }, []);
+
+  const useFixedFrame = !viewport.touchLike &&
+    viewport.width >= WORKBENCH_FRAME_MIN_DESKTOP_WIDTH &&
+    viewport.height >= WORKBENCH_FRAME_MIN_DESKTOP_HEIGHT;
+
+  if (!useFixedFrame) {
+    return (
+      <div
+        style={{
+          width: '100vw',
+          height: '100vh',
+          overflow: 'hidden',
+          background: '#20242a',
+        }}
+      >
+        <WorkbenchStudioPrototype />
+      </div>
+    );
+  }
+
+  const scale = Math.min(
+    viewport.width / WORKBENCH_FRAME_WIDTH,
+    viewport.height / WORKBENCH_FRAME_HEIGHT,
+  );
+  const scaledFrameWidth = WORKBENCH_FRAME_WIDTH * scale;
+  const scaledFrameHeight = WORKBENCH_FRAME_HEIGHT * scale;
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        display: 'grid',
+        placeItems: 'center',
+        overflow: 'hidden',
+        background: '#0b0f14',
+      }}
+    >
+      <div
+        style={{
+          width: scaledFrameWidth,
+          height: scaledFrameHeight,
+          overflow: 'hidden',
+          background: '#20242a',
+          outline: '1px solid rgba(148, 163, 184, 0.42)',
+          boxShadow: '0 0 0 1px rgba(15, 23, 42, 0.95), 0 24px 70px rgba(0, 0, 0, 0.52)',
+        }}
+      >
+        <div
+          style={{
+            width: WORKBENCH_FRAME_WIDTH,
+            height: WORKBENCH_FRAME_HEIGHT,
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+          }}
+        >
+          <WorkbenchStudioPrototype />
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const DistributionCharts = lazy(() => import('./components/DistributionCharts'));
@@ -238,7 +347,7 @@ const InstallPromptModal: React.FC<{
 
 function App() {
   if (SHOW_WORKBENCH_PROTOTYPE) {
-    return <WorkbenchStudioPrototype />;
+    return <WorkbenchAspectFrame />;
   }
 
   // Language State
@@ -294,7 +403,6 @@ function App() {
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
   const [presetActionMenu, setPresetActionMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const [deleteConfirmConfig, setDeleteConfirmConfig] = useState<SavedConfig | null>(null);
-  const [isPdfOpen, setIsPdfOpen] = useState(false);
   const [installPromptMode, setInstallPromptMode] = useState<'desktop' | 'android' | 'ios' | null>(null);
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<DeferredInstallPromptEvent | null>(null);
 
@@ -1465,14 +1573,6 @@ function App() {
       setIsSidebarOpen(false);
   }
 
-  const handleOpenPdf = useCallback(() => {
-    setIsPdfOpen(true);
-  }, []);
-
-  const handleClosePdf = useCallback(() => {
-    setIsPdfOpen(false);
-  }, []);
-
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
@@ -1502,10 +1602,6 @@ function App() {
         setIsLangMenuOpen(false);
         return;
       }
-      if (isPdfOpen) {
-        setIsPdfOpen(false);
-        return;
-      }
       if (isSidebarOpen) {
         setIsSidebarOpen(false);
         return;
@@ -1529,7 +1625,7 @@ function App() {
       active = false;
       listenerHandle?.remove();
     };
-  }, [deleteConfirmConfig, isCreatePresetModalOpen, presetActionMenu, isLangMenuOpen, isPdfOpen, isSidebarOpen]);
+  }, [deleteConfirmConfig, isCreatePresetModalOpen, presetActionMenu, isLangMenuOpen, isSidebarOpen]);
 
   const getLangName = (l: string) => {
     switch(l) {
@@ -2095,9 +2191,6 @@ function App() {
               showNotification={(msg, dur, type) => showNotification(msg, dur, type)}
               supportsHover={isDesktopLike}
               compactLinks={isSidebarOpen && !isSidebarOverlay}
-              isPdfOpen={isPdfOpen}
-              onOpenPdf={handleOpenPdf}
-              onClosePdf={handleClosePdf}
             />
         </div>
         </div>
@@ -2234,9 +2327,6 @@ function App() {
                 showNotification={(msg, dur, type) => showNotification(msg, dur, type)}
                 supportsHover={isDesktopLike}
                 compactLinks={false}
-                isPdfOpen={isPdfOpen}
-                onOpenPdf={handleOpenPdf}
-                onClosePdf={handleClosePdf}
               />
             }
           />

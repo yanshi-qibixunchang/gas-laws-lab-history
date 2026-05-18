@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import {
   createDefaultIdealFile,
   createDefaultStandardFile,
-  createInitialWorkbenchFiles,
   type WorkbenchPanelKey,
 } from '../components/workbenchState.ts';
 import {
@@ -96,8 +95,8 @@ assert.equal(encoded.activeFileId, ideal.id);
 const fallback = decodeWorkbenchSession({ version: 999, files: [], activeFileId: 'missing', selectedPanel: 'history' });
 assert.deepEqual(
   fallback.files.map((file) => file.id),
-  createInitialWorkbenchFiles().map((file) => file.id),
-  'invalid or unsupported session payloads should fall back to default workbench files',
+  [],
+  'invalid or unsupported session payloads should fall back to an empty workbench session',
 );
 assert.equal(fallback.selectedPanel, 'preview');
 

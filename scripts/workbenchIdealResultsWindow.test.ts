@@ -14,8 +14,8 @@ const getRuleBody = (selector: string) => {
   return '';
 };
 
-const idealPanelsMatch = source.match(/const idealPanels:[\s\S]*?\n\];/);
-assert.ok(idealPanelsMatch, 'idealPanels definition should exist');
+const idealPanelsMatch = source.match(/const createIdealPanels[\s\S]*?\n\];/);
+assert.ok(idealPanelsMatch, 'createIdealPanels definition should exist');
 const idealPanelsBlock = idealPanelsMatch[0];
 
 assert.ok(
@@ -115,7 +115,7 @@ assert.match(
 );
 assert.match(
   source,
-  /aria-label=\{`Close \$\{panel\.title\} tab`\}[\s\S]*?closeIdealResultTab\(panel\.key\)/,
+  /aria-label=\{`\$\{workbenchCopy\.actions\.close\} \$\{panel\.title\}`\}[\s\S]*?closeIdealResultTab\(panel\.key\)/,
   'ideal Results tabs should expose a close button inside each open tab',
 );
 assert.match(

@@ -18,13 +18,13 @@ assert.match(
 
 assert.match(
   source,
-  /pendingDelete \? \([\s\S]*?cancelDeleteWorkbenchFile[\s\S]*?Cancel[\s\S]*?\) : null/,
+  /pendingDelete \? \([\s\S]*?cancelDeleteWorkbenchFile[\s\S]*?workbenchCopy\.files\.cancel[\s\S]*?\) : null/,
   'the open file menu should show a Cancel button next to Confirm Delete while deletion is pending',
 );
 
 assert.match(
   source,
-  /aria-label=\{`Cancel deleting \$\{file\.name\}`\}/,
+  /aria-label=\{`\$\{workbenchCopy\.files\.cancel\} \$\{file\.name\}`\}/,
   'the delete cancel button should have an explicit accessible label for the target file',
 );
 
@@ -36,13 +36,13 @@ assert.match(
 
 assert.match(
   source,
-  /pendingRemovePointId === point\.id \? \([\s\S]*?cancelRemoveIdealPoint[\s\S]*?Cancel[\s\S]*?\) : null/,
+  /pendingRemovePointId === point\.id \? \([\s\S]*?cancelRemoveIdealPoint[\s\S]*?workbenchCopy\.results\.cancel[\s\S]*?\) : null/,
   'ideal gas point tables should show a Cancel button next to Confirm Remove while point removal is pending',
 );
 
 assert.match(
   source,
-  /aria-label=\{`Cancel removing ideal gas point \$\{point\.id\}`\}/,
+  /aria-label=\{`\$\{workbenchCopy\.results\.cancel\} \$\{point\.id\}`\}/,
   'the ideal gas point remove cancel button should have an explicit accessible label for the target point',
 );
 

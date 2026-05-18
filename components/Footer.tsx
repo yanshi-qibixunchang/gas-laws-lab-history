@@ -1,8 +1,6 @@
-import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { LanguageCode, Translation } from '../types';
-import { Github, FileText, Mail, GraduationCap, Sparkles, Check, User } from 'lucide-react';
-
-const PdfModal = lazy(() => import('./PdfModal'));
+import { Github, Mail, GraduationCap, Sparkles, Check, User } from 'lucide-react';
 
 interface FooterProps {
   t: Translation;
@@ -10,28 +8,14 @@ interface FooterProps {
   showNotification: (text: string, duration?: number, type?: 'info' | 'success' | 'warning') => void;
   supportsHover?: boolean;
   compactLinks?: boolean;
-  isPdfOpen: boolean;
-  onOpenPdf: () => void;
-  onClosePdf: () => void;
 }
-
-const PdfModalFallback = () => (
-  <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/75 backdrop-blur-sm">
-    <div className="rounded-panel border border-slate-700 bg-slate-900/90 px-5 py-4 text-sm font-medium text-slate-200 shadow-2xl">
-      Loading PDF viewer...
-    </div>
-  </div>
-);
 
 const Footer: React.FC<FooterProps> = ({
   t,
   lang,
   showNotification,
   supportsHover = true,
-  compactLinks = false,
-  isPdfOpen,
-  onOpenPdf,
-  onClosePdf
+  compactLinks = false
 }) => {
   const [emailCopied, setEmailCopied] = useState(false);
   const emailLaunchTimeoutRef = useRef<number | null>(null);
@@ -120,11 +104,6 @@ const Footer: React.FC<FooterProps> = ({
       window.location.href = `mailto:${email}`;
       emailLaunchTimeoutRef.current = null;
     }, 1000);
-  };
-
-  const handleOpenPdf = (e: React.MouseEvent) => {
-    e.preventDefault();
-    onOpenPdf();
   };
 
   const headerStyle = isEnglishUI
@@ -230,15 +209,6 @@ const Footer: React.FC<FooterProps> = ({
                   <span>{t.footer.github}</span>
                 </a>
 
-                <a
-                  href="#"
-                  onClick={handleOpenPdf}
-                  className={linkItemClass}
-                >
-                  <FileText size={18} className={`transition-all ${accentHoverClass} ${iconLiftClass}`} />
-                  <span>{t.footer.report}</span>
-                </a>
-
                 <button
                   onClick={handleEmailClick}
                   className={linkButtonClass}
@@ -269,20 +239,6 @@ const Footer: React.FC<FooterProps> = ({
         </div>
       </footer>
 
-      {isPdfOpen && (
-        <Suspense fallback={<PdfModalFallback />}>
-          <PdfModal
-            isOpen={isPdfOpen}
-            onClose={onClosePdf}
-            pdfPath="/Report.pdf"
-            title={t.footer.report}
-            exportLabel={t.footer.exportPdf}
-            exportFailedMessage={t.footer.exportFailed}
-            showNotification={showNotification}
-            supportsHover={supportsHover}
-          />
-        </Suspense>
-      )}
     </>
   );
 };

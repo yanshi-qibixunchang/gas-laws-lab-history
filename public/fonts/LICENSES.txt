@@ -1,0 +1,28 @@
+Font License Notes
+==================
+
+This directory contains local web font files used by Hard Sphere Lab.
+
+Included font families:
+
+- Inter
+  License: SIL Open Font License 1.1
+  Upstream project: https://github.com/rsms/inter
+
+- JetBrains Mono
+  License: SIL Open Font License 1.1
+  Upstream project: https://www.jetbrains.com/lp/mono/
+
+- Playfair Display
+  License: SIL Open Font License 1.1
+  Upstream project: https://fonts.google.com/specimen/Playfair+Display
+
+The SIL Open Font License allows these fonts to be used, embedded, bundled,
+and redistributed with software, including commercial software, subject to the
+license terms. Do not sell the font files by themselves. If modified font files
+are distributed, follow the reserved-name and redistribution requirements of
+the SIL Open Font License.
+
+For final release archives, keep this notice with the font files or include it
+in the product's third-party notices.
+

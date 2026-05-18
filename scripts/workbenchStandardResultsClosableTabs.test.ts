@@ -55,7 +55,7 @@ assert.match(
 
 assert.match(
   source,
-  /aria-label=\{`Close \$\{section\.title\} tab`\}[\s\S]*?closeStandardResultsTab\(section\.key\)/,
+  /aria-label=\{`\$\{workbenchCopy\.actions\.close\} \$\{section\.title\}`\}[\s\S]*?closeStandardResultsTab\(section\.key\)/,
   'standard Results tabs should expose a close button inside each open tab',
 );
 

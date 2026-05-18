@@ -60,19 +60,19 @@ assert.match(
 
 assert.match(
   source,
-  /Active file: \{isWorkbenchEmpty \? 'none' : activeFile\.name\}/,
+  /workbenchCopy\.status\.activeFile\(isWorkbenchEmpty \? workbenchCopy\.status\.none : activeFile\.name\)/,
   'empty workbench status bar should show that no file is active',
 );
 
 assert.match(
   source,
-  /isWorkbenchEmpty \? 'No runtime connected'/,
+  /isWorkbenchEmpty[\s\S]*?\? workbenchCopy\.status\.noRuntime/,
   'empty workbench status bar should show that no runtime is connected',
 );
 
 assert.match(
   source,
-  /Create a Standard Simulation Study|Create an Ideal Gas Simulation Study/,
+  /workbenchCopy\.files\.createStandard[\s\S]*?workbenchCopy\.files\.createIdeal/,
   'empty workbench should offer direct new-study actions',
 );
 

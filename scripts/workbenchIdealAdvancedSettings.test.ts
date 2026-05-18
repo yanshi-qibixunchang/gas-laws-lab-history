@@ -13,7 +13,7 @@ assert.match(
 
 assert.match(
   stateSource,
-  /createBaseFile\('ideal', index, DEFAULT_IDEAL_PARAMS\)[\s\S]*?activeParams: cloneParams\(DEFAULT_IDEAL_PARAMS\)/,
+  /createBaseFile\('ideal', index, DEFAULT_IDEAL_PARAMS, defaults\)[\s\S]*?activeParams: cloneParams\(DEFAULT_IDEAL_PARAMS\)/,
   'created ideal-gas files should use the shared ideal default params for saved and active params',
 );
 
@@ -73,7 +73,7 @@ assert.match(
 
 assert.match(
   source,
-  /activeFile\.kind === 'ideal' \? \([\s\S]*?studio-param-advanced-toggle[\s\S]*?aria-expanded=\{idealAdvancedSettingsOpen\}[\s\S]*?onClick=\{toggleIdealAdvancedSettings\}[\s\S]*?Advanced settings/,
+  /activeFile\.kind === 'ideal' \? \([\s\S]*?studio-param-advanced-toggle[\s\S]*?aria-expanded=\{idealAdvancedSettingsOpen\}[\s\S]*?onClick=\{toggleIdealAdvancedSettings\}[\s\S]*?workbenchCopy\.parameters\.advancedSettings/,
   'ideal files should render a collapsible Advanced settings toggle in the Current Parameters sidebar',
 );
 
@@ -103,12 +103,12 @@ assert.match(
 
 assert.match(
   source,
-  /activeFile\.kind === 'ideal' \? \([\s\S]*?Advanced settings[\s\S]*?\) : \([\s\S]*?editableCurrentParameters\.map\(\(param\) => \{/,
+  /activeFile\.kind === 'ideal' \? \([\s\S]*?workbenchCopy\.parameters\.advancedSettings[\s\S]*?\) : \([\s\S]*?editableCurrentParameters\.map\(\(param\) => \{/,
   'standard files should keep rendering parameter rows directly instead of using the ideal advanced drawer',
 );
 
 assert.doesNotMatch(
-  source.slice(source.indexOf('Advanced settings')),
+  source.slice(source.indexOf('workbenchCopy.parameters.advancedSettings')),
   /verification[\s\S]*?P-T relation/,
   'the read-only verification relation row should not be moved into the editable Advanced settings list',
 );

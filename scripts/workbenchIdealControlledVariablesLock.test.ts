@@ -47,7 +47,7 @@ assert.match(
 
 assert.match(
   source,
-  /const controlledVariableLockHint = 'To keep controlled variables fixed, this parameter cannot be changed while the current data table has rows\. Clear the table first to edit it\.';/,
+  /const controlledVariableLockHint = workbenchCopy\.parameters\.controlledLockHint;/,
   'locked controlled-variable rows should expose a hover hint that explains the control-variable rule',
 );
 
@@ -65,7 +65,7 @@ assert.match(
 
 assert.match(
   source,
-  /parametersEditing && param\.editable && !isParamLocked \? \([\s\S]*?<input[\s\S]*?aria-label=\{`Edit parameter \$\{param\.label\}`\}/,
+  /parametersEditing && param\.editable && !isParamLocked \? \([\s\S]*?<input[\s\S]*?aria-label=\{`\$\{workbenchCopy\.parameters\.edit\} \$\{displayLabel\}`\}/,
   'only truly editable parameter rows should render input fields',
 );
 
