@@ -31,7 +31,7 @@ const newMenuSource = source.slice(
 assert.ok(newMenuSource.includes('studio-command-submenu'), 'Experiment Files menu should render second-level submenus');
 assert.ok(newMenuSource.includes('workbenchCopy.menus.newExperiment'), 'Experiment Files menu should include New Experiment');
 assert.ok(newMenuSource.includes('workbenchCopy.menus.openExperiment'), 'Experiment Files menu should include Open Experiment');
-assert.ok(newMenuSource.includes('closedFiles.filter'), 'Open Experiment submenu should list cached files not currently open');
+assert.ok(source.includes('const openableClosedFiles = closedFiles.filter'), 'Open Experiment submenu should list cached files not currently open');
 assert.ok(newMenuSource.includes('openClosedWorkbenchFile(file.id)'), 'Open Experiment entries should reopen cached files');
 assert.ok(newMenuSource.includes('workbenchCopy.menus.noCachedExperiments'), 'Open Experiment submenu should show an empty state');
 

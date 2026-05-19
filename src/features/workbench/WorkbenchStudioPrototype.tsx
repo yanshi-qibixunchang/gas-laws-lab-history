@@ -789,7 +789,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       openFiles: '打开文件', files: '文件', panels: '面板', noOpenFiles: '没有打开的文件', emptyHint: '创建一个研究以填充工作区。',
       noOpenStudy: '没有打开的研究', emptyTitle: '开始新的硬球工作台文件', emptyBody: '创建标准模拟或理想气体关系研究，以恢复预览、图表、结果和参数面板。',
       createStandard: '创建标准模拟研究', createIdeal: '创建理想气体模拟研究', createHeatCapacity: '创建空气比热容比实验', rename: '重命名', delete: '删除', confirmDelete: '确认删除', closeExperiment: '关闭实验', confirmCloseRunningExperiment: (name) => '实验正在运行。确认关闭 ' + name + ' 吗？', cancel: '取消',
-      locked: '锁定', shown: '显示', open: '打开', active: '活动', off: '关闭', std: '标准', ideal: '理想', heat: 'HEAT', workspaceAria: '文件工作区', openActions: (name) => '打开 ' + name + ' 的操作菜单',
+      locked: '锁定', shown: '显示', open: '打开', active: '活动', off: '关闭', std: '标准', ideal: '理想', heat: '热容', workspaceAria: '文件工作区', openActions: (name) => '打开 ' + name + ' 的操作菜单',
     },
     panels: {
       previewTitle: '3D 预览', previewHint: '实时分子视口', realtimeTitle: '实时数据 / 图表', heatRealtimeTitle: '实时数据', standardRealtimeHint: '实时温度、压力和图表轨迹', idealRealtimeHint: '实时 T、P、关系和图表轨迹', heatRealtimeHint: 'Uₜ / Uₚ、压强和过程采样',
@@ -874,7 +874,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       openFiles: '開啟檔案', files: '檔案', panels: '面板', noOpenFiles: '沒有開啟的檔案', emptyHint: '建立一個研究以填入工作區。',
       noOpenStudy: '沒有開啟的研究', emptyTitle: '開始新的硬球工作台檔案', emptyBody: '建立標準模擬或理想氣體關係研究，以恢復預覽、圖表、結果和參數面板。',
       createStandard: '建立標準模擬研究', createIdeal: '建立理想氣體模擬研究', createHeatCapacity: '建立空氣比熱容比實驗', rename: '重新命名', delete: '刪除', confirmDelete: '確認刪除', closeExperiment: '關閉實驗', confirmCloseRunningExperiment: (name) => '實驗正在執行。確認關閉 ' + name + ' 嗎？', cancel: '取消',
-      locked: '鎖定', shown: '顯示', open: '開啟', active: '作用中', off: '關閉', std: '標準', ideal: '理想', heat: 'HEAT', workspaceAria: '檔案工作區', openActions: (name) => '開啟 ' + name + ' 的操作選單',
+      locked: '鎖定', shown: '顯示', open: '開啟', active: '作用中', off: '關閉', std: '標準', ideal: '理想', heat: '熱容', workspaceAria: '檔案工作區', openActions: (name) => '開啟 ' + name + ' 的操作選單',
     },
     panels: {
       previewTitle: '3D 預覽', previewHint: '即時分子視口', realtimeTitle: '即時資料 / 圖表', heatRealtimeTitle: '即時資料', standardRealtimeHint: '即時溫度、壓力和圖表軌跡', idealRealtimeHint: '即時 T、P、關係和圖表軌跡', heatRealtimeHint: 'Uₜ / Uₚ、壓強和過程採樣',
@@ -959,7 +959,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       openFiles: 'Open Files', files: 'Files', panels: 'Panels', noOpenFiles: 'No open files', emptyHint: 'Create a study to populate the workbench.',
       noOpenStudy: 'No open study', emptyTitle: 'Start a new Heat Capacity Ratio Lab file', emptyBody: 'Create an ideal gas study, heat capacity ratio experiment, or standard simulation to restore previews, charts, results, and parameter panels.',
       createStandard: 'Create Standard Simulation Study', createIdeal: 'Create Ideal Gas Simulation Study', createHeatCapacity: 'Create Heat Capacity Ratio Experiment', rename: 'Rename', delete: 'Delete', confirmDelete: 'Confirm Delete', closeExperiment: 'Close Experiment', confirmCloseRunningExperiment: (name) => 'The experiment is running. Close ' + name + '?', cancel: 'Cancel',
-      locked: 'locked', shown: 'shown', open: 'open', active: 'active', off: 'off', std: 'STD', ideal: 'IDEAL', heat: 'HEAT', workspaceAria: 'File workspace', openActions: (name) => 'Open actions for ' + name,
+      locked: 'locked', shown: 'shown', open: 'open', active: 'active', off: 'off', std: 'Standard', ideal: 'Ideal', heat: 'Heat', workspaceAria: 'File workspace', openActions: (name) => 'Open actions for ' + name,
     },
     panels: {
       previewTitle: '3D Preview', previewHint: 'Realtime molecular viewport', realtimeTitle: 'Realtime Data / Charts', heatRealtimeTitle: 'Realtime Data', standardRealtimeHint: 'Live temperature, pressure, and chart traces', idealRealtimeHint: 'Live T, P, relation, and chart traces', heatRealtimeHint: 'Uₜ / Uₚ, pressure, and process samples',
@@ -1414,6 +1414,10 @@ const getAboutEnvironmentResultBody = (
   if (status === 'error') return copy.about.environmentResultError;
   return copy.about.environmentResultUnavailable;
 };
+
+const getWorkbenchFileKindLabel = (kind: WorkbenchFileKind, copy: WorkbenchCopy['files']) => (
+  kind === 'standard' ? copy.std : kind === 'ideal' ? copy.ideal : copy.heat
+);
 
 const getWorkbenchSessionCacheSummary = (
   files: WorkbenchFileState[],
@@ -2157,6 +2161,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const emptyWorkbenchFile = useMemo(() => createDefaultStandardFile(0), []);
   const isWorkbenchEmpty = files.length === 0;
   const activeFile = files.find((file) => file.id === activeFileId) ?? emptyWorkbenchFile;
+  const openableClosedFiles = closedFiles.filter((file) => !files.some((openFile) => openFile.id === file.id));
   const standardPanels = useMemo(() => createStandardPanels(workbenchCopy), [workbenchCopy]);
   const idealPanels = useMemo(() => createIdealPanels(workbenchCopy), [workbenchCopy]);
   const heatCapacityRealtimeCopy = useMemo(
@@ -7842,8 +7847,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const renderTopMenu = () => {
     if (openTopMenu === 'new') {
-      const openableClosedFiles = closedFiles.filter((file) => !files.some((openFile) => openFile.id === file.id));
-
       return (
         <div className="studio-command-menu studio-command-menu-new studio-command-menu-experiment-files" ref={topMenuRef} style={{ left: topMenuLeft }}>
           <div className="studio-command-submenu">
@@ -7883,7 +7886,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 <button type="button" key={file.id} onClick={() => openClosedWorkbenchFile(file.id)}>
                   {file.kind === 'standard' ? <Activity size={14} /> : file.kind === 'ideal' ? <FlaskConical size={14} /> : <Gauge size={14} />}
                   <span>{file.name}</span>
-                  <strong>{file.kind === 'standard' ? workbenchCopy.files.std : file.kind === 'ideal' ? workbenchCopy.files.ideal : workbenchCopy.files.heat}</strong>
+                  <strong>{getWorkbenchFileKindLabel(file.kind, workbenchCopy.files)}</strong>
                 </button>
               ))}
             </div>
@@ -7994,6 +7997,29 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return null;
   };
 
+  const renderCachedExperimentOpenActions = (className = 'studio-empty-open-actions') => (
+    <div className={className}>
+      <div className="studio-empty-open-heading">
+        <FolderOpen size={14} />
+        <span>{workbenchCopy.menus.openExperiment}</span>
+      </div>
+      <div className="studio-empty-open-list">
+        {openableClosedFiles.length === 0 ? (
+          <button type="button" disabled>
+            <Archive size={14} />
+            <span>{workbenchCopy.menus.noCachedExperiments}</span>
+          </button>
+        ) : openableClosedFiles.slice(0, 5).map((file) => (
+          <button type="button" key={file.id} onClick={() => openClosedWorkbenchFile(file.id)}>
+            {file.kind === 'standard' ? <Activity size={14} /> : file.kind === 'ideal' ? <FlaskConical size={14} /> : <Gauge size={14} />}
+            <span>{file.name}</span>
+            <strong>{getWorkbenchFileKindLabel(file.kind, workbenchCopy.files)}</strong>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   const renderEmptyStudyActions = (className = 'studio-empty-actions') => (
     <div className={className}>
       <button type="button" onClick={() => createFile('ideal')}>
@@ -8018,6 +8044,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <h2>{workbenchCopy.files.emptyTitle}</h2>
         <p>{workbenchCopy.files.emptyBody}</p>
         {renderEmptyStudyActions()}
+        {renderCachedExperimentOpenActions()}
       </div>
     </div>
   );
@@ -9838,7 +9865,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               role="button"
               tabIndex={panelsSectionCollapsed ? -1 : 0}
               key={panel.key}
-              className={`studio-tree-row studio-tree-row-child ${selectedPanel === panel.key ? 'studio-tree-row-active' : ''}`}
+              className={`studio-tree-row studio-tree-row-child ${selectedPanel === panel.key ? 'studio-panel-row-active' : ''}`}
               onClick={() => {
                 if (panelsSectionCollapsed) return;
                 setSelectedPanel(panel.key);
@@ -9877,7 +9904,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <div
           role="button"
           tabIndex={panelsSectionCollapsed ? -1 : 0}
-          className={`studio-tree-row studio-tree-row-child studio-heat-materials-group ${materialsActive ? 'studio-tree-row-active' : ''}`}
+          className={`studio-tree-row studio-tree-row-child studio-heat-materials-group ${materialsActive ? 'studio-panel-row-active' : ''}`}
           onClick={() => {
             if (panelsSectionCollapsed) return;
             setSelectedPanel('heatCapacityGuide');
@@ -9935,7 +9962,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 <button
                   type="button"
                   key={tabId}
-                  className={state === 'active' || selectedPanel === panel.key ? 'studio-results-nav-active' : ''}
+                  className={state === 'active' || selectedPanel === panel.key ? 'studio-results-nav-active studio-panel-row-active' : ''}
                   tabIndex={panelsSectionCollapsed ? -1 : 0}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -10005,18 +10032,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
                       <strong>{workbenchCopy.files.noOpenFiles}</strong>
                       <span>{workbenchCopy.files.emptyHint}</span>
                       {renderEmptyStudyActions('studio-empty-file-actions')}
+                      {renderCachedExperimentOpenActions('studio-empty-file-open-actions')}
                     </div>
                   ) : files.map((file) => {
                     const isRenaming = renamingFileId === file.id;
                     const menuOpen = openFileMenuId === file.id;
                     const pendingDelete = pendingDeleteFileId === file.id;
+                    const fileKindLabel = getWorkbenchFileKindLabel(file.kind, workbenchCopy.files);
 
                     return (
                       <div
                         role="button"
                         tabIndex={filesSectionCollapsed ? -1 : 0}
                         key={file.id}
-                        className={`studio-tree-row studio-file-row ${file.id === activeFile.id ? 'studio-tree-row-active' : ''} ${menuOpen ? 'studio-file-row-menu-open' : ''} ${isRenaming ? 'studio-file-row-renaming' : ''}`}
+                        className={`studio-tree-row studio-file-row ${file.id === activeFile.id ? 'studio-file-row-active' : ''} ${menuOpen ? 'studio-file-row-menu-open' : ''} ${isRenaming ? 'studio-file-row-renaming' : ''}`}
                         onClick={() => {
                           if (!isRenaming && !filesSectionCollapsed) selectFile(file);
                         }}
@@ -10076,7 +10105,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                         ) : (
                           <span>{file.name}</span>
                         )}
-                        <span className="studio-tree-meta">{file.kind}</span>
+                        <span className="studio-tree-meta">{fileKindLabel}</span>
                         <button
                           type="button"
                           className="studio-file-menu-button"
@@ -10150,7 +10179,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                       <div
                         role="button"
                         tabIndex={panelsSectionCollapsed ? -1 : 0}
-                        className={`studio-tree-row studio-tree-row-child ${selectedPanel === panel.key ? 'studio-tree-row-active' : ''}`}
+                        className={`studio-tree-row studio-tree-row-child ${selectedPanel === panel.key ? 'studio-panel-row-active' : ''}`}
                         onClick={() => {
                           if (panelsSectionCollapsed) return;
                           setSelectedPanel(panel.key);
@@ -10238,7 +10267,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                             <button
                               type="button"
                               key={childPanel.key}
-                              className={selectedPanel === childPanel.key ? 'studio-results-nav-active' : ''}
+                              className={selectedPanel === childPanel.key ? 'studio-results-nav-active studio-panel-row-active' : ''}
                               tabIndex={panelsSectionCollapsed ? -1 : 0}
                               onClick={(event) => {
                                 event.stopPropagation();
@@ -10265,7 +10294,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                             <button
                               type="button"
                               key={section.key}
-                              className={getStandardResultsTabState(section.key) === 'active' && selectedPanel === 'results' ? 'studio-results-nav-active' : ''}
+                              className={getStandardResultsTabState(section.key) === 'active' && selectedPanel === 'results' ? 'studio-results-nav-active studio-panel-row-active' : ''}
                               tabIndex={panelsSectionCollapsed ? -1 : 0}
                               onClick={(event) => {
                                 event.stopPropagation();
@@ -10317,10 +10346,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     type="button"
                     className="studio-file-tab-select"
                     onClick={() => selectFile(file)}
+                    title={file.name}
                   >
                     {file.kind === 'standard' ? <Activity size={13} /> : file.kind === 'ideal' ? <FlaskConical size={13} /> : <Gauge size={13} />}
-                    <span>{file.name}</span>
-                    <span className="studio-file-kind">{file.kind === 'standard' ? workbenchCopy.files.std : file.kind === 'ideal' ? workbenchCopy.files.ideal : workbenchCopy.files.heat}</span>
+                    <span className="studio-file-tab-name">{file.name}</span>
+                    <span className="studio-file-kind">{getWorkbenchFileKindLabel(file.kind, workbenchCopy.files)}</span>
                   </button>
                   <button
                     type="button"

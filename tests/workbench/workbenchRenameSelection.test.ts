@@ -36,7 +36,7 @@ assert.match(
 
 assert.match(
   source,
-  /className=\{`studio-tree-row studio-file-row \$\{file\.id === activeFile\.id \? 'studio-tree-row-active' : ''\} \$\{menuOpen \? 'studio-file-row-menu-open' : ''\} \$\{isRenaming \? 'studio-file-row-renaming' : ''\}`\}/,
+  /className=\{`studio-tree-row studio-file-row \$\{file\.id === activeFile\.id \? 'studio-file-row-active' : ''\} \$\{menuOpen \? 'studio-file-row-menu-open' : ''\} \$\{isRenaming \? 'studio-file-row-renaming' : ''\}`\}/,
   'renaming file rows should receive a dedicated class for stable layout styling',
 );
 
