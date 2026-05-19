@@ -4471,7 +4471,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return {
         ...file,
         powerOn: false,
-        runState: 'idle',
+        runState: 'running',
         pumpValveOpen: false,
         pumpValveState: 'closed',
         pumpBulbState: 'idle',
@@ -4495,7 +4495,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         return setHeatCapacityPressureZeroOffset({
           ...file,
           powerOn: false,
-          runState: 'idle',
+          runState: 'running',
           glassPistonState: getHeatCapacityStopcockState(nextStopcockAngle),
           stopcockAngleDeg: progress >= 1 ? targetStopcockAngle : nextStopcockAngle,
           pumpValveOpen: false,
@@ -4783,6 +4783,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setHeatCapacityFocusMode('none');
     heatCapacityAutoDemoPausedElapsedMsRef.current = 0;
     heatCapacityAutoDemoPausedFileIdRef.current = null;
+    const now = Date.now();
+    updateFileById(demoFileId, (file) => file.kind === 'heatCapacity'
+      ? {
+          ...file,
+          heatCapacityMode: 'demo',
+          powerOn: false,
+          runState: 'running',
+          pumpValveOpen: false,
+          pumpValveState: 'closed',
+          pumpBulbState: 'idle',
+          pumpHint: '系统正在自动恢复默认状态，稍后开始演示',
+          updatedAt: now,
+        }
+      : file);
     showHeatCapacityAutoDemoStepPanel();
     setAutoDemoRunning(true);
     setAutoDemoPaused(false);
@@ -7164,8 +7178,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const file = closedFiles.find((candidate) => candidate.id === fileId);
     if (!file || files.some((candidate) => candidate.id === fileId)) return;
 
-    if (!isWorkbenchEmpty && activeFile.runState === 'running') {
-      cancelRuntimeFrame(activeFile.id);
+    const activeHeatCapacityRuntimeActive = activeFile.kind === 'heatCapacity' && (
+      autoDemoRunning ||
+      autoDemoPaused ||
+      autoDemoInteractionLocked
+    );
+    if (!isWorkbenchEmpty && (activeFile.runState === 'running' || activeHeatCapacityRuntimeActive)) {
+      if (activeFile.kind === 'heatCapacity') {
+        releaseHeatCapacityRuntimeState(activeFile.id);
+      } else {
+        cancelRuntimeFrame(activeFile.id);
+      }
       updateFileById(activeFile.id, (currentFile) => ({
         ...currentFile,
         runState: 'paused',
@@ -7201,6 +7224,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     cancelRuntimeFrame(fileId);
     delete standardRuntimeRef.current[fileId];
     delete idealRuntimeRef.current[fileId];
+    if (file.kind === 'heatCapacity') releaseHeatCapacityRuntimeState(fileId);
     setClosedFiles((current) => current.filter((candidate) => candidate.id !== fileId));
 
     const remainingFiles = files.filter((candidate) => candidate.id !== fileId);
@@ -7293,8 +7317,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const selectFile = (file: WorkbenchFileState) => {
-    if (file.id !== activeFile.id && activeFile.runState === 'running') {
-      cancelRuntimeFrame(activeFile.id);
+    const activeHeatCapacityRuntimeActive = activeFile.kind === 'heatCapacity' && (
+      autoDemoRunning ||
+      autoDemoPaused ||
+      autoDemoInteractionLocked
+    );
+    if (file.id !== activeFile.id && (activeFile.runState === 'running' || activeHeatCapacityRuntimeActive)) {
+      if (activeFile.kind === 'heatCapacity') {
+        releaseHeatCapacityRuntimeState(activeFile.id);
+      } else {
+        cancelRuntimeFrame(activeFile.id);
+      }
       updateFileById(activeFile.id, (currentFile) => ({
         ...currentFile,
         runState: 'paused',
@@ -8114,7 +8147,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             data-heat-capacity-mode="demo"
             aria-pressed={heatCapacityActiveMode === 'demo'}
             onClick={() => {
-              if (heatCapacityActiveMode !== 'demo') runHeatCapacityAutoDemo();
+              if (heatCapacityActiveMode !== 'demo' || !heatCapacityDemoActionsVisible) runHeatCapacityAutoDemo();
             }}
           >
             {heatCapacityRealtimeCopy.modeDemo}

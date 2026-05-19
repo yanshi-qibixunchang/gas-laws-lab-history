@@ -88,6 +88,49 @@ assert.match(
   'guide mode should become active immediately so the exit button appears at the same time as the start notice',
 );
 
+const runAutoDemoStart = source.indexOf('const runHeatCapacityAutoDemo = () => {');
+assert.notEqual(runAutoDemoStart, -1, 'heat capacity auto demo runner should exist');
+const runAutoDemoEnd = source.indexOf('\n  const createEditSnapshot', runAutoDemoStart);
+assert.notEqual(runAutoDemoEnd, -1, 'heat capacity auto demo runner should end before edit snapshot helpers');
+const runAutoDemoBody = source.slice(runAutoDemoStart, runAutoDemoEnd);
+
+const freshAutoDemoStart = runAutoDemoBody.indexOf('const demoFileId = activeFile.id;');
+assert.notEqual(freshAutoDemoStart, -1, 'fresh auto demo start path should exist');
+const firstAutoDemoRunningFlag = runAutoDemoBody.indexOf('setAutoDemoRunning(true);', freshAutoDemoStart);
+assert.notEqual(firstAutoDemoRunningFlag, -1, 'fresh auto demo start should mark the demo as running');
+const immediateModeUpdate = runAutoDemoBody.indexOf("heatCapacityMode: 'demo'", freshAutoDemoStart);
+assert.ok(
+  immediateModeUpdate !== -1 && immediateModeUpdate < firstAutoDemoRunningFlag,
+  'fresh demo start should synchronously switch the active file into demo mode before locking the mode bar',
+);
+assert.match(
+  runAutoDemoBody.slice(freshAutoDemoStart, firstAutoDemoRunningFlag),
+  /runState:\s*'running'/,
+  'fresh demo start should synchronously mark the heat-capacity file as running before the delayed timeline starts',
+);
+
+const selectFileStart = source.indexOf('const selectFile = (file: WorkbenchFileState) => {');
+assert.notEqual(selectFileStart, -1, 'file selection handler should exist');
+const selectFileEnd = source.indexOf('\n  const renderIdealControls', selectFileStart);
+assert.notEqual(selectFileEnd, -1, 'file selection handler should end before ideal controls');
+const selectFileBody = source.slice(selectFileStart, selectFileEnd);
+assert.match(
+  selectFileBody,
+  /activeFile\.kind === 'heatCapacity'[\s\S]*releaseHeatCapacityRuntimeState\(activeFile\.id\)/,
+  'switching away from a running heat-capacity file should release auto-demo and guide UI state instead of leaking global locks',
+);
+assert.match(
+  selectFileBody,
+  /autoDemoRunning[\s\S]*autoDemoPaused[\s\S]*autoDemoInteractionLocked/,
+  'file switching should treat heat-capacity auto-demo global state as active even when the persisted run state is not running',
+);
+
+assert.match(
+  source,
+  /data-heat-capacity-mode="demo"[\s\S]*heatCapacityActiveMode !== 'demo' \|\| !heatCapacityDemoActionsVisible[\s\S]*runHeatCapacityAutoDemo\(\)/,
+  'demo mode button should restart a stale or completed demo-mode file when no demo action is visible',
+);
+
 assert.doesNotMatch(
   source,
   /showHeatCapacityAutoDemoCompletionToast\('正在启动引导模式'[\s\S]{0,700}window\.setTimeout/,
