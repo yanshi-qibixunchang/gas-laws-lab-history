@@ -55,6 +55,13 @@ const normalizeNullableNumber = (value: unknown) => (
   typeof value === 'number' && Number.isFinite(value) ? value : null
 );
 
+const normalizeLastOpenedAt = (file: WorkbenchFileState, fallback: number) => (
+  normalizeNullableNumber(file.lastOpenedAt) ??
+  normalizeNullableNumber(file.updatedAt) ??
+  normalizeNullableNumber(file.createdAt) ??
+  fallback
+);
+
 const heatCapacitySampleKeys = [
   'startSample',
   'zeroedSample',
@@ -234,6 +241,7 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       ...file,
       ...normalizedFreeRuntimeFields,
       name: normalizeHeatCapacityFileName(file.name),
+      lastOpenedAt: normalizeLastOpenedAt(file, fallback.lastOpenedAt),
       visiblePanels: heatCapacityVisiblePanels.length > 0 ? heatCapacityVisiblePanels : fallback.visiblePanels,
       runState: file.runState === 'running' ? 'paused' : file.runState,
       liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(
@@ -352,6 +360,7 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
   return {
     ...file,
     runState: file.runState === 'running' ? 'paused' : file.runState,
+    lastOpenedAt: normalizeLastOpenedAt(file, file.updatedAt),
     liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
   };
 };

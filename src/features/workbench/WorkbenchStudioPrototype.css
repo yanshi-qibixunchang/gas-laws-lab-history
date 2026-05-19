@@ -2575,12 +2575,27 @@
   white-space: nowrap;
 }
 
-.studio-empty-open-row strong {
+.studio-empty-open-meta {
   margin-left: auto;
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.studio-empty-open-meta strong {
   color: var(--studio-subtle);
   font-family: "JetBrains Mono", Consolas, monospace;
   font-size: 10px;
   font-weight: 700;
+}
+
+.studio-empty-open-meta time {
+  color: var(--studio-muted);
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 10px;
+  font-weight: 500;
 }
 
 .studio-empty-command-row-disabled,

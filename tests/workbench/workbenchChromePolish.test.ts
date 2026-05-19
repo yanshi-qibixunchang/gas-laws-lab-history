@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
+const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
 
 const getRuleBody = (selector: string) => {
   let body = '';
@@ -56,10 +57,58 @@ assert.match(
   'main empty workspace should offer opening cached experiments in addition to creating new ones',
 );
 
+assert.doesNotMatch(
+  source,
+  /renderEmptyStudyActions\('studio-empty-file-actions'\)|renderCachedExperimentOpenActions\('studio-empty-file-open-actions'\)/,
+  'left empty file section should stay structural and not duplicate main empty-workspace create/open actions',
+);
+
 assert.match(
   source,
-  /renderCachedExperimentOpenActions\('studio-empty-file-open-actions'\)/,
-  'left empty file section should offer the same cached-experiment open entry in compact form',
+  /<strong>\{workbenchCopy\.files\.noOpenFileState\}<\/strong>\s*<span>\{workbenchCopy\.files\.emptyHint\}<\/span>/,
+  'left empty file section should use a dedicated current-state message instead of acting as a launcher',
+);
+
+assert.match(
+  source,
+  /renderSectionTitle\(isWorkbenchEmpty \? workbenchCopy\.files\.panels : activeFile\.kind === 'heatCapacity'/,
+  'empty workbench panel section should keep a simple Panels title instead of repeating the no-open-files state',
+);
+
+assert.match(
+  source,
+  /<span>\{workbenchCopy\.files\.noOpenPanelState\}<\/span>/,
+  'left empty panel section should tell the user that panels appear after an experiment is opened',
+);
+
+assert.match(
+  source,
+  /const formatWorkbenchLastOpenedAt = \(\s*timestamp: number,\s*language: WorkbenchLanguagePreference,\s*\) =>/,
+  'recent experiment timestamps should be formatted through a localized helper',
+);
+
+assert.match(
+  source,
+  /new Intl\.DateTimeFormat\(language === 'en' \? 'en-US' : language,/,
+  'recent experiment timestamp formatting should adapt to the active workbench language',
+);
+
+assert.match(
+  stateSource,
+  /lastOpenedAt: now,/,
+  'new workbench files should record a true last-opened timestamp',
+);
+
+assert.match(
+  source,
+  /lastOpenedAt: Date\.now\(\),/,
+  'reopened cached files should refresh their true last-opened timestamp',
+);
+
+assert.match(
+  source,
+  /<span className="studio-empty-open-meta">\s*<strong>\{getWorkbenchFileKindLabel\(file\.kind, workbenchCopy\.files\)\}<\/strong>\s*<time dateTime=\{new Date\(file\.lastOpenedAt\)\.toISOString\(\)\}>/,
+  'main recent experiment rows should show the localized last-opened time beside the experiment type',
 );
 
 assert.match(

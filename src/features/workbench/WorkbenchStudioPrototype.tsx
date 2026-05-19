@@ -409,6 +409,8 @@ interface WorkbenchCopy {
     files: string;
     panels: string;
     noOpenFiles: string;
+    noOpenFileState: string;
+    noOpenPanelState: string;
     emptyHint: string;
     noOpenStudy: string;
     emptyTitle: string;
@@ -786,7 +788,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       sessionCacheBreakdown: (ideal, heat, standard) => '理想/比热/标准：' + ideal + '/' + heat + '/' + standard,
     },
     files: {
-      openFiles: '打开文件', files: '文件', panels: '面板', noOpenFiles: '没有打开的文件', emptyHint: '创建一个研究以填充工作区。',
+      openFiles: '打开文件', files: '文件', panels: '面板', noOpenFiles: '没有打开的文件', noOpenFileState: '当前没有打开的实验文件', noOpenPanelState: '打开实验后显示可用面板。', emptyHint: '在主工作区新建或打开实验。',
       noOpenStudy: '没有打开的研究', emptyTitle: '开始新的硬球工作台文件', emptyBody: '创建标准模拟或理想气体关系研究，以恢复预览、图表、结果和参数面板。',
       createStandard: '创建标准模拟研究', createIdeal: '创建理想气体模拟研究', createHeatCapacity: '创建空气比热容比实验', rename: '重命名', delete: '删除', confirmDelete: '确认删除', closeExperiment: '关闭实验', confirmCloseRunningExperiment: (name) => '实验正在运行。确认关闭 ' + name + ' 吗？', cancel: '取消',
       locked: '锁定', shown: '显示', open: '打开', active: '活动', off: '关闭', std: '标准', ideal: '理想', heat: '热容', workspaceAria: '文件工作区', openActions: (name) => '打开 ' + name + ' 的操作菜单',
@@ -871,7 +873,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       sessionCacheBreakdown: (ideal, heat, standard) => '理想/熱容比/標準：' + ideal + '/' + heat + '/' + standard,
     },
     files: {
-      openFiles: '開啟檔案', files: '檔案', panels: '面板', noOpenFiles: '沒有開啟的檔案', emptyHint: '建立一個研究以填入工作區。',
+      openFiles: '開啟檔案', files: '檔案', panels: '面板', noOpenFiles: '沒有開啟的檔案', noOpenFileState: '目前沒有開啟的實驗檔案', noOpenPanelState: '開啟實驗後顯示可用面板。', emptyHint: '在主工作區建立或開啟實驗。',
       noOpenStudy: '沒有開啟的研究', emptyTitle: '開始新的硬球工作台檔案', emptyBody: '建立標準模擬或理想氣體關係研究，以恢復預覽、圖表、結果和參數面板。',
       createStandard: '建立標準模擬研究', createIdeal: '建立理想氣體模擬研究', createHeatCapacity: '建立空氣比熱容比實驗', rename: '重新命名', delete: '刪除', confirmDelete: '確認刪除', closeExperiment: '關閉實驗', confirmCloseRunningExperiment: (name) => '實驗正在執行。確認關閉 ' + name + ' 嗎？', cancel: '取消',
       locked: '鎖定', shown: '顯示', open: '開啟', active: '作用中', off: '關閉', std: '標準', ideal: '理想', heat: '熱容', workspaceAria: '檔案工作區', openActions: (name) => '開啟 ' + name + ' 的操作選單',
@@ -956,7 +958,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       sessionCacheBreakdown: (ideal, heat, standard) => 'Ideal / Heat / Standard: ' + ideal + '/' + heat + '/' + standard,
     },
     files: {
-      openFiles: 'Open Files', files: 'Files', panels: 'Panels', noOpenFiles: 'No open files', emptyHint: 'Create a study to populate the workbench.',
+      openFiles: 'Open Files', files: 'Files', panels: 'Panels', noOpenFiles: 'No open files', noOpenFileState: 'No experiment file is currently open', noOpenPanelState: 'Available panels appear after an experiment is opened.', emptyHint: 'Create or open an experiment from the main workspace.',
       noOpenStudy: 'No open study', emptyTitle: 'Start a new Heat Capacity Ratio Lab file', emptyBody: 'Create an ideal gas study, heat capacity ratio experiment, or standard simulation to restore previews, charts, results, and parameter panels.',
       createStandard: 'Create Standard Simulation Study', createIdeal: 'Create Ideal Gas Simulation Study', createHeatCapacity: 'Create Heat Capacity Ratio Experiment', rename: 'Rename', delete: 'Delete', confirmDelete: 'Confirm Delete', closeExperiment: 'Close Experiment', confirmCloseRunningExperiment: (name) => 'The experiment is running. Close ' + name + '?', cancel: 'Cancel',
       locked: 'locked', shown: 'shown', open: 'open', active: 'active', off: 'off', std: 'Standard', ideal: 'Ideal', heat: 'Heat', workspaceAria: 'File workspace', openActions: (name) => 'Open actions for ' + name,
@@ -1418,6 +1420,30 @@ const getAboutEnvironmentResultBody = (
 const getWorkbenchFileKindLabel = (kind: WorkbenchFileKind, copy: WorkbenchCopy['files']) => (
   kind === 'standard' ? copy.std : kind === 'ideal' ? copy.ideal : copy.heat
 );
+
+const formatWorkbenchLastOpenedAt = (
+  timestamp: number,
+  language: WorkbenchLanguagePreference,
+) => {
+  const date = new Date(timestamp);
+  if (!Number.isFinite(timestamp) || Number.isNaN(date.getTime())) return '--';
+
+  const formatter = new Intl.DateTimeFormat(language === 'en' ? 'en-US' : language, {
+    year: 'numeric',
+    month: language === 'en' ? 'short' : '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  if (language === 'en') return formatter.format(date);
+
+  const parts = formatter.formatToParts(date).reduce<Record<string, string>>((result, part) => {
+    if (part.type !== 'literal') result[part.type] = part.value;
+    return result;
+  }, {});
+  return `${parts.year}年${parts.month}月${parts.day}日 ${parts.hour}:${parts.minute}`;
+};
 
 const getWorkbenchSessionCacheSummary = (
   files: WorkbenchFileState[],
@@ -5269,6 +5295,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       ...file,
       runState: file.runState === 'running' ? 'paused' : file.runState,
       updatedAt: Date.now(),
+      lastOpenedAt: Date.now(),
     };
 
     if (baseFile.kind !== 'standard' && baseFile.kind !== 'ideal') {
@@ -7346,6 +7373,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
       pushLog(workbenchCopy.logs.autoPausedSwitchFile(activeFile.name), 'warning');
     }
 
+    if (file.id !== activeFile.id) {
+      updateFileById(file.id, (currentFile) => ({
+        ...currentFile,
+        lastOpenedAt: Date.now(),
+      }));
+    }
+
     setActiveFileId(file.id);
     activeFileIdRef.current = file.id;
     setSelectedPanel('preview');
@@ -8018,7 +8052,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
           >
             {file.kind === 'standard' ? <Activity size={14} /> : file.kind === 'ideal' ? <FlaskConical size={14} /> : <Gauge size={14} />}
             <span>{file.name}</span>
-            <strong>{getWorkbenchFileKindLabel(file.kind, workbenchCopy.files)}</strong>
+            <span className="studio-empty-open-meta">
+              <strong>{getWorkbenchFileKindLabel(file.kind, workbenchCopy.files)}</strong>
+              <time dateTime={new Date(file.lastOpenedAt).toISOString()}>
+                {formatWorkbenchLastOpenedAt(file.lastOpenedAt, settingsLanguagePreference)}
+              </time>
+            </span>
           </button>
         ))}
       </div>
@@ -10034,10 +10073,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 <div className={`studio-tree-section-content ${filesSectionCollapsed ? 'studio-tree-section-content-collapsed' : ''}`} aria-hidden={filesSectionCollapsed}>
                   {isWorkbenchEmpty ? (
                     <div className="studio-empty-files">
-                      <strong>{workbenchCopy.files.noOpenFiles}</strong>
+                      <strong>{workbenchCopy.files.noOpenFileState}</strong>
                       <span>{workbenchCopy.files.emptyHint}</span>
-                      {renderEmptyStudyActions('studio-empty-file-actions')}
-                      {renderCachedExperimentOpenActions('studio-empty-file-open-actions')}
                     </div>
                   ) : files.map((file) => {
                     const isRenaming = renamingFileId === file.id;
@@ -10168,11 +10205,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
               </section>
 
               <section className="studio-tree-section">
-                {renderSectionTitle(isWorkbenchEmpty ? `${workbenchCopy.files.noOpenFiles} / ${workbenchCopy.files.panels}` : activeFile.kind === 'heatCapacity' ? `${activeFile.name.toUpperCase()} / PANELS` : `${activeFile.name} / ${workbenchCopy.files.panels}`, panelsSectionCollapsed, () => setPanelsSectionCollapsed((current) => !current))}
+                {renderSectionTitle(isWorkbenchEmpty ? workbenchCopy.files.panels : activeFile.kind === 'heatCapacity' ? `${activeFile.name.toUpperCase()} / PANELS` : `${activeFile.name} / ${workbenchCopy.files.panels}`, panelsSectionCollapsed, () => setPanelsSectionCollapsed((current) => !current))}
                 <div className={`studio-tree-section-content ${panelsSectionCollapsed ? 'studio-tree-section-content-collapsed' : ''}`} aria-hidden={panelsSectionCollapsed}>
                 {isWorkbenchEmpty ? (
                   <div className="studio-empty-panel-tree">
-                    <span>{workbenchCopy.files.emptyHint}</span>
+                    <span>{workbenchCopy.files.noOpenPanelState}</span>
                   </div>
                 ) : activeFile.kind === 'heatCapacity' ? (
                   renderHeatCapacityPanelTree()

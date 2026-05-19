@@ -574,6 +574,7 @@ interface WorkbenchFileBase {
   liveWorkspaceSplitRatio: number;
   createdAt: number;
   updatedAt: number;
+  lastOpenedAt: number;
 }
 
 export interface WorkbenchStandardState extends WorkbenchFileBase {
@@ -1890,6 +1891,7 @@ const createBaseFile = (
     liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(defaults?.liveWorkspaceSplitRatio),
     createdAt: now,
     updatedAt: now,
+    lastOpenedAt: now,
   };
 };
 
