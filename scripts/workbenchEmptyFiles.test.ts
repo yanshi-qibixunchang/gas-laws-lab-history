@@ -72,8 +72,8 @@ assert.match(
 
 assert.match(
   source,
-  /workbenchCopy\.files\.createStandard[\s\S]*?workbenchCopy\.files\.createIdeal/,
-  'empty workbench should offer direct new-study actions',
+  /workbenchCopy\.files\.createIdeal[\s\S]*?workbenchCopy\.files\.createHeatCapacity[\s\S]*?workbenchCopy\.files\.createStandard/,
+  'empty workbench should offer direct new-study actions in ideal / heat / standard order',
 );
 
 assert.match(

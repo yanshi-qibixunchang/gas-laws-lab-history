@@ -15,7 +15,7 @@
   },
   "build": {
     "appId": "com.hardspherelab.desktop",
-    "productName": "Hard Sphere Lab",
+    "productName": "热容比实验室",
     "electronDist": "node_modules/electron/dist",
     "afterPack": "build/afterPack.cjs",
     "directories": {
@@ -73,7 +73,7 @@
       "uninstallerIcon": "resources/app-icon/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Hard Sphere Lab"
+      "shortcutName": "热容比实验室"
     }
   },
   "dependencies": {

@@ -45,6 +45,14 @@ resources/exporter/*.spec
 仪器建模/
 仪器建模/**
 
+# Archived Android assets and legacy APK bridge
+legacy-apk/
+services/legacyApk.ts
+
+# Keep instrument modeling references eligible for Git tracking.
+!仪器建模/
+!仪器建模/**
+
 # Android local state and signing materials
 android/.gradle/
 android/.idea/

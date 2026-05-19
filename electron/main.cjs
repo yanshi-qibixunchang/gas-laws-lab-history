@@ -7,8 +7,8 @@ const { spawn } = require('node:child_process');
 
 const rootDir = path.resolve(__dirname, '..');
 const preloadPath = path.join(__dirname, 'preload.cjs');
-const appTitle = 'Hard Sphere Lab';
-const exportRootFolderName = 'Hard Sphere Lab Exports';
+const appTitle = 'Heat Capacity Ratio Lab with Hard Sphere';
+const exportRootFolderName = 'Heat Capacity Ratio Lab Exports';
 let selectedExporterRuntime = null;
 
 const getAppIconPath = () => {
@@ -107,13 +107,13 @@ const parseJson = (value) => {
 };
 
 const sanitizeName = (value) => (
-  String(value || 'Hard Sphere Lab Export')
+  String(value || 'Heat Capacity Ratio Lab Export')
     .trim()
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, '-')
     .replace(/\s+/g, ' ')
     .replace(/-+/g, '-')
     .replace(/^\.+|\.+$/g, '')
-    .slice(0, 96) || 'Hard Sphere Lab Export'
+    .slice(0, 96) || 'Heat Capacity Ratio Lab Export'
 );
 
 const formatTimestampForFolder = (date = new Date()) => {
@@ -134,7 +134,7 @@ const getExperimentFolderName = (payload, options) => {
     options?.fileName
     || payload?.data?.fileName
     || payload?.filename
-    || 'Hard Sphere Lab Experiment';
+    || 'Heat Capacity Ratio Lab Experiment';
   return `${sanitizeName(source)}_${formatTimestampForFolder()}`;
 };
 
@@ -249,7 +249,7 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
 
   const defaultPath = await ensureDefaultExportRoot();
   const selection = await dialog.showOpenDialog({
-    title: 'Choose Hard Sphere Lab Export Root Folder',
+    title: 'Choose Heat Capacity Ratio Lab Export Root Folder',
     defaultPath,
     properties: ['openDirectory', 'createDirectory'],
   });
@@ -264,7 +264,7 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
   if (payload.kind === 'csv') {
     const dataDir = path.join(outDir, 'data');
     await fs.mkdir(dataDir, { recursive: true });
-    const target = path.join(dataDir, sanitizeName(payload.filename || 'hard-sphere-lab.csv'));
+    const target = path.join(dataDir, sanitizeName(payload.filename || 'heat-capacity-ratio-lab.csv'));
     await fs.writeFile(target, payload.content || '', 'utf8');
     return {
       status: 'ok',
@@ -277,7 +277,7 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
     };
   }
 
-  const tempDir = path.join(os.tmpdir(), 'hard-sphere-lab-export');
+  const tempDir = path.join(os.tmpdir(), 'heat-capacity-ratio-lab-export');
   await fs.mkdir(tempDir, { recursive: true });
   const inputPath = path.join(tempDir, `${Date.now()}-${sanitizeName(payload.filename || 'payload.json')}`);
   await fs.writeFile(inputPath, JSON.stringify(payload, null, 2), 'utf8');

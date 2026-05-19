@@ -30,7 +30,7 @@ const DEFAULT_PARAMS: SimulationParams = {
   statsDuration: 60
 };
 
-const APP_VERSION = '3.5.1';
+const APP_VERSION = __APP_VERSION__;
 const SHOW_WORKBENCH_PROTOTYPE = true;
 const WORKBENCH_FRAME_WIDTH = 1440;
 const WORKBENCH_FRAME_HEIGHT = 810;

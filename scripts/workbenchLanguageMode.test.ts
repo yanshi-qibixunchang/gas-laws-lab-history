@@ -80,7 +80,7 @@ assert.doesNotMatch(
 );
 
 for (const expression of [
-  'workbenchCopy.menus.newStudy',
+  'workbenchCopy.menus.experimentFiles',
   'workbenchCopy.settings.title',
   'workbenchCopy.files.openFiles',
   'workbenchCopy.parameters.title',

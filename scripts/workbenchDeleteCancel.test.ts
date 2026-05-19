@@ -102,13 +102,13 @@ assert.doesNotMatch(
 
 assert.match(
   cssSource,
-  /\.studio-file-menu\s*\{[\s\S]*?width:\s*96px;[\s\S]*?overflow:\s*hidden;[\s\S]*?transition:[^;]*width 160ms ease/,
+  /\.studio-file-menu\s*\{[\s\S]*?width:\s*112px;[\s\S]*?overflow:\s*hidden;[\s\S]*?transition:[^;]*width 160ms ease/,
   'file menu should start narrow, clip row hover to the rounded shell, and animate width changes',
 );
 
 assert.match(
   cssSource,
-  /\.studio-file-menu-pending\s*\{[\s\S]*?width:\s*136px;/,
+  /\.studio-file-menu-pending\s*\{[\s\S]*?width:\s*144px;/,
   'file menu pending state should expand wide enough for one-line Confirm Delete',
 );
 

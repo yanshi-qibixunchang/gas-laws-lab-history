@@ -29,6 +29,7 @@ import type {
 
 export const WORKBENCH_SESSION_VERSION = 1;
 export const WORKBENCH_SESSION_STORAGE_KEY = 'hsl_workbench_session_v1';
+export const WORKBENCH_CLOSED_FILES_STORAGE_KEY = 'hsl_workbench_closed_files_v1';
 
 export interface WorkbenchSessionState {
   version: typeof WORKBENCH_SESSION_VERSION;
@@ -421,6 +422,38 @@ export const persistWorkbenchSession = (session: WorkbenchSessionState) => {
 
   try {
     window.localStorage.setItem(WORKBENCH_SESSION_STORAGE_KEY, JSON.stringify(session));
+  } catch {
+    // Storage failures should not block the live workbench.
+  }
+};
+
+export const loadClosedWorkbenchFiles = (): WorkbenchFileState[] => {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const raw = window.localStorage.getItem(WORKBENCH_CLOSED_FILES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((file): file is WorkbenchFileState => (
+      isRecord(file) &&
+      typeof file.id === 'string' &&
+      typeof file.name === 'string' &&
+      (file.kind === 'standard' || file.kind === 'ideal' || file.kind === 'heatCapacity')
+    )).map(normalizeRuntimeState);
+  } catch {
+    return [];
+  }
+};
+
+export const persistClosedWorkbenchFiles = (files: WorkbenchFileState[]) => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const normalizedFiles = files
+      .map(normalizeRuntimeState)
+      .filter((file, index, allFiles) => allFiles.findIndex((candidate) => candidate.id === file.id) === index);
+    window.localStorage.setItem(WORKBENCH_CLOSED_FILES_STORAGE_KEY, JSON.stringify(normalizedFiles));
   } catch {
     // Storage failures should not block the live workbench.
   }
