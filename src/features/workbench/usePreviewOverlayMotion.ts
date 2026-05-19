@@ -57,7 +57,7 @@ export const usePreviewOverlayMotion = <ElementType extends HTMLElement>() => {
     if (!root) return;
 
     const items = Array.from(root.querySelectorAll<HTMLElement>('[data-preview-overlay-item]'));
-    const nextRects = new Map<string, DOMRect>();
+    const nextRects = new Map<string, OverlayLayoutRect>();
 
     for (const item of items) {
       const key = item.dataset.previewOverlayItem;

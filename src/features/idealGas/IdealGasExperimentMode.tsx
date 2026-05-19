@@ -656,6 +656,12 @@ const hasRecordedCurrentVariable = (
   return false;
 };
 
+const getAdvancePresetOptions = (relation: ExperimentRelation): ResetCurrentPointOptions => ({
+  advancePresetTemperature: relation === 'pt',
+  advancePresetBoxLength: relation === 'pv',
+  advancePresetParticleCount: relation === 'pn',
+});
+
 const formatScalar = (value: number | null | undefined) => {
   if (value === null || value === undefined || !Number.isFinite(value)) return '--';
   const absolute = Math.abs(value);
@@ -2258,11 +2264,7 @@ const IdealGasExperimentMode: React.FC<IdealGasExperimentModeProps> = ({
                             resetCurrentPoint(
                               true,
                               hasRecordedCurrentVariable(relation, relationPoints, params)
-                                ? {
-                                    advancePresetTemperature: relation === 'pt',
-                                    advancePresetBoxLength: relation === 'pv',
-                                    advancePresetParticleCount: relation === 'pn',
-                                  }
+                                ? getAdvancePresetOptions(relation)
                                 : {},
                             )
                           }
@@ -2371,11 +2373,7 @@ const IdealGasExperimentMode: React.FC<IdealGasExperimentModeProps> = ({
                         resetCurrentPoint(
                           true,
                           hasRecordedCurrentVariable(relation, relationPoints, params)
-                            ? {
-                                advancePresetTemperature: relation === 'pt',
-                                advancePresetBoxLength: relation === 'pv',
-                                advancePresetParticleCount: relation === 'pn',
-                              }
+                            ? getAdvancePresetOptions(relation)
                             : {},
                         )
                       }

@@ -85,6 +85,7 @@ import {
   type WorkbenchExportEnvironmentStatus,
   type WorkbenchFileKind,
   type WorkbenchFileState,
+  type WorkbenchHeatCapacityState,
   type WorkbenchIdealState,
   type WorkbenchIdealResultWindowKey,
   type WorkbenchIdealWindowLayout,
@@ -816,7 +817,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       title: '当前参数', currentFileValues: '当前文件值', lockedUntilStopped: '停止或完成前锁定', editValues: '编辑参数值', hide: '隐藏',
       standardSimulation: '标准模拟', idealSimulation: '理想气体模拟', heatCapacityExperiment: '空气比热容比实验', savedChangesOnStart: '启动时已保存参数', idealRuntimeOnStart: '理想运行时将在开始时连接', applied: '参数已应用',
       relation: '关系', scanVariable: '扫描变量', samplingPreset: '采样预设', targetTemperature: '目标温度', boxLength: '盒长 L', particleCount: '粒子数 N', customPreset: '自定义', setSamplingPrecision: '设置采样精度', relationHints: { pt: '固定 N 和 V 扫描温度', pv: '通过盒长 L 扫描体积', pn: '固定 T 和 V 扫描粒子数' }, setScanValue: (title) => '设置' + title, adjustScanValue: (title) => '调整' + title, recommendedValues: (title) => title + '推荐值',
-      parameterLabels: { N: 'N（粒子）', r: 'r', L: 'L', dt: 'dt', nu: 'nu', targetTemperature: '目标温度', equilibriumTime: '平衡时间（s）', statsDuration: '统计时长（s）', relation: '关系' },
+      parameterLabels: { N: 'N（粒子）', r: 'r', L: 'L', m: 'm', k: 'k', dt: 'dt', nu: 'nu', targetTemperature: '目标温度', equilibriumTime: '平衡时间（s）', statsDuration: '统计时长（s）', relation: '关系' },
       samplingPresets: { fast: '快速', balanced: '平衡', stable: '稳定' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's 平衡 / ' + statsDuration + 's 统计',
       advancedSettings: '高级设置', advancedShow: '显示模型常数和采样值', advancedHide: '隐藏模型常数和采样值', edit: '编辑', save: '保存', saveHint: '保存高级参数到当前工作台文件',
       standardReadonlyNote: '标准模拟参数在这里直接显示。', idealReadonlyNote: '关系、扫描变量和采样预设在上方控制。', heatCapacityReadonlyNote: '粒子动画仅用于可视化气体分子运动状态；最终比热容比按 FD-NCD-C 空气实验模型计算。', microscopicVisualization: '微观可视化', hardSphereView: '硬球可视化', hardSphereOn: '开', hardSphereOff: '关', hardSphereParticleMultiplier: '粒子数量倍率', hardSphereSpeedMultiplier: '粒子速度倍率', hardSphereTeachingOnly: '只影响三维教学显示，不参与 Uₜ、Uₚ、U₀/U₁/U₂ 或 gamma 计算。', controlledLockHint: '当前关系已有数据，受控变量已锁定。',
@@ -901,7 +902,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       title: '目前參數', currentFileValues: '目前檔案值', lockedUntilStopped: '停止或完成前鎖定', editValues: '編輯參數值', hide: '隱藏',
       standardSimulation: '標準模擬', idealSimulation: '理想氣體模擬', heatCapacityExperiment: '空氣比熱容比實驗', savedChangesOnStart: '啟動時已儲存參數', idealRuntimeOnStart: '理想執行階段將在開始時連接', applied: '參數已套用',
       relation: '關係', scanVariable: '掃描變量', samplingPreset: '採樣預設', targetTemperature: '目標溫度', boxLength: '盒長 L', particleCount: '粒子數 N', customPreset: '自訂', setSamplingPrecision: '設定採樣精度', relationHints: { pt: '固定 N 和 V 掃描溫度', pv: '透過盒長 L 掃描體積', pn: '固定 T 和 V 掃描粒子數' }, setScanValue: (title) => '設定' + title, adjustScanValue: (title) => '調整' + title, recommendedValues: (title) => title + '建議值',
-      parameterLabels: { N: 'N（粒子）', r: 'r', L: 'L', dt: 'dt', nu: 'nu', targetTemperature: '目標溫度', equilibriumTime: '平衡時間（s）', statsDuration: '統計時長（s）', relation: '關係' },
+      parameterLabels: { N: 'N（粒子）', r: 'r', L: 'L', m: 'm', k: 'k', dt: 'dt', nu: 'nu', targetTemperature: '目標溫度', equilibriumTime: '平衡時間（s）', statsDuration: '統計時長（s）', relation: '關係' },
       samplingPresets: { fast: '快速', balanced: '平衡', stable: '穩定' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's 平衡 / ' + statsDuration + 's 統計',
       advancedSettings: '進階設定', advancedShow: '顯示模型常數和採樣值', advancedHide: '隱藏模型常數和採樣值', edit: '編輯', save: '儲存', saveHint: '將進階參數儲存到目前工作台檔案',
       standardReadonlyNote: '標準模擬參數在這裡直接顯示。', idealReadonlyNote: '關係、掃描變量和採樣預設在上方控制。', heatCapacityReadonlyNote: '粒子動畫僅用於視覺化氣體分子運動狀態；最終比熱容比按 FD-NCD-C 空氣實驗模型計算。', microscopicVisualization: '微觀可視化', hardSphereView: '硬球可視化', hardSphereOn: '開', hardSphereOff: '關', hardSphereParticleMultiplier: '粒子數量倍率', hardSphereSpeedMultiplier: '粒子速度倍率', hardSphereTeachingOnly: '只影響三維教學顯示，不參與 Uₜ、Uₚ、U₀/U₁/U₂ 或 gamma 計算。', controlledLockHint: '目前關係已有資料，受控變量已鎖定。',
@@ -986,7 +987,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       title: 'Current Parameters', currentFileValues: 'current file values', lockedUntilStopped: 'locked until stopped or finished', editValues: 'edit parameter values', hide: 'Hide',
       standardSimulation: 'Standard Simulation', idealSimulation: 'Ideal Gas Simulation', heatCapacityExperiment: 'Heat Capacity Ratio Experiment', savedChangesOnStart: 'parameters saved on start', idealRuntimeOnStart: 'ideal runtime will connect on start', applied: 'parameters applied',
       relation: 'Relation', scanVariable: 'Scan Variable', samplingPreset: 'Sampling Preset', targetTemperature: 'Target Temperature', boxLength: 'Box Length L', particleCount: 'Particle Count N', customPreset: 'Custom', setSamplingPrecision: 'Set sampling precision', relationHints: { pt: 'Scan temperature at fixed N and V', pv: 'Scan volume through box length L', pn: 'Scan particle count at fixed T and V' }, setScanValue: (title) => 'Set ' + title, adjustScanValue: (title) => 'Adjust ' + title, recommendedValues: (title) => title + ' recommended values',
-      parameterLabels: { N: 'N (particles)', r: 'r', L: 'L', dt: 'dt', nu: 'nu', targetTemperature: 'Target temperature', equilibriumTime: 'equilibriumTime (s)', statsDuration: 'statsDuration (s)', relation: 'Relation' },
+      parameterLabels: { N: 'N (particles)', r: 'r', L: 'L', m: 'm', k: 'k', dt: 'dt', nu: 'nu', targetTemperature: 'Target temperature', equilibriumTime: 'equilibriumTime (s)', statsDuration: 'statsDuration (s)', relation: 'Relation' },
       samplingPresets: { fast: 'Fast', balanced: 'Balanced', stable: 'Stable' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's eq / ' + statsDuration + 's stats',
       advancedSettings: 'Advanced settings', advancedShow: 'Show model constants and sampling values', advancedHide: 'Hide model constants and sampling values', edit: 'Edit', save: 'Save', saveHint: 'Save advanced parameters to this workbench file',
       standardReadonlyNote: 'Standard simulation parameters are shown directly here.', idealReadonlyNote: 'Relation, scan variable, and sampling preset are controlled above.', heatCapacityReadonlyNote: 'The particle animation only visualizes molecular motion; the heat capacity ratio is still calculated by the FD-NCD-C air experiment model.', microscopicVisualization: 'Microscopic Visualization', hardSphereView: 'Hard-Sphere View', hardSphereOn: 'ON', hardSphereOff: 'OFF', hardSphereParticleMultiplier: 'Particle multiplier', hardSphereSpeedMultiplier: 'Speed multiplier', hardSphereTeachingOnly: 'Affects only the 3D teaching display. It is not used for Uₜ, Uₚ, U₀/U₁/U₂, or gamma.', controlledLockHint: 'This relation already has data, so controlled variables are locked.',
@@ -1682,7 +1683,7 @@ const standardResultsTabKeys: WorkbenchStandardResultsTab[] = ['summary', 'dataT
 const idealResultWindowKeys: WorkbenchIdealResultWindowKey[] = ['experimentPoints', 'verification'];
 const heatCapacityMaterialsTabOrder: WorkbenchHeatCapacityTabId[] = ['guide', 'records', 'processing'];
 
-const isIdealResultWindowKey = (key: WorkbenchPanelKey): key is WorkbenchIdealResultWindowKey => (
+const isIdealResultWindowKey = (key: string): key is WorkbenchIdealResultWindowKey => (
   key === 'experimentPoints' || key === 'verification'
 );
 
@@ -1725,15 +1726,22 @@ const normalizeIdealWindowLayoutState = (
   }) | null | undefined,
   defaults?: Partial<WorkbenchLayoutDefaultState>,
 ): WorkbenchIdealWindowLayout => {
-  const openTabs = layout?.openTabs?.filter(isIdealResultWindowKey);
-  const activeIdealResultTab = layout?.activeIdealResultTab
-    ?? layout?.openPanels?.filter(isIdealResultWindowKey).slice(-1)[0]
+  const legacyLayout = layout as (Partial<WorkbenchIdealWindowLayout> & {
+    openPanels?: string[];
+    frontHeightRatio?: number;
+    backHeightRatio?: number;
+    hasCustomHeights?: boolean;
+  }) | null | undefined;
+  const openTabs = legacyLayout?.openTabs?.filter(isIdealResultWindowKey) as WorkbenchIdealResultWindowKey[] | undefined;
+  const legacyOpenPanels = legacyLayout?.openPanels?.filter(isIdealResultWindowKey) as WorkbenchIdealResultWindowKey[] | undefined;
+  const activeIdealResultTab: WorkbenchIdealResultWindowKey = legacyLayout?.activeIdealResultTab
+    ?? legacyOpenPanels?.slice(-1)[0]
     ?? 'experimentPoints';
-  const normalizedOpenTabs = openTabs?.length ? openTabs : ['experimentPoints', 'verification'];
+  const normalizedOpenTabs: WorkbenchIdealResultWindowKey[] = openTabs?.length ? openTabs : ['experimentPoints', 'verification'];
   const heightRatio = clampIdealResultHeightRatio(
-    layout?.heightRatio
-    ?? layout?.frontHeightRatio
-    ?? layout?.backHeightRatio
+    legacyLayout?.heightRatio
+    ?? legacyLayout?.frontHeightRatio
+    ?? legacyLayout?.backHeightRatio
     ?? defaults?.resultsHeightRatio
     ?? IDEAL_RESULT_HEIGHT_RATIO,
   );
@@ -1742,7 +1750,7 @@ const normalizeIdealWindowLayoutState = (
     openTabs: normalizedOpenTabs,
     activeIdealResultTab: normalizedOpenTabs.includes(activeIdealResultTab) ? activeIdealResultTab : normalizedOpenTabs[0],
     heightRatio,
-    hasCustomHeight: Boolean(layout?.hasCustomHeight ?? layout?.hasCustomHeights),
+    hasCustomHeight: Boolean(legacyLayout?.hasCustomHeight ?? legacyLayout?.hasCustomHeights),
   };
 };
 
@@ -1750,8 +1758,8 @@ const normalizeStandardResultsLayout = (
   layout: Partial<WorkbenchStandardResultsLayout> | null | undefined,
   defaults?: Partial<WorkbenchLayoutDefaultState>,
 ): WorkbenchStandardResultsLayout => {
-  const openTabs = layout?.openTabs?.filter(isStandardResultsTab);
-  const normalizedOpenTabs = openTabs?.length ? openTabs : ['summary', 'dataTable', 'figures'];
+  const openTabs = layout?.openTabs?.filter(isStandardResultsTab) as WorkbenchStandardResultsTab[] | undefined;
+  const normalizedOpenTabs: WorkbenchStandardResultsTab[] = openTabs?.length ? openTabs : ['summary', 'dataTable', 'figures'];
   const activeTab = layout?.activeTab && normalizedOpenTabs.includes(layout.activeTab)
     ? layout.activeTab
     : normalizedOpenTabs[0];
@@ -1884,130 +1892,90 @@ const isEditableElement = (element: EventTarget | Element | null) => {
   );
 };
 
+const cloneWorkbenchChartData = (data: WorkbenchFileState['chartData']) => ({
+  speed: data.speed.map((item) => ({ ...item })),
+  energy: data.energy.map((item) => ({ ...item })),
+  energyLog: data.energyLog.map((item) => ({ ...item })),
+  tempHistory: data.tempHistory.map((item) => ({ ...item })),
+});
+
+const cloneHeatCapacityProcessSamples = (
+  samples: WorkbenchHeatCapacityState['heatCapacityProcessSamples'],
+): WorkbenchHeatCapacityState['heatCapacityProcessSamples'] => (
+  Object.fromEntries(
+    Object.entries(samples).map(([key, point]) => [key, point ? { ...point } : point]),
+  ) as WorkbenchHeatCapacityState['heatCapacityProcessSamples']
+);
+
 const cloneWorkbenchFiles = (filesToClone: WorkbenchFileState[]): WorkbenchFileState[] => (
-  filesToClone.map((file) => ({
-    ...file,
-    params: cloneParams(file.params),
-    appliedParams: cloneParams(file.appliedParams),
-    stats: { ...file.stats },
-    chartData: {
-      speed: file.chartData.speed.map((item) => ({ ...item })),
-      energy: file.chartData.energy.map((item) => ({ ...item })),
-      energyLog: file.chartData.energyLog.map((item) => ({ ...item })),
-      tempHistory: file.chartData.tempHistory.map((item) => ({ ...item })),
-    },
-    finalChartData: file.finalChartData
-      ? {
-          speed: file.finalChartData.speed.map((item) => ({ ...item })),
-          energy: file.finalChartData.energy.map((item) => ({ ...item })),
-          energyLog: file.finalChartData.energyLog.map((item) => ({ ...item })),
-          tempHistory: file.finalChartData.tempHistory.map((item) => ({ ...item })),
-        }
-      : null,
-    ...(file.kind === 'standard'
-      ? {
-          kind: 'standard' as const,
-          particles: file.particles.map((particle) => ({ ...particle })),
-          standardResultsLayout: normalizeStandardResultsLayout(file.standardResultsLayout),
-        }
-      : file.kind === 'ideal'
+  filesToClone.map((file): WorkbenchFileState => {
+    const common = {
+      params: cloneParams(file.params),
+      appliedParams: cloneParams(file.appliedParams),
+      stats: { ...file.stats },
+      chartData: cloneWorkbenchChartData(file.chartData),
+      finalChartData: file.finalChartData ? cloneWorkbenchChartData(file.finalChartData) : null,
+      visiblePanels: [...file.visiblePanels],
+    };
+
+    if (file.kind === 'standard') {
+      return {
+        ...file,
+        ...common,
+        particles: file.particles.map((particle) => ({ ...particle })),
+        standardResultsLayout: normalizeStandardResultsLayout(file.standardResultsLayout),
+      };
+    }
+
+    if (file.kind === 'ideal') {
+      return {
+        ...file,
+        ...common,
+        activeParams: cloneParams(file.activeParams),
+        pointsByRelation: clonePointsByRelation(file.pointsByRelation),
+        latestPressureSummary: file.latestPressureSummary
+          ? {
+              ...file.latestPressureSummary,
+              history: file.latestPressureSummary.history.map((point) => ({ ...point })),
+            }
+          : null,
+        particles: file.particles.map((particle) => ({ ...particle })),
+        idealWindowLayout: normalizeIdealWindowLayoutState(file.idealWindowLayout),
+      };
+    }
+
+    return {
+      ...file,
+      ...common,
+      name: normalizeHeatCapacityFileName(file.name),
+      particles: file.particles.map((particle) => ({ ...particle })),
+      heatCapacityPausedTeachingSnapshot: file.heatCapacityPausedTeachingSnapshot
         ? {
-            kind: 'ideal' as const,
-            relation: file.relation,
-            activeParams: cloneParams(file.activeParams),
-            pointsByRelation: clonePointsByRelation(file.pointsByRelation),
-            latestPressureSummary: file.latestPressureSummary
-              ? {
-                  ...file.latestPressureSummary,
-                  history: file.latestPressureSummary.history.map((point) => ({ ...point })),
-                }
-              : null,
-            needsReset: file.needsReset,
-            particles: file.particles.map((particle) => ({ ...particle })),
-            verificationState: file.verificationState,
-            historyUnlocked: file.historyUnlocked,
-            idealWindowLayout: normalizeIdealWindowLayoutState(file.idealWindowLayout),
+            ...file.heatCapacityPausedTeachingSnapshot,
+            heatCapacityTrials: file.heatCapacityPausedTeachingSnapshot.heatCapacityTrials.map((trial) => ({ ...trial })),
+            openHeatCapacityTabs: [...file.heatCapacityPausedTeachingSnapshot.openHeatCapacityTabs],
           }
-        : {
-            kind: 'heatCapacity' as const,
-            name: normalizeHeatCapacityFileName(file.name),
-            particles: file.particles.map((particle) => ({ ...particle })),
-            selectedHeatCapacityPanel: file.selectedHeatCapacityPanel,
-            openHeatCapacityTabs: [...file.openHeatCapacityTabs],
-            activeHeatCapacityTabId: file.activeHeatCapacityTabId,
-            heatCapacityMaterialsExpanded: file.heatCapacityMaterialsExpanded,
-            heatCapacityTabContainerHeight: file.heatCapacityTabContainerHeight,
-            heatCapacityExpectedTrialCount: file.heatCapacityExpectedTrialCount,
-            heatCapacityExpectedTrialCountMode: file.heatCapacityExpectedTrialCountMode,
-            heatCapacityTrials: file.heatCapacityTrials.map((trial) => ({ ...trial })),
-            heatCapacityActiveTrialIndex: file.heatCapacityActiveTrialIndex,
-            heatCapacityProcessingCalculated: file.heatCapacityProcessingCalculated,
-            heatCapacityProcessingResult: {
-              ...file.heatCapacityProcessingResult,
-              trialResults: file.heatCapacityProcessingResult.trialResults.map((trial) => ({ ...trial })),
-            },
-            heatCapacityExperimentSeed: file.heatCapacityExperimentSeed,
-            heatCapacityExperimentProfile: file.heatCapacityExperimentProfile ? { ...file.heatCapacityExperimentProfile } : null,
-            heatCapacityPhase: file.heatCapacityPhase,
-            powerOn: file.powerOn,
-            glassPistonState: file.glassPistonState,
-            stopcockAngleDeg: file.stopcockAngleDeg,
-            ambientPressureKPa: file.ambientPressureKPa,
-            ambientTemperatureK: file.ambientTemperatureK,
-            gasPressureKPaAbs: file.gasPressureKPaAbs,
-            gasTemperatureK: file.gasTemperatureK,
-            pressureDeltaKPa: file.pressureDeltaKPa,
-            simulationTimeS: file.simulationTimeS,
-            lastUpdateMs: file.lastUpdateMs,
-            pressureSignalMvRaw: file.pressureSignalMvRaw,
-            pressureSignalMvDisplayed: file.pressureSignalMvDisplayed,
-            temperatureSignalTargetMv: file.temperatureSignalTargetMv,
-            pressureSignalTargetMv: file.pressureSignalTargetMv,
-            displayResponseLastUpdateMs: file.displayResponseLastUpdateMs,
-            pressureZeroed: file.pressureZeroed,
-            pressureZeroAdjusted: file.pressureZeroAdjusted,
-            pressureZeroKnobAngle: file.pressureZeroKnobAngle,
-            pressureZeroOffset: file.pressureZeroOffset,
-            pressureZeroDisplayText: file.pressureZeroDisplayText,
-            pressureRawPlaceholder: file.pressureRawPlaceholder,
-            pressureDisplayedPlaceholder: file.pressureDisplayedPlaceholder,
-            pressureGaugeTargetValue: file.pressureGaugeTargetValue,
-            pressureGaugeDisplayValue: file.pressureGaugeDisplayValue,
-            pressureGaugeNeedleAngle: file.pressureGaugeNeedleAngle,
-            gaugePressureMinKPa: file.gaugePressureMinKPa,
-            gaugePressureMaxKPa: file.gaugePressureMaxKPa,
-            pressureWarningThresholdKPa: file.pressureWarningThresholdKPa,
-            pressureSafeThresholdKPa: file.pressureSafeThresholdKPa,
-            pressureSafetyThresholdKPa: file.pressureSafetyThresholdKPa,
-            pressureSafetyStatus: file.pressureSafetyStatus,
-            pressureSafetyMessage: file.pressureSafetyMessage,
-            pressureBlockedPumping: file.pressureBlockedPumping,
-            pressureOverLimit: file.pressureOverLimit,
-            pressureZeroMvPerTurn: file.pressureZeroMvPerTurn,
-            pressureZeroAdjustMode: file.pressureZeroAdjustMode,
-            temperatureSignalMv: file.temperatureSignalMv,
-            pressureSignalMv: file.pressureSignalMv,
-            pressureKPa: file.pressureKPa,
-            pressureLimitKPa: file.pressureLimitKPa,
-            pumpValveOpen: file.pumpValveOpen,
-            pumpValveState: file.pumpValveState,
-            pumpBulbState: file.pumpBulbState,
-            pumpStrokeTimestamps: [...file.pumpStrokeTimestamps],
-            pumpFrequency: file.pumpFrequency,
-            pumpFrequencyStatus: file.pumpFrequencyStatus,
-            lastPumpTime: file.lastPumpTime,
-            pumpStrokeCount: file.pumpStrokeCount,
-            pumpHint: file.pumpHint,
-            pressurePlaceholder: file.pressurePlaceholder,
-            temperaturePlaceholder: file.temperaturePlaceholder,
-            recordedPressures: { ...file.recordedPressures },
-            heatCapacityProcessSamples: Object.fromEntries(
-              Object.entries(file.heatCapacityProcessSamples).map(([key, point]) => [key, point ? { ...point } : point]),
-            ),
-            theoreticalGamma: file.theoreticalGamma,
-          }),
-    visiblePanels: [...file.visiblePanels],
-  }))
+        : null,
+      heatCapacityTrials: file.heatCapacityTrials.map((trial) => ({ ...trial })),
+      heatCapacityProcessingResult: {
+        ...file.heatCapacityProcessingResult,
+        trialResults: file.heatCapacityProcessingResult.trialResults.map((trial) => ({ ...trial })),
+      },
+      heatCapacityExperimentProfile: file.heatCapacityExperimentProfile ? { ...file.heatCapacityExperimentProfile } : null,
+      pressureZeroDisplayedSamples: file.pressureZeroDisplayedSamples.map((sample) => ({ ...sample })),
+      pumpStrokeTimestamps: [...file.pumpStrokeTimestamps],
+      recordedPressures: { ...file.recordedPressures },
+      heatCapacityProcessSamples: cloneHeatCapacityProcessSamples(file.heatCapacityProcessSamples),
+      openHeatCapacityTabs: [...file.openHeatCapacityTabs],
+      heatCapacityFreeTrials: file.heatCapacityFreeTrials.map((trial) => ({ ...trial })),
+      heatCapacityFreePhysicsState: { ...file.heatCapacityFreePhysicsState },
+      heatCapacityFreeSensorState: { ...file.heatCapacityFreeSensorState },
+      heatCapacityFreeCalibrationState: {
+        ...file.heatCapacityFreeCalibrationState,
+        zeroEvents: file.heatCapacityFreeCalibrationState.zeroEvents.map((event) => ({ ...event })),
+      },
+    };
+  })
 );
 
 const WorkbenchStudioPrototype: React.FC = () => {
@@ -2524,12 +2492,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
     };
   }, [renamingFileId]);
 
+  const activeIdealRelation = activeFile.kind === 'ideal' ? activeFile.relation : null;
+
   useEffect(() => {
     if (activeFile.kind !== 'ideal' || scanInputFocused) return;
     const value = getRelationVariableNumericValue(activeFile.relation, activeFile.params);
     setScanInputDraft(formatMetric(value, getIdealScanDecimals(activeFile.relation)));
     setScanInputError(null);
-  }, [activeFile.kind, activeFile.relation, activeFile.params, scanInputFocused]);
+  }, [activeFile.kind, activeIdealRelation, activeFile.params, scanInputFocused]);
 
   useEffect(() => {
     if (!scanInputToast) return undefined;
@@ -3844,7 +3814,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             file.heatCapacityFreePhysicsState,
             HEAT_CAPACITY_FREE_RECORD_CONFIG,
           );
-      if (!evaluation.ready) {
+      if (evaluation.ready === false) {
         message = heatCapacityFreeRecordRejectMessages[evaluation.reason];
         return {
           ...file,
@@ -5602,6 +5572,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const rejectLockedIdealControlledVariables = (nextParams: SimulationParams) => {
+    if (activeFile.kind !== 'ideal') return false;
     const lockedKeys = getLockedIdealControlledVariableKeys(nextParams);
     if (lockedKeys.length === 0) return false;
 
@@ -6864,7 +6835,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const scanMax = Math.max(...presetSequence, relationVariableValue);
     const parsed = parseIdealScanInput(rawValue, activeFile.relation, scanMin, scanMax);
 
-    if (!parsed.valid) {
+    if (parsed.valid === false) {
       showScanInputError(parsed.message, { rawValue });
       return false;
     }
@@ -6926,7 +6897,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const scanMax = Math.max(...presetSequence, relationVariableValue);
     const parsed = parseIdealScanInput(scanInputDraft, activeFile.relation, scanMin, scanMax);
 
-    if (!parsed.valid) {
+    if (parsed.valid === false) {
       showScanInputError(parsed.message, { refocus: true, rawValue: scanInputDraft });
       return;
     }
@@ -9104,9 +9075,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const exportAvailable = isExportEnvironmentAvailableStatus(exportEnvironmentStatus);
   const exportCopy = workbenchCopy.exportEnvironment[exportEnvironmentStatus];
   const idealPointCount = idealAnalysis?.sortedPoints.length ?? 0;
-  const currentResultsReady = activeFile.kind === 'ideal'
-    ? idealPointCount > 0
-    : resultSummary.ready;
   const isExportModeDataReady = (mode: WorkbenchExportMode) => (
     activeFile.kind === 'ideal'
       ? mode === 'pointsCsv'
@@ -9309,7 +9277,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
             <div>
               <strong>{workbenchCopy.results.experimentStatus}</strong>
               <span>
-                {getRelationLabel(activeFile.relation)} / {workbenchCopy.results.recordedPoints(idealAnalysis.sortedPoints.length)} / {getLocalizedStatusValue(idealAnalysis.verdictState, workbenchCopy)}
+                {idealPointCount > 0
+                  ? workbenchCopy.results.resultsReady(getRelationLabel(activeFile.relation))
+                  : workbenchCopy.results.waitingForRecordedPoints(getRelationLabel(activeFile.relation))}
+                {' / '}
+                {workbenchCopy.results.recordedPoints(idealAnalysis.sortedPoints.length)}
+                {' / '}
+                {getLocalizedStatusValue(idealAnalysis.verdictState, workbenchCopy)}
               </span>
             </div>
           </div>
@@ -9458,9 +9432,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div className="studio-results-title">
             <strong>{workbenchCopy.results.title}</strong>
             <span>
-              {activeFile.kind === 'ideal'
-                ? (currentResultsReady ? workbenchCopy.results.resultsReady(getRelationLabel(activeFile.relation)) : workbenchCopy.results.waitingForRecordedPoints(getRelationLabel(activeFile.relation)))
-                : resultSummary.ready ? workbenchCopy.results.ready : workbenchCopy.results.notReady}
+              {resultSummary.ready ? workbenchCopy.results.ready : workbenchCopy.results.notReady}
             </span>
           </div>
           <div className="studio-results-actions">

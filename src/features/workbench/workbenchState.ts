@@ -131,6 +131,7 @@ export type WorkbenchHeatCapacityPumpValveState = 'closed' | 'open';
 export type WorkbenchHeatCapacityPumpBulbState = 'idle' | 'compressing' | 'releasing';
 export type WorkbenchHeatCapacityPumpFrequencyStatus = 'idle' | 'tooSlow' | 'suitable';
 export type WorkbenchHeatCapacityPressureZeroAdjustMode = 'none' | 'fineWheel' | 'coarseDrag';
+export type WorkbenchHeatCapacityPressureSafetyStatus = 'normal' | 'warning' | 'danger';
 
 export const HEAT_CAPACITY_FREE_RUNTIME_VERSION = 2;
 export const HEAT_CAPACITY_PUMP_FREQUENCY_WINDOW_MS = 3000;
@@ -248,7 +249,17 @@ export const getHeatCapacityGaugePressureState = (
   powerOn: boolean,
   file: Partial<WorkbenchHeatCapacityState> = {},
   displayedGaugePressureKPa?: number,
-) => {
+): ReturnType<typeof getHeatCapacityGaugeConfig> & {
+  pressureGaugeTargetValue: number;
+  pressureGaugeDisplayValue: number;
+  pressureGaugeNeedleAngle: number;
+  pressureSafeThresholdKPa: number;
+  pressureWarningThresholdKPa: number;
+  pressureSafetyStatus: WorkbenchHeatCapacityPressureSafetyStatus;
+  pressureSafetyMessage: string | null;
+  pressureBlockedPumping: boolean;
+  pressureOverLimit: boolean;
+} => {
   const gaugeConfig = getHeatCapacityGaugeConfig(file);
   const pressureForGauge = powerOn && Number.isFinite(pressureDeltaKPa) ? Math.max(0, pressureDeltaKPa) : 0;
   const pressureForSafetyMv = pressureForGauge * gaugeConfig.pressureSensitivityMvPerKPa;
@@ -268,7 +279,7 @@ export const getHeatCapacityGaugePressureState = (
     (pressureGaugeDisplayValue - gaugeConfig.gaugePressureMinKPa) /
     Math.max(0.001, gaugeConfig.gaugePressureMaxKPa - gaugeConfig.gaugePressureMinKPa)
   );
-  const pressureSafetyStatus = !powerOn
+  const pressureSafetyStatus: WorkbenchHeatCapacityPressureSafetyStatus = !powerOn
     ? 'normal'
     : pressureForSafetyMv >= HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV
       ? 'danger'
@@ -675,7 +686,7 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   pressureWarningThresholdKPa: number;
   pressureSafeThresholdKPa: number;
   pressureSafetyThresholdKPa: number;
-  pressureSafetyStatus: 'normal' | 'warning' | 'danger';
+  pressureSafetyStatus: WorkbenchHeatCapacityPressureSafetyStatus;
   pressureSafetyMessage: string | null;
   pressureBlockedPumping: boolean;
   pressureOverLimit: boolean;

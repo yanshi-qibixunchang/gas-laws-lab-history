@@ -1887,7 +1887,7 @@ function App() {
                                                         openPresetActionMenu(systemPresetConfig, rect.bottom + 8, rect.left - 160);
                                                     }}
                                                     className={`p-1 rounded transition-colors ${isDesktopLike ? 'hover:bg-indigo-100 dark:hover:bg-indigo-800/40' : ''}`}
-                                                    title={t.storage.actions}
+                                                    title={t.storage.moreActions}
                                                 >
                                                     <MoreHorizontal size={12} className="text-slate-400"/>
                                                 </button>

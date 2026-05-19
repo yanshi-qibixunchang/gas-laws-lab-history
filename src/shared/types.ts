@@ -91,7 +91,7 @@ export interface ChartData {
   speed: HistogramBin[];
   energy: HistogramBin[];
   energyLog: { energy: number; logProb: number; theoreticalLog: number }[];
-  tempHistory: { time: number; error: number; totalEnergy: number }[]; // Added totalEnergy
+  tempHistory: { time: number; temperature?: number; targetTemperature?: number; error: number; totalEnergy: number }[];
 }
 
 // Translation Types

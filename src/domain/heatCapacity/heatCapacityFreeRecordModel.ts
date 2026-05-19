@@ -21,10 +21,9 @@ export type {
   HeatCapacityFreeTrial,
 };
 
-export interface HeatCapacityFreeRecordEvaluation {
-  ready: boolean;
-  reason: 'ready' | HeatCapacityFreeRecordRejectReason;
-}
+export type HeatCapacityFreeRecordEvaluation =
+  | { ready: true; reason: 'ready' }
+  | { ready: false; reason: HeatCapacityFreeRecordRejectReason };
 
 export interface HeatCapacityFreeRecordConfig {
   pressureStableSlopeMvPerS: number;
@@ -46,10 +45,11 @@ type HeatCapacityFreeSensorDisplay = ReturnType<typeof getFreeSensorDisplay>;
 
 const createEvaluation = (
   reason: 'ready' | HeatCapacityFreeRecordRejectReason,
-): HeatCapacityFreeRecordEvaluation => ({
-  ready: reason === 'ready',
-  reason,
-});
+): HeatCapacityFreeRecordEvaluation => (
+  reason === 'ready'
+    ? { ready: true, reason }
+    : { ready: false, reason }
+);
 
 const isStopcockCurrentlyOpen = (physics: HeatCapacityFreePhysicsState) => (
   physics.lastStopcockOpenedAtS !== null &&

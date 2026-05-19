@@ -45,6 +45,7 @@ import {
   selectActiveHeatCapacityWorkbenchDisplay,
   setHeatCapacityPressureZeroOffset,
   stepHeatCapacityWorkbenchFile,
+  type WorkbenchHeatCapacityState,
 } from '../../src/features/workbench/workbenchState.ts';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -246,7 +247,7 @@ const resetFreeRun = resetHeatCapacityFreeRunWorkbenchState({
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
   pumpValveOpen: true,
   pumpValveState: 'open',
-  pumpBulbState: 'compressed',
+  pumpBulbState: 'compressing',
   pumpStrokeTimestamps: [1000, 1200],
   pumpFrequency: 2,
   pumpFrequencyStatus: 'suitable',
@@ -337,7 +338,7 @@ assert.equal(
   false,
   'instant zero display still needs a fresh stable sample window before it is accepted as zeroed',
 );
-let freeTeachingLikePumpFile = freePumpReady;
+let freeTeachingLikePumpFile: WorkbenchHeatCapacityState = freePumpReady;
 for (let strokeIndex = 0; strokeIndex < 6; strokeIndex += 1) {
   freeTeachingLikePumpFile = registerHeatCapacityPumpStroke(freeTeachingLikePumpFile, 1_300 + strokeIndex * 430);
 }
@@ -674,7 +675,7 @@ assert.equal(poweredFile.pressureSignalTargetMv, 0);
 assert.equal(poweredFile.hardSphereViewEnabled, false, 'powering on should not automatically enable the teaching visualization');
 assert.equal('heatCapacityTrace' in poweredFile, false, 'powering on should not create chart trace history');
 
-let stableDisplayFile = {
+let stableDisplayFile: WorkbenchHeatCapacityState = {
   ...poweredFile,
   pressureSignalMv: poweredFile.pressureSignalTargetMv,
   temperatureSignalMv: poweredFile.temperatureSignalTargetMv,
@@ -696,7 +697,7 @@ assert.equal(stableTemperatureTargets.size, 1, 'display jitter must not change t
 assert.equal(stablePressureDisplays.size > 1, true, 'stable pressure display should have small last-digit jitter');
 assert.equal(stableTemperatureDisplays.size > 1, true, 'stable temperature display should have small last-digit jitter');
 
-const pressureLoadedFile = {
+const pressureLoadedFile: WorkbenchHeatCapacityState = {
   ...poweredFile,
   gasPressureKPaAbs: poweredFile.ambientPressureKPa + 0.16,
   pressureDeltaKPa: 0.16,
@@ -813,7 +814,7 @@ const autoDemoPumpActionCount = createHeatCapacityAutoDemoSteps()
   .flatMap((step) => step.actions)
   .filter((action) => action.action === 'pumpStroke').length;
 assert.equal(autoDemoPumpActionCount, 7, 'auto demo should keep the teaching pump sequence below the alarm region');
-let autoDemoPressureFile = {
+let autoDemoPressureFile: WorkbenchHeatCapacityState = {
   ...demoStart,
   pumpValveOpen: true,
   pumpValveState: 'open' as const,
@@ -948,7 +949,7 @@ assert.equal(getHeatCapacityPressureReleaseBurstUntilMs({
   pressureSignalTargetMv: (HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA + 0.01) * poweredFile.pressureSensitivityMvPerKPa,
 }, true, 40_000), 41_000, 'opening the stopcock with pressure difference should start a one-second release burst');
 
-const releaseReadyFile = {
+const releaseReadyFile: WorkbenchHeatCapacityState = {
   ...poweredFile,
   powerOn: true,
   pressureZeroAdjusted: true,
@@ -1132,7 +1133,7 @@ assert.equal(openValvePump.pressureSignalTargetMv, 6);
 assert.equal(openValvePump.pressurePlaceholder > poweredFile.pressurePlaceholder, true);
 assert.equal(openValvePump.temperaturePlaceholder > poweredFile.temperaturePlaceholder, true);
 
-let pumpSequenceFile = {
+let pumpSequenceFile: WorkbenchHeatCapacityState = {
   ...poweredFile,
   pumpValveOpen: true,
   pumpValveState: 'open' as const,
@@ -1238,6 +1239,7 @@ const profiledManualSampleSource = {
   temperatureSignalMv: initialTemperatureMv + 6,
   temperatureSignalTargetMv: initialTemperatureMv + 6,
   heatCapacityExperimentProfile: {
+    ...demoTeachingProfile,
     u0MeasuredMv: 0,
     u1MeasuredMv: 116,
     u2MeasuredMv: 33,

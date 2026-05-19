@@ -249,7 +249,8 @@ const getPassivePhase = (
 ): HeatCapacityRuntimePhase => {
   if (!controls.powerOn) return 'powerOff';
   if (controls.demoComplete) return 'demoComplete';
-  if (state.heatCapacityPhase === 'releasing' || state.heatCapacityPhase === 'recovering') {
+  const phase = state.heatCapacityPhase as HeatCapacityRuntimePhase;
+  if (phase === 'releasing' || phase === 'recovering') {
     return controls.stopcockOpen && state.pressureDeltaKPa > HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA
       ? 'releasing'
       : 'recovering';
@@ -257,11 +258,7 @@ const getPassivePhase = (
   if (controls.stopcockOpen && state.pressureDeltaKPa > HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA) return 'releasing';
   if (state.pressureZeroAdjusted && controls.pumpValveOpen && state.pressureDeltaKPa <= 0.02) return 'readyToPump';
   if (state.pressureZeroAdjusted && state.pressureDeltaKPa <= 0.02) return 'zeroed';
-  if (state.pressureDeltaKPa > 0.02) {
-    return state.heatCapacityPhase === 'releasing' || state.heatCapacityPhase === 'recovering'
-      ? 'recovering'
-      : 'sealedStabilizing';
-  }
+  if (state.pressureDeltaKPa > 0.02) return 'sealedStabilizing';
   return 'readyToZero';
 };
 

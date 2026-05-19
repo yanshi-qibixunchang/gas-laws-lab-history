@@ -125,14 +125,14 @@ const normalizeHeatCapacityFreeTrial = (value: unknown): HeatCapacityFreeTrial |
     automaticU0: isRecord(value.automaticU0)
       ? value.automaticU0 as HeatCapacityFreeTrial['automaticU0']
       : null,
-    u0: isRecord(value.u0) ? value.u0 as HeatCapacityFreeTrial['u0'] : null,
-    u1: isRecord(value.u1) ? value.u1 as HeatCapacityFreeTrial['u1'] : null,
-    u2: isRecord(value.u2) ? value.u2 as HeatCapacityFreeTrial['u2'] : null,
+    u0: isRecord(value.u0) ? value.u0 as unknown as HeatCapacityFreeTrial['u0'] : null,
+    u1: isRecord(value.u1) ? value.u1 as unknown as HeatCapacityFreeTrial['u1'] : null,
+    u2: isRecord(value.u2) ? value.u2 as unknown as HeatCapacityFreeTrial['u2'] : null,
     blockedReason: typeof value.blockedReason === 'string'
       ? value.blockedReason as HeatCapacityFreeTrial['blockedReason']
       : null,
     correctedSignals: isRecord(value.correctedSignals) && isRecord(value.u0)
-      ? value.correctedSignals as HeatCapacityFreeTrial['correctedSignals']
+      ? value.correctedSignals as unknown as HeatCapacityFreeTrial['correctedSignals']
       : null,
   };
 };

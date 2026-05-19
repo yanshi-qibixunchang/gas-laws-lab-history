@@ -52,7 +52,7 @@ const standard = {
   finalChartData: {
     speed: [{ binStart: 0, binEnd: 1, count: 2, probability: 0.5, theoretical: 0.45 }],
     energy: [{ binStart: 0, binEnd: 1, count: 2, probability: 0.5, theoretical: 0.45 }],
-    energyLog: [{ binStart: 0, binEnd: 1, count: 2, probability: 0.5, theoretical: 0.45 }],
+    energyLog: [{ energy: 0.5, logProb: -0.69, theoreticalLog: -0.8 }],
     tempHistory: [{ time: 1, temperature: 1.02, targetTemperature: 1, error: 0.02, totalEnergy: 20 }],
   },
 };
