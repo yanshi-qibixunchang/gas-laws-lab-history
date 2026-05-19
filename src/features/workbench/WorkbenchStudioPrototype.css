@@ -2735,14 +2735,14 @@
   font-size: 12px;
 }
 
-.studio-file-tab:not(.studio-file-tab-active) {
+.studio-theme-dark .studio-file-tab:not(.studio-file-tab-active) {
   background: #252c34;
   box-shadow:
     inset 1px 0 0 rgba(255, 255, 255, 0.025),
     inset -1px 0 0 rgba(0, 0, 0, 0.24);
 }
 
-.studio-file-tab:not(.studio-file-tab-active):hover {
+.studio-theme-dark .studio-file-tab:not(.studio-file-tab-active):hover {
   background: #303943;
   color: #d3dce6;
 }
@@ -2769,7 +2769,7 @@
   outline-offset: -2px;
 }
 
-.studio-file-tab-active {
+.studio-theme-dark .studio-file-tab-active {
   border-top: 1px solid rgba(125, 170, 219, 0.74);
   background: #171b20;
   color: var(--studio-text);

@@ -54,14 +54,24 @@ assert.match(
   'workbench 3D canvas should explicitly lay out status above the canvas instead of relying only on Tailwind utilities',
 );
 assert.match(
-  getRuleBody('.studio-file-tab:not(.studio-file-tab-active)'),
+  getRuleBody('.studio-theme-dark .studio-file-tab:not(.studio-file-tab-active)'),
   /background:\s*#[0-9a-fA-F]{6};[\s\S]*box-shadow:/,
   'inactive dark file tabs should have their own surface and separation shadow so adjacent experiments are distinguishable',
 );
 assert.match(
-  getRuleBody('.studio-file-tab-active'),
+  getRuleBody('.studio-theme-dark .studio-file-tab-active'),
   /border-top:\s*1px solid rgba\(125,\s*170,\s*219,\s*0\.[0-9]+\);[\s\S]*box-shadow:[\s\S]*inset 0 2px 0 var\(--studio-accent\)/,
   'active dark file tab should keep a stronger top border and accent stripe',
+);
+assert.equal(
+  getRuleBody('.studio-file-tab:not(.studio-file-tab-active)'),
+  '',
+  'dark inactive file tab styling should not leak into light mode through an unscoped selector',
+);
+assert.equal(
+  getRuleBody('.studio-file-tab-active'),
+  '',
+  'dark active file tab styling should not leak into light mode through an unscoped selector',
 );
 assert.match(
   getRuleBody('.studio-heat-mode-segment-active'),
