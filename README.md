@@ -1,4 +1,4 @@
-# Hard Sphere Lab v4.0.1
+﻿# Hard Sphere Lab v4.0.1
 
 [Simplified Chinese README](./README.zh-CN.md)
 
@@ -22,7 +22,7 @@ The FD-NCD-C air heat-capacity-ratio instrument controls are frozen in v4.0.1. F
 
 The 3D/Blender model is a state-machine-driven visualization and interaction carrier. It must not become the source of truth for `P0`, `P1`, `P2`, `U_p`, `U_T`, or `gamma`; those values come from the experiment state machine and calculation layer.
 
-Independent Blender model development must follow the stable contract in [`仪器建模/Blender模型接入规则-v4.0.1.md`](./%E4%BB%AA%E5%99%A8%E5%BB%BA%E6%A8%A1/Blender%E6%A8%A1%E5%9E%8B%E6%8E%A5%E5%85%A5%E8%A7%84%E5%88%99-v4.0.1.md).
+Independent Blender model development must follow the stable contract in [`docs/instrument-modeling/reference/Blender模型接入规则-v4.0.1.md`](./docs/instrument-modeling/reference/Blender%E6%A8%A1%E5%9E%8B%E6%8E%A5%E5%85%A5%E8%A7%84%E5%88%99-v4.0.1.md).
 
 ## Install And Package
 
@@ -95,9 +95,7 @@ npm.cmd run dev -- --host 127.0.0.1 --port 5174 --strictPort
 ## Verification Commands
 
 ```powershell
-node scripts\heatCapacityTrialModel.test.ts
-node scripts\workbenchHeatCapacityInstrumentUi.test.ts
-node scripts\workbenchHeatCapacityInstrument.test.ts
+npm.cmd test
 npm.cmd exec tsc -- --noEmit
 ```
 
@@ -112,12 +110,17 @@ Then install `release/Hard Sphere Lab Setup 4.0.1.exe` into a clean test directo
 
 ## Repository Layout
 
-- `components/`: workbench UI, canvas, results, export payload, and session helpers.
+- `src/app/`: React entrypoint and app shell.
+- `src/components/`: shared UI components used across features.
+- `src/features/`: feature UI for the workbench, ideal-gas mode, and heat-capacity experiment.
+- `src/domain/`: simulation, ideal-gas, and heat-capacity calculation models.
+- `src/shared/`: shared types and small utilities.
+- `src/i18n/`: localized UI copy.
+- `tests/`: regression tests grouped by feature area.
+- `scripts/`: maintenance scripts such as test discovery and exporter bundling.
 - `electron/`: desktop main and preload bridge for local export.
 - `tools/exporter/`: Python PDF, figure, and CSV exporter.
-- `scripts/`: targeted regression checks and exporter bundling script.
-- `仪器建模/`: FD-NCD-C air heat-capacity-ratio modeling references and Blender model contract.
+- `docs/theory/`: theory notes and derivation documents.
+- `docs/instrument-modeling/`: FD-NCD-C air heat-capacity-ratio modeling references and Blender model contract.
 - `resources/exporter/`: ignored local PyInstaller fallback executable output.
 - `legacy-apk/`: frozen mobile packaging archive, not an active development path.
-
-Generated packages, build outputs, exporter examples, logs, and local installation test directories are intentionally ignored.

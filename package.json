@@ -11,6 +11,7 @@
     "desktop:installer": "vite build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win nsis --x64",
     "desktop:portable": "vite build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win portable --x64",
     "exporter:bundle": "node scripts/bundleExporter.cjs",
+    "test": "node scripts/runTests.cjs",
     "preview": "vite preview"
   },
   "build": {

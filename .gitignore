@@ -1,4 +1,4 @@
-# Logs
+﻿# Logs
 logs
 *.log
 npm-debug.log*
@@ -41,17 +41,9 @@ dist-exporter/
 resources/exporter/hsl-exporter.exe
 resources/exporter/*.spec
 
-# Project-only reference materials, not for GitHub or product releases
-仪器建模/
-仪器建模/**
-
 # Archived Android assets and legacy APK bridge
 legacy-apk/
 services/legacyApk.ts
-
-# Keep instrument modeling references eligible for Git tracking.
-!仪器建模/
-!仪器建模/**
 
 # Android local state and signing materials
 android/.gradle/
