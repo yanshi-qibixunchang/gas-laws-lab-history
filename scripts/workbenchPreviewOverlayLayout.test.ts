@@ -71,8 +71,76 @@ assert.doesNotMatch(workbenchSource, /--heat-record-focus-offset/, 'record contr
 
 assert.match(styleSource, /\.simulation-canvas-workbench-frame[\s\S]*--studio-preview-overlay-inset/, 'standard workbench 3D canvas should inherit the shared overlay inset');
 assert.doesNotMatch(getCssBlock('.simulation-canvas-workbench-tools'), /top:\s*8px/, 'standard 3D tools should not use the old 8px top inset');
+assert.doesNotMatch(getCssBlock('.simulation-canvas-workbench-tools'), /opacity:\s*0\.[0-9]+/, 'standard workbench 3D tools should remain visible like heat capacity overlays');
 assert.doesNotMatch(getCssBlock('.simulation-canvas-workbench-hint'), /left:\s*8px/, 'standard 3D hint should not use the old 8px left inset');
 assert.doesNotMatch(simulationCanvasSource, /cubic-bezier\(0\.34,\s*1\.56,\s*0\.64,\s*1\)/, 'standard 3D canvas floating tools should not keep overshooting motion curves');
+assert.match(
+  simulationCanvasSource,
+  /\{\(isWorkbench \|\| isFocused\) && \(/,
+  'standard and ideal workbench canvases should keep the rotate/pan switch visible before focus',
+);
+assert.match(
+  simulationCanvasSource,
+  /isWorkbench \? t\.canvas\.workbenchDefaultView : \(/,
+  'standard and ideal workbench reset button should render as the same plain text action as heat capacity',
+);
+assert.match(
+  styleSource,
+  /\.simulation-canvas-workbench-reset\s*\{[\s\S]*?height:\s*28px[\s\S]*?font-size:\s*11px/,
+  'standard and ideal reset button should match the heat capacity reset button dimensions',
+);
+assert.match(
+  styleSource,
+  /--studio-preview-corner-button-radius:\s*6px/,
+  'preview corner controls should share one rounded corner token',
+);
+assert.match(
+  styleSource,
+  /--studio-preview-corner-button-shadow:/,
+  'preview corner controls should share one shadow token',
+);
+const previewCornerButtonRule = [...styleSource.matchAll(/\.studio-heat-view-reset,[\s\S]*?\.simulation-canvas-workbench-reset\s*\{[\s\S]*?\}/g)]
+  .map((match) => match[0])
+  .find((rule) => rule.includes('--studio-preview-corner-button-radius')) ?? '';
+for (const selector of [
+  '.studio-heat-view-reset',
+  '.studio-heat-hard-sphere-toggle',
+  '.studio-heat-mode-control',
+  '.studio-heat-mode-action',
+  '.simulation-canvas-workbench-tool',
+  '.simulation-canvas-workbench-reset',
+]) {
+  assert.ok(previewCornerButtonRule.includes(selector), `preview corner control rule should include ${selector}`);
+}
+assert.match(
+  previewCornerButtonRule,
+  /border-radius:\s*var\(--studio-preview-corner-button-radius\)[\s\S]*box-shadow:\s*var\(--studio-preview-corner-button-shadow\)/,
+  'preview corner controls should share the same border radius and shadow',
+);
+const heatPanelActionCornerRule = [...styleSource.matchAll(/\.studio-panel-actions \.studio-heat-mode-action[^{]*\{[^}]*\}/g)]
+  .map((match) => match[0])
+  .find((rule) => rule.includes('--studio-preview-corner-button-radius')) ?? '';
+assert.match(
+  heatPanelActionCornerRule,
+  /border-radius:\s*var\(--studio-preview-corner-button-radius\)[\s\S]*?box-shadow:\s*var\(--studio-preview-corner-button-shadow\)/,
+  'heat capacity top-right mode action buttons should not lose the shared corner radius and shadow to panel-action overrides',
+);
+for (const localizedCanvasCopy of [
+  't.canvas.workbenchStatusActive',
+  't.canvas.workbenchStatusStandby',
+  't.canvas.workbenchInstructions',
+  't.canvas.workbenchDefaultView',
+  't.canvas.workbenchPanModeActive',
+  't.canvas.workbenchRotateModeActive',
+  't.canvas.workbenchClickToActivate',
+]) {
+  assert.ok(simulationCanvasSource.includes(localizedCanvasCopy), `Workbench canvas should render ${localizedCanvasCopy}`);
+}
+assert.doesNotMatch(
+  simulationCanvasSource,
+  /3D controls active|3D view standby|Reset view|Click to activate 3D controls|Pan mode active|Rotate mode active/,
+  'Workbench canvas status, hints, and reset action should not be hardcoded English text',
+);
 
 assert.doesNotMatch(getCssBlock('.studio-heat-hard-sphere-toggle'), /position:\s*absolute/, 'hard-sphere toggle should be positioned by its slot');
 assert.match(styleSource, /@keyframes studioOverlayEnterLeft/, 'left-side overlays should have a left-in motion rule');

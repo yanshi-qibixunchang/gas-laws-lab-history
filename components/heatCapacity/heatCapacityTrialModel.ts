@@ -36,7 +36,7 @@ export interface HeatCapacityTrialRecordResult {
   nextActiveTrialIndex: number;
 }
 
-export type HeatCapacityTrialRecordRemovalKind = 'u1' | 'u2' | 'trial';
+export type HeatCapacityTrialRecordRemovalKind = 'u0' | 'u1' | 'u2' | 'trial';
 
 export interface HeatCapacityTrialRecordRemovalResult {
   trials: HeatCapacityTrial[];
@@ -218,6 +218,7 @@ export const removeHeatCapacityTrialRecord = (
   return {
     trials: trials.map((trial, index) => {
       if (index !== boundedIndex) return trial;
+      if (kind === 'u0') return trial;
       if (kind === 'u1') {
         return {
           ...trial,

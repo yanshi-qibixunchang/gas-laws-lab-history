@@ -60,13 +60,13 @@ assert.match(
 
 assert.match(
   source,
-  /const updateSettingsThemePreference = \(theme: WorkbenchThemePreference\) => \{[\s\S]*?setSettingsThemePreference\(theme\);[\s\S]*?persistWorkbenchGeneralSettings\(\{ theme, language: settingsLanguagePreference \}\);[\s\S]*?\};/,
+  /const updateSettingsThemePreference = \(theme: WorkbenchThemePreference\) => \{[\s\S]*?setSettingsThemePreference\(theme\);[\s\S]*?persistWorkbenchGeneralSettings\(\{ theme, language: settingsLanguagePreference, performanceMode: settingsPerformanceMode \}\);[\s\S]*?\};/,
   'theme option clicks should update state and persist immediately',
 );
 
 assert.match(
   source,
-  /const updateSettingsLanguagePreference = \(language: WorkbenchLanguagePreference\) => \{[\s\S]*?setSettingsLanguagePreference\(language\);[\s\S]*?setSettingsLanguageMenuOpen\(false\);[\s\S]*?persistWorkbenchGeneralSettings\(\{ theme: settingsThemePreference, language \}\);[\s\S]*?\};/,
+  /const updateSettingsLanguagePreference = \(language: WorkbenchLanguagePreference\) => \{[\s\S]*?setSettingsLanguagePreference\(language\);[\s\S]*?setSettingsLanguageMenuOpen\(false\);[\s\S]*?persistWorkbenchGeneralSettings\(\{ theme: settingsThemePreference, language, performanceMode: settingsPerformanceMode \}\);[\s\S]*?\};/,
   'language option clicks should update state, close the capsule menu, and persist immediately',
 );
 

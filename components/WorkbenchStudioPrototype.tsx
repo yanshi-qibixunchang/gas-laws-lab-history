@@ -44,12 +44,14 @@ import {
   createDefaultIdealWindowLayout,
   createDefaultStandardFile,
   createDefaultStandardResultsLayout,
+  enterHeatCapacityFreeModeWorkbenchState,
   getHeatCapacityStopcockTargetAngle,
   getHeatCapacityStopcockState,
   getHeatCapacityPressureReleaseBurstUntilMs,
   getHeatCapacityPressureZeroKnobAngleForOffset,
   getHeatCapacityPressureZeroOffsetForKnobAngle,
   getHeatCapacityPumpFrequencyState,
+  HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
   HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV,
   HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
   HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV,
@@ -64,6 +66,8 @@ import {
   refreshHeatCapacityPumpFrequency,
   registerHeatCapacityPumpStroke,
   resetHeatCapacityForManualExperiment,
+  resetHeatCapacityFreeRunWorkbenchState,
+  selectActiveHeatCapacityWorkbenchDisplay,
   setHeatCapacityPressureZeroOffset,
   stepHeatCapacityWorkbenchFile,
   WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
@@ -110,6 +114,20 @@ import {
   type HeatCapacityTrialRecordInput,
   type HeatCapacityTrialRecordRemovalKind,
 } from './heatCapacity/heatCapacityTrialModel.ts';
+import {
+  evaluateFreeU0Record,
+  evaluateFreeU1Record,
+  evaluateFreeU2Record,
+  recordFreeU0,
+  recordFreeU1,
+  recordFreeU2,
+  type HeatCapacityFreeRecordRejectReason,
+} from './heatCapacity/heatCapacityFreeRecordModel.ts';
+import {
+  calculateFreeHeatCapacityMeanResult,
+  createHeatCapacityFreeTrial,
+  removeHeatCapacityFreeTrialRecord,
+} from './heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
   createHeatCapacityExperimentProfile,
   createHeatCapacityExperimentSeed,
@@ -224,9 +242,31 @@ const HEAT_CAPACITY_GUIDE_START_NOTICE_MS = 1000;
 const HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS = 2000;
 const HEAT_CAPACITY_PRESSURE_ALARM_DURATION_MS = 2000;
 const HEAT_CAPACITY_CLOSE_PUMP_VALVE_REMINDER_AFTER_ALARM_MS = 220;
+const HEAT_CAPACITY_FREE_RESET_FEEDBACK_MS = 650;
 const HEAT_CAPACITY_PRESSURE_WARNING_MESSAGE = '压强接近安全阈值，请准备停止打气。';
 const HEAT_CAPACITY_PRESSURE_ALARM_MESSAGE = '压强已超过安全阈值，请停止打气。';
 const HEAT_CAPACITY_CLOSE_PUMP_VALVE_REMINDER = '请关闭打气阀门。';
+const HEAT_CAPACITY_FREE_RECORD_CONFIG = {
+  pressureStableSlopeMvPerS: 0.25,
+  temperatureStableSlopeMvPerS: 0.12,
+  temperatureAmbientToleranceMv: 0.35,
+  u0ZeroToleranceMv: 0.12,
+  minimumUsefulU1CorrectedMv: 90,
+  overVentedMinimumU2CorrectedMv: 0.2,
+  pressureDangerMv: HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV,
+};
+const heatCapacityFreeRecordRejectMessages: Record<HeatCapacityFreeRecordRejectReason, string> = {
+  'zero-not-ready': '请先开电源、打开旋塞并完成调零，待 Uₚ 稳定接近 0 后再记录 U₀。',
+  'missing-u0': '请先点击记录 U₀，再记录 U₁ 或 U₂。',
+  'calibration-changed': '调零状态已改变，请重新记录 U₀ 后再继续。',
+  'unstable-pressure': '压强读数仍在变化，请等待稳定后再记录。',
+  'unstable-temperature': '温度读数仍在变化，请等待回到稳定环境值后再记录。',
+  'insufficient-u1': 'U₁ 压强差不足，请关闭旋塞并继续打气到有效范围。',
+  'release-not-started': '请先完成快速放气并关闭旋塞，再记录 U₂。',
+  'over-vented': '放气过度，U₂ 已低于有效范围；请重新开始本组 Free trial。',
+  'pressure-danger': HEAT_CAPACITY_PRESSURE_ALARM_MESSAGE,
+  'invalid-sequence': '当前操作顺序不能记录该数据点，请按 U₀、U₁、U₂ 的顺序进行。',
+};
 const HEAT_CAPACITY_TOAST_PRIORITY: Record<HeatCapacityToastLevel, number> = {
   info: 0,
   success: 0,
@@ -310,6 +350,7 @@ interface WorkbenchCopy {
     userGuide: string;
     theoryPdf: string;
     about: string;
+    topCommandsAria: string;
   };
   settings: {
     title: string;
@@ -352,6 +393,8 @@ interface WorkbenchCopy {
     std: string;
     ideal: string;
     heat: string;
+    workspaceAria: string;
+    openActions: (name: string) => string;
   };
   panels: {
     previewTitle: string;
@@ -372,6 +415,7 @@ interface WorkbenchCopy {
     summaryTitle: string;
     dataTableTitle: string;
     figuresTitle: string;
+    liveWorkspaceResizeAria: string;
   };
   parameters: {
     title: string;
@@ -393,6 +437,10 @@ interface WorkbenchCopy {
     particleCount: string;
     customPreset: string;
     setSamplingPrecision: string;
+    relationHints: Record<ExperimentRelation, string>;
+    setScanValue: (title: string) => string;
+    adjustScanValue: (title: string) => string;
+    recommendedValues: (title: string) => string;
     parameterLabels: Record<ExperimentParamKey | 'relation', string>;
     samplingPresets: Record<IdealSamplingPresetKey, string>;
     samplingDuration: (equilibriumTime: number, statsDuration: number) => string;
@@ -418,10 +466,13 @@ interface WorkbenchCopy {
     title: string;
     experimentStatus: string;
     scan: string;
+    temperature: string;
+    pressure: string;
     measuredPressure: string;
     idealPressure: string;
     gap: string;
     pointsTitle: (relation: string) => string;
+    pointsShort: (count: number) => string;
     recordedPoints: (count: number) => string;
     clearRelation: string;
     confirmClear: string;
@@ -530,6 +581,7 @@ interface WorkbenchCopy {
     experimentPointTableBody: string;
     idealResultsSectionsAria: string;
     openIdealResultsTabTitle: string;
+    verificationChartAria: (relation: string) => string;
     resultsTreeExpandAria: string;
     resultsTreeCollapseAria: string;
     resultsOpenHint: string;
@@ -656,7 +708,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       standardStudy: '标准模拟研究', idealStudy: '理想气体模拟研究', heatCapacityStudy: '空气比热容比实验', undo: '撤销', redo: '重做', empty: '空',
       clearEditHistory: '清空编辑历史', panelsFor: (name) => name + ' 的面板', resetDefaultLayout: '恢复默认布局', default: '默认',
       performanceMode: '性能模式', exportEnvironment: '导出环境', saveWorkbenchLayoutDefault: '保存当前窗口布局为默认',
-      userGuide: '用户指南', theoryPdf: '理论文档 PDF', about: '关于 Hard Sphere Workbench',
+      userGuide: '用户指南', theoryPdf: '理论文档 PDF', about: '关于 Hard Sphere Workbench', topCommandsAria: '顶部命令',
     },
     settings: {
       title: '通用设置', subtitle: '主题、语言、快捷键和布局偏好', closeAria: '关闭通用设置', theme: '主题', themeHint: '使用系统、亮色或暗色模式',
@@ -674,31 +726,31 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       openFiles: '打开文件', files: '文件', panels: '面板', noOpenFiles: '没有打开的文件', emptyHint: '创建一个研究以填充工作区。',
       noOpenStudy: '没有打开的研究', emptyTitle: '开始新的硬球工作台文件', emptyBody: '创建标准模拟或理想气体关系研究，以恢复预览、图表、结果和参数面板。',
       createStandard: '创建标准模拟研究', createIdeal: '创建理想气体模拟研究', createHeatCapacity: '创建空气比热容比实验', rename: '重命名', delete: '删除', confirmDelete: '确认删除', cancel: '取消',
-      locked: '锁定', shown: '显示', open: '打开', active: '活动', off: '关闭', std: '标准', ideal: '理想', heat: 'HEAT',
+      locked: '锁定', shown: '显示', open: '打开', active: '活动', off: '关闭', std: '标准', ideal: '理想', heat: 'HEAT', workspaceAria: '文件工作区', openActions: (name) => '打开 ' + name + ' 的操作菜单',
     },
     panels: {
       previewTitle: '3D 预览', previewHint: '实时分子视口', realtimeTitle: '实时数据 / 图表', heatRealtimeTitle: '实时数据', standardRealtimeHint: '实时温度、压力和图表轨迹', idealRealtimeHint: '实时 T、P、关系和图表轨迹', heatRealtimeHint: 'Uₜ / Uₚ、压强和过程采样',
       standardResultsTitle: '结果', standardResultsHint: '实验状态、数据表和图像', idealResultsTitle: '结果', idealResultsHint: '验证图、历史解锁和导出详情',
-      pointsTitle: '点', pointsHint: '已记录的关系点', verificationTitle: '验证', verificationHint: '验证图、诊断和导出详情',
-      summaryTitle: '摘要', dataTableTitle: '数据表', figuresTitle: '图像',
+      pointsTitle: '实验数据记录', pointsHint: '已记录的关系实验点', verificationTitle: '关系验证分析', verificationHint: '验证图、诊断和导出详情',
+      summaryTitle: '摘要', dataTableTitle: '数据表', figuresTitle: '图像', liveWorkspaceResizeAria: '调整视图预览和实时数据区域大小',
     },
     parameters: {
       title: '当前参数', currentFileValues: '当前文件值', lockedUntilStopped: '停止或完成前锁定', editValues: '编辑参数值', hide: '隐藏',
       standardSimulation: '标准模拟', idealSimulation: '理想气体模拟', heatCapacityExperiment: '空气比热容比实验', savedChangesOnStart: '启动时已保存参数', idealRuntimeOnStart: '理想运行时将在开始时连接', applied: '参数已应用',
-      relation: '关系', scanVariable: '扫描变量', samplingPreset: '采样预设', targetTemperature: '目标温度', boxLength: '盒长 L', particleCount: '粒子数 N', customPreset: '自定义', setSamplingPrecision: '设置采样精度',
+      relation: '关系', scanVariable: '扫描变量', samplingPreset: '采样预设', targetTemperature: '目标温度', boxLength: '盒长 L', particleCount: '粒子数 N', customPreset: '自定义', setSamplingPrecision: '设置采样精度', relationHints: { pt: '固定 N 和 V 扫描温度', pv: '通过盒长 L 扫描体积', pn: '固定 T 和 V 扫描粒子数' }, setScanValue: (title) => '设置' + title, adjustScanValue: (title) => '调整' + title, recommendedValues: (title) => title + '推荐值',
       parameterLabels: { N: 'N（粒子）', r: 'r', L: 'L', dt: 'dt', nu: 'nu', targetTemperature: '目标温度', equilibriumTime: '平衡时间（s）', statsDuration: '统计时长（s）', relation: '关系' },
       samplingPresets: { fast: '快速', balanced: '平衡', stable: '稳定' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's 平衡 / ' + statsDuration + 's 统计',
       advancedSettings: '高级设置', advancedShow: '显示模型常数和采样值', advancedHide: '隐藏模型常数和采样值', edit: '编辑', save: '保存', saveHint: '保存高级参数到当前工作台文件',
       standardReadonlyNote: '标准模拟参数在这里直接显示。', idealReadonlyNote: '关系、扫描变量和采样预设在上方控制。', heatCapacityReadonlyNote: '粒子动画仅用于可视化气体分子运动状态；最终比热容比按 FD-NCD-C 空气实验模型计算。', microscopicVisualization: '微观可视化', hardSphereView: '硬球可视化', hardSphereOn: '开', hardSphereOff: '关', hardSphereParticleMultiplier: '粒子数量倍率', hardSphereSpeedMultiplier: '粒子速度倍率', hardSphereTeachingOnly: '只影响三维教学显示，不参与 Uₜ、Uₚ、U₀/U₁/U₂ 或 gamma 计算。', controlledLockHint: '当前关系已有数据，受控变量已锁定。',
     },
     results: {
-      title: '结果', experimentStatus: '实验状态', scan: '扫描', measuredPressure: '实测 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 点', recordedPoints: (count) => count + ' 个记录点',
+      title: '结果', experimentStatus: '实验状态', scan: '扫描', temperature: '温度', pressure: '压强', measuredPressure: '实测 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 点', pointsShort: (count) => count + ' 点', recordedPoints: (count) => count + ' 个记录点',
       clearRelation: '清空关系', confirmClear: '确认清空', remove: '移除', confirmRemove: '确认移除', cancel: '取消', noPoints: '没有点', runToRecord: '运行实验以记录点。', tableAction: '操作', tableTime: '时间',
       finalState: '最终状态', meanSpeed: '平均速度', measuredBars: '实测柱', idealLine: '理想线', samples: (count) => count + ' 个样本', sampleWindows: (count) => count + ' 次采样', waiting: '等待中', finalSpeedSamples: '最终速度样本', finalEnergySamples: '最终能量样本', tempHistorySamples: '温度历史样本', finalDataReady: '最终数据就绪', energyDrift: '能量漂移', meanAbsTempError: '平均绝对温度误差', tempSamples: '温度样本', resultsReady: (relation) => relation + ' 实验结果已就绪', waitingForRecordedPoints: (relation) => relation + ' 等待记录点',
       metric: '指标', value: '值', status: '状态', ready: '就绪', notReady: '未就绪', yes: '是', no: '否', diagnostic: '诊断', export: '导出', exportFigures: '导出图像', reportPdf: '报告 PDF', verificationFigure: '验证图', pointsCsv: '点 CSV', verification: '验证', rawPv: '原始 P-V', history: '历史',
-      resultReadyStatus: '结果就绪', resultNotReadyStatus: '结果未就绪', resultReadyDetail: '最终数据已捕获，可用于摘要、表格、图像和后续报告导出。', resultNotReadyDetail: '运行标准模拟，直到采集阶段结束后生成最终结果数据。', finalTime: '最终时间', finalTemperature: '最终温度', finalPressure: '最终压力', rmsSpeed: '均方根速度', speedBins: '速度分箱', energyBins: '能量分箱', notReadyPreview: '未就绪', figuresHint: '图像就绪状态、推荐文件名和预览。', noIdealPointsTitle: '没有理想气体点', noIdealPointsBody: '选择理想气体文件以查看实验点。', activeRelation: '当前关系', noIdealVerificationTitle: '没有验证图', noIdealVerificationBody: '验证图仅适用于理想气体文件。', historyLockedFor: (relation) => relation + ' 的历史内容已锁定', historyUnlocked: '已由验证通过的实验数据解锁。', historyUnlockHint: '通过一次成功验证后解锁。', historicalContext: '历史背景', workbenchInterpretation: '工作台解释', keyFigures: '关键数值', keyFiguresValue: (rSquared, slopeError) => 'R2 ' + rSquared + ' / 斜率误差 ' + slopeError, whyLocked: '为什么锁定', whyItHappened: '原因说明', recommendedNextStep: '建议下一步', exportFilesHint: '导出环境和推荐文件。', pvLinearizedValidation: 'P - 1/V 线性化验证', relationValidation: (relation) => relation + ' 验证', measuredScatterHint: '实测散点、拟合线与理论参考。', originalPvPhysicalView: '原始 P - V 物理视图', originalPvPhysicalHint: '直接显示反比关系，判定仍使用线性化视图。', verdictLabel: (relation, verdict) => relation + ' 判定：' + verdict, pointsMetric: '点数', rSquared: 'R2', slope: '拟合斜率', theorySlope: '理论斜率', slopeError: '斜率误差', failureReason: '未通过原因', noneValue: '无', currentVerification: (rSquared, slopeError) => '当前验证：R2 ' + rSquared + '，斜率误差 ' + slopeError + '。', currentVerdictRecommendation: (verdict, recommendation) => '当前判定：' + verdict + '。建议：' + recommendation, noIdealHistoryTitle: '没有理想气体历史内容', noIdealHistoryBody: '理想气体验证通过后会解锁历史内容。', noVerificationChartTitle: '没有验证图', noVerificationChartBody: '验证图仅适用于理想气体文件。', panelNotConnectedTitle: '面板尚未连接', panelNotConnectedBody: '该面板将在后续工作台集成批次中接入。', measuredLegend: '实测', fitLegend: '拟合', theoryLegend: '理论', idealPressureTrace: (relation) => relation + ' 压强轨迹', currentIdealPressureHint: '运行当前理想气体点以采集压强窗口。', meanTemperature: '平均温度', relativeGap: '相对差值', samplingProgress: '采样进度', speedDistribution: '速度分布', energyDistribution: '能量分布', phase: '阶段', phaseStates: { idle: '空闲', equilibrating: '热平衡中', collecting: '采集中', finished: '已完成' }, probabilityDensity: '概率密度', experimentPointTableTitle: '没有实验点表', experimentPointTableBody: '实验点表仅适用于理想气体文件。', idealResultsSectionsAria: '理想气体结果分页', openIdealResultsTabTitle: '打开此理想气体结果分页。', resultsTreeExpandAria: '展开结果分区', resultsTreeCollapseAria: '折叠结果分区', resultsOpenHint: '点击选择，双击打开。', resultsJumpHint: '双击打开结果并跳转到此分区。', figureStatus: { ready: '就绪', 'not-ready': '未就绪', 'not-applicable': '不适用' },
+      resultReadyStatus: '结果就绪', resultNotReadyStatus: '结果未就绪', resultReadyDetail: '最终数据已捕获，可用于摘要、表格、图像和后续报告导出。', resultNotReadyDetail: '运行标准模拟，直到采集阶段结束后生成最终结果数据。', finalTime: '最终时间', finalTemperature: '最终温度', finalPressure: '最终压力', rmsSpeed: '均方根速度', speedBins: '速度分箱', energyBins: '能量分箱', notReadyPreview: '未就绪', figuresHint: '图像就绪状态、推荐文件名和预览。', noIdealPointsTitle: '没有理想气体点', noIdealPointsBody: '选择理想气体文件以查看实验点。', activeRelation: '当前关系', noIdealVerificationTitle: '没有验证图', noIdealVerificationBody: '验证图仅适用于理想气体文件。', historyLockedFor: (relation) => relation + ' 的历史内容已锁定', historyUnlocked: '已由验证通过的实验数据解锁。', historyUnlockHint: '通过一次成功验证后解锁。', historicalContext: '历史背景', workbenchInterpretation: '工作台解释', keyFigures: '关键数值', keyFiguresValue: (rSquared, slopeError) => 'R2 ' + rSquared + ' / 斜率误差 ' + slopeError, whyLocked: '为什么锁定', whyItHappened: '原因说明', recommendedNextStep: '建议下一步', exportFilesHint: '导出环境和推荐文件。', pvLinearizedValidation: 'P - 1/V 线性化验证', relationValidation: (relation) => relation + ' 验证', measuredScatterHint: '实测散点、拟合线与理论参考。', originalPvPhysicalView: '原始 P - V 物理视图', originalPvPhysicalHint: '直接显示反比关系，判定仍使用线性化视图。', verdictLabel: (relation, verdict) => relation + ' 判定：' + verdict, pointsMetric: '点数', rSquared: 'R2', slope: '拟合斜率', theorySlope: '理论斜率', slopeError: '斜率误差', failureReason: '未通过原因', noneValue: '无', currentVerification: (rSquared, slopeError) => '当前验证：R2 ' + rSquared + '，斜率误差 ' + slopeError + '。', currentVerdictRecommendation: (verdict, recommendation) => '当前判定：' + verdict + '。建议：' + recommendation, noIdealHistoryTitle: '没有理想气体历史内容', noIdealHistoryBody: '理想气体验证通过后会解锁历史内容。', noVerificationChartTitle: '没有验证图', noVerificationChartBody: '验证图仅适用于理想气体文件。', panelNotConnectedTitle: '面板尚未连接', panelNotConnectedBody: '该面板将在后续工作台集成批次中接入。', measuredLegend: '实测', fitLegend: '拟合', theoryLegend: '理论', idealPressureTrace: (relation) => relation + ' 压强轨迹', currentIdealPressureHint: '运行当前理想气体点以采集压强窗口。', meanTemperature: '平均温度', relativeGap: '相对差值', samplingProgress: '采样进度', speedDistribution: '速度分布', energyDistribution: '能量分布', phase: '阶段', phaseStates: { idle: '空闲', equilibrating: '热平衡中', collecting: '采集中', finished: '已完成' }, probabilityDensity: '概率密度', experimentPointTableTitle: '没有实验点表', experimentPointTableBody: '实验点表仅适用于理想气体文件。', idealResultsSectionsAria: '理想气体结果分页', openIdealResultsTabTitle: '打开此理想气体结果分页。', verificationChartAria: (relation) => relation + ' 验证图', resultsTreeExpandAria: '展开结果分区', resultsTreeCollapseAria: '折叠结果分区', resultsOpenHint: '点击选择，双击打开。', resultsJumpHint: '双击打开结果并跳转到此分区。', figureStatus: { ready: '就绪', 'not-ready': '未就绪', 'not-applicable': '不适用' },
     },
-    actions: { start: '开始', pause: '暂停', stop: '停止', close: '关闭', resetView: '重置视图', hide: '隐藏', cancel: '取消' },
+    actions: { start: '开始', pause: '暂停', stop: '停止', close: '关闭', resetView: '默认视角', hide: '隐藏', cancel: '取消' },
     shortcuts: { title: '快捷键', hint: '常用工作台快捷键', undo: '撤销', redo: '重做', closeSettings: '关闭设置' },
     console: { title: '控制台 / 输出', tabs: { logs: '日志', warnings: '警告', summary: '摘要' }, total: '总计', info: '信息', success: '成功', warnings: '警告', errors: '错误', latest: '最新', runtime: '运行时', noLogs: '暂无日志。', noWarnings: '暂无警告或错误。' },
     status: { activeFile: (name) => '当前文件：' + name, selectedBlock: (name) => '选中板块：' + name, none: '无', noRuntime: '未连接运行时', standardRuntime: '标准运行时已连接', idealRuntime: (relation, verdict) => '理想运行时已连接 / ' + relation + ' / ' + verdict, runStates: { idle: '空闲', running: '运行中', paused: '已暂停', finished: '已完成', 'needs-reset': '需要重置' }, verdictStates: { insufficient: '数据不足', collecting: '采集中', verified: '已验证', failed: '未通过', preliminary: '初步成立', notYet: '尚未成立', 'not-started': '尚未开始' } },
@@ -717,7 +769,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       standardStudy: '標準模擬研究', idealStudy: '理想氣體模擬研究', heatCapacityStudy: '空氣比熱容比實驗', undo: '復原', redo: '重做', empty: '空',
       clearEditHistory: '清除編輯記錄', panelsFor: (name) => name + ' 的面板', resetDefaultLayout: '還原預設版面', default: '預設',
       performanceMode: '效能模式', exportEnvironment: '匯出環境', saveWorkbenchLayoutDefault: '將目前視窗版面存為預設',
-      userGuide: '使用指南', theoryPdf: '理論文件 PDF', about: '關於 Hard Sphere Workbench',
+      userGuide: '使用指南', theoryPdf: '理論文件 PDF', about: '關於 Hard Sphere Workbench', topCommandsAria: '頂部命令',
     },
     settings: {
       title: '一般設定', subtitle: '主題、語言、快捷鍵與版面偏好', closeAria: '關閉一般設定', theme: '主題', themeHint: '使用系統、亮色或暗色模式',
@@ -735,31 +787,31 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       openFiles: '開啟檔案', files: '檔案', panels: '面板', noOpenFiles: '沒有開啟的檔案', emptyHint: '建立一個研究以填入工作區。',
       noOpenStudy: '沒有開啟的研究', emptyTitle: '開始新的硬球工作台檔案', emptyBody: '建立標準模擬或理想氣體關係研究，以恢復預覽、圖表、結果和參數面板。',
       createStandard: '建立標準模擬研究', createIdeal: '建立理想氣體模擬研究', createHeatCapacity: '建立空氣比熱容比實驗', rename: '重新命名', delete: '刪除', confirmDelete: '確認刪除', cancel: '取消',
-      locked: '鎖定', shown: '顯示', open: '開啟', active: '作用中', off: '關閉', std: '標準', ideal: '理想', heat: 'HEAT',
+      locked: '鎖定', shown: '顯示', open: '開啟', active: '作用中', off: '關閉', std: '標準', ideal: '理想', heat: 'HEAT', workspaceAria: '檔案工作區', openActions: (name) => '開啟 ' + name + ' 的操作選單',
     },
     panels: {
       previewTitle: '3D 預覽', previewHint: '即時分子視口', realtimeTitle: '即時資料 / 圖表', heatRealtimeTitle: '即時資料', standardRealtimeHint: '即時溫度、壓力和圖表軌跡', idealRealtimeHint: '即時 T、P、關係和圖表軌跡', heatRealtimeHint: 'Uₜ / Uₚ、壓強和過程採樣',
       standardResultsTitle: '結果', standardResultsHint: '實驗狀態、資料表和圖像', idealResultsTitle: '結果', idealResultsHint: '驗證圖、歷史解鎖和匯出詳情',
-      pointsTitle: '點', pointsHint: '已記錄的關係點', verificationTitle: '驗證', verificationHint: '驗證圖、診斷和匯出詳情',
-      summaryTitle: '摘要', dataTableTitle: '資料表', figuresTitle: '圖像',
+      pointsTitle: '實驗資料記錄', pointsHint: '已記錄的關係實驗點', verificationTitle: '關係驗證分析', verificationHint: '驗證圖、診斷和匯出詳情',
+      summaryTitle: '摘要', dataTableTitle: '資料表', figuresTitle: '圖像', liveWorkspaceResizeAria: '調整視圖預覽和即時資料區域大小',
     },
     parameters: {
       title: '目前參數', currentFileValues: '目前檔案值', lockedUntilStopped: '停止或完成前鎖定', editValues: '編輯參數值', hide: '隱藏',
       standardSimulation: '標準模擬', idealSimulation: '理想氣體模擬', heatCapacityExperiment: '空氣比熱容比實驗', savedChangesOnStart: '啟動時已儲存參數', idealRuntimeOnStart: '理想執行階段將在開始時連接', applied: '參數已套用',
-      relation: '關係', scanVariable: '掃描變量', samplingPreset: '採樣預設', targetTemperature: '目標溫度', boxLength: '盒長 L', particleCount: '粒子數 N', customPreset: '自訂', setSamplingPrecision: '設定採樣精度',
+      relation: '關係', scanVariable: '掃描變量', samplingPreset: '採樣預設', targetTemperature: '目標溫度', boxLength: '盒長 L', particleCount: '粒子數 N', customPreset: '自訂', setSamplingPrecision: '設定採樣精度', relationHints: { pt: '固定 N 和 V 掃描溫度', pv: '透過盒長 L 掃描體積', pn: '固定 T 和 V 掃描粒子數' }, setScanValue: (title) => '設定' + title, adjustScanValue: (title) => '調整' + title, recommendedValues: (title) => title + '建議值',
       parameterLabels: { N: 'N（粒子）', r: 'r', L: 'L', dt: 'dt', nu: 'nu', targetTemperature: '目標溫度', equilibriumTime: '平衡時間（s）', statsDuration: '統計時長（s）', relation: '關係' },
       samplingPresets: { fast: '快速', balanced: '平衡', stable: '穩定' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's 平衡 / ' + statsDuration + 's 統計',
       advancedSettings: '進階設定', advancedShow: '顯示模型常數和採樣值', advancedHide: '隱藏模型常數和採樣值', edit: '編輯', save: '儲存', saveHint: '將進階參數儲存到目前工作台檔案',
       standardReadonlyNote: '標準模擬參數在這裡直接顯示。', idealReadonlyNote: '關係、掃描變量和採樣預設在上方控制。', heatCapacityReadonlyNote: '粒子動畫僅用於視覺化氣體分子運動狀態；最終比熱容比按 FD-NCD-C 空氣實驗模型計算。', microscopicVisualization: '微觀可視化', hardSphereView: '硬球可視化', hardSphereOn: '開', hardSphereOff: '關', hardSphereParticleMultiplier: '粒子數量倍率', hardSphereSpeedMultiplier: '粒子速度倍率', hardSphereTeachingOnly: '只影響三維教學顯示，不參與 Uₜ、Uₚ、U₀/U₁/U₂ 或 gamma 計算。', controlledLockHint: '目前關係已有資料，受控變量已鎖定。',
     },
     results: {
-      title: '結果', experimentStatus: '實驗狀態', scan: '掃描', measuredPressure: '實測 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 點', recordedPoints: (count) => count + ' 個記錄點',
+      title: '結果', experimentStatus: '實驗狀態', scan: '掃描', temperature: '溫度', pressure: '壓強', measuredPressure: '實測 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 點', pointsShort: (count) => count + ' 點', recordedPoints: (count) => count + ' 個記錄點',
       clearRelation: '清空關係', confirmClear: '確認清空', remove: '移除', confirmRemove: '確認移除', cancel: '取消', noPoints: '沒有點', runToRecord: '執行實驗以記錄點。', tableAction: '操作', tableTime: '時間',
       finalState: '最終狀態', meanSpeed: '平均速度', measuredBars: '實測柱', idealLine: '理想線', samples: (count) => count + ' 個樣本', sampleWindows: (count) => count + ' 次採樣', waiting: '等待中', finalSpeedSamples: '最終速度樣本', finalEnergySamples: '最終能量樣本', tempHistorySamples: '溫度歷史樣本', finalDataReady: '最終資料就緒', energyDrift: '能量漂移', meanAbsTempError: '平均絕對溫度誤差', tempSamples: '溫度樣本', resultsReady: (relation) => relation + ' 實驗結果已就緒', waitingForRecordedPoints: (relation) => relation + ' 等待記錄點',
       metric: '指標', value: '值', status: '狀態', ready: '就緒', notReady: '未就緒', yes: '是', no: '否', diagnostic: '診斷', export: '匯出', exportFigures: '匯出圖像', reportPdf: '報告 PDF', verificationFigure: '驗證圖', pointsCsv: '點 CSV', verification: '驗證', rawPv: '原始 P-V', history: '歷史',
-      resultReadyStatus: '結果就緒', resultNotReadyStatus: '結果未就緒', resultReadyDetail: '最終資料已擷取，可用於摘要、表格、圖像和後續報告匯出。', resultNotReadyDetail: '執行標準模擬，直到採集階段結束後產生最終結果資料。', finalTime: '最終時間', finalTemperature: '最終溫度', finalPressure: '最終壓力', rmsSpeed: '均方根速度', speedBins: '速度分箱', energyBins: '能量分箱', notReadyPreview: '未就緒', figuresHint: '圖像就緒狀態、建議檔名和預覽。', noIdealPointsTitle: '沒有理想氣體點', noIdealPointsBody: '選擇理想氣體檔案以查看實驗點。', activeRelation: '目前關係', noIdealVerificationTitle: '沒有驗證圖', noIdealVerificationBody: '驗證圖僅適用於理想氣體檔案。', historyLockedFor: (relation) => relation + ' 的歷史內容已鎖定', historyUnlocked: '已由驗證通過的實驗資料解鎖。', historyUnlockHint: '通過一次成功驗證後解鎖。', historicalContext: '歷史背景', workbenchInterpretation: '工作台解釋', keyFigures: '關鍵數值', keyFiguresValue: (rSquared, slopeError) => 'R2 ' + rSquared + ' / 斜率誤差 ' + slopeError, whyLocked: '為什麼鎖定', whyItHappened: '原因說明', recommendedNextStep: '建議下一步', exportFilesHint: '匯出環境和建議檔案。', pvLinearizedValidation: 'P - 1/V 線性化驗證', relationValidation: (relation) => relation + ' 驗證', measuredScatterHint: '實測散點、擬合線與理論參考。', originalPvPhysicalView: '原始 P - V 物理視圖', originalPvPhysicalHint: '直接顯示反比關係，判定仍使用線性化視圖。', verdictLabel: (relation, verdict) => relation + ' 判定：' + verdict, pointsMetric: '點數', rSquared: 'R2', slope: '擬合斜率', theorySlope: '理論斜率', slopeError: '斜率誤差', failureReason: '未通過原因', noneValue: '無', currentVerification: (rSquared, slopeError) => '目前驗證：R2 ' + rSquared + '，斜率誤差 ' + slopeError + '。', currentVerdictRecommendation: (verdict, recommendation) => '目前判定：' + verdict + '。建議：' + recommendation, noIdealHistoryTitle: '沒有理想氣體歷史內容', noIdealHistoryBody: '理想氣體驗證通過後會解鎖歷史內容。', noVerificationChartTitle: '沒有驗證圖', noVerificationChartBody: '驗證圖僅適用於理想氣體檔案。', panelNotConnectedTitle: '面板尚未連接', panelNotConnectedBody: '該面板將在後續工作台整合批次中接入。', measuredLegend: '實測', fitLegend: '擬合', theoryLegend: '理論', idealPressureTrace: (relation) => relation + '壓強軌跡', currentIdealPressureHint: '執行目前理想氣體點以採集壓強窗口。', meanTemperature: '平均溫度', relativeGap: '相對差值', samplingProgress: '採樣進度', speedDistribution: '速度分布', energyDistribution: '能量分布', phase: '階段', phaseStates: { idle: '閒置', equilibrating: '熱平衡中', collecting: '採集中', finished: '已完成' }, probabilityDensity: '機率密度', experimentPointTableTitle: '沒有實驗點表', experimentPointTableBody: '實驗點表僅適用於理想氣體檔案。', idealResultsSectionsAria: '理想氣體結果分頁', openIdealResultsTabTitle: '開啟此理想氣體結果分頁。', resultsTreeExpandAria: '展開結果分區', resultsTreeCollapseAria: '摺疊結果分區', resultsOpenHint: '點選選取，雙擊開啟。', resultsJumpHint: '雙擊開啟結果並跳至此分區。', figureStatus: { ready: '就緒', 'not-ready': '未就緒', 'not-applicable': '不適用' },
+      resultReadyStatus: '結果就緒', resultNotReadyStatus: '結果未就緒', resultReadyDetail: '最終資料已擷取，可用於摘要、表格、圖像和後續報告匯出。', resultNotReadyDetail: '執行標準模擬，直到採集階段結束後產生最終結果資料。', finalTime: '最終時間', finalTemperature: '最終溫度', finalPressure: '最終壓力', rmsSpeed: '均方根速度', speedBins: '速度分箱', energyBins: '能量分箱', notReadyPreview: '未就緒', figuresHint: '圖像就緒狀態、建議檔名和預覽。', noIdealPointsTitle: '沒有理想氣體點', noIdealPointsBody: '選擇理想氣體檔案以查看實驗點。', activeRelation: '目前關係', noIdealVerificationTitle: '沒有驗證圖', noIdealVerificationBody: '驗證圖僅適用於理想氣體檔案。', historyLockedFor: (relation) => relation + ' 的歷史內容已鎖定', historyUnlocked: '已由驗證通過的實驗資料解鎖。', historyUnlockHint: '通過一次成功驗證後解鎖。', historicalContext: '歷史背景', workbenchInterpretation: '工作台解釋', keyFigures: '關鍵數值', keyFiguresValue: (rSquared, slopeError) => 'R2 ' + rSquared + ' / 斜率誤差 ' + slopeError, whyLocked: '為什麼鎖定', whyItHappened: '原因說明', recommendedNextStep: '建議下一步', exportFilesHint: '匯出環境和建議檔案。', pvLinearizedValidation: 'P - 1/V 線性化驗證', relationValidation: (relation) => relation + ' 驗證', measuredScatterHint: '實測散點、擬合線與理論參考。', originalPvPhysicalView: '原始 P - V 物理視圖', originalPvPhysicalHint: '直接顯示反比關係，判定仍使用線性化視圖。', verdictLabel: (relation, verdict) => relation + ' 判定：' + verdict, pointsMetric: '點數', rSquared: 'R2', slope: '擬合斜率', theorySlope: '理論斜率', slopeError: '斜率誤差', failureReason: '未通過原因', noneValue: '無', currentVerification: (rSquared, slopeError) => '目前驗證：R2 ' + rSquared + '，斜率誤差 ' + slopeError + '。', currentVerdictRecommendation: (verdict, recommendation) => '目前判定：' + verdict + '。建議：' + recommendation, noIdealHistoryTitle: '沒有理想氣體歷史內容', noIdealHistoryBody: '理想氣體驗證通過後會解鎖歷史內容。', noVerificationChartTitle: '沒有驗證圖', noVerificationChartBody: '驗證圖僅適用於理想氣體檔案。', panelNotConnectedTitle: '面板尚未連接', panelNotConnectedBody: '該面板將在後續工作台整合批次中接入。', measuredLegend: '實測', fitLegend: '擬合', theoryLegend: '理論', idealPressureTrace: (relation) => relation + '壓強軌跡', currentIdealPressureHint: '執行目前理想氣體點以採集壓強窗口。', meanTemperature: '平均溫度', relativeGap: '相對差值', samplingProgress: '採樣進度', speedDistribution: '速度分布', energyDistribution: '能量分布', phase: '階段', phaseStates: { idle: '閒置', equilibrating: '熱平衡中', collecting: '採集中', finished: '已完成' }, probabilityDensity: '機率密度', experimentPointTableTitle: '沒有實驗點表', experimentPointTableBody: '實驗點表僅適用於理想氣體檔案。', idealResultsSectionsAria: '理想氣體結果分頁', openIdealResultsTabTitle: '開啟此理想氣體結果分頁。', verificationChartAria: (relation) => relation + ' 驗證圖', resultsTreeExpandAria: '展開結果分區', resultsTreeCollapseAria: '摺疊結果分區', resultsOpenHint: '點選選取，雙擊開啟。', resultsJumpHint: '雙擊開啟結果並跳至此分區。', figureStatus: { ready: '就緒', 'not-ready': '未就緒', 'not-applicable': '不適用' },
     },
-    actions: { start: '開始', pause: '暫停', stop: '停止', close: '關閉', resetView: '重置視圖', hide: '隱藏', cancel: '取消' },
+    actions: { start: '開始', pause: '暫停', stop: '停止', close: '關閉', resetView: '預設視角', hide: '隱藏', cancel: '取消' },
     shortcuts: { title: '快捷鍵', hint: '常用工作台快捷鍵', undo: '復原', redo: '重做', closeSettings: '關閉設定' },
     console: { title: '控制台 / 輸出', tabs: { logs: '日誌', warnings: '警告', summary: '摘要' }, total: '總計', info: '資訊', success: '成功', warnings: '警告', errors: '錯誤', latest: '最新', runtime: '執行階段', noLogs: '暫無日誌。', noWarnings: '暫無警告或錯誤。' },
     status: { activeFile: (name) => '目前檔案：' + name, selectedBlock: (name) => '選取區塊：' + name, none: '無', noRuntime: '未連接執行階段', standardRuntime: '標準執行階段已連接', idealRuntime: (relation, verdict) => '理想執行階段已連接 / ' + relation + ' / ' + verdict, runStates: { idle: '閒置', running: '執行中', paused: '已暫停', finished: '已完成', 'needs-reset': '需要重置' }, verdictStates: { insufficient: '資料不足', collecting: '採集中', verified: '已驗證', failed: '未通過', preliminary: '初步成立', notYet: '尚未成立', 'not-started': '尚未開始' } },
@@ -778,7 +830,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       standardStudy: 'Standard Simulation Study', idealStudy: 'Ideal Gas Simulation Study', heatCapacityStudy: 'Heat Capacity Ratio Experiment', undo: 'Undo', redo: 'Redo', empty: 'empty',
       clearEditHistory: 'Clear Edit History', panelsFor: (name) => 'Panels for ' + name, resetDefaultLayout: 'Reset Default Layout', default: 'default',
       performanceMode: 'Performance Mode', exportEnvironment: 'Export Environment', saveWorkbenchLayoutDefault: 'Save Current Window Layout as Default',
-      userGuide: 'User Guide', theoryPdf: 'Theory Document PDF', about: 'About Hard Sphere Workbench',
+      userGuide: 'User Guide', theoryPdf: 'Theory Document PDF', about: 'About Hard Sphere Workbench', topCommandsAria: 'Top commands',
     },
     settings: {
       title: 'General Settings', subtitle: 'Theme, language, shortcuts, and layout preferences', closeAria: 'Close General Settings', theme: 'Theme', themeHint: 'Use system, light, or dark mode',
@@ -796,31 +848,31 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       openFiles: 'Open Files', files: 'Files', panels: 'Panels', noOpenFiles: 'No open files', emptyHint: 'Create a study to populate the workbench.',
       noOpenStudy: 'No open study', emptyTitle: 'Start a new hard sphere workbench file', emptyBody: 'Create a standard simulation or ideal gas relation study to restore previews, charts, results, and parameter panels.',
       createStandard: 'Create Standard Simulation Study', createIdeal: 'Create Ideal Gas Simulation Study', createHeatCapacity: 'Create Heat Capacity Ratio Experiment', rename: 'Rename', delete: 'Delete', confirmDelete: 'Confirm Delete', cancel: 'Cancel',
-      locked: 'locked', shown: 'shown', open: 'open', active: 'active', off: 'off', std: 'STD', ideal: 'IDEAL', heat: 'HEAT',
+      locked: 'locked', shown: 'shown', open: 'open', active: 'active', off: 'off', std: 'STD', ideal: 'IDEAL', heat: 'HEAT', workspaceAria: 'File workspace', openActions: (name) => 'Open actions for ' + name,
     },
     panels: {
       previewTitle: '3D Preview', previewHint: 'Realtime molecular viewport', realtimeTitle: 'Realtime Data / Charts', heatRealtimeTitle: 'Realtime Data', standardRealtimeHint: 'Live temperature, pressure, and chart traces', idealRealtimeHint: 'Live T, P, relation, and chart traces', heatRealtimeHint: 'Uₜ / Uₚ, pressure, and process samples',
       standardResultsTitle: 'Results', standardResultsHint: 'Experiment status, data table, and figures', idealResultsTitle: 'Results', idealResultsHint: 'Verification chart, history unlock, and export details',
-      pointsTitle: 'Points', pointsHint: 'Recorded relation points', verificationTitle: 'Verification', verificationHint: 'Verification chart, diagnostics, and export details',
-      summaryTitle: 'Summary', dataTableTitle: 'Data Table', figuresTitle: 'Figures',
+      pointsTitle: 'Experiment Data', pointsHint: 'Recorded relation experiment points', verificationTitle: 'Relation Verification', verificationHint: 'Verification chart, diagnostics, and export details',
+      summaryTitle: 'Summary', dataTableTitle: 'Data Table', figuresTitle: 'Figures', liveWorkspaceResizeAria: 'Resize view preview and realtime data',
     },
     parameters: {
       title: 'Current Parameters', currentFileValues: 'current file values', lockedUntilStopped: 'locked until stopped or finished', editValues: 'edit parameter values', hide: 'Hide',
       standardSimulation: 'Standard Simulation', idealSimulation: 'Ideal Gas Simulation', heatCapacityExperiment: 'Heat Capacity Ratio Experiment', savedChangesOnStart: 'parameters saved on start', idealRuntimeOnStart: 'ideal runtime will connect on start', applied: 'parameters applied',
-      relation: 'Relation', scanVariable: 'Scan Variable', samplingPreset: 'Sampling Preset', targetTemperature: 'Target Temperature', boxLength: 'Box Length L', particleCount: 'Particle Count N', customPreset: 'Custom', setSamplingPrecision: 'Set sampling precision',
+      relation: 'Relation', scanVariable: 'Scan Variable', samplingPreset: 'Sampling Preset', targetTemperature: 'Target Temperature', boxLength: 'Box Length L', particleCount: 'Particle Count N', customPreset: 'Custom', setSamplingPrecision: 'Set sampling precision', relationHints: { pt: 'Scan temperature at fixed N and V', pv: 'Scan volume through box length L', pn: 'Scan particle count at fixed T and V' }, setScanValue: (title) => 'Set ' + title, adjustScanValue: (title) => 'Adjust ' + title, recommendedValues: (title) => title + ' recommended values',
       parameterLabels: { N: 'N (particles)', r: 'r', L: 'L', dt: 'dt', nu: 'nu', targetTemperature: 'Target temperature', equilibriumTime: 'equilibriumTime (s)', statsDuration: 'statsDuration (s)', relation: 'Relation' },
       samplingPresets: { fast: 'Fast', balanced: 'Balanced', stable: 'Stable' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's eq / ' + statsDuration + 's stats',
       advancedSettings: 'Advanced settings', advancedShow: 'Show model constants and sampling values', advancedHide: 'Hide model constants and sampling values', edit: 'Edit', save: 'Save', saveHint: 'Save advanced parameters to this workbench file',
       standardReadonlyNote: 'Standard simulation parameters are shown directly here.', idealReadonlyNote: 'Relation, scan variable, and sampling preset are controlled above.', heatCapacityReadonlyNote: 'The particle animation only visualizes molecular motion; the heat capacity ratio is still calculated by the FD-NCD-C air experiment model.', microscopicVisualization: 'Microscopic Visualization', hardSphereView: 'Hard-Sphere View', hardSphereOn: 'ON', hardSphereOff: 'OFF', hardSphereParticleMultiplier: 'Particle multiplier', hardSphereSpeedMultiplier: 'Speed multiplier', hardSphereTeachingOnly: 'Affects only the 3D teaching display. It is not used for Uₜ, Uₚ, U₀/U₁/U₂, or gamma.', controlledLockHint: 'This relation already has data, so controlled variables are locked.',
     },
     results: {
-      title: 'Results', experimentStatus: 'Experiment status', scan: 'Scan', measuredPressure: 'Measured P', idealPressure: 'Ideal P', gap: 'Gap', pointsTitle: (relation) => relation + ' points', recordedPoints: (count) => count + ' recorded points',
+      title: 'Results', experimentStatus: 'Experiment status', scan: 'Scan', temperature: 'Temperature', pressure: 'Pressure', measuredPressure: 'Measured P', idealPressure: 'Ideal P', gap: 'Gap', pointsTitle: (relation) => relation + ' points', pointsShort: (count) => count + ' pts', recordedPoints: (count) => count + ' recorded points',
       clearRelation: 'Clear Relation', confirmClear: 'Confirm Clear', remove: 'Remove', confirmRemove: 'Confirm Remove', cancel: 'Cancel', noPoints: 'no points', runToRecord: 'Run the experiment to record points.', tableAction: 'Action', tableTime: 'Time',
       finalState: 'Final state', meanSpeed: 'Mean speed', measuredBars: 'measured bars', idealLine: 'ideal line', samples: (count) => count + ' samples', sampleWindows: (count) => count + ' sampling windows', waiting: 'waiting', finalSpeedSamples: 'final speed samples', finalEnergySamples: 'final energy samples', tempHistorySamples: 'temp history samples', finalDataReady: 'final data ready', energyDrift: 'energy drift', meanAbsTempError: 'mean abs temp error', tempSamples: 'Temp samples', resultsReady: (relation) => relation + ' experiment result ready', waitingForRecordedPoints: (relation) => relation + ' waiting for recorded points',
       metric: 'Metric', value: 'Value', status: 'Status', ready: 'ready', notReady: 'not-ready', yes: 'yes', no: 'no', diagnostic: 'Diagnostic', export: 'Export', exportFigures: 'Export Figures', reportPdf: 'Report PDF', verificationFigure: 'Verification Figure', pointsCsv: 'Points CSV', verification: 'Verification', rawPv: 'Raw P-V', history: 'History',
-      resultReadyStatus: 'Results ready', resultNotReadyStatus: 'Results not ready', resultReadyDetail: 'Final data has been captured for summary, tables, figures, and future report export.', resultNotReadyDetail: 'Run the standard simulation until the collecting phase finishes to prepare final result data.', finalTime: 'Final time', finalTemperature: 'Final temperature', finalPressure: 'Final pressure', rmsSpeed: 'RMS speed', speedBins: 'Speed bins', energyBins: 'Energy bins', notReadyPreview: 'not ready', figuresHint: 'Figure readiness, recommended filenames, and preview.', noIdealPointsTitle: 'No ideal-gas points', noIdealPointsBody: 'Select an ideal-gas file to review experiment points.', activeRelation: 'Active', noIdealVerificationTitle: 'No ideal-gas verification', noIdealVerificationBody: 'Select an ideal-gas file to review verification results.', historyLockedFor: (relation) => 'History locked for ' + relation, historyUnlocked: 'Unlocked by verified experiment data.', historyUnlockHint: 'Unlocks after a successful verification.', historicalContext: 'Historical context', workbenchInterpretation: 'Workbench interpretation', keyFigures: 'Key figures', keyFiguresValue: (rSquared, slopeError) => 'R2 ' + rSquared + ' / slope error ' + slopeError, whyLocked: 'Why it is locked', whyItHappened: 'Why it happened', recommendedNextStep: 'Recommended next step', exportFilesHint: 'Export environment and recommended files.', pvLinearizedValidation: 'P - 1/V linearized validation', relationValidation: (relation) => relation + ' validation', measuredScatterHint: 'Measured scatter with fit and theoretical reference.', originalPvPhysicalView: 'Original P - V physical view', originalPvPhysicalHint: 'Shows the inverse relation directly while verdict uses the linearized view.', verdictLabel: (relation, verdict) => relation + ' verdict: ' + verdict, pointsMetric: 'Points', rSquared: 'R2', slope: 'Slope', theorySlope: 'Theory slope', slopeError: 'Slope error', failureReason: 'Failure reason', noneValue: 'none', currentVerification: (rSquared, slopeError) => 'Current verification: R2 ' + rSquared + ', slope error ' + slopeError + '.', currentVerdictRecommendation: (verdict, recommendation) => 'Current verdict: ' + verdict + '. Recommendation: ' + recommendation, noIdealHistoryTitle: 'No ideal-gas history', noIdealHistoryBody: 'History unlocks after ideal-gas verification.', noVerificationChartTitle: 'No verification chart', noVerificationChartBody: 'Verification charts are available for ideal-gas files.', panelNotConnectedTitle: 'Panel not connected', panelNotConnectedBody: 'This panel will be wired in a later Workbench integration batch.', measuredLegend: 'measured', fitLegend: 'fit', theoryLegend: 'theory', idealPressureTrace: (relation) => relation + ' pressure trace', currentIdealPressureHint: 'Run the current ideal point to collect pressure windows.', meanTemperature: 'Mean temperature', relativeGap: 'Relative gap', samplingProgress: 'Sampling progress', speedDistribution: 'Speed distribution', energyDistribution: 'Energy distribution', phase: 'Phase', phaseStates: { idle: 'idle', equilibrating: 'equilibrating', collecting: 'collecting', finished: 'finished' }, probabilityDensity: 'probability density', experimentPointTableTitle: 'No experiment point table', experimentPointTableBody: 'Experiment points are available for ideal-gas files.', idealResultsSectionsAria: 'Ideal Results sections', openIdealResultsTabTitle: 'Open this ideal Results tab.', resultsTreeExpandAria: 'Expand Results sections', resultsTreeCollapseAria: 'Collapse Results sections', resultsOpenHint: 'Click to select, double-click to open.', resultsJumpHint: 'Double-click to open Results and jump to this section.', figureStatus: { ready: 'ready', 'not-ready': 'not-ready', 'not-applicable': 'not applicable' },
+      resultReadyStatus: 'Results ready', resultNotReadyStatus: 'Results not ready', resultReadyDetail: 'Final data has been captured for summary, tables, figures, and future report export.', resultNotReadyDetail: 'Run the standard simulation until the collecting phase finishes to prepare final result data.', finalTime: 'Final time', finalTemperature: 'Final temperature', finalPressure: 'Final pressure', rmsSpeed: 'RMS speed', speedBins: 'Speed bins', energyBins: 'Energy bins', notReadyPreview: 'not ready', figuresHint: 'Figure readiness, recommended filenames, and preview.', noIdealPointsTitle: 'No ideal-gas points', noIdealPointsBody: 'Select an ideal-gas file to review experiment points.', activeRelation: 'Active', noIdealVerificationTitle: 'No ideal-gas verification', noIdealVerificationBody: 'Select an ideal-gas file to review verification results.', historyLockedFor: (relation) => 'History locked for ' + relation, historyUnlocked: 'Unlocked by verified experiment data.', historyUnlockHint: 'Unlocks after a successful verification.', historicalContext: 'Historical context', workbenchInterpretation: 'Workbench interpretation', keyFigures: 'Key figures', keyFiguresValue: (rSquared, slopeError) => 'R2 ' + rSquared + ' / slope error ' + slopeError, whyLocked: 'Why it is locked', whyItHappened: 'Why it happened', recommendedNextStep: 'Recommended next step', exportFilesHint: 'Export environment and recommended files.', pvLinearizedValidation: 'P - 1/V linearized validation', relationValidation: (relation) => relation + ' validation', measuredScatterHint: 'Measured scatter with fit and theoretical reference.', originalPvPhysicalView: 'Original P - V physical view', originalPvPhysicalHint: 'Shows the inverse relation directly while verdict uses the linearized view.', verdictLabel: (relation, verdict) => relation + ' verdict: ' + verdict, pointsMetric: 'Points', rSquared: 'R2', slope: 'Slope', theorySlope: 'Theory slope', slopeError: 'Slope error', failureReason: 'Failure reason', noneValue: 'none', currentVerification: (rSquared, slopeError) => 'Current verification: R2 ' + rSquared + ', slope error ' + slopeError + '.', currentVerdictRecommendation: (verdict, recommendation) => 'Current verdict: ' + verdict + '. Recommendation: ' + recommendation, noIdealHistoryTitle: 'No ideal-gas history', noIdealHistoryBody: 'History unlocks after ideal-gas verification.', noVerificationChartTitle: 'No verification chart', noVerificationChartBody: 'Verification charts are available for ideal-gas files.', panelNotConnectedTitle: 'Panel not connected', panelNotConnectedBody: 'This panel will be wired in a later Workbench integration batch.', measuredLegend: 'measured', fitLegend: 'fit', theoryLegend: 'theory', idealPressureTrace: (relation) => relation + ' pressure trace', currentIdealPressureHint: 'Run the current ideal point to collect pressure windows.', meanTemperature: 'Mean temperature', relativeGap: 'Relative gap', samplingProgress: 'Sampling progress', speedDistribution: 'Speed distribution', energyDistribution: 'Energy distribution', phase: 'Phase', phaseStates: { idle: 'idle', equilibrating: 'equilibrating', collecting: 'collecting', finished: 'finished' }, probabilityDensity: 'probability density', experimentPointTableTitle: 'No experiment point table', experimentPointTableBody: 'Experiment points are available for ideal-gas files.', idealResultsSectionsAria: 'Ideal Results sections', openIdealResultsTabTitle: 'Open this ideal Results tab.', verificationChartAria: (relation) => relation + ' verification chart', resultsTreeExpandAria: 'Expand Results sections', resultsTreeCollapseAria: 'Collapse Results sections', resultsOpenHint: 'Click to select, double-click to open.', resultsJumpHint: 'Double-click to open Results and jump to this section.', figureStatus: { ready: 'ready', 'not-ready': 'not-ready', 'not-applicable': 'not applicable' },
     },
-    actions: { start: 'Start', pause: 'Pause', stop: 'Stop', close: 'Close', resetView: 'Reset view', hide: 'Hide', cancel: 'Cancel' },
+    actions: { start: 'Start', pause: 'Pause', stop: 'Stop', close: 'Close', resetView: 'Default view', hide: 'Hide', cancel: 'Cancel' },
     shortcuts: { title: 'Shortcuts', hint: 'Common workbench shortcuts', undo: 'Undo', redo: 'Redo', closeSettings: 'Close settings' },
     console: { title: 'Console / Output', tabs: { logs: 'Logs', warnings: 'Warnings', summary: 'Summary' }, total: 'Total', info: 'Info', success: 'Success', warnings: 'Warnings', errors: 'Errors', latest: 'Latest', runtime: 'Runtime', noLogs: 'No log entries yet.', noWarnings: 'No warnings or errors yet.' },
     status: { activeFile: (name) => 'Active file: ' + name, selectedBlock: (name) => 'Selected block: ' + name, none: 'none', noRuntime: 'No runtime connected', standardRuntime: 'Standard runtime connected', idealRuntime: (relation, verdict) => 'Ideal runtime connected / ' + relation + ' / ' + verdict, runStates: { idle: 'idle', running: 'running', paused: 'paused', finished: 'finished', 'needs-reset': 'runtime refresh needed' }, verdictStates: { insufficient: 'insufficient', collecting: 'collecting', verified: 'verified', failed: 'failed', preliminary: 'preliminary', notYet: 'not yet', 'not-started': 'not started' } },
@@ -847,6 +899,12 @@ const heatCapacityRealtimeCopies = {
     materialsHint: 'U₁ / U₂ 与空气比热容比计算',
     closeMaterialsAria: '关闭实验资料与结果',
     materialsGroupAria: '展开或收起实验资料与结果',
+    materialsFolderTitle: '点击文件夹展开/收起；单击文字选中；双击文字打开全部子标签页',
+    materialsTabTitle: '单击选中；双击打开标签页',
+    materialsTabsAria: '空气比热容比实验资料分页',
+    previewMountAria: '空气比热容比视图预览区域',
+    stopcockMiniReadoutAria: '玻璃旋塞聚焦模式主机示数',
+    stopcockMiniGaugeAria: '简化指针压力表',
     realtimePanelTitle: '实时数据',
     realtimeKicker: '实时数据',
     realtimeSubtitle: 'Uₜ / Uₚ、压强和过程采样',
@@ -862,6 +920,7 @@ const heatCapacityRealtimeCopies = {
     modeDemo: '演示模式',
     modeGuide: '引导模式',
     modeFree: '自由模式',
+    resetFreeMode: '重置自由模式',
     exitGuideMode: '退出引导',
     nextTrialAction: '下一组实验',
     trialBadge: (trialIndex: number) => `第 ${trialIndex} 组实验`,
@@ -964,6 +1023,12 @@ const heatCapacityRealtimeCopies = {
     materialsHint: 'U₁ / U₂ 與空氣比熱容比計算',
     closeMaterialsAria: '關閉實驗資料與結果',
     materialsGroupAria: '展開或收起實驗資料與結果',
+    materialsFolderTitle: '點擊資料夾展開/收起；單擊文字選取；雙擊文字開啟全部子分頁',
+    materialsTabTitle: '單擊選取；雙擊開啟分頁',
+    materialsTabsAria: '空氣比熱容比實驗資料分頁',
+    previewMountAria: '空氣比熱容比視圖預覽區域',
+    stopcockMiniReadoutAria: '玻璃旋塞聚焦模式主機示數',
+    stopcockMiniGaugeAria: '簡化指針壓力表',
     realtimePanelTitle: '即時資料',
     realtimeKicker: '即時資料',
     realtimeSubtitle: 'Uₜ / Uₚ、壓強和過程採樣',
@@ -979,6 +1044,7 @@ const heatCapacityRealtimeCopies = {
     modeDemo: '演示模式',
     modeGuide: '引導模式',
     modeFree: '自由模式',
+    resetFreeMode: '重置自由模式',
     exitGuideMode: '退出引導',
     nextTrialAction: '下一組實驗',
     trialBadge: (trialIndex: number) => `第 ${trialIndex} 組實驗`,
@@ -1081,6 +1147,12 @@ const heatCapacityRealtimeCopies = {
     materialsHint: 'U₁ / U₂ and air heat capacity ratio calculation',
     closeMaterialsAria: 'Close experiment notes and results',
     materialsGroupAria: 'Expand or collapse experiment notes and results',
+    materialsFolderTitle: 'Click the folder to expand or collapse; click text to select; double-click text to open all child tabs',
+    materialsTabTitle: 'Click to select; double-click to open the tab',
+    materialsTabsAria: 'Heat Capacity experiment notes tabs',
+    previewMountAria: 'Heat capacity ratio view preview mount',
+    stopcockMiniReadoutAria: 'Stopcock focus host readout',
+    stopcockMiniGaugeAria: 'Simplified pointer pressure gauge',
     realtimePanelTitle: 'Realtime Data',
     realtimeKicker: 'Realtime Data',
     realtimeSubtitle: 'Uₜ / Uₚ, pressure, and process samples',
@@ -1096,6 +1168,7 @@ const heatCapacityRealtimeCopies = {
     modeDemo: 'Demo mode',
     modeGuide: 'Guide mode',
     modeFree: 'Free mode',
+    resetFreeMode: 'Reset Free mode',
     exitGuideMode: 'Exit guide',
     nextTrialAction: 'Next trial',
     trialBadge: (trialIndex: number) => `Trial ${trialIndex}`,
@@ -1396,10 +1469,10 @@ const createResultsSections = (copy: WorkbenchCopy): Array<{ key: ResultsSection
   { key: 'figures', title: copy.panels.figuresTitle, icon: <BarChart3 size={12} /> },
 ];
 
-const idealRelationOptions: Array<{ key: ExperimentRelation; label: string; hint: string }> = [
-  { key: 'pt', label: 'P-T', hint: 'Scan temperature at fixed N and V' },
-  { key: 'pv', label: 'P-V', hint: 'Scan volume through box length L' },
-  { key: 'pn', label: 'P-N', hint: 'Scan particle count at fixed T and V' },
+const idealRelationOptions: Array<{ key: ExperimentRelation; label: string }> = [
+  { key: 'pt', label: 'P-T' },
+  { key: 'pv', label: 'P-V' },
+  { key: 'pn', label: 'P-N' },
 ];
 
 const idealRelationKeys: ExperimentRelation[] = ['pt', 'pv', 'pn'];
@@ -1881,6 +1954,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const manualHeatCapacityIdleTimerRef = useRef<number | null>(null);
   const heatCapacityGuideNextTrialTimerRef = useRef<number | null>(null);
   const heatCapacityRecordControlsClosingTimerRef = useRef<number | null>(null);
+  const heatCapacityFreeResetFeedbackTimerRef = useRef<number | null>(null);
   const [heatCapacityFocusMode, setHeatCapacityFocusMode] = useState<'none' | 'stopcock' | 'instrument' | 'pump'>('none');
   const [heatCapacityPumpPulseId, setHeatCapacityPumpPulseId] = useState(0);
   const [autoDemoRunning, setAutoDemoRunning] = useState(false);
@@ -1900,6 +1974,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [heatCapacityGuideNextTrialReadyKey, setHeatCapacityGuideNextTrialReadyKey] = useState<string | null>(null);
   const [heatCapacityGuideNextTrialNoticeHoldKey, setHeatCapacityGuideNextTrialNoticeHoldKey] = useState<string | null>(null);
   const [heatCapacityRecordToastSequenceActive, setHeatCapacityRecordToastSequenceActive] = useState(false);
+  const [heatCapacityFreeResetFeedbackActive, setHeatCapacityFreeResetFeedbackActive] = useState(false);
   const [manualHeatCapacityRollback, setManualHeatCapacityRollback] = useState<{
     animation: ManualHeatCapacityRollbackAnimation;
     key: number;
@@ -1915,6 +1990,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
   useEffect(() => {
     heatCapacityPressureAlarmVisibleRef.current = heatCapacityPressureAlarmVisible;
   }, [heatCapacityPressureAlarmVisible]);
+
+  useEffect(() => () => {
+    if (heatCapacityFreeResetFeedbackTimerRef.current !== null) {
+      window.clearTimeout(heatCapacityFreeResetFeedbackTimerRef.current);
+    }
+  }, []);
 
   const emptyWorkbenchFile = useMemo(() => createDefaultStandardFile(0), []);
   const isWorkbenchEmpty = files.length === 0;
@@ -3423,10 +3504,140 @@ const WorkbenchStudioPrototype: React.FC = () => {
     pushLog(fallbackMessage, 'warning');
   };
 
+  const recordFreeHeatCapacitySample = (kind: HeatCapacityManualRecordKind) => {
+    if (!activeFile || activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return;
+    const now = Date.now();
+    let ok = false;
+    let message = '';
+    updateActiveFile((file) => {
+      if (file.kind !== 'heatCapacity' || file.heatCapacityMode !== 'free') return file;
+      const activeDisplay = selectActiveHeatCapacityWorkbenchDisplay(file);
+      const display = {
+        displayPressureMv: activeDisplay.pressureMv,
+        displayTemperatureMv: activeDisplay.temperatureMv,
+        pressureSlopeMvPerS: file.heatCapacityFreeSensorState.pressureSlopeMvPerS,
+        temperatureSlopeMvPerS: file.heatCapacityFreeSensorState.temperatureSlopeMvPerS,
+      };
+      const lastTrial = file.heatCapacityFreeTrials[file.heatCapacityFreeTrials.length - 1] ?? null;
+      const useLastTrial = lastTrial !== null && (!lastTrial.u0 || !lastTrial.u1 || !lastTrial.u2);
+      const trialIndex = useLastTrial ? file.heatCapacityFreeTrials.length - 1 : file.heatCapacityFreeTrials.length;
+      const trialBase = useLastTrial
+        ? lastTrial
+        : createHeatCapacityFreeTrial(`free-trial-${file.heatCapacityFreeTrials.length + 1}`, file.heatCapacityFreeCalibrationState.automaticU0);
+      const trial = !trialBase.u0 && file.heatCapacityFreeCalibrationState.automaticU0
+        ? {
+            ...trialBase,
+            automaticU0: file.heatCapacityFreeCalibrationState.automaticU0,
+          }
+        : trialBase;
+      const evaluation = kind === 'u0'
+        ? file.pressureZeroed
+          ? evaluateFreeU0Record(
+              trial,
+              file.heatCapacityFreeCalibrationState,
+              display,
+              file.heatCapacityFreePhysicsState,
+              HEAT_CAPACITY_FREE_RECORD_CONFIG,
+            )
+          : { ready: false, reason: 'zero-not-ready' as const }
+        : kind === 'u1'
+        ? evaluateFreeU1Record(
+            trial,
+            file.heatCapacityFreeCalibrationState,
+            display,
+            file.heatCapacityFreePhysicsState,
+            HEAT_CAPACITY_FREE_RECORD_CONFIG,
+          )
+        : evaluateFreeU2Record(
+            trial,
+            file.heatCapacityFreeCalibrationState,
+            display,
+            file.heatCapacityFreePhysicsState,
+            HEAT_CAPACITY_FREE_RECORD_CONFIG,
+          );
+      if (!evaluation.ready) {
+        message = heatCapacityFreeRecordRejectMessages[evaluation.reason];
+        return {
+          ...file,
+          pumpHint: message,
+          heatCapacityFreeTrials: useLastTrial
+            ? file.heatCapacityFreeTrials.map((candidate, index) => (
+                index === trialIndex ? { ...trial, blockedReason: evaluation.reason } : candidate
+              ))
+            : file.heatCapacityFreeTrials,
+          updatedAt: now,
+        };
+      }
+      const latestZeroEventId = file.heatCapacityFreeCalibrationState.zeroEvents[
+        file.heatCapacityFreeCalibrationState.zeroEvents.length - 1
+      ]?.id ?? '';
+      const recordReference = kind === 'u0' ? null : trial.u0;
+      const input = {
+        atS: file.heatCapacityFreePhysicsState.simulationTimeS,
+        displayPressureMv: display.displayPressureMv,
+        displayTemperatureMv: display.displayTemperatureMv,
+        calibrationVersion: recordReference?.calibrationVersion ?? file.heatCapacityFreeCalibrationState.calibrationVersion,
+        zeroEventId: recordReference?.zeroEventId ?? latestZeroEventId,
+      };
+      const recordResult = kind === 'u0'
+        ? recordFreeU0(trial, input)
+        : kind === 'u1'
+          ? recordFreeU1(trial, input)
+          : recordFreeU2(trial, input, {
+              atmosphericPressureKPa: file.heatCapacityFreeEnvironmentConfig.ambientPressureKPa,
+              pressureSensitivityMvPerKPa: file.heatCapacityFreeSensorConfig.pressureMvPerKPa,
+              theoreticalGamma: file.theoreticalGamma,
+            });
+      if (!recordResult.accepted) {
+        message = heatCapacityFreeRecordRejectMessages[recordResult.reason];
+        return file;
+      }
+      ok = true;
+      message = kind === 'u0'
+        ? 'Free Mode 已记录 U₀ 显示值。'
+        : kind === 'u1'
+          ? 'Free Mode 已记录 U₁ 显示值。'
+          : 'Free Mode 已记录 U₂ 显示值。';
+      const heatCapacityFreeTrials = useLastTrial
+        ? file.heatCapacityFreeTrials.map((candidate, index) => (
+            index === trialIndex ? recordResult.trial : candidate
+          ))
+        : [...file.heatCapacityFreeTrials, recordResult.trial];
+      return {
+        ...file,
+        heatCapacityFreeTrials,
+        heatCapacityProcessingCalculated: false,
+        updatedAt: now,
+      };
+    });
+    if (ok) {
+      clearManualHeatCapacityGuidance();
+      showManualHeatCapacityGuidance(message, kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2', 'success');
+      pushLog(message, 'success');
+      return;
+    }
+    const fallbackMessage = message || 'Free Mode 当前不能记录该数据点。';
+    showManualHeatCapacityGuidance(fallbackMessage, kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2', 'warning', 'manual-blocked');
+    pushLog(fallbackMessage, 'warning');
+  };
+
   const calculateHeatCapacityProcessingResults = () => {
     if (!guardManualHeatCapacityAction('calculate')) return;
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
+      if (file.heatCapacityMode === 'free') {
+        const processingResult = calculateFreeHeatCapacityMeanResult(file.heatCapacityFreeTrials, {
+          theoreticalGamma: file.theoreticalGamma,
+          atmosphericPressureKPa: file.heatCapacityFreeEnvironmentConfig.ambientPressureKPa,
+          pressureSensitivityMvPerKPa: file.heatCapacityFreeSensorConfig.pressureMvPerKPa,
+        });
+        pushLog(processingResult.message, processingResult.status === 'ready' ? 'success' : 'warning');
+        return {
+          ...file,
+          heatCapacityProcessingCalculated: processingResult.calculated,
+          updatedAt: Date.now(),
+        };
+      }
       const completedTrialCount = getHeatCapacityCompletedTrialCount(file.heatCapacityTrials);
       if (completedTrialCount < file.heatCapacityExpectedTrialCount) {
         pushLog(heatCapacityRealtimeCopy.finishExpectedTrialsFirst, 'warning');
@@ -3455,7 +3666,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (!activeFile || activeFile.kind !== 'heatCapacity') return;
     const pendingMatches = pendingRemoveHeatCapacityTrialRecord?.trialIndex === trialIndex &&
       pendingRemoveHeatCapacityTrialRecord.kind === kind;
-    const recordLabel = kind === 'u1' ? 'U₁' : kind === 'u2' ? 'U₂' : '本组';
+    const recordLabel = kind === 'u0' ? 'U₀' : kind === 'u1' ? 'U₁' : kind === 'u2' ? 'U₂' : '本组';
     const displayTrialIndex = trialIndex + 1;
     if (!pendingMatches) {
       setPendingRemoveHeatCapacityTrialRecord({ trialIndex, kind });
@@ -3466,6 +3677,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
     captureUndoSnapshot(`removed heat-capacity ${kind} record`);
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
+      if (file.heatCapacityMode === 'free') {
+        const removal = removeHeatCapacityFreeTrialRecord(file.heatCapacityFreeTrials, trialIndex, kind);
+        return {
+          ...file,
+          heatCapacityFreeTrials: removal.trials,
+          heatCapacityProcessingCalculated: false,
+          heatCapacityProcessingResult: createDefaultHeatCapacityProcessingResult(file.theoreticalGamma),
+          updatedAt: Date.now(),
+        };
+      }
+      if (kind === 'u0') return file;
       const removal = removeHeatCapacityTrialRecord(file.heatCapacityTrials, trialIndex, kind);
       const nextProcessSamples = { ...file.heatCapacityProcessSamples };
       delete nextProcessSamples.afterReleaseSample;
@@ -3590,6 +3812,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setManualHeatCapacityPulseActive(false);
     setManualHeatCapacityFocusControlId(null);
     setManualHeatCapacityRollback(null);
+    updateActiveFile((file) => file.kind === 'heatCapacity'
+      ? enterHeatCapacityFreeModeWorkbenchState(file, Date.now())
+      : file);
     showHeatCapacityAutoDemoCompletionToast('引导模式已终止');
     pushLog(`${activeFile.name}: heat-capacity guide mode exited.`, 'warning');
   };
@@ -3614,9 +3839,41 @@ const WorkbenchStudioPrototype: React.FC = () => {
     heatCapacityFocusModeRef.current = 'none';
     setHeatCapacityFocusMode('none');
     updateActiveFile((file) => file.kind === 'heatCapacity'
-      ? { ...file, runState: 'idle', updatedAt: Date.now() }
+      ? enterHeatCapacityFreeModeWorkbenchState(file, Date.now())
       : file);
     pushLog(`${activeFile.name}: heat-capacity free mode active.`, 'info');
+  };
+
+  const resetHeatCapacityFreeRun = () => {
+    if (!activeFile || activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return;
+    const now = Date.now();
+    if (heatCapacityFreeResetFeedbackTimerRef.current !== null) {
+      window.clearTimeout(heatCapacityFreeResetFeedbackTimerRef.current);
+    }
+    setHeatCapacityFreeResetFeedbackActive(true);
+    heatCapacityFreeResetFeedbackTimerRef.current = window.setTimeout(() => {
+      heatCapacityFreeResetFeedbackTimerRef.current = null;
+      setHeatCapacityFreeResetFeedbackActive(false);
+    }, HEAT_CAPACITY_FREE_RESET_FEEDBACK_MS);
+    clearHeatCapacityGuideStartTimer();
+    clearHeatCapacityRecordSuccessToastTimers();
+    clearHeatCapacityAutoDemoTimers({ cancelAnimation: true });
+    clearHeatCapacityPumpAnimationTimers();
+    clearHeatCapacityAutoDemoUiState();
+    clearManualHeatCapacityGuidance();
+    clearHeatCapacityGuideNextTrialReveal();
+    setPendingRemoveHeatCapacityTrialRecord(null);
+    setManualHeatCapacityActiveFileId(null);
+    setManualHeatCapacityRollback(null);
+    setAutoDemoCompletionMessage(null);
+    setHeatCapacityFocusResetKey((key) => key + 1);
+    heatCapacityFocusModeRef.current = 'none';
+    setHeatCapacityFocusMode('none');
+    captureUndoSnapshot('reset heat-capacity free run');
+    updateActiveFile((file) => file.kind === 'heatCapacity'
+      ? resetHeatCapacityFreeRunWorkbenchState(file, now)
+      : file);
+    pushLog(`${activeFile.name}: heat-capacity free run reset.`, 'warning');
   };
 
   const updateHeatCapacityStopcockOpen = (nextOpen: boolean, source: 'user' | 'autoDemo' = 'user') => {
@@ -3634,6 +3891,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
       const pressureReleaseBurstUntilMs = !wasOpen
         ? getHeatCapacityPressureReleaseBurstUntilMs(file, nextOpen, now)
         : file.pressureReleaseBurstUntilMs;
+      const freeStopcockFlowPatch = file.heatCapacityMode === 'free'
+        ? nextOpen
+          ? {
+              heatCapacityFreeStopcockFlowOpen: false,
+              heatCapacityFreeStopcockPendingOpenAtMs: now + HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
+            }
+          : {
+              heatCapacityFreeStopcockFlowOpen: false,
+              heatCapacityFreeStopcockPendingOpenAtMs: null,
+            }
+        : {};
       const isManualReleaseClosure = source === 'user' &&
         !nextOpen &&
         manualHeatCapacityActiveFileId === file.id &&
@@ -3642,6 +3910,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         ...file,
         stopcockAngleDeg,
         glassPistonState: nextOpen ? 'open' : 'closed',
+        ...freeStopcockFlowPatch,
         pressureReleaseBurstUntilMs: nextOpen ? pressureReleaseBurstUntilMs : null,
         pressureDisplayNextJitterAtMs: pressureReleaseBurstUntilMs ? now : file.pressureDisplayNextJitterAtMs,
         updatedAt: now,
@@ -3874,10 +4143,22 @@ const WorkbenchStudioPrototype: React.FC = () => {
       const pressureReleaseBurstUntilMs = !wasOpen
         ? getHeatCapacityPressureReleaseBurstUntilMs(file, nextOpen, now)
         : file.pressureReleaseBurstUntilMs;
+      const freeStopcockFlowPatch = file.heatCapacityMode === 'free'
+        ? nextOpen
+          ? {
+              heatCapacityFreeStopcockFlowOpen: false,
+              heatCapacityFreeStopcockPendingOpenAtMs: now + HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
+            }
+          : {
+              heatCapacityFreeStopcockFlowOpen: false,
+              heatCapacityFreeStopcockPendingOpenAtMs: null,
+            }
+        : {};
       return stepHeatCapacityWorkbenchFile({
         ...file,
         stopcockAngleDeg,
         glassPistonState: nextOpen ? 'open' : 'closed',
+        ...freeStopcockFlowPatch,
         pressureReleaseBurstUntilMs: nextOpen ? pressureReleaseBurstUntilMs : null,
         pressureDisplayNextJitterAtMs: pressureReleaseBurstUntilMs ? now : file.pressureDisplayNextJitterAtMs,
         updatedAt: now,
@@ -6689,6 +6970,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         : relationVariableKey === 'L'
           ? workbenchCopy.parameters.boxLength
           : workbenchCopy.parameters.particleCount;
+    const scanKeyLabel = relationVariableKey === 'targetTemperature' ? 'T' : relationVariableKey;
     const scanSliderClass = [
       'studio-ideal-scan-slider',
       scanSliderThumbHover ? 'studio-ideal-scan-slider-thumb-hover' : '',
@@ -6725,10 +7007,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 className={activeFile.relation === option.key ? 'studio-ideal-control-active' : ''}
                 disabled={parameterControlsLocked}
                 onClick={() => changeIdealRelation(option.key)}
-                title={option.hint}
+                title={workbenchCopy.parameters.relationHints[option.key]}
               >
                 <strong>{option.label}</strong>
-                <span>{activeFile.pointsByRelation[option.key].length} pts</span>
+                <span>{workbenchCopy.results.pointsShort(activeFile.pointsByRelation[option.key].length)}</span>
               </button>
             ))}
           </div>
@@ -6746,7 +7028,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   inputMode={activeFile.relation === 'pn' ? 'numeric' : 'decimal'}
                   value={scanDisplayValue}
                   disabled={parameterControlsLocked}
-                  aria-label={`Set ${scanTitle}`}
+                  aria-label={workbenchCopy.parameters.setScanValue(scanTitle)}
                   aria-invalid={scanInputError ? true : undefined}
                   ref={scanInputRef}
                   onFocus={() => {
@@ -6774,7 +7056,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   onBlur={() => commitIdealScanInput()}
                 />
               </div>
-              <span className="studio-ideal-scan-key">{String(relationVariableKey)}</span>
+              <span className="studio-ideal-scan-key">{scanKeyLabel}</span>
             </div>
             <input
               className={scanSliderClass}
@@ -6784,7 +7066,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               step={scanStep}
               value={relationVariableValue}
               disabled={parameterControlsLocked}
-              aria-label={`Adjust ${scanTitle}`}
+              aria-label={workbenchCopy.parameters.adjustScanValue(scanTitle)}
               style={{ '--studio-ideal-scan-progress': `${scanProgressPercent}%` } as React.CSSProperties}
               onPointerMove={(event) => {
                 if (parameterControlsLocked) return;
@@ -6822,7 +7104,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               }}
               onChange={(event) => updateIdealScanVariable(Number(event.target.value))}
             />
-            <div className="studio-ideal-scan-ticks" aria-label={`${scanTitle} recommended values`}>
+            <div className="studio-ideal-scan-ticks" aria-label={workbenchCopy.parameters.recommendedValues(scanTitle)}>
               {presetSequence.map((value) => (
                 <button
                   type="button"
@@ -7268,7 +7550,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       <div
         className={`studio-heat-stopcock-mini-readout ${statusClass}`}
         data-heat-capacity-stopcock-mini-readout="true"
-        aria-label="玻璃旋塞聚焦模式主机示数"
+        aria-label={heatCapacityRealtimeCopy.stopcockMiniReadoutAria}
       >
         <div className="studio-heat-stopcock-mini-statusbar">
           <span>主机示数</span>
@@ -7291,7 +7573,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             <span>GAUGE kPa</span>
             <em>{gaugeStatusText}</em>
           </div>
-          <svg className="studio-heat-stopcock-mini-gauge" viewBox="0 0 140 82" role="img" aria-label="简化指针压力表">
+          <svg className="studio-heat-stopcock-mini-gauge" viewBox="0 0 140 82" role="img" aria-label={heatCapacityRealtimeCopy.stopcockMiniGaugeAria}>
             <path className="studio-heat-stopcock-mini-gauge-safe" d="M 22 64 A 48 48 0 0 1 78 16" />
             <path className="studio-heat-stopcock-mini-gauge-warn" d="M 78 16 A 48 48 0 0 1 106 32" />
             <path className="studio-heat-stopcock-mini-gauge-danger" d="M 106 32 A 48 48 0 0 1 118 64" />
@@ -7328,11 +7610,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const renderHeatCapacityModeControl = () => {
     if (activeFile.kind !== 'heatCapacity') return null;
-    const heatCapacityActiveMode: HeatCapacityMode = autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked
-      ? 'demo'
-      : manualHeatCapacityActiveFileId === activeFile.id
-        ? 'guide'
-        : 'free';
+    const heatCapacityActiveMode: HeatCapacityMode = activeFile.heatCapacityMode;
     const heatCapacityGuideNextTrialKey = getHeatCapacityGuideNextTrialKey(activeFile);
     const heatCapacityShowNextTrialAction = heatCapacityActiveMode === 'guide'
       && activeHeatCapacityManualStep === 'nextTrialRequired'
@@ -7340,7 +7618,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const heatCapacityDemoActionsVisible = heatCapacityActiveMode === 'demo'
       && (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked);
     const heatCapacityGuideActionsVisible = heatCapacityActiveMode === 'guide';
-    const heatCapacityModeActionsVisible = heatCapacityDemoActionsVisible || heatCapacityGuideActionsVisible;
+    const heatCapacityFreeActionsVisible = heatCapacityActiveMode === 'free';
+    const heatCapacityModeActionsVisible = heatCapacityDemoActionsVisible || heatCapacityGuideActionsVisible || heatCapacityFreeActionsVisible;
     const heatCapacityModeSegmentClassName = (mode: HeatCapacityMode) => `studio-heat-mode-segment studio-heat-mode-segment-${mode} ${heatCapacityActiveMode === mode ? 'studio-heat-mode-segment-active' : ''}`;
 
     return (
@@ -7460,6 +7739,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
           >
             {heatCapacityRealtimeCopy.modeFree}
           </button>
+          <div className="studio-heat-mode-actions studio-heat-mode-actions-free" aria-hidden={!heatCapacityFreeActionsVisible}>
+            {heatCapacityFreeActionsVisible ? (
+              <button
+                type="button"
+                className={`studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger ${heatCapacityFreeResetFeedbackActive ? 'studio-heat-mode-action-feedback' : ''}`}
+                data-heat-capacity-mode-action="reset-free"
+                title={heatCapacityRealtimeCopy.resetFreeMode}
+                aria-label={heatCapacityRealtimeCopy.resetFreeMode}
+                onClick={resetHeatCapacityFreeRun}
+              >
+                <RotateCcw size={13} strokeWidth={2.7} />
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
     );
@@ -7471,7 +7764,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         {activeFile.kind === 'heatCapacity' ? (
           <div
             className="studio-heat-preview-mount"
-            aria-label="Heat capacity ratio 3D preview mount"
+            aria-label={heatCapacityRealtimeCopy.previewMountAria}
             data-heat-capacity-preview-mount="true"
             onPointerDownCapture={(event) => {
               const target = event.target instanceof Element ? event.target : null;
@@ -7490,6 +7783,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             }}
           >
             {(() => {
+              const activeHeatCapacityDisplay = selectActiveHeatCapacityWorkbenchDisplay(activeFile);
               const heatCapacityTopLeftOverlay = renderHeatCapacityStopcockMiniReadout();
               const heatCapacityDemoStepPanel = autoDemoStepPanelMode !== 'hidden' && (autoDemoRunning || autoDemoPaused || autoDemoStepTitle) ? (
                 <div
@@ -7513,6 +7807,22 @@ const WorkbenchStudioPrototype: React.FC = () => {
               ) : null;
               const heatCapacityBottomRightOverlay = (
                 <div className="studio-heat-preview-control-stack" data-heat-capacity-preview-control-stack="true">
+                  {activeFile.heatCapacityMode === 'free' ? (
+                    <div
+                      className="studio-heat-record-controls studio-heat-free-record-controls"
+                      data-heat-capacity-free-record-controls="true"
+                    >
+                      <button type="button" onClick={() => recordFreeHeatCapacitySample('u0')}>
+                        {renderScientificText('记录 U₀')}
+                      </button>
+                      <button type="button" onClick={() => recordFreeHeatCapacitySample('u1')}>
+                        {renderScientificText('记录 U₁')}
+                      </button>
+                      <button type="button" onClick={() => recordFreeHeatCapacitySample('u2')}>
+                        {renderScientificText('记录 U₂')}
+                      </button>
+                    </div>
+                  ) : null}
                   {(() => {
                     const manualStep = getHeatCapacityManualStep(activeFile);
                     const activeRecordKind = manualHeatCapacityActiveFileId === activeFile.id && !autoDemoRunning && !autoDemoInteractionLocked
@@ -7610,8 +7920,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   pressurePlaceholder={activeFile.pressurePlaceholder}
                   temperaturePlaceholder={activeFile.temperaturePlaceholder}
                   phase={activeFile.heatCapacityPhase}
-                  temperatureSignalMv={activeFile.temperatureSignalMv}
-                  pressureSignalMv={activeFile.pressureSignalMv}
+                  temperatureSignalMv={activeFile.powerOn ? activeHeatCapacityDisplay.temperatureMv : null}
+                  pressureSignalMv={activeFile.powerOn ? activeHeatCapacityDisplay.pressureMv : null}
                   pressureReleaseBurstActive={typeof activeFile.pressureReleaseBurstUntilMs === 'number' && Date.now() <= activeFile.pressureReleaseBurstUntilMs}
                   hardSphereViewEnabled={activeFile.hardSphereViewEnabled}
                   hardSphereParticleMultiplier={activeFile.hardSphereParticleMultiplier}
@@ -7653,7 +7963,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             t={workbenchTranslation}
             isFocused={isCanvasFocused}
             onFocusChange={setIsCanvasFocused}
-            showNotification={(text) => pushLog(`3D View: ${text}`)}
+            showNotification={(text) => pushLog(`${workbenchCopy.panels.previewTitle}: ${text}`)}
             supportsHover
             touchLike={false}
             isCompactLandscape={false}
@@ -7664,8 +7974,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
       </div>
       {activeFile.kind === 'heatCapacity' ? null : (
       <div className="studio-preview-metrics">
-        <div className="studio-metric"><span>Temperature</span><strong>{activeFile.stats.temperature.toFixed(3)}</strong></div>
-        <div className="studio-metric"><span>Pressure</span><strong>{activeFile.stats.pressure.toFixed(4)}</strong></div>
+        <div className="studio-metric"><span>{workbenchCopy.results.temperature}</span><strong>{activeFile.stats.temperature.toFixed(3)}</strong></div>
+        <div className="studio-metric"><span>{workbenchCopy.results.pressure}</span><strong>{activeFile.stats.pressure.toFixed(4)}</strong></div>
         <div className="studio-metric"><span>{workbenchCopy.results.meanSpeed}</span><strong>{activeFile.stats.meanSpeed.toFixed(3)}</strong></div>
         <div className="studio-metric"><span>{workbenchCopy.results.finalState}</span><strong>{getLocalizedStatusValue(activeFile.runState, workbenchCopy)}</strong></div>
       </div>
@@ -7737,7 +8047,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               return (
                 <span
                   key={`${point.time}-${index}`}
-                  title={`t=${point.time.toFixed(2)} P=${point.measuredPressure.toFixed(4)} ideal=${point.idealPressure.toFixed(4)}`}
+                  title={`t=${point.time.toFixed(2)} ${workbenchCopy.results.measuredPressure}=${point.measuredPressure.toFixed(4)} ${workbenchCopy.results.idealPressure}=${point.idealPressure.toFixed(4)}`}
                 >
                   <i style={{ height: `${measuredHeight}%` }} />
                   <em style={{ bottom: `${idealHeight}%` }} />
@@ -7769,7 +8079,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <div><span>{workbenchCopy.results.scan}</span><strong>{formatMetric(relationValue, activeFile.relation === 'pn' ? 0 : 3)}</strong></div>
         <div><span>{workbenchCopy.results.measuredPressure}</span><strong>{formatMaybeMetric(summary?.meanPressure, 4)}</strong></div>
         <div><span>{workbenchCopy.results.idealPressure}</span><strong>{formatMaybeMetric(summary?.meanIdealPressure, 4)}</strong></div>
-        <div><span>{workbenchCopy.results.gap}</span><strong>{summary?.relativeGap === null || summary?.relativeGap === undefined ? '--' : `${formatMetric(summary.relativeGap * 100, 2)}%`}</strong></div>
+        <div><span>{workbenchCopy.results.gap}</span><strong>{summary?.relativeGap === null || summary?.relativeGap === undefined ? '--' : `${formatMetric(summary.relativeGap, 2)}%`}</strong></div>
         <div><span>{workbenchCopy.results.status}</span><strong>{getLocalizedStatusValue(analysis?.verdictState ?? 'insufficient', workbenchCopy)}</strong></div>
         <div><span>{workbenchCopy.results.finalState}</span><strong>{activeFile.needsReset ? workbenchCopy.parameters.idealRuntimeOnStart : getLocalizedStatusValue(activeFile.runState, workbenchCopy)}</strong></div>
       </div>
@@ -7823,11 +8133,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
         : []),
     ];
     const temperatureSignalValue = activeFile.powerOn && typeof activeFile.temperatureSignalMv === 'number'
-      ? formatMetric(activeFile.temperatureSignalMv, 1)
-      : '--.-';
+      ? formatMetric(activeFile.temperatureSignalMv, 2)
+      : '--.--';
     const pressureSignalValue = activeFile.powerOn && typeof activeFile.pressureSignalMv === 'number'
-      ? formatMetric(activeFile.pressureSignalMv, 1)
-      : '--.-';
+      ? formatMetric(activeFile.pressureSignalMv, 2)
+      : '--.--';
     const currentDeltaPKPa = activeFile.powerOn &&
       typeof activeFile.pressureSignalMv === 'number' &&
       Number.isFinite(activeFile.pressureSensitivityMvPerKPa) &&
@@ -7923,17 +8233,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
       <div className={`studio-realtime-summary ${activeFile.kind === 'ideal' ? 'studio-realtime-summary-ideal' : 'studio-realtime-summary-standard'}`}>
         {activeFile.kind === 'ideal' ? (
           <>
-            <div title={workbenchCopy.results.meanTemperature}><span>T</span><strong>{formatMaybeMetric(activeFile.latestPressureSummary?.meanTemperature ?? activeFile.stats.temperature)}</strong></div>
+            <div title={workbenchCopy.results.meanTemperature}><span>{workbenchCopy.results.meanTemperature}</span><strong>{formatMaybeMetric(activeFile.latestPressureSummary?.meanTemperature ?? activeFile.stats.temperature)}</strong></div>
             <div title={workbenchCopy.results.measuredPressure}><span>{workbenchCopy.results.measuredPressure}</span><strong>{formatMaybeMetric(activeFile.latestPressureSummary?.meanPressure ?? activeFile.stats.pressure, 4)}</strong></div>
             <div title={workbenchCopy.results.idealPressure}><span>{workbenchCopy.results.idealPressure}</span><strong>{formatMaybeMetric(activeFile.latestPressureSummary?.meanIdealPressure, 4)}</strong></div>
-            <div title={workbenchCopy.results.relativeGap}><span>{workbenchCopy.results.gap}</span><strong>{activeFile.latestPressureSummary?.relativeGap === null || activeFile.latestPressureSummary?.relativeGap === undefined ? '--' : `${formatMetric(activeFile.latestPressureSummary.relativeGap * 100, 2)}%`}</strong></div>
+            <div title={workbenchCopy.results.relativeGap}><span>{workbenchCopy.results.gap}</span><strong>{activeFile.latestPressureSummary?.relativeGap === null || activeFile.latestPressureSummary?.relativeGap === undefined ? '--' : `${formatMetric(activeFile.latestPressureSummary.relativeGap, 2)}%`}</strong></div>
             <div title={workbenchCopy.results.activeRelation}><span>{workbenchCopy.parameters.relation}</span><strong>{getRelationLabel(activeFile.relation)}</strong></div>
             <div title={workbenchCopy.results.samplingProgress}><span>{workbenchCopy.results.samplingProgress}</span><strong>{formatPercent(activeFile.stats.progress)}</strong></div>
           </>
         ) : (
           <>
-            <div><span>T</span><strong>{formatMetric(activeFile.stats.temperature)}</strong></div>
-            <div><span>P</span><strong>{formatMetric(activeFile.stats.pressure, 4)}</strong></div>
+            <div><span>{workbenchCopy.results.temperature}</span><strong>{formatMetric(activeFile.stats.temperature)}</strong></div>
+            <div><span>{workbenchCopy.results.pressure}</span><strong>{formatMetric(activeFile.stats.pressure, 4)}</strong></div>
             <div><span>{workbenchCopy.results.meanSpeed}</span><strong>{formatMetric(activeFile.stats.meanSpeed)}</strong></div>
             <div><span>{workbenchCopy.results.rmsSpeed}</span><strong>{formatMetric(activeFile.stats.rmsSpeed)}</strong></div>
             <div><span>{workbenchCopy.results.phase}</span><strong>{workbenchCopy.results.phaseStates[activeFile.stats.phase]}</strong></div>
@@ -8038,7 +8348,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     <td>{formatMetric(point.meanTemperature, 3)}</td>
                     <td>{formatMetric(point.meanPressure, 5)}</td>
                     <td>{formatMetric(point.idealPressure, 5)}</td>
-                    <td>{formatMetric(point.relativeGap * 100, 2)}%</td>
+                    <td>{formatMetric(point.relativeGap, 2)}%</td>
                     <td>{new Date(point.timestamp).toLocaleTimeString('en-GB', { hour12: false })}</td>
                     <td>{renderIdealPointRemoveAction(point)}</td>
                   </tr>
@@ -8106,7 +8416,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     return (
       <div className="studio-ideal-chart-card">
-        <svg viewBox="0 0 392 176" role="img" aria-label={`${getRelationLabel(analysis.relation)} verification chart`}>
+        <svg viewBox="0 0 392 176" role="img" aria-label={workbenchCopy.results.verificationChartAria(getRelationLabel(analysis.relation))}>
           <line x1="34" y1="146" x2="358" y2="146" />
           <line x1="34" y1="34" x2="34" y2="146" />
           {[0.25, 0.5, 0.75].map((ratio) => (
@@ -8930,7 +9240,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               </button>
             </div>
           </div>
-          <div className="studio-results-tabs studio-heat-materials-tabs" role="tablist" aria-label="Heat Capacity materials tabs">
+          <div className="studio-results-tabs studio-heat-materials-tabs" role="tablist" aria-label={heatCapacityRealtimeCopy.materialsTabsAria}>
             {openTabs.map(({ tabId, panel }) => (
               <button
                 type="button"
@@ -9061,7 +9371,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             event.stopPropagation();
             openAllHeatCapacityMaterialsTabs();
           }}
-          title="点击文件夹展开/收起；单击文字选中；双击文字打开全部子标签页"
+          title={heatCapacityRealtimeCopy.materialsFolderTitle}
         >
           <button
             type="button"
@@ -9121,7 +9431,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     event.stopPropagation();
                     openHeatCapacityTab(tabId);
                   }}
-                  title="单击选中；双击打开标签页"
+                  title={heatCapacityRealtimeCopy.materialsTabTitle}
                 >
                   {panel.icon}
                   <span>{panel.title}</span>
@@ -9146,7 +9456,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       ) : null}
       <div className={`studio-shell ${consoleCollapsed ? 'studio-shell-console-collapsed' : ''}`} style={shellStyle}>
         <header className="studio-menu">
-          <nav className="studio-top-commands" aria-label="Top commands" ref={topCommandsRef}>
+          <nav className="studio-top-commands" aria-label={workbenchCopy.menus.topCommandsAria} ref={topCommandsRef}>
             {renderTopCommand('new', workbenchCopy.menus.newStudy, <FilePlus2 size={14} />)}
             {renderTopCommand('edit', workbenchCopy.menus.edit, <Undo2 size={14} />)}
             {renderTopCommand('window', workbenchCopy.menus.window, <Wrench size={14} />)}
@@ -9248,7 +9558,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                         <button
                           type="button"
                           className="studio-file-menu-button"
-                          aria-label={`Open actions for ${file.name}`}
+                          aria-label={workbenchCopy.files.openActions(file.name)}
                           tabIndex={filesSectionCollapsed ? -1 : 0}
                           ref={menuOpen ? fileMenuButtonRef : undefined}
                           onClick={(event) => {
@@ -9397,7 +9707,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                         )}
                       </div>
                       {panel.key === 'results' && activeFile.kind === 'ideal' && !resultsChildrenCollapsed ? (
-                        <div className="studio-results-nav studio-ideal-results-nav">
+                        <div className="studio-results-nav studio-results-child-nav studio-ideal-results-nav">
                           {idealResultWindowPanels.map((childPanel) => (
                             <button
                               type="button"
@@ -9424,7 +9734,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                         </div>
                       ) : null}
                       {panel.key === 'results' && activeFile.kind === 'standard' && !resultsChildrenCollapsed ? (
-                        <div className="studio-results-nav">
+                        <div className="studio-results-nav studio-results-child-nav">
                           {resultsSections.map((section) => (
                             <button
                               type="button"
@@ -9468,7 +9778,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             </button>
           ) : null}
 
-          <section className="studio-layout" aria-label="File workspace">
+          <section className="studio-layout" aria-label={workbenchCopy.files.workspaceAria}>
             <div className="studio-file-tabs" ref={fileTabsRef}>
               {isWorkbenchEmpty ? (
                 <div className="studio-file-tabs-empty">{workbenchCopy.files.noOpenFiles}</div>
@@ -9503,7 +9813,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                       <button
                         type="button"
                         className="studio-live-workspace-resizer"
-                        aria-label="Resize 3D Preview and Realtime Data"
+                        aria-label={workbenchCopy.panels.liveWorkspaceResizeAria}
                         onPointerDown={startLiveWorkspaceResize}
                       />
                       {primaryPanels[1] ? renderDockPanel(primaryPanels[1]) : null}

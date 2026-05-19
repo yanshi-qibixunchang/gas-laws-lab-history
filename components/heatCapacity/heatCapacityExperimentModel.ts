@@ -50,6 +50,8 @@ export type HeatCapacityProcessSampleKey =
 
 export type HeatCapacityProcessSamples = Partial<Record<HeatCapacityProcessSampleKey, HeatCapacityProcessSamplePoint>>;
 
+// Scripted Demo/Guide runtime config. Profile-derived target fields here keep
+// teaching behavior stable and must not be used as Free Mode physical truth.
 export interface HeatCapacityModelConfig {
   ambientPressureKPa: number;
   ambientTemperatureK: number;

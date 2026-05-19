@@ -417,9 +417,9 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
       }>
         <span className="flex items-center gap-1">
           {isFocused ? <Lock size={10} /> : <Unlock size={10} />}
-          {isWorkbench ? (isFocused ? '3D controls active' : '3D view standby') : (isFocused ? t.canvas.locked : t.canvas.scrollEnabled)}
+          {isWorkbench ? (isFocused ? t.canvas.workbenchStatusActive : t.canvas.workbenchStatusStandby) : (isFocused ? t.canvas.locked : t.canvas.scrollEnabled)}
         </span>
-        <span>{isWorkbench ? 'Wheel zoom / drag rotate / right-drag pan' : (isFocused ? t.canvas.clickToRelease : t.canvas.clickToInteract)}</span>
+        <span>{isWorkbench ? t.canvas.workbenchInstructions : (isFocused ? t.canvas.clickToRelease : t.canvas.clickToInteract)}</span>
       </div>
 
       <div
@@ -504,7 +504,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
           : `absolute top-0 left-0 w-full p-4 flex justify-between pointer-events-none transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`
         }>
           <div className="pointer-events-auto relative z-[120]">
-            {isFocused && (
+            {(isWorkbench || isFocused) && (
               <button
                 onClick={togglePanMode}
                 onMouseDown={(event) => event.stopPropagation()}
@@ -539,7 +539,11 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
                 : `bg-sciblue-600 text-white text-xs px-3 py-1.5 rounded-full shadow-lg border border-sciblue-400/50 backdrop-blur-sm transition-transform active:scale-95 flex items-center gap-1 ${resetButtonHoverClass}`}
               title={t.tooltips.resetCamera}
             >
-              <Maximize size={isWorkbench ? 16 : 12} /> {isWorkbench ? 'Reset view' : t.canvas.resetView}
+              {isWorkbench ? t.canvas.workbenchDefaultView : (
+                <>
+                  <Maximize size={12} /> {t.canvas.resetView}
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -548,12 +552,12 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
           {isFocused ? (
             <div className={isWorkbench ? 'simulation-canvas-workbench-hint-pill' : 'text-xs text-sciblue-100 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-panel border border-white/10 shadow-lg animate-fade-in-up'}>
               <p className="font-medium">
-                {isWorkbench ? (isPanMode ? 'Pan mode active' : 'Rotate mode active') : (touchLike ? t.canvas.instructionsFocused_mobile : t.canvas.instructionsFocused_desktop)}
+                {isWorkbench ? (isPanMode ? t.canvas.workbenchPanModeActive : t.canvas.workbenchRotateModeActive) : (touchLike ? t.canvas.instructionsFocused_mobile : t.canvas.instructionsFocused_desktop)}
               </p>
             </div>
           ) : (
             <div className={isWorkbench ? 'simulation-canvas-workbench-hint-idle' : 'flex items-center gap-2 text-xs text-amber-400 font-bold tracking-wide animate-pulse'}>
-              <MousePointer2 size={14} /> {isWorkbench ? 'Click to activate 3D controls' : t.canvas.instructionsIdle}
+              <MousePointer2 size={14} /> {isWorkbench ? t.canvas.workbenchClickToActivate : t.canvas.instructionsIdle}
             </div>
           )}
         </div>

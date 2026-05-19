@@ -1,4 +1,6 @@
-export interface HeatCapacityExperimentProfile {
+// Demo/Guide-only teaching profile. These scripted target fields preserve the
+// guided experiment baseline and are not physical truth for Free Mode.
+export interface HeatCapacityTeachingProfile {
   seed: number | string;
   gammaTarget: number;
   theoreticalGamma: number;
@@ -83,7 +85,7 @@ export const createHeatCapacityExperimentSeed = () => (
 );
 
 export const calculateAirHeatCapacityTargets = (
-  profile: Pick<HeatCapacityExperimentProfile, 'u0MeasuredMv' | 'u1MeasuredMv' | 'u2MeasuredMv' | 'theoreticalGamma'>,
+  profile: Pick<HeatCapacityTeachingProfile, 'u0MeasuredMv' | 'u1MeasuredMv' | 'u2MeasuredMv' | 'theoreticalGamma'>,
 ): AirHeatCapacityTargets => {
   const gamma = profile.u1MeasuredMv / (profile.u1MeasuredMv - profile.u2MeasuredMv);
   return {
@@ -97,10 +99,18 @@ export const calculateAirHeatCapacityTargets = (
 };
 
 export const clampHeatCapacityExperimentProfile = (
-  profile: HeatCapacityExperimentProfile,
-): HeatCapacityExperimentProfile => {
+  profile: HeatCapacityTeachingProfile,
+): HeatCapacityTeachingProfile => {
+  const gammaTarget = clampNumber(profile.gammaTarget, 1.36, 1.44);
   const u1MeasuredMv = clampNumber(profile.u1MeasuredMv, 105, 130);
-  const u2MeasuredMv = clampNumber(profile.u2MeasuredMv, 25, u1MeasuredMv - 12);
+  const targetU2MeasuredMv = u1MeasuredMv * (1 - 1 / gammaTarget);
+  const minGammaU2Mv = u1MeasuredMv * (1 - 1 / 1.36);
+  const maxGammaU2Mv = u1MeasuredMv * (1 - 1 / 1.44);
+  const u2MeasuredMv = roundNumber(clampNumber(
+    profile.u2MeasuredMv,
+    Math.max(25, minGammaU2Mv, targetU2MeasuredMv - 0.95),
+    Math.min(u1MeasuredMv - 12, maxGammaU2Mv, targetU2MeasuredMv + 0.95),
+  ), 2);
   const ambientTemperatureMv = clampNumber(
     Number.isFinite(profile.ambientTemperatureMv) ? profile.ambientTemperatureMv : profile.initialTemperatureMv,
     1498.8,
@@ -113,7 +123,7 @@ export const clampHeatCapacityExperimentProfile = (
   return {
     ...profile,
     theoreticalGamma: AIR_THEORETICAL_GAMMA,
-    gammaTarget: clampNumber(profile.gammaTarget, 1.36, 1.44),
+    gammaTarget,
     u0MeasuredMv: clampNumber(profile.u0MeasuredMv, -0.03, 0.03),
     u1MeasuredMv,
     u2MeasuredMv,
@@ -130,7 +140,7 @@ export const clampHeatCapacityExperimentProfile = (
 
 export const createHeatCapacityExperimentProfile = (
   seed: number | string = createHeatCapacityExperimentSeed(),
-): HeatCapacityExperimentProfile => {
+): HeatCapacityTeachingProfile => {
   const random = createSeededRandom(seed);
   const gammaTarget = clampNumber(randomNormal(random, AIR_THEORETICAL_GAMMA, 0.015), 1.36, 1.44);
   const u1TargetMv = randomUniform(random, 105, 130);

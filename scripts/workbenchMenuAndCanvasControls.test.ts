@@ -64,8 +64,8 @@ assert.match(
 );
 assert.match(
   source,
-  /<Maximize size=\{isWorkbench \? 16 : 12\} \/>/,
-  'workbench reset icon should render at 16px',
+  /isWorkbench \? t\.canvas\.workbenchDefaultView : \(/,
+  'workbench reset tool should render as the same plain text action as heat capacity',
 );
 assert.match(
   source,

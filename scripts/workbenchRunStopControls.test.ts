@@ -72,6 +72,18 @@ assert.match(
 
 assert.match(
   source,
+  /const heatCapacityActiveMode: HeatCapacityMode = activeFile\.heatCapacityMode;/,
+  'heat capacity mode bar should read the explicit file mode instead of deriving Free mode from local UI flags',
+);
+
+assert.match(
+  source,
+  /const enterHeatCapacityFreeMode = \(\) => \{[\s\S]*?enterHeatCapacityFreeModeWorkbenchState\(file, Date\.now\(\)\)/,
+  'entering Free mode should reset the persisted Free runtime through the workbench state helper',
+);
+
+assert.match(
+  source,
   /const startHeatCapacityManualExperiment = \(\) => \{[\s\S]*activateHeatCapacityManualExperiment\(guideFileId, guideFileName\);[\s\S]*showHeatCapacityAutoDemoCompletionToast\('正在启动引导模式', HEAT_CAPACITY_GUIDE_START_NOTICE_MS\);[\s\S]*\};/,
   'guide mode should become active immediately so the exit button appears at the same time as the start notice',
 );

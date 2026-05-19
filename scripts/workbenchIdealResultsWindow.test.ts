@@ -26,6 +26,21 @@ assert.ok(
   idealPanelsBlock.includes("key: 'verification'"),
   'ideal files should expose Verification as a Results child window',
 );
+for (const expectedCopy of [
+  "pointsTitle: '实验数据记录'",
+  "verificationTitle: '关系验证分析'",
+  "pointsTitle: '實驗資料記錄'",
+  "verificationTitle: '關係驗證分析'",
+  "pointsTitle: 'Experiment Data'",
+  "verificationTitle: 'Relation Verification'",
+]) {
+  assert.ok(source.includes(expectedCopy), `ideal Results child window label should use ${expectedCopy}`);
+}
+assert.doesNotMatch(
+  source,
+  /pointsTitle:\s*'点'|pointsTitle:\s*'點'|pointsTitle:\s*'Points'|verificationTitle:\s*'验证'|verificationTitle:\s*'驗證'|verificationTitle:\s*'Verification'/,
+  'ideal Results child window labels should use experiment-style names instead of casual one-word labels',
+);
 assert.ok(
   !idealPanelsBlock.includes("key: 'history'"),
   'ideal files should no longer expose Success History as a separate panel',
@@ -147,6 +162,21 @@ assert.match(
   source,
   /className="studio-results-tabs studio-ideal-results-tabs"/,
   'ideal Results should reuse the standard Results tab strip styling',
+);
+assert.match(
+  source,
+  /className="studio-results-nav studio-results-child-nav studio-ideal-results-nav"/,
+  'ideal Results tree children should use the shared indented child navigation styling',
+);
+assert.match(
+  source,
+  /className="studio-results-nav studio-results-child-nav"/,
+  'standard Results tree children should use the shared indented child navigation styling',
+);
+assert.match(
+  cssSource,
+  /\.studio-results-child-nav\s*\{[\s\S]*?border-left:/,
+  'standard and ideal Results children should show a vertical guide line like heat capacity child files',
 );
 assert.doesNotMatch(
   cssSource,

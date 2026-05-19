@@ -8,6 +8,11 @@ import {
   updateHeatCapacityRuntimeZeroOffset,
 } from '../components/heatCapacity/heatCapacityExperimentModel.ts';
 import {
+  calculateAirHeatCapacityTargets,
+  createHeatCapacityExperimentProfile,
+  type HeatCapacityTeachingProfile,
+} from '../components/heatCapacity/heatCapacityExperimentRandom.ts';
+import {
   HEAT_CAPACITY_VIDEO_PROFILE,
   getHeatCapacityRangeMidpoint,
 } from '../components/heatCapacity/heatCapacityDisplayResponse.ts';
@@ -24,6 +29,43 @@ const baseControls = {
   pumpFrequencyStatus: 'idle' as const,
 };
 const initialTemperatureMv = getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.initialTemperatureMvRange);
+const teachingPresetValueFields: Array<keyof HeatCapacityTeachingProfile> = [
+  'gammaTarget',
+  'theoreticalGamma',
+  'u0TargetMv',
+  'u1TargetMv',
+  'u2TargetMv',
+  'u0MeasuredMv',
+  'u1MeasuredMv',
+  'u2MeasuredMv',
+  'pumpPeakPressureMv',
+  'stableBeforeReleaseMv',
+  'recoveryPressureMv',
+  'ambientTemperatureMv',
+  'initialTemperatureMv',
+  'stableTemperatureMv',
+  'releaseTemperatureLowMv',
+  'recoveryTemperatureMv',
+  'pumpEfficiency',
+  'releaseSpeed',
+  'thermalRecoveryRate',
+  'displayNoiseLevel',
+];
+
+const teachingProfile = createHeatCapacityExperimentProfile('batch-0-teaching-profile');
+assert.deepEqual(
+  Object.keys(teachingProfile).sort(),
+  ['seed', ...teachingPresetValueFields].sort(),
+  'teaching profile field inventory should stay explicit before Free Mode boundary edits',
+);
+assert.equal(teachingProfile.u1MeasuredMv >= 105 && teachingProfile.u1MeasuredMv <= 130, true);
+assert.equal(
+  Math.abs(teachingProfile.u2MeasuredMv - teachingProfile.u1MeasuredMv * (1 - 1 / teachingProfile.gammaTarget)) <= 1,
+  true,
+  'teaching profile U2 should stay near U1 * (1 - 1 / gamma)',
+);
+const teachingProfileTargets = calculateAirHeatCapacityTargets(teachingProfile);
+assert.equal(teachingProfileTargets.gamma >= 1.36 && teachingProfileTargets.gamma <= 1.44, true);
 
 assert.equal(applyPressureZero(8.4, 0.6, -1.2), 7.8);
 assert.equal(applyPressureZero(0, 0.6, -0.6), 0);

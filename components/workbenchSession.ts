@@ -1,6 +1,8 @@
 import {
   clampWorkbenchLiveSplitRatio,
   applyHeatCapacityPressureZero,
+  HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  createDefaultHeatCapacityFreeRuntimeFields,
   createDefaultHeatCapacityFile,
   getHeatCapacityStopcockTargetAngle,
   getHeatCapacityStopcockState,
@@ -19,8 +21,11 @@ import {
   resizeHeatCapacityTrials,
 } from './heatCapacity/heatCapacityTrialModel.ts';
 import type {
-  HeatCapacityExperimentProfile,
+  HeatCapacityTeachingProfile,
 } from './heatCapacity/heatCapacityExperimentRandom.ts';
+import type {
+  HeatCapacityFreeTrial,
+} from './heatCapacity/heatCapacityFreeTrialModel.ts';
 
 export const WORKBENCH_SESSION_VERSION = 1;
 export const WORKBENCH_SESSION_STORAGE_KEY = 'hsl_workbench_session_v1';
@@ -39,9 +44,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null
 );
 
-const normalizeHeatCapacityExperimentProfile = (value: unknown): HeatCapacityExperimentProfile | null => (
+const normalizeHeatCapacityExperimentProfile = (value: unknown): HeatCapacityTeachingProfile | null => (
   isRecord(value) && normalizeNullableNumber(value.u1MeasuredMv) !== null && normalizeNullableNumber(value.u2MeasuredMv) !== null
-    ? value as unknown as HeatCapacityExperimentProfile
+    ? value as unknown as HeatCapacityTeachingProfile
     : null
 );
 
@@ -104,6 +109,26 @@ const normalizeHeatCapacityProcessSamples = (value: unknown) => {
   }, {});
 };
 
+const normalizeHeatCapacityFreeTrial = (value: unknown): HeatCapacityFreeTrial | null => {
+  if (!isRecord(value) || typeof value.id !== 'string') return null;
+  return {
+    id: value.id,
+    source: 'free',
+    automaticU0: isRecord(value.automaticU0)
+      ? value.automaticU0 as HeatCapacityFreeTrial['automaticU0']
+      : null,
+    u0: isRecord(value.u0) ? value.u0 as HeatCapacityFreeTrial['u0'] : null,
+    u1: isRecord(value.u1) ? value.u1 as HeatCapacityFreeTrial['u1'] : null,
+    u2: isRecord(value.u2) ? value.u2 as HeatCapacityFreeTrial['u2'] : null,
+    blockedReason: typeof value.blockedReason === 'string'
+      ? value.blockedReason as HeatCapacityFreeTrial['blockedReason']
+      : null,
+    correctedSignals: isRecord(value.correctedSignals) && isRecord(value.u0)
+      ? value.correctedSignals as HeatCapacityFreeTrial['correctedSignals']
+      : null,
+  };
+};
+
 const fallbackSession = (): WorkbenchSessionState => {
   return {
     version: WORKBENCH_SESSION_VERSION,
@@ -164,9 +189,49 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
     const savedProcessingResult = file.heatCapacityProcessingResult;
     const savedProcessingUsesAirTheory = savedProcessingResult?.calculated === true
       && normalizeNullableNumber(savedProcessingResult.theoreticalGamma) === theoreticalGamma;
+    const heatCapacityFreeTrials = Array.isArray(file.heatCapacityFreeTrials)
+      ? file.heatCapacityFreeTrials
+          .map(normalizeHeatCapacityFreeTrial)
+          .filter((trial): trial is HeatCapacityFreeTrial => trial !== null)
+      : [];
+    const fallbackFreeRuntimeFields = createDefaultHeatCapacityFreeRuntimeFields(`free-runtime-${file.id}`);
+    const savedFreeRuntimeCompatible = file.heatCapacityFreeRuntimeVersion === HEAT_CAPACITY_FREE_RUNTIME_VERSION;
+    const savedFreeSensorState = isRecord(file.heatCapacityFreeSensorState)
+      ? file.heatCapacityFreeSensorState as typeof fallbackFreeRuntimeFields.heatCapacityFreeSensorState
+      : null;
+    const normalizedFreeRuntimeFields = savedFreeRuntimeCompatible
+      ? {
+          heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+          heatCapacityFreeEnvironmentConfig: isRecord(file.heatCapacityFreeEnvironmentConfig)
+            ? file.heatCapacityFreeEnvironmentConfig as typeof fallbackFreeRuntimeFields.heatCapacityFreeEnvironmentConfig
+            : fallbackFreeRuntimeFields.heatCapacityFreeEnvironmentConfig,
+          heatCapacityFreePhysicsConfig: isRecord(file.heatCapacityFreePhysicsConfig)
+            ? file.heatCapacityFreePhysicsConfig as typeof fallbackFreeRuntimeFields.heatCapacityFreePhysicsConfig
+            : fallbackFreeRuntimeFields.heatCapacityFreePhysicsConfig,
+          heatCapacityFreePhysicsState: isRecord(file.heatCapacityFreePhysicsState)
+            ? file.heatCapacityFreePhysicsState as typeof fallbackFreeRuntimeFields.heatCapacityFreePhysicsState
+            : fallbackFreeRuntimeFields.heatCapacityFreePhysicsState,
+          heatCapacityFreeSensorConfig: isRecord(file.heatCapacityFreeSensorConfig)
+            ? file.heatCapacityFreeSensorConfig as typeof fallbackFreeRuntimeFields.heatCapacityFreeSensorConfig
+            : fallbackFreeRuntimeFields.heatCapacityFreeSensorConfig,
+          heatCapacityFreeSensorState: savedFreeSensorState
+            ? {
+                ...savedFreeSensorState,
+                pressureInitialBiasMv: normalizeNullableNumber(savedFreeSensorState.pressureInitialBiasMv)
+                  ?? fallbackFreeRuntimeFields.heatCapacityFreeSensorState.pressureInitialBiasMv,
+              }
+            : fallbackFreeRuntimeFields.heatCapacityFreeSensorState,
+          heatCapacityFreeCalibrationState: isRecord(file.heatCapacityFreeCalibrationState)
+            ? file.heatCapacityFreeCalibrationState as typeof fallbackFreeRuntimeFields.heatCapacityFreeCalibrationState
+            : fallbackFreeRuntimeFields.heatCapacityFreeCalibrationState,
+          heatCapacityFreeStopcockFlowOpen: file.heatCapacityFreeStopcockFlowOpen === true,
+          heatCapacityFreeStopcockPendingOpenAtMs: normalizeNullableNumber(file.heatCapacityFreeStopcockPendingOpenAtMs),
+        }
+      : fallbackFreeRuntimeFields;
     return {
       ...fallback,
       ...file,
+      ...normalizedFreeRuntimeFields,
       name: normalizeHeatCapacityFileName(file.name),
       visiblePanels: heatCapacityVisiblePanels.length > 0 ? heatCapacityVisiblePanels : fallback.visiblePanels,
       runState: file.runState === 'running' ? 'paused' : file.runState,
@@ -197,6 +262,13 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
         ? file.heatCapacityExperimentSeed
         : null,
       heatCapacityExperimentProfile: normalizeHeatCapacityExperimentProfile(file.heatCapacityExperimentProfile),
+      heatCapacityMode: file.heatCapacityMode === 'demo' || file.heatCapacityMode === 'guide' || file.heatCapacityMode === 'free'
+        ? file.heatCapacityMode
+        : fallback.heatCapacityMode,
+      heatCapacityPausedTeachingSnapshot: isRecord(file.heatCapacityPausedTeachingSnapshot)
+        ? file.heatCapacityPausedTeachingSnapshot as typeof fallback.heatCapacityPausedTeachingSnapshot
+        : null,
+      heatCapacityFreeTrials,
       stopcockAngleDeg,
       glassPistonState: getHeatCapacityStopcockState(stopcockAngleDeg),
       ambientPressureKPa: normalizeNullableNumber(file.ambientPressureKPa) ?? fallback.ambientPressureKPa,

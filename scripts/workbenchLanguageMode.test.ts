@@ -16,7 +16,12 @@ assert.match(
   'Workbench should provide copy tables for zh-CN, zh-TW, and en',
 );
 
-const copyKeys = [...source.matchAll(/^\s{2}('zh-CN'|'zh-TW'|en): \{/gm)].map((match) => match[1].replace(/'/g, ''));
+const workbenchCopiesStart = source.indexOf('const workbenchCopies:');
+const workbenchCopiesEnd = source.indexOf('const heatCapacityRealtimeCopies', workbenchCopiesStart);
+assert.notEqual(workbenchCopiesStart, -1, 'workbenchCopies table should exist');
+assert.notEqual(workbenchCopiesEnd, -1, 'workbenchCopies table should end before heatCapacityRealtimeCopies');
+const workbenchCopiesSource = source.slice(workbenchCopiesStart, workbenchCopiesEnd);
+const copyKeys = [...workbenchCopiesSource.matchAll(/^\s{2}('zh-CN'|'zh-TW'|en): \{/gm)].map((match) => match[1].replace(/'/g, ''));
 assert.deepEqual(copyKeys, ['zh-CN', 'zh-TW', 'en'], 'copy table language keys should stay complete and ordered');
 
 const getLanguageBlock = (languageKey) => {
@@ -80,9 +85,12 @@ for (const expression of [
   'workbenchCopy.files.openFiles',
   'workbenchCopy.parameters.title',
   'workbenchCopy.parameters.samplingPreset',
+  'workbenchCopy.parameters.relationHints[option.key]',
   'workbenchCopy.parameters.samplingPresets',
   'workbenchCopy.parameters.samplingDuration',
   'workbenchCopy.results.scan',
+  'workbenchCopy.results.temperature',
+  'workbenchCopy.results.pressure',
   'workbenchCopy.results.measuredPressure',
   'workbenchCopy.results.idealPressure',
   'workbenchCopy.results.gap',
@@ -107,6 +115,7 @@ for (const expression of [
   'workbenchCopy.results.relationValidation',
   'workbenchCopy.results.verdictLabel',
   'workbenchCopy.results.pointsMetric',
+  'workbenchCopy.results.pointsShort',
   'workbenchCopy.results.failureReason',
   'workbenchCopy.results.currentVerification',
   'workbenchCopy.results.currentVerdictRecommendation',
@@ -216,6 +225,11 @@ for (const exportHardcodedCall of [
 
 for (const forbiddenJsxText of [
   '<span>Mean speed</span>',
+  '<span>Temperature</span>',
+  '<span>Pressure</span>',
+  'String(relationVariableKey)',
+  '<span>{activeFile.pointsByRelation[option.key].length} pts</span>',
+  'Scan temperature at fixed N and V',
   '<td>final speed samples</td>',
   '<td>final energy samples</td>',
   '<td>temp history samples</td>',

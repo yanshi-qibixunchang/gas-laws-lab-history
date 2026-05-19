@@ -221,6 +221,13 @@ export interface Translation {
     clickToRelease: string;
     clickToInteract: string;
     resetView: string;
+    workbenchStatusActive: string;
+    workbenchStatusStandby: string;
+    workbenchInstructions: string;
+    workbenchDefaultView: string;
+    workbenchPanModeActive: string;
+    workbenchRotateModeActive: string;
+    workbenchClickToActivate: string;
     instructionsFocused_desktop: string; // Split
     instructionsFocused_mobile: string;  // Split
     instructionsIdle: string;

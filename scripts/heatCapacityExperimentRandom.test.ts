@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   calculateAirHeatCapacityTargets,
   createHeatCapacityExperimentProfile,
@@ -12,6 +14,15 @@ import {
 } from '../components/heatCapacity/heatCapacityTrialModel.ts';
 
 const seed = 3757384;
+const profileSource = readFileSync(
+  join(process.cwd(), 'components', 'heatCapacity', 'heatCapacityExperimentRandom.ts'),
+  'utf8',
+);
+
+assert.match(profileSource, /export interface HeatCapacityTeachingProfile/, 'teaching preset type boundary should be named HeatCapacityTeachingProfile');
+assert.match(profileSource, /Demo\/Guide-only teaching profile/, 'profile source should document that scripted preset fields belong only to Demo and Guide');
+assert.match(profileSource, /createHeatCapacityExperimentProfile[\s\S]*\): HeatCapacityTeachingProfile =>/, 'profile generation should return the teaching-specific type boundary');
+
 const first = createHeatCapacityExperimentProfile(seed);
 const second = createHeatCapacityExperimentProfile(seed);
 const third = createHeatCapacityExperimentProfile(seed + 1);

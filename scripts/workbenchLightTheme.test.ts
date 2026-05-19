@@ -64,6 +64,8 @@ for (const selector of [
   '.studio-theme-light .studio-results-tab-close:hover',
   '.studio-theme-light .studio-results-folder-button',
   '.studio-theme-light .studio-results-folder-button:hover',
+  '.studio-theme-light .studio-results-child-nav',
+  '.studio-theme-light .studio-results-child-nav button:hover',
   '.studio-theme-light .studio-ideal-results-card',
   '.studio-theme-light .studio-ideal-results-card-header button',
   '.studio-theme-light .studio-ideal-results-card-header button:hover',

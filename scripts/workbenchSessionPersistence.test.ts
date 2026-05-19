@@ -1,9 +1,15 @@
 import assert from 'node:assert/strict';
 import {
+  HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  createDefaultHeatCapacityFile,
   createDefaultIdealFile,
   createDefaultStandardFile,
   type WorkbenchPanelKey,
 } from '../components/workbenchState.ts';
+import {
+  calculateFreeHeatCapacityMeanResult,
+  createHeatCapacityFreeTrial,
+} from '../components/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
   WORKBENCH_SESSION_VERSION,
   decodeWorkbenchSession,
@@ -12,7 +18,39 @@ import {
 
 const standard = createDefaultStandardFile(1);
 const ideal = createDefaultIdealFile(1);
+const heatCapacity = createDefaultHeatCapacityFile(1);
 const now = 1710000000000;
+const savedAutomaticOnlyFreeTrial = {
+  ...createHeatCapacityFreeTrial('free-session-automatic-only', {
+    displayPressureMv: 0.04,
+    displayTemperatureMv: 1499,
+    calibrationVersion: 1,
+    zeroEventId: 'zero-1',
+    atS: 2,
+  }),
+  u1: {
+    atS: 10,
+    displayPressureMv: 112.04,
+    displayTemperatureMv: 1499,
+    calibrationVersion: 1,
+    zeroEventId: 'zero-1',
+  },
+  u2: {
+    atS: 20,
+    displayPressureMv: 32.04,
+    displayTemperatureMv: 1499,
+    calibrationVersion: 1,
+    zeroEventId: 'zero-1',
+  },
+  correctedSignals: {
+    U0DisplayMv: 0.04,
+    U1DisplayMv: 112.04,
+    U2DisplayMv: 32.04,
+    U1CorrectedMv: 112,
+    U2CorrectedMv: 32,
+    gamma: 1.4,
+  },
+};
 
 const restored = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
@@ -67,13 +105,30 @@ const restored = decodeWorkbenchSession({
       },
       updatedAt: now,
     },
+    {
+      ...heatCapacity,
+      heatCapacityMode: 'free',
+      heatCapacityFreeRuntimeVersion: 0,
+      heatCapacityFreeTrials: [savedAutomaticOnlyFreeTrial],
+      heatCapacityFreePhysicsState: {
+        ...heatCapacity.heatCapacityFreePhysicsState,
+        gasAmountRatio: 1.7,
+        pumpStrokeCount: 9,
+      },
+      heatCapacityFreeCalibrationState: {
+        ...heatCapacity.heatCapacityFreeCalibrationState,
+        calibrationVersion: 5,
+        zeroOffsetMv: 1.2,
+      },
+      updatedAt: now,
+    },
   ],
 });
 
 assert.equal(restored.version, WORKBENCH_SESSION_VERSION);
 assert.equal(restored.activeFileId, ideal.id);
 assert.equal(restored.selectedPanel, 'verification' satisfies WorkbenchPanelKey);
-assert.equal(restored.files.length, 2);
+assert.equal(restored.files.length, 3);
 assert.equal(restored.files[0].runState, 'paused', 'running sessions should restore paused, not auto-run');
 assert.equal(restored.files[0].finalChartData?.tempHistory.length, 1, 'standard final result data should persist');
 
@@ -87,9 +142,28 @@ if (restoredIdeal.kind === 'ideal') {
   assert.equal(restoredIdeal.idealWindowLayout.heightRatio, 0.72);
 }
 
+const restoredHeatCapacity = restored.files[2];
+assert.equal(restoredHeatCapacity.kind, 'heatCapacity');
+if (restoredHeatCapacity.kind === 'heatCapacity') {
+  assert.equal(restoredHeatCapacity.heatCapacityFreeRuntimeVersion, HEAT_CAPACITY_FREE_RUNTIME_VERSION);
+  assert.equal(restoredHeatCapacity.heatCapacityFreePhysicsState.gasAmountRatio, 1);
+  assert.equal(restoredHeatCapacity.heatCapacityFreePhysicsState.pumpStrokeCount, 0);
+  assert.equal(restoredHeatCapacity.heatCapacityFreeCalibrationState.calibrationVersion, 0);
+  assert.equal(restoredHeatCapacity.heatCapacityFreeTrials.length, 1, 'stale Free runtime normalization must preserve Free trials');
+  assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[0].automaticU0?.zeroEventId, 'zero-1');
+  assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[0].u0, null, 'automatic-only saved Free trials must not be promoted to official manual U0 records');
+  assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[0].correctedSignals, null, 'automatic-only saved Free trials must normalize as incomplete official records');
+  assert.equal(
+    calculateFreeHeatCapacityMeanResult(restoredHeatCapacity.heatCapacityFreeTrials).validTrialCount,
+    0,
+    'automatic-only saved Free trials must not count as complete official Free trials',
+  );
+  assert.equal(restoredHeatCapacity.heatCapacityMode, 'free');
+}
+
 const encoded = encodeWorkbenchSession(restored.files, restored.activeFileId, restored.selectedPanel);
 assert.equal(encoded.version, WORKBENCH_SESSION_VERSION);
-assert.equal(encoded.files.length, 2);
+assert.equal(encoded.files.length, 3);
 assert.equal(encoded.activeFileId, ideal.id);
 
 const fallback = decodeWorkbenchSession({ version: 999, files: [], activeFileId: 'missing', selectedPanel: 'history' });
