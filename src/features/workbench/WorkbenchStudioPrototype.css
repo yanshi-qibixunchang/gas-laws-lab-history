@@ -1923,34 +1923,17 @@
   color: var(--studio-muted);
 }
 
-.studio-theme-light .studio-empty-file-actions button,
-.studio-theme-light .studio-empty-file-open-actions button,
-.studio-theme-light .studio-empty-actions button,
-.studio-theme-light .studio-empty-open-actions button,
 .studio-theme-light .studio-empty-param-actions button {
   background: #eef6ff;
   border-color: rgba(37, 99, 235, 0.3);
   color: #2563eb;
 }
 
-.studio-theme-light .studio-empty-file-actions button:hover,
-.studio-theme-light .studio-empty-file-open-actions button:hover,
-.studio-theme-light .studio-empty-actions button:hover,
-.studio-theme-light .studio-empty-open-actions button:hover,
 .studio-theme-light .studio-empty-param-actions button:hover,
-.studio-theme-light .studio-empty-file-actions button:focus-visible,
-.studio-theme-light .studio-empty-file-open-actions button:focus-visible,
-.studio-theme-light .studio-empty-actions button:focus-visible,
-.studio-theme-light .studio-empty-open-actions button:focus-visible,
 .studio-theme-light .studio-empty-param-actions button:focus-visible {
   background: #dbeafe;
   border-color: rgba(37, 99, 235, 0.48);
   color: #1d4ed8;
-}
-
-.studio-theme-light .studio-empty-open-list button:disabled {
-  background: #f1f5f9;
-  color: #64748b;
 }
 
 .studio-theme-light .studio-param-row-editing {
@@ -2508,10 +2491,6 @@
   gap: 7px;
 }
 
-.studio-empty-file-actions button,
-.studio-empty-file-open-actions button,
-.studio-empty-actions button,
-.studio-empty-open-actions button,
 .studio-empty-param-actions button {
   display: inline-flex;
   min-width: 0;
@@ -2527,15 +2506,7 @@
   cursor: pointer;
 }
 
-.studio-empty-file-actions button:hover,
-.studio-empty-file-open-actions button:hover,
-.studio-empty-actions button:hover,
-.studio-empty-open-actions button:hover,
 .studio-empty-param-actions button:hover,
-.studio-empty-file-actions button:focus-visible,
-.studio-empty-file-open-actions button:focus-visible,
-.studio-empty-actions button:focus-visible,
-.studio-empty-open-actions button:focus-visible,
 .studio-empty-param-actions button:focus-visible {
   border-color: rgba(79, 127, 184, 0.58);
   background: rgba(79, 127, 184, 0.15);
@@ -2567,11 +2538,44 @@
   margin-top: 7px;
 }
 
-.studio-empty-open-list button {
+.studio-empty-command-row {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 28px;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
   justify-content: flex-start;
+  color: var(--studio-accent-strong);
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
 }
 
-.studio-empty-open-list button strong {
+.studio-empty-command-row:hover,
+.studio-empty-command-row:focus-visible {
+  background: rgba(79, 127, 184, 0.12);
+  color: var(--studio-text);
+  outline: none;
+}
+
+.studio-empty-command-row svg {
+  flex: 0 0 auto;
+  color: var(--studio-accent);
+}
+
+.studio-empty-command-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-empty-open-row strong {
   margin-left: auto;
   color: var(--studio-subtle);
   font-family: "JetBrains Mono", Consolas, monospace;
@@ -2579,12 +2583,34 @@
   font-weight: 700;
 }
 
-.studio-empty-open-list button:disabled {
-  border-color: transparent;
-  background: rgba(148, 163, 184, 0.08);
+.studio-empty-command-row-disabled,
+.studio-empty-command-row-disabled:hover,
+.studio-empty-command-row-disabled:focus-visible {
+  background: transparent;
   color: var(--studio-subtle);
   cursor: default;
   opacity: 0.72;
+}
+
+.studio-theme-light .studio-empty-command-row {
+  color: #006ab1;
+}
+
+.studio-theme-light .studio-empty-command-row svg {
+  color: #2563eb;
+}
+
+.studio-theme-light .studio-empty-command-row:hover,
+.studio-theme-light .studio-empty-command-row:focus-visible {
+  background: #e8f0fb;
+  color: #004f8c;
+}
+
+.studio-theme-light .studio-empty-command-row-disabled,
+.studio-theme-light .studio-empty-command-row-disabled:hover,
+.studio-theme-light .studio-empty-command-row-disabled:focus-visible {
+  background: transparent;
+  color: #64748b;
 }
 
 .studio-file-rename-input {

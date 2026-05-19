@@ -64,6 +64,24 @@ assert.match(
 
 assert.match(
   source,
+  /const renderEmptyStudyActions = \(className = 'studio-empty-actions'\) => \(\s*<div className=\{className\}>\s*<button type="button" className="studio-empty-command-row"/,
+  'empty study creation entries should render as VS Code style command rows',
+);
+
+assert.match(
+  source,
+  /<div className="studio-empty-open-list">\s*\{openableClosedFiles\.length === 0 \? \(\s*<button type="button" className="studio-empty-command-row studio-empty-command-row-disabled" disabled>/,
+  'empty cached-open disabled hint should use the command-row disabled treatment',
+);
+
+assert.match(
+  source,
+  /openableClosedFiles\.slice\(0, 5\)\.map\(\(file\) => \(\s*<button[\s\S]*?className="studio-empty-command-row studio-empty-open-row"/,
+  'cached-open entries should render as command rows, not boxed buttons',
+);
+
+assert.match(
+  source,
   /getWorkbenchFileKindLabel\(file\.kind, workbenchCopy\.files\)/,
   'visible file kind suffixes should use the centralized localized label helper',
 );
@@ -156,6 +174,30 @@ assert.match(
   getRuleBody('.studio-empty-workbench'),
   /background:[\s\S]*box-shadow:[\s\S]*inset 0 1px 0/,
   'empty workspace should look like a polished launch surface instead of a bordered placeholder',
+);
+
+assert.match(
+  getRuleBody('.studio-empty-command-row'),
+  /border:\s*0;[\s\S]*background:\s*transparent;[\s\S]*justify-content:\s*flex-start;/,
+  'empty-state command rows should be transparent text commands by default',
+);
+
+assert.match(
+  getRuleBody('.studio-empty-command-row:hover'),
+  /background:\s*rgba\(79,\s*127,\s*184,\s*0\.\d+\);/,
+  'empty-state command rows should reveal only a subtle hover surface',
+);
+
+assert.doesNotMatch(
+  getRuleBody('.studio-empty-command-row'),
+  /border:\s*1px solid rgba\(79,\s*127,\s*184/,
+  'empty-state command rows should not use the old blue outline button border',
+);
+
+assert.match(
+  getRuleBody('.studio-theme-light .studio-empty-command-row:hover'),
+  /background:\s*#e8f0fb;/,
+  'light theme command rows should use a VS Code-like pale hover row',
 );
 
 assert.match(

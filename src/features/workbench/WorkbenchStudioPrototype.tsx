@@ -8005,12 +8005,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
       </div>
       <div className="studio-empty-open-list">
         {openableClosedFiles.length === 0 ? (
-          <button type="button" disabled>
+          <button type="button" className="studio-empty-command-row studio-empty-command-row-disabled" disabled>
             <Archive size={14} />
             <span>{workbenchCopy.menus.noCachedExperiments}</span>
           </button>
         ) : openableClosedFiles.slice(0, 5).map((file) => (
-          <button type="button" key={file.id} onClick={() => openClosedWorkbenchFile(file.id)}>
+          <button
+            type="button"
+            className="studio-empty-command-row studio-empty-open-row"
+            key={file.id}
+            onClick={() => openClosedWorkbenchFile(file.id)}
+          >
             {file.kind === 'standard' ? <Activity size={14} /> : file.kind === 'ideal' ? <FlaskConical size={14} /> : <Gauge size={14} />}
             <span>{file.name}</span>
             <strong>{getWorkbenchFileKindLabel(file.kind, workbenchCopy.files)}</strong>
@@ -8022,15 +8027,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const renderEmptyStudyActions = (className = 'studio-empty-actions') => (
     <div className={className}>
-      <button type="button" onClick={() => createFile('ideal')}>
+      <button type="button" className="studio-empty-command-row" onClick={() => createFile('ideal')}>
         <FlaskConical size={14} />
         {workbenchCopy.files.createIdeal}
       </button>
-      <button type="button" onClick={() => createFile('heatCapacity')}>
+      <button type="button" className="studio-empty-command-row" onClick={() => createFile('heatCapacity')}>
         <Gauge size={14} />
         {workbenchCopy.files.createHeatCapacity}
       </button>
-      <button type="button" onClick={() => createFile('standard')}>
+      <button type="button" className="studio-empty-command-row" onClick={() => createFile('standard')}>
         <Activity size={14} />
         {workbenchCopy.files.createStandard}
       </button>
