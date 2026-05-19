@@ -200,7 +200,7 @@ const resolveExporterRuntime = async () => {
   };
 };
 
-const createMainWindow = async () => {
+const createMainWindow = async (options = {}) => {
   const mainWindow = new BrowserWindow({
     title: appTitle,
     width: 1440,
@@ -216,8 +216,24 @@ const createMainWindow = async () => {
     },
   });
 
-  await mainWindow.loadFile(path.join(rootDir, 'dist', 'index.html'));
+  await mainWindow.loadFile(path.join(rootDir, 'dist', 'index.html'), options.fresh ? {
+    query: { hslFreshWindow: '1' },
+  } : undefined);
+
+  return mainWindow;
 };
+
+ipcMain.handle('hsl-window:new', async () => {
+  try {
+    await createMainWindow({ fresh: true });
+    return { status: 'ok' };
+  } catch (error) {
+    return {
+      status: 'error',
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
 
 ipcMain.handle('hsl-exporter:check', async () => {
   await ensureDefaultExportRoot();

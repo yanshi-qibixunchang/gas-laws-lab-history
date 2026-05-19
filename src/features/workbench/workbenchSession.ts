@@ -146,6 +146,21 @@ const fallbackSession = (): WorkbenchSessionState => {
   };
 };
 
+const isFreshWorkbenchWindow = () => {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    return new URL(window.location.href).searchParams.get('hslFreshWindow') === '1';
+  } catch {
+    return false;
+  }
+};
+
+const getWorkbenchSessionStorage = () => {
+  if (typeof window === 'undefined') return null;
+  return isFreshWorkbenchWindow() ? window.sessionStorage : window.localStorage;
+};
+
 const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => {
   if (file.kind === 'heatCapacity') {
     const fallback = createDefaultHeatCapacityFile(1);
@@ -416,9 +431,11 @@ export const encodeWorkbenchSession = (
 
 export const loadWorkbenchSession = (): WorkbenchSessionState => {
   if (typeof window === 'undefined') return fallbackSession();
+  const storage = getWorkbenchSessionStorage();
+  if (!storage) return fallbackSession();
 
   try {
-    const raw = window.localStorage.getItem(WORKBENCH_SESSION_STORAGE_KEY);
+    const raw = storage.getItem(WORKBENCH_SESSION_STORAGE_KEY);
     if (!raw) return fallbackSession();
     return decodeWorkbenchSession(JSON.parse(raw));
   } catch {
@@ -428,9 +445,11 @@ export const loadWorkbenchSession = (): WorkbenchSessionState => {
 
 export const persistWorkbenchSession = (session: WorkbenchSessionState) => {
   if (typeof window === 'undefined') return;
+  const storage = getWorkbenchSessionStorage();
+  if (!storage) return;
 
   try {
-    window.localStorage.setItem(WORKBENCH_SESSION_STORAGE_KEY, JSON.stringify(session));
+    storage.setItem(WORKBENCH_SESSION_STORAGE_KEY, JSON.stringify(session));
   } catch {
     // Storage failures should not block the live workbench.
   }

@@ -19,6 +19,8 @@ import {
   Loader2,
   LockKeyhole,
   MoreHorizontal,
+  PanelLeft,
+  PanelTopOpen,
   Pause,
   Pencil,
   Play,
@@ -177,6 +179,16 @@ type WorkbenchPerformanceMode = 'standard' | 'balanced' | 'performance';
 type IdealSamplingPresetKey = 'fast' | 'balanced' | 'stable';
 type HeatCapacityManualRecordKind = 'u0' | 'u1' | 'u2';
 type HeatCapacityMode = 'demo' | 'guide' | 'free';
+
+interface WorkbenchDesktopWindowBridge {
+  newWindow?: () => Promise<{ status: 'ok' | 'error'; message?: string }>;
+}
+
+declare global {
+  interface Window {
+    hardSphereLabWindow?: WorkbenchDesktopWindowBridge;
+  }
+}
 
 const WORKBENCH_APP_VERSION = __APP_VERSION__;
 
@@ -337,6 +349,7 @@ interface WorkbenchCopy {
   menus: {
     newStudy: string;
     experimentFiles: string;
+    newWindow: string;
     newExperiment: string;
     openExperiment: string;
     noCachedExperiments: string;
@@ -745,7 +758,7 @@ const defaultWorkbenchGeneralSettings: WorkbenchGeneralSettings = {
 const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
   'zh-CN': {
     menus: {
-      newStudy: '新建研究', experimentFiles: '实验文件', newExperiment: '新建实验', openExperiment: '打开实验', noCachedExperiments: '没有可打开的缓存实验', edit: '编辑', window: '窗口', settings: '设置', help: '帮助', general: '通用',
+      newStudy: '新建研究', experimentFiles: '实验文件', newWindow: '新窗口', newExperiment: '新建实验', openExperiment: '打开实验', noCachedExperiments: '没有可打开的缓存实验', edit: '编辑', window: '窗口', settings: '设置', help: '帮助', general: '通用',
       standardStudy: '标准模拟研究', idealStudy: '理想气体模拟研究', heatCapacityStudy: '空气比热容比实验', undo: '撤销', redo: '重做', empty: '空',
       clearEditHistory: '清空编辑历史', panelsFor: (name) => name + ' 的面板', resetDefaultLayout: '恢复默认布局', default: '默认',
       performanceMode: '性能模式', exportEnvironment: '导出环境', saveWorkbenchLayoutDefault: '保存当前窗口布局为默认',
@@ -830,7 +843,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
   },
   'zh-TW': {
     menus: {
-      newStudy: '新增研究', experimentFiles: '實驗檔案', newExperiment: '新增實驗', openExperiment: '開啟實驗', noCachedExperiments: '沒有可開啟的快取實驗', edit: '編輯', window: '視窗', settings: '設定', help: '說明', general: '一般',
+      newStudy: '新增研究', experimentFiles: '實驗檔案', newWindow: '新視窗', newExperiment: '新增實驗', openExperiment: '開啟實驗', noCachedExperiments: '沒有可開啟的快取實驗', edit: '編輯', window: '視窗', settings: '設定', help: '說明', general: '一般',
       standardStudy: '標準模擬研究', idealStudy: '理想氣體模擬研究', heatCapacityStudy: '空氣比熱容比實驗', undo: '復原', redo: '重做', empty: '空',
       clearEditHistory: '清除編輯記錄', panelsFor: (name) => name + ' 的面板', resetDefaultLayout: '還原預設版面', default: '預設',
       performanceMode: '效能模式', exportEnvironment: '匯出環境', saveWorkbenchLayoutDefault: '將目前視窗版面存為預設',
@@ -915,7 +928,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
   },
   en: {
     menus: {
-      newStudy: 'New Study', experimentFiles: 'Experiment Files', newExperiment: 'New Experiment', openExperiment: 'Open Experiment', noCachedExperiments: 'No cached experiments to open', edit: 'Edit', window: 'Window', settings: 'Settings', help: 'Help', general: 'General',
+      newStudy: 'New Study', experimentFiles: 'Experiment Files', newWindow: 'New Window', newExperiment: 'New Experiment', openExperiment: 'Open Experiment', noCachedExperiments: 'No cached experiments to open', edit: 'Edit', window: 'Window', settings: 'Settings', help: 'Help', general: 'General',
       standardStudy: 'Standard Simulation Study', idealStudy: 'Ideal Gas Simulation Study', heatCapacityStudy: 'Heat Capacity Ratio Experiment', undo: 'Undo', redo: 'Redo', empty: 'empty',
       clearEditHistory: 'Clear Edit History', panelsFor: (name) => 'Panels for ' + name, resetDefaultLayout: 'Reset Default Layout', default: 'default',
       performanceMode: 'Performance Mode', exportEnvironment: 'Export Environment', saveWorkbenchLayoutDefault: 'Save Current Window Layout as Default',
@@ -1393,6 +1406,13 @@ interface WorkbenchLayoutDefaults {
 const hasDesktopExportBridge = () => (
   typeof window !== 'undefined' && Boolean(window.hardSphereLabExporter)
 );
+
+const getFreshWorkbenchWindowUrl = () => {
+  if (typeof window === 'undefined') return '';
+  const url = new URL(window.location.href);
+  url.searchParams.set('hslFreshWindow', '1');
+  return url.toString();
+};
 
 const isExportEnvironmentAvailableStatus = (status: WorkbenchExportEnvironmentStatus) => (
   status === 'available-system' || status === 'available-bundled'
@@ -6119,6 +6139,24 @@ const WorkbenchStudioPrototype: React.FC = () => {
     pushLog(workbenchCopy.logs.fileCreated(file.name), 'success');
   };
 
+  const openNewWorkbenchWindow = () => {
+    setOpenTopMenu(null);
+    const desktopNewWindowRequest = window.hardSphereLabWindow?.newWindow?.();
+
+    if (desktopNewWindowRequest) {
+      void desktopNewWindowRequest.then((result) => {
+        if (result?.status !== 'ok') {
+          window.open(getFreshWorkbenchWindowUrl(), '_blank', 'noopener,noreferrer');
+        }
+      }).catch(() => {
+        window.open(getFreshWorkbenchWindowUrl(), '_blank', 'noopener,noreferrer');
+      });
+      return;
+    }
+
+    window.open(getFreshWorkbenchWindowUrl(), '_blank', 'noopener,noreferrer');
+  };
+
   const handleAction = (label: string, kind: LogKind = 'info') => {
     pushLog(workbenchCopy.logs.mockAction(label), kind);
   };
@@ -7883,6 +7921,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (openTopMenu === 'new') {
       return (
         <div className="studio-command-menu studio-command-menu-new studio-command-menu-experiment-files" ref={topMenuRef} style={{ left: topMenuLeft }}>
+          <button type="button" onClick={openNewWorkbenchWindow}>
+            <PanelTopOpen size={14} />
+            <span>{workbenchCopy.menus.newWindow}</span>
+          </button>
           <div className="studio-command-submenu">
             <button type="button" className="studio-command-submenu-trigger">
               <FilePlus2 size={14} />
@@ -9873,17 +9915,24 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
   };
 
-  const renderSectionTitle = (label: string, collapsed: boolean, onToggle: () => void) => (
+  const renderSectionTitle = (
+    label: string,
+    collapsed: boolean,
+    onToggle: () => void,
+    kind: 'files' | 'panels' = 'files',
+  ) => (
     <button
       type="button"
       className={`studio-tree-title-button ${collapsed ? 'studio-tree-title-collapsed' : ''}`}
       onClick={onToggle}
       aria-expanded={!collapsed}
     >
-      <span className="studio-tree-folder-icon">
-        <Folder size={14} className="studio-folder-closed" />
-        <FolderOpen size={14} className="studio-folder-open" />
-      </span>
+      {kind === 'panels' ? <PanelLeft size={14} /> : (
+        <span className="studio-tree-folder-icon">
+          <Folder size={14} className="studio-folder-closed" />
+          <FolderOpen size={14} className="studio-folder-open" />
+        </span>
+      )}
       <span>{label}</span>
     </button>
   );
@@ -9978,9 +10027,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
               openAllHeatCapacityMaterialsTabs();
             }}
           >
-            <span className="studio-tree-folder-icon">
-              <Folder size={14} className="studio-folder-closed" />
-              <FolderOpen size={14} className="studio-folder-open" />
+            <span className="studio-results-expander-icon">
+              <ChevronRight size={13} />
             </span>
           </button>
           <span
@@ -10205,7 +10253,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               </section>
 
               <section className="studio-tree-section">
-                {renderSectionTitle(isWorkbenchEmpty ? workbenchCopy.files.panels : activeFile.kind === 'heatCapacity' ? `${activeFile.name.toUpperCase()} / PANELS` : `${activeFile.name} / ${workbenchCopy.files.panels}`, panelsSectionCollapsed, () => setPanelsSectionCollapsed((current) => !current))}
+                {renderSectionTitle(isWorkbenchEmpty ? workbenchCopy.files.panels : activeFile.kind === 'heatCapacity' ? `${activeFile.name.toUpperCase()} / PANELS` : `${activeFile.name} / ${workbenchCopy.files.panels}`, panelsSectionCollapsed, () => setPanelsSectionCollapsed((current) => !current), 'panels')}
                 <div className={`studio-tree-section-content ${panelsSectionCollapsed ? 'studio-tree-section-content-collapsed' : ''}`} aria-hidden={panelsSectionCollapsed}>
                 {isWorkbenchEmpty ? (
                   <div className="studio-empty-panel-tree">
@@ -10273,9 +10321,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
                               }
                             }}
                           >
-                            <span className="studio-tree-folder-icon">
-                              <Folder size={14} className="studio-folder-closed" />
-                              <FolderOpen size={14} className="studio-folder-open" />
+                            <span className="studio-results-expander-icon">
+                              <ChevronRight size={13} />
                             </span>
                             <span className="studio-results-folder-label">{panel.title}</span>
                           </button>

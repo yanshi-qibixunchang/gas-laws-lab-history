@@ -4,6 +4,9 @@ import { readFileSync } from 'node:fs';
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
+const sessionSource = readFileSync(new URL('../../src/features/workbench/workbenchSession.ts', import.meta.url), 'utf8');
+const electronMainSource = readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8');
+const electronPreloadSource = readFileSync(new URL('../../electron/preload.cjs', import.meta.url), 'utf8');
 
 const getRuleBody = (selector: string) => {
   let body = '';
@@ -137,6 +140,96 @@ assert.match(
 
 assert.match(
   source,
+  /newWindow: '新窗口'/,
+  'Simplified Chinese Experiment Files menu should include a localized New Window command',
+);
+
+assert.match(
+  source,
+  /newWindow: '新視窗'/,
+  'Traditional Chinese Experiment Files menu should include a localized New Window command',
+);
+
+assert.match(
+  source,
+  /newWindow: 'New Window'/,
+  'English Experiment Files menu should include a localized New Window command',
+);
+
+assert.match(
+  source,
+  /const openNewWorkbenchWindow = \(\) =>/,
+  'top Experiment Files menu should route New Window through a dedicated command handler',
+);
+
+assert.match(
+  source,
+  /window\.hardSphereLabWindow\?\.newWindow\?\.\(\)/,
+  'New Window should use the desktop bridge when running inside the local Electron app',
+);
+
+assert.match(
+  source,
+  /window\.open\(getFreshWorkbenchWindowUrl\(\), '_blank', 'noopener,noreferrer'\)/,
+  'New Window should fall back to opening an isolated fresh workbench tab in browser preview',
+);
+
+assert.match(
+  source,
+  /<button type="button" onClick=\{openNewWorkbenchWindow\}>\s*<PanelTopOpen size=\{14\} \/>\s*<span>\{workbenchCopy\.menus\.newWindow\}<\/span>/,
+  'Experiment Files root menu should expose New Window as a direct command row before experiment submenus',
+);
+
+assert.match(
+  electronMainSource,
+  /ipcMain\.handle\('hsl-window:new', async \(\) => \{/,
+  'desktop shell should expose an IPC command for opening a fresh no-file workbench window',
+);
+
+assert.match(
+  electronMainSource,
+  /await createMainWindow\(\{ fresh: true \}\)/,
+  'desktop New Window should create a fresh no-file workbench instead of reusing the persisted session',
+);
+
+assert.match(
+  sessionSource,
+  /const isFreshWorkbenchWindow = \(\) =>/,
+  'session loading should detect a fresh workbench window request',
+);
+
+assert.match(
+  sessionSource,
+  /searchParams\.get\('hslFreshWindow'\) === '1'/,
+  'fresh workbench windows should be identified through an explicit URL parameter',
+);
+
+assert.match(
+  sessionSource,
+  /const getWorkbenchSessionStorage = \(\) =>/,
+  'session loading should centralize storage selection for regular and fresh workbench windows',
+);
+
+assert.match(
+  sessionSource,
+  /isFreshWorkbenchWindow\(\) \? window\.sessionStorage : window\.localStorage/,
+  'fresh workbench windows should use per-window session storage instead of overwriting the persisted workspace',
+);
+
+assert.match(
+  electronPreloadSource,
+  /hardSphereLabWindow/,
+  'preload should expose the desktop window bridge to the renderer',
+);
+
+assert.match(
+  electronPreloadSource,
+  /newWindow: \(\) => ipcRenderer\.invoke\('hsl-window:new'\)/,
+  'preload window bridge should invoke the desktop New Window IPC channel',
+);
+
+assert.match(
+  source,
   /className=\{`studio-tree-row studio-file-row \$\{file\.id === activeFile\.id \? 'studio-file-row-active' : ''\}/,
   'left file rows should use a dedicated strong active-file class instead of the generic panel active class',
 );
@@ -217,6 +310,42 @@ assert.match(
   getRuleBody('.studio-command-menu'),
   /border:\s*0;[\s\S]*background:[\s\S]*box-shadow:/,
   'floating command menus should use elevated surfaces rather than prominent frame borders',
+);
+
+assert.match(
+  getRuleBody('.studio-command-submenu-panel'),
+  /left:\s*calc\(100% \+ 4px\);[\s\S]*top:\s*0;[\s\S]*border:\s*0;[\s\S]*border-radius:\s*6px;[\s\S]*box-shadow:/,
+  'nested command submenus should align like VS Code menus without protruding borders or double shadows',
+);
+
+assert.doesNotMatch(
+  getRuleBody('.studio-theme-light .studio-command-submenu-panel'),
+  /border-color:/,
+  'light theme nested command submenus should not reintroduce a framed border',
+);
+
+assert.match(
+  source,
+  /const renderSectionTitle = \(\s*label: string,\s*collapsed: boolean,\s*onToggle: \(\) => void,\s*kind: 'files' \| 'panels' = 'files',\s*\) =>/,
+  'left tree section headings should distinguish true file sections from panel sections',
+);
+
+assert.match(
+  source,
+  /kind === 'panels' \? <PanelLeft size=\{14\} \/> : \(\s*<span className="studio-tree-folder-icon">/,
+  'Panels section should use a panel/layout icon instead of the same open-folder icon as real files',
+);
+
+assert.match(
+  source,
+  /renderSectionTitle\(isWorkbenchEmpty \? workbenchCopy\.files\.panels[\s\S]*?, 'panels'\)/,
+  'Panels section heading should opt into panel semantics',
+);
+
+assert.match(
+  source,
+  /<span className="studio-results-expander-icon">[\s\S]*?<ChevronRight size=\{13\} \/>[\s\S]*?<span className="studio-results-folder-label">/,
+  'panel-internal expandable groups should use chevron disclosure instead of folder open/closed icons',
 );
 
 assert.match(
