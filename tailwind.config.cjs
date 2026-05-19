@@ -3,6 +3,7 @@ module.exports = {
     './index.html',
     './index.tsx',
     './App.tsx',
+    './src/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
     './services/**/*.{ts,tsx}'
   ],

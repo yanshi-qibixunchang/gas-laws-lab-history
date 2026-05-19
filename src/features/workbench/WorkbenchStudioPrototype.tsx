@@ -6571,6 +6571,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
   };
 
+  const runWindowMenuSwitch = (action: () => void) => {
+    action();
+    setOpenTopMenu(null);
+  };
+
   const selectResultsSection = (section: ResultsSectionKey, openResults = false) => {
     setSelectedPanel('results');
     if (activeFile.kind !== 'standard') return;
@@ -6614,7 +6619,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               aria-label={`${panel.title} ${getLocalizedTreeState(state)}`}
               onClick={(event) => {
                 event.stopPropagation();
-                toggleWindowIdealResultTab(panel.key);
+                runWindowMenuSwitch(() => toggleWindowIdealResultTab(panel.key));
               }}
             >
               <span className="studio-window-switch-thumb" />
@@ -6641,7 +6646,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               aria-label={`${section.title} ${getLocalizedTreeState(state)}`}
               onClick={(event) => {
                 event.stopPropagation();
-                toggleWindowStandardResultsTab(section.key);
+                runWindowMenuSwitch(() => toggleWindowStandardResultsTab(section.key));
               }}
             >
               <span className="studio-window-switch-thumb" />
@@ -7931,7 +7936,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     aria-label={`${panel.title} ${locked ? workbenchCopy.files.locked : visible ? workbenchCopy.files.shown : workbenchCopy.files.off}`}
                     onClick={(event) => {
                       event.stopPropagation();
-                      toggleWindowPanel(panel.key);
+                      runWindowMenuSwitch(() => toggleWindowPanel(panel.key));
                     }}
                   >
                     <span className="studio-window-switch-thumb" />

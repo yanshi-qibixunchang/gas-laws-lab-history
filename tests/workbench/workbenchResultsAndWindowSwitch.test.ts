@@ -90,6 +90,18 @@ assert.match(
 
 assert.match(
   source,
+  /const runWindowMenuSwitch = \(action: \(\) => void\) => \{[\s\S]*?action\(\);[\s\S]*?setOpenTopMenu\(null\);[\s\S]*?\};/,
+  'Window menu switch actions should clear the open top-menu state after changing windows',
+);
+
+assert.match(
+  source,
+  /onClick=\{\(event\) => \{[\s\S]*?event\.stopPropagation\(\);[\s\S]*?runWindowMenuSwitch\(\(\) => toggleWindowPanel\(panel\.key\)\);[\s\S]*?\}\}/,
+  'top-level Window menu switches should close the menu after toggling a panel',
+);
+
+assert.match(
+  source,
   /activeFile\.kind === 'standard' && panel === 'results'[\s\S]*?openStandardResultsWindow\('summary',\s*true\)/,
   'Window menu Results switch should open standard Results with all child tabs',
 );
@@ -120,6 +132,12 @@ assert.match(
 
 assert.match(
   source,
+  /runWindowMenuSwitch\(\(\) => toggleWindowIdealResultTab\(panel\.key\)\);/,
+  'ideal Results child switches in the Window menu should close the menu after changing tabs',
+);
+
+assert.match(
+  source,
   /const toggleWindowStandardResultsTab = \(tab: WorkbenchStandardResultsTab\) =>/,
   'Window menu should expose a single-click standard Results child tab switch handler',
 );
@@ -134,6 +152,12 @@ assert.match(
   source,
   /toggleWindowStandardResultsTab[\s\S]*?const replaceOpenTabs = !activeFile\.visiblePanels\.includes\('results'\)[\s\S]*?openStandardResultsWindow\(tab,\s*false,\s*replaceOpenTabs\)/,
   'Window standard child switches should single-open from a closed Results window and append when another child tab is already open',
+);
+
+assert.match(
+  source,
+  /runWindowMenuSwitch\(\(\) => toggleWindowStandardResultsTab\(section\.key\)\);/,
+  'standard Results child switches in the Window menu should close the menu after changing tabs',
 );
 
 assert.match(

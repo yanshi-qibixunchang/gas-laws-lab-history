@@ -2735,6 +2735,18 @@
   font-size: 12px;
 }
 
+.studio-file-tab:not(.studio-file-tab-active) {
+  background: #252c34;
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.025),
+    inset -1px 0 0 rgba(0, 0, 0, 0.24);
+}
+
+.studio-file-tab:not(.studio-file-tab-active):hover {
+  background: #303943;
+  color: #d3dce6;
+}
+
 .studio-file-tab-select {
   display: inline-flex;
   height: 100%;
@@ -2758,9 +2770,13 @@
 }
 
 .studio-file-tab-active {
+  border-top: 1px solid rgba(125, 170, 219, 0.74);
   background: #171b20;
   color: var(--studio-text);
-  box-shadow: inset 0 2px 0 var(--studio-accent);
+  box-shadow:
+    inset 0 2px 0 var(--studio-accent),
+    inset 1px 0 0 rgba(125, 170, 219, 0.2),
+    inset -1px 0 0 rgba(125, 170, 219, 0.2);
 }
 
 .studio-file-kind {
@@ -3532,7 +3548,10 @@
 }
 
 .studio-heat-mode-segment-active {
-  background: rgba(123, 184, 139, 0.06);
+  background: rgba(123, 184, 139, 0.14);
+  box-shadow:
+    inset 0 0 0 1px rgba(123, 184, 139, 0.38),
+    0 0 0 1px rgba(123, 184, 139, 0.12);
 }
 
 .studio-heat-mode-actions {
@@ -3622,10 +3641,27 @@
 }
 
 .studio-heat-mode-button-active {
-  border-color: rgba(123, 184, 139, 0.48);
-  background: #3f474f;
-  color: #7bb88b;
-  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+  border-color: rgba(123, 184, 139, 0.72);
+  background: #254834;
+  color: #d8ffe0;
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1),
+    0 0 0 1px rgba(123, 184, 139, 0.3),
+    0 0 16px rgba(123, 184, 139, 0.18);
+}
+
+.studio-heat-mode-button-active:hover,
+.studio-heat-mode-button-active:focus-visible {
+  border-color: rgba(168, 218, 181, 0.82);
+  background: #2d5d42;
+  color: #ecfff0;
+}
+
+.studio-panel-actions .studio-heat-mode-button-active:hover,
+.studio-panel-actions .studio-heat-mode-button-active:focus-visible {
+  border-color: rgba(168, 218, 181, 0.82);
+  background: #2d5d42;
+  color: #ecfff0;
 }
 
 .studio-heat-mode-action-muted {
@@ -4882,6 +4918,10 @@
 }
 
 .simulation-canvas-workbench {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
   color: var(--studio-muted);
   font-family: inherit;
 }
