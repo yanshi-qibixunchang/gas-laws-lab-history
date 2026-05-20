@@ -22,6 +22,14 @@
     "directories": {
       "output": "release"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "yanshi-qibixunchang",
+        "repo": "hard-sphere-lab-1"
+      }
+    ],
+    "electronUpdaterCompatibility": ">=2.16",
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -66,6 +74,7 @@
       ]
     },
     "nsis": {
+      "artifactName": "heat-capacity-lab-setup-${version}.${ext}",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
@@ -93,6 +102,7 @@
     "@capacitor/share": "^8.0.0",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.17.10",
+    "electron-updater": "^6.8.3",
     "lucide-react": "^0.292.0",
     "pdfjs-dist": "^4.4.168",
     "react": "^18.2.0",

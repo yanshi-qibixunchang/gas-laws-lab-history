@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog, ipcMain, Menu } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const fsSync = require('node:fs');
 const fs = require('node:fs/promises');
 const os = require('node:os');
@@ -7,9 +8,101 @@ const { spawn } = require('node:child_process');
 
 const rootDir = path.resolve(__dirname, '..');
 const preloadPath = path.join(__dirname, 'preload.cjs');
-const appTitle = 'Heat Capacity Ratio Lab with Hard Sphere';
+const appTitle = '热容比实验室';
 const exportRootFolderName = 'Heat Capacity Ratio Lab Exports';
 let selectedExporterRuntime = null;
+let updateCheckPromise = null;
+let updateState = {
+  status: 'idle',
+  currentVersion: app.getVersion(),
+  latestVersion: null,
+  releaseName: null,
+  releaseDate: null,
+  releaseNotes: null,
+  percent: null,
+  message: '',
+};
+
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
+
+const isDesktopUpdateSupported = () => app.isPackaged && process.platform === 'win32';
+
+const normalizeUpdateInfo = (info = {}) => ({
+  latestVersion: info.version || null,
+  releaseName: info.releaseName || null,
+  releaseDate: info.releaseDate || null,
+  releaseNotes: Array.isArray(info.releaseNotes)
+    ? info.releaseNotes.map((note) => note.note || note).join('\n')
+    : info.releaseNotes || null,
+});
+
+const getUpdaterState = (overrides = {}) => ({
+  ...updateState,
+  currentVersion: app.getVersion(),
+  ...overrides,
+});
+
+const broadcastUpdaterState = (state) => {
+  updateState = getUpdaterState(state);
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) {
+      window.webContents.send('hsl-updater:status', updateState);
+    }
+  }
+  return updateState;
+};
+
+autoUpdater.on('checking-for-update', () => {
+  broadcastUpdaterState({
+    status: 'checking',
+    message: 'Checking for updates.',
+    percent: null,
+  });
+});
+
+autoUpdater.on('update-available', (info) => {
+  broadcastUpdaterState({
+    status: 'available',
+    ...normalizeUpdateInfo(info),
+    message: 'Update available.',
+    percent: null,
+  });
+});
+
+autoUpdater.on('update-not-available', (info) => {
+  broadcastUpdaterState({
+    status: 'not-available',
+    ...normalizeUpdateInfo(info),
+    message: 'The application is up to date.',
+    percent: null,
+  });
+});
+
+autoUpdater.on('download-progress', (progress) => {
+  broadcastUpdaterState({
+    status: 'downloading',
+    percent: Number.isFinite(progress?.percent) ? progress.percent : null,
+    message: 'Downloading update.',
+  });
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  broadcastUpdaterState({
+    status: 'downloaded',
+    ...normalizeUpdateInfo(info),
+    percent: 100,
+    message: 'Update downloaded.',
+  });
+});
+
+autoUpdater.on('error', (error) => {
+  broadcastUpdaterState({
+    status: 'error',
+    message: error instanceof Error ? error.message : String(error),
+    percent: null,
+  });
+});
 
 const getAppIconPath = () => {
   const candidates = [
@@ -244,6 +337,80 @@ ipcMain.handle('hsl-window:new', async () => {
       message: error instanceof Error ? error.message : String(error),
     };
   }
+});
+
+ipcMain.handle('hsl-updater:check', async () => {
+  if (!isDesktopUpdateSupported()) {
+    return broadcastUpdaterState({
+      status: 'unsupported',
+      message: 'Automatic updates are available only in the packaged Windows desktop app.',
+      percent: null,
+    });
+  }
+
+  if (updateCheckPromise) {
+    return updateState;
+  }
+
+  updateCheckPromise = autoUpdater.checkForUpdates()
+    .catch((error) => {
+      broadcastUpdaterState({
+        status: 'error',
+        message: error instanceof Error ? error.message : String(error),
+        percent: null,
+      });
+      return null;
+    })
+    .finally(() => {
+      updateCheckPromise = null;
+    });
+
+  await updateCheckPromise;
+  return updateState;
+});
+
+ipcMain.handle('hsl-updater:download', async () => {
+  if (!isDesktopUpdateSupported()) {
+    return broadcastUpdaterState({
+      status: 'unsupported',
+      message: 'Automatic updates are available only in the packaged Windows desktop app.',
+      percent: null,
+    });
+  }
+
+  try {
+    broadcastUpdaterState({
+      status: 'downloading',
+      message: 'Downloading update.',
+      percent: 0,
+    });
+    await autoUpdater.downloadUpdate();
+    return updateState;
+  } catch (error) {
+    return broadcastUpdaterState({
+      status: 'error',
+      message: error instanceof Error ? error.message : String(error),
+      percent: null,
+    });
+  }
+});
+
+ipcMain.handle('hsl-updater:quit-and-install', async () => {
+  if (!isDesktopUpdateSupported()) {
+    return broadcastUpdaterState({
+      status: 'unsupported',
+      message: 'Automatic updates are available only in the packaged Windows desktop app.',
+      percent: null,
+    });
+  }
+
+  broadcastUpdaterState({
+    status: 'installing',
+    message: 'Restarting to install update.',
+    percent: 100,
+  });
+  autoUpdater.quitAndInstall(false, true);
+  return updateState;
 });
 
 ipcMain.handle('hsl-exporter:check', async () => {

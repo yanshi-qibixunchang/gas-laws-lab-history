@@ -16,6 +16,7 @@ const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import
 };
 const electronMain = readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8');
 const indexHtml = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
+const webManifest = readFileSync(new URL('../../public/manifest.webmanifest', import.meta.url), 'utf8');
 const installerNsh = readFileSync(new URL('../../build/installer.nsh', import.meta.url), 'utf8');
 const viteConfig = readFileSync(new URL('../../vite.config.ts', import.meta.url), 'utf8');
 
@@ -39,7 +40,7 @@ assert.ok(installerNsh.includes('LangString HSL_RemoveUserDataPrompt ${LANG_TRAD
 assert.ok(installerNsh.includes('LangString HSL_RemoveUserDataPrompt ${LANG_ENGLISH}'), 'uninstaller prompt should define English text');
 assert.ok(installerNsh.includes('$(HSL_RemoveUserDataPrompt)'), 'uninstaller prompt should use the selected installer language');
 assert.ok(!installerNsh.includes('Remove Hard Sphere Lab user data and cache?'), 'uninstaller prompt should not show the old English app name');
-assert.ok(electronMain.includes("const appTitle = 'Heat Capacity Ratio Lab with Hard Sphere';"), 'desktop window title should use the full English app name');
+assert.ok(electronMain.includes("const appTitle = '热容比实验室';"), 'desktop window title should use the current Chinese app name');
 assert.ok(electronMain.includes('const getRuntimeWorkingDirectory = () => {'), 'desktop exporter should choose a real working directory');
 assert.ok(electronMain.includes("fsSync.statSync(rootDir).isDirectory()"), 'desktop exporter should avoid using app.asar as a cwd');
 assert.match(
@@ -47,7 +48,10 @@ assert.match(
   /spawn\(command, args, \{\s*cwd: getRuntimeWorkingDirectory\(\),\s*windowsHide: true,/,
   'desktop exporter child processes should run from the real runtime directory',
 );
-assert.ok(indexHtml.includes('<title>Heat Capacity Ratio Lab with Hard Sphere</title>'), 'web document title should use the full English app name');
+assert.ok(indexHtml.includes('<title>热容比实验室</title>'), 'web document title should use the current Chinese app name');
+assert.ok(webManifest.includes('"name": "热容比实验室"'), 'web manifest should use the current app name');
+assert.ok(!source.includes('Heat Capacity Ratio Lab with Hard Sphere'), 'workbench copy should not use the old hard-sphere product subtitle');
+assert.ok(!source.includes('开始新的硬球工作台'), 'empty-state copy should not describe the app as a hard-sphere workbench');
 
 assert.match(viteConfig, /define:\s*\{[\s\S]*?__APP_VERSION__:\s*JSON\.stringify\(packageJson\.version\)/, 'Vite should expose package.json version to the app');
 assert.ok(source.includes('const WORKBENCH_APP_VERSION = __APP_VERSION__;'), 'about window should read the app version from Vite package metadata');

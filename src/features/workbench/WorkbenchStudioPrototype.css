@@ -608,6 +608,154 @@
   line-height: 1.45;
 }
 
+.studio-update-dialog {
+  width: min(620px, calc(100vw - 48px));
+}
+
+.studio-update-body {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.studio-update-version-grid {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.38fr) minmax(0, 1fr);
+  overflow: hidden;
+  border-radius: 7px;
+  background: #20262e;
+  box-shadow:
+    inset 3px 0 0 rgba(79, 127, 184, 0.58),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.studio-update-version-grid span,
+.studio-update-version-grid strong {
+  min-width: 0;
+  border-top: 1px solid var(--studio-border-soft);
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.studio-update-version-grid span:nth-child(1),
+.studio-update-version-grid strong:nth-child(2) {
+  border-top: 0;
+}
+
+.studio-update-version-grid span {
+  color: var(--studio-text);
+  font-weight: 700;
+}
+
+.studio-update-version-grid strong {
+  color: var(--studio-muted);
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-weight: 700;
+  text-align: right;
+}
+
+.studio-update-notes {
+  display: grid;
+  gap: 7px;
+  border-radius: 7px;
+  background: #171b20;
+  padding: 12px;
+}
+
+.studio-update-notes strong {
+  color: var(--studio-text);
+  font-size: 12px;
+}
+
+.studio-update-notes p {
+  max-height: 120px;
+  margin: 0;
+  overflow: auto;
+  color: var(--studio-muted);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.studio-update-progress {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  overflow: hidden;
+  border-radius: 7px;
+  background: #171b20;
+  padding: 10px 12px;
+}
+
+.studio-update-progress span {
+  color: var(--studio-muted);
+  font-size: 12px;
+}
+
+.studio-update-progress::after {
+  content: "";
+  display: block;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.22);
+}
+
+.studio-update-progress i {
+  position: absolute;
+  right: auto;
+  bottom: 10px;
+  left: 12px;
+  height: 5px;
+  max-width: calc(100% - 24px);
+  border-radius: 999px;
+  background: var(--studio-accent-strong);
+}
+
+.studio-update-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  border-top: 1px solid var(--studio-border);
+  background: #252b32;
+  padding: 12px 14px;
+}
+
+.studio-update-actions button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 7px;
+  border-radius: 5px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.studio-update-secondary {
+  border: 1px solid var(--studio-border-soft);
+  background: #20262e;
+  color: var(--studio-muted);
+}
+
+.studio-update-primary {
+  border: 1px solid rgba(79, 127, 184, 0.72);
+  background: rgba(79, 127, 184, 0.2);
+  color: var(--studio-accent-strong);
+}
+
+.studio-update-actions button:hover,
+.studio-update-actions button:focus-visible {
+  border-color: rgba(110, 158, 216, 0.82);
+  color: var(--studio-text);
+  outline: none;
+}
+
+.studio-update-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .studio-settings-theme-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1108,6 +1256,9 @@
 .studio-theme-light .studio-ideal-preset-menu button,
 .studio-theme-light .studio-settings-section,
 .studio-theme-light .studio-about-card,
+.studio-theme-light .studio-update-version-grid,
+.studio-theme-light .studio-update-notes,
+.studio-theme-light .studio-update-progress,
 .studio-theme-light .studio-settings-theme-card,
 .studio-theme-light .studio-settings-language-trigger,
 .studio-theme-light .studio-settings-performance-switch,
@@ -1660,6 +1811,32 @@
   background: rgba(248, 250, 252, 0.96);
   border-color: rgba(148, 163, 184, 0.72);
   box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(148, 163, 184, 0.14);
+}
+
+.studio-theme-light .studio-update-dialog {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.studio-theme-light .studio-update-version-grid span,
+.studio-theme-light .studio-update-version-grid strong,
+.studio-theme-light .studio-update-actions {
+  border-color: var(--studio-border);
+}
+
+.studio-theme-light .studio-update-actions {
+  background: #f8fafc;
+}
+
+.studio-theme-light .studio-update-secondary {
+  background: #ffffff;
+  border-color: rgba(100, 116, 139, 0.34);
+  color: var(--studio-muted);
+}
+
+.studio-theme-light .studio-update-primary {
+  background: #eaf2ff;
+  border-color: rgba(37, 99, 235, 0.36);
+  color: #1d4ed8;
 }
 
 .studio-theme-light .studio-settings-close,

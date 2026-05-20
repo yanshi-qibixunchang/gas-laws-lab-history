@@ -180,14 +180,34 @@ type WorkbenchPerformanceMode = 'standard' | 'balanced' | 'performance';
 type IdealSamplingPresetKey = 'fast' | 'balanced' | 'stable';
 type HeatCapacityManualRecordKind = 'u0' | 'u1' | 'u2';
 type HeatCapacityMode = 'demo' | 'guide' | 'free';
+type WorkbenchUpdateStatus = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'installing' | 'unsupported' | 'error';
+
+interface WorkbenchUpdateState {
+  status: WorkbenchUpdateStatus;
+  currentVersion: string;
+  latestVersion?: string | null;
+  releaseName?: string | null;
+  releaseDate?: string | null;
+  releaseNotes?: string | null;
+  percent?: number | null;
+  message?: string;
+}
 
 interface WorkbenchDesktopWindowBridge {
   newWindow?: () => Promise<{ status: 'ok' | 'error'; message?: string }>;
 }
 
+interface WorkbenchDesktopUpdaterBridge {
+  checkForUpdates?: () => Promise<WorkbenchUpdateState>;
+  downloadUpdate?: () => Promise<WorkbenchUpdateState>;
+  quitAndInstall?: () => Promise<WorkbenchUpdateState>;
+  onStatus?: (callback: (state: WorkbenchUpdateState) => void) => (() => void);
+}
+
 declare global {
   interface Window {
     hardSphereLabWindow?: WorkbenchDesktopWindowBridge;
+    hardSphereLabUpdater?: WorkbenchDesktopUpdaterBridge;
   }
 }
 
@@ -414,6 +434,27 @@ interface WorkbenchCopy {
     environmentResultError: string;
     updateResultTitle: string;
     updateResultBody: string;
+    updateAvailableTitle: string;
+    updateAvailableBody: string;
+    updateReadyTitle: string;
+    updateReadyBody: string;
+    currentVersionLabel: string;
+    latestVersionLabel: string;
+    releaseDateLabel: string;
+    releaseNotesLabel: string;
+    noReleaseNotes: string;
+    ignoreThisVersion: string;
+    updateNow: string;
+    restartAndInstall: string;
+    later: string;
+    ignoredVersionTitle: string;
+    ignoredVersionBody: (version: string) => string;
+    updateAvailableStatus: (version: string) => string;
+    upToDateStatus: string;
+    unsupportedUpdateStatus: string;
+    downloadingUpdateStatus: (percent: number | null) => string;
+    updateReadyStatus: string;
+    updateErrorStatus: string;
     buildPlaceholder: string;
     sessionCacheSummary: (total: number) => string;
     sessionCacheBreakdown: (ideal: number, heat: number, standard: number) => string;
@@ -747,6 +788,7 @@ const RESIZER_GRAB_SAFE_SPACE = 14;
 const IDEAL_RESULT_WINDOW_DEFAULTS_STORAGE_KEY = 'hsl_workbench_ideal_result_window_defaults';
 const WORKBENCH_LAYOUT_DEFAULTS_STORAGE_KEY = 'hsl_workbench_layout_defaults_v1';
 const WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY = 'hsl_workbench_general_settings';
+const WORKBENCH_IGNORED_UPDATE_VERSION_KEY = 'hslIgnoredUpdateVersion';
 const HEAT_CAPACITY_AUTO_DEMO_RESET_MS = 1_800;
 const HEAT_CAPACITY_AUTO_DEMO_STEP_PANEL_EXIT_MS = 560;
 
@@ -779,7 +821,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
     },
     about: {
       title: '关于热容比实验室',
-      subtitle: 'Heat Capacity Ratio Lab with Hard Sphere',
+      subtitle: '热容比实验室',
       closeAria: '关闭关于窗口',
       currentVersion: '当前版本',
       checkUpdates: '检查更新',
@@ -797,13 +839,34 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       environmentResultError: '本地数据导出环境检查失败。模拟、实时图表和结果预览仍可使用。',
       updateResultTitle: '更新检查完成',
       updateResultBody: '更新通道尚未配置，当前仅显示占位结果。',
+      updateAvailableTitle: '发现可用更新',
+      updateAvailableBody: '新版本已发布，可以立即下载并准备安装。',
+      updateReadyTitle: '更新已下载',
+      updateReadyBody: '重启应用后会安装新版本。',
+      currentVersionLabel: '当前版本',
+      latestVersionLabel: '最新版本',
+      releaseDateLabel: '发布时间',
+      releaseNotesLabel: '更新说明',
+      noReleaseNotes: '该版本没有附加更新说明。',
+      ignoreThisVersion: '忽略此版本',
+      updateNow: '立即更新',
+      restartAndInstall: '重启并安装',
+      later: '稍后',
+      ignoredVersionTitle: '已忽略此版本',
+      ignoredVersionBody: (version) => '版本 ' + version + ' 不会再主动提醒。',
+      updateAvailableStatus: (version) => '发现 ' + version,
+      upToDateStatus: '已是最新版本',
+      unsupportedUpdateStatus: '仅桌面安装版可用',
+      downloadingUpdateStatus: (percent) => '正在下载' + (percent === null ? '' : ' ' + Math.round(percent) + '%'),
+      updateReadyStatus: '更新已准备好',
+      updateErrorStatus: '检查失败',
       buildPlaceholder: '版权和构建说明预留到正式发布前补充。',
       sessionCacheSummary: (total) => '当前会话包含 ' + total + ' 个实验文件',
       sessionCacheBreakdown: (ideal, heat, standard) => '理想/比热/标准：' + ideal + '/' + heat + '/' + standard,
     },
     files: {
       openFiles: '打开文件', files: '文件', panels: '面板', noOpenFiles: '没有打开的文件', noOpenFileState: '当前没有打开的实验文件', noOpenPanelState: '打开实验后显示可用面板。', emptyHint: '在主工作区新建或打开实验。',
-      noOpenStudy: '没有打开的研究', emptyTitle: '开始新的硬球工作台文件', emptyBody: '创建标准模拟或理想气体关系研究，以恢复预览、图表、结果和参数面板。',
+      noOpenStudy: '没有打开的研究', emptyTitle: '开始新的实验工作区', emptyBody: '创建标准模拟、理想气体关系研究或空气比热容比实验，以恢复预览、图表、结果和参数面板。',
       createStandard: '创建标准模拟研究', createIdeal: '创建理想气体模拟研究', createHeatCapacity: '创建空气比热容比实验', rename: '重命名', delete: '删除', confirmDelete: '确认删除', closeExperiment: '关闭实验', confirmCloseRunningExperiment: (name) => '实验正在运行。确认关闭 ' + name + ' 吗？', cancel: '取消',
       locked: '锁定', shown: '显示', open: '打开', active: '活动', off: '关闭', std: '标准', ideal: '理想', heat: '热容', workspaceAria: '文件工作区', openActions: (name) => '打开 ' + name + ' 的操作菜单',
     },
@@ -864,7 +927,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
     },
     about: {
       title: '關於熱容比實驗室',
-      subtitle: 'Heat Capacity Ratio Lab with Hard Sphere',
+      subtitle: '熱容比實驗室',
       closeAria: '關閉關於視窗',
       currentVersion: '目前版本',
       checkUpdates: '檢查更新',
@@ -882,13 +945,34 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       environmentResultError: '本地資料匯出環境檢查失敗。模擬、即時圖表和結果預覽仍可使用。',
       updateResultTitle: '更新檢查完成',
       updateResultBody: '更新通道尚未配置，目前僅顯示佔位結果。',
+      updateAvailableTitle: '發現可用更新',
+      updateAvailableBody: '新版本已發布，可以立即下載並準備安裝。',
+      updateReadyTitle: '更新已下載',
+      updateReadyBody: '重新啟動應用程式後會安裝新版本。',
+      currentVersionLabel: '目前版本',
+      latestVersionLabel: '最新版本',
+      releaseDateLabel: '發布時間',
+      releaseNotesLabel: '更新說明',
+      noReleaseNotes: '此版本沒有附加更新說明。',
+      ignoreThisVersion: '忽略此版本',
+      updateNow: '立即更新',
+      restartAndInstall: '重新啟動並安裝',
+      later: '稍後',
+      ignoredVersionTitle: '已忽略此版本',
+      ignoredVersionBody: (version) => '版本 ' + version + ' 不會再主動提醒。',
+      updateAvailableStatus: (version) => '發現 ' + version,
+      upToDateStatus: '已是最新版本',
+      unsupportedUpdateStatus: '僅桌面安裝版可用',
+      downloadingUpdateStatus: (percent) => '正在下載' + (percent === null ? '' : ' ' + Math.round(percent) + '%'),
+      updateReadyStatus: '更新已準備好',
+      updateErrorStatus: '檢查失敗',
       buildPlaceholder: '版權和建置說明預留到正式發布前補充。',
       sessionCacheSummary: (total) => '目前工作階段包含 ' + total + ' 個實驗檔案',
       sessionCacheBreakdown: (ideal, heat, standard) => '理想/熱容比/標準：' + ideal + '/' + heat + '/' + standard,
     },
     files: {
       openFiles: '開啟檔案', files: '檔案', panels: '面板', noOpenFiles: '沒有開啟的檔案', noOpenFileState: '目前沒有開啟的實驗檔案', noOpenPanelState: '開啟實驗後顯示可用面板。', emptyHint: '在主工作區建立或開啟實驗。',
-      noOpenStudy: '沒有開啟的研究', emptyTitle: '開始新的硬球工作台檔案', emptyBody: '建立標準模擬或理想氣體關係研究，以恢復預覽、圖表、結果和參數面板。',
+      noOpenStudy: '沒有開啟的研究', emptyTitle: '開始新的實驗工作區', emptyBody: '建立標準模擬、理想氣體關係研究或空氣比熱容比實驗，以恢復預覽、圖表、結果和參數面板。',
       createStandard: '建立標準模擬研究', createIdeal: '建立理想氣體模擬研究', createHeatCapacity: '建立空氣比熱容比實驗', rename: '重新命名', delete: '刪除', confirmDelete: '確認刪除', closeExperiment: '關閉實驗', confirmCloseRunningExperiment: (name) => '實驗正在執行。確認關閉 ' + name + ' 嗎？', cancel: '取消',
       locked: '鎖定', shown: '顯示', open: '開啟', active: '作用中', off: '關閉', std: '標準', ideal: '理想', heat: '熱容', workspaceAria: '檔案工作區', openActions: (name) => '開啟 ' + name + ' 的操作選單',
     },
@@ -949,7 +1033,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
     },
     about: {
       title: 'About Heat Capacity Ratio Lab',
-      subtitle: 'Heat Capacity Ratio Lab with Hard Sphere',
+      subtitle: 'Heat Capacity Ratio Lab',
       closeAria: 'Close About window',
       currentVersion: 'Current Version',
       checkUpdates: 'Check for Updates',
@@ -967,6 +1051,27 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       environmentResultError: 'Local data export environment check failed. Simulation, live charts, and result previews remain available.',
       updateResultTitle: 'Update Check Complete',
       updateResultBody: 'Update channel is not configured. This is a placeholder result.',
+      updateAvailableTitle: 'Update Available',
+      updateAvailableBody: 'A newer version is available and can be downloaded now.',
+      updateReadyTitle: 'Update Downloaded',
+      updateReadyBody: 'Restart the app to install the new version.',
+      currentVersionLabel: 'Current Version',
+      latestVersionLabel: 'Latest Version',
+      releaseDateLabel: 'Release Date',
+      releaseNotesLabel: 'Release Notes',
+      noReleaseNotes: 'No release notes were provided for this version.',
+      ignoreThisVersion: 'Ignore This Version',
+      updateNow: 'Update Now',
+      restartAndInstall: 'Restart and Install',
+      later: 'Later',
+      ignoredVersionTitle: 'Version Ignored',
+      ignoredVersionBody: (version) => 'Version ' + version + ' will not prompt again.',
+      updateAvailableStatus: (version) => 'Found ' + version,
+      upToDateStatus: 'Up to date',
+      unsupportedUpdateStatus: 'Desktop installer only',
+      downloadingUpdateStatus: (percent) => 'Downloading' + (percent === null ? '' : ' ' + Math.round(percent) + '%'),
+      updateReadyStatus: 'Update ready',
+      updateErrorStatus: 'Check failed',
       buildPlaceholder: 'Copyright and build details reserved for the final release.',
       sessionCacheSummary: (total) => 'Current session contains ' + total + ' experiment files',
       sessionCacheBreakdown: (ideal, heat, standard) => 'Ideal / Heat / Standard: ' + ideal + '/' + heat + '/' + standard,
@@ -1408,6 +1513,10 @@ const hasDesktopExportBridge = () => (
   typeof window !== 'undefined' && Boolean(window.hardSphereLabExporter)
 );
 
+const hasDesktopUpdaterBridge = () => (
+  typeof window !== 'undefined' && Boolean(window.hardSphereLabUpdater)
+);
+
 const getFreshWorkbenchWindowUrl = () => {
   if (typeof window === 'undefined') return '';
   const url = new URL(window.location.href);
@@ -1436,6 +1545,37 @@ const getAboutEnvironmentResultBody = (
   if (isExportEnvironmentAvailableStatus(status)) return copy.about.environmentResultAvailable;
   if (status === 'error') return copy.about.environmentResultError;
   return copy.about.environmentResultUnavailable;
+};
+
+const getAboutUpdateStatusLabel = (
+  state: WorkbenchUpdateState,
+  copy: WorkbenchCopy,
+) => {
+  if (state.status === 'checking') return copy.about.checking;
+  if (state.status === 'available') return copy.about.updateAvailableStatus(state.latestVersion || '--');
+  if (state.status === 'not-available') return copy.about.upToDateStatus;
+  if (state.status === 'downloading') return copy.about.downloadingUpdateStatus(state.percent ?? null);
+  if (state.status === 'downloaded') return copy.about.updateReadyStatus;
+  if (state.status === 'unsupported') return copy.about.unsupportedUpdateStatus;
+  if (state.status === 'error') return copy.about.updateErrorStatus;
+  return hasDesktopUpdaterBridge() ? copy.about.available : copy.about.unsupportedUpdateStatus;
+};
+
+const formatWorkbenchReleaseDate = (
+  value: string | null | undefined,
+  language: WorkbenchLanguagePreference,
+) => {
+  if (!value) return '--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const locale = language === 'en' ? 'en-GB' : language;
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
 };
 
 const getWorkbenchFileKindLabel = (kind: WorkbenchFileKind, copy: WorkbenchCopy['files']) => (
@@ -2033,6 +2173,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [aboutWindowOpen, setAboutWindowOpen] = useState(false);
   const [aboutResultNotice, setAboutResultNotice] = useState<{ title: string; body: string } | null>(null);
   const [aboutUpdateChecking, setAboutUpdateChecking] = useState(false);
+  const [updaterState, setUpdaterState] = useState<WorkbenchUpdateState>(() => ({
+    status: hasDesktopUpdaterBridge() ? 'idle' : 'unsupported',
+    currentVersion: WORKBENCH_APP_VERSION,
+    latestVersion: null,
+    releaseName: null,
+    releaseDate: null,
+    releaseNotes: null,
+    percent: null,
+    message: '',
+  }));
+  const [updateDialogState, setUpdateDialogState] = useState<WorkbenchUpdateState | null>(null);
   const [settingsThemePreference, setSettingsThemePreference] = useState<WorkbenchThemePreference>(() => initialGeneralSettings.theme);
   const [settingsLanguagePreference, setSettingsLanguagePreference] = useState<WorkbenchLanguagePreference>(() => initialGeneralSettings.language);
   const [settingsPerformanceMode, setSettingsPerformanceMode] = useState<WorkbenchPerformanceMode>(() => initialGeneralSettings.performanceMode);
@@ -2388,13 +2539,109 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setAboutWindowOpen(true);
   };
 
+  const getIgnoredUpdateVersion = () => (
+    typeof window === 'undefined'
+      ? null
+      : window.localStorage.getItem(WORKBENCH_IGNORED_UPDATE_VERSION_KEY)
+  );
+
+  const rememberIgnoredUpdateVersion = (version: string) => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(WORKBENCH_IGNORED_UPDATE_VERSION_KEY, version);
+    }
+  };
+
+  const applyUpdaterState = (nextState: WorkbenchUpdateState, options: { manual?: boolean } = {}) => {
+    setUpdaterState(nextState);
+    setAboutUpdateChecking(nextState.status === 'checking');
+
+    if (nextState.status === 'available') {
+      const latestVersion = nextState.latestVersion || '';
+      if (latestVersion && getIgnoredUpdateVersion() === latestVersion) {
+        if (options.manual) {
+          showAboutResultNotice(workbenchCopy.about.ignoredVersionTitle, workbenchCopy.about.ignoredVersionBody(latestVersion));
+        }
+        return;
+      }
+      setUpdateDialogState(nextState);
+      return;
+    }
+
+    if (nextState.status === 'downloading' || nextState.status === 'downloaded' || nextState.status === 'installing') {
+      setUpdateDialogState(nextState);
+      return;
+    }
+
+    if (nextState.status === 'not-available' && options.manual) {
+      showAboutResultNotice(workbenchCopy.about.updateResultTitle, workbenchCopy.about.upToDateStatus);
+      return;
+    }
+
+    if ((nextState.status === 'unsupported' || nextState.status === 'error') && options.manual) {
+      showAboutResultNotice(workbenchCopy.about.updateResultTitle, nextState.message || getAboutUpdateStatusLabel(nextState, workbenchCopy));
+    }
+  };
+
   const runAboutUpdateCheck = () => {
     if (aboutUpdateChecking) return;
+    const updateCheckRequest = window.hardSphereLabUpdater?.checkForUpdates?.();
+    if (!updateCheckRequest) {
+      const unsupportedState: WorkbenchUpdateState = {
+        ...updaterState,
+        status: 'unsupported',
+        currentVersion: WORKBENCH_APP_VERSION,
+        message: workbenchCopy.about.unsupportedUpdateStatus,
+      };
+      applyUpdaterState(unsupportedState, { manual: true });
+      return;
+    }
     setAboutUpdateChecking(true);
-    window.setTimeout(() => {
-      setAboutUpdateChecking(false);
-      showAboutResultNotice(workbenchCopy.about.updateResultTitle, workbenchCopy.about.updateResultBody);
-    }, 900);
+    void updateCheckRequest
+      .then((result) => applyUpdaterState(result, { manual: true }))
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        applyUpdaterState({
+          ...updaterState,
+          status: 'error',
+          currentVersion: WORKBENCH_APP_VERSION,
+          message,
+        }, { manual: true });
+      });
+  };
+
+  const ignoreUpdateDialogVersion = () => {
+    const version = updateDialogState?.latestVersion;
+    if (version) {
+      rememberIgnoredUpdateVersion(version);
+      showAboutResultNotice(workbenchCopy.about.ignoredVersionTitle, workbenchCopy.about.ignoredVersionBody(version));
+    }
+    setUpdateDialogState(null);
+  };
+
+  const startUpdateDownload = () => {
+    if (!updateDialogState) return;
+    const downloadRequest = window.hardSphereLabUpdater?.downloadUpdate?.();
+    if (!downloadRequest) return;
+    setUpdateDialogState({ ...updateDialogState, status: 'downloading', percent: 0 });
+    void downloadRequest
+      .then((result) => applyUpdaterState(result))
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        applyUpdaterState({
+          ...updaterState,
+          status: 'error',
+          currentVersion: WORKBENCH_APP_VERSION,
+          message,
+        }, { manual: true });
+      });
+  };
+
+  const restartAndInstallUpdate = () => {
+    if (!updateDialogState) return;
+    const installRequest = window.hardSphereLabUpdater?.quitAndInstall?.();
+    if (!installRequest) return;
+    setUpdateDialogState({ ...updateDialogState, status: 'installing', percent: 100 });
+    void installRequest;
   };
 
   const updateSettingsThemePreference = (theme: WorkbenchThemePreference) => {
@@ -2412,6 +2659,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setSettingsPerformanceMode(performanceMode);
     persistWorkbenchGeneralSettings({ theme: settingsThemePreference, language: settingsLanguagePreference, performanceMode });
   };
+
+  useEffect(() => {
+    const unsubscribe = window.hardSphereLabUpdater?.onStatus?.((state) => {
+      applyUpdaterState(state);
+    });
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [workbenchCopy]);
 
   useEffect(() => {
     filesRef.current = files;
@@ -7679,7 +7935,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               <button type="button" className="studio-about-row studio-about-action-row" onClick={runAboutUpdateCheck}>
                 <span className="studio-about-label">{workbenchCopy.about.checkUpdates}</span>
                 <span className="studio-about-value">
-                  <span>{updateChecking ? workbenchCopy.about.checking : workbenchCopy.about.updateNotConfigured}</span>
+                  <span>{updateChecking ? workbenchCopy.about.checking : getAboutUpdateStatusLabel(updaterState, workbenchCopy)}</span>
                   <span className="studio-about-action-icon" aria-hidden="true">
                     {updateChecking ? <Loader2 size={15} /> : <ChevronRight size={17} />}
                   </span>
@@ -7717,6 +7973,83 @@ const WorkbenchStudioPrototype: React.FC = () => {
               <span>{aboutResultNotice.body}</span>
             </div>
           ) : null}
+        </section>
+      </div>
+    );
+  };
+
+  const renderUpdateDialog = () => {
+    if (!updateDialogState) return null;
+
+    const downloading = updateDialogState.status === 'downloading';
+    const downloaded = updateDialogState.status === 'downloaded';
+    const installing = updateDialogState.status === 'installing';
+    const releaseNotes = updateDialogState.releaseNotes?.trim() || workbenchCopy.about.noReleaseNotes;
+    const latestVersion = updateDialogState.latestVersion || '--';
+    const title = downloaded || installing ? workbenchCopy.about.updateReadyTitle : workbenchCopy.about.updateAvailableTitle;
+    const body = downloaded || installing ? workbenchCopy.about.updateReadyBody : workbenchCopy.about.updateAvailableBody;
+
+    return (
+      <div className="studio-settings-overlay studio-update-overlay" role="presentation" onMouseDown={() => setUpdateDialogState(null)}>
+        <section
+          className="studio-settings-window studio-update-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="studio-update-title"
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <div className="studio-settings-header studio-update-header">
+            <div>
+              <strong id="studio-update-title">{title}</strong>
+              <span>{body}</span>
+            </div>
+            <button type="button" className="studio-settings-close" aria-label={workbenchCopy.about.later} onClick={() => setUpdateDialogState(null)}>
+              <X size={15} />
+            </button>
+          </div>
+          <div className="studio-update-body">
+            <div className="studio-update-version-grid">
+              <span>{workbenchCopy.about.currentVersionLabel}</span>
+              <strong>{updateDialogState.currentVersion || WORKBENCH_APP_VERSION}</strong>
+              <span>{workbenchCopy.about.latestVersionLabel}</span>
+              <strong>{latestVersion}</strong>
+              <span>{workbenchCopy.about.releaseDateLabel}</span>
+              <strong>{formatWorkbenchReleaseDate(updateDialogState.releaseDate, settingsLanguagePreference)}</strong>
+            </div>
+            <section className="studio-update-notes">
+              <strong>{workbenchCopy.about.releaseNotesLabel}</strong>
+              <p>{releaseNotes}</p>
+            </section>
+            {downloading || installing ? (
+              <div className="studio-update-progress">
+                <span>{installing ? workbenchCopy.about.updateReadyStatus : workbenchCopy.about.downloadingUpdateStatus(updateDialogState.percent ?? null)}</span>
+                <i style={{ width: `${Math.max(0, Math.min(100, updateDialogState.percent ?? 0))}%` }} />
+              </div>
+            ) : null}
+          </div>
+          <footer className="studio-update-actions">
+            {downloaded || installing ? (
+              <>
+                <button type="button" className="studio-update-secondary" onClick={() => setUpdateDialogState(null)}>
+                  {workbenchCopy.about.later}
+                </button>
+                <button type="button" className="studio-update-primary" onClick={restartAndInstallUpdate} disabled={installing}>
+                  {installing ? <Loader2 size={14} /> : <Download size={14} />}
+                  {workbenchCopy.about.restartAndInstall}
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" className="studio-update-secondary" onClick={ignoreUpdateDialogVersion} disabled={downloading}>
+                  {workbenchCopy.about.ignoreThisVersion}
+                </button>
+                <button type="button" className="studio-update-primary" onClick={startUpdateDownload} disabled={downloading}>
+                  {downloading ? <Loader2 size={14} /> : <Download size={14} />}
+                  {workbenchCopy.about.updateNow}
+                </button>
+              </>
+            )}
+          </footer>
         </section>
       </div>
     );
@@ -10072,6 +10405,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           {renderTopMenu()}
         </header>
         {renderAboutWindow()}
+        {renderUpdateDialog()}
         {renderGeneralSettingsWindow()}
 
         <main className={`studio-body ${leftCollapsed ? 'studio-left-collapsed' : ''}`} style={workbenchStyle}>
