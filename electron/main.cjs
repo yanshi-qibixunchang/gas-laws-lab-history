@@ -125,6 +125,12 @@ const getBundledExporterCandidates = () => ([
 const getDefaultExportRoot = () => path.join(app.getPath('documents'), exportRootFolderName);
 
 const getRuntimeWorkingDirectory = () => {
+  if (app.isPackaged && process.resourcesPath) {
+    return process.resourcesPath;
+  }
+  if (rootDir.includes('.asar')) {
+    return process.resourcesPath || app.getPath('temp');
+  }
   try {
     if (fsSync.existsSync(rootDir) && fsSync.statSync(rootDir).isDirectory()) {
       return rootDir;

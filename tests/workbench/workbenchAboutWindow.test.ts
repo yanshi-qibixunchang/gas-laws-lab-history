@@ -42,6 +42,8 @@ assert.ok(installerNsh.includes('$(HSL_RemoveUserDataPrompt)'), 'uninstaller pro
 assert.ok(!installerNsh.includes('Remove Hard Sphere Lab user data and cache?'), 'uninstaller prompt should not show the old English app name');
 assert.ok(electronMain.includes("const appTitle = '热容比实验室';"), 'desktop window title should use the current Chinese app name');
 assert.ok(electronMain.includes('const getRuntimeWorkingDirectory = () => {'), 'desktop exporter should choose a real working directory');
+assert.ok(electronMain.includes('app.isPackaged && process.resourcesPath'), 'packaged desktop exporter should run from the real resources directory');
+assert.ok(electronMain.includes("rootDir.includes('.asar')"), 'desktop exporter should never use app.asar as a child-process cwd');
 assert.ok(electronMain.includes("fsSync.statSync(rootDir).isDirectory()"), 'desktop exporter should avoid using app.asar as a cwd');
 assert.match(
   electronMain,
