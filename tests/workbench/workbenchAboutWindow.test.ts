@@ -4,10 +4,19 @@ import { readFileSync } from 'node:fs';
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
-  build?: { productName?: string; nsis?: { shortcutName?: string } };
+  build?: {
+    productName?: string;
+    nsis?: {
+      displayLanguageSelector?: boolean;
+      installerLanguages?: string[];
+      language?: string;
+      shortcutName?: string;
+    };
+  };
 };
 const electronMain = readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8');
 const indexHtml = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
+const installerNsh = readFileSync(new URL('../../build/installer.nsh', import.meta.url), 'utf8');
 const viteConfig = readFileSync(new URL('../../vite.config.ts', import.meta.url), 'utf8');
 
 const indexOfOrFail = (haystack: string, needle: string, message: string) => {
@@ -18,7 +27,26 @@ const indexOfOrFail = (haystack: string, needle: string, message: string) => {
 
 assert.equal(packageJson.build?.productName, '热容比实验室', 'installer product name should use the Chinese app name');
 assert.equal(packageJson.build?.nsis?.shortcutName, '热容比实验室', 'Windows shortcut should use the Chinese app name');
+assert.equal(packageJson.build?.nsis?.displayLanguageSelector, true, 'NSIS installer should show a startup language selector');
+assert.deepEqual(
+  packageJson.build?.nsis?.installerLanguages,
+  ['zh_CN', 'zh_TW', 'en_US'],
+  'NSIS installer should offer Simplified Chinese, Traditional Chinese, and English',
+);
+assert.equal(packageJson.build?.nsis?.language, '2052', 'NSIS installer metadata should default to Simplified Chinese');
+assert.ok(installerNsh.includes('LangString HSL_RemoveUserDataPrompt ${LANG_SIMPCHINESE}'), 'uninstaller prompt should define Simplified Chinese text');
+assert.ok(installerNsh.includes('LangString HSL_RemoveUserDataPrompt ${LANG_TRADCHINESE}'), 'uninstaller prompt should define Traditional Chinese text');
+assert.ok(installerNsh.includes('LangString HSL_RemoveUserDataPrompt ${LANG_ENGLISH}'), 'uninstaller prompt should define English text');
+assert.ok(installerNsh.includes('$(HSL_RemoveUserDataPrompt)'), 'uninstaller prompt should use the selected installer language');
+assert.ok(!installerNsh.includes('Remove Hard Sphere Lab user data and cache?'), 'uninstaller prompt should not show the old English app name');
 assert.ok(electronMain.includes("const appTitle = 'Heat Capacity Ratio Lab with Hard Sphere';"), 'desktop window title should use the full English app name');
+assert.ok(electronMain.includes('const getRuntimeWorkingDirectory = () => {'), 'desktop exporter should choose a real working directory');
+assert.ok(electronMain.includes("fsSync.statSync(rootDir).isDirectory()"), 'desktop exporter should avoid using app.asar as a cwd');
+assert.match(
+  electronMain,
+  /spawn\(command, args, \{\s*cwd: getRuntimeWorkingDirectory\(\),\s*windowsHide: true,/,
+  'desktop exporter child processes should run from the real runtime directory',
+);
 assert.ok(indexHtml.includes('<title>Heat Capacity Ratio Lab with Hard Sphere</title>'), 'web document title should use the full English app name');
 
 assert.match(viteConfig, /define:\s*\{[\s\S]*?__APP_VERSION__:\s*JSON\.stringify\(packageJson\.version\)/, 'Vite should expose package.json version to the app');

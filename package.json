@@ -69,6 +69,13 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
+      "displayLanguageSelector": true,
+      "installerLanguages": [
+        "zh_CN",
+        "zh_TW",
+        "en_US"
+      ],
+      "language": "2052",
       "include": "build/installer.nsh",
       "installerIcon": "resources/app-icon/icon.ico",
       "uninstallerIcon": "resources/app-icon/icon.ico",

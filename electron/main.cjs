@@ -31,9 +31,20 @@ const getBundledExporterCandidates = () => ([
 
 const getDefaultExportRoot = () => path.join(app.getPath('documents'), exportRootFolderName);
 
+const getRuntimeWorkingDirectory = () => {
+  try {
+    if (fsSync.existsSync(rootDir) && fsSync.statSync(rootDir).isDirectory()) {
+      return rootDir;
+    }
+  } catch {
+    // Packaged apps can resolve rootDir to app.asar, which is not a cwd.
+  }
+  return process.resourcesPath || app.getPath('temp');
+};
+
 const runCommand = (command, args) => new Promise((resolve) => {
   const child = spawn(command, args, {
-    cwd: rootDir,
+    cwd: getRuntimeWorkingDirectory(),
     windowsHide: true,
   });
   let stdout = '';
