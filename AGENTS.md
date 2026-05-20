@@ -22,6 +22,22 @@ npm.cmd run dev -- --host 127.0.0.1 --port 5174 --strictPort
 - Keep `--strictPort` in the command so Vite fails instead of silently switching to a different port.
 - If port `5174` is already occupied, stop the process using that port or ask the user before changing the project preview port.
 
+## Desktop Release And Auto Update
+
+- The Windows desktop release uses NSIS installer updates through `electron-updater`; do not treat the installer `.exe` as a complete release by itself.
+- For every version intended to update installed desktop clients, bump `package.json` `version` first, then build the NSIS installer with:
+
+```powershell
+npm.cmd run desktop:installer
+```
+
+- A GitHub Release for desktop updates must upload all matching files from `release/`: the installer `.exe`, `latest.yml`, and the corresponding `.exe.blockmap`. Missing `latest.yml` or `.blockmap` means the in-app update path is incomplete.
+- The installer file name in `latest.yml` must exactly match the uploaded installer asset. If changing `build.nsis.artifactName`, release naming, or GitHub upload method, verify `release/latest.yml` before publishing.
+- Keep `build.publish` in `package.json` aligned with the GitHub repository that hosts releases. If the owner or repo changes, update and test the updater configuration in the same change.
+- A same-version release does not appear as an available update. To verify the full update dialog against GitHub, publish a higher version than the locally installed app.
+- When a batch of changes is substantial enough to be uploaded to GitHub for user testing or release preparation, ask the user what version number should be used before pushing or publishing. Do not silently decide version bumps.
+- Before announcing a release-ready build, run at minimum `npm.cmd exec tsc -- --noEmit`, `npm.cmd test`, `npm.cmd audit --omit=dev`, and `npm.cmd run desktop:installer`, then confirm the three release update assets exist.
+
 ## UI Interaction Consistency
 
 - Floating menus must close when the user clicks outside the active menu, including blank workspace areas, sidebars, or other non-menu UI.
