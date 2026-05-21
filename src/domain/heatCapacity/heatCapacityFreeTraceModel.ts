@@ -2,8 +2,8 @@ import type {
   HeatCapacityRuntimePhase,
 } from './heatCapacityExperimentModel.ts';
 
-export const HEAT_CAPACITY_FREE_TRACE_VERSION = 1;
-export const HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION = 1;
+export const HEAT_CAPACITY_FREE_TRACE_VERSION = 2;
+export const HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION = 2;
 export const HEAT_CAPACITY_FREE_CALCULATION_VERSION = 'log-pressure-v1' as const;
 
 export const FREE_TRACE_MAX_SAMPLES_PER_TRIAL = 800;
@@ -108,6 +108,8 @@ export interface HeatCapacityFreeTraceSample {
     gasPressureKPa: number;
     pressureDeltaKPa: number;
     gasTemperatureK: number;
+    wallTemperatureK: number;
+    ambientTemperatureK: number;
     gasAmountRatio: number;
     pumpStrokeCount: number;
     releaseStarted: boolean;
@@ -145,7 +147,7 @@ export interface HeatCapacityFreeEvent {
 export type HeatCapacityFreeEventInput = Omit<HeatCapacityFreeEvent, 'id' | 'index'>;
 
 export interface HeatCapacityFreeConfigSnapshot {
-  version: 1;
+  version: 2;
   environment: {
     ambientPressureKPa: number;
     ambientTemperatureK: number;
@@ -155,10 +157,14 @@ export interface HeatCapacityFreeConfigSnapshot {
     vesselVolumeL: number;
     pumpAmountGainRatio: number;
     pumpTemperatureGainK: number;
-    sealedThermalRate: number;
-    openThermalRate: number;
     stopcockFlowRate: number;
     releaseCoolingFactor: number;
+    thermal: {
+      gasWallConductanceWPerK: number;
+      wallAmbientConductanceWPerK: number;
+      wallHeatCapacityJPerK: number;
+      minimumGasHeatCapacityJPerK: number;
+    };
   };
   sensor: {
     pressureMvPerKPa: number;
@@ -177,13 +183,8 @@ export interface HeatCapacityFreeConfigSnapshot {
     temperatureAmbientToleranceMv: number;
     minimumUsefulU1CorrectedMv: number;
     overVentedMinimumU2CorrectedMv: number;
+    pressureWarningMv: number;
     pressureDangerMv: number;
-  };
-  reservedPhysicsV2: {
-    leakRatePerS: null;
-    wallThermalCapacityJPerK: null;
-    pipeThermalCapacityJPerK: null;
-    continuousStopcockEnabled: false;
   };
 }
 
@@ -203,11 +204,15 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
     gamma: 1.4,
     vesselVolumeL: 2,
     pumpAmountGainRatio: 0.015,
-    pumpTemperatureGainK: 1.8,
-    sealedThermalRate: 0.55,
-    openThermalRate: 1.6,
+    pumpTemperatureGainK: 0.35,
     stopcockFlowRate: 4,
     releaseCoolingFactor: 1,
+    thermal: {
+      gasWallConductanceWPerK: 0.22,
+      wallAmbientConductanceWPerK: 0.45,
+      wallHeatCapacityJPerK: 45,
+      minimumGasHeatCapacityJPerK: 0.1,
+    },
   },
   sensor: {
     pressureMvPerKPa: 20,
@@ -226,13 +231,8 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
     temperatureAmbientToleranceMv: 0.35,
     minimumUsefulU1CorrectedMv: 90,
     overVentedMinimumU2CorrectedMv: 0.2,
+    pressureWarningMv: 115,
     pressureDangerMv: 140,
-  },
-  reservedPhysicsV2: {
-    leakRatePerS: null,
-    wallThermalCapacityJPerK: null,
-    pipeThermalCapacityJPerK: null,
-    continuousStopcockEnabled: false,
   },
 });
 
@@ -264,10 +264,12 @@ const copyConfigSnapshot = (
 ): HeatCapacityFreeConfigSnapshot => ({
   version: configSnapshot.version,
   environment: { ...configSnapshot.environment },
-  physics: { ...configSnapshot.physics },
+  physics: {
+    ...configSnapshot.physics,
+    thermal: { ...configSnapshot.physics.thermal },
+  },
   sensor: { ...configSnapshot.sensor },
   record: { ...configSnapshot.record },
-  reservedPhysicsV2: { ...configSnapshot.reservedPhysicsV2 },
 });
 
 export const createFreeTraceTrial = (

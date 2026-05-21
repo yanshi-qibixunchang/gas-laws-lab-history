@@ -18,12 +18,16 @@ const baseConfig: HeatCapacityFreePhysicsConfig = {
   },
   vesselVolumeL: 2,
   gamma: 1.4,
-  pumpAmountGainRatio: 0.022,
-  pumpTemperatureGainK: 1.8,
-  sealedThermalRate: 0.4,
-  openThermalRate: 1.6,
+  pumpAmountGainRatio: 0.015,
+  pumpTemperatureGainK: 0.35,
   stopcockFlowRate: 4,
   releaseCoolingFactor: 1,
+  thermal: {
+    gasWallConductanceWPerK: 0.22,
+    wallAmbientConductanceWPerK: 0.45,
+    wallHeatCapacityJPerK: 45,
+    minimumGasHeatCapacityJPerK: 0.1,
+  },
 };
 
 const controls: HeatCapacityFreeControls = {
@@ -71,6 +75,7 @@ const initial = createDefaultFreePhysicsState(baseConfig);
 const initialDerived = deriveFreePhysicalState(initial, baseConfig);
 assert.equal(initial.gasAmountRatio, 1);
 assert.equal(initial.gasTemperatureK, baseConfig.environment.ambientTemperatureK);
+assert.equal(initial.wallTemperatureK, baseConfig.environment.ambientTemperatureK);
 assert.equal(initialDerived.gasPressureKPa, baseConfig.environment.ambientPressureKPa);
 assert.equal(initialDerived.pressureDeltaKPa, 0);
 
@@ -109,6 +114,14 @@ const hotSealedPressure = deriveFreePhysicalState(hotSealed, baseConfig).gasPres
 const cooledSealed = stepFreePhysics(hotSealed, baseConfig, controls, 2, 12);
 assert.equal(cooledSealed.gasAmountRatio, hotSealed.gasAmountRatio, 'closed waiting should preserve amount');
 assert.equal(cooledSealed.gasTemperatureK < hotSealed.gasTemperatureK, true);
+assert.equal(cooledSealed.wallTemperatureK > hotSealed.wallTemperatureK, true);
+assert.equal(
+  (cooledSealed.gasTemperatureK - baseConfig.environment.ambientTemperatureK) /
+    (hotSealed.gasTemperatureK - baseConfig.environment.ambientTemperatureK) >
+    0.7,
+  true,
+  'closed waiting should cool through vessel-wall inertia instead of snapping back to ambient',
+);
 assert.equal(
   deriveFreePhysicalState(cooledSealed, baseConfig).gasPressureKPa < hotSealedPressure,
   true,
@@ -119,6 +132,7 @@ const pumped = pumpOnce(initial, 1, 1.25);
 assert.equal(pumped.pumpStrokeCount, 1);
 assert.equal(pumped.gasAmountRatio > initial.gasAmountRatio, true);
 assert.equal(pumped.gasTemperatureK > initial.gasTemperatureK, true);
+assert.equal(pumped.wallTemperatureK, initial.wallTemperatureK);
 assert.equal(
   deriveFreePhysicalState(pumped, baseConfig).gasPressureKPa > initialDerived.gasPressureKPa,
   true,
@@ -134,6 +148,13 @@ const accepted = applyFreePumpStroke(
 assert.equal(accepted.accepted, true);
 assert.equal(accepted.reason, 'accepted');
 assert.equal(accepted.state.pumpStrokeCount, 1);
+expectClose(
+  accepted.state.gasTemperatureK,
+  baseConfig.environment.ambientTemperatureK + baseConfig.pumpTemperatureGainK,
+  0.000000001,
+  'pump stroke should heat only gas',
+);
+assert.equal(accepted.state.wallTemperatureK, initial.wallTemperatureK);
 assert.equal(
   accepted.state.maxPressureKPa > initial.maxPressureKPa,
   true,
@@ -164,6 +185,19 @@ for (const [expectedReason, state, caseControls] of rejectCases) {
   assert.equal(result.accepted, false);
   assert.equal(result.reason, expectedReason);
   assert.deepEqual(result.state, state, `${expectedReason} reject must not mutate physical state`);
+}
+
+{
+  let state = createDefaultFreePhysicsState(baseConfig);
+  for (let index = 0; index < 4; index += 1) {
+    state = pumpOnce(state, index * 0.1);
+  }
+  for (let step = 0; step < 90; step += 1) {
+    state = stepFreePhysics(state, baseConfig, controls, 1, step + 1);
+  }
+  const u1Mv = deriveFreePhysicalState(state, baseConfig).pressureDeltaKPa * 20;
+  assert.ok(u1Mv >= 115);
+  assert.ok(u1Mv <= 125);
 }
 
 const aboveAmbient = {
@@ -220,9 +254,11 @@ assert.equal(quickReleased.gasAmountRatio < settled.gasAmountRatio, true, 'state
 assert.equal(quickReleased.gasAmountRatio > initial.gasAmountRatio, true, 'state 3 amount should remain above initial after a good release');
 assert.equal(recovered.gasAmountRatio, quickReleased.gasAmountRatio, 'state 4 recovery should preserve state 3 amount');
 assert.equal(state1.gasTemperatureK > initial.gasTemperatureK, true, 'state 1 temperature should be above ambient');
-expectClose(settled.gasTemperatureK, initial.gasTemperatureK, 0.1, 'state 2 temperature should settle near ambient');
+assert.equal(settled.gasTemperatureK > initial.gasTemperatureK, true, 'state 2 should retain some wall-mediated heat');
+assert.equal(settled.gasTemperatureK < state1.gasTemperatureK, true, 'state 2 should cool from the post-pump state');
 assert.equal(quickReleased.gasTemperatureK < initial.gasTemperatureK, true, 'state 3 temperature should drop below ambient');
-expectClose(recovered.gasTemperatureK, initial.gasTemperatureK, 0.1, 'state 4 temperature should recover near ambient');
+assert.equal(recovered.gasTemperatureK > quickReleased.gasTemperatureK, true, 'state 4 temperature should recover from release cooling');
+assert.equal(recovered.gasTemperatureK < initial.gasTemperatureK, true, 'state 4 should still recover gradually through wall inertia');
 assert.equal(
   deriveFreePhysicalState(state1, baseConfig).gasPressureKPa > settledDerived.gasPressureKPa,
   true,
@@ -272,7 +308,7 @@ expectClose(
 expectClose(
   longOpen.gasTemperatureK,
   baseConfig.environment.ambientTemperatureK,
-  0.03,
+  0.3,
   'long-open temperature should approach ambient without rebound',
 );
 

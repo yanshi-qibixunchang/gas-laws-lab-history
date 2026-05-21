@@ -162,6 +162,7 @@ const simulateCandidate = (
       gasPressureKPa: physical.gasPressureKPa,
       pressureDeltaKPa: physical.pressureDeltaKPa,
       gasTemperatureK: physicsState.gasTemperatureK,
+      ambientTemperatureK: physicsConfig.environment.ambientTemperatureK,
     }, calibration, sensorConfig, timeS);
     const display = getFreeSensorDisplay(sensorState, calibration, sensorConfig);
     const point = toReferencePoint(

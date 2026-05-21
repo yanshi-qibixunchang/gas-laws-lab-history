@@ -31,11 +31,15 @@ const tracedConfiguredFile = recordHeatCapacityFreeTraceEventWithReference({
     gamma: 1.37,
     vesselVolumeL: 2.4,
     pumpAmountGainRatio: 0.0065,
-    pumpTemperatureGainK: 1.65,
-    sealedThermalRate: 0.45,
-    openThermalRate: 1.85,
+    pumpTemperatureGainK: 0.35,
     stopcockFlowRate: 4.4,
     releaseCoolingFactor: 0.92,
+    thermal: {
+      gasWallConductanceWPerK: 0.45,
+      wallAmbientConductanceWPerK: 1.85,
+      wallHeatCapacityJPerK: 45,
+      minimumGasHeatCapacityJPerK: 0.1,
+    },
   },
   heatCapacityFreeSensorConfig: {
     ...configuredFile.heatCapacityFreeSensorConfig,
@@ -56,6 +60,8 @@ assert.equal(configuredTraceTrial!.configSnapshot.environment.ambientTemperature
 assert.equal(configuredTraceTrial!.configSnapshot.physics.gamma, 1.37);
 assert.equal(configuredTraceTrial!.configSnapshot.physics.vesselVolumeL, 2.4);
 assert.equal(configuredTraceTrial!.configSnapshot.physics.pumpAmountGainRatio, 0.0065);
+assert.equal(configuredTraceTrial!.configSnapshot.physics.thermal.gasWallConductanceWPerK, 0.45);
+assert.equal(configuredTraceTrial!.configSnapshot.physics.thermal.wallAmbientConductanceWPerK, 1.85);
 assert.equal(configuredTraceTrial!.configSnapshot.sensor.pressureMvPerKPa, 21.5);
 assert.equal(configuredTraceTrial!.configSnapshot.sensor.temperatureMvAtAmbient, 1501.2);
 assert.equal(configuredTraceTrial!.configSnapshot.record.minimumUsefulU1CorrectedMv, 90);
@@ -86,9 +92,9 @@ for (const strokes of [3, 4]) {
   assert.equal(row?.u1Recordable, true, `${strokes} pump strokes should be recordable as U1`);
   assert.equal(row?.u2Recordable, true, `${strokes} pump strokes should be recordable as U2 after quick release`);
   assert.equal(
-    row !== undefined && row.gamma !== null && row.gamma >= 1.395 && row.gamma <= 1.405,
+    row !== undefined && row.gamma !== null && row.gamma >= 1.35 && row.gamma <= 1.39,
     true,
-    `${strokes} pump strokes should produce an accurate gamma with the exact pressure formula`,
+    `${strokes} pump strokes should produce a plausible gamma after wall-mediated heat exchange`,
   );
 }
 
@@ -109,8 +115,13 @@ assert.equal(
 
 const slowClose = report.rows.find((row) => row.pumpStrokes === 4 && row.openDurationS === 0.7);
 assert.equal(slowClose?.u2Recordable, true, 'moderately slow close should still produce a recordable U2 row');
+const quickFourStroke = quickRows.find((row) => row.pumpStrokes === 4);
 assert.equal(
-  slowClose !== undefined && slowClose.gamma !== null && slowClose.gamma < 1.25,
+  slowClose !== undefined &&
+    slowClose.gamma !== null &&
+    quickFourStroke !== undefined &&
+    quickFourStroke.gamma !== null &&
+    slowClose.gamma < quickFourStroke.gamma - 0.02,
   true,
   'moderately slow close should visibly degrade gamma in the acceptance report',
 );

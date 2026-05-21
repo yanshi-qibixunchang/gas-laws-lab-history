@@ -41,12 +41,14 @@ const ambientPhysical: HeatCapacityFreePhysicalDisplayInput = {
   gasPressureKPa: 101.3,
   pressureDeltaKPa: 0,
   gasTemperatureK: 298.15,
+  ambientTemperatureK: 298.15,
 };
 
 const jumpedPhysical: HeatCapacityFreePhysicalDisplayInput = {
   gasPressureKPa: 111.3,
   pressureDeltaKPa: 10,
   gasTemperatureK: 301.15,
+  ambientTemperatureK: 298.15,
 };
 
 const runSequence = (seed: number | string) => {
@@ -84,6 +86,24 @@ assert.equal(
 );
 assert.equal(lagged.displayTemperatureMv > 1499, true);
 assert.equal(lagged.displayTemperatureMv < 1499 + 3 * quietConfig.temperatureMvPerK, true);
+
+const warmRoom = stepFreeSensor(
+  createDefaultFreeSensorState('ambient-303', {
+    pressureMv: 0,
+    pressureInitialBiasMv: 0,
+    temperatureMv: 1499,
+  }),
+  {
+    gasPressureKPa: 101.3,
+    pressureDeltaKPa: 0,
+    gasTemperatureK: 303.15,
+    ambientTemperatureK: 303.15,
+  },
+  { ...calibration, zeroOffsetMv: 0 },
+  { ...quietConfig, lagRate: 1000 },
+  0.1,
+);
+assert.equal(warmRoom.displayTemperatureMv, 1499);
 
 const biasedStart = createDefaultFreeSensorState('biased-zero', {
   pressureMv: 0.73,

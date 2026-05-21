@@ -23,6 +23,7 @@ export interface HeatCapacityFreePhysicalDisplayInput {
   gasPressureKPa: number;
   pressureDeltaKPa: number;
   gasTemperatureK: number;
+  ambientTemperatureK: number;
 }
 
 export interface HeatCapacityFreeSensorState {
@@ -37,7 +38,6 @@ export interface HeatCapacityFreeSensorState {
   temperatureSlopeMvPerS: number;
 }
 
-const REFERENCE_AMBIENT_TEMPERATURE_K = 298.15;
 const SAMPLE_TIME_EPSILON_S = 0.000000001;
 
 const hashSeededValue = (
@@ -118,7 +118,7 @@ const toTargetDisplay = (
   pressureMv: physical.pressureDeltaKPa * config.pressureMvPerKPa +
     pressureInitialBiasMv,
   temperatureMv: config.temperatureMvAtAmbient +
-    (physical.gasTemperatureK - REFERENCE_AMBIENT_TEMPERATURE_K) *
+    (physical.gasTemperatureK - physical.ambientTemperatureK) *
       config.temperatureMvPerK,
 });
 

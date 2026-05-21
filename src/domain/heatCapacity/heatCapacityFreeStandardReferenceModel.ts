@@ -44,7 +44,7 @@ export interface HeatCapacityStandardReference {
 const STEP_S = 0.05;
 const PUMP_INTERVAL_S = 0.1;
 const RELEASE_DURATION_S = 0.7;
-const MAX_PUMP_STROKES = 24;
+const STANDARD_REFERENCE_PUMP_STROKES = 4;
 const MAX_STABILIZE_S = 90;
 const MAX_RECOVER_S = 90;
 const ZERO_DURATION_S = 4;
@@ -78,14 +78,6 @@ const createReferenceCalibration = (): HeatCapacityFreeCalibrationState => ({
   zeroEvents: [],
   automaticU0: null,
 });
-
-const getReferenceTargetPressureMv = (config: HeatCapacityFreeConfigSnapshot) => {
-  const lower = config.record.minimumUsefulU1CorrectedMv;
-  return Math.max(
-    lower + 20,
-    Math.min(config.record.pressureDangerMv * 0.86, config.record.pressureDangerMv - 15),
-  );
-};
 
 const toReferencePoint = (
   id: string,
@@ -158,6 +150,7 @@ export const createHeatCapacityStandardReference = (
       gasPressureKPa: physical.gasPressureKPa,
       pressureDeltaKPa: physical.pressureDeltaKPa,
       gasTemperatureK: physicsState.gasTemperatureK,
+      ambientTemperatureK: physicsConfig.environment.ambientTemperatureK,
     }, calibration, sensorConfig, timeS);
     const display = getFreeSensorDisplay(sensorState, calibration, sensorConfig);
     const point = toReferencePoint(
@@ -186,15 +179,11 @@ export const createHeatCapacityStandardReference = (
   }
   stages.push(createStage('zero', 'zero', zeroStartS, timeS));
 
-  const targetPressureMv = getReferenceTargetPressureMv(config);
   const pumpStartS = timeS;
   controls = { powerOn: true, pumpValveOpen: true, stopcockOpen: false };
   let pumpCount = 0;
   let latestPoint = trace[trace.length - 1] ?? null;
-  while (
-    pumpCount < MAX_PUMP_STROKES &&
-    ((latestPoint?.pressureDeltaKPa ?? 0) * config.sensor.pressureMvPerKPa) < targetPressureMv
-  ) {
+  while (pumpCount < STANDARD_REFERENCE_PUMP_STROKES) {
     const result = applyFreePumpStroke(physicsState, physicsConfig, controls, {
       atS: timeS,
       strength: 1,

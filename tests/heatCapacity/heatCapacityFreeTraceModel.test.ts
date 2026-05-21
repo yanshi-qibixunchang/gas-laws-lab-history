@@ -12,8 +12,15 @@ import {
 
 const configSnapshot = createDefaultFreeConfigSnapshot();
 
+assert.equal(configSnapshot.version, 2);
 assert.equal(configSnapshot.physics.vesselVolumeL, 2);
 assert.equal(configSnapshot.physics.pumpAmountGainRatio, 0.015);
+assert.equal(configSnapshot.physics.thermal.gasWallConductanceWPerK, 0.22);
+assert.equal(configSnapshot.physics.thermal.wallAmbientConductanceWPerK, 0.45);
+assert.equal(configSnapshot.physics.thermal.wallHeatCapacityJPerK, 45);
+assert.equal(configSnapshot.physics.thermal.minimumGasHeatCapacityJPerK, 0.1);
+assert.equal(configSnapshot.record.pressureWarningMv, 115);
+assert.equal('reservedPhysicsV2' in configSnapshot, false);
 assert.equal(
   configSnapshot.physics.pumpAmountGainRatio * configSnapshot.physics.vesselVolumeL * 1000,
   30,
@@ -29,10 +36,16 @@ let store = createDefaultFreeTraceStore();
 const first = createFreeTraceTrial(store, configSnapshot);
 store = first.store;
 const second = createFreeTraceTrial(store, configSnapshot);
+configSnapshot.physics.thermal.gasWallConductanceWPerK = 999;
 
 assert.equal(first.traceTrial.id, 'free-trace-trial-1');
 assert.equal(first.traceTrial.activeBranchId, 'branch-1');
 assert.equal(second.traceTrial.id, 'free-trace-trial-2');
+assert.equal(
+  first.traceTrial.configSnapshot.physics.thermal.gasWallConductanceWPerK,
+  0.22,
+  'trace trial must deep-copy thermal config instead of sharing the source object',
+);
 
 const createSampleInput = (
   index: number,
@@ -50,6 +63,8 @@ const createSampleInput = (
     gasPressureKPa: 106,
     pressureDeltaKPa: 4.7,
     gasTemperatureK: 298.15,
+    wallTemperatureK: 298.15,
+    ambientTemperatureK: 298.15,
     gasAmountRatio: 1.04,
     pumpStrokeCount: 4,
     releaseStarted: false,

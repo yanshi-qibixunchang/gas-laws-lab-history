@@ -8,6 +8,7 @@ import {
   getHeatCapacityStopcockState,
   normalizeHeatCapacityStopcockAngle,
   normalizeHeatCapacityFileName,
+  normalizeHeatCapacityFreePhysicsConfig,
   WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
   type WorkbenchFileState,
   type WorkbenchPanelKey,
@@ -343,17 +344,27 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
     const savedFreeSensorState = isRecord(file.heatCapacityFreeSensorState)
       ? file.heatCapacityFreeSensorState as typeof fallbackFreeRuntimeFields.heatCapacityFreeSensorState
       : null;
+    const savedFreePhysicsConfig = savedFreeRuntimeCompatible && isRecord(file.heatCapacityFreePhysicsConfig)
+      ? normalizeHeatCapacityFreePhysicsConfig(file.heatCapacityFreePhysicsConfig)
+      : fallbackFreeRuntimeFields.heatCapacityFreePhysicsConfig;
+    const savedFreePhysicsState = savedFreeRuntimeCompatible && isRecord(file.heatCapacityFreePhysicsState)
+      ? file.heatCapacityFreePhysicsState
+      : null;
     const normalizedFreeRuntimeFields = savedFreeRuntimeCompatible
       ? {
           heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
-          heatCapacityFreeEnvironmentConfig: isRecord(file.heatCapacityFreeEnvironmentConfig)
-            ? file.heatCapacityFreeEnvironmentConfig as typeof fallbackFreeRuntimeFields.heatCapacityFreeEnvironmentConfig
-            : fallbackFreeRuntimeFields.heatCapacityFreeEnvironmentConfig,
-          heatCapacityFreePhysicsConfig: isRecord(file.heatCapacityFreePhysicsConfig)
-            ? file.heatCapacityFreePhysicsConfig as typeof fallbackFreeRuntimeFields.heatCapacityFreePhysicsConfig
-            : fallbackFreeRuntimeFields.heatCapacityFreePhysicsConfig,
-          heatCapacityFreePhysicsState: isRecord(file.heatCapacityFreePhysicsState)
-            ? file.heatCapacityFreePhysicsState as typeof fallbackFreeRuntimeFields.heatCapacityFreePhysicsState
+          heatCapacityFreeEnvironmentConfig: { ...savedFreePhysicsConfig.environment },
+          heatCapacityFreePhysicsConfig: savedFreePhysicsConfig,
+          heatCapacityFreePhysicsState: savedFreePhysicsState
+            ? {
+                ...fallbackFreeRuntimeFields.heatCapacityFreePhysicsState,
+                ...savedFreePhysicsState,
+                gasTemperatureK: normalizeNullableNumber(savedFreePhysicsState.gasTemperatureK)
+                  ?? savedFreePhysicsConfig.environment.ambientTemperatureK,
+                wallTemperatureK: normalizeNullableNumber(savedFreePhysicsState.wallTemperatureK)
+                  ?? normalizeNullableNumber(savedFreePhysicsState.gasTemperatureK)
+                  ?? savedFreePhysicsConfig.environment.ambientTemperatureK,
+              } as typeof fallbackFreeRuntimeFields.heatCapacityFreePhysicsState
             : fallbackFreeRuntimeFields.heatCapacityFreePhysicsState,
           heatCapacityFreeSensorConfig: isRecord(file.heatCapacityFreeSensorConfig)
             ? file.heatCapacityFreeSensorConfig as typeof fallbackFreeRuntimeFields.heatCapacityFreeSensorConfig
@@ -372,6 +383,9 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
           heatCapacityFreeStopcockPendingOpenAtMs: normalizeNullableNumber(file.heatCapacityFreeStopcockPendingOpenAtMs),
         }
       : fallbackFreeRuntimeFields;
+    const heatCapacityFreeTraceStore = file.heatCapacityFreeTraceVersion === HEAT_CAPACITY_FREE_TRACE_VERSION
+      ? normalizeHeatCapacityFreeTraceStore(file.heatCapacityFreeTraceStore)
+      : createDefaultFreeTraceStore();
     return {
       ...fallback,
       ...file,
@@ -415,7 +429,7 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
         : null,
       heatCapacityFreeTrials,
       heatCapacityFreeTraceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
-      heatCapacityFreeTraceStore: normalizeHeatCapacityFreeTraceStore(file.heatCapacityFreeTraceStore),
+      heatCapacityFreeTraceStore,
       stopcockAngleDeg,
       glassPistonState: getHeatCapacityStopcockState(stopcockAngleDeg),
       ambientPressureKPa: normalizeNullableNumber(file.ambientPressureKPa) ?? fallback.ambientPressureKPa,

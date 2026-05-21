@@ -104,6 +104,10 @@ assert.equal(
 );
 assert.equal(defaultFile.heatCapacityFreePhysicsState.gasAmountRatio, 1);
 assert.equal(defaultFile.heatCapacityFreePhysicsState.gasTemperatureK, 298.15);
+assert.equal(defaultFile.heatCapacityFreePhysicsState.wallTemperatureK, 298.15);
+assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK, 0.22);
+assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.wallAmbientConductanceWPerK, 0.45);
+assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.wallHeatCapacityJPerK, 45);
 assert.equal(defaultFile.heatCapacityFreeSensorConfig.lagRate, 8);
 assert.equal(defaultFile.heatCapacityFreeSensorConfig.minSampleIntervalS, 0.08);
 assert.equal(defaultFile.heatCapacityFreeSensorConfig.maxSampleIntervalS, 0.12);
@@ -596,7 +600,7 @@ for (let stepIndex = 0; stepIndex < 80; stepIndex += 1) {
 const stableFourStrokePressureMv = stableFourStrokeFreeFile.pressureDeltaKPa *
   stableFourStrokeFreeFile.heatCapacityFreeSensorConfig.pressureMvPerKPa;
 assert.equal(
-  stableFourStrokePressureMv >= 119 && stableFourStrokePressureMv <= 123,
+  stableFourStrokePressureMv >= 115 && stableFourStrokePressureMv <= 125,
   true,
   `4 Free pump strokes should stabilize near 120 mV, received ${stableFourStrokePressureMv.toFixed(2)} mV`,
 );
@@ -606,6 +610,25 @@ const fiveStrokeFreeFile = registerHeatCapacityPumpStroke(fourStrokeFreeFile, 4_
 assert.equal(fiveStrokeFreeFile.heatCapacityFreePhysicsState.pumpStrokeCount, 5);
 assert.equal(fiveStrokeFreeFile.pressureSafetyStatus, 'danger');
 assert.equal(fiveStrokeFreeFile.pressureBlockedPumping, true);
+const hotOverLimitFreeFile = registerHeatCapacityPumpStroke({
+  ...freePumpReady,
+  lastUpdateMs: 8_000,
+  heatCapacityFreePhysicsState: {
+    ...freePumpReady.heatCapacityFreePhysicsState,
+    gasAmountRatio: 1,
+    gasTemperatureK: 321,
+    wallTemperatureK: 321,
+    simulationTimeS: 2,
+  },
+}, 8_000);
+assert.equal(
+  hotOverLimitFreeFile.heatCapacityFreePhysicsState.pumpStrokeCount,
+  0,
+  'Free alarm blocking should follow the current calculated pressure, even when amount ratio alone would look safe',
+);
+assert.equal(hotOverLimitFreeFile.pressureSafetyStatus, 'danger');
+assert.equal(hotOverLimitFreeFile.pressureBlockedPumping, true);
+assert.equal(hotOverLimitFreeFile.pressureDeltaKPa > hotOverLimitFreeFile.pressureSafetyThresholdKPa, true);
 const fiveStrokeTraceTrial = fiveStrokeFreeFile.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
   traceTrial.id === fiveStrokeFreeFile.heatCapacityFreeTraceStore.activeTraceTrialId
 ));
@@ -1413,6 +1436,9 @@ assert.deepEqual(getHeatCapacityPumpFrequencyState([], 10_000), {
 assert.equal(getHeatCapacityPumpFrequencyState([8_000], 10_000).pumpFrequencyStatus, 'tooSlow');
 assert.equal(getHeatCapacityPumpFrequencyState([7_200, 8_400, 9_600], 10_000).pumpFrequencyStatus, 'suitable');
 assert.equal(JSON.stringify(getHeatCapacityPumpFrequencyState([7_200, 8_400, 9_600], 10_000)).includes('tooFast'), false);
+const rapidPointOneSecondFrequency = getHeatCapacityPumpFrequencyState([0, 100, 200, 300], 300);
+assert.equal(rapidPointOneSecondFrequency.pumpFrequency, 10);
+assert.equal(rapidPointOneSecondFrequency.pumpFrequencyStatus, 'suitable');
 
 const closedValvePump = registerHeatCapacityPumpStroke(poweredFile, 10_000);
 assert.equal(closedValvePump.pumpStrokeCount, 0);

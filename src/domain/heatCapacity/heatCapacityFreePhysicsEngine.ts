@@ -1,3 +1,8 @@
+import {
+  stepFreeThermalState,
+  type HeatCapacityFreeThermalConfig,
+} from './heatCapacityFreeThermalModel.ts';
+
 export interface HeatCapacityFreeEnvironmentConfig {
   ambientTemperatureK: number;
   ambientPressureKPa: number;
@@ -9,17 +14,16 @@ export interface HeatCapacityFreePhysicsConfig {
   gamma: number;
   pumpAmountGainRatio: number;
   pumpTemperatureGainK: number;
-  sealedThermalRate: number;
-  openThermalRate: number;
   stopcockFlowRate: number;
-  // Default 1. Well-operated quick-release tests keep this neutral.
   releaseCoolingFactor: number;
+  thermal: HeatCapacityFreeThermalConfig;
 }
 
 export interface HeatCapacityFreePhysicsState {
   simulationTimeS: number;
   gasAmountRatio: number;
   gasTemperatureK: number;
+  wallTemperatureK: number;
   pumpStrokeCount: number;
   maxPressureKPa: number;
   releaseStarted: boolean;
@@ -107,6 +111,7 @@ export const createDefaultFreePhysicsState = (
   simulationTimeS: 0,
   gasAmountRatio: 1,
   gasTemperatureK: config.environment.ambientTemperatureK,
+  wallTemperatureK: config.environment.ambientTemperatureK,
   pumpStrokeCount: 0,
   maxPressureKPa: config.environment.ambientPressureKPa,
   releaseStarted: false,
@@ -153,6 +158,7 @@ export const applyFreePumpStroke = (
     simulationTimeS: event.atS,
     gasAmountRatio: state.gasAmountRatio + config.pumpAmountGainRatio * strength,
     gasTemperatureK: state.gasTemperatureK + config.pumpTemperatureGainK * strength,
+    wallTemperatureK: state.wallTemperatureK,
     pumpStrokeCount: state.pumpStrokeCount + 1,
   };
   const nextPressureKPa = deriveFreePhysicalState(candidateState, config).gasPressureKPa;
@@ -199,23 +205,40 @@ const applyOpeningRelease = (
     ...state,
     gasAmountRatio: releasedAmountRatio,
     gasTemperatureK: cooledTemperatureK,
+    wallTemperatureK: state.wallTemperatureK,
     releaseStarted: true,
     releaseReference,
   };
 };
+
+const stepThermalState = (
+  state: HeatCapacityFreePhysicsState,
+  config: HeatCapacityFreePhysicsConfig,
+  dtS: number,
+) => stepFreeThermalState(
+  {
+    gasTemperatureK: state.gasTemperatureK,
+    wallTemperatureK: state.wallTemperatureK,
+  },
+  config.thermal,
+  {
+    ambientPressureKPa: config.environment.ambientPressureKPa,
+    ambientTemperatureK: config.environment.ambientTemperatureK,
+    vesselVolumeL: config.vesselVolumeL,
+    gamma: config.gamma,
+    gasAmountRatio: state.gasAmountRatio,
+    dtS,
+  },
+);
 
 const stepOpenState = (
   state: HeatCapacityFreePhysicsState,
   config: HeatCapacityFreePhysicsConfig,
   dtS: number,
 ) => {
-  const nextTemperatureK = approach(
-    state.gasTemperatureK,
-    config.environment.ambientTemperatureK,
-    config.openThermalRate,
-    dtS,
-  );
-  const ambientPressureAmountRatio = config.environment.ambientTemperatureK / nextTemperatureK;
+  const thermal = stepThermalState(state, config, dtS);
+  const ambientPressureAmountRatio = config.environment.ambientTemperatureK /
+    thermal.state.gasTemperatureK;
   const nextAmountRatio = approach(
     state.gasAmountRatio,
     ambientPressureAmountRatio,
@@ -225,7 +248,8 @@ const stepOpenState = (
   return {
     ...state,
     gasAmountRatio: nextAmountRatio,
-    gasTemperatureK: nextTemperatureK,
+    gasTemperatureK: thermal.state.gasTemperatureK,
+    wallTemperatureK: thermal.state.wallTemperatureK,
   };
 };
 
@@ -239,15 +263,12 @@ export const stepFreePhysics = (
   const wasStopcockOpen = isStopcockCurrentlyOpen(state);
 
   if (!controls.stopcockOpen) {
+    const thermal = stepThermalState(state, config, dtS);
     const closedState: HeatCapacityFreePhysicsState = {
       ...state,
       simulationTimeS: atS,
-      gasTemperatureK: approach(
-        state.gasTemperatureK,
-        config.environment.ambientTemperatureK,
-        config.sealedThermalRate,
-        dtS,
-      ),
+      gasTemperatureK: thermal.state.gasTemperatureK,
+      wallTemperatureK: thermal.state.wallTemperatureK,
       lastStopcockClosedAtS: wasStopcockOpen ? atS : state.lastStopcockClosedAtS,
       currentStopcockOpenDurationS: 0,
     };

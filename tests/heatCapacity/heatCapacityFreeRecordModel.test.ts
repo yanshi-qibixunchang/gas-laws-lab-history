@@ -89,11 +89,15 @@ const physicsConfig = {
   vesselVolumeL: 2,
   gamma: 1.4,
   pumpAmountGainRatio: 0.022,
-  pumpTemperatureGainK: 1.8,
-  sealedThermalRate: 0.4,
-  openThermalRate: 1.6,
+  pumpTemperatureGainK: 0.35,
   stopcockFlowRate: 4,
   releaseCoolingFactor: 1,
+  thermal: {
+    gasWallConductanceWPerK: 0.4,
+    wallAmbientConductanceWPerK: 1.6,
+    wallHeatCapacityJPerK: 45,
+    minimumGasHeatCapacityJPerK: 0.1,
+  },
 };
 
 const closedPumpedPhysics: HeatCapacityFreePhysicsState = {
@@ -483,11 +487,15 @@ const version1PhysicsConfig: HeatCapacityFreePhysicsConfig = {
   vesselVolumeL: 2,
   gamma: 1.4,
   pumpAmountGainRatio: 0.018,
-  pumpTemperatureGainK: 1.8,
-  sealedThermalRate: 0.55,
-  openThermalRate: 1.6,
+  pumpTemperatureGainK: 0.35,
   stopcockFlowRate: 4,
   releaseCoolingFactor: 1,
+  thermal: {
+    gasWallConductanceWPerK: 0.55,
+    wallAmbientConductanceWPerK: 1.6,
+    wallHeatCapacityJPerK: 45,
+    minimumGasHeatCapacityJPerK: 0.1,
+  },
 };
 
 const version1SensorConfig: HeatCapacityFreeSensorConfig = {
@@ -574,6 +582,7 @@ const stepScriptedRun = (
       gasPressureKPa: derived.gasPressureKPa,
       pressureDeltaKPa: derived.pressureDeltaKPa,
       gasTemperatureK: physics.gasTemperatureK,
+      ambientTemperatureK: version1PhysicsConfig.environment.ambientTemperatureK,
     },
     run.calibration,
     version1SensorConfig,
@@ -617,7 +626,7 @@ const createManualU0TrialFromCalibration = (
 const waitForRecordStable = (
   run: ScriptedFreeRun,
   controls: HeatCapacityFreeControls,
-  seconds = 16,
+  seconds = 40,
 ) => {
   let current = run;
   for (let index = 0; index < seconds * 10; index += 1) {
@@ -787,9 +796,22 @@ const longOpenEvaluation = evaluateFreeU2Record(
   version1RecordConfig,
 );
 assert.equal(
-  ['over-vented', 'unstable-pressure', 'unstable-temperature'].includes(longOpenEvaluation.reason),
+  longOpenEvaluation.ready,
   true,
-  'long-open Free operation should be blocked as over-vented or unstable',
+  'long-open Free operation may stabilize again under the wall-exchange model',
+);
+const longOpenU2 = recordFreeU2(longOpenU1.trial, {
+  atS: longOpenRecovered.timeS,
+  displayPressureMv: longOpenRecovered.sensor.displayPressureMv,
+  displayTemperatureMv: longOpenRecovered.sensor.displayTemperatureMv,
+  calibrationVersion: 1,
+  zeroEventId: 'zero-1',
+});
+assert.equal(longOpenU2.accepted, true);
+assert.equal(
+  longOpenU2.trial.correctedSignals!.gamma < slowCloseU2.trial.correctedSignals!.gamma,
+  true,
+  'long-open Free operation should remain recordable but degrade the calculated gamma',
 );
 
 const insufficientRun = pumpScriptedRun(createScriptedRun(), 1);

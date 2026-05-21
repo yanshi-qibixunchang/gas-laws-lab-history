@@ -40,6 +40,9 @@ assert.equal(
 assert.equal(reference.records.u0 !== null, true);
 assert.equal(reference.records.u1 !== null, true);
 assert.equal(reference.records.u2 !== null, true);
+const u1Mv = (reference.records.u1?.pressureDeltaKPa ?? 0) * config.sensor.pressureMvPerKPa;
+assert.ok(u1Mv >= 115);
+assert.ok(u1Mv <= 125);
 assert.equal(reference.trace.some((point) => point.stageId === 'pump'), true);
 assert.equal(reference.trace.some((point) => point.stageId === 'release'), true);
 
@@ -69,6 +72,26 @@ assert.equal(
   true,
   'operable-best reference should expose each rapid pump stroke as a visible pressure level',
 );
+
+const findLastPointByStage = (
+  points: typeof reference.trace,
+  stageId: string,
+) => {
+  for (let index = points.length - 1; index >= 0; index -= 1) {
+    if (points[index].stageId === stageId) return points[index];
+  }
+  return null;
+};
+
+const slowThermalConfig = createDefaultFreeConfigSnapshot();
+slowThermalConfig.physics.thermal.gasWallConductanceWPerK = 0.08;
+const fastThermalConfig = createDefaultFreeConfigSnapshot();
+fastThermalConfig.physics.thermal.gasWallConductanceWPerK = 0.6;
+const slowReference = createHeatCapacityStandardReference(slowThermalConfig);
+const fastReference = createHeatCapacityStandardReference(fastThermalConfig);
+const slowPumpEnd = findLastPointByStage(slowReference.trace, 'pump');
+const fastPumpEnd = findLastPointByStage(fastReference.trace, 'pump');
+assert.ok((slowPumpEnd?.temperatureDeltaK ?? 0) > (fastPumpEnd?.temperatureDeltaK ?? 0));
 
 const aligned = alignStandardReferenceToStages(reference, [
   { id: 'zero', label: 'zero', startS: 0, endS: 6 },

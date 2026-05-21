@@ -63,6 +63,9 @@ import {
   type HeatCapacityFreePhysicsState,
 } from '../../domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
 import {
+  normalizeFreeThermalConfig,
+} from '../../domain/heatCapacity/heatCapacityFreeThermalModel.ts';
+import {
   createDefaultFreeSensorState,
   createSeededFreePressureInitialBiasMv,
   getFreeSensorDisplay,
@@ -167,7 +170,7 @@ export type WorkbenchHeatCapacityPumpFrequencyStatus = 'idle' | 'tooSlow' | 'sui
 export type WorkbenchHeatCapacityPressureZeroAdjustMode = 'none' | 'fineWheel' | 'coarseDrag';
 export type WorkbenchHeatCapacityPressureSafetyStatus = 'normal' | 'warning' | 'danger';
 
-export const HEAT_CAPACITY_FREE_RUNTIME_VERSION = 2;
+export const HEAT_CAPACITY_FREE_RUNTIME_VERSION = 3;
 export const HEAT_CAPACITY_PUMP_FREQUENCY_WINDOW_MS = 3000;
 export const HEAT_CAPACITY_MIN_PUMP_FREQUENCY = 0.5;
 export const HEAT_CAPACITY_PUMP_RATE_SLOW_THRESHOLD_HZ = 2;
@@ -187,11 +190,15 @@ export const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsC
   vesselVolumeL: 2,
   gamma: 1.4,
   pumpAmountGainRatio: 0.015,
-  pumpTemperatureGainK: 1.8,
-  sealedThermalRate: 0.55,
-  openThermalRate: 1.6,
+  pumpTemperatureGainK: 0.35,
   stopcockFlowRate: 4,
   releaseCoolingFactor: 1,
+  thermal: {
+    gasWallConductanceWPerK: 0.22,
+    wallAmbientConductanceWPerK: 0.45,
+    wallHeatCapacityJPerK: 45,
+    minimumGasHeatCapacityJPerK: 0.1,
+  },
 };
 export const DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG: HeatCapacityFreeSensorConfig = {
   pressureMvPerKPa: DEFAULT_HEAT_CAPACITY_MODEL_CONFIG.sensor.pressureSensitivityMvPerKPa,
@@ -213,6 +220,53 @@ const normalizeHeatCapacityFreeSensorConfig = (
   minSampleIntervalS: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.minSampleIntervalS,
   maxSampleIntervalS: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.maxSampleIntervalS,
 });
+
+const finiteNumberOr = (value: unknown, fallback: number) => (
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback
+);
+
+export const normalizeHeatCapacityFreePhysicsConfig = (
+  value: Partial<HeatCapacityFreePhysicsConfig> | null | undefined,
+): HeatCapacityFreePhysicsConfig => {
+  const environment = {
+    ambientPressureKPa: finiteNumberOr(
+      value?.environment?.ambientPressureKPa,
+      DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG.ambientPressureKPa,
+    ),
+    ambientTemperatureK: finiteNumberOr(
+      value?.environment?.ambientTemperatureK,
+      DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG.ambientTemperatureK,
+    ),
+  };
+  return {
+    environment,
+    vesselVolumeL: Math.max(0.001, finiteNumberOr(
+      value?.vesselVolumeL,
+      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.vesselVolumeL,
+    )),
+    gamma: Math.max(1.001, finiteNumberOr(
+      value?.gamma,
+      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.gamma,
+    )),
+    pumpAmountGainRatio: Math.max(0.000001, finiteNumberOr(
+      value?.pumpAmountGainRatio,
+      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpAmountGainRatio,
+    )),
+    pumpTemperatureGainK: finiteNumberOr(
+      value?.pumpTemperatureGainK,
+      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpTemperatureGainK,
+    ),
+    stopcockFlowRate: Math.max(0, finiteNumberOr(
+      value?.stopcockFlowRate,
+      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.stopcockFlowRate,
+    )),
+    releaseCoolingFactor: finiteNumberOr(
+      value?.releaseCoolingFactor,
+      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.releaseCoolingFactor,
+    ),
+    thermal: normalizeFreeThermalConfig(value?.thermal),
+  };
+};
 export const HEAT_CAPACITY_PRESSURE_ZERO_TOTAL_TURNS = 3;
 export const HEAT_CAPACITY_PRESSURE_ZERO_RANGE_MV = 1.5;
 export const HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MIN_MV = -1.5;
@@ -386,8 +440,12 @@ export const getHeatCapacityPumpFrequencyState = (
 ) => {
   const windowStart = now - windowMs;
   const recentTimestamps = timestamps
-    .filter((timestamp) => Number.isFinite(timestamp) && timestamp >= windowStart && timestamp <= now);
-  const pumpFrequency = recentTimestamps.length / (windowMs / 1000);
+    .filter((timestamp) => Number.isFinite(timestamp) && timestamp >= windowStart && timestamp <= now)
+    .sort((left, right) => left - right);
+  const pumpFrequency = recentTimestamps.length >= 2
+    ? (recentTimestamps.length - 1) /
+      Math.max(0.001, (recentTimestamps[recentTimestamps.length - 1] - recentTimestamps[0]) / 1000)
+    : recentTimestamps.length / (windowMs / 1000);
   const pumpFrequencyStatus: WorkbenchHeatCapacityPumpFrequencyStatus = recentTimestamps.length === 0
     ? 'idle'
     : pumpFrequency < HEAT_CAPACITY_MIN_PUMP_FREQUENCY
@@ -1076,14 +1134,6 @@ const getHeatCapacityFreeRuntimePhase = (
   return 'readyToPump';
 };
 
-const getHeatCapacityFreeSettledSafetyPressureDeltaKPa = (
-  physicsState: HeatCapacityFreePhysicsState,
-  config: HeatCapacityFreeEnvironmentConfig,
-) => Math.max(
-  0,
-  config.ambientPressureKPa * physicsState.gasAmountRatio - config.ambientPressureKPa,
-);
-
 const mergeHeatCapacityFreeRuntimeState = (
   file: WorkbenchHeatCapacityState,
   physicsState: HeatCapacityFreePhysicsState,
@@ -1111,17 +1161,8 @@ const mergeHeatCapacityFreeRuntimeState = (
   const pressureZeroed = powerOn &&
     hasExplicitZeroEvent &&
     isHeatCapacityPressureZeroWithinTolerance(pressureZeroDisplayedSamples);
-  const settledSafetyPressureDeltaKPa = getHeatCapacityFreeSettledSafetyPressureDeltaKPa(
-    physicsState,
-    file.heatCapacityFreeEnvironmentConfig,
-  );
   const gaugePressureState = getHeatCapacityGaugePressureState(
     derived.pressureDeltaKPa,
-    powerOn,
-    file,
-  );
-  const settledSafetyPressureState = getHeatCapacityGaugePressureState(
-    settledSafetyPressureDeltaKPa,
     powerOn,
     file,
   );
@@ -1171,10 +1212,10 @@ const mergeHeatCapacityFreeRuntimeState = (
     pressureWarningThresholdKPa: gaugePressureState.pressureWarningThresholdKPa,
     pressureSafeThresholdKPa: gaugePressureState.pressureSafeThresholdKPa,
     pressureSafetyThresholdKPa: gaugePressureState.pressureSafetyThresholdKPa,
-    pressureSafetyStatus: settledSafetyPressureState.pressureSafetyStatus,
-    pressureSafetyMessage: settledSafetyPressureState.pressureSafetyMessage,
-    pressureBlockedPumping: settledSafetyPressureState.pressureBlockedPumping,
-    pressureOverLimit: settledSafetyPressureState.pressureOverLimit,
+    pressureSafetyStatus: gaugePressureState.pressureSafetyStatus,
+    pressureSafetyMessage: gaugePressureState.pressureSafetyMessage,
+    pressureBlockedPumping: gaugePressureState.pressureBlockedPumping,
+    pressureOverLimit: gaugePressureState.pressureOverLimit,
     pressureZeroOffset: roundNumber(calibrationState.zeroOffsetMv, 3),
     releaseRecoveryTargetDeltaKPa: null,
     pressureZeroMvPerTurn: HEAT_CAPACITY_PRESSURE_ZERO_MV_PER_TURN,
@@ -1213,15 +1254,15 @@ const createHeatCapacityFreeConfigSnapshotFromFile = (
       vesselVolumeL: file.heatCapacityFreePhysicsConfig.vesselVolumeL,
       pumpAmountGainRatio: file.heatCapacityFreePhysicsConfig.pumpAmountGainRatio,
       pumpTemperatureGainK: file.heatCapacityFreePhysicsConfig.pumpTemperatureGainK,
-      sealedThermalRate: file.heatCapacityFreePhysicsConfig.sealedThermalRate,
-      openThermalRate: file.heatCapacityFreePhysicsConfig.openThermalRate,
       stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
       releaseCoolingFactor: file.heatCapacityFreePhysicsConfig.releaseCoolingFactor,
+      thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
     },
     sensor: { ...sensorConfig },
     record: {
       ...fallback.record,
       minimumUsefulU1CorrectedMv: HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV,
+      pressureWarningMv: HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
       pressureDangerMv: HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV,
     },
   };
@@ -1308,6 +1349,8 @@ const buildHeatCapacityFreeTraceSampleInput = (
       gasPressureKPa: derived.gasPressureKPa,
       pressureDeltaKPa: derived.pressureDeltaKPa,
       gasTemperatureK: file.heatCapacityFreePhysicsState.gasTemperatureK,
+      wallTemperatureK: file.heatCapacityFreePhysicsState.wallTemperatureK,
+      ambientTemperatureK: file.heatCapacityFreePhysicsConfig.environment.ambientTemperatureK,
       gasAmountRatio: file.heatCapacityFreePhysicsState.gasAmountRatio,
       pumpStrokeCount: file.heatCapacityFreePhysicsState.pumpStrokeCount,
       releaseStarted: file.heatCapacityFreePhysicsState.releaseStarted,
@@ -1480,6 +1523,7 @@ const stepFreeSensorAfterPumpStroke = (
       gasPressureKPa: physical.gasPressureKPa,
       pressureDeltaKPa: physical.pressureDeltaKPa,
       gasTemperatureK: physicsState.gasTemperatureK,
+      ambientTemperatureK: physicsConfig.environment.ambientTemperatureK,
     },
     calibrationState,
     sensorConfig,
@@ -1756,6 +1800,7 @@ const stepHeatCapacityFreeWorkbenchFile = (
       gasPressureKPa: derived.gasPressureKPa,
       pressureDeltaKPa: derived.pressureDeltaKPa,
       gasTemperatureK: physicsState.gasTemperatureK,
+      ambientTemperatureK: file.heatCapacityFreePhysicsConfig.environment.ambientTemperatureK,
     },
     file.heatCapacityFreeCalibrationState,
     sensorConfig,
@@ -1813,12 +1858,8 @@ export const registerHeatCapacityPumpStroke = (
 ): WorkbenchHeatCapacityState => {
   if (file.heatCapacityMode === 'free') {
     const currentFile = stepHeatCapacityFreeWorkbenchFile(file, now);
-    const settledSafetyPressureDeltaKPa = getHeatCapacityFreeSettledSafetyPressureDeltaKPa(
-      currentFile.heatCapacityFreePhysicsState,
-      currentFile.heatCapacityFreeEnvironmentConfig,
-    );
     const currentGaugePressureState = getHeatCapacityGaugePressureState(
-      settledSafetyPressureDeltaKPa,
+      currentFile.pressureDeltaKPa,
       currentFile.powerOn,
       currentFile,
     );
@@ -2545,18 +2586,20 @@ const createDefaultHeatCapacityFreeCalibrationState = (): HeatCapacityFreeCalibr
 export const createDefaultHeatCapacityFreeRuntimeFields = (
   seed: number | string = 'free-runtime',
 ) => {
+  const physicsConfig = normalizeHeatCapacityFreePhysicsConfig({
+    ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
+    environment: { ...DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG },
+    thermal: { ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.thermal },
+  });
   const pressureInitialBiasMv = createSeededFreePressureInitialBiasMv(
     seed,
     HEAT_CAPACITY_PRESSURE_ZERO_RANGE_MV,
   );
   return {
     heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
-    heatCapacityFreeEnvironmentConfig: { ...DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG },
-    heatCapacityFreePhysicsConfig: {
-      ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
-      environment: { ...DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG },
-    },
-    heatCapacityFreePhysicsState: createDefaultFreePhysicsState(DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG),
+    heatCapacityFreeEnvironmentConfig: { ...physicsConfig.environment },
+    heatCapacityFreePhysicsConfig: physicsConfig,
+    heatCapacityFreePhysicsState: createDefaultFreePhysicsState(physicsConfig),
     heatCapacityFreeSensorConfig: { ...DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG },
     heatCapacityFreeSensorState: createDefaultFreeSensorState(seed, {
       pressureMv: pressureInitialBiasMv,

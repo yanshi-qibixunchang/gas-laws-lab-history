@@ -58,6 +58,8 @@ export const createSampleInputForProcessReviewTest = (
     gasPressureKPa: 101.3 + pressureMv / 20,
     pressureDeltaKPa: pressureMv / 20,
     gasTemperatureK: 298.15 + (temperatureMv - 1499) / 2,
+    wallTemperatureK: 298.15,
+    ambientTemperatureK: 298.15,
     gasAmountRatio: 1,
     pumpStrokeCount: 0,
     releaseStarted: false,

@@ -87,8 +87,8 @@ export const HEAT_CAPACITY_FREE_PARAMETER_ACCEPTANCE_RECORD_CONFIG = {
 
 const DEFAULT_PUMP_STROKES = [2, 3, 4, 5];
 const DEFAULT_OPEN_DURATIONS_S = [0, 0.3, 0.7];
-const DEFAULT_WAIT_AFTER_PUMP_S = 16;
-const DEFAULT_WAIT_AFTER_RELEASE_S = 16;
+const DEFAULT_WAIT_AFTER_PUMP_S = 24;
+const DEFAULT_WAIT_AFTER_RELEASE_S = 40;
 const SIMULATION_STEP_S = 0.1;
 const STOPCOCK_CLICK_STEP_S = 0.05;
 
@@ -166,6 +166,7 @@ const stepScriptedRun = (
       gasPressureKPa: derived.gasPressureKPa,
       pressureDeltaKPa: derived.pressureDeltaKPa,
       gasTemperatureK: physics.gasTemperatureK,
+      ambientTemperatureK: physicsConfig.environment.ambientTemperatureK,
     },
     run.calibration,
     sensorConfig,

@@ -3,10 +3,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
+  HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   createDefaultHeatCapacityFile,
   createDefaultIdealFile,
   createDefaultStandardFile,
 } from '../../src/features/workbench/workbenchState.ts';
+import {
+  HEAT_CAPACITY_FREE_TRACE_VERSION,
+} from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
   WORKBENCH_SESSION_VERSION,
   decodeWorkbenchSession,
@@ -40,6 +44,11 @@ assert.equal(heatOne.heatCapacityTabContainerHeight, 0.5);
 assert.equal(heatOne.heatCapacityExpectedTrialCount, 3);
 assert.equal(heatOne.heatCapacityTrials.length, 3);
 assert.equal(heatOne.heatCapacityProcessingCalculated, false);
+assert.equal(heatOne.heatCapacityFreeRuntimeVersion, HEAT_CAPACITY_FREE_RUNTIME_VERSION);
+assert.equal(heatOne.heatCapacityFreeTraceVersion, HEAT_CAPACITY_FREE_TRACE_VERSION);
+assert.equal(heatOne.heatCapacityFreePhysicsState.wallTemperatureK, 298.15);
+assert.equal(heatOne.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK, 0.22);
+assert.equal(heatOne.heatCapacityFreePhysicsConfig.thermal.wallAmbientConductanceWPerK, 0.45);
 
 const migrated = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
@@ -99,6 +108,55 @@ const customRestored = decodeWorkbenchSession({
 });
 
 assert.equal(customRestored.files[0].name, customName);
+
+const outdatedRuntimeRestored = decodeWorkbenchSession({
+  version: WORKBENCH_SESSION_VERSION,
+  activeFileId: heatOne.id,
+  selectedPanel: 'preview',
+  files: [{
+    ...heatOne,
+    heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION - 1,
+    heatCapacityFreePhysicsConfig: {
+      ...heatOne.heatCapacityFreePhysicsConfig,
+      pumpAmountGainRatio: 0.5,
+    },
+    heatCapacityFreePhysicsState: {
+      ...heatOne.heatCapacityFreePhysicsState,
+      gasAmountRatio: 2,
+      gasTemperatureK: 360,
+      wallTemperatureK: 340,
+    },
+  }],
+});
+const outdatedRuntimeHeatFile = outdatedRuntimeRestored.files[0];
+assert.equal(outdatedRuntimeHeatFile.kind, 'heatCapacity');
+if (outdatedRuntimeHeatFile.kind !== 'heatCapacity') throw new Error('expected heat capacity file');
+assert.equal(outdatedRuntimeHeatFile.heatCapacityFreeRuntimeVersion, HEAT_CAPACITY_FREE_RUNTIME_VERSION);
+assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsConfig.pumpAmountGainRatio, 0.015);
+assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsState.gasAmountRatio, 1);
+assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsState.gasTemperatureK, 298.15);
+assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsState.wallTemperatureK, 298.15);
+
+const outdatedTraceRestored = decodeWorkbenchSession({
+  version: WORKBENCH_SESSION_VERSION,
+  activeFileId: heatOne.id,
+  selectedPanel: 'preview',
+  files: [{
+    ...heatOne,
+    heatCapacityFreeTraceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION - 1,
+    heatCapacityFreeTraceStore: {
+      activeTraceTrialId: 'old-trace',
+      nextTraceTrialIndex: 99,
+      traceTrials: [{ id: 'old-trace' }],
+    } as unknown as typeof heatOne.heatCapacityFreeTraceStore,
+  }],
+});
+const outdatedTraceHeatFile = outdatedTraceRestored.files[0];
+assert.equal(outdatedTraceHeatFile.kind, 'heatCapacity');
+if (outdatedTraceHeatFile.kind !== 'heatCapacity') throw new Error('expected heat capacity file');
+assert.equal(outdatedTraceHeatFile.heatCapacityFreeTraceVersion, HEAT_CAPACITY_FREE_TRACE_VERSION);
+assert.deepEqual(outdatedTraceHeatFile.heatCapacityFreeTraceStore.traceTrials, []);
+assert.equal(outdatedTraceHeatFile.heatCapacityFreeTraceStore.activeTraceTrialId, null);
 
 const standard = createDefaultStandardFile(1);
 const ideal = createDefaultIdealFile(1);
