@@ -77,9 +77,38 @@ import {
 import type {
   HeatCapacityFreeCalibrationState,
 } from '../../domain/heatCapacity/heatCapacityFreeCalibrationModel.ts';
-import type {
-  HeatCapacityFreeTrial,
+import {
+  createHeatCapacityFreeTrial,
+  removeHeatCapacityFreeTrialRecord,
+  type HeatCapacityFreeRecordRejectReason,
+  type HeatCapacityFreeRecordTraceReference,
+  type HeatCapacityFreeTrial,
+  type HeatCapacityFreeTrialRecordRemovalKind,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import {
+  evaluateFreeU0Record,
+  evaluateFreeU1Record,
+  evaluateFreeU2Record,
+  recordFreeU0,
+  recordFreeU1,
+  recordFreeU2,
+  type HeatCapacityFreeRecordConfig,
+} from '../../domain/heatCapacity/heatCapacityFreeRecordModel.ts';
+import {
+  archiveCurrentFreeTraceBranchForRecordInvalidation,
+  appendFreeTraceEvent,
+  appendFreeTraceSample,
+  compactFreeTraceBranch,
+  createDefaultFreeConfigSnapshot,
+  createDefaultFreeTraceStore,
+  createFreeTraceTrial,
+  HEAT_CAPACITY_FREE_TRACE_VERSION,
+  type HeatCapacityFreeEventType,
+  type HeatCapacityFreeTraceBranch,
+  type HeatCapacityFreeTraceSampleInput,
+  type HeatCapacityFreeTraceStore,
+  type HeatCapacityFreeTraceTrial,
+} from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
   selectHeatCapacityDisplaySource,
   type HeatCapacityDisplaySource,
@@ -105,11 +134,16 @@ export type WorkbenchPanelKey =
   | 'heatCapacityGuide'
   | 'heatCapacityRecords'
   | 'heatCapacityProcessing'
+  | 'heatCapacityReview'
   | 'history';
 export type WorkbenchIdealResultWindowKey = 'experimentPoints' | 'verification';
 export type WorkbenchStandardResultsTab = 'summary' | 'dataTable' | 'figures';
-export type WorkbenchHeatCapacityPanelKey = 'heatCapacityGuide' | 'heatCapacityRecords' | 'heatCapacityProcessing';
-export type WorkbenchHeatCapacityTabId = 'guide' | 'records' | 'processing';
+export type WorkbenchHeatCapacityPanelKey =
+  | 'heatCapacityGuide'
+  | 'heatCapacityRecords'
+  | 'heatCapacityProcessing'
+  | 'heatCapacityReview';
+export type WorkbenchHeatCapacityTabId = 'guide' | 'records' | 'processing' | 'review';
 
 export const IDEAL_RESULT_HEIGHT_RATIO = 0.5;
 export const WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO = 0.48;
@@ -454,7 +488,7 @@ export const setHeatCapacityPressureZeroOffset = (
         source: 'user',
       },
     );
-    return mergeHeatCapacityFreeRuntimeState(
+    const mergedFile = mergeHeatCapacityFreeRuntimeState(
       {
         ...file,
         pressureZeroAdjusted,
@@ -471,6 +505,13 @@ export const setHeatCapacityPressureZeroOffset = (
       calibrationState,
       now,
     );
+    const latestZeroEvent = mergedFile.heatCapacityFreeCalibrationState.zeroEvents[
+      mergedFile.heatCapacityFreeCalibrationState.zeroEvents.length - 1
+    ] ?? null;
+    return recordHeatCapacityFreeTraceEvent(mergedFile, 'zero-calibration', now, {
+      zeroEventId: latestZeroEvent?.id ?? null,
+      zeroOffsetMv: latestZeroEvent?.zeroOffsetMv ?? pressureZeroOffset,
+    });
   }
   const runtime = updateHeatCapacityRuntimeZeroOffset(
     {
@@ -633,6 +674,8 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityFreeCalibrationState: HeatCapacityFreeCalibrationState;
   heatCapacityFreeStopcockFlowOpen: boolean;
   heatCapacityFreeStopcockPendingOpenAtMs: number | null;
+  heatCapacityFreeTraceVersion: number;
+  heatCapacityFreeTraceStore: HeatCapacityFreeTraceStore;
   heatCapacityFreeTrials: HeatCapacityFreeTrial[];
   selectedHeatCapacityPanel: Extract<WorkbenchPanelKey, 'preview' | 'realtime'> | WorkbenchHeatCapacityPanelKey;
   openHeatCapacityTabs: WorkbenchHeatCapacityTabId[];
@@ -1133,6 +1176,475 @@ const mergeHeatCapacityFreeRuntimeState = (
   };
 };
 
+const createHeatCapacityFreeConfigSnapshotFromFile = (
+  file: WorkbenchHeatCapacityState,
+) => {
+  const fallback = createDefaultFreeConfigSnapshot();
+  return {
+    ...fallback,
+    environment: { ...file.heatCapacityFreeEnvironmentConfig },
+    physics: {
+      gamma: file.heatCapacityFreePhysicsConfig.gamma,
+      vesselVolumeL: file.heatCapacityFreePhysicsConfig.vesselVolumeL,
+      pumpAmountGainRatio: file.heatCapacityFreePhysicsConfig.pumpAmountGainRatio,
+      pumpTemperatureGainK: file.heatCapacityFreePhysicsConfig.pumpTemperatureGainK,
+      sealedThermalRate: file.heatCapacityFreePhysicsConfig.sealedThermalRate,
+      openThermalRate: file.heatCapacityFreePhysicsConfig.openThermalRate,
+      stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
+      releaseCoolingFactor: file.heatCapacityFreePhysicsConfig.releaseCoolingFactor,
+    },
+    sensor: { ...file.heatCapacityFreeSensorConfig },
+    record: {
+      ...fallback.record,
+      minimumUsefulU1CorrectedMv: HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV,
+      pressureDangerMv: HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV,
+    },
+  };
+};
+
+const ensureActiveHeatCapacityFreeTraceTrial = (
+  file: WorkbenchHeatCapacityState,
+) => {
+  const activeTraceTrial = file.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
+    traceTrial.id === file.heatCapacityFreeTraceStore.activeTraceTrialId &&
+    traceTrial.branches.some((branch) => branch.id === traceTrial.activeBranchId)
+  ));
+  if (activeTraceTrial) {
+    return file;
+  }
+  const { store } = createFreeTraceTrial(
+    file.heatCapacityFreeTraceStore,
+    createHeatCapacityFreeConfigSnapshotFromFile(file),
+  );
+  return {
+    ...file,
+    heatCapacityFreeTraceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
+    heatCapacityFreeTraceStore: store,
+  };
+};
+
+const updateActiveHeatCapacityFreeTraceBranch = (
+  file: WorkbenchHeatCapacityState,
+  updateBranch: (branch: HeatCapacityFreeTraceBranch) => HeatCapacityFreeTraceBranch,
+) => {
+  const ensuredFile = ensureActiveHeatCapacityFreeTraceTrial(file);
+  const store = ensuredFile.heatCapacityFreeTraceStore;
+  const traceTrialIndex = store.traceTrials.findIndex((traceTrial) => (
+    traceTrial.id === store.activeTraceTrialId
+  ));
+  if (traceTrialIndex < 0) return ensuredFile;
+  const traceTrial = store.traceTrials[traceTrialIndex];
+  const branchIndex = traceTrial.branches.findIndex((branch) => branch.id === traceTrial.activeBranchId);
+  if (branchIndex < 0) return ensuredFile;
+  const nextBranch = updateBranch(traceTrial.branches[branchIndex]);
+  const nextTraceTrial: HeatCapacityFreeTraceTrial = {
+    ...traceTrial,
+    branches: traceTrial.branches.map((branch, index) => (
+      index === branchIndex ? nextBranch : branch
+    )),
+  };
+  return {
+    ...ensuredFile,
+    heatCapacityFreeTraceStore: {
+      ...store,
+      traceTrials: store.traceTrials.map((candidate, index) => (
+        index === traceTrialIndex ? nextTraceTrial : candidate
+      )),
+    },
+  };
+};
+
+const buildHeatCapacityFreeTraceSampleInput = (
+  file: WorkbenchHeatCapacityState,
+  reason: HeatCapacityFreeTraceSampleInput['reason'],
+): HeatCapacityFreeTraceSampleInput => {
+  const derived = deriveFreePhysicalState(
+    file.heatCapacityFreePhysicsState,
+    file.heatCapacityFreePhysicsConfig,
+  );
+  const display = getFreeSensorDisplay(
+    file.heatCapacityFreeSensorState,
+    file.heatCapacityFreeCalibrationState,
+    file.heatCapacityFreeSensorConfig,
+  );
+  const latestZeroEventId = file.heatCapacityFreeCalibrationState.zeroEvents[
+    file.heatCapacityFreeCalibrationState.zeroEvents.length - 1
+  ]?.id ?? null;
+  return {
+    atS: file.heatCapacityFreePhysicsState.simulationTimeS,
+    reason,
+    phase: file.heatCapacityPhase,
+    controls: {
+      powerOn: file.powerOn,
+      stopcockOpen: file.heatCapacityFreeStopcockFlowOpen,
+      pumpValveOpen: file.pumpValveOpen,
+    },
+    physical: {
+      gasPressureKPa: derived.gasPressureKPa,
+      pressureDeltaKPa: derived.pressureDeltaKPa,
+      gasTemperatureK: file.heatCapacityFreePhysicsState.gasTemperatureK,
+      gasAmountRatio: file.heatCapacityFreePhysicsState.gasAmountRatio,
+      pumpStrokeCount: file.heatCapacityFreePhysicsState.pumpStrokeCount,
+      releaseStarted: file.heatCapacityFreePhysicsState.releaseStarted,
+      currentStopcockOpenDurationS: file.heatCapacityFreePhysicsState.currentStopcockOpenDurationS,
+    },
+    sensor: {
+      displayPressureMv: display.displayPressureMv,
+      displayTemperatureMv: display.displayTemperatureMv,
+      pressureSlopeMvPerS: file.heatCapacityFreeSensorState.pressureSlopeMvPerS,
+      temperatureSlopeMvPerS: file.heatCapacityFreeSensorState.temperatureSlopeMvPerS,
+    },
+    calibration: {
+      calibrationVersion: file.heatCapacityFreeCalibrationState.calibrationVersion,
+      zeroOffsetMv: file.heatCapacityFreeCalibrationState.zeroOffsetMv,
+      zeroEventId: latestZeroEventId,
+    },
+    stability: {
+      pressureStable: Math.abs(file.heatCapacityFreeSensorState.pressureSlopeMvPerS) <= 0.25,
+      temperatureStable: Math.abs(file.heatCapacityFreeSensorState.temperatureSlopeMvPerS) <= 0.12,
+    },
+    safetyStatus: file.pressureSafetyStatus,
+  };
+};
+
+export const recordHeatCapacityFreeTraceEvent = (
+  file: WorkbenchHeatCapacityState,
+  type: HeatCapacityFreeEventType,
+  now = Date.now(),
+  payload?: Record<string, unknown>,
+): WorkbenchHeatCapacityState => {
+  if (file.heatCapacityMode !== 'free') return file;
+  return updateActiveHeatCapacityFreeTraceBranch(file, (branch) => {
+    const sampleResult = appendFreeTraceSample(
+      branch,
+      buildHeatCapacityFreeTraceSampleInput(file, 'event'),
+    );
+    const eventResult = appendFreeTraceEvent(sampleResult.branch, {
+      atS: sampleResult.sample.atS,
+      type,
+      traceSampleId: sampleResult.sample.id,
+      payload: {
+        ...(payload ?? {}),
+        atMs: now,
+      },
+    });
+    return compactFreeTraceBranch(eventResult.branch);
+  });
+};
+
+const createEmptyHeatCapacityFreeRecordTraceReference = (
+  phaseAtRecord: HeatCapacityRuntimePhase | null,
+): HeatCapacityFreeRecordTraceReference => ({
+  source: 'user',
+  phaseAtRecord,
+  traceTrialId: null,
+  traceBranchId: null,
+  traceSampleId: null,
+  eventId: null,
+});
+
+const getLatestHeatCapacityFreeRecordTraceReference = (
+  file: WorkbenchHeatCapacityState,
+): HeatCapacityFreeRecordTraceReference => {
+  const store = file.heatCapacityFreeTraceStore;
+  const traceTrial = store.traceTrials.find((candidate) => candidate.id === store.activeTraceTrialId);
+  const branch = traceTrial?.branches.find((candidate) => candidate.id === traceTrial.activeBranchId);
+  const event = branch?.events[branch.events.length - 1] ?? null;
+  if (!traceTrial || !branch || !event) {
+    return createEmptyHeatCapacityFreeRecordTraceReference(file.heatCapacityPhase);
+  }
+  return {
+    source: 'user',
+    phaseAtRecord: file.heatCapacityPhase,
+    traceTrialId: traceTrial.id,
+    traceBranchId: branch.id,
+    traceSampleId: event.traceSampleId,
+    eventId: event.id,
+  };
+};
+
+export const recordHeatCapacityFreeTraceEventWithReference = (
+  file: WorkbenchHeatCapacityState,
+  type: HeatCapacityFreeEventType,
+  now = Date.now(),
+  payload?: Record<string, unknown>,
+) => {
+  const nextFile = recordHeatCapacityFreeTraceEvent(file, type, now, payload);
+  return {
+    file: nextFile,
+    reference: getLatestHeatCapacityFreeRecordTraceReference(nextFile),
+  };
+};
+
+const getLatestFreeTraceSample = (
+  branch: HeatCapacityFreeTraceBranch,
+) => branch.samples[branch.samples.length - 1] ?? null;
+
+const shouldKeepFreePeriodicTraceSample = (
+  previous: ReturnType<typeof getLatestFreeTraceSample>,
+  sample: HeatCapacityFreeTraceSampleInput,
+) => {
+  if (!previous) return true;
+  if (previous.phase !== sample.phase) return true;
+  if (
+    previous.controls.powerOn !== sample.controls.powerOn ||
+    previous.controls.stopcockOpen !== sample.controls.stopcockOpen ||
+    previous.controls.pumpValveOpen !== sample.controls.pumpValveOpen
+  ) {
+    return true;
+  }
+  if (previous.safetyStatus !== sample.safetyStatus) return true;
+  if (
+    previous.stability.pressureStable !== sample.stability.pressureStable ||
+    previous.stability.temperatureStable !== sample.stability.temperatureStable
+  ) {
+    return true;
+  }
+  const pressureDeltaMv = Math.abs(previous.sensor.displayPressureMv - sample.sensor.displayPressureMv);
+  const temperatureDeltaMv = Math.abs(previous.sensor.displayTemperatureMv - sample.sensor.displayTemperatureMv);
+  return pressureDeltaMv >= 0.5 || temperatureDeltaMv >= 0.2;
+};
+
+const recordHeatCapacityFreePeriodicTraceSample = (
+  file: WorkbenchHeatCapacityState,
+): WorkbenchHeatCapacityState => {
+  if (
+    file.heatCapacityMode !== 'free' ||
+    file.heatCapacityFreeTraceStore.activeTraceTrialId === null
+  ) {
+    return file;
+  }
+  return updateActiveHeatCapacityFreeTraceBranch(file, (branch) => {
+    const sampleInput = buildHeatCapacityFreeTraceSampleInput(file, 'periodic');
+    if (!shouldKeepFreePeriodicTraceSample(getLatestFreeTraceSample(branch), sampleInput)) {
+      return branch;
+    }
+    return compactFreeTraceBranch(appendFreeTraceSample(branch, sampleInput).branch);
+  });
+};
+
+const recordHeatCapacityFreeAutomaticU0Event = (
+  previousFile: WorkbenchHeatCapacityState,
+  nextFile: WorkbenchHeatCapacityState,
+  now: number,
+) => (
+  previousFile.heatCapacityFreeCalibrationState.automaticU0 === null &&
+  nextFile.heatCapacityFreeCalibrationState.automaticU0 !== null
+    ? recordHeatCapacityFreeTraceEvent(nextFile, 'automatic-u0-candidate', now)
+    : nextFile
+);
+
+const recordHeatCapacityFreeSafetyTransitionEvents = (
+  previousFile: WorkbenchHeatCapacityState,
+  nextFile: WorkbenchHeatCapacityState,
+  now: number,
+) => {
+  if (previousFile.pressureSafetyStatus === nextFile.pressureSafetyStatus) return nextFile;
+  if (nextFile.pressureSafetyStatus === 'danger') {
+    return recordHeatCapacityFreeTraceEvent(nextFile, 'pressure-danger', now);
+  }
+  if (nextFile.pressureSafetyStatus === 'warning') {
+    return recordHeatCapacityFreeTraceEvent(nextFile, 'pressure-warning', now);
+  }
+  if (previousFile.pressureSafetyStatus === 'danger') {
+    return recordHeatCapacityFreeTraceEvent(nextFile, 'pressure-danger-cleared', now);
+  }
+  return nextFile;
+};
+
+const removeHeatCapacityFreeTraceTrialFromStore = (
+  store: HeatCapacityFreeTraceStore,
+  traceTrialId: string | null,
+): HeatCapacityFreeTraceStore => {
+  if (!traceTrialId) return store;
+  const traceTrials = store.traceTrials.filter((traceTrial) => traceTrial.id !== traceTrialId);
+  return {
+    ...store,
+    activeTraceTrialId: traceTrials.some((traceTrial) => traceTrial.id === store.activeTraceTrialId)
+      ? store.activeTraceTrialId
+      : null,
+    traceTrials,
+  };
+};
+
+const syncFreeTrialBranchReference = (
+  trials: HeatCapacityFreeTrial[],
+  trialIndex: number,
+  traceTrialId: string,
+  branchCount: number,
+) => trials.map((trial, index) => (
+  index === trialIndex
+    ? {
+        ...trial,
+        traceTrialId,
+        branchCount,
+      }
+    : trial
+));
+
+const isHeatCapacityFreeTrialComplete = (trial: HeatCapacityFreeTrial) => (
+  trial.u0 !== null &&
+  trial.u1 !== null &&
+  trial.u2 !== null &&
+  trial.correctedSignals !== null
+);
+
+const hasHeatCapacityFreeTrialProgress = (trial: HeatCapacityFreeTrial) => (
+  trial.automaticU0 !== null ||
+  trial.u0 !== null ||
+  trial.u1 !== null ||
+  trial.u2 !== null ||
+  trial.blockedReason !== null ||
+  trial.correctedSignals !== null ||
+  trial.traceTrialId !== null ||
+  trial.branchCount > 0
+);
+
+const markHeatCapacityFreeTraceTrialCompleted = (
+  store: HeatCapacityFreeTraceStore,
+  traceTrialId: string | null,
+): HeatCapacityFreeTraceStore => {
+  if (!traceTrialId) return store;
+  return {
+    ...store,
+    traceTrials: store.traceTrials.map((traceTrial) => (
+      traceTrial.id === traceTrialId
+        ? { ...traceTrial, status: 'completed' }
+        : traceTrial
+    )),
+  };
+};
+
+export const removeHeatCapacityFreeTrialRecordWorkbenchState = (
+  file: WorkbenchHeatCapacityState,
+  trialIndex: number,
+  kind: HeatCapacityFreeTrialRecordRemovalKind,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  if (file.heatCapacityFreeTrials.length === 0) return file;
+  const boundedIndex = Math.min(file.heatCapacityFreeTrials.length - 1, Math.max(0, trialIndex));
+  const removedTrial = file.heatCapacityFreeTrials[boundedIndex];
+  const removal = removeHeatCapacityFreeTrialRecord(file.heatCapacityFreeTrials, boundedIndex, kind);
+  const resetProcessing = {
+    heatCapacityProcessingCalculated: false,
+    heatCapacityProcessingResult: createDefaultHeatCapacityProcessingResult(file.theoreticalGamma),
+  };
+
+  if (kind === 'trial') {
+    return {
+      ...file,
+      heatCapacityFreeTrials: removal.trials,
+      heatCapacityFreeTraceStore: removeHeatCapacityFreeTraceTrialFromStore(
+        file.heatCapacityFreeTraceStore,
+        removedTrial.traceTrialId,
+      ),
+      ...resetProcessing,
+      updatedAt: now,
+    };
+  }
+
+  const traceTrialId = removedTrial.traceTrialId ?? file.heatCapacityFreeTraceStore.activeTraceTrialId;
+  if (!traceTrialId) {
+    return {
+      ...file,
+      heatCapacityFreeTrials: removal.trials,
+      ...resetProcessing,
+      updatedAt: now,
+    };
+  }
+
+  const hasTraceTrial = file.heatCapacityFreeTraceStore.traceTrials.some((traceTrial) => traceTrial.id === traceTrialId);
+  if (!hasTraceTrial) {
+    return {
+      ...file,
+      heatCapacityFreeTrials: removal.trials,
+      ...resetProcessing,
+      updatedAt: now,
+    };
+  }
+
+  let nextFile: WorkbenchHeatCapacityState = {
+    ...file,
+    heatCapacityFreeTraceStore: {
+      ...file.heatCapacityFreeTraceStore,
+      activeTraceTrialId: traceTrialId,
+    },
+    heatCapacityFreeTrials: removal.trials,
+    ...resetProcessing,
+    updatedAt: now,
+  };
+  nextFile = recordHeatCapacityFreeTraceEvent(nextFile, 'record-invalidated', now, {
+    kind,
+    trialIndex: boundedIndex + 1,
+  });
+  const archive = archiveCurrentFreeTraceBranchForRecordInvalidation(nextFile.heatCapacityFreeTraceStore, traceTrialId);
+  nextFile = {
+    ...nextFile,
+    heatCapacityFreeTraceStore: archive.store,
+    heatCapacityFreeTrials: archive.branchCount > 0
+      ? syncFreeTrialBranchReference(nextFile.heatCapacityFreeTrials, boundedIndex, traceTrialId, archive.branchCount)
+      : nextFile.heatCapacityFreeTrials,
+  };
+  if (archive.archivedBranchId && archive.newBranchId) {
+    nextFile = recordHeatCapacityFreeTraceEvent(nextFile, 'branch-created', now, {
+      kind,
+      trialIndex: boundedIndex + 1,
+      archivedBranchId: archive.archivedBranchId,
+      branchId: archive.newBranchId,
+    });
+  }
+  return nextFile;
+};
+
+const resolveHeatCapacityFreeResetStructure = (
+  file: WorkbenchHeatCapacityState,
+) => {
+  const lastTrial = file.heatCapacityFreeTrials[file.heatCapacityFreeTrials.length - 1] ?? null;
+  const activeTraceTrialId = file.heatCapacityFreeTraceStore.activeTraceTrialId;
+  if (!lastTrial) {
+    return {
+      heatCapacityFreeTrials: file.heatCapacityFreeTrials,
+      heatCapacityFreeTraceStore: removeHeatCapacityFreeTraceTrialFromStore(
+        file.heatCapacityFreeTraceStore,
+        activeTraceTrialId,
+      ),
+    };
+  }
+
+  if (isHeatCapacityFreeTrialComplete(lastTrial)) {
+    let traceStore = markHeatCapacityFreeTraceTrialCompleted(
+      file.heatCapacityFreeTraceStore,
+      lastTrial.traceTrialId,
+    );
+    traceStore = activeTraceTrialId && activeTraceTrialId !== lastTrial.traceTrialId
+      ? removeHeatCapacityFreeTraceTrialFromStore(traceStore, activeTraceTrialId)
+      : { ...traceStore, activeTraceTrialId: null };
+    return {
+      heatCapacityFreeTrials: file.heatCapacityFreeTrials,
+      heatCapacityFreeTraceStore: traceStore,
+    };
+  }
+
+  if (hasHeatCapacityFreeTrialProgress(lastTrial) || activeTraceTrialId !== null) {
+    const traceTrialIds = new Set(
+      [lastTrial.traceTrialId, activeTraceTrialId].filter((id): id is string => typeof id === 'string'),
+    );
+    let traceStore = file.heatCapacityFreeTraceStore;
+    for (const traceTrialId of traceTrialIds) {
+      traceStore = removeHeatCapacityFreeTraceTrialFromStore(traceStore, traceTrialId);
+    }
+    return {
+      heatCapacityFreeTrials: file.heatCapacityFreeTrials.slice(0, -1),
+      heatCapacityFreeTraceStore: traceStore,
+    };
+  }
+
+  return {
+    heatCapacityFreeTrials: file.heatCapacityFreeTrials,
+    heatCapacityFreeTraceStore: file.heatCapacityFreeTraceStore,
+  };
+};
+
 const stepHeatCapacityFreeWorkbenchFile = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
@@ -1228,10 +1740,12 @@ const stepHeatCapacityFreeWorkbenchFile = (
       displayTemperatureMv: mergedDisplay.displayTemperatureMv,
     },
   );
-  return {
+  const withCalibration = {
     ...mergedFile,
     heatCapacityFreeCalibrationState: calibrationState,
   };
+  const withAutomaticEvent = recordHeatCapacityFreeAutomaticU0Event(mergedFile, withCalibration, now);
+  return recordHeatCapacityFreePeriodicTraceSample(withAutomaticEvent);
 };
 
 export const canZeroHeatCapacityPressure = (file: WorkbenchHeatCapacityState) => (
@@ -1296,7 +1810,7 @@ export const registerHeatCapacityPumpStroke = (
         updatedAt: now,
       };
     }
-    return mergeHeatCapacityFreeRuntimeState(
+    const pumpedFile = mergeHeatCapacityFreeRuntimeState(
       {
         ...currentFile,
         pumpBulbState: 'compressing',
@@ -1312,6 +1826,10 @@ export const registerHeatCapacityPumpStroke = (
       currentFile.heatCapacityFreeCalibrationState,
       now,
     );
+    const withPumpEvent = recordHeatCapacityFreeTraceEvent(pumpedFile, 'pump-stroke', now, {
+      pumpStrokeCount: stroke.state.pumpStrokeCount,
+    });
+    return recordHeatCapacityFreeSafetyTransitionEvents(currentFile, withPumpEvent, now);
   }
   if (!file.powerOn) {
     return {
@@ -1428,7 +1946,7 @@ export const powerHeatCapacityWorkbenchFile = (
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
   if (file.heatCapacityMode === 'free') {
-    return mergeHeatCapacityFreeRuntimeState(
+    const poweredFile = mergeHeatCapacityFreeRuntimeState(
       {
         ...file,
         powerOn: nextPowerOn,
@@ -1450,7 +1968,12 @@ export const powerHeatCapacityWorkbenchFile = (
             ...file.heatCapacityFreeCalibrationState,
             zeroOffsetMv: 0,
             automaticU0: null,
-          },
+      },
+      now,
+    );
+    return recordHeatCapacityFreeTraceEvent(
+      recordHeatCapacityFreeSafetyTransitionEvents(file, poweredFile, now),
+      nextPowerOn ? 'power-on' : 'power-off',
       now,
     );
   }
@@ -1994,6 +2517,8 @@ export const createDefaultHeatCapacityFile = (
     heatCapacityMode: 'free',
     heatCapacityPausedTeachingSnapshot: null,
     ...freeRuntimeFields,
+    heatCapacityFreeTraceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
+    heatCapacityFreeTraceStore: createDefaultFreeTraceStore(),
     heatCapacityFreeTrials: [],
     selectedHeatCapacityPanel: 'preview',
     openHeatCapacityTabs: [],
@@ -2109,7 +2634,7 @@ export const enterHeatCapacityFreeModeWorkbenchState = (
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
   const freeRuntimeFields = createDefaultHeatCapacityFreeRuntimeFields(`free-runtime-${file.id}-${now}`);
-  return {
+  const enteredFile: WorkbenchHeatCapacityState = {
     ...file,
     heatCapacityMode: 'free',
     heatCapacityPausedTeachingSnapshot: createHeatCapacityPausedTeachingSnapshot(file),
@@ -2118,22 +2643,24 @@ export const enterHeatCapacityFreeModeWorkbenchState = (
     runState: 'idle',
     updatedAt: now,
   };
+  return recordHeatCapacityFreeTraceEvent(enteredFile, 'enter-free-mode', now);
 };
 
 export const exitHeatCapacityFreeModeWorkbenchState = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
-  const snapshot = file.heatCapacityPausedTeachingSnapshot;
+  const tracedFile = recordHeatCapacityFreeTraceEvent(file, 'exit-free-mode', now);
+  const snapshot = tracedFile.heatCapacityPausedTeachingSnapshot;
   if (!snapshot) {
     return {
-      ...file,
+      ...tracedFile,
       heatCapacityMode: 'guide',
       updatedAt: now,
     };
   }
   return {
-    ...file,
+    ...tracedFile,
     heatCapacityMode: snapshot.heatCapacityMode,
     heatCapacityPausedTeachingSnapshot: null,
     heatCapacityPhase: snapshot.heatCapacityPhase,
@@ -2160,10 +2687,12 @@ export const resetHeatCapacityFreeRunWorkbenchState = (
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
   const freeRuntimeFields = createDefaultHeatCapacityFreeRuntimeFields(`free-runtime-${file.id}-${now}`);
+  const resetStructure = resolveHeatCapacityFreeResetStructure(file);
   const resetFile = mergeHeatCapacityFreeRuntimeState(
     {
       ...file,
       ...freeRuntimeFields,
+      heatCapacityFreeTraceStore: resetStructure.heatCapacityFreeTraceStore,
       heatCapacityMode: 'free',
       powerOn: false,
       runState: 'idle',
@@ -2187,7 +2716,7 @@ export const resetHeatCapacityFreeRunWorkbenchState = (
       lastPumpTime: null,
       pumpStrokeCount: 0,
       pumpHint: '未打气',
-      heatCapacityFreeTrials: [],
+      heatCapacityFreeTrials: resetStructure.heatCapacityFreeTrials,
       heatCapacityProcessSamples: {},
       heatCapacityProcessingCalculated: false,
       heatCapacityProcessingResult: createDefaultHeatCapacityProcessingResult(file.theoreticalGamma),
@@ -2222,7 +2751,8 @@ export const resetHeatCapacityFreeRunWorkbenchState = (
     pumpHint: '未打气',
     heatCapacityFreeStopcockFlowOpen: false,
     heatCapacityFreeStopcockPendingOpenAtMs: null,
-    heatCapacityFreeTrials: [],
+    heatCapacityFreeTraceStore: resetStructure.heatCapacityFreeTraceStore,
+    heatCapacityFreeTrials: resetStructure.heatCapacityFreeTrials,
     heatCapacityProcessSamples: {},
     heatCapacityProcessingCalculated: false,
     heatCapacityProcessingResult: createDefaultHeatCapacityProcessingResult(file.theoreticalGamma),
@@ -2259,6 +2789,181 @@ export const selectActiveHeatCapacityWorkbenchDisplay = (
         : freeDisplay.displayTemperatureMv,
     },
   );
+};
+
+export type HeatCapacityFreeWorkbenchRecordKind = 'u0' | 'u1' | 'u2';
+
+export type HeatCapacityFreeWorkbenchRecordAttempt =
+  | {
+      accepted: true;
+      reason: 'accepted';
+      kind: HeatCapacityFreeWorkbenchRecordKind;
+      trialIndex: number;
+      file: WorkbenchHeatCapacityState;
+    }
+  | {
+      accepted: false;
+      reason: HeatCapacityFreeRecordRejectReason;
+      kind: HeatCapacityFreeWorkbenchRecordKind;
+      trialIndex: number;
+      file: WorkbenchHeatCapacityState;
+    };
+
+export const applyHeatCapacityFreeRecordWorkbenchState = (
+  file: WorkbenchHeatCapacityState,
+  kind: HeatCapacityFreeWorkbenchRecordKind,
+  config: HeatCapacityFreeRecordConfig,
+  now = Date.now(),
+): HeatCapacityFreeWorkbenchRecordAttempt => {
+  const activeDisplay = selectActiveHeatCapacityWorkbenchDisplay(file);
+  const display = {
+    displayPressureMv: activeDisplay.pressureMv,
+    displayTemperatureMv: activeDisplay.temperatureMv,
+    pressureSlopeMvPerS: file.heatCapacityFreeSensorState.pressureSlopeMvPerS,
+    temperatureSlopeMvPerS: file.heatCapacityFreeSensorState.temperatureSlopeMvPerS,
+  };
+  const lastTrial = file.heatCapacityFreeTrials[file.heatCapacityFreeTrials.length - 1] ?? null;
+  const useLastTrial = lastTrial !== null && (!lastTrial.u0 || !lastTrial.u1 || !lastTrial.u2);
+  const trialIndex = useLastTrial ? file.heatCapacityFreeTrials.length - 1 : file.heatCapacityFreeTrials.length;
+  const trialBase = useLastTrial
+    ? lastTrial
+    : createHeatCapacityFreeTrial(`free-trial-${file.heatCapacityFreeTrials.length + 1}`, file.heatCapacityFreeCalibrationState.automaticU0);
+  const trial = !trialBase.u0 && file.heatCapacityFreeCalibrationState.automaticU0
+    ? {
+        ...trialBase,
+        automaticU0: file.heatCapacityFreeCalibrationState.automaticU0,
+      }
+    : trialBase;
+  const evaluation = kind === 'u0'
+    ? file.pressureZeroed
+      ? evaluateFreeU0Record(
+          trial,
+          file.heatCapacityFreeCalibrationState,
+          display,
+          file.heatCapacityFreePhysicsState,
+          config,
+        )
+      : { ready: false, reason: 'zero-not-ready' as const }
+    : kind === 'u1'
+      ? evaluateFreeU1Record(
+          trial,
+          file.heatCapacityFreeCalibrationState,
+          display,
+          file.heatCapacityFreePhysicsState,
+          config,
+        )
+      : evaluateFreeU2Record(
+          trial,
+          file.heatCapacityFreeCalibrationState,
+          display,
+          file.heatCapacityFreePhysicsState,
+          config,
+        );
+
+  if (evaluation.ready === false) {
+    const reason = evaluation.reason;
+    const blockedFile = recordHeatCapacityFreeTraceEvent(file, 'record-blocked', now, {
+      kind,
+      reason,
+      trialIndex: trialIndex + 1,
+    });
+    return {
+      accepted: false,
+      reason,
+      kind,
+      trialIndex,
+      file: {
+        ...blockedFile,
+        heatCapacityFreeTrials: useLastTrial
+          ? blockedFile.heatCapacityFreeTrials.map((candidate, index) => (
+              index === trialIndex ? { ...trial, blockedReason: reason } : candidate
+            ))
+          : blockedFile.heatCapacityFreeTrials,
+        updatedAt: now,
+      },
+    };
+  }
+
+  const latestZeroEventId = file.heatCapacityFreeCalibrationState.zeroEvents[
+    file.heatCapacityFreeCalibrationState.zeroEvents.length - 1
+  ]?.id ?? '';
+  const recordReference = kind === 'u0' ? null : trial.u0;
+  const input = {
+    atS: file.heatCapacityFreePhysicsState.simulationTimeS,
+    displayPressureMv: display.displayPressureMv,
+    displayTemperatureMv: display.displayTemperatureMv,
+    calibrationVersion: recordReference?.calibrationVersion ?? file.heatCapacityFreeCalibrationState.calibrationVersion,
+    zeroEventId: recordReference?.zeroEventId ?? latestZeroEventId,
+  };
+  const recordResult = kind === 'u0'
+    ? recordFreeU0(trial, input)
+    : kind === 'u1'
+      ? recordFreeU1(trial, input)
+      : recordFreeU2(trial, input, {
+          atmosphericPressureKPa: file.heatCapacityFreeEnvironmentConfig.ambientPressureKPa,
+          pressureSensitivityMvPerKPa: file.heatCapacityFreeSensorConfig.pressureMvPerKPa,
+          theoreticalGamma: file.theoreticalGamma,
+        });
+
+  if (!recordResult.accepted) {
+    const reason = recordResult.reason === 'accepted' ? 'invalid-sequence' : recordResult.reason;
+    return {
+      accepted: false,
+      reason,
+      kind,
+      trialIndex,
+      file: recordHeatCapacityFreeTraceEvent(file, 'record-blocked', now, {
+        kind,
+        reason,
+        trialIndex: trialIndex + 1,
+      }),
+    };
+  }
+
+  const recordTrace = recordHeatCapacityFreeTraceEventWithReference(
+    file,
+    kind === 'u0' ? 'record-u0' : kind === 'u1' ? 'record-u1' : 'record-u2',
+    now,
+    {
+      kind,
+      trialIndex: trialIndex + 1,
+    },
+  );
+  const traceTrial = recordTrace.file.heatCapacityFreeTraceStore.traceTrials.find((candidate) => (
+    candidate.id === recordTrace.reference.traceTrialId
+  ));
+  const recordTrial = {
+    ...recordResult.trial,
+    traceTrialId: recordTrace.reference.traceTrialId,
+    branchCount: traceTrial?.branches.length ?? recordResult.trial.branchCount,
+    u0: kind === 'u0' && recordResult.trial.u0
+      ? { ...recordResult.trial.u0, ...recordTrace.reference }
+      : recordResult.trial.u0,
+    u1: kind === 'u1' && recordResult.trial.u1
+      ? { ...recordResult.trial.u1, ...recordTrace.reference }
+      : recordResult.trial.u1,
+    u2: kind === 'u2' && recordResult.trial.u2
+      ? { ...recordResult.trial.u2, ...recordTrace.reference }
+      : recordResult.trial.u2,
+  };
+  const heatCapacityFreeTrials = useLastTrial
+    ? recordTrace.file.heatCapacityFreeTrials.map((candidate, index) => (
+        index === trialIndex ? recordTrial : candidate
+      ))
+    : [...recordTrace.file.heatCapacityFreeTrials, recordTrial];
+
+  return {
+    accepted: true,
+    reason: 'accepted',
+    kind,
+    trialIndex,
+    file: {
+      ...recordTrace.file,
+      heatCapacityFreeTrials,
+      heatCapacityProcessingCalculated: false,
+      updatedAt: now,
+    },
+  };
 };
 
 const createHeatCapacitySampleFromProcessPoint = (

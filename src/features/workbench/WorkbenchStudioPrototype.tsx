@@ -68,8 +68,11 @@ import {
   markHeatCapacityDemoComplete,
   powerHeatCapacityWorkbenchFile,
   prepareHeatCapacityAutoDemoStart,
+  applyHeatCapacityFreeRecordWorkbenchState,
   refreshHeatCapacityPumpFrequency,
+  recordHeatCapacityFreeTraceEvent,
   registerHeatCapacityPumpStroke,
+  removeHeatCapacityFreeTrialRecordWorkbenchState,
   resetHeatCapacityForManualExperiment,
   resetHeatCapacityFreeRunWorkbenchState,
   selectActiveHeatCapacityWorkbenchDisplay,
@@ -98,6 +101,7 @@ import {
 } from './workbenchState';
 import HeatCapacityInstrumentScene from '../heatCapacity/HeatCapacityInstrumentScene';
 import { HeatCapacityLeftPanel } from '../heatCapacity/HeatCapacityLeftPanel.tsx';
+import HeatCapacityProcessReviewPanel from '../heatCapacity/HeatCapacityProcessReviewPanel.tsx';
 import {
   createHeatCapacityAutoDemoSteps,
   getHeatCapacityAutoDemoTimeline,
@@ -120,20 +124,15 @@ import {
   type HeatCapacityTrialRecordInput,
   type HeatCapacityTrialRecordRemovalKind,
 } from '../../domain/heatCapacity/heatCapacityTrialModel.ts';
-import {
-  evaluateFreeU0Record,
-  evaluateFreeU1Record,
-  evaluateFreeU2Record,
-  recordFreeU0,
-  recordFreeU1,
-  recordFreeU2,
-  type HeatCapacityFreeRecordRejectReason,
+import type {
+  HeatCapacityFreeRecordRejectReason,
 } from '../../domain/heatCapacity/heatCapacityFreeRecordModel.ts';
 import {
   calculateFreeHeatCapacityMeanResult,
-  createHeatCapacityFreeTrial,
-  removeHeatCapacityFreeTrialRecord,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import {
+  selectHeatCapacityFreeProcessReview,
+} from '../../domain/heatCapacity/heatCapacityFreeProcessReviewModel.ts';
 import {
   createHeatCapacityExperimentProfile,
   createHeatCapacityExperimentSeed,
@@ -781,8 +780,7 @@ const IDEAL_SCAN_SNAP_THRESHOLD: Record<ExperimentRelation, number> = {
 };
 const IDEAL_RESULT_MIN_HEIGHT_RATIO = 0.25;
 const IDEAL_RESULT_MAX_HEIGHT_RATIO = 1;
-const HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO = 0.32;
-const HEAT_CAPACITY_MATERIALS_MAX_HEIGHT_RATIO = 0.72;
+const HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO = IDEAL_RESULT_MIN_HEIGHT_RATIO;
 const STANDARD_RESULTS_BOTTOM_INSET = 10;
 const RESIZER_GRAB_SAFE_SPACE = 14;
 const IDEAL_RESULT_WINDOW_DEFAULTS_STORAGE_KEY = 'hsl_workbench_ideal_result_window_defaults';
@@ -1127,6 +1125,8 @@ const heatCapacityRealtimeCopies = {
     recordsHint: 'U₁ / U₂ 与温度信号记录',
     processingTitle: '数据处理',
     processingHint: '空气比热容比计算与结果',
+    reviewTitle: '过程回顾',
+    reviewHint: '自由模式 trace 与操作诊断',
     materialsTitle: '实验资料与结果',
     materialsHint: 'U₁ / U₂ 与空气比热容比计算',
     closeMaterialsAria: '关闭实验资料与结果',
@@ -1251,6 +1251,8 @@ const heatCapacityRealtimeCopies = {
     recordsHint: 'U₁ / U₂ 與溫度信號記錄',
     processingTitle: '資料處理',
     processingHint: '空氣比熱容比計算與結果',
+    reviewTitle: '過程回顧',
+    reviewHint: '自由模式 trace 與操作診斷',
     materialsTitle: '實驗資料與結果',
     materialsHint: 'U₁ / U₂ 與空氣比熱容比計算',
     closeMaterialsAria: '關閉實驗資料與結果',
@@ -1375,6 +1377,8 @@ const heatCapacityRealtimeCopies = {
     recordsHint: 'U₁ / U₂ and temperature signal records',
     processingTitle: 'Data Processing',
     processingHint: 'Air heat capacity ratio calculation and result',
+    reviewTitle: 'Process Review',
+    reviewHint: 'Free Mode trace and operation diagnosis',
     materialsTitle: 'Experiment Notes & Results',
     materialsHint: 'U₁ / U₂ and air heat capacity ratio calculation',
     closeMaterialsAria: 'Close experiment notes and results',
@@ -1804,6 +1808,7 @@ const createHeatCapacityPanels = (
   { key: 'heatCapacityGuide', title: heatCopy.guideTitle, hint: heatCopy.guideHint, icon: <BookOpen size={13} /> },
   { key: 'heatCapacityRecords', title: heatCopy.recordsTitle, hint: heatCopy.recordsHint, icon: <Table2 size={13} /> },
   { key: 'heatCapacityProcessing', title: heatCopy.processingTitle, hint: heatCopy.processingHint, icon: <BarChart3 size={13} /> },
+  { key: 'heatCapacityReview', title: heatCopy.reviewTitle, hint: heatCopy.reviewHint, icon: <PanelTopOpen size={13} /> },
 ];
 
 const createResultsSections = (copy: WorkbenchCopy): Array<{ key: ResultsSectionKey; title: string; icon: React.ReactNode }> => [
@@ -1821,7 +1826,7 @@ const idealRelationOptions: Array<{ key: ExperimentRelation; label: string }> = 
 const idealRelationKeys: ExperimentRelation[] = ['pt', 'pv', 'pn'];
 const standardResultsTabKeys: WorkbenchStandardResultsTab[] = ['summary', 'dataTable', 'figures'];
 const idealResultWindowKeys: WorkbenchIdealResultWindowKey[] = ['experimentPoints', 'verification'];
-const heatCapacityMaterialsTabOrder: WorkbenchHeatCapacityTabId[] = ['guide', 'records', 'processing'];
+const heatCapacityMaterialsTabOrder: WorkbenchHeatCapacityTabId[] = ['guide', 'records', 'processing', 'review'];
 
 const isIdealResultWindowKey = (key: string): key is WorkbenchIdealResultWindowKey => (
   key === 'experimentPoints' || key === 'verification'
@@ -1832,7 +1837,10 @@ const isStandardResultsTab = (key: string): key is WorkbenchStandardResultsTab =
 );
 
 const isHeatCapacityPanelKey = (key: WorkbenchPanelKey): key is WorkbenchHeatCapacityPanelKey => (
-  key === 'heatCapacityGuide' || key === 'heatCapacityRecords' || key === 'heatCapacityProcessing'
+  key === 'heatCapacityGuide' ||
+  key === 'heatCapacityRecords' ||
+  key === 'heatCapacityProcessing' ||
+  key === 'heatCapacityReview'
 );
 
 const heatCapacityTabIdToPanelKey = (tabId: WorkbenchHeatCapacityTabId): WorkbenchHeatCapacityPanelKey => (
@@ -1840,7 +1848,9 @@ const heatCapacityTabIdToPanelKey = (tabId: WorkbenchHeatCapacityTabId): Workben
     ? 'heatCapacityGuide'
     : tabId === 'records'
       ? 'heatCapacityRecords'
-      : 'heatCapacityProcessing'
+      : tabId === 'processing'
+        ? 'heatCapacityProcessing'
+        : 'heatCapacityReview'
 );
 
 const heatCapacityPanelKeyToTabId = (panelKey: WorkbenchPanelKey): WorkbenchHeatCapacityTabId | null => (
@@ -1848,9 +1858,11 @@ const heatCapacityPanelKeyToTabId = (panelKey: WorkbenchPanelKey): WorkbenchHeat
     ? 'guide'
     : panelKey === 'heatCapacityRecords'
       ? 'records'
-      : panelKey === 'heatCapacityProcessing'
-        ? 'processing'
-        : null
+    : panelKey === 'heatCapacityProcessing'
+      ? 'processing'
+    : panelKey === 'heatCapacityReview'
+      ? 'review'
+      : null
 );
 
 const clampIdealResultHeightRatio = (value: number) => (
@@ -2301,6 +2313,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [heatCapacityGuideNextTrialNoticeHoldKey, setHeatCapacityGuideNextTrialNoticeHoldKey] = useState<string | null>(null);
   const [heatCapacityRecordToastSequenceActive, setHeatCapacityRecordToastSequenceActive] = useState(false);
   const [heatCapacityFreeResetFeedbackActive, setHeatCapacityFreeResetFeedbackActive] = useState(false);
+  const [heatCapacityReviewSelectionByFileId, setHeatCapacityReviewSelectionByFileId] = useState<Record<string, {
+    selectedTrialId: string | null;
+    manual: boolean;
+  }>>({});
   const [manualHeatCapacityRollback, setManualHeatCapacityRollback] = useState<{
     animation: ManualHeatCapacityRollbackAnimation;
     key: number;
@@ -2354,7 +2370,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     : activeFile.kind === 'ideal'
       ? idealPanels
       : heatCapacityPanels;
-  const activePanelTitle = availablePanels.find((panel) => panel.key === selectedPanel)?.title ?? '3D Preview';
+  const activePanelTitle = activeFile.kind === 'heatCapacity' && selectedPanel === 'results'
+    ? heatCapacityRealtimeCopy.materialsTitle
+    : availablePanels.find((panel) => panel.key === selectedPanel)?.title ?? '3D Preview';
   const primaryPanels = availablePanels.filter((panel) => panel.key === 'preview' || panel.key === 'realtime');
   const optionalPanels = availablePanels.filter(
     (panel) => (
@@ -4022,118 +4040,39 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const recordFreeHeatCapacitySample = (kind: HeatCapacityManualRecordKind) => {
     if (!activeFile || activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return;
     const now = Date.now();
-    let ok = false;
-    let message = '';
-    updateActiveFile((file) => {
-      if (file.kind !== 'heatCapacity' || file.heatCapacityMode !== 'free') return file;
-      const activeDisplay = selectActiveHeatCapacityWorkbenchDisplay(file);
-      const display = {
-        displayPressureMv: activeDisplay.pressureMv,
-        displayTemperatureMv: activeDisplay.temperatureMv,
-        pressureSlopeMvPerS: file.heatCapacityFreeSensorState.pressureSlopeMvPerS,
-        temperatureSlopeMvPerS: file.heatCapacityFreeSensorState.temperatureSlopeMvPerS,
-      };
-      const lastTrial = file.heatCapacityFreeTrials[file.heatCapacityFreeTrials.length - 1] ?? null;
-      const useLastTrial = lastTrial !== null && (!lastTrial.u0 || !lastTrial.u1 || !lastTrial.u2);
-      const trialIndex = useLastTrial ? file.heatCapacityFreeTrials.length - 1 : file.heatCapacityFreeTrials.length;
-      const trialBase = useLastTrial
-        ? lastTrial
-        : createHeatCapacityFreeTrial(`free-trial-${file.heatCapacityFreeTrials.length + 1}`, file.heatCapacityFreeCalibrationState.automaticU0);
-      const trial = !trialBase.u0 && file.heatCapacityFreeCalibrationState.automaticU0
-        ? {
-            ...trialBase,
-            automaticU0: file.heatCapacityFreeCalibrationState.automaticU0,
-          }
-        : trialBase;
-      const evaluation = kind === 'u0'
-        ? file.pressureZeroed
-          ? evaluateFreeU0Record(
-              trial,
-              file.heatCapacityFreeCalibrationState,
-              display,
-              file.heatCapacityFreePhysicsState,
-              HEAT_CAPACITY_FREE_RECORD_CONFIG,
-            )
-          : { ready: false, reason: 'zero-not-ready' as const }
-        : kind === 'u1'
-        ? evaluateFreeU1Record(
-            trial,
-            file.heatCapacityFreeCalibrationState,
-            display,
-            file.heatCapacityFreePhysicsState,
-            HEAT_CAPACITY_FREE_RECORD_CONFIG,
-          )
-        : evaluateFreeU2Record(
-            trial,
-            file.heatCapacityFreeCalibrationState,
-            display,
-            file.heatCapacityFreePhysicsState,
-            HEAT_CAPACITY_FREE_RECORD_CONFIG,
-          );
-      if (evaluation.ready === false) {
-        message = heatCapacityFreeRecordRejectMessages[evaluation.reason];
-        return {
-          ...file,
-          pumpHint: message,
-          heatCapacityFreeTrials: useLastTrial
-            ? file.heatCapacityFreeTrials.map((candidate, index) => (
-                index === trialIndex ? { ...trial, blockedReason: evaluation.reason } : candidate
-              ))
-            : file.heatCapacityFreeTrials,
-          updatedAt: now,
-        };
-      }
-      const latestZeroEventId = file.heatCapacityFreeCalibrationState.zeroEvents[
-        file.heatCapacityFreeCalibrationState.zeroEvents.length - 1
-      ]?.id ?? '';
-      const recordReference = kind === 'u0' ? null : trial.u0;
-      const input = {
-        atS: file.heatCapacityFreePhysicsState.simulationTimeS,
-        displayPressureMv: display.displayPressureMv,
-        displayTemperatureMv: display.displayTemperatureMv,
-        calibrationVersion: recordReference?.calibrationVersion ?? file.heatCapacityFreeCalibrationState.calibrationVersion,
-        zeroEventId: recordReference?.zeroEventId ?? latestZeroEventId,
-      };
-      const recordResult = kind === 'u0'
-        ? recordFreeU0(trial, input)
-        : kind === 'u1'
-          ? recordFreeU1(trial, input)
-          : recordFreeU2(trial, input, {
-              atmosphericPressureKPa: file.heatCapacityFreeEnvironmentConfig.ambientPressureKPa,
-              pressureSensitivityMvPerKPa: file.heatCapacityFreeSensorConfig.pressureMvPerKPa,
-              theoreticalGamma: file.theoreticalGamma,
-            });
-      if (!recordResult.accepted) {
-        message = heatCapacityFreeRecordRejectMessages[recordResult.reason];
-        return file;
-      }
-      ok = true;
-      message = kind === 'u0'
+    const currentFile = filesRef.current.find((file) => file.id === activeFile.id);
+    if (!currentFile || currentFile.kind !== 'heatCapacity' || currentFile.heatCapacityMode !== 'free') return;
+    const attempt = applyHeatCapacityFreeRecordWorkbenchState(
+      currentFile,
+      kind,
+      HEAT_CAPACITY_FREE_RECORD_CONFIG,
+      now,
+    );
+    const message = attempt.accepted
+      ? kind === 'u0'
         ? 'Free Mode 已记录 U₀ 显示值。'
         : kind === 'u1'
           ? 'Free Mode 已记录 U₁ 显示值。'
-          : 'Free Mode 已记录 U₂ 显示值。';
-      const heatCapacityFreeTrials = useLastTrial
-        ? file.heatCapacityFreeTrials.map((candidate, index) => (
-            index === trialIndex ? recordResult.trial : candidate
-          ))
-        : [...file.heatCapacityFreeTrials, recordResult.trial];
-      return {
-        ...file,
-        heatCapacityFreeTrials,
-        heatCapacityProcessingCalculated: false,
-        updatedAt: now,
-      };
-    });
-    if (ok) {
+          : 'Free Mode 已记录 U₂ 显示值。'
+      : heatCapacityFreeRecordRejectMessages[attempt.reason];
+    updateFileById(currentFile.id, (file) => (
+      file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+        ? {
+            ...attempt.file,
+            pumpHint: attempt.accepted ? attempt.file.pumpHint : message,
+            updatedAt: now,
+          }
+        : file
+    ));
+    if (attempt.accepted) {
       clearManualHeatCapacityGuidance();
       showManualHeatCapacityGuidance(message, kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2', 'success');
       pushLog(message, 'success');
       return;
     }
-    const fallbackMessage = message || 'Free Mode 当前不能记录该数据点。';
-    showManualHeatCapacityGuidance(fallbackMessage, kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2', 'warning', 'manual-blocked');
-    pushLog(fallbackMessage, 'warning');
+    clearManualHeatCapacityGuidance();
+    showManualHeatCapacityGuidance(message, kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2', 'warning', 'manual-blocked');
+    pushLog(message, 'warning');
   };
 
   const calculateHeatCapacityProcessingResults = () => {
@@ -4193,14 +4132,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
       if (file.heatCapacityMode === 'free') {
-        const removal = removeHeatCapacityFreeTrialRecord(file.heatCapacityFreeTrials, trialIndex, kind);
-        return {
-          ...file,
-          heatCapacityFreeTrials: removal.trials,
-          heatCapacityProcessingCalculated: false,
-          heatCapacityProcessingResult: createDefaultHeatCapacityProcessingResult(file.theoreticalGamma),
-          updatedAt: Date.now(),
-        };
+        return removeHeatCapacityFreeTrialRecordWorkbenchState(file, trialIndex, kind, Date.now());
       }
       if (kind === 'u0') return file;
       const removal = removeHeatCapacityTrialRecord(file.heatCapacityTrials, trialIndex, kind);
@@ -4430,9 +4362,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
         pressureDisplayNextJitterAtMs: pressureReleaseBurstUntilMs ? now : file.pressureDisplayNextJitterAtMs,
         updatedAt: now,
       }, now);
-      return isManualReleaseClosure
+      const sampledFile = isManualReleaseClosure
         ? captureHeatCapacityWorkbenchSample(nextFile, 'releaseLowSample', now)
         : nextFile;
+      return sampledFile.heatCapacityMode === 'free'
+        ? recordHeatCapacityFreeTraceEvent(
+            sampledFile,
+            nextOpen ? 'stopcock-open' : 'stopcock-close',
+            now,
+            { visualStopcockOpen: nextOpen },
+          )
+        : sampledFile;
     });
   };
 
@@ -4470,14 +4410,22 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (!guardManualHeatCapacityAction(nextAction, source)) return;
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
+      const now = Date.now();
       const pumpValveOpen = !file.pumpValveOpen;
-      return {
+      const nextFile: WorkbenchHeatCapacityState = {
         ...file,
         pumpValveOpen,
         pumpValveState: pumpValveOpen ? 'open' : 'closed',
         pumpHint: pumpValveOpen ? '打气阀门已打开' : '打气阀门已关闭',
-        updatedAt: Date.now(),
+        updatedAt: now,
       };
+      return nextFile.heatCapacityMode === 'free'
+        ? recordHeatCapacityFreeTraceEvent(
+            nextFile,
+            pumpValveOpen ? 'pump-valve-open' : 'pump-valve-close',
+            now,
+          )
+        : nextFile;
     });
     if (nextAction === 'closePumpValve') {
       clearHeatCapacityToastBySource(isHeatCapacityPressureToast);
@@ -5316,6 +5264,23 @@ const WorkbenchStudioPrototype: React.FC = () => {
     );
   };
 
+  const getHeatCapacityMaterialsMaxHeightRatio = () => {
+    const workspaceRect = centerWorkspaceRef.current?.getBoundingClientRect();
+    const fileTabsRect = fileTabsRef.current?.getBoundingClientRect();
+    if (!workspaceRect || workspaceRect.height <= 0) return IDEAL_RESULT_MAX_HEIGHT_RATIO;
+
+    const fileTabOverlap = fileTabsRect
+      ? Math.max(0, fileTabsRect.bottom - workspaceRect.top)
+      : 0;
+    const reservedTopSpace = Math.max(RESIZER_GRAB_SAFE_SPACE, fileTabOverlap + RESIZER_GRAB_SAFE_SPACE);
+    const availableHeight = workspaceRect.height - STANDARD_RESULTS_BOTTOM_INSET - reservedTopSpace;
+    return clamp(
+      availableHeight / workspaceRect.height,
+      HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO,
+      IDEAL_RESULT_MAX_HEIGHT_RATIO,
+    );
+  };
+
   const startStandardResultsResize = (event: React.MouseEvent) => {
     if (activeFile.kind !== 'standard') return;
     event.preventDefault();
@@ -5371,10 +5336,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     const snapshot = createEditSnapshot('resized heat-capacity materials window');
     const startY = event.clientY;
+    const maxHeightRatio = getHeatCapacityMaterialsMaxHeightRatio();
     const startRatio = clamp(
       activeFile.heatCapacityTabContainerHeight || 0.5,
       HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO,
-      HEAT_CAPACITY_MATERIALS_MAX_HEIGHT_RATIO,
+      maxHeightRatio,
     );
     let didResize = false;
 
@@ -5383,7 +5349,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       const nextRatio = clamp(
         startRatio + deltaRatio,
         HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO,
-        HEAT_CAPACITY_MATERIALS_MAX_HEIGHT_RATIO,
+        maxHeightRatio,
       );
       didResize = true;
       updateActiveFile((file) => (
@@ -9951,6 +9917,33 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (panel.key === 'verification') return activeFile.kind === 'ideal' ? renderIdealVerificationWindow() : renderVerificationPanel();
     if (panel.key === 'results') return renderResultsPanel();
     if (panel.key === 'experimentPoints') return renderIdealPointsWindow();
+    if (activeFile.kind === 'heatCapacity' && panel.key === 'heatCapacityReview') {
+      const reviewSelection = heatCapacityReviewSelectionByFileId[activeFile.id] ?? null;
+      const reviewOptionIds = new Set(activeFile.heatCapacityFreeTrials.map((trial) => trial.id));
+      const requestedReviewTrialId =
+        reviewSelection?.manual && reviewSelection.selectedTrialId && reviewOptionIds.has(reviewSelection.selectedTrialId)
+          ? reviewSelection.selectedTrialId
+          : null;
+      const review = selectHeatCapacityFreeProcessReview({
+        trials: activeFile.heatCapacityFreeTrials,
+        traceStore: activeFile.heatCapacityFreeTraceStore,
+        theoreticalGamma: activeFile.theoreticalGamma,
+        selectedTrialId: requestedReviewTrialId,
+      });
+      return (
+        <HeatCapacityProcessReviewPanel
+          mode={activeFile.heatCapacityMode}
+          review={review}
+          selectedTrialId={review.selectedTrialId}
+          onSelectedTrialChange={(trialId) => {
+            setHeatCapacityReviewSelectionByFileId((previous) => ({
+              ...previous,
+              [activeFile.id]: { selectedTrialId: trialId, manual: true },
+            }));
+          }}
+        />
+      );
+    }
     if (activeFile.kind === 'heatCapacity' && isHeatCapacityPanelKey(panel.key)) {
       return (
         <HeatCapacityLeftPanel
@@ -10105,7 +10098,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
               </button>
             ))}
           </div>
-          {renderPanelContent(activePanel)}
+          <div className="studio-results-body">
+            {renderPanelContent(activePanel)}
+          </div>
         </section>
       </div>
     );
@@ -10124,10 +10119,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
       ? activeFile.activeHeatCapacityTabId
       : openTabs[0].tabId;
     const activePanel = openTabs.find((item) => item.tabId === activeTabId)?.panel ?? openTabs[0].panel;
+    const materialsMaxHeightRatio = getHeatCapacityMaterialsMaxHeightRatio();
     const materialsHeightRatio = clamp(
       activeFile.heatCapacityTabContainerHeight || 0.5,
       HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO,
-      HEAT_CAPACITY_MATERIALS_MAX_HEIGHT_RATIO,
+      materialsMaxHeightRatio,
     );
 
     return (
@@ -10207,7 +10203,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
               </button>
             ))}
           </div>
-          {renderPanelContent(activePanel)}
+          <div className="studio-results-body studio-heat-materials-body">
+            {renderPanelContent(activePanel)}
+          </div>
         </section>
       </div>
     );
@@ -10248,10 +10246,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const materialPanels = heatCapacityMaterialsTabOrder
       .map((tabId) => ({ tabId, panel: availablePanels.find((panel) => panel.key === heatCapacityTabIdToPanelKey(tabId)) }))
       .filter((item): item is { tabId: WorkbenchHeatCapacityTabId; panel: PanelDefinition } => Boolean(item.panel));
-    const materialsActive = activeFile.kind === 'heatCapacity' && (
-      materialPanels.some(({ panel }) => selectedPanel === panel.key) ||
-      materialPanels.some(({ tabId }) => activeFile.activeHeatCapacityTabId === tabId)
-    );
+    const materialsSelected = selectedPanel === 'results';
+    const materialsOpen = activeFile.kind === 'heatCapacity' && activeFile.openHeatCapacityTabs.length > 0;
     const topPanels = [previewPanel, realtimePanel].filter((panel): panel is PanelDefinition => Boolean(panel));
 
     return (
@@ -10302,15 +10298,18 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <div
           role="button"
           tabIndex={panelsSectionCollapsed ? -1 : 0}
-          className={`studio-tree-row studio-tree-row-child studio-heat-materials-group ${materialsActive ? 'studio-panel-row-active' : ''}`}
+          className={`studio-tree-row studio-tree-row-child studio-heat-materials-group ${materialsSelected ? 'studio-panel-row-active' : ''}`}
           onClick={() => {
             if (panelsSectionCollapsed) return;
-            setSelectedPanel('heatCapacityGuide');
+            setSelectedPanel('results');
           }}
           onDoubleClick={(event) => {
             event.stopPropagation();
             openAllHeatCapacityMaterialsTabs();
           }}
+          onKeyDown={(event) => handleSectionKeyDown(event, () => {
+            setSelectedPanel('results');
+          })}
           title={heatCapacityRealtimeCopy.materialsFolderTitle}
         >
           <button
@@ -10340,7 +10339,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             className="studio-results-folder-label"
             onClick={(event) => {
               event.stopPropagation();
-              setSelectedPanel('heatCapacityGuide');
+              setSelectedPanel('results');
             }}
             onDoubleClick={(event) => {
               event.stopPropagation();
@@ -10349,7 +10348,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           >
             {heatCapacityRealtimeCopy.materialsTitle}
           </span>
-          <span className="studio-tree-meta">{materialsActive ? workbenchCopy.files.active : workbenchCopy.files.off}</span>
+          <span className="studio-tree-meta">{materialsOpen ? workbenchCopy.files.active : workbenchCopy.files.off}</span>
         </div>
         {activeFile.kind === 'heatCapacity' && activeFile.heatCapacityMaterialsExpanded ? (
           <div className="studio-results-nav studio-heat-materials-nav">
@@ -10359,12 +10358,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 <button
                   type="button"
                   key={tabId}
-                  className={state === 'active' || selectedPanel === panel.key ? 'studio-results-nav-active studio-panel-row-active' : ''}
+                  className={selectedPanel === panel.key ? 'studio-results-nav-active studio-panel-row-active' : ''}
                   tabIndex={panelsSectionCollapsed ? -1 : 0}
                   onClick={(event) => {
                     event.stopPropagation();
                     setSelectedPanel(panel.key);
-                    if (state !== 'off') activateHeatCapacityTab(tabId);
                   }}
                   onDoubleClick={(event) => {
                     event.stopPropagation();

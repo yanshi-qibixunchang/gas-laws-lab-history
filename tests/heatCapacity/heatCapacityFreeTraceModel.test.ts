@@ -1,0 +1,162 @@
+import assert from 'node:assert/strict';
+import {
+  appendFreeTraceEvent,
+  appendFreeTraceSample,
+  compactFreeTraceBranch,
+  createDefaultFreeConfigSnapshot,
+  createDefaultFreeTraceStore,
+  createFreeTraceTrial,
+  FREE_TRACE_MAX_SAMPLES_PER_TRIAL,
+  type HeatCapacityFreeTraceSampleInput,
+} from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
+
+const configSnapshot = createDefaultFreeConfigSnapshot();
+
+let store = createDefaultFreeTraceStore();
+const first = createFreeTraceTrial(store, configSnapshot);
+store = first.store;
+const second = createFreeTraceTrial(store, configSnapshot);
+
+assert.equal(first.traceTrial.id, 'free-trace-trial-1');
+assert.equal(first.traceTrial.activeBranchId, 'branch-1');
+assert.equal(second.traceTrial.id, 'free-trace-trial-2');
+
+const createSampleInput = (
+  index: number,
+  overrides: Partial<HeatCapacityFreeTraceSampleInput> = {},
+): HeatCapacityFreeTraceSampleInput => ({
+  atS: index * 0.1,
+  reason: 'periodic',
+  phase: 'sealedStabilizing',
+  controls: {
+    powerOn: true,
+    stopcockOpen: false,
+    pumpValveOpen: false,
+  },
+  physical: {
+    gasPressureKPa: 106,
+    pressureDeltaKPa: 4.7,
+    gasTemperatureK: 298.15,
+    gasAmountRatio: 1.04,
+    pumpStrokeCount: 4,
+    releaseStarted: false,
+    currentStopcockOpenDurationS: 0,
+  },
+  sensor: {
+    displayPressureMv: 94 + index * 0.01,
+    displayTemperatureMv: 1499 + index * 0.001,
+    pressureSlopeMvPerS: 0.02,
+    temperatureSlopeMvPerS: 0.01,
+  },
+  calibration: {
+    calibrationVersion: 1,
+    zeroOffsetMv: 0,
+    zeroEventId: 'zero-1',
+  },
+  stability: {
+    pressureStable: true,
+    temperatureStable: true,
+  },
+  safetyStatus: 'normal',
+  ...overrides,
+});
+
+let branch = first.traceTrial.branches[0];
+for (let index = 0; index < 805; index += 1) {
+  branch = appendFreeTraceSample(branch, createSampleInput(index)).branch;
+}
+const eventSampleResult = appendFreeTraceSample(branch, createSampleInput(900, {
+  reason: 'event',
+  sensor: {
+    displayPressureMv: 130,
+    displayTemperatureMv: 1502,
+    pressureSlopeMvPerS: 0.2,
+    temperatureSlopeMvPerS: 0.1,
+  },
+}));
+branch = eventSampleResult.branch;
+branch = appendFreeTraceEvent(branch, {
+  atS: eventSampleResult.sample.atS,
+  type: 'pump-stroke',
+  traceSampleId: eventSampleResult.sample.id,
+}).branch;
+const compacted = compactFreeTraceBranch(branch);
+
+assert.equal(
+  compacted.samples.some((sample) => sample.id === eventSampleResult.sample.id),
+  true,
+  'event-linked sample must survive compaction',
+);
+assert.equal(
+  compacted.samples.length <= FREE_TRACE_MAX_SAMPLES_PER_TRIAL,
+  true,
+  'compaction should keep the branch within the sample limit',
+);
+
+let similarityBranch = second.traceTrial.branches[0];
+similarityBranch = appendFreeTraceSample(similarityBranch, createSampleInput(0, {
+  sensor: {
+    displayPressureMv: 100,
+    displayTemperatureMv: 1499,
+    pressureSlopeMvPerS: 0.02,
+    temperatureSlopeMvPerS: 0.01,
+  },
+})).branch;
+const dissimilarResult = appendFreeTraceSample(similarityBranch, createSampleInput(1, {
+  sensor: {
+    displayPressureMv: 140,
+    displayTemperatureMv: 1510,
+    pressureSlopeMvPerS: 0.02,
+    temperatureSlopeMvPerS: 0.01,
+  },
+}));
+similarityBranch = dissimilarResult.branch;
+const similarSampleIds: string[] = [];
+for (let index = 0; index < 799; index += 1) {
+  const result = appendFreeTraceSample(similarityBranch, createSampleInput(index + 2, {
+    sensor: {
+      displayPressureMv: 100 + index * 0.0001,
+      displayTemperatureMv: 1499 + index * 0.00001,
+      pressureSlopeMvPerS: 0.02,
+      temperatureSlopeMvPerS: 0.01,
+    },
+  }));
+  similarityBranch = result.branch;
+  similarSampleIds.push(result.sample.id);
+}
+const protectedEventSample = appendFreeTraceSample(similarityBranch, createSampleInput(900, {
+  reason: 'event',
+  sensor: {
+    displayPressureMv: 160,
+    displayTemperatureMv: 1512,
+    pressureSlopeMvPerS: 0.2,
+    temperatureSlopeMvPerS: 0.1,
+  },
+}));
+similarityBranch = protectedEventSample.branch;
+similarityBranch = appendFreeTraceEvent(similarityBranch, {
+  atS: protectedEventSample.sample.atS,
+  type: 'stopcock-close',
+  traceSampleId: protectedEventSample.sample.id,
+}).branch;
+const compactedSimilarityBranch = compactFreeTraceBranch(similarityBranch);
+
+assert.equal(
+  compactedSimilarityBranch.samples.some((sample) => sample.id === dissimilarResult.sample.id),
+  true,
+  'compaction should preserve a dissimilar unprotected periodic sample before dropping similar samples',
+);
+assert.equal(
+  similarSampleIds.some((sampleId) => (
+    !compactedSimilarityBranch.samples.some((sample) => sample.id === sampleId)
+  )),
+  true,
+  'compaction should remove at least one value-similar periodic sample',
+);
+assert.equal(
+  compactedSimilarityBranch.samples.some((sample) => sample.id === protectedEventSample.sample.id),
+  true,
+  'event sample should remain after value-similar compaction',
+);
+
+console.log('heatCapacityFreeTraceModel tests passed');

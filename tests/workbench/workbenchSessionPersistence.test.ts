@@ -11,6 +11,9 @@ import {
   createHeatCapacityFreeTrial,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
+  HEAT_CAPACITY_FREE_TRACE_VERSION,
+} from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
+import {
   WORKBENCH_SESSION_VERSION,
   decodeWorkbenchSession,
   encodeWorkbenchSession,
@@ -46,6 +49,38 @@ const savedAutomaticOnlyFreeTrial = {
     U0DisplayMv: 0.04,
     U1DisplayMv: 112.04,
     U2DisplayMv: 32.04,
+    U1CorrectedMv: 112,
+    U2CorrectedMv: 32,
+    gamma: 1.4,
+  },
+};
+const savedLegacyCompleteFreeTrial = {
+  ...createHeatCapacityFreeTrial('free-session-complete-legacy'),
+  u0: {
+    atS: 1,
+    displayPressureMv: 0,
+    displayTemperatureMv: 1499,
+    calibrationVersion: 1,
+    zeroEventId: 'zero-1',
+  },
+  u1: {
+    atS: 10,
+    displayPressureMv: 112,
+    displayTemperatureMv: 1499,
+    calibrationVersion: 1,
+    zeroEventId: 'zero-1',
+  },
+  u2: {
+    atS: 20,
+    displayPressureMv: 32,
+    displayTemperatureMv: 1499,
+    calibrationVersion: 1,
+    zeroEventId: 'zero-1',
+  },
+  correctedSignals: {
+    U0DisplayMv: 0,
+    U1DisplayMv: 112,
+    U2DisplayMv: 32,
     U1CorrectedMv: 112,
     U2CorrectedMv: 32,
     gamma: 1.4,
@@ -108,8 +143,12 @@ const restored = decodeWorkbenchSession({
     {
       ...heatCapacity,
       heatCapacityMode: 'free',
+      visiblePanels: ['preview', 'realtime', 'heatCapacityGuide', 'heatCapacityReview'] as WorkbenchPanelKey[],
+      selectedHeatCapacityPanel: 'heatCapacityReview',
+      openHeatCapacityTabs: ['guide', 'review'],
+      activeHeatCapacityTabId: 'review',
       heatCapacityFreeRuntimeVersion: 0,
-      heatCapacityFreeTrials: [savedAutomaticOnlyFreeTrial],
+      heatCapacityFreeTrials: [savedAutomaticOnlyFreeTrial, savedLegacyCompleteFreeTrial],
       heatCapacityFreePhysicsState: {
         ...heatCapacity.heatCapacityFreePhysicsState,
         gasAmountRatio: 1.7,
@@ -149,16 +188,28 @@ if (restoredHeatCapacity.kind === 'heatCapacity') {
   assert.equal(restoredHeatCapacity.heatCapacityFreePhysicsState.gasAmountRatio, 1);
   assert.equal(restoredHeatCapacity.heatCapacityFreePhysicsState.pumpStrokeCount, 0);
   assert.equal(restoredHeatCapacity.heatCapacityFreeCalibrationState.calibrationVersion, 0);
-  assert.equal(restoredHeatCapacity.heatCapacityFreeTrials.length, 1, 'stale Free runtime normalization must preserve Free trials');
+  assert.equal(restoredHeatCapacity.heatCapacityFreeTrials.length, 2, 'stale Free runtime normalization must preserve Free trials');
   assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[0].automaticU0?.zeroEventId, 'zero-1');
   assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[0].u0, null, 'automatic-only saved Free trials must not be promoted to official manual U0 records');
   assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[0].correctedSignals, null, 'automatic-only saved Free trials must normalize as incomplete official records');
+  assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[1].correctedSignals?.calculationVersion, 'log-pressure-v1');
+  assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[1].correctedSignals?.atmosphericPressureKPa, 101.3);
+  assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[1].correctedSignals?.pressureSensitivityMvPerKPa, 20);
   assert.equal(
-    calculateFreeHeatCapacityMeanResult(restoredHeatCapacity.heatCapacityFreeTrials).validTrialCount,
+    calculateFreeHeatCapacityMeanResult([restoredHeatCapacity.heatCapacityFreeTrials[0]]).validTrialCount,
     0,
     'automatic-only saved Free trials must not count as complete official Free trials',
   );
   assert.equal(restoredHeatCapacity.heatCapacityMode, 'free');
+  assert.deepEqual(restoredHeatCapacity.openHeatCapacityTabs, ['guide', 'review']);
+  assert.equal(restoredHeatCapacity.activeHeatCapacityTabId, 'review');
+  assert.equal(restoredHeatCapacity.selectedHeatCapacityPanel, 'heatCapacityReview');
+  assert.equal(restoredHeatCapacity.heatCapacityFreeTraceVersion, HEAT_CAPACITY_FREE_TRACE_VERSION);
+  assert.deepEqual(
+    restoredHeatCapacity.heatCapacityFreeTraceStore.traceTrials,
+    [],
+    'old heat-capacity sessions should restore with an empty Free trace store',
+  );
 }
 
 const encoded = encodeWorkbenchSession(restored.files, restored.activeFileId, restored.selectedPanel);

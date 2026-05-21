@@ -3,6 +3,10 @@ import {
   runHeatCapacityFreeParameterAcceptance,
   HEAT_CAPACITY_FREE_PARAMETER_ACCEPTANCE_RECORD_CONFIG,
 } from './heatCapacityFreeParameterAcceptance.ts';
+import {
+  createDefaultHeatCapacityFile,
+  recordHeatCapacityFreeTraceEventWithReference,
+} from '../../src/features/workbench/workbenchState.ts';
 
 const report = runHeatCapacityFreeParameterAcceptance({
   pumpStrokes: [6, 7, 8, 9, 10, 11, 12],
@@ -13,6 +17,60 @@ assert.equal(
   HEAT_CAPACITY_FREE_PARAMETER_ACCEPTANCE_RECORD_CONFIG.minimumUsefulU1CorrectedMv,
   90,
   'parameter acceptance should preserve the 90 mV Free U1 record threshold',
+);
+
+const configuredFile = createDefaultHeatCapacityFile(91);
+const tracedConfiguredFile = recordHeatCapacityFreeTraceEventWithReference({
+  ...configuredFile,
+  heatCapacityFreeEnvironmentConfig: {
+    ambientPressureKPa: 100.8,
+    ambientTemperatureK: 299.25,
+  },
+  heatCapacityFreePhysicsConfig: {
+    ...configuredFile.heatCapacityFreePhysicsConfig,
+    gamma: 1.37,
+    vesselVolumeL: 2.4,
+    pumpAmountGainRatio: 0.0065,
+    pumpTemperatureGainK: 1.65,
+    sealedThermalRate: 0.45,
+    openThermalRate: 1.85,
+    stopcockFlowRate: 4.4,
+    releaseCoolingFactor: 0.92,
+  },
+  heatCapacityFreeSensorConfig: {
+    ...configuredFile.heatCapacityFreeSensorConfig,
+    pressureMvPerKPa: 21.5,
+    temperatureMvAtAmbient: 1501.2,
+    temperatureMvPerK: 2.2,
+    lagRate: 4.5,
+    noiseMv: 0.03,
+    quantizationMv: 0.02,
+  },
+}, 'power-on', 100).file;
+const configuredTraceTrial = tracedConfiguredFile.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
+  traceTrial.id === tracedConfiguredFile.heatCapacityFreeTraceStore.activeTraceTrialId
+));
+assert.notEqual(configuredTraceTrial, undefined, 'Free trace trial should exist after a traced event');
+assert.equal(configuredTraceTrial!.configSnapshot.environment.ambientPressureKPa, 100.8);
+assert.equal(configuredTraceTrial!.configSnapshot.environment.ambientTemperatureK, 299.25);
+assert.equal(configuredTraceTrial!.configSnapshot.physics.gamma, 1.37);
+assert.equal(configuredTraceTrial!.configSnapshot.physics.vesselVolumeL, 2.4);
+assert.equal(configuredTraceTrial!.configSnapshot.physics.pumpAmountGainRatio, 0.0065);
+assert.equal(configuredTraceTrial!.configSnapshot.sensor.pressureMvPerKPa, 21.5);
+assert.equal(configuredTraceTrial!.configSnapshot.sensor.temperatureMvAtAmbient, 1501.2);
+assert.equal(configuredTraceTrial!.configSnapshot.record.minimumUsefulU1CorrectedMv, 90);
+assert.equal(configuredTraceTrial!.configSnapshot.record.pressureDangerMv, 140);
+const changedAfterTrace = {
+  ...tracedConfiguredFile,
+  heatCapacityFreeEnvironmentConfig: {
+    ...tracedConfiguredFile.heatCapacityFreeEnvironmentConfig,
+    ambientPressureKPa: 120,
+  },
+};
+assert.equal(
+  changedAfterTrace.heatCapacityFreeTraceStore.traceTrials[0].configSnapshot.environment.ambientPressureKPa,
+  100.8,
+  'Free config snapshot should be copied at trace creation instead of reading later file config changes',
 );
 
 const quickRows = report.rows.filter((row) => row.openDurationS === 0);

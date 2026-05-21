@@ -3,6 +3,12 @@ import {
   type HeatCapacityFreeCalibrationState,
   type HeatCapacityFreeGammaCalculationOptions,
 } from './heatCapacityFreeCalibrationModel.ts';
+import type {
+  HeatCapacityRuntimePhase,
+} from './heatCapacityExperimentModel.ts';
+import {
+  HEAT_CAPACITY_FREE_CALCULATION_VERSION,
+} from './heatCapacityFreeTraceModel.ts';
 
 export type HeatCapacityFreeRecordRejectReason =
   | 'zero-not-ready'
@@ -22,9 +28,29 @@ export interface HeatCapacityFreeRecordInput {
   displayTemperatureMv: number;
   calibrationVersion: number;
   zeroEventId: string;
+  source?: 'user';
+  phaseAtRecord?: HeatCapacityRuntimePhase | null;
+  traceTrialId?: string | null;
+  traceBranchId?: string | null;
+  traceSampleId?: string | null;
+  eventId?: string | null;
 }
 
+export interface HeatCapacityFreeRecordTraceReference {
+  source: 'user';
+  phaseAtRecord: HeatCapacityRuntimePhase | null;
+  traceTrialId: string | null;
+  traceBranchId: string | null;
+  traceSampleId: string | null;
+  eventId: string | null;
+}
+
+export type HeatCapacityFreeRecord = HeatCapacityFreeRecordInput & HeatCapacityFreeRecordTraceReference;
+
 export interface HeatCapacityFreeCorrectedSignals {
+  calculationVersion: typeof HEAT_CAPACITY_FREE_CALCULATION_VERSION;
+  atmosphericPressureKPa: number;
+  pressureSensitivityMvPerKPa: number;
   U0DisplayMv: number;
   U1DisplayMv: number;
   U2DisplayMv: number;
@@ -36,10 +62,12 @@ export interface HeatCapacityFreeCorrectedSignals {
 export interface HeatCapacityFreeTrial {
   id: string;
   source: 'free';
+  traceTrialId: string | null;
+  branchCount: number;
   automaticU0: HeatCapacityFreeCalibrationState['automaticU0'];
-  u0: HeatCapacityFreeRecordInput | null;
-  u1: HeatCapacityFreeRecordInput | null;
-  u2: HeatCapacityFreeRecordInput | null;
+  u0: HeatCapacityFreeRecord | null;
+  u1: HeatCapacityFreeRecord | null;
+  u2: HeatCapacityFreeRecord | null;
   blockedReason: HeatCapacityFreeRecordRejectReason | null;
   correctedSignals: HeatCapacityFreeCorrectedSignals | null;
 }
@@ -83,18 +111,35 @@ const roundNumber = (value: number, digits = 6) => (
   Number.isFinite(value) ? Number(value.toFixed(digits)) : value
 );
 
+const DEFAULT_FREE_ATMOSPHERIC_PRESSURE_KPA = 101.3;
+const DEFAULT_FREE_PRESSURE_SENSITIVITY_MV_PER_KPA = 20;
+
 export const createHeatCapacityFreeTrial = (
   id: string,
   automaticU0: HeatCapacityFreeCalibrationState['automaticU0'] = null,
 ): HeatCapacityFreeTrial => ({
   id,
   source: 'free',
+  traceTrialId: null,
+  branchCount: 0,
   automaticU0,
   u0: null,
   u1: null,
   u2: null,
   blockedReason: null,
   correctedSignals: null,
+});
+
+export const normalizeHeatCapacityFreeRecordInput = (
+  input: HeatCapacityFreeRecordInput,
+): HeatCapacityFreeRecord => ({
+  ...input,
+  source: 'user',
+  phaseAtRecord: input.phaseAtRecord ?? null,
+  traceTrialId: input.traceTrialId ?? null,
+  traceBranchId: input.traceBranchId ?? null,
+  traceSampleId: input.traceSampleId ?? null,
+  eventId: input.eventId ?? null,
 });
 
 export const calculateFreeHeatCapacityTrialSignals = (
@@ -117,7 +162,14 @@ export const calculateFreeHeatCapacityTrialSignals = (
   ) {
     return null;
   }
+  const atmosphericPressureKPa = options.atmosphericPressureKPa ??
+    DEFAULT_FREE_ATMOSPHERIC_PRESSURE_KPA;
+  const pressureSensitivityMvPerKPa = options.pressureSensitivityMvPerKPa ??
+    DEFAULT_FREE_PRESSURE_SENSITIVITY_MV_PER_KPA;
   return {
+    calculationVersion: HEAT_CAPACITY_FREE_CALCULATION_VERSION,
+    atmosphericPressureKPa,
+    pressureSensitivityMvPerKPa,
     U0DisplayMv: trial.u0.displayPressureMv,
     U1DisplayMv: trial.u1.displayPressureMv,
     U2DisplayMv: trial.u2.displayPressureMv,

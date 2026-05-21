@@ -11,6 +11,7 @@ import StatsPanel from '../components/StatsPanel';
 import Footer from '../components/Footer';
 import ModeSwitch from '../components/ModeSwitch';
 import WorkbenchStudioPrototype from '../features/workbench/WorkbenchStudioPrototype';
+import HeatCapacityProcessReviewDemo from '../features/heatCapacity/HeatCapacityProcessReviewDemo';
 
 interface DeferredInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -36,6 +37,12 @@ const WORKBENCH_FRAME_WIDTH = 1440;
 const WORKBENCH_FRAME_HEIGHT = 810;
 const WORKBENCH_FRAME_MIN_DESKTOP_WIDTH = 900;
 const WORKBENCH_FRAME_MIN_DESKTOP_HEIGHT = 560;
+
+const shouldShowHeatCapacityProcessReviewDemo = () => {
+  if (typeof window === 'undefined') return false;
+  const searchParams = new URLSearchParams(window.location.search);
+  return searchParams.get('demo') === 'heat-process-review';
+};
 
 interface WorkbenchFrameViewport {
   width: number;
@@ -346,6 +353,10 @@ const InstallPromptModal: React.FC<{
 };
 
 function App() {
+  if (shouldShowHeatCapacityProcessReviewDemo()) {
+    return <HeatCapacityProcessReviewDemo />;
+  }
+
   if (SHOW_WORKBENCH_PROTOTYPE) {
     return <WorkbenchAspectFrame />;
   }

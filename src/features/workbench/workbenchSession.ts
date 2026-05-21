@@ -23,9 +23,20 @@ import {
 import type {
   HeatCapacityTeachingProfile,
 } from '../../domain/heatCapacity/heatCapacityExperimentRandom.ts';
-import type {
-  HeatCapacityFreeTrial,
+import {
+  normalizeHeatCapacityFreeRecordInput,
+  type HeatCapacityFreeRecordInput,
+  type HeatCapacityFreeTrial,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import {
+  createDefaultFreeConfigSnapshot,
+  createDefaultFreeTraceStore,
+  HEAT_CAPACITY_FREE_CALCULATION_VERSION,
+  HEAT_CAPACITY_FREE_TRACE_VERSION,
+  type HeatCapacityFreeTraceBranch,
+  type HeatCapacityFreeTraceStore,
+  type HeatCapacityFreeTraceTrial,
+} from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 
 export const WORKBENCH_SESSION_VERSION = 1;
 export const WORKBENCH_SESSION_STORAGE_KEY = 'hsl_workbench_session_v1';
@@ -38,8 +49,8 @@ export interface WorkbenchSessionState {
   selectedPanel: WorkbenchPanelKey;
 }
 
-const panelKeys: WorkbenchPanelKey[] = ['preview', 'realtime', 'results', 'experimentPoints', 'verification', 'heatCapacityGuide', 'heatCapacityRecords', 'heatCapacityProcessing', 'history'];
-const heatCapacityTabIds: WorkbenchHeatCapacityTabId[] = ['guide', 'records', 'processing'];
+const panelKeys: WorkbenchPanelKey[] = ['preview', 'realtime', 'results', 'experimentPoints', 'verification', 'heatCapacityGuide', 'heatCapacityRecords', 'heatCapacityProcessing', 'heatCapacityReview', 'history'];
+const heatCapacityTabIds: WorkbenchHeatCapacityTabId[] = ['guide', 'records', 'processing', 'review'];
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null
@@ -119,21 +130,130 @@ const normalizeHeatCapacityProcessSamples = (value: unknown) => {
 
 const normalizeHeatCapacityFreeTrial = (value: unknown): HeatCapacityFreeTrial | null => {
   if (!isRecord(value) || typeof value.id !== 'string') return null;
+  const normalizeFreeRecord = (record: unknown): HeatCapacityFreeTrial['u0'] => (
+    isRecord(record)
+      ? normalizeHeatCapacityFreeRecordInput(record as unknown as HeatCapacityFreeRecordInput)
+      : null
+  );
+  const normalizeCorrectedSignals = (signals: unknown): HeatCapacityFreeTrial['correctedSignals'] => {
+    if (!isRecord(signals)) return null;
+    const U0DisplayMv = normalizeNullableNumber(signals.U0DisplayMv);
+    const U1DisplayMv = normalizeNullableNumber(signals.U1DisplayMv);
+    const U2DisplayMv = normalizeNullableNumber(signals.U2DisplayMv);
+    const U1CorrectedMv = normalizeNullableNumber(signals.U1CorrectedMv);
+    const U2CorrectedMv = normalizeNullableNumber(signals.U2CorrectedMv);
+    const gamma = normalizeNullableNumber(signals.gamma);
+    if (
+      U0DisplayMv === null ||
+      U1DisplayMv === null ||
+      U2DisplayMv === null ||
+      U1CorrectedMv === null ||
+      U2CorrectedMv === null ||
+      gamma === null
+    ) {
+      return null;
+    }
+    return {
+      calculationVersion: HEAT_CAPACITY_FREE_CALCULATION_VERSION,
+      atmosphericPressureKPa: normalizeNullableNumber(signals.atmosphericPressureKPa) ?? 101.3,
+      pressureSensitivityMvPerKPa: normalizeNullableNumber(signals.pressureSensitivityMvPerKPa) ?? 20,
+      U0DisplayMv,
+      U1DisplayMv,
+      U2DisplayMv,
+      U1CorrectedMv,
+      U2CorrectedMv,
+      gamma,
+    };
+  };
   return {
     id: value.id,
     source: 'free',
+    traceTrialId: typeof value.traceTrialId === 'string' ? value.traceTrialId : null,
+    branchCount: normalizeNullableNumber(value.branchCount) ?? 0,
     automaticU0: isRecord(value.automaticU0)
       ? value.automaticU0 as HeatCapacityFreeTrial['automaticU0']
       : null,
-    u0: isRecord(value.u0) ? value.u0 as unknown as HeatCapacityFreeTrial['u0'] : null,
-    u1: isRecord(value.u1) ? value.u1 as unknown as HeatCapacityFreeTrial['u1'] : null,
-    u2: isRecord(value.u2) ? value.u2 as unknown as HeatCapacityFreeTrial['u2'] : null,
+    u0: normalizeFreeRecord(value.u0),
+    u1: normalizeFreeRecord(value.u1),
+    u2: normalizeFreeRecord(value.u2),
     blockedReason: typeof value.blockedReason === 'string'
       ? value.blockedReason as HeatCapacityFreeTrial['blockedReason']
       : null,
-    correctedSignals: isRecord(value.correctedSignals) && isRecord(value.u0)
-      ? value.correctedSignals as unknown as HeatCapacityFreeTrial['correctedSignals']
-      : null,
+    correctedSignals: isRecord(value.u0) ? normalizeCorrectedSignals(value.correctedSignals) : null,
+  };
+};
+
+const normalizeHeatCapacityFreeTraceBranch = (value: unknown): HeatCapacityFreeTraceBranch | null => {
+  if (!isRecord(value) || typeof value.id !== 'string') return null;
+  return {
+    id: value.id,
+    parentBranchId: typeof value.parentBranchId === 'string' ? value.parentBranchId : null,
+    createdByEventId: typeof value.createdByEventId === 'string' ? value.createdByEventId : null,
+    status: value.status === 'archived' ? 'archived' : 'main',
+    hiddenInDefaultChart: value.hiddenInDefaultChart === true,
+    nextSampleIndex: normalizeNullableNumber(value.nextSampleIndex) ?? 1,
+    nextEventIndex: normalizeNullableNumber(value.nextEventIndex) ?? 1,
+    nextSampleAtS: normalizeNullableNumber(value.nextSampleAtS),
+    lastKeptSampleId: typeof value.lastKeptSampleId === 'string' ? value.lastKeptSampleId : null,
+    idleState: isRecord(value.idleState)
+      ? {
+          lastUserActionAtS: normalizeNullableNumber(value.idleState.lastUserActionAtS),
+          dormantSinceS: normalizeNullableNumber(value.idleState.dormantSinceS),
+          lastHeartbeatAtS: normalizeNullableNumber(value.idleState.lastHeartbeatAtS),
+        }
+      : {
+          lastUserActionAtS: null,
+          dormantSinceS: null,
+          lastHeartbeatAtS: null,
+        },
+    samples: Array.isArray(value.samples)
+      ? value.samples.filter(isRecord) as unknown as HeatCapacityFreeTraceBranch['samples']
+      : [],
+    events: Array.isArray(value.events)
+      ? value.events.filter(isRecord) as unknown as HeatCapacityFreeTraceBranch['events']
+      : [],
+  };
+};
+
+const normalizeHeatCapacityFreeTraceTrial = (value: unknown): HeatCapacityFreeTraceTrial | null => {
+  if (!isRecord(value) || typeof value.id !== 'string' || !Array.isArray(value.branches)) return null;
+  const branches = value.branches
+    .map(normalizeHeatCapacityFreeTraceBranch)
+    .filter((branch): branch is HeatCapacityFreeTraceBranch => branch !== null);
+  if (branches.length === 0) return null;
+  const activeBranchId = typeof value.activeBranchId === 'string' &&
+    branches.some((branch) => branch.id === value.activeBranchId)
+    ? value.activeBranchId
+    : branches[0].id;
+  return {
+    id: value.id,
+    linkedTrialId: typeof value.linkedTrialId === 'string' ? value.linkedTrialId : null,
+    status: value.status === 'completed' || value.status === 'discarded' ? value.status : 'active',
+    activeBranchId,
+    nextBranchIndex: normalizeNullableNumber(value.nextBranchIndex) ?? branches.length + 1,
+    branches,
+    configSnapshot: isRecord(value.configSnapshot)
+      ? value.configSnapshot as unknown as HeatCapacityFreeTraceTrial['configSnapshot']
+      : createDefaultFreeConfigSnapshot(),
+  } as HeatCapacityFreeTraceTrial;
+};
+
+const normalizeHeatCapacityFreeTraceStore = (value: unknown): HeatCapacityFreeTraceStore => {
+  if (!isRecord(value) || !Array.isArray(value.traceTrials)) {
+    return createDefaultFreeTraceStore();
+  }
+  const traceTrials = value.traceTrials
+    .map(normalizeHeatCapacityFreeTraceTrial)
+    .filter((trial): trial is HeatCapacityFreeTraceTrial => trial !== null);
+  if (traceTrials.length === 0) return createDefaultFreeTraceStore();
+  const activeTraceTrialId = typeof value.activeTraceTrialId === 'string' &&
+    traceTrials.some((trial) => trial.id === value.activeTraceTrialId)
+    ? value.activeTraceTrialId
+    : null;
+  return {
+    activeTraceTrialId,
+    nextTraceTrialIndex: normalizeNullableNumber(value.nextTraceTrialIndex) ?? traceTrials.length + 1,
+    traceTrials,
   };
 };
 
@@ -169,7 +289,8 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       panel === 'realtime' ||
       panel === 'heatCapacityGuide' ||
       panel === 'heatCapacityRecords' ||
-      panel === 'heatCapacityProcessing'
+      panel === 'heatCapacityProcessing' ||
+      panel === 'heatCapacityReview'
     ));
     const hasSavedStopcockAngle = typeof file.stopcockAngleDeg === 'number' && Number.isFinite(file.stopcockAngleDeg);
     const normalizedSavedStopcockAngle = hasSavedStopcockAngle
@@ -293,6 +414,8 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
         ? file.heatCapacityPausedTeachingSnapshot as typeof fallback.heatCapacityPausedTeachingSnapshot
         : null,
       heatCapacityFreeTrials,
+      heatCapacityFreeTraceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
+      heatCapacityFreeTraceStore: normalizeHeatCapacityFreeTraceStore(file.heatCapacityFreeTraceStore),
       stopcockAngleDeg,
       glassPistonState: getHeatCapacityStopcockState(stopcockAngleDeg),
       ambientPressureKPa: normalizeNullableNumber(file.ambientPressureKPa) ?? fallback.ambientPressureKPa,
@@ -405,7 +528,8 @@ export const decodeWorkbenchSession = (value: unknown): WorkbenchSessionState =>
     restoredSelectedPanel === 'realtime' ||
     restoredSelectedPanel === 'heatCapacityGuide' ||
     restoredSelectedPanel === 'heatCapacityRecords' ||
-    restoredSelectedPanel === 'heatCapacityProcessing'
+    restoredSelectedPanel === 'heatCapacityProcessing' ||
+    restoredSelectedPanel === 'heatCapacityReview'
   )
     ? 'preview'
     : restoredSelectedPanel;

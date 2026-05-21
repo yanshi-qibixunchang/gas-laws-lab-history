@@ -10,6 +10,7 @@ import {
   type HeatCapacityFreeRecordInput,
   type HeatCapacityFreeRecordRejectReason,
   type HeatCapacityFreeTrial,
+  normalizeHeatCapacityFreeRecordInput,
 } from './heatCapacityFreeTrialModel.ts';
 import {
   type getFreeSensorDisplay,
@@ -228,7 +229,7 @@ export const recordFreeU0 = (
     reason: 'accepted',
     trial: {
       ...trial,
-      u0: input,
+      u0: normalizeHeatCapacityFreeRecordInput(input),
       u1: null,
       u2: null,
       blockedReason: null,
@@ -255,7 +256,7 @@ export const recordFreeU1 = (
     reason: 'accepted',
     trial: {
       ...trial,
-      u1: input,
+      u1: normalizeHeatCapacityFreeRecordInput(input),
       u2: null,
       blockedReason: null,
       correctedSignals: null,
@@ -283,7 +284,7 @@ export const recordFreeU2 = (
   }
   const nextTrial: HeatCapacityFreeTrial = {
     ...trial,
-    u2: input,
+    u2: normalizeHeatCapacityFreeRecordInput(input),
     blockedReason: null,
     correctedSignals: null,
   };

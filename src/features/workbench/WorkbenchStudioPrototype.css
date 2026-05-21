@@ -8755,6 +8755,11 @@
   background: #20252c;
 }
 
+.studio-heat-materials-body {
+  min-height: 0;
+  overflow: auto;
+}
+
 .studio-heat-materials-tabs button {
   min-width: 128px;
   min-height: 30px;

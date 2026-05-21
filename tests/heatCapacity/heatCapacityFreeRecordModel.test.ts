@@ -231,8 +231,20 @@ const u1Input: HeatCapacityFreeRecordInput = {
 const recordedU1 = recordFreeU1(createTrialWithManualU0(), u1Input);
 assert.equal(recordedU1.accepted, true);
 assert.equal(recordedU1.reason, 'accepted');
+assert.equal(recordedU1.trial.u0?.source, 'user');
+assert.equal(recordedU1.trial.u0?.phaseAtRecord, null);
+assert.equal(recordedU1.trial.u0?.traceTrialId, null);
+assert.equal(recordedU1.trial.u0?.traceBranchId, null);
+assert.equal(recordedU1.trial.u0?.traceSampleId, null);
+assert.equal(recordedU1.trial.u0?.eventId, null);
 assert.equal(recordedU1.trial.u1?.displayPressureMv, display.displayPressureMv);
 assert.equal(recordedU1.trial.u1?.displayTemperatureMv, display.displayTemperatureMv);
+assert.equal(recordedU1.trial.u1?.source, 'user');
+assert.equal(recordedU1.trial.u1?.phaseAtRecord, null);
+assert.equal(recordedU1.trial.u1?.traceTrialId, null);
+assert.equal(recordedU1.trial.u1?.traceBranchId, null);
+assert.equal(recordedU1.trial.u1?.traceSampleId, null);
+assert.equal(recordedU1.trial.u1?.eventId, null);
 
 const changedCalibration = {
   ...calibration,
@@ -322,12 +334,24 @@ const recordedU2 = recordFreeU2(recordedU1.trial, {
   displayTemperatureMv: u2Display.displayTemperatureMv,
   calibrationVersion: 1,
   zeroEventId: 'zero-1',
+}, {
+  atmosphericPressureKPa: 101.3,
+  pressureSensitivityMvPerKPa: 20,
 });
 assert.equal(recordedU2.accepted, true);
 assert.equal(recordedU2.trial.u2?.displayPressureMv, u2Display.displayPressureMv);
+assert.equal(recordedU2.trial.u2?.source, 'user');
+assert.equal(recordedU2.trial.u2?.phaseAtRecord, null);
+assert.equal(recordedU2.trial.u2?.traceTrialId, null);
+assert.equal(recordedU2.trial.u2?.traceBranchId, null);
+assert.equal(recordedU2.trial.u2?.traceSampleId, null);
+assert.equal(recordedU2.trial.u2?.eventId, null);
 assert.equal(recordedU2.trial.correctedSignals?.U1CorrectedMv, 112);
 assert.equal(recordedU2.trial.correctedSignals?.U2CorrectedMv, 31.387452);
 assert.equal(recordedU2.trial.correctedSignals?.gamma, 1.4);
+assert.equal(recordedU2.trial.correctedSignals?.calculationVersion, 'log-pressure-v1');
+assert.equal(recordedU2.trial.correctedSignals?.atmosphericPressureKPa, 101.3);
+assert.equal(recordedU2.trial.correctedSignals?.pressureSensitivityMvPerKPa, 20);
 
 const differentAutomaticCandidate = {
   ...automaticU0!,

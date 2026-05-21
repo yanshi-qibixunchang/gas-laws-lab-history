@@ -1,5 +1,10 @@
 ﻿import assert from 'node:assert/strict';
-import { createDefaultIdealFile, createDefaultStandardFile } from '../../src/features/workbench/workbenchState.ts';
+import {
+  createDefaultHeatCapacityFile,
+  createDefaultIdealFile,
+  createDefaultStandardFile,
+  recordHeatCapacityFreeTraceEventWithReference,
+} from '../../src/features/workbench/workbenchState.ts';
 import {
   createWorkbenchExportPayload,
   createWorkbenchFigureSpecs,
@@ -61,6 +66,23 @@ const standardPayload = createWorkbenchExportPayload(standard, 'figuresZip');
 assert.equal(standardPayload.kind, 'json');
 assert.ok(standardPayload.data.figureSpecs.length >= 5);
 assert.ok(createWorkbenchFigureSpecs(standard).every((spec) => standardPayload.data.figureSpecs.some((payloadSpec) => payloadSpec.id === spec.id)));
+
+const heatCapacityWithTrace = recordHeatCapacityFreeTraceEventWithReference(
+  {
+    ...createDefaultHeatCapacityFile(1),
+    updatedAt: timestamp,
+  },
+  'power-on',
+  timestamp,
+).file;
+assert.equal(heatCapacityWithTrace.heatCapacityFreeTraceStore.traceTrials.length, 1);
+const heatCapacityReport = createWorkbenchExportPayload(heatCapacityWithTrace, 'report');
+assert.equal(heatCapacityReport.kind, 'json');
+const heatCapacityReportText = JSON.stringify(heatCapacityReport.data);
+assert.equal(heatCapacityReportText.includes('heatCapacityFreeTraceStore'), false);
+assert.equal(heatCapacityReportText.includes('gasAmountRatio'), false);
+assert.equal(heatCapacityReportText.includes('gasTemperatureK'), false);
+assert.equal(heatCapacityReportText.includes('"physical"'), false);
 
 console.log('workbenchExportPayloads tests passed');
 

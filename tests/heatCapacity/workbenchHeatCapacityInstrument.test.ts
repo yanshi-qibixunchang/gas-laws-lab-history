@@ -36,6 +36,8 @@ import {
   isHeatCapacityPressureZeroWithinTolerance,
   markHeatCapacityDemoComplete,
   registerHeatCapacityPumpStroke,
+  recordHeatCapacityFreeTraceEventWithReference,
+  removeHeatCapacityFreeTrialRecordWorkbenchState,
   resetHeatCapacityForManualExperiment,
   resetHeatCapacityFreeRunWorkbenchState,
   resetHeatCapacityFreeTrialsWorkbenchState,
@@ -68,6 +70,9 @@ import {
 import {
   createHeatCapacityFreeTrial,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import type {
+  HeatCapacityFreeEventType,
+} from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
   WORKBENCH_SESSION_VERSION,
   decodeWorkbenchSession,
@@ -290,17 +295,202 @@ assert.equal(resetFreeRun.pressureReleaseBurstUntilMs, null);
 assert.equal(resetFreeRun.heatCapacityFreeStopcockFlowOpen, false);
 assert.equal(resetFreeRun.heatCapacityFreeStopcockPendingOpenAtMs, null);
 assert.deepEqual(resetFreeRun.heatCapacityFreeTrials, []);
+assert.deepEqual(
+  resetFreeRun.heatCapacityFreeTraceStore.traceTrials,
+  [],
+  'Free reset should discard the current incomplete trace when no official group was completed',
+);
 assert.equal(resetFreeRun.heatCapacityProcessingCalculated, false);
 assert.equal(resetFreeRun.pressureSignalMv, null);
 assert.equal(resetFreeRun.temperatureSignalMv, null);
 assert.equal(resetFreeRun.pressureKPa, null);
 const freePowered = powerHeatCapacityWorkbenchFile(defaultFile, true, 1_000);
+const getFreeTraceEventTypes = (
+  file: WorkbenchHeatCapacityState,
+): HeatCapacityFreeEventType[] => {
+  const activeTrace = file.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
+    traceTrial.id === file.heatCapacityFreeTraceStore.activeTraceTrialId
+  ));
+  const activeBranch = activeTrace?.branches.find((branch) => branch.id === activeTrace.activeBranchId);
+  assert.notEqual(activeBranch, undefined, 'Free trace should have an active branch');
+  const sampleIds = new Set(activeBranch!.samples.map((sample) => sample.id));
+  for (const event of activeBranch!.events) {
+    assert.equal(
+      sampleIds.has(event.traceSampleId),
+      true,
+      `Free trace event ${event.type} should reference an existing sample`,
+    );
+  }
+  return activeBranch!.events.map((event) => event.type);
+};
+assert.equal(
+  getFreeTraceEventTypes(freePowered).includes('power-on'),
+  true,
+  'Free power-on should create a hidden trace event',
+);
 const freePumpReady = {
   ...freePowered,
   pumpValveOpen: true,
   pumpValveState: 'open' as const,
 };
 const freePumped = registerHeatCapacityPumpStroke(freePumpReady, 1_200);
+assert.equal(
+  getFreeTraceEventTypes(freePumped).includes('pump-stroke'),
+  true,
+  'Free pump stroke should create a hidden trace event',
+);
+const freeRecordTraceEvent = recordHeatCapacityFreeTraceEventWithReference(freePumped, 'record-u1', 1_300, {
+  kind: 'u1',
+  trialIndex: 1,
+});
+assert.equal(freeRecordTraceEvent.reference.source, 'user');
+assert.equal(freeRecordTraceEvent.reference.phaseAtRecord, freeRecordTraceEvent.file.heatCapacityPhase);
+assert.notEqual(freeRecordTraceEvent.reference.traceTrialId, null);
+assert.notEqual(freeRecordTraceEvent.reference.traceBranchId, null);
+assert.notEqual(freeRecordTraceEvent.reference.traceSampleId, null);
+assert.notEqual(freeRecordTraceEvent.reference.eventId, null);
+const freeRecordTraceTrial = freeRecordTraceEvent.file.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
+  traceTrial.id === freeRecordTraceEvent.reference.traceTrialId
+));
+assert.notEqual(freeRecordTraceTrial, undefined);
+const freeRecordTraceBranch = freeRecordTraceTrial!.branches.find((branch) => (
+  branch.id === freeRecordTraceEvent.reference.traceBranchId
+));
+assert.notEqual(freeRecordTraceBranch, undefined);
+assert.equal(
+  freeRecordTraceBranch!.events.some((event) => (
+    event.id === freeRecordTraceEvent.reference.eventId &&
+    event.type === 'record-u1' &&
+    event.traceSampleId === freeRecordTraceEvent.reference.traceSampleId
+  )),
+  true,
+  'official Free record trace references should point to the saved event sample',
+);
+const traceTrialIdForBranchTest = freePumped.heatCapacityFreeTraceStore.activeTraceTrialId;
+assert.notEqual(traceTrialIdForBranchTest, null, 'branch rollback fixture requires an active trace trial');
+const traceLinkedCompleteTrial = {
+  ...createHeatCapacityFreeTrial('free-branch-trial'),
+  traceTrialId: traceTrialIdForBranchTest,
+  branchCount: 1,
+  u0: {
+    atS: 1,
+    displayPressureMv: 0,
+    displayTemperatureMv: initialTemperatureMv,
+    calibrationVersion: 1,
+    zeroEventId: 'zero-1',
+    source: 'user' as const,
+    phaseAtRecord: 'zeroed' as const,
+    traceTrialId: traceTrialIdForBranchTest,
+    traceBranchId: 'branch-1',
+    traceSampleId: 'sample-1',
+    eventId: 'event-1',
+  },
+  u1: {
+    atS: 2,
+    displayPressureMv: 112,
+    displayTemperatureMv: initialTemperatureMv,
+    calibrationVersion: 1,
+    zeroEventId: 'zero-1',
+    source: 'user' as const,
+    phaseAtRecord: 'sealedStabilizing' as const,
+    traceTrialId: traceTrialIdForBranchTest,
+    traceBranchId: 'branch-1',
+    traceSampleId: 'sample-2',
+    eventId: 'event-2',
+  },
+  u2: {
+    atS: 3,
+    displayPressureMv: 32,
+    displayTemperatureMv: initialTemperatureMv,
+    calibrationVersion: 1,
+    zeroEventId: 'zero-1',
+    source: 'user' as const,
+    phaseAtRecord: 'recovering' as const,
+    traceTrialId: traceTrialIdForBranchTest,
+    traceBranchId: 'branch-1',
+    traceSampleId: 'sample-3',
+    eventId: 'event-3',
+  },
+  correctedSignals: {
+    calculationVersion: 'log-pressure-v1' as const,
+    atmosphericPressureKPa: 101.3,
+    pressureSensitivityMvPerKPa: 20,
+    U0DisplayMv: 0,
+    U1DisplayMv: 112,
+    U2DisplayMv: 32,
+    U1CorrectedMv: 112,
+    U2CorrectedMv: 32,
+    gamma: 1.4,
+  },
+};
+const branchRollbackFile = removeHeatCapacityFreeTrialRecordWorkbenchState({
+  ...freePumped,
+  heatCapacityFreeTrials: [traceLinkedCompleteTrial],
+}, 0, 'u1', 1_500);
+assert.notEqual(branchRollbackFile.heatCapacityFreeTrials[0].u0, null);
+assert.equal(branchRollbackFile.heatCapacityFreeTrials[0].u1, null);
+assert.equal(branchRollbackFile.heatCapacityFreeTrials[0].u2, null);
+assert.equal(branchRollbackFile.heatCapacityFreeTrials[0].branchCount, 2);
+const branchRollbackTrace = branchRollbackFile.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
+  traceTrial.id === traceTrialIdForBranchTest
+));
+assert.notEqual(branchRollbackTrace, undefined);
+assert.equal(branchRollbackTrace!.branches.some((branch) => branch.status === 'archived'), true);
+assert.equal(branchRollbackTrace!.branches.some((branch) => branch.status === 'main' && branch.parentBranchId === 'branch-1'), true);
+const completedResetOnce = resetHeatCapacityFreeRunWorkbenchState({
+  ...freePumped,
+  heatCapacityFreeTrials: [traceLinkedCompleteTrial],
+  heatCapacityProcessingCalculated: true,
+}, 1_600);
+assert.equal(completedResetOnce.heatCapacityFreeTrials.length, 1);
+assert.equal(completedResetOnce.heatCapacityFreeTrials[0].id, traceLinkedCompleteTrial.id);
+assert.equal(
+  completedResetOnce.heatCapacityFreeTraceStore.traceTrials.some((traceTrial) => traceTrial.id === traceTrialIdForBranchTest),
+  true,
+  'Reset after a completed Free group should preserve that group trace',
+);
+assert.equal(
+  completedResetOnce.heatCapacityFreeTraceStore.activeTraceTrialId,
+  null,
+  'Reset after a completed Free group should leave the next group blank until the next user action',
+);
+const completedResetTwice = resetHeatCapacityFreeRunWorkbenchState(completedResetOnce, 1_700);
+assert.equal(completedResetTwice.heatCapacityFreeTrials.length, 1);
+assert.equal(
+  completedResetTwice.heatCapacityFreeTraceStore.traceTrials.length,
+  completedResetOnce.heatCapacityFreeTraceStore.traceTrials.length,
+  'Repeated Reset on a blank next group should not create or delete trace trials',
+);
+const nextIncompleteTraceFile = recordHeatCapacityFreeTraceEventWithReference(
+  completedResetOnce,
+  'pump-stroke',
+  1_800,
+  { pumpStrokeCount: 1 },
+).file;
+const nextIncompleteTraceTrialId = nextIncompleteTraceFile.heatCapacityFreeTraceStore.activeTraceTrialId;
+assert.notEqual(nextIncompleteTraceTrialId, null);
+const incompleteNextTrial = {
+  ...createHeatCapacityFreeTrial('free-incomplete-after-complete'),
+  traceTrialId: nextIncompleteTraceTrialId,
+  branchCount: 1,
+  u0: traceLinkedCompleteTrial.u0,
+};
+const resetIncompleteNext = resetHeatCapacityFreeRunWorkbenchState({
+  ...nextIncompleteTraceFile,
+  heatCapacityFreeTrials: [traceLinkedCompleteTrial, incompleteNextTrial],
+}, 1_900);
+assert.equal(resetIncompleteNext.heatCapacityFreeTrials.length, 1);
+assert.equal(resetIncompleteNext.heatCapacityFreeTrials[0].id, traceLinkedCompleteTrial.id);
+assert.equal(
+  resetIncompleteNext.heatCapacityFreeTraceStore.traceTrials.some((traceTrial) => traceTrial.id === traceTrialIdForBranchTest),
+  true,
+  'Reset of an incomplete next group should preserve older completed trace data',
+);
+assert.equal(
+  resetIncompleteNext.heatCapacityFreeTraceStore.traceTrials.some((traceTrial) => traceTrial.id === nextIncompleteTraceTrialId),
+  false,
+  'Reset of an incomplete next group should delete only the current incomplete trace',
+);
 assert.equal(freePumped.heatCapacityMode, 'free');
 assert.equal(freePumped.heatCapacityFreePhysicsState.pumpStrokeCount, 1, 'Free pump bulb should update the Free physical state');
 assert.equal(freePumped.heatCapacityFreePhysicsState.gasAmountRatio > freePowered.heatCapacityFreePhysicsState.gasAmountRatio, true);
