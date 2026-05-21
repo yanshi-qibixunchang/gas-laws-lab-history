@@ -375,6 +375,14 @@ const createControls = (
   stages: HeatCapacityProcessStageSegment[],
 ) => {
   const controls: HeatCapacityProcessControlEvent[] = branch.events.flatMap((event) => {
+    if (event.type === 'pump-stroke') {
+      return [{
+        id: event.id,
+        kind: 'pumpBulb',
+        label: '打气球',
+        timeS: roundNumber(event.atS, 2),
+      }];
+    }
     const mapped = controlEventTypeMap[event.type];
     return mapped
       ? [{

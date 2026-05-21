@@ -620,6 +620,7 @@ const PRESSURE_GAUGE_MIN_ROTATION = -2.15;
 const PRESSURE_GAUGE_MAX_ROTATION = 2.15;
 const PRESSURE_GAUGE_TICKS = [-2.15, -1.43, -0.72, 0, 0.72, 1.43, 2.15];
 const PRESSURE_GAUGE_DANGER_MARKERS = Array.from({ length: 7 }, (_, index) => index);
+const PRESSURE_GAUGE_NEEDLE_SMOOTHING_RATE = 9;
 
 const clampSceneNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -910,7 +911,7 @@ function InstrumentBox({
     if (interactionQualityReduced) return;
     const targetRotation = gaugeNeedleTargetRotationRef.current;
     const previousRotation = gaugeDisplayedRotationRef.current;
-    const smoothing = 1 - Math.exp(-(pressureOverLimit ? 12 : 9) * delta);
+    const smoothing = 1 - Math.exp(-PRESSURE_GAUGE_NEEDLE_SMOOTHING_RATE * delta);
     gaugeDisplayedRotationRef.current = clampSceneNumber(
       THREE.MathUtils.lerp(previousRotation, targetRotation, smoothing),
       PRESSURE_GAUGE_MIN_ROTATION,

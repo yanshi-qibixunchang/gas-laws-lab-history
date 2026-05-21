@@ -202,7 +202,7 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
   physics: {
     gamma: 1.4,
     vesselVolumeL: 2,
-    pumpAmountGainRatio: 0.018,
+    pumpAmountGainRatio: 0.015,
     pumpTemperatureGainK: 1.8,
     sealedThermalRate: 0.55,
     openThermalRate: 1.6,
@@ -216,8 +216,8 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
     lagRate: 8,
     noiseMv: 0,
     quantizationMv: 0.01,
-    minSampleIntervalS: 0.1,
-    maxSampleIntervalS: 0.1,
+    minSampleIntervalS: 0.08,
+    maxSampleIntervalS: 0.12,
     historyWindowS: 1.2,
   },
   record: {
@@ -226,7 +226,7 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
     temperatureAmbientToleranceMv: 0.35,
     minimumUsefulU1CorrectedMv: 90,
     overVentedMinimumU2CorrectedMv: 0.2,
-    pressureDangerMv: 120,
+    pressureDangerMv: 140,
   },
   reservedPhysicsV2: {
     leakRatePerS: null,

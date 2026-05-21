@@ -288,6 +288,11 @@ assert.deepEqual(review.trialOptions[0], {
 assert.equal(review.selectedTrialId, trial.id);
 assert.equal(review.chart.stages.some((stage) => stage.id === 'pump' && stage.countText === 'x10'), true);
 assert.equal(review.chart.controls.some((event) => event.kind === 'pumpBulb' && event.label === '打气球 x10'), true);
+assert.equal(
+  review.chart.controls.filter((event) => event.kind === 'pumpBulb' && event.count === undefined).length,
+  10,
+  'process review should keep each pump stroke as its own chart control marker instead of only one merged xN label',
+);
 assert.equal(review.chart.records.map((record) => record.id).join(','), 'u0,u1,u2');
 assert.equal(review.chart.systemEvents.some((event) => event.kind === 'warning'), true);
 assert.equal(review.chart.referenceTrace.length > 0, true);
@@ -295,8 +300,8 @@ assert.equal(review.chart.referenceTrace.some((point) => point.stageId === 'rele
 assert.equal(review.chart.operableBestTrace.length > 0, true);
 assert.equal(review.chart.operableBestTrace.some((point) => point.stageId === 'release'), true);
 assert.notDeepEqual(
-  review.chart.operableBestTrace.filter((point) => point.stageId !== 'zero').map((point) => `${point.timeS}:${point.pressureDeltaKPa}`).slice(0, 12),
-  review.chart.referenceTrace.filter((point) => point.stageId !== 'zero').map((point) => `${point.timeS}:${point.pressureDeltaKPa}`).slice(0, 12),
+  review.chart.operableBestTrace.filter((point) => point.stageId !== 'zero').map((point) => `${point.timeS}:${point.pressureDeltaKPa}`),
+  review.chart.referenceTrace.filter((point) => point.stageId !== 'zero').map((point) => `${point.timeS}:${point.pressureDeltaKPa}`),
 );
 assert.equal(review.chart.bestWindows.length, 3);
 assert.equal(review.chart.stages.some((stage) => stage.id === 'release' && stage.label === '开阀放气'), true);
@@ -334,7 +339,7 @@ for (const row of review.diagnostics) {
   ].join('\n');
   assert.doesNotMatch(rowCopy, /共同决定|不按理论答案反推|主要扣分来源|分支只作为过程参考/);
 }
-assert.equal(review.diagnostics.find((row) => row.id === 'pumping')?.status, 'review');
+assert.equal(review.diagnostics.find((row) => row.id === 'pumping')?.status, 'reasonable');
 assert.equal(review.diagnostics.find((row) => row.id === 'pumping')?.score !== null, true);
 assert.equal(typeof review.diagnostics.find((row) => row.id === 'pumping')?.relation, 'string');
 assert.equal(review.diagnostics.find((row) => row.id === 'release')?.status, 'reasonable');

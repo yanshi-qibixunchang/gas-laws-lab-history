@@ -33,12 +33,12 @@ export interface HeatCapacityOperableBestReference {
   releaseDurationS: number;
 }
 
-const STEP_S = 0.2;
+const STEP_S = 0.05;
 const ZERO_DURATION_S = 4;
 const MAX_STABILIZE_S = 72;
 const MAX_RECOVER_S = 72;
-const PUMP_STROKE_CANDIDATES = [6, 7, 8, 9, 10, 11, 12];
-const PUMP_INTERVAL_CANDIDATES = [0.7, 0.9, 1.1];
+const PUMP_STROKE_CANDIDATES = [2, 3, 4, 5];
+const PUMP_INTERVAL_CANDIDATES = [0.1];
 const RELEASE_DURATION_CANDIDATES = [0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 1.0, 1.2];
 
 const roundNumber = (value: number, digits = 2) => (
@@ -60,6 +60,8 @@ const createSensorConfig = (
 ): HeatCapacityFreeSensorConfig => ({
   ...config.sensor,
   noiseMv: 0,
+  minSampleIntervalS: 0.05,
+  maxSampleIntervalS: 0.05,
 });
 
 const createCalibration = (): HeatCapacityFreeCalibrationState => ({
@@ -281,7 +283,10 @@ const candidatePenalty = (
   }
   const gammaError = Math.abs(candidate.gamma - theoreticalGamma);
   const safetyMarginPenalty = u1Mv > config.record.pressureDangerMv * 0.92 ? 0.08 : 0;
-  return gammaError + safetyMarginPenalty;
+  const pumpStage = candidate.stages.find((stage) => stage.id === 'pump');
+  const pumpDurationS = pumpStage ? pumpStage.endS - pumpStage.startS : Number.POSITIVE_INFINITY;
+  const slowCadencePenalty = pumpDurationS > 2.2 ? 0.2 + (pumpDurationS - 2.2) * 0.05 : 0;
+  return gammaError + safetyMarginPenalty + slowCadencePenalty;
 };
 
 export const createHeatCapacityOperableBestReference = (
@@ -302,5 +307,5 @@ export const createHeatCapacityOperableBestReference = (
       }
     }
   }
-  return best ?? simulateCandidate(config, 9, 0.9, 0.7);
+  return best ?? simulateCandidate(config, 4, 0.1, 0.7);
 };

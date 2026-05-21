@@ -300,9 +300,10 @@ assert.deepEqual(
     displayPressureMv: 265,
   }, closedPumpedPhysics, recordConfig),
   {
-    ready: false,
-    reason: 'pressure-danger',
+    ready: true,
+    reason: 'ready',
   },
+  'Free U1 recording should not be blocked only because the pressure is already above the alarm line',
 );
 assert.deepEqual(
   evaluateFreeU1Record(createTrialWithManualU0(), { ...calibration, automaticU0 }, {
@@ -327,6 +328,22 @@ assert.deepEqual(
     ready: true,
     reason: 'ready',
   },
+);
+const overAlarmRecordedU1 = recordFreeU1(createTrialWithManualU0(), {
+  ...u1Input,
+  displayPressureMv: 300,
+});
+assert.equal(overAlarmRecordedU1.accepted, true);
+assert.deepEqual(
+  evaluateFreeU2Record(overAlarmRecordedU1.trial, { ...calibration, automaticU0 }, {
+    ...u2Display,
+    displayPressureMv: 265,
+  }, recoveredPhysics, recordConfig),
+  {
+    ready: true,
+    reason: 'ready',
+  },
+  'Free U2 recording should also ignore alarm state and rely on sequence and stability checks',
 );
 const recordedU2 = recordFreeU2(recordedU1.trial, {
   atS: 42,
@@ -829,9 +846,10 @@ assert.deepEqual(
     version1RecordConfig,
   ),
   {
-    ready: false,
-    reason: 'pressure-danger',
+    ready: true,
+    reason: 'ready',
   },
+  'Free U1 recording should remain available after a stable over-alarm pressure has already been produced',
 );
 
 console.log('heatCapacityFreeRecordModel tests passed');

@@ -41,8 +41,8 @@ export interface HeatCapacityStandardReference {
   };
 }
 
-const STEP_S = 0.2;
-const PUMP_INTERVAL_S = 0.8;
+const STEP_S = 0.05;
+const PUMP_INTERVAL_S = 0.1;
 const RELEASE_DURATION_S = 0.7;
 const MAX_PUMP_STROKES = 24;
 const MAX_STABILIZE_S = 90;
@@ -68,6 +68,8 @@ const createReferenceSensorConfig = (
 ): HeatCapacityFreeSensorConfig => ({
   ...config.sensor,
   noiseMv: 0,
+  minSampleIntervalS: 0.05,
+  maxSampleIntervalS: 0.05,
 });
 
 const createReferenceCalibration = (): HeatCapacityFreeCalibrationState => ({
@@ -79,11 +81,10 @@ const createReferenceCalibration = (): HeatCapacityFreeCalibrationState => ({
 
 const getReferenceTargetPressureMv = (config: HeatCapacityFreeConfigSnapshot) => {
   const lower = config.record.minimumUsefulU1CorrectedMv;
-  const upper = Math.max(
-    lower + 10,
-    Math.min(config.record.pressureDangerMv * 0.82, config.record.pressureDangerMv - 25),
+  return Math.max(
+    lower + 20,
+    Math.min(config.record.pressureDangerMv * 0.86, config.record.pressureDangerMv - 15),
   );
-  return (lower + upper) / 2;
 };
 
 const toReferencePoint = (

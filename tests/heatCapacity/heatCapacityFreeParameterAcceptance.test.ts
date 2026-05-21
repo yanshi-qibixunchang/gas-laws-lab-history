@@ -9,7 +9,7 @@ import {
 } from '../../src/features/workbench/workbenchState.ts';
 
 const report = runHeatCapacityFreeParameterAcceptance({
-  pumpStrokes: [6, 7, 8, 9, 10, 11, 12],
+  pumpStrokes: [2, 3, 4, 5],
   openDurationsS: [0, 0.3, 0.7],
 });
 
@@ -76,14 +76,13 @@ assert.equal(
 const quickRows = report.rows.filter((row) => row.openDurationS === 0);
 assert.deepEqual(
   quickRows.map((row) => row.pumpStrokes),
-  [6, 7, 8, 9, 10, 11, 12],
-  'acceptance script should cover 6-12 pump strokes for quick-release operation',
+  [2, 3, 4, 5],
+  'acceptance script should cover the new 2-5 pump-stroke boundary for quick-release operation',
 );
 
-for (const strokes of [9, 10, 11]) {
+for (const strokes of [3, 4]) {
   const row = quickRows.find((candidate) => candidate.pumpStrokes === strokes);
   assert.notEqual(row, undefined, `${strokes} pump strokes should be represented`);
-  assert.equal(row?.safetyStatus, 'normal', `${strokes} pump strokes should stay inside the normal safety band`);
   assert.equal(row?.u1Recordable, true, `${strokes} pump strokes should be recordable as U1`);
   assert.equal(row?.u2Recordable, true, `${strokes} pump strokes should be recordable as U2 after quick release`);
   assert.equal(
@@ -93,13 +92,22 @@ for (const strokes of [9, 10, 11]) {
   );
 }
 
-const sixStroke = quickRows.find((row) => row.pumpStrokes === 6);
-assert.equal(sixStroke?.u1Recordable, false, '6 pump strokes should remain below the unchanged U1 recording threshold');
+const twoStroke = quickRows.find((row) => row.pumpStrokes === 2);
+assert.equal(twoStroke?.u1Recordable, false, '2 pump strokes should remain below the unchanged U1 recording threshold');
+assert.equal(twoStroke?.safetyStatus, 'normal', '2 pump strokes should remain below the warning line');
 
-const twelveStroke = quickRows.find((row) => row.pumpStrokes === 12);
-assert.equal(twelveStroke?.safetyStatus, 'warning', '12 pump strokes should enter warning before the danger line');
+const fourStroke = quickRows.find((row) => row.pumpStrokes === 4);
+assert.equal(fourStroke?.safetyStatus, 'warning', '4 pump strokes should enter warning before the danger line');
 
-const slowClose = report.rows.find((row) => row.pumpStrokes === 10 && row.openDurationS === 0.7);
+const fiveStroke = quickRows.find((row) => row.pumpStrokes === 5);
+assert.equal(fiveStroke?.safetyStatus, 'danger', '5 pump strokes should enter the alarm line');
+assert.equal(
+  fiveStroke?.u1Recordable,
+  true,
+  '5 pump strokes should remain recordable after stabilizing; the alarm only blocks further pumping',
+);
+
+const slowClose = report.rows.find((row) => row.pumpStrokes === 4 && row.openDurationS === 0.7);
 assert.equal(slowClose?.u2Recordable, true, 'moderately slow close should still produce a recordable U2 row');
 assert.equal(
   slowClose !== undefined && slowClose.gamma !== null && slowClose.gamma < 1.25,

@@ -65,6 +65,8 @@ assert.match(processReviewPanelSource, /pointerdown/, 'process review menu shoul
 assert.match(processReviewPanelSource, /Escape/, 'process review menu should close from Escape');
 assert.match(processReviewPanelSource, /hpr-reference-line/, 'process review charts should render the standard reference curve');
 assert.match(processReviewPanelSource, /hpr-operable-best-line/, 'process review charts should render the operable best curve');
+assert.match(processReviewPanelSource, /buildPumpAwareLinePath/, 'process review charts should render the pump stage with a step-aware path');
+assert.match(processReviewPanelSource, /hpr-pump-event-marker/, 'process review charts should render individual pump stroke markers');
 assert.match(processReviewPanelSource, /hpr-best-window/, 'process review charts should render best record windows');
 assert.match(processReviewPanelSource, /referenceTrace/, 'process review charts should consume reference trace data');
 assert.match(processReviewPanelSource, /operableBestTrace/, 'process review charts should consume operable best trace data');
@@ -735,8 +737,8 @@ assert.match(workbenchSource, /pressureOverLimit=\{activeFile\.pressureOverLimit
 assert.match(workbenchSource, /data-heat-capacity-pressure-warning="true"/, 'workbench should render a centered red pressure warning from pressureOverLimit');
 assert.match(workbenchSource, /studio-heat-pressure-warning-kicker/, 'pressure warning markup should include an engineering status kicker');
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV = 90/, 'manual pumping should consider 90 mV sufficient instead of the old 100 mV gate');
-assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 115/, 'warning should begin above the 9-11 stroke good-data window');
-assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV = 140/, 'alarm should leave the 9-11 stroke good-data window below the danger line');
+assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 115/, 'warning should begin at the 4-stroke Free Mode target window');
+assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV = 140/, 'alarm should remain above the 4-stroke Free Mode target window');
 assert.match(workbenchSource, /minimumUsefulU1CorrectedMv:\s*90/, 'Free U1 recording threshold should stay at 90 mV instead of being lowered');
 assert.match(stateSource, /压强接近安全阈值，请准备停止打气。/, 'pressure warning copy should use the confirmed pre-alarm wording');
 assert.match(stateSource, /压强已超过安全阈值，请停止打气。/, 'pressure alarm copy should use the confirmed alarm wording');
@@ -965,6 +967,7 @@ assert.match(workbenchSource, /nextPowerOn && source === 'user'[\s\S]*heatCapaci
 assert.match(workbenchSource, /pressureSignalTargetMv/, 'right realtime panel should retain target pressure signal separately from displayed pressure');
 assert.match(workbenchSource, /temperatureSignalTargetMv/, 'right realtime panel should retain target temperature signal separately from displayed temperature');
 assert.doesNotMatch(workbenchSource, /打气过快|tooFast|频率偏高/, 'workbench should not show or calculate a too-fast pump state');
+assert.doesNotMatch(sceneSource, /pressureOverLimit\s*\?\s*12\s*:\s*9/, 'pressure gauge needle movement should not branch on alarm state');
 assert.match(workbenchSource, /zeroStatusLabel/, 'fixed realtime window should still expose pressure-zero status in the operation group');
 assert.match(workbenchSource, /temperatureSignalValue/, 'fixed realtime window should still expose the live temperature signal');
 assert.match(workbenchSource, /pressureSignalValue/, 'fixed realtime window should still expose the live pressure signal');

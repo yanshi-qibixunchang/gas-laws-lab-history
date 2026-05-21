@@ -568,6 +568,13 @@
   stroke-width: 1.15;
 }
 
+.hpr-pump-event-marker {
+  stroke: rgba(125, 211, 252, 0.26);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+  pointer-events: none;
+}
+
 .hpr-axis-tick line {
   stroke: var(--hpr-tick);
   stroke-width: 1.05;

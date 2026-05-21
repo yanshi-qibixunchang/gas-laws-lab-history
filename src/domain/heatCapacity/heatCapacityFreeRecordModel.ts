@@ -120,9 +120,6 @@ const evaluateCommonRecordReadiness = (
   if (!hasCurrentCalibration(trial, calibration)) {
     return createEvaluation('calibration-changed');
   }
-  if (display.displayPressureMv >= config.pressureDangerMv) {
-    return createEvaluation('pressure-danger');
-  }
   if (isStopcockCurrentlyOpen(physics)) {
     return createEvaluation('invalid-sequence');
   }

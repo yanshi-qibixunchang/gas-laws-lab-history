@@ -58,7 +58,7 @@ const quantize = (value: number, quantum: number) => {
   if (!Number.isFinite(quantum) || quantum <= 0) {
     return value;
   }
-  return Math.round(value / quantum) * quantum;
+  return Number((Math.round(value / quantum) * quantum).toFixed(12));
 };
 
 export const createSeededFreePressureInitialBiasMv = (

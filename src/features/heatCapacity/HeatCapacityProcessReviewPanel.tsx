@@ -238,16 +238,47 @@ const valueToY = (value: number, domain: { min: number; max: number }) => {
   return PLOT_BOTTOM - ratio * (PLOT_BOTTOM - PLOT_TOP);
 };
 
-const buildLinePath = (
+const getChartPointValue = (point: ChartLinePoint, kind: ChartKind) => (
+  kind === 'pressure' ? point.pressureDeltaKPa : point.temperatureDeltaK
+);
+
+const isPumpStageTime = (
+  timeS: number,
+  stages: HeatCapacityProcessStageSegment[],
+) => stages.some((stage) => (
+  stage.id === 'pump' &&
+  timeS >= stage.startS &&
+  timeS <= stage.endS
+));
+
+const buildPumpAwareLinePath = (
   points: ChartLinePoint[],
   kind: ChartKind,
   timeToX: (time: number) => number,
   domain: { min: number; max: number },
-) => points.map((point, index) => {
-  const x = timeToX(point.timeS);
-  const y = valueToY(kind === 'pressure' ? point.pressureDeltaKPa : point.temperatureDeltaK, domain);
-  return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
-}).join(' ');
+  stages: HeatCapacityProcessStageSegment[],
+) => {
+  if (points.length === 0) return '';
+  const commands: string[] = [];
+  for (let index = 0; index < points.length; index += 1) {
+    const point = points[index];
+    const x = timeToX(point.timeS);
+    const y = valueToY(getChartPointValue(point, kind), domain);
+    if (index === 0) {
+      commands.push(`M ${x.toFixed(2)} ${y.toFixed(2)}`);
+      continue;
+    }
+    const previous = points[index - 1];
+    const previousX = timeToX(previous.timeS);
+    const previousY = valueToY(getChartPointValue(previous, kind), domain);
+    const segmentIsPump = isPumpStageTime(previous.timeS, stages) && isPumpStageTime(point.timeS, stages);
+    if (segmentIsPump && Math.abs(x - previousX) > 0.01) {
+      commands.push(`L ${x.toFixed(2)} ${previousY.toFixed(2)}`);
+    }
+    commands.push(`L ${x.toFixed(2)} ${y.toFixed(2)}`);
+  }
+  return commands.join(' ');
+};
 
 const formatSeconds = (time: number) => `${time.toFixed(time % 1 === 0 ? 0 : 1)} s`;
 
@@ -478,14 +509,17 @@ const ProcessChart: React.FC<{
     ], kind),
     [chart.operableBestTrace, chart.referenceTrace, chart.trace, kind, showStandardReference],
   );
-  const linePath = useMemo(() => buildLinePath(chart.trace, kind, timeToX, axis), [chart.trace, kind, timeToX, axis]);
+  const linePath = useMemo(
+    () => buildPumpAwareLinePath(chart.trace, kind, timeToX, axis, chart.stages),
+    [chart.stages, chart.trace, kind, timeToX, axis],
+  );
   const operableBestPath = useMemo(
-    () => buildLinePath(chart.operableBestTrace, kind, timeToX, axis),
-    [chart.operableBestTrace, kind, timeToX, axis],
+    () => buildPumpAwareLinePath(chart.operableBestTrace, kind, timeToX, axis, chart.stages),
+    [chart.operableBestTrace, chart.stages, kind, timeToX, axis],
   );
   const referencePath = useMemo(
-    () => buildLinePath(chart.referenceTrace, kind, timeToX, axis),
-    [chart.referenceTrace, kind, timeToX, axis],
+    () => buildPumpAwareLinePath(chart.referenceTrace, kind, timeToX, axis, chart.stages),
+    [chart.referenceTrace, chart.stages, kind, timeToX, axis],
   );
   const yTicks = axis.ticks;
   const xTicks = [0, Math.round(totalSeconds * 0.25), Math.round(totalSeconds * 0.5), Math.round(totalSeconds * 0.75), Math.round(totalSeconds)];
@@ -497,6 +531,8 @@ const ProcessChart: React.FC<{
   const title = kind === 'pressure' ? '压强差过程' : '温度变化过程';
   const subtitle = kind === 'pressure' ? '由 Uₚ 换算' : '由 Uₜ 换算';
   const yLabel = kind === 'pressure' ? 'ΔP (kPa)' : 'ΔT (K)';
+
+  const pumpMarkers = chart.controls.filter((event) => event.kind === 'pumpBulb' && event.count === undefined);
 
   return (
     <section className="hpr-chart-block" aria-label={title}>
@@ -537,6 +573,19 @@ const ProcessChart: React.FC<{
           />
         ) : null}
         <rect className="hpr-plot-frame" x={PLOT_LEFT} y={PLOT_TOP} width={PLOT_RIGHT - PLOT_LEFT} height={PLOT_BOTTOM - PLOT_TOP} />
+        {pumpMarkers.map((event) => {
+          const x = timeToX(event.timeS);
+          return (
+            <line
+              className="hpr-pump-event-marker"
+              key={`${kind}-${event.id}`}
+              x1={x}
+              y1={PLOT_TOP}
+              x2={x}
+              y2={PLOT_BOTTOM}
+            />
+          );
+        })}
         {chart.bestWindows.map((window) => {
           if (window.endS <= window.startS) return null;
           const x = timeToX(window.startS);

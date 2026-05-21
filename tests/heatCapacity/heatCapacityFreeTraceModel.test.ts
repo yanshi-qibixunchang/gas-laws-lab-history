@@ -12,6 +12,19 @@ import {
 
 const configSnapshot = createDefaultFreeConfigSnapshot();
 
+assert.equal(configSnapshot.physics.vesselVolumeL, 2);
+assert.equal(configSnapshot.physics.pumpAmountGainRatio, 0.015);
+assert.equal(
+  configSnapshot.physics.pumpAmountGainRatio * configSnapshot.physics.vesselVolumeL * 1000,
+  30,
+  'trace snapshots should preserve the same 30 mL effective pump stroke as Workbench Free Mode',
+);
+assert.equal(
+  configSnapshot.record.pressureDangerMv,
+  140,
+  'trace snapshots should preserve the same 140 mV Free Mode alarm line as Workbench',
+);
+
 let store = createDefaultFreeTraceStore();
 const first = createFreeTraceTrial(store, configSnapshot);
 store = first.store;
@@ -157,6 +170,35 @@ assert.equal(
   compactedSimilarityBranch.samples.some((sample) => sample.id === protectedEventSample.sample.id),
   true,
   'event sample should remain after value-similar compaction',
+);
+
+let displayNoiseBranch = first.traceTrial.branches[0];
+const displayNoiseSamples: string[] = [];
+for (const [index, pressureMv, temperatureMv] of [
+  [0, 120, 1499],
+  [1, 120.08, 1499.03],
+  [2, 120.11, 1499.04],
+] as const) {
+  const result = appendFreeTraceSample(displayNoiseBranch, createSampleInput(index, {
+    sensor: {
+      displayPressureMv: pressureMv,
+      displayTemperatureMv: temperatureMv,
+      pressureSlopeMvPerS: 0.01,
+      temperatureSlopeMvPerS: 0.01,
+    },
+  }));
+  displayNoiseBranch = result.branch;
+  displayNoiseSamples.push(result.sample.id);
+}
+const compactedDisplayNoiseBranch = compactFreeTraceBranch(displayNoiseBranch, 2);
+assert.equal(
+  compactedDisplayNoiseBranch.samples.some((sample) => sample.id === displayNoiseSamples[1]),
+  false,
+  'display-layer sub-threshold jitter should be shielded from background trace compaction',
+);
+assert.deepEqual(
+  compactedDisplayNoiseBranch.samples.map((sample) => sample.id),
+  [displayNoiseSamples[0], displayNoiseSamples[2]],
 );
 
 console.log('heatCapacityFreeTraceModel tests passed');

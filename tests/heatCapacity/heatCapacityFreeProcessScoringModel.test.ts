@@ -7,6 +7,9 @@ import {
   createIncompleteProcessScoringInputFixture,
   createOverVentedProcessScoringInputFixture,
 } from './helpers/heatCapacityProcessReviewTestFactory.ts';
+import {
+  appendFreeTraceEvent,
+} from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 
 const complete = createCompleteProcessScoringInputFixture();
 const completeScore = scoreHeatCapacityFreeProcess(complete);
@@ -83,6 +86,26 @@ for (const item of completeScore.items) {
 const overVented = scoreHeatCapacityFreeProcess(createOverVentedProcessScoringInputFixture());
 assert.equal(overVented.items.find((item) => item.id === 'release')?.status, 'needs-improvement');
 assert.equal((overVented.items.find((item) => item.id === 'release')?.score ?? 20) < 14, true);
+
+const warningFixture = createCompleteProcessScoringInputFixture();
+const warningSample = warningFixture.branch.samples[1];
+assert.notEqual(warningSample, undefined, 'warning scoring fixture needs a U1 sample');
+const warningBranch = appendFreeTraceEvent(warningFixture.branch, {
+  atS: warningSample!.atS,
+  type: 'pressure-warning',
+  traceSampleId: warningSample!.id,
+}).branch;
+const warningScore = scoreHeatCapacityFreeProcess({
+  ...warningFixture,
+  branch: warningBranch,
+});
+const warningPumpingItem = warningScore.items.find((item) => item.id === 'pumping');
+assert.equal(warningPumpingItem?.score, warningPumpingItem?.maxScore);
+assert.equal(
+  warningPumpingItem?.details.find((detail) => detail.id === 'pumping-safety')?.score,
+  6,
+  'pressure warning should not deduct process score; only alarm/danger should deduct',
+);
 
 const incomplete = scoreHeatCapacityFreeProcess(createIncompleteProcessScoringInputFixture());
 assert.equal(incomplete.total, null);

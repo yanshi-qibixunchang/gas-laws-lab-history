@@ -30,6 +30,7 @@ import {
   HEAT_CAPACITY_GAUGE_PRESSURE_MAX_KPA,
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
+  DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
   createHeatCapacityInitialPressureBiasMv,
   enterHeatCapacityFreeModeWorkbenchState,
   exitHeatCapacityFreeModeWorkbenchState,
@@ -92,8 +93,20 @@ assert.deepEqual(defaultFile.heatCapacityFreeEnvironmentConfig, {
   ambientTemperatureK: 298.15,
   ambientPressureKPa: 101.3,
 });
+assert.equal(defaultFile.heatCapacityFreePhysicsConfig.vesselVolumeL, 2);
+assert.equal(defaultFile.heatCapacityFreePhysicsConfig.pumpAmountGainRatio, 0.015);
+assert.equal(
+  defaultFile.heatCapacityFreePhysicsConfig.pumpAmountGainRatio *
+    defaultFile.heatCapacityFreePhysicsConfig.vesselVolumeL *
+    1000,
+  30,
+  'Free Mode should model 30 mL effective gas per pump stroke in a 2 L vessel',
+);
 assert.equal(defaultFile.heatCapacityFreePhysicsState.gasAmountRatio, 1);
 assert.equal(defaultFile.heatCapacityFreePhysicsState.gasTemperatureK, 298.15);
+assert.equal(defaultFile.heatCapacityFreeSensorConfig.lagRate, 8);
+assert.equal(defaultFile.heatCapacityFreeSensorConfig.minSampleIntervalS, 0.08);
+assert.equal(defaultFile.heatCapacityFreeSensorConfig.maxSampleIntervalS, 0.12);
 assert.equal(defaultFile.heatCapacityFreeStopcockFlowOpen, false);
 assert.equal(defaultFile.heatCapacityFreeStopcockPendingOpenAtMs, null);
 assert.notEqual(
@@ -339,6 +352,33 @@ assert.equal(
   true,
   'Free pump stroke should create a hidden trace event',
 );
+assert.equal(freePumped.pumpFrequencyStatus, 'tooSlow');
+const migratedFreeSamplingFile = stepHeatCapacityWorkbenchFile({
+  ...freePowered,
+  heatCapacityFreeSensorConfig: {
+    ...freePowered.heatCapacityFreeSensorConfig,
+    lagRate: 3,
+    minSampleIntervalS: 0.2,
+    maxSampleIntervalS: 0.6,
+  },
+}, 1_260);
+assert.equal(
+  migratedFreeSamplingFile.heatCapacityFreeSensorConfig.lagRate,
+  DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.lagRate,
+  'existing Free files should migrate to the denser display sampling response',
+);
+assert.equal(
+  migratedFreeSamplingFile.heatCapacityFreeSensorConfig.minSampleIntervalS,
+  DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.minSampleIntervalS,
+);
+assert.equal(
+  migratedFreeSamplingFile.heatCapacityFreeSensorConfig.maxSampleIntervalS,
+  DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.maxSampleIntervalS,
+);
+const freeRapidSecondStroke = registerHeatCapacityPumpStroke(freePumped, 1_320);
+const freeRapidThirdStroke = registerHeatCapacityPumpStroke(freeRapidSecondStroke, 1_440);
+assert.equal(freeRapidThirdStroke.pumpStrokeCount, 3);
+assert.equal(freeRapidThirdStroke.pumpFrequencyStatus, 'suitable');
 const freeRecordTraceEvent = recordHeatCapacityFreeTraceEventWithReference(freePumped, 'record-u1', 1_300, {
   kind: 'u1',
   trialIndex: 1,
@@ -529,18 +569,106 @@ assert.equal(
   'instant zero display still needs a fresh stable sample window before it is accepted as zeroed',
 );
 let freeTeachingLikePumpFile: WorkbenchHeatCapacityState = freePumpReady;
-for (let strokeIndex = 0; strokeIndex < 6; strokeIndex += 1) {
+for (let strokeIndex = 0; strokeIndex < 4; strokeIndex += 1) {
   freeTeachingLikePumpFile = registerHeatCapacityPumpStroke(freeTeachingLikePumpFile, 1_300 + strokeIndex * 430);
 }
 assert.equal(
   freeTeachingLikePumpFile.heatCapacityFreePhysicsState.pumpStrokeCount,
-  6,
-  'Free Mode should allow several normal pump strokes before safety blocking',
+  4,
+  'Free Mode should allow four effective pump strokes before alarm blocking',
 );
 assert.notEqual(
   freeTeachingLikePumpFile.pressureSafetyStatus,
   'danger',
-  'Free Mode pumping should not feel like it reaches the alarm after only a few strokes',
+  'four effective Free Mode pump strokes should stay below the alarm threshold',
+);
+let fourStrokeFreeFile: WorkbenchHeatCapacityState = freePumpReady;
+for (let strokeIndex = 0; strokeIndex < 4; strokeIndex += 1) {
+  fourStrokeFreeFile = registerHeatCapacityPumpStroke(fourStrokeFreeFile, 3_000 + strokeIndex * 430);
+}
+let stableFourStrokeFreeFile = fourStrokeFreeFile;
+for (let stepIndex = 0; stepIndex < 80; stepIndex += 1) {
+  stableFourStrokeFreeFile = stepHeatCapacityWorkbenchFile(
+    stableFourStrokeFreeFile,
+    5_000 + stepIndex * 200,
+  );
+}
+const stableFourStrokePressureMv = stableFourStrokeFreeFile.pressureDeltaKPa *
+  stableFourStrokeFreeFile.heatCapacityFreeSensorConfig.pressureMvPerKPa;
+assert.equal(
+  stableFourStrokePressureMv >= 119 && stableFourStrokePressureMv <= 123,
+  true,
+  `4 Free pump strokes should stabilize near 120 mV, received ${stableFourStrokePressureMv.toFixed(2)} mV`,
+);
+assert.equal(stableFourStrokeFreeFile.pressureSafetyStatus, 'warning');
+assert.equal(stableFourStrokeFreeFile.pressureBlockedPumping, false);
+const fiveStrokeFreeFile = registerHeatCapacityPumpStroke(fourStrokeFreeFile, 4_720);
+assert.equal(fiveStrokeFreeFile.heatCapacityFreePhysicsState.pumpStrokeCount, 5);
+assert.equal(fiveStrokeFreeFile.pressureSafetyStatus, 'danger');
+assert.equal(fiveStrokeFreeFile.pressureBlockedPumping, true);
+const fiveStrokeTraceTrial = fiveStrokeFreeFile.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
+  traceTrial.id === fiveStrokeFreeFile.heatCapacityFreeTraceStore.activeTraceTrialId
+));
+const fiveStrokeBranch = fiveStrokeTraceTrial?.branches.find((branch) => (
+  branch.id === fiveStrokeTraceTrial.activeBranchId
+));
+assert.notEqual(fiveStrokeBranch, undefined);
+const fiveStrokePumpDisplayLevels = new Set(
+  fiveStrokeBranch!.samples
+    .filter((sample) => sample.phase === 'pumping')
+    .map((sample) => Math.round(sample.sensor.displayPressureMv / 5) * 5),
+);
+assert.equal(
+  fiveStrokePumpDisplayLevels.size >= 5,
+  true,
+  'Free process trace should keep enough display-layer samples to show each rapid pump step instead of collapsing into a few plateaus',
+);
+let rapidPointOneSecondPumpFile: WorkbenchHeatCapacityState = freePumpReady;
+for (let strokeIndex = 0; strokeIndex < 5; strokeIndex += 1) {
+  rapidPointOneSecondPumpFile = registerHeatCapacityPumpStroke(
+    rapidPointOneSecondPumpFile,
+    6_000 + strokeIndex * 100,
+  );
+}
+const rapidPointOneSecondTraceTrial = rapidPointOneSecondPumpFile.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
+  traceTrial.id === rapidPointOneSecondPumpFile.heatCapacityFreeTraceStore.activeTraceTrialId
+));
+const rapidPointOneSecondBranch = rapidPointOneSecondTraceTrial?.branches.find((branch) => (
+  branch.id === rapidPointOneSecondTraceTrial.activeBranchId
+));
+assert.notEqual(rapidPointOneSecondBranch, undefined);
+const rapidPumpEvents = rapidPointOneSecondBranch!.events.filter((event) => event.type === 'pump-stroke');
+const rapidPumpEventSamples = rapidPumpEvents.flatMap((event) => (
+  rapidPointOneSecondBranch!.samples.filter((sample) => sample.id === event.traceSampleId)
+));
+assert.equal(rapidPumpEvents.length, 5);
+assert.equal(rapidPumpEventSamples.length, 5);
+assert.equal(
+  new Set(rapidPumpEventSamples.map((sample) => (
+    Math.round(sample.sensor.displayPressureMv / 5) * 5
+  ))).size >= 5,
+  true,
+  '0.1 s Free pump strokes should each keep a distinct event-linked display level in the process trace',
+);
+assert.equal(
+  fiveStrokeFreeFile.pressureDeltaKPa > fiveStrokeFreeFile.pressureSafetyThresholdKPa,
+  true,
+  'Free pressure value should remain above the alarm threshold after an over-limit pump instead of being clamped by alarm state',
+);
+assert.equal(
+  fiveStrokeFreeFile.pressureGaugeTargetValue > fiveStrokeFreeFile.pressureSafetyThresholdKPa,
+  true,
+  'Free pressure gauge target should keep reflecting over-alarm pressure',
+);
+assert.equal(
+  Math.abs(fiveStrokeFreeFile.pressureGaugeTargetValue - fiveStrokeFreeFile.pressureDeltaKPa) < 0.01,
+  true,
+  'Free pressure gauge target should be bound to the current pressure value, not the alarm decision value',
+);
+assert.equal(
+  fiveStrokeFreeFile.pressureGaugeDisplayValue,
+  fiveStrokeFreeFile.pressureGaugeTargetValue,
+  'Free pressure gauge needle should follow the pressure value directly instead of being held by the lagged display layer',
 );
 const freeVisibleDangerPumpBlocked = registerHeatCapacityPumpStroke({
   ...freePowered,
