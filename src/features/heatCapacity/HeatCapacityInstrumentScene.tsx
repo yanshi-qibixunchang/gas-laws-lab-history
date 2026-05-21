@@ -100,7 +100,7 @@ const heatCapacitySceneCopies = {
     hints: {
       stopcock: ['聚焦模式：整体视角已锁定', '玻璃旋塞与打气阀门只保留开 / 关状态', '点击退出聚焦返回默认视角'],
       pump: ['聚焦模式：点击打气球执行打气', '右下角面板显示阀门状态和打气频率', '点击退出聚焦返回默认视角'],
-      instrument: ['聚焦模式：整体视角已锁定', '查看仪表读数、电源状态和占位数据', '点击退出聚焦返回默认视角'],
+      instrument: ['聚焦模式：整体视角已锁定', '查看仪表读数、电源状态和瓶内参数', '点击退出聚焦返回默认视角'],
       normal: ['左键拖动：旋转模型', '右键拖动：平移模型', '滚轮：缩放模型', '双击高亮部件：进入聚焦', '悬停高亮表示可交互'],
     },
     tooltip: {
@@ -137,10 +137,10 @@ const heatCapacitySceneCopies = {
       zeroed: '已调零',
       notZeroed: '未调零',
       displayedPressure: '显示压力',
-      placeholderTemperature: '占位温度',
+      placeholderTemperature: '瓶内温度',
       currentPhase: '当前阶段',
       zeroOffset: '零点偏移',
-      placeholderPressure: '占位压强',
+      placeholderPressure: '瓶内压强',
     },
   },
   'zh-TW': {
@@ -157,7 +157,7 @@ const heatCapacitySceneCopies = {
     hints: {
       stopcock: ['聚焦模式：整體視角已鎖定', '玻璃旋塞與打氣閥門只保留開 / 關狀態', '點擊退出聚焦返回預設視角'],
       pump: ['聚焦模式：點擊打氣球執行打氣', '右下角面板顯示閥門狀態和打氣頻率', '點擊退出聚焦返回預設視角'],
-      instrument: ['聚焦模式：整體視角已鎖定', '查看儀表讀數、電源狀態和占位資料', '點擊退出聚焦返回預設視角'],
+      instrument: ['聚焦模式：整體視角已鎖定', '查看儀表讀數、電源狀態和瓶內參數', '點擊退出聚焦返回預設視角'],
       normal: ['左鍵拖動：旋轉模型', '右鍵拖動：平移模型', '滾輪：縮放模型', '雙擊高亮部件：進入聚焦', '懸停高亮表示可互動'],
     },
     tooltip: {
@@ -194,10 +194,10 @@ const heatCapacitySceneCopies = {
       zeroed: '已調零',
       notZeroed: '未調零',
       displayedPressure: '顯示壓力',
-      placeholderTemperature: '占位溫度',
+      placeholderTemperature: '瓶內溫度',
       currentPhase: '目前階段',
       zeroOffset: '零點偏移',
-      placeholderPressure: '占位壓強',
+      placeholderPressure: '瓶內壓強',
     },
   },
   en: {
@@ -214,7 +214,7 @@ const heatCapacitySceneCopies = {
     hints: {
       stopcock: ['Focus mode: camera is locked', 'Glass stopcock and pump valve use open / closed states only', 'Click exit focus to return to the default view'],
       pump: ['Focus mode: click the pump bulb to pump air', 'The lower-right panel shows valve state and pump frequency', 'Click exit focus to return to the default view'],
-      instrument: ['Focus mode: camera is locked', 'Inspect instrument readings, power state, and placeholder values', 'Click exit focus to return to the default view'],
+      instrument: ['Focus mode: camera is locked', 'Inspect instrument readings, power state, and vessel parameters', 'Click exit focus to return to the default view'],
       normal: ['Left drag: rotate model', 'Right drag: pan model', 'Wheel: zoom model', 'Double-click highlighted parts: enter focus', 'Hover highlight means interactive'],
     },
     tooltip: {
@@ -251,10 +251,10 @@ const heatCapacitySceneCopies = {
       zeroed: 'Zeroed',
       notZeroed: 'Not zeroed',
       displayedPressure: 'Displayed pressure',
-      placeholderTemperature: 'Placeholder temperature',
+      placeholderTemperature: 'Vessel temperature',
       currentPhase: 'Current phase',
       zeroOffset: 'Zero offset',
-      placeholderPressure: 'Placeholder pressure',
+      placeholderPressure: 'Vessel pressure',
     },
   },
 } as const;

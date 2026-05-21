@@ -245,12 +245,9 @@ export const calculateHeatCapacityGamma = (
   });
 };
 
-export const debugHeatCapacityDeterministicCalculation = () => {
+export const calculateDeterministicHeatCapacityReference = () => {
   const samples = createDeterministicHeatCapacitySamples();
   const result = calculateHeatCapacityGamma(samples);
-
-  console.table(samples);
-  console.log('[HeatCapacity deterministic calculation]', result);
 
   return result;
 };

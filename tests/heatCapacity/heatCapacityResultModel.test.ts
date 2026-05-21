@@ -1,8 +1,8 @@
 ﻿import assert from 'node:assert/strict';
 import {
   calculateHeatCapacityGamma,
+  calculateDeterministicHeatCapacityReference,
   createDefaultHeatCapacityResult,
-  debugHeatCapacityDeterministicCalculation,
   resetHeatCapacityResult,
 } from '../../src/domain/heatCapacity/heatCapacityResultModel.ts';
 import {
@@ -39,8 +39,8 @@ assert.equal(deterministicResult.gamma !== null && deterministicResult.gamma >= 
 assert.equal(deterministicResult.relativeErrorPercent !== null && deterministicResult.relativeErrorPercent >= 0, true);
 assert.equal(deterministicResult.message, '空气比热容比计算完成。');
 
-const debugResult = debugHeatCapacityDeterministicCalculation();
-assert.equal(debugResult.status, 'ready');
+const referenceResult = calculateDeterministicHeatCapacityReference();
+assert.equal(referenceResult.status, 'ready');
 
 const sampleMap = deterministicSamples.reduce(
   (samples, sample) => recordHeatCapacitySample(samples, sample),
