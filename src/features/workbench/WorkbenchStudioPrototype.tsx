@@ -117,6 +117,9 @@ import {
   type HeatCapacityAutoDemoTimelineItem,
 } from '../../domain/heatCapacity/heatCapacityAutoDemo.ts';
 import {
+  shouldCommitHeatCapacityAutoDemoAnimationFrame,
+} from '../../domain/heatCapacity/heatCapacityAutoDemoAnimation.ts';
+import {
   calculateHeatCapacityMeanResult,
   createDefaultHeatCapacityProcessingResult,
   createHeatCapacityTrialFromAutoDemoSamples,
@@ -4925,6 +4928,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     );
     const targetKnobAngle = getHeatCapacityPressureZeroKnobAngleForOffset(targetOffset);
     const startTime = performance.now();
+    let lastCommitTimestampMs: number | null = null;
     const easeInOut = (value: number) => (
       value < 0.5
         ? 4 * value * value * value
@@ -4934,12 +4938,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const step = (timestamp: number) => {
       const progress = Math.min(1, (timestamp - startTime) / durationMs);
       const eased = easeInOut(progress);
-      const nextKnobAngle = startKnobAngle + (targetKnobAngle - startKnobAngle) * eased;
-      const nextOffset = getHeatCapacityPressureZeroOffsetForKnobAngle(nextKnobAngle);
-      updateFileById(fileId, (file) => {
-        if (file.kind !== 'heatCapacity') return file;
-        return setHeatCapacityPressureZeroOffset(file, nextOffset, 'fineWheel', nextKnobAngle, Date.now());
+      const shouldCommitFrame = shouldCommitHeatCapacityAutoDemoAnimationFrame({
+        timestampMs: timestamp,
+        lastCommitTimestampMs,
+        progress,
       });
+      if (shouldCommitFrame) {
+        lastCommitTimestampMs = timestamp;
+        const nextKnobAngle = startKnobAngle + (targetKnobAngle - startKnobAngle) * eased;
+        const nextOffset = getHeatCapacityPressureZeroOffsetForKnobAngle(nextKnobAngle);
+        updateFileById(fileId, (file) => {
+          if (file.kind !== 'heatCapacity') return file;
+          return setHeatCapacityPressureZeroOffset(file, nextOffset, 'fineWheel', nextKnobAngle, Date.now());
+        });
+      }
 
       if (progress < 1) {
         heatCapacityAutoDemoAnimationFrameRef.current = window.requestAnimationFrame(step);
@@ -4965,6 +4977,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const targetStopcockAngle = getHeatCapacityStopcockTargetAngle(false);
     const startZeroKnobAngle = currentFile.pressureZeroKnobAngle;
     const startTime = performance.now();
+    let lastCommitTimestampMs: number | null = null;
     const easeInOut = (value: number) => (
       value < 0.5
         ? 4 * value * value * value
@@ -4992,22 +5005,30 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const step = (timestamp: number) => {
       const progress = Math.min(1, (timestamp - startTime) / durationMs);
       const eased = easeInOut(progress);
-      const nextStopcockAngle = startStopcockAngle + (targetStopcockAngle - startStopcockAngle) * eased;
-      const nextZeroKnobAngle = startZeroKnobAngle + (0 - startZeroKnobAngle) * eased;
-      const nextZeroOffset = getHeatCapacityPressureZeroOffsetForKnobAngle(nextZeroKnobAngle);
-      updateFileById(fileId, (file) => {
-        if (file.kind !== 'heatCapacity') return file;
-        return setHeatCapacityPressureZeroOffset({
-          ...file,
-          powerOn: false,
-          runState: 'running',
-          glassPistonState: getHeatCapacityStopcockState(nextStopcockAngle),
-          stopcockAngleDeg: progress >= 1 ? targetStopcockAngle : nextStopcockAngle,
-          pumpValveOpen: false,
-          pumpValveState: 'closed',
-          pumpBulbState: 'idle',
-        }, nextZeroOffset, progress >= 1 ? 'none' : 'fineWheel', nextZeroKnobAngle, Date.now());
+      const shouldCommitFrame = shouldCommitHeatCapacityAutoDemoAnimationFrame({
+        timestampMs: timestamp,
+        lastCommitTimestampMs,
+        progress,
       });
+      if (shouldCommitFrame) {
+        lastCommitTimestampMs = timestamp;
+        const nextStopcockAngle = startStopcockAngle + (targetStopcockAngle - startStopcockAngle) * eased;
+        const nextZeroKnobAngle = startZeroKnobAngle + (0 - startZeroKnobAngle) * eased;
+        const nextZeroOffset = getHeatCapacityPressureZeroOffsetForKnobAngle(nextZeroKnobAngle);
+        updateFileById(fileId, (file) => {
+          if (file.kind !== 'heatCapacity') return file;
+          return setHeatCapacityPressureZeroOffset({
+            ...file,
+            powerOn: false,
+            runState: 'running',
+            glassPistonState: getHeatCapacityStopcockState(nextStopcockAngle),
+            stopcockAngleDeg: progress >= 1 ? targetStopcockAngle : nextStopcockAngle,
+            pumpValveOpen: false,
+            pumpValveState: 'closed',
+            pumpBulbState: 'idle',
+          }, nextZeroOffset, progress >= 1 ? 'none' : 'fineWheel', nextZeroKnobAngle, Date.now());
+        });
+      }
 
       if (progress < 1) {
         heatCapacityAutoDemoAnimationFrameRef.current = window.requestAnimationFrame(step);

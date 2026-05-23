@@ -2034,6 +2034,13 @@ assert.equal(legacyOpenHeatFile.kind, 'heatCapacity');
 assert.equal(legacyOpenHeatFile.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
 assert.equal(legacyOpenHeatFile.glassPistonState, 'open');
 
+const workbenchSource = readFileSync(join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx'), 'utf8');
+assert.match(
+  workbenchSource,
+  /shouldCommitHeatCapacityAutoDemoAnimationFrame/,
+  'auto-demo reset and zero animations should throttle React state commits instead of writing file state every animation frame',
+);
+
 console.log('workbenchHeatCapacityInstrument tests passed');
 
 

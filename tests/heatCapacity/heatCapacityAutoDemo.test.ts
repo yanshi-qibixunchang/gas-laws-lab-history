@@ -11,6 +11,9 @@ const actionSequence = steps.flatMap((step) => step.actions.map((action) => acti
 
 assert.equal(steps.length, 11);
 assert.equal(steps[0].id, 'power-on');
+assert.equal(steps[0].title, '开启电源');
+assert.equal(steps[0].description, '打开电源，使温度与压强测量系统开始工作');
+assert.equal(steps[0].target, '电源开关');
 assert.equal(steps[0].actions[0].action, 'powerOn');
 
 assert.equal(steps[1].id, 'open-stopcock-for-zero');
@@ -36,6 +39,8 @@ assert.equal(actionSequence.includes('powerOff'), true);
 assert.equal(actionSequence.includes('markDemoComplete'), true);
 const pumpPressurizeStep = steps.find((step) => step.id === 'pump-pressurize');
 assert.notEqual(pumpPressurizeStep, undefined);
+assert.equal(pumpPressurizeStep?.title, '连续打气加压');
+assert.equal(pumpPressurizeStep?.target, '打气球');
 assert.deepEqual(
   pumpPressurizeStep?.actions
     .filter((action) => action.action === 'pumpStroke')
