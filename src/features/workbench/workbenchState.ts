@@ -6,6 +6,9 @@
   SimulationParams,
   SimulationStats,
 } from '../../shared/types';
+import type {
+  PhysicsEngineSnapshotV1,
+} from '../../domain/hardSphere/PhysicsEngine.ts';
 import {
   createEmptyPointsByRelation,
   type PointsByRelation,
@@ -66,8 +69,12 @@ import {
   normalizeFreeThermalConfig,
 } from '../../domain/heatCapacity/heatCapacityFreeThermalModel.ts';
 import {
+  normalizeFreeLeakageConfig,
+} from '../../domain/heatCapacity/heatCapacityFreeLeakageModel.ts';
+import {
   createDefaultFreeSensorState,
   createSeededFreePressureInitialBiasMv,
+  HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE,
   getFreeSensorDisplay,
   stepFreeSensor,
   type HeatCapacityFreeSensorConfig,
@@ -105,6 +112,7 @@ import {
   createDefaultFreeConfigSnapshot,
   createDefaultFreeTraceStore,
   createFreeTraceTrial,
+  HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S,
   HEAT_CAPACITY_FREE_TRACE_VERSION,
   type HeatCapacityFreeEventType,
   type HeatCapacityFreeTraceBranch,
@@ -170,17 +178,24 @@ export type WorkbenchHeatCapacityPumpFrequencyStatus = 'idle' | 'tooSlow' | 'sui
 export type WorkbenchHeatCapacityPressureZeroAdjustMode = 'none' | 'fineWheel' | 'coarseDrag';
 export type WorkbenchHeatCapacityPressureSafetyStatus = 'normal' | 'warning' | 'danger';
 
-export const HEAT_CAPACITY_FREE_RUNTIME_VERSION = 3;
+export const HEAT_CAPACITY_FREE_RUNTIME_VERSION = 4;
 export const HEAT_CAPACITY_PUMP_FREQUENCY_WINDOW_MS = 3000;
 export const HEAT_CAPACITY_MIN_PUMP_FREQUENCY = 0.5;
-export const HEAT_CAPACITY_PUMP_RATE_SLOW_THRESHOLD_HZ = 2;
 export const HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV = 90;
 export const HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 115;
 export const HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV = 140;
+export const HEAT_CAPACITY_RELEASE_BURST_DURATION_MS = 1_000;
 export const HEAT_CAPACITY_PRESSURE_RAW_PLACEHOLDER_MV = 3.2;
 export const HEAT_CAPACITY_PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 2;
 export const HEAT_CAPACITY_PRESSURE_ZERO_MV_PER_TURN = 1;
 export const HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS = 420;
+export const HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS = [1, 2, 4, 8] as const;
+export type WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier =
+  typeof HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS[number];
+export const HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER:
+  WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier = 4;
+export const HEAT_CAPACITY_FREE_ACCELERATED_SAMPLE_STEP_S = HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S;
+const HEAT_CAPACITY_FREE_ACCELERATED_MAX_SEGMENTS = 600;
 export const DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG: HeatCapacityFreeEnvironmentConfig = {
   ambientTemperatureK: 298.15,
   ambientPressureKPa: 101.3,
@@ -198,6 +213,10 @@ export const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsC
     wallAmbientConductanceWPerK: 0.45,
     wallHeatCapacityJPerK: 45,
     minimumGasHeatCapacityJPerK: 0.1,
+  },
+  leakage: {
+    enabled: false,
+    ratePerS: 0.0005,
   },
 };
 export const DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG: HeatCapacityFreeSensorConfig = {
@@ -220,6 +239,15 @@ const normalizeHeatCapacityFreeSensorConfig = (
   minSampleIntervalS: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.minSampleIntervalS,
   maxSampleIntervalS: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.maxSampleIntervalS,
 });
+export const normalizeHeatCapacityFreeEquilibriumSpeedMultiplier = (
+  value: unknown,
+): WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier => (
+  HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS.includes(
+    value as WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier,
+  )
+    ? value as WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier
+    : HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER
+);
 
 const finiteNumberOr = (value: unknown, fallback: number) => (
   typeof value === 'number' && Number.isFinite(value) ? value : fallback
@@ -265,6 +293,7 @@ export const normalizeHeatCapacityFreePhysicsConfig = (
       DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.releaseCoolingFactor,
     ),
     thermal: normalizeFreeThermalConfig(value?.thermal),
+    leakage: normalizeFreeLeakageConfig(value?.leakage),
   };
 };
 export const HEAT_CAPACITY_PRESSURE_ZERO_TOTAL_TURNS = 3;
@@ -699,6 +728,7 @@ interface WorkbenchFileBase {
 export interface WorkbenchStandardState extends WorkbenchFileBase {
   kind: 'standard';
   particles: Particle[];
+  hardSphereEngineSnapshot: PhysicsEngineSnapshotV1 | null;
   standardResultsLayout: WorkbenchStandardResultsLayout;
 }
 
@@ -710,6 +740,7 @@ export interface WorkbenchIdealState extends WorkbenchFileBase {
   latestPressureSummary: PressureMeasurementSummary | null;
   needsReset: boolean;
   particles: Particle[];
+  hardSphereEngineSnapshot: PhysicsEngineSnapshotV1 | null;
   verificationState: 'not-started' | 'collecting' | 'verified' | 'failed';
   historyUnlocked: boolean;
   idealWindowLayout: WorkbenchIdealWindowLayout;
@@ -741,6 +772,8 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityFreeCalibrationState: HeatCapacityFreeCalibrationState;
   heatCapacityFreeStopcockFlowOpen: boolean;
   heatCapacityFreeStopcockPendingOpenAtMs: number | null;
+  heatCapacityFreeEquilibriumSpeedMultiplier: WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier;
+  heatCapacityFreeEquilibriumSpeedHintShown: boolean;
   heatCapacityFreeTraceVersion: number;
   heatCapacityFreeTraceStore: HeatCapacityFreeTraceStore;
   heatCapacityFreeTrials: HeatCapacityFreeTrial[];
@@ -967,7 +1000,9 @@ export const getHeatCapacityPressureReleaseBurstUntilMs = (
   if (!nextOpen || !file.powerOn) return null;
   const deltaFromSignal = Math.max(0, file.pressureSignalTargetMv) / Math.max(0.001, file.pressureSensitivityMvPerKPa);
   const effectiveDeltaKPa = Math.max(file.pressureDeltaKPa, deltaFromSignal);
-  return effectiveDeltaKPa >= HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA ? now + 1000 : null;
+  return effectiveDeltaKPa >= HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA
+    ? now + HEAT_CAPACITY_RELEASE_BURST_DURATION_MS
+    : null;
 };
 
 const mergeHeatCapacityRuntimeState = (
@@ -1250,6 +1285,7 @@ const createHeatCapacityFreeConfigSnapshotFromFile = (
     ...fallback,
     environment: { ...file.heatCapacityFreeEnvironmentConfig },
     physics: {
+      ...fallback.physics,
       gamma: file.heatCapacityFreePhysicsConfig.gamma,
       vesselVolumeL: file.heatCapacityFreePhysicsConfig.vesselVolumeL,
       pumpAmountGainRatio: file.heatCapacityFreePhysicsConfig.pumpAmountGainRatio,
@@ -1257,14 +1293,19 @@ const createHeatCapacityFreeConfigSnapshotFromFile = (
       stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
       releaseCoolingFactor: file.heatCapacityFreePhysicsConfig.releaseCoolingFactor,
       thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
+      leakage: { ...file.heatCapacityFreePhysicsConfig.leakage },
     },
-    sensor: { ...sensorConfig },
+    sensor: {
+      ...fallback.sensor,
+      ...sensorConfig,
+    },
     record: {
       ...fallback.record,
       minimumUsefulU1CorrectedMv: HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV,
       pressureWarningMv: HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
       pressureDangerMv: HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV,
     },
+    scoring: { ...fallback.scoring },
   };
 };
 
@@ -1342,8 +1383,10 @@ const buildHeatCapacityFreeTraceSampleInput = (
     phase: file.heatCapacityPhase,
     controls: {
       powerOn: file.powerOn,
-      stopcockOpen: file.heatCapacityFreeStopcockFlowOpen,
+      stopcockOpen: getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open',
       pumpValveOpen: file.pumpValveOpen,
+      pumpBulbState: file.pumpBulbState,
+      stopcockFlowOpen: file.heatCapacityFreeStopcockFlowOpen,
     },
     physical: {
       gasPressureKPa: derived.gasPressureKPa,
@@ -1457,7 +1500,9 @@ const shouldKeepFreePeriodicTraceSample = (
   if (
     previous.controls.powerOn !== sample.controls.powerOn ||
     previous.controls.stopcockOpen !== sample.controls.stopcockOpen ||
-    previous.controls.pumpValveOpen !== sample.controls.pumpValveOpen
+    previous.controls.pumpValveOpen !== sample.controls.pumpValveOpen ||
+    previous.controls.pumpBulbState !== sample.controls.pumpBulbState ||
+    previous.controls.stopcockFlowOpen !== sample.controls.stopcockFlowOpen
   ) {
     return true;
   }
@@ -1742,6 +1787,27 @@ const resolveHeatCapacityFreeResetStructure = (
   };
 };
 
+export const isHeatCapacityFreeEquilibriumSpeedAvailable = (
+  file: WorkbenchHeatCapacityState,
+) => (
+  file.heatCapacityMode === 'free' &&
+  file.powerOn &&
+  file.heatCapacityFreeStopcockPendingOpenAtMs === null &&
+  !file.pumpValveOpen &&
+  (
+    file.heatCapacityPhase === 'sealedStabilizing' ||
+    file.heatCapacityPhase === 'recovering'
+  )
+);
+
+export const getHeatCapacityFreeEquilibriumSpeedMultiplier = (
+  file: WorkbenchHeatCapacityState,
+) => (
+  isHeatCapacityFreeEquilibriumSpeedAvailable(file)
+    ? normalizeHeatCapacityFreeEquilibriumSpeedMultiplier(file.heatCapacityFreeEquilibriumSpeedMultiplier)
+    : 1
+);
+
 const stepHeatCapacityFreeWorkbenchFile = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
@@ -1749,6 +1815,7 @@ const stepHeatCapacityFreeWorkbenchFile = (
   const sensorConfig = normalizeHeatCapacityFreeSensorConfig(file.heatCapacityFreeSensorConfig);
   const lastUpdateMs = file.lastUpdateMs ?? now;
   const elapsedMs = Math.max(0, now - lastUpdateMs);
+  const equilibriumSpeedMultiplier = getHeatCapacityFreeEquilibriumSpeedMultiplier(file);
   const pendingOpenAtMs = file.heatCapacityFreeStopcockPendingOpenAtMs;
   const pendingFlowOpensNow = pendingOpenAtMs !== null && now >= pendingOpenAtMs;
   const stepPhysicsSegment = (
@@ -1764,9 +1831,99 @@ const stepHeatCapacityFreeWorkbenchFile = (
       stopcockOpen,
     },
     dtS,
-    state.simulationTimeS + dtS,
-  );
+      state.simulationTimeS + dtS,
+    );
+  const stepRuntimeSegments = (
+    sourceFile: WorkbenchHeatCapacityState,
+    sourcePhysicsState: HeatCapacityFreePhysicsState,
+    sourceSensorState: HeatCapacityFreeSensorState,
+    dtS: number,
+    stopcockOpen: boolean,
+    nextStopcockFlowOpen: boolean,
+    nextStopcockPendingOpenAtMs: number | null,
+    recordIntermediateTrace: boolean,
+  ) => {
+    const totalDtS = Math.max(0, Number.isFinite(dtS) ? dtS : 0);
+    const sourceDerived = deriveFreePhysicalState(sourcePhysicsState, sourceFile.heatCapacityFreePhysicsConfig);
+    const hasActivePumpProcess = (sourcePhysicsState.pumpProcesses?.length ?? 0) > 0;
+    const hasActiveFastPhysicsProcess =
+      hasActivePumpProcess ||
+      sourcePhysicsState.releaseProcess !== null ||
+      (
+        stopcockOpen &&
+        sourceDerived.gasPressureKPa >
+          sourceFile.heatCapacityFreePhysicsConfig.environment.ambientPressureKPa + 0.000001
+      );
+    const shouldRecordIntermediateTrace = recordIntermediateTrace || hasActiveFastPhysicsProcess;
+    const segmentCount = shouldRecordIntermediateTrace
+      ? Math.min(
+          HEAT_CAPACITY_FREE_ACCELERATED_MAX_SEGMENTS,
+          Math.max(1, Math.ceil(totalDtS / HEAT_CAPACITY_FREE_ACCELERATED_SAMPLE_STEP_S)),
+        )
+      : 1;
+    const segmentDtS = segmentCount > 0 ? totalDtS / segmentCount : 0;
+    let physicsState = sourcePhysicsState;
+    let sensorState = sourceSensorState;
+    let workingFile: WorkbenchHeatCapacityState = {
+      ...sourceFile,
+      heatCapacityFreeSensorConfig: sensorConfig,
+      heatCapacityFreeStopcockFlowOpen: nextStopcockFlowOpen,
+      heatCapacityFreeStopcockPendingOpenAtMs: nextStopcockPendingOpenAtMs,
+    };
+
+    for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex += 1) {
+      physicsState = stepPhysicsSegment(physicsState, segmentDtS, stopcockOpen);
+      const derived = deriveFreePhysicalState(physicsState, workingFile.heatCapacityFreePhysicsConfig);
+      sensorState = stepFreeSensor(
+        hasActiveFastPhysicsProcess
+          ? {
+              ...sensorState,
+              nextSampleAtS: Number.NEGATIVE_INFINITY,
+            }
+          : sensorState,
+        {
+          gasPressureKPa: derived.gasPressureKPa,
+          pressureDeltaKPa: derived.pressureDeltaKPa,
+          gasTemperatureK: physicsState.gasTemperatureK,
+          ambientTemperatureK: workingFile.heatCapacityFreePhysicsConfig.environment.ambientTemperatureK,
+        },
+        workingFile.heatCapacityFreeCalibrationState,
+        hasActivePumpProcess
+          ? {
+              ...sensorConfig,
+              lagRate: Math.max(sensorConfig.lagRate, HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE),
+            }
+          : sensorConfig,
+        physicsState.simulationTimeS,
+      );
+      workingFile = mergeHeatCapacityFreeRuntimeState(
+        {
+          ...workingFile,
+          heatCapacityFreeStopcockFlowOpen: nextStopcockFlowOpen,
+          heatCapacityFreeStopcockPendingOpenAtMs: nextStopcockPendingOpenAtMs,
+        },
+        physicsState,
+        sensorState,
+        workingFile.heatCapacityFreeCalibrationState,
+        now,
+      );
+      if (shouldRecordIntermediateTrace) {
+        workingFile = recordHeatCapacityFreePeriodicTraceSample(workingFile);
+      }
+    }
+
+    return {
+      workingFile,
+      physicsState,
+      sensorState,
+    };
+  };
   let physicsState = file.heatCapacityFreePhysicsState;
+  let sensorState = file.heatCapacityFreeSensorState;
+  let mergedFile: WorkbenchHeatCapacityState = {
+    ...file,
+    heatCapacityFreeSensorConfig: sensorConfig,
+  };
   let heatCapacityFreeStopcockFlowOpen = file.heatCapacityFreeStopcockFlowOpen;
   let heatCapacityFreeStopcockPendingOpenAtMs = pendingOpenAtMs;
 
@@ -1778,46 +1935,53 @@ const stepHeatCapacityFreeWorkbenchFile = (
   ) {
     const closedDtS = Math.max(0, pendingOpenAtMs - lastUpdateMs) / 1000;
     const openDtS = Math.max(0, now - pendingOpenAtMs) / 1000;
-    physicsState = stepPhysicsSegment(physicsState, closedDtS, false);
+    const closedStep = stepRuntimeSegments(
+      mergedFile,
+      physicsState,
+      sensorState,
+      closedDtS,
+      false,
+      false,
+      pendingOpenAtMs,
+      false,
+    );
+    mergedFile = closedStep.workingFile;
+    physicsState = closedStep.physicsState;
+    sensorState = closedStep.sensorState;
     heatCapacityFreeStopcockFlowOpen = true;
     heatCapacityFreeStopcockPendingOpenAtMs = null;
-    physicsState = stepPhysicsSegment(physicsState, openDtS, true);
+    const openStep = stepRuntimeSegments(
+      mergedFile,
+      physicsState,
+      sensorState,
+      openDtS,
+      true,
+      heatCapacityFreeStopcockFlowOpen,
+      heatCapacityFreeStopcockPendingOpenAtMs,
+      false,
+    );
+    mergedFile = openStep.workingFile;
+    physicsState = openStep.physicsState;
+    sensorState = openStep.sensorState;
   } else {
     if (pendingFlowOpensNow && !file.heatCapacityFreeStopcockFlowOpen) {
       heatCapacityFreeStopcockFlowOpen = true;
       heatCapacityFreeStopcockPendingOpenAtMs = null;
     }
-    physicsState = stepPhysicsSegment(
+    const elapsedStep = stepRuntimeSegments(
+      mergedFile,
       physicsState,
-      elapsedMs / 1000,
+      sensorState,
+      (elapsedMs / 1000) * equilibriumSpeedMultiplier,
       heatCapacityFreeStopcockFlowOpen,
-    );
-  }
-  const derived = deriveFreePhysicalState(physicsState, file.heatCapacityFreePhysicsConfig);
-  const sensorState = stepFreeSensor(
-    file.heatCapacityFreeSensorState,
-    {
-      gasPressureKPa: derived.gasPressureKPa,
-      pressureDeltaKPa: derived.pressureDeltaKPa,
-      gasTemperatureK: physicsState.gasTemperatureK,
-      ambientTemperatureK: file.heatCapacityFreePhysicsConfig.environment.ambientTemperatureK,
-    },
-    file.heatCapacityFreeCalibrationState,
-    sensorConfig,
-    physicsState.simulationTimeS,
-  );
-  const mergedFile = mergeHeatCapacityFreeRuntimeState(
-    {
-      ...file,
-      heatCapacityFreeSensorConfig: sensorConfig,
       heatCapacityFreeStopcockFlowOpen,
       heatCapacityFreeStopcockPendingOpenAtMs,
-    },
-    physicsState,
-    sensorState,
-    file.heatCapacityFreeCalibrationState,
-    now,
-  );
+      equilibriumSpeedMultiplier > 1,
+    );
+    mergedFile = elapsedStep.workingFile;
+    physicsState = elapsedStep.physicsState;
+    sensorState = elapsedStep.sensorState;
+  }
   const latestZeroEventId = mergedFile.heatCapacityFreeCalibrationState.zeroEvents[
     mergedFile.heatCapacityFreeCalibrationState.zeroEvents.length - 1
   ]?.id ?? '';
@@ -1847,6 +2011,27 @@ const stepHeatCapacityFreeWorkbenchFile = (
   const withAutomaticEvent = recordHeatCapacityFreeAutomaticU0Event(mergedFile, withCalibration, now);
   return recordHeatCapacityFreePeriodicTraceSample(withAutomaticEvent);
 };
+
+export const setHeatCapacityFreeEquilibriumSpeedMultiplier = (
+  file: WorkbenchHeatCapacityState,
+  multiplier: unknown,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => ({
+  ...file,
+  heatCapacityFreeEquilibriumSpeedMultiplier: normalizeHeatCapacityFreeEquilibriumSpeedMultiplier(multiplier),
+  lastUpdateMs: file.powerOn ? now : file.lastUpdateMs,
+  updatedAt: now,
+});
+
+export const setHeatCapacityFreeEquilibriumSpeedHintShown = (
+  file: WorkbenchHeatCapacityState,
+  shown: boolean,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => ({
+  ...file,
+  heatCapacityFreeEquilibriumSpeedHintShown: shown,
+  updatedAt: now,
+});
 
 export const canZeroHeatCapacityPressure = (file: WorkbenchHeatCapacityState) => (
   file.powerOn && getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open'
@@ -2556,6 +2741,7 @@ export const createDefaultStandardFile = (
   ...createBaseFile('standard', index, DEFAULT_STANDARD_PARAMS, defaults),
   kind: 'standard',
   particles: [],
+  hardSphereEngineSnapshot: null,
   standardResultsLayout: createDefaultStandardResultsLayout({ heightRatio: defaults?.resultsHeightRatio }),
 });
 
@@ -2571,6 +2757,7 @@ export const createDefaultIdealFile = (
   latestPressureSummary: null,
   needsReset: false,
   particles: [],
+  hardSphereEngineSnapshot: null,
   verificationState: 'not-started',
   historyUnlocked: false,
   idealWindowLayout: createDefaultIdealWindowLayout({ heightRatio: defaults?.resultsHeightRatio }),
@@ -2590,6 +2777,7 @@ export const createDefaultHeatCapacityFreeRuntimeFields = (
     ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
     environment: { ...DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG },
     thermal: { ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.thermal },
+    leakage: { ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.leakage },
   });
   const pressureInitialBiasMv = createSeededFreePressureInitialBiasMv(
     seed,
@@ -2609,6 +2797,8 @@ export const createDefaultHeatCapacityFreeRuntimeFields = (
     heatCapacityFreeCalibrationState: createDefaultHeatCapacityFreeCalibrationState(),
     heatCapacityFreeStopcockFlowOpen: false,
     heatCapacityFreeStopcockPendingOpenAtMs: null,
+    heatCapacityFreeEquilibriumSpeedMultiplier: HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER,
+    heatCapacityFreeEquilibriumSpeedHintShown: false,
   };
 };
 

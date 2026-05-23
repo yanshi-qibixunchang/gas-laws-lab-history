@@ -38,6 +38,8 @@ export interface HeatCapacityFreeSensorState {
   temperatureSlopeMvPerS: number;
 }
 
+export const HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE = 36;
+
 const SAMPLE_TIME_EPSILON_S = 0.000000001;
 
 const hashSeededValue = (

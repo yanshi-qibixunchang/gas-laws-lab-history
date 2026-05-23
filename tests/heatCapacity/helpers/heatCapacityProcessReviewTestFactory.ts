@@ -44,17 +44,40 @@ export interface HeatCapacityProcessReviewFixtureParts {
   trial: HeatCapacityFreeTrial;
 }
 
+type HeatCapacityTraceSampleInputOverrides = Omit<
+  Partial<HeatCapacityFreeTraceSampleInput>,
+  'controls' | 'physical' | 'sensor' | 'calibration' | 'stability'
+> & {
+  controls?: Partial<HeatCapacityFreeTraceSampleInput['controls']>;
+  physical?: Partial<HeatCapacityFreeTraceSampleInput['physical']>;
+  sensor?: Partial<HeatCapacityFreeTraceSampleInput['sensor']>;
+  calibration?: Partial<HeatCapacityFreeTraceSampleInput['calibration']>;
+  stability?: Partial<HeatCapacityFreeTraceSampleInput['stability']>;
+};
+
 export const createSampleInputForProcessReviewTest = (
   atS: number,
   pressureMv: number,
   temperatureMv: number,
-  overrides: Partial<HeatCapacityFreeTraceSampleInput> = {},
-): HeatCapacityFreeTraceSampleInput => ({
-  atS,
-  reason: 'periodic',
-  phase: 'sealedStabilizing',
-  controls: { powerOn: true, stopcockOpen: false, pumpValveOpen: false },
-  physical: {
+  overrides: HeatCapacityTraceSampleInputOverrides = {},
+): HeatCapacityFreeTraceSampleInput => {
+  const {
+    controls: controlOverrides,
+    physical: physicalOverrides,
+    sensor: sensorOverrides,
+    calibration: calibrationOverrides,
+    stability: stabilityOverrides,
+    ...restOverrides
+  } = overrides;
+  const controls: HeatCapacityFreeTraceSampleInput['controls'] = {
+    powerOn: true,
+    stopcockOpen: false,
+    pumpValveOpen: false,
+    pumpBulbState: 'idle',
+    stopcockFlowOpen: false,
+    ...controlOverrides,
+  };
+  const physical: HeatCapacityFreeTraceSampleInput['physical'] = {
     gasPressureKPa: 101.3 + pressureMv / 20,
     pressureDeltaKPa: pressureMv / 20,
     gasTemperatureK: 298.15 + (temperatureMv - 1499) / 2,
@@ -64,18 +87,27 @@ export const createSampleInputForProcessReviewTest = (
     pumpStrokeCount: 0,
     releaseStarted: false,
     currentStopcockOpenDurationS: 0,
-  },
-  sensor: {
-    displayPressureMv: pressureMv,
-    displayTemperatureMv: temperatureMv,
-    pressureSlopeMvPerS: 0.03,
-    temperatureSlopeMvPerS: 0.02,
-  },
-  calibration: { calibrationVersion: 1, zeroOffsetMv: 0, zeroEventId: 'zero-1' },
-  stability: { pressureStable: true, temperatureStable: true },
-  safetyStatus: 'normal',
-  ...overrides,
-});
+    ...physicalOverrides,
+  };
+  return {
+    atS,
+    reason: 'periodic',
+    phase: 'sealedStabilizing',
+    sensor: {
+      displayPressureMv: pressureMv,
+      displayTemperatureMv: temperatureMv,
+      pressureSlopeMvPerS: 0.03,
+      temperatureSlopeMvPerS: 0.02,
+      ...sensorOverrides,
+    },
+    calibration: { calibrationVersion: 1, zeroOffsetMv: 0, zeroEventId: 'zero-1', ...calibrationOverrides },
+    stability: { pressureStable: true, temperatureStable: true, ...stabilityOverrides },
+    safetyStatus: 'normal',
+    ...restOverrides,
+    controls,
+    physical,
+  };
+};
 
 const appendEventAtSample = (
   branch: HeatCapacityFreeTraceBranch,

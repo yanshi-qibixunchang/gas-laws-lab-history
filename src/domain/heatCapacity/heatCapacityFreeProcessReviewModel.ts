@@ -393,22 +393,6 @@ const createControls = (
       }]
       : [];
   });
-  const pumpEvents = branch.events.filter((event) => event.type === 'pump-stroke');
-  const pumpStage = stages.find((stage) => stage.id === 'pump');
-  if (pumpEvents.length > 0) {
-    controls.push({
-      id: 'pump-bulb-merged',
-      kind: 'pumpBulb',
-      label: `打气球 x${pumpEvents.length}`,
-      timeS: roundNumber(
-        pumpStage
-          ? (pumpStage.startS + pumpStage.endS) / 2
-          : (pumpEvents[0].atS + pumpEvents[pumpEvents.length - 1].atS) / 2,
-        2,
-      ),
-      count: pumpEvents.length,
-    });
-  }
   return controls.sort((left, right) => left.timeS - right.timeS);
 };
 

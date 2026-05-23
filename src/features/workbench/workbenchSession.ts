@@ -8,6 +8,7 @@ import {
   getHeatCapacityStopcockState,
   normalizeHeatCapacityStopcockAngle,
   normalizeHeatCapacityFileName,
+  normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
   normalizeHeatCapacityFreePhysicsConfig,
   WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
   type WorkbenchFileState,
@@ -38,6 +39,15 @@ import {
   type HeatCapacityFreeTraceStore,
   type HeatCapacityFreeTraceTrial,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
+import {
+  decodeWorkbenchClosedFilesStorageEnvelope,
+  decodeWorkbenchStorageEnvelope,
+  encodeWorkbenchClosedFilesStorageEnvelope,
+  encodeWorkbenchStorageEnvelope,
+} from './workbenchPersistenceMigration.ts';
+import {
+  normalizeHardSphereEngineSnapshot,
+} from './workbenchHardSpherePersistence.ts';
 
 export const WORKBENCH_SESSION_VERSION = 1;
 export const WORKBENCH_SESSION_STORAGE_KEY = 'hsl_workbench_session_v1';
@@ -381,6 +391,10 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
             : fallbackFreeRuntimeFields.heatCapacityFreeCalibrationState,
           heatCapacityFreeStopcockFlowOpen: file.heatCapacityFreeStopcockFlowOpen === true,
           heatCapacityFreeStopcockPendingOpenAtMs: normalizeNullableNumber(file.heatCapacityFreeStopcockPendingOpenAtMs),
+          heatCapacityFreeEquilibriumSpeedMultiplier: normalizeHeatCapacityFreeEquilibriumSpeedMultiplier(
+            file.heatCapacityFreeEquilibriumSpeedMultiplier,
+          ),
+          heatCapacityFreeEquilibriumSpeedHintShown: file.heatCapacityFreeEquilibriumSpeedHintShown === true,
         }
       : fallbackFreeRuntimeFields;
     const heatCapacityFreeTraceStore = file.heatCapacityFreeTraceVersion === HEAT_CAPACITY_FREE_TRACE_VERSION
@@ -514,6 +528,7 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
     runState: file.runState === 'running' ? 'paused' : file.runState,
     lastOpenedAt: normalizeLastOpenedAt(file, file.updatedAt),
     liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
+    hardSphereEngineSnapshot: normalizeHardSphereEngineSnapshot(file.hardSphereEngineSnapshot),
   };
 };
 
@@ -567,6 +582,18 @@ export const encodeWorkbenchSession = (
   selectedPanel,
 });
 
+const normalizeWorkbenchFileList = (
+  files: WorkbenchFileState[],
+): WorkbenchFileState[] => {
+  if (files.length === 0) return [];
+  return decodeWorkbenchSession({
+    version: WORKBENCH_SESSION_VERSION,
+    files,
+    activeFileId: files[0].id,
+    selectedPanel: 'preview',
+  }).files;
+};
+
 export const loadWorkbenchSession = (): WorkbenchSessionState => {
   if (typeof window === 'undefined') return fallbackSession();
   const storage = getWorkbenchSessionStorage();
@@ -575,7 +602,11 @@ export const loadWorkbenchSession = (): WorkbenchSessionState => {
   try {
     const raw = storage.getItem(WORKBENCH_SESSION_STORAGE_KEY);
     if (!raw) return fallbackSession();
-    return decodeWorkbenchSession(JSON.parse(raw));
+    const parsed = JSON.parse(raw);
+    const decodedEnvelope = decodeWorkbenchStorageEnvelope(parsed);
+    return decodedEnvelope.handled
+      ? decodeWorkbenchSession(decodedEnvelope.session)
+      : decodeWorkbenchSession(parsed);
   } catch {
     return fallbackSession();
   }
@@ -587,7 +618,12 @@ export const persistWorkbenchSession = (session: WorkbenchSessionState) => {
   if (!storage) return;
 
   try {
-    storage.setItem(WORKBENCH_SESSION_STORAGE_KEY, JSON.stringify(session));
+    const envelope = encodeWorkbenchStorageEnvelope(
+      session.files,
+      session.activeFileId,
+      session.selectedPanel,
+    );
+    storage.setItem(WORKBENCH_SESSION_STORAGE_KEY, JSON.stringify(envelope));
   } catch {
     // Storage failures should not block the live workbench.
   }
@@ -600,6 +636,10 @@ export const loadClosedWorkbenchFiles = (): WorkbenchFileState[] => {
     const raw = window.localStorage.getItem(WORKBENCH_CLOSED_FILES_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
+    const decodedEnvelope = decodeWorkbenchClosedFilesStorageEnvelope(parsed);
+    if (decodedEnvelope.handled) {
+      return normalizeWorkbenchFileList(decodedEnvelope.files);
+    }
     if (!Array.isArray(parsed)) return [];
     return parsed.filter((file): file is WorkbenchFileState => (
       isRecord(file) &&
@@ -619,7 +659,8 @@ export const persistClosedWorkbenchFiles = (files: WorkbenchFileState[]) => {
     const normalizedFiles = files
       .map(normalizeRuntimeState)
       .filter((file, index, allFiles) => allFiles.findIndex((candidate) => candidate.id === file.id) === index);
-    window.localStorage.setItem(WORKBENCH_CLOSED_FILES_STORAGE_KEY, JSON.stringify(normalizedFiles));
+    const envelope = encodeWorkbenchClosedFilesStorageEnvelope(normalizedFiles);
+    window.localStorage.setItem(WORKBENCH_CLOSED_FILES_STORAGE_KEY, JSON.stringify(envelope));
   } catch {
     // Storage failures should not block the live workbench.
   }

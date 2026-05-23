@@ -33,6 +33,9 @@ interface HeatCapacityInstrumentSceneProps {
   pressureZeroAdjustMode: 'none' | 'fineWheel' | 'coarseDrag';
   pressureKPa: number | null;
   pressureDeltaKPa: number;
+  gasAmountRatio: number;
+  gasTemperatureK: number;
+  ambientTemperatureK: number;
   pressureLimitKPa: number;
   pumpValveOpen: boolean;
   pumpValveState: 'open' | 'closed';
@@ -47,6 +50,11 @@ interface HeatCapacityInstrumentSceneProps {
   temperatureSignalMv: number | null;
   pressureSignalMv: number | null;
   pressureReleaseBurstActive: boolean;
+  releaseFlowActive: boolean;
+  releaseProgress: number;
+  stopcockFlowOpen: boolean;
+  pumpFlowActive: boolean;
+  pumpFlowIntensity: number;
   hardSphereViewEnabled: boolean;
   hardSphereParticleMultiplier: number;
   hardSphereSpeedMultiplier: number;
@@ -66,6 +74,7 @@ interface HeatCapacityInstrumentSceneProps {
   onPumpBulbPress: () => void;
   onHardSphereViewToggle: () => void;
   overlayTopLeft?: React.ReactNode;
+  overlayTopCenter?: React.ReactNode;
   overlayTopRight?: React.ReactNode;
   overlayBottomRight?: React.ReactNode;
   overlayCenter?: React.ReactNode;
@@ -582,7 +591,7 @@ const getHardSphereNoteText = (
   const copy = heatCapacityHardSphereNoteCopies[language] ?? heatCapacityHardSphereNoteCopies['zh-CN'];
   if (props.phase === 'demoComplete') return copy.recovering;
   if (!props.powerOn || props.phase === 'powerOff') return copy.poweredOff;
-  if ((props.pressureReleaseBurstActive || props.phase === 'releasing') && getHeatCapacityStopcockState(props.stopcockAngleDeg) === 'open') return copy.releasing;
+  if (props.releaseFlowActive) return copy.releasing;
   if (props.phase === 'recovering') return copy.recovering;
   if (props.phase === 'pumping') {
     const warming = props.temperatureSignalMv !== null && props.temperatureSignalMv >= 1510;
@@ -2022,11 +2031,18 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           temperatureMv={props.temperatureSignalMv}
           pressureMv={props.pressureSignalMv}
           pressureDeltaKPa={props.pressureDeltaKPa}
+          gasAmountRatio={props.gasAmountRatio}
+          gasTemperatureK={props.gasTemperatureK}
+          ambientTemperatureK={props.ambientTemperatureK}
           phase={props.phase}
-          releaseBurstActive={props.pressureReleaseBurstActive}
+          releaseFlowActive={props.releaseFlowActive}
+          releaseProgress={props.releaseProgress}
+          stopcockFlowOpen={props.stopcockFlowOpen}
           glassStopcockOpen={stopcockState === 'open'}
           pumpValveOpen={props.pumpValveOpen}
           pumpBulbState={props.pumpBulbState}
+          pumpFlowActive={props.pumpFlowActive}
+          pumpFlowIntensity={props.pumpFlowIntensity}
           particleMultiplier={props.hardSphereParticleMultiplier}
           speedMultiplier={props.hardSphereSpeedMultiplier}
           sceneTheme={props.sceneTheme}
@@ -2419,6 +2435,13 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
               <small>{hardSphereNoteCopy.footnote}</small>
             </div>
           </div>
+        </div>
+        <div className="studio-preview-overlay-slot studio-preview-overlay-slot-top-center">
+          {props.overlayTopCenter ? (
+            <div data-preview-overlay-item="heat-parent-top-center">
+              {props.overlayTopCenter}
+            </div>
+          ) : null}
         </div>
         <div className="studio-preview-overlay-slot studio-preview-overlay-slot-top-right">
           {props.overlayTopRight ? (

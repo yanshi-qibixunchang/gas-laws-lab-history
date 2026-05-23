@@ -301,13 +301,14 @@ const releaseAndRecover = (
     stopcockOpen: false,
   };
   let current = stepScriptedRun(run, physicsConfig, sensorConfig, openControls, STOPCOCK_CLICK_STEP_S);
-  for (let elapsedS = 0; elapsedS < openDurationS; elapsedS += SIMULATION_STEP_S) {
+  const totalOpenDurationS = 0.2 + openDurationS;
+  for (let elapsedS = 0; elapsedS < totalOpenDurationS; elapsedS += SIMULATION_STEP_S) {
     current = stepScriptedRun(
       current,
       physicsConfig,
       sensorConfig,
       openControls,
-      Math.min(SIMULATION_STEP_S, openDurationS - elapsedS),
+      Math.min(SIMULATION_STEP_S, totalOpenDurationS - elapsedS),
     );
   }
   current = stepScriptedRun(current, physicsConfig, sensorConfig, closedControls, STOPCOCK_CLICK_STEP_S);

@@ -63,8 +63,8 @@ const stagePalette: Record<HeatCapacityProcessStageId, string> = {
 
 const controlPalette: Record<HeatCapacityProcessControlKind, string> = {
   power: '#6f8091',
-  pumpValve: '#0f8278',
-  pumpBulb: '#087b91',
+  pumpValve: '#14804f',
+  pumpBulb: '#0b6fae',
   stopcock: '#a2682a',
 };
 

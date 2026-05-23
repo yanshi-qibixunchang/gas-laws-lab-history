@@ -1,4 +1,4 @@
-import {
+import type {
   SimulationParams,
   Particle,
   HistogramBin,
@@ -6,9 +6,37 @@ import {
   SimulationStats,
   PressureMeasurementSummary,
   PressureWindowPoint,
-} from '../../shared/types';
+} from '../../shared/types.ts';
 
 const PRESSURE_EPSILON = 1e-9;
+export const PHYSICS_ENGINE_SNAPSHOT_VERSION = 1 as const;
+
+export interface PhysicsEngineSnapshotV1 {
+  schemaVersion: typeof PHYSICS_ENGINE_SNAPSHOT_VERSION;
+  params: SimulationParams;
+  particles: Particle[];
+  time: number;
+  targetTemperature: number;
+  collectedSpeeds: number[];
+  collectedEnergies: number[];
+  collectedSampleWindowTotal: number;
+  tempHistory: { time: number; error: number; totalEnergy: number }[];
+  lastSampleTime: number;
+  pressureWindowStartTime: number;
+  pressureWindowMomentum: number;
+  pressureHistory: PressureWindowPoint[];
+  latestMeasuredPressure: number;
+}
+
+const cloneParams = (params: SimulationParams): SimulationParams => ({ ...params });
+
+const cloneParticles = (particles: Particle[]): Particle[] => (
+  particles.map((particle) => ({ ...particle }))
+);
+
+const clonePressureHistory = (history: PressureWindowPoint[]): PressureWindowPoint[] => (
+  history.map((point) => ({ ...point }))
+);
 
 export class PhysicsEngine {
   params: SimulationParams;
@@ -452,6 +480,44 @@ export class PhysicsEngine {
 
   public getCollectedSampleCount(): number {
     return this.collectedSampleWindowTotal;
+  }
+
+  public createSnapshot(): PhysicsEngineSnapshotV1 {
+    return {
+      schemaVersion: PHYSICS_ENGINE_SNAPSHOT_VERSION,
+      params: cloneParams(this.params),
+      particles: cloneParticles(this.particles),
+      time: this.time,
+      targetTemperature: this.targetTemperature,
+      collectedSpeeds: [...this.collectedSpeeds],
+      collectedEnergies: [...this.collectedEnergies],
+      collectedSampleWindowTotal: this.collectedSampleWindowTotal,
+      tempHistory: this.tempHistory.map((point) => ({ ...point })),
+      lastSampleTime: this.lastSampleTime,
+      pressureWindowStartTime: this.pressureWindowStartTime,
+      pressureWindowMomentum: this.pressureWindowMomentum,
+      pressureHistory: clonePressureHistory(this.pressureHistory),
+      latestMeasuredPressure: this.latestMeasuredPressure,
+    };
+  }
+
+  public static fromSnapshot(snapshot: PhysicsEngineSnapshotV1): PhysicsEngine {
+    const engine = new PhysicsEngine(cloneParams(snapshot.params));
+    engine.params = cloneParams(snapshot.params);
+    engine.particles = cloneParticles(snapshot.particles);
+    engine.time = snapshot.time;
+    engine.targetTemperature = snapshot.targetTemperature;
+    engine.collectedSpeeds = [...snapshot.collectedSpeeds];
+    engine.collectedEnergies = [...snapshot.collectedEnergies];
+    engine.collectedSampleWindowTotal = snapshot.collectedSampleWindowTotal;
+    engine.tempHistory = snapshot.tempHistory.map((point) => ({ ...point }));
+    engine.lastSampleTime = snapshot.lastSampleTime;
+    engine.pressureWindowStartTime = snapshot.pressureWindowStartTime;
+    engine.pressureWindowMomentum = snapshot.pressureWindowMomentum;
+    engine.pressureHistory = clonePressureHistory(snapshot.pressureHistory);
+    engine.latestMeasuredPressure = snapshot.latestMeasuredPressure;
+    engine.initBins();
+    return engine;
   }
 
   public getStats(): SimulationStats {

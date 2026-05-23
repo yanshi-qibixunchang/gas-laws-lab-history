@@ -66,6 +66,18 @@ const DEFAULT_OBSERVE_MS = 6_000;
 const STOPCOCK_TRANSITION_MS = 1_000;
 const POWER_TRANSITION_MS = 650;
 const PUMP_VALVE_TRANSITION_MS = 420;
+export const HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT = 4;
+export const HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS = 100;
+const HEAT_CAPACITY_TEACHING_PUMP_SAMPLE_DELAY_MS =
+  HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT * HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS + 300;
+
+const createTeachingPumpStrokeActions = (): HeatCapacityAutoDemoStepAction[] => [
+  ...Array.from({ length: HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT }, (_, index): HeatCapacityAutoDemoStepAction => ({
+    action: 'pumpStroke',
+    delayMs: index * HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS,
+  })),
+  { action: 'captureSample', delayMs: HEAT_CAPACITY_TEACHING_PUMP_SAMPLE_DELAY_MS, sampleKey: 'pumpPeakSample' },
+];
 
 export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] => [
   {
@@ -144,17 +156,10 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     note: '打气操作需在短时内完成，压力表指针不得超过安全上限',
     targetControlId: 'pumpBulb',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
-    actionDurationMs: 3_600,
+    actionDurationMs: HEAT_CAPACITY_TEACHING_PUMP_SAMPLE_DELAY_MS + 300,
     observeDurationMs: DEFAULT_OBSERVE_MS,
     actions: [
-      { action: 'pumpStroke' },
-      { action: 'pumpStroke', delayMs: 430 },
-      { action: 'pumpStroke', delayMs: 860 },
-      { action: 'pumpStroke', delayMs: 1_290 },
-      { action: 'pumpStroke', delayMs: 1_720 },
-      { action: 'pumpStroke', delayMs: 2_150 },
-      { action: 'pumpStroke', delayMs: 2_580 },
-      { action: 'captureSample', delayMs: 3_250, sampleKey: 'pumpPeakSample' },
+      ...createTeachingPumpStrokeActions(),
     ],
   },
   {

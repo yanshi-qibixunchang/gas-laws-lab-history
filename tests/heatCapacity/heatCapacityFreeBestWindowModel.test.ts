@@ -92,7 +92,28 @@ assert.equal(
   (officialRecordReuseWindows.gamma ?? 0) >=
     (officialRecordReuseTrial.correctedSignals?.gamma ?? Number.POSITIVE_INFINITY),
   true,
-  'operation upper-bound should fall back to the actual result instead of selecting independent candidates that lower the gamma',
+  'operation upper-bound should not select independent candidates that lower the gamma',
+);
+
+const theoreticalFallbackSetup = createTraceTrialForProcessReviewTest(config, [
+  createSampleInputForProcessReviewTest(5, 0, 1499, {
+    phase: 'zeroed',
+    controls: { powerOn: true, stopcockOpen: true, pumpValveOpen: false },
+  }),
+  createSampleInputForProcessReviewTest(30, 122.5, 1499.04, { phase: 'sealedStabilizing' }),
+  createSampleInputForProcessReviewTest(60, 33.65, 1498.99, { phase: 'recovering' }),
+]);
+const theoreticalFallbackTrial = createTrialForProcessReviewTest(theoreticalFallbackSetup);
+const theoreticalFallbackWindows = selectHeatCapacityBestRecordWindows(
+  theoreticalFallbackSetup.traceTrial,
+  theoreticalFallbackSetup.branch,
+  theoreticalFallbackTrial,
+  1.4,
+);
+assert.equal(
+  theoreticalFallbackWindows.gamma,
+  1.4,
+  'operation upper-bound should use the theoretical value when trace windows cannot produce a genuinely higher upper bound',
 );
 
 console.log('heatCapacityFreeBestWindowModel tests passed');

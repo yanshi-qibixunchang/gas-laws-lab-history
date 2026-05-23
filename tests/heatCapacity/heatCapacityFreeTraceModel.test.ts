@@ -6,20 +6,35 @@ import {
   createDefaultFreeConfigSnapshot,
   createDefaultFreeTraceStore,
   createFreeTraceTrial,
+  HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
+  HEAT_CAPACITY_FREE_TRACE_VERSION,
   FREE_TRACE_MAX_SAMPLES_PER_TRIAL,
   type HeatCapacityFreeTraceSampleInput,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 
 const configSnapshot = createDefaultFreeConfigSnapshot();
 
-assert.equal(configSnapshot.version, 2);
+assert.equal(HEAT_CAPACITY_FREE_TRACE_VERSION, 4);
+assert.equal(HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION, 4);
+assert.equal(configSnapshot.version, 4);
 assert.equal(configSnapshot.physics.vesselVolumeL, 2);
 assert.equal(configSnapshot.physics.pumpAmountGainRatio, 0.015);
+assert.equal(configSnapshot.physics.pumpStrokeDurationS, 0.08);
+assert.equal(configSnapshot.physics.recommendedPumpIntervalS, 0.1);
+assert.equal(configSnapshot.physics.releaseResponseDelayS, 0.02);
+assert.equal(configSnapshot.physics.releaseMainDurationS, 0.18);
 assert.equal(configSnapshot.physics.thermal.gasWallConductanceWPerK, 0.22);
 assert.equal(configSnapshot.physics.thermal.wallAmbientConductanceWPerK, 0.45);
 assert.equal(configSnapshot.physics.thermal.wallHeatCapacityJPerK, 45);
 assert.equal(configSnapshot.physics.thermal.minimumGasHeatCapacityJPerK, 0.1);
+assert.deepEqual(configSnapshot.physics.leakage, {
+  enabled: false,
+  ratePerS: 0.0005,
+});
+assert.equal(configSnapshot.sensor.pumpLagRate, 36);
+assert.equal(configSnapshot.sensor.fastProcessSampleStepS, 0.04);
 assert.equal(configSnapshot.record.pressureWarningMv, 115);
+assert.equal(configSnapshot.scoring.processScoringVersion, 'free-process-score-v1');
 assert.equal('reservedPhysicsV2' in configSnapshot, false);
 assert.equal(
   configSnapshot.physics.pumpAmountGainRatio * configSnapshot.physics.vesselVolumeL * 1000,
@@ -37,6 +52,7 @@ const first = createFreeTraceTrial(store, configSnapshot);
 store = first.store;
 const second = createFreeTraceTrial(store, configSnapshot);
 configSnapshot.physics.thermal.gasWallConductanceWPerK = 999;
+configSnapshot.physics.leakage.enabled = true;
 
 assert.equal(first.traceTrial.id, 'free-trace-trial-1');
 assert.equal(first.traceTrial.activeBranchId, 'branch-1');
@@ -45,6 +61,11 @@ assert.equal(
   first.traceTrial.configSnapshot.physics.thermal.gasWallConductanceWPerK,
   0.22,
   'trace trial must deep-copy thermal config instead of sharing the source object',
+);
+assert.equal(
+  first.traceTrial.configSnapshot.physics.leakage.enabled,
+  false,
+  'trace trial must deep-copy leakage config instead of sharing the source object',
 );
 
 const createSampleInput = (
@@ -58,6 +79,8 @@ const createSampleInput = (
     powerOn: true,
     stopcockOpen: false,
     pumpValveOpen: false,
+    pumpBulbState: 'idle',
+    stopcockFlowOpen: false,
   },
   physical: {
     gasPressureKPa: 106,

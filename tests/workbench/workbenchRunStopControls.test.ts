@@ -84,7 +84,7 @@ assert.match(
 
 assert.match(
   source,
-  /const startHeatCapacityManualExperiment = \(\) => \{[\s\S]*activateHeatCapacityManualExperiment\(guideFileId, guideFileName\);[\s\S]*showHeatCapacityAutoDemoCompletionToast\('正在启动引导模式', HEAT_CAPACITY_GUIDE_START_NOTICE_MS\);[\s\S]*\};/,
+  /const startHeatCapacityManualExperiment = \(\) => \{[\s\S]*activateHeatCapacityManualExperiment\(guideFileId, guideFileName\);[\s\S]*showHeatCapacityAutoDemoCompletionToast\(heatCapacityRealtimeCopy\.guideModeStartingToast, HEAT_CAPACITY_GUIDE_START_NOTICE_MS\);[\s\S]*\};/,
   'guide mode should become active immediately so the exit button appears at the same time as the start notice',
 );
 
@@ -129,6 +129,43 @@ assert.match(
   source,
   /data-heat-capacity-mode="demo"[\s\S]*heatCapacityActiveMode !== 'demo' \|\| !heatCapacityDemoActionsVisible[\s\S]*runHeatCapacityAutoDemo\(\)/,
   'demo mode button should restart a stale or completed demo-mode file when no demo action is visible',
+);
+
+const terminateAutoDemoStart = source.indexOf('const terminateHeatCapacityAutoDemo = () => {');
+assert.notEqual(terminateAutoDemoStart, -1, 'heat capacity auto-demo termination handler should exist');
+const terminateAutoDemoEnd = source.indexOf('\n  const pauseActiveFile', terminateAutoDemoStart);
+assert.notEqual(terminateAutoDemoEnd, -1, 'heat capacity auto-demo termination handler should end before pause handling');
+const terminateAutoDemoBody = source.slice(terminateAutoDemoStart, terminateAutoDemoEnd);
+assert.match(
+  terminateAutoDemoBody,
+  /markHeatCapacityDemoComplete\(file, now\)[\s\S]*heatCapacityMode:\s*'demo'[\s\S]*runState:\s*'idle'/,
+  'terminating auto demo should explicitly leave the file in Demo mode while returning the runtime to idle',
+);
+assert.doesNotMatch(
+  terminateAutoDemoBody,
+  /enterHeatCapacityFreeMode(?:WorkbenchState)?|resetHeatCapacityFreeRunWorkbenchState/,
+  'terminating auto demo must not enter or reset Free Mode implicitly',
+);
+
+const clearAutoDemoUiStart = source.indexOf('const clearHeatCapacityAutoDemoUiState = () => {');
+assert.notEqual(clearAutoDemoUiStart, -1, 'heat capacity auto-demo UI cleanup helper should exist');
+const clearAutoDemoUiEnd = source.indexOf('\n  const isHeatCapacityUserInteractionLocked', clearAutoDemoUiStart);
+assert.notEqual(clearAutoDemoUiEnd, -1, 'heat capacity auto-demo UI cleanup helper should end before interaction lock helper');
+const clearAutoDemoUiBody = source.slice(clearAutoDemoUiStart, clearAutoDemoUiEnd);
+assert.match(
+  clearAutoDemoUiBody,
+  /setAutoDemoStepTitle\(''\)[\s\S]*setAutoDemoStepDescription\(''\)[\s\S]*setAutoDemoStepTarget\(''\)[\s\S]*setAutoDemoStepNote\(''\)/,
+  'auto-demo cleanup should clear stale step panel copy so a newly created heat-capacity file starts clean',
+);
+assert.match(
+  clearAutoDemoUiBody,
+  /setAutoDemoStepIndex\(0\)[\s\S]*setAutoDemoStepCount\(0\)[\s\S]*setAutoDemoStepPanelMode\('hidden'\)/,
+  'auto-demo cleanup should reset step counters and hide the step panel immediately',
+);
+assert.match(
+  clearAutoDemoUiBody,
+  /setAutoDemoCompletionMessage\(null\)/,
+  'auto-demo cleanup should remove stale completion toasts before another file is opened or created',
 );
 
 assert.doesNotMatch(

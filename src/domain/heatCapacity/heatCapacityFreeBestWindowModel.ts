@@ -491,9 +491,13 @@ export const selectHeatCapacityBestRecordWindows = (
   const u2 = combination?.u2 ?? (
     actualGamma === null ? selectBestU2Window(traceTrial, branch, trial, u0, u1) : recordFallbackU2
   );
-  const gamma = combination?.gamma ?? (
+  const selectedGamma = combination?.gamma ?? (
     actualGamma ?? calculateUpperBoundGamma(traceTrial, trial, u0, u1, u2)
   );
+  const gamma = actualGamma !== null &&
+      (selectedGamma === null || selectedGamma <= actualGamma + 0.000001)
+    ? theoreticalGamma
+    : selectedGamma;
   return {
     gamma,
     relativeErrorPercent: gamma === null

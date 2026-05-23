@@ -49,6 +49,10 @@ assert.equal(heatOne.heatCapacityFreeTraceVersion, HEAT_CAPACITY_FREE_TRACE_VERS
 assert.equal(heatOne.heatCapacityFreePhysicsState.wallTemperatureK, 298.15);
 assert.equal(heatOne.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK, 0.22);
 assert.equal(heatOne.heatCapacityFreePhysicsConfig.thermal.wallAmbientConductanceWPerK, 0.45);
+assert.deepEqual(heatOne.heatCapacityFreePhysicsConfig.leakage, {
+  enabled: false,
+  ratePerS: 0.0005,
+});
 
 const migrated = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,

@@ -22,21 +22,40 @@ import {
 
 const configSnapshot = createDefaultFreeConfigSnapshot();
 
+type HeatCapacityTraceSampleInputOverrides = Omit<
+  Partial<HeatCapacityFreeTraceSampleInput>,
+  'controls' | 'physical' | 'sensor' | 'calibration' | 'stability'
+> & {
+  controls?: Partial<HeatCapacityFreeTraceSampleInput['controls']>;
+  physical?: Partial<HeatCapacityFreeTraceSampleInput['physical']>;
+  sensor?: Partial<HeatCapacityFreeTraceSampleInput['sensor']>;
+  calibration?: Partial<HeatCapacityFreeTraceSampleInput['calibration']>;
+  stability?: Partial<HeatCapacityFreeTraceSampleInput['stability']>;
+};
+
 const createSampleInput = (
   atS: number,
   pressureMv: number,
   temperatureMv: number,
-  overrides: Partial<HeatCapacityFreeTraceSampleInput> = {},
-): HeatCapacityFreeTraceSampleInput => ({
-  atS,
-  reason: 'periodic',
-  phase: 'sealedStabilizing',
-  controls: {
+  overrides: HeatCapacityTraceSampleInputOverrides = {},
+): HeatCapacityFreeTraceSampleInput => {
+  const {
+    controls: controlOverrides,
+    physical: physicalOverrides,
+    sensor: sensorOverrides,
+    calibration: calibrationOverrides,
+    stability: stabilityOverrides,
+    ...restOverrides
+  } = overrides;
+  const controls: HeatCapacityFreeTraceSampleInput['controls'] = {
     powerOn: true,
     stopcockOpen: false,
     pumpValveOpen: false,
-  },
-  physical: {
+    pumpBulbState: 'idle',
+    stopcockFlowOpen: false,
+    ...controlOverrides,
+  };
+  const physical: HeatCapacityFreeTraceSampleInput['physical'] = {
     gasPressureKPa: 101.3 + pressureMv / 20,
     pressureDeltaKPa: pressureMv / 20,
     gasTemperatureK: 298.15 + (temperatureMv - 1499) / 2,
@@ -46,25 +65,36 @@ const createSampleInput = (
     pumpStrokeCount: 0,
     releaseStarted: false,
     currentStopcockOpenDurationS: 0,
-  },
-  sensor: {
-    displayPressureMv: pressureMv,
-    displayTemperatureMv: temperatureMv,
-    pressureSlopeMvPerS: 0.03,
-    temperatureSlopeMvPerS: 0.02,
-  },
-  calibration: {
-    calibrationVersion: 1,
-    zeroOffsetMv: 0,
-    zeroEventId: 'zero-1',
-  },
-  stability: {
-    pressureStable: true,
-    temperatureStable: true,
-  },
-  safetyStatus: 'normal',
-  ...overrides,
-});
+    ...physicalOverrides,
+  };
+  return {
+    atS,
+    reason: 'periodic',
+    phase: 'sealedStabilizing',
+    sensor: {
+      displayPressureMv: pressureMv,
+      displayTemperatureMv: temperatureMv,
+      pressureSlopeMvPerS: 0.03,
+      temperatureSlopeMvPerS: 0.02,
+      ...sensorOverrides,
+    },
+    calibration: {
+      calibrationVersion: 1,
+      zeroOffsetMv: 0,
+      zeroEventId: 'zero-1',
+      ...calibrationOverrides,
+    },
+    stability: {
+      pressureStable: true,
+      temperatureStable: true,
+      ...stabilityOverrides,
+    },
+    safetyStatus: 'normal',
+    ...restOverrides,
+    controls,
+    physical,
+  };
+};
 
 const addSample = (
   branch: HeatCapacityFreeTraceBranch,
@@ -295,7 +325,11 @@ assert.deepEqual(review.trialOptions[0], {
 });
 assert.equal(review.selectedTrialId, trial.id);
 assert.equal(review.chart.stages.some((stage) => stage.id === 'pump' && stage.countText === 'x10'), true);
-assert.equal(review.chart.controls.some((event) => event.kind === 'pumpBulb' && event.label === '打气球 x10'), true);
+assert.equal(
+  review.chart.controls.some((event) => event.id === 'pump-bulb-merged' || event.count !== undefined),
+  false,
+  'process review should not add a merged pump hover marker now that individual pump strokes remain readable',
+);
 assert.equal(
   review.chart.controls.filter((event) => event.kind === 'pumpBulb' && event.count === undefined).length,
   10,

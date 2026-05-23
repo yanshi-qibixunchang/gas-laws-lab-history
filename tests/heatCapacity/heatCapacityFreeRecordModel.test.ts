@@ -98,6 +98,10 @@ const physicsConfig = {
     wallHeatCapacityJPerK: 45,
     minimumGasHeatCapacityJPerK: 0.1,
   },
+  leakage: {
+    enabled: false,
+    ratePerS: 0.0005,
+  },
 };
 
 const closedPumpedPhysics: HeatCapacityFreePhysicsState = {
@@ -496,6 +500,10 @@ const version1PhysicsConfig: HeatCapacityFreePhysicsConfig = {
     wallHeatCapacityJPerK: 45,
     minimumGasHeatCapacityJPerK: 0.1,
   },
+  leakage: {
+    enabled: false,
+    ratePerS: 0.0005,
+  },
 };
 
 const version1SensorConfig: HeatCapacityFreeSensorConfig = {
@@ -709,7 +717,8 @@ const recoverAfterRelease = (
     pumpValveOpen: false,
     stopcockOpen: true,
   }, 0.05);
-  for (let elapsed = 0; elapsed < openDurationS; elapsed += 0.1) {
+  const totalOpenDurationS = 0.2 + openDurationS;
+  for (let elapsed = 0; elapsed < totalOpenDurationS; elapsed += 0.1) {
     current = stepScriptedRun(current, {
       powerOn: true,
       pumpValveOpen: false,

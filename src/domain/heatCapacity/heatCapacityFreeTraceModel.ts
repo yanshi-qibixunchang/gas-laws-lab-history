@@ -2,9 +2,10 @@ import type {
   HeatCapacityRuntimePhase,
 } from './heatCapacityExperimentModel.ts';
 
-export const HEAT_CAPACITY_FREE_TRACE_VERSION = 2;
-export const HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION = 2;
+export const HEAT_CAPACITY_FREE_TRACE_VERSION = 4;
+export const HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION = 4;
 export const HEAT_CAPACITY_FREE_CALCULATION_VERSION = 'log-pressure-v1' as const;
+export const HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S = 0.04;
 
 export const FREE_TRACE_MAX_SAMPLES_PER_TRIAL = 800;
 export const FREE_TRACE_MAX_EVENTS_PER_TRIAL = 200;
@@ -103,6 +104,8 @@ export interface HeatCapacityFreeTraceSample {
     powerOn: boolean;
     stopcockOpen: boolean;
     pumpValveOpen: boolean;
+    pumpBulbState: 'idle' | 'compressing' | 'releasing';
+    stopcockFlowOpen: boolean;
   };
   physical: {
     gasPressureKPa: number;
@@ -147,7 +150,7 @@ export interface HeatCapacityFreeEvent {
 export type HeatCapacityFreeEventInput = Omit<HeatCapacityFreeEvent, 'id' | 'index'>;
 
 export interface HeatCapacityFreeConfigSnapshot {
-  version: 2;
+  version: 4;
   environment: {
     ambientPressureKPa: number;
     ambientTemperatureK: number;
@@ -157,7 +160,11 @@ export interface HeatCapacityFreeConfigSnapshot {
     vesselVolumeL: number;
     pumpAmountGainRatio: number;
     pumpTemperatureGainK: number;
+    pumpStrokeDurationS: number;
+    recommendedPumpIntervalS: number;
     stopcockFlowRate: number;
+    releaseResponseDelayS: number;
+    releaseMainDurationS: number;
     releaseCoolingFactor: number;
     thermal: {
       gasWallConductanceWPerK: number;
@@ -165,16 +172,22 @@ export interface HeatCapacityFreeConfigSnapshot {
       wallHeatCapacityJPerK: number;
       minimumGasHeatCapacityJPerK: number;
     };
+    leakage: {
+      enabled: boolean;
+      ratePerS: number;
+    };
   };
   sensor: {
     pressureMvPerKPa: number;
     temperatureMvAtAmbient: number;
     temperatureMvPerK: number;
     lagRate: number;
+    pumpLagRate: number;
     noiseMv: number;
     quantizationMv: number;
     minSampleIntervalS: number;
     maxSampleIntervalS: number;
+    fastProcessSampleStepS: number;
     historyWindowS: number;
   };
   record: {
@@ -185,6 +198,9 @@ export interface HeatCapacityFreeConfigSnapshot {
     overVentedMinimumU2CorrectedMv: number;
     pressureWarningMv: number;
     pressureDangerMv: number;
+  };
+  scoring: {
+    processScoringVersion: 'free-process-score-v1';
   };
 }
 
@@ -205,7 +221,11 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
     vesselVolumeL: 2,
     pumpAmountGainRatio: 0.015,
     pumpTemperatureGainK: 0.35,
+    pumpStrokeDurationS: 0.08,
+    recommendedPumpIntervalS: 0.1,
     stopcockFlowRate: 4,
+    releaseResponseDelayS: 0.02,
+    releaseMainDurationS: 0.18,
     releaseCoolingFactor: 1,
     thermal: {
       gasWallConductanceWPerK: 0.22,
@@ -213,16 +233,22 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
       wallHeatCapacityJPerK: 45,
       minimumGasHeatCapacityJPerK: 0.1,
     },
+    leakage: {
+      enabled: false,
+      ratePerS: 0.0005,
+    },
   },
   sensor: {
     pressureMvPerKPa: 20,
     temperatureMvAtAmbient: 1499,
     temperatureMvPerK: 2,
     lagRate: 8,
+    pumpLagRate: 36,
     noiseMv: 0,
     quantizationMv: 0.01,
     minSampleIntervalS: 0.08,
     maxSampleIntervalS: 0.12,
+    fastProcessSampleStepS: HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S,
     historyWindowS: 1.2,
   },
   record: {
@@ -233,6 +259,9 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
     overVentedMinimumU2CorrectedMv: 0.2,
     pressureWarningMv: 115,
     pressureDangerMv: 140,
+  },
+  scoring: {
+    processScoringVersion: 'free-process-score-v1',
   },
 });
 
@@ -267,9 +296,11 @@ const copyConfigSnapshot = (
   physics: {
     ...configSnapshot.physics,
     thermal: { ...configSnapshot.physics.thermal },
+    leakage: { ...configSnapshot.physics.leakage },
   },
   sensor: { ...configSnapshot.sensor },
   record: { ...configSnapshot.record },
+  scoring: { ...configSnapshot.scoring },
 });
 
 export const createFreeTraceTrial = (

@@ -142,8 +142,8 @@ assert.equal(slowPump.accepted, true);
 assert.equal(slowPump.state.heatCapacityPhase, 'pumping');
 assert.equal(slowPump.state.pressureDeltaKPa > powered.pressureDeltaKPa, true);
 assert.equal(slowPump.state.temperatureSignalMv > powered.temperatureSignalMv, true);
-assert.equal(slowPump.state.pressureSignalMvRaw >= 2, true);
-assert.equal(slowPump.state.pressureSignalMvRaw <= 6, true);
+assert.equal(slowPump.state.pressureSignalMvRaw >= 6, true);
+assert.equal(slowPump.state.pressureSignalMvRaw <= 10, true);
 
 const suitablePump = applyHeatCapacityPumpStroke(
   slowPump.state,
@@ -162,8 +162,25 @@ assert.equal(
   true,
 );
 const suitableGainMv = suitablePump.state.pressureSignalMvRaw - slowPump.state.pressureSignalMvRaw;
-assert.equal(suitableGainMv >= 10, true);
-assert.equal(suitableGainMv <= 25, true);
+assert.equal(suitableGainMv >= 30, true);
+assert.equal(suitableGainMv <= 42, true);
+
+let fourStrokeTeachingPump = powered;
+const fourStrokeStatuses = ['tooSlow', 'suitable', 'suitable', 'suitable'] as const;
+for (const [index, pumpFrequencyStatus] of fourStrokeStatuses.entries()) {
+  fourStrokeTeachingPump = applyHeatCapacityPumpStroke(
+    fourStrokeTeachingPump,
+    {
+      ...baseControls,
+      pumpValveOpen: true,
+      pumpFrequencyStatus,
+      pumpFrequency: pumpFrequencyStatus === 'suitable' ? 0.67 : 0.33,
+    },
+    1_500 + index * 100,
+  ).state;
+}
+assert.equal(fourStrokeTeachingPump.pressureSignalMvRaw >= 115, true);
+assert.equal(fourStrokeTeachingPump.pressureSignalMvRaw < 140, true);
 
 let warmedByPumping = suitablePump.state;
 for (let index = 0; index < 8; index += 1) {

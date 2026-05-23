@@ -1,4 +1,6 @@
 ﻿import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   createDefaultHeatCapacityFile,
@@ -18,6 +20,24 @@ import {
   decodeWorkbenchSession,
   encodeWorkbenchSession,
 } from '../../src/features/workbench/workbenchSession.ts';
+import {
+  WORKBENCH_CLOSED_FILES_SCHEMA_FAMILY,
+  WORKBENCH_CLOSED_FILES_SCHEMA_VERSION,
+  WORKBENCH_SESSION_SCHEMA_FAMILY,
+  WORKBENCH_SESSION_SCHEMA_VERSION,
+} from '../../src/features/workbench/workbenchPersistenceSchema.ts';
+import {
+  decodeWorkbenchClosedFilesStorageEnvelope,
+  decodeWorkbenchStorageEnvelope,
+  encodeWorkbenchClosedFilesStorageEnvelope,
+  encodeWorkbenchStorageEnvelope,
+} from '../../src/features/workbench/workbenchPersistenceMigration.ts';
+import {
+  STANDARD_SIMULATION_SCHEMA_VERSION,
+} from '../../src/features/workbench/workbenchStandardPersistence.ts';
+import {
+  IDEAL_GAS_SCHEMA_VERSION,
+} from '../../src/features/workbench/workbenchIdealGasPersistence.ts';
 
 const standard = createDefaultStandardFile(1);
 const ideal = createDefaultIdealFile(1);
@@ -170,6 +190,10 @@ assert.equal(restored.selectedPanel, 'verification' satisfies WorkbenchPanelKey)
 assert.equal(restored.files.length, 3);
 assert.equal(restored.files[0].runState, 'paused', 'running sessions should restore paused, not auto-run');
 assert.equal(restored.files[0].finalChartData?.tempHistory.length, 1, 'standard final result data should persist');
+assert.equal(restored.files[0].kind, 'standard');
+if (restored.files[0].kind === 'standard') {
+  assert.equal(restored.files[0].hardSphereEngineSnapshot, null, 'legacy standard sessions should normalize missing engine snapshots to null');
+}
 
 const restoredIdeal = restored.files[1];
 assert.equal(restoredIdeal.kind, 'ideal');
@@ -224,6 +248,82 @@ assert.deepEqual(
   'invalid or unsupported session payloads should fall back to an empty workbench session',
 );
 assert.equal(fallback.selectedPanel, 'preview');
+
+const envelope = encodeWorkbenchStorageEnvelope(restored.files, restored.activeFileId, restored.selectedPanel, 12345);
+assert.equal(envelope.schemaFamily, WORKBENCH_SESSION_SCHEMA_FAMILY);
+assert.equal(envelope.schemaVersion, WORKBENCH_SESSION_SCHEMA_VERSION);
+assert.equal(envelope.files.length, restored.files.length);
+assert.equal(envelope.files[0].payload.experimentKind, 'standard');
+assert.equal(envelope.files[0].payload.standardSchemaVersion, STANDARD_SIMULATION_SCHEMA_VERSION);
+assert.equal('runtimeState' in envelope.files[0].payload, false, 'standard files should use the dedicated schema payload');
+assert.equal(envelope.files[1].payload.experimentKind, 'ideal');
+assert.equal(envelope.files[1].payload.idealGasSchemaVersion, IDEAL_GAS_SCHEMA_VERSION);
+assert.equal('runtimeState' in envelope.files[1].payload, false, 'ideal files should use the dedicated schema payload');
+assert.equal(envelope.files[2].payload.experimentKind, 'heatCapacity');
+const decodedEnvelope = decodeWorkbenchStorageEnvelope(envelope);
+assert.equal(decodedEnvelope.handled, true);
+assert.equal(decodedEnvelope.readonly, false);
+assert.deepEqual(decodedEnvelope.diagnostics.filter((entry) => entry.level === 'error'), []);
+assert.equal(decodedEnvelope.session.files.length, restored.files.length);
+assert.equal(decodedEnvelope.session.activeFileId, restored.activeFileId);
+const decodedStandard = decodedEnvelope.session.files[0];
+assert.equal(decodedStandard.kind, 'standard');
+if (decodedStandard.kind === 'standard') {
+  assert.equal(decodedStandard.hardSphereEngineSnapshot, null);
+}
+
+const heatReplayFile = {
+  ...createDefaultHeatCapacityFile(8),
+  pressureGaugeNeedleAngle: 33,
+  heatCapacityFreeEquilibriumSpeedMultiplier: 8 as const,
+  heatCapacityFreeEquilibriumSpeedHintShown: true,
+  hardSphereViewEnabled: true,
+  hardSphereParticleMultiplier: 1.2,
+  hardSphereSpeedMultiplier: 1.1,
+  hardSphereTrailsEnabled: true,
+};
+const replayEnvelope = encodeWorkbenchStorageEnvelope([heatReplayFile], heatReplayFile.id, 'preview', 1000);
+const replayDecoded = decodeWorkbenchStorageEnvelope(replayEnvelope).session;
+const replayFile = replayDecoded.files[0];
+assert.equal(replayFile.kind, 'heatCapacity');
+if (replayFile.kind !== 'heatCapacity') throw new Error('expected heat capacity replay file');
+assert.equal(replayFile.pressureGaugeNeedleAngle, 33);
+assert.equal(replayFile.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
+assert.equal(replayFile.heatCapacityFreeEquilibriumSpeedHintShown, true);
+assert.equal(replayFile.hardSphereViewEnabled, true);
+assert.equal(replayFile.hardSphereParticleMultiplier, 1.2);
+assert.equal(replayFile.hardSphereSpeedMultiplier, 1.1);
+assert.equal(replayFile.hardSphereTrailsEnabled, true);
+
+const closedEnvelope = encodeWorkbenchClosedFilesStorageEnvelope([heatReplayFile], 1001);
+assert.equal(closedEnvelope.schemaFamily, WORKBENCH_CLOSED_FILES_SCHEMA_FAMILY);
+assert.equal(closedEnvelope.schemaVersion, WORKBENCH_CLOSED_FILES_SCHEMA_VERSION);
+const closedDecoded = decodeWorkbenchClosedFilesStorageEnvelope(closedEnvelope);
+assert.equal(closedDecoded.handled, true);
+assert.equal(closedDecoded.files.length, 1);
+assert.equal(closedDecoded.files[0].id, heatReplayFile.id);
+
+const futureEnvelope = {
+  ...envelope,
+  schemaVersion: WORKBENCH_SESSION_SCHEMA_VERSION + 1,
+};
+const futureDecoded = decodeWorkbenchStorageEnvelope(futureEnvelope);
+assert.equal(futureDecoded.handled, true);
+assert.equal(futureDecoded.readonly, false);
+assert.equal(futureDecoded.session.files.length, 0);
+assert.equal(
+  futureDecoded.diagnostics.some((entry) => entry.code === 'unsupported-future-version'),
+  true,
+);
+
+const sessionSource = readFileSync(
+  join(process.cwd(), 'src', 'features', 'workbench', 'workbenchSession.ts'),
+  'utf8',
+);
+assert.match(sessionSource, /decodeWorkbenchStorageEnvelope/);
+assert.match(sessionSource, /encodeWorkbenchStorageEnvelope/);
+assert.match(sessionSource, /decodeWorkbenchClosedFilesStorageEnvelope/);
+assert.match(sessionSource, /encodeWorkbenchClosedFilesStorageEnvelope/);
 
 console.log('workbenchSessionPersistence tests passed');
 

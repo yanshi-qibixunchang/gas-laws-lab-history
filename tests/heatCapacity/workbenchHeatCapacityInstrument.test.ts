@@ -26,15 +26,18 @@ import {
   HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
   HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV,
   HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA,
-  HEAT_CAPACITY_PUMP_RATE_SLOW_THRESHOLD_HZ,
   HEAT_CAPACITY_GAUGE_PRESSURE_MAX_KPA,
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
   DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
+  HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER,
+  HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS,
   createHeatCapacityInitialPressureBiasMv,
   enterHeatCapacityFreeModeWorkbenchState,
   exitHeatCapacityFreeModeWorkbenchState,
+  getHeatCapacityFreeEquilibriumSpeedMultiplier,
   isHeatCapacityPressureZeroWithinTolerance,
+  isHeatCapacityFreeEquilibriumSpeedAvailable,
   markHeatCapacityDemoComplete,
   registerHeatCapacityPumpStroke,
   recordHeatCapacityFreeTraceEventWithReference,
@@ -46,6 +49,8 @@ import {
   powerHeatCapacityWorkbenchFile,
   prepareHeatCapacityAutoDemoStart,
   selectActiveHeatCapacityWorkbenchDisplay,
+  setHeatCapacityFreeEquilibriumSpeedHintShown,
+  setHeatCapacityFreeEquilibriumSpeedMultiplier,
   setHeatCapacityPressureZeroOffset,
   stepHeatCapacityWorkbenchFile,
   type WorkbenchHeatCapacityState,
@@ -61,6 +66,7 @@ import {
 } from '../../src/domain/heatCapacity/heatCapacityExperimentRandom.ts';
 import {
   createHeatCapacityAutoDemoSteps,
+  HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT,
 } from '../../src/domain/heatCapacity/heatCapacityAutoDemo.ts';
 import {
   getHeatCapacityHardSphereVisualState,
@@ -108,11 +114,19 @@ assert.equal(defaultFile.heatCapacityFreePhysicsState.wallTemperatureK, 298.15);
 assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK, 0.22);
 assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.wallAmbientConductanceWPerK, 0.45);
 assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.wallHeatCapacityJPerK, 45);
+assert.deepEqual(defaultFile.heatCapacityFreePhysicsConfig.leakage, {
+  enabled: false,
+  ratePerS: 0.0005,
+});
 assert.equal(defaultFile.heatCapacityFreeSensorConfig.lagRate, 8);
 assert.equal(defaultFile.heatCapacityFreeSensorConfig.minSampleIntervalS, 0.08);
 assert.equal(defaultFile.heatCapacityFreeSensorConfig.maxSampleIntervalS, 0.12);
 assert.equal(defaultFile.heatCapacityFreeStopcockFlowOpen, false);
 assert.equal(defaultFile.heatCapacityFreeStopcockPendingOpenAtMs, null);
+assert.deepEqual(HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS, [1, 2, 4, 8]);
+assert.equal(HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER, 4);
+assert.equal(defaultFile.heatCapacityFreeEquilibriumSpeedMultiplier, 4);
+assert.equal(defaultFile.heatCapacityFreeEquilibriumSpeedHintShown, false);
 assert.notEqual(
   defaultFile.heatCapacityFreeSensorState.displayPressureMv,
   0,
@@ -285,6 +299,8 @@ const resetFreeRun = resetHeatCapacityFreeRunWorkbenchState({
   pressureReleaseBurstUntilMs: 3200,
   heatCapacityFreeStopcockFlowOpen: true,
   heatCapacityFreeStopcockPendingOpenAtMs: 3100,
+  heatCapacityFreeEquilibriumSpeedMultiplier: 8,
+  heatCapacityFreeEquilibriumSpeedHintShown: true,
   heatCapacityFreeTrials: [freeTrial],
   heatCapacityProcessingCalculated: true,
 }, 3_000);
@@ -311,6 +327,12 @@ assert.equal(resetFreeRun.pressureZeroAdjustMode, 'none');
 assert.equal(resetFreeRun.pressureReleaseBurstUntilMs, null);
 assert.equal(resetFreeRun.heatCapacityFreeStopcockFlowOpen, false);
 assert.equal(resetFreeRun.heatCapacityFreeStopcockPendingOpenAtMs, null);
+assert.equal(resetFreeRun.heatCapacityFreeEquilibriumSpeedMultiplier, 4);
+assert.equal(resetFreeRun.heatCapacityFreeEquilibriumSpeedHintShown, false);
+assert.deepEqual(resetFreeRun.heatCapacityFreePhysicsConfig.leakage, {
+  enabled: false,
+  ratePerS: 0.0005,
+});
 assert.deepEqual(resetFreeRun.heatCapacityFreeTrials, []);
 assert.deepEqual(
   resetFreeRun.heatCapacityFreeTraceStore.traceTrials,
@@ -321,6 +343,37 @@ assert.equal(resetFreeRun.heatCapacityProcessingCalculated, false);
 assert.equal(resetFreeRun.pressureSignalMv, null);
 assert.equal(resetFreeRun.temperatureSignalMv, null);
 assert.equal(resetFreeRun.pressureKPa, null);
+for (const heatCapacityMode of ['demo', 'guide'] as const) {
+  const teachingModeStep = stepHeatCapacityWorkbenchFile({
+    ...defaultFile,
+    heatCapacityMode,
+    powerOn: true,
+    lastUpdateMs: 0,
+    heatCapacityFreePhysicsConfig: {
+      ...defaultFile.heatCapacityFreePhysicsConfig,
+      leakage: {
+        enabled: true,
+        ratePerS: 0.02,
+      },
+    },
+    heatCapacityFreePhysicsState: {
+      ...defaultFile.heatCapacityFreePhysicsState,
+      simulationTimeS: 12,
+      gasAmountRatio: 1.2,
+      gasTemperatureK: 320,
+    },
+  }, 60_000);
+  assert.equal(
+    teachingModeStep.heatCapacityFreePhysicsState.gasAmountRatio,
+    1.2,
+    `${heatCapacityMode} mode must not advance Free micro-leak physics`,
+  );
+  assert.equal(
+    teachingModeStep.heatCapacityFreePhysicsState.simulationTimeS,
+    12,
+    `${heatCapacityMode} mode must keep Free physics time unchanged`,
+  );
+}
 const freePowered = powerHeatCapacityWorkbenchFile(defaultFile, true, 1_000);
 const getFreeTraceEventTypes = (
   file: WorkbenchHeatCapacityState,
@@ -339,6 +392,13 @@ const getFreeTraceEventTypes = (
     );
   }
   return activeBranch!.events.map((event) => event.type);
+};
+const getActiveFreeTraceSampleCount = (file: WorkbenchHeatCapacityState) => {
+  const activeTrace = file.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
+    traceTrial.id === file.heatCapacityFreeTraceStore.activeTraceTrialId
+  ));
+  const activeBranch = activeTrace?.branches.find((branch) => branch.id === activeTrace.activeBranchId);
+  return activeBranch?.samples.length ?? 0;
 };
 assert.equal(
   getFreeTraceEventTypes(freePowered).includes('power-on'),
@@ -383,6 +443,18 @@ const freeRapidSecondStroke = registerHeatCapacityPumpStroke(freePumped, 1_320);
 const freeRapidThirdStroke = registerHeatCapacityPumpStroke(freeRapidSecondStroke, 1_440);
 assert.equal(freeRapidThirdStroke.pumpStrokeCount, 3);
 assert.equal(freeRapidThirdStroke.pumpFrequencyStatus, 'suitable');
+const invalidSpeedFallback = setHeatCapacityFreeEquilibriumSpeedMultiplier(
+  freePowered,
+  99,
+  1_050,
+);
+assert.equal(invalidSpeedFallback.heatCapacityFreeEquilibriumSpeedMultiplier, 4);
+const selectedSpeedEight = setHeatCapacityFreeEquilibriumSpeedMultiplier(freePowered, 8, 1_060);
+assert.equal(selectedSpeedEight.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
+assert.equal(selectedSpeedEight.updatedAt, 1_060);
+const markedSpeedHintShown = setHeatCapacityFreeEquilibriumSpeedHintShown(freePowered, true, 1_070);
+assert.equal(markedSpeedHintShown.heatCapacityFreeEquilibriumSpeedHintShown, true);
+assert.equal(markedSpeedHintShown.updatedAt, 1_070);
 const freeRecordTraceEvent = recordHeatCapacityFreeTraceEventWithReference(freePumped, 'record-u1', 1_300, {
   kind: 'u1',
   trialIndex: 1,
@@ -537,7 +609,33 @@ assert.equal(
 );
 assert.equal(freePumped.heatCapacityMode, 'free');
 assert.equal(freePumped.heatCapacityFreePhysicsState.pumpStrokeCount, 1, 'Free pump bulb should update the Free physical state');
-assert.equal(freePumped.heatCapacityFreePhysicsState.gasAmountRatio > freePowered.heatCapacityFreePhysicsState.gasAmountRatio, true);
+assert.equal(
+  freePumped.heatCapacityFreePhysicsState.gasAmountRatio,
+  freePowered.heatCapacityFreePhysicsState.gasAmountRatio,
+  'Free pump stroke should queue a short continuous physical process instead of jumping gas amount instantly',
+);
+assert.equal(freePumped.heatCapacityFreePhysicsState.pumpProcesses.length, 1);
+const freePumpedHalfway = stepHeatCapacityWorkbenchFile(freePumped, 1_240);
+assert.equal(
+  freePumpedHalfway.heatCapacityFreePhysicsState.gasAmountRatio > freePumped.heatCapacityFreePhysicsState.gasAmountRatio,
+  true,
+  'Free pump process should increase gas amount during the stroke',
+);
+assert.equal(freePumpedHalfway.heatCapacityFreePhysicsState.pumpProcesses.length, 1);
+const freePumpedSensorSampleCountBeforeCompletion = freePumped.heatCapacityFreeSensorState.pressureHistory.length;
+const freePumpedCompleted = stepHeatCapacityWorkbenchFile(freePumped, 1_300);
+assert.equal(
+  freePumpedCompleted.heatCapacityFreePhysicsState.gasAmountRatio > freePumpedHalfway.heatCapacityFreePhysicsState.gasAmountRatio,
+  true,
+  'Free pump process should continue increasing gas amount until the short stroke completes',
+);
+assert.equal(freePumpedCompleted.heatCapacityFreePhysicsState.pumpProcesses.length, 0);
+assert.equal(
+  freePumpedCompleted.heatCapacityFreeSensorState.pressureHistory.length >
+    freePumpedSensorSampleCountBeforeCompletion + 1,
+  true,
+  'Free continuous pump stepping should keep intermediate display-layer sensor samples instead of one sparse endpoint',
+);
 assert.equal(freePumped.pressureSignalMv, freePumped.heatCapacityFreeSensorState.displayPressureMv, 'Free display should mirror final sensor output');
 const freeInstantZeroKnob = setHeatCapacityPressureZeroOffset({
   ...freePowered,
@@ -606,7 +704,72 @@ assert.equal(
 );
 assert.equal(stableFourStrokeFreeFile.pressureSafetyStatus, 'warning');
 assert.equal(stableFourStrokeFreeFile.pressureBlockedPumping, false);
-const fiveStrokeFreeFile = registerHeatCapacityPumpStroke(fourStrokeFreeFile, 4_720);
+const sealedWaitBase = {
+  ...stableFourStrokeFreeFile,
+  pumpValveOpen: false,
+  pumpValveState: 'closed' as const,
+  pumpBulbState: 'idle' as const,
+  heatCapacityPhase: 'sealedStabilizing' as const,
+  heatCapacityFreeEquilibriumSpeedMultiplier: 4 as const,
+  lastUpdateMs: 6_000,
+  updatedAt: 6_000,
+};
+assert.equal(isHeatCapacityFreeEquilibriumSpeedAvailable(sealedWaitBase), true);
+assert.equal(getHeatCapacityFreeEquilibriumSpeedMultiplier(sealedWaitBase), 4);
+assert.equal(getHeatCapacityFreeEquilibriumSpeedMultiplier({
+  ...sealedWaitBase,
+  heatCapacityPhase: 'pumping',
+  pumpValveOpen: true,
+}), 1);
+const sealedX1Start = setHeatCapacityFreeEquilibriumSpeedMultiplier(sealedWaitBase, 1, 6_000);
+const sealedX4Start = setHeatCapacityFreeEquilibriumSpeedMultiplier(sealedWaitBase, 4, 6_000);
+const sealedX1OneSecond = stepHeatCapacityWorkbenchFile(sealedX1Start, 7_000);
+const sealedX4OneSecond = stepHeatCapacityWorkbenchFile(sealedX4Start, 7_000);
+assert.equal(
+  Math.abs(sealedX1OneSecond.simulationTimeS - (sealedWaitBase.simulationTimeS + 1)) < 0.001,
+  true,
+  'x1 Free wait should advance one simulated second per one real second',
+);
+assert.equal(
+  Math.abs(sealedX4OneSecond.simulationTimeS - (sealedWaitBase.simulationTimeS + 4)) < 0.001,
+  true,
+  'x4 Free wait should advance four simulated seconds per one real second',
+);
+assert.equal(
+  sealedX4OneSecond.heatCapacityFreeSensorState.pressureHistory.length >
+    sealedX1OneSecond.heatCapacityFreeSensorState.pressureHistory.length,
+  true,
+  'accelerated Free waiting should preserve intermediate sensor samples instead of taking one sparse sample per UI tick',
+);
+assert.equal(
+  getActiveFreeTraceSampleCount(sealedX4OneSecond) > getActiveFreeTraceSampleCount(sealedX4Start) + 1,
+  true,
+  'accelerated Free waiting should append multiple trace display points inside one real-time tick',
+);
+let rapidSpeedEightPumpFile: WorkbenchHeatCapacityState = {
+  ...setHeatCapacityFreeEquilibriumSpeedMultiplier(freePumpReady, 8, 7_900),
+  heatCapacityPhase: 'pumping',
+};
+for (let strokeIndex = 0; strokeIndex < 3; strokeIndex += 1) {
+  rapidSpeedEightPumpFile = registerHeatCapacityPumpStroke(
+    rapidSpeedEightPumpFile,
+    8_000 + strokeIndex * 100,
+  );
+}
+assert.equal(rapidSpeedEightPumpFile.pumpFrequencyStatus, 'suitable');
+assert.equal(
+  rapidSpeedEightPumpFile.heatCapacityFreePhysicsState.simulationTimeS < 1,
+  true,
+  'equilibrium speed multiplier must not accelerate pump-click cadence or active pumping time',
+);
+const fiveStrokeFreeFileStarted = registerHeatCapacityPumpStroke(fourStrokeFreeFile, 4_720);
+assert.equal(fiveStrokeFreeFileStarted.heatCapacityFreePhysicsState.pumpStrokeCount, 5);
+assert.equal(
+  fiveStrokeFreeFileStarted.pressureSafetyStatus,
+  'warning',
+  'the fifth Free pump stroke should not show alarm until its continuous pressure rise has actually progressed',
+);
+const fiveStrokeFreeFile = stepHeatCapacityWorkbenchFile(fiveStrokeFreeFileStarted, 4_960);
 assert.equal(fiveStrokeFreeFile.heatCapacityFreePhysicsState.pumpStrokeCount, 5);
 assert.equal(fiveStrokeFreeFile.pressureSafetyStatus, 'danger');
 assert.equal(fiveStrokeFreeFile.pressureBlockedPumping, true);
@@ -830,6 +993,7 @@ const poweredOffPressurizedHardSphereVisual = getHeatCapacityHardSphereVisualSta
   temperatureMv: null,
   pressureMv: null,
   pressureDeltaKPa: 5.5,
+  gasAmountRatio: 1.06,
   phase: 'powerOff',
   glassStopcockOpen: false,
   pumpValveOpen: false,
@@ -845,6 +1009,9 @@ const lowPressurePumpingHardSphereVisual = getHeatCapacityHardSphereVisualState(
   temperatureMv: initialTemperatureMv + 8,
   pressureMv: 20,
   pressureDeltaKPa: 1,
+  gasAmountRatio: 1.01,
+  gasTemperatureK: 298.65,
+  ambientTemperatureK: 298.15,
   phase: 'pumping',
   glassStopcockOpen: false,
   pumpValveOpen: true,
@@ -855,6 +1022,9 @@ const highPressurePumpingHardSphereVisual = getHeatCapacityHardSphereVisualState
   temperatureMv: initialTemperatureMv + 8,
   pressureMv: 110,
   pressureDeltaKPa: 5.5,
+  gasAmountRatio: 1.06,
+  gasTemperatureK: 301.15,
+  ambientTemperatureK: 298.15,
   phase: 'pumping',
   glassStopcockOpen: false,
   pumpValveOpen: true,
@@ -870,21 +1040,25 @@ const releaseCoolingHardSphereVisual = getHeatCapacityHardSphereVisualState({
   temperatureMv: initialTemperatureMv + 8,
   pressureMv: 110,
   pressureDeltaKPa: 5.5,
-  phase: 'release',
+  gasAmountRatio: 1.02,
+  gasTemperatureK: 293.15,
+  ambientTemperatureK: 298.15,
+  phase: 'releasing',
   glassStopcockOpen: true,
+  stopcockFlowOpen: true,
   pumpValveOpen: false,
   pumpBulbState: 'idle',
-  releaseBurstActive: true,
+  releaseFlowActive: true,
+  releaseProgress: 0.5,
 });
 assert.equal(
-  releaseCoolingHardSphereVisual.speedMultiplier <= lowPressurePumpingHardSphereVisual.speedMultiplier - 0.2,
+  releaseCoolingHardSphereVisual.speedMultiplier >= poweredOffHardSphereVisual.speedMultiplier + 0.75,
   true,
-  'hard-sphere speed should visibly drop during release cooling instead of staying close to the pumping speed',
+  'confirmed release should look much faster than room-temperature thermal motion',
 );
 assert.equal(HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV, 90);
 assert.equal(HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, 115);
 assert.equal(HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, 140);
-assert.equal(HEAT_CAPACITY_PUMP_RATE_SLOW_THRESHOLD_HZ, 2);
 assert.equal(defaultFile.pressureWarningThresholdKPa, HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV / defaultFile.pressureSensitivityMvPerKPa);
 assert.equal(defaultFile.pressureSafeThresholdKPa, HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV / defaultFile.pressureSensitivityMvPerKPa);
 assert.equal(defaultFile.pressureSafetyThresholdKPa, HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV / defaultFile.pressureSensitivityMvPerKPa);
@@ -892,8 +1066,8 @@ assert.equal(defaultFile.pressureSafetyStatus, 'normal');
 assert.equal(defaultFile.pressureSafetyMessage, null);
 assert.equal(defaultFile.pressureBlockedPumping, false);
 assert.equal(defaultFile.pressureOverLimit, false);
-assert.deepEqual(HEAT_CAPACITY_VIDEO_PROFILE.pumpPressureIncrementTooSlowMvRange, [6, 6]);
-assert.deepEqual(HEAT_CAPACITY_VIDEO_PROFILE.pumpPressureIncrementSuitableMvRange, [14, 14]);
+assert.deepEqual(HEAT_CAPACITY_VIDEO_PROFILE.pumpPressureIncrementTooSlowMvRange, [8, 8]);
+assert.deepEqual(HEAT_CAPACITY_VIDEO_PROFILE.pumpPressureIncrementSuitableMvRange, [36, 36]);
 assert.equal(HEAT_CAPACITY_VIDEO_PROFILE.pumpPeakPressureMvRange[1] < HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, true, 'auto demo profile peak pressure must stay below the alarm threshold');
 assert.equal(HEAT_CAPACITY_VIDEO_PROFILE.stablePressureMvRange[1] < HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, true, 'auto demo stable pressure must stay below the alarm threshold');
 assert.equal(defaultFile.pressureZeroMvPerTurn, HEAT_CAPACITY_PRESSURE_ZERO_MV_PER_TURN);
@@ -1151,10 +1325,10 @@ assert.equal(visualDemoStart.hardSphereParticleMultiplier, 1.15);
 assert.equal(visualDemoStart.hardSphereSpeedMultiplier, 1.2);
 assert.equal(visualDemoStart.pressureReleaseBurstUntilMs, null);
 
-const autoDemoPumpActionCount = createHeatCapacityAutoDemoSteps()
+const autoDemoPumpActions = createHeatCapacityAutoDemoSteps()
   .flatMap((step) => step.actions)
-  .filter((action) => action.action === 'pumpStroke').length;
-assert.equal(autoDemoPumpActionCount, 7, 'auto demo should keep the teaching pump sequence below the alarm region');
+  .filter((action) => action.action === 'pumpStroke');
+assert.equal(autoDemoPumpActions.length, HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT, 'auto demo should use the same four-stroke teaching pump sequence as Free Mode');
 let autoDemoPressureFile: WorkbenchHeatCapacityState = {
   ...demoStart,
   pumpValveOpen: true,
@@ -1164,10 +1338,11 @@ let autoDemoPressureFile: WorkbenchHeatCapacityState = {
   pressureZeroAdjusted: true,
   pressureZeroed: true,
 };
-for (let strokeIndex = 0; strokeIndex < autoDemoPumpActionCount; strokeIndex += 1) {
-  autoDemoPressureFile = registerHeatCapacityPumpStroke(autoDemoPressureFile, 21_000 + strokeIndex * 430);
+for (const action of autoDemoPumpActions) {
+  autoDemoPressureFile = registerHeatCapacityPumpStroke(autoDemoPressureFile, 21_000 + (action.delayMs ?? 0));
 }
 assert.equal(autoDemoPressureFile.pressureSignalTargetMv < HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, true, 'auto demo pumping must never reach the alarm region');
+assert.equal(autoDemoPressureFile.pressureSignalTargetMv >= HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, true, 'auto demo four-stroke pumping should enter the warning band');
 assert.equal(autoDemoPressureFile.pressureOverLimit, false, 'auto demo pumping must not set the alarm state');
 
 const completedDemo = markHeatCapacityDemoComplete({
@@ -1473,7 +1648,7 @@ const openValvePump = registerHeatCapacityPumpStroke({
 }, 10_000);
 assert.equal(openValvePump.pumpStrokeCount, 1);
 assert.equal(openValvePump.pumpFrequencyStatus, 'tooSlow');
-assert.equal(openValvePump.pressureSignalTargetMv, 6);
+assert.equal(openValvePump.pressureSignalTargetMv, 8);
 assert.equal(openValvePump.pressurePlaceholder > poweredFile.pressurePlaceholder, true);
 assert.equal(openValvePump.temperaturePlaceholder > poweredFile.temperaturePlaceholder, true);
 
@@ -1487,13 +1662,12 @@ for (let strokeIndex = 0; strokeIndex < 11; strokeIndex += 1) {
   pumpSequenceFile = registerHeatCapacityPumpStroke(pumpSequenceFile, 10_000 + strokeIndex * 430);
   pumpSequence.push(pumpSequenceFile);
 }
-assert.equal(pumpSequence[5].pressureSignalTargetMv < HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, true, 'the sixth pump stroke should remain in the safe region');
-assert.equal(pumpSequence[7].pressureSignalTargetMv < HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, true, 'the eighth pump stroke should remain in the safe region');
-assert.equal(pumpSequence[8].pressureSignalTargetMv >= HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, true, 'the ninth pump stroke should enter the warning region');
-assert.equal(pumpSequence[8].pressureSafetyStatus, 'warning');
-assert.equal(pumpSequence[9].pressureSignalTargetMv < HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, true, 'the tenth pump stroke should still give the user warning reaction time');
-assert.equal(pumpSequence[10].pressureSignalTargetMv >= HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, true, 'the eleventh pump stroke should enter the alarm region');
-assert.equal(pumpSequence[10].pressureSafetyStatus, 'danger');
+assert.equal(pumpSequence[2].pressureSignalTargetMv < HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, true, 'the third pump stroke should remain in the safe region');
+assert.equal(pumpSequence[3].pressureSignalTargetMv >= HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, true, 'the fourth pump stroke should enter the warning region');
+assert.equal(pumpSequence[3].pressureSignalTargetMv < HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, true, 'the fourth pump stroke should remain below the alarm line');
+assert.equal(pumpSequence[3].pressureSafetyStatus, 'warning');
+assert.equal(pumpSequence[4].pressureSignalTargetMv >= HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV, true, 'the fifth pump stroke should enter the alarm region');
+assert.equal(pumpSequence[4].pressureSafetyStatus, 'danger');
 
 const warningRegionPump = registerHeatCapacityPumpStroke({
   ...poweredFile,

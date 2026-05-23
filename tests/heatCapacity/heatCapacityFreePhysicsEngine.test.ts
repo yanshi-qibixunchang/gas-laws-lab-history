@@ -5,6 +5,7 @@ import {
   applyFreePumpStroke,
   createDefaultFreePhysicsState,
   deriveFreePhysicalState,
+  FREE_PUMP_STROKE_DURATION_S,
   stepFreePhysics,
   type HeatCapacityFreeControls,
   type HeatCapacityFreePhysicsConfig,
@@ -28,6 +29,10 @@ const baseConfig: HeatCapacityFreePhysicsConfig = {
     wallHeatCapacityJPerK: 45,
     minimumGasHeatCapacityJPerK: 0.1,
   },
+  leakage: {
+    enabled: false,
+    ratePerS: 0.0005,
+  },
 };
 
 const controls: HeatCapacityFreeControls = {
@@ -35,6 +40,14 @@ const controls: HeatCapacityFreeControls = {
   pumpValveOpen: false,
   stopcockOpen: false,
 };
+
+const leakageConfig = {
+  ...baseConfig,
+  leakage: {
+    enabled: true,
+    ratePerS: 0.0005,
+  },
+} as HeatCapacityFreePhysicsConfig;
 
 const expectClose = (actual: number, expected: number, tolerance: number, message: string) => {
   assert.equal(
@@ -48,15 +61,19 @@ const pumpOnce = (
   state: HeatCapacityFreePhysicsState,
   atS: number,
   strength = 1,
-) => applyFreePumpStroke(
-  state,
-  baseConfig,
-  {
-    ...controls,
-    pumpValveOpen: true,
-  },
-  { atS, strength },
-).state;
+) => {
+  const result = applyFreePumpStroke(
+    state,
+    baseConfig,
+    {
+      ...controls,
+      pumpValveOpen: true,
+    },
+    { atS, strength },
+  );
+  assert.equal(result.accepted, true);
+  return stepFreePhysics(result.state, baseConfig, controls, FREE_PUMP_STROKE_DURATION_S, atS + FREE_PUMP_STROKE_DURATION_S);
+};
 
 const createPumpedSequence = () => {
   let state = createDefaultFreePhysicsState(baseConfig);
@@ -76,6 +93,8 @@ const initialDerived = deriveFreePhysicalState(initial, baseConfig);
 assert.equal(initial.gasAmountRatio, 1);
 assert.equal(initial.gasTemperatureK, baseConfig.environment.ambientTemperatureK);
 assert.equal(initial.wallTemperatureK, baseConfig.environment.ambientTemperatureK);
+assert.deepEqual(initial.pumpProcesses, []);
+assert.equal(initial.releaseProcess, null);
 assert.equal(initialDerived.gasPressureKPa, baseConfig.environment.ambientPressureKPa);
 assert.equal(initialDerived.pressureDeltaKPa, 0);
 
@@ -128,11 +147,118 @@ assert.equal(
   'closed waiting pressure should change through temperature relaxation only',
 );
 
+const leakedSealed = stepFreePhysics(hotSealed, leakageConfig, controls, 60, 70);
+assert.equal(
+  leakedSealed.gasAmountRatio < hotSealed.gasAmountRatio,
+  true,
+  'enabled micro-leak should slowly reduce gas amount while sealed above ambient',
+);
+assert.equal(
+  leakedSealed.gasAmountRatio > 1,
+  true,
+  'weak micro-leak should not dominate a one-minute sealed wait',
+);
+assert.equal(
+  deriveFreePhysicalState(leakedSealed, leakageConfig).gasPressureKPa <
+    deriveFreePhysicalState(stepFreePhysics(hotSealed, baseConfig, controls, 60, 70), baseConfig).gasPressureKPa,
+  true,
+  'micro-leak should reduce pressure through gas amount, not by clamping pressure',
+);
+
+const belowAmbientSealed = stepFreePhysics(
+  {
+    ...initial,
+    gasAmountRatio: 0.96,
+  },
+  leakageConfig,
+  controls,
+  60,
+  71,
+);
+assert.equal(
+  belowAmbientSealed.gasAmountRatio,
+  0.96,
+  'sealed micro-leak must not draw gas back in when pressure is below ambient',
+);
+
+const pendingPump = applyFreePumpStroke(
+  initial,
+  baseConfig,
+  { ...controls, pumpValveOpen: true },
+  { atS: 1, strength: 1 },
+);
+assert.equal(pendingPump.accepted, true);
+assert.equal(pendingPump.state.gasAmountRatio, initial.gasAmountRatio, 'accepted pump should enqueue a continuous stroke instead of jumping gas amount');
+assert.equal(pendingPump.state.gasTemperatureK, initial.gasTemperatureK, 'accepted pump should not jump gas temperature before the stroke progresses');
+assert.equal(pendingPump.state.pumpProcesses.length, 1);
+const halfPumped = stepFreePhysics(pendingPump.state, baseConfig, controls, 0.04, 1.04);
+expectClose(
+  halfPumped.gasAmountRatio,
+  initial.gasAmountRatio + baseConfig.pumpAmountGainRatio * 0.68,
+  0.000000001,
+  'early in the 0.08 s pump stroke should apply most of the gas amount for a visible pressure step',
+);
+expectClose(
+  halfPumped.gasTemperatureK,
+  initial.gasTemperatureK + baseConfig.pumpTemperatureGainK * 0.68,
+  0.02,
+  'early in the 0.08 s pump stroke should apply most of the pump heating',
+);
+assert.equal(halfPumped.pumpProcesses.length, 1);
+const fullyPumped = stepFreePhysics(halfPumped, baseConfig, controls, 0.04, 1.08);
+expectClose(
+  fullyPumped.gasAmountRatio,
+  initial.gasAmountRatio + baseConfig.pumpAmountGainRatio,
+  0.000000001,
+  'after 0.08 s the pump stroke should finish its full gas amount',
+);
+assert.equal(fullyPumped.pumpProcesses.length, 0, 'finished pump stroke should be removed from the active queue');
+
+const rapidCadencePump = applyFreePumpStroke(
+  initial,
+  baseConfig,
+  { ...controls, pumpValveOpen: true },
+  { atS: 1.5, strength: 1 },
+);
+const rapidCadenceAfterOneInterval = stepFreePhysics(
+  rapidCadencePump.state,
+  baseConfig,
+  controls,
+  0.1,
+  1.6,
+);
+assert.equal(
+  rapidCadenceAfterOneInterval.pumpProcesses.length,
+  0,
+  'a pump stroke should complete before the recommended 0.1 s next stroke so four clicks render as four visible steps',
+);
+
+let rapidSeparatedPumps = applyFreePumpStroke(
+  initial,
+  baseConfig,
+  { ...controls, pumpValveOpen: true },
+  { atS: 2, strength: 1 },
+).state;
+rapidSeparatedPumps = stepFreePhysics(rapidSeparatedPumps, baseConfig, controls, 0.1, 2.1);
+rapidSeparatedPumps = applyFreePumpStroke(
+  rapidSeparatedPumps,
+  baseConfig,
+  { ...controls, pumpValveOpen: true },
+  { atS: 2.1, strength: 1 },
+).state;
+rapidSeparatedPumps = stepFreePhysics(rapidSeparatedPumps, baseConfig, controls, 0.04, 2.14);
+expectClose(
+  rapidSeparatedPumps.gasAmountRatio,
+  initial.gasAmountRatio + baseConfig.pumpAmountGainRatio * (1 + 0.68),
+  0.000000001,
+  'pump strokes 0.1 s apart should be separated enough to draw as visible stair steps',
+);
+
 const pumped = pumpOnce(initial, 1, 1.25);
 assert.equal(pumped.pumpStrokeCount, 1);
 assert.equal(pumped.gasAmountRatio > initial.gasAmountRatio, true);
 assert.equal(pumped.gasTemperatureK > initial.gasTemperatureK, true);
-assert.equal(pumped.wallTemperatureK, initial.wallTemperatureK);
+assert.equal(pumped.wallTemperatureK >= initial.wallTemperatureK, true);
 assert.equal(
   deriveFreePhysicalState(pumped, baseConfig).gasPressureKPa > initialDerived.gasPressureKPa,
   true,
@@ -148,17 +274,17 @@ const accepted = applyFreePumpStroke(
 assert.equal(accepted.accepted, true);
 assert.equal(accepted.reason, 'accepted');
 assert.equal(accepted.state.pumpStrokeCount, 1);
-expectClose(
-  accepted.state.gasTemperatureK,
-  baseConfig.environment.ambientTemperatureK + baseConfig.pumpTemperatureGainK,
-  0.000000001,
-  'pump stroke should heat only gas',
-);
+assert.equal(accepted.state.gasTemperatureK, initial.gasTemperatureK, 'accepted pump stroke should queue heating instead of applying it instantly');
 assert.equal(accepted.state.wallTemperatureK, initial.wallTemperatureK);
 assert.equal(
-  accepted.state.maxPressureKPa > initial.maxPressureKPa,
+  accepted.state.maxPressureKPa,
+  initial.maxPressureKPa,
+  'accepted pump stroke should not raise max pressure before the continuous stroke progresses',
+);
+assert.equal(
+  stepFreePhysics(accepted.state, baseConfig, controls, FREE_PUMP_STROKE_DURATION_S, 2 + FREE_PUMP_STROKE_DURATION_S).maxPressureKPa > initial.maxPressureKPa,
   true,
-  'accepted pump stroke should immediately raise max pressure without requiring a continuous step',
+  'continuous pump progress should raise max pressure after the stroke advances',
 );
 
 const rejectCases: Array<[
@@ -205,14 +331,32 @@ const aboveAmbient = {
   gasAmountRatio: 1.1,
   gasTemperatureK: baseConfig.environment.ambientTemperatureK,
 };
-const vented = stepFreePhysics(
+const ventStarted = stepFreePhysics(
   aboveAmbient,
   baseConfig,
   { ...controls, stopcockOpen: true },
+  0.01,
+  20.01,
+);
+const vented = stepFreePhysics(
+  ventStarted,
+  baseConfig,
+  { ...controls, stopcockOpen: true },
   0.2,
-  20,
+  20.21,
 );
 assert.equal(vented.gasAmountRatio < aboveAmbient.gasAmountRatio, true, 'above-ambient pressure should vent gas out');
+assert.deepEqual(
+  stepFreePhysics(
+    stepFreePhysics(aboveAmbient, leakageConfig, { ...controls, stopcockOpen: true }, 0.01, 20.01),
+    leakageConfig,
+    { ...controls, stopcockOpen: true },
+    0.2,
+    20.21,
+  ),
+  vented,
+  'micro-leak config should not alter the open-stopcock release path',
+);
 
 const belowAmbient = {
   ...initial,
@@ -234,16 +378,30 @@ const opened = stepFreePhysics(
   settled,
   baseConfig,
   { ...controls, stopcockOpen: true },
-  0.05,
-  50,
+  0.01,
+  50.01,
 );
 assert.notEqual(opened.releaseReference, null);
-assert.equal(opened.releaseReference?.openedAtS, 50);
+assert.notEqual(opened.releaseProcess, null);
+assert.equal(opened.releaseReference?.openedAtS, 50.01);
 assert.equal(opened.releaseReference?.pressureBeforeKPa, settledDerived.gasPressureKPa);
 assert.equal(opened.releaseReference?.temperatureBeforeK, settled.gasTemperatureK);
 assert.equal(opened.releaseReference?.amountBeforeRatio, settled.gasAmountRatio);
+assert.equal(opened.gasAmountRatio, settled.gasAmountRatio, 'release response delay should prevent an instant gas amount jump');
 
-const quickReleased = opened;
+const halfReleased = stepFreePhysics(opened, baseConfig, { ...controls, stopcockOpen: true }, 0.1, 50.11);
+assert.equal(
+  halfReleased.gasAmountRatio < settled.gasAmountRatio && halfReleased.gasAmountRatio > initial.gasAmountRatio,
+  true,
+  '0.1 s after confirmed flow should be a partial release between pumped and fully released amount',
+);
+assert.notEqual(halfReleased.releaseProcess, null);
+const partialClosed = stepFreePhysics(halfReleased, baseConfig, controls, 0.1, 50.21);
+assert.equal(partialClosed.releaseProcess, null, 'closing the stopcock should cancel the unfinished release process');
+assert.equal(partialClosed.gasAmountRatio, halfReleased.gasAmountRatio, 'partial release amount should be preserved after closing');
+
+const quickReleased = stepFreePhysics(opened, baseConfig, { ...controls, stopcockOpen: true }, 0.2, 50.21);
+assert.equal(quickReleased.releaseProcess, null, 'the 0.2 s release window should finish the main release process');
 assert.notEqual(quickReleased.releaseReference?.reachedAmbientAtS, null);
 let recovered = quickReleased;
 for (let index = 0; index < 50; index += 1) {
@@ -314,12 +472,19 @@ expectClose(
 
 const afterState4Closed = stepFreePhysics(recovered, baseConfig, controls, 1, 100);
 assert.equal(afterState4Closed.gasAmountRatio, recovered.gasAmountRatio, 'state 4 closed wait should preserve amount');
-const reopened = stepFreePhysics(
+const reopenStarted = stepFreePhysics(
   afterState4Closed,
   baseConfig,
   { ...controls, stopcockOpen: true },
+  0.01,
+  101.01,
+);
+const reopened = stepFreePhysics(
+  reopenStarted,
+  baseConfig,
+  { ...controls, stopcockOpen: true },
   0.1,
-  101,
+  101.11,
 );
 assert.equal(
   reopened.gasAmountRatio < afterState4Closed.gasAmountRatio,

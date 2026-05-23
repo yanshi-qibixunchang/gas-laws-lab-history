@@ -5,6 +5,7 @@ import type {
   WorkbenchHeatCapacityState,
 } from '../workbench/workbenchState.ts';
 import {
+  calculateHeatCapacityTrialResult,
   getHeatCapacityCompletedTrialCount,
   getHeatCapacityNextActiveTrialIndex,
   type HeatCapacityProcessingTrialResult,
@@ -977,30 +978,39 @@ const renderRecordingTab = (
               <th><VarU index={2} /> / mV</th>
               <th><VarUT index={1} /> / mV</th>
               <th><VarUT index={2} /> / mV</th>
+              <th><VarGamma index="i" /></th>
               <th>{copy.table.status}</th>
               <th>{copy.table.action}</th>
             </tr>
           </thead>
           <tbody>
-            {file.heatCapacityTrials.map((trial, trialIndex) => (
-              <tr key={trial.id}>
-                <td>{trial.trialIndex}</td>
-                <td>{formatNumber(trial.U1Mv, 2)}</td>
-                <td>{formatNumber(trial.U2Mv, 2)}</td>
-                <td>{formatNumber(trial.UT1Mv, 1)}</td>
-                <td>{formatNumber(trial.UT2Mv, 1)}</td>
-                <td><span className={statusClass(trial.status)}>{copy.status[trial.status]}</span></td>
-                <td>
-                  <div className="studio-table-action-row">
-                    {renderRemoveRecordButton(
-                      trialIndex,
-                      'trial',
-                      trial.U1Mv !== null || trial.U2Mv !== null || trial.UT1Mv !== null || trial.UT2Mv !== null,
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {file.heatCapacityTrials.map((trial, trialIndex) => {
+              const trialResult = calculateHeatCapacityTrialResult(trial, {
+                atmosphericPressureKPa: file.ambientPressureKPa,
+                pressureSensitivityMvPerKPa: file.pressureSensitivityMvPerKPa,
+                theoreticalGamma: file.theoreticalGamma,
+              });
+              return (
+                <tr key={trial.id}>
+                  <td>{trial.trialIndex}</td>
+                  <td>{formatNumber(trial.U1Mv, 2)}</td>
+                  <td>{formatNumber(trial.U2Mv, 2)}</td>
+                  <td>{formatNumber(trial.UT1Mv, 1)}</td>
+                  <td>{formatNumber(trial.UT2Mv, 1)}</td>
+                  <td>{formatGamma(trialResult.gamma)}</td>
+                  <td><span className={statusClass(trial.status)}>{copy.status[trial.status]}</span></td>
+                  <td>
+                    <div className="studio-table-action-row">
+                      {renderRemoveRecordButton(
+                        trialIndex,
+                        'trial',
+                        trial.U1Mv !== null || trial.U2Mv !== null || trial.UT1Mv !== null || trial.UT2Mv !== null,
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

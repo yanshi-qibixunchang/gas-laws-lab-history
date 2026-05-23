@@ -11,6 +11,7 @@ import type {
 } from './heatCapacityFreeCalibrationModel.ts';
 import {
   createDefaultFreeSensorState,
+  HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE,
   getFreeSensorDisplay,
   stepFreeSensor,
   type HeatCapacityFreeSensorConfig,
@@ -157,14 +158,20 @@ const simulateCandidate = (
   const stages: HeatCapacityProcessStageSegment[] = [];
 
   const sample = (stageId: HeatCapacityProcessStageId) => {
+    const stageSensorConfig = stageId === 'pump'
+      ? {
+          ...sensorConfig,
+          lagRate: Math.max(sensorConfig.lagRate, HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE),
+        }
+      : sensorConfig;
     const physical = deriveFreePhysicalState(physicsState, physicsConfig);
     sensorState = stepFreeSensor(sensorState, {
       gasPressureKPa: physical.gasPressureKPa,
       pressureDeltaKPa: physical.pressureDeltaKPa,
       gasTemperatureK: physicsState.gasTemperatureK,
       ambientTemperatureK: physicsConfig.environment.ambientTemperatureK,
-    }, calibration, sensorConfig, timeS);
-    const display = getFreeSensorDisplay(sensorState, calibration, sensorConfig);
+    }, calibration, stageSensorConfig, timeS);
+    const display = getFreeSensorDisplay(sensorState, calibration, stageSensorConfig);
     const point = toReferencePoint(
       `operable-best-${sampleIndex}`,
       stageId,

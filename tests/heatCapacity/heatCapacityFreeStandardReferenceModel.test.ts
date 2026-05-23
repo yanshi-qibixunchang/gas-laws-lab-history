@@ -21,6 +21,20 @@ const countVisiblePumpLevels = (
     .map((point) => Math.round(point.pressureDeltaKPa * config.sensor.pressureMvPerKPa / 5) * 5),
 ).size;
 
+const lastPumpPressureMv = (
+  points: Array<{ stageId: string; pressureDeltaKPa: number }>,
+) => {
+  const pumpPoints = points.filter((point) => point.stageId === 'pump');
+  const lastPumpPoint = pumpPoints[pumpPoints.length - 1] ?? null;
+  return (lastPumpPoint?.pressureDeltaKPa ?? 0) * config.sensor.pressureMvPerKPa;
+};
+
+const expectedPhysicalPumpPressureMv = (pumpStrokeCount: number) => (
+  (((1 + config.physics.pumpAmountGainRatio) ** pumpStrokeCount) - 1) *
+  config.environment.ambientPressureKPa *
+  config.sensor.pressureMvPerKPa
+);
+
 assert.equal(reference.noiseMv, 0);
 assert.equal(reference.trace.length > 20, true);
 assert.equal(reference.stages.map((stage) => stage.id).join(','), 'zero,pump,stabilize,release,recover');
@@ -36,6 +50,11 @@ assert.equal(
   countVisiblePumpLevels(reference.trace) >= 4,
   true,
   'standard reference should expose one visible pressure level per pump stroke instead of collapsing four strokes into two plateaus',
+);
+assert.equal(
+  lastPumpPressureMv(reference.trace) >= expectedPhysicalPumpPressureMv(4) * 0.9,
+  true,
+  'standard reference should use the same rapid pump-stage sensor response as the runtime trace',
 );
 assert.equal(reference.records.u0 !== null, true);
 assert.equal(reference.records.u1 !== null, true);
@@ -71,6 +90,11 @@ assert.equal(
   countVisiblePumpLevels(operableBest.trace) >= operableBest.pumpStrokeCount,
   true,
   'operable-best reference should expose each rapid pump stroke as a visible pressure level',
+);
+assert.equal(
+  lastPumpPressureMv(operableBest.trace) >= expectedPhysicalPumpPressureMv(operableBest.pumpStrokeCount) * 0.9,
+  true,
+  'operable-best reference should use the same rapid pump-stage sensor response as the runtime trace',
 );
 
 const findLastPointByStage = (

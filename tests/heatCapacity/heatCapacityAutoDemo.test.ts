@@ -2,6 +2,8 @@
 import {
   createHeatCapacityAutoDemoSteps,
   getHeatCapacityAutoDemoTimeline,
+  HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT,
+  HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS,
 } from '../../src/domain/heatCapacity/heatCapacityAutoDemo.ts';
 
 const steps = createHeatCapacityAutoDemoSteps();
@@ -27,11 +29,26 @@ assert.deepEqual(
 
 assert.equal(actionSequence.includes('zeroPressure'), true);
 assert.equal(actionSequence.includes('openStopcockForZero'), true);
-assert.equal(actionSequence.filter((action) => action === 'pumpStroke').length >= 5, true);
+assert.equal(actionSequence.filter((action) => action === 'pumpStroke').length, HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT);
 assert.equal(actionSequence.includes('openStopcockForRelease'), true);
 assert.equal(actionSequence.includes('closeStopcockForRecovery'), true);
 assert.equal(actionSequence.includes('powerOff'), true);
 assert.equal(actionSequence.includes('markDemoComplete'), true);
+const pumpPressurizeStep = steps.find((step) => step.id === 'pump-pressurize');
+assert.notEqual(pumpPressurizeStep, undefined);
+assert.deepEqual(
+  pumpPressurizeStep?.actions
+    .filter((action) => action.action === 'pumpStroke')
+    .map((action) => action.delayMs ?? 0),
+  Array.from(
+    { length: HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT },
+    (_, index) => index * HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS,
+  ),
+);
+assert.equal(
+  pumpPressurizeStep?.actions.find((action) => action.sampleKey === 'pumpPeakSample')?.delayMs,
+  HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT * HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS + 300,
+);
 assert.deepEqual(
   steps.flatMap((step) => step.actions.map((action) => action.sampleKey).filter(Boolean)),
   ['zeroedSample', 'pumpPeakSample', 'stableBeforeReleaseSample', 'releaseLowSample', 'recoverySample'],

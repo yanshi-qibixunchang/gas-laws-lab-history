@@ -23,8 +23,8 @@ assert.match(
 
 assert.match(
   sessionSource,
-  /storage\.setItem\(WORKBENCH_SESSION_STORAGE_KEY, JSON\.stringify\(session\)\);/,
-  'newly created studies should still persist through the selected session storage key',
+  /storage\.setItem\(WORKBENCH_SESSION_STORAGE_KEY, JSON\.stringify\(envelope\)\);/,
+  'newly created studies should still persist through the selected session storage key via the versioned envelope',
 );
 
 assert.match(
