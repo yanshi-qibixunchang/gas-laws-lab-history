@@ -162,6 +162,34 @@ assert.equal(releasing.temperatureColorFactor < ambient.temperatureColorFactor, 
 assert.equal(releasing.targetParticleCount > ambient.targetParticleCount, true, 'partial release should still show more molecules than the fully vented baseline when gas amount remains above 1');
 assert.equal(releasing.targetParticleCount < sealedAfterFourPumps.targetParticleCount, true, 'release should visibly reduce molecule count while staying above the initial state');
 
+const confirmedTeachingReleaseStart = getHeatCapacityHardSphereVisualState({
+  powerOn: true,
+  temperatureMv: 1490,
+  pressureMv: 110,
+  gasAmountRatio: 1.02,
+  gasTemperatureK: 293.15,
+  ambientTemperatureK: 298.15,
+  phase: 'releasing',
+  glassStopcockOpen: true,
+  stopcockFlowOpen: true,
+  pumpValveOpen: false,
+  pumpBulbState: 'idle',
+  pressureDeltaKPa: 5.5,
+  releaseFlowActive: true,
+  releaseProgress: 0,
+});
+
+assert.equal(
+  confirmedTeachingReleaseStart.outflowActive,
+  true,
+  'confirmed teaching-mode release should start directed molecule outflow immediately, even before progress advances',
+);
+assert.equal(
+  confirmedTeachingReleaseStart.speedMultiplier >= releasing.speedMultiplier - 0.01,
+  true,
+  'teaching-mode release should use the same fast directed outflow speed as free mode once flow is confirmed',
+);
+
 const nearEquilibriumRelease = getHeatCapacityHardSphereVisualState({
   powerOn: true,
   temperatureMv: 1498.8,

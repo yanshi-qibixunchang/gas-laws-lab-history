@@ -92,7 +92,6 @@ export const getHeatCapacityHardSphereVisualState = (
   const phase = input.phase;
   const actualOutflow = input.releaseFlowActive === true &&
     input.stopcockFlowOpen === true &&
-    clampNumber(finiteOrFallback(input.releaseProgress, 0), 0, 1) > 0 &&
     Math.abs(pressureDeltaKPa) > HEAT_CAPACITY_HARD_SPHERE_OUTFLOW_EQUILIBRIUM_KPA;
   const activePump = phase === 'pumping' && input.pumpValveOpen && input.pumpBulbState === 'compressing';
   const pumpFlowIntensity = clampNumber(finiteOrFallback(input.pumpFlowIntensity, input.pumpFlowActive ? 1 : 0), 0, 1.6);

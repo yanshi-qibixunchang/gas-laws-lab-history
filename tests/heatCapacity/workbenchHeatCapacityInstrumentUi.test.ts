@@ -281,8 +281,20 @@ assert.match(styleSource, /\.studio-theme-light \.studio-heat-hard-sphere-toolti
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-demo-step-panel/, 'light theme should restyle the heat-capacity auto-demo step panel');
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-demo-complete-toast/, 'light theme should restyle centered heat-capacity demo and guide status toasts');
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-pressure-warning/, 'light theme should restyle the centered heat-capacity pressure alarm panel');
-assert.match(sceneSource, /props\.performanceMode === 'performance'\s*\?\s*\[1,\s*1\]/, 'performance tier should keep DPR at or above 1 to avoid blur');
-assert.match(sceneSource, /props\.performanceMode === 'balanced'\s*\?\s*\[1,\s*1\.15\]/, 'balanced tier should reduce DPR mildly without obvious blur');
+assert.match(sceneSource, /props\.performanceMode === 'standard'\s*\?\s*2\.5/, 'standard tier should use visible supersampling for clearer 3D output');
+assert.match(sceneSource, /props\.performanceMode === 'balanced'\s*\?\s*1\.5/, 'balanced tier should stay visibly between standard and performance tiers');
+assert.match(sceneSource, /:\s*1,/, 'performance tier should keep the lowest fixed DPR for a clearly lighter mode');
+assert.match(sceneSource, /const highClarityMode = props\.performanceMode === 'standard';/, 'high-clarity rendering extras should only be enabled for the standard display-quality tier');
+assert.match(sceneSource, /<PressureBottle[\s\S]*highClarityMode=\{highClarityMode\}/, 'high-clarity mode should strengthen glass vessel and stopcock clarity');
+assert.match(sceneSource, /<InstrumentLeads[\s\S]*highClarityMode=\{highClarityMode\}/, 'high-clarity mode should strengthen lead wire readability');
+assert.match(sceneSource, /<InstrumentBox[\s\S]*highClarityMode=\{highClarityMode\}/, 'high-clarity mode should strengthen instrument panel and screen edges');
+assert.match(sceneSource, /opacity=\{highClarityMode \? 0\.22 : 0\.16\}/, 'high-clarity glass vessel should be less washed out while keeping transparency');
+assert.match(sceneSource, /transmission=\{highClarityMode \? 0\.3 : 0\.45\}/, 'high-clarity glass vessel should reduce transmission slightly for clearer boundaries');
+assert.match(sceneSource, /scenePalette\.glass\.stopcockOutlineVisible \|\| highClarityMode/, 'high-clarity mode should show stopcock outlines even in the dark palette');
+assert.match(sceneSource, /highClarityMode \? <Edges color=\{scenePalette\.instrument\.hoverHalo\} \/> : null/, 'high-clarity mode should add visible instrument and display screen edges');
+assert.match(sceneSource, /lineWidth=\{highClarityMode \? 3 : 2\}/, 'high-clarity mode should slightly thicken the positive lead');
+assert.match(sceneSource, /lineWidth=\{highClarityMode \? 4 : 3\}/, 'high-clarity mode should slightly thicken the negative lead');
+assert.match(sceneSource, /lineWidth=\{highClarityMode \? 5 : 4\}/, 'high-clarity mode should slightly thicken the pressure lead');
 assert.match(sceneSource, /\}\), \[props\.performanceMode\]\);/, 'performance-mode canvas memoization should not remount or recolor the light scene');
 assert.match(sceneSource, /const panelTextUpdateIntervalMs = panelTextInteractionReduced[\s\S]*\?\s*400[\s\S]*performanceMode === 'performance'[\s\S]*\?\s*250[\s\S]*performanceMode === 'balanced'[\s\S]*\?\s*180[\s\S]*:\s*120/, 'digital screen refresh should stay responsive across all three performance tiers');
 assert.doesNotMatch(sceneSource, /panelTextUpdateIntervalMs[\s\S]{0,260}1000/, 'digital screen refresh should not fall back to a one-second update interval');
@@ -533,7 +545,7 @@ assert.doesNotMatch(sceneSource, /name="SensorSurfaceLeadGroove"/, 'old dedicate
 assert.match(sceneSource, /name="TemperaturePositiveLead"[\s\S]*\[-1\.1, 0\.89, 0\.36\][\s\S]*\[-1\.1, 0\.92, 1\.1\][\s\S]*\[1\.12, -0\.62, 0\.51\]/, 'positive temperature lead should run from the shared service port to the red host input');
 assert.match(sceneSource, /name="TemperatureNegativeLead"[\s\S]*\[-1\.08, 0\.885, 0\.38\][\s\S]*\[-1\.1, 0\.92, 1\.1\][\s\S]*\[1\.3, -0\.62, 0\.51\]/, 'negative temperature lead should run from the shared service port to the black host input');
 assert.match(sceneSource, /name="PressureSensorLead"[\s\S]*\[-1\.12, 0\.88, 0\.34\][\s\S]*\[-1\.1, 0\.92, 1\.1\][\s\S]*\[1\.77, -0\.63, 0\.51\]/, 'pressure tube should run from the shared service port to the central pressure input');
-assert.match(sceneSource, /name="PressureSensorLead"[\s\S]*color=\{scenePalette\.leads\.pressure\}[\s\S]*lineWidth=\{4\}/, 'pressure tube should use the scene palette and stay thicker than the temperature wires');
+assert.match(sceneSource, /name="PressureSensorLead"[\s\S]*color=\{scenePalette\.leads\.pressure\}[\s\S]*lineWidth=\{highClarityMode \? 5 : 4\}/, 'pressure tube should use the scene palette and stay thicker than the temperature wires');
 assert.doesNotMatch(sceneSource, /clampStopcockAngle/, 'stopcock drag should no longer be clamped to a 0-90 degree range');
 assert.match(
   sceneSource,
@@ -584,7 +596,7 @@ assert.match(sceneSource, /const controlsRef = useRef<.*OrbitControls/, '3D prev
 assert.match(sceneSource, /enablePan=\{true\}/, '3D preview should allow moving the model view');
 assert.match(sceneSource, /enableZoom=\{true\}/, '3D preview should allow scaling the model view with zoom');
 assert.match(sceneSource, /frameloop: 'demand'/, 'heat-capacity 3D scene should render on demand instead of continuously');
-assert.match(sceneSource, /\[1, 1\.25\]/, 'standard Heat Capacity 3D mode should keep the current DPR cap');
+assert.match(sceneSource, /props\.performanceMode === 'standard'\s*\?\s*2\.5/, 'standard Heat Capacity 3D mode should supersample above native DPR when needed');
 assert.match(sceneSource, /shadows: false/, 'heat-capacity 3D scene should disable shadow rendering');
 assert.doesNotMatch(sceneSource, /castShadow|receiveShadow/, 'heat-capacity 3D scene should not keep mesh shadow flags when shadows are disabled');
 assert.match(sceneSource, /onStart=\{onInteractionStart\}/, 'orbit controls should enter a reduced-quality interaction state when dragging starts');
@@ -729,8 +741,8 @@ assert.match(workbenchSource, /manualHeatCapacityActiveFileId/, 'manual heat-cap
 assert.match(workbenchSource, /manualHeatCapacityActiveFileId !== activeFile\.id\) return true/, 'manual guards should not constrain users before the manual tutorial is started');
 assert.match(workbenchSource, /data-heat-capacity-manual-step-hint="true"/, 'manual heat-capacity guard should surface a top-centered step hint in the 3D preview');
 assert.match(workbenchSource, /studio-heat-record-controls-pulse/, 'manual heat-capacity guard should pulse the record entry when recording is the next required action');
-assert.match(workbenchSource, /const recordHeatCapacityManualSample = \(kind: HeatCapacityManualRecordKind\)[\s\S]*const latestStep = getHeatCapacityManualStep\(file\)[\s\S]*latestStep !== requiredStep/, 'direct record buttons should revalidate against the latest manual workflow step');
-assert.match(workbenchSource, /kind === 'u0'[\s\S]*captureHeatCapacityWorkbenchSample\(file, 'zeroedSample', now, \{ applyProfile: false \}\)/, 'direct U0 recording should write the zeroed sample through the shared sample structure using actual instrument readings');
+assert.match(workbenchSource, /const recordHeatCapacityManualSample = \(kind: HeatCapacityManualRecordKind\)[\s\S]*const currentFile = filesRef\.current\.find\(\(file\) => file\.id === activeFile\.id\);[\s\S]*const latestStep = getHeatCapacityManualStep\(currentFile\)[\s\S]*latestStep !== requiredStep/, 'direct record buttons should revalidate against the latest manual workflow step');
+assert.match(workbenchSource, /kind === 'u0'[\s\S]*captureHeatCapacityWorkbenchSample\(currentFile, 'zeroedSample', now, \{ applyProfile: false \}\)/, 'direct U0 recording should write the zeroed sample through the shared sample structure using actual instrument readings');
 assert.match(workbenchSource, /manualHeatCapacityActiveFileId === activeFile\.id[\s\S]*recordU0Required[\s\S]*recordU1Required[\s\S]*recordU2Required/, 'manual mode should only show the record button required by the current workflow step');
 assert.doesNotMatch(workbenchSource, /manualHeatCapacityActiveFileId === activeFile\.id && activeFile\.powerOn[\s\S]*recordU0Required/, 'record buttons should not depend on a second powerOn gate once the manual workflow has reached a record step');
 assert.match(workbenchSource, /const isManualU1RecordReady =/, 'manual U1 record readiness should be centralized in a stable-window helper');
@@ -889,6 +901,14 @@ assert.match(workbenchSource, /temperatureSignalMv=\{activeFile\.powerOn \? acti
 assert.match(workbenchSource, /pressureSignalMv=\{activeFile\.powerOn \? activeHeatCapacityDisplay\.pressureMv : null\}/, 'instrument screens should read the active pressure display channel by mode');
 assert.match(sceneSource, /name="TemperatureDisplayChannelLabelText"[\s\S]*Uₜ \/ mV/, 'instrument host should label the left screen as the temperature signal channel');
 assert.match(sceneSource, /name="PressureDisplayChannelLabelText"[\s\S]*Uₚ \/ mV/, 'instrument host should label the pressure screen as the pressure signal channel');
+assert.match(sceneSource, /const INSTRUMENT_PANEL_TITLE_TEXT_SIZE = 0\.044;/, 'instrument title label should be enlarged without moving outside the host panel');
+assert.match(sceneSource, /const INSTRUMENT_PANEL_CHANNEL_LABEL_TEXT_SIZE = 0\.034;/, 'instrument channel labels should be enlarged but remain smaller than display values');
+assert.match(sceneSource, /const INSTRUMENT_PANEL_INPUT_LABEL_TEXT_SIZE = 0\.032;/, 'instrument input labels should be enlarged but stay below the terminals');
+assert.match(sceneSource, /name="InstrumentPanelTitleText"\s+position=\{\[0, 0\.28, 0\.505\]\}\s+size=\{INSTRUMENT_PANEL_TITLE_TEXT_SIZE\}/, 'instrument title label should keep its safe top-panel position');
+assert.match(sceneSource, /name="TemperatureDisplayChannelLabelText"\s+position=\{\[-0\.64, 0\.215, 0\.505\]\}\s+size=\{INSTRUMENT_PANEL_CHANNEL_LABEL_TEXT_SIZE\}/, 'temperature channel label should keep its safe gap above the screen');
+assert.match(sceneSource, /name="PressureDisplayChannelLabelText"\s+position=\{\[0, 0\.215, 0\.505\]\}\s+size=\{INSTRUMENT_PANEL_CHANNEL_LABEL_TEXT_SIZE\}/, 'pressure channel label should keep its safe gap above the screen');
+assert.match(sceneSource, /name="TemperatureInputPortLabelText"\s+position=\{\[-0\.64, -0\.23, 0\.505\]\}\s+size=\{INSTRUMENT_PANEL_INPUT_LABEL_TEXT_SIZE\}/, 'temperature input label should keep its safe lower-panel position');
+assert.match(sceneSource, /name="PressureInputPortLabelText"\s+position=\{\[-0\.08, -0\.24, 0\.505\]\}\s+size=\{INSTRUMENT_PANEL_INPUT_LABEL_TEXT_SIZE\}/, 'pressure input label should keep its safe lower-panel position');
 assert.match(sceneSource, /formatSignal = \(value: number \| null, fallback = '--\.-- mV'\)[\s\S]*value\.toFixed\(2\)/, '3D instrument model panel should show sensor mV readings to 0.01 mV');
 assert.match(workbenchSource, /const temperatureSignalValue =[\s\S]*formatMetric\(activeFile\.temperatureSignalMv, 2\)/, 'right realtime model panel should show temperature mV readings to 0.01 mV');
 assert.match(workbenchSource, /const pressureSignalValue =[\s\S]*formatMetric\(activeFile\.pressureSignalMv, 2\)/, 'right realtime model panel should show pressure mV readings to 0.01 mV');
@@ -926,6 +946,11 @@ assert.match(workbenchSource, /setAutoDemoStepCount\(steps\.length\)/, 'auto dem
 assert.match(workbenchSource, /autoDemoStepPanelMode/, 'workbench should keep the auto demo step panel mounted long enough to animate in and out');
 assert.match(workbenchSource, /hideHeatCapacityAutoDemoStepPanel\(\)/, 'normal completion and termination should slide the auto demo step panel out instead of leaving it pinned');
 assert.match(workbenchSource, /timelineItem\.focusControlId/, 'auto demo timeline should support per-highlight focus targets inside one semantic step');
+assert.match(
+  workbenchSource,
+  /createDefaultHeatCapacityFile\(index, workbenchLayoutDefaults\.heatCapacity\);[\s\S]*if \(file\.kind === 'heatCapacity'\) \{[\s\S]*clearHeatCapacityAutoDemoUiState\(\);/,
+  'creating a fresh heat-capacity file should clear stale auto-demo UI so the initial state stays clean',
+);
 assert.match(workbenchSource, /renderScientificText/, 'visible heat-capacity labels should render U variables with real subscripts');
 assert.match(workbenchSource, /studio-heat-stopcock-mini-readout/, 'manual stopcock focus should render a compact host-readout mirror');
 assert.match(workbenchSource, /heatCapacityFocusMode === 'stopcock' && !autoDemoRunning && !autoDemoPaused && !autoDemoInteractionLocked/, 'stopcock mini readout should only appear in manual stopcock focus mode');
@@ -954,7 +979,9 @@ assert.doesNotMatch(stateSource, /prepareHeatCapacityAutoDemoStart[\s\S]*stopcoc
 assert.match(workbenchSource, /setHeatCapacityStopcockOpenByFileId\(fileId, true\)/, 'auto demo should request open stopcock movement through the shared two-state helper');
 assert.match(workbenchSource, /setHeatCapacityStopcockOpenByFileId\(fileId, false\)/, 'auto demo should request closed stopcock movement through the shared two-state helper');
 assert.doesNotMatch(workbenchSource, /animateHeatCapacityStopcockAngle/, 'auto demo should not write continuous stopcock angles that fight the scene-level smooth two-state animation');
-assert.match(workbenchSource, /animateHeatCapacityPressureZero/, 'auto demo should rotate the pressure-zero knob smoothly');
+assert.match(workbenchSource, /commitHeatCapacityAutoDemoPressureZero/, 'auto demo should commit pressure-zero logical state once instead of writing Workbench state through RAF');
+assert.match(workbenchSource, /commitHeatCapacityAutoDemoDefaultReset/, 'auto demo default reset should commit the target logical state once while the scene owns local motion');
+assert.doesNotMatch(workbenchSource, /animateHeatCapacityPressureZero|animateHeatCapacityDefaultReset/, 'auto demo should not keep the old Workbench-owned reset or pressure-zero animation functions');
 assert.match(workbenchSource, /data-heat-capacity-mode="demo"/, 'preview header should expose heat-capacity demo mode through the unified mode bar');
 assert.match(workbenchSource, /stepHeatCapacityWorkbenchFile/, 'workbench should step the heat capacity process model from the shared file state');
 assert.match(workbenchSource, /captureHeatCapacityWorkbenchSample/, 'workbench should capture process sample placeholders without formal p0/p1/p2 records');
@@ -1040,6 +1067,8 @@ assert.match(workbenchSource, /key=\{heatCapacityToastCurrent\.id\}[\s\S]*data-h
 assert.doesNotMatch(workbenchSource, /finalWaitMessage/, 'the final completed trial must not show the real-experiment stability-wait notice');
 assert.match(workbenchSource, /trialCompleteMessage:\s*kind === 'u2'[\s\S]*shouldShowSkippedRecoveryWait[\s\S]*heatCapacityRealtimeCopy\.trialCompleteToast[\s\S]*heatCapacityRealtimeCopy\.finalTrialCompleteToast/, 'U2 completion should choose group-complete copy before another trial and final-complete copy for the last trial');
 assert.match(workbenchSource, /pushLog\(recordSuccessMessage,\s*'success'\)[\s\S]*pushLog\(trialCompleteLogMessage,\s*'success'\)/, 'record success and selected completed-trial messages should both write success console entries');
+assert.doesNotMatch(workbenchSource, /const recordHeatCapacityManualSample = \(kind: HeatCapacityManualRecordKind\) => \{[\s\S]*let ok = false;[\s\S]*updateActiveFile\(\(file\) => \{[\s\S]*ok = (?:true|result\.ok)[\s\S]*\}\);[\s\S]*if \(ok\)/, 'manual U1/U2 success feedback must not depend on values assigned inside a React state updater');
+assert.match(workbenchSource, /const currentFile = filesRef\.current\.find\(\(file\) => file\.id === activeFile\.id\);[\s\S]*let nextManualRecordFile:[\s\S]*updateFileById\(currentFile\.id/, 'manual U1/U2 success feedback should be driven by a synchronously calculated record result before updating React state');
 assert.match(workbenchSource, /heatCapacityGuideNextTrialNoticeHoldKey === nextTrialKey[\s\S]*return undefined;/, 'next-trial wait-skip guidance should be held until record-success and trial-complete toasts finish');
 assert.match(workbenchSource, /heatCapacityRecordToastSequenceActive[\s\S]*return undefined;/, 'ordinary guide hints should not interrupt the record-success toast sequence');
 assert.doesNotMatch(workbenchSource, /if \(action === 'turnPowerOff'\) return \{ allowed: true \}/, 'guide mode should not allow power-off clicks to bypass the current-step guard');
@@ -1059,6 +1088,15 @@ assert.match(workbenchSource, /temperatureSignalTargetMv/, 'right realtime panel
 assert.doesNotMatch(workbenchSource, /打气过快|tooFast|频率偏高/, 'workbench should not show or calculate a too-fast pump state');
 assert.doesNotMatch(sceneSource, /pressureOverLimit\s*\?\s*12\s*:\s*9/, 'pressure gauge needle movement should not branch on alarm state');
 assert.match(workbenchSource, /zeroStatusLabel/, 'fixed realtime window should still expose pressure-zero status in the operation group');
+assert.doesNotMatch(styleSource, /\.studio-heat-interaction-hints \{[^}]*min-height:/, 'interaction hints should not reserve language-driven outer height');
+assert.doesNotMatch(styleSource, /\.studio-heat-hover-tooltip \{[^}]*min-height:/, 'hover tooltips should size to their current-language copy');
+assert.doesNotMatch(styleSource, /\.studio-heat-valve-focus-bubble \{[^}]*min-height:/, 'valve focus bubbles should not create blank space for other languages');
+assert.doesNotMatch(styleSource, /\.studio-heat-hard-sphere-tooltip \{[^}]*min-height:/, 'hard-sphere tooltips should size to current-language content');
+assert.doesNotMatch(styleSource, /\.studio-heat-demo-step-panel \{[^}]*min-height:/, 'auto-demo step cards should not reserve language-switch height');
+assert.doesNotMatch(styleSource, /\.studio-heat-free-speed-notice \{[^}]*min-height:/, 'free-speed notices should avoid oversized fixed shells');
+assert.doesNotMatch(styleSource, /\.studio-heat-demo-complete-toast \{[^}]*min-height:/, 'demo-complete toasts should avoid blank reserved height');
+assert.doesNotMatch(styleSource, /\.studio-heat-manual-step-hint \{[^}]*min-height:/, 'manual-step hints should not use outer height to solve language switching');
+assert.match(styleSource, /\.studio-heat-valve-focus-button \{[^}]*min-height:\s*28px;/, 'stateful valve focus buttons should keep a stable control height');
 assert.match(workbenchSource, /temperatureSignalValue/, 'fixed realtime window should still expose the live temperature signal');
 assert.match(workbenchSource, /pressureSignalValue/, 'fixed realtime window should still expose the live pressure signal');
 assert.match(workbenchSource, /realtimePanelTitle: '实时数据'/, 'Heat Capacity fixed panel title should not mention charts in Simplified Chinese');
@@ -1075,6 +1113,14 @@ assert.match(workbenchSource, /type WorkbenchPerformanceMode = 'standard' \| 'ba
 assert.match(workbenchSource, /isWorkbenchPerformanceMode/, 'general settings should migrate legacy settings without a performance field');
 assert.match(workbenchSource, /updateSettingsPerformanceMode/, 'general settings should expose a persistent performance mode updater');
 assert.match(workbenchSource, /performanceModeBalanced/, 'general settings copy should include a balanced performance tier');
+assert.match(workbenchSource, /performanceMode:\s*'3D 显示质量'/, 'performance setting should be renamed as display quality in Simplified Chinese');
+assert.match(workbenchSource, /performanceModeOff:\s*'高清模式'/, 'standard tier should be labeled as the high-clarity mode');
+assert.match(workbenchSource, /performanceModeOn:\s*'低负载模式'/, 'lowest-load tier should avoid the ambiguous performance-first label');
+assert.match(workbenchSource, /performanceMode:\s*'3D 顯示品質'/, 'performance setting should be renamed as display quality in Traditional Chinese');
+assert.match(workbenchSource, /performanceModeOn:\s*'低負載模式'/, 'lowest-load tier should be localized in Traditional Chinese');
+assert.match(workbenchSource, /performanceMode:\s*'3D display quality'/, 'performance setting should be renamed as display quality in English settings');
+assert.match(workbenchSource, /performanceModeOn:\s*'Low-load mode'/, 'lowest-load tier should be localized in English settings');
+assert.doesNotMatch(workbenchSource, /性能优先|效能優先|Performance first/, 'settings copy should not imply the lowest-load tier is the strongest mode');
 assert.match(workbenchSource, /performanceModeOptions\.map/, 'general settings should render performance mode as a segmented control');
 assert.match(workbenchSource, /studio-settings-performance-segmented/, 'general settings should include segmented performance mode markup');
 assert.doesNotMatch(workbenchSource, /role="switch"[\s\S]*aria-checked=\{settingsPerformanceMode === 'performance'\}/, 'general settings should not keep the old binary performance switch');
@@ -1096,7 +1142,7 @@ assert.match(leftPanelSource, /const hasSampleTrialU2Record = sampleTrial !== nu
 assert.match(leftPanelSource, /calculateHeatCapacityTrialResult\(trial,\s*\{[\s\S]*atmosphericPressureKPa:\s*file\.ambientPressureKPa[\s\S]*pressureSensitivityMvPerKPa:\s*file\.pressureSensitivityMvPerKPa[\s\S]*theoreticalGamma:\s*file\.theoreticalGamma/, 'recording table should calculate per-trial gamma before all expected groups are complete');
 assert.match(leftPanelSource, /<th><VarGamma index="i" \/><\/th>/, 'recording table should include a per-trial gamma column');
 assert.match(leftPanelSource, /<td>\{formatGamma\(trialResult\.gamma\)\}<\/td>/, 'recording rows should display each completed group gamma');
-assert.match(workbenchSource, /if \(manualHeatCapacityActiveFileId === file\.id && latestStep !== requiredStep\) \{[\s\S]*message = getManualStepGuidance\(latestStep, file\)\.message[\s\S]*return file;/, 'record U0/U1/U2 actions should obey the latest guide-step validation and block stale visible buttons');
+assert.match(workbenchSource, /if \(manualHeatCapacityActiveFileId === currentFile\.id && latestStep !== requiredStep\) \{[\s\S]*message = getManualStepGuidance\(latestStep, currentFile\)\.message/, 'record U0/U1/U2 actions should obey the latest guide-step validation and block stale visible buttons');
 assert.doesNotMatch(workbenchSource, /latestStep !== requiredStep && stepAtClick !== requiredStep/, 'stale record-ready state must not allow recording after the ideal-range guard has moved back to a waiting step');
 assert.doesNotMatch(leftPanelSource, /actionVisible:\s*file\.heatCapacityProcessSamples\.recoverySample !== null/, 'U2 delete should not be controlled by a stale or placeholder recovery sample');
 assert.match(leftPanelSource, /renderRemoveRecordButton\([\s\S]{0,120}trialIndex,[\s\S]{0,120}'trial'/, 'the lower trial table should delete only the whole group');
@@ -1134,6 +1180,11 @@ assert.match(styleSource, /\.studio-theme-light \.studio-heat-trial-count button
 assert.match(styleSource, /\.studio-settings-performance-segmented/, 'performance mode segmented control should have dedicated CSS');
 assert.match(styleSource, /\.studio-settings-performance-thumb/, 'performance mode segmented control should have a sliding thumb');
 assert.match(styleSource, /\.studio-settings-performance-option/, 'performance mode segmented control should style each tier option');
+assert.doesNotMatch(getRootCssBlock('.studio-settings-section'), /inset\s+3px\s+0\s+0/, 'settings sections should not keep a left accent stripe');
+assert.doesNotMatch(getCssBlock('.studio-theme-light .studio-settings-section'), /inset\s+3px\s+0\s+0/, 'light settings sections should not keep a left accent stripe');
+assert.match(sceneSource, /const INSTRUMENT_DIGITAL_DISPLAY_TEXT_SIZE = 0\.054;/, 'instrument digital display values should be enlarged while staying inside the model screen plane');
+assert.match(sceneSource, /name="TemperatureDisplayText"[\s\S]*size=\{INSTRUMENT_DIGITAL_DISPLAY_TEXT_SIZE\}/, 'temperature digital screen should use the enlarged shared display value size');
+assert.match(sceneSource, /name="PressureDisplayText"[\s\S]*size=\{INSTRUMENT_DIGITAL_DISPLAY_TEXT_SIZE\}/, 'pressure digital screen should use the enlarged shared display value size');
 assert.match(sceneSource, /studio-preview-overlay-slot-bottom-right[\s\S]*data-heat-capacity-hover-tooltip="true"/, 'Heat Capacity hover tooltip should avoid the lower-left operation hints by using the lower-right slot');
 assert.doesNotMatch(getCssBlock('.studio-heat-hover-tooltip'), /z-index:/, 'Heat Capacity hover tooltip should rely on overlay slot ordering rather than a standalone z-index');
 assert.match(styleSource, /\.studio-theme-light \.studio-settings-performance-segmented/, 'light theme should style the performance segmented control');

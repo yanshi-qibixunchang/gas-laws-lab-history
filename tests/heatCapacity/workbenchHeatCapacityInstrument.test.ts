@@ -2035,10 +2035,20 @@ assert.equal(legacyOpenHeatFile.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_OPEN_AN
 assert.equal(legacyOpenHeatFile.glassPistonState, 'open');
 
 const workbenchSource = readFileSync(join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx'), 'utf8');
+assert.doesNotMatch(
+  workbenchSource,
+  /heatCapacityAutoDemoAnimationFrameRef|shouldCommitHeatCapacityAutoDemoAnimationFrame|heatCapacityAutoDemoAnimation\.ts/,
+  'auto-demo reset and zero animations must not keep a Workbench-owned animation-frame state-write path',
+);
+assert.doesNotMatch(
+  workbenchSource,
+  /animateHeatCapacity(?:PressureZero|DefaultReset)[\s\S]*window\.requestAnimationFrame/,
+  'auto-demo pressure-zero and reset actions should commit logical state once instead of driving Workbench state through RAF',
+);
 assert.match(
   workbenchSource,
-  /shouldCommitHeatCapacityAutoDemoAnimationFrame/,
-  'auto-demo reset and zero animations should throttle React state commits instead of writing file state every animation frame',
+  /manualRollbackAnimation=\{manualHeatCapacityRollback\?\.animation \?\? null\}/,
+  'guide-mode rollback animation should remain a scene-local visual path rather than a high-frequency Workbench state update',
 );
 
 console.log('workbenchHeatCapacityInstrument tests passed');

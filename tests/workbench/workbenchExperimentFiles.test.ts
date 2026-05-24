@@ -55,6 +55,26 @@ const fileMenuSource = source.slice(
 assert.ok(fileMenuSource.includes('onContextMenu={(event) =>'), 'file tree rows should open the action menu on right click');
 assert.ok(fileMenuSource.includes('requestCloseWorkbenchFile(file)'), 'file tree menu should include Close Experiment');
 assert.ok(fileMenuSource.includes('requestDeleteWorkbenchFile(file)'), 'file tree menu should keep Delete');
+assert.ok(source.includes('const [selectedFileId, setSelectedFileId] = useState(initialSession.activeFileId);'), 'workbench should track selected experiment separately from the active experiment');
+const fileRowSingleClickSource = fileMenuSource.slice(
+  indexOfOrFail(fileMenuSource, 'onClick={() => {', 'file row single-click handler should exist'),
+  indexOfOrFail(fileMenuSource, 'onDoubleClick={() => {', 'file row double-click handler should exist'),
+);
+assert.match(
+  fileRowSingleClickSource,
+  /onClick=\{\(\) => \{[\s\S]*?setSelectedFileId\(file\.id\);[\s\S]*?\}\}/,
+  'single-clicking an experiment row should only select the row',
+);
+assert.match(
+  fileMenuSource,
+  /onDoubleClick=\{\(\) => \{[\s\S]*?selectFile\(file\);[\s\S]*?\}\}/,
+  'double-clicking an experiment row should switch the active experiment',
+);
+assert.doesNotMatch(
+  fileRowSingleClickSource,
+  /selectFile\(file\)/,
+  'single-clicking an experiment row should not switch the active experiment',
+);
 
 const fileTabsSource = source.slice(
   indexOfOrFail(source, '<div className="studio-file-tabs"', 'file tabs should exist'),
@@ -62,6 +82,27 @@ const fileTabsSource = source.slice(
 );
 assert.ok(fileTabsSource.includes('className="studio-file-tab-close"'), 'each experiment tab should include a close button');
 assert.ok(fileTabsSource.includes('requestCloseWorkbenchFile(file)'), 'tab close buttons should close the experiment');
+const fileTabSingleClickSource = fileTabsSource.slice(
+  indexOfOrFail(fileTabsSource, 'className="studio-file-tab-select"', 'file tab select button should exist'),
+  indexOfOrFail(fileTabsSource, 'onDoubleClick={() => selectFile(file)}', 'file tab double-click handler should exist'),
+);
+assert.match(
+  fileTabSingleClickSource,
+  /onClick=\{\(\) => setSelectedFileId\(file\.id\)\}/,
+  'single-clicking an experiment tab should only select the tab',
+);
+assert.match(
+  fileTabsSource,
+  /onDoubleClick=\{\(\) => selectFile\(file\)\}/,
+  'double-clicking an experiment tab should switch the active experiment',
+);
+assert.doesNotMatch(
+  fileTabSingleClickSource,
+  /selectFile\(file\)/,
+  'single-clicking an experiment tab should not switch the active experiment',
+);
+assert.ok(styles.includes('.studio-file-row-selected'), 'CSS should style selected experiment rows separately from active rows');
+assert.ok(styles.includes('.studio-file-tab-selected'), 'CSS should style selected experiment tabs separately from active tabs');
 
 assert.match(
   styles,

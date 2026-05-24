@@ -656,6 +656,11 @@ const getPressureGaugeNeedleRotation = (
   return mapPressureGaugeValueToRotation(pressureGaugeDisplayValue, gaugePressureMinKPa, gaugePressureMaxKPa);
 };
 
+const INSTRUMENT_DIGITAL_DISPLAY_TEXT_SIZE = 0.054;
+const INSTRUMENT_PANEL_TITLE_TEXT_SIZE = 0.044;
+const INSTRUMENT_PANEL_CHANNEL_LABEL_TEXT_SIZE = 0.034;
+const INSTRUMENT_PANEL_INPUT_LABEL_TEXT_SIZE = 0.032;
+
 function PanelText({
   name,
   position,
@@ -821,6 +826,7 @@ function DemoFocusHalo({
 }
 
 function InstrumentBox({
+  highClarityMode,
   performanceMode,
   powerOn,
   pressureZeroKnobAngle,
@@ -850,6 +856,7 @@ function InstrumentBox({
   sceneCopy,
   scenePalette,
 }: Pick<HeatCapacityInstrumentSceneProps, 'performanceMode' | 'powerOn' | 'pressureZeroKnobAngle' | 'pressureGaugeDisplayValue' | 'gaugePressureMinKPa' | 'gaugePressureMaxKPa' | 'pressureSafetyThresholdKPa' | 'pressureOverLimit' | 'temperatureSignalMv' | 'pressureSignalMv' | 'onPowerToggle' | 'onPressureZeroFineAdjust' | 'onPressureZeroCoarseAdjust' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
+  highClarityMode: boolean;
   zeroEnabled: boolean;
   onFocus: (mode: HeatCapacityFocusMode) => void;
   focusMode: HeatCapacityFocusMode;
@@ -1075,50 +1082,54 @@ function InstrumentBox({
       <mesh name="InstrumentBox" position={[0, 0, 0]}>
         <boxGeometry args={[2.18, 0.78, 0.86]} />
         <meshStandardMaterial color={scenePalette.instrument.body} roughness={0.58} metalness={0.05} />
+        {highClarityMode ? <Edges color={scenePalette.instrument.hoverHalo} /> : null}
       </mesh>
       <mesh name="InstrumentBoxFace" position={[0, 0.02, 0.44]}>
         <boxGeometry args={[2.04, 0.6, 0.04]} />
         <meshStandardMaterial color={scenePalette.instrument.face} roughness={0.7} />
+        {highClarityMode ? <Edges color={scenePalette.instrument.hoverHalo} /> : null}
       </mesh>
 
-      <PanelText name="InstrumentPanelTitleText" position={[0, 0.28, 0.505]} size={0.035} color={scenePalette.instrument.label}>
+      <PanelText name="InstrumentPanelTitleText" position={[0, 0.28, 0.505]} size={INSTRUMENT_PANEL_TITLE_TEXT_SIZE} color={scenePalette.instrument.label}>
         FD-NCD-C
       </PanelText>
-      <PanelText name="TemperatureDisplayChannelLabelText" position={[-0.64, 0.215, 0.505]} size={0.026} color={scenePalette.instrument.label}>
+      <PanelText name="TemperatureDisplayChannelLabelText" position={[-0.64, 0.215, 0.505]} size={INSTRUMENT_PANEL_CHANNEL_LABEL_TEXT_SIZE} color={scenePalette.instrument.label}>
         Uₜ / mV
       </PanelText>
-      <PanelText name="PressureDisplayChannelLabelText" position={[0, 0.215, 0.505]} size={0.026} color={scenePalette.instrument.label}>
+      <PanelText name="PressureDisplayChannelLabelText" position={[0, 0.215, 0.505]} size={INSTRUMENT_PANEL_CHANNEL_LABEL_TEXT_SIZE} color={scenePalette.instrument.label}>
         Uₚ / mV
       </PanelText>
 
       <mesh name="TemperatureDisplay" position={[-0.64, 0.1, 0.48]}>
         <boxGeometry args={[0.42, 0.18, 0.035]} />
-        <meshStandardMaterial color={screenColor} emissive={screenGlow} emissiveIntensity={powerOn ? 0.55 : 0.05} />
+        <meshStandardMaterial color={screenColor} emissive={screenGlow} emissiveIntensity={powerOn ? highClarityMode ? 0.72 : 0.55 : 0.05} />
+        {highClarityMode ? <Edges color={scenePalette.instrument.hoverHalo} /> : null}
       </mesh>
       <DemoFocusHalo active={temperatureDisplayDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloTemperatureDisplay" position={[-0.64, 0.1, 0.508]} focusHaloColor={scenePalette.effects.demoHalo} focusHaloMinOpacity={scenePalette.effects.demoHaloMinOpacity} focusHaloMaxOpacity={scenePalette.effects.demoHaloMaxOpacity} focusHaloBaseScale={scenePalette.effects.demoHaloBaseScale} focusHaloPulseScale={scenePalette.effects.demoHaloPulseScale}>
         <boxGeometry args={[0.5, 0.24, 0.02]} />
       </DemoFocusHalo>
-      <PanelText name="TemperatureDisplayText" position={[-0.64, 0.1, 0.505]} size={0.038} color={powerOn ? scenePalette.instrument.screenTextOn : scenePalette.instrument.screenTextOff} updateIntervalMs={panelTextUpdateIntervalMs}>
+      <PanelText name="TemperatureDisplayText" position={[-0.64, 0.1, 0.505]} size={INSTRUMENT_DIGITAL_DISPLAY_TEXT_SIZE} color={powerOn ? scenePalette.instrument.screenTextOn : scenePalette.instrument.screenTextOff} updateIntervalMs={panelTextUpdateIntervalMs}>
         {temperatureText || 'Uₜ'}
       </PanelText>
       <PanelTerminal name="TemperaturePositiveInputTerminal" position={[-0.73, -0.12, 0.49]} color={scenePalette.instrument.terminalPositive} />
       <PanelTerminal name="TemperatureNegativeInputTerminal" position={[-0.55, -0.12, 0.49]} color={scenePalette.instrument.terminalNegative} />
-      <PanelText name="TemperatureInputPortLabelText" position={[-0.64, -0.23, 0.505]} size={0.025} color={scenePalette.instrument.label}>
+      <PanelText name="TemperatureInputPortLabelText" position={[-0.64, -0.23, 0.505]} size={INSTRUMENT_PANEL_INPUT_LABEL_TEXT_SIZE} color={scenePalette.instrument.label}>
         INPUT +/-
       </PanelText>
 
       <mesh name="PressureDisplay" position={[0, 0.1, 0.48]}>
         <boxGeometry args={[0.42, 0.18, 0.035]} />
-        <meshStandardMaterial color={screenColor} emissive={screenGlow} emissiveIntensity={powerOn ? 0.55 : 0.05} />
+        <meshStandardMaterial color={screenColor} emissive={screenGlow} emissiveIntensity={powerOn ? highClarityMode ? 0.72 : 0.55 : 0.05} />
+        {highClarityMode ? <Edges color={scenePalette.instrument.hoverHalo} /> : null}
       </mesh>
       <DemoFocusHalo active={pressureDisplayDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloPressureDisplay" position={[0, 0.1, 0.508]} focusHaloColor={scenePalette.effects.demoHalo} focusHaloMinOpacity={scenePalette.effects.demoHaloMinOpacity} focusHaloMaxOpacity={scenePalette.effects.demoHaloMaxOpacity} focusHaloBaseScale={scenePalette.effects.demoHaloBaseScale} focusHaloPulseScale={scenePalette.effects.demoHaloPulseScale}>
         <boxGeometry args={[0.5, 0.24, 0.02]} />
       </DemoFocusHalo>
-      <PanelText name="PressureDisplayText" position={[0, 0.1, 0.505]} size={0.038} color={powerOn ? scenePalette.instrument.screenTextOn : scenePalette.instrument.screenTextOff} updateIntervalMs={panelTextUpdateIntervalMs}>
+      <PanelText name="PressureDisplayText" position={[0, 0.1, 0.505]} size={INSTRUMENT_DIGITAL_DISPLAY_TEXT_SIZE} color={powerOn ? scenePalette.instrument.screenTextOn : scenePalette.instrument.screenTextOff} updateIntervalMs={panelTextUpdateIntervalMs}>
         {pressureText || 'Uₚ'}
       </PanelText>
       <PanelTerminal name="PressureSensorInputPort" position={[-0.08, -0.13, 0.49]} color={scenePalette.instrument.terminalMetal} radius={0.055} metalness={0.45} />
-      <PanelText name="PressureInputPortLabelText" position={[-0.08, -0.24, 0.505]} size={0.025} color={scenePalette.instrument.label}>
+      <PanelText name="PressureInputPortLabelText" position={[-0.08, -0.24, 0.505]} size={INSTRUMENT_PANEL_INPUT_LABEL_TEXT_SIZE} color={scenePalette.instrument.label}>
         PRESS IN
       </PanelText>
 
@@ -1296,6 +1307,7 @@ function InstrumentBox({
 }
 
 function GlassStopcock({
+  highClarityMode,
   angleDeg,
   onStopcockOpenChange,
   hoveredControl,
@@ -1310,6 +1322,7 @@ function GlassStopcock({
   interactionQualityReduced,
   scenePalette,
 }: Pick<HeatCapacityInstrumentSceneProps, 'onStopcockOpenChange' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
+  highClarityMode: boolean;
   angleDeg: number;
   hoveredControl: HeatCapacityHoveredControl;
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
@@ -1371,6 +1384,7 @@ function GlassStopcock({
   const stopcockHovered = hoveredControl === 'stopcock';
   const stopcockDemoFocused = demoFocusPulseActive && demoFocusControlId === 'stopcock';
   const angleRad = ((displayAngleDeg + stopcockRollbackOffsetDeg) * Math.PI) / 180;
+  const showStopcockOutlines = scenePalette.glass.stopcockOutlineVisible || highClarityMode;
 
   const handleStopcockToggle = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
@@ -1405,22 +1419,22 @@ function GlassStopcock({
       <mesh name="StopcockBody" rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.16, 0.16, 0.76, 32]} />
         <meshPhysicalMaterial color={scenePalette.glass.stopcockGlass} transparent opacity={scenePalette.glass.stopcockBodyOpacity} roughness={0.06} transmission={scenePalette.glass.stopcockBodyTransmission} />
-        {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
+        {showStopcockOutlines ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
       </mesh>
       <mesh name="StopcockSidePort" position={[0.38, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.08, 0.08, 0.16, 20]} />
         <meshPhysicalMaterial color={scenePalette.glass.stopcockGlass} transparent opacity={scenePalette.glass.stopcockPortOpacity} roughness={0.08} transmission={scenePalette.glass.stopcockPortTransmission} />
-        {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
+        {showStopcockOutlines ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
       </mesh>
       <mesh name="StopcockTopVentOutlet" position={[0, 0.25, 0]}>
         <cylinderGeometry args={[0.043, 0.048, 0.36, 24]} />
         <meshPhysicalMaterial color={scenePalette.glass.stopcockGlass} transparent opacity={scenePalette.glass.stopcockTubeOpacity} roughness={0.08} transmission={scenePalette.glass.stopcockTubeTransmission} />
-        {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
+        {showStopcockOutlines ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
       </mesh>
       <mesh name="StopcockDownTube" position={[0, -0.36, 0]}>
         <cylinderGeometry args={[0.09, 0.09, 0.72, 24]} />
         <meshPhysicalMaterial color={scenePalette.glass.stopcockGlass} transparent opacity={scenePalette.glass.stopcockTubeOpacity} roughness={0.08} transmission={scenePalette.glass.stopcockTubeTransmission} />
-        {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
+        {showStopcockOutlines ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
       </mesh>
       <group
         name="StopcockRotatingCore"
@@ -1458,7 +1472,7 @@ function GlassStopcock({
             emissive={stopcockHovered ? scenePalette.instrument.hoverEmissive : '#000000'}
             emissiveIntensity={stopcockHovered ? scenePalette.effects.glassHoverEmissiveIntensity : 0}
           />
-          {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
+          {showStopcockOutlines ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
         </mesh>
         {stopcockHovered ? (
           <mesh name="StopcockCoreHoverHalo" rotation={[0, 0, Math.PI / 2]} raycast={DISABLE_RAYCAST}>
@@ -1490,7 +1504,7 @@ function GlassStopcock({
               emissive={stopcockHovered ? scenePalette.instrument.hoverEmissive : '#000000'}
               emissiveIntensity={stopcockHovered ? scenePalette.effects.glassHoverEmissiveIntensity : 0}
             />
-            {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
+            {showStopcockOutlines ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
           </mesh>
           <mesh name="StopcockRodHandleStem">
             <cylinderGeometry args={[0.035, 0.035, 0.58, 24]} />
@@ -1503,7 +1517,7 @@ function GlassStopcock({
               emissive={stopcockHovered ? scenePalette.instrument.hoverEmissive : '#000000'}
               emissiveIntensity={stopcockHovered ? scenePalette.effects.glassHoverEmissiveIntensity : 0}
             />
-            {scenePalette.glass.stopcockOutlineVisible ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
+            {showStopcockOutlines ? <Edges color={scenePalette.glass.stopcockEdge} /> : null}
           </mesh>
           {stopcockHovered ? (
             <mesh name="StopcockRodHandleHoverHalo" raycast={DISABLE_RAYCAST}>
@@ -1537,6 +1551,7 @@ function GlassStopcock({
   );
 }
 function PressureBottle({
+  highClarityMode,
   stopcockAngleDeg,
   onStopcockOpenChange,
   focusMode,
@@ -1552,6 +1567,7 @@ function PressureBottle({
   interactionQualityReduced,
   scenePalette,
 }: Pick<HeatCapacityInstrumentSceneProps, 'onStopcockOpenChange' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
+  highClarityMode: boolean;
   stopcockAngleDeg: number;
   focusMode: HeatCapacityFocusMode;
   hoveredControl: HeatCapacityHoveredControl;
@@ -1568,16 +1584,18 @@ function PressureBottle({
       </mesh>
       <mesh name="VesselGlassCube">
         <boxGeometry args={[1.75, 1.75, 1.75]} />
-        <meshPhysicalMaterial color={scenePalette.glass.vessel} transparent opacity={0.16} roughness={0.08} transmission={0.45} depthWrite={false} />
+        <meshPhysicalMaterial color={scenePalette.glass.vessel} transparent opacity={highClarityMode ? 0.22 : 0.16} roughness={0.08} transmission={highClarityMode ? 0.3 : 0.45} depthWrite={false} />
         <Edges color={scenePalette.glass.edge} />
       </mesh>
       <mesh name="BottleMouthNeck" position={[0, 0.92, 0]}>
         <cylinderGeometry args={[0.43, 0.39, 0.34, 40]} />
         <meshPhysicalMaterial color={scenePalette.glass.clear} transparent opacity={0.2} roughness={0.08} transmission={0.35} depthWrite={false} />
+        {highClarityMode ? <Edges color={scenePalette.glass.edge} /> : null}
       </mesh>
       <mesh name="BottleMouthRim" position={[0, 1.09, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.43, 0.025, 12, 48]} />
         <meshPhysicalMaterial color={scenePalette.glass.clear} transparent opacity={0.28} roughness={0.08} transmission={0.3} depthWrite={false} />
+        {highClarityMode ? <Edges color={scenePalette.glass.edge} /> : null}
       </mesh>
       <mesh name="RubberStopper" position={[0, 1.02, 0]}>
         <cylinderGeometry args={[0.54, 0.42, 0.24, 40]} />
@@ -1608,6 +1626,7 @@ function PressureBottle({
         <meshStandardMaterial color={scenePalette.glass.sensorRod} roughness={0.34} metalness={0.15} />
       </mesh>
       <GlassStopcock
+        highClarityMode={highClarityMode}
         angleDeg={stopcockAngleDeg}
         onStopcockOpenChange={onStopcockOpenChange}
         hoveredControl={hoveredControl}
@@ -1627,8 +1646,10 @@ function PressureBottle({
 }
 
 function InstrumentLeads({
+  highClarityMode,
   scenePalette,
 }: {
+  highClarityMode: boolean;
   scenePalette: HeatCapacityScenePalette;
 }) {
   return (
@@ -1655,7 +1676,7 @@ function InstrumentLeads({
           [1.12, -0.62, 0.51],
         ]}
         color={scenePalette.leads.positive}
-        lineWidth={2}
+        lineWidth={highClarityMode ? 3 : 2}
       />
       <Line
         name="TemperatureNegativeLead"
@@ -1667,7 +1688,7 @@ function InstrumentLeads({
           [1.3, -0.62, 0.51],
         ]}
         color={scenePalette.leads.negative}
-        lineWidth={3}
+        lineWidth={highClarityMode ? 4 : 3}
       />
       <Line
         name="PressureSensorLead"
@@ -1679,7 +1700,7 @@ function InstrumentLeads({
           [1.77, -0.63, 0.51],
         ]}
         color={scenePalette.leads.pressure}
-        lineWidth={4}
+        lineWidth={highClarityMode ? 5 : 4}
       />
     </group>
   );
@@ -1996,6 +2017,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
   const stopcockState = getHeatCapacityStopcockState(props.stopcockAngleDeg);
   const zeroEnabled = props.powerOn && stopcockState === 'open';
   const scenePalette = props.scenePalette;
+  const highClarityMode = props.performanceMode === 'standard';
 
   return (
     <>
@@ -2010,6 +2032,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
 
       <group name="HeatCapacityProceduralSkeleton" scale={0.9} position={[0, -0.08, 0]}>
         <PressureBottle
+          highClarityMode={highClarityMode}
           stopcockAngleDeg={props.stopcockAngleDeg}
           onStopcockOpenChange={props.onStopcockOpenChange}
           focusMode={props.focusMode}
@@ -2047,7 +2070,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           speedMultiplier={props.hardSphereSpeedMultiplier}
           sceneTheme={props.sceneTheme}
         />
-        <InstrumentLeads scenePalette={scenePalette} />
+        <InstrumentLeads highClarityMode={highClarityMode} scenePalette={scenePalette} />
         <PumpAssembly
           pumpValveOpen={props.pumpValveOpen}
           pumpBulbState={props.pumpBulbState}
@@ -2069,6 +2092,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           scenePalette={scenePalette}
         />
         <InstrumentBox
+          highClarityMode={highClarityMode}
           performanceMode={props.performanceMode}
           powerOn={props.powerOn}
           pressureZeroKnobAngle={props.pressureZeroKnobAngle}
@@ -2335,11 +2359,11 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const interactionQualityReduced = isOrbitInteracting || props.performanceMode === 'performance';
   const canvasProps = useMemo(() => ({
     camera: { position: DEFAULT_CAMERA_POSITION, fov: 38 },
-    dpr: props.performanceMode === 'performance'
-      ? [1, 1] as [number, number]
+    dpr: props.performanceMode === 'standard'
+      ? 2.5
       : props.performanceMode === 'balanced'
-        ? [1, 1.15] as [number, number]
-        : [1, 1.25] as [number, number],
+        ? 1.5
+        : 1,
     frameloop: 'demand' as const,
     shadows: false,
   }), [props.performanceMode]);

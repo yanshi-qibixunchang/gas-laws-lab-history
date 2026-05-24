@@ -230,7 +230,7 @@ assert.match(
 
 assert.match(
   source,
-  /className=\{`studio-tree-row studio-file-row \$\{file\.id === activeFile\.id \? 'studio-file-row-active' : ''\}/,
+  /className=\{`studio-tree-row studio-file-row [\s\S]*?\$\{file\.id === activeFile\.id \? 'studio-file-row-active' : ''\}/,
   'left file rows should use a dedicated strong active-file class instead of the generic panel active class',
 );
 
@@ -278,14 +278,14 @@ assert.match(
 
 assert.match(
   getRuleBody('.studio-file-row-active'),
-  /background:[\s\S]*box-shadow:[\s\S]*inset 3px 0 0/,
-  'active file rows should use a strong colored surface and left accent',
+  /background:[\s\S]*box-shadow:[\s\S]*inset 0 1px 0/,
+  'active file rows should use a subtle selected surface without a left accent bar',
 );
 
 assert.match(
   getRuleBody('.studio-panel-row-active'),
-  /background:[\s\S]*box-shadow:[\s\S]*inset 2px 0 0/,
-  'active panel rows should use a weaker secondary surface and thinner accent',
+  /background:[\s\S]*box-shadow:\s*none/,
+  'active panel rows should use a weaker secondary surface without a left accent bar',
 );
 
 assert.match(
@@ -294,10 +294,16 @@ assert.match(
   'settings dialogs should use surface elevation instead of hard border outlines',
 );
 
-assert.match(
+assert.doesNotMatch(
   getRuleBody('.studio-settings-section'),
-  /border:\s*0;[\s\S]*background:[\s\S]*box-shadow:[\s\S]*inset 3px 0 0/,
-  'settings sections should use color-block hierarchy and accent bars instead of boxed outlines',
+  /inset 3px 0 0/,
+  'settings sections should stay minimal without a left accent bar',
+);
+
+assert.doesNotMatch(
+  getRuleBody('.studio-theme-light .studio-settings-section'),
+  /inset 3px 0 0/,
+  'light settings sections should stay minimal without a left accent bar',
 );
 
 assert.match(
@@ -380,14 +386,14 @@ assert.match(
 
 assert.match(
   getRuleBody('.studio-theme-light .studio-file-row-active'),
-  /background:[\s\S]*box-shadow:[\s\S]*inset 3px 0 0/,
-  'light theme should tune the strong active-file row separately',
+  /background:[\s\S]*box-shadow:[\s\S]*inset 0 1px 0/,
+  'light theme should tune the active-file row without a left accent bar',
 );
 
 assert.match(
   getRuleBody('.studio-theme-light .studio-panel-row-active'),
-  /background:[\s\S]*box-shadow:[\s\S]*inset 2px 0 0/,
-  'light theme should tune the secondary active-panel row separately',
+  /background:[\s\S]*box-shadow:\s*none/,
+  'light theme should tune the secondary active-panel row without a left accent bar',
 );
 
 console.log('workbenchChromePolish tests passed');
