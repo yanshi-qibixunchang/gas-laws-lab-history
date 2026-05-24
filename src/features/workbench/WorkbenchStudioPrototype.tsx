@@ -2434,7 +2434,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const scanInputRef = useRef<HTMLInputElement | null>(null);
   const topCommandsRef = useRef<HTMLElement | null>(null);
   const topMenuRef = useRef<HTMLDivElement | null>(null);
-  const consoleResizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
+  const workbenchBodyRef = useRef<HTMLElement | null>(null);
+  const workspaceShellRef = useRef<HTMLDivElement | null>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
+  const liveWorkspaceRef = useRef<HTMLDivElement | null>(null);
+  const sidebarResizeGhostRef = useRef<HTMLDivElement | null>(null);
+  const parameterSidebarResizeGhostRef = useRef<HTMLDivElement | null>(null);
+  const liveWorkspaceResizeGhostRef = useRef<HTMLDivElement | null>(null);
+  const consoleResizeGhostRef = useRef<HTMLDivElement | null>(null);
+  const resizeGhostFrameRef = useRef<number | null>(null);
+  const consoleResizeRef = useRef<{ startY: number; startHeight: number; shellHeight: number; footerHeight: number } | null>(null);
   const fileMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const fileMenuRef = useRef<HTMLDivElement | null>(null);
   const renameInputRef = useRef<HTMLInputElement | null>(null);
@@ -2619,15 +2628,22 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const workbenchStyle = {
     '--studio-left-width': `${leftSidebarWidth}px`,
     '--studio-params-width': `${parameterSidebarWidth}px`,
-  } as React.CSSProperties;
+    '--studio-left-resize-ghost-x': `${leftSidebarWidth}px`,
+    '--studio-params-resize-ghost-x': `calc(100% - ${parameterSidebarWidth}px)`,
+  } as React.CSSProperties & Record<
+    '--studio-left-width' | '--studio-params-width' | '--studio-left-resize-ghost-x' | '--studio-params-resize-ghost-x',
+    string
+  >;
   const shellStyle = {
     '--studio-console-height': consoleCollapsed ? '32px' : `${consoleHeightPx}px`,
-  } as React.CSSProperties & Record<'--studio-console-height', string>;
+    '--studio-console-resize-ghost-y': `calc(100% - ${consoleCollapsed ? '32px' : `${consoleHeightPx}px`} - 24px)`,
+  } as React.CSSProperties & Record<'--studio-console-height' | '--studio-console-resize-ghost-y', string>;
   const liveWorkspaceSplitRatio = clampWorkbenchLiveSplitRatio(activeFile.liveWorkspaceSplitRatio);
   const liveWorkspaceStyle = {
     '--studio-live-preview-ratio': `${(liveWorkspaceSplitRatio * 100).toFixed(3)}%`,
     '--studio-live-realtime-ratio': `${((1 - liveWorkspaceSplitRatio) * 100).toFixed(3)}%`,
-  } as React.CSSProperties;
+    '--studio-live-resize-ghost-x': `${(liveWorkspaceSplitRatio * 100).toFixed(3)}%`,
+  } as React.CSSProperties & Record<'--studio-live-preview-ratio' | '--studio-live-realtime-ratio' | '--studio-live-resize-ghost-x', string>;
   const displayedLogs = useMemo(
     () => (
       consoleTab === 'warnings'
@@ -5399,23 +5415,55 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     const startX = event.clientX;
     const startWidth = side === 'left' ? leftSidebarWidth : parameterSidebarWidth;
+    const workspaceShellWidth = workspaceShellRef.current?.getBoundingClientRect().width ?? 0;
+    let pendingSidebarWidth = startWidth;
+    let didResize = false;
+
+    const updateSidebarGhost = () => {
+      if (side === 'left') {
+        sidebarResizeGhostRef.current?.style.setProperty('--studio-left-resize-ghost-x', `${pendingSidebarWidth}px`);
+        return;
+      }
+      parameterSidebarResizeGhostRef.current?.style.setProperty(
+        '--studio-params-resize-ghost-x',
+        `${Math.max(0, workspaceShellWidth - pendingSidebarWidth)}px`,
+      );
+    };
+    updateSidebarGhost();
 
     const handleMove = (moveEvent: MouseEvent) => {
       const delta = moveEvent.clientX - startX;
-      if (side === 'left') {
-        setLeftSidebarWidth(clamp(startWidth + delta, LEFT_SIDEBAR_MIN, LEFT_SIDEBAR_MAX));
-      } else {
-        setParameterSidebarWidth(clamp(startWidth - delta, PARAM_SIDEBAR_MIN, PARAM_SIDEBAR_MAX));
+      pendingSidebarWidth = side === 'left'
+        ? clamp(startWidth + delta, LEFT_SIDEBAR_MIN, LEFT_SIDEBAR_MAX)
+        : clamp(startWidth - delta, PARAM_SIDEBAR_MIN, PARAM_SIDEBAR_MAX);
+      didResize = true;
+      scheduleResizeGhostUpdate(updateSidebarGhost);
+    };
+
+    const finishResize = (commit: boolean) => {
+      cancelResizeGhostFrame();
+      document.body.classList.remove('studio-resizing');
+      workbenchBodyRef.current?.classList.remove('studio-left-sidebar-resizing');
+      workspaceShellRef.current?.classList.remove('studio-params-sidebar-resizing');
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+      if (commit && didResize) {
+        if (side === 'left') {
+          setLeftSidebarWidth(pendingSidebarWidth);
+        } else {
+          setParameterSidebarWidth(pendingSidebarWidth);
+        }
       }
     };
 
-    const handleUp = () => {
-      document.body.classList.remove('studio-resizing');
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-    };
+    const handleUp = () => finishResize(true);
 
     document.body.classList.add('studio-resizing');
+    if (side === 'left') {
+      workbenchBodyRef.current?.classList.add('studio-left-sidebar-resizing');
+    } else {
+      workspaceShellRef.current?.classList.add('studio-params-sidebar-resizing');
+    }
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
   };
@@ -5592,9 +5640,23 @@ const WorkbenchStudioPrototype: React.FC = () => {
     window.addEventListener('mouseup', handleUp);
   };
 
+  const cancelResizeGhostFrame = () => {
+    if (resizeGhostFrameRef.current === null) return;
+    window.cancelAnimationFrame(resizeGhostFrameRef.current);
+    resizeGhostFrameRef.current = null;
+  };
+
+  const scheduleResizeGhostUpdate = (updateGhost: () => void) => {
+    cancelResizeGhostFrame();
+    resizeGhostFrameRef.current = window.requestAnimationFrame(() => {
+      resizeGhostFrameRef.current = null;
+      updateGhost();
+    });
+  };
+
   const startLiveWorkspaceResize = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (isWorkbenchEmpty) return;
-    const workspace = event.currentTarget.parentElement;
+    const workspace = liveWorkspaceRef.current ?? event.currentTarget.parentElement;
     if (!workspace) return;
 
     event.preventDefault();
@@ -5615,59 +5677,104 @@ const WorkbenchStudioPrototype: React.FC = () => {
       );
     };
 
+    let pendingLiveWorkspaceSplitRatio = liveWorkspaceSplitRatio;
+    let didResize = false;
+    liveWorkspaceResizeGhostRef.current?.style.setProperty(
+      '--studio-live-resize-ghost-x',
+      `${(pendingLiveWorkspaceSplitRatio * 100).toFixed(3)}%`,
+    );
+
     const handleMove = (moveEvent: PointerEvent) => {
-      const nextRatio = getNextRatio(moveEvent.clientX);
-      updateActiveFile((file) => ({
-        ...file,
-        liveWorkspaceSplitRatio: nextRatio,
-        updatedAt: Date.now(),
-      }));
+      pendingLiveWorkspaceSplitRatio = getNextRatio(moveEvent.clientX);
+      didResize = true;
+      scheduleResizeGhostUpdate(() => {
+        liveWorkspaceResizeGhostRef.current?.style.setProperty(
+          '--studio-live-resize-ghost-x',
+          `${(pendingLiveWorkspaceSplitRatio * 100).toFixed(3)}%`,
+        );
+      });
     };
 
-    const handleUp = () => {
+    const finishResize = (commit: boolean) => {
+      cancelResizeGhostFrame();
       setLiveWorkspaceResizing(false);
       document.body.classList.remove('studio-horizontal-resizing');
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
-      window.removeEventListener('pointercancel', handleUp);
+      window.removeEventListener('pointercancel', handleCancel);
+      if (commit && didResize) {
+        updateActiveFile((file) => ({
+          ...file,
+          liveWorkspaceSplitRatio: pendingLiveWorkspaceSplitRatio,
+          updatedAt: Date.now(),
+        }));
+      }
     };
+    const handleUp = () => finishResize(true);
+    const handleCancel = () => finishResize(false);
 
     setLiveWorkspaceResizing(true);
     document.body.classList.add('studio-horizontal-resizing');
     window.addEventListener('pointermove', handleMove);
     window.addEventListener('pointerup', handleUp);
-    window.addEventListener('pointercancel', handleUp);
+    window.addEventListener('pointercancel', handleCancel);
   };
 
   const startConsoleResize = (event: React.PointerEvent<HTMLDivElement>) => {
     if (consoleCollapsed) return;
     event.preventDefault();
     event.stopPropagation();
+    const shellRect = shellRef.current?.getBoundingClientRect();
+    const consoleRect = event.currentTarget.parentElement?.getBoundingClientRect();
+    const shellHeight = shellRect?.height ?? window.innerHeight;
+    const footerHeight = shellRect && consoleRect ? Math.max(0, shellRect.bottom - consoleRect.bottom) : 24;
     consoleResizeRef.current = {
       startY: event.clientY,
       startHeight: consoleHeightPx,
+      shellHeight,
+      footerHeight,
     };
+    let pendingConsoleHeightPx = consoleHeightPx;
+    let didResize = false;
+    shellRef.current?.classList.add('studio-console-resizing');
+    consoleResizeGhostRef.current?.style.setProperty(
+      '--studio-console-resize-ghost-y',
+      `${shellHeight - footerHeight - pendingConsoleHeightPx}px`,
+    );
 
     const handleMove = (moveEvent: PointerEvent) => {
       const resizeState = consoleResizeRef.current;
       if (!resizeState) return;
       const maxHeight = Math.max(180, Math.min(420, Math.round(window.innerHeight * 0.48)));
-      const nextHeight = clamp(resizeState.startHeight + resizeState.startY - moveEvent.clientY, 96, maxHeight);
-      setConsoleHeightPx(nextHeight);
+      pendingConsoleHeightPx = clamp(resizeState.startHeight + resizeState.startY - moveEvent.clientY, 96, maxHeight);
+      didResize = true;
+      scheduleResizeGhostUpdate(() => {
+        consoleResizeGhostRef.current?.style.setProperty(
+          '--studio-console-resize-ghost-y',
+          `${resizeState.shellHeight - resizeState.footerHeight - pendingConsoleHeightPx}px`,
+        );
+      });
     };
 
-    const handleUp = () => {
+    const finishResize = (commit: boolean) => {
+      cancelResizeGhostFrame();
       consoleResizeRef.current = null;
+      shellRef.current?.classList.remove('studio-console-resizing');
       document.body.classList.remove('studio-vertical-resizing');
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
-      window.removeEventListener('pointercancel', handleUp);
+      window.removeEventListener('pointercancel', handleCancel);
+      if (commit && didResize) {
+        setConsoleHeightPx(pendingConsoleHeightPx);
+      }
     };
+    const handleUp = () => finishResize(true);
+    const handleCancel = () => finishResize(false);
 
     document.body.classList.add('studio-vertical-resizing');
     window.addEventListener('pointermove', handleMove);
     window.addEventListener('pointerup', handleUp);
-    window.addEventListener('pointercancel', handleUp);
+    window.addEventListener('pointercancel', handleCancel);
   };
 
   const saveCurrentWorkbenchLayoutAsDefault = () => {
@@ -10735,7 +10842,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
           {scanInputToast}
         </div>
       ) : null}
-      <div className={`studio-shell ${consoleCollapsed ? 'studio-shell-console-collapsed' : ''}`} style={shellStyle}>
+      <div
+        className={`studio-shell ${consoleCollapsed ? 'studio-shell-console-collapsed' : ''}`}
+        style={shellStyle}
+        ref={shellRef}
+      >
+        <div
+          ref={consoleResizeGhostRef}
+          className="studio-resize-ghost-divider studio-console-resize-ghost"
+          aria-hidden="true"
+        />
         <header className="studio-menu">
           <nav className="studio-top-commands" aria-label={workbenchCopy.menus.topCommandsAria} ref={topCommandsRef}>
             {renderTopCommand('new', workbenchCopy.menus.experimentFiles, <FilePlus2 size={14} />)}
@@ -10750,7 +10866,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
         {renderUpdateDialog()}
         {renderGeneralSettingsWindow()}
 
-        <main className={`studio-body ${leftCollapsed ? 'studio-left-collapsed' : ''}`} style={workbenchStyle}>
+        <main
+          className={`studio-body ${leftCollapsed ? 'studio-left-collapsed' : ''}`}
+          style={workbenchStyle}
+          ref={workbenchBodyRef}
+        >
+          <div
+            ref={sidebarResizeGhostRef}
+            className="studio-resize-ghost-divider studio-sidebar-resize-ghost"
+            aria-hidden="true"
+          />
           <aside className="studio-sidebar" aria-label={`${workbenchCopy.files.openFiles} ${workbenchCopy.files.panels}`}>
             <div className="studio-panel-header">
               <span>{workbenchCopy.files.openFiles}</span>
@@ -11112,7 +11237,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
               ))}
             </div>
 
-            <div className={`studio-workspace-shell ${isWorkbenchEmpty ? 'studio-workspace-shell-empty' : 'studio-workspace-shell-active'} ${!isWorkbenchEmpty && parametersCollapsed ? 'studio-params-collapsed' : ''}`}>
+            <div className={`studio-workspace-shell ${isWorkbenchEmpty ? 'studio-workspace-shell-empty' : 'studio-workspace-shell-active'} ${!isWorkbenchEmpty && parametersCollapsed ? 'studio-params-collapsed' : ''}`} ref={workspaceShellRef}>
+              <div
+                ref={parameterSidebarResizeGhostRef}
+                className="studio-resize-ghost-divider studio-params-sidebar-resize-ghost"
+                aria-hidden="true"
+              />
               <div
                 className={`studio-center-workspace ${!isWorkbenchEmpty ? 'studio-center-workspace-active' : ''} ${!isWorkbenchEmpty && (resultsPanel || idealResultPanels.length > 0 || (activeFile.kind === 'heatCapacity' && activeFile.openHeatCapacityTabs.length > 0)) ? 'studio-results-open' : ''} ${isWorkbenchEmpty ? 'studio-center-workspace-empty' : ''}`}
                 ref={centerWorkspaceRef}
@@ -11124,6 +11254,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     <div
                       className={`studio-live-workspace ${liveWorkspaceResizing ? 'studio-live-workspace-resizing' : ''}`}
                       style={liveWorkspaceStyle}
+                      ref={liveWorkspaceRef}
                     >
                       {primaryPanels[0] ? renderDockPanel(primaryPanels[0]) : null}
                       <button
@@ -11131,6 +11262,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
                         className="studio-live-workspace-resizer"
                         aria-label={workbenchCopy.panels.liveWorkspaceResizeAria}
                         onPointerDown={startLiveWorkspaceResize}
+                      />
+                      <div
+                        ref={liveWorkspaceResizeGhostRef}
+                        className="studio-resize-ghost-divider studio-live-workspace-resize-ghost"
+                        aria-hidden="true"
                       />
                       {primaryPanels[1] ? renderDockPanel(primaryPanels[1]) : null}
                       {auxiliaryPanels.length > 0 ? (
