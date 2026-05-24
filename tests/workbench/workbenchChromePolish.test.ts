@@ -308,8 +308,14 @@ assert.doesNotMatch(
 
 assert.match(
   getRuleBody('.studio-about-card'),
-  /border:\s*0;[\s\S]*background:[\s\S]*box-shadow:[\s\S]*inset 3px 0 0/,
-  'About content should use the same professional color-block hierarchy as settings',
+  /border:\s*0;[\s\S]*background:[\s\S]*box-shadow:/,
+  'About content should use a professional color-block hierarchy without decorative left rails',
+);
+
+assert.doesNotMatch(
+  getRuleBody('.studio-about-card'),
+  /inset 3px 0 0/,
+  'About cards should stay minimal without a left accent bar',
 );
 
 assert.match(

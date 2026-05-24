@@ -33,6 +33,13 @@ assert.match(styleSource, /\.studio-preview-overlay-slot-top-right/, 'overlay la
 assert.match(styleSource, /\.studio-preview-overlay-slot-bottom-left/, 'overlay layer should expose a bottom-left slot');
 assert.match(styleSource, /\.studio-preview-overlay-slot-bottom-right/, 'overlay layer should expose a bottom-right slot');
 assert.match(styleSource, /\.studio-preview-overlay-center/, 'overlay layer should expose a center prompt slot');
+for (const selector of ['.studio-body', '.studio-workspace-shell']) {
+  assert.doesNotMatch(
+    getCssBlock(selector),
+    /transition:\s*[^;]*grid-template-columns/,
+    `${selector} should not animate grid columns around 3D preview overlays`,
+  );
+}
 
 assert.equal(existsSync(motionPath), true, 'overlay motion hook should exist');
 const motionSource = readFileSync(motionPath, 'utf8');
@@ -43,6 +50,8 @@ assert.match(motionSource, /OVERLAY_MOTION_DURATION_MS\s*=\s*200/, 'displaced ov
 assert.match(motionSource, /cubic-bezier\(0\.2,\s*0,\s*0,\s*1\)/, 'displaced overlay items should avoid elastic easing');
 assert.match(motionSource, /activeAnimationsRef/, 'motion hook should track active FLIP animations per overlay item');
 assert.match(motionSource, /getOverlayLayoutRect/, 'motion hook should measure stable layout rects instead of animated visual rects');
+assert.match(motionSource, /left:\s*rootRect\.left\s*\+\s*left/, 'motion hook should include root movement when sidebars move the 3D viewport');
+assert.match(motionSource, /top:\s*rootRect\.top\s*\+\s*top/, 'motion hook should include root movement when panels move the 3D viewport');
 assert.doesNotMatch(motionSource, /nextRects\.set\(key,\s*item\.getBoundingClientRect\(\)\)/, 'motion hook must not store animated visual rects as the next layout baseline');
 assert.match(motionSource, /\.cancel\(\)/, 'motion hook should cancel an old FLIP animation before replacing it');
 assert.match(motionSource, /animation\.finished/, 'motion hook should clean up active animation state after FLIP completes');
@@ -74,6 +83,9 @@ assert.doesNotMatch(getCssBlock('.simulation-canvas-workbench-tools'), /top:\s*8
 assert.doesNotMatch(getCssBlock('.simulation-canvas-workbench-tools'), /opacity:\s*0\.[0-9]+/, 'standard workbench 3D tools should remain visible like heat capacity overlays');
 assert.doesNotMatch(getCssBlock('.simulation-canvas-workbench-hint'), /left:\s*8px/, 'standard 3D hint should not use the old 8px left inset');
 assert.doesNotMatch(simulationCanvasSource, /cubic-bezier\(0\.34,\s*1\.56,\s*0\.64,\s*1\)/, 'standard 3D canvas floating tools should not keep overshooting motion curves');
+assert.match(simulationCanvasSource, /usePreviewOverlayMotion/, 'standard and ideal workbench canvas tools should animate displaced overlay items');
+assert.match(simulationCanvasSource, /data-preview-overlay-item=\{isWorkbench \? 'simulation-pan-toggle' : undefined\}/, 'standard and ideal pan toggle should be a tracked overlay item');
+assert.match(simulationCanvasSource, /data-preview-overlay-item=\{isWorkbench \? 'simulation-view-reset' : undefined\}/, 'standard and ideal reset action should be a tracked overlay item');
 assert.match(
   simulationCanvasSource,
   /\{\(isWorkbench \|\| isFocused\) && \(/,

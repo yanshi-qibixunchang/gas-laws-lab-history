@@ -10,6 +10,7 @@ const leftPanelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'He
 const processReviewPanelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityProcessReviewPanel.tsx');
 const processReviewStylePath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityProcessReviewPanel.css');
 const trialModelPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityTrialModel.ts');
+const parameterConfigPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityFreeParameterConfig.ts');
 const workbenchPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx');
 const statePath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchState.ts');
 const sessionPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchSession.ts');
@@ -31,6 +32,7 @@ const freeRecordTableSection = leftPanelSource.match(/data-heat-capacity-free-re
 const freeCurrentTrialSection = leftPanelSource.match(/data-heat-capacity-free-current-trial-status="true"[\s\S]*?<\/section>/)?.[0] ?? '';
 const hardSphereToggleMountSection = sceneSource.match(/<HeatCapacityHardSphereToggle[\s\S]*?\/>/)?.[0] ?? '';
 const trialModelSource = readFileSync(trialModelPath, 'utf8');
+const parameterConfigSource = readFileSync(parameterConfigPath, 'utf8');
 const stateSource = readFileSync(statePath, 'utf8');
 const sessionSource = readFileSync(sessionPath, 'utf8');
 const styleSource = readFileSync(stylePath, 'utf8');
@@ -60,8 +62,13 @@ assert.match(
 );
 assert.doesNotMatch(
   hardSphereToggleMountSection,
-  /disabled|interactionLocked/,
-  'hard-sphere visualization toggle should remain enabled during auto-demo interaction lock',
+  /interactionLocked/,
+  'hard-sphere visualization toggle should not be disabled by auto-demo interaction lock',
+);
+assert.match(
+  hardSphereToggleMountSection,
+  /disabled=\{props\.hardSphereViewLocked\}/,
+  'hard-sphere visualization toggle may be disabled only by the Free Mode parameter lock',
 );
 const asciiSubscriptPattern = /U_[0-9TtPp]/;
 const getCssBlock = (selector: string) => {
@@ -830,7 +837,7 @@ assert.match(workbenchSource, /studio-heat-pressure-warning-kicker/, 'pressure w
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV = 90/, 'manual pumping should consider 90 mV sufficient instead of the old 100 mV gate');
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 115/, 'warning should begin at the 4-stroke Free Mode target window');
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV = 140/, 'alarm should remain above the 4-stroke Free Mode target window');
-assert.match(workbenchSource, /minimumUsefulU1CorrectedMv:\s*90/, 'Free U1 recording threshold should stay at 90 mV instead of being lowered');
+assert.match(parameterConfigSource, /minimumUsefulU1CorrectedMv:\s*90/, 'Free U1 recording threshold should stay at 90 mV instead of being lowered');
 assert.match(stateSource, /压强接近安全阈值，请准备停止打气。/, 'pressure warning copy should use the confirmed pre-alarm wording');
 assert.match(stateSource, /压强已超过安全阈值，请停止打气。/, 'pressure alarm copy should use the confirmed alarm wording');
 assert.doesNotMatch(stateSource, /压强接近预警值，请注意|压强超过安全阈值，请停止打气(?!。)/, 'old pressure warning and alarm wording should be removed');
@@ -1022,6 +1029,7 @@ assert.doesNotMatch(workbenchSource, /\{powerLabel\}|\{modeLabel\}|\{lockLabel\}
 assert.match(workbenchSource, /currentDeltaPKPa[\s\S]*activeFile\.pressureSignalMv[\s\S]*activeFile\.pressureSensitivityMvPerKPa/, 'fixed realtime window should derive current delta pressure from displayed Uₚ and the shared sensitivity');
 assert.match(styleSource, /\.studio-heat-operation-status \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/, 'operation status should stay as one row of three control states');
 assert.match(styleSource, /\.studio-realtime-panel-heat \{[\s\S]*grid-template-rows: auto auto auto auto;/, 'heat realtime panel should only reserve rows for header, readings, operation status, and hint');
+assert.doesNotMatch(getCssBlock('.studio-heat-reading-card-primary'), /inset\s+\d+px\s+0\s+0|56,\s*189,\s*248/, 'heat realtime primary reading cards should not use a decorative blue left rail');
 assert.match(workbenchSource, /Air Heat Capacity Ratio Experiment|空气比热容比实验|空氣比熱容比實驗/);
 assert.match(workbenchSource, /pressureStatus|Pressure status|压力状态|壓力狀態/);
 assert.match(workbenchSource, /pumpValve|Pump valve|打气阀门|打氣閥門/);
@@ -1113,19 +1121,34 @@ assert.match(workbenchSource, /type WorkbenchPerformanceMode = 'standard' \| 'ba
 assert.match(workbenchSource, /isWorkbenchPerformanceMode/, 'general settings should migrate legacy settings without a performance field');
 assert.match(workbenchSource, /updateSettingsPerformanceMode/, 'general settings should expose a persistent performance mode updater');
 assert.match(workbenchSource, /performanceModeBalanced/, 'general settings copy should include a balanced performance tier');
-assert.match(workbenchSource, /performanceMode:\s*'3D 显示质量'/, 'performance setting should be renamed as display quality in Simplified Chinese');
-assert.match(workbenchSource, /performanceModeOff:\s*'高清模式'/, 'standard tier should be labeled as the high-clarity mode');
-assert.match(workbenchSource, /performanceModeOn:\s*'低负载模式'/, 'lowest-load tier should avoid the ambiguous performance-first label');
-assert.match(workbenchSource, /performanceMode:\s*'3D 顯示品質'/, 'performance setting should be renamed as display quality in Traditional Chinese');
-assert.match(workbenchSource, /performanceModeOn:\s*'低負載模式'/, 'lowest-load tier should be localized in Traditional Chinese');
-assert.match(workbenchSource, /performanceMode:\s*'3D display quality'/, 'performance setting should be renamed as display quality in English settings');
-assert.match(workbenchSource, /performanceModeOn:\s*'Low-load mode'/, 'lowest-load tier should be localized in English settings');
-assert.doesNotMatch(workbenchSource, /性能优先|效能優先|Performance first/, 'settings copy should not imply the lowest-load tier is the strongest mode');
+assert.match(workbenchSource, /performanceMode:\s*'3D 性能模式'/, 'performance setting should use performance-mode wording in Simplified Chinese');
+assert.match(workbenchSource, /performanceModeOff:\s*'高性能'/, 'standard tier should be labeled as high performance');
+assert.match(workbenchSource, /performanceModeBalanced:\s*'均衡'/, 'balanced tier should keep the required Chinese label');
+assert.match(workbenchSource, /performanceModeOn:\s*'低负载'/, 'lowest-load tier should keep the required Chinese label');
+assert.match(workbenchSource, /performanceModeSummary:\s*\{\s*standard:\s*'高性能',\s*balanced:\s*'均衡',\s*performance:\s*'低负载'\s*\}/, 'Simplified Chinese performance summaries should match the new three mode names');
+assert.match(workbenchSource, /performanceMode:\s*'3D 效能模式'/, 'performance setting should use performance-mode wording in Traditional Chinese');
+assert.match(workbenchSource, /performanceModeOff:\s*'高效能'/, 'standard tier should be localized in Traditional Chinese');
+assert.match(workbenchSource, /performanceModeOn:\s*'低負載'/, 'lowest-load tier should be localized in Traditional Chinese');
+assert.match(workbenchSource, /performanceMode:\s*'3D performance mode'/, 'performance setting should use performance-mode wording in English settings');
+assert.match(workbenchSource, /performanceModeOff:\s*'High performance'/, 'standard tier should be localized in English settings');
+assert.match(workbenchSource, /performanceModeOn:\s*'Low load'/, 'lowest-load tier should be localized in English settings');
+assert.doesNotMatch(workbenchSource, /高清模式|低负载模式|高清|高畫質|Sharp mode|Low-load mode|性能优先|效能優先|Performance first/, 'settings copy should not keep old clarity or performance-first wording');
 assert.match(workbenchSource, /performanceModeOptions\.map/, 'general settings should render performance mode as a segmented control');
 assert.match(workbenchSource, /studio-settings-performance-segmented/, 'general settings should include segmented performance mode markup');
 assert.doesNotMatch(workbenchSource, /role="switch"[\s\S]*aria-checked=\{settingsPerformanceMode === 'performance'\}/, 'general settings should not keep the old binary performance switch');
 assert.doesNotMatch(workbenchSource, /handleAction\('Performance mode'\)/, 'top settings menu should not keep the old standalone performance action');
 assert.match(workbenchSource, /performanceMode=\{settingsPerformanceMode\}/, 'Workbench should pass the selected performance mode into Heat Capacity 3D');
+assert.match(workbenchSource, /const HEAT_CAPACITY_HARD_SPHERE_PERFORMANCE_PRESETS = \{[\s\S]*standard:\s*\{\s*particleMultiplier:\s*1\.25,\s*speedMultiplier:\s*1\.25\s*\}[\s\S]*balanced:\s*\{\s*particleMultiplier:\s*1,\s*speedMultiplier:\s*1\s*\}[\s\S]*performance:\s*\{\s*particleMultiplier:\s*0\.5,\s*speedMultiplier:\s*0\.5\s*\}[\s\S]*\} as const;/, 'hard-sphere particle count and speed should be controlled by the three global performance presets');
+assert.match(workbenchSource, /const heatCapacityHardSpherePerformancePreset = HEAT_CAPACITY_HARD_SPHERE_PERFORMANCE_PRESETS\[settingsPerformanceMode\]/, 'Workbench should derive the active hard-sphere visual preset from the selected performance mode');
+assert.match(workbenchSource, /hardSphereParticleMultiplier=\{heatCapacityHardSpherePerformancePreset\.particleMultiplier\}/, 'Heat Capacity scene should receive particle multiplier from the performance preset');
+assert.match(workbenchSource, /hardSphereSpeedMultiplier=\{heatCapacityHardSpherePerformancePreset\.speedMultiplier\}/, 'Heat Capacity scene should receive speed multiplier from the performance preset');
+assert.doesNotMatch(workbenchSource, /hardSphereParticleMultiplier=\{activeFile\.hardSphereParticleMultiplier\}/, 'Heat Capacity scene should no longer read particle multiplier from the saved file slider field');
+assert.doesNotMatch(workbenchSource, /hardSphereSpeedMultiplier=\{activeFile\.hardSphereSpeedMultiplier\}/, 'Heat Capacity scene should no longer read speed multiplier from the saved file slider field');
+assert.doesNotMatch(workbenchSource, /setHeatCapacityHardSphereMultiplier/, 'Workbench should not keep a direct small-ball multiplier updater after the right sidebar sliders are removed');
+assert.doesNotMatch(styleSource, /studio-heat-visual-slider/, 'right Current Parameters sidebar should no longer expose hard-sphere particle or speed range sliders');
+assert.doesNotMatch(workbenchSource, /hardSphereParticleMultiplier:\s*'粒子数量倍率'|hardSphereSpeedMultiplier:\s*'粒子速度倍率'|Particle multiplier|Speed multiplier/, 'right sidebar copy should not keep direct particle-count or speed multiplier labels');
+assert.doesNotMatch(parameterConfigSource, /performanceMode|hardSphereParticleMultiplier|hardSphereSpeedMultiplier/, 'performance presets must stay out of heatCapacityFreeParameterDraft and config snapshots');
+assert.doesNotMatch(trialModelSource, /performanceMode|hardSphereParticleMultiplier|hardSphereSpeedMultiplier/, 'performance presets must stay out of Heat Capacity trial result calculation');
 assert.match(workbenchSource, /settingsPerformanceMode === 'performance'\s*\?\s*240\s*:\s*settingsPerformanceMode === 'balanced'\s*\?\s*150\s*:\s*100/, 'Heat Capacity file tick should use three performance tiers');
 assert.doesNotMatch(workbenchSource, /studio-settings-performance-switch/, 'general settings should remove the old performance switch markup');
 assert.match(leftPanelSource, /studio-heat-processing-summary/, 'Heat Capacity data processing should use a dedicated engineering summary strip');
@@ -1190,6 +1213,66 @@ assert.doesNotMatch(getCssBlock('.studio-heat-hover-tooltip'), /z-index:/, 'Heat
 assert.match(styleSource, /\.studio-theme-light \.studio-settings-performance-segmented/, 'light theme should style the performance segmented control');
 assert.match(styleSource, /\.studio-theme-light \.studio-settings-performance-option:hover/, 'light theme performance option hover should stay light');
 assert.doesNotMatch(styleSource, /\.studio-settings-performance-toggle i/, 'settings performance switch should not keep a separate thumb implementation');
+
+assert.match(workbenchSource, /canOpenHeatCapacityParameterSidebar/, 'Heat Capacity parameter rail should use the free-mode sidebar admission helper');
+assert.match(workbenchSource, /getHeatCapacityParameterSidebarBlockReason/, 'blocked Heat Capacity parameter rail clicks should show the configured free-mode-only reason');
+assert.match(workbenchSource, /只有自由实验模式可以调整参数。/, 'demo and guide Heat Capacity modes should explain why the parameter rail cannot expand');
+assert.match(styleSource, /\.studio-workspace-shell\.studio-params-collapsed\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*0;/, 'collapsed parameter sidebars should keep winning over responsive workspace grid rules');
+assert.match(styleSource, /\.studio-params-collapsed \.studio-current-params\s*\{[\s\S]*visibility:\s*hidden;/, 'collapsed parameter sidebars should hide the right panel content instead of leaving it visible in demo and guide modes');
+assert.match(workbenchSource, /renderHeatCapacityFreeParameterPanel/, 'Free Mode should render a dedicated parameter panel instead of generic parameter rows');
+assert.match(workbenchSource, /data-heat-capacity-free-parameter-panel="true"/, 'Free Mode parameter panel should expose stable markup');
+assert.match(workbenchSource, /id:\s*'leakageEnabled'[\s\S]*data-heat-capacity-basic-checkbox=\{definition\.id\}/, 'Free Mode parameter panel should expose leakage checkbox');
+assert.match(workbenchSource, /id:\s*'instrumentNoiseEnabled'[\s\S]*data-heat-capacity-basic-checkbox=\{definition\.id\}/, 'Free Mode parameter panel should expose instrument-noise checkbox');
+assert.match(workbenchSource, /id:\s*'hardSphereViewEnabled'[\s\S]*data-heat-capacity-basic-checkbox=\{definition\.id\}/, 'Free Mode parameter panel should expose hard-sphere visualization checkbox');
+assert.match(workbenchSource, /renderHeatCapacityParameterSymbol[\s\S]*<sub key=\{index\}>\{part\.sub\}<\/sub>/, 'Free Mode parameter symbols should render true subscript nodes');
+assert.match(workbenchSource, /parts:\s*\['P',\s*\{\s*sub:\s*'0'\s*\}\]/, 'Free Mode basic parameter list should include P subscript 0');
+assert.match(workbenchSource, /parts:\s*\['G',\s*\{\s*sub:\s*'gw'\s*\}\]/, 'Free Mode basic parameter list should include G subscript gw');
+assert.match(workbenchSource, /parts:\s*\['U',\s*\{\s*sub:\s*'1,min'\s*\}\]/, 'Free Mode advanced parameter list should include U subscript 1,min without underscores');
+assert.doesNotMatch(workbenchSource, /P_0|G_gw|lambda_leak|U_1,min/, 'Free Mode parameter UI should not render underscore-style scientific codes');
+assert.match(workbenchSource, /hoveredHeatCapacityParamHelpId/, 'Free Mode parameter help should track hover state');
+assert.match(workbenchSource, /pinnedHeatCapacityParamHelpId/, 'Free Mode parameter help should track pinned state');
+assert.match(workbenchSource, /studio-param-help-button/, 'Free Mode parameter rows should include circular help buttons');
+assert.match(workbenchSource, /studio-param-help-popover/, 'Free Mode parameter help should render a popover');
+assert.match(workbenchSource, /heatCapacityParamHelpPopoverStyle[\s\S]*getBoundingClientRect\(\)[\s\S]*setHeatCapacityParamHelpPopoverStyle/, 'Free Mode parameter help popovers should compute a viewport position instead of staying inside the clipped right sidebar');
+assert.match(workbenchSource, /createPortal\([\s\S]*studio-param-help-popover[\s\S]*document\.body/, 'Free Mode parameter help popovers should portal to document.body to escape transformed and overflow-hidden workbench containers');
+assert.match(workbenchSource, /studio-param-help-popover-\$\{resolvedWorkbenchTheme\}/, 'ported Free Mode parameter help popovers should carry an explicit theme class after leaving the workbench theme scope');
+assert.match(styleSource, /\.studio-param-help-popover\s*\{[\s\S]*position:\s*fixed;[\s\S]*width:\s*min\(260px,\s*calc\(100vw - 48px\)\);[\s\S]*max-height:\s*min\(220px,\s*calc\(100vh - 48px\)\);[\s\S]*overflow-y:\s*auto;/, 'Free Mode parameter help popovers should be fixed to the viewport so the right sidebar does not clip them');
+assert.match(styleSource, /\.studio-param-help-popover-dark\s*\{[\s\S]*background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*border-color:/, 'ported Free Mode parameter help popovers should use explicit dark-theme contrast colors');
+assert.match(styleSource, /\.studio-param-help-popover-light\s*\{[\s\S]*background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*border-color:/, 'ported Free Mode parameter help popovers should use explicit light-theme contrast colors');
+assert.doesNotMatch(getCssBlock('.studio-param-help-popover'), /inset\s+\d+px\s+0\s+0|82,\s*198,\s*201|56,\s*189,\s*248|37,\s*99,\s*235/, 'Free Mode parameter help popovers should be plain rounded rectangles without blue accent rails');
+assert.match(workbenchSource, /handleHeatCapacityParamHelpPointerDown[\s\S]*event\.preventDefault\(\);[\s\S]*event\.stopPropagation\(\);[\s\S]*setPinnedHeatCapacityParamHelpId\(null\)/, 'pinned Free Mode parameter help should consume the first outside pointerdown');
+assert.match(workbenchSource, /getHeatCapacityFreeParameterLockReason\(activeFile\)/, 'Free Mode parameter panel should use the shared lock-reason helper');
+assert.match(workbenchSource, /showHeatCapacityFreeParameterLockHint/, 'locked Free Mode parameter controls should surface the lock reason on click');
+assert.match(workbenchSource, /acknowledgeHeatCapacityFreeAdvancedRiskWorkbenchState/, 'advanced risk confirmation should persist acceptance on the current file');
+assert.match(workbenchSource, /applyHeatCapacityFreeParameterDraftWorkbenchState/, 'advanced parameter save should apply the draft through the shared Workbench helper');
+assert.match(workbenchSource, /studio-heat-advanced-overlay/, 'advanced parameters should use a centered overlay');
+assert.match(workbenchSource, /studio-heat-advanced-window/, 'advanced parameters should render a centered main window');
+assert.match(workbenchSource, /studio-heat-advanced-risk-window/, 'first advanced open should render a higher risk confirmation window');
+assert.match(workbenchSource, /studio-heat-advanced-grid/, 'advanced parameter form should use a responsive grid');
+assert.match(workbenchSource, /heatCapacityFreeAdvancedParameterGroups/, 'advanced parameter form should use an explicit ordered group definition');
+assert.match(workbenchSource, /title:\s*\{\s*'zh-CN':\s*'压力信号标定'/, 'advanced parameter group A should be titled by model role, not by letter');
+assert.match(workbenchSource, /title:\s*\{\s*'zh-CN':\s*'气体状态模型'/, 'advanced parameter group B should be titled by model role, not by letter');
+assert.match(workbenchSource, /title:\s*\{\s*'zh-CN':\s*'热交换与泄漏修正'/, 'advanced parameter group C should be titled by model role, not by letter');
+assert.match(workbenchSource, /title:\s*\{\s*'zh-CN':\s*'读数采集与记录判定'/, 'advanced parameter group D should be titled by model role, not by letter');
+assert.match(workbenchSource, /studio-heat-advanced-groups[\s\S]*heatCapacityFreeAdvancedParameterGroups\.map[\s\S]*studio-heat-advanced-group[\s\S]*studio-heat-advanced-group-title[\s\S]*heatCapacityFreeAdvancedNumberParameters\.filter\(\(definition\) => definition\.group === group\.id\)/, 'advanced parameters should render one titled three-column grid per group');
+assert.doesNotMatch(workbenchSource, /A类|B类|C类|D类|A 類|B 類|C 類|D 類|Class A|Class B|Class C|Class D/, 'advanced parameter group titles should not expose letter-class wording');
+assert.doesNotMatch(workbenchSource, /advancedSubtitle|这些参数只影响之后开始的新实验组|這些參數只影響之後開始的新實驗組|These values affect only future experiment groups/, 'advanced parameter main window should not keep the redundant future-groups subtitle');
+assert.match(workbenchSource, /heatCapacityFreeSharedText\.valueTooLarge/, 'Free Mode parameter validation should have a localized over-limit message');
+assert.match(workbenchSource, /HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA/, 'Free Mode parameter UI should share the 300 kPa absolute pressure ceiling');
+assert.match(workbenchSource, /setScanInputToast\(message\)/, 'Free Mode parameter over-limit validation should surface a visible toast-style message');
+assert.match(workbenchSource, /definition\.id === 'gamma'[\s\S]*isHeatCapacityFreeGammaEditingAvailable/, 'gamma should be locked separately after a file has started a recorded experiment');
+assert.match(styleSource, /\.studio-heat-free-params\.is-locked[\s\S]*cursor:\s*not-allowed/, 'locked Free Mode parameter panel should visibly use not-allowed interaction');
+assert.match(styleSource, /\.studio-heat-free-param-row\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax\(112px,\s*136px\);[\s\S]*border-radius:\s*4px;/, 'Free Mode parameter rows should use compact engineering-style alignment instead of loose card spacing');
+assert.match(styleSource, /\.studio-heat-free-input-cell input\s*\{[\s\S]*text-align:\s*center;/, 'Free Mode basic and advanced numeric inputs should center their values');
+assert.match(styleSource, /\.studio-heat-advanced-groups\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*12px;[\s\S]*padding:\s*14px 18px 16px;/, 'advanced parameter groups should stack vertically with the modal body padding');
+assert.match(styleSource, /\.studio-heat-advanced-group-title\s*\{[\s\S]*font-size:\s*12px;[\s\S]*font-weight:\s*700;/, 'advanced parameter group titles should use compact engineering-style headings');
+assert.match(getCssBlock('.studio-heat-advanced-group-title::before'), /display:\s*none;/, 'advanced parameter group titles should not add decorative color bars');
+assert.match(styleSource, /\.studio-heat-advanced-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/, 'advanced parameter form should use a three-column desktop grid');
+assert.match(styleSource, /\.studio-heat-advanced-window\s*\{[\s\S]*overflow-x:\s*hidden/, 'advanced parameter window should never require horizontal scrolling');
+assert.match(styleSource, /\.studio-heat-advanced-actions button,\s*\.studio-heat-advanced-risk-window button\s*\{[\s\S]*min-width:\s*72px;[\s\S]*justify-content:\s*center;/, 'advanced parameter confirm/cancel buttons should be wide enough for Chinese labels');
+assert.match(styleSource, /\.studio-theme-light \.studio-heat-advanced-window\s*\{[\s\S]*background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*border-color:/, 'advanced parameter window should have a dedicated light-theme surface');
+assert.match(styleSource, /\.studio-theme-light \.studio-heat-free-input-cell input\s*\{[\s\S]*background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*border-color:/, 'Free Mode parameter inputs should have dedicated light-theme contrast');
+assert.match(styleSource, /prefers-reduced-motion:\s*reduce[\s\S]*\.studio-heat-free-params \*/, 'Free Mode parameter motion should include a reduced-motion fallback');
 
 console.log('workbenchHeatCapacityInstrumentUi tests passed');
 

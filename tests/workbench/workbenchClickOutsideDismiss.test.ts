@@ -63,6 +63,30 @@ assert.match(
   'rename input should also commit through the shared outside behavior on blur',
 );
 
+assert.match(
+  source,
+  /document\.addEventListener\('pointerdown', handleHeatCapacityParamHelpPointerDown, true\);[\s\S]*document\.removeEventListener\('pointerdown', handleHeatCapacityParamHelpPointerDown, true\);/,
+  'pinned Heat Capacity parameter help should use capture-phase outside-click interception without replacing the existing outside-dismiss handlers',
+);
+
+assert.match(
+  source,
+  /const heatCapacityParamHelpSuppressClickRef = useRef\(false\);/,
+  'pinned Heat Capacity parameter help should track the click that follows an intercepted outside pointerdown',
+);
+
+assert.match(
+  source,
+  /useEffect\(\(\) => \{[\s\S]*?const handleHeatCapacityParamHelpClick = \(event: MouseEvent\) => \{[\s\S]*?heatCapacityParamHelpSuppressClickRef\.current = false;[\s\S]*?event\.preventDefault\(\);[\s\S]*?event\.stopPropagation\(\);[\s\S]*?\};[\s\S]*document\.addEventListener\('click', handleHeatCapacityParamHelpClick, true\);[\s\S]*document\.removeEventListener\('click', handleHeatCapacityParamHelpClick, true\);[\s\S]*?\}, \[\]\);/,
+  'pinned Heat Capacity parameter help should keep a stable capture listener that swallows the click paired with an intercepted outside pointerdown',
+);
+
+assert.match(
+  source,
+  /const closePinnedHeatCapacityParameterHelp = \(\) => \{[\s\S]*?setPinnedHeatCapacityParamHelpId\(null\);[\s\S]*?setHoveredHeatCapacityParamHelpId\(null\);[\s\S]*?\};/,
+  'closing pinned Heat Capacity parameter help should also clear transient hover state',
+);
+
 console.log('workbenchClickOutsideDismiss tests passed');
 
 

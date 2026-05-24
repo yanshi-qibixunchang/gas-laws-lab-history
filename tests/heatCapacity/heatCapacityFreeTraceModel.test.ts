@@ -15,8 +15,8 @@ import {
 const configSnapshot = createDefaultFreeConfigSnapshot();
 
 assert.equal(HEAT_CAPACITY_FREE_TRACE_VERSION, 4);
-assert.equal(HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION, 4);
-assert.equal(configSnapshot.version, 4);
+assert.equal(HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION, 5);
+assert.equal(configSnapshot.version, 5);
 assert.equal(configSnapshot.physics.vesselVolumeL, 2);
 assert.equal(configSnapshot.physics.pumpAmountGainRatio, 0.015);
 assert.equal(configSnapshot.physics.pumpStrokeDurationS, 0.08);
@@ -34,6 +34,7 @@ assert.deepEqual(configSnapshot.physics.leakage, {
 assert.equal(configSnapshot.sensor.pumpLagRate, 36);
 assert.equal(configSnapshot.sensor.fastProcessSampleStepS, 0.04);
 assert.equal(configSnapshot.record.pressureWarningMv, 115);
+assert.equal(configSnapshot.record.u0ZeroToleranceMv, 0.12);
 assert.equal(configSnapshot.scoring.processScoringVersion, 'free-process-score-v1');
 assert.equal('reservedPhysicsV2' in configSnapshot, false);
 assert.equal(

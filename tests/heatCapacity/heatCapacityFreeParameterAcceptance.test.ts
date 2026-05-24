@@ -31,6 +31,7 @@ const tracedConfiguredFile = recordHeatCapacityFreeTraceEventWithReference({
     gamma: 1.37,
     vesselVolumeL: 2.4,
     pumpAmountGainRatio: 0.0065,
+    pumpPressureLimitKPa: 112,
     pumpTemperatureGainK: 0.35,
     stopcockFlowRate: 4.4,
     releaseCoolingFactor: 0.92,
@@ -106,11 +107,11 @@ const fourStroke = quickRows.find((row) => row.pumpStrokes === 4);
 assert.equal(fourStroke?.safetyStatus, 'warning', '4 pump strokes should enter warning before the danger line');
 
 const fiveStroke = quickRows.find((row) => row.pumpStrokes === 5);
-assert.equal(fiveStroke?.safetyStatus, 'danger', '5 pump strokes should enter the alarm line');
+assert.equal(fiveStroke?.safetyStatus, 'warning', '5 pump strokes should be blocked before entering the alarm line');
 assert.equal(
   fiveStroke?.u1Recordable,
-  true,
-  '5 pump strokes should remain recordable after stabilizing; the alarm only blocks further pumping',
+  false,
+  '5 requested pump strokes should surface the pressure-danger record guard after the excessive stroke is blocked',
 );
 
 const slowClose = report.rows.find((row) => row.pumpStrokes === 4 && row.openDurationS === 0.7);

@@ -222,6 +222,7 @@ export const createTrialForProcessReviewTest = (
     u2: createRecordForProcessReviewTest(u2Sample, setup.traceTrial, setup.branch, 'record-u2'),
     blockedReason: null,
     correctedSignals: null,
+    configSnapshot: setup.traceTrial.configSnapshot,
   };
   return {
     ...baseTrial,

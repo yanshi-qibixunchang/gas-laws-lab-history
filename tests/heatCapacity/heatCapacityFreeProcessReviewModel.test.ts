@@ -290,6 +290,7 @@ const baseTrial: HeatCapacityFreeTrial = {
   u2,
   blockedReason: null,
   correctedSignals: null,
+  configSnapshot: traceTrial.configSnapshot,
 };
 const trial: HeatCapacityFreeTrial = {
   ...baseTrial,

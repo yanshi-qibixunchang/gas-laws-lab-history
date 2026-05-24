@@ -31,10 +31,20 @@ import {
   type HeatCapacityFreeTrial,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
+  createHeatCapacityFreeParameterDraftFromConfigs,
+  normalizeHeatCapacityFreeParameterDraft,
+  type HeatCapacityFreeExperimentGroupStatus,
+} from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
+import type {
+  HeatCapacityFreeRecordConfig,
+} from '../../domain/heatCapacity/heatCapacityFreeRecordModel.ts';
+import {
   createDefaultFreeConfigSnapshot,
   createDefaultFreeTraceStore,
   HEAT_CAPACITY_FREE_CALCULATION_VERSION,
+  HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
   HEAT_CAPACITY_FREE_TRACE_VERSION,
+  type HeatCapacityFreeConfigSnapshot,
   type HeatCapacityFreeTraceBranch,
   type HeatCapacityFreeTraceStore,
   type HeatCapacityFreeTraceTrial,
@@ -191,7 +201,100 @@ const normalizeHeatCapacityFreeTrial = (value: unknown): HeatCapacityFreeTrial |
       ? value.blockedReason as HeatCapacityFreeTrial['blockedReason']
       : null,
     correctedSignals: isRecord(value.u0) ? normalizeCorrectedSignals(value.correctedSignals) : null,
+    configSnapshot: normalizeHeatCapacityFreeConfigSnapshot(value.configSnapshot),
   };
+};
+
+const finiteOrDefault = (value: unknown, fallback: number) => (
+  normalizeNullableNumber(value) ?? fallback
+);
+
+const normalizeHeatCapacityFreeRecordConfig = (
+  value: unknown,
+  fallback: HeatCapacityFreeRecordConfig,
+): HeatCapacityFreeRecordConfig => {
+  const record = isRecord(value) ? value : {};
+  return {
+    u0ZeroToleranceMv: finiteOrDefault(record.u0ZeroToleranceMv, fallback.u0ZeroToleranceMv),
+    pressureStableSlopeMvPerS: finiteOrDefault(
+      record.pressureStableSlopeMvPerS,
+      fallback.pressureStableSlopeMvPerS,
+    ),
+    temperatureStableSlopeMvPerS: finiteOrDefault(
+      record.temperatureStableSlopeMvPerS,
+      fallback.temperatureStableSlopeMvPerS,
+    ),
+    temperatureAmbientToleranceMv: finiteOrDefault(
+      record.temperatureAmbientToleranceMv,
+      fallback.temperatureAmbientToleranceMv,
+    ),
+    minimumUsefulU1CorrectedMv: finiteOrDefault(
+      record.minimumUsefulU1CorrectedMv,
+      fallback.minimumUsefulU1CorrectedMv,
+    ),
+    overVentedMinimumU2CorrectedMv: finiteOrDefault(
+      record.overVentedMinimumU2CorrectedMv,
+      fallback.overVentedMinimumU2CorrectedMv,
+    ),
+    pressureDangerMv: finiteOrDefault(record.pressureDangerMv, fallback.pressureDangerMv),
+  };
+};
+
+const normalizeHeatCapacityFreeExperimentGroupStatus = (
+  value: unknown,
+): HeatCapacityFreeExperimentGroupStatus => (
+  value === 'running' || value === 'completed' ? value : 'draft'
+);
+
+const normalizeHeatCapacityFreeConfigSnapshot = (
+  value: unknown,
+): HeatCapacityFreeConfigSnapshot | null => {
+  if (!isRecord(value)) return null;
+  const fallback = createDefaultFreeConfigSnapshot();
+  const record = isRecord(value.record) ? value.record : {};
+  return {
+    ...fallback,
+    ...value,
+    version: HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
+    environment: isRecord(value.environment)
+      ? {
+          ...fallback.environment,
+          ambientPressureKPa: finiteOrDefault(
+            value.environment.ambientPressureKPa,
+            fallback.environment.ambientPressureKPa,
+          ),
+          ambientTemperatureK: finiteOrDefault(
+            value.environment.ambientTemperatureK,
+            fallback.environment.ambientTemperatureK,
+          ),
+        }
+      : fallback.environment,
+    physics: {
+      ...fallback.physics,
+      ...(isRecord(value.physics) ? value.physics : {}),
+      thermal: {
+        ...fallback.physics.thermal,
+        ...(isRecord(value.physics) && isRecord(value.physics.thermal) ? value.physics.thermal : {}),
+      },
+      leakage: {
+        ...fallback.physics.leakage,
+        ...(isRecord(value.physics) && isRecord(value.physics.leakage) ? value.physics.leakage : {}),
+      },
+    },
+    sensor: {
+      ...fallback.sensor,
+      ...(isRecord(value.sensor) ? value.sensor : {}),
+    },
+    record: {
+      ...fallback.record,
+      ...(isRecord(value.record) ? value.record : {}),
+      u0ZeroToleranceMv: finiteOrDefault(record.u0ZeroToleranceMv, fallback.record.u0ZeroToleranceMv),
+    },
+    scoring: {
+      ...fallback.scoring,
+      ...(isRecord(value.scoring) ? value.scoring : {}),
+    },
+  } as HeatCapacityFreeConfigSnapshot;
 };
 
 const normalizeHeatCapacityFreeTraceBranch = (value: unknown): HeatCapacityFreeTraceBranch | null => {
@@ -357,12 +460,47 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
     const savedFreePhysicsConfig = savedFreeRuntimeCompatible && isRecord(file.heatCapacityFreePhysicsConfig)
       ? normalizeHeatCapacityFreePhysicsConfig(file.heatCapacityFreePhysicsConfig)
       : fallbackFreeRuntimeFields.heatCapacityFreePhysicsConfig;
+    const savedFreeSensorConfig = isRecord(file.heatCapacityFreeSensorConfig)
+      ? file.heatCapacityFreeSensorConfig as typeof fallbackFreeRuntimeFields.heatCapacityFreeSensorConfig
+      : fallbackFreeRuntimeFields.heatCapacityFreeSensorConfig;
+    const savedFreeRecordConfig = normalizeHeatCapacityFreeRecordConfig(
+      file.heatCapacityFreeRecordConfig,
+      fallbackFreeRuntimeFields.heatCapacityFreeRecordConfig,
+    );
+    const savedFreePressureWarningMv = finiteOrDefault(
+      file.heatCapacityFreePressureWarningMv,
+      fallbackFreeRuntimeFields.heatCapacityFreePressureWarningMv,
+    );
+    const savedFreeInstrumentNoiseEnabled = typeof file.heatCapacityFreeInstrumentNoiseEnabled === 'boolean'
+      ? file.heatCapacityFreeInstrumentNoiseEnabled
+      : savedFreeSensorConfig.noiseMv > 0;
+    const fallbackFreeParameterDraft = createHeatCapacityFreeParameterDraftFromConfigs(
+      savedFreePhysicsConfig,
+      savedFreeSensorConfig,
+      savedFreeRecordConfig,
+      savedFreePressureWarningMv,
+      savedFreeInstrumentNoiseEnabled,
+    );
     const savedFreePhysicsState = savedFreeRuntimeCompatible && isRecord(file.heatCapacityFreePhysicsState)
       ? file.heatCapacityFreePhysicsState
       : null;
     const normalizedFreeRuntimeFields = savedFreeRuntimeCompatible
       ? {
           heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+          heatCapacityFreeExperimentGroupStatus: normalizeHeatCapacityFreeExperimentGroupStatus(
+            file.heatCapacityFreeExperimentGroupStatus,
+          ),
+          heatCapacityFreeParameterDraft: normalizeHeatCapacityFreeParameterDraft(
+            file.heatCapacityFreeParameterDraft,
+            fallbackFreeParameterDraft,
+          ),
+          heatCapacityFreeActiveRunConfigSnapshot: normalizeHeatCapacityFreeConfigSnapshot(
+            file.heatCapacityFreeActiveRunConfigSnapshot,
+          ),
+          heatCapacityFreeAdvancedRiskAccepted: file.heatCapacityFreeAdvancedRiskAccepted === true,
+          heatCapacityFreeRecordConfig: savedFreeRecordConfig,
+          heatCapacityFreePressureWarningMv: savedFreePressureWarningMv,
+          heatCapacityFreeInstrumentNoiseEnabled: savedFreeInstrumentNoiseEnabled,
           heatCapacityFreeEnvironmentConfig: { ...savedFreePhysicsConfig.environment },
           heatCapacityFreePhysicsConfig: savedFreePhysicsConfig,
           heatCapacityFreePhysicsState: savedFreePhysicsState
@@ -376,9 +514,7 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
                   ?? savedFreePhysicsConfig.environment.ambientTemperatureK,
               } as typeof fallbackFreeRuntimeFields.heatCapacityFreePhysicsState
             : fallbackFreeRuntimeFields.heatCapacityFreePhysicsState,
-          heatCapacityFreeSensorConfig: isRecord(file.heatCapacityFreeSensorConfig)
-            ? file.heatCapacityFreeSensorConfig as typeof fallbackFreeRuntimeFields.heatCapacityFreeSensorConfig
-            : fallbackFreeRuntimeFields.heatCapacityFreeSensorConfig,
+          heatCapacityFreeSensorConfig: savedFreeSensorConfig,
           heatCapacityFreeSensorState: savedFreeSensorState
             ? {
                 ...savedFreeSensorState,

@@ -17,6 +17,7 @@ export interface HeatCapacityFreePhysicsConfig {
   vesselVolumeL: number;
   gamma: number;
   pumpAmountGainRatio: number;
+  pumpPressureLimitKPa: number;
   pumpTemperatureGainK: number;
   stopcockFlowRate: number;
   releaseCoolingFactor: number;
@@ -87,7 +88,8 @@ export interface HeatCapacityFreePumpStrokeResult {
   state: HeatCapacityFreePhysicsState;
 }
 
-const PRESSURE_DANGER_RATIO = 1.45;
+export const HEAT_CAPACITY_FREE_FALLBACK_PRESSURE_DANGER_RATIO = 1.45;
+export const HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA = 300;
 const PRESSURE_EPSILON_KPA = 0.000001;
 export const FREE_PUMP_STROKE_DURATION_S = 0.08;
 export const FREE_RELEASE_RESPONSE_DELAY_S = 0.02;
@@ -269,6 +271,20 @@ const createPumpReject = (
   state,
 });
 
+export const getFreePumpPressureLimitKPa = (
+  config: HeatCapacityFreePhysicsConfig,
+) => {
+  const ambientPressureKPa = clampNonNegativeFinite(config.environment.ambientPressureKPa);
+  const fallbackLimitKPa = ambientPressureKPa * HEAT_CAPACITY_FREE_FALLBACK_PRESSURE_DANGER_RATIO;
+  const configuredLimitKPa = Number.isFinite(config.pumpPressureLimitKPa)
+    ? config.pumpPressureLimitKPa
+    : fallbackLimitKPa;
+  return Math.min(
+    HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA,
+    Math.max(ambientPressureKPa, configuredLimitKPa),
+  );
+};
+
 export const applyFreePumpStroke = (
   state: HeatCapacityFreePhysicsState,
   config: HeatCapacityFreePhysicsConfig,
@@ -286,15 +302,15 @@ export const applyFreePumpStroke = (
   }
 
   const currentPressureKPa = deriveFreePhysicalState(state, config).gasPressureKPa;
-  const dangerPressureKPa = config.environment.ambientPressureKPa * PRESSURE_DANGER_RATIO;
-  if (currentPressureKPa >= dangerPressureKPa) {
+  const pressureLimitKPa = getFreePumpPressureLimitKPa(config);
+  if (currentPressureKPa >= pressureLimitKPa) {
     return createPumpReject('pressureDanger', state);
   }
 
   const strength = clampNonNegativeFinite(event.strength);
   const candidateState = projectStateAfterPendingAndNewPump(state, config, strength);
   const nextPressureKPa = deriveFreePhysicalState(candidateState, config).gasPressureKPa;
-  if (nextPressureKPa >= dangerPressureKPa) {
+  if (nextPressureKPa >= pressureLimitKPa) {
     return createPumpReject('pressureDanger', state);
   }
 

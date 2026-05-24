@@ -445,14 +445,14 @@ heatCapacityFreeInstrumentNoiseEnabled: boolean;
 
 执行者按下面顺序推进。每完成一项就更新 checkbox；不要把 UI 批次提前到模型和持久化之前。
 
-- [ ] 批次 0：记录 `git status --short --branch`、`npm.cmd exec tsc -- --noEmit`、`npm.cmd test` 基线；标记既有失败。
-- [ ] 批次 1：建立 `heatCapacityFreeParameterConfig.ts`，覆盖最终参数清单、默认值、排除项、`τ<sub>s</sub>` 转换、噪声门控。
-- [ ] 批次 2：扩展 `WorkbenchHeatCapacityState`，实现 `draft -> running -> draft`、参数冻结、锁定原因、自由模式侧栏准入。
-- [ ] 批次 3：升级 trace/config snapshot 到 v5，给 trial 补 `configSnapshot`，保证旧组结果不受新组参数影响。
-- [ ] 批次 4：扩展 `workbenchHeatCapacityPersistence.ts` 和 `workbenchSession.ts`，覆盖旧 v4 恢复和新字段恢复。
-- [ ] 批次 5：实现右侧栏基础参数、帮助气泡、锁定态、高级参数主窗口和风险确认窗口。
-- [ ] 批次 6：移除右侧栏小球倍率滑杆，把小球数量和速率派生到“高性能 / 均衡 / 低负载”。
-- [ ] 批次 7：运行全量自动验证、固定端口预览和浏览器验收。
+- [x] 批次 0：记录 `git status --short --branch`、`npm.cmd exec tsc -- --noEmit`、`npm.cmd test` 基线；标记既有失败。
+- [x] 批次 1：建立 `heatCapacityFreeParameterConfig.ts`，覆盖最终参数清单、默认值、排除项、`τ<sub>s</sub>` 转换、噪声门控。
+- [x] 批次 2：扩展 `WorkbenchHeatCapacityState`，实现 `draft -> running -> draft`、参数冻结、锁定原因、自由模式侧栏准入。
+- [x] 批次 3：升级 trace/config snapshot 到 v5，给 trial 补 `configSnapshot`，保证旧组结果不受新组参数影响。
+- [x] 批次 4：扩展 `workbenchHeatCapacityPersistence.ts` 和 `workbenchSession.ts`，覆盖旧 v4 恢复和新字段恢复。
+- [x] 批次 5：实现右侧栏基础参数、帮助气泡、锁定态、高级参数主窗口和风险确认窗口。
+- [x] 批次 6：移除右侧栏小球倍率滑杆，把小球数量和速率派生到“高性能 / 均衡 / 低负载”。
+- [x] 批次 7：运行全量自动验证、固定端口预览和浏览器验收。
 
 ## 5. 批次 0：实现前基线和冲突保护
 
@@ -462,7 +462,7 @@ heatCapacityFreeInstrumentNoiseEnabled: boolean;
 
 ### 操作
 
-- [ ] 运行 Git 状态：
+- [x] 运行 Git 状态：
 
 ```powershell
 git status --short --branch
@@ -470,7 +470,7 @@ git status --short --branch
 
 预期：看到当前分支和已有脏文件。若 `src/features/workbench/WorkbenchStudioPrototype.tsx`、`src/features/workbench/WorkbenchStudioPrototype.css`、`src/features/workbench/workbenchState.ts` 等文件已有用户改动，先阅读相关片段再编辑。
 
-- [ ] 运行 TypeScript 基线：
+- [x] 运行 TypeScript 基线：
 
 ```powershell
 npm.cmd exec tsc -- --noEmit
@@ -478,7 +478,7 @@ npm.cmd exec tsc -- --noEmit
 
 预期：若失败，记录失败信息。若失败来自本需求无关的既有改动，不在本批修复，但后续验证必须区分“既有失败”和“本次新增失败”。
 
-- [ ] 运行测试基线：
+- [x] 运行测试基线：
 
 ```powershell
 npm.cmd test

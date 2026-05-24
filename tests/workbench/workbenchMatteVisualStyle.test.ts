@@ -3,6 +3,13 @@ import { readFileSync } from 'node:fs';
 
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
+const getCssBlock = (selector: string) => {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = cssSource.match(new RegExp(`${escapedSelector}\\s*\\{[\\s\\S]*?\\}`));
+  assert.ok(match, `${selector} CSS block should exist`);
+  return match[0];
+};
+
 const expectToken = (name: string, value: string) => {
   assert.match(
     cssSource,
@@ -80,11 +87,13 @@ assert.match(
   'right parameter rail should use darker left and top separators against the workspace',
 );
 
-assert.match(
-  cssSource,
-  /\.studio-body\s*\{[^}]*?transition:\s*grid-template-columns 180ms ease-out;/,
-  'workbench body should animate the left sidebar grid column when collapsing or expanding',
-);
+for (const selector of ['.studio-body', '.studio-workspace-shell']) {
+  assert.doesNotMatch(
+    getCssBlock(selector),
+    /transition:\s*[^;]*grid-template-columns/,
+    `${selector} should not animate grid columns that carry 3D preview overlays`,
+  );
+}
 
 assert.match(
   cssSource,

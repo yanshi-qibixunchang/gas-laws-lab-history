@@ -3,6 +3,7 @@ import React from 'react';
 interface HeatCapacityHardSphereToggleProps {
   enabled: boolean;
   onToggle: () => void;
+  disabled?: boolean;
   language: 'zh-CN' | 'zh-TW' | 'en';
   descriptionId?: string;
 }
@@ -34,6 +35,7 @@ const hardSphereToggleCopy = {
 const HeatCapacityHardSphereToggle: React.FC<HeatCapacityHardSphereToggleProps> = ({
   enabled,
   onToggle,
+  disabled = false,
   language,
   descriptionId,
 }) => {
@@ -47,6 +49,7 @@ const HeatCapacityHardSphereToggle: React.FC<HeatCapacityHardSphereToggleProps> 
       data-heat-capacity-hard-sphere-toggle="true"
       data-heat-capacity-hard-sphere-enabled={enabled ? 'true' : 'false'}
       aria-pressed={enabled}
+      disabled={disabled}
       aria-describedby={descriptionId}
       title={enabled ? copy.tooltipOn : copy.tooltipOff}
       onPointerDown={(event) => {
@@ -54,6 +57,7 @@ const HeatCapacityHardSphereToggle: React.FC<HeatCapacityHardSphereToggleProps> 
       }}
       onClick={(event) => {
         event.stopPropagation();
+        if (disabled) return;
         onToggle();
       }}
     >

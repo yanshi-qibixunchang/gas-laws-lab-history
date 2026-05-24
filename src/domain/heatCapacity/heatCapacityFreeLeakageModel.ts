@@ -58,12 +58,17 @@ export const stepFreeLeakageAmountRatio = (
   const gasTemperatureK = positiveFiniteOrFallback(input.gasTemperatureK, ambientTemperatureK);
   const inputAmountRatio = positiveFiniteOrFallback(input.gasAmountRatio, currentAmountRatio);
   const gasPressureKPa = ambientPressureKPa * inputAmountRatio * (gasTemperatureK / ambientTemperatureK);
-  const pressureExcessRatio = Math.max(0, (gasPressureKPa - ambientPressureKPa) / ambientPressureKPa);
-  if (pressureExcessRatio <= 0) {
+  const pressureDifferenceRatio = (gasPressureKPa - ambientPressureKPa) / ambientPressureKPa;
+  if (Math.abs(pressureDifferenceRatio) <= 0) {
     return currentAmountRatio;
   }
 
-  const leakedRatio = safeConfig.ratePerS * pressureExcessRatio * positiveFiniteOrZero(input.dtS);
-  const floorAmountRatio = currentAmountRatio >= 1 ? 1 : 0;
-  return Math.max(floorAmountRatio, currentAmountRatio - leakedRatio);
+  const equilibriumAmountRatio = ambientTemperatureK / gasTemperatureK;
+  const maxStepRatio = safeConfig.ratePerS *
+    Math.abs(pressureDifferenceRatio) *
+    positiveFiniteOrZero(input.dtS);
+  if (pressureDifferenceRatio > 0) {
+    return Math.max(equilibriumAmountRatio, currentAmountRatio - maxStepRatio);
+  }
+  return Math.min(equilibriumAmountRatio, currentAmountRatio + maxStepRatio);
 };

@@ -56,6 +56,7 @@ interface HeatCapacityInstrumentSceneProps {
   pumpFlowActive: boolean;
   pumpFlowIntensity: number;
   hardSphereViewEnabled: boolean;
+  hardSphereViewLocked?: boolean;
   hardSphereParticleMultiplier: number;
   hardSphereSpeedMultiplier: number;
   interactionLocked: boolean;
@@ -2445,6 +2446,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
             <HeatCapacityHardSphereToggle
               enabled={props.hardSphereViewEnabled}
               onToggle={props.onHardSphereViewToggle}
+              disabled={props.hardSphereViewLocked}
               language={props.language}
               descriptionId={hardSphereTooltipId}
             />

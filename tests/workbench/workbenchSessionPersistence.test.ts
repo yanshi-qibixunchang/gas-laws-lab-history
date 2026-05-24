@@ -13,6 +13,7 @@ import {
   createHeatCapacityFreeTrial,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
+  createDefaultFreeConfigSnapshot,
   HEAT_CAPACITY_FREE_TRACE_VERSION,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
@@ -302,6 +303,47 @@ const closedDecoded = decodeWorkbenchClosedFilesStorageEnvelope(closedEnvelope);
 assert.equal(closedDecoded.handled, true);
 assert.equal(closedDecoded.files.length, 1);
 assert.equal(closedDecoded.files[0].id, heatReplayFile.id);
+
+const legacySnapshotWithoutU0 = createDefaultFreeConfigSnapshot();
+legacySnapshotWithoutU0.version = 4 as never;
+delete (legacySnapshotWithoutU0.record as Partial<typeof legacySnapshotWithoutU0.record>).u0ZeroToleranceMv;
+const customFreeSessionFile = {
+  ...createDefaultHeatCapacityFile(9),
+  heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  heatCapacityFreeExperimentGroupStatus: 'running' as const,
+  heatCapacityFreeAdvancedRiskAccepted: true,
+  heatCapacityFreeInstrumentNoiseEnabled: false,
+  heatCapacityFreePressureWarningMv: 123,
+  heatCapacityFreeActiveRunConfigSnapshot: legacySnapshotWithoutU0,
+  heatCapacityFreeRecordConfig: {
+    ...heatCapacity.heatCapacityFreeRecordConfig,
+    pressureDangerMv: 152,
+  },
+  heatCapacityFreeParameterDraft: {
+    ...heatCapacity.heatCapacityFreeParameterDraft,
+    ambientPressureKPa: 99.2,
+    instrumentNoiseEnabled: false,
+    pressureWarningMv: 123,
+    pressureDangerMv: 152,
+  },
+};
+const customFreeRestored = decodeWorkbenchSession({
+  version: WORKBENCH_SESSION_VERSION,
+  activeFileId: customFreeSessionFile.id,
+  selectedPanel: 'preview',
+  files: [customFreeSessionFile],
+});
+const customFreeFile = customFreeRestored.files[0];
+assert.equal(customFreeFile.kind, 'heatCapacity');
+if (customFreeFile.kind !== 'heatCapacity') throw new Error('expected heat capacity custom session file');
+assert.equal(customFreeFile.heatCapacityFreeExperimentGroupStatus, 'running');
+assert.equal(customFreeFile.heatCapacityFreeAdvancedRiskAccepted, true);
+assert.equal(customFreeFile.heatCapacityFreeInstrumentNoiseEnabled, false);
+assert.equal(customFreeFile.heatCapacityFreePressureWarningMv, 123);
+assert.equal(customFreeFile.heatCapacityFreeRecordConfig.pressureDangerMv, 152);
+assert.equal(customFreeFile.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.2);
+assert.equal(customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.version, 5);
+assert.equal(customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.record.u0ZeroToleranceMv, 0.12);
 
 const futureEnvelope = {
   ...envelope,

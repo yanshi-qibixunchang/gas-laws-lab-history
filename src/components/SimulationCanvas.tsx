@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Particle, Translation } from '../shared/types';
 import { MousePointer2, Lock, Unlock, Hand, Rotate3d, Maximize } from 'lucide-react';
+import { usePreviewOverlayMotion } from '../features/workbench/usePreviewOverlayMotion';
 
 interface SimulationCanvasProps {
   particles: Particle[];
@@ -35,6 +36,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const workbenchToolsMotionRef = usePreviewOverlayMotion<HTMLDivElement>();
 
   const [rotation, setRotation] = useState({ x: -15, y: 30 });
   const [scale, setScale] = useState(1.0);
@@ -499,11 +501,17 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
           </div>
         )}
 
-        <div className={isWorkbench
-          ? `simulation-canvas-workbench-tools ${showControls ? 'simulation-canvas-workbench-tools-visible' : ''}`
-          : `absolute top-0 left-0 w-full p-4 flex justify-between pointer-events-none transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`
-        }>
-          <div className="pointer-events-auto relative z-[120]">
+        <div
+          ref={isWorkbench ? workbenchToolsMotionRef : undefined}
+          className={isWorkbench
+            ? `simulation-canvas-workbench-tools ${showControls ? 'simulation-canvas-workbench-tools-visible' : ''}`
+            : `absolute top-0 left-0 w-full p-4 flex justify-between pointer-events-none transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`
+          }
+        >
+          <div
+            className="pointer-events-auto relative z-[120]"
+            data-preview-overlay-item={isWorkbench ? 'simulation-pan-toggle' : undefined}
+          >
             {(isWorkbench || isFocused) && (
               <button
                 onClick={togglePanMode}
@@ -529,7 +537,10 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
             )}
           </div>
 
-          <div className="pointer-events-auto z-[120]">
+          <div
+            className="pointer-events-auto z-[120]"
+            data-preview-overlay-item={isWorkbench ? 'simulation-view-reset' : undefined}
+          >
             <button
               onClick={resetView}
               onMouseDown={(event) => event.stopPropagation()}

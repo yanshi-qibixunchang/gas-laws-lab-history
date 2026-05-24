@@ -110,6 +110,12 @@ assert.match(
   'CSS should style tab close buttons and second-level experiment file menus',
 );
 
+assert.match(
+  styles,
+  /\.studio-command-submenu::after\s*\{[\s\S]*?left:\s*100%;[\s\S]*?width:\s*12px;[\s\S]*?pointer-events:\s*auto;/,
+  'second-level experiment menus should keep a transparent hover bridge over the gap before the submenu panel',
+);
+
 console.log('workbenchExperimentFiles tests passed');
 
 

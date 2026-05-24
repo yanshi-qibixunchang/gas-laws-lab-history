@@ -21,6 +21,7 @@ const getOverlayLayoutRect = (item: HTMLElement, root: HTMLElement): OverlayLayo
   let left = 0;
   let top = 0;
   let current: HTMLElement | null = item;
+  const rootRect = root.getBoundingClientRect();
 
   while (current && current !== root) {
     left += current.offsetLeft;
@@ -30,18 +31,17 @@ const getOverlayLayoutRect = (item: HTMLElement, root: HTMLElement): OverlayLayo
 
   if (current !== root) {
     const itemRect = item.getBoundingClientRect();
-    const rootRect = root.getBoundingClientRect();
     return {
-      left: itemRect.left - rootRect.left,
-      top: itemRect.top - rootRect.top,
+      left: itemRect.left,
+      top: itemRect.top,
       width: itemRect.width,
       height: itemRect.height,
     };
   }
 
   return {
-    left,
-    top,
+    left: rootRect.left + left,
+    top: rootRect.top + top,
     width: item.offsetWidth,
     height: item.offsetHeight,
   };

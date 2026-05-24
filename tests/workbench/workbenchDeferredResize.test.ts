@@ -25,6 +25,12 @@ const sidebarResizeHandler = between(
 );
 const sidebarMoveHandler = arrowFunctionBody(sidebarResizeHandler, 'handleMove');
 
+assert.match(
+  sidebarResizeHandler,
+  /const startSidebarResize = \(side: 'left' \| 'params', event: React\.MouseEvent\) => \{\s*if \(openTopMenu\) return;\s*event\.preventDefault\(\);/,
+  'sidebar resize should not start from accidental hits while a top command menu is open',
+);
+
 assert.doesNotMatch(
   sidebarMoveHandler,
   /setLeftSidebarWidth|setParameterSidebarWidth/,

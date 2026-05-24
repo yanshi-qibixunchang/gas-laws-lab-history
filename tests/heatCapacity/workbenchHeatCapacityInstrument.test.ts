@@ -428,8 +428,8 @@ const migratedFreeSamplingFile = stepHeatCapacityWorkbenchFile({
 }, 1_260);
 assert.equal(
   migratedFreeSamplingFile.heatCapacityFreeSensorConfig.lagRate,
-  DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.lagRate,
-  'existing Free files should migrate to the denser display sampling response',
+  3,
+  'existing Free files should preserve configured sensor lag while migrating denser sampling intervals',
 );
 assert.equal(
   migratedFreeSamplingFile.heatCapacityFreeSensorConfig.minSampleIntervalS,
@@ -763,16 +763,17 @@ assert.equal(
   'equilibrium speed multiplier must not accelerate pump-click cadence or active pumping time',
 );
 const fiveStrokeFreeFileStarted = registerHeatCapacityPumpStroke(fourStrokeFreeFile, 4_720);
-assert.equal(fiveStrokeFreeFileStarted.heatCapacityFreePhysicsState.pumpStrokeCount, 5);
+assert.equal(fiveStrokeFreeFileStarted.heatCapacityFreePhysicsState.pumpStrokeCount, 4);
 assert.equal(
   fiveStrokeFreeFileStarted.pressureSafetyStatus,
   'warning',
-  'the fifth Free pump stroke should not show alarm until its continuous pressure rise has actually progressed',
+  'the fifth Free pump stroke should be rejected before the file state crosses the danger line',
 );
+assert.match(fiveStrokeFreeFileStarted.pumpHint, /安全阈值|安全閾值|safety/i);
 const fiveStrokeFreeFile = stepHeatCapacityWorkbenchFile(fiveStrokeFreeFileStarted, 4_960);
-assert.equal(fiveStrokeFreeFile.heatCapacityFreePhysicsState.pumpStrokeCount, 5);
-assert.equal(fiveStrokeFreeFile.pressureSafetyStatus, 'danger');
-assert.equal(fiveStrokeFreeFile.pressureBlockedPumping, true);
+assert.equal(fiveStrokeFreeFile.heatCapacityFreePhysicsState.pumpStrokeCount, 4);
+assert.equal(fiveStrokeFreeFile.pressureSafetyStatus, 'warning');
+assert.equal(fiveStrokeFreeFile.pressureBlockedPumping, false);
 const hotOverLimitFreeFile = registerHeatCapacityPumpStroke({
   ...freePumpReady,
   lastUpdateMs: 8_000,
@@ -827,24 +828,24 @@ const rapidPumpEvents = rapidPointOneSecondBranch!.events.filter((event) => even
 const rapidPumpEventSamples = rapidPumpEvents.flatMap((event) => (
   rapidPointOneSecondBranch!.samples.filter((sample) => sample.id === event.traceSampleId)
 ));
-assert.equal(rapidPumpEvents.length, 5);
-assert.equal(rapidPumpEventSamples.length, 5);
+assert.equal(rapidPumpEvents.length, 4);
+assert.equal(rapidPumpEventSamples.length, 4);
 assert.equal(
   new Set(rapidPumpEventSamples.map((sample) => (
     Math.round(sample.sensor.displayPressureMv / 5) * 5
-  ))).size >= 5,
+  ))).size >= 4,
   true,
-  '0.1 s Free pump strokes should each keep a distinct event-linked display level in the process trace',
+  '0.1 s Free pump strokes should each keep a distinct event-linked display level in the process trace until the safety limit rejects the next stroke',
 );
 assert.equal(
-  fiveStrokeFreeFile.pressureDeltaKPa > fiveStrokeFreeFile.pressureSafetyThresholdKPa,
+  fiveStrokeFreeFile.pressureDeltaKPa > fiveStrokeFreeFile.pressureWarningThresholdKPa,
   true,
-  'Free pressure value should remain above the alarm threshold after an over-limit pump instead of being clamped by alarm state',
+  'Free pressure value should remain above the warning threshold after a rejected pump instead of being clamped by warning state',
 );
 assert.equal(
-  fiveStrokeFreeFile.pressureGaugeTargetValue > fiveStrokeFreeFile.pressureSafetyThresholdKPa,
+  fiveStrokeFreeFile.pressureGaugeTargetValue > fiveStrokeFreeFile.pressureWarningThresholdKPa,
   true,
-  'Free pressure gauge target should keep reflecting over-alarm pressure',
+  'Free pressure gauge target should keep reflecting over-warning pressure',
 );
 assert.equal(
   Math.abs(fiveStrokeFreeFile.pressureGaugeTargetValue - fiveStrokeFreeFile.pressureDeltaKPa) < 0.01,

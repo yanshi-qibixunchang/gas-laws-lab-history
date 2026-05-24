@@ -20,6 +20,7 @@ const baseConfig: HeatCapacityFreePhysicsConfig = {
   vesselVolumeL: 2,
   gamma: 1.4,
   pumpAmountGainRatio: 0.015,
+  pumpPressureLimitKPa: 300,
   pumpTemperatureGainK: 0.35,
   stopcockFlowRate: 4,
   releaseCoolingFactor: 1,
@@ -176,9 +177,9 @@ const belowAmbientSealed = stepFreePhysics(
   71,
 );
 assert.equal(
-  belowAmbientSealed.gasAmountRatio,
-  0.96,
-  'sealed micro-leak must not draw gas back in when pressure is below ambient',
+  belowAmbientSealed.gasAmountRatio > 0.96,
+  true,
+  'sealed micro-leak should draw gas back in when pressure is below ambient',
 );
 
 const pendingPump = applyFreePumpStroke(
@@ -299,8 +300,8 @@ const rejectCases: Array<[
     'pressureDanger',
     {
       ...initial,
-      gasAmountRatio: 1.5,
-      maxPressureKPa: deriveFreePhysicalState({ ...initial, gasAmountRatio: 1.5 }, baseConfig).gasPressureKPa,
+      gasAmountRatio: 3,
+      maxPressureKPa: deriveFreePhysicalState({ ...initial, gasAmountRatio: 3 }, baseConfig).gasPressureKPa,
     },
     { ...controls, pumpValveOpen: true },
   ],

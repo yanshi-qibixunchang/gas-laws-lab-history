@@ -11,6 +11,11 @@ assert.match(
 );
 assert.match(
   source,
+  /const currentParameterControlsLocked = activeFile\.kind === 'heatCapacity' && activeFile\.heatCapacityMode === 'free'[\s\S]*\? activeHeatCapacityFreeParameterLocked[\s\S]*: parameterControlsLocked;/,
+  'the right parameter sidebar should use Free Mode group locks for Heat Capacity and the original run-state lock elsewhere',
+);
+assert.match(
+  source,
   /const startParameterEdit = \(\) => \{[\s\S]*?if \(parameterControlsLocked\)/,
   'parameter edit mode should not open after the active simulation has started',
 );
@@ -21,8 +26,8 @@ assert.match(
 );
 assert.match(
   source,
-  /className=\{`studio-current-params \$\{parameterControlsLocked \? 'studio-current-params-locked' : ''\}[\s\S]*?`\}/,
-  'right parameter sidebar should receive a locked class while a simulation round is in progress',
+  /className=\{`studio-current-params \$\{currentParameterControlsLocked \? 'studio-current-params-locked' : ''\}[\s\S]*?`\}/,
+  'right parameter sidebar should receive a locked class from the current file lock policy',
 );
 assert.match(
   source,
@@ -31,8 +36,8 @@ assert.match(
 );
 assert.match(
   source,
-  /aria-disabled=\{parameterControlsLocked\}/,
-  'right parameter sidebar should expose disabled state to assistive technology',
+  /aria-disabled=\{currentParameterControlsLocked\}/,
+  'right parameter sidebar should expose the current file lock policy to assistive technology',
 );
 assert.match(
   source,

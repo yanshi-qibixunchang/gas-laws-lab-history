@@ -10,16 +10,6 @@ import {
   normalizeHeatCapacityFreeRecordInput,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 
-const recordConfig = {
-  pressureStableSlopeMvPerS: 0.25,
-  temperatureStableSlopeMvPerS: 0.12,
-  temperatureAmbientToleranceMv: 0.35,
-  u0ZeroToleranceMv: 0.12,
-  minimumUsefulU1CorrectedMv: 90,
-  overVentedMinimumU2CorrectedMv: 0.2,
-  pressureDangerMv: 120,
-};
-
 const createStableFreeU1File = (): WorkbenchHeatCapacityState => {
   const base = createDefaultHeatCapacityFile(1);
   const u0 = normalizeHeatCapacityFreeRecordInput({
@@ -101,7 +91,6 @@ const createStableOverAlarmFreeU1File = (): WorkbenchHeatCapacityState => {
 const u1Attempt = applyHeatCapacityFreeRecordWorkbenchState(
   createStableFreeU1File(),
   'u1',
-  recordConfig,
   20_000,
 );
 
@@ -121,7 +110,6 @@ assert.equal(
 const overAlarmU1Attempt = applyHeatCapacityFreeRecordWorkbenchState(
   createStableOverAlarmFreeU1File(),
   'u1',
-  recordConfig,
   21_000,
 );
 assert.equal(

@@ -63,14 +63,12 @@ assert.equal(
   1,
   'ambient pressure should not leak or drift',
 );
-assert.equal(
-  stepFreeLeakageAmountRatio(0.96, enabled, {
-    ...baseInput,
-    gasAmountRatio: 0.96,
-  }),
-  0.96,
-  'below-ambient pressure should not draw gas back in',
-);
+const recoveredLowPressureAmount = stepFreeLeakageAmountRatio(0.96, enabled, {
+  ...baseInput,
+  gasAmountRatio: 0.96,
+});
+assert.equal(recoveredLowPressureAmount > 0.96, true, 'below-ambient pressure should draw gas back in');
+assert.equal(recoveredLowPressureAmount < 1, true, 'default leakage should weakly approach ambient equilibrium');
 assert.equal(
   stepFreeLeakageAmountRatio(0.98, enabled, {
     ...baseInput,
@@ -78,7 +76,7 @@ assert.equal(
     gasTemperatureK: 310,
   }) <= 0.98,
   true,
-  'micro-leak must never increase gas amount even when a below-baseline amount is hot',
+  'hot gas that is still above ambient pressure should leak outward toward pressure equilibrium',
 );
 
 assert.equal(

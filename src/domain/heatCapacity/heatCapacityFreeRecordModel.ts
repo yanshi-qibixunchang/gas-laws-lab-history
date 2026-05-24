@@ -231,6 +231,7 @@ export const recordFreeU0 = (
       u2: null,
       blockedReason: null,
       correctedSignals: null,
+      configSnapshot: null,
     },
   };
 };
@@ -257,6 +258,7 @@ export const recordFreeU1 = (
       u2: null,
       blockedReason: null,
       correctedSignals: null,
+      configSnapshot: null,
     },
   };
 };
@@ -284,6 +286,7 @@ export const recordFreeU2 = (
     u2: normalizeHeatCapacityFreeRecordInput(input),
     blockedReason: null,
     correctedSignals: null,
+    configSnapshot: null,
   };
   const correctedSignals = calculateFreeHeatCapacityTrialSignals(nextTrial, options);
   if (!correctedSignals) {
