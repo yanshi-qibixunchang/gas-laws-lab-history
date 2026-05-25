@@ -17,9 +17,7 @@ Direct runtime dependencies:
 
 | Package | License |
 | --- | --- |
-| `@capacitor/android` | MIT |
 | `@capacitor/app` | MIT |
-| `@capacitor/cli` | MIT |
 | `@capacitor/core` | MIT |
 | `@capacitor/filesystem` | MIT |
 | `@capacitor/share` | MIT |
@@ -29,7 +27,6 @@ Direct runtime dependencies:
 | `pdfjs-dist` | Apache-2.0 |
 | `react` | MIT |
 | `react-dom` | MIT |
-| `recharts` | MIT |
 | `three` | MIT |
 
 Direct development and build dependencies:

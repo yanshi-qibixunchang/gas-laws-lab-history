@@ -13,7 +13,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    target: 'es2015', // Increases compatibility for older Android phones
+    target: 'es2015',
     rollupOptions: {
       output: {
         manualChunks(id) {

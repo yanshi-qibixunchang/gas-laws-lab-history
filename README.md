@@ -27,11 +27,10 @@ Hard Sphere Lab is a Windows desktop engineering workbench for hard-sphere molec
 - FD-NCD-C air heat-capacity-ratio experiment with demo, guided, and free modes.
 - Desktop export for PDF reports, PNG/PDF figures, and CSV data.
 - Simplified Chinese, Traditional Chinese, and English interface text.
-- Frozen Android/APK material is archived locally and is not part of the active release path.
 
 ## Repository Layout
 
-- `src/app/`: React entrypoint and legacy app shell.
+- `src/app/`: React Workbench entrypoint.
 - `src/components/`: shared visual components.
 - `src/features/`: workbench UI, ideal-gas UI, and heat-capacity UI.
 - `src/domain/`: simulation, ideal-gas, and heat-capacity calculation models.
@@ -45,7 +44,6 @@ Hard Sphere Lab is a Windows desktop engineering workbench for hard-sphere molec
 - `resources/app-icon/`: desktop application icons.
 - `docs/theory/`: theory and derivation materials.
 - `docs/instrument-modeling/`: FD-NCD-C modeling references and Blender integration contract.
-- `legacy-apk/`: frozen mobile archive, not tracked for active development.
 - `release/`: local build output, ignored by Git.
 
 ## Web Deployment
@@ -90,10 +88,10 @@ Build the official Windows installer:
 npm.cmd run desktop:installer
 ```
 
-The formal distributable for v4.1.4 is:
+The formal distributable for v4.1.5 is:
 
 ```text
-release/heat-capacity-lab-setup-4.1.4.exe
+release/heat-capacity-lab-setup-4.1.5.exe
 ```
 
 Run the desktop app locally for development:
