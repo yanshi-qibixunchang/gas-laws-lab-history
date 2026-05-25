@@ -11,9 +11,9 @@
         "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.5/heat-capacity-lab-setup-4.1.5.exe"
       },
       "summary": {
-        "zh-CN": "测试修复后续版本更新说明的远端结构化读取与语言匹配。",
-        "zh-TW": "測試修復後續版本更新說明的遠端結構化讀取與語言匹配。",
-        "en": "Tests the fix for remote structured release-note loading and language matching in future updates."
+        "zh-CN": "测试修复后续版本更新说明的远端结构化读取与语言匹配，并简化更新弹窗版本信息区的视觉样式。",
+        "zh-TW": "測試修復後續版本更新說明的遠端結構化讀取與語言匹配，並簡化更新彈窗版本資訊區的視覺樣式。",
+        "en": "Tests the fix for remote structured release-note loading and language matching in future updates, and simplifies the update dialog version-information block."
       },
       "sections": [
         {
@@ -36,6 +36,20 @@
                 "zh-CN": "测试修复后续版本更新说明的远端结构化读取与语言匹配。",
                 "zh-TW": "測試修復後續版本更新說明的遠端結構化讀取與語言匹配。",
                 "en": "Tests the fix for remote structured release-note loading and language matching in future updates."
+              }
+            },
+            {
+              "scope": "desktop-update-ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "更新弹窗版本信息区样式",
+                "zh-TW": "更新彈窗版本資訊區樣式",
+                "en": "Update dialog version-information styling"
+              },
+              "body": {
+                "zh-CN": "移除版本信息区的蓝色强调边和强调阴影，改为更简约的工程软件信息块。",
+                "zh-TW": "移除版本資訊區的藍色強調邊和強調陰影，改為更簡約的工程軟體資訊區塊。",
+                "en": "Removes the blue accent edge and emphasis shadow from the version-information block for a simpler engineering-software presentation."
               }
             }
           ]

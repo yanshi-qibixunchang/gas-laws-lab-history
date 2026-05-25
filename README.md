@@ -8,6 +8,7 @@ Hard Sphere Lab is a Windows desktop engineering workbench for hard-sphere molec
 
 - Tests and verifies remote structured release-note loading for future updates.
 - Ensures update dialogs match the current interface language instead of showing every release-note language at once.
+- Removes the blue accent edge and emphasis shadow from the update dialog version-information block for a simpler engineering-software style.
 - Keeps plain-text release-note fallback for older clients and failure cases.
 - Updates the app, package metadata, release metadata, and documentation version to `4.1.5`.
 

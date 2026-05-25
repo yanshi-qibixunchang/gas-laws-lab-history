@@ -81,6 +81,15 @@ assert.match(
   /\.studio-update-dialog[\s\S]*\.studio-update-version-grid[\s\S]*\.studio-update-actions/,
   'update dialog CSS should define a compact engineering dialog layout',
 );
+
+const updateVersionGridBlock = styles.match(/\.studio-update-version-grid \{[\s\S]*?\n\}/)?.[0] ?? '';
+assert.ok(updateVersionGridBlock, 'update dialog should define a dedicated version information block');
+assert.doesNotMatch(
+  updateVersionGridBlock,
+  /border-left|outline|box-shadow|studio-accent|79,\s*127,\s*184|37,\s*99,\s*235/,
+  'update dialog version information block should stay neutral without blue accent borders or emphasis shadows',
+);
+
 assert.match(
   styles,
   /\.studio-theme-light \.studio-update-dialog/,
