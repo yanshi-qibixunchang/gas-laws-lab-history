@@ -68,10 +68,45 @@ assert.match(
   /recordFreeHeatCapacitySample[\s\S]*?collapseHeatCapacityFreeParameterSidebarForExperimentAction\(\)/,
   'Recording free heat-capacity readings should collapse the parameter sidebar',
 );
-assert.doesNotMatch(
+assert.match(
   workbenchSource,
-  /setHeatCapacityFocusMode\([^)]*\)[\s\S]{0,240}collapseHeatCapacityFreeParameterSidebarForExperimentAction\(\)/,
-  'Entering focus mode alone must not auto-collapse the parameter sidebar',
+  /type HeatCapacityFocusSession = [\s\S]*?parametersCollapsedBeforeFocus[\s\S]*?nonReversibleAction/,
+  'Workbench should keep a heat-capacity focus session snapshot for exit-time sidebar recovery',
+);
+assert.match(
+  workbenchSource,
+  /const updateHeatCapacityFocusMode = \(mode: 'none' \| 'stopcock' \| 'instrument' \| 'pump'\) => \{[\s\S]*?heatCapacityFocusSessionRef\.current[\s\S]*?setParametersCollapsed\(true\)/,
+  'Entering heat-capacity focus mode should collapse the parameter sidebar and remember prior state',
+);
+assert.match(
+  workbenchSource,
+  /exitHeatCapacityFocusMode[\s\S]*?heatCapacityFocusSessionRef\.current[\s\S]*?setParametersCollapsed\(false\)/,
+  'Exiting focus mode without meaningful experiment impact should restore a previously open parameter sidebar',
+);
+assert.match(
+  workbenchSource,
+  /onFocusModeChange=\{updateHeatCapacityFocusMode\}/,
+  'Heat-capacity scene focus changes should flow through the workbench focus-session policy',
+);
+assert.match(
+  workbenchSource,
+  /pressHeatCapacityPumpBulb[\s\S]*?source === 'user'[\s\S]*?markHeatCapacityFocusSessionNonReversible\(\)/,
+  'Pressing the pump bulb in focus mode should mark the focus session as experimentally meaningful',
+);
+assert.match(
+  workbenchSource,
+  /recordFreeHeatCapacitySample[\s\S]*?if \(attempt\.accepted\) \{[\s\S]*?markHeatCapacityFocusSessionNonReversible\(\)/,
+  'Accepted U0/U1/U2 records in focus mode should prevent sidebar restoration on exit',
+);
+assert.match(
+  workbenchSource,
+  /shouldPromptHeatCapacityFreePowerOffBeforeNextGroup\(activeFile\)[\s\S]*?heatCapacityRealtimeCopy\.freePowerOffBeforeNextGroup/,
+  'Right parameter rail should prompt for power-off only after all three Free Mode record buttons have accepted data',
+);
+assert.match(
+  stateSource,
+  /shouldPromptHeatCapacityFreePowerOffBeforeNextGroup/,
+  'Free Mode power-off completion prompt should come from shared workbench state helpers',
 );
 assert.match(processReviewPanelSource, /pumpValve:\s*'#14804f'/, 'process review should color pump valve as green so it is visually distinct from pump bulb');
 assert.match(processReviewPanelSource, /pumpBulb:\s*'#0b6fae'/, 'process review should color pump bulb as blue so it is visually distinct from pump valve');
@@ -982,7 +1017,7 @@ assert.match(workbenchSource, /showHeatCapacityAutoDemoLockedToast/, 'workbench 
 assert.match(workbenchSource, /Cannot operate during demo|演示中无法操作|演示中無法操作/, 'locked heat capacity preview clicks should show the required toast text');
 assert.match(workbenchSource, /studio-heat-toast-kicker/, 'toast markup should include engineering status kicker labels');
 assert.match(workbenchSource, /Demo complete|演示完成|演示完成/, 'normal heat capacity demo completion should show a centered completion message');
-assert.match(workbenchSource, /onFocusModeChange=\{\(mode\) => \{[\s\S]*heatCapacityFocusModeRef\.current = mode/, 'workbench should know when the scene is in a heat-capacity focus mode');
+assert.match(workbenchSource, /onFocusModeChange=\{updateHeatCapacityFocusMode\}/, 'workbench should route heat-capacity focus changes through the focus-session policy');
 assert.match(workbenchSource, /setHeatCapacityFocusResetKey\(\(key\) => key \+ 1\);[\s\S]*heatCapacityFocusModeRef\.current = 'none'/, 'auto demo should reset the heat scene to the default view before starting');
 assert.match(workbenchSource, /setAutoDemoStepCount\(steps\.length\)/, 'auto demo should prepare the current step count before the reset phase');
 assert.match(workbenchSource, /autoDemoStepPanelMode/, 'workbench should keep the auto demo step panel mounted long enough to animate in and out');

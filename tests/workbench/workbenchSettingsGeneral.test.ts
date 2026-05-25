@@ -3,6 +3,12 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
+const getCssBlock = (selector: string) => {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = styles.match(new RegExp(`${escapedSelector}\\s*\\{[^}]*\\}`));
+  assert.ok(match, `${selector} should have a CSS block`);
+  return match[0];
+};
 
 assert.match(
   source,
@@ -125,6 +131,24 @@ assert.match(
 );
 
 assert.match(
+  generalWindowSource,
+  /studio-settings-section studio-settings-control-row[\s\S]*studio-settings-control-surface[\s\S]*studio-settings-language-select/,
+  'language settings should use a label/control row with a unified control surface',
+);
+
+assert.match(
+  generalWindowSource,
+  /studio-settings-section studio-settings-control-row studio-settings-performance-row[\s\S]*studio-settings-control-surface[\s\S]*studio-settings-performance-segmented/,
+  '3D performance settings should align label and segmented control in the same engineering row pattern',
+);
+
+assert.match(
+  generalWindowSource,
+  /studio-settings-section studio-settings-control-row studio-settings-shortcuts-section[\s\S]*studio-settings-control-surface[\s\S]*studio-settings-shortcuts-card/,
+  'shortcut help should use the same lower settings row and control-surface treatment',
+);
+
+assert.match(
   source,
   /\{renderGeneralSettingsWindow\(\)\}/,
   'general settings window should render above the main interface',
@@ -140,6 +164,30 @@ assert.match(
   styles,
   /\.studio-settings-shortcuts-card[\s\S]*\.studio-settings-shortcuts-list[\s\S]*kbd/,
   'settings window CSS should define an inline shortcut-help card',
+);
+
+assert.doesNotMatch(
+  getCssBlock('.studio-settings-window'),
+  /linear-gradient/,
+  'settings window should use a solid engineering surface instead of a modal gradient',
+);
+
+assert.match(
+  styles,
+  /\.studio-settings-control-row \{[\s\S]*?grid-template-columns: minmax\(160px, 0\.72fr\) minmax\(0, 1fr\);/,
+  'lower settings sections should align labels and controls on a consistent two-column grid',
+);
+
+assert.match(
+  styles,
+  /\.studio-settings-control-surface \{[\s\S]*?background: #171d23;/,
+  'lower settings controls should sit on a unified solid control surface',
+);
+
+assert.doesNotMatch(
+  getCssBlock('.studio-settings-performance-thumb'),
+  /linear-gradient/,
+  '3D performance segmented thumb should use a solid selected state instead of a gradient',
 );
 
 assert.match(
@@ -161,5 +209,4 @@ assert.match(
 );
 
 console.log('workbenchSettingsGeneral tests passed');
-
 

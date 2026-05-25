@@ -54,8 +54,10 @@ import {
   applyHeatCapacityFreeParameterDraftWorkbenchState,
   canOpenHeatCapacityParameterSidebar,
   enterHeatCapacityFreeModeWorkbenchState,
+  freezeHeatCapacityFreeParametersForCurrentGroup,
   getHeatCapacityFreeParameterLockReason,
   getHeatCapacityParameterSidebarBlockReason,
+  hasCompletedHeatCapacityFreeRecordSet,
   isHeatCapacityFreeGammaEditingAvailable,
   getHeatCapacityStopcockTargetAngle,
   getHeatCapacityStopcockState,
@@ -75,6 +77,7 @@ import {
   captureHeatCapacityWorkbenchSample,
   markHeatCapacityDemoComplete,
   powerHeatCapacityWorkbenchFile,
+  prepareNextHeatCapacityFreeExperimentGroupWorkbenchState,
   prepareHeatCapacityAutoDemoStart,
   applyHeatCapacityFreeRecordWorkbenchState,
   refreshHeatCapacityPumpFrequency,
@@ -87,6 +90,7 @@ import {
   setHeatCapacityFreeEquilibriumSpeedHintShown,
   setHeatCapacityFreeEquilibriumSpeedMultiplier,
   setHeatCapacityPressureZeroOffset,
+  shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
   stepHeatCapacityWorkbenchFile,
   WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
   IDEAL_RESULT_HEIGHT_RATIO,
@@ -207,6 +211,22 @@ type HeatCapacityManualRecordKind = 'u0' | 'u1' | 'u2';
 type HeatCapacityMode = 'demo' | 'guide' | 'free';
 type WorkbenchUpdateStatus = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'retrying' | 'downloaded' | 'installing' | 'unsupported' | 'error';
 type WorkbenchLocalizedText = Partial<Record<WorkbenchLanguagePreference, string>>;
+
+type HeatCapacityFocusMode = 'none' | 'stopcock' | 'instrument' | 'pump';
+type HeatCapacityFocusControlSnapshot = {
+  powerOn: boolean;
+  stopcockOpen: boolean;
+  pumpValveOpen: boolean;
+  pressureZeroAdjusted: boolean;
+  pressureZeroOffset: number;
+};
+type HeatCapacityFocusSession = {
+  fileId: string;
+  mode: Exclude<HeatCapacityFocusMode, 'none'>;
+  parametersCollapsedBeforeFocus: boolean;
+  baseline: HeatCapacityFocusControlSnapshot;
+  nonReversibleAction: boolean;
+};
 
 interface WorkbenchUpdateReleaseItem {
   scope: string;
@@ -1758,6 +1778,7 @@ const heatCapacityRealtimeCopies = {
     recordU2SuccessToast: 'U₂ 和 Uₜ 记录成功。',
     trialCompleteToast: '本组实验已完成。',
     finalTrialCompleteToast: '本次实验已完成。',
+    freePowerOffBeforeNextGroup: '请先关闭电源，完成本组实验后再调整参数。',
     freeRecordSuccessLog: {
       u0: '自由模式已记录 U₀ 显示值。',
       u1: '自由模式已记录 U₁ 显示值。',
@@ -1942,6 +1963,7 @@ const heatCapacityRealtimeCopies = {
     recordU2SuccessToast: 'U₂ 和 Uₜ 記錄成功。',
     trialCompleteToast: '本組實驗已完成。',
     finalTrialCompleteToast: '本次實驗已完成。',
+    freePowerOffBeforeNextGroup: '請先關閉電源，完成本組實驗後再調整參數。',
     freeRecordSuccessLog: {
       u0: '自由模式已記錄 U₀ 顯示值。',
       u1: '自由模式已記錄 U₁ 顯示值。',
@@ -2126,6 +2148,7 @@ const heatCapacityRealtimeCopies = {
     recordU2SuccessToast: 'U₂ and Uₜ recorded successfully.',
     trialCompleteToast: 'This trial is complete.',
     finalTrialCompleteToast: 'The experiment is complete.',
+    freePowerOffBeforeNextGroup: 'Turn off the power to complete this trial before adjusting parameters.',
     freeRecordSuccessLog: {
       u0: 'Free Mode recorded the U₀ display value.',
       u1: 'Free Mode recorded the U₁ display value.',
@@ -3118,7 +3141,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const heatCapacityRecordSuccessToastTimersRef = useRef<number[]>([]);
   const heatCapacityPressureAlarmTimerRef = useRef<number | null>(null);
   const heatCapacityClosePumpValveReminderTimerRef = useRef<number | null>(null);
-  const heatCapacityFocusModeRef = useRef<'none' | 'stopcock' | 'instrument' | 'pump'>('none');
+  const heatCapacityFocusModeRef = useRef<HeatCapacityFocusMode>('none');
+  const heatCapacityFocusSessionRef = useRef<HeatCapacityFocusSession | null>(null);
   const heatCapacityPressureAlarmVisibleRef = useRef(false);
   const heatCapacityToastTimerRef = useRef<number | null>(null);
   const heatCapacityToastCurrentRef = useRef<HeatCapacityToastMessage | null>(null);
@@ -3131,7 +3155,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const heatCapacityFreeSpeedNoticeTimerRef = useRef<number | null>(null);
   const heatCapacityFreeSpeedOverlayExitTimerRef = useRef<number | null>(null);
   const aboutResultNoticeTimerRef = useRef<number | null>(null);
-  const [heatCapacityFocusMode, setHeatCapacityFocusMode] = useState<'none' | 'stopcock' | 'instrument' | 'pump'>('none');
+  const [heatCapacityFocusMode, setHeatCapacityFocusMode] = useState<HeatCapacityFocusMode>('none');
   const [heatCapacityPumpPulseId, setHeatCapacityPumpPulseId] = useState(0);
   const [autoDemoRunning, setAutoDemoRunning] = useState(false);
   const [autoDemoPaused, setAutoDemoPaused] = useState(false);
@@ -4031,6 +4055,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const openParameterSidebarFromRail = () => {
+    if (shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(activeFile)) {
+      showParameterSidebarBlockReason(heatCapacityRealtimeCopy.freePowerOffBeforeNextGroup);
+      return;
+    }
     if (!canOpenHeatCapacityParameterSidebar(activeFile)) {
       showParameterSidebarBlockReason(
         getHeatCapacityParameterSidebarBlockReason(activeFile) ?? HEAT_CAPACITY_FREE_PARAMETER_SIDEBAR_BLOCK_FALLBACK,
@@ -4901,10 +4929,99 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return `${file.id}:${completedTrialCount}:${nextActiveTrialIndex}`;
   };
 
+  const getHeatCapacityFocusControlSnapshot = (
+    file: WorkbenchHeatCapacityState,
+  ): HeatCapacityFocusControlSnapshot => ({
+    powerOn: file.powerOn,
+    stopcockOpen: getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open',
+    pumpValveOpen: file.pumpValveOpen,
+    pressureZeroAdjusted: file.pressureZeroAdjusted,
+    pressureZeroOffset: file.pressureZeroOffset,
+  });
+
+  const isHeatCapacityFocusSessionMeaningful = (
+    session: HeatCapacityFocusSession,
+  ) => {
+    if (session.nonReversibleAction) return true;
+    const currentFile = filesRef.current.find((file) => file.id === session.fileId);
+    if (!currentFile || currentFile.kind !== 'heatCapacity') return true;
+    const currentSnapshot = getHeatCapacityFocusControlSnapshot(currentFile);
+    return (
+      currentSnapshot.powerOn !== session.baseline.powerOn ||
+      currentSnapshot.stopcockOpen !== session.baseline.stopcockOpen ||
+      currentSnapshot.pumpValveOpen !== session.baseline.pumpValveOpen ||
+      currentSnapshot.pressureZeroAdjusted !== session.baseline.pressureZeroAdjusted ||
+      currentSnapshot.pressureZeroOffset !== session.baseline.pressureZeroOffset
+    );
+  };
+
+  const markHeatCapacityFocusSessionNonReversible = () => {
+    const session = heatCapacityFocusSessionRef.current;
+    if (!session) return;
+    heatCapacityFocusSessionRef.current = {
+      ...session,
+      nonReversibleAction: true,
+    };
+  };
+
   const exitHeatCapacityFocusMode = () => {
+    const session = heatCapacityFocusSessionRef.current;
+    if (session) {
+      const meaningfulSession = isHeatCapacityFocusSessionMeaningful(session);
+      updateFileById(session.fileId, (file) => {
+        if (file.kind !== 'heatCapacity' || file.heatCapacityMode !== 'free') return file;
+        if (!meaningfulSession) {
+          return hasCompletedHeatCapacityFreeRecordSet(file)
+            ? file
+            : prepareNextHeatCapacityFreeExperimentGroupWorkbenchState(file);
+        }
+        if (
+          file.heatCapacityFreeExperimentGroupStatus === 'draft' &&
+          !hasCompletedHeatCapacityFreeRecordSet(file)
+        ) {
+          return freezeHeatCapacityFreeParametersForCurrentGroup(file);
+        }
+        return file;
+      });
+      if (!meaningfulSession && !session.parametersCollapsedBeforeFocus) {
+        setParametersCollapsed(false);
+      }
+      heatCapacityFocusSessionRef.current = null;
+    }
     setHeatCapacityFocusResetKey((key) => key + 1);
     heatCapacityFocusModeRef.current = 'none';
+    heatCapacityFocusSessionRef.current = null;
     setHeatCapacityFocusMode('none');
+  };
+
+  const updateHeatCapacityFocusMode = (mode: 'none' | 'stopcock' | 'instrument' | 'pump') => {
+    if (mode === 'none') {
+      exitHeatCapacityFocusMode();
+      return;
+    }
+    const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
+    if (currentFile?.kind === 'heatCapacity') {
+      const currentSession = heatCapacityFocusSessionRef.current;
+      heatCapacityFocusSessionRef.current = currentSession?.fileId === currentFile.id
+        ? {
+            ...currentSession,
+            mode,
+          }
+        : {
+            fileId: currentFile.id,
+            mode,
+            parametersCollapsedBeforeFocus: parametersCollapsed,
+            baseline: getHeatCapacityFocusControlSnapshot(currentFile),
+            nonReversibleAction: false,
+          };
+      setParametersCollapsed(true);
+      setHeatCapacityAdvancedOpen(false);
+      setPinnedHeatCapacityParamHelpId(null);
+      setHoveredHeatCapacityParamHelpId(null);
+      setHeatCapacityParamHelpPopoverStyle(undefined);
+    }
+    heatCapacityFocusModeRef.current = mode;
+    setHeatCapacityFocusMode(mode);
   };
 
   const showHeatCapacityPressureAlarm = (fileId: string, fileName: string) => {
@@ -5349,6 +5466,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         : file
     ));
     if (attempt.accepted) {
+      markHeatCapacityFocusSessionNonReversible();
       clearManualHeatCapacityGuidance();
       showManualHeatCapacityGuidance(message, kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2', 'success');
       pushLog(message, 'success');
@@ -5572,6 +5690,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setAutoDemoCompletionMessage(null);
     setHeatCapacityFocusResetKey((key) => key + 1);
     heatCapacityFocusModeRef.current = 'none';
+    heatCapacityFocusSessionRef.current = null;
     setHeatCapacityFocusMode('none');
     updateActiveFile((file) => file.kind === 'heatCapacity'
       ? enterHeatCapacityFreeModeWorkbenchState(file, Date.now())
@@ -5603,6 +5722,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setAutoDemoCompletionMessage(null);
     setHeatCapacityFocusResetKey((key) => key + 1);
     heatCapacityFocusModeRef.current = 'none';
+    heatCapacityFocusSessionRef.current = null;
     setHeatCapacityFocusMode('none');
     captureUndoSnapshot('reset heat-capacity free run');
     updateActiveFile((file) => file.kind === 'heatCapacity'
@@ -5828,7 +5948,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const nextHeatCapacityFile = fileBeforePump?.kind === 'heatCapacity'
       ? registerHeatCapacityPumpStroke(fileBeforePump, now)
       : null;
-    if (source === 'user' && nextHeatCapacityFile) collapseHeatCapacityFreeParameterSidebarForExperimentAction();
+    if (source === 'user' && nextHeatCapacityFile) {
+      collapseHeatCapacityFreeParameterSidebarForExperimentAction();
+      markHeatCapacityFocusSessionNonReversible();
+    }
     const pressureStatusBeforePump = fileBeforePump?.kind === 'heatCapacity'
       ? getHeatCapacityPressureSafetyStatusFromMv(getManualHeatCapacityThresholdPressureMv(fileBeforePump))
       : 'normal';
@@ -6242,6 +6365,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const timeline = getHeatCapacityAutoDemoTimeline(steps);
     setHeatCapacityFocusResetKey((key) => key + 1);
     heatCapacityFocusModeRef.current = 'none';
+    heatCapacityFocusSessionRef.current = null;
     setHeatCapacityFocusMode('none');
     heatCapacityAutoDemoPausedElapsedMsRef.current = 0;
     heatCapacityAutoDemoPausedFileIdRef.current = null;
@@ -8699,6 +8823,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setManualHeatCapacityRollback(null);
     setHeatCapacityFocusMode('none');
     heatCapacityFocusModeRef.current = 'none';
+    heatCapacityFocusSessionRef.current = null;
   };
 
   const closeWorkbenchFile = (fileId: string) => {
@@ -9900,86 +10025,92 @@ const WorkbenchStudioPrototype: React.FC = () => {
               </div>
             </section>
 
-            <section className="studio-settings-section">
+            <section className="studio-settings-section studio-settings-control-row">
               <div className="studio-settings-section-title">
                 <strong>{workbenchCopy.settings.language}</strong>
                 <span>{workbenchCopy.settings.languageHint}</span>
               </div>
-              <div className={`studio-settings-language-select ${settingsLanguageMenuOpen ? 'studio-settings-language-select-open' : ''}`}>
-                <button
-                  type="button"
-                  className="studio-settings-language-trigger"
-                  aria-haspopup="listbox"
-                  aria-expanded={settingsLanguageMenuOpen}
-                  onClick={() => setSettingsLanguageMenuOpen((current) => !current)}
+              <div className="studio-settings-control-surface">
+                <div className={`studio-settings-language-select ${settingsLanguageMenuOpen ? 'studio-settings-language-select-open' : ''}`}>
+                  <button
+                    type="button"
+                    className="studio-settings-language-trigger"
+                    aria-haspopup="listbox"
+                    aria-expanded={settingsLanguageMenuOpen}
+                    onClick={() => setSettingsLanguageMenuOpen((current) => !current)}
+                  >
+                    <span>
+                      <strong>{activeLanguage.label}</strong>
+                      <small>{activeLanguage.hint}</small>
+                    </span>
+                    <ChevronDown
+                      size={15}
+                      className={`studio-settings-language-chevron ${settingsLanguageMenuOpen ? 'studio-settings-language-chevron-open' : ''}`}
+                    />
+                  </button>
+                  <div className="studio-settings-language-menu" role="listbox" aria-label={workbenchCopy.settings.language} aria-hidden={!settingsLanguageMenuOpen}>
+                    {languageOptions.map((option) => (
+                      <button
+                        type="button"
+                        key={option.key}
+                        role="option"
+                        aria-selected={settingsLanguagePreference === option.key}
+                        tabIndex={settingsLanguageMenuOpen ? 0 : -1}
+                        className={settingsLanguagePreference === option.key ? 'studio-settings-language-active' : ''}
+                        onClick={() => updateSettingsLanguagePreference(option.key)}
+                      >
+                        <strong>{option.label}</strong>
+                        <span>{option.hint}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="studio-settings-section studio-settings-control-row studio-settings-performance-row">
+              <div className="studio-settings-section-title">
+                <strong>{workbenchCopy.settings.performanceMode}</strong>
+                <span>{workbenchCopy.settings.performanceModeHint}</span>
+              </div>
+              <div className="studio-settings-control-surface">
+                <div
+                  className={`studio-settings-performance-segmented studio-settings-performance-segmented-${settingsPerformanceMode}`}
+                  role="radiogroup"
+                  aria-label={workbenchCopy.settings.performanceMode}
                 >
-                  <span>
-                    <strong>{activeLanguage.label}</strong>
-                    <small>{activeLanguage.hint}</small>
-                  </span>
-                  <ChevronDown
-                    size={15}
-                    className={`studio-settings-language-chevron ${settingsLanguageMenuOpen ? 'studio-settings-language-chevron-open' : ''}`}
-                  />
-                </button>
-                <div className="studio-settings-language-menu" role="listbox" aria-label={workbenchCopy.settings.language} aria-hidden={!settingsLanguageMenuOpen}>
-                  {languageOptions.map((option) => (
+                  <span className="studio-settings-performance-thumb" aria-hidden="true" />
+                  {performanceModeOptions.map((option) => (
                     <button
+                      key={option.mode}
                       type="button"
-                      key={option.key}
-                      role="option"
-                      aria-selected={settingsLanguagePreference === option.key}
-                      tabIndex={settingsLanguageMenuOpen ? 0 : -1}
-                      className={settingsLanguagePreference === option.key ? 'studio-settings-language-active' : ''}
-                      onClick={() => updateSettingsLanguagePreference(option.key)}
+                      role="radio"
+                      aria-checked={settingsPerformanceMode === option.mode}
+                      className={`studio-settings-performance-option ${
+                        settingsPerformanceMode === option.mode ? 'studio-settings-performance-option-active' : ''
+                      }`}
+                      onClick={() => updateSettingsPerformanceMode(option.mode)}
                     >
                       <strong>{option.label}</strong>
-                      <span>{option.hint}</span>
+                      <small>{workbenchCopy.settings.performanceModeSummary[option.mode]}</small>
                     </button>
                   ))}
                 </div>
               </div>
             </section>
 
-            <section className="studio-settings-section studio-settings-performance-row">
+            <section className="studio-settings-section studio-settings-control-row studio-settings-shortcuts-section">
               <div className="studio-settings-section-title">
-                <strong>{workbenchCopy.settings.performanceMode}</strong>
-                <span>{workbenchCopy.settings.performanceModeHint}</span>
+                <strong>{workbenchCopy.shortcuts.title}</strong>
+                <span>{workbenchCopy.shortcuts.hint}</span>
               </div>
-              <div
-                className={`studio-settings-performance-segmented studio-settings-performance-segmented-${settingsPerformanceMode}`}
-                role="radiogroup"
-                aria-label={workbenchCopy.settings.performanceMode}
-              >
-                <span className="studio-settings-performance-thumb" aria-hidden="true" />
-                {performanceModeOptions.map((option) => (
-                  <button
-                    key={option.mode}
-                    type="button"
-                    role="radio"
-                    aria-checked={settingsPerformanceMode === option.mode}
-                    className={`studio-settings-performance-option ${
-                      settingsPerformanceMode === option.mode ? 'studio-settings-performance-option-active' : ''
-                    }`}
-                    onClick={() => updateSettingsPerformanceMode(option.mode)}
-                  >
-                    <strong>{option.label}</strong>
-                    <small>{workbenchCopy.settings.performanceModeSummary[option.mode]}</small>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="studio-settings-section">
-              <div className="studio-settings-shortcuts-card">
-                <div className="studio-settings-shortcuts-copy">
-                  <strong>{workbenchCopy.shortcuts.title}</strong>
-                  <span>{workbenchCopy.shortcuts.hint}</span>
-                </div>
-                <div className="studio-settings-shortcuts-list" aria-label={workbenchCopy.shortcuts.title}>
-                  <span><kbd>Ctrl+Z</kbd>{workbenchCopy.shortcuts.undo}</span>
-                  <span><kbd>Ctrl+Y</kbd><kbd>Ctrl+Shift+Z</kbd>{workbenchCopy.shortcuts.redo}</span>
-                  <span><kbd>Esc</kbd>{workbenchCopy.shortcuts.closeSettings}</span>
+              <div className="studio-settings-control-surface">
+                <div className="studio-settings-shortcuts-card">
+                  <div className="studio-settings-shortcuts-list" aria-label={workbenchCopy.shortcuts.title}>
+                    <span><kbd>Ctrl+Z</kbd>{workbenchCopy.shortcuts.undo}</span>
+                    <span><kbd>Ctrl+Y</kbd><kbd>Ctrl+Shift+Z</kbd>{workbenchCopy.shortcuts.redo}</span>
+                    <span><kbd>Esc</kbd>{workbenchCopy.shortcuts.closeSettings}</span>
+                  </div>
                 </div>
               </div>
             </section>
@@ -10750,10 +10881,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   overlayBottomRight={heatCapacityBottomRightOverlay}
                   overlayCenter={heatCapacityCenterOverlay}
                   overlayBottomCenter={heatCapacityBottomCenterOverlay}
-                  onFocusModeChange={(mode) => {
-                    heatCapacityFocusModeRef.current = mode;
-                    setHeatCapacityFocusMode(mode);
-                  }}
+                  onFocusModeChange={updateHeatCapacityFocusMode}
                   onLockedInteraction={showHeatCapacityAutoDemoLockedToast}
                   onPowerToggle={updateHeatCapacityPower}
                   onStopcockOpenChange={updateHeatCapacityStopcockOpen}

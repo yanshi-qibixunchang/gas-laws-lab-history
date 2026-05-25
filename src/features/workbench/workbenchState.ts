@@ -946,12 +946,47 @@ export const createDefaultHeatCapacityFreeParameterState = (): HeatCapacityFreeP
   return applyHeatCapacityFreeParameterDraftToConfigs(draft);
 };
 
+const getLatestHeatCapacityFreeTrial = (
+  file: WorkbenchHeatCapacityState,
+) => file.heatCapacityFreeTrials[file.heatCapacityFreeTrials.length - 1] ?? null;
+
+export const hasCompletedHeatCapacityFreeRecordSet = (
+  file: WorkbenchFileState | null,
+): boolean => {
+  if (file?.kind !== 'heatCapacity' || file.heatCapacityMode !== 'free') return false;
+  const latestTrial = getLatestHeatCapacityFreeTrial(file);
+  return Boolean(latestTrial?.u0 && latestTrial.u1 && latestTrial.u2);
+};
+
+export const isHeatCapacityFreeExperimentGroupComplete = (
+  file: WorkbenchFileState | null,
+): boolean => (
+  file?.kind === 'heatCapacity' &&
+  file.heatCapacityMode === 'free' &&
+  file.heatCapacityFreeExperimentGroupStatus === 'completed' &&
+  hasCompletedHeatCapacityFreeRecordSet(file) &&
+  !file.powerOn
+);
+
+export const shouldPromptHeatCapacityFreePowerOffBeforeNextGroup = (
+  file: WorkbenchFileState | null,
+): boolean => (
+  file?.kind === 'heatCapacity' &&
+  file.heatCapacityMode === 'free' &&
+  file.heatCapacityFreeExperimentGroupStatus === 'completed' &&
+  hasCompletedHeatCapacityFreeRecordSet(file) &&
+  file.powerOn
+);
+
 export const isHeatCapacityFreeParameterEditingAvailable = (
   file: WorkbenchFileState | null,
 ): file is WorkbenchHeatCapacityState => (
   file?.kind === 'heatCapacity' &&
   file.heatCapacityMode === 'free' &&
-  file.heatCapacityFreeExperimentGroupStatus === 'draft' &&
+  (
+    file.heatCapacityFreeExperimentGroupStatus === 'draft' ||
+    isHeatCapacityFreeExperimentGroupComplete(file)
+  ) &&
   file.runState !== 'running' &&
   file.runState !== 'paused'
 );
@@ -970,6 +1005,12 @@ export const getHeatCapacityFreeParameterLockReason = (
   if (file.heatCapacityMode !== 'free') return '只有自由实验模式可以调整参数。';
   if (file.runState === 'running' || file.runState === 'paused') {
     return '当前实验正在运行或暂停，参数已锁定。';
+  }
+  if (shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(file)) {
+    return '请先关闭电源，完成本组实验后再调整参数。';
+  }
+  if (isHeatCapacityFreeExperimentGroupComplete(file)) {
+    return null;
   }
   if (file.heatCapacityFreeExperimentGroupStatus !== 'draft') {
     return '当前实验组已开始，参数已锁定。';
@@ -2507,11 +2548,14 @@ export const powerHeatCapacityWorkbenchFile = (
       },
       now,
     );
-    return recordHeatCapacityFreeTraceEvent(
+    const tracedFile = recordHeatCapacityFreeTraceEvent(
       recordHeatCapacityFreeSafetyTransitionEvents(sourceFile, poweredFile, now),
       nextPowerOn ? 'power-on' : 'power-off',
       now,
     );
+    return !nextPowerOn && isHeatCapacityFreeExperimentGroupComplete(tracedFile)
+      ? prepareNextHeatCapacityFreeExperimentGroupWorkbenchState(tracedFile)
+      : tracedFile;
   }
   const runtime = powerHeatCapacityRuntimeState(
     getHeatCapacityRuntimeStateFromFile(file),

@@ -7,9 +7,13 @@ import {
   freezeHeatCapacityFreeParametersForCurrentGroup,
   getHeatCapacityFreeParameterLockReason,
   getHeatCapacityParameterSidebarBlockReason,
+  hasCompletedHeatCapacityFreeRecordSet,
+  isHeatCapacityFreeExperimentGroupComplete,
   isHeatCapacityFreeParameterEditingAvailable,
+  powerHeatCapacityWorkbenchFile,
   prepareNextHeatCapacityFreeExperimentGroupWorkbenchState,
   resetHeatCapacityFreeRunWorkbenchState,
+  shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
 } from '../../src/features/workbench/workbenchState.ts';
 
 const defaultFile = createDefaultHeatCapacityFile(1);
@@ -81,6 +85,55 @@ assert.equal(nextGroupFile.heatCapacityFreeParameterDraft.ambientPressureKPa, 99
 assert.equal(nextGroupFile.heatCapacityFreeParameterDraft.leakageRatePerS, 0.0018);
 assert.equal(nextGroupFile.heatCapacityFreeParameterDraft.instrumentNoiseEnabled, false);
 assert.equal(isHeatCapacityFreeParameterEditingAvailable(nextGroupFile), true);
+
+const completedFreeTrial = {
+  id: 'completed-free-group',
+  source: 'free',
+  traceTrialId: null,
+  branchCount: 0,
+  automaticU0: null,
+  u0: { displayPressureMv: 0 },
+  u1: { displayPressureMv: 72.5 },
+  u2: { displayPressureMv: 51.2 },
+  blockedReason: null,
+  correctedSignals: null,
+  configSnapshot: frozenFile.heatCapacityFreeActiveRunConfigSnapshot,
+} as any;
+const completedGroupPowerOnFile = {
+  ...frozenFile,
+  powerOn: true,
+  runState: 'idle' as const,
+  heatCapacityFreeExperimentGroupStatus: 'completed' as const,
+  heatCapacityFreeTrials: [completedFreeTrial],
+};
+assert.equal(hasCompletedHeatCapacityFreeRecordSet(completedGroupPowerOnFile), true);
+assert.equal(isHeatCapacityFreeExperimentGroupComplete(completedGroupPowerOnFile), false);
+assert.equal(shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(completedGroupPowerOnFile), true);
+assert.equal(isHeatCapacityFreeParameterEditingAvailable(completedGroupPowerOnFile), false);
+assert.equal(
+  getHeatCapacityFreeParameterLockReason(completedGroupPowerOnFile),
+  '请先关闭电源，完成本组实验后再调整参数。',
+);
+
+const incompleteGroupPowerOnFile = {
+  ...completedGroupPowerOnFile,
+  heatCapacityFreeExperimentGroupStatus: 'running' as const,
+  heatCapacityFreeTrials: [{ ...completedFreeTrial, u2: null }],
+};
+assert.equal(hasCompletedHeatCapacityFreeRecordSet(incompleteGroupPowerOnFile), false);
+assert.equal(shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(incompleteGroupPowerOnFile), false);
+
+const completedGroupPowerOffFile = {
+  ...completedGroupPowerOnFile,
+  powerOn: false,
+};
+assert.equal(isHeatCapacityFreeExperimentGroupComplete(completedGroupPowerOffFile), true);
+assert.equal(shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(completedGroupPowerOffFile), false);
+
+const preparedAfterPowerOff = powerHeatCapacityWorkbenchFile(completedGroupPowerOnFile, false, 2000);
+assert.equal(preparedAfterPowerOff.heatCapacityFreeExperimentGroupStatus, 'draft');
+assert.equal(preparedAfterPowerOff.heatCapacityFreeActiveRunConfigSnapshot, null);
+assert.equal(isHeatCapacityFreeParameterEditingAvailable(preparedAfterPowerOff), true);
 
 const gammaEditedFile = applyHeatCapacityFreeParameterDraftWorkbenchState(defaultFile, {
   ...defaultFile.heatCapacityFreeParameterDraft,
