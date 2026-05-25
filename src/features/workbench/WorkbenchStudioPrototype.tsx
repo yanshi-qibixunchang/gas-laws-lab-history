@@ -10099,7 +10099,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               </div>
             </section>
 
-            <section className="studio-settings-section studio-settings-control-row studio-settings-shortcuts-section">
+            <section className="studio-settings-section studio-settings-shortcuts-section">
               <div className="studio-settings-section-title">
                 <strong>{workbenchCopy.shortcuts.title}</strong>
                 <span>{workbenchCopy.shortcuts.hint}</span>

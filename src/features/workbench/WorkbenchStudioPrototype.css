@@ -1253,6 +1253,14 @@
   padding: 0;
 }
 
+.studio-settings-shortcuts-section {
+  gap: 10px;
+}
+
+.studio-settings-shortcuts-section .studio-settings-control-surface {
+  padding: 10px;
+}
+
 .studio-settings-shortcuts-copy {
   display: grid;
   min-width: 0;
@@ -1270,12 +1278,11 @@
 }
 
 .studio-settings-shortcuts-list {
-  display: flex;
-  flex: 0 1 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   min-width: 0;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
+  gap: 8px 10px;
   color: var(--studio-muted);
   font-size: 11px;
 }
@@ -1284,8 +1291,8 @@
   display: inline-flex;
   min-width: 0;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
-  white-space: nowrap;
 }
 
 .studio-settings-shortcuts-list kbd {

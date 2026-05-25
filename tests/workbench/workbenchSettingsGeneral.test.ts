@@ -144,8 +144,14 @@ assert.match(
 
 assert.match(
   generalWindowSource,
-  /studio-settings-section studio-settings-control-row studio-settings-shortcuts-section[\s\S]*studio-settings-control-surface[\s\S]*studio-settings-shortcuts-card/,
-  'shortcut help should use the same lower settings row and control-surface treatment',
+  /studio-settings-section studio-settings-shortcuts-section[\s\S]*studio-settings-section-title[\s\S]*studio-settings-control-surface[\s\S]*studio-settings-shortcuts-card/,
+  'shortcut help should put the shortcut list on a new row below the section title',
+);
+
+assert.doesNotMatch(
+  generalWindowSource,
+  /studio-settings-control-row studio-settings-shortcuts-section/,
+  'shortcut help should not reuse the two-column control row because shortcut lists can grow',
 );
 
 assert.match(
@@ -184,6 +190,24 @@ assert.match(
   'lower settings controls should sit on a unified solid control surface',
 );
 
+assert.match(
+  styles,
+  /\.studio-settings-shortcuts-section \{[\s\S]*?gap: 10px;/,
+  'shortcut section should define its own vertical spacing for title and shortcut rows',
+);
+
+assert.match(
+  getCssBlock('.studio-settings-shortcuts-list'),
+  /display: grid;[\s\S]*grid-template-columns: repeat\(auto-fit, minmax\(128px, 1fr\)\);/,
+  'shortcut list should be a wrapping grid so new shortcuts do not overlap existing labels',
+);
+
+assert.match(
+  getCssBlock('.studio-settings-shortcuts-list span'),
+  /flex-wrap: wrap;/,
+  'each shortcut item should be allowed to wrap its keycaps and label',
+);
+
 assert.doesNotMatch(
   getCssBlock('.studio-settings-performance-thumb'),
   /linear-gradient/,
@@ -209,4 +233,3 @@ assert.match(
 );
 
 console.log('workbenchSettingsGeneral tests passed');
-
