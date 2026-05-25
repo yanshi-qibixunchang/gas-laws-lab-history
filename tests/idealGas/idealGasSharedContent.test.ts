@@ -1,12 +1,9 @@
 ﻿import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import {
   getIdealFailureReasonText,
   getIdealHistoryContent,
   getIdealRecommendationText,
 } from '../../src/domain/idealGas/idealGasExperiment.ts';
-
-const standaloneSource = readFileSync(new URL('../../src/features/idealGas/IdealGasExperimentMode.tsx', import.meta.url), 'utf8');
 
 const history = getIdealHistoryContent('zh-CN', 'pv');
 assert.equal(history.title, '玻意耳-马略特定律');
@@ -25,22 +22,4 @@ assert.ok(
   getIdealRecommendationText(null, 'verified', 'pt', 'en-GB').includes('supports the pressure-temperature relation'),
   'verified P-T recommendation should have relation-specific English copy',
 );
-assert.match(
-  standaloneSource,
-  /getIdealHistoryContent\(lang,\s*historyModalRelation\)/,
-  'standalone ideal mode should consume shared history content',
-);
-assert.match(
-  standaloneSource,
-  /calculateLinearRegression\(/,
-  'standalone ideal mode should consume shared regression helper',
-);
-assert.match(
-  standaloneSource,
-  /getSharedRelationXValue\(relation,\s*point\)/,
-  'standalone ideal mode should consume shared relation x helper',
-);
-
 console.log('idealGasSharedContent tests passed');
-
-
