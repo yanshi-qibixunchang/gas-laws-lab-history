@@ -1,8 +1,15 @@
-# Hard Sphere Lab v4.1.4
+# Hard Sphere Lab v4.1.5
 
 [简体中文 README](./README.zh-CN.md)
 
 Hard Sphere Lab is a Windows desktop engineering workbench for hard-sphere molecular dynamics, ideal-gas relation verification, and the FD-NCD-C air heat-capacity-ratio experiment. The active release path is the Electron desktop app with a packaged local exporter for PDF reports, figures, and CSV data.
+
+## What Changed In v4.1.5
+
+- Tests and verifies remote structured release-note loading for future updates.
+- Ensures update dialogs match the current interface language instead of showing every release-note language at once.
+- Keeps plain-text release-note fallback for older clients and failure cases.
+- Updates the app, package metadata, release metadata, and documentation version to `4.1.5`.
 
 ## What Changed In v4.1.4
 

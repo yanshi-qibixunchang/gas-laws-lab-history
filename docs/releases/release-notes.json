@@ -3,6 +3,71 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.5",
+      "date": "2026-05-25",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v4.1.5",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.5/heat-capacity-lab-setup-4.1.5.exe"
+      },
+      "summary": {
+        "zh-CN": "测试修复后续版本更新说明的远端结构化读取与语言匹配。",
+        "zh-TW": "測試修復後續版本更新說明的遠端結構化讀取與語言匹配。",
+        "en": "Tests the fix for remote structured release-note loading and language matching in future updates."
+      },
+      "sections": [
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "high",
+              "title": {
+                "zh-CN": "远端结构化更新说明",
+                "zh-TW": "遠端結構化更新說明",
+                "en": "Remote structured release notes"
+              },
+              "body": {
+                "zh-CN": "测试修复后续版本更新说明的远端结构化读取与语言匹配。",
+                "zh-TW": "測試修復後續版本更新說明的遠端結構化讀取與語言匹配。",
+                "en": "Tests the fix for remote structured release-note loading and language matching in future updates."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "兼容性说明",
+            "zh-TW": "相容性說明",
+            "en": "Compatibility"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "保留纯文本兜底",
+                "zh-TW": "保留純文字兜底",
+                "en": "Plain-text fallback retained"
+              },
+              "body": {
+                "zh-CN": "远端 latest.yml 同时保留纯文本 releaseNotes，供旧版客户端和异常 fallback 使用。",
+                "zh-TW": "遠端 latest.yml 同時保留純文字 releaseNotes，供舊版客戶端和異常 fallback 使用。",
+                "en": "The remote latest.yml also keeps plain-text releaseNotes for older clients and fallback scenarios."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.4",
       "date": "2026-05-25",
       "channel": "stable",

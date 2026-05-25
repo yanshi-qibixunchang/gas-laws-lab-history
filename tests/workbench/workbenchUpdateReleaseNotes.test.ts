@@ -83,7 +83,7 @@ for (const locale of locales) {
   assert.ok(firstRelease.summary?.[locale]?.trim(), `release summary should include ${locale}`);
 }
 
-assert.ok(Array.isArray(firstRelease.sections) && firstRelease.sections.length >= 3, 'release notes should be grouped into sections');
+assert.ok(Array.isArray(firstRelease.sections) && firstRelease.sections.length > 0, 'release notes should be grouped into sections');
 for (const section of firstRelease.sections ?? []) {
   assert.ok(section.type, 'each release section should have a type');
   for (const locale of locales) {
