@@ -1,0 +1,352 @@
+{
+  "schemaVersion": 1,
+  "app": "hard-sphere-lab",
+  "releases": [
+    {
+      "version": "4.1.5",
+      "date": "2026-05-25",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v4.1.5",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.5/heat-capacity-lab-setup-4.1.5.exe"
+      },
+      "summary": {
+        "zh-CN": "测试修复后续版本更新说明的远端结构化读取与语言匹配，并简化更新弹窗版本信息区的视觉样式。",
+        "zh-TW": "測試修復後續版本更新說明的遠端結構化讀取與語言匹配，並簡化更新彈窗版本資訊區的視覺樣式。",
+        "en": "Tests the fix for remote structured release-note loading and language matching in future updates, and simplifies the update dialog version-information block."
+      },
+      "sections": [
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "high",
+              "title": {
+                "zh-CN": "远端结构化更新说明",
+                "zh-TW": "遠端結構化更新說明",
+                "en": "Remote structured release notes"
+              },
+              "body": {
+                "zh-CN": "测试修复后续版本更新说明的远端结构化读取与语言匹配。",
+                "zh-TW": "測試修復後續版本更新說明的遠端結構化讀取與語言匹配。",
+                "en": "Tests the fix for remote structured release-note loading and language matching in future updates."
+              }
+            },
+            {
+              "scope": "desktop-update-ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "更新弹窗版本信息区样式",
+                "zh-TW": "更新彈窗版本資訊區樣式",
+                "en": "Update dialog version-information styling"
+              },
+              "body": {
+                "zh-CN": "移除版本信息区的蓝色强调边和强调阴影，改为更简约的工程软件信息块。",
+                "zh-TW": "移除版本資訊區的藍色強調邊和強調陰影，改為更簡約的工程軟體資訊區塊。",
+                "en": "Removes the blue accent edge and emphasis shadow from the version-information block for a simpler engineering-software presentation."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "兼容性说明",
+            "zh-TW": "相容性說明",
+            "en": "Compatibility"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "保留纯文本兜底",
+                "zh-TW": "保留純文字兜底",
+                "en": "Plain-text fallback retained"
+              },
+              "body": {
+                "zh-CN": "远端 latest.yml 同时保留纯文本 releaseNotes，供旧版客户端和异常 fallback 使用。",
+                "zh-TW": "遠端 latest.yml 同時保留純文字 releaseNotes，供舊版客戶端和異常 fallback 使用。",
+                "en": "The remote latest.yml also keeps plain-text releaseNotes for older clients and fallback scenarios."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
+      "version": "4.1.4",
+      "date": "2026-05-25",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v4.1.4",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.4/heat-capacity-lab-setup-4.1.4.exe"
+      },
+      "summary": {
+        "zh-CN": "相比 v4.1.3，本版补齐热容自由实验参数调整、过程回顾、保存恢复、工程化参数界面和桌面更新失败恢复能力。",
+        "zh-TW": "相比 v4.1.3，本版補齊熱容自由實驗參數調整、過程回顧、儲存恢復、工程化參數介面和桌面更新失敗恢復能力。",
+        "en": "Compared with v4.1.3, this release adds heat-capacity free-experiment parameter control, process review, persistence, engineering-style parameter UI, and desktop update recovery improvements."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "新增",
+            "zh-TW": "新增",
+            "en": "Added"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "热容自由实验参数调整体系",
+                "zh-TW": "熱容自由實驗參數調整體系",
+                "en": "Heat-capacity free-experiment parameter controls"
+              },
+              "body": {
+                "zh-CN": "自由实验现在可在新实验组开始前调整环境、热交换、传感、泄漏、记录判定、安全阈值和可视化参数。",
+                "zh-TW": "自由實驗現在可在新實驗組開始前調整環境、熱交換、感測、洩漏、記錄判定、安全閾值和視覺化參數。",
+                "en": "Free experiments can now adjust environment, thermal exchange, sensor, leakage, recording, safety, and visualization parameters before a new group starts."
+              }
+            },
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "热容自由实验过程回顾与评分",
+                "zh-TW": "熱容自由實驗過程回顧與評分",
+                "en": "Heat-capacity free-experiment process review and scoring"
+              },
+              "body": {
+                "zh-CN": "新增轨迹数据、最佳记录窗口、过程评分和过程回顾面板，用于复盘放气、回温、记录时机和结果质量。",
+                "zh-TW": "新增軌跡資料、最佳記錄視窗、過程評分和過程回顧面板，用於復盤放氣、回溫、記錄時機和結果品質。",
+                "en": "Adds trace data, best recording windows, process scoring, and review panels for release, recovery, recording timing, and result quality."
+              }
+            },
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "参数按实验组生效并隔离历史结果",
+                "zh-TW": "參數按實驗組生效並隔離歷史結果",
+                "en": "Per-group parameter effect with isolated history"
+              },
+              "body": {
+                "zh-CN": "已完成实验组保留原始参数快照，重置到下一组后才重新允许调整组级参数。",
+                "zh-TW": "已完成實驗組保留原始參數快照，重置到下一組後才重新允許調整組級參數。",
+                "en": "Completed groups keep their original parameter snapshots, and group-level parameters become editable again only after resetting to the next group."
+              }
+            },
+            {
+              "scope": "persistence",
+              "importance": "high",
+              "title": {
+                "zh-CN": "实验文件保存恢复与数据版本",
+                "zh-TW": "實驗檔案儲存恢復與資料版本",
+                "en": "Experiment persistence and data schema versions"
+              },
+              "body": {
+                "zh-CN": "新增热容、理想气体和标准模拟的数据 schema 与迁移路径，工作区文件可保存参数、记录、结果和运行状态。",
+                "zh-TW": "新增熱容、理想氣體和標準模擬的資料 schema 與遷移路徑，工作區檔案可儲存參數、記錄、結果和執行狀態。",
+                "en": "Adds data schemas and migration paths for heat-capacity, ideal-gas, and standard simulations so workspace files can persist parameters, records, results, and runtime state."
+              }
+            },
+            {
+              "scope": "desktop-update",
+              "importance": "high",
+              "title": {
+                "zh-CN": "更新失败后的手动下载入口",
+                "zh-TW": "更新失敗後的手動下載入口",
+                "en": "Manual download after update failure"
+              },
+              "body": {
+                "zh-CN": "自动下载多次失败后，可直接打开 GitHub Release 中的 Windows 安装包。",
+                "zh-TW": "自動下載多次失敗後，可直接開啟 GitHub Release 中的 Windows 安裝程式。",
+                "en": "After repeated automatic download failures, the app can open the Windows installer asset from the GitHub Release."
+              }
+            },
+            {
+              "scope": "ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "参数界面统一为工程软件风格",
+                "zh-TW": "參數介面統一為工程軟體風格",
+                "en": "Engineering-style parameter interface"
+              },
+              "body": {
+                "zh-CN": "热容、理想气体和标准模拟的参数行样式完成统一，并补齐亮暗模式适配。",
+                "zh-TW": "熱容、理想氣體和標準模擬的參數列樣式完成統一，並補齊亮暗模式適配。",
+                "en": "Heat-capacity, ideal-gas, and standard-simulation parameter rows now use a consistent engineering UI style with light/dark theme support."
+              }
+            },
+            {
+              "scope": "desktop-update",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "结构化更新说明",
+                "zh-TW": "結構化更新說明",
+                "en": "Structured release notes"
+              },
+              "body": {
+                "zh-CN": "更新弹窗按新增、变更、修复和兼容性说明展示本次更新内容。",
+                "zh-TW": "更新彈窗按新增、變更、修復和相容性說明展示本次更新內容。",
+                "en": "The update dialog groups release notes by added, changed, fixed, and compatibility sections."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "变更",
+            "zh-TW": "變更",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "参数影响方向与物理链路修正",
+                "zh-TW": "參數影響方向與物理鏈路修正",
+                "en": "Parameter impact direction and physics-path corrections"
+              },
+              "body": {
+                "zh-CN": "修正热交换、泄漏、传感响应、压力安全和理论参考值相关边界，使参数调整后的 UI 变化与模型方向一致。",
+                "zh-TW": "修正熱交換、洩漏、感測響應、壓力安全和理論參考值相關邊界，使參數調整後的 UI 變化與模型方向一致。",
+                "en": "Corrects thermal exchange, leakage, sensor response, pressure safety, and reference-value boundaries so UI changes match the model direction."
+              }
+            },
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "热容自由实验记录判定更严格",
+                "zh-TW": "熱容自由實驗記錄判定更嚴格",
+                "en": "Stricter free-experiment recording validation"
+              },
+              "body": {
+                "zh-CN": "U0、U1、U2 记录现在会结合零点容差、压力/温度稳定斜率、最小有效读数和安全阈值，拦截不可靠记录。",
+                "zh-TW": "U0、U1、U2 記錄現在會結合零點容差、壓力/溫度穩定斜率、最小有效讀數和安全閾值，攔截不可靠記錄。",
+                "en": "U0, U1, and U2 recording now combines zero tolerance, pressure/temperature stability slopes, minimum valid readings, and safety thresholds to block unreliable records."
+              }
+            },
+            {
+              "scope": "ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "热容可视化与性能控制调整",
+                "zh-TW": "熱容視覺化與效能控制調整",
+                "en": "Heat-capacity visualization and performance controls"
+              },
+              "body": {
+                "zh-CN": "小球可视化改为独立显示开关，粒子数量和速率由高性能、均衡、低负载三档性能模式控制。",
+                "zh-TW": "小球視覺化改為獨立顯示開關，粒子數量和速率由高效能、均衡、低負載三檔效能模式控制。",
+                "en": "Particle visualization now uses a separate visibility switch, while particle count and rate are controlled by performance, balanced, and low-load modes."
+              }
+            },
+            {
+              "scope": "workbench",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "工作台交互性能优化",
+                "zh-TW": "工作台互動效能最佳化",
+                "en": "Workbench interaction performance improvements"
+              },
+              "body": {
+                "zh-CN": "降低拖拽分栏和热容演示动画的状态提交频率，减少运行时 UI 抖动和不必要重渲染。",
+                "zh-TW": "降低拖曳分欄和熱容演示動畫的狀態提交頻率，減少執行時 UI 抖動和不必要重繪。",
+                "en": "Reduces state commits during split resizing and heat-capacity demo animation to avoid UI jitter and unnecessary re-renders."
+              }
+            },
+            {
+              "scope": "desktop-update",
+              "importance": "high",
+              "title": {
+                "zh-CN": "网络波动自动重试",
+                "zh-TW": "網路波動自動重試",
+                "en": "Automatic retry for transient network failures"
+              },
+              "body": {
+                "zh-CN": "更新下载遇到临时网络错误时最多尝试 3 次，并在界面显示当前尝试次数。",
+                "zh-TW": "更新下載遇到暫時性網路錯誤時最多嘗試 3 次，並在介面顯示目前嘗試次數。",
+                "en": "Update downloads retry up to three attempts for transient network errors and show the current attempt count."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "热容自由实验物理模型边界修复",
+                "zh-TW": "熱容自由實驗物理模型邊界修復",
+                "en": "Heat-capacity free-experiment physics boundary fixes"
+              },
+              "body": {
+                "zh-CN": "修复热交换、泄漏、传感滞后、噪声、压力安全和理论参考值相关边界，使参数调整后的变化方向与模型含义一致。",
+                "zh-TW": "修復熱交換、洩漏、感測滯後、噪聲、壓力安全和理論參考值相關邊界，使參數調整後的變化方向與模型含義一致。",
+                "en": "Fixes thermal exchange, leakage, sensor lag, noise, pressure safety, and reference-value boundaries so parameter changes follow the intended model direction."
+              }
+            },
+            {
+              "scope": "desktop-update",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "失败信息更明确",
+                "zh-TW": "失敗資訊更明確",
+                "en": "Clearer failure information"
+              },
+              "body": {
+                "zh-CN": "下载失败会说明已重试次数，并保留稍后重试和手动下载两种恢复路径。",
+                "zh-TW": "下載失敗會說明已重試次數，並保留稍後重試和手動下載兩種恢復路徑。",
+                "en": "Download failures show the completed attempt count and keep both retry and manual download recovery paths available."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "兼容性说明",
+            "zh-TW": "相容性說明",
+            "en": "Compatibility"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "low",
+              "title": {
+                "zh-CN": "仅桌面安装版可自动更新",
+                "zh-TW": "僅桌面安裝版可自動更新",
+                "en": "Automatic updates remain desktop-installer only"
+              },
+              "body": {
+                "zh-CN": "浏览器预览和开发模式仍只显示更新状态，不执行安装包下载和重启安装。",
+                "zh-TW": "瀏覽器預覽和開發模式仍只顯示更新狀態，不執行安裝包下載和重新啟動安裝。",
+                "en": "Browser previews and development mode still show update status only and do not download installers or restart to install."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    }
+  ]
+}

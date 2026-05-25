@@ -1,15 +1,148 @@
-const { app, BrowserWindow, dialog, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const fsSync = require('node:fs');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const {
+  MAX_DOWNLOAD_ATTEMPTS,
+  getReleaseMetadataForUpdateInfo,
+  getReleaseMetadataForVersion,
+  isAllowedManualDownloadUrl,
+  isTransientUpdateError,
+} = require('./updaterMetadata.cjs');
 
 const rootDir = path.resolve(__dirname, '..');
 const preloadPath = path.join(__dirname, 'preload.cjs');
-const appTitle = 'Hard Sphere Lab';
-const exportRootFolderName = 'Hard Sphere Lab Exports';
+const appTitle = '热容比实验室';
+const exportRootFolderName = 'Heat Capacity Ratio Lab Exports';
 let selectedExporterRuntime = null;
+let updateCheckPromise = null;
+let updateDownloadInProgress = false;
+let activeDownloadAttempt = null;
+let updateState = {
+  status: 'idle',
+  currentVersion: app.getVersion(),
+  latestVersion: null,
+  releaseName: null,
+  releaseDate: null,
+  releaseNotes: null,
+  releaseSummary: null,
+  releaseSections: null,
+  releasePageUrl: null,
+  manualDownloadUrl: null,
+  downloadAttempt: null,
+  maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
+  retrying: false,
+  errorKind: null,
+  percent: null,
+  message: '',
+};
+
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
+
+const isDesktopUpdateSupported = () => app.isPackaged && process.platform === 'win32';
+
+const getErrorMessage = (error) => (error instanceof Error ? error.message : String(error));
+
+const normalizeUpdateInfo = (info = {}) => {
+  const latestVersion = info.version || updateState.latestVersion || null;
+  const remoteMetadata = getReleaseMetadataForUpdateInfo({ ...info, version: latestVersion });
+  return {
+    latestVersion,
+    releaseName: info.releaseName || updateState.releaseName || null,
+    releaseDate: info.releaseDate || updateState.releaseDate || null,
+    releaseNotes: remoteMetadata.releaseNotes || updateState.releaseNotes || null,
+    releaseSummary: remoteMetadata.releaseSummary,
+    releaseSections: remoteMetadata.releaseSections,
+    releasePageUrl: remoteMetadata.releasePageUrl,
+    manualDownloadUrl: remoteMetadata.manualDownloadUrl,
+  };
+};
+
+const getUpdaterState = (overrides = {}) => ({
+  ...updateState,
+  currentVersion: app.getVersion(),
+  ...overrides,
+});
+
+const broadcastUpdaterState = (state) => {
+  updateState = getUpdaterState(state);
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) {
+      window.webContents.send('hsl-updater:status', updateState);
+    }
+  }
+  return updateState;
+};
+
+autoUpdater.on('checking-for-update', () => {
+  broadcastUpdaterState({
+    status: 'checking',
+    message: 'Checking for updates.',
+    percent: null,
+  });
+});
+
+autoUpdater.on('update-available', (info) => {
+  broadcastUpdaterState({
+    status: 'available',
+    ...normalizeUpdateInfo(info),
+    message: 'Update available.',
+    percent: null,
+  });
+});
+
+autoUpdater.on('update-not-available', (info) => {
+  broadcastUpdaterState({
+    status: 'not-available',
+    ...normalizeUpdateInfo(info),
+    message: 'The application is up to date.',
+    percent: null,
+  });
+});
+
+autoUpdater.on('download-progress', (progress) => {
+  broadcastUpdaterState({
+    status: 'downloading',
+    percent: Number.isFinite(progress?.percent) ? progress.percent : null,
+    downloadAttempt: activeDownloadAttempt,
+    maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
+    retrying: false,
+    message: 'Downloading update.',
+  });
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  broadcastUpdaterState({
+    status: 'downloaded',
+    ...normalizeUpdateInfo(info),
+    percent: 100,
+    downloadAttempt: activeDownloadAttempt,
+    maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
+    retrying: false,
+    errorKind: null,
+    message: 'Update downloaded.',
+  });
+});
+
+autoUpdater.on('error', (error) => {
+  if (updateDownloadInProgress) return;
+  broadcastUpdaterState({
+    status: 'error',
+    ...getReleaseMetadataForVersion(updateState.latestVersion),
+    message: getErrorMessage(error),
+    retrying: false,
+    errorKind: isTransientUpdateError(error) ? 'network' : 'fatal',
+    percent: null,
+  });
+});
+
+const waitForUpdateRetry = (attempt) => new Promise((resolve) => {
+  setTimeout(resolve, Math.min(800 * attempt, 2400));
+});
 
 const getAppIconPath = () => {
   const candidates = [
@@ -31,9 +164,26 @@ const getBundledExporterCandidates = () => ([
 
 const getDefaultExportRoot = () => path.join(app.getPath('documents'), exportRootFolderName);
 
+const getRuntimeWorkingDirectory = () => {
+  if (app.isPackaged && process.resourcesPath) {
+    return process.resourcesPath;
+  }
+  if (rootDir.includes('.asar')) {
+    return process.resourcesPath || app.getPath('temp');
+  }
+  try {
+    if (fsSync.existsSync(rootDir) && fsSync.statSync(rootDir).isDirectory()) {
+      return rootDir;
+    }
+  } catch {
+    // Packaged apps can resolve rootDir to app.asar, which is not a cwd.
+  }
+  return process.resourcesPath || app.getPath('temp');
+};
+
 const runCommand = (command, args) => new Promise((resolve) => {
   const child = spawn(command, args, {
-    cwd: rootDir,
+    cwd: getRuntimeWorkingDirectory(),
     windowsHide: true,
   });
   let stdout = '';
@@ -107,13 +257,13 @@ const parseJson = (value) => {
 };
 
 const sanitizeName = (value) => (
-  String(value || 'Hard Sphere Lab Export')
+  String(value || 'Heat Capacity Ratio Lab Export')
     .trim()
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, '-')
     .replace(/\s+/g, ' ')
     .replace(/-+/g, '-')
     .replace(/^\.+|\.+$/g, '')
-    .slice(0, 96) || 'Hard Sphere Lab Export'
+    .slice(0, 96) || 'Heat Capacity Ratio Lab Export'
 );
 
 const formatTimestampForFolder = (date = new Date()) => {
@@ -134,7 +284,7 @@ const getExperimentFolderName = (payload, options) => {
     options?.fileName
     || payload?.data?.fileName
     || payload?.filename
-    || 'Hard Sphere Lab Experiment';
+    || 'Heat Capacity Ratio Lab Experiment';
   return `${sanitizeName(source)}_${formatTimestampForFolder()}`;
 };
 
@@ -200,7 +350,7 @@ const resolveExporterRuntime = async () => {
   };
 };
 
-const createMainWindow = async () => {
+const createMainWindow = async (options = {}) => {
   const mainWindow = new BrowserWindow({
     title: appTitle,
     width: 1440,
@@ -216,8 +366,157 @@ const createMainWindow = async () => {
     },
   });
 
-  await mainWindow.loadFile(path.join(rootDir, 'dist', 'index.html'));
+  await mainWindow.loadFile(path.join(rootDir, 'dist', 'index.html'), options.fresh ? {
+    query: { hslFreshWindow: '1' },
+  } : undefined);
+
+  return mainWindow;
 };
+
+ipcMain.handle('hsl-window:new', async () => {
+  try {
+    await createMainWindow({ fresh: true });
+    return { status: 'ok' };
+  } catch (error) {
+    return {
+      status: 'error',
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+ipcMain.handle('hsl-updater:check', async () => {
+  if (!isDesktopUpdateSupported()) {
+    return broadcastUpdaterState({
+      status: 'unsupported',
+      message: 'Automatic updates are available only in the packaged Windows desktop app.',
+      percent: null,
+    });
+  }
+
+  if (updateCheckPromise) {
+    return updateState;
+  }
+
+  updateCheckPromise = autoUpdater.checkForUpdates()
+    .catch((error) => {
+      broadcastUpdaterState({
+        status: 'error',
+        ...getReleaseMetadataForVersion(updateState.latestVersion),
+        message: getErrorMessage(error),
+        retrying: false,
+        errorKind: isTransientUpdateError(error) ? 'network' : 'fatal',
+        percent: null,
+      });
+      return null;
+    })
+    .finally(() => {
+      updateCheckPromise = null;
+    });
+
+  await updateCheckPromise;
+  return updateState;
+});
+
+ipcMain.handle('hsl-updater:download', async () => {
+  if (!isDesktopUpdateSupported()) {
+    return broadcastUpdaterState({
+      status: 'unsupported',
+      message: 'Automatic updates are available only in the packaged Windows desktop app.',
+      percent: null,
+    });
+  }
+
+  updateDownloadInProgress = true;
+  for (let attempt = 1; attempt <= MAX_DOWNLOAD_ATTEMPTS; attempt += 1) {
+    activeDownloadAttempt = attempt;
+    broadcastUpdaterState({
+      status: 'downloading',
+      ...getReleaseMetadataForVersion(updateState.latestVersion),
+      message: 'Downloading update.',
+      percent: 0,
+      downloadAttempt: attempt,
+      maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
+      retrying: false,
+      errorKind: null,
+    });
+
+    try {
+      await autoUpdater.downloadUpdate();
+      updateDownloadInProgress = false;
+      activeDownloadAttempt = null;
+      return updateState;
+    } catch (error) {
+      const retryable = isTransientUpdateError(error);
+      const message = getErrorMessage(error);
+      if (!retryable || attempt >= MAX_DOWNLOAD_ATTEMPTS) {
+        updateDownloadInProgress = false;
+        activeDownloadAttempt = null;
+        return broadcastUpdaterState({
+          status: 'error',
+          ...getReleaseMetadataForVersion(updateState.latestVersion),
+          message,
+          percent: null,
+          downloadAttempt: attempt,
+          maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
+          retrying: false,
+          errorKind: retryable ? 'network' : 'fatal',
+        });
+      }
+
+      const nextAttempt = attempt + 1;
+      broadcastUpdaterState({
+        status: 'retrying',
+        ...getReleaseMetadataForVersion(updateState.latestVersion),
+        message,
+        percent: null,
+        downloadAttempt: nextAttempt,
+        maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
+        retrying: true,
+        errorKind: 'network',
+      });
+      await waitForUpdateRetry(nextAttempt);
+    }
+  }
+
+  updateDownloadInProgress = false;
+  activeDownloadAttempt = null;
+  return updateState;
+});
+
+ipcMain.handle('hsl-updater:quit-and-install', async () => {
+  if (!isDesktopUpdateSupported()) {
+    return broadcastUpdaterState({
+      status: 'unsupported',
+      message: 'Automatic updates are available only in the packaged Windows desktop app.',
+      percent: null,
+    });
+  }
+
+  broadcastUpdaterState({
+    status: 'installing',
+    message: 'Restarting to install update.',
+    percent: 100,
+  });
+  autoUpdater.quitAndInstall(false, true);
+  return updateState;
+});
+
+ipcMain.handle('hsl-updater:open-manual-download', async () => {
+  const targetUrl = updateState.manualDownloadUrl || updateState.releasePageUrl;
+  if (!isAllowedManualDownloadUrl(targetUrl)) {
+    return {
+      status: 'error',
+      message: 'Manual download URL is unavailable or not trusted.',
+    };
+  }
+
+  await shell.openExternal(targetUrl);
+  return {
+    status: 'opened',
+    url: targetUrl,
+  };
+});
 
 ipcMain.handle('hsl-exporter:check', async () => {
   await ensureDefaultExportRoot();
@@ -249,7 +548,7 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
 
   const defaultPath = await ensureDefaultExportRoot();
   const selection = await dialog.showOpenDialog({
-    title: 'Choose Hard Sphere Lab Export Root Folder',
+    title: 'Choose Heat Capacity Ratio Lab Export Root Folder',
     defaultPath,
     properties: ['openDirectory', 'createDirectory'],
   });
@@ -264,7 +563,7 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
   if (payload.kind === 'csv') {
     const dataDir = path.join(outDir, 'data');
     await fs.mkdir(dataDir, { recursive: true });
-    const target = path.join(dataDir, sanitizeName(payload.filename || 'hard-sphere-lab.csv'));
+    const target = path.join(dataDir, sanitizeName(payload.filename || 'heat-capacity-ratio-lab.csv'));
     await fs.writeFile(target, payload.content || '', 'utf8');
     return {
       status: 'ok',
@@ -277,7 +576,7 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
     };
   }
 
-  const tempDir = path.join(os.tmpdir(), 'hard-sphere-lab-export');
+  const tempDir = path.join(os.tmpdir(), 'heat-capacity-ratio-lab-export');
   await fs.mkdir(tempDir, { recursive: true });
   const inputPath = path.join(tempDir, `${Date.now()}-${sanitizeName(payload.filename || 'payload.json')}`);
   await fs.writeFile(inputPath, JSON.stringify(payload, null, 2), 'utf8');

@@ -1,6 +1,6 @@
 {
   "name": "hard-sphere-lab",
-  "version": "4.0.1",
+  "version": "4.1.5",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -8,22 +8,32 @@
     "build": "vite build",
     "desktop:dev": "vite build && electron .",
     "desktop:build": "vite build",
-    "desktop:installer": "vite build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win nsis --x64",
+    "desktop:installer": "vite build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win nsis --x64 && node scripts/writeReleaseMetadata.cjs",
     "desktop:portable": "vite build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win portable --x64",
     "exporter:bundle": "node scripts/bundleExporter.cjs",
+    "test": "node scripts/runTests.cjs",
     "preview": "vite preview"
   },
   "build": {
     "appId": "com.hardspherelab.desktop",
-    "productName": "Hard Sphere Lab",
+    "productName": "热容比实验室",
     "electronDist": "node_modules/electron/dist",
     "afterPack": "build/afterPack.cjs",
     "directories": {
       "output": "release"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "yanshi-qibixunchang",
+        "repo": "hard-sphere-lab-1"
+      }
+    ],
+    "electronUpdaterCompatibility": ">=2.16",
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "docs/releases/release-notes.json",
       "package.json"
     ],
     "extraResources": [
@@ -65,15 +75,23 @@
       ]
     },
     "nsis": {
+      "artifactName": "heat-capacity-lab-setup-${version}.${ext}",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
+      "displayLanguageSelector": true,
+      "installerLanguages": [
+        "zh_CN",
+        "zh_TW",
+        "en_US"
+      ],
+      "language": "2052",
       "include": "build/installer.nsh",
       "installerIcon": "resources/app-icon/icon.ico",
       "uninstallerIcon": "resources/app-icon/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Hard Sphere Lab"
+      "shortcutName": "热容比实验室"
     }
   },
   "dependencies": {
@@ -85,6 +103,7 @@
     "@capacitor/share": "^8.0.0",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.17.10",
+    "electron-updater": "^6.8.3",
     "lucide-react": "^0.292.0",
     "pdfjs-dist": "^4.4.168",
     "react": "^18.2.0",
@@ -95,7 +114,7 @@
   "devDependencies": {
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
-    "@vitejs/plugin-react": "^4.2.0",
+    "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.4.18",
     "electron": "^41.5.0",
     "electron-builder": "^26.8.1",
@@ -103,6 +122,6 @@
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.2.2",
-    "vite": "^5.0.0"
+    "vite": "^8.0.13"
   }
 }

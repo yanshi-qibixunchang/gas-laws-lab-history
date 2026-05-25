@@ -1,30 +1,54 @@
-# Hard Sphere Lab v4.0.1
+# Hard Sphere Lab v4.1.5
 
-[Simplified Chinese README](./README.zh-CN.md)
+[简体中文 README](./README.zh-CN.md)
 
-Hard Sphere Lab is a Windows desktop engineering workbench for hard-sphere molecular dynamics, ideal-gas relation verification, and the FD-NCD-C air heat-capacity-ratio experiment. The active release path is the Electron desktop app, not the older browser-only workflow and not the frozen Android/APK archive.
+Hard Sphere Lab is a Windows desktop engineering workbench for hard-sphere molecular dynamics, ideal-gas relation verification, and the FD-NCD-C air heat-capacity-ratio experiment. The active release path is the Electron desktop app with a packaged local exporter for PDF reports, figures, and CSV data.
 
-The GitHub default branch `main` is the source of truth for general desktop packaging. The frozen heat-capacity model-contract release `v4.0.1` is published from `codex/heat-capacity-ui-baseline`.
+## What Changed In v4.1.5
 
-## Current Product Direction
+- Tests and verifies remote structured release-note loading for future updates.
+- Ensures update dialogs match the current interface language instead of showing every release-note language at once.
+- Removes the blue accent edge and emphasis shadow from the update dialog version-information block for a simpler engineering-software style.
+- Keeps plain-text release-note fallback for older clients and failure cases.
+- Updates the app, package metadata, release metadata, and documentation version to `4.1.5`.
 
-- Windows desktop engineering software built with React, Vite, Electron, and a local Python exporter.
-- Standard hard-sphere simulation and ideal-gas `P-T`, `P-V`, `P-N` study templates.
-- FD-NCD-C air heat-capacity-ratio workflow with a frozen 3D instrument-control skeleton for later Blender model replacement.
-- Local high-quality export for PDF reports, figures, and CSV data.
-- System Python is used first when available; the packaged PyInstaller exporter is used as the fallback.
-- Simplified Chinese, Traditional Chinese, and English UI copy.
-- Legacy Android/APK material is preserved under `legacy-apk/` only as a frozen archive.
+## What Changed In v4.1.4
 
-## Heat Capacity / Blender Model Contract
+- Added the heat-capacity free-experiment parameter adjustment system, including per-group editable parameters, locked historical snapshots, and persisted free-mode settings.
+- Added structured advanced heat-capacity parameter groups, clearer engineering-style parameter rows, and improved light/dark theme styling across the experiment sidebars.
+- Improved the heat-capacity free-mode physics path with thermal exchange, leakage, sensor response, safety thresholds, process review, and parameter impact checks.
+- Added structured desktop update notes, transient-network download retries, and a direct manual installer download path after automatic update failures.
+- Updated the app, package metadata, release metadata, and documentation version to `4.1.4`.
 
-The FD-NCD-C air heat-capacity-ratio instrument controls are frozen in v4.0.1. Future work should primarily change experiment-process logic, teaching prompts, thresholds, and calculation methods rather than the instrument-control skeleton.
+## Product Scope
 
-The 3D/Blender model is a state-machine-driven visualization and interaction carrier. It must not become the source of truth for `P0`, `P1`, `P2`, `U_p`, `U_T`, or `gamma`; those values come from the experiment state machine and calculation layer.
+- Standard hard-sphere simulation with live 3D preview, realtime charts, and final result tabs.
+- Ideal-gas relation studies for `P-T`, `P-V`, and `P-N`, including point collection, verification, and history unlocks.
+- FD-NCD-C air heat-capacity-ratio experiment with demo, guided, and free modes.
+- Desktop export for PDF reports, PNG/PDF figures, and CSV data.
+- Simplified Chinese, Traditional Chinese, and English interface text.
+- Frozen Android/APK material is archived locally and is not part of the active release path.
 
-Independent Blender model development must follow the stable contract in [`仪器建模/Blender模型接入规则-v4.0.1.md`](./%E4%BB%AA%E5%99%A8%E5%BB%BA%E6%A8%A1/Blender%E6%A8%A1%E5%9E%8B%E6%8E%A5%E5%85%A5%E8%A7%84%E5%88%99-v4.0.1.md).
+## Repository Layout
 
-## Install And Package
+- `src/app/`: React entrypoint and legacy app shell.
+- `src/components/`: shared visual components.
+- `src/features/`: workbench UI, ideal-gas UI, and heat-capacity UI.
+- `src/domain/`: simulation, ideal-gas, and heat-capacity calculation models.
+- `src/shared/`: shared types and utility definitions.
+- `src/i18n/`: app-level translation tables.
+- `tests/`: feature regression tests.
+- `scripts/`: project maintenance scripts, including test discovery and exporter bundling.
+- `electron/`: Electron main process and preload bridge for desktop export.
+- `tools/exporter/`: Python exporter source and sample payloads.
+- `resources/exporter/`: generated PyInstaller exporter output; ignored by Git and regenerated before packaging.
+- `resources/app-icon/`: desktop application icons.
+- `docs/theory/`: theory and derivation materials.
+- `docs/instrument-modeling/`: FD-NCD-C modeling references and Blender integration contract.
+- `legacy-apk/`: frozen mobile archive, not tracked for active development.
+- `release/`: local build output, ignored by Git.
+
+## Web Deployment
 
 Install dependencies:
 
@@ -32,92 +56,100 @@ Install dependencies:
 npm.cmd install
 ```
 
-Build the bundled exporter before creating distributable desktop packages:
+Build the static web bundle:
 
 ```powershell
-npm.cmd run exporter:bundle
+npm.cmd run build
 ```
 
-Create the official Windows installer:
-
-```powershell
-npm.cmd run desktop:installer
-```
-
-Create the portable build:
-
-```powershell
-npm.cmd run desktop:portable
-```
-
-The generated files are written to `release/`. For normal user distribution, use:
-
-```text
-release/Hard Sphere Lab Setup 4.0.1.exe
-```
-
-## Release Folder Guide
-
-- `Hard Sphere Lab Setup 4.0.1.exe`: official Windows installer. Use this for the full install, use, and uninstall workflow.
-- `Hard Sphere Lab 4.0.1.exe`: portable no-install app. Double-click to run; close it before running the installer.
-- `win-unpacked/`: unpacked application folder for developer inspection.
-- `Hard Sphere Lab Setup 4.0.1.exe.blockmap`: update metadata for differential update flows.
-- `latest.yml`: update metadata.
-- `builder-debug.yml`: local electron-builder debug output.
-
-Only the `Setup` executable is the formal installer.
-
-## Desktop Development
-
-Run the local desktop preview:
-
-```powershell
-npm.cmd run desktop:dev
-```
-
-The browser-only Vite command is available for low-level UI debugging, but it is not the main acceptance path for this desktop release:
+Deploy the generated `dist/` folder to any static host. For local browser preview during development, use the fixed project port:
 
 ```powershell
 npm.cmd run dev -- --host 127.0.0.1 --port 5174 --strictPort
 ```
 
-## Main Features
+Preview URL:
 
-- File-style workbench for standard simulation, ideal-gas studies, and the air heat-capacity-ratio experiment.
-- Interactive 3D preview, live instrument readouts, and state-machine-driven heat-capacity controls.
-- Editable current-parameter sidebar with immediate runtime refresh after Save.
-- Results windows with tabs for summaries, data tables, figures, points, and verification views.
-- Desktop bridge for report, figure, and CSV export.
-- Default export archive under `Documents\Hard Sphere Lab Exports\<study-name>_<YYYYMMDD-HHmmss>\`.
-- Local PDF/PNG/CSV export with system Python first and bundled exporter fallback.
-- Persistent workbench session, layout defaults, theme, and language settings.
-
-## Verification Commands
-
-```powershell
-node scripts\heatCapacityTrialModel.test.ts
-node scripts\workbenchHeatCapacityInstrumentUi.test.ts
-node scripts\workbenchHeatCapacityInstrument.test.ts
-npm.cmd exec tsc -- --noEmit
+```text
+http://127.0.0.1:5174/
 ```
 
-Before publishing a Windows installer, also run:
+Browser deployment can preview the simulator and workbench UI, but local PDF/image export requires the Electron desktop bridge.
+
+## Desktop App And Installer
+
+Build the bundled exporter first:
 
 ```powershell
+npm.cmd run exporter:bundle
+```
+
+Build the official Windows installer:
+
+```powershell
+npm.cmd run desktop:installer
+```
+
+The formal distributable for v4.1.4 is:
+
+```text
+release/heat-capacity-lab-setup-4.1.4.exe
+```
+
+Run the desktop app locally for development:
+
+```powershell
+npm.cmd run desktop:dev
+```
+
+## Interface Guide
+
+- Top menu: create/open experiments, open a fresh window, undo/redo, layout controls, settings, and help/about.
+- Left sidebar: open experiment files and file-specific panels.
+- Center workspace: 3D preview, realtime data/charts, results, experiment records, and processing panels.
+- Right sidebar: current parameters, relation controls, scan variable controls, sampling presets, and advanced settings.
+- Bottom console: logs, warnings, and runtime summaries.
+- Settings: theme, language, performance mode, and layout preferences.
+- About: version, local export environment status, and workspace cache summary.
+
+## Basic Workflow
+
+1. Create or open an experiment from the top menu or empty workspace.
+2. Choose the experiment file in the left sidebar.
+3. Adjust parameters in the right sidebar before running.
+4. Run the simulation or heat-capacity workflow.
+5. Review realtime charts and result tabs.
+6. Export reports, figures, or CSV data from the result/export controls.
+
+## Export Details
+
+The desktop app checks the export environment in this order:
+
+1. System Python exporter, if available.
+2. Bundled PyInstaller exporter packaged with the app.
+
+The exporter creates PDF reports, PDF/PNG figures, CSV data, and metadata under the selected output folder. The default desktop export folder is under the user's Documents directory.
+
+## Verification
+
+Recommended checks before publishing:
+
+```powershell
+npm.cmd test
+npm.cmd exec tsc -- --noEmit
+npm.cmd run build
 npm.cmd run exporter:bundle
 npm.cmd run desktop:installer
 ```
 
-Then install `release/Hard Sphere Lab Setup 4.0.1.exe` into a clean test directory, launch the app, verify local export, and uninstall it through Windows Apps or `Uninstall Hard Sphere Lab.exe`.
+After packaging, verify the generated installer and the bundled exporter before creating a GitHub Release.
 
-## Repository Layout
+## Heat Capacity / Blender Model Contract
 
-- `components/`: workbench UI, canvas, results, export payload, and session helpers.
-- `electron/`: desktop main and preload bridge for local export.
-- `tools/exporter/`: Python PDF, figure, and CSV exporter.
-- `scripts/`: targeted regression checks and exporter bundling script.
-- `仪器建模/`: FD-NCD-C air heat-capacity-ratio modeling references and Blender model contract.
-- `resources/exporter/`: ignored local PyInstaller fallback executable output.
-- `legacy-apk/`: frozen mobile packaging archive, not an active development path.
+The FD-NCD-C air heat-capacity-ratio instrument-control skeleton remains governed by the v4.0.1 modeling contract. The 3D/Blender model is a state-machine-driven visualization and interaction carrier; it must not become the source of truth for `P0`, `P1`, `P2`, `U_p`, `U_T`, or `gamma`.
 
-Generated packages, build outputs, exporter examples, logs, and local installation test directories are intentionally ignored.
+Independent Blender model development should follow:
+
+```text
+docs/instrument-modeling/reference/Blender模型接入规则-v4.0.1.md
+```

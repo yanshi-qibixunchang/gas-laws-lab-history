@@ -1,0 +1,80 @@
+﻿import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
+
+assert.match(
+  source,
+  /const parameterControlsLocked = activeFile\.runState === 'running' \|\| activeFile\.runState === 'paused';/,
+  'started-but-unfinished simulations should lock the right parameter sidebar while running or paused',
+);
+assert.match(
+  source,
+  /const currentParameterControlsLocked = activeFile\.kind === 'heatCapacity' && activeFile\.heatCapacityMode === 'free'[\s\S]*\? false[\s\S]*: parameterControlsLocked;/,
+  'Heat Capacity Free Mode should not gray-lock the whole parameter sidebar because view remains editable during a run',
+);
+assert.match(
+  source,
+  /definition\.id === 'hardSphereViewEnabled' \? false : activeHeatCapacityFreeParameterLocked/,
+  'Free Mode should keep only the visualization checkbox editable after the experiment group has started',
+);
+assert.match(
+  source,
+  /target\?\.closest\('\[data-heat-capacity-free-param-id="hardSphereViewEnabled"\]'\)\) return;/,
+  'Free Mode locked-panel interception should allow the visualization row to receive clicks',
+);
+assert.match(
+  source,
+  /hardSphereViewLocked=\{false\}/,
+  'the 3D hard-sphere visualization toggle should stay editable because it does not affect experiment data',
+);
+assert.match(
+  source,
+  /const commitWorkbenchParameterInput = \([\s\S]*?if \(parameterControlsLocked\)/,
+  'direct parameter input commits should be blocked after the active simulation has started',
+);
+assert.match(
+  source,
+  /disabled=\{isParamLocked \|\| !param\.editable\}/,
+  'direct parameter inputs should be disabled by the current lock policy',
+);
+assert.match(
+  source,
+  /className=\{`studio-current-params \$\{currentParameterControlsLocked \? 'studio-current-params-locked' : ''\}[\s\S]*?`\}/,
+  'right parameter sidebar should receive a locked class from the current file lock policy',
+);
+assert.match(
+  source,
+  /locked until stopped or finished/,
+  'right parameter sidebar should explain that pause does not unlock parameters',
+);
+assert.match(
+  source,
+  /aria-disabled=\{currentParameterControlsLocked\}/,
+  'right parameter sidebar should expose the current file lock policy to assistive technology',
+);
+assert.match(
+  source,
+  /disabled=\{parameterControlsLocked\}/,
+  'right parameter sidebar controls should use the shared lock flag for disabled state',
+);
+assert.match(
+  source,
+  /tabIndex=\{parameterControlsLocked \|\| !samplingPresetMenuOpen \? -1 : 0\}/,
+  'sampling preset options should leave tab order while running or when closed',
+);
+assert.match(
+  cssSource,
+  /\.studio-current-params-locked[\s\S]*?filter:\s*grayscale/,
+  'locked right parameter sidebar should visibly gray out',
+);
+assert.match(
+  cssSource,
+  /\.studio-current-params-locked[\s\S]*?cursor:\s*not-allowed/,
+  'locked right parameter sidebar should communicate disabled controls',
+);
+
+console.log('workbenchRunningParamsLock tests passed');
+
+

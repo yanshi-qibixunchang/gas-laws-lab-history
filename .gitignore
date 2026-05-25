@@ -1,4 +1,4 @@
-# Logs
+﻿# Logs
 logs
 *.log
 npm-debug.log*
@@ -34,6 +34,7 @@ output-*.jpeg
 output-*.webm
 output-*.mp4
 tmp/
+.tmp*/
 install-test/
 tools/exporter/examples/*.json
 build-exporter/
@@ -41,9 +42,9 @@ dist-exporter/
 resources/exporter/hsl-exporter.exe
 resources/exporter/*.spec
 
-# Project-only reference materials, not for GitHub or product releases
-仪器建模/
-仪器建模/**
+# Archived Android assets and legacy APK bridge
+legacy-apk/
+services/legacyApk.ts
 
 # Android local state and signing materials
 android/.gradle/

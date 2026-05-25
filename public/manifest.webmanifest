@@ -1,8 +1,8 @@
 {
-  "name": "Hard Sphere Lab",
-  "short_name": "Hard Sphere Lab",
+  "name": "热容比实验室",
+  "short_name": "热容比实验室",
   "version": "3.5.1",
-  "description": "Hard sphere molecular dynamics simulation with Andersen thermostat, responsive controls, and built-in report viewing.",
+  "description": "空气比热容比实验、理想气体关系研究和标准模拟工作台。",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
