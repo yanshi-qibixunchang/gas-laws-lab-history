@@ -9,6 +9,7 @@ const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import
     files?: string[];
   };
   dependencies?: Record<string, string>;
+  scripts?: Record<string, string>;
 };
 const electronMain = readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8');
 const preload = readFileSync(new URL('../../electron/preload.cjs', import.meta.url), 'utf8');
@@ -36,6 +37,7 @@ assert.ok(
 assert.ok(electronMain.includes("const { autoUpdater } = require('electron-updater');"), 'desktop main process should load electron-updater');
 assert.ok(electronMain.includes('shell'), 'desktop main process should use shell.openExternal for manual downloads');
 assert.ok(electronMain.includes("require('./updaterMetadata.cjs')"), 'desktop main process should use updater metadata helpers');
+assert.ok(electronMain.includes('getReleaseMetadataForUpdateInfo'), 'desktop main process should prefer remote structured update metadata');
 assert.ok(electronMain.includes('autoUpdater.autoDownload = false;'), 'updates should wait for explicit user confirmation before downloading');
 assert.ok(electronMain.includes('autoUpdater.autoInstallOnAppQuit = true;'), 'downloaded updates should be staged for safe install');
 assert.ok(electronMain.includes("ipcMain.handle('hsl-updater:check'"), 'desktop main process should expose a check-for-updates IPC route');
@@ -93,6 +95,12 @@ assert.match(
   styles,
   /\.studio-update-note-section/,
   'update dialog CSS should define structured release-note sections',
+);
+
+assert.match(
+  packageJson.scripts?.['desktop:installer'] ?? '',
+  /writeReleaseMetadata\.cjs/,
+  'desktop installer builds should enrich latest.yml with structured release metadata after packaging',
 );
 
 console.log('workbenchAutoUpdater tests passed');

@@ -7,6 +7,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const {
   MAX_DOWNLOAD_ATTEMPTS,
+  getReleaseMetadataForUpdateInfo,
   getReleaseMetadataForVersion,
   isAllowedManualDownloadUrl,
   isTransientUpdateError,
@@ -48,14 +49,16 @@ const getErrorMessage = (error) => (error instanceof Error ? error.message : Str
 
 const normalizeUpdateInfo = (info = {}) => {
   const latestVersion = info.version || updateState.latestVersion || null;
+  const remoteMetadata = getReleaseMetadataForUpdateInfo({ ...info, version: latestVersion });
   return {
     latestVersion,
     releaseName: info.releaseName || updateState.releaseName || null,
     releaseDate: info.releaseDate || updateState.releaseDate || null,
-    releaseNotes: Array.isArray(info.releaseNotes)
-      ? info.releaseNotes.map((note) => note.note || note).join('\n')
-      : info.releaseNotes || updateState.releaseNotes || null,
-    ...getReleaseMetadataForVersion(latestVersion),
+    releaseNotes: remoteMetadata.releaseNotes || updateState.releaseNotes || null,
+    releaseSummary: remoteMetadata.releaseSummary,
+    releaseSections: remoteMetadata.releaseSections,
+    releasePageUrl: remoteMetadata.releasePageUrl,
+    manualDownloadUrl: remoteMetadata.manualDownloadUrl,
   };
 };
 

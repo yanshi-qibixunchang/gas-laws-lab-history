@@ -11,9 +11,9 @@
         "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.4/heat-capacity-lab-setup-4.1.4.exe"
       },
       "summary": {
-        "zh-CN": "发布热容自由实验参数调整体系，并改进桌面自动更新的信息展示、网络波动重试和失败后的手动下载安装入口。",
-        "zh-TW": "發布熱容自由實驗參數調整體系，並改進桌面自動更新的資訊展示、網路波動重試和失敗後的手動下載安裝入口。",
-        "en": "Releases the heat-capacity free-experiment parameter adjustment system and improves desktop update information, retry handling, and manual installer download after failures."
+        "zh-CN": "相比 v4.1.3，本版补齐热容自由实验参数调整、过程回顾、保存恢复、工程化参数界面和桌面更新失败恢复能力。",
+        "zh-TW": "相比 v4.1.3，本版補齊熱容自由實驗參數調整、過程回顧、儲存恢復、工程化參數介面和桌面更新失敗恢復能力。",
+        "en": "Compared with v4.1.3, this release adds heat-capacity free-experiment parameter control, process review, persistence, engineering-style parameter UI, and desktop update recovery improvements."
       },
       "sections": [
         {
@@ -39,17 +39,17 @@
               }
             },
             {
-              "scope": "desktop-update",
+              "scope": "heat-capacity",
               "importance": "high",
               "title": {
-                "zh-CN": "更新失败后的手动下载入口",
-                "zh-TW": "更新失敗後的手動下載入口",
-                "en": "Manual download after update failure"
+                "zh-CN": "热容自由实验过程回顾与评分",
+                "zh-TW": "熱容自由實驗過程回顧與評分",
+                "en": "Heat-capacity free-experiment process review and scoring"
               },
               "body": {
-                "zh-CN": "自动下载多次失败后，可直接打开 GitHub Release 中的 Windows 安装包。",
-                "zh-TW": "自動下載多次失敗後，可直接開啟 GitHub Release 中的 Windows 安裝程式。",
-                "en": "After repeated automatic download failures, the app can open the Windows installer asset from the GitHub Release."
+                "zh-CN": "新增轨迹数据、最佳记录窗口、过程评分和过程回顾面板，用于复盘放气、回温、记录时机和结果质量。",
+                "zh-TW": "新增軌跡資料、最佳記錄視窗、過程評分和過程回顧面板，用於復盤放氣、回溫、記錄時機和結果品質。",
+                "en": "Adds trace data, best recording windows, process scoring, and review panels for release, recovery, recording timing, and result quality."
               }
             },
             {
@@ -64,6 +64,34 @@
                 "zh-CN": "已完成实验组保留原始参数快照，重置到下一组后才重新允许调整组级参数。",
                 "zh-TW": "已完成實驗組保留原始參數快照，重置到下一組後才重新允許調整組級參數。",
                 "en": "Completed groups keep their original parameter snapshots, and group-level parameters become editable again only after resetting to the next group."
+              }
+            },
+            {
+              "scope": "persistence",
+              "importance": "high",
+              "title": {
+                "zh-CN": "实验文件保存恢复与数据版本",
+                "zh-TW": "實驗檔案儲存恢復與資料版本",
+                "en": "Experiment persistence and data schema versions"
+              },
+              "body": {
+                "zh-CN": "新增热容、理想气体和标准模拟的数据 schema 与迁移路径，工作区文件可保存参数、记录、结果和运行状态。",
+                "zh-TW": "新增熱容、理想氣體和標準模擬的資料 schema 與遷移路徑，工作區檔案可儲存參數、記錄、結果和執行狀態。",
+                "en": "Adds data schemas and migration paths for heat-capacity, ideal-gas, and standard simulations so workspace files can persist parameters, records, results, and runtime state."
+              }
+            },
+            {
+              "scope": "desktop-update",
+              "importance": "high",
+              "title": {
+                "zh-CN": "更新失败后的手动下载入口",
+                "zh-TW": "更新失敗後的手動下載入口",
+                "en": "Manual download after update failure"
+              },
+              "body": {
+                "zh-CN": "自动下载多次失败后，可直接打开 GitHub Release 中的 Windows 安装包。",
+                "zh-TW": "自動下載多次失敗後，可直接開啟 GitHub Release 中的 Windows 安裝程式。",
+                "en": "After repeated automatic download failures, the app can open the Windows installer asset from the GitHub Release."
               }
             },
             {
@@ -119,6 +147,48 @@
               }
             },
             {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "热容自由实验记录判定更严格",
+                "zh-TW": "熱容自由實驗記錄判定更嚴格",
+                "en": "Stricter free-experiment recording validation"
+              },
+              "body": {
+                "zh-CN": "U0、U1、U2 记录现在会结合零点容差、压力/温度稳定斜率、最小有效读数和安全阈值，拦截不可靠记录。",
+                "zh-TW": "U0、U1、U2 記錄現在會結合零點容差、壓力/溫度穩定斜率、最小有效讀數和安全閾值，攔截不可靠記錄。",
+                "en": "U0, U1, and U2 recording now combines zero tolerance, pressure/temperature stability slopes, minimum valid readings, and safety thresholds to block unreliable records."
+              }
+            },
+            {
+              "scope": "ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "热容可视化与性能控制调整",
+                "zh-TW": "熱容視覺化與效能控制調整",
+                "en": "Heat-capacity visualization and performance controls"
+              },
+              "body": {
+                "zh-CN": "小球可视化改为独立显示开关，粒子数量和速率由高性能、均衡、低负载三档性能模式控制。",
+                "zh-TW": "小球視覺化改為獨立顯示開關，粒子數量和速率由高效能、均衡、低負載三檔效能模式控制。",
+                "en": "Particle visualization now uses a separate visibility switch, while particle count and rate are controlled by performance, balanced, and low-load modes."
+              }
+            },
+            {
+              "scope": "workbench",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "工作台交互性能优化",
+                "zh-TW": "工作台互動效能最佳化",
+                "en": "Workbench interaction performance improvements"
+              },
+              "body": {
+                "zh-CN": "降低拖拽分栏和热容演示动画的状态提交频率，减少运行时 UI 抖动和不必要重渲染。",
+                "zh-TW": "降低拖曳分欄和熱容演示動畫的狀態提交頻率，減少執行時 UI 抖動和不必要重繪。",
+                "en": "Reduces state commits during split resizing and heat-capacity demo animation to avoid UI jitter and unnecessary re-renders."
+              }
+            },
+            {
               "scope": "desktop-update",
               "importance": "high",
               "title": {
@@ -142,6 +212,20 @@
             "en": "Fixed"
           },
           "items": [
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "热容自由实验物理模型边界修复",
+                "zh-TW": "熱容自由實驗物理模型邊界修復",
+                "en": "Heat-capacity free-experiment physics boundary fixes"
+              },
+              "body": {
+                "zh-CN": "修复热交换、泄漏、传感滞后、噪声、压力安全和理论参考值相关边界，使参数调整后的变化方向与模型含义一致。",
+                "zh-TW": "修復熱交換、洩漏、感測滯後、噪聲、壓力安全和理論參考值相關邊界，使參數調整後的變化方向與模型含義一致。",
+                "en": "Fixes thermal exchange, leakage, sensor lag, noise, pressure safety, and reference-value boundaries so parameter changes follow the intended model direction."
+              }
+            },
             {
               "scope": "desktop-update",
               "importance": "medium",

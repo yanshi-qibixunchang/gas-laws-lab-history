@@ -51,6 +51,65 @@ const getLocalizedReleaseText = (value, language) => {
   return value[normalizedLanguage] || value[DEFAULT_LOCALE] || value[FALLBACK_LOCALE] || null;
 };
 
+const isLocalizedTextMap = (value) => (
+  Boolean(value) &&
+  typeof value === 'object' &&
+  ['zh-CN', 'zh-TW', 'en'].some((locale) => typeof value[locale] === 'string' && value[locale].trim())
+);
+
+const isStructuredReleaseSection = (section) => (
+  Boolean(section) &&
+  typeof section === 'object' &&
+  typeof section.type === 'string' &&
+  isLocalizedTextMap(section.title) &&
+  Array.isArray(section.items)
+);
+
+const decodeHtmlEntities = (value) => String(value || '')
+  .replace(/&nbsp;/gi, ' ')
+  .replace(/&amp;/gi, '&')
+  .replace(/&lt;/gi, '<')
+  .replace(/&gt;/gi, '>')
+  .replace(/&quot;/gi, '"')
+  .replace(/&#39;/gi, "'")
+  .replace(/&#(\d+);/g, (_match, code) => {
+    const point = Number.parseInt(code, 10);
+    return Number.isFinite(point) ? String.fromCodePoint(point) : '';
+  })
+  .replace(/&#x([0-9a-f]+);/gi, (_match, code) => {
+    const point = Number.parseInt(code, 16);
+    return Number.isFinite(point) ? String.fromCodePoint(point) : '';
+  });
+
+const stripHtmlToText = (value) => decodeHtmlEntities(value)
+  .replace(/<br\s*\/?>/gi, '\n')
+  .replace(/<li\b[^>]*>/gi, '\n- ')
+  .replace(/<\/(p|div|section|article|h[1-6]|ul|ol|li)>/gi, '\n')
+  .replace(/<[^>]+>/g, '')
+  .split(/\r?\n/)
+  .map((line) => line.replace(/[ \t]+/g, ' ').trim())
+  .filter(Boolean)
+  .join('\n');
+
+const normalizeReleaseNotesText = (value) => {
+  if (Array.isArray(value)) {
+    const parts = value
+      .map((item) => {
+        if (typeof item === 'string') return stripHtmlToText(item);
+        if (!item || typeof item !== 'object') return '';
+        const version = item.version ? `v${normalizeVersion(item.version)}` : '';
+        const note = stripHtmlToText(item.note || '');
+        return [version, note].filter(Boolean).join('\n');
+      })
+      .filter(Boolean);
+    return parts.length > 0 ? parts.join('\n\n') : null;
+  }
+
+  if (typeof value !== 'string') return null;
+  const normalized = stripHtmlToText(value);
+  return normalized || null;
+};
+
 const getReleaseMetadataForVersion = (version) => {
   const release = findReleaseEntry(version);
   const generated = getGeneratedReleaseTargets(version);
@@ -59,6 +118,28 @@ const getReleaseMetadataForVersion = (version) => {
     manualDownloadUrl: release?.download?.windowsInstaller || generated.manualDownloadUrl,
     releaseSummary: release?.summary || null,
     releaseSections: Array.isArray(release?.sections) ? release.sections : null,
+  };
+};
+
+const getReleaseMetadataForUpdateInfo = (info = {}) => {
+  const latestVersion = normalizeVersion(info.version || '');
+  const fallback = getReleaseMetadataForVersion(latestVersion);
+  const generated = getGeneratedReleaseTargets(latestVersion);
+  const remoteSummary = isLocalizedTextMap(info.releaseSummary) ? info.releaseSummary : null;
+  const remoteSections = Array.isArray(info.releaseSections) && info.releaseSections.every(isStructuredReleaseSection)
+    ? info.releaseSections
+    : null;
+
+  return {
+    releasePageUrl: isAllowedManualDownloadUrl(info.releasePageUrl)
+      ? info.releasePageUrl
+      : fallback.releasePageUrl || generated.releasePageUrl,
+    manualDownloadUrl: isAllowedManualDownloadUrl(info.manualDownloadUrl)
+      ? info.manualDownloadUrl
+      : fallback.manualDownloadUrl || generated.manualDownloadUrl,
+    releaseSummary: remoteSummary || fallback.releaseSummary,
+    releaseSections: remoteSections || fallback.releaseSections,
+    releaseNotes: normalizeReleaseNotesText(info.releaseNotes),
   };
 };
 
@@ -91,8 +172,10 @@ module.exports = {
   getGeneratedReleaseTargets,
   getInstallerAssetName,
   getLocalizedReleaseText,
+  getReleaseMetadataForUpdateInfo,
   getReleaseMetadataForVersion,
   isAllowedManualDownloadUrl,
   isTransientUpdateError,
+  normalizeReleaseNotesText,
   normalizeVersion,
 };
