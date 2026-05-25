@@ -205,7 +205,21 @@ type IdealSamplingPresetKey = 'fast' | 'balanced' | 'stable';
 type WorkbenchParameterSymbolPart = string | { sub: string };
 type HeatCapacityManualRecordKind = 'u0' | 'u1' | 'u2';
 type HeatCapacityMode = 'demo' | 'guide' | 'free';
-type WorkbenchUpdateStatus = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'installing' | 'unsupported' | 'error';
+type WorkbenchUpdateStatus = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'retrying' | 'downloaded' | 'installing' | 'unsupported' | 'error';
+type WorkbenchLocalizedText = Partial<Record<WorkbenchLanguagePreference, string>>;
+
+interface WorkbenchUpdateReleaseItem {
+  scope: string;
+  importance: string;
+  title: WorkbenchLocalizedText;
+  body: WorkbenchLocalizedText;
+}
+
+interface WorkbenchUpdateReleaseSection {
+  type: string;
+  title: WorkbenchLocalizedText;
+  items: WorkbenchUpdateReleaseItem[];
+}
 
 const WORKBENCH_PARAMETER_DETAILS: Record<ExperimentParamKey, {
   symbol: WorkbenchParameterSymbolPart[];
@@ -300,6 +314,14 @@ interface WorkbenchUpdateState {
   releaseName?: string | null;
   releaseDate?: string | null;
   releaseNotes?: string | null;
+  releaseSummary?: WorkbenchLocalizedText | null;
+  releaseSections?: WorkbenchUpdateReleaseSection[] | null;
+  releasePageUrl?: string | null;
+  manualDownloadUrl?: string | null;
+  downloadAttempt?: number | null;
+  maxDownloadAttempts?: number | null;
+  retrying?: boolean;
+  errorKind?: string | null;
   percent?: number | null;
   message?: string;
 }
@@ -312,13 +334,13 @@ interface WorkbenchDesktopUpdaterBridge {
   checkForUpdates?: () => Promise<WorkbenchUpdateState>;
   downloadUpdate?: () => Promise<WorkbenchUpdateState>;
   quitAndInstall?: () => Promise<WorkbenchUpdateState>;
+  openManualDownload?: () => Promise<{ status: 'opened' | 'error'; url?: string; message?: string }>;
   onStatus?: (callback: (state: WorkbenchUpdateState) => void) => (() => void);
 }
 
 declare global {
   interface Window {
     hardSphereLabWindow?: WorkbenchDesktopWindowBridge;
-    hardSphereLabUpdater?: WorkbenchDesktopUpdaterBridge;
   }
 }
 
@@ -981,8 +1003,12 @@ interface WorkbenchCopy {
     upToDateStatus: string;
     unsupportedUpdateStatus: string;
     downloadingUpdateStatus: (percent: number | null) => string;
+    retryingUpdateStatus: (attempt: number | null, maxAttempts: number | null) => string;
     updateReadyStatus: string;
     updateErrorStatus: string;
+    updateDownloadFailedStatus: (attempt: number | null, maxAttempts: number | null) => string;
+    retryDownload: string;
+    manualDownload: string;
     buildPlaceholder: string;
     sessionCacheSummary: (total: number) => string;
     sessionCacheBreakdown: (ideal: number, heat: number, standard: number) => string;
@@ -1383,8 +1409,12 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       upToDateStatus: '已是最新版本',
       unsupportedUpdateStatus: '仅桌面安装版可用',
       downloadingUpdateStatus: (percent) => '正在下载' + (percent === null ? '' : ' ' + Math.round(percent) + '%'),
+      retryingUpdateStatus: (attempt, maxAttempts) => '网络波动，正在重试下载' + (attempt && maxAttempts ? '（' + attempt + '/' + maxAttempts + '）' : '') + '...',
       updateReadyStatus: '更新已准备好',
       updateErrorStatus: '检查失败',
+      updateDownloadFailedStatus: (attempt, maxAttempts) => '自动更新失败' + (attempt && maxAttempts ? '，已重试 ' + attempt + '/' + maxAttempts + ' 次' : '') + '。可以稍后重试或手动下载安装包。',
+      retryDownload: '重试下载',
+      manualDownload: '手动下载',
       buildPlaceholder: '版权和构建说明预留到正式发布前补充。',
       sessionCacheSummary: (total) => '当前会话包含 ' + total + ' 个实验文件',
       sessionCacheBreakdown: (ideal, heat, standard) => '理想/比热/标准：' + ideal + '/' + heat + '/' + standard,
@@ -1489,8 +1519,12 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       upToDateStatus: '已是最新版本',
       unsupportedUpdateStatus: '僅桌面安裝版可用',
       downloadingUpdateStatus: (percent) => '正在下載' + (percent === null ? '' : ' ' + Math.round(percent) + '%'),
+      retryingUpdateStatus: (attempt, maxAttempts) => '網路波動，正在重試下載' + (attempt && maxAttempts ? '（' + attempt + '/' + maxAttempts + '）' : '') + '...',
       updateReadyStatus: '更新已準備好',
       updateErrorStatus: '檢查失敗',
+      updateDownloadFailedStatus: (attempt, maxAttempts) => '自動更新失敗' + (attempt && maxAttempts ? '，已重試 ' + attempt + '/' + maxAttempts + ' 次' : '') + '。可以稍後重試或手動下載安裝程式。',
+      retryDownload: '重試下載',
+      manualDownload: '手動下載',
       buildPlaceholder: '版權和建置說明預留到正式發布前補充。',
       sessionCacheSummary: (total) => '目前工作階段包含 ' + total + ' 個實驗檔案',
       sessionCacheBreakdown: (ideal, heat, standard) => '理想/熱容比/標準：' + ideal + '/' + heat + '/' + standard,
@@ -1595,8 +1629,12 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       upToDateStatus: 'Up to date',
       unsupportedUpdateStatus: 'Desktop installer only',
       downloadingUpdateStatus: (percent) => 'Downloading' + (percent === null ? '' : ' ' + Math.round(percent) + '%'),
+      retryingUpdateStatus: (attempt, maxAttempts) => 'Network fluctuation, retrying download' + (attempt && maxAttempts ? ' (' + attempt + '/' + maxAttempts + ')' : '') + '...',
       updateReadyStatus: 'Update ready',
       updateErrorStatus: 'Check failed',
+      updateDownloadFailedStatus: (attempt, maxAttempts) => 'Automatic update failed' + (attempt && maxAttempts ? ' after ' + attempt + '/' + maxAttempts + ' attempts' : '') + '. You can retry later or download the installer manually.',
+      retryDownload: 'Retry Download',
+      manualDownload: 'Manual Download',
       buildPlaceholder: 'Copyright and build details reserved for the final release.',
       sessionCacheSummary: (total) => 'Current session contains ' + total + ' experiment files',
       sessionCacheBreakdown: (ideal, heat, standard) => 'Ideal / Heat / Standard: ' + ideal + '/' + heat + '/' + standard,
@@ -2274,11 +2312,19 @@ const getAboutUpdateStatusLabel = (
   if (state.status === 'available') return copy.about.updateAvailableStatus(state.latestVersion || '--');
   if (state.status === 'not-available') return copy.about.upToDateStatus;
   if (state.status === 'downloading') return copy.about.downloadingUpdateStatus(state.percent ?? null);
+  if (state.status === 'retrying') return copy.about.retryingUpdateStatus(state.downloadAttempt ?? null, state.maxDownloadAttempts ?? null);
   if (state.status === 'downloaded') return copy.about.updateReadyStatus;
   if (state.status === 'unsupported') return copy.about.unsupportedUpdateStatus;
   if (state.status === 'error') return copy.about.updateErrorStatus;
   return hasDesktopUpdaterBridge() ? copy.about.available : copy.about.unsupportedUpdateStatus;
 };
+
+const getWorkbenchLocalizedText = (
+  value: WorkbenchLocalizedText | null | undefined,
+  language: WorkbenchLanguagePreference,
+) => (
+  value?.[language] || value?.['zh-CN'] || value?.en || null
+);
 
 const formatWorkbenchReleaseDate = (
   value: string | null | undefined,
@@ -2954,6 +3000,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
     releaseName: null,
     releaseDate: null,
     releaseNotes: null,
+    releaseSummary: null,
+    releaseSections: null,
+    releasePageUrl: null,
+    manualDownloadUrl: null,
+    downloadAttempt: null,
+    maxDownloadAttempts: null,
+    retrying: false,
+    errorKind: null,
     percent: null,
     message: '',
   }));
@@ -3394,7 +3448,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return;
     }
 
-    if (nextState.status === 'downloading' || nextState.status === 'downloaded' || nextState.status === 'installing') {
+    if (
+      nextState.status === 'downloading'
+      || nextState.status === 'retrying'
+      || nextState.status === 'downloaded'
+      || nextState.status === 'installing'
+      || (nextState.status === 'error' && Boolean(nextState.latestVersion || nextState.manualDownloadUrl || nextState.releasePageUrl))
+    ) {
       setUpdateDialogState(nextState);
       return;
     }
@@ -3813,6 +3873,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
         pushLog(message, 'error');
         showAboutResultNotice(workbenchCopy.about.environmentResultTitle, getAboutEnvironmentResultBody(nextStatus, workbenchCopy));
       });
+  };
+
+  const openManualUpdateDownload = () => {
+    const manualDownloadRequest = window.hardSphereLabUpdater?.openManualDownload?.();
+    if (!manualDownloadRequest) return;
+    void manualDownloadRequest.then((result) => {
+      if (result.status === 'error') {
+        showAboutResultNotice(workbenchCopy.about.updateResultTitle, result.message || workbenchCopy.about.updateErrorStatus);
+      }
+    }).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      showAboutResultNotice(workbenchCopy.about.updateResultTitle, message);
+    });
   };
 
   useEffect(() => {
@@ -9621,12 +9694,24 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (!updateDialogState) return null;
 
     const downloading = updateDialogState.status === 'downloading';
+    const retrying = updateDialogState.status === 'retrying';
     const downloaded = updateDialogState.status === 'downloaded';
     const installing = updateDialogState.status === 'installing';
+    const failed = updateDialogState.status === 'error';
     const releaseNotes = updateDialogState.releaseNotes?.trim() || workbenchCopy.about.noReleaseNotes;
+    const releaseSummary = getWorkbenchLocalizedText(updateDialogState.releaseSummary, settingsLanguagePreference);
+    const releaseSections = updateDialogState.releaseSections ?? [];
     const latestVersion = updateDialogState.latestVersion || '--';
     const title = downloaded || installing ? workbenchCopy.about.updateReadyTitle : workbenchCopy.about.updateAvailableTitle;
     const body = downloaded || installing ? workbenchCopy.about.updateReadyBody : workbenchCopy.about.updateAvailableBody;
+    const statusMessage = installing
+      ? workbenchCopy.about.updateReadyStatus
+      : retrying
+        ? workbenchCopy.about.retryingUpdateStatus(updateDialogState.downloadAttempt ?? null, updateDialogState.maxDownloadAttempts ?? null)
+        : failed
+          ? workbenchCopy.about.updateDownloadFailedStatus(updateDialogState.downloadAttempt ?? null, updateDialogState.maxDownloadAttempts ?? null)
+          : workbenchCopy.about.downloadingUpdateStatus(updateDialogState.percent ?? null);
+    const showStatus = downloading || retrying || installing || failed;
 
     return (
       <div className="studio-settings-overlay studio-update-overlay" role="presentation" onMouseDown={() => setUpdateDialogState(null)}>
@@ -9655,14 +9740,44 @@ const WorkbenchStudioPrototype: React.FC = () => {
               <span>{workbenchCopy.about.releaseDateLabel}</span>
               <strong>{formatWorkbenchReleaseDate(updateDialogState.releaseDate, settingsLanguagePreference)}</strong>
             </div>
+            {releaseSummary ? (
+              <p className="studio-update-summary">{releaseSummary}</p>
+            ) : null}
             <section className="studio-update-notes">
               <strong>{workbenchCopy.about.releaseNotesLabel}</strong>
-              <p>{releaseNotes}</p>
+              {releaseSections.length > 0 ? (
+                <div className="studio-update-note-sections">
+                  {releaseSections.map((section) => {
+                    const sectionTitle = getWorkbenchLocalizedText(section.title, settingsLanguagePreference) || section.type;
+                    return (
+                      <section className="studio-update-note-section" key={section.type}>
+                        <h4>{sectionTitle}</h4>
+                        <ul>
+                          {section.items.map((item, index) => {
+                            const itemTitle = getWorkbenchLocalizedText(item.title, settingsLanguagePreference) || item.scope;
+                            const itemBody = getWorkbenchLocalizedText(item.body, settingsLanguagePreference);
+                            return (
+                              <li key={item.scope + '-' + index}>
+                                <span>{itemTitle}</span>
+                                {itemBody ? <p>{itemBody}</p> : null}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </section>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p>{releaseNotes}</p>
+              )}
             </section>
-            {downloading || installing ? (
-              <div className="studio-update-progress">
-                <span>{installing ? workbenchCopy.about.updateReadyStatus : workbenchCopy.about.downloadingUpdateStatus(updateDialogState.percent ?? null)}</span>
-                <i style={{ width: `${Math.max(0, Math.min(100, updateDialogState.percent ?? 0))}%` }} />
+            {showStatus ? (
+              <div className={'studio-update-status studio-update-status-' + updateDialogState.status}>
+                <span>{statusMessage}</span>
+                {downloading || installing ? (
+                  <i style={{ width: `${Math.max(0, Math.min(100, updateDialogState.percent ?? 0))}%` }} />
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -9677,13 +9792,27 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   {workbenchCopy.about.restartAndInstall}
                 </button>
               </>
+            ) : failed ? (
+              <>
+                <button type="button" className="studio-update-secondary" onClick={() => setUpdateDialogState(null)}>
+                  {workbenchCopy.about.later}
+                </button>
+                <button type="button" className="studio-update-secondary" onClick={startUpdateDownload}>
+                  <Download size={14} />
+                  {workbenchCopy.about.retryDownload}
+                </button>
+                <button type="button" className="studio-update-primary" onClick={openManualUpdateDownload} disabled={!updateDialogState.manualDownloadUrl}>
+                  <Download size={14} />
+                  {workbenchCopy.about.manualDownload}
+                </button>
+              </>
             ) : (
               <>
-                <button type="button" className="studio-update-secondary" onClick={ignoreUpdateDialogVersion} disabled={downloading}>
+                <button type="button" className="studio-update-secondary" onClick={ignoreUpdateDialogVersion} disabled={downloading || retrying}>
                   {workbenchCopy.about.ignoreThisVersion}
                 </button>
-                <button type="button" className="studio-update-primary" onClick={startUpdateDownload} disabled={downloading}>
-                  {downloading ? <Loader2 size={14} /> : <Download size={14} />}
+                <button type="button" className="studio-update-primary" onClick={startUpdateDownload} disabled={downloading || retrying}>
+                  {downloading || retrying ? <Loader2 size={14} /> : <Download size={14} />}
                   {workbenchCopy.about.updateNow}
                 </button>
               </>

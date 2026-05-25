@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('hardSphereLabUpdater', {
   checkForUpdates: () => ipcRenderer.invoke('hsl-updater:check'),
   downloadUpdate: () => ipcRenderer.invoke('hsl-updater:download'),
   quitAndInstall: () => ipcRenderer.invoke('hsl-updater:quit-and-install'),
+  openManualDownload: () => ipcRenderer.invoke('hsl-updater:open-manual-download'),
   onStatus: (callback) => {
     const listener = (_event, payload) => callback(payload);
     ipcRenderer.on('hsl-updater:status', listener);

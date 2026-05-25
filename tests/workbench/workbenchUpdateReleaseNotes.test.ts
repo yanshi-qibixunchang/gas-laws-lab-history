@@ -1,0 +1,108 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const releaseNotes = JSON.parse(
+  readFileSync(new URL('../../docs/releases/release-notes.json', import.meta.url), 'utf8'),
+) as {
+  schemaVersion?: number;
+  app?: string;
+  releases?: Array<{
+    version?: string;
+    date?: string;
+    channel?: string;
+    download?: { releasePage?: string; windowsInstaller?: string };
+    summary?: Record<string, string>;
+    sections?: Array<{
+      type?: string;
+      title?: Record<string, string>;
+      items?: Array<{
+        scope?: string;
+        importance?: string;
+        title?: Record<string, string>;
+        body?: Record<string, string>;
+      }>;
+    }>;
+  }>;
+};
+
+const {
+  getReleaseMetadataForVersion,
+  getLocalizedReleaseText,
+  isAllowedManualDownloadUrl,
+  isTransientUpdateError,
+  MAX_DOWNLOAD_ATTEMPTS,
+} = require('../../electron/updaterMetadata.cjs') as {
+  getReleaseMetadataForVersion: (version: string) => {
+    manualDownloadUrl: string | null;
+    releasePageUrl: string | null;
+    releaseSummary: Record<string, string> | null;
+    releaseSections: Array<{ type: string; title: Record<string, string>; items: unknown[] }> | null;
+  };
+  getLocalizedReleaseText: (value: Record<string, string> | null | undefined, language: string) => string | null;
+  isAllowedManualDownloadUrl: (url: string | null | undefined) => boolean;
+  isTransientUpdateError: (error: unknown) => boolean;
+  MAX_DOWNLOAD_ATTEMPTS: number;
+};
+
+const locales = ['zh-CN', 'zh-TW', 'en'];
+
+assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
+assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
+assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
+
+const firstRelease = releaseNotes.releases[0];
+assert.match(firstRelease.version ?? '', /^\d+\.\d+\.\d+$/, 'release versions should not include a leading v');
+assert.equal(firstRelease.channel, 'stable', 'release notes should identify the stable channel');
+assert.match(firstRelease.download?.releasePage ?? '', /^https:\/\/github\.com\/yanshi-qibixunchang\/hard-sphere-lab-1\/releases\/tag\/v\d+\.\d+\.\d+$/);
+assert.match(
+  firstRelease.download?.windowsInstaller ?? '',
+  /^https:\/\/github\.com\/yanshi-qibixunchang\/hard-sphere-lab-1\/releases\/download\/v\d+\.\d+\.\d+\/heat-capacity-lab-setup-\d+\.\d+\.\d+\.exe$/,
+  'manual download should point directly to the Windows installer exe',
+);
+
+for (const locale of locales) {
+  assert.ok(firstRelease.summary?.[locale]?.trim(), `release summary should include ${locale}`);
+}
+
+assert.ok(Array.isArray(firstRelease.sections) && firstRelease.sections.length >= 3, 'release notes should be grouped into sections');
+for (const section of firstRelease.sections ?? []) {
+  assert.ok(section.type, 'each release section should have a type');
+  for (const locale of locales) {
+    assert.ok(section.title?.[locale]?.trim(), `release section ${section.type} should include ${locale} title`);
+  }
+  assert.ok(Array.isArray(section.items) && section.items.length > 0, `release section ${section.type} should include items`);
+  for (const item of section.items ?? []) {
+    assert.ok(item.scope, 'each release item should declare an impact scope');
+    assert.ok(item.importance, 'each release item should declare an importance');
+    for (const locale of locales) {
+      assert.ok(item.title?.[locale]?.trim(), `release item should include ${locale} title`);
+      assert.ok(item.body?.[locale]?.trim(), `release item should include ${locale} body`);
+    }
+  }
+}
+
+assert.equal(MAX_DOWNLOAD_ATTEMPTS, 3, 'automatic update downloads should retry three attempts at most');
+
+const metadata = getReleaseMetadataForVersion(firstRelease.version ?? '');
+assert.equal(metadata.manualDownloadUrl, firstRelease.download?.windowsInstaller, 'metadata should use the direct exe download URL');
+assert.equal(metadata.releasePageUrl, firstRelease.download?.releasePage, 'metadata should expose the matching GitHub release page');
+assert.ok(metadata.releaseSummary?.['zh-CN'], 'metadata should expose localized release summary');
+assert.ok(metadata.releaseSections?.length, 'metadata should expose structured release sections');
+
+assert.equal(getLocalizedReleaseText({ en: 'English fallback' }, 'zh-CN'), 'English fallback', 'localized text should fall back to English');
+assert.equal(getLocalizedReleaseText({ 'zh-CN': '简体回退' }, 'zh-TW'), '简体回退', 'localized text should fall back to Simplified Chinese');
+
+assert.equal(isAllowedManualDownloadUrl(firstRelease.download?.windowsInstaller), true, 'direct installer URL should be allowed');
+assert.equal(isAllowedManualDownloadUrl(firstRelease.download?.releasePage), true, 'release page URL should be allowed');
+assert.equal(isAllowedManualDownloadUrl('https://example.com/heat-capacity-lab-setup-4.1.4.exe'), false, 'manual download should reject unrelated hosts');
+
+assert.equal(isTransientUpdateError(new Error('net::ERR_NETWORK_CHANGED')), true, 'network change should be treated as retryable');
+assert.equal(
+  isTransientUpdateError(Object.assign(new Error('checksum failed'), { code: 'ERR_UPDATER_INVALID_SIGNATURE' })),
+  false,
+  'signature or checksum failures should not be retried',
+);
+
+console.log('workbenchUpdateReleaseNotes tests passed');

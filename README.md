@@ -1,17 +1,16 @@
-# Hard Sphere Lab v4.1.2
+# Hard Sphere Lab v4.1.4
 
 [简体中文 README](./README.zh-CN.md)
 
 Hard Sphere Lab is a Windows desktop engineering workbench for hard-sphere molecular dynamics, ideal-gas relation verification, and the FD-NCD-C air heat-capacity-ratio experiment. The active release path is the Electron desktop app with a packaged local exporter for PDF reports, figures, and CSV data.
 
-## What Changed In v4.1.2
+## What Changed In v4.1.4
 
-- Fixed the packaged exporter so installed apps can generate PDF reports and Matplotlib PDF/PNG figures without relying on system Python.
-- Updated the app, package metadata, installer metadata, and documentation version to `4.1.2`.
-- Repaired mojibake in Windows installer metadata and uninstall text.
-- Reduced dependency audit risk by updating non-breaking transitive packages.
-- Tightened TypeScript coverage for workbench state cloning, export payloads, heat-capacity runtime state, and legacy layout migration.
-- Documented the repository structure, web deployment, desktop packaging, interface areas, and export workflow in both English and Simplified Chinese.
+- Added the heat-capacity free-experiment parameter adjustment system, including per-group editable parameters, locked historical snapshots, and persisted free-mode settings.
+- Added structured advanced heat-capacity parameter groups, clearer engineering-style parameter rows, and improved light/dark theme styling across the experiment sidebars.
+- Improved the heat-capacity free-mode physics path with thermal exchange, leakage, sensor response, safety thresholds, process review, and parameter impact checks.
+- Added structured desktop update notes, transient-network download retries, and a direct manual installer download path after automatic update failures.
+- Updated the app, package metadata, release metadata, and documentation version to `4.1.4`.
 
 ## Product Scope
 
@@ -83,10 +82,10 @@ Build the official Windows installer:
 npm.cmd run desktop:installer
 ```
 
-The formal distributable for v4.1.2 is:
+The formal distributable for v4.1.4 is:
 
 ```text
-release/热容比实验室 Setup 4.1.2.exe
+release/heat-capacity-lab-setup-4.1.4.exe
 ```
 
 Run the desktop app locally for development:

@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "app": "hard-sphere-lab",
+  "releases": [
+    {
+      "version": "4.1.4",
+      "date": "2026-05-25",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v4.1.4",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.4/heat-capacity-lab-setup-4.1.4.exe"
+      },
+      "summary": {
+        "zh-CN": "发布热容自由实验参数调整体系，并改进桌面自动更新的信息展示、网络波动重试和失败后的手动下载安装入口。",
+        "zh-TW": "發布熱容自由實驗參數調整體系，並改進桌面自動更新的資訊展示、網路波動重試和失敗後的手動下載安裝入口。",
+        "en": "Releases the heat-capacity free-experiment parameter adjustment system and improves desktop update information, retry handling, and manual installer download after failures."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "新增",
+            "zh-TW": "新增",
+            "en": "Added"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "热容自由实验参数调整体系",
+                "zh-TW": "熱容自由實驗參數調整體系",
+                "en": "Heat-capacity free-experiment parameter controls"
+              },
+              "body": {
+                "zh-CN": "自由实验现在可在新实验组开始前调整环境、热交换、传感、泄漏、记录判定、安全阈值和可视化参数。",
+                "zh-TW": "自由實驗現在可在新實驗組開始前調整環境、熱交換、感測、洩漏、記錄判定、安全閾值和視覺化參數。",
+                "en": "Free experiments can now adjust environment, thermal exchange, sensor, leakage, recording, safety, and visualization parameters before a new group starts."
+              }
+            },
+            {
+              "scope": "desktop-update",
+              "importance": "high",
+              "title": {
+                "zh-CN": "更新失败后的手动下载入口",
+                "zh-TW": "更新失敗後的手動下載入口",
+                "en": "Manual download after update failure"
+              },
+              "body": {
+                "zh-CN": "自动下载多次失败后，可直接打开 GitHub Release 中的 Windows 安装包。",
+                "zh-TW": "自動下載多次失敗後，可直接開啟 GitHub Release 中的 Windows 安裝程式。",
+                "en": "After repeated automatic download failures, the app can open the Windows installer asset from the GitHub Release."
+              }
+            },
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "参数按实验组生效并隔离历史结果",
+                "zh-TW": "參數按實驗組生效並隔離歷史結果",
+                "en": "Per-group parameter effect with isolated history"
+              },
+              "body": {
+                "zh-CN": "已完成实验组保留原始参数快照，重置到下一组后才重新允许调整组级参数。",
+                "zh-TW": "已完成實驗組保留原始參數快照，重置到下一組後才重新允許調整組級參數。",
+                "en": "Completed groups keep their original parameter snapshots, and group-level parameters become editable again only after resetting to the next group."
+              }
+            },
+            {
+              "scope": "ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "参数界面统一为工程软件风格",
+                "zh-TW": "參數介面統一為工程軟體風格",
+                "en": "Engineering-style parameter interface"
+              },
+              "body": {
+                "zh-CN": "热容、理想气体和标准模拟的参数行样式完成统一，并补齐亮暗模式适配。",
+                "zh-TW": "熱容、理想氣體和標準模擬的參數列樣式完成統一，並補齊亮暗模式適配。",
+                "en": "Heat-capacity, ideal-gas, and standard-simulation parameter rows now use a consistent engineering UI style with light/dark theme support."
+              }
+            },
+            {
+              "scope": "desktop-update",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "结构化更新说明",
+                "zh-TW": "結構化更新說明",
+                "en": "Structured release notes"
+              },
+              "body": {
+                "zh-CN": "更新弹窗按新增、变更、修复和兼容性说明展示本次更新内容。",
+                "zh-TW": "更新彈窗按新增、變更、修復和相容性說明展示本次更新內容。",
+                "en": "The update dialog groups release notes by added, changed, fixed, and compatibility sections."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "变更",
+            "zh-TW": "變更",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "参数影响方向与物理链路修正",
+                "zh-TW": "參數影響方向與物理鏈路修正",
+                "en": "Parameter impact direction and physics-path corrections"
+              },
+              "body": {
+                "zh-CN": "修正热交换、泄漏、传感响应、压力安全和理论参考值相关边界，使参数调整后的 UI 变化与模型方向一致。",
+                "zh-TW": "修正熱交換、洩漏、感測響應、壓力安全和理論參考值相關邊界，使參數調整後的 UI 變化與模型方向一致。",
+                "en": "Corrects thermal exchange, leakage, sensor response, pressure safety, and reference-value boundaries so UI changes match the model direction."
+              }
+            },
+            {
+              "scope": "desktop-update",
+              "importance": "high",
+              "title": {
+                "zh-CN": "网络波动自动重试",
+                "zh-TW": "網路波動自動重試",
+                "en": "Automatic retry for transient network failures"
+              },
+              "body": {
+                "zh-CN": "更新下载遇到临时网络错误时最多尝试 3 次，并在界面显示当前尝试次数。",
+                "zh-TW": "更新下載遇到暫時性網路錯誤時最多嘗試 3 次，並在介面顯示目前嘗試次數。",
+                "en": "Update downloads retry up to three attempts for transient network errors and show the current attempt count."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "失败信息更明确",
+                "zh-TW": "失敗資訊更明確",
+                "en": "Clearer failure information"
+              },
+              "body": {
+                "zh-CN": "下载失败会说明已重试次数，并保留稍后重试和手动下载两种恢复路径。",
+                "zh-TW": "下載失敗會說明已重試次數，並保留稍後重試和手動下載兩種恢復路徑。",
+                "en": "Download failures show the completed attempt count and keep both retry and manual download recovery paths available."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "兼容性说明",
+            "zh-TW": "相容性說明",
+            "en": "Compatibility"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "low",
+              "title": {
+                "zh-CN": "仅桌面安装版可自动更新",
+                "zh-TW": "僅桌面安裝版可自動更新",
+                "en": "Automatic updates remain desktop-installer only"
+              },
+              "body": {
+                "zh-CN": "浏览器预览和开发模式仍只显示更新状态，不执行安装包下载和重启安装。",
+                "zh-TW": "瀏覽器預覽和開發模式仍只顯示更新狀態，不執行安裝包下載和重新啟動安裝。",
+                "en": "Browser previews and development mode still show update status only and do not download installers or restart to install."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    }
+  ]
+}

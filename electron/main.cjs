@@ -1,10 +1,16 @@
-const { app, BrowserWindow, dialog, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fsSync = require('node:fs');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const {
+  MAX_DOWNLOAD_ATTEMPTS,
+  getReleaseMetadataForVersion,
+  isAllowedManualDownloadUrl,
+  isTransientUpdateError,
+} = require('./updaterMetadata.cjs');
 
 const rootDir = path.resolve(__dirname, '..');
 const preloadPath = path.join(__dirname, 'preload.cjs');
@@ -12,6 +18,8 @@ const appTitle = '热容比实验室';
 const exportRootFolderName = 'Heat Capacity Ratio Lab Exports';
 let selectedExporterRuntime = null;
 let updateCheckPromise = null;
+let updateDownloadInProgress = false;
+let activeDownloadAttempt = null;
 let updateState = {
   status: 'idle',
   currentVersion: app.getVersion(),
@@ -19,6 +27,14 @@ let updateState = {
   releaseName: null,
   releaseDate: null,
   releaseNotes: null,
+  releaseSummary: null,
+  releaseSections: null,
+  releasePageUrl: null,
+  manualDownloadUrl: null,
+  downloadAttempt: null,
+  maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
+  retrying: false,
+  errorKind: null,
   percent: null,
   message: '',
 };
@@ -28,14 +44,20 @@ autoUpdater.autoInstallOnAppQuit = true;
 
 const isDesktopUpdateSupported = () => app.isPackaged && process.platform === 'win32';
 
-const normalizeUpdateInfo = (info = {}) => ({
-  latestVersion: info.version || null,
-  releaseName: info.releaseName || null,
-  releaseDate: info.releaseDate || null,
-  releaseNotes: Array.isArray(info.releaseNotes)
-    ? info.releaseNotes.map((note) => note.note || note).join('\n')
-    : info.releaseNotes || null,
-});
+const getErrorMessage = (error) => (error instanceof Error ? error.message : String(error));
+
+const normalizeUpdateInfo = (info = {}) => {
+  const latestVersion = info.version || updateState.latestVersion || null;
+  return {
+    latestVersion,
+    releaseName: info.releaseName || updateState.releaseName || null,
+    releaseDate: info.releaseDate || updateState.releaseDate || null,
+    releaseNotes: Array.isArray(info.releaseNotes)
+      ? info.releaseNotes.map((note) => note.note || note).join('\n')
+      : info.releaseNotes || updateState.releaseNotes || null,
+    ...getReleaseMetadataForVersion(latestVersion),
+  };
+};
 
 const getUpdaterState = (overrides = {}) => ({
   ...updateState,
@@ -83,6 +105,9 @@ autoUpdater.on('download-progress', (progress) => {
   broadcastUpdaterState({
     status: 'downloading',
     percent: Number.isFinite(progress?.percent) ? progress.percent : null,
+    downloadAttempt: activeDownloadAttempt,
+    maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
+    retrying: false,
     message: 'Downloading update.',
   });
 });
@@ -92,16 +117,28 @@ autoUpdater.on('update-downloaded', (info) => {
     status: 'downloaded',
     ...normalizeUpdateInfo(info),
     percent: 100,
+    downloadAttempt: activeDownloadAttempt,
+    maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
+    retrying: false,
+    errorKind: null,
     message: 'Update downloaded.',
   });
 });
 
 autoUpdater.on('error', (error) => {
+  if (updateDownloadInProgress) return;
   broadcastUpdaterState({
     status: 'error',
-    message: error instanceof Error ? error.message : String(error),
+    ...getReleaseMetadataForVersion(updateState.latestVersion),
+    message: getErrorMessage(error),
+    retrying: false,
+    errorKind: isTransientUpdateError(error) ? 'network' : 'fatal',
     percent: null,
   });
+});
+
+const waitForUpdateRetry = (attempt) => new Promise((resolve) => {
+  setTimeout(resolve, Math.min(800 * attempt, 2400));
 });
 
 const getAppIconPath = () => {
@@ -362,7 +399,10 @@ ipcMain.handle('hsl-updater:check', async () => {
     .catch((error) => {
       broadcastUpdaterState({
         status: 'error',
-        message: error instanceof Error ? error.message : String(error),
+        ...getReleaseMetadataForVersion(updateState.latestVersion),
+        message: getErrorMessage(error),
+        retrying: false,
+        errorKind: isTransientUpdateError(error) ? 'network' : 'fatal',
         percent: null,
       });
       return null;
@@ -384,21 +424,61 @@ ipcMain.handle('hsl-updater:download', async () => {
     });
   }
 
-  try {
+  updateDownloadInProgress = true;
+  for (let attempt = 1; attempt <= MAX_DOWNLOAD_ATTEMPTS; attempt += 1) {
+    activeDownloadAttempt = attempt;
     broadcastUpdaterState({
       status: 'downloading',
+      ...getReleaseMetadataForVersion(updateState.latestVersion),
       message: 'Downloading update.',
       percent: 0,
+      downloadAttempt: attempt,
+      maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
+      retrying: false,
+      errorKind: null,
     });
-    await autoUpdater.downloadUpdate();
-    return updateState;
-  } catch (error) {
-    return broadcastUpdaterState({
-      status: 'error',
-      message: error instanceof Error ? error.message : String(error),
-      percent: null,
-    });
+
+    try {
+      await autoUpdater.downloadUpdate();
+      updateDownloadInProgress = false;
+      activeDownloadAttempt = null;
+      return updateState;
+    } catch (error) {
+      const retryable = isTransientUpdateError(error);
+      const message = getErrorMessage(error);
+      if (!retryable || attempt >= MAX_DOWNLOAD_ATTEMPTS) {
+        updateDownloadInProgress = false;
+        activeDownloadAttempt = null;
+        return broadcastUpdaterState({
+          status: 'error',
+          ...getReleaseMetadataForVersion(updateState.latestVersion),
+          message,
+          percent: null,
+          downloadAttempt: attempt,
+          maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
+          retrying: false,
+          errorKind: retryable ? 'network' : 'fatal',
+        });
+      }
+
+      const nextAttempt = attempt + 1;
+      broadcastUpdaterState({
+        status: 'retrying',
+        ...getReleaseMetadataForVersion(updateState.latestVersion),
+        message,
+        percent: null,
+        downloadAttempt: nextAttempt,
+        maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
+        retrying: true,
+        errorKind: 'network',
+      });
+      await waitForUpdateRetry(nextAttempt);
+    }
   }
+
+  updateDownloadInProgress = false;
+  activeDownloadAttempt = null;
+  return updateState;
 });
 
 ipcMain.handle('hsl-updater:quit-and-install', async () => {
@@ -417,6 +497,22 @@ ipcMain.handle('hsl-updater:quit-and-install', async () => {
   });
   autoUpdater.quitAndInstall(false, true);
   return updateState;
+});
+
+ipcMain.handle('hsl-updater:open-manual-download', async () => {
+  const targetUrl = updateState.manualDownloadUrl || updateState.releasePageUrl;
+  if (!isAllowedManualDownloadUrl(targetUrl)) {
+    return {
+      status: 'error',
+      message: 'Manual download URL is unavailable or not trusted.',
+    };
+  }
+
+  await shell.openExternal(targetUrl);
+  return {
+    status: 'opened',
+    url: targetUrl,
+  };
 });
 
 ipcMain.handle('hsl-exporter:check', async () => {
