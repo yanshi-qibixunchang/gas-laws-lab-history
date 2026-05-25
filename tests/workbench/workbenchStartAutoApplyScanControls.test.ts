@@ -3,12 +3,17 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
-const saveParameterDraftBody = source.slice(
-  source.indexOf('  const saveParameterDraft = () => {'),
+const commitWorkbenchParameterInputBody = source.slice(
+  source.indexOf('  const commitWorkbenchParameterInput = ('),
   source.indexOf('  const applyActiveFileParams = ('),
 );
+const prepareActiveFileForRunBody = source.slice(
+  source.indexOf('  const prepareActiveFileForRun = (): boolean => {'),
+  source.indexOf('  const runActiveFile = () => {'),
+);
 
-assert.ok(saveParameterDraftBody.length > 0, 'saveParameterDraft function body should be located for scoped assertions');
+assert.ok(commitWorkbenchParameterInputBody.length > 0, 'commitWorkbenchParameterInput function body should be located for scoped assertions');
+assert.ok(prepareActiveFileForRunBody.length > 0, 'prepareActiveFileForRun function body should be located for scoped assertions');
 
 assert.doesNotMatch(
   source,
@@ -24,26 +29,32 @@ assert.doesNotMatch(
 
 assert.match(
   source,
-  /const prepareActiveFileForRun = \(\): boolean => \{[\s\S]*?if \(parametersEditing\) \{[\s\S]*?setParametersEditing\(false\)[\s\S]*?setParameterDraft\(\{\}\)[\s\S]*?setParameterErrors\(\[\]\)[\s\S]*?\}[\s\S]*?parametersDirty[\s\S]*?applyActiveFileParams\(undefined,\s*\{ silent: true/,
-  'starting while Edit is open should ignore unsaved draft values and keep the pre-edit saved parameters',
+  /const prepareActiveFileForRun = \(\): boolean => \{[\s\S]*?parametersDirty[\s\S]*?applyActiveFileParams\(undefined,\s*\{ silent: true/,
+  'starting should auto-apply saved dirty parameters or reset-needed runtimes before scheduling frames',
 );
 
 assert.match(
-  saveParameterDraftBody,
-  /const saveParameterDraft = \(\) => \{[\s\S]*?const nextParams = parseParameterDraft\(\);[\s\S]*?if \(!nextParams\) return;[\s\S]*?if \(rejectLockedIdealControlledVariables\(nextParams\)\) return;[\s\S]*?applyActiveFileParams\(nextParams\);[\s\S]*?\};/,
-  'right-sidebar Save should immediately apply saved parameter values and rebuild the 3D runtime',
+  commitWorkbenchParameterInputBody,
+  /const nextParams = cloneParams\(activeFile\.params\);[\s\S]*?assignWorkbenchParameterValue\(nextParams, param\.key, parsedValue\);[\s\S]*?if \(rejectLockedIdealControlledVariables\(nextParams\)\) return;[\s\S]*?applyActiveFileParams\(nextParams\)/,
+  'right-sidebar direct inputs should immediately apply committed parameter values through the existing runtime rebuild path',
 );
 
 assert.doesNotMatch(
-  saveParameterDraftBody,
+  commitWorkbenchParameterInputBody,
   /updateActiveFile\(\(file\) => \(\{[\s\S]*?params: nextParams[\s\S]*?needsReset: true/,
-  'right-sidebar Save should not only save params and defer the runtime rebuild until Start',
+  'right-sidebar direct inputs should not only save params and defer the runtime rebuild until Start',
 );
 
 assert.doesNotMatch(
   source,
-  /if \(parametersEditing\) \{[\s\S]*?parseParameterDraft\(\)[\s\S]*?applyActiveFileParams\(nextParams/,
-  'unsaved Edit drafts should not be parsed or applied by Start',
+  /const (?:startParameterEdit|parseParameterDraft|saveParameterDraft) = /,
+  'the removed Edit/Save parameter workflow should not leave callable functions behind',
+);
+
+assert.doesNotMatch(
+  prepareActiveFileForRunBody,
+  /parameterInputDrafts|commitWorkbenchParameterInput|parseParameterDraft/,
+  'Start should not parse focused direct-input drafts; only blur or Enter commits them',
 );
 
 assert.match(

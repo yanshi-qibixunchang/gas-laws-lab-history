@@ -79,20 +79,32 @@ assert.match(
 
 assert.match(
   source,
-  /idealAdvancedSettingsBodyVisible \? \([\s\S]*?editableCurrentParameters\.map\(\(param\) => \{/,
+  /idealAdvancedSettingsBodyVisible \? \([\s\S]*?editableCurrentParameters\.map\(\(param\) => renderWorkbenchParameterInputRow\(param\)\)/,
   'ideal parameter rows should remain mounted during collapse and only hide after the return animation',
 );
 
-assert.match(
+assert.doesNotMatch(
   source,
   /activeFile\.kind === 'ideal' \? \([\s\S]*?<div className="studio-param-advanced-body" ref=\{idealAdvancedSettingsBodyRef\} aria-hidden=\{!idealAdvancedSettingsOpen\}>[\s\S]*?studio-param-actions[\s\S]*?studio-param-edit-button[\s\S]*?studio-param-save-button[\s\S]*?\) : \(/,
-  'ideal Edit and Save actions should live inside the expanded Advanced settings body',
+  'ideal advanced settings should no longer render Edit and Save actions',
+);
+
+assert.doesNotMatch(
+  source,
+  /activeFile\.kind === 'ideal' \? \([\s\S]*?studio-param-advanced[\s\S]*?\) : \([\s\S]*?studio-param-actions[\s\S]*?studio-param-edit-button[\s\S]*?studio-param-save-button/,
+  'standard files should no longer render direct Edit and Save actions',
 );
 
 assert.match(
   source,
-  /activeFile\.kind === 'ideal' \? \([\s\S]*?studio-param-advanced[\s\S]*?\) : \([\s\S]*?studio-param-actions[\s\S]*?studio-param-edit-button[\s\S]*?studio-param-save-button/,
-  'standard files should keep direct Edit and Save actions outside the ideal advanced drawer',
+  /activeFile\.kind === 'ideal' \? \([\s\S]*?<div className="studio-param-advanced-body" ref=\{idealAdvancedSettingsBodyRef\} aria-hidden=\{!idealAdvancedSettingsOpen\}>[\s\S]*?renderWorkbenchParameterInputRow\(param\)[\s\S]*?\) : \(/,
+  'ideal advanced settings should render the shared direct parameter input row',
+);
+
+assert.match(
+  source,
+  /activeFile\.kind === 'ideal' \? \([\s\S]*?studio-param-advanced[\s\S]*?\) : activeFile\.kind === 'heatCapacity' \? null : \([\s\S]*?renderWorkbenchParameterInputRow\(param\)/,
+  'standard files should render the same shared direct parameter input row',
 );
 
 assert.match(
@@ -103,7 +115,7 @@ assert.match(
 
 assert.match(
   source,
-  /activeFile\.kind === 'ideal' \? \([\s\S]*?workbenchCopy\.parameters\.advancedSettings[\s\S]*?\) : \([\s\S]*?editableCurrentParameters\.map\(\(param\) => \{/,
+  /activeFile\.kind === 'ideal' \? \([\s\S]*?workbenchCopy\.parameters\.advancedSettings[\s\S]*?\) : activeFile\.kind === 'heatCapacity' \? null : \([\s\S]*?editableCurrentParameters\.map\(\(param\) => renderWorkbenchParameterInputRow\(param\)\)/,
   'standard files should keep rendering parameter rows directly instead of using the ideal advanced drawer',
 );
 

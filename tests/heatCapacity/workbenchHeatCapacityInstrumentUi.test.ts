@@ -1272,6 +1272,18 @@ assert.match(styleSource, /\.studio-heat-advanced-window\s*\{[\s\S]*overflow-x:\
 assert.match(styleSource, /\.studio-heat-advanced-actions button,\s*\.studio-heat-advanced-risk-window button\s*\{[\s\S]*min-width:\s*72px;[\s\S]*justify-content:\s*center;/, 'advanced parameter confirm/cancel buttons should be wide enough for Chinese labels');
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-advanced-window\s*\{[\s\S]*background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*border-color:/, 'advanced parameter window should have a dedicated light-theme surface');
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-free-input-cell input\s*\{[\s\S]*background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*border-color:/, 'Free Mode parameter inputs should have dedicated light-theme contrast');
+
+assert.match(
+  styleSource,
+  /\.studio-heat-advanced-risk-window \.studio-heat-advanced-primary\s*\{[\s\S]*background:\s*#92400e[\s\S]*?border-color:\s*#b45309[\s\S]*?color:\s*#fff7ed/,
+  'advanced risk confirmation primary action should use high-contrast warning colors instead of success green',
+);
+
+assert.match(
+  styleSource,
+  /\.studio-heat-advanced-risk-window strong\s*\{[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*\}/,
+  'advanced risk confirmation title should use explicit warning contrast',
+);
 assert.match(styleSource, /prefers-reduced-motion:\s*reduce[\s\S]*\.studio-heat-free-params \*/, 'Free Mode parameter motion should include a reduced-motion fallback');
 
 console.log('workbenchHeatCapacityInstrumentUi tests passed');

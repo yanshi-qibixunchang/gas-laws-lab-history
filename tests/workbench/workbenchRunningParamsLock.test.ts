@@ -11,18 +11,33 @@ assert.match(
 );
 assert.match(
   source,
-  /const currentParameterControlsLocked = activeFile\.kind === 'heatCapacity' && activeFile\.heatCapacityMode === 'free'[\s\S]*\? activeHeatCapacityFreeParameterLocked[\s\S]*: parameterControlsLocked;/,
-  'the right parameter sidebar should use Free Mode group locks for Heat Capacity and the original run-state lock elsewhere',
+  /const currentParameterControlsLocked = activeFile\.kind === 'heatCapacity' && activeFile\.heatCapacityMode === 'free'[\s\S]*\? false[\s\S]*: parameterControlsLocked;/,
+  'Heat Capacity Free Mode should not gray-lock the whole parameter sidebar because view remains editable during a run',
 );
 assert.match(
   source,
-  /const startParameterEdit = \(\) => \{[\s\S]*?if \(parameterControlsLocked\)/,
-  'parameter edit mode should not open after the active simulation has started',
+  /definition\.id === 'hardSphereViewEnabled' \? false : activeHeatCapacityFreeParameterLocked/,
+  'Free Mode should keep only the visualization checkbox editable after the experiment group has started',
 );
 assert.match(
   source,
-  /const saveParameterDraft = \(\) => \{[\s\S]*?if \(parameterControlsLocked\)/,
-  'parameter drafts should not save after the active simulation has started',
+  /target\?\.closest\('\[data-heat-capacity-free-param-id="hardSphereViewEnabled"\]'\)\) return;/,
+  'Free Mode locked-panel interception should allow the visualization row to receive clicks',
+);
+assert.match(
+  source,
+  /hardSphereViewLocked=\{false\}/,
+  'the 3D hard-sphere visualization toggle should stay editable because it does not affect experiment data',
+);
+assert.match(
+  source,
+  /const commitWorkbenchParameterInput = \([\s\S]*?if \(parameterControlsLocked\)/,
+  'direct parameter input commits should be blocked after the active simulation has started',
+);
+assert.match(
+  source,
+  /disabled=\{isParamLocked \|\| !param\.editable\}/,
+  'direct parameter inputs should be disabled by the current lock policy',
 );
 assert.match(
   source,

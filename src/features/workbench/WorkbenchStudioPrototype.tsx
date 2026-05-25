@@ -202,9 +202,96 @@ const HEAT_CAPACITY_HARD_SPHERE_PERFORMANCE_PRESETS = {
   performance: { particleMultiplier: 0.5, speedMultiplier: 0.5 },
 } as const;
 type IdealSamplingPresetKey = 'fast' | 'balanced' | 'stable';
+type WorkbenchParameterSymbolPart = string | { sub: string };
 type HeatCapacityManualRecordKind = 'u0' | 'u1' | 'u2';
 type HeatCapacityMode = 'demo' | 'guide' | 'free';
 type WorkbenchUpdateStatus = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'installing' | 'unsupported' | 'error';
+
+const WORKBENCH_PARAMETER_DETAILS: Record<ExperimentParamKey, {
+  symbol: WorkbenchParameterSymbolPart[];
+  help: Record<WorkbenchLanguagePreference, string>;
+}> = {
+  N: {
+    symbol: ['N'],
+    help: {
+      'zh-CN': '控制容器内参与碰撞和压强统计的粒子数量。',
+      'zh-TW': '控制容器內參與碰撞和壓強統計的粒子數量。',
+      en: 'Sets the number of particles used for collisions and pressure statistics.',
+    },
+  },
+  r: {
+    symbol: ['r'],
+    help: {
+      'zh-CN': '决定硬球半径，影响碰撞截面和可占据空间。',
+      'zh-TW': '決定硬球半徑，影響碰撞截面和可佔據空間。',
+      en: 'Sets the hard-sphere radius, affecting collision size and available space.',
+    },
+  },
+  L: {
+    symbol: ['L'],
+    help: {
+      'zh-CN': '决定立方容器边长，改变体积和压强换算基准。',
+      'zh-TW': '決定立方容器邊長，改變體積和壓強換算基準。',
+      en: 'Sets the cubic container side length, changing volume and pressure scaling.',
+    },
+  },
+  m: {
+    symbol: ['m'],
+    help: {
+      'zh-CN': '决定单个粒子的质量，用于速度、能量和碰撞响应。',
+      'zh-TW': '決定單個粒子的質量，用於速度、能量和碰撞響應。',
+      en: 'Sets particle mass for velocity, energy, and collision response.',
+    },
+  },
+  k: {
+    symbol: ['k'],
+    help: {
+      'zh-CN': '归一化玻尔兹曼常数，用于温度和粒子动能换算。',
+      'zh-TW': '歸一化波茲曼常數，用於溫度和粒子動能換算。',
+      en: 'Sets the normalized Boltzmann constant for temperature-energy conversion.',
+    },
+  },
+  dt: {
+    symbol: ['dt'],
+    help: {
+      'zh-CN': '决定每一步积分时间间隔，影响模拟推进精度和速度。',
+      'zh-TW': '決定每一步積分時間間隔，影響模擬推進精度和速度。',
+      en: 'Sets the integration time step, affecting simulation precision and pace.',
+    },
+  },
+  nu: {
+    symbol: ['ν'],
+    help: {
+      'zh-CN': '控制 Andersen 热浴碰撞频率，影响达到目标温度的速度。',
+      'zh-TW': '控制 Andersen 熱浴碰撞頻率，影響達到目標溫度的速度。',
+      en: 'Sets the Andersen thermostat collision frequency and equilibration speed.',
+    },
+  },
+  targetTemperature: {
+    symbol: ['T', { sub: 'target' }],
+    help: {
+      'zh-CN': '设定理想气体实验的热浴目标温度。',
+      'zh-TW': '設定理想氣體實驗的熱浴目標溫度。',
+      en: 'Sets the thermostat target temperature for ideal-gas runs.',
+    },
+  },
+  equilibriumTime: {
+    symbol: ['t', { sub: 'eq' }],
+    help: {
+      'zh-CN': '决定开始统计前等待热平衡的时间。',
+      'zh-TW': '決定開始統計前等待熱平衡的時間。',
+      en: 'Sets how long the run equilibrates before statistics are collected.',
+    },
+  },
+  statsDuration: {
+    symbol: ['t', { sub: 'stat' }],
+    help: {
+      'zh-CN': '决定用于结果统计的采样持续时间。',
+      'zh-TW': '決定用於結果統計的採樣持續時間。',
+      en: 'Sets the duration of the statistics collection window.',
+    },
+  },
+};
 
 interface WorkbenchUpdateState {
   status: WorkbenchUpdateStatus;
@@ -1318,10 +1405,10 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       title: '当前参数', currentFileValues: '当前文件值', lockedUntilStopped: '停止或完成前锁定', editValues: '编辑参数值', hide: '隐藏',
       standardSimulation: '标准模拟', idealSimulation: '理想气体模拟', heatCapacityExperiment: '空气比热容比实验', savedChangesOnStart: '启动时已保存参数', idealRuntimeOnStart: '理想运行时将在开始时连接', applied: '参数已应用',
       relation: '关系', scanVariable: '扫描变量', samplingPreset: '采样预设', targetTemperature: '目标温度', boxLength: '盒长 L', particleCount: '粒子数 N', customPreset: '自定义', setSamplingPrecision: '设置采样精度', relationHints: { pt: '固定 N 和 V 扫描温度', pv: '通过盒长 L 扫描体积', pn: '固定 T 和 V 扫描粒子数' }, setScanValue: (title) => '设置' + title, adjustScanValue: (title) => '调整' + title, recommendedValues: (title) => title + '推荐值',
-      parameterLabels: { N: 'N（粒子）', r: 'r', L: 'L', m: 'm', k: 'k', dt: 'dt', nu: 'nu', targetTemperature: '目标温度', equilibriumTime: '平衡时间（s）', statsDuration: '统计时长（s）', relation: '关系' },
+      parameterLabels: { N: '粒子数量', r: '粒子半径', L: '容器边长', m: '粒子质量', k: '玻尔兹曼常数', dt: '时间步长', nu: '碰撞频率', targetTemperature: '目标温度', equilibriumTime: '平衡时间', statsDuration: '统计时长', relation: '关系' },
       samplingPresets: { fast: '快速', balanced: '平衡', stable: '稳定' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's 平衡 / ' + statsDuration + 's 统计',
       advancedSettings: '高级设置', advancedShow: '显示模型常数和采样值', advancedHide: '隐藏模型常数和采样值', edit: '编辑', save: '保存', saveHint: '保存高级参数到当前工作台文件',
-      standardReadonlyNote: '标准模拟参数在这里直接显示。', idealReadonlyNote: '关系、扫描变量和采样预设在上方控制。', heatCapacityReadonlyNote: '粒子动画仅用于可视化气体分子运动状态；最终比热容比按 FD-NCD-C 空气实验模型计算。', microscopicVisualization: '微观可视化', hardSphereView: '硬球可视化', hardSphereOn: '开', hardSphereOff: '关', hardSphereTeachingOnly: '只影响三维教学显示，不参与 Uₜ、Uₚ、U₀/U₁/U₂ 或 gamma 计算。', controlledLockHint: '当前关系已有数据，受控变量已锁定。',
+      standardReadonlyNote: '标准模拟参数在这里直接显示。', idealReadonlyNote: '关系、扫描变量和采样预设在上方控制。', heatCapacityReadonlyNote: '粒子动画仅用于可视化气体分子运动状态；最终比热容比按 FD-NCD-C 空气实验模型计算。', microscopicVisualization: '微观可视化', hardSphereView: '硬球可视化', hardSphereOn: '开', hardSphereOff: '关', hardSphereTeachingOnly: '只影响三维教学显示，不参与 Uₜ、Uₚ、U₀/U₁/U₂ 或 γ 计算。', controlledLockHint: '当前关系已有数据，受控变量已锁定。',
     },
     results: {
       title: '结果', experimentStatus: '实验状态', scan: '扫描', temperature: '温度', pressure: '压强', measuredPressure: '实测 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 点', pointsShort: (count) => count + ' 点', recordedPoints: (count) => count + ' 个记录点',
@@ -1424,10 +1511,10 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       title: '目前參數', currentFileValues: '目前檔案值', lockedUntilStopped: '停止或完成前鎖定', editValues: '編輯參數值', hide: '隱藏',
       standardSimulation: '標準模擬', idealSimulation: '理想氣體模擬', heatCapacityExperiment: '空氣比熱容比實驗', savedChangesOnStart: '啟動時已儲存參數', idealRuntimeOnStart: '理想執行階段將在開始時連接', applied: '參數已套用',
       relation: '關係', scanVariable: '掃描變量', samplingPreset: '採樣預設', targetTemperature: '目標溫度', boxLength: '盒長 L', particleCount: '粒子數 N', customPreset: '自訂', setSamplingPrecision: '設定採樣精度', relationHints: { pt: '固定 N 和 V 掃描溫度', pv: '透過盒長 L 掃描體積', pn: '固定 T 和 V 掃描粒子數' }, setScanValue: (title) => '設定' + title, adjustScanValue: (title) => '調整' + title, recommendedValues: (title) => title + '建議值',
-      parameterLabels: { N: 'N（粒子）', r: 'r', L: 'L', m: 'm', k: 'k', dt: 'dt', nu: 'nu', targetTemperature: '目標溫度', equilibriumTime: '平衡時間（s）', statsDuration: '統計時長（s）', relation: '關係' },
+      parameterLabels: { N: '粒子數量', r: '粒子半徑', L: '容器邊長', m: '粒子質量', k: '波茲曼常數', dt: '時間步長', nu: '碰撞頻率', targetTemperature: '目標溫度', equilibriumTime: '平衡時間', statsDuration: '統計時長', relation: '關係' },
       samplingPresets: { fast: '快速', balanced: '平衡', stable: '穩定' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's 平衡 / ' + statsDuration + 's 統計',
       advancedSettings: '進階設定', advancedShow: '顯示模型常數和採樣值', advancedHide: '隱藏模型常數和採樣值', edit: '編輯', save: '儲存', saveHint: '將進階參數儲存到目前工作台檔案',
-      standardReadonlyNote: '標準模擬參數在這裡直接顯示。', idealReadonlyNote: '關係、掃描變量和採樣預設在上方控制。', heatCapacityReadonlyNote: '粒子動畫僅用於視覺化氣體分子運動狀態；最終比熱容比按 FD-NCD-C 空氣實驗模型計算。', microscopicVisualization: '微觀可視化', hardSphereView: '硬球可視化', hardSphereOn: '開', hardSphereOff: '關', hardSphereTeachingOnly: '只影響三維教學顯示，不參與 Uₜ、Uₚ、U₀/U₁/U₂ 或 gamma 計算。', controlledLockHint: '目前關係已有資料，受控變量已鎖定。',
+      standardReadonlyNote: '標準模擬參數在這裡直接顯示。', idealReadonlyNote: '關係、掃描變量和採樣預設在上方控制。', heatCapacityReadonlyNote: '粒子動畫僅用於視覺化氣體分子運動狀態；最終比熱容比按 FD-NCD-C 空氣實驗模型計算。', microscopicVisualization: '微觀可視化', hardSphereView: '硬球可視化', hardSphereOn: '開', hardSphereOff: '關', hardSphereTeachingOnly: '只影響三維教學顯示，不參與 Uₜ、Uₚ、U₀/U₁/U₂ 或 γ 計算。', controlledLockHint: '目前關係已有資料，受控變量已鎖定。',
     },
     results: {
       title: '結果', experimentStatus: '實驗狀態', scan: '掃描', temperature: '溫度', pressure: '壓強', measuredPressure: '實測 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 點', pointsShort: (count) => count + ' 點', recordedPoints: (count) => count + ' 個記錄點',
@@ -1530,10 +1617,10 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       title: 'Current Parameters', currentFileValues: 'current file values', lockedUntilStopped: 'locked until stopped or finished', editValues: 'edit parameter values', hide: 'Hide',
       standardSimulation: 'Standard Simulation', idealSimulation: 'Ideal Gas Simulation', heatCapacityExperiment: 'Heat Capacity Ratio Experiment', savedChangesOnStart: 'parameters saved on start', idealRuntimeOnStart: 'ideal runtime will connect on start', applied: 'parameters applied',
       relation: 'Relation', scanVariable: 'Scan Variable', samplingPreset: 'Sampling Preset', targetTemperature: 'Target Temperature', boxLength: 'Box Length L', particleCount: 'Particle Count N', customPreset: 'Custom', setSamplingPrecision: 'Set sampling precision', relationHints: { pt: 'Scan temperature at fixed N and V', pv: 'Scan volume through box length L', pn: 'Scan particle count at fixed T and V' }, setScanValue: (title) => 'Set ' + title, adjustScanValue: (title) => 'Adjust ' + title, recommendedValues: (title) => title + ' recommended values',
-      parameterLabels: { N: 'N (particles)', r: 'r', L: 'L', m: 'm', k: 'k', dt: 'dt', nu: 'nu', targetTemperature: 'Target temperature', equilibriumTime: 'equilibriumTime (s)', statsDuration: 'statsDuration (s)', relation: 'Relation' },
+      parameterLabels: { N: 'Particle count', r: 'Particle radius', L: 'Box length', m: 'Particle mass', k: 'Boltzmann constant', dt: 'Time step', nu: 'Collision frequency', targetTemperature: 'Target temperature', equilibriumTime: 'Equilibration time', statsDuration: 'Sampling duration', relation: 'Relation' },
       samplingPresets: { fast: 'Fast', balanced: 'Balanced', stable: 'Stable' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's eq / ' + statsDuration + 's stats',
       advancedSettings: 'Advanced settings', advancedShow: 'Show model constants and sampling values', advancedHide: 'Hide model constants and sampling values', edit: 'Edit', save: 'Save', saveHint: 'Save advanced parameters to this workbench file',
-      standardReadonlyNote: 'Standard simulation parameters are shown directly here.', idealReadonlyNote: 'Relation, scan variable, and sampling preset are controlled above.', heatCapacityReadonlyNote: 'The particle animation only visualizes molecular motion; the heat capacity ratio is still calculated by the FD-NCD-C air experiment model.', microscopicVisualization: 'Microscopic Visualization', hardSphereView: 'Hard-Sphere View', hardSphereOn: 'ON', hardSphereOff: 'OFF', hardSphereTeachingOnly: 'Affects only the 3D teaching display. It is not used for Uₜ, Uₚ, U₀/U₁/U₂, or gamma.', controlledLockHint: 'This relation already has data, so controlled variables are locked.',
+      standardReadonlyNote: 'Standard simulation parameters are shown directly here.', idealReadonlyNote: 'Relation, scan variable, and sampling preset are controlled above.', heatCapacityReadonlyNote: 'The particle animation only visualizes molecular motion; the heat capacity ratio is still calculated by the FD-NCD-C air experiment model.', microscopicVisualization: 'Microscopic Visualization', hardSphereView: 'Hard-Sphere View', hardSphereOn: 'ON', hardSphereOff: 'OFF', hardSphereTeachingOnly: 'Affects only the 3D teaching display. It is not used for Uₜ, Uₚ, U₀/U₁/U₂, or γ.', controlledLockHint: 'This relation already has data, so controlled variables are locked.',
     },
     results: {
       title: 'Results', experimentStatus: 'Experiment status', scan: 'Scan', temperature: 'Temperature', pressure: 'Pressure', measuredPressure: 'Measured P', idealPressure: 'Ideal P', gap: 'Gap', pointsTitle: (relation) => relation + ' points', pointsShort: (count) => count + ' pts', recordedPoints: (count) => count + ' recorded points',
@@ -2657,6 +2744,50 @@ const getWorkbenchParameterDisplayLabel = (
   copy: WorkbenchCopy,
 ) => copy.parameters.parameterLabels[param.key] ?? (param.unit ? `${param.label} (${param.unit})` : param.label);
 
+const getWorkbenchParameterDisplayUnit = (
+  param: WorkbenchParameterRow,
+  language: WorkbenchLanguagePreference,
+) => {
+  if (!param.unit) return '';
+  if (param.key === 'N' && param.unit === 'particles') {
+    if (language === 'zh-CN') return '个';
+    if (language === 'zh-TW') return '個';
+  }
+  return param.unit;
+};
+
+const getWorkbenchParameterDetail = (param: WorkbenchParameterRow) => (
+  param.key === 'relation' ? null : WORKBENCH_PARAMETER_DETAILS[param.key as ExperimentParamKey]
+);
+
+const assignWorkbenchParameterValue = (
+  params: SimulationParams,
+  key: keyof SimulationParams | 'relation',
+  parsedValue: number,
+) => {
+  if (key === 'N') {
+    params.N = Math.round(parsedValue);
+  } else if (key === 'L') {
+    params.L = parsedValue;
+  } else if (key === 'r') {
+    params.r = parsedValue;
+  } else if (key === 'm') {
+    params.m = parsedValue;
+  } else if (key === 'k') {
+    params.k = parsedValue;
+  } else if (key === 'dt') {
+    params.dt = parsedValue;
+  } else if (key === 'nu') {
+    params.nu = parsedValue;
+  } else if (key === 'equilibriumTime') {
+    params.equilibriumTime = parsedValue;
+  } else if (key === 'statsDuration') {
+    params.statsDuration = parsedValue;
+  } else if (key === 'targetTemperature') {
+    params.targetTemperature = parsedValue;
+  }
+};
+
 const getLocalizedStatusValue = (value: string | undefined, copy: WorkbenchCopy) => (
   value ? copy.status.verdictStates[value] ?? copy.status.runStates[value as WorkbenchFileState['runState']] ?? value : copy.status.none
 );
@@ -2859,10 +2990,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [pendingClearRelationKey, setPendingClearRelationKey] = useState<string | null>(null);
   const [resultsChildrenCollapsed, setResultsChildrenCollapsed] = useState(false);
   const [samplingPresetMenuOpen, setSamplingPresetMenuOpen] = useState(false);
-  const [parametersEditing, setParametersEditing] = useState(false);
   const [idealAdvancedSettingsOpen, setIdealAdvancedSettingsOpen] = useState(false);
   const [idealAdvancedSettingsBodyVisible, setIdealAdvancedSettingsBodyVisible] = useState(false);
-  const [parameterDraft, setParameterDraft] = useState<Record<string, string>>({});
+  const [parameterInputDrafts, setParameterInputDrafts] = useState<Record<string, string>>({});
   const [parameterErrors, setParameterErrors] = useState<string[]>([]);
   const [heatCapacityBasicInputDrafts, setHeatCapacityBasicInputDrafts] = useState<Record<string, string>>({});
   const [heatCapacityBasicInputErrors, setHeatCapacityBasicInputErrors] = useState<Record<string, string>>({});
@@ -3077,7 +3207,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const parametersDirty = !areWorkbenchParamsEqual(activeFile.params, activeFile.appliedParams);
   const parameterControlsLocked = activeFile.runState === 'running' || activeFile.runState === 'paused';
   const currentParameterControlsLocked = activeFile.kind === 'heatCapacity' && activeFile.heatCapacityMode === 'free'
-    ? activeHeatCapacityFreeParameterLocked
+    ? false
     : parameterControlsLocked;
   const controlledVariableLockHint = workbenchCopy.parameters.controlledLockHint;
   const currentIdealRelationHasPoints = activeFile.kind === 'ideal' && activeFile.pointsByRelation[activeFile.relation].length > 0;
@@ -3473,6 +3603,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setHeatCapacityAdvancedDraft(null);
     setHeatCapacityAdvancedInputDrafts({});
     setHeatCapacityAdvancedInputErrors({});
+    setParameterInputDrafts({});
     setHoveredHeatCapacityParamHelpId(null);
     setPinnedHeatCapacityParamHelpId(null);
     setHeatCapacityParamHelpPopoverStyle(undefined);
@@ -3844,10 +3975,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const setHeatCapacityHardSphereViewEnabled = (checked: boolean) => {
-    if (activeHeatCapacityFreeParameterLocked) {
-      showHeatCapacityFreeParameterLockHint();
-      return;
-    }
     updateActiveFile((file) => file.kind === 'heatCapacity'
       ? {
           ...file,
@@ -3961,12 +4088,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
     parameterId: HeatCapacityFreeBasicCheckboxKey,
     checked: boolean,
   ) => {
-    if (activeHeatCapacityFreeParameterLocked) {
-      showHeatCapacityFreeParameterLockHint();
-      return;
-    }
     if (parameterId === 'hardSphereViewEnabled') {
       setHeatCapacityHardSphereViewEnabled(checked);
+      return;
+    }
+    if (activeHeatCapacityFreeParameterLocked) {
+      showHeatCapacityFreeParameterLockHint();
       return;
     }
     updateActiveFile((file) => {
@@ -6116,8 +6243,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setParametersCollapsed(restoredFiles.find((file) => file.id === nextActiveFileId)?.kind === 'heatCapacity');
     setWorkbenchLayoutDefaults(snapshot.workbenchLayoutDefaults);
     persistWorkbenchLayoutDefaults(snapshot.workbenchLayoutDefaults);
-    setParametersEditing(false);
-    setParameterDraft({});
+    setParameterInputDrafts({});
     setParameterErrors([]);
     setIdealAdvancedSettingsOpen(false);
     setIdealAdvancedSettingsBodyVisible(false);
@@ -6855,71 +6981,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
     );
   };
 
-  const startParameterEdit = () => {
-    if (parameterControlsLocked) {
-      pushLog(`${activeFile.name}: pause the simulation before editing parameters.`, 'warning');
-      return;
-    }
-
-    const draft = currentParameters.reduce<Record<string, string>>((nextDraft, param) => {
-      if (param.editable) nextDraft[param.key] = param.value === '--' ? '' : param.value;
-      return nextDraft;
-    }, {});
-
-    setParameterDraft(draft);
-    setParameterErrors([]);
-    setParametersEditing(true);
-    pushLog(`${activeFile.name}: parameter edit mode opened.`);
-  };
-
-  const parseParameterDraft = (): SimulationParams | null => {
-    const nextParams: SimulationParams = cloneParams(activeFile.params);
-
-    for (const param of currentParameters) {
-      if (!param.editable || param.key === 'relation') continue;
-      const rawValue = parameterDraft[param.key] ?? param.value;
-      const parsedValue = Number(rawValue);
-
-      if (!Number.isFinite(parsedValue)) {
-        setParameterErrors([`${param.label} must be a finite number.`]);
-        pushLog(`${activeFile.name}: invalid parameter ${param.label}="${rawValue}".`, 'error');
-        return null;
-      }
-
-      if (param.key === 'N') {
-        nextParams.N = Math.round(parsedValue);
-      } else if (param.key === 'L') {
-        nextParams.L = parsedValue;
-      } else if (param.key === 'r') {
-        nextParams.r = parsedValue;
-      } else if (param.key === 'm') {
-        nextParams.m = parsedValue;
-      } else if (param.key === 'k') {
-        nextParams.k = parsedValue;
-      } else if (param.key === 'dt') {
-        nextParams.dt = parsedValue;
-      } else if (param.key === 'nu') {
-        nextParams.nu = parsedValue;
-      } else if (param.key === 'equilibriumTime') {
-        nextParams.equilibriumTime = parsedValue;
-      } else if (param.key === 'statsDuration') {
-        nextParams.statsDuration = parsedValue;
-      } else if (param.key === 'targetTemperature') {
-        nextParams.targetTemperature = parsedValue;
-      }
-    }
-
-    const validation = validateWorkbenchParams(nextParams);
-    if (!validation.valid) {
-      setParameterErrors(validation.errors);
-      validation.errors.forEach((error) => pushLog(`${activeFile.name}: ${error}`, 'error'));
-      return null;
-    }
-
-    setParameterErrors([]);
-    return nextParams;
-  };
-
   const rejectLockedIdealControlledVariables = (nextParams: SimulationParams) => {
     if (activeFile.kind !== 'ideal') return false;
     const lockedKeys = getLockedIdealControlledVariableKeys(nextParams);
@@ -6931,17 +6992,61 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return true;
   };
 
-  const saveParameterDraft = () => {
+  const clearWorkbenchParameterInputDraft = (paramKey: string) => {
+    setParameterInputDrafts((current) => {
+      const { [paramKey]: _removed, ...rest } = current;
+      return rest;
+    });
+  };
+
+  const revertWorkbenchParameterInput = (paramKey: string) => {
+    clearWorkbenchParameterInputDraft(paramKey);
+    setParameterErrors([]);
+  };
+
+  const commitWorkbenchParameterInput = (
+    param: WorkbenchParameterRow,
+    rawValue: string,
+  ) => {
     if (parameterControlsLocked) {
-      pushLog(`${activeFile.name}: pause the simulation before saving parameters.`, 'warning');
+      pushLog(`${activeFile.name}: pause the simulation before editing parameters.`, 'warning');
       return;
     }
 
-    const nextParams = parseParameterDraft();
-    if (!nextParams) return;
+    if (!param.editable || param.key === 'relation') {
+      clearWorkbenchParameterInputDraft(param.key);
+      return;
+    }
+
+    const parsedValue = Number(rawValue);
+    if (!Number.isFinite(parsedValue)) {
+      setParameterErrors([`${param.label} must be a finite number.`]);
+      pushLog(`${activeFile.name}: invalid parameter ${param.label}="${rawValue}".`, 'error');
+      return;
+    }
+
+    const nextParams = cloneParams(activeFile.params);
+    assignWorkbenchParameterValue(nextParams, param.key, parsedValue);
+
+    if (areWorkbenchParamsEqual(nextParams, activeFile.params)) {
+      clearWorkbenchParameterInputDraft(param.key);
+      setParameterErrors([]);
+      return;
+    }
+
+    const validation = validateWorkbenchParams(nextParams);
+    if (!validation.valid) {
+      setParameterErrors(validation.errors);
+      validation.errors.forEach((error) => pushLog(`${activeFile.name}: ${error}`, 'error'));
+      return;
+    }
+
     if (rejectLockedIdealControlledVariables(nextParams)) return;
 
-    applyActiveFileParams(nextParams);
+    const appliedRuntime = applyActiveFileParams(nextParams);
+    if (appliedRuntime || activeFile.kind !== 'standard') {
+      clearWorkbenchParameterInputDraft(param.key);
+    }
   };
 
   const applyActiveFileParams = (
@@ -6992,8 +7097,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
           updatedAt: Date.now(),
         };
       });
-      setParametersEditing(false);
-      setParameterDraft({});
       setParameterErrors([]);
       if (!options.silent) {
         pushLog(`${activeFile.name}: heat-capacity UI parameters saved; no simulation runtime started.`, 'success');
@@ -7010,8 +7113,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
         params: nextParams,
         updatedAt: Date.now(),
       }));
-      setParametersEditing(false);
-      setParameterDraft({});
       setParameterErrors([]);
       if (!options.silent) pushLog(`${activeFile.name}: edited parameters match the applied runtime. No rebuild needed.`);
       return getStandardRuntime(activeFile);
@@ -7062,8 +7163,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
           updatedAt: Date.now(),
         };
       });
-      setParametersEditing(false);
-      setParameterDraft({});
       setParameterErrors([]);
       if (!options.silent) {
         pushLog(
@@ -7098,8 +7197,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
       hardSphereEngineSnapshot: nextRuntime.engine.createSnapshot(),
       updatedAt: Date.now(),
     }));
-    setParametersEditing(false);
-    setParameterDraft({});
     setParameterErrors([]);
     if (!options.silent) {
       pushLog(
@@ -7112,12 +7209,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const prepareActiveFileForRun = (): boolean => {
     if (activeFile.runState === 'paused') return true;
-
-    if (parametersEditing) {
-      setParametersEditing(false);
-      setParameterDraft({});
-      setParameterErrors([]);
-    }
 
     if (parametersDirty || (activeFile.kind === 'ideal' && activeFile.needsReset) || activeFile.runState === 'finished') {
       const appliedRuntime = applyActiveFileParams(undefined, { silent: true, forceReset: activeFile.runState === 'finished' });
@@ -7133,8 +7224,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
       if (parametersDirty) {
         applyActiveFileParams(undefined, { silent: true });
       }
-      setParametersEditing(false);
-      setParameterDraft({});
       setParameterErrors([]);
       setSamplingPresetMenuOpen(false);
       runHeatCapacityAutoDemo();
@@ -7145,8 +7234,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return;
     }
 
-    setParametersEditing(false);
-    setParameterDraft({});
     setParameterErrors([]);
     setSamplingPresetMenuOpen(false);
     pauseRunningFilesExcept(activeFile.id);
@@ -7460,8 +7547,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
     activeFileIdRef.current = file.id;
     setSelectedPanel('preview');
     setParametersCollapsed(file.kind === 'heatCapacity');
-    setParametersEditing(false);
-    setParameterDraft({});
     setParameterErrors([]);
     setIdealAdvancedSettingsOpen(false);
     setIdealAdvancedSettingsBodyVisible(false);
@@ -8242,8 +8327,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
         updatedAt: Date.now(),
       };
     });
-    setParametersEditing(false);
-    setParameterDraft({});
     setParameterErrors([]);
     setScanInputError(null);
     setScanInputDraft(formatMetric(nextValue, getIdealScanDecimals(activeFile.relation)));
@@ -8565,8 +8648,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
       setPendingClearRelationKey(null);
       renamingFileIdRef.current = null;
       setRenamingFileId(null);
-      setParameterDraft({});
-      setParametersEditing(false);
       setParameterErrors([]);
       setIdealAdvancedSettingsOpen(false);
       setIdealAdvancedSettingsBodyVisible(false);
@@ -8614,8 +8695,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
     activeFileIdRef.current = reopenedFile.id;
     setSelectedPanel('preview');
     setParametersCollapsed(reopenedFile.kind === 'heatCapacity');
-    setParametersEditing(false);
-    setParameterDraft({});
     setParameterErrors([]);
     setIdealAdvancedSettingsOpen(false);
     setIdealAdvancedSettingsBodyVisible(false);
@@ -8651,8 +8730,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setPendingClearRelationKey(null);
     renamingFileIdRef.current = null;
     setRenamingFileId(null);
-    setParameterDraft({});
-    setParametersEditing(false);
     setParameterErrors([]);
     setIdealAdvancedSettingsOpen(false);
     setIdealAdvancedSettingsBodyVisible(false);
@@ -8756,8 +8833,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
     activeFileIdRef.current = file.id;
     setSelectedPanel('preview');
     setParametersCollapsed(file.kind === 'heatCapacity');
-    setParametersEditing(false);
-    setParameterDraft({});
     setParameterErrors([]);
     setIdealAdvancedSettingsOpen(false);
     setIdealAdvancedSettingsBodyVisible(false);
@@ -8769,6 +8844,129 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setRenamingFileId(null);
     setSamplingPresetMenuOpen(false);
     pushLog(workbenchCopy.logs.fileSelected(file.name));
+  };
+
+  const renderWorkbenchParameterSymbol = (parts: WorkbenchParameterSymbolPart[]) => (
+    <span className="studio-param-symbol">
+      {parts.map((part, index) => (
+        typeof part === 'string'
+          ? <span key={index}>{part}</span>
+          : <sub key={index}>{part.sub}</sub>
+      ))}
+    </span>
+  );
+
+  const renderWorkbenchParameterHelpButton = (
+    parameterId: string,
+    modelEffect: string,
+  ) => {
+    const workbenchHelpId = `workbench-${parameterId}`;
+    const helpVisible = visibleHeatCapacityParamHelpId === workbenchHelpId;
+    const helpPopover = helpVisible
+      ? createPortal(
+        <span
+          className={`studio-param-help-popover studio-param-help-popover-${resolvedWorkbenchTheme}`}
+          data-heat-capacity-param-help-popover-id={workbenchHelpId}
+          role="tooltip"
+          style={heatCapacityParamHelpPopoverStyle}
+          onMouseEnter={() => setHoveredHeatCapacityParamHelpId(workbenchHelpId)}
+          onMouseLeave={() => {
+            if (pinnedHeatCapacityParamHelpId === null) {
+              setHoveredHeatCapacityParamHelpId(null);
+              setHeatCapacityParamHelpPopoverStyle(undefined);
+            }
+          }}
+        >
+          {modelEffect}
+        </span>,
+        document.body,
+      )
+      : null;
+    return (
+      <span
+        className="studio-param-help-anchor"
+        onMouseLeave={() => {
+          if (pinnedHeatCapacityParamHelpId === null) {
+            setHoveredHeatCapacityParamHelpId(null);
+            setHeatCapacityParamHelpPopoverStyle(undefined);
+          }
+        }}
+      >
+        <button
+          type="button"
+          className={`studio-param-help-button ${pinnedHeatCapacityParamHelpId === workbenchHelpId ? 'studio-param-help-button-pinned' : ''}`}
+          data-heat-capacity-param-help-button="true"
+          data-workbench-param-help-button="true"
+          data-workbench-param-help-id={parameterId}
+          aria-label={modelEffect}
+          onMouseEnter={(event) => {
+            updateHeatCapacityParamHelpPopoverStyle(event.currentTarget);
+            setHoveredHeatCapacityParamHelpId(workbenchHelpId);
+          }}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            updateHeatCapacityParamHelpPopoverStyle(event.currentTarget);
+            setPinnedHeatCapacityParamHelpId(workbenchHelpId);
+            setHoveredHeatCapacityParamHelpId(workbenchHelpId);
+          }}
+        >
+          ?
+        </button>
+        {helpPopover}
+      </span>
+    );
+  };
+
+  const renderWorkbenchParameterInputRow = (param: WorkbenchParameterRow) => {
+    const detail = getWorkbenchParameterDetail(param);
+    const displayLabel = getWorkbenchParameterDisplayLabel(param, workbenchCopy);
+    const isParamLocked = parameterControlsLocked || isIdealControlledVariableLocked(param.key);
+    const paramLockHint = isIdealControlledVariableLocked(param.key) ? controlledVariableLockHint : undefined;
+    const parameterValue = parameterInputDrafts[param.key] ?? param.value;
+    const displayUnit = getWorkbenchParameterDisplayUnit(param, settingsLanguagePreference);
+
+    return (
+      <div
+        className={`studio-param-input-row ${isParamLocked ? 'studio-param-input-row-locked' : ''}`}
+        key={param.label}
+        title={paramLockHint}
+        aria-disabled={isParamLocked}
+      >
+        <span className="studio-param-input-label">
+          <span className="studio-param-input-title">
+            <span>{displayLabel}</span>
+            {detail ? renderWorkbenchParameterSymbol(detail.symbol) : null}
+          </span>
+          {detail ? renderWorkbenchParameterHelpButton(param.key, detail.help[settingsLanguagePreference]) : null}
+        </span>
+        <span className="studio-param-input-cell">
+          <input
+            type="text"
+            inputMode="decimal"
+            aria-label={`${workbenchCopy.parameters.edit} ${displayLabel}`}
+            value={parameterValue}
+            disabled={isParamLocked || !param.editable}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setParameterInputDrafts((current) => ({ ...current, [param.key]: nextValue }));
+              setParameterErrors([]);
+            }}
+            onBlur={() => commitWorkbenchParameterInput(param, parameterValue)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                commitWorkbenchParameterInput(param, parameterValue);
+              } else if (event.key === 'Escape') {
+                event.preventDefault();
+                revertWorkbenchParameterInput(param.key);
+              }
+            }}
+          />
+          {displayUnit ? <span className="studio-param-input-unit">{displayUnit}</span> : null}
+        </span>
+      </div>
+    );
   };
 
   const renderHeatCapacityParameterHelpButton = (
@@ -8867,7 +9065,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return (
       <div
         key={`${scope}-${definition.id}`}
-        className={`studio-heat-free-param-row ${error ? 'studio-heat-free-param-row-error' : ''}`}
+        className={`studio-heat-free-param-row ${disabled ? 'studio-heat-free-param-row-locked' : ''} ${error ? 'studio-heat-free-param-row-error' : ''}`}
         data-heat-capacity-free-param-id={definition.id}
       >
         {renderHeatCapacityParameterLabel(parameterId, label, definition.parts, modelEffect)}
@@ -8924,7 +9122,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return (
       <div
         key={definition.id}
-        className="studio-heat-free-param-row studio-heat-free-check-row"
+        className={`studio-heat-free-param-row studio-heat-free-check-row ${disabled ? 'studio-heat-free-param-row-locked' : ''}`}
         data-heat-capacity-free-param-id={definition.id}
       >
         {renderHeatCapacityParameterLabel(definition.id, label, definition.parts, modelEffect)}
@@ -8964,7 +9162,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           renderHeatCapacityFreeCheckboxRow(
             definition,
             checkboxValue(definition.id),
-            activeHeatCapacityFreeParameterLocked,
+            definition.id === 'hardSphereViewEnabled' ? false : activeHeatCapacityFreeParameterLocked,
           )
         ))}
       </>
@@ -8983,12 +9181,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
           const target = event.target instanceof Element ? event.target : null;
           if (target?.closest('[data-heat-capacity-param-help-button="true"]')) return;
           if (target?.closest('.studio-param-help-popover')) return;
+          if (target?.closest('[data-heat-capacity-free-param-id="hardSphereViewEnabled"]')) return;
           event.preventDefault();
           showHeatCapacityFreeParameterLockHint();
         }}
       >
         {renderHeatCapacityBasicParameterRows()}
-        <div className="studio-heat-free-advanced-entry">
+        <div className={`studio-heat-free-advanced-entry ${activeHeatCapacityFreeParameterLocked ? 'studio-heat-free-advanced-entry-locked' : ''}`}>
           <span onPointerDownCapture={() => {
             if (activeHeatCapacityFreeParameterLocked) showHeatCapacityFreeParameterLockHint();
           }}>
@@ -10392,7 +10591,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   pumpFlowActive={pumpFlowActive}
                   pumpFlowIntensity={pumpFlowIntensity}
                   hardSphereViewEnabled={activeFile.hardSphereViewEnabled}
-                  hardSphereViewLocked={activeHeatCapacityFreeParameterLocked}
+                  hardSphereViewLocked={false}
                   hardSphereParticleMultiplier={heatCapacityHardSpherePerformancePreset.particleMultiplier}
                   hardSphereSpeedMultiplier={heatCapacityHardSpherePerformancePreset.speedMultiplier}
                   interactionLocked={autoDemoInteractionLocked}
@@ -12432,7 +12631,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 <div className="studio-current-params-header">
                   <div>
                     <span>{workbenchCopy.parameters.title}</span>
-                    <small>{currentParameterControlsLocked ? workbenchCopy.parameters.lockedUntilStopped : parametersEditing ? workbenchCopy.parameters.editValues : workbenchCopy.parameters.currentFileValues}</small>
+                    <small>{currentParameterControlsLocked ? workbenchCopy.parameters.lockedUntilStopped : workbenchCopy.parameters.currentFileValues}</small>
                   </div>
                   <button
                     type="button"
@@ -12482,110 +12681,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
                       </button>
                       {idealAdvancedSettingsBodyVisible ? (
                         <div className="studio-param-advanced-body" ref={idealAdvancedSettingsBodyRef} aria-hidden={!idealAdvancedSettingsOpen}>
-                          {editableCurrentParameters.map((param) => {
-                            const displayLabel = getWorkbenchParameterDisplayLabel(param, workbenchCopy);
-                            const isParamLocked = parameterControlsLocked || isIdealControlledVariableLocked(param.key);
-                            const paramLockHint = isIdealControlledVariableLocked(param.key) ? controlledVariableLockHint : undefined;
-
-                            return (
-                              <div
-                                className={`studio-param-row ${parametersEditing ? 'studio-param-row-editing' : ''} ${isParamLocked ? 'studio-param-row-locked' : ''}`}
-                                key={param.label}
-                                title={paramLockHint}
-                                aria-disabled={isParamLocked}
-                              >
-                                <span>{displayLabel}</span>
-                                {parametersEditing && param.editable && !isParamLocked ? (
-                                  <input
-                                    aria-label={`${workbenchCopy.parameters.edit} ${displayLabel}`}
-                                    value={parameterDraft[param.key] ?? param.value}
-                                    onChange={(event) => {
-                                      const nextValue = event.target.value;
-                                      setParameterDraft((current) => ({ ...current, [param.key]: nextValue }));
-                                    }}
-                                  />
-                                ) : (
-                                  <strong>{param.value}</strong>
-                                )}
-                              </div>
-                            );
-                          })}
-                          <div className={`studio-param-actions ${parametersEditing ? 'studio-param-actions-editing' : 'studio-param-actions-reading'}`}>
-                            {!parametersEditing ? (
-                              <button
-                                type="button"
-                                className="studio-param-edit-button"
-                                disabled={parameterControlsLocked}
-                                onClick={startParameterEdit}
-                              >
-                                {workbenchCopy.parameters.edit}
-                              </button>
-                            ) : null}
-                            {parametersEditing ? (
-                              <button
-                                type="button"
-                                className="studio-param-save-button"
-                                disabled={parameterControlsLocked}
-                                onClick={saveParameterDraft}
-                              >
-                                {workbenchCopy.parameters.save}
-                              </button>
-                            ) : null}
-                          </div>
+                          {editableCurrentParameters.map((param) => renderWorkbenchParameterInputRow(param))}
                         </div>
                       ) : null}
                     </section>
                   ) : activeFile.kind === 'heatCapacity' ? null : (
                     <>
-                      {editableCurrentParameters.map((param) => {
-                        const displayLabel = getWorkbenchParameterDisplayLabel(param, workbenchCopy);
-                        const isParamLocked = parameterControlsLocked || isIdealControlledVariableLocked(param.key);
-                        const paramLockHint = isIdealControlledVariableLocked(param.key) ? controlledVariableLockHint : undefined;
-
-                        return (
-                          <div
-                            className={`studio-param-row ${parametersEditing ? 'studio-param-row-editing' : ''} ${isParamLocked ? 'studio-param-row-locked' : ''}`}
-                            key={param.label}
-                            title={paramLockHint}
-                          >
-                            <span>{displayLabel}</span>
-                            {parametersEditing && param.editable && !isParamLocked ? (
-                              <input
-                                aria-label={`${workbenchCopy.parameters.edit} ${displayLabel}`}
-                                value={parameterDraft[param.key] ?? param.value}
-                                onChange={(event) => {
-                                  const nextValue = event.target.value;
-                                  setParameterDraft((current) => ({ ...current, [param.key]: nextValue }));
-                                }}
-                              />
-                            ) : (
-                              <strong>{param.value}</strong>
-                            )}
-                          </div>
-                        );
-                      })}
-                      <div className={`studio-param-actions ${parametersEditing ? 'studio-param-actions-editing' : 'studio-param-actions-reading'}`}>
-                        {!parametersEditing ? (
-                          <button
-                            type="button"
-                            className="studio-param-edit-button"
-                            disabled={currentParameterControlsLocked}
-                            onClick={startParameterEdit}
-                          >
-                            {workbenchCopy.parameters.edit}
-                          </button>
-                        ) : null}
-                        {parametersEditing ? (
-                          <button
-                            type="button"
-                            className="studio-param-save-button"
-                            disabled={currentParameterControlsLocked}
-                            onClick={saveParameterDraft}
-                          >
-                            {workbenchCopy.parameters.save}
-                          </button>
-                        ) : null}
-                      </div>
+                      {editableCurrentParameters.map((param) => renderWorkbenchParameterInputRow(param))}
                     </>
                   )}
                   {parameterErrors.length > 0 ? (
@@ -12596,9 +12698,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     </div>
                   ) : null}
                   <div className="studio-readonly-note">
-                    {parametersEditing
-                      ? workbenchCopy.parameters.saveHint
-                      : activeFile.kind === 'standard'
+                    {activeFile.kind === 'standard'
                         ? workbenchCopy.parameters.standardReadonlyNote
                         : activeFile.kind === 'heatCapacity'
                           ? workbenchCopy.parameters.heatCapacityReadonlyNote

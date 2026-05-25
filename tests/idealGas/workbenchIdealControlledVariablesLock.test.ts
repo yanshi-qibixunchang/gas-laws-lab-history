@@ -29,8 +29,8 @@ assert.match(
 
 assert.match(
   source,
-  /const nextParams = parseParameterDraft\(\);[\s\S]*?if \(!nextParams\) return;[\s\S]*?if \(rejectLockedIdealControlledVariables\(nextParams\)\) return;/,
-  'manual parameter saves should be blocked before they can store changed controlled variables',
+  /const commitWorkbenchParameterInput = \([\s\S]*?param: WorkbenchParameterRow[\s\S]*?rawValue: string[\s\S]*?\) => \{[\s\S]*?assignWorkbenchParameterValue\(nextParams, param\.key, parsedValue\);[\s\S]*?if \(rejectLockedIdealControlledVariables\(nextParams\)\) return;[\s\S]*?applyActiveFileParams\(nextParams\)/,
+  'direct parameter commits should be blocked before they can store changed controlled variables',
 );
 
 assert.match(
@@ -53,26 +53,26 @@ assert.match(
 
 assert.match(
   source,
-  /editableCurrentParameters\.map\(\(param\) => \{[\s\S]*?const isParamLocked = parameterControlsLocked \|\| isIdealControlledVariableLocked\(param\.key\);[\s\S]*?const paramLockHint = isIdealControlledVariableLocked\(param\.key\) \? controlledVariableLockHint : undefined;/,
-  'the current parameters editor should calculate per-row lock state and hover text',
+  /const renderWorkbenchParameterInputRow = \(param: WorkbenchParameterRow\) => \{[\s\S]*?const isParamLocked = parameterControlsLocked \|\| isIdealControlledVariableLocked\(param\.key\);[\s\S]*?const paramLockHint = isIdealControlledVariableLocked\(param\.key\) \? controlledVariableLockHint : undefined;/,
+  'the shared current-parameter input row should calculate per-row lock state and hover text',
 );
 
 assert.match(
   source,
-  /<div[\s\S]*?title=\{paramLockHint\}[\s\S]*?aria-disabled=\{isParamLocked\}/,
+  /<div[\s\S]*?title=\{paramLockHint\}[\s\S]*?aria-disabled=\{isParamLocked\}[\s\S]*?<input[\s\S]*?disabled=\{isParamLocked \|\| !param\.editable\}/,
   'locked parameter rows should carry hover text and an accessible disabled state',
 );
 
 assert.match(
   source,
-  /parametersEditing && param\.editable && !isParamLocked \? \([\s\S]*?<input[\s\S]*?aria-label=\{`\$\{workbenchCopy\.parameters\.edit\} \$\{displayLabel\}`\}/,
-  'only truly editable parameter rows should render input fields',
+  /editableCurrentParameters\.map\(\(param\) => renderWorkbenchParameterInputRow\(param\)\)/,
+  'editable parameter lists should render through the shared direct-input row',
 );
 
 assert.doesNotMatch(
   source,
-  /parametersEditing && param\.editable && !isParamLocked \? \([\s\S]*?<input[\s\S]*?disabled=\{isParamLocked\}/,
-  'locked controlled-variable rows should not render disabled inputs that can still be selected or copied',
+  /parametersEditing && param\.editable && !isParamLocked \? \([\s\S]*?<input/,
+  'the old edit-mode-only input renderer should not remain in the current parameter list',
 );
 
 assert.match(
