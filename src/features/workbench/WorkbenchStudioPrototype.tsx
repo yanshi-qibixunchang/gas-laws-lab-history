@@ -4040,6 +4040,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setParametersCollapsed(false);
   };
 
+  const collapseHeatCapacityFreeParameterSidebarForExperimentAction = () => {
+    const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
+    if (!currentFile || currentFile.kind !== 'heatCapacity' || currentFile.heatCapacityMode !== 'free') return;
+    setParametersCollapsed(true);
+    setHeatCapacityAdvancedOpen(false);
+    setPinnedHeatCapacityParamHelpId(null);
+    setHoveredHeatCapacityParamHelpId(null);
+    setHeatCapacityParamHelpPopoverStyle(undefined);
+  };
+
   const showHeatCapacityFreeParameterLockHint = () => {
     const message = getHeatCapacityFreeParameterLockReason(activeFile);
     if (!message) return;
@@ -5328,6 +5338,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const message = attempt.accepted
       ? heatCapacityRealtimeCopy.freeRecordSuccessLog[kind]
       : getHeatCapacityFreeRecordRejectMessage(attempt.reason as HeatCapacityFreeRecordRejectReason, heatCapacityRealtimeCopy);
+    collapseHeatCapacityFreeParameterSidebarForExperimentAction();
     updateFileById(currentFile.id, (file) => (
       file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
         ? {
@@ -5443,6 +5454,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return;
     }
     if (!guardManualHeatCapacityAction(nextPowerOn ? 'turnPowerOn' : 'turnPowerOff', source)) return;
+    if (source === 'user') collapseHeatCapacityFreeParameterSidebarForExperimentAction();
     const now = Date.now();
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
@@ -5607,6 +5619,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const stopcockAngleDeg = getHeatCapacityStopcockTargetAngle(nextOpen);
     const stopcockAction = nextOpen ? 'openStopcock' : 'closeStopcock';
     if (!guardManualHeatCapacityAction(stopcockAction, source)) return;
+    if (source === 'user') collapseHeatCapacityFreeParameterSidebarForExperimentAction();
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
       const now = Date.now();
@@ -5684,6 +5697,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
     const nextAction = currentFile?.kind === 'heatCapacity' && currentFile.pumpValveOpen ? 'closePumpValve' : 'openPumpValve';
     if (!guardManualHeatCapacityAction(nextAction, source)) return;
+    if (source === 'user') collapseHeatCapacityFreeParameterSidebarForExperimentAction();
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
       const now = Date.now();
@@ -5814,6 +5828,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const nextHeatCapacityFile = fileBeforePump?.kind === 'heatCapacity'
       ? registerHeatCapacityPumpStroke(fileBeforePump, now)
       : null;
+    if (source === 'user' && nextHeatCapacityFile) collapseHeatCapacityFreeParameterSidebarForExperimentAction();
     const pressureStatusBeforePump = fileBeforePump?.kind === 'heatCapacity'
       ? getHeatCapacityPressureSafetyStatusFromMv(getManualHeatCapacityThresholdPressureMv(fileBeforePump))
       : 'normal';

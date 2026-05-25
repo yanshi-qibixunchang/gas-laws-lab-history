@@ -38,6 +38,41 @@ const sessionSource = readFileSync(sessionPath, 'utf8');
 const styleSource = readFileSync(stylePath, 'utf8');
 const workbenchSource = readFileSync(workbenchPath, 'utf8');
 const previewMountSection = workbenchSource.match(/data-heat-capacity-preview-mount="true"[\s\S]*?<HeatCapacityInstrumentScene/)?.[0] ?? '';
+assert.match(
+  workbenchSource,
+  /const collapseHeatCapacityFreeParameterSidebarForExperimentAction = (?:useCallback\(\(\) =>|\(\) =>) \{[\s\S]*?filesRef\.current\.find\(\(file\) => file\.id === activeFileIdRef\.current\)[\s\S]*?setParametersCollapsed\(true\)/,
+  'Workbench should centralize heat-capacity free parameter auto-collapse behavior',
+);
+assert.match(
+  workbenchSource,
+  /updateHeatCapacityPower[\s\S]*?source === 'user'[\s\S]*?collapseHeatCapacityFreeParameterSidebarForExperimentAction\(\)/,
+  'Turning heat-capacity power on from user action should collapse the parameter sidebar',
+);
+assert.match(
+  workbenchSource,
+  /updateHeatCapacityStopcockOpen[\s\S]*?source === 'user'[\s\S]*?collapseHeatCapacityFreeParameterSidebarForExperimentAction\(\)/,
+  'Changing stopcock from user action should collapse the parameter sidebar',
+);
+assert.match(
+  workbenchSource,
+  /updateHeatCapacityPumpValve[\s\S]*?source === 'user'[\s\S]*?collapseHeatCapacityFreeParameterSidebarForExperimentAction\(\)/,
+  'Changing pump valve from user action should collapse the parameter sidebar',
+);
+assert.match(
+  workbenchSource,
+  /pressHeatCapacityPumpBulb[\s\S]*?source === 'user'[\s\S]*?collapseHeatCapacityFreeParameterSidebarForExperimentAction\(\)/,
+  'Pressing pump bulb from user action should collapse the parameter sidebar',
+);
+assert.match(
+  workbenchSource,
+  /recordFreeHeatCapacitySample[\s\S]*?collapseHeatCapacityFreeParameterSidebarForExperimentAction\(\)/,
+  'Recording free heat-capacity readings should collapse the parameter sidebar',
+);
+assert.doesNotMatch(
+  workbenchSource,
+  /setHeatCapacityFocusMode\([^)]*\)[\s\S]{0,240}collapseHeatCapacityFreeParameterSidebarForExperimentAction\(\)/,
+  'Entering focus mode alone must not auto-collapse the parameter sidebar',
+);
 assert.match(processReviewPanelSource, /pumpValve:\s*'#14804f'/, 'process review should color pump valve as green so it is visually distinct from pump bulb');
 assert.match(processReviewPanelSource, /pumpBulb:\s*'#0b6fae'/, 'process review should color pump bulb as blue so it is visually distinct from pump valve');
 assert.match(hardSphereToggleSource, /label:\s*'微观可视化'/, 'Simplified Chinese hard-sphere toggle label should be readable');
@@ -1269,23 +1304,21 @@ assert.match(styleSource, /\.studio-heat-advanced-group-title\s*\{[\s\S]*font-si
 assert.match(getCssBlock('.studio-heat-advanced-group-title::before'), /display:\s*none;/, 'advanced parameter group titles should not add decorative color bars');
 assert.match(styleSource, /\.studio-heat-advanced-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/, 'advanced parameter form should use a three-column desktop grid');
 assert.match(styleSource, /\.studio-heat-advanced-window\s*\{[\s\S]*overflow-x:\s*hidden/, 'advanced parameter window should never require horizontal scrolling');
-assert.match(styleSource, /\.studio-heat-advanced-actions button,\s*\.studio-heat-advanced-risk-window button\s*\{[\s\S]*min-width:\s*72px;[\s\S]*justify-content:\s*center;/, 'advanced parameter confirm/cancel buttons should be wide enough for Chinese labels');
+assert.match(styleSource, /\.studio-heat-advanced-actions button,\s*\.studio-heat-advanced-risk-window button\s*\{[\s\S]*min-width:\s*86px;[\s\S]*justify-content:\s*center;/, 'advanced parameter confirm/cancel buttons should be wide enough for Chinese labels');
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-advanced-window\s*\{[\s\S]*background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*border-color:/, 'advanced parameter window should have a dedicated light-theme surface');
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-free-input-cell input\s*\{[\s\S]*background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*border-color:/, 'Free Mode parameter inputs should have dedicated light-theme contrast');
 
 assert.match(
   styleSource,
-  /\.studio-heat-advanced-risk-window \.studio-heat-advanced-primary\s*\{[\s\S]*background:\s*#92400e[\s\S]*?border-color:\s*#b45309[\s\S]*?color:\s*#fff7ed/,
+  /\.studio-heat-advanced-risk-window \.studio-heat-advanced-primary\s*\{[\s\S]*background:\s*var\(--studio-action-warning-bg\)[\s\S]*?color:\s*var\(--studio-action-warning-text\)/,
   'advanced risk confirmation primary action should use high-contrast warning colors instead of success green',
 );
 
 assert.match(
   styleSource,
-  /\.studio-heat-advanced-risk-window strong\s*\{[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*\}/,
+  /\.studio-heat-advanced-risk-window strong\s*\{[\s\S]*color:\s*var\(--studio-action-warning-bg\);[\s\S]*\}/,
   'advanced risk confirmation title should use explicit warning contrast',
 );
 assert.match(styleSource, /prefers-reduced-motion:\s*reduce[\s\S]*\.studio-heat-free-params \*/, 'Free Mode parameter motion should include a reduced-motion fallback');
 
 console.log('workbenchHeatCapacityInstrumentUi tests passed');
-
-
