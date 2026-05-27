@@ -4,10 +4,27 @@ const releaseNotesCatalog = require('../docs/releases/release-notes.json');
 const MAX_DOWNLOAD_ATTEMPTS = 3;
 const DEFAULT_LOCALE = 'zh-CN';
 const FALLBACK_LOCALE = 'en';
+const LEGACY_RELEASE_TARGETS = [
+  { owner: 'yanshi-qibixunchang', repo: 'hard-sphere-lab-1' },
+];
 
 const getGithubPublishTarget = () => {
   const publish = Array.isArray(packageJson.build?.publish) ? packageJson.build.publish : [];
   return publish.find((target) => target?.provider === 'github') || null;
+};
+
+const getAllowedGithubReleaseTargets = () => {
+  const publishTarget = getGithubPublishTarget();
+  const targets = [];
+  if (publishTarget?.owner && publishTarget?.repo) {
+    targets.push({ owner: publishTarget.owner, repo: publishTarget.repo });
+  }
+  for (const target of LEGACY_RELEASE_TARGETS) {
+    if (!targets.some((existing) => existing.owner === target.owner && existing.repo === target.repo)) {
+      targets.push(target);
+    }
+  }
+  return targets;
 };
 
 const normalizeVersion = (version) => String(version || '').trim().replace(/^v/i, '');
@@ -145,14 +162,15 @@ const getReleaseMetadataForUpdateInfo = (info = {}) => {
 
 const isAllowedManualDownloadUrl = (url) => {
   if (!url || typeof url !== 'string') return false;
-  const publishTarget = getGithubPublishTarget();
-  if (!publishTarget) return false;
+  const allowedTargets = getAllowedGithubReleaseTargets();
+  if (allowedTargets.length === 0) return false;
 
   try {
     const parsed = new URL(url);
-    const expectedPathPrefix = `/${publishTarget.owner}/${publishTarget.repo}/releases/`;
     if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com') return false;
-    if (!parsed.pathname.startsWith(expectedPathPrefix)) return false;
+    if (!allowedTargets.some((target) => parsed.pathname.startsWith(`/${target.owner}/${target.repo}/releases/`))) {
+      return false;
+    }
     return /\/tag\/v[^/]+$/.test(parsed.pathname) || /\/download\/v[^/]+\/[^/]+\.exe$/i.test(parsed.pathname);
   } catch (_error) {
     return false;

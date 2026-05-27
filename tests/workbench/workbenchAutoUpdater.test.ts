@@ -11,6 +11,12 @@ const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import
   dependencies?: Record<string, string>;
   scripts?: Record<string, string>;
 };
+const releaseNotes = JSON.parse(readFileSync(new URL('../../docs/releases/release-notes.json', import.meta.url), 'utf8')) as {
+  releases?: Array<{
+    version?: string;
+    download?: { releasePage?: string; windowsInstaller?: string };
+  }>;
+};
 const electronMain = readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8');
 const preload = readFileSync(new URL('../../electron/preload.cjs', import.meta.url), 'utf8');
 const electronTypes = readFileSync(new URL('../../electron.d.ts', import.meta.url), 'utf8');
@@ -20,8 +26,19 @@ const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudi
 assert.ok(packageJson.dependencies?.['electron-updater'], 'electron-updater must be installed as an app dependency');
 assert.deepEqual(
   packageJson.build?.publish?.[0],
-  { provider: 'github', owner: 'yanshi-qibixunchang', repo: 'hard-sphere-lab-1' },
-  'electron-builder should publish updater metadata to the GitHub release channel',
+  { provider: 'github', owner: 'yanshi-qibixunchang', repo: 'hard-sphere-lab-release' },
+  '4.1.6 should embed the new public release repository as the future GitHub update channel',
+);
+const migrationRelease = releaseNotes.releases?.find((release) => release.version === '4.1.6');
+assert.equal(
+  migrationRelease?.download?.releasePage,
+  'https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v4.1.6',
+  '4.1.6 release notes should keep the migration release page in the old repository for 4.1.5 clients',
+);
+assert.equal(
+  migrationRelease?.download?.windowsInstaller,
+  'https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.6/heat-capacity-lab-setup-4.1.6.exe',
+  '4.1.6 release notes should keep the migration installer in the old repository for 4.1.5 clients',
 );
 assert.equal(packageJson.build?.electronUpdaterCompatibility, '>=2.16', 'updater metadata should use the modern files format');
 assert.equal(

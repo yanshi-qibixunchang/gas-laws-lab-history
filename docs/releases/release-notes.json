@@ -3,6 +3,61 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.6",
+      "date": "2026-05-27",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v4.1.6",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.6/heat-capacity-lab-setup-4.1.6.exe"
+      },
+      "summary": {
+        "zh-CN": "迁移桌面自动更新通道，后续版本将从新的公开发布仓库提供安装包、更新元数据和版本说明。",
+        "zh-TW": "遷移桌面自動更新通道，後續版本將從新的公開發布倉庫提供安裝包、更新中繼資料和版本說明。",
+        "en": "Migrates the desktop auto-update channel so future versions are served from the new public release repository with installers, update metadata, and release notes."
+      },
+      "sections": [
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "变更",
+            "zh-TW": "變更",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "high",
+              "title": {
+                "zh-CN": "自动更新通道迁移",
+                "zh-TW": "自動更新通道遷移",
+                "en": "Auto-update channel migration"
+              },
+              "body": {
+                "zh-CN": "本版本将后续桌面自动更新源切换到新的公开发布仓库，后续版本将从该仓库提供安装包、latest.yml、blockmap 和版本说明。",
+                "zh-TW": "本版本將後續桌面自動更新源切換到新的公開發布倉庫，後續版本將從該倉庫提供安裝包、latest.yml、blockmap 和版本說明。",
+                "en": "This version moves future desktop auto updates to the new public release repository, where later installers, latest.yml, blockmaps, and release notes will be published."
+              }
+            },
+            {
+              "scope": "release-repository",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "公开发布仓库不包含源代码",
+                "zh-TW": "公開發布倉庫不包含原始碼",
+                "en": "Public release repository contains no source code"
+              },
+              "body": {
+                "zh-CN": "新的公开发布仓库仅用于安装包、自动更新资产和版本说明，不包含应用源代码。",
+                "zh-TW": "新的公開發布倉庫僅用於安裝包、自動更新資產和版本說明，不包含應用程式原始碼。",
+                "en": "The new public release repository is used only for installers, auto-update assets, and release notes. It does not contain application source code."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.5",
       "date": "2026-05-27",
       "channel": "stable",

@@ -42,6 +42,11 @@ build-exporter/
 dist-exporter/
 resources/exporter/hsl-exporter.exe
 resources/exporter/*.spec
+docs/superpowers/plans/2026-05-25-workbench-cleanup-ui-v415-execution.md
+docs/superpowers/plans/2026-05-26-heat-capacity-ideal-reference-line.md
+docs/superpowers/plans/2026-05-26-heat-capacity-process-review-stage-axis.md
+docs/superpowers/plans/2026-05-27-workbench-final-polish-cleanup-audit.md
+docs/superpowers/plans/2026-05-27-release-repository-split-migration.md
 
 # Binary package outputs
 *.apk

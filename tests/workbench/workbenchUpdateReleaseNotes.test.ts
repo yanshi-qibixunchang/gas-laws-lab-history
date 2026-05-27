@@ -28,6 +28,7 @@ const releaseNotes = JSON.parse(
 };
 
 const {
+  getGeneratedReleaseTargets,
   getReleaseMetadataForVersion,
   getReleaseMetadataForUpdateInfo,
   getLocalizedReleaseText,
@@ -36,6 +37,10 @@ const {
   isTransientUpdateError,
   MAX_DOWNLOAD_ATTEMPTS,
 } = require('../../electron/updaterMetadata.cjs') as {
+  getGeneratedReleaseTargets: (version: string) => {
+    manualDownloadUrl: string | null;
+    releasePageUrl: string | null;
+  };
   getReleaseMetadataForVersion: (version: string) => {
     manualDownloadUrl: string | null;
     releasePageUrl: string | null;
@@ -64,10 +69,44 @@ const {
 };
 
 const locales = ['zh-CN', 'zh-TW', 'en'];
+const findRelease = (version: string) => releaseNotes.releases?.find((release) => release.version === version);
 
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
+
+const migrationRelease = findRelease('4.1.6');
+assert.ok(migrationRelease, 'release notes should include the 4.1.6 migration release');
+for (const locale of locales) {
+  assert.ok(migrationRelease.summary?.[locale]?.trim(), `4.1.6 migration summary should include ${locale}`);
+}
+assert.equal(
+  migrationRelease.download?.releasePage,
+  'https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v4.1.6',
+  '4.1.6 release page should remain in the old source repository for 4.1.5 clients',
+);
+assert.equal(
+  migrationRelease.download?.windowsInstaller,
+  'https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.6/heat-capacity-lab-setup-4.1.6.exe',
+  '4.1.6 installer should remain in the old source repository for 4.1.5 clients',
+);
+const migrationItems = migrationRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
+assert.ok(
+  migrationItems.some((item) => item.scope === 'desktop-update' && item.importance === 'high'),
+  '4.1.6 should include a high-importance desktop-update migration note',
+);
+
+const futureTargets = getGeneratedReleaseTargets('4.1.7');
+assert.equal(
+  futureTargets.releasePageUrl,
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.7',
+  'future generated release pages should use the new public release repository',
+);
+assert.equal(
+  futureTargets.manualDownloadUrl,
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.7/heat-capacity-lab-setup-4.1.7.exe',
+  'future generated installers should use the new public release repository',
+);
 
 const firstRelease = releaseNotes.releases[0];
 assert.match(firstRelease.version ?? '', /^\d+\.\d+\.\d+$/, 'release versions should not include a leading v');
@@ -172,6 +211,16 @@ assert.equal(getLocalizedReleaseText({ 'zh-CN': '简体回退' }, 'zh-TW'), '简
 
 assert.equal(isAllowedManualDownloadUrl(firstRelease.download?.windowsInstaller), true, 'direct installer URL should be allowed');
 assert.equal(isAllowedManualDownloadUrl(firstRelease.download?.releasePage), true, 'release page URL should be allowed');
+assert.equal(
+  isAllowedManualDownloadUrl('https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.7/heat-capacity-lab-setup-4.1.7.exe'),
+  true,
+  'new public release repository installer URL should be allowed',
+);
+assert.equal(
+  isAllowedManualDownloadUrl('https://github.com/yanshi-qibixunchang/other-release/releases/download/v4.1.7/heat-capacity-lab-setup-4.1.7.exe'),
+  false,
+  'manual download should reject unrelated GitHub repositories',
+);
 assert.equal(isAllowedManualDownloadUrl('https://example.com/heat-capacity-lab-setup-4.1.4.exe'), false, 'manual download should reject unrelated hosts');
 
 assert.equal(isTransientUpdateError(new Error('net::ERR_NETWORK_CHANGED')), true, 'network change should be treated as retryable');
