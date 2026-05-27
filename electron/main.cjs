@@ -17,6 +17,11 @@ const rootDir = path.resolve(__dirname, '..');
 const preloadPath = path.join(__dirname, 'preload.cjs');
 const appTitle = '热容比实验室';
 const exportRootFolderName = 'Heat Capacity Ratio Lab Exports';
+const USER_GUIDE_URLS = {
+  'zh-CN': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release#readme',
+  'zh-TW': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.zh-TW.md',
+  en: 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.en.md',
+};
 let selectedExporterRuntime = null;
 let updateCheckPromise = null;
 let updateDownloadInProgress = false;
@@ -46,6 +51,11 @@ autoUpdater.autoInstallOnAppQuit = true;
 const isDesktopUpdateSupported = () => app.isPackaged && process.platform === 'win32';
 
 const getErrorMessage = (error) => (error instanceof Error ? error.message : String(error));
+
+const getUserGuideUrl = (language) => {
+  if (language === 'zh-TW' || language === 'en') return USER_GUIDE_URLS[language];
+  return USER_GUIDE_URLS['zh-CN'];
+};
 
 const normalizeUpdateInfo = (info = {}) => {
   const latestVersion = info.version || updateState.latestVersion || null;
@@ -511,6 +521,15 @@ ipcMain.handle('hsl-updater:open-manual-download', async () => {
     };
   }
 
+  await shell.openExternal(targetUrl);
+  return {
+    status: 'opened',
+    url: targetUrl,
+  };
+});
+
+ipcMain.handle('hsl-user-guide:open', async (_event, language) => {
+  const targetUrl = getUserGuideUrl(language);
   await shell.openExternal(targetUrl);
   return {
     status: 'opened',

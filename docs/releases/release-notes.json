@@ -3,6 +3,47 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.7",
+      "date": "2026-05-27",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.7",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.7/heat-capacity-lab-setup-4.1.7.exe"
+      },
+      "summary": {
+        "zh-CN": "发布新公开发布仓库验收版本，并在帮助菜单新增用户指南入口。",
+        "zh-TW": "發布新公開發布倉庫驗收版本，並在說明選單新增使用者指南入口。",
+        "en": "Publishes the new public release repository acceptance version and adds the User Guide entry to the Help menu."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "新增",
+            "zh-TW": "新增",
+            "en": "Added"
+          },
+          "items": [
+            {
+              "scope": "help",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "帮助菜单新增用户指南",
+                "zh-TW": "說明選單新增使用者指南",
+                "en": "User Guide added to the Help menu"
+              },
+              "body": {
+                "zh-CN": "帮助菜单中的用户指南现在会打开公开发布仓库的使用说明，便于查看下载、更新、实验流程和常见问题。",
+                "zh-TW": "說明選單中的使用者指南現在會開啟公開發布倉庫的使用說明，方便查看下載、更新、實驗流程和常見問題。",
+                "en": "The Help menu now opens the public release repository user guide for download, update, experiment workflow, and FAQ instructions."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.6",
       "date": "2026-05-27",
       "channel": "stable",

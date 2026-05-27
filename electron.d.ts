@@ -90,5 +90,8 @@ declare global {
       openManualDownload: () => Promise<DesktopManualDownloadResult>;
       onStatus: (callback: (state: DesktopUpdateState) => void) => () => void;
     };
+    hardSphereLabUserGuide?: {
+      openUserGuide: (language: 'zh-CN' | 'zh-TW' | 'en') => Promise<DesktopManualDownloadResult>;
+    };
   }
 }

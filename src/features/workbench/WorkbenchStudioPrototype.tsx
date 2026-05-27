@@ -205,6 +205,11 @@ const HEAT_CAPACITY_HARD_SPHERE_PERFORMANCE_PRESETS = {
   balanced: { particleMultiplier: 1, speedMultiplier: 1 },
   performance: { particleMultiplier: 0.5, speedMultiplier: 0.5 },
 } as const;
+const WORKBENCH_USER_GUIDE_URLS: Record<WorkbenchLanguagePreference, string> = {
+  'zh-CN': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release#readme',
+  'zh-TW': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.zh-TW.md',
+  en: 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.en.md',
+};
 type IdealSamplingPresetKey = 'fast' | 'balanced' | 'stable';
 type WorkbenchParameterSymbolPart = string | { sub: string };
 type HeatCapacityManualRecordKind = 'u0' | 'u1' | 'u2';
@@ -7789,6 +7794,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
     window.open(getFreshWorkbenchWindowUrl(), '_blank', 'noopener,noreferrer');
   };
 
+  const openUserGuide = () => {
+    setOpenTopMenu(null);
+    const desktopUserGuideRequest = window.hardSphereLabUserGuide?.openUserGuide?.(settingsLanguagePreference);
+
+    if (desktopUserGuideRequest) {
+      void desktopUserGuideRequest.catch(() => {
+        window.open(WORKBENCH_USER_GUIDE_URLS[settingsLanguagePreference], '_blank', 'noopener,noreferrer');
+      });
+      return;
+    }
+
+    window.open(WORKBENCH_USER_GUIDE_URLS[settingsLanguagePreference], '_blank', 'noopener,noreferrer');
+  };
+
   const handleAction = (label: string, kind: LogKind = 'info') => {
     pushLog(workbenchCopy.logs.mockAction(label), kind);
   };
@@ -10276,7 +10295,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (openTopMenu === 'help') {
       return (
         <div className="studio-command-menu studio-command-menu-help" ref={topMenuRef} style={{ left: topMenuLeft }}>
-          <button type="button" onClick={() => handleAction('Open user guide')}>
+          <button type="button" onClick={openUserGuide}>
             <BookOpen size={14} />
             <span>{workbenchCopy.menus.userGuide}</span>
           </button>

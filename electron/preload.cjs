@@ -9,6 +9,10 @@ contextBridge.exposeInMainWorld('hardSphereLabWindow', {
   newWindow: () => ipcRenderer.invoke('hsl-window:new'),
 });
 
+contextBridge.exposeInMainWorld('hardSphereLabUserGuide', {
+  openUserGuide: (language) => ipcRenderer.invoke('hsl-user-guide:open', language),
+});
+
 contextBridge.exposeInMainWorld('hardSphereLabUpdater', {
   checkForUpdates: () => ipcRenderer.invoke('hsl-updater:check'),
   downloadUpdate: () => ipcRenderer.invoke('hsl-updater:download'),

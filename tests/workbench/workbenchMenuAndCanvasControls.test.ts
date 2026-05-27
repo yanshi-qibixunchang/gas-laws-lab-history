@@ -2,7 +2,11 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/components/SimulationCanvas.tsx', import.meta.url), 'utf8');
+const workbenchSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
+const electronMain = readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8');
+const preload = readFileSync(new URL('../../electron/preload.cjs', import.meta.url), 'utf8');
+const electronTypes = readFileSync(new URL('../../electron.d.ts', import.meta.url), 'utf8');
 const tailwindConfigSource = readFileSync(new URL('../../tailwind.config.cjs', import.meta.url), 'utf8');
 
 const getRuleBody = (selector: string) => {
@@ -134,6 +138,45 @@ assert.match(
   'workbench should define a dedicated rectangular-tool breathing keyframe',
 );
 
+assert.doesNotMatch(
+  workbenchSource,
+  /handleAction\('Open user guide'\)/,
+  'Help > User Guide should no longer use the placeholder action logger',
+);
+assert.match(
+  workbenchSource,
+  /window\.hardSphereLabUserGuide\?\.openUserGuide\?\.\(settingsLanguagePreference\)/,
+  'Help > User Guide should open the language-specific public README through the desktop bridge',
+);
+assert.match(
+  electronMain,
+  /USER_GUIDE_URLS[\s\S]*zh-CN[\s\S]*hard-sphere-lab-release#readme[\s\S]*zh-TW[\s\S]*README\.zh-TW\.md[\s\S]*en[\s\S]*README\.en\.md/,
+  'desktop main process should keep a fixed whitelist of public user-guide URLs',
+);
+assert.match(
+  electronMain,
+  /ipcMain\.handle\('hsl-user-guide:open'/,
+  'desktop main process should expose a dedicated user-guide open IPC route',
+);
+assert.match(
+  electronMain,
+  /shell\.openExternal\(targetUrl\)/,
+  'desktop user-guide route should open only the selected whitelisted URL externally',
+);
+assert.match(
+  preload,
+  /contextBridge\.exposeInMainWorld\('hardSphereLabUserGuide'/,
+  'preload should expose a dedicated user-guide bridge',
+);
+assert.match(
+  preload,
+  /ipcRenderer\.invoke\('hsl-user-guide:open'/,
+  'preload user-guide bridge should invoke the dedicated IPC route',
+);
+assert.match(
+  electronTypes,
+  /hardSphereLabUserGuide\?: \{/,
+  'desktop TypeScript declarations should include the user-guide bridge',
+);
+
 console.log('workbenchMenuAndCanvasControls tests passed');
-
-

@@ -96,6 +96,29 @@ assert.ok(
   '4.1.6 should include a high-importance desktop-update migration note',
 );
 
+const acceptanceRelease = findRelease('4.1.7');
+assert.ok(acceptanceRelease, 'release notes should include the 4.1.7 public release repository acceptance release');
+for (const locale of locales) {
+  assert.ok(acceptanceRelease.summary?.[locale]?.trim(), `4.1.7 acceptance summary should include ${locale}`);
+}
+assert.equal(
+  acceptanceRelease.download?.releasePage,
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.7',
+  '4.1.7 release page should be published only in the new public release repository',
+);
+assert.equal(
+  acceptanceRelease.download?.windowsInstaller,
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.7/heat-capacity-lab-setup-4.1.7.exe',
+  '4.1.7 installer should be published only in the new public release repository',
+);
+const acceptanceItems = acceptanceRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
+const helpItem = acceptanceItems.find((item) => item.scope === 'help');
+assert.equal(helpItem?.importance, 'medium', '4.1.7 should include the medium-importance Help > User Guide item');
+for (const locale of locales) {
+  assert.ok(helpItem?.title?.[locale]?.trim(), `4.1.7 Help item title should include ${locale}`);
+  assert.ok(helpItem?.body?.[locale]?.trim(), `4.1.7 Help item body should include ${locale}`);
+}
+
 const futureTargets = getGeneratedReleaseTargets('4.1.7');
 assert.equal(
   futureTargets.releasePageUrl,
@@ -111,10 +134,13 @@ assert.equal(
 const firstRelease = releaseNotes.releases[0];
 assert.match(firstRelease.version ?? '', /^\d+\.\d+\.\d+$/, 'release versions should not include a leading v');
 assert.equal(firstRelease.channel, 'stable', 'release notes should identify the stable channel');
-assert.match(firstRelease.download?.releasePage ?? '', /^https:\/\/github\.com\/yanshi-qibixunchang\/hard-sphere-lab-1\/releases\/tag\/v\d+\.\d+\.\d+$/);
+assert.match(
+  firstRelease.download?.releasePage ?? '',
+  /^https:\/\/github\.com\/yanshi-qibixunchang\/hard-sphere-lab-(?:1|release)\/releases\/tag\/v\d+\.\d+\.\d+$/,
+);
 assert.match(
   firstRelease.download?.windowsInstaller ?? '',
-  /^https:\/\/github\.com\/yanshi-qibixunchang\/hard-sphere-lab-1\/releases\/download\/v\d+\.\d+\.\d+\/heat-capacity-lab-setup-\d+\.\d+\.\d+\.exe$/,
+  /^https:\/\/github\.com\/yanshi-qibixunchang\/hard-sphere-lab-(?:1|release)\/releases\/download\/v\d+\.\d+\.\d+\/heat-capacity-lab-setup-\d+\.\d+\.\d+\.exe$/,
   'manual download should point directly to the Windows installer exe',
 );
 
