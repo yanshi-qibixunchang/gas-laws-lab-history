@@ -18,6 +18,12 @@ assert.match(
 
 assert.match(
   source,
+  /type WorkbenchResolvedTheme = 'light' \| 'dark';/,
+  'system theme resolution should use a constrained light-or-dark type',
+);
+
+assert.match(
+  source,
   /type WorkbenchLanguagePreference = 'zh-CN' \| 'zh-TW' \| 'en';/,
   'general settings should define a constrained language preference type',
 );
@@ -54,6 +60,12 @@ assert.match(
 
 assert.match(
   source,
+  /const \[systemWorkbenchTheme, setSystemWorkbenchTheme\] = useState<WorkbenchResolvedTheme>\(\(\) => getSystemWorkbenchTheme\(\)\);/,
+  'system theme state should initialize from the real OS color-scheme preference',
+);
+
+assert.match(
+  source,
   /const \[settingsLanguagePreference, setSettingsLanguagePreference\] = useState<WorkbenchLanguagePreference>\(\(\) => initialGeneralSettings\.language\);/,
   'language preference state should initialize from persisted general settings',
 );
@@ -68,6 +80,30 @@ assert.match(
   source,
   /const updateSettingsThemePreference = \(theme: WorkbenchThemePreference\) => \{[\s\S]*?setSettingsThemePreference\(theme\);[\s\S]*?persistWorkbenchGeneralSettings\(\{ theme, language: settingsLanguagePreference, performanceMode: settingsPerformanceMode \}\);[\s\S]*?\};/,
   'theme option clicks should update state and persist immediately',
+);
+
+assert.match(
+  source,
+  /const getSystemWorkbenchTheme = \(\): WorkbenchResolvedTheme => \{[\s\S]*?window\.matchMedia\('\(prefers-color-scheme: dark\)'\)[\s\S]*?\};/,
+  'system theme resolution should read prefers-color-scheme from the browser',
+);
+
+assert.match(
+  source,
+  /const resolvedWorkbenchTheme = settingsThemePreference === 'system' \? systemWorkbenchTheme : settingsThemePreference;/,
+  'system theme preference should resolve to the current OS theme instead of a fixed theme',
+);
+
+assert.doesNotMatch(
+  source,
+  /settingsThemePreference === 'system' \? 'dark' : settingsThemePreference/,
+  'system theme preference should not be hardcoded to dark mode',
+);
+
+assert.match(
+  source,
+  /window\.matchMedia\('\(prefers-color-scheme: dark\)'\)[\s\S]*?addEventListener\('change', updateSystemTheme\)[\s\S]*?removeEventListener\('change', updateSystemTheme\)/,
+  'system theme preference should update when the OS color-scheme preference changes',
 );
 
 assert.match(

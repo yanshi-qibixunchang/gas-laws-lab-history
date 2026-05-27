@@ -35,6 +35,7 @@ npm.cmd run desktop:installer
 - The installer file name in `latest.yml` must exactly match the uploaded installer asset. If changing `build.nsis.artifactName`, release naming, or GitHub upload method, verify `release/latest.yml` before publishing.
 - Keep `build.publish` in `package.json` aligned with the GitHub repository that hosts releases. If the owner or repo changes, update and test the updater configuration in the same change.
 - A same-version release does not appear as an available update. To verify the full update dialog against GitHub, publish a higher version than the locally installed app.
+- When the user says "做成下一个版本", treat it as a full desktop update release request: rewrite the release notes for the next patch version, bump `package.json` and `package-lock.json`, build the installer, and publish the installer `.exe`, `latest.yml`, and `.exe.blockmap` to the configured update GitHub Release so installed clients can detect it in-app.
 - When a batch of changes is substantial enough to be uploaded to GitHub for user testing or release preparation, ask the user what version number should be used before pushing or publishing. Do not silently decide version bumps.
 - Before announcing a release-ready build, run at minimum `npm.cmd exec tsc -- --noEmit`, `npm.cmd test`, `npm.cmd audit --omit=dev`, and `npm.cmd run desktop:installer`, then confirm the three release update assets exist.
 

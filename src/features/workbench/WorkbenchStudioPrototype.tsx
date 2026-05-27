@@ -198,6 +198,7 @@ type ConsoleTab = 'logs' | 'warnings' | 'summary';
 type TopMenu = 'new' | 'edit' | 'window' | 'settings' | 'help' | null;
 type ResultsSectionKey = WorkbenchStandardResultsTab;
 type WorkbenchThemePreference = 'system' | 'light' | 'dark';
+type WorkbenchResolvedTheme = 'light' | 'dark';
 type WorkbenchLanguagePreference = 'zh-CN' | 'zh-TW' | 'en';
 type WorkbenchPerformanceMode = 'standard' | 'balanced' | 'performance';
 const HEAT_CAPACITY_HARD_SPHERE_PERFORMANCE_PRESETS = {
@@ -2429,6 +2430,11 @@ const isWorkbenchPerformanceMode = (value: unknown): value is WorkbenchPerforman
   value === 'standard' || value === 'balanced' || value === 'performance'
 );
 
+const getSystemWorkbenchTheme = (): WorkbenchResolvedTheme => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+};
+
 const loadWorkbenchGeneralSettings = (): WorkbenchGeneralSettings => {
   if (typeof window === 'undefined') return defaultWorkbenchGeneralSettings;
 
@@ -3041,6 +3047,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   }));
   const [updateDialogState, setUpdateDialogState] = useState<WorkbenchUpdateState | null>(null);
   const [settingsThemePreference, setSettingsThemePreference] = useState<WorkbenchThemePreference>(() => initialGeneralSettings.theme);
+  const [systemWorkbenchTheme, setSystemWorkbenchTheme] = useState<WorkbenchResolvedTheme>(() => getSystemWorkbenchTheme());
   const [settingsLanguagePreference, setSettingsLanguagePreference] = useState<WorkbenchLanguagePreference>(() => initialGeneralSettings.language);
   const [settingsPerformanceMode, setSettingsPerformanceMode] = useState<WorkbenchPerformanceMode>(() => initialGeneralSettings.performanceMode);
   const [settingsLanguageMenuOpen, setSettingsLanguageMenuOpen] = useState(false);
@@ -3577,6 +3584,25 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setSettingsPerformanceMode(performanceMode);
     persistWorkbenchGeneralSettings({ theme: settingsThemePreference, language: settingsLanguagePreference, performanceMode });
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const updateSystemTheme = () => {
+      setSystemWorkbenchTheme(mediaQuery.matches ? 'dark' : 'light');
+    };
+
+    updateSystemTheme();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', updateSystemTheme);
+      return () => mediaQuery.removeEventListener('change', updateSystemTheme);
+    }
+
+    mediaQuery.addListener(updateSystemTheme);
+    return () => mediaQuery.removeListener(updateSystemTheme);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = window.hardSphereLabUpdater?.onStatus?.((state) => {
@@ -12449,7 +12475,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     );
   };
 
-  const resolvedWorkbenchTheme = settingsThemePreference === 'system' ? 'dark' : settingsThemePreference;
+  const resolvedWorkbenchTheme = settingsThemePreference === 'system' ? systemWorkbenchTheme : settingsThemePreference;
 
   return (
     <div className={`studio-workbench studio-theme-${resolvedWorkbenchTheme}`} data-workbench-language={settingsLanguagePreference}>

@@ -1,6 +1,6 @@
 {
   "name": "hard-sphere-lab",
-  "version": "4.1.7",
+  "version": "4.1.8",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -79,12 +79,7 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "displayLanguageSelector": true,
-      "installerLanguages": [
-        "zh_CN",
-        "zh_TW",
-        "en_US"
-      ],
+      "displayLanguageSelector": false,
       "language": "2052",
       "include": "build/installer.nsh",
       "installerIcon": "resources/app-icon/icon.ico",

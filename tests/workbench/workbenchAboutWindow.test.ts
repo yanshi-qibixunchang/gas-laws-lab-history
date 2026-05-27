@@ -28,17 +28,21 @@ const indexOfOrFail = (haystack: string, needle: string, message: string) => {
 
 assert.equal(packageJson.build?.productName, '热容比实验室', 'installer product name should use the Chinese app name');
 assert.equal(packageJson.build?.nsis?.shortcutName, '热容比实验室', 'Windows shortcut should use the Chinese app name');
-assert.equal(packageJson.build?.nsis?.displayLanguageSelector, true, 'NSIS installer should show a startup language selector');
-assert.deepEqual(
-  packageJson.build?.nsis?.installerLanguages,
-  ['zh_CN', 'zh_TW', 'en_US'],
-  'NSIS installer should offer Simplified Chinese, Traditional Chinese, and English',
-);
+assert.equal(packageJson.build?.nsis?.displayLanguageSelector, false, 'NSIS installer should not show a startup language selector');
+assert.equal(packageJson.build?.nsis?.installerLanguages, undefined, 'NSIS installer should not offer a startup language list');
 assert.equal(packageJson.build?.nsis?.language, '2052', 'NSIS installer metadata should default to Simplified Chinese');
-assert.ok(installerNsh.includes('LangString HSL_RemoveUserDataPrompt ${LANG_SIMPCHINESE}'), 'uninstaller prompt should define Simplified Chinese text');
-assert.ok(installerNsh.includes('LangString HSL_RemoveUserDataPrompt ${LANG_TRADCHINESE}'), 'uninstaller prompt should define Traditional Chinese text');
-assert.ok(installerNsh.includes('LangString HSL_RemoveUserDataPrompt ${LANG_ENGLISH}'), 'uninstaller prompt should define English text');
-assert.ok(installerNsh.includes('$(HSL_RemoveUserDataPrompt)'), 'uninstaller prompt should use the selected installer language');
+assert.ok(installerNsh.includes('!define HSL_RemoveUserDataPrompt "是否删除热容比实验室的用户数据和缓存？'), 'manual uninstaller prompt should define fixed Simplified Chinese text');
+assert.ok(!installerNsh.includes('LangString HSL_RemoveUserDataPrompt'), 'manual uninstaller prompt should not depend on the NSIS language table');
+assert.ok(installerNsh.includes('!macro customUnInstall'), 'custom uninstall hook should keep the manual data-removal prompt');
+const updateSkipIndex = indexOfOrFail(installerNsh, '${GetOptions} $R0 "--updated" $R1', 'uninstaller should detect update-driven uninstall runs');
+const keepDataSkipIndex = indexOfOrFail(installerNsh, '${GetOptions} $R0 "/KEEP_APP_DATA" $R1', 'uninstaller should detect updater keep-data runs');
+const silentSkipIndex = indexOfOrFail(installerNsh, '${If} ${Silent}', 'silent uninstall runs should not show a blocking prompt');
+const promptIndex = indexOfOrFail(installerNsh, 'MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "${HSL_RemoveUserDataPrompt}"', 'manual uninstall should ask whether to remove user data');
+assert.ok(updateSkipIndex < promptIndex, 'update-driven uninstall should skip before the manual data-removal prompt');
+assert.ok(keepDataSkipIndex < promptIndex, 'keep-data update calls should skip before the manual data-removal prompt');
+assert.ok(silentSkipIndex < promptIndex, 'silent uninstall should skip before the manual data-removal prompt');
+assert.ok(installerNsh.includes('RMDir /r "$APPDATA\\hard-sphere-lab"'), 'manual uninstall can remove workspace files and settings when the user chooses yes');
+assert.ok(installerNsh.includes('RMDir /r "$LOCALAPPDATA\\hard-sphere-lab-updater"'), 'manual uninstall can remove updater cache when the user chooses yes');
 assert.ok(!installerNsh.includes('Remove Hard Sphere Lab user data and cache?'), 'uninstaller prompt should not show the old English app name');
 assert.ok(electronMain.includes("const appTitle = '热容比实验室';"), 'desktop window title should use the current Chinese app name');
 assert.ok(electronMain.includes('const getRuntimeWorkingDirectory = () => {'), 'desktop exporter should choose a real working directory');
@@ -131,5 +135,3 @@ assert.match(
 );
 
 console.log('workbenchAboutWindow tests passed');
-
-

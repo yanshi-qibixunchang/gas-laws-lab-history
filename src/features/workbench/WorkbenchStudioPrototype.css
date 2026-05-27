@@ -875,6 +875,11 @@
   opacity: 0.62;
 }
 
+.studio-update-actions .lucide-loader2 {
+  animation: studio-about-spin 780ms linear infinite;
+  color: var(--studio-accent-strong);
+}
+
 .studio-settings-theme-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

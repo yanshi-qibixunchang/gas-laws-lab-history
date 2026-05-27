@@ -26,6 +26,9 @@ const releaseNotes = JSON.parse(
     }>;
   }>;
 };
+const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+  version?: string;
+};
 
 const {
   getGeneratedReleaseTargets,
@@ -74,6 +77,37 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
+assert.equal(packageJson.version, '4.1.8', 'next desktop update release should bump package version to 4.1.8');
+
+const currentRelease = findRelease('4.1.8');
+assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
+assert.ok(currentRelease, 'release notes should include the 4.1.8 updater behavior release');
+for (const locale of locales) {
+  assert.ok(currentRelease.summary?.[locale]?.trim(), `4.1.8 release summary should include ${locale}`);
+}
+assert.equal(
+  currentRelease.download?.releasePage,
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.8',
+  '4.1.8 release page should be published in the public release repository',
+);
+assert.equal(
+  currentRelease.download?.windowsInstaller,
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.8/heat-capacity-lab-setup-4.1.8.exe',
+  '4.1.8 installer should be published in the public release repository',
+);
+const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
+assert.ok(
+  currentItems.some((item) => item.scope === 'desktop-installer' && item.importance === 'high'),
+  '4.1.8 should include a high-importance installer/update behavior note',
+);
+assert.ok(
+  currentItems.some((item) => item.scope === 'desktop-update-ui' && item.importance === 'medium'),
+  '4.1.8 should include the update button loading animation fix',
+);
+assert.ok(
+  currentItems.some((item) => item.scope === 'workbench-theme' && item.importance === 'medium'),
+  '4.1.8 should include the real system theme follow fix',
+);
 
 const migrationRelease = findRelease('4.1.6');
 assert.ok(migrationRelease, 'release notes should include the 4.1.6 migration release');
@@ -119,15 +153,15 @@ for (const locale of locales) {
   assert.ok(helpItem?.body?.[locale]?.trim(), `4.1.7 Help item body should include ${locale}`);
 }
 
-const futureTargets = getGeneratedReleaseTargets('4.1.7');
+const futureTargets = getGeneratedReleaseTargets('4.1.8');
 assert.equal(
   futureTargets.releasePageUrl,
-  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.7',
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.8',
   'future generated release pages should use the new public release repository',
 );
 assert.equal(
   futureTargets.manualDownloadUrl,
-  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.7/heat-capacity-lab-setup-4.1.7.exe',
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.8/heat-capacity-lab-setup-4.1.8.exe',
   'future generated installers should use the new public release repository',
 );
 
@@ -238,12 +272,12 @@ assert.equal(getLocalizedReleaseText({ 'zh-CN': '简体回退' }, 'zh-TW'), '简
 assert.equal(isAllowedManualDownloadUrl(firstRelease.download?.windowsInstaller), true, 'direct installer URL should be allowed');
 assert.equal(isAllowedManualDownloadUrl(firstRelease.download?.releasePage), true, 'release page URL should be allowed');
 assert.equal(
-  isAllowedManualDownloadUrl('https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.7/heat-capacity-lab-setup-4.1.7.exe'),
+  isAllowedManualDownloadUrl('https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.8/heat-capacity-lab-setup-4.1.8.exe'),
   true,
   'new public release repository installer URL should be allowed',
 );
 assert.equal(
-  isAllowedManualDownloadUrl('https://github.com/yanshi-qibixunchang/other-release/releases/download/v4.1.7/heat-capacity-lab-setup-4.1.7.exe'),
+  isAllowedManualDownloadUrl('https://github.com/yanshi-qibixunchang/other-release/releases/download/v4.1.8/heat-capacity-lab-setup-4.1.8.exe'),
   false,
   'manual download should reject unrelated GitHub repositories',
 );

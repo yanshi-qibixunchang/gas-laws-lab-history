@@ -119,6 +119,11 @@ assert.match(
 );
 assert.match(
   styles,
+  /\.studio-update-actions \.lucide-loader2 \{[\s\S]*?animation: studio-about-spin 780ms linear infinite;/,
+  'update dialog loader icon should keep rotating while download or install is in progress',
+);
+assert.match(
+  styles,
   /\.studio-update-note-section/,
   'update dialog CSS should define structured release-note sections',
 );

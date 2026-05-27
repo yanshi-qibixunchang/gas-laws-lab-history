@@ -3,6 +3,99 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.8",
+      "date": "2026-05-27",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.8",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.8/heat-capacity-lab-setup-4.1.8.exe"
+      },
+      "summary": {
+        "zh-CN": "修复桌面更新安装流程、立即更新按钮加载动效和跟随系统主题，使后续更新静默保留数据，主动卸载仍可选择是否删除用户数据。",
+        "zh-TW": "修復桌面更新安裝流程、立即更新按鈕載入動效和跟隨系統主題，使後續更新靜默保留資料，主動解除安裝仍可選擇是否刪除使用者資料。",
+        "en": "Fixes the desktop update installer flow, the Update Now loading animation, and real system theme following so future updates preserve data silently while manual uninstall still offers data removal."
+      },
+      "sections": [
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "desktop-installer",
+              "importance": "high",
+              "title": {
+                "zh-CN": "更新与主动卸载的数据处理分流",
+                "zh-TW": "更新與主動解除安裝的資料處理分流",
+                "en": "Separate data handling for updates and manual uninstall"
+              },
+              "body": {
+                "zh-CN": "从本版安装成功后，后续自动更新会静默保留实验文件、设置和缓存，不再询问是否删除数据；用户主动卸载时仍会弹出确认框，可自行选择是否删除用户数据。",
+                "zh-TW": "從本版安裝成功後，後續自動更新會靜默保留實驗檔案、設定和快取，不再詢問是否刪除資料；使用者主動解除安裝時仍會顯示確認框，可自行選擇是否刪除使用者資料。",
+                "en": "After this version is installed, later auto updates keep experiment files, settings, and cache without asking to delete data. Manual uninstall still asks whether user data should be removed."
+              }
+            },
+            {
+              "scope": "desktop-update-ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "立即更新按钮加载动效",
+                "zh-TW": "立即更新按鈕載入動效",
+                "en": "Update Now loading animation"
+              },
+              "body": {
+                "zh-CN": "更新弹窗进入下载、重试或安装状态时，立即更新按钮中的加载图标会持续旋转，避免看起来像更新过程已经卡住。",
+                "zh-TW": "更新視窗進入下載、重試或安裝狀態時，立即更新按鈕中的載入圖示會持續旋轉，避免看起來像更新流程已經卡住。",
+                "en": "When the update dialog is downloading, retrying, or installing, the loader inside the Update Now button keeps spinning so the flow no longer looks frozen."
+              }
+            },
+            {
+              "scope": "workbench-theme",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "跟随系统主题读取真实系统偏好",
+                "zh-TW": "跟隨系統主題讀取真實系統偏好",
+                "en": "System theme follows the real OS preference"
+              },
+              "body": {
+                "zh-CN": "通用设置中的跟随系统不再固定为暗色，而是读取系统亮暗模式并监听系统切换。若用户已手动保存暗色或亮色设置，应用仍会尊重该选择。",
+                "zh-TW": "通用設定中的跟隨系統不再固定為暗色，而是讀取系統亮暗模式並監聽系統切換。若使用者已手動儲存暗色或亮色設定，應用仍會尊重該選擇。",
+                "en": "The System option in General Settings no longer resolves to dark mode by default. It reads the OS light/dark preference and listens for changes while preserving explicit user choices."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "兼容性说明",
+            "zh-TW": "相容性說明",
+            "en": "Compatibility"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "从旧版更新到本版的最后一次提示",
+                "zh-TW": "從舊版更新到本版的最後一次提示",
+                "en": "Last prompt when updating from older versions"
+              },
+              "body": {
+                "zh-CN": "如果当前安装的旧版本卸载器已经包含数据删除提示，更新到本版时仍可能最后弹出一次该旧提示；安装本版后，后续更新将按新的静默保留数据规则执行。",
+                "zh-TW": "如果目前安裝的舊版本解除安裝程式已包含資料刪除提示，更新到本版時仍可能最後顯示一次該舊提示；安裝本版後，後續更新將按新的靜默保留資料規則執行。",
+                "en": "If the currently installed older uninstaller already contains the data-removal prompt, updating to this version may show that old prompt one final time. After this version is installed, later updates follow the new silent keep-data rule."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.7",
       "date": "2026-05-27",
       "channel": "stable",

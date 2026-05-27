@@ -6,8 +6,14 @@ const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudi
 
 assert.match(
   source,
-  /const resolvedWorkbenchTheme = settingsThemePreference === 'system' \? 'dark' : settingsThemePreference;/,
-  'system theme should resolve to the current dark UI while light mode is being developed',
+  /const resolvedWorkbenchTheme = settingsThemePreference === 'system' \? systemWorkbenchTheme : settingsThemePreference;/,
+  'system theme should resolve to the current OS color-scheme preference',
+);
+
+assert.doesNotMatch(
+  source,
+  /settingsThemePreference === 'system' \? 'dark' : settingsThemePreference/,
+  'system theme should not be hardcoded to dark mode',
 );
 
 assert.match(
@@ -112,5 +118,4 @@ for (const selector of [
 }
 
 console.log('workbenchLightTheme tests passed');
-
 
