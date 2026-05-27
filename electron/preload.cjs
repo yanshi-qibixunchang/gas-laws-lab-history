@@ -7,6 +7,15 @@ contextBridge.exposeInMainWorld('hardSphereLabExporter', {
 
 contextBridge.exposeInMainWorld('hardSphereLabWindow', {
   newWindow: () => ipcRenderer.invoke('hsl-window:new'),
+  minimize: () => ipcRenderer.invoke('hsl-window:minimize'),
+  toggleMaximize: () => ipcRenderer.invoke('hsl-window:toggle-maximize'),
+  close: () => ipcRenderer.invoke('hsl-window:close'),
+  getState: () => ipcRenderer.invoke('hsl-window:get-state'),
+  onState: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('hsl-window:state', listener);
+    return () => ipcRenderer.removeListener('hsl-window:state', listener);
+  },
 });
 
 contextBridge.exposeInMainWorld('hardSphereLabUserGuide', {

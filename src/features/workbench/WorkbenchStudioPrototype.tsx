@@ -18,6 +18,9 @@ import {
   Languages,
   Loader2,
   LockKeyhole,
+  Maximize2,
+  Minimize2,
+  Minus,
   MoreHorizontal,
   PanelLeft,
   PanelTopOpen,
@@ -211,6 +214,35 @@ const WORKBENCH_USER_GUIDE_URLS: Record<WorkbenchLanguagePreference, string> = {
   'zh-TW': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.zh-TW.md',
   en: 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.en.md',
 };
+const WORKBENCH_WINDOW_CONTROL_COPY: Record<WorkbenchLanguagePreference, {
+  controls: string;
+  minimize: string;
+  maximize: string;
+  restore: string;
+  close: string;
+}> = {
+  ['zh-CN']: {
+    controls: '窗口控制',
+    minimize: '最小化',
+    maximize: '最大化',
+    restore: '还原窗口',
+    close: '关闭',
+  },
+  ['zh-TW']: {
+    controls: '視窗控制',
+    minimize: '最小化',
+    maximize: '最大化',
+    restore: '還原視窗',
+    close: '關閉',
+  },
+  ['en']: {
+    controls: 'Window controls',
+    minimize: 'Minimize',
+    maximize: 'Maximize',
+    restore: 'Restore',
+    close: 'Close',
+  },
+};
 type IdealSamplingPresetKey = 'fast' | 'balanced' | 'stable';
 type WorkbenchParameterSymbolPart = string | { sub: string };
 type HeatCapacityManualRecordKind = 'u0' | 'u1' | 'u2';
@@ -352,22 +384,12 @@ interface WorkbenchUpdateState {
   message?: string;
 }
 
-interface WorkbenchDesktopWindowBridge {
-  newWindow?: () => Promise<{ status: 'ok' | 'error'; message?: string }>;
-}
-
 interface WorkbenchDesktopUpdaterBridge {
   checkForUpdates?: () => Promise<WorkbenchUpdateState>;
   downloadUpdate?: () => Promise<WorkbenchUpdateState>;
   quitAndInstall?: () => Promise<WorkbenchUpdateState>;
   openManualDownload?: () => Promise<{ status: 'opened' | 'error'; url?: string; message?: string }>;
   onStatus?: (callback: (state: WorkbenchUpdateState) => void) => (() => void);
-}
-
-declare global {
-  interface Window {
-    hardSphereLabWindow?: WorkbenchDesktopWindowBridge;
-  }
 }
 
 const WORKBENCH_APP_VERSION = __APP_VERSION__;
@@ -3046,6 +3068,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     message: '',
   }));
   const [updateDialogState, setUpdateDialogState] = useState<WorkbenchUpdateState | null>(null);
+  const [desktopWindowMaximized, setDesktopWindowMaximized] = useState(false);
   const [settingsThemePreference, setSettingsThemePreference] = useState<WorkbenchThemePreference>(() => initialGeneralSettings.theme);
   const [systemWorkbenchTheme, setSystemWorkbenchTheme] = useState<WorkbenchResolvedTheme>(() => getSystemWorkbenchTheme());
   const [settingsLanguagePreference, setSettingsLanguagePreference] = useState<WorkbenchLanguagePreference>(() => initialGeneralSettings.language);
@@ -3053,6 +3076,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [settingsLanguageMenuOpen, setSettingsLanguageMenuOpen] = useState(false);
   const settingsLanguageTriggerRef = useRef<HTMLButtonElement | null>(null);
   const workbenchCopy = workbenchCopies[settingsLanguagePreference];
+  const windowControlCopy = WORKBENCH_WINDOW_CONTROL_COPY[settingsLanguagePreference];
   const performanceModeOptions = useMemo(() => ([
     { mode: 'standard' as const, label: workbenchCopy.settings.performanceModeOff },
     { mode: 'balanced' as const, label: workbenchCopy.settings.performanceModeBalanced },
@@ -3602,6 +3626,26 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     mediaQuery.addListener(updateSystemTheme);
     return () => mediaQuery.removeListener(updateSystemTheme);
+  }, []);
+
+  useEffect(() => {
+    const desktopWindowBridge = window.hardSphereLabWindow;
+    let mounted = true;
+
+    void desktopWindowBridge?.getState?.()
+      .then((state) => {
+        if (mounted) setDesktopWindowMaximized(Boolean(state?.maximized));
+      })
+      .catch(() => undefined);
+
+    const unsubscribe = desktopWindowBridge?.onState?.((state) => {
+      setDesktopWindowMaximized(Boolean(state.maximized));
+    });
+
+    return () => {
+      mounted = false;
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -7818,6 +7862,26 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
 
     window.open(getFreshWorkbenchWindowUrl(), '_blank', 'noopener,noreferrer');
+  };
+
+  const minimizeDesktopWindow = () => {
+    void window.hardSphereLabWindow?.minimize?.()
+      .then((state) => {
+        if (state) setDesktopWindowMaximized(Boolean(state.maximized));
+      })
+      .catch(() => undefined);
+  };
+
+  const toggleDesktopWindowMaximize = () => {
+    void window.hardSphereLabWindow?.toggleMaximize?.()
+      .then((state) => {
+        if (state) setDesktopWindowMaximized(Boolean(state.maximized));
+      })
+      .catch(() => undefined);
+  };
+
+  const closeDesktopWindow = () => {
+    void window.hardSphereLabWindow?.close?.();
   };
 
   const openUserGuide = () => {
@@ -12496,6 +12560,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
           aria-hidden="true"
         />
         <header className="studio-menu">
+          <div className="studio-titlebar-brand" aria-label={workbenchCopy.about.subtitle}>
+            <span className="studio-brand-mark" aria-hidden="true">
+              <img src="/favicon.png" alt="" />
+            </span>
+            <span>{workbenchCopy.about.subtitle}</span>
+          </div>
           <nav className="studio-top-commands" aria-label={workbenchCopy.menus.topCommandsAria} ref={topCommandsRef}>
             {renderTopCommand('new', workbenchCopy.menus.experimentFiles, <FilePlus2 size={14} />)}
             {renderTopCommand('edit', workbenchCopy.menus.edit, <Undo2 size={14} />)}
@@ -12503,6 +12573,36 @@ const WorkbenchStudioPrototype: React.FC = () => {
             {renderTopCommand('settings', workbenchCopy.menus.settings, <Settings size={14} />)}
             {renderTopCommand('help', workbenchCopy.menus.help, <BookOpen size={14} />)}
           </nav>
+          <div className="studio-titlebar-drag-fill" aria-hidden="true" />
+          <div className="studio-window-controls" aria-label={windowControlCopy.controls}>
+            <button
+              type="button"
+              className="studio-window-control-button"
+              aria-label={windowControlCopy.minimize}
+              title={windowControlCopy.minimize}
+              onClick={minimizeDesktopWindow}
+            >
+              <Minus size={14} strokeWidth={2.4} />
+            </button>
+            <button
+              type="button"
+              className="studio-window-control-button"
+              aria-label={desktopWindowMaximized ? windowControlCopy.restore : windowControlCopy.maximize}
+              title={desktopWindowMaximized ? windowControlCopy.restore : windowControlCopy.maximize}
+              onClick={toggleDesktopWindowMaximize}
+            >
+              {desktopWindowMaximized ? <Minimize2 size={13} strokeWidth={2.2} /> : <Maximize2 size={13} strokeWidth={2.2} />}
+            </button>
+            <button
+              type="button"
+              className="studio-window-control-button studio-window-control-close"
+              aria-label={windowControlCopy.close}
+              title={windowControlCopy.close}
+              onClick={closeDesktopWindow}
+            >
+              <X size={15} strokeWidth={2.2} />
+            </button>
+          </div>
           {renderTopMenu()}
         </header>
         {renderAboutWindow()}

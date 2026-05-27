@@ -3,6 +3,85 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.9",
+      "date": "2026-05-27",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.9",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.9/heat-capacity-lab-setup-4.1.9.exe"
+      },
+      "summary": {
+        "zh-CN": "固定桌面程序默认与退出最大化后的 16:9 窗口尺寸，隐藏原生白色标题栏，并把软件图标、名称和窗口控制整合到应用内顶部栏。",
+        "zh-TW": "固定桌面程式預設與退出最大化後的 16:9 視窗尺寸，隱藏原生白色標題列，並把軟體圖示、名稱和視窗控制整合到應用內頂部列。",
+        "en": "Fixes the desktop default and restored 16:9 window size, hides the native white title bar, and moves the app icon, name, and window controls into the in-app top bar."
+      },
+      "sections": [
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "改进",
+            "zh-TW": "改進",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "desktop-window",
+              "importance": "high",
+              "title": {
+                "zh-CN": "桌面窗口固定为 16:9",
+                "zh-TW": "桌面視窗固定為 16:9",
+                "en": "Desktop window locked to 16:9"
+              },
+              "body": {
+                "zh-CN": "程序默认以 1440×810 打开，退出最大化后也恢复到该尺寸，并限制手动拖动缩放时保持 16:9；同时设置 1280×720 最小尺寸，避免界面被缩得过小。",
+                "zh-TW": "程式預設以 1440×810 開啟，退出最大化後也恢復到該尺寸，並限制手動拖曳縮放時保持 16:9；同時設定 1280×720 最小尺寸，避免介面被縮得過小。",
+                "en": "The app now opens at 1440x810, restores to that size after leaving maximized mode, keeps manual resizing at 16:9, and enforces a 1280x720 minimum size."
+              }
+            },
+            {
+              "scope": "desktop-chrome",
+              "importance": "high",
+              "title": {
+                "zh-CN": "应用内顶部栏接管窗口标题栏",
+                "zh-TW": "應用內頂部列接管視窗標題列",
+                "en": "In-app top bar replaces the native title bar"
+              },
+              "body": {
+                "zh-CN": "隐藏系统原生白色标题栏，把热容比实验室图标、软件名、菜单和最小化/最大化/关闭按钮放入应用自己的顶部栏，使桌面外观与工作台风格统一。",
+                "zh-TW": "隱藏系統原生白色標題列，把熱容比實驗室圖示、軟體名稱、選單和最小化/最大化/關閉按鈕放入應用自己的頂部列，使桌面外觀與工作台風格統一。",
+                "en": "The native white title bar is hidden, and the app icon, name, menus, and minimize/maximize/close buttons now live in the workbench top bar for a unified desktop look."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "兼容性说明",
+            "zh-TW": "相容性說明",
+            "en": "Compatibility"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "通过桌面自动更新分发",
+                "zh-TW": "透過桌面自動更新分發",
+                "en": "Distributed through desktop auto update"
+              },
+              "body": {
+                "zh-CN": "本版本继续发布 NSIS 安装包、latest.yml 和 blockmap，已安装的 4.1.8 客户端可以通过应用内更新检测到 4.1.9。",
+                "zh-TW": "本版本繼續發布 NSIS 安裝包、latest.yml 和 blockmap，已安裝的 4.1.8 用戶端可以透過應用內更新偵測到 4.1.9。",
+                "en": "This version continues to publish the NSIS installer, latest.yml, and blockmap so installed 4.1.8 clients can detect 4.1.9 in-app."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.8",
       "date": "2026-05-27",
       "channel": "stable",

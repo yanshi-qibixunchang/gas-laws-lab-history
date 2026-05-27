@@ -78,7 +78,20 @@ declare global {
     message?: string;
   }
 
+  interface DesktopWindowState {
+    maximized: boolean;
+    fullscreen: boolean;
+  }
+
   interface Window {
+    hardSphereLabWindow?: {
+      newWindow: () => Promise<{ status: 'ok' | 'error'; message?: string }>;
+      minimize: () => Promise<DesktopWindowState>;
+      toggleMaximize: () => Promise<DesktopWindowState>;
+      close: () => Promise<{ status: 'closed' }>;
+      getState: () => Promise<DesktopWindowState>;
+      onState: (callback: (state: DesktopWindowState) => void) => () => void;
+    };
     hardSphereLabExporter?: {
       checkExportEnvironment: () => Promise<DesktopExportEnvironmentResult>;
       exportWorkbenchPayload: (payload: unknown, options?: DesktopExportOptions) => Promise<DesktopExportResult>;

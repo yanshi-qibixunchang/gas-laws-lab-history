@@ -16,6 +16,11 @@ const {
 const rootDir = path.resolve(__dirname, '..');
 const preloadPath = path.join(__dirname, 'preload.cjs');
 const appTitle = '热容比实验室';
+const WORKBENCH_WINDOW_WIDTH = 1440;
+const WORKBENCH_WINDOW_HEIGHT = 810;
+const WORKBENCH_WINDOW_MIN_WIDTH = 1280;
+const WORKBENCH_WINDOW_MIN_HEIGHT = 720;
+const WORKBENCH_WINDOW_ASPECT_RATIO = 16 / 9;
 const exportRootFolderName = 'Heat Capacity Ratio Lab Exports';
 const USER_GUIDE_URLS = {
   'zh-CN': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release#readme',
@@ -86,6 +91,70 @@ const broadcastUpdaterState = (state) => {
     }
   }
   return updateState;
+};
+
+const getDesktopWindowState = (window) => ({
+  maximized: Boolean(window && !window.isDestroyed() && window.isMaximized()),
+  fullscreen: Boolean(window && !window.isDestroyed() && window.isFullScreen()),
+});
+
+const broadcastDesktopWindowState = (window) => {
+  const state = getDesktopWindowState(window);
+  if (window && !window.isDestroyed()) {
+    window.webContents.send('hsl-window:state', state);
+  }
+  return state;
+};
+
+const getDesktopWindowFromEvent = (event) => (
+  BrowserWindow.fromWebContents(event.sender)
+);
+
+const bindDesktopWindowFrameBehavior = (mainWindow) => {
+  mainWindow.setAspectRatio(WORKBENCH_WINDOW_ASPECT_RATIO);
+
+  let enforcingAspectRatio = false;
+  const enforceAspectRatio = () => {
+    if (
+      enforcingAspectRatio
+      || mainWindow.isDestroyed()
+      || mainWindow.isMaximized()
+      || mainWindow.isFullScreen()
+    ) {
+      return;
+    }
+
+    const [width, height] = mainWindow.getSize();
+    const targetWidth = Math.max(width, WORKBENCH_WINDOW_MIN_WIDTH);
+    const targetHeight = Math.max(
+      WORKBENCH_WINDOW_MIN_HEIGHT,
+      Math.round(targetWidth / WORKBENCH_WINDOW_ASPECT_RATIO),
+    );
+
+    if (targetWidth === width && Math.abs(targetHeight - height) <= 1) return;
+
+    enforcingAspectRatio = true;
+    mainWindow.setSize(targetWidth, targetHeight);
+    enforcingAspectRatio = false;
+  };
+
+  mainWindow.on('resize', enforceAspectRatio);
+  mainWindow.on('maximize', () => {
+    broadcastDesktopWindowState(mainWindow);
+  });
+  mainWindow.on('unmaximize', () => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.setSize(WORKBENCH_WINDOW_WIDTH, WORKBENCH_WINDOW_HEIGHT);
+      mainWindow.center();
+    }
+    broadcastDesktopWindowState(mainWindow);
+  });
+  mainWindow.on('enter-full-screen', () => {
+    broadcastDesktopWindowState(mainWindow);
+  });
+  mainWindow.on('leave-full-screen', () => {
+    broadcastDesktopWindowState(mainWindow);
+  });
 };
 
 autoUpdater.on('checking-for-update', () => {
@@ -363,10 +432,12 @@ const resolveExporterRuntime = async () => {
 const createMainWindow = async (options = {}) => {
   const mainWindow = new BrowserWindow({
     title: appTitle,
-    width: 1440,
-    height: 920,
-    minWidth: 1180,
-    minHeight: 760,
+    width: WORKBENCH_WINDOW_WIDTH,
+    height: WORKBENCH_WINDOW_HEIGHT,
+    minWidth: WORKBENCH_WINDOW_MIN_WIDTH,
+    minHeight: WORKBENCH_WINDOW_MIN_HEIGHT,
+    frame: false,
+    backgroundColor: '#20242a',
     icon: getAppIconPath(),
     webPreferences: {
       contextIsolation: true,
@@ -375,6 +446,7 @@ const createMainWindow = async (options = {}) => {
       backgroundThrottling: false,
     },
   });
+  bindDesktopWindowFrameBehavior(mainWindow);
 
   await mainWindow.loadFile(path.join(rootDir, 'dist', 'index.html'), options.fresh ? {
     query: { hslFreshWindow: '1' },
@@ -394,6 +466,38 @@ ipcMain.handle('hsl-window:new', async () => {
     };
   }
 });
+
+ipcMain.handle('hsl-window:minimize', (event) => {
+  const window = getDesktopWindowFromEvent(event);
+  if (window && !window.isDestroyed()) {
+    window.minimize();
+  }
+  return getDesktopWindowState(window);
+});
+
+ipcMain.handle('hsl-window:toggle-maximize', (event) => {
+  const window = getDesktopWindowFromEvent(event);
+  if (window && !window.isDestroyed()) {
+    if (window.isMaximized()) {
+      window.unmaximize();
+    } else {
+      window.maximize();
+    }
+  }
+  return getDesktopWindowState(window);
+});
+
+ipcMain.handle('hsl-window:close', (event) => {
+  const window = getDesktopWindowFromEvent(event);
+  if (window && !window.isDestroyed()) {
+    window.close();
+  }
+  return { status: 'closed' };
+});
+
+ipcMain.handle('hsl-window:get-state', (event) => (
+  getDesktopWindowState(getDesktopWindowFromEvent(event))
+));
 
 ipcMain.handle('hsl-updater:check', async () => {
   if (!isDesktopUpdateSupported()) {
