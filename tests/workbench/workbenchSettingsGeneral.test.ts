@@ -138,6 +138,18 @@ assert.match(
 
 assert.match(
   generalWindowSource,
+  /\{settingsLanguageMenuOpen \? \([\s\S]*className="studio-settings-language-menu"/,
+  'language menu should only render while open so a focused option is never hidden with aria-hidden',
+);
+
+assert.doesNotMatch(
+  generalWindowSource,
+  /className="studio-settings-language-menu"[^>]*aria-hidden/,
+  'language menu should not use aria-hidden for its closed state',
+);
+
+assert.match(
+  generalWindowSource,
   /studio-settings-section studio-settings-control-row studio-settings-performance-row[\s\S]*studio-settings-control-surface[\s\S]*studio-settings-performance-segmented/,
   '3D performance settings should align label and segmented control in the same engineering row pattern',
 );

@@ -9,6 +9,7 @@ const hardSphereLayerPath = join(process.cwd(), 'src', 'features', 'heatCapacity
 const leftPanelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityLeftPanel.tsx');
 const processReviewPanelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityProcessReviewPanel.tsx');
 const processReviewStylePath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityProcessReviewPanel.css');
+const processReviewStageScalePath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'heatCapacityProcessReviewStageScale.ts');
 const trialModelPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityTrialModel.ts');
 const parameterConfigPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityFreeParameterConfig.ts');
 const workbenchPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx');
@@ -19,6 +20,7 @@ const stylePath = join(process.cwd(), 'src', 'features', 'workbench', 'Workbench
 assert.equal(existsSync(componentPath), true, 'heatCapacity instrument scene component should exist');
 
 const sceneSource = readFileSync(componentPath, 'utf8');
+const orbitControlsSection = sceneSource.match(/<OrbitControls\s[\s\S]*?\/>/)?.[0] ?? '';
 const stopcockSceneSection = sceneSource.match(/function GlassStopcock\([\s\S]*?function PressureBottle\(/)?.[0] ?? '';
 const pumpValveSceneSection = sceneSource.match(/function PumpAssembly\([\s\S]*?function InstrumentSceneContent\(/)?.[0] ?? '';
 const hoverTooltipSceneSection = sceneSource.match(/data-preview-overlay-item="heat-hover-tooltip"[\s\S]*?\{props\.overlayBottomRight/)?.[0] ?? '';
@@ -28,6 +30,13 @@ const hardSphereLayerSource = readFileSync(hardSphereLayerPath, 'utf8');
 const leftPanelSource = readFileSync(leftPanelPath, 'utf8');
 const processReviewPanelSource = readFileSync(processReviewPanelPath, 'utf8');
 const processReviewStyleSource = readFileSync(processReviewStylePath, 'utf8');
+const getProcessReviewCssBlock = (selector: string) => {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = processReviewStyleSource.match(new RegExp(`${escapedSelector}\\s*\\{[^}]*\\}`));
+  assert.ok(match, `${selector} should have a process review CSS block`);
+  return match[0];
+};
+const processReviewStageScaleSource = readFileSync(processReviewStageScalePath, 'utf8');
 const freeRecordTableSection = leftPanelSource.match(/data-heat-capacity-free-record-table="true"[\s\S]*?<\/table>/)?.[0] ?? '';
 const freeCurrentTrialSection = leftPanelSource.match(/data-heat-capacity-free-current-trial-status="true"[\s\S]*?<\/section>/)?.[0] ?? '';
 const hardSphereToggleMountSection = sceneSource.match(/<HeatCapacityHardSphereToggle[\s\S]*?\/>/)?.[0] ?? '';
@@ -110,6 +119,76 @@ assert.match(
 );
 assert.match(processReviewPanelSource, /pumpValve:\s*'#14804f'/, 'process review should color pump valve as green so it is visually distinct from pump bulb');
 assert.match(processReviewPanelSource, /pumpBulb:\s*'#0b6fae'/, 'process review should color pump bulb as blue so it is visually distinct from pump valve');
+assert.doesNotMatch(
+  processReviewPanelSource,
+  /hpr-pump-event-marker/,
+  'process review charts should not draw full-height pump-stroke guide lines over the plot area',
+);
+assert.doesNotMatch(
+  processReviewStyleSource,
+  /\.hpr-pump-event-marker/,
+  'process review styles should remove the old full-height pump-stroke marker rule',
+);
+assert.doesNotMatch(
+  getProcessReviewCssBlock('.hpr-summary'),
+  /border-left:\s*3px/,
+  'process review summary should not keep a decorative left accent rail',
+);
+assert.doesNotMatch(
+  getProcessReviewCssBlock('.hpr-ideal-reference-summary'),
+  /border-left:/,
+  'ideal reference summary should not keep a decorative orange left accent rail',
+);
+assert.doesNotMatch(
+  getProcessReviewCssBlock('.hpr-diagnosis-details'),
+  /border-left:/,
+  'expanded diagnosis details should not keep a decorative left accent rail',
+);
+assert.match(
+  processReviewStyleSource,
+  /\.studio-theme-light \.hpr-panel,\s*\.studio-theme-light \.hpr-empty\s*\{[\s\S]*--hpr-process-note-bg:/,
+  'process review should define dedicated light-theme note surfaces for the redesigned engineering summary',
+);
+assert.match(
+  getProcessReviewCssBlock('.hpr-ideal-reference-summary'),
+  /grid-template-columns:\s*auto minmax\(0,\s*1fr\)/,
+  'ideal reference summary should use a compact inline engineering layout',
+);
+assert.match(
+  processReviewPanelSource,
+  /type HeatCapacityProcessReviewLanguage = 'zh-CN' \| 'zh-TW' \| 'en';/,
+  'process review panel should accept the Workbench language preference for new visible copy',
+);
+assert.match(
+  processReviewPanelSource,
+  /const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage,/,
+  'process review panel should keep new review labels in a localized copy map',
+);
+assert.match(
+  processReviewPanelSource,
+  /zh-TW[\s\S]*idealReference:\s*'理想參考'[\s\S]*en:[\s\S]*idealReference:\s*'Ideal reference'/,
+  'ideal reference review copy should cover Traditional Chinese and English',
+);
+assert.match(
+  processReviewPanelSource,
+  /stageLabels:\s*Record<HeatCapacityProcessStageId,\s*string>/,
+  'process review timeline stage labels should be localized by stage id',
+);
+assert.match(
+  processReviewPanelSource,
+  /recordTimeLabel[\s\S]*recordTitle/,
+  'process review record callouts should keep their static labels in the localized copy map',
+);
+assert.match(
+  processReviewPanelSource,
+  /en:[\s\S]*timelineTitle:\s*'Stage timeline'[\s\S]*recordTimeLabel:\s*'Record time'[\s\S]*processTitle:\s*'Process diagnostics'/,
+  'process review English copy should cover the new timeline, record, and diagnostics shell',
+);
+assert.match(
+  workbenchSource,
+  /<HeatCapacityProcessReviewPanel[\s\S]*language=\{settingsLanguagePreference\}/,
+  'Workbench should pass the persisted language preference into Heat Capacity process review',
+);
 assert.match(hardSphereToggleSource, /label:\s*'微观可视化'/, 'Simplified Chinese hard-sphere toggle label should be readable');
 assert.match(hardSphereToggleSource, /zh-TW[\s\S]*label:\s*'微觀可視化'/, 'Traditional Chinese hard-sphere toggle label should be readable');
 assert.match(hardSphereToggleSource, /tooltipOff:\s*'开启瓶内小球分子可视化，用于观察分子运动、密度和速度变化。'/, 'Simplified Chinese hard-sphere enable tooltip should be localized');
@@ -130,6 +209,31 @@ assert.match(
   /\[data-preview-overlay-item="heat-parent-top-right"\]\s*>\s*\*\s*\{[\s\S]*pointer-events:\s*auto/,
   'top-right overlay wrapper should restore pointer events only on its real child panel',
 );
+assert.match(
+  styleSource,
+  /\.studio-heat-advanced-risk-window strong \{[\s\S]*color:\s*var\(--studio-action-warning-bg\)\s*!important/,
+  'Advanced-parameter risk title should use the same orange token as the warning confirm button',
+);
+assert.match(
+  styleSource,
+  /\.studio-theme-light \.studio-heat-advanced-risk-window strong \{[\s\S]*color:\s*var\(--studio-action-warning-bg\)\s*!important/,
+  'Light theme advanced-parameter risk title should also match the warning confirm button background',
+);
+assert.doesNotMatch(
+  orbitControlsSection,
+  /target=\{DEFAULT_CAMERA_TARGET\}/,
+  'OrbitControls should not re-apply the default camera target during hover-driven React rerenders',
+);
+assert.doesNotMatch(
+  sceneSource,
+  /props\.onFocusModeChange\(focusMode\);\s*\}, \[focusMode, props\.onFocusModeChange\]\)/,
+  'Heat-capacity focus reporting should not loop when the parent callback identity changes after a state update',
+);
+assert.match(
+  workbenchSource,
+  /studio-tree-title-button studio-tree-title-button-\$\{kind\}/,
+  'sidebar tree title buttons should expose a scoped kind modifier for visual annotation changes',
+);
 assert.doesNotMatch(
   hardSphereToggleMountSection,
   /interactionLocked/,
@@ -147,12 +251,69 @@ const getCssBlock = (selector: string) => {
   assert.ok(match, `${selector} should have a CSS block`);
   return match[0];
 };
+const getLastCssBlock = (selector: string) => {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const matches = [...styleSource.matchAll(new RegExp(`${escapedSelector}\\s*\\{[^}]*\\}`, 'g'))];
+  assert.ok(matches.length > 0, `${selector} should have a CSS block`);
+  return matches[matches.length - 1][0];
+};
+const getLastRootCssBlock = (selector: string) => {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const matches = [...styleSource.matchAll(new RegExp(`(?:^|\\n)${escapedSelector}\\s*\\{[^}]*\\}`, 'g'))];
+  assert.ok(matches.length > 0, `${selector} should have a root CSS block`);
+  return matches[matches.length - 1][0];
+};
 const getRootCssBlock = (selector: string) => {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = styleSource.match(new RegExp(`(?:^|\\n)${escapedSelector}\\s*\\{[^}]*\\}`));
   assert.ok(match, `${selector} should have a root CSS block`);
   return match[0];
 };
+assert.match(
+  getLastRootCssBlock('.studio-heat-materials-toolbar'),
+  /min-height:\s*44px;[\s\S]*border-bottom:\s*0;[\s\S]*padding:\s*0 16px;/,
+  'heat materials window title bar should have enough room and should not visually merge with the tab row',
+);
+assert.match(
+  getRootCssBlock('.studio-results-window'),
+  /box-shadow:\s*none;/,
+  'standard and heat-capacity result windows should use plain panel borders instead of floating shadows',
+);
+assert.match(
+  getRootCssBlock('.studio-ideal-result-window-layer'),
+  /box-shadow:\s*none;/,
+  'ideal-gas result windows should match same-level result panels without a top drop shadow',
+);
+assert.doesNotMatch(
+  styleSource,
+  /\.studio-theme-light \.studio-results-window,[\s\S]{0,120}box-shadow:/,
+  'light-theme result windows should not be included in shared dialog shadow rules',
+);
+assert.match(
+  getLastRootCssBlock('.studio-heat-materials-tabs'),
+  /border-top:\s*1px solid var\(--studio-border-soft\);[\s\S]*padding-left:\s*16px;/,
+  'heat materials tab strip should align with the title text and use a clear divider',
+);
+assert.match(
+  getLastRootCssBlock('.studio-heat-materials-tabs .studio-results-tab-active'),
+  /box-shadow:\s*inset 0 -2px 0 var\(--studio-accent\);/,
+  'heat materials active tab should use a bottom rule so it does not collide with the title area',
+);
+assert.match(
+  styleSource,
+  /\.studio-theme-light \.studio-heat-materials-toolbar\s*\{[\s\S]*background:\s*#f8fafc;/,
+  'heat materials title bar should define a dedicated light-theme surface',
+);
+assert.match(
+  styleSource,
+  /\.studio-theme-light \.studio-heat-materials-tabs \.studio-results-tab-active\s*\{[\s\S]*box-shadow:\s*inset 0 -2px 0 #2563eb;/,
+  'light theme heat materials active tab should keep the bottom-rule treatment',
+);
+assert.match(
+  styleSource,
+  /\.studio-theme-light \.studio-heat-current-hint strong\s*\{[\s\S]*color:\s*#92400e;/,
+  'light theme heat current hint highlight should use a darker amber text color for contrast',
+);
 assert.match(sceneSource, /overlayBottomRight/, '3D scene should keep a lower-right overlay path for Free Mode record actions');
 assert.match(sceneSource, /overlayTopCenter/, '3D scene should expose a top-center overlay slot for Free wait speed controls');
 assert.match(sceneSource, /studio-preview-overlay-slot-top-center/, 'top-center overlay should use the shared preview overlay slot system');
@@ -197,7 +358,29 @@ assert.match(workbenchSource, /recordFreeHeatCapacitySample\('u1'\)/, 'Free Mode
 assert.match(workbenchSource, /recordFreeHeatCapacitySample\('u2'\)/, 'Free Mode should expose a persistent U2 record action');
 assert.match(workbenchSource, /applyHeatCapacityFreeRecordWorkbenchState/, 'Free Mode record buttons should use one synchronous record-attempt helper');
 assert.match(stateSource, /recordHeatCapacityFreeTraceEventWithReference/, 'Free Mode official records should capture hidden trace references before saving U0/U1/U2');
-assert.match(processReviewPanelSource, /MIN_STAGE_WIDTH_BY_ID/, 'process review timeline should keep each experiment stage readable even after long idle waits');
+assert.match(processReviewStageScaleSource, /MIN_COMPRESSED_STAGE_DURATION_BY_ID/, 'process review timeline should keep each experiment stage readable even after long idle waits');
+assert.match(processReviewStageScaleSource, /calculateHeatCapacityProcessReviewCompressedDurationS/, 'process review timeline should expose compressed process duration for independent actual and ideal reference traces');
+assert.match(processReviewStageScaleSource, /axisTicks/, 'process review stage scale should expose mixed major/minor axis ticks');
+assert.match(processReviewStageScaleSource, /createHeatCapacityAlignedReferencePointToX/, 'process review stage scale should expose a helper for start-aligning independent reference traces');
+assert.match(processReviewPanelSource, /createHeatCapacityAlignedReferencePointToX/, 'process review charts should align the ideal reference display through the shared stage-scale helper');
+assert.match(processReviewPanelSource, /actualStageId:\s*'pump'[\s\S]*referenceStageId:\s*'fill'/, 'ideal reference fill should be display-aligned to the actual pump start while preserving independent later stages');
+assert.match(
+  processReviewPanelSource,
+  /\[copy\.stageLabels\[stage\.id\],\s*stage\.countText,\s*stage\.durationText\][\s\S]*filter\(Boolean\)[\s\S]*join\(' '\)/,
+  'stage timeline labels should combine count and duration add-ons into one centered label',
+);
+assert.doesNotMatch(
+  processReviewPanelSource,
+  /className="hpr-stage-count"[\s\S]*textAnchor="end"/,
+  'stage timeline count labels should not render as a separate right-aligned text node',
+);
+assert.match(processReviewPanelSource, /hoveredStageId/, 'process review should track generic stage hover instead of release-only expansion');
+assert.doesNotMatch(processReviewPanelSource, /expandedStageId/, 'process review should not keep hover-expand stage state after stage widths became fixed');
+assert.doesNotMatch(processReviewPanelSource, /hpr-release-focus-area/, 'process review should not use a release-only chart hover highlight');
+assert.match(processReviewPanelSource, /hpr-stage-focus-area/, 'process review should draw a generic stage hover background in charts');
+assert.match(processReviewPanelSource, /hpr-axis-tick-minor/, 'process review should render short unlabeled ticks separately from long labeled ticks');
+assert.match(processReviewPanelSource, /hpr-record-window/, 'process review should render actual fixed-width record windows from U0/U1/U2 records');
+assert.match(processReviewStyleSource, /\.hpr-stage-focus-area/, 'generic stage hover backgrounds should have dedicated styling');
 assert.match(processReviewPanelSource, /handleReviewWheel/, 'process review chart should translate horizontal wheel input into horizontal chart scrolling');
 assert.match(processReviewPanelSource, /data-hpr-scroll-window="true"/, 'process review chart should expose a stable horizontal scroll window');
 assert.match(processReviewPanelSource, /data-hpr-trial-select="true"/, 'process review should expose a group-selection menu');
@@ -206,34 +389,79 @@ assert.match(processReviewPanelSource, /onSelectedTrialChange/, 'process review 
 assert.match(processReviewPanelSource, /trialSelectRef/, 'process review menu should close from outside-click handling');
 assert.match(processReviewPanelSource, /pointerdown/, 'process review menu should close as soon as an outside pointer is pressed');
 assert.match(processReviewPanelSource, /Escape/, 'process review menu should close from Escape');
-assert.match(processReviewPanelSource, /hpr-reference-line/, 'process review charts should render the standard reference curve');
-assert.match(processReviewPanelSource, /hpr-operable-best-line/, 'process review charts should render the operable best curve');
-assert.match(processReviewPanelSource, /buildPumpAwareLinePath/, 'process review charts should render the pump stage with a step-aware path');
-assert.match(processReviewPanelSource, /hpr-pump-event-marker/, 'process review charts should render individual pump stroke markers');
-assert.match(processReviewPanelSource, /hpr-best-window/, 'process review charts should render best record windows');
-assert.match(processReviewPanelSource, /referenceTrace/, 'process review charts should consume reference trace data');
-assert.match(processReviewPanelSource, /operableBestTrace/, 'process review charts should consume operable best trace data');
-assert.match(processReviewPanelSource, /showStandardReference/, 'process review charts should expose a standard baseline visibility toggle');
-assert.match(processReviewPanelSource, /aria-pressed=\{showStandardReference\}/, 'standard baseline toggle should expose pressed state');
+assert.doesNotMatch(processReviewPanelSource, /hpr-reference-line|标准基线|showStandardReference|referenceTrace/, 'process review charts should remove the standard baseline curve and toggle');
+assert.match(processReviewPanelSource, /hpr-ideal-reference-line/, 'process review charts should render the ideal reference curve');
+assert.match(processReviewPanelSource, /理想参考/, 'process review legend should label the orange curve as ideal reference');
+const oldOrangeReferenceUiPattern = new RegExp([
+  '推荐' + '参考',
+  '推荐' + '操作',
+  '可达' + '最佳',
+  'operableBestTrace',
+  `recommend${'edTrace'}`,
+  `recommend${'edReference'}`,
+  `recommend${'edStages'}`,
+  'hpr-operable-best-line',
+  `hpr-recommend${'ed-line'}`,
+].join('|'));
+assert.doesNotMatch(processReviewPanelSource, oldOrangeReferenceUiPattern, 'process review should no longer expose old recommendation wording or field names in the UI layer');
+assert.match(processReviewPanelSource, /buildContinuousLinePath/, 'ideal reference should use a continuous path builder');
+assert.match(processReviewPanelSource, /buildPumpAwareLinePath/, 'actual measured trace should keep step-aware pump rendering');
+assert.doesNotMatch(processReviewPanelSource, /hpr-pump-event-marker/, 'process review charts should keep pump strokes on the stage timeline instead of drawing full-height plot markers');
+assert.match(processReviewPanelSource, /hpr-record-window/, 'process review charts should render actual fixed-width record windows');
+assert.doesNotMatch(processReviewPanelSource, /hpr-best-window/, 'process review charts should not render old best-window bands');
+assert.match(processReviewPanelSource, /hpr-line-legend-window/, 'actual record windows should be explained in the chart legend');
+assert.match(processReviewPanelSource, /记录窗口/, 'actual record window legend label should stay concise');
+assert.doesNotMatch(processReviewPanelSource, />记录时间：|>电信号：|>换算压强差：|>换算温度差：/, 'record hover callout labels should not be hard-coded Chinese JSX literals');
+assert.doesNotMatch(processReviewPanelSource, /实际记录时刻：/, 'record window title should be localized instead of hard-coded Chinese');
+assert.doesNotMatch(processReviewPanelSource, /hpr-best-window-label/, 'record windows should not place text inside the plot band');
+assert.match(processReviewPanelSource, /idealReferenceTrace/, 'process review charts should consume ideal reference trace data');
+assert.match(processReviewPanelSource, /idealReferenceStages/, 'process review charts should consume ideal reference stages');
+assert.match(processReviewPanelSource, /idealReference/, 'process review should expose an ideal reference summary');
 assert.match(processReviewPanelSource, /createNiceAxis/, 'process review charts should use readable engineering axis ticks instead of raw equal divisions');
+assert.match(
+  processReviewPanelSource,
+  /createHeatCapacityProcessReviewStageLayout/,
+  'process review charts should use the stage-normalized time layout',
+);
+assert.doesNotMatch(
+  processReviewPanelSource,
+  /const createTimeScale/,
+  'process review top timeline should share the same stage-normalized layout as the charts',
+);
+assert.doesNotMatch(
+  processReviewPanelSource,
+  /createLinearTimeScale\(totalSeconds\)/,
+  'process review charts should not use a linear total-seconds x-axis',
+);
+assert.doesNotMatch(
+  processReviewPanelSource,
+  /totalSeconds:\s*number;/,
+  'process review chart props should not keep unused totalSeconds after switching to stage-normalized axes',
+);
 assert.doesNotMatch(processReviewPanelSource, /kind === 'pressure' \? 5 : 7/, 'process review charts should not generate uneven temperature tick labels by fixed count splitting');
 assert.match(processReviewPanelSource, /ΔP \(kPa\)/, 'pressure chart y-axis label should use parenthesized units');
 assert.match(processReviewPanelSource, /ΔT \(K\)/, 'temperature chart y-axis label should use parenthesized units');
-assert.match(processReviewPanelSource, /时间 \(s\)/, 'process review charts should label the x axis with parenthesized seconds');
+assert.match(processReviewPanelSource, /过程时间 \(s，等待压缩\)/, 'process review charts should disclose the compressed waiting axis');
 assert.doesNotMatch(processReviewPanelSource, /时间 \/ s|ΔP \/ kPa|ΔT \/ K/, 'process review chart axes should not use slash unit labels');
 assert.doesNotMatch(processReviewPanelSource, /showXAxis=\{?false\}?|showXAxis\s*=\s*false/, 'both process review charts should expose the time axis label');
-assert.match(processReviewPanelSource, /bestWindows/, 'process review charts should consume best record windows');
-assert.match(processReviewStyleSource, /\.hpr-reference-line/, 'reference curve should have an explicit style');
-assert.match(processReviewStyleSource, /\.hpr-operable-best-line/, 'operable best curve should have an explicit style');
-assert.match(processReviewStyleSource, /\.hpr-best-window/, 'best record window should have an explicit style');
+assert.match(processReviewPanelSource, /chart\.records\.map/, 'process review charts should consume actual record events for record windows');
+assert.doesNotMatch(processReviewPanelSource, /chart\.bestWindows\.map/, 'process review charts should not consume best-window data for plot bands');
+assert.doesNotMatch(processReviewStyleSource, /\.hpr-reference-line|--hpr-reference-line/, 'standard reference styles should be removed');
+assert.match(processReviewStyleSource, /\.hpr-ideal-reference-line/, 'ideal reference curve should have an explicit style');
+assert.match(processReviewStyleSource, /\.hpr-record-window/, 'actual record window should have an explicit style');
+assert.match(processReviewStyleSource, /\.hpr-line-legend-window/, 'record window legend marker should have an explicit style');
+assert.doesNotMatch(processReviewStyleSource, /\.hpr-best-window-label/, 'plot-internal record window labels should not keep unused styles');
 assert.match(processReviewStyleSource, /--hpr-pressure-line:/, 'process review should theme the measured pressure line through an explicit variable');
 assert.match(processReviewStyleSource, /--hpr-temperature-line:/, 'process review should theme the measured temperature line through an explicit variable');
-assert.match(processReviewStyleSource, /--hpr-operable-line:/, 'process review should give the operable-best curve its own line color');
-assert.match(processReviewStyleSource, /--hpr-reference-line:/, 'process review should give the standard baseline curve its own line color');
+assert.match(processReviewStyleSource, /--hpr-ideal-reference-line:/, 'process review should give the ideal reference curve its own line color');
 assert.match(processReviewPanelSource, /var\(--hpr-pressure-line\)/, 'pressure chart should use the themed pressure line color');
 assert.match(processReviewPanelSource, /var\(--hpr-temperature-line\)/, 'temperature chart should use the themed temperature line color');
-assert.match(processReviewStyleSource, /\.hpr-operable-best-line\s*\{[\s\S]*stroke:\s*var\(--hpr-operable-line\)/, 'operable-best curve should use its dedicated line color');
-assert.match(processReviewStyleSource, /\.hpr-reference-line\s*\{[\s\S]*stroke:\s*var\(--hpr-reference-line\)/, 'standard reference curve should use its dedicated line color');
+assert.match(processReviewStyleSource, /\.hpr-ideal-reference-line\s*\{[\s\S]*stroke:\s*var\(--hpr-ideal-reference-line\)/, 'ideal reference curve should use its dedicated line color');
+assert.doesNotMatch(processReviewStyleSource, new RegExp('\\.hpr-recommend' + 'ed-line|--hpr-recommend' + 'ed-line'), 'old orange reference line styles should be removed');
+assert.match(processReviewPanelSource, /理想参考/, 'process review should render the ideal reference summary title');
+assert.match(processReviewPanelSource, /连续快速充气约/, 'ideal reference summary should state the continuous-fast fill rule');
+assert.match(processReviewPanelSource, /无噪声、无传感器滞后、无泄漏/, 'ideal reference summary should disclose ideal assumptions');
+assert.match(processReviewPanelSource, /未找到同时满足安全阈值、记录阈值和 γ 目标的理想参考过程/, 'ideal reference summary should handle infeasible parameters');
 assert.match(processReviewPanelSource, /row\.details/, 'diagnosis rows should render expandable sub-score details');
 assert.match(processReviewPanelSource, /expandedDiagnosisRows/, 'diagnosis rows should keep local expand-collapse state');
 assert.match(processReviewPanelSource, /hpr-diagnosis-expand-open/, 'diagnosis expand chevrons should animate by rotating the same pointed glyph');
@@ -247,13 +475,13 @@ assert.match(processReviewStyleSource, /\.hpr-diagnosis-expand svg\s*\{[\s\S]*tr
 assert.match(processReviewPanelSource, /className="hpr-diagnosis-summary-cell"/, 'diagnosis overview cells should be classed for fading when details are expanded');
 assert.match(processReviewStyleSource, /\.hpr-diagnosis-summary-cell\s*\{[\s\S]*transition:/, 'diagnosis overview cells should fade smoothly');
 assert.match(processReviewStyleSource, /\.hpr-diagnosis-row-expanded \.hpr-diagnosis-summary-cell\s*\{[\s\S]*opacity:\s*0/, 'expanded diagnosis rows should fade out overview cells to avoid duplicated information');
-assert.match(processReviewStyleSource, /\.hpr-diagnosis-details\s*\{[\s\S]*border-left:/, 'diagnosis sub-score details should have a clearer nested hierarchy');
+assert.doesNotMatch(getProcessReviewCssBlock('.hpr-diagnosis-details'), /border-left:/, 'diagnosis sub-score details should not reintroduce the old colored left rail');
 assert.match(processReviewStyleSource, /\.hpr-diagnosis-detail-row\s*\{[\s\S]*padding:\s*7px 12px 7px 52px/, 'diagnosis sub-score rows should indent under the main score row');
 assert.doesNotMatch(processReviewPanelSource, /不保存诊断结论/, 'diagnosis header should avoid explanatory storage implementation copy');
 assert.doesNotMatch(processReviewPanelSource, /主线 trace · 仪器显示值换算 · 事件样本固定保留/, 'process review title should avoid long implementation copy');
-assert.match(processReviewPanelSource, /hpr-release-focus-area-visible/, 'release focus background should stay mounted and fade when the release stage expands');
-assert.match(processReviewStyleSource, /--hpr-release-focus-bg/, 'release focus background should use an explicit theme variable');
-assert.match(processReviewStyleSource, /\.hpr-release-focus-area-visible/, 'release focus background should have an explicit visible state');
+assert.match(processReviewPanelSource, /hpr-stage-focus-area-\$\{hoveredStage\.id\}/, 'stage hover background should be generic for every timeline stage');
+assert.doesNotMatch(processReviewStyleSource, /--hpr-release-focus-bg/, 'process review should not keep release-only hover color tokens');
+assert.match(processReviewStyleSource, /\.hpr-stage-focus-area\s*\{[\s\S]*fill-opacity:/, 'generic stage focus background should have an explicit visible style');
 assert.match(processReviewPanelSource, /upperBoundGamma/, 'summary should display operation upper-bound gamma');
 assert.match(processReviewPanelSource, /upperBoundGapPercent/, 'summary should display actual-vs-upper-bound gap');
 assert.match(processReviewPanelSource, /review\.score\.total/, 'summary should display operation score');
@@ -290,13 +518,14 @@ assert.match(workbenchSource, /const materialsMaxHeightRatio = getHeatCapacityMa
 assert.doesNotMatch(workbenchSource, /const HEAT_CAPACITY_MATERIALS_MAX_HEIGHT_RATIO = 0\.82;/, 'Heat Capacity materials window should not use a fixed low maximum height ratio');
 assert.doesNotMatch(workbenchSource, /const HEAT_CAPACITY_MATERIALS_MAX_HEIGHT_RATIO = IDEAL_RESULT_MAX_HEIGHT_RATIO;/, 'Heat Capacity materials window should not blindly inherit the full-height ideal result maximum');
 assert.match(processReviewPanelSource, /normalizeDiagnosisText/, 'process review should normalize diagnosis copy before rendering');
-assert.match(processReviewPanelSource, /normalizeDiagnosisText\(row\.evidence\)/, 'process review should remove heavy punctuation from visible diagnosis evidence');
-assert.match(processReviewPanelSource, /normalizeDiagnosisText\(detail\.recommendation\)/, 'process review should remove heavy punctuation from detail recommendations');
+assert.match(processReviewPanelSource, /normalizeDiagnosisText\(row\.evidence,\s*copy\.noIssue\)/, 'process review should remove heavy punctuation from visible diagnosis evidence');
+assert.match(processReviewPanelSource, /normalizeDiagnosisText\(detail\.recommendation,\s*copy\.noIssue\)/, 'process review should remove heavy punctuation from detail recommendations');
 assert.doesNotMatch(processReviewPanelSource, /<span className="hpr-diagnosis-summary-cell">\{row\.evidence\}<\/span>/, 'process review should not render raw diagnosis text with full stops');
-assert.doesNotMatch(processReviewPanelSource, /className="hpr-timeline-block"[\s\S]*onMouseLeave=\{\(\) => onStageHover\(null\)\}/, 'release stage expansion should not be controlled by the whole timeline block');
-assert.doesNotMatch(processReviewPanelSource, /<g[\s\S]{0,260}className=\{`hpr-stage hpr-stage-\$\{stage\.id\} \$\{expanded \? 'hpr-stage-expanded' : ''\}`\}[\s\S]{0,260}onMouseEnter=\{\(\) => isRelease && onStageHover\(stage\.id\)\}/, 'release stage expansion should not be controlled by the whole stage group');
-assert.doesNotMatch(processReviewPanelSource, /hpr-stage-hit-area/, 'release stage should not use a broad transparent hover area that covers control dots');
-assert.match(processReviewPanelSource, /className="hpr-stage-bar"[\s\S]*?onMouseEnter=\{\(\) => isRelease && onStageHover\(stage\.id\)\}[\s\S]*?onMouseLeave=\{\(\) => isRelease && onStageHover\(null\)\}/, 'release stage expansion should be limited to the visible release bar itself');
+const processReviewTimelineOpeningTag = processReviewPanelSource.match(/<section[\s\S]{0,180}className="hpr-timeline-block"[\s\S]{0,180}>/)?.[0] ?? '';
+assert.doesNotMatch(processReviewTimelineOpeningTag, /onMouseLeave/, 'stage hover highlight should not be controlled by the whole timeline block');
+assert.doesNotMatch(processReviewPanelSource, /hpr-stage-expanded|isRelease && onStageHover/, 'stage hover should no longer keep release-only expansion logic');
+assert.doesNotMatch(processReviewPanelSource, /hpr-stage-hit-area/, 'stage hover should not use a broad transparent hover area that covers control dots');
+assert.match(processReviewPanelSource, /className="hpr-stage-bar"[\s\S]*?onMouseEnter=\{\(\) => onStageHover\(stage\.id\)\}[\s\S]*?onMouseLeave=\{\(\) => onStageHover\(null\)\}/, 'stage hover highlight should be limited to the visible stage bar itself');
 assert.match(workbenchSource, /data-heat-capacity-free-record-controls="true"/, 'Free Mode record actions should have a stable UI marker');
 assert.match(workbenchSource, /data-heat-capacity-mode-action="reset-free"/, 'Free Mode should expose an icon-only reset action in the mode control');
 assert.match(workbenchSource, /resetHeatCapacityFreeRun/, 'Free Mode reset action should use an explicit handler instead of piggybacking on mode entry');
@@ -730,6 +959,7 @@ assert.match(styleSource, /\.studio-heat-interaction-hints \{[\s\S]*border: 1px 
 assert.match(styleSource, /\.studio-heat-interaction-hints strong::before/, 'lower-left interaction hints should use a compact status-dot heading');
 assert.match(sceneSource, /studio-preview-overlay-slot-top-left[\s\S]*data-preview-overlay-item="heat-hard-sphere-toggle"/, 'hard-sphere toggle should sit in the shared top-left overlay slot');
 assert.doesNotMatch(getCssBlock('.studio-heat-hard-sphere-toggle'), /position:\s*absolute/, 'hard-sphere toggle should no longer use a model-window left-mid absolute position');
+assert.match(getCssBlock('.studio-heat-hard-sphere-toggle'), /border:\s*0\.5px solid rgba\(100,\s*116,\s*139,\s*0\.58\)/, 'hard-sphere toggle should use the thin annotated outer border');
 assert.match(getCssBlock('.studio-heat-hard-sphere-tooltip'), /translate3d\(-18px,\s*0,\s*0\)/, 'hard-sphere explanation tooltip should leave to the left instead of staying resident');
 assert.match(styleSource, /\.studio-heat-hard-sphere-tooltip-anchor:hover \.studio-heat-hard-sphere-tooltip,[\s\S]*\.studio-heat-hard-sphere-tooltip-anchor:focus-within \.studio-heat-hard-sphere-tooltip/, 'hard-sphere explanation tooltip should appear on hover and keyboard focus');
 assert.doesNotMatch(styleSource, /data-heat-capacity-hard-sphere-view="true"[\s\S]*\.studio-heat-interaction-hints[\s\S]*display: none/, 'hard-sphere view should not hide the lower-left interaction hints');
@@ -758,6 +988,7 @@ assert.match(sceneSource, /data-preview-overlay-item="heat-hover-tooltip"[\s\S]{
 assert.match(getCssBlock('.studio-heat-hover-tooltip'), /pointer-events:\s*none;/, 'hover tooltip should not steal canvas interactions');
 assert.doesNotMatch(hoverTooltipSceneSection, /data-heat-capacity-valve-focus-entry="true"/, 'valve focus entry should no longer live in the lower-right hover tooltip');
 assert.match(sceneSource, /studio-preview-overlay-slot-top-right[\s\S]*data-heat-capacity-view-reset="true"/, 'upper-right heat model window chrome should use the shared top-right slot');
+assert.match(getCssBlock('.studio-heat-view-reset'), /border:\s*0\.5px solid rgba\(148,\s*163,\s*184,\s*0\.44\)/, 'default-view button should use the thin annotated border');
 assert.match(styleSource, /\.studio-heat-demo-step-panel \{[\s\S]*width: min\(330px, 100%\);/, 'auto demo step panel should stay compact inside its overlay slot');
 assert.match(styleSource, /\[data-preview-overlay-item="heat-parent-top-right"\]\s*\{[\s\S]*display:\s*flex;[\s\S]*justify-content:\s*flex-end;[\s\S]*width:\s*100%;/, 'auto demo top-right wrapper should right-anchor the visual step panel inside the shared overlay slot');
 assert.match(styleSource, /\.studio-heat-demo-step-panel div:not\(\.studio-heat-demo-step-kicker\) \{[\s\S]*grid-template-columns: 58px minmax\(0, 1fr\);/, 'step panel should keep the original compact field layout');
@@ -1100,6 +1331,8 @@ assert.match(workbenchSource, /currentDeltaPKPa[\s\S]*activeFile\.pressureSignal
 assert.match(styleSource, /\.studio-heat-operation-status \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/, 'operation status should stay as one row of three control states');
 assert.match(styleSource, /\.studio-realtime-panel-heat \{[\s\S]*grid-template-rows: auto auto auto auto;/, 'heat realtime panel should only reserve rows for header, readings, operation status, and hint');
 assert.doesNotMatch(getCssBlock('.studio-heat-reading-card-primary'), /inset\s+\d+px\s+0\s+0|56,\s*189,\s*248/, 'heat realtime primary reading cards should not use a decorative blue left rail');
+assert.match(getCssBlock('.studio-heat-reading-card-primary'), /border-width:\s*0\.5px;/, 'heat realtime primary reading cards should use the thin annotated border width');
+assert.match(getRootCssBlock('.studio-heat-current-hint strong'), /font-weight:\s*400;/, 'heat current hint highlight should use regular annotated weight');
 assert.match(workbenchSource, /Air Heat Capacity Ratio Experiment|空气比热容比实验|空氣比熱容比實驗/);
 assert.match(workbenchSource, /pressureStatus|Pressure status|压力状态|壓力狀態/);
 assert.match(workbenchSource, /pumpValve|Pump valve|打气阀门|打氣閥門/);
@@ -1342,6 +1575,51 @@ assert.match(styleSource, /\.studio-heat-advanced-window\s*\{[\s\S]*overflow-x:\
 assert.match(styleSource, /\.studio-heat-advanced-actions button,\s*\.studio-heat-advanced-risk-window button\s*\{[\s\S]*min-width:\s*86px;[\s\S]*justify-content:\s*center;/, 'advanced parameter confirm/cancel buttons should be wide enough for Chinese labels');
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-advanced-window\s*\{[\s\S]*background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*border-color:/, 'advanced parameter window should have a dedicated light-theme surface');
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-free-input-cell input\s*\{[\s\S]*background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*border-color:/, 'Free Mode parameter inputs should have dedicated light-theme contrast');
+assert.match(
+  styleSource,
+  /\.studio-theme-light \.studio-heat-free-advanced-button\s*\{[\s\S]*background:\s*#eaf2ff;[\s\S]*color:\s*#1f3f67;[\s\S]*border-color:\s*rgba\(37,\s*99,\s*235,\s*0\.28\)/,
+  'light theme advanced-parameter entry button should use an independent light blue surface instead of dark neutral buttons',
+);
+assert.match(
+  styleSource,
+  /\.studio-theme-light \.studio-heat-free-advanced-button,\s*\.studio-theme-light \.studio-heat-advanced-actions button,\s*\.studio-theme-light \.studio-heat-advanced-risk-window button\s*\{[\s\S]*background:\s*#eef4fb;[\s\S]*color:\s*#334155;[\s\S]*border-color:\s*#c5d2df/,
+  'light theme advanced-parameter neutral buttons should use dedicated light colors',
+);
+assert.match(
+  getCssBlock('.studio-heat-free-record-controls button'),
+  /border-width:\s*0\.5px;/,
+  'free-mode record U buttons should use the thin annotated border width',
+);
+assert.match(
+  getRootCssBlock('.studio-tree-row'),
+  /border:\s*0\.5px solid transparent;/,
+  'left sidebar file and panel rows should use the thin annotated border width',
+);
+assert.match(
+  getRootCssBlock('.studio-console-tabs button'),
+  /border:\s*0\.5px solid transparent;/,
+  'console filter tabs should use the thin annotated border width',
+);
+assert.match(
+  styleSource,
+  /\.studio-heat-materials-nav button\s*\{[\s\S]*font-size:\s*12px;[\s\S]*font-weight:\s*300;/,
+  'heat materials tree child buttons should use the light annotated font weight',
+);
+assert.match(
+  getCssBlock('.studio-tree-title-button-panels'),
+  /font-weight:\s*800;/,
+  'Panels section title should use the heavier annotated font weight without changing file title buttons',
+);
+assert.match(
+  getRootCssBlock('.studio-sidebar-usage-hint'),
+  /font-weight:\s*700;/,
+  'file tree usage hint should use the bold annotated weight',
+);
+assert.match(
+  getRootCssBlock('.studio-status'),
+  /font-weight:\s*300;/,
+  'workbench status bar should use the light annotated weight',
+);
 
 assert.match(
   styleSource,
@@ -1351,7 +1629,7 @@ assert.match(
 
 assert.match(
   styleSource,
-  /\.studio-heat-advanced-risk-window strong\s*\{[\s\S]*color:\s*var\(--studio-action-warning-bg\);[\s\S]*\}/,
+  /\.studio-heat-advanced-risk-window strong\s*\{[\s\S]*color:\s*var\(--studio-action-warning-bg\)\s*!important;[\s\S]*\}/,
   'advanced risk confirmation title should use explicit warning contrast',
 );
 assert.match(styleSource, /prefers-reduced-motion:\s*reduce[\s\S]*\.studio-heat-free-params \*/, 'Free Mode parameter motion should include a reduced-motion fallback');

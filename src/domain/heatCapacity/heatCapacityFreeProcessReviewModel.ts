@@ -25,15 +25,12 @@ import type {
   HeatCapacityProcessStageSegment,
 } from './heatCapacityFreeProcessReviewTypes.ts';
 import {
-  alignStandardReferenceToStages,
-  createHeatCapacityStandardReference,
-} from './heatCapacityFreeStandardReferenceModel.ts';
-import {
   selectHeatCapacityBestRecordWindows,
 } from './heatCapacityFreeBestWindowModel.ts';
 import {
-  createHeatCapacityOperableBestReference,
-} from './heatCapacityFreeOperableBestModel.ts';
+  createHeatCapacityIdealReference,
+  type HeatCapacityIdealReference,
+} from './heatCapacityFreeIdealReferenceModel.ts';
 import {
   scoreHeatCapacityFreeProcess,
 } from './heatCapacityFreeProcessScoringModel.ts';
@@ -114,14 +111,29 @@ export interface HeatCapacityProcessSystemEvent {
   timeS: number;
 }
 
+export interface HeatCapacityIdealReferenceSummary {
+  feasible: boolean;
+  fillDurationS: number | null;
+  targetPressureMv: number | null;
+  targetPressureDeltaKPa: number | null;
+  releaseDurationS: number | null;
+  gamma: number | null;
+  relativeErrorPercent: number | null;
+  u1TimeS: number | null;
+  u2TimeS: number | null;
+  assumptions: HeatCapacityIdealReference['assumptions'];
+  explanation: HeatCapacityIdealReference['explanation'];
+}
+
 export interface HeatCapacityProcessChartData {
   stages: HeatCapacityProcessStageSegment[];
   trace: HeatCapacityProcessTracePoint[];
   records: HeatCapacityProcessRecordEvent[];
   controls: HeatCapacityProcessControlEvent[];
   systemEvents: HeatCapacityProcessSystemEvent[];
-  referenceTrace: HeatCapacityProcessReferencePoint[];
-  operableBestTrace: HeatCapacityProcessReferencePoint[];
+  idealReferenceTrace: HeatCapacityProcessReferencePoint[];
+  idealReferenceStages: HeatCapacityProcessStageSegment[];
+  idealReference: HeatCapacityIdealReferenceSummary;
   bestWindows: HeatCapacityBestRecordWindow[];
 }
 
@@ -161,8 +173,31 @@ const emptyChart = (): HeatCapacityProcessChartData => ({
   records: [],
   controls: [],
   systemEvents: [],
-  referenceTrace: [],
-  operableBestTrace: [],
+  idealReferenceTrace: [],
+  idealReferenceStages: [],
+  idealReference: {
+    feasible: false,
+    fillDurationS: null,
+    targetPressureMv: null,
+    targetPressureDeltaKPa: null,
+    releaseDurationS: null,
+    gamma: null,
+    relativeErrorPercent: null,
+    u1TimeS: null,
+    u2TimeS: null,
+    assumptions: {
+      fillMode: 'continuous-fast',
+      noiseIgnored: true,
+      sensorLagIgnored: true,
+      leakageIgnored: true,
+    },
+    explanation: {
+      fill: '理想参考使用连续快速充气。',
+      u1: 'U1 取首次回温稳定点。',
+      release: '放气时长由当前参数解析计算。',
+      u2: 'U2 取再次回温稳定点。',
+    },
+  },
   bestWindows: [],
 });
 
@@ -175,6 +210,9 @@ const emptyScore = (): HeatCapacityProcessScore => ({
 const roundNumber = (value: number, digits = 2) => (
   Number.isFinite(value) ? Number(value.toFixed(digits)) : value
 );
+
+const PROCESS_REVIEW_POST_U2_BUFFER_S = 6;
+const PROCESS_REVIEW_POWER_OFF_GRACE_S = 30;
 
 const formatNumber = (value: number, digits = 1) => (
   Number.isFinite(value) ? value.toFixed(digits) : '--'
@@ -313,6 +351,58 @@ const findEventAfter = (
   afterS: number,
 ) => events.find((event) => event.type === type && event.atS >= afterS) ?? null;
 
+const findPressurePeakSampleTime = (
+  samples: HeatCapacityFreeTraceSample[],
+  startS: number,
+  endS: number,
+) => {
+  const candidates = samples.filter((sample) => (
+    sample.atS >= startS - 0.000001 &&
+    sample.atS <= endS + 0.000001
+  ));
+  if (candidates.length === 0) return null;
+  const peak = candidates.reduce((best, sample) => (
+    sample.sensor.displayPressureMv > best.sensor.displayPressureMv ? sample : best
+  ), candidates[0]);
+  return peak.atS;
+};
+
+const findStopcockFlowStartTime = (
+  samples: HeatCapacityFreeTraceSample[],
+  visualOpenS: number,
+) => {
+  const confirmedFlowSample = samples.find((sample) => (
+    sample.atS >= visualOpenS &&
+    sample.controls.stopcockFlowOpen
+  ));
+  if (confirmedFlowSample) return confirmedFlowSample.atS;
+
+  const releasingSample = samples.find((sample) => (
+    sample.atS >= visualOpenS &&
+    sample.controls.stopcockOpen &&
+    sample.physical.releaseStarted
+  ));
+  return releasingSample?.atS ?? visualOpenS;
+};
+
+const getProcessReviewEndS = (
+  events: HeatCapacityFreeEvent[],
+  samples: HeatCapacityFreeTraceSample[],
+  trial: HeatCapacityFreeTrial,
+  firstTime: number,
+) => {
+  const lastSampleTime = samples[samples.length - 1]?.atS ?? firstTime;
+  const completionBaseS = trial.u2?.atS ?? trial.u1?.atS ?? trial.u0?.atS ?? lastSampleTime;
+  const powerOffEvent = findEventAfter(events, 'power-off', completionBaseS);
+  if (
+    powerOffEvent &&
+    powerOffEvent.atS <= completionBaseS + PROCESS_REVIEW_POWER_OFF_GRACE_S
+  ) {
+    return Math.max(firstTime, powerOffEvent.atS);
+  }
+  return Math.max(firstTime, completionBaseS + PROCESS_REVIEW_POST_U2_BUFFER_S);
+};
+
 const createStages = (
   branch: HeatCapacityFreeTraceBranch,
   trial: HeatCapacityFreeTrial,
@@ -320,13 +410,32 @@ const createStages = (
   const events = [...branch.events].sort((left, right) => left.atS - right.atS);
   const samples = [...branch.samples].sort((left, right) => left.atS - right.atS);
   const firstTime = samples[0]?.atS ?? 0;
-  const lastTime = samples[samples.length - 1]?.atS ?? trial.u2?.atS ?? trial.u1?.atS ?? firstTime;
-  const pumpEvents = events.filter((event) => event.type === 'pump-stroke');
-  const pumpStart = eventTime(events, 'pump-valve-open') ?? pumpEvents[0]?.atS ?? trial.u0?.atS ?? firstTime;
-  const pumpEnd = eventTime(events, 'pump-valve-close') ?? pumpEvents[pumpEvents.length - 1]?.atS ?? pumpStart;
-  const releaseStartEvent = findEventAfter(events, 'stopcock-open', trial.u1?.atS ?? pumpEnd);
-  const releaseStart = releaseStartEvent?.atS ?? trial.u1?.atS ?? pumpEnd;
-  const releaseEnd = findEventAfter(events, 'stopcock-close', releaseStart)?.atS ?? releaseStart;
+  const lastTime = getProcessReviewEndS(events, samples, trial, firstTime);
+  const eventsInWindow = events.filter((event) => event.atS <= lastTime);
+  const pumpEvents = eventsInWindow.filter((event) => event.type === 'pump-stroke');
+  const firstPumpEvent = pumpEvents[0] ?? null;
+  const lastPumpEvent = pumpEvents[pumpEvents.length - 1] ?? null;
+  const pumpValveOpenTime = eventTime(eventsInWindow, 'pump-valve-open');
+  const pumpStart = firstPumpEvent?.atS ?? pumpValveOpenTime ?? trial.u0?.atS ?? firstTime;
+  const pumpValveCloseTime = eventTime(
+    eventsInWindow,
+    'pump-valve-close',
+    (event) => event.atS >= pumpStart,
+  );
+  const nextStopcockOpenTime = eventTime(
+    eventsInWindow,
+    'stopcock-open',
+    (event) => event.atS >= (lastPumpEvent?.atS ?? pumpStart),
+  );
+  const pumpPeakSearchEnd = pumpValveCloseTime ?? nextStopcockOpenTime ?? lastTime;
+  const pumpEnd = lastPumpEvent
+    ? findPressurePeakSampleTime(samples, lastPumpEvent.atS, pumpPeakSearchEnd) ?? lastPumpEvent.atS
+    : pumpValveCloseTime ?? pumpStart;
+  const releaseStartEvent = findEventAfter(eventsInWindow, 'stopcock-open', pumpEnd);
+  const releaseStart = releaseStartEvent
+    ? findStopcockFlowStartTime(samples, releaseStartEvent.atS)
+    : trial.u1?.atS ?? pumpEnd;
+  const releaseEnd = findEventAfter(eventsInWindow, 'stopcock-close', releaseStart)?.atS ?? releaseStart;
   const segments: HeatCapacityProcessStageSegment[] = [];
   const addSegment = (segment: HeatCapacityProcessStageSegment) => {
     if (segment.endS > segment.startS) {
@@ -358,6 +467,20 @@ const createStages = (
   return segments;
 };
 
+const getStageWindow = (stages: HeatCapacityProcessStageSegment[]) => ({
+  startS: Math.min(...stages.map((stage) => stage.startS)),
+  endS: Math.max(...stages.map((stage) => stage.endS)),
+});
+
+const isWithinStageWindow = (
+  timeS: number,
+  stages: HeatCapacityProcessStageSegment[],
+) => {
+  if (stages.length === 0) return true;
+  const { startS, endS } = getStageWindow(stages);
+  return timeS >= startS - 0.000001 && timeS <= endS + 0.000001;
+};
+
 const controlEventTypeMap: Partial<Record<HeatCapacityFreeEventType, {
   kind: HeatCapacityProcessControlKind;
   label: string;
@@ -374,25 +497,27 @@ const createControls = (
   branch: HeatCapacityFreeTraceBranch,
   stages: HeatCapacityProcessStageSegment[],
 ) => {
-  const controls: HeatCapacityProcessControlEvent[] = branch.events.flatMap((event) => {
-    if (event.type === 'pump-stroke') {
-      return [{
-        id: event.id,
-        kind: 'pumpBulb',
-        label: '打气球',
-        timeS: roundNumber(event.atS, 2),
-      }];
-    }
-    const mapped = controlEventTypeMap[event.type];
-    return mapped
-      ? [{
-        id: event.id,
-        kind: mapped.kind,
-        label: mapped.label,
-        timeS: roundNumber(event.atS, 2),
-      }]
-      : [];
-  });
+  const controls: HeatCapacityProcessControlEvent[] = branch.events
+    .filter((event) => isWithinStageWindow(event.atS, stages))
+    .flatMap((event) => {
+      if (event.type === 'pump-stroke') {
+        return [{
+          id: event.id,
+          kind: 'pumpBulb',
+          label: '打气球',
+          timeS: roundNumber(event.atS, 2),
+        }];
+      }
+      const mapped = controlEventTypeMap[event.type];
+      return mapped
+        ? [{
+          id: event.id,
+          kind: mapped.kind,
+          label: mapped.label,
+          timeS: roundNumber(event.atS, 2),
+        }]
+        : [];
+    });
   return controls.sort((left, right) => left.timeS - right.timeS);
 };
 
@@ -409,17 +534,20 @@ const systemEventMap: Partial<Record<HeatCapacityFreeEventType, {
 
 const createSystemEvents = (
   branch: HeatCapacityFreeTraceBranch,
-) => branch.events.flatMap((event) => {
-  const mapped = systemEventMap[event.type];
-  return mapped
-    ? [{
-      id: event.id,
-      kind: mapped.kind,
-      label: mapped.label,
-      timeS: roundNumber(event.atS, 2),
-    }]
-    : [];
-});
+  stages: HeatCapacityProcessStageSegment[],
+) => branch.events
+  .filter((event) => isWithinStageWindow(event.atS, stages))
+  .flatMap((event) => {
+    const mapped = systemEventMap[event.type];
+    return mapped
+      ? [{
+        id: event.id,
+        kind: mapped.kind,
+        label: mapped.label,
+        timeS: roundNumber(event.atS, 2),
+      }]
+      : [];
+  });
 
 const createRecordEvent = (
   id: HeatCapacityProcessRecordId,
@@ -453,20 +581,17 @@ const createChartData = (
   const temperatureSensitivity = getTemperatureSensitivity(traceTrial);
   const u0Pressure = trial.u0?.displayPressureMv ?? 0;
   const u0Temperature = trial.u0?.displayTemperatureMv ?? traceTrial.configSnapshot.sensor.temperatureMvAtAmbient;
-  const trace = branch.samples.map((sample) => ({
+  const stages = createStages(branch, trial);
+  const trace = branch.samples.filter((sample) => isWithinStageWindow(sample.atS, stages)).map((sample) => ({
     sampleId: sample.id,
     timeS: roundNumber(sample.atS, 2),
     pressureDeltaKPa: roundNumber((sample.sensor.displayPressureMv - u0Pressure) / pressureSensitivity, 3),
     temperatureDeltaK: roundNumber((sample.sensor.displayTemperatureMv - u0Temperature) / temperatureSensitivity, 3),
   }));
-  const stages = createStages(branch, trial);
-  const standardReference = createHeatCapacityStandardReference(traceTrial.configSnapshot);
-  const referenceTrace = alignStandardReferenceToStages(standardReference, stages);
-  const operableBestReference = createHeatCapacityOperableBestReference(
+  const idealReference = createHeatCapacityIdealReference(
     traceTrial.configSnapshot,
     theoreticalGamma,
   );
-  const operableBestTrace = alignStandardReferenceToStages(operableBestReference, stages);
   const records = [
     createRecordEvent('u0', trial.u0, trial.u0, pressureSensitivity, temperatureSensitivity),
     createRecordEvent('u1', trial.u1, trial.u0, pressureSensitivity, temperatureSensitivity),
@@ -478,9 +603,22 @@ const createChartData = (
     trace,
     records,
     controls: createControls(branch, stages),
-    systemEvents: createSystemEvents(branch),
-    referenceTrace,
-    operableBestTrace,
+    systemEvents: createSystemEvents(branch, stages),
+    idealReferenceTrace: idealReference.trace,
+    idealReferenceStages: idealReference.stages,
+    idealReference: {
+      feasible: idealReference.feasible,
+      fillDurationS: idealReference.fillDurationS,
+      targetPressureMv: idealReference.targetPressureMv,
+      targetPressureDeltaKPa: idealReference.targetPressureDeltaKPa,
+      releaseDurationS: idealReference.releaseDurationS,
+      gamma: idealReference.gamma === null ? null : roundNumber(idealReference.gamma, 3),
+      relativeErrorPercent: idealReference.relativeErrorPercent,
+      u1TimeS: idealReference.u1TimeS,
+      u2TimeS: idealReference.u2TimeS,
+      assumptions: idealReference.assumptions,
+      explanation: idealReference.explanation,
+    },
     bestWindows: upperBound.windows,
   };
 };
@@ -580,14 +718,18 @@ const createReleaseDiagnosis = (
   branch: HeatCapacityFreeTraceBranch,
   summary: HeatCapacityProcessReviewSummary,
 ): HeatCapacityProcessDiagnosisRow => {
+  const samples = [...branch.samples].sort((left, right) => left.atS - right.atS);
   const releaseStart = branch.events.find((event) => (
     event.type === 'stopcock-open' &&
     event.atS >= (summary.u1?.atS ?? 0)
   ));
-  const releaseEnd = releaseStart
-    ? branch.events.find((event) => event.type === 'stopcock-close' && event.atS >= releaseStart.atS)
+  const releaseFlowStartS = releaseStart
+    ? findStopcockFlowStartTime(samples, releaseStart.atS)
     : null;
-  if (!summary.u1 || !summary.u2 || !releaseStart || !releaseEnd) {
+  const releaseEnd = releaseFlowStartS !== null
+    ? branch.events.find((event) => event.type === 'stopcock-close' && event.atS >= releaseFlowStartS)
+    : null;
+  if (!summary.u1 || !summary.u2 || releaseFlowStartS === null || !releaseEnd) {
     return {
       id: 'release',
       title: '放气操作',
@@ -596,7 +738,7 @@ const createReleaseDiagnosis = (
       recommendation: '需要完整记录放气开始、关闭和 U2 回温记录。',
     };
   }
-  const durationS = releaseEnd.atS - releaseStart.atS;
+  const durationS = releaseEnd.atS - releaseFlowStartS;
   const ratio = summary.u1.pressureDeltaKPa > 0
     ? summary.u2.pressureDeltaKPa / summary.u1.pressureDeltaKPa
     : NaN;

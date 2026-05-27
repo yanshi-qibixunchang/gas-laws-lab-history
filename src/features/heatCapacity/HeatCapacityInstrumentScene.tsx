@@ -2221,12 +2221,18 @@ function HeatCapacityOrbitControls({
 }) {
   const invalidate = useThree((state) => state.invalidate);
 
+  useEffect(() => {
+    if (!controlsRef.current) return;
+    controlsRef.current.target.set(...DEFAULT_CAMERA_TARGET);
+    controlsRef.current.update();
+    invalidate();
+  }, [controlsRef, invalidate]);
+
   return (
     <OrbitControls
       ref={controlsRef}
       makeDefault
       enabled={enabled}
-      target={DEFAULT_CAMERA_TARGET}
       enablePan={true}
       enableZoom={true}
       minDistance={ORBIT_MIN_DISTANCE}
@@ -2246,6 +2252,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const hoverClearTimerRef = useRef<number | null>(null);
   const valveFocusBubbleExitTimerRef = useRef<number | null>(null);
   const valveFocusPointerDownRef = useRef(false);
+  const onFocusModeChangeRef = useRef(props.onFocusModeChange);
   const [focusMode, setFocusMode] = useState<HeatCapacityFocusMode>('none');
   const [hoveredControl, setHoveredControl] = useState<HeatCapacityHoveredControl>(null);
   const [valveFocusBubble, setValveFocusBubble] = useState<ValveFocusBubbleState | null>(null);
@@ -2332,8 +2339,11 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   }, [clearValveFocusBubbleExitTimer]);
   useEffect(() => clearValveFocusBubbleExitTimer, [clearValveFocusBubbleExitTimer]);
   useEffect(() => {
-    props.onFocusModeChange(focusMode);
-  }, [focusMode, props.onFocusModeChange]);
+    onFocusModeChangeRef.current = props.onFocusModeChange;
+  }, [props.onFocusModeChange]);
+  useEffect(() => {
+    onFocusModeChangeRef.current(focusMode);
+  }, [focusMode]);
   const triggerSmoothDefaultView = useCallback(() => {
     closeValveFocusBubble();
     setFocusMode('none');

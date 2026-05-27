@@ -12,6 +12,12 @@ import type {
   HeatCapacityProcessSystemKind,
   HeatCapacityProcessTracePoint,
 } from '../../domain/heatCapacity/heatCapacityFreeProcessReviewModel.ts';
+import {
+  calculateHeatCapacityProcessReviewCompressedDurationS,
+  createHeatCapacityAlignedReferencePointToX,
+  createHeatCapacityProcessReviewStageLayout,
+  type HeatCapacityProcessReviewStageScalePoint,
+} from './heatCapacityProcessReviewStageScale.ts';
 import './HeatCapacityProcessReviewPanel.css';
 
 interface HeatCapacityProcessReviewPanelProps {
@@ -19,10 +25,73 @@ interface HeatCapacityProcessReviewPanelProps {
   review: HeatCapacityFreeProcessReview;
   selectedTrialId: string | null;
   onSelectedTrialChange: (trialId: string) => void;
+  language?: HeatCapacityProcessReviewLanguage;
 }
 
 type ChartKind = 'pressure' | 'temperature';
-type ChartLinePoint = Pick<HeatCapacityProcessTracePoint, 'timeS' | 'pressureDeltaKPa' | 'temperatureDeltaK'>;
+type HeatCapacityProcessReviewLanguage = 'zh-CN' | 'zh-TW' | 'en';
+type ChartLinePoint = Pick<HeatCapacityProcessTracePoint, 'timeS' | 'pressureDeltaKPa' | 'temperatureDeltaK'> &
+  HeatCapacityProcessReviewStageScalePoint;
+interface HeatCapacityProcessReviewCopy {
+  timelineAria: string;
+  timelineTitle: string;
+  timelineSubtitle: string;
+  controlLegendAria: string;
+  stageLabels: Record<HeatCapacityProcessStageId, string>;
+  controlLabels: Record<HeatCapacityProcessControlKind, string>;
+  systemLabels: Record<HeatCapacityProcessSystemKind, string>;
+  diagnosisStatusLabels: Record<HeatCapacityProcessDiagnosisStatus, string>;
+  measured: string;
+  idealReference: string;
+  recordWindow: string;
+  recordWindowTitle: string;
+  recordTimeLabel: string;
+  signalLabel: string;
+  pressureDeltaLabel: string;
+  temperatureDeltaLabel: string;
+  recordTitle: string;
+  pressureTitle: string;
+  pressureSubtitle: string;
+  temperatureTitle: string;
+  temperatureSubtitle: string;
+  pressureYLabel: string;
+  temperatureYLabel: string;
+  xAxisLabel: string;
+  idealReferenceAssumptions: string;
+  idealReferenceUnavailable: string;
+  notFreeTitle: string;
+  notFreeBody: string;
+  missingTraceTitle: string;
+  emptyTitle: string;
+  emptyBody: string;
+  summaryAria: string;
+  currentReview: string;
+  trialPrefix: string;
+  trialSuffix: string;
+  freeModeLabel: string;
+  mainBranchLabel: string;
+  relativeError: string;
+  upperBoundGamma: string;
+  upperBoundGap: string;
+  operationScore: string;
+  scoreDerived: string;
+  retakeTitle: string;
+  timeUnit: string;
+  hiddenBranchPrefix: string;
+  hiddenBranchSuffix: string;
+  processAria: string;
+  processTitle: string;
+  incomplete: string;
+  retakeShort: string;
+  diagnosisAria: string;
+  diagnosisTitle: string;
+  groupPrefix: string;
+  groupSuffix: string;
+  collapse: string;
+  expand: string;
+  scoreDetailSuffix: string;
+  noIssue: string;
+}
 interface ChartAxis {
   min: number;
   max: number;
@@ -43,18 +112,13 @@ const PLOT_LEFT = 42;
 const PLOT_RIGHT = SVG_WIDTH - 34;
 const PLOT_TOP = 34;
 const PLOT_BOTTOM = 190;
-const RELEASE_EXPANSION_WIDTH = 184;
 const MAJOR_TICK_LENGTH = 5;
-const MIN_STAGE_WIDTH_BY_ID: Record<HeatCapacityProcessStageId, number> = {
-  zero: 118,
-  pump: 210,
-  stabilize: 260,
-  release: 82,
-  recover: 190,
-};
+const LONG_TICK_LENGTH = MAJOR_TICK_LENGTH * 1.3;
+const RECORD_WINDOW_WIDTH = 18;
 
 const stagePalette: Record<HeatCapacityProcessStageId, string> = {
   zero: '#7b8da0',
+  fill: '#c78639',
   pump: '#348990',
   stabilize: '#637f55',
   release: '#a87332',
@@ -75,6 +139,15 @@ const controlLabels: Record<HeatCapacityProcessControlKind, string> = {
   stopcock: '玻璃旋塞',
 };
 
+const stageLabelsZhCn: Record<HeatCapacityProcessStageId, string> = {
+  zero: '调零',
+  fill: '快速充气',
+  pump: '打气',
+  stabilize: '回温稳定',
+  release: '开阀放气',
+  recover: '关阀回温',
+};
+
 const diagnosisStatusLabels: Record<HeatCapacityProcessDiagnosisStatus, string> = {
   reasonable: '合理',
   review: '可审核',
@@ -89,6 +162,281 @@ const systemBadgeClass: Record<HeatCapacityProcessSystemKind, string> = {
   blocked: 'hpr-system-blocked',
   retake: 'hpr-system-retake',
 };
+
+const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, HeatCapacityProcessReviewCopy> = {
+  'zh-CN': {
+    timelineAria: '实验阶段时间轴',
+    timelineTitle: '阶段时间轴',
+    timelineSubtitle: '记录事件 / 控件事件 / 系统标签',
+    controlLegendAria: '控件事件图例',
+    stageLabels: stageLabelsZhCn,
+    controlLabels,
+    systemLabels: {
+      warning: '警告',
+      danger: '危险',
+      blocked: '拦截',
+      retake: '重录',
+    },
+    diagnosisStatusLabels,
+    measured: '实测',
+    idealReference: '理想参考',
+    recordWindow: '记录窗口',
+    recordWindowTitle: 'U0/U1/U2 最佳记录窗口',
+    recordTimeLabel: '记录时间',
+    signalLabel: '电信号',
+    pressureDeltaLabel: '换算压强差',
+    temperatureDeltaLabel: '换算温度差',
+    recordTitle: '实际记录时刻',
+    pressureTitle: '压强差过程',
+    pressureSubtitle: '由 Uₚ 换算',
+    temperatureTitle: '温度变化过程',
+    temperatureSubtitle: '由 Uₜ 换算',
+    pressureYLabel: 'ΔP (kPa)',
+    temperatureYLabel: 'ΔT (K)',
+    xAxisLabel: '过程时间 (s，等待压缩)',
+    idealReferenceAssumptions: '无噪声、无传感器滞后、无泄漏；U1/U2 取首次回温稳定点。',
+    idealReferenceUnavailable: '当前参数下未找到同时满足安全阈值、记录阈值和 γ 目标的理想参考过程。',
+    notFreeTitle: '过程回顾仅用于自由模式',
+    notFreeBody: '演示模式和引导模式保持教学预设行为，不读取自由模式真实 trace。',
+    missingTraceTitle: '本组缺少过程 trace',
+    emptyTitle: '暂无可回顾的自由模式实验组',
+    emptyBody: '完成 U0、U1、U2 记录后，这里会显示过程曲线、结果摘要和操作诊断。',
+    summaryAria: '过程回顾摘要',
+    currentReview: '当前回顾',
+    trialPrefix: '第 ',
+    trialSuffix: ' 组实验',
+    freeModeLabel: 'Free Mode',
+    mainBranchLabel: '主线',
+    relativeError: '相对误差',
+    upperBoundGamma: '操作上限 γ',
+    upperBoundGap: '与上限差距',
+    operationScore: '操作评分',
+    scoreDerived: '基于本次 trace 派生',
+    retakeTitle: '退回 / 重录',
+    timeUnit: '次',
+    hiddenBranchPrefix: '隐藏分支 ',
+    hiddenBranchSuffix: ' 条',
+    processAria: '过程诊断图',
+    processTitle: '过程诊断图',
+    incomplete: '未完成',
+    retakeShort: '重录',
+    diagnosisAria: '实验诊断',
+    diagnosisTitle: '实验诊断',
+    groupPrefix: '第 ',
+    groupSuffix: ' 组',
+    collapse: '收起',
+    expand: '展开',
+    scoreDetailSuffix: '评分明细',
+    noIssue: '无误',
+  },
+  'zh-TW': {
+    timelineAria: '實驗階段時間軸',
+    timelineTitle: '階段時間軸',
+    timelineSubtitle: '記錄事件 / 控件事件 / 系統標籤',
+    controlLegendAria: '控件事件圖例',
+    stageLabels: {
+      zero: '調零',
+      fill: '快速充氣',
+      pump: '打氣',
+      stabilize: '回溫穩定',
+      release: '開閥放氣',
+      recover: '關閥回溫',
+    },
+    controlLabels: {
+      power: '電源',
+      pumpValve: '打氣閥',
+      pumpBulb: '打氣球',
+      stopcock: '玻璃旋塞',
+    },
+    systemLabels: {
+      warning: '警告',
+      danger: '危險',
+      blocked: '攔截',
+      retake: '重錄',
+    },
+    diagnosisStatusLabels: {
+      reasonable: '合理',
+      review: '可審核',
+      'needs-improvement': '需加強',
+      retaken: '有重錄',
+      'insufficient-data': '數據不足',
+    },
+    measured: '實測',
+    idealReference: '理想參考',
+    recordWindow: '記錄窗口',
+    recordWindowTitle: 'U0/U1/U2 最佳記錄窗口',
+    recordTimeLabel: '記錄時間',
+    signalLabel: '電信號',
+    pressureDeltaLabel: '換算壓強差',
+    temperatureDeltaLabel: '換算溫度差',
+    recordTitle: '實際記錄時刻',
+    pressureTitle: '壓強差過程',
+    pressureSubtitle: '由 Uₚ 換算',
+    temperatureTitle: '溫度變化過程',
+    temperatureSubtitle: '由 Uₜ 換算',
+    pressureYLabel: 'ΔP (kPa)',
+    temperatureYLabel: 'ΔT (K)',
+    xAxisLabel: '過程時間 (s，等待壓縮)',
+    idealReferenceAssumptions: '無噪聲、無傳感器滯後、無洩漏；U1/U2 取首次回溫穩定點。',
+    idealReferenceUnavailable: '目前參數下未找到同時滿足安全閾值、記錄閾值和 γ 目標的理想參考過程。',
+    notFreeTitle: '過程回顧僅用於自由模式',
+    notFreeBody: '演示模式和引導模式保持教學預設行為，不讀取自由模式真實 trace。',
+    missingTraceTitle: '本組缺少過程 trace',
+    emptyTitle: '暫無可回顧的自由模式實驗組',
+    emptyBody: '完成 U0、U1、U2 記錄後，這裡會顯示過程曲線、結果摘要和操作診斷。',
+    summaryAria: '過程回顧摘要',
+    currentReview: '目前回顧',
+    trialPrefix: '第 ',
+    trialSuffix: ' 組實驗',
+    freeModeLabel: 'Free Mode',
+    mainBranchLabel: '主線',
+    relativeError: '相對誤差',
+    upperBoundGamma: '操作上限 γ',
+    upperBoundGap: '與上限差距',
+    operationScore: '操作評分',
+    scoreDerived: '基於本次 trace 派生',
+    retakeTitle: '退回 / 重錄',
+    timeUnit: '次',
+    hiddenBranchPrefix: '隱藏分支 ',
+    hiddenBranchSuffix: ' 條',
+    processAria: '過程診斷圖',
+    processTitle: '過程診斷圖',
+    incomplete: '未完成',
+    retakeShort: '重錄',
+    diagnosisAria: '實驗診斷',
+    diagnosisTitle: '實驗診斷',
+    groupPrefix: '第 ',
+    groupSuffix: ' 組',
+    collapse: '收起',
+    expand: '展開',
+    scoreDetailSuffix: '評分明細',
+    noIssue: '無誤',
+  },
+  en: {
+    timelineAria: 'Experiment stage timeline',
+    timelineTitle: 'Stage timeline',
+    timelineSubtitle: 'Record events / control events / system tags',
+    controlLegendAria: 'Control event legend',
+    stageLabels: {
+      zero: 'Zero',
+      fill: 'Fast fill',
+      pump: 'Pumping',
+      stabilize: 'Thermal settle',
+      release: 'Valve release',
+      recover: 'Valve closed recovery',
+    },
+    controlLabels: {
+      power: 'Power',
+      pumpValve: 'Pump valve',
+      pumpBulb: 'Pump bulb',
+      stopcock: 'Stopcock',
+    },
+    systemLabels: {
+      warning: 'Warning',
+      danger: 'Danger',
+      blocked: 'Blocked',
+      retake: 'Retake',
+    },
+    diagnosisStatusLabels: {
+      reasonable: 'OK',
+      review: 'Review',
+      'needs-improvement': 'Improve',
+      retaken: 'Retaken',
+      'insufficient-data': 'Insufficient',
+    },
+    measured: 'Measured',
+    idealReference: 'Ideal reference',
+    recordWindow: 'Record window',
+    recordWindowTitle: 'Best U0/U1/U2 record window',
+    recordTimeLabel: 'Record time',
+    signalLabel: 'Signal',
+    pressureDeltaLabel: 'Converted ΔP',
+    temperatureDeltaLabel: 'Converted ΔT',
+    recordTitle: 'Actual record time',
+    pressureTitle: 'Pressure difference',
+    pressureSubtitle: 'Converted from Uₚ',
+    temperatureTitle: 'Temperature change',
+    temperatureSubtitle: 'Converted from Uₜ',
+    pressureYLabel: 'ΔP (kPa)',
+    temperatureYLabel: 'ΔT (K)',
+    xAxisLabel: 'Process time (s, waits compressed)',
+    idealReferenceAssumptions: 'No noise, sensor lag, or leakage; U1/U2 use the first stable return-to-ambient point.',
+    idealReferenceUnavailable: 'No ideal reference process satisfies the safety threshold, record threshold, and γ target with the current parameters.',
+    notFreeTitle: 'Process review is Free Mode only',
+    notFreeBody: 'Demo and guided modes keep their teaching presets and do not read the real Free Mode trace.',
+    missingTraceTitle: 'This trial is missing its process trace',
+    emptyTitle: 'No reviewable Free Mode trial yet',
+    emptyBody: 'After recording U0, U1, and U2, this area shows process curves, result summary, and operation diagnostics.',
+    summaryAria: 'Process review summary',
+    currentReview: 'Current review',
+    trialPrefix: 'Trial ',
+    trialSuffix: '',
+    freeModeLabel: 'Free Mode',
+    mainBranchLabel: 'main branch',
+    relativeError: 'Relative error',
+    upperBoundGamma: 'Operation limit γ',
+    upperBoundGap: 'Gap to limit',
+    operationScore: 'Operation score',
+    scoreDerived: 'Derived from this trace',
+    retakeTitle: 'Backtrack / retake',
+    timeUnit: 'times',
+    hiddenBranchPrefix: 'Hidden branches ',
+    hiddenBranchSuffix: '',
+    processAria: 'Process diagnostics chart',
+    processTitle: 'Process diagnostics',
+    incomplete: 'Incomplete',
+    retakeShort: 'retakes',
+    diagnosisAria: 'Experiment diagnostics',
+    diagnosisTitle: 'Experiment diagnostics',
+    groupPrefix: 'Trial ',
+    groupSuffix: '',
+    collapse: 'Collapse ',
+    expand: 'Expand ',
+    scoreDetailSuffix: ' score details',
+    noIssue: 'No issue',
+  },
+};
+
+const getHeatCapacityProcessReviewCopy = (
+  language: HeatCapacityProcessReviewLanguage,
+) => heatCapacityProcessReviewCopy[language] ?? heatCapacityProcessReviewCopy['zh-CN'];
+
+const formatIdealReferenceSummary = (
+  language: HeatCapacityProcessReviewLanguage,
+  fillDuration: string,
+  targetPressure: string,
+  releaseDuration: string,
+  gamma: string,
+  error: string,
+) => {
+  if (language === 'en') {
+    return `Continuous fast fill for about ${fillDuration} to ${targetPressure}; valve open ${releaseDuration}; expected γ = ${gamma}, error ${error}.`;
+  }
+  if (language === 'zh-TW') {
+    return `連續快速充氣約 ${fillDuration} 至 ${targetPressure}；開閥 ${releaseDuration}；預計 γ = ${gamma}，誤差 ${error}。`;
+  }
+  return `连续快速充气约 ${fillDuration} 至 ${targetPressure}；开阀 ${releaseDuration}；预计 γ = ${gamma}，误差 ${error}。`;
+};
+
+const formatTrialLabel = (
+  copy: HeatCapacityProcessReviewCopy,
+  trialIndex: number,
+) => `${copy.trialPrefix}${trialIndex}${copy.trialSuffix}`;
+
+const formatGroupLabel = (
+  copy: HeatCapacityProcessReviewCopy,
+  trialIndex: number,
+) => `${copy.groupPrefix}${trialIndex}${copy.groupSuffix}`;
+
+const formatRetakeCount = (
+  copy: HeatCapacityProcessReviewCopy,
+  count: number,
+) => `${count} ${copy.timeUnit}`;
+
+const formatHiddenBranchCount = (
+  copy: HeatCapacityProcessReviewCopy,
+  count: number,
+) => `${copy.hiddenBranchPrefix}${count}${copy.hiddenBranchSuffix}`;
 
 const formatMetric = (
   value: number | null | undefined,
@@ -106,87 +454,16 @@ const formatScore = (score: number | null | undefined, max = 100) => (
     : '--'
 );
 
-const normalizeDiagnosisText = (value: string | null | undefined) => {
+const normalizeDiagnosisText = (value: string | null | undefined, fallback = '无误') => {
   const text = (value ?? '--')
     .replace(/[\u3002\uff1b;]+/gu, '\uff0c')
     .replace(/\uff0c\s*$/u, '')
     .replace(/\s+/g, ' ')
     .trim();
-  return text || '无误';
+  return text || fallback;
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-
-const getTotalSeconds = (chart: HeatCapacityProcessChartData) => Math.max(
-  1,
-  ...chart.stages.map((stage) => stage.endS),
-  ...chart.trace.map((point) => point.timeS),
-  ...chart.operableBestTrace.map((point) => point.timeS),
-  ...chart.referenceTrace.map((point) => point.timeS),
-  ...chart.records.map((record) => record.timeS),
-  ...chart.controls.map((event) => event.timeS),
-  ...chart.systemEvents.map((event) => event.timeS),
-);
-
-const createTimeScale = (
-  stages: HeatCapacityProcessStageSegment[],
-  totalSeconds: number,
-  expandedStageId: HeatCapacityProcessStageId | null,
-) => {
-  const expandedStage = expandedStageId
-    ? stages.find((stage) => stage.id === expandedStageId) ?? null
-    : null;
-  const totalWidth = TRACK_RIGHT - TRACK_LEFT;
-  const durations = stages.map((stage) => Math.max(0.001, stage.endS - stage.startS));
-  const minimumWidths = stages.map((stage) => MIN_STAGE_WIDTH_BY_ID[stage.id]);
-  const minimumTotal = minimumWidths.reduce((sum, width) => sum + width, 0);
-  const proportionalPool = Math.max(0, totalWidth - minimumTotal);
-  const durationTotal = durations.reduce((sum, duration) => sum + duration, 0);
-  const stageWidths = stages.map((stage, index) => (
-    minimumWidths[index] + proportionalPool * (durations[index] / durationTotal)
-  ));
-  if (expandedStage) {
-    const expandedIndex = stages.findIndex((stage) => stage.id === expandedStage.id);
-    if (expandedIndex >= 0) {
-      const expandedGain = Math.min(RELEASE_EXPANSION_WIDTH, totalWidth * 0.18);
-      const donorIndexes = stages
-        .map((stage, index) => ({ stage, index }))
-        .filter(({ index }) => index !== expandedIndex && stageWidths[index] > minimumWidths[index]);
-      const donorCapacity = donorIndexes.reduce((sum, { index }) => (
-        sum + Math.max(0, stageWidths[index] - minimumWidths[index])
-      ), 0);
-      const actualGain = Math.min(expandedGain, donorCapacity);
-      if (actualGain > 0) {
-        stageWidths[expandedIndex] += actualGain;
-        for (const { index } of donorIndexes) {
-          const available = Math.max(0, stageWidths[index] - minimumWidths[index]);
-          stageWidths[index] -= actualGain * (available / donorCapacity);
-        }
-      }
-    }
-  }
-  const stageStartXs: number[] = [];
-  let cursorX = TRACK_LEFT;
-  for (const width of stageWidths) {
-    stageStartXs.push(cursorX);
-    cursorX += width;
-  }
-
-  const stageForTime = (time: number) => {
-    const clampedTime = clamp(time, 0, totalSeconds);
-    const stageIndex = stages.findIndex((stage) => clampedTime >= stage.startS && clampedTime <= stage.endS);
-    if (stageIndex >= 0) return { stage: stages[stageIndex], index: stageIndex, clampedTime };
-    const fallbackIndex = stages.findIndex((stage) => clampedTime < stage.startS);
-    const index = fallbackIndex >= 0 ? fallbackIndex : Math.max(0, stages.length - 1);
-    return { stage: stages[index], index, clampedTime };
-  };
-
-  return (time: number) => {
-    const { stage, index, clampedTime } = stageForTime(time);
-    const duration = Math.max(0.001, stage.endS - stage.startS);
-    return stageStartXs[index] + ((clampedTime - stage.startS) / duration) * stageWidths[index];
-  };
-};
 
 const createNiceStep = (rawStep: number) => {
   if (!Number.isFinite(rawStep) || rawStep <= 0) return 1;
@@ -254,7 +531,7 @@ const isPumpStageTime = (
 const buildPumpAwareLinePath = (
   points: ChartLinePoint[],
   kind: ChartKind,
-  timeToX: (time: number) => number,
+  pointToX: (point: ChartLinePoint) => number,
   domain: { min: number; max: number },
   stages: HeatCapacityProcessStageSegment[],
 ) => {
@@ -262,14 +539,14 @@ const buildPumpAwareLinePath = (
   const commands: string[] = [];
   for (let index = 0; index < points.length; index += 1) {
     const point = points[index];
-    const x = timeToX(point.timeS);
+    const x = pointToX(point);
     const y = valueToY(getChartPointValue(point, kind), domain);
     if (index === 0) {
       commands.push(`M ${x.toFixed(2)} ${y.toFixed(2)}`);
       continue;
     }
     const previous = points[index - 1];
-    const previousX = timeToX(previous.timeS);
+    const previousX = pointToX(previous);
     const previousY = valueToY(getChartPointValue(previous, kind), domain);
     const segmentIsPump = isPumpStageTime(previous.timeS, stages) && isPumpStageTime(point.timeS, stages);
     if (segmentIsPump && Math.abs(x - previousX) > 0.01) {
@@ -278,6 +555,20 @@ const buildPumpAwareLinePath = (
     commands.push(`L ${x.toFixed(2)} ${y.toFixed(2)}`);
   }
   return commands.join(' ');
+};
+
+const buildContinuousLinePath = (
+  points: ChartLinePoint[],
+  kind: ChartKind,
+  pointToX: (point: ChartLinePoint) => number,
+  domain: { min: number; max: number },
+) => {
+  if (points.length === 0) return '';
+  return points.map((point, index) => {
+    const x = pointToX(point);
+    const y = valueToY(getChartPointValue(point, kind), domain);
+    return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+  }).join(' ');
 };
 
 const formatSeconds = (time: number) => `${time.toFixed(time % 1 === 0 ? 0 : 1)} s`;
@@ -322,8 +613,9 @@ const getControlCallout = (
 
 const SharedTimeline: React.FC<{
   chart: HeatCapacityProcessChartData;
-  totalSeconds: number;
-  expandedStageId: HeatCapacityProcessStageId | null;
+  copy: HeatCapacityProcessReviewCopy;
+  sharedCompressedDurationS: number;
+  hoveredStageId: HeatCapacityProcessStageId | null;
   hoveredControlId: string | null;
   hoveredRecordId: string | null;
   onStageHover: (stageId: HeatCapacityProcessStageId | null) => void;
@@ -331,56 +623,63 @@ const SharedTimeline: React.FC<{
   onRecordHover: (eventId: string | null) => void;
 }> = ({
   chart,
-  totalSeconds,
-  expandedStageId,
+  copy,
+  sharedCompressedDurationS,
+  hoveredStageId,
   hoveredControlId,
   hoveredRecordId,
   onStageHover,
   onControlHover,
   onRecordHover,
 }) => {
-  const timeToX = useMemo(
-    () => createTimeScale(chart.stages, totalSeconds, expandedStageId),
-    [chart.stages, totalSeconds, expandedStageId],
+  const stageLayout = useMemo(
+    () => createHeatCapacityProcessReviewStageLayout({
+      stages: chart.stages,
+      plotLeft: TRACK_LEFT,
+      plotRight: TRACK_RIGHT,
+      compressedTotalS: sharedCompressedDurationS,
+    }),
+    [chart.stages, sharedCompressedDurationS],
   );
+  const timeToX = stageLayout.timeToX;
   return (
     <section
       className="hpr-timeline-block"
-      aria-label="实验阶段时间轴"
+      aria-label={copy.timelineAria}
     >
       <div className="hpr-freeze-heading hpr-timeline-freeze-heading">
         <div className="hpr-freeze-heading-title">
-          <span>阶段时间轴</span>
-          <small>记录事件 / 控件事件 / 系统标签</small>
+          <span>{copy.timelineTitle}</span>
+          <small>{copy.timelineSubtitle}</small>
         </div>
-        <div className="hpr-freeze-legend" aria-label="控件事件图例">
+        <div className="hpr-freeze-legend" aria-label={copy.controlLegendAria}>
           {(Object.keys(controlLabels) as HeatCapacityProcessControlKind[]).map((kind) => (
             <span key={kind}>
               <i style={{ background: controlPalette[kind] }} />
-              {controlLabels[kind]}
+              {copy.controlLabels[kind]}
             </span>
           ))}
         </div>
       </div>
       <svg
-        className={`hpr-timeline-svg ${expandedStageId ? 'hpr-timeline-svg-expanded' : ''}`}
+        className={`hpr-timeline-svg ${hoveredStageId ? 'hpr-timeline-svg-hovered' : ''}`}
         viewBox={`0 0 ${SVG_WIDTH} ${TIMELINE_HEIGHT}`}
         preserveAspectRatio="xMinYMin meet"
         width="100%"
         height={TIMELINE_HEIGHT}
         role="img"
-        aria-label="实验阶段色条和关键事件"
+        aria-label={copy.timelineAria}
       >
         {chart.stages.map((stage) => {
-          const x = timeToX(stage.startS);
-          const width = timeToX(stage.endS) - x;
-          const expanded = expandedStageId === stage.id;
-          const isRelease = stage.id === 'release';
-          const showCompactLabel = !isRelease || expanded;
+          const range = stageLayout.rangeToXRange(stage.startS, stage.endS);
+          const x = range.x;
+          const width = range.width;
+          const hovered = hoveredStageId === stage.id;
+          const label = [copy.stageLabels[stage.id], stage.countText, stage.durationText].filter(Boolean).join(' ');
           return (
             <g
               key={stage.id}
-              className={`hpr-stage hpr-stage-${stage.id} ${expanded ? 'hpr-stage-expanded' : ''}`}
+              className={`hpr-stage hpr-stage-${stage.id} ${hovered ? 'hpr-stage-hovered' : ''}`}
             >
               <rect
                 className="hpr-stage-bar"
@@ -389,23 +688,13 @@ const SharedTimeline: React.FC<{
                 width={width}
                 height={TIMELINE_BAR_HEIGHT}
                 fill={stagePalette[stage.id]}
-                onMouseEnter={() => isRelease && onStageHover(stage.id)}
-                onMouseLeave={() => isRelease && onStageHover(null)}
+                onMouseEnter={() => onStageHover(stage.id)}
+                onMouseLeave={() => onStageHover(null)}
               />
               <line className="hpr-stage-seam" x1={x} y1={TIMELINE_BAR_Y} x2={x} y2={TIMELINE_BAR_Y + TIMELINE_BAR_HEIGHT} />
-              <text className={`hpr-stage-label ${showCompactLabel ? 'hpr-stage-label-visible' : ''}`} x={x + width / 2} y={TIMELINE_BAR_Y + 18} textAnchor="middle">
-                {stage.label}
+              <text className="hpr-stage-label hpr-stage-label-visible" x={x + width / 2} y={TIMELINE_BAR_Y + 18} textAnchor="middle">
+                {label}
               </text>
-              {stage.countText ? (
-                <text className="hpr-stage-count" x={x + width - 22} y={TIMELINE_BAR_Y + 18} textAnchor="end">
-                  {stage.countText}
-                </text>
-              ) : null}
-              {stage.durationText ? (
-                <text className={`hpr-stage-duration ${expanded ? 'hpr-stage-duration-visible' : ''}`} x={x + width - 22} y={TIMELINE_BAR_Y + 18} textAnchor="end">
-                  {stage.durationText}
-                </text>
-              ) : null}
             </g>
           );
         })}
@@ -421,7 +710,9 @@ const SharedTimeline: React.FC<{
               height={26}
               className={`hpr-system-event ${hoveredControlId ? 'hpr-system-event-dimmed' : ''}`}
             >
-              <div className={`hpr-system-badge ${systemBadgeClass[event.kind]}`}>{event.label}</div>
+              <div className={`hpr-system-badge ${systemBadgeClass[event.kind]}`}>
+                {copy.systemLabels[event.kind]}
+              </div>
             </foreignObject>
           );
         })}
@@ -446,10 +737,10 @@ const SharedTimeline: React.FC<{
               </g>
               <g className={`hpr-record-detail ${hovered ? 'hpr-record-detail-visible' : ''}`}>
                 <rect x={callout.detailX} y={callout.detailY} width={184} height={100} rx={5} />
-                <text x={callout.detailX + 12} y={callout.detailY + 22}>记录时间：{formatSeconds(record.timeS)}</text>
-                <text x={callout.detailX + 12} y={callout.detailY + 44}>电信号：{record.signalMv.toFixed(2)} mV</text>
-                <text x={callout.detailX + 12} y={callout.detailY + 66}>换算压强差：{record.pressureDeltaKPa.toFixed(2)} kPa</text>
-                <text x={callout.detailX + 12} y={callout.detailY + 88}>换算温度差：{record.temperatureDeltaK.toFixed(2)} K</text>
+                <text x={callout.detailX + 12} y={callout.detailY + 22}>{copy.recordTimeLabel}: {formatSeconds(record.timeS)}</text>
+                <text x={callout.detailX + 12} y={callout.detailY + 44}>{copy.signalLabel}: {record.signalMv.toFixed(2)} mV</text>
+                <text x={callout.detailX + 12} y={callout.detailY + 66}>{copy.pressureDeltaLabel}: {record.pressureDeltaKPa.toFixed(2)} kPa</text>
+                <text x={callout.detailX + 12} y={callout.detailY + 88}>{copy.temperatureDeltaLabel}: {record.temperatureDeltaK.toFixed(2)} K</text>
               </g>
             </g>
           );
@@ -470,7 +761,7 @@ const SharedTimeline: React.FC<{
               <circle className="hpr-control-dot" cx={callout.x} cy={CONTROL_Y} r={3.4} fill={color} />
               <g className={`hpr-control-callout ${hovered ? 'hpr-control-callout-visible' : ''}`}>
                 <path d={callout.path} stroke={color} />
-                <text x={callout.labelX} y={callout.labelY} fill={color}>{event.label}</text>
+                <text x={callout.labelX} y={callout.labelY} fill={color}>{copy.controlLabels[event.kind]}</text>
               </g>
             </g>
           );
@@ -483,56 +774,92 @@ const SharedTimeline: React.FC<{
 const ProcessChart: React.FC<{
   kind: ChartKind;
   chart: HeatCapacityProcessChartData;
-  totalSeconds: number;
-  expandedStageId: HeatCapacityProcessStageId | null;
-  showStandardReference: boolean;
-  onStandardReferenceToggle: () => void;
+  copy: HeatCapacityProcessReviewCopy;
+  hoveredStageId: HeatCapacityProcessStageId | null;
   showXAxis?: boolean;
 }> = ({
   kind,
   chart,
-  totalSeconds,
-  expandedStageId,
-  showStandardReference,
-  onStandardReferenceToggle,
+  copy,
+  hoveredStageId,
   showXAxis = true,
 }) => {
-  const timeToX = useMemo(
-    () => createTimeScale(chart.stages, totalSeconds, expandedStageId),
-    [chart.stages, totalSeconds, expandedStageId],
+  const idealReferenceStages = chart.idealReferenceStages.length > 0 ? chart.idealReferenceStages : chart.stages;
+  const sharedCompressedDurationS = useMemo(
+    () => Math.max(
+      calculateHeatCapacityProcessReviewCompressedDurationS(chart.stages),
+      calculateHeatCapacityProcessReviewCompressedDurationS(idealReferenceStages),
+    ),
+    [chart.stages, idealReferenceStages],
   );
+  const stageLayout = useMemo(
+    () => createHeatCapacityProcessReviewStageLayout({
+      stages: chart.stages,
+      plotLeft: PLOT_LEFT,
+      plotRight: PLOT_RIGHT,
+      compressedTotalS: sharedCompressedDurationS,
+    }),
+    [chart.stages, sharedCompressedDurationS],
+  );
+  const idealReferenceStageLayout = useMemo(
+    () => createHeatCapacityProcessReviewStageLayout({
+      stages: idealReferenceStages,
+      plotLeft: PLOT_LEFT,
+      plotRight: PLOT_RIGHT,
+      compressedTotalS: sharedCompressedDurationS,
+    }),
+    [idealReferenceStages, sharedCompressedDurationS],
+  );
+  const alignedIdealReferencePointToX = useMemo(
+    () => createHeatCapacityAlignedReferencePointToX({
+      actualStages: chart.stages,
+      referenceStages: idealReferenceStages,
+      actualTimeToX: stageLayout.timeToX,
+      referencePointToX: idealReferenceStageLayout.pointToX,
+      actualStageId: 'pump',
+      referenceStageId: 'fill',
+    }),
+    [chart.stages, idealReferenceStages, stageLayout, idealReferenceStageLayout],
+  );
+  const timeToX = stageLayout.timeToX;
   const axis = useMemo(
     () => createNiceAxis([
       ...chart.trace,
-      ...chart.operableBestTrace,
-      ...(showStandardReference ? chart.referenceTrace : []),
+      ...chart.idealReferenceTrace,
     ], kind),
-    [chart.operableBestTrace, chart.referenceTrace, chart.trace, kind, showStandardReference],
+    [chart.idealReferenceTrace, chart.trace, kind],
   );
   const linePath = useMemo(
-    () => buildPumpAwareLinePath(chart.trace, kind, timeToX, axis, chart.stages),
-    [chart.stages, chart.trace, kind, timeToX, axis],
+    () => buildPumpAwareLinePath(
+      chart.trace,
+      kind,
+      (point) => stageLayout.timeToX(point.timeS),
+      axis,
+      chart.stages,
+    ),
+    [chart.stages, chart.trace, kind, stageLayout, axis],
   );
-  const operableBestPath = useMemo(
-    () => buildPumpAwareLinePath(chart.operableBestTrace, kind, timeToX, axis, chart.stages),
-    [chart.operableBestTrace, chart.stages, kind, timeToX, axis],
-  );
-  const referencePath = useMemo(
-    () => buildPumpAwareLinePath(chart.referenceTrace, kind, timeToX, axis, chart.stages),
-    [chart.referenceTrace, chart.stages, kind, timeToX, axis],
+  const idealReferencePath = useMemo(
+    () => buildContinuousLinePath(
+      chart.idealReferenceTrace,
+      kind,
+      (point) => alignedIdealReferencePointToX(point),
+      axis,
+    ),
+    [chart.idealReferenceTrace, kind, alignedIdealReferencePointToX, axis],
   );
   const yTicks = axis.ticks;
-  const xTicks = [0, Math.round(totalSeconds * 0.25), Math.round(totalSeconds * 0.5), Math.round(totalSeconds * 0.75), Math.round(totalSeconds)];
-  const releaseStage = chart.stages.find((stage) => stage.id === 'release');
-  const releaseExpanded = expandedStageId === 'release' && Boolean(releaseStage);
-  const releaseX = releaseStage ? timeToX(releaseStage.startS) : 0;
-  const releaseW = releaseStage ? Math.max(0, timeToX(releaseStage.endS) - releaseX) : 0;
+  const xTicks = stageLayout.axisTicks;
+  const hoveredStage = hoveredStageId
+    ? chart.stages.find((stage) => stage.id === hoveredStageId) ?? null
+    : null;
+  const hoveredStageRange = hoveredStage
+    ? stageLayout.rangeToXRange(hoveredStage.startS, hoveredStage.endS)
+    : { x: 0, width: 0 };
   const stroke = kind === 'pressure' ? 'var(--hpr-pressure-line)' : 'var(--hpr-temperature-line)';
-  const title = kind === 'pressure' ? '压强差过程' : '温度变化过程';
-  const subtitle = kind === 'pressure' ? '由 Uₚ 换算' : '由 Uₜ 换算';
-  const yLabel = kind === 'pressure' ? 'ΔP (kPa)' : 'ΔT (K)';
-
-  const pumpMarkers = chart.controls.filter((event) => event.kind === 'pumpBulb' && event.count === undefined);
+  const title = kind === 'pressure' ? copy.pressureTitle : copy.temperatureTitle;
+  const subtitle = kind === 'pressure' ? copy.pressureSubtitle : copy.temperatureSubtitle;
+  const yLabel = kind === 'pressure' ? copy.pressureYLabel : copy.temperatureYLabel;
 
   return (
     <section className="hpr-chart-block" aria-label={title}>
@@ -541,17 +868,10 @@ const ProcessChart: React.FC<{
           <span>{title}</span>
           <small>{subtitle}</small>
         </div>
-        <div className="hpr-chart-line-legend" aria-label={`${title}曲线图例`}>
-          <span className="hpr-line-legend hpr-line-legend-trace">实测</span>
-          <span className="hpr-line-legend hpr-line-legend-operable">可达最佳</span>
-          <button
-            type="button"
-            className="hpr-line-legend hpr-line-legend-reference hpr-line-legend-toggle"
-            aria-pressed={showStandardReference}
-            onClick={onStandardReferenceToggle}
-          >
-            标准基线
-          </button>
+        <div className="hpr-chart-line-legend" aria-label={`${title} legend`}>
+          <span className="hpr-line-legend hpr-line-legend-trace">{copy.measured}</span>
+          <span className="hpr-line-legend hpr-line-legend-ideal-reference">{copy.idealReference}</span>
+          <span className="hpr-line-legend hpr-line-legend-window" title={copy.recordWindowTitle}>{copy.recordWindow}</span>
         </div>
       </div>
       <svg
@@ -561,55 +881,43 @@ const ProcessChart: React.FC<{
         width="100%"
         height={CHART_HEIGHT}
         role="img"
-        aria-label={`${title}，纵轴为 ${yLabel}${showXAxis ? '，横轴为时间' : ''}`}
+        aria-label={showXAxis ? `${title}, ${yLabel}, ${copy.xAxisLabel}` : `${title}, ${yLabel}`}
       >
-        {releaseStage ? (
+        {hoveredStage ? (
           <rect
-            className={`hpr-release-focus-area ${releaseExpanded ? 'hpr-release-focus-area-visible' : ''}`}
-            x={releaseX}
+            className={`hpr-stage-focus-area hpr-stage-focus-area-${hoveredStage.id}`}
+            x={hoveredStageRange.x}
             y={PLOT_TOP}
-            width={releaseW}
+            width={hoveredStageRange.width}
             height={PLOT_BOTTOM - PLOT_TOP}
+            fill={stagePalette[hoveredStage.id]}
           />
         ) : null}
         <rect className="hpr-plot-frame" x={PLOT_LEFT} y={PLOT_TOP} width={PLOT_RIGHT - PLOT_LEFT} height={PLOT_BOTTOM - PLOT_TOP} />
-        {pumpMarkers.map((event) => {
-          const x = timeToX(event.timeS);
+        {chart.records.map((record) => {
+          const centerX = timeToX(record.timeS);
+          const x = clamp(centerX - RECORD_WINDOW_WIDTH / 2, PLOT_LEFT, PLOT_RIGHT - RECORD_WINDOW_WIDTH);
           return (
-            <line
-              className="hpr-pump-event-marker"
-              key={`${kind}-${event.id}`}
-              x1={x}
-              y1={PLOT_TOP}
-              x2={x}
-              y2={PLOT_BOTTOM}
-            />
-          );
-        })}
-        {chart.bestWindows.map((window) => {
-          if (window.endS <= window.startS) return null;
-          const x = timeToX(window.startS);
-          const width = Math.max(3, timeToX(window.endS) - x);
-          return (
-            <g className={`hpr-best-window hpr-best-window-${window.recordId}`} key={`${kind}-${window.recordId}`}>
-              <rect x={x} y={PLOT_TOP} width={width} height={PLOT_BOTTOM - PLOT_TOP} />
-              <title>{`${window.recordId.toUpperCase()} 最佳窗口：${window.reason}`}</title>
+            <g className={`hpr-record-window hpr-record-window-${record.id}`} key={`${kind}-${record.id}`}>
+              <rect x={x} y={PLOT_TOP} width={RECORD_WINDOW_WIDTH} height={PLOT_BOTTOM - PLOT_TOP} />
+              <title>{`${record.label} ${copy.recordTitle}: ${formatSeconds(record.timeS)}`}</title>
             </g>
           );
         })}
 
         {xTicks.map((tick) => {
-          const x = timeToX(tick);
-          const isEdgeTick = tick === 0 || tick === Math.round(totalSeconds);
+          const isEdgeTick = Math.abs(tick.x - PLOT_LEFT) < 0.000001 || Math.abs(tick.x - PLOT_RIGHT) < 0.000001;
+          const tickLength = tick.kind === 'major' ? LONG_TICK_LENGTH : MAJOR_TICK_LENGTH;
+          const tickClass = tick.kind === 'minor' ? 'hpr-axis-tick-minor' : 'hpr-axis-tick-major';
           return (
-            <g className={`hpr-axis-tick ${showXAxis ? '' : 'hpr-axis-tick-muted'}`} key={`x-${kind}-${tick}`}>
+            <g className={`hpr-axis-tick ${tickClass} ${showXAxis ? '' : 'hpr-axis-tick-muted'}`} key={`x-${kind}-${tick.kind}-${tick.stageId}-${tick.timeS}`}>
               {!isEdgeTick ? (
                 <>
-                  <line x1={x} y1={PLOT_BOTTOM} x2={x} y2={PLOT_BOTTOM - MAJOR_TICK_LENGTH} />
-                  <line x1={x} y1={PLOT_TOP} x2={x} y2={PLOT_TOP + MAJOR_TICK_LENGTH} />
+                  <line x1={tick.x} y1={PLOT_BOTTOM} x2={tick.x} y2={PLOT_BOTTOM - tickLength} />
+                  <line x1={tick.x} y1={PLOT_TOP} x2={tick.x} y2={PLOT_TOP + tickLength} />
                 </>
               ) : null}
-              {showXAxis ? <text x={x} y={PLOT_BOTTOM + 28} textAnchor="middle">{tick}</text> : null}
+              {showXAxis && tick.kind === 'major' ? <text x={tick.x} y={PLOT_BOTTOM + 28} textAnchor="middle">{tick.label}</text> : null}
             </g>
           );
         })}
@@ -634,11 +942,10 @@ const ProcessChart: React.FC<{
         </text>
         {showXAxis ? (
           <text className="hpr-axis-label hpr-axis-label-x" x={PLOT_RIGHT} y={PLOT_BOTTOM + 48} textAnchor="end">
-            时间 (s)
+            {copy.xAxisLabel}
           </text>
         ) : null}
-        {showStandardReference && referencePath ? <path className="hpr-reference-line" d={referencePath} /> : null}
-        {operableBestPath ? <path className="hpr-operable-best-line" d={operableBestPath} /> : null}
+        {idealReferencePath ? <path className="hpr-ideal-reference-line" d={idealReferencePath} /> : null}
         <path className="hpr-trace-line" d={linePath} stroke={stroke} />
       </svg>
     </section>
@@ -650,15 +957,25 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
   review,
   selectedTrialId,
   onSelectedTrialChange,
+  language = 'zh-CN',
 }) => {
-  const [expandedStageId, setExpandedStageId] = useState<HeatCapacityProcessStageId | null>(null);
+  const [hoveredStageId, setHoveredStageId] = useState<HeatCapacityProcessStageId | null>(null);
   const [hoveredControlId, setHoveredControlId] = useState<string | null>(null);
   const [hoveredRecordId, setHoveredRecordId] = useState<string | null>(null);
   const [trialMenuOpen, setTrialMenuOpen] = useState(false);
-  const [showStandardReference, setShowStandardReference] = useState(false);
   const [expandedDiagnosisRows, setExpandedDiagnosisRows] = useState<Set<string>>(() => new Set());
   const trialSelectRef = useRef<HTMLDivElement | null>(null);
-  const totalSeconds = useMemo(() => getTotalSeconds(review.chart), [review.chart]);
+  const copy = getHeatCapacityProcessReviewCopy(language);
+  const sharedCompressedDurationS = useMemo(() => {
+    const idealReferenceStages = review.chart.idealReferenceStages.length > 0
+      ? review.chart.idealReferenceStages
+      : review.chart.stages;
+    return Math.max(
+      calculateHeatCapacityProcessReviewCompressedDurationS(review.chart.stages),
+      calculateHeatCapacityProcessReviewCompressedDurationS(idealReferenceStages),
+    );
+  }, [review.chart.idealReferenceStages, review.chart.stages]);
+  const idealReference = review.chart.idealReference;
   const toggleDiagnosisRow = (rowId: string) => {
     setExpandedDiagnosisRows((current) => {
       const next = new Set(current);
@@ -707,8 +1024,8 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
   if (mode !== 'free') {
     return (
       <div className="hpr-empty">
-        <strong>过程回顾仅用于自由模式</strong>
-        <span>演示模式和引导模式保持教学预设行为，不读取自由模式真实 trace。</span>
+        <strong>{copy.notFreeTitle}</strong>
+        <span>{copy.notFreeBody}</span>
       </div>
     );
   }
@@ -716,53 +1033,51 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
   if (!review.summary || review.status === 'empty' || review.status === 'missing-trace') {
     return (
       <div className="hpr-empty">
-        <strong>{review.status === 'missing-trace' ? '本组缺少过程 trace' : '暂无可回顾的自由模式实验组'}</strong>
-        <span>完成 U0、U1、U2 记录后，这里会显示过程曲线、结果摘要和操作诊断。</span>
+        <strong>{review.status === 'missing-trace' ? copy.missingTraceTitle : copy.emptyTitle}</strong>
+        <span>{copy.emptyBody}</span>
       </div>
     );
   }
 
   const { summary } = review;
-  const retakeText = summary.retakeCount > 0
-    ? `${summary.retakeCount} 次`
-    : '0 次';
+  const retakeText = formatRetakeCount(copy, summary.retakeCount);
 
   return (
     <div className="hpr-panel">
-      <section className="hpr-summary" aria-label="过程回顾摘要">
+      <section className="hpr-summary" aria-label={copy.summaryAria}>
         <div className="hpr-summary-title">
-          <span>当前回顾</span>
-          <strong>第 {summary.trialIndex} 组实验</strong>
-          <small>Free Mode · 主线 {summary.branchId ?? '--'}</small>
+          <span>{copy.currentReview}</span>
+          <strong>{formatTrialLabel(copy, summary.trialIndex)}</strong>
+          <small>{copy.freeModeLabel} · {copy.mainBranchLabel} {summary.branchId ?? '--'}</small>
         </div>
         <div className="hpr-summary-grid">
           <div>
             <span>γ</span>
             <strong>{formatMetric(summary.gamma, 3)}</strong>
-            <small>相对误差 {formatMetric(summary.relativeErrorPercent, 2, '%')}</small>
+            <small>{copy.relativeError} {formatMetric(summary.relativeErrorPercent, 2, '%')}</small>
           </div>
           <div>
-            <span>操作上限 γ</span>
+            <span>{copy.upperBoundGamma}</span>
             <strong>{formatMetric(summary.upperBoundGamma, 3)}</strong>
-            <small>与上限差距 {formatMetric(summary.upperBoundGapPercent, 2, '%')}</small>
+            <small>{copy.upperBoundGap} {formatMetric(summary.upperBoundGapPercent, 2, '%')}</small>
           </div>
           <div>
-            <span>操作评分</span>
+            <span>{copy.operationScore}</span>
             <strong>{formatScore(review.score.total, review.score.maxScore)}</strong>
-            <small>基于本次 trace 派生</small>
+            <small>{copy.scoreDerived}</small>
           </div>
           <div>
-            <span>退回 / 重录</span>
+            <span>{copy.retakeTitle}</span>
             <strong>{retakeText}</strong>
-            <small>隐藏分支 {summary.retakeCount} 条</small>
+            <small>{formatHiddenBranchCount(copy, summary.retakeCount)}</small>
           </div>
         </div>
       </section>
 
-      <section className="hpr-process" aria-label="过程诊断图">
+      <section className="hpr-process" aria-label={copy.processAria}>
         <div className="hpr-section-heading">
           <div>
-            <strong>过程诊断图</strong>
+            <strong>{copy.processTitle}</strong>
           </div>
           <div className="hpr-trial-select" data-hpr-trial-select="true" ref={trialSelectRef}>
             <button
@@ -772,7 +1087,7 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
               aria-expanded={trialMenuOpen}
               onClick={() => setTrialMenuOpen((open) => !open)}
             >
-              第 {summary.trialIndex} 组实验
+              {formatTrialLabel(copy, summary.trialIndex)}
               <span aria-hidden="true">▾</span>
             </button>
             {trialMenuOpen ? (
@@ -788,13 +1103,35 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
                       setTrialMenuOpen(false);
                     }}
                   >
-                    <strong>第 {option.trialIndex} 组实验</strong>
-                    <span>{option.gamma === null ? '未完成' : `γ ${option.gamma.toFixed(3)}`} · 重录 {option.retakeCount} 次</span>
+                    <strong>{formatTrialLabel(copy, option.trialIndex)}</strong>
+                    <span>
+                      {option.gamma === null ? copy.incomplete : `γ ${option.gamma.toFixed(3)}`} · {copy.retakeShort} {option.retakeCount}
+                    </span>
                   </button>
                 ))}
               </div>
             ) : null}
           </div>
+        </div>
+        <div className={`hpr-ideal-reference-summary ${idealReference.feasible ? '' : 'hpr-ideal-reference-summary-warning'}`}>
+          <strong>{copy.idealReference}</strong>
+          {idealReference.feasible ? (
+            <>
+              <span>
+                {formatIdealReferenceSummary(
+                  language,
+                  formatMetric(idealReference.fillDurationS, 2, ' s'),
+                  formatMetric(idealReference.targetPressureMv, 1, ' mV'),
+                  formatMetric(idealReference.releaseDurationS, 2, ' s'),
+                  formatMetric(idealReference.gamma, 3),
+                  formatMetric(idealReference.relativeErrorPercent, 2, '%'),
+                )}
+              </span>
+              <small>{copy.idealReferenceAssumptions}</small>
+            </>
+          ) : (
+            <span>{copy.idealReferenceUnavailable}</span>
+          )}
         </div>
         <div className="hpr-chart-shell">
           <div
@@ -805,29 +1142,26 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
             <div className="hpr-scroll-content">
               <SharedTimeline
                 chart={review.chart}
-                totalSeconds={totalSeconds}
-                expandedStageId={expandedStageId}
+                copy={copy}
+                sharedCompressedDurationS={sharedCompressedDurationS}
+                hoveredStageId={hoveredStageId}
                 hoveredControlId={hoveredControlId}
                 hoveredRecordId={hoveredRecordId}
-                onStageHover={setExpandedStageId}
+                onStageHover={setHoveredStageId}
                 onControlHover={setHoveredControlId}
                 onRecordHover={setHoveredRecordId}
               />
               <ProcessChart
                 kind="pressure"
                 chart={review.chart}
-                totalSeconds={totalSeconds}
-                expandedStageId={expandedStageId}
-                showStandardReference={showStandardReference}
-                onStandardReferenceToggle={() => setShowStandardReference((visible) => !visible)}
+                copy={copy}
+                hoveredStageId={hoveredStageId}
               />
               <ProcessChart
                 kind="temperature"
                 chart={review.chart}
-                totalSeconds={totalSeconds}
-                expandedStageId={expandedStageId}
-                showStandardReference={showStandardReference}
-                onStandardReferenceToggle={() => setShowStandardReference((visible) => !visible)}
+                copy={copy}
+                hoveredStageId={hoveredStageId}
                 showXAxis
               />
             </div>
@@ -835,12 +1169,12 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
         </div>
       </section>
 
-      <section className="hpr-diagnosis" aria-label="实验诊断">
+      <section className="hpr-diagnosis" aria-label={copy.diagnosisAria}>
         <div className="hpr-section-heading">
           <div>
-            <strong>实验诊断</strong>
+            <strong>{copy.diagnosisTitle}</strong>
           </div>
-          <span>第 {summary.trialIndex} 组</span>
+          <span>{formatGroupLabel(copy, summary.trialIndex)}</span>
         </div>
         <div className="hpr-diagnosis-list">
           {review.diagnostics.map((row) => {
@@ -853,7 +1187,7 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
                     <button
                       type="button"
                       className={`hpr-diagnosis-expand ${expanded ? 'hpr-diagnosis-expand-open' : ''}`}
-                      aria-label={`${expanded ? '收起' : '展开'}${row.title}评分明细`}
+                      aria-label={`${expanded ? copy.collapse : copy.expand}${row.title}${copy.scoreDetailSuffix}`}
                       aria-expanded={expanded}
                       disabled={details.length === 0}
                       onClick={() => toggleDiagnosisRow(row.id)}
@@ -862,13 +1196,13 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
                     </button>
                     <strong>{row.title}</strong>
                   </div>
-                  <span className="hpr-diagnosis-summary-cell">{normalizeDiagnosisText(row.evidence)}</span>
-                  <span className="hpr-diagnosis-summary-cell">{normalizeDiagnosisText(row.relation ?? '--')}</span>
-                  <span className="hpr-diagnosis-summary-cell">{normalizeDiagnosisText(row.recommendation)}</span>
+                  <span className="hpr-diagnosis-summary-cell">{normalizeDiagnosisText(row.evidence, copy.noIssue)}</span>
+                  <span className="hpr-diagnosis-summary-cell">{normalizeDiagnosisText(row.relation ?? '--', copy.noIssue)}</span>
+                  <span className="hpr-diagnosis-summary-cell">{normalizeDiagnosisText(row.recommendation, copy.noIssue)}</span>
                   <em className={`hpr-diagnosis-status hpr-diagnosis-status-${row.status}`}>
                     {typeof row.score === 'number' && typeof row.maxScore === 'number'
                       ? formatScore(row.score, row.maxScore)
-                      : diagnosisStatusLabels[row.status]}
+                      : copy.diagnosisStatusLabels[row.status]}
                   </em>
                 </div>
                 {expanded && details.length > 0 ? (
@@ -876,9 +1210,9 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
                     {details.map((detail) => (
                       <div className="hpr-diagnosis-detail-row" key={detail.id}>
                         <strong>{detail.label}</strong>
-                        <span>{normalizeDiagnosisText(detail.evidence)}</span>
-                        <span>{normalizeDiagnosisText(detail.reason)}</span>
-                        <span>{normalizeDiagnosisText(detail.recommendation)}</span>
+                        <span>{normalizeDiagnosisText(detail.evidence, copy.noIssue)}</span>
+                        <span>{normalizeDiagnosisText(detail.reason, copy.noIssue)}</span>
+                        <span>{normalizeDiagnosisText(detail.recommendation, copy.noIssue)}</span>
                         <em className={`hpr-diagnosis-status hpr-diagnosis-status-${detail.status}`}>
                           {formatScore(detail.score, detail.maxScore)}
                         </em>

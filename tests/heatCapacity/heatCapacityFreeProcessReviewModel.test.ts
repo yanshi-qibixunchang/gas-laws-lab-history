@@ -18,6 +18,7 @@ import {
 } from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
   selectHeatCapacityFreeProcessReview,
+  type HeatCapacityFreeProcessReview,
 } from '../../src/domain/heatCapacity/heatCapacityFreeProcessReviewModel.ts';
 
 const configSnapshot = createDefaultFreeConfigSnapshot();
@@ -230,6 +231,21 @@ sampleResult = addSample(activeBranch, createSampleInput(61.2, 112.2, 1499.08, {
 }));
 activeBranch = addEvent(sampleResult.branch, 'stopcock-open', sampleResult.sample).branch;
 
+sampleResult = addSample(activeBranch, createSampleInput(61.7, 112.2, 1499.08, {
+  phase: 'releasing',
+  controls: {
+    powerOn: true,
+    stopcockOpen: true,
+    pumpValveOpen: false,
+    stopcockFlowOpen: true,
+  },
+  physical: {
+    releaseStarted: true,
+    currentStopcockOpenDurationS: 0,
+  },
+}));
+activeBranch = sampleResult.branch;
+
 sampleResult = addSample(activeBranch, createSampleInput(62.3, 35, 1497.6, {
   phase: 'recovering',
   controls: { powerOn: true, stopcockOpen: false, pumpValveOpen: false },
@@ -265,6 +281,18 @@ sampleResult = addSample(activeBranch, createSampleInput(88, 35, 1498.98, {
 const u2Event = addEvent(sampleResult.branch, 'record-u2', sampleResult.sample);
 activeBranch = u2Event.branch;
 const u2 = createRecord(sampleResult.sample, u2Event.event.id, created.traceTrial.id, activeBranch.id);
+
+sampleResult = addSample(activeBranch, createSampleInput(92, 34.8, 1499, {
+  phase: 'recovering',
+  controls: { powerOn: false, stopcockOpen: false, pumpValveOpen: false },
+}));
+activeBranch = addEvent(sampleResult.branch, 'power-off', sampleResult.sample).branch;
+
+sampleResult = addSample(activeBranch, createSampleInput(18000, 34.8, 1499, {
+  phase: 'recovering',
+  controls: { powerOn: false, stopcockOpen: false, pumpValveOpen: false },
+}));
+activeBranch = sampleResult.branch;
 
 const archivedBranch: HeatCapacityFreeTraceBranch = {
   ...created.traceTrial.branches[0],
@@ -305,6 +333,46 @@ const review = selectHeatCapacityFreeProcessReview({
   traceStore: store,
   theoreticalGamma: 1.4,
 });
+const reviewChart = review.chart as typeof review.chart & {
+  referenceTrace?: unknown;
+  operableBestTrace?: unknown;
+  idealReferenceTrace?: Array<{
+    sampleId: string;
+    stageId: string;
+    timeS: number;
+    pressureDeltaKPa: number;
+    temperatureDeltaK: number;
+  }>;
+  idealReferenceStages?: Array<{
+    id: string;
+    label: string;
+    startS: number;
+    endS: number;
+  }>;
+  idealReference?: {
+    feasible: boolean;
+    fillDurationS: number | null;
+    targetPressureMv: number | null;
+    targetPressureDeltaKPa: number | null;
+    releaseDurationS: number | null;
+    gamma: number | null;
+    relativeErrorPercent: number | null;
+    u1TimeS: number | null;
+    u2TimeS: number | null;
+    assumptions: {
+      fillMode: 'continuous-fast';
+      noiseIgnored: true;
+      sensorLagIgnored: true;
+      leakageIgnored: true;
+    };
+    explanation: {
+      fill: string;
+      u1: string;
+      release: string;
+      u2: string;
+    };
+  };
+};
 
 assert.equal(review.status, 'ready');
 assert.equal(review.summary?.trialIndex, 1);
@@ -326,6 +394,24 @@ assert.deepEqual(review.trialOptions[0], {
 });
 assert.equal(review.selectedTrialId, trial.id);
 assert.equal(review.chart.stages.some((stage) => stage.id === 'pump' && stage.countText === 'x10'), true);
+const actualPumpStageForTiming = review.chart.stages.find((stage) => stage.id === 'pump');
+const actualStabilizeStageForTiming = review.chart.stages.find((stage) => stage.id === 'stabilize');
+const actualReleaseStageForTiming = review.chart.stages.find((stage) => stage.id === 'release');
+assert.equal(actualPumpStageForTiming?.startS, 10.6);
+assert.equal(
+  actualPumpStageForTiming?.endS,
+  27,
+  'pump stage should end at the post-stroke pressure peak sample instead of the later valve-close preparation point',
+);
+assert.equal(actualStabilizeStageForTiming?.startS, 27);
+assert.equal(actualStabilizeStageForTiming?.endS, 61.7);
+assert.equal(
+  actualReleaseStageForTiming?.startS,
+  61.7,
+  'release stage should start when stopcock flow is confirmed instead of the earlier visual-open animation event',
+);
+assert.equal(actualReleaseStageForTiming?.endS, 62.3);
+assert.equal(actualReleaseStageForTiming?.durationText, '0.6 s');
 assert.equal(
   review.chart.controls.some((event) => event.id === 'pump-bulb-merged' || event.count !== undefined),
   false,
@@ -338,13 +424,151 @@ assert.equal(
 );
 assert.equal(review.chart.records.map((record) => record.id).join(','), 'u0,u1,u2');
 assert.equal(review.chart.systemEvents.some((event) => event.kind === 'warning'), true);
-assert.equal(review.chart.referenceTrace.length > 0, true);
-assert.equal(review.chart.referenceTrace.some((point) => point.stageId === 'release'), true);
-assert.equal(review.chart.operableBestTrace.length > 0, true);
-assert.equal(review.chart.operableBestTrace.some((point) => point.stageId === 'release'), true);
-assert.notDeepEqual(
-  review.chart.operableBestTrace.filter((point) => point.stageId !== 'zero').map((point) => `${point.timeS}:${point.pressureDeltaKPa}`),
-  review.chart.referenceTrace.filter((point) => point.stageId !== 'zero').map((point) => `${point.timeS}:${point.pressureDeltaKPa}`),
+const latestActualProcessTime = Math.max(
+  ...review.chart.stages.map((stage) => stage.endS),
+  ...review.chart.trace.map((point) => point.timeS),
+  ...review.chart.records.map((record) => record.timeS),
+  ...review.chart.controls.map((event) => event.timeS),
+  ...review.chart.systemEvents.map((event) => event.timeS),
+);
+assert.equal(
+  latestActualProcessTime < 100,
+  true,
+  'process review should crop post-completion idle trace samples instead of stretching the x axis',
+);
+assert.equal(
+  review.chart.trace.some((point) => point.timeS > 1000),
+  false,
+  'process review trace should not include long idle samples after the completed trial',
+);
+assert.equal('referenceTrace' in reviewChart, false, 'standard baseline trace should be removed from process review data');
+assert.equal('operableBestTrace' in reviewChart, false, 'old operable-best trace field should stay removed');
+const removedOrangeCurveFields = [
+  `recommend${'edTrace'}`,
+  `recommend${'edStages'}`,
+  `recommend${'edReference'}`,
+];
+for (const fieldName of removedOrangeCurveFields) {
+  assert.equal(fieldName in reviewChart, false, `old orange-curve field ${fieldName} should be removed`);
+}
+assert.equal(Array.isArray(reviewChart.idealReferenceTrace), true);
+assert.equal(Array.isArray(reviewChart.idealReferenceStages), true);
+assert.equal(reviewChart.idealReferenceTrace!.length > 0, true);
+assert.equal(reviewChart.idealReferenceTrace!.some((point) => point.stageId === 'fill'), true);
+assert.equal(reviewChart.idealReferenceTrace!.some((point) => point.stageId === 'release'), true);
+assert.equal(reviewChart.idealReference?.assumptions.fillMode, 'continuous-fast');
+assert.equal(reviewChart.idealReference?.assumptions.noiseIgnored, true);
+assert.equal(reviewChart.idealReference?.assumptions.sensorLagIgnored, true);
+assert.equal(reviewChart.idealReference?.assumptions.leakageIgnored, true);
+assert.equal(reviewChart.idealReference?.feasible, true);
+assert.equal((reviewChart.idealReference?.fillDurationS ?? 0) > 0, true);
+assert.equal((reviewChart.idealReference?.fillDurationS ?? Number.POSITIVE_INFINITY) <= 1.2, true);
+assert.equal(reviewChart.idealReference?.targetPressureMv !== null, true);
+assert.equal(reviewChart.idealReference?.targetPressureDeltaKPa !== null, true);
+assert.equal(reviewChart.idealReference?.releaseDurationS !== null, true);
+assert.equal(reviewChart.idealReference?.gamma !== null, true);
+assert.equal(reviewChart.idealReference?.relativeErrorPercent !== null, true);
+assert.equal(reviewChart.idealReference?.u1TimeS !== null, true);
+assert.equal(reviewChart.idealReference?.u2TimeS !== null, true);
+const idealFillStage = reviewChart.idealReferenceStages!.find((stage) => stage.id === 'fill');
+const idealFillPoints = reviewChart.idealReferenceTrace!.filter((point) => point.stageId === 'fill');
+assert.equal(idealFillStage !== undefined, true);
+assert.equal(
+  idealFillPoints.length >= 3,
+  true,
+  'ideal fill should be rendered as a short continuous ramp',
+);
+assert.equal(
+  idealFillPoints.every((point, index) => (
+    index === 0 ||
+    point.pressureDeltaKPa >= idealFillPoints[index - 1].pressureDeltaKPa - 0.001
+  )),
+  true,
+  'ideal fill should be monotonic instead of a manual pump staircase',
+);
+assert.equal(
+  idealFillPoints.every((point, index) => (
+    index === 0 ||
+    point.timeS > idealFillPoints[index - 1].timeS
+  )),
+  true,
+  'ideal fill should use continuous time samples instead of duplicate-time pump steps',
+);
+const idealFillPressureGains = idealFillPoints
+  .slice(1)
+  .map((point, index) => point.pressureDeltaKPa - idealFillPoints[index].pressureDeltaKPa);
+const strongestIdealFillPressureGain = Math.max(...idealFillPressureGains);
+const finalIdealFillPressureGain = idealFillPressureGains.at(-1) ?? Number.POSITIVE_INFINITY;
+assert.equal(
+  finalIdealFillPressureGain < strongestIdealFillPressureGain * 0.65,
+  true,
+  'ideal fill should ease out before stabilization so the reference line does not form a hard point',
+);
+const actualReleaseStage = review.chart.stages.find((stage) => stage.id === 'release');
+const idealReleaseStage = reviewChart.idealReferenceStages!.find((stage) => stage.id === 'release');
+const actualPumpStage = review.chart.stages.find((stage) => stage.id === 'pump');
+assert.equal(actualReleaseStage !== undefined, true);
+assert.equal(idealReleaseStage !== undefined, true);
+assert.equal(actualPumpStage !== undefined, true);
+assert.equal(
+  (idealFillStage?.startS ?? Number.POSITIVE_INFINITY) < (actualPumpStage?.startS ?? 0) - 1,
+  true,
+  'ideal reference should keep its own fast fill timing instead of being anchored to the actual pump stage',
+);
+assert.equal(
+  (idealReleaseStage?.startS ?? Number.POSITIVE_INFINITY) < (actualReleaseStage?.startS ?? 0) - 5,
+  true,
+  'ideal reference release should keep its own optimized timing instead of being displayed at the actual release operation time',
+);
+const firstIdealReleasePoint = reviewChart.idealReferenceTrace!.find((point) => point.stageId === 'release');
+assert.equal(firstIdealReleasePoint !== undefined, true);
+assert.equal(
+  Math.abs((firstIdealReleasePoint?.timeS ?? 0) - (idealReleaseStage?.startS ?? 0)) <= 0.1,
+  true,
+  'ideal reference curve should anchor its first release point to its own optimized release window',
+);
+const idealReleasePoints = reviewChart.idealReferenceTrace!.filter((point) => point.stageId === 'release');
+const lastIdealStabilizePoint = reviewChart.idealReferenceTrace!
+  .filter((point) => point.stageId === 'stabilize')
+  .at(-1);
+assert.equal(lastIdealStabilizePoint !== undefined, true);
+assert.equal(
+  idealReleasePoints[0].pressureDeltaKPa < (lastIdealStabilizePoint?.pressureDeltaKPa ?? 0) - 0.001,
+  true,
+  'ideal release should start changing immediately instead of keeping a mechanical-response plateau',
+);
+assert.equal(
+  idealReleasePoints.every((point, index) => (
+    index === 0 ||
+    point.timeS > idealReleasePoints[index - 1].timeS
+  )),
+  true,
+  'ideal release samples should keep increasing time instead of drawing a backward cusp',
+);
+assert.equal(
+  idealReleasePoints.every((point) => point.timeS <= (idealReleaseStage?.endS ?? Number.POSITIVE_INFINITY) + 0.000001),
+  true,
+  'ideal release samples should not overshoot the optimized release window',
+);
+const idealReleasePressureDrops = idealReleasePoints
+  .slice(1)
+  .map((point, index) => Math.abs(point.pressureDeltaKPa - idealReleasePoints[index].pressureDeltaKPa));
+const strongestIdealReleasePressureDrop = Math.max(...idealReleasePressureDrops);
+const finalIdealReleasePressureDrop = idealReleasePressureDrops.at(-1) ?? Number.POSITIVE_INFINITY;
+assert.equal(
+  finalIdealReleasePressureDrop < strongestIdealReleasePressureDrop * 0.65,
+  true,
+  'ideal release should ease out before recovery so the reference line does not form a hard point',
+);
+const actualProcessEndS = Math.max(...review.chart.stages.map((stage) => stage.endS));
+const latestIdealTime = Math.max(
+  ...reviewChart.idealReferenceTrace!.map((point) => point.timeS),
+  ...reviewChart.idealReferenceStages!.map((stage) => stage.endS),
+);
+assert.equal(
+  latestIdealTime < actualProcessEndS - 10,
+  true,
+  'ideal reference display should be allowed to end on its own optimized timeline instead of being stretched to the actual experiment window',
 );
 assert.equal(review.chart.bestWindows.length, 3);
 assert.equal(review.chart.stages.some((stage) => stage.id === 'release' && stage.label === '开阀放气'), true);
@@ -436,6 +660,136 @@ assert.equal(incompleteReview.status, 'incomplete');
 assert.equal(incompleteReview.summary?.gamma, null);
 assert.equal(incompleteReview.score.total, null);
 assert.equal(incompleteReview.chart.trace.length > 0, true);
+
+const selectReviewWithSnapshot = (
+  id: string,
+  snapshot: typeof configSnapshot,
+) => {
+  const nextTraceTrial: HeatCapacityFreeTraceTrial = {
+    ...traceTrial,
+    id: `trace-${id}`,
+    linkedTrialId: `trial-${id}`,
+    configSnapshot: snapshot,
+  };
+  const nextTrial: HeatCapacityFreeTrial = {
+    ...trial,
+    id: `trial-${id}`,
+    traceTrialId: nextTraceTrial.id,
+    configSnapshot: snapshot,
+  };
+  return selectHeatCapacityFreeProcessReview({
+    trials: [nextTrial],
+    traceStore: {
+      ...store,
+      activeTraceTrialId: nextTraceTrial.id,
+      traceTrials: [nextTraceTrial],
+    },
+    theoreticalGamma: 1.4,
+  });
+};
+
+const idealSignature = (
+  chart: HeatCapacityFreeProcessReview['chart'] & {
+    idealReferenceTrace?: NonNullable<typeof reviewChart.idealReferenceTrace>;
+  },
+) => (chart.idealReferenceTrace ?? [])
+  .filter((point) => point.stageId !== 'zero')
+  .slice(0, 36)
+  .map((point) => `${point.stageId}:${point.timeS}:${point.pressureDeltaKPa}:${point.temperatureDeltaK}`)
+  .join('|');
+
+const leakySnapshot = {
+  ...configSnapshot,
+  physics: {
+    ...configSnapshot.physics,
+    leakage: {
+      ...configSnapshot.physics.leakage,
+      enabled: true,
+      ratePerS: 0.025,
+    },
+  },
+};
+const leakyReview = selectReviewWithSnapshot('leaky', leakySnapshot);
+const leakyChart = leakyReview.chart as typeof leakyReview.chart & {
+  idealReferenceTrace?: NonNullable<typeof reviewChart.idealReferenceTrace>;
+};
+assert.equal(
+  idealSignature(leakyChart),
+  idealSignature(reviewChart),
+  'ideal reference should ignore leakage by definition',
+);
+
+const noisySnapshot = {
+  ...configSnapshot,
+  sensor: {
+    ...configSnapshot.sensor,
+    noiseMv: 0.8,
+  },
+};
+const noisyReview = selectReviewWithSnapshot('noisy', noisySnapshot);
+const noisyChart = noisyReview.chart as typeof noisyReview.chart & {
+  idealReferenceTrace?: NonNullable<typeof reviewChart.idealReferenceTrace>;
+};
+assert.equal(
+  idealSignature(noisyChart),
+  idealSignature(reviewChart),
+  'ideal reference should ignore instrument noise by definition',
+);
+
+const laggySnapshot = {
+  ...configSnapshot,
+  sensor: {
+    ...configSnapshot.sensor,
+    lagRate: 1.4,
+    pumpLagRate: 1.2,
+  },
+};
+const laggyReview = selectReviewWithSnapshot('laggy', laggySnapshot);
+const laggyChart = laggyReview.chart as typeof laggyReview.chart & {
+  idealReferenceTrace?: NonNullable<typeof reviewChart.idealReferenceTrace>;
+};
+assert.equal(
+  idealSignature(laggyChart),
+  idealSignature(reviewChart),
+  'ideal reference should ignore sensor lag by definition',
+);
+
+const gammaSnapshot = {
+  ...configSnapshot,
+  physics: {
+    ...configSnapshot.physics,
+    gamma: 1.67,
+  },
+};
+const gammaReview = selectReviewWithSnapshot('gamma', gammaSnapshot);
+const gammaChart = gammaReview.chart as typeof gammaReview.chart & {
+  idealReferenceTrace?: NonNullable<typeof reviewChart.idealReferenceTrace>;
+};
+assert.notEqual(
+  idealSignature(gammaChart),
+  idealSignature(reviewChart),
+  'ideal reference should change when gamma changes',
+);
+
+const thermalSnapshot = {
+  ...configSnapshot,
+  physics: {
+    ...configSnapshot.physics,
+    thermal: {
+      ...configSnapshot.physics.thermal,
+      gasWallConductanceWPerK: configSnapshot.physics.thermal.gasWallConductanceWPerK * 1.8,
+    },
+  },
+};
+const thermalReview = selectReviewWithSnapshot('thermal', thermalSnapshot);
+const thermalChart = thermalReview.chart as typeof thermalReview.chart & {
+  idealReferenceTrace?: NonNullable<typeof reviewChart.idealReferenceTrace>;
+};
+assert.notEqual(
+  idealSignature(thermalChart),
+  idealSignature(reviewChart),
+  'ideal reference should change when thermal conductance changes',
+);
 
 const emptyReview = selectHeatCapacityFreeProcessReview({
   trials: [],

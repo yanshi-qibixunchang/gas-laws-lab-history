@@ -3039,6 +3039,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [settingsLanguagePreference, setSettingsLanguagePreference] = useState<WorkbenchLanguagePreference>(() => initialGeneralSettings.language);
   const [settingsPerformanceMode, setSettingsPerformanceMode] = useState<WorkbenchPerformanceMode>(() => initialGeneralSettings.performanceMode);
   const [settingsLanguageMenuOpen, setSettingsLanguageMenuOpen] = useState(false);
+  const settingsLanguageTriggerRef = useRef<HTMLButtonElement | null>(null);
   const workbenchCopy = workbenchCopies[settingsLanguagePreference];
   const performanceModeOptions = useMemo(() => ([
     { mode: 'standard' as const, label: workbenchCopy.settings.performanceModeOff },
@@ -3564,6 +3565,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setSettingsLanguagePreference(language);
     setSettingsLanguageMenuOpen(false);
     persistWorkbenchGeneralSettings({ theme: settingsThemePreference, language, performanceMode: settingsPerformanceMode });
+    window.setTimeout(() => settingsLanguageTriggerRef.current?.focus(), 0);
   };
 
   const updateSettingsPerformanceMode = (performanceMode: WorkbenchPerformanceMode) => {
@@ -10035,6 +10037,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   <button
                     type="button"
                     className="studio-settings-language-trigger"
+                    ref={settingsLanguageTriggerRef}
                     aria-haspopup="listbox"
                     aria-expanded={settingsLanguageMenuOpen}
                     onClick={() => setSettingsLanguageMenuOpen((current) => !current)}
@@ -10048,22 +10051,23 @@ const WorkbenchStudioPrototype: React.FC = () => {
                       className={`studio-settings-language-chevron ${settingsLanguageMenuOpen ? 'studio-settings-language-chevron-open' : ''}`}
                     />
                   </button>
-                  <div className="studio-settings-language-menu" role="listbox" aria-label={workbenchCopy.settings.language} aria-hidden={!settingsLanguageMenuOpen}>
-                    {languageOptions.map((option) => (
-                      <button
-                        type="button"
-                        key={option.key}
-                        role="option"
-                        aria-selected={settingsLanguagePreference === option.key}
-                        tabIndex={settingsLanguageMenuOpen ? 0 : -1}
-                        className={settingsLanguagePreference === option.key ? 'studio-settings-language-active' : ''}
-                        onClick={() => updateSettingsLanguagePreference(option.key)}
-                      >
-                        <strong>{option.label}</strong>
-                        <span>{option.hint}</span>
-                      </button>
-                    ))}
-                  </div>
+                  {settingsLanguageMenuOpen ? (
+                    <div className="studio-settings-language-menu" role="listbox" aria-label={workbenchCopy.settings.language}>
+                      {languageOptions.map((option) => (
+                        <button
+                          type="button"
+                          key={option.key}
+                          role="option"
+                          aria-selected={settingsLanguagePreference === option.key}
+                          className={settingsLanguagePreference === option.key ? 'studio-settings-language-active' : ''}
+                          onClick={() => updateSettingsLanguagePreference(option.key)}
+                        >
+                          <strong>{option.label}</strong>
+                          <span>{option.hint}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </section>
@@ -11978,6 +11982,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           mode={activeFile.heatCapacityMode}
           review={review}
           selectedTrialId={review.selectedTrialId}
+          language={settingsLanguagePreference}
           onSelectedTrialChange={(trialId) => {
             setHeatCapacityReviewSelectionByFileId((previous) => ({
               ...previous,
@@ -12269,7 +12274,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   ) => (
     <button
       type="button"
-      className={`studio-tree-title-button ${collapsed ? 'studio-tree-title-collapsed' : ''}`}
+      className={`studio-tree-title-button studio-tree-title-button-${kind} ${collapsed ? 'studio-tree-title-collapsed' : ''}`}
       onClick={onToggle}
       aria-expanded={!collapsed}
     >

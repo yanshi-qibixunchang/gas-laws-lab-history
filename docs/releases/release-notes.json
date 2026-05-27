@@ -4,18 +4,136 @@
   "releases": [
     {
       "version": "4.1.5",
-      "date": "2026-05-25",
+      "date": "2026-05-27",
       "channel": "stable",
       "download": {
         "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v4.1.5",
         "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.5/heat-capacity-lab-setup-4.1.5.exe"
       },
       "summary": {
-        "zh-CN": "测试修复后续版本更新说明的远端结构化读取与语言匹配，并简化更新弹窗版本信息区的视觉样式。",
-        "zh-TW": "測試修復後續版本更新說明的遠端結構化讀取與語言匹配，並簡化更新彈窗版本資訊區的視覺樣式。",
-        "en": "Tests the fix for remote structured release-note loading and language matching in future updates, and simplifies the update dialog version-information block."
+        "zh-CN": "正式发布 Workbench 清理、热容自由实验过程回顾升级、参数栏自动收起、工程化 UI 打磨和多语言/亮暗模式适配。",
+        "zh-TW": "正式發布 Workbench 清理、熱容自由實驗過程回顧升級、參數欄自動收合、工程化 UI 打磨和多語言/亮暗模式適配。",
+        "en": "Promotes the Workbench cleanup, upgraded heat-capacity Free Mode process review, auto-collapsing parameter sidebar, engineering UI polish, and multilingual light/dark support to the official release."
       },
       "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "新增",
+            "zh-TW": "新增",
+            "en": "Added"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-process-review",
+              "importance": "high",
+              "title": {
+                "zh-CN": "热容自由实验理想参考线",
+                "zh-TW": "熱容自由實驗理想參考線",
+                "en": "Ideal reference curve for Heat Capacity Free Mode"
+              },
+              "body": {
+                "zh-CN": "过程回顾现在以实测曲线对比理想参考曲线，理想参考按当前物理参数计算连续快速充气、回温、开阀放气和再次回温过程。",
+                "zh-TW": "過程回顧現在以實測曲線對比理想參考曲線，理想參考會依目前物理參數計算連續快速充氣、回溫、開閥放氣和再次回溫過程。",
+                "en": "Process Review now compares measured traces with an ideal reference curve calculated from the current physical parameters for rapid filling, thermal recovery, valve release, and final recovery."
+              }
+            },
+            {
+              "scope": "heat-capacity-process-review",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "阶段压缩时间轴",
+                "zh-TW": "階段壓縮時間軸",
+                "en": "Stage-compressed timeline"
+              },
+              "body": {
+                "zh-CN": "过程图按实验阶段显示真实时间标签，快速打气和放气阶段放大显示，长等待阶段压缩显示，并保留记录窗口和阶段悬浮底色。",
+                "zh-TW": "過程圖會依實驗階段顯示真實時間標籤，快速打氣和放氣階段放大顯示，長等待階段壓縮顯示，並保留記錄窗口和階段懸浮底色。",
+                "en": "The process charts now show real-time labels on a stage-compressed axis, expanding rapid pump and release phases, compressing long waits, and keeping record-window and stage-hover context."
+              }
+            },
+            {
+              "scope": "heat-capacity-parameters",
+              "importance": "high",
+              "title": {
+                "zh-CN": "热容自由实验参数栏自动收起",
+                "zh-TW": "熱容自由實驗參數欄自動收合",
+                "en": "Auto-collapsing Heat Capacity parameter sidebar"
+              },
+              "body": {
+                "zh-CN": "热容自由实验进入聚焦模式或完成有效操作后会按实验状态自动收起右侧参数栏，避免运行中误改参数。",
+                "zh-TW": "熱容自由實驗進入聚焦模式或完成有效操作後，會依實驗狀態自動收合右側參數欄，避免運行中誤改參數。",
+                "en": "Heat Capacity Free Mode now collapses the right parameter sidebar when focus mode or meaningful experiment actions require locking the run state."
+              }
+            },
+            {
+              "scope": "workbench-settings",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "工程化通用设置布局",
+                "zh-TW": "工程化通用設定版面",
+                "en": "Engineering-style general settings layout"
+              },
+              "body": {
+                "zh-CN": "通用设置重新整理主题、语言、性能模式和快捷键布局，减少装饰性框线并统一亮暗模式对比度。",
+                "zh-TW": "通用設定重新整理主題、語言、效能模式和快捷鍵版面，減少裝飾性框線並統一亮暗模式對比度。",
+                "en": "General Settings reorganizes theme, language, performance, and shortcut controls with quieter engineering surfaces and balanced light/dark contrast."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "变更",
+            "zh-TW": "變更",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "workbench-cleanup",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "Workbench 入口与旧参考模型清理",
+                "zh-TW": "Workbench 入口與舊參考模型清理",
+                "en": "Workbench entrypoint and legacy reference cleanup"
+              },
+              "body": {
+                "zh-CN": "移除旧标准参考线和旧可达最佳参考实现，过程回顾统一到新的理想参考与阶段时间轴路径。",
+                "zh-TW": "移除舊標準參考線和舊可達最佳參考實作，過程回顧統一到新的理想參考與階段時間軸路徑。",
+                "en": "Removed the old standard-reference and reachable-best reference implementations so Process Review uses the new ideal-reference and stage-axis path."
+              }
+            },
+            {
+              "scope": "heat-capacity-process-review",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "过程回顾图例简化",
+                "zh-TW": "過程回顧圖例簡化",
+                "en": "Simplified Process Review legend"
+              },
+              "body": {
+                "zh-CN": "主图只保留实测、理想参考和记录窗口，去除标准基线切换和旧推荐参考 UI。",
+                "zh-TW": "主圖只保留實測、理想參考和記錄窗口，移除標準基線切換和舊推薦參考 UI。",
+                "en": "Main charts now keep only measured data, ideal reference, and record-window context, removing the standard-baseline toggle and older recommendation UI."
+              }
+            },
+            {
+              "scope": "workbench-ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "Workbench 按钮与面板表面",
+                "zh-TW": "Workbench 按鈕與面板表面",
+                "en": "Workbench button and panel surfaces"
+              },
+              "body": {
+                "zh-CN": "Workbench、热容参数和实验资料窗口减少阴影、渐变和装饰色条，改为更稳定的实体按钮与低干扰面板层级。",
+                "zh-TW": "Workbench、熱容參數和實驗資料視窗減少陰影、漸層和裝飾色條，改為更穩定的實體按鈕與低干擾面板層級。",
+                "en": "Workbench, Heat Capacity parameter panels, and results surfaces reduce shadows, gradients, and decorative color strips in favor of steadier solid controls."
+              }
+            }
+          ]
+        },
         {
           "type": "fixed",
           "title": {
@@ -25,31 +143,45 @@
           },
           "items": [
             {
-              "scope": "desktop-update",
+              "scope": "heat-capacity-3d",
               "importance": "high",
               "title": {
-                "zh-CN": "远端结构化更新说明",
-                "zh-TW": "遠端結構化更新說明",
-                "en": "Remote structured release notes"
+                "zh-CN": "热容 3D 悬浮控制稳定性",
+                "zh-TW": "熱容 3D 懸浮控制穩定性",
+                "en": "Heat Capacity 3D hover-control stability"
               },
               "body": {
-                "zh-CN": "测试修复后续版本更新说明的远端结构化读取与语言匹配。",
-                "zh-TW": "測試修復後續版本更新說明的遠端結構化讀取與語言匹配。",
-                "en": "Tests the fix for remote structured release-note loading and language matching in future updates."
+                "zh-CN": "修复热容 3D 预览中鼠标悬浮后模型被异常移动的问题，恢复旋转、平移、缩放和焦点交互的预期控制逻辑。",
+                "zh-TW": "修復熱容 3D 預覽中滑鼠懸浮後模型被異常移動的問題，恢復旋轉、平移、縮放和焦點互動的預期控制邏輯。",
+                "en": "Fixes the Heat Capacity 3D preview behavior where hovering could move the model unexpectedly, restoring expected rotate, pan, zoom, and focus controls."
               }
             },
             {
-              "scope": "desktop-update-ui",
+              "scope": "workbench-settings",
               "importance": "medium",
               "title": {
-                "zh-CN": "更新弹窗版本信息区样式",
-                "zh-TW": "更新彈窗版本資訊區樣式",
-                "en": "Update dialog version-information styling"
+                "zh-CN": "通用设置语言菜单焦点警告",
+                "zh-TW": "通用設定語言選單焦點警告",
+                "en": "General Settings language-menu focus warning"
               },
               "body": {
-                "zh-CN": "移除版本信息区的蓝色强调边和强调阴影，改为更简约的工程软件信息块。",
-                "zh-TW": "移除版本資訊區的藍色強調邊和強調陰影，改為更簡約的工程軟體資訊區塊。",
-                "en": "Removes the blue accent edge and emphasis shadow from the version-information block for a simpler engineering-software presentation."
+                "zh-CN": "修复通用设置切换语言后菜单关闭时仍隐藏焦点元素的无障碍警告。",
+                "zh-TW": "修復通用設定切換語言後選單關閉時仍隱藏焦點元素的無障礙警告。",
+                "en": "Fixes the accessibility warning caused by hiding the focused language-menu element after changing languages."
+              }
+            },
+            {
+              "scope": "localization",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "过程回顾新增 UI 的多语言覆盖",
+                "zh-TW": "過程回顧新增 UI 的多語言覆蓋",
+                "en": "Multilingual coverage for new Process Review UI"
+              },
+              "body": {
+                "zh-CN": "补齐过程回顾新增图例、阶段标签、记录提示、空状态和摘要外壳在简体中文、繁体中文和英文下的显示。",
+                "zh-TW": "補齊過程回顧新增圖例、階段標籤、記錄提示、空狀態和摘要外殼在簡體中文、繁體中文和英文下的顯示。",
+                "en": "Adds localized Simplified Chinese, Traditional Chinese, and English text for the new legends, stage labels, record hints, empty states, and summary shell."
               }
             }
           ]
@@ -64,16 +196,16 @@
           "items": [
             {
               "scope": "desktop-update",
-              "importance": "medium",
+              "importance": "high",
               "title": {
-                "zh-CN": "保留纯文本兜底",
-                "zh-TW": "保留純文字兜底",
-                "en": "Plain-text fallback retained"
+                "zh-CN": "桌面自动更新资产保持完整",
+                "zh-TW": "桌面自動更新資產保持完整",
+                "en": "Desktop auto-update assets remain complete"
               },
               "body": {
-                "zh-CN": "远端 latest.yml 同时保留纯文本 releaseNotes，供旧版客户端和异常 fallback 使用。",
-                "zh-TW": "遠端 latest.yml 同時保留純文字 releaseNotes，供舊版客戶端和異常 fallback 使用。",
-                "en": "The remote latest.yml also keeps plain-text releaseNotes for older clients and fallback scenarios."
+                "zh-CN": "4.1.5 继续发布 NSIS 安装包、latest.yml 和 blockmap，4.1.4 安装版可通过应用内更新检测到正式版。",
+                "zh-TW": "4.1.5 繼續發布 NSIS 安裝包、latest.yml 和 blockmap，4.1.4 安裝版可透過應用內更新偵測到正式版。",
+                "en": "4.1.5 continues to ship the NSIS installer, latest.yml, and blockmap so installed 4.1.4 clients can detect the official update in-app."
               }
             }
           ]

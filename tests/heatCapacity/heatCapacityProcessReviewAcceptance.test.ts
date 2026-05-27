@@ -13,7 +13,12 @@ const standard = createStandardOperationReviewFixture();
 assert.equal(standard.status, 'ready');
 assert.equal(standard.score.total !== null && standard.score.total >= 80, true);
 assert.equal(standard.summary?.upperBoundGamma !== null, true);
-assert.equal(standard.chart.referenceTrace.length > 0, true);
+assert.equal(standard.chart.idealReferenceTrace.length > 0, true);
+assert.equal(standard.chart.idealReferenceTrace.some((point) => point.stageId === 'fill'), true);
+assert.equal(standard.chart.idealReference.feasible, true);
+assert.equal(standard.chart.idealReference.assumptions.noiseIgnored, true);
+assert.equal(standard.chart.idealReference.assumptions.sensorLagIgnored, true);
+assert.equal(standard.chart.idealReference.assumptions.leakageIgnored, true);
 assert.equal(standard.chart.bestWindows.length, 3);
 
 const insufficientPump = createInsufficientPumpReviewFixture();

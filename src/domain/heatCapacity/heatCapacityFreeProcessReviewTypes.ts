@@ -1,4 +1,4 @@
-export type HeatCapacityProcessStageId = 'zero' | 'pump' | 'stabilize' | 'release' | 'recover';
+export type HeatCapacityProcessStageId = 'zero' | 'fill' | 'pump' | 'stabilize' | 'release' | 'recover';
 export type HeatCapacityProcessRecordId = 'u0' | 'u1' | 'u2';
 export type HeatCapacityProcessDiagnosisId = 'pumping' | 'release' | 'recording' | 'retake';
 export type HeatCapacityProcessDiagnosisStatus =
