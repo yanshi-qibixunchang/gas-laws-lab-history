@@ -3,6 +3,97 @@
   "version": "4.1.6",
   "type": "module",
   "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "desktop:dev": "vite build && electron .",
+    "desktop:build": "vite build",
+    "desktop:installer": "vite build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win nsis --x64 && node scripts/writeReleaseMetadata.cjs",
+    "desktop:portable": "vite build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win portable --x64",
+    "exporter:bundle": "node scripts/bundleExporter.cjs",
+    "test": "node scripts/runTests.cjs",
+    "preview": "vite preview"
+  },
+  "build": {
+    "appId": "com.hardspherelab.desktop",
+    "productName": "热容比实验室",
+    "electronDist": "node_modules/electron/dist",
+    "afterPack": "build/afterPack.cjs",
+    "directories": {
+      "output": "release"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "yanshi-qibixunchang",
+        "repo": "hard-sphere-lab-release"
+      }
+    ],
+    "electronUpdaterCompatibility": ">=2.16",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "docs/releases/release-notes.json",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/app-icon",
+        "to": "app-icon",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "resources/exporter",
+        "to": "exporter",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "tools/exporter/hsl_exporter.py",
+        "to": "exporter/hsl_exporter.py"
+      }
+    ],
+    "win": {
+      "icon": "resources/app-icon/icon.ico",
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "heat-capacity-lab-setup-${version}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "displayLanguageSelector": true,
+      "installerLanguages": [
+        "zh_CN",
+        "zh_TW",
+        "en_US"
+      ],
+      "language": "2052",
+      "include": "build/installer.nsh",
+      "installerIcon": "resources/app-icon/icon.ico",
+      "uninstallerIcon": "resources/app-icon/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "热容比实验室"
+    }
+  },
   "dependencies": {
     "@capacitor/app": "^8.0.0",
     "@capacitor/core": "^8.0.1",
@@ -16,5 +107,18 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "three": "^0.184.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@vitejs/plugin-react": "^6.0.2",
+    "autoprefixer": "^10.4.18",
+    "electron": "^41.5.0",
+    "electron-builder": "^26.8.1",
+    "playwright": "^1.58.2",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.2.2",
+    "vite": "^8.0.13"
   }
 }
