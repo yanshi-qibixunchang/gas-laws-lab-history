@@ -11,16 +11,16 @@
         "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.11/heat-capacity-lab-setup-4.1.11.exe"
       },
       "summary": {
-        "zh-CN": "???????????????????? Windows ?????????????????????",
-        "zh-TW": "???????????????????? Windows ?????????????????????",
+        "zh-CN": "缩短桌面标题栏最小化横杠长度，使其更接近 Windows 常见应用标题栏比例，并保持按钮中心线对齐。",
+        "zh-TW": "縮短桌面標題列最小化橫線長度，使其更接近 Windows 常見應用標題列比例，並保持按鈕中心線對齊。",
         "en": "Shortens the desktop titlebar minimize line to better match common Windows app proportions while keeping the button centerline aligned."
       },
       "sections": [
         {
           "type": "fixed",
           "title": {
-            "zh-CN": "??",
-            "zh-TW": "??",
+          "zh-CN": "修复",
+          "zh-TW": "修復",
             "en": "Fixed"
           },
           "items": [
@@ -28,13 +28,13 @@
               "scope": "desktop-chrome",
               "importance": "medium",
               "title": {
-                "zh-CN": "?????????????????",
-                "zh-TW": "?????????????????",
+                "zh-CN": "最小化按钮横杠更接近系统标题栏比例",
+                "zh-TW": "最小化按鈕橫線更接近系統標題列比例",
                 "en": "Minimize button line better matches system titlebar proportions"
               },
               "body": {
-                "zh-CN": "????????????????????????????? Windows ?????????????????????",
-                "zh-TW": "???????????????????????????? Windows ?????????????????????",
+                "zh-CN": "桌面端自定义标题栏的最小化横杠已从偏长的显示缩短为更紧凑的 Windows 风格长度，同时保留居中对齐和原有点击行为。",
+                "zh-TW": "桌面端自訂標題列的最小化橫線已從偏長的顯示縮短為更緊湊的 Windows 風格長度，同時保留置中對齊和原有點擊行為。",
                 "en": "The desktop custom titlebar minimize line is now shorter and more compact in the Windows style, while preserving centered alignment and the existing click behavior."
               }
             }
@@ -43,8 +43,8 @@
         {
           "type": "compatibility",
           "title": {
-            "zh-CN": "?????",
-            "zh-TW": "?????",
+          "zh-CN": "兼容性说明",
+          "zh-TW": "相容性說明",
             "en": "Compatibility"
           },
           "items": [
@@ -52,13 +52,13 @@
               "scope": "desktop-update",
               "importance": "medium",
               "title": {
-                "zh-CN": "??????????",
-                "zh-TW": "??????????",
+                "zh-CN": "通过桌面自动更新分发",
+                "zh-TW": "透過桌面自動更新分發",
                 "en": "Distributed through desktop auto update"
               },
               "body": {
-                "zh-CN": "??????? NSIS ????latest.yml ? blockmap????? 4.1.10 ??????????????? 4.1.11?",
-                "zh-TW": "??????? NSIS ????latest.yml ? blockmap????? 4.1.10 ??????????????? 4.1.11?",
+                "zh-CN": "本版本继续发布 NSIS 安装包、latest.yml 和 blockmap，已安装的 4.1.10 客户端可以通过应用内更新检测到 4.1.11。",
+                "zh-TW": "本版本繼續發布 NSIS 安裝包、latest.yml 和 blockmap，已安裝的 4.1.10 用戶端可以透過應用內更新偵測到 4.1.11。",
                 "en": "This version continues to publish the NSIS installer, latest.yml, and blockmap so installed 4.1.10 clients can detect 4.1.11 in-app."
               }
             }
