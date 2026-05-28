@@ -220,6 +220,12 @@ assert.match(
 
 assert.match(
   getRuleBody('.studio-window-control-glyph-minimize'),
+  /width:\s*10px;/,
+  'minimize glyph should use a compact Windows-style line length',
+);
+
+assert.match(
+  getRuleBody('.studio-window-control-glyph-minimize'),
   /border-bottom:\s*2px solid currentColor;/,
   'minimize glyph should be a simple Windows-style horizontal line',
 );
