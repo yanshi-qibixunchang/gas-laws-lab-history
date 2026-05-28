@@ -110,8 +110,50 @@ assert.match(
 
 assert.match(
   workbenchSource,
+  /<img src="favicon\.png" alt="" \/>/,
+  'titlebar icon should use a relative public asset path that works from packaged file:// pages',
+);
+
+assert.doesNotMatch(
+  workbenchSource,
+  /<img src="\/favicon\.png" alt="" \/>/,
+  'titlebar icon should not use an absolute root path because packaged file:// pages resolve it outside dist',
+);
+
+assert.match(
+  getRuleBody('.studio-brand-mark'),
+  /border-radius:\s*5px;/,
+  'titlebar app icon container should have a subtle rounded corner instead of a harsh square edge',
+);
+
+assert.match(
+  getRuleBody('.studio-brand-mark img'),
+  /border-radius:\s*inherit;/,
+  'titlebar app icon image should inherit the rounded corner clipping from its container',
+);
+
+assert.match(
+  workbenchSource,
   /className="studio-window-controls"/,
   'workbench header should render custom minimize, maximize, and close controls',
+);
+
+assert.match(
+  workbenchSource,
+  /const hasDesktopWindowControlBridge = \(\) => \(/,
+  'workbench should explicitly detect whether desktop-only window controls are available',
+);
+
+assert.match(
+  workbenchSource,
+  /const desktopWindowControlsAvailable = hasDesktopWindowControlBridge\(\);/,
+  'renderer should derive a desktop-only flag before rendering native window controls',
+);
+
+assert.match(
+  workbenchSource,
+  /\{desktopWindowControlsAvailable \? \(\s*<div className="studio-window-controls"/,
+  'web/browser preview should not render desktop-only minimize, maximize, and close controls',
 );
 
 assert.match(
@@ -132,6 +174,24 @@ assert.match(
   'custom close button should call the desktop bridge',
 );
 
+assert.doesNotMatch(
+  workbenchSource,
+  /<Maximize2|<Minimize2|<Minus/,
+  'custom window controls should not use diagonal expand or generic icon glyphs for Windows maximize and restore states',
+);
+
+assert.match(
+  workbenchSource,
+  /studio-window-control-glyph-minimize/,
+  'minimize should use a CSS-drawn Windows-style horizontal line glyph',
+);
+
+assert.match(
+  workbenchSource,
+  /desktopWindowMaximized \? 'studio-window-control-glyph-restore' : 'studio-window-control-glyph-maximize'/,
+  'maximize toggle should switch between CSS-drawn Windows-style restore and maximize glyphs',
+);
+
 assert.match(
   getRuleBody('.studio-menu'),
   /-webkit-app-region:\s*drag;/,
@@ -150,4 +210,34 @@ assert.match(
   getRuleBody('.studio-window-control-close:hover'),
   /background:\s*#c42b1c;/,
   'custom close button should use the familiar Windows destructive hover treatment',
+);
+
+assert.match(
+  getRuleBody('.studio-window-control-glyph-minimize'),
+  /height:\s*0;/,
+  'minimize glyph should have no own height so its border line centers inside the square button',
+);
+
+assert.match(
+  getRuleBody('.studio-window-control-glyph-minimize'),
+  /border-bottom:\s*2px solid currentColor;/,
+  'minimize glyph should be a simple Windows-style horizontal line',
+);
+
+assert.match(
+  getRuleBody('.studio-window-control-glyph-maximize'),
+  /width:\s*11px;[\s\S]*height:\s*11px;[\s\S]*border:\s*1\.7px solid currentColor;/,
+  'maximize glyph should be a single Windows-style square outline',
+);
+
+assert.match(
+  getRuleBody('.studio-window-control-glyph-restore::before'),
+  /width:\s*9px;[\s\S]*height:\s*9px;[\s\S]*border:\s*1\.7px solid currentColor;/,
+  'restore glyph should include a rear Windows-style square outline',
+);
+
+assert.match(
+  getRuleBody('.studio-window-control-glyph-restore::after'),
+  /width:\s*9px;[\s\S]*height:\s*9px;[\s\S]*border:\s*1\.7px solid currentColor;/,
+  'restore glyph should include a front Windows-style square outline',
 );

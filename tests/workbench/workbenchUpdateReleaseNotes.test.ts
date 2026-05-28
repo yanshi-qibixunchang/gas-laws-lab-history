@@ -77,36 +77,36 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '4.1.9', 'next desktop update release should bump package version to 4.1.9');
+assert.equal(packageJson.version, '4.1.10', 'next desktop update release should bump package version to 4.1.10');
 
-const currentRelease = findRelease('4.1.9');
+const currentRelease = findRelease('4.1.10');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
-assert.ok(currentRelease, 'release notes should include the 4.1.9 desktop window frame release');
+assert.ok(currentRelease, 'release notes should include the 4.1.10 desktop chrome polish release');
 for (const locale of locales) {
-  assert.ok(currentRelease.summary?.[locale]?.trim(), `4.1.9 release summary should include ${locale}`);
+  assert.ok(currentRelease.summary?.[locale]?.trim(), `4.1.10 release summary should include ${locale}`);
 }
 assert.equal(
   currentRelease.download?.releasePage,
-  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.9',
-  '4.1.9 release page should be published in the public release repository',
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.10',
+  '4.1.10 release page should be published in the public release repository',
 );
 assert.equal(
   currentRelease.download?.windowsInstaller,
-  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.9/heat-capacity-lab-setup-4.1.9.exe',
-  '4.1.9 installer should be published in the public release repository',
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.10/heat-capacity-lab-setup-4.1.10.exe',
+  '4.1.10 installer should be published in the public release repository',
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
 assert.ok(
-  currentItems.some((item) => item.scope === 'desktop-window' && item.importance === 'high'),
-  '4.1.9 should include a high-importance desktop window sizing note',
+  currentItems.some((item) => item.scope === 'desktop-chrome' && item.importance === 'high'),
+  '4.1.10 should include high-importance desktop chrome fixes',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'desktop-chrome' && item.importance === 'high'),
-  '4.1.9 should include the in-app titlebar replacement note',
+  currentItems.some((item) => item.scope === 'desktop-chrome' && item.importance === 'medium'),
+  '4.1.10 should include the window button glyph alignment fix',
 );
 assert.ok(
   currentItems.some((item) => item.scope === 'desktop-update' && item.importance === 'medium'),
-  '4.1.9 should include the auto-update distribution compatibility note',
+  '4.1.10 should include the auto-update distribution compatibility note',
 );
 
 const migrationRelease = findRelease('4.1.6');

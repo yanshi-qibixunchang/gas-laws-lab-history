@@ -18,9 +18,6 @@ import {
   Languages,
   Loader2,
   LockKeyhole,
-  Maximize2,
-  Minimize2,
-  Minus,
   MoreHorizontal,
   PanelLeft,
   PanelTopOpen,
@@ -2325,6 +2322,15 @@ const hasDesktopUpdaterBridge = () => (
   typeof window !== 'undefined' && Boolean(window.hardSphereLabUpdater)
 );
 
+const hasDesktopWindowControlBridge = () => (
+  typeof window !== 'undefined' &&
+  Boolean(
+    window.hardSphereLabWindow?.minimize &&
+    window.hardSphereLabWindow?.toggleMaximize &&
+    window.hardSphereLabWindow?.close,
+  )
+);
+
 const getFreshWorkbenchWindowUrl = () => {
   if (typeof window === 'undefined') return '';
   const url = new URL(window.location.href);
@@ -3077,6 +3083,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const settingsLanguageTriggerRef = useRef<HTMLButtonElement | null>(null);
   const workbenchCopy = workbenchCopies[settingsLanguagePreference];
   const windowControlCopy = WORKBENCH_WINDOW_CONTROL_COPY[settingsLanguagePreference];
+  const desktopWindowControlsAvailable = hasDesktopWindowControlBridge();
   const performanceModeOptions = useMemo(() => ([
     { mode: 'standard' as const, label: workbenchCopy.settings.performanceModeOff },
     { mode: 'balanced' as const, label: workbenchCopy.settings.performanceModeBalanced },
@@ -3629,6 +3636,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!hasDesktopWindowControlBridge()) return undefined;
     const desktopWindowBridge = window.hardSphereLabWindow;
     let mounted = true;
 
@@ -12562,7 +12570,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <header className="studio-menu">
           <div className="studio-titlebar-brand" aria-label={workbenchCopy.about.subtitle}>
             <span className="studio-brand-mark" aria-hidden="true">
-              <img src="/favicon.png" alt="" />
+              <img src="favicon.png" alt="" />
             </span>
             <span>{workbenchCopy.about.subtitle}</span>
           </div>
@@ -12574,35 +12582,40 @@ const WorkbenchStudioPrototype: React.FC = () => {
             {renderTopCommand('help', workbenchCopy.menus.help, <BookOpen size={14} />)}
           </nav>
           <div className="studio-titlebar-drag-fill" aria-hidden="true" />
-          <div className="studio-window-controls" aria-label={windowControlCopy.controls}>
-            <button
-              type="button"
-              className="studio-window-control-button"
-              aria-label={windowControlCopy.minimize}
-              title={windowControlCopy.minimize}
-              onClick={minimizeDesktopWindow}
-            >
-              <Minus size={14} strokeWidth={2.4} />
-            </button>
-            <button
-              type="button"
-              className="studio-window-control-button"
-              aria-label={desktopWindowMaximized ? windowControlCopy.restore : windowControlCopy.maximize}
-              title={desktopWindowMaximized ? windowControlCopy.restore : windowControlCopy.maximize}
-              onClick={toggleDesktopWindowMaximize}
-            >
-              {desktopWindowMaximized ? <Minimize2 size={13} strokeWidth={2.2} /> : <Maximize2 size={13} strokeWidth={2.2} />}
-            </button>
-            <button
-              type="button"
-              className="studio-window-control-button studio-window-control-close"
-              aria-label={windowControlCopy.close}
-              title={windowControlCopy.close}
-              onClick={closeDesktopWindow}
-            >
-              <X size={15} strokeWidth={2.2} />
-            </button>
-          </div>
+          {desktopWindowControlsAvailable ? (
+            <div className="studio-window-controls" aria-label={windowControlCopy.controls}>
+              <button
+                type="button"
+                className="studio-window-control-button"
+                aria-label={windowControlCopy.minimize}
+                title={windowControlCopy.minimize}
+                onClick={minimizeDesktopWindow}
+              >
+                <span className="studio-window-control-glyph studio-window-control-glyph-minimize" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className="studio-window-control-button"
+                aria-label={desktopWindowMaximized ? windowControlCopy.restore : windowControlCopy.maximize}
+                title={desktopWindowMaximized ? windowControlCopy.restore : windowControlCopy.maximize}
+                onClick={toggleDesktopWindowMaximize}
+              >
+                <span
+                  className={`studio-window-control-glyph ${desktopWindowMaximized ? 'studio-window-control-glyph-restore' : 'studio-window-control-glyph-maximize'}`}
+                  aria-hidden="true"
+                />
+              </button>
+              <button
+                type="button"
+                className="studio-window-control-button studio-window-control-close"
+                aria-label={windowControlCopy.close}
+                title={windowControlCopy.close}
+                onClick={closeDesktopWindow}
+              >
+                <X size={15} strokeWidth={2.2} />
+              </button>
+            </div>
+          ) : null}
           {renderTopMenu()}
         </header>
         {renderAboutWindow()}

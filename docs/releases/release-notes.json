@@ -3,6 +3,99 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.10",
+      "date": "2026-05-28",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.10",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.10/heat-capacity-lab-setup-4.1.10.exe"
+      },
+      "summary": {
+        "zh-CN": "修正应用内标题栏图标加载与圆角显示，隐藏 Web 端不应出现的桌面窗口按钮，并调整最小化、最大化和还原图标的 Windows 风格视觉对齐。",
+        "zh-TW": "修正應用內標題列圖示載入與圓角顯示，隱藏 Web 端不應出現的桌面視窗按鈕，並調整最小化、最大化和還原圖示的 Windows 風格視覺對齊。",
+        "en": "Fixes the in-app titlebar icon loading and rounding, hides desktop-only window controls on the web build, and refines the Windows-style minimize, maximize, and restore glyph alignment."
+      },
+      "sections": [
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "desktop-chrome",
+              "importance": "high",
+              "title": {
+                "zh-CN": "标题栏图标在桌面端正确显示",
+                "zh-TW": "標題列圖示在桌面端正確顯示",
+                "en": "Titlebar icon loads correctly on desktop"
+              },
+              "body": {
+                "zh-CN": "标题栏应用图标改用打包后可用的相对资源路径，并增加小圆角，避免显示为破损图片或生硬正方形。",
+                "zh-TW": "標題列應用圖示改用打包後可用的相對資源路徑，並增加小圓角，避免顯示為破損圖片或生硬正方形。",
+                "en": "The titlebar app icon now uses a packaged relative asset path and subtle rounded corners, avoiding broken images and harsh square edges."
+              }
+            },
+            {
+              "scope": "desktop-chrome",
+              "importance": "high",
+              "title": {
+                "zh-CN": "窗口控制只在桌面端显示",
+                "zh-TW": "視窗控制只在桌面端顯示",
+                "en": "Window controls render only in the desktop app"
+              },
+              "body": {
+                "zh-CN": "最小化、最大化和关闭按钮现在仅在 Electron 桌面桥接可用时渲染，浏览器或网页版预览不再显示这些桌面专属控件。",
+                "zh-TW": "最小化、最大化和關閉按鈕現在僅在 Electron 桌面橋接可用時渲染，瀏覽器或網頁版預覽不再顯示這些桌面專屬控制。",
+                "en": "Minimize, maximize, and close buttons now render only when the Electron desktop bridge is available, so browser and web previews no longer show desktop-only controls."
+              }
+            },
+            {
+              "scope": "desktop-chrome",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "窗口按钮图标视觉对齐",
+                "zh-TW": "視窗按鈕圖示視覺對齊",
+                "en": "Window button glyph alignment"
+              },
+              "body": {
+                "zh-CN": "最小化横线改为居中显示，最大化和还原方框缩小并减轻线宽，使其高度略小于关闭叉号并保持同一视觉中心线。",
+                "zh-TW": "最小化橫線改為置中顯示，最大化和還原方框縮小並減輕線寬，使其高度略小於關閉叉號並保持同一視覺中心線。",
+                "en": "The minimize line is centered, and the maximize/restore boxes are smaller and lighter so they sit on the same visual center line while remaining slightly shorter than the close glyph."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "兼容性说明",
+            "zh-TW": "相容性說明",
+            "en": "Compatibility"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "通过桌面自动更新分发",
+                "zh-TW": "透過桌面自動更新分發",
+                "en": "Distributed through desktop auto update"
+              },
+              "body": {
+                "zh-CN": "本版本继续发布 NSIS 安装包、latest.yml 和 blockmap，已安装的 4.1.9 客户端可以通过应用内更新检测到 4.1.10。",
+                "zh-TW": "本版本繼續發布 NSIS 安裝包、latest.yml 和 blockmap，已安裝的 4.1.9 用戶端可以透過應用內更新偵測到 4.1.10。",
+                "en": "This version continues to publish the NSIS installer, latest.yml, and blockmap so installed 4.1.9 clients can detect 4.1.10 in-app."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.9",
       "date": "2026-05-27",
       "channel": "stable",
