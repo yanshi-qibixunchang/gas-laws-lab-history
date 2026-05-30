@@ -966,3 +966,32 @@ D:\tmp\codex\fd-ncd-c-candidate-preview\artifacts\clean-valve-pump-tube-retracte
 打气球接口视角：
 <project-root>\docs\superpowers\model-candidates\2026-05-30-ultra-clean-valve-accepted\clean-valve-up-inward-pump-connection.png
 ```
+
+## 执行记录：2026-05-30 黑色阀体单体化修正
+
+- [x] 执行前先固定当前工作区：已提交并推送 checkpoint `f64baf7`，提交信息为 `chore: checkpoint ultra model candidate work`。
+- [x] 复核当前分支和远端：`codex/heat-capacity-ultra-model-candidate` 已成功推送到 `origin/codex/heat-capacity-ultra-model-candidate`，没有使用 force push。
+- [x] 在候选 GLB 重建脚本中新增 `solid_ball_valve_body_geometry()`，把 `HSL_BallValve_Body` 从 10 段 primitive 拼接改为 1 个连续闭合 mesh。
+- [x] 保持阀门基准 `[-1.565, 1.94, 0.145]` 不变；未移动灰色打气管、打气球、主机、储气瓶、玻璃旋塞、电线和传感器。
+- [x] 重新导出候选 GLB，清理未引用资源，并更新仓库内候选包；未覆盖运行时 `public\models`。
+- [x] 更新结构审计脚本，新增黑色阀体拓扑断言：primitive 数量、闭合连通体、边界边、非流形边和退化三角形。
+- [x] 结构审计通过：`required_nodes_missing=[]`、`required_animations_missing=[]`、`required_morph_targets_missing=[]`、`old_valve_visual_nodes_present=[]`、`hidden_or_legacy_nodes_present=[]`、`contract_map_missing_keys=[]`、`hsl_anchor_missing_keys=[]`。
+- [x] 阀体拓扑审计通过：`valve_body_primitive_count=1`、`valve_body_single_closed_component=true`、`valve_body_boundary_edges=0`、`valve_body_nonmanifold_edges=0`、`valve_body_degenerate_triangles=0`。
+- [x] 上一轮几何断言保持通过：`valve_body_bottom_above_stopper_top=true`、`lower_stem_bottom_touches_stopper_top=true`、`lower_stem_projection_inside_stopper_top=true`、`valve_body_clear_of_stopcock_glass=true`、`valve_body_clear_of_bottle_neck_glass=true`、`pump_tube_endpoint_inside_left_black_port=true`、`pump_tube_endpoint_not_in_right_port=true`、`pump_tube_intersects_compressed_bulb=false`。
+- [x] 浏览器预览截图复核：左侧近景、右侧近景、瓶塞侧面近景和全局视角均已固化到候选包。
+
+### 本轮新增验收截图
+
+```text
+黑色阀体左侧近景：
+<project-root>\docs\superpowers\model-candidates\2026-05-30-ultra-clean-valve-accepted\clean-valve-solid-body-left-close.png
+
+黑色阀体右侧近景：
+<project-root>\docs\superpowers\model-candidates\2026-05-30-ultra-clean-valve-accepted\clean-valve-solid-body-right-close.png
+
+阀门与瓶塞侧面近景：
+<project-root>\docs\superpowers\model-candidates\2026-05-30-ultra-clean-valve-accepted\clean-valve-solid-body-stopper-side.png
+
+单体化阀体后的全局视角：
+<project-root>\docs\superpowers\model-candidates\2026-05-30-ultra-clean-valve-accepted\clean-valve-solid-body-global.png
+```
