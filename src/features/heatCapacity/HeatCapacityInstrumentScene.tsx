@@ -13,7 +13,7 @@ import HeatCapacityHardSphereLayer from './HeatCapacityHardSphereLayer';
 import HeatCapacityHardSphereToggle from './HeatCapacityHardSphereToggle';
 
 interface HeatCapacityInstrumentSceneProps {
-  performanceMode: 'standard' | 'balanced' | 'performance';
+  performanceMode: 'standard' | 'balanced' | 'performance' | 'ultra';
   sceneTheme: 'dark' | 'light';
   language: 'zh-CN' | 'zh-TW' | 'en';
   autoDemoActive: boolean;
@@ -913,7 +913,7 @@ function InstrumentBox({
   const gaugeDisplayedRotationRef = useRef(gaugeNeedleTargetRotation);
   const panelTextUpdateIntervalMs = panelTextInteractionReduced
     ? 400
-    : performanceMode === 'performance'
+    : (performanceMode === 'performance' || performanceMode === 'ultra')
       ? 250
       : performanceMode === 'balanced'
         ? 180
@@ -2367,7 +2367,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const hardSphereNoteText = getHardSphereNoteText(props, props.language);
   const hardSphereTooltipId = 'heat-capacity-hard-sphere-tooltip';
   const sceneShouldAnimate = props.hardSphereViewEnabled || props.demoFocusPulseActive || props.pumpBulbState !== 'idle' || Boolean(props.manualRollbackAnimation);
-  const interactionQualityReduced = isOrbitInteracting || props.performanceMode === 'performance';
+  const interactionQualityReduced = isOrbitInteracting || props.performanceMode === 'performance' || props.performanceMode === 'ultra';
   const canvasProps = useMemo(() => ({
     camera: { position: DEFAULT_CAMERA_POSITION, fov: 38 },
     dpr: props.performanceMode === 'standard'

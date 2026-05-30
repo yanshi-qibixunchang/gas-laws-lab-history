@@ -936,3 +936,33 @@ D:\tmp\codex\fd-ncd-c-candidate-preview\artifacts\clean-valve-pump-tube-retracte
 候选 GLB：
 <project-root>\docs\superpowers\model-candidates\2026-05-30-ultra-clean-valve-accepted\fd-ncd-c-experiment.ultra-layout-clean-valve.accepted.glb
 ```
+
+## 执行记录：2026-05-30 阀门上移内收与短接头贴合
+
+- [x] 按本轮计划将阀门基准从 `[-1.62, 1.86, 0.22]` 调整为 `[-1.565, 1.94, 0.145]`，同步移动 `HSL_ControlAnchor_PumpValve`、`HSL_BallValve_PumpSidePortCenter`、`InletValue_Pivot` 和 `HSL_Hitbox_PumpValve`。
+- [x] 重建 `HSL_BallValve_LowerStem` 和 `HSL_BallValve_StopperSeal`：短接头只从瓶塞上表面向上连接阀体，底部保留 `-0.006` 模型单位遮缝重叠，密封圈投影半径为 `0.265659`，小于瓶塞上表面可见半径 `0.267`。
+- [x] 重排灰色打气管前两段控制点，保持阀门侧口第一段同轴；审计值 `pump_tube_to_side_port_axis_error_deg=3.9452`，低于 `8` 度阈值。
+- [x] 保持打气球、主机、储气瓶、玻璃旋塞、电线和传感器不移动。
+- [x] 更新结构审计脚本，新增阀体高度、短接头贴合、短接头投影、玻璃避让和侧口轴向断言。
+- [x] 重新导出候选 GLB，清理未引用资源，并固化到候选包；未覆盖运行时 `public\models`。
+- [x] 结构审计通过：`required_nodes_missing=[]`、`required_animations_missing=[]`、`required_morph_targets_missing=[]`、`old_valve_visual_nodes_present=[]`、`hidden_or_legacy_nodes_present=[]`、`contract_map_missing_keys=[]`、`hsl_anchor_missing_keys=[]`。
+- [x] 几何审计通过：`valve_body_bottom_above_stopper_top=true`、`lower_stem_bottom_touches_stopper_top=true`、`lower_stem_projection_inside_stopper_top=true`、`valve_body_clear_of_stopcock_glass=true`、`valve_body_clear_of_bottle_neck_glass=true`。
+
+### 本轮新增验收截图
+
+```text
+全局侧面：
+<project-root>\docs\superpowers\model-candidates\2026-05-30-ultra-clean-valve-accepted\clean-valve-up-inward-side.png
+
+阀门近景：
+<project-root>\docs\superpowers\model-candidates\2026-05-30-ultra-clean-valve-accepted\clean-valve-up-inward-valve-close.png
+
+俯视图：
+<project-root>\docs\superpowers\model-candidates\2026-05-30-ultra-clean-valve-accepted\clean-valve-up-inward-overhead.png
+
+阀门侧口视角：
+<project-root>\docs\superpowers\model-candidates\2026-05-30-ultra-clean-valve-accepted\clean-valve-up-inward-side-port.png
+
+打气球接口视角：
+<project-root>\docs\superpowers\model-candidates\2026-05-30-ultra-clean-valve-accepted\clean-valve-up-inward-pump-connection.png
+```

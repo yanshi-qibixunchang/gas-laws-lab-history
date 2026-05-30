@@ -49,6 +49,24 @@ npm.cmd run desktop:installer
 - Inline rename keyboard behavior must stay consistent: `Enter` submits and `Escape` cancels.
 - New user-facing menus, popovers, dropdowns, and inline editors should follow these same outside-click and keyboard conventions unless the user explicitly requests a different interaction.
 
+## Heat Capacity 3D Performance Modes
+
+- The Heat Capacity 3D performance setting uses four modes: `standard`, `balanced`, `performance`, and `ultra`.
+- The user-facing order is low load, balanced, high performance, then ultra. Labels are `低负载`, `均衡`, `高性能`, and `极致画质` in Simplified Chinese; `低負載`, `均衡`, `高效能`, and `極致畫質` in Traditional Chinese; and `Low load`, `Balanced`, `High performance`, and `Ultra` in English.
+- Until the FD-NCD-C GLB adapter is implemented, `ultra` is a placeholder mode and should intentionally reuse the current `performance` behavior: low-load DPR, reduced interaction rendering, hard-sphere visual preset, and Heat Capacity tick interval.
+- `standard`, `balanced`, and `performance` must keep the current procedural Heat Capacity skeleton. Future GLB work should attach the FD-NCD-C model only to `ultra`.
+- Performance mode is a UI/runtime preference only. Do not write it into Heat Capacity experiment parameters, result calculations, trial data, gamma formulas, or exported scientific data.
+
+## Heat Capacity Ultra GLB Model Work
+
+- Ultra GLB model layout work must first match the current procedural Heat Capacity skeleton's interaction habits: pump bulb in the default-camera front area, pump valve above or very near the bottle stopper, stopcock above the bottle mouth, and instrument controls on the right/front panel.
+- Preserve existing GLB node names, animation target paths, and morph target names. Add project-specific anchors with the `HSL_` prefix instead of renaming original model nodes.
+- Model optimization must use a candidate copy. Do not overwrite the source audit GLB or copy a runtime GLB into `public\models` until the user accepts the model layout.
+- External preview apps, Blender scripts, `.blend` files, and external preview state machines must not be imported into the main project.
+- The visual GLB layer must read the existing Heat Capacity state machine only. It must not create separate pressure, temperature, valve, power, gamma, or trial state.
+- Final Ultra software integration must support `demo`, `guide`, and `free` with the same project callbacks and feedback semantics as the procedural skeleton.
+- External model viewers may use a temporary port such as `5181` only for isolated GLB inspection. Once any main-project code or user-facing project behavior changes, preview the main app on the fixed `5174` port.
+
 ## Ideal Gas Current Parameters Sidebar
 
 - For ideal-gas files, the right `Current Parameters` sidebar must keep the core controls directly visible: `Relation`, `Scan variable`, and `Sampling preset`.

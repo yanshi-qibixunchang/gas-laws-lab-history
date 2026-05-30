@@ -1281,7 +1281,7 @@
 .studio-settings-performance-segmented {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
   width: 100%;
   overflow: hidden;
@@ -1296,7 +1296,7 @@
   top: 2px;
   bottom: 2px;
   left: 2px;
-  width: calc((100% - 4px) / 3);
+  width: calc((100% - 4px) / 4);
   border: 1px solid rgba(120, 202, 230, 0.56);
   border-radius: 2px;
   background: #2d4f68;
@@ -1309,8 +1309,16 @@
   transform: translateX(100%);
 }
 
-.studio-settings-performance-segmented-performance .studio-settings-performance-thumb {
+.studio-settings-performance-segmented-standard .studio-settings-performance-thumb {
   transform: translateX(200%);
+}
+
+.studio-settings-performance-segmented-performance .studio-settings-performance-thumb {
+  transform: translateX(0);
+}
+
+.studio-settings-performance-segmented-ultra .studio-settings-performance-thumb {
+  transform: translateX(300%);
 }
 
 .studio-settings-performance-option {
@@ -1322,7 +1330,7 @@
   border: 0;
   background: transparent;
   color: var(--studio-subtle);
-  padding: 7px 9px;
+  padding: 7px 6px;
   text-align: center;
   cursor: pointer;
   transition: color 140ms ease, background 140ms ease;

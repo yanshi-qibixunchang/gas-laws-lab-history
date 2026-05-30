@@ -191,6 +191,36 @@ assert.match(
 );
 
 assert.match(
+  getCssBlock('.studio-settings-performance-segmented'),
+  /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/,
+  '3D performance segmented control should reserve four equal tiers',
+);
+
+assert.match(
+  getCssBlock('.studio-settings-performance-thumb'),
+  /width: calc\(\(100% - 4px\) \/ 4\);/,
+  '3D performance segmented thumb should size to one fourth of the control',
+);
+
+assert.match(
+  styles,
+  /\.studio-settings-performance-segmented-ultra \.studio-settings-performance-thumb \{[\s\S]*?transform: translateX\(300%\);/,
+  '3D performance segmented thumb should move to the fourth tier for ultra',
+);
+
+assert.match(
+  styles,
+  /\.studio-settings-performance-segmented-performance \.studio-settings-performance-thumb \{[\s\S]*?transform: translateX\(0\);/,
+  '3D performance segmented thumb should move to the first tier for low load',
+);
+
+assert.match(
+  styles,
+  /\.studio-settings-performance-segmented-standard \.studio-settings-performance-thumb \{[\s\S]*?transform: translateX\(200%\);/,
+  '3D performance segmented thumb should move to the third tier for high performance',
+);
+
+assert.match(
   generalWindowSource,
   /studio-settings-section studio-settings-shortcuts-section[\s\S]*studio-settings-section-title[\s\S]*studio-settings-control-surface[\s\S]*studio-settings-shortcuts-card/,
   'shortcut help should put the shortcut list on a new row below the section title',
