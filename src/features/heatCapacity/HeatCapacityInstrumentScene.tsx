@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Edges, Line, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -11,6 +11,7 @@ import {
 import usePreviewOverlayMotion from '../workbench/usePreviewOverlayMotion';
 import HeatCapacityHardSphereLayer from './HeatCapacityHardSphereLayer';
 import HeatCapacityHardSphereToggle from './HeatCapacityHardSphereToggle';
+import HeatCapacityUltraInstrumentModel from './HeatCapacityUltraInstrumentModel';
 
 interface HeatCapacityInstrumentSceneProps {
   performanceMode: 'standard' | 'balanced' | 'performance' | 'ultra';
@@ -94,6 +95,26 @@ type ValveFocusBubbleState = {
   source: ValveFocusControl;
   closing: boolean;
 };
+
+class HeatCapacityUltraModelErrorBoundary extends React.Component<{
+  children: React.ReactNode;
+  fallback: React.ReactNode;
+}, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.warn('Heat Capacity Ultra GLB failed to render; falling back to procedural scene.', error);
+  }
+
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
 
 const heatCapacitySceneCopies = {
   'zh-CN': {
@@ -2007,6 +2028,16 @@ function PumpAssembly({
   );
 }
 
+function HeatCapacitySceneLighting({ scenePalette }: { scenePalette: HeatCapacityScenePalette }) {
+  return (
+    <>
+      <ambientLight intensity={scenePalette.scene.ambientIntensity} />
+      <directionalLight position={[3.4, 4.8, 4]} intensity={scenePalette.scene.directionalIntensity} />
+      <pointLight position={[-3, 2.2, 3]} intensity={scenePalette.scene.pointIntensity} color={scenePalette.scene.pointColor} />
+    </>
+  );
+}
+
 function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
   onFocus: (mode: HeatCapacityFocusMode) => void;
   focusMode: HeatCapacityFocusMode;
@@ -2025,10 +2056,6 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
 
   return (
     <>
-      <ambientLight intensity={scenePalette.scene.ambientIntensity} />
-      <directionalLight position={[3.4, 4.8, 4]} intensity={scenePalette.scene.directionalIntensity} />
-      <pointLight position={[-3, 2.2, 3]} intensity={scenePalette.scene.pointIntensity} color={scenePalette.scene.pointColor} />
-
       <mesh name="WorkbenchDeck" rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.55, 0]}>
         <planeGeometry args={[6.3, 3.7]} />
         <meshStandardMaterial color={scenePalette.scene.deck} roughness={0.82} />
@@ -2370,17 +2397,47 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const hardSphereNoteText = getHardSphereNoteText(props, props.language);
   const hardSphereTooltipId = 'heat-capacity-hard-sphere-tooltip';
   const sceneShouldAnimate = props.hardSphereViewEnabled || props.demoFocusPulseActive || props.pumpBulbState !== 'idle' || Boolean(props.manualRollbackAnimation);
-  const interactionQualityReduced = isOrbitInteracting || props.performanceMode === 'performance' || props.performanceMode === 'ultra';
+  const interactionQualityReduced = isOrbitInteracting || props.performanceMode === 'performance';
   const canvasProps = useMemo(() => ({
     camera: { position: DEFAULT_CAMERA_POSITION, fov: 38 },
     dpr: props.performanceMode === 'standard'
       ? 2.5
       : props.performanceMode === 'balanced'
         ? 1.5
-        : 1,
+        : props.performanceMode === 'ultra'
+          ? 1.75
+          : 1,
     frameloop: 'demand' as const,
     shadows: false,
   }), [props.performanceMode]);
+  const proceduralSceneContent = (
+    <InstrumentSceneContent
+      {...props}
+      onFocus={setFocusMode}
+      focusMode={focusMode}
+      hoveredControl={hoveredControl}
+      setHoveredControl={setStableHoveredControl}
+      onValveFocusAnchor={openValveFocusBubble}
+      interactionQualityReduced={interactionQualityReduced}
+      panelTextInteractionReduced={isOrbitInteracting}
+      sceneCopy={sceneCopy}
+      scenePalette={scenePalette}
+    />
+  );
+  const instrumentSceneContent = props.performanceMode === 'ultra' ? (
+    <HeatCapacityUltraModelErrorBoundary fallback={proceduralSceneContent}>
+      <Suspense fallback={proceduralSceneContent}>
+        <HeatCapacityUltraInstrumentModel
+          {...props}
+          onFocus={setFocusMode}
+          focusMode={focusMode}
+          hoveredControl={hoveredControl}
+          setHoveredControl={setStableHoveredControl}
+          onValveFocusAnchor={openValveFocusBubble}
+        />
+      </Suspense>
+    </HeatCapacityUltraModelErrorBoundary>
+  ) : proceduralSceneContent;
 
   return (
     <div
@@ -2408,6 +2465,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       <Canvas {...canvasProps}>
         {/* GLB replacement contract: preserve node names, pivots, and hitbox roles from this procedural skeleton. */}
         <color attach="background" args={[scenePalette.scene.background]} />
+        <HeatCapacitySceneLighting scenePalette={scenePalette} />
         <HeatCapacitySceneInvalidator active={sceneShouldAnimate} />
         <CameraRig
           controlsRef={controlsRef}
@@ -2415,18 +2473,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           resetKey={viewResetKey}
           autoDemoActive={props.autoDemoActive}
         />
-        <InstrumentSceneContent
-          {...props}
-          onFocus={setFocusMode}
-          focusMode={focusMode}
-          hoveredControl={hoveredControl}
-          setHoveredControl={setStableHoveredControl}
-          onValveFocusAnchor={openValveFocusBubble}
-          interactionQualityReduced={interactionQualityReduced}
-          panelTextInteractionReduced={isOrbitInteracting}
-          sceneCopy={sceneCopy}
-          scenePalette={scenePalette}
-        />
+        {instrumentSceneContent}
         <HeatCapacityOrbitControls
           enabled={focusMode === 'none' && !props.interactionLocked}
           controlsRef={controlsRef}
