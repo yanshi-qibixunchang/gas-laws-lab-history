@@ -650,6 +650,7 @@ const PRESSURE_GAUGE_TICKS = [
   2.15,
 ];
 const PRESSURE_GAUGE_NEEDLE_SMOOTHING_RATE = 9;
+const modelPressureGaugeAngleToVisualAngle = (modelAngle: number) => Math.PI / 2 - modelAngle;
 
 const clampSceneNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -949,7 +950,7 @@ function InstrumentBox({
       PRESSURE_GAUGE_MAX_ROTATION,
     );
     if (gaugeNeedlePivotRef.current) {
-      gaugeNeedlePivotRef.current.rotation.z = gaugeDisplayedRotationRef.current;
+      gaugeNeedlePivotRef.current.rotation.z = modelPressureGaugeAngleToVisualAngle(gaugeDisplayedRotationRef.current);
     }
     if (Math.abs(gaugeDisplayedRotationRef.current - targetRotation) > 0.001) {
       invalidate();
@@ -1158,27 +1159,28 @@ function InstrumentBox({
             emissiveIntensity={0}
           />
         </mesh>
-        {PRESSURE_GAUGE_TICKS.map((tickRotation) => {
-          const tickRadius = tickRotation >= gaugeSafetyRotation ? 0.148 : 0.137;
+        {PRESSURE_GAUGE_TICKS.map((tickModelAngle) => {
+          const tickVisualAngle = modelPressureGaugeAngleToVisualAngle(tickModelAngle);
+          const tickRadius = tickModelAngle >= gaugeSafetyRotation ? 0.148 : 0.137;
           const majorTick = (
-            Math.abs(tickRotation) === PRESSURE_GAUGE_MAX_ROTATION ||
-            tickRotation === 0 ||
-            tickRotation === gaugeSafetyRotation
+            Math.abs(tickModelAngle) === PRESSURE_GAUGE_MAX_ROTATION ||
+            tickModelAngle === 0 ||
+            tickModelAngle === gaugeSafetyRotation
           );
-          const dangerTick = tickRotation >= gaugeSafetyRotation;
+          const dangerTick = tickModelAngle >= gaugeSafetyRotation;
           return (
             <mesh
-              key={tickRotation}
+              key={tickModelAngle}
               name="AnalogPressureGaugeTick"
-              position={[Math.cos(tickRotation) * tickRadius, Math.sin(tickRotation) * tickRadius, 0.064]}
-              rotation={[0, 0, tickRotation]}
+              position={[Math.cos(tickVisualAngle) * tickRadius, Math.sin(tickVisualAngle) * tickRadius, 0.064]}
+              rotation={[0, 0, tickVisualAngle]}
             >
               <boxGeometry args={[majorTick ? 0.048 : 0.034, dangerTick ? 0.011 : 0.009, 0.012]} />
               <meshBasicMaterial color={dangerTick ? PRESSURE_GAUGE_DANGER_TICK_COLOR : PRESSURE_GAUGE_NORMAL_TICK_COLOR} />
             </mesh>
           );
         })}
-        <group name="AnalogPressureGaugeNeedlePivot" ref={gaugeNeedlePivotRef} rotation={[0, 0, gaugeDisplayedRotationRef.current]}>
+        <group name="AnalogPressureGaugeNeedlePivot" ref={gaugeNeedlePivotRef} rotation={[0, 0, modelPressureGaugeAngleToVisualAngle(gaugeDisplayedRotationRef.current)]}>
           <mesh name="AnalogPressureGaugeNeedle" position={[0.055, 0, 0.062]}>
             <boxGeometry args={[0.14, 0.014, 0.012]} />
             <meshStandardMaterial color={pressureOverLimit ? '#f97316' : powerOn ? '#e11d48' : '#64748b'} emissive={pressureOverLimit ? '#991b1b' : '#000000'} emissiveIntensity={pressureOverLimit ? 0.32 : 0} />

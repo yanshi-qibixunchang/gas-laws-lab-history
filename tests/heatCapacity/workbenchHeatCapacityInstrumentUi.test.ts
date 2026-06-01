@@ -16,8 +16,10 @@ const workbenchPath = join(process.cwd(), 'src', 'features', 'workbench', 'Workb
 const statePath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchState.ts');
 const sessionPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchSession.ts');
 const stylePath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.css');
+const pressureGaugeContractPath = join(process.cwd(), 'docs', 'instrument-modeling', 'heat-capacity-pressure-gauge-contract.md');
 
 assert.equal(existsSync(componentPath), true, 'heatCapacity instrument scene component should exist');
+assert.equal(existsSync(pressureGaugeContractPath), true, 'shared Heat Capacity pressure gauge contract should exist');
 
 const sceneSource = readFileSync(componentPath, 'utf8');
 const orbitControlsSection = sceneSource.match(/<OrbitControls\s[\s\S]*?\/>/)?.[0] ?? '';
@@ -46,7 +48,13 @@ const stateSource = readFileSync(statePath, 'utf8');
 const sessionSource = readFileSync(sessionPath, 'utf8');
 const styleSource = readFileSync(stylePath, 'utf8');
 const workbenchSource = readFileSync(workbenchPath, 'utf8');
+const pressureGaugeContractSource = readFileSync(pressureGaugeContractPath, 'utf8');
 const previewMountSection = workbenchSource.match(/data-heat-capacity-preview-mount="true"[\s\S]*?<HeatCapacityInstrumentScene/)?.[0] ?? '';
+assert.match(
+  pressureGaugeContractSource,
+  /visualAngle = Math\.PI \/ 2 - modelAngle/,
+  'shared pressure gauge contract should define the GLB front-view model-to-visual conversion',
+);
 assert.match(
   workbenchSource,
   /const collapseHeatCapacityFreeParameterSidebarForExperimentAction = (?:useCallback\(\(\) =>|\(\) =>) \{[\s\S]*?filesRef\.current\.find\(\(file\) => file\.id === activeFileIdRef\.current\)[\s\S]*?setParametersCollapsed\(true\)/,
@@ -829,11 +837,20 @@ assert.match(
   'analog pressure gauge dial should be vertical on the instrument face',
 );
 assert.match(sceneSource, /PRESSURE_GAUGE_TICKS/, 'analog pressure gauge should expose visible dial ticks');
-assert.match(sceneSource, /tickRotation >= gaugeSafetyRotation/, 'analog pressure gauge should derive the danger tick range from the fixed danger boundary');
+assert.match(sceneSource, /tickModelAngle >= gaugeSafetyRotation/, 'analog pressure gauge should derive the danger tick range from the fixed semantic danger boundary');
 assert.match(sceneSource, /mapPressureGaugeValueToRotation/, 'analog pressure gauge should use a linear clamp mapping from pressure to angle');
 assert.match(sceneSource, /PRESSURE_GAUGE_DANGER_START_ROTATION\s*=\s*0\.86/, 'analog pressure gauge should keep the GLB danger-zone boundary at 0.86 rad');
 assert.match(sceneSource, /const gaugeSafetyRotation = PRESSURE_GAUGE_DANGER_START_ROTATION/, 'analog pressure gauge danger ticks should stay on the fixed GLB red-zone boundary');
 assert.doesNotMatch(sceneSource, /const gaugeSafetyRotation = mapPressureGaugeValueToRotation/, 'danger marker geometry must not move when the editable danger threshold changes');
+assert.match(sceneSource, /const modelPressureGaugeAngleToVisualAngle = \(modelAngle: number\) => Math\.PI \/ 2 - modelAngle;/, 'analog pressure gauge should share the GLB front-view model-to-visual angle conversion');
+assert.match(sceneSource, /const tickVisualAngle = modelPressureGaugeAngleToVisualAngle\(tickModelAngle\);/, 'analog pressure gauge ticks should convert semantic model angles before drawing');
+assert.match(sceneSource, /position=\{\[Math\.cos\(tickVisualAngle\) \* tickRadius,\s*Math\.sin\(tickVisualAngle\) \* tickRadius/, 'analog pressure gauge tick positions should be drawn from converted visual angles');
+assert.match(sceneSource, /rotation=\{\[0, 0, tickVisualAngle\]\}/, 'analog pressure gauge tick rotation should use converted visual angles');
+assert.match(sceneSource, /gaugeNeedlePivotRef\.current\.rotation\.z = modelPressureGaugeAngleToVisualAngle\(gaugeDisplayedRotationRef\.current\)/, 'analog pressure gauge needle should convert semantic model angle before rendering');
+assert.match(sceneSource, /rotation=\{\[0, 0, modelPressureGaugeAngleToVisualAngle\(gaugeDisplayedRotationRef\.current\)\]\}/, 'analog pressure gauge initial needle rotation should use the shared front-view conversion');
+assert.doesNotMatch(sceneSource, /position=\{\[Math\.cos\(tickRotation\) \* tickRadius,\s*Math\.sin\(tickRotation\) \* tickRadius/, 'analog pressure gauge must not place front-view ticks from raw model angles');
+assert.doesNotMatch(sceneSource, /rotation=\{\[0, 0, tickRotation\]\}/, 'analog pressure gauge must not rotate visible ticks by raw model angle');
+assert.doesNotMatch(sceneSource, /gaugeNeedlePivotRef\.current\.rotation\.z = gaugeDisplayedRotationRef\.current/, 'analog pressure gauge must not render the needle with raw model angle');
 assert.doesNotMatch(sceneSource, /GaugeWarning|WarningMarker|warningMarker|#facc15|#f59e0b/, 'analog pressure gauge should not render a yellow warning range');
 assert.doesNotMatch(sceneSource, /PRESSURE_GAUGE_DANGER_MARKERS|AnalogPressureGaugeDangerMarker/, 'analog pressure gauge should render one tick layer only, without overlapping red danger marker geometry');
 assert.match(sceneSource, /const PRESSURE_GAUGE_NORMAL_TICK_COLOR = '#1e293b';/, 'normal pressure gauge ticks should use a dark high-contrast color on the light dial face');
