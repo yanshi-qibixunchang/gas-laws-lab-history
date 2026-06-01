@@ -199,11 +199,12 @@ type ResultsSectionKey = WorkbenchStandardResultsTab;
 type WorkbenchThemePreference = 'system' | 'light' | 'dark';
 type WorkbenchResolvedTheme = 'light' | 'dark';
 type WorkbenchLanguagePreference = 'zh-CN' | 'zh-TW' | 'en';
-type WorkbenchPerformanceMode = 'standard' | 'balanced' | 'performance';
+type WorkbenchPerformanceMode = 'standard' | 'balanced' | 'performance' | 'ultra';
 const HEAT_CAPACITY_HARD_SPHERE_PERFORMANCE_PRESETS = {
   standard: { particleMultiplier: 1.25, speedMultiplier: 1.25 },
   balanced: { particleMultiplier: 1, speedMultiplier: 1 },
   performance: { particleMultiplier: 0.5, speedMultiplier: 0.5 },
+  ultra: { particleMultiplier: 0.5, speedMultiplier: 0.5 },
 } as const;
 const WORKBENCH_USER_GUIDE_URLS: Record<WorkbenchLanguagePreference, string> = {
   'zh-CN': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release#readme',
@@ -1006,6 +1007,7 @@ interface WorkbenchCopy {
     performanceModeOff: string;
     performanceModeBalanced: string;
     performanceModeOn: string;
+    performanceModeUltra: string;
     performanceModeSummary: Record<WorkbenchPerformanceMode, string>;
   };
   about: {
@@ -1408,11 +1410,12 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       language: '语言', languageHint: '选择界面语言',
       languageOptions: { 'zh-CN': { label: '简体中文', hint: '简体中文界面' }, 'zh-TW': { label: '繁體中文', hint: '繁體中文介面' }, en: { label: 'English', hint: 'English interface' } },
       performanceMode: '3D 性能模式',
-      performanceModeHint: '用三档模式控制 Heat Capacity 小球数量、速率和运行负载',
+      performanceModeHint: '用四档模式控制 Heat Capacity 小球数量、速率和运行负载',
       performanceModeOff: '高性能',
       performanceModeBalanced: '均衡',
       performanceModeOn: '低负载',
-      performanceModeSummary: { standard: '高性能', balanced: '均衡', performance: '低负载' },
+      performanceModeUltra: '极致画质',
+      performanceModeSummary: { standard: '高性能', balanced: '均衡', performance: '低负载', ultra: '极致画质' },
     },
     about: {
       title: '关于热容比实验室',
@@ -1518,11 +1521,12 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       language: '語言', languageHint: '選擇介面語言',
       languageOptions: { 'zh-CN': { label: '简体中文', hint: '簡體中文介面' }, 'zh-TW': { label: '繁體中文', hint: '繁體中文介面' }, en: { label: 'English', hint: 'English interface' } },
       performanceMode: '3D 效能模式',
-      performanceModeHint: '用三檔模式控制 Heat Capacity 小球數量、速率和運行負載',
+      performanceModeHint: '用四檔模式控制 Heat Capacity 小球數量、速率和運行負載',
       performanceModeOff: '高效能',
       performanceModeBalanced: '均衡',
       performanceModeOn: '低負載',
-      performanceModeSummary: { standard: '高效能', balanced: '均衡', performance: '低負載' },
+      performanceModeUltra: '極致畫質',
+      performanceModeSummary: { standard: '高效能', balanced: '均衡', performance: '低負載', ultra: '極致畫質' },
     },
     about: {
       title: '關於熱容比實驗室',
@@ -1628,11 +1632,12 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       language: 'Language', languageHint: 'Choose the interface language',
       languageOptions: { 'zh-CN': { label: '简体中文', hint: 'Simplified Chinese interface' }, 'zh-TW': { label: '繁體中文', hint: 'Traditional Chinese interface' }, en: { label: 'English', hint: 'English interface' } },
       performanceMode: '3D performance mode',
-      performanceModeHint: 'Use three modes to control Heat Capacity particle count, speed, and runtime load',
+      performanceModeHint: 'Use four modes to control Heat Capacity particle count, speed, and runtime load',
       performanceModeOff: 'High performance',
       performanceModeBalanced: 'Balanced',
       performanceModeOn: 'Low load',
-      performanceModeSummary: { standard: 'High performance', balanced: 'Balanced', performance: 'Low load' },
+      performanceModeUltra: 'Ultra',
+      performanceModeSummary: { standard: 'High performance', balanced: 'Balanced', performance: 'Low load', ultra: 'Ultra' },
     },
     about: {
       title: 'About Heat Capacity Ratio Lab',
@@ -2454,7 +2459,7 @@ const isWorkbenchLanguagePreference = (value: unknown): value is WorkbenchLangua
 );
 
 const isWorkbenchPerformanceMode = (value: unknown): value is WorkbenchPerformanceMode => (
-  value === 'standard' || value === 'balanced' || value === 'performance'
+  value === 'standard' || value === 'balanced' || value === 'performance' || value === 'ultra'
 );
 
 const getSystemWorkbenchTheme = (): WorkbenchResolvedTheme => {
@@ -3084,9 +3089,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const windowControlCopy = WORKBENCH_WINDOW_CONTROL_COPY[settingsLanguagePreference];
   const desktopWindowControlsAvailable = hasDesktopWindowControlBridge();
   const performanceModeOptions = useMemo(() => ([
-    { mode: 'standard' as const, label: workbenchCopy.settings.performanceModeOff },
-    { mode: 'balanced' as const, label: workbenchCopy.settings.performanceModeBalanced },
     { mode: 'performance' as const, label: workbenchCopy.settings.performanceModeOn },
+    { mode: 'balanced' as const, label: workbenchCopy.settings.performanceModeBalanced },
+    { mode: 'standard' as const, label: workbenchCopy.settings.performanceModeOff },
+    { mode: 'ultra' as const, label: workbenchCopy.settings.performanceModeUltra },
   ]), [workbenchCopy]);
   const heatCapacityHardSpherePerformancePreset = HEAT_CAPACITY_HARD_SPHERE_PERFORMANCE_PRESETS[settingsPerformanceMode];
   const workbenchTranslation = translations[settingsLanguagePreference === 'en' ? 'en-GB' : settingsLanguagePreference];
@@ -4035,7 +4041,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         filesRef.current = nextFiles;
         return nextFiles;
       });
-    }, settingsPerformanceMode === 'performance' ? 240 : settingsPerformanceMode === 'balanced' ? 150 : 100);
+    }, (settingsPerformanceMode === 'performance' || settingsPerformanceMode === 'ultra') ? 240 : settingsPerformanceMode === 'balanced' ? 150 : 100);
     return () => window.clearInterval(intervalId);
   }, [settingsPerformanceMode]);
 

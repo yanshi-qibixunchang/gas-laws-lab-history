@@ -576,7 +576,7 @@ assert.match(sceneSource, /CanvasTexture/, 'instrument panel labels should use 3
 assert.match(sceneSource, /new THREE\.CanvasTexture\(canvas\)[\s\S]*\}, \[\]\)/, 'instrument panel text should create one stable CanvasTexture instead of recreating it for every readout change');
 assert.match(sceneSource, /window\.setTimeout\(drawTexture, updateIntervalMs - elapsedMs\)/, 'instrument panel text should throttle canvas texture redraws');
 assert.match(sceneSource, /performanceMode=\{props\.performanceMode\}/, 'heat-capacity scene content should receive the global performance mode');
-assert.match(sceneSource, /performanceMode:\s*'standard' \| 'balanced' \| 'performance'/, 'heat-capacity scene should accept all three performance tiers');
+assert.match(sceneSource, /performanceMode:\s*'standard' \| 'balanced' \| 'performance' \| 'ultra'/, 'heat-capacity scene should accept the four performance tiers');
 assert.match(sceneSource, /sceneTheme:\s*'dark' \| 'light'/, 'heat-capacity 3D scene should receive the resolved workbench theme');
 assert.match(workbenchSource, /sceneTheme=\{resolvedWorkbenchTheme\}/, 'workbench should pass the resolved light or dark theme into the heat-capacity 3D scene');
 assert.match(sceneSource, /const heatCapacityScenePalettes/, 'heat-capacity 3D scene should centralize dark and light scene material palettes');
@@ -597,7 +597,8 @@ assert.match(styleSource, /\.studio-theme-light \.studio-heat-demo-complete-toas
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-pressure-warning/, 'light theme should restyle the centered heat-capacity pressure alarm panel');
 assert.match(sceneSource, /props\.performanceMode === 'standard'\s*\?\s*2\.5/, 'standard tier should use visible supersampling for clearer 3D output');
 assert.match(sceneSource, /props\.performanceMode === 'balanced'\s*\?\s*1\.5/, 'balanced tier should stay visibly between standard and performance tiers');
-assert.match(sceneSource, /:\s*1,/, 'performance tier should keep the lowest fixed DPR for a clearly lighter mode');
+assert.match(sceneSource, /:\s*1,/, 'performance and ultra tiers should keep the lowest fixed DPR until the GLB adapter is implemented');
+assert.match(sceneSource, /props\.performanceMode === 'performance' \|\| props\.performanceMode === 'ultra'/, 'ultra tier should temporarily share the current lowest-load interaction behavior');
 assert.match(sceneSource, /const highClarityMode = props\.performanceMode === 'standard';/, 'high-clarity rendering extras should only be enabled for the standard display-quality tier');
 assert.match(sceneSource, /<PressureBottle[\s\S]*highClarityMode=\{highClarityMode\}/, 'high-clarity mode should strengthen glass vessel and stopcock clarity');
 assert.match(sceneSource, /<InstrumentLeads[\s\S]*highClarityMode=\{highClarityMode\}/, 'high-clarity mode should strengthen lead wire readability');
@@ -610,7 +611,7 @@ assert.match(sceneSource, /lineWidth=\{highClarityMode \? 3 : 2\}/, 'high-clarit
 assert.match(sceneSource, /lineWidth=\{highClarityMode \? 4 : 3\}/, 'high-clarity mode should slightly thicken the negative lead');
 assert.match(sceneSource, /lineWidth=\{highClarityMode \? 5 : 4\}/, 'high-clarity mode should slightly thicken the pressure lead');
 assert.match(sceneSource, /\}\), \[props\.performanceMode\]\);/, 'performance-mode canvas memoization should not remount or recolor the light scene');
-assert.match(sceneSource, /const panelTextUpdateIntervalMs = panelTextInteractionReduced[\s\S]*\?\s*400[\s\S]*performanceMode === 'performance'[\s\S]*\?\s*250[\s\S]*performanceMode === 'balanced'[\s\S]*\?\s*180[\s\S]*:\s*120/, 'digital screen refresh should stay responsive across all three performance tiers');
+assert.match(sceneSource, /const panelTextUpdateIntervalMs = panelTextInteractionReduced[\s\S]*\?\s*400[\s\S]*\(performanceMode === 'performance' \|\| performanceMode === 'ultra'\)[\s\S]*\?\s*250[\s\S]*performanceMode === 'balanced'[\s\S]*\?\s*180[\s\S]*:\s*120/, 'digital screen refresh should keep ultra aligned with the current lowest-load tier until GLB integration');
 assert.doesNotMatch(sceneSource, /panelTextUpdateIntervalMs[\s\S]{0,260}1000/, 'digital screen refresh should not fall back to a one-second update interval');
 assert.doesNotMatch(sceneSource, /\[0\.75,\s*1\]/, 'performance mode should no longer use sub-1 DPR that blurs the scene');
 assert.match(sceneSource, /texture\.dispose\(\)/, 'instrument panel text should dispose GPU texture resources on unmount');
@@ -1449,7 +1450,7 @@ assert.doesNotMatch(workbenchSource, /<div><span>鐞嗚 gamma<\/span>/, 'this
 assert.doesNotMatch(workbenchSource, /鏃嬪瑙掑害/, 'realtime panel should not expose stopcock angle to users');
 assert.doesNotMatch(workbenchSource, /stopcockAngleDeg, 1\)} deg/, 'realtime panel should not render internal stopcock degrees');
 assert.match(workbenchSource, /performanceMode:\s*'standard'/, 'general settings should default performance mode to standard');
-assert.match(workbenchSource, /type WorkbenchPerformanceMode = 'standard' \| 'balanced' \| 'performance'/, 'performance mode should support standard, balanced, and performance tiers');
+assert.match(workbenchSource, /type WorkbenchPerformanceMode = 'standard' \| 'balanced' \| 'performance' \| 'ultra'/, 'performance mode should support standard, balanced, performance, and ultra tiers');
 assert.match(workbenchSource, /isWorkbenchPerformanceMode/, 'general settings should migrate legacy settings without a performance field');
 assert.match(workbenchSource, /updateSettingsPerformanceMode/, 'general settings should expose a persistent performance mode updater');
 assert.match(workbenchSource, /performanceModeBalanced/, 'general settings copy should include a balanced performance tier');
@@ -1457,7 +1458,7 @@ assert.match(workbenchSource, /performanceMode:\s*'3D 性能模式'/, 'performan
 assert.match(workbenchSource, /performanceModeOff:\s*'高性能'/, 'standard tier should be labeled as high performance');
 assert.match(workbenchSource, /performanceModeBalanced:\s*'均衡'/, 'balanced tier should keep the required Chinese label');
 assert.match(workbenchSource, /performanceModeOn:\s*'低负载'/, 'lowest-load tier should keep the required Chinese label');
-assert.match(workbenchSource, /performanceModeSummary:\s*\{\s*standard:\s*'高性能',\s*balanced:\s*'均衡',\s*performance:\s*'低负载'\s*\}/, 'Simplified Chinese performance summaries should match the new three mode names');
+assert.match(workbenchSource, /performanceModeSummary:\s*\{\s*standard:\s*'高性能',\s*balanced:\s*'均衡',\s*performance:\s*'低负载',\s*ultra:\s*'极致画质'\s*\}/, 'Simplified Chinese performance summaries should match the four mode names');
 assert.match(workbenchSource, /performanceMode:\s*'3D 效能模式'/, 'performance setting should use performance-mode wording in Traditional Chinese');
 assert.match(workbenchSource, /performanceModeOff:\s*'高效能'/, 'standard tier should be localized in Traditional Chinese');
 assert.match(workbenchSource, /performanceModeOn:\s*'低負載'/, 'lowest-load tier should be localized in Traditional Chinese');
@@ -1470,7 +1471,7 @@ assert.match(workbenchSource, /studio-settings-performance-segmented/, 'general 
 assert.doesNotMatch(workbenchSource, /role="switch"[\s\S]*aria-checked=\{settingsPerformanceMode === 'performance'\}/, 'general settings should not keep the old binary performance switch');
 assert.doesNotMatch(workbenchSource, /handleAction\('Performance mode'\)/, 'top settings menu should not keep the old standalone performance action');
 assert.match(workbenchSource, /performanceMode=\{settingsPerformanceMode\}/, 'Workbench should pass the selected performance mode into Heat Capacity 3D');
-assert.match(workbenchSource, /const HEAT_CAPACITY_HARD_SPHERE_PERFORMANCE_PRESETS = \{[\s\S]*standard:\s*\{\s*particleMultiplier:\s*1\.25,\s*speedMultiplier:\s*1\.25\s*\}[\s\S]*balanced:\s*\{\s*particleMultiplier:\s*1,\s*speedMultiplier:\s*1\s*\}[\s\S]*performance:\s*\{\s*particleMultiplier:\s*0\.5,\s*speedMultiplier:\s*0\.5\s*\}[\s\S]*\} as const;/, 'hard-sphere particle count and speed should be controlled by the three global performance presets');
+assert.match(workbenchSource, /const HEAT_CAPACITY_HARD_SPHERE_PERFORMANCE_PRESETS = \{[\s\S]*standard:\s*\{\s*particleMultiplier:\s*1\.25,\s*speedMultiplier:\s*1\.25\s*\}[\s\S]*balanced:\s*\{\s*particleMultiplier:\s*1,\s*speedMultiplier:\s*1\s*\}[\s\S]*performance:\s*\{\s*particleMultiplier:\s*0\.5,\s*speedMultiplier:\s*0\.5\s*\}[\s\S]*ultra:\s*\{\s*particleMultiplier:\s*0\.5,\s*speedMultiplier:\s*0\.5\s*\}[\s\S]*\} as const;/, 'hard-sphere particle count and speed should include an ultra placeholder matching the current lowest-load tier');
 assert.match(workbenchSource, /const heatCapacityHardSpherePerformancePreset = HEAT_CAPACITY_HARD_SPHERE_PERFORMANCE_PRESETS\[settingsPerformanceMode\]/, 'Workbench should derive the active hard-sphere visual preset from the selected performance mode');
 assert.match(workbenchSource, /hardSphereParticleMultiplier=\{heatCapacityHardSpherePerformancePreset\.particleMultiplier\}/, 'Heat Capacity scene should receive particle multiplier from the performance preset');
 assert.match(workbenchSource, /hardSphereSpeedMultiplier=\{heatCapacityHardSpherePerformancePreset\.speedMultiplier\}/, 'Heat Capacity scene should receive speed multiplier from the performance preset');
@@ -1481,7 +1482,7 @@ assert.doesNotMatch(styleSource, /studio-heat-visual-slider/, 'right Current Par
 assert.doesNotMatch(workbenchSource, /hardSphereParticleMultiplier:\s*'粒子数量倍率'|hardSphereSpeedMultiplier:\s*'粒子速度倍率'|Particle multiplier|Speed multiplier/, 'right sidebar copy should not keep direct particle-count or speed multiplier labels');
 assert.doesNotMatch(parameterConfigSource, /performanceMode|hardSphereParticleMultiplier|hardSphereSpeedMultiplier/, 'performance presets must stay out of heatCapacityFreeParameterDraft and config snapshots');
 assert.doesNotMatch(trialModelSource, /performanceMode|hardSphereParticleMultiplier|hardSphereSpeedMultiplier/, 'performance presets must stay out of Heat Capacity trial result calculation');
-assert.match(workbenchSource, /settingsPerformanceMode === 'performance'\s*\?\s*240\s*:\s*settingsPerformanceMode === 'balanced'\s*\?\s*150\s*:\s*100/, 'Heat Capacity file tick should use three performance tiers');
+assert.match(workbenchSource, /\(settingsPerformanceMode === 'performance' \|\| settingsPerformanceMode === 'ultra'\)\s*\?\s*240\s*:\s*settingsPerformanceMode === 'balanced'\s*\?\s*150\s*:\s*100/, 'Heat Capacity file tick should keep ultra aligned with the current lowest-load tier until GLB integration');
 assert.doesNotMatch(workbenchSource, /studio-settings-performance-switch/, 'general settings should remove the old performance switch markup');
 assert.match(leftPanelSource, /studio-heat-processing-summary/, 'Heat Capacity data processing should use a dedicated engineering summary strip');
 assert.match(leftPanelSource, /validResults\.length < 2/, 'single-trial processing should hide the gamma chart');
