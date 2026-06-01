@@ -829,12 +829,16 @@ assert.match(
   'analog pressure gauge dial should be vertical on the instrument face',
 );
 assert.match(sceneSource, /PRESSURE_GAUGE_TICKS/, 'analog pressure gauge should expose visible dial ticks');
-assert.match(sceneSource, /PRESSURE_GAUGE_DANGER_MARKERS/, 'analog pressure gauge should render a threshold-derived danger area');
+assert.match(sceneSource, /tickRotation >= gaugeSafetyRotation/, 'analog pressure gauge should derive the danger tick range from the fixed danger boundary');
 assert.match(sceneSource, /mapPressureGaugeValueToRotation/, 'analog pressure gauge should use a linear clamp mapping from pressure to angle');
 assert.match(sceneSource, /PRESSURE_GAUGE_DANGER_START_ROTATION\s*=\s*0\.86/, 'analog pressure gauge should keep the GLB danger-zone boundary at 0.86 rad');
-assert.match(sceneSource, /const gaugeSafetyRotation = PRESSURE_GAUGE_DANGER_START_ROTATION/, 'analog pressure gauge danger markers should stay on the fixed GLB red-zone boundary');
+assert.match(sceneSource, /const gaugeSafetyRotation = PRESSURE_GAUGE_DANGER_START_ROTATION/, 'analog pressure gauge danger ticks should stay on the fixed GLB red-zone boundary');
 assert.doesNotMatch(sceneSource, /const gaugeSafetyRotation = mapPressureGaugeValueToRotation/, 'danger marker geometry must not move when the editable danger threshold changes');
 assert.doesNotMatch(sceneSource, /GaugeWarning|WarningMarker|warningMarker|#facc15|#f59e0b/, 'analog pressure gauge should not render a yellow warning range');
+assert.doesNotMatch(sceneSource, /PRESSURE_GAUGE_DANGER_MARKERS|AnalogPressureGaugeDangerMarker/, 'analog pressure gauge should render one tick layer only, without overlapping red danger marker geometry');
+assert.match(sceneSource, /const PRESSURE_GAUGE_NORMAL_TICK_COLOR = '#1e293b';/, 'normal pressure gauge ticks should use a dark high-contrast color on the light dial face');
+assert.match(sceneSource, /const PRESSURE_GAUGE_DANGER_TICK_COLOR = '#dc2626';/, 'danger pressure gauge ticks should remain red without a separate duplicate marker layer');
+assert.match(sceneSource, /color=\{dangerTick \? PRESSURE_GAUGE_DANGER_TICK_COLOR : PRESSURE_GAUGE_NORMAL_TICK_COLOR\}/, 'normal and danger gauge ticks should be colored from a single tick render path');
 assert.match(sceneSource, /getPressureGaugeNeedleRotation/, 'analog pressure gauge should derive needle rotation from pressure data');
 assert.match(sceneSource, /gaugePressureMinKPa: number/, 'instrument scene should receive gauge min pressure for gauge data binding');
 assert.match(sceneSource, /gaugePressureMaxKPa: number/, 'instrument scene should receive gauge max pressure for gauge data binding');

@@ -629,8 +629,26 @@ const formatPanelNumber = (value: number, digits = 2) => (
 const PRESSURE_GAUGE_MIN_ROTATION = -2.15;
 const PRESSURE_GAUGE_MAX_ROTATION = 2.15;
 const PRESSURE_GAUGE_DANGER_START_ROTATION = 0.86;
-const PRESSURE_GAUGE_TICKS = [-2.15, -1.43, -0.72, 0, 0.72, 1.43, 2.15];
-const PRESSURE_GAUGE_DANGER_MARKERS = Array.from({ length: 7 }, (_, index) => index);
+const PRESSURE_GAUGE_NORMAL_TICK_COLOR = '#1e293b';
+const PRESSURE_GAUGE_DANGER_TICK_COLOR = '#dc2626';
+const PRESSURE_GAUGE_TICKS = [
+  -2.15,
+  -1.79,
+  -1.43,
+  -1.08,
+  -0.72,
+  -0.36,
+  0,
+  0.36,
+  0.72,
+  PRESSURE_GAUGE_DANGER_START_ROTATION,
+  1.08,
+  1.29,
+  1.51,
+  1.72,
+  1.94,
+  2.15,
+];
 const PRESSURE_GAUGE_NEEDLE_SMOOTHING_RATE = 9;
 
 const clampSceneNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -1141,36 +1159,22 @@ function InstrumentBox({
           />
         </mesh>
         {PRESSURE_GAUGE_TICKS.map((tickRotation) => {
-          const tickRadius = 0.135;
-          const majorTick = Math.abs(tickRotation) === PRESSURE_GAUGE_MAX_ROTATION || tickRotation === 0;
+          const tickRadius = tickRotation >= gaugeSafetyRotation ? 0.148 : 0.137;
+          const majorTick = (
+            Math.abs(tickRotation) === PRESSURE_GAUGE_MAX_ROTATION ||
+            tickRotation === 0 ||
+            tickRotation === gaugeSafetyRotation
+          );
           const dangerTick = tickRotation >= gaugeSafetyRotation;
           return (
             <mesh
               key={tickRotation}
               name="AnalogPressureGaugeTick"
-              position={[Math.cos(tickRotation) * tickRadius, Math.sin(tickRotation) * tickRadius, 0.056]}
+              position={[Math.cos(tickRotation) * tickRadius, Math.sin(tickRotation) * tickRadius, 0.064]}
               rotation={[0, 0, tickRotation]}
             >
-              <boxGeometry args={[majorTick ? 0.042 : 0.03, 0.008, 0.01]} />
-              <meshStandardMaterial color={dangerTick ? '#dc2626' : '#f8fafc'} emissive={dangerTick ? '#7f1d1d' : '#000000'} emissiveIntensity={dangerTick ? 0.1 : 0} />
-            </mesh>
-          );
-        })}
-        {PRESSURE_GAUGE_DANGER_MARKERS.map((markerIndex) => {
-          const dangerFraction = PRESSURE_GAUGE_DANGER_MARKERS.length <= 1
-            ? 1
-            : markerIndex / (PRESSURE_GAUGE_DANGER_MARKERS.length - 1);
-          const markerRotation = gaugeSafetyRotation + dangerFraction * (PRESSURE_GAUGE_MAX_ROTATION - gaugeSafetyRotation);
-          const markerRadius = 0.154;
-          return (
-            <mesh
-              key={markerIndex}
-              name="AnalogPressureGaugeDangerMarker"
-              position={[Math.cos(markerRotation) * markerRadius, Math.sin(markerRotation) * markerRadius, 0.058]}
-              rotation={[0, 0, markerRotation]}
-            >
-              <boxGeometry args={[0.034, 0.012, 0.012]} />
-              <meshStandardMaterial color="#dc2626" emissive="#7f1d1d" emissiveIntensity={pressureOverLimit ? 0.36 : 0.12} />
+              <boxGeometry args={[majorTick ? 0.048 : 0.034, dangerTick ? 0.011 : 0.009, 0.012]} />
+              <meshBasicMaterial color={dangerTick ? PRESSURE_GAUGE_DANGER_TICK_COLOR : PRESSURE_GAUGE_NORMAL_TICK_COLOR} />
             </mesh>
           );
         })}
