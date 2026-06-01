@@ -628,6 +628,7 @@ const formatPanelNumber = (value: number, digits = 2) => (
 
 const PRESSURE_GAUGE_MIN_ROTATION = -2.15;
 const PRESSURE_GAUGE_MAX_ROTATION = 2.15;
+const PRESSURE_GAUGE_DANGER_START_ROTATION = 0.86;
 const PRESSURE_GAUGE_TICKS = [-2.15, -1.43, -0.72, 0, 0.72, 1.43, 2.15];
 const PRESSURE_GAUGE_DANGER_MARKERS = Array.from({ length: 7 }, (_, index) => index);
 const PRESSURE_GAUGE_NEEDLE_SMOOTHING_RATE = 9;
@@ -834,7 +835,6 @@ function InstrumentBox({
   pressureGaugeDisplayValue,
   gaugePressureMinKPa,
   gaugePressureMaxKPa,
-  pressureSafetyThresholdKPa,
   pressureOverLimit,
   temperatureSignalMv,
   pressureSignalMv,
@@ -904,11 +904,7 @@ function InstrumentBox({
     gaugePressureMaxKPa,
     powerOn,
   );
-  const gaugeSafetyRotation = mapPressureGaugeValueToRotation(
-    pressureSafetyThresholdKPa,
-    gaugePressureMinKPa,
-    gaugePressureMaxKPa,
-  );
+  const gaugeSafetyRotation = PRESSURE_GAUGE_DANGER_START_ROTATION;
   const gaugeNeedleTargetRotationRef = useRef(gaugeNeedleTargetRotation);
   const gaugeDisplayedRotationRef = useRef(gaugeNeedleTargetRotation);
   const panelTextUpdateIntervalMs = panelTextInteractionReduced
@@ -1138,15 +1134,16 @@ function InstrumentBox({
         <mesh name="AnalogPressureGaugeDial" rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.19, 0.19, 0.035, 48]} />
           <meshStandardMaterial
-            color={pressureOverLimit ? scenePalette.instrument.gaugeDangerFace : scenePalette.instrument.gaugeFace}
+            color={scenePalette.instrument.gaugeFace}
             roughness={0.45}
-            emissive={pressureOverLimit ? '#dc2626' : '#000000'}
-            emissiveIntensity={pressureOverLimit ? 0.22 : 0}
+            emissive="#000000"
+            emissiveIntensity={0}
           />
         </mesh>
         {PRESSURE_GAUGE_TICKS.map((tickRotation) => {
           const tickRadius = 0.135;
           const majorTick = Math.abs(tickRotation) === PRESSURE_GAUGE_MAX_ROTATION || tickRotation === 0;
+          const dangerTick = tickRotation >= gaugeSafetyRotation;
           return (
             <mesh
               key={tickRotation}
@@ -1155,7 +1152,7 @@ function InstrumentBox({
               rotation={[0, 0, tickRotation]}
             >
               <boxGeometry args={[majorTick ? 0.042 : 0.03, 0.008, 0.01]} />
-              <meshStandardMaterial color={scenePalette.instrument.gaugeTick} />
+              <meshStandardMaterial color={dangerTick ? '#dc2626' : '#f8fafc'} emissive={dangerTick ? '#7f1d1d' : '#000000'} emissiveIntensity={dangerTick ? 0.1 : 0} />
             </mesh>
           );
         })}

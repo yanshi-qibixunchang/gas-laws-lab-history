@@ -63,13 +63,12 @@ import {
   getHeatCapacityStopcockState,
   getHeatCapacityPressureReleaseBurstUntilMs,
   getHeatCapacityPressureZeroKnobAngleForOffset,
+  getHeatCapacityPressureThresholdsMv,
   getHeatCapacityPumpFrequencyState,
   HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS,
   HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
   HEAT_CAPACITY_RELEASE_BURST_DURATION_MS,
   HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV,
-  HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
-  HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV,
   isHeatCapacityFreeEquilibriumSpeedAvailable,
   isHeatCapacityPressureZeroWithinTolerance,
   getWorkbenchParameterRows,
@@ -4498,18 +4497,22 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const getHeatCapacityPressureSafetyStatusFromMv = (
     pressureMv: number,
-  ): 'normal' | 'warning' | 'danger' => (
-    pressureMv >= HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV
+    file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
+  ): 'normal' | 'warning' | 'danger' => {
+    const pressureThresholdsMv = getHeatCapacityPressureThresholdsMv(file);
+    return pressureMv >= pressureThresholdsMv.pressureDangerThresholdMv
       ? 'danger'
-      : pressureMv >= HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV
-        ? 'warning'
-        : 'normal'
-  );
+      : pressureMv >= pressureThresholdsMv.pressureWarningThresholdMv
+      ? 'warning'
+      : 'normal';
+  };
 
   const showHeatCapacityPressureThresholdToast = (
     pressureMv: number,
+    file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
-    if (pressureMv >= HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV) {
+    const pressureThresholdsMv = getHeatCapacityPressureThresholdsMv(file);
+    if (pressureMv >= pressureThresholdsMv.pressureDangerThresholdMv) {
       showHeatCapacityToast(heatCapacityRealtimeCopy.pressureAlarmMessage, 'danger', {
         interrupt: true,
         priority: HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY,
@@ -4517,7 +4520,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       });
       return;
     }
-    if (pressureMv >= HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV) {
+    if (pressureMv >= pressureThresholdsMv.pressureWarningThresholdMv) {
       showHeatCapacityToast(heatCapacityRealtimeCopy.pressureWarningMessage, 'warning', {
         interrupt: true,
         priority: HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY,
@@ -6016,7 +6019,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     now: number,
   ) => {
     const projectedFile = registerHeatCapacityPumpStroke(file, now);
-    return getManualHeatCapacityThresholdPressureMv(projectedFile) >= HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV;
+    return getManualHeatCapacityThresholdPressureMv(projectedFile) >= (
+      getHeatCapacityPressureThresholdsMv(file).pressureDangerThresholdMv
+    );
   };
 
   const pressHeatCapacityPumpBulb = (
@@ -6038,18 +6043,22 @@ const WorkbenchStudioPrototype: React.FC = () => {
       markHeatCapacityFocusSessionNonReversible();
     }
     const pressureStatusBeforePump = fileBeforePump?.kind === 'heatCapacity'
-      ? getHeatCapacityPressureSafetyStatusFromMv(getManualHeatCapacityThresholdPressureMv(fileBeforePump))
+      ? getHeatCapacityPressureSafetyStatusFromMv(getManualHeatCapacityThresholdPressureMv(fileBeforePump), fileBeforePump)
       : 'normal';
     if (
       source === 'autoDemo' &&
       nextHeatCapacityFile &&
-      getManualHeatCapacityThresholdPressureMv(nextHeatCapacityFile) >= HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV
+      getManualHeatCapacityThresholdPressureMv(nextHeatCapacityFile) >= (
+        getHeatCapacityPressureThresholdsMv(nextHeatCapacityFile).pressureDangerThresholdMv
+      )
     ) {
       return;
     }
     if (source !== 'autoDemo' && fileBeforePump?.kind === 'heatCapacity') {
       const pressureBeforePumpMv = getManualHeatCapacityThresholdPressureMv(fileBeforePump);
-      if (pressureBeforePumpMv >= HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV) {
+      if (
+        pressureBeforePumpMv >= getHeatCapacityPressureThresholdsMv(fileBeforePump).pressureDangerThresholdMv
+      ) {
         showHeatCapacityToast(heatCapacityRealtimeCopy.pressureAlarmMessage, 'danger', {
           interrupt: true,
           priority: HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY,
@@ -6076,7 +6085,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     });
     if (source !== 'autoDemo' && nextHeatCapacityFile) {
       const pressureAfterPumpMv = getManualHeatCapacityThresholdPressureMv(nextHeatCapacityFile);
-      const pressureStatusAfterPump = getHeatCapacityPressureSafetyStatusFromMv(pressureAfterPumpMv);
+      const pressureStatusAfterPump = getHeatCapacityPressureSafetyStatusFromMv(pressureAfterPumpMv, nextHeatCapacityFile);
       if (pressureStatusAfterPump === 'danger' && pressureStatusBeforePump !== 'danger') {
         showHeatCapacityPressureAlarm(nextHeatCapacityFile.id, nextHeatCapacityFile.name);
       } else if (pressureStatusAfterPump === 'warning') {
@@ -6086,7 +6095,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           source: 'pressure-warning',
         });
       } else if (pressureStatusAfterPump === 'danger') {
-        showHeatCapacityPressureThresholdToast(pressureAfterPumpMv);
+        showHeatCapacityPressureThresholdToast(pressureAfterPumpMv, nextHeatCapacityFile);
       }
     }
     heatCapacityPumpAnimationRef.current.releaseTimerId = window.setTimeout(() => {

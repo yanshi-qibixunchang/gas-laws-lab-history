@@ -831,6 +831,10 @@ assert.match(
 assert.match(sceneSource, /PRESSURE_GAUGE_TICKS/, 'analog pressure gauge should expose visible dial ticks');
 assert.match(sceneSource, /PRESSURE_GAUGE_DANGER_MARKERS/, 'analog pressure gauge should render a threshold-derived danger area');
 assert.match(sceneSource, /mapPressureGaugeValueToRotation/, 'analog pressure gauge should use a linear clamp mapping from pressure to angle');
+assert.match(sceneSource, /PRESSURE_GAUGE_DANGER_START_ROTATION\s*=\s*0\.86/, 'analog pressure gauge should keep the GLB danger-zone boundary at 0.86 rad');
+assert.match(sceneSource, /const gaugeSafetyRotation = PRESSURE_GAUGE_DANGER_START_ROTATION/, 'analog pressure gauge danger markers should stay on the fixed GLB red-zone boundary');
+assert.doesNotMatch(sceneSource, /const gaugeSafetyRotation = mapPressureGaugeValueToRotation/, 'danger marker geometry must not move when the editable danger threshold changes');
+assert.doesNotMatch(sceneSource, /GaugeWarning|WarningMarker|warningMarker|#facc15|#f59e0b/, 'analog pressure gauge should not render a yellow warning range');
 assert.match(sceneSource, /getPressureGaugeNeedleRotation/, 'analog pressure gauge should derive needle rotation from pressure data');
 assert.match(sceneSource, /gaugePressureMinKPa: number/, 'instrument scene should receive gauge min pressure for gauge data binding');
 assert.match(sceneSource, /gaugePressureMaxKPa: number/, 'instrument scene should receive gauge max pressure for gauge data binding');
@@ -1192,6 +1196,10 @@ assert.doesNotMatch(workbenchSource, /let pumpedHeatCapacityFile[\s\S]*updateFil
 assert.match(workbenchSource, /const nextHeatCapacityFile = fileBeforePump\?\.kind === 'heatCapacity'[\s\S]*registerHeatCapacityPumpStroke\(fileBeforePump,\s*now\)/, 'pump result should be calculated synchronously before updating React state');
 assert.match(workbenchSource, /updateFileById\(fileId,\s*\(file\) => \{[\s\S]*return nextHeatCapacityFile;/, 'React state update should use the synchronously calculated pump result');
 assert.match(workbenchSource, /if \(source !== 'autoDemo' && nextHeatCapacityFile\) \{[\s\S]*showHeatCapacityPressureAlarm\(nextHeatCapacityFile\.id,\s*nextHeatCapacityFile\.name\)/, 'warning and alarm overlays should be triggered from the synchronously calculated pump result');
+assert.match(workbenchSource, /getHeatCapacityPressureThresholdsMv\(file\)/, 'manual pressure toast status should read the current Heat Capacity safety thresholds from the active file');
+assert.doesNotMatch(workbenchSource, /getHeatCapacityPressureSafetyStatusFromMv[\s\S]{0,260}HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV/, 'manual pressure status must not classify danger using the fixed 140 mV constant');
+assert.doesNotMatch(workbenchSource, /getHeatCapacityPressureSafetyStatusFromMv[\s\S]{0,320}HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV/, 'manual pressure status must not classify warning using the fixed 115 mV constant');
+assert.doesNotMatch(workbenchSource, /showHeatCapacityPressureThresholdToast[\s\S]{0,420}HEAT_CAPACITY_PRESSURE_(?:WARNING|DANGER)_THRESHOLD_MV/, 'manual pressure toast copy must not be gated by fixed 115/140 mV constants');
 assert.match(workbenchSource, /pushLog\(heatCapacityRealtimeCopy\.pressureAlarmLog\(fileName\),\s*'warning'\)/, 'only alarm should write a localized console warning');
 assert.doesNotMatch(workbenchSource, /pushLog\(`\$\{[^`]+\.name\}: 压强接近安全阈值，请准备停止打气。`,\s*'warning'\)/, 'prewarning should not write a console warning');
 assert.match(workbenchSource, /nextFrequencyState\.pumpFrequencyStatus === 'tooSlow'/, 'slow-pump toast should follow the same frequency status as the realtime panel');

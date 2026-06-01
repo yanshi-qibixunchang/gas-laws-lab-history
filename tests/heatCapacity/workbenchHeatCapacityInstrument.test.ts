@@ -85,6 +85,9 @@ import {
   decodeWorkbenchSession,
 } from '../../src/features/workbench/workbenchSession.ts';
 
+const pressureGaugeRadToDeg = (radians: number) => Math.round((radians * 180 / Math.PI) * 100) / 100;
+const GLB_PRESSURE_GAUGE_DANGER_BOUNDARY_DEG = pressureGaugeRadToDeg(0.86);
+
 const defaultFile = createDefaultHeatCapacityFile(1);
 const workbenchStateSource = readFileSync(
   join(process.cwd(), 'src', 'features', 'workbench', 'workbenchState.ts'),
@@ -210,7 +213,7 @@ assert.equal(defaultFile.pressureRawPlaceholder, 0);
 assert.equal(defaultFile.pressureDisplayedPlaceholder, 0);
 assert.equal(defaultFile.pressureGaugeTargetValue, 0);
 assert.equal(defaultFile.pressureGaugeDisplayValue, 0);
-assert.equal(defaultFile.pressureGaugeNeedleAngle, -120);
+assert.equal(defaultFile.pressureGaugeNeedleAngle, -123.19);
 assert.equal(defaultFile.gaugePressureMinKPa, 0);
 assert.equal(defaultFile.gaugePressureMaxKPa, HEAT_CAPACITY_GAUGE_PRESSURE_MAX_KPA);
 assert.deepEqual(selectActiveHeatCapacityWorkbenchDisplay({
@@ -1223,7 +1226,7 @@ const pressureLoadedFile: WorkbenchHeatCapacityState = {
   pressureDisplayedPlaceholder: 3.2,
   pressureGaugeTargetValue: 0.16,
   pressureGaugeDisplayValue: 0.16,
-  pressureGaugeNeedleAngle: -116.16,
+  pressureGaugeNeedleAngle: -119.25,
   pressureSignalMv: 3.2,
 };
 const fineZero = adjustHeatCapacityPressureZeroFine({
@@ -1536,7 +1539,7 @@ assert.deepEqual(getHeatCapacityGaugePressureState(12, true, defaultFile), {
   pressureSafetyThresholdKPa: 7,
   pressureGaugeTargetValue: 10,
   pressureGaugeDisplayValue: 10,
-  pressureGaugeNeedleAngle: 120,
+  pressureGaugeNeedleAngle: 123.19,
   pressureSafeThresholdKPa: 7,
   pressureSafetyStatus: 'danger',
   pressureSafetyMessage: '压强已超过安全阈值，请停止打气。',
@@ -1551,7 +1554,7 @@ assert.deepEqual(getHeatCapacityGaugePressureState(5.74, true, defaultFile), {
   pressureSafetyThresholdKPa: 7,
   pressureGaugeTargetValue: 5.74,
   pressureGaugeDisplayValue: 5.74,
-  pressureGaugeNeedleAngle: 17.76,
+  pressureGaugeNeedleAngle: 18.23,
   pressureSafeThresholdKPa: 7,
   pressureSafetyStatus: 'normal',
   pressureSafetyMessage: null,
@@ -1566,7 +1569,7 @@ assert.deepEqual(getHeatCapacityGaugePressureState(5.75, true, defaultFile), {
   pressureSafetyThresholdKPa: 7,
   pressureGaugeTargetValue: 5.75,
   pressureGaugeDisplayValue: 5.75,
-  pressureGaugeNeedleAngle: 18,
+  pressureGaugeNeedleAngle: 18.48,
   pressureSafeThresholdKPa: 7,
   pressureSafetyStatus: 'warning',
   pressureSafetyMessage: '压强接近安全阈值，请准备停止打气。',
@@ -1581,7 +1584,7 @@ assert.deepEqual(getHeatCapacityGaugePressureState(6.99, true, defaultFile), {
   pressureSafetyThresholdKPa: 7,
   pressureGaugeTargetValue: 6.99,
   pressureGaugeDisplayValue: 6.99,
-  pressureGaugeNeedleAngle: 47.76,
+  pressureGaugeNeedleAngle: 49.03,
   pressureSafeThresholdKPa: 7,
   pressureSafetyStatus: 'warning',
   pressureSafetyMessage: '压强接近安全阈值，请准备停止打气。',
@@ -1596,13 +1599,37 @@ assert.deepEqual(getHeatCapacityGaugePressureState(7, true, defaultFile, 6.98), 
   pressureSafetyThresholdKPa: 7,
   pressureGaugeTargetValue: 7,
   pressureGaugeDisplayValue: 6.98,
-  pressureGaugeNeedleAngle: 47.52,
+  pressureGaugeNeedleAngle: 48.78,
   pressureSafeThresholdKPa: 7,
   pressureSafetyStatus: 'danger',
   pressureSafetyMessage: '压强已超过安全阈值，请停止打气。',
   pressureBlockedPumping: true,
   pressureOverLimit: true,
 });
+
+const customPressureSafetyFile: WorkbenchHeatCapacityState = {
+  ...defaultFile,
+  heatCapacityFreeRecordConfig: {
+    ...defaultFile.heatCapacityFreeRecordConfig,
+    pressureDangerMv: 160,
+  },
+  heatCapacityFreePressureWarningMv: 120,
+};
+const customDangerBoundaryGauge = getHeatCapacityGaugePressureState(8, true, customPressureSafetyFile);
+assert.equal(customDangerBoundaryGauge.pressureSafetyThresholdKPa, 8);
+assert.equal(customDangerBoundaryGauge.pressureSafetyStatus, 'danger');
+assert.equal(customDangerBoundaryGauge.pressureGaugeNeedleAngle, GLB_PRESSURE_GAUGE_DANGER_BOUNDARY_DEG);
+assert.equal(
+  Math.abs(customDangerBoundaryGauge.gaugePressureMaxKPa - (8 / 0.7)) < 1e-9,
+  true,
+  'dynamic gauge range should keep the current danger threshold on the GLB fixed red-zone boundary',
+);
+const customWarningGauge = getHeatCapacityGaugePressureState(6, true, customPressureSafetyFile);
+assert.equal(customWarningGauge.pressureSafetyStatus, 'warning');
+assert.equal(customWarningGauge.pressureGaugeNeedleAngle < GLB_PRESSURE_GAUGE_DANGER_BOUNDARY_DEG, true);
+const customDangerGauge = getHeatCapacityGaugePressureState(8.5, true, customPressureSafetyFile);
+assert.equal(customDangerGauge.pressureSafetyStatus, 'danger');
+assert.equal(customDangerGauge.pressureGaugeNeedleAngle > GLB_PRESSURE_GAUGE_DANGER_BOUNDARY_DEG, true);
 
 assert.deepEqual(getHeatCapacityPumpFrequencyState([], 10_000), {
   timestamps: [],
@@ -2053,5 +2080,3 @@ assert.match(
 );
 
 console.log('workbenchHeatCapacityInstrument tests passed');
-
-

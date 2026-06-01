@@ -330,8 +330,16 @@ export const HEAT_CAPACITY_PRESSURE_ZERO_SAMPLE_WINDOW_MS = 1000;
 export const HEAT_CAPACITY_PRESSURE_ZERO_SAMPLE_MIN_COUNT = 5;
 export const HEAT_CAPACITY_GAUGE_PRESSURE_MIN_KPA = 0;
 export const HEAT_CAPACITY_GAUGE_PRESSURE_MAX_KPA = 10;
-export const HEAT_CAPACITY_GAUGE_ANGLE_MIN_DEG = -120;
-export const HEAT_CAPACITY_GAUGE_ANGLE_MAX_DEG = 120;
+export const HEAT_CAPACITY_GAUGE_ROTATION_MIN_RAD = -2.15;
+export const HEAT_CAPACITY_GAUGE_ROTATION_MAX_RAD = 2.15;
+export const HEAT_CAPACITY_GAUGE_DANGER_START_ROTATION_RAD = 0.86;
+const HEAT_CAPACITY_GAUGE_DANGER_START_FRACTION = (
+  (HEAT_CAPACITY_GAUGE_DANGER_START_ROTATION_RAD - HEAT_CAPACITY_GAUGE_ROTATION_MIN_RAD) /
+  (HEAT_CAPACITY_GAUGE_ROTATION_MAX_RAD - HEAT_CAPACITY_GAUGE_ROTATION_MIN_RAD)
+);
+const radiansToRoundedDegrees = (radians: number) => Math.round((radians * 180 / Math.PI) * 100) / 100;
+export const HEAT_CAPACITY_GAUGE_ANGLE_MIN_DEG = radiansToRoundedDegrees(HEAT_CAPACITY_GAUGE_ROTATION_MIN_RAD);
+export const HEAT_CAPACITY_GAUGE_ANGLE_MAX_DEG = radiansToRoundedDegrees(HEAT_CAPACITY_GAUGE_ROTATION_MAX_RAD);
 export const HEAT_CAPACITY_GAUGE_RISE_RATE = 3.2;
 export const HEAT_CAPACITY_GAUGE_FALL_RATE = 9.5;
 export { HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA };
@@ -353,7 +361,7 @@ const roundNumber = (value: number, digits = 2) => {
   return Math.round(value * factor) / factor;
 };
 
-const getHeatCapacityPressureThresholdsMv = (
+export const getHeatCapacityPressureThresholdsMv = (
   file: Partial<WorkbenchHeatCapacityState> = {},
 ) => {
   const freeRecordConfig = file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
@@ -384,9 +392,11 @@ const getHeatCapacityGaugeConfig = (file: Partial<WorkbenchHeatCapacityState> = 
   const gaugePressureMinKPa = Number.isFinite(file.gaugePressureMinKPa)
     ? Number(file.gaugePressureMinKPa)
     : HEAT_CAPACITY_GAUGE_PRESSURE_MIN_KPA;
-  const configuredMax = Number.isFinite(file.gaugePressureMaxKPa)
-    ? Number(file.gaugePressureMaxKPa)
+  const pressureDangerThresholdKPa = pressureThresholdsMv.pressureDangerThresholdMv / pressureSensitivityMvPerKPa;
+  const dynamicMax = Number.isFinite(pressureDangerThresholdKPa) && pressureDangerThresholdKPa > gaugePressureMinKPa
+    ? gaugePressureMinKPa + (pressureDangerThresholdKPa - gaugePressureMinKPa) / HEAT_CAPACITY_GAUGE_DANGER_START_FRACTION
     : HEAT_CAPACITY_GAUGE_PRESSURE_MAX_KPA;
+  const configuredMax = dynamicMax;
   const gaugePressureMaxKPa = Math.max(gaugePressureMinKPa + 1, configuredMax);
   const pressureWarningThresholdKPa = clampNumber(
     pressureThresholdsMv.pressureWarningThresholdMv / pressureSensitivityMvPerKPa,
@@ -479,10 +489,9 @@ export const getHeatCapacityGaugePressureState = (
     ...gaugeConfig,
     pressureGaugeTargetValue,
     pressureGaugeDisplayValue,
-    pressureGaugeNeedleAngle: roundNumber(
-      HEAT_CAPACITY_GAUGE_ANGLE_MIN_DEG +
-      pressureGaugeFraction * (HEAT_CAPACITY_GAUGE_ANGLE_MAX_DEG - HEAT_CAPACITY_GAUGE_ANGLE_MIN_DEG),
-      2,
+    pressureGaugeNeedleAngle: radiansToRoundedDegrees(
+      HEAT_CAPACITY_GAUGE_ROTATION_MIN_RAD +
+      pressureGaugeFraction * (HEAT_CAPACITY_GAUGE_ROTATION_MAX_RAD - HEAT_CAPACITY_GAUGE_ROTATION_MIN_RAD),
     ),
     pressureSafeThresholdKPa: gaugeConfig.pressureSafetyThresholdKPa,
     pressureWarningThresholdKPa: gaugeConfig.pressureWarningThresholdKPa,
