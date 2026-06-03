@@ -72,8 +72,8 @@ assert.match(
 
 assert.match(
   source,
-  /const heatCapacityActiveMode: HeatCapacityMode = activeFile\.heatCapacityMode;/,
-  'heat capacity mode bar should read the explicit file mode instead of deriving Free mode from local UI flags',
+  /const heatCapacityActiveMode: HeatCapacityMode = heatCapacityTeachingModesAvailable[\s\S]*\? activeFile\.heatCapacityMode[\s\S]*: 'free';/,
+  'heat capacity mode bar should force Free mode only when the active heat-capacity model cannot support Demo or Guide',
 );
 
 assert.match(
@@ -129,6 +129,12 @@ assert.match(
   source,
   /data-heat-capacity-mode="demo"[\s\S]*heatCapacityActiveMode !== 'demo' \|\| !heatCapacityDemoActionsVisible[\s\S]*runHeatCapacityAutoDemo\(\)/,
   'demo mode button should restart a stale or completed demo-mode file when no demo action is visible',
+);
+
+assert.match(
+  source,
+  /data-heat-capacity-mode="free"[\s\S]*heatCapacityActiveMode !== 'free'[\s\S]*autoDemoRunning[\s\S]*autoDemoPaused[\s\S]*autoDemoInteractionLocked[\s\S]*enterHeatCapacityFreeMode\(\)/,
+  'free mode button should clear stale auto-demo runtime locks even when the file is already marked as Free mode',
 );
 
 const terminateAutoDemoStart = source.indexOf('const terminateHeatCapacityAutoDemo = () => {');
@@ -235,5 +241,3 @@ assert.doesNotMatch(
 );
 
 console.log('workbenchRunStopControls tests passed');
-
-

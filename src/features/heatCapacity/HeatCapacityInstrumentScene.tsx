@@ -1,5 +1,5 @@
 ﻿import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
+import { Canvas, createPointerEvents, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Edges, Line, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
@@ -573,13 +573,67 @@ const HOVER_CLEAR_DELAY_MS = 220;
 const VALVE_FOCUS_BUBBLE_EXIT_MS = 160;
 const VALVE_FOCUS_BUBBLE_WIDTH_PX = 190;
 const VALVE_FOCUS_BUBBLE_HEIGHT_PX = 38;
-const VALVE_FOCUS_BUBBLE_GAP_PX = 24;
+const VALVE_FOCUS_BUBBLE_GAP_PX = 34;
 const PUMP_VALVE_TRANSITION_MS = 420;
 const DISABLE_RAYCAST: THREE.Object3D['raycast'] = () => undefined;
-const DEFAULT_CAMERA_POSITION: [number, number, number] = [4.15, 2.9, 8.25];
-const DEFAULT_CAMERA_TARGET: [number, number, number] = [0.25, -0.05, 0];
-const AUTO_DEMO_CAMERA_POSITION: [number, number, number] = [3.82, 2.68, 7.58];
-const AUTO_DEMO_CAMERA_TARGET: [number, number, number] = [0.24, -0.05, 0.02];
+const createHeatCapacityPointerEvents: typeof createPointerEvents = (store) => {
+  const pointerEvents = createPointerEvents(store);
+  return {
+    ...pointerEvents,
+    compute: (event, state) => {
+      const bounds = state.gl.domElement.getBoundingClientRect();
+      const width = bounds.width || state.size.width;
+      const height = bounds.height || state.size.height;
+      const x = 'clientX' in event ? event.clientX - bounds.left : 0;
+      const y = 'clientY' in event ? event.clientY - bounds.top : 0;
+      state.pointer.set((x / width) * 2 - 1, -(y / height) * 2 + 1);
+      state.raycaster.setFromCamera(state.pointer, state.camera);
+    },
+  };
+};
+type CameraFocusView = {
+  position: [number, number, number];
+  target: [number, number, number];
+};
+type CameraFocusViews = Record<Exclude<HeatCapacityFocusMode, 'none'>, CameraFocusView>;
+type CameraViewScheme = {
+  defaultView: CameraFocusView;
+  autoDemoView?: CameraFocusView;
+  focusViews?: CameraFocusViews;
+};
+const PROCEDURAL_CAMERA_VIEW_SCHEME: CameraViewScheme = {
+  defaultView: {
+    position: [4.15, 2.9, 8.25],
+    target: [0.25, -0.05, 0],
+  },
+  autoDemoView: {
+    position: [3.82, 2.68, 7.58],
+    target: [0.24, -0.05, 0.02],
+  },
+  focusViews: {
+    stopcock: {
+      position: [1.38, 2.18, 2.92],
+      target: [-1.5, 0.82, 0.36],
+    },
+    instrument: {
+      position: [2.18, 0.18, 3.42],
+      target: [2.02, -0.76, 0.34],
+    },
+    pump: {
+      position: [2.95, 0.25, 3.35],
+      target: [1.65, -0.45, 0.95],
+    },
+  },
+};
+const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = {
+  defaultView: {
+    position: [0.88, 3.51, 7.43],
+    target: [0.00, 0.32, 0.00],
+  },
+};
+const getCameraViewScheme = (performanceMode: HeatCapacityInstrumentSceneProps['performanceMode']) => (
+  performanceMode === 'ultra' ? ULTRA_CAMERA_VIEW_SCHEME : PROCEDURAL_CAMERA_VIEW_SCHEME
+);
 const ORBIT_MIN_DISTANCE = 2.7;
 const ORBIT_MAX_DISTANCE = 11.5;
 
@@ -2163,11 +2217,13 @@ function CameraRig({
   focusMode,
   resetKey,
   autoDemoActive,
+  cameraViewScheme,
 }: {
   controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
   focusMode: HeatCapacityFocusMode;
   resetKey: number;
   autoDemoActive: boolean;
+  cameraViewScheme: CameraViewScheme;
 }) {
   const { camera, invalidate } = useThree();
 
@@ -2176,22 +2232,16 @@ function CameraRig({
     const startTarget = controlsRef.current?.target.clone() ?? new THREE.Vector3(0.25, -0.05, 0);
     const nextPosition = new THREE.Vector3();
     const nextTarget = new THREE.Vector3();
-    if (focusMode === 'stopcock') {
-      nextPosition.set(1.38, 2.18, 2.92);
-      nextTarget.set(-1.5, 0.82, 0.36);
-    } else if (focusMode === 'instrument') {
-      nextPosition.set(2.18, 0.18, 3.42);
-      nextTarget.set(2.02, -0.76, 0.34);
-    } else if (focusMode === 'pump') {
-      nextPosition.set(2.95, 0.25, 3.35);
-      nextTarget.set(1.65, -0.45, 0.95);
-    } else if (autoDemoActive) {
-      nextPosition.set(...AUTO_DEMO_CAMERA_POSITION);
-      nextTarget.set(...AUTO_DEMO_CAMERA_TARGET);
-    } else {
-      nextPosition.set(...DEFAULT_CAMERA_POSITION);
-      nextTarget.set(...DEFAULT_CAMERA_TARGET);
-    }
+    const focusView = (focusMode === 'stopcock' || focusMode === 'instrument' || focusMode === 'pump')
+      ? cameraViewScheme.focusViews?.[focusMode]
+      : undefined;
+    const nextView = focusView ?? (
+      autoDemoActive
+        ? cameraViewScheme.autoDemoView ?? cameraViewScheme.defaultView
+        : cameraViewScheme.defaultView
+    );
+    nextPosition.set(...nextView.position);
+    nextTarget.set(...nextView.target);
 
     let frameId = 0;
     const startTime = performance.now();
@@ -2214,7 +2264,7 @@ function CameraRig({
     };
     frameId = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frameId);
-  }, [autoDemoActive, camera, controlsRef, focusMode, invalidate, resetKey]);
+  }, [autoDemoActive, camera, cameraViewScheme, controlsRef, focusMode, invalidate, resetKey]);
 
   return null;
 }
@@ -2241,11 +2291,13 @@ function HeatCapacitySceneInvalidator({
 function HeatCapacityOrbitControls({
   controlsRef,
   enabled,
+  defaultCameraTarget,
   onInteractionStart,
   onInteractionEnd,
 }: {
   controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
   enabled: boolean;
+  defaultCameraTarget: [number, number, number];
   onInteractionStart: () => void;
   onInteractionEnd: () => void;
 }) {
@@ -2253,10 +2305,10 @@ function HeatCapacityOrbitControls({
 
   useEffect(() => {
     if (!controlsRef.current) return;
-    controlsRef.current.target.set(...DEFAULT_CAMERA_TARGET);
+    controlsRef.current.target.set(...defaultCameraTarget);
     controlsRef.current.update();
     invalidate();
-  }, [controlsRef, invalidate]);
+  }, [controlsRef, defaultCameraTarget, invalidate]);
 
   return (
     <OrbitControls
@@ -2316,8 +2368,9 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     }
   }, []);
   const clampValveFocusBubblePosition = useCallback((clientX: number, clientY: number) => {
-    const rect = sceneRootRef.current?.getBoundingClientRect();
-    if (!rect) {
+    const sceneRoot = sceneRootRef.current;
+    const rect = sceneRoot?.getBoundingClientRect();
+    if (!sceneRoot || !rect) {
       return {
         x: clientX - (VALVE_FOCUS_BUBBLE_WIDTH_PX / 2),
         y: Math.max(8, clientY - VALVE_FOCUS_BUBBLE_HEIGHT_PX - VALVE_FOCUS_BUBBLE_GAP_PX),
@@ -2325,10 +2378,14 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       };
     }
     const inset = 8;
-    const anchorX = clientX - rect.left;
-    const anchorY = clientY - rect.top;
-    const maxX = Math.max(inset, rect.width - VALVE_FOCUS_BUBBLE_WIDTH_PX - inset);
-    const maxY = Math.max(inset, rect.height - VALVE_FOCUS_BUBBLE_HEIGHT_PX - inset);
+    const scaleX = rect.width / (sceneRoot.offsetWidth || rect.width) || 1;
+    const scaleY = rect.height / (sceneRoot.offsetHeight || rect.height) || 1;
+    const localWidth = rect.width / scaleX;
+    const localHeight = rect.height / scaleY;
+    const anchorX = (clientX - rect.left) / scaleX;
+    const anchorY = (clientY - rect.top) / scaleY;
+    const maxX = Math.max(inset, localWidth - VALVE_FOCUS_BUBBLE_WIDTH_PX - inset);
+    const maxY = Math.max(inset, localHeight - VALVE_FOCUS_BUBBLE_HEIGHT_PX - inset);
     const preferredX = anchorX - (VALVE_FOCUS_BUBBLE_WIDTH_PX / 2);
     const preferredY = anchorY - VALVE_FOCUS_BUBBLE_HEIGHT_PX - VALVE_FOCUS_BUBBLE_GAP_PX;
     const x = Math.max(inset, Math.min(maxX, preferredX));
@@ -2374,6 +2431,11 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   useEffect(() => {
     onFocusModeChangeRef.current(focusMode);
   }, [focusMode]);
+  useEffect(() => {
+    if (props.performanceMode === 'ultra' && focusMode !== 'none') {
+      setFocusMode('none');
+    }
+  }, [focusMode, props.performanceMode]);
   const triggerSmoothDefaultView = useCallback(() => {
     closeValveFocusBubble();
     setFocusMode('none');
@@ -2396,10 +2458,16 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const hardSphereNoteCopy = heatCapacityHardSphereNoteCopies[props.language] ?? heatCapacityHardSphereNoteCopies['zh-CN'];
   const hardSphereNoteText = getHardSphereNoteText(props, props.language);
   const hardSphereTooltipId = 'heat-capacity-hard-sphere-tooltip';
-  const sceneShouldAnimate = props.hardSphereViewEnabled || props.demoFocusPulseActive || props.pumpBulbState !== 'idle' || Boolean(props.manualRollbackAnimation);
+  const sceneShouldAnimate = props.hardSphereViewEnabled ||
+    props.pumpBulbState !== 'idle' ||
+    (props.performanceMode !== 'ultra' && (props.demoFocusPulseActive || Boolean(props.manualRollbackAnimation)));
   const interactionQualityReduced = isOrbitInteracting || props.performanceMode === 'performance';
+  const orbitControlsEnabled = props.performanceMode === 'ultra'
+    ? true
+    : focusMode === 'none' && !props.interactionLocked;
+  const cameraViewScheme = useMemo(() => getCameraViewScheme(props.performanceMode), [props.performanceMode]);
   const canvasProps = useMemo(() => ({
-    camera: { position: DEFAULT_CAMERA_POSITION, fov: 38 },
+    camera: { position: cameraViewScheme.defaultView.position, fov: 38 },
     dpr: props.performanceMode === 'standard'
       ? 2.5
       : props.performanceMode === 'balanced'
@@ -2409,7 +2477,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           : 1,
     frameloop: 'demand' as const,
     shadows: false,
-  }), [props.performanceMode]);
+  }), [cameraViewScheme, props.performanceMode]);
   const proceduralSceneContent = (
     <InstrumentSceneContent
       {...props}
@@ -2428,12 +2496,31 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     <HeatCapacityUltraModelErrorBoundary fallback={proceduralSceneContent}>
       <Suspense fallback={proceduralSceneContent}>
         <HeatCapacityUltraInstrumentModel
-          {...props}
-          onFocus={setFocusMode}
-          focusMode={focusMode}
-          hoveredControl={hoveredControl}
-          setHoveredControl={setStableHoveredControl}
-          onValveFocusAnchor={openValveFocusBubble}
+          powerOn={props.powerOn}
+          sceneTheme={props.sceneTheme}
+          stopcockAngleDeg={props.stopcockAngleDeg}
+          pressureZeroKnobAngle={props.pressureZeroKnobAngle}
+          pressureGaugeDisplayValue={props.pressureGaugeDisplayValue}
+          gaugePressureMinKPa={props.gaugePressureMinKPa}
+          gaugePressureMaxKPa={props.gaugePressureMaxKPa}
+          pressureDeltaKPa={props.pressureDeltaKPa}
+          phase={props.phase}
+          temperatureSignalMv={props.temperatureSignalMv}
+          pressureSignalMv={props.pressureSignalMv}
+          releaseFlowActive={props.releaseFlowActive}
+          releaseProgress={props.releaseProgress}
+          stopcockFlowOpen={props.stopcockFlowOpen}
+          pumpValveOpen={props.pumpValveOpen}
+          pumpBulbState={props.pumpBulbState}
+          pumpPulseId={props.pumpPulseId}
+          pumpFlowActive={props.pumpFlowActive}
+          pumpFlowIntensity={props.pumpFlowIntensity}
+          gasAmountRatio={props.gasAmountRatio}
+          gasTemperatureK={props.gasTemperatureK}
+          ambientTemperatureK={props.ambientTemperatureK}
+          hardSphereViewEnabled={props.hardSphereViewEnabled}
+          hardSphereParticleMultiplier={props.hardSphereParticleMultiplier}
+          hardSphereSpeedMultiplier={props.hardSphereSpeedMultiplier}
         />
       </Suspense>
     </HeatCapacityUltraModelErrorBoundary>
@@ -2462,7 +2549,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
         setStableHoveredControl(null);
       }}
     >
-      <Canvas {...canvasProps}>
+      <Canvas {...canvasProps} events={createHeatCapacityPointerEvents}>
         {/* GLB replacement contract: preserve node names, pivots, and hitbox roles from this procedural skeleton. */}
         <color attach="background" args={[scenePalette.scene.background]} />
         <HeatCapacitySceneLighting scenePalette={scenePalette} />
@@ -2472,11 +2559,13 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           focusMode={focusMode}
           resetKey={viewResetKey}
           autoDemoActive={props.autoDemoActive}
+          cameraViewScheme={cameraViewScheme}
         />
         {instrumentSceneContent}
         <HeatCapacityOrbitControls
-          enabled={focusMode === 'none' && !props.interactionLocked}
+          enabled={orbitControlsEnabled}
           controlsRef={controlsRef}
+          defaultCameraTarget={cameraViewScheme.defaultView.target}
           onInteractionStart={() => {
             setIsOrbitInteracting(true);
             setStableHoveredControl(null);

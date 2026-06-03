@@ -244,6 +244,7 @@ type IdealSamplingPresetKey = 'fast' | 'balanced' | 'stable';
 type WorkbenchParameterSymbolPart = string | { sub: string };
 type HeatCapacityManualRecordKind = 'u0' | 'u1' | 'u2';
 type HeatCapacityMode = 'demo' | 'guide' | 'free';
+const heatCapacityUltraModelIntegrationReady = false;
 type WorkbenchUpdateStatus = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'retrying' | 'downloaded' | 'installing' | 'unsupported' | 'error';
 type WorkbenchLocalizedText = Partial<Record<WorkbenchLanguagePreference, string>>;
 
@@ -3095,6 +3096,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     { mode: 'ultra' as const, label: workbenchCopy.settings.performanceModeUltra },
   ]), [workbenchCopy]);
   const heatCapacityHardSpherePerformancePreset = HEAT_CAPACITY_HARD_SPHERE_PERFORMANCE_PRESETS[settingsPerformanceMode];
+  const heatCapacityTeachingModesAvailable = settingsPerformanceMode !== 'ultra' || heatCapacityUltraModelIntegrationReady;
   const workbenchTranslation = translations[settingsLanguagePreference === 'en' ? 'en-GB' : settingsLanguagePreference];
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [parametersCollapsed, setParametersCollapsed] = useState(() => (
@@ -5791,6 +5793,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
       : file);
     pushLog(heatCapacityRealtimeCopy.freeModeActiveLog(activeFile.name), 'info');
   };
+
+  useEffect(() => {
+    if (heatCapacityTeachingModesAvailable) return;
+    if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode === 'free') return;
+    enterHeatCapacityFreeMode();
+  }, [activeFile.id, activeFile.kind, activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null, heatCapacityTeachingModesAvailable]);
 
   const resetHeatCapacityFreeRun = () => {
     if (!activeFile || activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return;
@@ -10504,15 +10512,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const gaugeNeedleAngle = Number.isFinite(activeFile.pressureGaugeNeedleAngle)
       ? activeFile.pressureGaugeNeedleAngle
       : -120;
+    const gaugeCenterX = 70;
+    const gaugeCenterY = 64;
     const needleRadians = ((gaugeNeedleAngle - 90) * Math.PI) / 180;
-    const needleX = 70 + Math.cos(needleRadians) * 40;
-    const needleY = 70 + Math.sin(needleRadians) * 40;
-    const tickAngles = [-120, -60, 0, 60, 120];
+    const needleX = gaugeCenterX + Math.cos(needleRadians) * 42;
+    const needleY = gaugeCenterY + Math.sin(needleRadians) * 42;
+    const majorTickAngles = [-120, -60, 0, 60, 120];
+    const minorTickAngles = [-90, -30, 30, 90];
     const statusClass = activeFile.pressureSafetyStatus === 'danger'
       ? 'studio-heat-stopcock-mini-readout-danger'
       : activeFile.pressureSafetyStatus === 'warning'
         ? 'studio-heat-stopcock-mini-readout-warning'
         : 'studio-heat-stopcock-mini-readout-normal';
+    const gaugeStatusAttribute = activeFile.powerOn ? activeFile.pressureSafetyStatus : 'offline';
     const statusText = !activeFile.powerOn
       ? 'OFFLINE'
       : activeFile.pressureSafetyStatus === 'danger'
@@ -10532,6 +10544,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       <div
         className={`studio-heat-stopcock-mini-readout ${statusClass}`}
         data-heat-capacity-stopcock-mini-readout="true"
+        data-heat-capacity-pressure-status={gaugeStatusAttribute}
         aria-label={heatCapacityRealtimeCopy.stopcockMiniReadoutAria}
       >
         <div className="studio-heat-stopcock-mini-statusbar">
@@ -10556,19 +10569,21 @@ const WorkbenchStudioPrototype: React.FC = () => {
             <em>{gaugeStatusText}</em>
           </div>
           <svg className="studio-heat-stopcock-mini-gauge" viewBox="0 0 140 82" role="img" aria-label={heatCapacityRealtimeCopy.stopcockMiniGaugeAria}>
+            <path className="studio-heat-stopcock-mini-gauge-face" d="M 16 67 A 54 54 0 0 1 124 67 L 114 74 L 26 74 Z" />
+            <path className="studio-heat-stopcock-mini-gauge-track" d="M 22 64 A 48 48 0 0 1 118 64" />
             <path className="studio-heat-stopcock-mini-gauge-safe" d="M 22 64 A 48 48 0 0 1 78 16" />
             <path className="studio-heat-stopcock-mini-gauge-warn" d="M 78 16 A 48 48 0 0 1 106 32" />
             <path className="studio-heat-stopcock-mini-gauge-danger" d="M 106 32 A 48 48 0 0 1 118 64" />
-            {tickAngles.map((angle) => {
+            {minorTickAngles.map((angle) => {
               const tickRadians = ((angle - 90) * Math.PI) / 180;
-              const outerX = 70 + Math.cos(tickRadians) * 49;
-              const outerY = 64 + Math.sin(tickRadians) * 49;
-              const innerX = 70 + Math.cos(tickRadians) * 44;
-              const innerY = 64 + Math.sin(tickRadians) * 44;
+              const outerX = gaugeCenterX + Math.cos(tickRadians) * 48;
+              const outerY = gaugeCenterY + Math.sin(tickRadians) * 48;
+              const innerX = gaugeCenterX + Math.cos(tickRadians) * 45;
+              const innerY = gaugeCenterY + Math.sin(tickRadians) * 45;
               return (
                 <line
                   key={angle}
-                  className="studio-heat-stopcock-mini-gauge-tick"
+                  className="studio-heat-stopcock-mini-gauge-tick studio-heat-stopcock-mini-gauge-tick-minor"
                   x1={innerX}
                   y1={innerY}
                   x2={outerX}
@@ -10576,14 +10591,33 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 />
               );
             })}
+            {majorTickAngles.map((angle) => {
+              const tickRadians = ((angle - 90) * Math.PI) / 180;
+              const outerX = gaugeCenterX + Math.cos(tickRadians) * 50;
+              const outerY = gaugeCenterY + Math.sin(tickRadians) * 50;
+              const innerX = gaugeCenterX + Math.cos(tickRadians) * 43;
+              const innerY = gaugeCenterY + Math.sin(tickRadians) * 43;
+              return (
+                <line
+                  key={angle}
+                  className="studio-heat-stopcock-mini-gauge-tick studio-heat-stopcock-mini-gauge-tick-major"
+                  x1={innerX}
+                  y1={innerY}
+                  x2={outerX}
+                  y2={outerY}
+                />
+              );
+            })}
+            <text className="studio-heat-stopcock-mini-gauge-scale" x="20" y="79">0</text>
+            <text className="studio-heat-stopcock-mini-gauge-scale studio-heat-stopcock-mini-gauge-scale-limit" x="112" y="79">LIM</text>
             <line
               className="studio-heat-stopcock-mini-gauge-needle"
-              x1="70"
-              y1="64"
+              x1={gaugeCenterX}
+              y1={gaugeCenterY}
               x2={needleX}
-              y2={needleY - 6}
+              y2={needleY}
             />
-            <circle className="studio-heat-stopcock-mini-gauge-hub" cx="70" cy="64" r="4.5" />
+            <circle className="studio-heat-stopcock-mini-gauge-hub" cx={gaugeCenterX} cy={gaugeCenterY} r="4.8" />
           </svg>
         </div>
       </div>
@@ -10592,17 +10626,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const renderHeatCapacityModeControl = () => {
     if (activeFile.kind !== 'heatCapacity') return null;
-    const heatCapacityActiveMode: HeatCapacityMode = activeFile.heatCapacityMode;
+    const heatCapacityActiveMode: HeatCapacityMode = heatCapacityTeachingModesAvailable
+      ? activeFile.heatCapacityMode
+      : 'free';
     const heatCapacityGuideNextTrialKey = getHeatCapacityGuideNextTrialKey(activeFile);
     const heatCapacityShowNextTrialAction = heatCapacityActiveMode === 'guide'
       && activeHeatCapacityManualStep === 'nextTrialRequired'
       && heatCapacityGuideNextTrialReadyKey === heatCapacityGuideNextTrialKey;
-    const heatCapacityDemoActionsVisible = heatCapacityActiveMode === 'demo'
+    const heatCapacityDemoActionsVisible = heatCapacityTeachingModesAvailable && heatCapacityActiveMode === 'demo'
       && (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked);
-    const heatCapacityGuideActionsVisible = heatCapacityActiveMode === 'guide';
+    const heatCapacityGuideActionsVisible = heatCapacityTeachingModesAvailable && heatCapacityActiveMode === 'guide';
     const heatCapacityFreeActionsVisible = heatCapacityActiveMode === 'free';
     const heatCapacityModeActionsVisible = heatCapacityDemoActionsVisible || heatCapacityGuideActionsVisible || heatCapacityFreeActionsVisible;
     const heatCapacityModeSegmentClassName = (mode: HeatCapacityMode) => `studio-heat-mode-segment studio-heat-mode-segment-${mode} ${heatCapacityActiveMode === mode ? 'studio-heat-mode-segment-active' : ''}`;
+    const heatCapacityDeferredModeDisabled = !heatCapacityTeachingModesAvailable;
 
     return (
       <div
@@ -10618,8 +10655,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
             className={`studio-heat-mode-button ${heatCapacityActiveMode === 'demo' ? 'studio-heat-mode-button-active' : ''}`}
             data-heat-capacity-mode="demo"
             aria-pressed={heatCapacityActiveMode === 'demo'}
+            aria-disabled={heatCapacityDeferredModeDisabled}
+            disabled={heatCapacityDeferredModeDisabled}
             onClick={() => {
-              if (heatCapacityActiveMode !== 'demo' || !heatCapacityDemoActionsVisible) runHeatCapacityAutoDemo();
+              if (heatCapacityActiveMode !== 'demo' || !heatCapacityDemoActionsVisible) {
+                heatCapacityTeachingModesAvailable ? runHeatCapacityAutoDemo() : enterHeatCapacityFreeMode();
+              }
             }}
           >
             {heatCapacityRealtimeCopy.modeDemo}
@@ -10673,8 +10714,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
             className={`studio-heat-mode-button ${heatCapacityActiveMode === 'guide' ? 'studio-heat-mode-button-active' : ''}`}
             data-heat-capacity-mode="guide"
             aria-pressed={heatCapacityActiveMode === 'guide'}
+            aria-disabled={heatCapacityDeferredModeDisabled}
+            disabled={heatCapacityDeferredModeDisabled}
             onClick={() => {
-              if (heatCapacityActiveMode !== 'guide') startHeatCapacityManualExperiment();
+              if (heatCapacityActiveMode !== 'guide') {
+                heatCapacityTeachingModesAvailable ? startHeatCapacityManualExperiment() : enterHeatCapacityFreeMode();
+              }
             }}
           >
             {heatCapacityRealtimeCopy.modeGuide}
@@ -10716,7 +10761,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
             data-heat-capacity-mode="free"
             aria-pressed={heatCapacityActiveMode === 'free'}
             onClick={() => {
-              if (heatCapacityActiveMode !== 'free') enterHeatCapacityFreeMode();
+              if (
+                heatCapacityActiveMode !== 'free' ||
+                autoDemoRunning ||
+                autoDemoPaused ||
+                autoDemoInteractionLocked
+              ) {
+                enterHeatCapacityFreeMode();
+              }
             }}
           >
             {heatCapacityRealtimeCopy.modeFree}

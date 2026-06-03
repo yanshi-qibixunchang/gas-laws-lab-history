@@ -4540,20 +4540,48 @@
 }
 
 .studio-heat-mode-action-next-trial {
-  animation: studio-heat-next-trial-breathe 1.5s cubic-bezier(0.2, 0, 0, 1) infinite;
-  box-shadow: 0 0 0 0 rgba(123, 184, 139, 0.22), inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+  --studio-heat-next-trial-rest-bg: #3f5a49;
+  --studio-heat-next-trial-rest-border: rgba(168, 218, 181, 0.68);
+  --studio-heat-next-trial-rest-text: #dff7e4;
+  --studio-heat-next-trial-rest-shadow: inset 0 0 0 1px rgba(220, 252, 231, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+  --studio-heat-next-trial-pulse-bg: #1f7a49;
+  --studio-heat-next-trial-pulse-border: rgba(190, 242, 202, 0.94);
+  --studio-heat-next-trial-pulse-text: #ffffff;
+  --studio-heat-next-trial-pulse-shadow: inset 0 0 0 2px rgba(220, 252, 231, 0.42), inset 0 0 16px rgba(190, 242, 202, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  animation: studio-heat-next-trial-breathe 1.2s cubic-bezier(0.2, 0, 0, 1) infinite;
+  border-color: var(--studio-heat-next-trial-rest-border);
+  background: var(--studio-heat-next-trial-rest-bg);
+  box-shadow: var(--studio-heat-next-trial-rest-shadow);
+  color: var(--studio-heat-next-trial-rest-text);
+  margin-inline-start: 4px;
+  will-change: box-shadow, border-color, background, color;
+}
+
+.studio-theme-light .studio-heat-mode-action-next-trial {
+  --studio-heat-next-trial-rest-bg: #e2f5e7;
+  --studio-heat-next-trial-rest-border: rgba(22, 101, 52, 0.44);
+  --studio-heat-next-trial-rest-text: #14532d;
+  --studio-heat-next-trial-rest-shadow: inset 0 0 0 1px rgba(21, 128, 61, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.72);
+  --studio-heat-next-trial-pulse-bg: #15803d;
+  --studio-heat-next-trial-pulse-border: rgba(21, 128, 61, 0.86);
+  --studio-heat-next-trial-pulse-text: #ffffff;
+  --studio-heat-next-trial-pulse-shadow: inset 0 0 0 2px rgba(220, 252, 231, 0.48), inset 0 0 16px rgba(187, 247, 208, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 @keyframes studio-heat-next-trial-breathe {
   0%,
   100% {
-    border-color: rgba(123, 184, 139, 0.52);
-    box-shadow: 0 0 0 0 rgba(123, 184, 139, 0.18), inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+    border-color: var(--studio-heat-next-trial-rest-border);
+    background: var(--studio-heat-next-trial-rest-bg);
+    box-shadow: var(--studio-heat-next-trial-rest-shadow);
+    color: var(--studio-heat-next-trial-rest-text);
   }
 
   50% {
-    border-color: rgba(168, 218, 181, 0.86);
-    box-shadow: 0 0 0 4px rgba(123, 184, 139, 0.14), inset 0 -1px 0 rgba(255, 255, 255, 0.12);
+    border-color: var(--studio-heat-next-trial-pulse-border);
+    background: var(--studio-heat-next-trial-pulse-bg);
+    box-shadow: var(--studio-heat-next-trial-pulse-shadow);
+    color: var(--studio-heat-next-trial-pulse-text);
   }
 }
 
@@ -4767,7 +4795,7 @@
   font-family: "JetBrains Mono", Consolas, monospace;
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -4832,13 +4860,31 @@
 .studio-heat-stopcock-mini-gauge-wrap {
   display: grid;
   gap: 3px;
-  padding-top: 2px;
+  border: 1px solid rgba(51, 65, 85, 0.72);
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.38), rgba(15, 23, 42, 0.08)),
+    rgba(2, 6, 23, 0.18);
+  padding: 5px 7px 1px;
 }
 
 .studio-heat-stopcock-mini-gauge {
   width: 100%;
-  height: 66px;
+  height: 70px;
   overflow: visible;
+}
+
+.studio-heat-stopcock-mini-gauge-face {
+  fill: rgba(15, 23, 42, 0.34);
+  stroke: rgba(148, 163, 184, 0.2);
+  stroke-width: 0.8;
+}
+
+.studio-heat-stopcock-mini-gauge-track {
+  fill: none;
+  stroke: rgba(71, 85, 105, 0.62);
+  stroke-linecap: round;
+  stroke-width: 7;
 }
 
 .studio-heat-stopcock-mini-gauge-safe,
@@ -4864,19 +4910,41 @@
 .studio-heat-stopcock-mini-gauge-tick {
   stroke: rgba(148, 163, 184, 0.74);
   stroke-linecap: round;
-  stroke-width: 1.6;
+}
+
+.studio-heat-stopcock-mini-gauge-tick-minor {
+  opacity: 0.62;
+  stroke-width: 1.1;
+}
+
+.studio-heat-stopcock-mini-gauge-tick-major {
+  stroke-width: 1.8;
 }
 
 .studio-heat-stopcock-mini-gauge-needle {
   stroke: #e2e8f0;
   stroke-linecap: round;
   stroke-width: 3;
+  filter: drop-shadow(0 1px 1px rgba(2, 6, 23, 0.5));
 }
 
 .studio-heat-stopcock-mini-gauge-hub {
   fill: #020617;
   stroke: #94a3b8;
   stroke-width: 1.4;
+}
+
+.studio-heat-stopcock-mini-gauge-scale {
+  fill: rgba(148, 163, 184, 0.82);
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-anchor: middle;
+}
+
+.studio-heat-stopcock-mini-gauge-scale-limit {
+  fill: rgba(248, 113, 113, 0.86);
 }
 
 .studio-heat-stopcock-mini-readout-warning {
@@ -4889,6 +4957,10 @@
   color: #fbbf24;
 }
 
+.studio-heat-stopcock-mini-readout-warning .studio-heat-stopcock-mini-gauge-needle {
+  stroke: #fbbf24;
+}
+
 .studio-heat-stopcock-mini-readout-danger {
   border-color: rgba(248, 113, 113, 0.72);
   box-shadow: 0 18px 34px rgba(127, 29, 29, 0.28), inset 0 1px 0 rgba(248, 113, 113, 0.16);
@@ -4898,6 +4970,10 @@
 .studio-heat-stopcock-mini-readout-danger .studio-heat-stopcock-mini-gauge-label em,
 .studio-heat-stopcock-mini-readout-danger .studio-heat-stopcock-mini-readout-row:nth-child(2) strong {
   color: #fca5a5;
+}
+
+.studio-heat-stopcock-mini-readout-danger .studio-heat-stopcock-mini-gauge-needle {
+  stroke: #fca5a5;
 }
 
 .studio-heat-demo-step-panel {
@@ -5886,6 +5962,119 @@
   border-color: rgba(14, 116, 144, 0.62);
   background: rgba(3, 105, 161, 0.9);
   color: #f8fafc;
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-readout {
+  border-color: rgba(100, 116, 139, 0.34);
+  background: rgba(248, 250, 252, 0.9);
+  box-shadow: 0 14px 30px rgba(71, 85, 105, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.76);
+  color: #334155;
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-statusbar,
+.studio-theme-light .studio-heat-stopcock-mini-gauge-label {
+  color: #1e293b;
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-statusbar {
+  border-bottom-color: rgba(148, 163, 184, 0.38);
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-statusbar em,
+.studio-theme-light .studio-heat-stopcock-mini-gauge-label em {
+  color: #64748b;
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-readout-row {
+  border-color: rgba(148, 163, 184, 0.44);
+  background: rgba(239, 246, 255, 0.72);
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-readout-row span,
+.studio-theme-light .studio-heat-stopcock-mini-readout-row em,
+.studio-theme-light .studio-heat-stopcock-mini-gauge-scale {
+  color: #64748b;
+  fill: #64748b;
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-readout-row strong {
+  color: #0f172a;
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-gauge-wrap {
+  border-color: rgba(148, 163, 184, 0.42);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(226, 232, 240, 0.28)),
+    rgba(248, 250, 252, 0.86);
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-gauge-face {
+  fill: rgba(226, 232, 240, 0.55);
+  stroke: rgba(100, 116, 139, 0.24);
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-gauge-track {
+  stroke: rgba(203, 213, 225, 0.88);
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-gauge-safe {
+  stroke: rgba(22, 163, 74, 0.58);
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-gauge-warn {
+  stroke: rgba(217, 119, 6, 0.7);
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-gauge-danger {
+  stroke: rgba(220, 38, 38, 0.72);
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-gauge-tick {
+  stroke: rgba(71, 85, 105, 0.7);
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-gauge-needle {
+  stroke: #1e293b;
+  filter: drop-shadow(0 1px 1px rgba(148, 163, 184, 0.44));
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-gauge-hub {
+  fill: #f8fafc;
+  stroke: #64748b;
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-gauge-scale-limit {
+  fill: #b42318;
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-readout-warning {
+  border-color: rgba(217, 119, 6, 0.46);
+  box-shadow: 0 14px 30px rgba(120, 53, 15, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.76);
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-readout-warning .studio-heat-stopcock-mini-statusbar em,
+.studio-theme-light .studio-heat-stopcock-mini-readout-warning .studio-heat-stopcock-mini-gauge-label em,
+.studio-theme-light .studio-heat-stopcock-mini-readout-warning .studio-heat-stopcock-mini-readout-row:nth-child(2) strong {
+  color: #b45309;
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-readout-warning .studio-heat-stopcock-mini-gauge-needle {
+  stroke: #b45309;
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-readout-danger {
+  border-color: rgba(180, 35, 24, 0.5);
+  box-shadow: 0 14px 30px rgba(127, 29, 29, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.76);
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-readout-danger .studio-heat-stopcock-mini-statusbar em,
+.studio-theme-light .studio-heat-stopcock-mini-readout-danger .studio-heat-stopcock-mini-gauge-label em,
+.studio-theme-light .studio-heat-stopcock-mini-readout-danger .studio-heat-stopcock-mini-readout-row:nth-child(2) strong {
+  color: #b42318;
+}
+
+.studio-theme-light .studio-heat-stopcock-mini-readout-danger .studio-heat-stopcock-mini-gauge-needle {
+  stroke: #b42318;
 }
 
 .studio-heat-instrument-scene canvas {
