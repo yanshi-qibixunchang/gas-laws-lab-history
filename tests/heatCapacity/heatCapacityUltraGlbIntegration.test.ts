@@ -224,8 +224,8 @@ assert.doesNotMatch(
 );
 assert.match(
   ultraModelSource,
-  /HSL_PowerSwitch_SkirtedRockerShell[\s\S]*roughness=\{0\.18\}[\s\S]*clearcoat=\{0\.6\}[\s\S]*clearcoatRoughness=\{0\.08\}[\s\S]*specularIntensity=\{0\.82\}/,
-  'Ultra power switch shell should use a glossier plastic material for a more realistic rocker texture',
+  /HSL_PowerSwitch_SkirtedRockerShell[\s\S]*roughness=\{hovered \? 0\.12 : 0\.18\}[\s\S]*emissiveIntensity=\{hovered \? 0\.42 : powerOn \? 0\.08 : 0\.035\}[\s\S]*clearcoat=\{0\.6\}[\s\S]*clearcoatRoughness=\{0\.08\}[\s\S]*specularIntensity=\{0\.82\}/,
+  'Ultra power switch shell should keep its glossier plastic texture and brighten the physical rocker on hover',
 );
 assert.match(
   ultraModelSource,
@@ -254,13 +254,23 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = \{[\s\S]*position: \[0\.58,\s*3\.05,\s*6\.25\][\s\S]*target: \[0\.02,\s*0\.52,\s*0\.02\]/,
-  'Ultra default view should be closer, more frontal, and slightly lower in the viewport',
+  /const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = \{[\s\S]*position: \[0\.58,\s*3\.05,\s*6\.25\][\s\S]*target: \[0\.02,\s*0\.52,\s*0\.02\][\s\S]*fov: 36[\s\S]*responsiveFov:[\s\S]*aspect: 1\.35[\s\S]*narrowAspect: 0\.95[\s\S]*fov: 52/,
+  'Ultra default view should keep its approved close framing while widening FOV only for narrow resized canvases',
 );
 assert.match(
   sceneSource,
-  /camera: \{ position: cameraViewScheme\.defaultView\.position, fov: props\.performanceMode === 'ultra' \? 36 : 38 \}/,
-  'Ultra mode should use a narrower default FOV for the closer reference view',
+  /camera: \{ position: cameraViewScheme\.defaultView\.position, fov: cameraViewScheme\.fov \}/,
+  'Canvas should use the active scheme initial FOV before CameraRig applies aspect-responsive updates',
+);
+assert.match(
+  sceneSource,
+  /const getCameraFovForAspect = \(cameraViewScheme: CameraViewScheme, aspect: number\)[\s\S]*responsiveFov[\s\S]*THREE\.MathUtils\.lerp\(cameraViewScheme\.fov, responsiveFov\.fov, t\)/,
+  'CameraRig should derive Ultra FOV from canvas aspect instead of a fixed screen-size assumption',
+);
+assert.match(
+  sceneSource,
+  /camera\.fov = nextFov;[\s\S]*camera\.updateProjectionMatrix\(\);[\s\S]*invalidate\(\);/,
+  'CameraRig should update the projection matrix when sidebar resizing changes the canvas aspect',
 );
 assert.match(
   ultraModelSource,
@@ -321,41 +331,117 @@ assert.match(
   /<HeatCapacityUltraInstrumentModel[\s\S]*interactionLocked=\{props\.interactionLocked\}[\s\S]*onLockedInteraction=\{props\.onLockedInteraction\}[\s\S]*onPowerToggle=\{props\.onPowerToggle\}[\s\S]*onStopcockOpenChange=\{props\.onStopcockOpenChange\}[\s\S]*onPressureZeroFineAdjust=\{props\.onPressureZeroFineAdjust\}[\s\S]*onPressureZeroCoarseAdjust=\{props\.onPressureZeroCoarseAdjust\}[\s\S]*onPumpValveToggle=\{props\.onPumpValveToggle\}[\s\S]*onPumpBulbPress=\{props\.onPumpBulbPress\}/,
   'Heat Capacity scene should pass the shared procedural control callbacks into the Ultra GLB hitbox layer',
 );
+assert.match(
+  sceneSource,
+  /<HeatCapacityUltraInstrumentModel[\s\S]*demoFocusControlId=\{props\.demoFocusControlId\}[\s\S]*demoFocusPulseActive=\{props\.demoFocusPulseActive\}[\s\S]*interactionQualityReduced=\{interactionQualityReduced\}[\s\S]*visualEffects=\{\{[\s\S]*demoHaloColor: scenePalette\.effects\.demoHalo[\s\S]*nonBulbHoverHaloOpacity: scenePalette\.effects\.nonBulbHoverHaloOpacity[\s\S]*pumpBulbHoverHaloOpacity: scenePalette\.effects\.pumpBulbHoverHaloOpacity/,
+  'Heat Capacity scene should pass the procedural demo/guide pulse palette into the Ultra GLB visual layer',
+);
+assert.match(
+  sceneSource,
+  /const sceneShouldAnimate =[\s\S]*props\.demoFocusPulseActive[\s\S]*Boolean\(props\.manualRollbackAnimation\)/,
+  'Ultra GLB guide/demo focus halos should keep the demand-rendered canvas invalidating while they pulse',
+);
+
+assert.match(
+  ultraModelSource,
+  /type UltraFocusControl = UltraPointerControl \| 'instrumentPressureDisplay' \| 'instrumentTemperatureDisplay' \| 'instrumentPanel';/,
+  'Ultra GLB should accept the same direct and instrument-panel focus ids used by the procedural skeleton',
+);
+assert.match(
+  ultraModelSource,
+  /type UltraVisualTargetId = UltraFocusControl;/,
+  'Ultra visual targets should use the same focus id space instead of a separate screen-coordinate contract',
+);
+assert.match(
+  ultraModelSource,
+  /const ULTRA_CONTROL_VISUAL_TARGETS[\s\S]*id: 'powerSwitch'[\s\S]*anchorNodeName: 'FD_NCD_C_PowerSwitch_Base'[\s\S]*id: 'pressureZero'[\s\S]*anchorNodeName: 'FD_NCD_C_ZeroAdjustKnob'[\s\S]*id: 'stopcock'[\s\S]*anchorNodeName: 'Stopcock_Pivot'[\s\S]*id: 'pumpValve'[\s\S]*anchorNodeName: 'InletValue_Pivot'[\s\S]*id: 'pumpBulb'[\s\S]*anchorNodeName: 'Pump_Bulb'[\s\S]*id: 'instrumentPressureDisplay'[\s\S]*anchorNodeName: 'HSL_MainDisplay_DynamicPlaneAnchor'/,
+  'Ultra GLB hover and guide/demo halos should be anchored to GLB nodes, including the pressure display surface',
+);
+assert.match(
+  ultraModelSource,
+  /focusControlIds: \['pressureZero', 'instrumentPressureDisplay'\]/,
+  'Ultra pressure-zero focus should highlight both the GLB zero knob and pressure display like the procedural zeroing walkthrough',
+);
+assert.match(
+  ultraModelSource,
+  /function UltraNodeHalo[\s\S]*parentRef[\s\S]*updateMatrixWorld\(true\)[\s\S]*copy\(anchor\.matrixWorld\)[\s\S]*matrixAutoUpdate=\{false\}/,
+  'Ultra visual halos should copy live GLB node matrices just like hitboxes so resize, sidebar, camera, and model transforms stay aligned',
+);
+assert.match(
+  ultraModelSource,
+  /type UltraControlVisualTarget[\s\S]*hoverScale\?: number;[\s\S]*hoverWireframe\?: boolean;/,
+  'Ultra GLB visual target definitions should be able to shrink hover hints and render them as outlines instead of large filled masks',
+);
+assert.match(
+  ultraModelSource,
+  /id: 'powerSwitch'[\s\S]*shape: 'torus'[\s\S]*args: \[0\.11,\s*0\.006[\s\S]*hoverWireframe: true/,
+  'Ultra power-switch hover hint should be a small point/ring instead of a filled rectangle covering the rocker',
+);
+assert.match(
+  ultraModelSource,
+  /mesh\.scale\.setScalar\(focusMode \? 1 : target\.hoverScale \?\? 1\)/,
+  'Ultra hover hints should use per-target shrink factors while guide/demo focus halos keep their original scale',
+);
+assert.match(
+  ultraModelSource,
+  /wireframe=\{mode === 'hover' && target\.hoverWireframe === true\}/,
+  'Ultra hover hint materials should support outline rendering so the blue cue does not mask the GLB control surface',
+);
+assert.match(
+  ultraModelSource,
+  /type UltraMaterialHighlightControl = UltraPointerControl;[\s\S]*const ULTRA_CONTROL_MATERIAL_HIGHLIGHTS[\s\S]*control: 'pressureZero'[\s\S]*FD_NCD_C_ZeroAdjustKnob[\s\S]*control: 'stopcock'[\s\S]*Stopcock_RotatingRoundKnob[\s\S]*control: 'pumpValve'[\s\S]*InletValue_Pivot[\s\S]*control: 'pumpBulb'[\s\S]*Pump_Bulb/,
+  'Ultra GLB should define entity-material hover highlights for each GLB interactive control instead of relying only on overlay halos',
+);
+assert.match(
+  ultraModelSource,
+  /function applyUltraControlMaterialHighlights[\s\S]*snapshotMap[\s\S]*materialLike\.color\.copy\(snapshot\.color\)\.lerp\(highlightColor[\s\S]*restoreUltraMaterialSnapshot/,
+  'Ultra material highlights should brighten real GLB materials from stored snapshots and restore them when hover/focus leaves',
+);
+assert.match(
+  ultraModelSource,
+  /const activeUltraMaterialControls = useMemo\(\(\) => \{[\s\S]*props\.hoveredControl[\s\S]*props\.demoFocusPulseActive[\s\S]*isUltraPointerControl\(props\.demoFocusControlId\)/,
+  'Ultra GLB material brightening should respond to both mouse hover and guide/demo focused controls',
+);
+assert.doesNotMatch(
+  ultraModelSource.match(/const ULTRA_CONTROL_VISUAL_TARGETS[\s\S]*?\] as const;/)?.[0] ?? '',
+  /window\.innerWidth|window\.innerHeight|clientWidth|clientHeight|getBoundingClientRect|canvas\.width|canvas\.height/,
+  'Ultra visual halo target definitions should not depend on one screen size or DOM pixel coordinate system',
+);
 
 assert.doesNotMatch(
   sceneSource,
   /ULTRA_FOCUS_VIEWS/,
-  'Ultra mode should not keep dedicated focus camera views while focus integration is deferred',
+  'Ultra mode should not add dedicated focus camera views as part of GLB hover and teaching highlights',
 );
 assert.doesNotMatch(
   sceneSource,
   /focusViews=\{props\.performanceMode === 'ultra'\s*\?\s*ULTRA_FOCUS_VIEWS\s*:\s*PROCEDURAL_FOCUS_VIEWS\}/,
-  'Camera rig should not switch to Ultra-specific focus views while focus integration is deferred',
+  'Camera rig should not switch to Ultra-specific focus views for GLB hover and teaching highlights',
 );
 assert.match(
   sceneSource,
   /const orbitControlsEnabled = props\.performanceMode === 'ultra'\s*\?\s*true\s*:\s*focusMode === 'none' && !props\.interactionLocked;/,
-  'Ultra mode should keep orbit controls available while demo, guide, and focus integration are deferred',
+  'Ultra mode should keep orbit controls available while node-anchored GLB hitboxes and highlights handle controls',
 );
 assert.match(
   workbenchSource,
-  /const heatCapacityUltraModelIntegrationReady = false;/,
-  'Workbench should keep an explicit gate for temporarily disabling Demo and Guide while Ultra GLB model integration is incomplete',
+  /const heatCapacityUltraModelIntegrationReady = true;/,
+  'Workbench should mark Ultra GLB model integration ready once GLB hover, guide, and demo highlights are node-anchored',
 );
 assert.match(
   workbenchSource,
   /const heatCapacityTeachingModesAvailable = settingsPerformanceMode !== 'ultra' \|\| heatCapacityUltraModelIntegrationReady;/,
-  'Workbench should keep Demo and Guide available for procedural skeleton modes while Ultra GLB integration is incomplete',
+  'Workbench should keep a single availability helper for both procedural and Ultra model teaching modes',
 );
 assert.match(
   workbenchSource,
   /heatCapacityTeachingModesAvailable \? runHeatCapacityAutoDemo\(\) : enterHeatCapacityFreeMode\(\)/,
-  'Demo mode should run for procedural skeleton modes and route back to Free mode for deferred Ultra GLB mode',
+  'Demo mode should run once the active Heat Capacity model supports teaching highlights',
 );
 assert.match(
   workbenchSource,
   /heatCapacityTeachingModesAvailable \? startHeatCapacityManualExperiment\(\) : enterHeatCapacityFreeMode\(\)/,
-  'Guide mode should run for procedural skeleton modes and route back to Free mode for deferred Ultra GLB mode',
+  'Guide mode should run once the active Heat Capacity model supports teaching highlights',
 );
 assert.match(
   workbenchSource,

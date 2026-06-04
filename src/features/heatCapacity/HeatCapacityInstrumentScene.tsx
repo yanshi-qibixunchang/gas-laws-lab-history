@@ -598,6 +598,12 @@ type CameraFocusView = {
 type CameraFocusViews = Record<Exclude<HeatCapacityFocusMode, 'none'>, CameraFocusView>;
 type CameraViewScheme = {
   defaultView: CameraFocusView;
+  fov: number;
+  responsiveFov?: {
+    aspect: number;
+    narrowAspect: number;
+    fov: number;
+  };
   autoDemoView?: CameraFocusView;
   focusViews?: CameraFocusViews;
 };
@@ -606,6 +612,7 @@ const PROCEDURAL_CAMERA_VIEW_SCHEME: CameraViewScheme = {
     position: [4.15, 2.9, 8.25],
     target: [0.25, -0.05, 0],
   },
+  fov: 38,
   autoDemoView: {
     position: [3.82, 2.68, 7.58],
     target: [0.24, -0.05, 0.02],
@@ -630,10 +637,24 @@ const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = {
     position: [0.58, 3.05, 6.25],
     target: [0.02, 0.52, 0.02],
   },
+  fov: 36,
+  responsiveFov: {
+    aspect: 1.35,
+    narrowAspect: 0.95,
+    fov: 52,
+  },
 };
 const getCameraViewScheme = (performanceMode: HeatCapacityInstrumentSceneProps['performanceMode']) => (
   performanceMode === 'ultra' ? ULTRA_CAMERA_VIEW_SCHEME : PROCEDURAL_CAMERA_VIEW_SCHEME
 );
+const getCameraFovForAspect = (cameraViewScheme: CameraViewScheme, aspect: number) => {
+  const responsiveFov = cameraViewScheme.responsiveFov;
+  if (!responsiveFov || aspect >= responsiveFov.aspect) return cameraViewScheme.fov;
+  const range = Math.max(0.001, responsiveFov.aspect - responsiveFov.narrowAspect);
+  const clampedAspect = Math.max(responsiveFov.narrowAspect, aspect);
+  const t = Math.min(1, Math.max(0, (responsiveFov.aspect - clampedAspect) / range));
+  return THREE.MathUtils.lerp(cameraViewScheme.fov, responsiveFov.fov, t);
+};
 const ORBIT_MIN_DISTANCE = 2.7;
 const ORBIT_MAX_DISTANCE = 11.5;
 
@@ -2225,7 +2246,17 @@ function CameraRig({
   autoDemoActive: boolean;
   cameraViewScheme: CameraViewScheme;
 }) {
-  const { camera, invalidate } = useThree();
+  const { camera, invalidate, size } = useThree();
+
+  useEffect(() => {
+    if (!(camera instanceof THREE.PerspectiveCamera)) return;
+    const aspect = size.height > 0 ? size.width / size.height : 1;
+    const nextFov = getCameraFovForAspect(cameraViewScheme, aspect);
+    if (Math.abs(camera.fov - nextFov) < 0.01) return;
+    camera.fov = nextFov;
+    camera.updateProjectionMatrix();
+    invalidate();
+  }, [camera, cameraViewScheme, invalidate, size.height, size.width]);
 
   useEffect(() => {
     const startPosition = camera.position.clone();
@@ -2460,14 +2491,15 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const hardSphereTooltipId = 'heat-capacity-hard-sphere-tooltip';
   const sceneShouldAnimate = props.hardSphereViewEnabled ||
     props.pumpBulbState !== 'idle' ||
-    (props.performanceMode !== 'ultra' && (props.demoFocusPulseActive || Boolean(props.manualRollbackAnimation)));
+    props.demoFocusPulseActive ||
+    Boolean(props.manualRollbackAnimation);
   const interactionQualityReduced = isOrbitInteracting || props.performanceMode === 'performance';
   const orbitControlsEnabled = props.performanceMode === 'ultra'
     ? true
     : focusMode === 'none' && !props.interactionLocked;
   const cameraViewScheme = useMemo(() => getCameraViewScheme(props.performanceMode), [props.performanceMode]);
   const canvasProps = useMemo(() => ({
-    camera: { position: cameraViewScheme.defaultView.position, fov: props.performanceMode === 'ultra' ? 36 : 38 },
+    camera: { position: cameraViewScheme.defaultView.position, fov: cameraViewScheme.fov },
     dpr: props.performanceMode === 'standard'
       ? 2.5
       : props.performanceMode === 'balanced'
@@ -2522,6 +2554,22 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           hardSphereParticleMultiplier={props.hardSphereParticleMultiplier}
           hardSphereSpeedMultiplier={props.hardSphereSpeedMultiplier}
           interactionLocked={props.interactionLocked}
+          demoFocusControlId={props.demoFocusControlId}
+          demoFocusPulseActive={props.demoFocusPulseActive}
+          interactionQualityReduced={interactionQualityReduced}
+          visualEffects={{
+            hoverHaloColor: scenePalette.instrument.hoverHalo,
+            glassHoverHaloColor: scenePalette.glass.hoverHalo,
+            pumpBulbHoverHaloColor: scenePalette.pump.bulbHaloHover,
+            demoHaloColor: scenePalette.effects.demoHalo,
+            demoHaloMinOpacity: scenePalette.effects.demoHaloMinOpacity,
+            demoHaloMaxOpacity: scenePalette.effects.demoHaloMaxOpacity,
+            demoHaloBaseScale: scenePalette.effects.demoHaloBaseScale,
+            demoHaloPulseScale: scenePalette.effects.demoHaloPulseScale,
+            nonBulbHoverHaloOpacity: scenePalette.effects.nonBulbHoverHaloOpacity,
+            glassHoverHaloOpacity: scenePalette.effects.glassHoverHaloOpacity,
+            pumpBulbHoverHaloOpacity: scenePalette.effects.pumpBulbHoverHaloOpacity,
+          }}
           hoveredControl={hoveredControl}
           setHoveredControl={setStableHoveredControl}
           onValveFocusAnchor={openValveFocusBubble}
