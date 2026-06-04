@@ -627,8 +627,8 @@ const PROCEDURAL_CAMERA_VIEW_SCHEME: CameraViewScheme = {
 };
 const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = {
   defaultView: {
-    position: [0.88, 3.51, 7.43],
-    target: [0.00, 0.32, 0.00],
+    position: [0.58, 3.05, 6.25],
+    target: [0.02, 0.52, 0.02],
   },
 };
 const getCameraViewScheme = (performanceMode: HeatCapacityInstrumentSceneProps['performanceMode']) => (
@@ -2467,7 +2467,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     : focusMode === 'none' && !props.interactionLocked;
   const cameraViewScheme = useMemo(() => getCameraViewScheme(props.performanceMode), [props.performanceMode]);
   const canvasProps = useMemo(() => ({
-    camera: { position: cameraViewScheme.defaultView.position, fov: 38 },
+    camera: { position: cameraViewScheme.defaultView.position, fov: props.performanceMode === 'ultra' ? 36 : 38 },
     dpr: props.performanceMode === 'standard'
       ? 2.5
       : props.performanceMode === 'balanced'
@@ -2521,6 +2521,17 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           hardSphereViewEnabled={props.hardSphereViewEnabled}
           hardSphereParticleMultiplier={props.hardSphereParticleMultiplier}
           hardSphereSpeedMultiplier={props.hardSphereSpeedMultiplier}
+          interactionLocked={props.interactionLocked}
+          hoveredControl={hoveredControl}
+          setHoveredControl={setStableHoveredControl}
+          onValveFocusAnchor={openValveFocusBubble}
+          onLockedInteraction={props.onLockedInteraction}
+          onPowerToggle={props.onPowerToggle}
+          onStopcockOpenChange={props.onStopcockOpenChange}
+          onPressureZeroFineAdjust={props.onPressureZeroFineAdjust}
+          onPressureZeroCoarseAdjust={props.onPressureZeroCoarseAdjust}
+          onPumpValveToggle={props.onPumpValveToggle}
+          onPumpBulbPress={props.onPumpBulbPress}
         />
       </Suspense>
     </HeatCapacityUltraModelErrorBoundary>

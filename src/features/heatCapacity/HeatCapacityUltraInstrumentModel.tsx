@@ -1,9 +1,17 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
-import { getHeatCapacityStopcockState } from '../workbench/workbenchState';
+import {
+  HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG,
+  HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG,
+  getHeatCapacityStopcockState,
+} from '../workbench/workbenchState';
 import HeatCapacityHardSphereLayer from './HeatCapacityHardSphereLayer';
+
+type UltraPointerControl = 'powerSwitch' | 'pressureZero' | 'stopcock' | 'pumpValve' | 'pumpBulb';
+type UltraHoveredControl = UltraPointerControl | null;
+type UltraValveFocusControl = 'stopcock' | 'pumpValve';
 
 type HeatCapacityUltraInstrumentModelProps = {
   powerOn: boolean;
@@ -31,6 +39,17 @@ type HeatCapacityUltraInstrumentModelProps = {
   hardSphereViewEnabled: boolean;
   hardSphereParticleMultiplier: number;
   hardSphereSpeedMultiplier: number;
+  interactionLocked: boolean;
+  hoveredControl: UltraHoveredControl;
+  setHoveredControl: (control: UltraHoveredControl) => void;
+  onValveFocusAnchor: (control: UltraValveFocusControl, clientX: number, clientY: number) => void;
+  onLockedInteraction: (message?: string) => void;
+  onPowerToggle: (nextPowerOn: boolean) => void;
+  onStopcockOpenChange: (nextOpen: boolean) => void;
+  onPressureZeroFineAdjust: (direction: number) => void;
+  onPressureZeroCoarseAdjust: (angleDeltaDeg: number) => void;
+  onPumpValveToggle: () => void;
+  onPumpBulbPress: () => void;
 };
 
 const ULTRA_GLB_PATH = '/models/heat-capacity/fd-ncd-c-ultra.glb';
@@ -42,24 +61,117 @@ const REQUIRED_ULTRA_NODE_NAMES = [
   'Stopcock_Pivot',
   'InletValue_Pivot',
   'Pump_Bulb',
+  'clean_lab_bench',
+  'HSL_LabBench_Backstop_LowLip',
+  'FD_NCD_C_InstrumentBody',
+  'FD_NCD_C_FrontPanel',
   'HSL_MainDisplay_DynamicPlaneAnchor',
+  'HSL_MainDisplay_PixelDigits_PowerOnPreview',
+  'HSL_MainDisplay_RecessWell',
+  'HSL_MainDisplay_PixelScreenZone',
+  'HSL_PowerSwitch_Inset_Frame_Lip',
+  'HSL_PowerSwitch_Mark_I_Inlay',
+  'HSL_PowerSwitch_Mark_O_Inlay',
   'HSL_PressureGauge_NeedlePivot',
   'HSL_Stopcock_OpenPath_Glow',
   'HSL_Stopcock_ClosedBlocker_Mark',
+] as const;
+const ULTRA_DISPLAY_TEXTURE_SURFACE_NODE_NAMES = [
+  'HSL_MainDisplay_DynamicPlaneAnchor',
+  'HSL_MainDisplay_PixelDigits_PowerOnPreview',
+] as const;
+const ULTRA_POWERED_DISPLAY_ART_NODE_NAMES = [
+  'HSL_MainDisplay_PixelDigits_PowerOnPreview',
 ] as const;
 
 const PRESSURE_GAUGE_MIN_ROTATION = -2.15;
 const PRESSURE_GAUGE_MAX_ROTATION = 2.15;
 const modelPressureGaugeAngleToVisualAngle = (modelAngle: number) => Math.PI / 2 - modelAngle;
-const STOPCOCK_VISUAL_SMOOTHING_RATE = 10;
-const PUMP_VALVE_VISUAL_SMOOTHING_RATE = 10;
-const PRESSURE_ZERO_VISUAL_SMOOTHING_RATE = 14;
-const POWER_SWITCH_VISUAL_SMOOTHING_RATE = 16;
-const POWER_SWITCH_OFF_ROTATION_RAD = 0.18;
-const POWER_SWITCH_ON_ROTATION_RAD = -0.18;
-const ULTRA_CONTROL_MOTION_INVALIDATION_MS = 560;
+const STOPCOCK_VISUAL_SMOOTHING_RATE = 8;
+const PUMP_VALVE_VISUAL_SMOOTHING_RATE = 5.6;
+const PRESSURE_ZERO_VISUAL_SMOOTHING_RATE = 10;
+const POWER_SWITCH_VISUAL_SMOOTHING_RATE = 9;
+const POWER_SWITCH_OFF_ROTATION_RAD = 0.24;
+const POWER_SWITCH_ON_ROTATION_RAD = -0.24;
+const POWER_SWITCH_HITBOX_SIZE: [number, number, number] = [0.36, 0.52, 0.26];
+const POWER_SWITCH_VISUAL_SCALE = new THREE.Vector3(1.28, 1.28, 1.08);
+const POWER_SWITCH_BASE_VISUAL_SCALE = new THREE.Vector3(1.22, 1.24, 1.03);
+const POWER_SWITCH_FRAME_VISUAL_SCALE = new THREE.Vector3(1.24, 1.26, 1.03);
+const POWER_SWITCH_PIVOT_OFFSET = new THREE.Vector3(0, 0, 0.0042);
+const POWER_SWITCH_ROCKER_WIDTH = 0.078;
+const POWER_SWITCH_ROCKER_HEIGHT = 0.134;
+const POWER_SWITCH_ROCKER_FACE_Z = 0.013;
+const POWER_SWITCH_ROCKER_FACE_CROWN_Z = 0.0075;
+const POWER_SWITCH_ROCKER_CORNER_RADIUS = 0.016;
+const POWER_SWITCH_ROCKER_BACK_Z = -0.042;
+const POWER_SWITCH_ROCKER_SKIRT_DEPTH = 0.006;
+const POWER_SWITCH_ROCKER_FACE_SEGMENTS = 8;
+const POWER_SWITCH_ROCKER_SEGMENTS = 14;
+const POWER_SWITCH_MARK_Z_OFFSET = 0.0016;
+const ULTRA_CONTROL_MOTION_INVALIDATION_MS = 940;
+const PRESSURE_ZERO_DRAG_DIRECTION = -1;
+const ULTRA_HITBOX_UNIT_SCALE = new THREE.Vector3(1, 1, 1);
+const ULTRA_CONTROL_HITBOXES: Array<{
+  control: UltraPointerControl;
+  anchorNodeName: string;
+  size: [number, number, number];
+  offset?: [number, number, number];
+}> = [
+  { control: 'powerSwitch', anchorNodeName: 'FD_NCD_C_PowerSwitch_Base', size: POWER_SWITCH_HITBOX_SIZE, offset: [0.018, -0.006, 0.16] },
+  { control: 'pressureZero', anchorNodeName: 'FD_NCD_C_ZeroAdjustKnob', size: [0.42, 0.42, 0.34], offset: [0, 0, 0.07] },
+  { control: 'stopcock', anchorNodeName: 'Stopcock_Pivot', size: [0.86, 0.48, 0.90], offset: [0.13, 0.02, 0.02] },
+  { control: 'pumpValve', anchorNodeName: 'InletValue_Pivot', size: [0.62, 0.48, 0.34], offset: [0, 0.12, 0.02] },
+  { control: 'pumpBulb', anchorNodeName: 'Pump_Bulb', size: [1.14, 0.92, 0.82] },
+];
+
+type UltraThemeVisuals = {
+  benchSurface: string;
+  benchBackstop: string;
+  instrumentBody: string;
+  frontPanel: string;
+  displayScreen: string;
+  displayText: string;
+  powerSwitchBase: string;
+  powerSwitchOff: string;
+  powerSwitchOn: string;
+  powerSwitchFrame: string;
+  powerSwitchInlay: string;
+};
+
+const ULTRA_THEME_VISUALS: Record<HeatCapacityUltraInstrumentModelProps['sceneTheme'], UltraThemeVisuals> = {
+  light: {
+    benchSurface: '#5f6f79',
+    benchBackstop: '#4d5d66',
+    instrumentBody: '#e0e5e7',
+    frontPanel: '#c2ccd0',
+    displayScreen: '#071011',
+    displayText: '#31f6c8',
+    powerSwitchBase: '#2d3338',
+    powerSwitchOff: '#d9534f',
+    powerSwitchOn: '#2ec978',
+    powerSwitchFrame: '#f1f5f9',
+    powerSwitchInlay: '#f8fafc',
+  },
+  dark: {
+    benchSurface: '#8fa1aa',
+    benchBackstop: '#7f929b',
+    instrumentBody: '#d5dcdf',
+    frontPanel: '#b8c3c8',
+    displayScreen: '#061010',
+    displayText: '#5ffff0',
+    powerSwitchBase: '#40484e',
+    powerSwitchOff: '#e15d59',
+    powerSwitchOn: '#35d987',
+    powerSwitchFrame: '#ffffff',
+    powerSwitchInlay: '#ffffff',
+  },
+};
 
 const clampSceneNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const clampPressureZeroSceneKnobAngle = (angleDeg: number) => Math.min(
+  HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG,
+  Math.max(HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG, angleDeg),
+);
 
 const mapPressureGaugeValueToRotation = (
   pressureKPa: number,
@@ -84,9 +196,43 @@ const getPressureGaugeNeedleRotation = (
   return mapPressureGaugeValueToRotation(pressureGaugeDisplayValue, gaugePressureMinKPa, gaugePressureMaxKPa);
 };
 
-const formatSignal = (value: number | null) => (
-  typeof value === 'number' && Number.isFinite(value) ? `${value.toFixed(2)} mV` : '--.-- mV'
+type UltraAlignedSignalParts = {
+  left: string;
+  right: string;
+};
+
+const formatAlignedSignalParts = (value: number | null): UltraAlignedSignalParts => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return { left: ' ----', right: '.-- mV' };
+  }
+  const boundedValue = clampSceneNumber(value, -9999.99, 9999.99);
+  const sign = boundedValue < 0 ? '-' : '+';
+  const [integerPart, fractionalPart = '00'] = Math.abs(boundedValue).toFixed(2).split('.');
+  return {
+    left: `${sign}${integerPart.padStart(4, ' ')}`,
+    right: `.${fractionalPart} mV`,
+  };
+};
+
+const drawUltraAlignedSignal = (
+  context: CanvasRenderingContext2D,
+  parts: UltraAlignedSignalParts | null,
+  canvasWidth: number,
+  y: number,
+) => {
+  if (!parts) return;
+  const leftWidth = context.measureText('+9999').width;
+  const rightWidth = context.measureText('.99 mV').width;
+  const decimalX = Math.round((canvasWidth - leftWidth - rightWidth) / 2 + leftWidth);
+  context.textAlign = 'right';
+  context.fillText(parts.left, decimalX, y);
+  context.textAlign = 'left';
+  context.fillText(parts.right, decimalX, y);
+};
+const dampUltraControlAngle = (current: number, target: number, smoothingRate: number, delta: number) => (
+  THREE.MathUtils.damp(current, target, smoothingRate, delta)
 );
+const getUltraStopcockVisualAngleRad = (angleDeg: number) => -THREE.MathUtils.degToRad(angleDeg);
 
 const cloneModelScene = (sourceScene: THREE.Object3D) => {
   const clonedScene = sourceScene.clone(true);
@@ -144,14 +290,635 @@ const applyLocalAxisRotation = (
   node.quaternion.copy(base.quaternion).multiply(new THREE.Quaternion().setFromAxisAngle(axis, angleRad));
 };
 
+const applyLocalAxisRotationAroundPivot = (
+  nodeMap: Map<string, THREE.Object3D>,
+  baseTransforms: Map<string, {
+    position: THREE.Vector3;
+    quaternion: THREE.Quaternion;
+  }>,
+  nodeName: string,
+  axis: THREE.Vector3,
+  pivotOffset: THREE.Vector3,
+  angleRad: number,
+) => {
+  const node = nodeMap.get(nodeName);
+  const base = baseTransforms.get(nodeName);
+  if (!node || !base) return;
+  const rotation = new THREE.Quaternion().setFromAxisAngle(axis, angleRad);
+  const scaledPivotOffset = pivotOffset.clone().multiply(node.scale);
+  const rotatedPivotOffset = scaledPivotOffset.clone().applyQuaternion(rotation);
+  const positionCorrection = scaledPivotOffset.sub(rotatedPivotOffset).applyQuaternion(base.quaternion);
+  node.position.copy(base.position).add(positionCorrection);
+  node.quaternion.copy(base.quaternion).multiply(rotation);
+};
+
+type UltraColorMaterial = THREE.Material & {
+  color?: THREE.Color;
+  emissive?: THREE.Color;
+  emissiveIntensity?: number;
+  opacity?: number;
+  transparent?: boolean;
+  depthWrite?: boolean;
+  roughness?: number;
+  metalness?: number;
+  transmission?: number;
+  thickness?: number;
+  clearcoat?: number;
+  clearcoatRoughness?: number;
+  specularIntensity?: number;
+  toneMapped?: boolean;
+  map?: THREE.Texture | null;
+  aoMap?: THREE.Texture | null;
+};
+
+const getUltraMeshMaterials = (mesh: THREE.Mesh) => {
+  if (Array.isArray(mesh.material)) return mesh.material;
+  return mesh.material ? [mesh.material] : [];
+};
+
+const setUltraNodeOwnMaterialColor = (
+  nodeMap: Map<string, THREE.Object3D>,
+  nodeName: string,
+  color: string,
+  options?: {
+    emissive?: string;
+    emissiveIntensity?: number;
+    opacity?: number;
+    transparent?: boolean;
+    depthWrite?: boolean;
+    roughness?: number;
+    metalness?: number;
+    transmission?: number;
+    thickness?: number;
+    clearcoat?: number;
+    clearcoatRoughness?: number;
+    specularIntensity?: number;
+    toneMapped?: boolean;
+    clearTexture?: boolean;
+  },
+) => {
+  const node = nodeMap.get(nodeName) as THREE.Mesh | undefined;
+  if (!node?.isMesh) return;
+  getUltraMeshMaterials(node).forEach((material) => {
+    const themedMaterial = material as UltraColorMaterial;
+    themedMaterial.color?.set(color);
+    if (options?.emissive && themedMaterial.emissive) themedMaterial.emissive.set(options.emissive);
+    if (typeof options?.emissiveIntensity === 'number' && 'emissiveIntensity' in themedMaterial) {
+      themedMaterial.emissiveIntensity = options.emissiveIntensity;
+    }
+    if (typeof options?.opacity === 'number' && 'opacity' in themedMaterial) {
+      themedMaterial.opacity = options.opacity;
+    }
+    if (typeof options?.transparent === 'boolean' && 'transparent' in themedMaterial) {
+      themedMaterial.transparent = options.transparent;
+    }
+    if (typeof options?.depthWrite === 'boolean' && 'depthWrite' in themedMaterial) {
+      themedMaterial.depthWrite = options.depthWrite;
+    }
+    if (typeof options?.roughness === 'number' && 'roughness' in themedMaterial) {
+      themedMaterial.roughness = options.roughness;
+    }
+    if (typeof options?.metalness === 'number' && 'metalness' in themedMaterial) {
+      themedMaterial.metalness = options.metalness;
+    }
+    if (typeof options?.transmission === 'number' && 'transmission' in themedMaterial) {
+      themedMaterial.transmission = options.transmission;
+    }
+    if (typeof options?.thickness === 'number' && 'thickness' in themedMaterial) {
+      themedMaterial.thickness = options.thickness;
+    }
+    if (typeof options?.clearcoat === 'number' && 'clearcoat' in themedMaterial) {
+      themedMaterial.clearcoat = options.clearcoat;
+    }
+    if (typeof options?.clearcoatRoughness === 'number' && 'clearcoatRoughness' in themedMaterial) {
+      themedMaterial.clearcoatRoughness = options.clearcoatRoughness;
+    }
+    if (typeof options?.specularIntensity === 'number' && 'specularIntensity' in themedMaterial) {
+      themedMaterial.specularIntensity = options.specularIntensity;
+    }
+    if (typeof options?.toneMapped === 'boolean' && 'toneMapped' in themedMaterial) {
+      themedMaterial.toneMapped = options.toneMapped;
+    }
+    if (options?.clearTexture) {
+      if ('map' in themedMaterial) themedMaterial.map = null;
+      if ('aoMap' in themedMaterial) themedMaterial.aoMap = null;
+    }
+    material.needsUpdate = true;
+  });
+};
+
+const setUltraInstrumentMaterialColorByName = (
+  nodeMap: Map<string, THREE.Object3D>,
+  materialNamePattern: RegExp,
+  color: string,
+  options?: Parameters<typeof setUltraNodeOwnMaterialColor>[3],
+) => {
+  const instrumentRoot = nodeMap.get('FD_NCD_C_InstrumentBody');
+  instrumentRoot?.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    getUltraMeshMaterials(mesh).forEach((material) => {
+      if (!materialNamePattern.test(material.name ?? '')) return;
+      const materialLike = material as UltraColorMaterial;
+      materialLike.color?.set(color);
+      if (options?.emissive && materialLike.emissive) materialLike.emissive.set(options.emissive);
+      if (typeof options?.emissiveIntensity === 'number' && 'emissiveIntensity' in materialLike) {
+        materialLike.emissiveIntensity = options.emissiveIntensity;
+      }
+      if (typeof options?.roughness === 'number' && 'roughness' in materialLike) {
+        materialLike.roughness = options.roughness;
+      }
+      if (typeof options?.metalness === 'number' && 'metalness' in materialLike) {
+        materialLike.metalness = options.metalness;
+      }
+      if (typeof options?.toneMapped === 'boolean' && 'toneMapped' in materialLike) {
+        materialLike.toneMapped = options.toneMapped;
+      }
+      if (options?.clearTexture) {
+        if ('map' in materialLike) materialLike.map = null;
+        if ('aoMap' in materialLike) materialLike.aoMap = null;
+      }
+      material.needsUpdate = true;
+    });
+  });
+};
+
+const setUltraNodeTreeVisible = (
+  nodeMap: Map<string, THREE.Object3D>,
+  nodeName: string,
+  visible: boolean,
+) => {
+  const node = nodeMap.get(nodeName);
+  node?.traverse((object) => {
+    object.visible = visible;
+  });
+};
+
+const applyPowerSwitchVisualScale = (
+  nodeMap: Map<string, THREE.Object3D>,
+  baseTransforms: Map<string, { scale: THREE.Vector3 }>,
+) => {
+  const powerSwitchBase = nodeMap.get('FD_NCD_C_PowerSwitch_Base');
+  const powerSwitchBaseTransform = baseTransforms.get('FD_NCD_C_PowerSwitch_Base');
+  if (powerSwitchBase && powerSwitchBaseTransform) {
+    powerSwitchBase.scale.set(
+      powerSwitchBaseTransform.scale.x * POWER_SWITCH_BASE_VISUAL_SCALE.x,
+      powerSwitchBaseTransform.scale.y * POWER_SWITCH_BASE_VISUAL_SCALE.y,
+      powerSwitchBaseTransform.scale.z * POWER_SWITCH_BASE_VISUAL_SCALE.z,
+    );
+  }
+  const powerSwitchFrame = nodeMap.get('HSL_PowerSwitch_Inset_Frame_Lip');
+  const powerSwitchFrameTransform = baseTransforms.get('HSL_PowerSwitch_Inset_Frame_Lip');
+  if (powerSwitchFrame && powerSwitchFrameTransform) {
+    powerSwitchFrame.scale.set(
+      powerSwitchFrameTransform.scale.x * POWER_SWITCH_FRAME_VISUAL_SCALE.x,
+      powerSwitchFrameTransform.scale.y * POWER_SWITCH_FRAME_VISUAL_SCALE.y,
+      powerSwitchFrameTransform.scale.z * POWER_SWITCH_FRAME_VISUAL_SCALE.z,
+    );
+  }
+  const powerSwitch = nodeMap.get('FD_NCD_C_PowerSwitch_Button');
+  const powerBase = baseTransforms.get('FD_NCD_C_PowerSwitch_Button');
+  if (!powerSwitch || !powerBase) return;
+  powerSwitch.scale.set(
+    powerBase.scale.x * POWER_SWITCH_VISUAL_SCALE.x,
+    powerBase.scale.y * POWER_SWITCH_VISUAL_SCALE.y,
+    powerBase.scale.z * POWER_SWITCH_VISUAL_SCALE.z,
+  );
+};
+
+const applyUltraThemeVisuals = (
+  nodeMap: Map<string, THREE.Object3D>,
+  baseTransforms: Map<string, { scale: THREE.Vector3 }>,
+  sceneTheme: HeatCapacityUltraInstrumentModelProps['sceneTheme'],
+) => {
+  const visuals = ULTRA_THEME_VISUALS[sceneTheme];
+  setUltraNodeOwnMaterialColor(nodeMap, 'clean_lab_bench', visuals.benchSurface, {
+    roughness: 0.72,
+    metalness: 0.02,
+    clearTexture: true,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'HSL_LabBench_Backstop_LowLip', visuals.benchBackstop, {
+    roughness: 0.74,
+    metalness: 0.02,
+    clearTexture: true,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'FD_NCD_C_InstrumentBody', visuals.instrumentBody, {
+    roughness: 0.54,
+    metalness: 0.03,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'FD_NCD_C_FrontPanel', visuals.frontPanel, {
+    emissive: visuals.frontPanel,
+    emissiveIntensity: 0.09,
+    roughness: 0.5,
+    metalness: 0.02,
+    toneMapped: false,
+    clearTexture: true,
+  });
+  setUltraInstrumentMaterialColorByName(nodeMap, /^mat_dark_sensor_plastic$/i, visuals.frontPanel, {
+    emissive: visuals.frontPanel,
+    emissiveIntensity: 0.09,
+    roughness: 0.5,
+    metalness: 0.02,
+    toneMapped: false,
+    clearTexture: true,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'HSL_MainDisplay_RecessWell', visuals.frontPanel, {
+    emissive: visuals.frontPanel,
+    emissiveIntensity: 0.06,
+    roughness: 0.52,
+    metalness: 0.02,
+    toneMapped: false,
+    clearTexture: true,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'HSL_MainDisplay_NameplateZone', '#101b1d', {
+    emissive: '#071011',
+    emissiveIntensity: 0.05,
+    roughness: 0.72,
+    clearTexture: true,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'HSL_MainDisplay_PixelScreenZone', visuals.displayScreen, {
+    emissive: visuals.displayScreen,
+    emissiveIntensity: sceneTheme === 'dark' ? 0.16 : 0.08,
+    roughness: 0.7,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'FD_NCD_C_PowerSwitch_Base', visuals.powerSwitchBase, {
+    roughness: 0.42,
+    metalness: 0.02,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'HSL_PowerSwitch_Inset_Frame_Lip', visuals.powerSwitchFrame, {
+    roughness: 0.32,
+    metalness: 0.08,
+  });
+  setUltraNodeTreeVisible(nodeMap, 'FD_NCD_C_PowerSwitch_Button', false);
+  setUltraNodeTreeVisible(nodeMap, 'HSL_PowerSwitch_Mark_I_Inlay', false);
+  setUltraNodeTreeVisible(nodeMap, 'HSL_PowerSwitch_Mark_O_Inlay', false);
+  [
+    'Stopcock_GlassBulgedBody',
+    'Stopcock_VerticalGlassTube',
+    'HSL_Stopcock_SidePort',
+    'Stopcock_UpperGlassLip',
+    'Stopcock_LowerGlassLip',
+  ].forEach((nodeName) => {
+    setUltraNodeOwnMaterialColor(nodeMap, nodeName, '#d7f7ff', {
+      opacity: 0.62,
+      transparent: true,
+      depthWrite: false,
+      roughness: 0.035,
+      metalness: 0,
+      transmission: 0.46,
+      clearcoat: 0.58,
+      clearcoatRoughness: 0.035,
+      specularIntensity: 0.88,
+    });
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'Stopcock_RotatingPlugCore', '#c9f5ff', {
+    opacity: 0.70,
+    transparent: true,
+    depthWrite: false,
+    roughness: 0.05,
+    transmission: 0.28,
+    clearcoat: 0.42,
+    clearcoatRoughness: 0.05,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'HSL_Stopcock_FlowChannel', '#5fffe0', {
+    emissive: '#24d7be',
+    emissiveIntensity: 0.32,
+    opacity: 0.96,
+    transparent: true,
+    depthWrite: false,
+    roughness: 0.08,
+    transmission: 0.02,
+  });
+  [
+    'Stopcock_HandleStem',
+    'Stopcock_RotatingRoundKnob',
+    'Stopcock_THandle',
+  ].forEach((nodeName) => {
+    setUltraNodeOwnMaterialColor(nodeMap, nodeName, '#b9f1ff', {
+      opacity: 0.78,
+      transparent: true,
+      depthWrite: false,
+      roughness: 0.055,
+      transmission: 0.18,
+      clearcoat: 0.36,
+      clearcoatRoughness: 0.06,
+    });
+  });
+  applyPowerSwitchVisualScale(nodeMap, baseTransforms);
+};
+
+const applyUltraDisplayTexture = (
+  nodeMap: Map<string, THREE.Object3D>,
+  texture: THREE.CanvasTexture,
+) => {
+  const displayMaterial = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: false,
+    toneMapped: false,
+  });
+  ULTRA_DISPLAY_TEXTURE_SURFACE_NODE_NAMES.forEach((nodeName) => {
+    const surfaceNode = nodeMap.get(nodeName);
+    surfaceNode?.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      mesh.material = displayMaterial;
+    });
+  });
+};
+
+const setUltraPoweredDisplayArtVisible = (
+  nodeMap: Map<string, THREE.Object3D>,
+  visible: boolean,
+) => {
+  ULTRA_POWERED_DISPLAY_ART_NODE_NAMES.forEach((nodeName) => {
+    const artNode = nodeMap.get(nodeName);
+    if (artNode) artNode.visible = visible;
+  });
+};
+
+const absorbUltraPointerEvent = (event: ThreeEvent<PointerEvent | MouseEvent | WheelEvent>) => {
+  event.stopPropagation();
+  event.nativeEvent.stopPropagation();
+  event.nativeEvent.stopImmediatePropagation?.();
+};
+
+const isUltraPrimaryPointerButton = (event: ThreeEvent<PointerEvent | MouseEvent>) => event.nativeEvent.button === 0;
+
+const getUltraPowerSwitchHalfWidthAtY = (y: number) => {
+  const halfWidth = POWER_SWITCH_ROCKER_WIDTH / 2;
+  const halfHeight = POWER_SWITCH_ROCKER_HEIGHT / 2;
+  const cornerStartY = halfHeight - POWER_SWITCH_ROCKER_CORNER_RADIUS;
+  const cornerDistanceY = Math.max(0, Math.abs(y) - cornerStartY);
+  if (cornerDistanceY <= 0) return halfWidth;
+  const roundedInset = POWER_SWITCH_ROCKER_CORNER_RADIUS
+    - Math.sqrt(Math.max(0, POWER_SWITCH_ROCKER_CORNER_RADIUS ** 2 - cornerDistanceY ** 2));
+  return Math.max(halfWidth - POWER_SWITCH_ROCKER_CORNER_RADIUS, halfWidth - roundedInset);
+};
+
+const getUltraPowerSwitchFaceZ = (y: number) => {
+  const halfHeight = POWER_SWITCH_ROCKER_HEIGHT / 2;
+  const normalizedDistanceFromCenter = Math.min(1, Math.abs(y) / halfHeight);
+  return POWER_SWITCH_ROCKER_FACE_Z
+    + POWER_SWITCH_ROCKER_FACE_CROWN_Z * (1 - normalizedDistanceFromCenter * normalizedDistanceFromCenter);
+};
+
+const getUltraPowerSwitchRockerSkirtPoint = (edgeSign: -1 | 1, step: number) => {
+  const halfHeight = POWER_SWITCH_ROCKER_HEIGHT / 2;
+  const progress = step / POWER_SWITCH_ROCKER_SEGMENTS;
+  const theta = progress * Math.PI / 2;
+  return {
+    y: edgeSign * (halfHeight - POWER_SWITCH_ROCKER_SKIRT_DEPTH * (1 - Math.cos(theta))),
+    z: THREE.MathUtils.lerp(getUltraPowerSwitchFaceZ(edgeSign * halfHeight), POWER_SWITCH_ROCKER_BACK_Z, Math.sin(theta)),
+  };
+};
+
+const createUltraPowerSwitchRockerGeometry = () => {
+  const halfWidth = POWER_SWITCH_ROCKER_WIDTH / 2;
+  const halfHeight = POWER_SWITCH_ROCKER_HEIGHT / 2;
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+
+  const pushVertex = (x: number, y: number, z: number) => {
+    const index = positions.length / 3;
+    positions.push(x, y, z);
+    uvs.push((x + halfWidth) / POWER_SWITCH_ROCKER_WIDTH, (y + halfHeight) / POWER_SWITCH_ROCKER_HEIGHT);
+    return index;
+  };
+
+  const addQuad = (a: number, b: number, c: number, d: number) => {
+    indices.push(a, b, c);
+    indices.push(a, c, d);
+  };
+
+  let previousFaceLeft: number | null = null;
+  let previousFaceRight: number | null = null;
+  for (let step = 0; step <= POWER_SWITCH_ROCKER_FACE_SEGMENTS; step += 1) {
+    const y = THREE.MathUtils.lerp(-halfHeight, halfHeight, step / POWER_SWITCH_ROCKER_FACE_SEGMENTS);
+    const z = getUltraPowerSwitchFaceZ(y);
+    const rowHalfWidth = getUltraPowerSwitchHalfWidthAtY(y);
+    const faceLeft = pushVertex(-rowHalfWidth, y, z);
+    const faceRight = pushVertex(rowHalfWidth, y, z);
+    if (previousFaceLeft !== null && previousFaceRight !== null) {
+      addQuad(previousFaceLeft, previousFaceRight, faceRight, faceLeft);
+    }
+    previousFaceLeft = faceLeft;
+    previousFaceRight = faceRight;
+  }
+
+  ([-1, 1] as const).forEach((edgeSign) => {
+    const leftArc: number[] = [];
+    const rightArc: number[] = [];
+    for (let step = 0; step <= POWER_SWITCH_ROCKER_SEGMENTS; step += 1) {
+      const point = getUltraPowerSwitchRockerSkirtPoint(edgeSign, step);
+      const rowHalfWidth = getUltraPowerSwitchHalfWidthAtY(point.y);
+      leftArc.push(pushVertex(-rowHalfWidth, point.y, point.z));
+      rightArc.push(pushVertex(rowHalfWidth, point.y, point.z));
+    }
+    for (let step = 0; step < POWER_SWITCH_ROCKER_SEGMENTS; step += 1) {
+      if (edgeSign > 0) {
+        addQuad(leftArc[step], rightArc[step], rightArc[step + 1], leftArc[step + 1]);
+      } else {
+        addQuad(rightArc[step], leftArc[step], leftArc[step + 1], rightArc[step + 1]);
+      }
+    }
+  });
+
+  const backSkirtInnerY = -halfHeight + POWER_SWITCH_ROCKER_SKIRT_DEPTH;
+  const frontSkirtInnerY = halfHeight - POWER_SWITCH_ROCKER_SKIRT_DEPTH;
+  const bottomBackHalfWidth = getUltraPowerSwitchHalfWidthAtY(backSkirtInnerY);
+  const bottomFrontHalfWidth = getUltraPowerSwitchHalfWidthAtY(frontSkirtInnerY);
+  const bottomBackLeft = pushVertex(-bottomBackHalfWidth, backSkirtInnerY, POWER_SWITCH_ROCKER_BACK_Z);
+  const bottomBackRight = pushVertex(bottomBackHalfWidth, backSkirtInnerY, POWER_SWITCH_ROCKER_BACK_Z);
+  const bottomFrontRight = pushVertex(bottomFrontHalfWidth, frontSkirtInnerY, POWER_SWITCH_ROCKER_BACK_Z);
+  const bottomFrontLeft = pushVertex(-bottomFrontHalfWidth, frontSkirtInnerY, POWER_SWITCH_ROCKER_BACK_Z);
+  addQuad(bottomBackRight, bottomBackLeft, bottomFrontLeft, bottomFrontRight);
+
+  ([-1, 1] as const).forEach((sideSign) => {
+    let previousTop: number | null = null;
+    let previousBottom: number | null = null;
+    for (let step = 0; step <= POWER_SWITCH_ROCKER_FACE_SEGMENTS; step += 1) {
+      const y = THREE.MathUtils.lerp(-halfHeight, halfHeight, step / POWER_SWITCH_ROCKER_FACE_SEGMENTS);
+      const bottomY = clampSceneNumber(y, backSkirtInnerY, frontSkirtInnerY);
+      const top = pushVertex(sideSign * getUltraPowerSwitchHalfWidthAtY(y), y, getUltraPowerSwitchFaceZ(y));
+      const bottom = pushVertex(sideSign * getUltraPowerSwitchHalfWidthAtY(bottomY), bottomY, POWER_SWITCH_ROCKER_BACK_Z);
+      if (previousTop !== null && previousBottom !== null) {
+        if (sideSign > 0) {
+          addQuad(previousTop, top, bottom, previousBottom);
+        } else {
+          addQuad(top, previousTop, previousBottom, bottom);
+        }
+      }
+      previousTop = top;
+      previousBottom = bottom;
+    }
+  });
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  return geometry;
+};
+
+const createUltraPowerSwitchRingInlayGeometry = () => {
+  const outerRadius = 0.0084;
+  const innerRadius = 0.0058;
+  const shape = new THREE.Shape();
+  shape.absarc(0, 0, outerRadius, 0, Math.PI * 2, false);
+  const hole = new THREE.Path();
+  hole.absarc(0, 0, innerRadius, 0, Math.PI * 2, true);
+  shape.holes.push(hole);
+  return new THREE.ShapeGeometry(shape, 24);
+};
+
+function UltraNodeHitbox({
+  definition,
+  nodeMap,
+  parentRef,
+  onClick,
+  onPointerDown,
+  onPointerOver,
+  onPointerOut,
+}: {
+  definition: (typeof ULTRA_CONTROL_HITBOXES)[number];
+  nodeMap: Map<string, THREE.Object3D>;
+  parentRef: React.RefObject<THREE.Group | null>;
+  onClick?: (control: UltraPointerControl, event: ThreeEvent<MouseEvent>) => void;
+  onPointerDown?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
+  onPointerOver?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
+  onPointerOut?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
+}) {
+  const groupRef = useRef<THREE.Group | null>(null);
+  const parentInverseMatrixRef = useRef(new THREE.Matrix4());
+  const localMatrixRef = useRef(new THREE.Matrix4());
+  const anchorPositionRef = useRef(new THREE.Vector3());
+  const anchorQuaternionRef = useRef(new THREE.Quaternion());
+  const anchorScaleRef = useRef(new THREE.Vector3());
+  const anchor = nodeMap.get(definition.anchorNodeName);
+
+  useFrame(() => {
+    const group = groupRef.current;
+    const parent = parentRef.current;
+    if (!group || !parent || !anchor) return;
+    parent.updateMatrixWorld(true);
+    anchor.updateMatrixWorld(true);
+    parentInverseMatrixRef.current.copy(parent.matrixWorld).invert();
+    localMatrixRef.current.copy(anchor.matrixWorld);
+    localMatrixRef.current.decompose(
+      anchorPositionRef.current,
+      anchorQuaternionRef.current,
+      anchorScaleRef.current,
+    );
+    localMatrixRef.current.compose(anchorPositionRef.current, anchorQuaternionRef.current, ULTRA_HITBOX_UNIT_SCALE);
+    group.matrix.multiplyMatrices(parentInverseMatrixRef.current, localMatrixRef.current);
+    group.matrixWorldNeedsUpdate = true;
+  });
+
+  if (!anchor) return null;
+
+  return (
+    <group ref={groupRef} matrixAutoUpdate={false}>
+      <mesh
+        name={`HSL_UltraMeshHitbox_${definition.control}`}
+        position={definition.offset ?? [0, 0, 0]}
+        onClick={(event) => onClick?.(definition.control, event)}
+        onPointerDown={(event) => onPointerDown?.(definition.control, event)}
+        onPointerOver={(event) => onPointerOver?.(definition.control, event)}
+        onPointerOut={(event) => onPointerOut?.(definition.control, event)}
+      >
+        <boxGeometry args={definition.size} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function UltraPowerSwitchSkirtedRocker({
+  nodeMap,
+  parentRef,
+  powerOn,
+  sceneTheme,
+  hovered,
+}: {
+  nodeMap: Map<string, THREE.Object3D>;
+  parentRef: React.RefObject<THREE.Group | null>;
+  powerOn: boolean;
+  sceneTheme: HeatCapacityUltraInstrumentModelProps['sceneTheme'];
+  hovered: boolean;
+}) {
+  const groupRef = useRef<THREE.Group | null>(null);
+  const parentInverseMatrixRef = useRef(new THREE.Matrix4());
+  const localMatrixRef = useRef(new THREE.Matrix4());
+  const geometry = useMemo(() => createUltraPowerSwitchRockerGeometry(), []);
+  const ringInlayGeometry = useMemo(() => createUltraPowerSwitchRingInlayGeometry(), []);
+  const anchor = nodeMap.get('FD_NCD_C_PowerSwitch_Button');
+  const themeVisuals = ULTRA_THEME_VISUALS[sceneTheme];
+  const shellColor = powerOn ? themeVisuals.powerSwitchOn : themeVisuals.powerSwitchOff;
+  const markY = POWER_SWITCH_ROCKER_HEIGHT * 0.22;
+  const markZ = getUltraPowerSwitchFaceZ(markY) + POWER_SWITCH_MARK_Z_OFFSET;
+
+  useEffect(() => () => {
+    geometry.dispose();
+    ringInlayGeometry.dispose();
+  }, [geometry, ringInlayGeometry]);
+
+  useFrame(() => {
+    const group = groupRef.current;
+    const parent = parentRef.current;
+    if (!group || !parent || !anchor) return;
+    parent.updateMatrixWorld(true);
+    anchor.updateMatrixWorld(true);
+    parentInverseMatrixRef.current.copy(parent.matrixWorld).invert();
+    localMatrixRef.current.multiplyMatrices(parentInverseMatrixRef.current, anchor.matrixWorld);
+    group.matrix.copy(localMatrixRef.current);
+    group.matrixWorldNeedsUpdate = true;
+  });
+
+  if (!anchor) return null;
+
+  return (
+    <group name="HSL_PowerSwitch_SkirtedRockerRuntime" ref={groupRef} matrixAutoUpdate={false}>
+      <mesh name="HSL_PowerSwitch_SkirtedRockerShell" geometry={geometry}>
+        <meshPhysicalMaterial
+          color={shellColor}
+          roughness={0.18}
+          metalness={0.02}
+          emissive={shellColor}
+          emissiveIntensity={hovered ? 0.22 : powerOn ? 0.08 : 0.035}
+          clearcoat={0.6}
+          clearcoatRoughness={0.08}
+          specularIntensity={0.82}
+        />
+      </mesh>
+      <mesh name="HSL_PowerSwitch_SkirtedRockerMarkI" position={[0, markY, markZ]}>
+        <planeGeometry args={[0.0048, 0.021]} />
+        <meshBasicMaterial color={themeVisuals.powerSwitchInlay} toneMapped={false} />
+      </mesh>
+      <mesh name="HSL_PowerSwitch_SkirtedRockerMarkO" position={[0, -markY, markZ]} geometry={ringInlayGeometry}>
+        <meshBasicMaterial color={themeVisuals.powerSwitchInlay} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
 function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentModelProps) {
   const gltf = useGLTF(ULTRA_GLB_PATH);
-  const invalidate = useThree((state) => state.invalidate);
+  const { camera, gl, invalidate } = useThree();
+  const runtimeRootRef = useRef<THREE.Group | null>(null);
   const displayTextureRef = useRef<THREE.CanvasTexture | null>(null);
   const pumpPulseRef = useRef(0);
   const pumpVisualWeightRef = useRef(0);
+  const pressureZeroDragRef = useRef({
+    startKnobAngle: props.pressureZeroKnobAngle,
+    lastPointerAngle: 0,
+    totalDelta: 0,
+    lastAppliedKnobAngle: props.pressureZeroKnobAngle,
+  });
   const gaugeDisplayedRotationRef = useRef(PRESSURE_GAUGE_MIN_ROTATION);
-  const stopcockDisplayedAngleRef = useRef(THREE.MathUtils.degToRad(props.stopcockAngleDeg));
+  const stopcockDisplayedAngleRef = useRef(getUltraStopcockVisualAngleRad(props.stopcockAngleDeg));
   const pumpValveDisplayedAngleRef = useRef(props.pumpValveOpen ? 0 : Math.PI / 2);
   const pressureZeroDisplayedAngleRef = useRef(THREE.MathUtils.degToRad(props.pressureZeroKnobAngle));
   const powerSwitchDisplayedRotationRef = useRef(props.powerOn ? POWER_SWITCH_ON_ROTATION_RAD : POWER_SWITCH_OFF_ROTATION_RAD);
@@ -167,11 +934,136 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   const nodeMap = useMemo(() => collectNodes(modelRoot), [modelRoot]);
   const baseTransforms = useMemo(() => collectBaseTransforms(nodeMap), [nodeMap]);
 
+  const projectUltraNodeAnchor = useCallback((nodeName: string) => {
+    const anchor = nodeMap.get(nodeName);
+    if (!anchor) return null;
+    const rect = gl.domElement.getBoundingClientRect();
+    const position = new THREE.Vector3();
+    anchor.getWorldPosition(position);
+    position.project(camera);
+    return {
+      clientX: rect.left + ((position.x + 1) / 2) * rect.width,
+      clientY: rect.top + ((1 - position.y) / 2) * rect.height,
+    };
+  }, [camera, gl, nodeMap]);
+
+  const getPressureZeroPointerAngle = useCallback((clientX: number, clientY: number) => {
+    const anchor = projectUltraNodeAnchor('FD_NCD_C_ZeroAdjustKnob');
+    if (!anchor) return null;
+    return THREE.MathUtils.radToDeg(Math.atan2(clientY - anchor.clientY, clientX - anchor.clientX));
+  }, [projectUltraNodeAnchor]);
+
+  const getSignedAngleDelta = (nextAngle: number, startAngle: number) => {
+    const delta = ((nextAngle - startAngle + 540) % 360) - 180;
+    return Number.isFinite(delta) ? delta : 0;
+  };
+
+  const openUltraValveFocusBubble = useCallback((control: UltraValveFocusControl) => {
+    const nodeName = control === 'stopcock' ? 'Stopcock_Pivot' : 'InletValue_Pivot';
+    const anchor = projectUltraNodeAnchor(nodeName);
+    if (!anchor) return;
+    props.onValveFocusAnchor(control, anchor.clientX, anchor.clientY);
+  }, [projectUltraNodeAnchor, props]);
+
+  const handleUltraControlClick = useCallback((control: UltraPointerControl, event: ThreeEvent<MouseEvent>) => {
+    if (!isUltraPrimaryPointerButton(event)) return;
+    absorbUltraPointerEvent(event);
+    if (control === 'pressureZero') return;
+    if (props.interactionLocked) {
+      props.onLockedInteraction();
+      return;
+    }
+    if (control === 'powerSwitch') {
+      props.onPowerToggle(!props.powerOn);
+    } else if (control === 'stopcock') {
+      props.onStopcockOpenChange(getHeatCapacityStopcockState(props.stopcockAngleDeg) !== 'open');
+    } else if (control === 'pumpValve') {
+      props.onPumpValveToggle();
+    } else if (control === 'pumpBulb') {
+      props.onPumpBulbPress();
+    }
+  }, [props]);
+
+  const handleUltraControlPointerDown = useCallback((control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => {
+    if (!isUltraPrimaryPointerButton(event)) return;
+    if (control !== 'pressureZero') {
+      absorbUltraPointerEvent(event);
+      return;
+    }
+    absorbUltraPointerEvent(event);
+    if (props.interactionLocked) {
+      props.onLockedInteraction();
+      return;
+    }
+    const pointerAngle = getPressureZeroPointerAngle(event.clientX, event.clientY);
+    if (pointerAngle === null) return;
+    pressureZeroDragRef.current = {
+      startKnobAngle: props.pressureZeroKnobAngle,
+      lastPointerAngle: pointerAngle,
+      totalDelta: 0,
+      lastAppliedKnobAngle: props.pressureZeroKnobAngle,
+    };
+    const pointerId = event.pointerId;
+    gl.domElement.style.cursor = 'grabbing';
+    try {
+      gl.domElement.setPointerCapture?.(pointerId);
+    } catch {
+      // Synthetic browser-test events may not have an active pointer capture target.
+    }
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      moveEvent.stopPropagation();
+      moveEvent.stopImmediatePropagation?.();
+      moveEvent.preventDefault();
+      const nextPointerAngle = getPressureZeroPointerAngle(moveEvent.clientX, moveEvent.clientY);
+      if (nextPointerAngle === null) return;
+      const dragState = pressureZeroDragRef.current;
+      const pointerDelta = getSignedAngleDelta(nextPointerAngle, dragState.lastPointerAngle);
+      dragState.lastPointerAngle = nextPointerAngle;
+      dragState.totalDelta += pointerDelta * PRESSURE_ZERO_DRAG_DIRECTION;
+      const requestedKnobAngle = dragState.startKnobAngle + dragState.totalDelta;
+      const nextKnobAngle = clampPressureZeroSceneKnobAngle(requestedKnobAngle);
+      const incrementalDelta = nextKnobAngle - dragState.lastAppliedKnobAngle;
+      if (Math.abs(incrementalDelta) < 0.15) return;
+      dragState.lastAppliedKnobAngle = nextKnobAngle;
+      props.onPressureZeroCoarseAdjust(incrementalDelta);
+    };
+    const handlePointerUp = () => {
+      try {
+        gl.domElement.releasePointerCapture?.(pointerId);
+      } catch {
+        // Matching guard for synthetic pointer events.
+      }
+      gl.domElement.style.cursor = props.hoveredControl === 'pressureZero' ? 'grab' : '';
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp, { once: true });
+  }, [getPressureZeroPointerAngle, gl, props]);
+
+  const handleUltraControlPointerOver = useCallback((control: UltraPointerControl, _event: ThreeEvent<PointerEvent>) => {
+    gl.domElement.style.cursor = control === 'pressureZero' ? 'grab' : 'pointer';
+    props.setHoveredControl(control);
+    if (control === 'stopcock' || control === 'pumpValve') {
+      openUltraValveFocusBubble(control);
+    }
+  }, [gl, openUltraValveFocusBubble, props]);
+
+  const handleUltraControlPointerOut = useCallback((_control: UltraPointerControl, _event: ThreeEvent<PointerEvent>) => {
+    gl.domElement.style.cursor = '';
+    props.setHoveredControl(null);
+  }, [gl, props]);
+
+  useEffect(() => () => {
+    gl.domElement.style.cursor = '';
+  }, [gl]);
+
   useEffect(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 768;
     canvas.height = 256;
     const texture = new THREE.CanvasTexture(canvas);
+    texture.flipY = false;
     texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.needsUpdate = true;
@@ -187,36 +1079,35 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     const canvas = texture?.image as HTMLCanvasElement | undefined;
     const context = canvas?.getContext('2d');
     if (!texture || !canvas || !context) return;
-    const temperatureDisplay = props.powerOn ? formatSignal(props.temperatureSignalMv) : '';
-    const pressureDisplay = props.powerOn ? formatSignal(props.pressureSignalMv) : '';
+    const ultraDisplayPowered = props.powerOn;
+    const temperatureDisplay = ultraDisplayPowered ? formatAlignedSignalParts(props.temperatureSignalMv) : null;
+    const pressureDisplay = ultraDisplayPowered ? formatAlignedSignalParts(props.pressureSignalMv) : null;
+    const themeVisuals = ULTRA_THEME_VISUALS[props.sceneTheme];
+    setUltraNodeTreeVisible(nodeMap, 'HSL_MainDisplay_NameplateLabelArt_PowerPreview', true);
+    setUltraPoweredDisplayArtVisible(nodeMap, ultraDisplayPowered);
     context.clearRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = '#020807';
+    context.fillStyle = themeVisuals.displayScreen;
     context.fillRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = props.powerOn ? '#4fffd7' : 'rgba(79, 255, 215, 0.08)';
-    context.font = '700 76px Consolas, "Courier New", monospace';
-    context.textAlign = 'left';
+    context.fillStyle = ultraDisplayPowered ? themeVisuals.displayText : themeVisuals.displayScreen;
+    context.font = '700 68px Consolas, "Courier New", monospace';
     context.textBaseline = 'middle';
-    context.fillText(temperatureDisplay, 52, 82);
-    context.fillText(pressureDisplay, 52, 176);
+    drawUltraAlignedSignal(context, temperatureDisplay, canvas.width, 82);
+    drawUltraAlignedSignal(context, pressureDisplay, canvas.width, 176);
     texture.needsUpdate = true;
     invalidate();
-  }, [props.powerOn, props.pressureSignalMv, props.temperatureSignalMv, invalidate]);
+  }, [nodeMap, props.powerOn, props.pressureSignalMv, props.sceneTheme, props.temperatureSignalMv, invalidate]);
 
   useEffect(() => {
     const texture = displayTextureRef.current;
     if (!texture) return;
-    const displayAnchor = nodeMap.get('HSL_MainDisplay_DynamicPlaneAnchor');
-    displayAnchor?.traverse((object) => {
-      const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      mesh.material = new THREE.MeshBasicMaterial({
-        map: texture,
-        transparent: false,
-        toneMapped: false,
-      });
-    });
+    applyUltraDisplayTexture(nodeMap, texture);
     invalidate();
   }, [nodeMap, invalidate]);
+
+  useEffect(() => {
+    applyUltraThemeVisuals(nodeMap, baseTransforms, props.sceneTheme);
+    invalidate();
+  }, [baseTransforms, invalidate, nodeMap, props.sceneTheme]);
 
   useEffect(() => {
     REQUIRED_ULTRA_NODE_NAMES.forEach((nodeName) => {
@@ -283,12 +1174,12 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       );
     }
 
-    const stopcockTargetAngle = THREE.MathUtils.degToRad(props.stopcockAngleDeg);
-    const stopcockSmoothing = 1 - Math.exp(-STOPCOCK_VISUAL_SMOOTHING_RATE * delta);
-    stopcockDisplayedAngleRef.current = THREE.MathUtils.lerp(
+    const stopcockTargetAngle = getUltraStopcockVisualAngleRad(props.stopcockAngleDeg);
+    stopcockDisplayedAngleRef.current = dampUltraControlAngle(
       stopcockDisplayedAngleRef.current,
       stopcockTargetAngle,
-      stopcockSmoothing,
+      STOPCOCK_VISUAL_SMOOTHING_RATE,
+      delta,
     );
     applyLocalAxisRotation(
       nodeMap,
@@ -299,11 +1190,11 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     );
 
     const pumpValveTargetAngle = props.pumpValveOpen ? 0 : Math.PI / 2;
-    const pumpValveSmoothing = 1 - Math.exp(-PUMP_VALVE_VISUAL_SMOOTHING_RATE * delta);
-    pumpValveDisplayedAngleRef.current = THREE.MathUtils.lerp(
+    pumpValveDisplayedAngleRef.current = dampUltraControlAngle(
       pumpValveDisplayedAngleRef.current,
       pumpValveTargetAngle,
-      pumpValveSmoothing,
+      PUMP_VALVE_VISUAL_SMOOTHING_RATE,
+      delta,
     );
     applyLocalAxisRotation(
       nodeMap,
@@ -314,37 +1205,39 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     );
 
     const pressureZeroTargetAngle = THREE.MathUtils.degToRad(props.pressureZeroKnobAngle);
-    const pressureZeroSmoothing = 1 - Math.exp(-PRESSURE_ZERO_VISUAL_SMOOTHING_RATE * delta);
-    pressureZeroDisplayedAngleRef.current = THREE.MathUtils.lerp(
+    pressureZeroDisplayedAngleRef.current = dampUltraControlAngle(
       pressureZeroDisplayedAngleRef.current,
       pressureZeroTargetAngle,
-      pressureZeroSmoothing,
+      PRESSURE_ZERO_VISUAL_SMOOTHING_RATE,
+      delta,
     );
     applyLocalAxisRotation(
       nodeMap,
       baseTransforms,
       'FD_NCD_C_ZeroAdjustKnob',
-      new THREE.Vector3(0, 0, 1),
+      new THREE.Vector3(0, 1, 0),
       pressureZeroDisplayedAngleRef.current,
     );
 
     const powerSwitchTargetRotation = props.powerOn ? POWER_SWITCH_ON_ROTATION_RAD : POWER_SWITCH_OFF_ROTATION_RAD;
-    const powerSwitchSmoothing = 1 - Math.exp(-POWER_SWITCH_VISUAL_SMOOTHING_RATE * delta);
-    powerSwitchDisplayedRotationRef.current = THREE.MathUtils.lerp(
+    powerSwitchDisplayedRotationRef.current = dampUltraControlAngle(
       powerSwitchDisplayedRotationRef.current,
       powerSwitchTargetRotation,
-      powerSwitchSmoothing,
+      POWER_SWITCH_VISUAL_SMOOTHING_RATE,
+      delta,
     );
     const powerSwitch = nodeMap.get('FD_NCD_C_PowerSwitch_Button');
     const powerBase = baseTransforms.get('FD_NCD_C_PowerSwitch_Button');
     if (powerSwitch && powerBase) {
       powerSwitch.position.copy(powerBase.position);
+      applyPowerSwitchVisualScale(nodeMap, baseTransforms);
     }
-    applyLocalAxisRotation(
+    applyLocalAxisRotationAroundPivot(
       nodeMap,
       baseTransforms,
       'FD_NCD_C_PowerSwitch_Button',
       new THREE.Vector3(1, 0, 0),
+      POWER_SWITCH_PIVOT_OFFSET,
       powerSwitchDisplayedRotationRef.current,
     );
 
@@ -373,8 +1266,27 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   });
 
   return (
-    <group name="HeatCapacityUltraInstrumentRuntime">
+    <group name="HeatCapacityUltraInstrumentRuntime" ref={runtimeRootRef}>
       <primitive object={modelRoot} />
+      {ULTRA_CONTROL_HITBOXES.map((definition) => (
+        <UltraNodeHitbox
+          key={definition.control}
+          definition={definition}
+          nodeMap={nodeMap}
+          parentRef={runtimeRootRef}
+          onClick={handleUltraControlClick}
+          onPointerDown={handleUltraControlPointerDown}
+          onPointerOver={handleUltraControlPointerOver}
+          onPointerOut={handleUltraControlPointerOut}
+        />
+      ))}
+      <UltraPowerSwitchSkirtedRocker
+        nodeMap={nodeMap}
+        parentRef={runtimeRootRef}
+        powerOn={props.powerOn}
+        sceneTheme={props.sceneTheme}
+        hovered={props.hoveredControl === 'powerSwitch'}
+      />
       <HeatCapacityHardSphereLayer
         enabled={props.hardSphereViewEnabled}
         powerOn={props.powerOn}
