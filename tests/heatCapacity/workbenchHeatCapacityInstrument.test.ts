@@ -673,6 +673,25 @@ assert.equal(
   false,
   'instant zero display still needs a fresh stable sample window before it is accepted as zeroed',
 );
+const freeZeroPoweredOff = powerHeatCapacityWorkbenchFile(freeInstantZeroKnob, false, 1_090);
+assert.equal(freeZeroPoweredOff.powerOn, false);
+assert.equal(freeZeroPoweredOff.pressureSignalMv, null);
+assert.equal(freeZeroPoweredOff.pressureZeroAdjusted, true);
+assert.equal(freeZeroPoweredOff.pressureZeroKnobAngle, freeInstantZeroKnob.pressureZeroKnobAngle);
+assert.equal(freeZeroPoweredOff.pressureZeroOffset, freeInstantZeroKnob.pressureZeroOffset);
+assert.equal(
+  freeZeroPoweredOff.heatCapacityFreeCalibrationState.zeroOffsetMv,
+  freeInstantZeroKnob.heatCapacityFreeCalibrationState.zeroOffsetMv,
+);
+const freeZeroPoweredOnAgain = powerHeatCapacityWorkbenchFile(freeZeroPoweredOff, true, 1_130);
+assert.equal(freeZeroPoweredOnAgain.powerOn, true);
+assert.equal(freeZeroPoweredOnAgain.pressureZeroAdjusted, true);
+assert.equal(freeZeroPoweredOnAgain.pressureZeroKnobAngle, freeInstantZeroKnob.pressureZeroKnobAngle);
+assert.equal(freeZeroPoweredOnAgain.pressureZeroOffset, freeInstantZeroKnob.pressureZeroOffset);
+assert.equal(
+  freeZeroPoweredOnAgain.heatCapacityFreeCalibrationState.zeroOffsetMv,
+  freeInstantZeroKnob.heatCapacityFreeCalibrationState.zeroOffsetMv,
+);
 let freeTeachingLikePumpFile: WorkbenchHeatCapacityState = freePumpReady;
 for (let strokeIndex = 0; strokeIndex < 4; strokeIndex += 1) {
   freeTeachingLikePumpFile = registerHeatCapacityPumpStroke(freeTeachingLikePumpFile, 1_300 + strokeIndex * 430);
@@ -1255,6 +1274,20 @@ assert.equal(coarseZero.pressureZeroOffset > fineZero.pressureZeroOffset, true);
 assert.equal(coarseZero.pressureDisplayedPlaceholder > fineZero.pressureDisplayedPlaceholder, true);
 assert.equal(coarseZero.pressureZeroOffset, 0.256);
 assert.equal(coarseZero.temperatureSignalTargetMv, fineZero.temperatureSignalTargetMv);
+
+const coarseZeroPoweredOff = powerHeatCapacityWorkbenchFile(coarseZero, false, 1_120);
+assert.equal(coarseZeroPoweredOff.powerOn, false);
+assert.equal(coarseZeroPoweredOff.pressureSignalMv, null);
+assert.equal(coarseZeroPoweredOff.pressureZeroAdjusted, true);
+assert.equal(coarseZeroPoweredOff.pressureZeroKnobAngle, coarseZero.pressureZeroKnobAngle);
+assert.equal(coarseZeroPoweredOff.pressureZeroOffset, coarseZero.pressureZeroOffset);
+assert.equal(coarseZeroPoweredOff.pressureZeroDisplayText, coarseZero.pressureZeroDisplayText);
+const coarseZeroPoweredOnAgain = powerHeatCapacityWorkbenchFile(coarseZeroPoweredOff, true, 1_180);
+assert.equal(coarseZeroPoweredOnAgain.powerOn, true);
+assert.equal(coarseZeroPoweredOnAgain.pressureZeroAdjusted, true);
+assert.equal(coarseZeroPoweredOnAgain.pressureZeroKnobAngle, coarseZero.pressureZeroKnobAngle);
+assert.equal(coarseZeroPoweredOnAgain.pressureZeroOffset, coarseZero.pressureZeroOffset);
+assert.equal(coarseZeroPoweredOnAgain.pressureSignalTargetMv, coarseZero.pressureSignalTargetMv);
 
 assert.equal(getHeatCapacityPressureZeroOffsetForKnobAngle(HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG), HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MIN_MV);
 assert.equal(getHeatCapacityPressureZeroOffsetForKnobAngle(0), 0);

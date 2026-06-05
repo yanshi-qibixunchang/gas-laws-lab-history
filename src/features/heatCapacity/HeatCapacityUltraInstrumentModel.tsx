@@ -16,6 +16,10 @@ type UltraFocusControl = UltraPointerControl | 'instrumentPressureDisplay' | 'in
 type UltraVisualTargetId = UltraFocusControl;
 type UltraVisualEffectTone = 'nonBulb' | 'glass' | 'pumpBulb' | 'display';
 type UltraMaterialHighlightControl = UltraPointerControl;
+type UltraProjectedPoint = {
+  clientX: number;
+  clientY: number;
+};
 
 type UltraVisualEffects = {
   hoverHaloColor: string;
@@ -81,6 +85,7 @@ const REQUIRED_ULTRA_NODE_NAMES = [
   'FD_NCD_C_PowerIndicator_LED',
   'FD_NCD_C_ZeroAdjustKnob',
   'Stopcock_Pivot',
+  'Stopcock_THandle',
   'InletValue_Pivot',
   'Pump_Bulb',
   'clean_lab_bench',
@@ -115,7 +120,7 @@ const PRESSURE_ZERO_VISUAL_SMOOTHING_RATE = 10;
 const POWER_SWITCH_VISUAL_SMOOTHING_RATE = 9;
 const POWER_SWITCH_OFF_ROTATION_RAD = 0.24;
 const POWER_SWITCH_ON_ROTATION_RAD = -0.24;
-const POWER_SWITCH_HITBOX_SIZE: [number, number, number] = [0.36, 0.52, 0.26];
+const POWER_SWITCH_HITBOX_SIZE: [number, number, number] = [0.42, 0.58, 0.30];
 const POWER_SWITCH_VISUAL_SCALE = new THREE.Vector3(1.28, 1.28, 1.08);
 const POWER_SWITCH_BASE_VISUAL_SCALE = new THREE.Vector3(1.22, 1.24, 1.03);
 const POWER_SWITCH_FRAME_VISUAL_SCALE = new THREE.Vector3(1.24, 1.26, 1.03);
@@ -142,9 +147,9 @@ const ULTRA_CONTROL_HITBOXES: Array<{
 }> = [
   { control: 'powerSwitch', anchorNodeName: 'FD_NCD_C_PowerSwitch_Base', size: POWER_SWITCH_HITBOX_SIZE, offset: [0.018, -0.006, 0.16] },
   { control: 'pressureZero', anchorNodeName: 'FD_NCD_C_ZeroAdjustKnob', size: [0.42, 0.42, 0.34], offset: [0, 0, 0.07] },
-  { control: 'stopcock', anchorNodeName: 'Stopcock_Pivot', size: [0.86, 0.48, 0.90], offset: [0.13, 0.02, 0.02] },
-  { control: 'pumpValve', anchorNodeName: 'InletValue_Pivot', size: [0.62, 0.48, 0.34], offset: [0, 0.12, 0.02] },
-  { control: 'pumpBulb', anchorNodeName: 'Pump_Bulb', size: [1.14, 0.92, 0.82] },
+  { control: 'stopcock', anchorNodeName: 'Stopcock_THandle', size: [0.46, 0.24, 0.28] },
+  { control: 'pumpValve', anchorNodeName: 'InletValue_Pivot', size: [0.64, 0.52, 0.38], offset: [0, 0.12, 0.02] },
+  { control: 'pumpBulb', anchorNodeName: 'Pump_Bulb', size: [0.96, 0.72, 0.64] },
 ];
 
 const ULTRA_POINTER_CONTROL_IDS: readonly UltraPointerControl[] = [
@@ -157,6 +162,15 @@ const ULTRA_POINTER_CONTROL_IDS: readonly UltraPointerControl[] = [
 const isUltraPointerControl = (controlId: string | null): controlId is UltraPointerControl => (
   typeof controlId === 'string' && ULTRA_POINTER_CONTROL_IDS.includes(controlId as UltraPointerControl)
 );
+const getUltraScreenDistanceSq = (
+  clientX: number,
+  clientY: number,
+  point: UltraProjectedPoint,
+) => {
+  const dx = clientX - point.clientX;
+  const dy = clientY - point.clientY;
+  return dx * dx + dy * dy;
+};
 
 type UltraVisualShape =
   | { shape: 'box'; size: [number, number, number] }
@@ -181,7 +195,6 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     id: 'powerSwitch',
     anchorNodeName: 'FD_NCD_C_PowerSwitch_Base',
     tone: 'nonBulb',
-    hoverControl: 'powerSwitch',
     focusControlIds: ['powerSwitch'],
     shape: 'torus',
     args: [0.11, 0.006, 10, 40],
@@ -192,7 +205,6 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     id: 'pressureZero',
     anchorNodeName: 'FD_NCD_C_ZeroAdjustKnob',
     tone: 'nonBulb',
-    hoverControl: 'pressureZero',
     focusControlIds: ['pressureZero'],
     shape: 'torus',
     args: [0.16, 0.006, 12, 56],
@@ -201,14 +213,13 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
   },
   {
     id: 'stopcock',
-    anchorNodeName: 'Stopcock_Pivot',
+    anchorNodeName: 'Stopcock_THandle',
     tone: 'glass',
     hoverControl: 'stopcock',
     focusControlIds: ['stopcock'],
     shape: 'box',
-    size: [0.56, 0.36, 0.56],
-    offset: [0.13, 0.02, 0.02],
-    hoverScale: 0.86,
+    size: [0.36, 0.18, 0.22],
+    hoverScale: 0.9,
     hoverWireframe: true,
   },
   {
@@ -273,8 +284,6 @@ type UltraThemeVisuals = {
   powerSwitchBase: string;
   powerSwitchOff: string;
   powerSwitchOn: string;
-  powerSwitchHoverOff: string;
-  powerSwitchHoverOn: string;
   powerSwitchFrame: string;
   powerSwitchInlay: string;
 };
@@ -290,8 +299,6 @@ const ULTRA_THEME_VISUALS: Record<HeatCapacityUltraInstrumentModelProps['sceneTh
     powerSwitchBase: '#2d3338',
     powerSwitchOff: '#d9534f',
     powerSwitchOn: '#2ec978',
-    powerSwitchHoverOff: '#ff7772',
-    powerSwitchHoverOn: '#55f5a5',
     powerSwitchFrame: '#f1f5f9',
     powerSwitchInlay: '#f8fafc',
   },
@@ -305,8 +312,6 @@ const ULTRA_THEME_VISUALS: Record<HeatCapacityUltraInstrumentModelProps['sceneTh
     powerSwitchBase: '#40484e',
     powerSwitchOff: '#e15d59',
     powerSwitchOn: '#35d987',
-    powerSwitchHoverOff: '#ff817c',
-    powerSwitchHoverOn: '#65ffb0',
     powerSwitchFrame: '#ffffff',
     powerSwitchInlay: '#ffffff',
   },
@@ -487,56 +492,55 @@ type UltraMaterialSnapshot = {
 type UltraControlMaterialHighlight = {
   control: UltraMaterialHighlightControl;
   nodeNames: readonly string[];
-  color: string;
-  colorLerp: number;
-  emissive: string;
+  lightnessLift: number;
+  saturationLift?: number;
   emissiveIntensity: number;
-  roughness?: number;
-  metalness?: number;
 };
 
 const ULTRA_CONTROL_MATERIAL_HIGHLIGHTS: readonly UltraControlMaterialHighlight[] = [
   {
     control: 'pressureZero',
     nodeNames: ['FD_NCD_C_ZeroAdjustKnob'],
-    color: '#f7fbff',
-    colorLerp: 0.42,
-    emissive: '#8bdcff',
-    emissiveIntensity: 0.24,
-    roughness: 0.28,
+    lightnessLift: 0.22,
+    saturationLift: 0.035,
+    emissiveIntensity: 0.11,
   },
   {
     control: 'stopcock',
     nodeNames: ['Stopcock_RotatingRoundKnob', 'Stopcock_HandleStem', 'Stopcock_THandle', 'Stopcock_RotatingPlugCore'],
-    color: '#ecfdff',
-    colorLerp: 0.36,
-    emissive: '#75e8ff',
-    emissiveIntensity: 0.18,
-    roughness: 0.04,
+    lightnessLift: 0.18,
+    saturationLift: 0.026,
+    emissiveIntensity: 0.09,
   },
   {
     control: 'pumpValve',
     nodeNames: ['InletValue_Pivot'],
-    color: '#e8fbff',
-    colorLerp: 0.34,
-    emissive: '#63dcff',
-    emissiveIntensity: 0.18,
-    roughness: 0.24,
+    lightnessLift: 0.22,
+    saturationLift: 0.035,
+    emissiveIntensity: 0.11,
   },
   {
     control: 'pumpBulb',
     nodeNames: ['Pump_Bulb'],
-    color: '#ffdce8',
-    colorLerp: 0.46,
-    emissive: '#ff91b5',
-    emissiveIntensity: 0.16,
-    roughness: 0.34,
+    lightnessLift: 0.22,
+    saturationLift: 0.055,
+    emissiveIntensity: 0.08,
   },
 ];
 
 const getUltraMeshMaterials = (mesh: THREE.Mesh) => {
   if (Array.isArray(mesh.material)) return mesh.material;
   return mesh.material ? [mesh.material] : [];
+};
+
+const getUltraNaturalHighlightColor = (baseColor: THREE.Color, lightnessLift: number, saturationLift = 0.02) => {
+  const hsl = { h: 0, s: 0, l: 0 };
+  baseColor.getHSL(hsl);
+  return new THREE.Color().setHSL(
+    hsl.h,
+    clampSceneNumber(hsl.s + saturationLift * (1 - hsl.s), 0, 1),
+    clampSceneNumber(hsl.l + lightnessLift * (1 - hsl.l), 0, 1),
+  );
 };
 
 const captureUltraMaterialSnapshot = (material: THREE.Material): UltraMaterialSnapshot => {
@@ -575,8 +579,6 @@ function applyUltraControlMaterialHighlights(
 
   ULTRA_CONTROL_MATERIAL_HIGHLIGHTS.forEach((definition) => {
     if (!activeControls.has(definition.control)) return;
-    const highlightColor = new THREE.Color(definition.color);
-    const highlightEmissive = new THREE.Color(definition.emissive);
 
     definition.nodeNames.forEach((nodeName) => {
       const node = nodeMap.get(nodeName);
@@ -589,22 +591,19 @@ function applyUltraControlMaterialHighlights(
           const materialLike = material as UltraColorMaterial;
           if (!snapshot) return;
           highlightedMaterials.add(material);
+          const highlightColor = snapshot.color
+            ? getUltraNaturalHighlightColor(snapshot.color, definition.lightnessLift, definition.saturationLift)
+            : null;
           if (snapshot.color && materialLike.color) {
-            materialLike.color.copy(snapshot.color).lerp(highlightColor, definition.colorLerp);
-          } else if (materialLike.color) {
+            materialLike.color.copy(highlightColor ?? snapshot.color);
+          } else if (materialLike.color && highlightColor) {
             materialLike.color.copy(highlightColor);
           }
-          if (materialLike.emissive) {
-            materialLike.emissive.copy(snapshot.emissive ?? new THREE.Color(0, 0, 0)).lerp(highlightEmissive, 0.82);
+          if (materialLike.emissive && highlightColor) {
+            materialLike.emissive.copy(snapshot.emissive ?? new THREE.Color(0, 0, 0)).lerp(highlightColor, 0.22);
           }
           if ('emissiveIntensity' in materialLike) {
             materialLike.emissiveIntensity = Math.max(snapshot.emissiveIntensity ?? 0, definition.emissiveIntensity);
-          }
-          if (typeof definition.roughness === 'number' && 'roughness' in materialLike) {
-            materialLike.roughness = Math.min(snapshot.roughness ?? definition.roughness, definition.roughness);
-          }
-          if (typeof definition.metalness === 'number' && 'metalness' in materialLike) {
-            materialLike.metalness = definition.metalness;
           }
           material.needsUpdate = true;
         });
@@ -1064,6 +1063,7 @@ function UltraNodeHitbox({
   onClick,
   onPointerDown,
   onPointerOver,
+  onPointerMove,
   onPointerOut,
 }: {
   definition: (typeof ULTRA_CONTROL_HITBOXES)[number];
@@ -1072,6 +1072,7 @@ function UltraNodeHitbox({
   onClick?: (control: UltraPointerControl, event: ThreeEvent<MouseEvent>) => void;
   onPointerDown?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
   onPointerOver?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
+  onPointerMove?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
   onPointerOut?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
 }) {
   const groupRef = useRef<THREE.Group | null>(null);
@@ -1110,6 +1111,7 @@ function UltraNodeHitbox({
         onClick={(event) => onClick?.(definition.control, event)}
         onPointerDown={(event) => onPointerDown?.(definition.control, event)}
         onPointerOver={(event) => onPointerOver?.(definition.control, event)}
+        onPointerMove={(event) => onPointerMove?.(definition.control, event)}
         onPointerOut={(event) => onPointerOut?.(definition.control, event)}
       >
         <boxGeometry args={definition.size} />
@@ -1258,9 +1260,10 @@ function UltraPowerSwitchSkirtedRocker({
   const ringInlayGeometry = useMemo(() => createUltraPowerSwitchRingInlayGeometry(), []);
   const anchor = nodeMap.get('FD_NCD_C_PowerSwitch_Button');
   const themeVisuals = ULTRA_THEME_VISUALS[sceneTheme];
+  const baseShellColor = powerOn ? themeVisuals.powerSwitchOn : themeVisuals.powerSwitchOff;
   const shellColor = hovered
-    ? powerOn ? themeVisuals.powerSwitchHoverOn : themeVisuals.powerSwitchHoverOff
-    : powerOn ? themeVisuals.powerSwitchOn : themeVisuals.powerSwitchOff;
+    ? getUltraNaturalHighlightColor(new THREE.Color(baseShellColor), 0.28, 0.075)
+    : baseShellColor;
   const markY = POWER_SWITCH_ROCKER_HEIGHT * 0.22;
   const markZ = getUltraPowerSwitchFaceZ(markY) + POWER_SWITCH_MARK_Z_OFFSET;
 
@@ -1288,10 +1291,10 @@ function UltraPowerSwitchSkirtedRocker({
       <mesh name="HSL_PowerSwitch_SkirtedRockerShell" geometry={geometry}>
         <meshPhysicalMaterial
           color={shellColor}
-          roughness={hovered ? 0.12 : 0.18}
+          roughness={0.18}
           metalness={0.02}
           emissive={shellColor}
-          emissiveIntensity={hovered ? 0.42 : powerOn ? 0.08 : 0.035}
+          emissiveIntensity={hovered ? 0.34 : powerOn ? 0.08 : 0.035}
           clearcoat={0.6}
           clearcoatRoughness={0.08}
           specularIntensity={0.82}
@@ -1369,6 +1372,38 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     };
   }, [camera, gl, nodeMap]);
 
+  const projectUltraControlHitboxCenter = useCallback((control: UltraPointerControl) => {
+    const definition = ULTRA_CONTROL_HITBOXES.find((item) => item.control === control);
+    if (!definition) return null;
+    const anchor = nodeMap.get(definition.anchorNodeName);
+    if (!anchor) return null;
+    const rect = gl.domElement.getBoundingClientRect();
+    anchor.updateMatrixWorld(true);
+    const position = definition.offset
+      ? new THREE.Vector3(...definition.offset).applyMatrix4(anchor.matrixWorld)
+      : new THREE.Vector3();
+    if (!definition.offset) anchor.getWorldPosition(position);
+    position.project(camera);
+    return {
+      clientX: rect.left + ((position.x + 1) / 2) * rect.width,
+      clientY: rect.top + ((1 - position.y) / 2) * rect.height,
+    };
+  }, [camera, gl, nodeMap]);
+
+  const resolveUltraPanelPointerControl = useCallback((
+    control: UltraPointerControl,
+    clientX: number,
+    clientY: number,
+  ): UltraPointerControl => {
+    if (control !== 'powerSwitch' && control !== 'pressureZero') return control;
+    const powerSwitchCenter = projectUltraControlHitboxCenter('powerSwitch');
+    const pressureZeroCenter = projectUltraControlHitboxCenter('pressureZero');
+    if (!powerSwitchCenter || !pressureZeroCenter) return control;
+    const powerDistanceSq = getUltraScreenDistanceSq(clientX, clientY, powerSwitchCenter);
+    const zeroDistanceSq = getUltraScreenDistanceSq(clientX, clientY, pressureZeroCenter);
+    return zeroDistanceSq < powerDistanceSq ? 'pressureZero' : 'powerSwitch';
+  }, [projectUltraControlHitboxCenter]);
+
   const getPressureZeroPointerAngle = useCallback((clientX: number, clientY: number) => {
     const anchor = projectUltraNodeAnchor('FD_NCD_C_ZeroAdjustKnob');
     if (!anchor) return null;
@@ -1390,25 +1425,30 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   const handleUltraControlClick = useCallback((control: UltraPointerControl, event: ThreeEvent<MouseEvent>) => {
     if (!isUltraPrimaryPointerButton(event)) return;
     absorbUltraPointerEvent(event);
-    if (control === 'pressureZero') return;
+    const panelResolvedControl = resolveUltraPanelPointerControl(control, event.clientX, event.clientY);
+    const resolvedControl = panelResolvedControl === 'pumpValve' && props.hoveredControl === 'stopcock'
+      ? 'stopcock'
+      : panelResolvedControl;
+    if (resolvedControl === 'pressureZero') return;
     if (props.interactionLocked) {
       props.onLockedInteraction();
       return;
     }
-    if (control === 'powerSwitch') {
+    if (resolvedControl === 'powerSwitch') {
       props.onPowerToggle(!props.powerOn);
-    } else if (control === 'stopcock') {
+    } else if (resolvedControl === 'stopcock') {
       props.onStopcockOpenChange(getHeatCapacityStopcockState(props.stopcockAngleDeg) !== 'open');
-    } else if (control === 'pumpValve') {
+    } else if (resolvedControl === 'pumpValve') {
       props.onPumpValveToggle();
-    } else if (control === 'pumpBulb') {
+    } else if (resolvedControl === 'pumpBulb') {
       props.onPumpBulbPress();
     }
-  }, [props]);
+  }, [props, resolveUltraPanelPointerControl]);
 
   const handleUltraControlPointerDown = useCallback((control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => {
     if (!isUltraPrimaryPointerButton(event)) return;
-    if (control !== 'pressureZero') {
+    const resolvedControl = resolveUltraPanelPointerControl(control, event.clientX, event.clientY);
+    if (resolvedControl !== 'pressureZero') {
       absorbUltraPointerEvent(event);
       return;
     }
@@ -1461,15 +1501,27 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp, { once: true });
-  }, [getPressureZeroPointerAngle, gl, props]);
+  }, [getPressureZeroPointerAngle, gl, props, resolveUltraPanelPointerControl]);
 
-  const handleUltraControlPointerOver = useCallback((control: UltraPointerControl, _event: ThreeEvent<PointerEvent>) => {
-    gl.domElement.style.cursor = control === 'pressureZero' ? 'grab' : 'pointer';
-    props.setHoveredControl(control);
-    if (control === 'stopcock' || control === 'pumpValve') {
-      openUltraValveFocusBubble(control);
+  const handleUltraControlPointerOver = useCallback((control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => {
+    const resolvedControl = resolveUltraPanelPointerControl(control, event.clientX, event.clientY);
+    gl.domElement.style.cursor = resolvedControl === 'pressureZero' ? 'grab' : 'pointer';
+    props.setHoveredControl(resolvedControl);
+    if (resolvedControl === 'stopcock' || resolvedControl === 'pumpValve') {
+      openUltraValveFocusBubble(resolvedControl);
     }
-  }, [gl, openUltraValveFocusBubble, props]);
+  }, [gl, openUltraValveFocusBubble, props, resolveUltraPanelPointerControl]);
+
+  const handleUltraControlPointerMove = useCallback((control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => {
+    const resolvedControl = resolveUltraPanelPointerControl(control, event.clientX, event.clientY);
+    gl.domElement.style.cursor = resolvedControl === 'pressureZero' ? 'grab' : 'pointer';
+    if (props.hoveredControl !== resolvedControl) {
+      props.setHoveredControl(resolvedControl);
+      if (resolvedControl === 'stopcock' || resolvedControl === 'pumpValve') {
+        openUltraValveFocusBubble(resolvedControl);
+      }
+    }
+  }, [gl, openUltraValveFocusBubble, props, resolveUltraPanelPointerControl]);
 
   const handleUltraControlPointerOut = useCallback((_control: UltraPointerControl, _event: ThreeEvent<PointerEvent>) => {
     gl.domElement.style.cursor = '';
@@ -1720,6 +1772,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
           onClick={handleUltraControlClick}
           onPointerDown={handleUltraControlPointerDown}
           onPointerOver={handleUltraControlPointerOver}
+          onPointerMove={handleUltraControlPointerMove}
           onPointerOut={handleUltraControlPointerOut}
         />
       ))}

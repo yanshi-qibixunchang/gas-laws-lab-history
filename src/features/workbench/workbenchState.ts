@@ -2532,17 +2532,17 @@ export const powerHeatCapacityWorkbenchFile = (
     const sourceFile = nextPowerOn
       ? freezeHeatCapacityFreeParametersForCurrentGroup(file)
       : file;
+    const pressureZeroOffset = sourceFile.heatCapacityFreeCalibrationState.zeroOffsetMv;
+    const pressureZeroAdjusted = sourceFile.pressureZeroAdjusted || Math.abs(pressureZeroOffset) > 0.0001;
     const poweredFile = mergeHeatCapacityFreeRuntimeState(
       {
         ...sourceFile,
         powerOn: nextPowerOn,
         runState: nextPowerOn ? sourceFile.runState : 'idle',
         pressureZeroed: nextPowerOn ? sourceFile.pressureZeroed : false,
-        pressureZeroAdjusted: nextPowerOn ? sourceFile.pressureZeroAdjusted : false,
-        pressureZeroKnobAngle: nextPowerOn ? sourceFile.pressureZeroKnobAngle : 0,
-        pressureZeroDisplayText: nextPowerOn
-          ? sourceFile.pressureZeroDisplayText
-          : getHeatCapacityPressureZeroDisplayText(false, 0),
+        pressureZeroAdjusted,
+        pressureZeroKnobAngle: sourceFile.pressureZeroKnobAngle,
+        pressureZeroDisplayText: getHeatCapacityPressureZeroDisplayText(pressureZeroAdjusted, pressureZeroOffset),
         pressureZeroAdjustMode: nextPowerOn ? sourceFile.pressureZeroAdjustMode : 'none',
         pressureReleaseBurstUntilMs: null,
       },
@@ -2552,7 +2552,6 @@ export const powerHeatCapacityWorkbenchFile = (
         ? sourceFile.heatCapacityFreeCalibrationState
         : {
             ...sourceFile.heatCapacityFreeCalibrationState,
-            zeroOffsetMv: 0,
             automaticU0: null,
       },
       now,
@@ -2571,18 +2570,18 @@ export const powerHeatCapacityWorkbenchFile = (
     nextPowerOn,
     now,
   );
+  const pressureZeroAdjusted = file.pressureZeroAdjusted || Math.abs(runtime.pressureZeroOffset) > 0.0001;
   return mergeHeatCapacityRuntimeState({
     ...file,
     powerOn: nextPowerOn,
     runState: nextPowerOn ? file.runState : 'idle',
     pressureZeroed: nextPowerOn ? file.pressureZeroed : false,
-    pressureZeroAdjusted: nextPowerOn ? file.pressureZeroAdjusted : false,
-    pressureZeroDisplayText: nextPowerOn ? file.pressureZeroDisplayText : getHeatCapacityPressureZeroDisplayText(false, 0),
+    pressureZeroAdjusted,
+    pressureZeroDisplayText: getHeatCapacityPressureZeroDisplayText(pressureZeroAdjusted, runtime.pressureZeroOffset),
     pressureReleaseBurstUntilMs: null,
   }, {
     ...runtime,
-    pressureZeroAdjusted: nextPowerOn ? runtime.pressureZeroAdjusted : false,
-    pressureZeroOffset: nextPowerOn ? runtime.pressureZeroOffset : 0,
+    pressureZeroAdjusted,
   }, now);
 };
 

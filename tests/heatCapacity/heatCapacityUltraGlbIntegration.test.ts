@@ -194,8 +194,8 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const POWER_SWITCH_HITBOX_SIZE: \[number, number, number\] = \[0\.36,\s*0\.52,\s*0\.26\];[\s\S]*powerSwitch', anchorNodeName: 'FD_NCD_C_PowerSwitch_Base', size: POWER_SWITCH_HITBOX_SIZE, offset: \[0\.018,\s*-0\.006,\s*0\.16\]/,
-  'Ultra power switch hitbox should stay narrow, extend over the visible rocker face, and use the fixed switch base so both power states click consistently',
+  /const POWER_SWITCH_HITBOX_SIZE: \[number, number, number\] = \[0\.42,\s*0\.58,\s*0\.30\];[\s\S]*powerSwitch', anchorNodeName: 'FD_NCD_C_PowerSwitch_Base', size: POWER_SWITCH_HITBOX_SIZE, offset: \[0\.018,\s*-0\.006,\s*0\.16\]/,
+  'Ultra power switch hitbox should stay local to the rocker, grow slightly for easier clicks, and use the fixed switch base so both power states click consistently',
 );
 assert.match(
   ultraModelSource,
@@ -212,6 +212,41 @@ assert.match(
   /const handleUltraControlPointerDown = useCallback\([\s\S]*if \(!isUltraPrimaryPointerButton\(event\)\) return;[\s\S]*absorbUltraPointerEvent\(event\)/,
   'Ultra control hitboxes should let right pointer-down events pass through to OrbitControls before absorbing left-button events',
 );
+assert.match(
+  ultraModelSource,
+  /const projectUltraControlHitboxCenter = useCallback\([\s\S]*definition\.offset[\s\S]*applyMatrix4\(anchor\.matrixWorld\)[\s\S]*position\.project\(camera\)/,
+  'Ultra GLB control disambiguation should project hitbox centers, not raw screen constants, so resized canvases and orbit angles stay aligned',
+);
+assert.match(
+  ultraModelSource,
+  /const resolveUltraPanelPointerControl = useCallback\([\s\S]*projectUltraControlHitboxCenter\('powerSwitch'\)[\s\S]*projectUltraControlHitboxCenter\('pressureZero'\)[\s\S]*getUltraScreenDistanceSq\([\s\S]*return zeroDistanceSq < powerDistanceSq \? 'pressureZero' : 'powerSwitch'/,
+  'Ultra GLB should resolve the adjacent power switch and zero knob by pointer distance to their projected hitbox centers',
+);
+assert.match(
+  ultraModelSource,
+  /const handleUltraControlClick = useCallback\([\s\S]*const panelResolvedControl = resolveUltraPanelPointerControl\(control, event\.clientX, event\.clientY\)[\s\S]*const resolvedControl = panelResolvedControl === 'pumpValve'/,
+  'Ultra GLB clicks should use the same panel disambiguation before dispatching power-switch and zero-knob behavior',
+);
+assert.match(
+  ultraModelSource,
+  /const handleUltraControlPointerDown = useCallback\([\s\S]*const resolvedControl = resolveUltraPanelPointerControl\(control, event\.clientX, event\.clientY\)[\s\S]*if \(resolvedControl !== 'pressureZero'\)/,
+  'Ultra GLB pressure-zero dragging should still start when the ray first hits the neighboring power-switch box but the pointer is closer to the knob',
+);
+assert.match(
+  ultraModelSource,
+  /const handleUltraControlPointerOver = useCallback\([\s\S]*const resolvedControl = resolveUltraPanelPointerControl\(control, event\.clientX, event\.clientY\)[\s\S]*props\.setHoveredControl\(resolvedControl\)/,
+  'Ultra GLB hover should show the control selected by panel disambiguation instead of whichever adjacent transparent box was hit first',
+);
+assert.match(
+  ultraModelSource,
+  /onPointerMove\?: \(control: UltraPointerControl, event: ThreeEvent<PointerEvent>\) => void;[\s\S]*onPointerMove=\{\(event\) => onPointerMove\?\.\(definition\.control, event\)\}/,
+  'Ultra GLB hitboxes should forward pointer-move events so adjacent controls can be re-resolved without leaving the current transparent box',
+);
+assert.match(
+  ultraModelSource,
+  /const handleUltraControlPointerMove = useCallback\([\s\S]*const resolvedControl = resolveUltraPanelPointerControl\(control, event\.clientX, event\.clientY\)[\s\S]*if \(props\.hoveredControl !== resolvedControl\)[\s\S]*props\.setHoveredControl\(resolvedControl\)/,
+  'Ultra GLB pointer movement should continuously re-resolve power-switch versus zero-knob hover so the selected control is not determined by entry direction',
+);
 assert.doesNotMatch(
   ultraModelSource.match(/const handleUltraControlPointerOver[\s\S]*?const handleUltraControlPointerOut/)?.[0] ?? '',
   /absorbUltraPointerEvent/,
@@ -224,8 +259,8 @@ assert.doesNotMatch(
 );
 assert.match(
   ultraModelSource,
-  /HSL_PowerSwitch_SkirtedRockerShell[\s\S]*roughness=\{hovered \? 0\.12 : 0\.18\}[\s\S]*emissiveIntensity=\{hovered \? 0\.42 : powerOn \? 0\.08 : 0\.035\}[\s\S]*clearcoat=\{0\.6\}[\s\S]*clearcoatRoughness=\{0\.08\}[\s\S]*specularIntensity=\{0\.82\}/,
-  'Ultra power switch shell should keep its glossier plastic texture and brighten the physical rocker on hover',
+  /const baseShellColor = powerOn \? themeVisuals\.powerSwitchOn : themeVisuals\.powerSwitchOff;[\s\S]*const shellColor = hovered[\s\S]*getUltraNaturalHighlightColor\(new THREE\.Color\(baseShellColor\), 0\.28, 0\.075\)[\s\S]*HSL_PowerSwitch_SkirtedRockerShell[\s\S]*roughness=\{0\.18\}[\s\S]*emissiveIntensity=\{hovered \? 0\.34 : powerOn \? 0\.08 : 0\.035\}/,
+  'Ultra power switch shell should keep its base red/green hue, preserve its markings, and brighten clearly on hover',
 );
 assert.match(
   ultraModelSource,
@@ -254,8 +289,8 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = \{[\s\S]*position: \[0\.58,\s*3\.05,\s*6\.25\][\s\S]*target: \[0\.02,\s*0\.52,\s*0\.02\][\s\S]*fov: 36[\s\S]*responsiveFov:[\s\S]*aspect: 1\.35[\s\S]*narrowAspect: 0\.95[\s\S]*fov: 52/,
-  'Ultra default view should keep its approved close framing while widening FOV only for narrow resized canvases',
+  /const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = \{[\s\S]*position: \[0\.58,\s*3\.05,\s*6\.25\][\s\S]*target: \[0\.02,\s*0\.52,\s*0\.02\][\s\S]*fov: 36[\s\S]*responsiveFov:[\s\S]*aspect: 1\.35[\s\S]*narrowAspect: 0\.95[\s\S]*fov: 52[\s\S]*wideAspect: 3[\s\S]*wideFov: 56/,
+  'Ultra default view should keep its approved close framing while widening FOV for narrow and wide-short resized canvases',
 );
 assert.match(
   sceneSource,
@@ -264,7 +299,7 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /const getCameraFovForAspect = \(cameraViewScheme: CameraViewScheme, aspect: number\)[\s\S]*responsiveFov[\s\S]*THREE\.MathUtils\.lerp\(cameraViewScheme\.fov, responsiveFov\.fov, t\)/,
+  /const getCameraFovForAspect = \(cameraViewScheme: CameraViewScheme, aspect: number\)[\s\S]*responsiveFov[\s\S]*THREE\.MathUtils\.lerp\(cameraViewScheme\.fov, responsiveFov\.fov, t\)[\s\S]*responsiveFov\.wideAspect[\s\S]*THREE\.MathUtils\.lerp\(cameraViewScheme\.fov, responsiveFov\.wideFov, wideT\)/,
   'CameraRig should derive Ultra FOV from canvas aspect instead of a fixed screen-size assumption',
 );
 assert.match(
@@ -313,8 +348,28 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /ULTRA_CONTROL_HITBOXES[\s\S]*powerSwitch[\s\S]*FD_NCD_C_PowerSwitch_Base[\s\S]*pressureZero[\s\S]*FD_NCD_C_ZeroAdjustKnob[\s\S]*stopcock[\s\S]*Stopcock_Pivot[\s\S]*pumpValve[\s\S]*InletValue_Pivot[\s\S]*pumpBulb[\s\S]*Pump_Bulb/,
-  'Ultra GLB hitboxes should be anchored to GLB nodes, with the power switch using the fixed base so its click area stays stable across both rocker states',
+  /ULTRA_CONTROL_HITBOXES[\s\S]*powerSwitch[\s\S]*FD_NCD_C_PowerSwitch_Base[\s\S]*pressureZero[\s\S]*FD_NCD_C_ZeroAdjustKnob[\s\S]*stopcock[\s\S]*Stopcock_THandle[\s\S]*pumpValve[\s\S]*InletValue_Pivot[\s\S]*pumpBulb[\s\S]*Pump_Bulb/,
+  'Ultra GLB hitboxes should be anchored to GLB nodes, with the switch on a stable base and the stopcock on its handle only',
+);
+assert.match(
+  ultraModelSource,
+  /const POWER_SWITCH_HITBOX_SIZE: \[number, number, number\] = \[0\.42, 0\.58, 0\.30\];/,
+  'Ultra power-switch hitbox should be slightly larger while still staying local to the rocker area',
+);
+assert.match(
+  ultraModelSource,
+  /control: 'stopcock', anchorNodeName: 'Stopcock_THandle', size: \[0\.46, 0\.24, 0\.28\]/,
+  'Ultra stopcock hitbox should target the handle instead of the linked glass assembly',
+);
+assert.match(
+  ultraModelSource,
+  /control: 'pumpValve', anchorNodeName: 'InletValue_Pivot', size: \[0\.64, 0\.52, 0\.38\]/,
+  'Ultra pump-valve hitbox should be only slightly larger so it does not steal stopcock-handle clicks',
+);
+assert.match(
+  ultraModelSource,
+  /control: 'pumpBulb', anchorNodeName: 'Pump_Bulb', size: \[0\.96, 0\.72, 0\.64\]/,
+  'Ultra pump-bulb hitbox should stay smaller than the legacy oversized area while remaining reachable in narrow layouts',
 );
 assert.match(
   ultraModelSource,
@@ -330,6 +385,11 @@ assert.match(
   sceneSource,
   /<HeatCapacityUltraInstrumentModel[\s\S]*interactionLocked=\{props\.interactionLocked\}[\s\S]*onLockedInteraction=\{props\.onLockedInteraction\}[\s\S]*onPowerToggle=\{props\.onPowerToggle\}[\s\S]*onStopcockOpenChange=\{props\.onStopcockOpenChange\}[\s\S]*onPressureZeroFineAdjust=\{props\.onPressureZeroFineAdjust\}[\s\S]*onPressureZeroCoarseAdjust=\{props\.onPressureZeroCoarseAdjust\}[\s\S]*onPumpValveToggle=\{props\.onPumpValveToggle\}[\s\S]*onPumpBulbPress=\{props\.onPumpBulbPress\}/,
   'Heat Capacity scene should pass the shared procedural control callbacks into the Ultra GLB hitbox layer',
+);
+assert.match(
+  ultraModelSource,
+  /const panelResolvedControl = resolveUltraPanelPointerControl\(control, event\.clientX, event\.clientY\);[\s\S]*const resolvedControl = panelResolvedControl === 'pumpValve' && props\.hoveredControl === 'stopcock'\s*\?\s*'stopcock'\s*:\s*panelResolvedControl;[\s\S]*if \(resolvedControl === 'powerSwitch'\)[\s\S]*else if \(resolvedControl === 'stopcock'\)[\s\S]*else if \(resolvedControl === 'pumpValve'\)/,
+  'Ultra GLB valve clicks should honor the current hover target so pump-valve depth does not steal stopcock-handle clicks',
 );
 assert.match(
   sceneSource,
@@ -354,7 +414,7 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const ULTRA_CONTROL_VISUAL_TARGETS[\s\S]*id: 'powerSwitch'[\s\S]*anchorNodeName: 'FD_NCD_C_PowerSwitch_Base'[\s\S]*id: 'pressureZero'[\s\S]*anchorNodeName: 'FD_NCD_C_ZeroAdjustKnob'[\s\S]*id: 'stopcock'[\s\S]*anchorNodeName: 'Stopcock_Pivot'[\s\S]*id: 'pumpValve'[\s\S]*anchorNodeName: 'InletValue_Pivot'[\s\S]*id: 'pumpBulb'[\s\S]*anchorNodeName: 'Pump_Bulb'[\s\S]*id: 'instrumentPressureDisplay'[\s\S]*anchorNodeName: 'HSL_MainDisplay_DynamicPlaneAnchor'/,
+  /const ULTRA_CONTROL_VISUAL_TARGETS[\s\S]*id: 'powerSwitch'[\s\S]*anchorNodeName: 'FD_NCD_C_PowerSwitch_Base'[\s\S]*id: 'pressureZero'[\s\S]*anchorNodeName: 'FD_NCD_C_ZeroAdjustKnob'[\s\S]*id: 'stopcock'[\s\S]*anchorNodeName: 'Stopcock_THandle'[\s\S]*id: 'pumpValve'[\s\S]*anchorNodeName: 'InletValue_Pivot'[\s\S]*id: 'pumpBulb'[\s\S]*anchorNodeName: 'Pump_Bulb'[\s\S]*id: 'instrumentPressureDisplay'[\s\S]*anchorNodeName: 'HSL_MainDisplay_DynamicPlaneAnchor'/,
   'Ultra GLB hover and guide/demo halos should be anchored to GLB nodes, including the pressure display surface',
 );
 assert.match(
@@ -372,10 +432,30 @@ assert.match(
   /type UltraControlVisualTarget[\s\S]*hoverScale\?: number;[\s\S]*hoverWireframe\?: boolean;/,
   'Ultra GLB visual target definitions should be able to shrink hover hints and render them as outlines instead of large filled masks',
 );
+assert.doesNotMatch(
+  ultraModelSource,
+  /id: 'powerSwitch'[\s\S]*hoverControl: 'powerSwitch'[\s\S]*focusControlIds: \['powerSwitch'\]/,
+  'Ultra power-switch hover should rely on subtle material brightening instead of drawing a blue hover ring',
+);
+assert.doesNotMatch(
+  ultraModelSource,
+  /id: 'pressureZero'[\s\S]*hoverControl: 'pressureZero'[\s\S]*focusControlIds: \['pressureZero'\]/,
+  'Ultra pressure-zero hover should rely on subtle material brightening instead of drawing a blue hover ring',
+);
 assert.match(
   ultraModelSource,
-  /id: 'powerSwitch'[\s\S]*shape: 'torus'[\s\S]*args: \[0\.11,\s*0\.006[\s\S]*hoverWireframe: true/,
-  'Ultra power-switch hover hint should be a small point/ring instead of a filled rectangle covering the rocker',
+  /id: 'powerSwitch'[\s\S]*focusControlIds: \['powerSwitch'\][\s\S]*shape: 'torus'/,
+  'Ultra power-switch focus target should remain available for guide and demo pulses after removing the hover ring',
+);
+assert.match(
+  ultraModelSource,
+  /id: 'pressureZero'[\s\S]*focusControlIds: \['pressureZero'\][\s\S]*shape: 'torus'/,
+  'Ultra pressure-zero focus target should remain available for guide and demo pulses after removing the hover ring',
+);
+assert.match(
+  ultraModelSource,
+  /id: 'stopcock'[\s\S]*anchorNodeName: 'Stopcock_THandle'[\s\S]*size: \[0\.36, 0\.18, 0\.22\]/,
+  'Ultra stopcock hover hint should visually follow the smaller handle-only hit area',
 );
 assert.match(
   ultraModelSource,
@@ -394,8 +474,23 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /function applyUltraControlMaterialHighlights[\s\S]*snapshotMap[\s\S]*materialLike\.color\.copy\(snapshot\.color\)\.lerp\(highlightColor[\s\S]*restoreUltraMaterialSnapshot/,
-  'Ultra material highlights should brighten real GLB materials from stored snapshots and restore them when hover/focus leaves',
+  /const getUltraNaturalHighlightColor = \(baseColor: THREE\.Color, lightnessLift: number, saturationLift = 0\.02\) => \{[\s\S]*baseColor\.getHSL\(hsl\)[\s\S]*setHSL\([\s\S]*hsl\.h/,
+  'Ultra GLB material highlights should derive hover colors from the original material hue instead of replacing controls with white overlay colors',
+);
+assert.match(
+  ultraModelSource,
+  /function applyUltraControlMaterialHighlights[\s\S]*snapshotMap[\s\S]*getUltraNaturalHighlightColor\(snapshot\.color, definition\.lightnessLift, definition\.saturationLift\)[\s\S]*restoreUltraMaterialSnapshot/,
+  'Ultra material highlights should subtly brighten real GLB materials from stored snapshots and restore them when hover/focus leaves',
+);
+assert.match(
+  ultraModelSource,
+  /control: 'pressureZero'[\s\S]*lightnessLift: 0\.22[\s\S]*emissiveIntensity: 0\.11[\s\S]*control: 'stopcock'[\s\S]*lightnessLift: 0\.18[\s\S]*emissiveIntensity: 0\.09[\s\S]*control: 'pumpValve'[\s\S]*lightnessLift: 0\.22[\s\S]*emissiveIntensity: 0\.11[\s\S]*control: 'pumpBulb'[\s\S]*lightnessLift: 0\.22[\s\S]*emissiveIntensity: 0\.08/,
+  'Ultra GLB hover material values should be strong enough to read as selected while preserving knob markers, switch labels, and material details',
+);
+assert.doesNotMatch(
+  ultraModelSource,
+  /#f7fbff|#ecfdff|#e8fbff|#ffdce8|#ff7772|#55f5a5|#ff817c|#65ffb0/,
+  'Ultra GLB hover should not use the previous near-white or fluorescent replacement colors that washed out model details',
 );
 assert.match(
   ultraModelSource,

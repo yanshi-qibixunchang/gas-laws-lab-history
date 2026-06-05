@@ -603,6 +603,8 @@ type CameraViewScheme = {
     aspect: number;
     narrowAspect: number;
     fov: number;
+    wideAspect?: number;
+    wideFov?: number;
   };
   autoDemoView?: CameraFocusView;
   focusViews?: CameraFocusViews;
@@ -642,6 +644,8 @@ const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = {
     aspect: 1.35,
     narrowAspect: 0.95,
     fov: 52,
+    wideAspect: 3,
+    wideFov: 56,
   },
 };
 const getCameraViewScheme = (performanceMode: HeatCapacityInstrumentSceneProps['performanceMode']) => (
@@ -649,11 +653,24 @@ const getCameraViewScheme = (performanceMode: HeatCapacityInstrumentSceneProps['
 );
 const getCameraFovForAspect = (cameraViewScheme: CameraViewScheme, aspect: number) => {
   const responsiveFov = cameraViewScheme.responsiveFov;
-  if (!responsiveFov || aspect >= responsiveFov.aspect) return cameraViewScheme.fov;
-  const range = Math.max(0.001, responsiveFov.aspect - responsiveFov.narrowAspect);
-  const clampedAspect = Math.max(responsiveFov.narrowAspect, aspect);
-  const t = Math.min(1, Math.max(0, (responsiveFov.aspect - clampedAspect) / range));
-  return THREE.MathUtils.lerp(cameraViewScheme.fov, responsiveFov.fov, t);
+  if (!responsiveFov) return cameraViewScheme.fov;
+  if (aspect < responsiveFov.aspect) {
+    const range = Math.max(0.001, responsiveFov.aspect - responsiveFov.narrowAspect);
+    const clampedAspect = Math.max(responsiveFov.narrowAspect, aspect);
+    const t = Math.min(1, Math.max(0, (responsiveFov.aspect - clampedAspect) / range));
+    return THREE.MathUtils.lerp(cameraViewScheme.fov, responsiveFov.fov, t);
+  }
+  if (
+    typeof responsiveFov.wideAspect === 'number' &&
+    typeof responsiveFov.wideFov === 'number' &&
+    aspect > responsiveFov.aspect
+  ) {
+    const wideRange = Math.max(0.001, responsiveFov.wideAspect - responsiveFov.aspect);
+    const clampedWideAspect = Math.min(responsiveFov.wideAspect, aspect);
+    const wideT = Math.min(1, Math.max(0, (clampedWideAspect - responsiveFov.aspect) / wideRange));
+    return THREE.MathUtils.lerp(cameraViewScheme.fov, responsiveFov.wideFov, wideT);
+  }
+  return cameraViewScheme.fov;
 };
 const ORBIT_MIN_DISTANCE = 2.7;
 const ORBIT_MAX_DISTANCE = 11.5;
