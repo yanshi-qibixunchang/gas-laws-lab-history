@@ -36,7 +36,6 @@ export type HeatCapacityFreeTraceSampleReason =
 
 export type HeatCapacityFreeEventType =
   | 'enter-free-mode'
-  | 'exit-free-mode'
   | 'reset-free-run'
   | 'power-on'
   | 'power-off'

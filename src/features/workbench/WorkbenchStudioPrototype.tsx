@@ -2975,13 +2975,6 @@ const cloneWorkbenchFiles = (filesToClone: WorkbenchFileState[]): WorkbenchFileS
       ...common,
       name: normalizeHeatCapacityFileName(file.name),
       particles: file.particles.map((particle) => ({ ...particle })),
-      heatCapacityPausedTeachingSnapshot: file.heatCapacityPausedTeachingSnapshot
-        ? {
-            ...file.heatCapacityPausedTeachingSnapshot,
-            heatCapacityTrials: file.heatCapacityPausedTeachingSnapshot.heatCapacityTrials.map((trial) => ({ ...trial })),
-            openHeatCapacityTabs: [...file.heatCapacityPausedTeachingSnapshot.openHeatCapacityTabs],
-          }
-        : null,
       heatCapacityTrials: file.heatCapacityTrials.map((trial) => ({ ...trial })),
       heatCapacityProcessingResult: {
         ...file.heatCapacityProcessingResult,
@@ -6344,7 +6337,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         const openHeatCapacityTabs = completedFile.openHeatCapacityTabs.includes('processing')
           ? completedFile.openHeatCapacityTabs
           : [...completedFile.openHeatCapacityTabs, 'processing' as const];
-        return {
+        return enterHeatCapacityFreeModeWorkbenchState({
           ...completedFile,
           visiblePanels: Array.from(new Set([...completedFile.visiblePanels, 'heatCapacityProcessing' as const])),
           openHeatCapacityTabs,
@@ -6357,7 +6350,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           heatCapacityActiveTrialIndex: 0,
           heatCapacityProcessingCalculated: processingResult.calculated,
           heatCapacityProcessingResult: processingResult,
-        };
+        }, now);
       }
 
       return file;
@@ -7620,13 +7613,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
       const now = Date.now();
-      return {
-        ...markHeatCapacityDemoComplete(file, now),
-        heatCapacityMode: 'demo',
-        runState: 'idle',
-        pumpHint: heatCapacityRealtimeCopy.autoDemoTerminatedHint,
-        updatedAt: now,
-      };
+      return enterHeatCapacityFreeModeWorkbenchState(
+        markHeatCapacityDemoComplete(file, now),
+        now,
+      );
     });
     setAutoDemoStepTitle(heatCapacityRealtimeCopy.autoDemoTerminatedTitle);
     setAutoDemoStepDescription(heatCapacityRealtimeCopy.autoDemoTerminatedDescription);

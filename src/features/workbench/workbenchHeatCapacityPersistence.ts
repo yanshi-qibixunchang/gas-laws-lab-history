@@ -201,7 +201,6 @@ export interface HeatCapacityPersistencePayloadV1 {
   heatCapacitySchemaVersion: typeof HEAT_CAPACITY_SCHEMA_VERSION;
   mode: WorkbenchHeatCapacityState['heatCapacityMode'];
   common: {
-    pausedTeachingSnapshot: WorkbenchHeatCapacityState['heatCapacityPausedTeachingSnapshot'];
     trials: WorkbenchHeatCapacityState['heatCapacityTrials'];
     expectedTrialCount: number;
     expectedTrialCountMode: WorkbenchHeatCapacityState['heatCapacityExpectedTrialCountMode'];
@@ -320,7 +319,6 @@ export const createHeatCapacityPersistencePayload = (
     heatCapacitySchemaVersion: HEAT_CAPACITY_SCHEMA_VERSION,
     mode: file.heatCapacityMode,
     common: {
-      pausedTeachingSnapshot: clonePersistenceValue(file.heatCapacityPausedTeachingSnapshot),
       trials: clonePersistenceValue(file.heatCapacityTrials),
       expectedTrialCount: file.heatCapacityExpectedTrialCount,
       expectedTrialCountMode: file.heatCapacityExpectedTrialCountMode,
@@ -703,7 +701,6 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     visiblePanels: visiblePanels as WorkbenchHeatCapacityState['visiblePanels'],
     liveWorkspaceSplitRatio,
     heatCapacityMode: normalizePayloadMode(heatPayload.mode),
-    heatCapacityPausedTeachingSnapshot: common.pausedTeachingSnapshot ?? fallback.heatCapacityPausedTeachingSnapshot,
     heatCapacityTrials: Array.isArray(common.trials) ? common.trials : fallback.heatCapacityTrials,
     heatCapacityExpectedTrialCount: isFiniteNumber(common.expectedTrialCount)
       ? common.expectedTrialCount

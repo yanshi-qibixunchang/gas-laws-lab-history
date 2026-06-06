@@ -144,13 +144,24 @@ assert.notEqual(terminateAutoDemoEnd, -1, 'heat capacity auto-demo termination h
 const terminateAutoDemoBody = source.slice(terminateAutoDemoStart, terminateAutoDemoEnd);
 assert.match(
   terminateAutoDemoBody,
-  /markHeatCapacityDemoComplete\(file, now\)[\s\S]*heatCapacityMode:\s*'demo'[\s\S]*runState:\s*'idle'/,
-  'terminating auto demo should explicitly leave the file in Demo mode while returning the runtime to idle',
+  /enterHeatCapacityFreeModeWorkbenchState\(\s*markHeatCapacityDemoComplete\(file, now\),\s*now,\s*\)/,
+  'terminating auto demo should end the teaching workflow by returning the active file to Free mode',
 );
 assert.doesNotMatch(
   terminateAutoDemoBody,
-  /enterHeatCapacityFreeMode(?:WorkbenchState)?|resetHeatCapacityFreeRunWorkbenchState/,
-  'terminating auto demo must not enter or reset Free Mode implicitly',
+  /heatCapacityMode:\s*'demo'/,
+  'terminating auto demo must not leave the active file stuck in Demo mode',
+);
+
+const applyAutoDemoActionStart = source.indexOf('const applyHeatCapacityAutoDemoAction = (');
+assert.notEqual(applyAutoDemoActionStart, -1, 'heat capacity auto-demo action dispatcher should exist');
+const applyAutoDemoActionEnd = source.indexOf('\n  const setHeatCapacityAutoDemoStepState', applyAutoDemoActionStart);
+assert.notEqual(applyAutoDemoActionEnd, -1, 'auto-demo action dispatcher should end before step state helpers');
+const applyAutoDemoActionBody = source.slice(applyAutoDemoActionStart, applyAutoDemoActionEnd);
+assert.match(
+  applyAutoDemoActionBody,
+  /if \(action === 'markDemoComplete'\)[\s\S]*enterHeatCapacityFreeModeWorkbenchState\(/,
+  'natural auto-demo completion should also return the active file to Free mode',
 );
 
 const clearAutoDemoUiStart = source.indexOf('const clearHeatCapacityAutoDemoUiState = () => {');

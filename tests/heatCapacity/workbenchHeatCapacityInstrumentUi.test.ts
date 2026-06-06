@@ -46,6 +46,8 @@ const trialModelSource = readFileSync(trialModelPath, 'utf8');
 const parameterConfigSource = readFileSync(parameterConfigPath, 'utf8');
 const stateSource = readFileSync(statePath, 'utf8');
 const sessionSource = readFileSync(sessionPath, 'utf8');
+const heatCapacityPersistencePath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityPersistence.ts');
+const heatCapacityPersistenceSource = readFileSync(heatCapacityPersistencePath, 'utf8');
 const styleSource = readFileSync(stylePath, 'utf8');
 const workbenchSource = readFileSync(workbenchPath, 'utf8');
 const pressureGaugeContractSource = readFileSync(pressureGaugeContractPath, 'utf8');
@@ -736,7 +738,7 @@ assert.doesNotMatch(sceneSource, /name="pumpBulb"[\s\S]*onClick=\{\(event\) => \
 assert.doesNotMatch(sceneSource, /name="pumpAssembly"[\s\S]{0,260}onDoubleClick/, 'the pump assembly wrapper should not send valve or tube double-clicks into pump focus');
 assert.match(sceneSource, /name="pumpBulb"[\s\S]*onDoubleClick/, 'double-clicking the pump bulb should enter the pump focus panel directly');
 assert.doesNotMatch(sceneSource, /name="pumpBulb"[\s\S]{0,260}nativeEvent as MouseEvent\)\.detail > 1[\s\S]{0,120}onPumpBulbPress/, 'pump focus mode should not lose rapid clicks through native click-detail filtering');
-assert.doesNotMatch(pumpValveSceneSection, /onFocus\('stopcock'\)/, 'pump valve mesh should rely on the hover focus button instead of double-click focus');
+assert.match(pumpValveSceneSection, /const handlePumpValveDoubleClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*clearPumpValveSingleClick\(\);[\s\S]*onFocus\('stopcock'\);/, 'pump valve double-click should enter the shared stopcock and valve focus panel after canceling pending single-click toggle');
 assert.doesNotMatch(sceneSource, /name="pumpValve"[\s\S]{0,900}onFocus\('pump'\)/, 'double-clicking the pump valve should not enter the pump-bulb focus view');
 assert.match(sceneSource, /data-heat-capacity-valve-focus-pump-valve-toggle="true"/, 'combined valve focus view should expose a direct pump valve toggle');
 assert.match(sceneSource, /setHoveredControl\('pumpBulb'\)/, 'pump bulb should expose hover feedback');
@@ -808,9 +810,10 @@ assert.doesNotMatch(sceneSource, /STOPCOCK_WHEEL_STEP_DEG/, 'stopcock wheel adju
 assert.doesNotMatch(sceneSource, /handleStopcockWheel/, 'stopcock handle should not support wheel-based angle adjustment');
 assert.doesNotMatch(sceneSource, /onWheel=\{handleStopcockWheel\}/, 'wheel events over the stopcock should no longer adjust the valve');
 assert.match(sceneSource, /onStopcockOpenChange\(state !== 'open'\)/, 'clicking the stopcock should toggle the open/closed state directly');
-assert.doesNotMatch(sceneSource, /stopcockSingleClickTimerRef/, 'stopcock single-click toggle should not be delayed because it makes the valve feel laggy');
-assert.doesNotMatch(stopcockSceneSection, /detail > 1[\s\S]{0,80}return/, 'stopcock double-click should not suppress the two immediate toggle clicks');
-assert.doesNotMatch(stopcockSceneSection, /setTimeout\(\(\) => \{[\s\S]{0,220}onStopcockOpenChange\(state !== 'open'\)/, 'stopcock click should not wait before toggling the valve');
+assert.match(sceneSource, /const HEAT_CAPACITY_DOUBLE_CLICK_GUARD_MS = 220;/, '3D controls should share a short single-click guard window before committing click side effects');
+assert.match(sceneSource, /function useGuardedSceneSingleClick\(\)[\s\S]*window\.setTimeout\(\(\) => \{[\s\S]*HEAT_CAPACITY_DOUBLE_CLICK_GUARD_MS[\s\S]*return \{ schedule, clear \};/, '3D controls should centralize delayed single-click commits so double-click focus can cancel them');
+assert.match(sceneSource, /const \{ schedule: schedulePowerSwitchSingleClick, clear: clearPowerSwitchSingleClick \} = useGuardedSceneSingleClick\(\);[\s\S]*const handlePowerSwitchClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*schedulePowerSwitchSingleClick\(\(\) => \{[\s\S]*onPowerToggle\(!powerOn\);[\s\S]*const handlePowerSwitchDoubleClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*clearPowerSwitchSingleClick\(\);[\s\S]*onFocus\('instrument'\);/, 'power switch rapid double-click should enter instrument focus without committing the first toggle');
+assert.match(stopcockSceneSection, /const \{ schedule: scheduleStopcockSingleClick, clear: clearStopcockSingleClick \} = useGuardedSceneSingleClick\(\);[\s\S]*const handleStopcockToggle = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*scheduleStopcockSingleClick\(\(\) => \{[\s\S]*onStopcockOpenChange\(state !== 'open'\);[\s\S]*const handleStopcockDoubleClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*clearStopcockSingleClick\(\);[\s\S]*onFocus\('stopcock'\);/, 'stopcock rapid double-click should cancel the pending valve toggle and enter stopcock focus');
 assert.match(sceneSource, /HOVER_CLEAR_DELAY_MS = 220/, 'hover state should use a short grace period to avoid cursor flicker on projected 3D boundaries');
 assert.match(sceneSource, /hoverClearTimerRef/, 'hover state should cancel pending hover clears when entering adjacent meshes');
 assert.match(sceneSource, /setStableHoveredControl/, 'hover updates should go through a stable boundary helper');
@@ -829,11 +832,7 @@ assert.match(sceneSource, /\? \[1\.08, 0\.7, 1\.06\][\s\S]*\? \[1\.02, 0\.92, 1\
 assert.match(sceneSource, /name="pumpBulbStatusHalo"/, 'pump bulb active feedback should be an added halo, not a flat color replacement');
 assert.doesNotMatch(sceneSource, /tooFast/, 'pump feedback must not introduce a too-fast state');
 assert.match(sceneSource, /name="pumpValve"[\s\S]*onPointerDown=\{\(event\) => \{[\s\S]*stopImmediatePropagation/, 'pump valve pointer events should not bubble into neighboring controls');
-assert.match(pumpValveSceneSection, /const handlePumpValveClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]{0,320}onPumpValveToggle\(\);[\s\S]{0,80}\};/, 'pump valve click path should immediately toggle only the pump valve');
-assert.doesNotMatch(sceneSource, /pumpValveSingleClickTimerRef/, 'pump valve single-click toggle should not be delayed because valve and stopcock controls need the same direct feel');
-assert.doesNotMatch(pumpValveSceneSection, /detail > 1[\s\S]{0,80}return/, 'pump valve double-click should not suppress the two immediate toggle clicks');
-assert.doesNotMatch(pumpValveSceneSection, /setTimeout\(\(\) => \{[\s\S]{0,220}onPumpValveToggle\(\)/, 'pump valve click should not wait before toggling the valve');
-assert.doesNotMatch(pumpValveSceneSection, /clearPumpValveSingleClickTimer\(\);[\s\S]{0,260}onFocus\('stopcock'\)/, 'pump valve double-click should focus without canceling a delayed single-click toggle');
+assert.match(pumpValveSceneSection, /const \{ schedule: schedulePumpValveSingleClick, clear: clearPumpValveSingleClick \} = useGuardedSceneSingleClick\(\);[\s\S]*const handlePumpValveClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*schedulePumpValveSingleClick\(\(\) => \{[\s\S]*onPumpValveToggle\(\);[\s\S]*const handlePumpValveDoubleClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*clearPumpValveSingleClick\(\);[\s\S]*onFocus\('stopcock'\);/, 'pump valve rapid double-click should cancel the pending valve toggle and enter stopcock focus');
 assert.doesNotMatch(sceneSource, /name="pumpValve"[\s\S]{0,420}onStopcockOpenChange/, 'pump valve click path must not call the stopcock action');
 assert.match(
   sceneSource,
@@ -957,8 +956,8 @@ assert.match(sceneSource, /focusMode/, '3D preview should track focused operatio
 assert.match(sceneSource, /viewResetKey/, 'default view resets should use a local key to trigger the smooth camera rig');
 assert.match(sceneSource, /triggerSmoothDefaultView/, 'default view resets and auto-demo resets should share the smooth reset path');
 assert.doesNotMatch(sceneSource, /controlsRef\.current\?\.reset\(\)/, 'default view reset should not jump the camera through OrbitControls.reset');
-assert.doesNotMatch(stopcockSceneSection, /name="StopcockRotatingCore"[\s\S]{0,420}onDoubleClick/, 'glass stopcock should not use double-click as the focus entry');
-assert.doesNotMatch(pumpValveSceneSection, /name="pumpValve"[\s\S]{0,520}onDoubleClick/, 'pump valve should not use double-click as the focus entry');
+assert.match(stopcockSceneSection, /name="StopcockRotatingCore"[\s\S]{0,520}onDoubleClick=\{handleStopcockDoubleClick\}/, 'glass stopcock should use double-click as a direct focus entry while canceling the guarded single click');
+assert.match(pumpValveSceneSection, /name="pumpValve"[\s\S]{0,620}onDoubleClick=\{handlePumpValveDoubleClick\}/, 'pump valve should use double-click as a direct stopcock focus entry while canceling the guarded single click');
 assert.match(sceneSource, /type ValveFocusBubbleState = \{[\s\S]*source: ValveFocusControl[\s\S]*closing: boolean/, 'valve focus entry should keep independent anchored bubble state instead of relying only on hover state');
 assert.match(sceneSource, /const projectValveFocusAnchor = useCallback/, 'valve focus bubble should project the 3D control anchor instead of following the mouse');
 assert.match(sceneSource, /const openValveFocusBubble = useCallback/, 'hovering either valve control should open or migrate one shared anchored focus bubble');
@@ -975,7 +974,9 @@ assert.match(sceneSource, /data-heat-capacity-valve-focus-entry="true"/, 'valve 
 assert.match(sceneSource, /sceneCopy\.focus\.enterValveFocus/, 'valve focus entry button should use localized copy');
 assert.match(sceneSource, /onFocus\('instrument'\)/, 'double-clicking the host should enter instrument focus mode');
 assert.match(sceneSource, /const PROCEDURAL_CAMERA_VIEW_SCHEME: CameraViewScheme = \{[\s\S]*focusViews: \{[\s\S]*stopcock:[\s\S]*position: \[1\.38, 2\.18, 2\.92\][\s\S]*instrument:[\s\S]*position: \[2\.18, 0\.18, 3\.42\][\s\S]*pump:[\s\S]*position: \[2\.95, 0\.25, 3\.35\]/, 'procedural scheme should keep the original skeleton focus framing');
-assert.doesNotMatch(sceneSource, /const ULTRA_FOCUS_VIEWS/, 'Ultra focus views should be removed while GLB focus integration is deferred');
+assert.match(sceneSource, /const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = \{[\s\S]*focusViews: \{[\s\S]*stopcock:[\s\S]*position: \[-0\.45,\s*2\.58,\s*4\.85\][\s\S]*target: \[-1\.2,\s*1\.06,\s*0\.44\][\s\S]*fov: 50[\s\S]*instrument:[\s\S]*position: \[2\.78,\s*1\.16,\s*3\.85\][\s\S]*target: \[2\.24,\s*0\.06,\s*0\.28\][\s\S]*fov: 32[\s\S]*pump:[\s\S]*position: \[2\.34,\s*1\.24,\s*3\.55\][\s\S]*target: \[0\.98,\s*0\.34,\s*0\.28\][\s\S]*fov: 36/, 'Ultra GLB scheme should define dedicated focus views aligned to the shifted GLB controls');
+assert.match(sceneSource, /if \(focusMode !== 'none'\) return;[\s\S]*const startFov = camera\.fov[\s\S]*const nextFov = focusView[\s\S]*\? focusView\.fov \?\? cameraViewScheme\.fov[\s\S]*: getCameraFovForAspect\(cameraViewScheme, aspect\)[\s\S]*camera\.fov = THREE\.MathUtils\.lerp\(startFov, nextFov, eased\)/, 'focused camera transitions should animate to each focus view FOV instead of using short-wide responsive FOV');
+assert.doesNotMatch(sceneSource, /props\.performanceMode === 'ultra' && focusMode !== 'none'/, 'Ultra GLB should no longer clear focused modes immediately after entry');
 assert.match(sceneSource, /focusMode === 'stopcock' \|\| focusMode === 'instrument' \|\| focusMode === 'pump'[\s\S]*cameraViewScheme\.focusViews\?\.\[focusMode\][\s\S]*const nextView = focusView \?\? \([\s\S]*cameraViewScheme\.autoDemoView \?\? cameraViewScheme\.defaultView[\s\S]*nextPosition\.set\(\.\.\.nextView\.position\)[\s\S]*nextTarget\.set\(\.\.\.nextView\.target\)/, 'camera rig should resolve focus, auto-demo, and default views from the active scheme only');
 assert.doesNotMatch(sceneSource, /data-heat-capacity-focus-mode=\{focusMode\}/, 'instrument focus should not move overlay controls through scene focus-mode attributes');
 assert.doesNotMatch(styleSource, /data-heat-capacity-focus-mode="instrument"[\s\S]*studio-preview-overlay-slot-bottom-left[\s\S]*display:\s*none/, 'instrument focus should keep lower-left hints in their normal overlay slot');
@@ -996,7 +997,7 @@ assert.match(sceneSource, /<strong>\{poweredInstrumentNumber\(`\$\{formatPanelNu
 assert.match(sceneSource, /getPumpBulbDisplayLabel/, 'pump bulb display state should be mapped for user-facing UI');
 assert.match(sceneSource, /props\.pumpValveOpen \? sceneCopy\.focus\.opened : sceneCopy\.focus\.closed/, 'shared stopcock focus panel should show pump valve open-closed state');
 assert.doesNotMatch(sceneSource, /snapNearestOpen|吸附|磁吸|magnetic/i, 'stopcock focus panel should not expose magnetic snap controls');
-assert.match(sceneSource, /const orbitControlsEnabled = props\.performanceMode === 'ultra'\s*\?\s*true\s*:\s*focusMode === 'none' && !props\.interactionLocked;/, 'Ultra orbit controls should remain usable while the GLB controls use direct hitboxes');
+assert.match(sceneSource, /const orbitControlsEnabled = focusMode === 'none' && !props\.interactionLocked;/, 'Ultra orbit controls should lock during focus just like the procedural model so the focused framing stays stable');
 assert.match(sceneSource, /enabled=\{orbitControlsEnabled\}/, 'orbit controls should use the explicit Ultra-safe enable policy');
 assert.match(sceneSource, /data-heat-capacity-view-reset="true"/, '3D preview should expose a reset-default-view control');
 assert.match(sceneSource, /studio-preview-overlay-slot-bottom-right[\s\S]*data-heat-capacity-focus-panel/, 'focus panels should sit in the shared lower-right overlay slot');
@@ -1459,6 +1460,9 @@ assert.match(workbenchSource, /isHeatCapacityManualRecordStep\(latestStep\)[\s\S
 assert.match(workbenchSource, /HEAT_CAPACITY_GUIDE_START_NOTICE_MS = 1000/, 'guide mode should reserve a short centered start notice before process guidance begins');
 assert.match(workbenchSource, /showHeatCapacityAutoDemoCompletionToast\(heatCapacityRealtimeCopy\.guideModeStartingToast,\s*HEAT_CAPACITY_GUIDE_START_NOTICE_MS\)/, 'guide mode should show a centered localized start notice before activating the process');
 assert.match(workbenchSource, /showHeatCapacityAutoDemoCompletionToast\(heatCapacityRealtimeCopy\.guideModeExitedToast\)/, 'exiting guide mode should use the same localized centered status toast as demo termination');
+assert.doesNotMatch(stateSource, /WorkbenchHeatCapacityPausedTeachingSnapshot|heatCapacityPausedTeachingSnapshot|exitHeatCapacityFreeModeWorkbenchState/, 'Free mode should be the base state instead of storing resumable Demo/Guide snapshots in workbench state');
+assert.doesNotMatch(sessionSource, /heatCapacityPausedTeachingSnapshot/, 'session migration should discard legacy paused teaching snapshots instead of reviving old mode semantics');
+assert.doesNotMatch(heatCapacityPersistenceSource, /pausedTeachingSnapshot|heatCapacityPausedTeachingSnapshot/, 'Heat Capacity persistence should stop writing the obsolete paused teaching snapshot field');
 assert.match(workbenchSource, /nextPowerOn && source === 'user'[\s\S]*heatCapacityPhase === 'demoComplete'[\s\S]*runState === 'finished'[\s\S]*resetHeatCapacityForManualExperiment/, 'direct power-on after auto demo should defensively reset stale demo pressure state');
 assert.match(workbenchSource, /pressureSignalTargetMv/, 'right realtime panel should retain target pressure signal separately from displayed pressure');
 assert.match(workbenchSource, /temperatureSignalTargetMv/, 'right realtime panel should retain target temperature signal separately from displayed temperature');

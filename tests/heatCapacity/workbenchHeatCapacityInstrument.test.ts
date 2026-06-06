@@ -34,7 +34,6 @@ import {
   HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS,
   createHeatCapacityInitialPressureBiasMv,
   enterHeatCapacityFreeModeWorkbenchState,
-  exitHeatCapacityFreeModeWorkbenchState,
   getHeatCapacityFreeEquilibriumSpeedMultiplier,
   isHeatCapacityPressureZeroWithinTolerance,
   isHeatCapacityFreeEquilibriumSpeedAvailable,
@@ -143,7 +142,6 @@ assert.equal(
 assert.equal(defaultFile.heatCapacityFreeSensorState.displayTemperatureMv, initialTemperatureMv);
 assert.equal(defaultFile.heatCapacityFreeCalibrationState.calibrationVersion, 0);
 assert.deepEqual(defaultFile.heatCapacityFreeTrials, []);
-assert.equal(defaultFile.heatCapacityPausedTeachingSnapshot, null);
 for (const freeRuntimeState of [
   defaultFile.heatCapacityFreePhysicsState,
   defaultFile.heatCapacityFreeSensorState,
@@ -268,12 +266,9 @@ assert.equal(enteredFree.heatCapacityMode, 'free');
 assert.equal(enteredFree.heatCapacityFreePhysicsState.gasAmountRatio, 1, 'entering Free should reset physical runtime');
 assert.equal(enteredFree.heatCapacityFreeCalibrationState.calibrationVersion, 0, 'entering Free should reset calibration runtime');
 assert.deepEqual(enteredFree.heatCapacityFreeTrials, [freeTrial], 'entering Free must preserve existing Free trials');
-assert.notEqual(enteredFree.heatCapacityPausedTeachingSnapshot, null);
-const exitedFree = exitHeatCapacityFreeModeWorkbenchState(enteredFree, 2_500);
-assert.equal(exitedFree.heatCapacityMode, 'guide');
-assert.equal(exitedFree.heatCapacityTrials[0].U1Mv, 111);
-assert.deepEqual(exitedFree.heatCapacityFreeTrials, [freeTrial], 'exiting Free must preserve Free trials');
-assert.equal(exitedFree.heatCapacityPausedTeachingSnapshot, null);
+assert.equal(enteredFree.powerOn, false);
+assert.equal(enteredFree.runState, 'idle');
+assert.equal(enteredFree.heatCapacityPhase, 'powerOff');
 const resetOnlyFreeTrials = resetHeatCapacityFreeTrialsWorkbenchState(enteredFree);
 assert.deepEqual(resetOnlyFreeTrials.heatCapacityFreeTrials, []);
 assert.equal(resetOnlyFreeTrials.heatCapacityTrials[0].U1Mv, 111);
@@ -1424,6 +1419,13 @@ assert.equal(completedDemo.hardSphereViewEnabled, true, 'auto demo completion sh
 assert.equal(completedDemo.hardSphereParticleMultiplier, 1.15);
 assert.equal(completedDemo.hardSphereSpeedMultiplier, 1.2);
 assert.equal(completedDemo.pressureReleaseBurstUntilMs, null);
+
+const returnedFreeAfterDemo = enterHeatCapacityFreeModeWorkbenchState(completedDemo, 30_500);
+assert.equal(returnedFreeAfterDemo.heatCapacityMode, 'free');
+assert.equal(returnedFreeAfterDemo.runState, 'idle');
+assert.equal(returnedFreeAfterDemo.heatCapacityPhase, 'powerOff');
+assert.equal(returnedFreeAfterDemo.powerOn, false);
+assert.equal(returnedFreeAfterDemo.pumpValveOpen, false);
 
 const manualResetAfterDemo = resetHeatCapacityForManualExperiment({
   ...completedDemo,

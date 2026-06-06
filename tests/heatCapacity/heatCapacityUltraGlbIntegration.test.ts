@@ -68,8 +68,37 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const drawUltraAlignedSignal = \([\s\S]*context\.measureText\('\+9999'\)[\s\S]*context\.measureText\('\.99 mV'\)[\s\S]*const decimalX = Math\.round\(\(canvasWidth - leftWidth - rightWidth\) \/ 2 \+ leftWidth\)[\s\S]*context\.textAlign = 'right'[\s\S]*context\.textAlign = 'left'/,
-  'Ultra digital display should center the full numeric field while aligning both rows at the decimal point',
+  /const ULTRA_DISPLAY_PIXEL_SIZE = 8;[\s\S]*const ULTRA_DISPLAY_PIXEL_GAP = 2;[\s\S]*const ULTRA_DISPLAY_DIGIT_ADVANCE = 54;[\s\S]*const ULTRA_DISPLAY_UNIT_ADVANCE = 51;[\s\S]*const ULTRA_DISPLAY_UNIT_GAP = 19;/,
+  'Ultra digital display should use a fixed pixel grid scaled down to about four fifths of the previous oversized readout',
+);
+assert.match(
+  ultraModelSource,
+  /const ULTRA_DISPLAY_DECIMAL_COLUMNS = 2;[\s\S]*const ULTRA_DISPLAY_DECIMAL_ROWS = 3;[\s\S]*const ULTRA_DISPLAY_DECIMAL_WIDTH = ULTRA_DISPLAY_DECIMAL_COLUMNS \* ULTRA_DISPLAY_PIXEL_SIZE \+ \(ULTRA_DISPLAY_DECIMAL_COLUMNS - 1\) \* ULTRA_DISPLAY_PIXEL_GAP;/,
+  'Ultra digital display decimal points should use a dedicated visible two-by-three pixel block',
+);
+[
+  /const ULTRA_DISPLAY_GLYPHS[\s\S]*'0': \[/,
+  /const ULTRA_DISPLAY_GLYPHS[\s\S]*'1': \[/,
+  /const ULTRA_DISPLAY_GLYPHS[\s\S]*'\+': \[/,
+  /const ULTRA_DISPLAY_GLYPHS[\s\S]*'-': \[/,
+  /const ULTRA_DISPLAY_GLYPHS[\s\S]*m: \[/,
+  /const ULTRA_DISPLAY_GLYPHS[\s\S]*V: \[/,
+].forEach((glyphPattern) => {
+  assert.match(
+    ultraModelSource,
+    glyphPattern,
+    'Ultra digital display should render numbers and mV units through pixel-dot glyph patterns',
+  );
+});
+assert.match(
+  ultraModelSource,
+  /const drawUltraAlignedSignal = \([\s\S]*const leftFieldWidth = ULTRA_DISPLAY_SIGN_AND_INTEGER_SLOTS \* ULTRA_DISPLAY_DIGIT_ADVANCE[\s\S]*const decimalFieldWidth = ULTRA_DISPLAY_DECIMAL_WIDTH[\s\S]*const decimalX = Math\.round\(startX \+ leftFieldWidth \+ ULTRA_DISPLAY_DECIMAL_GAP\)[\s\S]*const unitStartX = fractionStartX \+ fractionFieldWidth \+ ULTRA_DISPLAY_UNIT_GAP[\s\S]*drawUltraDisplayDecimalPoint\(context, decimalX,[\s\S]*drawUltraDisplayGlyph\(context, 'm', unitStartX,[\s\S]*drawUltraDisplayGlyph\(context, 'V', unitStartX \+ ULTRA_DISPLAY_UNIT_ADVANCE/,
+  'Ultra digital display should center the fixed pixel field while keeping decimal points and mV units column-aligned across rows',
+);
+assert.doesNotMatch(
+  ultraModelSource.match(/const drawUltraAlignedSignal = \([\s\S]*?\n\};/)?.[0] ?? '',
+  /measureText|fillText|textAlign/,
+  'Ultra digital display should no longer rely on browser text metrics that make the readout narrow or font-dependent',
 );
 assert.match(
   ultraModelSource,
@@ -90,6 +119,11 @@ assert.match(
   ultraModelSource,
   /const texture = new THREE\.CanvasTexture\(canvas\);\s*texture\.flipY = false;/,
   'Ultra dynamic display texture should compensate GLB UV orientation so the live readout is not flipped',
+);
+assert.match(
+  ultraModelSource,
+  /texture\.magFilter = THREE\.NearestFilter;/,
+  'Ultra dynamic display texture should keep the enlarged pixel-dot readout crisp instead of smoothing it into a narrow font-like blur',
 );
 assert.match(
   ultraModelSource,
@@ -224,7 +258,7 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const handleUltraControlClick = useCallback\([\s\S]*const panelResolvedControl = resolveUltraPanelPointerControl\(control, event\.clientX, event\.clientY\)[\s\S]*const resolvedControl = panelResolvedControl === 'pumpValve'/,
+  /const resolveUltraActionControl = useCallback\([\s\S]*const panelResolvedControl = resolveUltraPanelPointerControl\(control, clientX, clientY\)[\s\S]*panelResolvedControl === 'pumpValve' && props\.hoveredControl === 'stopcock'[\s\S]*const handleUltraControlClick = useCallback\([\s\S]*const clientX = event\.clientX;[\s\S]*const clientY = event\.clientY;[\s\S]*scheduleUltraSingleClick\(\(\) => \{[\s\S]*const resolvedControl = resolveUltraActionControl\(control, clientX, clientY\)/,
   'Ultra GLB clicks should use the same panel disambiguation before dispatching power-switch and zero-knob behavior',
 );
 assert.match(
@@ -259,8 +293,8 @@ assert.doesNotMatch(
 );
 assert.match(
   ultraModelSource,
-  /const baseShellColor = powerOn \? themeVisuals\.powerSwitchOn : themeVisuals\.powerSwitchOff;[\s\S]*const shellColor = hovered[\s\S]*getUltraNaturalHighlightColor\(new THREE\.Color\(baseShellColor\), 0\.28, 0\.075\)[\s\S]*HSL_PowerSwitch_SkirtedRockerShell[\s\S]*roughness=\{0\.18\}[\s\S]*emissiveIntensity=\{hovered \? 0\.34 : powerOn \? 0\.08 : 0\.035\}/,
-  'Ultra power switch shell should keep its base red/green hue, preserve its markings, and brighten clearly on hover',
+  /const baseShellColor = powerOn \? themeVisuals\.powerSwitchOn : themeVisuals\.powerSwitchOff;[\s\S]*const emphasized = hovered \|\| focused;[\s\S]*const shellColor = emphasized[\s\S]*getUltraNaturalHighlightColor\(new THREE\.Color\(baseShellColor\), 0\.28, 0\.075\)[\s\S]*HSL_PowerSwitch_SkirtedRockerShell[\s\S]*roughness=\{0\.18\}[\s\S]*emissiveIntensity=\{hovered \? 0\.34 : focused \? 0\.22 : powerOn \? 0\.08 : 0\.035\}/,
+  'Ultra power switch shell should keep its base red/green hue, preserve its markings, and brighten clearly on hover or guide focus',
 );
 assert.match(
   ultraModelSource,
@@ -353,6 +387,11 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
+  /const ULTRA_INSTRUMENT_FOCUS_HITBOX = \{[\s\S]*anchorNodeName: 'FD_NCD_C_FrontPanel'[\s\S]*size: \[2\.04,\s*0\.86,\s*0\.36\][\s\S]*function UltraInstrumentFocusHitbox[\s\S]*name="HSL_UltraMeshHitbox_instrumentFocus"[\s\S]*onDoubleClick=\{onDoubleClick\}/,
+  'Ultra GLB should expose a large front-panel double-click hitbox so the whole host can enter instrument focus',
+);
+assert.match(
+  ultraModelSource,
   /const POWER_SWITCH_HITBOX_SIZE: \[number, number, number\] = \[0\.42, 0\.58, 0\.30\];/,
   'Ultra power-switch hitbox should be slightly larger while still staying local to the rocker area',
 );
@@ -388,13 +427,23 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const panelResolvedControl = resolveUltraPanelPointerControl\(control, event\.clientX, event\.clientY\);[\s\S]*const resolvedControl = panelResolvedControl === 'pumpValve' && props\.hoveredControl === 'stopcock'\s*\?\s*'stopcock'\s*:\s*panelResolvedControl;[\s\S]*if \(resolvedControl === 'powerSwitch'\)[\s\S]*else if \(resolvedControl === 'stopcock'\)[\s\S]*else if \(resolvedControl === 'pumpValve'\)/,
+  /const resolveUltraActionControl = useCallback\([\s\S]*panelResolvedControl === 'pumpValve' && props\.hoveredControl === 'stopcock'[\s\S]*const handleUltraControlClick = useCallback\([\s\S]*scheduleUltraSingleClick\(\(\) => \{[\s\S]*const resolvedControl = resolveUltraActionControl\(control, clientX, clientY\)[\s\S]*if \(resolvedControl === 'powerSwitch'\)[\s\S]*else if \(resolvedControl === 'stopcock'\)[\s\S]*else if \(resolvedControl === 'pumpValve'\)/,
   'Ultra GLB valve clicks should honor the current hover target so pump-valve depth does not steal stopcock-handle clicks',
 );
 assert.match(
   sceneSource,
   /<HeatCapacityUltraInstrumentModel[\s\S]*demoFocusControlId=\{props\.demoFocusControlId\}[\s\S]*demoFocusPulseActive=\{props\.demoFocusPulseActive\}[\s\S]*interactionQualityReduced=\{interactionQualityReduced\}[\s\S]*visualEffects=\{\{[\s\S]*demoHaloColor: scenePalette\.effects\.demoHalo[\s\S]*nonBulbHoverHaloOpacity: scenePalette\.effects\.nonBulbHoverHaloOpacity[\s\S]*pumpBulbHoverHaloOpacity: scenePalette\.effects\.pumpBulbHoverHaloOpacity/,
   'Heat Capacity scene should pass the procedural demo/guide pulse palette into the Ultra GLB visual layer',
+);
+assert.match(
+  sceneSource,
+  /dark:\s*\{[\s\S]*focusShellColor:\s*'#72f5d1'[\s\S]*focusShellRimColor:\s*'#8cf7df'[\s\S]*focusShellBlendMode:\s*'additive'[\s\S]*light:\s*\{[\s\S]*focusShellColor:\s*'#0f8fa3'[\s\S]*focusShellRimColor:\s*'#34c8b7'[\s\S]*focusShellBlendMode:\s*'normal'/,
+  'Ultra focus shells should use separate dark and light theme colors and blend modes instead of one blue sticker-like pulse',
+);
+assert.match(
+  sceneSource,
+  /focusShellColor: scenePalette\.effects\.focusShellColor[\s\S]*focusShellRimColor: scenePalette\.effects\.focusShellRimColor[\s\S]*focusShellBlendMode: scenePalette\.effects\.focusShellBlendMode[\s\S]*focusShellPulseRate: scenePalette\.effects\.focusShellPulseRate/,
+  'Heat Capacity scene should pass the theme-specific focus shell pulse values into the Ultra GLB visual layer',
 );
 assert.match(
   sceneSource,
@@ -419,6 +468,16 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
+  /focusShellNodeNames: \['FD_NCD_C_PowerSwitch_Base', 'HSL_PowerSwitch_Inset_Frame_Lip'\][\s\S]*focusShellNodeNames: \['FD_NCD_C_ZeroAdjustKnob'\][\s\S]*focusShellNodeNames: \['Stopcock_THandle', 'Stopcock_HandleStem', 'Stopcock_RotatingPlugCore'\][\s\S]*focusShellNodeNames: \['InletValue_Pivot'\][\s\S]*focusShellNodeNames: \['Pump_Bulb'\]/,
+  'Ultra guide/demo focus should pulse real GLB shell nodes instead of generic torus or box overlays',
+);
+assert.match(
+  ultraModelSource,
+  /id: 'powerSwitch'[\s\S]*focusShellPulsePopScale: 1\.42[\s\S]*focusShellPulseRetreatScale: 1\.18[\s\S]*id: 'pressureZero'[\s\S]*focusShellPulsePopScale: 1\.34[\s\S]*focusShellPulseRetreatScale: 1\.14[\s\S]*id: 'pumpValve'[\s\S]*focusShellPulsePopScale: 1\.28[\s\S]*focusShellPulseRetreatScale: 1\.11/,
+  'Small Ultra focus targets should use target-specific pop and retreat scales so range expansion is visible when opacity peaks',
+);
+assert.match(
+  ultraModelSource,
   /focusControlIds: \['pressureZero', 'instrumentPressureDisplay'\]/,
   'Ultra pressure-zero focus should highlight both the GLB zero knob and pressure display like the procedural zeroing walkthrough',
 );
@@ -426,6 +485,36 @@ assert.match(
   ultraModelSource,
   /function UltraNodeHalo[\s\S]*parentRef[\s\S]*updateMatrixWorld\(true\)[\s\S]*copy\(anchor\.matrixWorld\)[\s\S]*matrixAutoUpdate=\{false\}/,
   'Ultra visual halos should copy live GLB node matrices just like hitboxes so resize, sidebar, camera, and model transforms stay aligned',
+);
+assert.match(
+  ultraModelSource,
+  /type UltraFocusShellMeshEntry[\s\S]*collectUltraFocusShellMeshes[\s\S]*anchorInverseMatrix[\s\S]*mesh\.matrixWorld[\s\S]*HSL_UltraFocusShellBreath_[\s\S]*HSL_UltraFocusShellPulse_/,
+  'Ultra guide/demo focus should build a two-layer shell pulse from the focused GLB node geometry',
+);
+assert.match(
+  ultraModelSource,
+  /const shellSide = target\.focusShellSide === 'double' \? THREE\.DoubleSide : THREE\.BackSide;[\s\S]*const focusShellDepthTest = target\.focusShellSide !== 'double';[\s\S]*depthTest: focusShellDepthTest[\s\S]*polygonOffsetFactor: -4[\s\S]*depthTest: focusShellDepthTest[\s\S]*polygonOffsetFactor: -8[\s\S]*renderOrder=\{24\}[\s\S]*renderOrder=\{25\}/,
+  'Ultra focus shells should use occluded back-side outer shells for 3D controls while keeping flat display overlays visible',
+);
+assert.match(
+  ultraModelSource,
+  /const initializeUltraFocusShellMeshMorphTargets = \(mesh: THREE\.Mesh\) => \{[\s\S]*mesh\.updateMorphTargets\(\);[\s\S]*onUpdate=\{initializeUltraFocusShellMeshMorphTargets\}[\s\S]*onUpdate=\{initializeUltraFocusShellMeshMorphTargets\}/,
+  'Ultra focus shell meshes should initialize morphTargetInfluences for GLB morph geometries before Three renders them',
+);
+assert.match(
+  ultraModelSource,
+  /const popProgress = Math\.min\(pulse \/ ULTRA_FOCUS_SHELL_POP_FRACTION, 1\);[\s\S]*const fadeProgress = Math\.max\(\(pulse - ULTRA_FOCUS_SHELL_POP_FRACTION\) \/ \(1 - ULTRA_FOCUS_SHELL_POP_FRACTION\), 0\);[\s\S]*const pulsePeakScale = target\.focusShellPulsePopScale \?\? effects\.focusShellPulseStartScale;[\s\S]*pulseGroup\.scale\.setScalar\(THREE\.MathUtils\.lerp\(effects\.focusShellPulseStartScale, pulsePeakScale, popEase\) - fadeEase \* pulseRetreatDistance\);[\s\S]*shellPulseMaterial\.opacity = effects\.focusShellPulseOpacity \* popEase \* Math\.pow\(1 - fadeProgress,\s*1\.45\)/,
+  'Ultra focus shell pulse should pop range and opacity together, then fade while only slightly retreating',
+);
+assert.match(
+  ultraModelSource,
+  /const focusPulseStartedAtRef = useRef<number \| null>\(null\);[\s\S]*if \(focusPulseStartedAtRef\.current === null\) focusPulseStartedAtRef\.current = clock\.elapsedTime;[\s\S]*const focusPulseElapsed = Math\.max\(0, clock\.elapsedTime - focusPulseStartedAtRef\.current\);[\s\S]*const pulse = \(focusPulseElapsed \* effects\.focusShellPulseRate\) % 1;/,
+  'Ultra focus shell pulse should start its pop phase when the guide/demo focus appears instead of using a random global clock phase',
+);
+assert.match(
+  ultraModelSource,
+  /function UltraPowerSwitchSkirtedRocker[\s\S]*focusPulseRef = useRef<THREE\.Mesh \| null>\(null\);[\s\S]*focusPulseMaterial = useMemo\(\(\) => new THREE\.MeshBasicMaterial\(\{[\s\S]*depthTest: true[\s\S]*side: THREE\.BackSide[\s\S]*focusPulse\.scale\.set\(pulseScale, pulseScale, pulseDepthScale\);[\s\S]*focusPulseMaterial\.opacity = 0\.32 \* popEase \* Math\.pow\(1 - fadeProgress,\s*1\.45\);[\s\S]*name="HSL_PowerSwitch_SkirtedRockerFocusPulse"[\s\S]*scale=\{\[1\.42, 1\.42, 1\.18\]\}/,
+  'Ultra runtime power switch rocker should get the same synchronized pop-and-fade pulse as GLB shell nodes',
 );
 assert.match(
   ultraModelSource,
@@ -459,13 +548,18 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /mesh\.scale\.setScalar\(focusMode \? 1 : target\.hoverScale \?\? 1\)/,
-  'Ultra hover hints should use per-target shrink factors while guide/demo focus halos keep their original scale',
+  /hoverMesh\.scale\.setScalar\(focusMode \? 1 : target\.hoverScale \?\? 1\)/,
+  'Ultra hover hints should still use per-target shrink factors when they fall back to the hover geometry path',
 );
 assert.match(
   ultraModelSource,
   /wireframe=\{mode === 'hover' && target\.hoverWireframe === true\}/,
   'Ultra hover hint materials should support outline rendering so the blue cue does not mask the GLB control surface',
+);
+assert.match(
+  ultraModelSource,
+  /<UltraPowerSwitchSkirtedRocker[\s\S]*hovered=\{props\.hoveredControl === 'powerSwitch'\}[\s\S]*focused=\{props\.demoFocusPulseActive && props\.demoFocusControlId === 'powerSwitch'\}/,
+  'Ultra power switch runtime rocker should brighten during guide/demo focus, not only on mouse hover',
 );
 assert.match(
   ultraModelSource,
@@ -503,20 +597,75 @@ assert.doesNotMatch(
   'Ultra visual halo target definitions should not depend on one screen size or DOM pixel coordinate system',
 );
 
-assert.doesNotMatch(
+assert.match(
   sceneSource,
-  /ULTRA_FOCUS_VIEWS/,
-  'Ultra mode should not add dedicated focus camera views as part of GLB hover and teaching highlights',
-);
-assert.doesNotMatch(
-  sceneSource,
-  /focusViews=\{props\.performanceMode === 'ultra'\s*\?\s*ULTRA_FOCUS_VIEWS\s*:\s*PROCEDURAL_FOCUS_VIEWS\}/,
-  'Camera rig should not switch to Ultra-specific focus views for GLB hover and teaching highlights',
+  /const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = \{[\s\S]*focusViews: \{[\s\S]*stopcock:[\s\S]*position: \[-0\.45,\s*2\.58,\s*4\.85\][\s\S]*target: \[-1\.2,\s*1\.06,\s*0\.44\][\s\S]*fov: 50[\s\S]*instrument:[\s\S]*position: \[2\.78,\s*1\.16,\s*3\.85\][\s\S]*target: \[2\.24,\s*0\.06,\s*0\.28\][\s\S]*fov: 32[\s\S]*pump:[\s\S]*position: \[2\.34,\s*1\.24,\s*3\.55\][\s\S]*target: \[0\.98,\s*0\.34,\s*0\.28\][\s\S]*fov: 36/,
+  'Ultra mode should define model-specific focus views for stopcock, instrument, and pump instead of falling back to the GLB default view',
 );
 assert.match(
   sceneSource,
-  /const orbitControlsEnabled = props\.performanceMode === 'ultra'\s*\?\s*true\s*:\s*focusMode === 'none' && !props\.interactionLocked;/,
-  'Ultra mode should keep orbit controls available while node-anchored GLB hitboxes and highlights handle controls',
+  /if \(focusMode !== 'none'\) return;[\s\S]*getCameraFovForAspect\(cameraViewScheme, aspect\)[\s\S]*const startFov = camera\.fov[\s\S]*const nextFov = focusView[\s\S]*\? focusView\.fov \?\? cameraViewScheme\.fov[\s\S]*: getCameraFovForAspect\(cameraViewScheme, aspect\)[\s\S]*camera\.fov = THREE\.MathUtils\.lerp\(startFov, nextFov, eased\)/,
+  'Ultra focus views should animate back to the base model FOV so short-wide canvases do not shrink focused controls',
+);
+assert.doesNotMatch(
+  sceneSource,
+  /props\.performanceMode === 'ultra' && focusMode !== 'none'/,
+  'Ultra mode should no longer force focused views back to the default camera',
+);
+assert.match(
+  sceneSource,
+  /const orbitControlsEnabled = focusMode === 'none' && !props\.interactionLocked;/,
+  'Ultra focus mode should use the same orbit-lock policy as the procedural model so the smooth focused view stays stable',
+);
+assert.match(
+  sceneSource,
+  /<HeatCapacityUltraInstrumentModel[\s\S]*pressureZeroInteractionEnabled=\{focusMode === 'instrument'\}[\s\S]*pumpBulbInteractionEnabled=\{focusMode === 'pump'\}[\s\S]*onFocus=\{setFocusMode\}/,
+  'Heat Capacity scene should pass the focused-mode zero-knob gate and focus entry callback into the Ultra GLB hitbox layer',
+);
+assert.match(
+  ultraModelSource,
+  /pressureZeroInteractionEnabled: boolean;[\s\S]*pumpBulbInteractionEnabled: boolean;[\s\S]*onFocus: \(mode: UltraFocusMode\) => void;/,
+  'Ultra GLB props should expose the same focused-mode pressure-zero interaction gate used by the procedural skeleton',
+);
+assert.match(
+  ultraModelSource,
+  /const handleUltraControlPointerDown = useCallback\([\s\S]*if \(!props\.pressureZeroInteractionEnabled\) \{[\s\S]*return;[\s\S]*\}/,
+  'Ultra pressure-zero dragging should be blocked outside instrument focus instead of adjusting the zero value from the default view',
+);
+assert.match(
+  ultraModelSource,
+  /else if \(resolvedControl === 'pumpBulb'\) \{[\s\S]*if \(!props\.pumpBulbInteractionEnabled\) return;[\s\S]*props\.onPumpBulbPress\(\);/,
+  'Ultra pump bulb clicks should be ignored outside pump focus so the default view cannot trigger pump animation or pressure changes',
+);
+assert.match(
+  ultraModelSource,
+  /gl\.domElement\.style\.cursor = resolvedControl === 'pressureZero' && props\.pressureZeroInteractionEnabled \? 'grab' : 'pointer';/,
+  'Ultra pressure-zero hover should only show a drag cursor while instrument focus allows actual adjustment',
+);
+assert.match(
+  ultraModelSource,
+  /onDoubleClick\?: \(control: UltraPointerControl, event: ThreeEvent<MouseEvent>\) => void;[\s\S]*onDoubleClick=\{\(event\) => onDoubleClick\?\.\(definition\.control, event\)\}/,
+  'Ultra GLB hitboxes should forward double-clicks so GLB controls can enter the same focus modes as the procedural skeleton',
+);
+assert.match(
+  ultraModelSource,
+  /const handleUltraControlDoubleClick = useCallback\([\s\S]*if \(resolvedControl === 'powerSwitch' \|\| resolvedControl === 'pressureZero'\) \{[\s\S]*props\.onFocus\('instrument'\);[\s\S]*\} else if \(resolvedControl === 'pumpBulb'\) \{[\s\S]*props\.onFocus\('pump'\);[\s\S]*\} else \{[\s\S]*props\.onFocus\('stopcock'\);/,
+  'Ultra GLB double-click focus entry should map instrument controls, pump bulb, and valves to their matching focus modes',
+);
+assert.match(
+  ultraModelSource,
+  /const ULTRA_DOUBLE_CLICK_GUARD_MS = 220;[\s\S]*const pendingUltraSingleClickRef = useRef<number \| null>\(null\);[\s\S]*const clearPendingUltraSingleClick = useCallback\(\(\) => \{[\s\S]*window\.clearTimeout\(pendingUltraSingleClickRef\.current\)[\s\S]*const scheduleUltraSingleClick = useCallback\(\(run: \(\) => void\) => \{[\s\S]*window\.setTimeout\(\(\) => \{[\s\S]*run\(\);[\s\S]*ULTRA_DOUBLE_CLICK_GUARD_MS/,
+  'Ultra GLB clicks should defer single-click side effects briefly so a fast second click can become focus instead',
+);
+assert.match(
+  ultraModelSource,
+  /const handleUltraControlClick = useCallback\([\s\S]*scheduleUltraSingleClick\(\(\) => \{[\s\S]*const resolvedControl = resolveUltraActionControl\(control, clientX, clientY\)[\s\S]*props\.onPowerToggle\(!props\.powerOn\)[\s\S]*props\.onPumpValveToggle\(\)[\s\S]*props\.onPumpBulbPress\(\);[\s\S]*const handleUltraControlDoubleClick = useCallback\([\s\S]*clearPendingUltraSingleClick\(\);[\s\S]*props\.onFocus\('instrument'\);[\s\S]*props\.onFocus\('pump'\);[\s\S]*props\.onFocus\('stopcock'\);/,
+  'Ultra GLB double-click focus should cancel any pending power, valve, or pump single-click action before entering focus',
+);
+assert.match(
+  ultraModelSource,
+  /const handleUltraInstrumentFocusDoubleClick = useCallback\([\s\S]*props\.onFocus\('instrument'\);[\s\S]*<UltraInstrumentFocusHitbox[\s\S]*onDoubleClick=\{handleUltraInstrumentFocusDoubleClick\}/,
+  'Ultra GLB host body double-clicks should enter instrument focus without requiring the user to hit the small switch or knob',
 );
 assert.match(
   workbenchSource,

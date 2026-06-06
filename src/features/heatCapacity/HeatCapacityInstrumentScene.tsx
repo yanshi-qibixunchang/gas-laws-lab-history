@@ -436,6 +436,17 @@ const heatCapacityScenePalettes = {
       demoHaloMaxOpacity: 0.52,
       demoHaloBaseScale: 1.06,
       demoHaloPulseScale: 0.14,
+      focusShellColor: '#72f5d1',
+      focusShellRimColor: '#8cf7df',
+      focusShellBlendMode: 'additive',
+      focusShellBreathMinOpacity: 0.075,
+      focusShellBreathMaxOpacity: 0.18,
+      focusShellPulseOpacity: 0.28,
+      focusShellBaseScale: 1.022,
+      focusShellBreathScale: 0.026,
+      focusShellPulseStartScale: 1.045,
+      focusShellPulseScale: 0.22,
+      focusShellPulseRate: 0.58,
       nonBulbHoverEmissiveIntensity: 0.26,
       nonBulbHoverHaloOpacity: 0.22,
       glassHoverEmissiveIntensity: 0.18,
@@ -555,6 +566,17 @@ const heatCapacityScenePalettes = {
       demoHaloMaxOpacity: 0.72,
       demoHaloBaseScale: 1.06,
       demoHaloPulseScale: 0.16,
+      focusShellColor: '#0f8fa3',
+      focusShellRimColor: '#34c8b7',
+      focusShellBlendMode: 'normal',
+      focusShellBreathMinOpacity: 0.095,
+      focusShellBreathMaxOpacity: 0.24,
+      focusShellPulseOpacity: 0.3,
+      focusShellBaseScale: 1.018,
+      focusShellBreathScale: 0.02,
+      focusShellPulseStartScale: 1.04,
+      focusShellPulseScale: 0.16,
+      focusShellPulseRate: 0.52,
       nonBulbHoverEmissiveIntensity: 0.36,
       nonBulbHoverHaloOpacity: 0.34,
       glassHoverEmissiveIntensity: 0.3,
@@ -570,6 +592,7 @@ type HeatCapacityScenePalette = (typeof heatCapacityScenePalettes)[HeatCapacityS
 const PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 12;
 const PRESSURE_ZERO_DRAG_DIRECTION = -1;
 const HOVER_CLEAR_DELAY_MS = 220;
+const HEAT_CAPACITY_DOUBLE_CLICK_GUARD_MS = 220;
 const VALVE_FOCUS_BUBBLE_EXIT_MS = 160;
 const VALVE_FOCUS_BUBBLE_WIDTH_PX = 190;
 const VALVE_FOCUS_BUBBLE_HEIGHT_PX = 38;
@@ -594,6 +617,7 @@ const createHeatCapacityPointerEvents: typeof createPointerEvents = (store) => {
 type CameraFocusView = {
   position: [number, number, number];
   target: [number, number, number];
+  fov?: number;
 };
 type CameraFocusViews = Record<Exclude<HeatCapacityFocusMode, 'none'>, CameraFocusView>;
 type CameraViewScheme = {
@@ -647,6 +671,23 @@ const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = {
     wideAspect: 3,
     wideFov: 56,
   },
+  focusViews: {
+    stopcock: {
+      position: [-0.45, 2.58, 4.85],
+      target: [-1.2, 1.06, 0.44],
+      fov: 50,
+    },
+    instrument: {
+      position: [2.78, 1.16, 3.85],
+      target: [2.24, 0.06, 0.28],
+      fov: 32,
+    },
+    pump: {
+      position: [2.34, 1.24, 3.55],
+      target: [0.98, 0.34, 0.28],
+      fov: 36,
+    },
+  },
 };
 const getCameraViewScheme = (performanceMode: HeatCapacityInstrumentSceneProps['performanceMode']) => (
   performanceMode === 'ultra' ? ULTRA_CAMERA_VIEW_SCHEME : PROCEDURAL_CAMERA_VIEW_SCHEME
@@ -697,6 +738,27 @@ const getPumpBulbDisplayLabel = (pumpBulbState: HeatCapacityInstrumentSceneProps
 const getPumpFrequencyStatusLabel = (status: HeatCapacityInstrumentSceneProps['pumpFrequencyStatus'], copy: HeatCapacitySceneCopy) => (
   status === 'idle' ? copy.frequencyIdle : status === 'tooSlow' ? copy.frequencySlow : copy.frequencySuitable
 );
+
+function useGuardedSceneSingleClick() {
+  const pendingSingleClickRef = useRef<number | null>(null);
+  const clear = useCallback(() => {
+    if (pendingSingleClickRef.current !== null) {
+      window.clearTimeout(pendingSingleClickRef.current);
+      pendingSingleClickRef.current = null;
+    }
+  }, []);
+  const schedule = useCallback((run: () => void) => {
+    clear();
+    pendingSingleClickRef.current = window.setTimeout(() => {
+      pendingSingleClickRef.current = null;
+      run();
+    }, HEAT_CAPACITY_DOUBLE_CLICK_GUARD_MS);
+  }, [clear]);
+
+  useEffect(() => clear, [clear]);
+
+  return { schedule, clear };
+}
 
 const getHardSphereNoteText = (
   props: HeatCapacityInstrumentSceneProps,
@@ -1194,6 +1256,28 @@ function InstrumentBox({
 
   const powerSwitchRotation = powerOn ? -0.35 : 0.35;
   const powerSwitchVisualRotation = powerSwitchRotation + powerSwitchRollbackOffset;
+  const { schedule: schedulePowerSwitchSingleClick, clear: clearPowerSwitchSingleClick } = useGuardedSceneSingleClick();
+
+  const handlePowerSwitchClick = (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation();
+    schedulePowerSwitchSingleClick(() => {
+      if (interactionLocked) {
+        onLockedInteraction();
+        return;
+      }
+      onPowerToggle(!powerOn);
+    });
+  };
+
+  const handlePowerSwitchDoubleClick = (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation();
+    clearPowerSwitchSingleClick();
+    if (interactionLocked) {
+      onLockedInteraction();
+      return;
+    }
+    onFocus('instrument');
+  };
 
   return (
     <group
@@ -1201,6 +1285,7 @@ function InstrumentBox({
       position={[1.85, -0.5, 0]}
       onDoubleClick={(event) => {
         event.stopPropagation();
+        clearPowerSwitchSingleClick();
         if (interactionLocked) {
           onLockedInteraction();
           return;
@@ -1308,14 +1393,8 @@ function InstrumentBox({
       <group
         name="PowerSwitch"
         position={[0.98, -0.14, 0.56]}
-        onClick={(event) => {
-          event.stopPropagation();
-          if (interactionLocked) {
-            onLockedInteraction();
-            return;
-          }
-          onPowerToggle(!powerOn);
-        }}
+        onClick={handlePowerSwitchClick}
+        onDoubleClick={handlePowerSwitchDoubleClick}
         onPointerOver={(event) => {
           event.stopPropagation();
           setHoveredControl('powerSwitch');
@@ -1430,6 +1509,7 @@ function GlassStopcock({
   hoveredControl,
   setHoveredControl,
   onValveFocusAnchor,
+  onFocus,
   interactionLocked,
   demoFocusControlId,
   demoFocusPulseActive,
@@ -1444,6 +1524,7 @@ function GlassStopcock({
   hoveredControl: HeatCapacityHoveredControl;
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
   onValveFocusAnchor: (control: ValveFocusControl, clientX: number, clientY: number) => void;
+  onFocus: (mode: HeatCapacityFocusMode) => void;
   interactionQualityReduced: boolean;
   scenePalette: HeatCapacityScenePalette;
 }) {
@@ -1502,16 +1583,30 @@ function GlassStopcock({
   const stopcockDemoFocused = demoFocusPulseActive && demoFocusControlId === 'stopcock';
   const angleRad = ((displayAngleDeg + stopcockRollbackOffsetDeg) * Math.PI) / 180;
   const showStopcockOutlines = scenePalette.glass.stopcockOutlineVisible || highClarityMode;
+  const { schedule: scheduleStopcockSingleClick, clear: clearStopcockSingleClick } = useGuardedSceneSingleClick();
 
   const handleStopcockToggle = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
     event.nativeEvent.stopPropagation();
     event.nativeEvent.stopImmediatePropagation?.();
+    scheduleStopcockSingleClick(() => {
+      if (interactionLocked) {
+        onLockedInteraction();
+        return;
+      }
+      onStopcockOpenChange(state !== 'open');
+    });
+  };
+  const handleStopcockDoubleClick = (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation();
+    event.nativeEvent.stopPropagation();
+    event.nativeEvent.stopImmediatePropagation?.();
+    clearStopcockSingleClick();
     if (interactionLocked) {
       onLockedInteraction();
       return;
     }
-    onStopcockOpenChange(state !== 'open');
+    onFocus('stopcock');
   };
   const projectValveFocusAnchor = useCallback(() => {
     const anchor = stopcockCoreRef.current;
@@ -1558,6 +1653,7 @@ function GlassStopcock({
         ref={stopcockCoreRef}
         rotation={[angleRad, 0, 0]}
         onClick={handleStopcockToggle}
+        onDoubleClick={handleStopcockDoubleClick}
         onPointerOver={(event) => {
           event.stopPropagation();
           event.nativeEvent.stopPropagation();
@@ -1675,6 +1771,7 @@ function PressureBottle({
   hoveredControl,
   setHoveredControl,
   onValveFocusAnchor,
+  onFocus,
   interactionLocked,
   demoFocusControlId,
   demoFocusPulseActive,
@@ -1690,6 +1787,7 @@ function PressureBottle({
   hoveredControl: HeatCapacityHoveredControl;
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
   onValveFocusAnchor: (control: ValveFocusControl, clientX: number, clientY: number) => void;
+  onFocus: (mode: HeatCapacityFocusMode) => void;
   interactionQualityReduced: boolean;
   scenePalette: HeatCapacityScenePalette;
 }) {
@@ -1749,6 +1847,7 @@ function PressureBottle({
         hoveredControl={hoveredControl}
         setHoveredControl={setHoveredControl}
         onValveFocusAnchor={onValveFocusAnchor}
+        onFocus={onFocus}
         interactionLocked={interactionLocked}
         demoFocusControlId={demoFocusControlId}
         demoFocusPulseActive={demoFocusPulseActive}
@@ -1872,6 +1971,7 @@ function PumpAssembly({
       : [1, 1, 1];
   const pumpBulbActive = visualPumpBulbState !== 'idle';
   const tubeColor = pumpValveOpen && pumpBulbActive ? scenePalette.pump.tubeActive : scenePalette.pump.tubeIdle;
+  const { schedule: schedulePumpValveSingleClick, clear: clearPumpValveSingleClick } = useGuardedSceneSingleClick();
 
   const clearPumpPulseTimers = () => {
     const timers = pumpPulseTimersRef.current;
@@ -1900,11 +2000,25 @@ function PumpAssembly({
     event.stopPropagation();
     event.nativeEvent.stopPropagation();
     event.nativeEvent.stopImmediatePropagation?.();
+    schedulePumpValveSingleClick(() => {
+      if (interactionLocked) {
+        onLockedInteraction();
+        return;
+      }
+      onPumpValveToggle();
+    });
+  };
+
+  const handlePumpValveDoubleClick = (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation();
+    event.nativeEvent.stopPropagation();
+    event.nativeEvent.stopImmediatePropagation?.();
+    clearPumpValveSingleClick();
     if (interactionLocked) {
       onLockedInteraction();
       return;
     }
-    onPumpValveToggle();
+    onFocus('stopcock');
   };
   const projectValveFocusAnchor = useCallback(() => {
     const anchor = pumpValveRef.current;
@@ -1999,6 +2113,7 @@ function PumpAssembly({
           event.nativeEvent.stopImmediatePropagation?.();
         }}
         onClick={handlePumpValveClick}
+        onDoubleClick={handlePumpValveDoubleClick}
         onPointerOver={(event) => {
           event.stopPropagation();
           event.nativeEvent.stopPropagation();
@@ -2162,6 +2277,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           hoveredControl={props.hoveredControl}
           setHoveredControl={props.setHoveredControl}
           onValveFocusAnchor={props.onValveFocusAnchor}
+          onFocus={props.onFocus}
           interactionLocked={props.interactionLocked}
           demoFocusControlId={props.demoFocusControlId}
           demoFocusPulseActive={props.demoFocusPulseActive}
@@ -2267,19 +2383,23 @@ function CameraRig({
 
   useEffect(() => {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;
+    if (focusMode !== 'none') return;
     const aspect = size.height > 0 ? size.width / size.height : 1;
     const nextFov = getCameraFovForAspect(cameraViewScheme, aspect);
     if (Math.abs(camera.fov - nextFov) < 0.01) return;
     camera.fov = nextFov;
     camera.updateProjectionMatrix();
     invalidate();
-  }, [camera, cameraViewScheme, invalidate, size.height, size.width]);
+  }, [camera, cameraViewScheme, focusMode, invalidate, size.height, size.width]);
 
   useEffect(() => {
+    if (!(camera instanceof THREE.PerspectiveCamera)) return;
     const startPosition = camera.position.clone();
     const startTarget = controlsRef.current?.target.clone() ?? new THREE.Vector3(0.25, -0.05, 0);
+    const startFov = camera.fov;
     const nextPosition = new THREE.Vector3();
     const nextTarget = new THREE.Vector3();
+    const aspect = size.height > 0 ? size.width / size.height : 1;
     const focusView = (focusMode === 'stopcock' || focusMode === 'instrument' || focusMode === 'pump')
       ? cameraViewScheme.focusViews?.[focusMode]
       : undefined;
@@ -2290,6 +2410,9 @@ function CameraRig({
     );
     nextPosition.set(...nextView.position);
     nextTarget.set(...nextView.target);
+    const nextFov = focusView
+      ? focusView.fov ?? cameraViewScheme.fov
+      : getCameraFovForAspect(cameraViewScheme, aspect);
 
     let frameId = 0;
     const startTime = performance.now();
@@ -2298,6 +2421,8 @@ function CameraRig({
       const progress = Math.min(1, (timestamp - startTime) / duration);
       const eased = 1 - ((1 - progress) ** 3);
       camera.position.lerpVectors(startPosition, nextPosition, eased);
+      camera.fov = THREE.MathUtils.lerp(startFov, nextFov, eased);
+      camera.updateProjectionMatrix();
       if (controlsRef.current) {
         controlsRef.current.target.lerpVectors(startTarget, nextTarget, eased);
         camera.lookAt(controlsRef.current.target);
@@ -2312,7 +2437,7 @@ function CameraRig({
     };
     frameId = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frameId);
-  }, [autoDemoActive, camera, cameraViewScheme, controlsRef, focusMode, invalidate, resetKey]);
+  }, [autoDemoActive, camera, cameraViewScheme, controlsRef, focusMode, invalidate, resetKey, size.height, size.width]);
 
   return null;
 }
@@ -2479,11 +2604,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   useEffect(() => {
     onFocusModeChangeRef.current(focusMode);
   }, [focusMode]);
-  useEffect(() => {
-    if (props.performanceMode === 'ultra' && focusMode !== 'none') {
-      setFocusMode('none');
-    }
-  }, [focusMode, props.performanceMode]);
   const triggerSmoothDefaultView = useCallback(() => {
     closeValveFocusBubble();
     setFocusMode('none');
@@ -2511,9 +2631,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     props.demoFocusPulseActive ||
     Boolean(props.manualRollbackAnimation);
   const interactionQualityReduced = isOrbitInteracting || props.performanceMode === 'performance';
-  const orbitControlsEnabled = props.performanceMode === 'ultra'
-    ? true
-    : focusMode === 'none' && !props.interactionLocked;
+  const orbitControlsEnabled = focusMode === 'none' && !props.interactionLocked;
   const cameraViewScheme = useMemo(() => getCameraViewScheme(props.performanceMode), [props.performanceMode]);
   const canvasProps = useMemo(() => ({
     camera: { position: cameraViewScheme.defaultView.position, fov: cameraViewScheme.fov },
@@ -2571,6 +2689,8 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           hardSphereParticleMultiplier={props.hardSphereParticleMultiplier}
           hardSphereSpeedMultiplier={props.hardSphereSpeedMultiplier}
           interactionLocked={props.interactionLocked}
+          pressureZeroInteractionEnabled={focusMode === 'instrument'}
+          pumpBulbInteractionEnabled={focusMode === 'pump'}
           demoFocusControlId={props.demoFocusControlId}
           demoFocusPulseActive={props.demoFocusPulseActive}
           interactionQualityReduced={interactionQualityReduced}
@@ -2583,6 +2703,17 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
             demoHaloMaxOpacity: scenePalette.effects.demoHaloMaxOpacity,
             demoHaloBaseScale: scenePalette.effects.demoHaloBaseScale,
             demoHaloPulseScale: scenePalette.effects.demoHaloPulseScale,
+            focusShellColor: scenePalette.effects.focusShellColor,
+            focusShellRimColor: scenePalette.effects.focusShellRimColor,
+            focusShellBlendMode: scenePalette.effects.focusShellBlendMode,
+            focusShellBreathMinOpacity: scenePalette.effects.focusShellBreathMinOpacity,
+            focusShellBreathMaxOpacity: scenePalette.effects.focusShellBreathMaxOpacity,
+            focusShellPulseOpacity: scenePalette.effects.focusShellPulseOpacity,
+            focusShellBaseScale: scenePalette.effects.focusShellBaseScale,
+            focusShellBreathScale: scenePalette.effects.focusShellBreathScale,
+            focusShellPulseStartScale: scenePalette.effects.focusShellPulseStartScale,
+            focusShellPulseScale: scenePalette.effects.focusShellPulseScale,
+            focusShellPulseRate: scenePalette.effects.focusShellPulseRate,
             nonBulbHoverHaloOpacity: scenePalette.effects.nonBulbHoverHaloOpacity,
             glassHoverHaloOpacity: scenePalette.effects.glassHoverHaloOpacity,
             pumpBulbHoverHaloOpacity: scenePalette.effects.pumpBulbHoverHaloOpacity,
@@ -2597,6 +2728,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           onPressureZeroCoarseAdjust={props.onPressureZeroCoarseAdjust}
           onPumpValveToggle={props.onPumpValveToggle}
           onPumpBulbPress={props.onPumpBulbPress}
+          onFocus={setFocusMode}
         />
       </Suspense>
     </HeatCapacityUltraModelErrorBoundary>

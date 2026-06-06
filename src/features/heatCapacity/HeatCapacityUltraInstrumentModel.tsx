@@ -14,6 +14,7 @@ type UltraHoveredControl = UltraPointerControl | null;
 type UltraValveFocusControl = 'stopcock' | 'pumpValve';
 type UltraFocusControl = UltraPointerControl | 'instrumentPressureDisplay' | 'instrumentTemperatureDisplay' | 'instrumentPanel';
 type UltraVisualTargetId = UltraFocusControl;
+type UltraFocusMode = 'stopcock' | 'instrument' | 'pump';
 type UltraVisualEffectTone = 'nonBulb' | 'glass' | 'pumpBulb' | 'display';
 type UltraMaterialHighlightControl = UltraPointerControl;
 type UltraProjectedPoint = {
@@ -30,6 +31,17 @@ type UltraVisualEffects = {
   demoHaloMaxOpacity: number;
   demoHaloBaseScale: number;
   demoHaloPulseScale: number;
+  focusShellColor: string;
+  focusShellRimColor: string;
+  focusShellBlendMode: 'additive' | 'normal';
+  focusShellBreathMinOpacity: number;
+  focusShellBreathMaxOpacity: number;
+  focusShellPulseOpacity: number;
+  focusShellBaseScale: number;
+  focusShellBreathScale: number;
+  focusShellPulseStartScale: number;
+  focusShellPulseScale: number;
+  focusShellPulseRate: number;
   nonBulbHoverHaloOpacity: number;
   glassHoverHaloOpacity: number;
   pumpBulbHoverHaloOpacity: number;
@@ -62,6 +74,8 @@ type HeatCapacityUltraInstrumentModelProps = {
   hardSphereParticleMultiplier: number;
   hardSphereSpeedMultiplier: number;
   interactionLocked: boolean;
+  pressureZeroInteractionEnabled: boolean;
+  pumpBulbInteractionEnabled: boolean;
   demoFocusControlId: string | null;
   demoFocusPulseActive: boolean;
   interactionQualityReduced: boolean;
@@ -76,6 +90,7 @@ type HeatCapacityUltraInstrumentModelProps = {
   onPressureZeroCoarseAdjust: (angleDeltaDeg: number) => void;
   onPumpValveToggle: () => void;
   onPumpBulbPress: () => void;
+  onFocus: (mode: UltraFocusMode) => void;
 };
 
 const ULTRA_GLB_PATH = '/models/heat-capacity/fd-ncd-c-ultra.glb';
@@ -136,6 +151,8 @@ const POWER_SWITCH_ROCKER_FACE_SEGMENTS = 8;
 const POWER_SWITCH_ROCKER_SEGMENTS = 14;
 const POWER_SWITCH_MARK_Z_OFFSET = 0.0016;
 const ULTRA_CONTROL_MOTION_INVALIDATION_MS = 940;
+const ULTRA_DOUBLE_CLICK_GUARD_MS = 220;
+const ULTRA_FOCUS_SHELL_POP_FRACTION = 0.14;
 const PRESSURE_ZERO_DRAG_DIRECTION = -1;
 const ULTRA_HITBOX_UNIT_SCALE = new THREE.Vector3(1, 1, 1);
 const DISABLE_ULTRA_RAYCAST = () => undefined;
@@ -151,6 +168,11 @@ const ULTRA_CONTROL_HITBOXES: Array<{
   { control: 'pumpValve', anchorNodeName: 'InletValue_Pivot', size: [0.64, 0.52, 0.38], offset: [0, 0.12, 0.02] },
   { control: 'pumpBulb', anchorNodeName: 'Pump_Bulb', size: [0.96, 0.72, 0.64] },
 ];
+const ULTRA_INSTRUMENT_FOCUS_HITBOX = {
+  anchorNodeName: 'FD_NCD_C_FrontPanel',
+  size: [2.04, 0.86, 0.36],
+  offset: [0, 0, 0.04],
+} as const;
 
 const ULTRA_POINTER_CONTROL_IDS: readonly UltraPointerControl[] = [
   'powerSwitch',
@@ -184,10 +206,14 @@ type UltraControlVisualTarget = UltraVisualShape & {
   tone: UltraVisualEffectTone;
   hoverControl?: UltraPointerControl;
   focusControlIds: readonly UltraFocusControl[];
+  focusShellNodeNames?: readonly string[];
+  focusShellSide?: 'back' | 'double';
   offset?: [number, number, number];
   rotation?: [number, number, number];
   hoverScale?: number;
   hoverWireframe?: boolean;
+  focusShellPulsePopScale?: number;
+  focusShellPulseRetreatScale?: number;
 };
 
 const ULTRA_CONTROL_VISUAL_TARGETS = [
@@ -196,20 +222,26 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     anchorNodeName: 'FD_NCD_C_PowerSwitch_Base',
     tone: 'nonBulb',
     focusControlIds: ['powerSwitch'],
+    focusShellNodeNames: ['FD_NCD_C_PowerSwitch_Base', 'HSL_PowerSwitch_Inset_Frame_Lip'],
     shape: 'torus',
     args: [0.11, 0.006, 10, 40],
     offset: [0.018, -0.006, 0.205],
     hoverWireframe: true,
+    focusShellPulsePopScale: 1.42,
+    focusShellPulseRetreatScale: 1.18,
   },
   {
     id: 'pressureZero',
     anchorNodeName: 'FD_NCD_C_ZeroAdjustKnob',
     tone: 'nonBulb',
     focusControlIds: ['pressureZero'],
+    focusShellNodeNames: ['FD_NCD_C_ZeroAdjustKnob'],
     shape: 'torus',
     args: [0.16, 0.006, 12, 56],
     offset: [0, 0, 0.12],
     hoverWireframe: true,
+    focusShellPulsePopScale: 1.34,
+    focusShellPulseRetreatScale: 1.14,
   },
   {
     id: 'stopcock',
@@ -217,10 +249,13 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     tone: 'glass',
     hoverControl: 'stopcock',
     focusControlIds: ['stopcock'],
+    focusShellNodeNames: ['Stopcock_THandle', 'Stopcock_HandleStem', 'Stopcock_RotatingPlugCore'],
     shape: 'box',
     size: [0.36, 0.18, 0.22],
     hoverScale: 0.9,
     hoverWireframe: true,
+    focusShellPulsePopScale: 1.2,
+    focusShellPulseRetreatScale: 1.08,
   },
   {
     id: 'pumpValve',
@@ -228,11 +263,14 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     tone: 'nonBulb',
     hoverControl: 'pumpValve',
     focusControlIds: ['pumpValve'],
+    focusShellNodeNames: ['InletValue_Pivot'],
     shape: 'box',
     size: [0.44, 0.34, 0.26],
     offset: [0, 0.12, 0.02],
     hoverScale: 0.86,
     hoverWireframe: true,
+    focusShellPulsePopScale: 1.28,
+    focusShellPulseRetreatScale: 1.11,
   },
   {
     id: 'pumpBulb',
@@ -240,37 +278,52 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     tone: 'pumpBulb',
     hoverControl: 'pumpBulb',
     focusControlIds: ['pumpBulb'],
+    focusShellNodeNames: ['Pump_Bulb'],
     shape: 'sphere',
     args: [0.26, 24, 16],
     hoverScale: 0.78,
     hoverWireframe: true,
+    focusShellPulsePopScale: 1.11,
+    focusShellPulseRetreatScale: 1.055,
   },
   {
     id: 'instrumentPressureDisplay',
     anchorNodeName: 'HSL_MainDisplay_DynamicPlaneAnchor',
     tone: 'display',
     focusControlIds: ['pressureZero', 'instrumentPressureDisplay'],
+    focusShellNodeNames: ['HSL_MainDisplay_PixelScreenZone', 'HSL_MainDisplay_DynamicPlaneAnchor'],
+    focusShellSide: 'double',
     shape: 'plane',
     size: [0.92, 0.16],
     offset: [0, -0.075, 0.006],
+    focusShellPulsePopScale: 1.08,
+    focusShellPulseRetreatScale: 1.025,
   },
   {
     id: 'instrumentTemperatureDisplay',
     anchorNodeName: 'HSL_MainDisplay_DynamicPlaneAnchor',
     tone: 'display',
     focusControlIds: ['instrumentTemperatureDisplay', 'instrumentPanel'],
+    focusShellNodeNames: ['HSL_MainDisplay_PixelScreenZone', 'HSL_MainDisplay_DynamicPlaneAnchor'],
+    focusShellSide: 'double',
     shape: 'plane',
     size: [0.92, 0.16],
     offset: [0, 0.075, 0.006],
+    focusShellPulsePopScale: 1.08,
+    focusShellPulseRetreatScale: 1.025,
   },
   {
     id: 'instrumentPanel',
     anchorNodeName: 'HSL_MainDisplay_DynamicPlaneAnchor',
     tone: 'display',
     focusControlIds: ['instrumentPanel'],
+    focusShellNodeNames: ['HSL_MainDisplay_RecessWell', 'HSL_MainDisplay_PixelScreenZone'],
+    focusShellSide: 'double',
     shape: 'plane',
     size: [0.96, 0.36],
     offset: [0, 0, 0.005],
+    focusShellPulsePopScale: 1.07,
+    focusShellPulseRetreatScale: 1.02,
   },
 ] as const satisfies readonly UltraControlVisualTarget[];
 
@@ -351,6 +404,173 @@ type UltraAlignedSignalParts = {
   right: string;
 };
 
+const ULTRA_DISPLAY_PIXEL_SIZE = 8;
+const ULTRA_DISPLAY_PIXEL_GAP = 2;
+const ULTRA_DISPLAY_GLYPH_COLUMNS = 5;
+const ULTRA_DISPLAY_GLYPH_ROWS = 7;
+const ULTRA_DISPLAY_DIGIT_ADVANCE = 54;
+const ULTRA_DISPLAY_UNIT_ADVANCE = 51;
+const ULTRA_DISPLAY_SIGN_AND_INTEGER_SLOTS = 5;
+const ULTRA_DISPLAY_FRACTION_SLOTS = 2;
+const ULTRA_DISPLAY_DECIMAL_GAP = 6;
+const ULTRA_DISPLAY_FRACTION_GAP = 6;
+const ULTRA_DISPLAY_UNIT_GAP = 19;
+const ULTRA_DISPLAY_DECIMAL_COLUMNS = 2;
+const ULTRA_DISPLAY_DECIMAL_ROWS = 3;
+const ULTRA_DISPLAY_DECIMAL_TOP_ROW = 4;
+const ULTRA_DISPLAY_DECIMAL_WIDTH = ULTRA_DISPLAY_DECIMAL_COLUMNS * ULTRA_DISPLAY_PIXEL_SIZE + (ULTRA_DISPLAY_DECIMAL_COLUMNS - 1) * ULTRA_DISPLAY_PIXEL_GAP;
+const ULTRA_DISPLAY_ROW_HEIGHT = ULTRA_DISPLAY_GLYPH_ROWS * ULTRA_DISPLAY_PIXEL_SIZE +
+  (ULTRA_DISPLAY_GLYPH_ROWS - 1) * ULTRA_DISPLAY_PIXEL_GAP;
+
+const ULTRA_DISPLAY_GLYPHS = {
+  ' ': [
+    '00000',
+    '00000',
+    '00000',
+    '00000',
+    '00000',
+    '00000',
+    '00000',
+  ],
+  '+': [
+    '00000',
+    '00100',
+    '00100',
+    '11111',
+    '00100',
+    '00100',
+    '00000',
+  ],
+  '-': [
+    '00000',
+    '00000',
+    '00000',
+    '11111',
+    '00000',
+    '00000',
+    '00000',
+  ],
+  '.': [
+    '00000',
+    '00000',
+    '00000',
+    '00000',
+    '00000',
+    '00100',
+    '00100',
+  ],
+  '0': [
+    '11111',
+    '10001',
+    '10011',
+    '10101',
+    '11001',
+    '10001',
+    '11111',
+  ],
+  '1': [
+    '00100',
+    '01100',
+    '00100',
+    '00100',
+    '00100',
+    '00100',
+    '01110',
+  ],
+  '2': [
+    '11110',
+    '00001',
+    '00001',
+    '11110',
+    '10000',
+    '10000',
+    '11111',
+  ],
+  '3': [
+    '11110',
+    '00001',
+    '00001',
+    '01110',
+    '00001',
+    '00001',
+    '11110',
+  ],
+  '4': [
+    '10010',
+    '10010',
+    '10010',
+    '11111',
+    '00010',
+    '00010',
+    '00010',
+  ],
+  '5': [
+    '11111',
+    '10000',
+    '10000',
+    '11110',
+    '00001',
+    '00001',
+    '11110',
+  ],
+  '6': [
+    '01111',
+    '10000',
+    '10000',
+    '11110',
+    '10001',
+    '10001',
+    '01110',
+  ],
+  '7': [
+    '11111',
+    '00001',
+    '00010',
+    '00100',
+    '01000',
+    '01000',
+    '01000',
+  ],
+  '8': [
+    '01110',
+    '10001',
+    '10001',
+    '01110',
+    '10001',
+    '10001',
+    '01110',
+  ],
+  '9': [
+    '01110',
+    '10001',
+    '10001',
+    '01111',
+    '00001',
+    '00001',
+    '11110',
+  ],
+  m: [
+    '00000',
+    '00000',
+    '11011',
+    '10101',
+    '10101',
+    '10101',
+    '10101',
+  ],
+  V: [
+    '10001',
+    '10001',
+    '10001',
+    '10001',
+    '01010',
+    '01010',
+    '00100',
+  ],
+} as const;
+
+type UltraDisplayGlyph = keyof typeof ULTRA_DISPLAY_GLYPHS;
+
 const formatAlignedSignalParts = (value: number | null): UltraAlignedSignalParts => {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return { left: ' ----', right: '.-- mV' };
@@ -371,13 +591,66 @@ const drawUltraAlignedSignal = (
   y: number,
 ) => {
   if (!parts) return;
-  const leftWidth = context.measureText('+9999').width;
-  const rightWidth = context.measureText('.99 mV').width;
-  const decimalX = Math.round((canvasWidth - leftWidth - rightWidth) / 2 + leftWidth);
-  context.textAlign = 'right';
-  context.fillText(parts.left, decimalX, y);
-  context.textAlign = 'left';
-  context.fillText(parts.right, decimalX, y);
+  const leftFieldWidth = ULTRA_DISPLAY_SIGN_AND_INTEGER_SLOTS * ULTRA_DISPLAY_DIGIT_ADVANCE;
+  const decimalFieldWidth = ULTRA_DISPLAY_DECIMAL_WIDTH;
+  const fractionFieldWidth = ULTRA_DISPLAY_FRACTION_SLOTS * ULTRA_DISPLAY_DIGIT_ADVANCE;
+  const unitFieldWidth = 2 * ULTRA_DISPLAY_UNIT_ADVANCE;
+  const fullFieldWidth = leftFieldWidth +
+    ULTRA_DISPLAY_DECIMAL_GAP +
+    decimalFieldWidth +
+    ULTRA_DISPLAY_FRACTION_GAP +
+    fractionFieldWidth +
+    ULTRA_DISPLAY_UNIT_GAP +
+    unitFieldWidth;
+  const startX = Math.round((canvasWidth - fullFieldWidth) / 2);
+  const topY = Math.round(y - ULTRA_DISPLAY_ROW_HEIGHT / 2);
+  const decimalX = Math.round(startX + leftFieldWidth + ULTRA_DISPLAY_DECIMAL_GAP);
+  const fractionStartX = decimalX + decimalFieldWidth + ULTRA_DISPLAY_FRACTION_GAP;
+  const unitStartX = fractionStartX + fractionFieldWidth + ULTRA_DISPLAY_UNIT_GAP;
+  const leftGlyphs = parts.left.slice(-ULTRA_DISPLAY_SIGN_AND_INTEGER_SLOTS).padStart(ULTRA_DISPLAY_SIGN_AND_INTEGER_SLOTS, ' ');
+  const fractionGlyphs = parts.right.match(/\.(\d{2})/)?.[1] ?? '--';
+
+  Array.from(leftGlyphs).forEach((glyph, index) => {
+    drawUltraDisplayGlyph(context, glyph, startX + index * ULTRA_DISPLAY_DIGIT_ADVANCE, topY);
+  });
+  drawUltraDisplayDecimalPoint(context, decimalX, topY);
+  Array.from(fractionGlyphs).forEach((glyph, index) => {
+    drawUltraDisplayGlyph(context, glyph, fractionStartX + index * ULTRA_DISPLAY_DIGIT_ADVANCE, topY);
+  });
+  drawUltraDisplayGlyph(context, 'm', unitStartX, topY);
+  drawUltraDisplayGlyph(context, 'V', unitStartX + ULTRA_DISPLAY_UNIT_ADVANCE, topY);
+};
+
+const drawUltraDisplayDecimalPoint = (
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+) => {
+  const decimalY = y + ULTRA_DISPLAY_DECIMAL_TOP_ROW * (ULTRA_DISPLAY_PIXEL_SIZE + ULTRA_DISPLAY_PIXEL_GAP);
+  for (let rowIndex = 0; rowIndex < ULTRA_DISPLAY_DECIMAL_ROWS; rowIndex += 1) {
+    for (let columnIndex = 0; columnIndex < ULTRA_DISPLAY_DECIMAL_COLUMNS; columnIndex += 1) {
+      const pixelX = x + columnIndex * (ULTRA_DISPLAY_PIXEL_SIZE + ULTRA_DISPLAY_PIXEL_GAP);
+      const pixelY = decimalY + rowIndex * (ULTRA_DISPLAY_PIXEL_SIZE + ULTRA_DISPLAY_PIXEL_GAP);
+      context.fillRect(pixelX, pixelY, ULTRA_DISPLAY_PIXEL_SIZE, ULTRA_DISPLAY_PIXEL_SIZE);
+    }
+  }
+};
+
+const drawUltraDisplayGlyph = (
+  context: CanvasRenderingContext2D,
+  glyph: string,
+  x: number,
+  y: number,
+) => {
+  const pattern = ULTRA_DISPLAY_GLYPHS[glyph as UltraDisplayGlyph] ?? ULTRA_DISPLAY_GLYPHS[' '];
+  pattern.forEach((row, rowIndex) => {
+    Array.from(row).forEach((cell, columnIndex) => {
+      if (cell !== '1') return;
+      const pixelX = x + columnIndex * (ULTRA_DISPLAY_PIXEL_SIZE + ULTRA_DISPLAY_PIXEL_GAP);
+      const pixelY = y + rowIndex * (ULTRA_DISPLAY_PIXEL_SIZE + ULTRA_DISPLAY_PIXEL_GAP);
+      context.fillRect(pixelX, pixelY, ULTRA_DISPLAY_PIXEL_SIZE, ULTRA_DISPLAY_PIXEL_SIZE);
+    });
+  });
 };
 const dampUltraControlAngle = (current: number, target: number, smoothingRate: number, delta: number) => (
   THREE.MathUtils.damp(current, target, smoothingRate, delta)
@@ -1061,6 +1334,7 @@ function UltraNodeHitbox({
   nodeMap,
   parentRef,
   onClick,
+  onDoubleClick,
   onPointerDown,
   onPointerOver,
   onPointerMove,
@@ -1070,6 +1344,7 @@ function UltraNodeHitbox({
   nodeMap: Map<string, THREE.Object3D>;
   parentRef: React.RefObject<THREE.Group | null>;
   onClick?: (control: UltraPointerControl, event: ThreeEvent<MouseEvent>) => void;
+  onDoubleClick?: (control: UltraPointerControl, event: ThreeEvent<MouseEvent>) => void;
   onPointerDown?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
   onPointerOver?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
   onPointerMove?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
@@ -1109,12 +1384,64 @@ function UltraNodeHitbox({
         name={`HSL_UltraMeshHitbox_${definition.control}`}
         position={definition.offset ?? [0, 0, 0]}
         onClick={(event) => onClick?.(definition.control, event)}
+        onDoubleClick={(event) => onDoubleClick?.(definition.control, event)}
         onPointerDown={(event) => onPointerDown?.(definition.control, event)}
         onPointerOver={(event) => onPointerOver?.(definition.control, event)}
         onPointerMove={(event) => onPointerMove?.(definition.control, event)}
         onPointerOut={(event) => onPointerOut?.(definition.control, event)}
       >
         <boxGeometry args={definition.size} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function UltraInstrumentFocusHitbox({
+  nodeMap,
+  parentRef,
+  onDoubleClick,
+}: {
+  nodeMap: Map<string, THREE.Object3D>;
+  parentRef: React.RefObject<THREE.Group | null>;
+  onDoubleClick: (event: ThreeEvent<MouseEvent>) => void;
+}) {
+  const groupRef = useRef<THREE.Group | null>(null);
+  const parentInverseMatrixRef = useRef(new THREE.Matrix4());
+  const localMatrixRef = useRef(new THREE.Matrix4());
+  const anchorPositionRef = useRef(new THREE.Vector3());
+  const anchorQuaternionRef = useRef(new THREE.Quaternion());
+  const anchorScaleRef = useRef(new THREE.Vector3());
+  const anchor = nodeMap.get(ULTRA_INSTRUMENT_FOCUS_HITBOX.anchorNodeName);
+
+  useFrame(() => {
+    const group = groupRef.current;
+    const parent = parentRef.current;
+    if (!group || !parent || !anchor) return;
+    parent.updateMatrixWorld(true);
+    anchor.updateMatrixWorld(true);
+    parentInverseMatrixRef.current.copy(parent.matrixWorld).invert();
+    localMatrixRef.current.copy(anchor.matrixWorld);
+    localMatrixRef.current.decompose(
+      anchorPositionRef.current,
+      anchorQuaternionRef.current,
+      anchorScaleRef.current,
+    );
+    localMatrixRef.current.compose(anchorPositionRef.current, anchorQuaternionRef.current, ULTRA_HITBOX_UNIT_SCALE);
+    group.matrix.multiplyMatrices(parentInverseMatrixRef.current, localMatrixRef.current);
+    group.matrixWorldNeedsUpdate = true;
+  });
+
+  if (!anchor) return null;
+
+  return (
+    <group ref={groupRef} matrixAutoUpdate={false}>
+      <mesh
+        name="HSL_UltraMeshHitbox_instrumentFocus"
+        position={ULTRA_INSTRUMENT_FOCUS_HITBOX.offset}
+        onDoubleClick={onDoubleClick}
+      >
+        <boxGeometry args={[...ULTRA_INSTRUMENT_FOCUS_HITBOX.size]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>
@@ -1138,6 +1465,50 @@ const renderUltraHaloGeometry = (target: UltraControlVisualTarget) => {
   if (target.shape === 'plane') return <planeGeometry args={target.size} />;
   if (target.shape === 'sphere') return <sphereGeometry args={target.args} />;
   return <torusGeometry args={target.args} />;
+};
+
+type UltraFocusShellMeshEntry = {
+  key: string;
+  geometry: THREE.BufferGeometry;
+  matrix: THREE.Matrix4;
+};
+
+const getUltraFocusShellBlending = (effects: UltraVisualEffects) => (
+  effects.focusShellBlendMode === 'normal' ? THREE.NormalBlending : THREE.AdditiveBlending
+);
+
+const initializeUltraFocusShellMeshMorphTargets = (mesh: THREE.Mesh) => {
+  mesh.updateMorphTargets();
+};
+
+const collectUltraFocusShellMeshes = (
+  target: UltraControlVisualTarget,
+  nodeMap: Map<string, THREE.Object3D>,
+  anchor: THREE.Object3D,
+): UltraFocusShellMeshEntry[] => {
+  anchor.updateMatrixWorld(true);
+  const anchorInverseMatrix = new THREE.Matrix4().copy(anchor.matrixWorld).invert();
+  const shellNodeNames = target.focusShellNodeNames ?? [target.anchorNodeName];
+  const visitedMeshes = new Set<THREE.Mesh>();
+  const entries: UltraFocusShellMeshEntry[] = [];
+
+  shellNodeNames.forEach((nodeName) => {
+    const rootNode = nodeMap.get(nodeName);
+    rootNode?.updateMatrixWorld(true);
+    rootNode?.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh || !mesh.geometry || visitedMeshes.has(mesh)) return;
+      visitedMeshes.add(mesh);
+      mesh.updateMatrixWorld(true);
+      entries.push({
+        key: `${target.id}-${nodeName}-${entries.length}`,
+        geometry: mesh.geometry,
+        matrix: new THREE.Matrix4().multiplyMatrices(anchorInverseMatrix, mesh.matrixWorld),
+      });
+    });
+  });
+
+  return entries;
 };
 
 const getUltraVisualTargetMode = (
@@ -1170,8 +1541,11 @@ function UltraNodeHalo({
   suspended: boolean;
 }) {
   const groupRef = useRef<THREE.Group | null>(null);
-  const meshRef = useRef<THREE.Mesh | null>(null);
-  const materialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  const hoverMeshRef = useRef<THREE.Mesh | null>(null);
+  const hoverMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  const shellBreathRef = useRef<THREE.Group | null>(null);
+  const shellPulseRef = useRef<THREE.Group | null>(null);
+  const focusPulseStartedAtRef = useRef<number | null>(null);
   const parentInverseMatrixRef = useRef(new THREE.Matrix4());
   const localMatrixRef = useRef(new THREE.Matrix4());
   const anchorPositionRef = useRef(new THREE.Vector3());
@@ -1182,13 +1556,63 @@ function UltraNodeHalo({
   const color = focusMode ? effects.demoHaloColor : getUltraHoverHaloColor(target.tone, effects);
   const hoverOpacity = getUltraHoverHaloOpacity(target.tone, effects);
   const baseOpacity = focusMode ? effects.demoHaloMinOpacity : hoverOpacity;
+  const shellSide = target.focusShellSide === 'double' ? THREE.DoubleSide : THREE.BackSide;
+  const focusShellDepthTest = target.focusShellSide !== 'double';
+  const focusShellMeshes = useMemo(
+    () => (anchor ? collectUltraFocusShellMeshes(target, nodeMap, anchor) : []),
+    [anchor, nodeMap, target],
+  );
+  const shellBreathMaterial = useMemo(() => new THREE.MeshBasicMaterial({
+    color: effects.focusShellColor,
+    transparent: true,
+    opacity: effects.focusShellBreathMinOpacity,
+    depthWrite: false,
+    depthTest: focusShellDepthTest,
+    side: shellSide,
+    blending: getUltraFocusShellBlending(effects),
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4,
+    toneMapped: false,
+  }), [
+    effects.focusShellBlendMode,
+    effects.focusShellBreathMinOpacity,
+    effects.focusShellColor,
+    focusShellDepthTest,
+    shellSide,
+  ]);
+  const shellPulseMaterial = useMemo(() => new THREE.MeshBasicMaterial({
+    color: effects.focusShellRimColor,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    depthTest: focusShellDepthTest,
+    side: shellSide,
+    blending: getUltraFocusShellBlending(effects),
+    polygonOffset: true,
+    polygonOffsetFactor: -8,
+    polygonOffsetUnits: -8,
+    toneMapped: false,
+  }), [
+    effects.focusShellBlendMode,
+    effects.focusShellRimColor,
+    focusShellDepthTest,
+    shellSide,
+  ]);
+
+  useEffect(() => () => {
+    shellBreathMaterial.dispose();
+    shellPulseMaterial.dispose();
+  }, [shellBreathMaterial, shellPulseMaterial]);
+
+  useEffect(() => {
+    focusPulseStartedAtRef.current = null;
+  }, [focusMode, target.id]);
 
   useFrame(({ clock }) => {
     const group = groupRef.current;
-    const mesh = meshRef.current;
-    const material = materialRef.current;
     const parent = parentRef.current;
-    if (!group || !mesh || !material || !parent || !anchor) return;
+    if (!group || !parent || !anchor) return;
     parent.updateMatrixWorld(true);
     anchor.updateMatrixWorld(true);
     parentInverseMatrixRef.current.copy(parent.matrixWorld).invert();
@@ -1202,40 +1626,112 @@ function UltraNodeHalo({
     group.matrix.multiplyMatrices(parentInverseMatrixRef.current, localMatrixRef.current);
     group.matrixWorldNeedsUpdate = true;
 
+    if (focusMode && focusShellMeshes.length > 0) {
+      const breathGroup = shellBreathRef.current;
+      const pulseGroup = shellPulseRef.current;
+      if (!breathGroup || !pulseGroup) return;
+
+      if (suspended) {
+        breathGroup.scale.setScalar(effects.focusShellBaseScale);
+        pulseGroup.scale.setScalar(effects.focusShellPulseStartScale);
+        shellBreathMaterial.opacity = effects.focusShellBreathMinOpacity;
+        shellPulseMaterial.opacity = 0;
+        return;
+      }
+
+      const breath = (Math.sin(clock.elapsedTime * Math.PI * 1.18) + 1) / 2;
+      if (focusPulseStartedAtRef.current === null) focusPulseStartedAtRef.current = clock.elapsedTime;
+      const focusPulseElapsed = Math.max(0, clock.elapsedTime - focusPulseStartedAtRef.current);
+      const pulse = (focusPulseElapsed * effects.focusShellPulseRate) % 1;
+      const popProgress = Math.min(pulse / ULTRA_FOCUS_SHELL_POP_FRACTION, 1);
+      const fadeProgress = Math.max((pulse - ULTRA_FOCUS_SHELL_POP_FRACTION) / (1 - ULTRA_FOCUS_SHELL_POP_FRACTION), 0);
+      const popEase = 1 - Math.pow(1 - popProgress, 3);
+      const fadeEase = 1 - Math.pow(1 - fadeProgress, 2);
+      const pulsePeakScale = target.focusShellPulsePopScale ?? effects.focusShellPulseStartScale;
+      const pulseRetreatScale = target.focusShellPulseRetreatScale ??
+        Math.max(effects.focusShellPulseStartScale, pulsePeakScale - effects.focusShellPulseScale * 0.42);
+      const pulseRetreatDistance = Math.max(0, pulsePeakScale - pulseRetreatScale);
+      breathGroup.scale.setScalar(effects.focusShellBaseScale + breath * effects.focusShellBreathScale);
+      pulseGroup.scale.setScalar(THREE.MathUtils.lerp(effects.focusShellPulseStartScale, pulsePeakScale, popEase) - fadeEase * pulseRetreatDistance);
+      shellBreathMaterial.opacity = effects.focusShellBreathMinOpacity +
+        breath * (effects.focusShellBreathMaxOpacity - effects.focusShellBreathMinOpacity);
+      shellPulseMaterial.opacity = effects.focusShellPulseOpacity * popEase * Math.pow(1 - fadeProgress, 1.45);
+      return;
+    }
+
+    const hoverMesh = hoverMeshRef.current;
+    const hoverMaterial = hoverMaterialRef.current;
+    if (!hoverMesh || !hoverMaterial) return;
+
     if (!focusMode || suspended) {
-      mesh.scale.setScalar(focusMode ? 1 : target.hoverScale ?? 1);
-      material.opacity = focusMode ? baseOpacity : baseOpacity * (target.hoverWireframe ? 0.62 : 1);
+      hoverMesh.scale.setScalar(focusMode ? 1 : target.hoverScale ?? 1);
+      hoverMaterial.opacity = focusMode ? baseOpacity : baseOpacity * (target.hoverWireframe ? 0.62 : 1);
       return;
     }
 
     const pulse = (Math.sin(clock.elapsedTime * Math.PI * 1.5) + 1) / 2;
-    mesh.scale.setScalar(effects.demoHaloBaseScale + pulse * effects.demoHaloPulseScale);
-    material.opacity = effects.demoHaloMinOpacity + pulse * (effects.demoHaloMaxOpacity - effects.demoHaloMinOpacity);
+    hoverMesh.scale.setScalar(effects.demoHaloBaseScale + pulse * effects.demoHaloPulseScale);
+    hoverMaterial.opacity = effects.demoHaloMinOpacity + pulse * (effects.demoHaloMaxOpacity - effects.demoHaloMinOpacity);
   });
 
   if (!anchor) return null;
 
   return (
     <group name={`HSL_UltraVisualHaloAnchor_${target.id}`} ref={groupRef} matrixAutoUpdate={false}>
-      <mesh
-        name={`HSL_UltraVisualHalo_${target.id}`}
-        ref={meshRef}
-        position={target.offset ?? [0, 0, 0]}
-        rotation={target.rotation ?? [0, 0, 0]}
-        raycast={DISABLE_ULTRA_RAYCAST}
-      >
-        {renderUltraHaloGeometry(target)}
-        <meshBasicMaterial
-          ref={materialRef}
-          color={color}
-          transparent
-          opacity={baseOpacity}
-          depthWrite={false}
-          depthTest={!focusMode}
-          wireframe={mode === 'hover' && target.hoverWireframe === true}
-          toneMapped={false}
-        />
-      </mesh>
+      {focusMode && focusShellMeshes.length > 0 ? (
+        <>
+          <group name={`HSL_UltraFocusShellBreath_${target.id}`} ref={shellBreathRef}>
+            {focusShellMeshes.map((entry) => (
+              <mesh
+                key={`breath-${entry.key}`}
+                name={`HSL_UltraFocusShellBreathMesh_${entry.key}`}
+                geometry={entry.geometry}
+                matrix={entry.matrix}
+                matrixAutoUpdate={false}
+                material={shellBreathMaterial}
+                renderOrder={24}
+                raycast={DISABLE_ULTRA_RAYCAST}
+                onUpdate={initializeUltraFocusShellMeshMorphTargets}
+              />
+            ))}
+          </group>
+          <group name={`HSL_UltraFocusShellPulse_${target.id}`} ref={shellPulseRef}>
+            {focusShellMeshes.map((entry) => (
+              <mesh
+                key={`pulse-${entry.key}`}
+                name={`HSL_UltraFocusShellPulseMesh_${entry.key}`}
+                geometry={entry.geometry}
+                matrix={entry.matrix}
+                matrixAutoUpdate={false}
+                material={shellPulseMaterial}
+                renderOrder={25}
+                raycast={DISABLE_ULTRA_RAYCAST}
+                onUpdate={initializeUltraFocusShellMeshMorphTargets}
+              />
+            ))}
+          </group>
+        </>
+      ) : (
+        <mesh
+          name={`HSL_UltraVisualHalo_${target.id}`}
+          ref={hoverMeshRef}
+          position={target.offset ?? [0, 0, 0]}
+          rotation={target.rotation ?? [0, 0, 0]}
+          raycast={DISABLE_ULTRA_RAYCAST}
+        >
+          {renderUltraHaloGeometry(target)}
+          <meshBasicMaterial
+            ref={hoverMaterialRef}
+            color={color}
+            transparent
+            opacity={baseOpacity}
+            depthWrite={false}
+            depthTest={!focusMode}
+            wireframe={mode === 'hover' && target.hoverWireframe === true}
+            toneMapped={false}
+          />
+        </mesh>
+      )}
     </group>
   );
 }
@@ -1246,14 +1742,18 @@ function UltraPowerSwitchSkirtedRocker({
   powerOn,
   sceneTheme,
   hovered,
+  focused,
 }: {
   nodeMap: Map<string, THREE.Object3D>;
   parentRef: React.RefObject<THREE.Group | null>;
   powerOn: boolean;
   sceneTheme: HeatCapacityUltraInstrumentModelProps['sceneTheme'];
   hovered: boolean;
+  focused: boolean;
 }) {
   const groupRef = useRef<THREE.Group | null>(null);
+  const focusPulseRef = useRef<THREE.Mesh | null>(null);
+  const focusPulseStartedAtRef = useRef<number | null>(null);
   const parentInverseMatrixRef = useRef(new THREE.Matrix4());
   const localMatrixRef = useRef(new THREE.Matrix4());
   const geometry = useMemo(() => createUltraPowerSwitchRockerGeometry(), []);
@@ -1261,18 +1761,40 @@ function UltraPowerSwitchSkirtedRocker({
   const anchor = nodeMap.get('FD_NCD_C_PowerSwitch_Button');
   const themeVisuals = ULTRA_THEME_VISUALS[sceneTheme];
   const baseShellColor = powerOn ? themeVisuals.powerSwitchOn : themeVisuals.powerSwitchOff;
-  const shellColor = hovered
+  const emphasized = hovered || focused;
+  const shellColor = emphasized
     ? getUltraNaturalHighlightColor(new THREE.Color(baseShellColor), 0.28, 0.075)
     : baseShellColor;
+  const focusPulseMaterial = useMemo(() => new THREE.MeshBasicMaterial({
+    color: sceneTheme === 'dark' ? '#8cf7df' : '#34c8b7',
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    depthTest: true,
+    side: THREE.BackSide,
+    blending: sceneTheme === 'dark' ? THREE.AdditiveBlending : THREE.NormalBlending,
+    polygonOffset: true,
+    polygonOffsetFactor: -10,
+    polygonOffsetUnits: -10,
+    toneMapped: false,
+  }), [sceneTheme]);
   const markY = POWER_SWITCH_ROCKER_HEIGHT * 0.22;
   const markZ = getUltraPowerSwitchFaceZ(markY) + POWER_SWITCH_MARK_Z_OFFSET;
 
   useEffect(() => () => {
     geometry.dispose();
     ringInlayGeometry.dispose();
-  }, [geometry, ringInlayGeometry]);
+    focusPulseMaterial.dispose();
+  }, [focusPulseMaterial, geometry, ringInlayGeometry]);
 
-  useFrame(() => {
+  useEffect(() => {
+    if (!focused) {
+      focusPulseStartedAtRef.current = null;
+      focusPulseMaterial.opacity = 0;
+    }
+  }, [focused, focusPulseMaterial]);
+
+  useFrame(({ clock }) => {
     const group = groupRef.current;
     const parent = parentRef.current;
     if (!group || !parent || !anchor) return;
@@ -1282,19 +1804,48 @@ function UltraPowerSwitchSkirtedRocker({
     localMatrixRef.current.multiplyMatrices(parentInverseMatrixRef.current, anchor.matrixWorld);
     group.matrix.copy(localMatrixRef.current);
     group.matrixWorldNeedsUpdate = true;
+
+    const focusPulse = focusPulseRef.current;
+    if (!focusPulse) return;
+    if (!focused) {
+      focusPulseStartedAtRef.current = null;
+      focusPulseMaterial.opacity = 0;
+      return;
+    }
+
+    if (focusPulseStartedAtRef.current === null) focusPulseStartedAtRef.current = clock.elapsedTime;
+    const focusPulseElapsed = Math.max(0, clock.elapsedTime - focusPulseStartedAtRef.current);
+    const pulse = (focusPulseElapsed * 0.58) % 1;
+    const popProgress = Math.min(pulse / ULTRA_FOCUS_SHELL_POP_FRACTION, 1);
+    const fadeProgress = Math.max((pulse - ULTRA_FOCUS_SHELL_POP_FRACTION) / (1 - ULTRA_FOCUS_SHELL_POP_FRACTION), 0);
+    const popEase = 1 - Math.pow(1 - popProgress, 3);
+    const fadeEase = 1 - Math.pow(1 - fadeProgress, 2);
+    const pulseScale = THREE.MathUtils.lerp(1.04, 1.42, popEase) - fadeEase * 0.24;
+    const pulseDepthScale = THREE.MathUtils.lerp(1.02, 1.18, popEase) - fadeEase * 0.06;
+    focusPulse.scale.set(pulseScale, pulseScale, pulseDepthScale);
+    focusPulseMaterial.opacity = 0.32 * popEase * Math.pow(1 - fadeProgress, 1.45);
   });
 
   if (!anchor) return null;
 
   return (
     <group name="HSL_PowerSwitch_SkirtedRockerRuntime" ref={groupRef} matrixAutoUpdate={false}>
+      <mesh
+        name="HSL_PowerSwitch_SkirtedRockerFocusPulse"
+        ref={focusPulseRef}
+        geometry={geometry}
+        material={focusPulseMaterial}
+        scale={[1.42, 1.42, 1.18]}
+        renderOrder={26}
+        raycast={DISABLE_ULTRA_RAYCAST}
+      />
       <mesh name="HSL_PowerSwitch_SkirtedRockerShell" geometry={geometry}>
         <meshPhysicalMaterial
           color={shellColor}
           roughness={0.18}
           metalness={0.02}
           emissive={shellColor}
-          emissiveIntensity={hovered ? 0.34 : powerOn ? 0.08 : 0.035}
+          emissiveIntensity={hovered ? 0.34 : focused ? 0.22 : powerOn ? 0.08 : 0.035}
           clearcoat={0.6}
           clearcoatRoughness={0.08}
           specularIntensity={0.82}
@@ -1325,6 +1876,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     totalDelta: 0,
     lastAppliedKnobAngle: props.pressureZeroKnobAngle,
   });
+  const pendingUltraSingleClickRef = useRef<number | null>(null);
   const gaugeDisplayedRotationRef = useRef(PRESSURE_GAUGE_MIN_ROTATION);
   const stopcockDisplayedAngleRef = useRef(getUltraStopcockVisualAngleRad(props.stopcockAngleDeg));
   const pumpValveDisplayedAngleRef = useRef(props.pumpValveOpen ? 0 : Math.PI / 2);
@@ -1404,6 +1956,17 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     return zeroDistanceSq < powerDistanceSq ? 'pressureZero' : 'powerSwitch';
   }, [projectUltraControlHitboxCenter]);
 
+  const resolveUltraActionControl = useCallback((
+    control: UltraPointerControl,
+    clientX: number,
+    clientY: number,
+  ): UltraPointerControl => {
+    const panelResolvedControl = resolveUltraPanelPointerControl(control, clientX, clientY);
+    return panelResolvedControl === 'pumpValve' && props.hoveredControl === 'stopcock'
+      ? 'stopcock'
+      : panelResolvedControl;
+  }, [props.hoveredControl, resolveUltraPanelPointerControl]);
+
   const getPressureZeroPointerAngle = useCallback((clientX: number, clientY: number) => {
     const anchor = projectUltraNodeAnchor('FD_NCD_C_ZeroAdjustKnob');
     if (!anchor) return null;
@@ -1422,28 +1985,76 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     props.onValveFocusAnchor(control, anchor.clientX, anchor.clientY);
   }, [projectUltraNodeAnchor, props]);
 
+  const clearPendingUltraSingleClick = useCallback(() => {
+    if (pendingUltraSingleClickRef.current !== null) {
+      window.clearTimeout(pendingUltraSingleClickRef.current);
+      pendingUltraSingleClickRef.current = null;
+    }
+  }, []);
+
+  const scheduleUltraSingleClick = useCallback((run: () => void) => {
+    clearPendingUltraSingleClick();
+    pendingUltraSingleClickRef.current = window.setTimeout(() => {
+      pendingUltraSingleClickRef.current = null;
+      run();
+    }, ULTRA_DOUBLE_CLICK_GUARD_MS);
+  }, [clearPendingUltraSingleClick]);
+
+  useEffect(() => clearPendingUltraSingleClick, [clearPendingUltraSingleClick]);
+
   const handleUltraControlClick = useCallback((control: UltraPointerControl, event: ThreeEvent<MouseEvent>) => {
     if (!isUltraPrimaryPointerButton(event)) return;
     absorbUltraPointerEvent(event);
-    const panelResolvedControl = resolveUltraPanelPointerControl(control, event.clientX, event.clientY);
-    const resolvedControl = panelResolvedControl === 'pumpValve' && props.hoveredControl === 'stopcock'
-      ? 'stopcock'
-      : panelResolvedControl;
-    if (resolvedControl === 'pressureZero') return;
+    const clientX = event.clientX;
+    const clientY = event.clientY;
+    scheduleUltraSingleClick(() => {
+      const resolvedControl = resolveUltraActionControl(control, clientX, clientY);
+      if (resolvedControl === 'pressureZero') return;
+      if (props.interactionLocked) {
+        props.onLockedInteraction();
+        return;
+      }
+      if (resolvedControl === 'powerSwitch') {
+        props.onPowerToggle(!props.powerOn);
+      } else if (resolvedControl === 'stopcock') {
+        props.onStopcockOpenChange(getHeatCapacityStopcockState(props.stopcockAngleDeg) !== 'open');
+      } else if (resolvedControl === 'pumpValve') {
+        props.onPumpValveToggle();
+      } else if (resolvedControl === 'pumpBulb') {
+        if (!props.pumpBulbInteractionEnabled) return;
+        props.onPumpBulbPress();
+      }
+    });
+  }, [props, resolveUltraActionControl, scheduleUltraSingleClick]);
+
+  const handleUltraControlDoubleClick = useCallback((control: UltraPointerControl, event: ThreeEvent<MouseEvent>) => {
+    if (!isUltraPrimaryPointerButton(event)) return;
+    absorbUltraPointerEvent(event);
+    clearPendingUltraSingleClick();
+    const resolvedControl = resolveUltraActionControl(control, event.clientX, event.clientY);
     if (props.interactionLocked) {
       props.onLockedInteraction();
       return;
     }
-    if (resolvedControl === 'powerSwitch') {
-      props.onPowerToggle(!props.powerOn);
-    } else if (resolvedControl === 'stopcock') {
-      props.onStopcockOpenChange(getHeatCapacityStopcockState(props.stopcockAngleDeg) !== 'open');
-    } else if (resolvedControl === 'pumpValve') {
-      props.onPumpValveToggle();
+    if (resolvedControl === 'powerSwitch' || resolvedControl === 'pressureZero') {
+      props.onFocus('instrument');
     } else if (resolvedControl === 'pumpBulb') {
-      props.onPumpBulbPress();
+      props.onFocus('pump');
+    } else {
+      props.onFocus('stopcock');
     }
-  }, [props, resolveUltraPanelPointerControl]);
+  }, [clearPendingUltraSingleClick, props, resolveUltraActionControl]);
+
+  const handleUltraInstrumentFocusDoubleClick = useCallback((event: ThreeEvent<MouseEvent>) => {
+    if (!isUltraPrimaryPointerButton(event)) return;
+    absorbUltraPointerEvent(event);
+    clearPendingUltraSingleClick();
+    if (props.interactionLocked) {
+      props.onLockedInteraction();
+      return;
+    }
+    props.onFocus('instrument');
+  }, [clearPendingUltraSingleClick, props]);
 
   const handleUltraControlPointerDown = useCallback((control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => {
     if (!isUltraPrimaryPointerButton(event)) return;
@@ -1455,6 +2066,9 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     absorbUltraPointerEvent(event);
     if (props.interactionLocked) {
       props.onLockedInteraction();
+      return;
+    }
+    if (!props.pressureZeroInteractionEnabled) {
       return;
     }
     const pointerAngle = getPressureZeroPointerAngle(event.clientX, event.clientY);
@@ -1495,7 +2109,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       } catch {
         // Matching guard for synthetic pointer events.
       }
-      gl.domElement.style.cursor = props.hoveredControl === 'pressureZero' ? 'grab' : '';
+      gl.domElement.style.cursor = props.hoveredControl === 'pressureZero' && props.pressureZeroInteractionEnabled ? 'grab' : '';
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
     };
@@ -1505,7 +2119,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
 
   const handleUltraControlPointerOver = useCallback((control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => {
     const resolvedControl = resolveUltraPanelPointerControl(control, event.clientX, event.clientY);
-    gl.domElement.style.cursor = resolvedControl === 'pressureZero' ? 'grab' : 'pointer';
+    gl.domElement.style.cursor = resolvedControl === 'pressureZero' && props.pressureZeroInteractionEnabled ? 'grab' : 'pointer';
     props.setHoveredControl(resolvedControl);
     if (resolvedControl === 'stopcock' || resolvedControl === 'pumpValve') {
       openUltraValveFocusBubble(resolvedControl);
@@ -1514,7 +2128,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
 
   const handleUltraControlPointerMove = useCallback((control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => {
     const resolvedControl = resolveUltraPanelPointerControl(control, event.clientX, event.clientY);
-    gl.domElement.style.cursor = resolvedControl === 'pressureZero' ? 'grab' : 'pointer';
+    gl.domElement.style.cursor = resolvedControl === 'pressureZero' && props.pressureZeroInteractionEnabled ? 'grab' : 'pointer';
     if (props.hoveredControl !== resolvedControl) {
       props.setHoveredControl(resolvedControl);
       if (resolvedControl === 'stopcock' || resolvedControl === 'pumpValve') {
@@ -1539,7 +2153,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     const texture = new THREE.CanvasTexture(canvas);
     texture.flipY = false;
     texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.NearestFilter;
     texture.needsUpdate = true;
     displayTextureRef.current = texture;
     return () => {
@@ -1559,14 +2173,16 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     const themeVisuals = ULTRA_THEME_VISUALS[props.sceneTheme];
     setUltraNodeTreeVisible(nodeMap, 'HSL_MainDisplay_NameplateLabelArt_PowerPreview', true);
     setUltraPoweredDisplayArtVisible(nodeMap, ultraDisplayPowered);
+    context.imageSmoothingEnabled = false;
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = themeVisuals.displayScreen;
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = ultraDisplayPowered ? themeVisuals.displayText : themeVisuals.displayScreen;
-    context.font = '700 68px Consolas, "Courier New", monospace';
-    context.textBaseline = 'middle';
+    context.shadowColor = ultraDisplayPowered ? themeVisuals.displayText : 'transparent';
+    context.shadowBlur = ultraDisplayPowered ? 5 : 0;
     drawUltraAlignedSignal(context, temperatureDisplay, canvas.width, 82);
     drawUltraAlignedSignal(context, pressureDisplay, canvas.width, 176);
+    context.shadowBlur = 0;
     texture.needsUpdate = true;
     invalidate();
   }, [nodeMap, props.powerOn, props.pressureSignalMv, props.sceneTheme, props.temperatureSignalMv, invalidate]);
@@ -1770,18 +2386,25 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
           nodeMap={nodeMap}
           parentRef={runtimeRootRef}
           onClick={handleUltraControlClick}
+          onDoubleClick={handleUltraControlDoubleClick}
           onPointerDown={handleUltraControlPointerDown}
           onPointerOver={handleUltraControlPointerOver}
           onPointerMove={handleUltraControlPointerMove}
           onPointerOut={handleUltraControlPointerOut}
         />
       ))}
+      <UltraInstrumentFocusHitbox
+        nodeMap={nodeMap}
+        parentRef={runtimeRootRef}
+        onDoubleClick={handleUltraInstrumentFocusDoubleClick}
+      />
       <UltraPowerSwitchSkirtedRocker
         nodeMap={nodeMap}
         parentRef={runtimeRootRef}
         powerOn={props.powerOn}
         sceneTheme={props.sceneTheme}
         hovered={props.hoveredControl === 'powerSwitch'}
+        focused={props.demoFocusPulseActive && props.demoFocusControlId === 'powerSwitch'}
       />
       {ultraVisualTargetModes.map(({ target, mode }) => (
         mode ? (

@@ -814,23 +814,10 @@ export interface WorkbenchIdealState extends WorkbenchFileBase {
   idealWindowLayout: WorkbenchIdealWindowLayout;
 }
 
-export interface WorkbenchHeatCapacityPausedTeachingSnapshot {
-  heatCapacityMode: 'demo' | 'guide';
-  heatCapacityPhase: HeatCapacityRuntimePhase;
-  heatCapacityTrials: HeatCapacityTrial[];
-  heatCapacityActiveTrialIndex: number;
-  heatCapacityProcessingCalculated: boolean;
-  heatCapacityProcessingResult: HeatCapacityProcessingResult;
-  selectedHeatCapacityPanel: Extract<WorkbenchPanelKey, 'preview' | 'realtime'> | WorkbenchHeatCapacityPanelKey;
-  openHeatCapacityTabs: WorkbenchHeatCapacityTabId[];
-  activeHeatCapacityTabId: WorkbenchHeatCapacityTabId | null;
-}
-
 export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   kind: 'heatCapacity';
   particles: Particle[];
   heatCapacityMode: HeatCapacityMode;
-  heatCapacityPausedTeachingSnapshot: WorkbenchHeatCapacityPausedTeachingSnapshot | null;
   heatCapacityFreeRuntimeVersion: number;
   heatCapacityFreeExperimentGroupStatus: HeatCapacityFreeExperimentGroupStatus;
   heatCapacityFreeParameterDraft: HeatCapacityFreeParameterDraft;
@@ -3122,7 +3109,6 @@ export const createDefaultHeatCapacityFile = (
     kind: 'heatCapacity',
     particles: [],
     heatCapacityMode: 'free',
-    heatCapacityPausedTeachingSnapshot: null,
     ...freeRuntimeFields,
     heatCapacityFreeTraceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
     heatCapacityFreeTraceStore: createDefaultFreeTraceStore(),
@@ -3217,69 +3203,12 @@ export const createDefaultHeatCapacityFile = (
   };
 };
 
-const cloneHeatCapacityTrial = (trial: HeatCapacityTrial): HeatCapacityTrial => ({ ...trial });
-
-const createHeatCapacityPausedTeachingSnapshot = (
-  file: WorkbenchHeatCapacityState,
-): WorkbenchHeatCapacityPausedTeachingSnapshot | null => {
-  if (file.heatCapacityMode === 'free') return file.heatCapacityPausedTeachingSnapshot;
-  return {
-    heatCapacityMode: file.heatCapacityMode,
-    heatCapacityPhase: file.heatCapacityPhase,
-    heatCapacityTrials: file.heatCapacityTrials.map(cloneHeatCapacityTrial),
-    heatCapacityActiveTrialIndex: file.heatCapacityActiveTrialIndex,
-    heatCapacityProcessingCalculated: file.heatCapacityProcessingCalculated,
-    heatCapacityProcessingResult: file.heatCapacityProcessingResult,
-    selectedHeatCapacityPanel: file.selectedHeatCapacityPanel,
-    openHeatCapacityTabs: [...file.openHeatCapacityTabs],
-    activeHeatCapacityTabId: file.activeHeatCapacityTabId,
-  };
-};
-
 export const enterHeatCapacityFreeModeWorkbenchState = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
-  const freeRuntimeFields = createDefaultHeatCapacityFreeRuntimeFields(`free-runtime-${file.id}-${now}`);
-  const enteredFile: WorkbenchHeatCapacityState = {
-    ...file,
-    heatCapacityMode: 'free',
-    heatCapacityPausedTeachingSnapshot: createHeatCapacityPausedTeachingSnapshot(file),
-    ...freeRuntimeFields,
-    heatCapacityFreeTrials: file.heatCapacityFreeTrials,
-    runState: 'idle',
-    updatedAt: now,
-  };
-  return recordHeatCapacityFreeTraceEvent(enteredFile, 'enter-free-mode', now);
-};
-
-export const exitHeatCapacityFreeModeWorkbenchState = (
-  file: WorkbenchHeatCapacityState,
-  now = Date.now(),
-): WorkbenchHeatCapacityState => {
-  const tracedFile = recordHeatCapacityFreeTraceEvent(file, 'exit-free-mode', now);
-  const snapshot = tracedFile.heatCapacityPausedTeachingSnapshot;
-  if (!snapshot) {
-    return {
-      ...tracedFile,
-      heatCapacityMode: 'guide',
-      updatedAt: now,
-    };
-  }
-  return {
-    ...tracedFile,
-    heatCapacityMode: snapshot.heatCapacityMode,
-    heatCapacityPausedTeachingSnapshot: null,
-    heatCapacityPhase: snapshot.heatCapacityPhase,
-    heatCapacityTrials: snapshot.heatCapacityTrials.map(cloneHeatCapacityTrial),
-    heatCapacityActiveTrialIndex: snapshot.heatCapacityActiveTrialIndex,
-    heatCapacityProcessingCalculated: snapshot.heatCapacityProcessingCalculated,
-    heatCapacityProcessingResult: snapshot.heatCapacityProcessingResult,
-    selectedHeatCapacityPanel: snapshot.selectedHeatCapacityPanel,
-    openHeatCapacityTabs: [...snapshot.openHeatCapacityTabs],
-    activeHeatCapacityTabId: snapshot.activeHeatCapacityTabId,
-    updatedAt: now,
-  };
+  const resetFile = resetHeatCapacityFreeRunWorkbenchState(file, now);
+  return recordHeatCapacityFreeTraceEvent(resetFile, 'enter-free-mode', now);
 };
 
 export const resetHeatCapacityFreeTrialsWorkbenchState = (
