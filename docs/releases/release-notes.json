@@ -3,12 +3,12 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
-      "version": "4.1.12",
+      "version": "4.1.13",
       "date": "2026-06-09",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.12",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.12/heat-capacity-lab-setup-4.1.12.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.13",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.13/heat-capacity-lab-setup-4.1.13.exe"
       },
       "summary": {
         "zh-CN": "热容比实验接入新的 Ultra GLB 最高画质模型，统一自由 / 引导 / 演示 / 聚焦模式的交互和高亮逻辑，修复控件命中与快速点击问题，并在最高档禁用微观可视化。",
@@ -123,9 +123,9 @@
                 "en": "Distributed through desktop auto update"
               },
               "body": {
-                "zh-CN": "本版本继续发布 NSIS 安装包、latest.yml 和 blockmap，已安装的 4.1.11 客户端可以通过应用内更新检测到 4.1.12。",
-                "zh-TW": "本版本繼續發布 NSIS 安裝包、latest.yml 和 blockmap，已安裝的 4.1.11 用戶端可以透過應用內更新偵測到 4.1.12。",
-                "en": "This version continues to publish the NSIS installer, latest.yml, and blockmap so installed 4.1.11 clients can detect 4.1.12 in-app."
+                "zh-CN": "本版本继续发布 NSIS 安装包、latest.yml 和 blockmap，已安装的 4.1.12 客户端可以通过应用内更新检测到 4.1.13。",
+                "zh-TW": "本版本繼續發布 NSIS 安裝包、latest.yml 和 blockmap，已安裝的 4.1.12 用戶端可以透過應用內更新偵測到 4.1.13。",
+                "en": "This version continues to publish the NSIS installer, latest.yml, and blockmap so installed 4.1.12 clients can detect 4.1.13 in-app."
               }
             }
           ]
@@ -150,8 +150,8 @@
         {
           "type": "fixed",
           "title": {
-          "zh-CN": "修复",
-          "zh-TW": "修復",
+            "zh-CN": "修复",
+            "zh-TW": "修復",
             "en": "Fixed"
           },
           "items": [
@@ -174,8 +174,8 @@
         {
           "type": "compatibility",
           "title": {
-          "zh-CN": "兼容性说明",
-          "zh-TW": "相容性說明",
+            "zh-CN": "兼容性说明",
+            "zh-TW": "相容性說明",
             "en": "Compatibility"
           },
           "items": [
