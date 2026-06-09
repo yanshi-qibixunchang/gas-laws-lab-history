@@ -5655,28 +5655,31 @@ const WorkbenchStudioPrototype: React.FC = () => {
     pushLog(`${activeFile.name}: 已删除第 ${displayTrialIndex} 组${kind === 'trial' ? '' : ` ${recordLabel}`}记录。`);
   };
 
-  const updateHeatCapacityPower = (nextPowerOn: boolean, source: 'user' | 'autoDemo' = 'user') => {
+  const updateHeatCapacityPower = (nextPowerOn?: boolean, source: 'user' | 'autoDemo' = 'user') => {
     if (isHeatCapacityUserInteractionLocked(source)) {
       showHeatCapacityAutoDemoLockedToast();
       return;
     }
-    if (!guardManualHeatCapacityAction(nextPowerOn ? 'turnPowerOn' : 'turnPowerOff', source)) return;
+    const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
+    const guardedPowerOn = nextPowerOn ?? (currentFile?.kind === 'heatCapacity' ? !currentFile.powerOn : true);
+    if (!guardManualHeatCapacityAction(guardedPowerOn ? 'turnPowerOn' : 'turnPowerOff', source)) return;
     if (source === 'user') collapseHeatCapacityFreeParameterSidebarForExperimentAction();
     const now = Date.now();
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
-      const cleanFile = nextPowerOn && source === 'user' && (file.heatCapacityPhase === 'demoComplete' || file.runState === 'finished')
+      const resolvedPowerOn = nextPowerOn ?? !file.powerOn;
+      const cleanFile = resolvedPowerOn && source === 'user' && (file.heatCapacityPhase === 'demoComplete' || file.runState === 'finished')
         ? resetHeatCapacityForManualExperiment(file, now)
         : file;
-      if (nextPowerOn && !cleanFile.heatCapacityExperimentProfile) {
+      if (resolvedPowerOn && !cleanFile.heatCapacityExperimentProfile) {
         const experimentSeed = createHeatCapacityExperimentSeed();
         return powerHeatCapacityWorkbenchFile({
           ...cleanFile,
           heatCapacityExperimentSeed: experimentSeed,
           heatCapacityExperimentProfile: createHeatCapacityExperimentProfile(experimentSeed),
-        }, nextPowerOn, now);
+        }, resolvedPowerOn, now);
       }
-      return powerHeatCapacityWorkbenchFile(cleanFile, nextPowerOn, now);
+      return powerHeatCapacityWorkbenchFile(cleanFile, resolvedPowerOn, now);
     });
   };
 
@@ -5826,24 +5829,31 @@ const WorkbenchStudioPrototype: React.FC = () => {
     pushLog(heatCapacityRealtimeCopy.freeRunResetLog(activeFile.name), 'warning');
   };
 
-  const updateHeatCapacityStopcockOpen = (nextOpen: boolean, source: 'user' | 'autoDemo' = 'user') => {
+  const updateHeatCapacityStopcockOpen = (nextOpen?: boolean, source: 'user' | 'autoDemo' = 'user') => {
     if (isHeatCapacityUserInteractionLocked(source)) {
       showHeatCapacityAutoDemoLockedToast();
       return;
     }
-    const stopcockAngleDeg = getHeatCapacityStopcockTargetAngle(nextOpen);
-    const stopcockAction = nextOpen ? 'openStopcock' : 'closeStopcock';
+    const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
+    const guardedOpen = nextOpen ?? (
+      currentFile?.kind === 'heatCapacity'
+        ? getHeatCapacityStopcockState(currentFile.stopcockAngleDeg) !== 'open'
+        : true
+    );
+    const stopcockAction = guardedOpen ? 'openStopcock' : 'closeStopcock';
     if (!guardManualHeatCapacityAction(stopcockAction, source)) return;
     if (source === 'user') collapseHeatCapacityFreeParameterSidebarForExperimentAction();
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
       const now = Date.now();
+      const resolvedOpen = nextOpen ?? getHeatCapacityStopcockState(file.stopcockAngleDeg) !== 'open';
+      const stopcockAngleDeg = getHeatCapacityStopcockTargetAngle(resolvedOpen);
       const wasOpen = getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open';
       const pressureReleaseBurstUntilMs = !wasOpen
-        ? getHeatCapacityPressureReleaseBurstUntilMs(file, nextOpen, now)
+        ? getHeatCapacityPressureReleaseBurstUntilMs(file, resolvedOpen, now)
         : file.pressureReleaseBurstUntilMs;
       const freeStopcockFlowPatch = file.heatCapacityMode === 'free'
-        ? nextOpen
+        ? resolvedOpen
           ? {
               heatCapacityFreeStopcockFlowOpen: false,
               heatCapacityFreeStopcockPendingOpenAtMs: now + HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
@@ -5854,15 +5864,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
             }
         : {};
       const isManualReleaseClosure = source === 'user' &&
-        !nextOpen &&
+        !resolvedOpen &&
         manualHeatCapacityActiveFileId === file.id &&
         getHeatCapacityManualStep(file) === 'closeStopcockAfterReleaseRequired';
       const nextFile = stepHeatCapacityWorkbenchFile({
         ...file,
         stopcockAngleDeg,
-        glassPistonState: nextOpen ? 'open' : 'closed',
+        glassPistonState: resolvedOpen ? 'open' : 'closed',
         ...freeStopcockFlowPatch,
-        pressureReleaseBurstUntilMs: nextOpen ? pressureReleaseBurstUntilMs : null,
+        pressureReleaseBurstUntilMs: resolvedOpen ? pressureReleaseBurstUntilMs : null,
         pressureDisplayNextJitterAtMs: pressureReleaseBurstUntilMs ? now : file.pressureDisplayNextJitterAtMs,
         updatedAt: now,
       }, now);
@@ -5872,9 +5882,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return sampledFile.heatCapacityMode === 'free'
         ? recordHeatCapacityFreeTraceEvent(
             sampledFile,
-            nextOpen ? 'stopcock-open' : 'stopcock-close',
+            resolvedOpen ? 'stopcock-open' : 'stopcock-close',
             now,
-            { visualStopcockOpen: nextOpen },
+            { visualStopcockOpen: resolvedOpen },
           )
         : sampledFile;
     });

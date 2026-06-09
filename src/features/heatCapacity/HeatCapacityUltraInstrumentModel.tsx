@@ -74,6 +74,7 @@ type HeatCapacityUltraInstrumentModelProps = {
   hardSphereParticleMultiplier: number;
   hardSphereSpeedMultiplier: number;
   interactionLocked: boolean;
+  focusMode: 'none' | UltraFocusMode;
   pressureZeroInteractionEnabled: boolean;
   pumpBulbInteractionEnabled: boolean;
   demoFocusControlId: string | null;
@@ -84,8 +85,8 @@ type HeatCapacityUltraInstrumentModelProps = {
   setHoveredControl: (control: UltraHoveredControl) => void;
   onValveFocusAnchor: (control: UltraValveFocusControl, clientX: number, clientY: number) => void;
   onLockedInteraction: (message?: string) => void;
-  onPowerToggle: (nextPowerOn: boolean) => void;
-  onStopcockOpenChange: (nextOpen: boolean) => void;
+  onPowerToggle: (nextPowerOn?: boolean) => void;
+  onStopcockOpenChange: (nextOpen?: boolean) => void;
   onPressureZeroFineAdjust: (direction: number) => void;
   onPressureZeroCoarseAdjust: (angleDeltaDeg: number) => void;
   onPumpValveToggle: () => void;
@@ -166,7 +167,7 @@ const ULTRA_CONTROL_HITBOXES: Array<{
   { control: 'pressureZero', anchorNodeName: 'FD_NCD_C_ZeroAdjustKnob', size: [0.42, 0.42, 0.34], offset: [0, 0, 0.07] },
   { control: 'stopcock', anchorNodeName: 'Stopcock_THandle', size: [0.46, 0.24, 0.28] },
   { control: 'pumpValve', anchorNodeName: 'InletValue_Pivot', size: [0.64, 0.52, 0.38], offset: [0, 0.12, 0.02] },
-  { control: 'pumpBulb', anchorNodeName: 'Pump_Bulb', size: [0.96, 0.72, 0.64] },
+  { control: 'pumpBulb', anchorNodeName: 'Pump_Bulb', size: [0.64, 0.50, 0.52] },
 ];
 const ULTRA_INSTRUMENT_FOCUS_HITBOX = {
   anchorNodeName: 'FD_NCD_C_FrontPanel',
@@ -282,7 +283,6 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     shape: 'sphere',
     args: [0.26, 24, 16],
     hoverScale: 0.78,
-    hoverWireframe: true,
     focusShellPulsePopScale: 1.11,
     focusShellPulseRetreatScale: 1.055,
   },
@@ -2007,7 +2007,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     absorbUltraPointerEvent(event);
     const clientX = event.clientX;
     const clientY = event.clientY;
-    scheduleUltraSingleClick(() => {
+    const runControlClick = () => {
       const resolvedControl = resolveUltraActionControl(control, clientX, clientY);
       if (resolvedControl === 'pressureZero') return;
       if (props.interactionLocked) {
@@ -2015,16 +2015,21 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
         return;
       }
       if (resolvedControl === 'powerSwitch') {
-        props.onPowerToggle(!props.powerOn);
+        props.onPowerToggle();
       } else if (resolvedControl === 'stopcock') {
-        props.onStopcockOpenChange(getHeatCapacityStopcockState(props.stopcockAngleDeg) !== 'open');
+        props.onStopcockOpenChange();
       } else if (resolvedControl === 'pumpValve') {
         props.onPumpValveToggle();
       } else if (resolvedControl === 'pumpBulb') {
         if (!props.pumpBulbInteractionEnabled) return;
         props.onPumpBulbPress();
       }
-    });
+    };
+    if (props.focusMode !== 'none') {
+      runControlClick();
+      return;
+    }
+    scheduleUltraSingleClick(runControlClick);
   }, [props, resolveUltraActionControl, scheduleUltraSingleClick]);
 
   const handleUltraControlDoubleClick = useCallback((control: UltraPointerControl, event: ThreeEvent<MouseEvent>) => {

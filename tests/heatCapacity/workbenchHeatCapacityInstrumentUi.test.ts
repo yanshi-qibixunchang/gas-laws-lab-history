@@ -69,8 +69,18 @@ assert.match(
 );
 assert.match(
   workbenchSource,
+  /const updateHeatCapacityPower = \(nextPowerOn\?: boolean[\s\S]*const resolvedPowerOn = nextPowerOn \?\? !file\.powerOn[\s\S]*powerHeatCapacityWorkbenchFile\(cleanFile, resolvedPowerOn, now\)/,
+  'Fast 3D power-switch clicks should be able to toggle from the latest workbench file state instead of a stale scene prop',
+);
+assert.match(
+  workbenchSource,
   /updateHeatCapacityStopcockOpen[\s\S]*?source === 'user'[\s\S]*?collapseHeatCapacityFreeParameterSidebarForExperimentAction\(\)/,
   'Changing stopcock from user action should collapse the parameter sidebar',
+);
+assert.match(
+  workbenchSource,
+  /const updateHeatCapacityStopcockOpen = \(nextOpen\?: boolean[\s\S]*const resolvedOpen = nextOpen \?\? getHeatCapacityStopcockState\(file\.stopcockAngleDeg\) !== 'open'[\s\S]*getHeatCapacityStopcockTargetAngle\(resolvedOpen\)/,
+  'Fast 3D stopcock clicks should be able to toggle from the latest workbench file state instead of a stale scene prop',
 );
 assert.match(
   workbenchSource,
@@ -251,8 +261,13 @@ assert.doesNotMatch(
 );
 assert.match(
   hardSphereToggleMountSection,
-  /disabled=\{props\.hardSphereViewLocked\}/,
-  'hard-sphere visualization toggle may be disabled only by the Free Mode parameter lock',
+  /enabled=\{hardSphereViewActive\}/,
+  'hard-sphere visualization toggle should show as off when the active tier disables the particle layer',
+);
+assert.match(
+  hardSphereToggleMountSection,
+  /disabled=\{props\.hardSphereViewLocked \|\| hardSphereViewUnavailable\}/,
+  'hard-sphere visualization toggle should be disabled by the Free Mode parameter lock or the Ultra GLB tier',
 );
 const asciiSubscriptPattern = /U_[0-9TtPp]/;
 const getCssBlock = (selector: string) => {
@@ -626,10 +641,17 @@ assert.match(sceneSource, /HeatCapacityHardSphereToggle/, 'instrument scene shou
 assert.match(sceneSource, /HeatCapacityHardSphereLayer/, 'instrument scene should render the hard-sphere particle layer inside the 3D canvas');
 assert.match(hardSphereToggleSource, /data-heat-capacity-hard-sphere-toggle="true"/, 'hard-sphere toggle should have a stable UI marker');
 assert.match(hardSphereToggleSource, /descriptionId\?:\s*string/, 'hard-sphere toggle should accept a tooltip description id for keyboard focus');
+assert.match(hardSphereToggleSource, /title=\{disabled \? undefined : enabled \? copy\.tooltipOn : copy\.tooltipOff\}/, 'disabled hard-sphere toggle should not expose the normal teaching tooltip');
 assert.match(sceneSource, /data-heat-capacity-hard-sphere-tooltip="true"/, 'hard-sphere explanation should have a stable tooltip marker');
-assert.match(sceneSource, /studio-heat-hard-sphere-tooltip-anchor[\s\S]*title=\{`\$\{hardSphereNoteCopy\.title\}/, 'hard-sphere explanation should be available from the toggle hover anchor');
+assert.match(sceneSource, /const hardSphereViewUnavailable = props\.performanceMode === 'ultra'/, 'Ultra GLB tier should mark the hard-sphere teaching layer unavailable');
+assert.match(sceneSource, /const hardSphereViewActive = props\.hardSphereViewEnabled && !hardSphereViewUnavailable/, 'Ultra GLB tier should ignore saved hard-sphere enabled state while preserving it for other tiers');
+assert.match(sceneSource, /studio-heat-hard-sphere-tooltip-anchor[\s\S]*title=\{hardSphereViewUnavailable \? undefined : `\$\{hardSphereNoteCopy\.title\}/, 'hard-sphere explanation should be available from the toggle hover anchor only when the tier supports it');
+assert.match(sceneSource, /\{hardSphereTooltipId \? \([\s\S]*data-heat-capacity-hard-sphere-tooltip="true"[\s\S]*\) : null\}/, 'Ultra GLB disabled toggle should not show an extra hover explanation panel');
 assert.doesNotMatch(sceneSource, /data-heat-capacity-hard-sphere-note="true"/, 'hard-sphere explanation should not remain as a persistent note panel');
-assert.match(sceneSource, /sceneShouldAnimate =[\s\S]*props\.hardSphereViewEnabled/, 'enabled particle visualization should keep the demand-rendered scene animating');
+assert.match(sceneSource, /sceneShouldAnimate = hardSphereViewActive/, 'enabled particle visualization should keep the demand-rendered scene animating only when the selected tier supports it');
+assert.match(sceneSource, /data-heat-capacity-hard-sphere-view=\{hardSphereViewActive \? 'true' : undefined\}/, 'Ultra GLB tier should not expose the particle-view scene marker while particles are disabled');
+assert.match(sceneSource, /<InstrumentSceneContent[\s\S]*hardSphereViewEnabled=\{hardSphereViewActive\}/, 'procedural fallback should receive the effective hard-sphere visibility state');
+assert.match(sceneSource, /<HeatCapacityUltraInstrumentModel[\s\S]*hardSphereViewEnabled=\{hardSphereViewActive\}/, 'Ultra GLB model should receive the disabled effective hard-sphere visibility state');
 assert.match(hardSphereLayerSource, /instancedMesh/, 'hard-sphere particles should use an instanced mesh');
 assert.match(hardSphereLayerSource, /HEAT_CAPACITY_HARD_SPHERE_MAX_PARTICLES/, 'hard-sphere layer should cap the particle pool');
 assert.match(hardSphereLayerSource, /new THREE\.SphereGeometry\(1,\s*16,\s*16\)/, 'hard-sphere particles should pass a smooth explicit sphere geometry to the instanced mesh');
@@ -809,11 +831,11 @@ assert.match(sceneSource, /data-heat-capacity-hover-tooltip="true"/, 'hover tool
 assert.doesNotMatch(sceneSource, /STOPCOCK_WHEEL_STEP_DEG/, 'stopcock wheel adjustment should be removed from user interaction');
 assert.doesNotMatch(sceneSource, /handleStopcockWheel/, 'stopcock handle should not support wheel-based angle adjustment');
 assert.doesNotMatch(sceneSource, /onWheel=\{handleStopcockWheel\}/, 'wheel events over the stopcock should no longer adjust the valve');
-assert.match(sceneSource, /onStopcockOpenChange\(state !== 'open'\)/, 'clicking the stopcock should toggle the open/closed state directly');
+assert.match(sceneSource, /onStopcockOpenChange\(\)/, 'clicking the stopcock should toggle the latest open/closed state directly');
 assert.match(sceneSource, /const HEAT_CAPACITY_DOUBLE_CLICK_GUARD_MS = 220;/, '3D controls should share a short single-click guard window before committing click side effects');
-assert.match(sceneSource, /function useGuardedSceneSingleClick\(\)[\s\S]*window\.setTimeout\(\(\) => \{[\s\S]*HEAT_CAPACITY_DOUBLE_CLICK_GUARD_MS[\s\S]*return \{ schedule, clear \};/, '3D controls should centralize delayed single-click commits so double-click focus can cancel them');
-assert.match(sceneSource, /const \{ schedule: schedulePowerSwitchSingleClick, clear: clearPowerSwitchSingleClick \} = useGuardedSceneSingleClick\(\);[\s\S]*const handlePowerSwitchClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*schedulePowerSwitchSingleClick\(\(\) => \{[\s\S]*onPowerToggle\(!powerOn\);[\s\S]*const handlePowerSwitchDoubleClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*clearPowerSwitchSingleClick\(\);[\s\S]*onFocus\('instrument'\);/, 'power switch rapid double-click should enter instrument focus without committing the first toggle');
-assert.match(stopcockSceneSection, /const \{ schedule: scheduleStopcockSingleClick, clear: clearStopcockSingleClick \} = useGuardedSceneSingleClick\(\);[\s\S]*const handleStopcockToggle = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*scheduleStopcockSingleClick\(\(\) => \{[\s\S]*onStopcockOpenChange\(state !== 'open'\);[\s\S]*const handleStopcockDoubleClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*clearStopcockSingleClick\(\);[\s\S]*onFocus\('stopcock'\);/, 'stopcock rapid double-click should cancel the pending valve toggle and enter stopcock focus');
+assert.match(sceneSource, /function useGuardedSceneSingleClick\(\)[\s\S]*const schedule = useCallback\(\(run: \(\) => void, guardSingleClick = true\) => \{[\s\S]*if \(!guardSingleClick\) \{[\s\S]*run\(\);[\s\S]*return;[\s\S]*HEAT_CAPACITY_DOUBLE_CLICK_GUARD_MS[\s\S]*return \{ schedule, clear \};/, '3D controls should centralize delayed single-click commits while allowing focused controls to execute immediately');
+assert.match(sceneSource, /const \{ schedule: schedulePowerSwitchSingleClick, clear: clearPowerSwitchSingleClick \} = useGuardedSceneSingleClick\(\);[\s\S]*const handlePowerSwitchClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*schedulePowerSwitchSingleClick\(\(\) => \{[\s\S]*onPowerToggle\(\);[\s\S]*\}, focusMode === 'none'\);[\s\S]*const handlePowerSwitchDoubleClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*clearPowerSwitchSingleClick\(\);[\s\S]*onFocus\('instrument'\);/, 'power switch double-click should be protected before focus, but focused power clicks should execute immediately');
+assert.match(stopcockSceneSection, /const \{ schedule: scheduleStopcockSingleClick, clear: clearStopcockSingleClick \} = useGuardedSceneSingleClick\(\);[\s\S]*const handleStopcockToggle = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*scheduleStopcockSingleClick\(\(\) => \{[\s\S]*onStopcockOpenChange\(\);[\s\S]*\}, focusMode === 'none'\);[\s\S]*const handleStopcockDoubleClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*clearStopcockSingleClick\(\);[\s\S]*onFocus\('stopcock'\);/, 'stopcock double-click should be protected before focus, but focused stopcock clicks should execute immediately');
 assert.match(sceneSource, /HOVER_CLEAR_DELAY_MS = 220/, 'hover state should use a short grace period to avoid cursor flicker on projected 3D boundaries');
 assert.match(sceneSource, /hoverClearTimerRef/, 'hover state should cancel pending hover clears when entering adjacent meshes');
 assert.match(sceneSource, /setStableHoveredControl/, 'hover updates should go through a stable boundary helper');
@@ -832,7 +854,7 @@ assert.match(sceneSource, /\? \[1\.08, 0\.7, 1\.06\][\s\S]*\? \[1\.02, 0\.92, 1\
 assert.match(sceneSource, /name="pumpBulbStatusHalo"/, 'pump bulb active feedback should be an added halo, not a flat color replacement');
 assert.doesNotMatch(sceneSource, /tooFast/, 'pump feedback must not introduce a too-fast state');
 assert.match(sceneSource, /name="pumpValve"[\s\S]*onPointerDown=\{\(event\) => \{[\s\S]*stopImmediatePropagation/, 'pump valve pointer events should not bubble into neighboring controls');
-assert.match(pumpValveSceneSection, /const \{ schedule: schedulePumpValveSingleClick, clear: clearPumpValveSingleClick \} = useGuardedSceneSingleClick\(\);[\s\S]*const handlePumpValveClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*schedulePumpValveSingleClick\(\(\) => \{[\s\S]*onPumpValveToggle\(\);[\s\S]*const handlePumpValveDoubleClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*clearPumpValveSingleClick\(\);[\s\S]*onFocus\('stopcock'\);/, 'pump valve rapid double-click should cancel the pending valve toggle and enter stopcock focus');
+assert.match(pumpValveSceneSection, /const \{ schedule: schedulePumpValveSingleClick, clear: clearPumpValveSingleClick \} = useGuardedSceneSingleClick\(\);[\s\S]*const handlePumpValveClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*schedulePumpValveSingleClick\(\(\) => \{[\s\S]*onPumpValveToggle\(\);[\s\S]*\}, focusMode === 'none'\);[\s\S]*const handlePumpValveDoubleClick = \(event: ThreeEvent<MouseEvent>\) => \{[\s\S]*clearPumpValveSingleClick\(\);[\s\S]*onFocus\('stopcock'\);/, 'pump valve double-click should be protected before focus, but focused valve clicks should execute immediately');
 assert.doesNotMatch(sceneSource, /name="pumpValve"[\s\S]{0,420}onStopcockOpenChange/, 'pump valve click path must not call the stopcock action');
 assert.match(
   sceneSource,
@@ -1009,6 +1031,8 @@ assert.doesNotMatch(getCssBlock('.studio-heat-hard-sphere-toggle'), /position:\s
 assert.match(getCssBlock('.studio-heat-hard-sphere-toggle'), /border:\s*0\.5px solid rgba\(100,\s*116,\s*139,\s*0\.58\)/, 'hard-sphere toggle should use the thin annotated outer border');
 assert.match(getCssBlock('.studio-heat-hard-sphere-tooltip'), /translate3d\(-18px,\s*0,\s*0\)/, 'hard-sphere explanation tooltip should leave to the left instead of staying resident');
 assert.match(styleSource, /\.studio-heat-hard-sphere-tooltip-anchor:hover \.studio-heat-hard-sphere-tooltip,[\s\S]*\.studio-heat-hard-sphere-tooltip-anchor:focus-within \.studio-heat-hard-sphere-tooltip/, 'hard-sphere explanation tooltip should appear on hover and keyboard focus');
+assert.match(styleSource, /\.studio-heat-hard-sphere-toggle:disabled[\s\S]*cursor:\s*not-allowed/, 'disabled hard-sphere toggle should visibly become unavailable instead of looking interactive');
+assert.match(styleSource, /\.studio-heat-hard-sphere-toggle:disabled \.studio-heat-hard-sphere-switch span::after[\s\S]*transform:\s*rotate\(-45deg\)/, 'disabled hard-sphere toggle should draw a clear static/unavailable symbol without extra text');
 assert.doesNotMatch(styleSource, /data-heat-capacity-hard-sphere-view="true"[\s\S]*\.studio-heat-interaction-hints[\s\S]*display: none/, 'hard-sphere view should not hide the lower-left interaction hints');
 assert.match(styleSource, /\.studio-heat-focus-panel \{[\s\S]*border: 1px solid rgba\(100, 116, 139/, 'lower-right focus panel should use the engineering panel frame');
 assert.match(styleSource, /\.studio-heat-valve-focus-bubble \{[\s\S]*position:\s*absolute;[\s\S]*border-radius:\s*10px;/, 'valve focus entry should render as a rounded anchored bubble');
@@ -1463,7 +1487,7 @@ assert.match(workbenchSource, /showHeatCapacityAutoDemoCompletionToast\(heatCapa
 assert.doesNotMatch(stateSource, /WorkbenchHeatCapacityPausedTeachingSnapshot|heatCapacityPausedTeachingSnapshot|exitHeatCapacityFreeModeWorkbenchState/, 'Free mode should be the base state instead of storing resumable Demo/Guide snapshots in workbench state');
 assert.doesNotMatch(sessionSource, /heatCapacityPausedTeachingSnapshot/, 'session migration should discard legacy paused teaching snapshots instead of reviving old mode semantics');
 assert.doesNotMatch(heatCapacityPersistenceSource, /pausedTeachingSnapshot|heatCapacityPausedTeachingSnapshot/, 'Heat Capacity persistence should stop writing the obsolete paused teaching snapshot field');
-assert.match(workbenchSource, /nextPowerOn && source === 'user'[\s\S]*heatCapacityPhase === 'demoComplete'[\s\S]*runState === 'finished'[\s\S]*resetHeatCapacityForManualExperiment/, 'direct power-on after auto demo should defensively reset stale demo pressure state');
+assert.match(workbenchSource, /resolvedPowerOn && source === 'user'[\s\S]*heatCapacityPhase === 'demoComplete'[\s\S]*runState === 'finished'[\s\S]*resetHeatCapacityForManualExperiment/, 'direct power-on after auto demo should defensively reset stale demo pressure state');
 assert.match(workbenchSource, /pressureSignalTargetMv/, 'right realtime panel should retain target pressure signal separately from displayed pressure');
 assert.match(workbenchSource, /temperatureSignalTargetMv/, 'right realtime panel should retain target temperature signal separately from displayed temperature');
 assert.doesNotMatch(workbenchSource, /打气过快|tooFast|频率偏高/, 'workbench should not show or calculate a too-fast pump state');

@@ -68,8 +68,8 @@ interface HeatCapacityInstrumentSceneProps {
   focusResetKey: number;
   onFocusModeChange: (mode: HeatCapacityFocusMode) => void;
   onLockedInteraction: (message?: string) => void;
-  onPowerToggle: (nextPowerOn: boolean) => void;
-  onStopcockOpenChange: (nextOpen: boolean) => void;
+  onPowerToggle: (nextPowerOn?: boolean) => void;
+  onStopcockOpenChange: (nextOpen?: boolean) => void;
   onPressureZeroFineAdjust: (direction: number) => void;
   onPressureZeroCoarseAdjust: (angleDeltaDeg: number) => void;
   onPumpValveToggle: () => void;
@@ -747,8 +747,12 @@ function useGuardedSceneSingleClick() {
       pendingSingleClickRef.current = null;
     }
   }, []);
-  const schedule = useCallback((run: () => void) => {
+  const schedule = useCallback((run: () => void, guardSingleClick = true) => {
     clear();
+    if (!guardSingleClick) {
+      run();
+      return;
+    }
     pendingSingleClickRef.current = window.setTimeout(() => {
       pendingSingleClickRef.current = null;
       run();
@@ -1265,8 +1269,8 @@ function InstrumentBox({
         onLockedInteraction();
         return;
       }
-      onPowerToggle(!powerOn);
-    });
+      onPowerToggle();
+    }, focusMode === 'none');
   };
 
   const handlePowerSwitchDoubleClick = (event: ThreeEvent<MouseEvent>) => {
@@ -1506,6 +1510,7 @@ function GlassStopcock({
   highClarityMode,
   angleDeg,
   onStopcockOpenChange,
+  focusMode,
   hoveredControl,
   setHoveredControl,
   onValveFocusAnchor,
@@ -1521,6 +1526,7 @@ function GlassStopcock({
 }: Pick<HeatCapacityInstrumentSceneProps, 'onStopcockOpenChange' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
   highClarityMode: boolean;
   angleDeg: number;
+  focusMode: HeatCapacityFocusMode;
   hoveredControl: HeatCapacityHoveredControl;
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
   onValveFocusAnchor: (control: ValveFocusControl, clientX: number, clientY: number) => void;
@@ -1594,8 +1600,8 @@ function GlassStopcock({
         onLockedInteraction();
         return;
       }
-      onStopcockOpenChange(state !== 'open');
-    });
+      onStopcockOpenChange();
+    }, focusMode === 'none');
   };
   const handleStopcockDoubleClick = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
@@ -1844,6 +1850,7 @@ function PressureBottle({
         highClarityMode={highClarityMode}
         angleDeg={stopcockAngleDeg}
         onStopcockOpenChange={onStopcockOpenChange}
+        focusMode={focusMode}
         hoveredControl={hoveredControl}
         setHoveredControl={setHoveredControl}
         onValveFocusAnchor={onValveFocusAnchor}
@@ -2006,7 +2013,7 @@ function PumpAssembly({
         return;
       }
       onPumpValveToggle();
-    });
+    }, focusMode === 'none');
   };
 
   const handlePumpValveDoubleClick = (event: ThreeEvent<MouseEvent>) => {
@@ -2625,8 +2632,10 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const hoverTooltip = getHeatCapacityHoverTooltip(hoveredControl, props.pumpValveOpen, sceneCopy);
   const hardSphereNoteCopy = heatCapacityHardSphereNoteCopies[props.language] ?? heatCapacityHardSphereNoteCopies['zh-CN'];
   const hardSphereNoteText = getHardSphereNoteText(props, props.language);
-  const hardSphereTooltipId = 'heat-capacity-hard-sphere-tooltip';
-  const sceneShouldAnimate = props.hardSphereViewEnabled ||
+  const hardSphereViewUnavailable = props.performanceMode === 'ultra';
+  const hardSphereViewActive = props.hardSphereViewEnabled && !hardSphereViewUnavailable;
+  const hardSphereTooltipId = hardSphereViewUnavailable ? undefined : 'heat-capacity-hard-sphere-tooltip';
+  const sceneShouldAnimate = hardSphereViewActive ||
     props.pumpBulbState !== 'idle' ||
     props.demoFocusPulseActive ||
     Boolean(props.manualRollbackAnimation);
@@ -2648,6 +2657,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const proceduralSceneContent = (
     <InstrumentSceneContent
       {...props}
+      hardSphereViewEnabled={hardSphereViewActive}
       onFocus={setFocusMode}
       focusMode={focusMode}
       hoveredControl={hoveredControl}
@@ -2685,10 +2695,11 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           gasAmountRatio={props.gasAmountRatio}
           gasTemperatureK={props.gasTemperatureK}
           ambientTemperatureK={props.ambientTemperatureK}
-          hardSphereViewEnabled={props.hardSphereViewEnabled}
+          hardSphereViewEnabled={hardSphereViewActive}
           hardSphereParticleMultiplier={props.hardSphereParticleMultiplier}
           hardSphereSpeedMultiplier={props.hardSphereSpeedMultiplier}
           interactionLocked={props.interactionLocked}
+          focusMode={focusMode}
           pressureZeroInteractionEnabled={focusMode === 'instrument'}
           pumpBulbInteractionEnabled={focusMode === 'pump'}
           demoFocusControlId={props.demoFocusControlId}
@@ -2741,7 +2752,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       data-heat-capacity-instrument-scene="true"
       data-heat-capacity-scene-theme={sceneTheme}
       data-heat-capacity-hovered-control={hoveredControl ?? undefined}
-      data-heat-capacity-hard-sphere-view={props.hardSphereViewEnabled ? 'true' : undefined}
+      data-heat-capacity-hard-sphere-view={hardSphereViewActive ? 'true' : undefined}
       onPointerDownCapture={() => {
         valveFocusPointerDownRef.current = true;
         closeValveFocusBubble();
@@ -2798,25 +2809,27 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           <div
             className="studio-heat-hard-sphere-tooltip-anchor"
             data-preview-overlay-item="heat-hard-sphere-toggle"
-            title={`${hardSphereNoteCopy.title}: ${hardSphereNoteText} ${hardSphereNoteCopy.footnote}`}
+            title={hardSphereViewUnavailable ? undefined : `${hardSphereNoteCopy.title}: ${hardSphereNoteText} ${hardSphereNoteCopy.footnote}`}
           >
             <HeatCapacityHardSphereToggle
-              enabled={props.hardSphereViewEnabled}
+              enabled={hardSphereViewActive}
               onToggle={props.onHardSphereViewToggle}
-              disabled={props.hardSphereViewLocked}
+              disabled={props.hardSphereViewLocked || hardSphereViewUnavailable}
               language={props.language}
               descriptionId={hardSphereTooltipId}
             />
-            <div
-              id={hardSphereTooltipId}
-              className="studio-heat-hard-sphere-tooltip"
-              role="tooltip"
-              data-heat-capacity-hard-sphere-tooltip="true"
-            >
-              <strong>{hardSphereNoteCopy.title}</strong>
-              <span>{hardSphereNoteText}</span>
-              <small>{hardSphereNoteCopy.footnote}</small>
-            </div>
+            {hardSphereTooltipId ? (
+              <div
+                id={hardSphereTooltipId}
+                className="studio-heat-hard-sphere-tooltip"
+                role="tooltip"
+                data-heat-capacity-hard-sphere-tooltip="true"
+              >
+                <strong>{hardSphereNoteCopy.title}</strong>
+                <span>{hardSphereNoteText}</span>
+                <small>{hardSphereNoteCopy.footnote}</small>
+              </div>
+            ) : null}
           </div>
         </div>
         <div className="studio-preview-overlay-slot studio-preview-overlay-slot-top-center">

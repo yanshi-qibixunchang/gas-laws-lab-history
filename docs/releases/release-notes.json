@@ -3,6 +3,137 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.12",
+      "date": "2026-06-09",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.12",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.12/heat-capacity-lab-setup-4.1.12.exe"
+      },
+      "summary": {
+        "zh-CN": "热容比实验接入新的 Ultra GLB 最高画质模型，统一自由 / 引导 / 演示 / 聚焦模式的交互和高亮逻辑，修复控件命中与快速点击问题，并在最高档禁用微观可视化。",
+        "zh-TW": "熱容比實驗接入新的 Ultra GLB 最高畫質模型，統一自由 / 引導 / 演示 / 聚焦模式的互動和高亮邏輯，修復控制項命中與快速點擊問題，並在最高檔禁用微觀可視化。",
+        "en": "Upgrades the heat-capacity experiment to the new Ultra GLB highest-quality model, aligns Free/Guide/Demo/Focus interactions and highlights, fixes control hit areas and rapid-click behavior, and disables molecule visualization in the highest tier."
+      },
+      "sections": [
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "变更",
+            "zh-TW": "變更",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "Ultra GLB 最高画质接入新模型",
+                "zh-TW": "Ultra GLB 最高畫質接入新模型",
+                "en": "Ultra GLB highest quality now uses the new model"
+              },
+              "body": {
+                "zh-CN": "最高画质现在切换到新的 GLB 结构，主机、玻璃旋塞、打气阀门、调零旋钮和聚焦视角继续保持与旧骨架一致的操作语义，同时把自由 / 引导 / 演示 / 聚焦模式的过渡和高亮反馈统一起来。",
+                "zh-TW": "最高畫質現在切換到新的 GLB 結構，主機、玻璃旋塞、打氣閥門、調零旋鈕和聚焦視角繼續保持與舊骨架一致的操作語義，同時把自由 / 引導 / 演示 / 聚焦模式的過渡和高亮回饋統一起來。",
+                "en": "The highest-quality tier now switches to the new GLB structure. The main unit, glass stopcock, pump valve, zero knob, and focus views keep the same control semantics as the procedural skeleton while the Free/Guide/Demo/Focus transitions and highlight feedback are aligned."
+              }
+            },
+            {
+              "scope": "ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "数字显示和脉冲视觉更自然",
+                "zh-TW": "數字顯示和脈衝視覺更自然",
+                "en": "More natural digital readouts and pulse visuals"
+              },
+              "body": {
+                "zh-CN": "数字读数、单位和按钮高亮重新整理为更清晰的像素分割和更适合亮暗主题的配色，蓝色脉冲与悬停反馈也不再显得像贴图。",
+                "zh-TW": "數字讀數、單位和按鈕高亮重新整理為更清晰的像素分割和更適合亮暗主題的配色，藍色脈衝與懸停回饋也不再顯得像貼圖。",
+                "en": "Digital readouts, units, and button highlighting were reorganized with clearer pixel-like segmentation and colors that fit light and dark themes better, so the blue pulse and hover feedback no longer feel like a flat sticker."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "控件命中区域和快速点击逻辑稳定",
+                "zh-TW": "控制項命中區域和快速點擊邏輯穩定",
+                "en": "Control hit areas and rapid clicks are stable"
+              },
+              "body": {
+                "zh-CN": "修正电源开关、玻璃旋塞、打气阀门、调零旋钮和打气球等控件的命中区域重叠与打架问题，快速单击现在会按当前动画状态即时切换，避免上一层点击把后续操作盖住。",
+                "zh-TW": "修正電源開關、玻璃旋塞、打氣閥門、調零旋鈕和打氣球等控制項的命中區域重疊與打架問題，快速單擊現在會按當前動畫狀態即時切換，避免上一層點擊把後續操作蓋住。",
+                "en": "Fixes overlapping hit areas for the power switch, glass stopcock, pump valve, zero knob, and balloon controls. Rapid single clicks now switch from the current animation state immediately instead of letting an earlier click block the next action."
+              }
+            },
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "演示和引导结束后自动回到自由模式",
+                "zh-TW": "演示和引導結束後自動回到自由模式",
+                "en": "Demo and Guide end by returning to Free Mode"
+              },
+              "body": {
+                "zh-CN": "演示模式和引导模式终止后会自动回到自由模式，避免模式残留影响后续的自由操作和状态恢复。",
+                "zh-TW": "演示模式和引導模式終止後會自動回到自由模式，避免模式殘留影響後續的自由操作和狀態恢復。",
+                "en": "When Demo or Guide ends, the app now returns to Free Mode automatically so leftover mode state does not affect later free interaction or recovery."
+              }
+            },
+            {
+              "scope": "heat-capacity",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "最高画质下禁用微观可视化",
+                "zh-TW": "最高畫質下禁用微觀可視化",
+                "en": "Molecule visualization is disabled in the highest tier"
+              },
+              "body": {
+                "zh-CN": "最高档现在会把微观可视化按钮置灰并显示禁用符号，不再渲染固定正方体里的分子运动层。",
+                "zh-TW": "最高檔現在會把微觀可視化按鈕置灰並顯示禁用符號，不再渲染固定正方體裡的分子運動層。",
+                "en": "The highest tier now greys out the molecule-visualization switch, shows the disabled symbol, and stops rendering the particle motion layer inside the fixed cube."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "兼容性说明",
+            "zh-TW": "相容性說明",
+            "en": "Compatibility"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "通过桌面自动更新分发",
+                "zh-TW": "透過桌面自動更新分發",
+                "en": "Distributed through desktop auto update"
+              },
+              "body": {
+                "zh-CN": "本版本继续发布 NSIS 安装包、latest.yml 和 blockmap，已安装的 4.1.11 客户端可以通过应用内更新检测到 4.1.12。",
+                "zh-TW": "本版本繼續發布 NSIS 安裝包、latest.yml 和 blockmap，已安裝的 4.1.11 用戶端可以透過應用內更新偵測到 4.1.12。",
+                "en": "This version continues to publish the NSIS installer, latest.yml, and blockmap so installed 4.1.11 clients can detect 4.1.12 in-app."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.11",
       "date": "2026-05-28",
       "channel": "stable",

@@ -258,7 +258,7 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const resolveUltraActionControl = useCallback\([\s\S]*const panelResolvedControl = resolveUltraPanelPointerControl\(control, clientX, clientY\)[\s\S]*panelResolvedControl === 'pumpValve' && props\.hoveredControl === 'stopcock'[\s\S]*const handleUltraControlClick = useCallback\([\s\S]*const clientX = event\.clientX;[\s\S]*const clientY = event\.clientY;[\s\S]*scheduleUltraSingleClick\(\(\) => \{[\s\S]*const resolvedControl = resolveUltraActionControl\(control, clientX, clientY\)/,
+  /const resolveUltraActionControl = useCallback\([\s\S]*const panelResolvedControl = resolveUltraPanelPointerControl\(control, clientX, clientY\)[\s\S]*panelResolvedControl === 'pumpValve' && props\.hoveredControl === 'stopcock'[\s\S]*const handleUltraControlClick = useCallback\([\s\S]*const clientX = event\.clientX;[\s\S]*const clientY = event\.clientY;[\s\S]*const runControlClick = \(\) => \{[\s\S]*const resolvedControl = resolveUltraActionControl\(control, clientX, clientY\)/,
   'Ultra GLB clicks should use the same panel disambiguation before dispatching power-switch and zero-knob behavior',
 );
 assert.match(
@@ -407,8 +407,14 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /control: 'pumpBulb', anchorNodeName: 'Pump_Bulb', size: \[0\.96, 0\.72, 0\.64\]/,
-  'Ultra pump-bulb hitbox should stay smaller than the legacy oversized area while remaining reachable in narrow layouts',
+  /control: 'pumpBulb', anchorNodeName: 'Pump_Bulb', size: \[0\.64, 0\.50, 0\.52\]/,
+  'Ultra pump-bulb hitbox should stay close to the visible bulb instead of reaching far outside the rubber body',
+);
+const ultraPumpBulbVisualTargetSection = ultraModelSource.match(/id: 'pumpBulb'[\s\S]*?focusShellPulseRetreatScale: 1\.055,/)?.[0] ?? '';
+assert.doesNotMatch(
+  ultraPumpBulbVisualTargetSection,
+  /hoverWireframe:\s*true/,
+  'Ultra pump-bulb hover should not show a latitude-longitude wireframe sphere over the refined GLB model',
 );
 assert.match(
   ultraModelSource,
@@ -427,7 +433,7 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const resolveUltraActionControl = useCallback\([\s\S]*panelResolvedControl === 'pumpValve' && props\.hoveredControl === 'stopcock'[\s\S]*const handleUltraControlClick = useCallback\([\s\S]*scheduleUltraSingleClick\(\(\) => \{[\s\S]*const resolvedControl = resolveUltraActionControl\(control, clientX, clientY\)[\s\S]*if \(resolvedControl === 'powerSwitch'\)[\s\S]*else if \(resolvedControl === 'stopcock'\)[\s\S]*else if \(resolvedControl === 'pumpValve'\)/,
+  /const resolveUltraActionControl = useCallback\([\s\S]*panelResolvedControl === 'pumpValve' && props\.hoveredControl === 'stopcock'[\s\S]*const handleUltraControlClick = useCallback\([\s\S]*const runControlClick = \(\) => \{[\s\S]*const resolvedControl = resolveUltraActionControl\(control, clientX, clientY\)[\s\S]*if \(resolvedControl === 'powerSwitch'\)[\s\S]*else if \(resolvedControl === 'stopcock'\)[\s\S]*else if \(resolvedControl === 'pumpValve'\)/,
   'Ultra GLB valve clicks should honor the current hover target so pump-valve depth does not steal stopcock-handle clicks',
 );
 assert.match(
@@ -655,12 +661,17 @@ assert.match(
 assert.match(
   ultraModelSource,
   /const ULTRA_DOUBLE_CLICK_GUARD_MS = 220;[\s\S]*const pendingUltraSingleClickRef = useRef<number \| null>\(null\);[\s\S]*const clearPendingUltraSingleClick = useCallback\(\(\) => \{[\s\S]*window\.clearTimeout\(pendingUltraSingleClickRef\.current\)[\s\S]*const scheduleUltraSingleClick = useCallback\(\(run: \(\) => void\) => \{[\s\S]*window\.setTimeout\(\(\) => \{[\s\S]*run\(\);[\s\S]*ULTRA_DOUBLE_CLICK_GUARD_MS/,
-  'Ultra GLB clicks should defer single-click side effects briefly so a fast second click can become focus instead',
+  'Ultra GLB non-focused clicks should still defer single-click side effects briefly so a fast second click can become focus instead',
 );
 assert.match(
   ultraModelSource,
-  /const handleUltraControlClick = useCallback\([\s\S]*scheduleUltraSingleClick\(\(\) => \{[\s\S]*const resolvedControl = resolveUltraActionControl\(control, clientX, clientY\)[\s\S]*props\.onPowerToggle\(!props\.powerOn\)[\s\S]*props\.onPumpValveToggle\(\)[\s\S]*props\.onPumpBulbPress\(\);[\s\S]*const handleUltraControlDoubleClick = useCallback\([\s\S]*clearPendingUltraSingleClick\(\);[\s\S]*props\.onFocus\('instrument'\);[\s\S]*props\.onFocus\('pump'\);[\s\S]*props\.onFocus\('stopcock'\);/,
-  'Ultra GLB double-click focus should cancel any pending power, valve, or pump single-click action before entering focus',
+  /const handleUltraControlClick = useCallback\([\s\S]*const runControlClick = \(\) => \{[\s\S]*props\.onPowerToggle\(\)[\s\S]*props\.onPumpValveToggle\(\)[\s\S]*props\.onPumpBulbPress\(\);[\s\S]*if \(props\.focusMode !== 'none'\) \{[\s\S]*runControlClick\(\);[\s\S]*return;[\s\S]*\}[\s\S]*scheduleUltraSingleClick\(runControlClick\);[\s\S]*const handleUltraControlDoubleClick = useCallback\([\s\S]*clearPendingUltraSingleClick\(\);[\s\S]*props\.onFocus\('instrument'\);[\s\S]*props\.onFocus\('pump'\);[\s\S]*props\.onFocus\('stopcock'\);/,
+  'Ultra GLB should keep double-click protection before focus but run focused control clicks immediately from the latest control state',
+);
+assert.match(
+  sceneSource,
+  /<HeatCapacityUltraInstrumentModel[\s\S]*focusMode=\{focusMode\}/,
+  'Heat Capacity scene should pass focus mode into the Ultra GLB layer so focused clicks do not wait behind double-click protection',
 );
 assert.match(
   ultraModelSource,
