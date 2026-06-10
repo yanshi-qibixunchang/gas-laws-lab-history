@@ -29,6 +29,16 @@ assert.match(
   /<HeatCapacityUltraModelErrorBoundary fallback=\{proceduralSceneContent\}>[\s\S]*<Suspense fallback=\{proceduralSceneContent\}>/,
   'Ultra GLB should retain the procedural fallback when the model fails or is still loading',
 );
+assert.match(
+  ultraModelSource,
+  /const ULTRA_GLB_PATH = `\$\{import\.meta\.env\.BASE_URL\}models\/heat-capacity\/fd-ncd-c-ultra\.glb`;/,
+  'Ultra GLB should resolve through Vite BASE_URL so the packaged desktop file:// app loads dist/models instead of file-system root /models',
+);
+assert.doesNotMatch(
+  ultraModelSource,
+  /const ULTRA_GLB_PATH = ['"]\/models\/heat-capacity\/fd-ncd-c-ultra\.glb['"]/,
+  'Ultra GLB should not use an absolute /models path because packaged Electron resolves it outside the app dist folder',
+);
 
 [
   'fd-ncd-c-ultra.glb',

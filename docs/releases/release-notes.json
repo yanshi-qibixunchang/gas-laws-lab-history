@@ -3,6 +3,71 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.14",
+      "date": "2026-06-10",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.14",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.14/heat-capacity-lab-setup-4.1.14.exe"
+      },
+      "summary": {
+        "zh-CN": "修复桌面打包版 Ultra GLB 资源路径，确保最高画质在正式发布版中正确加载新模型并保持原有交互。",
+        "zh-TW": "修復桌面打包版 Ultra GLB 資源路徑，確保最高畫質在正式發布版中正確載入新模型並保持原有互動。",
+        "en": "Fixes the packaged desktop Ultra GLB asset path so the highest-quality tier loads the real model in the release build while keeping the existing interaction behavior."
+      },
+      "sections": [
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "Ultra GLB 在桌面打包版中可正确加载",
+                "zh-TW": "Ultra GLB 在桌面打包版中可正確載入",
+                "en": "Ultra GLB loads correctly in the packaged desktop app"
+              },
+              "body": {
+                "zh-CN": "最高画质现在通过 Vite 的 BASE_URL 解析 Ultra GLB 资源，避免在 Electron 的 file:// 环境里把 /models/... 解析到磁盘根目录而回退成骨架模型。",
+                "zh-TW": "最高畫質現在透過 Vite 的 BASE_URL 解析 Ultra GLB 資源，避免在 Electron 的 file:// 環境裡把 /models/... 解析到磁碟根目錄而回退成骨架模型。",
+                "en": "The highest-quality tier now resolves the Ultra GLB asset through Vite BASE_URL, which prevents Electron file:// builds from mapping /models/... to the filesystem root and falling back to the procedural skeleton."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "兼容性说明",
+            "zh-TW": "相容性說明",
+            "en": "Compatibility"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "通过桌面自动更新分发",
+                "zh-TW": "透過桌面自動更新分發",
+                "en": "Distributed through desktop auto update"
+              },
+              "body": {
+                "zh-CN": "本版本继续发布 NSIS 安装包、latest.yml 和 blockmap，已安装的 4.1.13 客户端可以通过应用内更新检测到 4.1.14。",
+                "zh-TW": "本版本繼續發布 NSIS 安裝包、latest.yml 和 blockmap，已安裝的 4.1.13 用戶端可以透過應用內更新偵測到 4.1.14。",
+                "en": "This version continues to publish the NSIS installer, latest.yml, and blockmap so installed 4.1.13 clients can detect 4.1.14 in-app."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.13",
       "date": "2026-06-09",
       "channel": "stable",

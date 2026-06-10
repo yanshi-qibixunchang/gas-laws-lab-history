@@ -94,7 +94,7 @@ type HeatCapacityUltraInstrumentModelProps = {
   onFocus: (mode: UltraFocusMode) => void;
 };
 
-const ULTRA_GLB_PATH = '/models/heat-capacity/fd-ncd-c-ultra.glb';
+const ULTRA_GLB_PATH = `${import.meta.env.BASE_URL}models/heat-capacity/fd-ncd-c-ultra.glb`;
 const REQUIRED_ULTRA_NODE_NAMES = [
   'FD_NCD_C_PowerSwitch_Base',
   'FD_NCD_C_PowerSwitch_Button',
