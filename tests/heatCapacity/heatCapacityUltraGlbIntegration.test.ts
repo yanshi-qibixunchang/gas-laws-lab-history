@@ -296,10 +296,20 @@ assert.doesNotMatch(
   /absorbUltraPointerEvent/,
   'Ultra hover feedback should not stop propagation because that can interfere with camera controls over hitboxes',
 );
-assert.doesNotMatch(
+assert.match(
   ultraModelSource,
-  /handleUltraControlWheel|onWheel=\{handleUltraControlWheel\}|onWheel\?:|onWheel=\{\(event\) => onWheel/,
-  'Ultra control hitboxes should not handle wheel events; wheel zoom must ignore all left-click hitboxes',
+  /const handleUltraControlWheel = useCallback\([\s\S]*const resolvedControl = resolveUltraPanelPointerControl\(control, event\.clientX, event\.clientY\)[\s\S]*if \(resolvedControl !== 'pressureZero'\) return;[\s\S]*absorbUltraPointerEvent\(event\);[\s\S]*if \(!props\.pressureZeroInteractionEnabled\) \{[\s\S]*return;[\s\S]*\}[\s\S]*const requestedDelta = \(event\.deltaY < 0 \? PRESSURE_ZERO_FINE_ANGLE_STEP_DEG : -PRESSURE_ZERO_FINE_ANGLE_STEP_DEG\)\s*\*\s*PRESSURE_ZERO_DRAG_DIRECTION;[\s\S]*props\.onPressureZeroFineAdjust\(boundedDelta\);/,
+  'Ultra GLB pressure-zero wheel fine adjustment should reuse the same hitbox disambiguation and fine-step scaling as the skeleton model',
+);
+assert.match(
+  ultraModelSource,
+  /onWheel\?: \(control: UltraPointerControl, event: ThreeEvent<WheelEvent>\) => void;[\s\S]*onWheel=\{\(event\) => onWheel\?\.\(definition\.control, event\)\}/,
+  'Ultra GLB hitboxes should forward wheel events so the pressure-zero knob can handle fine adjustment',
+);
+assert.match(
+  ultraModelSource,
+  /<UltraNodeHitbox[\s\S]*onWheel=\{handleUltraControlWheel\}/,
+  'Ultra GLB control hitboxes should route wheel events through the shared pressure-zero fine-adjust handler',
 );
 assert.match(
   ultraModelSource,

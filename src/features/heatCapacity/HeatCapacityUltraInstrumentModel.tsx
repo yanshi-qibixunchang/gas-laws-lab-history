@@ -133,6 +133,8 @@ const modelPressureGaugeAngleToVisualAngle = (modelAngle: number) => Math.PI / 2
 const STOPCOCK_VISUAL_SMOOTHING_RATE = 8;
 const PUMP_VALVE_VISUAL_SMOOTHING_RATE = 5.6;
 const PRESSURE_ZERO_VISUAL_SMOOTHING_RATE = 10;
+const PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 12;
+const PRESSURE_ZERO_DRAG_DIRECTION = -1;
 const POWER_SWITCH_VISUAL_SMOOTHING_RATE = 9;
 const POWER_SWITCH_OFF_ROTATION_RAD = 0.24;
 const POWER_SWITCH_ON_ROTATION_RAD = -0.24;
@@ -154,7 +156,6 @@ const POWER_SWITCH_MARK_Z_OFFSET = 0.0016;
 const ULTRA_CONTROL_MOTION_INVALIDATION_MS = 940;
 const ULTRA_DOUBLE_CLICK_GUARD_MS = 220;
 const ULTRA_FOCUS_SHELL_POP_FRACTION = 0.14;
-const PRESSURE_ZERO_DRAG_DIRECTION = -1;
 const ULTRA_HITBOX_UNIT_SCALE = new THREE.Vector3(1, 1, 1);
 const DISABLE_ULTRA_RAYCAST = () => undefined;
 const ULTRA_CONTROL_HITBOXES: Array<{
@@ -1336,6 +1337,7 @@ function UltraNodeHitbox({
   onClick,
   onDoubleClick,
   onPointerDown,
+  onWheel,
   onPointerOver,
   onPointerMove,
   onPointerOut,
@@ -1346,6 +1348,7 @@ function UltraNodeHitbox({
   onClick?: (control: UltraPointerControl, event: ThreeEvent<MouseEvent>) => void;
   onDoubleClick?: (control: UltraPointerControl, event: ThreeEvent<MouseEvent>) => void;
   onPointerDown?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
+  onWheel?: (control: UltraPointerControl, event: ThreeEvent<WheelEvent>) => void;
   onPointerOver?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
   onPointerMove?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
   onPointerOut?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
@@ -1386,6 +1389,7 @@ function UltraNodeHitbox({
         onClick={(event) => onClick?.(definition.control, event)}
         onDoubleClick={(event) => onDoubleClick?.(definition.control, event)}
         onPointerDown={(event) => onPointerDown?.(definition.control, event)}
+        onWheel={(event) => onWheel?.(definition.control, event)}
         onPointerOver={(event) => onPointerOver?.(definition.control, event)}
         onPointerMove={(event) => onPointerMove?.(definition.control, event)}
         onPointerOut={(event) => onPointerOut?.(definition.control, event)}
@@ -2122,6 +2126,26 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     window.addEventListener('pointerup', handlePointerUp, { once: true });
   }, [getPressureZeroPointerAngle, gl, props, resolveUltraPanelPointerControl]);
 
+  const handleUltraControlWheel = useCallback((control: UltraPointerControl, event: ThreeEvent<WheelEvent>) => {
+    const resolvedControl = resolveUltraPanelPointerControl(control, event.clientX, event.clientY);
+    if (resolvedControl !== 'pressureZero') return;
+    absorbUltraPointerEvent(event);
+    if (props.interactionLocked) {
+      props.onLockedInteraction();
+      return;
+    }
+    if (!props.pressureZeroInteractionEnabled) {
+      return;
+    }
+    const requestedDelta = (event.deltaY < 0 ? PRESSURE_ZERO_FINE_ANGLE_STEP_DEG : -PRESSURE_ZERO_FINE_ANGLE_STEP_DEG)
+      * PRESSURE_ZERO_DRAG_DIRECTION;
+    const requestedKnobAngle = props.pressureZeroKnobAngle + requestedDelta;
+    const nextKnobAngle = clampPressureZeroSceneKnobAngle(requestedKnobAngle);
+    const boundedDelta = nextKnobAngle - props.pressureZeroKnobAngle;
+    if (Math.abs(boundedDelta) < 0.01) return;
+    props.onPressureZeroFineAdjust(boundedDelta);
+  }, [props, resolveUltraPanelPointerControl]);
+
   const handleUltraControlPointerOver = useCallback((control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => {
     const resolvedControl = resolveUltraPanelPointerControl(control, event.clientX, event.clientY);
     gl.domElement.style.cursor = resolvedControl === 'pressureZero' && props.pressureZeroInteractionEnabled ? 'grab' : 'pointer';
@@ -2385,18 +2409,19 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     <group name="HeatCapacityUltraInstrumentRuntime" ref={runtimeRootRef}>
       <primitive object={modelRoot} />
       {ULTRA_CONTROL_HITBOXES.map((definition) => (
-        <UltraNodeHitbox
-          key={definition.control}
-          definition={definition}
-          nodeMap={nodeMap}
-          parentRef={runtimeRootRef}
-          onClick={handleUltraControlClick}
-          onDoubleClick={handleUltraControlDoubleClick}
-          onPointerDown={handleUltraControlPointerDown}
-          onPointerOver={handleUltraControlPointerOver}
-          onPointerMove={handleUltraControlPointerMove}
-          onPointerOut={handleUltraControlPointerOut}
-        />
+      <UltraNodeHitbox
+        key={definition.control}
+        definition={definition}
+        nodeMap={nodeMap}
+        parentRef={runtimeRootRef}
+        onClick={handleUltraControlClick}
+        onDoubleClick={handleUltraControlDoubleClick}
+        onPointerDown={handleUltraControlPointerDown}
+        onWheel={handleUltraControlWheel}
+        onPointerOver={handleUltraControlPointerOver}
+        onPointerMove={handleUltraControlPointerMove}
+        onPointerOut={handleUltraControlPointerOut}
+      />
       ))}
       <UltraInstrumentFocusHitbox
         nodeMap={nodeMap}
