@@ -1005,7 +1005,7 @@ const poweredOffHardSphereVisual = getHeatCapacityHardSphereVisualState({
   pumpBulbState: 'idle',
 });
 assert.equal(poweredOffHardSphereVisual.targetParticleCount > 0, true, 'hard-sphere teaching layer should remain visible before power is turned on');
-assert.equal(poweredOffHardSphereVisual.speedMultiplier > 0, true, 'powered-off hard-sphere teaching layer should still show room-temperature motion');
+assert.equal(poweredOffHardSphereVisual.thermalSpeedMultiplier > 0, true, 'powered-off hard-sphere teaching layer should still show room-temperature motion');
 const poweredOffPressurizedHardSphereVisual = getHeatCapacityHardSphereVisualState({
   powerOn: false,
   temperatureMv: null,
@@ -1049,9 +1049,9 @@ const highPressurePumpingHardSphereVisual = getHeatCapacityHardSphereVisualState
   pumpBulbState: 'compressing',
 });
 assert.equal(
-  highPressurePumpingHardSphereVisual.speedMultiplier >= lowPressurePumpingHardSphereVisual.speedMultiplier + 0.18,
+  highPressurePumpingHardSphereVisual.thermalSpeedMultiplier >= lowPressurePumpingHardSphereVisual.thermalSpeedMultiplier + 0.18,
   true,
-  'hard-sphere speed should visibly increase as pumping raises pressure and gas temperature',
+  'hard-sphere random thermal speed should visibly increase as gas temperature rises',
 );
 const releaseCoolingHardSphereVisual = getHeatCapacityHardSphereVisualState({
   powerOn: true,
@@ -1070,9 +1070,19 @@ const releaseCoolingHardSphereVisual = getHeatCapacityHardSphereVisualState({
   releaseProgress: 0.5,
 });
 assert.equal(
-  releaseCoolingHardSphereVisual.speedMultiplier >= poweredOffHardSphereVisual.speedMultiplier + 0.75,
+  releaseCoolingHardSphereVisual.outflowDriftSpeed > 0,
   true,
-  'confirmed release should look much faster than room-temperature thermal motion',
+  'confirmed release should create directed release drift instead of changing random thermal speed',
+);
+assert.equal(
+  releaseCoolingHardSphereVisual.exitSelectionRate > 0,
+  true,
+  'confirmed release should select particles for release instead of changing random thermal speed',
+);
+assert.equal(
+  releaseCoolingHardSphereVisual.thermalSpeedMultiplier < poweredOffHardSphereVisual.thermalSpeedMultiplier,
+  true,
+  'release cooling should slow random thermal motion through temperature, not through pressure',
 );
 assert.equal(HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV, 90);
 assert.equal(HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, 115);
