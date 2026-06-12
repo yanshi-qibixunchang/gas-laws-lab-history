@@ -663,7 +663,7 @@ const PROCEDURAL_CAMERA_VIEW_SCHEME: CameraViewScheme = {
 };
 const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = {
   defaultView: {
-    position: [3.42, 4.079, 5.152],
+    position: [3.756, 4.473, 5.719],
     target: [0.31, 0.436, -0.092],
   },
   fov: 36,

@@ -402,7 +402,7 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = \{[\s\S]*position: \[3\.42,\s*4\.079,\s*5\.152\][\s\S]*target: \[0\.31,\s*0\.436,\s*-0\.092\][\s\S]*fov: 36[\s\S]*responsiveFov:[\s\S]*aspect: 1\.35[\s\S]*narrowAspect: 0\.95[\s\S]*fov: 52[\s\S]*wideAspect: 3[\s\S]*wideFov: 56/,
+  /const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = \{[\s\S]*position: \[3\.756,\s*4\.473,\s*5\.719\][\s\S]*target: \[0\.31,\s*0\.436,\s*-0\.092\][\s\S]*fov: 36[\s\S]*responsiveFov:[\s\S]*aspect: 1\.35[\s\S]*narrowAspect: 0\.95[\s\S]*fov: 52[\s\S]*wideAspect: 3[\s\S]*wideFov: 56/,
   'Ultra default view should use the captured GLB position and target while widening FOV from the base value for resized canvases',
 );
 assert.match(
