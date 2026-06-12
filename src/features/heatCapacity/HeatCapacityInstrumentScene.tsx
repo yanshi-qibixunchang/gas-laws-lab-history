@@ -595,6 +595,8 @@ const PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 12;
 const PRESSURE_ZERO_DRAG_DIRECTION = -1;
 const HOVER_CLEAR_DELAY_MS = 220;
 const HEAT_CAPACITY_DOUBLE_CLICK_GUARD_MS = 220;
+const HEAT_CAPACITY_DRAG_CLICK_SUPPRESSION_PX = 4;
+const HEAT_CAPACITY_DRAG_CLICK_SUPPRESSION_RESET_MS = 80;
 const VALVE_FOCUS_BUBBLE_EXIT_MS = 160;
 const VALVE_FOCUS_BUBBLE_WIDTH_PX = 190;
 const VALVE_FOCUS_BUBBLE_HEIGHT_PX = 38;
@@ -2676,6 +2678,13 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const hoverClearTimerRef = useRef<number | null>(null);
   const valveFocusBubbleExitTimerRef = useRef<number | null>(null);
   const valveFocusPointerDownRef = useRef(false);
+  const sceneDragClickGuardRef = useRef({
+    pointerId: null as number | null,
+    startX: 0,
+    startY: 0,
+    suppressNextClick: false,
+  });
+  const sceneDragClickGuardResetTimerRef = useRef<number | null>(null);
   const onFocusModeChangeRef = useRef(props.onFocusModeChange);
   const [focusMode, setFocusMode] = useState<HeatCapacityFocusMode>('none');
   const [hoveredControl, setHoveredControl] = useState<HeatCapacityHoveredControl>(null);
@@ -2770,6 +2779,71 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     }, VALVE_FOCUS_BUBBLE_EXIT_MS);
   }, [clearValveFocusBubbleExitTimer]);
   useEffect(() => clearValveFocusBubbleExitTimer, [clearValveFocusBubbleExitTimer]);
+  const clearSceneDragClickGuardResetTimer = useCallback(() => {
+    if (sceneDragClickGuardResetTimerRef.current !== null) {
+      window.clearTimeout(sceneDragClickGuardResetTimerRef.current);
+      sceneDragClickGuardResetTimerRef.current = null;
+    }
+  }, []);
+  const resetSceneDragClickGuard = useCallback(() => {
+    clearSceneDragClickGuardResetTimer();
+    sceneDragClickGuardRef.current = {
+      pointerId: null,
+      startX: 0,
+      startY: 0,
+      suppressNextClick: false,
+    };
+  }, [clearSceneDragClickGuardResetTimer]);
+  const scheduleSceneDragClickGuardReset = useCallback(() => {
+    clearSceneDragClickGuardResetTimer();
+    sceneDragClickGuardResetTimerRef.current = window.setTimeout(() => {
+      sceneDragClickGuardResetTimerRef.current = null;
+      resetSceneDragClickGuard();
+    }, HEAT_CAPACITY_DRAG_CLICK_SUPPRESSION_RESET_MS);
+  }, [clearSceneDragClickGuardResetTimer, resetSceneDragClickGuard]);
+  useEffect(() => resetSceneDragClickGuard, [resetSceneDragClickGuard]);
+  const handleScenePointerDownCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button === 0) {
+      clearSceneDragClickGuardResetTimer();
+      sceneDragClickGuardRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        suppressNextClick: false,
+      };
+    }
+    valveFocusPointerDownRef.current = true;
+    closeValveFocusBubble();
+  }, [clearSceneDragClickGuardResetTimer, closeValveFocusBubble]);
+  const handleScenePointerMoveCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const dragGuard = sceneDragClickGuardRef.current;
+    if (dragGuard.pointerId !== event.pointerId || dragGuard.suppressNextClick) return;
+    const dragDistance = Math.hypot(event.clientX - dragGuard.startX, event.clientY - dragGuard.startY);
+    if (dragDistance >= HEAT_CAPACITY_DRAG_CLICK_SUPPRESSION_PX) {
+      dragGuard.suppressNextClick = true;
+    }
+  }, []);
+  const handleScenePointerUpCapture = useCallback(() => {
+    valveFocusPointerDownRef.current = false;
+    if (sceneDragClickGuardRef.current.suppressNextClick) {
+      scheduleSceneDragClickGuardReset();
+    } else {
+      resetSceneDragClickGuard();
+    }
+  }, [resetSceneDragClickGuard, scheduleSceneDragClickGuardReset]);
+  const handleScenePointerCancelCapture = useCallback(() => {
+    valveFocusPointerDownRef.current = false;
+    resetSceneDragClickGuard();
+  }, [resetSceneDragClickGuard]);
+  const handleSceneClickCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const dragGuard = sceneDragClickGuardRef.current;
+    if (dragGuard.suppressNextClick) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.nativeEvent.stopImmediatePropagation?.();
+    }
+    resetSceneDragClickGuard();
+  }, [resetSceneDragClickGuard]);
   useEffect(() => {
     onFocusModeChangeRef.current = props.onFocusModeChange;
   }, [props.onFocusModeChange]);
@@ -2923,16 +2997,11 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       data-heat-capacity-scene-theme={sceneTheme}
       data-heat-capacity-hovered-control={hoveredControl ?? undefined}
       data-heat-capacity-hard-sphere-view={hardSphereViewActive ? 'true' : undefined}
-      onPointerDownCapture={() => {
-        valveFocusPointerDownRef.current = true;
-        closeValveFocusBubble();
-      }}
-      onPointerUpCapture={() => {
-        valveFocusPointerDownRef.current = false;
-      }}
-      onPointerCancelCapture={() => {
-        valveFocusPointerDownRef.current = false;
-      }}
+      onPointerDownCapture={handleScenePointerDownCapture}
+      onPointerMoveCapture={handleScenePointerMoveCapture}
+      onPointerUpCapture={handleScenePointerUpCapture}
+      onPointerCancelCapture={handleScenePointerCancelCapture}
+      onClickCapture={handleSceneClickCapture}
       onWheelCapture={() => closeValveFocusBubble()}
       onPointerLeave={() => {
         setStableHoveredControl(null);
