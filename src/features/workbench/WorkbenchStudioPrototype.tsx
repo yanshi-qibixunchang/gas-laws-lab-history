@@ -148,7 +148,14 @@ import {
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
   HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA,
+  FREE_RELEASE_MAIN_DURATION_S,
+  FREE_RELEASE_RESPONSE_DELAY_S,
 } from '../../domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
+import {
+  HEAT_CAPACITY_HARD_SPHERE_IDLE_RELEASE_TIMELINE,
+  clampNumber as clampHeatCapacityHardSphereNumber,
+  type HeatCapacityHardSphereReleaseTimeline,
+} from '../../domain/heatCapacity/heatCapacityHardSphereModel.ts';
 import {
   getHeatCapacityFreePressureDangerUpperLimitMv,
   type HeatCapacityFreeParameterDraft,
@@ -11006,6 +11013,97 @@ const WorkbenchStudioPrototype: React.FC = () => {
               const stopcockFlowOpen = activeFile.heatCapacityMode === 'free'
                 ? activeFile.heatCapacityFreeStopcockFlowOpen
                 : teachingStopcockFlowOpen;
+              const heatCapacityHardSphereReleaseTimeline: HeatCapacityHardSphereReleaseTimeline = (() => {
+                const gasAmountRatio = activeFile.heatCapacityFreePhysicsState.gasAmountRatio;
+                const pressureFactor = clampHeatCapacityHardSphereNumber(activeFile.pressureDeltaKPa / 6, 0, 1);
+                const idleTimeline = {
+                  ...HEAT_CAPACITY_HARD_SPHERE_IDLE_RELEASE_TIMELINE,
+                  amountBeforeRatio: gasAmountRatio,
+                  amountCurrentRatio: gasAmountRatio,
+                  amountTargetRatio: gasAmountRatio,
+                  pressureFactor,
+                };
+
+                if (activeFile.heatCapacityMode === 'free') {
+                  if (activeReleaseProcess) {
+                    const elapsedS = Math.max(
+                      0,
+                      activeFile.heatCapacityFreePhysicsState.simulationTimeS - activeReleaseProcess.openedAtS,
+                    );
+                    return {
+                      phase: activeReleaseProcess.appliedProgress > 0 ? 'main-release' : 'response-delay',
+                      elapsedS,
+                      responseDelayS: activeReleaseProcess.responseDelayS,
+                      mainDurationS: activeReleaseProcess.durationS,
+                      progress: freeReleaseProgress,
+                      pressureFactor,
+                      amountBeforeRatio: activeReleaseProcess.amountBeforeRatio,
+                      amountCurrentRatio: gasAmountRatio,
+                      amountTargetRatio: activeReleaseProcess.amountTargetRatio,
+                    };
+                  }
+
+                  const releaseReference = activeFile.heatCapacityFreePhysicsState.releaseReference;
+                  if (
+                    activeFile.heatCapacityFreeStopcockFlowOpen &&
+                    releaseReference &&
+                    releaseReference.reachedAmbientAtS !== null
+                  ) {
+                    const gasTemperatureK = Math.max(1, activeFile.heatCapacityFreePhysicsState.gasTemperatureK);
+                    const ambientPressureAmountRatio =
+                      activeFile.heatCapacityFreePhysicsConfig.environment.ambientTemperatureK / gasTemperatureK;
+                    return {
+                      phase: 'post-release-exchange',
+                      elapsedS: Math.max(0, activeFile.heatCapacityFreePhysicsState.currentStopcockOpenDurationS),
+                      responseDelayS: FREE_RELEASE_RESPONSE_DELAY_S,
+                      mainDurationS: FREE_RELEASE_MAIN_DURATION_S,
+                      progress: 1,
+                      pressureFactor,
+                      amountBeforeRatio: releaseReference.amountBeforeRatio,
+                      amountCurrentRatio: gasAmountRatio,
+                      amountTargetRatio: ambientPressureAmountRatio,
+                    };
+                  }
+
+                  if (!activeFile.heatCapacityFreeStopcockFlowOpen && releaseReference?.reachedAmbientAtS === null) {
+                    return {
+                      ...idleTimeline,
+                      phase: 'partial-stopped',
+                      responseDelayS: FREE_RELEASE_RESPONSE_DELAY_S,
+                      mainDurationS: FREE_RELEASE_MAIN_DURATION_S,
+                    };
+                  }
+
+                  return idleTimeline;
+                }
+
+                if (teachingReleaseFlowActive) {
+                  const teachingReleaseAmountDelta = 0.018 + pressureFactor * 0.042;
+                  return {
+                    phase: teachingReleaseProgress > 0 ? 'main-release' : 'response-delay',
+                    elapsedS: teachingReleaseProgress * (HEAT_CAPACITY_RELEASE_BURST_DURATION_MS / 1000),
+                    responseDelayS: 0,
+                    mainDurationS: HEAT_CAPACITY_RELEASE_BURST_DURATION_MS / 1000,
+                    progress: teachingReleaseProgress,
+                    pressureFactor,
+                    amountBeforeRatio: gasAmountRatio + teachingReleaseAmountDelta,
+                    amountCurrentRatio: gasAmountRatio + teachingReleaseAmountDelta * (1 - teachingReleaseProgress),
+                    amountTargetRatio: gasAmountRatio,
+                  };
+                }
+
+                if (stopcockFlowOpen && activeFile.pressureDeltaKPa <= 0.08) {
+                  return {
+                    ...idleTimeline,
+                    phase: 'post-release-exchange',
+                    responseDelayS: 0,
+                    mainDurationS: HEAT_CAPACITY_RELEASE_BURST_DURATION_MS / 1000,
+                    progress: 1,
+                  };
+                }
+
+                return idleTimeline;
+              })();
               const activePumpProcesses = activeFile.heatCapacityFreePhysicsState.pumpProcesses ?? [];
               const pumpFlowIntensity = Math.min(1.6, activePumpProcesses.reduce((total, process) => (
                 total + Math.max(0, 1 - process.appliedProgress)
@@ -11052,6 +11150,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   pressureReleaseBurstActive={typeof activeFile.pressureReleaseBurstUntilMs === 'number' && heatCapacitySceneNow <= activeFile.pressureReleaseBurstUntilMs}
                   releaseFlowActive={releaseFlowActive}
                   releaseProgress={releaseProgress}
+                  releaseTimeline={heatCapacityHardSphereReleaseTimeline}
                   stopcockFlowOpen={stopcockFlowOpen}
                   pumpFlowActive={pumpFlowActive}
                   pumpFlowIntensity={pumpFlowIntensity}
@@ -11059,6 +11158,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   hardSphereViewLocked={false}
                   hardSphereParticleMultiplier={heatCapacityHardSpherePerformancePreset.particleMultiplier}
                   hardSphereSpeedMultiplier={heatCapacityHardSpherePerformancePreset.speedMultiplier}
+                  hardSphereVisualResetKey={heatCapacityFocusResetKey}
                   interactionLocked={autoDemoInteractionLocked}
                   demoFocusControlId={manualHeatCapacityFocusControlId ?? demoFocusControlId}
                   demoFocusPulseActive={demoFocusPulseActive || manualHeatCapacityPulseActive}

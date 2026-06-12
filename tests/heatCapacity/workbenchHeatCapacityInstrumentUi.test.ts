@@ -6,6 +6,7 @@ const componentPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'He
 const autoDemoPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityAutoDemo.ts');
 const hardSphereTogglePath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityHardSphereToggle.tsx');
 const hardSphereLayerPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityHardSphereLayer.tsx');
+const hardSphereModelPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityHardSphereModel.ts');
 const leftPanelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityLeftPanel.tsx');
 const processReviewPanelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityProcessReviewPanel.tsx');
 const processReviewStylePath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityProcessReviewPanel.css');
@@ -29,6 +30,7 @@ const hoverTooltipSceneSection = sceneSource.match(/data-preview-overlay-item="h
 const autoDemoSource = readFileSync(autoDemoPath, 'utf8');
 const hardSphereToggleSource = readFileSync(hardSphereTogglePath, 'utf8');
 const hardSphereLayerSource = readFileSync(hardSphereLayerPath, 'utf8');
+const hardSphereModelSource = readFileSync(hardSphereModelPath, 'utf8');
 const leftPanelSource = readFileSync(leftPanelPath, 'utf8');
 const processReviewPanelSource = readFileSync(processReviewPanelPath, 'utf8');
 const processReviewStyleSource = readFileSync(processReviewStylePath, 'utf8');
@@ -268,6 +270,21 @@ assert.match(
   hardSphereToggleMountSection,
   /disabled=\{props\.hardSphereViewLocked \|\| hardSphereViewUnavailable\}/,
   'hard-sphere visualization toggle should be disabled by the Free Mode parameter lock or the Ultra GLB tier',
+);
+assert.match(
+  hardSphereLayerSource,
+  /stepHeatCapacityHardSphereKineticSpeed/,
+  'hard-sphere layer should smooth molecule motion speed separately from the temperature color mapping',
+);
+assert.match(
+  hardSphereLayerSource,
+  /thermalSpeedMultiplier:\s*kineticSpeedState\.speed/,
+  'hard-sphere simulation should receive the kinetic speed buffer instead of the immediate temperature speed',
+);
+assert.doesNotMatch(
+  hardSphereLayerSource,
+  /thermalSpeedMultiplier:\s*currentVisual\.thermalSpeedMultiplier/,
+  'hard-sphere simulation should not hard-cut particle motion speed when the gas temperature changes abruptly',
 );
 const asciiSubscriptPattern = /U_[0-9TtPp]/;
 const getCssBlock = (selector: string) => {
@@ -707,6 +724,23 @@ assert.match(sceneSource, /gasTemperatureK=\{props\.gasTemperatureK\}/, 'hard-sp
 assert.match(sceneSource, /ambientTemperatureK=\{props\.ambientTemperatureK\}/, 'hard-sphere scene should pass ambient temperature for relative thermal visualization');
 assert.match(sceneSource, /releaseFlowActive=\{props\.releaseFlowActive\}/, 'hard-sphere scene should pass confirmed release flow instead of click timing');
 assert.match(sceneSource, /stopcockFlowOpen=\{props\.stopcockFlowOpen\}/, 'hard-sphere scene should distinguish confirmed stopcock flow from the visual valve angle');
+assert.match(hardSphereModelSource, /type HeatCapacityHardSphereReleasePhase[\s\S]*'post-release-exchange'/, 'hard-sphere model should define an explicit release timeline phase for long-open exchange');
+assert.match(sceneSource, /releaseTimeline:\s*HeatCapacityHardSphereReleaseTimeline/, 'instrument scene should receive the hard-sphere release timeline');
+assert.match(sceneSource, /releaseTimeline=\{props\.releaseTimeline\}/, 'instrument scene should pass the release timeline into the hard-sphere layer');
+assert.match(sceneSource, /<HeatCapacityUltraInstrumentModel[\s\S]*releaseTimeline=\{props\.releaseTimeline\}/, 'Ultra model should receive the same hard-sphere release timeline props');
+assert.match(hardSphereLayerSource, /releaseTimeline\?:\s*HeatCapacityHardSphereReleaseTimeline/, 'hard-sphere layer should consume a release timeline instead of inferring release solely from pressure');
+assert.match(hardSphereLayerSource, /getHeatCapacityHardSphereScheduleFrame/, 'hard-sphere layer should use the deterministic visual schedule for release budgeting');
+assert.match(hardSphereLayerSource, /submittedReleaseExitCountRef/, 'hard-sphere layer should track cumulative release budget already sent to the simulation');
+assert.match(hardSphereLayerSource, /expectedExitedCount[\s\S]*submittedReleaseExitCountRef\.current/, 'hard-sphere layer should catch up from schedule progress instead of stretching release during slow frames');
+assert.match(hardSphereLayerSource, /releaseScheduleDeltaS\s*=\s*Math\.min\(Math\.max\(delta,\s*0\),\s*0\.5\)/, 'hard-sphere release schedule should advance from visual frame time instead of the capped physics substep delta');
+assert.doesNotMatch(hardSphereLayerSource, /previousTargetParticleCount\s*-\s*currentVisual\.targetParticleCount/, 'hard-sphere release should not trim particles from target-count deltas during scheduled release');
+assert.match(sceneSource, /hardSphereVisualResetKey:\s*number/, 'heat-capacity scene should accept a hard-sphere visual reset key');
+assert.match(workbenchSource, /hardSphereVisualResetKey=\{heatCapacityFocusResetKey\}/, 'Free Mode reset should propagate the existing focus reset key to the hard-sphere particle pool');
+assert.match(hardSphereLayerSource, /visualResetKey\?:\s*number/, 'hard-sphere layer should accept reset events from the workbench');
+assert.match(hardSphereLayerSource, /\},\s*\[enabled,\s*particleMultiplier,\s*visualResetKey\]\)/, 'hard-sphere layer should rebuild the particle pool when reset events or performance particle presets change');
+assert.match(workbenchSource, /FREE_RELEASE_RESPONSE_DELAY_S[\s\S]*FREE_RELEASE_MAIN_DURATION_S/, 'Workbench should use the existing free-mode release timing constants for particle visualization');
+assert.match(workbenchSource, /const heatCapacityHardSphereReleaseTimeline/, 'Workbench should build a unified hard-sphere release timeline for the scene');
+assert.match(workbenchSource, /phase:\s*'post-release-exchange'/, 'Workbench should map long-open stopcock state to post-release exchange for hard-sphere visualization');
 assert.doesNotMatch(sceneSource, /releaseBurstActive=\{props\.pressureReleaseBurstActive\}/, 'particle outflow must not be driven by the click-time release burst window');
 assert.match(workbenchSource, /const heatCapacitySceneNow = Date\.now\(\)/, 'Workbench should use one scene timestamp when deriving release flow props');
 assert.match(workbenchSource, /const freeReleaseFlowActive = activeFile\.heatCapacityMode === 'free'[\s\S]*activeFile\.heatCapacityFreeStopcockFlowOpen[\s\S]*activeReleaseProcess !== null[\s\S]*freeReleaseProgress > 0/, 'Free Mode should keep using confirmed physics release flow for particles');
@@ -1563,7 +1597,8 @@ assert.match(workbenchSource, /hardSphereParticleMultiplier=\{heatCapacityHardSp
 assert.match(workbenchSource, /hardSphereSpeedMultiplier=\{heatCapacityHardSpherePerformancePreset\.speedMultiplier\}/, 'Heat Capacity scene should receive speed multiplier from the performance preset');
 assert.doesNotMatch(workbenchSource, /hardSphereParticleMultiplier=\{activeFile\.hardSphereParticleMultiplier\}/, 'Heat Capacity scene should no longer read particle multiplier from the saved file slider field');
 assert.doesNotMatch(workbenchSource, /hardSphereSpeedMultiplier=\{activeFile\.hardSphereSpeedMultiplier\}/, 'Heat Capacity scene should no longer read speed multiplier from the saved file slider field');
-assert.match(hardSphereLayerSource, /thermalSpeedMultiplier:\s*currentVisual\.thermalSpeedMultiplier,/, 'hard-sphere layer should drive random molecular motion directly from thermal speed');
+assert.match(hardSphereLayerSource, /thermalSpeedMultiplier:\s*kineticSpeedState\.speed,/, 'hard-sphere layer should drive random molecular motion through the kinetic speed buffer');
+assert.doesNotMatch(hardSphereLayerSource, /thermalSpeedMultiplier:\s*currentVisual\.thermalSpeedMultiplier,/, 'hard-sphere layer should not hard-cut random molecular motion directly from thermal speed');
 assert.match(hardSphereLayerSource, /outflowDriftSpeed:\s*effectiveOutflowDriftSpeed,/, 'hard-sphere layer should pass pressure-driven outflow drift separately');
 assert.match(hardSphereLayerSource, /exitSelectionRate:\s*effectiveExitSelectionRate,/, 'hard-sphere layer should pass pressure-driven exit selection separately');
 assert.doesNotMatch(hardSphereLayerSource, /currentVisual\.outflowIntensity/, 'hard-sphere layer should stop consuming the legacy combined outflow intensity');

@@ -12,6 +12,9 @@ export interface HeatCapacityHardSphereParticle {
   velocity: HeatCapacityHardSphereVec3;
   state: HeatCapacityHardSphereParticleState;
   outflowProgress: number;
+  exitInertiaSpeed?: number;
+  exitInertiaAgeS?: number;
+  exitDelayS?: number;
 }
 
 export interface HeatCapacityHardSphereBoxContainer {

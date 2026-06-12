@@ -285,6 +285,63 @@ assert.equal(noPressureOpen.outflowDriftSpeed, 0, 'zero pressure difference shou
 assert.equal(noPressureOpen.exitSelectionRate, 0, 'zero pressure difference should not select particles for exit even when the stopcock is open');
 assert.equal(noPressureOpen.targetParticleCount, 42);
 
+const cooledVentedStandard = getHeatCapacityHardSphereVisualState({
+  powerOn: true,
+  temperatureMv: 1494,
+  pressureMv: 0,
+  gasAmountRatio: 0.94,
+  gasTemperatureK: 292.15,
+  ambientTemperatureK: 298.15,
+  phase: 'recovering',
+  glassStopcockOpen: true,
+  stopcockFlowOpen: true,
+  pumpValveOpen: false,
+  pumpBulbState: 'idle',
+  pressureDeltaKPa: 0,
+  releaseFlowActive: false,
+  particleMultiplier: 1,
+});
+assert.equal(
+  cooledVentedStandard.targetParticleCount,
+  ambient.targetParticleCount,
+  'standard visual preset should not show fewer molecules than its initial baseline after venting',
+);
+
+const highParticlePresetAmbient = getHeatCapacityHardSphereVisualState({
+  powerOn: true,
+  temperatureMv: 1499,
+  pressureMv: 0,
+  gasAmountRatio: 1,
+  gasTemperatureK: 298.15,
+  ambientTemperatureK: 298.15,
+  phase: 'readyToPump',
+  glassStopcockOpen: false,
+  pumpValveOpen: false,
+  pumpBulbState: 'idle',
+  particleMultiplier: 1.25,
+});
+const highParticlePresetVented = getHeatCapacityHardSphereVisualState({
+  powerOn: true,
+  temperatureMv: 1494,
+  pressureMv: 0,
+  gasAmountRatio: 0.94,
+  gasTemperatureK: 292.15,
+  ambientTemperatureK: 298.15,
+  phase: 'recovering',
+  glassStopcockOpen: true,
+  stopcockFlowOpen: true,
+  pumpValveOpen: false,
+  pumpBulbState: 'idle',
+  pressureDeltaKPa: 0,
+  releaseFlowActive: false,
+  particleMultiplier: 1.25,
+});
+assert.equal(
+  highParticlePresetVented.targetParticleCount,
+  highParticlePresetAmbient.targetParticleCount,
+  'high-particle visual preset should keep its own higher initial molecule floor after venting',
+);
+
 const lowPressureRelease = getHeatCapacityHardSphereVisualState({
   powerOn: true,
   temperatureMv: 1499,

@@ -12,6 +12,7 @@ import usePreviewOverlayMotion from '../workbench/usePreviewOverlayMotion';
 import HeatCapacityHardSphereLayer from './HeatCapacityHardSphereLayer';
 import HeatCapacityHardSphereToggle from './HeatCapacityHardSphereToggle';
 import HeatCapacityUltraInstrumentModel from './HeatCapacityUltraInstrumentModel';
+import type { HeatCapacityHardSphereReleaseTimeline } from '../../domain/heatCapacity/heatCapacityHardSphereModel.ts';
 
 interface HeatCapacityInstrumentSceneProps {
   performanceMode: 'standard' | 'balanced' | 'performance' | 'ultra';
@@ -53,6 +54,7 @@ interface HeatCapacityInstrumentSceneProps {
   pressureReleaseBurstActive: boolean;
   releaseFlowActive: boolean;
   releaseProgress: number;
+  releaseTimeline: HeatCapacityHardSphereReleaseTimeline;
   stopcockFlowOpen: boolean;
   pumpFlowActive: boolean;
   pumpFlowIntensity: number;
@@ -60,6 +62,7 @@ interface HeatCapacityInstrumentSceneProps {
   hardSphereViewLocked?: boolean;
   hardSphereParticleMultiplier: number;
   hardSphereSpeedMultiplier: number;
+  hardSphereVisualResetKey: number;
   interactionLocked: boolean;
   demoFocusControlId: string | null;
   demoFocusPulseActive: boolean;
@@ -2306,6 +2309,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           phase={props.phase}
           releaseFlowActive={props.releaseFlowActive}
           releaseProgress={props.releaseProgress}
+          releaseTimeline={props.releaseTimeline}
           stopcockFlowOpen={props.stopcockFlowOpen}
           glassStopcockOpen={stopcockState === 'open'}
           pumpValveOpen={props.pumpValveOpen}
@@ -2314,6 +2318,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           pumpFlowIntensity={props.pumpFlowIntensity}
           particleMultiplier={props.hardSphereParticleMultiplier}
           speedMultiplier={props.hardSphereSpeedMultiplier}
+          visualResetKey={props.hardSphereVisualResetKey}
           sceneTheme={props.sceneTheme}
         />
         <InstrumentLeads highClarityMode={highClarityMode} scenePalette={scenePalette} />
@@ -2686,6 +2691,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           pressureSignalMv={props.pressureSignalMv}
           releaseFlowActive={props.releaseFlowActive}
           releaseProgress={props.releaseProgress}
+          releaseTimeline={props.releaseTimeline}
           stopcockFlowOpen={props.stopcockFlowOpen}
           pumpValveOpen={props.pumpValveOpen}
           pumpBulbState={props.pumpBulbState}
@@ -2698,6 +2704,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           hardSphereViewEnabled={hardSphereViewActive}
           hardSphereParticleMultiplier={props.hardSphereParticleMultiplier}
           hardSphereSpeedMultiplier={props.hardSphereSpeedMultiplier}
+          hardSphereVisualResetKey={props.hardSphereVisualResetKey}
           interactionLocked={props.interactionLocked}
           focusMode={focusMode}
           pressureZeroInteractionEnabled={focusMode === 'instrument'}

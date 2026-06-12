@@ -333,6 +333,20 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
+  /useEffect\(\(\) => \{\s*invalidate\(\);\s*\}, \[gaugeNeedleTargetRotation, invalidate\]\);/,
+  'Ultra gauge target changes should trigger a single render and let the gauge useFrame continue only while the needle is moving',
+);
+const ultraControlMotionInvalidationStart = ultraModelSource.indexOf('const keepControlMotionRendering = (timestamp: number) => {');
+assert.notEqual(ultraControlMotionInvalidationStart, -1, 'Ultra timed control invalidation loop should exist');
+const ultraControlMotionInvalidationEnd = ultraModelSource.indexOf('  useFrame((_, delta) => {', ultraControlMotionInvalidationStart);
+assert.notEqual(ultraControlMotionInvalidationEnd, -1, 'Ultra timed control invalidation loop should end before the runtime useFrame');
+assert.doesNotMatch(
+  ultraModelSource.slice(ultraControlMotionInvalidationStart, ultraControlMotionInvalidationEnd),
+  /gaugeNeedleTargetRotation/,
+  'Ultra timed control invalidation loop should not restart for every live gauge target change after power-on',
+);
+assert.match(
+  ultraModelSource,
   /POWER_SWITCH_OFF_ROTATION_RAD[\s\S]*POWER_SWITCH_ON_ROTATION_RAD[\s\S]*applyLocalAxisRotationAroundPivot\([\s\S]*'FD_NCD_C_PowerSwitch_Button'[\s\S]*new THREE\.Vector3\(1, 0, 0\)[\s\S]*POWER_SWITCH_PIVOT_OFFSET[\s\S]*powerSwitchDisplayedRotationRef\.current/,
   'Ultra power switch should rotate as a center-pivot rocker instead of around the mesh origin',
 );

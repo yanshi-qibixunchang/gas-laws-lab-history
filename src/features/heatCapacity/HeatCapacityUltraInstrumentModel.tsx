@@ -8,6 +8,7 @@ import {
   getHeatCapacityStopcockState,
 } from '../workbench/workbenchState';
 import HeatCapacityHardSphereLayer from './HeatCapacityHardSphereLayer';
+import type { HeatCapacityHardSphereReleaseTimeline } from '../../domain/heatCapacity/heatCapacityHardSphereModel.ts';
 
 type UltraPointerControl = 'powerSwitch' | 'pressureZero' | 'stopcock' | 'pumpValve' | 'pumpBulb';
 type UltraHoveredControl = UltraPointerControl | null;
@@ -61,6 +62,7 @@ type HeatCapacityUltraInstrumentModelProps = {
   pressureSignalMv: number | null;
   releaseFlowActive: boolean;
   releaseProgress: number;
+  releaseTimeline: HeatCapacityHardSphereReleaseTimeline;
   stopcockFlowOpen: boolean;
   pumpValveOpen: boolean;
   pumpBulbState: 'idle' | 'compressing' | 'releasing';
@@ -73,6 +75,7 @@ type HeatCapacityUltraInstrumentModelProps = {
   hardSphereViewEnabled: boolean;
   hardSphereParticleMultiplier: number;
   hardSphereSpeedMultiplier: number;
+  hardSphereVisualResetKey: number;
   interactionLocked: boolean;
   focusMode: 'none' | UltraFocusMode;
   pressureZeroInteractionEnabled: boolean;
@@ -2277,6 +2280,10 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   }, [invalidate, nodeMap, props.powerOn, stopcockOpen]);
 
   useEffect(() => {
+    invalidate();
+  }, [gaugeNeedleTargetRotation, invalidate]);
+
+  useEffect(() => {
     const startedAt = window.performance.now();
     let frameId = 0;
     const keepControlMotionRendering = (timestamp: number) => {
@@ -2288,7 +2295,6 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     frameId = window.requestAnimationFrame(keepControlMotionRendering);
     return () => window.cancelAnimationFrame(frameId);
   }, [
-    gaugeNeedleTargetRotation,
     invalidate,
     props.powerOn,
     props.pressureZeroKnobAngle,
@@ -2463,6 +2469,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
         phase={props.phase}
         releaseFlowActive={props.releaseFlowActive}
         releaseProgress={props.releaseProgress}
+        releaseTimeline={props.releaseTimeline}
         stopcockFlowOpen={props.stopcockFlowOpen}
         glassStopcockOpen={getHeatCapacityStopcockState(props.stopcockAngleDeg) === 'open'}
         pumpValveOpen={props.pumpValveOpen}
@@ -2471,6 +2478,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
         pumpFlowIntensity={props.pumpFlowIntensity}
         particleMultiplier={props.hardSphereParticleMultiplier}
         speedMultiplier={props.hardSphereSpeedMultiplier}
+        visualResetKey={props.hardSphereVisualResetKey}
         sceneTheme={props.sceneTheme}
       />
     </group>

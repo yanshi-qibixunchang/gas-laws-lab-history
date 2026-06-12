@@ -2,6 +2,25 @@ import type { HeatCapacityRuntimePhase } from './heatCapacityExperimentModel.ts'
 
 export type HeatCapacityHardSpherePumpBulbState = 'idle' | 'compressing' | 'releasing';
 
+export type HeatCapacityHardSphereReleasePhase =
+  | 'none'
+  | 'response-delay'
+  | 'main-release'
+  | 'partial-stopped'
+  | 'post-release-exchange';
+
+export interface HeatCapacityHardSphereReleaseTimeline {
+  phase: HeatCapacityHardSphereReleasePhase;
+  elapsedS: number;
+  responseDelayS: number;
+  mainDurationS: number;
+  progress: number;
+  pressureFactor: number;
+  amountBeforeRatio: number;
+  amountCurrentRatio: number;
+  amountTargetRatio: number;
+}
+
 export interface HeatCapacityHardSphereVisualInput {
   powerOn: boolean;
   temperatureMv: number | null;
@@ -48,6 +67,17 @@ export const HEAT_CAPACITY_HARD_SPHERE_AMOUNT_EXAGGERATION = 19;
 export const HEAT_CAPACITY_HARD_SPHERE_COLD_DELTA_K = -5;
 export const HEAT_CAPACITY_HARD_SPHERE_HOT_DELTA_K = 3;
 export const HEAT_CAPACITY_HARD_SPHERE_OUTFLOW_EQUILIBRIUM_KPA = 0.08;
+export const HEAT_CAPACITY_HARD_SPHERE_IDLE_RELEASE_TIMELINE: HeatCapacityHardSphereReleaseTimeline = {
+  phase: 'none',
+  elapsedS: 0,
+  responseDelayS: 0,
+  mainDurationS: 0,
+  progress: 0,
+  pressureFactor: 0,
+  amountBeforeRatio: 1,
+  amountCurrentRatio: 1,
+  amountTargetRatio: 1,
+};
 
 export const clampNumber = (value: number, min: number, max: number) => (
   Math.min(max, Math.max(min, value))
@@ -139,10 +169,12 @@ export const getHeatCapacityHardSphereVisualState = (
   }
 
   const visualThermalSpeedMultiplier = clampNumber(thermalSpeedMultiplier * requestedSpeedMultiplier, 0.68, 2.65);
+  const baselineParticleCount = Math.round(HEAT_CAPACITY_HARD_SPHERE_BASE_PARTICLES * particleMultiplier);
+  const minimumParticleCount = Math.max(HEAT_CAPACITY_HARD_SPHERE_MIN_PARTICLES, baselineParticleCount);
 
   const targetParticleCount = clampNumber(
     Math.round(baseCount * particleMultiplier),
-    HEAT_CAPACITY_HARD_SPHERE_MIN_PARTICLES,
+    minimumParticleCount,
     HEAT_CAPACITY_HARD_SPHERE_MAX_PARTICLES,
   );
 

@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
+  HEAT_CAPACITY_HARD_SPHERE_IDLE_RELEASE_TIMELINE,
   HEAT_CAPACITY_HARD_SPHERE_MAX_PARTICLES,
   clampNumber,
   getHeatCapacityHardSphereVisualState,
   type HeatCapacityHardSpherePumpBulbState,
+  type HeatCapacityHardSphereReleaseTimeline,
   type HeatCapacityHardSphereVisualState,
 } from '../../domain/heatCapacity/heatCapacityHardSphereModel.ts';
 import {
@@ -20,6 +22,16 @@ import {
   stepHeatCapacityHardSphereSimulation,
   type HeatCapacityHardSphereSimulation,
 } from '../../domain/heatCapacity/heatCapacityHardSphereSimulation.ts';
+import {
+  createHeatCapacityHardSphereMainReleaseSchedule,
+  createHeatCapacityHardSpherePostExchangeSchedule,
+  getHeatCapacityHardSphereScheduleFrame,
+  type HeatCapacityHardSphereVisualFlowSchedule,
+} from '../../domain/heatCapacity/heatCapacityHardSphereReleaseSchedule.ts';
+import {
+  stepHeatCapacityHardSphereKineticSpeed,
+  type HeatCapacityHardSphereKineticSpeedState,
+} from '../../domain/heatCapacity/heatCapacityHardSphereKineticSpeed.ts';
 
 interface HeatCapacityHardSphereLayerProps {
   enabled: boolean;
@@ -35,6 +47,7 @@ interface HeatCapacityHardSphereLayerProps {
   manualStep?: string | null;
   releaseFlowActive?: boolean;
   releaseProgress?: number;
+  releaseTimeline?: HeatCapacityHardSphereReleaseTimeline;
   stopcockFlowOpen?: boolean;
   glassStopcockOpen: boolean;
   pumpValveOpen: boolean;
@@ -43,6 +56,7 @@ interface HeatCapacityHardSphereLayerProps {
   pumpFlowIntensity?: number;
   particleMultiplier?: number;
   speedMultiplier?: number;
+  visualResetKey?: number;
 }
 
 const BOTTLE_INNER_HALF_SIZE = new THREE.Vector3(0.73, 0.73, 0.73);
@@ -166,6 +180,72 @@ const smoothHeatCapacityHardSphereVisualState = (
   };
 };
 
+const getReleaseScheduleId = (
+  timeline: HeatCapacityHardSphereReleaseTimeline,
+) => [
+  timeline.phase,
+  timeline.amountBeforeRatio.toFixed(4),
+  timeline.amountTargetRatio.toFixed(4),
+  timeline.responseDelayS.toFixed(3),
+  timeline.mainDurationS.toFixed(3),
+].join(':');
+
+const getVisualFlowSchedule = (
+  timeline: HeatCapacityHardSphereReleaseTimeline,
+  particleMultiplier: number,
+  gasTemperatureK: number | undefined,
+  ambientTemperatureK: number | undefined,
+  elapsedS: number,
+): HeatCapacityHardSphereVisualFlowSchedule => {
+  const id = getReleaseScheduleId(timeline);
+  if (timeline.phase === 'main-release') {
+    return createHeatCapacityHardSphereMainReleaseSchedule({
+      id,
+      amountBeforeRatio: timeline.amountBeforeRatio,
+      amountCurrentRatio: timeline.amountCurrentRatio,
+      amountTargetRatio: timeline.amountTargetRatio,
+      particleMultiplier,
+      elapsedS,
+    });
+  }
+  if (timeline.phase === 'post-release-exchange') {
+    const mainSchedule = createHeatCapacityHardSphereMainReleaseSchedule({
+      id: `${id}:main-source`,
+      amountBeforeRatio: timeline.amountBeforeRatio,
+      amountCurrentRatio: timeline.amountBeforeRatio,
+      amountTargetRatio: timeline.amountTargetRatio,
+      particleMultiplier,
+      elapsedS: 0,
+    });
+    return createHeatCapacityHardSpherePostExchangeSchedule({
+      id,
+      reservedExitCount: mainSchedule.postExchangeReservedCount,
+      releaseMinimumParticleCount: mainSchedule.releaseMinimumParticleCount,
+      gasTemperatureK: gasTemperatureK ?? ambientTemperatureK ?? 298.15,
+      ambientTemperatureK: ambientTemperatureK ?? gasTemperatureK ?? 298.15,
+      elapsedS,
+    });
+  }
+  return {
+    id,
+    phase: 'idle',
+    elapsedS: 0,
+    durationS: 0,
+    progress: 0,
+    targetExitCount: 0,
+    expectedExitedCount: 0,
+    exitSpeed: 0,
+    stopReason: 'none',
+    totalPlannedExitCount: 0,
+    postExchangeReservedCount: 0,
+    baselineParticleCount: 0,
+    amountBeforeParticleCount: 0,
+    amountTargetParticleCount: 0,
+    addedParticleCount: 0,
+    releaseMinimumParticleCount: 0,
+  };
+};
+
 const hideParticlePool = (
   mesh: THREE.InstancedMesh | null,
   simulation: HeatCapacityHardSphereSimulation,
@@ -202,6 +282,7 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
   manualStep = null,
   releaseFlowActive = false,
   releaseProgress = 0,
+  releaseTimeline = HEAT_CAPACITY_HARD_SPHERE_IDLE_RELEASE_TIMELINE,
   stopcockFlowOpen = false,
   glassStopcockOpen,
   pumpValveOpen,
@@ -210,6 +291,7 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
   pumpFlowIntensity = 0,
   particleMultiplier = 1,
   speedMultiplier = 1,
+  visualResetKey = 0,
 }) => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const visualStateRef = useRef<HeatCapacityHardSphereVisualState | null>(null);
@@ -217,6 +299,10 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
   const outflowTailRemainingRef = useRef(0);
   const outflowDriftSpeedRef = useRef(0);
   const exitSelectionRateRef = useRef(0);
+  const activeReleaseScheduleIdRef = useRef<string | null>(null);
+  const activeReleaseScheduleElapsedRef = useRef(0);
+  const submittedReleaseExitCountRef = useRef(0);
+  const kineticSpeedStateRef = useRef<HeatCapacityHardSphereKineticSpeedState | null>(null);
   const simulationRef = useRef<HeatCapacityHardSphereSimulation>(createSimulation());
   const particleGeometry = useMemo(() => new THREE.SphereGeometry(1, 16, 16), []);
   const particleColors = useMemo(() => createParticleColors(sceneTheme), [sceneTheme]);
@@ -291,7 +377,11 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
 
   useEffect(() => {
     hideParticlePool(meshRef.current, simulationRef.current);
-  }, [enabled]);
+    activeReleaseScheduleIdRef.current = null;
+    activeReleaseScheduleElapsedRef.current = 0;
+    submittedReleaseExitCountRef.current = 0;
+    kineticSpeedStateRef.current = null;
+  }, [enabled, particleMultiplier, visualResetKey]);
 
   useFrame((_, delta) => {
     if (!enabled) return;
@@ -300,6 +390,8 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     if (!mesh || !currentVisual) return;
 
     const safeDelta = Math.min(delta, 0.04);
+    const releaseScheduleDeltaS = Math.min(Math.max(delta, 0), 0.5);
+    const currentReleaseTimeline = releaseTimeline;
     const displayVisualState = displayVisualStateRef.current === null
       ? cloneHeatCapacityHardSphereVisualState(currentVisual)
       : smoothHeatCapacityHardSphereVisualState(displayVisualStateRef.current, currentVisual, safeDelta);
@@ -323,14 +415,60 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
       ? currentVisual.exitSelectionRate
       : exitSelectionRateRef.current * outflowTailFactor;
     const pumpPortActive = pumpFlowActive || (pumpBulbState === 'compressing' && pumpValveOpen);
+    const baseVisualFlowSchedule = getVisualFlowSchedule(
+      currentReleaseTimeline,
+      particleMultiplier,
+      gasTemperatureK,
+      ambientTemperatureK,
+      0,
+    );
+    const releaseScheduleActive = baseVisualFlowSchedule.phase === 'main-release' ||
+      baseVisualFlowSchedule.phase === 'post-release-exchange';
+    if (!releaseScheduleActive) {
+      activeReleaseScheduleIdRef.current = null;
+      activeReleaseScheduleElapsedRef.current = 0;
+      submittedReleaseExitCountRef.current = 0;
+    } else if (activeReleaseScheduleIdRef.current !== baseVisualFlowSchedule.id) {
+      activeReleaseScheduleIdRef.current = baseVisualFlowSchedule.id;
+      activeReleaseScheduleElapsedRef.current = releaseScheduleDeltaS;
+      submittedReleaseExitCountRef.current = 0;
+    } else {
+      activeReleaseScheduleElapsedRef.current += releaseScheduleDeltaS;
+    }
+    const currentScheduleFrame = getHeatCapacityHardSphereScheduleFrame(
+      getVisualFlowSchedule(
+        currentReleaseTimeline,
+        particleMultiplier,
+        gasTemperatureK,
+        ambientTemperatureK,
+        activeReleaseScheduleElapsedRef.current,
+      ),
+      activeReleaseScheduleElapsedRef.current,
+    );
+    const releaseExitBudget = releaseScheduleActive
+      ? Math.max(0, currentScheduleFrame.expectedExitedCount - submittedReleaseExitCountRef.current)
+      : 0;
+    submittedReleaseExitCountRef.current += releaseExitBudget;
+    const kineticSpeedState = stepHeatCapacityHardSphereKineticSpeed({
+      currentSpeed: kineticSpeedStateRef.current?.speed ?? currentVisual.thermalSpeedMultiplier,
+      targetSpeed: currentVisual.thermalSpeedMultiplier,
+      releaseMemoryRemainingS: kineticSpeedStateRef.current?.releaseMemoryRemainingS ?? 0,
+      releaseActive: currentVisual.outflowActive || releaseScheduleActive,
+      dtS: safeDelta,
+    });
+    kineticSpeedStateRef.current = kineticSpeedState;
 
     stepHeatCapacityHardSphereSimulation(simulationRef.current, {
       dtS: safeDelta,
       targetParticleCount: currentVisual.targetParticleCount,
-      thermalSpeedMultiplier: currentVisual.thermalSpeedMultiplier,
+      thermalSpeedMultiplier: kineticSpeedState.speed,
       outflowActive: currentVisual.outflowActive,
       outflowDriftSpeed: effectiveOutflowDriftSpeed,
       exitSelectionRate: effectiveExitSelectionRate,
+      releasePhase: currentReleaseTimeline.phase,
+      releaseExitBudget,
+      releaseExitSpeed: currentScheduleFrame.exitSpeed,
+      releaseMinimumParticleCount: currentScheduleFrame.releaseMinimumParticleCount,
       pumpFlowActive: pumpPortActive,
       pumpFlowIntensity,
     });
