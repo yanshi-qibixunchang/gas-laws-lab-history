@@ -22,6 +22,18 @@ npm.cmd run dev -- --host 127.0.0.1 --port 5174 --strictPort
 - Keep `--strictPort` in the command so Vite fails instead of silently switching to a different port.
 - If port `5174` is already occupied, stop the process using that port or ask the user before changing the project preview port.
 
+## Temporary Output Port
+
+- Use port `5184` for temporary development output tools that should not occupy the fixed project preview port `5174`.
+- Use this command as the reusable PowerShell temporary-output entrypoint:
+
+```powershell
+npm.cmd run dev:temp
+```
+
+- For heat-capacity camera-view capture, use `http://127.0.0.1:5184/?cameraCapture=1`.
+- Keep temporary-output tooling gated behind an explicit development-only switch such as `?cameraCapture=1`; it must not appear in the normal fixed preview or production build.
+
 ## Desktop Release And Auto Update
 
 - The Windows desktop release uses NSIS installer updates through `electron-updater`; do not treat the installer `.exe` as a complete release by itself.

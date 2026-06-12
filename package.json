@@ -5,6 +5,7 @@
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
+    "dev:temp": "vite --host 127.0.0.1 --port 5184 --strictPort",
     "build": "vite build",
     "desktop:dev": "vite build && electron .",
     "desktop:build": "vite build",

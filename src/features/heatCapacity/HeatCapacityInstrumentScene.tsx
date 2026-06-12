@@ -663,8 +663,8 @@ const PROCEDURAL_CAMERA_VIEW_SCHEME: CameraViewScheme = {
 };
 const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = {
   defaultView: {
-    position: [0.58, 3.05, 6.25],
-    target: [0.02, 0.52, 0.02],
+    position: [3.42, 4.079, 5.152],
+    target: [0.31, 0.436, -0.092],
   },
   fov: 36,
   responsiveFov: {
@@ -718,6 +718,44 @@ const getCameraFovForAspect = (cameraViewScheme: CameraViewScheme, aspect: numbe
 };
 const ORBIT_MIN_DISTANCE = 2.7;
 const ORBIT_MAX_DISTANCE = 11.5;
+const HEAT_CAPACITY_CAMERA_CAPTURE_QUERY_PARAM = 'cameraCapture';
+const HEAT_CAPACITY_CAMERA_CAPTURE_STORAGE_KEY = 'hsl_heat_capacity_camera_capture_latest';
+type HeatCapacityCameraViewCapturePayload = {
+  capturedAt: string;
+  performanceMode: HeatCapacityInstrumentSceneProps['performanceMode'];
+  viewport: {
+    width: number;
+    height: number;
+  };
+  position: [number, number, number];
+  target: [number, number, number];
+  fov: number;
+  actualFov: number;
+  schemeSnippet: string;
+};
+type HeatCapacityCameraCaptureHandler = () => HeatCapacityCameraViewCapturePayload | null;
+const roundCameraCaptureNumber = (value: number) => Number(value.toFixed(3));
+const vectorToCameraCaptureTuple = (value: THREE.Vector3): [number, number, number] => [
+  roundCameraCaptureNumber(value.x),
+  roundCameraCaptureNumber(value.y),
+  roundCameraCaptureNumber(value.z),
+];
+const createCameraCaptureSchemeSnippet = (
+  position: [number, number, number],
+  target: [number, number, number],
+  fov: number,
+) => (
+  `defaultView: {\n` +
+  `  position: [${position.join(', ')}],\n` +
+  `  target: [${target.join(', ')}],\n` +
+  `},\n` +
+  `fov: ${fov},`
+);
+const isHeatCapacityCameraCaptureEnabled = () => (
+  import.meta.env.DEV &&
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get(HEAT_CAPACITY_CAMERA_CAPTURE_QUERY_PARAM) === '1'
+);
 
 const formatSignal = (value: number | null, fallback = '--.-- mV') => (
   typeof value === 'number' && Number.isFinite(value) ? `${value.toFixed(2)} mV` : fallback
@@ -2377,6 +2415,126 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
   );
 }
 
+function HeatCapacityCameraCaptureBridge({
+  enabled,
+  controlsRef,
+  performanceMode,
+  baseFov,
+  onCaptureHandlerChange,
+}: {
+  enabled: boolean;
+  controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
+  performanceMode: HeatCapacityInstrumentSceneProps['performanceMode'];
+  baseFov: number;
+  onCaptureHandlerChange: React.Dispatch<React.SetStateAction<HeatCapacityCameraCaptureHandler | null>>;
+}) {
+  const { camera, size } = useThree();
+  const captureCameraView = useCallback(() => {
+    if (!enabled || !(camera instanceof THREE.PerspectiveCamera)) return null;
+    const target = controlsRef.current?.target ?? new THREE.Vector3(0, 0, 0);
+    const position = vectorToCameraCaptureTuple(camera.position);
+    const targetTuple = vectorToCameraCaptureTuple(target);
+    const fov = roundCameraCaptureNumber(baseFov);
+    const actualFov = roundCameraCaptureNumber(camera.fov);
+    const payload: HeatCapacityCameraViewCapturePayload = {
+      capturedAt: new Date().toISOString(),
+      performanceMode,
+      viewport: {
+        width: Math.round(size.width),
+        height: Math.round(size.height),
+      },
+      position,
+      target: targetTuple,
+      fov,
+      actualFov,
+      schemeSnippet: createCameraCaptureSchemeSnippet(position, targetTuple, fov),
+    };
+    window.localStorage.setItem(HEAT_CAPACITY_CAMERA_CAPTURE_STORAGE_KEY, JSON.stringify(payload));
+    window.dispatchEvent(new CustomEvent('hsl:heat-capacity-camera-capture', { detail: payload }));
+    console.info('[Heat Capacity camera capture]', payload.schemeSnippet, payload);
+    return payload;
+  }, [baseFov, camera, controlsRef, enabled, performanceMode, size.height, size.width]);
+
+  useEffect(() => {
+    if (!enabled) {
+      onCaptureHandlerChange(null);
+      return undefined;
+    }
+    onCaptureHandlerChange(() => captureCameraView);
+    return () => onCaptureHandlerChange(null);
+  }, [captureCameraView, enabled, onCaptureHandlerChange]);
+
+  return null;
+}
+
+function HeatCapacityCameraCapturePanel({
+  enabled,
+  payload,
+  captureReady,
+  onCapture,
+}: {
+  enabled: boolean;
+  payload: HeatCapacityCameraViewCapturePayload | null;
+  captureReady: boolean;
+  onCapture: () => HeatCapacityCameraViewCapturePayload | null;
+}) {
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const outputText = payload
+    ? JSON.stringify(payload, null, 2)
+    : `Move the model view, then record. Latest capture is stored as ${HEAT_CAPACITY_CAMERA_CAPTURE_STORAGE_KEY}.`;
+  const handleCopy = useCallback(async () => {
+    if (!payload) return;
+    try {
+      await navigator.clipboard.writeText(payload.schemeSnippet);
+      setCopyState('copied');
+    } catch {
+      setCopyState('failed');
+    }
+  }, [payload]);
+
+  if (!enabled) return null;
+
+  return (
+    <section className="studio-heat-camera-capture-panel" data-heat-capacity-camera-capture="true">
+      <div className="studio-heat-camera-capture-header">
+        <strong>视角采集中台</strong>
+        <span>临时工具 / 5184</span>
+      </div>
+      <div className="studio-heat-camera-capture-actions">
+        <button
+          type="button"
+          data-heat-capacity-camera-capture-action="record"
+          disabled={!captureReady}
+          onClick={() => {
+            setCopyState('idle');
+            onCapture();
+          }}
+        >
+          记录当前视角
+        </button>
+        <button
+          type="button"
+          data-heat-capacity-camera-capture-action="copy"
+          disabled={!payload}
+          onClick={() => {
+            void handleCopy();
+          }}
+        >
+          复制默认片段
+        </button>
+      </div>
+      <pre className="studio-heat-camera-capture-output">{outputText}</pre>
+      <small>
+        {copyState === 'copied'
+          ? '已复制 scheme 片段。'
+          : copyState === 'failed'
+            ? '复制失败；可直接复制上方内容。'
+            : `localStorage: ${HEAT_CAPACITY_CAMERA_CAPTURE_STORAGE_KEY}`}
+      </small>
+    </section>
+  );
+}
+
 function CameraRig({
   controlsRef,
   focusMode,
@@ -2524,6 +2682,9 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const [valveFocusBubble, setValveFocusBubble] = useState<ValveFocusBubbleState | null>(null);
   const [isOrbitInteracting, setIsOrbitInteracting] = useState(false);
   const [viewResetKey, setViewResetKey] = useState(0);
+  const [cameraCaptureHandler, setCameraCaptureHandler] = useState<HeatCapacityCameraCaptureHandler | null>(null);
+  const [cameraCapturePayload, setCameraCapturePayload] = useState<HeatCapacityCameraViewCapturePayload | null>(null);
+  const cameraCaptureEnabled = useMemo(() => isHeatCapacityCameraCaptureEnabled(), []);
   const sceneCopy = heatCapacitySceneCopies[props.language] ?? heatCapacitySceneCopies['zh-CN'];
   const sceneTheme: HeatCapacitySceneTheme = props.sceneTheme === 'light' ? 'light' : 'dark';
   const scenePalette = heatCapacityScenePalettes[sceneTheme];
@@ -2620,6 +2781,11 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     setFocusMode('none');
     setViewResetKey((key) => key + 1);
   }, [closeValveFocusBubble]);
+  const captureCurrentCameraView = useCallback(() => {
+    const payload = cameraCaptureHandler?.() ?? null;
+    if (payload) setCameraCapturePayload(payload);
+    return payload;
+  }, [cameraCaptureHandler]);
   const overlayMotionRef = usePreviewOverlayMotion<HTMLDivElement>();
   useEffect(() => {
     triggerSmoothDefaultView();
@@ -2777,6 +2943,13 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
         <color attach="background" args={[scenePalette.scene.background]} />
         <HeatCapacitySceneLighting scenePalette={scenePalette} />
         <HeatCapacitySceneInvalidator active={sceneShouldAnimate} />
+        <HeatCapacityCameraCaptureBridge
+          enabled={cameraCaptureEnabled}
+          controlsRef={controlsRef}
+          performanceMode={props.performanceMode}
+          baseFov={cameraViewScheme.fov}
+          onCaptureHandlerChange={setCameraCaptureHandler}
+        />
         <CameraRig
           controlsRef={controlsRef}
           focusMode={focusMode}
@@ -2799,6 +2972,12 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           }}
         />
       </Canvas>
+      <HeatCapacityCameraCapturePanel
+        enabled={cameraCaptureEnabled}
+        payload={cameraCapturePayload}
+        captureReady={Boolean(cameraCaptureHandler)}
+        onCapture={captureCurrentCameraView}
+      />
       <div
         ref={overlayMotionRef}
         className="studio-preview-overlay-layer studio-heat-overlay-layer"

@@ -4615,6 +4615,89 @@
   }
 }
 
+.studio-heat-camera-capture-panel {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 24;
+  width: min(430px, calc(100% - 32px));
+  max-height: min(420px, calc(100% - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(125, 211, 252, 0.38);
+  border-radius: 8px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.28);
+  color: #e0f2fe;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  pointer-events: auto;
+}
+
+.studio-heat-camera-capture-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.studio-heat-camera-capture-header strong {
+  color: #f8fafc;
+  font-size: 12px;
+}
+
+.studio-heat-camera-capture-header span,
+.studio-heat-camera-capture-panel small {
+  color: #bae6fd;
+  font-size: 11px;
+}
+
+.studio-heat-camera-capture-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.studio-heat-camera-capture-actions button {
+  height: 28px;
+  padding: 0 10px;
+  background: rgba(14, 165, 233, 0.2);
+  border: 1px solid rgba(125, 211, 252, 0.44);
+  border-radius: 6px;
+  color: #f0f9ff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+
+.studio-heat-camera-capture-actions button:hover,
+.studio-heat-camera-capture-actions button:focus-visible {
+  background: rgba(14, 165, 233, 0.34);
+  border-color: rgba(186, 230, 253, 0.72);
+  outline: none;
+}
+
+.studio-heat-camera-capture-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.studio-heat-camera-capture-output {
+  min-height: 128px;
+  max-height: 230px;
+  margin: 0;
+  padding: 9px;
+  overflow: auto;
+  background: rgba(2, 6, 23, 0.72);
+  border: 1px solid rgba(51, 65, 85, 0.86);
+  border-radius: 6px;
+  color: #dbeafe;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
 .studio-heat-view-reset {
   height: 28px;
   border: 0.5px solid rgba(148, 163, 184, 0.44);
