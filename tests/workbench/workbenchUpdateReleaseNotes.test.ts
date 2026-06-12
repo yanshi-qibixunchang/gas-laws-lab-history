@@ -77,32 +77,36 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '4.1.14', 'next desktop update release should bump package version to 4.1.14');
+assert.equal(packageJson.version, '4.1.15', 'next desktop update release should bump package version to 4.1.15');
 
-const currentRelease = findRelease('4.1.14');
+const currentRelease = findRelease('4.1.15');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
-assert.ok(currentRelease, 'release notes should include the 4.1.14 Ultra GLB packaging fix');
+assert.ok(currentRelease, 'release notes should include the 4.1.15 hard-sphere visualization update');
 for (const locale of locales) {
-  assert.ok(currentRelease.summary?.[locale]?.trim(), `4.1.14 release summary should include ${locale}`);
+  assert.ok(currentRelease.summary?.[locale]?.trim(), `4.1.15 release summary should include ${locale}`);
 }
 assert.equal(
   currentRelease.download?.releasePage,
-  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.14',
-  '4.1.14 release page should be published in the public release repository',
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.15',
+  '4.1.15 release page should be published in the public release repository',
 );
 assert.equal(
   currentRelease.download?.windowsInstaller,
-  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.14/heat-capacity-lab-setup-4.1.14.exe',
-  '4.1.14 installer should be published in the public release repository',
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.15/heat-capacity-lab-setup-4.1.15.exe',
+  '4.1.15 installer should be published in the public release repository',
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
 assert.ok(
   currentItems.some((item) => item.scope === 'heat-capacity' && item.importance === 'high'),
-  '4.1.14 should include the heat-capacity Ultra GLB packaging fix',
+  '4.1.15 should include high-importance heat-capacity visualization updates',
 );
 assert.ok(
   currentItems.some((item) => item.scope === 'desktop-update' && item.importance === 'medium'),
-  '4.1.14 should include the auto-update distribution compatibility note',
+  '4.1.15 should include the auto-update distribution compatibility note',
+);
+assert.ok(
+  currentItems.some((item) => item.scope === 'ui' && item.importance === 'medium'),
+  '4.1.15 should include the visualization-toggle consistency note',
 );
 
 const migrationRelease = findRelease('4.1.6');

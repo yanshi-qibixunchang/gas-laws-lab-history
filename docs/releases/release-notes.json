@@ -3,6 +3,175 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.15",
+      "date": "2026-06-12",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.15",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.15/heat-capacity-lab-setup-4.1.15.exe"
+      },
+      "summary": {
+        "zh-CN": "完成热容比微观可视化重构：骨架模型改用独立硬球碰撞模块，Ultra GLB 接入圆柱容器分子运动，并同步修正打气、放气、温度映射、旋塞判定和可视化开关。",
+        "zh-TW": "完成熱容比微觀可視化重構：骨架模型改用獨立硬球碰撞模組，Ultra GLB 接入圓柱容器分子運動，並同步修正打氣、放氣、溫度映射、旋塞判定和可視化開關。",
+        "en": "Rebuilds heat-capacity molecule visualization with an independent hard-sphere collision module, adds Ultra GLB cylinder particles, and aligns pumping, release, temperature mapping, stopcock state, and visualization toggles."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "新增",
+            "zh-TW": "新增",
+            "en": "Added"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "独立硬球碰撞可视化模块",
+                "zh-TW": "獨立硬球碰撞可視化模組",
+                "en": "Independent hard-sphere visualization module"
+              },
+              "body": {
+                "zh-CN": "热容比微观可视化现在使用独立的纯计算模块，支持固定时间步、分子间碰撞、无重叠生成、容器壁反弹、温度驱动速度和颜色映射，并保留按性能档调节粒子数量和速度。",
+                "zh-TW": "熱容比微觀可視化現在使用獨立的純計算模組，支援固定時間步、分子間碰撞、無重疊生成、容器壁反彈、溫度驅動速度和顏色映射，並保留按效能檔調節粒子數量和速度。",
+                "en": "Heat-capacity molecule visualization now uses a pure simulation module with fixed timesteps, particle collisions, non-overlap spawning, wall bounces, temperature-driven speed and color mapping, and performance-tier count/speed presets."
+              }
+            },
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "Ultra GLB 圆柱容器分子运动",
+                "zh-TW": "Ultra GLB 圓柱容器分子運動",
+                "en": "Ultra GLB cylinder molecule motion"
+              },
+              "body": {
+                "zh-CN": "最高画质模型现在使用按 GLB 玻璃容器测量的圆柱空气墙，粒子位置、半径、数量和入口都单独适配 Ultra 模型，避免旧正方体可视化穿出容器或落到平面下方。",
+                "zh-TW": "最高畫質模型現在使用按 GLB 玻璃容器測量的圓柱空氣牆，粒子位置、半徑、數量和入口都單獨適配 Ultra 模型，避免舊正方體可視化穿出容器或落到平面下方。",
+                "en": "The highest-quality model now uses a measured GLB cylinder air wall, with Ultra-specific particle position, radius, count, and inlet alignment so particles no longer use the old cube volume or fall outside the vessel."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "变更",
+            "zh-TW": "變更",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "打气与放气动画改为实验量驱动",
+                "zh-TW": "打氣與放氣動畫改為實驗量驅動",
+                "en": "Pumping and release visuals are driven by experiment quantities"
+              },
+              "body": {
+                "zh-CN": "打气时粒子从阀门入口喷入，放气时按视觉时间线分为快速释放和后续缓慢交换，粒子减少量相对打入气体计算，避免直接刷新、凭空补粒子或把瓶内粒子减到不符合物理含义。",
+                "zh-TW": "打氣時粒子從閥門入口噴入，放氣時按視覺時間線分為快速釋放和後續緩慢交換，粒子減少量相對打入氣體計算，避免直接刷新、憑空補粒子或把瓶內粒子減到不符合物理含義。",
+                "en": "Pumping injects particles from the valve inlet, while release uses a visual timeline with a fast initial outflow and slower post-exchange. Particle loss is calculated against added gas, avoiding visible respawns, artificial replenishment, or unphysical depletion."
+              }
+            },
+            {
+              "scope": "heat-capacity",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "温度颜色和分子速度过渡更连续",
+                "zh-TW": "溫度顏色和分子速度過渡更連續",
+                "en": "Temperature color and molecular speed transitions are smoother"
+              },
+              "body": {
+                "zh-CN": "小球颜色不再随打气或放气突变，随机热运动速度也增加过渡缓冲，避免温度快速变化后未离开粒子突然变慢带来的卡顿感。",
+                "zh-TW": "小球顏色不再隨打氣或放氣突變，隨機熱運動速度也增加過渡緩衝，避免溫度快速變化後未離開粒子突然變慢帶來的卡頓感。",
+                "en": "Particle color no longer jumps after pumping or release, and random thermal speed now has a transition buffer so remaining particles do not abruptly slow down when the temperature drops."
+              }
+            },
+            {
+              "scope": "ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "可视化开关在 Ultra 中保持一致",
+                "zh-TW": "可視化開關在 Ultra 中保持一致",
+                "en": "Visualization toggles are consistent in Ultra"
+              },
+              "body": {
+                "zh-CN": "三维视图左上角开关和右侧自由模式参数里的微观可视化复选框都可以控制 Ultra 圆柱小球显示，不再沿用早期最高画质禁用方案。",
+                "zh-TW": "三維視圖左上角開關和右側自由模式參數裡的微觀可視化核取方塊都可以控制 Ultra 圓柱小球顯示，不再沿用早期最高畫質禁用方案。",
+                "en": "Both the 3D-view toggle and the Free Mode parameter checkbox can control Ultra cylinder particles, removing the earlier highest-tier disabled path."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "玻璃旋塞联通状态按 90 度物理定义判定",
+                "zh-TW": "玻璃旋塞連通狀態按 90 度物理定義判定",
+                "en": "Glass stopcock flow uses the physical 90-degree definition"
+              },
+              "body": {
+                "zh-CN": "玻璃旋塞只有转到 90±5 度时才算联通，默认复位为关闭，并统一骨架和 Ultra 的手柄、内部气道、状态面板与硬球放气判定，旧保存状态仍会按开关字段迁移到正确角度。",
+                "zh-TW": "玻璃旋塞只有轉到 90±5 度時才算連通，預設復位為關閉，並統一骨架和 Ultra 的手柄、內部氣道、狀態面板與硬球放氣判定，舊保存狀態仍會按開關欄位遷移到正確角度。",
+                "en": "The glass stopcock is connected only at 90±5 degrees, resets closed by default, and aligns skeleton/Ultra handle direction, internal channel, status panels, and hard-sphere release checks. Legacy saved states still migrate to the correct angle from the open/closed field."
+              }
+            },
+            {
+              "scope": "performance",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "移除旧版释放路径和临时运动开关",
+                "zh-TW": "移除舊版釋放路徑和臨時運動開關",
+                "en": "Removed legacy release paths and temporary motion gates"
+              },
+              "body": {
+                "zh-CN": "清理了旧的压力速率放气选择、旧的可视化刷新逻辑、阶段性 motionMode / pump-only 开关和对应测试断言，当前硬球层只保留最终确认的完整打气、放气和碰撞实现。",
+                "zh-TW": "清理了舊的壓力速率放氣選擇、舊的可視化刷新邏輯、階段性 motionMode / pump-only 開關和對應測試斷言，當前硬球層只保留最終確認的完整打氣、放氣和碰撞實現。",
+                "en": "Removes old pressure-rate release selection, legacy visual refresh logic, temporary motionMode / pump-only gates, and their stale assertions. The hard-sphere layer now keeps only the confirmed pumping, release, and collision implementation."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "兼容性说明",
+            "zh-TW": "相容性說明",
+            "en": "Compatibility"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "通过桌面自动更新分发",
+                "zh-TW": "透過桌面自動更新分發",
+                "en": "Distributed through desktop auto update"
+              },
+              "body": {
+                "zh-CN": "本版本继续发布 NSIS 安装包、latest.yml 和 blockmap，已安装的 4.1.14 客户端可以通过应用内更新检测到 4.1.15。",
+                "zh-TW": "本版本繼續發布 NSIS 安裝包、latest.yml 和 blockmap，已安裝的 4.1.14 用戶端可以透過應用內更新偵測到 4.1.15。",
+                "en": "This version continues to publish the NSIS installer, latest.yml, and blockmap so installed 4.1.14 clients can detect 4.1.15 in-app."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.14",
       "date": "2026-06-10",
       "channel": "stable",

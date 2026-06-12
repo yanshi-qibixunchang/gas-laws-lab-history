@@ -16,8 +16,13 @@ assert.match(
 );
 assert.match(
   source,
-  /definition\.id === 'hardSphereViewEnabled'[\s\S]*\? settingsPerformanceMode === 'ultra'[\s\S]*: activeHeatCapacityFreeParameterLocked/,
-  'Free Mode should keep the visualization checkbox independent from experiment-data locks, while disabling it for Ultra GLB mode',
+  /definition\.id === 'hardSphereViewEnabled'[\s\S]*\? false[\s\S]*: activeHeatCapacityFreeParameterLocked/,
+  'Free Mode should keep the visualization checkbox independent from experiment-data locks and performance tiers',
+);
+assert.doesNotMatch(
+  source,
+  /definition\.id === 'hardSphereViewEnabled'[\s\S]*settingsPerformanceMode === 'ultra'/,
+  'Ultra GLB mode should not disable the Free Mode molecule visualization checkbox after the cylinder visualization is connected',
 );
 assert.match(
   source,
