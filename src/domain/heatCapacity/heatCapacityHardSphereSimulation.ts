@@ -42,10 +42,17 @@ const SPAWN_ATTEMPTS = 24;
 const COLLISION_SOLVER_ITERATIONS = 2;
 const EXIT_OCCLUSION_OFFSET = 0.08;
 const OUTLET_DRIFT_ACCELERATION = 32;
+const NATURAL_RECONCILE_RATE_PER_S = 58;
+const PUMP_RECONCILE_RATE_PER_S = 228;
 
 const clampNumber = (value: number, min: number, max: number) => (
   Math.min(max, Math.max(min, value))
 );
+
+const getStepBudget = (needed: number, dtS: number, ratePerS: number) => {
+  if (needed <= 0 || dtS <= 0 || ratePerS <= 0) return 0;
+  return Math.min(needed, Math.max(1, Math.ceil(ratePerS * dtS)));
+};
 
 const seededNoise = (value: number) => {
   const raw = Math.sin(value) * 43758.5453;
@@ -255,13 +262,24 @@ const reconcileParticleCount = (
     0,
     simulation.maxParticles,
   );
+  const reconcileDtS = clampNumber(
+    Number.isFinite(input.dtS) ? input.dtS : 0,
+    0,
+    FIXED_DT_S * MAX_SUB_STEPS,
+  );
   let visibleCount = simulation.particles.reduce((count, particle) => (
     count + (particle.state !== 'hidden' ? 1 : 0)
   ), 0);
   const insideCount = countParticlesByState(simulation.particles, 'inside');
   const fromPumpPort = input.pumpFlowActive || input.pumpFlowIntensity > 0;
+  const missingCount = targetParticleCount - visibleCount;
+  const spawnRate = fromPumpPort ? PUMP_RECONCILE_RATE_PER_S : NATURAL_RECONCILE_RATE_PER_S;
+  const spawnLimit = visibleCount === 0
+    ? Math.max(0, missingCount)
+    : getStepBudget(missingCount, reconcileDtS, spawnRate);
+  let spawnedCount = 0;
 
-  while (visibleCount < targetParticleCount) {
+  while (visibleCount < targetParticleCount && spawnedCount < spawnLimit) {
     const particle = simulation.particles.find((item) => item.state === 'hidden');
     if (!particle) break;
     const spawned = spawnParticle(
@@ -274,11 +292,17 @@ const reconcileParticleCount = (
     );
     if (!spawned) break;
     visibleCount += 1;
+    spawnedCount += 1;
   }
 
   if (visibleCount <= targetParticleCount) return;
 
   const excess = visibleCount - targetParticleCount;
+  const trimLimit = input.outflowActive
+    ? excess
+    : getStepBudget(excess, reconcileDtS, NATURAL_RECONCILE_RATE_PER_S);
+  if (trimLimit <= 0) return;
+
   const sortedInside = simulation.particles
     .filter((particle) => particle.state === 'inside')
     .sort((left, right) => (
@@ -287,7 +311,7 @@ const reconcileParticleCount = (
         : distanceSq(left.position, simulation.container.outletPoint) -
           distanceSq(right.position, simulation.container.outletPoint)
     ));
-  for (const particle of sortedInside.slice(0, Math.min(excess, insideCount))) {
+  for (const particle of sortedInside.slice(0, Math.min(trimLimit, insideCount))) {
     if (input.outflowActive) {
       particle.state = 'exiting';
       particle.outflowProgress = Math.max(particle.outflowProgress, 0.12);

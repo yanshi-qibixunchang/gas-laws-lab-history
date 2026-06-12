@@ -34,6 +34,17 @@ const stepIdle = (
   });
 };
 
+const createVisibleSimulation = (targetParticleCount: number, seed: number) => {
+  const visibleSimulation = createHeatCapacityHardSphereSimulation({
+    maxParticles: 64,
+    particleRadius,
+    container,
+    seed,
+  });
+  stepIdle(visibleSimulation, 0.2, targetParticleCount);
+  return visibleSimulation;
+};
+
 const simulation = createHeatCapacityHardSphereSimulation({
   maxParticles: 128,
   particleRadius,
@@ -45,6 +56,34 @@ stepIdle(simulation, 0.2, 64);
 
 assert.equal(simulation.lastSubStepCount <= 5, true);
 assert.equal(getHeatCapacityHardSphereVisibleParticles(simulation).length, 64);
+
+const naturalSpawnSimulation = createVisibleSimulation(12, 211);
+stepIdle(naturalSpawnSimulation, 1 / 60, 24);
+const naturalSpawnVisibleCount = getHeatCapacityHardSphereVisibleParticles(naturalSpawnSimulation).length;
+assert.equal(
+  naturalSpawnVisibleCount > 12,
+  true,
+  'natural recovery should still refill missing hard spheres gradually',
+);
+assert.equal(
+  naturalSpawnVisibleCount < 24,
+  true,
+  'natural recovery should not respawn every missing hard sphere in one frame',
+);
+
+const naturalTrimSimulation = createVisibleSimulation(24, 223);
+stepIdle(naturalTrimSimulation, 1 / 60, 12);
+const naturalTrimVisibleCount = getHeatCapacityHardSphereVisibleParticles(naturalTrimSimulation).length;
+assert.equal(
+  naturalTrimVisibleCount < 24,
+  true,
+  'natural recovery should still trim excess hard spheres gradually',
+);
+assert.equal(
+  naturalTrimVisibleCount > 12,
+  true,
+  'natural recovery should not hide every excess hard sphere in one frame',
+);
 
 const overlapSimulation = createHeatCapacityHardSphereSimulation({
   maxParticles: 2,
