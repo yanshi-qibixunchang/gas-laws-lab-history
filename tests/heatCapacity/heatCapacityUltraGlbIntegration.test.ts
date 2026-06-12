@@ -389,7 +389,7 @@ assert.match(
   assert.doesNotMatch(
     ultraModelSource,
     new RegExp(forbiddenToken.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
-    `Ultra GLB display adapter should not keep deferred interaction token ${forbiddenToken}`,
+    `Ultra GLB display adapter should not keep obsolete interaction token ${forbiddenToken}`,
   );
 });
 
@@ -745,7 +745,7 @@ assert.match(
 assert.doesNotMatch(
   workbenchSource,
   /const heatCapacityDeferredModeDisabled = !heatCapacityUltraModelIntegrationReady;/,
-  'Mode buttons should not stay globally disabled just because Ultra GLB mode is still deferred',
+  'Mode buttons should not stay globally disabled just because Ultra GLB mode is active',
 );
 
 console.log('heatCapacityUltraGlbIntegration tests passed');

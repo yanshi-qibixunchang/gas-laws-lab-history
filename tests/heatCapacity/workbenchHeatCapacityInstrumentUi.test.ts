@@ -647,7 +647,7 @@ assert.match(sceneSource, /lineWidth=\{highClarityMode \? 3 : 2\}/, 'high-clarit
 assert.match(sceneSource, /lineWidth=\{highClarityMode \? 4 : 3\}/, 'high-clarity mode should slightly thicken the negative lead');
 assert.match(sceneSource, /lineWidth=\{highClarityMode \? 5 : 4\}/, 'high-clarity mode should slightly thicken the pressure lead');
 assert.match(sceneSource, /\}\), \[cameraViewScheme, props\.performanceMode\]\);/, 'performance-mode canvas memoization should include the active camera scheme without remounting on theme-only changes');
-assert.match(sceneSource, /const panelTextUpdateIntervalMs = panelTextInteractionReduced[\s\S]*\?\s*400[\s\S]*\(performanceMode === 'performance' \|\| performanceMode === 'ultra'\)[\s\S]*\?\s*250[\s\S]*performanceMode === 'balanced'[\s\S]*\?\s*180[\s\S]*:\s*120/, 'digital screen refresh should keep ultra aligned with the current lowest-load tier until GLB integration');
+assert.match(sceneSource, /const panelTextUpdateIntervalMs = panelTextInteractionReduced[\s\S]*\?\s*400[\s\S]*\(performanceMode === 'performance' \|\| performanceMode === 'ultra'\)[\s\S]*\?\s*250[\s\S]*performanceMode === 'balanced'[\s\S]*\?\s*180[\s\S]*:\s*120/, 'digital screen refresh should keep the Ultra GLB renderer on the low-load update cadence');
 assert.doesNotMatch(sceneSource, /panelTextUpdateIntervalMs[\s\S]{0,260}1000/, 'digital screen refresh should not fall back to a one-second update interval');
 assert.doesNotMatch(sceneSource, /\[0\.75,\s*1\]/, 'performance mode should no longer use sub-1 DPR that blurs the scene');
 assert.match(sceneSource, /texture\.dispose\(\)/, 'instrument panel text should dispose GPU texture resources on unmount');

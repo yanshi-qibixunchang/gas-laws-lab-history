@@ -272,15 +272,15 @@ const applyIdealReleaseAtProgress = (
   releasePlan: ReturnType<typeof calculateIdealReleasePlan>,
   progress: number,
 ): HeatCapacityFreePhysicsState => {
-  const releaseProgress = releasePlan.progress <= 0
+  const planProgress = releasePlan.progress <= 0
     ? 0
     : releasePlan.progress * smoothStepUnit(progress / releasePlan.progress);
   return {
     ...initialState,
     gasAmountRatio: initialState.gasAmountRatio +
-      (releasePlan.targetAmountRatio - initialState.gasAmountRatio) * releaseProgress,
+      (releasePlan.targetAmountRatio - initialState.gasAmountRatio) * planProgress,
     gasTemperatureK: initialState.gasTemperatureK +
-      (releasePlan.targetTemperatureK - initialState.gasTemperatureK) * releaseProgress,
+      (releasePlan.targetTemperatureK - initialState.gasTemperatureK) * planProgress,
     releaseStarted: true,
     releaseProcess: null,
   };

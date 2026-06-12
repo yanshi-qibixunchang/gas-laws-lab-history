@@ -231,7 +231,7 @@ Trace 写入仍会屏蔽过小的显示层波动，避免后台采集点被噪�
 
 - 分子数量由 `gasAmountRatio` 决定。
 - 分子速度和颜色由 `gasTemperatureK - ambientTemperatureK` 决定。
-- 分子定向外流只在 `releaseFlowActive = true` 且 `stopcockFlowOpen = true` 且 `releaseProgress > 0` 时出现。
+- 分子定向漂移只在 `releaseFlowActive = true` 且 `stopcockFlowOpen = true` 且压差未平衡时出现；分子离开数量由 release timeline 的显式预算控制。
 - 打气过程中的新分子从打气口进入，强度由未完成打气过程的剩余进度综合决定。
 - 报警状态不直接影响分子数量、分子颜色、分子速度或定向运动。
 

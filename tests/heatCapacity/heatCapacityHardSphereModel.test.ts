@@ -40,7 +40,7 @@ assert.equal(ambient.outflowActive, false);
 assert.equal(ambient.targetParticleCount, 42, 'baseline gas amount should map to the baseline molecule count');
 assert.equal(ambient.temperatureColorFactor, 0.625, 'room-temperature hard-sphere color factor should be the neutral point of the -5 K to +3 K range');
 assert.equal(pumped.thermalSpeedMultiplier > ambient.thermalSpeedMultiplier, true, 'higher gas temperature should visibly increase random thermal particle speed');
-assert.equal(pumped.speedMultiplier, pumped.thermalSpeedMultiplier, 'legacy speed multiplier should alias thermal speed until rendering finishes migration');
+assert.equal(pumped.speedMultiplier, pumped.thermalSpeedMultiplier, 'speed multiplier should remain an alias of thermal speed for existing visual consumers');
 assert.equal(pumped.temperatureColorFactor, 1, 'heated U_T should move the temperature color factor to the warm end');
 assert.equal(pumped.targetParticleCount, 90, 'active pump flow should not add temporary inlet-particle emphasis beyond the gas amount');
 assert.equal(pumped.targetParticleCount <= 128, true, 'visual particle pool should stay capped');

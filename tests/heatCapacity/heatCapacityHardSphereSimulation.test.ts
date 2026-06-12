@@ -134,24 +134,24 @@ assert.equal(
   'natural recovery should not delete hard spheres unless gas leaves through the outlet',
 );
 
-const legacySelectionSimulation = createVisibleSimulation(30, 229);
+const pressureOnlySelectionSimulation = createVisibleSimulation(30, 229);
 for (let step = 0; step < 10; step += 1) {
-  stepWithFlow(legacySelectionSimulation, {
+  stepWithFlow(pressureOnlySelectionSimulation, {
     dtS: 1 / 60,
     targetParticleCount: 12,
     outflowActive: true,
     outflowDriftSpeed: 1.2,
   });
 }
-const legacySelectionExitingCount = legacySelectionSimulation.particles
+const pressureOnlySelectionExitingCount = pressureOnlySelectionSimulation.particles
   .filter((particle) => particle.state === 'exiting').length;
 assert.equal(
-  legacySelectionExitingCount,
+  pressureOnlySelectionExitingCount,
   0,
   'pressure-only outflow must not choose hard spheres to leave without an explicit release timeline budget',
 );
 assert.equal(
-  getHeatCapacityHardSphereVisibleParticles(legacySelectionSimulation).length,
+  getHeatCapacityHardSphereVisibleParticles(pressureOnlySelectionSimulation).length,
   30,
   'pressure-only outflow must not trim the particle pool from target-count deltas',
 );
