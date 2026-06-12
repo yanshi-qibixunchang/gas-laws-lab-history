@@ -72,8 +72,8 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /<HeatCapacityHardSphereLayer[\s\S]*containerProfile="ultra-cylinder"[\s\S]*motionMode="pump-only"/,
-  'Breakpoint 2 should mount Ultra hard spheres in the GLB cylinder profile with pump-only flow enabled',
+  /<HeatCapacityHardSphereLayer[\s\S]*containerProfile="ultra-cylinder"[\s\S]*motionMode="full"/,
+  'Breakpoint 3 should mount Ultra hard spheres in the GLB cylinder profile with pump and release flow enabled',
 );
 assert.match(
   hardSphereLayerSource,
@@ -88,12 +88,12 @@ assert.match(
 assert.match(
   hardSphereLayerSource,
   /const pumpMotionEnabled = motionMode !== 'static';[\s\S]*const releaseMotionEnabled = motionMode === 'full';[\s\S]*pumpFlowActive: pumpMotionEnabled \? pumpFlowActive : false[\s\S]*releaseFlowActive: releaseMotionEnabled \? releaseFlowActive : false/,
-  'Breakpoint 2 should keep Ultra pump inputs active while release inputs remain gated by full motion mode',
+  'Breakpoint 3 should keep Ultra pump inputs active while release inputs remain gated by full motion mode',
 );
 assert.match(
   hardSphereLayerSource,
   /pumpFlowActive: pumpPortActive[\s\S]*releasePhase: releaseMotionEnabled \? currentReleaseTimeline\.phase : 'none'/,
-  'Breakpoint 2 simulation steps should keep pump entry enabled while release phase stays disabled outside full motion mode',
+  'Breakpoint 3 simulation steps should keep pump entry and release phase controlled by the active motion mode',
 );
 
 assert.match(
@@ -412,8 +412,8 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /HSL_Stopcock_OpenPath_Glow'[\s\S]*HSL_Stopcock_ClosedBlocker_Mark'[\s\S]*const ultraStopcockConnected = !stopcockOpen[\s\S]*openPathGlow\.visible = ultraStopcockConnected[\s\S]*closedBlockerMark\.visible = !ultraStopcockConnected/,
-  'Ultra stopcock connected/check and disconnected/cross markers should be mutually exclusive and match the GLB-authored plug orientation',
+  /HSL_Stopcock_OpenPath_Glow'[\s\S]*HSL_Stopcock_ClosedBlocker_Mark'[\s\S]*const ultraStopcockConnected = stopcockOpen[\s\S]*openPathGlow\.visible = ultraStopcockConnected[\s\S]*closedBlockerMark\.visible = !ultraStopcockConnected/,
+  'Ultra stopcock connected/check and disconnected/cross markers should match the shared logical stopcock state used by pump and release physics',
 );
 
 [
