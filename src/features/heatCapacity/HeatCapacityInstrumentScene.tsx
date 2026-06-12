@@ -600,6 +600,7 @@ const VALVE_FOCUS_BUBBLE_WIDTH_PX = 190;
 const VALVE_FOCUS_BUBBLE_HEIGHT_PX = 38;
 const VALVE_FOCUS_BUBBLE_GAP_PX = 34;
 const PUMP_VALVE_TRANSITION_MS = 420;
+const STOPCOCK_CLOSED_BASE_ROTATION_RAD = -Math.PI / 2;
 const DISABLE_RAYCAST: THREE.Object3D['raycast'] = () => undefined;
 const createHeatCapacityPointerEvents: typeof createPointerEvents = (store) => {
   const pointerEvents = createPointerEvents(store);
@@ -1701,7 +1702,7 @@ function GlassStopcock({
             <meshBasicMaterial color={scenePalette.glass.hoverHalo} transparent opacity={scenePalette.effects.glassHoverHaloOpacity} depthWrite={false} />
           </mesh>
         ) : null}
-        <mesh name="StopcockRotatingFlowChannel" position={[0, 0, 0]}>
+        <mesh name="StopcockRotatingFlowChannel" position={[0, 0, 0]} rotation={[STOPCOCK_CLOSED_BASE_ROTATION_RAD, 0, 0]}>
           <cylinderGeometry args={[0.03, 0.03, 0.24, 16]} />
           <meshStandardMaterial
             color={state === 'open' ? scenePalette.glass.flowOpen : scenePalette.glass.flowClosed}
@@ -1713,7 +1714,7 @@ function GlassStopcock({
           />
           <Edges color={state === 'open' ? scenePalette.glass.flowOpenEdge : scenePalette.glass.flowClosedEdge} />
         </mesh>
-        <group name="StopcockRodHandle" position={[0.44, 0, 0]}>
+        <group name="StopcockRodHandle" position={[0.44, 0, 0]} rotation={[STOPCOCK_CLOSED_BASE_ROTATION_RAD, 0, 0]}>
           <mesh name="StopcockRodHandleConnector" position={[-0.1, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
             <cylinderGeometry args={[0.028, 0.028, 0.24, 20]} />
             <meshPhysicalMaterial

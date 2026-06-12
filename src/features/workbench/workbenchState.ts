@@ -171,8 +171,8 @@ export const WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO = 0.48;
 export const WORKBENCH_LIVE_SPLIT_MIN_RATIO = 0.34;
 export const WORKBENCH_LIVE_SPLIT_MAX_RATIO = 0.66;
 export const WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO = 0.66;
-export const HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG = 0;
-export const HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG = 90;
+export const HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG = 0;
+export const HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG = 90;
 
 export const clampWorkbenchLiveSplitRatio = (value: unknown) => {
   const ratio = typeof value === 'number' && Number.isFinite(value)
@@ -517,8 +517,9 @@ export const normalizeHeatCapacityStopcockAngle = (value: unknown) => {
     ? value
     : HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG;
   const normalized = normalizeDegrees360(angle);
-  const openHalfRangeDeg = 45;
-  return normalized <= openHalfRangeDeg || normalized >= (360 - openHalfRangeDeg)
+  const openHalfRangeDeg = 5;
+  const distanceToOpen = Math.abs(normalized - HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
+  return distanceToOpen <= openHalfRangeDeg
     ? HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG
     : HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG;
 };

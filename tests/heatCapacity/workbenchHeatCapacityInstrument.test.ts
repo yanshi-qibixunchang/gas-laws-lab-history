@@ -1951,29 +1951,41 @@ assert.equal(suitablePump.pumpFrequency >= 0.5, true);
 assert.equal(suitablePump.pressurePlaceholder > openValvePump.pressurePlaceholder, true);
 assert.equal(suitablePump.pumpHint, '打气频率合适，可以继续观察压强变化');
 
+assert.equal(HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG, 0);
+assert.equal(HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG, 90);
 assert.equal(normalizeHeatCapacityStopcockAngle(-90), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
-assert.equal(normalizeHeatCapacityStopcockAngle(0), 0);
-assert.equal(normalizeHeatCapacityStopcockAngle(9), HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
-assert.equal(normalizeHeatCapacityStopcockAngle(44), HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
-assert.equal(normalizeHeatCapacityStopcockAngle(46), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
-assert.equal(normalizeHeatCapacityStopcockAngle(90), 90);
+assert.equal(normalizeHeatCapacityStopcockAngle(0), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(9), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(44), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(45), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(84), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(85), HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(90), HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(95), HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(96), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(134), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
 assert.equal(normalizeHeatCapacityStopcockAngle(135), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
 assert.equal(normalizeHeatCapacityStopcockAngle(180), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
 assert.equal(normalizeHeatCapacityStopcockAngle(270), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
-assert.equal(normalizeHeatCapacityStopcockAngle(315), HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
-assert.equal(normalizeHeatCapacityStopcockAngle(350), HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
-assert.equal(normalizeHeatCapacityStopcockAngle(360), 0);
-assert.equal(normalizeHeatCapacityStopcockAngle(450), 90);
+assert.equal(normalizeHeatCapacityStopcockAngle(315), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(350), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(360), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(normalizeHeatCapacityStopcockAngle(450), HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
 
 assert.equal(getHeatCapacityStopcockTargetAngle(true), HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
 assert.equal(getHeatCapacityStopcockTargetAngle(false), HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
-assert.equal(getHeatCapacityStopcockState(0), 'open');
-assert.equal(getHeatCapacityStopcockState(44), 'open');
-assert.equal(getHeatCapacityStopcockState(46), 'closed');
-assert.equal(getHeatCapacityStopcockState(90), 'closed');
+assert.equal(getHeatCapacityStopcockState(0), 'closed');
+assert.equal(getHeatCapacityStopcockState(44), 'closed');
+assert.equal(getHeatCapacityStopcockState(84), 'closed');
+assert.equal(getHeatCapacityStopcockState(85), 'open');
+assert.equal(getHeatCapacityStopcockState(90), 'open');
+assert.equal(getHeatCapacityStopcockState(95), 'open');
+assert.equal(getHeatCapacityStopcockState(96), 'closed');
+assert.equal(getHeatCapacityStopcockState(134), 'closed');
+assert.equal(getHeatCapacityStopcockState(135), 'closed');
 assert.equal(getHeatCapacityStopcockState(180), 'closed');
 assert.equal(getHeatCapacityStopcockState(270), 'closed');
-assert.equal(getHeatCapacityStopcockState(350), 'open');
+assert.equal(getHeatCapacityStopcockState(350), 'closed');
 
 assert.equal(canZeroHeatCapacityPressure({
   ...defaultFile,
@@ -2105,6 +2117,18 @@ const legacyOpenHeatFile = legacyOpenRestored.files[0];
 assert.equal(legacyOpenHeatFile.kind, 'heatCapacity');
 assert.equal(legacyOpenHeatFile.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
 assert.equal(legacyOpenHeatFile.glassPistonState, 'open');
+
+const legacyClosedFile = { ...defaultFile, stopcockAngleDeg: 90, glassPistonState: 'closed' };
+const legacyClosedRestored = decodeWorkbenchSession({
+  version: WORKBENCH_SESSION_VERSION,
+  activeFileId: defaultFile.id,
+  selectedPanel: 'preview',
+  files: [legacyClosedFile],
+});
+const legacyClosedHeatFile = legacyClosedRestored.files[0];
+assert.equal(legacyClosedHeatFile.kind, 'heatCapacity');
+assert.equal(legacyClosedHeatFile.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(legacyClosedHeatFile.glassPistonState, 'closed');
 
 const workbenchSource = readFileSync(join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx'), 'utf8');
 assert.doesNotMatch(
