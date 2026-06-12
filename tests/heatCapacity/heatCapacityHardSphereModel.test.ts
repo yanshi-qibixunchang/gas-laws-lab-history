@@ -422,6 +422,11 @@ assert.match(
 );
 assert.match(
   hardSphereLayerSource,
+  /outflowActive:\s*currentVisual\.outflowActive/,
+  'release tail should not mark new particles for exit after the physical outflow has stopped',
+);
+assert.match(
+  hardSphereLayerSource,
   /stepHeatCapacityHardSphereSimulation/,
   'hard-sphere layer should delegate directed release motion to the reusable simulation module',
 );

@@ -34,6 +34,30 @@ const stepIdle = (
   });
 };
 
+const stepWithFlow = (
+  simulation: ReturnType<typeof createHeatCapacityHardSphereSimulation>,
+  input: {
+    dtS: number;
+    targetParticleCount: number;
+    outflowActive?: boolean;
+    outflowDriftSpeed?: number;
+    exitSelectionRate?: number;
+    pumpFlowActive?: boolean;
+    pumpFlowIntensity?: number;
+  },
+) => {
+  stepHeatCapacityHardSphereSimulation(simulation, {
+    dtS: input.dtS,
+    targetParticleCount: input.targetParticleCount,
+    thermalSpeedMultiplier: 1,
+    outflowActive: input.outflowActive ?? false,
+    outflowDriftSpeed: input.outflowDriftSpeed ?? 0,
+    exitSelectionRate: input.exitSelectionRate ?? 0,
+    pumpFlowActive: input.pumpFlowActive ?? false,
+    pumpFlowIntensity: input.pumpFlowIntensity ?? 0,
+  });
+};
+
 const createVisibleSimulation = (targetParticleCount: number, seed: number) => {
   const visibleSimulation = createHeatCapacityHardSphereSimulation({
     maxParticles: 64,
@@ -61,28 +85,121 @@ const naturalSpawnSimulation = createVisibleSimulation(12, 211);
 stepIdle(naturalSpawnSimulation, 1 / 60, 24);
 const naturalSpawnVisibleCount = getHeatCapacityHardSphereVisibleParticles(naturalSpawnSimulation).length;
 assert.equal(
-  naturalSpawnVisibleCount > 12,
+  naturalSpawnVisibleCount,
+  12,
+  'natural recovery should not create hard spheres unless gas enters through the pump port',
+);
+
+const pumpEntrySimulation = createVisibleSimulation(12, 213);
+stepWithFlow(pumpEntrySimulation, {
+  dtS: 1 / 60,
+  targetParticleCount: 24,
+  pumpFlowActive: true,
+  pumpFlowIntensity: 1,
+});
+const enteringParticles = getHeatCapacityHardSphereVisibleParticles(pumpEntrySimulation)
+  .filter((particle) => particle.state === 'entering');
+assert.equal(
+  enteringParticles.length > 0,
   true,
-  'natural recovery should still refill missing hard spheres gradually',
+  'pump flow should add new hard spheres through a visible entering state',
 );
 assert.equal(
-  naturalSpawnVisibleCount < 24,
+  enteringParticles.every((particle) => (
+    Math.abs(particle.position.x - container.pumpPortPoint.x) <= particleRadius * 2.6 &&
+    Math.abs(particle.position.y - container.pumpPortPoint.y) <= particleRadius * 2.6 &&
+    Math.abs(particle.position.z - container.pumpPortPoint.z) <= particleRadius * 2.6
+  )),
   true,
-  'natural recovery should not respawn every missing hard sphere in one frame',
+  'pump-entering hard spheres should originate at the pump port instead of random bottle positions',
+);
+assert.equal(
+  enteringParticles.every((particle) => particle.velocity.x > 0),
+  true,
+  'pump-entering hard spheres should be sprayed inward from the left-side pump port',
 );
 
 const naturalTrimSimulation = createVisibleSimulation(24, 223);
 stepIdle(naturalTrimSimulation, 1 / 60, 12);
 const naturalTrimVisibleCount = getHeatCapacityHardSphereVisibleParticles(naturalTrimSimulation).length;
 assert.equal(
-  naturalTrimVisibleCount < 24,
+  naturalTrimVisibleCount,
+  24,
+  'natural recovery should not delete hard spheres unless gas leaves through the outlet',
+);
+
+const createReleaseSelectionSimulation = (seed: number) => {
+  const releaseSimulation = createVisibleSimulation(30, seed);
+  stepWithFlow(releaseSimulation, {
+    dtS: 1 / 60,
+    targetParticleCount: 12,
+    outflowActive: true,
+    outflowDriftSpeed: 1.2,
+    exitSelectionRate: 1.2,
+  });
+  return releaseSimulation;
+};
+const releaseSelectionSimulation = createReleaseSelectionSimulation(229);
+const releaseSelectionExitingCount = releaseSelectionSimulation.particles
+  .filter((particle) => particle.state === 'exiting').length;
+assert.equal(
+  releaseSelectionExitingCount > 0,
   true,
-  'natural recovery should still trim excess hard spheres gradually',
+  'active release should choose some hard spheres to leave through the outlet',
 );
 assert.equal(
-  naturalTrimVisibleCount > 12,
+  releaseSelectionExitingCount < 18,
   true,
-  'natural recovery should not hide every excess hard sphere in one frame',
+  'active release should not choose every excess hard sphere in one frame',
+);
+
+const lowPressureSelectionSimulation = createVisibleSimulation(30, 231);
+for (let step = 0; step < 10; step += 1) {
+  stepWithFlow(lowPressureSelectionSimulation, {
+    dtS: 1 / 60,
+    targetParticleCount: 12,
+    outflowActive: true,
+    outflowDriftSpeed: 0.72,
+    exitSelectionRate: 0.6,
+  });
+}
+const lowPressureExitCount = lowPressureSelectionSimulation.particles
+  .filter((particle) => particle.state === 'exiting').length;
+const highPressureSelectionSimulation = createVisibleSimulation(30, 233);
+for (let step = 0; step < 10; step += 1) {
+  stepWithFlow(highPressureSelectionSimulation, {
+    dtS: 1 / 60,
+    targetParticleCount: 12,
+    outflowActive: true,
+    outflowDriftSpeed: 1.45,
+    exitSelectionRate: 1.36,
+  });
+}
+const highPressureExitCount = highPressureSelectionSimulation.particles
+  .filter((particle) => particle.state === 'exiting').length;
+assert.equal(
+  highPressureExitCount > lowPressureExitCount,
+  true,
+  'larger pressure difference should select more exiting hard spheres over the same time span',
+);
+
+const zeroPressureOpenSimulation = createVisibleSimulation(24, 235);
+stepWithFlow(zeroPressureOpenSimulation, {
+  dtS: 1 / 60,
+  targetParticleCount: 12,
+  outflowActive: false,
+  outflowDriftSpeed: 1.45,
+  exitSelectionRate: 1.36,
+});
+assert.equal(
+  zeroPressureOpenSimulation.particles.some((particle) => particle.state === 'exiting'),
+  false,
+  'zero-pressure tail values should not select new hard spheres for exit after flow has stopped',
+);
+assert.equal(
+  getHeatCapacityHardSphereVisibleParticles(zeroPressureOpenSimulation).length,
+  24,
+  'zero-pressure return to natural motion should not compensate by hiding bottle particles',
 );
 
 const overlapSimulation = createHeatCapacityHardSphereSimulation({

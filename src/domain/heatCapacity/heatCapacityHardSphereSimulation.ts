@@ -13,6 +13,8 @@ export interface HeatCapacityHardSphereSimulation {
   particleRadius: number;
   container: HeatCapacityHardSphereContainer;
   accumulatorS: number;
+  entryAccumulator: number;
+  exitAccumulator: number;
   lastSubStepCount: number;
   seed: number;
 }
@@ -42,16 +44,30 @@ const SPAWN_ATTEMPTS = 24;
 const COLLISION_SOLVER_ITERATIONS = 2;
 const EXIT_OCCLUSION_OFFSET = 0.08;
 const OUTLET_DRIFT_ACCELERATION = 32;
-const NATURAL_RECONCILE_RATE_PER_S = 58;
-const PUMP_RECONCILE_RATE_PER_S = 228;
+const PUMP_ENTRY_BASE_RATE_PER_S = 18;
+const PUMP_ENTRY_INTENSITY_RATE_PER_S = 54;
+const EXIT_SELECTION_BASE_RATE_PER_S = 14;
+const EXIT_SELECTION_SCALE_RATE_PER_S = 54;
 
 const clampNumber = (value: number, min: number, max: number) => (
   Math.min(max, Math.max(min, value))
 );
 
-const getStepBudget = (needed: number, dtS: number, ratePerS: number) => {
-  if (needed <= 0 || dtS <= 0 || ratePerS <= 0) return 0;
-  return Math.min(needed, Math.max(1, Math.ceil(ratePerS * dtS)));
+const consumeFlowBudget = (
+  needed: number,
+  dtS: number,
+  ratePerS: number,
+  accumulator: number,
+) => {
+  if (needed <= 0 || dtS <= 0 || ratePerS <= 0) {
+    return { budget: 0, accumulator: 0 };
+  }
+  const available = Math.max(0, accumulator) + ratePerS * dtS;
+  const budget = Math.min(needed, Math.floor(available));
+  return {
+    budget,
+    accumulator: clampNumber(available - budget, 0, 0.999999),
+  };
 };
 
 const seededNoise = (value: number) => {
@@ -210,44 +226,45 @@ const spawnParticle = (
   container: HeatCapacityHardSphereContainer,
   radius: number,
   seed: number,
-  fromPumpPort: boolean,
+  mode: 'initial' | 'pump',
 ) => {
   for (let attempt = 0; attempt < SPAWN_ATTEMPTS; attempt += 1) {
     const attemptSeed = seed + particle.id * 101 + attempt * 17;
     const sampledPosition = sampleHeatCapacityHardSpherePosition(container, radius, attemptSeed);
-    const position = fromPumpPort
+    const position = mode === 'pump'
       ? {
           x: clampNumber(
-            container.pumpPortPoint.x + (seededNoise(attemptSeed + 1.1) - 0.5) * radius * 2.4,
+            container.pumpPortPoint.x + (seededNoise(attemptSeed + 1.1) - 0.5) * radius * 1.8,
             -container.halfSize.x + radius,
             container.halfSize.x - radius,
           ),
           y: clampNumber(
-            container.pumpPortPoint.y + (sampledPosition.y - container.pumpPortPoint.y) * 0.18,
+            container.pumpPortPoint.y + (seededNoise(attemptSeed + 2.1) - 0.5) * radius * 1.8,
             -container.halfSize.y + radius,
             container.halfSize.y - radius,
           ),
           z: clampNumber(
-            container.pumpPortPoint.z + (sampledPosition.z - container.pumpPortPoint.z) * 0.22,
+            container.pumpPortPoint.z + (seededNoise(attemptSeed + 3.1) - 0.5) * radius * 1.8,
             -container.halfSize.z + radius,
             container.halfSize.z - radius,
           ),
         }
       : sampledPosition;
     if (!isSpawnPositionFree(particles, position, radius)) continue;
+    const pumpDirection = normalizeVec3({
+      x: -container.pumpPortPoint.x + (seededNoise(attemptSeed + 4.1) - 0.5) * 0.16,
+      y: -container.pumpPortPoint.y * 0.56 + (seededNoise(attemptSeed + 5.1) - 0.5) * 0.22,
+      z: -container.pumpPortPoint.z * 0.56 + (seededNoise(attemptSeed + 6.1) - 0.5) * 0.22,
+    }, deterministicDirection(attemptSeed));
     particle.position = position;
     particle.velocity = scaleVec3(
-      fromPumpPort
-        ? normalizeVec3({
-            x: -container.pumpPortPoint.x,
-            y: (seededNoise(attemptSeed + 3.1) - 0.5) * 0.5,
-            z: -container.pumpPortPoint.z,
-          }, deterministicDirection(attemptSeed))
+      mode === 'pump'
+        ? pumpDirection
         : deterministicDirection(attemptSeed),
       BASE_PARTICLE_SPEED,
     );
     particle.outflowProgress = 0;
-    particle.state = 'inside';
+    particle.state = mode === 'pump' ? 'entering' : 'inside';
     return true;
   }
   return false;
@@ -273,10 +290,15 @@ const reconcileParticleCount = (
   const insideCount = countParticlesByState(simulation.particles, 'inside');
   const fromPumpPort = input.pumpFlowActive || input.pumpFlowIntensity > 0;
   const missingCount = targetParticleCount - visibleCount;
-  const spawnRate = fromPumpPort ? PUMP_RECONCILE_RATE_PER_S : NATURAL_RECONCILE_RATE_PER_S;
-  const spawnLimit = visibleCount === 0
-    ? Math.max(0, missingCount)
-    : getStepBudget(missingCount, reconcileDtS, spawnRate);
+  const initialFill = visibleCount === 0;
+  const spawnRate = fromPumpPort
+    ? PUMP_ENTRY_BASE_RATE_PER_S + PUMP_ENTRY_INTENSITY_RATE_PER_S * clampNumber(input.pumpFlowIntensity, 0, 1.6)
+    : 0;
+  const spawnBudgetResult = initialFill
+    ? { budget: Math.max(0, missingCount), accumulator: 0 }
+    : consumeFlowBudget(missingCount, reconcileDtS, spawnRate, simulation.entryAccumulator);
+  const spawnLimit = spawnBudgetResult.budget;
+  simulation.entryAccumulator = spawnBudgetResult.accumulator;
   let spawnedCount = 0;
 
   while (visibleCount < targetParticleCount && spawnedCount < spawnLimit) {
@@ -288,7 +310,7 @@ const reconcileParticleCount = (
       simulation.container,
       simulation.particleRadius,
       simulation.seed + visibleCount * 31 + simulation.lastSubStepCount,
-      fromPumpPort,
+      initialFill ? 'initial' : 'pump',
     );
     if (!spawned) break;
     visibleCount += 1;
@@ -298,9 +320,12 @@ const reconcileParticleCount = (
   if (visibleCount <= targetParticleCount) return;
 
   const excess = visibleCount - targetParticleCount;
-  const trimLimit = input.outflowActive
-    ? excess
-    : getStepBudget(excess, reconcileDtS, NATURAL_RECONCILE_RATE_PER_S);
+  const exitRate = input.outflowActive && input.exitSelectionRate > 0
+    ? EXIT_SELECTION_BASE_RATE_PER_S + EXIT_SELECTION_SCALE_RATE_PER_S * clampNumber(input.exitSelectionRate, 0, 1.6)
+    : 0;
+  const trimBudgetResult = consumeFlowBudget(excess, reconcileDtS, exitRate, simulation.exitAccumulator);
+  const trimLimit = trimBudgetResult.budget;
+  simulation.exitAccumulator = trimBudgetResult.accumulator;
   if (trimLimit <= 0) return;
 
   const sortedInside = simulation.particles
@@ -406,6 +431,30 @@ const stepParticle = (
     particle.position.y += particle.velocity.y * dtS * speedScale;
     particle.position.z += particle.velocity.z * dtS * speedScale;
     resolveHeatCapacityHardSphereWallBounce(simulation.container, particle, simulation.particleRadius);
+  } else if (particle.state === 'entering') {
+    const entryDirection = normalizeVec3(particle.velocity, {
+      x: -simulation.container.pumpPortPoint.x,
+      y: -simulation.container.pumpPortPoint.y * 0.56,
+      z: -simulation.container.pumpPortPoint.z * 0.56,
+    });
+    const entrySpeed = 1.35 + clampNumber(input.pumpFlowIntensity, 0, 1.6) * 0.62;
+    particle.velocity = scaleVec3(entryDirection, BASE_PARTICLE_SPEED);
+    particle.position.x += entryDirection.x * dtS * entrySpeed;
+    particle.position.y += entryDirection.y * dtS * entrySpeed;
+    particle.position.z += entryDirection.z * dtS * entrySpeed;
+    particle.outflowProgress = clampNumber(particle.outflowProgress + dtS * (2.4 + entrySpeed), 0, 1);
+    resolveHeatCapacityHardSphereWallBounce(simulation.container, particle, simulation.particleRadius);
+    const entryDistance = Math.sqrt(distanceSq(particle.position, simulation.container.pumpPortPoint));
+    if (particle.outflowProgress >= 0.28 || entryDistance >= simulation.particleRadius * 4.5) {
+      particle.state = 'inside';
+      particle.outflowProgress = 0;
+      const thermalMix = deterministicDirection(simulation.seed + particle.id * 19);
+      particle.velocity = scaleVec3(normalizeVec3({
+        x: entryDirection.x * 0.55 + thermalMix.x * 0.45,
+        y: entryDirection.y * 0.55 + thermalMix.y * 0.45,
+        z: entryDirection.z * 0.55 + thermalMix.z * 0.45,
+      }, thermalMix), BASE_PARTICLE_SPEED);
+    }
   } else if (particle.state === 'exiting') {
     const exitIntensity = Math.max(0.86, clampNumber(input.outflowDriftSpeed + input.exitSelectionRate, 0, 3) * 0.5);
     const exitDirection = getOutletAttractionDirection(simulation.container, particle.position);
@@ -437,6 +486,8 @@ export const createHeatCapacityHardSphereSimulation = (
   particleRadius: options.particleRadius,
   container: options.container,
   accumulatorS: 0,
+  entryAccumulator: 0,
+  exitAccumulator: 0,
   lastSubStepCount: 0,
   seed: options.seed,
 });

@@ -4,7 +4,7 @@ export interface HeatCapacityHardSphereVec3 {
   z: number;
 }
 
-export type HeatCapacityHardSphereParticleState = 'inside' | 'exiting' | 'hidden';
+export type HeatCapacityHardSphereParticleState = 'inside' | 'entering' | 'exiting' | 'hidden';
 
 export interface HeatCapacityHardSphereParticle {
   id: number;

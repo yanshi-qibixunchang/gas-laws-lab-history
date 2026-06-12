@@ -181,6 +181,8 @@ const hideParticlePool = (
     mesh.setColorAt(particle.id, hiddenParticleColor);
   }
   simulation.accumulatorS = 0;
+  simulation.entryAccumulator = 0;
+  simulation.exitAccumulator = 0;
   simulation.lastSubStepCount = 0;
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
@@ -314,7 +316,6 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     const outflowTailFactor = RELEASE_VISUAL_TAIL_S > 0
       ? clampNumber(outflowTailRemainingRef.current / RELEASE_VISUAL_TAIL_S, 0, 1)
       : 0;
-    const outflowVisuallyActive = currentVisual.outflowActive || outflowTailFactor > 0;
     const effectiveOutflowDriftSpeed = currentVisual.outflowActive
       ? currentVisual.outflowDriftSpeed
       : outflowDriftSpeedRef.current * outflowTailFactor;
@@ -327,7 +328,7 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
       dtS: safeDelta,
       targetParticleCount: currentVisual.targetParticleCount,
       thermalSpeedMultiplier: currentVisual.thermalSpeedMultiplier,
-      outflowActive: outflowVisuallyActive,
+      outflowActive: currentVisual.outflowActive,
       outflowDriftSpeed: effectiveOutflowDriftSpeed,
       exitSelectionRate: effectiveExitSelectionRate,
       pumpFlowActive: pumpPortActive,
