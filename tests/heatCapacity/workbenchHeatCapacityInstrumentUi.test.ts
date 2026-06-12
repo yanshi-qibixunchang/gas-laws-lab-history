@@ -654,6 +654,21 @@ assert.match(sceneSource, /<InstrumentSceneContent[\s\S]*hardSphereViewEnabled=\
 assert.match(sceneSource, /<HeatCapacityUltraInstrumentModel[\s\S]*hardSphereViewEnabled=\{hardSphereViewActive\}/, 'Ultra GLB model should receive the disabled effective hard-sphere visibility state');
 assert.match(hardSphereLayerSource, /instancedMesh/, 'hard-sphere particles should use an instanced mesh');
 assert.match(hardSphereLayerSource, /HEAT_CAPACITY_HARD_SPHERE_MAX_PARTICLES/, 'hard-sphere layer should cap the particle pool');
+assert.match(
+  hardSphereLayerSource,
+  /createHeatCapacityHardSphereSimulation/,
+  'hard-sphere layer should create the reusable pure simulation state',
+);
+assert.match(
+  hardSphereLayerSource,
+  /stepHeatCapacityHardSphereSimulation/,
+  'hard-sphere layer should step particles through the pure simulation module',
+);
+assert.doesNotMatch(
+  hardSphereLayerSource,
+  /const resolveWallBounce =/,
+  'hard-sphere layer should no longer own wall collision logic',
+);
 assert.match(hardSphereLayerSource, /new THREE\.SphereGeometry\(1,\s*16,\s*16\)/, 'hard-sphere particles should pass a smooth explicit sphere geometry to the instanced mesh');
 assert.match(hardSphereLayerSource, /new THREE\.MeshStandardMaterial/, 'hard-sphere particles should use a lit material with visible spherical shading');
 assert.match(hardSphereLayerSource, /vertexColors:\s*true/, 'hard-sphere particles should support speed-dependent per-instance colors');

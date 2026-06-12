@@ -223,8 +223,8 @@ const reconcileParticleCount = (
   const sortedInside = simulation.particles
     .filter((particle) => particle.state === 'inside')
     .sort((left, right) => (
-      distanceSq(left.position, options.container.outletPoint) -
-      distanceSq(right.position, options.container.outletPoint)
+      distanceSq(left.position, simulation.container.outletPoint) -
+      distanceSq(right.position, simulation.container.outletPoint)
     ));
   for (const particle of sortedInside.slice(0, Math.min(excess, insideCount))) {
     if (input.outflowActive) {
