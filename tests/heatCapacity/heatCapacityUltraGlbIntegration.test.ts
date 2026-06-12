@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 const scenePath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityInstrumentScene.tsx');
 const ultraModelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityUltraInstrumentModel.tsx');
+const hardSphereLayerPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityHardSphereLayer.tsx');
 const runtimeGlbPath = join(process.cwd(), 'public', 'models', 'heat-capacity', 'fd-ncd-c-ultra.glb');
 const workbenchPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx');
 
@@ -12,7 +13,9 @@ assert.equal(existsSync(ultraModelPath), true, 'Ultra GLB adapter component shou
 
 const sceneSource = readFileSync(scenePath, 'utf8');
 const ultraModelSource = readFileSync(ultraModelPath, 'utf8');
+const hardSphereLayerSource = readFileSync(hardSphereLayerPath, 'utf8');
 const workbenchSource = readFileSync(workbenchPath, 'utf8');
+const runtimeGlbBinary = readFileSync(runtimeGlbPath);
 
 assert.match(
   sceneSource,
@@ -53,13 +56,40 @@ assert.doesNotMatch(
   'HSL_PressureGauge_NeedlePivot',
   'HSL_Stopcock_OpenPath_Glow',
   'HSL_Stopcock_ClosedBlocker_Mark',
+  'glass_bottle_inner_air',
 ].forEach((requiredToken) => {
   assert.match(
-    ultraModelSource,
+    requiredToken === 'glass_bottle_inner_air' ? runtimeGlbBinary.toString('utf8') : ultraModelSource,
     new RegExp(requiredToken.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
     `Ultra GLB display adapter should bind ${requiredToken}`,
   );
 });
+
+assert.match(
+  sceneSource,
+  /const hardSphereViewActive = props\.hardSphereViewEnabled;/,
+  'Ultra GLB should be able to display the hard-sphere visualization instead of forcing it off by performance tier',
+);
+assert.match(
+  ultraModelSource,
+  /<HeatCapacityHardSphereLayer[\s\S]*containerProfile="ultra-cylinder"[\s\S]*staticMotionOnly=\{true\}/,
+  'Breakpoint 1 should mount Ultra hard spheres in the GLB cylinder profile while keeping only static motion and collisions',
+);
+assert.match(
+  hardSphereLayerSource,
+  /const ULTRA_HARD_SPHERE_CYLINDER_CENTER = new THREE\.Vector3\(-1\.399999976158142,\s*0\.7625,\s*0\);[\s\S]*const ULTRA_HARD_SPHERE_CYLINDER_RADIUS = 0\.48500001430511475;[\s\S]*const ULTRA_HARD_SPHERE_CYLINDER_HALF_HEIGHT = 0\.6325;/,
+  'Ultra cylinder particles should use the measured glass_bottle_inner_air GLB center, radius, and scaled half-height',
+);
+assert.match(
+  hardSphereLayerSource,
+  /const ULTRA_HARD_SPHERE_PARTICLE_RADIUS = PARTICLE_RADIUS \* 0\.75;[\s\S]*particleRadius: ULTRA_HARD_SPHERE_PARTICLE_RADIUS[\s\S]*particleCountScale: 0\.75/,
+  'Ultra cylinder particles should render and collide at three quarters of the current radius and count',
+);
+assert.match(
+  hardSphereLayerSource,
+  /staticMotionOnly[\s\S]*outflowActive:\s*false[\s\S]*releasePhase:\s*'none'[\s\S]*pumpFlowActive:\s*false/,
+  'Breakpoint 1 should keep Ultra hard spheres independent from pump and release flow inputs',
+);
 
 assert.match(
   ultraModelSource,

@@ -266,12 +266,17 @@ assert.doesNotMatch(
 assert.match(
   hardSphereToggleMountSection,
   /enabled=\{hardSphereViewActive\}/,
-  'hard-sphere visualization toggle should show as off when the active tier disables the particle layer',
+  'hard-sphere visualization toggle should show the effective particle-layer state',
 );
 assert.match(
   hardSphereToggleMountSection,
-  /disabled=\{props\.hardSphereViewLocked \|\| hardSphereViewUnavailable\}/,
-  'hard-sphere visualization toggle should be disabled by the Free Mode parameter lock or the Ultra GLB tier',
+  /disabled=\{props\.hardSphereViewLocked\}/,
+  'hard-sphere visualization toggle should be disabled only by the Free Mode parameter lock',
+);
+assert.doesNotMatch(
+  hardSphereToggleMountSection,
+  /hardSphereViewUnavailable/,
+  'Ultra GLB should not disable the hard-sphere visualization toggle now that it has its own cylinder container',
 );
 assert.match(
   hardSphereLayerSource,
@@ -662,15 +667,20 @@ assert.match(hardSphereToggleSource, /data-heat-capacity-hard-sphere-toggle="tru
 assert.match(hardSphereToggleSource, /descriptionId\?:\s*string/, 'hard-sphere toggle should accept a tooltip description id for keyboard focus');
 assert.match(hardSphereToggleSource, /title=\{disabled \? undefined : enabled \? copy\.tooltipOn : copy\.tooltipOff\}/, 'disabled hard-sphere toggle should not expose the normal teaching tooltip');
 assert.match(sceneSource, /data-heat-capacity-hard-sphere-tooltip="true"/, 'hard-sphere explanation should have a stable tooltip marker');
-assert.match(sceneSource, /const hardSphereViewUnavailable = props\.performanceMode === 'ultra'/, 'Ultra GLB tier should mark the hard-sphere teaching layer unavailable');
-assert.match(sceneSource, /const hardSphereViewActive = props\.hardSphereViewEnabled && !hardSphereViewUnavailable/, 'Ultra GLB tier should ignore saved hard-sphere enabled state while preserving it for other tiers');
-assert.match(sceneSource, /studio-heat-hard-sphere-tooltip-anchor[\s\S]*title=\{hardSphereViewUnavailable \? undefined : `\$\{hardSphereNoteCopy\.title\}/, 'hard-sphere explanation should be available from the toggle hover anchor only when the tier supports it');
-assert.match(sceneSource, /\{hardSphereTooltipId \? \([\s\S]*data-heat-capacity-hard-sphere-tooltip="true"[\s\S]*\) : null\}/, 'Ultra GLB disabled toggle should not show an extra hover explanation panel');
+assert.doesNotMatch(sceneSource, /const hardSphereViewUnavailable = props\.performanceMode === 'ultra'/, 'Ultra GLB tier should no longer disable the hard-sphere teaching layer');
+assert.match(sceneSource, /const hardSphereViewActive = props\.hardSphereViewEnabled;/, 'Ultra GLB tier should preserve the saved hard-sphere enabled state');
+assert.match(sceneSource, /const hardSphereTooltipId = 'heat-capacity-hard-sphere-tooltip';/, 'hard-sphere explanation should remain available from the toggle hover anchor in Ultra');
+assert.match(sceneSource, /studio-heat-hard-sphere-tooltip-anchor[\s\S]*title=\{`\$\{hardSphereNoteCopy\.title\}/, 'hard-sphere explanation title should not be removed for Ultra');
+assert.match(sceneSource, /\{hardSphereTooltipId \? \([\s\S]*data-heat-capacity-hard-sphere-tooltip="true"[\s\S]*\) : null\}/, 'hard-sphere explanation panel should remain available for all supported model tiers');
 assert.doesNotMatch(sceneSource, /data-heat-capacity-hard-sphere-note="true"/, 'hard-sphere explanation should not remain as a persistent note panel');
 assert.match(sceneSource, /sceneShouldAnimate = hardSphereViewActive/, 'enabled particle visualization should keep the demand-rendered scene animating only when the selected tier supports it');
-assert.match(sceneSource, /data-heat-capacity-hard-sphere-view=\{hardSphereViewActive \? 'true' : undefined\}/, 'Ultra GLB tier should not expose the particle-view scene marker while particles are disabled');
+assert.match(sceneSource, /data-heat-capacity-hard-sphere-view=\{hardSphereViewActive \? 'true' : undefined\}/, 'Ultra GLB tier should expose the particle-view scene marker when particles are enabled');
 assert.match(sceneSource, /<InstrumentSceneContent[\s\S]*hardSphereViewEnabled=\{hardSphereViewActive\}/, 'procedural fallback should receive the effective hard-sphere visibility state');
-assert.match(sceneSource, /<HeatCapacityUltraInstrumentModel[\s\S]*hardSphereViewEnabled=\{hardSphereViewActive\}/, 'Ultra GLB model should receive the disabled effective hard-sphere visibility state');
+assert.match(sceneSource, /<HeatCapacityUltraInstrumentModel[\s\S]*hardSphereViewEnabled=\{hardSphereViewActive\}/, 'Ultra GLB model should receive the enabled effective hard-sphere visibility state');
+assert.match(hardSphereLayerSource, /containerProfile\?: 'skeleton-box' \| 'ultra-cylinder';/, 'hard-sphere layer should expose separate container profiles for the procedural skeleton and Ultra GLB');
+assert.match(hardSphereLayerSource, /createHeatCapacityHardSphereCylinderContainer/, 'hard-sphere layer should create an Ultra cylinder container instead of reusing the skeleton box');
+assert.match(hardSphereLayerSource, /particleRadius: PARTICLE_RADIUS,[\s\S]*particleCountScale: 1,[\s\S]*'ultra-cylinder':[\s\S]*particleRadius: ULTRA_HARD_SPHERE_PARTICLE_RADIUS,[\s\S]*particleCountScale: 0\.75/, 'Ultra GLB should scale only its cylinder particle radius and count without changing the skeleton profile');
+assert.match(hardSphereLayerSource, /resolveProfileParticleCount\(currentVisual\.targetParticleCount,\s*hardSphereProfile\)/, 'hard-sphere layer should apply the active profile particle-count scale before stepping the simulation');
 assert.match(hardSphereLayerSource, /instancedMesh/, 'hard-sphere particles should use an instanced mesh');
 assert.match(hardSphereLayerSource, /HEAT_CAPACITY_HARD_SPHERE_MAX_PARTICLES/, 'hard-sphere layer should cap the particle pool');
 assert.match(
@@ -714,7 +724,7 @@ assert.match(hardSphereLayerSource, /depthTest:\s*true/, 'hard-sphere particles 
 assert.doesNotMatch(hardSphereLayerSource, /depthTest:\s*false/, 'hard-sphere particles should not render as an always-on-top overlay');
 assert.doesNotMatch(hardSphereLayerSource, /particle\.size|size:\s*0\.88/, 'hard-sphere particles should keep a uniform visual size');
 assert.doesNotMatch(hardSphereLayerSource, /exitScale/, 'hard-sphere particles should not shrink during release; visible particles should keep a constant radius until hidden');
-assert.match(hardSphereLayerSource, /dummyObject\.scale\.setScalar\(visible \? PARTICLE_RADIUS : 0\)/, 'hard-sphere particles should render at a constant radius whenever visible');
+assert.match(hardSphereLayerSource, /dummyObject\.scale\.setScalar\(visible \? hardSphereProfile\.particleRadius : 0\)/, 'hard-sphere particles should render at the active profile radius whenever visible');
 assert.doesNotMatch(hardSphereLayerSource, /renderOrder=\{8\}/, 'hard-sphere particles should not use a high render order that covers the instrument');
 assert.match(sceneSource, /name="VesselGlassCube"[\s\S]{0,320}depthWrite=\{false\}/, 'transparent glass bottle should not hide internal hard-sphere particles through depth writes');
 assert.match(sceneSource, /name="BottleMouthNeck"[\s\S]{0,320}depthWrite=\{false\}/, 'transparent bottle neck should not hide internal hard-sphere particles through depth writes');
@@ -739,7 +749,7 @@ assert.doesNotMatch(hardSphereLayerSource, /previousTargetParticleCount\s*-\s*cu
 assert.match(sceneSource, /hardSphereVisualResetKey:\s*number/, 'heat-capacity scene should accept a hard-sphere visual reset key');
 assert.match(workbenchSource, /hardSphereVisualResetKey=\{heatCapacityFocusResetKey\}/, 'Free Mode reset should propagate the existing focus reset key to the hard-sphere particle pool');
 assert.match(hardSphereLayerSource, /visualResetKey\?:\s*number/, 'hard-sphere layer should accept reset events from the workbench');
-assert.match(hardSphereLayerSource, /\},\s*\[enabled,\s*particleMultiplier,\s*visualResetKey\]\)/, 'hard-sphere layer should rebuild the particle pool when reset events or performance particle presets change');
+assert.match(hardSphereLayerSource, /\},\s*\[enabled,\s*hardSphereProfile,\s*particleMultiplier,\s*visualResetKey\]\)/, 'hard-sphere layer should rebuild the particle pool when reset events, container profiles, or performance particle presets change');
 assert.match(workbenchSource, /FREE_RELEASE_RESPONSE_DELAY_S[\s\S]*FREE_RELEASE_MAIN_DURATION_S/, 'Workbench should use the existing free-mode release timing constants for particle visualization');
 assert.match(workbenchSource, /const heatCapacityHardSphereReleaseTimeline/, 'Workbench should build a unified hard-sphere release timeline for the scene');
 assert.match(workbenchSource, /phase:\s*'post-release-exchange'/, 'Workbench should map long-open stopcock state to post-release exchange for hard-sphere visualization');

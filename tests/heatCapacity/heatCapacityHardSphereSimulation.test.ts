@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   createHeatCapacityHardSphereBoxContainer,
+  createHeatCapacityHardSphereCylinderContainer,
   isHeatCapacityHardSphereInsideContainer,
 } from '../../src/domain/heatCapacity/heatCapacityHardSphereGeometry.ts';
 import {
@@ -86,6 +87,33 @@ stepIdle(simulation, 0.2, 64);
 
 assert.equal(simulation.lastSubStepCount <= 5, true);
 assert.equal(getHeatCapacityHardSphereVisibleParticles(simulation).length, 64);
+
+const cylinderContainer = createHeatCapacityHardSphereCylinderContainer({
+  radius: 0.485,
+  halfHeight: 0.6325,
+  outletPoint: { x: 0, y: 0.6157, z: 0 },
+  outletDirection: { x: 0, y: 1, z: 0 },
+  pumpPortPoint: { x: 0.32, y: -0.08, z: 0.33 },
+});
+const cylinderSimulation = createHeatCapacityHardSphereSimulation({
+  maxParticles: 96,
+  particleRadius,
+  container: cylinderContainer,
+  seed: 511,
+});
+stepIdle(cylinderSimulation, 0.2, 48);
+for (let step = 0; step < 24; step += 1) {
+  stepIdle(cylinderSimulation, 1 / 60, 48);
+}
+const cylinderVisibleParticles = getHeatCapacityHardSphereVisibleParticles(cylinderSimulation);
+assert.equal(cylinderVisibleParticles.length, 48);
+assert.equal(
+  cylinderVisibleParticles.every((particle) => (
+    isHeatCapacityHardSphereInsideContainer(cylinderContainer, particle.position, particleRadius)
+  )),
+  true,
+  'cylinder hard-sphere simulation should keep static particles inside the cylindrical air wall',
+);
 
 const naturalSpawnSimulation = createVisibleSimulation(12, 211);
 stepIdle(naturalSpawnSimulation, 1 / 60, 24);

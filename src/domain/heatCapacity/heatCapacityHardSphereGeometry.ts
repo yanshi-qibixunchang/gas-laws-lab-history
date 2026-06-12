@@ -25,7 +25,18 @@ export interface HeatCapacityHardSphereBoxContainer {
   pumpPortPoint: HeatCapacityHardSphereVec3;
 }
 
-export type HeatCapacityHardSphereContainer = HeatCapacityHardSphereBoxContainer;
+export interface HeatCapacityHardSphereCylinderContainer {
+  kind: 'cylinder';
+  radius: number;
+  halfHeight: number;
+  outletPoint: HeatCapacityHardSphereVec3;
+  outletDirection: HeatCapacityHardSphereVec3;
+  pumpPortPoint: HeatCapacityHardSphereVec3;
+}
+
+export type HeatCapacityHardSphereContainer =
+  | HeatCapacityHardSphereBoxContainer
+  | HeatCapacityHardSphereCylinderContainer;
 
 const cloneVec3 = (value: HeatCapacityHardSphereVec3): HeatCapacityHardSphereVec3 => ({
   x: value.x,
@@ -72,11 +83,34 @@ export const createHeatCapacityHardSphereBoxContainer = (input: {
   pumpPortPoint: cloneVec3(input.pumpPortPoint),
 });
 
+export const createHeatCapacityHardSphereCylinderContainer = (input: {
+  radius: number;
+  halfHeight: number;
+  outletPoint: HeatCapacityHardSphereVec3;
+  outletDirection: HeatCapacityHardSphereVec3;
+  pumpPortPoint: HeatCapacityHardSphereVec3;
+}): HeatCapacityHardSphereCylinderContainer => ({
+  kind: 'cylinder',
+  radius: Math.max(0, finiteOrZero(input.radius)),
+  halfHeight: Math.max(0, finiteOrZero(input.halfHeight)),
+  outletPoint: cloneVec3(input.outletPoint),
+  outletDirection: normalizeVec3(input.outletDirection),
+  pumpPortPoint: cloneVec3(input.pumpPortPoint),
+});
+
 export const isHeatCapacityHardSphereInsideContainer = (
   container: HeatCapacityHardSphereContainer,
   position: HeatCapacityHardSphereVec3,
   radius: number,
 ) => {
+  if (container.kind === 'cylinder') {
+    const usableRadius = Math.max(0, container.radius - radius);
+    const usableY = Math.max(0, container.halfHeight - radius);
+    return (
+      Math.hypot(position.x, position.z) <= usableRadius + 0.000001 &&
+      Math.abs(position.y) <= usableY + 0.000001
+    );
+  }
   const usableX = Math.max(0, container.halfSize.x - radius);
   const usableY = Math.max(0, container.halfSize.y - radius);
   const usableZ = Math.max(0, container.halfSize.z - radius);
@@ -92,6 +126,17 @@ export const sampleHeatCapacityHardSpherePosition = (
   radius: number,
   seed: number,
 ): HeatCapacityHardSphereVec3 => {
+  if (container.kind === 'cylinder') {
+    const usableRadius = Math.max(0, container.radius - radius);
+    const usableY = Math.max(0, container.halfHeight - radius);
+    const angle = seededNoise(seed * 19.871 + 0.41) * Math.PI * 2;
+    const radial = Math.sqrt(seededNoise(seed * 61.541 + 0.67)) * usableRadius;
+    return {
+      x: Math.cos(angle) * radial,
+      y: (seededNoise(seed * 78.233 + 0.57) * 2 - 1) * usableY,
+      z: Math.sin(angle) * radial,
+    };
+  }
   const usableX = Math.max(0, container.halfSize.x - radius);
   const usableY = Math.max(0, container.halfSize.y - radius);
   const usableZ = Math.max(0, container.halfSize.z - radius);
@@ -107,6 +152,39 @@ export const resolveHeatCapacityHardSphereWallBounce = (
   particle: HeatCapacityHardSphereParticle,
   radius: number,
 ) => {
+  if (container.kind === 'cylinder') {
+    const usableRadius = Math.max(0, container.radius - radius);
+    const usableY = Math.max(0, container.halfHeight - radius);
+    const positionY = finiteOrZero(particle.position.y);
+    particle.position.y = clampNumber(positionY, -usableY, usableY);
+    if (positionY > usableY && particle.velocity.y > 0) {
+      particle.velocity.y = -Math.abs(particle.velocity.y);
+    } else if (positionY < -usableY && particle.velocity.y < 0) {
+      particle.velocity.y = Math.abs(particle.velocity.y);
+    }
+
+    const positionX = finiteOrZero(particle.position.x);
+    const positionZ = finiteOrZero(particle.position.z);
+    const radialDistance = Math.hypot(positionX, positionZ);
+    if (radialDistance > usableRadius && radialDistance > 0.000001) {
+      const normalX = positionX / radialDistance;
+      const normalZ = positionZ / radialDistance;
+      particle.position.x = normalX * usableRadius;
+      particle.position.z = normalZ * usableRadius;
+      const radialVelocity = particle.velocity.x * normalX + particle.velocity.z * normalZ;
+      if (radialVelocity > 0) {
+        particle.velocity.x -= 2 * radialVelocity * normalX;
+        particle.velocity.z -= 2 * radialVelocity * normalZ;
+      }
+    } else if (usableRadius <= 0) {
+      particle.position.x = 0;
+      particle.position.z = 0;
+    } else {
+      particle.position.x = positionX;
+      particle.position.z = positionZ;
+    }
+    return;
+  }
   const limits = {
     x: Math.max(0, container.halfSize.x - radius),
     y: Math.max(0, container.halfSize.y - radius),

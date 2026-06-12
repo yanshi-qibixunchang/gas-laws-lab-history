@@ -139,11 +139,48 @@ const dotVec3 = (
   left.x * right.x + left.y * right.y + left.z * right.z
 );
 
+const getContainerCaptureRadius = (
+  container: HeatCapacityHardSphereContainer,
+) => {
+  if (container.kind === 'cylinder') {
+    return Math.max(container.radius, container.halfHeight) * 2;
+  }
+  return Math.max(container.halfSize.x, container.halfSize.y, container.halfSize.z) * 2;
+};
+
+const getContainerVerticalHalfExtent = (
+  container: HeatCapacityHardSphereContainer,
+) => (
+  container.kind === 'cylinder' ? container.halfHeight : container.halfSize.y
+);
+
+const getContainerHorizontalExtent = (
+  container: HeatCapacityHardSphereContainer,
+) => (
+  container.kind === 'cylinder' ? container.radius : Math.max(container.halfSize.x, container.halfSize.z)
+);
+
+const clampPositionToContainer = (
+  container: HeatCapacityHardSphereContainer,
+  position: HeatCapacityHardSphereVec3,
+  radius: number,
+): HeatCapacityHardSphereVec3 => {
+  const probeParticle: HeatCapacityHardSphereParticle = {
+    id: -1,
+    position: { ...position },
+    velocity: { x: 0, y: 0, z: 0 },
+    state: 'inside',
+    outflowProgress: 0,
+  };
+  resolveHeatCapacityHardSphereWallBounce(container, probeParticle, radius);
+  return probeParticle.position;
+};
+
 const getOutletProximity = (
   container: HeatCapacityHardSphereContainer,
   position: HeatCapacityHardSphereVec3,
 ) => {
-  const captureRadius = Math.max(container.halfSize.x, container.halfSize.y, container.halfSize.z) * 2;
+  const captureRadius = getContainerCaptureRadius(container);
   return clampNumber(1 - Math.sqrt(distanceSq(position, container.outletPoint)) / captureRadius, 0, 1);
 };
 
@@ -168,8 +205,10 @@ const getOutletPriority = (
   particle: HeatCapacityHardSphereParticle,
   container: HeatCapacityHardSphereContainer,
 ) => {
+  const verticalHalfExtent = getContainerVerticalHalfExtent(container);
+  const horizontalExtent = getContainerHorizontalExtent(container);
   const heightFactor = clampNumber(
-    (particle.position.y + container.halfSize.y) / Math.max(container.halfSize.y * 2, 0.0001),
+    (particle.position.y + verticalHalfExtent) / Math.max(verticalHalfExtent * 2, 0.0001),
     0,
     1,
   );
@@ -177,7 +216,7 @@ const getOutletPriority = (
     particle.position.x - container.outletPoint.x,
     particle.position.z - container.outletPoint.z,
   );
-  const radialFactor = clampNumber(1 - radialDistance / Math.max(container.halfSize.x * 2, 0.0001), 0, 1);
+  const radialFactor = clampNumber(1 - radialDistance / Math.max(horizontalExtent * 2, 0.0001), 0, 1);
   const directionFactor = clampNumber(
     dotVec3(
       normalizeVec3(particle.velocity, container.outletDirection),
@@ -301,23 +340,11 @@ const spawnParticle = (
     const attemptSeed = seed + particle.id * 101 + attempt * 17;
     const sampledPosition = sampleHeatCapacityHardSpherePosition(container, radius, attemptSeed);
     const position = mode === 'pump'
-      ? {
-          x: clampNumber(
-            container.pumpPortPoint.x + (seededNoise(attemptSeed + 1.1) - 0.5) * radius * 1.8,
-            -container.halfSize.x + radius,
-            container.halfSize.x - radius,
-          ),
-          y: clampNumber(
-            container.pumpPortPoint.y + (seededNoise(attemptSeed + 2.1) - 0.5) * radius * 1.8,
-            -container.halfSize.y + radius,
-            container.halfSize.y - radius,
-          ),
-          z: clampNumber(
-            container.pumpPortPoint.z + (seededNoise(attemptSeed + 3.1) - 0.5) * radius * 1.8,
-            -container.halfSize.z + radius,
-            container.halfSize.z - radius,
-          ),
-        }
+      ? clampPositionToContainer(container, {
+          x: container.pumpPortPoint.x + (seededNoise(attemptSeed + 1.1) - 0.5) * radius * 1.8,
+          y: container.pumpPortPoint.y + (seededNoise(attemptSeed + 2.1) - 0.5) * radius * 1.8,
+          z: container.pumpPortPoint.z + (seededNoise(attemptSeed + 3.1) - 0.5) * radius * 1.8,
+        }, radius)
       : sampledPosition;
     if (!isSpawnPositionFree(particles, position, radius)) continue;
     const pumpDirection = normalizeVec3({
@@ -566,7 +593,7 @@ const stepParticle = (
     );
     const nextExitInertiaAgeS = exitInertiaAgeS + activeDtS;
     particle.exitInertiaAgeS = nextExitInertiaAgeS;
-    const occlusionY = simulation.container.halfSize.y + EXIT_OCCLUSION_OFFSET;
+    const occlusionY = getContainerVerticalHalfExtent(simulation.container) + EXIT_OCCLUSION_OFFSET;
     if (
       nextExitInertiaAgeS >= EXIT_MIN_VISIBLE_INERTIA_S &&
       (particle.outflowProgress >= 1 || particle.position.y > occlusionY)

@@ -2635,9 +2635,8 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const hoverTooltip = getHeatCapacityHoverTooltip(hoveredControl, props.pumpValveOpen, sceneCopy);
   const hardSphereNoteCopy = heatCapacityHardSphereNoteCopies[props.language] ?? heatCapacityHardSphereNoteCopies['zh-CN'];
   const hardSphereNoteText = getHardSphereNoteText(props, props.language);
-  const hardSphereViewUnavailable = props.performanceMode === 'ultra';
-  const hardSphereViewActive = props.hardSphereViewEnabled && !hardSphereViewUnavailable;
-  const hardSphereTooltipId = hardSphereViewUnavailable ? undefined : 'heat-capacity-hard-sphere-tooltip';
+  const hardSphereViewActive = props.hardSphereViewEnabled;
+  const hardSphereTooltipId = 'heat-capacity-hard-sphere-tooltip';
   const sceneShouldAnimate = hardSphereViewActive ||
     props.pumpBulbState !== 'idle' ||
     props.demoFocusPulseActive ||
@@ -2813,12 +2812,12 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           <div
             className="studio-heat-hard-sphere-tooltip-anchor"
             data-preview-overlay-item="heat-hard-sphere-toggle"
-            title={hardSphereViewUnavailable ? undefined : `${hardSphereNoteCopy.title}: ${hardSphereNoteText} ${hardSphereNoteCopy.footnote}`}
+            title={`${hardSphereNoteCopy.title}: ${hardSphereNoteText} ${hardSphereNoteCopy.footnote}`}
           >
             <HeatCapacityHardSphereToggle
               enabled={hardSphereViewActive}
               onToggle={props.onHardSphereViewToggle}
-              disabled={props.hardSphereViewLocked || hardSphereViewUnavailable}
+              disabled={props.hardSphereViewLocked}
               language={props.language}
               descriptionId={hardSphereTooltipId}
             />
