@@ -322,6 +322,7 @@ assert.equal(poweredOff.targetParticleCount > 0, true, 'powered-off display shou
 
 const modelSource = readFileSync(join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityHardSphereModel.ts'), 'utf8');
 const hardSphereLayerSource = readFileSync(join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityHardSphereLayer.tsx'), 'utf8');
+const hardSphereSimulationSource = readFileSync(join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityHardSphereSimulation.ts'), 'utf8');
 assert.doesNotMatch(modelSource, /HARD_SPHERE_GAMMA|5\s*\/\s*3/, 'visual model must not import or encode the old hard-sphere gas theory');
 assert.doesNotMatch(modelSource, /getSpeedBandColor/, 'hard-sphere color should no longer be derived from particle speed');
 assert.doesNotMatch(
@@ -366,13 +367,18 @@ assert.match(
 );
 assert.match(
   hardSphereLayerSource,
-  /flowStrength \* safeDelta \* 9\.6/,
-  'confirmed release should apply a stronger directed pull toward the bottle mouth',
+  /stepHeatCapacityHardSphereSimulation/,
+  'hard-sphere layer should delegate directed release motion to the reusable simulation module',
 );
 assert.match(
-  hardSphereLayerSource,
-  /safeDelta \* \(1\.9 \+ exitIntensity \* 1\.25\)/,
-  'exiting particles should move out quickly once they are captured by the bottle-mouth flow',
+  hardSphereSimulationSource,
+  /outflowDriftSpeed[\s\S]*exitSelectionRate/,
+  'hard-sphere simulation should keep pressure-driven drift and exit selection as explicit inputs',
+);
+assert.match(
+  hardSphereSimulationSource,
+  /particle\.state = 'exiting'/,
+  'hard-sphere simulation should move selected particles through an exiting state before hiding them',
 );
 
 assert.equal(resolveHeatCapacityHardSphereTemperatureColor('dark', 0), '#2563eb', 'dark low-temperature color should use the selected C-option cold blue');
@@ -384,5 +390,4 @@ assert.notEqual(
   resolveHeatCapacityHardSphereTemperatureColor('light', 0.5),
   'dark and light scenes should use separate temperature color ramps',
 );
-
 
