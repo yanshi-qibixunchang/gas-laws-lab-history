@@ -1067,7 +1067,6 @@ const releaseCoolingHardSphereVisual = getHeatCapacityHardSphereVisualState({
   pumpValveOpen: false,
   pumpBulbState: 'idle',
   releaseFlowActive: true,
-  releaseProgress: 0.5,
 });
 assert.equal(
   releaseCoolingHardSphereVisual.outflowDriftSpeed > 0,
@@ -1075,9 +1074,9 @@ assert.equal(
   'confirmed release should create directed release drift instead of changing random thermal speed',
 );
 assert.equal(
-  releaseCoolingHardSphereVisual.exitSelectionRate > 0,
-  true,
-  'confirmed release should select particles for release instead of changing random thermal speed',
+  Object.prototype.hasOwnProperty.call(releaseCoolingHardSphereVisual, 'exitSelectionRate'),
+  false,
+  'confirmed release should leave particle-count selection to the release timeline',
 );
 assert.equal(
   releaseCoolingHardSphereVisual.thermalSpeedMultiplier < poweredOffHardSphereVisual.thermalSpeedMultiplier,

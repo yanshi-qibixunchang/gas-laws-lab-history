@@ -33,7 +33,6 @@ export interface HeatCapacityHardSphereSimulationStepInput {
   thermalSpeedMultiplier: number;
   outflowActive: boolean;
   outflowDriftSpeed: number;
-  exitSelectionRate: number;
   releasePhase?: HeatCapacityHardSphereReleasePhase;
   releaseExitBudget?: number;
   releaseExitSpeed?: number;
@@ -51,8 +50,6 @@ const EXIT_OCCLUSION_OFFSET = 0.08;
 const OUTLET_DRIFT_ACCELERATION = 32;
 const PUMP_ENTRY_BASE_RATE_PER_S = 18;
 const PUMP_ENTRY_INTENSITY_RATE_PER_S = 54;
-const EXIT_SELECTION_BASE_RATE_PER_S = 14;
-const EXIT_SELECTION_SCALE_RATE_PER_S = 54;
 const EXIT_INERTIA_DECAY_S = 0.72;
 const EXIT_INERTIA_MIN_FACTOR = 0.74;
 const EXIT_MIN_VISIBLE_INERTIA_S = 0.34;
@@ -232,14 +229,14 @@ const restoreFiniteParticle = (
 
 const resolveReleasePhase = (
   input: HeatCapacityHardSphereSimulationStepInput,
-) => input.releasePhase ?? (input.outflowActive ? 'main-release' : 'none');
+) => input.releasePhase ?? 'none';
 
 const resolveInputExitSpeed = (
   input: HeatCapacityHardSphereSimulationStepInput,
   releasePhase: HeatCapacityHardSphereReleasePhase,
 ) => {
   const postExchangeScale = releasePhase === 'post-release-exchange' ? 0.48 : 1;
-  const exitIntensity = Math.max(0.86, clampNumber(input.outflowDriftSpeed + input.exitSelectionRate, 0, 3) * 0.5);
+  const exitIntensity = Math.max(0.86, clampNumber(input.outflowDriftSpeed, 0, 1.6));
   const scheduledExitSpeed = Number.isFinite(input.releaseExitSpeed ?? 0) && (input.releaseExitSpeed ?? 0) > 0
     ? clampNumber(input.releaseExitSpeed ?? 0, 0.4, 8)
     : null;
@@ -422,38 +419,7 @@ const reconcileParticleCount = (
     return;
   }
 
-  if (visibleCount <= targetParticleCount) return;
-
-  const excess = visibleCount - targetParticleCount;
-  let trimLimit = 0;
-  const exitRate = input.outflowActive && input.exitSelectionRate > 0
-    ? EXIT_SELECTION_BASE_RATE_PER_S + EXIT_SELECTION_SCALE_RATE_PER_S * clampNumber(input.exitSelectionRate, 0, 1.6)
-    : 0;
-  const trimBudgetResult = consumeFlowBudget(excess, reconcileDtS, exitRate, simulation.exitAccumulator);
-  trimLimit = trimBudgetResult.budget;
-  simulation.exitAccumulator = trimBudgetResult.accumulator;
-  if (trimLimit <= 0) return;
-
-  const sortedInside = simulation.particles
-    .filter((particle) => particle.state === 'inside')
-    .sort((left, right) => (
-      input.outflowActive || timelineOutletFlow
-        ? getOutletPriority(right, simulation.container) - getOutletPriority(left, simulation.container)
-        : distanceSq(left.position, simulation.container.outletPoint) -
-          distanceSq(right.position, simulation.container.outletPoint)
-    ));
-  const selectedInside = sortedInside.slice(0, Math.min(trimLimit, insideCount));
-  for (let index = 0; index < selectedInside.length; index += 1) {
-    const particle = selectedInside[index];
-    if (!particle) continue;
-    if (input.outflowActive || timelineOutletFlow) {
-      startParticleExit(particle, input, index, selectedInside.length);
-    } else {
-      particle.state = 'hidden';
-      particle.outflowProgress = 0;
-      clearExitInertia(particle);
-    }
-  }
+  simulation.exitAccumulator = 0;
 };
 
 const resolveParticleCollisions = (

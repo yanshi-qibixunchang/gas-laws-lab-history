@@ -7,6 +7,7 @@ const autoDemoPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatC
 const hardSphereTogglePath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityHardSphereToggle.tsx');
 const hardSphereLayerPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityHardSphereLayer.tsx');
 const hardSphereModelPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityHardSphereModel.ts');
+const hardSphereSimulationPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityHardSphereSimulation.ts');
 const leftPanelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityLeftPanel.tsx');
 const processReviewPanelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityProcessReviewPanel.tsx');
 const processReviewStylePath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityProcessReviewPanel.css');
@@ -31,6 +32,7 @@ const autoDemoSource = readFileSync(autoDemoPath, 'utf8');
 const hardSphereToggleSource = readFileSync(hardSphereTogglePath, 'utf8');
 const hardSphereLayerSource = readFileSync(hardSphereLayerPath, 'utf8');
 const hardSphereModelSource = readFileSync(hardSphereModelPath, 'utf8');
+const hardSphereSimulationSource = readFileSync(hardSphereSimulationPath, 'utf8');
 const leftPanelSource = readFileSync(leftPanelPath, 'utf8');
 const processReviewPanelSource = readFileSync(processReviewPanelPath, 'utf8');
 const processReviewStyleSource = readFileSync(processReviewStylePath, 'utf8');
@@ -751,6 +753,7 @@ assert.match(sceneSource, /pressureDeltaKPa=\{props\.pressureDeltaKPa\}/, 'hard-
 assert.match(hardSphereLayerSource, /pressureDeltaKPa\?:\s*number/, 'hard-sphere particle layer should accept runtime pressure difference independent of powered instrument readouts');
 assert.match(hardSphereLayerSource, /gasAmountRatio\?:\s*number/, 'hard-sphere particle layer should accept physical gas amount for molecule count');
 assert.match(hardSphereLayerSource, /releaseFlowActive\?:\s*boolean/, 'hard-sphere particle layer should accept confirmed release flow state');
+assert.doesNotMatch(hardSphereLayerSource, /releaseProgress\?:\s*number|releaseProgress,/, 'hard-sphere particle layer should not keep the old release-progress prop after adopting release timelines');
 assert.doesNotMatch(hardSphereLayerSource, /outflowActive:\s*actualOutflow[\s\S]*releaseBurstActive === true && input\.glassStopcockOpen/, 'hard-sphere outflow must not be triggered by visual stopcock click state');
 assert.match(hardSphereLayerSource, /material\.emissiveIntensity = clampNumber\(\s*particleColors\.emissiveBase \+ visualState\.emissiveIntensity \* particleColors\.emissiveScale/, 'hard-sphere particle brightness should be theme-specific instead of sharing one dark-scene formula');
 assert.match(stateSource, /HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA/, 'workbench state should use an explicit pressure-difference threshold for stopcock release');
@@ -1600,8 +1603,10 @@ assert.doesNotMatch(workbenchSource, /hardSphereSpeedMultiplier=\{activeFile\.ha
 assert.match(hardSphereLayerSource, /thermalSpeedMultiplier:\s*kineticSpeedState\.speed,/, 'hard-sphere layer should drive random molecular motion through the kinetic speed buffer');
 assert.doesNotMatch(hardSphereLayerSource, /thermalSpeedMultiplier:\s*currentVisual\.thermalSpeedMultiplier,/, 'hard-sphere layer should not hard-cut random molecular motion directly from thermal speed');
 assert.match(hardSphereLayerSource, /outflowDriftSpeed:\s*effectiveOutflowDriftSpeed,/, 'hard-sphere layer should pass pressure-driven outflow drift separately');
-assert.match(hardSphereLayerSource, /exitSelectionRate:\s*effectiveExitSelectionRate,/, 'hard-sphere layer should pass pressure-driven exit selection separately');
+assert.doesNotMatch(hardSphereLayerSource, /exitSelectionRate|effectiveExitSelectionRate/, 'hard-sphere layer should not keep legacy pressure-driven exit selection after adopting release budgets');
 assert.doesNotMatch(hardSphereLayerSource, /currentVisual\.outflowIntensity/, 'hard-sphere layer should stop consuming the legacy combined outflow intensity');
+assert.doesNotMatch(hardSphereModelSource, /outflowIntensity|exitSelectionRate|releaseProgress\?:/, 'hard-sphere visual model should expose only the current drift and timeline inputs');
+assert.doesNotMatch(hardSphereSimulationSource, /EXIT_SELECTION|exitSelectionRate/, 'hard-sphere simulation should not select release particles from the old pressure-rate path');
 assert.doesNotMatch(hardSphereLayerSource, /currentVisual\.speedMultiplier\s*\*\s*\(0\.82\s*\+\s*\(1\s*-\s*currentVisual\.stability\)\s*\*\s*0\.42\)/, 'hard-sphere layer should not re-mix stability into random thermal speed');
 assert.doesNotMatch(workbenchSource, /setHeatCapacityHardSphereMultiplier/, 'Workbench should not keep a direct small-ball multiplier updater after the right sidebar sliders are removed');
 assert.doesNotMatch(styleSource, /studio-heat-visual-slider/, 'right Current Parameters sidebar should no longer expose hard-sphere particle or speed range sliders');

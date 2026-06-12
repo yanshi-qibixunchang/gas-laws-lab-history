@@ -28,7 +28,6 @@ const stepIdle = (
     thermalSpeedMultiplier: 1,
     outflowActive: false,
     outflowDriftSpeed: 0,
-    exitSelectionRate: 0,
     pumpFlowActive: false,
     pumpFlowIntensity: 0,
   });
@@ -42,7 +41,6 @@ const stepWithFlow = (
     thermalSpeedMultiplier?: number;
     outflowActive?: boolean;
     outflowDriftSpeed?: number;
-    exitSelectionRate?: number;
     releasePhase?: 'none' | 'response-delay' | 'main-release' | 'partial-stopped' | 'post-release-exchange';
     releaseExitBudget?: number;
     releaseExitSpeed?: number;
@@ -57,7 +55,6 @@ const stepWithFlow = (
     thermalSpeedMultiplier: input.thermalSpeedMultiplier ?? 1,
     outflowActive: input.outflowActive ?? false,
     outflowDriftSpeed: input.outflowDriftSpeed ?? 0,
-    exitSelectionRate: input.exitSelectionRate ?? 0,
     releasePhase: input.releasePhase ?? 'none',
     releaseExitBudget: input.releaseExitBudget ?? 0,
     releaseExitSpeed: input.releaseExitSpeed ?? 0,
@@ -137,29 +134,44 @@ assert.equal(
   'natural recovery should not delete hard spheres unless gas leaves through the outlet',
 );
 
-const createReleaseSelectionSimulation = (seed: number) => {
-  const releaseSimulation = createVisibleSimulation(30, seed);
-  stepWithFlow(releaseSimulation, {
+const legacySelectionSimulation = createVisibleSimulation(30, 229);
+for (let step = 0; step < 10; step += 1) {
+  stepWithFlow(legacySelectionSimulation, {
     dtS: 1 / 60,
     targetParticleCount: 12,
     outflowActive: true,
     outflowDriftSpeed: 1.2,
-    exitSelectionRate: 1.2,
   });
-  return releaseSimulation;
-};
-const releaseSelectionSimulation = createReleaseSelectionSimulation(229);
+}
+const legacySelectionExitingCount = legacySelectionSimulation.particles
+  .filter((particle) => particle.state === 'exiting').length;
+assert.equal(
+  legacySelectionExitingCount,
+  0,
+  'pressure-only outflow must not choose hard spheres to leave without an explicit release timeline budget',
+);
+assert.equal(
+  getHeatCapacityHardSphereVisibleParticles(legacySelectionSimulation).length,
+  30,
+  'pressure-only outflow must not trim the particle pool from target-count deltas',
+);
+
+const releaseSelectionSimulation = createVisibleSimulation(30, 229);
+stepWithFlow(releaseSelectionSimulation, {
+  dtS: 1 / 60,
+  targetParticleCount: 12,
+  outflowActive: true,
+  outflowDriftSpeed: 1.2,
+  releasePhase: 'main-release',
+  releaseExitBudget: 4,
+  releaseExitSpeed: 5.15,
+});
 const releaseSelectionExitingCount = releaseSelectionSimulation.particles
   .filter((particle) => particle.state === 'exiting').length;
 assert.equal(
-  releaseSelectionExitingCount > 0,
-  true,
-  'active release should choose some hard spheres to leave through the outlet',
-);
-assert.equal(
-  releaseSelectionExitingCount < 18,
-  true,
-  'active release should not choose every excess hard sphere in one frame',
+  releaseSelectionExitingCount,
+  4,
+  'active release should choose hard spheres only from the explicit release timeline budget',
 );
 
 const budgetedMainReleaseSimulation = createVisibleSimulation(30, 230);
@@ -168,7 +180,6 @@ stepWithFlow(budgetedMainReleaseSimulation, {
   targetParticleCount: 12,
   outflowActive: true,
   outflowDriftSpeed: 1.45,
-  exitSelectionRate: 0,
   releasePhase: 'main-release',
   releaseExitBudget: 5,
 });
@@ -184,7 +195,6 @@ stepWithFlow(budgetedReleaseWithoutTargetDropSimulation, {
   targetParticleCount: 30,
   outflowActive: false,
   outflowDriftSpeed: 0,
-  exitSelectionRate: 0,
   releasePhase: 'main-release',
   releaseExitBudget: 5,
   releaseExitSpeed: 5.15,
@@ -230,7 +240,6 @@ stepWithFlow(exitInertiaSimulation, {
   thermalSpeedMultiplier: 0.68,
   outflowActive: false,
   outflowDriftSpeed: 0,
-  exitSelectionRate: 0,
   releasePhase: 'none',
   releaseExitBudget: 0,
   releaseExitSpeed: 0,
@@ -271,7 +280,6 @@ stepWithFlow(minimumProtectedReleaseSimulation, {
   targetParticleCount: 30,
   outflowActive: false,
   outflowDriftSpeed: 0,
-  exitSelectionRate: 0,
   releasePhase: 'main-release',
   releaseExitBudget: 20,
   releaseExitSpeed: 5.15,
@@ -283,43 +291,12 @@ assert.equal(
   'explicit release budgets should never select particles below the preset baseline lower bound',
 );
 
-const lowPressureSelectionSimulation = createVisibleSimulation(30, 231);
-for (let step = 0; step < 10; step += 1) {
-  stepWithFlow(lowPressureSelectionSimulation, {
-    dtS: 1 / 60,
-    targetParticleCount: 12,
-    outflowActive: true,
-    outflowDriftSpeed: 0.72,
-    exitSelectionRate: 0.6,
-  });
-}
-const lowPressureExitCount = lowPressureSelectionSimulation.particles
-  .filter((particle) => particle.state === 'exiting').length;
-const highPressureSelectionSimulation = createVisibleSimulation(30, 233);
-for (let step = 0; step < 10; step += 1) {
-  stepWithFlow(highPressureSelectionSimulation, {
-    dtS: 1 / 60,
-    targetParticleCount: 12,
-    outflowActive: true,
-    outflowDriftSpeed: 1.45,
-    exitSelectionRate: 1.36,
-  });
-}
-const highPressureExitCount = highPressureSelectionSimulation.particles
-  .filter((particle) => particle.state === 'exiting').length;
-assert.equal(
-  highPressureExitCount > lowPressureExitCount,
-  true,
-  'larger pressure difference should select more exiting hard spheres over the same time span',
-);
-
 const zeroPressureOpenSimulation = createVisibleSimulation(24, 235);
 stepWithFlow(zeroPressureOpenSimulation, {
   dtS: 1 / 60,
   targetParticleCount: 12,
   outflowActive: false,
   outflowDriftSpeed: 1.45,
-  exitSelectionRate: 1.36,
 });
 assert.equal(
   zeroPressureOpenSimulation.particles.some((particle) => particle.state === 'exiting'),
@@ -338,7 +315,6 @@ stepWithFlow(postReleaseExchangeSimulation, {
   targetParticleCount: 18,
   outflowActive: false,
   outflowDriftSpeed: 0,
-  exitSelectionRate: 0,
   releasePhase: 'post-release-exchange',
   releaseExitBudget: 2,
 });
@@ -463,7 +439,6 @@ for (let step = 0; step < 10; step += 1) {
     thermalSpeedMultiplier: 1,
     outflowActive: true,
     outflowDriftSpeed: 1.45,
-    exitSelectionRate: 0,
     pumpFlowActive: false,
     pumpFlowIntensity: 0,
   });
@@ -496,7 +471,6 @@ stepHeatCapacityHardSphereSimulation(exitingOutflowSimulation, {
   thermalSpeedMultiplier: 1,
   outflowActive: true,
   outflowDriftSpeed: 1.45,
-  exitSelectionRate: 1.36,
   pumpFlowActive: false,
   pumpFlowIntensity: 0,
 });
@@ -528,7 +502,6 @@ stepHeatCapacityHardSphereSimulation(nearOutletExitSimulation, {
   thermalSpeedMultiplier: 1,
   outflowActive: true,
   outflowDriftSpeed: 1.45,
-  exitSelectionRate: 1.36,
   releasePhase: 'main-release',
   releaseExitBudget: 0,
   pumpFlowActive: false,
@@ -618,7 +591,6 @@ stepWithFlow(mainReleaseSpeedSimulation, {
   targetParticleCount: 0,
   outflowActive: true,
   outflowDriftSpeed: 1.45,
-  exitSelectionRate: 1.36,
   releasePhase: 'main-release',
   releaseExitSpeed: 5.15,
 });
@@ -627,7 +599,6 @@ stepWithFlow(postExchangeSpeedSimulation, {
   targetParticleCount: 0,
   outflowActive: false,
   outflowDriftSpeed: 0,
-  exitSelectionRate: 0,
   releasePhase: 'post-release-exchange',
   releaseExitSpeed: 1.28,
 });

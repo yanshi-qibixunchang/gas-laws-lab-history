@@ -41,7 +41,6 @@ export interface HeatCapacityHardSphereVisualInput {
   pressureDeltaKPa?: number;
   stopcockFlowOpen?: boolean;
   releaseFlowActive?: boolean;
-  releaseProgress?: number;
   pumpFlowActive?: boolean;
   pumpFlowIntensity?: number;
 }
@@ -54,8 +53,6 @@ export interface HeatCapacityHardSphereVisualState {
   emissiveIntensity: number;
   outflowActive: boolean;
   outflowDriftSpeed: number;
-  exitSelectionRate: number;
-  outflowIntensity: number;
   stability: number;
   targetParticleCount: number;
 }
@@ -136,7 +133,6 @@ export const getHeatCapacityHardSphereVisualState = (
   let emissiveIntensity = lerpNumber(0.14, 0.34, temperatureColorFactor);
   let stability = lerpNumber(0.92, 0.5, temperatureColorFactor);
   let outflowDriftSpeed = 0;
-  let exitSelectionRate = 0;
 
   if (activePump) {
     densityMultiplier += 0.24;
@@ -157,7 +153,6 @@ export const getHeatCapacityHardSphereVisualState = (
     emissiveIntensity = 0.18;
     stability = 0.28;
     outflowDriftSpeed = clampNumber(lerpNumber(0.72, 1.45, releasePressureFactor), 0.65, 1.45);
-    exitSelectionRate = clampNumber(lerpNumber(0.68, 1.36, releasePressureFactor), 0.6, 1.36);
   } else if (phase === 'recovering') {
     densityMultiplier = clampNumber(densityMultiplier, 0.64, 1.24);
     emissiveIntensity = 0.16;
@@ -186,8 +181,6 @@ export const getHeatCapacityHardSphereVisualState = (
     emissiveIntensity,
     outflowActive: actualOutflow,
     outflowDriftSpeed,
-    exitSelectionRate,
-    outflowIntensity: outflowDriftSpeed,
     stability: clampNumber(stability, 0.25, 0.96),
     targetParticleCount,
   };

@@ -11009,7 +11009,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 ? Math.min(1, Math.max(0, 1 - teachingReleaseRemainingMs / HEAT_CAPACITY_RELEASE_BURST_DURATION_MS))
                 : 0;
               const releaseFlowActive = freeReleaseFlowActive || teachingReleaseFlowActive;
-              const releaseProgress = freeReleaseFlowActive ? freeReleaseProgress : teachingReleaseProgress;
               const stopcockFlowOpen = activeFile.heatCapacityMode === 'free'
                 ? activeFile.heatCapacityFreeStopcockFlowOpen
                 : teachingStopcockFlowOpen;
@@ -11149,7 +11148,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   pressureSignalMv={activeFile.powerOn ? activeHeatCapacityDisplay.pressureMv : null}
                   pressureReleaseBurstActive={typeof activeFile.pressureReleaseBurstUntilMs === 'number' && heatCapacitySceneNow <= activeFile.pressureReleaseBurstUntilMs}
                   releaseFlowActive={releaseFlowActive}
-                  releaseProgress={releaseProgress}
                   releaseTimeline={heatCapacityHardSphereReleaseTimeline}
                   stopcockFlowOpen={stopcockFlowOpen}
                   pumpFlowActive={pumpFlowActive}
