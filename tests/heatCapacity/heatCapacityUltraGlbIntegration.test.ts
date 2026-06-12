@@ -425,6 +425,51 @@ assert.match(
   /HSL_Stopcock_OpenPath_Glow'[\s\S]*HSL_Stopcock_ClosedBlocker_Mark'[\s\S]*const ultraStopcockConnected = stopcockOpen[\s\S]*openPathGlow\.visible = ultraStopcockConnected[\s\S]*closedBlockerMark\.visible = !ultraStopcockConnected/,
   'Ultra stopcock connected/check and disconnected/cross markers should match the shared logical stopcock state used by pump and release physics',
 );
+assert.match(
+  ultraModelSource,
+  /function UltraPumpValveEmbeddedSwitch[\s\S]*anchorNodeName\s*=\s*['"]HSL_BallValve_Body['"][\s\S]*position=\{ULTRA_PUMP_VALVE_EMBEDDED_SWITCH_OFFSET\}[\s\S]*pumpValveOpen \? ULTRA_VALVE_STATE_LAMP_OPEN_COLOR : ULTRA_VALVE_STATE_LAMP_CLOSED_COLOR/,
+  'Ultra pump valve should add a red/green embedded switch anchored on the fixed black valve body so the default camera can read open versus closed',
+);
+assert.match(
+  ultraModelSource,
+  /<UltraPumpValveEmbeddedSwitch[\s\S]*nodeMap=\{nodeMap\}[\s\S]*parentRef=\{runtimeRootRef\}[\s\S]*pumpValveOpen=\{props\.pumpValveOpen\}/,
+  'Ultra pump valve embedded switch should follow the same pumpValveOpen state used by the valve animation and physics controls',
+);
+assert.match(
+  ultraModelSource,
+  /const ULTRA_PUMP_VALVE_EMBEDDED_SWITCH_OFFSET: \[number, number, number\] = \[0\.09,\s*0\.02,\s*0\];/,
+  'Ultra pump valve embedded switch should intersect the fixed black valve body side facing the host instrument instead of sitting on the rotating red handle',
+);
+assert.match(
+  ultraModelSource,
+  /const ULTRA_PUMP_VALVE_EMBEDDED_SWITCH_ROTATION: \[number, number, number\] = \[0,\s*0,\s*-Math\.PI \/ 2\];[\s\S]*rotation=\{ULTRA_PUMP_VALVE_EMBEDDED_SWITCH_ROTATION\}/,
+  'Ultra pump valve embedded switch should rotate its round face onto the host-facing side wall of the fixed valve body',
+);
+assert.match(
+  ultraModelSource,
+  /HSL_UltraPumpValveEmbeddedSwitchRecess[\s\S]*<meshStandardMaterial[\s\S]*roughness=\{0\.46\}[\s\S]*metalness=\{0\.42\}[\s\S]*HSL_UltraPumpValveEmbeddedSwitchLens[\s\S]*<meshStandardMaterial[\s\S]*emissive=\{pumpValveOpen \? ULTRA_VALVE_STATE_LAMP_OPEN_COLOR : ULTRA_VALVE_STATE_LAMP_CLOSED_COLOR\}[\s\S]*emissiveIntensity=\{pumpValveOpen \? 1\.45 : 1\.25\}[\s\S]*HSL_UltraPumpValveEmbeddedSwitchLensHighlight/,
+  'Ultra pump valve embedded switch should read as an inset physical switch with a dark recessed socket, emissive colored lens, and lens highlight',
+);
+assert.match(
+  ultraModelSource,
+  /HSL_UltraPumpValveEmbeddedSwitchRecess[\s\S]*<cylinderGeometry args=\{\[0\.0395,\s*0\.0395,\s*0\.018,\s*32\]\}[\s\S]*HSL_UltraPumpValveEmbeddedSwitchLens[\s\S]*<cylinderGeometry args=\{\[0\.0255,\s*0\.0235,\s*0\.01,\s*36\]\}/,
+  'Ultra pump valve embedded switch should keep the inset indicator compact at about half the previous visible diameter',
+);
+assert.doesNotMatch(
+  ultraModelSource.match(/function UltraPumpValveEmbeddedSwitch[\s\S]*?function UltraNodeHalo/)?.[0] ?? '',
+  /depthTest=\{false\}/,
+  'Ultra pump valve embedded switch should respect depth testing so the fixed black valve body occludes it from the opposite side',
+);
+assert.match(
+  ultraModelSource,
+  /function UltraPumpValveEmbeddedSwitch[\s\S]*useThree\(\(\{ camera \}\) => camera\)[\s\S]*switchGroup\.getWorldPosition[\s\S]*set\(0,\s*1,\s*0\)[\s\S]*switchGroup\.visible = valveFaceNormalRef\.current\.dot\(cameraDirectionRef\.current\) > 0\.08/,
+  'Ultra pump valve embedded switch should only be visible from the host-facing side surface and disappear when viewed from behind that surface',
+);
+assert.doesNotMatch(
+  ultraModelSource.match(/function UltraPumpValveEmbeddedSwitch[\s\S]*?\n\}/)?.[0] ?? '',
+  /InletValue_Pivot|InletValue_HandleStem|InletValue_THandle/,
+  'Ultra pump valve embedded switch must not be anchored to the rotating red handle nodes',
+);
 
 [
   'NATIVE_CONTROL_SINGLE_CLICK_DELAY_MS',

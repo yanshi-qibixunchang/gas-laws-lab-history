@@ -159,6 +159,10 @@ const ULTRA_CONTROL_MOTION_INVALIDATION_MS = 940;
 const ULTRA_DOUBLE_CLICK_GUARD_MS = 220;
 const ULTRA_FOCUS_SHELL_POP_FRACTION = 0.14;
 const ULTRA_HITBOX_UNIT_SCALE = new THREE.Vector3(1, 1, 1);
+const ULTRA_PUMP_VALVE_EMBEDDED_SWITCH_OFFSET: [number, number, number] = [0.09, 0.02, 0];
+const ULTRA_PUMP_VALVE_EMBEDDED_SWITCH_ROTATION: [number, number, number] = [0, 0, -Math.PI / 2];
+const ULTRA_VALVE_STATE_LAMP_OPEN_COLOR = '#22c55e';
+const ULTRA_VALVE_STATE_LAMP_CLOSED_COLOR = '#ef4444';
 const DISABLE_ULTRA_RAYCAST = () => undefined;
 const ULTRA_CONTROL_HITBOXES: Array<{
   control: UltraPointerControl;
@@ -1531,6 +1535,130 @@ const getUltraVisualTargetMode = (
   return null;
 };
 
+function UltraPumpValveEmbeddedSwitch({
+  nodeMap,
+  parentRef,
+  pumpValveOpen,
+}: {
+  nodeMap: Map<string, THREE.Object3D>;
+  parentRef: React.RefObject<THREE.Group | null>;
+  pumpValveOpen: boolean;
+}) {
+  const camera = useThree(({ camera }) => camera);
+  const groupRef = useRef<THREE.Group | null>(null);
+  const switchGroupRef = useRef<THREE.Group | null>(null);
+  const parentInverseMatrixRef = useRef(new THREE.Matrix4());
+  const localMatrixRef = useRef(new THREE.Matrix4());
+  const anchorPositionRef = useRef(new THREE.Vector3());
+  const anchorQuaternionRef = useRef(new THREE.Quaternion());
+  const anchorScaleRef = useRef(new THREE.Vector3());
+  const switchWorldPositionRef = useRef(new THREE.Vector3());
+  const switchWorldQuaternionRef = useRef(new THREE.Quaternion());
+  const valveFaceNormalRef = useRef(new THREE.Vector3());
+  const cameraDirectionRef = useRef(new THREE.Vector3());
+  const anchorNodeName = 'HSL_BallValve_Body';
+  const anchor = nodeMap.get(anchorNodeName);
+
+  useFrame(() => {
+    const group = groupRef.current;
+    const switchGroup = switchGroupRef.current;
+    const parent = parentRef.current;
+    if (!group || !switchGroup || !parent || !anchor) return;
+    parent.updateMatrixWorld(true);
+    anchor.updateMatrixWorld(true);
+    parentInverseMatrixRef.current.copy(parent.matrixWorld).invert();
+    localMatrixRef.current.copy(anchor.matrixWorld);
+    localMatrixRef.current.decompose(
+      anchorPositionRef.current,
+      anchorQuaternionRef.current,
+      anchorScaleRef.current,
+    );
+    localMatrixRef.current.compose(anchorPositionRef.current, anchorQuaternionRef.current, ULTRA_HITBOX_UNIT_SCALE);
+    group.matrix.multiplyMatrices(parentInverseMatrixRef.current, localMatrixRef.current);
+    group.updateMatrixWorld(true);
+    switchGroup.getWorldPosition(switchWorldPositionRef.current);
+    switchGroup.getWorldQuaternion(switchWorldQuaternionRef.current);
+    valveFaceNormalRef.current.set(0, 1, 0).applyQuaternion(switchWorldQuaternionRef.current).normalize();
+    cameraDirectionRef.current.copy(camera.position).sub(switchWorldPositionRef.current).normalize();
+    switchGroup.visible = valveFaceNormalRef.current.dot(cameraDirectionRef.current) > 0.08;
+    group.matrixWorldNeedsUpdate = true;
+  });
+
+  if (!anchor) return null;
+
+  return (
+    <group name="HSL_UltraPumpValveEmbeddedSwitchAnchor" ref={groupRef} matrixAutoUpdate={false}>
+      <group
+        name="HSL_UltraPumpValveEmbeddedSwitch"
+        ref={switchGroupRef}
+        position={ULTRA_PUMP_VALVE_EMBEDDED_SWITCH_OFFSET}
+        rotation={ULTRA_PUMP_VALVE_EMBEDDED_SWITCH_ROTATION}
+      >
+        <mesh name="HSL_UltraPumpValveEmbeddedSwitchRecess" raycast={DISABLE_ULTRA_RAYCAST} renderOrder={31}>
+          <cylinderGeometry args={[0.0395, 0.0395, 0.018, 32]} />
+          <meshStandardMaterial
+            color="#05070a"
+            roughness={0.46}
+            metalness={0.42}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+        <mesh name="HSL_UltraPumpValveEmbeddedSwitchBezel" position={[0, 0.008, 0]} raycast={DISABLE_ULTRA_RAYCAST} renderOrder={32}>
+          <cylinderGeometry args={[0.0335, 0.0355, 0.008, 32]} />
+          <meshStandardMaterial
+            color="#111827"
+            roughness={0.32}
+            metalness={0.62}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+        <mesh name="HSL_UltraPumpValveEmbeddedSwitchLens" position={[0, 0.014, 0]} raycast={DISABLE_ULTRA_RAYCAST} renderOrder={33}>
+          <cylinderGeometry args={[0.0255, 0.0235, 0.01, 36]} />
+          <meshStandardMaterial
+            color={pumpValveOpen ? ULTRA_VALVE_STATE_LAMP_OPEN_COLOR : ULTRA_VALVE_STATE_LAMP_CLOSED_COLOR}
+            emissive={pumpValveOpen ? ULTRA_VALVE_STATE_LAMP_OPEN_COLOR : ULTRA_VALVE_STATE_LAMP_CLOSED_COLOR}
+            emissiveIntensity={pumpValveOpen ? 1.45 : 1.25}
+            roughness={0.18}
+            metalness={0.04}
+            transparent
+            opacity={0.94}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+        <mesh
+          name="HSL_UltraPumpValveEmbeddedSwitchLensHighlight"
+          position={[0.009, 0.021, -0.009]}
+          raycast={DISABLE_ULTRA_RAYCAST}
+          renderOrder={34}
+        >
+          <sphereGeometry args={[0.0055, 14, 8]} />
+          <meshStandardMaterial
+            color="#f8fafc"
+            emissive="#ffffff"
+            emissiveIntensity={0.45}
+            roughness={0.08}
+            metalness={0}
+            transparent
+            opacity={0.74}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+        <pointLight
+          name="HSL_UltraPumpValveEmbeddedSwitchGlow"
+          color={pumpValveOpen ? ULTRA_VALVE_STATE_LAMP_OPEN_COLOR : ULTRA_VALVE_STATE_LAMP_CLOSED_COLOR}
+          intensity={pumpValveOpen ? 0.22 : 0.18}
+          distance={0.32}
+          decay={2}
+        />
+      </group>
+    </group>
+  );
+}
+
 function UltraNodeHalo({
   target,
   mode,
@@ -2441,6 +2569,11 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
         sceneTheme={props.sceneTheme}
         hovered={props.hoveredControl === 'powerSwitch'}
         focused={props.demoFocusPulseActive && props.demoFocusControlId === 'powerSwitch'}
+      />
+      <UltraPumpValveEmbeddedSwitch
+        nodeMap={nodeMap}
+        parentRef={runtimeRootRef}
+        pumpValveOpen={props.pumpValveOpen}
       />
       {ultraVisualTargetModes.map(({ target, mode }) => (
         mode ? (
