@@ -72,8 +72,13 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /<HeatCapacityHardSphereLayer[\s\S]*containerProfile="ultra-cylinder"[\s\S]*motionMode="full"/,
-  'Breakpoint 3 should mount Ultra hard spheres in the GLB cylinder profile with pump and release flow enabled',
+  /<HeatCapacityHardSphereLayer[\s\S]*containerProfile="ultra-cylinder"/,
+  'Ultra GLB should mount hard spheres in the measured cylinder profile',
+);
+assert.doesNotMatch(
+  ultraModelSource,
+  /motionMode=/,
+  'Ultra GLB should not pass the retired hard-sphere breakpoint motion mode',
 );
 assert.match(
   hardSphereLayerSource,
@@ -87,13 +92,18 @@ assert.match(
 );
 assert.match(
   hardSphereLayerSource,
-  /const pumpMotionEnabled = motionMode !== 'static';[\s\S]*const releaseMotionEnabled = motionMode === 'full';[\s\S]*pumpFlowActive: pumpMotionEnabled \? pumpFlowActive : false[\s\S]*releaseFlowActive: releaseMotionEnabled \? releaseFlowActive : false/,
-  'Breakpoint 3 should keep Ultra pump inputs active while release inputs remain gated by full motion mode',
+  /stopcockFlowOpen,[\s\S]*pumpFlowActive,[\s\S]*pumpFlowIntensity,[\s\S]*releaseFlowActive,/,
+  'Hard-sphere visual inputs should use the current full pump and release flow path directly',
 );
 assert.match(
   hardSphereLayerSource,
-  /pumpFlowActive: pumpPortActive[\s\S]*releasePhase: releaseMotionEnabled \? currentReleaseTimeline\.phase : 'none'/,
-  'Breakpoint 3 simulation steps should keep pump entry and release phase controlled by the active motion mode',
+  /pumpFlowActive: pumpPortActive[\s\S]*releasePhase: currentReleaseTimeline\.phase/,
+  'Hard-sphere simulation steps should keep pump entry and release phase connected without the retired motion gate',
+);
+assert.doesNotMatch(
+  hardSphereLayerSource,
+  /motionMode|pump-only|staticMotionOnly|pumpMotionEnabled|releaseMotionEnabled/,
+  'Hard-sphere layer should not retain retired breakpoint-only motion gates',
 );
 
 assert.match(

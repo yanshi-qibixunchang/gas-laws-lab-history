@@ -2458,7 +2458,6 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       <HeatCapacityHardSphereLayer
         enabled={props.hardSphereViewEnabled}
         containerProfile="ultra-cylinder"
-        motionMode="full"
         powerOn={props.powerOn}
         temperatureMv={props.temperatureSignalMv}
         pressureMv={props.pressureSignalMv}

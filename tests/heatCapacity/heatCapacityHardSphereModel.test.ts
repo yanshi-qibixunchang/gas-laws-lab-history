@@ -473,8 +473,8 @@ assert.match(
 );
 assert.match(
   hardSphereLayerSource,
-  /outflowActive:\s*releaseMotionEnabled \? currentVisual\.outflowActive : false/,
-  'release tail should not mark new particles for exit after the physical outflow has stopped or when release motion is disabled',
+  /outflowActive:\s*currentVisual\.outflowActive/,
+  'release tail should not mark new particles for exit after the physical outflow has stopped',
 );
 assert.match(
   hardSphereLayerSource,
