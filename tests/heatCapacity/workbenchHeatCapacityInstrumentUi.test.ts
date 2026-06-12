@@ -1556,6 +1556,11 @@ assert.match(workbenchSource, /hardSphereParticleMultiplier=\{heatCapacityHardSp
 assert.match(workbenchSource, /hardSphereSpeedMultiplier=\{heatCapacityHardSpherePerformancePreset\.speedMultiplier\}/, 'Heat Capacity scene should receive speed multiplier from the performance preset');
 assert.doesNotMatch(workbenchSource, /hardSphereParticleMultiplier=\{activeFile\.hardSphereParticleMultiplier\}/, 'Heat Capacity scene should no longer read particle multiplier from the saved file slider field');
 assert.doesNotMatch(workbenchSource, /hardSphereSpeedMultiplier=\{activeFile\.hardSphereSpeedMultiplier\}/, 'Heat Capacity scene should no longer read speed multiplier from the saved file slider field');
+assert.match(hardSphereLayerSource, /thermalSpeedMultiplier:\s*currentVisual\.thermalSpeedMultiplier,/, 'hard-sphere layer should drive random molecular motion directly from thermal speed');
+assert.match(hardSphereLayerSource, /outflowDriftSpeed:\s*effectiveOutflowDriftSpeed,/, 'hard-sphere layer should pass pressure-driven outflow drift separately');
+assert.match(hardSphereLayerSource, /exitSelectionRate:\s*effectiveExitSelectionRate,/, 'hard-sphere layer should pass pressure-driven exit selection separately');
+assert.doesNotMatch(hardSphereLayerSource, /currentVisual\.outflowIntensity/, 'hard-sphere layer should stop consuming the legacy combined outflow intensity');
+assert.doesNotMatch(hardSphereLayerSource, /currentVisual\.speedMultiplier\s*\*\s*\(0\.82\s*\+\s*\(1\s*-\s*currentVisual\.stability\)\s*\*\s*0\.42\)/, 'hard-sphere layer should not re-mix stability into random thermal speed');
 assert.doesNotMatch(workbenchSource, /setHeatCapacityHardSphereMultiplier/, 'Workbench should not keep a direct small-ball multiplier updater after the right sidebar sliders are removed');
 assert.doesNotMatch(styleSource, /studio-heat-visual-slider/, 'right Current Parameters sidebar should no longer expose hard-sphere particle or speed range sliders');
 assert.doesNotMatch(workbenchSource, /hardSphereParticleMultiplier:\s*'粒子数量倍率'|hardSphereSpeedMultiplier:\s*'粒子速度倍率'|Particle multiplier|Speed multiplier/, 'right sidebar copy should not keep direct particle-count or speed multiplier labels');

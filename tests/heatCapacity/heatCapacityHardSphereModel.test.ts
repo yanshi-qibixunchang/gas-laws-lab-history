@@ -410,20 +410,15 @@ assert.doesNotMatch(
   /motion\.velocity\.addScaledVector\(OUTLET_DIRECTION/,
   'release drift should be aimed toward the mouth/stopper target, not only along the global outlet axis',
 );
-assert.match(
+assert.doesNotMatch(
   hardSphereLayerSource,
-  /const RELEASE_EXIT_RATE_PER_S = 504;/,
-  'release should select exiting particles more aggressively so the outflow ratio is visually higher',
+  /RELEASE_EXIT_RATE_PER_S|RELEASE_REPLENISH_RATE_PER_S/,
+  'hard-sphere layer should not keep legacy release constants after the model exposes drift and exit rates',
 );
 assert.match(
   hardSphereLayerSource,
   /const RELEASE_VISUAL_TAIL_S = 0\.2;/,
   'release animation should keep a visual tail so the visible release duration is roughly doubled',
-);
-assert.match(
-  hardSphereLayerSource,
-  /RELEASE_REPLENISH_RATE_PER_S/,
-  'release should be able to replenish particles while venting when the inside count falls below the target count',
 );
 assert.match(
   hardSphereLayerSource,

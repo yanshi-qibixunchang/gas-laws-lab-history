@@ -49,8 +49,6 @@ const BOTTLE_INNER_HALF_SIZE = new THREE.Vector3(0.73, 0.73, 0.73);
 const PARTICLE_RADIUS = 0.048;
 const OUTLET_APPROACH_POINT = new THREE.Vector3(0, BOTTLE_INNER_HALF_SIZE.y - PARTICLE_RADIUS * 0.35, 0);
 const OUTLET_OCCLUSION_Y = BOTTLE_INNER_HALF_SIZE.y + 0.08;
-const RELEASE_EXIT_RATE_PER_S = 504;
-const RELEASE_REPLENISH_RATE_PER_S = 240;
 const RELEASE_VISUAL_TAIL_S = 0.2;
 const HARD_SPHERE_SIMULATION_SEED = 179;
 const dummyObject = new THREE.Object3D();
@@ -186,7 +184,8 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const visualStateRef = useRef<HeatCapacityHardSphereVisualState | null>(null);
   const outflowTailRemainingRef = useRef(0);
-  const outflowIntensityRef = useRef(0);
+  const outflowDriftSpeedRef = useRef(0);
+  const exitSelectionRateRef = useRef(0);
   const simulationRef = useRef<HeatCapacityHardSphereSimulation>(createSimulation());
   const particleGeometry = useMemo(() => new THREE.SphereGeometry(1, 16, 16), []);
   const particleColors = useMemo(() => createParticleColors(sceneTheme), [sceneTheme]);
@@ -268,7 +267,8 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     const safeDelta = Math.min(delta, 0.04);
     if (currentVisual.outflowActive) {
       outflowTailRemainingRef.current = RELEASE_VISUAL_TAIL_S;
-      outflowIntensityRef.current = currentVisual.outflowIntensity;
+      outflowDriftSpeedRef.current = currentVisual.outflowDriftSpeed;
+      exitSelectionRateRef.current = currentVisual.exitSelectionRate;
     } else if (outflowTailRemainingRef.current > 0) {
       outflowTailRemainingRef.current = Math.max(0, outflowTailRemainingRef.current - safeDelta);
     }
@@ -276,21 +276,21 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
       ? clampNumber(outflowTailRemainingRef.current / RELEASE_VISUAL_TAIL_S, 0, 1)
       : 0;
     const outflowVisuallyActive = currentVisual.outflowActive || outflowTailFactor > 0;
-    const effectiveOutflowIntensity = currentVisual.outflowActive
-      ? currentVisual.outflowIntensity
-      : outflowIntensityRef.current * outflowTailFactor;
+    const effectiveOutflowDriftSpeed = currentVisual.outflowActive
+      ? currentVisual.outflowDriftSpeed
+      : outflowDriftSpeedRef.current * outflowTailFactor;
+    const effectiveExitSelectionRate = currentVisual.outflowActive
+      ? currentVisual.exitSelectionRate
+      : exitSelectionRateRef.current * outflowTailFactor;
     const pumpPortActive = pumpFlowActive || (pumpBulbState === 'compressing' && pumpValveOpen);
-    const thermalStepMultiplier = currentVisual.speedMultiplier * (0.82 + (1 - currentVisual.stability) * 0.42);
-    const releaseSelectionRate = effectiveOutflowIntensity * (RELEASE_EXIT_RATE_PER_S / 504);
-    const releaseDriftSpeed = effectiveOutflowIntensity * (RELEASE_REPLENISH_RATE_PER_S / 240);
 
     stepHeatCapacityHardSphereSimulation(simulationRef.current, {
       dtS: safeDelta,
       targetParticleCount: currentVisual.targetParticleCount,
-      thermalSpeedMultiplier: thermalStepMultiplier,
+      thermalSpeedMultiplier: currentVisual.thermalSpeedMultiplier,
       outflowActive: outflowVisuallyActive,
-      outflowDriftSpeed: releaseDriftSpeed,
-      exitSelectionRate: releaseSelectionRate,
+      outflowDriftSpeed: effectiveOutflowDriftSpeed,
+      exitSelectionRate: effectiveExitSelectionRate,
       pumpFlowActive: pumpPortActive,
       pumpFlowIntensity,
     });
