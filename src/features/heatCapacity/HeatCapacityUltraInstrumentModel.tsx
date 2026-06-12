@@ -2269,8 +2269,10 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     });
     const openPathGlow = nodeMap.get('HSL_Stopcock_OpenPath_Glow');
     const closedBlockerMark = nodeMap.get('HSL_Stopcock_ClosedBlocker_Mark');
-    if (openPathGlow) openPathGlow.visible = stopcockOpen;
-    if (closedBlockerMark) closedBlockerMark.visible = !stopcockOpen;
+    // The Ultra GLB plug artwork is authored opposite to the shared stopcock angle contract.
+    const ultraStopcockConnected = !stopcockOpen;
+    if (openPathGlow) openPathGlow.visible = ultraStopcockConnected;
+    if (closedBlockerMark) closedBlockerMark.visible = !ultraStopcockConnected;
     invalidate();
   }, [invalidate, nodeMap, props.powerOn, stopcockOpen]);
 

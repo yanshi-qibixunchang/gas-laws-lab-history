@@ -16,8 +16,8 @@ assert.match(
 );
 assert.match(
   source,
-  /definition\.id === 'hardSphereViewEnabled' \? false : activeHeatCapacityFreeParameterLocked/,
-  'Free Mode should keep only the visualization checkbox editable after the experiment group has started',
+  /definition\.id === 'hardSphereViewEnabled'[\s\S]*\? settingsPerformanceMode === 'ultra'[\s\S]*: activeHeatCapacityFreeParameterLocked/,
+  'Free Mode should keep the visualization checkbox independent from experiment-data locks, while disabling it for Ultra GLB mode',
 );
 assert.match(
   source,
@@ -76,5 +76,3 @@ assert.match(
 );
 
 console.log('workbenchRunningParamsLock tests passed');
-
-

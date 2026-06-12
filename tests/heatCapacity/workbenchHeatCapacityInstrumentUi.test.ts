@@ -1621,6 +1621,7 @@ assert.match(workbenchSource, /data-heat-capacity-free-parameter-panel="true"/, 
 assert.match(workbenchSource, /id:\s*'leakageEnabled'[\s\S]*data-heat-capacity-basic-checkbox=\{definition\.id\}/, 'Free Mode parameter panel should expose leakage checkbox');
 assert.match(workbenchSource, /id:\s*'instrumentNoiseEnabled'[\s\S]*data-heat-capacity-basic-checkbox=\{definition\.id\}/, 'Free Mode parameter panel should expose instrument-noise checkbox');
 assert.match(workbenchSource, /id:\s*'hardSphereViewEnabled'[\s\S]*data-heat-capacity-basic-checkbox=\{definition\.id\}/, 'Free Mode parameter panel should expose hard-sphere visualization checkbox');
+assert.match(workbenchSource, /definition\.id === 'hardSphereViewEnabled'[\s\S]*\? settingsPerformanceMode === 'ultra'[\s\S]*: activeHeatCapacityFreeParameterLocked/, 'Ultra GLB mode should disable the Free Mode molecule visualization checkbox just like the main scene toggle');
 assert.match(workbenchSource, /renderHeatCapacityParameterSymbol[\s\S]*<sub key=\{index\}>\{part\.sub\}<\/sub>/, 'Free Mode parameter symbols should render true subscript nodes');
 assert.match(workbenchSource, /parts:\s*\['P',\s*\{\s*sub:\s*'0'\s*\}\]/, 'Free Mode basic parameter list should include P subscript 0');
 assert.match(workbenchSource, /parts:\s*\['G',\s*\{\s*sub:\s*'gw'\s*\}\]/, 'Free Mode basic parameter list should include G subscript gw');

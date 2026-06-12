@@ -363,8 +363,8 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /HSL_Stopcock_OpenPath_Glow'[\s\S]*HSL_Stopcock_ClosedBlocker_Mark'[\s\S]*openPathGlow\.visible = stopcockOpen[\s\S]*closedBlockerMark\.visible = !stopcockOpen/,
-  'Ultra stopcock open/check and closed/cross markers should be mutually exclusive and tied to the actual stopcock state',
+  /HSL_Stopcock_OpenPath_Glow'[\s\S]*HSL_Stopcock_ClosedBlocker_Mark'[\s\S]*const ultraStopcockConnected = !stopcockOpen[\s\S]*openPathGlow\.visible = ultraStopcockConnected[\s\S]*closedBlockerMark\.visible = !ultraStopcockConnected/,
+  'Ultra stopcock connected/check and disconnected/cross markers should be mutually exclusive and match the GLB-authored plug orientation',
 );
 
 [

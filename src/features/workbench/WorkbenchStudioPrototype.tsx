@@ -9517,7 +9517,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
           renderHeatCapacityFreeCheckboxRow(
             definition,
             checkboxValue(definition.id),
-            definition.id === 'hardSphereViewEnabled' ? false : activeHeatCapacityFreeParameterLocked,
+            definition.id === 'hardSphereViewEnabled'
+              ? settingsPerformanceMode === 'ultra'
+              : activeHeatCapacityFreeParameterLocked,
           )
         ))}
       </>
