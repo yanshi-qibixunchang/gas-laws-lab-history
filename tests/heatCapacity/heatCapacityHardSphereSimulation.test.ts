@@ -122,3 +122,84 @@ assert.equal(
   true,
   'stable simulation should not leave visibly overlapping molecules',
 );
+
+const distanceToOutlet = (
+  particle: typeof stableParticles[number],
+) => Math.hypot(
+  particle.position.x - container.outletPoint.x,
+  particle.position.y - container.outletPoint.y,
+  particle.position.z - container.outletPoint.z,
+);
+
+const radialDistanceToOutlet = (
+  particle: typeof stableParticles[number],
+) => Math.hypot(
+  particle.position.x - container.outletPoint.x,
+  particle.position.z - container.outletPoint.z,
+);
+
+const driftingOutflowSimulation = createHeatCapacityHardSphereSimulation({
+  maxParticles: 1,
+  particleRadius,
+  container,
+  seed: 101,
+});
+const driftingParticle = driftingOutflowSimulation.particles[0];
+assert.ok(driftingParticle);
+driftingOutflowSimulation.particles[0] = {
+  ...driftingParticle,
+  position: { x: 0.62, y: -0.42, z: 0.18 },
+  velocity: { x: 0.54, y: -0.2, z: 0 },
+  state: 'inside',
+  outflowProgress: 0,
+};
+const beforeDriftDistance = distanceToOutlet(driftingOutflowSimulation.particles[0]);
+for (let step = 0; step < 10; step += 1) {
+  stepHeatCapacityHardSphereSimulation(driftingOutflowSimulation, {
+    dtS: 1 / 60,
+    targetParticleCount: 1,
+    thermalSpeedMultiplier: 1,
+    outflowActive: true,
+    outflowDriftSpeed: 1.45,
+    exitSelectionRate: 0,
+    pumpFlowActive: false,
+    pumpFlowIntensity: 0,
+  });
+}
+assert.equal(
+  distanceToOutlet(driftingOutflowSimulation.particles[0]) < beforeDriftDistance,
+  true,
+  'active release drift should pull inside particles toward the bottle outlet',
+);
+
+const exitingOutflowSimulation = createHeatCapacityHardSphereSimulation({
+  maxParticles: 1,
+  particleRadius,
+  container,
+  seed: 103,
+});
+const exitingParticle = exitingOutflowSimulation.particles[0];
+assert.ok(exitingParticle);
+exitingOutflowSimulation.particles[0] = {
+  ...exitingParticle,
+  position: { x: 0.54, y: 0.12, z: -0.24 },
+  velocity: { x: 0, y: 0.54, z: 0 },
+  state: 'exiting',
+  outflowProgress: 0.12,
+};
+const beforeExitRadialDistance = radialDistanceToOutlet(exitingOutflowSimulation.particles[0]);
+stepHeatCapacityHardSphereSimulation(exitingOutflowSimulation, {
+  dtS: 1 / 30,
+  targetParticleCount: 0,
+  thermalSpeedMultiplier: 1,
+  outflowActive: true,
+  outflowDriftSpeed: 1.45,
+  exitSelectionRate: 1.36,
+  pumpFlowActive: false,
+  pumpFlowIntensity: 0,
+});
+assert.equal(
+  radialDistanceToOutlet(exitingOutflowSimulation.particles[0]) < beforeExitRadialDistance,
+  true,
+  'exiting particles should converge toward the outlet instead of moving only along the global up axis',
+);

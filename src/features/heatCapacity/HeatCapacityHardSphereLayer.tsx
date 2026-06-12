@@ -48,8 +48,8 @@ interface HeatCapacityHardSphereLayerProps {
 const BOTTLE_INNER_HALF_SIZE = new THREE.Vector3(0.73, 0.73, 0.73);
 const PARTICLE_RADIUS = 0.048;
 const OUTLET_APPROACH_POINT = new THREE.Vector3(0, BOTTLE_INNER_HALF_SIZE.y - PARTICLE_RADIUS * 0.35, 0);
-const OUTLET_OCCLUSION_Y = BOTTLE_INNER_HALF_SIZE.y + 0.08;
 const RELEASE_VISUAL_TAIL_S = 0.2;
+const HEAT_CAPACITY_HARD_SPHERE_VISUAL_SMOOTHING_RESPONSE_S = 0.46;
 const HARD_SPHERE_SIMULATION_SEED = 179;
 const dummyObject = new THREE.Object3D();
 const neutralParticleMaterialColor = new THREE.Color('#ffffff');
@@ -138,6 +138,34 @@ const createParticleColors = (sceneTheme: HeatCapacityHardSphereLayerProps['scen
   };
 };
 
+const cloneHeatCapacityHardSphereVisualState = (
+  visualState: HeatCapacityHardSphereVisualState,
+): HeatCapacityHardSphereVisualState => ({
+  ...visualState,
+});
+
+const smoothVisualValue = (
+  current: number,
+  target: number,
+  alpha: number,
+) => current + (target - current) * alpha;
+
+const smoothHeatCapacityHardSphereVisualState = (
+  current: HeatCapacityHardSphereVisualState,
+  target: HeatCapacityHardSphereVisualState,
+  dtS: number,
+): HeatCapacityHardSphereVisualState => {
+  const responseS = HEAT_CAPACITY_HARD_SPHERE_VISUAL_SMOOTHING_RESPONSE_S;
+  const alpha = responseS > 0
+    ? 1 - Math.exp(-Math.max(0, dtS) / responseS)
+    : 1;
+  return {
+    ...target,
+    temperatureColorFactor: smoothVisualValue(current.temperatureColorFactor, target.temperatureColorFactor, alpha),
+    emissiveIntensity: smoothVisualValue(current.emissiveIntensity, target.emissiveIntensity, alpha),
+  };
+};
+
 const hideParticlePool = (
   mesh: THREE.InstancedMesh | null,
   simulation: HeatCapacityHardSphereSimulation,
@@ -183,6 +211,7 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
 }) => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const visualStateRef = useRef<HeatCapacityHardSphereVisualState | null>(null);
+  const displayVisualStateRef = useRef<HeatCapacityHardSphereVisualState | null>(null);
   const outflowTailRemainingRef = useRef(0);
   const outflowDriftSpeedRef = useRef(0);
   const exitSelectionRateRef = useRef(0);
@@ -246,7 +275,11 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
 
   useEffect(() => {
     visualStateRef.current = visualState;
-    applyVisualMaterial(particleMaterial, visualState, particleColors, sceneTheme);
+    if (displayVisualStateRef.current === null) {
+      displayVisualStateRef.current = cloneHeatCapacityHardSphereVisualState(visualState);
+    }
+    const displayVisualState = displayVisualStateRef.current;
+    applyVisualMaterial(particleMaterial, displayVisualState, particleColors, sceneTheme);
   }, [particleColors, particleMaterial, sceneTheme, visualState]);
 
   useEffect(() => () => {
@@ -265,6 +298,12 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     if (!mesh || !currentVisual) return;
 
     const safeDelta = Math.min(delta, 0.04);
+    const displayVisualState = displayVisualStateRef.current === null
+      ? cloneHeatCapacityHardSphereVisualState(currentVisual)
+      : smoothHeatCapacityHardSphereVisualState(displayVisualStateRef.current, currentVisual, safeDelta);
+    displayVisualStateRef.current = displayVisualState;
+    applyVisualMaterial(particleMaterial, displayVisualState, particleColors, sceneTheme);
+
     if (currentVisual.outflowActive) {
       outflowTailRemainingRef.current = RELEASE_VISUAL_TAIL_S;
       outflowDriftSpeedRef.current = currentVisual.outflowDriftSpeed;
@@ -297,14 +336,11 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
 
     for (const particle of simulationRef.current.particles) {
       const visible = particle.state !== 'hidden';
-      const exitScale = particle.state === 'exiting'
-        ? clampNumber(1 - particle.outflowProgress * 0.72, 0, 1)
-        : 1;
       dummyObject.position.set(particle.position.x, particle.position.y, particle.position.z);
-      dummyObject.scale.setScalar(visible ? PARTICLE_RADIUS * exitScale : 0);
+      dummyObject.scale.setScalar(visible ? PARTICLE_RADIUS : 0);
       dummyObject.updateMatrix();
       mesh.setMatrixAt(particle.id, dummyObject.matrix);
-      mesh.setColorAt(particle.id, visible ? getParticleColor(currentVisual, sceneTheme) : hiddenParticleColor);
+      mesh.setColorAt(particle.id, visible ? getParticleColor(displayVisualState, sceneTheme) : hiddenParticleColor);
     }
 
     mesh.instanceMatrix.needsUpdate = true;

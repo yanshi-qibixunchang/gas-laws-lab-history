@@ -41,6 +41,7 @@ const BASE_PARTICLE_SPEED = 0.54;
 const SPAWN_ATTEMPTS = 24;
 const COLLISION_SOLVER_ITERATIONS = 2;
 const EXIT_OCCLUSION_OFFSET = 0.08;
+const OUTLET_DRIFT_ACCELERATION = 32;
 
 const clampNumber = (value: number, min: number, max: number) => (
   Math.min(max, Math.max(min, value))
@@ -98,6 +99,64 @@ const distanceSq = (
   const dy = left.y - right.y;
   const dz = left.z - right.z;
   return dx * dx + dy * dy + dz * dz;
+};
+
+const dotVec3 = (
+  left: HeatCapacityHardSphereVec3,
+  right: HeatCapacityHardSphereVec3,
+) => (
+  left.x * right.x + left.y * right.y + left.z * right.z
+);
+
+const getOutletProximity = (
+  container: HeatCapacityHardSphereContainer,
+  position: HeatCapacityHardSphereVec3,
+) => {
+  const captureRadius = Math.max(container.halfSize.x, container.halfSize.y, container.halfSize.z) * 2;
+  return clampNumber(1 - Math.sqrt(distanceSq(position, container.outletPoint)) / captureRadius, 0, 1);
+};
+
+const getOutletAttractionDirection = (
+  container: HeatCapacityHardSphereContainer,
+  position: HeatCapacityHardSphereVec3,
+) => {
+  const toOutlet = normalizeVec3({
+    x: container.outletPoint.x - position.x,
+    y: container.outletPoint.y - position.y,
+    z: container.outletPoint.z - position.z,
+  }, container.outletDirection);
+  const upwardBlend = clampNumber(getOutletProximity(container, position) * 0.52, 0.08, 0.62);
+  return normalizeVec3({
+    x: toOutlet.x + (container.outletDirection.x - toOutlet.x) * upwardBlend,
+    y: toOutlet.y + (container.outletDirection.y - toOutlet.y) * upwardBlend,
+    z: toOutlet.z + (container.outletDirection.z - toOutlet.z) * upwardBlend,
+  }, container.outletDirection);
+};
+
+const getOutletPriority = (
+  particle: HeatCapacityHardSphereParticle,
+  container: HeatCapacityHardSphereContainer,
+) => {
+  const heightFactor = clampNumber(
+    (particle.position.y + container.halfSize.y) / Math.max(container.halfSize.y * 2, 0.0001),
+    0,
+    1,
+  );
+  const radialDistance = Math.hypot(
+    particle.position.x - container.outletPoint.x,
+    particle.position.z - container.outletPoint.z,
+  );
+  const radialFactor = clampNumber(1 - radialDistance / Math.max(container.halfSize.x * 2, 0.0001), 0, 1);
+  const directionFactor = clampNumber(
+    dotVec3(
+      normalizeVec3(particle.velocity, container.outletDirection),
+      getOutletAttractionDirection(container, particle.position),
+    ),
+    0,
+    1,
+  );
+  const stableBias = seededNoise(particle.id * 17.91 + 3.7);
+  return heightFactor * 0.48 + radialFactor * 0.28 + directionFactor * 0.14 + stableBias * 0.1;
 };
 
 const countParticlesByState = (
@@ -223,8 +282,10 @@ const reconcileParticleCount = (
   const sortedInside = simulation.particles
     .filter((particle) => particle.state === 'inside')
     .sort((left, right) => (
-      distanceSq(left.position, simulation.container.outletPoint) -
-      distanceSq(right.position, simulation.container.outletPoint)
+      input.outflowActive
+        ? getOutletPriority(right, simulation.container) - getOutletPriority(left, simulation.container)
+        : distanceSq(left.position, simulation.container.outletPoint) -
+          distanceSq(right.position, simulation.container.outletPoint)
     ));
   for (const particle of sortedInside.slice(0, Math.min(excess, insideCount))) {
     if (input.outflowActive) {
@@ -305,16 +366,15 @@ const stepParticle = (
     resetVelocityMagnitude(particle, simulation.seed + particle.id);
 
     if (input.outflowActive && input.outflowDriftSpeed > 0) {
-      const toOutlet = normalizeVec3({
-        x: simulation.container.outletPoint.x - particle.position.x,
-        y: simulation.container.outletPoint.y - particle.position.y,
-        z: simulation.container.outletPoint.z - particle.position.z,
-      }, simulation.container.outletDirection);
-      const drift = input.outflowDriftSpeed * dtS * 0.72;
-      particle.velocity.x += toOutlet.x * drift;
-      particle.velocity.y += toOutlet.y * drift;
-      particle.velocity.z += toOutlet.z * drift;
-      resetVelocityMagnitude(particle, simulation.seed + particle.id + 23);
+      const outletDirection = getOutletAttractionDirection(simulation.container, particle.position);
+      const outletProximity = getOutletProximity(simulation.container, particle.position);
+      const particleBias = 0.82 + seededNoise(particle.id * 23.33 + simulation.seed) * 0.26;
+      const flowStrength = input.outflowDriftSpeed * (0.16 + outletProximity * 0.98) * particleBias;
+      const drift = flowStrength * dtS * OUTLET_DRIFT_ACCELERATION;
+      particle.velocity.x += outletDirection.x * drift;
+      particle.velocity.y += outletDirection.y * drift;
+      particle.velocity.z += outletDirection.z * drift;
+      particle.velocity = scaleVec3(normalizeVec3(particle.velocity, outletDirection), BASE_PARTICLE_SPEED);
     }
 
     const speedScale = clampNumber(input.thermalSpeedMultiplier, 0.1, 3);
@@ -323,12 +383,14 @@ const stepParticle = (
     particle.position.z += particle.velocity.z * dtS * speedScale;
     resolveHeatCapacityHardSphereWallBounce(simulation.container, particle, simulation.particleRadius);
   } else if (particle.state === 'exiting') {
-    const exitSpeed = 0.9 + clampNumber(input.outflowDriftSpeed + input.exitSelectionRate, 0, 3) * 0.45;
-    particle.velocity = scaleVec3(simulation.container.outletDirection, BASE_PARTICLE_SPEED);
-    particle.position.x += simulation.container.outletDirection.x * dtS * exitSpeed;
-    particle.position.y += simulation.container.outletDirection.y * dtS * exitSpeed;
-    particle.position.z += simulation.container.outletDirection.z * dtS * exitSpeed;
-    particle.outflowProgress = clampNumber(particle.outflowProgress + dtS * (1.8 + exitSpeed), 0, 1);
+    const exitIntensity = Math.max(0.86, clampNumber(input.outflowDriftSpeed + input.exitSelectionRate, 0, 3) * 0.5);
+    const exitDirection = getOutletAttractionDirection(simulation.container, particle.position);
+    const exitSpeed = 1.9 + exitIntensity * 1.25;
+    particle.velocity = scaleVec3(exitDirection, BASE_PARTICLE_SPEED);
+    particle.position.x += exitDirection.x * dtS * exitSpeed;
+    particle.position.y += exitDirection.y * dtS * exitSpeed;
+    particle.position.z += exitDirection.z * dtS * exitSpeed;
+    particle.outflowProgress = clampNumber(particle.outflowProgress + dtS * (2.8 + exitIntensity * 1.7), 0, 1);
     const occlusionY = simulation.container.halfSize.y + EXIT_OCCLUSION_OFFSET;
     if (particle.outflowProgress >= 1 || particle.position.y > occlusionY) {
       particle.state = 'hidden';

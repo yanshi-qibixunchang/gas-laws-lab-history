@@ -686,9 +686,16 @@ assert.match(hardSphereLayerSource, /material\.emissive\.copy\(visualTemperature
 assert.match(hardSphereLayerSource, /return scratchParticleColor\.copy\(temperatureColor\)/, 'hard-sphere instance colors should use the resolved temperature color directly');
 assert.match(hardSphereLayerSource, /setColorAt/, 'hard-sphere particles should update instance colors from their current temperature color');
 assert.match(hardSphereLayerSource, /instanceColor\.needsUpdate/, 'hard-sphere particle color changes should reach the instanced mesh');
+assert.match(hardSphereLayerSource, /HEAT_CAPACITY_HARD_SPHERE_VISUAL_SMOOTHING_RESPONSE_S/, 'hard-sphere temperature color should use a visible smoothing response instead of jumping to the target color');
+assert.match(hardSphereLayerSource, /displayVisualStateRef/, 'hard-sphere layer should keep a display visual state separate from the instantaneous target state');
+assert.match(hardSphereLayerSource, /smoothHeatCapacityHardSphereVisualState/, 'hard-sphere layer should smooth temperature-driven visual fields frame by frame');
+assert.match(hardSphereLayerSource, /applyVisualMaterial\(particleMaterial,\s*displayVisualState,/, 'hard-sphere material glow should use the smoothed display visual state');
+assert.match(hardSphereLayerSource, /getParticleColor\(displayVisualState,\s*sceneTheme\)/, 'hard-sphere instance colors should use the smoothed display visual state');
 assert.match(hardSphereLayerSource, /depthTest:\s*true/, 'hard-sphere particles should respect scene depth and not cover foreground instruments');
 assert.doesNotMatch(hardSphereLayerSource, /depthTest:\s*false/, 'hard-sphere particles should not render as an always-on-top overlay');
 assert.doesNotMatch(hardSphereLayerSource, /particle\.size|size:\s*0\.88/, 'hard-sphere particles should keep a uniform visual size');
+assert.doesNotMatch(hardSphereLayerSource, /exitScale/, 'hard-sphere particles should not shrink during release; visible particles should keep a constant radius until hidden');
+assert.match(hardSphereLayerSource, /dummyObject\.scale\.setScalar\(visible \? PARTICLE_RADIUS : 0\)/, 'hard-sphere particles should render at a constant radius whenever visible');
 assert.doesNotMatch(hardSphereLayerSource, /renderOrder=\{8\}/, 'hard-sphere particles should not use a high render order that covers the instrument');
 assert.match(sceneSource, /name="VesselGlassCube"[\s\S]{0,320}depthWrite=\{false\}/, 'transparent glass bottle should not hide internal hard-sphere particles through depth writes');
 assert.match(sceneSource, /name="BottleMouthNeck"[\s\S]{0,320}depthWrite=\{false\}/, 'transparent bottle neck should not hide internal hard-sphere particles through depth writes');

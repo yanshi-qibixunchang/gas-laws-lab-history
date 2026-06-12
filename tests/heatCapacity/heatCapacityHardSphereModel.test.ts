@@ -396,13 +396,13 @@ assert.doesNotMatch(
   'all particles should receive some outlet-directed drift during confirmed release flow',
 );
 assert.match(
-  hardSphereLayerSource,
-  /OUTLET_APPROACH_POINT/,
+  hardSphereSimulationSource,
+  /getOutletAttractionDirection/,
   'release outflow should pull particles toward the bottle mouth instead of moving every particle straight up',
 );
 assert.match(
-  hardSphereLayerSource,
-  /OUTLET_OCCLUSION_Y/,
+  hardSphereSimulationSource,
+  /EXIT_OCCLUSION_OFFSET/,
   'release particles should disappear at the stopper occlusion plane instead of visibly crossing the stopper',
 );
 assert.doesNotMatch(
