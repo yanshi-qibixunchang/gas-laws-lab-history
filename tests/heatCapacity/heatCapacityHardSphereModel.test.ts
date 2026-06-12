@@ -39,9 +39,10 @@ const pumped = getHeatCapacityHardSphereVisualState({
 assert.equal(ambient.outflowActive, false);
 assert.equal(ambient.targetParticleCount, 42, 'baseline gas amount should map to the baseline molecule count');
 assert.equal(ambient.temperatureColorFactor, 0.625, 'room-temperature hard-sphere color factor should be the neutral point of the -5 K to +3 K range');
-assert.equal(pumped.speedMultiplier > ambient.speedMultiplier + 0.9, true, 'higher U_T should visibly increase particle speed');
+assert.equal(pumped.thermalSpeedMultiplier > ambient.thermalSpeedMultiplier, true, 'higher gas temperature should visibly increase random thermal particle speed');
+assert.equal(pumped.speedMultiplier, pumped.thermalSpeedMultiplier, 'legacy speed multiplier should alias thermal speed until rendering finishes migration');
 assert.equal(pumped.temperatureColorFactor, 1, 'heated U_T should move the temperature color factor to the warm end');
-assert.equal(pumped.targetParticleCount >= 112 && pumped.targetParticleCount <= 118, true, 'active pump flow should show at least triple the previous inlet-particle emphasis');
+assert.equal(pumped.targetParticleCount, 90, 'active pump flow should not add temporary inlet-particle emphasis beyond the gas amount');
 assert.equal(pumped.targetParticleCount <= 128, true, 'visual particle pool should stay capped');
 const sealedAfterFourPumps = getHeatCapacityHardSphereVisualState({
   powerOn: true,
@@ -87,9 +88,10 @@ const warmExtension = getHeatCapacityHardSphereVisualState({
 });
 
 assert.equal(coldExtension.temperatureColorFactor, 0, 'gas 5 K below ambient should reach the cold endpoint color');
-assert.equal(coldExtension.speedMultiplier >= 0.76, true, 'cold gas should still keep enough motion for the slowest visible hard spheres');
+assert.equal(coldExtension.thermalSpeedMultiplier >= 0.76, true, 'cold gas should still keep enough random thermal motion for the slowest visible hard spheres');
 assert.equal(warmExtension.temperatureColorFactor, 1, 'gas 3 K above ambient should reach the warm endpoint color');
-assert.equal(warmExtension.speedMultiplier > 1.9, true, 'active pumping should use the faster end of the hard-sphere speed mapping');
+assert.equal(warmExtension.thermalSpeedMultiplier > ambient.thermalSpeedMultiplier, true, 'warm gas should use the faster end of the thermal hard-sphere speed mapping');
+assert.equal(warmExtension.targetParticleCount, sealedAfterFourPumps.targetParticleCount, 'same gas amount should use the same molecule count whether the pump is currently compressing or sealed');
 
 const demoTeachingPumping = getHeatCapacityHardSphereVisualState({
   powerOn: true,
@@ -109,8 +111,8 @@ const demoTeachingPumping = getHeatCapacityHardSphereVisualState({
 });
 
 assert.equal(demoTeachingPumping.outflowActive, false, 'demo pumping should not be treated as a release outflow');
-assert.equal(demoTeachingPumping.targetParticleCount > ambient.targetParticleCount, true, 'demo pumping should increase the visible molecule pool from the same shared state model');
-assert.equal(demoTeachingPumping.speedMultiplier > ambient.speedMultiplier, true, 'demo pumping should visibly accelerate the shared particle layer');
+assert.equal(demoTeachingPumping.targetParticleCount > ambient.targetParticleCount, true, 'demo pumping should increase the visible molecule pool only from the gas amount state');
+assert.equal(demoTeachingPumping.thermalSpeedMultiplier > ambient.thermalSpeedMultiplier, true, 'demo pumping should accelerate random thermal motion only through the teaching temperature signal');
 assert.equal(demoTeachingPumping.temperatureColorFactor > ambient.temperatureColorFactor, true, 'demo pumping should drive particle color from the teaching temperature signal');
 
 const sameTemperatureFast = getHeatCapacityHardSphereVisualState({
@@ -137,6 +139,11 @@ assert.equal(
   ambient.targetParticleCount,
   'pressure alone must not change molecule count when gas amount is unchanged',
 );
+assert.equal(
+  sameTemperatureFast.thermalSpeedMultiplier,
+  ambient.thermalSpeedMultiplier,
+  'pressure alone must not alter random thermal speed when temperature is unchanged',
+);
 
 const releasing = getHeatCapacityHardSphereVisualState({
   powerOn: true,
@@ -156,8 +163,9 @@ const releasing = getHeatCapacityHardSphereVisualState({
 });
 
 assert.equal(releasing.outflowActive, true, 'only the confirmed release flow should trigger particle outflow');
-assert.equal(releasing.outflowIntensity > 0, true);
-assert.equal(releasing.speedMultiplier >= ambient.speedMultiplier + 0.75, true, 'confirmed release outflow should make the directed expansion visibly fast');
+assert.equal(releasing.outflowDriftSpeed > 0, true, 'confirmed release outflow should create directed drift speed');
+assert.equal(releasing.exitSelectionRate > 0, true, 'confirmed release outflow should select exiting particles');
+assert.equal(releasing.thermalSpeedMultiplier < ambient.thermalSpeedMultiplier, true, 'release cooling should slow random thermal motion through the temperature reading itself');
 assert.equal(releasing.temperatureColorFactor < ambient.temperatureColorFactor, true, 'release cooling should lower the temperature color factor through the temperature reading itself');
 assert.equal(releasing.targetParticleCount > ambient.targetParticleCount, true, 'partial release should still show more molecules than the fully vented baseline when gas amount remains above 1');
 assert.equal(releasing.targetParticleCount < sealedAfterFourPumps.targetParticleCount, true, 'release should visibly reduce molecule count while staying above the initial state');
@@ -185,9 +193,9 @@ assert.equal(
   'confirmed teaching-mode release should start directed molecule outflow immediately, even before progress advances',
 );
 assert.equal(
-  confirmedTeachingReleaseStart.speedMultiplier >= releasing.speedMultiplier - 0.01,
+  confirmedTeachingReleaseStart.outflowDriftSpeed >= releasing.outflowDriftSpeed - 0.01,
   true,
-  'teaching-mode release should use the same fast directed outflow speed as free mode once flow is confirmed',
+  'teaching-mode release should use the same fast directed outflow drift as free mode once flow is confirmed',
 );
 
 const nearEquilibriumRelease = getHeatCapacityHardSphereVisualState({
@@ -212,6 +220,8 @@ assert.equal(
   false,
   'near-equal inner and outer pressure should return hard spheres to non-directed thermal motion',
 );
+assert.equal(nearEquilibriumRelease.outflowDriftSpeed, 0, 'near-equal pressure should not apply outlet drift');
+assert.equal(nearEquilibriumRelease.exitSelectionRate, 0, 'near-equal pressure should not select particles for exit');
 
 const oneStrokeAmount = getHeatCapacityHardSphereVisualState({
   powerOn: true,
@@ -261,17 +271,67 @@ const noPressureOpen = getHeatCapacityHardSphereVisualState({
   gasAmountRatio: 1,
   gasTemperatureK: 298.15,
   ambientTemperatureK: 298.15,
-  phase: 'zeroed',
+  phase: 'releasing',
   glassStopcockOpen: true,
   stopcockFlowOpen: true,
   pumpValveOpen: false,
   pumpBulbState: 'idle',
   pressureDeltaKPa: 0,
-  releaseFlowActive: false,
+  releaseFlowActive: true,
 });
 
 assert.equal(noPressureOpen.outflowActive, false, 'opening the stopcock without pressure difference should not create directed outflow');
+assert.equal(noPressureOpen.outflowDriftSpeed, 0, 'zero pressure difference should not create directed drift even when the stopcock is open');
+assert.equal(noPressureOpen.exitSelectionRate, 0, 'zero pressure difference should not select particles for exit even when the stopcock is open');
 assert.equal(noPressureOpen.targetParticleCount, 42);
+
+const lowPressureRelease = getHeatCapacityHardSphereVisualState({
+  powerOn: true,
+  temperatureMv: 1499,
+  pressureMv: 20,
+  gasAmountRatio: 1.02,
+  gasTemperatureK: 298.15,
+  ambientTemperatureK: 298.15,
+  phase: 'releasing',
+  glassStopcockOpen: true,
+  stopcockFlowOpen: true,
+  pumpValveOpen: false,
+  pumpBulbState: 'idle',
+  pressureDeltaKPa: 1,
+  releaseFlowActive: true,
+});
+
+const highPressureRelease = getHeatCapacityHardSphereVisualState({
+  powerOn: true,
+  temperatureMv: 1499,
+  pressureMv: 120,
+  gasAmountRatio: 1.02,
+  gasTemperatureK: 298.15,
+  ambientTemperatureK: 298.15,
+  phase: 'releasing',
+  glassStopcockOpen: true,
+  stopcockFlowOpen: true,
+  pumpValveOpen: false,
+  pumpBulbState: 'idle',
+  pressureDeltaKPa: 6,
+  releaseFlowActive: true,
+});
+
+assert.equal(
+  highPressureRelease.outflowDriftSpeed > lowPressureRelease.outflowDriftSpeed,
+  true,
+  'larger pressure difference should create faster directed release drift',
+);
+assert.equal(
+  highPressureRelease.exitSelectionRate > lowPressureRelease.exitSelectionRate,
+  true,
+  'larger pressure difference should select exiting particles more aggressively',
+);
+assert.equal(
+  highPressureRelease.thermalSpeedMultiplier,
+  lowPressureRelease.thermalSpeedMultiplier,
+  'pressure difference should not change random thermal speed at the same temperature',
+);
 
 const blockedBounce = getHeatCapacityHardSphereVisualState({
   powerOn: true,
@@ -390,4 +450,3 @@ assert.notEqual(
   resolveHeatCapacityHardSphereTemperatureColor('light', 0.5),
   'dark and light scenes should use separate temperature color ramps',
 );
-
