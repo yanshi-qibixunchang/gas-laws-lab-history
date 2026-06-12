@@ -72,8 +72,8 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /<HeatCapacityHardSphereLayer[\s\S]*containerProfile="ultra-cylinder"[\s\S]*staticMotionOnly=\{true\}/,
-  'Breakpoint 1 should mount Ultra hard spheres in the GLB cylinder profile while keeping only static motion and collisions',
+  /<HeatCapacityHardSphereLayer[\s\S]*containerProfile="ultra-cylinder"[\s\S]*motionMode="pump-only"/,
+  'Breakpoint 2 should mount Ultra hard spheres in the GLB cylinder profile with pump-only flow enabled',
 );
 assert.match(
   hardSphereLayerSource,
@@ -82,13 +82,18 @@ assert.match(
 );
 assert.match(
   hardSphereLayerSource,
-  /const ULTRA_HARD_SPHERE_PARTICLE_RADIUS = PARTICLE_RADIUS \* 0\.75;[\s\S]*particleRadius: ULTRA_HARD_SPHERE_PARTICLE_RADIUS[\s\S]*particleCountScale: 0\.75/,
-  'Ultra cylinder particles should render and collide at three quarters of the current radius and count',
+  /const ULTRA_HARD_SPHERE_PARTICLE_RADIUS = PARTICLE_RADIUS \* 0\.75;[\s\S]*particleRadius: ULTRA_HARD_SPHERE_PARTICLE_RADIUS[\s\S]*particleCountScale: 0\.75[\s\S]*pumpEntryRateScale: 0\.5/,
+  'Ultra cylinder particles should render and collide at three quarters of the current radius and count, with half-rate pump entry',
 );
 assert.match(
   hardSphereLayerSource,
-  /staticMotionOnly[\s\S]*outflowActive:\s*false[\s\S]*releasePhase:\s*'none'[\s\S]*pumpFlowActive:\s*false/,
-  'Breakpoint 1 should keep Ultra hard spheres independent from pump and release flow inputs',
+  /const pumpMotionEnabled = motionMode !== 'static';[\s\S]*const releaseMotionEnabled = motionMode === 'full';[\s\S]*pumpFlowActive: pumpMotionEnabled \? pumpFlowActive : false[\s\S]*releaseFlowActive: releaseMotionEnabled \? releaseFlowActive : false/,
+  'Breakpoint 2 should keep Ultra pump inputs active while release inputs remain gated by full motion mode',
+);
+assert.match(
+  hardSphereLayerSource,
+  /pumpFlowActive: pumpPortActive[\s\S]*releasePhase: releaseMotionEnabled \? currentReleaseTimeline\.phase : 'none'/,
+  'Breakpoint 2 simulation steps should keep pump entry enabled while release phase stays disabled outside full motion mode',
 );
 
 assert.match(

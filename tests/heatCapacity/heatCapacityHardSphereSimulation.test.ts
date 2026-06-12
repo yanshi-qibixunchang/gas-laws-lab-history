@@ -48,6 +48,7 @@ const stepWithFlow = (
     releaseMinimumParticleCount?: number;
     pumpFlowActive?: boolean;
     pumpFlowIntensity?: number;
+    pumpEntryRateScale?: number;
   },
 ) => {
   stepHeatCapacityHardSphereSimulation(simulation, {
@@ -62,6 +63,7 @@ const stepWithFlow = (
     releaseMinimumParticleCount: input.releaseMinimumParticleCount ?? 0,
     pumpFlowActive: input.pumpFlowActive ?? false,
     pumpFlowIntensity: input.pumpFlowIntensity ?? 0,
+    pumpEntryRateScale: input.pumpEntryRateScale ?? 1,
   });
 };
 
@@ -151,6 +153,37 @@ assert.equal(
   enteringParticles.every((particle) => particle.velocity.x > 0),
   true,
   'pump-entering hard spheres should be sprayed inward from the left-side pump port',
+);
+
+const fullRatePumpEntrySimulation = createVisibleSimulation(12, 214);
+for (let step = 0; step < 5; step += 1) {
+  stepWithFlow(fullRatePumpEntrySimulation, {
+    dtS: 1 / 60,
+    targetParticleCount: 48,
+    pumpFlowActive: true,
+    pumpFlowIntensity: 1,
+    pumpEntryRateScale: 1,
+  });
+}
+const fullRateVisibleCount = getHeatCapacityHardSphereVisibleParticles(fullRatePumpEntrySimulation)
+  .length;
+const halfRatePumpEntrySimulation = createVisibleSimulation(12, 214);
+for (let step = 0; step < 5; step += 1) {
+  stepWithFlow(halfRatePumpEntrySimulation, {
+    dtS: 1 / 60,
+    targetParticleCount: 48,
+    pumpFlowActive: true,
+    pumpFlowIntensity: 1,
+    pumpEntryRateScale: 0.5,
+  });
+}
+const halfRateVisibleCount = getHeatCapacityHardSphereVisibleParticles(halfRatePumpEntrySimulation)
+  .length;
+assert.equal(fullRateVisibleCount >= 14, true);
+assert.equal(
+  halfRateVisibleCount < fullRateVisibleCount,
+  true,
+  'pump entry rate scaling should reduce the newly injected hard spheres without changing target count',
 );
 
 const naturalTrimSimulation = createVisibleSimulation(24, 223);

@@ -39,6 +39,7 @@ export interface HeatCapacityHardSphereSimulationStepInput {
   releaseMinimumParticleCount?: number;
   pumpFlowActive: boolean;
   pumpFlowIntensity: number;
+  pumpEntryRateScale?: number;
 }
 
 const FIXED_DT_S = 1 / 120;
@@ -395,8 +396,17 @@ const reconcileParticleCount = (
   );
   const missingCount = targetParticleCount - visibleCount;
   const initialFill = visibleCount === 0;
+  const rawPumpEntryRateScale = input.pumpEntryRateScale ?? 1;
+  const pumpEntryRateScale = clampNumber(
+    Number.isFinite(rawPumpEntryRateScale) ? rawPumpEntryRateScale : 1,
+    0,
+    2,
+  );
   const spawnRate = fromPumpPort
-    ? PUMP_ENTRY_BASE_RATE_PER_S + PUMP_ENTRY_INTENSITY_RATE_PER_S * clampNumber(input.pumpFlowIntensity, 0, 1.6)
+    ? (
+      PUMP_ENTRY_BASE_RATE_PER_S +
+      PUMP_ENTRY_INTENSITY_RATE_PER_S * clampNumber(input.pumpFlowIntensity, 0, 1.6)
+    ) * pumpEntryRateScale
     : 0;
   const spawnBudgetResult = initialFill
     ? { budget: Math.max(0, missingCount), accumulator: 0 }

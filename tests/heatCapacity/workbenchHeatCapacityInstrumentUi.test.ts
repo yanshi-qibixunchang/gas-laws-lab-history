@@ -678,6 +678,7 @@ assert.match(sceneSource, /data-heat-capacity-hard-sphere-view=\{hardSphereViewA
 assert.match(sceneSource, /<InstrumentSceneContent[\s\S]*hardSphereViewEnabled=\{hardSphereViewActive\}/, 'procedural fallback should receive the effective hard-sphere visibility state');
 assert.match(sceneSource, /<HeatCapacityUltraInstrumentModel[\s\S]*hardSphereViewEnabled=\{hardSphereViewActive\}/, 'Ultra GLB model should receive the enabled effective hard-sphere visibility state');
 assert.match(hardSphereLayerSource, /containerProfile\?: 'skeleton-box' \| 'ultra-cylinder';/, 'hard-sphere layer should expose separate container profiles for the procedural skeleton and Ultra GLB');
+assert.match(hardSphereLayerSource, /motionMode\?: 'full' \| 'static' \| 'pump-only';/, 'hard-sphere layer should support a pump-only mode for the Ultra breakpoint before release synchronization is connected');
 assert.match(hardSphereLayerSource, /createHeatCapacityHardSphereCylinderContainer/, 'hard-sphere layer should create an Ultra cylinder container instead of reusing the skeleton box');
 assert.match(hardSphereLayerSource, /particleRadius: PARTICLE_RADIUS,[\s\S]*particleCountScale: 1,[\s\S]*'ultra-cylinder':[\s\S]*particleRadius: ULTRA_HARD_SPHERE_PARTICLE_RADIUS,[\s\S]*particleCountScale: 0\.75/, 'Ultra GLB should scale only its cylinder particle radius and count without changing the skeleton profile');
 assert.match(hardSphereLayerSource, /resolveProfileParticleCount\(currentVisual\.targetParticleCount,\s*hardSphereProfile\)/, 'hard-sphere layer should apply the active profile particle-count scale before stepping the simulation');
@@ -740,6 +741,7 @@ assert.match(hardSphereModelSource, /type HeatCapacityHardSphereReleasePhase[\s\
 assert.match(sceneSource, /releaseTimeline:\s*HeatCapacityHardSphereReleaseTimeline/, 'instrument scene should receive the hard-sphere release timeline');
 assert.match(sceneSource, /releaseTimeline=\{props\.releaseTimeline\}/, 'instrument scene should pass the release timeline into the hard-sphere layer');
 assert.match(sceneSource, /<HeatCapacityUltraInstrumentModel[\s\S]*releaseTimeline=\{props\.releaseTimeline\}/, 'Ultra model should receive the same hard-sphere release timeline props');
+assert.match(hardSphereLayerSource, /const pumpMotionEnabled = motionMode !== 'static';[\s\S]*const releaseMotionEnabled = motionMode === 'full';/, 'hard-sphere layer should separate pump flow from release flow so Ultra can advance to breakpoint 2 without enabling release');
 assert.match(hardSphereLayerSource, /releaseTimeline\?:\s*HeatCapacityHardSphereReleaseTimeline/, 'hard-sphere layer should consume a release timeline instead of inferring release solely from pressure');
 assert.match(hardSphereLayerSource, /getHeatCapacityHardSphereScheduleFrame/, 'hard-sphere layer should use the deterministic visual schedule for release budgeting');
 assert.match(hardSphereLayerSource, /submittedReleaseExitCountRef/, 'hard-sphere layer should track cumulative release budget already sent to the simulation');
@@ -1612,7 +1614,7 @@ assert.doesNotMatch(workbenchSource, /hardSphereParticleMultiplier=\{activeFile\
 assert.doesNotMatch(workbenchSource, /hardSphereSpeedMultiplier=\{activeFile\.hardSphereSpeedMultiplier\}/, 'Heat Capacity scene should no longer read speed multiplier from the saved file slider field');
 assert.match(hardSphereLayerSource, /thermalSpeedMultiplier:\s*kineticSpeedState\.speed,/, 'hard-sphere layer should drive random molecular motion through the kinetic speed buffer');
 assert.doesNotMatch(hardSphereLayerSource, /thermalSpeedMultiplier:\s*currentVisual\.thermalSpeedMultiplier,/, 'hard-sphere layer should not hard-cut random molecular motion directly from thermal speed');
-assert.match(hardSphereLayerSource, /outflowDriftSpeed:\s*effectiveOutflowDriftSpeed,/, 'hard-sphere layer should pass pressure-driven outflow drift separately');
+assert.match(hardSphereLayerSource, /outflowDriftSpeed:\s*releaseMotionEnabled \? effectiveOutflowDriftSpeed : 0,/, 'hard-sphere layer should pass pressure-driven outflow drift only when release motion is enabled');
 assert.doesNotMatch(hardSphereLayerSource, /exitSelectionRate|effectiveExitSelectionRate/, 'hard-sphere layer should not keep legacy pressure-driven exit selection after adopting release budgets');
 assert.doesNotMatch(hardSphereLayerSource, /currentVisual\.outflowIntensity/, 'hard-sphere layer should stop consuming the legacy combined outflow intensity');
 assert.doesNotMatch(hardSphereModelSource, /outflowIntensity|exitSelectionRate|releaseProgress\?:/, 'hard-sphere visual model should expose only the current drift and timeline inputs');
