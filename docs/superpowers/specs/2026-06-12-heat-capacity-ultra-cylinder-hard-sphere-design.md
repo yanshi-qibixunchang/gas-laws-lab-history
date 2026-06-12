@@ -1,110 +1,298 @@
-# Ultra 圆柱硬球分子可视化设计
+# 热容硬球分子可视化两阶段设计
 
-## 1. 目标
+## 1. 范围调整
 
-为热容比实验的 Ultra GLB 高级模型增加常驻硬球分子可视化，使粒子只在玻璃瓶圆柱主腔内运动，并满足以下要求：
+本方案按两个阶段推进。第一阶段只修正现有骨架模型的硬球分子可视化，不接入 Ultra GLB，不解除 Ultra 模式的可视化禁用，也不接入 Worker。第一阶段完成并通过验收后，第二阶段再复用同一套纯模拟模块，为 Ultra GLB 增加圆柱容器、空气墙、节点坐标、进出口适配，并解除 Ultra 开关禁用。
 
-1. 粒子与圆柱侧壁、顶部空气墙、底部空气墙以及其他粒子发生稳定碰撞。
-2. 正常运行时粒子不会因接触边界而消失，不会长期穿墙或明显重叠。
-3. 粒子的无规则运动速度和颜色由气体温度决定。
-4. 打开玻璃旋塞且瓶内压力高于环境压力时，粒子产生朝瓶颈出口的定向放气运动；压力差越大，流出越快。
-5. 压力差为零时，即使玻璃旋塞打开，粒子也只保持无规则热运动，不产生定向流动。
-6. 粒子数量表示瓶内气体物质的量，打气和实际放气可以改变数量，单纯升温或降温不能改变数量。
-7. 三维视图开关和右侧参数栏开关继续共享 `hardSphereViewEnabled`，Ultra 模式不再额外禁用。
+这个拆分的目的不是降低最终目标，而是先把分子运动本身做稳。只有正方体容器中的固定时间步、分子间碰撞、生成防重叠、温度和压差映射、物质量粒子数以及性能验收全部通过后，才进入更复杂的 GLB 圆柱空间。
 
-本功能是教学可视化，不改变热容比实验的物理计算、传感器读数、实验结果或数据记录结构。
+## 2. 总体目标
 
-## 2. 已确认范围
+1. 把硬球分子运动从 React/Three 渲染层抽成独立纯模块。
+2. 第一阶段在现有骨架正方体容器中完成稳定硬球运动。
+3. 第二阶段复用同一模块，为 Ultra GLB 提供圆柱容器配置和坐标适配。
+4. 保持教学可视化定位，不改变热容比实验的物理计算、传感器读数、实验结果或数据记录结构。
 
-### 2.1 本期包含
+## 3. 两阶段交付边界
 
-- 只模拟 Ultra GLB 玻璃瓶的圆柱主腔。
-- 在圆柱顶部设置不可见空气墙，瓶颈和管道不参与常驻碰撞空间。
-- 放气时，被选中的粒子从主腔向顶部出口移动，越过瓶颈遮挡位置后才从画面隐藏。
-- 标准、均衡和性能骨架模型继续使用现有长方体容器，不改变当前外观与位置。
-- Ultra 模型从 `glass_bottle_inner_air` 节点读取位置、方向和有效尺寸，不使用屏幕坐标或固定世界坐标。
+### 3.1 第一阶段：骨架正方体硬球修正
 
-### 2.2 本期不包含
+第一阶段只覆盖当前已有骨架模型，也就是标准、均衡、性能这些非 Ultra 画质下的可视化。容器仍使用当前正方体范围，位置和整体视觉布局不做 GLB 适配。
 
-- 不模拟粒子进入瓶颈、旋塞孔和外部软管后的逐段碰撞。
-- 不使用 GLB 三角网格逐面碰撞、SDF 或物理引擎。
-- 不改变现有实验物理状态机。
-- 不增加粒子数量、粒子尺寸或速度的用户调节项。
-- 不为可视化开关增加新的持久化字段。
+第一阶段必须完成：
 
-## 3. 设计原则
+1. 独立纯模拟模块。
+2. 固定时间步。
+3. 正方体墙体碰撞。
+4. 分子间硬球碰撞。
+5. 生成防重叠。
+6. 温度控制速度和颜色。
+7. 压力差控制有效放气时的定向运动。
+8. 物质量 `gasAmountRatio` 决定粒子数量。
+9. 现有骨架模型接入新模块。
+10. 自动测试和浏览器性能验收。
 
-### 3.1 物理状态是唯一事实来源
+第一阶段明确不做：
 
-视觉层读取现有状态：
+1. 不接入 Ultra GLB。
+2. 不新增圆柱容器。
+3. 不读取 `glass_bottle_inner_air` 或任何 GLB 节点。
+4. 不解除 Ultra 的可视化开关禁用。
+5. 不接入 Worker。
+6. 不模拟瓶颈、旋塞孔和外部管道。
 
-- `gasAmountRatio`：决定目标粒子数量。
-- `gasTemperatureK` 和 `ambientTemperatureK`：决定无规则热运动速度及颜色。
-- `pressureDeltaKPa`：决定放气定向速度。
-- `stopcockFlowOpen` 和 `releaseFlowActive`：决定是否允许定向放气。
-- `pumpFlowActive`：决定新增粒子是否从进气口附近出现。
+### 3.2 第二阶段：Ultra GLB 圆柱适配
 
-视觉层不得自行修改实验物理状态，也不得根据动画阶段临时增加或减少目标粒子数量。
+第二阶段必须以第一阶段的纯模拟模块为基础，不能重新写一套 Ultra 专用分子运动逻辑。Ultra 只新增容器配置、坐标换算和进出口适配。
 
-### 3.2 热运动与定向流动分离
+第二阶段必须完成：
 
-每个粒子的运动由两部分组成：
+1. 圆柱容器配置。
+2. 圆柱侧壁、顶部空气墙、底部空气墙。
+3. `glass_bottle_inner_air` 节点坐标和尺寸读取。
+4. Ultra 进气口和出气口锚点转换到容器局部坐标。
+5. Ultra 模式下常驻圆柱主腔粒子。
+6. Ultra 主界面和右侧栏可视化开关解禁。
+7. Ultra 不同视角、侧栏缩放和窗口尺寸下的视觉验收。
 
-```text
-最终位移 = 温度驱动的无规则热运动 + 压差驱动的出口定向运动
-```
+第二阶段仍不做：
 
-- 温度只能改变无规则运动速度和颜色。
-- 压力差只能在旋塞确认导通并存在实际放气时增加出口方向速度。
-- 当 `pressureDeltaKPa <= 0.08 kPa` 时，定向流动强度必须为零。
+1. 不让粒子真实进入瓶颈、旋塞孔或软管内部碰撞。
+2. 不使用 GLB 三角网格逐面碰撞、SDF 或第三方物理引擎。
+3. 不新增用户可调的粒子数量、粒子尺寸或速度滑杆。
 
-这样可以避免“开盖就自动吸向出口”，也不会把高温误表现为更强放气。
+## 4. 第一阶段详细设计
 
-### 3.3 粒子数量表示物质的量
+### 4.1 模块边界
 
-目标粒子数只由 `gasAmountRatio` 和画质性能倍率计算：
+新增纯模块放在 domain 层，渲染层只负责把模拟结果画出来。
 
-```text
-physicalCount = map(gasAmountRatio)
-renderedCount = clamp(round(physicalCount * performanceMultiplier), min, max)
-```
+建议新增文件：
 
-具体约束：
+- `src/domain/heatCapacity/heatCapacityHardSphereSimulation.ts`
+  - 粒子状态类型。
+  - 固定时间步推进。
+  - 墙体碰撞。
+  - 粒子间碰撞。
+  - 生成、退出和数量调节。
 
-- `gasAmountRatio` 不变时，升温和降温不改变粒子数。
-- 打气导致 `gasAmountRatio` 增大后，粒子从进气口分批加入。
-- 放气导致 `gasAmountRatio` 减小后，粒子通过出口动画分批离开。
-- 压强恢复平衡后，粒子数保持当前物质的量对应的数量，不强制恢复初始值。
-- 移除现有视觉模型中仅因 `pumping` 阶段临时增加粒子数的分支；打气动画只改变新增粒子的出生位置和加入速率。
+- `src/domain/heatCapacity/heatCapacityHardSphereGeometry.ts`
+  - `box` 容器配置。
+  - 第二阶段预留 `cylinder` 类型，但第一阶段不启用。
+  - 采样、容器内判定、出口方向计算。
 
-## 4. 容器几何
+- `tests/heatCapacity/heatCapacityHardSphereSimulation.test.ts`
+  - 模拟核心测试。
 
-### 4.1 统一容器接口
+- `tests/heatCapacity/heatCapacityHardSphereGeometry.test.ts`
+  - 几何与生成测试。
 
-新增纯数据容器配置，供粒子生成、墙体碰撞和出口计算共同使用：
+第一阶段修改文件：
+
+- `src/domain/heatCapacity/heatCapacityHardSphereModel.ts`
+  - 分离温度速度、压力流动速度和目标粒子数。
+
+- `src/features/heatCapacity/HeatCapacityHardSphereLayer.tsx`
+  - 删除本文件内部的核心运动计算。
+  - 只保留 Three 实例化渲染、材质、颜色写入和 React 生命周期。
+  - 将每帧输入转换为纯模块输入，再把模块输出同步到 `InstancedMesh`。
+
+- `tests/heatCapacity/heatCapacityHardSphereModel.test.ts`
+  - 更新温度、压力、数量语义断言。
+
+- `tests/heatCapacity/workbenchHeatCapacityInstrumentUi.test.ts`
+  - 只更新与骨架硬球模块相关的源代码断言，不改 Ultra 解禁断言。
+
+### 4.2 纯模块输入输出
+
+纯模块不依赖 React、Three、DOM 或浏览器时间。它只接收普通数据并返回普通数据。
+
+建议核心类型：
 
 ```ts
-export type HeatCapacityHardSphereContainerProfile =
-  | {
-      kind: 'box';
-      halfSize: THREE.Vector3;
-      outletPoint: THREE.Vector3;
-      outletDirection: THREE.Vector3;
-      pumpPortPoint: THREE.Vector3;
-    }
-  | {
-      kind: 'cylinder';
-      radius: number;
-      halfHeight: number;
-      outletPoint: THREE.Vector3;
-      outletDirection: THREE.Vector3;
-      pumpPortPoint: THREE.Vector3;
-    };
+export interface HeatCapacityHardSphereVec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface HeatCapacityHardSphereParticle {
+  id: number;
+  position: HeatCapacityHardSphereVec3;
+  velocity: HeatCapacityHardSphereVec3;
+  state: 'inside' | 'exiting' | 'hidden';
+  outflowProgress: number;
+}
+
+export interface HeatCapacityHardSphereBoxContainer {
+  kind: 'box';
+  halfSize: HeatCapacityHardSphereVec3;
+  outletPoint: HeatCapacityHardSphereVec3;
+  outletDirection: HeatCapacityHardSphereVec3;
+  pumpPortPoint: HeatCapacityHardSphereVec3;
+}
+
+export interface HeatCapacityHardSphereStepInput {
+  dtS: number;
+  targetParticleCount: number;
+  thermalSpeedMultiplier: number;
+  outflowActive: boolean;
+  outflowDriftSpeed: number;
+  exitSelectionRate: number;
+  pumpFlowActive: boolean;
+  pumpFlowIntensity: number;
+}
 ```
 
-骨架模型继续使用 `box`。Ultra 模型使用 `cylinder`。
+第一阶段只创建 `box` 容器实例。`cylinder` 类型可以在文件中预留，但不进入第一阶段运行路径。
 
-### 4.2 Ultra 圆柱尺寸来源
+### 4.3 固定时间步
+
+模拟使用固定步长，渲染帧只向模拟器提供经过夹紧的累计时间。
+
+```text
+fixedDt = 1 / 120 s
+maxSubSteps = 5
+maxAccumulatedTime = fixedDt * maxSubSteps
+```
+
+原则：
+
+- 正常帧按固定步推进。
+- 长帧最多推进 5 个子步，剩余时间丢弃或截断，避免一次大步穿墙。
+- 渲染层不直接用 `delta` 移动粒子。
+
+### 4.4 正方体墙体碰撞
+
+第一阶段保持当前正方体容器。当前骨架容器约为：
+
+```text
+halfSize = { x: 0.73, y: 0.73, z: 0.73 }
+particleRadius = 0.048
+```
+
+每个轴独立处理：
+
+1. 可用边界为 `halfSize[axis] - particleRadius`。
+2. 粒子越界时先把位置夹回边界内。
+3. 若速度朝外，则反转该轴速度。
+4. 墙体碰撞不隐藏、不删除粒子。
+
+### 4.5 分子间硬球碰撞
+
+第一阶段必须加入分子间碰撞，而不是只做墙体反弹。
+
+规则：
+
+1. 两球距离小于 `2 * particleRadius` 时判定为重叠。
+2. 先按法线方向把两球各推出一半重叠量。
+3. 只有两球相向运动时才交换法向速度分量。
+4. 切向速度保持不变。
+5. 每个固定步执行 2 轮约束求解，降低密集状态下的残余穿插。
+6. 速度向量出现非有限值时，使用粒子 id 的确定性方向重置，不能让 NaN 传播到渲染层。
+
+第一阶段不引入空间哈希。128 个粒子的成对检测约 8128 对，先以简单可靠为主。只有性能验收失败，才在后续小修中增加宽相位。
+
+### 4.6 生成防重叠
+
+新增粒子时必须先找合法位置。
+
+正方体采样规则：
+
+```text
+x = uniform(-usableHalfX, usableHalfX)
+y = uniform(-usableHalfY, usableHalfY)
+z = uniform(-usableHalfZ, usableHalfZ)
+```
+
+约束：
+
+- 每个粒子最多尝试 24 个候选位置。
+- 候选位置必须在容器内。
+- 候选位置与现有 inside 粒子的距离必须大于 `2 * particleRadius`。
+- 找不到位置时，本固定步延后生成，禁止强行叠放。
+- 初始启用时也使用同一套防重叠生成逻辑。
+
+### 4.7 温度速度和颜色绑定
+
+继续复用现有颜色函数：
+
+- `resolveHeatCapacityHardSphereTemperatureColor()`
+
+继续由 `getHeatCapacityHardSphereVisualState()` 输出温度颜色因子，但需要调整语义：
+
+- `thermalSpeedMultiplier` 只表示温度驱动的无规则热运动速度。
+- 温度升高时，热运动速度增加，颜色向热端移动。
+- 温度降低时，热运动速度降低，颜色向冷端移动。
+- `gasAmountRatio` 不变时，温度变化不能改变 `targetParticleCount`。
+
+第一阶段验收时必须覆盖：同一物质量下升温、降温、回温，粒子数不变但速度和颜色变化。
+
+### 4.8 压力驱动放气
+
+放气的定向流动独立于热运动速度。
+
+启动条件：
+
+```text
+releaseFlowActive === true
+stopcockFlowOpen === true
+pressureDeltaKPa > 0.08
+```
+
+映射规则：
+
+```text
+pressureFactor = smoothstep(0.08 kPa, 6 kPa, max(pressureDeltaKPa, 0))
+outflowDriftSpeed = lerp(0, maxOutflowSpeed, pressureFactor)
+exitSelectionRate = lerp(minExitRate, maxExitRate, pressureFactor)
+```
+
+要求：
+
+- 压差越大，出口方向速度越大。
+- 压差越大，单位时间被选中离开的粒子越多。
+- 压差为 0 或低于阈值时，即使旋塞打开，也不产生定向流动。
+- 放气方向只在有效放气时附加到热运动上，不能污染热运动速度倍率。
+
+### 4.9 物质量决定粒子数
+
+粒子数量必须只代表 `gasAmountRatio`。
+
+规则：
+
+- `targetParticleCount` 由 `gasAmountRatio`、基础数量、夸张系数和画质倍率共同计算。
+- 不再因为 `phase === 'pumping'` 临时增加目标粒子数。
+- 打气时，物理状态中的 `gasAmountRatio` 增大，目标粒子数随之增大；新增粒子从泵入口附近出现。
+- 放气时，物理状态中的 `gasAmountRatio` 减小，目标粒子数随之减小；减少的粒子通过出口动画离开。
+- 温度导致的压强变化不直接改变粒子数。
+- 压强重新平衡后，粒子数保持当前 `gasAmountRatio` 对应值，不恢复初始值。
+
+### 4.10 性能验收
+
+第一阶段不接入 Worker，所有模拟都在主线程执行，因此必须在骨架模型中完成性能验收。
+
+自动验收：
+
+- 128 粒子、固定步长、30 秒模拟不出现 NaN、越界或持续重叠。
+- 每步碰撞检测次数有明确上限，不能随帧时间失控增长。
+- 测试中验证长帧被 `maxSubSteps` 限制。
+
+浏览器验收：
+
+- 固定预览端口 `5174`。
+- 标准、均衡、性能三个骨架画质都能打开硬球可视化。
+- 连续观察 30 秒，粒子不穿墙、不边界消失、不出现明显长期重叠。
+- 打气、放气、零压差开塞、升温、降温场景均符合上述规则。
+- 128 粒子运行时界面交互仍可响应，拖动视角和切换模式不出现明显卡顿。
+
+第一阶段完成后先停止，汇报测试和浏览器验收结果，再决定是否进入第二阶段。
+
+## 5. 第二阶段详细设计
+
+### 5.1 Ultra 容器适配
+
+第二阶段新增 `cylinder` 容器配置，并复用第一阶段纯模块。
 
 Ultra GLB 已存在 `glass_bottle_inner_air` 节点。运行时执行：
 
@@ -115,7 +303,7 @@ Ultra GLB 已存在 `glass_bottle_inner_air` 节点。运行时执行：
 5. 从半径和半高分别扣除粒子半径及安全间隙。
 6. 粒子组继承位置和旋转，但不继承非均匀缩放，避免球体变成椭球。
 
-当前资源的测量值约为：
+当前资源的参考测量值：
 
 - 内腔中心：`[-1.4, 0.7625, 0]`
 - 内腔直径：`0.97`
@@ -123,153 +311,38 @@ Ultra GLB 已存在 `glass_bottle_inner_air` 节点。运行时执行：
 - 原始内半径：约 `0.485`
 - 原始内半高：约 `0.6325`
 
-这些值只作为测试和异常诊断参考，运行时以 GLB 节点数据为准。
+这些值只用于诊断，运行时以 GLB 节点数据为准。
 
-### 4.3 空气墙
+### 5.2 圆柱空气墙
 
-圆柱碰撞空间由三个不可见边界组成：
+圆柱容器由三类边界组成：
 
 - 侧壁：`sqrt(x^2 + z^2) <= usableRadius`
-- 底部：`y >= -usableHalfHeight`
-- 顶部：`y <= usableHalfHeight`
+- 底部空气墙：`y >= -usableHalfHeight`
+- 顶部空气墙：`y <= usableHalfHeight`
 
 常驻运动时顶部始终是空气墙。只有被标记为 `exiting` 的粒子可以忽略顶部空气墙，并沿出口动画离开。
 
-## 5. 碰撞模型
+### 5.3 Ultra 进出口
 
-### 5.1 固定时间步
+第二阶段将 GLB 锚点转换到 `glass_bottle_inner_air` 局部坐标。
 
-渲染帧率不直接作为物理步长。粒子模拟使用累加器和固定步长：
+要求：
 
-```text
-fixedDt = 1 / 120 s
-maxSubSteps = 5
-maxAccumulatedTime = fixedDt * maxSubSteps
-```
+- 打气新增粒子从进气口附近进入圆柱主腔。
+- 放气粒子先向顶部出口靠近，再越过顶部空气墙并淡出。
+- 不模拟瓶颈、旋塞孔和管道内碰撞。
+- 出口点缺失时暂停 Ultra 粒子接入，不能使用猜测坐标。
 
-长帧只执行有限子步，避免页面卡顿后粒子一次跨越墙体。
+### 5.4 Ultra 开关解禁
 
-### 5.2 圆柱墙体碰撞
-
-侧壁碰撞：
-
-1. 计算径向距离 `r = sqrt(x^2 + z^2)`。
-2. 若 `r > usableRadius`，把位置投影回圆柱边界。
-3. 法向量为 `n = normalize([x, 0, z])`。
-4. 仅当速度朝墙外运动时执行镜面反射：`v' = v - 2(v·n)n`。
-
-顶部和底部碰撞分别夹紧 `y`，再反转对应的 `velocity.y`。墙体碰撞不删除粒子。
-
-### 5.3 粒子之间的硬球碰撞
-
-粒子采用等质量、近似完全弹性碰撞：
-
-1. 检测球心距离是否小于 `2 * particleRadius`。
-2. 对重叠量进行对半位置修正，先消除可见穿插。
-3. 仅当两球相向运动时，沿碰撞法线交换法向速度分量。
-4. 切向速度保持不变。
-5. 每个固定步执行两轮约束求解，减少密集状态下的残余重叠。
-
-最大粒子数为 128，首版直接执行成对检测。单帧最多约 8128 对，复杂度可控，也比引入空间哈希更容易验证。只有性能验收表明该检测成为瓶颈时，才增加均匀网格宽相位。
-
-### 5.4 生成时防重叠
-
-新增粒子采用圆柱体积均匀采样：
-
-```text
-radius = sqrt(random) * usableRadius
-angle = random * 2PI
-y = uniform(-usableHalfHeight, usableHalfHeight)
-```
-
-每个候选位置最多尝试 24 次，并检查与当前粒子的距离。找不到合法位置时，本帧延后生成，禁止把粒子强行放进已有粒子内部。
-
-## 6. 温度映射
-
-继续复用：
-
-- `getHeatCapacityHardSphereVisualState()`
-- `resolveHeatCapacityHardSphereTemperatureColor()`
-
-温度映射保持现有范围：
-
-- 冷端：环境温度以下约 `5 K`
-- 热端：环境温度以上约 `3 K`
-- 速度倍率：按温差连续插值并夹紧
-- 颜色：继续区分亮色和暗色主题
-
-实现时需要调整 `getHeatCapacityHardSphereVisualState()`：
-
-- `speedMultiplier` 只表达热运动速度和画质倍率。
-- 放气的压力速度不再混入 `speedMultiplier`，改为独立的 `outflowDriftSpeed`。
-- `targetParticleCount` 不再受动画阶段的临时数量奖励影响。
-
-## 7. 放气动画
-
-### 7.1 启动条件
-
-定向放气必须同时满足：
-
-```text
-releaseFlowActive === true
-stopcockFlowOpen === true
-pressureDeltaKPa > 0.08
-```
-
-玻璃旋塞仅视觉上打开、尚未达到确认导通状态时，不提前启动粒子流动。
-
-### 7.2 压差到速度的映射
-
-使用连续且有上限的映射：
-
-```text
-pressureFactor = smoothstep(0.08 kPa, 6 kPa, max(pressureDeltaKPa, 0))
-outflowDriftSpeed = lerp(0, maxOutflowSpeed, pressureFactor)
-exitSelectionRate = lerp(minExitRate, maxExitRate, pressureFactor)
-```
-
-效果要求：
-
-- 刚超过阈值时只有较弱定向趋势。
-- 压差越大，靠近出口的粒子越快被选中，流出速度也越快。
-- 压差降到阈值以下后，停止选取新粒子流出；尚未越过出口的粒子恢复正常碰撞。
-- 压差为零时，出口吸引力、定向速度和流出选择率全部为零。
-
-### 7.3 出口动画
-
-- 出口点优先由 Ultra GLB 的瓶颈或旋塞入口锚点转换到 `glass_bottle_inner_air` 局部坐标。
-- 被选中的粒子先向圆柱顶部中心区域汇聚，再穿过顶部空气墙。
-- 粒子到达瓶颈遮挡区后缩小并隐藏，视觉上表现为进入瓶颈，而不是在圆柱边界瞬间消失。
-- 已经离开的粒子不在视觉层自动补回；是否需要新增粒子只由最新 `gasAmountRatio` 决定。
-
-## 8. 打气与数量变化
-
-当物理状态使目标粒子数增加时：
-
-- `pumpFlowActive === true`：新增粒子从 Ultra 进气口锚点附近生成，初速度朝圆柱内部。
-- 非打气情况下的状态恢复或首次启用：新增粒子在圆柱内部无重叠生成。
-- 每帧生成数量有限，防止大量粒子同一帧堆叠。
-
-当目标粒子数减少时：
-
-- 存在有效放气：通过出口动画减少。
-- 不存在有效放气但状态因文件恢复或模式切换发生跳变：按离出口最近的顺序短时淡出，但不得在墙体碰撞时消失。
-
-## 9. 开关行为
-
-### 9.1 三维视图开关
-
-删除 Ultra 专属不可用判断：
+第二阶段通过浏览器验收后，删除 Ultra 专属不可用判断：
 
 ```ts
 const hardSphereViewUnavailable = props.performanceMode === 'ultra';
 ```
 
-Ultra 与其他画质使用相同的 `hardSphereViewEnabled`。开关关闭时不渲染粒子，打开时根据当前物理状态重新建立正确数量和温度表现。
-
-### 9.2 右侧参数栏开关
-
-删除 `settingsPerformanceMode === 'ultra'` 导致的强制禁用。保留其他模式已有的参数锁定规则，避免扩大本次修改范围。
+同时删除右侧参数栏中 `settingsPerformanceMode === 'ultra'` 导致的强制禁用。保留其他已有参数锁定规则。
 
 两个入口必须：
 
@@ -278,80 +351,62 @@ Ultra 与其他画质使用相同的 `hardSphereViewEnabled`。开关关闭时�
 - 任意一处切换后，另一处立即同步。
 - 保存并重新打开实验文件后恢复一致状态。
 
-## 10. 文件边界
+## 6. 测试计划
 
-### 新增
+### 6.1 第一阶段测试
 
-- `src/features/heatCapacity/heatCapacityHardSphereContainer.ts`
-  - 容器配置类型。
-  - 圆柱和长方体采样。
-  - 墙体碰撞。
-  - 容器内判定。
+新增或更新：
 
-- `src/features/heatCapacity/heatCapacityHardSphereCollision.ts`
-  - 固定时间步辅助函数。
-  - 粒子间重叠修正和弹性碰撞。
-
-- `tests/heatCapacity/heatCapacityHardSphereContainer.test.ts`
-  - 几何、采样和墙体碰撞测试。
-
-- `tests/heatCapacity/heatCapacityHardSphereCollision.test.ts`
-  - 粒子间碰撞和长期稳定测试。
-
-### 修改
-
-- `src/domain/heatCapacity/heatCapacityHardSphereModel.ts`
-  - 分离热运动速度、压力流动速度和物质量粒子数。
-
-- `src/features/heatCapacity/HeatCapacityHardSphereLayer.tsx`
-  - 接收容器配置。
-  - 使用固定步长、圆柱墙体和粒子碰撞。
-  - 使用配置中的出口及进气口。
-
-- `src/features/heatCapacity/HeatCapacityInstrumentScene.tsx`
-  - 骨架模型传入现有长方体配置。
-  - 取消 Ultra 可视化开关禁用。
-
-- `src/features/heatCapacity/HeatCapacityUltraInstrumentModel.tsx`
-  - 从 `glass_bottle_inner_air` 创建圆柱配置。
-  - 跟随 GLB 节点变换。
-
-- `src/features/workbench/WorkbenchStudioPrototype.tsx`
-  - 取消右侧参数栏中 Ultra 专属禁用。
-
+- `tests/heatCapacity/heatCapacityHardSphereGeometry.test.ts`
+- `tests/heatCapacity/heatCapacityHardSphereSimulation.test.ts`
 - `tests/heatCapacity/heatCapacityHardSphereModel.test.ts`
-  - 更新数量、温度速度和压差流动断言。
+- `tests/heatCapacity/workbenchHeatCapacityInstrumentUi.test.ts`
+
+必须断言：
+
+1. 正方体采样全部在边界内。
+2. 生成时不会与已有 inside 粒子重叠。
+3. 墙体碰撞后位置合法，速度朝内。
+4. 两粒子正碰后不重叠，法向速度交换。
+5. 两粒子正在分离时不重复施加冲量。
+6. 固定步长限制长帧推进次数。
+7. 30 秒模拟无 NaN、无越界、无持续重叠。
+8. 温度变化影响速度和颜色，不影响数量。
+9. `gasAmountRatio` 变化影响数量。
+10. 零压差开塞时 `outflowDriftSpeed === 0`。
+11. 压差增大时 `outflowDriftSpeed` 和 `exitSelectionRate` 单调增大。
+12. Ultra 禁用断言在第一阶段保持不变。
+
+第一阶段验收命令：
+
+```powershell
+npm.cmd exec tsc -- --noEmit
+npm.cmd test
+npm.cmd run build
+npm.cmd run dev -- --host 127.0.0.1 --port 5174 --strictPort
+```
+
+### 6.2 第二阶段测试
+
+新增或更新：
 
 - `tests/heatCapacity/heatCapacityUltraGlbIntegration.test.ts`
-  - 验证圆柱节点绑定和回退规则。
-
+- `tests/heatCapacity/heatCapacityHardSphereGeometry.test.ts`
 - `tests/heatCapacity/workbenchHeatCapacityInstrumentUi.test.ts`
-  - 删除 Ultra 禁用旧断言，增加双入口同步和可用性断言。
 
-## 11. 测试标准
+必须断言：
 
-### 11.1 数值测试
+1. Ultra 从 `glass_bottle_inner_air` 读取圆柱尺寸。
+2. 圆柱采样全部位于圆柱内。
+3. 圆柱侧壁、顶部、底部碰撞稳定。
+4. GLB 节点缺失或尺寸无效时不把粒子放到世界原点。
+5. Ultra 主界面开关和右侧栏开关解除画质禁用。
+6. Ultra 两个开关同步同一 `hardSphereViewEnabled` 状态。
+7. 骨架正方体行为不因圆柱接入回归。
 
-1. 随机生成 128 个粒子，所有球体整体位于圆柱内。
-2. 侧壁碰撞后位置合法、径向速度反向、速度模长近似不变。
-3. 顶部和底部碰撞后粒子不会越界。
-4. 两球正碰后法向速度交换，碰撞后无明显重叠。
-5. 两球正在分离时不重复施加冲量。
-6. 模拟 30 秒后不存在非退出粒子越界、NaN 或持续重叠。
-7. 温度变化时颜色和热运动速度变化，但目标粒子数不变。
-8. `gasAmountRatio` 变化时目标粒子数单调变化。
-9. 压差为零且旋塞打开时 `outflowDriftSpeed === 0`。
-10. 压差增大时 `outflowDriftSpeed` 和 `exitSelectionRate` 单调增大并保持上限。
+第二阶段验收命令与第一阶段相同，另加浏览器 Ultra 视觉验收。
 
-### 11.2 UI 和集成测试
-
-1. Ultra 模式的两个可视化开关均不再因画质档位而禁用。
-2. 两个开关同步控制同一状态。
-3. 骨架模型仍使用原长方体范围。
-4. Ultra 使用 `glass_bottle_inner_air` 节点，不存在固定屏幕位置计算。
-5. GLB 节点缺失或包围盒无效时，隐藏 Ultra 粒子层并输出开发警告，不把粒子错误放到世界原点。
-
-## 12. 浏览器验收
+## 7. 浏览器验收
 
 固定预览命令：
 
@@ -365,50 +420,89 @@ npm.cmd run dev -- --host 127.0.0.1 --port 5174 --strictPort
 http://127.0.0.1:5174/
 ```
 
-验收场景：
+### 7.1 第一阶段浏览器验收
 
-1. Ultra 模式初始状态下，粒子均匀分布在圆柱主腔，不进入瓶颈和瓶外。
-2. 连续观察至少 30 秒，不出现穿墙、边界消失、球体明显长期重叠或位置跳变。
-3. 左右侧栏拖动、窗口缩放、默认视角和聚焦视角切换后，粒子仍跟随 GLB 内腔。
-4. 打气时粒子从正确进气侧加入，数量随 `gasAmountRatio` 增加。
-5. 高压放气时出现明显向上流动，初始压差更大的场景流出更快。
-6. 压差降到零后保持开塞，粒子恢复无规则运动，不继续被出口吸引。
-7. 升温时颜色趋向热端且速度提高，降温时颜色趋向冷端且速度降低，数量不因温度改变。
-8. 放气后即使压力重新平衡，粒子数量保持当前物质的量对应值，不自动恢复初始数量。
-9. 三维视图开关和右侧栏开关均能控制粒子显隐，并即时同步。
-10. 亮色和暗色主题下粒子均可辨识，但不会遮挡玻璃瓶结构。
+1. 在骨架模型中打开硬球可视化，粒子只在现有正方体容器范围内运动。
+2. 连续观察 30 秒，粒子不穿墙、不在边界消失、不出现明显长期重叠。
+3. 打气后粒子数随 `gasAmountRatio` 增加。
+4. 高压放气时粒子向出口方向运动，压差越大越快。
+5. 零压差开塞时粒子保持无规则运动，不被出口吸引。
+6. 升温和降温只改变速度及颜色，不改变粒子数。
+7. 放气后压力重新平衡，粒子数保持当前物质量对应值。
+8. 切换标准、均衡、性能画质后，硬球可视化稳定运行。
+9. 主线程交互仍可响应，视角拖动和模式切换没有明显卡顿。
 
-## 13. 实施顺序
+### 7.2 第二阶段浏览器验收
 
-1. 先完成纯函数圆柱几何、固定步长和粒子碰撞，并以数值测试证明稳定。
-2. 再重构现有粒子层，使骨架模型通过统一容器接口运行，确认原有效果不变。
-3. 接入 Ultra 的 `glass_bottle_inner_air` 节点和圆柱配置，完成常驻粒子。
-4. 接入温度颜色及热运动速度，验证数量不受温度影响。
-5. 接入压力驱动放气和打气出生位置。
-6. 最后解除两个 Ultra 开关禁用并更新旧测试断言。
-7. 运行全量类型检查、测试、构建和浏览器视觉验收。
+1. Ultra 模式下粒子均匀分布在圆柱主腔，不进入瓶颈和瓶外。
+2. 左右侧栏拖动、窗口缩放、默认视角和聚焦视角切换后，粒子仍跟随 GLB 内腔。
+3. 打气时粒子从正确进气侧加入。
+4. 高压放气时粒子向顶部出口运动并淡出。
+5. 零压差开塞时没有定向流动。
+6. 三维视图开关和右侧栏开关均可控制 Ultra 粒子显隐，并即时同步。
+7. 亮色和暗色主题下粒子可辨识，但不遮挡玻璃瓶结构。
 
-## 14. 停止条件
+## 8. 实施顺序
 
-出现以下任一情况时暂停实现并重新确认，不使用固定坐标掩盖问题：
+### 8.1 第一阶段顺序
+
+1. 新建纯几何和模拟模块。
+2. 先写正方体采样、墙体碰撞、粒子碰撞测试。
+3. 实现固定时间步和防重叠生成。
+4. 调整视觉状态模型，分离热运动速度、压力流动速度和粒子数量。
+5. 重构 `HeatCapacityHardSphereLayer.tsx`，让骨架模型使用纯模块。
+6. 完成第一阶段自动测试。
+7. 在 `5174` 完成骨架浏览器性能验收。
+8. 停止并汇报第一阶段结果。
+
+### 8.2 第二阶段顺序
+
+1. 在纯几何模块中启用圆柱容器。
+2. 为圆柱采样和碰撞补测试。
+3. 在 Ultra 模型中读取 `glass_bottle_inner_air`。
+4. 转换 Ultra 进气口和出气口锚点。
+5. 接入 Ultra 圆柱粒子层。
+6. 完成 Ultra 浏览器验收。
+7. 解除 Ultra 主界面和右侧栏开关禁用。
+8. 运行全量类型检查、测试、构建和浏览器验收。
+
+## 9. 停止条件
+
+### 9.1 第一阶段停止条件
+
+1. 纯模拟模块必须依赖 React、Three 或 DOM 才能工作。
+2. 128 粒子在主线程下无法通过浏览器性能验收。
+3. 固定时间步后仍出现可复现穿墙、边界消失或明显长期重叠。
+4. 现有 `gasAmountRatio` 在骨架模式下无法作为粒子数量事实来源。
+5. 为解决性能问题必须引入 Worker。
+
+### 9.2 第二阶段停止条件
 
 1. `glass_bottle_inner_air` 节点不存在或尺寸无效。
 2. GLB 内腔不是以局部 Y 轴为圆柱轴，导致当前圆柱配置无法正确对齐。
-3. 现有 `gasAmountRatio` 在某个模式下没有随打气或放气更新，无法作为粒子数量事实来源。
-4. 为实现粒子进入瓶颈或外部管道必须引入新的几何碰撞范围。
-5. 粒子碰撞在 Ultra 档位产生可复现的明显帧率下降，需要引入空间哈希或降低求解频率。
+3. 进气口或出口锚点缺失，无法可靠确定局部坐标。
+4. 粒子跟随 GLB 节点时随侧栏缩放或视角变化发生漂移。
+5. 为实现粒子进入瓶颈或外部管道必须引入新的碰撞范围。
 
-## 15. 最终验收标准
+## 10. 最终验收标准
 
-本功能完成时必须同时满足：
+第一阶段完成时必须满足：
 
-1. Ultra 圆柱主腔内存在稳定、常驻的硬球粒子运动。
-2. 常驻粒子不因墙体接触消失，不持续穿墙，不存在明显长期重叠。
+1. 骨架正方体容器内存在稳定硬球粒子运动。
+2. 粒子不因墙体接触消失，不持续穿墙，不存在明显长期重叠。
 3. 温度只控制热运动速度和颜色。
 4. 压力差只控制有效放气时的定向流动强度。
 5. 零压差开塞不产生定向运动。
-6. 粒子数量反映物质的量，并保留打气、放气后的历史差异。
-7. 两个可视化开关在 Ultra 模式可用且状态同步。
-8. 骨架模型现有视觉行为不回归。
-9. `npm.cmd exec tsc -- --noEmit`、`npm.cmd test` 和 `npm.cmd run build` 全部通过。
-10. 在固定端口 `5174` 完成不同尺寸、侧栏布局、主题和实验阶段的真实浏览器验收。
+6. 粒子数量反映物质量，并保留打气、放气后的历史差异。
+7. Ultra 可视化仍保持禁用状态。
+8. `npm.cmd exec tsc -- --noEmit`、`npm.cmd test` 和 `npm.cmd run build` 全部通过。
+9. 固定端口 `5174` 完成第一阶段浏览器性能验收。
+
+第二阶段完成时必须在第一阶段基础上继续满足：
+
+1. Ultra 圆柱主腔内存在稳定常驻粒子。
+2. Ultra 粒子跟随 GLB 内腔，不受窗口尺寸、左右栏缩放和聚焦视角影响。
+3. Ultra 打气和放气使用正确的 GLB 进出口位置。
+4. Ultra 主界面和右侧栏可视化开关可用且同步。
+5. 骨架模型第一阶段行为不回归。
+6. 全量类型检查、测试、构建和浏览器验收全部通过。
