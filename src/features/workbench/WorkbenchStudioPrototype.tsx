@@ -201,8 +201,8 @@ type WorkbenchResolvedTheme = 'light' | 'dark';
 type WorkbenchLanguagePreference = 'zh-CN' | 'zh-TW' | 'en';
 type WorkbenchPerformanceMode = 'standard' | 'balanced' | 'performance' | 'ultra';
 const HEAT_CAPACITY_HARD_SPHERE_PERFORMANCE_PRESETS = {
-  standard: { particleMultiplier: 1.25, speedMultiplier: 1.25 },
-  balanced: { particleMultiplier: 1, speedMultiplier: 1 },
+  standard: { particleMultiplier: 1, speedMultiplier: 1.25 },
+  balanced: { particleMultiplier: 0.75, speedMultiplier: 1 },
   performance: { particleMultiplier: 0.5, speedMultiplier: 0.5 },
   ultra: { particleMultiplier: 1.25, speedMultiplier: 1.25 },
 } as const;
