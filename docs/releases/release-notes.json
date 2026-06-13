@@ -3,6 +3,137 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.17",
+      "date": "2026-06-13",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.17",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.17/heat-capacity-lab-setup-4.1.17.exe"
+      },
+      "summary": {
+        "zh-CN": "修正热容比 3D 聚焦模式的删除范围：恢复主机面板和打气球聚焦视角，只移除玻璃旋塞与打气阀门共用的聚焦视角及其悬浮入口、状态面板和小仪表；同时保留 Ultra GLB 玻璃旋塞拨杆命中优化和更新下载过程中的结构化更新说明。",
+        "zh-TW": "修正熱容比 3D 聚焦模式的刪除範圍：恢復主機面板和打氣球聚焦視角，只移除玻璃旋塞與打氣閥門共用的聚焦視角及其懸浮入口、狀態面板和小儀表；同時保留 Ultra GLB 玻璃旋塞撥桿命中最佳化和更新下載過程中的結構化更新說明。",
+        "en": "Corrects the heat-capacity 3D focus-mode removal scope: instrument-panel and pump-bulb focus views are restored, while only the shared glass-stopcock and pump-valve focus view, hover entry, status panel, and mini readout are removed. Ultra GLB stopcock lever hit testing and structured release notes during download are preserved."
+      },
+      "sections": [
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "恢复主机面板聚焦",
+                "zh-TW": "恢復主機面板聚焦",
+                "en": "Instrument-panel focus restored"
+              },
+              "body": {
+                "zh-CN": "电源开关、压强调零和主机面板相关的双击聚焦、固定视角和状态面板恢复为原有行为，不再因移除阀门聚焦而被误删。",
+                "zh-TW": "電源開關、壓強調零和主機面板相關的雙擊聚焦、固定視角和狀態面板恢復為原有行為，不再因移除閥門聚焦而被誤刪。",
+                "en": "Double-click focus, fixed camera framing, and status-panel behavior for the power switch, pressure-zero control, and instrument panel are restored to the original interaction."
+              }
+            },
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "恢复打气球聚焦",
+                "zh-TW": "恢復打氣球聚焦",
+                "en": "Pump-bulb focus restored"
+              },
+              "body": {
+                "zh-CN": "打气球的双击进入聚焦、固定视角、状态面板和聚焦状态下的打气操作恢复，骨架模型和 Ultra GLB 模型保持一致。",
+                "zh-TW": "打氣球的雙擊進入聚焦、固定視角、狀態面板和聚焦狀態下的打氣操作恢復，骨架模型和 Ultra GLB 模型保持一致。",
+                "en": "Pump-bulb double-click focus, fixed camera framing, status panel, and focused pumping interaction are restored consistently for both procedural and Ultra GLB models."
+              }
+            },
+            {
+              "scope": "desktop-update",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "更新说明下载中保持结构化排版",
+                "zh-TW": "更新說明下載中保持結構化排版",
+                "en": "Structured release notes remain during downloads"
+              },
+              "body": {
+                "zh-CN": "点击立即更新后，下载中、重试、失败和下载完成状态都会继续保留已获取的分组更新说明，不再退化为纯文本显示。",
+                "zh-TW": "點擊立即更新後，下載中、重試、失敗和下載完成狀態都會繼續保留已取得的分組更新說明，不再退化為純文字顯示。",
+                "en": "After starting an update, downloading, retrying, failed, and downloaded states keep the structured grouped release notes instead of falling back to plain text."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "变更",
+            "zh-TW": "變更",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "仅移除阀门共用聚焦视角",
+                "zh-TW": "僅移除閥門共用聚焦視角",
+                "en": "Only the shared valve focus view is removed"
+              },
+              "body": {
+                "zh-CN": "删除玻璃旋塞与打气阀门共用的悬浮进入按钮、固定聚焦视角、状态面板和小仪表；玻璃旋塞与打气阀门仍可在普通 3D 视图中直接点击开关。",
+                "zh-TW": "刪除玻璃旋塞與打氣閥門共用的懸浮進入按鈕、固定聚焦視角、狀態面板和小儀表；玻璃旋塞與打氣閥門仍可在普通 3D 視圖中直接點擊開關。",
+                "en": "The shared hover entry, fixed focus camera, status panel, and mini readout for the glass stopcock and pump valve are removed; both controls still toggle directly in the normal 3D view."
+              }
+            },
+            {
+              "scope": "heat-capacity",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "保留玻璃旋塞拨杆命中范围",
+                "zh-TW": "保留玻璃旋塞撥桿命中範圍",
+                "en": "Glass-stopcock lever hit target preserved"
+              },
+              "body": {
+                "zh-CN": "普通骨架模型和 Ultra GLB 模型仍将玻璃旋塞外侧拨杆纳入悬浮与点击命中区域，避免鼠标放在拨杆上方没有反应。",
+                "zh-TW": "普通骨架模型和 Ultra GLB 模型仍將玻璃旋塞外側撥桿納入懸浮與點擊命中區域，避免滑鼠放在撥桿上方沒有反應。",
+                "en": "Both the procedural and Ultra GLB models keep the outer stopcock lever inside the hover and click hit target, so the lever remains responsive."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "兼容性",
+            "zh-TW": "相容性",
+            "en": "Compatibility"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "high",
+              "title": {
+                "zh-CN": "桌面自动更新资产完整",
+                "zh-TW": "桌面自動更新資產完整",
+                "en": "Desktop auto-update assets are complete"
+              },
+              "body": {
+                "zh-CN": "4.1.17 发布 NSIS 安装包、latest.yml 和 blockmap，已安装的桌面客户端可通过应用内检查更新发现并下载安装。",
+                "zh-TW": "4.1.17 發布 NSIS 安裝包、latest.yml 和 blockmap，已安裝的桌面用戶端可透過應用程式內檢查更新發現並下載安裝。",
+                "en": "Version 4.1.17 ships the NSIS installer, latest.yml, and blockmap so installed desktop clients can discover and install it through the in-app updater."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.16",
       "date": "2026-06-13",
       "channel": "stable",

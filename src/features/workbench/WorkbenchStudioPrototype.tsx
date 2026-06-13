@@ -54,8 +54,10 @@ import {
   applyHeatCapacityFreeParameterDraftWorkbenchState,
   canOpenHeatCapacityParameterSidebar,
   enterHeatCapacityFreeModeWorkbenchState,
+  freezeHeatCapacityFreeParametersForCurrentGroup,
   getHeatCapacityFreeParameterLockReason,
   getHeatCapacityParameterSidebarBlockReason,
+  hasCompletedHeatCapacityFreeRecordSet,
   isHeatCapacityFreeGammaEditingAvailable,
   getHeatCapacityStopcockTargetAngle,
   getHeatCapacityStopcockState,
@@ -74,6 +76,7 @@ import {
   captureHeatCapacityWorkbenchSample,
   markHeatCapacityDemoComplete,
   powerHeatCapacityWorkbenchFile,
+  prepareNextHeatCapacityFreeExperimentGroupWorkbenchState,
   prepareHeatCapacityAutoDemoStart,
   applyHeatCapacityFreeRecordWorkbenchState,
   refreshHeatCapacityPumpFrequency,
@@ -251,6 +254,22 @@ type HeatCapacityMode = 'demo' | 'guide' | 'free';
 const heatCapacityUltraModelIntegrationReady = true;
 type WorkbenchUpdateStatus = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'retrying' | 'downloaded' | 'installing' | 'unsupported' | 'error';
 type WorkbenchLocalizedText = Partial<Record<WorkbenchLanguagePreference, string>>;
+
+type HeatCapacityFocusMode = 'none' | 'instrument' | 'pump';
+type HeatCapacityFocusControlSnapshot = {
+  powerOn: boolean;
+  stopcockOpen: boolean;
+  pumpValveOpen: boolean;
+  pressureZeroAdjusted: boolean;
+  pressureZeroOffset: number;
+};
+type HeatCapacityFocusSession = {
+  fileId: string;
+  mode: Exclude<HeatCapacityFocusMode, 'none'>;
+  parametersCollapsedBeforeFocus: boolean;
+  baseline: HeatCapacityFocusControlSnapshot;
+  nonReversibleAction: boolean;
+};
 
 interface WorkbenchUpdateReleaseItem {
   scope: string;
@@ -1873,7 +1892,7 @@ const heatCapacityRealtimeCopies = {
     safetyActive: '激活',
     pressureWarningTitle: '危险',
     pressureWarningFallback: '压强已超过安全阈值，请停止打气。',
-    pressureWarningObserve: '请停止打气，并关闭打气阀门。',
+    pressureWarningObserve: '聚焦模式已退出，请停止打气。',
     operationLocked: '操作锁定',
     phaseLabels: {
       powerOff: '未开机',
@@ -2056,7 +2075,7 @@ const heatCapacityRealtimeCopies = {
     safetyActive: '啟用',
     pressureWarningTitle: '危險',
     pressureWarningFallback: '壓強已超過安全閾值，請停止打氣。',
-    pressureWarningObserve: '請停止打氣，並關閉打氣閥門。',
+    pressureWarningObserve: '聚焦模式已退出，請停止打氣。',
     operationLocked: '操作鎖定',
     phaseLabels: {
       powerOff: '未開機',
@@ -2239,7 +2258,7 @@ const heatCapacityRealtimeCopies = {
     safetyActive: 'Active',
     pressureWarningTitle: 'Danger',
     pressureWarningFallback: 'Pressure exceeds the safety threshold. Stop pumping.',
-    pressureWarningObserve: 'Stop pumping and close the pump valve.',
+    pressureWarningObserve: 'Focus mode has exited. Stop pumping.',
     operationLocked: 'Operation locked',
     phaseLabels: {
       powerOff: 'Power off',
@@ -3188,6 +3207,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const heatCapacityRecordSuccessToastTimersRef = useRef<number[]>([]);
   const heatCapacityPressureAlarmTimerRef = useRef<number | null>(null);
   const heatCapacityClosePumpValveReminderTimerRef = useRef<number | null>(null);
+  const heatCapacityFocusSessionRef = useRef<HeatCapacityFocusSession | null>(null);
   const heatCapacityPressureAlarmVisibleRef = useRef(false);
   const heatCapacityToastTimerRef = useRef<number | null>(null);
   const heatCapacityToastCurrentRef = useRef<HeatCapacityToastMessage | null>(null);
@@ -5018,9 +5038,101 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return `${file.id}:${completedTrialCount}:${nextActiveTrialIndex}`;
   };
 
+  const getHeatCapacityFocusControlSnapshot = (
+    file: WorkbenchHeatCapacityState,
+  ): HeatCapacityFocusControlSnapshot => ({
+    powerOn: file.powerOn,
+    stopcockOpen: getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open',
+    pumpValveOpen: file.pumpValveOpen,
+    pressureZeroAdjusted: file.pressureZeroAdjusted,
+    pressureZeroOffset: file.pressureZeroOffset,
+  });
+
+  const isHeatCapacityFocusSessionMeaningful = (
+    session: HeatCapacityFocusSession,
+  ) => {
+    if (session.nonReversibleAction) return true;
+    const currentFile = filesRef.current.find((file) => file.id === session.fileId);
+    if (!currentFile || currentFile.kind !== 'heatCapacity') return true;
+    const currentSnapshot = getHeatCapacityFocusControlSnapshot(currentFile);
+    return (
+      currentSnapshot.powerOn !== session.baseline.powerOn ||
+      currentSnapshot.stopcockOpen !== session.baseline.stopcockOpen ||
+      currentSnapshot.pumpValveOpen !== session.baseline.pumpValveOpen ||
+      currentSnapshot.pressureZeroAdjusted !== session.baseline.pressureZeroAdjusted ||
+      currentSnapshot.pressureZeroOffset !== session.baseline.pressureZeroOffset
+    );
+  };
+
+  const markHeatCapacityFocusSessionNonReversible = () => {
+    const session = heatCapacityFocusSessionRef.current;
+    if (!session) return;
+    heatCapacityFocusSessionRef.current = {
+      ...session,
+      nonReversibleAction: true,
+    };
+  };
+
+  const exitHeatCapacityFocusMode = () => {
+    const session = heatCapacityFocusSessionRef.current;
+    if (session) {
+      const meaningfulSession = isHeatCapacityFocusSessionMeaningful(session);
+      updateFileById(session.fileId, (file) => {
+        if (file.kind !== 'heatCapacity' || file.heatCapacityMode !== 'free') return file;
+        if (!meaningfulSession) {
+          return hasCompletedHeatCapacityFreeRecordSet(file)
+            ? file
+            : prepareNextHeatCapacityFreeExperimentGroupWorkbenchState(file);
+        }
+        if (
+          file.heatCapacityFreeExperimentGroupStatus === 'draft' &&
+          !hasCompletedHeatCapacityFreeRecordSet(file)
+        ) {
+          return freezeHeatCapacityFreeParametersForCurrentGroup(file);
+        }
+        return file;
+      });
+      if (!meaningfulSession && !session.parametersCollapsedBeforeFocus) {
+        setParametersCollapsed(false);
+      }
+      heatCapacityFocusSessionRef.current = null;
+    }
+    setHeatCapacityFocusResetKey((key) => key + 1);
+    heatCapacityFocusSessionRef.current = null;
+  };
+
+  const updateHeatCapacityFocusMode = (mode: HeatCapacityFocusMode) => {
+    if (mode === 'none') {
+      exitHeatCapacityFocusMode();
+      return;
+    }
+    const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
+    if (currentFile?.kind === 'heatCapacity') {
+      const currentSession = heatCapacityFocusSessionRef.current;
+      heatCapacityFocusSessionRef.current = currentSession?.fileId === currentFile.id
+        ? {
+            ...currentSession,
+            mode,
+          }
+        : {
+            fileId: currentFile.id,
+            mode,
+            parametersCollapsedBeforeFocus: parametersCollapsed,
+            baseline: getHeatCapacityFocusControlSnapshot(currentFile),
+            nonReversibleAction: false,
+          };
+      setParametersCollapsed(true);
+      setHeatCapacityAdvancedOpen(false);
+      setPinnedHeatCapacityParamHelpId(null);
+      setHoveredHeatCapacityParamHelpId(null);
+      setHeatCapacityParamHelpPopoverStyle(undefined);
+    }
+  };
+
   const showHeatCapacityPressureAlarm = (fileId: string, fileName: string) => {
     clearHeatCapacityToastQueue();
     setHeatCapacityPressureAlarmVisible(true);
+    exitHeatCapacityFocusMode();
     pushLog(heatCapacityRealtimeCopy.pressureAlarmLog(fileName), 'warning');
     if (heatCapacityPressureAlarmTimerRef.current !== null) {
       window.clearTimeout(heatCapacityPressureAlarmTimerRef.current);
@@ -5459,6 +5571,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         : file
     ));
     if (attempt.accepted) {
+      markHeatCapacityFocusSessionNonReversible();
       clearManualHeatCapacityGuidance();
       showManualHeatCapacityGuidance(message, kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2', 'success');
       pushLog(message, 'success');
@@ -5684,6 +5797,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setAutoDemoStepPanelMode('hidden');
     setAutoDemoCompletionMessage(null);
     setHeatCapacityFocusResetKey((key) => key + 1);
+    heatCapacityFocusSessionRef.current = null;
     updateActiveFile((file) => file.kind === 'heatCapacity'
       ? enterHeatCapacityFreeModeWorkbenchState(file, Date.now())
       : file);
@@ -5719,6 +5833,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setManualHeatCapacityRollback(null);
     setAutoDemoCompletionMessage(null);
     setHeatCapacityFocusResetKey((key) => key + 1);
+    heatCapacityFocusSessionRef.current = null;
     captureUndoSnapshot('reset heat-capacity free run');
     updateActiveFile((file) => file.kind === 'heatCapacity'
       ? resetHeatCapacityFreeRunWorkbenchState(file, now)
@@ -5954,6 +6069,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       : null;
     if (source === 'user' && nextHeatCapacityFile) {
       collapseHeatCapacityFreeParameterSidebarForExperimentAction();
+      markHeatCapacityFocusSessionNonReversible();
     }
     const pressureStatusBeforePump = fileBeforePump?.kind === 'heatCapacity'
       ? getHeatCapacityPressureSafetyStatusFromMv(getManualHeatCapacityThresholdPressureMv(fileBeforePump), fileBeforePump)
@@ -6369,9 +6485,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setManualHeatCapacityActiveFileId(null);
     const demoFileId = activeFile.id;
     const steps = createHeatCapacityAutoDemoSteps();
-    const timeline = getHeatCapacityAutoDemoTimeline(steps);
-    setHeatCapacityFocusResetKey((key) => key + 1);
-    heatCapacityAutoDemoPausedElapsedMsRef.current = 0;
+  const timeline = getHeatCapacityAutoDemoTimeline(steps);
+  setHeatCapacityFocusResetKey((key) => key + 1);
+  heatCapacityFocusSessionRef.current = null;
+  heatCapacityAutoDemoPausedElapsedMsRef.current = 0;
     heatCapacityAutoDemoPausedFileIdRef.current = null;
     const now = Date.now();
     updateFileById(demoFileId, (file) => file.kind === 'heatCapacity'
@@ -8856,6 +8973,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setManualHeatCapacityFocusControlId(null);
     setManualHeatCapacityPulseActive(false);
     setManualHeatCapacityRollback(null);
+    heatCapacityFocusSessionRef.current = null;
   };
 
   const closeWorkbenchFile = (fileId: string) => {
@@ -10923,6 +11041,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   overlayBottomRight={heatCapacityBottomRightOverlay}
                   overlayCenter={heatCapacityCenterOverlay}
                   overlayBottomCenter={heatCapacityBottomCenterOverlay}
+                  onFocusModeChange={updateHeatCapacityFocusMode}
                   onLockedInteraction={showHeatCapacityAutoDemoLockedToast}
                   onPowerToggle={updateHeatCapacityPower}
                   onStopcockOpenChange={updateHeatCapacityStopcockOpen}

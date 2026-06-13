@@ -313,7 +313,7 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const resolveUltraActionControl = useCallback\([\s\S]*const panelResolvedControl = resolveUltraPanelPointerControl\(control, clientX, clientY\)[\s\S]*panelResolvedControl === 'pumpValve' && props\.hoveredControl === 'stopcock'[\s\S]*const handleUltraControlClick = useCallback\([\s\S]*const resolvedControl = resolveUltraActionControl\(control, event\.clientX, event\.clientY\)[\s\S]*if \(resolvedControl === 'powerSwitch'\)[\s\S]*props\.onPowerToggle\(\)/,
+  /const resolveUltraActionControl = useCallback\([\s\S]*const panelResolvedControl = resolveUltraPanelPointerControl\(control, clientX, clientY\)[\s\S]*panelResolvedControl === 'pumpValve' && props\.hoveredControl === 'stopcock'[\s\S]*const handleUltraControlClick = useCallback\([\s\S]*const clientX = event\.clientX;[\s\S]*const clientY = event\.clientY;[\s\S]*const resolvedControl = resolveUltraActionControl\(control, clientX, clientY\)/,
   'Ultra GLB clicks should use the same panel disambiguation before dispatching power-switch and zero-knob behavior',
 );
 assert.match(
@@ -343,8 +343,8 @@ assert.doesNotMatch(
 );
 assert.match(
   ultraModelSource,
-  /const handleUltraControlWheel = useCallback\([\s\S]*const resolvedControl = resolveUltraPanelPointerControl\(control, event\.clientX, event\.clientY\)[\s\S]*if \(resolvedControl !== 'pressureZero'\) return;[\s\S]*absorbUltraPointerEvent\(event\);[\s\S]*const requestedDelta = \(event\.deltaY < 0 \? PRESSURE_ZERO_FINE_ANGLE_STEP_DEG : -PRESSURE_ZERO_FINE_ANGLE_STEP_DEG\)\s*\*\s*PRESSURE_ZERO_DRAG_DIRECTION;[\s\S]*props\.onPressureZeroFineAdjust\(boundedDelta\);/,
-  'Ultra GLB pressure-zero wheel fine adjustment should work directly from the normal view while reusing panel disambiguation and fine-step scaling',
+  /const handleUltraControlWheel = useCallback\([\s\S]*const resolvedControl = resolveUltraPanelPointerControl\(control, event\.clientX, event\.clientY\)[\s\S]*if \(resolvedControl !== 'pressureZero'\) return;[\s\S]*absorbUltraPointerEvent\(event\);[\s\S]*if \(!props\.pressureZeroInteractionEnabled\) \{[\s\S]*return;[\s\S]*\}[\s\S]*const requestedDelta = \(event\.deltaY < 0 \? PRESSURE_ZERO_FINE_ANGLE_STEP_DEG : -PRESSURE_ZERO_FINE_ANGLE_STEP_DEG\)\s*\*\s*PRESSURE_ZERO_DRAG_DIRECTION;[\s\S]*props\.onPressureZeroFineAdjust\(boundedDelta\);/,
+  'Ultra GLB pressure-zero wheel fine adjustment should reuse the same hitbox disambiguation and fine-step scaling as the skeleton model',
 );
 assert.match(
   ultraModelSource,
@@ -509,10 +509,10 @@ assert.match(
   /ULTRA_CONTROL_HITBOXES[\s\S]*powerSwitch[\s\S]*FD_NCD_C_PowerSwitch_Base[\s\S]*pressureZero[\s\S]*FD_NCD_C_ZeroAdjustKnob[\s\S]*stopcock[\s\S]*Stopcock_THandle[\s\S]*pumpValve[\s\S]*InletValue_Pivot[\s\S]*pumpBulb[\s\S]*Pump_Bulb/,
   'Ultra GLB hitboxes should be anchored to GLB nodes, with the switch on a stable base and the stopcock on its handle only',
 );
-assert.doesNotMatch(
+assert.match(
   ultraModelSource,
-  /ULTRA_INSTRUMENT_FOCUS_HITBOX|UltraInstrumentFocusHitbox|HSL_UltraMeshHitbox_instrumentFocus/,
-  'Ultra GLB should remove the large front-panel double-click focus hitbox',
+  /const ULTRA_INSTRUMENT_FOCUS_HITBOX = \{[\s\S]*anchorNodeName: 'FD_NCD_C_FrontPanel'[\s\S]*size: \[2\.04,\s*0\.86,\s*0\.36\][\s\S]*function UltraInstrumentFocusHitbox[\s\S]*name="HSL_UltraMeshHitbox_instrumentFocus"[\s\S]*onDoubleClick=\{onDoubleClick\}/,
+  'Ultra GLB should expose a large front-panel double-click hitbox so the whole host can enter instrument focus',
 );
 assert.match(
   ultraModelSource,
@@ -522,7 +522,7 @@ assert.match(
 assert.match(
   ultraModelSource,
   /control: 'stopcock', anchorNodeName: 'Stopcock_THandle', size: \[0\.42, 0\.24, 0\.64\], offset: \[0\.18, 0, 0\]/,
-  'Ultra stopcock hitbox should include the outer glass rod and T-handle while staying anchored to the handle node',
+  'Ultra stopcock hitbox should include the outer handle lever while staying anchored to the handle node',
 );
 assert.match(
   ultraModelSource,
@@ -557,7 +557,7 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const resolveUltraActionControl = useCallback\([\s\S]*panelResolvedControl === 'pumpValve' && props\.hoveredControl === 'stopcock'[\s\S]*const handleUltraControlClick = useCallback\([\s\S]*const resolvedControl = resolveUltraActionControl\(control, event\.clientX, event\.clientY\)[\s\S]*if \(resolvedControl === 'powerSwitch'\)[\s\S]*else if \(resolvedControl === 'stopcock'\)[\s\S]*else if \(resolvedControl === 'pumpValve'\)/,
+  /const resolveUltraActionControl = useCallback\([\s\S]*panelResolvedControl === 'pumpValve' && props\.hoveredControl === 'stopcock'[\s\S]*const handleUltraControlClick = useCallback\([\s\S]*const resolvedControl = resolveUltraActionControl\(control, clientX, clientY\)[\s\S]*const runControlClick = \(\) => \{[\s\S]*if \(resolvedControl === 'powerSwitch'\)[\s\S]*else if \(resolvedControl === 'stopcock'\)[\s\S]*else if \(resolvedControl === 'pumpValve'\)/,
   'Ultra GLB valve clicks should honor the current hover target so pump-valve depth does not steal stopcock-handle clicks',
 );
 assert.match(
@@ -674,7 +674,7 @@ assert.match(
 assert.match(
   ultraModelSource,
   /id: 'stopcock'[\s\S]*anchorNodeName: 'Stopcock_THandle'[\s\S]*size: \[0\.36, 0\.18, 0\.60\][\s\S]*offset: \[0\.18, 0, 0\]/,
-  'Ultra stopcock hover hint should visually follow the outer glass rod and T-handle hit area',
+  'Ultra stopcock hover hint should visually cover the outer handle lever hit area',
 );
 assert.match(
   ultraModelSource,
@@ -727,15 +727,20 @@ assert.doesNotMatch(
   'Ultra visual halo target definitions should not depend on one screen size or DOM pixel coordinate system',
 );
 
-assert.doesNotMatch(
+assert.match(
   sceneSource,
-  /focusViews:\s*\{/,
-  'Ultra mode should not keep removed manual focus camera views',
+  /const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = \{[\s\S]*focusViews: \{[\s\S]*instrument:[\s\S]*position: \[2\.78,\s*1\.16,\s*3\.85\][\s\S]*target: \[2\.24,\s*0\.06,\s*0\.28\][\s\S]*fov: 32[\s\S]*pump:[\s\S]*position: \[2\.34,\s*1\.24,\s*3\.55\][\s\S]*target: \[0\.98,\s*0\.34,\s*0\.28\][\s\S]*fov: 36/,
+  'Ultra mode should keep model-specific focus views for instrument and pump instead of falling back to the GLB default view',
 );
 assert.doesNotMatch(
   sceneSource,
-  /if \(focusMode !== 'none'\) return;[\s\S]*focusView/,
-  'CameraRig should not keep manual focus-view animation branches after focus modes are removed',
+  /const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = \{[\s\S]*focusViews: \{[\s\S]*stopcock:/,
+  'Ultra mode should not keep the removed shared stopcock and pump-valve focus view',
+);
+assert.match(
+  sceneSource,
+  /if \(focusMode !== 'none'\) return;[\s\S]*getCameraFovForAspect\(cameraViewScheme, aspect\)[\s\S]*const startFov = camera\.fov[\s\S]*const nextFov = focusView[\s\S]*\? focusView\.fov \?\? cameraViewScheme\.fov[\s\S]*: getCameraFovForAspect\(cameraViewScheme, aspect\)[\s\S]*camera\.fov = THREE\.MathUtils\.lerp\(startFov, nextFov, eased\)/,
+  'Ultra focus views should animate back to the base model FOV so short-wide canvases do not shrink focused controls',
 );
 assert.doesNotMatch(
   sceneSource,
@@ -744,63 +749,68 @@ assert.doesNotMatch(
 );
 assert.match(
   sceneSource,
-  /const orbitControlsEnabled = !props\.interactionLocked;/,
-  'Orbit controls should remain available outside demo locks after manual focus modes are removed',
+  /const orbitControlsEnabled = focusMode === 'none' && !props\.interactionLocked;/,
+  'Ultra focus mode should use the same orbit-lock policy as the procedural model so the smooth focused view stays stable',
 );
-assert.doesNotMatch(
+assert.match(
   sceneSource,
-  /<HeatCapacityUltraInstrumentModel[\s\S]*(pressureZeroInteractionEnabled|pumpBulbInteractionEnabled|onFocus=\{setFocusMode\})/,
-  'Heat Capacity scene should not pass removed manual focus gates into the Ultra GLB hitbox layer',
+  /<HeatCapacityUltraInstrumentModel[\s\S]*pressureZeroInteractionEnabled=\{focusMode === 'instrument'\}[\s\S]*pumpBulbInteractionEnabled=\{focusMode === 'pump'\}[\s\S]*onFocus=\{setFocusMode\}/,
+  'Heat Capacity scene should pass the focused-mode zero-knob gate and focus entry callback into the Ultra GLB hitbox layer',
 );
-assert.doesNotMatch(
+assert.match(
   ultraModelSource,
-  /pressureZeroInteractionEnabled: boolean|pumpBulbInteractionEnabled: boolean|onFocus: \(mode: UltraFocusMode\) => void|type UltraFocusMode/,
-  'Ultra GLB props should remove the manual focus-mode gates used by the deleted focus UI',
+  /pressureZeroInteractionEnabled: boolean;[\s\S]*pumpBulbInteractionEnabled: boolean;[\s\S]*onFocus: \(mode: UltraFocusMode\) => void;/,
+  'Ultra GLB props should expose the same focused-mode pressure-zero interaction gate used by the procedural skeleton',
 );
-assert.doesNotMatch(
+assert.match(
   ultraModelSource,
   /const handleUltraControlPointerDown = useCallback\([\s\S]*if \(!props\.pressureZeroInteractionEnabled\) \{[\s\S]*return;[\s\S]*\}/,
-  'Ultra pressure-zero dragging should not be blocked behind instrument focus',
+  'Ultra pressure-zero dragging should be blocked outside instrument focus instead of adjusting the zero value from the default view',
 );
 assert.match(
   ultraModelSource,
-  /else if \(resolvedControl === 'pumpBulb'\) \{[\s\S]*props\.onPumpBulbPress\(\);/,
-  'Ultra pump bulb clicks should pump directly from the normal 3D view',
+  /else if \(resolvedControl === 'pumpBulb'\) \{[\s\S]*if \(!props\.pumpBulbInteractionEnabled\) return;[\s\S]*props\.onPumpBulbPress\(\);/,
+  'Ultra pump bulb clicks should be ignored outside pump focus so the default view cannot trigger pump animation or pressure changes',
 );
 assert.match(
   ultraModelSource,
-  /gl\.domElement\.style\.cursor = resolvedControl === 'pressureZero' \? 'grab' : 'pointer';/,
-  'Ultra pressure-zero hover should show the drag cursor whenever the resolved normal-view control is the zero knob',
+  /gl\.domElement\.style\.cursor = resolvedControl === 'pressureZero' && props\.pressureZeroInteractionEnabled \? 'grab' : 'pointer';/,
+  'Ultra pressure-zero hover should only show a drag cursor while instrument focus allows actual adjustment',
 );
-assert.doesNotMatch(
+assert.match(
   ultraModelSource,
   /onDoubleClick\?: \(control: UltraPointerControl, event: ThreeEvent<MouseEvent>\) => void;[\s\S]*onDoubleClick=\{\(event\) => onDoubleClick\?\.\(definition\.control, event\)\}/,
-  'Ultra GLB hitboxes should not forward double-clicks into removed focus modes',
-);
-assert.doesNotMatch(
-  ultraModelSource,
-  /const handleUltraControlDoubleClick = useCallback\([\s\S]*if \(resolvedControl === 'powerSwitch' \|\| resolvedControl === 'pressureZero'\) \{[\s\S]*props\.onFocus\('instrument'\);[\s\S]*\} else if \(resolvedControl === 'pumpBulb'\) \{[\s\S]*props\.onFocus\('pump'\);[\s\S]*\} else \{[\s\S]*props\.onFocus\('stopcock'\);/,
-  'Ultra GLB controls should not keep double-click focus entry mapping',
-);
-assert.doesNotMatch(
-  ultraModelSource,
-  /const ULTRA_DOUBLE_CLICK_GUARD_MS = 220;[\s\S]*const pendingUltraSingleClickRef = useRef<number \| null>\(null\);[\s\S]*const clearPendingUltraSingleClick = useCallback\(\(\) => \{[\s\S]*window\.clearTimeout\(pendingUltraSingleClickRef\.current\)[\s\S]*const scheduleUltraSingleClick = useCallback\(\(run: \(\) => void\) => \{[\s\S]*window\.setTimeout\(\(\) => \{[\s\S]*run\(\);[\s\S]*ULTRA_DOUBLE_CLICK_GUARD_MS/,
-  'Ultra GLB normal clicks should not be delayed by removed double-click focus protection',
+  'Ultra GLB hitboxes should forward double-clicks so GLB controls can enter the same focus modes as the procedural skeleton',
 );
 assert.match(
   ultraModelSource,
-  /const handleUltraControlClick = useCallback\([\s\S]*const resolvedControl = resolveUltraActionControl\(control, event\.clientX, event\.clientY\)[\s\S]*if \(resolvedControl === 'powerSwitch'\)[\s\S]*props\.onPowerToggle\(\)[\s\S]*else if \(resolvedControl === 'stopcock'\)[\s\S]*props\.onStopcockOpenChange\(\)[\s\S]*else if \(resolvedControl === 'pumpValve'\)[\s\S]*props\.onPumpValveToggle\(\)[\s\S]*else if \(resolvedControl === 'pumpBulb'\)[\s\S]*props\.onPumpBulbPress\(\);/,
-  'Ultra GLB normal clicks should run direct control actions immediately from the latest resolved control state',
-);
-assert.doesNotMatch(
-  sceneSource,
-  /<HeatCapacityUltraInstrumentModel[\s\S]*focusMode=\{focusMode\}/,
-  'Heat Capacity scene should not pass removed focus mode into the Ultra GLB layer',
+  /const handleUltraControlDoubleClick = useCallback\([\s\S]*if \(resolvedControl === 'powerSwitch' \|\| resolvedControl === 'pressureZero'\) \{[\s\S]*props\.onFocus\('instrument'\);[\s\S]*\} else if \(resolvedControl === 'pumpBulb'\) \{[\s\S]*props\.onFocus\('pump'\);[\s\S]*\}/,
+  'Ultra GLB double-click focus entry should map instrument controls and pump bulb to their matching focus modes',
 );
 assert.doesNotMatch(
   ultraModelSource,
+  /props\.onFocus\('stopcock'\)|type UltraValveFocusControl|onValveFocusAnchor|openUltraValveFocusBubble/,
+  'Ultra GLB should not keep the removed shared stopcock and pump-valve focus entry',
+);
+assert.match(
+  ultraModelSource,
+  /const ULTRA_DOUBLE_CLICK_GUARD_MS = 220;[\s\S]*const pendingUltraSingleClickRef = useRef<number \| null>\(null\);[\s\S]*const clearPendingUltraSingleClick = useCallback\(\(\) => \{[\s\S]*window\.clearTimeout\(pendingUltraSingleClickRef\.current\)[\s\S]*const scheduleUltraSingleClick = useCallback\(\(run: \(\) => void\) => \{[\s\S]*window\.setTimeout\(\(\) => \{[\s\S]*run\(\);[\s\S]*ULTRA_DOUBLE_CLICK_GUARD_MS/,
+  'Ultra GLB non-focused clicks should still defer single-click side effects briefly so a fast second click can become focus instead',
+);
+assert.match(
+  ultraModelSource,
+  /const handleUltraControlClick = useCallback\([\s\S]*const resolvedControl = resolveUltraActionControl\(control, clientX, clientY\)[\s\S]*const runControlClick = \(\) => \{[\s\S]*props\.onPowerToggle\(\)[\s\S]*props\.onPumpValveToggle\(\)[\s\S]*props\.onPumpBulbPress\(\);[\s\S]*const shouldGuardSingleClick = props\.focusMode === 'none' && \([\s\S]*resolvedControl === 'powerSwitch'[\s\S]*resolvedControl === 'pumpBulb'[\s\S]*if \(!shouldGuardSingleClick\) \{[\s\S]*runControlClick\(\);[\s\S]*return;[\s\S]*\}[\s\S]*scheduleUltraSingleClick\(runControlClick\);/,
+  'Ultra GLB should protect only controls with remaining double-click focus entries while running valve clicks directly',
+);
+assert.match(
+  sceneSource,
+  /<HeatCapacityUltraInstrumentModel[\s\S]*focusMode=\{focusMode\}/,
+  'Heat Capacity scene should pass focus mode into the Ultra GLB layer so focused clicks do not wait behind double-click protection',
+);
+assert.match(
+  ultraModelSource,
   /const handleUltraInstrumentFocusDoubleClick = useCallback\([\s\S]*props\.onFocus\('instrument'\);[\s\S]*<UltraInstrumentFocusHitbox[\s\S]*onDoubleClick=\{handleUltraInstrumentFocusDoubleClick\}/,
-  'Ultra GLB host body should not keep a double-click entry into removed instrument focus',
+  'Ultra GLB host body double-clicks should enter instrument focus without requiring the user to hit the small switch or knob',
 );
 assert.match(
   workbenchSource,

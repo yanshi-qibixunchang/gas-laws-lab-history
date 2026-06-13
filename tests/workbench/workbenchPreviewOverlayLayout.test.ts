@@ -66,10 +66,10 @@ assert.match(sceneSource, /studio-preview-overlay-slot-top-left/, 'instrument sc
 assert.match(sceneSource, /data-preview-overlay-item="heat-hard-sphere-toggle"/, 'hard-sphere toggle should be a tracked overlay item');
 assert.match(sceneSource, /data-heat-capacity-hard-sphere-tooltip="true"/, 'hard-sphere explanation should render as a hover or focus tooltip');
 assert.doesNotMatch(sceneSource, /data-heat-capacity-hard-sphere-note="true"/, 'hard-sphere explanation should not render as a persistent overlay note');
-assert.doesNotMatch(sceneSource, /data-preview-overlay-item="heat-focus-panel"/, 'removed heat-capacity focus panels should not occupy an overlay slot');
+assert.match(sceneSource, /data-preview-overlay-item="heat-focus-panel"/, 'focus panel should be a tracked overlay item');
 assert.match(sceneSource, /data-preview-overlay-item="heat-view-reset"/, 'reset action should be a tracked overlay item');
 
-assert.doesNotMatch(workbenchSource, /overlayTopLeft=\{heatCapacityTopLeftOverlay\}/, 'removed heat-capacity top-left mini readout should not be passed into the scene');
+assert.doesNotMatch(workbenchSource, /overlayTopLeft=\{heatCapacityTopLeftOverlay\}/, 'workbench should not pass the removed stopcock mini readout into the heat scene');
 assert.match(workbenchSource, /overlayTopRight=\{heatCapacityTopRightOverlay\}/, 'workbench should pass top-right overlay content into the heat scene');
 assert.match(workbenchSource, /overlayBottomRight=\{heatCapacityBottomRightOverlay\}/, 'workbench should pass bottom-right overlay content into the heat scene');
 assert.match(workbenchSource, /overlayCenter=\{heatCapacityCenterOverlay\}/, 'workbench should pass centered prompts into the heat scene');
@@ -163,5 +163,5 @@ assert.match(styleSource, /@keyframes studioOverlayBottomCenterIn/, 'bottom-cent
 assert.match(styleSource, /@keyframes studioOverlayBottomCenterOut/, 'bottom-centered messages should fade out downward');
 assert.match(styleSource, /@keyframes studioOverlayFadeIn/, 'centered messages should use fade-only entry');
 assert.match(styleSource, /@keyframes studioOverlayFadeOut/, 'centered messages should use fade-only exit');
-assert.doesNotMatch(styleSource, /\.studio-heat-focus-panel/, 'removed heat-capacity focus panels should not keep layout CSS');
+assert.doesNotMatch(getCssBlock('.studio-heat-focus-panel'), /right:\s*14px/, 'focus panel should be positioned by its slot');
 assert.doesNotMatch(getCssBlock('.studio-heat-demo-step-panel'), /top:\s*48px/, 'demo step panel should be positioned by its slot');
