@@ -3,6 +3,136 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.16",
+      "date": "2026-06-13",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.16",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.16/heat-capacity-lab-setup-4.1.16.exe"
+      },
+      "summary": {
+        "zh-CN": "继续打磨热容比最高画质模型与桌面更新体验：加入 Ultra 阀门状态指示，优化玻璃旋塞与阀门命中、默认视角和拖拽保护，移除旧的 3D 聚焦模式，并确保下载更新过程中结构化更新说明不会退化为纯文本。",
+        "zh-TW": "持續打磨熱容比最高畫質模型與桌面更新體驗：加入 Ultra 閥門狀態指示，優化玻璃旋塞與閥門命中、預設視角和拖曳保護，移除舊的 3D 聚焦模式，並確保下載更新過程中結構化更新說明不會退化為純文字。",
+        "en": "Continues polishing the high-quality heat-capacity model and desktop update flow: adds Ultra valve state indication, improves stopcock and valve hit targets, default camera framing, and drag protection, removes the old 3D focus modes, and keeps structured release notes intact while updates download."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "新增",
+            "zh-TW": "新增",
+            "en": "Added"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "Ultra GLB 阀门状态指示",
+                "zh-TW": "Ultra GLB 閥門狀態指示",
+                "en": "Ultra GLB valve state indication"
+              },
+              "body": {
+                "zh-CN": "最高画质热容比模型加入阀门状态反馈，让玻璃旋塞、打气阀门和相关高亮状态更容易在 3D 视图中判断。",
+                "zh-TW": "最高畫質熱容比模型加入閥門狀態回饋，讓玻璃旋塞、打氣閥門和相關高亮狀態更容易在 3D 視圖中判斷。",
+                "en": "The highest-quality heat-capacity model now gives clearer valve state feedback so the glass stopcock, pump valve, and related highlights are easier to read in the 3D view."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "变更",
+            "zh-TW": "變更",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "移除热容比 3D 聚焦模式",
+                "zh-TW": "移除熱容比 3D 聚焦模式",
+                "en": "Removed heat-capacity 3D focus modes"
+              },
+              "body": {
+                "zh-CN": "删除小仪表、聚焦状态面板、固定聚焦视角、悬浮进入按钮和双击进入聚焦入口，3D 视图改为在普通操作状态下直接点击高亮部件。",
+                "zh-TW": "刪除小儀表、聚焦狀態面板、固定聚焦視角、懸浮進入按鈕和雙擊進入聚焦入口，3D 視圖改為在普通操作狀態下直接點擊高亮部件。",
+                "en": "Removes the mini readout, focus status panels, fixed focus cameras, hover entry button, and double-click focus entry. Highlighted parts now operate directly in the normal 3D view."
+              }
+            },
+            {
+              "scope": "heat-capacity",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "优化 Ultra 默认视角与捕获视角",
+                "zh-TW": "優化 Ultra 預設視角與擷取視角",
+                "en": "Refined Ultra default and capture camera views"
+              },
+              "body": {
+                "zh-CN": "调整最高画质模型的默认相机和热容比相机捕获视图，让装置主体、容器、阀门和仪表在工作区中呈现更稳定。",
+                "zh-TW": "調整最高畫質模型的預設相機和熱容比相機擷取視圖，讓裝置主體、容器、閥門和儀表在工作區中呈現更穩定。",
+                "en": "Adjusts the high-quality model's default camera and heat-capacity capture view so the apparatus body, vessel, valves, and instrument frame more consistently in the workspace."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "high",
+              "title": {
+                "zh-CN": "下载更新时保留结构化更新说明",
+                "zh-TW": "下載更新時保留結構化更新說明",
+                "en": "Structured release notes stay intact during downloads"
+              },
+              "body": {
+                "zh-CN": "修复点击立即更新后，下载过程中更新说明从分组排版退化为纯文本的问题；下载中、重试、失败和下载完成状态都会保留已获取的结构化说明。",
+                "zh-TW": "修復點擊立即更新後，下載過程中更新說明從分組排版退化為純文字的問題；下載中、重試、失敗和下載完成狀態都會保留已取得的結構化說明。",
+                "en": "Fixes the update dialog falling back from grouped release-note layout to plain text after starting a download. Downloading, retrying, failed, and downloaded states now preserve the structured notes already discovered."
+              }
+            },
+            {
+              "scope": "heat-capacity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "玻璃旋塞外侧拨杆纳入命中区域",
+                "zh-TW": "玻璃旋塞外側撥桿納入命中區域",
+                "en": "Glass stopcock outer lever included in hit testing"
+              },
+              "body": {
+                "zh-CN": "普通骨架模型和 Ultra GLB 模型都扩大了玻璃旋塞拨杆命中范围，悬停与单击开关不再只覆盖中间旋塞主体。",
+                "zh-TW": "普通骨架模型和 Ultra GLB 模型都擴大了玻璃旋塞撥桿命中範圍，懸停與單擊開關不再只覆蓋中間旋塞主體。",
+                "en": "Both the procedural and Ultra GLB models expand the glass stopcock lever hit target so hovering and clicking are no longer limited to the central stopcock body."
+              }
+            },
+            {
+              "scope": "ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "拖拽模型后避免误触控制件",
+                "zh-TW": "拖曳模型後避免誤觸控制件",
+                "en": "Drag gestures no longer trigger controls by accident"
+              },
+              "body": {
+                "zh-CN": "3D 视图在旋转或平移模型后会吞掉由拖拽产生的尾随点击，减少拖动视角时误触电源、阀门或打气球的情况。",
+                "zh-TW": "3D 視圖在旋轉或平移模型後會吞掉由拖曳產生的尾隨點擊，減少拖動視角時誤觸電源、閥門或打氣球的情況。",
+                "en": "The 3D view now suppresses trailing clicks generated by rotate or pan gestures, reducing accidental power, valve, or pump-bulb activation while moving the camera."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "4.1.15",
       "date": "2026-06-12",
       "channel": "stable",

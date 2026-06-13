@@ -55,6 +55,26 @@ assert.ok(electronMain.includes("const { autoUpdater } = require('electron-updat
 assert.ok(electronMain.includes('shell'), 'desktop main process should use shell.openExternal for manual downloads');
 assert.ok(electronMain.includes("require('./updaterMetadata.cjs')"), 'desktop main process should use updater metadata helpers');
 assert.ok(electronMain.includes('getReleaseMetadataForUpdateInfo'), 'desktop main process should prefer remote structured update metadata');
+assert.match(
+  electronMain,
+  /const getKnownUpdateReleaseMetadata = \(\) => \{[\s\S]*releaseSummary: updateState\.releaseSummary \?\? packagedMetadata\.releaseSummary[\s\S]*releaseSections: updateState\.releaseSections \?\? packagedMetadata\.releaseSections/,
+  'desktop update downloads should preserve remote structured release metadata instead of replacing it with stale packaged notes',
+);
+assert.match(
+  electronMain,
+  /autoUpdater\.on\('download-progress'[\s\S]*\.\.\.getKnownUpdateReleaseMetadata\(\)/,
+  'download progress events should keep structured release sections while the installer is downloading',
+);
+assert.match(
+  electronMain,
+  /ipcMain\.handle\('hsl-updater:download'[\s\S]*status: 'downloading'[\s\S]*\.\.\.getKnownUpdateReleaseMetadata\(\)/,
+  'the initial downloading state should keep the already discovered structured release notes',
+);
+assert.match(
+  electronMain,
+  /status: 'retrying'[\s\S]*\.\.\.getKnownUpdateReleaseMetadata\(\)/,
+  'retrying update states should keep the structured release notes visible',
+);
 assert.ok(electronMain.includes('autoUpdater.autoDownload = false;'), 'updates should wait for explicit user confirmation before downloading');
 assert.ok(electronMain.includes('autoUpdater.autoInstallOnAppQuit = true;'), 'downloaded updates should be staged for safe install');
 assert.ok(electronMain.includes("ipcMain.handle('hsl-updater:check'"), 'desktop main process should expose a check-for-updates IPC route');
@@ -84,6 +104,16 @@ assert.ok(source.includes('window.hardSphereLabUpdater?.checkForUpdates'), 'Abou
 assert.ok(source.includes('window.hardSphereLabUpdater?.downloadUpdate'), 'update dialog should start downloads through the desktop bridge');
 assert.ok(source.includes('window.hardSphereLabUpdater?.quitAndInstall'), 'downloaded updates should offer restart-and-install');
 assert.ok(source.includes('window.hardSphereLabUpdater?.openManualDownload'), 'failed updates should offer the direct manual installer download');
+assert.match(
+  source,
+  /const mergeWorkbenchUpdateDialogState = \([\s\S]*releaseSummary: nextState\.releaseSummary \?\? previousState\.releaseSummary[\s\S]*releaseSections: nextState\.releaseSections \?\? previousState\.releaseSections/,
+  'renderer update dialog should preserve structured release notes across partial updater states',
+);
+assert.match(
+  source,
+  /setUpdateDialogState\(\(currentDialogState\) => mergeWorkbenchUpdateDialogState\(nextState, currentDialogState\)\)/,
+  'renderer should merge partial downloading and retrying status payloads into the existing dialog state',
+);
 assert.ok(source.includes('const renderUpdateDialog = () => {'), 'workbench should render a dedicated update dialog');
 assert.ok(source.includes('studio-update-dialog'), 'update dialog should use a dedicated engineering-style CSS block');
 assert.ok(source.includes('workbenchCopy.about.updateAvailableTitle'), 'update dialog should use localized update-available copy');

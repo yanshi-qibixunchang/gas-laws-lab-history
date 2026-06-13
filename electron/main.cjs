@@ -77,6 +77,17 @@ const normalizeUpdateInfo = (info = {}) => {
   };
 };
 
+const getKnownUpdateReleaseMetadata = () => {
+  const packagedMetadata = getReleaseMetadataForVersion(updateState.latestVersion);
+  return {
+    releaseNotes: updateState.releaseNotes ?? packagedMetadata.releaseNotes ?? null,
+    releaseSummary: updateState.releaseSummary ?? packagedMetadata.releaseSummary,
+    releaseSections: updateState.releaseSections ?? packagedMetadata.releaseSections,
+    releasePageUrl: updateState.releasePageUrl ?? packagedMetadata.releasePageUrl,
+    manualDownloadUrl: updateState.manualDownloadUrl ?? packagedMetadata.manualDownloadUrl,
+  };
+};
+
 const getUpdaterState = (overrides = {}) => ({
   ...updateState,
   currentVersion: app.getVersion(),
@@ -186,6 +197,7 @@ autoUpdater.on('update-not-available', (info) => {
 autoUpdater.on('download-progress', (progress) => {
   broadcastUpdaterState({
     status: 'downloading',
+    ...getKnownUpdateReleaseMetadata(),
     percent: Number.isFinite(progress?.percent) ? progress.percent : null,
     downloadAttempt: activeDownloadAttempt,
     maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
@@ -211,7 +223,7 @@ autoUpdater.on('error', (error) => {
   if (updateDownloadInProgress) return;
   broadcastUpdaterState({
     status: 'error',
-    ...getReleaseMetadataForVersion(updateState.latestVersion),
+    ...getKnownUpdateReleaseMetadata(),
     message: getErrorMessage(error),
     retrying: false,
     errorKind: isTransientUpdateError(error) ? 'network' : 'fatal',
@@ -516,7 +528,7 @@ ipcMain.handle('hsl-updater:check', async () => {
     .catch((error) => {
       broadcastUpdaterState({
         status: 'error',
-        ...getReleaseMetadataForVersion(updateState.latestVersion),
+        ...getKnownUpdateReleaseMetadata(),
         message: getErrorMessage(error),
         retrying: false,
         errorKind: isTransientUpdateError(error) ? 'network' : 'fatal',
@@ -546,7 +558,7 @@ ipcMain.handle('hsl-updater:download', async () => {
     activeDownloadAttempt = attempt;
     broadcastUpdaterState({
       status: 'downloading',
-      ...getReleaseMetadataForVersion(updateState.latestVersion),
+      ...getKnownUpdateReleaseMetadata(),
       message: 'Downloading update.',
       percent: 0,
       downloadAttempt: attempt,
@@ -568,7 +580,7 @@ ipcMain.handle('hsl-updater:download', async () => {
         activeDownloadAttempt = null;
         return broadcastUpdaterState({
           status: 'error',
-          ...getReleaseMetadataForVersion(updateState.latestVersion),
+          ...getKnownUpdateReleaseMetadata(),
           message,
           percent: null,
           downloadAttempt: attempt,
@@ -581,7 +593,7 @@ ipcMain.handle('hsl-updater:download', async () => {
       const nextAttempt = attempt + 1;
       broadcastUpdaterState({
         status: 'retrying',
-        ...getReleaseMetadataForVersion(updateState.latestVersion),
+        ...getKnownUpdateReleaseMetadata(),
         message,
         percent: null,
         downloadAttempt: nextAttempt,

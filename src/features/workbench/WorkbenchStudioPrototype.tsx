@@ -378,6 +378,27 @@ interface WorkbenchDesktopUpdaterBridge {
   onStatus?: (callback: (state: WorkbenchUpdateState) => void) => (() => void);
 }
 
+const mergeWorkbenchUpdateDialogState = (
+  nextState: WorkbenchUpdateState,
+  previousState: WorkbenchUpdateState | null,
+): WorkbenchUpdateState => {
+  if (!previousState) return nextState;
+  const nextVersion = nextState.latestVersion ?? null;
+  const previousVersion = previousState.latestVersion ?? null;
+  if (nextVersion && previousVersion && nextVersion !== previousVersion) return nextState;
+
+  return {
+    ...nextState,
+    releaseName: nextState.releaseName ?? previousState.releaseName,
+    releaseDate: nextState.releaseDate ?? previousState.releaseDate,
+    releaseNotes: nextState.releaseNotes ?? previousState.releaseNotes,
+    releaseSummary: nextState.releaseSummary ?? previousState.releaseSummary,
+    releaseSections: nextState.releaseSections ?? previousState.releaseSections,
+    releasePageUrl: nextState.releasePageUrl ?? previousState.releasePageUrl,
+    manualDownloadUrl: nextState.manualDownloadUrl ?? previousState.manualDownloadUrl,
+  };
+};
+
 const WORKBENCH_APP_VERSION = __APP_VERSION__;
 
 type ManualHeatCapacityStep =
@@ -3491,7 +3512,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         }
         return;
       }
-      setUpdateDialogState(nextState);
+      setUpdateDialogState((currentDialogState) => mergeWorkbenchUpdateDialogState(nextState, currentDialogState));
       return;
     }
 
@@ -3502,7 +3523,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       || nextState.status === 'installing'
       || (nextState.status === 'error' && Boolean(nextState.latestVersion || nextState.manualDownloadUrl || nextState.releasePageUrl))
     ) {
-      setUpdateDialogState(nextState);
+      setUpdateDialogState((currentDialogState) => mergeWorkbenchUpdateDialogState(nextState, currentDialogState));
       return;
     }
 
