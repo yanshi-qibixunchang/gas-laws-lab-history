@@ -23,7 +23,7 @@ assert.match(
 
 assert.match(
   source,
-  /const rejectLockedIdealControlledVariables = \(nextParams: SimulationParams\) => \{[\s\S]*?getLockedIdealControlledVariableKeys\(nextParams\)[\s\S]*?controlled variables are locked while .* data table has rows[\s\S]*?return true;/,
+  /const rejectLockedIdealControlledVariables = \(nextParams: SimulationParams\) => \{[\s\S]*?getLockedIdealControlledVariableKeys\(nextParams\)[\s\S]*?workbenchCopy\.logs\.controlledVariablesLocked\(activeFile\.name, getRelationLabel\(activeFile\.relation\), lockedKeys\.join\(', '\)\)[\s\S]*?return true;/,
   'saving/applying ideal parameters should reject non-variable changes instead of clearing existing data',
 );
 
@@ -82,5 +82,4 @@ assert.match(
 );
 
 console.log('workbenchIdealControlledVariablesLock tests passed');
-
 

@@ -45,11 +45,18 @@ assert.ok(csvPayload.content.includes('pv,0.0005787'));
 
 const idealReport = createWorkbenchExportPayload(ideal, 'report');
 assert.equal(idealReport.kind, 'json');
+assert.equal(idealReport.mode, 'report');
 assert.equal(idealReport.filename, formatWorkbenchExportFilename(ideal, 'ideal-verification').replace(/\.pdf$/, '.json'));
 assert.equal(idealReport.data.fileName, ideal.name);
 assert.equal(idealReport.data.relation, 'pv');
 assert.equal(idealReport.data.points.length, 1);
 assert.ok(idealReport.data.figureSpecs.some((spec) => spec.figureCode === 'ideal-raw-pv'));
+
+const idealCompleteBundle = createWorkbenchExportPayload(ideal, 'completeBundle');
+assert.equal(idealCompleteBundle.kind, 'json');
+assert.equal(idealCompleteBundle.mode, 'completeBundle');
+assert.equal(idealCompleteBundle.filename, formatWorkbenchExportFilename(ideal, 'ideal-verification').replace(/\.pdf$/, '.bundle.json'));
+assert.equal(idealCompleteBundle.data.fileName, ideal.name);
 
 const standard = {
   ...createDefaultStandardFile(1),
@@ -64,8 +71,15 @@ const standard = {
 
 const standardPayload = createWorkbenchExportPayload(standard, 'figuresZip');
 assert.equal(standardPayload.kind, 'json');
+assert.equal(standardPayload.mode, 'figuresZip');
 assert.ok(standardPayload.data.figureSpecs.length >= 5);
 assert.ok(createWorkbenchFigureSpecs(standard).every((spec) => standardPayload.data.figureSpecs.some((payloadSpec) => payloadSpec.id === spec.id)));
+
+const standardCompleteBundle = createWorkbenchExportPayload(standard, 'completeBundle');
+assert.equal(standardCompleteBundle.kind, 'json');
+assert.equal(standardCompleteBundle.mode, 'completeBundle');
+assert.equal(standardCompleteBundle.filename, formatWorkbenchExportFilename(standard, 'speed-distribution').replace(/\.pdf$/, '.bundle.json'));
+assert.ok(standardCompleteBundle.data.figureSpecs.length >= 5);
 
 const heatCapacityWithTrace = recordHeatCapacityFreeTraceEventWithReference(
   {
@@ -78,6 +92,7 @@ const heatCapacityWithTrace = recordHeatCapacityFreeTraceEventWithReference(
 assert.equal(heatCapacityWithTrace.heatCapacityFreeTraceStore.traceTrials.length, 1);
 const heatCapacityReport = createWorkbenchExportPayload(heatCapacityWithTrace, 'report');
 assert.equal(heatCapacityReport.kind, 'json');
+assert.equal(heatCapacityReport.mode, 'report');
 const heatCapacityReportText = JSON.stringify(heatCapacityReport.data);
 assert.equal(heatCapacityReportText.includes('heatCapacityFreeTraceStore'), false);
 assert.equal(heatCapacityReportText.includes('gasAmountRatio'), false);
@@ -85,5 +100,4 @@ assert.equal(heatCapacityReportText.includes('gasTemperatureK'), false);
 assert.equal(heatCapacityReportText.includes('"physical"'), false);
 
 console.log('workbenchExportPayloads tests passed');
-
 

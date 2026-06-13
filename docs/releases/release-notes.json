@@ -3,6 +3,161 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.18",
+      "date": "2026-06-13",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.18",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.18/heat-capacity-lab-setup-4.1.18.exe"
+      },
+      "summary": {
+        "zh-CN": "完善理想气体和标准模拟的实验导出、多语言与菜单交互：新增总导出入口，区分报告 PDF 和图像文件夹导出，补齐控制台及实验专属界面的简体中文、繁体中文和英文文案，并修复顶部二级菜单固定后与新悬浮菜单重叠的问题。",
+        "zh-TW": "完善理想氣體和標準模擬的實驗匯出、多語言與選單互動：新增總匯出入口，區分報告 PDF 和圖像資料夾匯出，補齊控制台及實驗專屬介面的簡體中文、繁體中文和英文文案，並修復頂部二級選單固定後與新懸浮選單重疊的問題。",
+        "en": "Improves ideal-gas and standard-simulation export, localization, and menu behavior: adds a complete export entry, separates report PDF output from image-folder output, localizes console and experiment-specific UI copy across Simplified Chinese, Traditional Chinese, and English, and prevents pinned top submenus from overlapping newly hovered submenus."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "新增",
+            "zh-TW": "新增",
+            "en": "Added"
+          },
+          "items": [
+            {
+              "scope": "export",
+              "importance": "high",
+              "title": {
+                "zh-CN": "理想气体和标准模拟新增总导出",
+                "zh-TW": "理想氣體和標準模擬新增總匯出",
+                "en": "Complete export for ideal and standard experiments"
+              },
+              "body": {
+                "zh-CN": "在报告 PDF 左侧加入样式一致的总导出按钮，用于把当前实验模式最近一次实验可导出的报告、数据与图像统一放入一个导出文件夹。",
+                "zh-TW": "在報告 PDF 左側加入樣式一致的總匯出按鈕，用於把目前實驗模式最近一次實驗可匯出的報告、資料與圖像統一放入一個匯出資料夾。",
+                "en": "Adds a matching complete-export button beside Report PDF, bundling the latest run's available report, data, and figures into one export folder."
+              }
+            },
+            {
+              "scope": "localization",
+              "importance": "high",
+              "title": {
+                "zh-CN": "补齐理想气体和标准模拟多语言",
+                "zh-TW": "補齊理想氣體和標準模擬多語言",
+                "en": "Localization coverage for ideal and standard experiments"
+              },
+              "body": {
+                "zh-CN": "控制台日志、参数校验、扫描输入错误、运行状态、结果图像列表和实验专属按钮现在都跟随简体中文、繁体中文和英文设置切换。",
+                "zh-TW": "控制台日誌、參數校驗、掃描輸入錯誤、執行狀態、結果圖像列表和實驗專屬按鈕現在都會跟隨簡體中文、繁體中文和英文設定切換。",
+                "en": "Console logs, parameter validation, scan-input errors, run states, result figure lists, and experiment-specific buttons now follow Simplified Chinese, Traditional Chinese, and English settings."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "变更",
+            "zh-TW": "變更",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "export",
+              "importance": "high",
+              "title": {
+                "zh-CN": "报告 PDF 与图像导出彻底分离",
+                "zh-TW": "報告 PDF 與圖像匯出徹底分離",
+                "en": "Report PDFs and figure exports are separated"
+              },
+              "body": {
+                "zh-CN": "报告 PDF 按钮现在直接导出单个 PDF；导出图像按钮只生成图像文件夹，文件夹内按内容分组存放图像，不再同时混出 PDF 和图像。",
+                "zh-TW": "報告 PDF 按鈕現在直接匯出單一 PDF；匯出圖像按鈕只產生圖像資料夾，資料夾內按內容分組存放圖像，不再同時混出 PDF 和圖像。",
+                "en": "Report PDF now exports a single PDF directly, while Export Figures produces only grouped image folders instead of mixing PDFs and images in both actions."
+              }
+            },
+            {
+              "scope": "ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "顶部二级菜单固定逻辑更清晰",
+                "zh-TW": "頂部二級選單固定邏輯更清晰",
+                "en": "Clearer pinned top-submenu behavior"
+              },
+              "body": {
+                "zh-CN": "点击固定某个二级菜单后，鼠标移到普通区域仍保持固定；但当悬浮到另一个可展开菜单时，会先收起旧菜单，再显示新的悬浮菜单，避免两层菜单重叠。",
+                "zh-TW": "點擊固定某個二級選單後，滑鼠移到普通區域仍保持固定；但當懸浮到另一個可展開選單時，會先收起舊選單，再顯示新的懸浮選單，避免兩層選單重疊。",
+                "en": "Pinned submenus remain open over neutral areas, but hovering another expandable menu now closes the pinned submenu before showing the new hover submenu."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "localization",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "控制台不再只显示英文实验提示",
+                "zh-TW": "控制台不再只顯示英文實驗提示",
+                "en": "Console experiment hints no longer stay English-only"
+              },
+              "body": {
+                "zh-CN": "理想气体和标准模拟的开始、暂停、终止、重置、参数应用、受控变量锁定和导出状态提示都改为从当前语言文案表读取。",
+                "zh-TW": "理想氣體和標準模擬的開始、暫停、終止、重置、參數套用、受控變量鎖定和匯出狀態提示都改為從目前語言文案表讀取。",
+                "en": "Start, pause, terminate, reset, parameter-apply, controlled-variable lock, and export-status messages for ideal and standard experiments now read from the active language copy table."
+              }
+            },
+            {
+              "scope": "ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "标准模拟结果图像列表移除英文硬编码",
+                "zh-TW": "標準模擬結果圖像列表移除英文硬編碼",
+                "en": "Standard result figure list no longer has hardcoded English"
+              },
+              "body": {
+                "zh-CN": "结果图像列表标题、说明和状态现在使用现有结果文案，避免中文界面中出现 Figure data 等英文残留。",
+                "zh-TW": "結果圖像列表標題、說明和狀態現在使用既有結果文案，避免中文介面中出現 Figure data 等英文殘留。",
+                "en": "Figure-list titles, hints, and status labels now use the localized results copy instead of hardcoded strings such as Figure data."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "兼容性",
+            "zh-TW": "相容性",
+            "en": "Compatibility"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "high",
+              "title": {
+                "zh-CN": "桌面自动更新资产完整",
+                "zh-TW": "桌面自動更新資產完整",
+                "en": "Desktop auto-update assets are complete"
+              },
+              "body": {
+                "zh-CN": "4.1.18 将发布 NSIS 安装包、latest.yml 和 blockmap，已安装桌面客户端可以通过应用内检查更新发现并下载。",
+                "zh-TW": "4.1.18 將發布 NSIS 安裝包、latest.yml 和 blockmap，已安裝桌面用戶端可以透過應用內檢查更新發現並下載。",
+                "en": "Version 4.1.18 publishes the NSIS installer, latest.yml, and blockmap so installed desktop clients can discover and download it in-app."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.17",
       "date": "2026-06-13",
       "channel": "stable",

@@ -46,7 +46,7 @@ export interface WorkbenchFigureSpec {
   recommendedFilename: string;
 }
 
-export type WorkbenchExportMode = 'report' | 'figuresZip' | 'verificationFigure' | 'pointsCsv';
+export type WorkbenchExportMode = 'completeBundle' | 'report' | 'figuresZip' | 'verificationFigure' | 'pointsCsv';
 
 export interface WorkbenchCsvExportPayload {
   kind: 'csv';
@@ -56,6 +56,7 @@ export interface WorkbenchCsvExportPayload {
 
 export interface WorkbenchJsonExportPayload {
   kind: 'json';
+  mode: WorkbenchExportMode;
   filename: string;
   data: Record<string, any>;
 }
@@ -420,12 +421,15 @@ export const createWorkbenchExportPayload = (
     file.kind === 'ideal'
       ? 'ideal-verification'
       : mode === 'verificationFigure' ? 'temperature-error' : 'speed-distribution';
-  const baseFilename = mode === 'figuresZip'
-    ? formatWorkbenchExportFilename(file, figureCode).replace(/\.pdf$/, '.figures.json')
-    : formatWorkbenchExportFilename(file, figureCode).replace(/\.pdf$/, '.json');
+  const baseFilename = mode === 'completeBundle'
+    ? formatWorkbenchExportFilename(file, figureCode).replace(/\.pdf$/, '.bundle.json')
+    : mode === 'figuresZip'
+      ? formatWorkbenchExportFilename(file, figureCode).replace(/\.pdf$/, '.figures.json')
+      : formatWorkbenchExportFilename(file, figureCode).replace(/\.pdf$/, '.json');
 
   return {
     kind: 'json',
+    mode,
     filename: baseFilename,
     data: file.kind === 'ideal' ? createIdealReportData(file, language) : createStandardReportData(file, language),
   };

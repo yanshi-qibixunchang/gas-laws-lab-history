@@ -26,11 +26,11 @@ assert.deepEqual(copyKeys, ['zh-CN', 'zh-TW', 'en'], 'copy table language keys s
 
 const getLanguageBlock = (languageKey) => {
   const nextKey = languageKey === "'zh-CN'" ? "'zh-TW': {" : languageKey === "'zh-TW'" ? 'en: {' : '};';
-  const start = source.indexOf(`  ${languageKey}: {`);
-  const end = source.indexOf(`  ${nextKey}`, start + 1);
+  const start = workbenchCopiesSource.indexOf(`  ${languageKey}: {`);
+  const end = workbenchCopiesSource.indexOf(languageKey === 'en' ? nextKey : `  ${nextKey}`, start + 1);
   assert.notEqual(start, -1, `${languageKey} copy block should exist`);
   assert.notEqual(end, -1, `${languageKey} copy block should have an end marker`);
-  return source.slice(start, end);
+  return workbenchCopiesSource.slice(start, end);
 };
 
 const zhCNBlock = getLanguageBlock("'zh-CN'");
@@ -356,5 +356,3 @@ assert.match(
 );
 
 console.log('workbenchLanguageMode tests passed');
-
-

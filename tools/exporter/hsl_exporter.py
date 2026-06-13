@@ -12,6 +12,7 @@ import csv
 import json
 import math
 import platform
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -133,14 +134,35 @@ def load_payload(path: Path) -> dict[str, Any]:
     return payload
 
 
-def ensure_dirs(out_dir: Path) -> dict[str, Path]:
+def parse_export_formats(value: str | None) -> set[str]:
+    allowed = {"report", "figures", "csv", "metadata"}
+    if not value:
+        return {"report", "figures", "csv", "metadata"}
+
+    requested = {part.strip().lower() for part in value.split(",") if part.strip()}
+    if "full" in requested:
+        requested.remove("full")
+        requested.update(allowed)
+    if not requested:
+        return {"report", "figures", "csv", "metadata"}
+
+    unknown = requested - allowed
+    if unknown:
+        raise ValueError(f"Unsupported export format(s): {', '.join(sorted(unknown))}")
+    return requested
+
+
+def ensure_dirs(out_dir: Path, include_figures: bool = True, include_data: bool = True) -> dict[str, Path]:
     paths = {
         "root": out_dir,
         "figures": out_dir / "figures",
         "data": out_dir / "data",
     }
-    for path in paths.values():
-        path.mkdir(parents=True, exist_ok=True)
+    paths["root"].mkdir(parents=True, exist_ok=True)
+    if include_figures:
+        paths["figures"].mkdir(parents=True, exist_ok=True)
+    if include_data:
+        paths["data"].mkdir(parents=True, exist_ok=True)
     return paths
 
 
@@ -195,12 +217,10 @@ def save_figure(fig: Any, figures_dir: Path, stem: str, caption: str) -> dict[st
     figure_dir = figures_dir / stem
     figure_dir.mkdir(parents=True, exist_ok=True)
     outputs = {
-        "pdf": figure_dir / f"{stem}.pdf",
         "png": figure_dir / f"{stem}.png",
     }
     fig.text(0.5, 0.015, caption, ha="center", va="bottom", fontsize=10, fontweight="bold")
     fig.tight_layout(rect=[0, 0.07, 1, 1])
-    fig.savefig(outputs["pdf"], bbox_inches="tight")
     fig.savefig(outputs["png"], dpi=300, bbox_inches="tight")
     return outputs
 
@@ -521,9 +541,14 @@ def build_story(data: dict[str, Any], figure_outputs: list[dict[str, Path]], csv
     return target
 
 
-def export_json_payload(payload: dict[str, Any], out_dir: Path) -> list[Path]:
+def export_json_payload(payload: dict[str, Any], out_dir: Path, formats: set[str]) -> list[Path]:
     deps = _import_dependencies()
-    paths = ensure_dirs(out_dir)
+    include_report = "report" in formats
+    include_csv = "csv" in formats
+    include_public_figures = "figures" in formats
+    include_figures = include_public_figures or include_report
+    paths = ensure_dirs(out_dir, include_figures=include_figures and (include_report or include_csv), include_data=include_csv)
+    figure_root = paths["figures"] if include_report or include_csv else paths["root"]
     data = payload.get("data")
     if not isinstance(data, dict):
         raise ValueError("JSON payload is missing object data.")
@@ -533,51 +558,62 @@ def export_json_payload(payload: dict[str, Any], out_dir: Path) -> list[Path]:
 
     if data.get("relation"):
         points = data.get("points") or []
-        csv_outputs.append(write_rows_csv(
-            "ideal-points.csv",
-            ["relation", "scanValue", "meanTemperature", "measuredPressure", "idealPressure", "relativeGap", "boxLength", "volume", "inverseVolume", "particleCount"],
-            [[
-                point.get("relation"),
-                get_ideal_relation_x_value(str(data.get("relation")), point),
-                point.get("meanTemperature"),
-                point.get("meanPressure"),
-                point.get("idealPressure"),
-                point.get("relativeGap"),
-                point.get("boxLength"),
-                point.get("volume"),
-                point.get("inverseVolume"),
-                point.get("particleCount"),
-            ] for point in points],
-            paths["data"],
-        ))
-        figure_outputs.append(plot_ideal_verification(data, paths["figures"], deps))
-        raw_pv = plot_ideal_raw_pv(data, paths["figures"], deps)
-        if raw_pv:
-            figure_outputs.append(raw_pv)
+        if include_csv:
+            csv_outputs.append(write_rows_csv(
+                "ideal-points.csv",
+                ["relation", "scanValue", "meanTemperature", "measuredPressure", "idealPressure", "relativeGap", "boxLength", "volume", "inverseVolume", "particleCount"],
+                [[
+                    point.get("relation"),
+                    get_ideal_relation_x_value(str(data.get("relation")), point),
+                    point.get("meanTemperature"),
+                    point.get("meanPressure"),
+                    point.get("idealPressure"),
+                    point.get("relativeGap"),
+                    point.get("boxLength"),
+                    point.get("volume"),
+                    point.get("inverseVolume"),
+                    point.get("particleCount"),
+                ] for point in points],
+                paths["data"],
+            ))
+        if include_figures:
+            figure_outputs.append(plot_ideal_verification(data, figure_root, deps))
+            if payload.get("mode") != "verificationFigure":
+                raw_pv = plot_ideal_raw_pv(data, figure_root, deps)
+                if raw_pv:
+                    figure_outputs.append(raw_pv)
     else:
         final = data.get("finalChartData") or {}
         history = final.get("tempHistory") or []
-        if history:
+        if include_csv and history:
             csv_outputs.append(write_rows_csv(
                 "standard-history.csv",
                 ["time", "temperature", "targetTemperature", "error", "totalEnergy"],
                 [[row.get("time"), row.get("temperature"), row.get("targetTemperature"), row.get("error"), row.get("totalEnergy")] for row in history],
                 paths["data"],
             ))
-        for output in [
-            plot_distribution(data, paths["figures"], deps, "speed", "speed-distribution", "Speed Distribution", "Figure 1. Speed Distribution Compared with Theoretical Prediction"),
-            plot_distribution(data, paths["figures"], deps, "energy", "energy-distribution", "Energy Distribution", "Figure 2. Energy Distribution Compared with Theoretical Prediction"),
-            plot_distribution(data, paths["figures"], deps, "energyLog", "semilog-energy", "Semi-log Energy Distribution", "Figure 3. Semi-log Energy Distribution"),
-            plot_history(data, paths["figures"], deps, "error", "temperature-error", "Temperature Error History", "Error (%)", "Figure 4. Temperature Error History"),
-            plot_history(data, paths["figures"], deps, "totalEnergy", "total-energy", "Total Energy History", "Total energy", "Figure 5. Total Energy History"),
-        ]:
-            if output:
-                figure_outputs.append(output)
+        if include_figures:
+            for output in [
+                plot_distribution(data, figure_root, deps, "speed", "speed-distribution", "Speed Distribution", "Figure 1. Speed Distribution Compared with Theoretical Prediction"),
+                plot_distribution(data, figure_root, deps, "energy", "energy-distribution", "Energy Distribution", "Figure 2. Energy Distribution Compared with Theoretical Prediction"),
+                plot_distribution(data, figure_root, deps, "energyLog", "semilog-energy", "Semi-log Energy Distribution", "Figure 3. Semi-log Energy Distribution"),
+                plot_history(data, figure_root, deps, "error", "temperature-error", "Temperature Error History", "Error (%)", "Figure 4. Temperature Error History"),
+                plot_history(data, figure_root, deps, "totalEnergy", "total-energy", "Total Energy History", "Total energy", "Figure 5. Total Energy History"),
+            ]:
+                if output:
+                    figure_outputs.append(output)
 
-    report = build_story(data, figure_outputs, csv_outputs, paths["root"], deps)
-    outputs = [report, *csv_outputs]
-    for output in figure_outputs:
-        outputs.extend(output.values())
+    outputs: list[Path] = []
+    if include_report:
+        outputs.append(build_story(data, figure_outputs, csv_outputs, paths["root"], deps))
+    if include_csv:
+        outputs.extend(csv_outputs)
+    if include_public_figures:
+        for output in figure_outputs:
+            outputs.extend(output.values())
+
+    if include_report and not include_public_figures and not include_csv:
+        shutil.rmtree(paths["figures"], ignore_errors=True)
     return outputs
 
 
@@ -595,20 +631,20 @@ def write_metadata(out_dir: Path, input_path: Path, outputs: list[Path]) -> Path
     return target
 
 
-def export_payload(input_path: Path, out_dir: Path) -> int:
+def export_payload(input_path: Path, out_dir: Path, formats: set[str]) -> int:
     try:
         payload = load_payload(input_path)
         if payload["kind"] == "csv":
             outputs = write_csv_payload(payload, out_dir)
         elif payload["kind"] == "json":
-            outputs = export_json_payload(payload, out_dir)
+            outputs = export_json_payload(payload, out_dir, formats)
         else:
             raise ValueError(f"Unsupported payload kind: {payload['kind']}")
-        metadata = write_metadata(out_dir, input_path, outputs)
+        metadata = write_metadata(out_dir, input_path, outputs) if "metadata" in formats else None
         print(json.dumps({
             "status": "ok",
             "out": str(out_dir),
-            "metadata": str(metadata),
+            "metadata": str(metadata) if metadata else None,
             "files": [str(path) for path in outputs],
         }, indent=2))
         return 0
@@ -628,7 +664,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--self-check", action="store_true", help="Check Python export dependencies")
     parser.add_argument("--input", type=Path, help="Workbench export payload JSON")
     parser.add_argument("--out", type=Path, default=Path("output/export-demo"), help="Output directory")
-    parser.add_argument("--formats", default="report,figures,csv", help="Reserved for future format filtering")
+    parser.add_argument("--formats", default="report,figures,csv,metadata", help="Comma-separated outputs: report, figures, csv, metadata")
     parser.add_argument("--lang", default="en-GB", choices=["zh-CN", "en-GB"], help="Reserved report language selector")
     return parser.parse_args(argv)
 
@@ -640,7 +676,12 @@ def main(argv: list[str]) -> int:
     if not args.input:
         print("--input is required unless --self-check is used", file=sys.stderr)
         return 1
-    return export_payload(args.input, args.out)
+    try:
+        formats = parse_export_formats(args.formats)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    return export_payload(args.input, args.out, formats)
 
 
 if __name__ == "__main__":

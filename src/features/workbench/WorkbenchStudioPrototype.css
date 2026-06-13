@@ -3577,8 +3577,7 @@
   padding: 6px;
 }
 
-.studio-command-submenu:hover > .studio-command-submenu-panel,
-.studio-command-submenu:focus-within > .studio-command-submenu-panel {
+.studio-command-submenu-open > .studio-command-submenu-panel {
   display: grid;
 }
 

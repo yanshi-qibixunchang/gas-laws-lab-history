@@ -330,6 +330,36 @@ assert.match(
   'nested command submenus should align like VS Code menus without protruding borders or double shadows',
 );
 
+assert.match(
+  source,
+  /type TopCommandSubmenu = 'newExperiment' \| 'openExperiment';/,
+  'Experiment Files nested menus should have explicit submenu ids for hover and pinned state',
+);
+
+assert.match(
+  source,
+  /const openTopCommandSubmenu = \(submenu: TopCommandSubmenu\) => \{[\s\S]*?setPinnedTopCommandSubmenu\(\(current\) => \(current === submenu \? current : null\)\);[\s\S]*?setActiveTopCommandSubmenu\(submenu\);[\s\S]*?\};/,
+  'hovering a different nested command submenu should release the previously pinned submenu and show the new one as hover-only',
+);
+
+assert.match(
+  source,
+  /const pinTopCommandSubmenu = \(submenu: TopCommandSubmenu\) => \{[\s\S]*?setActiveTopCommandSubmenu\(submenu\);[\s\S]*?setPinnedTopCommandSubmenu\(submenu\);[\s\S]*?\};/,
+  'clicking inside a nested command submenu should pin the currently active submenu',
+);
+
+assert.match(
+  getRuleBody('.studio-command-submenu-open > .studio-command-submenu-panel'),
+  /display:\s*grid/,
+  'nested command submenu panels should be displayed only by the explicit open state',
+);
+
+assert.doesNotMatch(
+  cssSource,
+  /\.studio-command-submenu:hover\s*>\s*\.studio-command-submenu-panel|\.studio-command-submenu:focus-within\s*>\s*\.studio-command-submenu-panel/,
+  'nested command submenus should not rely on CSS hover or focus-within, because pinned focus must yield to another hovered submenu',
+);
+
 assert.doesNotMatch(
   getRuleBody('.studio-theme-light .studio-command-submenu-panel'),
   /border-color:/,

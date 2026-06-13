@@ -139,7 +139,7 @@ assert.match(
 
 assert.match(
   source,
-  /message: `\$\{getIdealScanInputLabel\(relation\)\} minimum step is \$\{getIdealScanStepLabel\(relation\)\}\.`/,
+  /message: workbenchCopy\.logs\.scanInputStep\(getIdealScanInputLabel\(relation\), getIdealScanStepLabel\(relation\)\)/,
   'valid-looking scan input with unsupported precision should mention the minimum step',
 );
 
@@ -204,5 +204,4 @@ assert.match(
 );
 
 console.log('workbenchStartAutoApplyScanControls tests passed');
-
 

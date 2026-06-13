@@ -372,11 +372,35 @@ const formatTimestampForFolder = (date = new Date()) => {
 
 const getExperimentFolderName = (payload, options) => {
   const source =
-    options?.fileName
+    options?.defaultDirName
+    || options?.fileName
     || payload?.data?.fileName
     || payload?.filename
     || 'Heat Capacity Ratio Lab Experiment';
   return `${sanitizeName(source)}_${formatTimestampForFolder()}`;
+};
+
+const getExporterFormatsForMode = (mode) => {
+  switch (mode) {
+    case 'report':
+      return 'report';
+    case 'verificationFigure':
+    case 'figuresZip':
+      return 'figures';
+    case 'completeBundle':
+      return 'report,figures,csv,metadata';
+    default:
+      return 'report,figures,csv,metadata';
+  }
+};
+
+const getReportExportFilename = (payload, options) => {
+  const source = payload?.filename || options?.fileName || payload?.data?.fileName || 'report.pdf';
+  const pdfName = String(source)
+    .replace(/\.bundle\.json$/i, '.pdf')
+    .replace(/\.figures\.json$/i, '.pdf')
+    .replace(/\.json$/i, '.pdf');
+  return sanitizeName(pdfName.toLowerCase().endsWith('.pdf') ? pdfName : `${pdfName}.pdf`);
 };
 
 const ensureDefaultExportRoot = async () => {
@@ -682,6 +706,83 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
   }
 
   const defaultPath = await ensureDefaultExportRoot();
+
+  if (payload.kind === 'json' && options?.mode === 'report') {
+    const selection = await dialog.showSaveDialog({
+      title: 'Export Report PDF',
+      defaultPath: path.join(defaultPath, getReportExportFilename(payload, options)),
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    });
+
+    if (selection.canceled || !selection.filePath) {
+      return { status: 'cancelled' };
+    }
+
+    if (!selectedExporterRuntime) {
+      const runtimeResult = await resolveExporterRuntime();
+      selectedExporterRuntime = runtimeResult.runtime;
+      if (!selectedExporterRuntime) {
+        return {
+          status: 'error',
+          outDir: path.dirname(selection.filePath),
+          message: runtimeResult.message,
+          stdout: runtimeResult.stdout,
+          stderr: runtimeResult.stderr,
+        };
+      }
+    }
+
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'heat-capacity-ratio-lab-export-'));
+    try {
+      const inputPath = path.join(tempDir, `${Date.now()}-${sanitizeName(payload.filename || 'payload.json')}`);
+      const outDir = path.join(tempDir, 'out');
+      await fs.mkdir(outDir, { recursive: true });
+      await fs.writeFile(inputPath, JSON.stringify(payload, null, 2), 'utf8');
+
+      const result = await runExporter(selectedExporterRuntime, ['--input', inputPath, '--out', outDir, '--formats', 'report']);
+      const parsed = parseJson(result.stdout);
+
+      if (result.code !== 0 || !parsed || parsed.status !== 'ok') {
+        return {
+          status: 'error',
+          outDir: path.dirname(selection.filePath),
+          message: result.stderr.trim() || 'Python exporter failed.',
+          stdout: result.stdout,
+          stderr: result.stderr,
+        };
+      }
+
+      const reportFile = Array.isArray(parsed.files)
+        ? parsed.files.find((file) => String(file).toLowerCase().endsWith('.pdf'))
+        : null;
+      if (!reportFile) {
+        return {
+          status: 'error',
+          outDir: path.dirname(selection.filePath),
+          message: 'Python exporter did not return a report PDF.',
+          stdout: result.stdout,
+          stderr: result.stderr,
+        };
+      }
+
+      const target = selection.filePath.toLowerCase().endsWith('.pdf')
+        ? selection.filePath
+        : `${selection.filePath}.pdf`;
+      await fs.copyFile(reportFile, target);
+      return {
+        status: 'ok',
+        outDir: path.dirname(target),
+        metadataPath: null,
+        files: [target],
+        stdout: result.stdout,
+        stderr: result.stderr,
+        runtime: selectedExporterRuntime.kind,
+      };
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  }
+
   const selection = await dialog.showOpenDialog({
     title: 'Choose Heat Capacity Ratio Lab Export Root Folder',
     defaultPath,
@@ -730,7 +831,7 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
     }
   }
 
-  const result = await runExporter(selectedExporterRuntime, ['--input', inputPath, '--out', outDir]);
+  const result = await runExporter(selectedExporterRuntime, ['--input', inputPath, '--out', outDir, '--formats', getExporterFormatsForMode(options?.mode)]);
   const parsed = parseJson(result.stdout);
 
   if (result.code !== 0 || !parsed || parsed.status !== 'ok') {

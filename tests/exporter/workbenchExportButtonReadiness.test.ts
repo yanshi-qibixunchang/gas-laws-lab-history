@@ -11,11 +11,12 @@ assert.match(
 
 assert.match(
   source,
-  /const isExportModeDataReady = \(mode: WorkbenchExportMode\) => \([\s\S]*?mode === 'pointsCsv'[\s\S]*?idealPointCount > 0[\s\S]*?idealPointCount >= 2[\s\S]*?resultSummary\.ready[\s\S]*?\);/,
-  'Export readiness should allow CSV with one point and require two points for fitted ideal reports or figures',
+  /const isExportModeDataReady = \(mode: WorkbenchExportMode\) => \([\s\S]*?mode === 'pointsCsv' \|\| mode === 'completeBundle'[\s\S]*?idealPointCount > 0[\s\S]*?idealPointCount >= 2[\s\S]*?resultSummary\.ready[\s\S]*?\);/,
+  'Export readiness should allow CSV or complete bundles with one ideal point and require two points for fitted ideal reports or figures',
 );
 
 for (const [mode, buttonLabel] of [
+  ['completeBundle', 'Export All'],
   ['report', 'Report PDF'],
   ['verificationFigure', 'Verification Figure'],
   ['pointsCsv', 'Points CSV'],
@@ -33,6 +34,11 @@ assert.doesNotMatch(
   'Export buttons should not use one shared readiness flag for every export type',
 );
 
-console.log('workbenchExportButtonReadiness tests passed');
+assert.match(
+  source,
+  /onClick=\{\(\) => handleExportAction\('completeBundle'\)\}[\s\S]*?\{workbenchCopy\.results\.exportAll\}[\s\S]*?onClick=\{\(\) => handleExportAction\('report'\)\}[\s\S]*?\{workbenchCopy\.results\.reportPdf\}/,
+  'Complete export should render immediately to the left of Report PDF in export action groups',
+);
 
+console.log('workbenchExportButtonReadiness tests passed');
 
