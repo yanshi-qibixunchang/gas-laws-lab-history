@@ -12,10 +12,8 @@ import type { HeatCapacityHardSphereReleaseTimeline } from '../../domain/heatCap
 
 type UltraPointerControl = 'powerSwitch' | 'pressureZero' | 'stopcock' | 'pumpValve' | 'pumpBulb';
 type UltraHoveredControl = UltraPointerControl | null;
-type UltraValveFocusControl = 'stopcock' | 'pumpValve';
 type UltraFocusControl = UltraPointerControl | 'instrumentPressureDisplay' | 'instrumentTemperatureDisplay' | 'instrumentPanel';
 type UltraVisualTargetId = UltraFocusControl;
-type UltraFocusMode = 'stopcock' | 'instrument' | 'pump';
 type UltraVisualEffectTone = 'nonBulb' | 'glass' | 'pumpBulb' | 'display';
 type UltraMaterialHighlightControl = UltraPointerControl;
 type UltraProjectedPoint = {
@@ -76,16 +74,12 @@ type HeatCapacityUltraInstrumentModelProps = {
   hardSphereSpeedMultiplier: number;
   hardSphereVisualResetKey: number;
   interactionLocked: boolean;
-  focusMode: 'none' | UltraFocusMode;
-  pressureZeroInteractionEnabled: boolean;
-  pumpBulbInteractionEnabled: boolean;
   demoFocusControlId: string | null;
   demoFocusPulseActive: boolean;
   interactionQualityReduced: boolean;
   visualEffects: UltraVisualEffects;
   hoveredControl: UltraHoveredControl;
   setHoveredControl: (control: UltraHoveredControl) => void;
-  onValveFocusAnchor: (control: UltraValveFocusControl, clientX: number, clientY: number) => void;
   onLockedInteraction: (message?: string) => void;
   onPowerToggle: (nextPowerOn?: boolean) => void;
   onStopcockOpenChange: (nextOpen?: boolean) => void;
@@ -93,7 +87,6 @@ type HeatCapacityUltraInstrumentModelProps = {
   onPressureZeroCoarseAdjust: (angleDeltaDeg: number) => void;
   onPumpValveToggle: () => void;
   onPumpBulbPress: () => void;
-  onFocus: (mode: UltraFocusMode) => void;
 };
 
 const ULTRA_GLB_PATH = `${import.meta.env.BASE_URL}models/heat-capacity/fd-ncd-c-ultra.glb`;
@@ -156,7 +149,6 @@ const POWER_SWITCH_ROCKER_FACE_SEGMENTS = 8;
 const POWER_SWITCH_ROCKER_SEGMENTS = 14;
 const POWER_SWITCH_MARK_Z_OFFSET = 0.0016;
 const ULTRA_CONTROL_MOTION_INVALIDATION_MS = 940;
-const ULTRA_DOUBLE_CLICK_GUARD_MS = 220;
 const ULTRA_FOCUS_SHELL_POP_FRACTION = 0.14;
 const ULTRA_HITBOX_UNIT_SCALE = new THREE.Vector3(1, 1, 1);
 const ULTRA_PUMP_VALVE_EMBEDDED_SWITCH_OFFSET: [number, number, number] = [0.09, 0.02, 0];
@@ -172,15 +164,10 @@ const ULTRA_CONTROL_HITBOXES: Array<{
 }> = [
   { control: 'powerSwitch', anchorNodeName: 'FD_NCD_C_PowerSwitch_Base', size: POWER_SWITCH_HITBOX_SIZE, offset: [0.018, -0.006, 0.16] },
   { control: 'pressureZero', anchorNodeName: 'FD_NCD_C_ZeroAdjustKnob', size: [0.42, 0.42, 0.34], offset: [0, 0, 0.07] },
-  { control: 'stopcock', anchorNodeName: 'Stopcock_THandle', size: [0.46, 0.24, 0.28] },
+  { control: 'stopcock', anchorNodeName: 'Stopcock_THandle', size: [0.42, 0.24, 0.64], offset: [0.18, 0, 0] },
   { control: 'pumpValve', anchorNodeName: 'InletValue_Pivot', size: [0.64, 0.52, 0.38], offset: [0, 0.12, 0.02] },
   { control: 'pumpBulb', anchorNodeName: 'Pump_Bulb', size: [0.64, 0.50, 0.52] },
 ];
-const ULTRA_INSTRUMENT_FOCUS_HITBOX = {
-  anchorNodeName: 'FD_NCD_C_FrontPanel',
-  size: [2.04, 0.86, 0.36],
-  offset: [0, 0, 0.04],
-} as const;
 
 const ULTRA_POINTER_CONTROL_IDS: readonly UltraPointerControl[] = [
   'powerSwitch',
@@ -259,7 +246,8 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     focusControlIds: ['stopcock'],
     focusShellNodeNames: ['Stopcock_THandle', 'Stopcock_HandleStem', 'Stopcock_RotatingPlugCore'],
     shape: 'box',
-    size: [0.36, 0.18, 0.22],
+    size: [0.36, 0.18, 0.60],
+    offset: [0.18, 0, 0],
     hoverScale: 0.9,
     hoverWireframe: true,
     focusShellPulsePopScale: 1.2,
@@ -1341,7 +1329,6 @@ function UltraNodeHitbox({
   nodeMap,
   parentRef,
   onClick,
-  onDoubleClick,
   onPointerDown,
   onWheel,
   onPointerOver,
@@ -1352,7 +1339,6 @@ function UltraNodeHitbox({
   nodeMap: Map<string, THREE.Object3D>;
   parentRef: React.RefObject<THREE.Group | null>;
   onClick?: (control: UltraPointerControl, event: ThreeEvent<MouseEvent>) => void;
-  onDoubleClick?: (control: UltraPointerControl, event: ThreeEvent<MouseEvent>) => void;
   onPointerDown?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
   onWheel?: (control: UltraPointerControl, event: ThreeEvent<WheelEvent>) => void;
   onPointerOver?: (control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => void;
@@ -1393,7 +1379,6 @@ function UltraNodeHitbox({
         name={`HSL_UltraMeshHitbox_${definition.control}`}
         position={definition.offset ?? [0, 0, 0]}
         onClick={(event) => onClick?.(definition.control, event)}
-        onDoubleClick={(event) => onDoubleClick?.(definition.control, event)}
         onPointerDown={(event) => onPointerDown?.(definition.control, event)}
         onWheel={(event) => onWheel?.(definition.control, event)}
         onPointerOver={(event) => onPointerOver?.(definition.control, event)}
@@ -1401,57 +1386,6 @@ function UltraNodeHitbox({
         onPointerOut={(event) => onPointerOut?.(definition.control, event)}
       >
         <boxGeometry args={definition.size} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
-    </group>
-  );
-}
-
-function UltraInstrumentFocusHitbox({
-  nodeMap,
-  parentRef,
-  onDoubleClick,
-}: {
-  nodeMap: Map<string, THREE.Object3D>;
-  parentRef: React.RefObject<THREE.Group | null>;
-  onDoubleClick: (event: ThreeEvent<MouseEvent>) => void;
-}) {
-  const groupRef = useRef<THREE.Group | null>(null);
-  const parentInverseMatrixRef = useRef(new THREE.Matrix4());
-  const localMatrixRef = useRef(new THREE.Matrix4());
-  const anchorPositionRef = useRef(new THREE.Vector3());
-  const anchorQuaternionRef = useRef(new THREE.Quaternion());
-  const anchorScaleRef = useRef(new THREE.Vector3());
-  const anchor = nodeMap.get(ULTRA_INSTRUMENT_FOCUS_HITBOX.anchorNodeName);
-
-  useFrame(() => {
-    const group = groupRef.current;
-    const parent = parentRef.current;
-    if (!group || !parent || !anchor) return;
-    parent.updateMatrixWorld(true);
-    anchor.updateMatrixWorld(true);
-    parentInverseMatrixRef.current.copy(parent.matrixWorld).invert();
-    localMatrixRef.current.copy(anchor.matrixWorld);
-    localMatrixRef.current.decompose(
-      anchorPositionRef.current,
-      anchorQuaternionRef.current,
-      anchorScaleRef.current,
-    );
-    localMatrixRef.current.compose(anchorPositionRef.current, anchorQuaternionRef.current, ULTRA_HITBOX_UNIT_SCALE);
-    group.matrix.multiplyMatrices(parentInverseMatrixRef.current, localMatrixRef.current);
-    group.matrixWorldNeedsUpdate = true;
-  });
-
-  if (!anchor) return null;
-
-  return (
-    <group ref={groupRef} matrixAutoUpdate={false}>
-      <mesh
-        name="HSL_UltraMeshHitbox_instrumentFocus"
-        position={ULTRA_INSTRUMENT_FOCUS_HITBOX.offset}
-        onDoubleClick={onDoubleClick}
-      >
-        <boxGeometry args={[...ULTRA_INSTRUMENT_FOCUS_HITBOX.size]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>
@@ -2010,7 +1944,6 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     totalDelta: 0,
     lastAppliedKnobAngle: props.pressureZeroKnobAngle,
   });
-  const pendingUltraSingleClickRef = useRef<number | null>(null);
   const gaugeDisplayedRotationRef = useRef(PRESSURE_GAUGE_MIN_ROTATION);
   const stopcockDisplayedAngleRef = useRef(getUltraStopcockVisualAngleRad(props.stopcockAngleDeg));
   const pumpValveDisplayedAngleRef = useRef(props.pumpValveOpen ? 0 : Math.PI / 2);
@@ -2112,88 +2045,27 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     return Number.isFinite(delta) ? delta : 0;
   };
 
-  const openUltraValveFocusBubble = useCallback((control: UltraValveFocusControl) => {
-    const nodeName = control === 'stopcock' ? 'Stopcock_Pivot' : 'InletValue_Pivot';
-    const anchor = projectUltraNodeAnchor(nodeName);
-    if (!anchor) return;
-    props.onValveFocusAnchor(control, anchor.clientX, anchor.clientY);
-  }, [projectUltraNodeAnchor, props]);
-
-  const clearPendingUltraSingleClick = useCallback(() => {
-    if (pendingUltraSingleClickRef.current !== null) {
-      window.clearTimeout(pendingUltraSingleClickRef.current);
-      pendingUltraSingleClickRef.current = null;
-    }
-  }, []);
-
-  const scheduleUltraSingleClick = useCallback((run: () => void) => {
-    clearPendingUltraSingleClick();
-    pendingUltraSingleClickRef.current = window.setTimeout(() => {
-      pendingUltraSingleClickRef.current = null;
-      run();
-    }, ULTRA_DOUBLE_CLICK_GUARD_MS);
-  }, [clearPendingUltraSingleClick]);
-
-  useEffect(() => clearPendingUltraSingleClick, [clearPendingUltraSingleClick]);
-
   const handleUltraControlClick = useCallback((control: UltraPointerControl, event: ThreeEvent<MouseEvent>) => {
     if (!isUltraPrimaryPointerButton(event)) return;
     absorbUltraPointerEvent(event);
-    const clientX = event.clientX;
-    const clientY = event.clientY;
-    const runControlClick = () => {
-      const resolvedControl = resolveUltraActionControl(control, clientX, clientY);
-      if (resolvedControl === 'pressureZero') return;
-      if (props.interactionLocked) {
-        props.onLockedInteraction();
-        return;
-      }
-      if (resolvedControl === 'powerSwitch') {
-        props.onPowerToggle();
-      } else if (resolvedControl === 'stopcock') {
-        props.onStopcockOpenChange();
-      } else if (resolvedControl === 'pumpValve') {
-        props.onPumpValveToggle();
-      } else if (resolvedControl === 'pumpBulb') {
-        if (!props.pumpBulbInteractionEnabled) return;
-        props.onPumpBulbPress();
-      }
-    };
-    if (props.focusMode !== 'none') {
-      runControlClick();
-      return;
-    }
-    scheduleUltraSingleClick(runControlClick);
-  }, [props, resolveUltraActionControl, scheduleUltraSingleClick]);
-
-  const handleUltraControlDoubleClick = useCallback((control: UltraPointerControl, event: ThreeEvent<MouseEvent>) => {
-    if (!isUltraPrimaryPointerButton(event)) return;
-    absorbUltraPointerEvent(event);
-    clearPendingUltraSingleClick();
     const resolvedControl = resolveUltraActionControl(control, event.clientX, event.clientY);
+    if (resolvedControl === 'pressureZero') return;
     if (props.interactionLocked) {
       props.onLockedInteraction();
       return;
     }
-    if (resolvedControl === 'powerSwitch' || resolvedControl === 'pressureZero') {
-      props.onFocus('instrument');
+    if (resolvedControl === 'powerSwitch') {
+      props.onPowerToggle();
+    } else if (resolvedControl === 'stopcock') {
+      props.onStopcockOpenChange();
+    } else if (resolvedControl === 'pumpValve') {
+      props.onPumpValveToggle();
     } else if (resolvedControl === 'pumpBulb') {
-      props.onFocus('pump');
+      props.onPumpBulbPress();
     } else {
-      props.onFocus('stopcock');
-    }
-  }, [clearPendingUltraSingleClick, props, resolveUltraActionControl]);
-
-  const handleUltraInstrumentFocusDoubleClick = useCallback((event: ThreeEvent<MouseEvent>) => {
-    if (!isUltraPrimaryPointerButton(event)) return;
-    absorbUltraPointerEvent(event);
-    clearPendingUltraSingleClick();
-    if (props.interactionLocked) {
-      props.onLockedInteraction();
       return;
     }
-    props.onFocus('instrument');
-  }, [clearPendingUltraSingleClick, props]);
+  }, [props, resolveUltraActionControl]);
 
   const handleUltraControlPointerDown = useCallback((control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => {
     if (!isUltraPrimaryPointerButton(event)) return;
@@ -2205,9 +2077,6 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     absorbUltraPointerEvent(event);
     if (props.interactionLocked) {
       props.onLockedInteraction();
-      return;
-    }
-    if (!props.pressureZeroInteractionEnabled) {
       return;
     }
     const pointerAngle = getPressureZeroPointerAngle(event.clientX, event.clientY);
@@ -2248,7 +2117,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       } catch {
         // Matching guard for synthetic pointer events.
       }
-      gl.domElement.style.cursor = props.hoveredControl === 'pressureZero' && props.pressureZeroInteractionEnabled ? 'grab' : '';
+      gl.domElement.style.cursor = props.hoveredControl === 'pressureZero' ? 'grab' : '';
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
     };
@@ -2264,9 +2133,6 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       props.onLockedInteraction();
       return;
     }
-    if (!props.pressureZeroInteractionEnabled) {
-      return;
-    }
     const requestedDelta = (event.deltaY < 0 ? PRESSURE_ZERO_FINE_ANGLE_STEP_DEG : -PRESSURE_ZERO_FINE_ANGLE_STEP_DEG)
       * PRESSURE_ZERO_DRAG_DIRECTION;
     const requestedKnobAngle = props.pressureZeroKnobAngle + requestedDelta;
@@ -2278,23 +2144,17 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
 
   const handleUltraControlPointerOver = useCallback((control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => {
     const resolvedControl = resolveUltraPanelPointerControl(control, event.clientX, event.clientY);
-    gl.domElement.style.cursor = resolvedControl === 'pressureZero' && props.pressureZeroInteractionEnabled ? 'grab' : 'pointer';
+    gl.domElement.style.cursor = resolvedControl === 'pressureZero' ? 'grab' : 'pointer';
     props.setHoveredControl(resolvedControl);
-    if (resolvedControl === 'stopcock' || resolvedControl === 'pumpValve') {
-      openUltraValveFocusBubble(resolvedControl);
-    }
-  }, [gl, openUltraValveFocusBubble, props, resolveUltraPanelPointerControl]);
+  }, [gl, props, resolveUltraPanelPointerControl]);
 
   const handleUltraControlPointerMove = useCallback((control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => {
     const resolvedControl = resolveUltraPanelPointerControl(control, event.clientX, event.clientY);
-    gl.domElement.style.cursor = resolvedControl === 'pressureZero' && props.pressureZeroInteractionEnabled ? 'grab' : 'pointer';
+    gl.domElement.style.cursor = resolvedControl === 'pressureZero' ? 'grab' : 'pointer';
     if (props.hoveredControl !== resolvedControl) {
       props.setHoveredControl(resolvedControl);
-      if (resolvedControl === 'stopcock' || resolvedControl === 'pumpValve') {
-        openUltraValveFocusBubble(resolvedControl);
-      }
     }
-  }, [gl, openUltraValveFocusBubble, props, resolveUltraPanelPointerControl]);
+  }, [gl, props, resolveUltraPanelPointerControl]);
 
   const handleUltraControlPointerOut = useCallback((_control: UltraPointerControl, _event: ThreeEvent<PointerEvent>) => {
     gl.domElement.style.cursor = '';
@@ -2549,7 +2409,6 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
         nodeMap={nodeMap}
         parentRef={runtimeRootRef}
         onClick={handleUltraControlClick}
-        onDoubleClick={handleUltraControlDoubleClick}
         onPointerDown={handleUltraControlPointerDown}
         onWheel={handleUltraControlWheel}
         onPointerOver={handleUltraControlPointerOver}
@@ -2557,11 +2416,6 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
         onPointerOut={handleUltraControlPointerOut}
       />
       ))}
-      <UltraInstrumentFocusHitbox
-        nodeMap={nodeMap}
-        parentRef={runtimeRootRef}
-        onDoubleClick={handleUltraInstrumentFocusDoubleClick}
-      />
       <UltraPowerSwitchSkirtedRocker
         nodeMap={nodeMap}
         parentRef={runtimeRootRef}

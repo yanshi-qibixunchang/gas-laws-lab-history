@@ -68,7 +68,6 @@ interface HeatCapacityInstrumentSceneProps {
   manualRollbackAnimation: 'valveBounce' | 'stopcockBounce' | 'pumpBulbBounce' | 'knobBounce' | 'powerBounce' | null;
   manualRollbackKey: number;
   focusResetKey: number;
-  onFocusModeChange: (mode: HeatCapacityFocusMode) => void;
   onLockedInteraction: (message?: string) => void;
   onPowerToggle: (nextPowerOn?: boolean) => void;
   onStopcockOpenChange: (nextOpen?: boolean) => void;
@@ -85,18 +84,8 @@ interface HeatCapacityInstrumentSceneProps {
   overlayBottomCenter?: React.ReactNode;
 }
 
-type HeatCapacityFocusMode = 'none' | 'stopcock' | 'instrument' | 'pump';
 type HeatCapacityHoveredControl = null | 'stopcock' | 'pumpBulb' | 'pumpValve' | 'powerSwitch' | 'pressureZero';
 type HeatCapacitySceneTheme = 'dark' | 'light';
-type ValveFocusControl = 'stopcock' | 'pumpValve';
-type ValveFocusBubbleState = {
-  visible: boolean;
-  x: number;
-  y: number;
-  tailX: number;
-  source: ValveFocusControl;
-  closing: boolean;
-};
 
 class HeatCapacityUltraModelErrorBoundary extends React.Component<{
   children: React.ReactNode;
@@ -125,55 +114,16 @@ const heatCapacitySceneCopies = {
     unpowered: '未通电',
     pressureZeroLimitUpper: '已到调节上限',
     pressureZeroLimitLower: '已到调节下限',
-    pumpBulbIdle: '待机',
-    pumpBulbActive: '打气中',
-    frequencyIdle: '空闲',
-    frequencySlow: '打气过慢',
-    frequencySuitable: '打气频率合适',
     hints: {
-      stopcock: ['聚焦模式：整体视角已锁定', '玻璃旋塞与打气阀门只保留开 / 关状态', '点击退出聚焦返回默认视角'],
-      pump: ['聚焦模式：点击打气球执行打气', '右下角面板显示阀门状态和打气频率', '点击退出聚焦返回默认视角'],
-      instrument: ['聚焦模式：整体视角已锁定', '查看仪表读数、电源状态和瓶内参数', '点击退出聚焦返回默认视角'],
-      normal: ['左键拖动：旋转模型', '右键拖动：平移模型', '滚轮：缩放模型', '双击高亮部件：进入聚焦', '悬停高亮表示可交互'],
+      normal: ['左键拖动：旋转模型', '右键拖动：平移模型', '滚轮：缩放模型', '悬停高亮表示可交互', '点击高亮部件：直接操作'],
     },
     tooltip: {
       stopcock: '玻璃旋塞：点击切换玻璃旋塞状态',
       pumpValve: '打气阀门：点击切换开闭状态',
-      pumpBulbReady: '打气球：聚焦后点击打气',
+      pumpBulbReady: '打气球：点击打气',
       pumpBulbClosed: '打气球：需先打开打气阀门',
       powerSwitch: '电源开关：点击开关电源',
       pressureZero: '压力调零旋钮：拖拽粗调 / 滚轮精调',
-    },
-    focus: {
-      stopcockTitle: '旋塞 / 阀门控制',
-      glassStopcock: '玻璃旋塞',
-      connected: '已连通',
-      disconnected: '未连通',
-      pumpValve: '打气阀门',
-      opened: '已打开',
-      closed: '已关闭',
-      openStopcock: '连通玻璃旋塞',
-      closeStopcock: '关闭玻璃旋塞',
-      openPumpValve: '打开打气阀门',
-      closePumpValve: '关闭打气阀门',
-      enterValveFocus: '进入旋塞 / 阀门聚焦',
-      exit: '退出聚焦',
-      pumpTitle: '打气球控制',
-      pumpBulb: '打气球',
-      pumpFrequency: '打气频率',
-      frequencyStatus: '频率评价',
-      instrumentTitle: '仪表读数',
-      powerStatus: '电源状态',
-      powerOn: '已开机',
-      powerOff: '未开机',
-      pressureZero: '压力调零',
-      zeroed: '已调零',
-      notZeroed: '未调零',
-      displayedPressure: '显示压力',
-      placeholderTemperature: '瓶内温度',
-      currentPhase: '当前阶段',
-      zeroOffset: '零点偏移',
-      placeholderPressure: '瓶内压强',
     },
   },
   'zh-TW': {
@@ -182,55 +132,16 @@ const heatCapacitySceneCopies = {
     unpowered: '未通電',
     pressureZeroLimitUpper: '已到調節上限',
     pressureZeroLimitLower: '已到調節下限',
-    pumpBulbIdle: '待機',
-    pumpBulbActive: '打氣中',
-    frequencyIdle: '閒置',
-    frequencySlow: '打氣過慢',
-    frequencySuitable: '打氣頻率合適',
     hints: {
-      stopcock: ['聚焦模式：整體視角已鎖定', '玻璃旋塞與打氣閥門只保留開 / 關狀態', '點擊退出聚焦返回預設視角'],
-      pump: ['聚焦模式：點擊打氣球執行打氣', '右下角面板顯示閥門狀態和打氣頻率', '點擊退出聚焦返回預設視角'],
-      instrument: ['聚焦模式：整體視角已鎖定', '查看儀表讀數、電源狀態和瓶內參數', '點擊退出聚焦返回預設視角'],
-      normal: ['左鍵拖動：旋轉模型', '右鍵拖動：平移模型', '滾輪：縮放模型', '雙擊高亮部件：進入聚焦', '懸停高亮表示可互動'],
+      normal: ['左鍵拖動：旋轉模型', '右鍵拖動：平移模型', '滾輪：縮放模型', '懸停高亮表示可互動', '點擊高亮部件：直接操作'],
     },
     tooltip: {
       stopcock: '玻璃旋塞：點擊切換玻璃旋塞狀態',
       pumpValve: '打氣閥門：點擊切換開閉狀態',
-      pumpBulbReady: '打氣球：聚焦後點擊打氣',
+      pumpBulbReady: '打氣球：點擊打氣',
       pumpBulbClosed: '打氣球：需先打開打氣閥門',
       powerSwitch: '電源開關：點擊開關電源',
       pressureZero: '壓力調零旋鈕：拖拽粗調 / 滾輪精調',
-    },
-    focus: {
-      stopcockTitle: '旋塞 / 閥門控制',
-      glassStopcock: '玻璃旋塞',
-      connected: '已連通',
-      disconnected: '未連通',
-      pumpValve: '打氣閥門',
-      opened: '已打開',
-      closed: '已關閉',
-      openStopcock: '連通玻璃旋塞',
-      closeStopcock: '關閉玻璃旋塞',
-      openPumpValve: '打開打氣閥門',
-      closePumpValve: '關閉打氣閥門',
-      enterValveFocus: '進入旋塞 / 閥門聚焦',
-      exit: '退出聚焦',
-      pumpTitle: '打氣球控制',
-      pumpBulb: '打氣球',
-      pumpFrequency: '打氣頻率',
-      frequencyStatus: '頻率評價',
-      instrumentTitle: '儀表讀數',
-      powerStatus: '電源狀態',
-      powerOn: '已開機',
-      powerOff: '未開機',
-      pressureZero: '壓力調零',
-      zeroed: '已調零',
-      notZeroed: '未調零',
-      displayedPressure: '顯示壓力',
-      placeholderTemperature: '瓶內溫度',
-      currentPhase: '目前階段',
-      zeroOffset: '零點偏移',
-      placeholderPressure: '瓶內壓強',
     },
   },
   en: {
@@ -239,55 +150,16 @@ const heatCapacitySceneCopies = {
     unpowered: 'Not powered',
     pressureZeroLimitUpper: 'Upper adjustment limit reached',
     pressureZeroLimitLower: 'Lower adjustment limit reached',
-    pumpBulbIdle: 'Idle',
-    pumpBulbActive: 'Pumping',
-    frequencyIdle: 'Idle',
-    frequencySlow: 'Too slow',
-    frequencySuitable: 'Suitable rate',
     hints: {
-      stopcock: ['Focus mode: camera is locked', 'Glass stopcock and pump valve use open / closed states only', 'Click exit focus to return to the default view'],
-      pump: ['Focus mode: click the pump bulb to pump air', 'The lower-right panel shows valve state and pump frequency', 'Click exit focus to return to the default view'],
-      instrument: ['Focus mode: camera is locked', 'Inspect instrument readings, power state, and vessel parameters', 'Click exit focus to return to the default view'],
-      normal: ['Left drag: rotate model', 'Right drag: pan model', 'Wheel: zoom model', 'Double-click highlighted parts: enter focus', 'Hover highlight means interactive'],
+      normal: ['Left drag: rotate model', 'Right drag: pan model', 'Wheel: zoom model', 'Hover highlight means interactive', 'Click highlighted parts: operate directly'],
     },
     tooltip: {
       stopcock: 'Glass stopcock: Click to toggle the glass stopcock state',
       pumpValve: 'Pump valve: click to switch open or closed',
-      pumpBulbReady: 'Pump bulb: focus, then click to pump',
+      pumpBulbReady: 'Pump bulb: click to pump',
       pumpBulbClosed: 'Pump bulb: open the pump valve first',
       powerSwitch: 'Power switch: click to toggle power',
       pressureZero: 'Pressure-zero knob: drag for coarse adjustment / wheel for fine adjustment',
-    },
-    focus: {
-      stopcockTitle: 'Stopcock / Valve Control',
-      glassStopcock: 'Glass stopcock',
-      connected: 'Connected',
-      disconnected: 'Disconnected',
-      pumpValve: 'Pump valve',
-      opened: 'Open',
-      closed: 'Closed',
-      openStopcock: 'Open glass stopcock',
-      closeStopcock: 'Close glass stopcock',
-      openPumpValve: 'Open pump valve',
-      closePumpValve: 'Close pump valve',
-      enterValveFocus: 'Focus stopcock / valve',
-      exit: 'Exit focus',
-      pumpTitle: 'Pump Bulb Control',
-      pumpBulb: 'Pump bulb',
-      pumpFrequency: 'Pump frequency',
-      frequencyStatus: 'Frequency status',
-      instrumentTitle: 'Instrument Readings',
-      powerStatus: 'Power state',
-      powerOn: 'Power on',
-      powerOff: 'Power off',
-      pressureZero: 'Pressure zero',
-      zeroed: 'Zeroed',
-      notZeroed: 'Not zeroed',
-      displayedPressure: 'Displayed pressure',
-      placeholderTemperature: 'Vessel temperature',
-      currentPhase: 'Current phase',
-      zeroOffset: 'Zero offset',
-      placeholderPressure: 'Vessel pressure',
     },
   },
 } as const;
@@ -594,13 +466,8 @@ type HeatCapacityScenePalette = (typeof heatCapacityScenePalettes)[HeatCapacityS
 const PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 12;
 const PRESSURE_ZERO_DRAG_DIRECTION = -1;
 const HOVER_CLEAR_DELAY_MS = 220;
-const HEAT_CAPACITY_DOUBLE_CLICK_GUARD_MS = 220;
 const HEAT_CAPACITY_DRAG_CLICK_SUPPRESSION_PX = 4;
 const HEAT_CAPACITY_DRAG_CLICK_SUPPRESSION_RESET_MS = 80;
-const VALVE_FOCUS_BUBBLE_EXIT_MS = 160;
-const VALVE_FOCUS_BUBBLE_WIDTH_PX = 190;
-const VALVE_FOCUS_BUBBLE_HEIGHT_PX = 38;
-const VALVE_FOCUS_BUBBLE_GAP_PX = 34;
 const PUMP_VALVE_TRANSITION_MS = 420;
 const STOPCOCK_CLOSED_BASE_ROTATION_RAD = -Math.PI / 2;
 const DISABLE_RAYCAST: THREE.Object3D['raycast'] = () => undefined;
@@ -624,7 +491,6 @@ type CameraFocusView = {
   target: [number, number, number];
   fov?: number;
 };
-type CameraFocusViews = Record<Exclude<HeatCapacityFocusMode, 'none'>, CameraFocusView>;
 type CameraViewScheme = {
   defaultView: CameraFocusView;
   fov: number;
@@ -636,7 +502,6 @@ type CameraViewScheme = {
     wideFov?: number;
   };
   autoDemoView?: CameraFocusView;
-  focusViews?: CameraFocusViews;
 };
 const PROCEDURAL_CAMERA_VIEW_SCHEME: CameraViewScheme = {
   defaultView: {
@@ -647,20 +512,6 @@ const PROCEDURAL_CAMERA_VIEW_SCHEME: CameraViewScheme = {
   autoDemoView: {
     position: [3.82, 2.68, 7.58],
     target: [0.24, -0.05, 0.02],
-  },
-  focusViews: {
-    stopcock: {
-      position: [1.38, 2.18, 2.92],
-      target: [-1.5, 0.82, 0.36],
-    },
-    instrument: {
-      position: [2.18, 0.18, 3.42],
-      target: [2.02, -0.76, 0.34],
-    },
-    pump: {
-      position: [2.95, 0.25, 3.35],
-      target: [1.65, -0.45, 0.95],
-    },
   },
 };
 const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = {
@@ -675,23 +526,6 @@ const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = {
     fov: 52,
     wideAspect: 3,
     wideFov: 56,
-  },
-  focusViews: {
-    stopcock: {
-      position: [-0.45, 2.58, 4.85],
-      target: [-1.2, 1.06, 0.44],
-      fov: 50,
-    },
-    instrument: {
-      position: [2.78, 1.16, 3.85],
-      target: [2.24, 0.06, 0.28],
-      fov: 32,
-    },
-    pump: {
-      position: [2.34, 1.24, 3.55],
-      target: [0.98, 0.34, 0.28],
-      fov: 36,
-    },
   },
 };
 const getCameraViewScheme = (performanceMode: HeatCapacityInstrumentSceneProps['performanceMode']) => (
@@ -774,39 +608,6 @@ const getPressureZeroLimitMessage = (requestedAngleDeg: number, copy: HeatCapaci
   return null;
 };
 
-const getPumpBulbDisplayLabel = (pumpBulbState: HeatCapacityInstrumentSceneProps['pumpBulbState'], copy: HeatCapacitySceneCopy) => (
-  pumpBulbState === 'idle' ? copy.pumpBulbIdle : copy.pumpBulbActive
-);
-
-const getPumpFrequencyStatusLabel = (status: HeatCapacityInstrumentSceneProps['pumpFrequencyStatus'], copy: HeatCapacitySceneCopy) => (
-  status === 'idle' ? copy.frequencyIdle : status === 'tooSlow' ? copy.frequencySlow : copy.frequencySuitable
-);
-
-function useGuardedSceneSingleClick() {
-  const pendingSingleClickRef = useRef<number | null>(null);
-  const clear = useCallback(() => {
-    if (pendingSingleClickRef.current !== null) {
-      window.clearTimeout(pendingSingleClickRef.current);
-      pendingSingleClickRef.current = null;
-    }
-  }, []);
-  const schedule = useCallback((run: () => void, guardSingleClick = true) => {
-    clear();
-    if (!guardSingleClick) {
-      run();
-      return;
-    }
-    pendingSingleClickRef.current = window.setTimeout(() => {
-      pendingSingleClickRef.current = null;
-      run();
-    }, HEAT_CAPACITY_DOUBLE_CLICK_GUARD_MS);
-  }, [clear]);
-
-  useEffect(() => clear, [clear]);
-
-  return { schedule, clear };
-}
-
 const getHardSphereNoteText = (
   props: HeatCapacityInstrumentSceneProps,
   language: HeatCapacityInstrumentSceneProps['language'],
@@ -824,12 +625,7 @@ const getHardSphereNoteText = (
   return copy.initial;
 };
 
-const getHeatCapacityInteractionHints = (focusMode: HeatCapacityFocusMode, copy: HeatCapacitySceneCopy) => {
-  if (focusMode === 'stopcock') return [...copy.hints.stopcock];
-  if (focusMode === 'pump') return [...copy.hints.pump];
-  if (focusMode === 'instrument') return [...copy.hints.instrument];
-  return [...copy.hints.normal];
-};
+const getHeatCapacityInteractionHints = (copy: HeatCapacitySceneCopy) => [...copy.hints.normal];
 
 const getHeatCapacityHoverTooltip = (
   hoveredControl: HeatCapacityHoveredControl,
@@ -843,10 +639,6 @@ const getHeatCapacityHoverTooltip = (
   if (hoveredControl === 'pressureZero') return copy.tooltip.pressureZero;
   return null;
 };
-
-const formatPanelNumber = (value: number, digits = 2) => (
-  Number.isFinite(value) ? value.toFixed(digits) : '--'
-);
 
 const PRESSURE_GAUGE_MIN_ROTATION = -2.15;
 const PRESSURE_GAUGE_MAX_ROTATION = 2.15;
@@ -1083,8 +875,6 @@ function InstrumentBox({
   onPressureZeroFineAdjust,
   onPressureZeroCoarseAdjust,
   zeroEnabled,
-  onFocus,
-  focusMode,
   hoveredControl,
   setHoveredControl,
   interactionLocked,
@@ -1100,8 +890,6 @@ function InstrumentBox({
 }: Pick<HeatCapacityInstrumentSceneProps, 'performanceMode' | 'powerOn' | 'pressureZeroKnobAngle' | 'pressureGaugeDisplayValue' | 'gaugePressureMinKPa' | 'gaugePressureMaxKPa' | 'pressureSafetyThresholdKPa' | 'pressureOverLimit' | 'temperatureSignalMv' | 'pressureSignalMv' | 'onPowerToggle' | 'onPressureZeroFineAdjust' | 'onPressureZeroCoarseAdjust' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
   highClarityMode: boolean;
   zeroEnabled: boolean;
-  onFocus: (mode: HeatCapacityFocusMode) => void;
-  focusMode: HeatCapacityFocusMode;
   hoveredControl: HeatCapacityHoveredControl;
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
   interactionQualityReduced: boolean;
@@ -1115,7 +903,6 @@ function InstrumentBox({
   const screenGlow = powerOn ? scenePalette.instrument.screenGlowOn : scenePalette.instrument.screenGlowOff;
   const powerSwitchHovered = hoveredControl === 'powerSwitch';
   const pressureZeroHovered = hoveredControl === 'pressureZero';
-  const pressureZeroInteractionEnabled = focusMode === 'instrument';
   const powerSwitchDemoFocused = demoFocusPulseActive && demoFocusControlId === 'powerSwitch';
   const pressureZeroDemoFocused = demoFocusPulseActive && demoFocusControlId === 'pressureZero';
   const pressureDisplayDemoFocused = demoFocusPulseActive && (
@@ -1303,42 +1090,20 @@ function InstrumentBox({
 
   const powerSwitchRotation = powerOn ? -0.35 : 0.35;
   const powerSwitchVisualRotation = powerSwitchRotation + powerSwitchRollbackOffset;
-  const { schedule: schedulePowerSwitchSingleClick, clear: clearPowerSwitchSingleClick } = useGuardedSceneSingleClick();
 
   const handlePowerSwitchClick = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
-    schedulePowerSwitchSingleClick(() => {
-      if (interactionLocked) {
-        onLockedInteraction();
-        return;
-      }
-      onPowerToggle();
-    }, focusMode === 'none');
-  };
-
-  const handlePowerSwitchDoubleClick = (event: ThreeEvent<MouseEvent>) => {
-    event.stopPropagation();
-    clearPowerSwitchSingleClick();
     if (interactionLocked) {
       onLockedInteraction();
       return;
     }
-    onFocus('instrument');
+    onPowerToggle();
   };
 
   return (
     <group
       name="InstrumentBoxRoot"
       position={[1.85, -0.5, 0]}
-      onDoubleClick={(event) => {
-        event.stopPropagation();
-        clearPowerSwitchSingleClick();
-        if (interactionLocked) {
-          onLockedInteraction();
-          return;
-        }
-        onFocus('instrument');
-      }}
     >
       <mesh name="InstrumentBox" position={[0, 0, 0]}>
         <boxGeometry args={[2.18, 0.78, 0.86]} />
@@ -1441,7 +1206,6 @@ function InstrumentBox({
         name="PowerSwitch"
         position={[0.98, -0.14, 0.56]}
         onClick={handlePowerSwitchClick}
-        onDoubleClick={handlePowerSwitchDoubleClick}
         onPointerOver={(event) => {
           event.stopPropagation();
           setHoveredControl('powerSwitch');
@@ -1471,22 +1235,14 @@ function InstrumentBox({
         name="PressureZeroKnob"
         ref={pressureZeroKnobRef}
         position={[0.22, -0.14, 0.55]}
-        onPointerDown={pressureZeroInteractionEnabled ? startPressureZeroDrag : undefined}
-        onWheel={pressureZeroInteractionEnabled ? handlePressureZeroWheel : undefined}
+        onPointerDown={startPressureZeroDrag}
+        onWheel={handlePressureZeroWheel}
         onClick={(event) => {
           event.stopPropagation();
           if (interactionLocked) {
             onLockedInteraction();
             return;
           }
-        }}
-        onDoubleClick={(event) => {
-          event.stopPropagation();
-          if (interactionLocked) {
-            onLockedInteraction();
-            return;
-          }
-          onFocus('instrument');
         }}
         onPointerOver={(event) => {
           event.stopPropagation();
@@ -1553,11 +1309,8 @@ function GlassStopcock({
   highClarityMode,
   angleDeg,
   onStopcockOpenChange,
-  focusMode,
   hoveredControl,
   setHoveredControl,
-  onValveFocusAnchor,
-  onFocus,
   interactionLocked,
   demoFocusControlId,
   demoFocusPulseActive,
@@ -1569,15 +1322,11 @@ function GlassStopcock({
 }: Pick<HeatCapacityInstrumentSceneProps, 'onStopcockOpenChange' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
   highClarityMode: boolean;
   angleDeg: number;
-  focusMode: HeatCapacityFocusMode;
   hoveredControl: HeatCapacityHoveredControl;
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
-  onValveFocusAnchor: (control: ValveFocusControl, clientX: number, clientY: number) => void;
-  onFocus: (mode: HeatCapacityFocusMode) => void;
   interactionQualityReduced: boolean;
   scenePalette: HeatCapacityScenePalette;
 }) {
-  const { camera, gl } = useThree();
   const stopcockCoreRef = useRef<THREE.Group | null>(null);
   const [displayAngleDeg, setDisplayAngleDeg] = useState(angleDeg);
   const displayAngleRef = useRef(angleDeg);
@@ -1632,48 +1381,17 @@ function GlassStopcock({
   const stopcockDemoFocused = demoFocusPulseActive && demoFocusControlId === 'stopcock';
   const angleRad = ((displayAngleDeg + stopcockRollbackOffsetDeg) * Math.PI) / 180;
   const showStopcockOutlines = scenePalette.glass.stopcockOutlineVisible || highClarityMode;
-  const { schedule: scheduleStopcockSingleClick, clear: clearStopcockSingleClick } = useGuardedSceneSingleClick();
 
   const handleStopcockToggle = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
     event.nativeEvent.stopPropagation();
     event.nativeEvent.stopImmediatePropagation?.();
-    scheduleStopcockSingleClick(() => {
-      if (interactionLocked) {
-        onLockedInteraction();
-        return;
-      }
-      onStopcockOpenChange();
-    }, focusMode === 'none');
-  };
-  const handleStopcockDoubleClick = (event: ThreeEvent<MouseEvent>) => {
-    event.stopPropagation();
-    event.nativeEvent.stopPropagation();
-    event.nativeEvent.stopImmediatePropagation?.();
-    clearStopcockSingleClick();
     if (interactionLocked) {
       onLockedInteraction();
       return;
     }
-    onFocus('stopcock');
+    onStopcockOpenChange();
   };
-  const projectValveFocusAnchor = useCallback(() => {
-    const anchor = stopcockCoreRef.current;
-    if (!anchor) return null;
-    const rect = gl.domElement.getBoundingClientRect();
-    const position = new THREE.Vector3();
-    anchor.getWorldPosition(position);
-    position.project(camera);
-    return {
-      clientX: rect.left + ((position.x + 1) / 2) * rect.width,
-      clientY: rect.top + ((1 - position.y) / 2) * rect.height,
-    };
-  }, [camera, gl]);
-  const openStopcockFocusBubble = useCallback(() => {
-    const anchor = projectValveFocusAnchor();
-    if (!anchor) return;
-    onValveFocusAnchor('stopcock', anchor.clientX, anchor.clientY);
-  }, [onValveFocusAnchor, projectValveFocusAnchor]);
 
   return (
     <group name="GlassStopcockAssembly" position={[0, 1.58, 0]}>
@@ -1702,12 +1420,10 @@ function GlassStopcock({
         ref={stopcockCoreRef}
         rotation={[angleRad, 0, 0]}
         onClick={handleStopcockToggle}
-        onDoubleClick={handleStopcockDoubleClick}
         onPointerOver={(event) => {
           event.stopPropagation();
           event.nativeEvent.stopPropagation();
           setHoveredControl('stopcock');
-          openStopcockFocusBubble();
         }}
         onPointerMove={(event) => {
           event.stopPropagation();
@@ -1717,7 +1433,7 @@ function GlassStopcock({
         }}
       >
         <mesh name="HitboxStopcockHandle">
-          <boxGeometry args={[1.02, 0.72, 0.34]} />
+          <boxGeometry args={[1.02, 0.72, 0.78]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
         <DemoFocusHalo active={stopcockDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloStopcock" rotation={[0, 0, Math.PI / 2]} focusHaloColor={scenePalette.effects.demoHalo} focusHaloMinOpacity={scenePalette.effects.demoHaloMinOpacity} focusHaloMaxOpacity={scenePalette.effects.demoHaloMaxOpacity} focusHaloBaseScale={scenePalette.effects.demoHaloBaseScale} focusHaloPulseScale={scenePalette.effects.demoHaloPulseScale}>
@@ -1816,11 +1532,8 @@ function PressureBottle({
   highClarityMode,
   stopcockAngleDeg,
   onStopcockOpenChange,
-  focusMode,
   hoveredControl,
   setHoveredControl,
-  onValveFocusAnchor,
-  onFocus,
   interactionLocked,
   demoFocusControlId,
   demoFocusPulseActive,
@@ -1832,11 +1545,8 @@ function PressureBottle({
 }: Pick<HeatCapacityInstrumentSceneProps, 'onStopcockOpenChange' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
   highClarityMode: boolean;
   stopcockAngleDeg: number;
-  focusMode: HeatCapacityFocusMode;
   hoveredControl: HeatCapacityHoveredControl;
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
-  onValveFocusAnchor: (control: ValveFocusControl, clientX: number, clientY: number) => void;
-  onFocus: (mode: HeatCapacityFocusMode) => void;
   interactionQualityReduced: boolean;
   scenePalette: HeatCapacityScenePalette;
 }) {
@@ -1893,11 +1603,8 @@ function PressureBottle({
         highClarityMode={highClarityMode}
         angleDeg={stopcockAngleDeg}
         onStopcockOpenChange={onStopcockOpenChange}
-        focusMode={focusMode}
         hoveredControl={hoveredControl}
         setHoveredControl={setHoveredControl}
-        onValveFocusAnchor={onValveFocusAnchor}
-        onFocus={onFocus}
         interactionLocked={interactionLocked}
         demoFocusControlId={demoFocusControlId}
         demoFocusPulseActive={demoFocusPulseActive}
@@ -1978,11 +1685,8 @@ function PumpAssembly({
   pumpPulseId,
   onPumpValveToggle,
   onPumpBulbPress,
-  onFocus,
-  focusMode,
   hoveredControl,
   setHoveredControl,
-  onValveFocusAnchor,
   interactionLocked,
   demoFocusControlId,
   demoFocusPulseActive,
@@ -1992,15 +1696,11 @@ function PumpAssembly({
   interactionQualityReduced,
   scenePalette,
 }: Pick<HeatCapacityInstrumentSceneProps, 'pumpValveOpen' | 'pumpBulbState' | 'pumpPulseId' | 'onPumpValveToggle' | 'onPumpBulbPress' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
-  onFocus: (mode: HeatCapacityFocusMode) => void;
-  focusMode: HeatCapacityFocusMode;
   hoveredControl: HeatCapacityHoveredControl;
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
-  onValveFocusAnchor: (control: ValveFocusControl, clientX: number, clientY: number) => void;
   interactionQualityReduced: boolean;
   scenePalette: HeatCapacityScenePalette;
 }) {
-  const { camera, gl } = useThree();
   const pumpValveRef = useRef<THREE.Group | null>(null);
   const bulbHovered = hoveredControl === 'pumpBulb';
   const valveHovered = hoveredControl === 'pumpValve';
@@ -2021,7 +1721,6 @@ function PumpAssembly({
       : [1, 1, 1];
   const pumpBulbActive = visualPumpBulbState !== 'idle';
   const tubeColor = pumpValveOpen && pumpBulbActive ? scenePalette.pump.tubeActive : scenePalette.pump.tubeIdle;
-  const { schedule: schedulePumpValveSingleClick, clear: clearPumpValveSingleClick } = useGuardedSceneSingleClick();
 
   const clearPumpPulseTimers = () => {
     const timers = pumpPulseTimersRef.current;
@@ -2050,43 +1749,12 @@ function PumpAssembly({
     event.stopPropagation();
     event.nativeEvent.stopPropagation();
     event.nativeEvent.stopImmediatePropagation?.();
-    schedulePumpValveSingleClick(() => {
-      if (interactionLocked) {
-        onLockedInteraction();
-        return;
-      }
-      onPumpValveToggle();
-    }, focusMode === 'none');
-  };
-
-  const handlePumpValveDoubleClick = (event: ThreeEvent<MouseEvent>) => {
-    event.stopPropagation();
-    event.nativeEvent.stopPropagation();
-    event.nativeEvent.stopImmediatePropagation?.();
-    clearPumpValveSingleClick();
     if (interactionLocked) {
       onLockedInteraction();
       return;
     }
-    onFocus('stopcock');
+    onPumpValveToggle();
   };
-  const projectValveFocusAnchor = useCallback(() => {
-    const anchor = pumpValveRef.current;
-    if (!anchor) return null;
-    const rect = gl.domElement.getBoundingClientRect();
-    const position = new THREE.Vector3();
-    anchor.getWorldPosition(position);
-    position.project(camera);
-    return {
-      clientX: rect.left + ((position.x + 1) / 2) * rect.width,
-      clientY: rect.top + ((1 - position.y) / 2) * rect.height,
-    };
-  }, [camera, gl]);
-  const openPumpValveFocusBubble = useCallback(() => {
-    const anchor = projectValveFocusAnchor();
-    if (!anchor) return;
-    onValveFocusAnchor('pumpValve', anchor.clientX, anchor.clientY);
-  }, [onValveFocusAnchor, projectValveFocusAnchor]);
 
   useEffect(() => {
     const targetAngle = pumpValveOpen ? 0 : Math.PI / 2;
@@ -2163,12 +1831,10 @@ function PumpAssembly({
           event.nativeEvent.stopImmediatePropagation?.();
         }}
         onClick={handlePumpValveClick}
-        onDoubleClick={handlePumpValveDoubleClick}
         onPointerOver={(event) => {
           event.stopPropagation();
           event.nativeEvent.stopPropagation();
           setHoveredControl('pumpValve');
-          openPumpValveFocusBubble();
         }}
         onPointerMove={(event) => {
           event.stopPropagation();
@@ -2241,18 +1907,9 @@ function PumpAssembly({
         name="pumpBulb"
         position={[1.85, -1.03, 1.05]}
         scale={pumpBulbScale}
-        onPointerDown={focusMode === 'pump' ? handlePumpBulbPointerDown : undefined}
+        onPointerDown={handlePumpBulbPointerDown}
         onClick={(event) => {
           event.stopPropagation();
-        }}
-        onDoubleClick={(event) => {
-          event.stopPropagation();
-          if (interactionLocked) {
-            onLockedInteraction();
-            return;
-          }
-          if (focusMode === 'pump') return;
-          onFocus('pump');
         }}
         onPointerOver={(event) => {
           event.stopPropagation();
@@ -2296,11 +1953,8 @@ function HeatCapacitySceneLighting({ scenePalette }: { scenePalette: HeatCapacit
 }
 
 function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
-  onFocus: (mode: HeatCapacityFocusMode) => void;
-  focusMode: HeatCapacityFocusMode;
   hoveredControl: HeatCapacityHoveredControl;
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
-  onValveFocusAnchor: (control: ValveFocusControl, clientX: number, clientY: number) => void;
   interactionQualityReduced: boolean;
   panelTextInteractionReduced: boolean;
   sceneCopy: HeatCapacitySceneCopy;
@@ -2323,11 +1977,8 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           highClarityMode={highClarityMode}
           stopcockAngleDeg={props.stopcockAngleDeg}
           onStopcockOpenChange={props.onStopcockOpenChange}
-          focusMode={props.focusMode}
           hoveredControl={props.hoveredControl}
           setHoveredControl={props.setHoveredControl}
-          onValveFocusAnchor={props.onValveFocusAnchor}
-          onFocus={props.onFocus}
           interactionLocked={props.interactionLocked}
           demoFocusControlId={props.demoFocusControlId}
           demoFocusPulseActive={props.demoFocusPulseActive}
@@ -2367,11 +2018,8 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           pumpPulseId={props.pumpPulseId}
           onPumpValveToggle={props.onPumpValveToggle}
           onPumpBulbPress={props.onPumpBulbPress}
-          onFocus={props.onFocus}
-          focusMode={props.focusMode}
           hoveredControl={props.hoveredControl}
           setHoveredControl={props.setHoveredControl}
-          onValveFocusAnchor={props.onValveFocusAnchor}
           interactionLocked={props.interactionLocked}
           demoFocusControlId={props.demoFocusControlId}
           demoFocusPulseActive={props.demoFocusPulseActive}
@@ -2397,8 +2045,6 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           onPressureZeroFineAdjust={props.onPressureZeroFineAdjust}
           onPressureZeroCoarseAdjust={props.onPressureZeroCoarseAdjust}
           zeroEnabled={zeroEnabled}
-          onFocus={props.onFocus}
-          focusMode={props.focusMode}
           hoveredControl={props.hoveredControl}
           setHoveredControl={props.setHoveredControl}
           interactionLocked={props.interactionLocked}
@@ -2539,13 +2185,11 @@ function HeatCapacityCameraCapturePanel({
 
 function CameraRig({
   controlsRef,
-  focusMode,
   resetKey,
   autoDemoActive,
   cameraViewScheme,
 }: {
   controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
-  focusMode: HeatCapacityFocusMode;
   resetKey: number;
   autoDemoActive: boolean;
   cameraViewScheme: CameraViewScheme;
@@ -2554,14 +2198,13 @@ function CameraRig({
 
   useEffect(() => {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;
-    if (focusMode !== 'none') return;
     const aspect = size.height > 0 ? size.width / size.height : 1;
     const nextFov = getCameraFovForAspect(cameraViewScheme, aspect);
     if (Math.abs(camera.fov - nextFov) < 0.01) return;
     camera.fov = nextFov;
     camera.updateProjectionMatrix();
     invalidate();
-  }, [camera, cameraViewScheme, focusMode, invalidate, size.height, size.width]);
+  }, [camera, cameraViewScheme, invalidate, size.height, size.width]);
 
   useEffect(() => {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;
@@ -2571,19 +2214,12 @@ function CameraRig({
     const nextPosition = new THREE.Vector3();
     const nextTarget = new THREE.Vector3();
     const aspect = size.height > 0 ? size.width / size.height : 1;
-    const focusView = (focusMode === 'stopcock' || focusMode === 'instrument' || focusMode === 'pump')
-      ? cameraViewScheme.focusViews?.[focusMode]
-      : undefined;
-    const nextView = focusView ?? (
-      autoDemoActive
-        ? cameraViewScheme.autoDemoView ?? cameraViewScheme.defaultView
-        : cameraViewScheme.defaultView
-    );
+    const nextView = autoDemoActive
+      ? cameraViewScheme.autoDemoView ?? cameraViewScheme.defaultView
+      : cameraViewScheme.defaultView;
     nextPosition.set(...nextView.position);
     nextTarget.set(...nextView.target);
-    const nextFov = focusView
-      ? focusView.fov ?? cameraViewScheme.fov
-      : getCameraFovForAspect(cameraViewScheme, aspect);
+    const nextFov = getCameraFovForAspect(cameraViewScheme, aspect);
 
     let frameId = 0;
     const startTime = performance.now();
@@ -2608,7 +2244,7 @@ function CameraRig({
     };
     frameId = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frameId);
-  }, [autoDemoActive, camera, cameraViewScheme, controlsRef, focusMode, invalidate, resetKey, size.height, size.width]);
+  }, [autoDemoActive, camera, cameraViewScheme, controlsRef, invalidate, resetKey, size.height, size.width]);
 
   return null;
 }
@@ -2676,8 +2312,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const sceneRootRef = useRef<HTMLDivElement | null>(null);
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const hoverClearTimerRef = useRef<number | null>(null);
-  const valveFocusBubbleExitTimerRef = useRef<number | null>(null);
-  const valveFocusPointerDownRef = useRef(false);
   const sceneDragClickGuardRef = useRef({
     pointerId: null as number | null,
     startX: 0,
@@ -2685,10 +2319,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     suppressNextClick: false,
   });
   const sceneDragClickGuardResetTimerRef = useRef<number | null>(null);
-  const onFocusModeChangeRef = useRef(props.onFocusModeChange);
-  const [focusMode, setFocusMode] = useState<HeatCapacityFocusMode>('none');
   const [hoveredControl, setHoveredControl] = useState<HeatCapacityHoveredControl>(null);
-  const [valveFocusBubble, setValveFocusBubble] = useState<ValveFocusBubbleState | null>(null);
   const [isOrbitInteracting, setIsOrbitInteracting] = useState(false);
   const [viewResetKey, setViewResetKey] = useState(0);
   const [cameraCaptureHandler, setCameraCaptureHandler] = useState<HeatCapacityCameraCaptureHandler | null>(null);
@@ -2715,70 +2346,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     }, HOVER_CLEAR_DELAY_MS);
   }, [clearHoverTimer]);
   useEffect(() => clearHoverTimer, [clearHoverTimer]);
-  const clearValveFocusBubbleExitTimer = useCallback(() => {
-    if (valveFocusBubbleExitTimerRef.current !== null) {
-      window.clearTimeout(valveFocusBubbleExitTimerRef.current);
-      valveFocusBubbleExitTimerRef.current = null;
-    }
-  }, []);
-  const clampValveFocusBubblePosition = useCallback((clientX: number, clientY: number) => {
-    const sceneRoot = sceneRootRef.current;
-    const rect = sceneRoot?.getBoundingClientRect();
-    if (!sceneRoot || !rect) {
-      return {
-        x: clientX - (VALVE_FOCUS_BUBBLE_WIDTH_PX / 2),
-        y: Math.max(8, clientY - VALVE_FOCUS_BUBBLE_HEIGHT_PX - VALVE_FOCUS_BUBBLE_GAP_PX),
-        tailX: VALVE_FOCUS_BUBBLE_WIDTH_PX / 2,
-      };
-    }
-    const inset = 8;
-    const scaleX = rect.width / (sceneRoot.offsetWidth || rect.width) || 1;
-    const scaleY = rect.height / (sceneRoot.offsetHeight || rect.height) || 1;
-    const localWidth = rect.width / scaleX;
-    const localHeight = rect.height / scaleY;
-    const anchorX = (clientX - rect.left) / scaleX;
-    const anchorY = (clientY - rect.top) / scaleY;
-    const maxX = Math.max(inset, localWidth - VALVE_FOCUS_BUBBLE_WIDTH_PX - inset);
-    const maxY = Math.max(inset, localHeight - VALVE_FOCUS_BUBBLE_HEIGHT_PX - inset);
-    const preferredX = anchorX - (VALVE_FOCUS_BUBBLE_WIDTH_PX / 2);
-    const preferredY = anchorY - VALVE_FOCUS_BUBBLE_HEIGHT_PX - VALVE_FOCUS_BUBBLE_GAP_PX;
-    const x = Math.max(inset, Math.min(maxX, preferredX));
-    const y = Math.max(inset, Math.min(maxY, preferredY));
-    return {
-      x,
-      y,
-      tailX: Math.max(16, Math.min(VALVE_FOCUS_BUBBLE_WIDTH_PX - 16, anchorX - x)),
-    };
-  }, []);
-  const openValveFocusBubble = useCallback((source: ValveFocusControl, clientX: number, clientY: number) => {
-    if (focusMode !== 'none') return;
-    if (valveFocusPointerDownRef.current) return;
-    clearValveFocusBubbleExitTimer();
-    const nextPosition = clampValveFocusBubblePosition(clientX, clientY);
-    setValveFocusBubble({
-      visible: true,
-      x: nextPosition.x,
-      y: nextPosition.y,
-      tailX: nextPosition.tailX,
-      source,
-      closing: false,
-    });
-  }, [clampValveFocusBubblePosition, clearValveFocusBubbleExitTimer, focusMode]);
-  const closeValveFocusBubble = useCallback(() => {
-    clearValveFocusBubbleExitTimer();
-    setValveFocusBubble((current) => {
-      if (!current) return current;
-      return {
-        ...current,
-        closing: true,
-      };
-    });
-    valveFocusBubbleExitTimerRef.current = window.setTimeout(() => {
-      valveFocusBubbleExitTimerRef.current = null;
-      setValveFocusBubble(null);
-    }, VALVE_FOCUS_BUBBLE_EXIT_MS);
-  }, [clearValveFocusBubbleExitTimer]);
-  useEffect(() => clearValveFocusBubbleExitTimer, [clearValveFocusBubbleExitTimer]);
   const clearSceneDragClickGuardResetTimer = useCallback(() => {
     if (sceneDragClickGuardResetTimerRef.current !== null) {
       window.clearTimeout(sceneDragClickGuardResetTimerRef.current);
@@ -2812,9 +2379,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
         suppressNextClick: false,
       };
     }
-    valveFocusPointerDownRef.current = true;
-    closeValveFocusBubble();
-  }, [clearSceneDragClickGuardResetTimer, closeValveFocusBubble]);
+  }, [clearSceneDragClickGuardResetTimer]);
   const handleScenePointerMoveCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const dragGuard = sceneDragClickGuardRef.current;
     if (dragGuard.pointerId !== event.pointerId || dragGuard.suppressNextClick) return;
@@ -2824,7 +2389,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     }
   }, []);
   const handleScenePointerUpCapture = useCallback(() => {
-    valveFocusPointerDownRef.current = false;
     if (sceneDragClickGuardRef.current.suppressNextClick) {
       scheduleSceneDragClickGuardReset();
     } else {
@@ -2832,7 +2396,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     }
   }, [resetSceneDragClickGuard, scheduleSceneDragClickGuardReset]);
   const handleScenePointerCancelCapture = useCallback(() => {
-    valveFocusPointerDownRef.current = false;
     resetSceneDragClickGuard();
   }, [resetSceneDragClickGuard]);
   const handleSceneClickCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
@@ -2844,17 +2407,9 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     }
     resetSceneDragClickGuard();
   }, [resetSceneDragClickGuard]);
-  useEffect(() => {
-    onFocusModeChangeRef.current = props.onFocusModeChange;
-  }, [props.onFocusModeChange]);
-  useEffect(() => {
-    onFocusModeChangeRef.current(focusMode);
-  }, [focusMode]);
   const triggerSmoothDefaultView = useCallback(() => {
-    closeValveFocusBubble();
-    setFocusMode('none');
     setViewResetKey((key) => key + 1);
-  }, [closeValveFocusBubble]);
+  }, []);
   const captureCurrentCameraView = useCallback(() => {
     const payload = cameraCaptureHandler?.() ?? null;
     if (payload) setCameraCapturePayload(payload);
@@ -2864,15 +2419,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   useEffect(() => {
     triggerSmoothDefaultView();
   }, [props.focusResetKey, triggerSmoothDefaultView]);
-  const stopcockState = getHeatCapacityStopcockState(props.stopcockAngleDeg);
-  const stopcockConnected = stopcockState === 'open';
-  const pumpBulbDisplayLabel = getPumpBulbDisplayLabel(props.pumpBulbState, sceneCopy);
-  const pumpFrequencyStatusLabel = getPumpFrequencyStatusLabel(props.pumpFrequencyStatus, sceneCopy);
-  const temperatureDisplay = props.powerOn ? formatSignal(props.temperatureSignalMv) : sceneCopy.unpowered;
-  const pressureDisplay = props.powerOn ? formatSignal(props.pressureSignalMv) : sceneCopy.unpowered;
-  const poweredInstrumentReadout = (displayValue: string) => props.powerOn ? displayValue : sceneCopy.unpowered;
-  const poweredInstrumentNumber = (displayValue: string) => props.powerOn ? displayValue : '--';
-  const interactionHints = getHeatCapacityInteractionHints(focusMode, sceneCopy);
+  const interactionHints = getHeatCapacityInteractionHints(sceneCopy);
   const hoverTooltip = getHeatCapacityHoverTooltip(hoveredControl, props.pumpValveOpen, sceneCopy);
   const hardSphereNoteCopy = heatCapacityHardSphereNoteCopies[props.language] ?? heatCapacityHardSphereNoteCopies['zh-CN'];
   const hardSphereNoteText = getHardSphereNoteText(props, props.language);
@@ -2883,7 +2430,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     props.demoFocusPulseActive ||
     Boolean(props.manualRollbackAnimation);
   const interactionQualityReduced = isOrbitInteracting || props.performanceMode === 'performance';
-  const orbitControlsEnabled = focusMode === 'none' && !props.interactionLocked;
+  const orbitControlsEnabled = !props.interactionLocked;
   const cameraViewScheme = useMemo(() => getCameraViewScheme(props.performanceMode), [props.performanceMode]);
   const canvasProps = useMemo(() => ({
     camera: { position: cameraViewScheme.defaultView.position, fov: cameraViewScheme.fov },
@@ -2901,11 +2448,8 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     <InstrumentSceneContent
       {...props}
       hardSphereViewEnabled={hardSphereViewActive}
-      onFocus={setFocusMode}
-      focusMode={focusMode}
       hoveredControl={hoveredControl}
       setHoveredControl={setStableHoveredControl}
-      onValveFocusAnchor={openValveFocusBubble}
       interactionQualityReduced={interactionQualityReduced}
       panelTextInteractionReduced={isOrbitInteracting}
       sceneCopy={sceneCopy}
@@ -2943,9 +2487,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           hardSphereSpeedMultiplier={props.hardSphereSpeedMultiplier}
           hardSphereVisualResetKey={props.hardSphereVisualResetKey}
           interactionLocked={props.interactionLocked}
-          focusMode={focusMode}
-          pressureZeroInteractionEnabled={focusMode === 'instrument'}
-          pumpBulbInteractionEnabled={focusMode === 'pump'}
           demoFocusControlId={props.demoFocusControlId}
           demoFocusPulseActive={props.demoFocusPulseActive}
           interactionQualityReduced={interactionQualityReduced}
@@ -2975,7 +2516,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           }}
           hoveredControl={hoveredControl}
           setHoveredControl={setStableHoveredControl}
-          onValveFocusAnchor={openValveFocusBubble}
           onLockedInteraction={props.onLockedInteraction}
           onPowerToggle={props.onPowerToggle}
           onStopcockOpenChange={props.onStopcockOpenChange}
@@ -2983,7 +2523,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           onPressureZeroCoarseAdjust={props.onPressureZeroCoarseAdjust}
           onPumpValveToggle={props.onPumpValveToggle}
           onPumpBulbPress={props.onPumpBulbPress}
-          onFocus={setFocusMode}
         />
       </Suspense>
     </HeatCapacityUltraModelErrorBoundary>
@@ -3002,7 +2541,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       onPointerUpCapture={handleScenePointerUpCapture}
       onPointerCancelCapture={handleScenePointerCancelCapture}
       onClickCapture={handleSceneClickCapture}
-      onWheelCapture={() => closeValveFocusBubble()}
       onPointerLeave={() => {
         setStableHoveredControl(null);
       }}
@@ -3021,7 +2559,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
         />
         <CameraRig
           controlsRef={controlsRef}
-          focusMode={focusMode}
           resetKey={viewResetKey}
           autoDemoActive={props.autoDemoActive}
           cameraViewScheme={cameraViewScheme}
@@ -3034,7 +2571,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           onInteractionStart={() => {
             setIsOrbitInteracting(true);
             setStableHoveredControl(null);
-            closeValveFocusBubble();
           }}
           onInteractionEnd={() => {
             setIsOrbitInteracting(false);
@@ -3142,195 +2678,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
               {props.overlayBottomRight}
             </div>
           ) : null}
-          {focusMode === 'stopcock' ? (
-            <div data-preview-overlay-item="heat-focus-panel">
-              <div
-                className="studio-heat-focus-panel studio-heat-focus-panel-stopcock"
-                data-heat-capacity-focus-panel="stopcock"
-              >
-                <div className="studio-heat-focus-title">{sceneCopy.focus.stopcockTitle}</div>
-                <div className="studio-heat-focus-grid">
-                  <div className="studio-heat-focus-panel-row">
-                    <span>{sceneCopy.focus.glassStopcock}</span>
-                    <strong className={stopcockConnected ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                      {stopcockConnected ? sceneCopy.focus.connected : sceneCopy.focus.disconnected}
-                    </strong>
-                  </div>
-                  <div className="studio-heat-focus-panel-row">
-                    <span>{sceneCopy.focus.pumpValve}</span>
-                    <strong className={props.pumpValveOpen ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                      {props.pumpValveOpen ? sceneCopy.focus.opened : sceneCopy.focus.closed}
-                    </strong>
-                  </div>
-                </div>
-                <div className="studio-heat-focus-panel-actions">
-                  <button
-                    type="button"
-                    data-heat-capacity-valve-focus-stopcock-toggle="true"
-                    disabled={props.interactionLocked}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (props.interactionLocked) {
-                        props.onLockedInteraction();
-                        return;
-                      }
-                      props.onStopcockOpenChange(!stopcockConnected);
-                    }}
-                  >
-                    {stopcockConnected ? sceneCopy.focus.closeStopcock : sceneCopy.focus.openStopcock}
-                  </button>
-                  <button
-                    type="button"
-                    data-heat-capacity-valve-focus-pump-valve-toggle="true"
-                    disabled={props.interactionLocked}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (props.interactionLocked) {
-                        props.onLockedInteraction();
-                        return;
-                      }
-                      props.onPumpValveToggle();
-                    }}
-                  >
-                    {props.pumpValveOpen ? sceneCopy.focus.closePumpValve : sceneCopy.focus.openPumpValve}
-                  </button>
-                </div>
-                <div className="studio-heat-focus-panel-actions studio-heat-focus-panel-actions-single">
-                  <button
-                    type="button"
-                    data-heat-capacity-focus-exit="true"
-                    disabled={props.interactionLocked}
-                    onClick={() => {
-                      if (props.interactionLocked) {
-                        props.onLockedInteraction();
-                        return;
-                      }
-                      setFocusMode('none');
-                    }}
-                  >
-                    {sceneCopy.focus.exit}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
-          {focusMode === 'pump' ? (
-            <div data-preview-overlay-item="heat-focus-panel">
-              <div
-                className="studio-heat-focus-panel studio-heat-focus-panel-pump"
-                data-heat-capacity-focus-panel="pump"
-              >
-                <div className="studio-heat-focus-title">{sceneCopy.focus.pumpTitle}</div>
-                <div className="studio-heat-focus-grid">
-                  <div className="studio-heat-focus-panel-row">
-                    <span>{sceneCopy.focus.pumpBulb}</span>
-                    <strong className={props.pumpBulbState === 'idle' ? 'studio-heat-focus-muted' : 'studio-heat-focus-positive'}>
-                      {pumpBulbDisplayLabel}
-                    </strong>
-                  </div>
-                  <div className="studio-heat-focus-panel-row">
-                    <span>{sceneCopy.focus.pumpFrequency}</span>
-                    <strong>{formatPanelNumber(props.pumpFrequency, 2)} /s</strong>
-                  </div>
-                  <div className="studio-heat-focus-panel-row">
-                    <span>{sceneCopy.focus.frequencyStatus}</span>
-                    <strong className={props.pumpFrequencyStatus === 'suitable' ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                      {pumpFrequencyStatusLabel}
-                    </strong>
-                  </div>
-                </div>
-                <div className="studio-heat-focus-hint">{props.pumpHint}</div>
-                <div className="studio-heat-focus-panel-actions studio-heat-focus-panel-actions-single">
-                  <button
-                    type="button"
-                    data-heat-capacity-focus-exit="true"
-                    disabled={props.interactionLocked}
-                    onClick={() => {
-                      if (props.interactionLocked) {
-                        props.onLockedInteraction();
-                        return;
-                      }
-                      setFocusMode('none');
-                    }}
-                  >
-                    {sceneCopy.focus.exit}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
-          {focusMode === 'instrument' ? (
-            <div data-preview-overlay-item="heat-focus-panel">
-              <div
-                className="studio-heat-focus-panel studio-heat-focus-panel-instrument"
-                data-heat-capacity-focus-panel="instrument"
-              >
-                <div className="studio-heat-focus-title">{sceneCopy.focus.instrumentTitle}</div>
-                <div className="studio-heat-focus-instrument-columns">
-                  <div className="studio-heat-focus-column">
-                    <div className="studio-heat-focus-panel-row">
-                      <span>{sceneCopy.focus.powerStatus}</span>
-                      <strong className={props.powerOn ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                        {props.powerOn ? sceneCopy.focus.powerOn : sceneCopy.focus.powerOff}
-                      </strong>
-                    </div>
-                    <div className="studio-heat-focus-panel-row">
-                      <span>U<sub>T</sub></span>
-                      <strong>{poweredInstrumentReadout(temperatureDisplay)}</strong>
-                    </div>
-                    <div className="studio-heat-focus-panel-row">
-                      <span>{sceneCopy.focus.pressureZero}</span>
-                      <strong className={props.pressureZeroAdjusted ? 'studio-heat-focus-positive' : 'studio-heat-focus-muted'}>
-                        {props.pressureZeroAdjusted ? sceneCopy.focus.zeroed : sceneCopy.focus.notZeroed}
-                      </strong>
-                    </div>
-                    <div className="studio-heat-focus-panel-row">
-                      <span>{sceneCopy.focus.displayedPressure}</span>
-                      <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressureDisplayedPlaceholder, 2)} mV`)}</strong>
-                    </div>
-                    <div className="studio-heat-focus-panel-row">
-                      <span>{sceneCopy.focus.placeholderTemperature}</span>
-                      <strong>{poweredInstrumentNumber(formatPanelNumber(props.temperaturePlaceholder, 3))}</strong>
-                    </div>
-                  </div>
-                  <div className="studio-heat-focus-column">
-                    <div className="studio-heat-focus-panel-row">
-                      <span>{sceneCopy.focus.currentPhase}</span>
-                      <strong>{props.phase}</strong>
-                    </div>
-                    <div className="studio-heat-focus-panel-row">
-                      <span>U<sub>p</sub></span>
-                      <strong>{poweredInstrumentReadout(pressureDisplay)}</strong>
-                    </div>
-                    <div className="studio-heat-focus-panel-row">
-                      <span>{sceneCopy.focus.zeroOffset}</span>
-                      <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressureZeroOffset, 2)} mV`)}</strong>
-                    </div>
-                    <div className="studio-heat-focus-panel-row">
-                      <span>{sceneCopy.focus.placeholderPressure}</span>
-                      <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressurePlaceholder, 2)} kPa`)}</strong>
-                    </div>
-                  </div>
-                </div>
-                <div className="studio-heat-focus-panel-actions studio-heat-focus-panel-actions-single">
-                  <button
-                    type="button"
-                    data-heat-capacity-focus-exit="true"
-                    disabled={props.interactionLocked}
-                    onClick={() => {
-                      if (props.interactionLocked) {
-                        props.onLockedInteraction();
-                        return;
-                      }
-                      setFocusMode('none');
-                    }}
-                  >
-                    {sceneCopy.focus.exit}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
         </div>
         {props.overlayCenter ? (
           <div className="studio-preview-overlay-center" data-preview-overlay-center="true">
@@ -3343,37 +2690,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           </div>
         ) : null}
       </div>
-      {valveFocusBubble?.visible ? (
-        <div
-          className={`studio-heat-valve-focus-bubble${valveFocusBubble.closing ? ' studio-heat-valve-focus-bubble-closing' : ''}`}
-          data-heat-capacity-valve-focus-bubble={valveFocusBubble.source}
-          style={{
-            '--heat-valve-focus-tail-x': `${valveFocusBubble.tailX}px`,
-            transform: `translate3d(${valveFocusBubble.x}px, ${valveFocusBubble.y}px, 0)`,
-          } as React.CSSProperties}
-          onPointerDownCapture={(event) => {
-            event.stopPropagation();
-          }}
-        >
-          <button
-            type="button"
-            className="studio-heat-valve-focus-button"
-            data-heat-capacity-valve-focus-entry="true"
-            disabled={props.interactionLocked}
-            onClick={(event) => {
-              event.stopPropagation();
-              if (props.interactionLocked) {
-                props.onLockedInteraction();
-                return;
-              }
-              closeValveFocusBubble();
-              setFocusMode('stopcock');
-            }}
-          >
-            {sceneCopy.focus.enterValveFocus}
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 }
