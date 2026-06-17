@@ -18,6 +18,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from professional_graph_style import (
+    ENGINEERING_EXPORT_STYLE,
+    PROFESSIONAL_COLORS,
+    add_legend,
+    add_readout_panel,
+    apply_professional_rc_params,
+    create_professional_figure,
+    save_professional_figure,
+    style_axes,
+)
+
 EXPORTER_VERSION = "0.1.0"
 FONT_DIR = Path("C:/Windows/Fonts")
 FONT_NAMES = {
@@ -33,11 +44,8 @@ def _import_dependencies():
 
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
-        plt.rcParams.update({
-            "font.family": "serif",
-            "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
-            "axes.unicode_minus": False,
-        })
+        apply_professional_rc_params(plt)
+        plt.rcParams["axes.unicode_minus"] = False
         from reportlab.lib import colors
         from reportlab.lib.enums import TA_CENTER
         from reportlab.lib.pagesizes import A4
@@ -213,34 +221,83 @@ def configure_axis(ax: Any, title: str, xlabel: str, ylabel: str) -> None:
     ax.spines["right"].set_visible(False)
 
 
+def format_graph_metric(value: Any, digits: int = 4, suffix: str = "") -> str:
+    if value is None:
+        return "--"
+    try:
+        number = float(value)
+        if math.isfinite(number):
+            return f"{number:.{digits}g}{suffix}"
+    except (TypeError, ValueError):
+        pass
+    return str(value)
+
+
+def sorted_xy(x_values: list[float], y_values: list[float]) -> tuple[list[float], list[float]]:
+    pairs = sorted(zip(x_values, y_values), key=lambda item: item[0])
+    if not pairs:
+        return [], []
+    sorted_x, sorted_y = zip(*pairs)
+    return list(sorted_x), list(sorted_y)
+
+
 def save_figure(fig: Any, figures_dir: Path, stem: str, caption: str) -> dict[str, Path]:
     figure_dir = figures_dir / stem
     figure_dir.mkdir(parents=True, exist_ok=True)
     outputs = {
         "png": figure_dir / f"{stem}.png",
     }
-    fig.text(0.5, 0.015, caption, ha="center", va="bottom", fontsize=10, fontweight="bold")
-    fig.tight_layout(rect=[0, 0.07, 1, 1])
-    fig.savefig(outputs["png"], dpi=300, bbox_inches="tight")
+    save_professional_figure(fig, outputs["png"])
     return outputs
 
 
 def plot_ideal_verification(data: dict[str, Any], figures_dir: Path, deps: dict[str, Any]) -> dict[str, Path]:
     plt = deps["plt"]
-    relation = data.get("relation", "pv")
+    relation = str(data.get("relation", "pv"))
     points = data.get("points", [])
     x_values = [safe_float(get_ideal_relation_x_value(str(relation), point)) for point in points]
     y_values = [safe_float(point.get("meanPressure")) for point in points]
     ideal_values = [safe_float(point.get("idealPressure")) for point in points]
+    verification = data.get("verification", {})
+    verdict = verification.get("verdictState") or "not assessed"
 
-    fig, ax = plt.subplots(figsize=(6.4, 4.1))
-    ax.scatter(x_values, y_values, s=42, color="#2563eb", label="Measured pressure", zorder=3)
-    ax.plot(x_values, ideal_values, color="#dc2626", linewidth=1.8, label="Ideal reference")
+    fig, ax = create_professional_figure(
+        plt,
+        f"{relation.upper()} Verification",
+        "Measured pressure compared with ideal reference and linear fit",
+        f"{relation.upper()} / {len(points)} samples / {verdict}",
+    )
+    ax.scatter(
+        x_values,
+        y_values,
+        s=ENGINEERING_EXPORT_STYLE["marker_size"],
+        color=PROFESSIONAL_COLORS["primary"],
+        edgecolor="white",
+        linewidth=0.5,
+        label="Measured",
+        zorder=4,
+    )
+    ideal_x, ideal_y = sorted_xy(x_values, ideal_values)
+    ax.plot(
+        ideal_x,
+        ideal_y,
+        color=PROFESSIONAL_COLORS["theory"],
+        linewidth=ENGINEERING_EXPORT_STYLE["data_line_width"],
+        label="Ideal reference",
+    )
     if len(x_values) >= 2:
-        slope = safe_float(data.get("verification", {}).get("slope"))
-        intercept = safe_float(data.get("verification", {}).get("intercept"))
+        slope = safe_float(verification.get("slope"))
+        intercept = safe_float(verification.get("intercept"))
         fit_values = [slope * x + intercept for x in x_values]
-        ax.plot(x_values, fit_values, color="#111827", linewidth=1.3, linestyle="--", label="Linear fit")
+        fit_x, fit_y = sorted_xy(x_values, fit_values)
+        ax.plot(
+            fit_x,
+            fit_y,
+            color=PROFESSIONAL_COLORS["fit"],
+            linewidth=ENGINEERING_EXPORT_STYLE["fit_line_width"],
+            linestyle="--",
+            label="Linear fit",
+        )
     x_label = (
         "Inverse volume 1/V"
         if relation == "pv"
@@ -248,8 +305,17 @@ def plot_ideal_verification(data: dict[str, Any], figures_dir: Path, deps: dict[
         if relation == "pn"
         else "Equilibrium temperature T"
     )
-    configure_axis(ax, f"{relation.upper()} Verification", x_label, "Pressure P")
-    ax.legend(frameon=False)
+    style_axes(ax, x_label, "Pressure P")
+    add_readout_panel(
+        ax,
+        [
+            ("Samples", str(len(points))),
+            ("R2", format_graph_metric(verification.get("rSquared"), 5)),
+            ("Slope error", format_graph_metric(verification.get("slopeError"), 3, "%")),
+        ],
+        loc="upper left",
+    )
+    add_legend(ax, loc="lower right")
     return save_figure(fig, figures_dir, f"{relation}-verification", f"Figure 1. {relation.upper()} Verification with Ideal Reference and Linear Fit")
 
 
@@ -262,11 +328,42 @@ def plot_ideal_raw_pv(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
     measured = [safe_float(point.get("meanPressure")) for point in points]
     ideal = [safe_float(point.get("idealPressure")) for point in points]
 
-    fig, ax = plt.subplots(figsize=(6.4, 4.1))
-    ax.plot(volumes, measured, marker="o", color="#2563eb", label="Measured pressure")
-    ax.plot(volumes, ideal, marker="s", color="#dc2626", label="Ideal reference")
-    configure_axis(ax, "Raw P-V Relationship", "Volume V", "Pressure P")
-    ax.legend(frameon=False)
+    fig, ax = create_professional_figure(
+        plt,
+        "Raw P-V Relationship",
+        "Direct pressure response across the physical volume sweep",
+        f"PV / {len(points)} samples / raw trace",
+    )
+    measured_x, measured_y = sorted_xy(volumes, measured)
+    ideal_x, ideal_y = sorted_xy(volumes, ideal)
+    ax.plot(
+        measured_x,
+        measured_y,
+        marker="o",
+        markersize=4.2,
+        color=PROFESSIONAL_COLORS["primary"],
+        linewidth=ENGINEERING_EXPORT_STYLE["data_line_width"],
+        label="Measured",
+    )
+    ax.plot(
+        ideal_x,
+        ideal_y,
+        marker="s",
+        markersize=3.6,
+        color=PROFESSIONAL_COLORS["theory"],
+        linewidth=ENGINEERING_EXPORT_STYLE["fit_line_width"],
+        label="Ideal reference",
+    )
+    style_axes(ax, "Volume V", "Pressure P")
+    add_readout_panel(
+        ax,
+        [
+            ("Samples", str(len(points))),
+            ("Volume range", f"{format_graph_metric(min(volumes), 4)}-{format_graph_metric(max(volumes), 4)}" if volumes else "--"),
+        ],
+        loc="upper right",
+    )
+    add_legend(ax, loc="lower left")
     return save_figure(fig, figures_dir, "pv-raw-relationship", "Figure 2. Raw P-V Relationship between Volume and Pressure")
 
 
@@ -280,12 +377,50 @@ def plot_distribution(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
     widths = [safe_float(item.get("binEnd")) - safe_float(item.get("binStart")) for item in bins]
     values = [safe_float(item.get("probability")) for item in bins]
     theory = [safe_float(item.get("theoretical")) for item in bins]
+    params = data.get("params", {})
+    x_label = "Speed v" if key == "speed" else "Energy E"
+    y_label = "Log density" if key == "energyLog" else "Probability density"
+    subtitle = (
+        "Final speed histogram against Maxwell-Boltzmann reference"
+        if key == "speed"
+        else "Final energy histogram against theoretical reference"
+        if key == "energy"
+        else "Semi-log energy trend against theoretical reference"
+    )
 
-    fig, ax = plt.subplots(figsize=(6.4, 4.1))
-    ax.bar(centers, values, width=[w * 0.86 for w in widths], color="#93c5fd", edgecolor="#1d4ed8", linewidth=0.45, label="Simulation")
-    ax.plot(centers, theory, color="#dc2626", linewidth=1.8, label="Theory")
-    configure_axis(ax, title, "Value", "Density")
-    ax.legend(frameon=False)
+    fig, ax = create_professional_figure(
+        plt,
+        title,
+        subtitle,
+        "STD / final window / distribution",
+    )
+    ax.bar(
+        centers,
+        values,
+        width=[w * 0.84 for w in widths],
+        color="#d7e7f2",
+        edgecolor=PROFESSIONAL_COLORS["primary_dark"],
+        linewidth=0.45,
+        label="Simulation bins",
+        zorder=3,
+    )
+    theory_x, theory_y = sorted_xy(centers, theory)
+    ax.plot(
+        theory_x,
+        theory_y,
+        color=PROFESSIONAL_COLORS["theory"],
+        linewidth=ENGINEERING_EXPORT_STYLE["data_line_width"],
+        label="Theory",
+    )
+    style_axes(ax, x_label, y_label)
+    readout = [
+        ("Bins", str(len(bins))),
+        ("Samples", "final collection"),
+    ]
+    if params.get("targetTemperature") is not None:
+        readout.append(("Target T", format_graph_metric(params.get("targetTemperature"), 4)))
+    add_readout_panel(ax, readout, loc="upper right")
+    add_legend(ax, loc="upper left")
     return save_figure(fig, figures_dir, stem, caption)
 
 
@@ -297,10 +432,42 @@ def plot_history(data: dict[str, Any], figures_dir: Path, deps: dict[str, Any], 
     plt = deps["plt"]
     times = [safe_float(item.get("time")) for item in rows]
     values = [safe_float(item.get(field)) for item in rows]
+    params = data.get("params", {})
+    subtitle = (
+        "Thermostat convergence around the target temperature reference"
+        if field == "error"
+        else "Energy conservation trace across the final sampling window"
+    )
 
-    fig, ax = plt.subplots(figsize=(6.4, 4.1))
-    ax.plot(times, values, color="#2563eb", linewidth=1.8)
-    configure_axis(ax, title, "Time t", ylabel)
+    fig, ax = create_professional_figure(
+        plt,
+        title,
+        subtitle,
+        f"STD / {len(rows)} windows / trace",
+    )
+    if field == "error":
+        ax.axhline(0, color=PROFESSIONAL_COLORS["reference"], linewidth=0.85, linestyle=":", label="Target reference")
+    ax.plot(
+        times,
+        values,
+        color=PROFESSIONAL_COLORS["primary"],
+        linewidth=ENGINEERING_EXPORT_STYLE["data_line_width"],
+        label="Temperature error" if field == "error" else "Total energy",
+    )
+    if field == "error":
+        ax.fill_between(times, values, 0, color=PROFESSIONAL_COLORS["accent"], alpha=0.12, linewidth=0)
+    style_axes(ax, "Time t", ylabel)
+    readout = [
+        ("Windows", str(len(rows))),
+        ("Final", format_graph_metric(values[-1] if values else None, 4, "%" if field == "error" else "")),
+    ]
+    if field == "error":
+        mean_abs_error = sum(abs(value) for value in values) / len(values) if values else None
+        readout.insert(1, ("Mean abs error", format_graph_metric(mean_abs_error, 3, "%")))
+        if params.get("targetTemperature") is not None:
+            readout.append(("Target T", format_graph_metric(params.get("targetTemperature"), 4)))
+    add_readout_panel(ax, readout, loc="upper right")
+    add_legend(ax, loc="lower right")
     return save_figure(fig, figures_dir, stem, caption)
 
 
@@ -444,7 +611,7 @@ def build_story(data: dict[str, Any], figure_outputs: list[dict[str, Path]], csv
         return paired
 
     def make_figure_block(image_path: Path, width: float) -> Any:
-        image = Image(str(image_path), width=width, height=54 * mm, kind="proportional")
+        image = Image(str(image_path), width=width, height=105 * mm, kind="proportional")
         block = Table(
             [[image]],
             colWidths=[width],
@@ -501,6 +668,7 @@ def build_story(data: dict[str, Any], figure_outputs: list[dict[str, Path]], csv
 
     table_width = 80 * mm
     gap_width = 8 * mm
+    figure_width = 160 * mm
     summary_table = make_three_line_table(
         "Table 1. Simulation Summary and Verification Metrics",
         ("Metric", "Value"),
@@ -516,12 +684,10 @@ def build_story(data: dict[str, Any], figure_outputs: list[dict[str, Path]], csv
     story.extend([Spacer(1, 4 * mm), *pair_flowables([summary_table, param_table], table_width, gap_width)])
 
     story.append(Paragraph("Figures", section_style))
-    figure_images = []
     for output in figure_outputs:
         png_path = output.get("png")
         if png_path and png_path.exists():
-            figure_images.append(make_figure_block(png_path, table_width))
-    story.extend(pair_flowables(figure_images, table_width, gap_width))
+            story.extend([make_figure_block(png_path, figure_width), Spacer(1, 6 * mm)])
 
     story.append(Paragraph("Conclusion", section_style))
     if relation:

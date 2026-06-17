@@ -3,6 +3,85 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.19",
+      "date": "2026-06-17",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.19",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.19/heat-capacity-lab-setup-4.1.19.exe"
+      },
+      "summary": {
+        "zh-CN": "导出图表升级为正式专业实验图样式：标准模拟和理想气体验证图统一使用 Times 字体、内向刻度、轻量网格和工程化读数框，并优化 PDF 报告中的图像排版。",
+        "zh-TW": "匯出圖表升級為正式專業實驗圖樣式：標準模擬和理想氣體驗證圖統一使用 Times 字體、向內刻度、輕量網格和工程化讀數框，並最佳化 PDF 報告中的圖像排版。",
+        "en": "Upgrades exported graphs to the formal professional lab style: standard simulation and ideal-gas verification figures now share Times typography, inward ticks, light grids, engineering readouts, and clearer PDF report figure layout."
+      },
+      "sections": [
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "变更",
+            "zh-TW": "變更",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "export",
+              "importance": "high",
+              "title": {
+                "zh-CN": "正式导出图表升级为专业实验图样式",
+                "zh-TW": "正式匯出圖表升級為專業實驗圖樣式",
+                "en": "Professional lab graph style for formal exports"
+              },
+              "body": {
+                "zh-CN": "标准模拟的速度分布、能量分布、半对数能量、温度误差和总能量图，以及理想气体 P-T、P-V、P-N 验证图，现在统一使用新的正式绘图模块。",
+                "zh-TW": "標準模擬的速度分布、能量分布、半對數能量、溫度誤差和總能量圖，以及理想氣體 P-T、P-V、P-N 驗證圖，現在統一使用新的正式繪圖模組。",
+                "en": "Speed, energy, semi-log energy, temperature-error, and total-energy figures for standard simulation, plus P-T, P-V, and P-N ideal-gas verification figures, now use the new formal plotting module."
+              }
+            },
+            {
+              "scope": "report",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "PDF 报告图像改为更清晰的大图排版",
+                "zh-TW": "PDF 報告圖像改為更清晰的大圖排版",
+                "en": "Clearer large-figure layout in PDF reports"
+              },
+              "body": {
+                "zh-CN": "报告中的图表不再压成双列缩略图，而是以单列大图呈现，提升坐标轴、图例和读数框的可读性。缺失目标温度时也不再显示无意义的占位读数。",
+                "zh-TW": "報告中的圖表不再壓成雙欄縮圖，而是以單欄大圖呈現，提升座標軸、圖例和讀數框的可讀性。缺少目標溫度時也不再顯示無意義的佔位讀數。",
+                "en": "Report graphs are no longer compressed into two-column thumbnails; they render as larger single-column figures for better axis, legend, and readout legibility. Missing target-temperature values are omitted instead of shown as placeholders."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "desktop-update",
+              "importance": "high",
+              "title": {
+                "zh-CN": "4.1.19 桌面更新资产完整发布",
+                "zh-TW": "4.1.19 桌面更新資產完整發布",
+                "en": "Complete 4.1.19 desktop update assets"
+              },
+              "body": {
+                "zh-CN": "本版本发布 Windows 安装包、latest.yml 和 blockmap，已安装 4.1.18 的本地客户端可以通过软件内更新检测到 4.1.19。",
+                "zh-TW": "本版本發布 Windows 安裝包、latest.yml 和 blockmap，已安裝 4.1.18 的本機客戶端可以透過軟體內更新偵測到 4.1.19。",
+                "en": "This release publishes the Windows installer, latest.yml, and blockmap so installed 4.1.18 clients can detect 4.1.19 through the in-app updater."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.18",
       "date": "2026-06-13",
       "channel": "stable",

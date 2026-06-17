@@ -380,7 +380,19 @@ const getExperimentFolderName = (payload, options) => {
   return `${sanitizeName(source)}_${formatTimestampForFolder()}`;
 };
 
-const getExporterFormatsForMode = (mode) => {
+const isIdealExportPayload = (payload) => Boolean(
+  payload?.data?.relation
+  && Array.isArray(payload?.data?.points)
+);
+
+const getIdealExportPointCount = (payload) => {
+  if (Array.isArray(payload?.data?.points)) {
+    return payload.data.points.length;
+  }
+  return 0;
+};
+
+const getExporterFormatsForMode = (mode, payload) => {
   switch (mode) {
     case 'report':
       return 'report';
@@ -388,6 +400,9 @@ const getExporterFormatsForMode = (mode) => {
     case 'figuresZip':
       return 'figures';
     case 'completeBundle':
+      if (isIdealExportPayload(payload) && getIdealExportPointCount(payload) < 2) {
+        return 'csv,metadata';
+      }
       return 'report,figures,csv,metadata';
     default:
       return 'report,figures,csv,metadata';
@@ -831,7 +846,7 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
     }
   }
 
-  const result = await runExporter(selectedExporterRuntime, ['--input', inputPath, '--out', outDir, '--formats', getExporterFormatsForMode(options?.mode)]);
+  const result = await runExporter(selectedExporterRuntime, ['--input', inputPath, '--out', outDir, '--formats', getExporterFormatsForMode(options?.mode, payload)]);
   const parsed = parseJson(result.stdout);
 
   if (result.code !== 0 || !parsed || parsed.status !== 'ok') {

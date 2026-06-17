@@ -7,8 +7,8 @@ const workbenchSource = readFileSync(new URL('../../src/features/workbench/Workb
 
 assert.match(
   electronMain,
-  /const getExporterFormatsForMode = \(mode\) => \{[\s\S]*case 'report':[\s\S]*return 'report';[\s\S]*case 'verificationFigure':[\s\S]*case 'figuresZip':[\s\S]*return 'figures';[\s\S]*case 'completeBundle':[\s\S]*return 'report,figures,csv,metadata';/,
-  'desktop exporter should map each UI export mode to a distinct Python --formats value',
+  /const isIdealExportPayload = \(payload\) => Boolean\([\s\S]*payload\?\.data\?\.relation[\s\S]*Array\.isArray\(payload\?\.data\?\.points\)[\s\S]*const getIdealExportPointCount = \(payload\) => \{[\s\S]*Array\.isArray\(payload\?\.data\?\.points\)[\s\S]*return payload\.data\.points\.length;[\s\S]*const getExporterFormatsForMode = \(mode, payload\) => \{[\s\S]*case 'report':[\s\S]*return 'report';[\s\S]*case 'verificationFigure':[\s\S]*case 'figuresZip':[\s\S]*return 'figures';[\s\S]*case 'completeBundle':[\s\S]*if \(isIdealExportPayload\(payload\) && getIdealExportPointCount\(payload\) < 2\) \{[\s\S]*return 'csv,metadata';[\s\S]*return 'report,figures,csv,metadata';/,
+  'desktop exporter should omit report and figures from ideal-gas complete bundles until verification has enough points',
 );
 
 assert.match(
@@ -19,7 +19,7 @@ assert.match(
 
 assert.match(
   electronMain,
-  /const result = await runExporter\(selectedExporterRuntime, \['--input', inputPath, '--out', outDir, '--formats', getExporterFormatsForMode\(options\?\.mode\)\]\);/,
+  /const result = await runExporter\(selectedExporterRuntime, \['--input', inputPath, '--out', outDir, '--formats', getExporterFormatsForMode\(options\?\.mode, payload\)\]\);/,
   'folder-based exports should pass the requested format filter to the Python exporter',
 );
 
@@ -31,7 +31,7 @@ assert.match(
 
 assert.match(
   exporterSource,
-  /def save_figure\(fig: Any, figures_dir: Path, stem: str, caption: str\) -> dict\[str, Path\]:[\s\S]*"png": figure_dir \/ f"\{stem\}\.png"[\s\S]*fig\.savefig\(outputs\["png"\]/,
+  /def save_figure\(fig: Any, figures_dir: Path, stem: str, caption: str\) -> dict\[str, Path\]:[\s\S]*"png": figure_dir \/ f"\{stem\}\.png"[\s\S]*save_professional_figure\(fig, outputs\["png"\]\)/,
   'figure exports should save PNG images without creating per-figure PDF files',
 );
 

@@ -29,6 +29,7 @@ const releaseNotes = JSON.parse(
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
   version?: string;
 };
+const releaseMetadataScript = readFileSync(new URL('../../scripts/writeReleaseMetadata.cjs', import.meta.url), 'utf8');
 
 const {
   getGeneratedReleaseTargets,
@@ -77,40 +78,45 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '4.1.18', 'next desktop update release should bump package version to 4.1.18');
+assert.equal(packageJson.version, '4.1.19', 'next desktop update release should bump package version to 4.1.19');
 
-const currentRelease = findRelease('4.1.18');
+const currentRelease = findRelease('4.1.19');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
-assert.ok(currentRelease, 'release notes should include the 4.1.18 export and localization release');
+assert.ok(currentRelease, 'release notes should include the 4.1.19 professional export graph release');
 for (const locale of locales) {
-  assert.ok(currentRelease.summary?.[locale]?.trim(), `4.1.18 release summary should include ${locale}`);
+  assert.ok(currentRelease.summary?.[locale]?.trim(), `4.1.19 release summary should include ${locale}`);
 }
 assert.equal(
   currentRelease.download?.releasePage,
-  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.18',
-  '4.1.18 release page should be published in the public release repository',
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.19',
+  '4.1.19 release page should be published in the public release repository',
 );
 assert.equal(
   currentRelease.download?.windowsInstaller,
-  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.18/heat-capacity-lab-setup-4.1.18.exe',
-  '4.1.18 installer should be published in the public release repository',
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.19/heat-capacity-lab-setup-4.1.19.exe',
+  '4.1.19 installer should be published in the public release repository',
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
 assert.ok(
   currentItems.some((item) => item.scope === 'export' && item.importance === 'high'),
-  '4.1.18 should include high-importance export updates',
+  '4.1.19 should include high-importance export graph updates',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'localization' && item.importance === 'high'),
-  '4.1.18 should include high-importance localization updates',
-);
-assert.ok(
-  currentItems.some((item) => item.scope === 'ui' && item.importance === 'medium'),
-  '4.1.18 should include the top-menu interaction update',
+  currentItems.some((item) => item.scope === 'report' && item.importance === 'medium'),
+  '4.1.19 should include report layout updates',
 );
 assert.ok(
   currentItems.some((item) => item.scope === 'desktop-update' && item.importance === 'high'),
-  '4.1.18 should include complete desktop auto-update assets',
+  '4.1.19 should include complete desktop auto-update assets',
+);
+assert.ok(
+  releaseMetadataScript.includes('相比上一版本的更新内容'),
+  'release metadata plain-text fallback should use readable Chinese instead of mojibake',
+);
+assert.equal(
+  releaseMetadataScript.includes('鐩告瘮'),
+  false,
+  'release metadata script should not contain the old mojibake release-notes heading',
 );
 
 const migrationRelease = findRelease('4.1.6');
