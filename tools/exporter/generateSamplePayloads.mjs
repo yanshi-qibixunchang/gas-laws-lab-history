@@ -2,8 +2,8 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createDefaultIdealFile, createDefaultStandardFile } from '../../components/workbenchState.ts';
-import { createWorkbenchExportPayload } from '../../components/workbenchResults.ts';
+import { createDefaultIdealFile, createDefaultStandardFile } from '../../src/features/workbench/workbenchState.ts';
+import { createWorkbenchExportPayload } from '../../src/features/workbench/workbenchResults.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const examplesDir = resolve(here, 'examples');
@@ -186,11 +186,13 @@ const standard = {
   finalChartData: {
     speed: speedBins,
     energy: energyBins,
-    energyLog: energyBins.map((bin) => ({
-      ...bin,
-      probability: Math.log10(Math.max(bin.probability, 1e-5)),
-      theoretical: Math.log10(Math.max(bin.theoretical ?? 0, 1e-5)),
-    })),
+    energyLog: energyBins
+      .filter((bin) => bin.probability > 0.001)
+      .map((bin) => ({
+        energy: (bin.binStart + bin.binEnd) / 2,
+        logProb: Math.log(bin.probability),
+        theoreticalLog: Math.log(bin.theoretical || 0.0001),
+      })),
     tempHistory,
   },
 };

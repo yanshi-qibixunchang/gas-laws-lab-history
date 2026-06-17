@@ -30,6 +30,8 @@ from professional_graph_style import (
 )
 
 EXPORTER_VERSION = "0.1.0"
+ENERGY_LOG_PROBABILITY_CUTOFF = 0.001
+ENERGY_LOG_THEORY_FLOOR = 0.0001
 FONT_DIR = Path("C:/Windows/Fonts")
 FONT_NAMES = {
     "serif": "TimesNewRomanHSL",
@@ -241,6 +243,10 @@ def sorted_xy(x_values: list[float], y_values: list[float]) -> tuple[list[float]
     return list(sorted_x), list(sorted_y)
 
 
+def safe_log(value: Any, floor: float = ENERGY_LOG_THEORY_FLOOR) -> float:
+    return math.log(max(safe_float(value), floor))
+
+
 def estimate_distribution_widths(centers: list[float]) -> list[float]:
     sorted_centers = sorted(center for center in centers if math.isfinite(center))
     spacings = [
@@ -256,19 +262,29 @@ def estimate_distribution_widths(centers: list[float]) -> list[float]:
     return [width for _ in centers]
 
 
-def build_distribution_series(bins: list[Any], key: str) -> dict[str, list[float]]:
+def build_distribution_series(bins: list[Any], key: str, reference_bins: list[Any] | None = None) -> dict[str, Any]:
     rows = [item if isinstance(item, dict) else {} for item in bins]
+    reference_rows = [item if isinstance(item, dict) else {} for item in (reference_bins or [])]
     has_point_energy_log = key == "energyLog" and any(
         "energy" in item or "logProb" in item or "theoreticalLog" in item
         for item in rows
     )
     if has_point_energy_log:
         centers = [safe_float(item.get("energy")) for item in rows]
+        if reference_rows:
+            theory_centers = [(safe_float(item.get("binStart")) + safe_float(item.get("binEnd"))) / 2 for item in reference_rows]
+            theory = [safe_log(item.get("theoretical")) for item in reference_rows]
+        else:
+            theory_centers = centers
+            theory = [safe_float(item.get("theoreticalLog")) for item in rows]
         return {
             "centers": centers,
             "widths": estimate_distribution_widths(centers),
             "values": [safe_float(item.get("logProb")) for item in rows],
-            "theory": [safe_float(item.get("theoreticalLog")) for item in rows],
+            "theoryCenters": theory_centers,
+            "theory": theory,
+            "totalBins": len(reference_rows) if reference_rows else len(rows),
+            "omittedBins": max((len(reference_rows) if reference_rows else len(rows)) - len(rows), 0),
         }
 
     centers = [(safe_float(item.get("binStart")) + safe_float(item.get("binEnd"))) / 2 for item in rows]
@@ -280,8 +296,32 @@ def build_distribution_series(bins: list[Any], key: str) -> dict[str, list[float
         "centers": centers,
         "widths": widths,
         "values": [safe_float(item.get("probability")) for item in rows],
+        "theoryCenters": centers,
         "theory": [safe_float(item.get("theoretical")) for item in rows],
+        "totalBins": len(rows),
+        "omittedBins": 0,
     }
+
+
+def build_distribution_readout(key: str, series: dict[str, Any], params: dict[str, Any]) -> list[tuple[str, str]]:
+    if key == "energyLog":
+        plotted_bins = len(series.get("centers") or [])
+        total_bins = int(series.get("totalBins") or plotted_bins)
+        omitted_bins = int(series.get("omittedBins") or 0)
+        readout = [
+            ("Plotted bins", f"{plotted_bins}/{total_bins}" if total_bins else str(plotted_bins)),
+            ("Omitted bins", str(omitted_bins)),
+            ("Cutoff", f"p<={ENERGY_LOG_PROBABILITY_CUTOFF:g}"),
+            ("Samples", "final collection"),
+        ]
+    else:
+        readout = [
+            ("Bins", str(len(series.get("centers") or []))),
+            ("Samples", "final collection"),
+        ]
+    if params.get("targetTemperature") is not None:
+        readout.append(("Target T", format_graph_metric(params.get("targetTemperature"), 4)))
+    return readout
 
 
 def save_figure(fig: Any, figures_dir: Path, stem: str, caption: str) -> dict[str, Path]:
@@ -416,10 +456,12 @@ def plot_distribution(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
     if not bins:
         return None
     plt = deps["plt"]
-    series = build_distribution_series(bins, key)
+    reference_bins = final.get("energy") if key == "energyLog" else None
+    series = build_distribution_series(bins, key, reference_bins)
     centers = series["centers"]
     widths = series["widths"]
     values = series["values"]
+    theory_centers = series["theoryCenters"]
     theory = series["theory"]
     params = data.get("params", {})
     x_label = "Speed v" if key == "speed" else "Energy E"
@@ -445,10 +487,10 @@ def plot_distribution(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
         color="#d7e7f2",
         edgecolor=PROFESSIONAL_COLORS["primary_dark"],
         linewidth=0.45,
-        label="Simulation bins",
+        label="Measured log bins" if key == "energyLog" else "Simulation bins",
         zorder=3,
     )
-    theory_x, theory_y = sorted_xy(centers, theory)
+    theory_x, theory_y = sorted_xy(theory_centers, theory)
     ax.plot(
         theory_x,
         theory_y,
@@ -457,13 +499,7 @@ def plot_distribution(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
         label="Theory",
     )
     style_axes(ax, x_label, y_label)
-    readout = [
-        ("Bins", str(len(bins))),
-        ("Samples", "final collection"),
-    ]
-    if params.get("targetTemperature") is not None:
-        readout.append(("Target T", format_graph_metric(params.get("targetTemperature"), 4)))
-    add_readout_panel(ax, readout, loc="upper right")
+    add_readout_panel(ax, build_distribution_readout(key, series, params), loc="upper right")
     add_legend(ax, loc="upper left")
     return save_figure(fig, figures_dir, stem, caption)
 

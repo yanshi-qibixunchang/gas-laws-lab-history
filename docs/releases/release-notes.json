@@ -3,6 +3,61 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.21",
+      "date": "2026-06-18",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.21",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.21/heat-capacity-lab-setup-4.1.21.exe"
+      },
+      "summary": {
+        "zh-CN": "完善标准模拟导出报告的半对数能量图说明：图内会明确标出实际绘制箱数、省略箱数和概率截断阈值，并修复导出样例生成器与真实运行数据不一致的问题。",
+        "zh-TW": "完善標準模擬匯出報告的半對數能量圖說明：圖內會明確標出實際繪製箱數、省略箱數和機率截斷閾值，並修復匯出範例產生器與真實執行資料不一致的問題。",
+        "en": "Improves the standard simulation semi-log energy export: figures now show plotted bins, omitted bins, and the probability cutoff, and the sample payload generator now matches real runtime data."
+      },
+      "sections": [
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "改进",
+            "zh-TW": "改進",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "standard-export",
+              "importance": "high",
+              "title": {
+                "zh-CN": "半对数能量图明确显示省略箱信息",
+                "zh-TW": "半對數能量圖明確顯示省略箱資訊",
+                "en": "Semi-log energy figures now explain omitted bins"
+              },
+              "body": {
+                "zh-CN": "标准模拟的半对数能量图会继续避免绘制 log(0) 或极低概率箱，但现在读数面板会显示实际绘制箱数、总能量箱数、省略箱数和 p<=0.001 的截断条件，避免误以为图表缺失数据。理论线也改为基于完整能量箱绘制。",
+                "zh-TW": "標準模擬的半對數能量圖會繼續避免繪製 log(0) 或極低機率箱，但現在讀數面板會顯示實際繪製箱數、總能量箱數、省略箱數和 p<=0.001 的截斷條件，避免誤以為圖表缺失資料。理論線也改為基於完整能量箱繪製。",
+                "en": "The standard semi-log energy figure still omits log(0) and very low-probability bins, but its readout now lists plotted bins, total energy bins, omitted bins, and the p<=0.001 cutoff. The theory curve is drawn from the complete energy-bin reference."
+              }
+            },
+            {
+              "scope": "exporter-samples",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "导出样例生成器与真实运行数据保持一致",
+                "zh-TW": "匯出範例產生器與真實執行資料保持一致",
+                "en": "Sample export payloads now match runtime data"
+              },
+              "body": {
+                "zh-CN": "修正样例生成脚本的旧导入路径，并将标准模拟 energyLog 样例改为真实运行时使用的 energy、logProb、theoreticalLog 字段和自然对数尺度，避免后续验收样例掩盖真实导出问题。",
+                "zh-TW": "修正範例產生腳本的舊匯入路徑，並將標準模擬 energyLog 範例改為真實執行時使用的 energy、logProb、theoreticalLog 欄位和自然對數尺度，避免後續驗收範例掩蓋真實匯出問題。",
+                "en": "The sample payload generator now imports from the current workbench source tree and emits standard energyLog rows with energy, logProb, and theoreticalLog on the natural-log scale, matching runtime exports."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.20",
       "date": "2026-06-18",
       "channel": "stable",
