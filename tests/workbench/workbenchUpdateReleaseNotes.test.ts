@@ -78,36 +78,28 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '4.1.19', 'next desktop update release should bump package version to 4.1.19');
+assert.equal(packageJson.version, '4.1.20', 'next desktop update release should bump package version to 4.1.20');
 
-const currentRelease = findRelease('4.1.19');
+const currentRelease = findRelease('4.1.20');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
-assert.ok(currentRelease, 'release notes should include the 4.1.19 professional export graph release');
+assert.ok(currentRelease, 'release notes should include the 4.1.20 standard export hotfix release');
 for (const locale of locales) {
-  assert.ok(currentRelease.summary?.[locale]?.trim(), `4.1.19 release summary should include ${locale}`);
+  assert.ok(currentRelease.summary?.[locale]?.trim(), `4.1.20 release summary should include ${locale}`);
 }
 assert.equal(
   currentRelease.download?.releasePage,
-  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.19',
-  '4.1.19 release page should be published in the public release repository',
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.20',
+  '4.1.20 release page should be published in the public release repository',
 );
 assert.equal(
   currentRelease.download?.windowsInstaller,
-  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.19/heat-capacity-lab-setup-4.1.19.exe',
-  '4.1.19 installer should be published in the public release repository',
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.20/heat-capacity-lab-setup-4.1.20.exe',
+  '4.1.20 installer should be published in the public release repository',
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
 assert.ok(
-  currentItems.some((item) => item.scope === 'export' && item.importance === 'high'),
-  '4.1.19 should include high-importance export graph updates',
-);
-assert.ok(
-  currentItems.some((item) => item.scope === 'report' && item.importance === 'medium'),
-  '4.1.19 should include report layout updates',
-);
-assert.ok(
-  currentItems.some((item) => item.scope === 'desktop-update' && item.importance === 'high'),
-  '4.1.19 should include complete desktop auto-update assets',
+  currentItems.some((item) => item.scope === 'standard-export' && item.importance === 'high'),
+  '4.1.20 should include the high-importance standard export hotfix',
 );
 assert.ok(
   releaseMetadataScript.includes('相比上一版本的更新内容'),

@@ -3,6 +3,47 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.20",
+      "date": "2026-06-18",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.20",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.20/heat-capacity-lab-setup-4.1.20.exe"
+      },
+      "summary": {
+        "zh-CN": "修复标准模拟导出报告中“半对数能量分布”图为空的问题。导出器现在正确读取真实实验数据中的 energy、logProb 和 theoreticalLog 字段，避免半对数图被压缩到 0 附近。",
+        "zh-TW": "修復標準模擬匯出報告中「半對數能量分佈」圖為空的問題。匯出器現在正確讀取真實實驗資料中的 energy、logProb 和 theoreticalLog 欄位，避免半對數圖被壓縮到 0 附近。",
+        "en": "Fixes the blank semi-log energy distribution figure in standard simulation export reports. The exporter now reads the real experiment fields energy, logProb, and theoreticalLog instead of collapsing the chart near zero."
+      },
+      "sections": [
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "standard-export",
+              "importance": "high",
+              "title": {
+                "zh-CN": "标准模拟半对数能量图不再空白",
+                "zh-TW": "標準模擬半對數能量圖不再空白",
+                "en": "Standard semi-log energy export no longer renders blank"
+              },
+              "body": {
+                "zh-CN": "标准模拟运行时输出的半对数能量数据使用 energy、logProb、theoreticalLog 字段；4.1.19 的新图表导出器误按普通直方图字段读取，导致坐标轴和数据都退到 0 附近。本版本补上专用解析并保留旧直方图字段兼容。",
+                "zh-TW": "標準模擬執行時輸出的半對數能量資料使用 energy、logProb、theoreticalLog 欄位；4.1.19 的新圖表匯出器誤按普通直方圖欄位讀取，導致座標軸和資料都退到 0 附近。本版本補上專用解析並保留舊直方圖欄位相容。",
+                "en": "Runtime standard simulations emit semi-log energy data as energy, logProb, and theoreticalLog. The 4.1.19 graph exporter read those rows as ordinary histogram bins, collapsing the chart near zero. This version adds the dedicated parser while keeping legacy histogram-shaped rows compatible."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.19",
       "date": "2026-06-17",
       "channel": "stable",

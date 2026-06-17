@@ -241,6 +241,49 @@ def sorted_xy(x_values: list[float], y_values: list[float]) -> tuple[list[float]
     return list(sorted_x), list(sorted_y)
 
 
+def estimate_distribution_widths(centers: list[float]) -> list[float]:
+    sorted_centers = sorted(center for center in centers if math.isfinite(center))
+    spacings = [
+        right - left
+        for left, right in zip(sorted_centers, sorted_centers[1:])
+        if right > left
+    ]
+    if spacings:
+        width = min(spacings)
+    else:
+        scale = max([abs(center) for center in sorted_centers] or [1.0])
+        width = scale * 0.08 if scale > 0 else 1.0
+    return [width for _ in centers]
+
+
+def build_distribution_series(bins: list[Any], key: str) -> dict[str, list[float]]:
+    rows = [item if isinstance(item, dict) else {} for item in bins]
+    has_point_energy_log = key == "energyLog" and any(
+        "energy" in item or "logProb" in item or "theoreticalLog" in item
+        for item in rows
+    )
+    if has_point_energy_log:
+        centers = [safe_float(item.get("energy")) for item in rows]
+        return {
+            "centers": centers,
+            "widths": estimate_distribution_widths(centers),
+            "values": [safe_float(item.get("logProb")) for item in rows],
+            "theory": [safe_float(item.get("theoreticalLog")) for item in rows],
+        }
+
+    centers = [(safe_float(item.get("binStart")) + safe_float(item.get("binEnd"))) / 2 for item in rows]
+    widths = [safe_float(item.get("binEnd")) - safe_float(item.get("binStart")) for item in rows]
+    if any(width <= 0 for width in widths):
+        fallback_widths = estimate_distribution_widths(centers)
+        widths = [width if width > 0 else fallback_widths[index] for index, width in enumerate(widths)]
+    return {
+        "centers": centers,
+        "widths": widths,
+        "values": [safe_float(item.get("probability")) for item in rows],
+        "theory": [safe_float(item.get("theoretical")) for item in rows],
+    }
+
+
 def save_figure(fig: Any, figures_dir: Path, stem: str, caption: str) -> dict[str, Path]:
     figure_dir = figures_dir / stem
     figure_dir.mkdir(parents=True, exist_ok=True)
@@ -373,10 +416,11 @@ def plot_distribution(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
     if not bins:
         return None
     plt = deps["plt"]
-    centers = [(safe_float(item.get("binStart")) + safe_float(item.get("binEnd"))) / 2 for item in bins]
-    widths = [safe_float(item.get("binEnd")) - safe_float(item.get("binStart")) for item in bins]
-    values = [safe_float(item.get("probability")) for item in bins]
-    theory = [safe_float(item.get("theoretical")) for item in bins]
+    series = build_distribution_series(bins, key)
+    centers = series["centers"]
+    widths = series["widths"]
+    values = series["values"]
+    theory = series["theory"]
     params = data.get("params", {})
     x_label = "Speed v" if key == "speed" else "Energy E"
     y_label = "Log density" if key == "energyLog" else "Probability density"
