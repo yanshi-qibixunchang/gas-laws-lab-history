@@ -19,7 +19,7 @@ const result = spawnSync(
       ']',
       'energy_bins = [',
       '  {"binStart": 0.25, "binEnd": 0.75, "probability": 0.5, "theoretical": 0.45},',
-      '  {"binStart": 0.75, "binEnd": 1.25, "probability": 0.0005, "theoretical": 0.25},',
+      '  {"binStart": 0.75, "binEnd": 1.25, "probability": 0.0005, "theoretical": 1e-8},',
       '  {"binStart": 1.25, "binEnd": 1.75, "probability": 0.18, "theoretical": 0.15},',
       ']',
       'series = build_distribution_series(rows, "energyLog", energy_bins)',
@@ -41,17 +41,24 @@ assert.equal(
 
 const parsed = JSON.parse(result.stdout);
 const series = parsed.series;
-assert.deepEqual(series.centers, [0.5, 1.5]);
-assert.deepEqual(series.values, [-0.69, -1.7]);
+assert.deepEqual(series.centers, [0.5, 1, 1.5]);
+assert.ok(Math.abs(series.values[0] - Math.log(0.5)) < 1e-12);
+assert.ok(Math.abs(series.values[1] - Math.log(0.0005)) < 1e-12);
+assert.ok(Math.abs(series.values[2] - Math.log(0.18)) < 1e-12);
 assert.deepEqual(series.theoryCenters, [0.5, 1, 1.5]);
-assert.equal(series.widths.length, 2);
+assert.ok(series.theory[1] < -12, 'semilog theory should keep tiny positive theoretical values instead of flattening at log(0.0001)');
+assert.equal(series.widths.length, 3);
 assert.ok(series.widths.every((width: number) => width > 0), 'energyLog bar widths should be positive');
 assert.equal(series.totalBins, 3);
-assert.equal(series.omittedBins, 1);
-assert.deepEqual(parsed.readout.slice(0, 3), [
-  ['Plotted bins', '2/3'],
-  ['Omitted bins', '1'],
-  ['Cutoff', 'p<=0.001'],
+assert.equal(series.omittedBins, 0);
+assert.deepEqual(series.selectedIndices, [0, 1, 2]);
+assert.deepEqual(series.excludedIndices, []);
+assert.deepEqual(parsed.readout.slice(0, 5), [
+  ['Plotted bins', '3/3'],
+  ['Selected bins', '3'],
+  ['Excluded bins', '0'],
+  ['Zero bins', '0'],
+  ['Fit window', '0.5-1.5'],
 ]);
 
 console.log('standardEnergyLogSeries tests passed');

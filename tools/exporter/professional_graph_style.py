@@ -62,9 +62,13 @@ def create_professional_figure(
     status: str,
     *,
     figsize: tuple[float, float] = (7.0, 4.5),
+    subplot_top: float = 0.745,
+    subplot_bottom: float = 0.16,
+    subplot_left: float = 0.12,
+    subplot_right: float = 0.96,
 ) -> tuple[Any, Any]:
     fig, ax = plt.subplots(figsize=figsize)
-    fig.subplots_adjust(top=0.80, bottom=0.16, left=0.12, right=0.96)
+    fig.subplots_adjust(top=subplot_top, bottom=subplot_bottom, left=subplot_left, right=subplot_right)
     fig.text(
         0.12,
         0.940,
@@ -148,6 +152,42 @@ def add_readout_panel(ax: Any, rows: Iterable[tuple[str, str]], *, loc: str = "u
             "alpha": 0.90,
         },
     )
+
+
+def add_metadata_band(
+    fig: Any,
+    rows: Iterable[tuple[str, str]],
+    *,
+    left: float = 0.12,
+    right: float = 0.96,
+    label_y: float = 0.824,
+    value_y: float = 0.797,
+) -> None:
+    items = list(rows)
+    if not items:
+        return
+    slots = max(len(items), 1)
+    span = right - left
+    for index, (label, value) in enumerate(items):
+        column_x = left + (span * index / slots)
+        fig.text(
+            column_x,
+            label_y,
+            label,
+            ha="left",
+            va="center",
+            fontsize=7.6,
+            color=PROFESSIONAL_COLORS["muted"],
+        )
+        fig.text(
+            column_x,
+            value_y,
+            value,
+            ha="left",
+            va="center",
+            fontsize=8.8,
+            color=PROFESSIONAL_COLORS["ink"],
+        )
 
 
 def add_legend(ax: Any, *, loc: str = "upper right") -> None:

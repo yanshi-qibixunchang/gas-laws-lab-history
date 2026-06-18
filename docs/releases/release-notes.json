@@ -3,6 +3,113 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.1.22",
+      "date": "2026-06-18",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.22",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.22/heat-capacity-lab-setup-4.1.22.exe"
+      },
+      "summary": {
+        "zh-CN": "完善标准模拟结果图和正式导出图：软件内结果页改为科研风格 SVG 图表，补齐坐标标签、白底图例和半对数筛选说明；正式 PDF 导出统一图例与图外信息带，并让半对数能量图用散点、选中区间和完整理论参考展示。",
+        "zh-TW": "完善標準模擬結果圖和正式匯出圖：軟體內結果頁改為科研風格 SVG 圖表，補齊座標標籤、白底圖例和半對數篩選說明；正式 PDF 匯出統一圖例與圖外資訊帶，並讓半對數能量圖用散點、選中區間和完整理論參考呈現。",
+        "en": "Improves standard simulation result figures and formal exports: in-app result figures now use scientific SVG charts with axis labels, white boxed legends, and semi-log selection cues; PDF exports now align legends and metadata bands and render semi-log energy as selected/excluded scatter points with a complete theory reference."
+      },
+      "sections": [
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "改进",
+            "zh-TW": "改進",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "standard-results-ui",
+              "importance": "high",
+              "title": {
+                "zh-CN": "标准模拟结果页图像升级为科研风格",
+                "zh-TW": "標準模擬結果頁圖像升級為科研風格",
+                "en": "Scientific in-app figures for standard results"
+              },
+              "body": {
+                "zh-CN": "结果页的速度分布、能量分布、半对数能量、温度误差和总能量历史不再使用简略预览条，而是使用带坐标轴、网格、Times 风格字体、坐标标签和图例的 SVG 图表，便于直接阅读。",
+                "zh-TW": "結果頁的速度分布、能量分布、半對數能量、溫度誤差和總能量歷史不再使用簡略預覽條，而是使用帶座標軸、網格、Times 風格字體、座標標籤和圖例的 SVG 圖表，便於直接閱讀。",
+                "en": "Speed distribution, energy distribution, semi-log energy, temperature error, and total-energy history previews now render as SVG charts with axes, grids, Times-style typography, axis labels, and legends instead of simplified preview bars."
+              }
+            },
+            {
+              "scope": "standard-semilog",
+              "importance": "high",
+              "title": {
+                "zh-CN": "半对数能量图明确区分选中点和未选点",
+                "zh-TW": "半對數能量圖明確區分選中點和未選點",
+                "en": "Semi-log energy now marks selected and excluded points"
+              },
+              "body": {
+                "zh-CN": "半对数能量图改为散点表达，显示理论线、选中区间边界、选中点和未选点，避免尾部数据突然消失或被误认为普通能量分布柱状图。",
+                "zh-TW": "半對數能量圖改為散點表達，顯示理論線、選中區間邊界、選中點和未選點，避免尾部資料突然消失或被誤認為普通能量分布柱狀圖。",
+                "en": "Semi-log energy charts now use scatter points with a theory line, fit-window boundaries, selected points, and excluded points so tail data does not appear to disappear or resemble the ordinary energy histogram."
+              }
+            },
+            {
+              "scope": "export-figures",
+              "importance": "high",
+              "title": {
+                "zh-CN": "正式导出图统一图例和图外信息带",
+                "zh-TW": "正式匯出圖統一圖例和圖外資訊帶",
+                "en": "Unified legends and metadata bands in formal exports"
+              },
+              "body": {
+                "zh-CN": "PDF 报告中的理想气体验证图、标准模拟分布图和历史图统一使用图内白底图例，样本数、选中区间、分箱数量等读数移到图外信息带，减少遮挡主要数据。",
+                "zh-TW": "PDF 報告中的理想氣體驗證圖、標準模擬分布圖和歷史圖統一使用圖內白底圖例，樣本數、選中區間、分箱數量等讀數移到圖外資訊帶，減少遮擋主要資料。",
+                "en": "Ideal-gas verification figures, standard distribution figures, and history figures in PDF reports now use consistent in-plot white legends, while samples, fit windows, and bin counts move to metadata bands outside the plot area."
+              }
+            },
+            {
+              "scope": "legend-layout",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "软件内结果图图例自动收紧宽度",
+                "zh-TW": "軟體內結果圖圖例自動收緊寬度",
+                "en": "In-app result legends now use compact dynamic widths"
+              },
+              "body": {
+                "zh-CN": "软件内结果图的图例会根据文字长度自动计算白底框宽度，并缩小符号、文字和边框间距，减少图例右侧留白和对半对数数据点的遮挡。",
+                "zh-TW": "軟體內結果圖的圖例會根據文字長度自動計算白底框寬度，並縮小符號、文字和邊框間距，減少圖例右側留白和對半對數資料點的遮擋。",
+                "en": "In-app result legends now calculate white-panel width from label length and use tighter marker, text, and panel spacing, reducing right-side whitespace and overlap with semi-log data points."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "semilog-export-data",
+              "importance": "high",
+              "title": {
+                "zh-CN": "半对数导出保留极小正理论值",
+                "zh-TW": "半對數匯出保留極小正理論值",
+                "en": "Semi-log exports keep tiny positive theory values"
+              },
+              "body": {
+                "zh-CN": "标准模拟半对数能量导出不再把极小正理论概率压到固定地板值，而是保留完整对数尺度，避免尾部理论线被错误拉平。",
+                "zh-TW": "標準模擬半對數能量匯出不再把極小正理論機率壓到固定地板值，而是保留完整對數尺度，避免尾部理論線被錯誤拉平。",
+                "en": "Standard semi-log energy exports no longer clamp tiny positive theoretical probabilities to a fixed floor, preserving the log scale and avoiding an artificially flattened theory tail."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.21",
       "date": "2026-06-18",
       "channel": "stable",

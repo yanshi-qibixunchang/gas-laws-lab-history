@@ -22,7 +22,7 @@ from professional_graph_style import (
     ENGINEERING_EXPORT_STYLE,
     PROFESSIONAL_COLORS,
     add_legend,
-    add_readout_panel,
+    add_metadata_band,
     apply_professional_rc_params,
     create_professional_figure,
     save_professional_figure,
@@ -30,8 +30,7 @@ from professional_graph_style import (
 )
 
 EXPORTER_VERSION = "0.1.0"
-ENERGY_LOG_PROBABILITY_CUTOFF = 0.001
-ENERGY_LOG_THEORY_FLOOR = 0.0001
+ENERGY_LOG_THEORY_FLOOR = 1e-12
 FONT_DIR = Path("C:/Windows/Fonts")
 FONT_NAMES = {
     "serif": "TimesNewRomanHSL",
@@ -262,6 +261,23 @@ def estimate_distribution_widths(centers: list[float]) -> list[float]:
     return [width for _ in centers]
 
 
+def select_semilog_window(point_count: int) -> tuple[list[int], list[int]]:
+    if point_count <= 0:
+        return [], []
+    if point_count <= 4:
+        return list(range(point_count)), []
+
+    start_index = max(1, math.floor(point_count * 0.18))
+    end_index = min(point_count - 2, math.ceil(point_count * 0.82) - 1)
+    if end_index < start_index:
+        start_index = 0
+        end_index = point_count - 1
+
+    selected = list(range(start_index, end_index + 1))
+    excluded = [index for index in range(point_count) if index < start_index or index > end_index]
+    return selected, excluded
+
+
 def build_distribution_series(bins: list[Any], key: str, reference_bins: list[Any] | None = None) -> dict[str, Any]:
     rows = [item if isinstance(item, dict) else {} for item in bins]
     reference_rows = [item if isinstance(item, dict) else {} for item in (reference_bins or [])]
@@ -270,21 +286,51 @@ def build_distribution_series(bins: list[Any], key: str, reference_bins: list[An
         for item in rows
     )
     if has_point_energy_log:
-        centers = [safe_float(item.get("energy")) for item in rows]
         if reference_rows:
-            theory_centers = [(safe_float(item.get("binStart")) + safe_float(item.get("binEnd"))) / 2 for item in reference_rows]
-            theory = [safe_log(item.get("theoretical")) for item in reference_rows]
+            log_rows = [
+                item
+                for item in reference_rows
+                if safe_float(item.get("probability")) > 0
+            ]
+            centers = [(safe_float(item.get("binStart")) + safe_float(item.get("binEnd"))) / 2 for item in log_rows]
+            values = [math.log(safe_float(item.get("probability"))) for item in log_rows]
+            theory_centers = centers
+            theory = [
+                safe_log(item.get("theoretical"))
+                for item in log_rows
+                if safe_float(item.get("theoretical")) > 0
+            ]
+            if len(theory) != len(theory_centers):
+                theory_pairs = [
+                    (
+                        (safe_float(item.get("binStart")) + safe_float(item.get("binEnd"))) / 2,
+                        safe_log(item.get("theoretical")),
+                    )
+                    for item in log_rows
+                    if safe_float(item.get("theoretical")) > 0
+                ]
+                theory_centers = [point[0] for point in theory_pairs]
+                theory = [point[1] for point in theory_pairs]
         else:
+            centers = [safe_float(item.get("energy")) for item in rows]
+            values = [safe_float(item.get("logProb")) for item in rows]
             theory_centers = centers
             theory = [safe_float(item.get("theoreticalLog")) for item in rows]
+        selected_indices, excluded_indices = select_semilog_window(len(centers))
+        selection_start = centers[selected_indices[0]] if selected_indices else None
+        selection_end = centers[selected_indices[-1]] if selected_indices else None
         return {
             "centers": centers,
             "widths": estimate_distribution_widths(centers),
-            "values": [safe_float(item.get("logProb")) for item in rows],
+            "values": values,
             "theoryCenters": theory_centers,
             "theory": theory,
             "totalBins": len(reference_rows) if reference_rows else len(rows),
-            "omittedBins": max((len(reference_rows) if reference_rows else len(rows)) - len(rows), 0),
+            "omittedBins": max((len(reference_rows) if reference_rows else len(rows)) - len(centers), 0),
+            "selectedIndices": selected_indices,
+            "excludedIndices": excluded_indices,
+            "selectionStart": selection_start,
+            "selectionEnd": selection_end,
         }
 
     centers = [(safe_float(item.get("binStart")) + safe_float(item.get("binEnd"))) / 2 for item in rows]
@@ -308,10 +354,21 @@ def build_distribution_readout(key: str, series: dict[str, Any], params: dict[st
         plotted_bins = len(series.get("centers") or [])
         total_bins = int(series.get("totalBins") or plotted_bins)
         omitted_bins = int(series.get("omittedBins") or 0)
+        selected_count = len(series.get("selectedIndices") or [])
+        excluded_count = len(series.get("excludedIndices") or [])
+        selection_start = series.get("selectionStart")
+        selection_end = series.get("selectionEnd")
+        fit_window = (
+            f"{format_graph_metric(selection_start, 4)}-{format_graph_metric(selection_end, 4)}"
+            if selection_start is not None and selection_end is not None
+            else "--"
+        )
         readout = [
             ("Plotted bins", f"{plotted_bins}/{total_bins}" if total_bins else str(plotted_bins)),
-            ("Omitted bins", str(omitted_bins)),
-            ("Cutoff", f"p<={ENERGY_LOG_PROBABILITY_CUTOFF:g}"),
+            ("Selected bins", str(selected_count)),
+            ("Excluded bins", str(excluded_count)),
+            ("Zero bins", str(omitted_bins)),
+            ("Fit window", fit_window),
             ("Samples", "final collection"),
         ]
     else:
@@ -322,6 +379,40 @@ def build_distribution_readout(key: str, series: dict[str, Any], params: dict[st
     if params.get("targetTemperature") is not None:
         readout.append(("Target T", format_graph_metric(params.get("targetTemperature"), 4)))
     return readout
+
+
+def build_semilog_metadata(series: dict[str, Any], params: dict[str, Any]) -> list[tuple[str, str]]:
+    rows = build_distribution_readout("energyLog", series, params)
+    label_map = {
+        "Plotted bins": "Plotted bins",
+        "Selected bins": "Selected",
+        "Excluded bins": "Excluded",
+        "Zero bins": "Zero bins",
+        "Fit window": "Fit window",
+        "Target T": "Target T",
+    }
+    return [
+        (label_map[label], value)
+        for label, value in rows
+        if label in label_map
+    ]
+
+
+def build_distribution_metadata(key: str, series: dict[str, Any], params: dict[str, Any]) -> list[tuple[str, str]]:
+    return build_semilog_metadata(series, params) if key == "energyLog" else build_distribution_readout(key, series, params)
+
+
+def build_history_metadata(field: str, rows: list[Any], values: list[float], params: dict[str, Any]) -> list[tuple[str, str]]:
+    metadata = [
+        ("Windows", str(len(rows))),
+        ("Final", format_graph_metric(values[-1] if values else None, 4, "%" if field == "error" else "")),
+    ]
+    if field == "error":
+        mean_abs_error = sum(abs(value) for value in values) / len(values) if values else None
+        metadata.insert(1, ("Mean abs err.", format_graph_metric(mean_abs_error, 3, "%")))
+        if params.get("targetTemperature") is not None:
+            metadata.append(("Target T", format_graph_metric(params.get("targetTemperature"), 4)))
+    return metadata
 
 
 def save_figure(fig: Any, figures_dir: Path, stem: str, caption: str) -> dict[str, Path]:
@@ -389,16 +480,15 @@ def plot_ideal_verification(data: dict[str, Any], figures_dir: Path, deps: dict[
         else "Equilibrium temperature T"
     )
     style_axes(ax, x_label, "Pressure P")
-    add_readout_panel(
-        ax,
+    add_metadata_band(
+        fig,
         [
             ("Samples", str(len(points))),
             ("R2", format_graph_metric(verification.get("rSquared"), 5)),
             ("Slope error", format_graph_metric(verification.get("slopeError"), 3, "%")),
         ],
-        loc="upper left",
     )
-    add_legend(ax, loc="lower right")
+    add_legend(ax, loc="best")
     return save_figure(fig, figures_dir, f"{relation}-verification", f"Figure 1. {relation.upper()} Verification with Ideal Reference and Linear Fit")
 
 
@@ -438,15 +528,14 @@ def plot_ideal_raw_pv(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
         label="Ideal reference",
     )
     style_axes(ax, "Volume V", "Pressure P")
-    add_readout_panel(
-        ax,
+    add_metadata_band(
+        fig,
         [
             ("Samples", str(len(points))),
             ("Volume range", f"{format_graph_metric(min(volumes), 4)}-{format_graph_metric(max(volumes), 4)}" if volumes else "--"),
         ],
-        loc="upper right",
     )
-    add_legend(ax, loc="lower left")
+    add_legend(ax, loc="best")
     return save_figure(fig, figures_dir, "pv-raw-relationship", "Figure 2. Raw P-V Relationship between Volume and Pressure")
 
 
@@ -474,22 +563,80 @@ def plot_distribution(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
         else "Semi-log energy trend against theoretical reference"
     )
 
+    figure_options: dict[str, Any] = {}
+    if key == "energyLog":
+        figure_options = {
+            "figsize": (7.0, 4.95),
+            "subplot_top": 0.72,
+            "subplot_bottom": 0.145,
+        }
+
     fig, ax = create_professional_figure(
         plt,
         title,
         subtitle,
         "STD / final window / distribution",
+        **figure_options,
     )
-    ax.bar(
-        centers,
-        values,
-        width=[w * 0.84 for w in widths],
-        color="#d7e7f2",
-        edgecolor=PROFESSIONAL_COLORS["primary_dark"],
-        linewidth=0.45,
-        label="Measured log bins" if key == "energyLog" else "Simulation bins",
-        zorder=3,
-    )
+    if key == "energyLog":
+        selected_indices = set(series.get("selectedIndices") or [])
+        excluded_indices = set(series.get("excludedIndices") or [])
+        selected_x = [centers[index] for index in selected_indices if index < len(centers)]
+        selected_y = [values[index] for index in selected_indices if index < len(values)]
+        excluded_x = [centers[index] for index in excluded_indices if index < len(centers)]
+        excluded_y = [values[index] for index in excluded_indices if index < len(values)]
+        ax.scatter(
+            selected_x,
+            selected_y,
+            s=ENGINEERING_EXPORT_STYLE["marker_size"],
+            color=PROFESSIONAL_COLORS["primary"],
+            edgecolor="white",
+            linewidth=0.55,
+            label="Selected bins",
+            zorder=4,
+        )
+        if excluded_x:
+            ax.scatter(
+                excluded_x,
+                excluded_y,
+                s=ENGINEERING_EXPORT_STYLE["marker_size"] * 0.72,
+                facecolors="#d6e0e8",
+                edgecolors="#6f8799",
+                linewidth=0.5,
+                alpha=0.72,
+                label="Excluded bins",
+                zorder=3,
+            )
+        selection_start = series.get("selectionStart")
+        selection_end = series.get("selectionEnd")
+        if selection_start is not None and selection_end is not None:
+            ax.axvline(
+                safe_float(selection_start),
+                color=PROFESSIONAL_COLORS["reference"],
+                linewidth=0.8,
+                linestyle=(0, (3, 2)),
+                label="Fit window",
+                zorder=2,
+            )
+            ax.axvline(
+                safe_float(selection_end),
+                color=PROFESSIONAL_COLORS["reference"],
+                linewidth=0.8,
+                linestyle=(0, (3, 2)),
+                label="_nolegend_",
+                zorder=2,
+            )
+    else:
+        ax.bar(
+            centers,
+            values,
+            width=[w * 0.84 for w in widths],
+            color="#d7e7f2",
+            edgecolor=PROFESSIONAL_COLORS["primary_dark"],
+            linewidth=0.45,
+            label="Simulation bins",
+            zorder=3,
+        )
     theory_x, theory_y = sorted_xy(theory_centers, theory)
     ax.plot(
         theory_x,
@@ -499,8 +646,23 @@ def plot_distribution(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
         label="Theory",
     )
     style_axes(ax, x_label, y_label)
-    add_readout_panel(ax, build_distribution_readout(key, series, params), loc="upper right")
-    add_legend(ax, loc="upper left")
+    if key == "energyLog":
+        y_values = [
+            value
+            for value in [*values, *theory]
+            if math.isfinite(value)
+        ]
+        if y_values:
+            min_y = min(y_values)
+            max_y = max(y_values)
+            span_y = max(max_y - min_y, 1e-6)
+            ax.set_ylim(min_y - span_y * 0.08, max_y + span_y * 0.16)
+    if key == "energyLog":
+        add_metadata_band(fig, build_semilog_metadata(series, params))
+        add_legend(ax, loc="upper right")
+    else:
+        add_metadata_band(fig, build_distribution_metadata(key, series, params))
+        add_legend(ax, loc="upper right")
     return save_figure(fig, figures_dir, stem, caption)
 
 
@@ -537,17 +699,8 @@ def plot_history(data: dict[str, Any], figures_dir: Path, deps: dict[str, Any], 
     if field == "error":
         ax.fill_between(times, values, 0, color=PROFESSIONAL_COLORS["accent"], alpha=0.12, linewidth=0)
     style_axes(ax, "Time t", ylabel)
-    readout = [
-        ("Windows", str(len(rows))),
-        ("Final", format_graph_metric(values[-1] if values else None, 4, "%" if field == "error" else "")),
-    ]
-    if field == "error":
-        mean_abs_error = sum(abs(value) for value in values) / len(values) if values else None
-        readout.insert(1, ("Mean abs error", format_graph_metric(mean_abs_error, 3, "%")))
-        if params.get("targetTemperature") is not None:
-            readout.append(("Target T", format_graph_metric(params.get("targetTemperature"), 4)))
-    add_readout_panel(ax, readout, loc="upper right")
-    add_legend(ax, loc="lower right")
+    add_metadata_band(fig, build_history_metadata(field, rows, values, params))
+    add_legend(ax, loc="best")
     return save_figure(fig, figures_dir, stem, caption)
 
 

@@ -10676,30 +10676,134 @@
   font-size: 9px;
 }
 
-.studio-final-bars,
-.studio-final-line {
-  display: flex;
-  min-height: 0;
-  align-items: flex-end;
-  gap: 4px;
-  padding: 14px 12px 10px;
-  background:
-    linear-gradient(rgba(79, 127, 184, 0.06) 1px, transparent 1px),
-    #171b20;
-  background-size: 100% 28px;
+.studio-final-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 25 / 16;
+  background: #ffffff;
+  color: #1f2933;
+  font-family: "Times New Roman", Times, serif;
 }
 
-.studio-final-bars span,
-.studio-final-line span {
-  flex: 1;
-  min-width: 2px;
-  border: 1px solid rgba(79, 127, 184, 0.38);
-  background: linear-gradient(180deg, rgba(109, 149, 196, 0.85), rgba(79, 127, 184, 0.16));
+.studio-final-chart-panel {
+  fill: #ffffff;
 }
 
-.studio-final-line span {
-  border-color: rgba(228, 179, 99, 0.38);
-  background: linear-gradient(180deg, rgba(228, 179, 99, 0.84), rgba(228, 179, 99, 0.16));
+.studio-final-chart-grid line {
+  stroke: rgba(151, 164, 178, 0.28);
+  stroke-width: 0.28;
+}
+
+.studio-final-chart-axis {
+  stroke: rgba(46, 56, 66, 0.86);
+  stroke-width: 0.48;
+  vector-effect: non-scaling-stroke;
+}
+
+.studio-final-chart-tick {
+  stroke: rgba(46, 56, 66, 0.8);
+  stroke-width: 0.42;
+  vector-effect: non-scaling-stroke;
+}
+
+.studio-final-chart-bar {
+  fill: rgba(196, 218, 232, 0.72);
+  stroke: rgba(45, 95, 132, 0.92);
+  stroke-width: 0.34;
+  vector-effect: non-scaling-stroke;
+}
+
+.studio-final-chart-theory,
+.studio-final-chart-history {
+  fill: none;
+  stroke: rgba(169, 91, 43, 0.94);
+  stroke-linecap: square;
+  stroke-linejoin: round;
+  stroke-width: 0.62;
+  vector-effect: non-scaling-stroke;
+}
+
+.studio-final-chart-history {
+  stroke: rgba(159, 109, 37, 0.92);
+}
+
+.studio-final-chart-reference {
+  stroke: rgba(107, 114, 128, 0.48);
+  stroke-dasharray: 2 1.6;
+  stroke-width: 0.36;
+  vector-effect: non-scaling-stroke;
+}
+
+.studio-final-chart-point {
+  fill: rgba(46, 106, 163, 0.9);
+  stroke: #ffffff;
+  stroke-width: 0.34;
+  vector-effect: non-scaling-stroke;
+}
+
+.studio-final-chart-selected-point {
+  fill: rgba(35, 93, 148, 0.94);
+  stroke: #ffffff;
+  stroke-width: 0.34;
+  vector-effect: non-scaling-stroke;
+}
+
+.studio-final-chart-excluded-point {
+  fill: rgba(138, 161, 181, 0.38);
+  stroke: rgba(69, 91, 112, 0.68);
+  stroke-width: 0.3;
+  vector-effect: non-scaling-stroke;
+}
+
+.studio-final-chart-selection-boundary,
+.studio-final-chart-legend-line {
+  stroke: rgba(54, 67, 79, 0.68);
+  stroke-dasharray: 1.4 1.1;
+  stroke-linecap: square;
+  stroke-width: 0.36;
+  vector-effect: non-scaling-stroke;
+}
+
+.studio-final-chart-boundary-label,
+.studio-final-chart-legend-text {
+  fill: rgba(46, 56, 66, 0.78);
+  font-family: "Times New Roman", Times, serif;
+  font-size: 2.7px;
+  line-height: 1;
+}
+
+.studio-final-chart-axis-label {
+  fill: rgba(26, 35, 45, 0.9);
+  font-family: "Times New Roman", Times, serif;
+  font-size: 3px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.studio-final-chart-x-label,
+.studio-final-chart-y-label {
+  text-anchor: middle;
+}
+
+.studio-final-chart-boundary-label {
+  text-anchor: middle;
+}
+
+.studio-final-chart-legend {
+  pointer-events: none;
+}
+
+.studio-final-chart-legend-panel {
+  fill: #ffffff;
+  stroke: rgba(143, 154, 166, 0.62);
+  stroke-width: 0.34;
+  vector-effect: non-scaling-stroke;
+}
+
+.studio-final-chart-legend-bar {
+  rx: 0;
+  ry: 0;
 }
 
 .studio-final-figure-empty {
@@ -10722,22 +10826,62 @@
   background: #f8fafc;
 }
 
-.studio-theme-light .studio-final-bars,
-.studio-theme-light .studio-final-line {
-  background:
-    linear-gradient(rgba(100, 116, 139, 0.16) 1px, transparent 1px),
-    #ffffff;
-  background-size: 100% 28px;
+.studio-theme-light .studio-final-chart {
+  background: #ffffff;
+  color: #1f2933;
 }
 
-.studio-theme-light .studio-final-bars span {
-  border-color: rgba(37, 99, 235, 0.36);
-  background: linear-gradient(180deg, rgba(37, 99, 235, 0.74), rgba(96, 165, 250, 0.2));
+.studio-theme-light .studio-final-chart-grid line {
+  stroke: rgba(151, 164, 178, 0.28);
 }
 
-.studio-theme-light .studio-final-line span {
-  border-color: rgba(161, 98, 7, 0.34);
-  background: linear-gradient(180deg, rgba(202, 138, 4, 0.78), rgba(251, 191, 36, 0.22));
+.studio-theme-light .studio-final-chart-axis,
+.studio-theme-light .studio-final-chart-tick {
+  stroke: rgba(46, 56, 66, 0.84);
+}
+
+.studio-theme-light .studio-final-chart-bar {
+  fill: rgba(196, 218, 232, 0.72);
+  stroke: rgba(45, 95, 132, 0.92);
+}
+
+.studio-theme-light .studio-final-chart-theory,
+.studio-theme-light .studio-final-chart-history {
+  stroke: rgba(169, 91, 43, 0.94);
+}
+
+.studio-theme-light .studio-final-chart-point {
+  fill: rgba(46, 106, 163, 0.9);
+  stroke: #ffffff;
+}
+
+.studio-theme-light .studio-final-chart-selected-point {
+  fill: rgba(35, 93, 148, 0.94);
+  stroke: #ffffff;
+}
+
+.studio-theme-light .studio-final-chart-excluded-point {
+  fill: rgba(138, 161, 181, 0.38);
+  stroke: rgba(69, 91, 112, 0.68);
+}
+
+.studio-theme-light .studio-final-chart-selection-boundary,
+.studio-theme-light .studio-final-chart-legend-line {
+  stroke: rgba(54, 67, 79, 0.68);
+}
+
+.studio-theme-light .studio-final-chart-boundary-label,
+.studio-theme-light .studio-final-chart-legend-text {
+  fill: rgba(46, 56, 66, 0.78);
+}
+
+.studio-theme-light .studio-final-chart-axis-label {
+  fill: rgba(26, 35, 45, 0.9);
+}
+
+.studio-theme-light .studio-final-chart-legend-panel {
+  fill: #ffffff;
+  stroke: rgba(143, 154, 166, 0.62);
 }
 
 .studio-theme-light .studio-final-figure-empty {

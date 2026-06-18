@@ -106,10 +106,20 @@ for (const selector of [
   '.studio-theme-light .studio-tree-title-button:hover',
   '.studio-theme-light .studio-ideal-chart-card',
   '.studio-theme-light .studio-final-figure-card',
-  '.studio-theme-light .studio-final-bars',
-  '.studio-theme-light .studio-final-line',
-  '.studio-theme-light .studio-final-bars span',
-  '.studio-theme-light .studio-final-line span',
+  '.studio-theme-light .studio-final-chart',
+  '.studio-theme-light .studio-final-chart-grid line',
+  '.studio-theme-light .studio-final-chart-axis',
+  '.studio-theme-light .studio-final-chart-tick',
+  '.studio-theme-light .studio-final-chart-bar',
+  '.studio-theme-light .studio-final-chart-theory',
+  '.studio-theme-light .studio-final-chart-history',
+  '.studio-theme-light .studio-final-chart-point',
+  '.studio-theme-light .studio-final-chart-selected-point',
+  '.studio-theme-light .studio-final-chart-excluded-point',
+  '.studio-theme-light .studio-final-chart-selection-boundary',
+  '.studio-theme-light .studio-final-chart-legend-line',
+  '.studio-theme-light .studio-final-chart-boundary-label',
+  '.studio-theme-light .studio-final-chart-legend-text',
   '.studio-theme-light .studio-final-figure-empty',
   '.studio-theme-light .simulation-canvas-workbench-tool',
   '.studio-theme-light .simulation-canvas-workbench-hint-pill',
@@ -118,4 +128,3 @@ for (const selector of [
 }
 
 console.log('workbenchLightTheme tests passed');
-
