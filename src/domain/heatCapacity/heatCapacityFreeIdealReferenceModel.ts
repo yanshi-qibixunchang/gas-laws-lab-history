@@ -94,7 +94,6 @@ const createIdealPhysicsConfig = (
   pumpPressureLimitKPa: config.physics.pumpPressureLimitKPa,
   pumpTemperatureGainK: config.physics.pumpTemperatureGainK,
   stopcockFlowRate: config.physics.stopcockFlowRate,
-  releaseCoolingFactor: config.physics.releaseCoolingFactor,
   thermal: {
     ...config.physics.thermal,
   },
@@ -201,7 +200,6 @@ const applyIdealFillAtProgress = (
     wallTemperatureK: initialState.wallTemperatureK,
     pumpProcesses: [],
     pumpStrokeCount: 0,
-    releaseProcess: null,
   };
   const physical = deriveFreePhysicalState(filledState, createIdealPhysicsConfig(config));
   return {
@@ -242,12 +240,9 @@ const calculateIdealReleasePlan = (
     };
   }
 
-  const adiabaticTemperatureK = physicsState.gasTemperatureK *
+  const targetTemperatureK = physicsState.gasTemperatureK *
     (ambientPressureKPa / physical.gasPressureKPa) **
       ((physicsConfig.gamma - 1) / physicsConfig.gamma);
-  const targetTemperatureK = ambientTemperatureK +
-    (adiabaticTemperatureK - ambientTemperatureK) *
-      physicsConfig.releaseCoolingFactor;
   const fullReleaseAmountRatio = ambientTemperatureK / targetTemperatureK;
   const desiredPressureKPa = physical.gasPressureKPa /
     ((physical.gasPressureKPa / ambientPressureKPa) ** (1 / theoreticalGamma));
@@ -282,7 +277,6 @@ const applyIdealReleaseAtProgress = (
     gasTemperatureK: initialState.gasTemperatureK +
       (releasePlan.targetTemperatureK - initialState.gasTemperatureK) * planProgress,
     releaseStarted: true,
-    releaseProcess: null,
   };
 };
 

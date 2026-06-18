@@ -61,7 +61,7 @@
   - 相关文件：`src/domain/heatCapacity/heatCapacityFreeLeakageModel.ts`，`src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts`，`tests/heatCapacity/heatCapacityFreeParameterImpact.test.ts`。
   - 验收标准：开启漏气后，U1 前或 U2 前增加封闭等待时间会改变最终 gamma。
 
-- [ ] 明确 `releaseCoolingFactor` 在新模型中的状态。
+- [x] 明确 `releaseCoolingFactor` 在新模型中的状态：已从 Free 运行时配置、快照和测试中移除，新的连续放气模型不再使用旧理论释放冷却修正参数。
   - 相关文件：`src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts`，`src/domain/heatCapacity/heatCapacityFreeParameterConfig.ts`，`src/domain/heatCapacity/heatCapacityFreeTraceModel.ts`，`src/features/workbench/workbenchHeatCapacityPersistence.ts`。
   - 推荐处理：为了兼容旧数据可以继续持久化，但不要再把它当成隐藏的 U2 理论目标修饰参数。如果后续仍保留为可调项，需要单独重命名或重新映射。
 

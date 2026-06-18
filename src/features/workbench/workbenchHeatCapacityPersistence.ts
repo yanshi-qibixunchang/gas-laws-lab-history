@@ -277,7 +277,6 @@ export const createHeatCapacityFreeConfigSnapshotFromFile = (
     stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
     releaseResponseDelayS: FREE_RELEASE_RESPONSE_DELAY_S,
     releaseMainDurationS: FREE_RELEASE_MAIN_DURATION_S,
-    releaseCoolingFactor: file.heatCapacityFreePhysicsConfig.releaseCoolingFactor,
     thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
     leakage: { ...file.heatCapacityFreePhysicsConfig.leakage },
   },
@@ -510,10 +509,6 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
         physics.releaseMainDurationS,
         fallback.physics.releaseMainDurationS,
       ),
-      releaseCoolingFactor: finiteOrDefault(
-        physics.releaseCoolingFactor,
-        fallback.physics.releaseCoolingFactor,
-      ),
       thermal: {
         gasWallConductanceWPerK: finiteOrDefault(
           thermal.gasWallConductanceWPerK,
@@ -599,7 +594,6 @@ const createPhysicsConfigFromSnapshot = (
   pumpPressureLimitKPa: snapshot.physics.pumpPressureLimitKPa,
   pumpTemperatureGainK: snapshot.physics.pumpTemperatureGainK,
   stopcockFlowRate: snapshot.physics.stopcockFlowRate,
-  releaseCoolingFactor: snapshot.physics.releaseCoolingFactor,
   thermal: { ...snapshot.physics.thermal },
   leakage: { ...snapshot.physics.leakage },
 });

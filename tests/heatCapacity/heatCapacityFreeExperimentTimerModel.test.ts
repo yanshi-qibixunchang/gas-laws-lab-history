@@ -25,7 +25,6 @@ const config: HeatCapacityFreePhysicsConfig = {
   pumpPressureLimitKPa: 300,
   pumpTemperatureGainK: 0.35,
   stopcockFlowRate: 4,
-  releaseCoolingFactor: 1,
   thermal: {
     gasWallConductanceWPerK: 0.22,
     wallAmbientConductanceWPerK: 0.45,

@@ -418,7 +418,6 @@ const releaseAndRecover = (
       gasAmountRatio: safeAmountAfterRatio,
       gasTemperatureK: safeTemperatureAfterK,
       pumpProcesses: [],
-      releaseProcess: null,
       releaseStarted: true,
       lastStopcockOpenedAtS: run.timeS,
       lastStopcockClosedAtS: run.timeS,

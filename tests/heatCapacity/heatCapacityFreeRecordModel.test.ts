@@ -92,7 +92,6 @@ const physicsConfig = {
   pumpPressureLimitKPa: 108.3,
   pumpTemperatureGainK: 0.35,
   stopcockFlowRate: 4,
-  releaseCoolingFactor: 1,
   thermal: {
     gasWallConductanceWPerK: 0.4,
     wallAmbientConductanceWPerK: 1.6,
@@ -525,7 +524,6 @@ const version1PhysicsConfig: HeatCapacityFreePhysicsConfig = {
   pumpPressureLimitKPa: 108.3,
   pumpTemperatureGainK: 0.35,
   stopcockFlowRate: 4,
-  releaseCoolingFactor: 1,
   thermal: {
     gasWallConductanceWPerK: 0.55,
     wallAmbientConductanceWPerK: 1.6,

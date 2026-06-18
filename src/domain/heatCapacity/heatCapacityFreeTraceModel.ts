@@ -165,7 +165,6 @@ export interface HeatCapacityFreeConfigSnapshot {
     stopcockFlowRate: number;
     releaseResponseDelayS: number;
     releaseMainDurationS: number;
-    releaseCoolingFactor: number;
     thermal: {
       gasWallConductanceWPerK: number;
       wallAmbientConductanceWPerK: number;
@@ -228,7 +227,6 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
     stopcockFlowRate: 4,
     releaseResponseDelayS: 0.02,
     releaseMainDurationS: 0.18,
-    releaseCoolingFactor: 1,
     thermal: {
       gasWallConductanceWPerK: 0.14,
       wallAmbientConductanceWPerK: 0.45,

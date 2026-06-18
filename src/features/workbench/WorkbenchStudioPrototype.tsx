@@ -11220,12 +11220,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 </div>
               ) : null;
               const heatCapacitySceneNow = Date.now();
-              const activeReleaseProcess = activeFile.heatCapacityFreePhysicsState.releaseProcess;
-              const freeReleaseProgress = Math.min(1, Math.max(0, activeReleaseProcess?.appliedProgress ?? 0));
+              const freeReleaseReference = activeFile.heatCapacityFreePhysicsState.releaseReference;
               const freeReleaseFlowActive = activeFile.heatCapacityMode === 'free' &&
                 activeFile.heatCapacityFreeStopcockFlowOpen &&
-                activeReleaseProcess !== null &&
-                freeReleaseProgress > 0;
+                freeReleaseReference !== null &&
+                activeFile.pressureDeltaKPa > 0.08;
               const teachingStopcockFlowOpen = getHeatCapacityStopcockState(activeFile.stopcockAngleDeg) === 'open';
               const teachingReleaseRemainingMs = activeFile.heatCapacityMode !== 'free' &&
                 typeof activeFile.pressureReleaseBurstUntilMs === 'number'
@@ -11253,39 +11252,29 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 };
 
                 if (activeFile.heatCapacityMode === 'free') {
-                  if (activeReleaseProcess) {
-                    const elapsedS = Math.max(
-                      0,
-                      activeFile.heatCapacityFreePhysicsState.simulationTimeS - activeReleaseProcess.openedAtS,
-                    );
-                    return {
-                      phase: activeReleaseProcess.appliedProgress > 0 ? 'main-release' : 'response-delay',
-                      elapsedS,
-                      responseDelayS: activeReleaseProcess.responseDelayS,
-                      mainDurationS: activeReleaseProcess.durationS,
-                      progress: freeReleaseProgress,
-                      pressureFactor,
-                      amountBeforeRatio: activeReleaseProcess.amountBeforeRatio,
-                      amountCurrentRatio: gasAmountRatio,
-                      amountTargetRatio: activeReleaseProcess.amountTargetRatio,
-                    };
-                  }
-
                   const releaseReference = activeFile.heatCapacityFreePhysicsState.releaseReference;
                   if (
                     activeFile.heatCapacityFreeStopcockFlowOpen &&
-                    releaseReference &&
-                    releaseReference.reachedAmbientAtS !== null
+                    releaseReference
                   ) {
+                    const elapsedS = Math.max(
+                      0,
+                      activeFile.heatCapacityFreePhysicsState.currentStopcockOpenDurationS,
+                    );
+                    const progress = releaseReference.reachedAmbientAtS === null
+                      ? Math.min(1, Math.max(0, elapsedS / FREE_RELEASE_MAIN_DURATION_S))
+                      : 1;
                     const gasTemperatureK = Math.max(1, activeFile.heatCapacityFreePhysicsState.gasTemperatureK);
                     const ambientPressureAmountRatio =
                       activeFile.heatCapacityFreePhysicsConfig.environment.ambientTemperatureK / gasTemperatureK;
                     return {
-                      phase: 'post-release-exchange',
-                      elapsedS: Math.max(0, activeFile.heatCapacityFreePhysicsState.currentStopcockOpenDurationS),
+                      phase: releaseReference.reachedAmbientAtS === null
+                        ? elapsedS > FREE_RELEASE_RESPONSE_DELAY_S ? 'main-release' : 'response-delay'
+                        : 'post-release-exchange',
+                      elapsedS,
                       responseDelayS: FREE_RELEASE_RESPONSE_DELAY_S,
                       mainDurationS: FREE_RELEASE_MAIN_DURATION_S,
-                      progress: 1,
+                      progress,
                       pressureFactor,
                       amountBeforeRatio: releaseReference.amountBeforeRatio,
                       amountCurrentRatio: gasAmountRatio,

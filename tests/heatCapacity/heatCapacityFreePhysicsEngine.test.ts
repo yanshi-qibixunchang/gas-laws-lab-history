@@ -23,7 +23,6 @@ const baseConfig: HeatCapacityFreePhysicsConfig = {
   pumpPressureLimitKPa: 300,
   pumpTemperatureGainK: 0.35,
   stopcockFlowRate: 4,
-  releaseCoolingFactor: 1,
   thermal: {
     gasWallConductanceWPerK: 0.22,
     wallAmbientConductanceWPerK: 0.45,
@@ -95,7 +94,6 @@ assert.equal(initial.gasAmountRatio, 1);
 assert.equal(initial.gasTemperatureK, baseConfig.environment.ambientTemperatureK);
 assert.equal(initial.wallTemperatureK, baseConfig.environment.ambientTemperatureK);
 assert.deepEqual(initial.pumpProcesses, []);
-assert.equal(initial.releaseProcess, null);
 assert.equal(initialDerived.gasPressureKPa, baseConfig.environment.ambientPressureKPa);
 assert.equal(initialDerived.pressureDeltaKPa, 0);
 
@@ -383,7 +381,6 @@ const opened = stepFreePhysics(
   50.01,
 );
 assert.notEqual(opened.releaseReference, null);
-assert.equal(opened.releaseProcess, null, 'opening the stopcock should not create a precomputed theoretical release target');
 assert.equal(opened.releaseReference?.openedAtS, 50.01);
 assert.equal(opened.releaseReference?.pressureBeforeKPa, settledDerived.gasPressureKPa);
 assert.equal(opened.releaseReference?.temperatureBeforeK, settled.gasTemperatureK);
@@ -397,13 +394,10 @@ assert.equal(
   true,
   '0.1 s after opening should be a partial continuous release between pumped and fully released amount',
 );
-assert.equal(halfReleased.releaseProcess, null);
 const partialClosed = stepFreePhysics(halfReleased, baseConfig, controls, 0.1, 50.21);
-assert.equal(partialClosed.releaseProcess, null);
 assert.equal(partialClosed.gasAmountRatio, halfReleased.gasAmountRatio, 'partial release amount should be preserved after closing');
 
 const quickReleased = stepFreePhysics(opened, baseConfig, { ...controls, stopcockOpen: true }, 0.2, 50.21);
-assert.equal(quickReleased.releaseProcess, null);
 expectClose(
   deriveFreePhysicalState(quickReleased, baseConfig).gasPressureKPa,
   baseConfig.environment.ambientPressureKPa,

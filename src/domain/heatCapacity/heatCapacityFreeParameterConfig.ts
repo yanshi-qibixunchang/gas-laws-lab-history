@@ -84,7 +84,6 @@ const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsConfig =
   pumpPressureLimitKPa: 108.3,
   pumpTemperatureGainK: 0.35,
   stopcockFlowRate: 4,
-  releaseCoolingFactor: 1,
   thermal: DEFAULT_HEAT_CAPACITY_FREE_THERMAL_CONFIG,
   leakage: DEFAULT_HEAT_CAPACITY_FREE_LEAKAGE_CONFIG,
 };
@@ -230,10 +229,6 @@ const normalizeHeatCapacityFreePhysicsConfig = (
       value?.stopcockFlowRate,
       DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.stopcockFlowRate,
       0,
-    ),
-    releaseCoolingFactor: finiteNumberOr(
-      value?.releaseCoolingFactor,
-      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.releaseCoolingFactor,
     ),
     thermal: normalizeFreeThermalConfig(value?.thermal),
     leakage: normalizeFreeLeakageConfig(value?.leakage),

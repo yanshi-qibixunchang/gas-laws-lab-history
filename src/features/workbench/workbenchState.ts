@@ -218,7 +218,6 @@ export const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsC
   pumpPressureLimitKPa: 108.3,
   pumpTemperatureGainK: 0.35,
   stopcockFlowRate: 4,
-  releaseCoolingFactor: 1,
   thermal: {
     gasWallConductanceWPerK: 0.14,
     wallAmbientConductanceWPerK: 0.45,
@@ -311,10 +310,6 @@ export const normalizeHeatCapacityFreePhysicsConfig = (
       value?.stopcockFlowRate,
       DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.stopcockFlowRate,
     )),
-    releaseCoolingFactor: finiteNumberOr(
-      value?.releaseCoolingFactor,
-      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.releaseCoolingFactor,
-    ),
     thermal: normalizeFreeThermalConfig(value?.thermal),
     leakage: normalizeFreeLeakageConfig(value?.leakage),
   };
@@ -1536,7 +1531,6 @@ const createHeatCapacityFreeConfigSnapshotFromFile = (
       pumpPressureLimitKPa: file.heatCapacityFreePhysicsConfig.pumpPressureLimitKPa,
       pumpTemperatureGainK: file.heatCapacityFreePhysicsConfig.pumpTemperatureGainK,
       stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
-      releaseCoolingFactor: file.heatCapacityFreePhysicsConfig.releaseCoolingFactor,
       thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
       leakage: { ...file.heatCapacityFreePhysicsConfig.leakage },
     },
@@ -2115,7 +2109,6 @@ const stepHeatCapacityFreeWorkbenchFile = (
     const hasActivePumpProcess = (sourcePhysicsState.pumpProcesses?.length ?? 0) > 0;
     const hasActiveFastPhysicsProcess =
       hasActivePumpProcess ||
-      sourcePhysicsState.releaseProcess !== null ||
       (
         stopcockOpen &&
         sourceDerived.gasPressureKPa >

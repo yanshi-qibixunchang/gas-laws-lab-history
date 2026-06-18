@@ -20,7 +20,6 @@ export interface HeatCapacityFreePhysicsConfig {
   pumpPressureLimitKPa: number;
   pumpTemperatureGainK: number;
   stopcockFlowRate: number;
-  releaseCoolingFactor: number;
   thermal: HeatCapacityFreeThermalConfig;
   leakage: HeatCapacityFreeLeakageConfig;
 }
@@ -31,25 +30,12 @@ export interface HeatCapacityFreePumpProcess {
   appliedProgress: number;
 }
 
-export interface HeatCapacityFreeReleaseProcess {
-  openedAtS: number;
-  responseDelayS: number;
-  durationS: number;
-  appliedProgress: number;
-  pressureBeforeKPa: number;
-  temperatureBeforeK: number;
-  amountBeforeRatio: number;
-  amountTargetRatio: number;
-  temperatureTargetK: number;
-}
-
 export interface HeatCapacityFreePhysicsState {
   simulationTimeS: number;
   gasAmountRatio: number;
   gasTemperatureK: number;
   wallTemperatureK: number;
   pumpProcesses: HeatCapacityFreePumpProcess[];
-  releaseProcess: HeatCapacityFreeReleaseProcess | null;
   pumpStrokeCount: number;
   lastPumpStrokeAtS: number | null;
   maxPressureKPa: number;
@@ -99,8 +85,6 @@ const MIN_GAS_TEMPERATURE_K = 1;
 export const FREE_PUMP_STROKE_DURATION_S = 0.08;
 export const FREE_RELEASE_RESPONSE_DELAY_S = 0.02;
 export const FREE_RELEASE_MAIN_DURATION_S = 0.18;
-export const FREE_RELEASE_TOTAL_DURATION_S =
-  FREE_RELEASE_RESPONSE_DELAY_S + FREE_RELEASE_MAIN_DURATION_S;
 
 const FREE_PUMP_STROKE_PROGRESS_POINTS = [
   [0, 0],
@@ -141,12 +125,6 @@ export const getFreePumpStrokeProgress = (elapsedS: number) => {
   return 1;
 };
 
-export const getFreeReleaseProcessProgress = (elapsedS: number) => {
-  const elapsed = clampNonNegativeFinite(elapsedS);
-  if (elapsed <= FREE_RELEASE_RESPONSE_DELAY_S) return 0;
-  return clampUnit((elapsed - FREE_RELEASE_RESPONSE_DELAY_S) / FREE_RELEASE_MAIN_DURATION_S);
-};
-
 export const deriveFreePhysicalState = (
   state: HeatCapacityFreePhysicsState,
   config: HeatCapacityFreePhysicsConfig,
@@ -168,7 +146,6 @@ export const createDefaultFreePhysicsState = (
   gasTemperatureK: config.environment.ambientTemperatureK,
   wallTemperatureK: config.environment.ambientTemperatureK,
   pumpProcesses: [],
-  releaseProcess: null,
   pumpStrokeCount: 0,
   lastPumpStrokeAtS: null,
   maxPressureKPa: config.environment.ambientPressureKPa,
@@ -600,7 +577,6 @@ export const stepFreePhysics = (
       gasAmountRatio,
       gasTemperatureK: thermal.state.gasTemperatureK,
       wallTemperatureK: thermal.state.wallTemperatureK,
-      releaseProcess: null,
       lastStopcockClosedAtS: wasStopcockOpen ? atS : state.lastStopcockClosedAtS,
       currentStopcockOpenDurationS: 0,
     };
@@ -624,10 +600,9 @@ export const stepFreePhysics = (
     ? createReleaseReference(openedBaseState, config, atS)
     : null;
   const releaseCandidate: HeatCapacityFreePhysicsState = openingReleaseReference
-    ? {
+      ? {
         ...openedBaseState,
         releaseStarted: true,
-        releaseProcess: null,
         releaseReference: openedBaseState.releaseReference ?? openingReleaseReference,
       }
     : openedBaseState;
