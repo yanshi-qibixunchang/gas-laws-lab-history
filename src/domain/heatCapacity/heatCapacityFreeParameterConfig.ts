@@ -63,15 +63,15 @@ const DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG: HeatCapacityFreeEnvironment
 };
 
 const DEFAULT_HEAT_CAPACITY_FREE_THERMAL_CONFIG: HeatCapacityFreeThermalConfig = {
-  gasWallConductanceWPerK: 0.22,
+  gasWallConductanceWPerK: 0.14,
   wallAmbientConductanceWPerK: 0.45,
   wallHeatCapacityJPerK: 45,
   minimumGasHeatCapacityJPerK: 0.1,
 };
 
 const DEFAULT_HEAT_CAPACITY_FREE_LEAKAGE_CONFIG: HeatCapacityFreeLeakageConfig = {
-  enabled: false,
-  ratePerS: 0.0005,
+  enabled: true,
+  ratePerS: 0.00005,
 };
 
 export const HEAT_CAPACITY_FREE_PUMP_STROKE_VOLUME_L = 0.03;

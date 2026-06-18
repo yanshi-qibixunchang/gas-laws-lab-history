@@ -381,7 +381,7 @@ assert.match(workbenchSource, /aria-label=\{heatCapacityRealtimeCopy\.freeSpeedA
 assert.match(workbenchSource, /heatCapacityRealtimeCopy\.freeSpeedLabelCode[\s\S]*heatCapacityRealtimeCopy\.freeSpeedLabel/, 'Free wait speed label should render localized copy instead of hard-coded text');
 assert.match(workbenchSource, /studio-heat-free-speed-screw/, 'Free wait speed control should include compact screw details for an instrument-panel look');
 assert.match(workbenchSource, /×\{speed\}/, 'Free wait speed option text should use engineering multiplier notation');
-assert.match(workbenchSource, /HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS\.map/, 'Free wait speed control should render the canonical x1/x2/x4/x8 options');
+assert.match(workbenchSource, /HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS\.map/, 'Free wait speed control should render the canonical x2/x4/x8/x16 options');
 assert.match(workbenchSource, /setHeatCapacityFreeEquilibriumSpeedMultiplier/, 'Free wait speed option clicks should update the persisted Free runtime multiplier');
 assert.match(workbenchSource, /overlayTopCenter=\{heatCapacityTopCenterOverlay\}/, 'Workbench should mount the Free speed selector into the 3D top-center overlay');
 assert.match(styleSource, /\.studio-heat-free-speed-control \{[\s\S]*border-radius:\s*999px/, 'Free speed selector should be a two-semicircle capsule');
@@ -393,7 +393,7 @@ assert.match(styleSource, /\.studio-theme-light \.studio-heat-free-speed-label \
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-free-speed-thumb \{[\s\S]*linear-gradient\(180deg/, 'Free speed selector thumb should be recolored in light theme');
 assert.match(styleSource, /\.studio-heat-free-speed-circle \{[\s\S]*border-radius:\s*50%/, 'Free speed selector should render circular option targets');
 assert.match(styleSource, /\.studio-heat-free-speed-thumb \{[\s\S]*transition:\s*transform/, 'Free speed selector highlight should slide smoothly between options');
-assert.match(styleSource, /\.studio-heat-free-speed-control-index-3 \.studio-heat-free-speed-thumb \{[\s\S]*translateX\(calc\(3 \* 32px\)\)/, 'x8 should move the highlight to the fourth mechanical slot');
+assert.match(styleSource, /\.studio-heat-free-speed-control-index-3 \.studio-heat-free-speed-thumb \{[\s\S]*translateX\(calc\(3 \* 32px\)\)/, 'x16 should move the highlight to the fourth mechanical slot');
 assert.doesNotMatch(getCssBlock('.studio-heat-free-speed-circle:hover'), /color\s*:/, 'Free speed option hover should not change number color');
 assert.doesNotMatch(getCssBlock('.studio-theme-light .studio-heat-free-speed-circle:hover'), /color\s*:/, 'light theme Free speed option hover should not darken number color');
 assert.match(styleSource, /\.studio-heat-free-speed-circle-active:hover \{[\s\S]*color:\s*#f2f8ff/, 'active Free speed option should keep its selected text color while hovered in dark theme');

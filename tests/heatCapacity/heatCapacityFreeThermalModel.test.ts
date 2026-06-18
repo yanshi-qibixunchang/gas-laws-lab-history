@@ -58,6 +58,24 @@ const input = {
 }
 
 {
+  const smallDelta = stepFreeThermalState({
+    gasTemperatureK: 299.15,
+    wallTemperatureK: 298.15,
+  }, config, { ...input, dtS: 0.02 });
+  const largeDelta = stepFreeThermalState({
+    gasTemperatureK: 318.15,
+    wallTemperatureK: 298.15,
+  }, config, { ...input, dtS: 0.02 });
+  const smallHeatPerK = smallDelta.heatGasToWallJ / 1;
+  const largeHeatPerK = largeDelta.heatGasToWallJ / 20;
+  assert.equal(
+    largeHeatPerK > smallHeatPerK * 1.2,
+    true,
+    'large temperature differences should increase effective gas-wall conductance instead of using a purely linear conductance',
+  );
+}
+
+{
   const result = stepFreeThermalState({
     gasTemperatureK: 298.15,
     wallTemperatureK: 298.15,
@@ -79,7 +97,7 @@ const input = {
     wallHeatCapacityJPerK: 0,
     minimumGasHeatCapacityJPerK: Number.NaN,
   });
-  assert.equal(normalized.gasWallConductanceWPerK, 0.22);
+  assert.equal(normalized.gasWallConductanceWPerK, 0.14);
   assert.equal(normalized.wallAmbientConductanceWPerK, 0);
   assert.equal(normalized.wallHeatCapacityJPerK, 1);
   assert.equal(normalized.minimumGasHeatCapacityJPerK, 0.1);

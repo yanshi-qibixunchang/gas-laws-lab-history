@@ -383,27 +383,33 @@ const opened = stepFreePhysics(
   50.01,
 );
 assert.notEqual(opened.releaseReference, null);
-assert.notEqual(opened.releaseProcess, null);
+assert.equal(opened.releaseProcess, null, 'opening the stopcock should not create a precomputed theoretical release target');
 assert.equal(opened.releaseReference?.openedAtS, 50.01);
 assert.equal(opened.releaseReference?.pressureBeforeKPa, settledDerived.gasPressureKPa);
 assert.equal(opened.releaseReference?.temperatureBeforeK, settled.gasTemperatureK);
 assert.equal(opened.releaseReference?.amountBeforeRatio, settled.gasAmountRatio);
-assert.equal(opened.gasAmountRatio, settled.gasAmountRatio, 'release response delay should prevent an instant gas amount jump');
+assert.equal(opened.gasAmountRatio < settled.gasAmountRatio, true, 'open-stopcock flow should immediately reduce gas amount');
+assert.equal(opened.gasTemperatureK < settled.gasTemperatureK, true, 'open-stopcock flow should cool the remaining gas by outflow energy');
 
 const halfReleased = stepFreePhysics(opened, baseConfig, { ...controls, stopcockOpen: true }, 0.1, 50.11);
 assert.equal(
   halfReleased.gasAmountRatio < settled.gasAmountRatio && halfReleased.gasAmountRatio > initial.gasAmountRatio,
   true,
-  '0.1 s after confirmed flow should be a partial release between pumped and fully released amount',
+  '0.1 s after opening should be a partial continuous release between pumped and fully released amount',
 );
-assert.notEqual(halfReleased.releaseProcess, null);
+assert.equal(halfReleased.releaseProcess, null);
 const partialClosed = stepFreePhysics(halfReleased, baseConfig, controls, 0.1, 50.21);
-assert.equal(partialClosed.releaseProcess, null, 'closing the stopcock should cancel the unfinished release process');
+assert.equal(partialClosed.releaseProcess, null);
 assert.equal(partialClosed.gasAmountRatio, halfReleased.gasAmountRatio, 'partial release amount should be preserved after closing');
 
 const quickReleased = stepFreePhysics(opened, baseConfig, { ...controls, stopcockOpen: true }, 0.2, 50.21);
-assert.equal(quickReleased.releaseProcess, null, 'the 0.2 s release window should finish the main release process');
-assert.notEqual(quickReleased.releaseReference?.reachedAmbientAtS, null);
+assert.equal(quickReleased.releaseProcess, null);
+expectClose(
+  deriveFreePhysicalState(quickReleased, baseConfig).gasPressureKPa,
+  baseConfig.environment.ambientPressureKPa,
+  0.15,
+  'quick continuous release should approach ambient pressure',
+);
 let recovered = quickReleased;
 for (let index = 0; index < 50; index += 1) {
   recovered = stepFreePhysics(recovered, baseConfig, controls, 0.5, 51 + index * 0.5);
@@ -436,7 +442,7 @@ assert.equal(
 expectClose(
   deriveFreePhysicalState(quickReleased, baseConfig).gasPressureKPa,
   baseConfig.environment.ambientPressureKPa,
-  0.03,
+  0.15,
   'P3 should be ambient immediately after quick release',
 );
 const deltaPBefore = settledDerived.pressureDeltaKPa;
@@ -467,7 +473,7 @@ expectClose(
 expectClose(
   longOpen.gasTemperatureK,
   baseConfig.environment.ambientTemperatureK,
-  0.3,
+  0.7,
   'long-open temperature should approach ambient without rebound',
 );
 
@@ -510,5 +516,3 @@ assert.doesNotMatch(physicsSource, /Date\.now\s*\(/, 'free physics must not depe
 assert.doesNotMatch(physicsSource, /Math\.random\s*\(/, 'free physics must not depend on randomness');
 
 console.log('heatCapacityFreePhysicsEngine tests passed');
-
-

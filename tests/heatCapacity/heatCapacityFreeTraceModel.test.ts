@@ -23,7 +23,7 @@ assert.equal(configSnapshot.physics.pumpStrokeDurationS, 0.08);
 assert.equal(configSnapshot.physics.recommendedPumpIntervalS, 0.1);
 assert.equal(configSnapshot.physics.releaseResponseDelayS, 0.02);
 assert.equal(configSnapshot.physics.releaseMainDurationS, 0.18);
-assert.equal(configSnapshot.physics.thermal.gasWallConductanceWPerK, 0.22);
+assert.equal(configSnapshot.physics.thermal.gasWallConductanceWPerK, 0.14);
 assert.equal(configSnapshot.physics.thermal.wallAmbientConductanceWPerK, 0.45);
 assert.equal(configSnapshot.physics.thermal.wallHeatCapacityJPerK, 45);
 assert.equal(configSnapshot.physics.thermal.minimumGasHeatCapacityJPerK, 0.1);
@@ -60,7 +60,7 @@ assert.equal(first.traceTrial.activeBranchId, 'branch-1');
 assert.equal(second.traceTrial.id, 'free-trace-trial-2');
 assert.equal(
   first.traceTrial.configSnapshot.physics.thermal.gasWallConductanceWPerK,
-  0.22,
+  0.14,
   'trace trial must deep-copy thermal config instead of sharing the source object',
 );
 assert.equal(

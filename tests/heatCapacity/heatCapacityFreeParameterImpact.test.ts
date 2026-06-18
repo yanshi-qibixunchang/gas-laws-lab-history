@@ -17,8 +17,6 @@ import {
 } from '../../src/domain/heatCapacity/heatCapacityFreeCalibrationModel.ts';
 import {
   evaluateFreeU0Record,
-  evaluateFreeU1Record,
-  evaluateFreeU2Record,
 } from '../../src/domain/heatCapacity/heatCapacityFreeRecordModel.ts';
 import {
   createDefaultFreeSensorState,
@@ -360,39 +358,6 @@ const createRecordPhysics = (
   ...overrides,
 });
 
-const createRecordTrialWithU0 = (
-  u0PressureMv = 0,
-  u0TemperatureMv = 1500,
-) => ({
-  ...createHeatCapacityFreeTrial('record-impact-trial'),
-  u0: normalizeHeatCapacityFreeRecordInput({
-    atS: 1,
-    displayPressureMv: u0PressureMv,
-    displayTemperatureMv: u0TemperatureMv,
-    calibrationVersion: 1,
-    zeroEventId: 'zero-1',
-  }),
-});
-
-const u1RecordMetric = (
-  draft: HeatCapacityFreeParameterDraft,
-  display: {
-    displayPressureMv: number;
-    displayTemperatureMv: number;
-    pressureSlopeMvPerS: number;
-    temperatureSlopeMvPerS: number;
-  },
-) => {
-  const applied = applyHeatCapacityFreeParameterDraftToConfigs(draft);
-  return evaluateFreeU1Record(
-    createRecordTrialWithU0(),
-    defaultCalibration,
-    display,
-    createRecordPhysics(),
-    applied.recordConfig,
-  );
-};
-
 const warningMetric = (draft: HeatCapacityFreeParameterDraft, pressureDeltaKPa: number) => {
   const appliedFile = applyHeatCapacityFreeParameterDraftWorkbenchState(
     defaultFile,
@@ -503,7 +468,13 @@ registerDraftImpact(
   'same release sequence uses a different adiabatic exponent',
   'release pressure and temperature curve',
   1.67,
-  (draft) => runFreeScenario(draft).released.displayPressureMv,
+  (draft) => {
+    const released = runFreeScenario(draft).released;
+    return {
+      gasTemperatureK: released.gasTemperatureK,
+      gasAmountRatio: released.gasAmountRatio,
+    };
+  },
 );
 
 registerDraftImpact(
@@ -520,7 +491,7 @@ registerDraftImpact(
   'leakage correction',
   'sealed vessel after pumping toggles micro-leakage',
   'free realtime pressure decay',
-  true,
+  false,
   (draft) => runFreeScenario(draft, { sealedWaitS: 20, recoveryWaitS: 1 }).sealed.gasAmountRatio,
 );
 
@@ -643,95 +614,49 @@ registerDraftImpact(
 registerDraftImpact(
   'pressureStableSlopeMvPerS',
   'record decision',
-  'U1 is attempted with pressure slope between the old and new limits',
-  'record button readiness and blocked reason',
+  'U0 is attempted with pressure slope between the old and new limits',
+  'zero record button readiness and blocked reason',
   0.1,
-  (draft) => u1RecordMetric(draft, {
-    displayPressureMv: 95,
-    displayTemperatureMv: 1500,
-    pressureSlopeMvPerS: 0.2,
-    temperatureSlopeMvPerS: 0,
-  }),
+  (draft) => {
+    const applied = applyHeatCapacityFreeParameterDraftToConfigs(draft);
+    return evaluateFreeU0Record(
+      createHeatCapacityFreeTrial('u0-pressure-slope-impact'),
+      defaultCalibration,
+      {
+        displayPressureMv: 0.02,
+        displayTemperatureMv: 1500,
+        pressureSlopeMvPerS: 0.2,
+        temperatureSlopeMvPerS: 0,
+      },
+      createRecordPhysics({
+        lastStopcockOpenedAtS: 0,
+        lastStopcockClosedAtS: null,
+      }),
+      applied.recordConfig,
+    );
+  },
 );
 
 registerDraftImpact(
   'temperatureStableSlopeMvPerS',
   'record decision',
-  'U1 is attempted with temperature slope between the old and new limits',
-  'record button readiness and blocked reason',
+  'U0 is attempted with temperature slope between the old and new limits',
+  'zero record button readiness and blocked reason',
   0.05,
-  (draft) => u1RecordMetric(draft, {
-    displayPressureMv: 95,
-    displayTemperatureMv: 1500,
-    pressureSlopeMvPerS: 0,
-    temperatureSlopeMvPerS: 0.1,
-  }),
-);
-
-registerDraftImpact(
-  'temperatureAmbientToleranceMv',
-  'record decision',
-  'U1 is attempted before temperature has fully returned to baseline',
-  'record button readiness and blocked reason',
-  0.1,
-  (draft) => u1RecordMetric(draft, {
-    displayPressureMv: 95,
-    displayTemperatureMv: 1500.28,
-    pressureSlopeMvPerS: 0,
-    temperatureSlopeMvPerS: 0,
-  }),
-);
-
-registerDraftImpact(
-  'minimumUsefulU1CorrectedMv',
-  'record decision',
-  'U1 signal sits between the old and new minimum useful pressure',
-  'record button readiness and insufficient-u1 reason',
-  100,
-  (draft) => u1RecordMetric(draft, {
-    displayPressureMv: 95,
-    displayTemperatureMv: 1500,
-    pressureSlopeMvPerS: 0,
-    temperatureSlopeMvPerS: 0,
-  }),
-);
-
-registerDraftImpact(
-  'overVentedMinimumU2CorrectedMv',
-  'record decision',
-  'U2 signal sits between the old and new over-vented floor',
-  'record button readiness and over-vented reason',
-  0.5,
   (draft) => {
     const applied = applyHeatCapacityFreeParameterDraftToConfigs(draft);
-    const trial = {
-      ...createRecordTrialWithU0(),
-      u1: normalizeHeatCapacityFreeRecordInput({
-        atS: 2,
-        displayPressureMv: 100,
-        displayTemperatureMv: 1500,
-        calibrationVersion: 1,
-        zeroEventId: 'zero-1',
-      }),
-    };
-    return evaluateFreeU2Record(
-      trial,
+    return evaluateFreeU0Record(
+      createHeatCapacityFreeTrial('u0-temperature-slope-impact'),
       defaultCalibration,
       {
-        displayPressureMv: 0.3,
-        displayTemperatureMv: 1500,
+        displayPressureMv: 0.02,
+    displayTemperatureMv: 1500,
         pressureSlopeMvPerS: 0,
-        temperatureSlopeMvPerS: 0,
+        temperatureSlopeMvPerS: 0.1,
       },
       createRecordPhysics({
-        releaseStarted: true,
-        releaseReference: {
-          pressureBeforeKPa: 108,
-          temperatureBeforeK: 299,
-          amountBeforeRatio: 1.06,
-          openedAtS: 12,
-          reachedAmbientAtS: 12.3,
-        },
+        lastStopcockOpenedAtS: 0,
+        lastStopcockClosedAtS: null,
       }),
       applied.recordConfig,
     );
@@ -854,8 +779,8 @@ assert.equal(
 
 assert.equal(
   impactRows.length,
-  22,
-  'impact audit should cover every newly exposed Heat Capacity Free parameter',
+  19,
+  'impact audit should cover every Heat Capacity Free parameter that still has immediate model, sensor, safety, zeroing, or visualization impact',
 );
 
 console.log(`heatCapacityFreeParameterImpact tests passed (${impactRows.length} parameters, no no-impact variables)`);

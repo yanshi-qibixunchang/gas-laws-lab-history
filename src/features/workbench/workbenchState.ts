@@ -199,7 +199,7 @@ export const HEAT_CAPACITY_PRESSURE_RAW_PLACEHOLDER_MV = 3.2;
 export const HEAT_CAPACITY_PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 2;
 export const HEAT_CAPACITY_PRESSURE_ZERO_MV_PER_TURN = 1;
 export const HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS = 420;
-export const HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS = [1, 2, 4, 8] as const;
+export const HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS = [2, 4, 8, 16] as const;
 export type WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier =
   typeof HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS[number];
 export const HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER:
@@ -220,14 +220,14 @@ export const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsC
   stopcockFlowRate: 4,
   releaseCoolingFactor: 1,
   thermal: {
-    gasWallConductanceWPerK: 0.22,
+    gasWallConductanceWPerK: 0.14,
     wallAmbientConductanceWPerK: 0.45,
     wallHeatCapacityJPerK: 45,
     minimumGasHeatCapacityJPerK: 0.1,
   },
   leakage: {
-    enabled: false,
-    ratePerS: 0.0005,
+    enabled: true,
+    ratePerS: 0.00005,
   },
 };
 export const DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG: HeatCapacityFreeSensorConfig = {

@@ -13,7 +13,7 @@ export interface HeatCapacityFreeLeakageStepInput {
 
 const DEFAULT_LEAKAGE_CONFIG: HeatCapacityFreeLeakageConfig = {
   enabled: false,
-  ratePerS: 0.0005,
+  ratePerS: 0.00005,
 };
 
 const clampFinite = (value: number, min: number, max: number, fallback: number) => (
@@ -58,16 +58,18 @@ export const stepFreeLeakageAmountRatio = (
   const gasTemperatureK = positiveFiniteOrFallback(input.gasTemperatureK, ambientTemperatureK);
   const inputAmountRatio = positiveFiniteOrFallback(input.gasAmountRatio, currentAmountRatio);
   const gasPressureKPa = ambientPressureKPa * inputAmountRatio * (gasTemperatureK / ambientTemperatureK);
-  const pressureDifferenceRatio = (gasPressureKPa - ambientPressureKPa) / ambientPressureKPa;
-  if (Math.abs(pressureDifferenceRatio) <= 0) {
+  const pressureRatio = gasPressureKPa / ambientPressureKPa;
+  const pressureDrive = Math.sign(pressureRatio - 1) *
+    Math.abs(pressureRatio * pressureRatio - 1);
+  if (Math.abs(pressureDrive) <= 0) {
     return currentAmountRatio;
   }
 
   const equilibriumAmountRatio = ambientTemperatureK / gasTemperatureK;
   const maxStepRatio = safeConfig.ratePerS *
-    Math.abs(pressureDifferenceRatio) *
+    Math.abs(pressureDrive) *
     positiveFiniteOrZero(input.dtS);
-  if (pressureDifferenceRatio > 0) {
+  if (pressureDrive > 0) {
     return Math.max(equilibriumAmountRatio, currentAmountRatio - maxStepRatio);
   }
   return Math.min(equilibriumAmountRatio, currentAmountRatio + maxStepRatio);

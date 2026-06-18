@@ -23,7 +23,7 @@ const expectClose = (actual: number, expected: number, tolerance: number, messag
 
 const disabled: HeatCapacityFreeLeakageConfig = {
   enabled: false,
-  ratePerS: 0.0005,
+  ratePerS: 0.00005,
 };
 
 const enabled: HeatCapacityFreeLeakageConfig = {
@@ -57,6 +57,34 @@ const leakedAmount = stepFreeLeakageAmountRatio(1.08, enabled, {
 });
 assert.equal(leakedAmount < 1.08, true, 'enabled leakage should slowly reduce above-ambient gas amount');
 assert.equal(leakedAmount > 1.079, true, 'default leakage should be weak over a 10 s wait');
+
+const highPressureLeak = stepFreeLeakageAmountRatio(1.5, {
+  enabled: true,
+  ratePerS: 0.001,
+}, {
+  ...baseInput,
+  gasAmountRatio: 1.5,
+  dtS: 10,
+});
+assert.equal(
+  highPressureLeak < 1.49,
+  true,
+  'high pressure leakage should follow a gas-leak pressure-squared drive instead of the old weak linear pressure delta',
+);
+
+const weakLeakAfterFiveMinutes = stepFreeLeakageAmountRatio(1.08, {
+  enabled: true,
+  ratePerS: 0.00005,
+}, {
+  ...baseInput,
+  gasAmountRatio: 1.08,
+  dtS: 300,
+});
+assert.equal(
+  weakLeakAfterFiveMinutes > 1.075,
+  true,
+  'realistic weak leakage should remain a small effect over the normal 5 minute wait',
+);
 
 assert.equal(
   stepFreeLeakageAmountRatio(1, enabled, baseInput),

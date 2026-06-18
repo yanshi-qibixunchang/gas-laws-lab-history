@@ -230,7 +230,7 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
     releaseMainDurationS: 0.18,
     releaseCoolingFactor: 1,
     thermal: {
-      gasWallConductanceWPerK: 0.22,
+      gasWallConductanceWPerK: 0.14,
       wallAmbientConductanceWPerK: 0.45,
       wallHeatCapacityJPerK: 45,
       minimumGasHeatCapacityJPerK: 0.1,

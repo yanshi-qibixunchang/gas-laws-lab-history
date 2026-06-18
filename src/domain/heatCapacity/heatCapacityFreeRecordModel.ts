@@ -76,10 +76,6 @@ const hasCurrentCalibration = (
     manualU0.zeroEventId === getLatestZeroEventId(calibration);
 };
 
-const getTemperatureBaselineMv = (trial: HeatCapacityFreeTrial) => (
-  trial.u0?.displayTemperatureMv ?? null
-);
-
 export const evaluateFreeU0Record = (
   trial: HeatCapacityFreeTrial,
   calibration: HeatCapacityFreeCalibrationState,
@@ -114,26 +110,14 @@ const evaluateCommonRecordReadiness = (
   physics: HeatCapacityFreePhysicsState,
   config: HeatCapacityFreeRecordConfig,
 ) => {
+  void display;
+  void physics;
+  void config;
   if (!trial.u0) {
     return createEvaluation('missing-u0');
   }
   if (!hasCurrentCalibration(trial, calibration)) {
     return createEvaluation('calibration-changed');
-  }
-  if (isStopcockCurrentlyOpen(physics)) {
-    return createEvaluation('invalid-sequence');
-  }
-  if (Math.abs(display.pressureSlopeMvPerS) > config.pressureStableSlopeMvPerS) {
-    return createEvaluation('unstable-pressure');
-  }
-  const temperatureBaselineMv = getTemperatureBaselineMv(trial);
-  if (
-    Math.abs(display.temperatureSlopeMvPerS) > config.temperatureStableSlopeMvPerS ||
-    temperatureBaselineMv === null ||
-    Math.abs(display.displayTemperatureMv - temperatureBaselineMv) >
-      config.temperatureAmbientToleranceMv
-  ) {
-    return createEvaluation('unstable-temperature');
   }
   return createEvaluation('ready');
 };
@@ -155,10 +139,6 @@ export const evaluateFreeU1Record = (
   if (physics.pumpStrokeCount <= 0) {
     return createEvaluation('invalid-sequence');
   }
-  const U1CorrectedMv = display.displayPressureMv - trial.u0.displayPressureMv;
-  if (U1CorrectedMv < config.minimumUsefulU1CorrectedMv) {
-    return createEvaluation('insufficient-u1');
-  }
   return createEvaluation('ready');
 };
 
@@ -178,14 +158,6 @@ export const evaluateFreeU2Record = (
   }
   if (!physics.releaseStarted || !physics.releaseReference) {
     return createEvaluation('release-not-started');
-  }
-  const U1CorrectedMv = trial.u1.displayPressureMv - trial.u0!.displayPressureMv;
-  const U2CorrectedMv = display.displayPressureMv - trial.u0!.displayPressureMv;
-  if (U2CorrectedMv < config.overVentedMinimumU2CorrectedMv) {
-    return createEvaluation('over-vented');
-  }
-  if (U2CorrectedMv >= U1CorrectedMv) {
-    return createEvaluation('invalid-sequence');
   }
   return createEvaluation('ready');
 };
@@ -289,9 +261,6 @@ export const recordFreeU2 = (
     configSnapshot: null,
   };
   const correctedSignals = calculateFreeHeatCapacityTrialSignals(nextTrial, options);
-  if (!correctedSignals) {
-    return rejectRecord(trial, 'invalid-sequence');
-  }
   return {
     accepted: true,
     reason: 'accepted',

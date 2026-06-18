@@ -281,9 +281,10 @@ assert.deepEqual(
     pressureSlopeMvPerS: 0.4,
   }, closedPumpedPhysics, recordConfig),
   {
-    ready: false,
-    reason: 'unstable-pressure',
+    ready: true,
+    reason: 'ready',
   },
+  'Free U1 recording should allow unstable pressure so poor timing remains recordable',
 );
 assert.deepEqual(
   evaluateFreeU1Record(createTrialWithManualU0(), { ...calibration, automaticU0 }, {
@@ -291,9 +292,10 @@ assert.deepEqual(
     temperatureSlopeMvPerS: 0.5,
   }, closedPumpedPhysics, recordConfig),
   {
-    ready: false,
-    reason: 'unstable-temperature',
+    ready: true,
+    reason: 'ready',
   },
+  'Free U1 recording should allow unstable temperature so poor timing remains recordable',
 );
 
 assert.deepEqual(
@@ -320,9 +322,10 @@ assert.deepEqual(
     displayPressureMv: 15,
   }, closedPumpedPhysics, recordConfig),
   {
-    ready: false,
-    reason: 'insufficient-u1',
+    ready: true,
+    reason: 'ready',
   },
+  'Free U1 recording should allow insufficient pressure so weak pumping remains recordable',
 );
 
 const u2Display = {
@@ -426,10 +429,37 @@ assert.deepEqual(
     displayPressureMv: 0.12,
   }, recoveredPhysics, recordConfig),
   {
-    ready: false,
-    reason: 'over-vented',
+    ready: true,
+    reason: 'ready',
   },
+  'Free U2 recording should allow over-vented values so extreme operation remains recordable',
 );
+
+assert.deepEqual(
+  evaluateFreeU2Record(recordedU1.trial, { ...calibration, automaticU0 }, {
+    ...u2Display,
+    displayPressureMv: 130,
+  }, recoveredPhysics, recordConfig),
+  {
+    ready: true,
+    reason: 'ready',
+  },
+  'Free U2 recording should allow U2 above U1 so invalid results can be diagnosed later',
+);
+
+const invalidRawU2 = recordFreeU2(recordedU1.trial, {
+  atS: 43,
+  displayPressureMv: 130,
+  displayTemperatureMv: u2Display.displayTemperatureMv,
+  calibrationVersion: 1,
+  zeroEventId: 'zero-1',
+}, {
+  atmosphericPressureKPa: 101.3,
+  pressureSensitivityMvPerKPa: 20,
+});
+assert.equal(invalidRawU2.accepted, true, 'raw invalid U2 records should be accepted');
+assert.equal(invalidRawU2.trial.u2?.displayPressureMv, 130);
+assert.equal(invalidRawU2.trial.correctedSignals, null, 'invalid gamma math should be deferred to processing diagnostics');
 
 const freeProcessing = calculateFreeHeatCapacityMeanResult([recordedU2.trial], {
   theoreticalGamma: 1.4,
@@ -767,12 +797,11 @@ assert.equal(
   'excellent Free operation should record U1 in the version-1 target range',
 );
 assert.equal(
-  Math.abs(
-    excellentU2.trial.correctedSignals!.U2CorrectedMv -
-      excellentU2.trial.correctedSignals!.U1CorrectedMv * (1 - 1 / version1PhysicsConfig.gamma),
-  ) <= 2,
+  excellentU2.trial.correctedSignals!.U2CorrectedMv > 24 &&
+    excellentU2.trial.correctedSignals!.U2CorrectedMv < 33 &&
+    excellentU2.trial.correctedSignals!.U2CorrectedMv < excellentU2.trial.correctedSignals!.U1CorrectedMv,
   true,
-  'excellent Free operation should record U2 near the locked adiabatic relationship',
+  'excellent Free operation should record a positive model-generated U2 below U1 without locking U2 to the old adiabatic shortcut',
 );
 assert.equal(
   excellentU2.trial.correctedSignals!.gamma > 1.35 &&
@@ -835,9 +864,10 @@ assert.deepEqual(
     version1RecordConfig,
   ),
   {
-    ready: false,
-    reason: 'insufficient-u1',
+    ready: true,
+    reason: 'ready',
   },
+  'insufficient pumping should stay recordable for later diagnosis',
 );
 
 const badRezeroBase = createGoodOperationU1();
@@ -886,5 +916,3 @@ assert.deepEqual(
 );
 
 console.log('heatCapacityFreeRecordModel tests passed');
-
-

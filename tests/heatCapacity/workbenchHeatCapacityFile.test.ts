@@ -47,11 +47,11 @@ assert.equal(heatOne.heatCapacityProcessingCalculated, false);
 assert.equal(heatOne.heatCapacityFreeRuntimeVersion, HEAT_CAPACITY_FREE_RUNTIME_VERSION);
 assert.equal(heatOne.heatCapacityFreeTraceVersion, HEAT_CAPACITY_FREE_TRACE_VERSION);
 assert.equal(heatOne.heatCapacityFreePhysicsState.wallTemperatureK, 298.15);
-assert.equal(heatOne.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK, 0.22);
+assert.equal(heatOne.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK, 0.14);
 assert.equal(heatOne.heatCapacityFreePhysicsConfig.thermal.wallAmbientConductanceWPerK, 0.45);
 assert.deepEqual(heatOne.heatCapacityFreePhysicsConfig.leakage, {
-  enabled: false,
-  ratePerS: 0.0005,
+  enabled: true,
+  ratePerS: 0.00005,
 });
 
 const migrated = decodeWorkbenchSession({
@@ -183,5 +183,3 @@ assert.match(workbenchSource, /workbenchLayoutDefaults\.heatCapacity\.liveWorksp
 assert.doesNotMatch(workbenchSource, /heatCapacity[\s\S]{0,120}standardResultsLayout/);
 
 console.log('workbenchHeatCapacityFile tests passed');
-
-

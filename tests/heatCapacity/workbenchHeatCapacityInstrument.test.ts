@@ -113,19 +113,20 @@ assert.equal(
 assert.equal(defaultFile.heatCapacityFreePhysicsState.gasAmountRatio, 1);
 assert.equal(defaultFile.heatCapacityFreePhysicsState.gasTemperatureK, 298.15);
 assert.equal(defaultFile.heatCapacityFreePhysicsState.wallTemperatureK, 298.15);
-assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK, 0.22);
+assert.equal(defaultFile.heatCapacityFreePhysicsState.lastPumpStrokeAtS, null);
+assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK, 0.14);
 assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.wallAmbientConductanceWPerK, 0.45);
 assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.wallHeatCapacityJPerK, 45);
 assert.deepEqual(defaultFile.heatCapacityFreePhysicsConfig.leakage, {
-  enabled: false,
-  ratePerS: 0.0005,
+  enabled: true,
+  ratePerS: 0.00005,
 });
 assert.equal(defaultFile.heatCapacityFreeSensorConfig.lagRate, 8);
 assert.equal(defaultFile.heatCapacityFreeSensorConfig.minSampleIntervalS, 0.08);
 assert.equal(defaultFile.heatCapacityFreeSensorConfig.maxSampleIntervalS, 0.12);
 assert.equal(defaultFile.heatCapacityFreeStopcockFlowOpen, false);
 assert.equal(defaultFile.heatCapacityFreeStopcockPendingOpenAtMs, null);
-assert.deepEqual(HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS, [1, 2, 4, 8]);
+assert.deepEqual(HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS, [2, 4, 8, 16]);
 assert.equal(HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER, 4);
 assert.equal(defaultFile.heatCapacityFreeEquilibriumSpeedMultiplier, 4);
 assert.equal(defaultFile.heatCapacityFreeEquilibriumSpeedHintShown, false);
@@ -328,8 +329,8 @@ assert.equal(resetFreeRun.heatCapacityFreeStopcockPendingOpenAtMs, null);
 assert.equal(resetFreeRun.heatCapacityFreeEquilibriumSpeedMultiplier, 4);
 assert.equal(resetFreeRun.heatCapacityFreeEquilibriumSpeedHintShown, false);
 assert.deepEqual(resetFreeRun.heatCapacityFreePhysicsConfig.leakage, {
-  enabled: false,
-  ratePerS: 0.0005,
+  enabled: true,
+  ratePerS: 0.00005,
 });
 assert.deepEqual(resetFreeRun.heatCapacityFreeTrials, []);
 assert.deepEqual(
@@ -414,6 +415,7 @@ assert.equal(
   true,
   'Free pump stroke should create a hidden trace event',
 );
+assert.equal(freePumped.heatCapacityFreePhysicsState.lastPumpStrokeAtS, 0.2);
 assert.equal(freePumped.pumpFrequencyStatus, 'tooSlow');
 const migratedFreeSamplingFile = stepHeatCapacityWorkbenchFile({
   ...freePowered,
@@ -447,9 +449,13 @@ const invalidSpeedFallback = setHeatCapacityFreeEquilibriumSpeedMultiplier(
   1_050,
 );
 assert.equal(invalidSpeedFallback.heatCapacityFreeEquilibriumSpeedMultiplier, 4);
+const legacySpeedOneFallback = setHeatCapacityFreeEquilibriumSpeedMultiplier(freePowered, 1, 1_055);
+assert.equal(legacySpeedOneFallback.heatCapacityFreeEquilibriumSpeedMultiplier, 4);
 const selectedSpeedEight = setHeatCapacityFreeEquilibriumSpeedMultiplier(freePowered, 8, 1_060);
 assert.equal(selectedSpeedEight.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
 assert.equal(selectedSpeedEight.updatedAt, 1_060);
+const selectedSpeedSixteen = setHeatCapacityFreeEquilibriumSpeedMultiplier(freePowered, 16, 1_065);
+assert.equal(selectedSpeedSixteen.heatCapacityFreeEquilibriumSpeedMultiplier, 16);
 const markedSpeedHintShown = setHeatCapacityFreeEquilibriumSpeedHintShown(freePowered, true, 1_070);
 assert.equal(markedSpeedHintShown.heatCapacityFreeEquilibriumSpeedHintShown, true);
 assert.equal(markedSpeedHintShown.updatedAt, 1_070);
@@ -738,14 +744,16 @@ assert.equal(getHeatCapacityFreeEquilibriumSpeedMultiplier({
   heatCapacityPhase: 'pumping',
   pumpValveOpen: true,
 }), 1);
-const sealedX1Start = setHeatCapacityFreeEquilibriumSpeedMultiplier(sealedWaitBase, 1, 6_000);
+const sealedX2Start = setHeatCapacityFreeEquilibriumSpeedMultiplier(sealedWaitBase, 2, 6_000);
 const sealedX4Start = setHeatCapacityFreeEquilibriumSpeedMultiplier(sealedWaitBase, 4, 6_000);
-const sealedX1OneSecond = stepHeatCapacityWorkbenchFile(sealedX1Start, 7_000);
+const sealedX16Start = setHeatCapacityFreeEquilibriumSpeedMultiplier(sealedWaitBase, 16, 6_000);
+const sealedX2OneSecond = stepHeatCapacityWorkbenchFile(sealedX2Start, 7_000);
 const sealedX4OneSecond = stepHeatCapacityWorkbenchFile(sealedX4Start, 7_000);
+const sealedX16OneSecond = stepHeatCapacityWorkbenchFile(sealedX16Start, 7_000);
 assert.equal(
-  Math.abs(sealedX1OneSecond.simulationTimeS - (sealedWaitBase.simulationTimeS + 1)) < 0.001,
+  Math.abs(sealedX2OneSecond.simulationTimeS - (sealedWaitBase.simulationTimeS + 2)) < 0.001,
   true,
-  'x1 Free wait should advance one simulated second per one real second',
+  'x2 Free wait should advance two simulated seconds per one real second',
 );
 assert.equal(
   Math.abs(sealedX4OneSecond.simulationTimeS - (sealedWaitBase.simulationTimeS + 4)) < 0.001,
@@ -753,8 +761,13 @@ assert.equal(
   'x4 Free wait should advance four simulated seconds per one real second',
 );
 assert.equal(
-  sealedX4OneSecond.heatCapacityFreeSensorState.pressureHistory.length >
-    sealedX1OneSecond.heatCapacityFreeSensorState.pressureHistory.length,
+  Math.abs(sealedX16OneSecond.simulationTimeS - (sealedWaitBase.simulationTimeS + 16)) < 0.001,
+  true,
+  'x16 Free wait should advance sixteen simulated seconds per one real second',
+);
+assert.equal(
+  sealedX2OneSecond.heatCapacityFreeSensorState.pressureHistory.length >
+    sealedX2Start.heatCapacityFreeSensorState.pressureHistory.length,
   true,
   'accelerated Free waiting should preserve intermediate sensor samples instead of taking one sparse sample per UI tick',
 );
@@ -2105,6 +2118,27 @@ assert.equal(legacyHeatFile.pumpValveOpen, false);
 assert.equal(legacyHeatFile.pumpFrequencyStatus, 'idle');
 assert.deepEqual(legacyHeatFile.pumpStrokeTimestamps, []);
 assert.equal(legacyHeatFile.pressureReleaseBurstUntilMs, null);
+
+const invalidTimerPhysicsFile = {
+  ...defaultFile,
+  heatCapacityFreePhysicsState: {
+    ...defaultFile.heatCapacityFreePhysicsState,
+    lastPumpStrokeAtS: 'bad',
+  },
+};
+const invalidTimerPhysicsRestored = decodeWorkbenchSession({
+  version: WORKBENCH_SESSION_VERSION,
+  activeFileId: defaultFile.id,
+  selectedPanel: 'preview',
+  files: [invalidTimerPhysicsFile],
+});
+const invalidTimerPhysicsRestoredFile = invalidTimerPhysicsRestored.files[0];
+assert.equal(invalidTimerPhysicsRestoredFile.kind, 'heatCapacity');
+assert.equal(
+  invalidTimerPhysicsRestoredFile.heatCapacityFreePhysicsState.lastPumpStrokeAtS,
+  null,
+  'restoring Free physics should discard invalid timer anchors',
+);
 
 const legacyOpenFile = { ...defaultFile, stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG, glassPistonState: 'open' };
 const legacyOpenRestored = decodeWorkbenchSession({

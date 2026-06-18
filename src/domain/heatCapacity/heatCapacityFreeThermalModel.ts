@@ -43,10 +43,24 @@ const clampFinite = (value: number, min: number, max: number, fallback: number) 
     : fallback
 );
 
+const deriveEffectiveGasWallConductanceWPerK = (
+  baseConductanceWPerK: number,
+  deltaTK: number,
+) => {
+  const kneeK = 4;
+  const gain = 0.35;
+  const maxBoost = 2.5;
+  const boost = Math.min(
+    maxBoost,
+    Math.pow(Math.max(0, deltaTK) / kneeK, 0.25),
+  );
+  return baseConductanceWPerK * (1 + gain * boost);
+};
+
 export const normalizeFreeThermalConfig = (
   value: Partial<HeatCapacityFreeThermalConfig> | null | undefined,
 ): HeatCapacityFreeThermalConfig => ({
-  gasWallConductanceWPerK: clampFinite(value?.gasWallConductanceWPerK ?? 0.22, 0, 5, 0.22),
+  gasWallConductanceWPerK: clampFinite(value?.gasWallConductanceWPerK ?? 0.14, 0, 5, 0.14),
   wallAmbientConductanceWPerK: clampFinite(value?.wallAmbientConductanceWPerK ?? 0.45, 0, 5, 0.45),
   wallHeatCapacityJPerK: clampFinite(value?.wallHeatCapacityJPerK ?? 45, 1, 5000, 45),
   minimumGasHeatCapacityJPerK: clampFinite(value?.minimumGasHeatCapacityJPerK ?? 0.1, 0.01, 10, 0.1),
@@ -113,8 +127,12 @@ export const stepFreeThermalState = (
 
   while (remainingS > 0) {
     const stepS = Math.min(remainingS, FREE_THERMAL_MAX_SUBSTEP_S);
+    const gasWallConductanceStepWPerK = deriveEffectiveGasWallConductanceWPerK(
+      gasWallConductanceWPerK,
+      Math.abs(gasTemperatureK - wallTemperatureK),
+    );
     const heatGasToWallJ =
-      gasWallConductanceWPerK * (gasTemperatureK - wallTemperatureK) * stepS;
+      gasWallConductanceStepWPerK * (gasTemperatureK - wallTemperatureK) * stepS;
     const heatWallToAmbientJ =
       wallAmbientConductanceWPerK * (wallTemperatureK - input.ambientTemperatureK) * stepS;
 

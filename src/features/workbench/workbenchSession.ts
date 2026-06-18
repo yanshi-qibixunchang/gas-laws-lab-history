@@ -512,6 +512,7 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
                 wallTemperatureK: normalizeNullableNumber(savedFreePhysicsState.wallTemperatureK)
                   ?? normalizeNullableNumber(savedFreePhysicsState.gasTemperatureK)
                   ?? savedFreePhysicsConfig.environment.ambientTemperatureK,
+                lastPumpStrokeAtS: normalizeNullableNumber(savedFreePhysicsState.lastPumpStrokeAtS),
               } as typeof fallbackFreeRuntimeFields.heatCapacityFreePhysicsState
             : fallbackFreeRuntimeFields.heatCapacityFreePhysicsState,
           heatCapacityFreeSensorConfig: savedFreeSensorConfig,

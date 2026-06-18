@@ -41,15 +41,47 @@ import {
 } from '../../src/features/workbench/workbenchState.ts';
 
 export type HeatCapacityFreeParameterAcceptanceSafetyStatus = 'normal' | 'warning' | 'danger';
+export type HeatCapacityFreeParameterAcceptancePumpMode = 'runtime-strokes' | 'instant-equivalent';
+export type HeatCapacityFreeParameterAcceptanceReleaseMode =
+  | 'runtime-open-flow'
+  | 'instant-adiabatic-to-ambient'
+  | 'instant-current-model-equivalent';
+
+export interface HeatCapacityFreeParameterAcceptanceScenarioInput {
+  id: string;
+  label?: string;
+  pumpMode?: HeatCapacityFreeParameterAcceptancePumpMode;
+  releaseMode?: HeatCapacityFreeParameterAcceptanceReleaseMode;
+  pumpStrokes: number;
+  pumpTotalDurationS: number;
+  waitAfterPumpS: number;
+  openDurationS: number;
+  waitAfterReleaseS: number;
+  leakageRatePerS?: number;
+  leakageEnabled?: boolean;
+  instrumentNoiseEnabled?: boolean;
+}
 
 export interface HeatCapacityFreeParameterAcceptanceRow {
+  id: string;
+  label: string;
+  pumpMode: HeatCapacityFreeParameterAcceptancePumpMode;
+  releaseMode: HeatCapacityFreeParameterAcceptanceReleaseMode;
   pumpStrokes: number;
+  pumpTotalDurationS: number;
   openDurationS: number;
+  waitAfterPumpS: number;
+  waitAfterReleaseS: number;
+  leakageEnabled: boolean;
+  leakageRatePerS: number;
   u1DisplayMv: number | null;
   u2DisplayMv: number | null;
   u1CorrectedMv: number | null;
   u2CorrectedMv: number | null;
   gamma: number | null;
+  pressureKPa: number;
+  gasTemperatureK: number;
+  gasAmountRatio: number;
   safetyStatus: HeatCapacityFreeParameterAcceptanceSafetyStatus;
   u1Recordable: boolean;
   u2Recordable: boolean;
@@ -62,6 +94,7 @@ export interface HeatCapacityFreeParameterAcceptanceReport {
 }
 
 export interface HeatCapacityFreeParameterAcceptanceOptions {
+  scenarios?: HeatCapacityFreeParameterAcceptanceScenarioInput[];
   pumpStrokes?: number[];
   openDurationsS?: number[];
   waitAfterPumpS?: number;
@@ -91,18 +124,34 @@ const DEFAULT_WAIT_AFTER_PUMP_S = 24;
 const DEFAULT_WAIT_AFTER_RELEASE_S = 40;
 const SIMULATION_STEP_S = 0.1;
 const STOPCOCK_CLICK_STEP_S = 0.05;
+const LEGACY_BASE_OPEN_DURATION_S = 0.25;
 
 const roundNumber = (value: number | null, digits = 2) => (
   value === null || !Number.isFinite(value) ? null : Number(value.toFixed(digits))
 );
 
-const clonePhysicsConfig = (): HeatCapacityFreePhysicsConfig => ({
+const clonePhysicsConfig = (
+  input: Pick<
+    HeatCapacityFreeParameterAcceptanceScenarioInput,
+    'leakageEnabled' | 'leakageRatePerS'
+  > = {},
+): HeatCapacityFreePhysicsConfig => ({
   ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
   environment: { ...DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG },
+  leakage: {
+    ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.leakage,
+    enabled: input.leakageEnabled ?? DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.leakage.enabled,
+    ratePerS: input.leakageRatePerS ?? DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.leakage.ratePerS,
+  },
 });
 
-const cloneSensorConfig = (): HeatCapacityFreeSensorConfig => ({
+const cloneSensorConfig = (
+  instrumentNoiseEnabled = true,
+): HeatCapacityFreeSensorConfig => ({
   ...DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
+  noiseMv: instrumentNoiseEnabled
+    ? DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.noiseMv
+    : 0,
 });
 
 const createInitialCalibration = (
@@ -251,15 +300,23 @@ const pumpScriptedRun = (
   physicsConfig: HeatCapacityFreePhysicsConfig,
   sensorConfig: HeatCapacityFreeSensorConfig,
   strokes: number,
+  pumpTotalDurationS = 0,
 ) => {
   let current = run;
+  const intervalS = strokes > 1
+    ? Math.max(0, pumpTotalDurationS) / (strokes - 1)
+    : 0;
   for (let index = 0; index < strokes; index += 1) {
     const controls: HeatCapacityFreeControls = {
       powerOn: true,
       pumpValveOpen: true,
       stopcockOpen: false,
     };
-    current = stepScriptedRun(current, physicsConfig, sensorConfig, controls, SIMULATION_STEP_S);
+    if (index === 0 || intervalS <= 0) {
+      current = stepScriptedRun(current, physicsConfig, sensorConfig, controls, SIMULATION_STEP_S);
+    } else {
+      current = waitScriptedRun(current, physicsConfig, sensorConfig, controls, intervalS);
+    }
     const pump = applyFreePumpStroke(current.physics, physicsConfig, controls, {
       atS: current.timeS,
       strength: 1,
@@ -283,12 +340,44 @@ const pumpScriptedRun = (
   };
 };
 
+const pumpScriptedRunInstantEquivalent = (
+  run: ScriptedFreeRun,
+  physicsConfig: HeatCapacityFreePhysicsConfig,
+  strokes: number,
+) => {
+  const safeStrokes = Math.max(0, Math.floor(strokes));
+  const nextPhysics: HeatCapacityFreePhysicsState = {
+    ...run.physics,
+    simulationTimeS: run.timeS,
+    gasAmountRatio: run.physics.gasAmountRatio +
+      physicsConfig.pumpAmountGainRatio * safeStrokes,
+    gasTemperatureK: run.physics.gasTemperatureK +
+      physicsConfig.pumpTemperatureGainK * safeStrokes,
+    pumpProcesses: [],
+    pumpStrokeCount: run.physics.pumpStrokeCount + safeStrokes,
+    lastPumpStrokeAtS: safeStrokes > 0 ? run.timeS : run.physics.lastPumpStrokeAtS,
+  };
+  const pressureKPa = deriveFreePhysicalState(nextPhysics, physicsConfig).gasPressureKPa;
+  return {
+    run: {
+      ...run,
+      physics: {
+        ...nextPhysics,
+        maxPressureKPa: Math.max(run.physics.maxPressureKPa, pressureKPa),
+      },
+    },
+    accepted: safeStrokes > 0,
+    reason: safeStrokes > 0 ? 'accepted' : 'invalid-sequence',
+  };
+};
+
 const releaseAndRecover = (
   run: ScriptedFreeRun,
   physicsConfig: HeatCapacityFreePhysicsConfig,
   sensorConfig: HeatCapacityFreeSensorConfig,
-  openDurationS: number,
+  actualOpenDurationS: number,
   waitAfterReleaseS: number,
+  releaseMode: HeatCapacityFreeParameterAcceptanceReleaseMode,
 ) => {
   const openControls: HeatCapacityFreeControls = {
     powerOn: true,
@@ -300,18 +389,85 @@ const releaseAndRecover = (
     pumpValveOpen: false,
     stopcockOpen: false,
   };
-  let current = stepScriptedRun(run, physicsConfig, sensorConfig, openControls, STOPCOCK_CLICK_STEP_S);
-  const totalOpenDurationS = 0.2 + openDurationS;
-  for (let elapsedS = 0; elapsedS < totalOpenDurationS; elapsedS += SIMULATION_STEP_S) {
-    current = stepScriptedRun(
-      current,
-      physicsConfig,
-      sensorConfig,
-      openControls,
-      Math.min(SIMULATION_STEP_S, totalOpenDurationS - elapsedS),
+
+  const runRuntimeReleaseOnly = () => {
+    let current = stepScriptedRun(run, physicsConfig, sensorConfig, openControls, STOPCOCK_CLICK_STEP_S);
+    const remainingOpenDurationS = Math.max(0, actualOpenDurationS - STOPCOCK_CLICK_STEP_S);
+    for (let elapsedS = 0; elapsedS < remainingOpenDurationS; elapsedS += SIMULATION_STEP_S) {
+      current = stepScriptedRun(
+        current,
+        physicsConfig,
+        sensorConfig,
+        openControls,
+        Math.min(SIMULATION_STEP_S, remainingOpenDurationS - elapsedS),
+      );
+    }
+    return stepScriptedRun(current, physicsConfig, sensorConfig, closedControls, STOPCOCK_CLICK_STEP_S);
+  };
+
+  const createInstantReleaseRun = (
+    amountAfterRatio: number,
+    temperatureAfterK: number,
+  ): ScriptedFreeRun => {
+    const before = deriveFreePhysicalState(run.physics, physicsConfig);
+    const safeAmountAfterRatio = Math.max(0.000001, amountAfterRatio);
+    const safeTemperatureAfterK = Math.max(1, temperatureAfterK);
+    const nextPhysics: HeatCapacityFreePhysicsState = {
+      ...run.physics,
+      simulationTimeS: run.timeS,
+      gasAmountRatio: safeAmountAfterRatio,
+      gasTemperatureK: safeTemperatureAfterK,
+      pumpProcesses: [],
+      releaseProcess: null,
+      releaseStarted: true,
+      lastStopcockOpenedAtS: run.timeS,
+      lastStopcockClosedAtS: run.timeS,
+      currentStopcockOpenDurationS: 0,
+      releaseReference: {
+        pressureBeforeKPa: before.gasPressureKPa,
+        temperatureBeforeK: run.physics.gasTemperatureK,
+        amountBeforeRatio: run.physics.gasAmountRatio,
+        openedAtS: run.timeS,
+        reachedAmbientAtS: run.timeS,
+      },
+    };
+    const after = deriveFreePhysicalState(nextPhysics, physicsConfig);
+    return {
+      ...run,
+      physics: {
+        ...nextPhysics,
+        maxPressureKPa: Math.max(run.physics.maxPressureKPa, after.gasPressureKPa),
+      },
+    };
+  };
+
+  let current: ScriptedFreeRun;
+  if (releaseMode === 'runtime-open-flow') {
+    current = runRuntimeReleaseOnly();
+  } else if (releaseMode === 'instant-adiabatic-to-ambient') {
+    const before = deriveFreePhysicalState(run.physics, physicsConfig);
+    const pressureRatio = Math.min(
+      1,
+      Math.max(0.000001, physicsConfig.environment.ambientPressureKPa / Math.max(0.000001, before.gasPressureKPa)),
+    );
+    const gamma = Math.max(1.001, physicsConfig.gamma);
+    current = createInstantReleaseRun(
+      run.physics.gasAmountRatio * Math.pow(pressureRatio, 1 / gamma),
+      run.physics.gasTemperatureK * Math.pow(pressureRatio, (gamma - 1) / gamma),
+    );
+  } else {
+    const reference = runRuntimeReleaseOnly();
+    const gamma = Math.max(1.001, physicsConfig.gamma);
+    const amountRatio = Math.min(
+      1,
+      Math.max(0.000001, reference.physics.gasAmountRatio / Math.max(0.000001, run.physics.gasAmountRatio)),
+    );
+    current = createInstantReleaseRun(
+      reference.physics.gasAmountRatio,
+      run.physics.gasTemperatureK * Math.pow(amountRatio, gamma - 1),
     );
   }
-  current = stepScriptedRun(current, physicsConfig, sensorConfig, closedControls, STOPCOCK_CLICK_STEP_S);
+
   return waitScriptedRun(
     current,
     physicsConfig,
@@ -321,21 +477,29 @@ const releaseAndRecover = (
   );
 };
 
-const simulateRow = (
-  pumpStrokes: number,
-  openDurationS: number,
-  waitAfterPumpS: number,
-  waitAfterReleaseS: number,
+const simulateScenario = (
+  input: HeatCapacityFreeParameterAcceptanceScenarioInput,
+  rowOpenDurationS = input.openDurationS,
 ): HeatCapacityFreeParameterAcceptanceRow => {
-  const physicsConfig = clonePhysicsConfig();
-  const sensorConfig = cloneSensorConfig();
+  const physicsConfig = clonePhysicsConfig(input);
+  const sensorConfig = cloneSensorConfig(input.instrumentNoiseEnabled ?? true);
+  const pumpMode = input.pumpMode ?? 'runtime-strokes';
+  const releaseMode = input.releaseMode ?? 'runtime-open-flow';
   let run = createScriptedRun(
-    `free-acceptance-${pumpStrokes}-${openDurationS}`,
+    `free-acceptance-${input.id}`,
     physicsConfig,
     sensorConfig,
   );
-  let trial = createManualU0Trial(`free-acceptance-${pumpStrokes}-${openDurationS}`, run.calibration);
-  const pumped = pumpScriptedRun(run, physicsConfig, sensorConfig, pumpStrokes);
+  let trial = createManualU0Trial(`free-acceptance-${input.id}`, run.calibration);
+  const pumped = pumpMode === 'instant-equivalent'
+    ? pumpScriptedRunInstantEquivalent(run, physicsConfig, input.pumpStrokes)
+    : pumpScriptedRun(
+        run,
+        physicsConfig,
+        sensorConfig,
+        input.pumpStrokes,
+        input.pumpTotalDurationS,
+      );
   run = waitScriptedRun(
     pumped.run,
     physicsConfig,
@@ -345,7 +509,7 @@ const simulateRow = (
       pumpValveOpen: false,
       stopcockOpen: false,
     },
-    waitAfterPumpS,
+    input.waitAfterPumpS,
   );
 
   const u1Display = getFreeSensorDisplay(run.sensor, run.calibration, sensorConfig);
@@ -379,8 +543,9 @@ const simulateRow = (
       run,
       physicsConfig,
       sensorConfig,
-      openDurationS,
-      waitAfterReleaseS,
+      input.openDurationS,
+      input.waitAfterReleaseS,
+      releaseMode,
     );
     const u2Display = getFreeSensorDisplay(run.sensor, run.calibration, sensorConfig);
     u2DisplayMv = u2Display.displayPressureMv;
@@ -409,14 +574,28 @@ const simulateRow = (
     }
   }
 
+  const derived = deriveFreePhysicalState(run.physics, physicsConfig);
+
   return {
-    pumpStrokes,
-    openDurationS,
+    id: input.id,
+    label: input.label ?? input.id,
+    pumpMode,
+    releaseMode,
+    pumpStrokes: input.pumpStrokes,
+    pumpTotalDurationS: input.pumpTotalDurationS,
+    openDurationS: rowOpenDurationS,
+    waitAfterPumpS: input.waitAfterPumpS,
+    waitAfterReleaseS: input.waitAfterReleaseS,
+    leakageEnabled: physicsConfig.leakage.enabled,
+    leakageRatePerS: physicsConfig.leakage.ratePerS,
     u1DisplayMv: roundNumber(u1Display.displayPressureMv),
     u2DisplayMv: roundNumber(u2DisplayMv),
     u1CorrectedMv: roundNumber(u1CorrectedMv),
     u2CorrectedMv: roundNumber(u2CorrectedMv),
     gamma: roundNumber(gamma, 4),
+    pressureKPa: roundNumber(derived.gasPressureKPa, 4) ?? 0,
+    gasTemperatureK: roundNumber(run.physics.gasTemperatureK, 4) ?? 0,
+    gasAmountRatio: roundNumber(run.physics.gasAmountRatio, 6) ?? 0,
     safetyStatus: getSafetyStatus(u1CorrectedMv),
     u1Recordable: Boolean(u1Record?.accepted),
     u2Recordable,
@@ -425,16 +604,36 @@ const simulateRow = (
   };
 };
 
+const simulateLegacyRow = (
+  pumpStrokes: number,
+  openDurationS: number,
+  waitAfterPumpS: number,
+  waitAfterReleaseS: number,
+): HeatCapacityFreeParameterAcceptanceRow => simulateScenario({
+  id: `legacy-${pumpStrokes}-${openDurationS}`,
+  label: `${pumpStrokes} strokes / ${openDurationS}s`,
+  pumpStrokes,
+  pumpTotalDurationS: 0,
+  waitAfterPumpS,
+  openDurationS: LEGACY_BASE_OPEN_DURATION_S + openDurationS,
+  waitAfterReleaseS,
+}, openDurationS);
+
 export const runHeatCapacityFreeParameterAcceptance = (
   options: HeatCapacityFreeParameterAcceptanceOptions = {},
 ): HeatCapacityFreeParameterAcceptanceReport => {
+  if (options.scenarios) {
+    return {
+      rows: options.scenarios.map((scenario) => simulateScenario(scenario)),
+    };
+  }
   const pumpStrokes = options.pumpStrokes ?? DEFAULT_PUMP_STROKES;
   const openDurationsS = options.openDurationsS ?? DEFAULT_OPEN_DURATIONS_S;
   const waitAfterPumpS = options.waitAfterPumpS ?? DEFAULT_WAIT_AFTER_PUMP_S;
   const waitAfterReleaseS = options.waitAfterReleaseS ?? DEFAULT_WAIT_AFTER_RELEASE_S;
   return {
     rows: openDurationsS.flatMap((openDurationS) => pumpStrokes.map((strokes) => (
-      simulateRow(strokes, openDurationS, waitAfterPumpS, waitAfterReleaseS)
+      simulateLegacyRow(strokes, openDurationS, waitAfterPumpS, waitAfterReleaseS)
     ))),
   };
 };
@@ -451,10 +650,18 @@ export const formatHeatCapacityFreeParameterAcceptanceReport = (
     'Free Mode parameter acceptance',
     [
       pad('strokes', 7),
+      pad('mode', 18),
+      pad('release', 32),
+      pad('pump(s)', 7),
       pad('open(s)', 7),
+      pad('U1wait', 7),
+      pad('U2wait', 7),
       pad('U1/mV', 9),
       pad('U2/mV', 9),
       pad('gamma', 7),
+      pad('P/kPa', 8),
+      pad('T/K', 8),
+      pad('nRatio', 8),
       pad('safety', 8),
       pad('U1 rec', 7),
       pad('U2 rec', 7),
@@ -464,14 +671,22 @@ export const formatHeatCapacityFreeParameterAcceptanceReport = (
   for (const row of report.rows) {
     lines.push([
       pad(row.pumpStrokes, 7),
+      pad(row.pumpMode, 18),
+      pad(row.releaseMode, 32),
+      pad(row.pumpTotalDurationS.toFixed(1), 7),
       pad(row.openDurationS.toFixed(2), 7),
+      pad(row.waitAfterPumpS.toFixed(0), 7),
+      pad(row.waitAfterReleaseS.toFixed(0), 7),
       pad(formatNullable(row.u1CorrectedMv, 2), 9),
       pad(formatNullable(row.u2CorrectedMv, 2), 9),
       pad(formatNullable(row.gamma, 4), 7),
+      pad(row.pressureKPa.toFixed(2), 8),
+      pad(row.gasTemperatureK.toFixed(2), 8),
+      pad(row.gasAmountRatio.toFixed(5), 8),
       pad(row.safetyStatus, 8),
       pad(row.u1Recordable ? 'yes' : 'no', 7),
       pad(row.u2Recordable ? 'yes' : 'no', 7),
-      `${row.u1Reason}/${row.u2Reason}`,
+      `${row.id} ${row.u1Reason}/${row.u2Reason}`,
     ].join('  '));
   }
   return lines.join('\n');
@@ -482,5 +697,3 @@ if (process.argv[1]?.replace(/\\/g, '/').endsWith('/tests/heatCapacity/heatCapac
     runHeatCapacityFreeParameterAcceptance(),
   ));
 }
-
-
