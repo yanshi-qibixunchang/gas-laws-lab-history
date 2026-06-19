@@ -74,7 +74,7 @@ export interface HeatCapacityFreeScenarioBaselineEntry {
 
 const BASELINE_SEED = 'free-scenario-baseline';
 const TIME_STEP_S = 0.1;
-const DEFAULT_STABLE_WAIT_S = 40;
+const DEFAULT_STABLE_WAIT_S = 300;
 
 const createDefaultScenarioConfigs = (): ScenarioConfigs => {
   const file = createDefaultHeatCapacityFile(1);
@@ -122,7 +122,7 @@ const createCalibration = (
 
 const createRun = (configs = createDefaultScenarioConfigs()): ScenarioRun => ({
   timeS: 0.1,
-  physics: createDefaultFreePhysicsState(configs.physics),
+  physics: createDefaultFreePhysicsState(configs.physics, BASELINE_SEED),
   sensor: createDefaultFreeSensorState(BASELINE_SEED, {
     pressureMv: 0,
     pressureInitialBiasMv: 0,
@@ -387,36 +387,36 @@ export const runHeatCapacityFreeScenarioBaseline = (): HeatCapacityFreeScenarioB
   completeScenario({
     id: 'good-operation',
     label: 'Good operation',
-    pumpStrokes: 4,
-    openExtraS: 0,
+    pumpStrokes: 18,
+    openExtraS: 0.15,
     recoveryWaitS: DEFAULT_STABLE_WAIT_S,
   }),
   completeScenario({
     id: 'insufficient-pump',
     label: 'Insufficient pump',
-    pumpStrokes: 1,
-    openExtraS: 0,
+    pumpStrokes: 4,
+    openExtraS: 0.15,
     recoveryWaitS: DEFAULT_STABLE_WAIT_S,
   }),
   completeScenario({
     id: 'slow-close',
     label: 'Slow close',
-    pumpStrokes: 4,
+    pumpStrokes: 18,
     openExtraS: 0.7,
     recoveryWaitS: DEFAULT_STABLE_WAIT_S,
   }),
   completeScenario({
     id: 'long-open',
     label: 'Long open',
-    pumpStrokes: 4,
+    pumpStrokes: 18,
     openExtraS: 6,
     recoveryWaitS: DEFAULT_STABLE_WAIT_S,
   }),
   completeScenario({
     id: 'early-u2-record',
     label: 'Early U2 record',
-    pumpStrokes: 4,
-    openExtraS: 0,
+    pumpStrokes: 18,
+    openExtraS: 0.15,
     recoveryWaitS: 0,
   }),
 ];

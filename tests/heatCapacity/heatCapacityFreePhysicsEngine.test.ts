@@ -6,6 +6,7 @@ import {
   createDefaultFreePhysicsState,
   deriveFreePhysicalState,
   FREE_PUMP_STROKE_DURATION_S,
+  getFreePumpStrokeProgress,
   stepFreePhysics,
   type HeatCapacityFreeControls,
   type HeatCapacityFreePhysicsConfig,
@@ -28,6 +29,19 @@ const baseConfig: HeatCapacityFreePhysicsConfig = {
     wallAmbientConductanceWPerK: 0.45,
     wallHeatCapacityJPerK: 45,
     minimumGasHeatCapacityJPerK: 0.1,
+  },
+  pumpValveExchange: {
+    enabled: false,
+    gasExchangeRatePerS: 0.00015,
+    thermalConductanceWPerK: 0.01,
+    chamberTemperatureRiseK: 1.5,
+    openingDelayS: 0.42,
+  },
+  environmentDisturbance: {
+    enabled: false,
+    pressureAmplitudeKPa: 0.002,
+    temperatureAmplitudeK: 0.015,
+    timeScaleS: 180,
   },
   leakage: {
     enabled: false,
@@ -73,6 +87,14 @@ const calculateMixedPumpTemperatureK = (
   ) / nextAmountRatio;
 };
 
+assert.equal(getFreePumpStrokeProgress(0), 0);
+assert.equal(getFreePumpStrokeProgress(FREE_PUMP_STROKE_DURATION_S), 1);
+assert.equal(
+  getFreePumpStrokeProgress(0.04) > getFreePumpStrokeProgress(0.02),
+  true,
+  'pump stroke progress should increase continuously before the stroke finishes',
+);
+
 const pumpOnce = (
   state: HeatCapacityFreePhysicsState,
   atS: number,
@@ -112,6 +134,14 @@ assert.equal(initial.wallTemperatureK, baseConfig.environment.ambientTemperature
 assert.deepEqual(initial.pumpProcesses, []);
 assert.equal(initialDerived.gasPressureKPa, baseConfig.environment.ambientPressureKPa);
 assert.equal(initialDerived.pressureDeltaKPa, 0);
+assert.equal(initial.lastPumpValveOpenedAtS, null);
+assert.equal(initial.lastPumpValveClosedAtS, null);
+assert.equal(initial.currentPumpValveOpenDurationS, 0);
+assert.equal(initial.environmentDisturbanceSeed, 'free-physics');
+assert.equal(initial.ambientPressureOffsetKPa, 0);
+assert.equal(initial.ambientTemperatureOffsetK, 0);
+assert.equal(initial.effectiveAmbientPressureKPa, baseConfig.environment.ambientPressureKPa);
+assert.equal(initial.effectiveAmbientTemperatureK, baseConfig.environment.ambientTemperatureK);
 
 const modifiedAmount = {
   ...initial,
@@ -195,6 +225,119 @@ assert.equal(
   true,
   'sealed micro-leak should draw gas back in when pressure is below ambient',
 );
+
+const environmentDisturbanceConfig = {
+  ...baseConfig,
+  environmentDisturbance: {
+    enabled: true,
+    pressureAmplitudeKPa: 0.2,
+    temperatureAmplitudeK: 0.5,
+    timeScaleS: 120,
+  },
+} as HeatCapacityFreePhysicsConfig;
+const disturbedInitialA = createDefaultFreePhysicsState(environmentDisturbanceConfig, 'env-a');
+const disturbedA = stepFreePhysics(disturbedInitialA, environmentDisturbanceConfig, controls, 1, 60);
+const disturbedARepeat = stepFreePhysics(
+  createDefaultFreePhysicsState(environmentDisturbanceConfig, 'env-a'),
+  environmentDisturbanceConfig,
+  controls,
+  1,
+  60,
+);
+const disturbedB = stepFreePhysics(
+  createDefaultFreePhysicsState(environmentDisturbanceConfig, 'env-b'),
+  environmentDisturbanceConfig,
+  controls,
+  1,
+  60,
+);
+assert.deepEqual(disturbedA, disturbedARepeat, 'environment disturbance should be deterministic from seed and time');
+assert.notEqual(
+  disturbedA.ambientPressureOffsetKPa,
+  disturbedB.ambientPressureOffsetKPa,
+  'different environment seeds should produce different pressure offsets',
+);
+assert.equal(
+  Math.abs(disturbedA.ambientPressureOffsetKPa) <= 0.2,
+  true,
+  'pressure offset should remain within configured amplitude',
+);
+assert.equal(
+  Math.abs(disturbedA.ambientTemperatureOffsetK) <= 0.5,
+  true,
+  'temperature offset should remain within configured amplitude',
+);
+expectClose(
+  deriveFreePhysicalState(disturbedA, environmentDisturbanceConfig).gasPressureKPa,
+  disturbedA.effectiveAmbientPressureKPa *
+    disturbedA.gasAmountRatio *
+    (disturbedA.gasTemperatureK / disturbedA.effectiveAmbientTemperatureK),
+  1e-9,
+  'derived pressure should use the effective disturbed environment',
+);
+
+const pumpValveExchangeConfig = {
+  ...baseConfig,
+  pumpValveExchange: {
+    enabled: true,
+    gasExchangeRatePerS: 0.004,
+    thermalConductanceWPerK: 0,
+    chamberTemperatureRiseK: 1.5,
+    openingDelayS: 0.42,
+  },
+} as HeatCapacityFreePhysicsConfig;
+const pumpValveExchangeControls = {
+  ...controls,
+  pumpValveOpen: true,
+};
+const pressurizedWithOpenPumpValve = {
+  ...initial,
+  gasAmountRatio: 1.08,
+};
+const pumpValveBeforeOpenDelay = stepFreePhysics(
+  pressurizedWithOpenPumpValve,
+  pumpValveExchangeConfig,
+  pumpValveExchangeControls,
+  0.2,
+  0.2,
+);
+assert.equal(
+  pumpValveBeforeOpenDelay.gasAmountRatio,
+  pressurizedWithOpenPumpValve.gasAmountRatio,
+  'pump-valve exchange should wait for the opening animation delay before moving gas',
+);
+assert.equal(pumpValveBeforeOpenDelay.lastPumpValveOpenedAtS, 0.2);
+assert.equal(pumpValveBeforeOpenDelay.currentPumpValveOpenDurationS, 0.2);
+const pumpValveAfterOpenDelay = stepFreePhysics(
+  pumpValveBeforeOpenDelay,
+  pumpValveExchangeConfig,
+  pumpValveExchangeControls,
+  1,
+  1.2,
+);
+assert.equal(
+  pumpValveAfterOpenDelay.gasAmountRatio < pumpValveBeforeOpenDelay.gasAmountRatio,
+  true,
+  'pump-valve exchange should leak high-pressure gas outward after the opening delay',
+);
+assert.equal(pumpValveAfterOpenDelay.currentPumpValveOpenDurationS, 1.2);
+const pumpValveClosedImmediately = stepFreePhysics(
+  {
+    ...pumpValveAfterOpenDelay,
+    gasAmountRatio: 1.08,
+  },
+  pumpValveExchangeConfig,
+  controls,
+  1,
+  2.2,
+);
+assert.equal(
+  pumpValveClosedImmediately.gasAmountRatio,
+  1.08,
+  'pump-valve exchange should stop as soon as the close command is received',
+);
+assert.equal(pumpValveClosedImmediately.lastPumpValveClosedAtS, 2.2);
+assert.equal(pumpValveClosedImmediately.currentPumpValveOpenDurationS, 0);
 
 const pendingPump = applyFreePumpStroke(
   initial,

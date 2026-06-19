@@ -59,6 +59,8 @@ export interface HeatCapacityFreeParameterAcceptanceScenarioInput {
   waitAfterReleaseS: number;
   leakageRatePerS?: number;
   leakageEnabled?: boolean;
+  pumpValveExchangeEnabled?: boolean;
+  environmentDisturbanceEnabled?: boolean;
   instrumentNoiseEnabled?: boolean;
 }
 
@@ -133,11 +135,24 @@ const roundNumber = (value: number | null, digits = 2) => (
 const clonePhysicsConfig = (
   input: Pick<
     HeatCapacityFreeParameterAcceptanceScenarioInput,
-    'leakageEnabled' | 'leakageRatePerS'
+    | 'leakageEnabled'
+    | 'leakageRatePerS'
+    | 'pumpValveExchangeEnabled'
+    | 'environmentDisturbanceEnabled'
   > = {},
 ): HeatCapacityFreePhysicsConfig => ({
   ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
   environment: { ...DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG },
+  pumpValveExchange: {
+    ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpValveExchange,
+    enabled: input.pumpValveExchangeEnabled ??
+      (DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpValveExchange?.enabled === true),
+  },
+  environmentDisturbance: {
+    ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.environmentDisturbance,
+    enabled: input.environmentDisturbanceEnabled ??
+      (DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.environmentDisturbance?.enabled === true),
+  },
   leakage: {
     ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.leakage,
     enabled: input.leakageEnabled ?? DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.leakage.enabled,
@@ -152,6 +167,11 @@ const cloneSensorConfig = (
   noiseMv: instrumentNoiseEnabled
     ? DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.noiseMv
     : 0,
+  pressureNonlinearity: {
+    ...DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.pressureNonlinearity,
+    enabled: instrumentNoiseEnabled &&
+      DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.pressureNonlinearity?.enabled === true,
+  },
 });
 
 const createInitialCalibration = (
@@ -190,7 +210,7 @@ const createScriptedRun = (
   sensorConfig: HeatCapacityFreeSensorConfig,
 ): ScriptedFreeRun => ({
   timeS: 0.1,
-  physics: createDefaultFreePhysicsState(physicsConfig),
+  physics: createDefaultFreePhysicsState(physicsConfig, seed),
   sensor: createDefaultFreeSensorState(seed, {
     pressureMv: 0,
     pressureInitialBiasMv: 0,

@@ -9,6 +9,15 @@ import {
   type HeatCapacityFreeSensorConfig,
 } from '../../domain/heatCapacity/heatCapacityFreeSensorModel.ts';
 import {
+  normalizeFreePressureSensorNonlinearityConfig,
+} from '../../domain/heatCapacity/heatCapacityFreePressureSensorNonlinearityModel.ts';
+import {
+  normalizeFreePumpValveExchangeConfig,
+} from '../../domain/heatCapacity/heatCapacityFreePumpValveExchangeModel.ts';
+import {
+  normalizeFreeEnvironmentDisturbanceConfig,
+} from '../../domain/heatCapacity/heatCapacityFreeEnvironmentDisturbanceModel.ts';
+import {
   HEAT_CAPACITY_FREE_CALCULATION_VERSION,
   HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
   HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S,
@@ -278,6 +287,12 @@ export const createHeatCapacityFreeConfigSnapshotFromFile = (
     releaseVisualResponseDelayS: FREE_RELEASE_RESPONSE_DELAY_S,
     releaseVisualMainDurationS: FREE_RELEASE_MAIN_DURATION_S,
     thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
+    pumpValveExchange: normalizeFreePumpValveExchangeConfig(
+      file.heatCapacityFreePhysicsConfig.pumpValveExchange,
+    ),
+    environmentDisturbance: normalizeFreeEnvironmentDisturbanceConfig(
+      file.heatCapacityFreePhysicsConfig.environmentDisturbance,
+    ),
     leakage: { ...file.heatCapacityFreePhysicsConfig.leakage },
   },
   sensor: {
@@ -292,6 +307,9 @@ export const createHeatCapacityFreeConfigSnapshotFromFile = (
     maxSampleIntervalS: file.heatCapacityFreeSensorConfig.maxSampleIntervalS,
     fastProcessSampleStepS: HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S,
     historyWindowS: file.heatCapacityFreeSensorConfig.historyWindowS,
+    pressureNonlinearity: normalizeFreePressureSensorNonlinearityConfig(
+      file.heatCapacityFreeSensorConfig.pressureNonlinearity,
+    ),
   },
   record: {
     u0ZeroToleranceMv: file.heatCapacityFreeRecordConfig.u0ZeroToleranceMv,
@@ -461,8 +479,15 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
   const environment = isRecord(value.environment) ? value.environment : {};
   const physics = isRecord(value.physics) ? value.physics : {};
   const thermal = isRecord(physics.thermal) ? physics.thermal : {};
+  const pumpValveExchange = isRecord(physics.pumpValveExchange) ? physics.pumpValveExchange : {};
+  const environmentDisturbance = isRecord(physics.environmentDisturbance)
+    ? physics.environmentDisturbance
+    : {};
   const leakage = isRecord(physics.leakage) ? physics.leakage : {};
   const sensor = isRecord(value.sensor) ? value.sensor : {};
+  const pressureNonlinearity = isRecord(sensor.pressureNonlinearity)
+    ? sensor.pressureNonlinearity
+    : {};
   const record = isRecord(value.record) ? value.record : {};
   const scoring = isRecord(value.scoring) ? value.scoring : {};
   return {
@@ -536,6 +561,40 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
           fallback.physics.thermal.minimumGasHeatCapacityJPerK,
         ),
       },
+      pumpValveExchange: normalizeFreePumpValveExchangeConfig({
+        enabled: pumpValveExchange.enabled === true,
+        gasExchangeRatePerS: finiteOrDefault(
+          pumpValveExchange.gasExchangeRatePerS,
+          fallback.physics.pumpValveExchange?.gasExchangeRatePerS ?? 0.00015,
+        ),
+        thermalConductanceWPerK: finiteOrDefault(
+          pumpValveExchange.thermalConductanceWPerK,
+          fallback.physics.pumpValveExchange?.thermalConductanceWPerK ?? 0.01,
+        ),
+        chamberTemperatureRiseK: finiteOrDefault(
+          pumpValveExchange.chamberTemperatureRiseK,
+          fallback.physics.pumpValveExchange?.chamberTemperatureRiseK ?? 1.5,
+        ),
+        openingDelayS: finiteOrDefault(
+          pumpValveExchange.openingDelayS,
+          fallback.physics.pumpValveExchange?.openingDelayS ?? 0.42,
+        ),
+      }),
+      environmentDisturbance: normalizeFreeEnvironmentDisturbanceConfig({
+        enabled: environmentDisturbance.enabled === true,
+        pressureAmplitudeKPa: finiteOrDefault(
+          environmentDisturbance.pressureAmplitudeKPa,
+          fallback.physics.environmentDisturbance?.pressureAmplitudeKPa ?? 0.002,
+        ),
+        temperatureAmplitudeK: finiteOrDefault(
+          environmentDisturbance.temperatureAmplitudeK,
+          fallback.physics.environmentDisturbance?.temperatureAmplitudeK ?? 0.015,
+        ),
+        timeScaleS: finiteOrDefault(
+          environmentDisturbance.timeScaleS,
+          fallback.physics.environmentDisturbance?.timeScaleS ?? 180,
+        ),
+      }),
       leakage: {
         enabled: leakage.enabled === true,
         ratePerS: finiteOrDefault(leakage.ratePerS, fallback.physics.leakage.ratePerS),
@@ -559,6 +618,25 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
         fallback.sensor.fastProcessSampleStepS,
       ),
       historyWindowS: finiteOrDefault(sensor.historyWindowS, fallback.sensor.historyWindowS),
+      pressureNonlinearity: normalizeFreePressureSensorNonlinearityConfig({
+        enabled: pressureNonlinearity.enabled === true,
+        kneeMv: finiteOrDefault(
+          pressureNonlinearity.kneeMv,
+          fallback.sensor.pressureNonlinearity?.kneeMv ?? 70,
+        ),
+        minGain: finiteOrDefault(
+          pressureNonlinearity.minGain,
+          fallback.sensor.pressureNonlinearity?.minGain ?? 0.72,
+        ),
+        exponent: finiteOrDefault(
+          pressureNonlinearity.exponent,
+          fallback.sensor.pressureNonlinearity?.exponent ?? 1.8,
+        ),
+        extraNoiseMv: finiteOrDefault(
+          pressureNonlinearity.extraNoiseMv,
+          fallback.sensor.pressureNonlinearity?.extraNoiseMv ?? 0.08,
+        ),
+      }),
     },
     record: {
       u0ZeroToleranceMv: finiteOrDefault(record.u0ZeroToleranceMv, fallback.record.u0ZeroToleranceMv),
@@ -604,6 +682,8 @@ const createPhysicsConfigFromSnapshot = (
   pumpInflowTemperatureRiseK: snapshot.physics.pumpInflowTemperatureRiseK,
   stopcockFlowRate: snapshot.physics.stopcockFlowRate,
   thermal: { ...snapshot.physics.thermal },
+  pumpValveExchange: normalizeFreePumpValveExchangeConfig(snapshot.physics.pumpValveExchange),
+  environmentDisturbance: normalizeFreeEnvironmentDisturbanceConfig(snapshot.physics.environmentDisturbance),
   leakage: { ...snapshot.physics.leakage },
 });
 
@@ -619,6 +699,7 @@ const createSensorConfigFromSnapshot = (
   minSampleIntervalS: snapshot.sensor.minSampleIntervalS,
   maxSampleIntervalS: snapshot.sensor.maxSampleIntervalS,
   historyWindowS: snapshot.sensor.historyWindowS,
+  pressureNonlinearity: normalizeFreePressureSensorNonlinearityConfig(snapshot.sensor.pressureNonlinearity),
 });
 
 const normalizePayloadMode = (

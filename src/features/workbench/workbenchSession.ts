@@ -50,6 +50,12 @@ import {
   type HeatCapacityFreeTraceTrial,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
+  normalizeFreePumpValveExchangeConfig,
+} from '../../domain/heatCapacity/heatCapacityFreePumpValveExchangeModel.ts';
+import {
+  normalizeFreeEnvironmentDisturbanceConfig,
+} from '../../domain/heatCapacity/heatCapacityFreeEnvironmentDisturbanceModel.ts';
+import {
   decodeWorkbenchClosedFilesStorageEnvelope,
   decodeWorkbenchStorageEnvelope,
   encodeWorkbenchClosedFilesStorageEnvelope,
@@ -259,6 +265,10 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
     pumpTemperatureGainK: _legacyPumpTemperatureGainK,
     ...physicsRest
   } = physics;
+  const pumpValveExchange = isRecord(physics.pumpValveExchange) ? physics.pumpValveExchange : {};
+  const environmentDisturbance = isRecord(physics.environmentDisturbance)
+    ? physics.environmentDisturbance
+    : {};
   return {
     ...fallback,
     ...value,
@@ -304,6 +314,40 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
         ...fallback.physics.thermal,
         ...(isRecord(physics.thermal) ? physics.thermal : {}),
       },
+      pumpValveExchange: normalizeFreePumpValveExchangeConfig({
+        enabled: pumpValveExchange.enabled === true,
+        gasExchangeRatePerS: finiteOrDefault(
+          pumpValveExchange.gasExchangeRatePerS,
+          fallback.physics.pumpValveExchange?.gasExchangeRatePerS ?? 0.00015,
+        ),
+        thermalConductanceWPerK: finiteOrDefault(
+          pumpValveExchange.thermalConductanceWPerK,
+          fallback.physics.pumpValveExchange?.thermalConductanceWPerK ?? 0.01,
+        ),
+        chamberTemperatureRiseK: finiteOrDefault(
+          pumpValveExchange.chamberTemperatureRiseK,
+          fallback.physics.pumpValveExchange?.chamberTemperatureRiseK ?? 1.5,
+        ),
+        openingDelayS: finiteOrDefault(
+          pumpValveExchange.openingDelayS,
+          fallback.physics.pumpValveExchange?.openingDelayS ?? 0.42,
+        ),
+      }),
+      environmentDisturbance: normalizeFreeEnvironmentDisturbanceConfig({
+        enabled: environmentDisturbance.enabled === true,
+        pressureAmplitudeKPa: finiteOrDefault(
+          environmentDisturbance.pressureAmplitudeKPa,
+          fallback.physics.environmentDisturbance?.pressureAmplitudeKPa ?? 0.002,
+        ),
+        temperatureAmplitudeK: finiteOrDefault(
+          environmentDisturbance.temperatureAmplitudeK,
+          fallback.physics.environmentDisturbance?.temperatureAmplitudeK ?? 0.015,
+        ),
+        timeScaleS: finiteOrDefault(
+          environmentDisturbance.timeScaleS,
+          fallback.physics.environmentDisturbance?.timeScaleS ?? 180,
+        ),
+      }),
       leakage: {
         ...fallback.physics.leakage,
         ...(isRecord(physics.leakage) ? physics.leakage : {}),

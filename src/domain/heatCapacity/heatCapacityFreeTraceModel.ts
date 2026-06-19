@@ -116,12 +116,19 @@ export interface HeatCapacityFreeTraceSample {
     pumpStrokeCount: number;
     releaseStarted: boolean;
     currentStopcockOpenDurationS: number;
+    ambientPressureOffsetKPa?: number;
+    ambientTemperatureOffsetK?: number;
+    effectiveAmbientPressureKPa?: number;
+    effectiveAmbientTemperatureK?: number;
   };
   sensor: {
     displayPressureMv: number;
     displayTemperatureMv: number;
     pressureSlopeMvPerS: number;
     temperatureSlopeMvPerS: number;
+    pressureReliability?: number;
+    pressureNonlinearErrorMv?: number;
+    pressureStochasticErrorMv?: number;
   };
   calibration: {
     calibrationVersion: number;
@@ -171,6 +178,19 @@ export interface HeatCapacityFreeConfigSnapshot {
       wallHeatCapacityJPerK: number;
       minimumGasHeatCapacityJPerK: number;
     };
+    pumpValveExchange?: {
+      enabled: boolean;
+      gasExchangeRatePerS: number;
+      thermalConductanceWPerK: number;
+      chamberTemperatureRiseK: number;
+      openingDelayS: number;
+    };
+    environmentDisturbance?: {
+      enabled: boolean;
+      pressureAmplitudeKPa: number;
+      temperatureAmplitudeK: number;
+      timeScaleS: number;
+    };
     leakage: {
       enabled: boolean;
       ratePerS: number;
@@ -188,6 +208,13 @@ export interface HeatCapacityFreeConfigSnapshot {
     maxSampleIntervalS: number;
     fastProcessSampleStepS: number;
     historyWindowS: number;
+    pressureNonlinearity?: {
+      enabled: boolean;
+      kneeMv: number;
+      minGain: number;
+      exponent: number;
+      extraNoiseMv: number;
+    };
   };
   record: {
     u0ZeroToleranceMv: number;
@@ -220,7 +247,7 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
     gamma: 1.4,
     vesselVolumeL: 2,
     pumpAmountGainRatio: 0.00345,
-    pumpPressureLimitKPa: 108.3,
+    pumpPressureLimitKPa: 109,
     pumpInflowTemperatureRiseK: 42,
     pumpStrokeDurationS: 0.08,
     recommendedPumpIntervalS: 0.1,
@@ -232,6 +259,19 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
       wallAmbientConductanceWPerK: 0.45,
       wallHeatCapacityJPerK: 45,
       minimumGasHeatCapacityJPerK: 0.1,
+    },
+    pumpValveExchange: {
+      enabled: false,
+      gasExchangeRatePerS: 0.00015,
+      thermalConductanceWPerK: 0.01,
+      chamberTemperatureRiseK: 1.5,
+      openingDelayS: 0.42,
+    },
+    environmentDisturbance: {
+      enabled: false,
+      pressureAmplitudeKPa: 0.002,
+      temperatureAmplitudeK: 0.015,
+      timeScaleS: 180,
     },
     leakage: {
       enabled: false,
@@ -250,6 +290,13 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
     maxSampleIntervalS: 0.12,
     fastProcessSampleStepS: HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S,
     historyWindowS: 1.2,
+    pressureNonlinearity: {
+      enabled: false,
+      kneeMv: 70,
+      minGain: 0.72,
+      exponent: 1.8,
+      extraNoiseMv: 0.08,
+    },
   },
   record: {
     u0ZeroToleranceMv: 0.12,
@@ -297,6 +344,12 @@ const copyConfigSnapshot = (
   physics: {
     ...configSnapshot.physics,
     thermal: { ...configSnapshot.physics.thermal },
+    pumpValveExchange: configSnapshot.physics.pumpValveExchange
+      ? { ...configSnapshot.physics.pumpValveExchange }
+      : undefined,
+    environmentDisturbance: configSnapshot.physics.environmentDisturbance
+      ? { ...configSnapshot.physics.environmentDisturbance }
+      : undefined,
     leakage: { ...configSnapshot.physics.leakage },
   },
   sensor: { ...configSnapshot.sensor },

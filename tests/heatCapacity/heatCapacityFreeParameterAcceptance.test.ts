@@ -8,7 +8,7 @@ import {
   recordHeatCapacityFreeTraceEventWithReference,
 } from '../../src/features/workbench/workbenchState.ts';
 
-const report = runHeatCapacityFreeParameterAcceptance({
+const lowSignalDiagnosticReport = runHeatCapacityFreeParameterAcceptance({
   pumpStrokes: [2, 3, 4, 5],
   openDurationsS: [0, 0.3, 0.7],
 });
@@ -16,184 +16,204 @@ const report = runHeatCapacityFreeParameterAcceptance({
 const targetedReport = runHeatCapacityFreeParameterAcceptance({
   scenarios: [
     {
-      id: 'T0',
-      pumpStrokes: 17,
-      pumpTotalDurationS: 0,
-      waitAfterPumpS: 300,
-      openDurationS: 0.25,
-      waitAfterReleaseS: 300,
-      leakageEnabled: true,
-      leakageRatePerS: 0.00005,
-      instrumentNoiseEnabled: false,
-    },
-    {
-      id: 'R1-u1-early',
-      pumpStrokes: 17,
-      pumpTotalDurationS: 0,
-      waitAfterPumpS: 280,
-      openDurationS: 0.25,
-      waitAfterReleaseS: 300,
-      leakageEnabled: true,
-      leakageRatePerS: 0.00005,
-      instrumentNoiseEnabled: false,
-    },
-    {
-      id: 'R2-u2-late',
-      pumpStrokes: 17,
-      pumpTotalDurationS: 0,
-      waitAfterPumpS: 300,
-      openDurationS: 0.25,
-      waitAfterReleaseS: 320,
-      leakageEnabled: true,
-      leakageRatePerS: 0.00005,
-      instrumentNoiseEnabled: false,
-    },
-    {
-      id: 'R3-open-fast',
-      pumpStrokes: 17,
-      pumpTotalDurationS: 0,
-      waitAfterPumpS: 300,
-      openDurationS: 0.15,
-      waitAfterReleaseS: 300,
-      leakageEnabled: true,
-      leakageRatePerS: 0.00005,
-      instrumentNoiseEnabled: false,
-    },
-    {
-      id: 'R4-pump-3s',
-      pumpStrokes: 17,
-      pumpTotalDurationS: 3,
-      waitAfterPumpS: 300,
-      openDurationS: 0.25,
-      waitAfterReleaseS: 300,
-      leakageEnabled: true,
-      leakageRatePerS: 0.00005,
-      instrumentNoiseEnabled: false,
-    },
-    {
-      id: 'E1-open-too-fast',
-      pumpStrokes: 17,
-      pumpTotalDurationS: 0,
-      waitAfterPumpS: 300,
-      openDurationS: 0.1,
-      waitAfterReleaseS: 300,
-      leakageEnabled: true,
-      leakageRatePerS: 0.00005,
-      instrumentNoiseEnabled: false,
-    },
-    {
-      id: 'E2-open-long',
-      pumpStrokes: 17,
-      pumpTotalDurationS: 0,
-      waitAfterPumpS: 300,
-      openDurationS: 2.25,
-      waitAfterReleaseS: 300,
-      leakageEnabled: true,
-      leakageRatePerS: 0.00005,
-      instrumentNoiseEnabled: false,
-    },
-    {
-      id: 'E3-u2-early',
-      pumpStrokes: 17,
-      pumpTotalDurationS: 0,
-      waitAfterPumpS: 300,
-      openDurationS: 0.25,
-      waitAfterReleaseS: 0,
-      leakageEnabled: true,
-      leakageRatePerS: 0.00005,
-      instrumentNoiseEnabled: false,
-    },
-    {
-      id: 'E3-u2-60s',
-      pumpStrokes: 17,
-      pumpTotalDurationS: 0,
-      waitAfterPumpS: 300,
-      openDurationS: 0.25,
-      waitAfterReleaseS: 60,
-      leakageEnabled: true,
-      leakageRatePerS: 0.00005,
-      instrumentNoiseEnabled: false,
-    },
-    {
-      id: 'E4-pump-30s',
-      pumpStrokes: 17,
-      pumpTotalDurationS: 30,
-      waitAfterPumpS: 300,
-      openDurationS: 0.25,
-      waitAfterReleaseS: 300,
-      leakageEnabled: true,
-      leakageRatePerS: 0.00005,
-      instrumentNoiseEnabled: false,
-    },
-    {
-      id: 'E4-pump-60s',
-      pumpStrokes: 17,
-      pumpTotalDurationS: 60,
-      waitAfterPumpS: 300,
-      openDurationS: 0.25,
-      waitAfterReleaseS: 300,
-      leakageEnabled: true,
-      leakageRatePerS: 0.00005,
-      instrumentNoiseEnabled: false,
-    },
-    {
-      id: 'L1-weak-leak-long',
-      pumpStrokes: 17,
-      pumpTotalDurationS: 0,
-      waitAfterPumpS: 300,
-      openDurationS: 0.25,
-      waitAfterReleaseS: 1800,
-      leakageEnabled: true,
-      leakageRatePerS: 0.00005,
-      instrumentNoiseEnabled: false,
-    },
-    {
-      id: 'L2-strong-leak',
-      pumpStrokes: 17,
-      pumpTotalDurationS: 0,
-      waitAfterPumpS: 300,
-      openDurationS: 0.25,
-      waitAfterReleaseS: 600,
-      leakageEnabled: true,
-      leakageRatePerS: 0.002,
-      instrumentNoiseEnabled: false,
-    },
-    {
-      id: 'C1-instant-one-step-17-pump-equivalent',
-      label: 'single instant pressure step equivalent to 17 pump strokes',
-      pumpMode: 'instant-equivalent',
-      pumpStrokes: 17,
-      pumpTotalDurationS: 0,
-      waitAfterPumpS: 300,
-      openDurationS: 0.25,
-      waitAfterReleaseS: 300,
-      leakageEnabled: true,
-      leakageRatePerS: 0.00005,
-      instrumentNoiseEnabled: false,
-    },
-    {
-      id: 'C2-instant-pump-ideal-release-core',
-      label: 'single instant pump step and ideal instant adiabatic release',
+      id: 'C1-absolute-ideal',
+      label: 'absolute ideal instant pump and instant adiabatic release',
       pumpMode: 'instant-equivalent',
       releaseMode: 'instant-adiabatic-to-ambient',
-      pumpStrokes: 17,
+      pumpStrokes: 18,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
-      openDurationS: 0.25,
+      openDurationS: 0.35,
       waitAfterReleaseS: 300,
       leakageEnabled: false,
       leakageRatePerS: 0,
       instrumentNoiseEnabled: false,
     },
     {
-      id: 'C3-instant-pump-current-equivalent-release-core',
+      id: 'T0-ideal-experiment',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 300,
+      leakageEnabled: false,
+      leakageRatePerS: 0,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'B0-best-realistic-smoke',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 300,
+      leakageEnabled: true,
+      leakageRatePerS: 0.00005,
+      instrumentNoiseEnabled: true,
+    },
+    {
+      id: 'R1-u1-280',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 280,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 300,
+      leakageEnabled: true,
+      leakageRatePerS: 0.00005,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'R1-u1-320',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 320,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 300,
+      leakageEnabled: true,
+      leakageRatePerS: 0.00005,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'R2-u2-280',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 280,
+      leakageEnabled: true,
+      leakageRatePerS: 0.00005,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'R2-u2-320',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 320,
+      leakageEnabled: true,
+      leakageRatePerS: 0.00005,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'R3-open-0.25',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.25,
+      waitAfterReleaseS: 300,
+      leakageEnabled: true,
+      leakageRatePerS: 0.00005,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'R3-open-0.45',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.45,
+      waitAfterReleaseS: 300,
+      leakageEnabled: true,
+      leakageRatePerS: 0.00005,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'E1-u1-too-early',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 0,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 300,
+      leakageEnabled: true,
+      leakageRatePerS: 0.00005,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'E2-u2-too-early',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 0,
+      leakageEnabled: true,
+      leakageRatePerS: 0.00005,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'E3-open-0.05-known-gap',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.05,
+      waitAfterReleaseS: 300,
+      leakageEnabled: true,
+      leakageRatePerS: 0.00005,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'E4-open-2.5',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 2.5,
+      waitAfterReleaseS: 300,
+      leakageEnabled: true,
+      leakageRatePerS: 0.00005,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'E5-open-10',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 10,
+      waitAfterReleaseS: 300,
+      leakageEnabled: true,
+      leakageRatePerS: 0.00005,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'E6-u2-10min',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 600,
+      leakageEnabled: true,
+      leakageRatePerS: 0.00005,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'E7-u2-20min',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 1200,
+      leakageEnabled: true,
+      leakageRatePerS: 0.00005,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'E8-u2-30min-known-gap',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 1800,
+      leakageEnabled: true,
+      leakageRatePerS: 0.00005,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'C2-instant-current-equivalent-core',
       label: 'single instant pump step and current-model-equivalent instant release',
       pumpMode: 'instant-equivalent',
       releaseMode: 'instant-current-model-equivalent',
-      pumpStrokes: 17,
+      pumpStrokes: 18,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
-      openDurationS: 0.25,
+      openDurationS: 0.35,
       waitAfterReleaseS: 300,
       leakageEnabled: false,
       leakageRatePerS: 0,
@@ -205,22 +225,24 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
 assert.deepEqual(
   targetedReport.rows.map((row) => row.id),
   [
-    'T0',
-    'R1-u1-early',
-    'R2-u2-late',
-    'R3-open-fast',
-    'R4-pump-3s',
-    'E1-open-too-fast',
-    'E2-open-long',
-    'E3-u2-early',
-    'E3-u2-60s',
-    'E4-pump-30s',
-    'E4-pump-60s',
-    'L1-weak-leak-long',
-    'L2-strong-leak',
-    'C1-instant-one-step-17-pump-equivalent',
-    'C2-instant-pump-ideal-release-core',
-    'C3-instant-pump-current-equivalent-release-core',
+    'C1-absolute-ideal',
+    'T0-ideal-experiment',
+    'B0-best-realistic-smoke',
+    'R1-u1-280',
+    'R1-u1-320',
+    'R2-u2-280',
+    'R2-u2-320',
+    'R3-open-0.25',
+    'R3-open-0.45',
+    'E1-u1-too-early',
+    'E2-u2-too-early',
+    'E3-open-0.05-known-gap',
+    'E4-open-2.5',
+    'E5-open-10',
+    'E6-u2-10min',
+    'E7-u2-20min',
+    'E8-u2-30min-known-gap',
+    'C2-instant-current-equivalent-core',
   ],
   'acceptance script should support named physical validation scenarios',
 );
@@ -238,96 +260,89 @@ for (const row of targetedReport.rows) {
 }
 
 const targetedById = new Map(targetedReport.rows.map((row) => [row.id, row]));
-const theoreticalCenter = targetedById.get('T0');
-const reasonableFastOpen = targetedById.get('R3-open-fast');
-const reasonablePumpCadence = targetedById.get('R4-pump-3s');
-const oneMinuteU2Record = targetedById.get('E3-u2-60s');
-const verySlowPumpCadence = targetedById.get('E4-pump-60s');
-const instantOneStepSeventeenPumpEquivalent = targetedById.get('C1-instant-one-step-17-pump-equivalent');
-const instantIdealReleaseCore = targetedById.get('C2-instant-pump-ideal-release-core');
-const instantCurrentEquivalentReleaseCore = targetedById.get('C3-instant-pump-current-equivalent-release-core');
-assert.notEqual(theoreticalCenter, undefined, 'T0 should exist in targeted acceptance report');
-assert.notEqual(reasonableFastOpen, undefined, 'R3-open-fast should exist in targeted acceptance report');
-assert.notEqual(reasonablePumpCadence, undefined, 'R4-pump-3s should exist in targeted acceptance report');
-assert.notEqual(oneMinuteU2Record, undefined, 'E3-u2-60s should exist in targeted acceptance report');
-assert.notEqual(verySlowPumpCadence, undefined, 'E4-pump-60s should exist in targeted acceptance report');
-assert.notEqual(instantOneStepSeventeenPumpEquivalent, undefined, 'instant one-step 17-pump-equivalent core calibration should exist');
-assert.notEqual(instantIdealReleaseCore, undefined, 'instant ideal release core calibration should exist');
+const absoluteIdeal = targetedById.get('C1-absolute-ideal');
+const idealExperiment = targetedById.get('T0-ideal-experiment');
+const bestRealisticSmoke = targetedById.get('B0-best-realistic-smoke');
+const u1TooEarly = targetedById.get('E1-u1-too-early');
+const u2TooEarly = targetedById.get('E2-u2-too-early');
+const openVeryLong = targetedById.get('E4-open-2.5');
+const openExtremeLong = targetedById.get('E5-open-10');
+const u2TenMinute = targetedById.get('E6-u2-10min');
+const u2TwentyMinute = targetedById.get('E7-u2-20min');
+const u2ThirtyMinuteKnownGap = targetedById.get('E8-u2-30min-known-gap');
+const instantCurrentEquivalentReleaseCore = targetedById.get('C2-instant-current-equivalent-core');
+assert.notEqual(absoluteIdeal, undefined, 'absolute ideal scenario should exist in targeted acceptance report');
+assert.notEqual(idealExperiment, undefined, 'ideal experiment scenario should exist in targeted acceptance report');
+assert.notEqual(bestRealisticSmoke, undefined, 'best realistic smoke scenario should exist in targeted acceptance report');
+assert.notEqual(u1TooEarly, undefined, 'U1-too-early scenario should exist in targeted acceptance report');
+assert.notEqual(u2TooEarly, undefined, 'U2-too-early scenario should exist in targeted acceptance report');
+assert.notEqual(openVeryLong, undefined, '2.5s open scenario should exist in targeted acceptance report');
+assert.notEqual(openExtremeLong, undefined, '10s open scenario should exist in targeted acceptance report');
+assert.notEqual(u2TenMinute, undefined, '10min U2 wait scenario should exist in targeted acceptance report');
+assert.notEqual(u2TwentyMinute, undefined, '20min U2 wait scenario should exist in targeted acceptance report');
+assert.notEqual(u2ThirtyMinuteKnownGap, undefined, '30min U2 known-gap scenario should exist in targeted acceptance report');
 assert.notEqual(instantCurrentEquivalentReleaseCore, undefined, 'instant current-equivalent release core calibration should exist');
 assert.equal(
-  theoreticalCenter!.gamma !== null &&
-    theoreticalCenter!.gamma >= 1.38 &&
-    theoreticalCenter!.gamma <= 1.42,
+  absoluteIdeal!.gamma !== null &&
+    absoluteIdeal!.gamma >= 1.395 &&
+    absoluteIdeal!.gamma <= 1.405,
   true,
-  'theoretical 5 minute operation should stay within the current 1.40 +- 0.02 calibration target',
+  'absolute ideal operation should stay inside the six-class 1.395-1.405 target',
 );
 assert.equal(
-  theoreticalCenter!.gamma !== null &&
-    reasonableFastOpen!.gamma !== null &&
-    reasonableFastOpen!.gamma <= theoreticalCenter!.gamma + 0.04,
+  idealExperiment!.gamma !== null &&
+    idealExperiment!.gamma >= 1.39 &&
+    idealExperiment!.gamma <= 1.41,
   true,
-  '0.15s reasonable fast opening should not overshoot the theoretical center by more than 0.04 gamma',
+  'ideal experimental operation should stay inside the six-class 1.39-1.41 target',
 );
 assert.equal(
-  theoreticalCenter!.gamma !== null &&
-    oneMinuteU2Record!.gamma !== null &&
-    oneMinuteU2Record!.gamma <= theoreticalCenter!.gamma - 0.0008,
+  bestRealisticSmoke!.gamma !== null &&
+    bestRealisticSmoke!.gamma >= 1.37 &&
+    bestRealisticSmoke!.gamma <= 1.43,
   true,
-  'U2 recorded after only 60s should remain slightly below the 300s theoretical wait so recovery is not effectively complete too early',
+  'best realistic smoke run should remain inside 1.37-1.43; the full plan still requires 30 fixed-seed runs',
 );
 assert.equal(
-  theoreticalCenter!.gamma !== null &&
-    reasonablePumpCadence!.gamma !== null &&
-    Math.abs(reasonablePumpCadence!.gamma - theoreticalCenter!.gamma) <= 0.005,
+  u1TooEarly!.gamma !== null &&
+    (u1TooEarly!.gamma < 1.3 || u1TooEarly!.gamma > 1.5),
   true,
-  '17 pump strokes completed within 3s should stay equivalent to the near-instant theoretical cadence',
+  'recording U1 immediately should be an extreme wrong operation in the current smoke suite',
 );
 assert.equal(
-  instantOneStepSeventeenPumpEquivalent!.pumpStrokes,
-  17,
-  'instant core calibration should preserve the 17-pump equivalent count',
-);
-assert.equal(
-  instantOneStepSeventeenPumpEquivalent!.pumpMode,
-  'instant-equivalent',
-  'instant core calibration should report one state jump instead of runtime pump stroke timing',
-);
-assert.equal(
-  instantOneStepSeventeenPumpEquivalent!.releaseMode,
-  'runtime-open-flow',
-  'existing instant pump calibration should still use the normal runtime release path',
-);
-assert.equal(
-  instantOneStepSeventeenPumpEquivalent!.u1Recordable && instantOneStepSeventeenPumpEquivalent!.u2Recordable,
+  u2TooEarly!.gamma !== null &&
+    (u2TooEarly!.gamma < 1.3 || u2TooEarly!.gamma > 1.5),
   true,
-  'instant one-step 17-pump-equivalent core calibration should be recordable',
+  'recording U2 immediately should be an extreme wrong operation in the current smoke suite',
 );
 assert.equal(
-  instantOneStepSeventeenPumpEquivalent!.gamma !== null &&
-    Math.abs(instantOneStepSeventeenPumpEquivalent!.gamma - 1.4) <= 0.02,
+  openVeryLong!.gamma !== null &&
+    (openVeryLong!.gamma < 1.34 || openVeryLong!.gamma > 1.46),
   true,
-  'instant one-step 17-pump-equivalent core calibration should stay close to the 1.4 theoretical gas value',
+  '2.5s open duration should be outside the suitable-operation 1.34-1.46 band',
 );
 assert.equal(
-  instantIdealReleaseCore!.pumpMode,
-  'instant-equivalent',
-  'ideal release core calibration should also use one instant pump state jump',
-);
-assert.equal(
-  instantIdealReleaseCore!.releaseMode,
-  'instant-adiabatic-to-ambient',
-  'ideal release core calibration should report the analytical instant release mode',
-);
-assert.equal(
-  instantIdealReleaseCore!.u1Recordable && instantIdealReleaseCore!.u2Recordable,
+  openExtremeLong!.gamma !== null &&
+    (openExtremeLong!.gamma < 1.3 || openExtremeLong!.gamma > 1.5),
   true,
-  'ideal instant release core calibration should be recordable',
+  '10s open duration should be an extreme wrong operation',
 );
 assert.equal(
-  instantIdealReleaseCore!.gamma !== null &&
-    Math.abs(instantIdealReleaseCore!.gamma - 1.4) <= 0.005,
+  u2TenMinute!.gamma !== null &&
+    (u2TenMinute!.gamma < 1.37 || u2TenMinute!.gamma > 1.43),
   true,
-  'ideal instant release core calibration should be very close to the 1.4 theoretical gas value',
+  '10min U2 wait should leave the 1.37-1.43 best-operation band',
+);
+assert.equal(
+  u2TwentyMinute!.gamma !== null &&
+    (u2TwentyMinute!.gamma < 1.34 || u2TwentyMinute!.gamma > 1.46),
+  true,
+  '20min U2 wait should leave the 1.34-1.46 suitable-operation band',
+);
+assert.equal(
+  u2ThirtyMinuteKnownGap!.u1Recordable && u2ThirtyMinuteKnownGap!.u2Recordable,
+  true,
+  '30min U2 known-gap scenario should remain recordable so the full validation plan can report the current gap',
 );
 assert.equal(
   instantCurrentEquivalentReleaseCore!.releaseMode,
@@ -340,18 +355,11 @@ assert.equal(
   'current-equivalent instant release core calibration should be recordable',
 );
 assert.equal(
-  instantIdealReleaseCore!.gamma !== null &&
+  absoluteIdeal!.gamma !== null &&
     instantCurrentEquivalentReleaseCore!.gamma !== null &&
-    Math.abs(instantCurrentEquivalentReleaseCore!.gamma - instantIdealReleaseCore!.gamma) <= 0.006,
+    Math.abs(instantCurrentEquivalentReleaseCore!.gamma - absoluteIdeal!.gamma) <= 0.006,
   true,
   'current-model-equivalent instant release should stay close to the ideal instant release core result',
-);
-assert.equal(
-  theoreticalCenter!.u1CorrectedMv !== null &&
-    verySlowPumpCadence!.u1CorrectedMv !== null &&
-    verySlowPumpCadence!.u1CorrectedMv < theoreticalCenter!.u1CorrectedMv - 0.25,
-  true,
-  'very slow pumping should leave a detectable lower U1 signal through leakage and thermal history even if final gamma remains stable',
 );
 
 assert.equal(
@@ -420,11 +428,11 @@ assert.equal(
   'Free config snapshot should be copied at trace creation instead of reading later file config changes',
 );
 
-const quickRows = report.rows.filter((row) => row.openDurationS === 0);
+const quickRows = lowSignalDiagnosticReport.rows.filter((row) => row.openDurationS === 0);
 assert.deepEqual(
   quickRows.map((row) => row.pumpStrokes),
   [2, 3, 4, 5],
-  'acceptance script should cover the new 2-5 pump-stroke boundary for quick-release operation',
+  'legacy low-signal diagnostic smoke should still cover 2-5 pump strokes',
 );
 
 for (const strokes of [3, 4]) {
@@ -433,9 +441,11 @@ for (const strokes of [3, 4]) {
   assert.equal(row?.u1Recordable, true, `${strokes} pump strokes should be recordable as U1`);
   assert.equal(row?.u2Recordable, true, `${strokes} pump strokes should be recordable as U2 after quick release`);
   assert.equal(
-    row !== undefined && row.gamma !== null && row.gamma >= 1.32 && row.gamma <= 1.39,
+    row !== undefined &&
+      row.u1CorrectedMv !== null &&
+      row.u1CorrectedMv < HEAT_CAPACITY_FREE_PARAMETER_ACCEPTANCE_RECORD_CONFIG.minimumUsefulU1CorrectedMv,
     true,
-    `${strokes} pump strokes should produce a plausible gamma after wall-mediated heat exchange`,
+    `${strokes} pump strokes should remain a low-signal diagnostic row instead of being treated as a normal-pressure experiment`,
   );
 }
 
@@ -452,17 +462,17 @@ assert.equal(
 assert.equal(twoStroke?.safetyStatus, 'normal', '2 pump strokes should remain below the warning line');
 
 const fourStroke = quickRows.find((row) => row.pumpStrokes === 4);
-assert.equal(fourStroke?.safetyStatus, 'normal', '4 pump strokes should remain below the suggested stop line in the current per-stroke calibration');
+assert.equal(fourStroke?.safetyStatus, 'normal', '4-pump low-signal diagnostic row should remain below the suggested stop line');
 
 const fiveStroke = quickRows.find((row) => row.pumpStrokes === 5);
-assert.equal(fiveStroke?.safetyStatus, 'normal', '5 pump strokes should remain below the suggested stop line in the current per-stroke calibration');
+assert.equal(fiveStroke?.safetyStatus, 'normal', '5-pump low-signal diagnostic row should remain below the suggested stop line');
 assert.equal(
   fiveStroke?.u1Recordable,
   true,
   '5 requested pump strokes should remain recordable for low-pressure diagnostic review',
 );
 
-const slowClose = report.rows.find((row) => row.pumpStrokes === 4 && row.openDurationS === 0.7);
+const slowClose = lowSignalDiagnosticReport.rows.find((row) => row.pumpStrokes === 4 && row.openDurationS === 0.7);
 assert.equal(slowClose?.u2Recordable, true, 'moderately slow close should still produce a recordable U2 row');
 const quickFourStroke = quickRows.find((row) => row.pumpStrokes === 4);
 assert.equal(

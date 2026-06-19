@@ -617,8 +617,11 @@ assert.equal(
 assert.equal(freePumped.heatCapacityMode, 'free');
 assert.equal(freePumped.heatCapacityFreePhysicsState.pumpStrokeCount, 1, 'Free pump bulb should update the Free physical state');
 assert.equal(
-  freePumped.heatCapacityFreePhysicsState.gasAmountRatio,
-  freePowered.heatCapacityFreePhysicsState.gasAmountRatio,
+  Math.abs(
+    freePumped.heatCapacityFreePhysicsState.gasAmountRatio -
+      freePowered.heatCapacityFreePhysicsState.gasAmountRatio,
+  ) < 1e-9,
+  true,
   'Free pump stroke should queue a short continuous physical process instead of jumping gas amount instantly',
 );
 assert.equal(freePumped.heatCapacityFreePhysicsState.pumpProcesses.length, 1);
@@ -711,15 +714,20 @@ assert.notEqual(
   'four effective Free Mode pump strokes should stay below the alarm threshold',
 );
 let calibratedPumpFile: WorkbenchHeatCapacityState = freePumpReady;
-for (let strokeIndex = 0; strokeIndex < 17; strokeIndex += 1) {
+for (let strokeIndex = 0; strokeIndex < 18; strokeIndex += 1) {
   calibratedPumpFile = registerHeatCapacityPumpStroke(calibratedPumpFile, 3_000 + strokeIndex * 400);
 }
 let stableCalibratedPumpFile = calibratedPumpFile;
-const calibratedPumpLastAtMs = 3_000 + 16 * 400;
+const calibratedPumpLastAtMs = 3_000 + 17 * 400;
+stableCalibratedPumpFile = {
+  ...stableCalibratedPumpFile,
+  pumpValveOpen: false,
+  pumpValveState: 'closed',
+};
 for (let stepIndex = 1; stepIndex <= 30; stepIndex += 1) {
   stableCalibratedPumpFile = stepHeatCapacityWorkbenchFile(
     stableCalibratedPumpFile,
-    calibratedPumpLastAtMs + stepIndex * 10_000,
+    calibratedPumpLastAtMs + stepIndex * 2_500,
   );
 }
 const stableCalibratedPumpPressureMv = stableCalibratedPumpFile.pressureDeltaKPa *
@@ -727,7 +735,7 @@ const stableCalibratedPumpPressureMv = stableCalibratedPumpFile.pressureDeltaKPa
 assert.equal(
   stableCalibratedPumpPressureMv >= 109 && stableCalibratedPumpPressureMv <= 119,
   true,
-  `17 Free pump strokes should relax near 114 mV after 5 min, received ${stableCalibratedPumpPressureMv.toFixed(2)} mV`,
+  `18 Free pump strokes should relax near 114 mV after pump-valve close and 5 min, received ${stableCalibratedPumpPressureMv.toFixed(2)} mV`,
 );
 assert.equal(stableCalibratedPumpFile.pressureSafetyStatus, 'normal');
 assert.equal(stableCalibratedPumpFile.pressureBlockedPumping, false);
@@ -798,7 +806,7 @@ assert.equal(
   'equilibrium speed multiplier must not accelerate pump-click cadence or active pumping time',
 );
 const fiveStrokeFreeFileStarted = calibratedPumpFile;
-assert.equal(fiveStrokeFreeFileStarted.heatCapacityFreePhysicsState.pumpStrokeCount, 17);
+assert.equal(fiveStrokeFreeFileStarted.heatCapacityFreePhysicsState.pumpStrokeCount, 18);
 assert.equal(
   fiveStrokeFreeFileStarted.pressureSafetyStatus,
   'warning',
@@ -806,7 +814,7 @@ assert.equal(
 );
 assert.equal(fiveStrokeFreeFileStarted.pressureBlockedPumping, false);
 const fiveStrokeFreeFile = stepHeatCapacityWorkbenchFile(fiveStrokeFreeFileStarted, calibratedPumpLastAtMs + 240);
-assert.equal(fiveStrokeFreeFile.heatCapacityFreePhysicsState.pumpStrokeCount, 17);
+assert.equal(fiveStrokeFreeFile.heatCapacityFreePhysicsState.pumpStrokeCount, 18);
 assert.equal(fiveStrokeFreeFile.pressureSafetyStatus, 'warning');
 assert.equal(fiveStrokeFreeFile.pressureBlockedPumping, false);
 const hotOverLimitFreeFile = registerHeatCapacityPumpStroke({

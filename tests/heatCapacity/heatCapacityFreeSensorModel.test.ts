@@ -30,6 +30,18 @@ const quietConfig: HeatCapacityFreeSensorConfig = {
   maxSampleIntervalS: 0.1,
 };
 
+const lowPressureNonlinearConfig: HeatCapacityFreeSensorConfig = {
+  ...quietConfig,
+  lagRate: 1000,
+  pressureNonlinearity: {
+    enabled: true,
+    kneeMv: 70,
+    minGain: 0.72,
+    exponent: 1.8,
+    extraNoiseMv: 0.08,
+  },
+};
+
 const calibration: HeatCapacityFreeCalibrationState = {
   calibrationVersion: 1,
   zeroOffsetMv: 0.25,
@@ -86,6 +98,42 @@ assert.equal(
 );
 assert.equal(lagged.displayTemperatureMv > 1499, true);
 assert.equal(lagged.displayTemperatureMv < 1499 + 3 * quietConfig.temperatureMvPerK, true);
+
+const lowNonlinear = stepFreeSensor(
+  createDefaultFreeSensorState('low-nonlinear', {
+    pressureMv: 0,
+    pressureInitialBiasMv: 0,
+    temperatureMv: 1499,
+  }),
+  {
+    ...ambientPhysical,
+    gasPressureKPa: 102.3,
+    pressureDeltaKPa: 1,
+  },
+  { ...calibration, zeroOffsetMv: 0 },
+  lowPressureNonlinearConfig,
+  0.1,
+);
+const highNonlinear = stepFreeSensor(
+  createDefaultFreeSensorState('high-nonlinear', {
+    pressureMv: 0,
+    pressureInitialBiasMv: 0,
+    temperatureMv: 1499,
+  }),
+  {
+    ...ambientPhysical,
+    gasPressureKPa: 107.3,
+    pressureDeltaKPa: 6,
+  },
+  { ...calibration, zeroOffsetMv: 0 },
+  lowPressureNonlinearConfig,
+  0.1,
+);
+assert.equal(lowNonlinear.displayPressureMv < 20, true, 'low-pressure display should be compressed before lag and quantization');
+assert.equal(Math.abs(highNonlinear.displayPressureMv - 120) < 2, true, 'high-pressure display should remain close to linear');
+assert.equal(lowNonlinear.pressureReliability < highNonlinear.pressureReliability, true);
+assert.equal(lowNonlinear.pressureReliability < 0.85, true);
+assert.notEqual(lowNonlinear.pressureStochasticErrorMv, 0);
 
 const warmRoom = stepFreeSensor(
   createDefaultFreeSensorState('ambient-303', {
@@ -217,5 +265,4 @@ assert.equal(Math.abs(unstable.pressureSlopeMvPerS) > 1, true);
 assert.equal(Math.abs(unstable.temperatureSlopeMvPerS) > 0.1, true);
 
 console.log('heatCapacityFreeSensorModel tests passed');
-
 

@@ -1,6 +1,11 @@
 import {
   type HeatCapacityFreeCalibrationState,
 } from './heatCapacityFreeCalibrationModel.ts';
+import {
+  applyFreePressureSensorNonlinearity,
+  normalizeFreePressureSensorNonlinearityConfig,
+  type HeatCapacityFreePressureSensorNonlinearityConfig,
+} from './heatCapacityFreePressureSensorNonlinearityModel.ts';
 
 export interface HeatCapacityFreeDisplaySample {
   atS: number;
@@ -17,6 +22,7 @@ export interface HeatCapacityFreeSensorConfig {
   minSampleIntervalS: number;
   maxSampleIntervalS: number;
   historyWindowS: number;
+  pressureNonlinearity?: HeatCapacityFreePressureSensorNonlinearityConfig;
 }
 
 export interface HeatCapacityFreePhysicalDisplayInput {
@@ -36,6 +42,9 @@ export interface HeatCapacityFreeSensorState {
   temperatureHistory: HeatCapacityFreeDisplaySample[];
   pressureSlopeMvPerS: number;
   temperatureSlopeMvPerS: number;
+  pressureReliability: number;
+  pressureNonlinearErrorMv: number;
+  pressureStochasticErrorMv: number;
 }
 
 export const HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE = 36;
@@ -116,13 +125,24 @@ const toTargetDisplay = (
   physical: HeatCapacityFreePhysicalDisplayInput,
   config: HeatCapacityFreeSensorConfig,
   pressureInitialBiasMv: number,
-) => ({
-  pressureMv: physical.pressureDeltaKPa * config.pressureMvPerKPa +
-    pressureInitialBiasMv,
-  temperatureMv: config.temperatureMvAtAmbient +
-    (physical.gasTemperatureK - physical.ambientTemperatureK) *
-      config.temperatureMvPerK,
-});
+  seedInput?: { seed: number | string; sampleIndex: number },
+) => {
+  const rawPressureMv = physical.pressureDeltaKPa * config.pressureMvPerKPa;
+  const pressureNonlinearity = applyFreePressureSensorNonlinearity(
+    rawPressureMv,
+    normalizeFreePressureSensorNonlinearityConfig(config.pressureNonlinearity),
+    seedInput,
+  );
+  return {
+    pressureMv: pressureNonlinearity.pressureMv + pressureInitialBiasMv,
+    temperatureMv: config.temperatureMvAtAmbient +
+      (physical.gasTemperatureK - physical.ambientTemperatureK) *
+        config.temperatureMvPerK,
+    pressureReliability: pressureNonlinearity.reliability,
+    pressureNonlinearErrorMv: pressureNonlinearity.nonlinearErrorMv,
+    pressureStochasticErrorMv: pressureNonlinearity.stochasticErrorMv,
+  };
+};
 
 const getNextSampleIntervalS = (
   seed: number | string,
@@ -164,6 +184,9 @@ export const createDefaultFreeSensorState = (
   ],
   pressureSlopeMvPerS: 0,
   temperatureSlopeMvPerS: 0,
+  pressureReliability: 1,
+  pressureNonlinearErrorMv: 0,
+  pressureStochasticErrorMv: 0,
 });
 
 export const stepFreeSensor = (
@@ -181,7 +204,12 @@ export const stepFreeSensor = (
   const lastSampleAtS = state.pressureHistory[state.pressureHistory.length - 1]?.atS ?? atS;
   const dtS = Math.max(0, atS - lastSampleAtS);
   void calibration;
-  const target = toTargetDisplay(physical, config, state.pressureInitialBiasMv);
+  const target = toTargetDisplay(
+    physical,
+    config,
+    state.pressureInitialBiasMv,
+    { seed: state.seed, sampleIndex },
+  );
   const pressureNoiseMv = (hashSeededValue(state.seed, sampleIndex, 'pressure') - 0.5) *
     2 *
     config.noiseMv;
@@ -231,6 +259,9 @@ export const stepFreeSensor = (
     temperatureHistory,
     pressureSlopeMvPerS: calculateSlope(pressureHistory),
     temperatureSlopeMvPerS: calculateSlope(temperatureHistory),
+    pressureReliability: target.pressureReliability,
+    pressureNonlinearErrorMv: target.pressureNonlinearErrorMv,
+    pressureStochasticErrorMv: target.pressureStochasticErrorMv,
   };
 };
 

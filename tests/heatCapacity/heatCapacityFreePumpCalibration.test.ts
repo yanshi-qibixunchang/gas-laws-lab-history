@@ -207,7 +207,7 @@ const applyOnePumpStroke = (
   const sensorConfig = createNoNoiseSensorConfig();
   const physicsConfig = DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG;
   let run = createRun(physicsConfig, sensorConfig);
-  for (let index = 0; index < 17; index += 1) {
+  for (let index = 0; index < 18; index += 1) {
     run = applyOnePumpStroke(run, physicsConfig, sensorConfig, 0.2 + index * 0.4);
   }
   const displayAfterPumping = getFreeSensorDisplay(run.sensor, run.calibration, sensorConfig);

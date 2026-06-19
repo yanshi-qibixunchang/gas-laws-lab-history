@@ -73,6 +73,14 @@ import {
   normalizeFreeLeakageConfig,
 } from '../../domain/heatCapacity/heatCapacityFreeLeakageModel.ts';
 import {
+  DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG,
+  normalizeFreePumpValveExchangeConfig,
+} from '../../domain/heatCapacity/heatCapacityFreePumpValveExchangeModel.ts';
+import {
+  DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_DISTURBANCE_CONFIG,
+  normalizeFreeEnvironmentDisturbanceConfig,
+} from '../../domain/heatCapacity/heatCapacityFreeEnvironmentDisturbanceModel.ts';
+import {
   createDefaultFreeSensorState,
   createSeededFreePressureInitialBiasMv,
   HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE,
@@ -81,6 +89,10 @@ import {
   type HeatCapacityFreeSensorConfig,
   type HeatCapacityFreeSensorState,
 } from '../../domain/heatCapacity/heatCapacityFreeSensorModel.ts';
+import {
+  DEFAULT_HEAT_CAPACITY_FREE_PRESSURE_SENSOR_NONLINEARITY_CONFIG,
+  normalizeFreePressureSensorNonlinearityConfig,
+} from '../../domain/heatCapacity/heatCapacityFreePressureSensorNonlinearityModel.ts';
 import {
   applyFreeZeroCalibration,
   captureAutomaticU0IfReady,
@@ -215,7 +227,7 @@ export const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsC
   vesselVolumeL: 2,
   gamma: 1.4,
   pumpAmountGainRatio: 0.00345,
-  pumpPressureLimitKPa: 108.3,
+  pumpPressureLimitKPa: 109,
   pumpInflowTemperatureRiseK: 42,
   stopcockFlowRate: 4,
   thermal: {
@@ -223,6 +235,18 @@ export const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsC
     wallAmbientConductanceWPerK: 0.45,
     wallHeatCapacityJPerK: 45,
     minimumGasHeatCapacityJPerK: 0.1,
+  },
+  pumpValveExchange: {
+    ...DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG,
+    enabled: true,
+    gasExchangeRatePerS: 0.005,
+    thermalConductanceWPerK: 0.004,
+    chamberTemperatureRiseK: 1.5,
+    openingDelayS: HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS / 1000,
+  },
+  environmentDisturbance: {
+    ...DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_DISTURBANCE_CONFIG,
+    enabled: true,
   },
   leakage: {
     enabled: true,
@@ -239,6 +263,13 @@ export const DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG: HeatCapacityFreeSensorCon
   minSampleIntervalS: 0.08,
   maxSampleIntervalS: 0.12,
   historyWindowS: 2,
+  pressureNonlinearity: {
+    ...DEFAULT_HEAT_CAPACITY_FREE_PRESSURE_SENSOR_NONLINEARITY_CONFIG,
+    enabled: true,
+    kneeMv: 15,
+    minGain: 0.55,
+    exponent: 1.4,
+  },
 };
 const normalizeHeatCapacityFreeSensorConfig = (
   config: Partial<HeatCapacityFreeSensorConfig> | null | undefined,
@@ -252,6 +283,9 @@ const normalizeHeatCapacityFreeSensorConfig = (
   ),
   minSampleIntervalS: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.minSampleIntervalS,
   maxSampleIntervalS: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.maxSampleIntervalS,
+  pressureNonlinearity: normalizeFreePressureSensorNonlinearityConfig(
+    config?.pressureNonlinearity ?? DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.pressureNonlinearity,
+  ),
 });
 export const normalizeHeatCapacityFreeEquilibriumSpeedMultiplier = (
   value: unknown,
@@ -314,6 +348,12 @@ export const normalizeHeatCapacityFreePhysicsConfig = (
       DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.stopcockFlowRate,
     )),
     thermal: normalizeFreeThermalConfig(value?.thermal),
+    pumpValveExchange: normalizeFreePumpValveExchangeConfig(
+      value?.pumpValveExchange ?? DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpValveExchange,
+    ),
+    environmentDisturbance: normalizeFreeEnvironmentDisturbanceConfig(
+      value?.environmentDisturbance ?? DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.environmentDisturbance,
+    ),
     leakage: normalizeFreeLeakageConfig(value?.leakage),
   };
 };
@@ -1535,6 +1575,12 @@ const createHeatCapacityFreeConfigSnapshotFromFile = (
       pumpInflowTemperatureRiseK: file.heatCapacityFreePhysicsConfig.pumpInflowTemperatureRiseK,
       stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
       thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
+      pumpValveExchange: normalizeFreePumpValveExchangeConfig(
+        file.heatCapacityFreePhysicsConfig.pumpValveExchange,
+      ),
+      environmentDisturbance: normalizeFreeEnvironmentDisturbanceConfig(
+        file.heatCapacityFreePhysicsConfig.environmentDisturbance,
+      ),
       leakage: { ...file.heatCapacityFreePhysicsConfig.leakage },
     },
     sensor: {
@@ -1648,12 +1694,19 @@ const buildHeatCapacityFreeTraceSampleInput = (
       pumpStrokeCount: file.heatCapacityFreePhysicsState.pumpStrokeCount,
       releaseStarted: file.heatCapacityFreePhysicsState.releaseStarted,
       currentStopcockOpenDurationS: file.heatCapacityFreePhysicsState.currentStopcockOpenDurationS,
+      ambientPressureOffsetKPa: file.heatCapacityFreePhysicsState.ambientPressureOffsetKPa,
+      ambientTemperatureOffsetK: file.heatCapacityFreePhysicsState.ambientTemperatureOffsetK,
+      effectiveAmbientPressureKPa: file.heatCapacityFreePhysicsState.effectiveAmbientPressureKPa,
+      effectiveAmbientTemperatureK: file.heatCapacityFreePhysicsState.effectiveAmbientTemperatureK,
     },
     sensor: {
       displayPressureMv: display.displayPressureMv,
       displayTemperatureMv: display.displayTemperatureMv,
       pressureSlopeMvPerS: file.heatCapacityFreeSensorState.pressureSlopeMvPerS,
       temperatureSlopeMvPerS: file.heatCapacityFreeSensorState.temperatureSlopeMvPerS,
+      pressureReliability: file.heatCapacityFreeSensorState.pressureReliability,
+      pressureNonlinearErrorMv: file.heatCapacityFreeSensorState.pressureNonlinearErrorMv,
+      pressureStochasticErrorMv: file.heatCapacityFreeSensorState.pressureStochasticErrorMv,
     },
     calibration: {
       calibrationVersion: file.heatCapacityFreeCalibrationState.calibrationVersion,
@@ -3076,7 +3129,7 @@ export const createDefaultHeatCapacityFreeRuntimeFields = (
     heatCapacityFreeInstrumentNoiseEnabled: parameterState.instrumentNoiseEnabled,
     heatCapacityFreeEnvironmentConfig: { ...physicsConfig.environment },
     heatCapacityFreePhysicsConfig: physicsConfig,
-    heatCapacityFreePhysicsState: createDefaultFreePhysicsState(physicsConfig),
+    heatCapacityFreePhysicsState: createDefaultFreePhysicsState(physicsConfig, seed),
     heatCapacityFreeSensorConfig: sensorConfig,
     heatCapacityFreeSensorState: createDefaultFreeSensorState(seed, {
       pressureMv: pressureInitialBiasMv,

@@ -6,6 +6,16 @@ import {
   stepFreeLeakageAmountRatio,
   type HeatCapacityFreeLeakageConfig,
 } from './heatCapacityFreeLeakageModel.ts';
+import {
+  DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG,
+  stepFreePumpValveExchange,
+  type HeatCapacityFreePumpValveExchangeConfig,
+} from './heatCapacityFreePumpValveExchangeModel.ts';
+import {
+  DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_DISTURBANCE_CONFIG,
+  sampleFreeEnvironmentDisturbance,
+  type HeatCapacityFreeEnvironmentDisturbanceConfig,
+} from './heatCapacityFreeEnvironmentDisturbanceModel.ts';
 
 export interface HeatCapacityFreeEnvironmentConfig {
   ambientTemperatureK: number;
@@ -21,6 +31,8 @@ export interface HeatCapacityFreePhysicsConfig {
   pumpInflowTemperatureRiseK: number;
   stopcockFlowRate: number;
   thermal: HeatCapacityFreeThermalConfig;
+  pumpValveExchange?: HeatCapacityFreePumpValveExchangeConfig;
+  environmentDisturbance?: HeatCapacityFreeEnvironmentDisturbanceConfig;
   leakage: HeatCapacityFreeLeakageConfig;
 }
 
@@ -38,6 +50,14 @@ export interface HeatCapacityFreePhysicsState {
   pumpProcesses: HeatCapacityFreePumpProcess[];
   pumpStrokeCount: number;
   lastPumpStrokeAtS: number | null;
+  lastPumpValveOpenedAtS: number | null;
+  lastPumpValveClosedAtS: number | null;
+  currentPumpValveOpenDurationS: number;
+  environmentDisturbanceSeed: number | string;
+  ambientPressureOffsetKPa: number;
+  ambientTemperatureOffsetK: number;
+  effectiveAmbientPressureKPa: number;
+  effectiveAmbientTemperatureK: number;
   maxPressureKPa: number;
   releaseStarted: boolean;
   lastStopcockOpenedAtS: number | null;
@@ -110,6 +130,14 @@ const isStopcockCurrentlyOpen = (state: HeatCapacityFreePhysicsState) => (
   )
 );
 
+const isPumpValveCurrentlyOpen = (state: HeatCapacityFreePhysicsState) => (
+  state.lastPumpValveOpenedAtS !== null &&
+  (
+    state.lastPumpValveClosedAtS === null ||
+    state.lastPumpValveOpenedAtS >= state.lastPumpValveClosedAtS
+  )
+);
+
 export const getFreePumpStrokeProgress = (elapsedS: number) => {
   const elapsed = clampNonNegativeFinite(elapsedS);
   if (elapsed >= FREE_PUMP_STROKE_DURATION_S - 1e-9) return 1;
@@ -129,17 +157,24 @@ export const deriveFreePhysicalState = (
   state: HeatCapacityFreePhysicsState,
   config: HeatCapacityFreePhysicsConfig,
 ) => {
-  const gasPressureKPa = config.environment.ambientPressureKPa *
+  const ambientPressureKPa = Number.isFinite(state.effectiveAmbientPressureKPa)
+    ? state.effectiveAmbientPressureKPa
+    : config.environment.ambientPressureKPa;
+  const ambientTemperatureK = Number.isFinite(state.effectiveAmbientTemperatureK)
+    ? state.effectiveAmbientTemperatureK
+    : config.environment.ambientTemperatureK;
+  const gasPressureKPa = ambientPressureKPa *
     state.gasAmountRatio *
-    (state.gasTemperatureK / config.environment.ambientTemperatureK);
+    (state.gasTemperatureK / ambientTemperatureK);
   return {
     gasPressureKPa,
-    pressureDeltaKPa: gasPressureKPa - config.environment.ambientPressureKPa,
+    pressureDeltaKPa: gasPressureKPa - ambientPressureKPa,
   };
 };
 
 export const createDefaultFreePhysicsState = (
   config: HeatCapacityFreePhysicsConfig,
+  environmentDisturbanceSeed: number | string = 'free-physics',
 ): HeatCapacityFreePhysicsState => ({
   simulationTimeS: 0,
   gasAmountRatio: 1,
@@ -148,6 +183,14 @@ export const createDefaultFreePhysicsState = (
   pumpProcesses: [],
   pumpStrokeCount: 0,
   lastPumpStrokeAtS: null,
+  lastPumpValveOpenedAtS: null,
+  lastPumpValveClosedAtS: null,
+  currentPumpValveOpenDurationS: 0,
+  environmentDisturbanceSeed,
+  ambientPressureOffsetKPa: 0,
+  ambientTemperatureOffsetK: 0,
+  effectiveAmbientPressureKPa: config.environment.ambientPressureKPa,
+  effectiveAmbientTemperatureK: config.environment.ambientTemperatureK,
   maxPressureKPa: config.environment.ambientPressureKPa,
   releaseStarted: false,
   lastStopcockOpenedAtS: null,
@@ -553,6 +596,92 @@ const stepSealedLeakageAmountRatio = (
   },
 );
 
+const applyEnvironmentDisturbanceState = (
+  state: HeatCapacityFreePhysicsState,
+  config: HeatCapacityFreePhysicsConfig,
+  atS: number,
+) => {
+  const sample = sampleFreeEnvironmentDisturbance(
+    config.environmentDisturbance ?? DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_DISTURBANCE_CONFIG,
+    {
+      ambientPressureKPa: config.environment.ambientPressureKPa,
+      ambientTemperatureK: config.environment.ambientTemperatureK,
+      timeS: atS,
+      seed: state.environmentDisturbanceSeed ?? 'free-physics',
+    },
+  );
+  return {
+    ...state,
+    ambientPressureOffsetKPa: sample.pressureOffsetKPa,
+    ambientTemperatureOffsetK: sample.temperatureOffsetK,
+    effectiveAmbientPressureKPa: sample.ambientPressureKPa,
+    effectiveAmbientTemperatureK: sample.ambientTemperatureK,
+  };
+};
+
+const createEffectiveEnvironmentConfig = (
+  config: HeatCapacityFreePhysicsConfig,
+  state: HeatCapacityFreePhysicsState,
+): HeatCapacityFreePhysicsConfig => ({
+  ...config,
+  environment: {
+    ambientPressureKPa: Number.isFinite(state.effectiveAmbientPressureKPa)
+      ? state.effectiveAmbientPressureKPa
+      : config.environment.ambientPressureKPa,
+    ambientTemperatureK: Number.isFinite(state.effectiveAmbientTemperatureK)
+      ? state.effectiveAmbientTemperatureK
+      : config.environment.ambientTemperatureK,
+  },
+});
+
+const stepPumpValveExchangeState = (
+  state: HeatCapacityFreePhysicsState,
+  config: HeatCapacityFreePhysicsConfig,
+  dtS: number,
+  valveOpenElapsedBeforeS: number,
+) => {
+  const result = stepFreePumpValveExchange(
+    {
+      gasAmountRatio: state.gasAmountRatio,
+      gasTemperatureK: state.gasTemperatureK,
+    },
+    config.pumpValveExchange ?? DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG,
+    {
+      ambientPressureKPa: config.environment.ambientPressureKPa,
+      ambientTemperatureK: config.environment.ambientTemperatureK,
+      vesselVolumeL: config.vesselVolumeL,
+      gamma: config.gamma,
+      dtS,
+      valveOpenElapsedBeforeS,
+    },
+  );
+  return {
+    ...state,
+    gasAmountRatio: result.state.gasAmountRatio,
+    gasTemperatureK: result.state.gasTemperatureK,
+  };
+};
+
+const applyPumpValveTiming = (
+  state: HeatCapacityFreePhysicsState,
+  controls: HeatCapacityFreeControls,
+  wasPumpValveOpen: boolean,
+  pumpValveOpenElapsedBeforeS: number,
+  dtS: number,
+  atS: number,
+): HeatCapacityFreePhysicsState => {
+  const newlyOpened = controls.pumpValveOpen && !wasPumpValveOpen;
+  const newlyClosed = !controls.pumpValveOpen && wasPumpValveOpen;
+  return {
+    ...state,
+    lastPumpValveOpenedAtS: newlyOpened ? atS : state.lastPumpValveOpenedAtS,
+    lastPumpValveClosedAtS: newlyClosed ? atS : state.lastPumpValveClosedAtS,
+    currentPumpValveOpenDurationS: controls.pumpValveOpen
+      ? pumpValveOpenElapsedBeforeS + clampNonNegativeFinite(dtS)
+      : 0,
+  };
+};
+
 const stepOpenState = (
   state: HeatCapacityFreePhysicsState,
   config: HeatCapacityFreePhysicsConfig,
@@ -598,30 +727,52 @@ export const stepFreePhysics = (
   dtS: number,
   atS: number,
 ): HeatCapacityFreePhysicsState => {
-  const wasStopcockOpen = isStopcockCurrentlyOpen(state);
-  const pumpedState = stepPumpProcesses(state, config, atS);
+  const environmentState = applyEnvironmentDisturbanceState(state, config, atS);
+  const effectiveConfig = createEffectiveEnvironmentConfig(config, environmentState);
+  const wasStopcockOpen = isStopcockCurrentlyOpen(environmentState);
+  const wasPumpValveOpen = isPumpValveCurrentlyOpen(environmentState);
+  const pumpValveOpenElapsedBeforeS = controls.pumpValveOpen
+    ? (wasPumpValveOpen ? environmentState.currentPumpValveOpenDurationS : 0)
+    : 0;
+  const pumpedState = stepPumpProcesses(environmentState, effectiveConfig, atS);
 
   if (!controls.stopcockOpen) {
-    const thermal = stepThermalState(pumpedState, config, dtS);
+    const thermal = stepThermalState(pumpedState, effectiveConfig, dtS);
     const gasAmountRatio = stepSealedLeakageAmountRatio(
       pumpedState,
-      config,
+      effectiveConfig,
       thermal.state.gasTemperatureK,
       dtS,
     );
-    const closedState: HeatCapacityFreePhysicsState = {
+    const thermalLeakageState: HeatCapacityFreePhysicsState = {
       ...pumpedState,
       simulationTimeS: atS,
       gasAmountRatio,
       gasTemperatureK: thermal.state.gasTemperatureK,
       wallTemperatureK: thermal.state.wallTemperatureK,
-      lastStopcockClosedAtS: wasStopcockOpen ? atS : state.lastStopcockClosedAtS,
+      lastStopcockClosedAtS: wasStopcockOpen ? atS : environmentState.lastStopcockClosedAtS,
       currentStopcockOpenDurationS: 0,
     };
-    const closedPressureKPa = deriveFreePhysicalState(closedState, config).gasPressureKPa;
+    const pumpValveExchangedState = controls.pumpValveOpen
+      ? stepPumpValveExchangeState(
+        thermalLeakageState,
+        effectiveConfig,
+        dtS,
+        pumpValveOpenElapsedBeforeS,
+      )
+      : thermalLeakageState;
+    const closedState = applyPumpValveTiming(
+      pumpValveExchangedState,
+      controls,
+      wasPumpValveOpen,
+      pumpValveOpenElapsedBeforeS,
+      dtS,
+      atS,
+    );
+    const closedPressureKPa = deriveFreePhysicalState(closedState, effectiveConfig).gasPressureKPa;
     return {
       ...closedState,
-      maxPressureKPa: Math.max(state.maxPressureKPa, closedPressureKPa),
+      maxPressureKPa: Math.max(environmentState.maxPressureKPa, closedPressureKPa),
     };
   }
 
@@ -635,7 +786,7 @@ export const stepFreePhysics = (
       : state.currentStopcockOpenDurationS + clampNonNegativeFinite(dtS),
   };
   const openingReleaseReference = newlyOpened
-    ? createReleaseReference(openedBaseState, config, atS)
+    ? createReleaseReference(openedBaseState, effectiveConfig, atS)
     : null;
   const releaseCandidate: HeatCapacityFreePhysicsState = openingReleaseReference
       ? {
@@ -644,11 +795,19 @@ export const stepFreePhysics = (
         releaseReference: openedBaseState.releaseReference ?? openingReleaseReference,
       }
     : openedBaseState;
-  const flowedState = stepOpenState(releaseCandidate, config, dtS, atS);
-  const pressureKPa = deriveFreePhysicalState(flowedState, config).gasPressureKPa;
+  const flowedState = stepOpenState(releaseCandidate, effectiveConfig, dtS, atS);
+  const timedFlowedState = applyPumpValveTiming(
+    flowedState,
+    controls,
+    wasPumpValveOpen,
+    pumpValveOpenElapsedBeforeS,
+    dtS,
+    atS,
+  );
+  const pressureKPa = deriveFreePhysicalState(timedFlowedState, effectiveConfig).gasPressureKPa;
 
   return {
-    ...flowedState,
-    maxPressureKPa: Math.max(state.maxPressureKPa, pressureKPa),
+    ...timedFlowedState,
+    maxPressureKPa: Math.max(environmentState.maxPressureKPa, pressureKPa),
   };
 };

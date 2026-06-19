@@ -6,6 +6,16 @@ import {
   type HeatCapacityFreeLeakageConfig,
 } from './heatCapacityFreeLeakageModel.ts';
 import {
+  DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG,
+  normalizeFreePumpValveExchangeConfig,
+  type HeatCapacityFreePumpValveExchangeConfig,
+} from './heatCapacityFreePumpValveExchangeModel.ts';
+import {
+  DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_DISTURBANCE_CONFIG,
+  normalizeFreeEnvironmentDisturbanceConfig,
+  type HeatCapacityFreeEnvironmentDisturbanceConfig,
+} from './heatCapacityFreeEnvironmentDisturbanceModel.ts';
+import {
   HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA,
   HEAT_CAPACITY_FREE_FALLBACK_PRESSURE_DANGER_RATIO,
   type HeatCapacityFreeEnvironmentConfig,
@@ -17,6 +27,10 @@ import {
 import {
   type HeatCapacityFreeSensorConfig,
 } from './heatCapacityFreeSensorModel.ts';
+import {
+  DEFAULT_HEAT_CAPACITY_FREE_PRESSURE_SENSOR_NONLINEARITY_CONFIG,
+  normalizeFreePressureSensorNonlinearityConfig,
+} from './heatCapacityFreePressureSensorNonlinearityModel.ts';
 import {
   normalizeFreeThermalConfig,
   type HeatCapacityFreeThermalConfig,
@@ -74,17 +88,34 @@ const DEFAULT_HEAT_CAPACITY_FREE_LEAKAGE_CONFIG: HeatCapacityFreeLeakageConfig =
   ratePerS: 0.00005,
 };
 
+const DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_REALISTIC_CONFIG: HeatCapacityFreePumpValveExchangeConfig = {
+  ...DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG,
+  enabled: true,
+  gasExchangeRatePerS: 0.005,
+  thermalConductanceWPerK: 0.004,
+  chamberTemperatureRiseK: 1.5,
+  openingDelayS: 0.42,
+};
+
+const DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_DISTURBANCE_REALISTIC_CONFIG: HeatCapacityFreeEnvironmentDisturbanceConfig = {
+  ...DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_DISTURBANCE_CONFIG,
+  enabled: true,
+};
+
 export const HEAT_CAPACITY_FREE_PUMP_STROKE_VOLUME_L = 0.0069;
+const HEAT_CAPACITY_FREE_PUMP_TRANSIENT_PRESSURE_MARGIN_KPA = 0.7;
 
 const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsConfig = {
   environment: DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG,
   vesselVolumeL: 2,
   gamma: 1.4,
   pumpAmountGainRatio: 0.00345,
-  pumpPressureLimitKPa: 108.3,
+  pumpPressureLimitKPa: 109,
   pumpInflowTemperatureRiseK: 42,
   stopcockFlowRate: 4,
   thermal: DEFAULT_HEAT_CAPACITY_FREE_THERMAL_CONFIG,
+  pumpValveExchange: DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_REALISTIC_CONFIG,
+  environmentDisturbance: DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_DISTURBANCE_REALISTIC_CONFIG,
   leakage: DEFAULT_HEAT_CAPACITY_FREE_LEAKAGE_CONFIG,
 };
 
@@ -98,6 +129,13 @@ const DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG: HeatCapacityFreeSensorConfig = {
   minSampleIntervalS: 0.08,
   maxSampleIntervalS: 0.12,
   historyWindowS: 2,
+  pressureNonlinearity: {
+    ...DEFAULT_HEAT_CAPACITY_FREE_PRESSURE_SENSOR_NONLINEARITY_CONFIG,
+    enabled: true,
+    kneeMv: 15,
+    minGain: 0.55,
+    exponent: 1.4,
+  },
 };
 
 const DEFAULT_HEAT_CAPACITY_FREE_RECORD_CONFIG: HeatCapacityFreeRecordConfig = {
@@ -154,7 +192,12 @@ export const getHeatCapacityFreePressureDangerLimitKPa = (
     DEFAULT_HEAT_CAPACITY_FREE_RECORD_CONFIG.pressureDangerMv,
     0,
   );
-  const configuredLimitKPa = ambientPressureKPa + pressureDangerMv / pressureMvPerKPa;
+  const pressureDangerDeltaKPa = pressureDangerMv / pressureMvPerKPa;
+  const transientMarginKPa = Math.min(
+    HEAT_CAPACITY_FREE_PUMP_TRANSIENT_PRESSURE_MARGIN_KPA,
+    pressureDangerDeltaKPa * 0.1,
+  );
+  const configuredLimitKPa = ambientPressureKPa + pressureDangerDeltaKPa + transientMarginKPa;
   const fallbackLimitKPa = ambientPressureKPa * HEAT_CAPACITY_FREE_FALLBACK_PRESSURE_DANGER_RATIO;
   const normalLimitKPa = Number.isFinite(configuredLimitKPa)
     ? configuredLimitKPa
@@ -234,6 +277,12 @@ const normalizeHeatCapacityFreePhysicsConfig = (
       0,
     ),
     thermal: normalizeFreeThermalConfig(value?.thermal),
+    pumpValveExchange: normalizeFreePumpValveExchangeConfig(
+      value?.pumpValveExchange ?? DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpValveExchange,
+    ),
+    environmentDisturbance: normalizeFreeEnvironmentDisturbanceConfig(
+      value?.environmentDisturbance ?? DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.environmentDisturbance,
+    ),
     leakage: normalizeFreeLeakageConfig(value?.leakage),
   };
 };
@@ -284,6 +333,9 @@ const normalizeHeatCapacityFreeSensorConfig = (
     value?.historyWindowS,
     DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.historyWindowS,
     0.001,
+  ),
+  pressureNonlinearity: normalizeFreePressureSensorNonlinearityConfig(
+    value?.pressureNonlinearity ?? DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.pressureNonlinearity,
   ),
 });
 
@@ -488,4 +540,9 @@ export const getEffectiveHeatCapacityFreeSensorConfig = (
 ): HeatCapacityFreeSensorConfig => ({
   ...sensorConfig,
   noiseMv: instrumentNoiseEnabled ? sensorConfig.noiseMv : 0,
+  pressureNonlinearity: {
+    ...normalizeFreePressureSensorNonlinearityConfig(sensorConfig.pressureNonlinearity),
+    enabled: instrumentNoiseEnabled &&
+      normalizeFreePressureSensorNonlinearityConfig(sensorConfig.pressureNonlinearity).enabled,
+  },
 });
