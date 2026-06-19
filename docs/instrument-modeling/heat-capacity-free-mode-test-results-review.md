@@ -1,6 +1,7 @@
-# Free Mode 当前模型测试结果临时审核表
+# Free Mode 旧模型测试结果临时审核表
 
 > 临时审核文件。你审核完之后，可以直接删除本文件。
+> 注意：本文记录的是旧打气模型下的历史测试结果，当前模型已改为“进气量驱动，温度/压强由状态推导”，数值不可作为当前验收标准。
 
 生成日期：2026-06-19
 
@@ -11,8 +12,8 @@
 - 默认漏气：开启，`ratePerS = 0.00005`
 - 默认热交换：`gasWallConductanceWPerK = 0.14`，`wallAmbientConductanceWPerK = 0.45`，`wallHeatCapacityJPerK = 45`
 - 默认放气流量：`stopcockFlowRate = 4`
-- 默认单次打气增压：`pumpAmountGainRatio = 0.015`
-- 默认单次打气升温：`pumpTemperatureGainK = 0.35`
+- 旧模型默认单次打气量：`pumpAmountGainRatio = 0.015`
+- 旧模型默认单次直接升温：`pumpTemperatureGainK = 0.35`
 - 本表测试时关闭了仪器噪声，方便单独观察底层模型趋势。
 
 ## 1. 基准操作

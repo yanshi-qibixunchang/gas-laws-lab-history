@@ -525,7 +525,7 @@ const systemEventMap: Partial<Record<HeatCapacityFreeEventType, {
   kind: HeatCapacityProcessSystemKind;
   label: string;
 }>> = {
-  'pressure-warning': { kind: 'warning', label: '预警' },
+  'pressure-warning': { kind: 'warning', label: '建议停止打气' },
   'pressure-danger': { kind: 'danger', label: '报警' },
   'record-blocked': { kind: 'blocked', label: '拦截' },
   'record-invalidated': { kind: 'retake', label: '重录' },

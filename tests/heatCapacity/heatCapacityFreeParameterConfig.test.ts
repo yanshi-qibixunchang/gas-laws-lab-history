@@ -25,7 +25,7 @@ const physicsConfig: HeatCapacityFreePhysicsConfig = {
   gamma: 1.37,
   pumpAmountGainRatio: 0.0065,
   pumpPressureLimitKPa: 112,
-  pumpTemperatureGainK: 0.35,
+  pumpInflowTemperatureRiseK: 42,
   stopcockFlowRate: 4.4,
   thermal: {
     gasWallConductanceWPerK: 0.45,
@@ -89,7 +89,7 @@ const excludedDraftKeys = [
   'stopcockFlowRate',
   'gammaRef',
   'pumpAmountGainRatio',
-  'pumpTemperatureGainK',
+  'pumpInflowTemperatureRiseK',
   'minimumGasHeatCapacityJPerK',
   'quantizationMv',
   'temperatureMvPerK',
@@ -99,7 +99,7 @@ const draft = createHeatCapacityFreeParameterDraftFromConfigs(
   physicsConfig,
   sensorConfig,
   recordConfig,
-  115,
+  120,
   true,
 );
 

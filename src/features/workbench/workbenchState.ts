@@ -192,7 +192,7 @@ export const HEAT_CAPACITY_FREE_RUNTIME_VERSION = 5;
 export const HEAT_CAPACITY_PUMP_FREQUENCY_WINDOW_MS = 3000;
 export const HEAT_CAPACITY_MIN_PUMP_FREQUENCY = 0.5;
 export const HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV = 90;
-export const HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 115;
+export const HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 120;
 export const HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV = 140;
 export const HEAT_CAPACITY_RELEASE_BURST_DURATION_MS = 1_000;
 export const HEAT_CAPACITY_PRESSURE_RAW_PLACEHOLDER_MV = 3.2;
@@ -214,9 +214,9 @@ export const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsC
   environment: DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG,
   vesselVolumeL: 2,
   gamma: 1.4,
-  pumpAmountGainRatio: 0.015,
+  pumpAmountGainRatio: 0.00345,
   pumpPressureLimitKPa: 108.3,
-  pumpTemperatureGainK: 0.35,
+  pumpInflowTemperatureRiseK: 42,
   stopcockFlowRate: 4,
   thermal: {
     gasWallConductanceWPerK: 0.14,
@@ -302,9 +302,12 @@ export const normalizeHeatCapacityFreePhysicsConfig = (
       0.001,
       HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA,
     ),
-    pumpTemperatureGainK: finiteNumberOr(
-      value?.pumpTemperatureGainK,
-      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpTemperatureGainK,
+    pumpInflowTemperatureRiseK: finiteNumberOr(
+      value?.pumpInflowTemperatureRiseK,
+      finiteNumberOr(
+        (value as { pumpTemperatureGainK?: unknown } | null | undefined)?.pumpTemperatureGainK,
+        DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpInflowTemperatureRiseK,
+      ),
     ),
     stopcockFlowRate: Math.max(0, finiteNumberOr(
       value?.stopcockFlowRate,
@@ -476,9 +479,9 @@ export const getHeatCapacityGaugePressureState = (
         ? 'warning'
         : 'normal';
   const pressureSafetyMessage = pressureSafetyStatus === 'danger'
-    ? '压强已超过安全阈值，请停止打气。'
+    ? '压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。'
     : pressureSafetyStatus === 'warning'
-      ? '压强接近安全阈值，请准备停止打气。'
+      ? '压强已达到建议打气范围，请停止打气并等待回温。'
       : null;
   return {
     ...gaugeConfig,
@@ -1529,7 +1532,7 @@ const createHeatCapacityFreeConfigSnapshotFromFile = (
       vesselVolumeL: file.heatCapacityFreePhysicsConfig.vesselVolumeL,
       pumpAmountGainRatio: file.heatCapacityFreePhysicsConfig.pumpAmountGainRatio,
       pumpPressureLimitKPa: file.heatCapacityFreePhysicsConfig.pumpPressureLimitKPa,
-      pumpTemperatureGainK: file.heatCapacityFreePhysicsConfig.pumpTemperatureGainK,
+      pumpInflowTemperatureRiseK: file.heatCapacityFreePhysicsConfig.pumpInflowTemperatureRiseK,
       stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
       thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
       leakage: { ...file.heatCapacityFreePhysicsConfig.leakage },
@@ -2328,7 +2331,7 @@ export const registerHeatCapacityPumpStroke = (
         pressureSafetyMessage: currentGaugePressureState.pressureSafetyMessage,
         pressureBlockedPumping: currentGaugePressureState.pressureBlockedPumping,
         pressureOverLimit: currentGaugePressureState.pressureOverLimit,
-        pumpHint: '压强已超过安全阈值，请停止打气。',
+        pumpHint: '压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。',
         pumpBulbState: 'releasing',
         updatedAt: now,
       };
@@ -2353,7 +2356,7 @@ export const registerHeatCapacityPumpStroke = (
         : stroke.reason === 'stopcockOpen'
           ? '玻璃旋塞已打开，无法形成有效加压'
           : stroke.reason === 'pressureDanger'
-            ? '压强已超过安全阈值，请停止打气。'
+            ? '压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。'
             : '打气阀门未打开，无法有效打气';
       return {
         ...currentFile,
@@ -2426,7 +2429,7 @@ export const registerHeatCapacityPumpStroke = (
       pressureSafetyMessage: currentGaugePressureState.pressureSafetyMessage,
       pressureBlockedPumping: currentGaugePressureState.pressureBlockedPumping,
       pressureOverLimit: currentGaugePressureState.pressureOverLimit,
-      pumpHint: currentGaugePressureState.pressureSafetyMessage ?? '压强已超过安全阈值，请停止打气。',
+      pumpHint: currentGaugePressureState.pressureSafetyMessage ?? '压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。',
       pumpBulbState: 'releasing',
       updatedAt: now,
     };

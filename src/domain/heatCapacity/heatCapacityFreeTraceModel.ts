@@ -3,7 +3,7 @@ import type {
 } from './heatCapacityExperimentModel.ts';
 
 export const HEAT_CAPACITY_FREE_TRACE_VERSION = 4;
-export const HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION = 6;
+export const HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION = 7;
 export const HEAT_CAPACITY_FREE_CALCULATION_VERSION = 'log-pressure-v1' as const;
 export const HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S = 0.04;
 
@@ -149,7 +149,7 @@ export interface HeatCapacityFreeEvent {
 export type HeatCapacityFreeEventInput = Omit<HeatCapacityFreeEvent, 'id' | 'index'>;
 
 export interface HeatCapacityFreeConfigSnapshot {
-  version: 6;
+  version: 7;
   environment: {
     ambientPressureKPa: number;
     ambientTemperatureK: number;
@@ -159,7 +159,7 @@ export interface HeatCapacityFreeConfigSnapshot {
     vesselVolumeL: number;
     pumpAmountGainRatio: number;
     pumpPressureLimitKPa: number;
-    pumpTemperatureGainK: number;
+    pumpInflowTemperatureRiseK: number;
     pumpStrokeDurationS: number;
     recommendedPumpIntervalS: number;
     stopcockFlowRate: number;
@@ -219,9 +219,9 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
   physics: {
     gamma: 1.4,
     vesselVolumeL: 2,
-    pumpAmountGainRatio: 0.015,
+    pumpAmountGainRatio: 0.00345,
     pumpPressureLimitKPa: 108.3,
-    pumpTemperatureGainK: 0.35,
+    pumpInflowTemperatureRiseK: 42,
     pumpStrokeDurationS: 0.08,
     recommendedPumpIntervalS: 0.1,
     stopcockFlowRate: 4,
@@ -258,7 +258,7 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
     temperatureAmbientToleranceMv: 0.35,
     minimumUsefulU1CorrectedMv: 90,
     overVentedMinimumU2CorrectedMv: 0.2,
-    pressureWarningMv: 115,
+    pressureWarningMv: 120,
     pressureDangerMv: 140,
   },
   scoring: {

@@ -17,7 +17,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
   scenarios: [
     {
       id: 'T0',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
       openDurationS: 0.25,
@@ -28,7 +28,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
     },
     {
       id: 'R1-u1-early',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 280,
       openDurationS: 0.25,
@@ -39,7 +39,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
     },
     {
       id: 'R2-u2-late',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
       openDurationS: 0.25,
@@ -50,7 +50,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
     },
     {
       id: 'R3-open-fast',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
       openDurationS: 0.15,
@@ -61,7 +61,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
     },
     {
       id: 'R4-pump-3s',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 3,
       waitAfterPumpS: 300,
       openDurationS: 0.25,
@@ -72,7 +72,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
     },
     {
       id: 'E1-open-too-fast',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
       openDurationS: 0.1,
@@ -83,7 +83,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
     },
     {
       id: 'E2-open-long',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
       openDurationS: 2.25,
@@ -94,7 +94,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
     },
     {
       id: 'E3-u2-early',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
       openDurationS: 0.25,
@@ -105,7 +105,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
     },
     {
       id: 'E3-u2-60s',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
       openDurationS: 0.25,
@@ -116,7 +116,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
     },
     {
       id: 'E4-pump-30s',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 30,
       waitAfterPumpS: 300,
       openDurationS: 0.25,
@@ -127,7 +127,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
     },
     {
       id: 'E4-pump-60s',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 60,
       waitAfterPumpS: 300,
       openDurationS: 0.25,
@@ -138,7 +138,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
     },
     {
       id: 'L1-weak-leak-long',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
       openDurationS: 0.25,
@@ -149,7 +149,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
     },
     {
       id: 'L2-strong-leak',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
       openDurationS: 0.25,
@@ -159,10 +159,10 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       instrumentNoiseEnabled: false,
     },
     {
-      id: 'C1-instant-one-step-4-pump-equivalent',
-      label: 'single instant pressure step equivalent to 4 pump strokes',
+      id: 'C1-instant-one-step-17-pump-equivalent',
+      label: 'single instant pressure step equivalent to 17 pump strokes',
       pumpMode: 'instant-equivalent',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
       openDurationS: 0.25,
@@ -176,7 +176,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       label: 'single instant pump step and ideal instant adiabatic release',
       pumpMode: 'instant-equivalent',
       releaseMode: 'instant-adiabatic-to-ambient',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
       openDurationS: 0.25,
@@ -190,7 +190,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       label: 'single instant pump step and current-model-equivalent instant release',
       pumpMode: 'instant-equivalent',
       releaseMode: 'instant-current-model-equivalent',
-      pumpStrokes: 4,
+      pumpStrokes: 17,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
       openDurationS: 0.25,
@@ -218,7 +218,7 @@ assert.deepEqual(
     'E4-pump-60s',
     'L1-weak-leak-long',
     'L2-strong-leak',
-    'C1-instant-one-step-4-pump-equivalent',
+    'C1-instant-one-step-17-pump-equivalent',
     'C2-instant-pump-ideal-release-core',
     'C3-instant-pump-current-equivalent-release-core',
   ],
@@ -243,7 +243,7 @@ const reasonableFastOpen = targetedById.get('R3-open-fast');
 const reasonablePumpCadence = targetedById.get('R4-pump-3s');
 const oneMinuteU2Record = targetedById.get('E3-u2-60s');
 const verySlowPumpCadence = targetedById.get('E4-pump-60s');
-const instantOneStepFourPumpEquivalent = targetedById.get('C1-instant-one-step-4-pump-equivalent');
+const instantOneStepSeventeenPumpEquivalent = targetedById.get('C1-instant-one-step-17-pump-equivalent');
 const instantIdealReleaseCore = targetedById.get('C2-instant-pump-ideal-release-core');
 const instantCurrentEquivalentReleaseCore = targetedById.get('C3-instant-pump-current-equivalent-release-core');
 assert.notEqual(theoreticalCenter, undefined, 'T0 should exist in targeted acceptance report');
@@ -251,7 +251,7 @@ assert.notEqual(reasonableFastOpen, undefined, 'R3-open-fast should exist in tar
 assert.notEqual(reasonablePumpCadence, undefined, 'R4-pump-3s should exist in targeted acceptance report');
 assert.notEqual(oneMinuteU2Record, undefined, 'E3-u2-60s should exist in targeted acceptance report');
 assert.notEqual(verySlowPumpCadence, undefined, 'E4-pump-60s should exist in targeted acceptance report');
-assert.notEqual(instantOneStepFourPumpEquivalent, undefined, 'instant one-step four-pump-equivalent core calibration should exist');
+assert.notEqual(instantOneStepSeventeenPumpEquivalent, undefined, 'instant one-step 17-pump-equivalent core calibration should exist');
 assert.notEqual(instantIdealReleaseCore, undefined, 'instant ideal release core calibration should exist');
 assert.notEqual(instantCurrentEquivalentReleaseCore, undefined, 'instant current-equivalent release core calibration should exist');
 assert.equal(
@@ -280,33 +280,33 @@ assert.equal(
     reasonablePumpCadence!.gamma !== null &&
     Math.abs(reasonablePumpCadence!.gamma - theoreticalCenter!.gamma) <= 0.005,
   true,
-  '4 pump strokes completed within 3s should stay equivalent to the near-instant theoretical cadence',
+  '17 pump strokes completed within 3s should stay equivalent to the near-instant theoretical cadence',
 );
 assert.equal(
-  instantOneStepFourPumpEquivalent!.pumpStrokes,
-  4,
-  'instant core calibration should preserve the four-pump equivalent count',
+  instantOneStepSeventeenPumpEquivalent!.pumpStrokes,
+  17,
+  'instant core calibration should preserve the 17-pump equivalent count',
 );
 assert.equal(
-  instantOneStepFourPumpEquivalent!.pumpMode,
+  instantOneStepSeventeenPumpEquivalent!.pumpMode,
   'instant-equivalent',
   'instant core calibration should report one state jump instead of runtime pump stroke timing',
 );
 assert.equal(
-  instantOneStepFourPumpEquivalent!.releaseMode,
+  instantOneStepSeventeenPumpEquivalent!.releaseMode,
   'runtime-open-flow',
   'existing instant pump calibration should still use the normal runtime release path',
 );
 assert.equal(
-  instantOneStepFourPumpEquivalent!.u1Recordable && instantOneStepFourPumpEquivalent!.u2Recordable,
+  instantOneStepSeventeenPumpEquivalent!.u1Recordable && instantOneStepSeventeenPumpEquivalent!.u2Recordable,
   true,
-  'instant one-step four-pump-equivalent core calibration should be recordable',
+  'instant one-step 17-pump-equivalent core calibration should be recordable',
 );
 assert.equal(
-  instantOneStepFourPumpEquivalent!.gamma !== null &&
-    Math.abs(instantOneStepFourPumpEquivalent!.gamma - 1.4) <= 0.02,
+  instantOneStepSeventeenPumpEquivalent!.gamma !== null &&
+    Math.abs(instantOneStepSeventeenPumpEquivalent!.gamma - 1.4) <= 0.02,
   true,
-  'instant one-step four-pump-equivalent core calibration should stay close to the 1.4 theoretical gas value',
+  'instant one-step 17-pump-equivalent core calibration should stay close to the 1.4 theoretical gas value',
 );
 assert.equal(
   instantIdealReleaseCore!.pumpMode,
@@ -373,7 +373,7 @@ const tracedConfiguredFile = recordHeatCapacityFreeTraceEventWithReference({
     vesselVolumeL: 2.4,
     pumpAmountGainRatio: 0.0065,
     pumpPressureLimitKPa: 112,
-    pumpTemperatureGainK: 0.35,
+    pumpInflowTemperatureRiseK: 42,
     stopcockFlowRate: 4.4,
     thermal: {
       gasWallConductanceWPerK: 0.45,
@@ -452,14 +452,14 @@ assert.equal(
 assert.equal(twoStroke?.safetyStatus, 'normal', '2 pump strokes should remain below the warning line');
 
 const fourStroke = quickRows.find((row) => row.pumpStrokes === 4);
-assert.equal(fourStroke?.safetyStatus, 'warning', '4 pump strokes should enter warning before the danger line');
+assert.equal(fourStroke?.safetyStatus, 'normal', '4 pump strokes should remain below the suggested stop line in the current per-stroke calibration');
 
 const fiveStroke = quickRows.find((row) => row.pumpStrokes === 5);
-assert.equal(fiveStroke?.safetyStatus, 'warning', '5 pump strokes should be blocked before entering the alarm line');
+assert.equal(fiveStroke?.safetyStatus, 'normal', '5 pump strokes should remain below the suggested stop line in the current per-stroke calibration');
 assert.equal(
   fiveStroke?.u1Recordable,
-  false,
-  '5 requested pump strokes should surface the pressure-danger record guard after the excessive stroke is blocked',
+  true,
+  '5 requested pump strokes should remain recordable for low-pressure diagnostic review',
 );
 
 const slowClose = report.rows.find((row) => row.pumpStrokes === 4 && row.openDurationS === 0.7);

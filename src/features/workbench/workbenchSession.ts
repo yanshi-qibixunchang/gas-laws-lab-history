@@ -256,6 +256,7 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
   const {
     releaseResponseDelayS: _legacyReleaseResponseDelayS,
     releaseMainDurationS: _legacyReleaseMainDurationS,
+    pumpTemperatureGainK: _legacyPumpTemperatureGainK,
     ...physicsRest
   } = physics;
   return {
@@ -278,6 +279,13 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
     physics: {
       ...fallback.physics,
       ...physicsRest,
+      pumpInflowTemperatureRiseK: finiteOrDefault(
+        physics.pumpInflowTemperatureRiseK,
+        finiteOrDefault(
+          _legacyPumpTemperatureGainK,
+          fallback.physics.pumpInflowTemperatureRiseK,
+        ),
+      ),
       releaseVisualResponseDelayS: finiteOrDefault(
         physics.releaseVisualResponseDelayS,
         finiteOrDefault(

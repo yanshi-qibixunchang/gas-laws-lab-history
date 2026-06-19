@@ -92,7 +92,7 @@ const createIdealPhysicsConfig = (
   gamma: config.physics.gamma,
   pumpAmountGainRatio: config.physics.pumpAmountGainRatio,
   pumpPressureLimitKPa: config.physics.pumpPressureLimitKPa,
-  pumpTemperatureGainK: config.physics.pumpTemperatureGainK,
+  pumpInflowTemperatureRiseK: config.physics.pumpInflowTemperatureRiseK,
   stopcockFlowRate: config.physics.stopcockFlowRate,
   thermal: {
     ...config.physics.thermal,
@@ -159,15 +159,13 @@ const getIdealFillEffectiveStrokeCount = (
   const pressureRatioDelta = targetPressureDeltaKPa /
     Math.max(0.000001, config.environment.ambientPressureKPa);
   const amountGain = Math.max(0.000001, config.physics.pumpAmountGainRatio);
-  const temperatureGainRatio = config.physics.pumpTemperatureGainK /
-    Math.max(0.000001, config.environment.ambientTemperatureK);
-  const quadratic = amountGain * temperatureGainRatio;
-  const linear = amountGain + temperatureGainRatio;
-  if (quadratic <= 0) {
-    return Math.max(0, pressureRatioDelta / Math.max(0.000001, linear));
-  }
-  const discriminant = Math.max(0, linear * linear + 4 * quadratic * pressureRatioDelta);
-  return Math.max(0, (-linear + Math.sqrt(discriminant)) / (2 * quadratic));
+  const inflowTemperatureK = Math.max(
+    1,
+    config.environment.ambientTemperatureK + config.physics.pumpInflowTemperatureRiseK,
+  );
+  const pressureGainPerStroke = amountGain *
+    (inflowTemperatureK / Math.max(0.000001, config.environment.ambientTemperatureK));
+  return Math.max(0, pressureRatioDelta / Math.max(0.000001, pressureGainPerStroke));
 };
 
 const getFillDurationS = (
@@ -191,11 +189,21 @@ const applyIdealFillAtProgress = (
   const fillProgress = smoothStepUnit(progress);
   const effectiveStrokeCount = getIdealFillEffectiveStrokeCount(config, targetPressureDeltaKPa);
   const amountDelta = config.physics.pumpAmountGainRatio * effectiveStrokeCount;
-  const gasTemperatureK = config.environment.ambientTemperatureK +
-    config.physics.pumpTemperatureGainK * effectiveStrokeCount * fillProgress;
+  const appliedAmountDelta = amountDelta * fillProgress;
+  const inflowTemperatureK = Math.max(
+    1,
+    config.environment.ambientTemperatureK + config.physics.pumpInflowTemperatureRiseK,
+  );
+  const nextAmountRatio = initialState.gasAmountRatio + appliedAmountDelta;
+  const gasTemperatureK = nextAmountRatio <= 0
+    ? initialState.gasTemperatureK
+    : (
+        initialState.gasAmountRatio * initialState.gasTemperatureK +
+        appliedAmountDelta * inflowTemperatureK
+      ) / nextAmountRatio;
   const filledState: HeatCapacityFreePhysicsState = {
     ...initialState,
-    gasAmountRatio: initialState.gasAmountRatio + amountDelta * fillProgress,
+    gasAmountRatio: nextAmountRatio,
     gasTemperatureK,
     wallTemperatureK: initialState.wallTemperatureK,
     pumpProcesses: [],

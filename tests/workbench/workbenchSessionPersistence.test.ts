@@ -342,7 +342,7 @@ assert.equal(customFreeFile.heatCapacityFreeInstrumentNoiseEnabled, false);
 assert.equal(customFreeFile.heatCapacityFreePressureWarningMv, 123);
 assert.equal(customFreeFile.heatCapacityFreeRecordConfig.pressureDangerMv, 152);
 assert.equal(customFreeFile.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.2);
-assert.equal(customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.version, 6);
+assert.equal(customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.version, 7);
 assert.equal(
   customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.physics.releaseVisualMainDurationS,
   0.18,
@@ -372,4 +372,3 @@ assert.match(sessionSource, /decodeWorkbenchClosedFilesStorageEnvelope/);
 assert.match(sessionSource, /encodeWorkbenchClosedFilesStorageEnvelope/);
 
 console.log('workbenchSessionPersistence tests passed');
-

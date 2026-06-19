@@ -19,9 +19,9 @@ const baseConfig: HeatCapacityFreePhysicsConfig = {
   },
   vesselVolumeL: 2,
   gamma: 1.4,
-  pumpAmountGainRatio: 0.015,
+  pumpAmountGainRatio: 0.00345,
   pumpPressureLimitKPa: 300,
-  pumpTemperatureGainK: 0.35,
+  pumpInflowTemperatureRiseK: 42,
   stopcockFlowRate: 4,
   thermal: {
     gasWallConductanceWPerK: 0.22,
@@ -55,6 +55,22 @@ const expectClose = (actual: number, expected: number, tolerance: number, messag
     true,
     `${message}: expected ${actual} to be within ${tolerance} of ${expected}`,
   );
+};
+
+const calculateMixedPumpTemperatureK = (
+  amountRatio: number,
+  temperatureK: number,
+  amountDeltaRatio: number,
+  config = baseConfig,
+) => {
+  const nextAmountRatio = amountRatio + amountDeltaRatio;
+  return (
+    amountRatio * temperatureK +
+    amountDeltaRatio * (
+      config.environment.ambientTemperatureK +
+      config.pumpInflowTemperatureRiseK
+    )
+  ) / nextAmountRatio;
 };
 
 const pumpOnce = (
@@ -199,9 +215,13 @@ expectClose(
 );
 expectClose(
   halfPumped.gasTemperatureK,
-  initial.gasTemperatureK + baseConfig.pumpTemperatureGainK * 0.68,
-  0.02,
-  'early in the 0.08 s pump stroke should apply most of the pump heating',
+  calculateMixedPumpTemperatureK(
+    initial.gasAmountRatio,
+    initial.gasTemperatureK,
+    baseConfig.pumpAmountGainRatio * 0.68,
+  ),
+  0.002,
+  'early in the 0.08 s pump stroke should derive heating from the amount of incoming gas',
 );
 assert.equal(halfPumped.pumpProcesses.length, 1);
 const fullyPumped = stepFreePhysics(halfPumped, baseConfig, controls, 0.04, 1.08);
@@ -321,8 +341,21 @@ for (const [expectedReason, state, caseControls] of rejectCases) {
     state = stepFreePhysics(state, baseConfig, controls, 1, step + 1);
   }
   const u1Mv = deriveFreePhysicalState(state, baseConfig).pressureDeltaKPa * 20;
-  assert.ok(u1Mv >= 115);
-  assert.ok(u1Mv <= 125);
+  assert.ok(u1Mv >= 26);
+  assert.ok(u1Mv <= 30);
+}
+
+{
+  let state = createDefaultFreePhysicsState(baseConfig);
+  for (let index = 0; index < 16; index += 1) {
+    state = pumpOnce(state, index * 0.1);
+  }
+  for (let step = 0; step < 90; step += 1) {
+    state = stepFreePhysics(state, baseConfig, controls, 1, step + 1);
+  }
+  const u1Mv = deriveFreePhysicalState(state, baseConfig).pressureDeltaKPa * 20;
+  assert.ok(u1Mv >= 108);
+  assert.ok(u1Mv <= 120);
 }
 
 const aboveAmbient = {

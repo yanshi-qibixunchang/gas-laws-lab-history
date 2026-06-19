@@ -536,14 +536,14 @@ const smallVPressureDelta = pressureAfterSinglePumpStroke(createDraft({ vesselVo
 const largeVPressureDelta = pressureAfterSinglePumpStroke(createDraft({ vesselVolumeL: 4 }));
 assert.ok(
   largeVPressureDelta < smallVPressureDelta,
-  'same fixed 30 mL pump stroke should create a smaller pressure rise in a larger vessel',
+  'same fixed effective gas inflow per stroke should create a smaller pressure rise in a larger vessel',
 );
 
 const lowDangerDraft = createDraft({ pressureDangerMv: 30 });
 assert.equal(
-  pumpAcceptanceAtPressure(lowDangerDraft, 101.3).accepted,
+  pumpAcceptanceAtPressure(lowDangerDraft, 103).accepted,
   false,
-  'user pressure danger threshold should reject a pump stroke before the old hidden ratio cap',
+  'user pressure danger threshold should reject further pumping once the current pressure is already dangerous',
 );
 
 const highDangerDraft = createDraft({ pressureDangerMv: 10000 });
@@ -553,7 +553,7 @@ assert.equal(
   'raising U_danger should not be blocked by the old fixed 1.45P0 hidden threshold',
 );
 assert.equal(
-  pumpAcceptanceAtPressure(highDangerDraft, 299, 2).accepted,
+  pumpAcceptanceAtPressure(highDangerDraft, 299, 1000).accepted,
   false,
   'extreme pressure hard cap should still reject a stroke that would exceed 300 kPa absolute pressure',
 );
@@ -669,7 +669,7 @@ registerDraftImpact(
   'same gauge pressure is moved across the warning threshold',
   'right realtime safety state and warning message',
   130,
-  (draft) => warningMetric(draft, 5.8),
+  (draft) => warningMetric(draft, 6.25),
 );
 
 registerDraftImpact(
@@ -698,7 +698,6 @@ assertMetricChanged(impactRows, {
 const idealSignature = (snapshot: HeatCapacityFreeConfigSnapshot) => (
   createHeatCapacityIdealReference(snapshot, 1.4).trace
     .filter((point) => point.stageId !== 'zero')
-    .slice(0, 36)
     .map((point) => `${point.stageId}:${point.timeS}:${point.pressureDeltaKPa}:${point.temperatureDeltaK}`)
     .join('|')
 );

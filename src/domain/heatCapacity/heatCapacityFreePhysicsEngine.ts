@@ -18,7 +18,7 @@ export interface HeatCapacityFreePhysicsConfig {
   gamma: number;
   pumpAmountGainRatio: number;
   pumpPressureLimitKPa: number;
-  pumpTemperatureGainK: number;
+  pumpInflowTemperatureRiseK: number;
   stopcockFlowRate: number;
   thermal: HeatCapacityFreeThermalConfig;
   leakage: HeatCapacityFreeLeakageConfig;
@@ -160,6 +160,31 @@ const getPumpProcesses = (
   state: HeatCapacityFreePhysicsState,
 ) => state.pumpProcesses ?? [];
 
+const applyPumpInflow = (
+  state: Pick<HeatCapacityFreePhysicsState, 'gasAmountRatio' | 'gasTemperatureK'>,
+  config: HeatCapacityFreePhysicsConfig,
+  amountDeltaRatio: number,
+) => {
+  const safeAmountDeltaRatio = clampNonNegativeFinite(amountDeltaRatio);
+  if (safeAmountDeltaRatio === 0) {
+    return state;
+  }
+  const gasAmountRatio = Math.max(MIN_GAS_AMOUNT_RATIO, state.gasAmountRatio);
+  const gasTemperatureK = Math.max(MIN_GAS_TEMPERATURE_K, state.gasTemperatureK);
+  const inflowTemperatureK = Math.max(
+    MIN_GAS_TEMPERATURE_K,
+    config.environment.ambientTemperatureK + config.pumpInflowTemperatureRiseK,
+  );
+  const nextAmountRatio = gasAmountRatio + safeAmountDeltaRatio;
+  return {
+    gasAmountRatio: nextAmountRatio,
+    gasTemperatureK: (
+      gasAmountRatio * gasTemperatureK +
+      safeAmountDeltaRatio * inflowTemperatureK
+    ) / nextAmountRatio,
+  };
+};
+
 const projectStateAfterPendingAndNewPump = (
   state: HeatCapacityFreePhysicsState,
   config: HeatCapacityFreePhysicsConfig,
@@ -170,16 +195,24 @@ const projectStateAfterPendingAndNewPump = (
   for (const process of getPumpProcesses(state)) {
     const remainingProgress = 1 - clampUnit(process.appliedProgress);
     const strength = clampNonNegativeFinite(process.strength);
-    gasAmountRatio += config.pumpAmountGainRatio * strength * remainingProgress;
-    gasTemperatureK += config.pumpTemperatureGainK * strength * remainingProgress;
+    const pumped = applyPumpInflow(
+      { gasAmountRatio, gasTemperatureK },
+      config,
+      config.pumpAmountGainRatio * strength * remainingProgress,
+    );
+    gasAmountRatio = pumped.gasAmountRatio;
+    gasTemperatureK = pumped.gasTemperatureK;
   }
   const safeNewStrength = clampNonNegativeFinite(newStrength);
-  gasAmountRatio += config.pumpAmountGainRatio * safeNewStrength;
-  gasTemperatureK += config.pumpTemperatureGainK * safeNewStrength;
+  const pumped = applyPumpInflow(
+    { gasAmountRatio, gasTemperatureK },
+    config,
+    config.pumpAmountGainRatio * safeNewStrength,
+  );
   return {
     ...state,
-    gasAmountRatio,
-    gasTemperatureK,
+    gasAmountRatio: pumped.gasAmountRatio,
+    gasTemperatureK: pumped.gasTemperatureK,
   };
 };
 
@@ -206,8 +239,13 @@ const stepPumpProcesses = (
     const nextProgress = getFreePumpStrokeProgress(atS - process.startedAtS);
     const progressDelta = Math.max(0, nextProgress - previousProgress);
     if (progressDelta > 0 && strength > 0) {
-      gasAmountRatio += config.pumpAmountGainRatio * strength * progressDelta;
-      gasTemperatureK += config.pumpTemperatureGainK * strength * progressDelta;
+      const pumped = applyPumpInflow(
+        { gasAmountRatio, gasTemperatureK },
+        config,
+        config.pumpAmountGainRatio * strength * progressDelta,
+      );
+      gasAmountRatio = pumped.gasAmountRatio;
+      gasTemperatureK = pumped.gasTemperatureK;
     }
     if (nextProgress < 1) {
       nextProcesses.push({
@@ -278,7 +316,7 @@ export const applyFreePumpStroke = (
   const strength = clampNonNegativeFinite(event.strength);
   const candidateState = projectStateAfterPendingAndNewPump(state, config, strength);
   const nextPressureKPa = deriveFreePhysicalState(candidateState, config).gasPressureKPa;
-  if (nextPressureKPa >= pressureLimitKPa) {
+  if (nextPressureKPa >= HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA) {
     return createPumpReject('pressureDanger', state);
   }
 

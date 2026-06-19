@@ -74,15 +74,15 @@ const DEFAULT_HEAT_CAPACITY_FREE_LEAKAGE_CONFIG: HeatCapacityFreeLeakageConfig =
   ratePerS: 0.00005,
 };
 
-export const HEAT_CAPACITY_FREE_PUMP_STROKE_VOLUME_L = 0.03;
+export const HEAT_CAPACITY_FREE_PUMP_STROKE_VOLUME_L = 0.0069;
 
 const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsConfig = {
   environment: DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG,
   vesselVolumeL: 2,
   gamma: 1.4,
-  pumpAmountGainRatio: 0.015,
+  pumpAmountGainRatio: 0.00345,
   pumpPressureLimitKPa: 108.3,
-  pumpTemperatureGainK: 0.35,
+  pumpInflowTemperatureRiseK: 42,
   stopcockFlowRate: 4,
   thermal: DEFAULT_HEAT_CAPACITY_FREE_THERMAL_CONFIG,
   leakage: DEFAULT_HEAT_CAPACITY_FREE_LEAKAGE_CONFIG,
@@ -110,7 +110,7 @@ const DEFAULT_HEAT_CAPACITY_FREE_RECORD_CONFIG: HeatCapacityFreeRecordConfig = {
   pressureDangerMv: 140,
 };
 
-const DEFAULT_HEAT_CAPACITY_FREE_PRESSURE_WARNING_MV = 115;
+const DEFAULT_HEAT_CAPACITY_FREE_PRESSURE_WARNING_MV = 120;
 
 const finiteNumberOr = (value: unknown, fallback: number) => (
   typeof value === 'number' && Number.isFinite(value) ? value : fallback
@@ -221,9 +221,12 @@ const normalizeHeatCapacityFreePhysicsConfig = (
       DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpPressureLimitKPa,
       0.001,
     ),
-    pumpTemperatureGainK: finiteNumberOr(
-      value?.pumpTemperatureGainK,
-      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpTemperatureGainK,
+    pumpInflowTemperatureRiseK: finiteNumberOr(
+      value?.pumpInflowTemperatureRiseK,
+      finiteNumberOr(
+        (value as { pumpTemperatureGainK?: unknown } | null | undefined)?.pumpTemperatureGainK,
+        DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpInflowTemperatureRiseK,
+      ),
     ),
     stopcockFlowRate: finiteAtLeastOr(
       value?.stopcockFlowRate,

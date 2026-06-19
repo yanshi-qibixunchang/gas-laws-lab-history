@@ -30,7 +30,7 @@ assert.equal(defaultFile.heatCapacityFreeActiveRunConfigSnapshot, null);
 assert.equal(defaultFile.heatCapacityFreeAdvancedRiskAccepted, false);
 assert.equal(defaultFile.heatCapacityFreeInstrumentNoiseEnabled, true);
 assert.equal(defaultFile.heatCapacityFreeRecordConfig.u0ZeroToleranceMv, 0.12);
-assert.equal(defaultFile.heatCapacityFreePressureWarningMv, 115);
+assert.equal(defaultFile.heatCapacityFreePressureWarningMv, 120);
 assert.equal(isHeatCapacityFreeParameterEditingAvailable(defaultFile), true);
 assert.equal(getHeatCapacityFreeParameterLockReason(defaultFile), null);
 

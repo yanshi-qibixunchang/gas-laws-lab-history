@@ -346,13 +346,22 @@ const pumpScriptedRunInstantEquivalent = (
   strokes: number,
 ) => {
   const safeStrokes = Math.max(0, Math.floor(strokes));
+  const amountDeltaRatio = physicsConfig.pumpAmountGainRatio * safeStrokes;
+  const inflowTemperatureK = Math.max(
+    1,
+    physicsConfig.environment.ambientTemperatureK + physicsConfig.pumpInflowTemperatureRiseK,
+  );
+  const nextAmountRatio = run.physics.gasAmountRatio + amountDeltaRatio;
   const nextPhysics: HeatCapacityFreePhysicsState = {
     ...run.physics,
     simulationTimeS: run.timeS,
-    gasAmountRatio: run.physics.gasAmountRatio +
-      physicsConfig.pumpAmountGainRatio * safeStrokes,
-    gasTemperatureK: run.physics.gasTemperatureK +
-      physicsConfig.pumpTemperatureGainK * safeStrokes,
+    gasAmountRatio: nextAmountRatio,
+    gasTemperatureK: nextAmountRatio <= 0
+      ? run.physics.gasTemperatureK
+      : (
+          run.physics.gasAmountRatio * run.physics.gasTemperatureK +
+          amountDeltaRatio * inflowTemperatureK
+        ) / nextAmountRatio,
     pumpProcesses: [],
     pumpStrokeCount: run.physics.pumpStrokeCount + safeStrokes,
     lastPumpStrokeAtS: safeStrokes > 0 ? run.timeS : run.physics.lastPumpStrokeAtS,

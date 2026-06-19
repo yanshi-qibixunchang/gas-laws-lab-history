@@ -1271,12 +1271,12 @@ assert.match(workbenchSource, /pressureOverLimit=\{activeFile\.pressureOverLimit
 assert.match(workbenchSource, /data-heat-capacity-pressure-warning="true"/, 'workbench should render a centered red pressure warning from pressureOverLimit');
 assert.match(workbenchSource, /studio-heat-pressure-warning-kicker/, 'pressure warning markup should include an engineering status kicker');
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV = 90/, 'manual pumping should consider 90 mV sufficient instead of the old 100 mV gate');
-assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 115/, 'warning should begin at the 4-stroke Free Mode target window');
+assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 120/, 'suggested stop hint should begin at the confirmed 120 mV target');
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV = 140/, 'alarm should remain above the 4-stroke Free Mode target window');
 assert.match(parameterConfigSource, /minimumUsefulU1CorrectedMv:\s*90/, 'Free U1 recording threshold should stay at 90 mV instead of being lowered');
-assert.match(stateSource, /压强接近安全阈值，请准备停止打气。/, 'pressure warning copy should use the confirmed pre-alarm wording');
-assert.match(stateSource, /压强已超过安全阈值，请停止打气。/, 'pressure alarm copy should use the confirmed alarm wording');
-assert.doesNotMatch(stateSource, /压强接近预警值，请注意|压强超过安全阈值，请停止打气(?!。)/, 'old pressure warning and alarm wording should be removed');
+assert.match(stateSource, /压强已达到建议打气范围，请停止打气并等待回温。/, 'pressure warning copy should use ordinary suggested-stop wording');
+assert.match(stateSource, /压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。/, 'pressure alarm copy should use the confirmed alarm wording');
+assert.doesNotMatch(stateSource, /压强接近预警值，请注意|压强接近安全阈值，请准备停止打气|压强超过安全阈值，请停止打气(?!。)/, 'old pressure warning and alarm wording should be removed');
 assert.doesNotMatch(workbenchSource, /危险：压强超过阈值/, 'center alarm title should not keep the older threshold wording');
 assert.match(workbenchSource, /HEAT_CAPACITY_PRESSURE_ALARM_DURATION_MS = 2000/, 'center alarm should stay visible for two seconds');
 assert.match(workbenchSource, /HEAT_CAPACITY_CLOSE_PUMP_VALVE_REMINDER_AFTER_ALARM_MS = 220/, 'close-valve reminder should wait until after the center alarm has been cleared');
@@ -1285,7 +1285,7 @@ assert.match(workbenchSource, /closePumpValveReminder:\s*'Close the pump valve\.
 assert.match(workbenchSource, /heatCapacityPressureAlarmVisible/, 'center pressure alarm should be controlled by a transient visible state instead of staying mounted while over limit');
 assert.match(workbenchSource, /const effectivePressureSafetyStatus = heatCapacityPressureAlarmVisible \? 'danger' : activeFile\.pressureSafetyStatus/, 'right-side safety card should show danger while the center alarm is visible');
 assert.match(workbenchSource, /studio-heat-safety-\$\{effectivePressureSafetyStatus\}/, 'right-side safety card color should follow the effective visible alarm status');
-assert.match(workbenchSource, /showHeatCapacityToast\(heatCapacityRealtimeCopy\.pressureWarningMessage,\s*'warning',\s*\{[\s\S]*interrupt:\s*true,[\s\S]*priority:\s*HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY,[\s\S]*\}\)/, 'prewarning should visually cover the current bottom-center hint with localized copy');
+assert.match(workbenchSource, /showHeatCapacityToast\(heatCapacityRealtimeCopy\.pressureWarningMessage,\s*'info',\s*\{[\s\S]*interrupt:\s*true,[\s\S]*priority:\s*HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY,[\s\S]*\}\)/, 'suggested-stop hint should use ordinary info styling while keeping localized copy visible');
 assert.match(workbenchSource, /HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY/, 'prewarning should have an explicit safety toast priority above ordinary guidance');
 assert.match(workbenchSource, /HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY/, 'alarm and close-valve reminders should have an explicit priority above prewarning');
 assert.match(workbenchSource, /type HeatCapacityToastSource =[\s\S]*'manual-guide'[\s\S]*'manual-blocked'[\s\S]*'pressure-warning'[\s\S]*'pressure-close-valve'/, 'heat-capacity bottom toasts should track their source so safety hints and ordinary guidance do not fight for one slot');
@@ -1298,9 +1298,9 @@ assert.match(workbenchSource, /isHeatCapacityPressureToast\(currentMessage\) && 
 assert.match(workbenchSource, /const clearManualHeatCapacityGuidance = \(\) => \{[\s\S]*clearHeatCapacityToastBySource\(isHeatCapacityManualToast\)/, 'clearing manual guidance must not erase pressure warning or post-alarm close-valve reminders');
 assert.match(workbenchSource, /currentMessage\.priority > nextMessage\.priority[\s\S]*return;/, 'lower-priority toasts must not interrupt an active safety warning or critical reminder');
 assert.match(workbenchSource, /nextMessage\.priority < currentMessage\.priority[\s\S]*return;/, 'lower-priority toasts must not queue behind an active safety warning');
-assert.match(workbenchSource, /heatCapacityRealtimeCopy\.pressureWarningMessage,\s*'warning',\s*\{[\s\S]*interrupt:\s*true,[\s\S]*priority:\s*HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY,[\s\S]*source:\s*'pressure-warning'[\s\S]*\}/, 'prewarning should use the protected pressure-warning source and explicit priority');
+assert.match(workbenchSource, /heatCapacityRealtimeCopy\.pressureWarningMessage,\s*'info',\s*\{[\s\S]*interrupt:\s*true,[\s\S]*priority:\s*HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY,[\s\S]*source:\s*'pressure-warning'[\s\S]*\}/, 'suggested-stop hint should use the protected pressure-warning source and explicit priority');
 assert.match(workbenchSource, /heatCapacityRealtimeCopy\.closePumpValveReminder,\s*'warning',\s*\{[\s\S]*interrupt:\s*true,[\s\S]*priority:\s*HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY,[\s\S]*source:\s*'pressure-close-valve'[\s\S]*\}/, 'post-alarm close-valve reminder should use a protected source and outrank prewarning and ordinary guidance');
-assert.match(workbenchSource, /else if \(pressureStatusAfterPump === 'warning'\) \{[\s\S]*showHeatCapacityToast\(heatCapacityRealtimeCopy\.pressureWarningMessage,\s*'warning'/, 'prewarning should remain visible when the user continues pumping inside the warning band');
+assert.match(workbenchSource, /else if \(pressureStatusAfterPump === 'warning'\) \{[\s\S]*showHeatCapacityToast\(heatCapacityRealtimeCopy\.pressureWarningMessage,\s*'info'/, 'suggested-stop hint should remain visible when the user continues pumping inside the warning band');
 assert.doesNotMatch(workbenchSource, /pressureStatusAfterPump === 'warning' && pressureStatusBeforePump === 'normal'/, 'prewarning should not depend only on a perfect normal-to-warning transition');
 assert.match(workbenchSource, /clearHeatCapacityToastQueue\(\)[\s\S]*setHeatCapacityPressureAlarmVisible\(true\)/, 'showing the center alarm should immediately remove the bottom warning hint');
 assert.match(workbenchSource, /<span>\{heatCapacityRealtimeCopy\.pressureWarningFallback\}<\/span>/, 'center pressure alarm should always show the confirmed alarm message instead of a stale realtime safety message');
@@ -1332,7 +1332,7 @@ assert.doesNotMatch(workbenchSource, /getHeatCapacityPressureSafetyStatusFromMv[
 assert.doesNotMatch(workbenchSource, /getHeatCapacityPressureSafetyStatusFromMv[\s\S]{0,320}HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV/, 'manual pressure status must not classify warning using the fixed 115 mV constant');
 assert.doesNotMatch(workbenchSource, /showHeatCapacityPressureThresholdToast[\s\S]{0,420}HEAT_CAPACITY_PRESSURE_(?:WARNING|DANGER)_THRESHOLD_MV/, 'manual pressure toast copy must not be gated by fixed 115/140 mV constants');
 assert.match(workbenchSource, /pushLog\(heatCapacityRealtimeCopy\.pressureAlarmLog\(fileName\),\s*'warning'\)/, 'only alarm should write a localized console warning');
-assert.doesNotMatch(workbenchSource, /pushLog\(`\$\{[^`]+\.name\}: 压强接近安全阈值，请准备停止打气。`,\s*'warning'\)/, 'prewarning should not write a console warning');
+assert.doesNotMatch(workbenchSource, /pushLog\(`\$\{[^`]+\.name\}: 压强已达到建议打气范围，请停止打气并等待回温。`,\s*'warning'\)/, 'suggested-stop hint should not write a console warning');
 assert.match(workbenchSource, /nextFrequencyState\.pumpFrequencyStatus === 'tooSlow'/, 'slow-pump toast should follow the same frequency status as the realtime panel');
 assert.match(workbenchSource, /nextFrequencyState\.timestamps\.length >= 2/, 'slow-pump toast should wait for at least two strokes before judging cadence');
 assert.doesNotMatch(workbenchSource, /nextFrequencyState\.pumpFrequency < HEAT_CAPACITY_PUMP_RATE_SLOW_THRESHOLD_HZ/, 'slow-pump toast should not use a stale separate 2 Hz threshold');

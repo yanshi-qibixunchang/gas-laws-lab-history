@@ -90,7 +90,7 @@ const physicsConfig = {
   gamma: 1.4,
   pumpAmountGainRatio: 0.022,
   pumpPressureLimitKPa: 108.3,
-  pumpTemperatureGainK: 0.35,
+  pumpInflowTemperatureRiseK: 42,
   stopcockFlowRate: 4,
   thermal: {
     gasWallConductanceWPerK: 0.4,
@@ -522,7 +522,7 @@ const version1PhysicsConfig: HeatCapacityFreePhysicsConfig = {
   gamma: 1.4,
   pumpAmountGainRatio: 0.018,
   pumpPressureLimitKPa: 108.3,
-  pumpTemperatureGainK: 0.35,
+  pumpInflowTemperatureRiseK: 42,
   stopcockFlowRate: 4,
   thermal: {
     gasWallConductanceWPerK: 0.55,

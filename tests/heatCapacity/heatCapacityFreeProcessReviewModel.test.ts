@@ -694,7 +694,6 @@ const idealSignature = (
   },
 ) => (chart.idealReferenceTrace ?? [])
   .filter((point) => point.stageId !== 'zero')
-  .slice(0, 36)
   .map((point) => `${point.stageId}:${point.timeS}:${point.pressureDeltaKPa}:${point.temperatureDeltaK}`)
   .join('|');
 

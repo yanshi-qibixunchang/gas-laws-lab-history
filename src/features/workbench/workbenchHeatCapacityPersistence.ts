@@ -271,7 +271,7 @@ export const createHeatCapacityFreeConfigSnapshotFromFile = (
     vesselVolumeL: file.heatCapacityFreePhysicsConfig.vesselVolumeL,
     pumpAmountGainRatio: file.heatCapacityFreePhysicsConfig.pumpAmountGainRatio,
     pumpPressureLimitKPa: file.heatCapacityFreePhysicsConfig.pumpPressureLimitKPa,
-    pumpTemperatureGainK: file.heatCapacityFreePhysicsConfig.pumpTemperatureGainK,
+    pumpInflowTemperatureRiseK: file.heatCapacityFreePhysicsConfig.pumpInflowTemperatureRiseK,
     pumpStrokeDurationS: FREE_PUMP_STROKE_DURATION_S,
     recommendedPumpIntervalS: 0.1,
     stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
@@ -488,9 +488,12 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
         physics.pumpPressureLimitKPa,
         fallback.physics.pumpPressureLimitKPa,
       ),
-      pumpTemperatureGainK: finiteOrDefault(
-        physics.pumpTemperatureGainK,
-        fallback.physics.pumpTemperatureGainK,
+      pumpInflowTemperatureRiseK: finiteOrDefault(
+        physics.pumpInflowTemperatureRiseK,
+        finiteOrDefault(
+          physics.pumpTemperatureGainK,
+          fallback.physics.pumpInflowTemperatureRiseK,
+        ),
       ),
       pumpStrokeDurationS: finiteOrDefault(
         physics.pumpStrokeDurationS,
@@ -598,7 +601,7 @@ const createPhysicsConfigFromSnapshot = (
   gamma: snapshot.physics.gamma,
   pumpAmountGainRatio: snapshot.physics.pumpAmountGainRatio,
   pumpPressureLimitKPa: snapshot.physics.pumpPressureLimitKPa,
-  pumpTemperatureGainK: snapshot.physics.pumpTemperatureGainK,
+  pumpInflowTemperatureRiseK: snapshot.physics.pumpInflowTemperatureRiseK,
   stopcockFlowRate: snapshot.physics.stopcockFlowRate,
   thermal: { ...snapshot.physics.thermal },
   leakage: { ...snapshot.physics.leakage },
