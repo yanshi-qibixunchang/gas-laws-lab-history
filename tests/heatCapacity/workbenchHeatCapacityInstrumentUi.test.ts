@@ -1275,6 +1275,9 @@ assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 120/, '
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV = 140/, 'alarm should remain above the 4-stroke Free Mode target window');
 assert.match(parameterConfigSource, /minimumUsefulU1CorrectedMv:\s*90/, 'Free U1 recording threshold should stay at 90 mV instead of being lowered');
 assert.match(stateSource, /压强已达到建议打气范围，请停止打气并等待回温。/, 'pressure warning copy should use ordinary suggested-stop wording');
+assert.match(workbenchSource, /label:\s*\{ 'zh-CN': '建议停止阈值'[\s\S]*en: 'Suggested-stop threshold' \}/, 'pressure warning parameter label should use suggested-stop wording instead of error-like warning wording');
+assert.match(workbenchSource, /warning:\s*'建议停止'[\s\S]*warningNote:\s*'等待回温'/, 'warning safety status should read as a normal suggested-stop state');
+assert.doesNotMatch(workbenchSource, /压力警告阈值|壓力警告閾值|Pressure warning threshold|warning:\s*'接近阈值'|warningNote:\s*'准备停止打气'/, 'old warning-like suggested-stop labels should be removed');
 assert.match(stateSource, /压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。/, 'pressure alarm copy should use the confirmed alarm wording');
 assert.doesNotMatch(stateSource, /压强接近预警值，请注意|压强接近安全阈值，请准备停止打气|压强超过安全阈值，请停止打气(?!。)/, 'old pressure warning and alarm wording should be removed');
 assert.doesNotMatch(workbenchSource, /危险：压强超过阈值/, 'center alarm title should not keep the older threshold wording');

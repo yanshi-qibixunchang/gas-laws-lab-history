@@ -880,13 +880,13 @@ const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterD
   {
     id: 'pressureWarningMv',
     group: 'D',
-    label: { 'zh-CN': '压力警告阈值', 'zh-TW': '壓力警告閾值', en: 'Pressure warning threshold' },
+    label: { 'zh-CN': '建议停止阈值', 'zh-TW': '建議停止閾值', en: 'Suggested-stop threshold' },
     parts: ['U', { sub: 'warn' }],
     unit: 'mV',
     effect: {
-      'zh-CN': '控制压力偏高时的警告提示。',
-      'zh-TW': '控制壓力偏高時的警告提示。',
-      en: 'Controls when the high-pressure warning appears.',
+      'zh-CN': '控制进入建议停止打气区的普通提示，不作为错误或报警。',
+      'zh-TW': '控制進入建議停止打氣區的一般提示，不作為錯誤或警報。',
+      en: 'Controls the ordinary suggested-stop hint, not an error or alarm.',
     },
     precision: 2,
     min: 0,
@@ -2149,10 +2149,10 @@ const heatCapacityRealtimeCopies = {
     stopcock: { open: '打开', closed: '关闭' },
     safety: {
       danger: '危险',
-      warning: '接近阈值',
+      warning: '建议停止',
       normal: '安全',
       dangerNote: '停止打气',
-      warningNote: '准备停止打气',
+      warningNote: '等待回温',
       normalNote: '可继续观察',
     },
     zeroStatus: {
