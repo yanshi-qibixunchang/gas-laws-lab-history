@@ -271,6 +271,40 @@ const u2TenMinute = targetedById.get('E6-u2-10min');
 const u2TwentyMinute = targetedById.get('E7-u2-20min');
 const u2ThirtyMinuteKnownGap = targetedById.get('E8-u2-30min-known-gap');
 const instantCurrentEquivalentReleaseCore = targetedById.get('C2-instant-current-equivalent-core');
+const shortOpenExact = runHeatCapacityFreeParameterAcceptance({
+  scenarios: [
+    {
+      id: 'short-open-0.03-exact',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.03,
+      waitAfterReleaseS: 300,
+      leakageEnabled: false,
+      pumpValveExchangeEnabled: false,
+      environmentDisturbanceEnabled: false,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'short-open-0.05-exact',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.05,
+      waitAfterReleaseS: 300,
+      leakageEnabled: false,
+      pumpValveExchangeEnabled: false,
+      environmentDisturbanceEnabled: false,
+      instrumentNoiseEnabled: false,
+    },
+  ],
+}).rows;
+
+assert.equal(
+  shortOpenExact[0].u2CorrectedMv! > shortOpenExact[1].u2CorrectedMv!,
+  true,
+  '0.03s should remain physically shorter than 0.05s instead of being swallowed by a 0.05s click step',
+);
 assert.notEqual(absoluteIdeal, undefined, 'absolute ideal scenario should exist in targeted acceptance report');
 assert.notEqual(idealExperiment, undefined, 'ideal experiment scenario should exist in targeted acceptance report');
 assert.notEqual(bestRealisticSmoke, undefined, 'best realistic smoke scenario should exist in targeted acceptance report');

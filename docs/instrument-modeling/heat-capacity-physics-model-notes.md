@@ -126,7 +126,8 @@ FREE_PUMP_STROKE_DURATION_S = 0.08
 默认参数：
 
 ```text
-stopcockFlowRate = 4
+stopcockFlowRate = 5.25
+stopcockApertureRampS = 0.10
 releaseVisualResponseDelayS = 0.02
 releaseVisualMainDurationS = 0.18
 ```
@@ -135,6 +136,9 @@ releaseVisualMainDurationS = 0.18
 
 - 用户点击阀门只会启动阀门动画和状态过渡。
 - 只有阀门状态确认接通后，才按实时压差、气体温度、`gamma` 和 `stopcockFlowRate` 推进真实气体流动。
+- 阀门确认接通后，真实放气流量还会乘以有效开度 `aperture(openElapsedS)`。
+- 有效开度使用 `0.1s` smoothstep ramp：`x = clamp(openElapsedS / 0.1, 0, 1)`，`aperture = x * x * (3 - 2 * x)`。
+- 每个物理步使用时间段内的积分开度，`0.03s` 这类极短开阀不会被 `0.05s` 点击时间或步末开度吞并。
 - 放气不再预先计算目标气体量或目标温度；每个物理步都根据当前状态重新计算流量。
 - `releaseReference` 只记录本次确认开阀时的起点状态，用于诊断、动画和阶段判断。
 - `releaseVisualResponseDelayS` 和 `releaseVisualMainDurationS` 只用于硬球粒子动画展示，不参与 U2 物理数值计算。
@@ -146,6 +150,7 @@ releaseVisualMainDurationS = 0.18
 - 点击阀门但尚未确认接通时，3D 分子不能出现定向外流。
 - 确认接通后，压强和温度应快速但连续变化，且变化速度随实时压差自然改变。
 - 只放一部分和完全放出时，气体量变化应不同。
+- `0.03s` 和 `0.05s` 极短开阀应按真实物理时长产生明显不足放气结果。
 
 ## 6. 热交换 v2 模型
 
@@ -262,7 +267,7 @@ Trace 写入仍会屏蔽过小的显示层波动，避免后台采集点被噪�
 
 以下内容记录为后续方向，不属于当前已实现范围：
 
-- 连续流量受控的精细放气阀模型。
+- 更精细的放气阀几何开度、阀孔面积和真实阀芯结构标定。
 - 更复杂的泵腔、单向阀、管路死体积模型。
 - 外界环境温度随时间变化。
 - 视觉线条平滑算法。

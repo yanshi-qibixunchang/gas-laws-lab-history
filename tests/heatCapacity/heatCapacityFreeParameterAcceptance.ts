@@ -125,7 +125,6 @@ const DEFAULT_OPEN_DURATIONS_S = [0, 0.3, 0.7];
 const DEFAULT_WAIT_AFTER_PUMP_S = 24;
 const DEFAULT_WAIT_AFTER_RELEASE_S = 40;
 const SIMULATION_STEP_S = 0.1;
-const STOPCOCK_CLICK_STEP_S = 0.05;
 const LEGACY_BASE_OPEN_DURATION_S = 0.25;
 
 const roundNumber = (value: number | null, digits = 2) => (
@@ -420,18 +419,18 @@ const releaseAndRecover = (
   };
 
   const runRuntimeReleaseOnly = () => {
-    let current = stepScriptedRun(run, physicsConfig, sensorConfig, openControls, STOPCOCK_CLICK_STEP_S);
-    const remainingOpenDurationS = Math.max(0, actualOpenDurationS - STOPCOCK_CLICK_STEP_S);
-    for (let elapsedS = 0; elapsedS < remainingOpenDurationS; elapsedS += SIMULATION_STEP_S) {
+    let current = run;
+    const openDurationS = Math.max(0, actualOpenDurationS);
+    for (let elapsedS = 0; elapsedS < openDurationS - 1e-9; elapsedS += SIMULATION_STEP_S) {
       current = stepScriptedRun(
         current,
         physicsConfig,
         sensorConfig,
         openControls,
-        Math.min(SIMULATION_STEP_S, remainingOpenDurationS - elapsedS),
+        Math.min(SIMULATION_STEP_S, openDurationS - elapsedS),
       );
     }
-    return stepScriptedRun(current, physicsConfig, sensorConfig, closedControls, STOPCOCK_CLICK_STEP_S);
+    return current;
   };
 
   const createInstantReleaseRun = (

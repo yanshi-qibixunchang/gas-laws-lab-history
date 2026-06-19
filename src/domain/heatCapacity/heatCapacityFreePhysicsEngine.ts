@@ -16,6 +16,9 @@ import {
   sampleFreeEnvironmentDisturbance,
   type HeatCapacityFreeEnvironmentDisturbanceConfig,
 } from './heatCapacityFreeEnvironmentDisturbanceModel.ts';
+import {
+  getFreeStopcockApertureEffectiveDtS,
+} from './heatCapacityFreeStopcockApertureModel.ts';
 
 export interface HeatCapacityFreeEnvironmentConfig {
   ambientTemperatureK: number;
@@ -687,21 +690,26 @@ const stepOpenState = (
   config: HeatCapacityFreePhysicsConfig,
   dtS: number,
   atS: number,
+  openElapsedBeforeS: number,
 ) => {
   let nextState = state;
   let remainingS = clampNonNegativeFinite(dtS);
+  let openElapsedS = clampNonNegativeFinite(openElapsedBeforeS);
   while (remainingS > 0) {
     const stepS = Math.min(remainingS, FREE_OPEN_FLOW_MAX_SUBSTEP_S);
     const thermal = stepThermalState(nextState, config, stepS);
+    const thermalState = {
+      ...nextState,
+      gasTemperatureK: thermal.state.gasTemperatureK,
+      wallTemperatureK: thermal.state.wallTemperatureK,
+    };
+    const effectiveFlowDtS = getFreeStopcockApertureEffectiveDtS(openElapsedS, stepS);
     nextState = stepOpenFlowAmountAndTemperature(
-      {
-        ...nextState,
-        gasTemperatureK: thermal.state.gasTemperatureK,
-        wallTemperatureK: thermal.state.wallTemperatureK,
-      },
+      thermalState,
       config,
-      stepS,
+      effectiveFlowDtS,
     );
+    openElapsedS += stepS;
     remainingS -= stepS;
   }
 
@@ -733,6 +741,9 @@ export const stepFreePhysics = (
   const wasPumpValveOpen = isPumpValveCurrentlyOpen(environmentState);
   const pumpValveOpenElapsedBeforeS = controls.pumpValveOpen
     ? (wasPumpValveOpen ? environmentState.currentPumpValveOpenDurationS : 0)
+    : 0;
+  const stopcockOpenElapsedBeforeS = controls.stopcockOpen
+    ? (wasStopcockOpen ? environmentState.currentStopcockOpenDurationS : 0)
     : 0;
   const pumpedState = stepPumpProcesses(environmentState, effectiveConfig, atS);
 
@@ -795,7 +806,13 @@ export const stepFreePhysics = (
         releaseReference: openedBaseState.releaseReference ?? openingReleaseReference,
       }
     : openedBaseState;
-  const flowedState = stepOpenState(releaseCandidate, effectiveConfig, dtS, atS);
+  const flowedState = stepOpenState(
+    releaseCandidate,
+    effectiveConfig,
+    dtS,
+    atS,
+    stopcockOpenElapsedBeforeS,
+  );
   const timedFlowedState = applyPumpValveTiming(
     flowedState,
     controls,

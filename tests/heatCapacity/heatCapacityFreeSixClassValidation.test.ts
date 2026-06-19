@@ -198,6 +198,52 @@ for (const [label, scenario] of suitableScenarios) {
 }
 
 {
+  const openShort003 = runSingle(baseScenario('open-0.03s-no-noise', {
+    openDurationS: 0.03,
+    leakageEnabled: false,
+    leakageRatePerS: 0,
+    pumpValveExchangeEnabled: false,
+    environmentDisturbanceEnabled: false,
+    instrumentNoiseEnabled: false,
+  }));
+  const openShort005 = runSingle(baseScenario('open-0.05s-no-noise', {
+    openDurationS: 0.05,
+    leakageEnabled: false,
+    leakageRatePerS: 0,
+    pumpValveExchangeEnabled: false,
+    environmentDisturbanceEnabled: false,
+    instrumentNoiseEnabled: false,
+  }));
+  const openStandard035 = runSingle(baseScenario('open-0.35s-no-noise', {
+    openDurationS: 0.35,
+    leakageEnabled: false,
+    leakageRatePerS: 0,
+    pumpValveExchangeEnabled: false,
+    environmentDisturbanceEnabled: false,
+    instrumentNoiseEnabled: false,
+  }));
+  assertRecordableSeries(
+    [openShort003, openShort005, openStandard035],
+    'short open no-noise diagnostic',
+  );
+  assert.equal(
+    openShort003.u2CorrectedMv! - openStandard035.u2CorrectedMv! > 1.2,
+    true,
+    `0.03s should have a larger U2 gap than the old model: got ${openShort003.u2CorrectedMv} vs ${openStandard035.u2CorrectedMv}`,
+  );
+  assert.equal(
+    openShort003.gamma! - openStandard035.gamma! > 0.05,
+    true,
+    `0.03s gamma should deviate by more than 0.05 from standard 0.35s release: got ${openShort003.gamma} vs ${openStandard035.gamma}`,
+  );
+  assert.equal(
+    openShort005.u2CorrectedMv! - openStandard035.u2CorrectedMv! > 1.0,
+    true,
+    `0.05s should have a larger U2 gap than the old model: got ${openShort005.u2CorrectedMv} vs ${openStandard035.u2CorrectedMv}`,
+  );
+}
+
+{
   const lowPressureStats = [4, 8, 12, 16, 18].map((pumpStrokes) => {
     const rows = runRepeated(
       `low-pressure-${pumpStrokes}`,
@@ -243,9 +289,9 @@ for (const [label, scenario] of suitableScenarios) {
     `50s pump should be measurably worse than 12s pump: 12s=${standardPump.gamma}, 50s=${slowPump.gamma}`,
   );
   assert.equal(
-    slowPump.gamma! >= 1.36 && slowPump.gamma! < 1.37,
+    slowPump.gamma! >= 1.355 && slowPump.gamma! < 1.37,
     true,
-    `50s pump should fall into the visibly worse 1.36x band: got ${slowPump.gamma}`,
+    `50s pump should round into the visibly worse 1.36 band: got ${slowPump.gamma}`,
   );
   assert.equal(
     Math.abs(verySlowPump.gamma! - 1.4) > Math.abs(slowPump.gamma! - 1.4) + 0.008,

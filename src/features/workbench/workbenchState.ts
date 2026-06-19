@@ -229,7 +229,7 @@ export const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsC
   pumpAmountGainRatio: 0.00345,
   pumpPressureLimitKPa: 109,
   pumpInflowTemperatureRiseK: 42,
-  stopcockFlowRate: 4,
+  stopcockFlowRate: 5.25,
   thermal: {
     gasWallConductanceWPerK: 0.14,
     wallAmbientConductanceWPerK: 0.45,

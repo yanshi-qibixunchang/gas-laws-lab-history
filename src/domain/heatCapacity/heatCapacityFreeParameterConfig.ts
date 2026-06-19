@@ -112,7 +112,7 @@ const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsConfig =
   pumpAmountGainRatio: 0.00345,
   pumpPressureLimitKPa: 109,
   pumpInflowTemperatureRiseK: 42,
-  stopcockFlowRate: 4,
+  stopcockFlowRate: 5.25,
   thermal: DEFAULT_HEAT_CAPACITY_FREE_THERMAL_CONFIG,
   pumpValveExchange: DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_REALISTIC_CONFIG,
   environmentDisturbance: DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_DISTURBANCE_REALISTIC_CONFIG,

@@ -506,6 +506,72 @@ const aboveAmbient = {
   gasAmountRatio: 1.1,
   gasTemperatureK: baseConfig.environment.ambientTemperatureK,
 };
+
+const createAboveAmbientReleaseState = (
+  config = baseConfig,
+): HeatCapacityFreePhysicsState => ({
+  ...createDefaultFreePhysicsState(config),
+  gasAmountRatio: 1.08,
+  gasTemperatureK: config.environment.ambientTemperatureK,
+});
+
+const releaseForDuration = (
+  durationS: number,
+  config = baseConfig,
+) => stepFreePhysics(
+  createAboveAmbientReleaseState(config),
+  config,
+  { ...controls, stopcockOpen: true },
+  durationS,
+  200 + durationS,
+);
+
+const releasedAmountLossForDuration = (
+  durationS: number,
+  config = baseConfig,
+) => {
+  const before = createAboveAmbientReleaseState(config);
+  const after = releaseForDuration(durationS, config);
+  return before.gasAmountRatio - after.gasAmountRatio;
+};
+
+const loss003 = releasedAmountLossForDuration(0.03);
+const loss005 = releasedAmountLossForDuration(0.05);
+const loss010 = releasedAmountLossForDuration(0.1);
+const loss035 = releasedAmountLossForDuration(0.35);
+
+assert.equal(loss003 > 0, true, '0.03s should still create a real but small release');
+assert.equal(
+  loss003 < loss005 && loss005 < loss010 && loss010 < loss035,
+  true,
+  'release loss should increase with open duration',
+);
+
+const apertureProbeConfig = {
+  ...baseConfig,
+  stopcockFlowRate: 0.2,
+} as HeatCapacityFreePhysicsConfig;
+const apertureProbeLoss003 = releasedAmountLossForDuration(0.03, apertureProbeConfig);
+const apertureProbeLoss035 = releasedAmountLossForDuration(0.35, apertureProbeConfig);
+assert.equal(
+  apertureProbeLoss003 / apertureProbeLoss035 < 0.03,
+  true,
+  '0.03s loss should be much smaller than the old full-aperture proportional duration',
+);
+
+let flicker = createAboveAmbientReleaseState();
+let flickerAtS = 300;
+for (let index = 0; index < 20; index += 1) {
+  const stopcockOpen = index % 2 === 0;
+  flickerAtS += 0.015;
+  flicker = stepFreePhysics(flicker, baseConfig, { ...controls, stopcockOpen }, 0.015, flickerAtS);
+  assert.equal(Number.isFinite(flicker.gasAmountRatio), true);
+  assert.equal(Number.isFinite(flicker.gasTemperatureK), true);
+  assert.equal(flicker.currentStopcockOpenDurationS >= 0, true);
+}
+const afterFlicker = stepFreePhysics(flicker, baseConfig, controls, 0.2, flickerAtS + 0.2);
+assert.equal(afterFlicker.currentStopcockOpenDurationS, 0);
+
 const ventStarted = stepFreePhysics(
   aboveAmbient,
   baseConfig,
