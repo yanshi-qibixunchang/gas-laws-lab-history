@@ -752,7 +752,7 @@ assert.match(sceneSource, /hardSphereVisualResetKey:\s*number/, 'heat-capacity s
 assert.match(workbenchSource, /hardSphereVisualResetKey=\{heatCapacityFocusResetKey\}/, 'Free Mode reset should propagate the existing focus reset key to the hard-sphere particle pool');
 assert.match(hardSphereLayerSource, /visualResetKey\?:\s*number/, 'hard-sphere layer should accept reset events from the workbench');
 assert.match(hardSphereLayerSource, /\},\s*\[enabled,\s*hardSphereProfile,\s*particleMultiplier,\s*visualResetKey\]\)/, 'hard-sphere layer should rebuild the particle pool when reset events, container profiles, or performance particle presets change');
-assert.match(workbenchSource, /FREE_RELEASE_RESPONSE_DELAY_S[\s\S]*FREE_RELEASE_MAIN_DURATION_S/, 'Workbench should use the existing free-mode release timing constants for particle visualization');
+assert.match(workbenchSource, /FREE_RELEASE_RESPONSE_DELAY_S[\s\S]*FREE_RELEASE_MAIN_DURATION_S/, 'Workbench should use release visual timing constants only for particle visualization');
 assert.match(workbenchSource, /const heatCapacityHardSphereReleaseTimeline/, 'Workbench should build a unified hard-sphere release timeline for the scene');
 assert.match(workbenchSource, /phase:\s*'post-release-exchange'/, 'Workbench should map long-open stopcock state to post-release exchange for hard-sphere visualization');
 assert.doesNotMatch(sceneSource, /releaseBurstActive=\{props\.pressureReleaseBurstActive\}/, 'particle outflow must not be driven by the click-time release burst window');

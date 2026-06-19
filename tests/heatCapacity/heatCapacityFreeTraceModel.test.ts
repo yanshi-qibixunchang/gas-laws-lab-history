@@ -15,14 +15,14 @@ import {
 const configSnapshot = createDefaultFreeConfigSnapshot();
 
 assert.equal(HEAT_CAPACITY_FREE_TRACE_VERSION, 4);
-assert.equal(HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION, 5);
-assert.equal(configSnapshot.version, 5);
+assert.equal(HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION, 6);
+assert.equal(configSnapshot.version, 6);
 assert.equal(configSnapshot.physics.vesselVolumeL, 2);
 assert.equal(configSnapshot.physics.pumpAmountGainRatio, 0.015);
 assert.equal(configSnapshot.physics.pumpStrokeDurationS, 0.08);
 assert.equal(configSnapshot.physics.recommendedPumpIntervalS, 0.1);
-assert.equal(configSnapshot.physics.releaseResponseDelayS, 0.02);
-assert.equal(configSnapshot.physics.releaseMainDurationS, 0.18);
+assert.equal(configSnapshot.physics.releaseVisualResponseDelayS, 0.02);
+assert.equal(configSnapshot.physics.releaseVisualMainDurationS, 0.18);
 assert.equal(configSnapshot.physics.thermal.gasWallConductanceWPerK, 0.14);
 assert.equal(configSnapshot.physics.thermal.wallAmbientConductanceWPerK, 0.45);
 assert.equal(configSnapshot.physics.thermal.wallHeatCapacityJPerK, 45);

@@ -21,7 +21,7 @@
 
 ## 1. 当前基线状态
 
-- [x] U2 不再通过预先计算 `amountTargetRatio` 和 `temperatureTargetK` 的理论释放目标生成。
+- [x] U2 不再通过预先计算固定目标气体量和目标温度生成。
 - [x] 打开旋塞后，气体量和气体温度会按连续过程更新。
 - [x] 当前热交换模型在打开旋塞放气过程中和关阀回温过程中都会参与。
 - [x] 当前漏气模型仍然在封闭等待阶段参与。
@@ -61,7 +61,7 @@
   - 相关文件：`src/domain/heatCapacity/heatCapacityFreeLeakageModel.ts`，`src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts`，`tests/heatCapacity/heatCapacityFreeParameterImpact.test.ts`。
   - 验收标准：开启漏气后，U1 前或 U2 前增加封闭等待时间会改变最终 gamma。
 
-- [x] 明确 `releaseCoolingFactor` 在新模型中的状态：已从 Free 运行时配置、快照和测试中移除，新的连续放气模型不再使用旧理论释放冷却修正参数。
+- [x] 明确旧释放冷却修正参数在新模型中的状态：已从 Free 运行时配置、快照和测试中移除，新的连续放气模型不再使用旧修正参数。
   - 相关文件：`src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts`，`src/domain/heatCapacity/heatCapacityFreeParameterConfig.ts`，`src/domain/heatCapacity/heatCapacityFreeTraceModel.ts`，`src/features/workbench/workbenchHeatCapacityPersistence.ts`。
   - 推荐处理：为了兼容旧数据可以继续持久化，但不要再把它当成隐藏的 U2 理论目标修饰参数。如果后续仍保留为可调项，需要单独重命名或重新映射。
 
@@ -89,17 +89,17 @@
 
 ### P0 UI 待适配
 
-- [ ] 让 Free Mode 排气粒子动画不再依赖 `releaseProcess`。
+- [x] 让 Free Mode 排气粒子动画改用 `releaseReference` 和实时压差。
   - 相关文件：`src/features/workbench/WorkbenchStudioPrototype.tsx`，`tests/heatCapacity/workbenchHeatCapacityInstrumentUi.test.ts`。
-  - 验收标准：即使 `releaseProcess` 为 `null`，只要 Free Mode 旋塞打开且压力高于环境，粒子排气动画仍然应该激活。
+  - 验收标准：只要 Free Mode 旋塞确认打开且压力高于环境，粒子排气动画仍然应该激活。
 
 - [ ] 适配释放时间线文案和视觉阶段标签。
   - 相关文件：`src/features/workbench/WorkbenchStudioPrototype.tsx`。
-  - 验收标准：Free Mode UI 不再暗示存在固定 `0.02s + 0.18s` 的理论释放目标过程。
+  - 验收标准：Free Mode UI 不再暗示存在固定时长的旧目标态过程。
 
 - [ ] 审查实验诊断报告的阶段判断是否还依赖旧释放窗口。
   - 相关文件：`src/domain/heatCapacity/heatCapacityFreeProcessReviewModel.ts`，`src/domain/heatCapacity/heatCapacityFreeProcessScoringModel.ts`，`tests/heatCapacity` 下相关测试。
-  - 验收标准：报告能够基于真实过程状态判断开阀过短、开阀过久、回温不足、封闭等待过久，而不是依赖 `releaseProcess`。
+  - 验收标准：报告能够基于真实过程状态判断开阀过短、开阀过久、回温不足、封闭等待过久，而不是依赖旧释放窗口。
 
 - [ ] 审查 `2x/4x/8x/16x` 倍速提示和加速弹窗。
   - 相关文件：`src/features/workbench/workbenchState.ts`，`src/features/workbench/WorkbenchStudioPrototype.tsx`。
@@ -113,7 +113,7 @@
 
 - [ ] 适配当前参数调整窗口的标签和分组。
   - 相关文件：`src/features/workbench/WorkbenchStudioPrototype.tsx`，`src/domain/heatCapacity/heatCapacityFreeParameterConfig.ts`，`tests/heatCapacity/workbenchHeatCapacityFreeParameters.test.ts`。
-  - 验收标准：现有参数都能明确映射到当前模型，旧的“理论释放目标”相关表述被移除或改写。
+  - 验收标准：现有参数都能明确映射到当前模型，旧目标态相关表述被移除或改写。
 
 - [ ] 增加开发用场景输出，辅助调参。
   - 相关文件：`tests/heatCapacity/heatCapacityFreeScenarioBaseline.test.ts`，`tests/heatCapacity/helpers/heatCapacityFreeScenarioHarness.ts`。

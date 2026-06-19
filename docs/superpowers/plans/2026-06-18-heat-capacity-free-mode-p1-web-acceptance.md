@@ -15,8 +15,8 @@
 ### 本阶段要完成
 
 - [ ] 现有模型因素适配到新 U2 链路，并有自动化测试证明。
-- [ ] 新增一个轻量的释放状态派生接口，供 UI/动画/运行层读取连续释放状态。
-- [ ] 修正网页中仍依赖旧 `releaseProcess` 的排气动画和释放阶段判断。
+- [x] 新增释放状态来源，供 UI/动画/运行层读取连续释放状态。
+- [x] 修正网页中仍依赖旧释放过程状态的排气动画和释放阶段判断。
 - [x] 确认 `2x/4x/8x/16x` 倍速和等待压缩仍然走同一个物理步进。
 - [x] 建好真实实验计时器底层，但本阶段不显示 UI；后续 UI 阶段再把计时器与倍速条一起出现、一起消失，并通过延长倍速条增加计时区域。
 - [x] 放宽 Free Mode 记录规则，让极端操作结果可以被记录，便于后续网页实验极端操作。
@@ -39,7 +39,7 @@
 - [ ] 慢关旋塞会让 gamma 相比正确操作下降。
 - [ ] 长时间开旋塞会让 gamma 明显低于慢关旋塞。
 - [ ] 修改现有参数时，网页结果能体现参数影响，而不是只改变表面数值。
-- [ ] 排气动画和释放状态不再依赖旧的 `releaseProcess`。
+- [x] 排气动画和释放状态不再依赖旧的释放过程状态。
 - [ ] `2x/4x/8x/16x` 或等待压缩不会绕过热交换、漏气、传感器滞后和连续释放；倍速只改变用户等待时的墙钟耗时，不改变底层实验时间。
 - [ ] `npm.cmd exec tsc -- --noEmit` 和 `npm.cmd test` 通过。
 - [ ] 固定预览 `http://127.0.0.1:5174/` 可访问。
@@ -86,7 +86,7 @@
 | --- | --- |
 | `src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts` | Free Mode 物理状态、连续释放、压力派生、需要新增释放状态派生接口。 |
 | `src/domain/heatCapacity/heatCapacityFreeParameterConfig.ts` | 现有参数映射和范围，需确认旧参数对新模型仍有意义。 |
-| `src/domain/heatCapacity/heatCapacityFreeTraceModel.ts` | 配置快照仍记录旧释放字段，需确认第一阶段是否只兼容保留。 |
+| `src/domain/heatCapacity/heatCapacityFreeTraceModel.ts` | 配置快照已去除旧释放字段，需保持历史数据迁移兼容。 |
 | `src/features/workbench/workbenchState.ts` | 实时步进、倍速、等待压缩、运行状态派生。 |
 | `src/features/workbench/WorkbenchStudioPrototype.tsx` | 网页仪器动画、释放阶段可见状态、参数面板文案。 |
 | `tests/heatCapacity/heatCapacityFreePhysicsEngine.test.ts` | 物理引擎行为回归。 |
@@ -241,9 +241,9 @@ U2 等待比建议值晚 20s。
 是否建议继续 Task 2。
 ```
 
-## 4. Task 2：新增连续释放状态派生接口
+## 4. Task 2：迁移连续释放状态来源
 
-**目的：** 旧 UI 依赖 `releaseProcess` 判断释放进度。新模型正常不再创建理论 `releaseProcess`，所以需要一个新接口让 UI 和运行层读取“当前是否在释放、处于什么阶段、动画应显示什么”。
+**目的：** UI 和运行层应从 `releaseReference`、确认开阀状态和实时压差读取“当前是否在释放、处于什么阶段、动画应显示什么”，不能依赖旧目标态。
 
 **文件：**
 
@@ -262,7 +262,7 @@ export interface HeatCapacityFreeReleaseActivity {
   pressureDeltaKPa: number;
   amountBeforeRatio: number;
   amountCurrentRatio: number;
-  amountTargetRatio: number;
+  amountReferenceRatio: number;
   progress: number;
 }
 
@@ -283,7 +283,7 @@ export const deriveFreeReleaseActivity = (
 ```ts
 // 初始状态应为 idle。
 // 打开旋塞且压力高于环境时，应为 open-flow。
-// 连续释放模型下 releaseProcess 为 null，但 active 应为 true。
+// 连续释放模型下没有旧目标态，但 active 应为 true。
 // 关阀后如果已经发生释放但未完成回温，应能得到 partial-stopped 或 idle 中的明确状态。
 ```
 
@@ -301,7 +301,7 @@ node tests\heatCapacity\heatCapacityFreePhysicsEngine.test.ts
 
 ```text
 不能恢复旧的理论目标态。
-不能创建新的 releaseProcess。
+不能创建新的旧目标态。
 不能用 Date.now 或 Math.random。
 只能从 state 和 config 计算当前释放活动。
 ```
@@ -410,8 +410,8 @@ heatCapacityFreeScenarioBaseline tests passed
 测试意图：
 
 ```ts
-// WorkbenchStudioPrototype.tsx 不应只依赖 activeReleaseProcess !== null 判断 Free Mode 排气动画。
-// Free Mode 应使用 deriveFreeReleaseActivity 或等价派生状态。
+// WorkbenchStudioPrototype.tsx 不应只依赖旧释放目标判断 Free Mode 排气动画。
+// Free Mode 应使用 releaseReference、确认开阀状态和实时压差，或等价派生状态。
 ```
 
 运行：
@@ -420,7 +420,7 @@ heatCapacityFreeScenarioBaseline tests passed
 node tests\heatCapacity\workbenchHeatCapacityInstrumentUi.test.ts
 ```
 
-预期：如果 UI 仍只依赖 `releaseProcess`，测试失败。
+预期：如果 UI 仍只依赖旧释放目标，测试失败。
 
 - [ ] **Step 2：把 Free Mode 动画判断改为释放活动派生值**
 
@@ -444,7 +444,7 @@ const freeReleaseFlowActive = activeFile.heatCapacityMode === 'free' &&
 目标：
 
 ```text
-Free Mode 不再显示或暗示固定 0.02s 响应延迟 + 0.18s 主释放目标。
+Free Mode 不再显示或暗示固定响应延迟加固定主释放目标。
 可以继续用 progress 驱动粒子动画，但 progress 必须是派生展示值，不是理论目标进度。
 ```
 
@@ -520,7 +520,7 @@ node tests\heatCapacity\heatCapacityFreeParameterAcceptance.test.ts
 是否直接改 pressureDeltaKPa。
 是否直接改 U2。
 是否跳过 thermal/leakage/sensor。
-是否用 releaseProcess 作为唯一快速过程标记。
+是否用旧释放目标作为唯一快速过程标记。
 ```
 
 - [ ] **Step 4：修正快进/压缩路径**

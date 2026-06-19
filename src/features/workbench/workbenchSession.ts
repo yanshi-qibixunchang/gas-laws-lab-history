@@ -252,6 +252,12 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
   if (!isRecord(value)) return null;
   const fallback = createDefaultFreeConfigSnapshot();
   const record = isRecord(value.record) ? value.record : {};
+  const physics = isRecord(value.physics) ? value.physics : {};
+  const {
+    releaseResponseDelayS: _legacyReleaseResponseDelayS,
+    releaseMainDurationS: _legacyReleaseMainDurationS,
+    ...physicsRest
+  } = physics;
   return {
     ...fallback,
     ...value,
@@ -271,14 +277,28 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
       : fallback.environment,
     physics: {
       ...fallback.physics,
-      ...(isRecord(value.physics) ? value.physics : {}),
+      ...physicsRest,
+      releaseVisualResponseDelayS: finiteOrDefault(
+        physics.releaseVisualResponseDelayS,
+        finiteOrDefault(
+          _legacyReleaseResponseDelayS,
+          fallback.physics.releaseVisualResponseDelayS,
+        ),
+      ),
+      releaseVisualMainDurationS: finiteOrDefault(
+        physics.releaseVisualMainDurationS,
+        finiteOrDefault(
+          _legacyReleaseMainDurationS,
+          fallback.physics.releaseVisualMainDurationS,
+        ),
+      ),
       thermal: {
         ...fallback.physics.thermal,
-        ...(isRecord(value.physics) && isRecord(value.physics.thermal) ? value.physics.thermal : {}),
+        ...(isRecord(physics.thermal) ? physics.thermal : {}),
       },
       leakage: {
         ...fallback.physics.leakage,
-        ...(isRecord(value.physics) && isRecord(value.physics.leakage) ? value.physics.leakage : {}),
+        ...(isRecord(physics.leakage) ? physics.leakage : {}),
       },
     },
     sensor: {

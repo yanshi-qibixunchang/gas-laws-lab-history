@@ -275,8 +275,8 @@ export const createHeatCapacityFreeConfigSnapshotFromFile = (
     pumpStrokeDurationS: FREE_PUMP_STROKE_DURATION_S,
     recommendedPumpIntervalS: 0.1,
     stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
-    releaseResponseDelayS: FREE_RELEASE_RESPONSE_DELAY_S,
-    releaseMainDurationS: FREE_RELEASE_MAIN_DURATION_S,
+    releaseVisualResponseDelayS: FREE_RELEASE_RESPONSE_DELAY_S,
+    releaseVisualMainDurationS: FREE_RELEASE_MAIN_DURATION_S,
     thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
     leakage: { ...file.heatCapacityFreePhysicsConfig.leakage },
   },
@@ -501,13 +501,19 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
         fallback.physics.recommendedPumpIntervalS,
       ),
       stopcockFlowRate: finiteOrDefault(physics.stopcockFlowRate, fallback.physics.stopcockFlowRate),
-      releaseResponseDelayS: finiteOrDefault(
-        physics.releaseResponseDelayS,
-        fallback.physics.releaseResponseDelayS,
+      releaseVisualResponseDelayS: finiteOrDefault(
+        physics.releaseVisualResponseDelayS,
+        finiteOrDefault(
+          physics.releaseResponseDelayS,
+          fallback.physics.releaseVisualResponseDelayS,
+        ),
       ),
-      releaseMainDurationS: finiteOrDefault(
-        physics.releaseMainDurationS,
-        fallback.physics.releaseMainDurationS,
+      releaseVisualMainDurationS: finiteOrDefault(
+        physics.releaseVisualMainDurationS,
+        finiteOrDefault(
+          physics.releaseMainDurationS,
+          fallback.physics.releaseVisualMainDurationS,
+        ),
       ),
       thermal: {
         gasWallConductanceWPerK: finiteOrDefault(

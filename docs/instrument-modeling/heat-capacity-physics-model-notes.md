@@ -65,7 +65,6 @@ gasTemperatureK
 wallTemperatureK
 pumpStrokeCount
 pumpProcesses
-releaseProcess
 maxPressureKPa
 releaseStarted
 currentStopcockOpenDurationS
@@ -125,25 +124,25 @@ FREE_PUMP_STROKE_DURATION_S = 0.08
 默认参数：
 
 ```text
-FREE_RELEASE_RESPONSE_DELAY_S = 0.02
-FREE_RELEASE_MAIN_DURATION_S = 0.18
-FREE_RELEASE_TOTAL_DURATION_S = 0.20
+stopcockFlowRate = 4
+releaseVisualResponseDelayS = 0.02
+releaseVisualMainDurationS = 0.18
 ```
 
 规则：
 
 - 用户点击阀门只会启动阀门动画和状态过渡。
-- 只有阀门状态确认接通后，才创建 `releaseProcess`。
-- `releaseProcess` 前 0.02 s 为响应延迟，不明显改变气体状态。
-- 后 0.18 s 连续释放，使气体量和温度向放气目标过渡。
-- 放气总窗口为确认接通后的 0.20 s。
-- 如果用户很快连续点击导致阀门只做无效开合，但没有确认接通，则不创建真实放气，也不触发定向分子流。
-- 如果放气未完成就关闭阀门，释放过程取消，并保留已经发生的部分放气结果。
+- 只有阀门状态确认接通后，才按实时压差、气体温度、`gamma` 和 `stopcockFlowRate` 推进真实气体流动。
+- 放气不再预先计算目标气体量或目标温度；每个物理步都根据当前状态重新计算流量。
+- `releaseReference` 只记录本次确认开阀时的起点状态，用于诊断、动画和阶段判断。
+- `releaseVisualResponseDelayS` 和 `releaseVisualMainDurationS` 只用于硬球粒子动画展示，不参与 U2 物理数值计算。
+- 如果用户很快连续点击导致阀门只做无效开合，但没有确认接通，则不发生真实放气，也不触发定向分子流。
+- 如果放气未完成就关闭阀门，物理状态保留已经发生的部分放气结果，后续不继续向旧目标补齐。
 
 验收要点：
 
 - 点击阀门但尚未确认接通时，3D 分子不能出现定向外流。
-- 确认接通后 0.2 s 内，压强和温度应快速但连续变化。
+- 确认接通后，压强和温度应快速但连续变化，且变化速度随实时压差自然改变。
 - 只放一部分和完全放出时，气体量变化应不同。
 
 ## 6. 热交换 v2 模型
@@ -210,7 +209,6 @@ activeFastProcessStepS = 0.04
 当存在以下任一快速过程时，运行推进会切成更密的内部段，并强制显示层传感器在每段采样：
 
 - 存在未完成的 `pumpProcess`。
-- 存在未完成的 `releaseProcess`。
 - 阀门确认接通且瓶内压强仍高于环境压强。
 
 打气阶段会使用更快的压力显示响应，避免 0.1 s 连续打气被传感器滞后拖成一段连续斜坡。

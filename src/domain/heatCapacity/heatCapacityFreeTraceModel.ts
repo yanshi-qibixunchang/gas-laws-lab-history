@@ -3,7 +3,7 @@ import type {
 } from './heatCapacityExperimentModel.ts';
 
 export const HEAT_CAPACITY_FREE_TRACE_VERSION = 4;
-export const HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION = 5;
+export const HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION = 6;
 export const HEAT_CAPACITY_FREE_CALCULATION_VERSION = 'log-pressure-v1' as const;
 export const HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S = 0.04;
 
@@ -149,7 +149,7 @@ export interface HeatCapacityFreeEvent {
 export type HeatCapacityFreeEventInput = Omit<HeatCapacityFreeEvent, 'id' | 'index'>;
 
 export interface HeatCapacityFreeConfigSnapshot {
-  version: 5;
+  version: 6;
   environment: {
     ambientPressureKPa: number;
     ambientTemperatureK: number;
@@ -163,8 +163,8 @@ export interface HeatCapacityFreeConfigSnapshot {
     pumpStrokeDurationS: number;
     recommendedPumpIntervalS: number;
     stopcockFlowRate: number;
-    releaseResponseDelayS: number;
-    releaseMainDurationS: number;
+    releaseVisualResponseDelayS: number;
+    releaseVisualMainDurationS: number;
     thermal: {
       gasWallConductanceWPerK: number;
       wallAmbientConductanceWPerK: number;
@@ -225,8 +225,8 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
     pumpStrokeDurationS: 0.08,
     recommendedPumpIntervalS: 0.1,
     stopcockFlowRate: 4,
-    releaseResponseDelayS: 0.02,
-    releaseMainDurationS: 0.18,
+    releaseVisualResponseDelayS: 0.02,
+    releaseVisualMainDurationS: 0.18,
     thermal: {
       gasWallConductanceWPerK: 0.14,
       wallAmbientConductanceWPerK: 0.45,
