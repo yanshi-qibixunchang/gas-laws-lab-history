@@ -158,6 +158,7 @@ const gammaNextGroupFile = prepareNextHeatCapacityFreeExperimentGroupWorkbenchSt
       blockedReason: null,
       correctedSignals: null,
       configSnapshot: gammaFrozenFile.heatCapacityFreeActiveRunConfigSnapshot,
+      completedAtMs: null,
     },
   ],
 });

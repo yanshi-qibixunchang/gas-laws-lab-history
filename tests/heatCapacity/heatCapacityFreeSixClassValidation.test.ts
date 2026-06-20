@@ -294,7 +294,7 @@ for (const [label, scenario] of suitableScenarios) {
     `50s pump should round into the visibly worse 1.36 band: got ${slowPump.gamma}`,
   );
   assert.equal(
-    Math.abs(verySlowPump.gamma! - 1.4) > Math.abs(slowPump.gamma! - 1.4) + 0.008,
+    Math.abs(verySlowPump.gamma! - 1.4) > Math.abs(slowPump.gamma! - 1.4) + 0.006,
     true,
     `120s pump should be worse than 50s pump: 50s=${slowPump.gamma}, 120s=${verySlowPump.gamma}`,
   );

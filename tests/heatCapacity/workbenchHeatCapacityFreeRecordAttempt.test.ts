@@ -1,8 +1,16 @@
 import assert from 'node:assert/strict';
 import {
   applyHeatCapacityFreeRecordWorkbenchState,
+  captureHeatCapacityFreeRollbackSnapshot,
   createDefaultHeatCapacityFile,
+  deriveHeatCapacityFreeWorkflowStage,
+  getHeatCapacityFreeDisplayPhase,
+  getHeatCapacityFreeRecordBlockReason,
+  getHeatCapacityFreeRecordButtonState,
+  HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
   HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
+  HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
+  removeHeatCapacityFreeTrialRecordWorkbenchState,
   type WorkbenchHeatCapacityState,
 } from '../../src/features/workbench/workbenchState.ts';
 import {
@@ -88,6 +96,125 @@ const createStableOverAlarmFreeU1File = (): WorkbenchHeatCapacityState => {
   };
 };
 
+const createNoisyFreeU0File = (): WorkbenchHeatCapacityState => {
+  const base = createDefaultHeatCapacityFile(1);
+  return {
+    ...base,
+    heatCapacityMode: 'free',
+    powerOn: true,
+    heatCapacityPhase: 'readyToZero',
+    pressureZeroed: false,
+    pressureZeroAdjusted: true,
+    stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
+    glassPistonState: 'open',
+    pressureSignalMv: 0.19,
+    temperatureSignalMv: 1499.09,
+    heatCapacityFreeStopcockFlowOpen: true,
+    heatCapacityFreeStopcockPendingOpenAtMs: null,
+    heatCapacityFreePhysicsState: {
+      ...base.heatCapacityFreePhysicsState,
+      simulationTimeS: 12,
+      lastStopcockOpenedAtS: 10,
+      lastStopcockClosedAtS: null,
+    },
+    heatCapacityFreeSensorState: {
+      ...base.heatCapacityFreeSensorState,
+      displayPressureMv: 0.19,
+      displayTemperatureMv: 1499.09,
+      pressureSlopeMvPerS: 0.8,
+      temperatureSlopeMvPerS: 0.6,
+    },
+    heatCapacityFreeCalibrationState: {
+      ...base.heatCapacityFreeCalibrationState,
+      calibrationVersion: 1,
+      zeroOffsetMv: 0,
+      zeroEvents: [{
+        id: 'zero-1',
+        atS: 11,
+        displayPressureMv: 0.19,
+        displayTemperatureMv: 1499.09,
+        zeroOffsetMv: 0,
+        source: 'user',
+      }],
+      automaticU0: null,
+    },
+    pressureZeroDisplayedSamples: [
+      { atMs: 18_100, valueMv: 0.2 },
+      { atMs: 18_200, valueMv: -0.2 },
+      { atMs: 18_300, valueMv: 0.1 },
+    ],
+    heatCapacityFreeTrials: [createHeatCapacityFreeTrial('free-trial-1')],
+  };
+};
+
+const createUnzeroedFreeU0File = (): WorkbenchHeatCapacityState => {
+  const base = createNoisyFreeU0File();
+  return {
+    ...base,
+    pressureZeroAdjusted: false,
+    heatCapacityFreeCalibrationState: {
+      ...base.heatCapacityFreeCalibrationState,
+      calibrationVersion: 0,
+      zeroOffsetMv: 0,
+      zeroEvents: [],
+    },
+  };
+};
+
+const createPowerOffFreeU0File = (): WorkbenchHeatCapacityState => ({
+  ...createNoisyFreeU0File(),
+  powerOn: false,
+  heatCapacityPhase: 'powerOff',
+  pressureSignalMv: null,
+  temperatureSignalMv: null,
+});
+
+const createClosedStopcockFreeU0File = (): WorkbenchHeatCapacityState => {
+  const base = createNoisyFreeU0File();
+  return {
+    ...base,
+    stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
+    glassPistonState: 'closed',
+    heatCapacityFreeStopcockFlowOpen: false,
+    heatCapacityFreePhysicsState: {
+      ...base.heatCapacityFreePhysicsState,
+      lastStopcockClosedAtS: 12,
+    },
+  };
+};
+
+const createReleasedAfterU1File = (): WorkbenchHeatCapacityState => {
+  const u1File = applyHeatCapacityFreeRecordWorkbenchState(
+    createStableFreeU1File(),
+    'u1',
+    20_000,
+  ).file;
+  return {
+    ...u1File,
+    heatCapacityPhase: 'recovering',
+    heatCapacityFreePhysicsState: {
+      ...u1File.heatCapacityFreePhysicsState,
+      releaseStarted: true,
+      releaseReference: {
+        pressureBeforeKPa: 106,
+        temperatureBeforeK: 298.8,
+        amountBeforeRatio: 1.04,
+        openedAtS: 65,
+        reachedAmbientAtS: 65.3,
+      },
+      lastStopcockOpenedAtS: 65,
+      lastStopcockClosedAtS: 65.4,
+    },
+    heatCapacityFreeSensorState: {
+      ...u1File.heatCapacityFreeSensorState,
+      displayPressureMv: 25.44,
+      displayTemperatureMv: 1499.04,
+      pressureSlopeMvPerS: 0.01,
+      temperatureSlopeMvPerS: 0.01,
+    },
+  };
+};
+
 const u1Attempt = applyHeatCapacityFreeRecordWorkbenchState(
   createStableFreeU1File(),
   'u1',
@@ -99,13 +226,194 @@ assert.equal(u1Attempt.reason, 'accepted');
 assert.equal(u1Attempt.trialIndex, 0);
 assert.equal(u1Attempt.file.heatCapacityFreeTrials.length, 1);
 assert.equal(u1Attempt.file.heatCapacityFreeTrials[0].u0?.zeroEventId, 'zero-1');
-assert.equal(u1Attempt.file.heatCapacityFreeTrials[0].u1?.displayPressureMv, 91.17);
+assert.equal(u1Attempt.file.heatCapacityFreeTrials[0].u1?.displayPressureMv, 91.1);
 assert.equal(u1Attempt.file.heatCapacityFreeTrials[0].u1?.zeroEventId, 'zero-1');
 assert.equal(
   u1Attempt.file.heatCapacityFreeTraceStore.traceTrials.length,
   1,
   'accepted U1 should attach a trace event without requiring React updater side effects',
 );
+
+const repeatedU0AfterEnteringU1Attempt = applyHeatCapacityFreeRecordWorkbenchState(
+  createStableFreeU1File(),
+  'u0',
+  20_100,
+);
+assert.equal(
+  repeatedU0AfterEnteringU1Attempt.accepted,
+  false,
+  'after U0 has advanced the workflow to U1, U0 should not be recordable again',
+);
+assert.equal(repeatedU0AfterEnteringU1Attempt.reason, 'invalid-sequence');
+assert.equal(
+  repeatedU0AfterEnteringU1Attempt.file.heatCapacityFreeTrials[0].u0?.displayPressureMv,
+  0,
+  'blocked repeated U0 should keep the original U0 value',
+);
+
+const repeatedU1BeforeReleaseAttempt = applyHeatCapacityFreeRecordWorkbenchState(
+  {
+    ...u1Attempt.file,
+    heatCapacityFreeSensorState: {
+      ...u1Attempt.file.heatCapacityFreeSensorState,
+      displayPressureMv: 92.34,
+      displayTemperatureMv: 1499.08,
+    },
+  },
+  'u1',
+  20_200,
+);
+assert.equal(
+  repeatedU1BeforeReleaseAttempt.accepted,
+  true,
+  'U1 should be overwritable while the experiment is still before release',
+);
+assert.equal(repeatedU1BeforeReleaseAttempt.file.heatCapacityFreeTrials[0].u1?.displayPressureMv, 92.3);
+assert.equal(repeatedU1BeforeReleaseAttempt.file.heatCapacityFreeTrials[0].u2, null);
+
+const u2BeforeReleaseAttempt = applyHeatCapacityFreeRecordWorkbenchState(
+  repeatedU1BeforeReleaseAttempt.file,
+  'u2',
+  20_300,
+);
+assert.equal(
+  u2BeforeReleaseAttempt.accepted,
+  false,
+  'U2 should not be recordable before a real release has started',
+);
+assert.equal(u2BeforeReleaseAttempt.reason, 'release-not-started');
+
+const staleU1DuringFreshZeroingFile: WorkbenchHeatCapacityState = {
+  ...repeatedU1BeforeReleaseAttempt.file,
+  heatCapacityPhase: 'readyToZero',
+  pressureZeroed: false,
+  pressureZeroAdjusted: true,
+  glassPistonState: 'open',
+  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
+  heatCapacityFreeStopcockFlowOpen: true,
+  heatCapacityFreeStopcockPendingOpenAtMs: null,
+  heatCapacityFreeStopcockFlowPurpose: 'zeroing',
+  heatCapacityFreePhysicsState: {
+    ...repeatedU1BeforeReleaseAttempt.file.heatCapacityFreePhysicsState,
+    releaseStarted: false,
+    releaseReference: null,
+  },
+};
+assert.equal(
+  deriveHeatCapacityFreeWorkflowStage(staleU1DuringFreshZeroingFile),
+  'zeroing',
+  'a stopcock explicitly opened for zeroing should put Free workflow back in U0 zeroing even if stale U1 data exists',
+);
+assert.deepEqual(
+  getHeatCapacityFreeRecordButtonState(staleU1DuringFreshZeroingFile, 'u0'),
+  { visible: true, mode: 'rerecord', disabledReason: null },
+  'fresh zeroing should show U0 re-record and overwrite stale later records',
+);
+assert.deepEqual(
+  getHeatCapacityFreeRecordButtonState(staleU1DuringFreshZeroingFile, 'u1'),
+  { visible: false, mode: 'rerecord', disabledReason: 'invalid-sequence' },
+  'fresh zeroing must hide stale U1 re-record buttons',
+);
+
+const visualReleaseOpeningAfterU1File: WorkbenchHeatCapacityState = {
+  ...repeatedU1BeforeReleaseAttempt.file,
+  heatCapacityPhase: 'readyToZero',
+  glassPistonState: 'open',
+  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
+  heatCapacityFreeStopcockFlowOpen: false,
+  heatCapacityFreeStopcockPendingOpenAtMs: 20_300 + HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
+  heatCapacityFreeStopcockFlowPurpose: 'release',
+};
+assert.equal(
+  deriveHeatCapacityFreeWorkflowStage(visualReleaseOpeningAfterU1File),
+  'releasing',
+  'opening the stopcock after U1 should lock U1 immediately even before physical flow starts',
+);
+assert.equal(
+  getHeatCapacityFreeDisplayPhase(visualReleaseOpeningAfterU1File),
+  'releasing',
+  'the instrument panel should not display readyToZero during a Free release-opening transition',
+);
+assert.deepEqual(
+  getHeatCapacityFreeRecordButtonState(visualReleaseOpeningAfterU1File, 'u1'),
+  { visible: false, mode: 'rerecord', disabledReason: 'invalid-sequence' },
+  'U1 re-record button should disappear as soon as the user starts opening the release stopcock',
+);
+assert.deepEqual(
+  getHeatCapacityFreeRecordButtonState(visualReleaseOpeningAfterU1File, 'u2'),
+  { visible: false, mode: 'record', disabledReason: 'release-not-started' },
+  'U2 should not appear during the release-opening animation',
+);
+
+const releaseFlowStillOpenFile: WorkbenchHeatCapacityState = {
+  ...visualReleaseOpeningAfterU1File,
+  heatCapacityPhase: 'releasing',
+  heatCapacityFreeStopcockFlowOpen: true,
+  heatCapacityFreeStopcockPendingOpenAtMs: null,
+  heatCapacityFreePhysicsState: {
+    ...visualReleaseOpeningAfterU1File.heatCapacityFreePhysicsState,
+    releaseStarted: true,
+    releaseReference: {
+      pressureBeforeKPa: 106,
+      temperatureBeforeK: 298.8,
+      amountBeforeRatio: 1.04,
+      openedAtS: 65,
+      reachedAmbientAtS: null,
+    },
+    lastStopcockOpenedAtS: 65,
+    lastStopcockClosedAtS: null,
+  },
+};
+assert.equal(
+  deriveHeatCapacityFreeWorkflowStage(releaseFlowStillOpenFile),
+  'releasing',
+  'Free workflow should stay in releasing until the release stopcock is closed',
+);
+assert.deepEqual(
+  getHeatCapacityFreeRecordButtonState(releaseFlowStillOpenFile, 'u2'),
+  { visible: false, mode: 'record', disabledReason: 'invalid-sequence' },
+  'U2 record button should stay hidden while the stopcock is still open',
+);
+
+const releasedAfterU1File = createReleasedAfterU1File();
+const repeatedU1AfterReleaseAttempt = applyHeatCapacityFreeRecordWorkbenchState(
+  releasedAfterU1File,
+  'u1',
+  20_400,
+);
+assert.equal(
+  repeatedU1AfterReleaseAttempt.accepted,
+  false,
+  'after release has started, U1 should be locked and cannot be overwritten',
+);
+assert.equal(repeatedU1AfterReleaseAttempt.reason, 'invalid-sequence');
+
+const u2AfterReleaseAttempt = applyHeatCapacityFreeRecordWorkbenchState(
+  releasedAfterU1File,
+  'u2',
+  20_500,
+);
+assert.equal(u2AfterReleaseAttempt.accepted, true);
+assert.equal(u2AfterReleaseAttempt.file.heatCapacityFreeTrials[0].u2?.displayPressureMv, 25.4);
+
+const repeatedU2AfterReleaseAttempt = applyHeatCapacityFreeRecordWorkbenchState(
+  {
+    ...u2AfterReleaseAttempt.file,
+    heatCapacityFreeSensorState: {
+      ...u2AfterReleaseAttempt.file.heatCapacityFreeSensorState,
+      displayPressureMv: 27.88,
+      displayTemperatureMv: 1499.05,
+    },
+  },
+  'u2',
+  20_600,
+);
+assert.equal(
+  repeatedU2AfterReleaseAttempt.accepted,
+  true,
+  'U2 should stay overwritable after release while the U2 record condition is satisfied',
+);
+assert.equal(repeatedU2AfterReleaseAttempt.file.heatCapacityFreeTrials[0].u2?.displayPressureMv, 27.8);
 
 const overAlarmU1Attempt = applyHeatCapacityFreeRecordWorkbenchState(
   createStableOverAlarmFreeU1File(),
@@ -118,6 +426,213 @@ assert.equal(
   'a stable over-alarm Free U1 should be recordable because the alarm only blocks further pumping',
 );
 assert.equal(overAlarmU1Attempt.reason, 'accepted');
-assert.equal(overAlarmU1Attempt.file.heatCapacityFreeTrials[0].u1?.displayPressureMv, 151.95);
+assert.equal(overAlarmU1Attempt.file.heatCapacityFreeTrials[0].u1?.displayPressureMv, 151.9);
+
+const noisyU0Attempt = applyHeatCapacityFreeRecordWorkbenchState(
+  createNoisyFreeU0File(),
+  'u0',
+  18_500,
+);
+assert.equal(
+  noisyU0Attempt.accepted,
+  true,
+  'Free Mode U0 should keep only the U0/U1/U2 order gate and should not require the strict zeroed sample window',
+);
+assert.equal(noisyU0Attempt.file.heatCapacityFreeTrials[0].u0?.displayPressureMv, 0.1);
+assert.equal(noisyU0Attempt.file.heatCapacityFreeTrials[0].u0?.displayTemperatureMv, 1499);
+assert.equal(
+  deriveHeatCapacityFreeWorkflowStage(noisyU0Attempt.file),
+  'zeroing',
+  'recording U0 should not advance Free Mode until the glass stopcock is closed',
+);
+assert.equal(getHeatCapacityFreeRecordBlockReason(noisyU0Attempt.file, 'u0'), null);
+assert.deepEqual(
+  getHeatCapacityFreeRecordButtonState(noisyU0Attempt.file, 'u0'),
+  { visible: true, mode: 'rerecord', disabledReason: null },
+  'U0 should switch to a visible re-record button while the zeroing stopcock is still open',
+);
+const repeatedU0WhileZeroingAttempt = applyHeatCapacityFreeRecordWorkbenchState(
+  {
+    ...noisyU0Attempt.file,
+    pressureSignalMv: 0.34,
+    temperatureSignalMv: 1499.14,
+    heatCapacityFreeSensorState: {
+      ...noisyU0Attempt.file.heatCapacityFreeSensorState,
+      displayPressureMv: 0.34,
+      displayTemperatureMv: 1499.14,
+    },
+  },
+  'u0',
+  18_550,
+);
+assert.equal(
+  repeatedU0WhileZeroingAttempt.accepted,
+  true,
+  'U0 should be overwritable before the user closes the glass stopcock',
+);
+assert.equal(repeatedU0WhileZeroingAttempt.file.heatCapacityFreeTrials[0].u0?.displayPressureMv, 0.3);
+const closedAfterU0File = {
+  ...repeatedU0WhileZeroingAttempt.file,
+  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
+  glassPistonState: 'closed' as const,
+  heatCapacityFreeStopcockFlowOpen: false,
+  heatCapacityFreeStopcockPendingOpenAtMs: null,
+  heatCapacityFreeStopcockFlowPurpose: 'none' as const,
+};
+assert.equal(deriveHeatCapacityFreeWorkflowStage(closedAfterU0File), 'beforePump');
+assert.deepEqual(
+  getHeatCapacityFreeRecordButtonState(closedAfterU0File, 'u0'),
+  { visible: false, mode: 'rerecord', disabledReason: 'invalid-sequence' },
+  'closing the glass stopcock should lock U0 and hide its re-record button',
+);
+
+const u1BeforePumpAttempt = applyHeatCapacityFreeRecordWorkbenchState(
+  closedAfterU0File,
+  'u1',
+  18_560,
+);
+assert.equal(
+  u1BeforePumpAttempt.accepted,
+  false,
+  'U1 should not be recordable before the first effective pump stroke',
+);
+assert.equal(u1BeforePumpAttempt.reason, 'invalid-sequence');
+
+const strictNoisyU0Attempt = applyHeatCapacityFreeRecordWorkbenchState(
+  createNoisyFreeU0File(),
+  'u0',
+  18_600,
+  { enforceRecordReadiness: true },
+);
+assert.equal(
+  strictNoisyU0Attempt.accepted,
+  false,
+  'the strict record-readiness channel should remain available for guided modes',
+);
+
+const unzeroedU0Attempt = applyHeatCapacityFreeRecordWorkbenchState(
+  createUnzeroedFreeU0File(),
+  'u0',
+  18_700,
+);
+assert.equal(
+  unzeroedU0Attempt.accepted,
+  true,
+  'Free Mode U0 should not require a zero-calibration event when strict readiness is disabled',
+);
+assert.equal(unzeroedU0Attempt.file.heatCapacityFreeTrials[0].u0?.zeroEventId, 'free-unzeroed-0');
+
+const powerOffU0Attempt = applyHeatCapacityFreeRecordWorkbenchState(
+  createPowerOffFreeU0File(),
+  'u0',
+  18_750,
+);
+assert.equal(
+  powerOffU0Attempt.accepted,
+  false,
+  'Free Mode U0 should require instrument power even when strict readiness is disabled',
+);
+assert.equal(powerOffU0Attempt.reason, 'zero-not-ready');
+
+const closedStopcockU0Attempt = applyHeatCapacityFreeRecordWorkbenchState(
+  createClosedStopcockFreeU0File(),
+  'u0',
+  18_760,
+);
+assert.equal(
+  closedStopcockU0Attempt.accepted,
+  false,
+  'Free Mode U0 should require an open glass stopcock even when strict readiness is disabled',
+);
+assert.equal(closedStopcockU0Attempt.reason, 'zero-not-ready');
+
+const strictUnzeroedU0Attempt = applyHeatCapacityFreeRecordWorkbenchState(
+  createUnzeroedFreeU0File(),
+  'u0',
+  18_800,
+  { enforceRecordReadiness: true },
+);
+assert.equal(
+  strictUnzeroedU0Attempt.accepted,
+  false,
+  'strict readiness should still require a real zero-calibration event',
+);
+
+const beforePowerSnapshot = captureHeatCapacityFreeRollbackSnapshot({
+  ...noisyU0Attempt.file,
+  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
+  glassPistonState: 'open',
+});
+const beforePumpSnapshot = captureHeatCapacityFreeRollbackSnapshot({
+  ...closedAfterU0File,
+  pumpValveOpen: true,
+  pumpValveState: 'open',
+  pumpStrokeCount: 0,
+  pumpStrokeTimestamps: [],
+  heatCapacityFreePhysicsState: {
+    ...closedAfterU0File.heatCapacityFreePhysicsState,
+    pumpStrokeCount: 0,
+    lastPumpStrokeAtS: null,
+    lastPumpValveOpenedAtS: closedAfterU0File.heatCapacityFreePhysicsState.simulationTimeS,
+    lastPumpValveClosedAtS: null,
+  },
+});
+const beforeReleaseSnapshot = captureHeatCapacityFreeRollbackSnapshot(repeatedU1BeforeReleaseAttempt.file);
+const completedWithRollbackSnapshots: WorkbenchHeatCapacityState = {
+  ...repeatedU2AfterReleaseAttempt.file,
+  heatCapacityFreeRollbackSnapshots: {
+    afterPowerOn: beforePowerSnapshot,
+    beforePump: beforePumpSnapshot,
+    beforeRelease: beforeReleaseSnapshot,
+  },
+};
+const removeU2Rollback = removeHeatCapacityFreeTrialRecordWorkbenchState(
+  completedWithRollbackSnapshots,
+  0,
+  'u2',
+  22_000,
+);
+assert.equal(removeU2Rollback.heatCapacityFreeTrials[0].u0 !== null, true);
+assert.equal(removeU2Rollback.heatCapacityFreeTrials[0].u1 !== null, true);
+assert.equal(removeU2Rollback.heatCapacityFreeTrials[0].u2, null);
+assert.equal(deriveHeatCapacityFreeWorkflowStage(removeU2Rollback), 'beforeRelease');
+assert.equal(
+  removeU2Rollback.heatCapacityFreePhysicsState.releaseStarted,
+  false,
+  'deleting U2 should restore the pre-release physics snapshot',
+);
+
+const removeU1Rollback = removeHeatCapacityFreeTrialRecordWorkbenchState(
+  completedWithRollbackSnapshots,
+  0,
+  'u1',
+  22_100,
+);
+assert.equal(removeU1Rollback.heatCapacityFreeTrials[0].u0 !== null, true);
+assert.equal(removeU1Rollback.heatCapacityFreeTrials[0].u1, null);
+assert.equal(removeU1Rollback.heatCapacityFreeTrials[0].u2, null);
+assert.equal(deriveHeatCapacityFreeWorkflowStage(removeU1Rollback), 'beforePump');
+assert.equal(removeU1Rollback.pumpValveOpen, true);
+assert.equal(removeU1Rollback.heatCapacityFreePhysicsState.pumpStrokeCount, 0);
+
+const removeU0Rollback = removeHeatCapacityFreeTrialRecordWorkbenchState(
+  completedWithRollbackSnapshots,
+  0,
+  'u0',
+  22_200,
+);
+assert.equal(removeU0Rollback.heatCapacityFreeTrials[0].u0, null);
+assert.equal(removeU0Rollback.heatCapacityFreeTrials[0].u1, null);
+assert.equal(removeU0Rollback.heatCapacityFreeTrials[0].u2, null);
+assert.equal(deriveHeatCapacityFreeWorkflowStage(removeU0Rollback), 'zeroing');
+assert.equal(removeU0Rollback.powerOn, true);
+assert.equal(getHeatCapacityFreeRecordBlockReason(removeU0Rollback, 'u0'), null);
+assert.equal(removeU0Rollback.pressureZeroed, false);
+assert.equal(removeU0Rollback.pressureZeroAdjusted, false);
+assert.equal(
+  Math.abs(removeU0Rollback.pressureSignalMv ?? 0) > 0.05,
+  true,
+  'deleting U0 should create a fresh unzeroed pressure display that requires zeroing again',
+);
 
 console.log('workbenchHeatCapacityFreeRecordAttempt tests passed');

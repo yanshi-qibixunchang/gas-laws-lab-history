@@ -44,7 +44,11 @@ const getProcessReviewCssBlock = (selector: string) => {
 };
 const processReviewStageScaleSource = readFileSync(processReviewStageScalePath, 'utf8');
 const freeRecordTableSection = leftPanelSource.match(/data-heat-capacity-free-record-table="true"[\s\S]*?<\/table>/)?.[0] ?? '';
+const freeRecordTableHeaderSection = freeRecordTableSection.match(/<thead>[\s\S]*?<\/thead>/)?.[0] ?? '';
 const freeCurrentTrialSection = leftPanelSource.match(/data-heat-capacity-free-current-trial-status="true"[\s\S]*?<\/section>/)?.[0] ?? '';
+const freeResultSummarySection = leftPanelSource.match(/data-heat-capacity-free-result-summary="true"[\s\S]*?<\/section>/)?.[0] ?? '';
+const simplifiedFreeCopySection = leftPanelSource.match(/'zh-CN': \{\s*freeRecording: \{[\s\S]*?\n    \},\n  \},\n  'zh-TW':/)?.[0] ?? '';
+const freeCopySection = leftPanelSource.match(/const freeCopyByLanguage = \{[\s\S]*?\n\} as const;/)?.[0] ?? '';
 const hardSphereToggleMountSection = sceneSource.match(/<HeatCapacityHardSphereToggle[\s\S]*?\/>/)?.[0] ?? '';
 const trialModelSource = readFileSync(trialModelPath, 'utf8');
 const parameterConfigSource = readFileSync(parameterConfigPath, 'utf8');
@@ -130,6 +134,21 @@ assert.match(
   workbenchSource,
   /recordFreeHeatCapacitySample[\s\S]*?if \(attempt\.accepted\) \{[\s\S]*?markHeatCapacityFocusSessionNonReversible\(\)/,
   'Accepted U0/U1/U2 records in focus mode should prevent sidebar restoration on exit',
+);
+assert.match(
+  workbenchSource,
+  /getHeatCapacityFreeRecordButtonState/,
+  'Free Mode record buttons should use the shared stage-aware button state helper',
+);
+assert.match(
+  workbenchSource,
+  /重新记录/,
+  'Free Mode record buttons should switch to re-record labels while the current record is overwritable',
+);
+assert.doesNotMatch(
+  workbenchSource,
+  /data-heat-capacity-free-record="u0"[\s\S]{0,240}disabled=\{freeRecordU0Blocked\}/,
+  'Free Mode should hide locked record buttons instead of leaving them visible and disabled',
 );
 assert.match(
   workbenchSource,
@@ -371,6 +390,10 @@ assert.match(workbenchSource, /HEAT_CAPACITY_FREE_SPEED_NOTICE_DURATION_MS = 240
 assert.match(workbenchSource, /isHeatCapacityFreeEquilibriumSpeedAvailable\(activeFile\)/, 'Free wait speed UI should appear only during sealed/recovery waiting phases');
 assert.match(workbenchSource, /heatCapacityFreeEquilibriumSpeedHintShown/, 'Free wait speed explanation should be tracked once per experiment run');
 assert.match(workbenchSource, /data-heat-capacity-free-speed-control="true"/, 'Free wait speed control should have stable testable markup');
+assert.match(workbenchSource, /deriveHeatCapacityFreeExperimentTimer/, 'Workbench should derive Free experiment timer state from the active trial and physics state');
+assert.match(workbenchSource, /data-heat-capacity-free-wait-timer="true"/, 'Free wait speed overlay should render a wait timer region');
+assert.match(workbenchSource, /freeWaitTimerLabel/, 'Free wait timer should use localized stage labels');
+assert.match(workbenchSource, /formatHeatCapacityFreeWaitTimer/, 'Free wait timer should format mm:ss elapsed and target values');
 assert.match(workbenchSource, /freeSpeedLabelCode:\s*'WAIT RATE'/, 'Free wait speed control should localize its engineering code label through Heat Capacity copy');
 assert.match(workbenchSource, /zh-CN[\s\S]*freeSpeedLabel:\s*'等待倍速'[\s\S]*zh-TW[\s\S]*freeSpeedLabel:\s*'等待倍速'[\s\S]*en[\s\S]*freeSpeedLabel:\s*'Wait speed'/, 'Free wait speed control should include zh-CN, zh-TW, and English labels');
 assert.match(workbenchSource, /zh-CN[\s\S]*freeSpeedNotice:\s*'真实实验等待过程较慢，仿真已提供倍速等待以加快达到平衡。'[\s\S]*zh-TW[\s\S]*freeSpeedNotice:\s*'真實實驗等待過程較慢，仿真已提供倍速等待以加快達到平衡。'[\s\S]*en[\s\S]*freeSpeedNotice:\s*'Real experiments wait slowly; simulation speed controls are available to reach equilibrium faster\.'/, 'Free wait speed explanation should be localized for all workbench languages');
@@ -402,10 +425,17 @@ assert.match(styleSource, /\.studio-heat-free-speed-overlay-visible \{[\s\S]*stu
 assert.match(styleSource, /\.studio-heat-free-speed-overlay-exiting \{[\s\S]*studioOverlayTopCenterOut/, 'Free speed selector should exit upward with fade-out');
 assert.match(styleSource, /\.studio-heat-free-speed-notice \{[\s\S]*studioOverlayFadeIn[\s\S]*studioOverlayFadeOut/, 'Free speed centered notice should fade in and out automatically');
 assert.match(workbenchSource, /selectActiveHeatCapacityWorkbenchDisplay\(activeFile\)/, 'workbench should pass the active mode display source into the 3D instrument');
-assert.match(workbenchSource, /recordFreeHeatCapacitySample\('u0'\)/, 'Free Mode should expose a persistent U0 record action');
-assert.match(workbenchSource, /recordFreeHeatCapacitySample\('u1'\)/, 'Free Mode should expose a persistent U1 record action');
-assert.match(workbenchSource, /recordFreeHeatCapacitySample\('u2'\)/, 'Free Mode should expose a persistent U2 record action');
+assert.match(workbenchSource, /data-workbench-create-experiment="heatCapacity"/, 'Workbench should expose a stable heat-capacity creation selector for browser automation');
+assert.match(workbenchSource, /recordFreeHeatCapacitySample\(kind\)/, 'Free Mode should route visible U0/U1/U2 record actions through the shared button renderer');
+assert.match(workbenchSource, /data-heat-capacity-free-record=\{kind\}/, 'Free Mode record buttons should keep a stable browser-automation selector for the rendered record kind');
+assert.match(workbenchSource, /getHeatCapacityFreeRecordButtonState\(activeFile,\s*'u0'\)[\s\S]*getHeatCapacityFreeRecordButtonState\(activeFile,\s*'u1'\)[\s\S]*getHeatCapacityFreeRecordButtonState\(activeFile,\s*'u2'\)/, 'Free Mode record buttons should use the shared stage-aware button states for all record kinds');
+assert.match(workbenchSource, /getHeatCapacityFreeDisplayPhase\(activeFile\)/, 'Free Mode should derive a workflow-aware display phase for instrument panels');
+assert.match(workbenchSource, /phase=\{heatCapacityDisplayPhase\}/, '3D instrument focus panel should receive the workflow-aware heat-capacity display phase');
+assert.match(workbenchSource, /getHeatCapacityPhaseLabel\(heatCapacityDisplayPhase\)/, 'realtime phase badges should use the same workflow-aware heat-capacity display phase');
+assert.match(workbenchSource, /data-heat-capacity-guided-record=\{visibleRecordKind\}/, 'Guided record button should expose the active U0/U1/U2 kind for browser automation');
 assert.match(workbenchSource, /applyHeatCapacityFreeRecordWorkbenchState/, 'Free Mode record buttons should use one synchronous record-attempt helper');
+assert.match(workbenchSource, /'zero-not-ready': '请先打开电源并打开玻璃旋塞，再记录 U₀。'/, 'Free Mode U0 reject copy should state only the minimum physical record prerequisites');
+assert.doesNotMatch(workbenchSource, /完成调零，待 Uₚ 稳定接近 0 后再记录 U₀|finish zeroing, and wait until Uₚ is stable near 0 before recording U₀/, 'Free Mode U0 reject copy should not imply strict zeroing and stability gates');
 assert.match(stateSource, /recordHeatCapacityFreeTraceEventWithReference/, 'Free Mode official records should capture hidden trace references before saving U0/U1/U2');
 assert.match(processReviewStageScaleSource, /MIN_COMPRESSED_STAGE_DURATION_BY_ID/, 'process review timeline should keep each experiment stage readable even after long idle waits');
 assert.match(processReviewStageScaleSource, /calculateHeatCapacityProcessReviewCompressedDurationS/, 'process review timeline should expose compressed process duration for independent actual and ideal reference traces');
@@ -495,6 +525,10 @@ assert.doesNotMatch(processReviewPanelSource, /时间 \/ s|ΔP \/ kPa|ΔT \/ K/,
 assert.doesNotMatch(processReviewPanelSource, /showXAxis=\{?false\}?|showXAxis\s*=\s*false/, 'both process review charts should expose the time axis label');
 assert.match(processReviewPanelSource, /chart\.records\.map/, 'process review charts should consume actual record events for record windows');
 assert.doesNotMatch(processReviewPanelSource, /chart\.bestWindows\.map/, 'process review charts should not consume best-window data for plot bands');
+assert.match(processReviewPanelSource, /formatHeatCapacitySignalMv\(record\.signalMv\)/, 'process review record hover mV signal should show one truncated decimal');
+assert.doesNotMatch(processReviewPanelSource, /record\.signalMv\.toFixed\(2\)/, 'process review record hover mV signal should not show two decimals');
+assert.doesNotMatch(leftPanelSource, /data-heat-capacity-calculate="free"/, 'Free Mode results should be derived automatically without a separate calculate button');
+assert.match(leftPanelSource, /data-heat-capacity-calculate="teaching"/, 'Teaching calculate button should expose a stable browser-automation selector');
 assert.doesNotMatch(processReviewStyleSource, /\.hpr-reference-line|--hpr-reference-line/, 'standard reference styles should be removed');
 assert.match(processReviewStyleSource, /\.hpr-ideal-reference-line/, 'ideal reference curve should have an explicit style');
 assert.match(processReviewStyleSource, /\.hpr-record-window/, 'actual record window should have an explicit style');
@@ -587,19 +621,50 @@ assert.match(workbenchSource, /setHeatCapacityFreeResetFeedbackActive\(true\)[\s
 assert.match(workbenchSource, /studio-heat-mode-action-feedback[\s\S]*data-heat-capacity-mode-action="reset-free"/, 'Free Mode reset button should apply a visible feedback class after clicks');
 assert.match(styleSource, /\.studio-heat-mode-action-feedback \{[\s\S]*animation:\s*studio-heat-reset-feedback/, 'Free Mode reset feedback should have an explicit animation style');
 assert.match(styleSource, /@keyframes studio-heat-reset-feedback/, 'Free Mode reset feedback should define the reset confirmation keyframes');
-assert.match(leftPanelSource, /file\.heatCapacityMode === 'free'[\s\S]*heatCapacityFreeTrials/, 'recording panel should choose Free records when Free Mode is active');
+assert.match(leftPanelSource, /file\.heatCapacityMode === 'free'[\s\S]*renderFreeDataAndResultsTab/, 'Free Mode record/processing panels should route to the merged Data & Results page');
 assert.match(leftPanelSource, /data-heat-capacity-record-source=\{file\.heatCapacityMode\}/, 'recording panel should expose the active record source');
 assert.match(leftPanelSource, /automaticU0/, 'Free record table should show automatic U0 status');
+assert.match(workbenchSource, /dataResultsTitle:\s*'数据与结果'/, 'Free Mode materials should expose a localized merged Data & Results title');
+assert.match(workbenchSource, /const getHeatCapacityMaterialsTabOrder = \(file: WorkbenchFileState\): WorkbenchHeatCapacityTabId\[\] =>/, 'Heat Capacity materials should derive tab order from the active file');
+assert.match(workbenchSource, /file\.kind === 'heatCapacity' && file\.heatCapacityMode === 'free'[\s\S]*\['guide', 'records', 'review'\]/, 'Free Mode materials should hide the old independent processing tab');
+assert.match(workbenchSource, /getHeatCapacityMaterialsTabOrder\(activeFile\)/, 'Heat Capacity material tree/window should use the mode-specific tab order');
+assert.match(workbenchSource, /getHeatCapacityPanelDisplayDefinition\(tabId,\s*panel\)/, 'Heat Capacity material labels should be overridable per mode');
 assert.match(leftPanelSource, /freeRecording:\s*\{/, 'Free record table copy should be localized through copyByLanguage');
-assert.match(leftPanelSource, /renderFreeRecordingTab = \(\s*file:[\s\S]*copy: LocalizedText/, 'Free record table should receive localized copy instead of hard-coded English');
+assert.match(leftPanelSource, /dataAndResultsTitle:\s*'数据与结果'/, 'Free merged data panel should expose a localized Data & Results title');
+assert.match(leftPanelSource, /renderFreeDataAndResultsTab = \(\s*file:[\s\S]*copy: LocalizedText/, 'Free data/result page should receive localized copy instead of hard-coded English');
 assert.match(leftPanelSource, /copy\.freeRecording\.(title|source|automaticCandidate|emptyRecords|trial)/, 'Free record table should render localized Free recording labels');
-assert.match(leftPanelSource, /renderFreeRecordingTab = \(\s*file:[\s\S]*pendingRemoveTrialRecord:[\s\S]*onRemoveTrialRecord:[\s\S]*onCancelRemoveTrialRecord:/, 'Free record table should receive deletion confirmation callbacks');
+assert.match(leftPanelSource, /summaryLine:\s*\(\s*theoreticalGamma:\s*string,\s*trialCount:\s*number,\s*meanGamma:\s*string,\s*relativeError:\s*string\s*\) => `理论 γ = \$\{theoreticalGamma\}　实验组数 = \$\{trialCount\}　平均 γ = \$\{meanGamma\}　相对误差 = \$\{relativeError\}`/, 'Free result summary should use the approved one-line Simplified Chinese wording');
+assert.match(leftPanelSource, /renderFreeDataAndResultsTab = \(\s*file:[\s\S]*pendingRemoveTrialRecord:[\s\S]*onRemoveTrialRecord:[\s\S]*onCancelRemoveTrialRecord:/, 'Free data/result page should receive deletion confirmation callbacks');
+assert.match(leftPanelSource, /calculateFreeHeatCapacityMeanResult\(file\.heatCapacityFreeTrials/, 'Free data/result page should calculate γ and mean automatically from current records');
+assert.match(leftPanelSource, /data-heat-capacity-free-result-summary="true"/, 'Free data/result page should include the derived result summary in the merged panel');
+assert.match(leftPanelSource, /copy\.freeRecording\.summaryLine\([\s\S]*file\.theoreticalGamma[\s\S]*result\.validTrialCount[\s\S]*result\.meanGamma[\s\S]*result\.relativeErrorPercent/, 'Free result summary should render one localized summary line with theory, group count, mean gamma, and relative error');
+assert.match(leftPanelSource, /formatPercent\(result\.relativeErrorPercent\)/, 'Free result summary should format relative error through the shared percent formatter');
+assert.doesNotMatch(freeResultSummarySection, /<span>\{copy\.freeRecording\.resultSummaryTitle\}<\/span>|<span>\{result\.message\}<\/span>|γair =|γmean =/, 'Free result summary should not split into multiple table-like cells or show internal English result messages');
+assert.doesNotMatch(leftPanelSource, /const renderFreeProcessingTab/, 'Free Mode should not keep a separate processing renderer after merging data and results');
+assert.match(leftPanelSource, /getHeatCapacityFreeRecordDisplayTrialIndex\(file\)/, 'Free current-record display should use a display index separate from the active action target');
+assert.match(leftPanelSource, /displayFreeTrialIndex === activeFreeTrialIndex/, 'Free current-record row actions should only appear for the active editable trial, not the post-power-off review display');
 assert.match(leftPanelSource, /data-heat-capacity-free-record-table="true"[\s\S]*copy\.table\.action/, 'Free record table should include an action column');
+assert.match(leftPanelSource, /completedAt:\s*'完成时间'/, 'Free table copy should include a localized completion-time label');
+assert.match(leftPanelSource, /u0Display:\s*'U₀ 记录值 \/ mV'/, 'Free table should label U0 as the recorded instrument value');
+assert.match(leftPanelSource, /u1Display:\s*'U₁ 记录值 \/ mV'/, 'Free table should label U1 as the recorded instrument value');
+assert.match(leftPanelSource, /u2Display:\s*'U₂ 记录值 \/ mV'/, 'Free table should label U2 as the recorded instrument value');
+assert.match(leftPanelSource, /u1Corrected:\s*'U₁ 扣零值 \/ mV'/, 'Free table should label corrected U1 as zero-offset corrected');
+assert.match(leftPanelSource, /u2Corrected:\s*'U₂ 扣零值 \/ mV'/, 'Free table should label corrected U2 as zero-offset corrected');
+assert.doesNotMatch(leftPanelSource, /U₀ 显示 \/ mV|U₁ 显示 \/ mV|U₂ 显示 \/ mV|U₁ 修正 \/ mV|U₂ 修正 \/ mV/, 'Free table should avoid ambiguous display/corrected column wording');
+assert.match(leftPanelSource, /formatFreeTrialCompletedAt/, 'Free tables should use a dedicated formatter for saved completion timestamps');
+assert.match(leftPanelSource, /data-heat-capacity-free-record-table="true"[\s\S]*copy\.freeRecording\.completedAt[\s\S]*formatFreeTrialCompletedAt\(trial\.completedAtMs\)/, 'Free record table should show each saved group completion time');
+assert.doesNotMatch(freeRecordTableHeaderSection, /copy\.freeRecording\.u1Corrected|copy\.freeRecording\.u2Corrected/, 'Free main record table should keep zero-corrected values out of the primary columns');
+assert.doesNotMatch(freeCurrentTrialSection, /copy\.freeRecording\.calibration|calibrationVersion/, 'Free current-trial main table should not show internal calibration version values');
+assert.match(freeCurrentTrialSection, /studio-heat-free-record-grid/, 'Free current-trial status grid should use the fixed five-column Free record grid class');
+assert.match(styleSource, /\.studio-heat-free-record-grid \.studio-heat-sample-row\s*\{[\s\S]*grid-template-columns:\s*1\.4fr 0\.9fr 0\.8fr 0\.8fr 0\.9fr/, 'Free record grids should have a stable five-column layout after removing calibration');
+assert.match(leftPanelSource, /data-heat-capacity-free-trial-detail="true"[\s\S]*copy\.freeRecording\.u1Corrected[\s\S]*copy\.freeRecording\.u2Corrected/, 'Free trial details should keep zero-corrected U1/U2 available without duplicating the main columns');
 assert.match(freeCurrentTrialSection, /renderRemoveRecordButton\(currentFreeTrialIndex,\s*'u0'[\s\S]*renderRemoveRecordButton\(currentFreeTrialIndex,\s*'u1'[\s\S]*renderRemoveRecordButton\(currentFreeTrialIndex,\s*'u2'/, 'Free current-trial status should expose delete actions for U0, U1, and U2');
 assert.match(freeRecordTableSection, /renderRemoveRecordButton\(\s*index,\s*'trial'/, 'Free record table should expose only whole-group deletion');
 assert.doesNotMatch(freeRecordTableSection, /renderRemoveRecordButton\(\s*index,\s*'u[012]'/, 'Free record table should not delete individual U0/U1/U2 values');
-assert.doesNotMatch(leftPanelSource, /<strong>Free Mode records<\/strong>|<span>Source: Free physical|<th>Trial<\/th>|<td colSpan=\{8\}>No Free Mode records yet|<span>Free Mode processing|<div className="studio-empty-panel-tree">Complete a Free Mode/, 'Free table JSX should not contain hard-coded English labels in the localized rendering path');
-assert.match(leftPanelSource, /correctedSignals|U1CorrectedMv|copy\.freeRecording\.u2Corrected/, 'Free record table should show corrected U1/U2 values');
+assert.doesNotMatch(simplifiedFreeCopySection, /'[^\n']*(Free|trial|automaticU0)[^\n']*'/, 'Simplified Chinese Free data/result copy should not expose internal English Free/trial/automaticU0 wording');
+assert.doesNotMatch(freeCopySection, /\bcalibration:|\bprocessingTitle:|\bresultSummaryTitle:|\bvalidTrials:|\bcompleteTrialCount:|\bcalculate:|\bprocessingEmpty:|\bprocessingMessage:|\bvalid:/, 'Free data/result copy should not keep obsolete fields from the removed standalone processing UI');
+assert.doesNotMatch(leftPanelSource, /<strong>Free Mode records<\/strong>|<span>Source: Free physical|<th>Trial<\/th>|<td colSpan=\{8\}>No Free Mode records yet|<span>Free Mode processing|<div className="studio-empty-panel-tree">Complete a Free Mode|<em>automaticU0<\/em>/, 'Free table JSX should not contain hard-coded English labels in the localized rendering path');
+assert.match(leftPanelSource, /includedInMean|copy\.freeRecording\.included|copy\.freeRecording\.notCalculable/, 'Free trial details should disclose whether each group participates in the current average');
 assert.doesNotMatch(leftPanelSource, /operationUpperBound|bestValue|bestOperation|操作上限|最佳值/, 'Batch 9 should not add operation scoring, best-value columns, or upper-bound output');
 assert.doesNotMatch(workbenchSource, /operationUpperBound|bestValue|bestOperation|操作上限|最佳值/, 'Batch 9 should keep automatic U0 as data foundation only, without scoring UI');
 assert.match(stateSource, /stepFreePhysics\(/, 'Free Mode workbench stepping should call the Free physics engine');
@@ -761,6 +826,7 @@ assert.match(workbenchSource, /const freeReleaseReference = activeFile\.heatCapa
 assert.match(workbenchSource, /const teachingReleaseFlowActive = activeFile\.heatCapacityMode !== 'free'[\s\S]*teachingStopcockFlowOpen[\s\S]*teachingReleaseRemainingMs > 0/, 'Demo and Guide modes should convert confirmed open-stopcock release windows into particle outflow');
 assert.match(workbenchSource, /const releaseFlowActive = freeReleaseFlowActive \|\| teachingReleaseFlowActive/, 'particle release flow should combine Free and teaching modes instead of Free Mode only');
 assert.match(workbenchSource, /const stopcockFlowOpen = activeFile\.heatCapacityMode === 'free'[\s\S]*activeFile\.heatCapacityFreeStopcockFlowOpen[\s\S]*teachingStopcockFlowOpen/, 'particle stopcock-flow state should come from the relevant mode');
+assert.match(workbenchSource, /getHeatCapacityFreeStopcockFlowPurpose[\s\S]*heatCapacityFreeStopcockFlowPurpose: stopcockFlowPurpose/, 'Free Mode stopcock opening should persist whether the open flow is zeroing or release');
 assert.match(sceneSource, /pressureDeltaKPa=\{props\.pressureDeltaKPa\}/, 'hard-sphere scene should still pass runtime pressure difference for secondary flow intensity and gauges');
 assert.match(hardSphereLayerSource, /pressureDeltaKPa\?:\s*number/, 'hard-sphere particle layer should accept runtime pressure difference independent of powered instrument readouts');
 assert.match(hardSphereLayerSource, /gasAmountRatio\?:\s*number/, 'hard-sphere particle layer should accept physical gas amount for molecule count');
@@ -917,6 +983,7 @@ assert.doesNotMatch(styleSource, /\.studio-heat-procedural-hit-target/, 'workben
 assert.doesNotMatch(sceneSource, /name="HitboxStopcockHandle" visible=\{false\}/, 'stopcock hitbox should remain raycastable instead of being invisible to raycaster');
 assert.match(sceneSource, /name="HitboxStopcockHandle"[\s\S]*<boxGeometry args=\{\[1\.02, 0\.72, 0\.34\]\}/, 'stopcock hitbox should stay tight enough not to overlap the pump valve hitbox');
 assert.doesNotMatch(sceneSource, /name="HitboxPowerSwitch" visible=\{false\}/, 'power switch hitbox should remain raycastable instead of being invisible to raycaster');
+assert.match(sceneSource, /name="HitboxPowerSwitch"[\s\S]*<boxGeometry args=\{\[0\.42, 0\.42, 0\.28\]\}/, 'power switch hitbox should be slightly expanded to tolerate 3D coordinate edge clicks');
 assert.doesNotMatch(sceneSource, /name="HitboxPressureZeroKnob" visible=\{false\}/, 'pressure zero hitbox should remain raycastable instead of being invisible to raycaster');
 assert.doesNotMatch(sceneSource, /name="pumpValveHitbox" visible=\{false\}/, 'pump valve hitbox should remain raycastable instead of being invisible to raycaster');
 assert.doesNotMatch(sceneSource, /name="pumpBulbHitbox" visible=\{false\}/, 'pump bulb hitbox should remain raycastable instead of being invisible to raycaster');
@@ -1076,7 +1143,8 @@ assert.match(sceneSource, /const poweredInstrumentReadout = \(displayValue: stri
 assert.match(sceneSource, /const poweredInstrumentNumber = \(displayValue: string\) => props\.powerOn \? displayValue : '--'/, 'instrument focus panel should hide numeric placeholders while powered off');
 assert.match(sceneSource, /<strong>\{poweredInstrumentReadout\(temperatureDisplay\)\}<\/strong>/, 'instrument focus Uₜ should be guarded by power state');
 assert.match(sceneSource, /<strong>\{poweredInstrumentReadout\(pressureDisplay\)\}<\/strong>/, 'instrument focus Uₚ should be guarded by power state');
-assert.match(sceneSource, /<strong>\{poweredInstrumentNumber\(`\$\{formatPanelNumber\(props\.pressureDisplayedPlaceholder, 2\)\} mV`\)\}<\/strong>/, 'instrument focus displayed pressure should not leak values while powered off');
+assert.match(sceneSource, /<strong>\{poweredInstrumentNumber\(`\$\{formatHeatCapacitySignalMv\(props\.pressureDisplayedPlaceholder\)\} mV`\)\}<\/strong>/, 'instrument focus displayed pressure should show one truncated mV decimal and hide while powered off');
+assert.match(sceneSource, /<strong>\{poweredInstrumentNumber\(`\$\{formatHeatCapacitySignalMv\(props\.pressureZeroOffset\)\} mV`\)\}<\/strong>/, 'instrument focus zero offset should show one truncated mV decimal and hide while powered off');
 assert.match(sceneSource, /<strong>\{poweredInstrumentNumber\(`\$\{formatPanelNumber\(props\.pressurePlaceholder, 2\)\} kPa`\)\}<\/strong>/, 'instrument focus placeholder pressure should not leak values while powered off');
 assert.match(sceneSource, /getPumpBulbDisplayLabel/, 'pump bulb display state should be mapped for user-facing UI');
 assert.doesNotMatch(sceneSource, /sceneCopy\.focus\.opened|sceneCopy\.focus\.closed/, 'removed shared stopcock focus panel should not keep its pump-valve state copy path');
@@ -1270,6 +1338,7 @@ assert.match(workbenchSource, /pressureSafetyThresholdKPa=\{activeFile\.pressure
 assert.match(workbenchSource, /pressureOverLimit=\{activeFile\.pressureOverLimit\}/, 'workbench should pass pressure over-limit state into the 3D pressure gauge');
 assert.match(workbenchSource, /data-heat-capacity-pressure-warning="true"/, 'workbench should render a centered red pressure warning from pressureOverLimit');
 assert.match(workbenchSource, /studio-heat-pressure-warning-kicker/, 'pressure warning markup should include an engineering status kicker');
+assert.match(workbenchSource, /pressureAlarmTitle:\s*'报警'/, 'center alarm title should be alarm, not generic danger warning');
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV = 90/, 'manual pumping should consider 90 mV sufficient instead of the old 100 mV gate');
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 120/, 'suggested stop hint should begin at the confirmed 120 mV target');
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV = 140/, 'alarm should remain above the 4-stroke Free Mode target window');
@@ -1359,9 +1428,9 @@ assert.match(sceneSource, /name="TemperatureDisplayChannelLabelText"\s+position=
 assert.match(sceneSource, /name="PressureDisplayChannelLabelText"\s+position=\{\[0, 0\.215, 0\.505\]\}\s+size=\{INSTRUMENT_PANEL_CHANNEL_LABEL_TEXT_SIZE\}/, 'pressure channel label should keep its safe gap above the screen');
 assert.match(sceneSource, /name="TemperatureInputPortLabelText"\s+position=\{\[-0\.64, -0\.23, 0\.505\]\}\s+size=\{INSTRUMENT_PANEL_INPUT_LABEL_TEXT_SIZE\}/, 'temperature input label should keep its safe lower-panel position');
 assert.match(sceneSource, /name="PressureInputPortLabelText"\s+position=\{\[-0\.08, -0\.24, 0\.505\]\}\s+size=\{INSTRUMENT_PANEL_INPUT_LABEL_TEXT_SIZE\}/, 'pressure input label should keep its safe lower-panel position');
-assert.match(sceneSource, /formatSignal = \(value: number \| null, fallback = '--\.-- mV'\)[\s\S]*value\.toFixed\(2\)/, '3D instrument model panel should show sensor mV readings to 0.01 mV');
-assert.match(workbenchSource, /const temperatureSignalValue =[\s\S]*formatMetric\(activeFile\.temperatureSignalMv, 2\)/, 'right realtime model panel should show temperature mV readings to 0.01 mV');
-assert.match(workbenchSource, /const pressureSignalValue =[\s\S]*formatMetric\(activeFile\.pressureSignalMv, 2\)/, 'right realtime model panel should show pressure mV readings to 0.01 mV');
+assert.match(sceneSource, /formatSignal = \(value: number \| null, fallback = '--\.- mV'\)[\s\S]*formatHeatCapacitySignalMv\(value\)/, '3D instrument model panel should show sensor mV readings to 0.1 mV');
+assert.match(workbenchSource, /const temperatureSignalValue =[\s\S]*formatHeatCapacitySignalMv\(activeFile\.temperatureSignalMv\)/, 'right realtime model panel should show temperature mV readings to 0.1 mV without rounding up');
+assert.match(workbenchSource, /const pressureSignalValue =[\s\S]*formatHeatCapacitySignalMv\(activeFile\.pressureSignalMv\)/, 'right realtime model panel should show pressure mV readings to 0.1 mV without rounding up');
 assert.match(workbenchSource, /updateHeatCapacityPower/);
 assert.match(workbenchSource, /updateHeatCapacityStopcockOpen/);
 assert.doesNotMatch(workbenchSource, /const updateHeatCapacityStopcockAngle/, 'Workbench should not keep the continuous stopcock angle updater');
@@ -1449,7 +1518,7 @@ assert.match(workbenchSource, /demoComplete:\s*'演示结束'/, 'fixed realtime 
 assert.match(workbenchSource, /demoComplete:\s*'Demo ended'/, 'fixed realtime copy should include an English terminal auto-demo label');
 assert.doesNotMatch(workbenchSource, /phase === 'demoComplete'[\s\S]{0,80}return '实验完成'/, 'fixed realtime header should not call the auto-demo terminal phase formal experiment completion');
 assert.match(workbenchSource, /demoComplete:\s*'自动演示已结束，可重新开始或查看后续数据处理结果。'/, 'fixed realtime hint should keep the demoComplete copy in the auto-demo context');
-assert.match(workbenchSource, /if \(activeFile\.heatCapacityPhase === 'demoComplete'\) return heatCapacityRealtimeCopy\.hints\.demoComplete;[\s\S]*if \(!activeFile\.powerOn/, 'fixed realtime hint should check demoComplete before the powered-off fallback');
+assert.match(workbenchSource, /if \(heatCapacityDisplayPhase === 'demoComplete'\) return heatCapacityRealtimeCopy\.hints\.demoComplete;[\s\S]*if \(!activeFile\.powerOn/, 'fixed realtime hint should check demoComplete before the powered-off fallback');
 assert.match(workbenchSource, /autoDemoPaused\s*\?\s*heatCapacityRealtimeCopy\.demoPaused[\s\S]*autoDemoRunning\s*\?\s*heatCapacityRealtimeCopy\.demoRunning[\s\S]*heatCapacityRealtimeCopy\.demoReady/, 'fixed realtime header should show localized automation badges only for active demo states');
 assert.match(workbenchSource, /label: heatCapacityRealtimeCopy\.operationLocked/, 'fixed realtime header should show localized lock status only when interaction is locked');
 assert.match(workbenchSource, /heatCapacityHeaderBadges\.map\(\(badge\)/, 'fixed realtime header should render badges from the compact display model');

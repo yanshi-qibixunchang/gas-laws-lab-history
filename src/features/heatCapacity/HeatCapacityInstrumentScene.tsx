@@ -13,6 +13,9 @@ import HeatCapacityHardSphereLayer from './HeatCapacityHardSphereLayer';
 import HeatCapacityHardSphereToggle from './HeatCapacityHardSphereToggle';
 import HeatCapacityUltraInstrumentModel from './HeatCapacityUltraInstrumentModel';
 import type { HeatCapacityHardSphereReleaseTimeline } from '../../domain/heatCapacity/heatCapacityHardSphereModel.ts';
+import {
+  formatHeatCapacitySignalMv,
+} from '../../domain/heatCapacity/heatCapacitySignalDisplayModel.ts';
 
 interface HeatCapacityInstrumentSceneProps {
   performanceMode: 'standard' | 'balanced' | 'performance' | 'ultra';
@@ -698,8 +701,8 @@ const isHeatCapacityCameraCaptureEnabled = () => (
   new URLSearchParams(window.location.search).get(HEAT_CAPACITY_CAMERA_CAPTURE_QUERY_PARAM) === '1'
 );
 
-const formatSignal = (value: number | null, fallback = '--.-- mV') => (
-  typeof value === 'number' && Number.isFinite(value) ? `${value.toFixed(2)} mV` : fallback
+const formatSignal = (value: number | null, fallback = '--.- mV') => (
+  typeof value === 'number' && Number.isFinite(value) ? `${formatHeatCapacitySignalMv(value)} mV` : fallback
 );
 
 const clampPressureZeroSceneKnobAngle = (angleDeg: number) => Math.min(
@@ -1387,7 +1390,7 @@ function InstrumentBox({
         onPointerOut={() => setHoveredControl(null)}
       >
         <mesh name="HitboxPowerSwitch">
-          <boxGeometry args={[0.34, 0.34, 0.22]} />
+          <boxGeometry args={[0.42, 0.42, 0.28]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
         <DemoFocusHalo active={powerSwitchDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloPowerSwitch" rotation={[powerSwitchVisualRotation, 0, 0]} focusHaloColor={scenePalette.effects.demoHalo} focusHaloMinOpacity={scenePalette.effects.demoHaloMinOpacity} focusHaloMaxOpacity={scenePalette.effects.demoHaloMaxOpacity} focusHaloBaseScale={scenePalette.effects.demoHaloBaseScale} focusHaloPulseScale={scenePalette.effects.demoHaloPulseScale}>
@@ -2981,7 +2984,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                     </div>
                     <div className="studio-heat-focus-panel-row">
                       <span>{sceneCopy.focus.displayedPressure}</span>
-                      <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressureDisplayedPlaceholder, 2)} mV`)}</strong>
+                      <strong>{poweredInstrumentNumber(`${formatHeatCapacitySignalMv(props.pressureDisplayedPlaceholder)} mV`)}</strong>
                     </div>
                     <div className="studio-heat-focus-panel-row">
                       <span>{sceneCopy.focus.placeholderTemperature}</span>
@@ -2999,7 +3002,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                     </div>
                     <div className="studio-heat-focus-panel-row">
                       <span>{sceneCopy.focus.zeroOffset}</span>
-                      <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressureZeroOffset, 2)} mV`)}</strong>
+                      <strong>{poweredInstrumentNumber(`${formatHeatCapacitySignalMv(props.pressureZeroOffset)} mV`)}</strong>
                     </div>
                     <div className="studio-heat-focus-panel-row">
                       <span>{sceneCopy.focus.placeholderPressure}</span>

@@ -133,7 +133,7 @@ const DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG: HeatCapacityFreeSensorConfig = {
     ...DEFAULT_HEAT_CAPACITY_FREE_PRESSURE_SENSOR_NONLINEARITY_CONFIG,
     enabled: true,
     kneeMv: 15,
-    minGain: 0.55,
+    minGain: 0.65,
     exponent: 1.4,
   },
 };

@@ -1,4 +1,7 @@
 import type { HeatCapacityProcessSamples, HeatCapacityRuntimePhase } from './heatCapacityExperimentModel.ts';
+import {
+  truncateHeatCapacitySignalMv,
+} from './heatCapacitySignalDisplayModel.ts';
 
 export type HeatCapacityTrialStatus =
   | 'waiting'
@@ -88,6 +91,8 @@ const isFiniteNumber = (value: unknown): value is number => (
   typeof value === 'number' && Number.isFinite(value)
 );
 
+const toRecordedSignalMv = (value: number) => truncateHeatCapacitySignalMv(value);
+
 export const normalizeHeatCapacityExpectedTrialCount = (value: unknown) => {
   const numericValue = isFiniteNumber(value) ? value : DEFAULT_EXPECTED_TRIAL_COUNT;
   return Math.min(
@@ -121,10 +126,10 @@ export const createHeatCapacityTrialFromAutoDemoSamples = (
 ): HeatCapacityTrial => {
   const beforeRelease = samples.stableBeforeReleaseSample;
   const afterRecovery = samples.recoverySample;
-  const U1Mv = isFiniteNumber(beforeRelease?.pressureSignalMv) ? roundNumber(beforeRelease.pressureSignalMv, 2) : null;
-  const U2Mv = isFiniteNumber(afterRecovery?.pressureSignalMv) ? roundNumber(afterRecovery.pressureSignalMv, 2) : null;
-  const UT1Mv = isFiniteNumber(beforeRelease?.temperatureSignalMv) ? roundNumber(beforeRelease.temperatureSignalMv, 2) : null;
-  const UT2Mv = isFiniteNumber(afterRecovery?.temperatureSignalMv) ? roundNumber(afterRecovery.temperatureSignalMv, 2) : null;
+  const U1Mv = isFiniteNumber(beforeRelease?.pressureSignalMv) ? toRecordedSignalMv(beforeRelease.pressureSignalMv) : null;
+  const U2Mv = isFiniteNumber(afterRecovery?.pressureSignalMv) ? toRecordedSignalMv(afterRecovery.pressureSignalMv) : null;
+  const UT1Mv = isFiniteNumber(beforeRelease?.temperatureSignalMv) ? toRecordedSignalMv(beforeRelease.temperatureSignalMv) : null;
+  const UT2Mv = isFiniteNumber(afterRecovery?.temperatureSignalMv) ? toRecordedSignalMv(afterRecovery.temperatureSignalMv) : null;
   const complete = U1Mv !== null && U2Mv !== null && UT1Mv !== null && UT2Mv !== null;
   const physicallyValid = complete && U1Mv > U2Mv && U1Mv > 0 && U2Mv >= MIN_RECOVERY_U2_SIGNAL_MV;
 
@@ -144,10 +149,10 @@ export const createHeatCapacityTrialFromAutoDemoSamples = (
 export const normalizeHeatCapacityTrial = (value: unknown, fallbackIndex: number): HeatCapacityTrial => {
   if (typeof value !== 'object' || value === null) return createHeatCapacityTrial(fallbackIndex);
   const record = value as Partial<HeatCapacityTrial>;
-  const U1Mv = isFiniteNumber(record.U1Mv) ? record.U1Mv : null;
-  const U2Mv = isFiniteNumber(record.U2Mv) ? record.U2Mv : null;
-  const UT1Mv = isFiniteNumber(record.UT1Mv) ? record.UT1Mv : null;
-  const UT2Mv = isFiniteNumber(record.UT2Mv) ? record.UT2Mv : null;
+  const U1Mv = isFiniteNumber(record.U1Mv) ? toRecordedSignalMv(record.U1Mv) : null;
+  const U2Mv = isFiniteNumber(record.U2Mv) ? toRecordedSignalMv(record.U2Mv) : null;
+  const UT1Mv = isFiniteNumber(record.UT1Mv) ? toRecordedSignalMv(record.UT1Mv) : null;
+  const UT2Mv = isFiniteNumber(record.UT2Mv) ? toRecordedSignalMv(record.UT2Mv) : null;
   const complete = U1Mv !== null && U2Mv !== null && UT1Mv !== null && UT2Mv !== null;
   const partial = U1Mv !== null || U2Mv !== null || UT1Mv !== null || UT2Mv !== null;
   const status = record.status === 'invalid'
@@ -282,8 +287,8 @@ export const recordHeatCapacityU1 = (
   if (input.pressureSignalMv < MIN_U1_SIGNAL_MV) return { ok: false, message: 'Uₚ 过小，尚未形成有效加压状态。', trials, nextActiveTrialIndex: index };
   const nextTrial: HeatCapacityTrial = {
     ...trial,
-    U1Mv: roundNumber(input.pressureSignalMv, 2),
-    UT1Mv: roundNumber(input.temperatureSignalMv, 2),
+    U1Mv: toRecordedSignalMv(input.pressureSignalMv),
+    UT1Mv: toRecordedSignalMv(input.temperatureSignalMv),
     U2Mv: null,
     UT2Mv: null,
     recordedU1At: input.now ?? Date.now(),
@@ -316,8 +321,8 @@ export const recordHeatCapacityU2 = (
 
   const nextTrial: HeatCapacityTrial = {
     ...trial,
-    U2Mv: roundNumber(input.pressureSignalMv, 2),
-    UT2Mv: roundNumber(input.temperatureSignalMv, 2),
+    U2Mv: toRecordedSignalMv(input.pressureSignalMv),
+    UT2Mv: toRecordedSignalMv(input.temperatureSignalMv),
     recordedU2At: input.now ?? Date.now(),
     status: 'complete',
   };

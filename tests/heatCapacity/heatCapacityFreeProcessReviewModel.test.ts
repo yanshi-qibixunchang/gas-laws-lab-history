@@ -319,6 +319,7 @@ const baseTrial: HeatCapacityFreeTrial = {
   blockedReason: null,
   correctedSignals: null,
   configSnapshot: traceTrial.configSnapshot,
+  completedAtMs: null,
 };
 const trial: HeatCapacityFreeTrial = {
   ...baseTrial,
@@ -412,6 +413,22 @@ assert.equal(
 );
 assert.equal(actualReleaseStageForTiming?.endS, 62.3);
 assert.equal(actualReleaseStageForTiming?.durationText, '0.6 s');
+const actualReleaseScoreForTiming = review.score.items.find((item) => item.id === 'release');
+assert.match(
+  actualReleaseScoreForTiming?.evidence ?? '',
+  /0\.6 s/,
+  'release score should use effective physical flow duration, not visual-open click duration',
+);
+assert.doesNotMatch(
+  actualReleaseScoreForTiming?.evidence ?? '',
+  /1\.1 s/,
+  'release score should not include the stopcock opening animation delay in duration evidence',
+);
+assert.equal(
+  actualReleaseScoreForTiming?.details.every((detail) => !detail.evidence.includes('1.1 s')),
+  true,
+  'release score details should use the same effective duration as the stage chart',
+);
 assert.equal(
   review.chart.controls.some((event) => event.id === 'pump-bulb-merged' || event.count !== undefined),
   false,

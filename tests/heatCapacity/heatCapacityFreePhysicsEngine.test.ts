@@ -54,6 +54,11 @@ const controls: HeatCapacityFreeControls = {
   pumpValveOpen: false,
   stopcockOpen: false,
 };
+const releaseControls: HeatCapacityFreeControls = {
+  ...controls,
+  stopcockOpen: true,
+  stopcockFlowPurpose: 'release',
+};
 
 const leakageConfig = {
   ...baseConfig,
@@ -521,7 +526,7 @@ const releaseForDuration = (
 ) => stepFreePhysics(
   createAboveAmbientReleaseState(config),
   config,
-  { ...controls, stopcockOpen: true },
+  releaseControls,
   durationS,
   200 + durationS,
 );
@@ -564,7 +569,7 @@ let flickerAtS = 300;
 for (let index = 0; index < 20; index += 1) {
   const stopcockOpen = index % 2 === 0;
   flickerAtS += 0.015;
-  flicker = stepFreePhysics(flicker, baseConfig, { ...controls, stopcockOpen }, 0.015, flickerAtS);
+  flicker = stepFreePhysics(flicker, baseConfig, stopcockOpen ? releaseControls : controls, 0.015, flickerAtS);
   assert.equal(Number.isFinite(flicker.gasAmountRatio), true);
   assert.equal(Number.isFinite(flicker.gasTemperatureK), true);
   assert.equal(flicker.currentStopcockOpenDurationS >= 0, true);
@@ -575,23 +580,23 @@ assert.equal(afterFlicker.currentStopcockOpenDurationS, 0);
 const ventStarted = stepFreePhysics(
   aboveAmbient,
   baseConfig,
-  { ...controls, stopcockOpen: true },
+  releaseControls,
   0.01,
   20.01,
 );
 const vented = stepFreePhysics(
   ventStarted,
   baseConfig,
-  { ...controls, stopcockOpen: true },
+  releaseControls,
   0.2,
   20.21,
 );
 assert.equal(vented.gasAmountRatio < aboveAmbient.gasAmountRatio, true, 'above-ambient pressure should vent gas out');
 assert.deepEqual(
   stepFreePhysics(
-    stepFreePhysics(aboveAmbient, leakageConfig, { ...controls, stopcockOpen: true }, 0.01, 20.01),
+    stepFreePhysics(aboveAmbient, leakageConfig, releaseControls, 0.01, 20.01),
     leakageConfig,
-    { ...controls, stopcockOpen: true },
+    releaseControls,
     0.2,
     20.21,
   ),
@@ -618,7 +623,7 @@ const settledDerived = deriveFreePhysicalState(settled, baseConfig);
 const opened = stepFreePhysics(
   settled,
   baseConfig,
-  { ...controls, stopcockOpen: true },
+  releaseControls,
   0.01,
   50.01,
 );
@@ -630,7 +635,7 @@ assert.equal(opened.releaseReference?.amountBeforeRatio, settled.gasAmountRatio)
 assert.equal(opened.gasAmountRatio < settled.gasAmountRatio, true, 'open-stopcock flow should immediately reduce gas amount');
 assert.equal(opened.gasTemperatureK < settled.gasTemperatureK, true, 'open-stopcock flow should cool the remaining gas by outflow energy');
 
-const halfReleased = stepFreePhysics(opened, baseConfig, { ...controls, stopcockOpen: true }, 0.1, 50.11);
+const halfReleased = stepFreePhysics(opened, baseConfig, releaseControls, 0.1, 50.11);
 assert.equal(
   halfReleased.gasAmountRatio < settled.gasAmountRatio && halfReleased.gasAmountRatio > initial.gasAmountRatio,
   true,
@@ -639,7 +644,7 @@ assert.equal(
 const partialClosed = stepFreePhysics(halfReleased, baseConfig, controls, 0.1, 50.21);
 assert.equal(partialClosed.gasAmountRatio, halfReleased.gasAmountRatio, 'partial release amount should be preserved after closing');
 
-const quickReleased = stepFreePhysics(opened, baseConfig, { ...controls, stopcockOpen: true }, 0.2, 50.21);
+const quickReleased = stepFreePhysics(opened, baseConfig, releaseControls, 0.2, 50.21);
 expectClose(
   deriveFreePhysicalState(quickReleased, baseConfig).gasPressureKPa,
   baseConfig.environment.ambientPressureKPa,
@@ -695,7 +700,7 @@ for (let index = 0; index < 120; index += 1) {
   longOpen = stepFreePhysics(
     longOpen,
     baseConfig,
-    { ...controls, stopcockOpen: true },
+    releaseControls,
     0.25,
     60 + index * 0.25,
   );
@@ -718,14 +723,14 @@ assert.equal(afterState4Closed.gasAmountRatio, recovered.gasAmountRatio, 'state 
 const reopenStarted = stepFreePhysics(
   afterState4Closed,
   baseConfig,
-  { ...controls, stopcockOpen: true },
+  releaseControls,
   0.01,
   101.01,
 );
 const reopened = stepFreePhysics(
   reopenStarted,
   baseConfig,
-  { ...controls, stopcockOpen: true },
+  releaseControls,
   0.1,
   101.11,
 );
@@ -735,8 +740,8 @@ assert.equal(
   'reopening after recovery should vent again while pressure remains above ambient',
 );
 
-const deterministicA = stepFreePhysics(opened, baseConfig, { ...controls, stopcockOpen: true }, 0.1, 70);
-const deterministicB = stepFreePhysics(opened, baseConfig, { ...controls, stopcockOpen: true }, 0.1, 70);
+const deterministicA = stepFreePhysics(opened, baseConfig, releaseControls, 0.1, 70);
+const deterministicB = stepFreePhysics(opened, baseConfig, releaseControls, 0.1, 70);
 assert.deepEqual(deterministicA, deterministicB, 'physics stepping should be deterministic from explicit inputs');
 assert.deepEqual(
   applyFreePumpStroke(initial, baseConfig, { ...controls, pumpValveOpen: true }, { atS: 5, strength: 0.8 }),

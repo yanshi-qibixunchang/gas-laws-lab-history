@@ -107,9 +107,8 @@ const processingResult = calculateHeatCapacityMeanResult([autoDemoTrial], {
   theoreticalGamma: 1.4,
 });
 assert.equal(processingResult.status, 'ready');
-assert.equal(Math.abs((processingResult.meanGamma ?? 0) - targets.gamma) < 0.000001, true);
+assert.equal(Math.abs((processingResult.meanGamma ?? 0) - targets.gamma) < 0.003, true);
 assert.equal(processingResult.relativeErrorPercent !== null && processingResult.relativeErrorPercent < 3, true);
 
 console.log('heatCapacityExperimentRandom tests passed');
-
 

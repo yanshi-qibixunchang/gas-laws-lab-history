@@ -18,6 +18,9 @@ import {
   createHeatCapacityProcessReviewStageLayout,
   type HeatCapacityProcessReviewStageScalePoint,
 } from './heatCapacityProcessReviewStageScale.ts';
+import {
+  formatHeatCapacitySignalMv,
+} from '../../domain/heatCapacity/heatCapacitySignalDisplayModel.ts';
 import './HeatCapacityProcessReviewPanel.css';
 
 interface HeatCapacityProcessReviewPanelProps {
@@ -738,7 +741,7 @@ const SharedTimeline: React.FC<{
               <g className={`hpr-record-detail ${hovered ? 'hpr-record-detail-visible' : ''}`}>
                 <rect x={callout.detailX} y={callout.detailY} width={184} height={100} rx={5} />
                 <text x={callout.detailX + 12} y={callout.detailY + 22}>{copy.recordTimeLabel}: {formatSeconds(record.timeS)}</text>
-                <text x={callout.detailX + 12} y={callout.detailY + 44}>{copy.signalLabel}: {record.signalMv.toFixed(2)} mV</text>
+                <text x={callout.detailX + 12} y={callout.detailY + 44}>{copy.signalLabel}: {formatHeatCapacitySignalMv(record.signalMv)} mV</text>
                 <text x={callout.detailX + 12} y={callout.detailY + 66}>{copy.pressureDeltaLabel}: {record.pressureDeltaKPa.toFixed(2)} kPa</text>
                 <text x={callout.detailX + 12} y={callout.detailY + 88}>{copy.temperatureDeltaLabel}: {record.temperatureDeltaK.toFixed(2)} K</text>
               </g>

@@ -23,6 +23,7 @@ import {
 import {
   calculateFreeHeatCapacityMeanResult,
   createHeatCapacityFreeTrial,
+  normalizeHeatCapacityFreeRecordInput,
   removeHeatCapacityFreeTrialRecord,
   type HeatCapacityFreeTrial,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
@@ -153,6 +154,16 @@ const u0Input: HeatCapacityFreeRecordInput = {
   zeroEventId: 'zero-1',
 };
 
+const truncatedRecord = normalizeHeatCapacityFreeRecordInput({
+  atS: 3.5,
+  displayPressureMv: -0.19,
+  displayTemperatureMv: 1499.19,
+  calibrationVersion: 1,
+  zeroEventId: 'zero-1',
+});
+assert.equal(truncatedRecord.displayPressureMv, -0.1, 'Free records should truncate mV toward zero at one decimal place');
+assert.equal(truncatedRecord.displayTemperatureMv, 1499.1, 'Free temperature records should use the same one-decimal instrument reading');
+
 const automaticOnlyTrial = createTrialWithU0();
 assert.deepEqual(
   evaluateFreeU1Record(
@@ -212,7 +223,7 @@ const createTrialWithManualU0 = (): HeatCapacityFreeTrial => {
   const result = recordFreeU0(createTrialWithU0(), u0Input);
   assert.equal(result.accepted, true);
   assert.equal(result.reason, 'accepted');
-  assert.equal(result.trial.u0?.displayPressureMv, 0.02);
+  assert.equal(result.trial.u0?.displayPressureMv, 0);
   assert.equal(result.trial.automaticU0, automaticU0, 'automatic U0 should stay as an advisory candidate');
   return result.trial;
 };
@@ -245,8 +256,8 @@ assert.equal(recordedU1.trial.u0?.traceTrialId, null);
 assert.equal(recordedU1.trial.u0?.traceBranchId, null);
 assert.equal(recordedU1.trial.u0?.traceSampleId, null);
 assert.equal(recordedU1.trial.u0?.eventId, null);
-assert.equal(recordedU1.trial.u1?.displayPressureMv, display.displayPressureMv);
-assert.equal(recordedU1.trial.u1?.displayTemperatureMv, display.displayTemperatureMv);
+assert.equal(recordedU1.trial.u1?.displayPressureMv, 112);
+assert.equal(recordedU1.trial.u1?.displayTemperatureMv, 1499);
 assert.equal(recordedU1.trial.u1?.source, 'user');
 assert.equal(recordedU1.trial.u1?.phaseAtRecord, null);
 assert.equal(recordedU1.trial.u1?.traceTrialId, null);
@@ -367,7 +378,7 @@ const recordedU2 = recordFreeU2(recordedU1.trial, {
   pressureSensitivityMvPerKPa: 20,
 });
 assert.equal(recordedU2.accepted, true);
-assert.equal(recordedU2.trial.u2?.displayPressureMv, u2Display.displayPressureMv);
+assert.equal(recordedU2.trial.u2?.displayPressureMv, 31.4);
 assert.equal(recordedU2.trial.u2?.source, 'user');
 assert.equal(recordedU2.trial.u2?.phaseAtRecord, null);
 assert.equal(recordedU2.trial.u2?.traceTrialId, null);
@@ -375,11 +386,44 @@ assert.equal(recordedU2.trial.u2?.traceBranchId, null);
 assert.equal(recordedU2.trial.u2?.traceSampleId, null);
 assert.equal(recordedU2.trial.u2?.eventId, null);
 assert.equal(recordedU2.trial.correctedSignals?.U1CorrectedMv, 112);
-assert.equal(recordedU2.trial.correctedSignals?.U2CorrectedMv, 31.387452);
-assert.equal(recordedU2.trial.correctedSignals?.gamma, 1.4);
+assert.equal(recordedU2.trial.correctedSignals?.U2CorrectedMv, 31.4);
+assert.equal(recordedU2.trial.correctedSignals?.gamma, 1.400222);
 assert.equal(recordedU2.trial.correctedSignals?.calculationVersion, 'log-pressure-v1');
 assert.equal(recordedU2.trial.correctedSignals?.atmosphericPressureKPa, 101.3);
 assert.equal(recordedU2.trial.correctedSignals?.pressureSensitivityMvPerKPa, 20);
+
+const overwrittenU1 = recordFreeU1(recordedU2.trial, {
+  ...u1Input,
+  atS: 41,
+  displayPressureMv: 113.86,
+});
+assert.equal(overwrittenU1.accepted, true);
+assert.equal(overwrittenU1.trial.u1?.displayPressureMv, 113.8);
+assert.equal(overwrittenU1.trial.u2, null, 'overwriting U1 should clear the dependent U2 record');
+assert.equal(overwrittenU1.trial.correctedSignals, null);
+
+const overwrittenU2 = recordFreeU2(recordedU2.trial, {
+  atS: 44,
+  displayPressureMv: 29.92,
+  displayTemperatureMv: u2Display.displayTemperatureMv,
+  calibrationVersion: 1,
+  zeroEventId: 'zero-1',
+}, {
+  atmosphericPressureKPa: 101.3,
+  pressureSensitivityMvPerKPa: 20,
+});
+assert.equal(overwrittenU2.accepted, true);
+assert.equal(overwrittenU2.trial.u2?.displayPressureMv, 29.9);
+assert.equal(
+  overwrittenU2.trial.correctedSignals?.U2CorrectedMv,
+  29.9,
+  'overwriting U2 should recalculate the corrected U2 value',
+);
+assert.notEqual(
+  overwrittenU2.trial.correctedSignals?.gamma,
+  recordedU2.trial.correctedSignals?.gamma,
+  'overwriting U2 should recalculate gamma from the new value',
+);
 
 const differentAutomaticCandidate = {
   ...automaticU0!,
@@ -400,11 +444,11 @@ const sourceCheckU2 = recordFreeU2(sourceCheckU1.trial, {
   zeroEventId: 'zero-1',
 });
 assert.equal(sourceCheckU2.accepted, true);
-assert.equal(sourceCheckU2.trial.correctedSignals?.U0DisplayMv, 0.02);
+assert.equal(sourceCheckU2.trial.correctedSignals?.U0DisplayMv, 0);
 assert.equal(sourceCheckU2.trial.correctedSignals?.U1CorrectedMv, 112);
 assert.equal(
   sourceCheckU2.trial.correctedSignals?.U1CorrectedMv,
-  u1Input.displayPressureMv - u0Input.displayPressureMv,
+  sourceCheckU1.trial.u1!.displayPressureMv - manualU0WithDifferentAutomatic.trial.u0!.displayPressureMv,
   'official Free correction must use user-clicked U0 instead of the automatic advisory candidate',
 );
 
@@ -465,13 +509,13 @@ const freeProcessing = calculateFreeHeatCapacityMeanResult([recordedU2.trial], {
 });
 assert.equal(freeProcessing.status, 'ready');
 assert.equal(freeProcessing.validTrialCount, 1);
-assert.equal(freeProcessing.trialResults[0].U0DisplayMv, 0.02);
-assert.equal(freeProcessing.trialResults[0].U1DisplayMv, 112.02);
-assert.equal(freeProcessing.trialResults[0].U2DisplayMv, 31.40745176010076);
+assert.equal(freeProcessing.trialResults[0].U0DisplayMv, 0);
+assert.equal(freeProcessing.trialResults[0].U1DisplayMv, 112);
+assert.equal(freeProcessing.trialResults[0].U2DisplayMv, 31.4);
 assert.equal(freeProcessing.trialResults[0].U1CorrectedMv, 112);
-assert.equal(freeProcessing.trialResults[0].U2CorrectedMv, 31.387452);
-assert.equal(freeProcessing.trialResults[0].gamma, 1.4);
-assert.equal(freeProcessing.meanGamma, 1.4);
+assert.equal(freeProcessing.trialResults[0].U2CorrectedMv, 31.4);
+assert.equal(freeProcessing.trialResults[0].gamma, 1.400222);
+assert.equal(freeProcessing.meanGamma, 1.400222);
 
 const freeRemovalU2 = removeHeatCapacityFreeTrialRecord([recordedU2.trial], 0, 'u2').trials[0];
 assert.notEqual(freeRemovalU2.u0, null);
@@ -746,6 +790,7 @@ const recoverAfterRelease = (
     powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: true,
+    stopcockFlowPurpose: 'release',
   }, 0.05);
   const totalOpenDurationS = 0.2 + openDurationS;
   for (let elapsed = 0; elapsed < totalOpenDurationS; elapsed += 0.1) {
@@ -753,6 +798,7 @@ const recoverAfterRelease = (
       powerOn: true,
       pumpValveOpen: false,
       stopcockOpen: true,
+      stopcockFlowPurpose: 'release',
     }, 0.1);
   }
   current = stepScriptedRun(current, {

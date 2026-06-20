@@ -411,6 +411,7 @@ const releaseAndRecover = (
     powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: true,
+    stopcockFlowPurpose: 'release',
   };
   const closedControls: HeatCapacityFreeControls = {
     powerOn: true,

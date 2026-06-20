@@ -10,6 +10,7 @@ import {
   normalizeHeatCapacityFileName,
   normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
   normalizeHeatCapacityFreePhysicsConfig,
+  normalizeHeatCapacityFreeStopcockFlowPurpose,
   WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
   type WorkbenchFileState,
   type WorkbenchPanelKey,
@@ -208,6 +209,7 @@ const normalizeHeatCapacityFreeTrial = (value: unknown): HeatCapacityFreeTrial |
       : null,
     correctedSignals: isRecord(value.u0) ? normalizeCorrectedSignals(value.correctedSignals) : null,
     configSnapshot: normalizeHeatCapacityFreeConfigSnapshot(value.configSnapshot),
+    completedAtMs: normalizeNullableNumber(value.completedAtMs),
   };
 };
 
@@ -546,6 +548,13 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
     const savedFreeInstrumentNoiseEnabled = typeof file.heatCapacityFreeInstrumentNoiseEnabled === 'boolean'
       ? file.heatCapacityFreeInstrumentNoiseEnabled
       : savedFreeSensorConfig.noiseMv > 0;
+    const savedFreeStopcockFlowOpen = file.heatCapacityFreeStopcockFlowOpen === true;
+    const savedFreeStopcockPendingOpenAtMs = normalizeNullableNumber(file.heatCapacityFreeStopcockPendingOpenAtMs);
+    const savedFreeStopcockFlowPurpose = normalizeHeatCapacityFreeStopcockFlowPurpose(
+      file.heatCapacityFreeStopcockFlowPurpose,
+      { heatCapacityFreeTrials },
+      savedFreeStopcockFlowOpen || savedFreeStopcockPendingOpenAtMs !== null,
+    );
     const fallbackFreeParameterDraft = createHeatCapacityFreeParameterDraftFromConfigs(
       savedFreePhysicsConfig,
       savedFreeSensorConfig,
@@ -598,12 +607,16 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
           heatCapacityFreeCalibrationState: isRecord(file.heatCapacityFreeCalibrationState)
             ? file.heatCapacityFreeCalibrationState as typeof fallbackFreeRuntimeFields.heatCapacityFreeCalibrationState
             : fallbackFreeRuntimeFields.heatCapacityFreeCalibrationState,
-          heatCapacityFreeStopcockFlowOpen: file.heatCapacityFreeStopcockFlowOpen === true,
-          heatCapacityFreeStopcockPendingOpenAtMs: normalizeNullableNumber(file.heatCapacityFreeStopcockPendingOpenAtMs),
+          heatCapacityFreeStopcockFlowOpen: savedFreeStopcockFlowOpen,
+          heatCapacityFreeStopcockPendingOpenAtMs: savedFreeStopcockPendingOpenAtMs,
+          heatCapacityFreeStopcockFlowPurpose: savedFreeStopcockFlowPurpose,
           heatCapacityFreeEquilibriumSpeedMultiplier: normalizeHeatCapacityFreeEquilibriumSpeedMultiplier(
             file.heatCapacityFreeEquilibriumSpeedMultiplier,
           ),
           heatCapacityFreeEquilibriumSpeedHintShown: file.heatCapacityFreeEquilibriumSpeedHintShown === true,
+          heatCapacityFreeRollbackSnapshots: isRecord(file.heatCapacityFreeRollbackSnapshots)
+            ? file.heatCapacityFreeRollbackSnapshots as typeof fallbackFreeRuntimeFields.heatCapacityFreeRollbackSnapshots
+            : fallbackFreeRuntimeFields.heatCapacityFreeRollbackSnapshots,
         }
       : fallbackFreeRuntimeFields;
     const heatCapacityFreeTraceStore = file.heatCapacityFreeTraceVersion === HEAT_CAPACITY_FREE_TRACE_VERSION

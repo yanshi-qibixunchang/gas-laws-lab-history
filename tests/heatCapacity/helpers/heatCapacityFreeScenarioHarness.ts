@@ -280,6 +280,7 @@ const releaseAndMaybeRecover = (
     powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: true,
+    stopcockFlowPurpose: 'release',
   }, 0.05);
   const totalOpenDurationS = 0.2 + openExtraS;
   for (let elapsedS = 0; elapsedS < totalOpenDurationS - 1e-9; elapsedS += TIME_STEP_S) {
@@ -287,6 +288,7 @@ const releaseAndMaybeRecover = (
       powerOn: true,
       pumpValveOpen: false,
       stopcockOpen: true,
+      stopcockFlowPurpose: 'release',
     }, TIME_STEP_S);
   }
   current = stepRun(current, {

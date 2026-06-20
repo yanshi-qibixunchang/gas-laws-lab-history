@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   applyHeatCapacityFreeParameterDraftWorkbenchState,
+  captureHeatCapacityFreeRollbackSnapshot,
   HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
   createDefaultHeatCapacityFile,
   recordHeatCapacityFreeTraceEvent,
@@ -50,10 +51,12 @@ assert.equal(payload.free?.config.record.u0ZeroToleranceMv, 0.12);
 assert.equal(payload.free?.runtime.gasAmountRatio, 1);
 assert.equal(payload.free?.controls.powerOn, false);
 assert.equal(payload.free?.controls.stopcockFlowOpen, false);
+assert.equal(payload.free?.controls.stopcockFlowPurpose, 'none');
 assert.equal(payload.free?.uiReplay.heatCapacityMaterialsExpanded, true);
 assert.equal(payload.free?.uiReplay.pressureGaugeNeedleAngle, file.pressureGaugeNeedleAngle);
 assert.equal(payload.free?.uiReplay.stopcockAngleDeg, file.stopcockAngleDeg);
 assert.equal(payload.free?.uiReplay.hardSphereViewEnabled, file.hardSphereViewEnabled);
+assert.equal(payload.free?.uiReplay.heatCapacityFreeStopcockFlowPurpose, 'none');
 assert.equal(payload.free?.references.standard, null);
 assert.equal(payload.free?.references.operableBest, null);
 
@@ -97,6 +100,7 @@ const recordedTrial = {
   ...createHeatCapacityFreeTrial('trial-1'),
   traceTrialId: 'free-trace-trial-1',
   branchCount: 1,
+  completedAtMs: 12_345,
   u0: normalizeHeatCapacityFreeRecordInput({
     atS: 1,
     displayPressureMv: 0.12,
@@ -151,6 +155,66 @@ const recordedPayload = createHeatCapacityPersistencePayload({
 }, 555);
 assert.equal(recordedPayload.free?.trials[0].u1?.displayPressureMv, 119.8);
 assert.equal(recordedPayload.free?.trials[0].correctedSignals?.gamma, 1.39);
+assert.equal(recordedPayload.free?.trials[0].completedAtMs, 12_345);
+const recordedPayloadRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-recorded-trial-restore',
+  kind: 'heatCapacity',
+  name: 'Recorded Trial Restore',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: recordedPayload as unknown as Record<string, unknown>,
+}, recordedPayload, 2);
+assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].completedAtMs, 12_345);
+
+const legacyRecordedPayload = structuredClone(recordedPayload);
+delete (legacyRecordedPayload.free!.trials[0] as unknown as Record<string, unknown>).completedAtMs;
+const legacyRecordedPayloadRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-legacy-recorded-trial-restore',
+  kind: 'heatCapacity',
+  name: 'Legacy Recorded Trial Restore',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: legacyRecordedPayload as unknown as Record<string, unknown>,
+}, legacyRecordedPayload, 2);
+assert.equal(legacyRecordedPayloadRestored.heatCapacityFreeTrials[0].completedAtMs, null);
+
+const rollbackSnapshotFile = {
+  ...file,
+  powerOn: true,
+  pumpValveOpen: true,
+  pumpValveState: 'open' as const,
+  heatCapacityFreeRollbackSnapshots: {
+    ...file.heatCapacityFreeRollbackSnapshots,
+    beforePump: captureHeatCapacityFreeRollbackSnapshot({
+      ...file,
+      powerOn: true,
+      pumpValveOpen: true,
+      pumpValveState: 'open',
+    }),
+  },
+};
+const rollbackSnapshotPayload = createHeatCapacityPersistencePayload(rollbackSnapshotFile, 777);
+assert.equal(rollbackSnapshotPayload.free?.rollbackSnapshots.beforePump?.powerOn, true);
+assert.equal(rollbackSnapshotPayload.free?.rollbackSnapshots.beforePump?.pumpValveOpen, true);
+const rollbackSnapshotRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-rollback-restore',
+  kind: 'heatCapacity',
+  name: 'Rollback Restore',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: rollbackSnapshotPayload as unknown as Record<string, unknown>,
+}, rollbackSnapshotPayload, 2);
+assert.equal(rollbackSnapshotRestored.heatCapacityFreeRollbackSnapshots.beforePump?.pumpValveOpen, true);
+assert.equal(rollbackSnapshotRestored.heatCapacityFreeRollbackSnapshots.beforePump?.powerOn, true);
 
 const editedFile = applyHeatCapacityFreeParameterDraftWorkbenchState(file, {
   ...file.heatCapacityFreeParameterDraft,
@@ -192,6 +256,7 @@ assert.equal(restored.heatCapacityFreeRecordConfig.pressureDangerMv, 151);
 assert.equal(restored.heatCapacityFreePressureWarningMv, 121);
 assert.equal(restored.heatCapacityFreeInstrumentNoiseEnabled, false);
 assert.equal(restored.heatCapacityFreeAdvancedRiskAccepted, true);
+assert.equal(restored.heatCapacityFreeStopcockFlowPurpose, 'none');
 
 const newFile = createDefaultHeatCapacityFile(2);
 assert.equal(newFile.heatCapacityFreeAdvancedRiskAccepted, false);
@@ -215,5 +280,6 @@ assert.equal(
   legacyRestored.heatCapacityFreeInstrumentNoiseEnabled,
   legacyRestored.heatCapacityFreeSensorConfig.noiseMv > 0,
 );
+assert.equal(legacyRestored.heatCapacityFreeStopcockFlowPurpose, 'none');
 
 console.log('heatCapacityFreePersistence tests passed');

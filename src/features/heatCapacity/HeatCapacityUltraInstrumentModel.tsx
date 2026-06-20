@@ -9,6 +9,9 @@ import {
 } from '../workbench/workbenchState';
 import HeatCapacityHardSphereLayer from './HeatCapacityHardSphereLayer';
 import type { HeatCapacityHardSphereReleaseTimeline } from '../../domain/heatCapacity/heatCapacityHardSphereModel.ts';
+import {
+  formatHeatCapacitySignalMv,
+} from '../../domain/heatCapacity/heatCapacitySignalDisplayModel.ts';
 
 type UltraPointerControl = 'powerSwitch' | 'pressureZero' | 'stopcock' | 'pumpValve' | 'pumpBulb';
 type UltraHoveredControl = UltraPointerControl | null;
@@ -417,7 +420,7 @@ const ULTRA_DISPLAY_GLYPH_ROWS = 7;
 const ULTRA_DISPLAY_DIGIT_ADVANCE = 54;
 const ULTRA_DISPLAY_UNIT_ADVANCE = 51;
 const ULTRA_DISPLAY_SIGN_AND_INTEGER_SLOTS = 5;
-const ULTRA_DISPLAY_FRACTION_SLOTS = 2;
+const ULTRA_DISPLAY_FRACTION_SLOTS = 1;
 const ULTRA_DISPLAY_DECIMAL_GAP = 6;
 const ULTRA_DISPLAY_FRACTION_GAP = 6;
 const ULTRA_DISPLAY_UNIT_GAP = 19;
@@ -579,11 +582,12 @@ type UltraDisplayGlyph = keyof typeof ULTRA_DISPLAY_GLYPHS;
 
 const formatAlignedSignalParts = (value: number | null): UltraAlignedSignalParts => {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return { left: ' ----', right: '.-- mV' };
+    return { left: ' ----', right: '.- mV' };
   }
-  const boundedValue = clampSceneNumber(value, -9999.99, 9999.99);
-  const sign = boundedValue < 0 ? '-' : '+';
-  const [integerPart, fractionalPart = '00'] = Math.abs(boundedValue).toFixed(2).split('.');
+  const boundedValue = clampSceneNumber(value, -9999.9, 9999.9);
+  const displayText = formatHeatCapacitySignalMv(boundedValue);
+  const sign = displayText.startsWith('-') ? '-' : '+';
+  const [integerPart, fractionalPart = '0'] = displayText.replace(/^[+-]/, '').split('.');
   return {
     left: `${sign}${integerPart.padStart(4, ' ')}`,
     right: `.${fractionalPart} mV`,
@@ -614,7 +618,9 @@ const drawUltraAlignedSignal = (
   const fractionStartX = decimalX + decimalFieldWidth + ULTRA_DISPLAY_FRACTION_GAP;
   const unitStartX = fractionStartX + fractionFieldWidth + ULTRA_DISPLAY_UNIT_GAP;
   const leftGlyphs = parts.left.slice(-ULTRA_DISPLAY_SIGN_AND_INTEGER_SLOTS).padStart(ULTRA_DISPLAY_SIGN_AND_INTEGER_SLOTS, ' ');
-  const fractionGlyphs = parts.right.match(/\.(\d{2})/)?.[1] ?? '--';
+  const fractionGlyphs = (parts.right.match(/\.(\d+)/)?.[1] ?? '')
+    .slice(0, ULTRA_DISPLAY_FRACTION_SLOTS)
+    .padEnd(ULTRA_DISPLAY_FRACTION_SLOTS, '0');
 
   Array.from(leftGlyphs).forEach((glyph, index) => {
     drawUltraDisplayGlyph(context, glyph, startX + index * ULTRA_DISPLAY_DIGIT_ADVANCE, topY);

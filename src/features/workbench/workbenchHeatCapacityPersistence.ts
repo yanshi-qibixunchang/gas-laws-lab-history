@@ -35,6 +35,7 @@ import {
   createDefaultHeatCapacityFile,
   normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
   normalizeHeatCapacityFreePhysicsConfig,
+  normalizeHeatCapacityFreeStopcockFlowPurpose,
   type WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier,
   type WorkbenchHeatCapacityState,
 } from './workbenchState.ts';
@@ -47,6 +48,9 @@ import {
 import type {
   HeatCapacityFreeRecordConfig,
 } from '../../domain/heatCapacity/heatCapacityFreeRecordModel.ts';
+import type {
+  HeatCapacityFreeTrial,
+} from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import type {
   WorkbenchExperimentFileEnvelopeV1,
 } from './workbenchPersistenceSchema.ts';
@@ -115,6 +119,7 @@ const heatCapacityFreeUiReplayKeys = [
   'pumpHint',
   'heatCapacityFreeStopcockFlowOpen',
   'heatCapacityFreeStopcockPendingOpenAtMs',
+  'heatCapacityFreeStopcockFlowPurpose',
   'heatCapacityFreeEquilibriumSpeedMultiplier',
   'heatCapacityFreeEquilibriumSpeedHintShown',
   'hardSphereViewEnabled',
@@ -196,9 +201,11 @@ export interface HeatCapacityFreePersistenceDataV1 {
     stopcockOpen: boolean;
     pumpBulbState: WorkbenchHeatCapacityState['pumpBulbState'];
     stopcockFlowOpen: boolean;
+    stopcockFlowPurpose: WorkbenchHeatCapacityState['heatCapacityFreeStopcockFlowPurpose'];
   };
   sensor: WorkbenchHeatCapacityState['heatCapacityFreeSensorState'];
   calibration: WorkbenchHeatCapacityState['heatCapacityFreeCalibrationState'];
+  rollbackSnapshots: WorkbenchHeatCapacityState['heatCapacityFreeRollbackSnapshots'];
   traceStore: WorkbenchHeatCapacityState['heatCapacityFreeTraceStore'];
   trials: WorkbenchHeatCapacityState['heatCapacityFreeTrials'];
   references: HeatCapacityReferenceStoreV1;
@@ -251,6 +258,14 @@ const clonePersistenceValue = <T>(value: T): T => {
     ) as T;
   }
   return value;
+};
+
+const normalizePersistedHeatCapacityFreeTrial = (value: unknown): HeatCapacityFreeTrial | null => {
+  if (!isRecord(value) || typeof value.id !== 'string') return null;
+  return {
+    ...(value as unknown as HeatCapacityFreeTrial),
+    completedAtMs: isFiniteNumber(value.completedAtMs) ? value.completedAtMs : null,
+  };
 };
 
 const createHeatCapacityFreeUiReplay = (
@@ -368,9 +383,11 @@ export const createHeatCapacityPersistencePayload = (
         stopcockOpen: file.glassPistonState === 'open',
         pumpBulbState: file.pumpBulbState,
         stopcockFlowOpen: file.heatCapacityFreeStopcockFlowOpen,
+        stopcockFlowPurpose: file.heatCapacityFreeStopcockFlowPurpose,
       },
       sensor: clonePersistenceValue(file.heatCapacityFreeSensorState),
       calibration: clonePersistenceValue(file.heatCapacityFreeCalibrationState),
+      rollbackSnapshots: clonePersistenceValue(file.heatCapacityFreeRollbackSnapshots),
       traceStore: clonePersistenceValue(file.heatCapacityFreeTraceStore),
       trials: clonePersistenceValue(file.heatCapacityFreeTrials),
       references: createEmptyHeatCapacityReferenceStore(),
@@ -774,6 +791,22 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
   const liveWorkspaceSplitRatio = isFiniteNumber(layout.liveWorkspaceSplitRatio)
     ? layout.liveWorkspaceSplitRatio
     : fallback.liveWorkspaceSplitRatio;
+  const restoredFreeTrials = Array.isArray(free?.trials)
+    ? free!.trials
+        .map(normalizePersistedHeatCapacityFreeTrial)
+        .filter((trial): trial is HeatCapacityFreeTrial => trial !== null)
+    : fallback.heatCapacityFreeTrials;
+  const restoredStopcockFlowOpen = controls.stopcockFlowOpen === true;
+  const restoredStopcockPendingOpenAtMs =
+    typeof uiReplay.heatCapacityFreeStopcockPendingOpenAtMs === 'number' &&
+    Number.isFinite(uiReplay.heatCapacityFreeStopcockPendingOpenAtMs)
+      ? uiReplay.heatCapacityFreeStopcockPendingOpenAtMs
+      : null;
+  const restoredStopcockFlowPurpose = normalizeHeatCapacityFreeStopcockFlowPurpose(
+    controls.stopcockFlowPurpose ?? uiReplay.heatCapacityFreeStopcockFlowPurpose,
+    { heatCapacityFreeTrials: restoredFreeTrials },
+    restoredStopcockFlowOpen || restoredStopcockPendingOpenAtMs !== null,
+  );
 
   return {
     ...fallback,
@@ -820,8 +853,9 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityFreeSensorConfig: sensorConfig,
     heatCapacityFreeSensorState: free?.sensor ?? fallback.heatCapacityFreeSensorState,
     heatCapacityFreeCalibrationState: free?.calibration ?? fallback.heatCapacityFreeCalibrationState,
+    heatCapacityFreeRollbackSnapshots: free?.rollbackSnapshots ?? fallback.heatCapacityFreeRollbackSnapshots,
     heatCapacityFreeTraceStore: free?.traceStore ?? createDefaultFreeTraceStore(),
-    heatCapacityFreeTrials: Array.isArray(free?.trials) ? free!.trials : fallback.heatCapacityFreeTrials,
+    heatCapacityFreeTrials: restoredFreeTrials,
     ...uiReplay,
     heatCapacityFreeEquilibriumSpeedMultiplier: restoreEquilibriumSpeed(
       uiReplay.heatCapacityFreeEquilibriumSpeedMultiplier,
@@ -830,6 +864,8 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     pumpValveOpen: controls.pumpValveOpen === true,
     pumpValveState: controls.pumpValveOpen === true ? 'open' : 'closed',
     pumpBulbState: normalizePumpBulbState(controls.pumpBulbState ?? uiReplay.pumpBulbState),
-    heatCapacityFreeStopcockFlowOpen: controls.stopcockFlowOpen === true,
+    heatCapacityFreeStopcockFlowOpen: restoredStopcockFlowOpen,
+    heatCapacityFreeStopcockPendingOpenAtMs: restoredStopcockPendingOpenAtMs,
+    heatCapacityFreeStopcockFlowPurpose: restoredStopcockFlowPurpose,
   };
 };

@@ -5,6 +5,10 @@ import type {
   WorkbenchHeatCapacityState,
 } from '../workbench/workbenchState.ts';
 import {
+  getActiveHeatCapacityFreeTrialIndex,
+  getHeatCapacityFreeRecordDisplayTrialIndex,
+} from '../workbench/workbenchState.ts';
+import {
   calculateHeatCapacityTrialResult,
   getHeatCapacityCompletedTrialCount,
   getHeatCapacityNextActiveTrialIndex,
@@ -55,6 +59,18 @@ const formatGamma = (value: number | null | undefined) => (
   typeof value === 'number' && Number.isFinite(value) ? value.toFixed(3) : '--'
 );
 
+const formatPercent = (value: number | null | undefined) => (
+  typeof value === 'number' && Number.isFinite(value) ? `${value.toFixed(2)}%` : '--'
+);
+
+const formatFreeTrialCompletedAt = (value: number | null | undefined) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '--';
+  const pad = (part: number) => part.toString().padStart(2, '0');
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};
+
 const HeatSub = ({ children }: { children: React.ReactNode }) => <sub>{children}</sub>;
 const VarU = ({ index }: { index: React.ReactNode }) => <>U<sub>{index}</sub></>;
 const VarUT = ({ index }: { index: React.ReactNode }) => <>U<sub>T{index}</sub></>;
@@ -75,6 +91,7 @@ const copyByLanguage = {
     guide: '实验指引',
     recording: '数据记录',
     processing: '数据处理',
+    dataAndResults: '数据与结果',
     panelKicker: '空气比热容比',
     title: '空气比热容比实验',
     subtitle: '本实验通过压缩空气、快速放气和回温过程记录压强差信号，并使用绝对压强对数公式计算空气比热容比。粒子动画只作为气体运动状态的可视化。',
@@ -202,6 +219,7 @@ const copyByLanguage = {
     guide: '實驗指引',
     recording: '資料記錄',
     processing: '資料處理',
+    dataAndResults: '資料與結果',
     panelKicker: '空氣比熱容比',
     title: '空氣比熱容比實驗',
     subtitle: '本實驗透過壓縮空氣、快速放氣和回溫過程記錄壓強差信號，並使用絕對壓強對數公式計算空氣比熱容比。粒子動畫只作為氣體運動狀態的視覺化。',
@@ -301,6 +319,7 @@ const copyByLanguage = {
     guide: 'Experiment Guide',
     recording: 'Data Recording',
     processing: 'Data Processing',
+    dataAndResults: 'Data & Results',
     panelKicker: 'Air Heat Capacity Ratio',
     title: 'Air Heat Capacity Ratio Experiment',
     subtitle: 'This experiment records pressure-difference signals during air compression, quick release, and thermal recovery, then calculates the air heat capacity ratio with the absolute-pressure logarithm formula. The particle animation is only a gas-motion visualization.',
@@ -401,12 +420,13 @@ const copyByLanguage = {
 const freeCopyByLanguage = {
   'zh-CN': {
     freeRecording: {
-      title: 'Free 模式记录',
-      source: '来源：Free 物理 / 传感 / 校准 / 记录层',
+      dataAndResultsTitle: '数据与结果',
+      title: '自由模式记录',
+      source: '数据来源',
       automaticCandidate: '自动 U₀ 候选',
       automaticWaiting: '等待稳定的调零开旋塞状态',
-      automaticSource: 'Free 传感器显示候选值',
-      currentTrialTitle: '当前 Free 组记录',
+      automaticSource: '传感器候选值',
+      currentTrialTitle: '当前实验组记录',
       currentTrialBadge: (trialIndex: number) => `第 ${trialIndex} 组`,
       manualU0: 'U₀ 正式记录',
       manualU1: 'U₁ 正式记录',
@@ -414,37 +434,38 @@ const freeCopyByLanguage = {
       record: '记录',
       pressure: '压强 / mV',
       temperature: '温度 / mV',
-      calibration: '校准',
-      freeTrialSource: 'Free trial 来源',
-      completeTrials: (count: number) => `${count} 组完整 Free trial`,
-      totalRows: (count: number) => `${count} 行 Free 记录`,
+      freeTrialSource: '实验组概况',
+      completeTrials: (count: number) => `${count} 组完整实验`,
+      totalRows: (count: number) => `共 ${count} 组记录`,
       trial: '组次',
-      u0Display: 'U₀ 显示 / mV',
-      u1Display: 'U₁ 显示 / mV',
-      u2Display: 'U₂ 显示 / mV',
-      u1Corrected: 'U₁ 修正 / mV',
-      u2Corrected: 'U₂ 修正 / mV',
+      completedAt: '完成时间',
+      u0Display: 'U₀ 记录值 / mV',
+      u1Display: 'U₁ 记录值 / mV',
+      u2Display: 'U₂ 记录值 / mV',
+      u1Corrected: 'U₁ 扣零值 / mV',
+      u2Corrected: 'U₂ 扣零值 / mV',
       status: '状态',
-      emptyRecords: '暂无 Free 模式记录。',
+      emptyRecords: '暂无实验组记录。',
       statusComplete: '完成',
       statusPending: '待记录',
-      processingTitle: 'Free 模式处理',
-      validTrials: (count: number) => `有效 Free trial = ${count}`,
-      completeTrialCount: (count: number) => `${count} 组完整 Free trial`,
-      calculate: '计算 Free 结果',
-      processingEmpty: '完成一组 Free 模式 U₀/U₁/U₂ 记录后再计算。',
-      processingMessage: (mean: string, error: string) => `γmean = ${mean}，相对误差 = ${error}%`,
-      valid: '有效',
+      summaryLine: (theoreticalGamma: string, trialCount: number, meanGamma: string, relativeError: string) => `理论 γ = ${theoreticalGamma}　实验组数 = ${trialCount}　平均 γ = ${meanGamma}　相对误差 = ${relativeError}`,
+      calculationDetails: '计算详情',
+      includedInMean: '是否参与当前平均',
+      included: '参与',
+      excluded: '不参与',
+      notCalculable: '无法计算',
+      reason: '原因',
     },
   },
   'zh-TW': {
     freeRecording: {
-      title: 'Free 模式記錄',
-      source: '來源：Free 物理 / 感測 / 校準 / 記錄層',
+      dataAndResultsTitle: '資料與結果',
+      title: '自由模式記錄',
+      source: '資料來源',
       automaticCandidate: '自動 U₀ 候選',
       automaticWaiting: '等待穩定的調零開旋塞狀態',
-      automaticSource: 'Free 感測器顯示候選值',
-      currentTrialTitle: '目前 Free 組記錄',
+      automaticSource: '感測器候選值',
+      currentTrialTitle: '目前實驗組記錄',
       currentTrialBadge: (trialIndex: number) => `第 ${trialIndex} 組`,
       manualU0: 'U₀ 正式記錄',
       manualU1: 'U₁ 正式記錄',
@@ -452,31 +473,32 @@ const freeCopyByLanguage = {
       record: '記錄',
       pressure: '壓強 / mV',
       temperature: '溫度 / mV',
-      calibration: '校準',
-      freeTrialSource: 'Free trial 來源',
-      completeTrials: (count: number) => `${count} 組完整 Free trial`,
-      totalRows: (count: number) => `${count} 行 Free 記錄`,
+      freeTrialSource: '實驗組概況',
+      completeTrials: (count: number) => `${count} 組完整實驗`,
+      totalRows: (count: number) => `共 ${count} 組記錄`,
       trial: '組次',
-      u0Display: 'U₀ 顯示 / mV',
-      u1Display: 'U₁ 顯示 / mV',
-      u2Display: 'U₂ 顯示 / mV',
-      u1Corrected: 'U₁ 修正 / mV',
-      u2Corrected: 'U₂ 修正 / mV',
+      completedAt: '完成時間',
+      u0Display: 'U₀ 記錄值 / mV',
+      u1Display: 'U₁ 記錄值 / mV',
+      u2Display: 'U₂ 記錄值 / mV',
+      u1Corrected: 'U₁ 扣零值 / mV',
+      u2Corrected: 'U₂ 扣零值 / mV',
       status: '狀態',
-      emptyRecords: '暫無 Free 模式記錄。',
+      emptyRecords: '暫無實驗組記錄。',
       statusComplete: '完成',
       statusPending: '待記錄',
-      processingTitle: 'Free 模式處理',
-      validTrials: (count: number) => `有效 Free trial = ${count}`,
-      completeTrialCount: (count: number) => `${count} 組完整 Free trial`,
-      calculate: '計算 Free 結果',
-      processingEmpty: '完成一組 Free 模式 U₀/U₁/U₂ 記錄後再計算。',
-      processingMessage: (mean: string, error: string) => `γmean = ${mean}，相對誤差 = ${error}%`,
-      valid: '有效',
+      summaryLine: (theoreticalGamma: string, trialCount: number, meanGamma: string, relativeError: string) => `理論 γ = ${theoreticalGamma}　實驗組數 = ${trialCount}　平均 γ = ${meanGamma}　相對誤差 = ${relativeError}`,
+      calculationDetails: '計算詳情',
+      includedInMean: '是否參與目前平均',
+      included: '參與',
+      excluded: '不參與',
+      notCalculable: '無法計算',
+      reason: '原因',
     },
   },
   en: {
     freeRecording: {
+      dataAndResultsTitle: 'Data & Results',
       title: 'Free Mode records',
       source: 'Source: Free physical / sensor / calibration / record layers',
       automaticCandidate: 'Automatic U₀ candidate',
@@ -490,27 +512,27 @@ const freeCopyByLanguage = {
       record: 'Record',
       pressure: 'Pressure / mV',
       temperature: 'Temperature / mV',
-      calibration: 'Calibration',
       freeTrialSource: 'Free trial source',
       completeTrials: (count: number) => `${count} complete Free trial(s)`,
       totalRows: (count: number) => `${count} total Free record row(s)`,
       trial: 'Trial',
-      u0Display: 'U₀ display / mV',
-      u1Display: 'U₁ display / mV',
-      u2Display: 'U₂ display / mV',
-      u1Corrected: 'U₁ corrected / mV',
-      u2Corrected: 'U₂ corrected / mV',
+      completedAt: 'Completed at',
+      u0Display: 'U₀ recorded / mV',
+      u1Display: 'U₁ recorded / mV',
+      u2Display: 'U₂ recorded / mV',
+      u1Corrected: 'U₁ zero-corrected / mV',
+      u2Corrected: 'U₂ zero-corrected / mV',
       status: 'Status',
       emptyRecords: 'No Free Mode records yet.',
       statusComplete: 'complete',
       statusPending: 'pending',
-      processingTitle: 'Free Mode processing',
-      validTrials: (count: number) => `valid Free trials = ${count}`,
-      completeTrialCount: (count: number) => `${count} complete Free trial(s)`,
-      calculate: 'Calculate Free result',
-      processingEmpty: 'Complete a Free Mode U₀/U₁/U₂ trial, then calculate.',
-      processingMessage: (mean: string, error: string) => `γmean = ${mean}, relative error = ${error}%`,
-      valid: 'valid',
+      summaryLine: (theoreticalGamma: string, trialCount: number, meanGamma: string, relativeError: string) => `theoretical γ = ${theoreticalGamma}  experiment groups = ${trialCount}  mean γ = ${meanGamma}  relative error = ${relativeError}`,
+      calculationDetails: 'Calculation details',
+      includedInMean: 'Included in current mean',
+      included: 'included',
+      excluded: 'excluded',
+      notCalculable: 'not calculable',
+      reason: 'Reason',
     },
   },
 } as const;
@@ -663,7 +685,7 @@ const renderGuideTab = (language: WorkbenchLanguagePreference) => {
   );
 };
 
-const renderFreeRecordingTab = (
+const renderFreeDataAndResultsTab = (
   file: WorkbenchHeatCapacityState,
   copy: LocalizedText,
   pendingRemoveTrialRecord: HeatCapacityLeftPanelProps['pendingRemoveTrialRecord'],
@@ -672,13 +694,25 @@ const renderFreeRecordingTab = (
 ) => {
   const automaticU0 = file.heatCapacityFreeCalibrationState.automaticU0;
   const completed = file.heatCapacityFreeTrials.filter((trial) => trial.u0 && trial.u1 && trial.u2).length;
-  const currentFreeTrialIndex = file.heatCapacityFreeTrials.length === 0
-    ? 0
-    : (() => {
-        const incompleteIndex = file.heatCapacityFreeTrials.findIndex((trial) => !trial.u0 || !trial.u1 || !trial.u2);
-        return incompleteIndex >= 0 ? incompleteIndex : file.heatCapacityFreeTrials.length - 1;
-      })();
-  const currentFreeTrial = file.heatCapacityFreeTrials[currentFreeTrialIndex] ?? null;
+  const result = calculateFreeHeatCapacityMeanResult(file.heatCapacityFreeTrials, {
+    theoreticalGamma: file.theoreticalGamma,
+    atmosphericPressureKPa: file.heatCapacityFreeEnvironmentConfig.ambientPressureKPa,
+    pressureSensitivityMvPerKPa: file.heatCapacityFreeSensorConfig.pressureMvPerKPa,
+  });
+  const trialResultsById = new Map<string, HeatCapacityFreeProcessingTrialResult>(
+    result.trialResults.map((trial) => [trial.trialId, trial]),
+  );
+  const activeFreeTrialIndex = getActiveHeatCapacityFreeTrialIndex(file);
+  const displayFreeTrialIndex = getHeatCapacityFreeRecordDisplayTrialIndex(file);
+  const currentFreeTrialIndex = displayFreeTrialIndex >= 0 ? displayFreeTrialIndex : file.heatCapacityFreeTrials.length;
+  const currentFreeTrial = displayFreeTrialIndex >= 0 ? file.heatCapacityFreeTrials[displayFreeTrialIndex] ?? null : null;
+  const currentFreeTrialEditable = displayFreeTrialIndex === activeFreeTrialIndex && activeFreeTrialIndex >= 0;
+  const summaryLine = copy.freeRecording.summaryLine(
+    file.theoreticalGamma.toFixed(2),
+    result.validTrialCount,
+    formatGamma(result.meanGamma),
+    formatPercent(result.relativeErrorPercent),
+  );
   const renderRemoveRecordButton = (
     trialIndex: number,
     kind: HeatCapacityTrialRecordRemovalKind,
@@ -725,7 +759,6 @@ const renderFreeRecordingTab = (
       <span><strong>{key}</strong><em>{label}</em></span>
       <span>{formatNumber(record?.displayPressureMv, 2)}</span>
       <span>{formatNumber(record?.displayTemperatureMv, 2)}</span>
-      <span>{record ? record.calibrationVersion : '--'}</span>
       <span className={record ? 'studio-heat-sample-recorded' : 'studio-heat-sample-waiting'}>
         {record ? copy.freeRecording.statusComplete : copy.freeRecording.statusPending}
       </span>
@@ -739,7 +772,7 @@ const renderFreeRecordingTab = (
       data-heat-capacity-record-source={file.heatCapacityMode}
     >
       <div className="studio-result-status studio-result-status-ready">
-        <strong>{copy.freeRecording.title}</strong>
+        <strong>{copy.freeRecording.dataAndResultsTitle}</strong>
         <span>{copy.freeRecording.source}</span>
       </div>
       <section className="studio-heat-sample-status" data-heat-capacity-free-u0-status="true">
@@ -747,20 +780,18 @@ const renderFreeRecordingTab = (
           <strong>{copy.freeRecording.automaticCandidate}</strong>
           <span>{automaticU0 ? automaticU0.zeroEventId : copy.freeRecording.automaticWaiting}</span>
         </div>
-        <div className="studio-heat-sample-grid">
+        <div className="studio-heat-sample-grid studio-heat-free-record-grid">
           <div className="studio-heat-sample-row studio-heat-sample-head">
             <span>{copy.freeRecording.record}</span>
             <span>{copy.freeRecording.pressure}</span>
             <span>{copy.freeRecording.temperature}</span>
-            <span>{copy.freeRecording.calibration}</span>
             <span>{copy.freeRecording.status}</span>
             <span>{copy.freeRecording.source}</span>
           </div>
           <div className="studio-heat-sample-row">
-            <span><strong>{copy.freeRecording.automaticCandidate}</strong><em>automaticU0</em></span>
+            <span><strong>{copy.freeRecording.automaticCandidate}</strong></span>
             <span>{formatNumber(automaticU0?.displayPressureMv, 2)}</span>
             <span>{formatNumber(automaticU0?.displayTemperatureMv, 2)}</span>
-            <span>{automaticU0 ? automaticU0.calibrationVersion : '--'}</span>
             <span className={automaticU0 ? 'studio-heat-sample-recorded' : 'studio-heat-sample-waiting'}>
               {automaticU0 ? copy.freeRecording.statusComplete : copy.freeRecording.statusPending}
             </span>
@@ -773,12 +804,11 @@ const renderFreeRecordingTab = (
           <strong>{copy.freeRecording.currentTrialTitle}</strong>
           <span>{currentFreeTrial ? copy.freeRecording.currentTrialBadge(currentFreeTrialIndex + 1) : copy.freeRecording.statusPending}</span>
         </div>
-        <div className="studio-heat-sample-grid">
+        <div className="studio-heat-sample-grid studio-heat-free-record-grid">
           <div className="studio-heat-sample-row studio-heat-sample-head">
             <span>{copy.freeRecording.record}</span>
             <span>{copy.freeRecording.pressure}</span>
             <span>{copy.freeRecording.temperature}</span>
-            <span>{copy.freeRecording.calibration}</span>
             <span>{copy.freeRecording.status}</span>
             <span>{copy.table.action}</span>
           </div>
@@ -786,19 +816,19 @@ const renderFreeRecordingTab = (
             'U₀',
             copy.freeRecording.manualU0,
             currentFreeTrial?.u0 ?? null,
-            renderRemoveRecordButton(currentFreeTrialIndex, 'u0', (currentFreeTrial?.u0 ?? null) !== null),
+            renderRemoveRecordButton(currentFreeTrialIndex, 'u0', currentFreeTrialEditable && (currentFreeTrial?.u0 ?? null) !== null),
           )}
           {renderCurrentFreeRecordRow(
             'U₁',
             copy.freeRecording.manualU1,
             currentFreeTrial?.u1 ?? null,
-            renderRemoveRecordButton(currentFreeTrialIndex, 'u1', (currentFreeTrial?.u1 ?? null) !== null),
+            renderRemoveRecordButton(currentFreeTrialIndex, 'u1', currentFreeTrialEditable && (currentFreeTrial?.u1 ?? null) !== null),
           )}
           {renderCurrentFreeRecordRow(
             'U₂',
             copy.freeRecording.manualU2,
             currentFreeTrial?.u2 ?? null,
-            renderRemoveRecordButton(currentFreeTrialIndex, 'u2', (currentFreeTrial?.u2 ?? null) !== null),
+            renderRemoveRecordButton(currentFreeTrialIndex, 'u2', currentFreeTrialEditable && (currentFreeTrial?.u2 ?? null) !== null),
           )}
         </div>
       </section>
@@ -809,16 +839,18 @@ const renderFreeRecordingTab = (
           <span>{copy.freeRecording.totalRows(file.heatCapacityFreeTrials.length)}</span>
         </div>
       </div>
+      <section className="studio-heat-result-summary-line" data-heat-capacity-free-result-summary="true">
+        <strong>{summaryLine}</strong>
+      </section>
       <div className="studio-heat-table-scroll">
         <table className="studio-table studio-heat-recording-table" data-heat-capacity-free-record-table="true">
           <thead>
             <tr>
               <th>{copy.freeRecording.trial}</th>
+              <th>{copy.freeRecording.completedAt}</th>
               <th>{copy.freeRecording.u0Display}</th>
               <th>{copy.freeRecording.u1Display}</th>
               <th>{copy.freeRecording.u2Display}</th>
-              <th>{copy.freeRecording.u1Corrected}</th>
-              <th>{copy.freeRecording.u2Corrected}</th>
               <th>γ</th>
               <th>{copy.freeRecording.status}</th>
               <th>{copy.table.action}</th>
@@ -827,30 +859,64 @@ const renderFreeRecordingTab = (
           <tbody>
             {file.heatCapacityFreeTrials.length === 0 ? (
               <tr>
-                <td colSpan={9}>{copy.freeRecording.emptyRecords}</td>
+                <td colSpan={8}>{copy.freeRecording.emptyRecords}</td>
               </tr>
             ) : file.heatCapacityFreeTrials.map((trial, index) => {
-              const correctedSignals = trial.correctedSignals;
+              const trialResult = trialResultsById.get(trial.id) ?? null;
+              const completeTrial = Boolean(trial.u0 && trial.u1 && trial.u2);
+              const includedInMean = trialResult?.status === 'valid' && trialResult.gamma !== null;
+              const statusText = !completeTrial
+                ? trial.blockedReason ?? copy.freeRecording.statusPending
+                : includedInMean
+                  ? copy.freeRecording.statusComplete
+                  : copy.freeRecording.notCalculable;
               return (
-                <tr key={trial.id}>
-                  <td>{index + 1}</td>
-                  <td>{formatNumber(trial.u0?.displayPressureMv, 2)}</td>
-                  <td>{formatNumber(trial.u1?.displayPressureMv, 2)}</td>
-                  <td>{formatNumber(trial.u2?.displayPressureMv, 2)}</td>
-                  <td>{formatNumber(correctedSignals?.U1CorrectedMv, 2)}</td>
-                  <td>{formatNumber(correctedSignals?.U2CorrectedMv, 2)}</td>
-                  <td>{formatGamma(correctedSignals?.gamma ?? null)}</td>
-                  <td>{correctedSignals ? copy.freeRecording.statusComplete : trial.blockedReason ?? copy.freeRecording.statusPending}</td>
-                  <td>
-                    <div className="studio-table-action-row">
-                      {renderRemoveRecordButton(
-                        index,
-                        'trial',
-                        trial.u0 !== null || trial.u1 !== null || trial.u2 !== null,
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                <React.Fragment key={trial.id}>
+                  <tr>
+                    <td>{index + 1}</td>
+                    <td>{formatFreeTrialCompletedAt(trial.completedAtMs)}</td>
+                    <td>{formatNumber(trial.u0?.displayPressureMv, 2)}</td>
+                    <td>{formatNumber(trial.u1?.displayPressureMv, 2)}</td>
+                    <td>{formatNumber(trial.u2?.displayPressureMv, 2)}</td>
+                    <td>{formatGamma(trialResult?.gamma)}</td>
+                    <td>{statusText}</td>
+                    <td>
+                      <div className="studio-table-action-row">
+                        {renderRemoveRecordButton(
+                          index,
+                          'trial',
+                          trial.u0 !== null || trial.u1 !== null || trial.u2 !== null,
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                  <tr data-heat-capacity-free-trial-detail="true">
+                    <td colSpan={8}>
+                      <DocumentDisclosure id={`free-trial-detail-${trial.id}`} title={copy.freeRecording.calculationDetails}>
+                        <div className="studio-heat-sample-grid">
+                          <div className="studio-heat-sample-row">
+                            <span>{copy.freeRecording.u1Corrected}</span>
+                            <span>{formatNumber(trialResult?.U1CorrectedMv, 2)}</span>
+                          </div>
+                          <div className="studio-heat-sample-row">
+                            <span>{copy.freeRecording.u2Corrected}</span>
+                            <span>{formatNumber(trialResult?.U2CorrectedMv, 2)}</span>
+                          </div>
+                          <div className="studio-heat-sample-row">
+                            <span>{copy.freeRecording.includedInMean}</span>
+                            <span>{includedInMean ? copy.freeRecording.included : copy.freeRecording.excluded}</span>
+                          </div>
+                          {!includedInMean ? (
+                            <div className="studio-heat-sample-row">
+                              <span>{copy.freeRecording.reason}</span>
+                              <span>{trialResult?.message ?? copy.freeRecording.notCalculable}</span>
+                            </div>
+                          ) : null}
+                        </div>
+                      </DocumentDisclosure>
+                    </td>
+                  </tr>
+                </React.Fragment>
               );
             })}
           </tbody>
@@ -869,7 +935,7 @@ const renderRecordingTab = (
   onCancelRemoveTrialRecord: HeatCapacityLeftPanelProps['onCancelRemoveTrialRecord'],
 ) => {
   if (file.heatCapacityMode === 'free') {
-    return renderFreeRecordingTab(
+    return renderFreeDataAndResultsTab(
       file,
       copy,
       pendingRemoveTrialRecord,
@@ -1129,81 +1195,6 @@ const renderGammaChart = (
   );
 };
 
-const renderFreeProcessingTab = (
-  file: WorkbenchHeatCapacityState,
-  copy: LocalizedText,
-  onCalculateResults: () => void,
-) => {
-  const result = file.heatCapacityProcessingCalculated
-    ? calculateFreeHeatCapacityMeanResult(file.heatCapacityFreeTrials, {
-        theoreticalGamma: file.theoreticalGamma,
-        atmosphericPressureKPa: file.heatCapacityFreeEnvironmentConfig.ambientPressureKPa,
-        pressureSensitivityMvPerKPa: file.heatCapacityFreeSensorConfig.pressureMvPerKPa,
-      })
-    : null;
-  const completed = file.heatCapacityFreeTrials.filter((trial) => trial.u0 && trial.u1 && trial.u2).length;
-  const trialResults: HeatCapacityFreeProcessingTrialResult[] = result?.trialResults ?? [];
-  return (
-    <div className="studio-heat-processing" data-heat-capacity-processing-tab="true" data-heat-capacity-record-source={file.heatCapacityMode}>
-      <div className="studio-heat-processing-summary">
-        <div className="studio-heat-processing-summary-cell">
-          <span>{copy.freeRecording.processingTitle}</span>
-          <div className="studio-heat-processing-summary-values">
-            <strong>γair = {file.theoreticalGamma.toFixed(2)}</strong>
-            <strong>{copy.freeRecording.validTrials(result?.validTrialCount ?? 0)}</strong>
-          </div>
-        </div>
-      </div>
-      <div className="studio-heat-calculate-row">
-        <span>{copy.freeRecording.completeTrialCount(completed)}</span>
-        <button type="button" onClick={onCalculateResults} disabled={completed < 1}>
-          <BarChart3 size={14} />
-          {copy.freeRecording.calculate}
-        </button>
-      </div>
-      {!result ? <div className="studio-empty-panel-tree">{copy.freeRecording.processingEmpty}</div> : null}
-      {result ? (
-        <div className="studio-heat-processing-results">
-          <div className="studio-result-status studio-result-status-ready">
-            <strong>{result.message}</strong>
-            <span>{copy.freeRecording.processingMessage(formatGamma(result.meanGamma), formatNumber(result.relativeErrorPercent, 2))}</span>
-          </div>
-          <div className="studio-heat-table-scroll">
-            <table className="studio-table studio-heat-processing-table">
-              <thead>
-                <tr>
-                  <th>{copy.freeRecording.trial}</th>
-              <th>{copy.freeRecording.u0Display}</th>
-              <th>{copy.freeRecording.u1Display}</th>
-              <th>{copy.freeRecording.u2Display}</th>
-              <th>{copy.freeRecording.u1Corrected}</th>
-              <th>{copy.freeRecording.u2Corrected}</th>
-              <th>γ</th>
-              <th>{copy.freeRecording.status}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {trialResults.map((trial) => (
-                  <tr key={trial.trialId}>
-                    <td>{trial.trialIndex}</td>
-                    <td>{formatNumber(trial.U0DisplayMv, 2)}</td>
-                    <td>{formatNumber(trial.U1DisplayMv, 2)}</td>
-                    <td>{formatNumber(trial.U2DisplayMv, 2)}</td>
-                    <td>{formatNumber(trial.U1CorrectedMv, 2)}</td>
-                    <td>{formatNumber(trial.U2CorrectedMv, 2)}</td>
-                    <td>{formatGamma(trial.gamma)}</td>
-                    <td>{trial.status === 'valid' ? copy.freeRecording.valid : trial.message}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-};
-
 const renderProcessingTab = (
   file: WorkbenchHeatCapacityState,
   copy: LocalizedText,
@@ -1211,9 +1202,6 @@ const renderProcessingTab = (
   formulaResultsExpanded: boolean,
   setFormulaResultsExpanded: React.Dispatch<React.SetStateAction<boolean>>,
 ) => {
-  if (file.heatCapacityMode === 'free') {
-    return renderFreeProcessingTab(file, copy, onCalculateResults);
-  }
   const result = file.heatCapacityProcessingResult;
   const completed = getHeatCapacityCompletedTrialCount(file.heatCapacityTrials);
   const validFormulaResults = result.trialResults.filter((trial) => trial.status === 'valid' && trial.gamma !== null);
@@ -1241,7 +1229,12 @@ const renderProcessingTab = (
       </div>
       <div className="studio-heat-calculate-row">
         <span>{completed} {copy.imported}</span>
-        <button type="button" onClick={onCalculateResults} disabled={completed < file.heatCapacityExpectedTrialCount}>
+        <button
+          type="button"
+          data-heat-capacity-calculate="teaching"
+          onClick={onCalculateResults}
+          disabled={completed < file.heatCapacityExpectedTrialCount}
+        >
           <BarChart3 size={14} />
           {copy.calculate}
         </button>
@@ -1356,11 +1349,17 @@ export const HeatCapacityLeftPanel = ({
 }: HeatCapacityLeftPanelProps) => {
   const copy = text(language);
   const [formulaResultsExpanded, setFormulaResultsExpanded] = useState(false);
+  const freeDataResultsPanel = file.heatCapacityMode === 'free' && (
+    panelKey === 'heatCapacityRecords' || panelKey === 'heatCapacityProcessing'
+  );
   const contentTitle = useMemo(() => {
+    if (file.heatCapacityMode === 'free' && (panelKey === 'heatCapacityRecords' || panelKey === 'heatCapacityProcessing')) {
+      return copy.dataAndResults;
+    }
     if (panelKey === 'heatCapacityRecords') return copy.recording;
     if (panelKey === 'heatCapacityProcessing') return copy.processing;
     return copy.guide;
-  }, [copy.guide, copy.processing, copy.recording, panelKey]);
+  }, [copy.dataAndResults, copy.guide, copy.processing, copy.recording, file.heatCapacityMode, panelKey]);
 
   return (
     <section className="studio-heat-panel-content" data-heat-capacity-panel-content="true" data-heat-capacity-panel-key={panelKey}>
@@ -1371,6 +1370,14 @@ export const HeatCapacityLeftPanel = ({
       <div className="studio-heat-left-content">
         {panelKey === 'heatCapacityGuide'
           ? renderGuideTab(language)
+          : freeDataResultsPanel
+            ? renderFreeDataAndResultsTab(
+                file,
+                copy,
+                pendingRemoveTrialRecord,
+                onRemoveTrialRecord,
+                onCancelRemoveTrialRecord,
+              )
           : panelKey === 'heatCapacityRecords'
             ? renderRecordingTab(
                 file,

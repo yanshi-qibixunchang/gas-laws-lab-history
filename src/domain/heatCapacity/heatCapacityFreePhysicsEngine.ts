@@ -79,6 +79,7 @@ export interface HeatCapacityFreeControls {
   powerOn: boolean;
   pumpValveOpen: boolean;
   stopcockOpen: boolean;
+  stopcockFlowPurpose?: 'zeroing' | 'release';
 }
 
 export interface HeatCapacityFreePumpStrokeEvent {
@@ -788,6 +789,7 @@ export const stepFreePhysics = (
   }
 
   const newlyOpened = !wasStopcockOpen;
+  const releaseEligible = controls.stopcockFlowPurpose === 'release';
   const openedBaseState: HeatCapacityFreePhysicsState = {
     ...pumpedState,
     simulationTimeS: atS,
@@ -796,7 +798,7 @@ export const stepFreePhysics = (
       ? clampNonNegativeFinite(dtS)
       : state.currentStopcockOpenDurationS + clampNonNegativeFinite(dtS),
   };
-  const openingReleaseReference = newlyOpened
+  const openingReleaseReference = newlyOpened && releaseEligible
     ? createReleaseReference(openedBaseState, effectiveConfig, atS)
     : null;
   const releaseCandidate: HeatCapacityFreePhysicsState = openingReleaseReference

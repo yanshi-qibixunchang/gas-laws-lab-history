@@ -118,8 +118,23 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const formatAlignedSignalParts = \(value: number \| null\)[\s\S]*padStart\(4, ' '\)[\s\S]*right: `\.\$\{fractionalPart\} mV`/,
-  'Ultra digital display should reserve a sign slot, four integer slots, decimal point, two decimals, and unit',
+  /const formatAlignedSignalParts = \(value: number \| null\)[\s\S]*formatHeatCapacitySignalMv\(boundedValue\)[\s\S]*right: `\.\$\{fractionalPart\} mV`/,
+  'Ultra digital display should reserve a sign slot, four integer slots, one decimal digit, and unit',
+);
+assert.match(
+  ultraModelSource,
+  /const ULTRA_DISPLAY_FRACTION_SLOTS = 1;/,
+  'Ultra digital display should reserve exactly one decimal digit slot',
+);
+assert.match(
+  ultraModelSource,
+  /parts\.right\.match\(\/\\\.\(\\d\+\)\/\)/,
+  'Ultra digital display should parse one or more decimal digits instead of requiring two',
+);
+assert.doesNotMatch(
+  ultraModelSource.match(/const drawUltraAlignedSignal = \([\s\S]*?\n\};/)?.[0] ?? '',
+  /\?\? '--'/,
+  'Ultra digital display should not replace a missing second decimal digit with dash placeholders',
 );
 assert.match(
   ultraModelSource,

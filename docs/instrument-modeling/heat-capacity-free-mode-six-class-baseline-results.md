@@ -8,7 +8,7 @@
 
 - 放气阀有效开度：`aperture(openElapsedS) = smoothstep(openElapsedS / 0.1s)`，放气流量使用时间段内的积分开度，不再把 `0.03s`/`0.05s` 吞并成固定最小开阀时间。
 - 放气流动强度：`stopcockFlowRate = 5.25`。该值用于补偿 `0.35s` 标准开阀在 ramp 后只有 `0.30s` 等效满开时间，同时保留标准操作区间。
-- 低压传感器不敏感模型：默认开启，`kneeMv = 15`、`minGain = 0.55`、`exponent = 1.4`。
+- 低压传感器不敏感模型：默认开启，`kneeMv = 15`、`minGain = 0.65`、`exponent = 1.4`。
 - 打气阀打开期间气体交换模型：默认开启，`gasExchangeRatePerS = 0.005`、`thermalConductanceWPerK = 0.004`、`openingDelayS = 0.42`。
 - 独立环境扰动模型：默认开启，强度较弱，`pressureAmplitudeKPa = 0.002`、`temperatureAmplitudeK = 0.015`。
 

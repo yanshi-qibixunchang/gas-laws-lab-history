@@ -187,9 +187,6 @@ export const recordFreeU0 = (
   trial: HeatCapacityFreeTrial,
   input: HeatCapacityFreeRecordInput,
 ): HeatCapacityFreeRecordResult => {
-  if (trial.u0) {
-    return rejectRecord(trial, 'invalid-sequence');
-  }
   if (!input.zeroEventId) {
     return rejectRecord(trial, 'zero-not-ready');
   }
@@ -204,6 +201,7 @@ export const recordFreeU0 = (
       blockedReason: null,
       correctedSignals: null,
       configSnapshot: null,
+      completedAtMs: null,
     },
   };
 };
@@ -218,9 +216,6 @@ export const recordFreeU1 = (
   if (!inputMatchesManualU0(trial, input)) {
     return rejectRecord(trial, 'calibration-changed');
   }
-  if (trial.u1) {
-    return rejectRecord(trial, 'invalid-sequence');
-  }
   return {
     accepted: true,
     reason: 'accepted',
@@ -231,6 +226,7 @@ export const recordFreeU1 = (
       blockedReason: null,
       correctedSignals: null,
       configSnapshot: null,
+      completedAtMs: null,
     },
   };
 };
@@ -243,7 +239,7 @@ export const recordFreeU2 = (
   if (!trial.u0) {
     return rejectRecord(trial, 'missing-u0');
   }
-  if (!trial.u1 || trial.u2) {
+  if (!trial.u1) {
     return rejectRecord(trial, 'invalid-sequence');
   }
   if (
@@ -259,6 +255,7 @@ export const recordFreeU2 = (
     blockedReason: null,
     correctedSignals: null,
     configSnapshot: null,
+    completedAtMs: null,
   };
   const correctedSignals = calculateFreeHeatCapacityTrialSignals(nextTrial, options);
   return {

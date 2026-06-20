@@ -116,7 +116,7 @@ assert.match(
 
 assert.match(
   source,
-  /const renderEmptyStudyActions = \(className = 'studio-empty-actions'\) => \(\s*<div className=\{className\}>\s*<button type="button" className="studio-empty-command-row"/,
+  /const renderEmptyStudyActions = \(className = 'studio-empty-actions'\) => \(\s*<div className=\{className\}>\s*<button[\s\S]*?className="studio-empty-command-row"[\s\S]*?data-workbench-create-experiment="ideal"/,
   'empty study creation entries should render as VS Code style command rows',
 );
 

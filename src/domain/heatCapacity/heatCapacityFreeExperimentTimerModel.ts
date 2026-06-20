@@ -61,10 +61,7 @@ export const deriveHeatCapacityFreeExperimentTimer = (
   if (!trial?.u0) {
     return createInactiveTimer('idle');
   }
-  if (trial.u2) {
-    return createInactiveTimer('complete');
-  }
-  if (!trial.u1) {
+  if (!trial.u1 || !physics.releaseStarted) {
     if (physics.pumpStrokeCount > 0 && physics.lastPumpStrokeAtS !== null) {
       return createWaitingTimer('u1-wait', physics.simulationTimeS, physics.lastPumpStrokeAtS);
     }

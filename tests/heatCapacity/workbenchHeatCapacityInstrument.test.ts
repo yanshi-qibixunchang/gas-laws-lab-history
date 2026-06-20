@@ -35,6 +35,9 @@ import {
   createHeatCapacityInitialPressureBiasMv,
   enterHeatCapacityFreeModeWorkbenchState,
   getHeatCapacityFreeEquilibriumSpeedMultiplier,
+  getActiveHeatCapacityFreeTrialIndex,
+  getHeatCapacityFreeRecordDisplayTrialIndex,
+  getHeatCapacityFreeRecordButtonState,
   isHeatCapacityPressureZeroWithinTolerance,
   isHeatCapacityFreeEquilibriumSpeedAvailable,
   markHeatCapacityDemoComplete,
@@ -75,7 +78,11 @@ import {
 } from '../../src/domain/heatCapacity/heatCapacityTrialModel.ts';
 import {
   createHeatCapacityFreeTrial,
+  normalizeHeatCapacityFreeRecordInput,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import {
+  truncateHeatCapacitySignalMv,
+} from '../../src/domain/heatCapacity/heatCapacitySignalDisplayModel.ts';
 import type {
   HeatCapacityFreeEventType,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
@@ -129,6 +136,7 @@ assert.equal(defaultFile.heatCapacityFreeSensorConfig.minSampleIntervalS, 0.08);
 assert.equal(defaultFile.heatCapacityFreeSensorConfig.maxSampleIntervalS, 0.12);
 assert.equal(defaultFile.heatCapacityFreeStopcockFlowOpen, false);
 assert.equal(defaultFile.heatCapacityFreeStopcockPendingOpenAtMs, null);
+assert.equal(defaultFile.heatCapacityFreeStopcockFlowPurpose, 'none');
 assert.deepEqual(HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS, [2, 4, 8, 16]);
 assert.equal(HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER, 4);
 assert.equal(defaultFile.heatCapacityFreeEquilibriumSpeedMultiplier, 4);
@@ -301,6 +309,7 @@ const resetFreeRun = resetHeatCapacityFreeRunWorkbenchState({
   pressureReleaseBurstUntilMs: 3200,
   heatCapacityFreeStopcockFlowOpen: true,
   heatCapacityFreeStopcockPendingOpenAtMs: 3100,
+  heatCapacityFreeStopcockFlowPurpose: 'release',
   heatCapacityFreeEquilibriumSpeedMultiplier: 8,
   heatCapacityFreeEquilibriumSpeedHintShown: true,
   heatCapacityFreeTrials: [freeTrial],
@@ -329,6 +338,7 @@ assert.equal(resetFreeRun.pressureZeroAdjustMode, 'none');
 assert.equal(resetFreeRun.pressureReleaseBurstUntilMs, null);
 assert.equal(resetFreeRun.heatCapacityFreeStopcockFlowOpen, false);
 assert.equal(resetFreeRun.heatCapacityFreeStopcockPendingOpenAtMs, null);
+assert.equal(resetFreeRun.heatCapacityFreeStopcockFlowPurpose, 'none');
 assert.equal(resetFreeRun.heatCapacityFreeEquilibriumSpeedMultiplier, 4);
 assert.equal(resetFreeRun.heatCapacityFreeEquilibriumSpeedHintShown, false);
 assert.deepEqual(resetFreeRun.heatCapacityFreePhysicsConfig.leakage, {
@@ -560,23 +570,71 @@ const branchRollbackTrace = branchRollbackFile.heatCapacityFreeTraceStore.traceT
 assert.notEqual(branchRollbackTrace, undefined);
 assert.equal(branchRollbackTrace!.branches.some((branch) => branch.status === 'archived'), true);
 assert.equal(branchRollbackTrace!.branches.some((branch) => branch.status === 'main' && branch.parentBranchId === 'branch-1'), true);
-const completedResetOnce = resetHeatCapacityFreeRunWorkbenchState({
+const completedPowerOnReset = resetHeatCapacityFreeRunWorkbenchState({
   ...freePumped,
+  heatCapacityFreeExperimentGroupStatus: 'completed',
   heatCapacityFreeTrials: [traceLinkedCompleteTrial],
   heatCapacityProcessingCalculated: true,
 }, 1_600);
-assert.equal(completedResetOnce.heatCapacityFreeTrials.length, 1);
-assert.equal(completedResetOnce.heatCapacityFreeTrials[0].id, traceLinkedCompleteTrial.id);
 assert.equal(
-  completedResetOnce.heatCapacityFreeTraceStore.traceTrials.some((traceTrial) => traceTrial.id === traceTrialIdForBranchTest),
-  true,
-  'Reset after a completed Free group should preserve that group trace',
+  completedPowerOnReset.heatCapacityFreeTrials.length,
+  0,
+  'Reset before power-off should discard even a U0/U1/U2-complete Free group because it has not been ended',
 );
 assert.equal(
-  completedResetOnce.heatCapacityFreeTraceStore.activeTraceTrialId,
+  completedPowerOnReset.heatCapacityFreeTraceStore.traceTrials.some((traceTrial) => traceTrial.id === traceTrialIdForBranchTest),
+  false,
+  'Reset before power-off should discard the current complete-but-unended Free trace',
+);
+assert.equal(
+  completedPowerOnReset.heatCapacityFreeTraceStore.activeTraceTrialId,
   null,
-  'Reset after a completed Free group should leave the next group blank until the next user action',
+  'Reset after discarding an unended Free group should leave the next group blank until the next user action',
 );
+const completedPowerOffPrepared = powerHeatCapacityWorkbenchFile({
+  ...freePumped,
+  heatCapacityFreeExperimentGroupStatus: 'completed',
+  heatCapacityFreeTrials: [traceLinkedCompleteTrial],
+  heatCapacityProcessingCalculated: true,
+}, false, 1_650);
+assert.equal(completedPowerOffPrepared.powerOn, false);
+assert.equal(completedPowerOffPrepared.heatCapacityFreeExperimentGroupStatus, 'draft');
+assert.equal(completedPowerOffPrepared.heatCapacityFreeTrials.length, 1);
+assert.equal(completedPowerOffPrepared.heatCapacityFreeTrials[0].id, traceLinkedCompleteTrial.id);
+assert.equal(
+  completedPowerOffPrepared.heatCapacityFreeTrials[0].completedAtMs,
+  1_650,
+  'Powering off after U2 should stamp the saved Free group completion time',
+);
+assert.equal(
+  completedPowerOffPrepared.heatCapacityFreeTraceStore.traceTrials.some((traceTrial) => traceTrial.id === traceTrialIdForBranchTest),
+  true,
+  'Powering off after U2 should auto-save the completed Free group trace',
+);
+assert.equal(completedPowerOffPrepared.heatCapacityFreeTraceStore.activeTraceTrialId, null);
+assert.equal(completedPowerOffPrepared.heatCapacityFreePhysicsState.pumpStrokeCount, 0);
+assert.equal(completedPowerOffPrepared.heatCapacityFreePhysicsState.releaseStarted, false);
+assert.equal(completedPowerOffPrepared.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(completedPowerOffPrepared.pumpValveOpen, false);
+assert.equal(getActiveHeatCapacityFreeTrialIndex(completedPowerOffPrepared), -1);
+assert.equal(
+  getHeatCapacityFreeRecordDisplayTrialIndex(completedPowerOffPrepared),
+  0,
+  'Powering off after U2 should keep the completed Free group visible for review',
+);
+assert.deepEqual(
+  getHeatCapacityFreeRecordButtonState(completedPowerOffPrepared, 'u0'),
+  { visible: false, mode: 'record', disabledReason: 'zero-not-ready' },
+  'Auto-saved Free history should not remain as a current re-record target',
+);
+const completedPowerOnNextSeed = powerHeatCapacityWorkbenchFile(completedPowerOffPrepared, true, 1_690);
+assert.equal(getActiveHeatCapacityFreeTrialIndex(completedPowerOnNextSeed), -1);
+assert.equal(
+  getHeatCapacityFreeRecordDisplayTrialIndex(completedPowerOnNextSeed),
+  -1,
+  'Opening power for the next Free group should switch the current-record display to the blank new group',
+);
+const completedResetOnce = resetHeatCapacityFreeRunWorkbenchState(completedPowerOffPrepared, 1_700);
 const completedResetTwice = resetHeatCapacityFreeRunWorkbenchState(completedResetOnce, 1_700);
 assert.equal(completedResetTwice.heatCapacityFreeTrials.length, 1);
 assert.equal(
@@ -646,7 +704,11 @@ assert.equal(
   true,
   'Free continuous pump stepping should keep intermediate display-layer sensor samples instead of one sparse endpoint',
 );
-assert.equal(freePumped.pressureSignalMv, freePumped.heatCapacityFreeSensorState.displayPressureMv, 'Free display should mirror final sensor output');
+assert.equal(
+  freePumped.pressureSignalMv,
+  truncateHeatCapacitySignalMv(freePumped.heatCapacityFreeSensorState.displayPressureMv),
+  'Free display should expose the one-decimal instrument reading while keeping the sensor output precise',
+);
 const freeInstantZeroKnob = setHeatCapacityPressureZeroOffset({
   ...freePowered,
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
@@ -934,21 +996,85 @@ assert.equal(
 );
 assert.equal(freeVisibleDangerPumpBlocked.pumpHint, '压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。');
 const freeStepped = stepHeatCapacityWorkbenchFile(freePumped, 1_800);
-assert.equal(freeStepped.pressureSignalMv, freeStepped.heatCapacityFreeSensorState.displayPressureMv, 'Free stepping should not apply teaching lag/jitter after the Free sensor');
-assert.equal(freeStepped.temperatureSignalMv, freeStepped.heatCapacityFreeSensorState.displayTemperatureMv);
-const freeReleaseStarted = stepHeatCapacityWorkbenchFile({
+assert.equal(
+  freeStepped.pressureSignalMv,
+  truncateHeatCapacitySignalMv(freeStepped.heatCapacityFreeSensorState.displayPressureMv),
+  'Free stepping should not apply teaching lag/jitter after the Free sensor',
+);
+assert.equal(
+  freeStepped.temperatureSignalMv,
+  truncateHeatCapacitySignalMv(freeStepped.heatCapacityFreeSensorState.displayTemperatureMv),
+);
+const freeReadyForRelease = {
   ...freeStepped,
+  heatCapacityFreeTrials: [
+    {
+      ...createHeatCapacityFreeTrial('free-ready-release'),
+      u0: normalizeHeatCapacityFreeRecordInput({
+        atS: 1,
+        displayPressureMv: 0,
+        displayTemperatureMv: initialTemperatureMv,
+        calibrationVersion: 1,
+        zeroEventId: 'zero-1',
+        phaseAtRecord: 'readyToPump',
+      }),
+      u1: normalizeHeatCapacityFreeRecordInput({
+        atS: 300,
+        displayPressureMv: 25,
+        displayTemperatureMv: initialTemperatureMv,
+        calibrationVersion: 1,
+        zeroEventId: 'zero-1',
+        phaseAtRecord: 'sealedStabilizing',
+      }),
+    },
+  ],
+};
+const freeReleaseStarted = stepHeatCapacityWorkbenchFile({
+  ...freeReadyForRelease,
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
   glassPistonState: 'open',
   heatCapacityFreeStopcockFlowOpen: true,
+  heatCapacityFreeStopcockFlowPurpose: 'release',
 }, 2_000);
 assert.equal(freeReleaseStarted.heatCapacityFreePhysicsState.releaseStarted, true, 'opening the stopcock in Free Mode should enter the Free release path');
+assert.equal(freeReleaseStarted.heatCapacityFreeStopcockFlowPurpose, 'release');
+const freeZeroingOpen = stepHeatCapacityWorkbenchFile({
+  ...freePowered,
+  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
+  glassPistonState: 'open',
+  heatCapacityFreeStopcockFlowOpen: true,
+  heatCapacityFreeStopcockFlowPurpose: 'zeroing',
+  heatCapacityFreeSensorState: {
+    ...freePowered.heatCapacityFreeSensorState,
+    displayPressureMv: 0.02,
+    displayTemperatureMv: initialTemperatureMv,
+    pressureSlopeMvPerS: 0,
+    temperatureSlopeMvPerS: 0,
+  },
+  pressureZeroDisplayedSamples: [
+    { atMs: 1_800, valueMv: 0.02 },
+    { atMs: 1_900, valueMv: 0.01 },
+    { atMs: 2_000, valueMv: 0 },
+  ],
+}, 2_000);
+assert.equal(
+  freeZeroingOpen.heatCapacityFreePhysicsState.releaseStarted,
+  false,
+  'opening the stopcock for U0 zeroing must not create a Free release reference',
+);
+assert.equal(
+  freeZeroingOpen.heatCapacityPhase,
+  'readyToZero',
+  'U0 zeroing flow should stay in the zeroing path instead of jumping to quick release',
+);
+assert.equal(freeZeroingOpen.heatCapacityFreeStopcockFlowPurpose, 'zeroing');
 const delayedFlowOpening = stepHeatCapacityWorkbenchFile({
-  ...freeStepped,
+  ...freeReadyForRelease,
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
   glassPistonState: 'open',
   heatCapacityFreeStopcockFlowOpen: false,
   heatCapacityFreeStopcockPendingOpenAtMs: 2_000 + HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
+  heatCapacityFreeStopcockFlowPurpose: 'release',
 }, 2_000 + HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS - 1);
 assert.equal(
   delayedFlowOpening.heatCapacityFreeStopcockFlowOpen,
@@ -982,7 +1108,7 @@ assert.equal(
   'closing the visual stopcock should not continue accumulating Free release time during the closing animation',
 );
 const quickToggleBeforeFlowOpen = stepHeatCapacityWorkbenchFile({
-  ...freeStepped,
+  ...freeReadyForRelease,
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
   glassPistonState: 'closed',
   heatCapacityFreeStopcockFlowOpen: false,
@@ -1236,7 +1362,7 @@ const poweredFile = powerHeatCapacityWorkbenchFile({
 }, true, 1_000);
 assert.equal(poweredFile.powerOn, true);
 assert.equal(poweredFile.heatCapacityPhase, 'readyToZero');
-assert.equal(poweredFile.temperatureSignalMv, 1499.1);
+assert.equal(poweredFile.temperatureSignalMv, 1499);
 assert.equal(poweredFile.pressureSignalMv, 0);
 assert.equal(poweredFile.temperatureSignalTargetMv, initialTemperatureMv);
 assert.equal(poweredFile.pressureSignalTargetMv, 0);
@@ -1262,8 +1388,8 @@ for (let index = 0; index < 20; index += 1) {
 }
 assert.equal(stablePressureTargets.size, 1, 'display jitter must not change the pressure target value');
 assert.equal(stableTemperatureTargets.size, 1, 'display jitter must not change the temperature target value');
-assert.equal(stablePressureDisplays.size > 1, true, 'stable pressure display should have small last-digit jitter');
-assert.equal(stableTemperatureDisplays.size > 1, true, 'stable temperature display should have small last-digit jitter');
+assert.equal(stablePressureDisplays.size, 1, 'sub-0.1 mV pressure jitter should not create visible instrument digits');
+assert.equal(stableTemperatureDisplays.size > 1, true, 'temperature jitter can still cross one-decimal instrument digits');
 
 const pressureLoadedFile: WorkbenchHeatCapacityState = {
   ...poweredFile,
@@ -1288,7 +1414,11 @@ assert.equal(fineZero.pressureZeroKnobAngle, 2);
 assert.equal(fineZero.pressureZeroOffset, 0.006);
 assert.equal(fineZero.pressureDisplayedPlaceholder, 3.21);
 assert.equal(fineZero.pressureSignalTargetMv, 3.206);
-assert.equal(fineZero.pressureSignalMv, fineZero.pressureSignalTargetMv, 'teaching zero knob should update the visible U_p immediately');
+assert.equal(
+  fineZero.pressureSignalMv,
+  truncateHeatCapacitySignalMv(fineZero.pressureSignalTargetMv),
+  'teaching zero knob should update the visible U_p immediately',
+);
 assert.equal(fineZero.pressureGaugeDisplayValue, pressureLoadedFile.pressureDeltaKPa);
 assert.equal(fineZero.pressureOverLimit, false);
 assert.equal(fineZero.temperatureSignalMv, pressureLoadedFile.temperatureSignalMv);
@@ -1362,7 +1492,7 @@ assert.equal(Math.abs(demoStart.pressureSignalTargetMv), 0.75);
 assert.equal(demoStart.pressureDeltaKPa, 0);
 assert.equal(demoStart.gasPressureKPaAbs, defaultFile.ambientPressureKPa);
 assert.equal(demoStart.temperatureSignalTargetMv, demoStart.heatCapacityExperimentProfile?.initialTemperatureMv);
-assert.equal(demoStart.temperatureSignalMv, Math.round((demoStart.heatCapacityExperimentProfile?.initialTemperatureMv ?? 0) * 10) / 10);
+assert.equal(demoStart.temperatureSignalMv, truncateHeatCapacitySignalMv(demoStart.heatCapacityExperimentProfile?.initialTemperatureMv ?? 0));
 assert.equal(demoStart.heatCapacityExperimentSeed !== null, true);
 assert.equal(demoStart.heatCapacityExperimentProfile !== null, true);
 const demoTeachingProfile = demoStart.heatCapacityExperimentProfile!;
@@ -2106,6 +2236,54 @@ assert.equal(restoredHeatFile.glassPistonState, 'open');
 assert.equal(restoredHeatFile.pressureZeroed, true);
 assert.equal(restoredHeatFile.pressureSignalMv, 0);
 assert.equal(restoredHeatFile.pressureReleaseBurstUntilMs, 123_456);
+assert.equal(restoredHeatFile.heatCapacityFreeStopcockFlowPurpose, 'none');
+
+const zeroingFlowRestored = decodeWorkbenchSession({
+  version: WORKBENCH_SESSION_VERSION,
+  activeFileId: defaultFile.id,
+  selectedPanel: 'preview',
+  files: [{
+    ...defaultFile,
+    heatCapacityFreeStopcockFlowOpen: true,
+    heatCapacityFreeStopcockFlowPurpose: undefined,
+  }],
+});
+const zeroingFlowHeatFile = zeroingFlowRestored.files[0];
+assert.equal(zeroingFlowHeatFile.kind, 'heatCapacity');
+assert.equal(
+  zeroingFlowHeatFile.heatCapacityFreeStopcockFlowPurpose,
+  'zeroing',
+  'legacy Free session files with open stopcock flow and no U1 record should restore as zeroing flow',
+);
+
+const releaseFlowRestored = decodeWorkbenchSession({
+  version: WORKBENCH_SESSION_VERSION,
+  activeFileId: defaultFile.id,
+  selectedPanel: 'preview',
+  files: [{
+    ...defaultFile,
+    heatCapacityFreeStopcockFlowOpen: true,
+    heatCapacityFreeStopcockFlowPurpose: undefined,
+    heatCapacityFreeTrials: [{
+      ...createHeatCapacityFreeTrial('session-release'),
+      u1: normalizeHeatCapacityFreeRecordInput({
+        atS: 300,
+        displayPressureMv: 25,
+        displayTemperatureMv: initialTemperatureMv,
+        calibrationVersion: 1,
+        zeroEventId: 'zero-1',
+        phaseAtRecord: 'sealedStabilizing',
+      }),
+    }],
+  }],
+});
+const releaseFlowHeatFile = releaseFlowRestored.files[0];
+assert.equal(releaseFlowHeatFile.kind, 'heatCapacity');
+assert.equal(
+  releaseFlowHeatFile.heatCapacityFreeStopcockFlowPurpose,
+  'release',
+  'legacy Free session files with U1 but no U2 should restore open stopcock flow as release',
+);
 
 const legacyFile = { ...defaultFile } as Record<string, unknown>;
 delete legacyFile.stopcockAngleDeg;

@@ -5187,6 +5187,36 @@
     0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
+.studio-heat-free-wait-timer {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 86px;
+  color: #94a3b8;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.studio-heat-free-wait-timer strong {
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.studio-heat-free-wait-timer em {
+  color: #7dd3fc;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
 .studio-heat-free-speed-thumb {
   position: absolute;
   top: 2px;
@@ -5466,6 +5496,18 @@
 
 .studio-theme-light .studio-heat-free-speed-label strong {
   color: #26394b;
+}
+
+.studio-theme-light .studio-heat-free-wait-timer {
+  color: #607385;
+}
+
+.studio-theme-light .studio-heat-free-wait-timer strong {
+  color: #1f3347;
+}
+
+.studio-theme-light .studio-heat-free-wait-timer em {
+  color: #047ea3;
 }
 
 .studio-theme-light .studio-heat-free-speed-options {
@@ -9622,6 +9664,7 @@
 .studio-heat-sample-status,
 .studio-heat-recording-controls,
 .studio-heat-processing-summary,
+.studio-heat-result-summary-line,
 .studio-heat-calculate-row,
 .studio-heat-formula-panel,
 .studio-heat-gamma-chart {
@@ -9668,6 +9711,10 @@
   padding: 9px 10px;
   color: var(--studio-muted);
   font-size: 12px;
+}
+
+.studio-heat-free-record-grid .studio-heat-sample-row {
+  grid-template-columns: 1.4fr 0.9fr 0.8fr 0.8fr 0.9fr;
 }
 
 .studio-heat-sample-row strong,
@@ -9764,6 +9811,22 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   padding: 0;
+}
+
+.studio-heat-result-summary-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  padding: 12px 14px;
+}
+
+.studio-heat-result-summary-line strong {
+  min-width: 0;
+  color: var(--studio-text);
+  font-family: "JetBrains Mono", Consolas, "Microsoft YaHei UI", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 .studio-heat-processing-summary-cell {
@@ -10502,6 +10565,7 @@
 .studio-theme-light .studio-heat-sample-status,
 .studio-theme-light .studio-heat-recording-controls,
 .studio-theme-light .studio-heat-processing-summary,
+.studio-theme-light .studio-heat-result-summary-line,
 .studio-theme-light .studio-heat-calculate-row,
 .studio-theme-light .studio-heat-formula-panel,
 .studio-theme-light .studio-heat-gamma-chart,

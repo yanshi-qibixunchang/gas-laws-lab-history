@@ -36,15 +36,16 @@ const recordedDangerU1 = recordHeatCapacityU1(createHeatCapacityTrials(1), {
   activeTrialIndex: 0,
   phase: 'sealedStabilizing',
   powerOn: true,
-  pressureSignalMv: 124,
-  temperatureSignalMv: 1526.4,
+  pressureSignalMv: 124.19,
+  temperatureSignalMv: 1526.49,
   pressureSafetyStatus: 'danger',
   pressureOverLimit: true,
   now: 1500,
 });
 
 assert.equal(recordedDangerU1.ok, true, 'alarm-region U1 should remain recordable after the user closes the valve and waits for stability');
-assert.equal(recordedDangerU1.trials[0].U1Mv, 124);
+assert.equal(recordedDangerU1.trials[0].U1Mv, 124.1);
+assert.equal(recordedDangerU1.trials[0].UT1Mv, 1526.4);
 assert.equal(recordedDangerU1.trials[0].status, 'partial');
 
 const rejectedU2 = recordHeatCapacityU2(recordedU1.trials, {
@@ -188,7 +189,7 @@ const autoDemoTrial = createHeatCapacityTrialFromAutoDemoSamples({
 assert.equal(autoDemoTrial.trialIndex, 1);
 assert.equal(autoDemoTrial.status, 'complete');
 assert.equal(autoDemoTrial.U1Mv, 108.8);
-assert.equal(autoDemoTrial.U2Mv, 31.77);
+assert.equal(autoDemoTrial.U2Mv, 31.7);
 assert.equal(autoDemoTrial.UT1Mv, 1504.2);
 assert.equal(autoDemoTrial.UT2Mv, 1501.8);
 
@@ -197,5 +198,4 @@ assert.equal(invalidAutoDemoTrial.status, 'invalid');
 assert.equal(invalidAutoDemoTrial.U1Mv, null);
 
 console.log('heatCapacityTrialModel tests passed');
-
 

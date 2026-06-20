@@ -38,6 +38,24 @@ const formatNumber = (value: number | null | undefined, digits = 2) => (
   typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '--'
 );
 
+const findStopcockFlowStartTime = (
+  samples: HeatCapacityFreeTraceSample[],
+  visualOpenS: number,
+) => {
+  const confirmedFlowSample = samples.find((sample) => (
+    sample.atS >= visualOpenS &&
+    sample.controls.stopcockFlowOpen
+  ));
+  if (confirmedFlowSample) return confirmedFlowSample.atS;
+
+  const releasingSample = samples.find((sample) => (
+    sample.atS >= visualOpenS &&
+    sample.controls.stopcockOpen &&
+    sample.physical.releaseStarted
+  ));
+  return releasingSample?.atS ?? visualOpenS;
+};
+
 const detailStatus = (
   score: number,
   maxScore: number,
@@ -490,10 +508,16 @@ const scoreRelease = (
   const releaseStart = input.branch.events.find((event) => (
     event.type === 'stopcock-open' && event.atS > input.summary.u1!.atS
   ));
-  const releaseEnd = releaseStart
-    ? input.branch.events.find((event) => event.type === 'stopcock-close' && event.atS >= releaseStart.atS)
+  const releaseFlowStartS = releaseStart
+    ? findStopcockFlowStartTime(
+        [...input.branch.samples].sort((left, right) => left.atS - right.atS),
+        releaseStart.atS,
+      )
     : null;
-  const durationS = releaseStart && releaseEnd ? releaseEnd.atS - releaseStart.atS : null;
+  const releaseEnd = releaseFlowStartS !== null
+    ? input.branch.events.find((event) => event.type === 'stopcock-close' && event.atS >= releaseFlowStartS)
+    : null;
+  const durationS = releaseFlowStartS !== null && releaseEnd ? releaseEnd.atS - releaseFlowStartS : null;
   const ratio = input.summary.u1.pressureDeltaKPa > 0
     ? input.summary.u2.pressureDeltaKPa / input.summary.u1.pressureDeltaKPa
     : 0;

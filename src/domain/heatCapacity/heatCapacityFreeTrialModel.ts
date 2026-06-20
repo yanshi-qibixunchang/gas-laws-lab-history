@@ -10,6 +10,9 @@ import {
   HEAT_CAPACITY_FREE_CALCULATION_VERSION,
   type HeatCapacityFreeConfigSnapshot,
 } from './heatCapacityFreeTraceModel.ts';
+import {
+  truncateHeatCapacitySignalMv,
+} from './heatCapacitySignalDisplayModel.ts';
 
 export type HeatCapacityFreeRecordRejectReason =
   | 'zero-not-ready'
@@ -72,11 +75,13 @@ export interface HeatCapacityFreeTrial {
   blockedReason: HeatCapacityFreeRecordRejectReason | null;
   correctedSignals: HeatCapacityFreeCorrectedSignals | null;
   configSnapshot: HeatCapacityFreeConfigSnapshot | null;
+  completedAtMs: number | null;
 }
 
 export interface HeatCapacityFreeProcessingTrialResult {
   trialIndex: number;
   trialId: string;
+  completedAtMs: number | null;
   U0DisplayMv: number | null;
   atmosphericPressureKPa: number | null;
   pressureSensitivityMvPerKPa: number | null;
@@ -133,12 +138,15 @@ export const createHeatCapacityFreeTrial = (
   blockedReason: null,
   correctedSignals: null,
   configSnapshot: null,
+  completedAtMs: null,
 });
 
 export const normalizeHeatCapacityFreeRecordInput = (
   input: HeatCapacityFreeRecordInput,
 ): HeatCapacityFreeRecord => ({
   ...input,
+  displayPressureMv: truncateHeatCapacitySignalMv(input.displayPressureMv),
+  displayTemperatureMv: truncateHeatCapacitySignalMv(input.displayTemperatureMv),
   source: 'user',
   phaseAtRecord: input.phaseAtRecord ?? null,
   traceTrialId: input.traceTrialId ?? null,
@@ -198,6 +206,7 @@ const invalidFreeTrialResult = (
 ): HeatCapacityFreeProcessingTrialResult => ({
   trialIndex,
   trialId: trial.id,
+  completedAtMs: trial.completedAtMs,
   U0DisplayMv: trial.u0?.displayPressureMv ?? null,
   atmosphericPressureKPa: null,
   pressureSensitivityMvPerKPa: null,
@@ -228,6 +237,7 @@ export const calculateFreeHeatCapacityTrialResult = (
   return {
     trialIndex,
     trialId: trial.id,
+    completedAtMs: trial.completedAtMs,
     ...correctedSignals,
     status: 'valid',
     message: 'Valid',
@@ -304,6 +314,7 @@ export const removeHeatCapacityFreeTrialRecord = (
           blockedReason: null,
           correctedSignals: null,
           configSnapshot: null,
+          completedAtMs: null,
         };
       }
       if (kind === 'u1') {
@@ -314,6 +325,7 @@ export const removeHeatCapacityFreeTrialRecord = (
           blockedReason: null,
           correctedSignals: null,
           configSnapshot: null,
+          completedAtMs: null,
         };
       }
       return {
@@ -322,6 +334,7 @@ export const removeHeatCapacityFreeTrialRecord = (
         blockedReason: null,
         correctedSignals: null,
         configSnapshot: null,
+        completedAtMs: null,
       };
     }),
     nextActiveTrialIndex: boundedIndex,

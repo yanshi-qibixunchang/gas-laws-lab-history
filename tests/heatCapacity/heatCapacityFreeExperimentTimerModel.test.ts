@@ -105,6 +105,12 @@ const trialWithU1 = {
   ...trialWithU0,
   u1: recordAt(317, 120),
 };
+const recordedU1Timer = deriveHeatCapacityFreeExperimentTimer(trialWithU1, afterTargetU1Wait);
+assert.equal(
+  recordedU1Timer.stage,
+  'u1-wait',
+  'recording U1 should not hide the timer before the user starts release',
+);
 const releasedButStillOpen = {
   ...afterTargetU1Wait,
   releaseStarted: true,
@@ -140,17 +146,17 @@ assert.deepEqual(u2Timer, {
   reachedTarget: true,
 });
 
-const completedTimer = deriveHeatCapacityFreeExperimentTimer({
+const recordedU2Timer = deriveHeatCapacityFreeExperimentTimer({
   ...trialWithU1,
   u2: recordAt(621, 34),
 }, afterU2RecoveryWait);
-assert.deepEqual(completedTimer, {
-  stage: 'complete',
-  anchorAtS: null,
-  elapsedS: 0,
+assert.deepEqual(recordedU2Timer, {
+  stage: 'u2-wait',
+  anchorAtS: 320.3,
+  elapsedS: 300,
   targetS: HEAT_CAPACITY_FREE_TARGET_WAIT_S,
   remainingS: 0,
   reachedTarget: true,
-});
+}, 'recording U2 should not hide the timer while U2 is still re-recordable');
 
 console.log('heatCapacityFreeExperimentTimerModel tests passed');

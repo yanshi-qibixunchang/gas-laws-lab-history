@@ -223,6 +223,7 @@ export const createTrialForProcessReviewTest = (
     blockedReason: null,
     correctedSignals: null,
     configSnapshot: setup.traceTrial.configSnapshot,
+    completedAtMs: null,
   };
   return {
     ...baseTrial,

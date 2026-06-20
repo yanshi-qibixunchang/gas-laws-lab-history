@@ -125,5 +125,5 @@ aperture = x * x * (3 - 2 * x)
 | `environmentDisturbance.pressureAmplitudeKPa` | 0.002 | 弱环境气压扰动 |
 | `environmentDisturbance.temperatureAmplitudeK` | 0.015 | 弱环境温度扰动 |
 | `pressureNonlinearity.kneeMv` | 15 | 低压传感器非线性拐点 |
-| `pressureNonlinearity.minGain` | 0.55 | 低压区最低有效响应，用于放大低信号不可靠性 |
+| `pressureNonlinearity.minGain` | 0.65 | 低压区最低有效响应，用于放大低信号不可靠性；一位读数向零截断后提高该值，避免正常 U2 被过度压低 |
 | `pressureNonlinearity.exponent` | 1.4 | 低压区响应曲线形状 |
