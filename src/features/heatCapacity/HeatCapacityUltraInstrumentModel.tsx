@@ -17,13 +17,32 @@ type UltraPointerControl = 'powerSwitch' | 'pressureZero' | 'stopcock' | 'pumpVa
 type UltraHoveredControl = UltraPointerControl | null;
 type UltraFocusControl = UltraPointerControl | 'instrumentPressureDisplay' | 'instrumentTemperatureDisplay' | 'instrumentPanel';
 type UltraVisualTargetId = UltraFocusControl;
-type UltraFocusMode = 'instrument' | 'pump';
+type UltraFocusMode = 'instrument' | 'pump' | 'bottle';
 type UltraVisualEffectTone = 'nonBulb' | 'glass' | 'pumpBulb' | 'display';
 type UltraMaterialHighlightControl = UltraPointerControl;
 type UltraProjectedPoint = {
   clientX: number;
   clientY: number;
 };
+type HeatCapacityGuideProjectedHole =
+  | {
+      id: string;
+      shape: 'rect';
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      rx?: number;
+    }
+  | {
+      id: string;
+      shape: 'ellipse';
+      cx: number;
+      cy: number;
+      rx: number;
+      ry: number;
+    };
+type HeatCapacityGuideProjectedHoles = Record<string, HeatCapacityGuideProjectedHole>;
 
 type UltraVisualEffects = {
   hoverHaloColor: string;
@@ -77,8 +96,10 @@ type HeatCapacityUltraInstrumentModelProps = {
   hardSphereParticleMultiplier: number;
   hardSphereSpeedMultiplier: number;
   hardSphereVisualResetKey: number;
+  hardSpherePaused: boolean;
   interactionLocked: boolean;
   focusMode: 'none' | UltraFocusMode;
+  guideProjectionKey: number;
   pressureZeroInteractionEnabled: boolean;
   pumpBulbInteractionEnabled: boolean;
   demoFocusControlId: string | null;
@@ -88,6 +109,7 @@ type HeatCapacityUltraInstrumentModelProps = {
   hoveredControl: UltraHoveredControl;
   setHoveredControl: (control: UltraHoveredControl) => void;
   onLockedInteraction: (message?: string) => void;
+  onGuideTargetHolesChange?: (holes: HeatCapacityGuideProjectedHoles) => void;
   onPowerToggle: (nextPowerOn?: boolean) => void;
   onStopcockOpenChange: (nextOpen?: boolean) => void;
   onPressureZeroFineAdjust: (direction: number) => void;
@@ -336,11 +358,185 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
   },
 ] as const satisfies readonly UltraControlVisualTarget[];
 
+type UltraGuideObjectTarget = {
+  id: string;
+  shape: 'rect' | 'ellipse';
+  objectNames: string[];
+  padding: number;
+  rx?: number;
+  ellipseScale?: number;
+  screenOffsetPx?: { x?: number; y?: number };
+};
+
+const ULTRA_GUIDE_TARGET_OBJECTS: UltraGuideObjectTarget[] = [
+  {
+    id: 'powerSwitch',
+    shape: 'rect',
+    objectNames: ['HSL_UltraMeshHitbox_powerSwitch'],
+    padding: 10,
+    rx: 14,
+  },
+  {
+    id: 'pressureZero',
+    shape: 'ellipse',
+    objectNames: ['HSL_UltraMeshHitbox_pressureZero'],
+    padding: 4,
+    ellipseScale: 0.82,
+    screenOffsetPx: { y: -16 },
+  },
+  {
+    id: 'instrumentDisplay',
+    shape: 'rect',
+    objectNames: ['HSL_MainDisplay_PixelScreenZone', 'HSL_MainDisplay_DynamicPlaneAnchor'],
+    padding: 10,
+    rx: 12,
+  },
+  {
+    id: 'pumpBulb',
+    shape: 'ellipse',
+    objectNames: ['HSL_UltraMeshHitbox_pumpBulb'],
+    padding: 10,
+  },
+  {
+    id: 'pumpValve',
+    shape: 'rect',
+    objectNames: ['HSL_UltraMeshHitbox_pumpValve'],
+    padding: 10,
+    rx: 14,
+  },
+  {
+    id: 'stopcock',
+    shape: 'rect',
+    objectNames: ['HSL_UltraMeshHitbox_stopcock'],
+    padding: 10,
+    rx: 14,
+  },
+  {
+    id: 'bottleControls',
+    shape: 'rect',
+    objectNames: [
+      'Glass_Bottle',
+      'glass_bottle_inner_air',
+      'HSL_UltraMeshHitbox_pumpValve',
+      'HSL_UltraMeshHitbox_stopcock',
+    ],
+    padding: 18,
+    rx: 18,
+  },
+];
+
+const roundUltraGuideProjectionValue = (value: number) => Math.round(value * 10) / 10;
+
+const getUltraGuideObjectBox = (
+  root: THREE.Object3D,
+  objectNames: string[],
+): THREE.Box3 | null => {
+  const combinedBox = new THREE.Box3();
+  const objectBox = new THREE.Box3();
+  let hasBox = false;
+  objectNames.forEach((objectName) => {
+    const object = root.getObjectByName(objectName);
+    if (!object) return;
+    object.updateWorldMatrix(true, true);
+    objectBox.setFromObject(object);
+    if (objectBox.isEmpty()) return;
+    combinedBox.union(objectBox);
+    hasBox = true;
+  });
+  return hasBox ? combinedBox : null;
+};
+
+const getUltraGuideBoxCorners = (box: THREE.Box3) => [
+  new THREE.Vector3(box.min.x, box.min.y, box.min.z),
+  new THREE.Vector3(box.max.x, box.min.y, box.min.z),
+  new THREE.Vector3(box.min.x, box.max.y, box.min.z),
+  new THREE.Vector3(box.max.x, box.max.y, box.min.z),
+  new THREE.Vector3(box.min.x, box.min.y, box.max.z),
+  new THREE.Vector3(box.max.x, box.min.y, box.max.z),
+  new THREE.Vector3(box.min.x, box.max.y, box.max.z),
+  new THREE.Vector3(box.max.x, box.max.y, box.max.z),
+];
+
+const projectUltraGuidePoint = (
+  camera: THREE.Camera,
+  size: { width: number; height: number },
+  worldPoint: THREE.Vector3,
+) => {
+  const point = worldPoint.clone();
+  point.project(camera);
+  return {
+    x: ((point.x + 1) / 2) * size.width,
+    y: ((1 - point.y) / 2) * size.height,
+  };
+};
+
+const projectUltraGuideObjectBoxToHole = (
+  target: UltraGuideObjectTarget,
+  box: THREE.Box3,
+  camera: THREE.Camera,
+  size: { width: number; height: number },
+): HeatCapacityGuideProjectedHole => {
+  const projectedPoints = getUltraGuideBoxCorners(box).map((point) => (
+    projectUltraGuidePoint(camera, size, point)
+  ));
+  const minX = Math.min(...projectedPoints.map((point) => point.x)) - target.padding;
+  const maxX = Math.max(...projectedPoints.map((point) => point.x)) + target.padding;
+  const minY = Math.min(...projectedPoints.map((point) => point.y)) - target.padding;
+  const maxY = Math.max(...projectedPoints.map((point) => point.y)) + target.padding;
+  const left = Math.max(0, minX);
+  const right = Math.min(size.width, maxX);
+  const top = Math.max(0, minY);
+  const bottom = Math.min(size.height, maxY);
+  const width = Math.max(1, right - left);
+  const height = Math.max(1, bottom - top);
+  if (target.shape === 'ellipse') {
+    const ellipseScale = target.ellipseScale ?? 1;
+    return {
+      id: target.id,
+      shape: 'ellipse',
+      cx: roundUltraGuideProjectionValue(left + width / 2 + (target.screenOffsetPx?.x ?? 0)),
+      cy: roundUltraGuideProjectionValue(top + height / 2 + (target.screenOffsetPx?.y ?? 0)),
+      rx: roundUltraGuideProjectionValue((width / 2) * ellipseScale),
+      ry: roundUltraGuideProjectionValue((height / 2) * ellipseScale),
+    };
+  }
+  return {
+    id: target.id,
+    shape: 'rect',
+    x: roundUltraGuideProjectionValue(left),
+    y: roundUltraGuideProjectionValue(top),
+    width: roundUltraGuideProjectionValue(width),
+    height: roundUltraGuideProjectionValue(height),
+    rx: target.rx ?? 12,
+  };
+};
+
+const projectUltraGuideTargetsToHoles = (
+  root: THREE.Object3D,
+  camera: THREE.Camera,
+  size: { width: number; height: number },
+): HeatCapacityGuideProjectedHoles => {
+  const holes: HeatCapacityGuideProjectedHoles = {};
+  root.updateMatrixWorld(true);
+  ULTRA_GUIDE_TARGET_OBJECTS.forEach((target) => {
+    const box = getUltraGuideObjectBox(root, target.objectNames);
+    if (!box) return;
+    holes[target.id] = projectUltraGuideObjectBoxToHole(target, box, camera, size);
+  });
+  return holes;
+};
+
 type UltraThemeVisuals = {
   benchSurface: string;
   benchBackstop: string;
   instrumentBody: string;
   frontPanel: string;
+  sensorBox: string;
+  softTube: string;
+  blueWire: string;
+  orangeWire: string;
+  blackWire: string;
+  pumpBulb: string;
   displayScreen: string;
   displayText: string;
   powerSwitchBase: string;
@@ -352,23 +548,35 @@ type UltraThemeVisuals = {
 
 const ULTRA_THEME_VISUALS: Record<HeatCapacityUltraInstrumentModelProps['sceneTheme'], UltraThemeVisuals> = {
   light: {
-    benchSurface: '#5f6f79',
-    benchBackstop: '#4d5d66',
-    instrumentBody: '#e0e5e7',
-    frontPanel: '#c2ccd0',
-    displayScreen: '#071011',
-    displayText: '#31f6c8',
+    benchSurface: '#b8c6cc',
+    benchBackstop: '#8da0aa',
+    instrumentBody: '#f7f9f8',
+    frontPanel: '#c6d1d6',
+    sensorBox: '#2f383d',
+    softTube: '#f2efe6',
+    blueWire: '#0077c8',
+    orangeWire: '#d29a22',
+    blackWire: '#111827',
+    pumpBulb: '#a64834',
+    displayScreen: '#062326',
+    displayText: '#35f0c9',
     powerSwitchBase: '#2d3338',
-    powerSwitchOff: '#d9534f',
-    powerSwitchOn: '#2ec978',
+    powerSwitchOff: '#c92a2a',
+    powerSwitchOn: '#19a463',
     powerSwitchFrame: '#f1f5f9',
     powerSwitchInlay: '#f8fafc',
   },
   dark: {
-    benchSurface: '#8fa1aa',
-    benchBackstop: '#7f929b',
+    benchSurface: '#6b7280',
+    benchBackstop: '#4b5563',
     instrumentBody: '#d5dcdf',
     frontPanel: '#b8c3c8',
+    sensorBox: '#2f383d',
+    softTube: '#cbd5e1',
+    blueWire: '#0ea5e9',
+    orangeWire: '#d97706',
+    blackWire: '#111827',
+    pumpBulb: '#a64834',
     displayScreen: '#061010',
     displayText: '#5ffff0',
     powerSwitchBase: '#40484e',
@@ -1072,6 +1280,7 @@ const applyUltraThemeVisuals = (
   setUltraNodeOwnMaterialColor(nodeMap, 'FD_NCD_C_InstrumentBody', visuals.instrumentBody, {
     roughness: 0.54,
     metalness: 0.03,
+    clearTexture: true,
   });
   setUltraNodeOwnMaterialColor(nodeMap, 'FD_NCD_C_FrontPanel', visuals.frontPanel, {
     emissive: visuals.frontPanel,
@@ -1088,6 +1297,48 @@ const applyUltraThemeVisuals = (
     metalness: 0.02,
     toneMapped: false,
     clearTexture: true,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'PressureSensor_Box', visuals.sensorBox, {
+    emissive: visuals.sensorBox,
+    emissiveIntensity: sceneTheme === 'light' ? 0.035 : 0.05,
+    roughness: 0.58,
+    metalness: 0.02,
+    toneMapped: false,
+    clearTexture: true,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'PressureSensor_SoftTube', visuals.softTube, {
+    roughness: 0.62,
+    metalness: 0.02,
+    opacity: sceneTheme === 'light' ? 0.92 : 0.82,
+    transparent: true,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'HSL_PressureSensor_SoftTube_WhiteCore', visuals.softTube, {
+    roughness: 0.66,
+    metalness: 0.02,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'HSL_PumpTube_Rebuilt', visuals.softTube, {
+    roughness: 0.64,
+    metalness: 0.02,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'HSL_CleanValve_Soft_Grey_Tube', visuals.softTube, {
+    roughness: 0.64,
+    metalness: 0.02,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'TemperatureSensor_Wire', visuals.blueWire, {
+    roughness: 0.42,
+    metalness: 0.01,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'PressureSensor_Wire_Orange', visuals.orangeWire, {
+    roughness: 0.42,
+    metalness: 0.01,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'PressureSensor_Wire_Black', visuals.blackWire, {
+    roughness: 0.46,
+    metalness: 0.01,
+  });
+  setUltraNodeOwnMaterialColor(nodeMap, 'Pump_Bulb', visuals.pumpBulb, {
+    roughness: 0.5,
+    metalness: 0.01,
   });
   setUltraNodeOwnMaterialColor(nodeMap, 'HSL_MainDisplay_RecessWell', visuals.frontPanel, {
     emissive: visuals.frontPanel,
@@ -2003,10 +2254,11 @@ function UltraPowerSwitchSkirtedRocker({
 
 function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentModelProps) {
   const gltf = useGLTF(ULTRA_GLB_PATH);
-  const { camera, gl, invalidate } = useThree();
+  const { camera, gl, invalidate, size } = useThree();
   const runtimeRootRef = useRef<THREE.Group | null>(null);
   const displayTextureRef = useRef<THREE.CanvasTexture | null>(null);
   const ultraMaterialHighlightSnapshotsRef = useRef(new Map<THREE.Material, UltraMaterialSnapshot>());
+  const guideTargetHoleSignatureRef = useRef('');
   const pumpPulseRef = useRef(0);
   const pumpVisualWeightRef = useRef(0);
   const pressureZeroDragRef = useRef({
@@ -2080,6 +2332,44 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       clientY: rect.top + ((1 - position.y) / 2) * rect.height,
     };
   }, [camera, gl, nodeMap]);
+
+  const emitUltraGuideTargetHoles = useCallback(() => {
+    if (!props.onGuideTargetHolesChange) return;
+    const root = runtimeRootRef.current;
+    if (!root) return;
+    const holes = projectUltraGuideTargetsToHoles(root, camera, size);
+    const signature = JSON.stringify(Object.entries(holes).sort(([left], [right]) => left.localeCompare(right)));
+    if (signature === guideTargetHoleSignatureRef.current) return;
+    guideTargetHoleSignatureRef.current = signature;
+    props.onGuideTargetHolesChange(holes);
+  }, [camera, props.onGuideTargetHolesChange, size]);
+
+  useFrame(() => {
+    emitUltraGuideTargetHoles();
+  });
+
+  useEffect(() => {
+    if (!props.onGuideTargetHolesChange) {
+      guideTargetHoleSignatureRef.current = '';
+      return undefined;
+    }
+    guideTargetHoleSignatureRef.current = '';
+    let frameId = 0;
+    let attempt = 0;
+    const retryUltraGuideProjection = () => {
+      invalidate();
+      emitUltraGuideTargetHoles();
+      attempt += 1;
+      if (attempt < 10) {
+        frameId = window.requestAnimationFrame(retryUltraGuideProjection);
+      }
+    };
+    frameId = window.requestAnimationFrame(retryUltraGuideProjection);
+    emitUltraGuideTargetHoles();
+    return () => {
+      if (frameId) window.cancelAnimationFrame(frameId);
+    };
+  }, [emitUltraGuideTargetHoles, invalidate, props.guideProjectionKey, props.onGuideTargetHolesChange]);
 
   const resolveUltraPanelPointerControl = useCallback((
     control: UltraPointerControl,
@@ -2604,6 +2894,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
         particleMultiplier={props.hardSphereParticleMultiplier}
         speedMultiplier={props.hardSphereSpeedMultiplier}
         visualResetKey={props.hardSphereVisualResetKey}
+        paused={props.hardSpherePaused}
         sceneTheme={props.sceneTheme}
       />
     </group>

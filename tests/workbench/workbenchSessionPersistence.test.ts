@@ -237,10 +237,35 @@ if (restoredHeatCapacity.kind === 'heatCapacity') {
   );
 }
 
-const encoded = encodeWorkbenchSession(restored.files, restored.activeFileId, restored.selectedPanel);
+const guideSessionFiles = restored.files.map((file) => (
+  file.kind === 'heatCapacity'
+    ? { ...file, heatCapacityMode: 'guide' as const }
+    : file
+));
+const encoded = encodeWorkbenchSession(guideSessionFiles, restored.activeFileId, restored.selectedPanel, {
+  fileId: restoredHeatCapacity.id,
+  strongReminderActive: true,
+});
 assert.equal(encoded.version, WORKBENCH_SESSION_VERSION);
 assert.equal(encoded.files.length, 3);
 assert.equal(encoded.activeFileId, ideal.id);
+assert.deepEqual(encoded.heatCapacityGuideSession, {
+  fileId: restoredHeatCapacity.id,
+  strongReminderActive: true,
+});
+
+const invalidGuideSession = decodeWorkbenchSession({
+  version: WORKBENCH_SESSION_VERSION,
+  files: guideSessionFiles,
+  activeFileId: restored.activeFileId,
+  selectedPanel: restored.selectedPanel,
+  heatCapacityGuideSession: {
+    fileId: standard.id,
+    strongReminderActive: true,
+  },
+});
+assert.equal(invalidGuideSession.heatCapacityGuideSession.fileId, null);
+assert.equal(invalidGuideSession.heatCapacityGuideSession.strongReminderActive, false);
 
 const fallback = decodeWorkbenchSession({ version: 999, files: [], activeFileId: 'missing', selectedPanel: 'history' });
 assert.deepEqual(
@@ -250,9 +275,16 @@ assert.deepEqual(
 );
 assert.equal(fallback.selectedPanel, 'preview');
 
-const envelope = encodeWorkbenchStorageEnvelope(restored.files, restored.activeFileId, restored.selectedPanel, 12345);
+const envelope = encodeWorkbenchStorageEnvelope(guideSessionFiles, restored.activeFileId, restored.selectedPanel, 12345, {
+  fileId: restoredHeatCapacity.id,
+  strongReminderActive: true,
+});
 assert.equal(envelope.schemaFamily, WORKBENCH_SESSION_SCHEMA_FAMILY);
 assert.equal(envelope.schemaVersion, WORKBENCH_SESSION_SCHEMA_VERSION);
+assert.deepEqual(envelope.heatCapacityGuideSession, {
+  fileId: restoredHeatCapacity.id,
+  strongReminderActive: true,
+});
 assert.equal(envelope.files.length, restored.files.length);
 assert.equal(envelope.files[0].payload.experimentKind, 'standard');
 assert.equal(envelope.files[0].payload.standardSchemaVersion, STANDARD_SIMULATION_SCHEMA_VERSION);
@@ -267,6 +299,10 @@ assert.equal(decodedEnvelope.readonly, false);
 assert.deepEqual(decodedEnvelope.diagnostics.filter((entry) => entry.level === 'error'), []);
 assert.equal(decodedEnvelope.session.files.length, restored.files.length);
 assert.equal(decodedEnvelope.session.activeFileId, restored.activeFileId);
+assert.deepEqual(decodedEnvelope.session.heatCapacityGuideSession, {
+  fileId: restoredHeatCapacity.id,
+  strongReminderActive: true,
+});
 const decodedStandard = decodedEnvelope.session.files[0];
 assert.equal(decodedStandard.kind, 'standard');
 if (decodedStandard.kind === 'standard') {

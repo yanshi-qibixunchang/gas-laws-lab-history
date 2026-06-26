@@ -7,18 +7,18 @@ interface TemperatureColorStop {
 
 export const HEAT_CAPACITY_HARD_SPHERE_TEMPERATURE_PALETTES: Record<HeatCapacityHardSphereSceneTheme, TemperatureColorStop[]> = {
   dark: [
-    { at: 0, color: '#2563eb' },
-    { at: 0.26, color: '#22c7f3' },
-    { at: 0.5, color: '#34d4c6' },
-    { at: 0.74, color: '#facc15' },
-    { at: 1, color: '#f59e0b' },
+    { at: 0, color: '#60a5fa' },
+    { at: 0.26, color: '#38bdf8' },
+    { at: 0.5, color: '#a78bfa' },
+    { at: 0.74, color: '#fde047' },
+    { at: 1, color: '#fb923c' },
   ],
   light: [
-    { at: 0, color: '#2563eb' },
-    { at: 0.25, color: '#0ea5e9' },
-    { at: 0.5, color: '#0e9aaa' },
-    { at: 0.74, color: '#f59e0b' },
-    { at: 1, color: '#ea580c' },
+    { at: 0, color: '#1d4ed8' },
+    { at: 0.25, color: '#4f46e5' },
+    { at: 0.5, color: '#7c3aed' },
+    { at: 0.74, color: '#d97706' },
+    { at: 1, color: '#dc2626' },
   ],
 };
 

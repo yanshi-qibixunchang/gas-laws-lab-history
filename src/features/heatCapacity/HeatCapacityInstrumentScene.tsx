@@ -65,13 +65,17 @@ interface HeatCapacityInstrumentSceneProps {
   hardSphereParticleMultiplier: number;
   hardSphereSpeedMultiplier: number;
   hardSphereVisualResetKey: number;
+  hardSpherePaused: boolean;
   interactionLocked: boolean;
   demoFocusControlId: string | null;
   demoFocusPulseActive: boolean;
+  guideFocusMode?: HeatCapacityFocusMode | null;
+  guideFocusKey?: number;
   manualRollbackAnimation: 'valveBounce' | 'stopcockBounce' | 'pumpBulbBounce' | 'knobBounce' | 'powerBounce' | null;
   manualRollbackKey: number;
   focusResetKey: number;
   onFocusModeChange: (mode: HeatCapacityFocusMode) => void;
+  onFocusExitRequest?: (mode: HeatCapacityFocusMode) => boolean;
   onLockedInteraction: (message?: string) => void;
   onPowerToggle: (nextPowerOn?: boolean) => void;
   onStopcockOpenChange: (nextOpen?: boolean) => void;
@@ -86,11 +90,32 @@ interface HeatCapacityInstrumentSceneProps {
   overlayBottomRight?: React.ReactNode;
   overlayCenter?: React.ReactNode;
   overlayBottomCenter?: React.ReactNode;
+  overlayGuideMask?: React.ReactNode;
+  onGuideTargetHolesChange?: (holes: HeatCapacityGuideProjectedHoles) => void;
 }
 
-type HeatCapacityFocusMode = 'none' | 'instrument' | 'pump';
+type HeatCapacityFocusMode = 'none' | 'instrument' | 'pump' | 'bottle';
 type HeatCapacityHoveredControl = null | 'stopcock' | 'pumpBulb' | 'pumpValve' | 'powerSwitch' | 'pressureZero';
 type HeatCapacitySceneTheme = 'dark' | 'light';
+type HeatCapacityGuideProjectedHole =
+  | {
+      id: string;
+      shape: 'rect';
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      rx?: number;
+    }
+  | {
+      id: string;
+      shape: 'ellipse';
+      cx: number;
+      cy: number;
+      rx: number;
+      ry: number;
+    };
+type HeatCapacityGuideProjectedHoles = Record<string, HeatCapacityGuideProjectedHole>;
 
 class HeatCapacityUltraModelErrorBoundary extends React.Component<{
   children: React.ReactNode;
@@ -285,7 +310,7 @@ const heatCapacityScenePalettes = {
   dark: {
     scene: {
       background: '#111827',
-      deck: '#202b3c',
+      deck: '#252b35',
       ambientIntensity: 0.62,
       directionalIntensity: 1.1,
       pointIntensity: 0.52,
@@ -414,29 +439,29 @@ const heatCapacityScenePalettes = {
   },
   light: {
     scene: {
-      background: '#eaf1f8',
-      deck: '#d8e4ef',
-      ambientIntensity: 0.86,
-      directionalIntensity: 0.92,
+      background: '#eef4f8',
+      deck: '#b8c6cc',
+      ambientIntensity: 0.82,
+      directionalIntensity: 0.98,
       pointIntensity: 0.28,
       pointColor: '#8fb7d8',
     },
     glass: {
-      base: '#b8c5d3',
-      vessel: '#d7efff',
-      edge: '#5f86a8',
-      clear: '#cdeeff',
+      base: '#b7c6cf',
+      vessel: '#c9f0fa',
+      edge: '#3b7fa1',
+      clear: '#d7f5fb',
       stopper: '#d8c291',
       rubber: '#6f5438',
       servicePort: '#334155',
-      trace: '#7c8b9c',
-      sensorPort: '#7f8da0',
-      sensorRod: '#8fa1b4',
+      trace: '#6f7f8b',
+      sensorPort: '#64727c',
+      sensorRod: '#8797a2',
       hover: '#f0fbff',
       hoverHalo: '#0284c7',
-      stopcockGlass: '#b8e4f6',
-      stopcockCore: '#a8d8ee',
-      stopcockEdge: '#3f6f92',
+      stopcockGlass: '#c9f0fa',
+      stopcockCore: '#b7e5f2',
+      stopcockEdge: '#2f7592',
       stopcockOutlineVisible: true,
       stopcockBodyOpacity: 0.32,
       stopcockPortOpacity: 0.36,
@@ -461,16 +486,16 @@ const heatCapacityScenePalettes = {
       flowClosedEdge: '#0369a1',
     },
     instrument: {
-      body: '#d5dde7',
-      face: '#c3ceda',
+      body: '#f7f9f8',
+      face: '#c6d1d6',
       label: '#172033',
-      screenOn: '#a7e7ef',
-      screenOff: '#d2dde8',
-      screenGlowOn: '#7dd3fc',
+      screenOn: '#062326',
+      screenOff: '#d8e1e5',
+      screenGlowOn: '#35f0c9',
       screenGlowOff: '#b6c6d7',
-      screenTextOn: '#102a3a',
+      screenTextOn: '#35f0c9',
       screenTextOff: '#60758c',
-      terminalPositive: '#dc2626',
+      terminalPositive: '#0077c8',
       terminalNegative: '#111827',
       terminalMetal: '#718096',
       gaugeFace: '#f8fafc',
@@ -490,17 +515,17 @@ const heatCapacityScenePalettes = {
       hoverEmissive: '#0e7490',
     },
     leads: {
-      anchor: '#64748b',
-      positive: '#dc2626',
-      negative: '#1f2937',
-      pressure: '#64748b',
+      anchor: '#59666f',
+      positive: '#0077c8',
+      negative: '#111827',
+      pressure: '#f2efe6',
     },
     pump: {
       port: '#526174',
       portEdge: '#2563eb',
       connector: '#8391a3',
-      tubeIdle: '#7c8da1',
-      tubeActive: '#0891b2',
+      tubeIdle: '#f2efe6',
+      tubeActive: '#0077c8',
       valveBody: '#8e9aa8',
       valveNut: '#cbd5e1',
       valveOpen: '#16a34a',
@@ -510,10 +535,10 @@ const heatCapacityScenePalettes = {
       handleOpen: '#b91c1c',
       handleClosed: '#991b1b',
       handleGrip: '#f8fafc',
-      bulbIdle: '#0f7f92',
-      bulbActive: '#0891b2',
-      bulbBase: '#64748b',
-      bulbHaloActive: '#0891b2',
+      bulbIdle: '#a64834',
+      bulbActive: '#bf533b',
+      bulbBase: '#111827',
+      bulbHaloActive: '#d97706',
       bulbHaloHover: '#0284c7',
       hoverEdge: '#0f4f7a',
     },
@@ -608,6 +633,11 @@ const PROCEDURAL_CAMERA_VIEW_SCHEME: CameraViewScheme = {
       position: [2.95, 0.25, 3.35],
       target: [1.65, -0.45, 0.95],
     },
+    bottle: {
+      position: [3.35, 2.25, 5.35],
+      target: [0.15, 0.1, 0.05],
+      fov: 36,
+    },
   },
 };
 const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = {
@@ -633,6 +663,11 @@ const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = {
       position: [2.34, 1.24, 3.55],
       target: [0.98, 0.34, 0.28],
       fov: 36,
+    },
+    bottle: {
+      position: [2.9, 2.62, 4.58],
+      target: [0.08, 0.44, -0.05],
+      fov: 40,
     },
   },
 };
@@ -660,6 +695,173 @@ const getCameraFovForAspect = (cameraViewScheme: CameraViewScheme, aspect: numbe
   }
   return cameraViewScheme.fov;
 };
+
+type HeatCapacityGuideObjectTarget = {
+  id: string;
+  shape: 'rect' | 'ellipse';
+  objectNames: string[];
+  padding: number;
+  rx?: number;
+  ellipseScale?: number;
+  screenOffsetPx?: { x?: number; y?: number };
+};
+
+const HEAT_CAPACITY_GUIDE_TARGET_OBJECTS: HeatCapacityGuideObjectTarget[] = [
+  {
+    id: 'powerSwitch',
+    shape: 'rect',
+    objectNames: ['HitboxPowerSwitch'],
+    padding: 10,
+    rx: 12,
+  },
+  {
+    id: 'pressureZero',
+    shape: 'ellipse',
+    objectNames: ['HitboxPressureZeroKnob'],
+    padding: 4,
+    ellipseScale: 0.82,
+    screenOffsetPx: { y: -16 },
+  },
+  {
+    id: 'instrumentDisplay',
+    shape: 'rect',
+    objectNames: ['TemperatureDisplay', 'PressureDisplay'],
+    padding: 10,
+    rx: 10,
+  },
+  {
+    id: 'pumpBulb',
+    shape: 'ellipse',
+    objectNames: ['pumpBulbHitbox'],
+    padding: 10,
+  },
+  {
+    id: 'pumpValve',
+    shape: 'rect',
+    objectNames: ['pumpValveHitbox'],
+    padding: 10,
+    rx: 12,
+  },
+  {
+    id: 'stopcock',
+    shape: 'rect',
+    objectNames: ['HitboxStopcockHandle'],
+    padding: 10,
+    rx: 12,
+  },
+  {
+    id: 'bottleControls',
+    shape: 'rect',
+    objectNames: ['SquareGlassPressureBottle', 'pumpValveHitbox', 'HitboxStopcockHandle'],
+    padding: 18,
+    rx: 18,
+  },
+];
+
+const roundHeatCapacityGuideProjectionValue = (value: number) => Math.round(value * 10) / 10;
+
+const projectHeatCapacityGuidePointToHole = (
+  camera: THREE.Camera,
+  size: { width: number; height: number },
+  worldPoint: THREE.Vector3,
+) => {
+  const point = worldPoint.clone();
+  point.project(camera);
+  return {
+    x: ((point.x + 1) / 2) * size.width,
+    y: ((1 - point.y) / 2) * size.height,
+  };
+};
+
+const getHeatCapacityGuideObjectBox = (
+  scene: THREE.Scene,
+  objectNames: string[],
+): THREE.Box3 | null => {
+  const combinedBox = new THREE.Box3();
+  const objectBox = new THREE.Box3();
+  let hasBox = false;
+  objectNames.forEach((objectName) => {
+    const object = scene.getObjectByName(objectName);
+    if (!object) return;
+    object.updateWorldMatrix(true, true);
+    objectBox.setFromObject(object);
+    if (objectBox.isEmpty()) return;
+    combinedBox.union(objectBox);
+    hasBox = true;
+  });
+  return hasBox ? combinedBox : null;
+};
+
+const getHeatCapacityGuideBoxCorners = (box: THREE.Box3) => [
+  new THREE.Vector3(box.min.x, box.min.y, box.min.z),
+  new THREE.Vector3(box.max.x, box.min.y, box.min.z),
+  new THREE.Vector3(box.min.x, box.max.y, box.min.z),
+  new THREE.Vector3(box.max.x, box.max.y, box.min.z),
+  new THREE.Vector3(box.min.x, box.min.y, box.max.z),
+  new THREE.Vector3(box.max.x, box.min.y, box.max.z),
+  new THREE.Vector3(box.min.x, box.max.y, box.max.z),
+  new THREE.Vector3(box.max.x, box.max.y, box.max.z),
+];
+
+const projectHeatCapacityGuideObjectBoxToHole = (
+  target: HeatCapacityGuideObjectTarget,
+  box: THREE.Box3,
+  camera: THREE.Camera,
+  size: { width: number; height: number },
+): HeatCapacityGuideProjectedHole => {
+  const projectedPoints = getHeatCapacityGuideBoxCorners(box).map((point) => (
+    projectHeatCapacityGuidePointToHole(camera, size, point)
+  ));
+  const minX = Math.min(...projectedPoints.map((point) => point.x)) - target.padding;
+  const maxX = Math.max(...projectedPoints.map((point) => point.x)) + target.padding;
+  const minY = Math.min(...projectedPoints.map((point) => point.y)) - target.padding;
+  const maxY = Math.max(...projectedPoints.map((point) => point.y)) + target.padding;
+  const left = Math.max(0, minX);
+  const right = Math.min(size.width, maxX);
+  const top = Math.max(0, minY);
+  const bottom = Math.min(size.height, maxY);
+  const width = Math.max(1, right - left);
+  const height = Math.max(1, bottom - top);
+  if (target.shape === 'ellipse') {
+    const ellipseScale = target.ellipseScale ?? 1;
+    return {
+      id: target.id,
+      shape: 'ellipse',
+      cx: roundHeatCapacityGuideProjectionValue(left + width / 2 + (target.screenOffsetPx?.x ?? 0)),
+      cy: roundHeatCapacityGuideProjectionValue(top + height / 2 + (target.screenOffsetPx?.y ?? 0)),
+      rx: roundHeatCapacityGuideProjectionValue((width / 2) * ellipseScale),
+      ry: roundHeatCapacityGuideProjectionValue((height / 2) * ellipseScale),
+    };
+  }
+  return {
+    id: target.id,
+    shape: 'rect',
+    x: roundHeatCapacityGuideProjectionValue(left),
+    y: roundHeatCapacityGuideProjectionValue(top),
+    width: roundHeatCapacityGuideProjectionValue(width),
+    height: roundHeatCapacityGuideProjectionValue(height),
+    rx: target.rx ?? 12,
+  };
+};
+
+const projectHeatCapacityGuideTargetsToHoles = (
+  scene: THREE.Scene,
+  camera: THREE.Camera,
+  size: { width: number; height: number },
+): HeatCapacityGuideProjectedHoles => {
+  const holes: HeatCapacityGuideProjectedHoles = {};
+  scene.updateMatrixWorld(true);
+  HEAT_CAPACITY_GUIDE_TARGET_OBJECTS.forEach((target) => {
+    const box = getHeatCapacityGuideObjectBox(scene, target.objectNames);
+    if (!box) return;
+    holes[target.id] = projectHeatCapacityGuideObjectBoxToHole(target, box, camera, size);
+  });
+  return holes;
+};
+
+const getHeatCapacityGuideProjectionSignature = (holes: HeatCapacityGuideProjectedHoles) => (
+  JSON.stringify(Object.entries(holes).sort(([left], [right]) => left.localeCompare(right)))
+);
 const ORBIT_MIN_DISTANCE = 2.7;
 const ORBIT_MAX_DISTANCE = 11.5;
 const HEAT_CAPACITY_CAMERA_CAPTURE_QUERY_PARAM = 'cameraCapture';
@@ -2207,6 +2409,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           particleMultiplier={props.hardSphereParticleMultiplier}
           speedMultiplier={props.hardSphereSpeedMultiplier}
           visualResetKey={props.hardSphereVisualResetKey}
+          paused={props.hardSpherePaused}
           sceneTheme={props.sceneTheme}
         />
         <InstrumentLeads highClarityMode={highClarityMode} scenePalette={scenePalette} />
@@ -2419,7 +2622,7 @@ function CameraRig({
     const nextPosition = new THREE.Vector3();
     const nextTarget = new THREE.Vector3();
     const aspect = size.height > 0 ? size.width / size.height : 1;
-    const focusView = (focusMode === 'instrument' || focusMode === 'pump')
+    const focusView = (focusMode === 'instrument' || focusMode === 'pump' || focusMode === 'bottle')
       ? cameraViewScheme.focusViews?.[focusMode]
       : undefined;
     const nextView = focusView ?? (
@@ -2457,6 +2660,75 @@ function CameraRig({
     frameId = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frameId);
   }, [autoDemoActive, camera, cameraViewScheme, controlsRef, focusMode, invalidate, resetKey, size.height, size.width]);
+
+  return null;
+}
+
+function HeatCapacityGuideProjectionBridge({
+  enabled,
+  projectionSyncKey,
+  onGuideTargetHolesChange,
+}: {
+  enabled: boolean;
+  projectionSyncKey: number;
+  onGuideTargetHolesChange?: (holes: HeatCapacityGuideProjectedHoles) => void;
+}) {
+  return (
+    <HeatCapacityGuideTargetProbe
+      enabled={enabled}
+      projectionSyncKey={projectionSyncKey}
+      onGuideTargetHolesChange={onGuideTargetHolesChange}
+    />
+  );
+}
+
+function HeatCapacityGuideTargetProbe({
+  enabled,
+  projectionSyncKey,
+  onGuideTargetHolesChange,
+}: {
+  enabled: boolean;
+  projectionSyncKey: number;
+  onGuideTargetHolesChange?: (holes: HeatCapacityGuideProjectedHoles) => void;
+}) {
+  const { camera, invalidate, scene, size } = useThree();
+  const lastSignatureRef = useRef('');
+
+  const emitProjectedHoles = useCallback(() => {
+    if (!enabled || !onGuideTargetHolesChange) return;
+    const holes = projectHeatCapacityGuideTargetsToHoles(scene, camera, size);
+    const signature = getHeatCapacityGuideProjectionSignature(holes);
+    if (signature === lastSignatureRef.current) return;
+    lastSignatureRef.current = signature;
+    onGuideTargetHolesChange(holes);
+  }, [camera, enabled, onGuideTargetHolesChange, scene, size]);
+
+  useFrame(() => {
+    emitProjectedHoles();
+  });
+
+  useEffect(() => {
+    if (!enabled || !onGuideTargetHolesChange) {
+      lastSignatureRef.current = '';
+      return undefined;
+    }
+    lastSignatureRef.current = '';
+    let frameId = 0;
+    let attempt = 0;
+    const retryProjection = () => {
+      invalidate();
+      emitProjectedHoles();
+      attempt += 1;
+      if (attempt < 8) {
+        frameId = window.requestAnimationFrame(retryProjection);
+      }
+    };
+    frameId = window.requestAnimationFrame(retryProjection);
+    emitProjectedHoles();
+    return () => {
+      if (frameId) window.cancelAnimationFrame(frameId);
+    };
+  }, [emitProjectedHoles, enabled, invalidate, onGuideTargetHolesChange, projectionSyncKey]);
 
   return null;
 }
@@ -2640,6 +2912,12 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   useEffect(() => {
     triggerSmoothDefaultView();
   }, [props.focusResetKey, triggerSmoothDefaultView]);
+  useEffect(() => {
+    if (props.guideFocusMode !== undefined && props.guideFocusMode !== null) {
+      setFocusMode(props.guideFocusMode);
+      setViewResetKey((key) => key + 1);
+    }
+  }, [props.guideFocusMode, props.guideFocusKey]);
   const pumpBulbDisplayLabel = getPumpBulbDisplayLabel(props.pumpBulbState, sceneCopy);
   const pumpFrequencyStatusLabel = getPumpFrequencyStatusLabel(props.pumpFrequencyStatus, sceneCopy);
   const temperatureDisplay = props.powerOn ? formatSignal(props.temperatureSignalMv) : sceneCopy.unpowered;
@@ -2715,6 +2993,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           hardSphereParticleMultiplier={props.hardSphereParticleMultiplier}
           hardSphereSpeedMultiplier={props.hardSphereSpeedMultiplier}
           hardSphereVisualResetKey={props.hardSphereVisualResetKey}
+          hardSpherePaused={props.hardSpherePaused}
           interactionLocked={props.interactionLocked}
           focusMode={focusMode}
           pressureZeroInteractionEnabled={focusMode === 'instrument'}
@@ -2749,6 +3028,8 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           hoveredControl={hoveredControl}
           setHoveredControl={setStableHoveredControl}
           onLockedInteraction={props.onLockedInteraction}
+          guideProjectionKey={props.focusResetKey}
+          onGuideTargetHolesChange={props.onGuideTargetHolesChange}
           onPowerToggle={props.onPowerToggle}
           onStopcockOpenChange={props.onStopcockOpenChange}
           onPressureZeroFineAdjust={props.onPressureZeroFineAdjust}
@@ -2798,6 +3079,13 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           cameraViewScheme={cameraViewScheme}
         />
         {instrumentSceneContent}
+        {props.performanceMode !== 'ultra' ? (
+          <HeatCapacityGuideProjectionBridge
+            enabled={Boolean(props.onGuideTargetHolesChange)}
+            projectionSyncKey={props.focusResetKey}
+            onGuideTargetHolesChange={props.onGuideTargetHolesChange}
+          />
+        ) : null}
         <HeatCapacityOrbitControls
           enabled={orbitControlsEnabled}
           controlsRef={controlsRef}
@@ -2948,6 +3236,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                         props.onLockedInteraction();
                         return;
                       }
+                      if (props.onFocusExitRequest?.('pump') === false) return;
                       setFocusMode('none');
                     }}
                   >
@@ -3035,6 +3324,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
             {props.overlayCenter}
           </div>
         ) : null}
+        {props.overlayGuideMask ? props.overlayGuideMask : null}
         {props.overlayBottomCenter ? (
           <div className="studio-preview-overlay-bottom-center" data-preview-overlay-bottom-center="true">
             {props.overlayBottomCenter}

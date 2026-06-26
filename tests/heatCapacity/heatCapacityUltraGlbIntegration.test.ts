@@ -207,13 +207,18 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const ULTRA_THEME_VISUALS[\s\S]*light:[\s\S]*benchSurface: '#5f6f79'[\s\S]*benchBackstop: '#4d5d66'[\s\S]*instrumentBody: '#e0e5e7'[\s\S]*frontPanel: '#c2ccd0'[\s\S]*powerSwitchOff: '#d9534f'[\s\S]*powerSwitchOn: '#2ec978'[\s\S]*dark:[\s\S]*benchSurface: '#8fa1aa'[\s\S]*benchBackstop: '#7f929b'[\s\S]*instrumentBody: '#d5dcdf'[\s\S]*frontPanel: '#b8c3c8'[\s\S]*powerSwitchOff: '#e15d59'[\s\S]*powerSwitchOn: '#35d987'/,
-  'Ultra GLB should define separate light and dark visual palettes with a lightened front panel and readable switch colors',
+  /const ULTRA_THEME_VISUALS[\s\S]*light:[\s\S]*benchSurface: '#b8c6cc'[\s\S]*benchBackstop: '#8da0aa'[\s\S]*instrumentBody: '#f7f9f8'[\s\S]*frontPanel: '#c6d1d6'[\s\S]*sensorBox: '#2f383d'[\s\S]*softTube: '#f2efe6'[\s\S]*blueWire: '#0077c8'[\s\S]*orangeWire: '#d29a22'[\s\S]*blackWire: '#111827'[\s\S]*displayText: '#35f0c9'[\s\S]*powerSwitchOff: '#c92a2a'[\s\S]*powerSwitchOn: '#19a463'[\s\S]*dark:[\s\S]*benchSurface: '#6b7280'[\s\S]*benchBackstop: '#4b5563'[\s\S]*instrumentBody: '#d5dcdf'[\s\S]*frontPanel: '#b8c3c8'[\s\S]*powerSwitchOff: '#e15d59'[\s\S]*powerSwitchOn: '#35d987'/,
+  'Ultra GLB should define separate light and dark visual palettes with a lighter bench, brighter host, and functional control colors',
 );
 assert.match(
   ultraModelSource,
   /applyUltraThemeVisuals\(nodeMap,\s*baseTransforms,\s*props\.sceneTheme\)/,
   'Ultra GLB should apply runtime material overrides from the current scene theme',
+);
+assert.match(
+  ultraModelSource,
+  /setUltraNodeOwnMaterialColor\(nodeMap,\s*'FD_NCD_C_InstrumentBody',\s*visuals\.instrumentBody,\s*\{\s*roughness:\s*0\.54,\s*metalness:\s*0\.03,\s*clearTexture:\s*true,\s*\}\);/,
+  'Ultra GLB host body should clear baked material textures so the light instrument body stays visually distinct from the bench',
 );
 [
   'clean_lab_bench',
@@ -235,6 +240,16 @@ assert.match(
     `Ultra GLB theme overrides should include ${themedNodeName}`,
   );
 });
+assert.match(
+  ultraModelSource,
+  /setUltraNodeOwnMaterialColor\(nodeMap,\s*'PressureSensor_Box',\s*visuals\.sensorBox[\s\S]*setUltraNodeOwnMaterialColor\(nodeMap,\s*'PressureSensor_SoftTube',\s*visuals\.softTube[\s\S]*setUltraNodeOwnMaterialColor\(nodeMap,\s*'HSL_PressureSensor_SoftTube_WhiteCore',\s*visuals\.softTube[\s\S]*setUltraNodeOwnMaterialColor\(nodeMap,\s*'HSL_PumpTube_Rebuilt',\s*visuals\.softTube[\s\S]*setUltraNodeOwnMaterialColor\(nodeMap,\s*'HSL_CleanValve_Soft_Grey_Tube',\s*visuals\.softTube/s,
+  'Ultra GLB light theme should recolor the sensor box and soft tubes separately from the host panel',
+);
+assert.match(
+  ultraModelSource,
+  /setUltraNodeOwnMaterialColor\(nodeMap,\s*'TemperatureSensor_Wire',\s*visuals\.blueWire[\s\S]*setUltraNodeOwnMaterialColor\(nodeMap,\s*'PressureSensor_Wire_Orange',\s*visuals\.orangeWire[\s\S]*setUltraNodeOwnMaterialColor\(nodeMap,\s*'PressureSensor_Wire_Black',\s*visuals\.blackWire/s,
+  'Ultra GLB light theme should recolor the three signal wires with distinct functional colors',
+);
 assert.match(
   ultraModelSource,
   /const POWER_SWITCH_VISUAL_SCALE = new THREE\.Vector3\(1\.28,\s*1\.28,\s*1\.08\);[\s\S]*const POWER_SWITCH_BASE_VISUAL_SCALE = new THREE\.Vector3\(1\.22,\s*1\.24,\s*1\.03\);[\s\S]*const POWER_SWITCH_FRAME_VISUAL_SCALE = new THREE\.Vector3\(1\.24,\s*1\.26,\s*1\.03\);[\s\S]*const POWER_SWITCH_PIVOT_OFFSET = new THREE\.Vector3\(0,\s*0,\s*0\.0042\);/,

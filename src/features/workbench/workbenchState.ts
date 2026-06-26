@@ -154,6 +154,34 @@ import {
   type HeatCapacityFreeParameterApplyResult,
   type HeatCapacityFreeParameterDraft,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
+import {
+  applyGuidePumpStroke,
+  createDefaultGuidePhysicsConfig,
+  createDefaultGuidePhysicsState,
+  deriveGuidePhysicalState,
+  stepGuidePhysicsState,
+  type HeatCapacityGuidePhysicsConfig,
+  type HeatCapacityGuidePhysicsState,
+} from '../../domain/heatCapacity/heatCapacityGuidePhysicsEngine.ts';
+import {
+  createDefaultHeatCapacityGuideWorkflow,
+  getHeatCapacityGuideActionGuard,
+  transitionHeatCapacityGuideWorkflow,
+  type HeatCapacityGuideAction,
+  type HeatCapacityGuideWorkflowState,
+} from '../../domain/heatCapacity/heatCapacityGuideWorkflowModel.ts';
+import {
+  createHeatCapacityGuideTrial,
+  recordGuideU0,
+  recordGuideU1,
+  recordGuideU2,
+  type HeatCapacityGuideTrial,
+} from '../../domain/heatCapacity/heatCapacityGuideTrialModel.ts';
+import {
+  HEAT_CAPACITY_GUIDE_WAIT_TARGET_S,
+  deriveHeatCapacityGuideExperimentTimer,
+  normalizeHeatCapacityGuideSpeedMultiplier,
+} from '../../domain/heatCapacity/heatCapacityGuideExperimentTimerModel.ts';
 
 export type WorkbenchFileKind = 'standard' | 'ideal' | 'heatCapacity';
 export type WorkbenchRunState = 'idle' | 'running' | 'paused' | 'finished' | 'needs-reset';
@@ -275,6 +303,7 @@ export const HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER:
   WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier = 4;
 export const HEAT_CAPACITY_FREE_ACCELERATED_SAMPLE_STEP_S = HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S;
 const HEAT_CAPACITY_FREE_ACCELERATED_MAX_SEGMENTS = 600;
+const HEAT_CAPACITY_GUIDE_RELEASE_TARGET_S = 0.35;
 export const DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG: HeatCapacityFreeEnvironmentConfig = {
   ambientTemperatureK: 298.15,
   ambientPressureKPa: 101.3,
@@ -439,6 +468,10 @@ export const HEAT_CAPACITY_GAUGE_RISE_RATE = 3.2;
 export const HEAT_CAPACITY_GAUGE_FALL_RATE = 9.5;
 export { HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA };
 
+export const isHeatCapacityPhysicalKernelMode = (mode: HeatCapacityMode | null | undefined) => (
+  mode === 'free'
+);
+
 const normalizeDegrees360 = (value: number) => ((value % 360) + 360) % 360;
 const clampNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -459,7 +492,7 @@ const roundNumber = (value: number, digits = 2) => {
 export const getHeatCapacityPressureThresholdsMv = (
   file: Partial<WorkbenchHeatCapacityState> = {},
 ) => {
-  const freeRecordConfig = file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+  const freeRecordConfig = file.kind === 'heatCapacity' && isHeatCapacityPhysicalKernelMode(file.heatCapacityMode)
     ? file.heatCapacityFreeRecordConfig
     : null;
   const pressureWarningThresholdMv = Number.isFinite(file.heatCapacityFreePressureWarningMv)
@@ -475,7 +508,7 @@ export const getHeatCapacityPressureThresholdsMv = (
 };
 
 const getHeatCapacityGaugeConfig = (file: Partial<WorkbenchHeatCapacityState> = {}) => {
-  const freeSensorConfig = file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+  const freeSensorConfig = file.kind === 'heatCapacity' && isHeatCapacityPhysicalKernelMode(file.heatCapacityMode)
     ? file.heatCapacityFreeSensorConfig
     : null;
   const pressureSensitivityMvPerKPa = Number.isFinite(freeSensorConfig?.pressureMvPerKPa)
@@ -670,16 +703,36 @@ export const updatePressureZeroDisplayedSamples = (
   powerOn: boolean,
 ) => {
   if (!powerOn || valueMv === null || !Number.isFinite(valueMv)) return [];
+  const roundedValue = roundNumber(valueMv, 3);
   const windowStart = now - HEAT_CAPACITY_PRESSURE_ZERO_SAMPLE_WINDOW_MS;
   const recentSamples = (samples ?? [])
-    .filter((sample) => Number.isFinite(sample.atMs) && sample.atMs >= windowStart && sample.atMs <= now)
+    .filter((sample) => Number.isFinite(sample.atMs) && sample.atMs >= windowStart && sample.atMs < now)
     .map((sample) => ({
       atMs: sample.atMs,
       valueMv: roundNumber(sample.valueMv, 3),
     }));
+  const filledSamples = [...recentSamples];
+  const lastSample = filledSamples[filledSamples.length - 1];
+  if (
+    lastSample &&
+    Math.abs(lastSample.valueMv) <= HEAT_CAPACITY_PRESSURE_ZERO_TOLERANCE_MV &&
+    Math.abs(roundedValue) <= HEAT_CAPACITY_PRESSURE_ZERO_TOLERANCE_MV
+  ) {
+    const sampleIntervalMs = HEAT_CAPACITY_PRESSURE_ZERO_SAMPLE_WINDOW_MS /
+      Math.max(1, HEAT_CAPACITY_PRESSURE_ZERO_SAMPLE_MIN_COUNT - 1);
+    for (
+      let sampleAtMs = lastSample.atMs + sampleIntervalMs;
+      sampleAtMs < now;
+      sampleAtMs += sampleIntervalMs
+    ) {
+      if (sampleAtMs >= windowStart) {
+        filledSamples.push({ atMs: sampleAtMs, valueMv: roundedValue });
+      }
+    }
+  }
   return [
-    ...recentSamples,
-    { atMs: now, valueMv: roundNumber(valueMv, 3) },
+    ...filledSamples,
+    { atMs: now, valueMv: roundedValue },
   ];
 };
 
@@ -735,8 +788,50 @@ export const setHeatCapacityPressureZeroOffset = (
   const pressureZeroKnobAngle = clampHeatCapacityPressureZeroKnobAngle(knobAngle);
   const pressureZeroOffset = getHeatCapacityPressureZeroOffsetForKnobAngle(pressureZeroKnobAngle);
   const pressureZeroAdjusted = adjustMode !== 'none' || pressureZeroOffset !== 0;
-  if (file.heatCapacityMode === 'free') {
-    const sourceFile = freezeHeatCapacityFreeParametersForCurrentGroup(file);
+  if (file.heatCapacityMode === 'guide') {
+    const steppedFile = stepHeatCapacityGuideWorkbenchFile(file, now);
+    const displayPressureMv = truncateHeatCapacitySignalMv(applyHeatCapacityPressureZero(
+      steppedFile.pressureSignalMvRaw,
+      steppedFile.pressureInitialBiasMv,
+      pressureZeroOffset,
+    ));
+    const pressureZeroDisplayedSamples = updatePressureZeroDisplayedSamples(
+      pressureZeroOffset === steppedFile.pressureZeroOffset
+        ? steppedFile.pressureZeroDisplayedSamples
+        : [],
+      now,
+      displayPressureMv,
+      steppedFile.powerOn,
+    );
+    const pressureZeroed = steppedFile.powerOn &&
+      isHeatCapacityPressureZeroWithinTolerance(pressureZeroDisplayedSamples);
+    const baseFile = {
+      ...steppedFile,
+      pressureZeroAdjusted,
+      pressureZeroed,
+      pressureZeroKnobAngle,
+      pressureZeroOffset,
+      pressureZeroDisplayText: getHeatCapacityPressureZeroDisplayText(pressureZeroAdjusted, pressureZeroOffset),
+      pressureZeroAdjustMode: adjustMode,
+      pressureZeroDisplayedSamples,
+    };
+    const workflow = transitionHeatCapacityGuideWorkflow(
+      baseFile.heatCapacityGuideWorkflow,
+      getHeatCapacityGuideActionContext(baseFile, 'adjustZero', {
+        pressureZeroReady: pressureZeroed,
+      }),
+    );
+    return mergeHeatCapacityGuideRuntimeState(
+      baseFile,
+      baseFile.heatCapacityGuidePhysicsState,
+      workflow,
+      now,
+    );
+  }
+  if (isHeatCapacityPhysicalKernelMode(file.heatCapacityMode)) {
+    const sourceFile = file.heatCapacityMode === 'free'
+      ? freezeHeatCapacityFreeParametersForCurrentGroup(file)
+      : file;
     const previousZeroOffset = sourceFile.heatCapacityFreeCalibrationState.zeroOffsetMv;
     const calibrationState = applyFreeZeroCalibration(
       sourceFile.heatCapacityFreeCalibrationState,
@@ -768,10 +863,11 @@ export const setHeatCapacityPressureZeroOffset = (
     const latestZeroEvent = mergedFile.heatCapacityFreeCalibrationState.zeroEvents[
       mergedFile.heatCapacityFreeCalibrationState.zeroEvents.length - 1
     ] ?? null;
-    return recordHeatCapacityFreeTraceEvent(mergedFile, 'zero-calibration', now, {
+    const tracedFile = recordHeatCapacityFreeTraceEvent(mergedFile, 'zero-calibration', now, {
       zeroEventId: latestZeroEvent?.id ?? null,
       zeroOffsetMv: latestZeroEvent?.zeroOffsetMv ?? pressureZeroOffset,
     });
+    return file.heatCapacityMode === 'free' ? tracedFile : mergedFile;
   }
   const runtime = updateHeatCapacityRuntimeZeroOffset(
     {
@@ -937,6 +1033,10 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityFreeTraceVersion: number;
   heatCapacityFreeTraceStore: HeatCapacityFreeTraceStore;
   heatCapacityFreeTrials: HeatCapacityFreeTrial[];
+  heatCapacityGuidePhysicsConfig: HeatCapacityGuidePhysicsConfig;
+  heatCapacityGuidePhysicsState: HeatCapacityGuidePhysicsState;
+  heatCapacityGuideWorkflow: HeatCapacityGuideWorkflowState;
+  heatCapacityGuideTrial: HeatCapacityGuideTrial | null;
   selectedHeatCapacityPanel: Extract<WorkbenchPanelKey, 'preview' | 'realtime'> | WorkbenchHeatCapacityPanelKey;
   openHeatCapacityTabs: WorkbenchHeatCapacityTabId[];
   activeHeatCapacityTabId: WorkbenchHeatCapacityTabId | null;
@@ -1040,6 +1140,41 @@ export const createDefaultHeatCapacityFreeParameterState = (): HeatCapacityFreeP
   return applyHeatCapacityFreeParameterDraftToConfigs(draft);
 };
 
+export const createHeatCapacityGuidePhysicalParameterState = (): HeatCapacityFreeParameterApplyResult => {
+  const recordConfig = createDefaultHeatCapacityFreeRecordConfig();
+  const physicsConfig = normalizeHeatCapacityFreePhysicsConfig({
+    ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
+    pumpValveExchange: {
+      ...DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG,
+      enabled: false,
+    },
+    environmentDisturbance: {
+      ...DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_DISTURBANCE_CONFIG,
+      enabled: false,
+    },
+    leakage: {
+      ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.leakage,
+      enabled: false,
+    },
+  });
+  const sensorConfig = normalizeHeatCapacityFreeSensorConfig({
+    ...DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
+    noiseMv: 0,
+    pressureNonlinearity: {
+      ...DEFAULT_HEAT_CAPACITY_FREE_PRESSURE_SENSOR_NONLINEARITY_CONFIG,
+      enabled: false,
+    },
+  });
+  return {
+    environmentConfig: { ...physicsConfig.environment },
+    physicsConfig,
+    sensorConfig,
+    recordConfig,
+    pressureWarningMv: HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
+    instrumentNoiseEnabled: false,
+  };
+};
+
 const getLatestHeatCapacityFreeTrial = (
   file: Pick<WorkbenchHeatCapacityState, 'heatCapacityFreeTrials'>,
 ) => file.heatCapacityFreeTrials[file.heatCapacityFreeTrials.length - 1] ?? null;
@@ -1097,6 +1232,17 @@ const getActiveHeatCapacityFreeTrial = (
 ) => {
   const activeIndex = getActiveHeatCapacityFreeTrialIndex(file);
   return activeIndex >= 0 ? file.heatCapacityFreeTrials[activeIndex] ?? null : null;
+};
+
+const getActiveHeatCapacityTeachingTrial = (
+  file: Pick<WorkbenchHeatCapacityState, 'heatCapacityTrials' | 'heatCapacityActiveTrialIndex'>,
+) => {
+  if (file.heatCapacityTrials.length === 0) return null;
+  const activeIndex = Math.min(
+    file.heatCapacityTrials.length - 1,
+    Math.max(0, file.heatCapacityActiveTrialIndex),
+  );
+  return file.heatCapacityTrials[activeIndex] ?? null;
 };
 
 export const getHeatCapacityFreeStopcockFlowPurpose = (
@@ -2320,6 +2466,10 @@ const createHeatCapacityFreeRollbackPressureBiasMv = (
   seed: number | string,
 ) => createSeededFreePressureInitialBiasMv(seed, HEAT_CAPACITY_PRESSURE_ZERO_RANGE_MV);
 
+const createHeatCapacityGuidePressureInitialBiasMv = (
+  seed: number | string,
+) => createSeededFreePressureInitialBiasMv(seed, HEAT_CAPACITY_PRESSURE_ZERO_RANGE_MV);
+
 const rollbackHeatCapacityFreeToFreshZeroing = (
   file: WorkbenchHeatCapacityState,
   now: number,
@@ -2913,9 +3063,110 @@ export const registerHeatCapacityPumpStroke = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
-  if (file.heatCapacityMode === 'free') {
+  if (file.heatCapacityMode === 'guide') {
+    const currentFile = stepHeatCapacityGuideWorkbenchFile(file, now);
+    const workflowContext = getHeatCapacityGuideActionContext(currentFile, 'pressPumpBulb');
+    const workflowGuard = getHeatCapacityGuideActionGuard(currentFile.heatCapacityGuideWorkflow, workflowContext);
+    if (!workflowGuard.allowed) {
+      const workflow = transitionHeatCapacityGuideWorkflow(currentFile.heatCapacityGuideWorkflow, workflowContext);
+      return mergeHeatCapacityGuideRuntimeState(
+        {
+          ...currentFile,
+          pumpHint: workflowGuard.message,
+          pumpBulbState: 'releasing',
+        },
+        currentFile.heatCapacityGuidePhysicsState,
+        workflow,
+        now,
+      );
+    }
+    const frequencyState = getHeatCapacityPumpFrequencyState([...currentFile.pumpStrokeTimestamps, now], now);
+    const stroke = applyGuidePumpStroke(
+      currentFile.heatCapacityGuidePhysicsState,
+      currentFile.heatCapacityGuidePhysicsConfig,
+      {
+        powerOn: currentFile.powerOn,
+        pumpValveOpen: currentFile.pumpValveOpen,
+        stopcockOpen: getHeatCapacityStopcockState(currentFile.stopcockAngleDeg) === 'open',
+      },
+      {
+        atS: currentFile.heatCapacityGuidePhysicsState.simulationTimeS,
+        strength: 1,
+      },
+    );
+    if (!stroke.accepted) {
+      const pumpHint = stroke.reason === 'powerOff'
+        ? '请先打开电源，再执行有效打气'
+        : stroke.reason === 'stopcockOpen'
+          ? '玻璃旋塞已打开，无法形成有效加压'
+          : stroke.reason === 'pressureDanger'
+            ? '压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。'
+            : '打气阀门未打开，无法有效打气';
+      const workflow = transitionHeatCapacityGuideWorkflow(
+        currentFile.heatCapacityGuideWorkflow,
+        getHeatCapacityGuideActionContext(currentFile, 'pressPumpBulb'),
+      );
+      return mergeHeatCapacityGuideRuntimeState(
+        {
+          ...currentFile,
+          pumpHint,
+          pumpBulbState: 'releasing',
+        },
+        stroke.state,
+        workflow,
+        now,
+      );
+    }
+    const afterStroke = stepGuidePhysicsState(
+      stroke.state,
+      currentFile.heatCapacityGuidePhysicsConfig,
+      {
+        dtS: 0.08,
+        powerOn: currentFile.powerOn,
+        pumpValveOpen: currentFile.pumpValveOpen,
+        stopcockOpen: getHeatCapacityStopcockState(currentFile.stopcockAngleDeg) === 'open',
+      },
+    );
+    const rawPressureAfterStrokeMv = deriveGuidePhysicalState(afterStroke, currentFile.heatCapacityGuidePhysicsConfig).pressureDeltaKPa *
+      currentFile.pressureSensitivityMvPerKPa;
+    const displayPressureAfterStrokeMv = truncateHeatCapacitySignalMv(applyHeatCapacityPressureZero(
+      rawPressureAfterStrokeMv,
+      currentFile.pressureInitialBiasMv,
+      currentFile.pressureZeroOffset,
+    ));
+    const workflow = transitionHeatCapacityGuideWorkflow(
+      currentFile.heatCapacityGuideWorkflow,
+      getHeatCapacityGuideActionContext(currentFile, 'pressPumpBulb', {
+        displayPressureMv: displayPressureAfterStrokeMv,
+      }),
+    );
+    const guidePumpTargetReached = workflow.step === 'closePumpValveRequired';
+    return mergeHeatCapacityGuideRuntimeState(
+      {
+        ...currentFile,
+        pumpBulbState: 'compressing',
+        pumpStrokeTimestamps: frequencyState.timestamps,
+        pumpFrequency: frequencyState.pumpFrequency,
+        pumpFrequencyStatus: frequencyState.pumpFrequencyStatus,
+        lastPumpTime: now,
+        pumpStrokeCount: afterStroke.pumpStrokeCount,
+        pumpHint: guidePumpTargetReached
+          ? '已达到打气标准，请关闭打气阀门。'
+          : frequencyState.pumpFrequencyStatus === 'suitable'
+          ? '打气频率合适，可以继续观察压强变化'
+          : '打气速率偏低，实验效果可能不明显',
+      },
+      afterStroke,
+      workflow,
+      now,
+    );
+  }
+  if (isHeatCapacityPhysicalKernelMode(file.heatCapacityMode)) {
+    const sourceFile = file.heatCapacityMode === 'free'
+      ? freezeHeatCapacityFreeParametersForCurrentGroup(file)
+      : file;
     const currentFile = stepHeatCapacityFreeWorkbenchFile(
-      freezeHeatCapacityFreeParametersForCurrentGroup(file),
+      sourceFile,
       now,
     );
     const currentGaugePressureState = getHeatCapacityGaugePressureState(
@@ -3118,8 +3369,38 @@ export const powerHeatCapacityWorkbenchFile = (
   nextPowerOn: boolean,
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
-  if (file.heatCapacityMode === 'free') {
-    const sourceFile = nextPowerOn
+  if (file.heatCapacityMode === 'guide') {
+    const currentFile = stepHeatCapacityGuideWorkbenchFile(file, now);
+    const proposedFile = {
+      ...currentFile,
+      powerOn: nextPowerOn,
+      runState: nextPowerOn ? currentFile.runState : 'idle',
+      pressureZeroed: nextPowerOn ? currentFile.pressureZeroed : false,
+      pressureReleaseBurstUntilMs: null,
+    };
+    const context = getHeatCapacityGuideActionContext(proposedFile, 'togglePower');
+    const guard = getHeatCapacityGuideActionGuard(currentFile.heatCapacityGuideWorkflow, context);
+    const workflow = transitionHeatCapacityGuideWorkflow(currentFile.heatCapacityGuideWorkflow, context);
+    const baseFile = guard.allowed
+      ? proposedFile
+      : currentFile;
+    return mergeHeatCapacityGuideRuntimeState(
+      {
+        ...baseFile,
+        runState: workflow.step === 'completed'
+          ? 'finished'
+          : baseFile.powerOn
+            ? baseFile.runState
+            : 'idle',
+        pressureReleaseBurstUntilMs: null,
+      },
+      currentFile.heatCapacityGuidePhysicsState,
+      workflow,
+      now,
+    );
+  }
+  if (isHeatCapacityPhysicalKernelMode(file.heatCapacityMode)) {
+    const sourceFile = file.heatCapacityMode === 'free' && nextPowerOn
       ? freezeHeatCapacityFreeParametersForCurrentGroup(file)
       : file;
     const pressureZeroOffset = sourceFile.heatCapacityFreeCalibrationState.zeroOffsetMv;
@@ -3157,6 +3438,9 @@ export const powerHeatCapacityWorkbenchFile = (
           },
         }
       : poweredFile;
+    if (file.heatCapacityMode !== 'free') {
+      return poweredFileWithSnapshot;
+    }
     const tracedFile = recordHeatCapacityFreeTraceEvent(
       recordHeatCapacityFreeSafetyTransitionEvents(sourceFile, poweredFileWithSnapshot, now),
       nextPowerOn ? 'power-on' : 'power-off',
@@ -3194,51 +3478,33 @@ export const resetHeatCapacityForManualExperiment = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
-  const runtime = createDefaultHeatCapacityRuntimeState(now, {
-    ambientPressureKPa: file.ambientPressureKPa,
-    ambientTemperatureK: file.ambientTemperatureK,
-    sensor: {
-      ...DEFAULT_HEAT_CAPACITY_MODEL_CONFIG.sensor,
-      pressureSensitivityMvPerKPa: file.pressureSensitivityMvPerKPa,
-    },
-  });
-  const pressureInitialBiasMv = createHeatCapacityInitialPressureBiasMv();
-  const gaugePressureState = getHeatCapacityGaugePressureState(0, false, file);
-  return mergeHeatCapacityRuntimeState(
+  const parameterState = createHeatCapacityGuidePhysicalParameterState();
+  const freeRuntimeFields = createDefaultHeatCapacityFreeRuntimeFields(
+    `guide-runtime-${file.id}-${now}`,
+    parameterState,
+  );
+  const resetFile = mergeHeatCapacityFreeRuntimeState(
     {
       ...file,
+      ...freeRuntimeFields,
       heatCapacityMode: 'guide',
+      heatCapacityFreeTraceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
+      heatCapacityFreeTraceStore: createDefaultFreeTraceStore(),
+      heatCapacityFreeTrials: [],
       powerOn: false,
       runState: 'idle',
       heatCapacityPhase: 'powerOff',
       glassPistonState: 'closed',
       stopcockAngleDeg: getHeatCapacityStopcockTargetAngle(false),
-      gasPressureKPaAbs: file.ambientPressureKPa,
-      gasTemperatureK: file.ambientTemperatureK,
       pressureDeltaKPa: 0,
       simulationTimeS: 0,
       lastUpdateMs: null,
-      pressureInitialBiasMv,
       pressureZeroed: false,
       pressureZeroAdjusted: false,
       pressureZeroKnobAngle: 0,
       pressureZeroOffset: 0,
       pressureZeroDisplayText: getHeatCapacityPressureZeroDisplayText(false, 0),
       pressureZeroAdjustMode: 'none',
-      pressureRawPlaceholder: 0,
-      pressureDisplayedPlaceholder: pressureInitialBiasMv,
-      pressureGaugeTargetValue: gaugePressureState.pressureGaugeTargetValue,
-      pressureGaugeDisplayValue: gaugePressureState.pressureGaugeDisplayValue,
-      pressureGaugeNeedleAngle: gaugePressureState.pressureGaugeNeedleAngle,
-      gaugePressureMinKPa: gaugePressureState.gaugePressureMinKPa,
-      gaugePressureMaxKPa: gaugePressureState.gaugePressureMaxKPa,
-      pressureWarningThresholdKPa: gaugePressureState.pressureWarningThresholdKPa,
-      pressureSafeThresholdKPa: gaugePressureState.pressureSafeThresholdKPa,
-      pressureSafetyThresholdKPa: gaugePressureState.pressureSafetyThresholdKPa,
-      pressureSafetyStatus: gaugePressureState.pressureSafetyStatus,
-      pressureSafetyMessage: gaugePressureState.pressureSafetyMessage,
-      pressureBlockedPumping: gaugePressureState.pressureBlockedPumping,
-      pressureOverLimit: gaugePressureState.pressureOverLimit,
       temperatureSignalMv: null,
       pressureSignalMv: null,
       pressureKPa: null,
@@ -3257,29 +3523,51 @@ export const resetHeatCapacityForManualExperiment = (
       lastPumpTime: null,
       pumpStrokeCount: 0,
       pumpHint: '未打气',
-      recordedPressures: { p0: file.ambientPressureKPa, p1: null, p2: null },
+      pressureLimitKPa: parameterState.physicsConfig.pumpPressureLimitKPa,
+      recordedPressures: { p0: parameterState.environmentConfig.ambientPressureKPa, p1: null, p2: null },
       heatCapacityExpectedTrialCount: 3,
       heatCapacityExpectedTrialCountMode: '3',
       heatCapacityTrials: createHeatCapacityTrials(3),
       heatCapacityActiveTrialIndex: 0,
       heatCapacityProcessingCalculated: false,
-      heatCapacityProcessingResult: createDefaultHeatCapacityProcessingResult(file.theoreticalGamma),
+      heatCapacityProcessingResult: createDefaultHeatCapacityProcessingResult(parameterState.physicsConfig.gamma),
       heatCapacityExperimentSeed: null,
       heatCapacityExperimentProfile: null,
       heatCapacityProcessSamples: {},
+      theoreticalGamma: parameterState.physicsConfig.gamma,
       updatedAt: now,
     },
-    {
-      ...runtime,
-      lastUpdateMs: now,
-      pressureInitialBiasMv,
-      pressureZeroOffset: 0,
-      pressureSignalMvDisplayed: pressureInitialBiasMv,
-      heatCapacityPhase: 'powerOff',
-      heatCapacityProcessSamples: {},
-    },
+    freeRuntimeFields.heatCapacityFreePhysicsState,
+    freeRuntimeFields.heatCapacityFreeSensorState,
+    freeRuntimeFields.heatCapacityFreeCalibrationState,
     now,
   );
+  return {
+    ...resetFile,
+    lastUpdateMs: null,
+    displayResponseLastUpdateMs: null,
+    heatCapacityPhase: 'powerOff',
+    pressureSignalMv: null,
+    temperatureSignalMv: null,
+    pressureKPa: null,
+    pressureZeroed: false,
+    pressureZeroAdjusted: false,
+    pressureZeroKnobAngle: 0,
+    pressureZeroOffset: 0,
+    pressureZeroDisplayText: getHeatCapacityPressureZeroDisplayText(false, 0),
+    pressureZeroAdjustMode: 'none',
+    pressureZeroDisplayedSamples: [],
+    pressureReleaseBurstUntilMs: null,
+    heatCapacityFreeStopcockFlowOpen: false,
+    heatCapacityFreeStopcockPendingOpenAtMs: null,
+    heatCapacityFreeStopcockFlowPurpose: 'none',
+    heatCapacityFreeTraceStore: createDefaultFreeTraceStore(),
+    heatCapacityFreeTrials: [],
+    heatCapacityProcessSamples: {},
+    heatCapacityProcessingCalculated: false,
+    heatCapacityProcessingResult: createDefaultHeatCapacityProcessingResult(parameterState.physicsConfig.gamma),
+    updatedAt: now,
+  };
 };
 
 export const prepareHeatCapacityAutoDemoStart = (
@@ -3295,8 +3583,10 @@ export const prepareHeatCapacityAutoDemoStart = (
     HEAT_CAPACITY_PRESSURE_ZERO_RANGE_MV,
   ), 2);
   const gaugePressureState = getHeatCapacityGaugePressureState(0, true, file);
+  const guideRuntimeFields = createDefaultHeatCapacityGuideRuntimeFields();
   const resetFile: WorkbenchHeatCapacityState = {
     ...file,
+    ...guideRuntimeFields,
     heatCapacityMode: 'demo',
     powerOn: false,
     runState: 'running',
@@ -3380,12 +3670,406 @@ export const prepareHeatCapacityAutoDemoStart = (
   };
 };
 
+const mergeHeatCapacityGuideRuntimeState = (
+  file: WorkbenchHeatCapacityState,
+  guidePhysicsState: HeatCapacityGuidePhysicsState,
+  guideWorkflow: HeatCapacityGuideWorkflowState,
+  now: number,
+): WorkbenchHeatCapacityState => {
+  let nextGuideWorkflow = guideWorkflow;
+  const derived = deriveGuidePhysicalState(guidePhysicsState, file.heatCapacityGuidePhysicsConfig);
+  const pressureDeltaKPa = derived.pressureDeltaKPa;
+  const rawPressureMv = pressureDeltaKPa * file.pressureSensitivityMvPerKPa;
+  const displayPressureMv = truncateHeatCapacitySignalMv(applyHeatCapacityPressureZero(
+    rawPressureMv,
+    file.pressureInitialBiasMv,
+    file.pressureZeroOffset,
+  ));
+  const displayTemperatureMv = truncateHeatCapacitySignalMv(
+    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient +
+    (guidePhysicsState.gasTemperatureK - file.heatCapacityGuidePhysicsConfig.environment.ambientTemperatureK) *
+      DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvPerK,
+  );
+  const pressureZeroDisplayedSamples = updatePressureZeroDisplayedSamples(
+    file.pressureZeroDisplayedSamples,
+    now,
+    displayPressureMv,
+    file.powerOn,
+  );
+  const pressureZeroed = isHeatCapacityPressureZeroWithinTolerance(pressureZeroDisplayedSamples);
+  if (nextGuideWorkflow.step === 'zeroRequired' && pressureZeroed && file.pressureZeroAdjusted) {
+    nextGuideWorkflow = transitionHeatCapacityGuideWorkflow(nextGuideWorkflow, {
+      action: 'adjustZero',
+      powerOn: file.powerOn,
+      stopcockOpen: getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open',
+      pumpValveOpen: file.pumpValveOpen,
+      displayPressureMv,
+      pressureZeroReady: true,
+      releaseDurationReady: getHeatCapacityGuideReleaseDurationReady(file),
+      simulationTimeS: guidePhysicsState.simulationTimeS,
+    });
+  }
+  const gaugeState = getHeatCapacityGaugePressureState(
+    pressureDeltaKPa,
+    file.powerOn,
+    file,
+    file.pressureGaugeDisplayValue,
+  );
+  return {
+    ...file,
+    heatCapacityGuidePhysicsState: guidePhysicsState,
+    heatCapacityGuideWorkflow: nextGuideWorkflow,
+    heatCapacityPhase: getHeatCapacityGuideRuntimePhase(file.powerOn, nextGuideWorkflow.step),
+    gasPressureKPaAbs: derived.gasPressureKPa,
+    gasTemperatureK: guidePhysicsState.gasTemperatureK,
+    pressureDeltaKPa,
+    simulationTimeS: guidePhysicsState.simulationTimeS,
+    pressureSignalMvRaw: rawPressureMv,
+    pressureSignalMvDisplayed: displayPressureMv,
+    pressureSignalTargetMv: displayPressureMv,
+    temperatureSignalTargetMv: displayTemperatureMv,
+    pressureZeroDisplayedSamples,
+    pressureZeroed,
+    pressureSignalMv: displayPressureMv,
+    temperatureSignalMv: displayTemperatureMv,
+    pressureKPa: file.powerOn ? derived.gasPressureKPa : null,
+    pressureGaugeTargetValue: gaugeState.pressureGaugeTargetValue,
+    pressureGaugeDisplayValue: gaugeState.pressureGaugeDisplayValue,
+    pressureGaugeNeedleAngle: gaugeState.pressureGaugeNeedleAngle,
+    gaugePressureMinKPa: gaugeState.gaugePressureMinKPa,
+    gaugePressureMaxKPa: gaugeState.gaugePressureMaxKPa,
+    pressureWarningThresholdKPa: gaugeState.pressureWarningThresholdKPa,
+    pressureSafeThresholdKPa: gaugeState.pressureSafeThresholdKPa,
+    pressureSafetyThresholdKPa: gaugeState.pressureSafetyThresholdKPa,
+    pressureSafetyStatus: gaugeState.pressureSafetyStatus,
+    pressureSafetyMessage: gaugeState.pressureSafetyMessage,
+    pressureBlockedPumping: gaugeState.pressureBlockedPumping,
+    pressureOverLimit: gaugeState.pressureOverLimit,
+    pressurePlaceholder: roundNumber(derived.gasPressureKPa, 2),
+    temperaturePlaceholder: roundNumber(guidePhysicsState.gasTemperatureK, 3),
+    updatedAt: now,
+  };
+};
+
+const getHeatCapacityGuideReleaseDurationReady = (
+  file: Pick<WorkbenchHeatCapacityState, 'heatCapacityGuidePhysicsState'>,
+) => file.heatCapacityGuidePhysicsState.currentStopcockOpenDurationS >= HEAT_CAPACITY_GUIDE_RELEASE_TARGET_S;
+
+const getHeatCapacityGuideRuntimePhase = (
+  powerOn: boolean,
+  step: HeatCapacityGuideWorkflowState['step'],
+): HeatCapacityRuntimePhase => {
+  if (!powerOn) return 'powerOff';
+  switch (step) {
+    case 'powerRequired':
+    case 'openStopcockForZeroRequired':
+    case 'zeroRequired':
+      return 'readyToZero';
+    case 'recordU0Required':
+    case 'closeStopcockBeforePumpRequired':
+      return 'zeroed';
+    case 'openPumpValveRequired':
+      return 'readyToPump';
+    case 'pumpRequired':
+    case 'closePumpValveRequired':
+      return 'pumping';
+    case 'u1Waiting':
+    case 'recordU1Required':
+      return 'sealedStabilizing';
+    case 'openStopcockForReleaseRequired':
+    case 'closeStopcockAfterReleaseRequired':
+      return 'releasing';
+    case 'u2Waiting':
+    case 'recordU2Required':
+    case 'closePowerRequired':
+      return 'recovering';
+    case 'completed':
+      return 'demoComplete';
+  }
+};
+
+const getHeatCapacityGuideActionContext = (
+  file: WorkbenchHeatCapacityState,
+  action: HeatCapacityGuideAction,
+  overrides: Partial<ReturnType<typeof buildHeatCapacityGuideActionContextBase>> = {},
+) => ({
+  ...buildHeatCapacityGuideActionContextBase(file, action),
+  ...overrides,
+});
+
+const buildHeatCapacityGuideActionContextBase = (
+  file: WorkbenchHeatCapacityState,
+  action: HeatCapacityGuideAction,
+) => ({
+  action,
+  powerOn: file.powerOn,
+  stopcockOpen: getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open',
+  pumpValveOpen: file.pumpValveOpen,
+  displayPressureMv: Number.isFinite(file.pressureSignalMv)
+    ? file.pressureSignalMv ?? 0
+    : truncateHeatCapacitySignalMv(file.pressureSignalMvDisplayed),
+  pressureZeroReady: file.pressureZeroed,
+  releaseDurationReady: getHeatCapacityGuideReleaseDurationReady(file),
+  simulationTimeS: file.heatCapacityGuidePhysicsState.simulationTimeS,
+});
+
+export const setHeatCapacityGuideStopcockOpen = (
+  file: WorkbenchHeatCapacityState,
+  nextOpen: boolean,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  if (file.heatCapacityMode !== 'guide') return file;
+  const currentFile = stepHeatCapacityGuideWorkbenchFile(file, now);
+  const action: HeatCapacityGuideAction = nextOpen ? 'openStopcock' : 'closeStopcock';
+  const proposedFile = {
+    ...currentFile,
+    stopcockAngleDeg: getHeatCapacityStopcockTargetAngle(nextOpen),
+    glassPistonState: nextOpen ? 'open' as const : 'closed' as const,
+  };
+  const context = getHeatCapacityGuideActionContext(proposedFile, action);
+  const guard = getHeatCapacityGuideActionGuard(currentFile.heatCapacityGuideWorkflow, context);
+  const workflow = transitionHeatCapacityGuideWorkflow(currentFile.heatCapacityGuideWorkflow, context);
+  const baseFile = guard.allowed ? proposedFile : currentFile;
+  return mergeHeatCapacityGuideRuntimeState(
+    baseFile,
+    currentFile.heatCapacityGuidePhysicsState,
+    workflow,
+    now,
+  );
+};
+
+export const setHeatCapacityGuidePumpValveOpen = (
+  file: WorkbenchHeatCapacityState,
+  nextOpen: boolean,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  if (file.heatCapacityMode !== 'guide') return file;
+  const currentFile = stepHeatCapacityGuideWorkbenchFile(file, now);
+  const action: HeatCapacityGuideAction = nextOpen ? 'openPumpValve' : 'closePumpValve';
+  const proposedFile = {
+    ...currentFile,
+    pumpValveOpen: nextOpen,
+    pumpValveState: nextOpen ? 'open' as const : 'closed' as const,
+    pumpHint: nextOpen ? '打气阀门已打开' : '打气阀门已关闭',
+  };
+  const context = getHeatCapacityGuideActionContext(proposedFile, action);
+  const guard = getHeatCapacityGuideActionGuard(currentFile.heatCapacityGuideWorkflow, context);
+  const workflow = transitionHeatCapacityGuideWorkflow(currentFile.heatCapacityGuideWorkflow, context);
+  const baseFile = guard.allowed ? proposedFile : currentFile;
+  return mergeHeatCapacityGuideRuntimeState(
+    baseFile,
+    currentFile.heatCapacityGuidePhysicsState,
+    workflow,
+    now,
+  );
+};
+
+export const setHeatCapacityGuideEquilibriumSpeedMultiplier = (
+  file: WorkbenchHeatCapacityState,
+  multiplier: unknown,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  if (file.heatCapacityMode !== 'guide') return file;
+  return {
+    ...file,
+    heatCapacityGuideWorkflow: {
+      ...file.heatCapacityGuideWorkflow,
+      speedMultiplier: normalizeHeatCapacityGuideSpeedMultiplier(multiplier),
+    },
+    lastUpdateMs: file.powerOn ? now : file.lastUpdateMs,
+    updatedAt: now,
+  };
+};
+
+export type HeatCapacityGuideWorkbenchRecordKind = 'u0' | 'u1' | 'u2';
+
+export interface HeatCapacityGuideRecordButtonState {
+  visible: boolean;
+  disabledReason: string | null;
+}
+
+export const getHeatCapacityGuideRecordButtonState = (
+  file: WorkbenchHeatCapacityState,
+  kind: HeatCapacityGuideWorkbenchRecordKind,
+): HeatCapacityGuideRecordButtonState => {
+  const step = file.heatCapacityGuideWorkflow.step;
+  const visible = (
+    (kind === 'u0' && step === 'recordU0Required') ||
+    (kind === 'u1' && step === 'recordU1Required') ||
+    (kind === 'u2' && step === 'recordU2Required')
+  );
+  return {
+    visible,
+    disabledReason: visible ? null : 'guide-step-not-ready',
+  };
+};
+
+export type HeatCapacityGuideWorkbenchRecordAttempt =
+  | {
+      accepted: true;
+      reason: 'accepted';
+      kind: HeatCapacityGuideWorkbenchRecordKind;
+      file: WorkbenchHeatCapacityState;
+    }
+  | {
+      accepted: false;
+      reason: string;
+      kind: HeatCapacityGuideWorkbenchRecordKind;
+      file: WorkbenchHeatCapacityState;
+    };
+
+export const applyHeatCapacityGuideRecordWorkbenchState = (
+  file: WorkbenchHeatCapacityState,
+  kind: HeatCapacityGuideWorkbenchRecordKind,
+  now = Date.now(),
+): HeatCapacityGuideWorkbenchRecordAttempt => {
+  if (file.heatCapacityMode !== 'guide' || !file.heatCapacityGuideTrial) {
+    return { accepted: false, reason: 'not-guide', kind, file };
+  }
+  const action: HeatCapacityGuideAction = kind === 'u0'
+    ? 'recordU0'
+    : kind === 'u1'
+      ? 'recordU1'
+      : 'recordU2';
+  const currentFile = stepHeatCapacityGuideWorkbenchFile(file, now);
+  const context = getHeatCapacityGuideActionContext(currentFile, action);
+  const guard = getHeatCapacityGuideActionGuard(currentFile.heatCapacityGuideWorkflow, context);
+  const workflow = transitionHeatCapacityGuideWorkflow(currentFile.heatCapacityGuideWorkflow, context);
+  if (!guard.allowed) {
+    return {
+      accepted: false,
+      reason: guard.message,
+      kind,
+      file: mergeHeatCapacityGuideRuntimeState(
+        currentFile,
+        currentFile.heatCapacityGuidePhysicsState,
+        workflow,
+        now,
+      ),
+    };
+  }
+  const activeDisplay = selectActiveHeatCapacityWorkbenchDisplay(currentFile);
+  const recordInput = {
+    atS: currentFile.heatCapacityGuidePhysicsState.simulationTimeS,
+    displayPressureMv: activeDisplay.pressureMv,
+    displayTemperatureMv: activeDisplay.temperatureMv,
+    calibrationVersion: 1,
+    zeroEventId: 'guide-zero',
+  };
+  const trial = kind === 'u0'
+    ? recordGuideU0(currentFile.heatCapacityGuideTrial, recordInput)
+    : kind === 'u1'
+      ? recordGuideU1(currentFile.heatCapacityGuideTrial, recordInput)
+      : recordGuideU2(currentFile.heatCapacityGuideTrial, recordInput, now, {
+          atmosphericPressureKPa: currentFile.heatCapacityGuidePhysicsConfig.environment.ambientPressureKPa,
+          pressureSensitivityMvPerKPa: currentFile.pressureSensitivityMvPerKPa,
+        });
+  return {
+    accepted: true,
+    reason: 'accepted',
+    kind,
+    file: mergeHeatCapacityGuideRuntimeState(
+      {
+        ...currentFile,
+        heatCapacityGuideTrial: trial,
+        recordedPressures: {
+          ...currentFile.recordedPressures,
+          ...(kind === 'u0' ? { p0: currentFile.heatCapacityGuidePhysicsConfig.environment.ambientPressureKPa } : {}),
+          ...(kind === 'u1' ? { p1: activeDisplay.pressureMv } : {}),
+          ...(kind === 'u2' ? { p2: activeDisplay.pressureMv } : {}),
+        },
+        heatCapacityProcessingCalculated: kind === 'u2',
+        heatCapacityProcessingResult: kind === 'u2' && trial.correctedSignals
+          ? {
+              calculated: true,
+              status: 'ready' as const,
+              validTrialCount: 1,
+              trialResults: [{
+                trialIndex: 1,
+                U1Mv: trial.correctedSignals.U1CorrectedMv,
+                U2Mv: trial.correctedSignals.U2CorrectedMv,
+                deltaP1KPa: trial.correctedSignals.U1CorrectedMv / currentFile.pressureSensitivityMvPerKPa,
+                deltaP2KPa: trial.correctedSignals.U2CorrectedMv / currentFile.pressureSensitivityMvPerKPa,
+                P1KPa: currentFile.heatCapacityGuidePhysicsConfig.environment.ambientPressureKPa +
+                  trial.correctedSignals.U1CorrectedMv / currentFile.pressureSensitivityMvPerKPa,
+                P2KPa: currentFile.heatCapacityGuidePhysicsConfig.environment.ambientPressureKPa +
+                  trial.correctedSignals.U2CorrectedMv / currentFile.pressureSensitivityMvPerKPa,
+                gamma: trial.correctedSignals.gamma,
+                status: 'valid' as const,
+                message: '引导模式单组计算完成',
+              }],
+              meanGamma: trial.correctedSignals.gamma,
+              theoreticalGamma: currentFile.theoreticalGamma,
+              relativeErrorPercent: Math.abs(
+                (trial.correctedSignals.gamma - currentFile.theoreticalGamma) / currentFile.theoreticalGamma,
+              ) * 100,
+              message: '引导模式单组计算完成',
+            }
+          : currentFile.heatCapacityProcessingResult,
+      },
+      currentFile.heatCapacityGuidePhysicsState,
+      workflow,
+      now,
+    ),
+  };
+};
+
+export const stepHeatCapacityGuideWorkbenchFile = (
+  file: WorkbenchHeatCapacityState,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  const dtS = file.lastUpdateMs === null ? 0 : Math.max(0, (now - file.lastUpdateMs) / 1000);
+  let guidePhysicsState = file.heatCapacityGuidePhysicsState;
+  let guideWorkflow = file.heatCapacityGuideWorkflow;
+
+  if (!guideWorkflow.paused && dtS > 0) {
+    const isWaitingStep = guideWorkflow.step === 'u1Waiting' || guideWorkflow.step === 'u2Waiting';
+    const speed = isWaitingStep ? guideWorkflow.speedMultiplier : 1;
+    const targetWaitEndS = isWaitingStep && guideWorkflow.waitStartedAtS !== null
+      ? guideWorkflow.waitStartedAtS + HEAT_CAPACITY_GUIDE_WAIT_TARGET_S
+      : null;
+    const requestedDtS = dtS * speed;
+    const boundedDtS = targetWaitEndS === null
+      ? requestedDtS
+      : Math.max(0, Math.min(requestedDtS, targetWaitEndS - guidePhysicsState.simulationTimeS));
+    guidePhysicsState = stepGuidePhysicsState(
+      guidePhysicsState,
+      file.heatCapacityGuidePhysicsConfig,
+      {
+        dtS: boundedDtS,
+        powerOn: file.powerOn,
+        pumpValveOpen: file.pumpValveOpen,
+        stopcockOpen: getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open',
+      },
+    );
+    const timer = deriveHeatCapacityGuideExperimentTimer(guideWorkflow, guidePhysicsState.simulationTimeS);
+    if (timer.complete && (guideWorkflow.step === 'u1Waiting' || guideWorkflow.step === 'u2Waiting')) {
+      guideWorkflow = transitionHeatCapacityGuideWorkflow(guideWorkflow, {
+        action: 'timerComplete',
+        powerOn: file.powerOn,
+        pumpValveOpen: file.pumpValveOpen,
+        stopcockOpen: getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open',
+        displayPressureMv: file.pressureSignalMvDisplayed,
+        simulationTimeS: guidePhysicsState.simulationTimeS,
+      });
+    }
+  }
+
+  return {
+    ...mergeHeatCapacityGuideRuntimeState(file, guidePhysicsState, guideWorkflow, now),
+    lastUpdateMs: now,
+  };
+};
+
 export const stepHeatCapacityWorkbenchFile = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
   if (file.heatCapacityMode === 'free') {
     return stepHeatCapacityFreeWorkbenchFile(file, now);
+  }
+  if (file.heatCapacityMode === 'guide') {
+    return stepHeatCapacityGuideWorkbenchFile(file, now);
   }
   const runtime = getHeatCapacityRuntimeStateFromFile(file);
   const dtS = runtime.lastUpdateMs === null ? 0 : (now - runtime.lastUpdateMs) / 1000;
@@ -3452,12 +4136,51 @@ const applyHeatCapacityProfileToProcessSample = (
   };
 };
 
+const captureHeatCapacityPhysicalKernelProcessSample = (
+  file: WorkbenchHeatCapacityState,
+  key: HeatCapacityProcessSampleKey,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  const display = getFreeSensorDisplay(
+    file.heatCapacityFreeSensorState,
+    file.heatCapacityFreeCalibrationState,
+    getEffectiveHeatCapacityFreeSensorConfig(
+      file.heatCapacityFreeSensorConfig,
+      file.heatCapacityFreeInstrumentNoiseEnabled,
+    ),
+  );
+  const derived = deriveFreePhysicalState(file.heatCapacityFreePhysicsState, file.heatCapacityFreePhysicsConfig);
+  const point: HeatCapacityProcessSamplePoint = {
+    timeS: roundNumber(file.heatCapacityFreePhysicsState.simulationTimeS, 3),
+    phase: file.heatCapacityPhase,
+    temperatureSignalMv: roundNumber(truncateHeatCapacitySignalMv(display.displayTemperatureMv), 3),
+    pressureSignalMv: roundNumber(truncateHeatCapacitySignalMv(display.displayPressureMv), 3),
+    gasTemperatureK: roundNumber(file.heatCapacityFreePhysicsState.gasTemperatureK, 3),
+    gasPressureKPaAbs: roundNumber(derived.gasPressureKPa, 3),
+    pressureDeltaKPa: roundNumber(derived.pressureDeltaKPa, 3),
+    pumpFrequency: roundNumber(file.pumpFrequency, 3),
+    pumpValveOpen: file.pumpValveOpen,
+    stopcockOpen: getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open',
+  };
+  return {
+    ...file,
+    heatCapacityProcessSamples: {
+      ...file.heatCapacityProcessSamples,
+      [key]: point,
+    },
+    updatedAt: now,
+  };
+};
+
 export const captureHeatCapacityWorkbenchSample = (
   file: WorkbenchHeatCapacityState,
   key: HeatCapacityProcessSampleKey,
   now = Date.now(),
   options: { applyProfile?: boolean } = {},
 ): WorkbenchHeatCapacityState => {
+  if (file.heatCapacityMode === 'guide') {
+    return captureHeatCapacityPhysicalKernelProcessSample(file, key, now);
+  }
   const sampledFile = mergeHeatCapacityRuntimeState(
     file,
     {
@@ -3720,6 +4443,16 @@ export const createDefaultHeatCapacityFreeRuntimeFields = (
   };
 };
 
+const createDefaultHeatCapacityGuideRuntimeFields = () => {
+  const heatCapacityGuidePhysicsConfig = createDefaultGuidePhysicsConfig();
+  return {
+    heatCapacityGuidePhysicsConfig,
+    heatCapacityGuidePhysicsState: createDefaultGuidePhysicsState(heatCapacityGuidePhysicsConfig),
+    heatCapacityGuideWorkflow: createDefaultHeatCapacityGuideWorkflow(),
+    heatCapacityGuideTrial: null,
+  };
+};
+
 export const createDefaultHeatCapacityFile = (
   index = 1,
   defaults?: WorkbenchFileLayoutDefaults,
@@ -3727,6 +4460,7 @@ export const createDefaultHeatCapacityFile = (
   const runtime = createDefaultHeatCapacityRuntimeState();
   const gaugePressureState = getHeatCapacityGaugePressureState(runtime.pressureDeltaKPa, false);
   const freeRuntimeFields = createDefaultHeatCapacityFreeRuntimeFields(`free-runtime-${index}`);
+  const guideRuntimeFields = createDefaultHeatCapacityGuideRuntimeFields();
   return {
     ...createBaseFile('heatCapacity', index, DEFAULT_HEAT_CAPACITY_PARAMS, {
       ...defaults,
@@ -3739,6 +4473,7 @@ export const createDefaultHeatCapacityFile = (
     heatCapacityFreeTraceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
     heatCapacityFreeTraceStore: createDefaultFreeTraceStore(),
     heatCapacityFreeTrials: [],
+    ...guideRuntimeFields,
     selectedHeatCapacityPanel: 'preview',
     openHeatCapacityTabs: [],
     activeHeatCapacityTabId: null,
@@ -3829,6 +4564,90 @@ export const createDefaultHeatCapacityFile = (
   };
 };
 
+export const startHeatCapacityGuideWorkbenchState = (
+  file: WorkbenchHeatCapacityState,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  const guideRuntimeFields = createDefaultHeatCapacityGuideRuntimeFields();
+  const guideConfig = guideRuntimeFields.heatCapacityGuidePhysicsConfig;
+  const pressureInitialBiasMv = createHeatCapacityGuidePressureInitialBiasMv(`guide-${file.id}-${now}`);
+  return {
+    ...file,
+    ...guideRuntimeFields,
+    heatCapacityMode: 'guide',
+    heatCapacityGuideTrial: createHeatCapacityGuideTrial('guide-trial-1'),
+    powerOn: false,
+    runState: 'idle',
+    heatCapacityPhase: 'powerOff',
+    glassPistonState: 'closed',
+    stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
+    gasPressureKPaAbs: guideConfig.environment.ambientPressureKPa,
+    gasTemperatureK: guideConfig.environment.ambientTemperatureK,
+    pressureDeltaKPa: 0,
+    simulationTimeS: 0,
+    lastUpdateMs: null,
+    pressureSignalMvRaw: 0,
+    pressureSignalMvDisplayed: pressureInitialBiasMv,
+    pressureInitialBiasMv,
+    pressureSignalTargetMv: pressureInitialBiasMv,
+    temperatureSignalTargetMv: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient,
+    displayResponseLastUpdateMs: null,
+    pressureZeroDisplayedSamples: [],
+    pressureZeroed: false,
+    pressureZeroAdjusted: false,
+    pressureZeroKnobAngle: 0,
+    pressureZeroOffset: 0,
+    pressureZeroDisplayText: getHeatCapacityPressureZeroDisplayText(false, 0),
+    pressureZeroAdjustMode: 'none',
+    pressureRawPlaceholder: 0,
+    pressureDisplayedPlaceholder: pressureInitialBiasMv,
+    pressureReleaseBurstUntilMs: null,
+    pressureSafetyStatus: 'normal',
+    pressureSafetyMessage: null,
+    pressureBlockedPumping: false,
+    pressureOverLimit: false,
+    temperatureSignalMv: null,
+    pressureSignalMv: null,
+    pressureKPa: null,
+    pressureLimitKPa: guideConfig.pumpPressureLimitKPa,
+    pumpValveOpen: false,
+    pumpValveState: 'closed',
+    pumpBulbState: 'idle',
+    pumpStrokeTimestamps: [],
+    pumpFrequency: 0,
+    pumpFrequencyStatus: 'idle',
+    lastPumpTime: null,
+    pumpStrokeCount: 0,
+    pumpHint: '未打气',
+    recordedPressures: { p0: guideConfig.environment.ambientPressureKPa, p1: null, p2: null },
+    heatCapacityTrials: createHeatCapacityTrials(3),
+    heatCapacityActiveTrialIndex: 0,
+    heatCapacityProcessingCalculated: false,
+    heatCapacityProcessingResult: createDefaultHeatCapacityProcessingResult(guideConfig.gamma),
+    heatCapacityExperimentSeed: null,
+    heatCapacityExperimentProfile: null,
+    heatCapacityProcessSamples: {},
+    theoreticalGamma: guideConfig.gamma,
+    updatedAt: now,
+  };
+};
+
+export const resetHeatCapacityGuideWorkbenchState = (
+  file: WorkbenchHeatCapacityState,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => startHeatCapacityGuideWorkbenchState(file, now);
+
+export const abortHeatCapacityGuideWorkbenchState = (
+  file: WorkbenchHeatCapacityState,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  const resetGuideFile = {
+    ...file,
+    ...createDefaultHeatCapacityGuideRuntimeFields(),
+  };
+  return resetHeatCapacityFreeRunWorkbenchState(resetGuideFile, now);
+};
+
 export const enterHeatCapacityFreeModeWorkbenchState = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
@@ -3862,11 +4681,13 @@ export const resetHeatCapacityFreeRunWorkbenchState = (
     `free-runtime-${file.id}-${now}`,
     parameterState,
   );
+  const guideRuntimeFields = createDefaultHeatCapacityGuideRuntimeFields();
   const resetStructure = resolveHeatCapacityFreeResetStructure(file);
   const resetFile = mergeHeatCapacityFreeRuntimeState(
     {
       ...file,
       ...freeRuntimeFields,
+      ...guideRuntimeFields,
       heatCapacityFreeTraceStore: resetStructure.heatCapacityFreeTraceStore,
       heatCapacityMode: 'free',
       powerOn: false,
@@ -3939,6 +4760,7 @@ export const resetHeatCapacityFreeRunWorkbenchState = (
 export const selectActiveHeatCapacityWorkbenchDisplay = (
   file: WorkbenchHeatCapacityState,
 ): HeatCapacityDisplaySource => {
+  const usesPhysicalKernel = isHeatCapacityPhysicalKernelMode(file.heatCapacityMode);
   const freeDisplay = getFreeSensorDisplay(
     file.heatCapacityFreeSensorState,
     file.heatCapacityFreeCalibrationState,
@@ -3960,12 +4782,25 @@ export const selectActiveHeatCapacityWorkbenchDisplay = (
     },
     {
       source: 'free',
-      pressureMv: Number.isFinite(file.pressureSignalMv)
+      pressureMv: usesPhysicalKernel
+        ? truncateHeatCapacitySignalMv(freeDisplay.displayPressureMv)
+        : Number.isFinite(file.pressureSignalMv)
         ? truncateHeatCapacitySignalMv(file.pressureSignalMv ?? freeDisplay.displayPressureMv)
         : truncateHeatCapacitySignalMv(freeDisplay.displayPressureMv),
-      temperatureMv: Number.isFinite(file.temperatureSignalMv)
+      temperatureMv: usesPhysicalKernel
+        ? truncateHeatCapacitySignalMv(freeDisplay.displayTemperatureMv)
+        : Number.isFinite(file.temperatureSignalMv)
         ? truncateHeatCapacitySignalMv(file.temperatureSignalMv ?? freeDisplay.displayTemperatureMv)
         : truncateHeatCapacitySignalMv(freeDisplay.displayTemperatureMv),
+    },
+    {
+      source: 'guide',
+      pressureMv: Number.isFinite(file.pressureSignalMv)
+        ? truncateHeatCapacitySignalMv(file.pressureSignalMv ?? 0)
+        : truncateHeatCapacitySignalMv(file.pressureSignalMvDisplayed),
+      temperatureMv: Number.isFinite(file.temperatureSignalMv)
+        ? truncateHeatCapacitySignalMv(file.temperatureSignalMv ?? DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient)
+        : truncateHeatCapacitySignalMv(file.temperatureSignalTargetMv),
     },
   );
 };

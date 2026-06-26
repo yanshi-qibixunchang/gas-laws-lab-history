@@ -212,6 +212,13 @@ export interface HeatCapacityFreePersistenceDataV1 {
   uiReplay: HeatCapacityFreeUiReplayV1;
 }
 
+export interface HeatCapacityGuidePersistenceDataV1 {
+  physicsConfig: WorkbenchHeatCapacityState['heatCapacityGuidePhysicsConfig'];
+  physicsState: WorkbenchHeatCapacityState['heatCapacityGuidePhysicsState'];
+  workflow: WorkbenchHeatCapacityState['heatCapacityGuideWorkflow'];
+  trial: WorkbenchHeatCapacityState['heatCapacityGuideTrial'];
+}
+
 export interface HeatCapacityPersistencePayloadV1 {
   experimentKind: 'heatCapacity';
   heatCapacitySchemaVersion: typeof HEAT_CAPACITY_SCHEMA_VERSION;
@@ -231,7 +238,7 @@ export interface HeatCapacityPersistencePayloadV1 {
     experimentProfile: WorkbenchHeatCapacityState['heatCapacityExperimentProfile'];
   };
   free: HeatCapacityFreePersistenceDataV1 | null;
-  guided: null;
+  guided: HeatCapacityGuidePersistenceDataV1 | null;
   demo: null;
 }
 
@@ -393,7 +400,14 @@ export const createHeatCapacityPersistencePayload = (
       references: createEmptyHeatCapacityReferenceStore(),
       uiReplay: createHeatCapacityFreeUiReplay(file),
     },
-    guided: null,
+    guided: file.heatCapacityMode === 'guide'
+      ? {
+          physicsConfig: clonePersistenceValue(file.heatCapacityGuidePhysicsConfig),
+          physicsState: clonePersistenceValue(file.heatCapacityGuidePhysicsState),
+          workflow: clonePersistenceValue(file.heatCapacityGuideWorkflow),
+          trial: clonePersistenceValue(file.heatCapacityGuideTrial),
+        }
+      : null,
     demo: null,
   };
 };
@@ -739,6 +753,98 @@ const restoreEquilibriumSpeed = (
   )
 );
 
+const guideWorkflowSteps = new Set([
+  'powerRequired',
+  'openStopcockForZeroRequired',
+  'zeroRequired',
+  'recordU0Required',
+  'closeStopcockBeforePumpRequired',
+  'openPumpValveRequired',
+  'pumpRequired',
+  'closePumpValveRequired',
+  'u1Waiting',
+  'recordU1Required',
+  'openStopcockForReleaseRequired',
+  'closeStopcockAfterReleaseRequired',
+  'u2Waiting',
+  'recordU2Required',
+  'closePowerRequired',
+  'completed',
+]);
+
+const normalizeGuideWorkflow = (
+  value: unknown,
+  fallback: WorkbenchHeatCapacityState['heatCapacityGuideWorkflow'],
+): WorkbenchHeatCapacityState['heatCapacityGuideWorkflow'] => {
+  if (!isRecord(value) || typeof value.step !== 'string' || !guideWorkflowSteps.has(value.step)) {
+    return fallback;
+  }
+  return {
+    ...fallback,
+    ...value,
+    step: value.step as WorkbenchHeatCapacityState['heatCapacityGuideWorkflow']['step'],
+    speedMultiplier: restoreEquilibriumSpeed(value.speedMultiplier),
+    paused: value.paused === true,
+    waitStartedAtS: isFiniteNumber(value.waitStartedAtS) ? value.waitStartedAtS : null,
+    waitStage: value.waitStage === 'u1' || value.waitStage === 'u2' ? value.waitStage : null,
+    strongReminderActive: value.strongReminderActive === true,
+    strongReminderTargetControlId: typeof value.strongReminderTargetControlId === 'string'
+      ? value.strongReminderTargetControlId
+      : null,
+  };
+};
+
+const normalizeGuidePhysicsConfig = (
+  value: unknown,
+  fallback: WorkbenchHeatCapacityState['heatCapacityGuidePhysicsConfig'],
+): WorkbenchHeatCapacityState['heatCapacityGuidePhysicsConfig'] => (
+  isRecord(value)
+    ? {
+        ...fallback,
+        ...clonePersistenceValue(value),
+        environment: isRecord(value.environment)
+          ? { ...fallback.environment, ...clonePersistenceValue(value.environment) }
+          : fallback.environment,
+        thermal: isRecord(value.thermal)
+          ? { ...fallback.thermal, ...clonePersistenceValue(value.thermal) }
+          : fallback.thermal,
+      } as WorkbenchHeatCapacityState['heatCapacityGuidePhysicsConfig']
+    : fallback
+);
+
+const normalizeGuidePhysicsState = (
+  value: unknown,
+  fallback: WorkbenchHeatCapacityState['heatCapacityGuidePhysicsState'],
+): WorkbenchHeatCapacityState['heatCapacityGuidePhysicsState'] => (
+  isRecord(value)
+    ? {
+        ...fallback,
+        ...clonePersistenceValue(value),
+        simulationTimeS: finiteOrDefault(value.simulationTimeS, fallback.simulationTimeS),
+        gasAmountRatio: finiteOrDefault(value.gasAmountRatio, fallback.gasAmountRatio),
+        gasTemperatureK: finiteOrDefault(value.gasTemperatureK, fallback.gasTemperatureK),
+        wallTemperatureK: finiteOrDefault(value.wallTemperatureK, fallback.wallTemperatureK),
+        pumpProcesses: Array.isArray(value.pumpProcesses)
+          ? clonePersistenceValue(value.pumpProcesses)
+          : fallback.pumpProcesses,
+        pumpStrokeCount: finiteOrDefault(value.pumpStrokeCount, fallback.pumpStrokeCount),
+        lastPumpStrokeAtS: isFiniteNumber(value.lastPumpStrokeAtS) ? value.lastPumpStrokeAtS : null,
+        lastPumpValveOpenedAtS: isFiniteNumber(value.lastPumpValveOpenedAtS) ? value.lastPumpValveOpenedAtS : null,
+        lastPumpValveClosedAtS: isFiniteNumber(value.lastPumpValveClosedAtS) ? value.lastPumpValveClosedAtS : null,
+        lastStopcockOpenedAtS: isFiniteNumber(value.lastStopcockOpenedAtS) ? value.lastStopcockOpenedAtS : null,
+        lastStopcockClosedAtS: isFiniteNumber(value.lastStopcockClosedAtS) ? value.lastStopcockClosedAtS : null,
+      } as WorkbenchHeatCapacityState['heatCapacityGuidePhysicsState']
+    : fallback
+);
+
+const normalizeGuideTrial = (
+  value: unknown,
+): WorkbenchHeatCapacityState['heatCapacityGuideTrial'] => (
+  isRecord(value) && value.source === 'guide' && typeof value.id === 'string'
+    ? clonePersistenceValue(value) as unknown as WorkbenchHeatCapacityState['heatCapacityGuideTrial']
+    : null
+);
+
 export const restoreHeatCapacityFileFromPersistencePayload = (
   fileEnvelope: WorkbenchExperimentFileEnvelopeV1,
   payload: unknown,
@@ -747,7 +853,9 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
   const fallback = createDefaultHeatCapacityFile(index);
   const heatPayload = isRecord(payload) ? payload as Partial<HeatCapacityPersistencePayloadV1> : {};
   const free = isRecord(heatPayload.free) ? heatPayload.free as Partial<HeatCapacityFreePersistenceDataV1> : null;
+  const guided = isRecord(heatPayload.guided) ? heatPayload.guided as Partial<HeatCapacityGuidePersistenceDataV1> : null;
   const common = isRecord(heatPayload.common) ? heatPayload.common as Partial<HeatCapacityPersistencePayloadV1['common']> : {};
+  const restoredMode = normalizePayloadMode(heatPayload.mode);
   const snapshot = normalizeHeatCapacityFreeConfigSnapshot(free?.config);
   const uiReplay = isRecord(free?.uiReplay) ? free!.uiReplay as Partial<HeatCapacityFreeUiReplayV1> : {};
   const controls = isRecord(free?.controls) ? free!.controls as Partial<HeatCapacityFreePersistenceDataV1['controls']> : {};
@@ -807,6 +915,28 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     { heatCapacityFreeTrials: restoredFreeTrials },
     restoredStopcockFlowOpen || restoredStopcockPendingOpenAtMs !== null,
   );
+  const restoredGuideFields = restoredMode === 'guide' && guided
+    ? {
+        heatCapacityGuidePhysicsConfig: normalizeGuidePhysicsConfig(
+          guided.physicsConfig,
+          fallback.heatCapacityGuidePhysicsConfig,
+        ),
+        heatCapacityGuidePhysicsState: normalizeGuidePhysicsState(
+          guided.physicsState,
+          fallback.heatCapacityGuidePhysicsState,
+        ),
+        heatCapacityGuideWorkflow: normalizeGuideWorkflow(
+          guided.workflow,
+          fallback.heatCapacityGuideWorkflow,
+        ),
+        heatCapacityGuideTrial: normalizeGuideTrial(guided.trial),
+      }
+    : {
+        heatCapacityGuidePhysicsConfig: fallback.heatCapacityGuidePhysicsConfig,
+        heatCapacityGuidePhysicsState: fallback.heatCapacityGuidePhysicsState,
+        heatCapacityGuideWorkflow: fallback.heatCapacityGuideWorkflow,
+        heatCapacityGuideTrial: fallback.heatCapacityGuideTrial,
+      };
 
   return {
     ...fallback,
@@ -817,7 +947,7 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     lastOpenedAt: fileEnvelope.lastOpenedAt ?? fileEnvelope.updatedAt,
     visiblePanels: visiblePanels as WorkbenchHeatCapacityState['visiblePanels'],
     liveWorkspaceSplitRatio,
-    heatCapacityMode: normalizePayloadMode(heatPayload.mode),
+    heatCapacityMode: restoredMode,
     heatCapacityTrials: Array.isArray(common.trials) ? common.trials : fallback.heatCapacityTrials,
     heatCapacityExpectedTrialCount: isFiniteNumber(common.expectedTrialCount)
       ? common.expectedTrialCount
@@ -867,5 +997,6 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityFreeStopcockFlowOpen: restoredStopcockFlowOpen,
     heatCapacityFreeStopcockPendingOpenAtMs: restoredStopcockPendingOpenAtMs,
     heatCapacityFreeStopcockFlowPurpose: restoredStopcockFlowPurpose,
+    ...restoredGuideFields,
   };
 };

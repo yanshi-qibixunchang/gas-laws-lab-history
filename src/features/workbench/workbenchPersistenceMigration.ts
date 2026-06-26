@@ -62,6 +62,10 @@ const fallbackSession = (): WorkbenchSessionState => ({
   files: [],
   activeFileId: '',
   selectedPanel: 'preview',
+  heatCapacityGuideSession: {
+    fileId: null,
+    strongReminderActive: false,
+  },
 });
 
 const createUnsupportedFutureDiagnostic = (
@@ -117,6 +121,7 @@ export const encodeWorkbenchStorageEnvelope = (
   activeFileId: string,
   selectedPanel: WorkbenchPanelKey,
   savedAt = Date.now(),
+  heatCapacityGuideSession: WorkbenchSessionState['heatCapacityGuideSession'] = undefined,
 ): WorkbenchSessionEnvelopeV2 => ({
   schemaFamily: WORKBENCH_SESSION_SCHEMA_FAMILY,
   schemaVersion: WORKBENCH_SESSION_SCHEMA_VERSION,
@@ -125,6 +130,7 @@ export const encodeWorkbenchStorageEnvelope = (
   activeFileId: activeFileId || null,
   selectedPanel,
   files: files.map((file) => encodeFileEnvelope(file, savedAt)),
+  ...(heatCapacityGuideSession ? { heatCapacityGuideSession } : {}),
 });
 
 export const encodeWorkbenchClosedFilesStorageEnvelope = (
@@ -226,6 +232,7 @@ const decodeEnvelopeAsRuntimeSession = (
     files: runtimeFiles,
     activeFileId: envelope.activeFileId ?? runtimeFiles[0]?.id ?? '',
     selectedPanel: envelope.selectedPanel,
+    heatCapacityGuideSession: envelope.heatCapacityGuideSession,
   };
 };
 

@@ -142,8 +142,8 @@ assert.equal(slowPump.accepted, true);
 assert.equal(slowPump.state.heatCapacityPhase, 'pumping');
 assert.equal(slowPump.state.pressureDeltaKPa > powered.pressureDeltaKPa, true);
 assert.equal(slowPump.state.temperatureSignalMv > powered.temperatureSignalMv, true);
-assert.equal(slowPump.state.pressureSignalMvRaw >= 6, true);
-assert.equal(slowPump.state.pressureSignalMvRaw <= 10, true);
+assert.equal(slowPump.state.pressureSignalMvRaw >= 1.5, true);
+assert.equal(slowPump.state.pressureSignalMvRaw <= 2.5, true);
 
 const suitablePump = applyHeatCapacityPumpStroke(
   slowPump.state,
@@ -162,25 +162,24 @@ assert.equal(
   true,
 );
 const suitableGainMv = suitablePump.state.pressureSignalMvRaw - slowPump.state.pressureSignalMvRaw;
-assert.equal(suitableGainMv >= 30, true);
-assert.equal(suitableGainMv <= 42, true);
+assert.equal(suitableGainMv >= 6.5, true);
+assert.equal(suitableGainMv <= 7.5, true);
 
-let fourStrokeTeachingPump = powered;
-const fourStrokeStatuses = ['tooSlow', 'suitable', 'suitable', 'suitable'] as const;
-for (const [index, pumpFrequencyStatus] of fourStrokeStatuses.entries()) {
-  fourStrokeTeachingPump = applyHeatCapacityPumpStroke(
-    fourStrokeTeachingPump,
+let targetPressureTeachingPump = powered;
+for (let index = 0; index < 18; index += 1) {
+  targetPressureTeachingPump = applyHeatCapacityPumpStroke(
+    targetPressureTeachingPump,
     {
       ...baseControls,
       pumpValveOpen: true,
-      pumpFrequencyStatus,
-      pumpFrequency: pumpFrequencyStatus === 'suitable' ? 0.67 : 0.33,
+      pumpFrequencyStatus: 'suitable',
+      pumpFrequency: 1.55,
     },
     1_500 + index * 100,
   ).state;
 }
-assert.equal(fourStrokeTeachingPump.pressureSignalMvRaw >= 115, true);
-assert.equal(fourStrokeTeachingPump.pressureSignalMvRaw < 140, true);
+assert.equal(targetPressureTeachingPump.pressureSignalMvRaw >= 120, true);
+assert.equal(targetPressureTeachingPump.pressureSignalMvRaw < 140, true);
 
 let warmedByPumping = suitablePump.state;
 for (let index = 0; index < 8; index += 1) {
@@ -257,7 +256,7 @@ assert.equal(
 assert.equal(recovered.pressureSignalMvRaw > released.pressureSignalMvRaw, true);
 
 let pumpedSeries = powered;
-for (let index = 0; index < 14; index += 1) {
+for (let index = 0; index < 18; index += 1) {
   pumpedSeries = applyHeatCapacityPumpStroke(
     pumpedSeries,
     {
@@ -304,9 +303,10 @@ const closedRecovery = stepHeatCapacityExperiment(
   19_100,
 );
 assert.equal(
-  closedRecovery.temperatureSignalMv > highPressureReleased.temperatureSignalMv,
+  Math.abs(closedRecovery.temperatureSignalMv - initialTemperatureMv) <
+    Math.abs(highPressureReleased.temperatureSignalMv - initialTemperatureMv),
   true,
-  'closing the stopcock after release should recover temperature upward from the release low point',
+  'closing the stopcock after release should move temperature back toward the room-temperature baseline',
 );
 assert.equal(
   closedRecovery.temperatureSignalMv < stabilized.temperatureSignalMv,
@@ -324,9 +324,10 @@ for (let index = 0; index < 3; index += 1) {
   );
 }
 assert.equal(
-  heldOpenAfterRelease.temperatureSignalMv > highPressureReleased.temperatureSignalMv,
+  Math.abs(heldOpenAfterRelease.temperatureSignalMv - initialTemperatureMv) <
+    Math.abs(highPressureReleased.temperatureSignalMv - initialTemperatureMv),
   true,
-  'holding the stopcock open after release should still let the gas warm toward room temperature',
+  'holding the stopcock open after release should still move gas temperature toward room temperature',
 );
 
 const longOpenClosedRecovery = stepHeatCapacityExperiment(
@@ -351,9 +352,10 @@ for (let index = 0; index < 14; index += 1) {
   );
 }
 assert.equal(
-  roomRecoveredAfterRelease.temperatureSignalMv > highPressureReleased.temperatureSignalMv,
+  Math.abs(roomRecoveredAfterRelease.temperatureSignalMv - initialTemperatureMv) <
+    Math.abs(highPressureReleased.temperatureSignalMv - initialTemperatureMv),
   true,
-  'closed recovery after release should warm back upward from the release low point',
+  'closed recovery after release should move temperature back toward the room-temperature baseline',
 );
 assert.equal(
   Math.abs(roomRecoveredAfterRelease.temperatureSignalMv - initialTemperatureMv) <= 0.6,
@@ -374,5 +376,3 @@ assert.equal(sampled.heatCapacityProcessSamples.releaseLowSample?.stopcockOpen, 
 assert.equal('heatCapacityTrace' in sampled, false, 'process sampling should stay independent from realtime chart history');
 
 console.log('heatCapacityExperimentModel tests passed');
-
-

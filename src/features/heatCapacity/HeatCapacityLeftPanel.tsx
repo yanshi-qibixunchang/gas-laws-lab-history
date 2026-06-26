@@ -456,6 +456,22 @@ const freeCopyByLanguage = {
       notCalculable: '无法计算',
       reason: '原因',
     },
+    guideResult: {
+      title: '引导模式单组结果',
+      source: '数据来源：引导模式独立实验组',
+      waiting: '尚未完成引导实验。',
+      completed: '引导实验已完成。',
+      record: '记录',
+      pressure: '压强 / mV',
+      temperature: '温度 / mV',
+      corrected: '扣零值 / mV',
+      gamma: 'γ',
+      completedAt: '完成时间',
+      status: '状态',
+      pending: '待记录',
+      done: '完成',
+      resultSummary: (theoreticalGamma: string, gamma: string, relativeError: string) => `理论 γ = ${theoreticalGamma}　单组 γ = ${gamma}　相对误差 = ${relativeError}`,
+    },
   },
   'zh-TW': {
     freeRecording: {
@@ -495,6 +511,22 @@ const freeCopyByLanguage = {
       notCalculable: '無法計算',
       reason: '原因',
     },
+    guideResult: {
+      title: '引導模式單組結果',
+      source: '資料來源：引導模式獨立實驗組',
+      waiting: '尚未完成引導實驗。',
+      completed: '引導實驗已完成。',
+      record: '記錄',
+      pressure: '壓強 / mV',
+      temperature: '溫度 / mV',
+      corrected: '扣零值 / mV',
+      gamma: 'γ',
+      completedAt: '完成時間',
+      status: '狀態',
+      pending: '待記錄',
+      done: '完成',
+      resultSummary: (theoreticalGamma: string, gamma: string, relativeError: string) => `理論 γ = ${theoreticalGamma}　單組 γ = ${gamma}　相對誤差 = ${relativeError}`,
+    },
   },
   en: {
     freeRecording: {
@@ -533,6 +565,22 @@ const freeCopyByLanguage = {
       excluded: 'excluded',
       notCalculable: 'not calculable',
       reason: 'Reason',
+    },
+    guideResult: {
+      title: 'Guide single-trial result',
+      source: 'Source: independent Guide trial',
+      waiting: 'Guide experiment is not complete yet.',
+      completed: 'Guide experiment complete.',
+      record: 'Record',
+      pressure: 'Pressure / mV',
+      temperature: 'Temperature / mV',
+      corrected: 'Zero-corrected / mV',
+      gamma: 'γ',
+      completedAt: 'Completed at',
+      status: 'Status',
+      pending: 'pending',
+      done: 'complete',
+      resultSummary: (theoreticalGamma: string, gamma: string, relativeError: string) => `theoretical γ = ${theoreticalGamma}  single-trial γ = ${gamma}  relative error = ${relativeError}`,
     },
   },
 } as const;
@@ -919,6 +967,90 @@ const renderFreeDataAndResultsTab = (
                 </React.Fragment>
               );
             })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+const renderGuideDataAndResultsTab = (
+  file: WorkbenchHeatCapacityState,
+  copy: LocalizedText,
+) => {
+  const trial = file.heatCapacityGuideTrial;
+  const signals = trial?.correctedSignals ?? null;
+  const completed = signals !== null;
+  const relativeError = signals
+    ? Math.abs((signals.gamma - file.theoreticalGamma) / file.theoreticalGamma) * 100
+    : null;
+  const renderGuideRecordRow = (
+    key: string,
+    record: NonNullable<WorkbenchHeatCapacityState['heatCapacityGuideTrial']>['u0'] | null | undefined,
+    corrected: number | null | undefined,
+  ) => (
+    <tr>
+      <td>{key}</td>
+      <td>{formatNumber(record?.displayPressureMv, 2)}</td>
+      <td>{formatNumber(record?.displayTemperatureMv, 2)}</td>
+      <td>{formatNumber(corrected, 2)}</td>
+      <td>{record ? copy.guideResult.done : copy.guideResult.pending}</td>
+    </tr>
+  );
+
+  return (
+    <div
+      className="studio-heat-recording"
+      data-heat-capacity-recording-tab="true"
+      data-heat-capacity-record-source="guide"
+    >
+      <div className={`studio-result-status ${completed ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
+        <strong>{copy.guideResult.title}</strong>
+        <span>{completed ? copy.guideResult.completed : copy.guideResult.waiting}</span>
+      </div>
+      <section className="studio-heat-result-summary-line" data-heat-capacity-guide-result-summary="true">
+        <strong>
+          {copy.guideResult.resultSummary(
+            file.theoreticalGamma.toFixed(2),
+            formatGamma(signals?.gamma),
+            formatPercent(relativeError),
+          )}
+        </strong>
+        <span>{copy.guideResult.source}</span>
+      </section>
+      <div className="studio-heat-table-scroll">
+        <table className="studio-table studio-heat-recording-table" data-heat-capacity-guide-record-table="true">
+          <thead>
+            <tr>
+              <th>{copy.guideResult.record}</th>
+              <th>{copy.guideResult.pressure}</th>
+              <th>{copy.guideResult.temperature}</th>
+              <th>{copy.guideResult.corrected}</th>
+              <th>{copy.guideResult.status}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {renderGuideRecordRow('U₀', trial?.u0 ?? null, 0)}
+            {renderGuideRecordRow('U₁', trial?.u1 ?? null, signals?.U1CorrectedMv)}
+            {renderGuideRecordRow('U₂', trial?.u2 ?? null, signals?.U2CorrectedMv)}
+          </tbody>
+        </table>
+      </div>
+      <div className="studio-heat-table-scroll">
+        <table className="studio-table studio-heat-processing-table" data-heat-capacity-guide-result-table="true">
+          <thead>
+            <tr>
+              <th>{copy.guideResult.gamma}</th>
+              <th>{copy.guideResult.completedAt}</th>
+              <th>{copy.guideResult.status}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{formatGamma(signals?.gamma)}</td>
+              <td>{formatFreeTrialCompletedAt(trial?.completedAtMs)}</td>
+              <td>{completed ? copy.guideResult.done : copy.guideResult.pending}</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -1352,8 +1484,14 @@ export const HeatCapacityLeftPanel = ({
   const freeDataResultsPanel = file.heatCapacityMode === 'free' && (
     panelKey === 'heatCapacityRecords' || panelKey === 'heatCapacityProcessing'
   );
+  const guideDataResultsPanel = file.heatCapacityMode === 'guide' && (
+    panelKey === 'heatCapacityRecords' || panelKey === 'heatCapacityProcessing'
+  );
   const contentTitle = useMemo(() => {
-    if (file.heatCapacityMode === 'free' && (panelKey === 'heatCapacityRecords' || panelKey === 'heatCapacityProcessing')) {
+    if (
+      (file.heatCapacityMode === 'free' || file.heatCapacityMode === 'guide') &&
+      (panelKey === 'heatCapacityRecords' || panelKey === 'heatCapacityProcessing')
+    ) {
       return copy.dataAndResults;
     }
     if (panelKey === 'heatCapacityRecords') return copy.recording;
@@ -1378,6 +1516,8 @@ export const HeatCapacityLeftPanel = ({
                 onRemoveTrialRecord,
                 onCancelRemoveTrialRecord,
               )
+          : guideDataResultsPanel
+            ? renderGuideDataAndResultsTab(file, copy)
           : panelKey === 'heatCapacityRecords'
             ? renderRecordingTab(
                 file,

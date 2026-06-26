@@ -59,6 +59,7 @@ interface HeatCapacityHardSphereLayerProps {
   particleMultiplier?: number;
   speedMultiplier?: number;
   visualResetKey?: number;
+  paused?: boolean;
 }
 
 const BOTTLE_INNER_HALF_SIZE = new THREE.Vector3(0.73, 0.73, 0.73);
@@ -346,6 +347,7 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
   particleMultiplier = 1,
   speedMultiplier = 1,
   visualResetKey = 0,
+  paused = false,
 }) => {
   const hardSphereProfile = hardSphereContainerProfiles[containerProfile];
   const meshRef = useRef<THREE.InstancedMesh>(null);
@@ -440,6 +442,7 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
 
   useFrame((_, delta) => {
     if (!enabled) return;
+    if (paused) return;
     const mesh = meshRef.current;
     const currentVisual = visualStateRef.current;
     if (!mesh || !currentVisual) return;

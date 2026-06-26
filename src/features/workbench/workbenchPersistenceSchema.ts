@@ -49,6 +49,10 @@ export interface WorkbenchSessionEnvelopeV2 {
   activeFileId: string | null;
   selectedPanel: WorkbenchPanelKey;
   files: WorkbenchExperimentFileEnvelopeV1[];
+  heatCapacityGuideSession?: {
+    fileId: string | null;
+    strongReminderActive: boolean;
+  };
 }
 
 export interface WorkbenchClosedFilesEnvelopeV1 {
@@ -98,10 +102,21 @@ export const isWorkbenchSessionEnvelope = (
   value.schemaVersion === WORKBENCH_SESSION_SCHEMA_VERSION &&
   typeof value.appVersion === 'string' &&
   isFiniteNumber(value.savedAt) &&
-  (typeof value.activeFileId === 'string' || value.activeFileId === null) &&
-  typeof value.selectedPanel === 'string' &&
-  Array.isArray(value.files) &&
-  value.files.every(isWorkbenchExperimentFileEnvelope)
+    (typeof value.activeFileId === 'string' || value.activeFileId === null) &&
+    typeof value.selectedPanel === 'string' &&
+    Array.isArray(value.files) &&
+    value.files.every(isWorkbenchExperimentFileEnvelope) &&
+    (
+      value.heatCapacityGuideSession === undefined ||
+      (
+        isRecord(value.heatCapacityGuideSession) &&
+        (
+          typeof value.heatCapacityGuideSession.fileId === 'string' ||
+          value.heatCapacityGuideSession.fileId === null
+        ) &&
+        typeof value.heatCapacityGuideSession.strongReminderActive === 'boolean'
+      )
+    )
 );
 
 export const isWorkbenchClosedFilesEnvelope = (

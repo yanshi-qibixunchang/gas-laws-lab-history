@@ -502,10 +502,12 @@ assert.match(
   'hard-sphere simulation should move selected particles through an exiting state before hiding them',
 );
 
-assert.equal(resolveHeatCapacityHardSphereTemperatureColor('dark', 0), '#2563eb', 'dark low-temperature color should use the selected C-option cold blue');
-assert.equal(resolveHeatCapacityHardSphereTemperatureColor('dark', 1), '#f59e0b', 'dark high-temperature color should keep the A-option amber endpoint');
-assert.equal(resolveHeatCapacityHardSphereTemperatureColor('light', 0), '#2563eb', 'light low-temperature color should keep the A-option blue endpoint');
-assert.equal(resolveHeatCapacityHardSphereTemperatureColor('light', 1), '#ea580c', 'light high-temperature color should keep the A-option red-orange endpoint');
+assert.equal(resolveHeatCapacityHardSphereTemperatureColor('dark', 0), '#60a5fa', 'dark low-temperature color should stay bright enough on a dark workbench');
+assert.equal(resolveHeatCapacityHardSphereTemperatureColor('dark', 0.5), '#a78bfa', 'dark mid-temperature color should avoid green so particles stay distinct from bench materials');
+assert.equal(resolveHeatCapacityHardSphereTemperatureColor('dark', 1), '#fb923c', 'dark high-temperature color should keep a warm endpoint');
+assert.equal(resolveHeatCapacityHardSphereTemperatureColor('light', 0), '#1d4ed8', 'light low-temperature color should use a saturated blue endpoint');
+assert.equal(resolveHeatCapacityHardSphereTemperatureColor('light', 0.5), '#7c3aed', 'light mid-temperature color should move away from cyan-green bench tones');
+assert.equal(resolveHeatCapacityHardSphereTemperatureColor('light', 1), '#dc2626', 'light high-temperature color should use a clear warm red endpoint');
 assert.notEqual(
   resolveHeatCapacityHardSphereTemperatureColor('dark', 0.5),
   resolveHeatCapacityHardSphereTemperatureColor('light', 0.5),

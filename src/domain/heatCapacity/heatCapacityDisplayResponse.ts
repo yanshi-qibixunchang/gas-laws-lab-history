@@ -1,8 +1,8 @@
 export const HEAT_CAPACITY_VIDEO_PROFILE = {
   initialTemperatureMvRange: [1498.8, 1499.3] as const,
   initialPressureOffsetMvRange: [0.3, 1.5] as const,
-  pumpPressureIncrementSuitableMvRange: [36, 36] as const,
-  pumpPressureIncrementTooSlowMvRange: [8, 8] as const,
+  pumpPressureIncrementSuitableMvRange: [7, 7] as const,
+  pumpPressureIncrementTooSlowMvRange: [2, 2] as const,
   pumpPeakPressureMvRange: [104, 112] as const,
   stablePressureMvRange: [100, 108] as const,
   stableTemperatureMvRange: [1498.8, 1499.3] as const,

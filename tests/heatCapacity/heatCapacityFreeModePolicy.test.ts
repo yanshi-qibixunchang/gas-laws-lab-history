@@ -65,7 +65,7 @@ assert.deepEqual(
 );
 
 assert.deepEqual(selectActiveHeatCapacityDisplay({ ...enteredFree, heatCapacityMode: 'demo' }), teachingDisplay);
-assert.deepEqual(selectActiveHeatCapacityDisplay({ ...enteredFree, heatCapacityMode: 'guide' }), teachingDisplay);
+assert.deepEqual(selectActiveHeatCapacityDisplay({ ...enteredFree, heatCapacityMode: 'guide' }), freeDisplay);
 assert.deepEqual(selectActiveHeatCapacityDisplay(enteredFree), freeDisplay);
 
 assert.deepEqual(selectActiveHeatCapacityTrials({ ...enteredFree, heatCapacityMode: 'demo' }), {
