@@ -245,6 +245,7 @@ const guideSessionFiles = restored.files.map((file) => (
 const encoded = encodeWorkbenchSession(guideSessionFiles, restored.activeFileId, restored.selectedPanel, {
   fileId: restoredHeatCapacity.id,
   strongReminderActive: true,
+  strongReminderControlId: 'recordU1',
 });
 assert.equal(encoded.version, WORKBENCH_SESSION_VERSION);
 assert.equal(encoded.files.length, 3);
@@ -252,6 +253,7 @@ assert.equal(encoded.activeFileId, ideal.id);
 assert.deepEqual(encoded.heatCapacityGuideSession, {
   fileId: restoredHeatCapacity.id,
   strongReminderActive: true,
+  strongReminderControlId: 'recordU1',
 });
 
 const invalidGuideSession = decodeWorkbenchSession({
@@ -262,10 +264,12 @@ const invalidGuideSession = decodeWorkbenchSession({
   heatCapacityGuideSession: {
     fileId: standard.id,
     strongReminderActive: true,
+    strongReminderControlId: 'recordU1',
   },
 });
 assert.equal(invalidGuideSession.heatCapacityGuideSession.fileId, null);
 assert.equal(invalidGuideSession.heatCapacityGuideSession.strongReminderActive, false);
+assert.equal(invalidGuideSession.heatCapacityGuideSession.strongReminderControlId, null);
 
 const fallback = decodeWorkbenchSession({ version: 999, files: [], activeFileId: 'missing', selectedPanel: 'history' });
 assert.deepEqual(
@@ -278,12 +282,14 @@ assert.equal(fallback.selectedPanel, 'preview');
 const envelope = encodeWorkbenchStorageEnvelope(guideSessionFiles, restored.activeFileId, restored.selectedPanel, 12345, {
   fileId: restoredHeatCapacity.id,
   strongReminderActive: true,
+  strongReminderControlId: 'recordU1',
 });
 assert.equal(envelope.schemaFamily, WORKBENCH_SESSION_SCHEMA_FAMILY);
 assert.equal(envelope.schemaVersion, WORKBENCH_SESSION_SCHEMA_VERSION);
 assert.deepEqual(envelope.heatCapacityGuideSession, {
   fileId: restoredHeatCapacity.id,
   strongReminderActive: true,
+  strongReminderControlId: 'recordU1',
 });
 assert.equal(envelope.files.length, restored.files.length);
 assert.equal(envelope.files[0].payload.experimentKind, 'standard');
@@ -302,6 +308,7 @@ assert.equal(decodedEnvelope.session.activeFileId, restored.activeFileId);
 assert.deepEqual(decodedEnvelope.session.heatCapacityGuideSession, {
   fileId: restoredHeatCapacity.id,
   strongReminderActive: true,
+  strongReminderControlId: 'recordU1',
 });
 const decodedStandard = decodedEnvelope.session.files[0];
 assert.equal(decodedStandard.kind, 'standard');

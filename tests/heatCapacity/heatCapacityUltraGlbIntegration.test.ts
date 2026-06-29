@@ -564,7 +564,17 @@ assert.match(
   /control: 'pumpBulb', anchorNodeName: 'Pump_Bulb', size: \[0\.64, 0\.50, 0\.52\]/,
   'Ultra pump-bulb hitbox should stay close to the visible bulb instead of reaching far outside the rubber body',
 );
-const ultraPumpBulbVisualTargetSection = ultraModelSource.match(/id: 'pumpBulb'[\s\S]*?focusShellPulseRetreatScale: 1\.055,/)?.[0] ?? '';
+const ultraPumpBulbVisualTargetSection = ultraModelSource.match(/id: 'pumpBulb'[\s\S]*?focusShellPulsePopScale: 1\.11,/)?.[0] ?? '';
+assert.match(
+  ultraPumpBulbVisualTargetSection,
+  /focusCueKind:\s*'pumpBulbContour'/,
+  'Ultra pump-bulb guide cue should use the fitted contour cue instead of copying the GLB bulb shell',
+);
+assert.doesNotMatch(
+  ultraPumpBulbVisualTargetSection,
+  /focusShellNodeNames:\s*\['Pump_Bulb'\]/,
+  'Ultra pump-bulb guide cue should not copy the full Pump_Bulb mesh shell because it renders as an oversized translucent sphere',
+);
 assert.doesNotMatch(
   ultraPumpBulbVisualTargetSection,
   /hoverWireframe:\s*true/,
@@ -597,8 +607,8 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /dark:\s*\{[\s\S]*focusShellColor:\s*'#72f5d1'[\s\S]*focusShellRimColor:\s*'#8cf7df'[\s\S]*focusShellBlendMode:\s*'additive'[\s\S]*light:\s*\{[\s\S]*focusShellColor:\s*'#0f8fa3'[\s\S]*focusShellRimColor:\s*'#34c8b7'[\s\S]*focusShellBlendMode:\s*'normal'/,
-  'Ultra focus shells should use separate dark and light theme colors and blend modes instead of one blue sticker-like pulse',
+  /dark:\s*\{[\s\S]*focusShellColor:\s*'#67e8f9'[\s\S]*focusShellRimColor:\s*'#a5f3fc'[\s\S]*focusShellBlendMode:\s*'additive'[\s\S]*light:\s*\{[\s\S]*focusShellColor:\s*'#0ea5e9'[\s\S]*focusShellRimColor:\s*'#22d3ee'[\s\S]*focusShellBlendMode:\s*'normal'/,
+  'Ultra focus shells should use the same higher-contrast guide color family in dark and light themes',
 );
 assert.match(
   sceneSource,
@@ -628,13 +638,18 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /focusShellNodeNames: \['FD_NCD_C_PowerSwitch_Base', 'HSL_PowerSwitch_Inset_Frame_Lip'\][\s\S]*focusShellNodeNames: \['FD_NCD_C_ZeroAdjustKnob'\][\s\S]*focusShellNodeNames: \['Stopcock_THandle', 'Stopcock_HandleStem', 'Stopcock_RotatingPlugCore'\][\s\S]*focusShellNodeNames: \['InletValue_Pivot'\][\s\S]*focusShellNodeNames: \['Pump_Bulb'\]/,
-  'Ultra guide/demo focus should pulse real GLB shell nodes instead of generic torus or box overlays',
+  /focusShellNodeNames: \['FD_NCD_C_PowerSwitch_Base', 'HSL_PowerSwitch_Inset_Frame_Lip'\][\s\S]*focusShellNodeNames: \['FD_NCD_C_ZeroAdjustKnob'\][\s\S]*focusShellNodeNames: \['Stopcock_THandle', 'Stopcock_HandleStem', 'Stopcock_RotatingPlugCore'\][\s\S]*focusShellNodeNames: \['InletValue_Pivot'\]/,
+  'Ultra guide/demo focus should pulse real GLB shell nodes for compact controls while keeping the pump bulb on its fitted contour cue',
 );
 assert.match(
   ultraModelSource,
-  /id: 'powerSwitch'[\s\S]*focusShellPulsePopScale: 1\.42[\s\S]*focusShellPulseRetreatScale: 1\.18[\s\S]*id: 'pressureZero'[\s\S]*focusShellPulsePopScale: 1\.34[\s\S]*focusShellPulseRetreatScale: 1\.14[\s\S]*id: 'pumpValve'[\s\S]*focusShellPulsePopScale: 1\.28[\s\S]*focusShellPulseRetreatScale: 1\.11/,
-  'Small Ultra focus targets should use target-specific pop and retreat scales so range expansion is visible when opacity peaks',
+  /target\.focusCueKind === 'pumpBulbContour'[\s\S]*HSL_UltraPumpBulbFocusCueShell[\s\S]*HSL_UltraPumpBulbFocusCueBandA[\s\S]*HSL_UltraPumpBulbFocusCueBandB/,
+  'Ultra pump-bulb focus cue should render a fitted shell and local contour bands',
+);
+assert.match(
+  ultraModelSource,
+  /id: 'powerSwitch'[\s\S]*focusShellPulsePopScale: 1\.42[\s\S]*id: 'pressureZero'[\s\S]*focusShellPulsePopScale: 1\.34[\s\S]*id: 'pumpValve'[\s\S]*focusShellPulsePopScale: 1\.28/,
+  'Small Ultra focus targets should use target-specific peak scales so range expansion is visible when opacity peaks',
 );
 assert.match(
   ultraModelSource,
@@ -663,18 +678,23 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const popProgress = Math\.min\(pulse \/ ULTRA_FOCUS_SHELL_POP_FRACTION, 1\);[\s\S]*const fadeProgress = Math\.max\(\(pulse - ULTRA_FOCUS_SHELL_POP_FRACTION\) \/ \(1 - ULTRA_FOCUS_SHELL_POP_FRACTION\), 0\);[\s\S]*const pulsePeakScale = target\.focusShellPulsePopScale \?\? effects\.focusShellPulseStartScale;[\s\S]*pulseGroup\.scale\.setScalar\(THREE\.MathUtils\.lerp\(effects\.focusShellPulseStartScale, pulsePeakScale, popEase\) - fadeEase \* pulseRetreatDistance\);[\s\S]*shellPulseMaterial\.opacity = effects\.focusShellPulseOpacity \* popEase \* Math\.pow\(1 - fadeProgress,\s*1\.45\)/,
-  'Ultra focus shell pulse should pop range and opacity together, then fade while only slightly retreating',
+  /const wavePulse = getUltraGuideCuePulse\(focusPulseElapsed, effects\.focusShellPulseRate\);[\s\S]*const pulsePeakScale = target\.focusShellPulsePopScale \?\? effects\.focusShellPulseStartScale;[\s\S]*pulseGroup\.scale\.setScalar\(THREE\.MathUtils\.lerp\(effects\.focusShellPulseStartScale, pulsePeakScale, wavePulse\)\);[\s\S]*shellPulseMaterial\.opacity = effects\.focusShellPulseOpacity \* wavePulse/,
+  'Ultra focus shell pulse should use a smooth closed-loop wave so scale and opacity return to the start without a visible jump',
 );
 assert.match(
   ultraModelSource,
-  /const focusPulseStartedAtRef = useRef<number \| null>\(null\);[\s\S]*if \(focusPulseStartedAtRef\.current === null\) focusPulseStartedAtRef\.current = clock\.elapsedTime;[\s\S]*const focusPulseElapsed = Math\.max\(0, clock\.elapsedTime - focusPulseStartedAtRef\.current\);[\s\S]*const pulse = \(focusPulseElapsed \* effects\.focusShellPulseRate\) % 1;/,
+  /const focusPulseStartedAtRef = useRef<number \| null>\(null\);[\s\S]*if \(focusPulseStartedAtRef\.current === null\) focusPulseStartedAtRef\.current = clock\.elapsedTime;[\s\S]*const focusPulseElapsed = Math\.max\(0, clock\.elapsedTime - focusPulseStartedAtRef\.current\);[\s\S]*const wavePulse = getUltraGuideCuePulse\(focusPulseElapsed, effects\.focusShellPulseRate\);/,
   'Ultra focus shell pulse should start its pop phase when the guide/demo focus appears instead of using a random global clock phase',
 );
 assert.match(
   ultraModelSource,
-  /function UltraPowerSwitchSkirtedRocker[\s\S]*focusPulseRef = useRef<THREE\.Mesh \| null>\(null\);[\s\S]*focusPulseMaterial = useMemo\(\(\) => new THREE\.MeshBasicMaterial\(\{[\s\S]*depthTest: true[\s\S]*side: THREE\.BackSide[\s\S]*focusPulse\.scale\.set\(pulseScale, pulseScale, pulseDepthScale\);[\s\S]*focusPulseMaterial\.opacity = 0\.32 \* popEase \* Math\.pow\(1 - fadeProgress,\s*1\.45\);[\s\S]*name="HSL_PowerSwitch_SkirtedRockerFocusPulse"[\s\S]*scale=\{\[1\.42, 1\.42, 1\.18\]\}/,
-  'Ultra runtime power switch rocker should get the same synchronized pop-and-fade pulse as GLB shell nodes',
+  /const getUltraGuideCuePulse = \(elapsedS: number, cyclesPerSecond = 0\.58\) => \{[\s\S]*const phase =[\s\S]*0\.5 - 0\.5 \* Math\.cos\(phase \* Math\.PI \* 2\)[\s\S]*\};/,
+  'Ultra guide/demo cues should use the same smooth cosine loop as the procedural scene',
+);
+assert.match(
+  ultraModelSource,
+  /function UltraPowerSwitchSkirtedRocker[\s\S]*focusPulseRef = useRef<THREE\.Mesh \| null>\(null\);[\s\S]*focusPulseMaterial = useMemo\(\(\) => new THREE\.MeshBasicMaterial\(\{[\s\S]*depthTest: true[\s\S]*side: THREE\.BackSide[\s\S]*const wavePulse = getUltraGuideCuePulse\(focusPulseElapsed\);[\s\S]*focusPulse\.scale\.set\(pulseScale, pulseScale, pulseDepthScale\);[\s\S]*focusPulseMaterial\.opacity = 0\.38 \* wavePulse;[\s\S]*name="HSL_PowerSwitch_SkirtedRockerFocusPulse"[\s\S]*scale=\{\[1\.42, 1\.42, 1\.18\]\}/,
+  'Ultra runtime power switch rocker should get the same smooth closed-loop pulse as GLB shell nodes',
 );
 assert.match(
   ultraModelSource,
@@ -708,7 +728,7 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /hoverMesh\.scale\.setScalar\(focusMode \? 1 : target\.hoverScale \?\? 1\)/,
+  /hoverMesh\.scale\.setScalar\(focusMode[\s\S]*\? effects\.demoHaloBaseScale \+ staticPulse \* effects\.demoHaloPulseScale[\s\S]*: target\.hoverScale \?\? 1\)/,
   'Ultra hover hints should still use per-target shrink factors when they fall back to the hover geometry path',
 );
 assert.match(

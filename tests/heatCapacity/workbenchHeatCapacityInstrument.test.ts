@@ -1978,9 +1978,56 @@ const openValvePump = registerHeatCapacityPumpStroke({
 assert.equal(openValvePump.pumpStrokeCount, 1);
 assert.equal(openValvePump.pumpFrequencyStatus, 'tooSlow');
 assert.equal(openValvePump.heatCapacityGuidePhysicsState.pumpStrokeCount, 1);
-assert.equal(openValvePump.heatCapacityGuidePhysicsState.pumpProcesses.length, 0, 'Guide pumping should complete the short continuous pump process inside the action tick');
-assert.equal(openValvePump.pressureSignalTargetMv >= guidePumpReadyFile.pressureSignalTargetMv, true);
-assert.equal(openValvePump.temperaturePlaceholder >= guidePumpReadyFile.temperaturePlaceholder, true);
+assert.equal(openValvePump.heatCapacityGuidePhysicsState.pumpProcesses.length, 1, 'Guide pumping should leave the short continuous pump process for later stepping');
+assert.equal(openValvePump.pressureSignalMv, guidePumpReadyFile.pressureSignalMv);
+assert.equal(openValvePump.temperatureSignalMv, guidePumpReadyFile.temperatureSignalMv);
+
+const guidePumpDuringStroke = stepHeatCapacityWorkbenchFile(openValvePump, 10_040);
+assert.equal(guidePumpDuringStroke.heatCapacityGuidePhysicsState.pumpProcesses.length, 1);
+assert.equal(guidePumpDuringStroke.pressureSignalTargetMv > openValvePump.pressureSignalTargetMv, true);
+assert.equal(guidePumpDuringStroke.temperatureSignalTargetMv >= openValvePump.temperatureSignalTargetMv, true);
+assert.equal((guidePumpDuringStroke.pressureSignalMv ?? Number.NaN) < guidePumpDuringStroke.pressureSignalTargetMv, true);
+assert.equal((guidePumpDuringStroke.temperatureSignalMv ?? Number.NaN) <= guidePumpDuringStroke.temperatureSignalTargetMv, true);
+
+const guidePumpCompleted = stepHeatCapacityWorkbenchFile(guidePumpDuringStroke, 10_140);
+assert.equal(guidePumpCompleted.heatCapacityGuidePhysicsState.pumpProcesses.length, 0);
+assert.equal(guidePumpCompleted.pressureSignalTargetMv > guidePumpReadyFile.pressureSignalTargetMv, true);
+assert.equal(guidePumpCompleted.temperaturePlaceholder >= guidePumpReadyFile.temperaturePlaceholder, true);
+assert.equal((guidePumpCompleted.pressureSignalMv ?? Number.NaN) <= guidePumpCompleted.pressureSignalTargetMv, true);
+
+const guideTargetVisibleGatePressureMv = HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV + 5;
+const guideTargetVisibleGateDeltaKPa = (
+  guideTargetVisibleGatePressureMv - poweredFile.pressureInitialBiasMv
+) / poweredFile.pressureSensitivityMvPerKPa;
+const guideTargetVisibleGateFile: WorkbenchHeatCapacityState = {
+  ...guidePumpReadyFile,
+  pumpValveOpen: true,
+  pumpValveState: 'open',
+  pressureSignalMv: HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV - 2,
+  pressureSignalTargetMv: HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV - 2,
+  pressureSignalMvDisplayed: HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV - 2,
+  temperatureSignalMv: poweredFile.temperatureSignalTargetMv,
+  temperatureSignalTargetMv: poweredFile.temperatureSignalTargetMv,
+  displayResponseLastUpdateMs: 50_000,
+  lastUpdateMs: 50_000,
+  heatCapacityGuidePhysicsState: {
+    ...guidePumpReadyFile.heatCapacityGuidePhysicsState,
+    gasAmountRatio: (
+      poweredFile.heatCapacityGuidePhysicsConfig.environment.ambientPressureKPa +
+      guideTargetVisibleGateDeltaKPa
+    ) / poweredFile.heatCapacityGuidePhysicsConfig.environment.ambientPressureKPa,
+    gasTemperatureK: poweredFile.heatCapacityGuidePhysicsConfig.environment.ambientTemperatureK,
+    wallTemperatureK: poweredFile.heatCapacityGuidePhysicsConfig.environment.ambientTemperatureK,
+    pumpProcesses: [],
+  },
+};
+const guideVisibleStillBelowTarget = stepHeatCapacityWorkbenchFile(guideTargetVisibleGateFile, 50_010);
+assert.equal(guideVisibleStillBelowTarget.pressureSignalTargetMv > HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, true);
+assert.equal((guideVisibleStillBelowTarget.pressureSignalMv ?? Number.NaN) < HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, true);
+assert.equal(guideVisibleStillBelowTarget.heatCapacityGuideWorkflow.step, 'pumpRequired', 'Guide should not leave pumping until visible U_p reaches the target');
+const guideVisibleReachedTarget = stepHeatCapacityWorkbenchFile(guideVisibleStillBelowTarget, 50_260);
+assert.equal((guideVisibleReachedTarget.pressureSignalMv ?? Number.NaN) >= HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, true);
+assert.equal(guideVisibleReachedTarget.heatCapacityGuideWorkflow.step, 'closePumpValveRequired', 'Guide should advance once the visible U_p reaches the target');
 
 let pumpSequenceFile: WorkbenchHeatCapacityState = {
   ...guidePumpReadyFile,

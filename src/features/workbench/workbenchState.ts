@@ -165,6 +165,7 @@ import {
 } from '../../domain/heatCapacity/heatCapacityGuidePhysicsEngine.ts';
 import {
   createDefaultHeatCapacityGuideWorkflow,
+  HEAT_CAPACITY_GUIDE_PUMP_TARGET_MV,
   getHeatCapacityGuideActionGuard,
   transitionHeatCapacityGuideWorkflow,
   type HeatCapacityGuideAction,
@@ -821,12 +822,29 @@ export const setHeatCapacityPressureZeroOffset = (
         pressureZeroReady: pressureZeroed,
       }),
     );
-    return mergeHeatCapacityGuideRuntimeState(
+    const isZeroAdjustmentStep = !steppedFile.pressureZeroed && (
+      steppedFile.heatCapacityGuideWorkflow.step === 'zeroRequired' ||
+      (
+        steppedFile.heatCapacityGuideWorkflow.step === 'openStopcockForZeroRequired' &&
+        getHeatCapacityStopcockState(steppedFile.stopcockAngleDeg) === 'open'
+      )
+    );
+    const mergedFile = mergeHeatCapacityGuideRuntimeState(
       baseFile,
       baseFile.heatCapacityGuidePhysicsState,
       workflow,
       now,
+      { immediatePressureDisplay: isZeroAdjustmentStep },
     );
+    return isZeroAdjustmentStep
+      ? mergedFile
+      : {
+        ...mergedFile,
+        pressureSignalMv: steppedFile.pressureSignalMv,
+        pressureDisplayedPlaceholder: steppedFile.pressureDisplayedPlaceholder,
+        pressureZeroDisplayedSamples: steppedFile.pressureZeroDisplayedSamples,
+        pressureZeroed: steppedFile.pressureZeroed,
+      };
   }
   if (isHeatCapacityPhysicalKernelMode(file.heatCapacityMode)) {
     const sourceFile = file.heatCapacityMode === 'free'
@@ -3117,28 +3135,9 @@ export const registerHeatCapacityPumpStroke = (
         now,
       );
     }
-    const afterStroke = stepGuidePhysicsState(
-      stroke.state,
-      currentFile.heatCapacityGuidePhysicsConfig,
-      {
-        dtS: 0.08,
-        powerOn: currentFile.powerOn,
-        pumpValveOpen: currentFile.pumpValveOpen,
-        stopcockOpen: getHeatCapacityStopcockState(currentFile.stopcockAngleDeg) === 'open',
-      },
-    );
-    const rawPressureAfterStrokeMv = deriveGuidePhysicalState(afterStroke, currentFile.heatCapacityGuidePhysicsConfig).pressureDeltaKPa *
-      currentFile.pressureSensitivityMvPerKPa;
-    const displayPressureAfterStrokeMv = truncateHeatCapacitySignalMv(applyHeatCapacityPressureZero(
-      rawPressureAfterStrokeMv,
-      currentFile.pressureInitialBiasMv,
-      currentFile.pressureZeroOffset,
-    ));
     const workflow = transitionHeatCapacityGuideWorkflow(
       currentFile.heatCapacityGuideWorkflow,
-      getHeatCapacityGuideActionContext(currentFile, 'pressPumpBulb', {
-        displayPressureMv: displayPressureAfterStrokeMv,
-      }),
+      getHeatCapacityGuideActionContext(currentFile, 'pressPumpBulb'),
     );
     const guidePumpTargetReached = workflow.step === 'closePumpValveRequired';
     return mergeHeatCapacityGuideRuntimeState(
@@ -3149,14 +3148,14 @@ export const registerHeatCapacityPumpStroke = (
         pumpFrequency: frequencyState.pumpFrequency,
         pumpFrequencyStatus: frequencyState.pumpFrequencyStatus,
         lastPumpTime: now,
-        pumpStrokeCount: afterStroke.pumpStrokeCount,
+        pumpStrokeCount: stroke.state.pumpStrokeCount,
         pumpHint: guidePumpTargetReached
           ? '已达到打气标准，请关闭打气阀门。'
           : frequencyState.pumpFrequencyStatus === 'suitable'
           ? '打气频率合适，可以继续观察压强变化'
           : '打气速率偏低，实验效果可能不明显',
       },
-      afterStroke,
+      stroke.state,
       workflow,
       now,
     );
@@ -3670,31 +3669,75 @@ export const prepareHeatCapacityAutoDemoStart = (
   };
 };
 
+interface HeatCapacityGuideRuntimeMergeOptions {
+  immediatePressureDisplay?: boolean;
+  immediateTemperatureDisplay?: boolean;
+}
+
 const mergeHeatCapacityGuideRuntimeState = (
   file: WorkbenchHeatCapacityState,
   guidePhysicsState: HeatCapacityGuidePhysicsState,
   guideWorkflow: HeatCapacityGuideWorkflowState,
   now: number,
+  options: HeatCapacityGuideRuntimeMergeOptions = {},
 ): WorkbenchHeatCapacityState => {
   let nextGuideWorkflow = guideWorkflow;
   const derived = deriveGuidePhysicalState(guidePhysicsState, file.heatCapacityGuidePhysicsConfig);
   const pressureDeltaKPa = derived.pressureDeltaKPa;
   const rawPressureMv = pressureDeltaKPa * file.pressureSensitivityMvPerKPa;
-  const displayPressureMv = truncateHeatCapacitySignalMv(applyHeatCapacityPressureZero(
+  const pressureSignalTargetMv = truncateHeatCapacitySignalMv(applyHeatCapacityPressureZero(
     rawPressureMv,
     file.pressureInitialBiasMv,
     file.pressureZeroOffset,
   ));
-  const displayTemperatureMv = truncateHeatCapacitySignalMv(
+  const temperatureSignalTargetMv = truncateHeatCapacitySignalMv(
     DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient +
     (guidePhysicsState.gasTemperatureK - file.heatCapacityGuidePhysicsConfig.environment.ambientTemperatureK) *
       DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvPerK,
   );
+  const powerOn = file.powerOn;
+  const elapsedS = file.displayResponseLastUpdateMs === null
+    ? 0
+    : Math.max(0, (now - file.displayResponseLastUpdateMs) / 1000);
+  const pressureDisplayValue = powerOn
+    ? options.immediatePressureDisplay
+      ? pressureSignalTargetMv
+      : getHeatCapacityDisplayValue({
+        current: file.pressureSignalMv,
+        target: pressureSignalTargetMv,
+        previousTarget: Number.isFinite(file.pressureSignalTargetMv)
+          ? file.pressureSignalTargetMv
+          : pressureSignalTargetMv,
+        elapsedS,
+        now,
+        config: HEAT_CAPACITY_PRESSURE_DISPLAY_RESPONSE,
+      })
+    : null;
+  const temperatureDisplayValue = powerOn
+    ? options.immediateTemperatureDisplay
+      ? temperatureSignalTargetMv
+      : getHeatCapacityDisplayValue({
+        current: file.temperatureSignalMv,
+        target: temperatureSignalTargetMv,
+        previousTarget: Number.isFinite(file.temperatureSignalTargetMv)
+          ? file.temperatureSignalTargetMv
+          : temperatureSignalTargetMv,
+        elapsedS,
+        now,
+        config: HEAT_CAPACITY_TEMPERATURE_DISPLAY_RESPONSE,
+      })
+    : null;
+  const pressureSignalMv = pressureDisplayValue === null
+    ? null
+    : truncateHeatCapacitySignalMv(pressureDisplayValue);
+  const temperatureSignalMv = temperatureDisplayValue === null
+    ? null
+    : truncateHeatCapacitySignalMv(temperatureDisplayValue);
   const pressureZeroDisplayedSamples = updatePressureZeroDisplayedSamples(
     file.pressureZeroDisplayedSamples,
     now,
-    displayPressureMv,
-    file.powerOn,
+    pressureSignalMv,
+    powerOn,
   );
   const pressureZeroed = isHeatCapacityPressureZeroWithinTolerance(pressureZeroDisplayedSamples);
   if (nextGuideWorkflow.step === 'zeroRequired' && pressureZeroed && file.pressureZeroAdjusted) {
@@ -3703,7 +3746,7 @@ const mergeHeatCapacityGuideRuntimeState = (
       powerOn: file.powerOn,
       stopcockOpen: getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open',
       pumpValveOpen: file.pumpValveOpen,
-      displayPressureMv,
+      displayPressureMv: pressureSignalMv ?? pressureSignalTargetMv,
       pressureZeroReady: true,
       releaseDurationReady: getHeatCapacityGuideReleaseDurationReady(file),
       simulationTimeS: guidePhysicsState.simulationTimeS,
@@ -3725,14 +3768,15 @@ const mergeHeatCapacityGuideRuntimeState = (
     pressureDeltaKPa,
     simulationTimeS: guidePhysicsState.simulationTimeS,
     pressureSignalMvRaw: rawPressureMv,
-    pressureSignalMvDisplayed: displayPressureMv,
-    pressureSignalTargetMv: displayPressureMv,
-    temperatureSignalTargetMv: displayTemperatureMv,
+    pressureSignalMvDisplayed: pressureSignalTargetMv,
+    pressureSignalTargetMv,
+    temperatureSignalTargetMv,
+    displayResponseLastUpdateMs: now,
     pressureZeroDisplayedSamples,
     pressureZeroed,
-    pressureSignalMv: displayPressureMv,
-    temperatureSignalMv: displayTemperatureMv,
-    pressureKPa: file.powerOn ? derived.gasPressureKPa : null,
+    pressureSignalMv,
+    temperatureSignalMv,
+    pressureKPa: powerOn ? derived.gasPressureKPa : null,
     pressureGaugeTargetValue: gaugeState.pressureGaugeTargetValue,
     pressureGaugeDisplayValue: gaugeState.pressureGaugeDisplayValue,
     pressureGaugeNeedleAngle: gaugeState.pressureGaugeNeedleAngle,
@@ -3746,6 +3790,7 @@ const mergeHeatCapacityGuideRuntimeState = (
     pressureBlockedPumping: gaugeState.pressureBlockedPumping,
     pressureOverLimit: gaugeState.pressureOverLimit,
     pressurePlaceholder: roundNumber(derived.gasPressureKPa, 2),
+    pressureDisplayedPlaceholder: roundNumber(pressureSignalMv ?? pressureSignalTargetMv, 2),
     temperaturePlaceholder: roundNumber(guidePhysicsState.gasTemperatureK, 3),
     updatedAt: now,
   };
@@ -4055,8 +4100,32 @@ export const stepHeatCapacityGuideWorkbenchFile = (
     }
   }
 
+  let mergedFile = mergeHeatCapacityGuideRuntimeState(file, guidePhysicsState, guideWorkflow, now);
+  if (
+    mergedFile.heatCapacityGuideWorkflow.step === 'pumpRequired' &&
+    (mergedFile.pressureSignalMv ?? Number.NEGATIVE_INFINITY) >= HEAT_CAPACITY_GUIDE_PUMP_TARGET_MV
+  ) {
+    const pumpTargetWorkflow = transitionHeatCapacityGuideWorkflow(
+      mergedFile.heatCapacityGuideWorkflow,
+      getHeatCapacityGuideActionContext(mergedFile, 'pressPumpBulb', {
+        displayPressureMv: mergedFile.pressureSignalMv ?? mergedFile.pressureSignalTargetMv,
+      }),
+    );
+    if (pumpTargetWorkflow.step !== mergedFile.heatCapacityGuideWorkflow.step) {
+      mergedFile = mergeHeatCapacityGuideRuntimeState(
+        {
+          ...mergedFile,
+          pumpHint: '已达到打气标准，请关闭打气阀门。',
+        },
+        mergedFile.heatCapacityGuidePhysicsState,
+        pumpTargetWorkflow,
+        now,
+      );
+    }
+  }
+
   return {
-    ...mergeHeatCapacityGuideRuntimeState(file, guidePhysicsState, guideWorkflow, now),
+    ...mergedFile,
     lastUpdateMs: now,
   };
 };

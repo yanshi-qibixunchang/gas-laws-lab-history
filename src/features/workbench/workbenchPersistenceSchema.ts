@@ -52,6 +52,7 @@ export interface WorkbenchSessionEnvelopeV2 {
   heatCapacityGuideSession?: {
     fileId: string | null;
     strongReminderActive: boolean;
+    strongReminderControlId?: string | null;
   };
 }
 
@@ -114,7 +115,12 @@ export const isWorkbenchSessionEnvelope = (
           typeof value.heatCapacityGuideSession.fileId === 'string' ||
           value.heatCapacityGuideSession.fileId === null
         ) &&
-        typeof value.heatCapacityGuideSession.strongReminderActive === 'boolean'
+        typeof value.heatCapacityGuideSession.strongReminderActive === 'boolean' &&
+        (
+          value.heatCapacityGuideSession.strongReminderControlId === undefined ||
+          typeof value.heatCapacityGuideSession.strongReminderControlId === 'string' ||
+          value.heatCapacityGuideSession.strongReminderControlId === null
+        )
       )
     )
 );

@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>引导模式计时器样式候选</title>
+  <style>
+    :root {
+      --bg: #eaf2f8;
+      --panel: rgba(248, 250, 252, 0.92);
+      --line: rgba(14, 116, 144, 0.28);
+      --cyan: #0ea5e9;
+      --cyan-strong: #0284c7;
+      --text: #0f172a;
+      --muted: #64748b;
+      --soft: #dff4ff;
+      --shadow: 0 18px 34px rgba(71, 85, 105, 0.18);
+      font-family: "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #dfeaf3;
+      color: var(--text);
+    }
+
+    .page {
+      padding: 24px;
+    }
+
+    .header {
+      max-width: 1180px;
+      margin: 0 auto 18px;
+    }
+
+    .header h1 {
+      margin: 0 0 6px;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+
+    .header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .grid {
+      display: grid;
+      max-width: 1180px;
+      margin: 0 auto;
+      gap: 18px;
+    }
+
+    .option {
+      display: grid;
+      grid-template-columns: 170px minmax(0, 1fr);
+      min-height: 302px;
+      overflow: hidden;
+      border: 1px solid #cbd9e6;
+      border-radius: 10px;
+      background: #f8fbfe;
+      box-shadow: 0 16px 36px rgba(71, 85, 105, 0.14);
+    }
+
+    .option-info {
+      padding: 18px;
+      border-right: 1px solid #dbe6ef;
+      background: linear-gradient(180deg, #f8fbfe, #eef6fb);
+    }
+
+    .option-info span {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      color: #0369a1;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .option-info h2 {
+      margin: 14px 0 8px;
+      font-size: 18px;
+      line-height: 1.15;
+    }
+
+    .option-info p {
+      margin: 0;
+      color: #475569;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .stage {
+      position: relative;
+      min-height: 302px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 22% 24%, rgba(224, 242, 254, 0.9), rgba(224, 242, 254, 0) 32%),
+        linear-gradient(180deg, #eaf2f8 0%, #edf5fa 100%);
+    }
+
+    .bench {
+      position: absolute;
+      left: 28px;
+      right: 24px;
+      bottom: -70px;
+      height: 154px;
+      transform: skewX(-12deg) rotate(-1deg);
+      border-radius: 4px;
+      background: #94a3a7;
+      opacity: 0.58;
+    }
+
+    .bottle {
+      position: absolute;
+      left: 160px;
+      top: 76px;
+      width: 94px;
+      height: 150px;
+      border: 2px solid rgba(100, 116, 139, 0.3);
+      border-radius: 18px 18px 26px 26px;
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.06));
+      box-shadow: inset 16px 0 20px rgba(15, 23, 42, 0.08);
+    }
+
+    .bottle::before {
+      position: absolute;
+      content: "";
+      left: 28px;
+      top: 20px;
+      width: 50px;
+      height: 104px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 18px 18px, #9f3656 0 4px, transparent 5px),
+        radial-gradient(circle at 38px 38px, #9f3656 0 4px, transparent 5px),
+        radial-gradient(circle at 24px 60px, #9f3656 0 4px, transparent 5px),
+        radial-gradient(circle at 42px 82px, #9f3656 0 4px, transparent 5px),
+        radial-gradient(circle at 12px 88px, #9f3656 0 4px, transparent 5px);
+      opacity: 0.72;
+    }
+
+    .instrument {
+      position: absolute;
+      right: 110px;
+      bottom: 55px;
+      width: 210px;
+      height: 92px;
+      transform: skewX(4deg);
+      border-radius: 4px;
+      background: #c4c9c7;
+      box-shadow: inset 0 -16px 0 rgba(71, 85, 105, 0.16);
+    }
+
+    .screen {
+      position: absolute;
+      left: 22px;
+      top: 30px;
+      width: 55px;
+      height: 28px;
+      border-radius: 2px;
+      background: #0f766e;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+    }
+
+    .knob {
+      position: absolute;
+      right: 42px;
+      top: 28px;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #111827;
+    }
+
+    .guide-panel {
+      position: absolute;
+      right: 34px;
+      top: 28px;
+      width: 276px;
+      height: 174px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: rgba(248, 250, 252, 0.93);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .guide-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 2px 8px;
+      padding: 7px 10px 3px;
+    }
+
+    .guide-head span,
+    .guide-head em {
+      color: #0369a1;
+      font-family: Consolas, monospace;
+      font-size: 7px;
+      font-style: normal;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+    }
+
+    .guide-head em {
+      color: rgba(71, 85, 105, 0.74);
+    }
+
+    .guide-head strong {
+      grid-column: 1 / -1;
+      font-size: 13px;
+      line-height: 1.08;
+    }
+
+    .guide-row {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 84px;
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      align-items: center;
+      gap: 7px;
+      height: 48px;
+      padding: 0 10px;
+      border-top: 1px solid rgba(14, 165, 233, 0.34);
+      border-bottom: 1px solid rgba(14, 165, 233, 0.22);
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.2), rgba(224, 242, 254, 0.68) 52%, rgba(248, 250, 252, 0.72));
+    }
+
+    .guide-dot {
+      width: 15px;
+      height: 15px;
+      border: 2px solid #0ea5e9;
+      border-radius: 50%;
+      background: #f0f9ff;
+      box-shadow: 0 0 0 8px rgba(14, 165, 233, 0.14);
+    }
+
+    .guide-row strong {
+      display: block;
+      font-size: 13px;
+      line-height: 1.08;
+    }
+
+    .guide-row em {
+      display: block;
+      margin-top: 2px;
+      color: rgba(51, 65, 85, 0.86);
+      font-size: 10px;
+      font-style: normal;
+      font-weight: 700;
+      line-height: 1.08;
+    }
+
+    .speed {
+      position: absolute;
+      left: 84px;
+      top: 28px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      height: 38px;
+      padding: 0 9px 0 12px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      border-radius: 999px;
+      background:
+        linear-gradient(180deg, rgba(248, 250, 252, 0.9), rgba(226, 232, 240, 0.84)),
+        #edf6fb;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 12px 26px rgba(71, 85, 105, 0.16);
+    }
+
+    .speed-label {
+      display: flex;
+      flex-direction: column;
+      min-width: 58px;
+      color: #64748b;
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .speed-label strong {
+      color: #334155;
+      font-size: 11px;
+    }
+
+    .pills {
+      display: grid;
+      grid-template-columns: repeat(4, 30px);
+      align-items: center;
+      gap: 2px;
+      height: 30px;
+      padding: 1px;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      background: rgba(248, 250, 252, 0.7);
+      box-shadow: inset 0 1px 3px rgba(71, 85, 105, 0.18);
+    }
+
+    .pills span {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .pills .active {
+      background: linear-gradient(180deg, #38bdf8, #0284c7);
+      color: white;
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.32);
+    }
+
+    .timer {
+      position: absolute;
+      z-index: 5;
+      font-family: Consolas, "JetBrains Mono", monospace;
+    }
+
+    .speed-integrated-fresh {
+      position: absolute;
+      left: 84px;
+      top: 28px;
+      z-index: 7;
+      width: 260px;
+      height: 82px;
+      font-family: "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .speed-integrated-fresh-shell {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      overflow: visible;
+      filter: drop-shadow(0 14px 22px rgba(71, 85, 105, 0.16));
+      pointer-events: none;
+    }
+
+    .speed-integrated-fresh-shell .fresh-shell-main {
+      fill: url("#freshShellGradient");
+      stroke: rgba(148, 163, 184, 0.74);
+      stroke-width: 1.5;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .speed-integrated-fresh-shell .fresh-shell-cabin {
+      fill: url("#freshShellGradient");
+      stroke: rgba(148, 163, 184, 0.66);
+      stroke-width: 1.35;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .speed-integrated-fresh-shell .fresh-shell-crease {
+      fill: none;
+      stroke: rgba(148, 163, 184, 0.58);
+      stroke-width: 1.2;
+      stroke-linecap: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .speed-integrated-fresh-shell .fresh-shell-main-seam {
+      fill: none;
+      stroke: rgba(148, 163, 184, 0.46);
+      stroke-width: 1.05;
+      stroke-linecap: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .speed-integrated-fresh-shell .fresh-shell-top-glint {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.72);
+      stroke-width: 1;
+      opacity: 0.9;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .fresh-speed-label {
+      position: absolute;
+      left: 26px;
+      top: 19px;
+      z-index: 3;
+      display: grid;
+      gap: 1px;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .fresh-speed-label strong {
+      color: #334155;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .fresh-speed-options {
+      position: absolute;
+      left: 94px;
+      top: 16px;
+      z-index: 3;
+      display: grid;
+      box-sizing: border-box;
+      grid-template-columns: repeat(4, 30px);
+      gap: 2px;
+      align-items: center;
+      height: 30px;
+      padding: 1px;
+      border: 1px solid rgba(148, 163, 184, 0.38);
+      border-radius: 999px;
+      background: linear-gradient(180deg, #f8fafc, #edf6fb);
+      box-shadow:
+        inset 0 1px 3px rgba(71, 85, 105, 0.12),
+        0 1px 0 rgba(255, 255, 255, 0.52);
+    }
+
+    .fresh-speed-options span {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      color: #64748b;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .fresh-speed-options .active {
+      background: linear-gradient(180deg, #38bdf8, #0284c7);
+      color: #ffffff;
+      box-shadow: 0 5px 14px rgba(14, 165, 233, 0.34);
+    }
+
+    .fresh-timer-content {
+      position: absolute;
+      left: 101px;
+      top: 57px;
+      z-index: 3;
+      display: grid;
+      width: 118px;
+      grid-template-columns: 14px minmax(0, 1fr);
+      column-gap: 6px;
+      align-items: center;
+      font-family: Consolas, "JetBrains Mono", monospace;
+    }
+
+    .fresh-timer-dot {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at center, #f8fafc 0 35%, transparent 38%),
+        conic-gradient(#0ea5e9 0 84%, rgba(14, 165, 233, 0.16) 84% 100%);
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+    }
+
+    .fresh-timer-value {
+      color: #0f172a;
+      font-size: 13px;
+      font-weight: 900;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .timer-a {
+      left: 310px;
+      top: 75px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      column-gap: 9px;
+      align-items: center;
+      width: 166px;
+      height: 44px;
+      padding: 6px 13px 6px 10px;
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%);
+      border-left: 3px solid #0ea5e9;
+      border-radius: 12px 0 0 12px;
+      background: linear-gradient(90deg, rgba(224, 242, 254, 0.96), rgba(248, 250, 252, 0.82));
+      box-shadow: 0 10px 20px rgba(14, 116, 144, 0.14);
+      color: #0f172a;
+    }
+
+    .timer-a::before {
+      content: "";
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at center, #f8fafc 0 34%, transparent 36%),
+        conic-gradient(#0ea5e9 0 78%, rgba(14, 165, 233, 0.18) 78% 100%);
+      box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.14);
+    }
+
+    .timer-a span,
+    .timer-b span,
+    .timer-c span {
+      display: block;
+      color: #0369a1;
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .timer-a strong,
+    .timer-b strong,
+    .timer-c strong {
+      display: block;
+      margin-top: 3px;
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .timer-a em,
+    .timer-b em,
+    .timer-c em {
+      color: #64748b;
+      font-size: 9px;
+      font-style: normal;
+      font-weight: 800;
+    }
+
+    .timer-b {
+      left: 306px;
+      top: 74px;
+      width: 174px;
+      height: 48px;
+      padding: 7px 14px 6px 14px;
+      border: 1px solid rgba(14, 165, 233, 0.34);
+      border-radius: 14px 5px 14px 5px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(224, 242, 254, 0.88)),
+        #f8fafc;
+      box-shadow:
+        inset 3px 0 0 #0ea5e9,
+        0 12px 22px rgba(14, 116, 144, 0.14);
+    }
+
+    .timer-b::after {
+      position: absolute;
+      right: 8px;
+      top: 8px;
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #7dd3fc;
+      box-shadow: 0 0 0 4px rgba(125, 211, 252, 0.16);
+    }
+
+    .timer-c {
+      left: 315px;
+      top: 75px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      width: 160px;
+      height: 42px;
+      padding: 5px 10px;
+      border: 1px solid rgba(14, 116, 144, 0.24);
+      border-radius: 999px;
+      background: rgba(248, 250, 252, 0.92);
+      box-shadow: 0 10px 20px rgba(71, 85, 105, 0.14);
+    }
+
+    .timer-c .icon {
+      display: grid;
+      width: 30px;
+      height: 30px;
+      place-items: center;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #e0f2fe, #bae6fd);
+      color: #0284c7;
+      font-size: 15px;
+      font-weight: 900;
+      box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.25);
+    }
+
+    .timer-c strong {
+      font-size: 14px;
+    }
+
+    @media (max-width: 920px) {
+      .option {
+        grid-template-columns: 1fr;
+      }
+
+      .option-info {
+        border-right: 0;
+        border-bottom: 1px solid #dbe6ef;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="header">
+      <h1>引导模式等待计时器样式候选</h1>
+      <p>三个方案都把计时信息移出顶部倍速条，放到倍速条右下方，避免遮挡右侧引导清单。</p>
+    </div>
+
+    <section class="grid">
+      <article class="option">
+        <div class="option-info">
+          <span>草图方案</span>
+          <h2>右对齐一体副舱</h2>
+          <p>重新画的一体外壳：上方完整胶囊，右下副舱从底边斜切下挂，两个形状右侧严格对齐。</p>
+        </div>
+        <div class="stage">
+          <div class="bench"></div>
+          <div class="bottle"></div>
+          <div class="instrument"><div class="screen"></div><div class="knob"></div></div>
+          <div class="speed-integrated-fresh">
+            <svg class="speed-integrated-fresh-shell" viewBox="0 0 260 82" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="freshShellGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#f8fbfd" />
+                  <stop offset="0.46" stop-color="#eef7fc" />
+                  <stop offset="1" stop-color="#e1f3fd" />
+                </linearGradient>
+              </defs>
+              <path class="fresh-shell-cabin" d="M 74 49 H 232 C 229 55 221 62 210 68 C 200 74 191 76 179 76 H 92 Z" />
+              <rect class="fresh-shell-main" x="14" y="12" width="220" height="38" rx="19" ry="19" />
+              <path class="fresh-shell-crease" d="M 74 50 L 92 76 H 179 C 191 76 200 74 210 68 C 221 62 229 55 232 49" />
+              <path class="fresh-shell-top-glint" d="M 32 16 H 214 A 15 15 0 0 1 229 31" />
+            </svg>
+            <div class="fresh-speed-label">
+              <span>WAIT RATE</span>
+              <strong>等待倍速</strong>
+            </div>
+            <div class="fresh-speed-options">
+              <span>×2</span>
+              <span>×4</span>
+              <span>×8</span>
+              <span class="active">×16</span>
+            </div>
+            <div class="fresh-timer-content">
+              <span class="fresh-timer-dot"></span>
+              <strong class="fresh-timer-value">04:21/05:00</strong>
+            </div>
+          </div>
+          <div class="guide-panel">
+            <div class="guide-head"><span>引导清单</span><em>步骤 9 / 15</em><strong>等待 5 min</strong></div>
+            <div class="guide-row"><span class="guide-dot"></span><span><strong>等待 5 min</strong><em>请等待 U₁ 和 Uₜ 稳定；稳定后记录 U₁ 和 Uₜ。</em></span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="option">
+        <div class="option-info">
+          <span>方案 A</span>
+          <h2>下挂斜角标签</h2>
+          <p>像附着在倍速条下方的仪器铭牌，右侧斜切，关系最明确。推荐优先尝试。</p>
+        </div>
+        <div class="stage">
+          <div class="bench"></div>
+          <div class="bottle"></div>
+          <div class="instrument"><div class="screen"></div><div class="knob"></div></div>
+          <div class="speed">
+            <div class="speed-label"><span>WAIT RATE</span><strong>等待倍速</strong></div>
+            <div class="pills"><span>×2</span><span>×4</span><span>×8</span><span class="active">×16</span></div>
+          </div>
+          <div class="timer timer-a">
+            <div><span>U₁ 等待</span><strong>04:21 / 05:00</strong><em>未记录</em></div>
+          </div>
+          <div class="guide-panel">
+            <div class="guide-head"><span>引导清单</span><em>步骤 9 / 15</em><strong>等待 5 min</strong></div>
+            <div class="guide-row"><span class="guide-dot"></span><span><strong>等待 5 min</strong><em>请等待 U₁ 和 Uₜ 稳定；稳定后记录 U₁ 和 Uₜ。</em></span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="option">
+        <div class="option-info">
+          <span>方案 B</span>
+          <h2>折角仪表卡片</h2>
+          <p>更像独立状态卡，信息更稳重，和清单面板风格统一。占地略大一点。</p>
+        </div>
+        <div class="stage">
+          <div class="bench"></div>
+          <div class="bottle"></div>
+          <div class="instrument"><div class="screen"></div><div class="knob"></div></div>
+          <div class="speed">
+            <div class="speed-label"><span>WAIT RATE</span><strong>等待倍速</strong></div>
+            <div class="pills"><span>×2</span><span>×4</span><span>×8</span><span class="active">×16</span></div>
+          </div>
+          <div class="timer timer-b">
+            <span>U₁ 等待</span>
+            <strong>04:21 / 05:00</strong>
+            <em>未记录 · 倍速 ×16</em>
+          </div>
+          <div class="guide-panel">
+            <div class="guide-head"><span>引导清单</span><em>步骤 9 / 15</em><strong>等待 5 min</strong></div>
+            <div class="guide-row"><span class="guide-dot"></span><span><strong>等待 5 min</strong><em>请等待 U₁ 和 Uₜ 稳定；稳定后记录 U₁ 和 Uₜ。</em></span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="option">
+        <div class="option-info">
+          <span>方案 C</span>
+          <h2>独立胶囊计时器</h2>
+          <p>最轻巧，遮挡风险最低。视觉上和倍速条关系弱一些，但实现稳定。</p>
+        </div>
+        <div class="stage">
+          <div class="bench"></div>
+          <div class="bottle"></div>
+          <div class="instrument"><div class="screen"></div><div class="knob"></div></div>
+          <div class="speed">
+            <div class="speed-label"><span>WAIT RATE</span><strong>等待倍速</strong></div>
+            <div class="pills"><span>×2</span><span>×4</span><span>×8</span><span class="active">×16</span></div>
+          </div>
+          <div class="timer timer-c">
+            <span class="icon">⏱</span>
+            <div><span>U₁ 等待</span><strong>04:21 / 05:00</strong><em>未记录</em></div>
+          </div>
+          <div class="guide-panel">
+            <div class="guide-head"><span>引导清单</span><em>步骤 9 / 15</em><strong>等待 5 min</strong></div>
+            <div class="guide-row"><span class="guide-dot"></span><span><strong>等待 5 min</strong><em>请等待 U₁ 和 Uₜ 稳定；稳定后记录 U₁ 和 Uₜ。</em></span></div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

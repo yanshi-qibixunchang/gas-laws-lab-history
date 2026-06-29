@@ -65,6 +65,7 @@ const fallbackSession = (): WorkbenchSessionState => ({
   heatCapacityGuideSession: {
     fileId: null,
     strongReminderActive: false,
+    strongReminderControlId: null,
   },
 });
 
@@ -227,12 +228,18 @@ const decodeEnvelopeAsRuntimeSession = (
   envelope: WorkbenchSessionEnvelopeV2,
 ): WorkbenchSessionState => {
   const runtimeFiles = decodeFilesFromEnvelopes(envelope.files);
+  const heatCapacityGuideSession = envelope.heatCapacityGuideSession
+    ? {
+        ...envelope.heatCapacityGuideSession,
+        strongReminderControlId: envelope.heatCapacityGuideSession.strongReminderControlId ?? null,
+      }
+    : undefined;
   return {
     version: 1,
     files: runtimeFiles,
     activeFileId: envelope.activeFileId ?? runtimeFiles[0]?.id ?? '',
     selectedPanel: envelope.selectedPanel,
-    heatCapacityGuideSession: envelope.heatCapacityGuideSession,
+    heatCapacityGuideSession,
   };
 };
 

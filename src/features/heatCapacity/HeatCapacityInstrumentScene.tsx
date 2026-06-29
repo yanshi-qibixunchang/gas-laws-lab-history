@@ -413,22 +413,22 @@ const heatCapacityScenePalettes = {
       hoverEdge: '#ecfeff',
     },
     effects: {
-      demoHalo: '#bae6fd',
-      demoHaloMinOpacity: 0.24,
-      demoHaloMaxOpacity: 0.52,
+      demoHalo: '#67e8f9',
+      demoHaloMinOpacity: 0.32,
+      demoHaloMaxOpacity: 0.68,
       demoHaloBaseScale: 1.06,
-      demoHaloPulseScale: 0.14,
-      focusShellColor: '#72f5d1',
-      focusShellRimColor: '#8cf7df',
+      demoHaloPulseScale: 0.18,
+      focusShellColor: '#67e8f9',
+      focusShellRimColor: '#a5f3fc',
       focusShellBlendMode: 'additive',
-      focusShellBreathMinOpacity: 0.075,
-      focusShellBreathMaxOpacity: 0.18,
-      focusShellPulseOpacity: 0.28,
-      focusShellBaseScale: 1.022,
-      focusShellBreathScale: 0.026,
-      focusShellPulseStartScale: 1.045,
-      focusShellPulseScale: 0.22,
-      focusShellPulseRate: 0.58,
+      focusShellBreathMinOpacity: 0.11,
+      focusShellBreathMaxOpacity: 0.26,
+      focusShellPulseOpacity: 0.38,
+      focusShellBaseScale: 1.03,
+      focusShellBreathScale: 0.04,
+      focusShellPulseStartScale: 1.055,
+      focusShellPulseScale: 0.26,
+      focusShellPulseRate: 0.54,
       nonBulbHoverEmissiveIntensity: 0.26,
       nonBulbHoverHaloOpacity: 0.22,
       glassHoverEmissiveIntensity: 0.18,
@@ -543,21 +543,21 @@ const heatCapacityScenePalettes = {
       hoverEdge: '#0f4f7a',
     },
     effects: {
-      demoHalo: '#0284c7',
-      demoHaloMinOpacity: 0.34,
-      demoHaloMaxOpacity: 0.72,
+      demoHalo: '#0ea5e9',
+      demoHaloMinOpacity: 0.4,
+      demoHaloMaxOpacity: 0.78,
       demoHaloBaseScale: 1.06,
-      demoHaloPulseScale: 0.16,
-      focusShellColor: '#0f8fa3',
-      focusShellRimColor: '#34c8b7',
+      demoHaloPulseScale: 0.2,
+      focusShellColor: '#0ea5e9',
+      focusShellRimColor: '#22d3ee',
       focusShellBlendMode: 'normal',
-      focusShellBreathMinOpacity: 0.095,
-      focusShellBreathMaxOpacity: 0.24,
-      focusShellPulseOpacity: 0.3,
-      focusShellBaseScale: 1.018,
-      focusShellBreathScale: 0.02,
-      focusShellPulseStartScale: 1.04,
-      focusShellPulseScale: 0.16,
+      focusShellBreathMinOpacity: 0.13,
+      focusShellBreathMaxOpacity: 0.3,
+      focusShellPulseOpacity: 0.38,
+      focusShellBaseScale: 1.028,
+      focusShellBreathScale: 0.036,
+      focusShellPulseStartScale: 1.055,
+      focusShellPulseScale: 0.24,
       focusShellPulseRate: 0.52,
       nonBulbHoverEmissiveIntensity: 0.36,
       nonBulbHoverHaloOpacity: 0.34,
@@ -580,6 +580,10 @@ const HEAT_CAPACITY_DRAG_CLICK_SUPPRESSION_RESET_MS = 80;
 const PUMP_VALVE_TRANSITION_MS = 420;
 const STOPCOCK_CLOSED_BASE_ROTATION_RAD = -Math.PI / 2;
 const DISABLE_RAYCAST: THREE.Object3D['raycast'] = () => undefined;
+const getHeatCapacityGuideCuePulse = (elapsedS: number, cyclesPerSecond = 0.58) => {
+  const phase = ((elapsedS * cyclesPerSecond) % 1 + 1) % 1;
+  return 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
+};
 const createHeatCapacityPointerEvents: typeof createPointerEvents = (store) => {
   const pointerEvents = createPointerEvents(store);
   return {
@@ -1186,9 +1190,8 @@ function DemoFocusHalo({
   const materialRef = useRef<THREE.MeshBasicMaterial | null>(null);
 
   useFrame(({ clock }) => {
-    if (suspended) return;
     if (!meshRef.current || !materialRef.current) return;
-    const pulse = (Math.sin(clock.elapsedTime * Math.PI * 1.5) + 1) / 2;
+    const pulse = suspended ? 0.62 : getHeatCapacityGuideCuePulse(clock.elapsedTime);
     const scale = focusHaloBaseScale + pulse * focusHaloPulseScale;
     meshRef.current.scale.setScalar(scale);
     materialRef.current.opacity = focusHaloMinOpacity + pulse * (focusHaloMaxOpacity - focusHaloMinOpacity);
@@ -1208,6 +1211,85 @@ function DemoFocusHalo({
         depthTest={false}
       />
     </mesh>
+  );
+}
+
+function PumpBulbFocusCue({
+  active,
+  suspended = false,
+  focusHaloColor,
+  focusHaloMinOpacity,
+  focusHaloMaxOpacity,
+}: {
+  active: boolean;
+  suspended?: boolean;
+  focusHaloColor: string;
+  focusHaloMinOpacity: number;
+  focusHaloMaxOpacity: number;
+}) {
+  const shellRef = useRef<THREE.Mesh | null>(null);
+  const bandARef = useRef<THREE.Mesh | null>(null);
+  const bandBRef = useRef<THREE.Mesh | null>(null);
+  const shellMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  const bandMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  const bandBMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+
+  useFrame(({ clock }) => {
+    if (!active) return;
+    const pulse = suspended ? 0.62 : getHeatCapacityGuideCuePulse(clock.elapsedTime);
+    const opacity = focusHaloMinOpacity + pulse * (focusHaloMaxOpacity - focusHaloMinOpacity);
+    if (shellRef.current) {
+      shellRef.current.scale.set(1.12 + pulse * 0.14, 0.82 + pulse * 0.05, 1.04 + pulse * 0.1);
+    }
+    if (bandARef.current) bandARef.current.scale.setScalar(1.02 + pulse * 0.08);
+    if (bandBRef.current) bandBRef.current.scale.setScalar(0.96 + pulse * 0.08);
+    if (shellMaterialRef.current) shellMaterialRef.current.opacity = opacity * 0.58;
+    if (bandMaterialRef.current) bandMaterialRef.current.opacity = opacity * 0.92;
+    if (bandBMaterialRef.current) bandBMaterialRef.current.opacity = opacity * 0.68;
+  });
+
+  if (!active) return null;
+
+  return (
+    <group name="PumpBulbFocusCue" raycast={DISABLE_RAYCAST}>
+      <mesh name="PumpBulbFocusCueShell" ref={shellRef} raycast={DISABLE_RAYCAST}>
+        <sphereGeometry args={[0.255, 36, 20]} />
+        <meshBasicMaterial
+          ref={shellMaterialRef}
+          color={focusHaloColor}
+          transparent
+          opacity={focusHaloMinOpacity * 0.58}
+          depthWrite={false}
+          depthTest={false}
+          side={THREE.BackSide}
+          toneMapped={false}
+        />
+      </mesh>
+      <mesh name="PumpBulbFocusCueBandA" ref={bandARef} position={[0, 0.065, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={DISABLE_RAYCAST}>
+        <torusGeometry args={[0.22, 0.006, 10, 56]} />
+        <meshBasicMaterial
+          ref={bandMaterialRef}
+          color={focusHaloColor}
+          transparent
+          opacity={focusHaloMinOpacity}
+          depthWrite={false}
+          depthTest={false}
+          toneMapped={false}
+        />
+      </mesh>
+      <mesh name="PumpBulbFocusCueBandB" ref={bandBRef} position={[0, -0.06, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={DISABLE_RAYCAST}>
+        <torusGeometry args={[0.205, 0.0045, 10, 56]} />
+        <meshBasicMaterial
+          ref={bandBMaterialRef}
+          color={focusHaloColor}
+          transparent
+          opacity={focusHaloMinOpacity * 0.72}
+          depthWrite={false}
+          depthTest={false}
+          toneMapped={false}
+        />
+      </mesh>
+    </group>
   );
 }
 
@@ -2319,9 +2401,13 @@ function PumpAssembly({
           <boxGeometry args={[0.62, 0.42, 0.62]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
-        <DemoFocusHalo active={pumpBulbDemoFocused} suspended={interactionQualityReduced} name="DemoFocusHaloPumpBulb" rotation={[Math.PI / 2, 0, 0]} focusHaloColor={scenePalette.effects.demoHalo} focusHaloMinOpacity={scenePalette.effects.demoHaloMinOpacity} focusHaloMaxOpacity={scenePalette.effects.demoHaloMaxOpacity} focusHaloBaseScale={scenePalette.effects.demoHaloBaseScale} focusHaloPulseScale={scenePalette.effects.demoHaloPulseScale}>
-          <torusGeometry args={[0.32, 0.014, 12, 56]} />
-        </DemoFocusHalo>
+        <PumpBulbFocusCue
+          active={pumpBulbDemoFocused}
+          suspended={interactionQualityReduced}
+          focusHaloColor={scenePalette.effects.demoHalo}
+          focusHaloMinOpacity={scenePalette.effects.demoHaloMinOpacity}
+          focusHaloMaxOpacity={scenePalette.effects.demoHaloMaxOpacity}
+        />
         <mesh name="pumpBulbStatusHalo" visible={pumpBulbActive || bulbHovered} rotation={[Math.PI / 2, 0, 0]} raycast={DISABLE_RAYCAST}>
           <torusGeometry args={[0.29, 0.01, 12, 48]} />
           <meshBasicMaterial color={pumpBulbActive ? scenePalette.pump.bulbHaloActive : scenePalette.pump.bulbHaloHover} transparent opacity={pumpBulbActive ? 0.34 : scenePalette.effects.pumpBulbHoverHaloOpacity} depthWrite={false} />

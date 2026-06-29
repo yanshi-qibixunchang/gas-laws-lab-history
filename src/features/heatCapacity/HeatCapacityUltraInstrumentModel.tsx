@@ -180,8 +180,11 @@ const POWER_SWITCH_ROCKER_SEGMENTS = 14;
 const POWER_SWITCH_MARK_Z_OFFSET = 0.0016;
 const ULTRA_CONTROL_MOTION_INVALIDATION_MS = 940;
 const ULTRA_DOUBLE_CLICK_GUARD_MS = 220;
-const ULTRA_FOCUS_SHELL_POP_FRACTION = 0.14;
 const ULTRA_HITBOX_UNIT_SCALE = new THREE.Vector3(1, 1, 1);
+const getUltraGuideCuePulse = (elapsedS: number, cyclesPerSecond = 0.58) => {
+  const phase = ((elapsedS * cyclesPerSecond) % 1 + 1) % 1;
+  return 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
+};
 const ULTRA_PUMP_VALVE_EMBEDDED_SWITCH_OFFSET: [number, number, number] = [0.09, 0.02, 0];
 const ULTRA_PUMP_VALVE_EMBEDDED_SWITCH_ROTATION: [number, number, number] = [0, 0, -Math.PI / 2];
 const ULTRA_VALVE_STATE_LAMP_OPEN_COLOR = '#22c55e';
@@ -239,12 +242,12 @@ type UltraControlVisualTarget = UltraVisualShape & {
   focusControlIds: readonly UltraFocusControl[];
   focusShellNodeNames?: readonly string[];
   focusShellSide?: 'back' | 'double';
+  focusCueKind?: 'pumpBulbContour';
   offset?: [number, number, number];
   rotation?: [number, number, number];
   hoverScale?: number;
   hoverWireframe?: boolean;
   focusShellPulsePopScale?: number;
-  focusShellPulseRetreatScale?: number;
 };
 
 const ULTRA_CONTROL_VISUAL_TARGETS = [
@@ -259,7 +262,6 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     offset: [0.018, -0.006, 0.205],
     hoverWireframe: true,
     focusShellPulsePopScale: 1.42,
-    focusShellPulseRetreatScale: 1.18,
   },
   {
     id: 'pressureZero',
@@ -272,7 +274,6 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     offset: [0, 0, 0.12],
     hoverWireframe: true,
     focusShellPulsePopScale: 1.34,
-    focusShellPulseRetreatScale: 1.14,
   },
   {
     id: 'stopcock',
@@ -287,7 +288,6 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     hoverScale: 0.9,
     hoverWireframe: true,
     focusShellPulsePopScale: 1.2,
-    focusShellPulseRetreatScale: 1.08,
   },
   {
     id: 'pumpValve',
@@ -302,7 +302,6 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     hoverScale: 0.86,
     hoverWireframe: true,
     focusShellPulsePopScale: 1.28,
-    focusShellPulseRetreatScale: 1.11,
   },
   {
     id: 'pumpBulb',
@@ -310,12 +309,11 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     tone: 'pumpBulb',
     hoverControl: 'pumpBulb',
     focusControlIds: ['pumpBulb'],
-    focusShellNodeNames: ['Pump_Bulb'],
+    focusCueKind: 'pumpBulbContour',
     shape: 'sphere',
     args: [0.26, 24, 16],
     hoverScale: 0.78,
     focusShellPulsePopScale: 1.11,
-    focusShellPulseRetreatScale: 1.055,
   },
   {
     id: 'instrumentPressureDisplay',
@@ -328,7 +326,6 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     size: [0.92, 0.16],
     offset: [0, -0.075, 0.006],
     focusShellPulsePopScale: 1.08,
-    focusShellPulseRetreatScale: 1.025,
   },
   {
     id: 'instrumentTemperatureDisplay',
@@ -341,7 +338,6 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     size: [0.92, 0.16],
     offset: [0, 0.075, 0.006],
     focusShellPulsePopScale: 1.08,
-    focusShellPulseRetreatScale: 1.025,
   },
   {
     id: 'instrumentPanel',
@@ -354,7 +350,6 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     size: [0.96, 0.36],
     offset: [0, 0, 0.005],
     focusShellPulsePopScale: 1.07,
-    focusShellPulseRetreatScale: 1.02,
   },
 ] as const satisfies readonly UltraControlVisualTarget[];
 
@@ -1935,6 +1930,12 @@ function UltraNodeHalo({
   const hoverMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
   const shellBreathRef = useRef<THREE.Group | null>(null);
   const shellPulseRef = useRef<THREE.Group | null>(null);
+  const pumpBulbCueShellRef = useRef<THREE.Mesh | null>(null);
+  const pumpBulbCueBandARef = useRef<THREE.Mesh | null>(null);
+  const pumpBulbCueBandBRef = useRef<THREE.Mesh | null>(null);
+  const pumpBulbCueShellMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  const pumpBulbCueBandMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  const pumpBulbCueBandBMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
   const focusPulseStartedAtRef = useRef<number | null>(null);
   const parentInverseMatrixRef = useRef(new THREE.Matrix4());
   const localMatrixRef = useRef(new THREE.Matrix4());
@@ -1949,7 +1950,9 @@ function UltraNodeHalo({
   const shellSide = target.focusShellSide === 'double' ? THREE.DoubleSide : THREE.BackSide;
   const focusShellDepthTest = target.focusShellSide !== 'double';
   const focusShellMeshes = useMemo(
-    () => (anchor ? collectUltraFocusShellMeshes(target, nodeMap, anchor) : []),
+    () => (anchor && target.focusCueKind !== 'pumpBulbContour'
+      ? collectUltraFocusShellMeshes(target, nodeMap, anchor)
+      : []),
     [anchor, nodeMap, target],
   );
   const shellBreathMaterial = useMemo(() => new THREE.MeshBasicMaterial({
@@ -2016,36 +2019,50 @@ function UltraNodeHalo({
     group.matrix.multiplyMatrices(parentInverseMatrixRef.current, localMatrixRef.current);
     group.matrixWorldNeedsUpdate = true;
 
+    if (focusMode && target.focusCueKind === 'pumpBulbContour') {
+      const staticPulse = suspended ? 0.62 : null;
+      if (focusPulseStartedAtRef.current === null) focusPulseStartedAtRef.current = clock.elapsedTime;
+      const focusPulseElapsed = Math.max(0, clock.elapsedTime - focusPulseStartedAtRef.current);
+      const cuePulse = staticPulse ?? getUltraGuideCuePulse(focusPulseElapsed, effects.focusShellPulseRate);
+      const shellOpacity = effects.demoHaloMinOpacity +
+        cuePulse * (effects.demoHaloMaxOpacity - effects.demoHaloMinOpacity);
+      if (pumpBulbCueShellRef.current) {
+        pumpBulbCueShellRef.current.scale.set(1.42 + cuePulse * 0.16, 0.86 + cuePulse * 0.06, 0.92 + cuePulse * 0.08);
+      }
+      if (pumpBulbCueBandARef.current) pumpBulbCueBandARef.current.scale.setScalar(1.04 + cuePulse * 0.08);
+      if (pumpBulbCueBandBRef.current) pumpBulbCueBandBRef.current.scale.setScalar(0.96 + cuePulse * 0.08);
+      if (pumpBulbCueShellMaterialRef.current) pumpBulbCueShellMaterialRef.current.opacity = shellOpacity * 0.34;
+      if (pumpBulbCueBandMaterialRef.current) pumpBulbCueBandMaterialRef.current.opacity = shellOpacity * 0.78;
+      if (pumpBulbCueBandBMaterialRef.current) pumpBulbCueBandBMaterialRef.current.opacity = shellOpacity * 0.54;
+      return;
+    }
+
     if (focusMode && focusShellMeshes.length > 0) {
       const breathGroup = shellBreathRef.current;
       const pulseGroup = shellPulseRef.current;
       if (!breathGroup || !pulseGroup) return;
 
       if (suspended) {
-        breathGroup.scale.setScalar(effects.focusShellBaseScale);
-        pulseGroup.scale.setScalar(effects.focusShellPulseStartScale);
-        shellBreathMaterial.opacity = effects.focusShellBreathMinOpacity;
-        shellPulseMaterial.opacity = 0;
+        const staticPulse = 0.62;
+        const pulsePeakScale = target.focusShellPulsePopScale ?? effects.focusShellPulseStartScale;
+        breathGroup.scale.setScalar(effects.focusShellBaseScale + staticPulse * effects.focusShellBreathScale);
+        pulseGroup.scale.setScalar(THREE.MathUtils.lerp(effects.focusShellPulseStartScale, pulsePeakScale, staticPulse));
+        shellBreathMaterial.opacity = effects.focusShellBreathMinOpacity +
+          staticPulse * (effects.focusShellBreathMaxOpacity - effects.focusShellBreathMinOpacity);
+        shellPulseMaterial.opacity = effects.focusShellPulseOpacity * 0.32;
         return;
       }
 
-      const breath = (Math.sin(clock.elapsedTime * Math.PI * 1.18) + 1) / 2;
+      const breath = getUltraGuideCuePulse(clock.elapsedTime, 0.46);
       if (focusPulseStartedAtRef.current === null) focusPulseStartedAtRef.current = clock.elapsedTime;
       const focusPulseElapsed = Math.max(0, clock.elapsedTime - focusPulseStartedAtRef.current);
-      const pulse = (focusPulseElapsed * effects.focusShellPulseRate) % 1;
-      const popProgress = Math.min(pulse / ULTRA_FOCUS_SHELL_POP_FRACTION, 1);
-      const fadeProgress = Math.max((pulse - ULTRA_FOCUS_SHELL_POP_FRACTION) / (1 - ULTRA_FOCUS_SHELL_POP_FRACTION), 0);
-      const popEase = 1 - Math.pow(1 - popProgress, 3);
-      const fadeEase = 1 - Math.pow(1 - fadeProgress, 2);
+      const wavePulse = getUltraGuideCuePulse(focusPulseElapsed, effects.focusShellPulseRate);
       const pulsePeakScale = target.focusShellPulsePopScale ?? effects.focusShellPulseStartScale;
-      const pulseRetreatScale = target.focusShellPulseRetreatScale ??
-        Math.max(effects.focusShellPulseStartScale, pulsePeakScale - effects.focusShellPulseScale * 0.42);
-      const pulseRetreatDistance = Math.max(0, pulsePeakScale - pulseRetreatScale);
       breathGroup.scale.setScalar(effects.focusShellBaseScale + breath * effects.focusShellBreathScale);
-      pulseGroup.scale.setScalar(THREE.MathUtils.lerp(effects.focusShellPulseStartScale, pulsePeakScale, popEase) - fadeEase * pulseRetreatDistance);
+      pulseGroup.scale.setScalar(THREE.MathUtils.lerp(effects.focusShellPulseStartScale, pulsePeakScale, wavePulse));
       shellBreathMaterial.opacity = effects.focusShellBreathMinOpacity +
         breath * (effects.focusShellBreathMaxOpacity - effects.focusShellBreathMinOpacity);
-      shellPulseMaterial.opacity = effects.focusShellPulseOpacity * popEase * Math.pow(1 - fadeProgress, 1.45);
+      shellPulseMaterial.opacity = effects.focusShellPulseOpacity * wavePulse;
       return;
     }
 
@@ -2054,12 +2071,17 @@ function UltraNodeHalo({
     if (!hoverMesh || !hoverMaterial) return;
 
     if (!focusMode || suspended) {
-      hoverMesh.scale.setScalar(focusMode ? 1 : target.hoverScale ?? 1);
-      hoverMaterial.opacity = focusMode ? baseOpacity : baseOpacity * (target.hoverWireframe ? 0.62 : 1);
+      const staticPulse = focusMode && suspended ? 0.62 : 0;
+      hoverMesh.scale.setScalar(focusMode
+        ? effects.demoHaloBaseScale + staticPulse * effects.demoHaloPulseScale
+        : target.hoverScale ?? 1);
+      hoverMaterial.opacity = focusMode
+        ? effects.demoHaloMinOpacity + staticPulse * (effects.demoHaloMaxOpacity - effects.demoHaloMinOpacity)
+        : baseOpacity * (target.hoverWireframe ? 0.62 : 1);
       return;
     }
 
-    const pulse = (Math.sin(clock.elapsedTime * Math.PI * 1.5) + 1) / 2;
+    const pulse = getUltraGuideCuePulse(clock.elapsedTime);
     hoverMesh.scale.setScalar(effects.demoHaloBaseScale + pulse * effects.demoHaloPulseScale);
     hoverMaterial.opacity = effects.demoHaloMinOpacity + pulse * (effects.demoHaloMaxOpacity - effects.demoHaloMinOpacity);
   });
@@ -2068,7 +2090,47 @@ function UltraNodeHalo({
 
   return (
     <group name={`HSL_UltraVisualHaloAnchor_${target.id}`} ref={groupRef} matrixAutoUpdate={false}>
-      {focusMode && focusShellMeshes.length > 0 ? (
+      {focusMode && target.focusCueKind === 'pumpBulbContour' ? (
+        <group name="HSL_UltraPumpBulbFocusCue" raycast={DISABLE_ULTRA_RAYCAST}>
+          <mesh name="HSL_UltraPumpBulbFocusCueShell" ref={pumpBulbCueShellRef} raycast={DISABLE_ULTRA_RAYCAST}>
+            <sphereGeometry args={[0.18, 36, 18]} />
+            <meshBasicMaterial
+              ref={pumpBulbCueShellMaterialRef}
+              color={effects.demoHaloColor}
+              transparent
+              opacity={effects.demoHaloMinOpacity * 0.34}
+              depthWrite={false}
+              depthTest={false}
+              side={THREE.BackSide}
+              toneMapped={false}
+            />
+          </mesh>
+          <mesh name="HSL_UltraPumpBulbFocusCueBandA" ref={pumpBulbCueBandARef} rotation={[Math.PI / 2, 0, 0]} raycast={DISABLE_ULTRA_RAYCAST}>
+            <torusGeometry args={[0.185, 0.0048, 10, 56]} />
+            <meshBasicMaterial
+              ref={pumpBulbCueBandMaterialRef}
+              color={effects.demoHaloColor}
+              transparent
+              opacity={effects.demoHaloMinOpacity * 0.78}
+              depthWrite={false}
+              depthTest={false}
+              toneMapped={false}
+            />
+          </mesh>
+          <mesh name="HSL_UltraPumpBulbFocusCueBandB" ref={pumpBulbCueBandBRef} position={[0, -0.034, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={DISABLE_ULTRA_RAYCAST}>
+            <torusGeometry args={[0.16, 0.0038, 10, 56]} />
+            <meshBasicMaterial
+              ref={pumpBulbCueBandBMaterialRef}
+              color={effects.demoHaloColor}
+              transparent
+              opacity={effects.demoHaloMinOpacity * 0.54}
+              depthWrite={false}
+              depthTest={false}
+              toneMapped={false}
+            />
+          </mesh>
+        </group>
+      ) : focusMode && focusShellMeshes.length > 0 ? (
         <>
           <group name={`HSL_UltraFocusShellBreath_${target.id}`} ref={shellBreathRef}>
             {focusShellMeshes.map((entry) => (
@@ -2205,15 +2267,11 @@ function UltraPowerSwitchSkirtedRocker({
 
     if (focusPulseStartedAtRef.current === null) focusPulseStartedAtRef.current = clock.elapsedTime;
     const focusPulseElapsed = Math.max(0, clock.elapsedTime - focusPulseStartedAtRef.current);
-    const pulse = (focusPulseElapsed * 0.58) % 1;
-    const popProgress = Math.min(pulse / ULTRA_FOCUS_SHELL_POP_FRACTION, 1);
-    const fadeProgress = Math.max((pulse - ULTRA_FOCUS_SHELL_POP_FRACTION) / (1 - ULTRA_FOCUS_SHELL_POP_FRACTION), 0);
-    const popEase = 1 - Math.pow(1 - popProgress, 3);
-    const fadeEase = 1 - Math.pow(1 - fadeProgress, 2);
-    const pulseScale = THREE.MathUtils.lerp(1.04, 1.42, popEase) - fadeEase * 0.24;
-    const pulseDepthScale = THREE.MathUtils.lerp(1.02, 1.18, popEase) - fadeEase * 0.06;
+    const wavePulse = getUltraGuideCuePulse(focusPulseElapsed);
+    const pulseScale = THREE.MathUtils.lerp(1.04, 1.42, wavePulse);
+    const pulseDepthScale = THREE.MathUtils.lerp(1.02, 1.18, wavePulse);
     focusPulse.scale.set(pulseScale, pulseScale, pulseDepthScale);
-    focusPulseMaterial.opacity = 0.32 * popEase * Math.pow(1 - fadeProgress, 1.45);
+    focusPulseMaterial.opacity = 0.38 * wavePulse;
   });
 
   if (!anchor) return null;

@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>热容比引导步骤面板临时预览</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --panel-border: rgba(14, 116, 144, 0.28);
+        --panel-bg: rgba(248, 250, 252, 0.92);
+        --panel-shadow: 0 16px 34px rgba(71, 85, 105, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.76);
+        --text-strong: #0f172a;
+        --text-main: #334155;
+        --text-soft: rgba(71, 85, 105, 0.72);
+        --text-muted: rgba(100, 116, 139, 0.62);
+        --accent: #0891b2;
+        --accent-soft: rgba(125, 211, 252, 0.22);
+        --accent-ring: rgba(14, 165, 233, 0.42);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+        background: #e8f0f7;
+        color: var(--text-main);
+        font-family:
+          "Microsoft YaHei",
+          "PingFang SC",
+          "Noto Sans SC",
+          system-ui,
+          sans-serif;
+      }
+
+      .app-shell {
+        width: 100vw;
+        height: 100vh;
+        display: grid;
+        grid-template-rows: 42px 1fr 28px;
+        background: linear-gradient(180deg, #f8fbff 0%, #e7eef5 100%);
+      }
+
+      .top-bar,
+      .bottom-bar {
+        border-bottom: 1px solid rgba(148, 163, 184, 0.36);
+        background: rgba(248, 250, 252, 0.82);
+      }
+
+      .bottom-bar {
+        border-top: 1px solid rgba(148, 163, 184, 0.36);
+        border-bottom: 0;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: 220px minmax(720px, 1fr) 290px;
+        gap: 10px;
+        padding: 12px 14px;
+        overflow: hidden;
+      }
+
+      .sidebar,
+      .right-panel,
+      .viewport {
+        border: 1px solid rgba(148, 163, 184, 0.32);
+        background: rgba(255, 255, 255, 0.64);
+      }
+
+      .sidebar,
+      .right-panel {
+        border-radius: 4px;
+      }
+
+      .viewport {
+        position: relative;
+        min-height: 540px;
+        overflow: hidden;
+        border-radius: 2px;
+        background:
+          radial-gradient(circle at 30% 18%, rgba(255, 255, 255, 0.72), transparent 34%),
+          linear-gradient(180deg, #eaf2f9 0%, #e4edf5 45%, #d9e3eb 100%);
+      }
+
+      .viewport-title {
+        position: absolute;
+        top: 16px;
+        left: 20px;
+        color: #0f172a;
+        font-size: 18px;
+        font-weight: 800;
+      }
+
+      .mode-strip {
+        position: absolute;
+        top: 12px;
+        right: 16px;
+        display: flex;
+        overflow: hidden;
+        border: 1px solid rgba(22, 101, 52, 0.22);
+        border-radius: 8px;
+        background: rgba(248, 250, 252, 0.9);
+        box-shadow: 0 10px 22px rgba(71, 85, 105, 0.12);
+      }
+
+      .mode-strip span {
+        padding: 8px 18px;
+        border-right: 1px solid rgba(148, 163, 184, 0.24);
+        color: #475569;
+        font-size: 14px;
+        font-weight: 760;
+      }
+
+      .mode-strip span:last-child {
+        border-right: 0;
+      }
+
+      .mode-strip .active {
+        color: #047857;
+        background: rgba(220, 252, 231, 0.72);
+        box-shadow: inset 0 0 0 2px rgba(34, 197, 94, 0.2);
+      }
+
+      .scene-block {
+        position: absolute;
+        left: 58px;
+        right: 40px;
+        bottom: 36px;
+        height: 56%;
+        border-radius: 4px;
+        transform: skewX(-12deg);
+        background: linear-gradient(165deg, #9fa9ae, #77848b 58%, #68747b);
+        opacity: 0.46;
+      }
+
+      .instrument-block {
+        position: absolute;
+        right: 150px;
+        bottom: 158px;
+        width: 310px;
+        height: 102px;
+        border-radius: 4px;
+        transform: rotate(8deg);
+        background: linear-gradient(180deg, #d8dde0, #b9c1c5);
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+        opacity: 0.72;
+      }
+
+      .guide-step-panel {
+        position: absolute;
+        top: 72px;
+        right: 22px;
+        z-index: 3;
+        display: grid;
+        width: min(460px, calc(100% - 44px));
+        max-width: 460px;
+        height: 288px;
+        grid-template-rows: auto 1fr;
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        background: var(--panel-bg);
+        box-shadow: var(--panel-shadow);
+        color: var(--text-main);
+        backdrop-filter: blur(10px);
+        animation: enter-right 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+      }
+
+      @keyframes enter-right {
+        from {
+          opacity: 0;
+          transform: translate3d(18px, 0, 0);
+        }
+
+        to {
+          opacity: 1;
+          transform: translate3d(0, 0, 0);
+        }
+      }
+
+      .guide-step-header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 14px 16px 8px;
+      }
+
+      .guide-step-title {
+        display: grid;
+        gap: 3px;
+      }
+
+      .guide-step-title span {
+        color: #0369a1;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .guide-step-title strong {
+        color: var(--text-strong);
+        font-size: 17px;
+        font-weight: 840;
+        line-height: 1.2;
+      }
+
+      .guide-step-count {
+        color: var(--text-soft);
+        font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        font-size: 13px;
+        font-weight: 760;
+        white-space: nowrap;
+      }
+
+      .guide-step-list-shell {
+        position: relative;
+        min-height: 0;
+        margin: 0 0 10px;
+        overflow: hidden;
+        border-radius: 6px;
+      }
+
+      .guide-step-list-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 4;
+        background:
+          linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(248, 250, 252, 0)) top / 100% 48px no-repeat,
+          linear-gradient(0deg, rgba(248, 250, 252, 0.98), rgba(248, 250, 252, 0)) bottom / 100% 48px no-repeat;
+        pointer-events: none;
+      }
+
+      .guide-step-list-shell::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        z-index: 1;
+        height: 64px;
+        border: 1px solid rgba(14, 165, 233, 0.18);
+        border-radius: 8px;
+        background: linear-gradient(90deg, rgba(224, 242, 254, 0.48), rgba(248, 250, 252, 0.12));
+        box-shadow:
+          inset 2px 0 0 rgba(8, 145, 178, 0.82),
+          0 10px 20px rgba(71, 85, 105, 0.08);
+        transform: translateY(-50%);
+        pointer-events: none;
+      }
+
+      .guide-step-list {
+        position: relative;
+        z-index: 2;
+        height: 100%;
+        overflow: hidden;
+        overscroll-behavior: contain;
+        touch-action: none;
+        scrollbar-width: none;
+      }
+
+      .guide-step-track {
+        padding: 78px 22px;
+        transform: translate3d(0, var(--guide-step-list-offset, 0px), 0);
+        transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+        will-change: transform;
+      }
+
+      .guide-step-list::-webkit-scrollbar {
+        display: none;
+      }
+
+      .step-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: 24px 1fr;
+        gap: 8px;
+        min-height: 44px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        transform-origin: 50% 50%;
+        transition:
+          opacity 180ms ease,
+          transform 180ms ease,
+          background-color 180ms ease,
+          box-shadow 180ms ease;
+      }
+
+      .step-row + .step-row {
+        margin-top: 6px;
+      }
+
+      .step-row.current {
+        background: transparent;
+        box-shadow: none;
+      }
+
+      .step-marker {
+        position: relative;
+        width: 16px;
+        height: 16px;
+        margin-top: 3px;
+        border: 2px solid rgba(100, 116, 139, 0.48);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.46);
+      }
+
+      .step-row.done .step-marker {
+        display: grid;
+        place-items: center;
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #f8fafc;
+      }
+
+      .step-row.done .step-marker::after {
+        content: "";
+        width: 7px;
+        height: 4px;
+        border-left: 2px solid currentColor;
+        border-bottom: 2px solid currentColor;
+        border-radius: 1px;
+        transform: translateY(-1px) rotate(-45deg);
+        transform-origin: center;
+      }
+
+      .step-row.current .step-marker {
+        border-color: var(--accent);
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: 0 0 0 5px var(--accent-ring);
+      }
+
+      .step-main {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .step-name {
+        color: var(--text-soft);
+        font-size: 13px;
+        font-weight: 720;
+        line-height: 1.32;
+        transition:
+          color 180ms ease,
+          text-decoration-color 180ms ease;
+      }
+
+      .step-detail {
+        color: var(--text-muted);
+        font-size: 11px;
+        line-height: 1.3;
+        transition: color 180ms ease;
+      }
+
+      .step-row.done .step-name {
+        color: rgba(100, 116, 139, 0.64);
+        text-decoration: line-through;
+        text-decoration-thickness: 1.5px;
+      }
+
+      .step-row.done .step-detail {
+        color: rgba(100, 116, 139, 0.42);
+      }
+
+      .step-row.current .step-name {
+        color: var(--text-strong);
+        font-size: 15px;
+        font-weight: 860;
+      }
+
+      .step-row.current .step-detail {
+        color: rgba(30, 41, 59, 0.82);
+        font-weight: 680;
+      }
+
+      .step-row.centered {
+        opacity: 1;
+        transform: scale(1.02);
+      }
+
+      .step-row.centered .step-name {
+        color: var(--text-strong);
+        font-weight: 860;
+      }
+
+      .step-row.centered .step-detail {
+        color: rgba(30, 41, 59, 0.82);
+        font-weight: 680;
+      }
+
+      .step-row.current.centered {
+        background: transparent;
+        box-shadow: none;
+      }
+
+      .step-row.distance-0 {
+        opacity: 1;
+      }
+
+      .step-row.distance-1 {
+        opacity: 0.78;
+        transform: scale(0.985);
+      }
+
+      .step-row.distance-2 {
+        opacity: 0.56;
+        transform: scale(0.965);
+      }
+
+      .step-row.distance-3 {
+        opacity: 0.34;
+        transform: scale(0.948);
+      }
+
+      .step-row.distance-4 {
+        opacity: 0.2;
+        transform: scale(0.94);
+      }
+
+      .wait-rate {
+        position: absolute;
+        top: 86px;
+        left: 50%;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        height: 44px;
+        min-width: 360px;
+        padding: 0 20px;
+        border: 1px solid rgba(96, 116, 134, 0.45);
+        border-radius: 999px;
+        background: rgba(238, 243, 247, 0.78);
+        color: rgba(71, 85, 105, 0.58);
+        font-size: 12px;
+        font-weight: 800;
+        transform: translateX(-50%);
+        opacity: 0.42;
+      }
+
+      .wait-rate strong {
+        color: rgba(8, 145, 178, 0.74);
+      }
+
+      .mock-note {
+        position: absolute;
+        right: 24px;
+        bottom: 18px;
+        color: rgba(71, 85, 105, 0.62);
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <div class="top-bar"></div>
+      <section class="workspace">
+        <aside class="sidebar"></aside>
+        <section class="viewport" aria-label="热容比实验引导步骤面板临时预览">
+          <div class="viewport-title">3D 预览</div>
+          <div class="mode-strip" aria-hidden="true">
+            <span>演示模式</span>
+            <span class="active">引导模式</span>
+            <span>自由模式</span>
+          </div>
+          <div class="wait-rate" aria-hidden="true">
+            <span>WAIT RATE</span>
+            <span>×2</span>
+            <span>×4</span>
+            <strong>×8</strong>
+            <span>02:18 / 05:00</span>
+          </div>
+          <div class="scene-block" aria-hidden="true"></div>
+          <div class="instrument-block" aria-hidden="true"></div>
+
+          <section class="guide-step-panel" aria-label="引导步骤清单">
+            <header class="guide-step-header">
+              <div class="guide-step-title">
+                <span>Guide checklist</span>
+                <strong>连续快速打气</strong>
+              </div>
+              <div class="guide-step-count">STEP 7 / 15</div>
+            </header>
+            <div class="guide-step-list-shell">
+              <div class="guide-step-list" id="guideStepList">
+                <div class="guide-step-track" id="guideStepTrack">
+                <div class="step-row done far">
+                  <div class="step-marker"></div>
+                  <div class="step-main">
+                    <div class="step-name">打开电源</div>
+                    <div class="step-detail">启动传感器和仪器显示</div>
+                  </div>
+                </div>
+                <div class="step-row done far">
+                  <div class="step-marker"></div>
+                  <div class="step-main">
+                    <div class="step-name">打开玻璃旋塞</div>
+                    <div class="step-detail">使气瓶与外界连通后准备调零</div>
+                  </div>
+                </div>
+                <div class="step-row done">
+                  <div class="step-marker"></div>
+                  <div class="step-main">
+                    <div class="step-name">调整压力调零</div>
+                    <div class="step-detail">双击仪器进入聚焦，拖拽粗调、滚轮细调</div>
+                  </div>
+                </div>
+                <div class="step-row done">
+                  <div class="step-marker"></div>
+                  <div class="step-main">
+                    <div class="step-name">记录 U0</div>
+                    <div class="step-detail">确认 U_p 接近 0 后记录零点</div>
+                  </div>
+                </div>
+                <div class="step-row done">
+                  <div class="step-marker"></div>
+                  <div class="step-main">
+                    <div class="step-name">打开打气阀门</div>
+                    <div class="step-detail">打气前先打开阀门</div>
+                  </div>
+                </div>
+                <div class="step-row done">
+                  <div class="step-marker"></div>
+                  <div class="step-main">
+                    <div class="step-name">双击打气球进入聚焦</div>
+                    <div class="step-detail">进入聚焦后开始连续打气</div>
+                  </div>
+                </div>
+                <div class="step-row current" id="currentStep">
+                  <div class="step-marker"></div>
+                  <div class="step-main">
+                    <div class="step-name">连续快速打气至 U_p ≥ 120.0 mV</div>
+                    <div class="step-detail">达到后自动退出聚焦，并立即提示关闭打气阀门</div>
+                  </div>
+                </div>
+                <div class="step-row pending">
+                  <div class="step-marker"></div>
+                  <div class="step-main">
+                    <div class="step-name">关闭打气阀门</div>
+                    <div class="step-detail">关闭后开始 U1 等待计时</div>
+                  </div>
+                </div>
+                <div class="step-row pending">
+                  <div class="step-marker"></div>
+                  <div class="step-main">
+                    <div class="step-name">等待 5min</div>
+                    <div class="step-detail">可调节倍速，计时到达后暂停演化并记录 U1</div>
+                  </div>
+                </div>
+                <div class="step-row pending far">
+                  <div class="step-marker"></div>
+                  <div class="step-main">
+                    <div class="step-name">记录 U1</div>
+                    <div class="step-detail">五分钟到达后点击记录按钮</div>
+                  </div>
+                </div>
+                <div class="step-row pending far">
+                  <div class="step-marker"></div>
+                  <div class="step-main">
+                    <div class="step-name">打开放气旋塞</div>
+                    <div class="step-detail">按标准开阀时间完成放气</div>
+                  </div>
+                </div>
+                <div class="step-row pending far">
+                  <div class="step-marker"></div>
+                  <div class="step-main">
+                    <div class="step-name">关闭放气旋塞</div>
+                    <div class="step-detail">关闭后开始 U2 等待计时</div>
+                  </div>
+                </div>
+                <div class="step-row pending far">
+                  <div class="step-marker"></div>
+                  <div class="step-main">
+                    <div class="step-name">等待 5min</div>
+                    <div class="step-detail">计时到达后暂停演化并记录 U2</div>
+                  </div>
+                </div>
+                <div class="step-row pending far">
+                  <div class="step-marker"></div>
+                  <div class="step-main">
+                    <div class="step-name">记录 U2</div>
+                    <div class="step-detail">五分钟到达后点击记录按钮</div>
+                  </div>
+                </div>
+                <div class="step-row pending far">
+                  <div class="step-marker"></div>
+                  <div class="step-main">
+                    <div class="step-name">关闭电源</div>
+                    <div class="step-detail">完成本组引导实验闭环</div>
+                  </div>
+                </div>
+                </div>
+              </div>
+            </div>
+          </section>
+          <div class="mock-note">临时静态预览：只用于确认面板样式，不接入实验逻辑</div>
+        </section>
+        <aside class="right-panel"></aside>
+      </section>
+      <div class="bottom-bar"></div>
+    </main>
+    <script>
+      const list = document.getElementById("guideStepList");
+      const track = document.getElementById("guideStepTrack");
+      const currentStep = document.getElementById("currentStep");
+      const rows = Array.from(track?.querySelectorAll(".step-row") ?? []);
+      const distanceClasses = ["distance-0", "distance-1", "distance-2", "distance-3", "distance-4"];
+      const currentStepIndex = Math.max(rows.indexOf(currentStep), 0);
+      const wheelVisualScale = 0.66;
+      const maxStepsPerFrame = 2;
+      const snapBackDelayMs = 120;
+      const returnToCurrentDelayMs = 2500;
+      let centerIndex = currentStepIndex;
+      let visualOffset = 0;
+      let pendingWheelDelta = 0;
+      let frameId = 0;
+      let snapTimer = 0;
+      let returnTimer = 0;
+      let centerY = 0;
+      let rowCenters = [];
+      let lastClassCenterIndex = -1;
+
+      function measureLayout() {
+        if (!list || rows.length === 0) {
+          return;
+        }
+        centerY = list.clientHeight / 2;
+        rowCenters = rows.map((row) => row.offsetTop + row.offsetHeight / 2);
+      }
+
+      function getBaseOffset(index) {
+        if (!list || !rowCenters[index]) {
+          return 0;
+        }
+        return centerY - rowCenters[index];
+      }
+
+      function getStepDistance(fromIndex, direction) {
+        const nextIndex = fromIndex + direction;
+        if (nextIndex < 0 || nextIndex >= rows.length) {
+          return 0;
+        }
+        return Math.abs(rowCenters[nextIndex] - rowCenters[fromIndex]);
+      }
+
+      function setTrackTransition(enabled) {
+        if (!track) {
+          return;
+        }
+        track.style.transition = enabled
+          ? "transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1)"
+          : "none";
+      }
+
+      function updateCenteredStep({ animate = true } = {}) {
+        if (!list || !track || rows.length === 0 || centerIndex < 0 || centerIndex >= rows.length) {
+          return;
+        }
+
+        setTrackTransition(animate);
+        track.style.setProperty("--guide-step-list-offset", `${getBaseOffset(centerIndex) + visualOffset}px`);
+
+        if (lastClassCenterIndex === centerIndex) {
+          return;
+        }
+        lastClassCenterIndex = centerIndex;
+
+        rows.forEach((row, index) => {
+          const distance = Math.min(Math.abs(index - centerIndex), 4);
+          row.classList.remove("centered", ...distanceClasses);
+          row.classList.add(`distance-${distance}`);
+          row.classList.toggle("centered", index === centerIndex);
+        });
+      }
+
+      function normalizeWheelDelta(event) {
+        if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+          return event.deltaY * 16;
+        }
+        if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+          return event.deltaY * list.clientHeight;
+        }
+        return event.deltaY;
+      }
+
+      function scheduleReturnToCurrent() {
+        window.clearTimeout(returnTimer);
+        if (centerIndex === currentStepIndex) {
+          return;
+        }
+        returnTimer = window.setTimeout(() => {
+          centerIndex = currentStepIndex;
+          visualOffset = 0;
+          lastClassCenterIndex = -1;
+          updateCenteredStep({ animate: true });
+        }, returnToCurrentDelayMs);
+      }
+
+      function clampVisualOffsetAtBounds() {
+        if (centerIndex === 0 && visualOffset > 0) {
+          visualOffset *= 0.35;
+        }
+        if (centerIndex === rows.length - 1 && visualOffset < 0) {
+          visualOffset *= 0.35;
+        }
+
+        const nextDistance = getStepDistance(centerIndex, visualOffset < 0 ? 1 : -1) || 56;
+        const maxVisualOffset = nextDistance * 1.85;
+        visualOffset = Math.max(-maxVisualOffset, Math.min(maxVisualOffset, visualOffset));
+      }
+
+      function commitVisualOffsetToIndex() {
+        let committedSteps = 0;
+
+        while (visualOffset < 0 && centerIndex < rows.length - 1 && committedSteps < maxStepsPerFrame) {
+          const distance = getStepDistance(centerIndex, 1);
+          if (distance <= 0 || Math.abs(visualOffset) < distance * 0.5) {
+            break;
+          }
+          centerIndex += 1;
+          visualOffset += distance;
+          committedSteps += 1;
+        }
+
+        while (visualOffset > 0 && centerIndex > 0 && committedSteps < maxStepsPerFrame) {
+          const distance = getStepDistance(centerIndex, -1);
+          if (distance <= 0 || visualOffset < distance * 0.5) {
+            break;
+          }
+          centerIndex -= 1;
+          visualOffset -= distance;
+          committedSteps += 1;
+        }
+
+        clampVisualOffsetAtBounds();
+      }
+
+      function scheduleSnapToCenter() {
+        window.clearTimeout(snapTimer);
+        snapTimer = window.setTimeout(() => {
+          visualOffset = 0;
+          updateCenteredStep({ animate: true });
+        }, snapBackDelayMs);
+      }
+
+      function renderWheelFrame() {
+        frameId = 0;
+        if (pendingWheelDelta === 0) {
+          return;
+        }
+
+        const delta = pendingWheelDelta;
+        pendingWheelDelta = 0;
+        visualOffset -= delta * wheelVisualScale;
+        commitVisualOffsetToIndex();
+        updateCenteredStep({ animate: false });
+      }
+
+      function requestWheelFrame() {
+        if (frameId !== 0) {
+          return;
+        }
+        frameId = window.requestAnimationFrame(renderWheelFrame);
+      }
+
+      function handleWheelDelta(delta) {
+        window.clearTimeout(returnTimer);
+        window.clearTimeout(snapTimer);
+
+        pendingWheelDelta += delta;
+        requestWheelFrame();
+        scheduleSnapToCenter();
+        scheduleReturnToCurrent();
+      }
+
+      list?.addEventListener(
+        "wheel",
+        (event) => {
+          event.preventDefault();
+          const normalizedDelta = normalizeWheelDelta(event);
+          const direction = Math.sign(normalizedDelta);
+          if (direction === 0) {
+            return;
+          }
+
+          handleWheelDelta(normalizedDelta);
+        },
+        { passive: false },
+      );
+
+      window.addEventListener("resize", () => {
+        measureLayout();
+        lastClassCenterIndex = -1;
+        updateCenteredStep({ animate: false });
+      });
+      requestAnimationFrame(() => {
+        measureLayout();
+        requestAnimationFrame(updateCenteredStep);
+      });
+    </script>
+  </body>
+</html>

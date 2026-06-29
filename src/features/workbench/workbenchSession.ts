@@ -81,6 +81,7 @@ export interface WorkbenchSessionState {
 export interface WorkbenchHeatCapacityGuideSessionState {
   fileId: string | null;
   strongReminderActive: boolean;
+  strongReminderControlId: string | null;
 }
 
 const panelKeys: WorkbenchPanelKey[] = ['preview', 'realtime', 'results', 'experimentPoints', 'verification', 'heatCapacityGuide', 'heatCapacityRecords', 'heatCapacityProcessing', 'heatCapacityReview', 'history'];
@@ -464,6 +465,7 @@ const fallbackSession = (): WorkbenchSessionState => {
 const createDefaultHeatCapacityGuideSession = (): WorkbenchHeatCapacityGuideSessionState => ({
   fileId: null,
   strongReminderActive: false,
+  strongReminderControlId: null,
 });
 
 const isFreshWorkbenchWindow = () => {
@@ -779,6 +781,9 @@ const normalizeHeatCapacityGuideSession = (
   return {
     fileId: guideFile.id,
     strongReminderActive: value.strongReminderActive === true,
+    strongReminderControlId: typeof value.strongReminderControlId === 'string'
+      ? value.strongReminderControlId
+      : null,
   };
 };
 
