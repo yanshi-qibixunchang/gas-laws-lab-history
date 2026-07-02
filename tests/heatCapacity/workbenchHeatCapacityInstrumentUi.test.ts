@@ -179,9 +179,9 @@ assert.doesNotMatch(
   'process review summary should not keep a decorative left accent rail',
 );
 assert.doesNotMatch(
-  getProcessReviewCssBlock('.hpr-ideal-reference-summary'),
+  getProcessReviewCssBlock('.hpr-standard-process-summary'),
   /border-left:/,
-  'ideal reference summary should not keep a decorative orange left accent rail',
+  'standard process summary should not keep a decorative orange left accent rail',
 );
 assert.doesNotMatch(
   getProcessReviewCssBlock('.hpr-diagnosis-details'),
@@ -194,9 +194,9 @@ assert.match(
   'process review should define dedicated light-theme note surfaces for the redesigned engineering summary',
 );
 assert.match(
-  getProcessReviewCssBlock('.hpr-ideal-reference-summary'),
+  getProcessReviewCssBlock('.hpr-standard-process-summary'),
   /grid-template-columns:\s*auto minmax\(0,\s*1fr\)/,
-  'ideal reference summary should use a compact inline engineering layout',
+  'standard process summary should use a compact inline engineering layout',
 );
 assert.match(
   processReviewPanelSource,
@@ -210,8 +210,8 @@ assert.match(
 );
 assert.match(
   processReviewPanelSource,
-  /zh-TW[\s\S]*idealReference:\s*'理想參考'[\s\S]*en:[\s\S]*idealReference:\s*'Ideal reference'/,
-  'ideal reference review copy should cover Traditional Chinese and English',
+  /zh-TW[\s\S]*standardProcess:\s*'標準過程'[\s\S]*en:[\s\S]*standardProcess:\s*'Standard process'/,
+  'standard process review copy should cover Traditional Chinese and English',
 );
 assert.match(
   processReviewPanelSource,
@@ -458,11 +458,11 @@ assert.match(workbenchSource, /'zero-not-ready': '请先打开电源并打开玻
 assert.doesNotMatch(workbenchSource, /完成调零，待 Uₚ 稳定接近 0 后再记录 U₀|finish zeroing, and wait until Uₚ is stable near 0 before recording U₀/, 'Free Mode U0 reject copy should not imply strict zeroing and stability gates');
 assert.match(stateSource, /recordHeatCapacityFreeTraceEventWithReference/, 'Free Mode official records should capture hidden trace references before saving U0/U1/U2');
 assert.match(processReviewStageScaleSource, /MIN_COMPRESSED_STAGE_DURATION_BY_ID/, 'process review timeline should keep each experiment stage readable even after long idle waits');
-assert.match(processReviewStageScaleSource, /calculateHeatCapacityProcessReviewCompressedDurationS/, 'process review timeline should expose compressed process duration for independent actual and ideal reference traces');
+assert.match(processReviewStageScaleSource, /calculateHeatCapacityProcessReviewCompressedDurationS/, 'process review timeline should expose compressed process duration for independent actual and standard process traces');
 assert.match(processReviewStageScaleSource, /axisTicks/, 'process review stage scale should expose mixed major/minor axis ticks');
 assert.match(processReviewStageScaleSource, /createHeatCapacityAlignedReferencePointToX/, 'process review stage scale should expose a helper for start-aligning independent reference traces');
-assert.match(processReviewPanelSource, /createHeatCapacityAlignedReferencePointToX/, 'process review charts should align the ideal reference display through the shared stage-scale helper');
-assert.match(processReviewPanelSource, /actualStageId:\s*'pump'[\s\S]*referenceStageId:\s*'fill'/, 'ideal reference fill should be display-aligned to the actual pump start while preserving independent later stages');
+assert.match(processReviewPanelSource, /createHeatCapacityAlignedReferencePointToX/, 'process review charts should align the standard process display through the shared stage-scale helper');
+assert.match(processReviewPanelSource, /actualStageId:\s*'pump'[\s\S]*referenceStageId:\s*'pump'/, 'standard process pump should be display-aligned to the actual pump start while preserving independent later stages');
 assert.match(
   processReviewPanelSource,
   /\[copy\.stageLabels\[stage\.id\],\s*stage\.countText,\s*stage\.durationText\][\s\S]*filter\(Boolean\)[\s\S]*join\(' '\)/,
@@ -489,8 +489,8 @@ assert.match(processReviewPanelSource, /trialSelectRef/, 'process review menu sh
 assert.match(processReviewPanelSource, /pointerdown/, 'process review menu should close as soon as an outside pointer is pressed');
 assert.match(processReviewPanelSource, /Escape/, 'process review menu should close from Escape');
 assert.doesNotMatch(processReviewPanelSource, /hpr-reference-line|标准基线|showStandardReference|referenceTrace/, 'process review charts should remove the standard baseline curve and toggle');
-assert.match(processReviewPanelSource, /hpr-ideal-reference-line/, 'process review charts should render the ideal reference curve');
-assert.match(processReviewPanelSource, /理想参考/, 'process review legend should label the orange curve as ideal reference');
+assert.match(processReviewPanelSource, /hpr-standard-process-line/, 'process review charts should render the standard process curve');
+assert.match(processReviewPanelSource, /标准过程/, 'process review legend should label the reference curve as standard process');
 const oldOrangeReferenceUiPattern = new RegExp([
   '推荐' + '参考',
   '推荐' + '操作',
@@ -503,7 +503,7 @@ const oldOrangeReferenceUiPattern = new RegExp([
   `hpr-recommend${'ed-line'}`,
 ].join('|'));
 assert.doesNotMatch(processReviewPanelSource, oldOrangeReferenceUiPattern, 'process review should no longer expose old recommendation wording or field names in the UI layer');
-assert.match(processReviewPanelSource, /buildContinuousLinePath/, 'ideal reference should use a continuous path builder');
+assert.match(processReviewPanelSource, /buildContinuousLinePath/, 'standard process should use a continuous path builder');
 assert.match(processReviewPanelSource, /buildPumpAwareLinePath/, 'actual measured trace should keep step-aware pump rendering');
 assert.doesNotMatch(processReviewPanelSource, /hpr-pump-event-marker/, 'process review charts should keep pump strokes on the stage timeline instead of drawing full-height plot markers');
 assert.match(processReviewPanelSource, /hpr-record-window/, 'process review charts should render actual fixed-width record windows');
@@ -513,9 +513,12 @@ assert.match(processReviewPanelSource, /记录窗口/, 'actual record window leg
 assert.doesNotMatch(processReviewPanelSource, />记录时间：|>电信号：|>换算压强差：|>换算温度差：/, 'record hover callout labels should not be hard-coded Chinese JSX literals');
 assert.doesNotMatch(processReviewPanelSource, /实际记录时刻：/, 'record window title should be localized instead of hard-coded Chinese');
 assert.doesNotMatch(processReviewPanelSource, /hpr-best-window-label/, 'record windows should not place text inside the plot band');
-assert.match(processReviewPanelSource, /idealReferenceTrace/, 'process review charts should consume ideal reference trace data');
-assert.match(processReviewPanelSource, /idealReferenceStages/, 'process review charts should consume ideal reference stages');
-assert.match(processReviewPanelSource, /idealReference/, 'process review should expose an ideal reference summary');
+assert.match(processReviewPanelSource, /standardTrace/, 'process review charts should consume standard process trace data');
+assert.match(processReviewPanelSource, /standardStages/, 'process review charts should consume standard process stages');
+assert.match(processReviewPanelSource, /standardProcess/, 'process review should expose a standard process summary');
+assert.match(processReviewPanelSource, /standardWindows/, 'process review should expose standard record windows');
+assert.match(processReviewPanelSource, /upperBoundHelp/, 'operation upper-bound card should expose concise help copy');
+assert.doesNotMatch(processReviewPanelSource, /idealReferenceAssumptions/, 'process review should not keep old ideal reference assumption copy');
 assert.match(processReviewPanelSource, /createNiceAxis/, 'process review charts should use readable engineering axis ticks instead of raw equal divisions');
 assert.match(
   processReviewPanelSource,
@@ -550,21 +553,20 @@ assert.doesNotMatch(processReviewPanelSource, /record\.signalMv\.toFixed\(2\)/, 
 assert.doesNotMatch(leftPanelSource, /data-heat-capacity-calculate="free"/, 'Free Mode results should be derived automatically without a separate calculate button');
 assert.match(leftPanelSource, /data-heat-capacity-calculate="teaching"/, 'Teaching calculate button should expose a stable browser-automation selector');
 assert.doesNotMatch(processReviewStyleSource, /\.hpr-reference-line|--hpr-reference-line/, 'standard reference styles should be removed');
-assert.match(processReviewStyleSource, /\.hpr-ideal-reference-line/, 'ideal reference curve should have an explicit style');
+assert.match(processReviewStyleSource, /\.hpr-standard-process-line/, 'standard process curve should have an explicit style');
 assert.match(processReviewStyleSource, /\.hpr-record-window/, 'actual record window should have an explicit style');
 assert.match(processReviewStyleSource, /\.hpr-line-legend-window/, 'record window legend marker should have an explicit style');
 assert.doesNotMatch(processReviewStyleSource, /\.hpr-best-window-label/, 'plot-internal record window labels should not keep unused styles');
 assert.match(processReviewStyleSource, /--hpr-pressure-line:/, 'process review should theme the measured pressure line through an explicit variable');
 assert.match(processReviewStyleSource, /--hpr-temperature-line:/, 'process review should theme the measured temperature line through an explicit variable');
-assert.match(processReviewStyleSource, /--hpr-ideal-reference-line:/, 'process review should give the ideal reference curve its own line color');
+assert.match(processReviewStyleSource, /--hpr-standard-process-line:/, 'process review should give the standard process curve its own line color');
 assert.match(processReviewPanelSource, /var\(--hpr-pressure-line\)/, 'pressure chart should use the themed pressure line color');
 assert.match(processReviewPanelSource, /var\(--hpr-temperature-line\)/, 'temperature chart should use the themed temperature line color');
-assert.match(processReviewStyleSource, /\.hpr-ideal-reference-line\s*\{[\s\S]*stroke:\s*var\(--hpr-ideal-reference-line\)/, 'ideal reference curve should use its dedicated line color');
+assert.match(processReviewStyleSource, /\.hpr-standard-process-line\s*\{[\s\S]*stroke:\s*var\(--hpr-standard-process-line\)/, 'standard process curve should use its dedicated line color');
 assert.doesNotMatch(processReviewStyleSource, new RegExp('\\.hpr-recommend' + 'ed-line|--hpr-recommend' + 'ed-line'), 'old orange reference line styles should be removed');
-assert.match(processReviewPanelSource, /理想参考/, 'process review should render the ideal reference summary title');
-assert.match(processReviewPanelSource, /连续快速充气约/, 'ideal reference summary should state the continuous-fast fill rule');
-assert.match(processReviewPanelSource, /无噪声、无传感器滞后、无泄漏/, 'ideal reference summary should disclose ideal assumptions');
-assert.match(processReviewPanelSource, /未找到同时满足安全阈值、记录阈值和 γ 目标的理想参考过程/, 'ideal reference summary should handle infeasible parameters');
+assert.match(processReviewPanelSource, /标准过程/, 'process review should render the standard process summary title');
+assert.match(processReviewPanelSource, /同一参数和干扰条件/, 'standard process summary should state same-condition reference logic');
+assert.match(processReviewPanelSource, /标准操作/, 'standard process summary should disclose standard-operation reference logic');
 assert.match(processReviewPanelSource, /row\.details/, 'diagnosis rows should render expandable sub-score details');
 assert.match(processReviewPanelSource, /expandedDiagnosisRows/, 'diagnosis rows should keep local expand-collapse state');
 assert.match(processReviewPanelSource, /hpr-diagnosis-expand-open/, 'diagnosis expand chevrons should animate by rotating the same pointed glyph');

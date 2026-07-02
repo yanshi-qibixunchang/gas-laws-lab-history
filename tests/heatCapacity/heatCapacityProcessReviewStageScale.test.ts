@@ -17,17 +17,17 @@ const actualStages: HeatCapacityProcessStageSegment[] = [
   { id: 'recover', label: 'Recover', startS: 62.3, endS: 92 },
 ];
 
-const idealReferenceStages: HeatCapacityProcessStageSegment[] = [
+const standardProcessStages: HeatCapacityProcessStageSegment[] = [
   { id: 'zero', label: 'Zero', startS: 0, endS: 4 },
-  { id: 'fill', label: 'Fill', startS: 4, endS: 4.4 },
-  { id: 'stabilize', label: 'Stabilize', startS: 4.4, endS: 14.4 },
-  { id: 'release', label: 'Release', startS: 14.4, endS: 14.75, durationText: '0.35 s' },
-  { id: 'recover', label: 'Recover', startS: 14.75, endS: 36 },
+  { id: 'pump', label: 'Pump', startS: 4, endS: 5.2 },
+  { id: 'stabilize', label: 'Stabilize', startS: 5.2, endS: 15.2 },
+  { id: 'release', label: 'Release', startS: 15.2, endS: 15.55, durationText: '0.35 s' },
+  { id: 'recover', label: 'Recover', startS: 15.55, endS: 36 },
 ];
 
 const sharedCompressedDurationS = Math.max(
   calculateHeatCapacityProcessReviewCompressedDurationS(actualStages),
-  calculateHeatCapacityProcessReviewCompressedDurationS(idealReferenceStages),
+  calculateHeatCapacityProcessReviewCompressedDurationS(standardProcessStages),
 );
 
 const layout = createHeatCapacityProcessReviewStageLayout({
@@ -37,54 +37,54 @@ const layout = createHeatCapacityProcessReviewStageLayout({
   compressedTotalS: sharedCompressedDurationS,
 });
 
-const idealReferenceLayout = createHeatCapacityProcessReviewStageLayout({
-  stages: idealReferenceStages,
+const standardProcessLayout = createHeatCapacityProcessReviewStageLayout({
+  stages: standardProcessStages,
   plotLeft: 42,
   plotRight: 1206,
   compressedTotalS: sharedCompressedDurationS,
 });
 
-const idealFillPoints: HeatCapacityProcessReviewStageScalePoint[] = [
-  { stageId: 'fill', timeS: 4 },
-  { stageId: 'fill', timeS: 4.1 },
-  { stageId: 'fill', timeS: 4.2 },
-  { stageId: 'fill', timeS: 4.3 },
-  { stageId: 'fill', timeS: 4.4 },
+const standardPumpPoints: HeatCapacityProcessReviewStageScalePoint[] = [
+  { stageId: 'pump', timeS: 4 },
+  { stageId: 'pump', timeS: 4.3 },
+  { stageId: 'pump', timeS: 4.6 },
+  { stageId: 'pump', timeS: 4.9 },
+  { stageId: 'pump', timeS: 5.2 },
 ];
 
-const fillXs = idealFillPoints.map((point) => idealReferenceLayout.pointToX(point));
-const fillSpan = Math.max(...fillXs) - Math.min(...fillXs);
+const pumpXs = standardPumpPoints.map((point) => standardProcessLayout.pointToX(point));
+const pumpSpan = Math.max(...pumpXs) - Math.min(...pumpXs);
 
 assert.equal(
-  fillSpan >= 110,
+  pumpSpan >= 110,
   true,
-  `ideal continuous fill should occupy a readable visual width, got ${fillSpan}`,
+  `standard pump should occupy a readable visual width, got ${pumpSpan}`,
 );
 assert.equal(
-  fillXs.every((x, index) => index === 0 || x > fillXs[index - 1]),
+  pumpXs.every((x, index) => index === 0 || x > pumpXs[index - 1]),
   true,
-  'ideal fill points should keep increasing x positions inside the fill stage',
+  'standard pump points should keep increasing x positions inside the pump stage',
 );
 
 const stabilizeWidth = layout.stageWidth('stabilize');
 const recoverWidth = layout.stageWidth('recover');
 const pumpWidth = layout.stageWidth('pump');
 const releaseWidth = layout.stageWidth('release');
-const idealReferenceEndX = idealReferenceLayout.timeToX(36);
+const standardProcessEndX = standardProcessLayout.timeToX(36);
 const actualEndX = layout.timeToX(92);
-const idealReferenceReleaseX = idealReferenceLayout.timeToX(14.4);
+const standardProcessReleaseX = standardProcessLayout.timeToX(15.2);
 const actualReleaseX = layout.timeToX(61.2);
-const alignedIdealReferencePointToX = createHeatCapacityAlignedReferencePointToX({
+const alignedStandardPointToX = createHeatCapacityAlignedReferencePointToX({
   actualStages,
-  referenceStages: idealReferenceStages,
+  referenceStages: standardProcessStages,
   actualTimeToX: layout.timeToX,
-  referencePointToX: idealReferenceLayout.pointToX,
+  referencePointToX: standardProcessLayout.pointToX,
   actualStageId: 'pump',
-  referenceStageId: 'fill',
+  referenceStageId: 'pump',
 });
-const alignedIdealFillStartX = alignedIdealReferencePointToX({ stageId: 'fill', timeS: 4 });
-const alignedIdealFillMidX = alignedIdealReferencePointToX({ stageId: 'fill', timeS: 4.2 });
-const alignedIdealReleaseX = alignedIdealReferencePointToX({ stageId: 'release', timeS: 14.4 });
+const alignedStandardPumpStartX = alignedStandardPointToX({ stageId: 'pump', timeS: 4 });
+const alignedStandardPumpMidX = alignedStandardPointToX({ stageId: 'pump', timeS: 4.6 });
+const alignedStandardReleaseX = alignedStandardPointToX({ stageId: 'release', timeS: 15.2 });
 
 assert.equal(
   pumpWidth >= 160,
@@ -107,29 +107,29 @@ assert.equal(
   `long recover stage should be compressed, got ${recoverWidth}`,
 );
 assert.equal(
-  idealReferenceEndX < actualEndX - 120,
+  standardProcessEndX < actualEndX - 120,
   true,
-  'an independently optimized ideal reference trace should be allowed to end before a slower actual trace',
+  'an independently timed standard process trace should be allowed to end before a slower actual trace',
 );
 assert.equal(
-  idealReferenceReleaseX < actualReleaseX - 120,
+  standardProcessReleaseX < actualReleaseX - 120,
   true,
-  'ideal reference release should keep its own optimized phase timing instead of aligning to the actual release stage',
+  'standard process release should keep its own phase timing instead of aligning to the actual release stage',
 );
 assert.equal(
-  Math.abs(alignedIdealFillStartX - layout.timeToX(8)) < 0.000001,
+  Math.abs(alignedStandardPumpStartX - layout.timeToX(8)) < 0.000001,
   true,
-  'aligned ideal reference fill should start at the actual pump start position',
+  'aligned standard process pump should start at the actual pump start position',
 );
 assert.equal(
-  alignedIdealFillMidX > alignedIdealFillStartX,
+  alignedStandardPumpMidX > alignedStandardPumpStartX,
   true,
-  'aligned ideal reference fill should preserve its own rising shape after the start-point shift',
+  'aligned standard process pump should preserve its own rising shape after the start-point shift',
 );
 assert.equal(
-  alignedIdealReleaseX < actualReleaseX - 40,
+  alignedStandardReleaseX < actualReleaseX - 40,
   true,
-  'aligning the ideal fill start should not force the optimized release phase to match the actual release time',
+  'aligning the standard pump start should not force the standard release phase to match the actual release time',
 );
 
 assert.deepEqual(

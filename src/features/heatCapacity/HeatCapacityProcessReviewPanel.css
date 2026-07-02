@@ -20,7 +20,7 @@
   --hpr-process-note-border: #344253;
   --hpr-pressure-line: #3c7db8;
   --hpr-temperature-line: #16a1a9;
-  --hpr-ideal-reference-line: #c78639;
+  --hpr-standard-process-line: #b9945e;
   --hpr-scroll-thumb: #586b7f;
   --hpr-scroll-track: #111820;
 }
@@ -47,7 +47,7 @@
   --hpr-process-note-border: #d6e2ed;
   --hpr-pressure-line: #226399;
   --hpr-temperature-line: #178b99;
-  --hpr-ideal-reference-line: #b76a22;
+  --hpr-standard-process-line: #a77738;
   --hpr-scroll-thumb: #8795a4;
   --hpr-scroll-track: transparent;
 }
@@ -97,6 +97,33 @@
   color: var(--hpr-muted);
   font-size: 11px;
   font-weight: 720;
+}
+
+.hpr-summary-grid .hpr-summary-label-with-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hpr-summary-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--hpr-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--hpr-muted);
+  padding: 0;
+  font-size: 10px;
+  font-weight: 780;
+  line-height: 1;
+}
+
+.hpr-summary-help:hover {
+  color: var(--hpr-text-strong);
+  border-color: var(--hpr-accent);
 }
 
 .hpr-summary-title strong {
@@ -177,7 +204,7 @@
   font-weight: 660;
 }
 
-.hpr-ideal-reference-summary {
+.hpr-standard-process-summary {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   column-gap: 12px;
@@ -187,7 +214,7 @@
   padding: 9px 12px;
 }
 
-.hpr-ideal-reference-summary strong {
+.hpr-standard-process-summary strong {
   align-self: start;
   color: var(--hpr-text-strong);
   font-size: 13px;
@@ -195,24 +222,24 @@
   white-space: nowrap;
 }
 
-.hpr-ideal-reference-summary span,
-.hpr-ideal-reference-summary small {
+.hpr-standard-process-summary span,
+.hpr-standard-process-summary small {
   color: var(--hpr-text);
   font-size: 12px;
   font-weight: 650;
   line-height: 1.55;
 }
 
-.hpr-ideal-reference-summary span {
+.hpr-standard-process-summary span {
   min-width: 0;
 }
 
-.hpr-ideal-reference-summary small {
+.hpr-standard-process-summary small {
   grid-column: 2;
   color: var(--hpr-muted);
 }
 
-.hpr-ideal-reference-summary-warning {
+.hpr-standard-process-summary-warning {
   border-color: var(--hpr-process-note-border);
 }
 
@@ -416,7 +443,7 @@
 .hpr-axis-tick line,
 .hpr-axis-tick text,
 .hpr-trace-line,
-.hpr-ideal-reference-line,
+.hpr-standard-process-line,
 .hpr-record-line,
 .hpr-record-ring,
 .hpr-control-dot,
@@ -631,14 +658,14 @@
   stroke-width: 4;
 }
 
-.hpr-ideal-reference-line {
+.hpr-standard-process-line {
   fill: none;
-  stroke: var(--hpr-ideal-reference-line);
+  stroke: var(--hpr-standard-process-line);
   stroke-dasharray: 10 5;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2.2;
-  opacity: 0.92;
+  stroke-width: 1.9;
+  opacity: 0.62;
 }
 
 .hpr-axis-tick-minor line {
@@ -656,6 +683,11 @@
 
 .hpr-record-window-u0 rect {
   opacity: 0.08;
+}
+
+.hpr-standard-window rect {
+  fill: var(--hpr-standard-process-line);
+  opacity: 0.07;
 }
 
 .hpr-line-legend {
@@ -680,8 +712,8 @@
   border-top: 2px solid currentColor;
 }
 
-.hpr-line-legend-ideal-reference::before {
-  border-top-color: var(--hpr-ideal-reference-line);
+.hpr-line-legend-standard-process::before {
+  border-top-color: var(--hpr-standard-process-line);
   border-top-style: dashed;
 }
 

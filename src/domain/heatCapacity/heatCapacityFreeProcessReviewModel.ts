@@ -11,7 +11,6 @@ import type {
   HeatCapacityFreeTraceTrial,
 } from './heatCapacityFreeTraceModel.ts';
 import type {
-  HeatCapacityBestRecordWindow,
   HeatCapacityOperationUpperBound,
   HeatCapacityProcessDiagnosisId,
   HeatCapacityProcessDiagnosisStatus,
@@ -25,12 +24,10 @@ import type {
   HeatCapacityProcessStageSegment,
 } from './heatCapacityFreeProcessReviewTypes.ts';
 import {
-  selectHeatCapacityBestRecordWindows,
-} from './heatCapacityFreeBestWindowModel.ts';
-import {
-  createHeatCapacityIdealReference,
-  type HeatCapacityIdealReference,
-} from './heatCapacityFreeIdealReferenceModel.ts';
+  createHeatCapacityFreeStandardProcess,
+  type HeatCapacityFreeStandardProcess,
+  type HeatCapacityStandardProcessSummary,
+} from './heatCapacityFreeStandardProcessModel.ts';
 import {
   scoreHeatCapacityFreeProcess,
 } from './heatCapacityFreeProcessScoringModel.ts';
@@ -40,7 +37,6 @@ export type {
   HeatCapacityProcessDiagnosisStatus,
   HeatCapacityProcessRecordId,
   HeatCapacityProcessReferencePoint,
-  HeatCapacityBestRecordWindow,
   HeatCapacityOperationUpperBound,
   HeatCapacityProcessReviewTrialOption,
   HeatCapacityProcessScore,
@@ -111,30 +107,16 @@ export interface HeatCapacityProcessSystemEvent {
   timeS: number;
 }
 
-export interface HeatCapacityIdealReferenceSummary {
-  feasible: boolean;
-  fillDurationS: number | null;
-  targetPressureMv: number | null;
-  targetPressureDeltaKPa: number | null;
-  releaseDurationS: number | null;
-  gamma: number | null;
-  relativeErrorPercent: number | null;
-  u1TimeS: number | null;
-  u2TimeS: number | null;
-  assumptions: HeatCapacityIdealReference['assumptions'];
-  explanation: HeatCapacityIdealReference['explanation'];
-}
-
 export interface HeatCapacityProcessChartData {
   stages: HeatCapacityProcessStageSegment[];
   trace: HeatCapacityProcessTracePoint[];
   records: HeatCapacityProcessRecordEvent[];
   controls: HeatCapacityProcessControlEvent[];
   systemEvents: HeatCapacityProcessSystemEvent[];
-  idealReferenceTrace: HeatCapacityProcessReferencePoint[];
-  idealReferenceStages: HeatCapacityProcessStageSegment[];
-  idealReference: HeatCapacityIdealReferenceSummary;
-  bestWindows: HeatCapacityBestRecordWindow[];
+  standardTrace: HeatCapacityProcessReferencePoint[];
+  standardStages: HeatCapacityProcessStageSegment[];
+  standardProcess: HeatCapacityStandardProcessSummary;
+  standardWindows: HeatCapacityFreeStandardProcess['recordWindows'];
 }
 
 export interface HeatCapacityProcessDiagnosisRow {
@@ -173,11 +155,11 @@ const emptyChart = (): HeatCapacityProcessChartData => ({
   records: [],
   controls: [],
   systemEvents: [],
-  idealReferenceTrace: [],
-  idealReferenceStages: [],
-  idealReference: {
+  standardTrace: [],
+  standardStages: [],
+  standardProcess: {
     feasible: false,
-    fillDurationS: null,
+    seed: 0,
     targetPressureMv: null,
     targetPressureDeltaKPa: null,
     releaseDurationS: null,
@@ -186,19 +168,16 @@ const emptyChart = (): HeatCapacityProcessChartData => ({
     u1TimeS: null,
     u2TimeS: null,
     assumptions: {
-      fillMode: 'continuous-fast',
-      noiseIgnored: true,
-      sensorLagIgnored: true,
-      leakageIgnored: true,
+      operationMode: 'standard-operation',
+      disturbancesPreserved: true,
+      stageAligned: true,
     },
     explanation: {
-      fill: '理想参考使用连续快速充气。',
-      u1: 'U1 取首次回温稳定点。',
-      release: '放气时长由当前参数解析计算。',
-      u2: 'U2 取再次回温稳定点。',
+      operation: '暂无可用标准过程。',
+      windows: '暂无可用标准记录窗口。',
     },
   },
-  bestWindows: [],
+  standardWindows: [],
 });
 
 const emptyScore = (): HeatCapacityProcessScore => ({
@@ -574,8 +553,7 @@ const createChartData = (
   traceTrial: HeatCapacityFreeTraceTrial,
   branch: HeatCapacityFreeTraceBranch,
   trial: HeatCapacityFreeTrial,
-  upperBound: HeatCapacityOperationUpperBound,
-  theoreticalGamma: number,
+  standardProcess: HeatCapacityFreeStandardProcess,
 ): HeatCapacityProcessChartData => {
   const pressureSensitivity = getPressureSensitivity(traceTrial, trial);
   const temperatureSensitivity = getTemperatureSensitivity(traceTrial);
@@ -588,10 +566,6 @@ const createChartData = (
     pressureDeltaKPa: roundNumber((sample.sensor.displayPressureMv - u0Pressure) / pressureSensitivity, 3),
     temperatureDeltaK: roundNumber((sample.sensor.displayTemperatureMv - u0Temperature) / temperatureSensitivity, 3),
   }));
-  const idealReference = createHeatCapacityIdealReference(
-    traceTrial.configSnapshot,
-    theoreticalGamma,
-  );
   const records = [
     createRecordEvent('u0', trial.u0, trial.u0, pressureSensitivity, temperatureSensitivity),
     createRecordEvent('u1', trial.u1, trial.u0, pressureSensitivity, temperatureSensitivity),
@@ -604,22 +578,10 @@ const createChartData = (
     records,
     controls: createControls(branch, stages),
     systemEvents: createSystemEvents(branch, stages),
-    idealReferenceTrace: idealReference.trace,
-    idealReferenceStages: idealReference.stages,
-    idealReference: {
-      feasible: idealReference.feasible,
-      fillDurationS: idealReference.fillDurationS,
-      targetPressureMv: idealReference.targetPressureMv,
-      targetPressureDeltaKPa: idealReference.targetPressureDeltaKPa,
-      releaseDurationS: idealReference.releaseDurationS,
-      gamma: idealReference.gamma === null ? null : roundNumber(idealReference.gamma, 3),
-      relativeErrorPercent: idealReference.relativeErrorPercent,
-      u1TimeS: idealReference.u1TimeS,
-      u2TimeS: idealReference.u2TimeS,
-      assumptions: idealReference.assumptions,
-      explanation: idealReference.explanation,
-    },
-    bestWindows: upperBound.windows,
+    standardTrace: standardProcess.trace,
+    standardStages: standardProcess.stages,
+    standardProcess: standardProcess.standard,
+    standardWindows: standardProcess.recordWindows,
   };
 };
 
@@ -837,13 +799,14 @@ const createRetakeDiagnosis = (
 const diagnosisTitleByScoreId: Partial<Record<HeatCapacityProcessScoreItem['id'], string>> = {
   pumping: '打气过程',
   release: '放气操作',
+  recordChain: '记录链路',
   retake: '重录情况',
 };
 
 const scoreItemToDiagnosisRow = (
   item: HeatCapacityProcessScoreItem,
 ): HeatCapacityProcessDiagnosisRow => ({
-  id: item.id as HeatCapacityProcessDiagnosisId,
+  id: item.id === 'recordChain' ? 'recording' : item.id,
   title: diagnosisTitleByScoreId[item.id] ?? item.label,
   status: item.status,
   evidence: item.evidence,
@@ -854,97 +817,18 @@ const scoreItemToDiagnosisRow = (
   details: item.details,
 });
 
-const trimDiagnosisPart = (part: string) => part.trim().replace(/[。；;.\s]+$/u, '');
-
-const joinDiagnosisParts = (
-  parts: Array<string | undefined>,
-) => parts
-  .map((part) => (part ? trimDiagnosisPart(part) : ''))
-  .filter(Boolean)
-  .join('；');
-
-const joinActionableDiagnosisParts = (
-  parts: Array<string | undefined>,
-) => {
-  const joined = parts
-    .map((part) => (part ? trimDiagnosisPart(part) : ''))
-    .filter((part) => part && part !== '无误')
-    .join('；');
-  return joined || '无误。';
-};
-
-const combineScoreItems = (
-  id: HeatCapacityProcessDiagnosisId,
-  title: string,
-  items: HeatCapacityProcessScoreItem[],
-): HeatCapacityProcessDiagnosisRow => {
-  const score = items.reduce((sum, item) => sum + item.score, 0);
-  const maxScore = items.reduce((sum, item) => sum + item.maxScore, 0);
-  const status = items.some((item) => item.status === 'needs-improvement')
-    ? 'needs-improvement'
-    : items.some((item) => item.status === 'review' || item.status === 'insufficient-data')
-      ? 'review'
-      : 'reasonable';
-  const itemByScoreId = new Map(items.map((item) => [item.id, item]));
-  if (id === 'recording') {
-    const completeness = itemByScoreId.get('completeness');
-    const zeroing = itemByScoreId.get('zeroing');
-    const recording = itemByScoreId.get('recording');
-    return {
-      id,
-      title,
-      status,
-      score,
-      maxScore,
-      details: items.flatMap((item) => item.details),
-      evidence: joinDiagnosisParts([
-        completeness?.evidence,
-        zeroing?.evidence,
-        recording?.evidence,
-      ]),
-      relation: joinActionableDiagnosisParts([
-        zeroing?.relation,
-        recording?.relation,
-      ]),
-      recommendation: joinActionableDiagnosisParts([
-        completeness?.recommendation,
-        zeroing?.recommendation,
-        recording?.recommendation,
-      ]),
-    };
-  }
-  return {
-    id,
-    title,
-    status,
-    score,
-    maxScore,
-    details: items.flatMap((item) => item.details),
-    evidence: joinDiagnosisParts(items.map((item) => item.evidence)),
-    relation: joinDiagnosisParts(items.map((item) => item.relation)),
-    recommendation: joinDiagnosisParts(items.map((item) => item.recommendation)),
-  };
-};
-
 const createDiagnostics = (
   score: HeatCapacityProcessScore,
 ): HeatCapacityProcessDiagnosisRow[] => {
   const itemById = new Map(score.items.map((item) => [item.id, item]));
-  const recordingItems = [
-    itemById.get('completeness'),
-    itemById.get('zeroing'),
-    itemById.get('recording'),
-  ].filter((item): item is HeatCapacityProcessScoreItem => item !== undefined);
   return [
     itemById.get('pumping'),
     itemById.get('release'),
-    recordingItems.length > 0
-      ? combineScoreItems('recording', '记录链路', recordingItems)
-      : undefined,
+    itemById.get('recordChain'),
     itemById.get('retake'),
   ]
-    .filter((item): item is HeatCapacityProcessScoreItem | HeatCapacityProcessDiagnosisRow => item !== undefined)
-    .map((item) => ('maxScore' in item && 'label' in item ? scoreItemToDiagnosisRow(item) : item));
+    .filter((item): item is HeatCapacityProcessScoreItem => item !== undefined)
+    .map((item) => scoreItemToDiagnosisRow(item));
 };
 
 export const selectHeatCapacityFreeProcessReview = ({
@@ -993,33 +877,34 @@ export const selectHeatCapacityFreeProcessReview = ({
     };
   }
 
-  const upperBound = selectHeatCapacityBestRecordWindows(
+  const standardProcess = createHeatCapacityFreeStandardProcess({
     traceTrial,
     branch,
-    selected.trial,
+    trial: selected.trial,
     theoreticalGamma,
-  );
+  });
   const summary = createSummary(
     selected.trial,
     selected.index,
     traceTrial,
     branch,
     theoreticalGamma,
-    upperBound,
+    standardProcess.upperBound,
   );
   const score = scoreHeatCapacityFreeProcess({
     traceTrial,
     branch,
     trial: selected.trial,
     summary,
-    upperBound,
+    upperBound: standardProcess.upperBound,
+    standardProcess,
   });
   return {
     status: selected.trial.u0 && selected.trial.u1 && selected.trial.u2 ? 'ready' : 'incomplete',
     selectedTrialId: selected.trial.id,
     trialOptions,
     summary,
-    chart: createChartData(traceTrial, branch, selected.trial, upperBound, theoreticalGamma),
+    chart: createChartData(traceTrial, branch, selected.trial, standardProcess),
     diagnostics: createDiagnostics(score),
     score,
   };

@@ -45,7 +45,7 @@ interface HeatCapacityProcessReviewCopy {
   systemLabels: Record<HeatCapacityProcessSystemKind, string>;
   diagnosisStatusLabels: Record<HeatCapacityProcessDiagnosisStatus, string>;
   measured: string;
-  idealReference: string;
+  standardProcess: string;
   recordWindow: string;
   recordWindowTitle: string;
   recordTimeLabel: string;
@@ -60,8 +60,8 @@ interface HeatCapacityProcessReviewCopy {
   pressureYLabel: string;
   temperatureYLabel: string;
   xAxisLabel: string;
-  idealReferenceAssumptions: string;
-  idealReferenceUnavailable: string;
+  standardProcessAssumptions: string;
+  standardProcessUnavailable: string;
   notFreeTitle: string;
   notFreeBody: string;
   missingTraceTitle: string;
@@ -75,7 +75,9 @@ interface HeatCapacityProcessReviewCopy {
   mainBranchLabel: string;
   relativeError: string;
   upperBoundGamma: string;
+  upperBoundTheoryError: string;
   upperBoundGap: string;
+  upperBoundHelp: string;
   operationScore: string;
   scoreDerived: string;
   retakeTitle: string;
@@ -135,6 +137,12 @@ const controlPalette: Record<HeatCapacityProcessControlKind, string> = {
   stopcock: '#a2682a',
 };
 
+const standardWindowStageByRecordId: Record<string, HeatCapacityProcessStageId> = {
+  u0: 'zero',
+  u1: 'stabilize',
+  u2: 'recover',
+};
+
 const controlLabels: Record<HeatCapacityProcessControlKind, string> = {
   power: '电源',
   pumpValve: '打气阀',
@@ -182,7 +190,7 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     },
     diagnosisStatusLabels,
     measured: '实测',
-    idealReference: '理想参考',
+    standardProcess: '标准过程',
     recordWindow: '记录窗口',
     recordWindowTitle: 'U0/U1/U2 最佳记录窗口',
     recordTimeLabel: '记录时间',
@@ -197,8 +205,8 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     pressureYLabel: 'ΔP (kPa)',
     temperatureYLabel: 'ΔT (K)',
     xAxisLabel: '过程时间 (s，等待压缩)',
-    idealReferenceAssumptions: '无噪声、无传感器滞后、无泄漏；U1/U2 取首次回温稳定点。',
-    idealReferenceUnavailable: '当前参数下未找到同时满足安全阈值、记录阈值和 γ 目标的理想参考过程。',
+    standardProcessAssumptions: '同一参数和干扰条件下生成；标准操作窗口用于估计本组可达到的操作上限。',
+    standardProcessUnavailable: '当前参数下未生成可用标准过程。',
     notFreeTitle: '过程回顾仅用于自由模式',
     notFreeBody: '演示模式和引导模式保持教学预设行为，不读取自由模式真实 trace。',
     missingTraceTitle: '本组缺少过程 trace',
@@ -212,7 +220,9 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     mainBranchLabel: '主线',
     relativeError: '相对误差',
     upperBoundGamma: '操作上限 γ',
+    upperBoundTheoryError: '上限对理论误差',
     upperBoundGap: '与上限差距',
+    upperBoundHelp: '操作上限表示同一参数和干扰条件下，标准操作可达到的参考结果，用于判断本组误差中有多少来自操作时机。若实际结果高于标准操作参考，则以实际结果作为本组操作上限。',
     operationScore: '操作评分',
     scoreDerived: '基于本次 trace 派生',
     retakeTitle: '退回 / 重录',
@@ -265,7 +275,7 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
       'insufficient-data': '數據不足',
     },
     measured: '實測',
-    idealReference: '理想參考',
+    standardProcess: '標準過程',
     recordWindow: '記錄窗口',
     recordWindowTitle: 'U0/U1/U2 最佳記錄窗口',
     recordTimeLabel: '記錄時間',
@@ -280,8 +290,8 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     pressureYLabel: 'ΔP (kPa)',
     temperatureYLabel: 'ΔT (K)',
     xAxisLabel: '過程時間 (s，等待壓縮)',
-    idealReferenceAssumptions: '無噪聲、無傳感器滯後、無洩漏；U1/U2 取首次回溫穩定點。',
-    idealReferenceUnavailable: '目前參數下未找到同時滿足安全閾值、記錄閾值和 γ 目標的理想參考過程。',
+    standardProcessAssumptions: '同一參數和干擾條件下生成；標準操作窗口用於估計本組可達到的操作上限。',
+    standardProcessUnavailable: '目前參數下未生成可用標準過程。',
     notFreeTitle: '過程回顧僅用於自由模式',
     notFreeBody: '演示模式和引導模式保持教學預設行為，不讀取自由模式真實 trace。',
     missingTraceTitle: '本組缺少過程 trace',
@@ -295,7 +305,9 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     mainBranchLabel: '主線',
     relativeError: '相對誤差',
     upperBoundGamma: '操作上限 γ',
+    upperBoundTheoryError: '上限對理論誤差',
     upperBoundGap: '與上限差距',
+    upperBoundHelp: '操作上限表示同一參數和干擾條件下，標準操作可達到的參考結果，用於判斷本組誤差中有多少來自操作時機。若實際結果高於標準操作參考，則以實際結果作為本組操作上限。',
     operationScore: '操作評分',
     scoreDerived: '基於本次 trace 派生',
     retakeTitle: '退回 / 重錄',
@@ -348,7 +360,7 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
       'insufficient-data': 'Insufficient',
     },
     measured: 'Measured',
-    idealReference: 'Ideal reference',
+    standardProcess: 'Standard process',
     recordWindow: 'Record window',
     recordWindowTitle: 'Best U0/U1/U2 record window',
     recordTimeLabel: 'Record time',
@@ -363,8 +375,8 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     pressureYLabel: 'ΔP (kPa)',
     temperatureYLabel: 'ΔT (K)',
     xAxisLabel: 'Process time (s, waits compressed)',
-    idealReferenceAssumptions: 'No noise, sensor lag, or leakage; U1/U2 use the first stable return-to-ambient point.',
-    idealReferenceUnavailable: 'No ideal reference process satisfies the safety threshold, record threshold, and γ target with the current parameters.',
+    standardProcessAssumptions: 'Generated with the same parameters and disturbance settings; standard operation windows estimate this trial operation limit.',
+    standardProcessUnavailable: 'No standard process is available with the current parameters.',
     notFreeTitle: 'Process review is Free Mode only',
     notFreeBody: 'Demo and guided modes keep their teaching presets and do not read the real Free Mode trace.',
     missingTraceTitle: 'This trial is missing its process trace',
@@ -378,7 +390,9 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     mainBranchLabel: 'main branch',
     relativeError: 'Relative error',
     upperBoundGamma: 'Operation limit γ',
+    upperBoundTheoryError: 'Limit error vs theory',
     upperBoundGap: 'Gap to limit',
+    upperBoundHelp: 'The operation limit is the reference result that standard operation can reach under the same parameters and disturbances. It shows how much of this trial error comes from operation timing. If the actual result is higher than the standard reference, the actual result becomes this trial operation limit.',
     operationScore: 'Operation score',
     scoreDerived: 'Derived from this trace',
     retakeTitle: 'Backtrack / retake',
@@ -404,21 +418,20 @@ const getHeatCapacityProcessReviewCopy = (
   language: HeatCapacityProcessReviewLanguage,
 ) => heatCapacityProcessReviewCopy[language] ?? heatCapacityProcessReviewCopy['zh-CN'];
 
-const formatIdealReferenceSummary = (
+const formatStandardProcessSummary = (
   language: HeatCapacityProcessReviewLanguage,
-  fillDuration: string,
   targetPressure: string,
   releaseDuration: string,
   gamma: string,
   error: string,
 ) => {
   if (language === 'en') {
-    return `Continuous fast fill for about ${fillDuration} to ${targetPressure}; valve open ${releaseDuration}; expected γ = ${gamma}, error ${error}.`;
+    return `Same-condition standard operation to ${targetPressure}; valve open ${releaseDuration}; reference γ = ${gamma}, error ${error}.`;
   }
   if (language === 'zh-TW') {
-    return `連續快速充氣約 ${fillDuration} 至 ${targetPressure}；開閥 ${releaseDuration}；預計 γ = ${gamma}，誤差 ${error}。`;
+    return `同一參數和干擾條件下標準操作至 ${targetPressure}；開閥 ${releaseDuration}；參考 γ = ${gamma}，誤差 ${error}。`;
   }
-  return `连续快速充气约 ${fillDuration} 至 ${targetPressure}；开阀 ${releaseDuration}；预计 γ = ${gamma}，误差 ${error}。`;
+  return `同一参数和干扰条件下标准操作至 ${targetPressure}；开阀 ${releaseDuration}；参考 γ = ${gamma}，误差 ${error}。`;
 };
 
 const formatTrialLabel = (
@@ -787,13 +800,13 @@ const ProcessChart: React.FC<{
   hoveredStageId,
   showXAxis = true,
 }) => {
-  const idealReferenceStages = chart.idealReferenceStages.length > 0 ? chart.idealReferenceStages : chart.stages;
+  const standardStages = chart.standardStages.length > 0 ? chart.standardStages : chart.stages;
   const sharedCompressedDurationS = useMemo(
     () => Math.max(
       calculateHeatCapacityProcessReviewCompressedDurationS(chart.stages),
-      calculateHeatCapacityProcessReviewCompressedDurationS(idealReferenceStages),
+      calculateHeatCapacityProcessReviewCompressedDurationS(standardStages),
     ),
-    [chart.stages, idealReferenceStages],
+    [chart.stages, standardStages],
   );
   const stageLayout = useMemo(
     () => createHeatCapacityProcessReviewStageLayout({
@@ -804,33 +817,33 @@ const ProcessChart: React.FC<{
     }),
     [chart.stages, sharedCompressedDurationS],
   );
-  const idealReferenceStageLayout = useMemo(
+  const standardStageLayout = useMemo(
     () => createHeatCapacityProcessReviewStageLayout({
-      stages: idealReferenceStages,
+      stages: standardStages,
       plotLeft: PLOT_LEFT,
       plotRight: PLOT_RIGHT,
       compressedTotalS: sharedCompressedDurationS,
     }),
-    [idealReferenceStages, sharedCompressedDurationS],
+    [standardStages, sharedCompressedDurationS],
   );
-  const alignedIdealReferencePointToX = useMemo(
+  const alignedStandardPointToX = useMemo(
     () => createHeatCapacityAlignedReferencePointToX({
       actualStages: chart.stages,
-      referenceStages: idealReferenceStages,
+      referenceStages: standardStages,
       actualTimeToX: stageLayout.timeToX,
-      referencePointToX: idealReferenceStageLayout.pointToX,
+      referencePointToX: standardStageLayout.pointToX,
       actualStageId: 'pump',
-      referenceStageId: 'fill',
+      referenceStageId: 'pump',
     }),
-    [chart.stages, idealReferenceStages, stageLayout, idealReferenceStageLayout],
+    [chart.stages, standardStages, stageLayout, standardStageLayout],
   );
   const timeToX = stageLayout.timeToX;
   const axis = useMemo(
     () => createNiceAxis([
       ...chart.trace,
-      ...chart.idealReferenceTrace,
+      ...chart.standardTrace,
     ], kind),
-    [chart.idealReferenceTrace, chart.trace, kind],
+    [chart.standardTrace, chart.trace, kind],
   );
   const linePath = useMemo(
     () => buildPumpAwareLinePath(
@@ -842,14 +855,14 @@ const ProcessChart: React.FC<{
     ),
     [chart.stages, chart.trace, kind, stageLayout, axis],
   );
-  const idealReferencePath = useMemo(
+  const standardPath = useMemo(
     () => buildContinuousLinePath(
-      chart.idealReferenceTrace,
+      chart.standardTrace,
       kind,
-      (point) => alignedIdealReferencePointToX(point),
+      (point) => alignedStandardPointToX(point),
       axis,
     ),
-    [chart.idealReferenceTrace, kind, alignedIdealReferencePointToX, axis],
+    [chart.standardTrace, kind, alignedStandardPointToX, axis],
   );
   const yTicks = axis.ticks;
   const xTicks = stageLayout.axisTicks;
@@ -873,7 +886,7 @@ const ProcessChart: React.FC<{
         </div>
         <div className="hpr-chart-line-legend" aria-label={`${title} legend`}>
           <span className="hpr-line-legend hpr-line-legend-trace">{copy.measured}</span>
-          <span className="hpr-line-legend hpr-line-legend-ideal-reference">{copy.idealReference}</span>
+          <span className="hpr-line-legend hpr-line-legend-standard-process">{copy.standardProcess}</span>
           <span className="hpr-line-legend hpr-line-legend-window" title={copy.recordWindowTitle}>{copy.recordWindow}</span>
         </div>
       </div>
@@ -904,6 +917,19 @@ const ProcessChart: React.FC<{
             <g className={`hpr-record-window hpr-record-window-${record.id}`} key={`${kind}-${record.id}`}>
               <rect x={x} y={PLOT_TOP} width={RECORD_WINDOW_WIDTH} height={PLOT_BOTTOM - PLOT_TOP} />
               <title>{`${record.label} ${copy.recordTitle}: ${formatSeconds(record.timeS)}`}</title>
+            </g>
+          );
+        })}
+        {chart.standardWindows.map((window) => {
+          const stageId = standardWindowStageByRecordId[window.recordId] ?? undefined;
+          const startX = alignedStandardPointToX({ stageId, timeS: window.startS });
+          const endX = alignedStandardPointToX({ stageId, timeS: window.endS });
+          const x = clamp(Math.min(startX, endX), PLOT_LEFT, PLOT_RIGHT);
+          const width = Math.max(2, Math.min(PLOT_RIGHT, Math.max(startX, endX)) - x);
+          return (
+            <g className={`hpr-standard-window hpr-standard-window-${window.recordId}`} key={`${kind}-standard-${window.recordId}`}>
+              <rect x={x} y={PLOT_TOP} width={width} height={PLOT_BOTTOM - PLOT_TOP} />
+              <title>{`${window.recordId.toUpperCase()} ${copy.standardProcess}: ${formatSeconds(window.startS)} - ${formatSeconds(window.endS)}`}</title>
             </g>
           );
         })}
@@ -948,7 +974,7 @@ const ProcessChart: React.FC<{
             {copy.xAxisLabel}
           </text>
         ) : null}
-        {idealReferencePath ? <path className="hpr-ideal-reference-line" d={idealReferencePath} /> : null}
+        {standardPath ? <path className="hpr-standard-process-line" d={standardPath} /> : null}
         <path className="hpr-trace-line" d={linePath} stroke={stroke} />
       </svg>
     </section>
@@ -970,15 +996,15 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
   const trialSelectRef = useRef<HTMLDivElement | null>(null);
   const copy = getHeatCapacityProcessReviewCopy(language);
   const sharedCompressedDurationS = useMemo(() => {
-    const idealReferenceStages = review.chart.idealReferenceStages.length > 0
-      ? review.chart.idealReferenceStages
+    const standardStages = review.chart.standardStages.length > 0
+      ? review.chart.standardStages
       : review.chart.stages;
     return Math.max(
       calculateHeatCapacityProcessReviewCompressedDurationS(review.chart.stages),
-      calculateHeatCapacityProcessReviewCompressedDurationS(idealReferenceStages),
+      calculateHeatCapacityProcessReviewCompressedDurationS(standardStages),
     );
-  }, [review.chart.idealReferenceStages, review.chart.stages]);
-  const idealReference = review.chart.idealReference;
+  }, [review.chart.standardStages, review.chart.stages]);
+  const standardProcess = review.chart.standardProcess;
   const toggleDiagnosisRow = (rowId: string) => {
     setExpandedDiagnosisRows((current) => {
       const next = new Set(current);
@@ -1060,14 +1086,24 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
             <small>{copy.relativeError} {formatMetric(summary.relativeErrorPercent, 2, '%')}</small>
           </div>
           <div>
-            <span>{copy.upperBoundGamma}</span>
+            <span className="hpr-summary-label-with-help">
+              {copy.upperBoundGamma}
+              <button
+                type="button"
+                className="hpr-summary-help"
+                aria-label={copy.upperBoundHelp}
+                title={copy.upperBoundHelp}
+              >
+                ?
+              </button>
+            </span>
             <strong>{formatMetric(summary.upperBoundGamma, 3)}</strong>
-            <small>{copy.upperBoundGap} {formatMetric(summary.upperBoundGapPercent, 2, '%')}</small>
+            <small>{copy.upperBoundTheoryError} {formatMetric(summary.upperBoundRelativeErrorPercent, 2, '%')}</small>
           </div>
           <div>
             <span>{copy.operationScore}</span>
             <strong>{formatScore(review.score.total, review.score.maxScore)}</strong>
-            <small>{copy.scoreDerived}</small>
+            <small>{copy.upperBoundGap} {formatMetric(summary.upperBoundGapPercent, 2, '%')}</small>
           </div>
           <div>
             <span>{copy.retakeTitle}</span>
@@ -1116,24 +1152,23 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
             ) : null}
           </div>
         </div>
-        <div className={`hpr-ideal-reference-summary ${idealReference.feasible ? '' : 'hpr-ideal-reference-summary-warning'}`}>
-          <strong>{copy.idealReference}</strong>
-          {idealReference.feasible ? (
+        <div className={`hpr-standard-process-summary ${standardProcess.feasible ? '' : 'hpr-standard-process-summary-warning'}`}>
+          <strong>{copy.standardProcess}</strong>
+          {standardProcess.feasible ? (
             <>
               <span>
-                {formatIdealReferenceSummary(
+                {formatStandardProcessSummary(
                   language,
-                  formatMetric(idealReference.fillDurationS, 2, ' s'),
-                  formatMetric(idealReference.targetPressureMv, 1, ' mV'),
-                  formatMetric(idealReference.releaseDurationS, 2, ' s'),
-                  formatMetric(idealReference.gamma, 3),
-                  formatMetric(idealReference.relativeErrorPercent, 2, '%'),
+                  formatMetric(standardProcess.targetPressureMv, 1, ' mV'),
+                  formatMetric(standardProcess.releaseDurationS, 2, ' s'),
+                  formatMetric(standardProcess.gamma, 3),
+                  formatMetric(standardProcess.relativeErrorPercent, 2, '%'),
                 )}
               </span>
-              <small>{copy.idealReferenceAssumptions}</small>
+              <small>{copy.standardProcessAssumptions}</small>
             </>
           ) : (
-            <span>{copy.idealReferenceUnavailable}</span>
+            <span>{copy.standardProcessUnavailable}</span>
           )}
         </div>
         <div className="hpr-chart-shell">

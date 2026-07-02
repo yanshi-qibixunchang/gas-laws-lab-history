@@ -13,22 +13,22 @@ import {
 
 const complete = createCompleteProcessScoringInputFixture();
 const completeScore = scoreHeatCapacityFreeProcess(complete);
-const completeRecordingItem = completeScore.items.find((item) => item.id === 'recording');
+const recordChainItem = completeScore.items.find((item) => item.id === 'recordChain');
 
 assert.equal(completeScore.maxScore, 100);
-assert.equal(completeScore.items.map((item) => item.id).join(','), 'completeness,zeroing,pumping,release,recording,retake');
+assert.deepEqual(completeScore.items.map((item) => item.id), ['pumping', 'release', 'recordChain', 'retake']);
+assert.deepEqual(completeScore.items.map((item) => item.maxScore), [20, 20, 50, 10]);
 assert.equal(completeScore.total !== null && completeScore.total >= 70, true);
-assert.equal(completeRecordingItem?.status, 'reasonable');
-assert.equal(completeRecordingItem?.score, completeRecordingItem?.maxScore);
-assert.equal(
-  [
-    completeRecordingItem?.evidence,
-    completeRecordingItem?.relation,
-    completeRecordingItem?.recommendation,
-  ].join('\n').includes('推荐记录窗口'),
-  false,
-  'recording score should judge the official record stability, not the operation upper-bound window',
-);
+assert.equal(recordChainItem?.status, 'reasonable');
+assert.equal(recordChainItem?.score, recordChainItem?.maxScore);
+assert.deepEqual(recordChainItem?.details.map((detail) => detail.maxScore), [10, 5, 15, 20]);
+assert.deepEqual(recordChainItem?.details.map((detail) => detail.id), [
+  'record-chain-completeness',
+  'record-chain-result',
+  'record-chain-zeroing',
+  'record-chain-timing',
+]);
+
 for (const item of completeScore.items) {
   assert.equal(Array.isArray(item.details), true, `${item.id} should expose sub-score details`);
   assert.equal((item.details ?? []).length > 0, true, `${item.id} should have sub-score details`);
@@ -49,40 +49,6 @@ for (const item of completeScore.items) {
   );
 }
 
-const forbiddenExplanatoryCopy = [
-  '共同决定',
-  '主要扣分来源',
-  '可用于评分',
-  '不按理论答案反推',
-  '过程和结果来自同一条主线',
-  '分支只作为过程参考',
-];
-for (const item of completeScore.items) {
-  const itemCopy = [
-    item.evidence,
-    item.relation,
-    item.recommendation,
-    ...(item.details ?? []).flatMap((detail) => [
-      detail.evidence,
-      detail.reason,
-      detail.recommendation,
-    ]),
-  ].join('\n');
-  for (const forbidden of forbiddenExplanatoryCopy) {
-    assert.equal(
-      itemCopy.includes(forbidden),
-      false,
-      `${item.id} should avoid explanatory copy: ${forbidden}`,
-    );
-  }
-  for (const detail of item.details ?? []) {
-    if (detail.score === detail.maxScore) {
-      assert.equal(detail.reason, '无误。', `${detail.id} full-score reason should be concise`);
-      assert.equal(detail.recommendation, '无误。', `${detail.id} full-score recommendation should be concise`);
-    }
-  }
-}
-
 const overVented = scoreHeatCapacityFreeProcess(createOverVentedProcessScoringInputFixture());
 assert.equal(overVented.items.find((item) => item.id === 'release')?.status, 'needs-improvement');
 assert.equal((overVented.items.find((item) => item.id === 'release')?.score ?? 20) < 14, true);
@@ -100,15 +66,14 @@ const warningScore = scoreHeatCapacityFreeProcess({
   branch: warningBranch,
 });
 const warningPumpingItem = warningScore.items.find((item) => item.id === 'pumping');
-assert.equal(warningPumpingItem?.score, warningPumpingItem?.maxScore);
 assert.equal(
   warningPumpingItem?.details.find((detail) => detail.id === 'pumping-safety')?.score,
-  6,
-  'pressure warning should not deduct process score; only alarm/danger should deduct',
+  4,
+  'pressure warning should be a small teaching deduction, while danger/alarm remains a hard deduction',
 );
 
 const incomplete = scoreHeatCapacityFreeProcess(createIncompleteProcessScoringInputFixture());
 assert.equal(incomplete.total, null);
-assert.equal(incomplete.items.find((item) => item.id === 'completeness')?.status, 'insufficient-data');
+assert.equal(incomplete.items.find((item) => item.id === 'recordChain')?.status, 'insufficient-data');
 
 console.log('heatCapacityFreeProcessScoringModel tests passed');

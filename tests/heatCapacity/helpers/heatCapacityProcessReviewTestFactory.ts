@@ -18,8 +18,8 @@ import {
   type HeatCapacityFreeTraceTrial,
 } from '../../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
-  selectHeatCapacityBestRecordWindows,
-} from '../../../src/domain/heatCapacity/heatCapacityFreeBestWindowModel.ts';
+  createHeatCapacityFreeStandardProcess,
+} from '../../../src/domain/heatCapacity/heatCapacityFreeStandardProcessModel.ts';
 import type {
   HeatCapacityProcessScoringInput,
 } from '../../../src/domain/heatCapacity/heatCapacityFreeProcessScoringModel.ts';
@@ -326,22 +326,22 @@ export const createProcessReviewSummaryForTest = (
 export const createCompleteProcessScoringInputFixture = (): HeatCapacityProcessScoringInput => {
   const { traceTrial, branch, trial } = createCompleteProcessReviewFixtureParts();
   const summary = createProcessReviewSummaryForTest(traceTrial, branch, trial, 1.4);
-  const upperBound = selectHeatCapacityBestRecordWindows(traceTrial, branch, trial, 1.4);
-  return { traceTrial, branch, trial, summary, upperBound };
+  const standardProcess = createHeatCapacityFreeStandardProcess({ traceTrial, branch, trial, theoreticalGamma: 1.4 });
+  return { traceTrial, branch, trial, summary, upperBound: standardProcess.upperBound, standardProcess };
 };
 
 export const createOverVentedProcessScoringInputFixture = (): HeatCapacityProcessScoringInput => {
   const { traceTrial, branch, trial } = createOverVentedProcessReviewFixtureParts();
   const summary = createProcessReviewSummaryForTest(traceTrial, branch, trial, 1.4);
-  const upperBound = selectHeatCapacityBestRecordWindows(traceTrial, branch, trial, 1.4);
-  return { traceTrial, branch, trial, summary, upperBound };
+  const standardProcess = createHeatCapacityFreeStandardProcess({ traceTrial, branch, trial, theoreticalGamma: 1.4 });
+  return { traceTrial, branch, trial, summary, upperBound: standardProcess.upperBound, standardProcess };
 };
 
 export const createIncompleteProcessScoringInputFixture = (): HeatCapacityProcessScoringInput => {
   const { traceTrial, branch, trial } = createIncompleteProcessReviewFixtureParts();
   const summary = createProcessReviewSummaryForTest(traceTrial, branch, trial, 1.4);
-  const upperBound = selectHeatCapacityBestRecordWindows(traceTrial, branch, trial, 1.4);
-  return { traceTrial, branch, trial, summary, upperBound };
+  const standardProcess = createHeatCapacityFreeStandardProcess({ traceTrial, branch, trial, theoreticalGamma: 1.4 });
+  return { traceTrial, branch, trial, summary, upperBound: standardProcess.upperBound, standardProcess };
 };
 
 const withSignals = (

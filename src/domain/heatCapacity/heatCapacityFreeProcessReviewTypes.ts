@@ -34,6 +34,12 @@ export interface HeatCapacityProcessReferencePoint {
   temperatureDeltaK: number;
 }
 
+export type HeatCapacityRecordWindowSource =
+  | 'standard-operation'
+  | 'actual-record'
+  | 'trace'
+  | 'automatic-u0';
+
 export interface HeatCapacityBestRecordWindow {
   recordId: HeatCapacityProcessRecordId;
   startS: number;
@@ -45,7 +51,7 @@ export interface HeatCapacityBestRecordWindow {
   pressureDeltaKPa: number | null;
   temperatureDeltaK: number | null;
   qualityScore: number;
-  source: 'trace' | 'automatic-u0';
+  source: HeatCapacityRecordWindowSource;
   reason: string;
 }
 
@@ -68,7 +74,7 @@ export interface HeatCapacityProcessScoreSubItem {
 }
 
 export interface HeatCapacityProcessScoreItem {
-  id: 'completeness' | 'zeroing' | 'pumping' | 'release' | 'recording' | 'retake';
+  id: 'pumping' | 'release' | 'recordChain' | 'retake';
   label: string;
   score: number;
   maxScore: number;
