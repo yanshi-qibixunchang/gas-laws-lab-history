@@ -92,7 +92,6 @@ const createIdealPhysicsConfig = (
   gamma: config.physics.gamma,
   pumpAmountGainRatio: config.physics.pumpAmountGainRatio,
   pumpPressureLimitKPa: config.physics.pumpPressureLimitKPa,
-  pumpInflowTemperatureRiseK: config.physics.pumpInflowTemperatureRiseK,
   stopcockFlowRate: config.physics.stopcockFlowRate,
   thermal: {
     ...config.physics.thermal,
@@ -161,7 +160,7 @@ const getIdealFillEffectiveStrokeCount = (
   const amountGain = Math.max(0.000001, config.physics.pumpAmountGainRatio);
   const inflowTemperatureK = Math.max(
     1,
-    config.environment.ambientTemperatureK + config.physics.pumpInflowTemperatureRiseK,
+    config.environment.ambientTemperatureK,
   );
   const pressureGainPerStroke = amountGain *
     (inflowTemperatureK / Math.max(0.000001, config.environment.ambientTemperatureK));
@@ -192,7 +191,7 @@ const applyIdealFillAtProgress = (
   const appliedAmountDelta = amountDelta * fillProgress;
   const inflowTemperatureK = Math.max(
     1,
-    config.environment.ambientTemperatureK + config.physics.pumpInflowTemperatureRiseK,
+    config.environment.ambientTemperatureK,
   );
   const nextAmountRatio = initialState.gasAmountRatio + appliedAmountDelta;
   const gasTemperatureK = nextAmountRatio <= 0

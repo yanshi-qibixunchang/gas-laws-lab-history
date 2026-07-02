@@ -22,7 +22,6 @@ const baseConfig: HeatCapacityFreePhysicsConfig = {
   gamma: 1.4,
   pumpAmountGainRatio: 0.00345,
   pumpPressureLimitKPa: 300,
-  pumpInflowTemperatureRiseK: 42,
   stopcockFlowRate: 4,
   thermal: {
     gasWallConductanceWPerK: 0.22,
@@ -34,7 +33,6 @@ const baseConfig: HeatCapacityFreePhysicsConfig = {
     enabled: false,
     gasExchangeRatePerS: 0.00015,
     thermalConductanceWPerK: 0.01,
-    chamberTemperatureRiseK: 1.5,
     openingDelayS: 0.42,
   },
   environmentDisturbance: {
@@ -85,10 +83,7 @@ const calculateMixedPumpTemperatureK = (
   const nextAmountRatio = amountRatio + amountDeltaRatio;
   return (
     amountRatio * temperatureK +
-    amountDeltaRatio * (
-      config.environment.ambientTemperatureK +
-      config.pumpInflowTemperatureRiseK
-    )
+    amountDeltaRatio * config.environment.ambientTemperatureK
   ) / nextAmountRatio;
 };
 
@@ -287,7 +282,6 @@ const pumpValveExchangeConfig = {
     enabled: true,
     gasExchangeRatePerS: 0.004,
     thermalConductanceWPerK: 0,
-    chamberTemperatureRiseK: 1.5,
     openingDelayS: 0.42,
   },
 } as HeatCapacityFreePhysicsConfig;
@@ -659,16 +653,15 @@ assert.equal(settled.gasAmountRatio > initial.gasAmountRatio, true, 'state 2 amo
 assert.equal(quickReleased.gasAmountRatio < settled.gasAmountRatio, true, 'state 3 quick release should reduce amount');
 assert.equal(quickReleased.gasAmountRatio > initial.gasAmountRatio, true, 'state 3 amount should remain above initial after a good release');
 assert.equal(recovered.gasAmountRatio, quickReleased.gasAmountRatio, 'state 4 recovery should preserve state 3 amount');
-assert.equal(state1.gasTemperatureK > initial.gasTemperatureK, true, 'state 1 temperature should be above ambient');
-assert.equal(settled.gasTemperatureK > initial.gasTemperatureK, true, 'state 2 should retain some wall-mediated heat');
-assert.equal(settled.gasTemperatureK < state1.gasTemperatureK, true, 'state 2 should cool from the post-pump state');
+expectClose(state1.gasTemperatureK, initial.gasTemperatureK, 1e-9, 'state 1 should not gain fixed pump heat');
+expectClose(settled.gasTemperatureK, initial.gasTemperatureK, 1e-9, 'state 2 should stay near ambient without fixed pump heat');
 assert.equal(quickReleased.gasTemperatureK < initial.gasTemperatureK, true, 'state 3 temperature should drop below ambient');
 assert.equal(recovered.gasTemperatureK > quickReleased.gasTemperatureK, true, 'state 4 temperature should recover from release cooling');
 assert.equal(recovered.gasTemperatureK < initial.gasTemperatureK, true, 'state 4 should still recover gradually through wall inertia');
 assert.equal(
-  deriveFreePhysicalState(state1, baseConfig).gasPressureKPa > settledDerived.gasPressureKPa,
+  settledDerived.gasPressureKPa > initialDerived.gasPressureKPa,
   true,
-  'P1 should be greater than P2 after sealed settling',
+  'state 2 pressure should be above ambient after pumping',
 );
 assert.equal(
   settledDerived.gasPressureKPa > deriveFreePhysicalState(recovered, baseConfig).gasPressureKPa,

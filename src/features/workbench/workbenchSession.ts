@@ -268,12 +268,6 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
   const fallback = createDefaultFreeConfigSnapshot();
   const record = isRecord(value.record) ? value.record : {};
   const physics = isRecord(value.physics) ? value.physics : {};
-  const {
-    releaseResponseDelayS: _legacyReleaseResponseDelayS,
-    releaseMainDurationS: _legacyReleaseMainDurationS,
-    pumpTemperatureGainK: _legacyPumpTemperatureGainK,
-    ...physicsRest
-  } = physics;
   const pumpValveExchange = isRecord(physics.pumpValveExchange) ? physics.pumpValveExchange : {};
   const environmentDisturbance = isRecord(physics.environmentDisturbance)
     ? physics.environmentDisturbance
@@ -296,28 +290,35 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
         }
       : fallback.environment,
     physics: {
-      ...fallback.physics,
-      ...physicsRest,
-      pumpInflowTemperatureRiseK: finiteOrDefault(
-        physics.pumpInflowTemperatureRiseK,
-        finiteOrDefault(
-          _legacyPumpTemperatureGainK,
-          fallback.physics.pumpInflowTemperatureRiseK,
-        ),
+      gamma: finiteOrDefault(physics.gamma, fallback.physics.gamma),
+      vesselVolumeL: finiteOrDefault(physics.vesselVolumeL, fallback.physics.vesselVolumeL),
+      pumpAmountGainRatio: finiteOrDefault(
+        physics.pumpAmountGainRatio,
+        fallback.physics.pumpAmountGainRatio,
+      ),
+      pumpPressureLimitKPa: finiteOrDefault(
+        physics.pumpPressureLimitKPa,
+        fallback.physics.pumpPressureLimitKPa,
+      ),
+      pumpStrokeDurationS: finiteOrDefault(
+        physics.pumpStrokeDurationS,
+        fallback.physics.pumpStrokeDurationS,
+      ),
+      recommendedPumpIntervalS: finiteOrDefault(
+        physics.recommendedPumpIntervalS,
+        fallback.physics.recommendedPumpIntervalS,
+      ),
+      stopcockFlowRate: finiteOrDefault(
+        physics.stopcockFlowRate,
+        fallback.physics.stopcockFlowRate,
       ),
       releaseVisualResponseDelayS: finiteOrDefault(
         physics.releaseVisualResponseDelayS,
-        finiteOrDefault(
-          _legacyReleaseResponseDelayS,
-          fallback.physics.releaseVisualResponseDelayS,
-        ),
+        fallback.physics.releaseVisualResponseDelayS,
       ),
       releaseVisualMainDurationS: finiteOrDefault(
         physics.releaseVisualMainDurationS,
-        finiteOrDefault(
-          _legacyReleaseMainDurationS,
-          fallback.physics.releaseVisualMainDurationS,
-        ),
+        fallback.physics.releaseVisualMainDurationS,
       ),
       thermal: {
         ...fallback.physics.thermal,
@@ -332,10 +333,6 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
         thermalConductanceWPerK: finiteOrDefault(
           pumpValveExchange.thermalConductanceWPerK,
           fallback.physics.pumpValveExchange?.thermalConductanceWPerK ?? 0.01,
-        ),
-        chamberTemperatureRiseK: finiteOrDefault(
-          pumpValveExchange.chamberTemperatureRiseK,
-          fallback.physics.pumpValveExchange?.chamberTemperatureRiseK ?? 1.5,
         ),
         openingDelayS: finiteOrDefault(
           pumpValveExchange.openingDelayS,
@@ -735,9 +732,6 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       pumpStrokeCount: normalizeNullableNumber(file.pumpStrokeCount) ?? 0,
       pumpHint: typeof file.pumpHint === 'string' ? file.pumpHint : fallback.pumpHint,
       hardSphereViewEnabled: file.hardSphereViewEnabled === true,
-      hardSphereParticleMultiplier: normalizeNullableNumber(file.hardSphereParticleMultiplier) ?? fallback.hardSphereParticleMultiplier,
-      hardSphereSpeedMultiplier: normalizeNullableNumber(file.hardSphereSpeedMultiplier) ?? fallback.hardSphereSpeedMultiplier,
-      hardSphereTrailsEnabled: file.hardSphereTrailsEnabled === true,
       pressurePlaceholder: normalizeNullableNumber(file.pressurePlaceholder) ?? fallback.pressurePlaceholder,
       temperaturePlaceholder: normalizeNullableNumber(file.temperaturePlaceholder) ?? fallback.temperaturePlaceholder,
       visualizationMode: file.visualizationMode === 'particle' ? file.visualizationMode : fallback.visualizationMode,

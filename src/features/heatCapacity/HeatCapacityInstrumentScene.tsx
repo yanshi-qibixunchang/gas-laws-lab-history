@@ -16,9 +16,14 @@ import type { HeatCapacityHardSphereReleaseTimeline } from '../../domain/heatCap
 import {
   formatHeatCapacitySignalMv,
 } from '../../domain/heatCapacity/heatCapacitySignalDisplayModel.ts';
+import {
+  HEAT_CAPACITY_QUALITY_PROFILES,
+  type HeatCapacityQualityMode,
+  type HeatCapacityQualityProfile,
+} from './heatCapacityQualityProfiles';
 
 interface HeatCapacityInstrumentSceneProps {
-  performanceMode: 'standard' | 'balanced' | 'performance' | 'ultra';
+  performanceMode: HeatCapacityQualityMode;
   sceneTheme: 'dark' | 'light';
   language: 'zh-CN' | 'zh-TW' | 'en';
   autoDemoActive: boolean;
@@ -62,8 +67,8 @@ interface HeatCapacityInstrumentSceneProps {
   pumpFlowIntensity: number;
   hardSphereViewEnabled: boolean;
   hardSphereViewLocked?: boolean;
-  hardSphereParticleMultiplier: number;
-  hardSphereSpeedMultiplier: number;
+  particleMultiplier: number;
+  speedMultiplier: number;
   hardSphereVisualResetKey: number;
   hardSpherePaused: boolean;
   interactionLocked: boolean;
@@ -646,8 +651,8 @@ const PROCEDURAL_CAMERA_VIEW_SCHEME: CameraViewScheme = {
 };
 const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = {
   defaultView: {
-    position: [3.756, 4.473, 5.719],
-    target: [0.31, 0.436, -0.092],
+    position: [3.72, 4.702, 5.581],
+    target: [0.274, 0.665, -0.23],
   },
   fov: 36,
   responsiveFov: {
@@ -675,8 +680,8 @@ const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = {
     },
   },
 };
-const getCameraViewScheme = (performanceMode: HeatCapacityInstrumentSceneProps['performanceMode']) => (
-  performanceMode === 'ultra' ? ULTRA_CAMERA_VIEW_SCHEME : PROCEDURAL_CAMERA_VIEW_SCHEME
+const getCameraViewScheme = (qualityProfile: HeatCapacityQualityProfile) => (
+  qualityProfile.renderModel === 'ultraGlb' ? ULTRA_CAMERA_VIEW_SCHEME : PROCEDURAL_CAMERA_VIEW_SCHEME
 );
 const getCameraFovForAspect = (cameraViewScheme: CameraViewScheme, aspect: number) => {
   const responsiveFov = cameraViewScheme.responsiveFov;
@@ -724,7 +729,6 @@ const HEAT_CAPACITY_GUIDE_TARGET_OBJECTS: HeatCapacityGuideObjectTarget[] = [
     objectNames: ['HitboxPressureZeroKnob'],
     padding: 4,
     ellipseScale: 0.82,
-    screenOffsetPx: { y: -16 },
   },
   {
     id: 'instrumentDisplay',
@@ -868,6 +872,12 @@ const getHeatCapacityGuideProjectionSignature = (holes: HeatCapacityGuideProject
 );
 const ORBIT_MIN_DISTANCE = 2.7;
 const ORBIT_MAX_DISTANCE = 11.5;
+const HEAT_CAPACITY_HOVER_TOOLTIP_OFFSET_PX = 14;
+const HEAT_CAPACITY_HOVER_TOOLTIP_ESTIMATED_WIDTH_PX = 260;
+const HEAT_CAPACITY_HOVER_TOOLTIP_ESTIMATED_HEIGHT_PX = 56;
+const HEAT_CAPACITY_HOVER_TOOLTIP_INSET_PX = 8;
+const HEAT_CAPACITY_HOVER_TOOLTIP_DELAY_MS = 650;
+const HEAT_CAPACITY_HOVER_TOOLTIP_MOVE_TOLERANCE_PX = 3;
 const HEAT_CAPACITY_CAMERA_CAPTURE_QUERY_PARAM = 'cameraCapture';
 const HEAT_CAPACITY_CAMERA_CAPTURE_STORAGE_KEY = 'hsl_heat_capacity_camera_capture_latest';
 type HeatCapacityCameraViewCapturePayload = {
@@ -1295,7 +1305,7 @@ function PumpBulbFocusCue({
 
 function InstrumentBox({
   highClarityMode,
-  performanceMode,
+  qualityProfile,
   powerOn,
   pressureZeroKnobAngle,
   pressureGaugeDisplayValue,
@@ -1322,8 +1332,9 @@ function InstrumentBox({
   panelTextInteractionReduced,
   sceneCopy,
   scenePalette,
-}: Pick<HeatCapacityInstrumentSceneProps, 'performanceMode' | 'powerOn' | 'pressureZeroKnobAngle' | 'pressureGaugeDisplayValue' | 'gaugePressureMinKPa' | 'gaugePressureMaxKPa' | 'pressureSafetyThresholdKPa' | 'pressureOverLimit' | 'temperatureSignalMv' | 'pressureSignalMv' | 'onPowerToggle' | 'onPressureZeroFineAdjust' | 'onPressureZeroCoarseAdjust' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
+}: Pick<HeatCapacityInstrumentSceneProps, 'powerOn' | 'pressureZeroKnobAngle' | 'pressureGaugeDisplayValue' | 'gaugePressureMinKPa' | 'gaugePressureMaxKPa' | 'pressureSafetyThresholdKPa' | 'pressureOverLimit' | 'temperatureSignalMv' | 'pressureSignalMv' | 'onPowerToggle' | 'onPressureZeroFineAdjust' | 'onPressureZeroCoarseAdjust' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
   highClarityMode: boolean;
+  qualityProfile: HeatCapacityQualityProfile;
   zeroEnabled: boolean;
   onFocus: (mode: HeatCapacityFocusMode) => void;
   focusMode: HeatCapacityFocusMode;
@@ -1374,12 +1385,8 @@ function InstrumentBox({
   const gaugeNeedleTargetRotationRef = useRef(gaugeNeedleTargetRotation);
   const gaugeDisplayedRotationRef = useRef(gaugeNeedleTargetRotation);
   const panelTextUpdateIntervalMs = panelTextInteractionReduced
-    ? 400
-    : (performanceMode === 'performance' || performanceMode === 'ultra')
-      ? 250
-      : performanceMode === 'balanced'
-        ? 180
-        : 120;
+    ? qualityProfile.panelTextDraggingUpdateIntervalMs
+    : qualityProfile.panelTextUpdateIntervalMs;
 
   useEffect(() => {
     gaugeNeedleTargetRotationRef.current = gaugeNeedleTargetRotation;
@@ -2426,17 +2433,30 @@ function PumpAssembly({
   );
 }
 
-function HeatCapacitySceneLighting({ scenePalette }: { scenePalette: HeatCapacityScenePalette }) {
+function HeatCapacitySceneLighting({
+  qualityProfile,
+  scenePalette,
+}: {
+  qualityProfile: HeatCapacityQualityProfile;
+  scenePalette: HeatCapacityScenePalette;
+}) {
   return (
     <>
       <ambientLight intensity={scenePalette.scene.ambientIntensity} />
       <directionalLight position={[3.4, 4.8, 4]} intensity={scenePalette.scene.directionalIntensity} />
       <pointLight position={[-3, 2.2, 3]} intensity={scenePalette.scene.pointIntensity} color={scenePalette.scene.pointColor} />
+      {qualityProfile.enhancedLighting ? (
+        <>
+          <directionalLight position={[-2.2, 3.6, 2.8]} intensity={0.36} />
+          <pointLight position={[2.6, 2.8, -3.2]} intensity={0.42} color={scenePalette.scene.pointColor} />
+        </>
+      ) : null}
     </>
   );
 }
 
 function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
+  qualityProfile: HeatCapacityQualityProfile;
   onFocus: (mode: HeatCapacityFocusMode) => void;
   focusMode: HeatCapacityFocusMode;
   hoveredControl: HeatCapacityHoveredControl;
@@ -2449,7 +2469,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
   const stopcockState = getHeatCapacityStopcockState(props.stopcockAngleDeg);
   const zeroEnabled = props.powerOn && stopcockState === 'open';
   const scenePalette = props.scenePalette;
-  const highClarityMode = props.performanceMode === 'standard';
+  const highClarityMode = props.qualityProfile.highClarityProcedural;
 
   return (
     <>
@@ -2492,8 +2512,8 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           pumpBulbState={props.pumpBulbState}
           pumpFlowActive={props.pumpFlowActive}
           pumpFlowIntensity={props.pumpFlowIntensity}
-          particleMultiplier={props.hardSphereParticleMultiplier}
-          speedMultiplier={props.hardSphereSpeedMultiplier}
+          particleMultiplier={props.particleMultiplier}
+          speedMultiplier={props.speedMultiplier}
           visualResetKey={props.hardSphereVisualResetKey}
           paused={props.hardSpherePaused}
           sceneTheme={props.sceneTheme}
@@ -2520,7 +2540,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
         />
         <InstrumentBox
           highClarityMode={highClarityMode}
-          performanceMode={props.performanceMode}
+          qualityProfile={props.qualityProfile}
           powerOn={props.powerOn}
           pressureZeroKnobAngle={props.pressureZeroKnobAngle}
           pressureGaugeDisplayValue={props.pressureGaugeDisplayValue}
@@ -2882,6 +2902,9 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const sceneRootRef = useRef<HTMLDivElement | null>(null);
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const hoverClearTimerRef = useRef<number | null>(null);
+  const hoverTooltipShowTimerRef = useRef<number | null>(null);
+  const hoverTooltipPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const hoverTooltipCandidateRef = useRef<({ x: number; y: number } & { control: Exclude<HeatCapacityHoveredControl, null> }) | null>(null);
   const sceneDragClickGuardRef = useRef({
     pointerId: null as number | null,
     startX: 0,
@@ -2892,6 +2915,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const onFocusModeChangeRef = useRef(props.onFocusModeChange);
   const [focusMode, setFocusMode] = useState<HeatCapacityFocusMode>('none');
   const [hoveredControl, setHoveredControl] = useState<HeatCapacityHoveredControl>(null);
+  const [hoverTooltipAnchor, setHoverTooltipAnchor] = useState<{ side: 'left' | 'right'; x: number; y: number } | null>(null);
   const [isOrbitInteracting, setIsOrbitInteracting] = useState(false);
   const [viewResetKey, setViewResetKey] = useState(0);
   const [cameraCaptureHandler, setCameraCaptureHandler] = useState<HeatCapacityCameraCaptureHandler | null>(null);
@@ -2900,24 +2924,91 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const sceneCopy = heatCapacitySceneCopies[props.language] ?? heatCapacitySceneCopies['zh-CN'];
   const sceneTheme: HeatCapacitySceneTheme = props.sceneTheme === 'light' ? 'light' : 'dark';
   const scenePalette = heatCapacityScenePalettes[sceneTheme];
+  const qualityProfile = HEAT_CAPACITY_QUALITY_PROFILES[props.performanceMode];
   const clearHoverTimer = useCallback(() => {
     if (hoverClearTimerRef.current !== null) {
       window.clearTimeout(hoverClearTimerRef.current);
       hoverClearTimerRef.current = null;
     }
   }, []);
+  const clearHoverTooltipShowTimer = useCallback(() => {
+    if (hoverTooltipShowTimerRef.current !== null) {
+      window.clearTimeout(hoverTooltipShowTimerRef.current);
+      hoverTooltipShowTimerRef.current = null;
+    }
+  }, []);
+  const getScenePointerPoint = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const root = sceneRootRef.current;
+    if (!root) return null;
+    const bounds = root.getBoundingClientRect();
+    const scaleX = bounds.width > 0 ? root.offsetWidth / bounds.width : 1;
+    const scaleY = bounds.height > 0 ? root.offsetHeight / bounds.height : 1;
+    return {
+      x: (event.clientX - bounds.left) * scaleX,
+      y: (event.clientY - bounds.top) * scaleY,
+    };
+  }, []);
+  const getHoverTooltipAnchor = useCallback((point: { x: number; y: number }) => {
+    const root = sceneRootRef.current;
+    if (!root) return { side: 'right' as const, x: point.x, y: point.y };
+    const bounds = root.getBoundingClientRect();
+    const layoutWidth = root.offsetWidth || bounds.width;
+    const layoutHeight = root.offsetHeight || bounds.height;
+    const preferredRightX = point.x + HEAT_CAPACITY_HOVER_TOOLTIP_OFFSET_PX;
+    const preferredLeftRightOffset = layoutWidth - point.x + HEAT_CAPACITY_HOVER_TOOLTIP_OFFSET_PX;
+    const placeRight = preferredRightX + HEAT_CAPACITY_HOVER_TOOLTIP_ESTIMATED_WIDTH_PX + HEAT_CAPACITY_HOVER_TOOLTIP_INSET_PX <= layoutWidth;
+    const side: 'left' | 'right' = placeRight ? 'right' : 'left';
+    const rawX = placeRight ? preferredRightX : preferredLeftRightOffset;
+    const maxHorizontalOffset = Math.max(HEAT_CAPACITY_HOVER_TOOLTIP_INSET_PX, layoutWidth - HEAT_CAPACITY_HOVER_TOOLTIP_ESTIMATED_WIDTH_PX - HEAT_CAPACITY_HOVER_TOOLTIP_INSET_PX);
+    const verticalInset = HEAT_CAPACITY_HOVER_TOOLTIP_ESTIMATED_HEIGHT_PX / 2 + HEAT_CAPACITY_HOVER_TOOLTIP_INSET_PX;
+    const x = clampSceneNumber(rawX, HEAT_CAPACITY_HOVER_TOOLTIP_INSET_PX, maxHorizontalOffset);
+    const y = clampSceneNumber(point.y, verticalInset, Math.max(verticalInset, layoutHeight - verticalInset));
+    return { side, x, y };
+  }, []);
+  const clearHoverTooltip = useCallback(() => {
+    clearHoverTooltipShowTimer();
+    hoverTooltipCandidateRef.current = null;
+    setHoverTooltipAnchor(null);
+  }, [clearHoverTooltipShowTimer]);
+  const scheduleHoverTooltipReveal = useCallback((control: Exclude<HeatCapacityHoveredControl, null>) => {
+    const point = hoverTooltipPointerRef.current;
+    if (!point) return;
+    clearHoverTooltipShowTimer();
+    const candidate = { control, x: point.x, y: point.y };
+    hoverTooltipCandidateRef.current = candidate;
+    setHoverTooltipAnchor(null);
+    hoverTooltipShowTimerRef.current = window.setTimeout(() => {
+      hoverTooltipShowTimerRef.current = null;
+      if (hoverTooltipCandidateRef.current !== candidate) return;
+      setHoverTooltipAnchor(getHoverTooltipAnchor(candidate));
+    }, HEAT_CAPACITY_HOVER_TOOLTIP_DELAY_MS);
+  }, [clearHoverTooltipShowTimer, getHoverTooltipAnchor]);
   const setStableHoveredControl = useCallback((control: HeatCapacityHoveredControl) => {
     clearHoverTimer();
     if (control !== null) {
+      const currentCandidate = hoverTooltipCandidateRef.current;
+      if (currentCandidate?.control !== control) {
+        clearHoverTooltip();
+      }
       setHoveredControl(control);
+      if (!hoverTooltipCandidateRef.current) {
+        scheduleHoverTooltipReveal(control);
+      }
       return;
     }
+    clearHoverTooltip();
     hoverClearTimerRef.current = window.setTimeout(() => {
       hoverClearTimerRef.current = null;
       setHoveredControl(null);
     }, HOVER_CLEAR_DELAY_MS);
-  }, [clearHoverTimer]);
+  }, [clearHoverTimer, clearHoverTooltip, scheduleHoverTooltipReveal]);
+  const clearStableHoveredControl = useCallback(() => {
+    clearHoverTimer();
+    clearHoverTooltip();
+    setHoveredControl(null);
+  }, [clearHoverTimer, clearHoverTooltip]);
   useEffect(() => clearHoverTimer, [clearHoverTimer]);
+  useEffect(() => clearHoverTooltipShowTimer, [clearHoverTooltipShowTimer]);
   const clearSceneDragClickGuardResetTimer = useCallback(() => {
     if (sceneDragClickGuardResetTimerRef.current !== null) {
       window.clearTimeout(sceneDragClickGuardResetTimerRef.current);
@@ -2953,13 +3044,31 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     }
   }, [clearSceneDragClickGuardResetTimer]);
   const handleScenePointerMoveCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const pointerPoint = getScenePointerPoint(event);
+    if (pointerPoint) {
+      hoverTooltipPointerRef.current = pointerPoint;
+    }
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('[data-preview-overlay-item]')) {
+      clearStableHoveredControl();
+      return;
+    }
+    const candidate = hoverTooltipCandidateRef.current;
+    if (pointerPoint && candidate) {
+      const tooltipMoveDistance = Math.hypot(pointerPoint.x - candidate.x, pointerPoint.y - candidate.y);
+      if (tooltipMoveDistance > HEAT_CAPACITY_HOVER_TOOLTIP_MOVE_TOLERANCE_PX) {
+        const controlForReveal = hoveredControl ?? candidate.control;
+        clearHoverTooltip();
+        scheduleHoverTooltipReveal(controlForReveal);
+      }
+    }
     const dragGuard = sceneDragClickGuardRef.current;
     if (dragGuard.pointerId !== event.pointerId || dragGuard.suppressNextClick) return;
     const dragDistance = Math.hypot(event.clientX - dragGuard.startX, event.clientY - dragGuard.startY);
     if (dragDistance >= HEAT_CAPACITY_DRAG_CLICK_SUPPRESSION_PX) {
       dragGuard.suppressNextClick = true;
     }
-  }, []);
+  }, [clearHoverTooltip, clearStableHoveredControl, getScenePointerPoint, hoveredControl, scheduleHoverTooltipReveal]);
   const handleScenePointerUpCapture = useCallback(() => {
     if (sceneDragClickGuardRef.current.suppressNextClick) {
       scheduleSceneDragClickGuardReset();
@@ -3020,24 +3129,19 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     props.pumpBulbState !== 'idle' ||
     props.demoFocusPulseActive ||
     Boolean(props.manualRollbackAnimation);
-  const interactionQualityReduced = isOrbitInteracting || props.performanceMode === 'performance';
+  const interactionQualityReduced = isOrbitInteracting || qualityProfile.reduceInteractionQuality;
   const orbitControlsEnabled = focusMode === 'none' && !props.interactionLocked;
-  const cameraViewScheme = useMemo(() => getCameraViewScheme(props.performanceMode), [props.performanceMode]);
+  const cameraViewScheme = useMemo(() => getCameraViewScheme(qualityProfile), [qualityProfile]);
   const canvasProps = useMemo(() => ({
     camera: { position: cameraViewScheme.defaultView.position, fov: cameraViewScheme.fov },
-    dpr: props.performanceMode === 'standard'
-      ? 2.5
-      : props.performanceMode === 'balanced'
-        ? 1.5
-        : props.performanceMode === 'ultra'
-          ? 1.75
-          : 1,
-    frameloop: 'demand' as const,
+    dpr: qualityProfile.dpr,
+    frameloop: qualityProfile.frameLoop,
     shadows: false,
-  }), [cameraViewScheme, props.performanceMode]);
+  }), [cameraViewScheme, qualityProfile]);
   const proceduralSceneContent = (
     <InstrumentSceneContent
       {...props}
+      qualityProfile={qualityProfile}
       hardSphereViewEnabled={hardSphereViewActive}
       onFocus={setFocusMode}
       focusMode={focusMode}
@@ -3049,7 +3153,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       scenePalette={scenePalette}
     />
   );
-  const instrumentSceneContent = props.performanceMode === 'ultra' ? (
+  const instrumentSceneContent = qualityProfile.renderModel === 'ultraGlb' ? (
     <HeatCapacityUltraModelErrorBoundary fallback={proceduralSceneContent}>
       <Suspense fallback={proceduralSceneContent}>
         <HeatCapacityUltraInstrumentModel
@@ -3076,8 +3180,8 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           gasTemperatureK={props.gasTemperatureK}
           ambientTemperatureK={props.ambientTemperatureK}
           hardSphereViewEnabled={hardSphereViewActive}
-          hardSphereParticleMultiplier={props.hardSphereParticleMultiplier}
-          hardSphereSpeedMultiplier={props.hardSphereSpeedMultiplier}
+          particleMultiplier={props.particleMultiplier}
+          speedMultiplier={props.speedMultiplier}
           hardSphereVisualResetKey={props.hardSphereVisualResetKey}
           hardSpherePaused={props.hardSpherePaused}
           interactionLocked={props.interactionLocked}
@@ -3141,14 +3245,12 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       onPointerUpCapture={handleScenePointerUpCapture}
       onPointerCancelCapture={handleScenePointerCancelCapture}
       onClickCapture={handleSceneClickCapture}
-      onPointerLeave={() => {
-        setStableHoveredControl(null);
-      }}
+      onPointerLeave={clearStableHoveredControl}
     >
       <Canvas {...canvasProps} events={createHeatCapacityPointerEvents}>
         {/* GLB replacement contract: preserve node names, pivots, and hitbox roles from this procedural skeleton. */}
         <color attach="background" args={[scenePalette.scene.background]} />
-        <HeatCapacitySceneLighting scenePalette={scenePalette} />
+        <HeatCapacitySceneLighting qualityProfile={qualityProfile} scenePalette={scenePalette} />
         <HeatCapacitySceneInvalidator active={sceneShouldAnimate} />
         <HeatCapacityCameraCaptureBridge
           enabled={cameraCaptureEnabled}
@@ -3165,7 +3267,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           cameraViewScheme={cameraViewScheme}
         />
         {instrumentSceneContent}
-        {props.performanceMode !== 'ultra' ? (
+        {qualityProfile.renderModel === 'procedural' ? (
           <HeatCapacityGuideProjectionBridge
             enabled={Boolean(props.onGuideTargetHolesChange)}
             projectionSyncKey={props.focusResetKey}
@@ -3185,6 +3287,20 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           }}
         />
       </Canvas>
+      {hoverTooltip && hoverTooltipAnchor ? (
+        <div
+          className="studio-heat-hover-tooltip"
+          data-heat-capacity-hover-tooltip="true"
+          style={{
+            '--studio-heat-hover-tooltip-x': `${hoverTooltipAnchor.x}px`,
+            '--studio-heat-hover-tooltip-y': `${hoverTooltipAnchor.y}px`,
+            '--studio-heat-hover-tooltip-left': hoverTooltipAnchor.side === 'right' ? `var(--studio-heat-hover-tooltip-x)` : 'auto',
+            '--studio-heat-hover-tooltip-right': hoverTooltipAnchor.side === 'left' ? `var(--studio-heat-hover-tooltip-x)` : 'auto',
+          } as React.CSSProperties & Record<'--studio-heat-hover-tooltip-x' | '--studio-heat-hover-tooltip-y' | '--studio-heat-hover-tooltip-left' | '--studio-heat-hover-tooltip-right', string>}
+        >
+          {hoverTooltip}
+        </div>
+      ) : null}
       <HeatCapacityCameraCapturePanel
         enabled={cameraCaptureEnabled}
         payload={cameraCapturePayload}
@@ -3271,16 +3387,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           </div>
         </div>
         <div className="studio-preview-overlay-slot studio-preview-overlay-slot-bottom-right">
-          {hoverTooltip ? (
-            <div data-preview-overlay-item="heat-hover-tooltip">
-              <div
-                className="studio-heat-hover-tooltip"
-                data-heat-capacity-hover-tooltip="true"
-              >
-                {hoverTooltip}
-              </div>
-            </div>
-          ) : null}
           {props.overlayBottomRight ? (
             <div data-preview-overlay-item="heat-parent-bottom-right">
               {props.overlayBottomRight}

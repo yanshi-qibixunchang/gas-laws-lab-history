@@ -315,7 +315,6 @@ export const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsC
   gamma: 1.4,
   pumpAmountGainRatio: 0.00345,
   pumpPressureLimitKPa: 109,
-  pumpInflowTemperatureRiseK: 42,
   stopcockFlowRate: 5.25,
   thermal: {
     gasWallConductanceWPerK: 0.14,
@@ -328,7 +327,6 @@ export const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsC
     enabled: true,
     gasExchangeRatePerS: 0.005,
     thermalConductanceWPerK: 0.004,
-    chamberTemperatureRiseK: 1.5,
     openingDelayS: HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS / 1000,
   },
   environmentDisturbance: {
@@ -422,13 +420,6 @@ export const normalizeHeatCapacityFreePhysicsConfig = (
       )),
       0.001,
       HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA,
-    ),
-    pumpInflowTemperatureRiseK: finiteNumberOr(
-      value?.pumpInflowTemperatureRiseK,
-      finiteNumberOr(
-        (value as { pumpTemperatureGainK?: unknown } | null | undefined)?.pumpTemperatureGainK,
-        DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpInflowTemperatureRiseK,
-      ),
     ),
     stopcockFlowRate: Math.max(0, finiteNumberOr(
       value?.stopcockFlowRate,
@@ -1127,9 +1118,6 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   pumpStrokeCount: number;
   pumpHint: string;
   hardSphereViewEnabled: boolean;
-  hardSphereParticleMultiplier: number;
-  hardSphereSpeedMultiplier: number;
-  hardSphereTrailsEnabled: boolean;
   visualizationMode: 'particle';
   calculationModel: 'airHeatCapacityRatio';
   pressureSensitivityMvPerKPa: number;
@@ -1937,7 +1925,6 @@ const createHeatCapacityFreeConfigSnapshotFromFile = (
       vesselVolumeL: file.heatCapacityFreePhysicsConfig.vesselVolumeL,
       pumpAmountGainRatio: file.heatCapacityFreePhysicsConfig.pumpAmountGainRatio,
       pumpPressureLimitKPa: file.heatCapacityFreePhysicsConfig.pumpPressureLimitKPa,
-      pumpInflowTemperatureRiseK: file.heatCapacityFreePhysicsConfig.pumpInflowTemperatureRiseK,
       stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
       thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
       pumpValveExchange: normalizeFreePumpValveExchangeConfig(
@@ -4615,9 +4602,6 @@ export const createDefaultHeatCapacityFile = (
     pumpStrokeCount: 0,
     pumpHint: '未打气',
     hardSphereViewEnabled: false,
-    hardSphereParticleMultiplier: 1,
-    hardSphereSpeedMultiplier: 1,
-    hardSphereTrailsEnabled: false,
     pressurePlaceholder: roundNumber(runtime.gasPressureKPaAbs, 2),
     temperaturePlaceholder: roundNumber(runtime.gasTemperatureK, 3),
     recordedPressures: {

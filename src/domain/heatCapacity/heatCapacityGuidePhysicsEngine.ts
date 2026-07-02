@@ -14,7 +14,6 @@ export interface HeatCapacityGuidePhysicsConfig {
   gamma: number;
   pumpAmountGainRatio: number;
   pumpPressureLimitKPa: number;
-  pumpInflowTemperatureRiseK: number;
   stopcockFlowRate: number;
   thermal: {
     gasWallConductanceWPerK: number;
@@ -110,7 +109,6 @@ export const createDefaultGuidePhysicsConfig = (): HeatCapacityGuidePhysicsConfi
   gamma: 1.4,
   pumpAmountGainRatio: 0.0039,
   pumpPressureLimitKPa: 108.8,
-  pumpInflowTemperatureRiseK: 8,
   stopcockFlowRate: 4.4,
   thermal: {
     gasWallConductanceWPerK: 0.115,
@@ -181,7 +179,7 @@ const applyPumpInflow = (
   const gasTemperatureK = Math.max(MIN_GAS_TEMPERATURE_K, state.gasTemperatureK);
   const inflowTemperatureK = Math.max(
     MIN_GAS_TEMPERATURE_K,
-    config.environment.ambientTemperatureK + config.pumpInflowTemperatureRiseK,
+    config.environment.ambientTemperatureK,
   );
   const nextAmountRatio = gasAmountRatio + safeAmountDeltaRatio;
   return {

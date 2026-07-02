@@ -6,7 +6,6 @@ export interface HeatCapacityFreePumpValveExchangeConfig {
   enabled: boolean;
   gasExchangeRatePerS: number;
   thermalConductanceWPerK: number;
-  chamberTemperatureRiseK: number;
   openingDelayS: number;
 }
 
@@ -35,7 +34,6 @@ export const DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG: HeatCapacity
   enabled: false,
   gasExchangeRatePerS: 0.00015,
   thermalConductanceWPerK: 0.01,
-  chamberTemperatureRiseK: 1.5,
   openingDelayS: 0.42,
 };
 
@@ -82,12 +80,6 @@ export const normalizeFreePumpValveExchangeConfig = (
       0,
       1,
       DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG.thermalConductanceWPerK,
-    ),
-    chamberTemperatureRiseK: clampFinite(
-      value?.chamberTemperatureRiseK ?? DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG.chamberTemperatureRiseK,
-      -20,
-      80,
-      DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG.chamberTemperatureRiseK,
     ),
     openingDelayS: clampFinite(
       value?.openingDelayS ?? DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG.openingDelayS,
@@ -154,7 +146,7 @@ const stepGasExchange = (
   const maxStepRatio = rate * Math.abs(pressureDrive) * activeDtS;
   const chamberTemperatureK = Math.max(
     MIN_TEMPERATURE_K,
-    ambientTemperatureK + config.chamberTemperatureRiseK,
+    ambientTemperatureK,
   );
 
   if (pressureDrive > 0) {
@@ -216,7 +208,7 @@ const stepThermalExchange = (
   const ambientTemperatureK = positiveFiniteOrFallback(input.ambientTemperatureK, 298.15);
   const chamberTemperatureK = Math.max(
     MIN_TEMPERATURE_K,
-    ambientTemperatureK + config.chamberTemperatureRiseK,
+    ambientTemperatureK,
   );
   const gasTemperatureK = positiveFiniteOrFallback(state.gasTemperatureK, ambientTemperatureK);
   const gasHeatCapacityJPerK = calculateFreeGasHeatCapacityJPerK({

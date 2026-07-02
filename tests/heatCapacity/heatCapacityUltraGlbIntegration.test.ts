@@ -24,8 +24,8 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /const proceduralSceneContent = \([\s\S]*<InstrumentSceneContent[\s\S]*const instrumentSceneContent = props\.performanceMode === 'ultra'[\s\S]*<HeatCapacityUltraInstrumentModel[\s\S]*: proceduralSceneContent/,
-  'Heat Capacity scene should render the Ultra GLB adapter only for the ultra performance mode and keep the procedural fallback for other modes',
+  /const proceduralSceneContent = \([\s\S]*<InstrumentSceneContent[\s\S]*const instrumentSceneContent = qualityProfile\.renderModel === 'ultraGlb'[\s\S]*<HeatCapacityUltraInstrumentModel[\s\S]*: proceduralSceneContent/,
+  'Heat Capacity scene should render the Ultra GLB adapter for GLB quality profiles and keep the procedural fallback for other modes',
 );
 assert.match(
   sceneSource,
@@ -432,7 +432,7 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = \{[\s\S]*position: \[3\.756,\s*4\.473,\s*5\.719\][\s\S]*target: \[0\.31,\s*0\.436,\s*-0\.092\][\s\S]*fov: 36[\s\S]*responsiveFov:[\s\S]*aspect: 1\.35[\s\S]*narrowAspect: 0\.95[\s\S]*fov: 52[\s\S]*wideAspect: 3[\s\S]*wideFov: 56/,
+  /const ULTRA_CAMERA_VIEW_SCHEME: CameraViewScheme = \{[\s\S]*position: \[3\.72,\s*4\.702,\s*5\.581\][\s\S]*target: \[0\.274,\s*0\.665,\s*-0\.23\][\s\S]*fov: 36[\s\S]*responsiveFov:[\s\S]*aspect: 1\.35[\s\S]*narrowAspect: 0\.95[\s\S]*fov: 52[\s\S]*wideAspect: 3[\s\S]*wideFov: 56/,
   'Ultra default view should use the captured GLB position and target while widening FOV from the base value for resized canvases',
 );
 assert.match(
@@ -864,38 +864,18 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /const heatCapacityUltraModelIntegrationReady = true;/,
-  'Workbench should mark Ultra GLB model integration ready once GLB hover, guide, and demo highlights are node-anchored',
+  /data-heat-capacity-mode="demo"[\s\S]*runHeatCapacityAutoDemo\(\)/,
+  'Demo mode should run directly now every quality profile supports teaching highlights',
 );
 assert.match(
   workbenchSource,
-  /const heatCapacityTeachingModesAvailable = settingsPerformanceMode !== 'ultra' \|\| heatCapacityUltraModelIntegrationReady;/,
-  'Workbench should keep a single availability helper for both procedural and Ultra model teaching modes',
-);
-assert.match(
-  workbenchSource,
-  /heatCapacityTeachingModesAvailable \? runHeatCapacityAutoDemo\(\) : enterHeatCapacityFreeMode\(\)/,
-  'Demo mode should run once the active Heat Capacity model supports teaching highlights',
-);
-assert.match(
-  workbenchSource,
-  /heatCapacityTeachingModesAvailable \? startHeatCapacityManualExperiment\(\) : enterHeatCapacityFreeMode\(\)/,
-  'Guide mode should run once the active Heat Capacity model supports teaching highlights',
-);
-assert.match(
-  workbenchSource,
-  /if \(heatCapacityTeachingModesAvailable\) return;[\s\S]*activeFile\.kind !== 'heatCapacity' \|\| activeFile\.heatCapacityMode === 'free'[\s\S]*enterHeatCapacityFreeMode\(\);/,
-  'Workbench should normalize stale Demo or Guide heat-capacity files back to Free mode only while the active model cannot support those modes',
-);
-assert.match(
-  workbenchSource,
-  /const heatCapacityDeferredModeDisabled = !heatCapacityTeachingModesAvailable;/,
-  'Mode buttons should only be disabled when the active heat-capacity model cannot support Demo or Guide',
+  /data-heat-capacity-mode="guide"[\s\S]*startHeatCapacityManualExperiment\(\)/,
+  'Guide mode should run directly now every quality profile supports teaching highlights',
 );
 assert.doesNotMatch(
   workbenchSource,
-  /const heatCapacityDeferredModeDisabled = !heatCapacityUltraModelIntegrationReady;/,
-  'Mode buttons should not stay globally disabled just because Ultra GLB mode is active',
+  /heatCapacityUltraModelIntegrationReady|heatCapacityTeachingModesAvailable|heatCapacityDeferredModeDisabled/,
+  'Workbench should delete old model readiness gates after the quality architecture is rebuilt',
 );
 
 console.log('heatCapacityUltraGlbIntegration tests passed');

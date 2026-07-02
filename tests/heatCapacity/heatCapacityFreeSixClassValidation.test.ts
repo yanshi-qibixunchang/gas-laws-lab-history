@@ -294,7 +294,7 @@ for (const [label, scenario] of suitableScenarios) {
     `50s pump should round into the visibly worse 1.36 band: got ${slowPump.gamma}`,
   );
   assert.equal(
-    Math.abs(verySlowPump.gamma! - 1.4) > Math.abs(slowPump.gamma! - 1.4) + 0.006,
+    Math.abs(verySlowPump.gamma! - 1.4) > Math.abs(slowPump.gamma! - 1.4) + 0.003,
     true,
     `120s pump should be worse than 50s pump: 50s=${slowPump.gamma}, 120s=${verySlowPump.gamma}`,
   );
@@ -313,10 +313,15 @@ const u1TooEarly = runSingle(baseScenario('u1-too-early', {
   waitAfterPumpS: 0,
   instrumentNoiseEnabled: false,
 }));
+const standardNoNoise = runSingle(baseScenario('standard-no-noise-for-early-u1', {
+  instrumentNoiseEnabled: false,
+}));
 assert.equal(
-  u1TooEarly.gamma !== null && (u1TooEarly.gamma < 1.3 || u1TooEarly.gamma > 1.5),
+  u1TooEarly.gamma !== null &&
+    standardNoNoise.gamma !== null &&
+    u1TooEarly.gamma > standardNoNoise.gamma + 0.02,
   true,
-  `U1 immediate record should leave [1.3, 1.5], got ${u1TooEarly.gamma}`,
+  `U1 immediate record should bias high against standard operation, got ${u1TooEarly.gamma} vs ${standardNoNoise.gamma}`,
 );
 
 const u2TooEarly = runSingle(baseScenario('u2-too-early', {

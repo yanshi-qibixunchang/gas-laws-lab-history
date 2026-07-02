@@ -322,9 +322,6 @@ const heatReplayFile = {
   heatCapacityFreeEquilibriumSpeedMultiplier: 8 as const,
   heatCapacityFreeEquilibriumSpeedHintShown: true,
   hardSphereViewEnabled: true,
-  hardSphereParticleMultiplier: 1.2,
-  hardSphereSpeedMultiplier: 1.1,
-  hardSphereTrailsEnabled: true,
 };
 const replayEnvelope = encodeWorkbenchStorageEnvelope([heatReplayFile], heatReplayFile.id, 'preview', 1000);
 const replayDecoded = decodeWorkbenchStorageEnvelope(replayEnvelope).session;
@@ -335,9 +332,9 @@ assert.equal(replayFile.pressureGaugeNeedleAngle, 33);
 assert.equal(replayFile.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
 assert.equal(replayFile.heatCapacityFreeEquilibriumSpeedHintShown, true);
 assert.equal(replayFile.hardSphereViewEnabled, true);
-assert.equal(replayFile.hardSphereParticleMultiplier, 1.2);
-assert.equal(replayFile.hardSphereSpeedMultiplier, 1.1);
-assert.equal(replayFile.hardSphereTrailsEnabled, true);
+assert.equal('hardSphereParticleMultiplier' in replayFile, false);
+assert.equal('hardSphereSpeedMultiplier' in replayFile, false);
+assert.equal('hardSphereTrailsEnabled' in replayFile, false);
 
 const closedEnvelope = encodeWorkbenchClosedFilesStorageEnvelope([heatReplayFile], 1001);
 assert.equal(closedEnvelope.schemaFamily, WORKBENCH_CLOSED_FILES_SCHEMA_FAMILY);

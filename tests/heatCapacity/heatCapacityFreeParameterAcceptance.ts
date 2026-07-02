@@ -368,7 +368,7 @@ const pumpScriptedRunInstantEquivalent = (
   const amountDeltaRatio = physicsConfig.pumpAmountGainRatio * safeStrokes;
   const inflowTemperatureK = Math.max(
     1,
-    physicsConfig.environment.ambientTemperatureK + physicsConfig.pumpInflowTemperatureRiseK,
+    physicsConfig.environment.ambientTemperatureK,
   );
   const nextAmountRatio = run.physics.gasAmountRatio + amountDeltaRatio;
   const nextPhysics: HeatCapacityFreePhysicsState = {

@@ -30,7 +30,7 @@ assert.match(
 
 assert.match(
   source,
-  /const WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY = 'hsl_workbench_general_settings';/,
+  /const WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY = 'hsl_workbench_general_settings_v2';/,
   'general settings should use the planned localStorage key',
 );
 

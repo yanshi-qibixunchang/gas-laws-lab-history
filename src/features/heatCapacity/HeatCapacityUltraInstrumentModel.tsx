@@ -93,8 +93,8 @@ type HeatCapacityUltraInstrumentModelProps = {
   gasTemperatureK: number;
   ambientTemperatureK: number;
   hardSphereViewEnabled: boolean;
-  hardSphereParticleMultiplier: number;
-  hardSphereSpeedMultiplier: number;
+  particleMultiplier: number;
+  speedMultiplier: number;
   hardSphereVisualResetKey: number;
   hardSpherePaused: boolean;
   interactionLocked: boolean;
@@ -2949,8 +2949,8 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
         pumpBulbState={props.pumpBulbState}
         pumpFlowActive={props.pumpFlowActive}
         pumpFlowIntensity={props.pumpFlowIntensity}
-        particleMultiplier={props.hardSphereParticleMultiplier}
-        speedMultiplier={props.hardSphereSpeedMultiplier}
+        particleMultiplier={props.particleMultiplier}
+        speedMultiplier={props.speedMultiplier}
         visualResetKey={props.hardSphereVisualResetKey}
         paused={props.hardSpherePaused}
         sceneTheme={props.sceneTheme}
@@ -2958,7 +2958,5 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     </group>
   );
 }
-
-useGLTF.preload(ULTRA_GLB_PATH);
 
 export default HeatCapacityUltraInstrumentModel;

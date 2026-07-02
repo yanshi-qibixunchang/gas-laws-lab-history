@@ -112,7 +112,7 @@ assert.deepEqual(defaultFile.heatCapacityFreeEnvironmentConfig, {
 });
 assert.equal(defaultFile.heatCapacityFreePhysicsConfig.vesselVolumeL, 2);
 assert.equal(defaultFile.heatCapacityFreePhysicsConfig.pumpAmountGainRatio, 0.00345);
-assert.equal(defaultFile.heatCapacityFreePhysicsConfig.pumpInflowTemperatureRiseK, 42);
+assert.equal('pumpInflowTemperatureRiseK' in defaultFile.heatCapacityFreePhysicsConfig, false);
 assert.ok(
   Math.abs(
     defaultFile.heatCapacityFreePhysicsConfig.pumpAmountGainRatio *
@@ -890,16 +890,23 @@ assert.equal(
   true,
   'equilibrium speed multiplier must not accelerate pump-click cadence or active pumping time',
 );
-const fiveStrokeFreeFileStarted = calibratedPumpFile;
-assert.equal(fiveStrokeFreeFileStarted.heatCapacityFreePhysicsState.pumpStrokeCount, 18);
+let suggestedStopFreeFileStarted = calibratedPumpFile;
+for (let strokeIndex = 0; strokeIndex < 2; strokeIndex += 1) {
+  suggestedStopFreeFileStarted = registerHeatCapacityPumpStroke(
+    suggestedStopFreeFileStarted,
+    calibratedPumpLastAtMs + (strokeIndex + 1) * 400,
+  );
+}
+const suggestedStopPumpLastAtMs = calibratedPumpLastAtMs + 2 * 400;
+assert.equal(suggestedStopFreeFileStarted.heatCapacityFreePhysicsState.pumpStrokeCount, 20);
 assert.equal(
-  fiveStrokeFreeFileStarted.pressureSafetyStatus,
+  suggestedStopFreeFileStarted.pressureSafetyStatus,
   'warning',
   'calibrated Free pumping should enter the suggested-stop region before danger',
 );
-assert.equal(fiveStrokeFreeFileStarted.pressureBlockedPumping, false);
-const fiveStrokeFreeFile = stepHeatCapacityWorkbenchFile(fiveStrokeFreeFileStarted, calibratedPumpLastAtMs + 240);
-assert.equal(fiveStrokeFreeFile.heatCapacityFreePhysicsState.pumpStrokeCount, 18);
+assert.equal(suggestedStopFreeFileStarted.pressureBlockedPumping, false);
+const fiveStrokeFreeFile = stepHeatCapacityWorkbenchFile(suggestedStopFreeFileStarted, suggestedStopPumpLastAtMs + 240);
+assert.equal(fiveStrokeFreeFile.heatCapacityFreePhysicsState.pumpStrokeCount, 20);
 assert.equal(fiveStrokeFreeFile.pressureSafetyStatus, 'warning');
 assert.equal(fiveStrokeFreeFile.pressureBlockedPumping, false);
 const hotOverLimitFreeFile = registerHeatCapacityPumpStroke({
@@ -1287,8 +1294,8 @@ assert.equal(defaultFile.pumpFrequencyStatus, 'idle');
 assert.equal(defaultFile.lastPumpTime, null);
 assert.equal(defaultFile.pumpStrokeCount, 0);
 assert.equal(defaultFile.hardSphereViewEnabled, false);
-assert.equal(defaultFile.hardSphereParticleMultiplier, 1);
-assert.equal(defaultFile.hardSphereSpeedMultiplier, 1);
+assert.equal('hardSphereParticleMultiplier' in defaultFile, false);
+assert.equal('hardSphereSpeedMultiplier' in defaultFile, false);
 assert.equal(defaultFile.pressureReleaseBurstUntilMs, null);
 assert.equal(defaultFile.visualizationMode, 'particle');
 assert.equal(defaultFile.calculationModel, 'airHeatCapacityRatio');
@@ -1599,12 +1606,10 @@ assert.deepEqual(demoStart.heatCapacityProcessSamples, {});
 const visualDemoStart = prepareHeatCapacityAutoDemoStart({
   ...defaultFile,
   hardSphereViewEnabled: true,
-  hardSphereParticleMultiplier: 1.15,
-  hardSphereSpeedMultiplier: 1.2,
 }, 20_500, () => 0.5);
 assert.equal(visualDemoStart.hardSphereViewEnabled, true, 'auto demo start should preserve the hard-sphere teaching toggle');
-assert.equal(visualDemoStart.hardSphereParticleMultiplier, 1.15);
-assert.equal(visualDemoStart.hardSphereSpeedMultiplier, 1.2);
+assert.equal('hardSphereParticleMultiplier' in visualDemoStart, false);
+assert.equal('hardSphereSpeedMultiplier' in visualDemoStart, false);
 assert.equal(visualDemoStart.pressureReleaseBurstUntilMs, null);
 
 const autoDemoPumpActions = createHeatCapacityAutoDemoSteps()
@@ -1630,8 +1635,6 @@ assert.equal(autoDemoPressureFile.pressureOverLimit, false, 'auto demo pumping m
 const completedDemo = markHeatCapacityDemoComplete({
   ...demoStart,
   hardSphereViewEnabled: true,
-  hardSphereParticleMultiplier: 1.15,
-  hardSphereSpeedMultiplier: 1.2,
   powerOn: true,
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
   glassPistonState: 'open',
@@ -1666,8 +1669,8 @@ assert.equal(completedDemo.pressureZeroAdjustMode, 'none');
 assert.equal(completedDemo.temperatureSignalMv, null);
 assert.equal(completedDemo.pressureSignalMv, null);
 assert.equal(completedDemo.hardSphereViewEnabled, true, 'auto demo completion should preserve the hard-sphere teaching toggle');
-assert.equal(completedDemo.hardSphereParticleMultiplier, 1.15);
-assert.equal(completedDemo.hardSphereSpeedMultiplier, 1.2);
+assert.equal('hardSphereParticleMultiplier' in completedDemo, false);
+assert.equal('hardSphereSpeedMultiplier' in completedDemo, false);
 assert.equal(completedDemo.pressureReleaseBurstUntilMs, null);
 
 const returnedFreeAfterDemo = enterHeatCapacityFreeModeWorkbenchState(completedDemo, 30_500);

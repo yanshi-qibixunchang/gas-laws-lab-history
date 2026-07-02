@@ -166,7 +166,6 @@ export interface HeatCapacityFreeConfigSnapshot {
     vesselVolumeL: number;
     pumpAmountGainRatio: number;
     pumpPressureLimitKPa: number;
-    pumpInflowTemperatureRiseK: number;
     pumpStrokeDurationS: number;
     recommendedPumpIntervalS: number;
     stopcockFlowRate: number;
@@ -182,7 +181,6 @@ export interface HeatCapacityFreeConfigSnapshot {
       enabled: boolean;
       gasExchangeRatePerS: number;
       thermalConductanceWPerK: number;
-      chamberTemperatureRiseK: number;
       openingDelayS: number;
     };
     environmentDisturbance?: {
@@ -248,7 +246,6 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
     vesselVolumeL: 2,
     pumpAmountGainRatio: 0.00345,
     pumpPressureLimitKPa: 109,
-    pumpInflowTemperatureRiseK: 42,
     pumpStrokeDurationS: 0.08,
     recommendedPumpIntervalS: 0.1,
     stopcockFlowRate: 4,
@@ -264,7 +261,6 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
       enabled: false,
       gasExchangeRatePerS: 0.00015,
       thermalConductanceWPerK: 0.01,
-      chamberTemperatureRiseK: 1.5,
       openingDelayS: 0.42,
     },
     environmentDisturbance: {

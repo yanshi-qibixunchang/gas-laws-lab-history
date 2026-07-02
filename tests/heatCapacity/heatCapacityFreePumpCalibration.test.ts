@@ -216,9 +216,9 @@ const applyOnePumpStroke = (
 
   expectWithin(
     Math.max(run.peakDisplayPressureMv, displayAfterPumping.displayPressureMv),
-    127,
+    118,
     5,
-    'continuous ordinary pumping should reach the observed around-127 mV display peak',
+    'continuous ordinary pumping should reach the no-fixed-heating around-118 mV display peak',
   );
   expectWithin(
     displayAfterFiveMinutes.displayPressureMv,

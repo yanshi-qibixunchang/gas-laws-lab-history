@@ -93,7 +93,6 @@ const DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_REALISTIC_CONFIG: HeatCapac
   enabled: true,
   gasExchangeRatePerS: 0.005,
   thermalConductanceWPerK: 0.004,
-  chamberTemperatureRiseK: 1.5,
   openingDelayS: 0.42,
 };
 
@@ -111,7 +110,6 @@ const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsConfig =
   gamma: 1.4,
   pumpAmountGainRatio: 0.00345,
   pumpPressureLimitKPa: 109,
-  pumpInflowTemperatureRiseK: 42,
   stopcockFlowRate: 5.25,
   thermal: DEFAULT_HEAT_CAPACITY_FREE_THERMAL_CONFIG,
   pumpValveExchange: DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_REALISTIC_CONFIG,
@@ -263,13 +261,6 @@ const normalizeHeatCapacityFreePhysicsConfig = (
       value?.pumpPressureLimitKPa,
       DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpPressureLimitKPa,
       0.001,
-    ),
-    pumpInflowTemperatureRiseK: finiteNumberOr(
-      value?.pumpInflowTemperatureRiseK,
-      finiteNumberOr(
-        (value as { pumpTemperatureGainK?: unknown } | null | undefined)?.pumpTemperatureGainK,
-        DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpInflowTemperatureRiseK,
-      ),
     ),
     stopcockFlowRate: finiteAtLeastOr(
       value?.stopcockFlowRate,

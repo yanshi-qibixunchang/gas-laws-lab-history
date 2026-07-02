@@ -23,7 +23,6 @@ const config: HeatCapacityFreePhysicsConfig = {
   gamma: 1.4,
   pumpAmountGainRatio: 0.015,
   pumpPressureLimitKPa: 300,
-  pumpInflowTemperatureRiseK: 42,
   stopcockFlowRate: 4,
   thermal: {
     gasWallConductanceWPerK: 0.22,

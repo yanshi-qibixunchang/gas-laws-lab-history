@@ -426,10 +426,10 @@ registerDraftImpact(
 registerDraftImpact(
   'gasWallConductanceWPerK',
   'thermal correction',
-  'sealed recovery after the same pump sequence',
+  'post-release recovery after the same pump sequence',
   'free realtime gas temperature recovery',
   1.2,
-  (draft) => runFreeScenario(draft).sealed.gasTemperatureK,
+  (draft) => runFreeScenario(draft).recovered.gasTemperatureK,
 );
 
 registerDraftImpact(
@@ -459,7 +459,7 @@ registerDraftImpact(
   'same pump sequence changes gas heat capacity through vessel volume',
   'free realtime thermal recovery curve',
   0.75,
-  (draft) => runFreeScenario(draft).sealed.gasTemperatureK,
+  (draft) => runFreeScenario(draft).recovered.gasTemperatureK,
 );
 
 registerDraftImpact(

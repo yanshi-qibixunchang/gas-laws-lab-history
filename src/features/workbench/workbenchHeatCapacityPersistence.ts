@@ -123,9 +123,6 @@ const heatCapacityFreeUiReplayKeys = [
   'heatCapacityFreeEquilibriumSpeedMultiplier',
   'heatCapacityFreeEquilibriumSpeedHintShown',
   'hardSphereViewEnabled',
-  'hardSphereParticleMultiplier',
-  'hardSphereSpeedMultiplier',
-  'hardSphereTrailsEnabled',
   'visualizationMode',
   'calculationModel',
   'pressureSensitivityMvPerKPa',
@@ -302,7 +299,6 @@ export const createHeatCapacityFreeConfigSnapshotFromFile = (
     vesselVolumeL: file.heatCapacityFreePhysicsConfig.vesselVolumeL,
     pumpAmountGainRatio: file.heatCapacityFreePhysicsConfig.pumpAmountGainRatio,
     pumpPressureLimitKPa: file.heatCapacityFreePhysicsConfig.pumpPressureLimitKPa,
-    pumpInflowTemperatureRiseK: file.heatCapacityFreePhysicsConfig.pumpInflowTemperatureRiseK,
     pumpStrokeDurationS: FREE_PUMP_STROKE_DURATION_S,
     recommendedPumpIntervalS: 0.1,
     stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
@@ -544,13 +540,6 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
         physics.pumpPressureLimitKPa,
         fallback.physics.pumpPressureLimitKPa,
       ),
-      pumpInflowTemperatureRiseK: finiteOrDefault(
-        physics.pumpInflowTemperatureRiseK,
-        finiteOrDefault(
-          physics.pumpTemperatureGainK,
-          fallback.physics.pumpInflowTemperatureRiseK,
-        ),
-      ),
       pumpStrokeDurationS: finiteOrDefault(
         physics.pumpStrokeDurationS,
         fallback.physics.pumpStrokeDurationS,
@@ -562,17 +551,11 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
       stopcockFlowRate: finiteOrDefault(physics.stopcockFlowRate, fallback.physics.stopcockFlowRate),
       releaseVisualResponseDelayS: finiteOrDefault(
         physics.releaseVisualResponseDelayS,
-        finiteOrDefault(
-          physics.releaseResponseDelayS,
-          fallback.physics.releaseVisualResponseDelayS,
-        ),
+        fallback.physics.releaseVisualResponseDelayS,
       ),
       releaseVisualMainDurationS: finiteOrDefault(
         physics.releaseVisualMainDurationS,
-        finiteOrDefault(
-          physics.releaseMainDurationS,
-          fallback.physics.releaseVisualMainDurationS,
-        ),
+        fallback.physics.releaseVisualMainDurationS,
       ),
       thermal: {
         gasWallConductanceWPerK: finiteOrDefault(
@@ -601,10 +584,6 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
         thermalConductanceWPerK: finiteOrDefault(
           pumpValveExchange.thermalConductanceWPerK,
           fallback.physics.pumpValveExchange?.thermalConductanceWPerK ?? 0.01,
-        ),
-        chamberTemperatureRiseK: finiteOrDefault(
-          pumpValveExchange.chamberTemperatureRiseK,
-          fallback.physics.pumpValveExchange?.chamberTemperatureRiseK ?? 1.5,
         ),
         openingDelayS: finiteOrDefault(
           pumpValveExchange.openingDelayS,
@@ -710,7 +689,6 @@ const createPhysicsConfigFromSnapshot = (
   gamma: snapshot.physics.gamma,
   pumpAmountGainRatio: snapshot.physics.pumpAmountGainRatio,
   pumpPressureLimitKPa: snapshot.physics.pumpPressureLimitKPa,
-  pumpInflowTemperatureRiseK: snapshot.physics.pumpInflowTemperatureRiseK,
   stopcockFlowRate: snapshot.physics.stopcockFlowRate,
   thermal: { ...snapshot.physics.thermal },
   pumpValveExchange: normalizeFreePumpValveExchangeConfig(snapshot.physics.pumpValveExchange),

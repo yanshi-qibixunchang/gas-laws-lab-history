@@ -72,8 +72,8 @@ assert.match(
 
 assert.match(
   source,
-  /const heatCapacityActiveMode: HeatCapacityMode = heatCapacityTeachingModesAvailable[\s\S]*\? activeFile\.heatCapacityMode[\s\S]*: 'free';/,
-  'heat capacity mode bar should force Free mode only when the active heat-capacity model cannot support Demo or Guide',
+  /const heatCapacityActiveMode: HeatCapacityMode = activeFile\.heatCapacityMode;/,
+  'heat capacity mode bar should use the active file mode directly because every quality tier supports Demo and Guide',
 );
 
 assert.match(

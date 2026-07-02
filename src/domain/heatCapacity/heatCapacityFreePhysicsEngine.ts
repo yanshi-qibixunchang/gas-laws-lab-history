@@ -31,7 +31,6 @@ export interface HeatCapacityFreePhysicsConfig {
   gamma: number;
   pumpAmountGainRatio: number;
   pumpPressureLimitKPa: number;
-  pumpInflowTemperatureRiseK: number;
   stopcockFlowRate: number;
   thermal: HeatCapacityFreeThermalConfig;
   pumpValveExchange?: HeatCapacityFreePumpValveExchangeConfig;
@@ -220,7 +219,7 @@ const applyPumpInflow = (
   const gasTemperatureK = Math.max(MIN_GAS_TEMPERATURE_K, state.gasTemperatureK);
   const inflowTemperatureK = Math.max(
     MIN_GAS_TEMPERATURE_K,
-    config.environment.ambientTemperatureK + config.pumpInflowTemperatureRiseK,
+    config.environment.ambientTemperatureK,
   );
   const nextAmountRatio = gasAmountRatio + safeAmountDeltaRatio;
   return {

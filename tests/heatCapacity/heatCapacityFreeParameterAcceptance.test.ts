@@ -339,9 +339,10 @@ assert.equal(
 );
 assert.equal(
   u1TooEarly!.gamma !== null &&
-    (u1TooEarly!.gamma < 1.3 || u1TooEarly!.gamma > 1.5),
+    bestRealisticSmoke!.gamma !== null &&
+    u1TooEarly!.gamma > bestRealisticSmoke!.gamma + 0.02,
   true,
-  'recording U1 immediately should be an extreme wrong operation in the current smoke suite',
+  'recording U1 immediately should still bias the result high without fixed pump heating',
 );
 assert.equal(
   u2TooEarly!.gamma !== null &&
@@ -415,7 +416,6 @@ const tracedConfiguredFile = recordHeatCapacityFreeTraceEventWithReference({
     vesselVolumeL: 2.4,
     pumpAmountGainRatio: 0.0065,
     pumpPressureLimitKPa: 112,
-    pumpInflowTemperatureRiseK: 42,
     stopcockFlowRate: 4.4,
     thermal: {
       gasWallConductanceWPerK: 0.45,

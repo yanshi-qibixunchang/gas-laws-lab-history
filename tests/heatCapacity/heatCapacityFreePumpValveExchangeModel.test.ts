@@ -18,7 +18,6 @@ const disabled: HeatCapacityFreePumpValveExchangeConfig = {
   enabled: false,
   gasExchangeRatePerS: 0.00015,
   thermalConductanceWPerK: 0.01,
-  chamberTemperatureRiseK: 1.5,
   openingDelayS: 0.42,
 };
 
@@ -107,7 +106,6 @@ const hotGas = stepFreePumpValveExchange({
   ...enabled,
   gasExchangeRatePerS: 0,
   thermalConductanceWPerK: 0.05,
-  chamberTemperatureRiseK: 1,
 }, baseInput);
 assert.equal(
   hotGas.state.gasTemperatureK < 308.15,
@@ -123,7 +121,6 @@ const coldGas = stepFreePumpValveExchange({
   ...enabled,
   gasExchangeRatePerS: 0,
   thermalConductanceWPerK: 0.05,
-  chamberTemperatureRiseK: 1,
 }, baseInput);
 assert.equal(
   coldGas.state.gasTemperatureK > 296,
@@ -153,7 +150,6 @@ const finite = stepFreePumpValveExchange({
   enabled: true,
   gasExchangeRatePerS: Number.NaN,
   thermalConductanceWPerK: Number.NaN,
-  chamberTemperatureRiseK: Number.NaN,
   openingDelayS: Number.NaN,
 }, {
   ...baseInput,

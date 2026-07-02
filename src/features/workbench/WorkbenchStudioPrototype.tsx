@@ -221,6 +221,12 @@ import {
   type IdealGasAnalysis,
   type IdealExperimentLanguageCode,
 } from '../../domain/idealGas/idealGasExperiment';
+import {
+  DEFAULT_HEAT_CAPACITY_QUALITY_MODE,
+  HEAT_CAPACITY_QUALITY_MODE_ORDER,
+  HEAT_CAPACITY_QUALITY_PROFILES,
+  type HeatCapacityQualityMode,
+} from '../heatCapacity/heatCapacityQualityProfiles';
 import './WorkbenchStudioPrototype.css';
 
 type LogKind = 'info' | 'warning' | 'success' | 'error';
@@ -231,13 +237,7 @@ type ResultsSectionKey = WorkbenchStandardResultsTab;
 type WorkbenchThemePreference = 'system' | 'light' | 'dark';
 type WorkbenchResolvedTheme = 'light' | 'dark';
 type WorkbenchLanguagePreference = 'zh-CN' | 'zh-TW' | 'en';
-type WorkbenchPerformanceMode = 'standard' | 'balanced' | 'performance' | 'ultra';
-const HEAT_CAPACITY_HARD_SPHERE_PERFORMANCE_PRESETS = {
-  standard: { particleMultiplier: 1, speedMultiplier: 1.1875 },
-  balanced: { particleMultiplier: 0.75, speedMultiplier: 1 },
-  performance: { particleMultiplier: 0.5, speedMultiplier: 0.8125 },
-  ultra: { particleMultiplier: 1.25, speedMultiplier: 1.25 },
-} as const;
+type WorkbenchPerformanceMode = HeatCapacityQualityMode;
 const WORKBENCH_USER_GUIDE_URLS: Record<WorkbenchLanguagePreference, string> = {
   'zh-CN': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release#readme',
   'zh-TW': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.zh-TW.md',
@@ -276,7 +276,6 @@ type IdealSamplingPresetKey = 'fast' | 'balanced' | 'stable';
 type WorkbenchParameterSymbolPart = string | { sub: string };
 type HeatCapacityManualRecordKind = 'u0' | 'u1' | 'u2';
 type HeatCapacityMode = 'demo' | 'guide' | 'free';
-const heatCapacityUltraModelIntegrationReady = true;
 type WorkbenchUpdateStatus = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'retrying' | 'downloaded' | 'installing' | 'unsupported' | 'error';
 type WorkbenchLocalizedText = Partial<Record<WorkbenchLanguagePreference, string>>;
 
@@ -862,19 +861,24 @@ type HeatCapacityFreeDraftNumberKey = {
 }[keyof HeatCapacityFreeParameterDraft];
 type HeatCapacityFreeBasicCheckboxKey = 'leakageEnabled' | 'instrumentNoiseEnabled' | 'hardSphereViewEnabled';
 type HeatCapacityFreeParameterSymbolPart = string | { sub: string };
+type HeatCapacityFreeAdvancedParameterGroupId =
+  | 'gasTheory'
+  | 'thermalExchange'
+  | 'nonIdealCorrection'
+  | 'recordCriteria';
 
 interface HeatCapacityFreeNumberParameterDefinition {
   id: HeatCapacityFreeDraftNumberKey;
-  group: 'A' | 'B' | 'C' | 'D';
+  group?: HeatCapacityFreeAdvancedParameterGroupId;
   label: Record<WorkbenchLanguagePreference, string>;
   parts: HeatCapacityFreeParameterSymbolPart[];
   unit: string;
   effect: Record<WorkbenchLanguagePreference, string>;
   precision: number;
   min: number;
+  toInputValue?: (draftValue: number) => number;
+  fromInputValue?: (inputValue: number) => number;
 }
-
-type HeatCapacityFreeAdvancedParameterGroupId = HeatCapacityFreeNumberParameterDefinition['group'];
 
 interface HeatCapacityFreeAdvancedParameterGroupDefinition {
   id: HeatCapacityFreeAdvancedParameterGroupId;
@@ -917,14 +921,14 @@ const heatCapacityFreeSharedText = {
     en: 'Confirm',
   },
   riskTitle: {
-    'zh-CN': '调整高级参数会改变后续实验组',
-    'zh-TW': '調整進階參數會改變後續實驗組',
-    en: 'Advanced values change future groups',
+    'zh-CN': '确认调整高级参数',
+    'zh-TW': '確認調整進階參數',
+    en: 'Confirm Advanced Parameter Changes',
   },
   riskBody: {
-    'zh-CN': '这些设置会影响模型判定、传感器读数或记录阈值。确认后本文件后续不再重复提示。',
-    'zh-TW': '這些設定會影響模型判定、感測器讀數或記錄閾值。確認後本文件後續不再重複提示。',
-    en: 'These settings affect model behavior, sensor readings, or record thresholds. This file will not ask again after confirmation.',
+    'zh-CN': '高级参数会影响当前实验文件的模型判定、传感器读数和记录阈值。确认后，本实验文件后续打开高级参数不再重复提示。',
+    'zh-TW': '進階參數會影響目前實驗檔案的模型判定、感測器讀數和記錄閾值。確認後，本實驗檔案後續開啟進階參數不再重複提示。',
+    en: "Advanced parameters affect this experiment file's model checks, sensor readings, and record thresholds. After confirmation, this file will not ask again when Advanced Parameters are opened.",
   },
   invalidNumber: {
     'zh-CN': '请输入合法数值。',
@@ -946,7 +950,6 @@ const heatCapacityFreeSharedText = {
 const heatCapacityFreeBasicNumberParameters: HeatCapacityFreeNumberParameterDefinition[] = [
   {
     id: 'ambientPressureKPa',
-    group: 'A',
     label: { 'zh-CN': '大气压', 'zh-TW': '大氣壓', en: 'Atmospheric pressure' },
     parts: ['P', { sub: '0' }],
     unit: 'kPa',
@@ -960,45 +963,44 @@ const heatCapacityFreeBasicNumberParameters: HeatCapacityFreeNumberParameterDefi
   },
   {
     id: 'ambientTemperatureK',
-    group: 'A',
     label: { 'zh-CN': '环境温度', 'zh-TW': '環境溫度', en: 'Ambient temperature' },
-    parts: ['T', { sub: '0' }],
-    unit: 'K',
+    parts: ['t', { sub: '0' }],
+    unit: '℃',
     effect: {
-      'zh-CN': '作为初始热平衡温度和回温目标。',
-      'zh-TW': '作為初始熱平衡溫度和回溫目標。',
-      en: 'Sets the initial equilibrium temperature and recovery target.',
+      'zh-CN': '以摄氏度设置初始热平衡温度和回温目标；底层模型仍以 K 计算。',
+      'zh-TW': '以攝氏度設定初始熱平衡溫度和回溫目標；底層模型仍以 K 計算。',
+      en: 'Sets the initial equilibrium temperature and recovery target in Celsius; the model still computes in K.',
     },
     precision: 2,
+    min: -273.14,
+    toInputValue: (kelvin) => kelvin - 273.15,
+    fromInputValue: (celsius) => celsius + 273.15,
+  },
+  {
+    id: 'vesselVolumeL',
+    label: { 'zh-CN': '容器体积', 'zh-TW': '容器體積', en: 'Vessel volume' },
+    parts: ['V'],
+    unit: 'L',
+    effect: {
+      'zh-CN': '决定同一次打气在容器内形成的压强变化幅度。',
+      'zh-TW': '決定同一次打氣在容器內形成的壓強變化幅度。',
+      en: 'Sets how strongly one pump stroke changes the vessel pressure.',
+    },
+    precision: 3,
     min: 0.001,
   },
   {
-    id: 'gasWallConductanceWPerK',
-    group: 'C',
-    label: { 'zh-CN': '气体-屏壁导热系数', 'zh-TW': '氣體-屏壁導熱係數', en: 'Gas-wall conductance' },
-    parts: ['G', { sub: 'gw' }],
-    unit: 'W/K',
+    id: 'pressureMvPerKPa',
+    label: { 'zh-CN': '压力灵敏度', 'zh-TW': '壓力靈敏度', en: 'Pressure sensitivity' },
+    parts: ['S', { sub: 'p' }],
+    unit: 'mV/kPa',
     effect: {
-      'zh-CN': '控制气体向容器壁传热的快慢。',
-      'zh-TW': '控制氣體向容器壁傳熱的快慢。',
-      en: 'Controls how quickly gas transfers heat to the vessel wall.',
+      'zh-CN': '决定压力读数 mV 与 kPa 的换算比例。',
+      'zh-TW': '決定壓力讀數 mV 與 kPa 的換算比例。',
+      en: 'Sets the conversion between pressure signal mV and kPa.',
     },
     precision: 3,
-    min: 0,
-  },
-  {
-    id: 'wallAmbientConductanceWPerK',
-    group: 'C',
-    label: { 'zh-CN': '屏壁-环境导热系数', 'zh-TW': '屏壁-環境導熱係數', en: 'Wall-ambient conductance' },
-    parts: ['G', { sub: 'wa' }],
-    unit: 'W/K',
-    effect: {
-      'zh-CN': '控制容器壁向环境散热的快慢。',
-      'zh-TW': '控制容器壁向環境散熱的快慢。',
-      en: 'Controls how quickly the vessel wall dissipates heat to the environment.',
-    },
-    precision: 3,
-    min: 0,
+    min: 0.001,
   },
 ];
 
@@ -1006,7 +1008,7 @@ const heatCapacityFreeBasicCheckboxes: HeatCapacityFreeCheckboxDefinition[] = [
   {
     id: 'leakageEnabled',
     label: { 'zh-CN': '泄漏', 'zh-TW': '洩漏', en: 'Leakage' },
-    parts: ['leak'],
+    parts: [],
     onText: { 'zh-CN': '开', 'zh-TW': '開', en: 'On' },
     offText: { 'zh-CN': '关', 'zh-TW': '關', en: 'Off' },
     effect: {
@@ -1018,7 +1020,7 @@ const heatCapacityFreeBasicCheckboxes: HeatCapacityFreeCheckboxDefinition[] = [
   {
     id: 'instrumentNoiseEnabled',
     label: { 'zh-CN': '仪器噪声', 'zh-TW': '儀器雜訊', en: 'Instrument noise' },
-    parts: ['noise'],
+    parts: [],
     onText: { 'zh-CN': '开', 'zh-TW': '開', en: 'On' },
     offText: { 'zh-CN': '关', 'zh-TW': '關', en: 'Off' },
     effect: {
@@ -1030,7 +1032,7 @@ const heatCapacityFreeBasicCheckboxes: HeatCapacityFreeCheckboxDefinition[] = [
   {
     id: 'hardSphereViewEnabled',
     label: { 'zh-CN': '小球可视化', 'zh-TW': '小球視覺化', en: 'Molecule visualization' },
-    parts: ['view'],
+    parts: [],
     onText: { 'zh-CN': '显示', 'zh-TW': '顯示', en: 'Shown' },
     offText: { 'zh-CN': '隐藏', 'zh-TW': '隱藏', en: 'Hidden' },
     effect: {
@@ -1043,36 +1045,36 @@ const heatCapacityFreeBasicCheckboxes: HeatCapacityFreeCheckboxDefinition[] = [
 
 const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterDefinition[] = [
   {
-    id: 'pressureMvPerKPa',
-    group: 'A',
-    label: { 'zh-CN': '压力灵敏度', 'zh-TW': '壓力靈敏度', en: 'Pressure sensitivity' },
-    parts: ['S', { sub: 'p' }],
-    unit: 'mV/kPa',
+    id: 'gasWallConductanceWPerK',
+    group: 'thermalExchange',
+    label: { 'zh-CN': '气体-屏壁导热系数', 'zh-TW': '氣體-屏壁導熱係數', en: 'Gas-wall conductance' },
+    parts: [],
+    unit: 'W/K',
     effect: {
-      'zh-CN': '决定压力读数 mV 与 kPa 的换算比例。',
-      'zh-TW': '決定壓力讀數 mV 與 kPa 的換算比例。',
-      en: 'Sets the conversion between pressure signal mV and kPa.',
+      'zh-CN': '控制气体向容器壁传热的快慢。',
+      'zh-TW': '控制氣體向容器壁傳熱的快慢。',
+      en: 'Controls how quickly gas transfers heat to the vessel wall.',
     },
     precision: 3,
-    min: 0.001,
+    min: 0,
   },
   {
-    id: 'vesselVolumeL',
-    group: 'B',
-    label: { 'zh-CN': '容器体积', 'zh-TW': '容器體積', en: 'Vessel volume' },
-    parts: ['V'],
-    unit: 'L',
+    id: 'wallAmbientConductanceWPerK',
+    group: 'thermalExchange',
+    label: { 'zh-CN': '屏壁-环境导热系数', 'zh-TW': '屏壁-環境導熱係數', en: 'Wall-ambient conductance' },
+    parts: [],
+    unit: 'W/K',
     effect: {
-      'zh-CN': '固定单次有效进气量下，容器越大，同一按压带来的压力升高越小。',
-      'zh-TW': '固定單次有效進氣量下，容器越大，同一按壓帶來的壓力升高越小。',
-      en: 'With a fixed effective gas inflow per stroke, larger vessels produce smaller pressure rises.',
+      'zh-CN': '控制容器壁向环境散热的快慢。',
+      'zh-TW': '控制容器壁向環境散熱的快慢。',
+      en: 'Controls how quickly the vessel wall dissipates heat to the environment.',
     },
     precision: 3,
-    min: 0.001,
+    min: 0,
   },
   {
     id: 'gamma',
-    group: 'B',
+    group: 'gasTheory',
     label: { 'zh-CN': '气体绝热指数', 'zh-TW': '氣體絕熱指數', en: 'Gas adiabatic index' },
     parts: ['γ'],
     unit: '',
@@ -1086,7 +1088,7 @@ const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterD
   },
   {
     id: 'wallHeatCapacityJPerK',
-    group: 'C',
+    group: 'thermalExchange',
     label: { 'zh-CN': '屏壁热容', 'zh-TW': '屏壁熱容', en: 'Wall heat capacity' },
     parts: ['C', { sub: 'w' }],
     unit: 'J/K',
@@ -1100,9 +1102,9 @@ const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterD
   },
   {
     id: 'leakageRatePerS',
-    group: 'C',
+    group: 'nonIdealCorrection',
     label: { 'zh-CN': '泄漏速率', 'zh-TW': '洩漏速率', en: 'Leakage rate' },
-    parts: ['λ', { sub: 'leak' }],
+    parts: [],
     unit: 's⁻¹',
     effect: {
       'zh-CN': '泄漏开关开启时，决定封闭状态下向环境压力双向平衡的速度。',
@@ -1114,9 +1116,9 @@ const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterD
   },
   {
     id: 'noiseMv',
-    group: 'D',
+    group: 'nonIdealCorrection',
     label: { 'zh-CN': '仪器噪声强度', 'zh-TW': '儀器雜訊強度', en: 'Noise amplitude' },
-    parts: ['σ', { sub: 'U' }],
+    parts: [],
     unit: 'mV',
     effect: {
       'zh-CN': '仪器噪声开关开启时，决定压力/温度读数抖动幅度。',
@@ -1128,9 +1130,9 @@ const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterD
   },
   {
     id: 'sensorLagTimeS',
-    group: 'D',
+    group: 'nonIdealCorrection',
     label: { 'zh-CN': '传感器滞后时间', 'zh-TW': '感測器滯後時間', en: 'Sensor lag time' },
-    parts: ['τ', { sub: 's' }],
+    parts: [],
     unit: 's',
     effect: {
       'zh-CN': '决定显示读数追随真实状态的快慢；数值越大，读数越滞后。',
@@ -1142,9 +1144,9 @@ const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterD
   },
   {
     id: 'u0ZeroToleranceMv',
-    group: 'D',
+    group: 'recordCriteria',
     label: { 'zh-CN': '零点记录容差', 'zh-TW': '零點記錄容差', en: 'Zero record tolerance' },
-    parts: ['ε', { sub: '0' }],
+    parts: ['U', { sub: '0' }],
     unit: 'mV',
     effect: {
       'zh-CN': '决定 U0 记录时压力读数接近 0 的合格范围。',
@@ -1156,9 +1158,9 @@ const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterD
   },
   {
     id: 'pressureStableSlopeMvPerS',
-    group: 'D',
+    group: 'recordCriteria',
     label: { 'zh-CN': '压力稳定斜率阈值', 'zh-TW': '壓力穩定斜率閾值', en: 'Pressure slope limit' },
-    parts: ['s', { sub: 'p,max' }],
+    parts: [],
     unit: 'mV/s',
     effect: {
       'zh-CN': '决定压力读数足够平稳后才允许记录。',
@@ -1170,9 +1172,9 @@ const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterD
   },
   {
     id: 'temperatureStableSlopeMvPerS',
-    group: 'D',
+    group: 'recordCriteria',
     label: { 'zh-CN': '温度稳定斜率阈值', 'zh-TW': '溫度穩定斜率閾值', en: 'Temperature slope limit' },
-    parts: ['s', { sub: 'T,max' }],
+    parts: [],
     unit: 'mV/s',
     effect: {
       'zh-CN': '决定温度读数足够平稳后才允许记录。',
@@ -1184,9 +1186,9 @@ const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterD
   },
   {
     id: 'temperatureAmbientToleranceMv',
-    group: 'D',
+    group: 'recordCriteria',
     label: { 'zh-CN': '环境温度容差', 'zh-TW': '環境溫度容差', en: 'Ambient temperature tolerance' },
-    parts: ['ε', { sub: 'T' }],
+    parts: [],
     unit: 'mV',
     effect: {
       'zh-CN': '决定温度是否已经回到环境附近。',
@@ -1198,8 +1200,8 @@ const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterD
   },
   {
     id: 'minimumUsefulU1CorrectedMv',
-    group: 'D',
-    label: { 'zh-CN': '最小有效 U1', 'zh-TW': '最小有效 U1', en: 'Minimum useful U1' },
+    group: 'recordCriteria',
+    label: { 'zh-CN': '最小有效值', 'zh-TW': '最小有效值', en: 'Minimum useful U1' },
     parts: ['U', { sub: '1,min' }],
     unit: 'mV',
     effect: {
@@ -1212,8 +1214,8 @@ const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterD
   },
   {
     id: 'overVentedMinimumU2CorrectedMv',
-    group: 'D',
-    label: { 'zh-CN': '最小有效 U2', 'zh-TW': '最小有效 U2', en: 'Minimum useful U2' },
+    group: 'recordCriteria',
+    label: { 'zh-CN': '最小有效值', 'zh-TW': '最小有效值', en: 'Minimum useful U2' },
     parts: ['U', { sub: '2,min' }],
     unit: 'mV',
     effect: {
@@ -1226,7 +1228,7 @@ const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterD
   },
   {
     id: 'pressureWarningMv',
-    group: 'D',
+    group: 'recordCriteria',
     label: { 'zh-CN': '建议停止阈值', 'zh-TW': '建議停止閾值', en: 'Suggested-stop threshold' },
     parts: ['U', { sub: 'warn' }],
     unit: 'mV',
@@ -1240,7 +1242,7 @@ const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterD
   },
   {
     id: 'pressureDangerMv',
-    group: 'D',
+    group: 'recordCriteria',
     label: { 'zh-CN': '压力危险阈值', 'zh-TW': '壓力危險閾值', en: 'Pressure danger threshold' },
     parts: ['U', { sub: 'danger' }],
     unit: 'mV',
@@ -1256,34 +1258,40 @@ const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterD
 
 const heatCapacityFreeAdvancedParameterGroups: HeatCapacityFreeAdvancedParameterGroupDefinition[] = [
   {
-    id: 'A',
-    title: { 'zh-CN': '压力信号标定', 'zh-TW': '壓力訊號標定', en: 'Pressure Signal Calibration' },
+    id: 'gasTheory',
+    title: { 'zh-CN': '气体理论参数', 'zh-TW': '氣體理論參數', en: 'Gas Theory' },
   },
   {
-    id: 'B',
-    title: { 'zh-CN': '气体状态模型', 'zh-TW': '氣體狀態模型', en: 'Gas State Model' },
+    id: 'thermalExchange',
+    title: { 'zh-CN': '热交换模型', 'zh-TW': '熱交換模型', en: 'Heat Exchange Model' },
   },
   {
-    id: 'C',
-    title: { 'zh-CN': '热交换与泄漏修正', 'zh-TW': '熱交換與洩漏修正', en: 'Heat Exchange and Leakage Correction' },
+    id: 'nonIdealCorrection',
+    title: { 'zh-CN': '非理想过程修正', 'zh-TW': '非理想過程修正', en: 'Non-Ideal Corrections' },
   },
   {
-    id: 'D',
-    title: { 'zh-CN': '读数采集与记录判定', 'zh-TW': '讀數採集與記錄判定', en: 'Reading Capture and Record Criteria' },
+    id: 'recordCriteria',
+    title: { 'zh-CN': '记录判定与安全阈值', 'zh-TW': '記錄判定與安全閾值', en: 'Record Criteria and Safety Limits' },
   },
 ];
 
 const renderHeatCapacityParameterSymbol = (
   parts: HeatCapacityFreeParameterSymbolPart[],
-) => (
-  <span className="studio-param-symbol">
-    {parts.map((part, index) => (
-      typeof part === 'string'
-        ? <span key={index}>{part}</span>
-        : <sub key={index}>{part.sub}</sub>
-    ))}
-  </span>
-);
+) => {
+  const hasParts = parts.length > 0;
+  return (
+    <span
+      className={`studio-param-symbol ${hasParts ? '' : 'studio-param-symbol-empty'}`}
+      aria-hidden={hasParts ? undefined : true}
+    >
+      {parts.map((part, index) => (
+        typeof part === 'string'
+          ? <span key={index}>{part}</span>
+          : <sub key={index}>{part.sub}</sub>
+      ))}
+    </span>
+  );
+};
 
 const formatHeatCapacityFreeParameterValue = (
   value: number,
@@ -1293,6 +1301,20 @@ const formatHeatCapacityFreeParameterValue = (
   const rounded = value.toFixed(precision);
   return rounded.replace(/\.?0+$/, '');
 };
+
+const getHeatCapacityFreeParameterInputValue = (
+  definition: HeatCapacityFreeNumberParameterDefinition,
+  draftValue: number,
+) => (
+  definition.toInputValue ? definition.toInputValue(draftValue) : draftValue
+);
+
+const getHeatCapacityFreeParameterDraftValue = (
+  definition: HeatCapacityFreeNumberParameterDefinition,
+  inputValue: number,
+) => (
+  definition.fromInputValue ? definition.fromInputValue(inputValue) : inputValue
+);
 
 interface ConsoleLog {
   id: number;
@@ -1381,10 +1403,6 @@ interface WorkbenchCopy {
     languageOptions: Record<WorkbenchLanguagePreference, { label: string; hint: string }>;
     performanceMode: string;
     performanceModeHint: string;
-    performanceModeOff: string;
-    performanceModeBalanced: string;
-    performanceModeOn: string;
-    performanceModeUltra: string;
     performanceModeSummary: Record<WorkbenchPerformanceMode, string>;
   };
   about: {
@@ -2000,7 +2018,7 @@ const STANDARD_RESULTS_BOTTOM_INSET = 10;
 const RESIZER_GRAB_SAFE_SPACE = 14;
 const IDEAL_RESULT_WINDOW_DEFAULTS_STORAGE_KEY = 'hsl_workbench_ideal_result_window_defaults';
 const WORKBENCH_LAYOUT_DEFAULTS_STORAGE_KEY = 'hsl_workbench_layout_defaults_v1';
-const WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY = 'hsl_workbench_general_settings';
+const WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY = 'hsl_workbench_general_settings_v2';
 const WORKBENCH_IGNORED_UPDATE_VERSION_KEY = 'hslIgnoredUpdateVersion';
 const HEAT_CAPACITY_AUTO_DEMO_RESET_MS = 1_800;
 const HEAT_CAPACITY_AUTO_DEMO_STEP_PANEL_EXIT_MS = 560;
@@ -2008,7 +2026,7 @@ const HEAT_CAPACITY_AUTO_DEMO_STEP_PANEL_EXIT_MS = 560;
 const defaultWorkbenchGeneralSettings: WorkbenchGeneralSettings = {
   theme: 'system',
   language: 'zh-CN',
-  performanceMode: 'standard',
+  performanceMode: DEFAULT_HEAT_CAPACITY_QUALITY_MODE,
 };
 
 const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
@@ -2027,11 +2045,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       languageOptions: { 'zh-CN': { label: '简体中文', hint: '简体中文界面' }, 'zh-TW': { label: '繁體中文', hint: '繁體中文介面' }, en: { label: 'English', hint: 'English interface' } },
       performanceMode: '3D 性能模式',
       performanceModeHint: '用四档模式控制 Heat Capacity 小球数量、速率和运行负载',
-      performanceModeOff: '高性能',
-      performanceModeBalanced: '均衡',
-      performanceModeOn: '低负载',
-      performanceModeUltra: '极致画质',
-      performanceModeSummary: { standard: '高性能', balanced: '均衡', performance: '低负载', ultra: '极致画质' },
+      performanceModeSummary: { lowLoad: '低负载', balanced: '均衡', highPerformance: '高性能', ultra: '极致画质' },
     },
     about: {
       title: '关于热容比实验室',
@@ -2138,11 +2152,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       languageOptions: { 'zh-CN': { label: '简体中文', hint: '簡體中文介面' }, 'zh-TW': { label: '繁體中文', hint: '繁體中文介面' }, en: { label: 'English', hint: 'English interface' } },
       performanceMode: '3D 效能模式',
       performanceModeHint: '用四檔模式控制 Heat Capacity 小球數量、速率和運行負載',
-      performanceModeOff: '高效能',
-      performanceModeBalanced: '均衡',
-      performanceModeOn: '低負載',
-      performanceModeUltra: '極致畫質',
-      performanceModeSummary: { standard: '高效能', balanced: '均衡', performance: '低負載', ultra: '極致畫質' },
+      performanceModeSummary: { lowLoad: '低負載', balanced: '均衡', highPerformance: '高效能', ultra: '極致畫質' },
     },
     about: {
       title: '關於熱容比實驗室',
@@ -2249,11 +2259,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       languageOptions: { 'zh-CN': { label: '简体中文', hint: 'Simplified Chinese interface' }, 'zh-TW': { label: '繁體中文', hint: 'Traditional Chinese interface' }, en: { label: 'English', hint: 'English interface' } },
       performanceMode: '3D performance mode',
       performanceModeHint: 'Use four modes to control Heat Capacity particle count, speed, and runtime load',
-      performanceModeOff: 'High performance',
-      performanceModeBalanced: 'Balanced',
-      performanceModeOn: 'Low load',
-      performanceModeUltra: 'Ultra',
-      performanceModeSummary: { standard: 'High performance', balanced: 'Balanced', performance: 'Low load', ultra: 'Ultra' },
+      performanceModeSummary: { lowLoad: 'Low load', balanced: 'Balanced', highPerformance: 'High performance', ultra: 'Ultra' },
     },
     about: {
       title: 'About Heat Capacity Ratio Lab',
@@ -2442,9 +2448,9 @@ const heatCapacityRealtimeCopies = {
       pumpValve: '请打开打气阀门。',
       pumpFocus: '请双击打气球进入聚焦模式。',
       pumpAction: '请连续快速按压打气球，直到 Uₚ ≥ 120.0 mV。达到后将自动退出聚焦。',
-      waitU1Ready: '五分钟到了，请点击按键，记录 U₁。',
+      waitU1Ready: '五分钟到了，记录 U₁。',
       releaseReady: '放气时间到了，请关闭玻璃旋塞。',
-      waitU2Ready: '五分钟到了，请点击按键，记录 U₂。',
+      waitU2Ready: '五分钟到了，记录 U₂。',
     },
     recordU0Success: 'U₀ 已记录。',
     recordU0SuccessToast: 'U₀ 记录成功。',
@@ -2656,9 +2662,9 @@ const heatCapacityRealtimeCopies = {
       pumpValve: '請打開打氣閥門。',
       pumpFocus: '請雙擊打氣球進入聚焦模式。',
       pumpAction: '請連續快速按壓打氣球，直到 Uₚ ≥ 120.0 mV。達到後將自動退出聚焦。',
-      waitU1Ready: '五分鐘到了，請點擊按鍵，記錄 U₁。',
+      waitU1Ready: '五分鐘到了，記錄 U₁。',
       releaseReady: '放氣時間到了，請關閉玻璃旋塞。',
-      waitU2Ready: '五分鐘到了，請點擊按鍵，記錄 U₂。',
+      waitU2Ready: '五分鐘到了，記錄 U₂。',
     },
     recordU0Success: 'U₀ 已記錄。',
     recordU0SuccessToast: 'U₀ 記錄成功。',
@@ -2870,9 +2876,9 @@ const heatCapacityRealtimeCopies = {
       pumpValve: 'Open the pump valve.',
       pumpFocus: 'Double-click the pump bulb to enter focus mode.',
       pumpAction: 'Press the pump bulb rapidly until Uₚ ≥ 120.0 mV. Focus exits automatically after the target is reached.',
-      waitU1Ready: 'Five minutes have elapsed. Click the button to record U₁.',
+      waitU1Ready: 'Five minutes have elapsed. Record U₁.',
       releaseReady: 'Release time has elapsed. Close the glass stopcock.',
-      waitU2Ready: 'Five minutes have elapsed. Click the button to record U₂.',
+      waitU2Ready: 'Five minutes have elapsed. Record U₂.',
     },
     recordU0Success: 'U₀ recorded.',
     recordU0SuccessToast: 'U₀ recorded successfully.',
@@ -3200,7 +3206,7 @@ const isWorkbenchLanguagePreference = (value: unknown): value is WorkbenchLangua
 );
 
 const isWorkbenchPerformanceMode = (value: unknown): value is WorkbenchPerformanceMode => (
-  value === 'standard' || value === 'balanced' || value === 'performance' || value === 'ultra'
+  typeof value === 'string' && HEAT_CAPACITY_QUALITY_MODE_ORDER.includes(value as HeatCapacityQualityMode)
 );
 
 const getSystemWorkbenchTheme = (): WorkbenchResolvedTheme => {
@@ -3871,14 +3877,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const workbenchCopy = workbenchCopies[settingsLanguagePreference];
   const windowControlCopy = WORKBENCH_WINDOW_CONTROL_COPY[settingsLanguagePreference];
   const desktopWindowControlsAvailable = hasDesktopWindowControlBridge();
-  const performanceModeOptions = useMemo(() => ([
-    { mode: 'performance' as const, label: workbenchCopy.settings.performanceModeOn },
-    { mode: 'balanced' as const, label: workbenchCopy.settings.performanceModeBalanced },
-    { mode: 'standard' as const, label: workbenchCopy.settings.performanceModeOff },
-    { mode: 'ultra' as const, label: workbenchCopy.settings.performanceModeUltra },
-  ]), [workbenchCopy]);
-  const heatCapacityHardSpherePerformancePreset = HEAT_CAPACITY_HARD_SPHERE_PERFORMANCE_PRESETS[settingsPerformanceMode];
-  const heatCapacityTeachingModesAvailable = settingsPerformanceMode !== 'ultra' || heatCapacityUltraModelIntegrationReady;
+  const performanceModeOptions = useMemo(() => (
+    HEAT_CAPACITY_QUALITY_MODE_ORDER.map((mode) => ({ mode, label: workbenchCopy.settings.performanceModeSummary[mode] }))
+  ), [workbenchCopy]);
+  const heatCapacityQualityProfile = HEAT_CAPACITY_QUALITY_PROFILES[settingsPerformanceMode];
   const workbenchTranslation = translations[settingsLanguagePreference === 'en' ? 'en-GB' : settingsLanguagePreference];
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [parametersCollapsed, setParametersCollapsed] = useState(() => (
@@ -4914,9 +4916,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
         filesRef.current = nextFiles;
         return nextFiles;
       });
-    }, settingsPerformanceMode === 'performance' ? 240 : settingsPerformanceMode === 'balanced' ? 150 : 100);
+    }, heatCapacityQualityProfile.tickIntervalMs);
     return () => window.clearInterval(intervalId);
-  }, [settingsPerformanceMode]);
+  }, [heatCapacityQualityProfile.tickIntervalMs]);
 
   const setWorkbenchFiles = (updater: (current: WorkbenchFileState[]) => WorkbenchFileState[]) => {
     setFiles((current) => {
@@ -5085,7 +5087,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     maxValue: number,
   ) => {
     const label = definition.label[settingsLanguagePreference];
-    const formattedMax = formatHeatCapacityFreeParameterValue(maxValue, definition.precision);
+    const formattedMax = formatHeatCapacityFreeParameterValue(
+      getHeatCapacityFreeParameterInputValue(definition, maxValue),
+      definition.precision,
+    );
     const limitText = definition.id === 'pressureDangerMv'
       ? `${formattedMax} ${definition.unit} / ${HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA} kPa`
       : `${formattedMax} ${definition.unit}`.trim();
@@ -5113,16 +5118,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (parsedValue < definition.min) {
       return { valid: false, message: heatCapacityFreeSharedText.valueTooSmall[settingsLanguagePreference] };
     }
+    const draftValue = getHeatCapacityFreeParameterDraftValue(definition, parsedValue);
     if (options.checkMax !== false) {
       const maxValue = getHeatCapacityFreeParameterMaximum(definition, {
         ...draft,
-        [definition.id]: parsedValue,
+        [definition.id]: draftValue,
       });
-      if (maxValue !== null && parsedValue > maxValue) {
+      if (maxValue !== null && draftValue > maxValue) {
         return { valid: false, message: getHeatCapacityFreeValueTooLargeMessage(definition, maxValue) };
       }
     }
-    return { valid: true, value: parsedValue };
+    return { valid: true, value: draftValue };
   };
 
   const commitHeatCapacityBasicParameterInput = (
@@ -7266,12 +7272,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
       : file);
     pushLog(heatCapacityRealtimeCopy.freeModeActiveLog(activeFile.name), 'info');
   };
-
-  useEffect(() => {
-    if (heatCapacityTeachingModesAvailable) return;
-    if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode === 'free') return;
-    enterHeatCapacityFreeMode();
-  }, [activeFile.id, activeFile.kind, activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null, heatCapacityTeachingModesAvailable]);
 
   const resetHeatCapacityFreeRun = () => {
     if (!activeFile || activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return;
@@ -10984,15 +10984,18 @@ const WorkbenchStudioPrototype: React.FC = () => {
     label: string,
     parts: HeatCapacityFreeParameterSymbolPart[],
     modelEffect: string,
-  ) => (
-    <span className="studio-heat-free-param-label">
-      <span className="studio-heat-free-param-title">
-        <span>{label}</span>
+  ) => {
+    const symbolLayoutClass = parts.length > 0
+      ? 'studio-heat-free-param-label-with-symbol'
+      : 'studio-heat-free-param-label-no-symbol';
+    return (
+      <span className={`studio-heat-free-param-label ${symbolLayoutClass}`}>
+        <span className="studio-heat-free-param-name">{label}</span>
         {renderHeatCapacityParameterSymbol(parts)}
+        {renderHeatCapacityParameterHelpButton(parameterId, modelEffect)}
       </span>
-      {renderHeatCapacityParameterHelpButton(parameterId, modelEffect)}
-    </span>
-  );
+    );
+  };
 
   const renderHeatCapacityFreeNumberInputRow = (
     definition: HeatCapacityFreeNumberParameterDefinition,
@@ -11004,8 +11007,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const inputErrors = scope === 'basic' ? heatCapacityBasicInputErrors : heatCapacityAdvancedInputErrors;
     const setInputDrafts = scope === 'basic' ? setHeatCapacityBasicInputDrafts : setHeatCapacityAdvancedInputDrafts;
     const error = inputErrors[definition.id] ?? null;
-    const value = inputDrafts[definition.id] ?? formatHeatCapacityFreeParameterValue(
+    const displayValue = getHeatCapacityFreeParameterInputValue(
+      definition,
       draft[definition.id],
+    );
+    const value = inputDrafts[definition.id] ?? formatHeatCapacityFreeParameterValue(
+      displayValue,
       definition.precision,
     );
     const parameterId = definition.id;
@@ -11020,42 +11027,44 @@ const WorkbenchStudioPrototype: React.FC = () => {
       >
         {renderHeatCapacityParameterLabel(parameterId, label, definition.parts, modelEffect)}
         <span className="studio-heat-free-input-cell">
-          <input
-            type="text"
-            inputMode="decimal"
-            disabled={disabled}
-            aria-label={`${label} ${definition.unit}`.trim()}
-            value={value}
-            onChange={(event) => {
-              const nextValue = event.target.value;
-              setInputDrafts((current) => ({
-                ...current,
-                [definition.id]: nextValue,
-              }));
-              if (scope === 'basic') {
-                setHeatCapacityBasicInputErrors((current) => {
-                  const { [definition.id]: _removed, ...rest } = current;
-                  return rest;
-                });
-              } else {
-                setHeatCapacityAdvancedInputErrors((current) => {
-                  const { [definition.id]: _removed, ...rest } = current;
-                  return rest;
-                });
-              }
-            }}
-            onBlur={() => {
-              if (scope === 'basic') {
-                commitHeatCapacityBasicParameterInput(definition.id, value);
-              }
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && scope === 'basic') {
-                commitHeatCapacityBasicParameterInput(definition.id, value);
-              }
-            }}
-          />
-          {definition.unit ? <span className="studio-heat-free-unit">{definition.unit}</span> : null}
+          <span className="studio-heat-free-input-shell">
+            <input
+              type="text"
+              inputMode="decimal"
+              disabled={disabled}
+              aria-label={`${label} ${definition.unit}`.trim()}
+              value={value}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setInputDrafts((current) => ({
+                  ...current,
+                  [definition.id]: nextValue,
+                }));
+                if (scope === 'basic') {
+                  setHeatCapacityBasicInputErrors((current) => {
+                    const { [definition.id]: _removed, ...rest } = current;
+                    return rest;
+                  });
+                } else {
+                  setHeatCapacityAdvancedInputErrors((current) => {
+                    const { [definition.id]: _removed, ...rest } = current;
+                    return rest;
+                  });
+                }
+              }}
+              onBlur={() => {
+                if (scope === 'basic') {
+                  commitHeatCapacityBasicParameterInput(definition.id, value);
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && scope === 'basic') {
+                  commitHeatCapacityBasicParameterInput(definition.id, value);
+                }
+              }}
+            />
+            {definition.unit ? <span className="studio-heat-free-unit">{definition.unit}</span> : null}
+          </span>
           {error ? <small className="studio-heat-free-inline-error">{error}</small> : null}
         </span>
       </div>
@@ -11222,7 +11231,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                       const gammaLocked = definition.id === 'gamma' &&
                         !isHeatCapacityFreeGammaEditingAvailable(activeFile);
                       return (
-                        <div className="studio-heat-advanced-grid-item" key={definition.id} data-heat-capacity-advanced-group={definition.group}>
+                        <div className="studio-heat-advanced-grid-item" key={definition.id} data-heat-capacity-advanced-group={group.id}>
                           {renderHeatCapacityFreeNumberInputRow(
                             definition,
                             heatCapacityAdvancedDraft,
@@ -12150,20 +12159,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const renderHeatCapacityModeControl = () => {
     if (activeFile.kind !== 'heatCapacity') return null;
-    const heatCapacityActiveMode: HeatCapacityMode = heatCapacityTeachingModesAvailable
-      ? activeFile.heatCapacityMode
-      : 'free';
+    const heatCapacityActiveMode: HeatCapacityMode = activeFile.heatCapacityMode;
     const heatCapacityGuideNextTrialKey = getHeatCapacityGuideNextTrialKey(activeFile);
     const heatCapacityShowNextTrialAction = heatCapacityActiveMode === 'guide'
       && activeHeatCapacityManualStep === 'nextTrialRequired'
       && heatCapacityGuideNextTrialReadyKey === heatCapacityGuideNextTrialKey;
-    const heatCapacityDemoActionsVisible = heatCapacityTeachingModesAvailable && heatCapacityActiveMode === 'demo'
+    const heatCapacityDemoActionsVisible = heatCapacityActiveMode === 'demo'
       && (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked);
-    const heatCapacityGuideActionsVisible = heatCapacityTeachingModesAvailable && heatCapacityActiveMode === 'guide';
+    const heatCapacityGuideActionsVisible = heatCapacityActiveMode === 'guide';
     const heatCapacityFreeActionsVisible = heatCapacityActiveMode === 'free';
     const heatCapacityModeActionsVisible = heatCapacityDemoActionsVisible || heatCapacityGuideActionsVisible || heatCapacityFreeActionsVisible;
     const heatCapacityModeSegmentClassName = (mode: HeatCapacityMode) => `studio-heat-mode-segment studio-heat-mode-segment-${mode} ${heatCapacityActiveMode === mode ? 'studio-heat-mode-segment-active' : ''}`;
-    const heatCapacityDeferredModeDisabled = !heatCapacityTeachingModesAvailable;
 
     return (
       <div
@@ -12179,11 +12185,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
             className={`studio-heat-mode-button ${heatCapacityActiveMode === 'demo' ? 'studio-heat-mode-button-active' : ''}`}
             data-heat-capacity-mode="demo"
             aria-pressed={heatCapacityActiveMode === 'demo'}
-            aria-disabled={heatCapacityDeferredModeDisabled}
-            disabled={heatCapacityDeferredModeDisabled}
             onClick={() => {
               if (heatCapacityActiveMode !== 'demo' || !heatCapacityDemoActionsVisible) {
-                heatCapacityTeachingModesAvailable ? runHeatCapacityAutoDemo() : enterHeatCapacityFreeMode();
+                runHeatCapacityAutoDemo();
               }
             }}
           >
@@ -12238,11 +12242,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
             className={`studio-heat-mode-button ${heatCapacityActiveMode === 'guide' ? 'studio-heat-mode-button-active' : ''}`}
             data-heat-capacity-mode="guide"
             aria-pressed={heatCapacityActiveMode === 'guide'}
-            aria-disabled={heatCapacityDeferredModeDisabled}
-            disabled={heatCapacityDeferredModeDisabled}
             onClick={() => {
               if (heatCapacityActiveMode !== 'guide') {
-                heatCapacityTeachingModesAvailable ? startHeatCapacityManualExperiment() : enterHeatCapacityFreeMode();
+                startHeatCapacityManualExperiment();
               }
             }}
           >
@@ -12341,6 +12343,35 @@ const WorkbenchStudioPrototype: React.FC = () => {
               const heatCapacityDisplayPhase = activeHeatCapacityUsesPhysicalKernel
                 ? getHeatCapacityFreeDisplayPhase(activeFile)
                 : activeFile.heatCapacityPhase;
+              const guideRecordU0ButtonState = activeFile.heatCapacityMode === 'guide'
+                ? getHeatCapacityGuideRecordButtonState(activeFile, 'u0')
+                : null;
+              const guideRecordU1ButtonState = activeFile.heatCapacityMode === 'guide'
+                ? getHeatCapacityGuideRecordButtonState(activeFile, 'u1')
+                : null;
+              const guideRecordU2ButtonState = activeFile.heatCapacityMode === 'guide'
+                ? getHeatCapacityGuideRecordButtonState(activeFile, 'u2')
+                : null;
+              const activeGuideRecordKind: HeatCapacityManualRecordKind | null =
+                manualHeatCapacityActiveFileId === activeFile.id &&
+                activeFile.heatCapacityMode === 'guide' &&
+                !autoDemoRunning &&
+                !autoDemoInteractionLocked
+                  ? guideRecordU0ButtonState?.visible
+                    ? 'u0'
+                    : guideRecordU1ButtonState?.visible
+                      ? 'u1'
+                      : guideRecordU2ButtonState?.visible
+                        ? 'u2'
+                        : null
+                  : null;
+              const getGuideRecordLabel = (kind: HeatCapacityManualRecordKind) => (
+                kind === 'u0'
+                  ? heatCapacityRealtimeCopy.recordU0
+                  : kind === 'u1'
+                    ? heatCapacityRealtimeCopy.recordU1
+                    : heatCapacityRealtimeCopy.recordU2
+              );
               const heatCapacityDemoStepPanel = autoDemoStepPanelMode !== 'hidden' && (autoDemoRunning || autoDemoPaused || autoDemoStepTitle) ? (
                 <div
                   className={`studio-heat-demo-step-panel studio-heat-demo-step-panel-${autoDemoStepPanelMode}`}
@@ -12432,10 +12463,21 @@ const WorkbenchStudioPrototype: React.FC = () => {
                           >
                             {heatCapacityGuideSteps.map((step) => {
                               const isCentered = step.index === heatCapacityGuideViewedStepIndex;
+                              const requiredRecordKind: HeatCapacityManualRecordKind | null =
+                                step.manualStep === 'recordU0Required'
+                                  ? 'u0'
+                                  : step.manualStep === 'recordU1Required'
+                                    ? 'u1'
+                                    : step.manualStep === 'recordU2Required'
+                                      ? 'u2'
+                                      : null;
+                              const stepRecordKind = step.status === 'current' && isCentered && requiredRecordKind === activeGuideRecordKind
+                                ? requiredRecordKind
+                                : null;
                               return (
                                 <div
                                   key={step.id}
-                                  className={`studio-heat-guide-step-row studio-heat-guide-step-row-${step.status} ${isCentered ? 'studio-heat-guide-step-row-centered' : ''}`}
+                                  className={`studio-heat-guide-step-row studio-heat-guide-step-row-${step.status} ${isCentered ? 'studio-heat-guide-step-row-centered' : ''} ${stepRecordKind ? 'studio-heat-guide-step-row-with-record' : ''}`}
                                   data-heat-capacity-guide-step-row={step.id}
                                   data-heat-capacity-guide-step-status={step.status}
                                   data-heat-capacity-guide-step-centered={isCentered ? 'true' : 'false'}
@@ -12451,6 +12493,21 @@ const WorkbenchStudioPrototype: React.FC = () => {
                                     <strong>{renderScientificText(step.title[settingsLanguagePreference])}</strong>
                                     <em>{renderScientificText(step.detail)}</em>
                                   </span>
+                                  {stepRecordKind ? (
+                                    <span
+                                      className={`studio-heat-guide-step-record-action studio-heat-record-controls ${manualHeatCapacityPulseActive && manualHeatCapacityFocusControlId?.startsWith('record') ? 'studio-heat-record-controls-pulse' : ''}`}
+                                      data-heat-capacity-guide-step-record-action="true"
+                                      data-heat-capacity-record-controls="true"
+                                    >
+                                      <button
+                                        type="button"
+                                        data-heat-capacity-guided-record={stepRecordKind}
+                                        onClick={() => recordHeatCapacityManualSample(stepRecordKind)}
+                                      >
+                                        {renderScientificText(getGuideRecordLabel(stepRecordKind))}
+                                      </button>
+                                    </span>
+                                  ) : null}
                                 </div>
                               );
                             })}
@@ -12637,15 +12694,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
               const freeRecordU2ButtonState = activeFile.heatCapacityMode === 'free'
                 ? getHeatCapacityFreeRecordButtonState(activeFile, 'u2')
                 : null;
-              const guideRecordU0ButtonState = activeFile.heatCapacityMode === 'guide'
-                ? getHeatCapacityGuideRecordButtonState(activeFile, 'u0')
-                : null;
-              const guideRecordU1ButtonState = activeFile.heatCapacityMode === 'guide'
-                ? getHeatCapacityGuideRecordButtonState(activeFile, 'u1')
-                : null;
-              const guideRecordU2ButtonState = activeFile.heatCapacityMode === 'guide'
-                ? getHeatCapacityGuideRecordButtonState(activeFile, 'u2')
-                : null;
               const renderFreeRecordButton = (
                 kind: 'u0' | 'u1' | 'u2',
                 state: NonNullable<typeof freeRecordU0ButtonState>,
@@ -12678,23 +12726,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   {(() => {
                     const manualStep = getHeatCapacityManualStep(activeFile);
                     const activeRecordKind = manualHeatCapacityActiveFileId === activeFile.id && !autoDemoRunning && !autoDemoInteractionLocked
-                      ? activeFile.heatCapacityMode === 'guide'
-                        ? guideRecordU0ButtonState?.visible
-                          ? 'u0'
-                          : guideRecordU1ButtonState?.visible
-                            ? 'u1'
-                            : guideRecordU2ButtonState?.visible
-                              ? 'u2'
-                              : null
-                        : manualStep === 'recordU0Required'
+                      ? activeFile.heatCapacityMode !== 'guide'
+                        ? manualStep === 'recordU0Required'
                           ? 'u0'
                           : manualStep === 'recordU1Required'
                             ? 'u1'
                             : manualStep === 'recordU2Required'
                               ? 'u2'
                               : null
+                        : null
                       : null;
-                    const visibleRecordKind = activeRecordKind ?? heatCapacityRecordControlsClosing;
+                    const visibleRecordKind = activeFile.heatCapacityMode === 'guide'
+                      ? null
+                      : activeRecordKind ?? heatCapacityRecordControlsClosing;
                     if (!visibleRecordKind) return null;
                     const label = visibleRecordKind === 'u0'
                       ? heatCapacityRealtimeCopy.recordU0
@@ -13003,8 +13047,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   pumpFlowIntensity={pumpFlowIntensity}
                   hardSphereViewEnabled={activeFile.hardSphereViewEnabled}
                   hardSphereViewLocked={false}
-                  hardSphereParticleMultiplier={heatCapacityHardSpherePerformancePreset.particleMultiplier}
-                  hardSphereSpeedMultiplier={heatCapacityHardSpherePerformancePreset.speedMultiplier}
+                  particleMultiplier={heatCapacityQualityProfile.particleMultiplier}
+                  speedMultiplier={heatCapacityQualityProfile.speedMultiplier}
                   hardSphereVisualResetKey={heatCapacityHardSphereVisualResetKey}
                   hardSpherePaused={heatCapacityHardSpherePaused}
                   interactionLocked={autoDemoInteractionLocked}
