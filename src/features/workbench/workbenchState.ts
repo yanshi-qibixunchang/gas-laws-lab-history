@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   ChartData,
   ExperimentRelation,
   Particle,
@@ -3377,7 +3377,7 @@ export const powerHeatCapacityWorkbenchFile = (
   }, now);
 };
 
-export const resetHeatCapacityForManualExperiment = (
+export const resetHeatCapacityForGuideExperiment = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {

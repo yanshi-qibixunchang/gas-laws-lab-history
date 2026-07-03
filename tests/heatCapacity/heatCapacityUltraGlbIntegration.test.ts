@@ -617,7 +617,7 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /const sceneShouldAnimate =[\s\S]*props\.demoFocusPulseActive[\s\S]*Boolean\(props\.manualRollbackAnimation\)/,
+  /const sceneShouldAnimate =[\s\S]*props\.demoFocusPulseActive[\s\S]*Boolean\(props\.guideRollbackAnimation\)/,
   'Ultra GLB guide/demo focus halos should keep the demand-rendered canvas invalidating while they pulse',
 );
 
@@ -879,7 +879,7 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /data-heat-capacity-mode="guide"[\s\S]*startHeatCapacityManualExperiment\(\)/,
+  /data-heat-capacity-mode="guide"[\s\S]*startHeatCapacityGuideExperiment\(\)/,
   'Guide mode should run directly now every quality profile supports teaching highlights',
 );
 assert.doesNotMatch(

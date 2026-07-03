@@ -26,7 +26,7 @@ export interface HeatCapacityHardSphereVisualInput {
   temperatureMv: number | null;
   pressureMv: number | null;
   phase: HeatCapacityRuntimePhase | string;
-  manualStep?: string | null;
+  guideStep?: string | null;
   glassStopcockOpen: boolean;
   pumpValveOpen: boolean;
   pumpBulbState: HeatCapacityHardSpherePumpBulbState;

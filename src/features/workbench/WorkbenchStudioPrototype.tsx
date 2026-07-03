@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   Archive,
@@ -93,7 +93,7 @@ import {
   recordHeatCapacityFreeTraceEvent,
   registerHeatCapacityPumpStroke,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
-  resetHeatCapacityForManualExperiment,
+  resetHeatCapacityForGuideExperiment,
   resetHeatCapacityFreeRunWorkbenchState,
   selectActiveHeatCapacityWorkbenchDisplay,
   setHeatCapacityFreeEquilibriumSpeedHintShown,
@@ -132,6 +132,22 @@ import {
 import HeatCapacityInstrumentScene from '../heatCapacity/HeatCapacityInstrumentScene';
 import { HeatCapacityLeftPanel } from '../heatCapacity/HeatCapacityLeftPanel.tsx';
 import HeatCapacityProcessReviewPanel from '../heatCapacity/HeatCapacityProcessReviewPanel.tsx';
+import {
+  HEAT_CAPACITY_FREE_PARAMETER_SIDEBAR_BLOCK_FALLBACK,
+  formatHeatCapacityFreeParameterValue,
+  getHeatCapacityFreeParameterDraftValue,
+  getHeatCapacityFreeParameterInputValue,
+  heatCapacityFreeAdvancedNumberParameters,
+  heatCapacityFreeAdvancedParameterGroups,
+  heatCapacityFreeBasicCheckboxes,
+  heatCapacityFreeBasicNumberParameters,
+  heatCapacityFreeSharedText,
+  type HeatCapacityFreeBasicCheckboxKey,
+  type HeatCapacityFreeCheckboxDefinition,
+  type HeatCapacityFreeDraftNumberKey,
+  type HeatCapacityFreeNumberParameterDefinition,
+  type HeatCapacityFreeParameterSymbolPart,
+} from '../heatCapacity/heatCapacityFreeParameterPanelModel.ts';
 import {
   createHeatCapacityAutoDemoSteps,
   getHeatCapacityAutoDemoTimeline,
@@ -258,7 +274,7 @@ const WORKBENCH_WINDOW_CONTROL_COPY: Record<WorkbenchLanguagePreference, {
 };
 type IdealSamplingPresetKey = 'fast' | 'balanced' | 'stable';
 type WorkbenchParameterSymbolPart = string | { sub: string };
-type HeatCapacityManualRecordKind = 'u0' | 'u1' | 'u2';
+type HeatCapacityGuideRecordKind = 'u0' | 'u1' | 'u2';
 type HeatCapacityMode = 'demo' | 'guide' | 'free';
 type WorkbenchUpdateStatus = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'retrying' | 'downloaded' | 'installing' | 'unsupported' | 'error';
 type WorkbenchLocalizedText = Partial<Record<WorkbenchLanguagePreference, string>>;
@@ -463,7 +479,7 @@ const mergeWorkbenchUpdateDialogState = (
 
 const WORKBENCH_APP_VERSION = __APP_VERSION__;
 
-type ManualHeatCapacityStep =
+type GuideHeatCapacityStep =
   | 'idle'
   | 'powerOnRequired'
   | 'openStopcockForZeroRequired'
@@ -482,7 +498,7 @@ type ManualHeatCapacityStep =
   | 'closePowerRequired'
   | 'completed';
 
-type ManualHeatCapacityAction =
+type GuideHeatCapacityAction =
   | 'turnPowerOn'
   | 'turnPowerOff'
   | 'adjustPressureZero'
@@ -495,11 +511,11 @@ type ManualHeatCapacityAction =
   | 'recordU1'
   | 'recordU2';
 
-type ManualHeatCapacityRollbackAnimation = 'valveBounce' | 'stopcockBounce' | 'pumpBulbBounce' | 'knobBounce' | 'powerBounce';
+type GuideHeatCapacityRollbackAnimation = 'valveBounce' | 'stopcockBounce' | 'pumpBulbBounce' | 'knobBounce' | 'powerBounce';
 type HeatCapacityToastLevel = 'info' | 'success' | 'warning' | 'danger';
 type HeatCapacityToastSource =
-  | 'manual-guide'
-  | 'manual-blocked'
+  | 'guide'
+  | 'guide-blocked'
   | 'pressure-warning'
   | 'pressure-close-valve'
   | 'pressure-alarm';
@@ -513,18 +529,18 @@ interface HeatCapacityToastMessage {
   createdAt: number;
 }
 
-interface ManualHeatCapacityGuardResult {
+interface GuideHeatCapacityGuardResult {
   allowed: boolean;
   expectedControlId?: string;
   expectedMessage?: string;
   expectedLevel?: HeatCapacityToastLevel;
-  rollbackAnimation?: ManualHeatCapacityRollbackAnimation;
+  rollbackAnimation?: GuideHeatCapacityRollbackAnimation;
   suppressGuidance?: boolean;
   suppressStrongReminder?: boolean;
 }
 
-const MANUAL_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS = 10_000;
-const MANUAL_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS = 4000;
+const GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS = 10_000;
+const GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS = 4000;
 const HEAT_CAPACITY_AUTO_DEMO_LOCKED_TOAST_DEDUPE_MS = 250;
 const HEAT_CAPACITY_GUIDE_WAIT_DURATION_MS = 5 * 60 * 1000;
 const HEAT_CAPACITY_GUIDE_RELEASE_DURATION_MS = 350;
@@ -554,90 +570,90 @@ const HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY = 4;
 
 interface HeatCapacityGuideChecklistStepDefinition {
   id: string;
-  manualStep: ManualHeatCapacityStep;
+  guideStep: GuideHeatCapacityStep;
   title: Record<WorkbenchLanguagePreference, string>;
 }
 
 const HEAT_CAPACITY_GUIDE_CHECKLIST_STEPS: HeatCapacityGuideChecklistStepDefinition[] = [
   {
     id: 'power-on',
-    manualStep: 'powerOnRequired',
+    guideStep: 'powerOnRequired',
     title: { 'zh-CN': '打开电源', 'zh-TW': '打開電源', en: 'Turn on power' },
   },
   {
     id: 'open-stopcock-zero',
-    manualStep: 'openStopcockForZeroRequired',
+    guideStep: 'openStopcockForZeroRequired',
     title: { 'zh-CN': '打开玻璃旋塞', 'zh-TW': '打開玻璃旋塞', en: 'Open stopcock' },
   },
   {
     id: 'zero-adjust',
-    manualStep: 'zeroAdjustRequired',
+    guideStep: 'zeroAdjustRequired',
     title: { 'zh-CN': '调整压力调零', 'zh-TW': '調整壓強調零', en: 'Zero pressure' },
   },
   {
     id: 'record-u0',
-    manualStep: 'recordU0Required',
+    guideStep: 'recordU0Required',
     title: { 'zh-CN': '记录 U₀', 'zh-TW': '記錄 U₀', en: 'Record U₀' },
   },
   {
     id: 'close-stopcock-before-pump',
-    manualStep: 'closeStopcockRequired',
+    guideStep: 'closeStopcockRequired',
     title: { 'zh-CN': '关闭玻璃旋塞', 'zh-TW': '關閉玻璃旋塞', en: 'Close stopcock' },
   },
   {
     id: 'open-pump-valve',
-    manualStep: 'openPumpValveRequired',
+    guideStep: 'openPumpValveRequired',
     title: { 'zh-CN': '打开打气阀门', 'zh-TW': '打開打氣閥門', en: 'Open pump valve' },
   },
   {
     id: 'pump',
-    manualStep: 'pumpRequired',
+    guideStep: 'pumpRequired',
     title: { 'zh-CN': '打气至 120 mV', 'zh-TW': '打氣至 120 mV', en: 'Pump to 120 mV' },
   },
   {
     id: 'close-pump-valve',
-    manualStep: 'closePumpValveRequired',
+    guideStep: 'closePumpValveRequired',
     title: { 'zh-CN': '关闭打气阀门', 'zh-TW': '關閉打氣閥門', en: 'Close pump valve' },
   },
   {
     id: 'wait-u1',
-    manualStep: 'stabilizeBeforeReleaseRequired',
+    guideStep: 'stabilizeBeforeReleaseRequired',
     title: { 'zh-CN': '封闭等待 5 min', 'zh-TW': '封閉等待 5 min', en: 'Wait sealed 5 min' },
   },
   {
     id: 'record-u1',
-    manualStep: 'recordU1Required',
+    guideStep: 'recordU1Required',
     title: { 'zh-CN': '记录 U₁', 'zh-TW': '記錄 U₁', en: 'Record U₁' },
   },
   {
     id: 'open-release-stopcock',
-    manualStep: 'openStopcockReleaseRequired',
+    guideStep: 'openStopcockReleaseRequired',
     title: { 'zh-CN': '打开放气旋塞', 'zh-TW': '打開放氣旋塞', en: 'Open release stopcock' },
   },
   {
     id: 'close-release-stopcock',
-    manualStep: 'closeStopcockAfterReleaseRequired',
+    guideStep: 'closeStopcockAfterReleaseRequired',
     title: { 'zh-CN': '关闭放气旋塞', 'zh-TW': '關閉放氣旋塞', en: 'Close release stopcock' },
   },
   {
     id: 'wait-u2',
-    manualStep: 'recoverRequired',
+    guideStep: 'recoverRequired',
     title: { 'zh-CN': '回温等待 5 min', 'zh-TW': '回溫等待 5 min', en: 'Recover 5 min' },
   },
   {
     id: 'record-u2',
-    manualStep: 'recordU2Required',
+    guideStep: 'recordU2Required',
     title: { 'zh-CN': '记录 U₂', 'zh-TW': '記錄 U₂', en: 'Record U₂' },
   },
   {
     id: 'close-power',
-    manualStep: 'closePowerRequired',
+    guideStep: 'closePowerRequired',
     title: { 'zh-CN': '关闭电源', 'zh-TW': '關閉電源', en: 'Turn off power' },
   },
 ];
 
-const getHeatCapacityGuideChecklistIndex = (step: ManualHeatCapacityStep): number => {
-  const exactIndex = HEAT_CAPACITY_GUIDE_CHECKLIST_STEPS.findIndex((item) => item.manualStep === step);
+const getHeatCapacityGuideChecklistIndex = (step: GuideHeatCapacityStep): number => {
+  const exactIndex = HEAT_CAPACITY_GUIDE_CHECKLIST_STEPS.findIndex((item) => item.guideStep === step);
   if (exactIndex >= 0) return exactIndex;
   if (step === 'completed') return HEAT_CAPACITY_GUIDE_CHECKLIST_STEPS.length - 1;
   return 0;
@@ -813,425 +829,17 @@ const renderHeatCapacityGuideStrongMaskHole = (
   );
 };
 
-const isHeatCapacityManualRecordStep = (step: ManualHeatCapacityStep) => (
+const isHeatCapacityGuideRecordStep = (step: GuideHeatCapacityStep) => (
   step === 'recordU0Required' ||
   step === 'recordU1Required' ||
   step === 'recordU2Required'
 );
 
-const isManualHeatCapacityPauseStep = (step: ManualHeatCapacityStep) => (
+const isGuideHeatCapacityPauseStep = (step: GuideHeatCapacityStep) => (
   step === 'recordU1Required' ||
   step === 'recordU2Required' ||
   step === 'closePowerRequired'
 );
-
-const HEAT_CAPACITY_FREE_PARAMETER_SIDEBAR_BLOCK_FALLBACK = '只有自由实验模式可以调整参数。';
-
-type HeatCapacityFreeDraftNumberKey = {
-  [Key in keyof HeatCapacityFreeParameterDraft]: HeatCapacityFreeParameterDraft[Key] extends number ? Key : never;
-}[keyof HeatCapacityFreeParameterDraft];
-type HeatCapacityFreeBasicCheckboxKey = 'leakageEnabled' | 'instrumentNoiseEnabled' | 'hardSphereViewEnabled';
-type HeatCapacityFreeParameterSymbolPart = string | { sub: string };
-type HeatCapacityFreeAdvancedParameterGroupId =
-  | 'gasTheory'
-  | 'thermalExchange'
-  | 'nonIdealCorrection'
-  | 'recordCriteria';
-
-interface HeatCapacityFreeNumberParameterDefinition {
-  id: HeatCapacityFreeDraftNumberKey;
-  group?: HeatCapacityFreeAdvancedParameterGroupId;
-  label: Record<WorkbenchLanguagePreference, string>;
-  parts: HeatCapacityFreeParameterSymbolPart[];
-  unit: string;
-  effect: Record<WorkbenchLanguagePreference, string>;
-  precision: number;
-  min: number;
-  toInputValue?: (draftValue: number) => number;
-  fromInputValue?: (inputValue: number) => number;
-}
-
-interface HeatCapacityFreeAdvancedParameterGroupDefinition {
-  id: HeatCapacityFreeAdvancedParameterGroupId;
-  title: Record<WorkbenchLanguagePreference, string>;
-}
-
-interface HeatCapacityFreeCheckboxDefinition {
-  id: HeatCapacityFreeBasicCheckboxKey;
-  label: Record<WorkbenchLanguagePreference, string>;
-  parts: HeatCapacityFreeParameterSymbolPart[];
-  onText: Record<WorkbenchLanguagePreference, string>;
-  offText: Record<WorkbenchLanguagePreference, string>;
-  effect: Record<WorkbenchLanguagePreference, string>;
-}
-
-const heatCapacityFreeSharedText = {
-  advancedTitle: {
-    'zh-CN': '高级参数',
-    'zh-TW': '進階參數',
-    en: 'Advanced Parameters',
-  },
-  advancedOpen: {
-    'zh-CN': '高级参数',
-    'zh-TW': '進階參數',
-    en: 'Advanced',
-  },
-  cancel: {
-    'zh-CN': '取消',
-    'zh-TW': '取消',
-    en: 'Cancel',
-  },
-  save: {
-    'zh-CN': '保存',
-    'zh-TW': '儲存',
-    en: 'Save',
-  },
-  confirm: {
-    'zh-CN': '确认',
-    'zh-TW': '確認',
-    en: 'Confirm',
-  },
-  riskTitle: {
-    'zh-CN': '确认调整高级参数',
-    'zh-TW': '確認調整進階參數',
-    en: 'Confirm Advanced Parameter Changes',
-  },
-  riskBody: {
-    'zh-CN': '高级参数会影响当前实验文件的模型判定、传感器读数和记录阈值。确认后，本实验文件后续打开高级参数不再重复提示。',
-    'zh-TW': '進階參數會影響目前實驗檔案的模型判定、感測器讀數和記錄閾值。確認後，本實驗檔案後續開啟進階參數不再重複提示。',
-    en: "Advanced parameters affect this experiment file's model checks, sensor readings, and record thresholds. After confirmation, this file will not ask again when Advanced Parameters are opened.",
-  },
-  invalidNumber: {
-    'zh-CN': '请输入合法数值。',
-    'zh-TW': '請輸入合法數值。',
-    en: 'Enter a valid number.',
-  },
-  valueTooSmall: {
-    'zh-CN': '数值不能小于下限。',
-    'zh-TW': '數值不能小於下限。',
-    en: 'Value is below the minimum.',
-  },
-  valueTooLarge: {
-    'zh-CN': '已超过可用上限。',
-    'zh-TW': '已超過可用上限。',
-    en: 'Value exceeds the usable upper limit.',
-  },
-} as const;
-
-const heatCapacityFreeBasicNumberParameters: HeatCapacityFreeNumberParameterDefinition[] = [
-  {
-    id: 'ambientPressureKPa',
-    label: { 'zh-CN': '大气压', 'zh-TW': '大氣壓', en: 'Atmospheric pressure' },
-    parts: ['P', { sub: '0' }],
-    unit: 'kPa',
-    effect: {
-      'zh-CN': '作为环境压力基准，影响初始压力、压力换算和自由实验修正量。',
-      'zh-TW': '作為環境壓力基準，影響初始壓力、壓力換算和自由實驗修正量。',
-      en: 'Sets the ambient pressure baseline for initial pressure, conversion, and corrections.',
-    },
-    precision: 2,
-    min: 0.001,
-  },
-  {
-    id: 'ambientTemperatureK',
-    label: { 'zh-CN': '环境温度', 'zh-TW': '環境溫度', en: 'Ambient temperature' },
-    parts: ['t', { sub: '0' }],
-    unit: '℃',
-    effect: {
-      'zh-CN': '以摄氏度设置初始热平衡温度和回温目标；底层模型仍以 K 计算。',
-      'zh-TW': '以攝氏度設定初始熱平衡溫度和回溫目標；底層模型仍以 K 計算。',
-      en: 'Sets the initial equilibrium temperature and recovery target in Celsius; the model still computes in K.',
-    },
-    precision: 2,
-    min: -273.14,
-    toInputValue: (kelvin) => kelvin - 273.15,
-    fromInputValue: (celsius) => celsius + 273.15,
-  },
-  {
-    id: 'pressureMvPerKPa',
-    label: { 'zh-CN': '压力灵敏度', 'zh-TW': '壓力靈敏度', en: 'Pressure sensitivity' },
-    parts: ['S', { sub: 'p' }],
-    unit: 'mV/kPa',
-    effect: {
-      'zh-CN': '决定压力读数 mV 与 kPa 的换算比例。',
-      'zh-TW': '決定壓力讀數 mV 與 kPa 的換算比例。',
-      en: 'Sets the conversion between pressure signal mV and kPa.',
-    },
-    precision: 3,
-    min: 0.001,
-  },
-];
-
-const heatCapacityFreeBasicCheckboxes: HeatCapacityFreeCheckboxDefinition[] = [
-  {
-    id: 'leakageEnabled',
-    label: { 'zh-CN': '泄漏', 'zh-TW': '洩漏', en: 'Leakage' },
-    parts: [],
-    onText: { 'zh-CN': '开', 'zh-TW': '開', en: 'On' },
-    offText: { 'zh-CN': '关', 'zh-TW': '關', en: 'Off' },
-    effect: {
-      'zh-CN': '勾选后启用慢速泄漏，未勾选时密封。',
-      'zh-TW': '勾選後啟用慢速洩漏，未勾選時密封。',
-      en: 'Enables slow leakage when checked; leaves the vessel sealed when unchecked.',
-    },
-  },
-  {
-    id: 'instrumentNoiseEnabled',
-    label: { 'zh-CN': '仪器噪声', 'zh-TW': '儀器雜訊', en: 'Instrument noise' },
-    parts: [],
-    onText: { 'zh-CN': '开', 'zh-TW': '開', en: 'On' },
-    offText: { 'zh-CN': '关', 'zh-TW': '關', en: 'Off' },
-    effect: {
-      'zh-CN': '勾选后读数叠加噪声，未勾选时有效噪声为 0。',
-      'zh-TW': '勾選後讀數疊加雜訊，未勾選時有效雜訊為 0。',
-      en: 'Adds sensor noise when checked; effective noise is zero when unchecked.',
-    },
-  },
-  {
-    id: 'hardSphereViewEnabled',
-    label: { 'zh-CN': '小球可视化', 'zh-TW': '小球視覺化', en: 'Molecule visualization' },
-    parts: [],
-    onText: { 'zh-CN': '显示', 'zh-TW': '顯示', en: 'Shown' },
-    offText: { 'zh-CN': '隐藏', 'zh-TW': '隱藏', en: 'Hidden' },
-    effect: {
-      'zh-CN': '只影响三维小球显示，不写入实验组物理参数快照。',
-      'zh-TW': '只影響三維小球顯示，不寫入實驗組物理參數快照。',
-      en: 'Controls only the 3D molecule display and is not written to the group physics snapshot.',
-    },
-  },
-];
-
-const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberParameterDefinition[] = [
-  {
-    id: 'gasWallConductanceWPerK',
-    group: 'thermalExchange',
-    label: { 'zh-CN': '气体-屏壁导热系数', 'zh-TW': '氣體-屏壁導熱係數', en: 'Gas-wall conductance' },
-    parts: [],
-    unit: 'W/K',
-    effect: {
-      'zh-CN': '控制气体向容器壁传热的快慢。',
-      'zh-TW': '控制氣體向容器壁傳熱的快慢。',
-      en: 'Controls how quickly gas transfers heat to the vessel wall.',
-    },
-    precision: 3,
-    min: 0,
-  },
-  {
-    id: 'wallAmbientConductanceWPerK',
-    group: 'thermalExchange',
-    label: { 'zh-CN': '屏壁-环境导热系数', 'zh-TW': '屏壁-環境導熱係數', en: 'Wall-ambient conductance' },
-    parts: [],
-    unit: 'W/K',
-    effect: {
-      'zh-CN': '控制容器壁向环境散热的快慢。',
-      'zh-TW': '控制容器壁向環境散熱的快慢。',
-      en: 'Controls how quickly the vessel wall dissipates heat to the environment.',
-    },
-    precision: 3,
-    min: 0,
-  },
-  {
-    id: 'gamma',
-    group: 'gasTheory',
-    label: { 'zh-CN': '气体绝热指数', 'zh-TW': '氣體絕熱指數', en: 'Gas adiabatic index' },
-    parts: ['γ'],
-    unit: '',
-    effect: {
-      'zh-CN': '同时作为气体绝热指数和本文件理论参考值；文件已有实验数据后锁定。',
-      'zh-TW': '同時作為氣體絕熱指數和本檔理論參考值；檔案已有實驗資料後鎖定。',
-      en: 'Acts as both gas adiabatic index and file-level theoretical reference; locks after this file has experiment data.',
-    },
-    precision: 3,
-    min: 1.001,
-  },
-  {
-    id: 'wallHeatCapacityJPerK',
-    group: 'thermalExchange',
-    label: { 'zh-CN': '屏壁热容', 'zh-TW': '屏壁熱容', en: 'Wall heat capacity' },
-    parts: ['C', { sub: 'w' }],
-    unit: 'J/K',
-    effect: {
-      'zh-CN': '决定容器壁温度变化的快慢。',
-      'zh-TW': '決定容器壁溫度變化的快慢。',
-      en: 'Controls how quickly the vessel wall temperature changes.',
-    },
-    precision: 2,
-    min: 1,
-  },
-  {
-    id: 'leakageRatePerS',
-    group: 'nonIdealCorrection',
-    label: { 'zh-CN': '泄漏速率', 'zh-TW': '洩漏速率', en: 'Leakage rate' },
-    parts: [],
-    unit: 's⁻¹',
-    effect: {
-      'zh-CN': '泄漏开关开启时，决定封闭状态下向环境压力双向平衡的速度。',
-      'zh-TW': '洩漏開關開啟時，決定封閉狀態下向環境壓力雙向平衡的速度。',
-      en: 'Sets how quickly a sealed vessel equalizes both ways toward ambient pressure when leakage is enabled.',
-    },
-    precision: 5,
-    min: 0,
-  },
-  {
-    id: 'noiseMv',
-    group: 'nonIdealCorrection',
-    label: { 'zh-CN': '仪器噪声强度', 'zh-TW': '儀器雜訊強度', en: 'Noise amplitude' },
-    parts: [],
-    unit: 'mV',
-    effect: {
-      'zh-CN': '仪器噪声开关开启时，决定压力/温度读数抖动幅度。',
-      'zh-TW': '儀器雜訊開關開啟時，決定壓力/溫度讀數抖動幅度。',
-      en: 'Sets the reading jitter when instrument noise is enabled.',
-    },
-    precision: 3,
-    min: 0,
-  },
-  {
-    id: 'sensorLagTimeS',
-    group: 'nonIdealCorrection',
-    label: { 'zh-CN': '传感器滞后时间', 'zh-TW': '感測器滯後時間', en: 'Sensor lag time' },
-    parts: [],
-    unit: 's',
-    effect: {
-      'zh-CN': '决定显示读数追随真实状态的快慢；数值越大，读数越滞后。',
-      'zh-TW': '決定顯示讀數追隨真實狀態的快慢；數值越大，讀數越滯後。',
-      en: 'Controls how slowly displayed readings follow the true state; larger values lag more.',
-    },
-    precision: 3,
-    min: 0.001,
-  },
-  {
-    id: 'u0ZeroToleranceMv',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '零点记录容差', 'zh-TW': '零點記錄容差', en: 'Zero record tolerance' },
-    parts: ['U', { sub: '0' }],
-    unit: 'mV',
-    effect: {
-      'zh-CN': '决定 U0 记录时压力读数接近 0 的合格范围。',
-      'zh-TW': '決定 U0 記錄時壓力讀數接近 0 的合格範圍。',
-      en: 'Sets how close to zero the pressure reading must be for U0.',
-    },
-    precision: 3,
-    min: 0,
-  },
-  {
-    id: 'pressureStableSlopeMvPerS',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '压力稳定斜率阈值', 'zh-TW': '壓力穩定斜率閾值', en: 'Pressure slope limit' },
-    parts: [],
-    unit: 'mV/s',
-    effect: {
-      'zh-CN': '决定压力读数足够平稳后才允许记录。',
-      'zh-TW': '決定壓力讀數足夠平穩後才允許記錄。',
-      en: 'Requires pressure readings to settle before recording.',
-    },
-    precision: 3,
-    min: 0,
-  },
-  {
-    id: 'temperatureStableSlopeMvPerS',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '温度稳定斜率阈值', 'zh-TW': '溫度穩定斜率閾值', en: 'Temperature slope limit' },
-    parts: [],
-    unit: 'mV/s',
-    effect: {
-      'zh-CN': '决定温度读数足够平稳后才允许记录。',
-      'zh-TW': '決定溫度讀數足夠平穩後才允許記錄。',
-      en: 'Requires temperature readings to settle before recording.',
-    },
-    precision: 3,
-    min: 0,
-  },
-  {
-    id: 'temperatureAmbientToleranceMv',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '环境温度容差', 'zh-TW': '環境溫度容差', en: 'Ambient temperature tolerance' },
-    parts: [],
-    unit: 'mV',
-    effect: {
-      'zh-CN': '决定温度是否已经回到环境附近。',
-      'zh-TW': '決定溫度是否已經回到環境附近。',
-      en: 'Sets how close temperature must be to ambient.',
-    },
-    precision: 3,
-    min: 0,
-  },
-  {
-    id: 'minimumUsefulU1CorrectedMv',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '最小有效值', 'zh-TW': '最小有效值', en: 'Minimum useful U1' },
-    parts: ['U', { sub: '1,min' }],
-    unit: 'mV',
-    effect: {
-      'zh-CN': '防止打气不足时记录无效数据。',
-      'zh-TW': '防止打氣不足時記錄無效資料。',
-      en: 'Prevents recording invalid data when pumping is insufficient.',
-    },
-    precision: 2,
-    min: 0,
-  },
-  {
-    id: 'overVentedMinimumU2CorrectedMv',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '最小有效值', 'zh-TW': '最小有效值', en: 'Minimum useful U2' },
-    parts: ['U', { sub: '2,min' }],
-    unit: 'mV',
-    effect: {
-      'zh-CN': '防止放气后压力读数异常或过低。',
-      'zh-TW': '防止放氣後壓力讀數異常或過低。',
-      en: 'Prevents accepting abnormal or too-low post-release readings.',
-    },
-    precision: 2,
-    min: 0,
-  },
-  {
-    id: 'pressureWarningMv',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '建议停止阈值', 'zh-TW': '建議停止閾值', en: 'Suggested-stop threshold' },
-    parts: ['U', { sub: 'warn' }],
-    unit: 'mV',
-    effect: {
-      'zh-CN': '控制进入建议停止打气区的普通提示，不作为错误或报警。',
-      'zh-TW': '控制進入建議停止打氣區的一般提示，不作為錯誤或警報。',
-      en: 'Controls the ordinary suggested-stop hint, not an error or alarm.',
-    },
-    precision: 2,
-    min: 0,
-  },
-  {
-    id: 'pressureDangerMv',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '压力危险阈值', 'zh-TW': '壓力危險閾值', en: 'Pressure danger threshold' },
-    parts: ['U', { sub: 'danger' }],
-    unit: 'mV',
-    effect: {
-      'zh-CN': '控制危险状态、禁止继续打气或记录失败边界；绝对压强最高受 300 kPa 可用上限保护。',
-      'zh-TW': '控制危險狀態、禁止繼續打氣或記錄失敗邊界；絕對壓強最高受 300 kPa 可用上限保護。',
-      en: 'Controls danger state, pumping block, and failed-record boundaries; absolute pressure is capped at 300 kPa.',
-    },
-    precision: 2,
-    min: 0,
-  },
-];
-
-const heatCapacityFreeAdvancedParameterGroups: HeatCapacityFreeAdvancedParameterGroupDefinition[] = [
-  {
-    id: 'gasTheory',
-    title: { 'zh-CN': '气体理论参数', 'zh-TW': '氣體理論參數', en: 'Gas Theory' },
-  },
-  {
-    id: 'thermalExchange',
-    title: { 'zh-CN': '热交换模型', 'zh-TW': '熱交換模型', en: 'Heat Exchange Model' },
-  },
-  {
-    id: 'nonIdealCorrection',
-    title: { 'zh-CN': '非理想过程修正', 'zh-TW': '非理想過程修正', en: 'Non-Ideal Corrections' },
-  },
-  {
-    id: 'recordCriteria',
-    title: { 'zh-CN': '记录判定与安全阈值', 'zh-TW': '記錄判定與安全閾值', en: 'Record Criteria and Safety Limits' },
-  },
-];
 
 const renderHeatCapacityParameterSymbol = (
   parts: HeatCapacityFreeParameterSymbolPart[],
@@ -1250,29 +858,6 @@ const renderHeatCapacityParameterSymbol = (
     </span>
   );
 };
-
-const formatHeatCapacityFreeParameterValue = (
-  value: number,
-  precision: number,
-) => {
-  if (!Number.isFinite(value)) return '';
-  const rounded = value.toFixed(precision);
-  return rounded.replace(/\.?0+$/, '');
-};
-
-const getHeatCapacityFreeParameterInputValue = (
-  definition: HeatCapacityFreeNumberParameterDefinition,
-  draftValue: number,
-) => (
-  definition.toInputValue ? definition.toInputValue(draftValue) : draftValue
-);
-
-const getHeatCapacityFreeParameterDraftValue = (
-  definition: HeatCapacityFreeNumberParameterDefinition,
-  inputValue: number,
-) => (
-  definition.fromInputValue ? definition.fromInputValue(inputValue) : inputValue
-);
 
 interface ConsoleLog {
   id: number;
@@ -2364,7 +1949,7 @@ const heatCapacityRealtimeCopies = {
     demoCompleteTitle: '演示完成',
     demoCompleteDescription: '演示完成，可重新开始或进入引导 / 自由操作。',
     demoFallbackNote: '过程采样已保留。',
-    startManualExperiment: '引导模式',
+    startGuideExperiment: '引导模式',
     skipRecoveryWait: '真实实验中需要等待系统稳定；程序已省略该等待过程。',
     recordU0: '记录 U₀',
     recordU1: '记录 U₁ / Uₜ₁',
@@ -2574,7 +2159,7 @@ const heatCapacityRealtimeCopies = {
     demoCompleteTitle: '演示完成',
     demoCompleteDescription: '演示完成，可重新開始或進入引導 / 自由操作。',
     demoFallbackNote: '過程採樣已保留。',
-    startManualExperiment: '引導模式',
+    startGuideExperiment: '引導模式',
     skipRecoveryWait: '真實實驗中需要等待系統穩定；程序已省略該等待過程。',
     recordU0: '記錄 U₀',
     recordU1: '記錄 U₁ / Uₜ₁',
@@ -2784,7 +2369,7 @@ const heatCapacityRealtimeCopies = {
     demoCompleteTitle: 'Demo complete',
     demoCompleteDescription: 'Demo complete. You can restart or use guide / free mode.',
     demoFallbackNote: 'Process samples are retained.',
-    startManualExperiment: 'Guide mode',
+    startGuideExperiment: 'Guide mode',
     skipRecoveryWait: 'The real experiment would wait for the system to stabilize; this program omits that wait.',
     recordU0: 'Record U₀',
     recordU1: 'Record U₁ / Uₜ₁',
@@ -3906,12 +3491,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const heatCapacityToastTimerRef = useRef<number | null>(null);
   const heatCapacityToastCurrentRef = useRef<HeatCapacityToastMessage | null>(null);
   const heatCapacityToastPendingRef = useRef<HeatCapacityToastMessage | null>(null);
-  const manualHeatCapacityPulseTimerRef = useRef<number | null>(null);
-  const manualHeatCapacityGuidancePulseTimerRef = useRef<number | null>(null);
-  const manualHeatCapacityStrongReminderTimerRef = useRef<number | null>(null);
-  const manualHeatCapacityPendingStrongReminderTimerRef = useRef<number | null>(null);
-  const manualHeatCapacityMissCountRef = useRef(0);
-  const manualHeatCapacityActiveFileIdRef = useRef<string | null>(null);
+  const guideHeatCapacityPulseTimerRef = useRef<number | null>(null);
+  const guideHeatCapacityGuidancePulseTimerRef = useRef<number | null>(null);
+  const guideHeatCapacityStrongReminderTimerRef = useRef<number | null>(null);
+  const guideHeatCapacityPendingStrongReminderTimerRef = useRef<number | null>(null);
+  const guideHeatCapacityMissCountRef = useRef(0);
+  const guideHeatCapacityActiveFileIdRef = useRef<string | null>(null);
   const heatCapacityGuideChecklistTrackRef = useRef<HTMLDivElement | null>(null);
   const heatCapacityGuideChecklistFrameRef = useRef<number | null>(null);
   const heatCapacityGuideChecklistSnapTimerRef = useRef<number | null>(null);
@@ -3949,13 +3534,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [demoFocusPulseActive, setDemoFocusPulseActive] = useState(false);
   const [heatCapacityFocusResetKey, setHeatCapacityFocusResetKey] = useState(0);
   const [heatCapacityHardSphereVisualResetKey, setHeatCapacityHardSphereVisualResetKey] = useState(0);
-  const [heatCapacityRecordControlsClosing, setHeatCapacityRecordControlsClosing] = useState<HeatCapacityManualRecordKind | null>(null);
-  const [manualHeatCapacityActiveFileId, setManualHeatCapacityActiveFileId] = useState<string | null>(initialHeatCapacityGuideSessionFileId);
-  const [manualHeatCapacityFocusControlId, setManualHeatCapacityFocusControlId] = useState<string | null>(null);
-  const [manualHeatCapacityPulseActive, setManualHeatCapacityPulseActive] = useState(false);
-  const [manualHeatCapacityStrongReminderActive, setManualHeatCapacityStrongReminderActive] = useState(false);
-  const [manualHeatCapacityStrongReminderControlId, setManualHeatCapacityStrongReminderControlId] = useState<string | null>(null);
-  const [manualHeatCapacityStrongReminderFocusKey, setManualHeatCapacityStrongReminderFocusKey] = useState(0);
+  const [heatCapacityRecordControlsClosing, setHeatCapacityRecordControlsClosing] = useState<HeatCapacityGuideRecordKind | null>(null);
+  const [guideHeatCapacityActiveFileId, setGuideHeatCapacityActiveFileId] = useState<string | null>(initialHeatCapacityGuideSessionFileId);
+  const [guideHeatCapacityFocusControlId, setGuideHeatCapacityFocusControlId] = useState<string | null>(null);
+  const [guideHeatCapacityPulseActive, setGuideHeatCapacityPulseActive] = useState(false);
+  const [guideHeatCapacityStrongReminderActive, setGuideHeatCapacityStrongReminderActive] = useState(false);
+  const [guideHeatCapacityStrongReminderControlId, setGuideHeatCapacityStrongReminderControlId] = useState<string | null>(null);
+  const [guideHeatCapacityStrongReminderFocusKey, setGuideHeatCapacityStrongReminderFocusKey] = useState(0);
   const [heatCapacityGuideMaskBounds, setHeatCapacityGuideMaskBounds] = useState({ width: 1, height: 1 });
   const [heatCapacityGuideProjectedHoles, setHeatCapacityGuideProjectedHoles] = useState<Record<string, HeatCapacityGuideStrongMaskHole>>({});
   const [heatCapacityGuideChecklistViewedIndex, setHeatCapacityGuideChecklistViewedIndex] = useState(0);
@@ -3968,8 +3553,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     selectedTrialId: string | null;
     manual: boolean;
   }>>({});
-  const [manualHeatCapacityRollback, setManualHeatCapacityRollback] = useState<{
-    animation: ManualHeatCapacityRollbackAnimation;
+  const [guideHeatCapacityRollback, setGuideHeatCapacityRollback] = useState<{
+    animation: GuideHeatCapacityRollbackAnimation;
     key: number;
   } | null>(null);
   const [autoDemoStepIndex, setAutoDemoStepIndex] = useState(0);
@@ -3986,11 +3571,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
   }, [heatCapacityPressureAlarmVisible]);
 
   useEffect(() => {
-    manualHeatCapacityActiveFileIdRef.current = manualHeatCapacityActiveFileId;
-  }, [manualHeatCapacityActiveFileId]);
+    guideHeatCapacityActiveFileIdRef.current = guideHeatCapacityActiveFileId;
+  }, [guideHeatCapacityActiveFileId]);
 
   useEffect(() => {
-    if (!manualHeatCapacityStrongReminderActive) return undefined;
+    if (!guideHeatCapacityStrongReminderActive) return undefined;
     const maskRoot = heatCapacityGuideMaskRef.current;
     if (!maskRoot) return undefined;
     const updateBounds = () => {
@@ -4009,7 +3594,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       observer.disconnect();
       window.removeEventListener('resize', updateBounds);
     };
-  }, [manualHeatCapacityStrongReminderActive]);
+  }, [guideHeatCapacityStrongReminderActive]);
 
   useEffect(() => () => {
     if (heatCapacityFreeResetFeedbackTimerRef.current !== null) {
@@ -4449,27 +4034,27 @@ const WorkbenchStudioPrototype: React.FC = () => {
   }, [activeFileId, files, selectedFileId]);
 
   useEffect(() => {
-    const guideFileId = manualHeatCapacityActiveFileId && files.some((file) => (
-      file.id === manualHeatCapacityActiveFileId &&
+    const guideFileId = guideHeatCapacityActiveFileId && files.some((file) => (
+      file.id === guideHeatCapacityActiveFileId &&
       file.kind === 'heatCapacity' &&
       file.heatCapacityMode === 'guide'
     ))
-      ? manualHeatCapacityActiveFileId
+      ? guideHeatCapacityActiveFileId
       : null;
     persistWorkbenchSession(encodeWorkbenchSession(files, activeFileId, selectedPanel, {
       fileId: guideFileId,
-      strongReminderActive: guideFileId !== null && manualHeatCapacityStrongReminderActive,
-      strongReminderControlId: guideFileId !== null && manualHeatCapacityStrongReminderActive
-        ? manualHeatCapacityStrongReminderControlId
+      strongReminderActive: guideFileId !== null && guideHeatCapacityStrongReminderActive,
+      strongReminderControlId: guideFileId !== null && guideHeatCapacityStrongReminderActive
+        ? guideHeatCapacityStrongReminderControlId
         : null,
     }));
   }, [
     files,
     activeFileId,
     selectedPanel,
-    manualHeatCapacityActiveFileId,
-    manualHeatCapacityStrongReminderActive,
-    manualHeatCapacityStrongReminderControlId,
+    guideHeatCapacityActiveFileId,
+    guideHeatCapacityStrongReminderActive,
+    guideHeatCapacityStrongReminderControlId,
   ]);
 
   useEffect(() => {
@@ -4804,8 +4389,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
         const nextFiles = current.map((file) => {
           if (file.id !== activeId || file.kind !== 'heatCapacity') return file;
           if (
-            manualHeatCapacityActiveFileIdRef.current === file.id &&
-            isManualHeatCapacityPauseStep(getHeatCapacityManualStep(file))
+            guideHeatCapacityActiveFileIdRef.current === file.id &&
+            isGuideHeatCapacityPauseStep(getHeatCapacityGuideStep(file))
           ) {
             return file;
           }
@@ -5235,7 +4820,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setHeatCapacityParamHelpPopoverStyle({ left, top, width, maxHeight });
   };
 
-  const getManualHeatCapacityDecisionPressureMv = (
+  const getGuideHeatCapacityDecisionPressureMv = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
     if (Number.isFinite(file.pressureSignalTargetMv)) return file.pressureSignalTargetMv;
@@ -5244,7 +4829,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return 0;
   };
 
-  const getManualHeatCapacityDisplayedPressureMv = (
+  const getGuideHeatCapacityDisplayedPressureMv = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
     if (Number.isFinite(file.pressureSignalMv)) return file.pressureSignalMv;
@@ -5253,7 +4838,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return 0;
   };
 
-  const getManualHeatCapacityThresholdPressureMv = (
+  const getGuideHeatCapacityThresholdPressureMv = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
     if (file.heatCapacityMode === 'guide') {
@@ -5268,7 +4853,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const canProceedAfterPumping = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
-  ) => getManualHeatCapacityThresholdPressureMv(file) >= HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV;
+  ) => getGuideHeatCapacityThresholdPressureMv(file) >= HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV;
 
   const getHeatCapacityPressureSafetyStatusFromMv = (
     pressureMv: number,
@@ -5304,7 +4889,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
   };
 
-  const getManualHeatCapacityAmbientTemperatureMv = (
+  const getGuideHeatCapacityAmbientTemperatureMv = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
     const profile = file.heatCapacityExperimentProfile;
@@ -5314,24 +4899,24 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return 1499.05;
   };
 
-  const getManualHeatCapacityDecisionTemperatureMv = (
+  const getGuideHeatCapacityDecisionTemperatureMv = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
     if (Number.isFinite(file.temperatureSignalTargetMv)) return file.temperatureSignalTargetMv;
     if (Number.isFinite(file.temperatureSignalMv)) return file.temperatureSignalMv;
-    return getManualHeatCapacityAmbientTemperatureMv(file);
+    return getGuideHeatCapacityAmbientTemperatureMv(file);
   };
 
-  const isManualHeatCapacityTemperatureAtAmbient = (
+  const isGuideHeatCapacityTemperatureAtAmbient = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
-    const ambientTemperatureMv = getManualHeatCapacityAmbientTemperatureMv(file);
-    const targetTemperatureMv = getManualHeatCapacityDecisionTemperatureMv(file);
+    const ambientTemperatureMv = getGuideHeatCapacityAmbientTemperatureMv(file);
+    const targetTemperatureMv = getGuideHeatCapacityDecisionTemperatureMv(file);
     const toleranceMv = Math.max(0.5, (file.heatCapacityExperimentProfile?.displayNoiseLevel ?? 0.08) * 6);
     return Math.abs(targetTemperatureMv - ambientTemperatureMv) <= toleranceMv;
   };
 
-  const isManualU0ZeroAttempted = (
+  const isGuideU0ZeroAttempted = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => (
     file.pressureZeroAdjusted ||
@@ -5339,7 +4924,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     Math.abs(file.pressureZeroKnobAngle) > 0.01
   );
 
-  const isManualU0ZeroReady = (
+  const isGuideU0ZeroReady = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
     const stopcockState = getHeatCapacityStopcockState(file.stopcockAngleDeg);
@@ -5360,7 +4945,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => file.heatCapacityGuideTrial?.u1?.displayPressureMv ?? null;
 
-  const getManualHeatCapacityExpectedU1Mv = (
+  const getGuideHeatCapacityExpectedU1Mv = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
     const profile = file.heatCapacityExperimentProfile;
@@ -5373,7 +4958,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return null;
   };
 
-  const getManualHeatCapacityExpectedU2Mv = (
+  const getGuideHeatCapacityExpectedU2Mv = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
     recordedU1Mv: number | null,
   ) => {
@@ -5386,7 +4971,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return null;
   };
 
-  const hasManualHeatCapacityWaitElapsed = (
+  const hasGuideHeatCapacityWaitElapsed = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
     kind: 'u1' | 'u2',
   ) => {
@@ -5397,7 +4982,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return Math.max(0, file.simulationTimeS - referenceSample.timeS) >= HEAT_CAPACITY_GUIDE_WAIT_DURATION_S;
   };
 
-  const isManualHeatCapacityReleaseDurationReady = (
+  const isGuideHeatCapacityReleaseDurationReady = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
     const releaseStartSample = file.heatCapacityProcessSamples.beforeReleaseSample;
@@ -5405,14 +4990,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return Math.max(0, file.simulationTimeS - releaseStartSample.timeS) >= HEAT_CAPACITY_GUIDE_RELEASE_DURATION_S;
   };
 
-  const hasManualHeatCapacityEnteredRecovery = (
+  const hasGuideHeatCapacityEnteredRecovery = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
     if (file.heatCapacityPhase === 'recovering') return true;
     return false;
   };
 
-  const isManualHeatCapacityReleaseCompleteForU2 = (
+  const isGuideHeatCapacityReleaseCompleteForU2 = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
     recordedU1Mv: number | null,
   ) => {
@@ -5420,26 +5005,26 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (file.heatCapacityProcessSamples.releaseLowSample || file.heatCapacityProcessSamples.afterReleaseSample) {
       return true;
     }
-    if (hasManualHeatCapacityEnteredRecovery(file) && isManualHeatCapacityReleaseDurationReady(file)) return true;
-    const pressureTarget = getManualHeatCapacityDecisionPressureMv(file);
-    return pressureTarget <= Math.max(5, recordedU1Mv * 0.14) && isManualHeatCapacityReleaseDurationReady(file);
+    if (hasGuideHeatCapacityEnteredRecovery(file) && isGuideHeatCapacityReleaseDurationReady(file)) return true;
+    const pressureTarget = getGuideHeatCapacityDecisionPressureMv(file);
+    return pressureTarget <= Math.max(5, recordedU1Mv * 0.14) && isGuideHeatCapacityReleaseDurationReady(file);
   };
 
-  const getManualHeatCapacityMinimumU1PlatformMv = (
+  const getGuideHeatCapacityMinimumU1PlatformMv = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
-    const expectedU1 = getManualHeatCapacityExpectedU1Mv(file);
+    const expectedU1 = getGuideHeatCapacityExpectedU1Mv(file);
     return Math.max(HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, (expectedU1 ?? 110) * 0.45);
   };
 
-  const hasManualHeatCapacityReachedPumpTarget = (
+  const hasGuideHeatCapacityReachedPumpTarget = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
-    const targetMv = getManualHeatCapacityMinimumU1PlatformMv(file);
+    const targetMv = getGuideHeatCapacityMinimumU1PlatformMv(file);
     if (file.heatCapacityMode === 'guide') {
-      return getManualHeatCapacityDisplayedPressureMv(file) >= targetMv;
+      return getGuideHeatCapacityDisplayedPressureMv(file) >= targetMv;
     }
-    if (getManualHeatCapacityThresholdPressureMv(file) >= targetMv) return true;
+    if (getGuideHeatCapacityThresholdPressureMv(file) >= targetMv) return true;
     const pumpSamples = [
       file.heatCapacityProcessSamples.afterPumpSample,
       file.heatCapacityProcessSamples.pumpPeakSample,
@@ -5452,13 +5037,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
     ));
   };
 
-  const isManualU1RecordReady = (
+  const isGuideU1RecordReady = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
     const stopcockState = getHeatCapacityStopcockState(file.stopcockAngleDeg);
-    const pressureForGate = getManualHeatCapacityThresholdPressureMv(file);
+    const pressureForGate = getGuideHeatCapacityThresholdPressureMv(file);
     const minimumPlatformMv = HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV;
-    const temperatureReady = isManualHeatCapacityTemperatureAtAmbient(file);
+    const temperatureReady = isGuideHeatCapacityTemperatureAtAmbient(file);
     const hasEffectivePumping = file.pumpStrokeCount > 0 ||
       Boolean(file.heatCapacityProcessSamples.pumpPeakSample) ||
       pressureForGate >= minimumPlatformMv;
@@ -5468,22 +5053,22 @@ const WorkbenchStudioPrototype: React.FC = () => {
       hasEffectivePumping &&
       canProceedAfterPumping(file) &&
       temperatureReady &&
-      hasManualHeatCapacityWaitElapsed(file, 'u1') &&
+      hasGuideHeatCapacityWaitElapsed(file, 'u1') &&
       file.heatCapacityPhase === 'sealedStabilizing';
   };
 
-  const isManualU2RecordReady = (
+  const isGuideU2RecordReady = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
     const stopcockState = getHeatCapacityStopcockState(file.stopcockAngleDeg);
     const recordedU1Mv = getActiveTrialRecordedU1Mv(file);
     if (recordedU1Mv === null) return false;
-    const pressureForGate = getManualHeatCapacityThresholdPressureMv(file);
+    const pressureForGate = getGuideHeatCapacityThresholdPressureMv(file);
     const lowerBound = 0.2;
     const upperBound = Math.max(5, recordedU1Mv * 0.55);
     const releaseHasStarted = pressureForGate < Math.max(10, recordedU1Mv * 0.75);
-    const releaseComplete = isManualHeatCapacityReleaseCompleteForU2(file, recordedU1Mv);
-    const temperatureReady = isManualHeatCapacityTemperatureAtAmbient(file);
+    const releaseComplete = isGuideHeatCapacityReleaseCompleteForU2(file, recordedU1Mv);
+    const temperatureReady = isGuideHeatCapacityTemperatureAtAmbient(file);
 
     return stopcockState === 'closed' &&
       releaseHasStarted &&
@@ -5491,13 +5076,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
       pressureForGate >= lowerBound &&
       pressureForGate <= upperBound &&
       temperatureReady &&
-      hasManualHeatCapacityWaitElapsed(file, 'u2') &&
+      hasGuideHeatCapacityWaitElapsed(file, 'u2') &&
       file.heatCapacityPhase === 'recovering';
   };
 
-  const getHeatCapacityManualStep = (
+  const getHeatCapacityGuideStep = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
-  ): ManualHeatCapacityStep => {
+  ): GuideHeatCapacityStep => {
     if (file.heatCapacityMode === 'guide') {
       switch (file.heatCapacityGuideWorkflow.step) {
         case 'powerRequired':
@@ -5539,23 +5124,23 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (!file.powerOn) return 'powerOnRequired';
 
     const stopcockState = getHeatCapacityStopcockState(file.stopcockAngleDeg);
-    const pressureValue = getManualHeatCapacityThresholdPressureMv(file);
+    const pressureValue = getGuideHeatCapacityThresholdPressureMv(file);
     const hasU0 = file.heatCapacityGuideTrial?.u0 !== null && file.heatCapacityGuideTrial?.u0 !== undefined;
     const hasU1 = hasActiveTrialU1(file);
     const hasU2 = hasActiveTrialU2(file);
     const recordedU1Mv = getActiveTrialRecordedU1Mv(file);
-    const releaseComplete = recordedU1Mv !== null && isManualHeatCapacityReleaseCompleteForU2(file, recordedU1Mv);
-    const u1Ready = isManualU1RecordReady(file);
-    const u2Ready = isManualU2RecordReady(file);
+    const releaseComplete = recordedU1Mv !== null && isGuideHeatCapacityReleaseCompleteForU2(file, recordedU1Mv);
+    const u1Ready = isGuideU1RecordReady(file);
+    const u2Ready = isGuideU2RecordReady(file);
 
     if (!hasU0) {
       if (stopcockState !== 'open') return 'openStopcockForZeroRequired';
-      if (!isManualU0ZeroReady(file)) return 'zeroAdjustRequired';
+      if (!isGuideU0ZeroReady(file)) return 'zeroAdjustRequired';
       return 'recordU0Required';
     }
     if (!hasU1) {
       if (stopcockState !== 'closed') return 'closeStopcockRequired';
-      const pumpTargetReached = hasManualHeatCapacityReachedPumpTarget(file);
+      const pumpTargetReached = hasGuideHeatCapacityReachedPumpTarget(file);
       if (!file.pumpValveOpen && pressureValue < 8 && file.pumpStrokeCount === 0) return 'openPumpValveRequired';
       if (!file.pumpValveOpen && !pumpTargetReached) return 'openPumpValveRequired';
       if (file.pumpValveOpen && !pumpTargetReached) return 'pumpRequired';
@@ -5571,27 +5156,27 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return 'completed';
   };
 
-  const getManualStepGuidance = (
-    step: ManualHeatCapacityStep,
+  const getGuideStepGuidance = (
+    step: GuideHeatCapacityStep,
     file?: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ): { message: string; controlId: string | null } => {
     const isEn = settingsLanguagePreference === 'en';
     const isTw = settingsLanguagePreference === 'zh-TW';
-    const zeroAdjustMessage = file && isManualU0ZeroAttempted(file)
+    const zeroAdjustMessage = file && isGuideU0ZeroAttempted(file)
       ? isEn
         ? 'Uₚ is still not close to 0. Continue adjusting the pressure-zero knob.'
         : isTw
           ? '目前 Uₚ 仍未接近 0，請繼續調整壓強調零旋鈕。'
           : '当前 Uₚ 仍未接近 0，请继续调整压力调零旋钮。'
       : `${heatCapacityRealtimeCopy.guideUsageHints.zeroFocus}${heatCapacityRealtimeCopy.guideUsageHints.zeroAdjust}`;
-    const temperatureReady = file ? isManualHeatCapacityTemperatureAtAmbient(file) : false;
+    const temperatureReady = file ? isGuideHeatCapacityTemperatureAtAmbient(file) : false;
     const waitBeforeU1Message = isEn
       ? 'Keep the vessel sealed for 5 min; when the timer completes, record U₁ / Uₜ₁.'
       : isTw
         ? '請保持氣瓶封閉等待 5 min；計時到達後記錄 U₁ / Uₜ₁。'
         : '请保持气瓶封闭等待 5 min；计时到达后记录 U₁ / Uₜ₁。';
     const recordedU1Mv = file ? getActiveTrialRecordedU1Mv(file) : null;
-    const releaseComplete = file ? isManualHeatCapacityReleaseCompleteForU2(file, recordedU1Mv) : false;
+    const releaseComplete = file ? isGuideHeatCapacityReleaseCompleteForU2(file, recordedU1Mv) : false;
     const stopcockState = file ? getHeatCapacityStopcockState(file.stopcockAngleDeg) : 'closed';
     const openReleaseMessage = releaseComplete
       ? isEn
@@ -5615,7 +5200,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       : isTw
         ? '請關閉玻璃旋塞後等待 5 min；回溫穩定後記錄 U₂ / Uₜ₂。'
         : '请关闭玻璃旋塞后等待 5 min；回温稳定后记录 U₂ / Uₜ₂。';
-    const messages: Record<ManualHeatCapacityStep, string> = {
+    const messages: Record<GuideHeatCapacityStep, string> = {
       idle: isEn ? 'Start guide mode when ready.' : isTw ? '需要時開始引導模式。' : '需要时开始引导模式。',
       powerOnRequired: isEn ? 'Turn on the power first.' : isTw ? '請先打開電源。' : '请先打开电源。',
       openStopcockForZeroRequired: isEn ? 'Open the glass stopcock before pressure zeroing.' : isTw ? '請先打開玻璃旋塞，再進行壓強差調零。' : '请先打开玻璃旋塞，再进行压强差调零。',
@@ -5634,7 +5219,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       closePowerRequired: isEn ? 'Turn off the power to finish this guided experiment.' : isTw ? '請關閉電源，完成本次引導實驗。' : '请关闭电源，完成本次引导实验。',
       completed: isEn ? 'Guide experiment complete.' : isTw ? '引導實驗已完成。' : '引导实验已完成。',
     };
-    const controlByStep: Record<ManualHeatCapacityStep, string | null> = {
+    const controlByStep: Record<GuideHeatCapacityStep, string | null> = {
       idle: null,
       powerOnRequired: 'powerSwitch',
       openStopcockForZeroRequired: 'stopcock',
@@ -5656,28 +5241,28 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return { message: messages[step], controlId: controlByStep[step] };
   };
 
-  const getManualHeatCapacityRecordBlockedMessage = (
-    kind: HeatCapacityManualRecordKind,
+  const getGuideHeatCapacityRecordBlockedMessage = (
+    kind: HeatCapacityGuideRecordKind,
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
-    latestStep: ManualHeatCapacityStep,
+    latestStep: GuideHeatCapacityStep,
   ) => {
     const messages = heatCapacityRealtimeCopy.guideRecordBlockedMessages;
     const stopcockState = getHeatCapacityStopcockState(file.stopcockAngleDeg);
     if (kind === 'u0') {
       if (!file.powerOn) return messages.u0NeedPower;
       if (stopcockState !== 'open') return messages.u0NeedStopcock;
-      if (!isManualU0ZeroReady(file)) return messages.u0NeedZero;
+      if (!isGuideU0ZeroReady(file)) return messages.u0NeedZero;
       return messages.u0NeedCurrentStep;
     }
     if (kind === 'u1') {
       if (file.pumpStrokeCount === 0 && !file.heatCapacityProcessSamples.pumpPeakSample) return messages.u1NeedPump;
       if (file.pumpValveOpen) return messages.u1NeedClosePumpValve;
-      if (!hasManualHeatCapacityWaitElapsed(file, 'u1')) return messages.u1NeedWait;
+      if (!hasGuideHeatCapacityWaitElapsed(file, 'u1')) return messages.u1NeedWait;
       return latestStep === 'recordU1Required' ? heatCapacityRealtimeCopy.recordU1Warning : messages.u1NeedCurrentStep;
     }
-    if (!isManualHeatCapacityReleaseCompleteForU2(file, getActiveTrialRecordedU1Mv(file))) return messages.u2NeedRelease;
+    if (!isGuideHeatCapacityReleaseCompleteForU2(file, getActiveTrialRecordedU1Mv(file))) return messages.u2NeedRelease;
     if (stopcockState === 'open') return messages.u2NeedCloseStopcock;
-    if (!hasManualHeatCapacityWaitElapsed(file, 'u2')) return messages.u2NeedWait;
+    if (!hasGuideHeatCapacityWaitElapsed(file, 'u2')) return messages.u2NeedWait;
     return latestStep === 'recordU2Required' ? heatCapacityRealtimeCopy.recordU2Warning : messages.u2NeedCurrentStep;
   };
 
@@ -5718,9 +5303,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     message?.source === 'pressure-alarm'
   );
 
-  const isHeatCapacityManualToast = (message: HeatCapacityToastMessage | null) => (
-    message?.source === 'manual-guide' ||
-    message?.source === 'manual-blocked'
+  const isHeatCapacityGuideToast = (message: HeatCapacityToastMessage | null) => (
+    message?.source === 'guide' ||
+    message?.source === 'guide-blocked'
   );
 
   const isHeatCapacityPressureAlertActive = () => (
@@ -5741,7 +5326,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       text,
       level,
       priority: options.priority ?? HEAT_CAPACITY_TOAST_PRIORITY[level],
-      source: options.source ?? 'manual-guide',
+      source: options.source ?? 'guide',
       createdAt: Date.now(),
     };
     const currentMessage = heatCapacityToastCurrentRef.current;
@@ -5823,7 +5408,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setHeatCapacityRecordToastSequenceActive(false);
   };
 
-  const getHeatCapacityRecordSuccessToast = (kind: HeatCapacityManualRecordKind) => (
+  const getHeatCapacityRecordSuccessToast = (kind: HeatCapacityGuideRecordKind) => (
     kind === 'u0'
       ? heatCapacityRealtimeCopy.recordU0SuccessToast
       : kind === 'u1'
@@ -5987,12 +5572,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
       mode === 'pump' &&
       currentFile?.kind === 'heatCapacity' &&
       currentFile.heatCapacityMode === 'guide' &&
-      manualHeatCapacityActiveFileIdRef.current === currentFile.id &&
+      guideHeatCapacityActiveFileIdRef.current === currentFile.id &&
       currentFile.heatCapacityGuideWorkflow.step === 'pumpRequired' &&
-      !hasManualHeatCapacityReachedPumpTarget(currentFile)
+      !hasGuideHeatCapacityReachedPumpTarget(currentFile)
     ) {
-      const guidance = getManualStepGuidance('pumpRequired', currentFile);
-      showManualHeatCapacityGuidance(guidance.message, guidance.controlId, 'warning', 'manual-blocked');
+      const guidance = getGuideStepGuidance('pumpRequired', currentFile);
+      showGuideHeatCapacityGuidance(guidance.message, guidance.controlId, 'warning', 'guide-blocked');
       return false;
     }
     return true;
@@ -6028,116 +5613,116 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }, HEAT_CAPACITY_PRESSURE_ALARM_DURATION_MS);
   };
 
-  const pulseManualHeatCapacityControl = (controlId?: string | null) => {
-    setManualHeatCapacityFocusControlId(controlId ?? null);
-    setManualHeatCapacityPulseActive(Boolean(controlId));
-    if (manualHeatCapacityPulseTimerRef.current !== null) window.clearTimeout(manualHeatCapacityPulseTimerRef.current);
+  const pulseGuideHeatCapacityControl = (controlId?: string | null) => {
+    setGuideHeatCapacityFocusControlId(controlId ?? null);
+    setGuideHeatCapacityPulseActive(Boolean(controlId));
+    if (guideHeatCapacityPulseTimerRef.current !== null) window.clearTimeout(guideHeatCapacityPulseTimerRef.current);
     if (!controlId) return;
-    manualHeatCapacityPulseTimerRef.current = window.setTimeout(() => {
-      manualHeatCapacityPulseTimerRef.current = null;
-      setManualHeatCapacityPulseActive(false);
-      setManualHeatCapacityFocusControlId(null);
+    guideHeatCapacityPulseTimerRef.current = window.setTimeout(() => {
+      guideHeatCapacityPulseTimerRef.current = null;
+      setGuideHeatCapacityPulseActive(false);
+      setGuideHeatCapacityFocusControlId(null);
     }, 2200);
   };
 
-  const clearManualHeatCapacityGuidancePulseTimer = () => {
-    if (manualHeatCapacityGuidancePulseTimerRef.current !== null) {
-      window.clearInterval(manualHeatCapacityGuidancePulseTimerRef.current);
-      manualHeatCapacityGuidancePulseTimerRef.current = null;
+  const clearGuideHeatCapacityGuidancePulseTimer = () => {
+    if (guideHeatCapacityGuidancePulseTimerRef.current !== null) {
+      window.clearInterval(guideHeatCapacityGuidancePulseTimerRef.current);
+      guideHeatCapacityGuidancePulseTimerRef.current = null;
     }
   };
 
-  const showManualHeatCapacityGuidance = (
+  const showGuideHeatCapacityGuidance = (
     message: string,
     controlId?: string | null,
     level: HeatCapacityToastLevel = 'info',
-    source: Extract<HeatCapacityToastSource, 'manual-guide' | 'manual-blocked'> = 'manual-guide',
+    source: Extract<HeatCapacityToastSource, 'guide' | 'guide-blocked'> = 'guide',
   ) => {
     if (isHeatCapacityPressureAlertActive()) return;
     showHeatCapacityToast(message, level, { source });
-    pulseManualHeatCapacityControl(controlId);
+    pulseGuideHeatCapacityControl(controlId);
   };
 
-  const clearManualHeatCapacityGuidance = () => {
-    clearHeatCapacityToastBySource(isHeatCapacityManualToast);
-    setManualHeatCapacityPulseActive(false);
-    setManualHeatCapacityFocusControlId(null);
-    if (manualHeatCapacityPulseTimerRef.current !== null) {
-      window.clearTimeout(manualHeatCapacityPulseTimerRef.current);
-      manualHeatCapacityPulseTimerRef.current = null;
+  const clearGuideHeatCapacityGuidance = () => {
+    clearHeatCapacityToastBySource(isHeatCapacityGuideToast);
+    setGuideHeatCapacityPulseActive(false);
+    setGuideHeatCapacityFocusControlId(null);
+    if (guideHeatCapacityPulseTimerRef.current !== null) {
+      window.clearTimeout(guideHeatCapacityPulseTimerRef.current);
+      guideHeatCapacityPulseTimerRef.current = null;
     }
   };
 
-  const clearManualHeatCapacityPendingStrongReminderTimer = () => {
-    if (manualHeatCapacityPendingStrongReminderTimerRef.current !== null) {
-      window.clearTimeout(manualHeatCapacityPendingStrongReminderTimerRef.current);
-      manualHeatCapacityPendingStrongReminderTimerRef.current = null;
+  const clearGuideHeatCapacityPendingStrongReminderTimer = () => {
+    if (guideHeatCapacityPendingStrongReminderTimerRef.current !== null) {
+      window.clearTimeout(guideHeatCapacityPendingStrongReminderTimerRef.current);
+      guideHeatCapacityPendingStrongReminderTimerRef.current = null;
     }
   };
 
-  const activateManualHeatCapacityStrongReminder = (controlId?: string | null) => {
+  const activateGuideHeatCapacityStrongReminder = (controlId?: string | null) => {
     if (isHeatCapacityPressureAlertActive()) return;
-    if (manualHeatCapacityStrongReminderTimerRef.current !== null) {
-      window.clearTimeout(manualHeatCapacityStrongReminderTimerRef.current);
-      manualHeatCapacityStrongReminderTimerRef.current = null;
+    if (guideHeatCapacityStrongReminderTimerRef.current !== null) {
+      window.clearTimeout(guideHeatCapacityStrongReminderTimerRef.current);
+      guideHeatCapacityStrongReminderTimerRef.current = null;
     }
-    clearManualHeatCapacityPendingStrongReminderTimer();
-    clearManualHeatCapacityGuidance();
-    setManualHeatCapacityStrongReminderControlId(controlId ?? null);
-    setManualHeatCapacityStrongReminderFocusKey((key) => key + 1);
-    pulseManualHeatCapacityControl(controlId ?? null);
-    setManualHeatCapacityStrongReminderActive(true);
+    clearGuideHeatCapacityPendingStrongReminderTimer();
+    clearGuideHeatCapacityGuidance();
+    setGuideHeatCapacityStrongReminderControlId(controlId ?? null);
+    setGuideHeatCapacityStrongReminderFocusKey((key) => key + 1);
+    pulseGuideHeatCapacityControl(controlId ?? null);
+    setGuideHeatCapacityStrongReminderActive(true);
   };
 
-  const scheduleManualHeatCapacityStrongReminderAfterToast = (controlId?: string | null) => {
-    clearManualHeatCapacityPendingStrongReminderTimer();
-    manualHeatCapacityPendingStrongReminderTimerRef.current = window.setTimeout(() => {
-      manualHeatCapacityPendingStrongReminderTimerRef.current = null;
-      activateManualHeatCapacityStrongReminder(controlId ?? null);
+  const scheduleGuideHeatCapacityStrongReminderAfterToast = (controlId?: string | null) => {
+    clearGuideHeatCapacityPendingStrongReminderTimer();
+    guideHeatCapacityPendingStrongReminderTimerRef.current = window.setTimeout(() => {
+      guideHeatCapacityPendingStrongReminderTimerRef.current = null;
+      activateGuideHeatCapacityStrongReminder(controlId ?? null);
     }, HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS);
   };
 
-  const clearManualHeatCapacityStrongReminder = () => {
-    if (manualHeatCapacityStrongReminderTimerRef.current !== null) {
-      window.clearTimeout(manualHeatCapacityStrongReminderTimerRef.current);
-      manualHeatCapacityStrongReminderTimerRef.current = null;
+  const clearGuideHeatCapacityStrongReminder = () => {
+    if (guideHeatCapacityStrongReminderTimerRef.current !== null) {
+      window.clearTimeout(guideHeatCapacityStrongReminderTimerRef.current);
+      guideHeatCapacityStrongReminderTimerRef.current = null;
     }
-    clearManualHeatCapacityPendingStrongReminderTimer();
-    manualHeatCapacityMissCountRef.current = 0;
-    setManualHeatCapacityStrongReminderActive(false);
-    setManualHeatCapacityStrongReminderControlId(null);
+    clearGuideHeatCapacityPendingStrongReminderTimer();
+    guideHeatCapacityMissCountRef.current = 0;
+    setGuideHeatCapacityStrongReminderActive(false);
+    setGuideHeatCapacityStrongReminderControlId(null);
   };
 
-  const clearManualHeatCapacityStrongReminderFocus = () => {
+  const clearGuideHeatCapacityStrongReminderFocus = () => {
     setHeatCapacityFocusResetKey((key) => key + 1);
     heatCapacityFocusSessionRef.current = null;
   };
 
   const shouldResetStrongFocusAfterAllowedAction = (
     controlId: string | null,
-    action: ManualHeatCapacityAction,
+    action: GuideHeatCapacityAction,
   ) => (
     (controlId === 'stopcock' && (action === 'openStopcock' || action === 'closeStopcock')) ||
     (controlId === 'pumpValve' && (action === 'openPumpValve' || action === 'closePumpValve'))
   );
 
   const resetHeatCapacityGuideUiStateForModeChange = () => {
-    clearManualHeatCapacityGuidance();
-    clearManualHeatCapacityStrongReminder();
-    clearManualHeatCapacityGuidancePulseTimer();
-    setManualHeatCapacityActiveFileId(null);
-    setManualHeatCapacityPulseActive(false);
-    setManualHeatCapacityFocusControlId(null);
-    setManualHeatCapacityRollback(null);
+    clearGuideHeatCapacityGuidance();
+    clearGuideHeatCapacityStrongReminder();
+    clearGuideHeatCapacityGuidancePulseTimer();
+    setGuideHeatCapacityActiveFileId(null);
+    setGuideHeatCapacityPulseActive(false);
+    setGuideHeatCapacityFocusControlId(null);
+    setGuideHeatCapacityRollback(null);
     setHeatCapacityGuideProjectedHoles({});
     setHeatCapacityFocusResetKey((key) => key + 1);
     setHeatCapacityHardSphereVisualResetKey((key) => key + 1);
     heatCapacityFocusSessionRef.current = null;
   };
 
-  const registerManualHeatCapacityGuideMiss = (guard: ManualHeatCapacityGuardResult) => {
-    const missCount = manualHeatCapacityMissCountRef.current + 1;
-    manualHeatCapacityMissCountRef.current = missCount;
+  const registerGuideHeatCapacityMiss = (guard: GuideHeatCapacityGuardResult) => {
+    const missCount = guideHeatCapacityMissCountRef.current + 1;
+    guideHeatCapacityMissCountRef.current = missCount;
     return missCount >= 2;
   };
 
@@ -6146,17 +5731,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
       window.clearTimeout(heatCapacityRecordControlsClosingTimerRef.current);
       heatCapacityRecordControlsClosingTimerRef.current = null;
     }
-    clearManualHeatCapacityGuidancePulseTimer();
-    clearManualHeatCapacityStrongReminder();
+    clearGuideHeatCapacityGuidancePulseTimer();
+    clearGuideHeatCapacityStrongReminder();
   }, []);
 
-  const getManualHeatCapacityGuard = (
+  const getGuideHeatCapacityGuard = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
-    action: ManualHeatCapacityAction,
-  ): ManualHeatCapacityGuardResult => {
-    const step = getHeatCapacityManualStep(file);
-    const guidance = getManualStepGuidance(step, file);
-    const rollbackByAction: Partial<Record<ManualHeatCapacityAction, ManualHeatCapacityRollbackAnimation>> = {
+    action: GuideHeatCapacityAction,
+  ): GuideHeatCapacityGuardResult => {
+    const step = getHeatCapacityGuideStep(file);
+    const guidance = getGuideStepGuidance(step, file);
+    const rollbackByAction: Partial<Record<GuideHeatCapacityAction, GuideHeatCapacityRollbackAnimation>> = {
       adjustPressureZero: 'knobBounce',
       openStopcock: 'stopcockBounce',
       closeStopcock: 'stopcockBounce',
@@ -6166,7 +5751,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       turnPowerOn: 'powerBounce',
       turnPowerOff: 'powerBounce',
     };
-    const allowedActions: Record<ManualHeatCapacityStep, ManualHeatCapacityAction[]> = {
+    const allowedActions: Record<GuideHeatCapacityStep, GuideHeatCapacityAction[]> = {
       idle: ['turnPowerOn'],
       powerOnRequired: ['turnPowerOn'],
       openStopcockForZeroRequired: ['openStopcock'],
@@ -6219,7 +5804,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       };
     }
     if (allowedActions[step]?.includes(action)) return { allowed: true };
-    if (isHeatCapacityManualRecordStep(step)) {
+    if (isHeatCapacityGuideRecordStep(step)) {
       return {
         allowed: false,
         expectedControlId: guidance.controlId ?? undefined,
@@ -6236,52 +5821,52 @@ const WorkbenchStudioPrototype: React.FC = () => {
     };
   };
 
-  const applyManualHeatCapacityGuardFailure = (guard: ManualHeatCapacityGuardResult) => {
+  const applyGuideHeatCapacityGuardFailure = (guard: GuideHeatCapacityGuardResult) => {
     if (guard.rollbackAnimation === 'pumpBulbBounce') setHeatCapacityPumpPulseId((pulseId) => pulseId + 1);
     if (guard.rollbackAnimation) {
-      setManualHeatCapacityRollback({
+      setGuideHeatCapacityRollback({
         animation: guard.rollbackAnimation,
         key: Date.now(),
       });
     }
-    const shouldOpenStrongReminder = guard.suppressStrongReminder ? false : registerManualHeatCapacityGuideMiss(guard);
+    const shouldOpenStrongReminder = guard.suppressStrongReminder ? false : registerGuideHeatCapacityMiss(guard);
     if (guard.suppressGuidance) {
-      if (shouldOpenStrongReminder) scheduleManualHeatCapacityStrongReminderAfterToast(guard.expectedControlId ?? null);
+      if (shouldOpenStrongReminder) scheduleGuideHeatCapacityStrongReminderAfterToast(guard.expectedControlId ?? null);
       return;
     }
-    showManualHeatCapacityGuidance(guard.expectedMessage ?? '', guard.expectedControlId, guard.expectedLevel ?? 'warning', 'manual-blocked');
+    showGuideHeatCapacityGuidance(guard.expectedMessage ?? '', guard.expectedControlId, guard.expectedLevel ?? 'warning', 'guide-blocked');
     if (shouldOpenStrongReminder) {
-      scheduleManualHeatCapacityStrongReminderAfterToast(guard.expectedControlId ?? null);
+      scheduleGuideHeatCapacityStrongReminderAfterToast(guard.expectedControlId ?? null);
     }
   };
 
-  const guardManualHeatCapacityAction = (
-    action: ManualHeatCapacityAction,
+  const guardGuideHeatCapacityAction = (
+    action: GuideHeatCapacityAction,
     source: 'user' | 'autoDemo' = 'user',
   ) => {
     if (source === 'autoDemo') return true;
     if (!activeFile || activeFile.kind !== 'heatCapacity') return true;
-    if (manualHeatCapacityActiveFileId !== activeFile.id) return true;
-    const guard = getManualHeatCapacityGuard(activeFile, action);
+    if (guideHeatCapacityActiveFileId !== activeFile.id) return true;
+    const guard = getGuideHeatCapacityGuard(activeFile, action);
     if (guard.allowed) {
-      const activeStrongReminderControlId = manualHeatCapacityStrongReminderActive
-        ? manualHeatCapacityStrongReminderControlId
+      const activeStrongReminderControlId = guideHeatCapacityStrongReminderActive
+        ? guideHeatCapacityStrongReminderControlId
         : null;
-      clearManualHeatCapacityStrongReminder();
-      clearManualHeatCapacityGuidance();
-      clearManualHeatCapacityPendingStrongReminderTimer();
+      clearGuideHeatCapacityStrongReminder();
+      clearGuideHeatCapacityGuidance();
+      clearGuideHeatCapacityPendingStrongReminderTimer();
       if (shouldResetStrongFocusAfterAllowedAction(activeStrongReminderControlId, action)) {
-        clearManualHeatCapacityStrongReminderFocus();
+        clearGuideHeatCapacityStrongReminderFocus();
       }
       return true;
     }
-    applyManualHeatCapacityGuardFailure(guard);
+    applyGuideHeatCapacityGuardFailure(guard);
     return false;
   };
 
-  const activeHeatCapacityManualFileId = activeFile.kind === 'heatCapacity' ? activeFile.id : null;
-  const activeHeatCapacityManualStep: ManualHeatCapacityStep = activeFile.kind === 'heatCapacity'
-    ? getHeatCapacityManualStep(activeFile)
+  const activeHeatCapacityGuideFileId = activeFile.kind === 'heatCapacity' ? activeFile.id : null;
+  const activeHeatCapacityGuideStep: GuideHeatCapacityStep = activeFile.kind === 'heatCapacity'
+    ? getHeatCapacityGuideStep(activeFile)
     : 'idle';
 
   const applyHeatCapacityGuideChecklistView = (
@@ -6400,7 +5985,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   useEffect(() => {
     const nextIndex = activeFile.kind === 'heatCapacity' && activeFile.heatCapacityMode === 'guide'
-      ? getHeatCapacityGuideChecklistIndex(activeHeatCapacityManualStep)
+      ? getHeatCapacityGuideChecklistIndex(activeHeatCapacityGuideStep)
       : 0;
     heatCapacityGuideChecklistCurrentIndexRef.current = nextIndex;
     heatCapacityGuideChecklistPendingWheelDeltaRef.current = 0;
@@ -6417,7 +6002,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     activeFile.id,
     activeFile.kind,
     activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null,
-    activeHeatCapacityManualStep,
+    activeHeatCapacityGuideStep,
   ]);
 
   useEffect(() => () => {
@@ -6441,10 +6026,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   ]);
 
   useEffect(() => {
-    if (!activeHeatCapacityManualFileId) return;
-    if (manualHeatCapacityActiveFileId !== activeHeatCapacityManualFileId) return;
+    if (!activeHeatCapacityGuideFileId) return;
+    if (guideHeatCapacityActiveFileId !== activeHeatCapacityGuideFileId) return;
     if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'guide') return;
-    if (activeHeatCapacityManualStep !== 'closePumpValveRequired') return;
+    if (activeHeatCapacityGuideStep !== 'closePumpValveRequired') return;
     const focusSession = heatCapacityFocusSessionRef.current;
     if (focusSession?.fileId === activeFile.id && focusSession.mode === 'pump') {
       exitHeatCapacityFocusMode();
@@ -6453,91 +6038,91 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const noticeKey = `${activeFile.id}:${activeFile.pumpStrokeCount}:close-pump-valve`;
     if (guidePassivePumpTargetNoticeKeyRef.current === noticeKey) return;
     guidePassivePumpTargetNoticeKeyRef.current = noticeKey;
-    const guidance = getManualStepGuidance('closePumpValveRequired', activeFile);
-    showManualHeatCapacityGuidance(guidance.message, guidance.controlId, 'info', 'manual-guide');
+    const guidance = getGuideStepGuidance('closePumpValveRequired', activeFile);
+    showGuideHeatCapacityGuidance(guidance.message, guidance.controlId, 'info', 'guide');
   }, [
     activeFile.id,
     activeFile.kind,
     activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null,
     activeFile.kind === 'heatCapacity' ? activeFile.pumpStrokeCount : null,
-    activeHeatCapacityManualFileId,
-    activeHeatCapacityManualStep,
-    manualHeatCapacityActiveFileId,
+    activeHeatCapacityGuideFileId,
+    activeHeatCapacityGuideStep,
+    guideHeatCapacityActiveFileId,
   ]);
 
   useEffect(() => {
-    if (!activeHeatCapacityManualFileId) return;
-    if (manualHeatCapacityActiveFileId !== activeHeatCapacityManualFileId) return;
-    if (!isManualHeatCapacityPauseStep(activeHeatCapacityManualStep)) return;
+    if (!activeHeatCapacityGuideFileId) return;
+    if (guideHeatCapacityActiveFileId !== activeHeatCapacityGuideFileId) return;
+    if (!isGuideHeatCapacityPauseStep(activeHeatCapacityGuideStep)) return;
     if (heatCapacityRecordToastSequenceActive) return;
-    if (isHeatCapacityManualRecordStep(activeHeatCapacityManualStep)) {
-      clearManualHeatCapacityGuidance();
+    if (isHeatCapacityGuideRecordStep(activeHeatCapacityGuideStep)) {
+      clearGuideHeatCapacityGuidance();
     }
-    const latestFile = filesRef.current.find((file) => file.id === activeHeatCapacityManualFileId);
+    const latestFile = filesRef.current.find((file) => file.id === activeHeatCapacityGuideFileId);
     if (!latestFile || latestFile.kind !== 'heatCapacity') return;
-    const guidance = getManualStepGuidance(activeHeatCapacityManualStep, latestFile);
-    pulseManualHeatCapacityControl(guidance.controlId);
+    const guidance = getGuideStepGuidance(activeHeatCapacityGuideStep, latestFile);
+    pulseGuideHeatCapacityControl(guidance.controlId);
   }, [
-    activeHeatCapacityManualFileId,
-    activeHeatCapacityManualStep,
+    activeHeatCapacityGuideFileId,
+    activeHeatCapacityGuideStep,
     heatCapacityRecordToastSequenceActive,
-    manualHeatCapacityActiveFileId,
+    guideHeatCapacityActiveFileId,
     settingsLanguagePreference,
   ]);
 
   useEffect(() => {
-    clearManualHeatCapacityGuidancePulseTimer();
-    if (!activeHeatCapacityManualFileId) return undefined;
-    if (manualHeatCapacityActiveFileId !== activeHeatCapacityManualFileId) return undefined;
+    clearGuideHeatCapacityGuidancePulseTimer();
+    if (!activeHeatCapacityGuideFileId) return undefined;
+    if (guideHeatCapacityActiveFileId !== activeHeatCapacityGuideFileId) return undefined;
     if (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked) return undefined;
     if (heatCapacityRecordToastSequenceActive) return undefined;
     if (
-      activeHeatCapacityManualStep === 'idle' ||
-      activeHeatCapacityManualStep === 'stabilizeBeforeReleaseRequired' ||
-      activeHeatCapacityManualStep === 'recoverRequired' ||
-      activeHeatCapacityManualStep === 'completed'
+      activeHeatCapacityGuideStep === 'idle' ||
+      activeHeatCapacityGuideStep === 'stabilizeBeforeReleaseRequired' ||
+      activeHeatCapacityGuideStep === 'recoverRequired' ||
+      activeHeatCapacityGuideStep === 'completed'
     ) return undefined;
-    const manualFileId = activeHeatCapacityManualFileId;
-    manualHeatCapacityGuidancePulseTimerRef.current = window.setInterval(() => {
-      const latestFile = filesRef.current.find((file) => file.id === manualFileId);
+    const guideSessionFileId = activeHeatCapacityGuideFileId;
+    guideHeatCapacityGuidancePulseTimerRef.current = window.setInterval(() => {
+      const latestFile = filesRef.current.find((file) => file.id === guideSessionFileId);
       if (!latestFile || latestFile.kind !== 'heatCapacity') return;
-      if (manualHeatCapacityActiveFileIdRef.current !== manualFileId) return;
+      if (guideHeatCapacityActiveFileIdRef.current !== guideSessionFileId) return;
       if (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked) return;
       if (heatCapacityRecordToastSequenceActive) return;
-      const latestStep = getHeatCapacityManualStep(latestFile);
+      const latestStep = getHeatCapacityGuideStep(latestFile);
       if (latestStep === 'idle' || latestStep === 'completed') return;
-      const guidance = getManualStepGuidance(latestStep, latestFile);
-      pulseManualHeatCapacityControl(guidance.controlId);
-    }, MANUAL_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS);
+      const guidance = getGuideStepGuidance(latestStep, latestFile);
+      pulseGuideHeatCapacityControl(guidance.controlId);
+    }, GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS);
     return () => {
-      clearManualHeatCapacityGuidancePulseTimer();
+      clearGuideHeatCapacityGuidancePulseTimer();
     };
   }, [
-    activeHeatCapacityManualFileId,
-    activeHeatCapacityManualStep,
+    activeHeatCapacityGuideFileId,
+    activeHeatCapacityGuideStep,
     autoDemoRunning,
     autoDemoPaused,
     autoDemoInteractionLocked,
     heatCapacityRecordToastSequenceActive,
-    manualHeatCapacityActiveFileId,
+    guideHeatCapacityActiveFileId,
     settingsLanguagePreference,
   ]);
 
   useEffect(() => {
-    if (!activeHeatCapacityManualFileId) return;
-    if (manualHeatCapacityActiveFileId !== activeHeatCapacityManualFileId) return;
+    if (!activeHeatCapacityGuideFileId) return;
+    if (guideHeatCapacityActiveFileId !== activeHeatCapacityGuideFileId) return;
     if (activeFile.kind !== 'heatCapacity') return;
-    if (activeFile.id !== activeHeatCapacityManualFileId) return;
+    if (activeFile.id !== activeHeatCapacityGuideFileId) return;
     if (activeFile.heatCapacityMode !== 'guide') return;
     const workflow = activeFile.heatCapacityGuideWorkflow;
     if (!workflow.strongReminderActive || !workflow.strongReminderTargetControlId) return;
     if (
-      manualHeatCapacityStrongReminderActive &&
-      manualHeatCapacityStrongReminderControlId === workflow.strongReminderTargetControlId
+      guideHeatCapacityStrongReminderActive &&
+      guideHeatCapacityStrongReminderControlId === workflow.strongReminderTargetControlId
     ) {
       return;
     }
-    activateManualHeatCapacityStrongReminder(workflow.strongReminderTargetControlId);
+    activateGuideHeatCapacityStrongReminder(workflow.strongReminderTargetControlId);
   }, [
     activeFile.id,
     activeFile.kind,
@@ -6545,27 +6130,27 @@ const WorkbenchStudioPrototype: React.FC = () => {
     activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityGuideWorkflow.step : null,
     activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityGuideWorkflow.strongReminderActive : null,
     activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityGuideWorkflow.strongReminderTargetControlId : null,
-    activeHeatCapacityManualFileId,
-    manualHeatCapacityActiveFileId,
-    manualHeatCapacityStrongReminderActive,
-    manualHeatCapacityStrongReminderControlId,
+    activeHeatCapacityGuideFileId,
+    guideHeatCapacityActiveFileId,
+    guideHeatCapacityStrongReminderActive,
+    guideHeatCapacityStrongReminderControlId,
   ]);
 
   useEffect(() => {
-    if (manualHeatCapacityStrongReminderTimerRef.current !== null) {
-      window.clearTimeout(manualHeatCapacityStrongReminderTimerRef.current);
-      manualHeatCapacityStrongReminderTimerRef.current = null;
+    if (guideHeatCapacityStrongReminderTimerRef.current !== null) {
+      window.clearTimeout(guideHeatCapacityStrongReminderTimerRef.current);
+      guideHeatCapacityStrongReminderTimerRef.current = null;
     }
     const clearStaleStrongReminder = () => {
-      setManualHeatCapacityStrongReminderActive(false);
-      setManualHeatCapacityStrongReminderControlId(null);
-      manualHeatCapacityMissCountRef.current = 0;
+      setGuideHeatCapacityStrongReminderActive(false);
+      setGuideHeatCapacityStrongReminderControlId(null);
+      guideHeatCapacityMissCountRef.current = 0;
     };
-    if (!activeHeatCapacityManualFileId) {
+    if (!activeHeatCapacityGuideFileId) {
       clearStaleStrongReminder();
       return undefined;
     }
-    if (manualHeatCapacityActiveFileId !== activeHeatCapacityManualFileId) {
+    if (guideHeatCapacityActiveFileId !== activeHeatCapacityGuideFileId) {
       clearStaleStrongReminder();
       return undefined;
     }
@@ -6577,94 +6162,94 @@ const WorkbenchStudioPrototype: React.FC = () => {
       clearStaleStrongReminder();
       return undefined;
     }
-    if (activeFile.kind !== 'heatCapacity' || activeFile.id !== activeHeatCapacityManualFileId) {
+    if (activeFile.kind !== 'heatCapacity' || activeFile.id !== activeHeatCapacityGuideFileId) {
       clearStaleStrongReminder();
       return undefined;
     }
     if (
-      activeHeatCapacityManualStep === 'idle' ||
-      activeHeatCapacityManualStep === 'stabilizeBeforeReleaseRequired' ||
-      activeHeatCapacityManualStep === 'recoverRequired' ||
-      activeHeatCapacityManualStep === 'completed'
+      activeHeatCapacityGuideStep === 'idle' ||
+      activeHeatCapacityGuideStep === 'stabilizeBeforeReleaseRequired' ||
+      activeHeatCapacityGuideStep === 'recoverRequired' ||
+      activeHeatCapacityGuideStep === 'completed'
     ) {
       clearStaleStrongReminder();
       return undefined;
     }
-    const guidance = getManualStepGuidance(activeHeatCapacityManualStep, activeFile);
+    const guidance = getGuideStepGuidance(activeHeatCapacityGuideStep, activeFile);
     if (
-      manualHeatCapacityStrongReminderActive &&
-      manualHeatCapacityStrongReminderControlId === guidance.controlId
+      guideHeatCapacityStrongReminderActive &&
+      guideHeatCapacityStrongReminderControlId === guidance.controlId
     ) return undefined;
     clearStaleStrongReminder();
-    const manualFileId = activeHeatCapacityManualFileId;
-    manualHeatCapacityStrongReminderTimerRef.current = window.setTimeout(() => {
-      manualHeatCapacityStrongReminderTimerRef.current = null;
-      const latestFile = filesRef.current.find((file) => file.id === manualFileId);
+    const guideSessionFileId = activeHeatCapacityGuideFileId;
+    guideHeatCapacityStrongReminderTimerRef.current = window.setTimeout(() => {
+      guideHeatCapacityStrongReminderTimerRef.current = null;
+      const latestFile = filesRef.current.find((file) => file.id === guideSessionFileId);
       if (!latestFile || latestFile.kind !== 'heatCapacity') return;
-      if (manualHeatCapacityActiveFileId !== manualFileId) return;
+      if (guideHeatCapacityActiveFileId !== guideSessionFileId) return;
       if (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked) return;
       if (heatCapacityRecordToastSequenceActive) return;
-      const latestStep = getHeatCapacityManualStep(latestFile);
+      const latestStep = getHeatCapacityGuideStep(latestFile);
       if (latestStep === 'idle' || latestStep === 'completed') return;
       if (latestStep === 'stabilizeBeforeReleaseRequired' || latestStep === 'recoverRequired') return;
-      if (isHeatCapacityManualRecordStep(latestStep) && latestStep !== activeHeatCapacityManualStep) return;
-      const guidance = getManualStepGuidance(latestStep, latestFile);
-      activateManualHeatCapacityStrongReminder(guidance.controlId);
-    }, MANUAL_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS);
+      if (isHeatCapacityGuideRecordStep(latestStep) && latestStep !== activeHeatCapacityGuideStep) return;
+      const guidance = getGuideStepGuidance(latestStep, latestFile);
+      activateGuideHeatCapacityStrongReminder(guidance.controlId);
+    }, GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS);
     return () => {
-      if (manualHeatCapacityStrongReminderTimerRef.current !== null) {
-        window.clearTimeout(manualHeatCapacityStrongReminderTimerRef.current);
-        manualHeatCapacityStrongReminderTimerRef.current = null;
+      if (guideHeatCapacityStrongReminderTimerRef.current !== null) {
+        window.clearTimeout(guideHeatCapacityStrongReminderTimerRef.current);
+        guideHeatCapacityStrongReminderTimerRef.current = null;
       }
     };
   }, [
-    activeHeatCapacityManualFileId,
-    activeHeatCapacityManualStep,
+    activeHeatCapacityGuideFileId,
+    activeHeatCapacityGuideStep,
     autoDemoRunning,
     autoDemoPaused,
     autoDemoInteractionLocked,
     heatCapacityRecordToastSequenceActive,
-    manualHeatCapacityActiveFileId,
-    manualHeatCapacityStrongReminderActive,
-    manualHeatCapacityStrongReminderControlId,
+    guideHeatCapacityActiveFileId,
+    guideHeatCapacityStrongReminderActive,
+    guideHeatCapacityStrongReminderControlId,
     settingsLanguagePreference,
   ]);
 
-  const restoreManualHeatCapacityGuideSession = () => {
+  const restoreGuideHeatCapacitySession = () => {
     const restoreFileId = restoredHeatCapacityGuideStrongReminderFileIdRef.current;
     if (!restoreFileId) return;
     if (activeFile.kind !== 'heatCapacity' || activeFile.id !== restoreFileId) return;
-    if (manualHeatCapacityActiveFileId !== restoreFileId) return;
+    if (guideHeatCapacityActiveFileId !== restoreFileId) return;
     if (activeFile.heatCapacityMode !== 'guide') {
       restoredHeatCapacityGuideStrongReminderFileIdRef.current = null;
       restoredHeatCapacityGuideStrongReminderControlIdRef.current = null;
       return;
     }
-    const latestStep = getHeatCapacityManualStep(activeFile);
+    const latestStep = getHeatCapacityGuideStep(activeFile);
     if (latestStep === 'idle' || latestStep === 'completed') {
       restoredHeatCapacityGuideStrongReminderFileIdRef.current = null;
       restoredHeatCapacityGuideStrongReminderControlIdRef.current = null;
       return;
     }
-    const guidance = getManualStepGuidance(latestStep, activeFile);
+    const guidance = getGuideStepGuidance(latestStep, activeFile);
     const restoredControlId = restoredHeatCapacityGuideStrongReminderControlIdRef.current;
-    activateManualHeatCapacityStrongReminder(restoredControlId ?? guidance.controlId);
+    activateGuideHeatCapacityStrongReminder(restoredControlId ?? guidance.controlId);
     restoredHeatCapacityGuideStrongReminderFileIdRef.current = null;
     restoredHeatCapacityGuideStrongReminderControlIdRef.current = null;
   };
 
   useEffect(() => {
-    restoreManualHeatCapacityGuideSession();
+    restoreGuideHeatCapacitySession();
   }, [
     activeFile.id,
     activeFile.kind,
     activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null,
-    activeHeatCapacityManualStep,
-    manualHeatCapacityActiveFileId,
+    activeHeatCapacityGuideStep,
+    guideHeatCapacityActiveFileId,
     settingsLanguagePreference,
   ]);
 
-  const showHeatCapacityRecordButtonExit = (kind: HeatCapacityManualRecordKind) => {
+  const showHeatCapacityRecordButtonExit = (kind: HeatCapacityGuideRecordKind) => {
     if (heatCapacityRecordControlsClosingTimerRef.current !== null) {
       window.clearTimeout(heatCapacityRecordControlsClosingTimerRef.current);
     }
@@ -6675,10 +6260,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }, 220);
   };
 
-  const recordHeatCapacityManualSample = (kind: HeatCapacityManualRecordKind) => {
+  const recordHeatCapacityGuideSample = (kind: HeatCapacityGuideRecordKind) => {
     if (!activeFile || activeFile.kind !== 'heatCapacity') return;
     const action = kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2';
-    if (!guardManualHeatCapacityAction(action)) return;
+    if (!guardGuideHeatCapacityAction(action)) return;
     const now = Date.now();
     const currentFile = filesRef.current.find((file) => file.id === activeFile.id);
     if (!currentFile || currentFile.kind !== 'heatCapacity') return;
@@ -6707,18 +6292,18 @@ const WorkbenchStudioPrototype: React.FC = () => {
         pushLog(message, 'success');
         return;
       }
-      showManualHeatCapacityGuidance(
+      showGuideHeatCapacityGuidance(
         message,
         kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2',
         'warning',
-        'manual-blocked',
+        'guide-blocked',
       );
       pushLog(message, 'warning');
       return;
     }
   };
 
-  const recordFreeHeatCapacitySample = (kind: HeatCapacityManualRecordKind) => {
+  const recordFreeHeatCapacitySample = (kind: HeatCapacityGuideRecordKind) => {
     if (!activeFile || activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return;
     const now = Date.now();
     const currentFile = filesRef.current.find((file) => file.id === activeFile.id);
@@ -6743,13 +6328,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
     ));
     if (attempt.accepted) {
       markHeatCapacityFocusSessionNonReversible();
-      clearManualHeatCapacityGuidance();
-      showManualHeatCapacityGuidance(message, kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2', 'success');
+      clearGuideHeatCapacityGuidance();
+      showGuideHeatCapacityGuidance(message, kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2', 'success');
       pushLog(message, 'success');
       return;
     }
-    clearManualHeatCapacityGuidance();
-    showManualHeatCapacityGuidance(message, kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2', 'warning', 'manual-blocked');
+    clearGuideHeatCapacityGuidance();
+    showGuideHeatCapacityGuidance(message, kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2', 'warning', 'guide-blocked');
     pushLog(message, 'warning');
   };
 
@@ -6787,7 +6372,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
     const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
     const guardedPowerOn = nextPowerOn ?? (currentFile?.kind === 'heatCapacity' ? !currentFile.powerOn : true);
-    if (!guardManualHeatCapacityAction(guardedPowerOn ? 'turnPowerOn' : 'turnPowerOff', source)) return;
+    if (!guardGuideHeatCapacityAction(guardedPowerOn ? 'turnPowerOn' : 'turnPowerOff', source)) return;
     if (source === 'user') collapseHeatCapacityFreeParameterSidebarForExperimentAction();
     const now = Date.now();
     updateActiveFile((file) => {
@@ -6796,7 +6381,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       const cleanFile = resolvedPowerOn && source === 'user' && (file.heatCapacityPhase === 'demoComplete' || file.runState === 'finished')
         ? file.heatCapacityMode === 'guide'
           ? startHeatCapacityGuideWorkbenchState(file, now)
-          : resetHeatCapacityForManualExperiment(file, now)
+          : resetHeatCapacityForGuideExperiment(file, now)
         : file;
       if (resolvedPowerOn && cleanFile.heatCapacityMode === 'demo' && !cleanFile.heatCapacityExperimentProfile) {
         const experimentProfile = createHeatCapacityAutoDemoProfile();
@@ -6810,10 +6395,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     });
   };
 
-  const activateHeatCapacityManualExperiment = (fileId: string, fileName: string) => {
+  const activateHeatCapacityGuideExperiment = (fileId: string, fileName: string) => {
     const now = Date.now();
-    clearManualHeatCapacityGuidance();
-    setManualHeatCapacityActiveFileId(fileId);
+    clearGuideHeatCapacityGuidance();
+    setGuideHeatCapacityActiveFileId(fileId);
     setAutoDemoStepTitle('');
     setAutoDemoStepDescription('');
     setAutoDemoStepTarget('');
@@ -6827,7 +6412,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     pushLog(`${fileName}: heat-capacity guide mode reset.`, 'success');
   };
 
-  const startHeatCapacityManualExperiment = () => {
+  const startHeatCapacityGuideExperiment = () => {
     if (activeFile.kind !== 'heatCapacity') return;
     const guideFileId = activeFile.id;
     const guideFileName = activeFile.name;
@@ -6842,7 +6427,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setAutoDemoStepTarget('');
     setAutoDemoStepNote('');
     setAutoDemoStepPanelMode('hidden');
-    activateHeatCapacityManualExperiment(guideFileId, guideFileName);
+    activateHeatCapacityGuideExperiment(guideFileId, guideFileName);
     showHeatCapacityAutoDemoCompletionToast(heatCapacityRealtimeCopy.guideModeStartingToast, HEAT_CAPACITY_GUIDE_START_NOTICE_MS);
   };
 
@@ -6892,10 +6477,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     clearHeatCapacityAutoDemoTimers();
     clearHeatCapacityPumpAnimationTimers();
     clearHeatCapacityAutoDemoUiState();
-    clearManualHeatCapacityGuidance();
+    clearGuideHeatCapacityGuidance();
     setPendingRemoveHeatCapacityTrialRecord(null);
-    setManualHeatCapacityActiveFileId(null);
-    setManualHeatCapacityRollback(null);
+    setGuideHeatCapacityActiveFileId(null);
+    setGuideHeatCapacityRollback(null);
     setAutoDemoCompletionMessage(null);
     setHeatCapacityFocusResetKey((key) => key + 1);
     setHeatCapacityHardSphereVisualResetKey((key) => key + 1);
@@ -6919,7 +6504,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         : true
     );
     const stopcockAction = guardedOpen ? 'openStopcock' : 'closeStopcock';
-    if (!guardManualHeatCapacityAction(stopcockAction, source)) return;
+    if (!guardGuideHeatCapacityAction(stopcockAction, source)) return;
     if (source === 'user') collapseHeatCapacityFreeParameterSidebarForExperimentAction();
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
@@ -6947,14 +6532,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
               heatCapacityFreeStopcockFlowPurpose: 'none' as const,
             }
         : {};
-      const isManualReleaseClosure = source === 'user' &&
+      const isGuideReleaseClosure = source === 'user' &&
         !resolvedOpen &&
-        manualHeatCapacityActiveFileId === file.id &&
-        getHeatCapacityManualStep(file) === 'closeStopcockAfterReleaseRequired';
-      const isManualReleaseOpening = source === 'user' &&
+        guideHeatCapacityActiveFileId === file.id &&
+        getHeatCapacityGuideStep(file) === 'closeStopcockAfterReleaseRequired';
+      const isGuideReleaseOpening = source === 'user' &&
         resolvedOpen &&
-        manualHeatCapacityActiveFileId === file.id &&
-        getHeatCapacityManualStep(file) === 'openStopcockReleaseRequired';
+        guideHeatCapacityActiveFileId === file.id &&
+        getHeatCapacityGuideStep(file) === 'openStopcockReleaseRequired';
       const nextFile = stepHeatCapacityWorkbenchFile({
         ...file,
         stopcockAngleDeg,
@@ -6964,10 +6549,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
         pressureDisplayNextJitterAtMs: pressureReleaseBurstUntilMs ? now : file.pressureDisplayNextJitterAtMs,
         updatedAt: now,
       }, now);
-      const releaseStartFile = isManualReleaseOpening
+      const releaseStartFile = isGuideReleaseOpening
         ? captureHeatCapacityWorkbenchSample(nextFile, 'beforeReleaseSample', now, { applyProfile: false })
         : nextFile;
-      const sampledFile = isManualReleaseClosure
+      const sampledFile = isGuideReleaseClosure
         ? captureHeatCapacityWorkbenchSample(releaseStartFile, 'releaseLowSample', now)
         : releaseStartFile;
       return sampledFile.heatCapacityMode === 'free'
@@ -6986,7 +6571,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       showHeatCapacityAutoDemoLockedToast();
       return;
     }
-    if (!guardManualHeatCapacityAction('adjustPressureZero', source)) return;
+    if (!guardGuideHeatCapacityAction('adjustPressureZero', source)) return;
     const now = Date.now();
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
@@ -6999,7 +6584,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       showHeatCapacityAutoDemoLockedToast();
       return;
     }
-    if (!guardManualHeatCapacityAction('adjustPressureZero', source)) return;
+    if (!guardGuideHeatCapacityAction('adjustPressureZero', source)) return;
     const now = Date.now();
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
@@ -7014,7 +6599,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
     const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
     const nextAction = currentFile?.kind === 'heatCapacity' && currentFile.pumpValveOpen ? 'closePumpValve' : 'openPumpValve';
-    if (!guardManualHeatCapacityAction(nextAction, source)) return;
+    if (!guardGuideHeatCapacityAction(nextAction, source)) return;
     if (source === 'user') collapseHeatCapacityFreeParameterSidebarForExperimentAction();
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
@@ -7160,7 +6745,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     now: number,
   ) => {
     const projectedFile = registerHeatCapacityPumpStroke(file, now);
-    return getManualHeatCapacityThresholdPressureMv(projectedFile) >= (
+    return getGuideHeatCapacityThresholdPressureMv(projectedFile) >= (
       getHeatCapacityPressureThresholdsMv(file).pressureDangerThresholdMv
     );
   };
@@ -7196,7 +6781,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         return;
       }
     }
-    if (source !== 'autoDemo' && fileId === activeFileIdRef.current && !guardManualHeatCapacityAction('pumpBulb', source)) return;
+    if (source !== 'autoDemo' && fileId === activeFileIdRef.current && !guardGuideHeatCapacityAction('pumpBulb', source)) return;
     const now = Date.now();
     let nextHeatCapacityFile = fileBeforePump?.kind === 'heatCapacity'
       ? registerHeatCapacityPumpStroke(fileBeforePump, now)
@@ -7206,7 +6791,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       nextHeatCapacityFile?.kind === 'heatCapacity' &&
       nextHeatCapacityFile.heatCapacityMode === 'guide' &&
       nextHeatCapacityFile.heatCapacityGuideWorkflow.step === 'closePumpValveRequired' &&
-      getManualHeatCapacityDisplayedPressureMv(nextHeatCapacityFile) >= HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
+      getGuideHeatCapacityDisplayedPressureMv(nextHeatCapacityFile) >= HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
     );
     if (guidePumpTargetReached) {
       guidePumpInputLockedRef.current = true;
@@ -7216,19 +6801,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
       markHeatCapacityFocusSessionNonReversible();
     }
     const pressureStatusBeforePump = fileBeforePump?.kind === 'heatCapacity'
-      ? getHeatCapacityPressureSafetyStatusFromMv(getManualHeatCapacityThresholdPressureMv(fileBeforePump), fileBeforePump)
+      ? getHeatCapacityPressureSafetyStatusFromMv(getGuideHeatCapacityThresholdPressureMv(fileBeforePump), fileBeforePump)
       : 'normal';
     if (
       source === 'autoDemo' &&
       nextHeatCapacityFile &&
-      getManualHeatCapacityThresholdPressureMv(nextHeatCapacityFile) >= (
+      getGuideHeatCapacityThresholdPressureMv(nextHeatCapacityFile) >= (
         getHeatCapacityPressureThresholdsMv(nextHeatCapacityFile).pressureDangerThresholdMv
       )
     ) {
       return;
     }
     if (source !== 'autoDemo' && fileBeforePump?.kind === 'heatCapacity') {
-      const pressureBeforePumpMv = getManualHeatCapacityThresholdPressureMv(fileBeforePump);
+      const pressureBeforePumpMv = getGuideHeatCapacityThresholdPressureMv(fileBeforePump);
       if (
         pressureBeforePumpMv >= getHeatCapacityPressureThresholdsMv(fileBeforePump).pressureDangerThresholdMv
       ) {
@@ -7257,7 +6842,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return nextHeatCapacityFile;
     });
     if (source !== 'autoDemo' && nextHeatCapacityFile && !guidePumpTargetReached) {
-      const pressureAfterPumpMv = getManualHeatCapacityThresholdPressureMv(nextHeatCapacityFile);
+      const pressureAfterPumpMv = getGuideHeatCapacityThresholdPressureMv(nextHeatCapacityFile);
       const pressureStatusAfterPump = getHeatCapacityPressureSafetyStatusFromMv(pressureAfterPumpMv, nextHeatCapacityFile);
       if (pressureStatusAfterPump === 'danger' && pressureStatusBeforePump !== 'danger') {
         showHeatCapacityPressureAlarm(nextHeatCapacityFile.id, nextHeatCapacityFile.name);
@@ -7273,8 +6858,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
     if (guidePumpTargetReached && nextHeatCapacityFile) {
       exitHeatCapacityFocusMode();
-      const guidance = getManualStepGuidance('closePumpValveRequired', nextHeatCapacityFile);
-      showManualHeatCapacityGuidance(guidance.message, 'pumpValve', 'info', 'manual-guide');
+      const guidance = getGuideStepGuidance('closePumpValveRequired', nextHeatCapacityFile);
+      showGuideHeatCapacityGuidance(guidance.message, 'pumpValve', 'info', 'guide');
     }
     heatCapacityPumpAnimationRef.current.releaseTimerId = window.setTimeout(() => {
       heatCapacityPumpAnimationRef.current.releaseTimerId = null;
@@ -7407,7 +6992,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       ) {
         return;
       }
-      if (!isManualU0ZeroReady(latestFile)) {
+      if (!isGuideU0ZeroReady(latestFile)) {
         const retryTimer = window.setTimeout(() => {
           heatCapacityAutoDemoTimersRef.current = heatCapacityAutoDemoTimersRef.current.filter((id) => id !== retryTimer);
           applyHeatCapacityAutoDemoAction(fileId, 'captureSample', 'zeroedSample');
@@ -7589,8 +7174,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
 
     clearHeatCapacityAutoDemoTimers();
-    clearManualHeatCapacityGuidance();
-    setManualHeatCapacityActiveFileId(null);
+    clearGuideHeatCapacityGuidance();
+    setGuideHeatCapacityActiveFileId(null);
     const demoFileId = activeFile.id;
     const steps = createHeatCapacityAutoDemoSteps();
   const timeline = getHeatCapacityAutoDemoTimeline(steps);
@@ -8858,7 +8443,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       }
       updateActiveFile((file) => {
         if (file.kind !== 'heatCapacity') return file;
-        return resetHeatCapacityForManualExperiment(file, Date.now());
+        return resetHeatCapacityForGuideExperiment(file, Date.now());
       });
       pushLog(`${activeFile.name}: heat-capacity UI state reset.`, 'warning');
       return;
@@ -10113,19 +9698,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const releaseHeatCapacityRuntimeState = (fileId: string) => {
     const ownsAutoDemo = heatCapacityAutoDemoFileIdRef.current === fileId || heatCapacityAutoDemoPausedFileIdRef.current === fileId;
-    const ownsManualGuide = manualHeatCapacityActiveFileId === fileId;
-    if (!ownsAutoDemo && !ownsManualGuide && activeFileIdRef.current !== fileId) return;
+    const ownsGuideSession = guideHeatCapacityActiveFileId === fileId;
+    if (!ownsAutoDemo && !ownsGuideSession && activeFileIdRef.current !== fileId) return;
 
     clearHeatCapacityGuideStartTimer();
     clearHeatCapacityRecordSuccessToastTimers();
     clearHeatCapacityAutoDemoTimers();
     clearHeatCapacityPumpAnimationTimers();
     clearHeatCapacityAutoDemoUiState();
-    clearManualHeatCapacityGuidance();
-    setManualHeatCapacityActiveFileId(null);
-    setManualHeatCapacityFocusControlId(null);
-    setManualHeatCapacityPulseActive(false);
-    setManualHeatCapacityRollback(null);
+    clearGuideHeatCapacityGuidance();
+    setGuideHeatCapacityActiveFileId(null);
+    setGuideHeatCapacityFocusControlId(null);
+    setGuideHeatCapacityPulseActive(false);
+    setGuideHeatCapacityRollback(null);
     heatCapacityFocusSessionRef.current = null;
   };
 
@@ -11806,7 +11391,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             aria-pressed={heatCapacityActiveMode === 'guide'}
             onClick={() => {
               if (heatCapacityActiveMode !== 'guide') {
-                startHeatCapacityManualExperiment();
+                startHeatCapacityGuideExperiment();
               }
             }}
           >
@@ -11904,8 +11489,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
               const guideRecordU2ButtonState = activeFile.heatCapacityMode === 'guide'
                 ? getHeatCapacityGuideRecordButtonState(activeFile, 'u2')
                 : null;
-              const activeGuideRecordKind: HeatCapacityManualRecordKind | null =
-                manualHeatCapacityActiveFileId === activeFile.id &&
+              const activeGuideRecordKind: HeatCapacityGuideRecordKind | null =
+                guideHeatCapacityActiveFileId === activeFile.id &&
                 activeFile.heatCapacityMode === 'guide' &&
                 !autoDemoRunning &&
                 !autoDemoInteractionLocked
@@ -11917,7 +11502,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                         ? 'u2'
                         : null
                   : null;
-              const getGuideRecordLabel = (kind: HeatCapacityManualRecordKind) => (
+              const getGuideRecordLabel = (kind: HeatCapacityGuideRecordKind) => (
                 kind === 'u0'
                   ? heatCapacityRealtimeCopy.recordU0
                   : kind === 'u1'
@@ -11949,19 +11534,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
               const heatCapacityGuideStepPanel = heatCapacityGuideProcessPromptBlocked
                 ? null
                 : (
-                  manualHeatCapacityActiveFileId === activeFile.id &&
+                  guideHeatCapacityActiveFileId === activeFile.id &&
                   activeFile.heatCapacityMode === 'guide' &&
-                  activeHeatCapacityManualStep !== 'idle' &&
-                  activeHeatCapacityManualStep !== 'completed'
+                  activeHeatCapacityGuideStep !== 'idle' &&
+                  activeHeatCapacityGuideStep !== 'completed'
                 )
                   ? (() => {
-                    const heatCapacityGuideCurrentStepIndex = getHeatCapacityGuideChecklistIndex(activeHeatCapacityManualStep);
+                    const heatCapacityGuideCurrentStepIndex = getHeatCapacityGuideChecklistIndex(activeHeatCapacityGuideStep);
                     const heatCapacityGuideViewedStepIndex = Math.max(
                       0,
                       Math.min(HEAT_CAPACITY_GUIDE_CHECKLIST_STEPS.length - 1, heatCapacityGuideChecklistViewedIndex),
                     );
                     const heatCapacityGuideSteps = HEAT_CAPACITY_GUIDE_CHECKLIST_STEPS.map((step, index) => {
-                      const detail = getManualStepGuidance(step.manualStep, activeFile).message;
+                      const detail = getGuideStepGuidance(step.guideStep, activeFile).message;
                       const status = index < heatCapacityGuideCurrentStepIndex
                         ? 'done'
                         : index === heatCapacityGuideCurrentStepIndex
@@ -12014,12 +11599,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
                           >
                             {heatCapacityGuideSteps.map((step) => {
                               const isCentered = step.index === heatCapacityGuideViewedStepIndex;
-                              const requiredRecordKind: HeatCapacityManualRecordKind | null =
-                                step.manualStep === 'recordU0Required'
+                              const requiredRecordKind: HeatCapacityGuideRecordKind | null =
+                                step.guideStep === 'recordU0Required'
                                   ? 'u0'
-                                  : step.manualStep === 'recordU1Required'
+                                  : step.guideStep === 'recordU1Required'
                                     ? 'u1'
-                                    : step.manualStep === 'recordU2Required'
+                                    : step.guideStep === 'recordU2Required'
                                       ? 'u2'
                                       : null;
                               const stepRecordKind = step.status === 'current' && isCentered && requiredRecordKind === activeGuideRecordKind
@@ -12046,14 +11631,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
                                   </span>
                                   {stepRecordKind ? (
                                     <span
-                                      className={`studio-heat-guide-step-record-action studio-heat-record-controls ${manualHeatCapacityPulseActive && manualHeatCapacityFocusControlId?.startsWith('record') ? 'studio-heat-record-controls-pulse' : ''}`}
+                                      className={`studio-heat-guide-step-record-action studio-heat-record-controls ${guideHeatCapacityPulseActive && guideHeatCapacityFocusControlId?.startsWith('record') ? 'studio-heat-record-controls-pulse' : ''}`}
                                       data-heat-capacity-guide-step-record-action="true"
                                       data-heat-capacity-record-controls="true"
                                     >
                                       <button
                                         type="button"
                                         data-heat-capacity-guided-record={stepRecordKind}
-                                        onClick={() => recordHeatCapacityManualSample(stepRecordKind)}
+                                        onClick={() => recordHeatCapacityGuideSample(stepRecordKind)}
                                       >
                                         {renderScientificText(getGuideRecordLabel(stepRecordKind))}
                                       </button>
@@ -12275,14 +11860,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     </div>
                   ) : null}
                   {(() => {
-                    const manualStep = getHeatCapacityManualStep(activeFile);
-                    const activeRecordKind = manualHeatCapacityActiveFileId === activeFile.id && !autoDemoRunning && !autoDemoInteractionLocked
+                    const guideStep = getHeatCapacityGuideStep(activeFile);
+                    const activeRecordKind = guideHeatCapacityActiveFileId === activeFile.id && !autoDemoRunning && !autoDemoInteractionLocked
                       ? activeFile.heatCapacityMode !== 'guide'
-                        ? manualStep === 'recordU0Required'
+                        ? guideStep === 'recordU0Required'
                           ? 'u0'
-                          : manualStep === 'recordU1Required'
+                          : guideStep === 'recordU1Required'
                             ? 'u1'
-                            : manualStep === 'recordU2Required'
+                            : guideStep === 'recordU2Required'
                               ? 'u2'
                               : null
                         : null
@@ -12298,14 +11883,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
                         : heatCapacityRealtimeCopy.recordU2;
                     return (
                       <div
-                        className={`studio-heat-record-controls ${manualHeatCapacityPulseActive && manualHeatCapacityFocusControlId?.startsWith('record') ? 'studio-heat-record-controls-pulse' : ''} ${!activeRecordKind ? 'studio-heat-record-controls-exiting' : ''}`}
+                        className={`studio-heat-record-controls ${guideHeatCapacityPulseActive && guideHeatCapacityFocusControlId?.startsWith('record') ? 'studio-heat-record-controls-pulse' : ''} ${!activeRecordKind ? 'studio-heat-record-controls-exiting' : ''}`}
                         data-heat-capacity-record-controls="true"
                       >
                         <button
                           type="button"
                           data-heat-capacity-guided-record={visibleRecordKind}
                           disabled={!activeRecordKind}
-                          onClick={() => recordHeatCapacityManualSample(visibleRecordKind)}
+                          onClick={() => recordHeatCapacityGuideSample(visibleRecordKind)}
                         >
                           {renderScientificText(label)}
                         </button>
@@ -12342,8 +11927,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   {heatCapacityToastCurrent ? (
                     <div
                       key={heatCapacityToastCurrent.id}
-                      className={`studio-heat-manual-step-hint studio-heat-manual-step-hint-${heatCapacityToastCurrent.level}`}
-                      data-heat-capacity-manual-step-hint="true"
+                      className={`studio-heat-guide-step-hint studio-heat-guide-step-hint-${heatCapacityToastCurrent.level}`}
+                      data-heat-capacity-guide-step-hint="true"
                       data-heat-capacity-toast="true"
                       data-heat-capacity-toast-level={heatCapacityToastCurrent.level}
                     >
@@ -12354,8 +11939,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 </>
               );
               const heatCapacityBottomCenterOverlay = null;
-              const heatCapacityGuideStrongTargetSpec = manualHeatCapacityStrongReminderActive
-                ? getHeatCapacityGuideStrongTargetSpec(manualHeatCapacityStrongReminderControlId)
+              const heatCapacityGuideStrongTargetSpec = guideHeatCapacityStrongReminderActive
+                ? getHeatCapacityGuideStrongTargetSpec(guideHeatCapacityStrongReminderControlId)
                 : null;
               const heatCapacityGuideFocusMode = heatCapacityGuideStrongTargetSpec?.focusMode ?? null;
               const heatCapacityGuideMaskHoles = heatCapacityGuideStrongTargetSpec
@@ -12602,10 +12187,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   hardSphereVisualResetKey={heatCapacityHardSphereVisualResetKey}
                   hardSpherePaused={heatCapacityHardSpherePaused}
                   interactionLocked={autoDemoInteractionLocked}
-                  demoFocusControlId={manualHeatCapacityFocusControlId ?? demoFocusControlId}
-                  demoFocusPulseActive={demoFocusPulseActive || manualHeatCapacityPulseActive}
-                  manualRollbackAnimation={manualHeatCapacityRollback?.animation ?? null}
-                  manualRollbackKey={manualHeatCapacityRollback?.key ?? 0}
+                  demoFocusControlId={guideHeatCapacityFocusControlId ?? demoFocusControlId}
+                  demoFocusPulseActive={demoFocusPulseActive || guideHeatCapacityPulseActive}
+                  guideRollbackAnimation={guideHeatCapacityRollback?.animation ?? null}
+                  guideRollbackKey={guideHeatCapacityRollback?.key ?? 0}
                   focusResetKey={heatCapacityFocusResetKey}
                   overlayTopCenter={heatCapacityTopCenterOverlay}
                   overlayTopRight={heatCapacityTopRightOverlay}
@@ -12614,7 +12199,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   overlayBottomCenter={heatCapacityBottomCenterOverlay}
                   overlayGuideMask={heatCapacityGuideMaskOverlay}
                   guideFocusMode={heatCapacityGuideFocusMode}
-                  guideFocusKey={manualHeatCapacityStrongReminderFocusKey}
+                  guideFocusKey={guideHeatCapacityStrongReminderFocusKey}
                   onGuideTargetHolesChange={setHeatCapacityGuideProjectedHoles}
                   onFocusModeChange={updateHeatCapacityFocusMode}
                   onFocusExitRequest={handleHeatCapacityFocusExitRequest}
@@ -12844,10 +12429,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
         ? heatCapacityRealtimeCopy.zeroStatus.adjustable
         : heatCapacityRealtimeCopy.zeroStatus.notReady;
     const currentHint = (() => {
-      if (manualHeatCapacityActiveFileId === activeFile.id && !autoDemoRunning && !autoDemoPaused && !autoDemoInteractionLocked) {
-        const guideStep = getHeatCapacityManualStep(activeFile);
+      if (guideHeatCapacityActiveFileId === activeFile.id && !autoDemoRunning && !autoDemoPaused && !autoDemoInteractionLocked) {
+        const guideStep = getHeatCapacityGuideStep(activeFile);
         if (guideStep !== 'idle' && guideStep !== 'completed') {
-          return getManualStepGuidance(guideStep, activeFile).message;
+          return getGuideStepGuidance(guideStep, activeFile).message;
         }
       }
       if (heatCapacityDisplayPhase === 'demoComplete') return heatCapacityRealtimeCopy.hints.demoComplete;

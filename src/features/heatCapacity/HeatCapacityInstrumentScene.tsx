@@ -1,4 +1,4 @@
-﻿import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, createPointerEvents, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Edges, Line, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -75,8 +75,8 @@ interface HeatCapacityInstrumentSceneProps {
   demoFocusPulseActive: boolean;
   guideFocusMode?: HeatCapacityFocusMode | null;
   guideFocusKey?: number;
-  manualRollbackAnimation: 'valveBounce' | 'stopcockBounce' | 'pumpBulbBounce' | 'knobBounce' | 'powerBounce' | null;
-  manualRollbackKey: number;
+  guideRollbackAnimation: 'valveBounce' | 'stopcockBounce' | 'pumpBulbBounce' | 'knobBounce' | 'powerBounce' | null;
+  guideRollbackKey: number;
   focusResetKey: number;
   onFocusModeChange: (mode: HeatCapacityFocusMode) => void;
   onFocusExitRequest?: (mode: HeatCapacityFocusMode) => boolean;
@@ -1245,14 +1245,14 @@ function InstrumentBox({
   interactionLocked,
   demoFocusControlId,
   demoFocusPulseActive,
-  manualRollbackAnimation,
-  manualRollbackKey,
+  guideRollbackAnimation,
+  guideRollbackKey,
   onLockedInteraction,
   interactionQualityReduced,
   panelTextInteractionReduced,
   sceneCopy,
   scenePalette,
-}: Pick<HeatCapacityInstrumentSceneProps, 'powerOn' | 'pressureZeroKnobAngle' | 'pressureGaugeDisplayValue' | 'gaugePressureMinKPa' | 'gaugePressureMaxKPa' | 'pressureSafetyThresholdKPa' | 'pressureOverLimit' | 'temperatureSignalMv' | 'pressureSignalMv' | 'onPowerToggle' | 'onPressureZeroFineAdjust' | 'onPressureZeroCoarseAdjust' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
+}: Pick<HeatCapacityInstrumentSceneProps, 'powerOn' | 'pressureZeroKnobAngle' | 'pressureGaugeDisplayValue' | 'gaugePressureMinKPa' | 'gaugePressureMaxKPa' | 'pressureSafetyThresholdKPa' | 'pressureOverLimit' | 'temperatureSignalMv' | 'pressureSignalMv' | 'onPowerToggle' | 'onPressureZeroFineAdjust' | 'onPressureZeroCoarseAdjust' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'guideRollbackAnimation' | 'guideRollbackKey' | 'onLockedInteraction'> & {
   highClarityMode: boolean;
   qualityProfile: HeatCapacityQualityProfile;
   zeroEnabled: boolean;
@@ -1332,7 +1332,7 @@ function InstrumentBox({
   });
 
   useEffect(() => {
-    if (manualRollbackAnimation !== 'knobBounce' || manualRollbackKey <= 0) return undefined;
+    if (guideRollbackAnimation !== 'knobBounce' || guideRollbackKey <= 0) return undefined;
     const startTime = performance.now();
     let frameId = 0;
     const animate = (timestamp: number) => {
@@ -1350,10 +1350,10 @@ function InstrumentBox({
       window.cancelAnimationFrame(frameId);
       setPressureZeroRollbackOffsetDeg(0);
     };
-  }, [invalidate, manualRollbackAnimation, manualRollbackKey]);
+  }, [invalidate, guideRollbackAnimation, guideRollbackKey]);
 
   useEffect(() => {
-    if (manualRollbackAnimation !== 'powerBounce' || manualRollbackKey <= 0) return undefined;
+    if (guideRollbackAnimation !== 'powerBounce' || guideRollbackKey <= 0) return undefined;
     const startTime = performance.now();
     const direction = powerOn ? 1 : -1;
     let frameId = 0;
@@ -1372,7 +1372,7 @@ function InstrumentBox({
       window.cancelAnimationFrame(frameId);
       setPowerSwitchRollbackOffset(0);
     };
-  }, [invalidate, manualRollbackAnimation, manualRollbackKey, powerOn]);
+  }, [invalidate, guideRollbackAnimation, guideRollbackKey, powerOn]);
 
   const getPressureZeroPointerAngle = useCallback((clientX: number, clientY: number) => {
     if (!pressureZeroKnobRef.current) return null;
@@ -1710,12 +1710,12 @@ function GlassStopcock({
   interactionLocked,
   demoFocusControlId,
   demoFocusPulseActive,
-  manualRollbackAnimation,
-  manualRollbackKey,
+  guideRollbackAnimation,
+  guideRollbackKey,
   onLockedInteraction,
   interactionQualityReduced,
   scenePalette,
-}: Pick<HeatCapacityInstrumentSceneProps, 'onStopcockOpenChange' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
+}: Pick<HeatCapacityInstrumentSceneProps, 'onStopcockOpenChange' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'guideRollbackAnimation' | 'guideRollbackKey' | 'onLockedInteraction'> & {
   highClarityMode: boolean;
   angleDeg: number;
   hoveredControl: HeatCapacityHoveredControl;
@@ -1752,7 +1752,7 @@ function GlassStopcock({
   }, [angleDeg]);
 
   useEffect(() => {
-    if (manualRollbackAnimation !== 'stopcockBounce' || manualRollbackKey <= 0) return undefined;
+    if (guideRollbackAnimation !== 'stopcockBounce' || guideRollbackKey <= 0) return undefined;
     const startTime = performance.now();
     let frameId = 0;
     const direction = getHeatCapacityStopcockState(angleDeg) === 'open' ? -1 : 1;
@@ -1770,7 +1770,7 @@ function GlassStopcock({
       window.cancelAnimationFrame(frameId);
       setStopcockRollbackOffsetDeg(0);
     };
-  }, [angleDeg, manualRollbackAnimation, manualRollbackKey]);
+  }, [angleDeg, guideRollbackAnimation, guideRollbackKey]);
 
   const state = getHeatCapacityStopcockState(angleDeg);
   const stopcockHovered = hoveredControl === 'stopcock';
@@ -1933,12 +1933,12 @@ function PressureBottle({
   interactionLocked,
   demoFocusControlId,
   demoFocusPulseActive,
-  manualRollbackAnimation,
-  manualRollbackKey,
+  guideRollbackAnimation,
+  guideRollbackKey,
   onLockedInteraction,
   interactionQualityReduced,
   scenePalette,
-}: Pick<HeatCapacityInstrumentSceneProps, 'onStopcockOpenChange' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
+}: Pick<HeatCapacityInstrumentSceneProps, 'onStopcockOpenChange' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'guideRollbackAnimation' | 'guideRollbackKey' | 'onLockedInteraction'> & {
   highClarityMode: boolean;
   stopcockAngleDeg: number;
   hoveredControl: HeatCapacityHoveredControl;
@@ -2004,8 +2004,8 @@ function PressureBottle({
         interactionLocked={interactionLocked}
         demoFocusControlId={demoFocusControlId}
         demoFocusPulseActive={demoFocusPulseActive}
-        manualRollbackAnimation={manualRollbackAnimation}
-        manualRollbackKey={manualRollbackKey}
+        guideRollbackAnimation={guideRollbackAnimation}
+        guideRollbackKey={guideRollbackKey}
         onLockedInteraction={onLockedInteraction}
         interactionQualityReduced={interactionQualityReduced}
         scenePalette={scenePalette}
@@ -2088,12 +2088,12 @@ function PumpAssembly({
   interactionLocked,
   demoFocusControlId,
   demoFocusPulseActive,
-  manualRollbackAnimation,
-  manualRollbackKey,
+  guideRollbackAnimation,
+  guideRollbackKey,
   onLockedInteraction,
   interactionQualityReduced,
   scenePalette,
-}: Pick<HeatCapacityInstrumentSceneProps, 'pumpValveOpen' | 'pumpBulbState' | 'pumpPulseId' | 'onPumpValveToggle' | 'onPumpBulbPress' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'manualRollbackAnimation' | 'manualRollbackKey' | 'onLockedInteraction'> & {
+}: Pick<HeatCapacityInstrumentSceneProps, 'pumpValveOpen' | 'pumpBulbState' | 'pumpPulseId' | 'onPumpValveToggle' | 'onPumpBulbPress' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'guideRollbackAnimation' | 'guideRollbackKey' | 'onLockedInteraction'> & {
   onFocus: (mode: HeatCapacityFocusMode) => void;
   focusMode: HeatCapacityFocusMode;
   hoveredControl: HeatCapacityHoveredControl;
@@ -2174,7 +2174,7 @@ function PumpAssembly({
   }, [pumpValveOpen]);
 
   useEffect(() => {
-    if (manualRollbackAnimation !== 'valveBounce' || manualRollbackKey <= 0) return undefined;
+    if (guideRollbackAnimation !== 'valveBounce' || guideRollbackKey <= 0) return undefined;
     const startTime = performance.now();
     let frameId = 0;
     const direction = pumpValveOpen ? 1 : -1;
@@ -2192,7 +2192,7 @@ function PumpAssembly({
       window.cancelAnimationFrame(frameId);
       setValveRollbackOffset(0);
     };
-  }, [manualRollbackAnimation, manualRollbackKey, pumpValveOpen]);
+  }, [guideRollbackAnimation, guideRollbackKey, pumpValveOpen]);
 
   useEffect(() => {
     if (pumpPulseId <= 0) return undefined;
@@ -2413,8 +2413,8 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           interactionLocked={props.interactionLocked}
           demoFocusControlId={props.demoFocusControlId}
           demoFocusPulseActive={props.demoFocusPulseActive}
-          manualRollbackAnimation={props.manualRollbackAnimation}
-          manualRollbackKey={props.manualRollbackKey}
+          guideRollbackAnimation={props.guideRollbackAnimation}
+          guideRollbackKey={props.guideRollbackKey}
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
           scenePalette={scenePalette}
@@ -2455,8 +2455,8 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           interactionLocked={props.interactionLocked}
           demoFocusControlId={props.demoFocusControlId}
           demoFocusPulseActive={props.demoFocusPulseActive}
-          manualRollbackAnimation={props.manualRollbackAnimation}
-          manualRollbackKey={props.manualRollbackKey}
+          guideRollbackAnimation={props.guideRollbackAnimation}
+          guideRollbackKey={props.guideRollbackKey}
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
           scenePalette={scenePalette}
@@ -2484,8 +2484,8 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           interactionLocked={props.interactionLocked}
           demoFocusControlId={props.demoFocusControlId}
           demoFocusPulseActive={props.demoFocusPulseActive}
-          manualRollbackAnimation={props.manualRollbackAnimation}
-          manualRollbackKey={props.manualRollbackKey}
+          guideRollbackAnimation={props.guideRollbackAnimation}
+          guideRollbackKey={props.guideRollbackKey}
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
           panelTextInteractionReduced={props.panelTextInteractionReduced}
@@ -3051,7 +3051,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const sceneShouldAnimate = hardSphereViewActive ||
     props.pumpBulbState !== 'idle' ||
     props.demoFocusPulseActive ||
-    Boolean(props.manualRollbackAnimation);
+    Boolean(props.guideRollbackAnimation);
   const interactionQualityReduced = isOrbitInteracting || qualityProfile.reduceInteractionQuality;
   const orbitControlsEnabled = focusMode === 'none' && !props.interactionLocked;
   const cameraViewScheme = useMemo(() => getCameraViewScheme(qualityProfile), [qualityProfile]);

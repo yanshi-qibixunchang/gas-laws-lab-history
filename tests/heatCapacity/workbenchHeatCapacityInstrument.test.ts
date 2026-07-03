@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import {
   adjustHeatCapacityPressureZeroCoarse,
   adjustHeatCapacityPressureZeroFine,
@@ -43,7 +43,7 @@ import {
   registerHeatCapacityPumpStroke,
   recordHeatCapacityFreeTraceEventWithReference,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
-  resetHeatCapacityForManualExperiment,
+  resetHeatCapacityForGuideExperiment,
   resetHeatCapacityFreeRunWorkbenchState,
   normalizeHeatCapacityStopcockAngle,
   powerHeatCapacityWorkbenchFile,
@@ -1720,7 +1720,7 @@ assert.equal(returnedFreeAfterDemo.heatCapacityPhase, 'powerOff');
 assert.equal(returnedFreeAfterDemo.powerOn, false);
 assert.equal(returnedFreeAfterDemo.pumpValveOpen, false);
 
-const manualResetAfterDemo = resetHeatCapacityForManualExperiment({
+const manualResetAfterDemo = resetHeatCapacityForGuideExperiment({
   ...completedDemo,
   heatCapacityProcessSamples: {
     ...completedDemo.heatCapacityProcessSamples,
@@ -2453,7 +2453,7 @@ assert.doesNotMatch(
 );
 assert.match(
   workbenchSource,
-  /manualRollbackAnimation=\{manualHeatCapacityRollback\?\.animation \?\? null\}/,
+  /guideRollbackAnimation=\{guideHeatCapacityRollback\?\.animation \?\? null\}/,
   'guide-mode rollback animation should remain a scene-local visual path rather than a high-frequency Workbench state update',
 );
 

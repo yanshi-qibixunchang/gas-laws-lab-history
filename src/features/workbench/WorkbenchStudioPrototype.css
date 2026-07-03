@@ -4883,7 +4883,7 @@
   .studio-heat-free-speed-overlay-exiting,
   .studio-heat-free-speed-notice,
   .studio-heat-demo-complete-toast,
-  .studio-heat-manual-step-hint,
+  .studio-heat-guide-step-hint,
   .studio-heat-mode-control,
   .studio-heat-mode-actions,
   .studio-shell,
@@ -5328,7 +5328,7 @@
   font-weight: 800;
 }
 
-.studio-heat-manual-step-hint {
+.studio-heat-guide-step-hint {
   display: grid;
   gap: 3px;
   width: min(520px, calc(100% - 80px));
@@ -5664,38 +5664,38 @@
   text-align: center;
 }
 
-.studio-heat-manual-step-hint strong {
+.studio-heat-guide-step-hint strong {
   color: #f8fafc;
   font-size: 13px;
   font-weight: 700;
   line-height: 1.45;
 }
 
-.studio-heat-manual-step-hint-warning {
+.studio-heat-guide-step-hint-warning {
   border-color: rgba(245, 158, 11, 0.7);
 }
 
-.studio-heat-manual-step-hint-success {
+.studio-heat-guide-step-hint-success {
   border-color: rgba(34, 197, 94, 0.62);
 }
 
-.studio-heat-manual-step-hint-danger {
+.studio-heat-guide-step-hint-danger {
   border-color: rgba(248, 113, 113, 0.75);
 }
 
-.studio-heat-manual-step-hint-success .studio-heat-toast-kicker {
+.studio-heat-guide-step-hint-success .studio-heat-toast-kicker {
   color: #86efac;
 }
 
-.studio-heat-manual-step-hint-warning .studio-heat-toast-kicker {
+.studio-heat-guide-step-hint-warning .studio-heat-toast-kicker {
   color: #fbbf24;
 }
 
-.studio-heat-manual-step-hint-danger .studio-heat-toast-kicker {
+.studio-heat-guide-step-hint-danger .studio-heat-toast-kicker {
   color: #fca5a5;
 }
 
-.studio-theme-light .studio-heat-manual-step-hint {
+.studio-theme-light .studio-heat-guide-step-hint {
   border-color: rgba(148, 163, 184, 0.5);
   background: rgba(248, 250, 252, 0.88);
   box-shadow: 0 10px 24px rgba(30, 41, 59, 0.14);
@@ -5803,23 +5803,23 @@
   color: #0f172a;
 }
 
-.studio-theme-light .studio-heat-manual-step-hint-warning {
+.studio-theme-light .studio-heat-guide-step-hint-warning {
   border-color: rgba(217, 119, 6, 0.48);
 }
 
-.studio-theme-light .studio-heat-manual-step-hint-success {
+.studio-theme-light .studio-heat-guide-step-hint-success {
   border-color: rgba(22, 163, 74, 0.42);
 }
 
-.studio-theme-light .studio-heat-manual-step-hint-danger {
+.studio-theme-light .studio-heat-guide-step-hint-danger {
   border-color: rgba(220, 38, 38, 0.52);
 }
 
-.studio-theme-light .studio-heat-manual-step-hint-success .studio-heat-toast-kicker {
+.studio-theme-light .studio-heat-guide-step-hint-success .studio-heat-toast-kicker {
   color: #15803d;
 }
 
-.studio-theme-light .studio-heat-manual-step-hint strong {
+.studio-theme-light .studio-heat-guide-step-hint strong {
   color: #1e293b;
 }
 
@@ -6931,10 +6931,10 @@
 }
 
 .studio-heat-record-controls-pulse button {
-  animation: studio-heat-manual-record-pulse 1.1s ease-in-out infinite;
+  animation: studio-heat-guide-record-pulse 1.1s ease-in-out infinite;
 }
 
-@keyframes studio-heat-manual-record-pulse {
+@keyframes studio-heat-guide-record-pulse {
   0%,
   100% {
     border-color: rgba(123, 201, 155, 0.44);
@@ -6950,10 +6950,10 @@
 }
 
 .studio-theme-light .studio-heat-record-controls-pulse button {
-  animation-name: studio-heat-manual-record-pulse-light;
+  animation-name: studio-heat-guide-record-pulse-light;
 }
 
-@keyframes studio-heat-manual-record-pulse-light {
+@keyframes studio-heat-guide-record-pulse-light {
   0%,
   100% {
     border-color: rgba(22, 163, 74, 0.34);
