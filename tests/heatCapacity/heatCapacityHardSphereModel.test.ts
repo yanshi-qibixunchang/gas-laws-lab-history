@@ -67,7 +67,6 @@ const coldExtension = getHeatCapacityHardSphereVisualState({
   ambientTemperatureK: 298.15,
   phase: 'releasing',
   glassStopcockOpen: true,
-  stopcockFlowOpen: true,
   pumpValveOpen: false,
   pumpBulbState: 'idle',
 });
@@ -102,7 +101,6 @@ const demoTeachingPumping = getHeatCapacityHardSphereVisualState({
   ambientTemperatureK: 298.15,
   phase: 'pumping',
   glassStopcockOpen: false,
-  stopcockFlowOpen: false,
   pumpValveOpen: true,
   pumpBulbState: 'compressing',
   pumpFlowActive: true,
@@ -154,15 +152,13 @@ const releasing = getHeatCapacityHardSphereVisualState({
   ambientTemperatureK: 298.15,
   phase: 'releasing',
   glassStopcockOpen: true,
-  stopcockFlowOpen: true,
   pumpValveOpen: false,
   pumpBulbState: 'idle',
   pressureDeltaKPa: 5.5,
-  releaseFlowActive: true,
 });
 
-assert.equal(releasing.outflowActive, true, 'only the confirmed release flow should trigger particle outflow');
-assert.equal(releasing.outflowDriftSpeed > 0, true, 'confirmed release outflow should create directed drift speed');
+assert.equal(releasing.outflowActive, true, 'open glass stopcock with pressure difference should trigger particle outflow');
+assert.equal(releasing.outflowDriftSpeed > 0, true, 'open glass stopcock with pressure difference should create directed drift speed');
 assert.equal(
   Object.prototype.hasOwnProperty.call(releasing, 'exitSelectionRate'),
   false,
@@ -182,22 +178,20 @@ const confirmedTeachingReleaseStart = getHeatCapacityHardSphereVisualState({
   ambientTemperatureK: 298.15,
   phase: 'releasing',
   glassStopcockOpen: true,
-  stopcockFlowOpen: true,
   pumpValveOpen: false,
   pumpBulbState: 'idle',
   pressureDeltaKPa: 5.5,
-  releaseFlowActive: true,
 });
 
 assert.equal(
   confirmedTeachingReleaseStart.outflowActive,
   true,
-  'confirmed teaching-mode release should start directed molecule outflow immediately, even before progress advances',
+  'teaching-mode open stopcock with pressure difference should start directed molecule outflow immediately',
 );
 assert.equal(
   confirmedTeachingReleaseStart.outflowDriftSpeed >= releasing.outflowDriftSpeed - 0.01,
   true,
-  'teaching-mode release should use the same fast directed outflow drift as free mode once flow is confirmed',
+  'teaching-mode pressure difference should use the same fast directed outflow drift as free mode',
 );
 
 const nearEquilibriumRelease = getHeatCapacityHardSphereVisualState({
@@ -209,11 +203,9 @@ const nearEquilibriumRelease = getHeatCapacityHardSphereVisualState({
   ambientTemperatureK: 298.15,
   phase: 'releasing',
   glassStopcockOpen: true,
-  stopcockFlowOpen: true,
   pumpValveOpen: false,
   pumpBulbState: 'idle',
   pressureDeltaKPa: 0.06,
-  releaseFlowActive: true,
 });
 
 assert.equal(
@@ -245,8 +237,8 @@ assert.equal(
   'a 1.5% physical gas amount increase should be visually exaggerated to at least triple the previous molecule gain',
 );
 
-const clickedButNotConnected = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
+const openStopcockPressureDifferencePoweredOff = getHeatCapacityHardSphereVisualState({
+  powerOn: false,
   temperatureMv: 1490,
   pressureMv: 110,
   gasAmountRatio: 1.06,
@@ -254,15 +246,14 @@ const clickedButNotConnected = getHeatCapacityHardSphereVisualState({
   ambientTemperatureK: 298.15,
   phase: 'releasing',
   glassStopcockOpen: true,
-  stopcockFlowOpen: false,
   pumpValveOpen: false,
   pumpBulbState: 'idle',
   pressureDeltaKPa: 5.5,
-  releaseFlowActive: false,
 });
 
-assert.equal(clickedButNotConnected.outflowActive, false, 'clicking or animating the stopcock before confirmed flow must not trigger directed particle motion');
-assert.equal(clickedButNotConnected.targetParticleCount > releasing.targetParticleCount, true, 'pre-release molecule count should still reflect the larger gas amount');
+assert.equal(openStopcockPressureDifferencePoweredOff.outflowActive, true, 'open glass stopcock with pressure difference should trigger directed particle motion even when the power is off and no release workflow is active');
+assert.equal(openStopcockPressureDifferencePoweredOff.outflowDriftSpeed > 0, true, 'open glass stopcock with pressure difference should create outlet drift without requiring powered sensors');
+assert.equal(openStopcockPressureDifferencePoweredOff.targetParticleCount > releasing.targetParticleCount, true, 'pre-release molecule count should still reflect the larger gas amount');
 
 const noPressureOpen = getHeatCapacityHardSphereVisualState({
   powerOn: true,
@@ -273,11 +264,9 @@ const noPressureOpen = getHeatCapacityHardSphereVisualState({
   ambientTemperatureK: 298.15,
   phase: 'releasing',
   glassStopcockOpen: true,
-  stopcockFlowOpen: true,
   pumpValveOpen: false,
   pumpBulbState: 'idle',
   pressureDeltaKPa: 0,
-  releaseFlowActive: true,
 });
 
 assert.equal(noPressureOpen.outflowActive, false, 'opening the stopcock without pressure difference should not create directed outflow');
@@ -293,11 +282,9 @@ const cooledVentedStandard = getHeatCapacityHardSphereVisualState({
   ambientTemperatureK: 298.15,
   phase: 'recovering',
   glassStopcockOpen: true,
-  stopcockFlowOpen: true,
   pumpValveOpen: false,
   pumpBulbState: 'idle',
   pressureDeltaKPa: 0,
-  releaseFlowActive: false,
   particleMultiplier: 1,
 });
 assert.equal(
@@ -328,11 +315,9 @@ const highParticlePresetVented = getHeatCapacityHardSphereVisualState({
   ambientTemperatureK: 298.15,
   phase: 'recovering',
   glassStopcockOpen: true,
-  stopcockFlowOpen: true,
   pumpValveOpen: false,
   pumpBulbState: 'idle',
   pressureDeltaKPa: 0,
-  releaseFlowActive: false,
   particleMultiplier: 1.25,
 });
 assert.equal(
@@ -350,11 +335,9 @@ const lowPressureRelease = getHeatCapacityHardSphereVisualState({
   ambientTemperatureK: 298.15,
   phase: 'releasing',
   glassStopcockOpen: true,
-  stopcockFlowOpen: true,
   pumpValveOpen: false,
   pumpBulbState: 'idle',
   pressureDeltaKPa: 1,
-  releaseFlowActive: true,
 });
 
 const highPressureRelease = getHeatCapacityHardSphereVisualState({
@@ -366,11 +349,9 @@ const highPressureRelease = getHeatCapacityHardSphereVisualState({
   ambientTemperatureK: 298.15,
   phase: 'releasing',
   glassStopcockOpen: true,
-  stopcockFlowOpen: true,
   pumpValveOpen: false,
   pumpBulbState: 'idle',
   pressureDeltaKPa: 6,
-  releaseFlowActive: true,
 });
 
 assert.equal(
@@ -444,7 +425,7 @@ assert.doesNotMatch(
 assert.doesNotMatch(
   hardSphereLayerSource,
   /outflowBias\s*>\s*0\.48/,
-  'all particles should receive some outlet-directed drift during confirmed release flow',
+  'all particles should receive some outlet-directed drift while the glass stopcock is open under pressure difference',
 );
 assert.match(
   hardSphereSimulationSource,

@@ -30,11 +30,33 @@ assert.equal(configSnapshot.physics.thermal.wallAmbientConductanceWPerK, 0.45);
 assert.equal(configSnapshot.physics.thermal.wallHeatCapacityJPerK, 45);
 assert.equal(configSnapshot.physics.thermal.minimumGasHeatCapacityJPerK, 0.1);
 assert.deepEqual(configSnapshot.physics.leakage, {
-  enabled: false,
-  ratePerS: 0.0005,
+  enabled: true,
+  ratePerS: 0.00005,
+});
+assert.deepEqual(configSnapshot.physics.pumpValveExchange, {
+  enabled: true,
+  gasExchangeRatePerS: 0.005,
+  thermalConductanceWPerK: 0.004,
+  openingDelayS: 0.42,
+});
+assert.deepEqual(configSnapshot.physics.environmentDisturbance, {
+  enabled: true,
+  pressureAmplitudeKPa: 0.002,
+  temperatureAmplitudeK: 0.015,
+  timeScaleS: 180,
 });
 assert.equal(configSnapshot.sensor.pumpLagRate, 36);
 assert.equal(configSnapshot.sensor.fastProcessSampleStepS, 0.04);
+assert.equal(configSnapshot.sensor.temperatureMvAtAmbient, 1499.05);
+assert.equal(configSnapshot.sensor.noiseMv, 0.04);
+assert.equal(configSnapshot.sensor.historyWindowS, 2);
+assert.deepEqual(configSnapshot.sensor.pressureNonlinearity, {
+  enabled: true,
+  kneeMv: 15,
+  minGain: 0.65,
+  exponent: 1.4,
+  extraNoiseMv: 0.08,
+});
 assert.equal(configSnapshot.record.pressureWarningMv, 120);
 assert.equal(configSnapshot.record.u0ZeroToleranceMv, 0.12);
 assert.equal(configSnapshot.scoring.processScoringVersion, 'free-process-score-v1');
@@ -54,7 +76,7 @@ const first = createFreeTraceTrial(store, configSnapshot);
 store = first.store;
 const second = createFreeTraceTrial(store, configSnapshot);
 configSnapshot.physics.thermal.gasWallConductanceWPerK = 999;
-configSnapshot.physics.leakage.enabled = true;
+configSnapshot.physics.leakage.enabled = false;
 
 assert.equal(first.traceTrial.id, 'free-trace-trial-1');
 assert.equal(first.traceTrial.activeBranchId, 'branch-1');
@@ -66,7 +88,7 @@ assert.equal(
 );
 assert.equal(
   first.traceTrial.configSnapshot.physics.leakage.enabled,
-  false,
+  true,
   'trace trial must deep-copy leakage config instead of sharing the source object',
 );
 

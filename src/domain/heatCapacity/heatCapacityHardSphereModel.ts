@@ -39,8 +39,6 @@ export interface HeatCapacityHardSphereVisualInput {
   upperTemperatureMv?: number;
   nominalPressureMv?: number;
   pressureDeltaKPa?: number;
-  stopcockFlowOpen?: boolean;
-  releaseFlowActive?: boolean;
   pumpFlowActive?: boolean;
   pumpFlowIntensity?: number;
 }
@@ -118,8 +116,7 @@ export const getHeatCapacityHardSphereVisualState = (
   const releasePressureFactor = Math.max(pressureFactor, normalizeClamped(pressureDeltaKPa, 0, 6));
   const compressionThermalFactor = Math.max(pressureFactor, normalizeClamped(pressureDeltaKPa, 0, 6));
   const phase = input.phase;
-  const actualOutflow = input.releaseFlowActive === true &&
-    input.stopcockFlowOpen === true &&
+  const actualOutflow = input.glassStopcockOpen === true &&
     Math.abs(pressureDeltaKPa) > HEAT_CAPACITY_HARD_SPHERE_OUTFLOW_EQUILIBRIUM_KPA;
   const activePump = phase === 'pumping' && input.pumpValveOpen && input.pumpBulbState === 'compressing';
   const pumpFlowIntensity = clampNumber(finiteOrFallback(input.pumpFlowIntensity, input.pumpFlowActive ? 1 : 0), 0, 1.6);

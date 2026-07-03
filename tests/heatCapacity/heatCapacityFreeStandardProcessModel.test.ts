@@ -24,6 +24,28 @@ assert.equal(first.seed, second.seed);
 assert.deepEqual(first.recordWindows.map((window) => window.recordId), ['u0', 'u1', 'u2']);
 assert.equal(first.trace.some((point) => point.stageId === 'pump'), true);
 assert.equal(first.trace.some((point) => point.stageId === 'release'), true);
+const stageById = new Map(first.stages.map((stage) => [stage.id, stage]));
+assert.equal(stageById.get('pump')?.countText, 'x18');
+assert.equal(
+  Number(((stageById.get('pump')!.endS - stageById.get('pump')!.startS)).toFixed(2)),
+  12,
+  'standard process should use the fixed 18-stroke / 12 s pump procedure',
+);
+assert.equal(
+  Number(((stageById.get('stabilize')!.endS - stageById.get('stabilize')!.startS)).toFixed(2)),
+  300,
+  'standard process should wait 300 s before recording U1',
+);
+assert.equal(
+  Number(((stageById.get('release')!.endS - stageById.get('release')!.startS)).toFixed(2)),
+  0.35,
+  'standard process should release for the tuned 0.35 s window, not a synthesized duration',
+);
+assert.equal(
+  Number(((stageById.get('recover')!.endS - stageById.get('recover')!.startS)).toFixed(2)),
+  300,
+  'standard process should wait 300 s before recording U2',
+);
 assert.equal(first.assumptions.disturbancesPreserved, true);
 assert.equal(first.assumptions.operationMode, 'standard-operation');
 assert.equal(first.assumptions.stageAligned, true);

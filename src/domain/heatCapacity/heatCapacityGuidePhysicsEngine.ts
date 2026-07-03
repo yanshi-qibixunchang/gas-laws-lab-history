@@ -4,6 +4,9 @@ import {
 import {
   stepFreeThermalState,
 } from './heatCapacityFreeThermalModel.ts';
+import {
+  createDefaultHeatCapacityGuidePhysicsConfig,
+} from './heatCapacityDefaultConfig.ts';
 
 export interface HeatCapacityGuidePhysicsConfig {
   environment: {
@@ -101,21 +104,7 @@ const clampUnit = (value: number) => (
 );
 
 export const createDefaultGuidePhysicsConfig = (): HeatCapacityGuidePhysicsConfig => ({
-  environment: {
-    ambientTemperatureK: 298.15,
-    ambientPressureKPa: 101.3,
-  },
-  vesselVolumeL: 10,
-  gamma: 1.4,
-  pumpAmountGainRatio: 0.0039,
-  pumpPressureLimitKPa: 108.8,
-  stopcockFlowRate: 4.4,
-  thermal: {
-    gasWallConductanceWPerK: 0.115,
-    wallAmbientConductanceWPerK: 0.36,
-    wallHeatCapacityJPerK: 45,
-    minimumGasHeatCapacityJPerK: 0.1,
-  },
+  ...createDefaultHeatCapacityGuidePhysicsConfig(),
 });
 
 export const createDefaultGuidePhysicsState = (

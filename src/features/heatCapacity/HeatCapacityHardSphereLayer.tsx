@@ -48,9 +48,7 @@ interface HeatCapacityHardSphereLayerProps {
   ambientTemperatureK?: number;
   phase: string;
   manualStep?: string | null;
-  releaseFlowActive?: boolean;
   releaseTimeline?: HeatCapacityHardSphereReleaseTimeline;
-  stopcockFlowOpen?: boolean;
   glassStopcockOpen: boolean;
   pumpValveOpen: boolean;
   pumpBulbState: HeatCapacityHardSpherePumpBulbState;
@@ -336,9 +334,7 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
   ambientTemperatureK,
   phase,
   manualStep = null,
-  releaseFlowActive = false,
   releaseTimeline = HEAT_CAPACITY_HARD_SPHERE_IDLE_RELEASE_TIMELINE,
-  stopcockFlowOpen = false,
   glassStopcockOpen,
   pumpValveOpen,
   pumpBulbState,
@@ -388,14 +384,12 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     phase,
     manualStep,
     glassStopcockOpen,
-    stopcockFlowOpen,
     pumpValveOpen,
     pumpBulbState,
     pumpFlowActive,
     pumpFlowIntensity,
     particleMultiplier,
     speedMultiplier,
-    releaseFlowActive,
   }), [
     ambientTemperatureK,
     gasAmountRatio,
@@ -411,9 +405,7 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     pumpFlowActive,
     pumpFlowIntensity,
     pumpValveOpen,
-    releaseFlowActive,
     speedMultiplier,
-    stopcockFlowOpen,
     temperatureMv,
   ]);
 

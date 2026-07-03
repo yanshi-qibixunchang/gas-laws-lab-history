@@ -59,6 +59,16 @@ import {
 
 {
   const config = createDefaultGuidePhysicsConfig();
+  assert.equal(config.vesselVolumeL, 2);
+  assert.equal(config.pumpAmountGainRatio, 0.00345);
+  assert.equal(config.pumpPressureLimitKPa, 109);
+  assert.equal(config.stopcockFlowRate, 5.25);
+  assert.deepEqual(config.thermal, {
+    gasWallConductanceWPerK: 0.14,
+    wallAmbientConductanceWPerK: 0.45,
+    wallHeatCapacityJPerK: 45,
+    minimumGasHeatCapacityJPerK: 0.1,
+  });
   const state0 = createDefaultGuidePhysicsState(config);
   const pumpResult = applyGuidePumpStroke(state0, config, {
     powerOn: true,

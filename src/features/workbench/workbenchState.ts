@@ -43,8 +43,12 @@ import {
   HEAT_CAPACITY_TEMPERATURE_DISPLAY_RESPONSE,
   HEAT_CAPACITY_VIDEO_PROFILE,
   getHeatCapacityDisplayValue,
-  getHeatCapacityRangeMidpoint,
 } from '../../domain/heatCapacity/heatCapacityDisplayResponse.ts';
+import {
+  createDefaultHeatCapacityEnvironmentConfig,
+  createDefaultHeatCapacityFreePhysicsConfig,
+  createDefaultHeatCapacityFreeSensorConfig,
+} from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
 import {
   createDefaultHeatCapacityProcessingResult,
   createHeatCapacityTrials,
@@ -73,11 +77,9 @@ import {
   normalizeFreeLeakageConfig,
 } from '../../domain/heatCapacity/heatCapacityFreeLeakageModel.ts';
 import {
-  DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG,
   normalizeFreePumpValveExchangeConfig,
 } from '../../domain/heatCapacity/heatCapacityFreePumpValveExchangeModel.ts';
 import {
-  DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_DISTURBANCE_CONFIG,
   normalizeFreeEnvironmentDisturbanceConfig,
 } from '../../domain/heatCapacity/heatCapacityFreeEnvironmentDisturbanceModel.ts';
 import {
@@ -90,7 +92,6 @@ import {
   type HeatCapacityFreeSensorState,
 } from '../../domain/heatCapacity/heatCapacityFreeSensorModel.ts';
 import {
-  DEFAULT_HEAT_CAPACITY_FREE_PRESSURE_SENSOR_NONLINEARITY_CONFIG,
   normalizeFreePressureSensorNonlinearityConfig,
 } from '../../domain/heatCapacity/heatCapacityFreePressureSensorNonlinearityModel.ts';
 import {
@@ -306,56 +307,12 @@ export const HEAT_CAPACITY_FREE_ACCELERATED_SAMPLE_STEP_S = HEAT_CAPACITY_FREE_F
 const HEAT_CAPACITY_FREE_ACCELERATED_MAX_SEGMENTS = 600;
 const HEAT_CAPACITY_GUIDE_RELEASE_TARGET_S = 0.35;
 export const DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG: HeatCapacityFreeEnvironmentConfig = {
-  ambientTemperatureK: 298.15,
-  ambientPressureKPa: 101.3,
+  ...createDefaultHeatCapacityEnvironmentConfig(),
 };
-export const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsConfig = {
-  environment: DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG,
-  vesselVolumeL: 2,
-  gamma: 1.4,
-  pumpAmountGainRatio: 0.00345,
-  pumpPressureLimitKPa: 109,
-  stopcockFlowRate: 5.25,
-  thermal: {
-    gasWallConductanceWPerK: 0.14,
-    wallAmbientConductanceWPerK: 0.45,
-    wallHeatCapacityJPerK: 45,
-    minimumGasHeatCapacityJPerK: 0.1,
-  },
-  pumpValveExchange: {
-    ...DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG,
-    enabled: true,
-    gasExchangeRatePerS: 0.005,
-    thermalConductanceWPerK: 0.004,
-    openingDelayS: HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS / 1000,
-  },
-  environmentDisturbance: {
-    ...DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_DISTURBANCE_CONFIG,
-    enabled: true,
-  },
-  leakage: {
-    enabled: true,
-    ratePerS: 0.00005,
-  },
-};
-export const DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG: HeatCapacityFreeSensorConfig = {
-  pressureMvPerKPa: DEFAULT_HEAT_CAPACITY_MODEL_CONFIG.sensor.pressureSensitivityMvPerKPa,
-  temperatureMvAtAmbient: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.initialTemperatureMvRange),
-  temperatureMvPerK: 2,
-  lagRate: 8,
-  noiseMv: 0.04,
-  quantizationMv: 0.01,
-  minSampleIntervalS: 0.08,
-  maxSampleIntervalS: 0.12,
-  historyWindowS: 2,
-  pressureNonlinearity: {
-    ...DEFAULT_HEAT_CAPACITY_FREE_PRESSURE_SENSOR_NONLINEARITY_CONFIG,
-    enabled: true,
-    kneeMv: 15,
-    minGain: 0.65,
-    exponent: 1.4,
-  },
-};
+export const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsConfig =
+  createDefaultHeatCapacityFreePhysicsConfig();
+export const DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG: HeatCapacityFreeSensorConfig =
+  createDefaultHeatCapacityFreeSensorConfig();
 const normalizeHeatCapacityFreeSensorConfig = (
   config: Partial<HeatCapacityFreeSensorConfig> | null | undefined,
 ): HeatCapacityFreeSensorConfig => ({
@@ -401,18 +358,12 @@ export const normalizeHeatCapacityFreePhysicsConfig = (
   };
   return {
     environment,
-    vesselVolumeL: Math.max(0.001, finiteNumberOr(
-      value?.vesselVolumeL,
-      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.vesselVolumeL,
-    )),
+    vesselVolumeL: DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.vesselVolumeL,
     gamma: Math.max(1.001, finiteNumberOr(
       value?.gamma,
       DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.gamma,
     )),
-    pumpAmountGainRatio: Math.max(0.000001, finiteNumberOr(
-      value?.pumpAmountGainRatio,
-      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpAmountGainRatio,
-    )),
+    pumpAmountGainRatio: DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpAmountGainRatio,
     pumpPressureLimitKPa: clampNumber(
       Math.max(0.001, finiteNumberOr(
         value?.pumpPressureLimitKPa,
@@ -1146,16 +1097,16 @@ export const createDefaultHeatCapacityFreeParameterState = (): HeatCapacityFreeP
   return applyHeatCapacityFreeParameterDraftToConfigs(draft);
 };
 
-export const createHeatCapacityGuidePhysicalParameterState = (): HeatCapacityFreeParameterApplyResult => {
+export const createHeatCapacityGuideFreeRuntimeBridgeParameterState = (): HeatCapacityFreeParameterApplyResult => {
   const recordConfig = createDefaultHeatCapacityFreeRecordConfig();
   const physicsConfig = normalizeHeatCapacityFreePhysicsConfig({
     ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
     pumpValveExchange: {
-      ...DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG,
+      ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpValveExchange,
       enabled: false,
     },
     environmentDisturbance: {
-      ...DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_DISTURBANCE_CONFIG,
+      ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.environmentDisturbance,
       enabled: false,
     },
     leakage: {
@@ -1167,7 +1118,7 @@ export const createHeatCapacityGuidePhysicalParameterState = (): HeatCapacityFre
     ...DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
     noiseMv: 0,
     pressureNonlinearity: {
-      ...DEFAULT_HEAT_CAPACITY_FREE_PRESSURE_SENSOR_NONLINEARITY_CONFIG,
+      ...DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.pressureNonlinearity,
       enabled: false,
     },
   });
@@ -1922,8 +1873,8 @@ const createHeatCapacityFreeConfigSnapshotFromFile = (
     physics: {
       ...fallback.physics,
       gamma: file.heatCapacityFreePhysicsConfig.gamma,
-      vesselVolumeL: file.heatCapacityFreePhysicsConfig.vesselVolumeL,
-      pumpAmountGainRatio: file.heatCapacityFreePhysicsConfig.pumpAmountGainRatio,
+      vesselVolumeL: fallback.physics.vesselVolumeL,
+      pumpAmountGainRatio: fallback.physics.pumpAmountGainRatio,
       pumpPressureLimitKPa: file.heatCapacityFreePhysicsConfig.pumpPressureLimitKPa,
       stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
       thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
@@ -3464,7 +3415,7 @@ export const resetHeatCapacityForManualExperiment = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
-  const parameterState = createHeatCapacityGuidePhysicalParameterState();
+  const parameterState = createHeatCapacityGuideFreeRuntimeBridgeParameterState();
   const freeRuntimeFields = createDefaultHeatCapacityFreeRuntimeFields(
     `guide-runtime-${file.id}-${now}`,
     parameterState,
@@ -4883,6 +4834,7 @@ export const getHeatCapacityFreeRecordBlockReason = (
   if (kind === 'u1') {
     if (!activeTrial?.u0) return 'missing-u0';
     if (workflowStage !== 'waitingU1' && workflowStage !== 'beforeRelease') return 'invalid-sequence';
+    if (file.pumpValveOpen) return 'invalid-sequence';
     if (releaseHasStarted) return 'invalid-sequence';
     return null;
   }

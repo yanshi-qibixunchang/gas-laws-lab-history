@@ -92,8 +92,8 @@ assert.match(
 );
 assert.match(
   hardSphereLayerSource,
-  /stopcockFlowOpen,[\s\S]*pumpFlowActive,[\s\S]*pumpFlowIntensity,[\s\S]*releaseFlowActive,/,
-  'Hard-sphere visual inputs should use the current full pump and release flow path directly',
+  /glassStopcockOpen,[\s\S]*pumpValveOpen,[\s\S]*pumpBulbState,[\s\S]*pumpFlowActive,[\s\S]*pumpFlowIntensity,/,
+  'Hard-sphere visual inputs should use the glass stopcock angle and current pump flow path directly',
 );
 assert.match(
   hardSphereLayerSource,

@@ -10214,6 +10214,10 @@
   grid-template-columns: 1.4fr 0.9fr 0.8fr 0.8fr 0.9fr;
 }
 
+.studio-heat-free-record-grid-readonly .studio-heat-sample-row {
+  grid-template-columns: 1.4fr 0.9fr 0.8fr 0.8fr;
+}
+
 .studio-heat-sample-row strong,
 .studio-heat-sample-row em {
   display: block;

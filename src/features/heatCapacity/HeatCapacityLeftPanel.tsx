@@ -797,6 +797,10 @@ const renderFreeDataAndResultsTab = (
       </span>
     );
   };
+  const canRemoveCurrentFreeU0 = currentFreeTrialEditable && (currentFreeTrial?.u0 ?? null) !== null;
+  const canRemoveCurrentFreeU1 = currentFreeTrialEditable && (currentFreeTrial?.u1 ?? null) !== null;
+  const canRemoveCurrentFreeU2 = currentFreeTrialEditable && (currentFreeTrial?.u2 ?? null) !== null;
+  const currentFreeTrialActionsVisible = canRemoveCurrentFreeU0 || canRemoveCurrentFreeU1 || canRemoveCurrentFreeU2;
   const renderCurrentFreeRecordRow = (
     key: string,
     label: string,
@@ -810,7 +814,7 @@ const renderFreeDataAndResultsTab = (
       <span className={record ? 'studio-heat-sample-recorded' : 'studio-heat-sample-waiting'}>
         {record ? copy.freeRecording.statusComplete : copy.freeRecording.statusPending}
       </span>
-      <span>{action}</span>
+      {currentFreeTrialActionsVisible ? <span>{action}</span> : null}
     </div>
   );
   return (
@@ -852,31 +856,31 @@ const renderFreeDataAndResultsTab = (
           <strong>{copy.freeRecording.currentTrialTitle}</strong>
           <span>{currentFreeTrial ? copy.freeRecording.currentTrialBadge(currentFreeTrialIndex + 1) : copy.freeRecording.statusPending}</span>
         </div>
-        <div className="studio-heat-sample-grid studio-heat-free-record-grid">
+        <div className={`studio-heat-sample-grid studio-heat-free-record-grid ${currentFreeTrialActionsVisible ? '' : 'studio-heat-free-record-grid-readonly'}`}>
           <div className="studio-heat-sample-row studio-heat-sample-head">
             <span>{copy.freeRecording.record}</span>
             <span>{copy.freeRecording.pressure}</span>
             <span>{copy.freeRecording.temperature}</span>
             <span>{copy.freeRecording.status}</span>
-            <span>{copy.table.action}</span>
+            {currentFreeTrialActionsVisible ? <span>{copy.table.action}</span> : null}
           </div>
           {renderCurrentFreeRecordRow(
             'U₀',
             copy.freeRecording.manualU0,
             currentFreeTrial?.u0 ?? null,
-            renderRemoveRecordButton(currentFreeTrialIndex, 'u0', currentFreeTrialEditable && (currentFreeTrial?.u0 ?? null) !== null),
+            renderRemoveRecordButton(currentFreeTrialIndex, 'u0', canRemoveCurrentFreeU0),
           )}
           {renderCurrentFreeRecordRow(
             'U₁',
             copy.freeRecording.manualU1,
             currentFreeTrial?.u1 ?? null,
-            renderRemoveRecordButton(currentFreeTrialIndex, 'u1', currentFreeTrialEditable && (currentFreeTrial?.u1 ?? null) !== null),
+            renderRemoveRecordButton(currentFreeTrialIndex, 'u1', canRemoveCurrentFreeU1),
           )}
           {renderCurrentFreeRecordRow(
             'U₂',
             copy.freeRecording.manualU2,
             currentFreeTrial?.u2 ?? null,
-            renderRemoveRecordButton(currentFreeTrialIndex, 'u2', currentFreeTrialEditable && (currentFreeTrial?.u2 ?? null) !== null),
+            renderRemoveRecordButton(currentFreeTrialIndex, 'u2', canRemoveCurrentFreeU2),
           )}
         </div>
       </section>

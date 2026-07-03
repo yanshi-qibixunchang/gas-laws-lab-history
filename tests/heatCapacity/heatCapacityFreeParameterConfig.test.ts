@@ -68,7 +68,6 @@ const finalDraftKeys = [
   'leakageEnabled',
   'instrumentNoiseEnabled',
   'pressureMvPerKPa',
-  'vesselVolumeL',
   'gamma',
   'wallHeatCapacityJPerK',
   'leakageRatePerS',
@@ -88,6 +87,7 @@ const excludedDraftKeys = [
   'stopcockFlowRate',
   'gammaRef',
   'pumpAmountGainRatio',
+  'vesselVolumeL',
   'minimumGasHeatCapacityJPerK',
   'quantizationMv',
   'temperatureMvPerK',
@@ -160,6 +160,16 @@ assert.equal(applied.environmentConfig.ambientPressureKPa, 100.8);
 assert.equal(applied.physicsConfig.environment.ambientTemperatureK, 299.25);
 assert.equal(applied.physicsConfig.thermal.gasWallConductanceWPerK, 0.45);
 assert.equal(applied.physicsConfig.thermal.wallAmbientConductanceWPerK, 1.85);
+assert.equal(
+  applied.physicsConfig.vesselVolumeL,
+  2,
+  'applying a Free parameter draft should keep fixed vessel volume at the tuned device default',
+);
+assert.equal(
+  applied.physicsConfig.pumpAmountGainRatio,
+  0.00345,
+  'applying a Free parameter draft should keep fixed pump amount gain at the tuned device default',
+);
 assert.equal(applied.physicsConfig.leakage.enabled, true);
 assert.equal(applied.physicsConfig.leakage.ratePerS, 0.0025);
 assert.equal(applied.sensorConfig.noiseMv, 0.055);

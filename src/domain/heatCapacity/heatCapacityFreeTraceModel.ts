@@ -1,6 +1,21 @@
 import type {
   HeatCapacityRuntimePhase,
 } from './heatCapacityExperimentModel.ts';
+import {
+  FREE_PUMP_STROKE_DURATION_S,
+  FREE_RELEASE_MAIN_DURATION_S,
+  FREE_RELEASE_RESPONSE_DELAY_S,
+} from './heatCapacityFreePhysicsEngine.ts';
+import {
+  HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE,
+} from './heatCapacityFreeSensorModel.ts';
+import {
+  HEAT_CAPACITY_DEFAULT_PRESSURE_WARNING_MV,
+  createDefaultHeatCapacityEnvironmentConfig,
+  createDefaultHeatCapacityFreePhysicsConfig,
+  createDefaultHeatCapacityFreeRecordConfig,
+  createDefaultHeatCapacityFreeSensorConfig,
+} from './heatCapacityDefaultConfig.ts';
 
 export const HEAT_CAPACITY_FREE_TRACE_VERSION = 4;
 export const HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION = 7;
@@ -235,79 +250,58 @@ export const createDefaultFreeTraceStore = (): HeatCapacityFreeTraceStore => ({
   traceTrials: [],
 });
 
-export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapshot => ({
-  version: HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
-  environment: {
-    ambientPressureKPa: 101.3,
-    ambientTemperatureK: 298.15,
-  },
-  physics: {
-    gamma: 1.4,
-    vesselVolumeL: 2,
-    pumpAmountGainRatio: 0.00345,
-    pumpPressureLimitKPa: 109,
-    pumpStrokeDurationS: 0.08,
-    recommendedPumpIntervalS: 0.1,
-    stopcockFlowRate: 4,
-    releaseVisualResponseDelayS: 0.02,
-    releaseVisualMainDurationS: 0.18,
-    thermal: {
-      gasWallConductanceWPerK: 0.14,
-      wallAmbientConductanceWPerK: 0.45,
-      wallHeatCapacityJPerK: 45,
-      minimumGasHeatCapacityJPerK: 0.1,
+export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapshot => {
+  const environment = createDefaultHeatCapacityEnvironmentConfig();
+  const physics = createDefaultHeatCapacityFreePhysicsConfig();
+  const sensor = createDefaultHeatCapacityFreeSensorConfig();
+  const record = createDefaultHeatCapacityFreeRecordConfig();
+  return {
+    version: HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
+    environment,
+    physics: {
+      gamma: physics.gamma,
+      vesselVolumeL: physics.vesselVolumeL,
+      pumpAmountGainRatio: physics.pumpAmountGainRatio,
+      pumpPressureLimitKPa: physics.pumpPressureLimitKPa,
+      pumpStrokeDurationS: FREE_PUMP_STROKE_DURATION_S,
+      recommendedPumpIntervalS: 0.1,
+      stopcockFlowRate: physics.stopcockFlowRate,
+      releaseVisualResponseDelayS: FREE_RELEASE_RESPONSE_DELAY_S,
+      releaseVisualMainDurationS: FREE_RELEASE_MAIN_DURATION_S,
+      thermal: { ...physics.thermal },
+      pumpValveExchange: physics.pumpValveExchange ? { ...physics.pumpValveExchange } : undefined,
+      environmentDisturbance: physics.environmentDisturbance ? { ...physics.environmentDisturbance } : undefined,
+      leakage: { ...physics.leakage },
     },
-    pumpValveExchange: {
-      enabled: false,
-      gasExchangeRatePerS: 0.00015,
-      thermalConductanceWPerK: 0.01,
-      openingDelayS: 0.42,
+    sensor: {
+      pressureMvPerKPa: sensor.pressureMvPerKPa,
+      temperatureMvAtAmbient: sensor.temperatureMvAtAmbient,
+      temperatureMvPerK: sensor.temperatureMvPerK,
+      lagRate: sensor.lagRate,
+      pumpLagRate: HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE,
+      noiseMv: sensor.noiseMv,
+      quantizationMv: sensor.quantizationMv,
+      minSampleIntervalS: sensor.minSampleIntervalS,
+      maxSampleIntervalS: sensor.maxSampleIntervalS,
+      fastProcessSampleStepS: HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S,
+      historyWindowS: sensor.historyWindowS,
+      pressureNonlinearity: sensor.pressureNonlinearity ? { ...sensor.pressureNonlinearity } : undefined,
     },
-    environmentDisturbance: {
-      enabled: false,
-      pressureAmplitudeKPa: 0.002,
-      temperatureAmplitudeK: 0.015,
-      timeScaleS: 180,
+    record: {
+      u0ZeroToleranceMv: record.u0ZeroToleranceMv,
+      pressureStableSlopeMvPerS: record.pressureStableSlopeMvPerS,
+      temperatureStableSlopeMvPerS: record.temperatureStableSlopeMvPerS,
+      temperatureAmbientToleranceMv: record.temperatureAmbientToleranceMv,
+      minimumUsefulU1CorrectedMv: record.minimumUsefulU1CorrectedMv,
+      overVentedMinimumU2CorrectedMv: record.overVentedMinimumU2CorrectedMv,
+      pressureWarningMv: HEAT_CAPACITY_DEFAULT_PRESSURE_WARNING_MV,
+      pressureDangerMv: record.pressureDangerMv,
     },
-    leakage: {
-      enabled: false,
-      ratePerS: 0.0005,
+    scoring: {
+      processScoringVersion: 'free-process-score-v1',
     },
-  },
-  sensor: {
-    pressureMvPerKPa: 20,
-    temperatureMvAtAmbient: 1499,
-    temperatureMvPerK: 2,
-    lagRate: 8,
-    pumpLagRate: 36,
-    noiseMv: 0,
-    quantizationMv: 0.01,
-    minSampleIntervalS: 0.08,
-    maxSampleIntervalS: 0.12,
-    fastProcessSampleStepS: HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S,
-    historyWindowS: 1.2,
-    pressureNonlinearity: {
-      enabled: false,
-      kneeMv: 70,
-      minGain: 0.72,
-      exponent: 1.8,
-      extraNoiseMv: 0.08,
-    },
-  },
-  record: {
-    u0ZeroToleranceMv: 0.12,
-    pressureStableSlopeMvPerS: 0.25,
-    temperatureStableSlopeMvPerS: 0.12,
-    temperatureAmbientToleranceMv: 0.35,
-    minimumUsefulU1CorrectedMv: 90,
-    overVentedMinimumU2CorrectedMv: 0.2,
-    pressureWarningMv: 120,
-    pressureDangerMv: 140,
-  },
-  scoring: {
-    processScoringVersion: 'free-process-score-v1',
-  },
-});
+  };
+};
 
 const createEmptyFreeTraceBranch = (
   id: string,

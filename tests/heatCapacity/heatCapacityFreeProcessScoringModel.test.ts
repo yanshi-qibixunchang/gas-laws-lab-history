@@ -17,11 +17,11 @@ const recordChainItem = completeScore.items.find((item) => item.id === 'recordCh
 
 assert.equal(completeScore.maxScore, 100);
 assert.deepEqual(completeScore.items.map((item) => item.id), ['pumping', 'release', 'recordChain', 'retake']);
-assert.deepEqual(completeScore.items.map((item) => item.maxScore), [20, 20, 50, 10]);
+assert.deepEqual(completeScore.items.map((item) => item.maxScore), [20, 30, 40, 10]);
 assert.equal(completeScore.total !== null && completeScore.total >= 70, true);
 assert.equal(recordChainItem?.status, 'reasonable');
 assert.equal(recordChainItem?.score, recordChainItem?.maxScore);
-assert.deepEqual(recordChainItem?.details.map((detail) => detail.maxScore), [10, 5, 15, 20]);
+assert.deepEqual(recordChainItem?.details.map((detail) => detail.maxScore), [8, 12, 10, 10]);
 assert.deepEqual(recordChainItem?.details.map((detail) => detail.id), [
   'record-chain-completeness',
   'record-chain-result',
@@ -51,7 +51,44 @@ for (const item of completeScore.items) {
 
 const overVented = scoreHeatCapacityFreeProcess(createOverVentedProcessScoringInputFixture());
 assert.equal(overVented.items.find((item) => item.id === 'release')?.status, 'needs-improvement');
-assert.equal((overVented.items.find((item) => item.id === 'release')?.score ?? 20) < 14, true);
+assert.equal((overVented.items.find((item) => item.id === 'release')?.score ?? 30) <= 6, true);
+
+const longReleaseFixture = createCompleteProcessScoringInputFixture();
+const releaseOpenEvent = longReleaseFixture.branch.events.find((event) => (
+  event.type === 'stopcock-open' && longReleaseFixture.summary.u1 && event.atS > longReleaseFixture.summary.u1.atS
+));
+assert.notEqual(releaseOpenEvent, undefined, 'long release fixture needs a release open event');
+const longReleaseBranch = {
+  ...longReleaseFixture.branch,
+  events: longReleaseFixture.branch.events.map((event) => (
+    event.type === 'stopcock-close' && releaseOpenEvent && event.atS >= releaseOpenEvent.atS
+      ? { ...event, atS: releaseOpenEvent.atS + 12 }
+      : event
+  )),
+};
+const longRelease = scoreHeatCapacityFreeProcess({
+  ...longReleaseFixture,
+  branch: longReleaseBranch,
+});
+assert.equal(
+  (longRelease.items.find((item) => item.id === 'release')?.score ?? 30) <= 6,
+  true,
+  'a 12 s release should be treated as a severe operation error',
+);
+
+const largeResultDeviation = scoreHeatCapacityFreeProcess({
+  ...complete,
+  summary: {
+    ...complete.summary,
+    relativeErrorPercent: 25,
+  },
+});
+const largeDeviationRecordChain = largeResultDeviation.items.find((item) => item.id === 'recordChain');
+assert.equal(
+  largeDeviationRecordChain?.details.find((detail) => detail.id === 'record-chain-result')?.score,
+  0,
+  'large gamma deviation should reduce the result score instead of only checking calculability',
+);
 
 const warningFixture = createCompleteProcessScoringInputFixture();
 const warningSample = warningFixture.branch.samples[1];

@@ -81,9 +81,7 @@ type HeatCapacityUltraInstrumentModelProps = {
   phase: string;
   temperatureSignalMv: number | null;
   pressureSignalMv: number | null;
-  releaseFlowActive: boolean;
   releaseTimeline: HeatCapacityHardSphereReleaseTimeline;
-  stopcockFlowOpen: boolean;
   pumpValveOpen: boolean;
   pumpBulbState: 'idle' | 'compressing' | 'releasing';
   pumpPulseId: number;
@@ -2941,9 +2939,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
         gasTemperatureK={props.gasTemperatureK}
         ambientTemperatureK={props.ambientTemperatureK}
         phase={props.phase}
-        releaseFlowActive={props.releaseFlowActive}
         releaseTimeline={props.releaseTimeline}
-        stopcockFlowOpen={props.stopcockFlowOpen}
         glassStopcockOpen={getHeatCapacityStopcockState(props.stopcockAngleDeg) === 'open'}
         pumpValveOpen={props.pumpValveOpen}
         pumpBulbState={props.pumpBulbState}

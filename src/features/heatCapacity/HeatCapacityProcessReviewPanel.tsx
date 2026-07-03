@@ -609,6 +609,20 @@ const getRecordCallout = (
   };
 };
 
+const renderRecordDetail = (
+  record: HeatCapacityProcessRecordEvent,
+  callout: ReturnType<typeof getRecordCallout>,
+  copy: HeatCapacityProcessReviewCopy,
+) => (
+  <g className="hpr-record-detail hpr-record-detail-visible">
+    <rect x={callout.detailX} y={callout.detailY} width={184} height={100} rx={5} />
+    <text x={callout.detailX + 12} y={callout.detailY + 22}>{copy.recordTimeLabel}: {formatSeconds(record.timeS)}</text>
+    <text x={callout.detailX + 12} y={callout.detailY + 44}>{copy.signalLabel}: {formatHeatCapacitySignalMv(record.signalMv)} mV</text>
+    <text x={callout.detailX + 12} y={callout.detailY + 66}>{copy.pressureDeltaLabel}: {record.pressureDeltaKPa.toFixed(2)} kPa</text>
+    <text x={callout.detailX + 12} y={callout.detailY + 88}>{copy.temperatureDeltaLabel}: {record.temperatureDeltaK.toFixed(2)} K</text>
+  </g>
+);
+
 const getControlCallout = (
   event: HeatCapacityProcessControlEvent,
   timeToX: (time: number) => number,
@@ -658,6 +672,9 @@ const SharedTimeline: React.FC<{
     [chart.stages, sharedCompressedDurationS],
   );
   const timeToX = stageLayout.timeToX;
+  const hoveredRecordDetail = hoveredRecordId
+    ? chart.records.find((record) => record.id === hoveredRecordId) ?? null
+    : null;
   return (
     <section
       className="hpr-timeline-block"
@@ -735,7 +752,6 @@ const SharedTimeline: React.FC<{
 
         {chart.records.map((record) => {
           const callout = getRecordCallout(record, timeToX);
-          const hovered = hoveredRecordId === record.id;
           return (
             <g className="hpr-record-event" key={record.id}>
               <path className="hpr-record-line" d={callout.path} />
@@ -750,13 +766,6 @@ const SharedTimeline: React.FC<{
                   {record.label}
                 </text>
                 <rect x={callout.labelX - 8} y={callout.labelY - 17} width={48} height={24} fill="transparent" />
-              </g>
-              <g className={`hpr-record-detail ${hovered ? 'hpr-record-detail-visible' : ''}`}>
-                <rect x={callout.detailX} y={callout.detailY} width={184} height={100} rx={5} />
-                <text x={callout.detailX + 12} y={callout.detailY + 22}>{copy.recordTimeLabel}: {formatSeconds(record.timeS)}</text>
-                <text x={callout.detailX + 12} y={callout.detailY + 44}>{copy.signalLabel}: {formatHeatCapacitySignalMv(record.signalMv)} mV</text>
-                <text x={callout.detailX + 12} y={callout.detailY + 66}>{copy.pressureDeltaLabel}: {record.pressureDeltaKPa.toFixed(2)} kPa</text>
-                <text x={callout.detailX + 12} y={callout.detailY + 88}>{copy.temperatureDeltaLabel}: {record.temperatureDeltaK.toFixed(2)} K</text>
               </g>
             </g>
           );
@@ -782,6 +791,11 @@ const SharedTimeline: React.FC<{
             </g>
           );
         })}
+        {hoveredRecordDetail ? (
+          <g className="hpr-record-detail-layer">
+            {renderRecordDetail(hoveredRecordDetail, getRecordCallout(hoveredRecordDetail, timeToX), copy)}
+          </g>
+        ) : null}
       </svg>
     </section>
   );

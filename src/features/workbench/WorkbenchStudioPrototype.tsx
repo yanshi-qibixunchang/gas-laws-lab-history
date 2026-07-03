@@ -977,19 +977,6 @@ const heatCapacityFreeBasicNumberParameters: HeatCapacityFreeNumberParameterDefi
     fromInputValue: (celsius) => celsius + 273.15,
   },
   {
-    id: 'vesselVolumeL',
-    label: { 'zh-CN': '容器体积', 'zh-TW': '容器體積', en: 'Vessel volume' },
-    parts: ['V'],
-    unit: 'L',
-    effect: {
-      'zh-CN': '决定同一次打气在容器内形成的压强变化幅度。',
-      'zh-TW': '決定同一次打氣在容器內形成的壓強變化幅度。',
-      en: 'Sets how strongly one pump stroke changes the vessel pressure.',
-    },
-    precision: 3,
-    min: 0.001,
-  },
-  {
     id: 'pressureMvPerKPa',
     label: { 'zh-CN': '压力灵敏度', 'zh-TW': '壓力靈敏度', en: 'Pressure sensitivity' },
     parts: ['S', { sub: 'p' }],
@@ -3977,6 +3964,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const heatCapacityPressureAlarmTimerRef = useRef<number | null>(null);
   const heatCapacityClosePumpValveReminderTimerRef = useRef<number | null>(null);
   const heatCapacityFocusSessionRef = useRef<HeatCapacityFocusSession | null>(null);
+  const heatCapacityPumpFocusAlarmBlockedFileIdsRef = useRef<Set<string>>(new Set());
   const guidePumpInputLockedRef = useRef(false);
   const guidePassivePumpTargetNoticeKeyRef = useRef<string | null>(null);
   const heatCapacityPressureAlarmVisibleRef = useRef(false);
@@ -6060,6 +6048,28 @@ const WorkbenchStudioPrototype: React.FC = () => {
     };
   };
 
+  const isHeatCapacityPumpFocusBlockedByAlarm = (
+    file: WorkbenchHeatCapacityState,
+  ) => {
+    const alarmedForFile = heatCapacityPumpFocusAlarmBlockedFileIdsRef.current.has(file.id);
+    const activeDanger = (
+      file.pressureSafetyStatus === 'danger' ||
+      file.pressureOverLimit ||
+      heatCapacityPressureAlarmVisibleRef.current
+    );
+    const samePumpingSession = (
+      file.pumpValveOpen ||
+      file.pumpStrokeCount > 0 ||
+      file.heatCapacityFreePhysicsState.pumpStrokeCount > 0 ||
+      file.heatCapacityGuidePhysicsState.pumpStrokeCount > 0
+    );
+    if (alarmedForFile && !activeDanger && !samePumpingSession) {
+      heatCapacityPumpFocusAlarmBlockedFileIdsRef.current.delete(file.id);
+      return false;
+    }
+    return activeDanger || (alarmedForFile && samePumpingSession);
+  };
+
   const exitHeatCapacityFocusMode = () => {
     const session = heatCapacityFocusSessionRef.current;
     if (session) {
@@ -6095,6 +6105,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
     const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
     if (currentFile?.kind === 'heatCapacity') {
+      if (mode === 'pump' && isHeatCapacityPumpFocusBlockedByAlarm(currentFile)) {
+        exitHeatCapacityFocusMode();
+        showHeatCapacityToast(heatCapacityRealtimeCopy.closePumpValveReminder, 'warning', {
+          interrupt: true,
+          priority: HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY,
+          source: 'pressure-close-valve',
+        });
+        return;
+      }
       const currentSession = heatCapacityFocusSessionRef.current;
       heatCapacityFocusSessionRef.current = currentSession?.fileId === currentFile.id
         ? {
@@ -6135,6 +6154,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const showHeatCapacityPressureAlarm = (fileId: string, fileName: string) => {
     clearHeatCapacityToastQueue();
+    heatCapacityPumpFocusAlarmBlockedFileIdsRef.current.add(fileId);
     setHeatCapacityPressureAlarmVisible(true);
     exitHeatCapacityFocusMode();
     pushLog(heatCapacityRealtimeCopy.pressureAlarmLog(fileName), 'warning');
@@ -7572,6 +7592,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return;
     }
     const fileBeforePump = filesRef.current.find((file) => file.id === fileId);
+    if (
+      source !== 'autoDemo' &&
+      fileBeforePump?.kind === 'heatCapacity' &&
+      fileBeforePump.heatCapacityMode === 'free' &&
+      isHeatCapacityPumpFocusBlockedByAlarm(fileBeforePump)
+    ) {
+      showHeatCapacityPressureAlarm(fileBeforePump.id, fileBeforePump.name);
+      return;
+    }
     if (
       source !== 'autoDemo' &&
       fileBeforePump?.kind === 'heatCapacity' &&
@@ -13042,7 +13071,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   pressureReleaseBurstActive={!activeHeatCapacityUsesPhysicalKernel && typeof activeFile.pressureReleaseBurstUntilMs === 'number' && heatCapacitySceneNow <= activeFile.pressureReleaseBurstUntilMs}
                   releaseFlowActive={releaseFlowActive}
                   releaseTimeline={heatCapacityHardSphereReleaseTimeline}
-                  stopcockFlowOpen={stopcockFlowOpen}
                   pumpFlowActive={pumpFlowActive}
                   pumpFlowIntensity={pumpFlowIntensity}
                   hardSphereViewEnabled={activeFile.hardSphereViewEnabled}

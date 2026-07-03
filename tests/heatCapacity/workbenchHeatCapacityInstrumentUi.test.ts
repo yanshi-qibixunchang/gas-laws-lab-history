@@ -15,6 +15,7 @@ const processReviewStylePath = join(process.cwd(), 'src', 'features', 'heatCapac
 const processReviewStageScalePath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'heatCapacityProcessReviewStageScale.ts');
 const trialModelPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityTrialModel.ts');
 const parameterConfigPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityFreeParameterConfig.ts');
+const defaultConfigPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityDefaultConfig.ts');
 const workbenchPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx');
 const statePath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchState.ts');
 const sessionPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchSession.ts');
@@ -53,6 +54,7 @@ const freeCopySection = leftPanelSource.match(/const freeCopyByLanguage = \{[\s\
 const hardSphereToggleMountSection = sceneSource.match(/<HeatCapacityHardSphereToggle[\s\S]*?\/>/)?.[0] ?? '';
 const trialModelSource = readFileSync(trialModelPath, 'utf8');
 const parameterConfigSource = readFileSync(parameterConfigPath, 'utf8');
+const defaultConfigSource = readFileSync(defaultConfigPath, 'utf8');
 const stateSource = readFileSync(statePath, 'utf8');
 const sessionSource = readFileSync(sessionPath, 'utf8');
 const heatCapacityPersistencePath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityPersistence.ts');
@@ -550,6 +552,12 @@ assert.match(processReviewPanelSource, /chart\.records\.map/, 'process review ch
 assert.doesNotMatch(processReviewPanelSource, /chart\.bestWindows\.map/, 'process review charts should not consume best-window data for plot bands');
 assert.match(processReviewPanelSource, /formatHeatCapacitySignalMv\(record\.signalMv\)/, 'process review record hover mV signal should show one truncated decimal');
 assert.doesNotMatch(processReviewPanelSource, /record\.signalMv\.toFixed\(2\)/, 'process review record hover mV signal should not show two decimals');
+assert.match(processReviewPanelSource, /const hoveredRecordDetail = hoveredRecordId[\s\S]*className="hpr-record-detail-layer"/, 'record hover detail should render from a dedicated top SVG layer');
+assert.equal(
+  processReviewPanelSource.indexOf('{hoveredRecordDetail ? (') > processReviewPanelSource.indexOf('{chart.controls.map((event) => {'),
+  true,
+  'record hover detail layer should be painted after control event dots so dots cannot cover the tooltip',
+);
 assert.doesNotMatch(leftPanelSource, /data-heat-capacity-calculate="free"/, 'Free Mode results should be derived automatically without a separate calculate button');
 assert.match(leftPanelSource, /data-heat-capacity-calculate="teaching"/, 'Teaching calculate button should expose a stable browser-automation selector');
 assert.doesNotMatch(processReviewStyleSource, /\.hpr-reference-line|--hpr-reference-line/, 'standard reference styles should be removed');
@@ -590,6 +598,8 @@ assert.match(processReviewStyleSource, /\.hpr-stage-focus-area\s*\{[\s\S]*fill-o
 assert.match(processReviewPanelSource, /upperBoundGamma/, 'summary should display operation upper-bound gamma');
 assert.match(processReviewPanelSource, /upperBoundGapPercent/, 'summary should display actual-vs-upper-bound gap');
 assert.match(processReviewPanelSource, /review\.score\.total/, 'summary should display operation score');
+assert.match(processReviewStyleSource, /\.hpr-summary-grid > div\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-direction:\s*column;/, 'summary metric cells should use column flex layout so help buttons do not shift value baselines');
+assert.match(processReviewStyleSource, /\.hpr-summary-grid \.hpr-summary-label-with-help\s*\{[\s\S]*height:\s*15px;/, 'summary help labels should keep the same title-row height as ordinary labels');
 assert.match(processReviewPanelSource, /row\.relation/, 'diagnosis rows should explain relation to best windows or reference');
 assert.match(processReviewPanelSource, /row\.score/, 'diagnosis rows should display item scores');
 assert.match(processReviewPanelSource, /mode !== 'free'/, 'process review scoring should remain Free Mode only');
@@ -679,6 +689,10 @@ assert.doesNotMatch(freeRecordTableHeaderSection, /copy\.freeRecording\.u1Correc
 assert.doesNotMatch(freeCurrentTrialSection, /copy\.freeRecording\.calibration|calibrationVersion/, 'Free current-trial main table should not show internal calibration version values');
 assert.match(freeCurrentTrialSection, /studio-heat-free-record-grid/, 'Free current-trial status grid should use the fixed five-column Free record grid class');
 assert.match(styleSource, /\.studio-heat-free-record-grid \.studio-heat-sample-row\s*\{[\s\S]*grid-template-columns:\s*1\.4fr 0\.9fr 0\.8fr 0\.8fr 0\.9fr/, 'Free record grids should have a stable five-column layout after removing calibration');
+assert.match(leftPanelSource, /const currentFreeTrialActionsVisible = canRemoveCurrentFreeU0 \|\| canRemoveCurrentFreeU1 \|\| canRemoveCurrentFreeU2/, 'Free current-trial status should compute whether row actions are actually visible');
+assert.match(freeCurrentTrialSection, /currentFreeTrialActionsVisible \? <span>\{copy\.table\.action\}<\/span> : null/, 'Free current-trial status should not render an empty action header while reviewing a read-only completed group');
+assert.match(leftPanelSource, /currentFreeTrialActionsVisible \? <span>\{action\}<\/span> : null/, 'Free current-trial rows should not reserve an empty action cell while actions are hidden');
+assert.match(styleSource, /\.studio-heat-free-record-grid-readonly \.studio-heat-sample-row\s*\{[\s\S]*grid-template-columns:\s*1\.4fr 0\.9fr 0\.8fr 0\.8fr/, 'Free current-trial read-only status grid should collapse to four columns when no row action exists');
 assert.match(leftPanelSource, /data-heat-capacity-free-trial-detail="true"[\s\S]*copy\.freeRecording\.u1Corrected[\s\S]*copy\.freeRecording\.u2Corrected/, 'Free trial details should keep zero-corrected U1/U2 available without duplicating the main columns');
 assert.match(freeCurrentTrialSection, /renderRemoveRecordButton\(currentFreeTrialIndex,\s*'u0'[\s\S]*renderRemoveRecordButton\(currentFreeTrialIndex,\s*'u1'[\s\S]*renderRemoveRecordButton\(currentFreeTrialIndex,\s*'u2'/, 'Free current-trial status should expose delete actions for U0, U1, and U2');
 assert.match(freeRecordTableSection, /renderRemoveRecordButton\(\s*index,\s*'trial'/, 'Free record table should expose only whole-group deletion');
@@ -835,8 +849,10 @@ assert.match(workbenchSource, /activeFile\.heatCapacityMode === 'guide'[\s\S]*ac
 assert.match(workbenchSource, /activeFile\.heatCapacityMode === 'guide'[\s\S]*activeFile\.heatCapacityGuidePhysicsState\.gasTemperatureK/, 'Guide hard-sphere visualization should use Guide physics gas temperature for color and speed mapping');
 assert.doesNotMatch(workbenchSource, /gasAmountRatio=\{activeFile\.heatCapacityFreePhysicsState\.gasAmountRatio\}/, 'Workbench should not pass Free gas amount directly to all Heat Capacity modes');
 assert.doesNotMatch(workbenchSource, /gasTemperatureK=\{activeFile\.heatCapacityFreePhysicsState\.gasTemperatureK\}/, 'Workbench should not pass Free gas temperature directly to all Heat Capacity modes');
-assert.match(sceneSource, /releaseFlowActive=\{props\.releaseFlowActive\}/, 'hard-sphere scene should pass confirmed release flow instead of click timing');
-assert.match(sceneSource, /stopcockFlowOpen=\{props\.stopcockFlowOpen\}/, 'hard-sphere scene should distinguish confirmed stopcock flow from the visual valve angle');
+assert.doesNotMatch(hardSphereLayerSource, /releaseFlowActive\?:\s*boolean|stopcockFlowOpen\?:\s*boolean/, 'hard-sphere particle layer should not keep old release-flow gates for directed outlet drift');
+assert.doesNotMatch(hardSphereModelSource, /releaseFlowActive\?:\s*boolean|stopcockFlowOpen\?:\s*boolean/, 'hard-sphere visual model should not accept old release-flow gates after drift is based on glass stopcock plus pressure difference');
+assert.match(sceneSource, /glassStopcockOpen=\{stopcockState === 'open'\}/, 'procedural hard-sphere scene should pass the visual glass stopcock angle for directed outlet drift');
+assert.match(ultraModelSource, /glassStopcockOpen=\{getHeatCapacityStopcockState\(props\.stopcockAngleDeg\) === 'open'\}/, 'Ultra hard-sphere scene should pass the visual glass stopcock angle for directed outlet drift');
 assert.match(hardSphereModelSource, /type HeatCapacityHardSphereReleasePhase[\s\S]*'post-release-exchange'/, 'hard-sphere model should define an explicit release timeline phase for long-open exchange');
 assert.match(sceneSource, /releaseTimeline:\s*HeatCapacityHardSphereReleaseTimeline/, 'instrument scene should receive the hard-sphere release timeline');
 assert.match(sceneSource, /releaseTimeline=\{props\.releaseTimeline\}/, 'instrument scene should pass the release timeline into the hard-sphere layer');
@@ -862,15 +878,15 @@ assert.match(workbenchSource, /const heatCapacitySceneNow = Date\.now\(\)/, 'Wor
 assert.match(workbenchSource, /const heatCapacityPhysicalReleaseReference = activeFile\.heatCapacityMode === 'guide'[\s\S]*activeFile\.heatCapacityGuidePhysicsState\.releaseReference[\s\S]*activeFile\.heatCapacityFreePhysicsState\.releaseReference/, 'Free and Guide modes should drive particle release from their own physical release reference');
 assert.match(workbenchSource, /const physicalReleaseFlowActive = activeHeatCapacityUsesVisualPhysics[\s\S]*heatCapacityPhysicalStopcockFlowOpen[\s\S]*heatCapacityPhysicalReleaseReference !== null[\s\S]*activeFile\.pressureDeltaKPa > 0\.08/, 'Free and Guide release flow should use the relevant physical stopcock state and live pressure difference');
 assert.match(workbenchSource, /const teachingReleaseFlowActive = !activeHeatCapacityUsesVisualPhysics[\s\S]*teachingStopcockFlowOpen[\s\S]*teachingReleaseRemainingMs > 0/, 'Demo mode should keep the teaching-script release particle outflow');
-assert.match(workbenchSource, /const releaseFlowActive = physicalReleaseFlowActive \|\| teachingReleaseFlowActive/, 'particle release flow should combine physical and teaching modes');
-assert.match(workbenchSource, /const stopcockFlowOpen = activeHeatCapacityUsesVisualPhysics[\s\S]*heatCapacityPhysicalStopcockFlowOpen[\s\S]*teachingStopcockFlowOpen/, 'particle stopcock-flow state should come from the relevant mode');
+assert.match(workbenchSource, /const releaseFlowActive = physicalReleaseFlowActive \|\| teachingReleaseFlowActive/, 'release-flow note and scheduled release budget should combine physical and teaching modes');
+assert.match(workbenchSource, /const stopcockFlowOpen = activeHeatCapacityUsesVisualPhysics[\s\S]*heatCapacityPhysicalStopcockFlowOpen[\s\S]*teachingStopcockFlowOpen/, 'release timeline state should come from the relevant physical or teaching mode');
 assert.match(workbenchSource, /getHeatCapacityFreeStopcockFlowPurpose[\s\S]*heatCapacityFreeStopcockFlowPurpose: stopcockFlowPurpose/, 'Free Mode stopcock opening should persist whether the open flow is zeroing or release');
 assert.match(sceneSource, /pressureDeltaKPa=\{props\.pressureDeltaKPa\}/, 'hard-sphere scene should still pass runtime pressure difference for secondary flow intensity and gauges');
 assert.match(hardSphereLayerSource, /pressureDeltaKPa\?:\s*number/, 'hard-sphere particle layer should accept runtime pressure difference independent of powered instrument readouts');
 assert.match(hardSphereLayerSource, /gasAmountRatio\?:\s*number/, 'hard-sphere particle layer should accept physical gas amount for molecule count');
-assert.match(hardSphereLayerSource, /releaseFlowActive\?:\s*boolean/, 'hard-sphere particle layer should accept confirmed release flow state');
+assert.match(hardSphereModelSource, /const actualOutflow = input\.glassStopcockOpen === true &&[\s\S]*Math\.abs\(pressureDeltaKPa\) > HEAT_CAPACITY_HARD_SPHERE_OUTFLOW_EQUILIBRIUM_KPA/, 'hard-sphere directed drift should depend only on glass stopcock angle and pressure difference');
 assert.doesNotMatch(hardSphereLayerSource, /releaseProgress\?:\s*number|releaseProgress,/, 'hard-sphere particle layer should not keep the old release-progress prop after adopting release timelines');
-assert.doesNotMatch(hardSphereLayerSource, /outflowActive:\s*actualOutflow[\s\S]*releaseBurstActive === true && input\.glassStopcockOpen/, 'hard-sphere outflow must not be triggered by visual stopcock click state');
+assert.doesNotMatch(hardSphereLayerSource, /outflowActive:\s*actualOutflow[\s\S]*releaseBurstActive === true && input\.glassStopcockOpen/, 'hard-sphere outflow must not be triggered by the old click-time release burst window');
 assert.match(hardSphereLayerSource, /material\.emissiveIntensity = clampNumber\(\s*particleColors\.emissiveBase \+ visualState\.emissiveIntensity \* particleColors\.emissiveScale/, 'hard-sphere particle brightness should be theme-specific instead of sharing one dark-scene formula');
 assert.match(stateSource, /HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA/, 'workbench state should use an explicit pressure-difference threshold for stopcock release');
 assert.match(stateSource, /pressureReleaseBurstUntilMs/, 'heat-capacity state should persist the one-second pressure release burst window');
@@ -1399,7 +1415,7 @@ assert.match(workbenchSource, /pressureAlarmTitle:\s*'报警'/, 'center alarm ti
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV = 90/, 'manual pumping should consider 90 mV sufficient instead of the old 100 mV gate');
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 120/, 'suggested stop hint should begin at the confirmed 120 mV target');
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV = 140/, 'alarm should remain above the 4-stroke Free Mode target window');
-assert.match(parameterConfigSource, /minimumUsefulU1CorrectedMv:\s*90/, 'Free U1 recording threshold should stay at 90 mV instead of being lowered');
+assert.match(defaultConfigSource, /minimumUsefulU1CorrectedMv:\s*90/, 'Free U1 recording threshold should stay at 90 mV in the shared default config');
 assert.match(stateSource, /压强已达到建议打气范围，请停止打气并等待回温。/, 'pressure warning copy should use ordinary suggested-stop wording');
 assert.match(workbenchSource, /label:\s*\{ 'zh-CN': '建议停止阈值'[\s\S]*en: 'Suggested-stop threshold' \}/, 'pressure warning parameter label should use suggested-stop wording instead of error-like warning wording');
 assert.match(workbenchSource, /warning:\s*'建议停止'[\s\S]*warningNote:\s*'等待回温'/, 'warning safety status should read as a normal suggested-stop state');
@@ -1435,6 +1451,15 @@ assert.match(workbenchSource, /clearHeatCapacityToastQueue\(\)[\s\S]*setHeatCapa
 assert.match(workbenchSource, /<span>\{heatCapacityRealtimeCopy\.pressureWarningFallback\}<\/span>/, 'center pressure alarm should always show the confirmed alarm message instead of a stale realtime safety message');
 assert.doesNotMatch(workbenchSource, /activeFile\.pressureSafetyMessage \?\? heatCapacityRealtimeCopy\.pressureWarningFallback/, 'center pressure alarm must not reuse warning-region safety copy');
 assert.match(workbenchSource, /const showHeatCapacityPressureAlarm = [\s\S]*exitHeatCapacityFocusMode\(\);/, 'pressure alarm should exit any manual focus mode');
+assert.match(workbenchSource, /const heatCapacityPumpFocusAlarmBlockedFileIdsRef = useRef<Set<string>>\(new Set\(\)\)/, 'pressure alarm should keep a per-file pump-focus block after exiting focus');
+assert.match(workbenchSource, /const isHeatCapacityPumpFocusBlockedByAlarm = [\s\S]*heatCapacityPumpFocusAlarmBlockedFileIdsRef\.current\.has\(file\.id\)[\s\S]*file\.pressureSafetyStatus === 'danger'/, 'pump focus block should cover both active danger state and files already alarmed in the current pumping session');
+assert.match(workbenchSource, /const showHeatCapacityPressureAlarm = [\s\S]*heatCapacityPumpFocusAlarmBlockedFileIdsRef\.current\.add\(fileId\)[\s\S]*exitHeatCapacityFocusMode\(\);/, 'pressure alarm should mark the current file before leaving pump focus so the user cannot re-enter pump focus');
+assert.match(workbenchSource, /if \([\s\S]*mode === 'pump'[\s\S]*isHeatCapacityPumpFocusBlockedByAlarm\(currentFile\)[\s\S]*return;[\s\S]*heatCapacityFocusSessionRef\.current =/, 'entering pump focus should be blocked once a pressure alarm has fired for the current pumping session');
+assert.match(
+  workbenchSource,
+  /const pressHeatCapacityPumpBulb = [\s\S]*?const fileBeforePump = filesRef\.current\.find\(\(file\) => file\.id === fileId\);[\s\S]*?if \([\s\S]*?source !== 'autoDemo'[\s\S]*?fileBeforePump\?\.kind === 'heatCapacity'[\s\S]*?fileBeforePump\.heatCapacityMode === 'free'[\s\S]*?isHeatCapacityPumpFocusBlockedByAlarm\(fileBeforePump\)[\s\S]*?\) \{[\s\S]*?showHeatCapacityPressureAlarm\(fileBeforePump\.id,\s*fileBeforePump\.name\);[\s\S]*?return;[\s\S]*?\}[\s\S]*?registerHeatCapacityPumpStroke\(fileBeforePump,\s*now\)/,
+  'manual Free Mode pump presses after an active/already-fired pressure alarm should rerun the full alarm exit path before any new pump stroke',
+);
 assert.match(workbenchSource, /showHeatCapacityToast\(heatCapacityRealtimeCopy\.closePumpValveReminder,\s*'warning',\s*\{[\s\S]*interrupt:\s*true,[\s\S]*priority:\s*HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY,[\s\S]*\}\)/, 'post-alarm close-valve reminder should use the same overriding bottom-center hint path');
 {
   const alarmFunctionStart = workbenchSource.indexOf('const showHeatCapacityPressureAlarm =');
@@ -1918,16 +1943,16 @@ const freeBasicNumberParametersSection = workbenchSource.match(/const heatCapaci
 const freeAdvancedNumberParametersSection = workbenchSource.match(/const heatCapacityFreeAdvancedNumberParameters:[\s\S]*?\n\];/)?.[0] ?? '';
 assert.match(
   freeBasicNumberParametersSection,
-  /id:\s*'ambientPressureKPa'[\s\S]*id:\s*'ambientTemperatureK'[\s\S]*id:\s*'vesselVolumeL'[\s\S]*id:\s*'pressureMvPerKPa'/,
-  'Free Mode basic parameter list should expose pressure, Celsius temperature, vessel volume, and pressure sensitivity in order',
+  /id:\s*'ambientPressureKPa'[\s\S]*id:\s*'ambientTemperatureK'[\s\S]*id:\s*'pressureMvPerKPa'/,
+  'Free Mode basic parameter list should expose pressure, Celsius temperature, and pressure sensitivity in order',
 );
 assert.match(freeBasicNumberParametersSection, /parts:\s*\['P',\s*\{\s*sub:\s*'0'\s*\}\]/, 'Free Mode basic parameter list should include P subscript 0');
 assert.match(freeBasicNumberParametersSection, /parts:\s*\['t',\s*\{\s*sub:\s*'0'\s*\}\]/, 'Free Mode basic temperature should use t subscript 0 because the displayed value is Celsius');
 assert.match(freeBasicNumberParametersSection, /id:\s*'ambientTemperatureK'[\s\S]*unit:\s*'℃'[\s\S]*toInputValue:\s*\(kelvin\)\s*=>\s*kelvin - 273\.15[\s\S]*fromInputValue:\s*\(celsius\)\s*=>\s*celsius \+ 273\.15/, 'Free Mode basic temperature should display Celsius while storing Kelvin in the model draft');
-assert.match(freeBasicNumberParametersSection, /id:\s*'vesselVolumeL'[\s\S]*parts:\s*\['V'\][\s\S]*unit:\s*'L'/, 'Free Mode basic parameter list should expose vessel volume as V in liters');
+assert.doesNotMatch(freeBasicNumberParametersSection, /id:\s*'vesselVolumeL'/, 'Free Mode basic parameter list should not expose fixed vessel volume');
 assert.match(freeBasicNumberParametersSection, /id:\s*'pressureMvPerKPa'[\s\S]*parts:\s*\['S',\s*\{\s*sub:\s*'p'\s*\}\][\s\S]*unit:\s*'mV\/kPa'/, 'Free Mode basic parameter list should expose pressure sensitivity as S subscript p');
 assert.doesNotMatch(freeBasicNumberParametersSection, /gasWallConductanceWPerK|wallAmbientConductanceWPerK/, 'Free Mode basic parameter list should not keep advanced heat-exchange conductance fields');
-assert.doesNotMatch(freeAdvancedNumberParametersSection, /id:\s*'pressureMvPerKPa'|id:\s*'vesselVolumeL'/, 'Free Mode advanced parameters should not duplicate fields moved into the basic panel');
+assert.doesNotMatch(freeAdvancedNumberParametersSection, /id:\s*'pressureMvPerKPa'|id:\s*'vesselVolumeL'/, 'Free Mode advanced parameters should not duplicate basic pressure sensitivity or expose fixed vessel volume');
 assert.match(freeAdvancedNumberParametersSection, /id:\s*'gasWallConductanceWPerK'[\s\S]*id:\s*'wallAmbientConductanceWPerK'/, 'Free Mode advanced parameters should retain heat-exchange conductance fields after they leave the basic panel');
 assert.doesNotMatch(workbenchSource, /group:\s*'A' \| 'B' \| 'C' \| 'D'/, 'Free Mode parameter definitions should not keep the old letter-based group type');
 assert.doesNotMatch(freeBasicNumberParametersSection, /group:\s*'[A-D]'/, 'Free Mode basic parameter definitions should not keep stale advanced grouping metadata');

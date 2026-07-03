@@ -31,10 +31,14 @@ export interface HeatCapacityProcessScoringInput {
 
 export const SCORE_MAX = {
   pumping: 20,
-  release: 20,
-  recordChain: 50,
+  release: 30,
+  recordChain: 40,
   retake: 10,
 } as const;
+
+const RELEASE_MIN_REASONABLE_DURATION_S = 0.25;
+const RELEASE_MAX_REASONABLE_DURATION_S = 2.5;
+const RELEASE_SEVERE_DURATION_S = 5;
 
 const formatNumber = (value: number | null | undefined, digits = 2) => (
   typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '--'
@@ -285,8 +289,8 @@ const createReleaseDetails = (input: {
     id: 'release-valve',
     label: '开阀放气',
     score: input.valveScore,
-    maxScore: 6,
-    status: statusFromScore(input.valveScore, 6),
+    maxScore: 14,
+    status: statusFromScore(input.valveScore, 14),
     evidence: `放气 ${input.durationText}。`,
     reason: input.valveReason,
     recommendation: input.valveRecommendation,
@@ -295,8 +299,8 @@ const createReleaseDetails = (input: {
     id: 'release-response',
     label: '泄放响应',
     score: input.responseScore,
-    maxScore: 6,
-    status: statusFromScore(input.responseScore, 6),
+    maxScore: 8,
+    status: statusFromScore(input.responseScore, 8),
     evidence: `U2/U1 = ${input.ratioText}。`,
     reason: input.responseReason,
     recommendation: input.responseRecommendation,
@@ -372,11 +376,17 @@ const scoreRelease = (
   const durationText = `${formatNumber(durationS, 1)} s`;
   const ratioText = formatNumber(ratio, 2);
   const overVented = input.summary.u2.pressureDeltaKPa <= 0 || ratio < 0.08;
-  const durationReview = durationS !== null && (durationS < 0.25 || durationS > 2.5);
-  const valveScore = overVented ? 2 : durationReview ? 4 : 6;
-  const responseScore = overVented ? 2 : 6;
-  const recoverScore = overVented ? 2 : 4;
-  const retentionScore = overVented ? 2 : 4;
+  const durationMissing = durationS === null;
+  const durationReview = durationS !== null && (
+    durationS < RELEASE_MIN_REASONABLE_DURATION_S ||
+    durationS > RELEASE_MAX_REASONABLE_DURATION_S
+  );
+  const durationSevere = durationMissing || (durationS !== null && durationS > RELEASE_SEVERE_DURATION_S);
+  const severeRelease = overVented || durationSevere;
+  const valveScore = severeRelease ? 0 : durationReview ? 5 : 14;
+  const responseScore = severeRelease ? 2 : durationReview ? 6 : 8;
+  const recoverScore = severeRelease ? 2 : 4;
+  const retentionScore = severeRelease ? 2 : 4;
   const score = valveScore + responseScore + recoverScore + retentionScore;
 
   return createItem({
@@ -384,16 +394,20 @@ const scoreRelease = (
     label: '放气操作',
     maxScore: SCORE_MAX.release,
     score,
-    status: overVented ? 'needs-improvement' : durationReview ? 'review' : 'reasonable',
+    status: severeRelease ? 'needs-improvement' : durationReview ? 'review' : 'reasonable',
     evidence: `U2/U1 = ${ratioText}，放气 ${durationText}。`,
     relation: overVented
       ? 'U2 保留量过低。'
-      : durationReview
+      : durationSevere
+        ? '放气时间严重偏离操作窗口。'
+        : durationReview
         ? '放气时长偏离常规区间。'
         : '泄放响应和 U2 保留量可用于计算。',
     recommendation: overVented
       ? '下一组缩短旋塞开启时间。'
-      : durationReview
+      : durationSevere
+        ? '下一组改为快速开关旋塞，避免持续放气。'
+        : durationReview
         ? '下一组保持更稳定的快速开关动作。'
         : '保持当前快速开关节奏。',
     details: createReleaseDetails({
@@ -403,16 +417,42 @@ const scoreRelease = (
       retentionScore,
       durationText,
       ratioText,
-      valveReason: overVented ? '开阀放气造成过低保留量。' : '开阀放气时长可复盘。',
-      responseReason: overVented ? '泄放响应过强。' : '泄放响应清晰。',
-      recoverReason: overVented ? '回温记录不能修复过度放气。' : '关阀回温链路完整。',
-      retentionReason: overVented ? 'U2/U1 低于可用保留范围。' : 'U2/U1 保留量可用于计算。',
-      valveRecommendation: overVented ? '更快关闭玻璃旋塞。' : '保持当前开关动作。',
-      responseRecommendation: overVented ? '缩短泄放响应持续时间。' : '保持当前泄放动作。',
+      valveReason: overVented
+        ? '开阀放气造成过低保留量。'
+        : durationSevere
+          ? '旋塞开启时间过长，已经不是快速泄放操作。'
+          : durationReview
+            ? '开阀放气时长偏离合理窗口。'
+            : '开阀放气时长可复盘。',
+      responseReason: severeRelease ? '泄放响应已经明显偏离标准操作。' : '泄放响应清晰。',
+      recoverReason: severeRelease ? '回温记录不能修复前面的严重放气偏差。' : '关阀回温链路完整。',
+      retentionReason: overVented
+        ? 'U2/U1 低于可用保留范围。'
+        : durationSevere
+          ? 'U2/U1 虽然仍可计算，但持续放气已经破坏标准操作窗口。'
+          : 'U2/U1 保留量可用于计算。',
+      valveRecommendation: severeRelease ? '更快关闭玻璃旋塞。' : '保持当前开关动作。',
+      responseRecommendation: severeRelease ? '缩短泄放响应持续时间。' : '保持当前泄放动作。',
       recoverRecommendation: '关阀后继续等待回温。',
-      retentionRecommendation: overVented ? '让 U2 保留在可计算范围内。' : '保持当前 U2 保留范围。',
+      retentionRecommendation: overVented
+        ? '让 U2 保留在可计算范围内。'
+        : durationSevere
+          ? '先缩短放气时间，再观察 U2 保留量。'
+          : '保持当前 U2 保留范围。',
     }),
   });
+};
+
+const scoreResultDeviation = (
+  relativeErrorPercent: number | null,
+  hasSignals: boolean,
+) => {
+  if (!hasSignals || relativeErrorPercent === null || !Number.isFinite(relativeErrorPercent)) return 0;
+  if (relativeErrorPercent <= 5) return 12;
+  if (relativeErrorPercent <= 10) return 8;
+  if (relativeErrorPercent <= 15) return 5;
+  if (relativeErrorPercent <= 20) return 2;
+  return 0;
 };
 
 const scoreRecordChain = (
@@ -420,18 +460,18 @@ const scoreRecordChain = (
 ): HeatCapacityProcessScoreItem => {
   const complete = Boolean(input.trial.u0 && input.trial.u1 && input.trial.u2 && input.trial.correctedSignals);
   const u0Score = input.trial.u0 && Math.abs(input.trial.u0.displayPressureMv) <= input.traceTrial.configSnapshot.record.u0ZeroToleranceMv
-    ? 15
+    ? 10
     : input.trial.u0
-      ? 9
+      ? 6
       : 0;
   const u1Stable = sampleIsStableForRecording(findRecordTraceSample(input.branch, input.trial.u1), input.traceTrial);
   const u2Stable = sampleIsStableForRecording(findRecordTraceSample(input.branch, input.trial.u2), input.traceTrial);
   const blockedCount = input.branch.events.filter((event) => event.type === 'record-blocked').length;
-  const timingScore = (input.trial.u0 ? 5 : 0) + (u1Stable ? 7 : 0) + (u2Stable ? 8 : 0) -
-    Math.min(4, blockedCount * 2);
-  const completenessScore = complete ? 10 : 0;
-  const resultScore = input.trial.correctedSignals ? 5 : 0;
-  const recordTimingScore = clampScore(timingScore, 20);
+  const timingScore = (input.trial.u0 ? 2 : 0) + (u1Stable ? 4 : 0) + (u2Stable ? 4 : 0) -
+    Math.min(3, blockedCount * 2);
+  const completenessScore = complete ? 8 : 0;
+  const resultScore = scoreResultDeviation(input.summary.relativeErrorPercent, Boolean(input.trial.correctedSignals));
+  const recordTimingScore = clampScore(timingScore, 10);
   const score = completenessScore + resultScore + u0Score + recordTimingScore;
   const status = statusFromScore(score, SCORE_MAX.recordChain, !complete);
   const details = [
@@ -439,8 +479,8 @@ const scoreRecordChain = (
       id: 'record-chain-completeness',
       label: '数据完整性',
       score: completenessScore,
-      maxScore: 10,
-      status: statusFromScore(completenessScore, 10, !complete),
+      maxScore: 8,
+      status: statusFromScore(completenessScore, 8, !complete),
       evidence: complete ? 'U0 / U1 / U2 与计算结果完整。' : '缺少完整 U0 / U1 / U2 或计算结果。',
       reason: complete ? '数据链路完整。' : '数据链路不完整。',
       recommendation: complete ? '保持完整记录链路。' : '完成三次记录后再查看评分。',
@@ -449,31 +489,41 @@ const scoreRecordChain = (
       id: 'record-chain-result',
       label: '结果合理性',
       score: resultScore,
-      maxScore: 5,
-      status: statusFromScore(resultScore, 5, !input.trial.correctedSignals),
-      evidence: input.trial.correctedSignals ? `γ = ${formatNumber(input.trial.correctedSignals.gamma, 3)}。` : '当前无有效 γ。',
-      reason: input.trial.correctedSignals ? 'U1 与 U2 满足计算关系。' : '当前记录无法计算有效 γ。',
-      recommendation: input.trial.correctedSignals ? '保持当前计算链路。' : '检查 U1、U2 是否有效且顺序正确。',
+      maxScore: 12,
+      status: statusFromScore(resultScore, 12, !input.trial.correctedSignals),
+      evidence: input.trial.correctedSignals
+        ? `γ = ${formatNumber(input.trial.correctedSignals.gamma, 3)}，相对误差 ${formatNumber(input.summary.relativeErrorPercent, 2)}%。`
+        : '当前无有效 γ。',
+      reason: resultScore === 12
+        ? '实验结果接近理论参考。'
+        : input.trial.correctedSignals
+          ? '实验结果偏离理论参考，说明过程误差已经影响最终结果。'
+          : '当前记录无法计算有效 γ。',
+      recommendation: resultScore === 12
+        ? '保持当前计算链路。'
+        : input.trial.correctedSignals
+          ? '复核放气时长、U1/U2 记录窗口和调零状态。'
+          : '检查 U1、U2 是否有效且顺序正确。',
     }),
     createSubItem({
       id: 'record-chain-zeroing',
       label: '调零与 U0',
       score: u0Score,
-      maxScore: 15,
-      status: statusFromScore(u0Score, 15, !input.trial.u0),
+      maxScore: 10,
+      status: statusFromScore(u0Score, 10, !input.trial.u0),
       evidence: input.trial.u0 ? `U0 = ${formatNumber(input.trial.u0.displayPressureMv, 2)} mV。` : '缺少 U0。',
-      reason: u0Score === 15 ? 'U0 零点接近 0。' : 'U0 零点偏离当前容差。',
-      recommendation: u0Score === 15 ? '保持调零后记录。' : '调零稳定后再记录 U0。',
+      reason: u0Score === 10 ? 'U0 零点接近 0。' : 'U0 零点偏离当前容差。',
+      recommendation: u0Score === 10 ? '保持调零后记录。' : '调零稳定后再记录 U0。',
     }),
     createSubItem({
       id: 'record-chain-timing',
       label: '记录时机',
       score: recordTimingScore,
-      maxScore: 20,
-      status: statusFromScore(recordTimingScore, 20),
+      maxScore: 10,
+      status: statusFromScore(recordTimingScore, 10),
       evidence: `U1 ${u1Stable ? '稳定' : '未确认稳定'}，U2 ${u2Stable ? '稳定' : '未确认稳定'}。`,
-      reason: recordTimingScore === 20 ? '记录点均处于稳定窗口。' : '至少一个记录点偏离稳定窗口。',
-      recommendation: recordTimingScore === 20 ? '保持当前记录时机。' : '等待压力和温度斜率稳定后再记录。',
+      reason: recordTimingScore === 10 ? '记录点均处于稳定窗口。' : '至少一个记录点偏离稳定窗口。',
+      recommendation: recordTimingScore === 10 ? '保持当前记录时机。' : '等待压力和温度斜率稳定后再记录。',
     }),
   ];
 
@@ -484,7 +534,7 @@ const scoreRecordChain = (
     score,
     status,
     evidence: complete ? 'U0 / U1 / U2 与计算结果完整。' : '记录链路不完整。',
-    relation: recordTimingScore === 20 && u0Score === 15 ? '记录窗口稳定。' : '记录窗口或零点仍需复核。',
+    relation: recordTimingScore === 10 && u0Score === 10 && resultScore === 12 ? '记录窗口稳定，结果偏差可接受。' : '结果偏差、记录窗口或零点仍需复核。',
     recommendation: status === 'reasonable' ? '保持当前记录链路。' : '下一组减少无效记录并等待稳定后记录。',
     details,
   });

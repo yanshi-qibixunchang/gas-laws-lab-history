@@ -234,6 +234,28 @@ assert.equal(
   'accepted U1 should attach a trace event without requiring React updater side effects',
 );
 
+const openPumpValveBeforeU1File: WorkbenchHeatCapacityState = {
+  ...createStableFreeU1File(),
+  pumpValveOpen: true,
+  pumpValveState: 'open',
+};
+assert.deepEqual(
+  getHeatCapacityFreeRecordButtonState(openPumpValveBeforeU1File, 'u1'),
+  { visible: false, mode: 'record', disabledReason: 'invalid-sequence' },
+  'Free U1 record button should stay hidden until the pump valve has been closed',
+);
+const openPumpValveU1Attempt = applyHeatCapacityFreeRecordWorkbenchState(
+  openPumpValveBeforeU1File,
+  'u1',
+  20_050,
+);
+assert.equal(
+  openPumpValveU1Attempt.accepted,
+  false,
+  'Free U1 recording should be rejected while the pump valve is still open even when pressure is in range',
+);
+assert.equal(openPumpValveU1Attempt.reason, 'invalid-sequence');
+
 const repeatedU0AfterEnteringU1Attempt = applyHeatCapacityFreeRecordWorkbenchState(
   createStableFreeU1File(),
   'u0',

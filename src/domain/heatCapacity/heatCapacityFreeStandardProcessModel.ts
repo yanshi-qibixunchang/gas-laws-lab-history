@@ -1,4 +1,26 @@
 import {
+  HEAT_CAPACITY_STANDARD_OPERATION,
+} from './heatCapacityDefaultConfig.ts';
+import {
+  type HeatCapacityFreeCalibrationState,
+} from './heatCapacityFreeCalibrationModel.ts';
+import {
+  applyFreePumpStroke,
+  createDefaultFreePhysicsState,
+  deriveFreePhysicalState,
+  stepFreePhysics,
+  type HeatCapacityFreeControls,
+  type HeatCapacityFreePhysicsConfig,
+  type HeatCapacityFreePhysicsState,
+} from './heatCapacityFreePhysicsEngine.ts';
+import {
+  createDefaultFreeSensorState,
+  getFreeSensorDisplay,
+  stepFreeSensor,
+  type HeatCapacityFreeSensorConfig,
+  type HeatCapacityFreeSensorState,
+} from './heatCapacityFreeSensorModel.ts';
+import {
   calculateFreeHeatCapacityTrialSignals,
   normalizeHeatCapacityFreeRecordInput,
   type HeatCapacityFreeTrial,
@@ -56,14 +78,16 @@ export interface CreateHeatCapacityFreeStandardProcessInput {
   theoreticalGamma?: number;
 }
 
-const STEP_S = 0.2;
+interface StandardRunState {
+  timeS: number;
+  physics: HeatCapacityFreePhysicsState;
+  sensor: HeatCapacityFreeSensorState;
+  calibration: HeatCapacityFreeCalibrationState;
+}
+
 const ZERO_DURATION_S = 1.2;
-const MIN_PUMP_DURATION_S = 1;
-const MAX_PUMP_DURATION_S = 2.4;
-const MIN_STABILIZE_S = 10;
-const MAX_STABILIZE_S = 28;
-const MIN_RECOVER_S = 10;
-const MAX_RECOVER_S = 28;
+const SAMPLE_STEP_S = 0.2;
+const SIMULATION_STEP_S = 0.05;
 
 const ASSUMPTIONS: HeatCapacityStandardProcessAssumptions = {
   operationMode: 'standard-operation',
@@ -71,12 +95,32 @@ const ASSUMPTIONS: HeatCapacityStandardProcessAssumptions = {
   stageAligned: true,
 };
 
-const roundNumber = (value: number, digits = 2) => (
-  Number.isFinite(value) ? Number(value.toFixed(digits)) : value
-);
+const CLOSED_CONTROLS: HeatCapacityFreeControls = {
+  powerOn: true,
+  pumpValveOpen: false,
+  stopcockOpen: false,
+};
 
-const clampNumber = (value: number, min: number, max: number) => (
-  Math.min(Math.max(value, min), max)
+const PUMP_CONTROLS: HeatCapacityFreeControls = {
+  powerOn: true,
+  pumpValveOpen: true,
+  stopcockOpen: false,
+};
+
+const RELEASE_CONTROLS: HeatCapacityFreeControls = {
+  powerOn: true,
+  pumpValveOpen: false,
+  stopcockOpen: true,
+  stopcockFlowPurpose: 'release',
+};
+
+const roundNumber = (value: number | null, digits = 2) => {
+  if (value === null || !Number.isFinite(value)) return null;
+  return Number(value.toFixed(digits));
+};
+
+const roundFinite = (value: number, digits = 2) => (
+  Number.isFinite(value) ? Number(value.toFixed(digits)) : value
 );
 
 const hashText = (text: string) => {
@@ -88,31 +132,191 @@ const hashText = (text: string) => {
   return hash >>> 0;
 };
 
-const seededUnit = (seed: number, channel: string) => (
-  hashText(`${seed}:${channel}`) / 0xffffffff
-);
-
-const seededSigned = (seed: number, channel: string) => (
-  seededUnit(seed, channel) * 2 - 1
-);
-
 const createSeed = (
   traceTrial: HeatCapacityFreeTraceTrial,
   branch: HeatCapacityFreeTraceBranch,
   trial: HeatCapacityFreeTrial,
   theoreticalGamma: number,
 ) => hashText([
-  'free-standard-process-v1',
+  'free-standard-operation-v2',
   traceTrial.id,
   branch.id,
   trial.id,
   traceTrial.configSnapshot.version,
   traceTrial.configSnapshot.scoring.processScoringVersion,
   theoreticalGamma,
-  traceTrial.configSnapshot.physics.leakage.enabled,
-  traceTrial.configSnapshot.physics.environmentDisturbance?.enabled ?? false,
-  traceTrial.configSnapshot.sensor.noiseMv,
+  JSON.stringify(HEAT_CAPACITY_STANDARD_OPERATION),
 ].join(':'));
+
+const createPhysicsConfig = (
+  snapshot: HeatCapacityFreeConfigSnapshot,
+): HeatCapacityFreePhysicsConfig => ({
+  environment: { ...snapshot.environment },
+  vesselVolumeL: snapshot.physics.vesselVolumeL,
+  gamma: snapshot.physics.gamma,
+  pumpAmountGainRatio: snapshot.physics.pumpAmountGainRatio,
+  pumpPressureLimitKPa: snapshot.physics.pumpPressureLimitKPa,
+  stopcockFlowRate: snapshot.physics.stopcockFlowRate,
+  thermal: { ...snapshot.physics.thermal },
+  pumpValveExchange: snapshot.physics.pumpValveExchange
+    ? { ...snapshot.physics.pumpValveExchange }
+    : undefined,
+  environmentDisturbance: snapshot.physics.environmentDisturbance
+    ? { ...snapshot.physics.environmentDisturbance }
+    : undefined,
+  leakage: { ...snapshot.physics.leakage },
+});
+
+const createSensorConfig = (
+  snapshot: HeatCapacityFreeConfigSnapshot,
+): HeatCapacityFreeSensorConfig => ({
+  pressureMvPerKPa: snapshot.sensor.pressureMvPerKPa,
+  temperatureMvAtAmbient: snapshot.sensor.temperatureMvAtAmbient,
+  temperatureMvPerK: snapshot.sensor.temperatureMvPerK,
+  lagRate: snapshot.sensor.lagRate,
+  noiseMv: snapshot.sensor.noiseMv,
+  quantizationMv: snapshot.sensor.quantizationMv,
+  minSampleIntervalS: snapshot.sensor.minSampleIntervalS,
+  maxSampleIntervalS: snapshot.sensor.maxSampleIntervalS,
+  historyWindowS: snapshot.sensor.historyWindowS,
+  pressureNonlinearity: snapshot.sensor.pressureNonlinearity
+    ? { ...snapshot.sensor.pressureNonlinearity }
+    : undefined,
+});
+
+const createCalibrationState = (
+  sensorConfig: HeatCapacityFreeSensorConfig,
+): HeatCapacityFreeCalibrationState => ({
+  calibrationVersion: 1,
+  zeroOffsetMv: 0,
+  zeroEvents: [{
+    id: 'standard-zero',
+    atS: 0,
+    displayPressureMv: 0,
+    displayTemperatureMv: sensorConfig.temperatureMvAtAmbient,
+    zeroOffsetMv: 0,
+    source: 'auto',
+  }],
+  automaticU0: {
+    displayPressureMv: 0,
+    displayTemperatureMv: sensorConfig.temperatureMvAtAmbient,
+    calibrationVersion: 1,
+    zeroEventId: 'standard-zero',
+    atS: 0,
+  },
+});
+
+const createInitialRun = (
+  snapshot: HeatCapacityFreeConfigSnapshot,
+  physicsConfig: HeatCapacityFreePhysicsConfig,
+  sensorConfig: HeatCapacityFreeSensorConfig,
+  seed: number,
+): StandardRunState => ({
+  timeS: 0,
+  physics: createDefaultFreePhysicsState(physicsConfig, `standard-physics-${seed}`),
+  sensor: createDefaultFreeSensorState(`standard-sensor-${seed}`, {
+    pressureMv: 0,
+    pressureInitialBiasMv: 0,
+    temperatureMv: snapshot.sensor.temperatureMvAtAmbient,
+  }),
+  calibration: createCalibrationState(sensorConfig),
+});
+
+const stepRun = (
+  run: StandardRunState,
+  physicsConfig: HeatCapacityFreePhysicsConfig,
+  sensorConfig: HeatCapacityFreeSensorConfig,
+  controls: HeatCapacityFreeControls,
+  dtS: number,
+) => {
+  const timeS = roundFinite(run.timeS + dtS, 6);
+  const physics = stepFreePhysics(run.physics, physicsConfig, controls, dtS, timeS);
+  const derived = deriveFreePhysicalState(physics, physicsConfig);
+  const sensor = stepFreeSensor(
+    run.sensor,
+    {
+      gasPressureKPa: derived.gasPressureKPa,
+      pressureDeltaKPa: derived.pressureDeltaKPa,
+      gasTemperatureK: physics.gasTemperatureK,
+      ambientTemperatureK: physicsConfig.environment.ambientTemperatureK,
+    },
+    run.calibration,
+    sensorConfig,
+    timeS,
+  );
+  return {
+    ...run,
+    timeS,
+    physics,
+    sensor,
+  };
+};
+
+const createPoint = (
+  run: StandardRunState,
+  snapshot: HeatCapacityFreeConfigSnapshot,
+  stageId: HeatCapacityProcessStageId,
+  sampleIndex: number,
+): HeatCapacityProcessReferencePoint => {
+  const display = getFreeSensorDisplay(run.sensor, run.calibration, {
+    quantizationMv: snapshot.sensor.quantizationMv,
+  });
+  return {
+    sampleId: `standard-${sampleIndex}`,
+    stageId,
+    timeS: roundFinite(run.timeS, 2),
+    pressureDeltaKPa: roundFinite(
+      display.displayPressureMv / Math.max(0.000001, snapshot.sensor.pressureMvPerKPa),
+      3,
+    ),
+    temperatureDeltaK: roundFinite(
+      (display.displayTemperatureMv - snapshot.sensor.temperatureMvAtAmbient) /
+        Math.max(0.000001, snapshot.sensor.temperatureMvPerK),
+      3,
+    ),
+  };
+};
+
+const shouldSampleAt = (
+  timeS: number,
+  nextSampleAtS: number,
+  endS: number,
+) => timeS >= nextSampleAtS - 1e-9 || timeS >= endS - 1e-9;
+
+const advanceRun = (
+  input: {
+    run: StandardRunState;
+    physicsConfig: HeatCapacityFreePhysicsConfig;
+    sensorConfig: HeatCapacityFreeSensorConfig;
+    snapshot: HeatCapacityFreeConfigSnapshot;
+    trace: HeatCapacityProcessReferencePoint[];
+    stageId: HeatCapacityProcessStageId;
+    controls: HeatCapacityFreeControls;
+    endS: number;
+    nextSampleAtS: number;
+    sampleIndex: number;
+  },
+) => {
+  let {
+    run,
+    nextSampleAtS,
+    sampleIndex,
+  } = input;
+  while (run.timeS < input.endS - 1e-9) {
+    const dtS = Math.min(SIMULATION_STEP_S, input.endS - run.timeS);
+    run = stepRun(run, input.physicsConfig, input.sensorConfig, input.controls, dtS);
+    if (shouldSampleAt(run.timeS, nextSampleAtS, input.endS)) {
+      input.trace.push(createPoint(run, input.snapshot, input.stageId, sampleIndex));
+      sampleIndex += 1;
+      nextSampleAtS = roundFinite(nextSampleAtS + SAMPLE_STEP_S, 6);
+    }
+  }
+  return {
+    run,
+    nextSampleAtS,
+    sampleIndex,
+  };
+};
 
 const createStage = (
   id: HeatCapacityProcessStageId,
@@ -123,186 +327,42 @@ const createStage = (
 ): HeatCapacityProcessStageSegment => ({
   id,
   label,
-  startS: roundNumber(startS, 2),
-  endS: roundNumber(Math.max(startS, endS), 2),
+  startS: roundFinite(startS, 2),
+  endS: roundFinite(Math.max(startS, endS), 2),
   ...extras,
 });
 
-const getTargetPressureMv = (config: HeatCapacityFreeConfigSnapshot) => {
-  const minimum = config.record.minimumUsefulU1CorrectedMv;
-  const warning = config.record.pressureWarningMv;
-  const danger = config.record.pressureDangerMv;
-  const lowerBound = Math.max(1, minimum * 1.08);
-  const preferred = Math.min(warning * 0.92, danger * 0.82);
-  const upperBound = Math.max(lowerBound, danger * 0.9);
-  return roundNumber(clampNumber(preferred, lowerBound, upperBound), 3);
-};
-
-const getTheoreticalU2Mv = (
-  config: HeatCapacityFreeConfigSnapshot,
-  u1CorrectedMv: number,
-  theoreticalGamma: number,
-) => {
-  const p0 = config.environment.ambientPressureKPa;
-  const p1 = p0 + u1CorrectedMv / Math.max(0.000001, config.sensor.pressureMvPerKPa);
-  if (p1 <= p0 || theoreticalGamma <= 1) return null;
-  const p2 = p1 / ((p1 / p0) ** (1 / theoreticalGamma));
-  return roundNumber(Math.max(config.record.overVentedMinimumU2CorrectedMv, (p2 - p0) * config.sensor.pressureMvPerKPa), 3);
-};
-
-const getPumpDurationS = (
-  config: HeatCapacityFreeConfigSnapshot,
-  targetPressureMv: number,
-) => {
-  const pressureKPa = targetPressureMv / Math.max(0.000001, config.sensor.pressureMvPerKPa);
-  const pressureRatioDelta = pressureKPa / Math.max(0.000001, config.environment.ambientPressureKPa);
-  const effectiveStrokes = pressureRatioDelta / Math.max(0.000001, config.physics.pumpAmountGainRatio);
-  const raw = effectiveStrokes * Math.max(0.06, config.physics.recommendedPumpIntervalS);
-  return roundNumber(clampNumber(raw, MIN_PUMP_DURATION_S, MAX_PUMP_DURATION_S), 2);
-};
-
-const getStabilizeDurationS = (config: HeatCapacityFreeConfigSnapshot) => {
-  const lagPart = 4 / Math.max(0.2, config.sensor.lagRate);
-  const thermalPart = config.physics.thermal.wallHeatCapacityJPerK /
-    Math.max(0.001, config.physics.thermal.gasWallConductanceWPerK + config.physics.thermal.wallAmbientConductanceWPerK);
-  return roundNumber(clampNumber(lagPart + thermalPart * 0.18, MIN_STABILIZE_S, MAX_STABILIZE_S), 2);
-};
-
-const getRecoverDurationS = (config: HeatCapacityFreeConfigSnapshot) => {
-  const lagPart = 4 / Math.max(0.2, config.sensor.lagRate);
-  const thermalPart = config.physics.thermal.wallHeatCapacityJPerK /
-    Math.max(0.001, config.physics.thermal.wallAmbientConductanceWPerK);
-  return roundNumber(clampNumber(lagPart + thermalPart * 0.12, MIN_RECOVER_S, MAX_RECOVER_S), 2);
-};
-
-const getReleaseDurationS = (
-  config: HeatCapacityFreeConfigSnapshot,
-  targetPressureMv: number,
-  targetU2Mv: number,
-) => {
-  const dropFraction = clampNumber(
-    (targetPressureMv - targetU2Mv) / Math.max(0.000001, targetPressureMv),
-    0.1,
-    0.95,
-  );
-  const rate = Math.max(0.1, config.physics.stopcockFlowRate);
-  const visual = config.physics.releaseVisualResponseDelayS + config.physics.releaseVisualMainDurationS;
-  return roundNumber(clampNumber(visual * dropFraction * (4 / rate), 0.12, 1.2), 2);
-};
-
-const smoothStep = (value: number) => {
-  const unit = clampNumber(value, 0, 1);
-  return unit * unit * (3 - 2 * unit);
-};
-
-const getNoiseMv = (
-  config: HeatCapacityFreeConfigSnapshot,
-  seed: number,
-  sampleIndex: number,
-  channel: 'pressure' | 'temperature',
-) => {
-  const noise = Math.max(0, config.sensor.noiseMv);
-  if (noise <= 0) return 0;
-  return seededSigned(seed, `${channel}:${sampleIndex}`) * noise;
-};
-
-const getEnvironmentOffset = (
-  config: HeatCapacityFreeConfigSnapshot,
-  seed: number,
-  timeS: number,
-) => {
-  const disturbance = config.physics.environmentDisturbance;
-  if (!disturbance?.enabled) {
-    return { pressureKPa: 0, temperatureK: 0 };
-  }
-  const scale = Math.max(1, disturbance.timeScaleS);
-  const pressurePhase = seededUnit(seed, 'environment-pressure-phase') * Math.PI * 2;
-  const temperaturePhase = seededUnit(seed, 'environment-temperature-phase') * Math.PI * 2;
-  return {
-    pressureKPa: Math.sin(timeS / scale * Math.PI * 2 + pressurePhase) * disturbance.pressureAmplitudeKPa,
-    temperatureK: Math.sin(timeS / scale * Math.PI * 2 + temperaturePhase) * disturbance.temperatureAmplitudeK,
-  };
-};
-
-const createPointFactory = (
-  config: HeatCapacityFreeConfigSnapshot,
-  seed: number,
-) => {
-  let sampleIndex = 1;
-  return (
-    stageId: HeatCapacityProcessStageId,
-    timeS: number,
-    pressureMv: number,
-    temperatureDeltaK: number,
-  ): HeatCapacityProcessReferencePoint => {
-    const environmentOffset = getEnvironmentOffset(config, seed, timeS);
-    const noisyPressureMv = pressureMv +
-      environmentOffset.pressureKPa * config.sensor.pressureMvPerKPa +
-      getNoiseMv(config, seed, sampleIndex, 'pressure');
-    const noisyTemperatureDeltaK = temperatureDeltaK +
-      environmentOffset.temperatureK +
-      getNoiseMv(config, seed, sampleIndex, 'temperature') /
-        Math.max(0.000001, config.sensor.temperatureMvPerK);
-    const point = {
-      sampleId: `standard-${sampleIndex}`,
-      stageId,
-      timeS: roundNumber(timeS, 2),
-      pressureDeltaKPa: roundNumber(noisyPressureMv / Math.max(0.000001, config.sensor.pressureMvPerKPa), 3),
-      temperatureDeltaK: roundNumber(noisyTemperatureDeltaK, 3),
-    };
-    sampleIndex += 1;
-    return point;
-  };
-};
-
-const pushStagePoints = (
-  trace: HeatCapacityProcessReferencePoint[],
-  createPoint: ReturnType<typeof createPointFactory>,
-  stageId: HeatCapacityProcessStageId,
-  startS: number,
-  endS: number,
-  valueAtProgress: (progress: number, timeS: number) => {
-    pressureMv: number;
-    temperatureDeltaK: number;
-  },
-) => {
-  let timeS = startS;
-  while (timeS <= endS + 0.000001) {
-    const progress = endS <= startS ? 1 : (timeS - startS) / (endS - startS);
-    const value = valueAtProgress(clampNumber(progress, 0, 1), timeS);
-    trace.push(createPoint(stageId, timeS, value.pressureMv, value.temperatureDeltaK));
-    timeS = roundNumber(timeS + STEP_S, 2);
-  }
-};
-
 const createWindow = (
   recordId: HeatCapacityProcessRecordId,
-  timeS: number,
-  displayPressureMv: number,
-  displayTemperatureMv: number,
-  config: HeatCapacityFreeConfigSnapshot,
+  run: StandardRunState,
+  snapshot: HeatCapacityFreeConfigSnapshot,
   qualityScore: number,
   reason: string,
-): HeatCapacityBestRecordWindow => ({
-  recordId,
-  startS: roundNumber(Math.max(0, timeS - 1), 2),
-  endS: roundNumber(timeS + 1, 2),
-  recommendedSampleId: `standard-${recordId}`,
-  recommendedTimeS: roundNumber(timeS, 2),
-  displayPressureMv: roundNumber(displayPressureMv, 2),
-  displayTemperatureMv: roundNumber(displayTemperatureMv, 2),
-  pressureDeltaKPa: roundNumber(displayPressureMv / Math.max(0.000001, config.sensor.pressureMvPerKPa), 3),
-  temperatureDeltaK: roundNumber(
-    (displayTemperatureMv - config.sensor.temperatureMvAtAmbient) /
-      Math.max(0.000001, config.sensor.temperatureMvPerK),
-    3,
-  ),
-  qualityScore,
-  source: 'standard-operation',
-  reason,
-});
+): HeatCapacityBestRecordWindow => {
+  const display = getFreeSensorDisplay(run.sensor, run.calibration, {
+    quantizationMv: snapshot.sensor.quantizationMv,
+  });
+  const pressureDeltaKPa = display.displayPressureMv /
+    Math.max(0.000001, snapshot.sensor.pressureMvPerKPa);
+  const temperatureDeltaK = (display.displayTemperatureMv - snapshot.sensor.temperatureMvAtAmbient) /
+    Math.max(0.000001, snapshot.sensor.temperatureMvPerK);
+  return {
+    recordId,
+    startS: roundFinite(Math.max(0, run.timeS - 1), 2),
+    endS: roundFinite(run.timeS + 1, 2),
+    recommendedSampleId: `standard-${recordId}`,
+    recommendedTimeS: roundFinite(run.timeS, 2),
+    displayPressureMv: roundNumber(display.displayPressureMv, 2),
+    displayTemperatureMv: roundNumber(display.displayTemperatureMv, 2),
+    pressureDeltaKPa: roundNumber(pressureDeltaKPa, 3),
+    temperatureDeltaK: roundNumber(temperatureDeltaK, 3),
+    qualityScore,
+    source: 'standard-operation',
+    reason,
+  };
+};
 
-const createSyntheticTrial = (
+const createStandardRecordTrial = (
   trial: HeatCapacityFreeTrial,
   traceTrial: HeatCapacityFreeTraceTrial,
   windows: HeatCapacityBestRecordWindow[],
@@ -354,103 +414,155 @@ export const createHeatCapacityFreeStandardProcess = ({
   trial,
   theoreticalGamma = 1.4,
 }: CreateHeatCapacityFreeStandardProcessInput): HeatCapacityFreeStandardProcess => {
-  void branch;
-  const config = traceTrial.configSnapshot;
+  const snapshot = traceTrial.configSnapshot;
+  const physicsConfig = createPhysicsConfig(snapshot);
+  const sensorConfig = createSensorConfig(snapshot);
   const seed = createSeed(traceTrial, branch, trial, theoreticalGamma);
-  const targetPressureMv = getTargetPressureMv(config);
-  const theoreticalU2Mv = getTheoreticalU2Mv(config, targetPressureMv, theoreticalGamma);
-  const u2CorrectedMv = theoreticalU2Mv === null
-    ? Math.max(config.record.overVentedMinimumU2CorrectedMv, targetPressureMv * 0.28)
-    : theoreticalU2Mv;
-  const pumpDurationS = getPumpDurationS(config, targetPressureMv);
-  const stabilizeDurationS = getStabilizeDurationS(config);
-  const recoverDurationS = getRecoverDurationS(config);
-  const releaseDurationS = getReleaseDurationS(config, targetPressureMv, u2CorrectedMv);
+  const trace: HeatCapacityProcessReferencePoint[] = [];
+  let run = createInitialRun(snapshot, physicsConfig, sensorConfig, seed);
+  let nextSampleAtS = 0;
+  let sampleIndex = 1;
+
+  const recordSample = (stageId: HeatCapacityProcessStageId) => {
+    trace.push(createPoint(run, snapshot, stageId, sampleIndex));
+    sampleIndex += 1;
+    nextSampleAtS = Math.max(nextSampleAtS, roundFinite(run.timeS + SAMPLE_STEP_S, 6));
+  };
+
   const zeroStartS = 0;
   const zeroEndS = ZERO_DURATION_S;
+  recordSample('zero');
+  ({ run, nextSampleAtS, sampleIndex } = advanceRun({
+    run,
+    physicsConfig,
+    sensorConfig,
+    snapshot,
+    trace,
+    stageId: 'zero',
+    controls: CLOSED_CONTROLS,
+    endS: zeroEndS,
+    nextSampleAtS,
+    sampleIndex,
+  }));
+  const u0Run = run;
+
   const pumpStartS = zeroEndS;
-  const pumpEndS = roundNumber(pumpStartS + pumpDurationS, 2);
+  const pumpEndS = roundFinite(pumpStartS + HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS, 2);
+  const strokeIntervalS = HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes > 1
+    ? HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS /
+      (HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes - 1)
+    : 0;
+  for (let index = 0; index < HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes; index += 1) {
+    const strokeAtS = roundFinite(pumpStartS + strokeIntervalS * index, 6);
+    ({ run, nextSampleAtS, sampleIndex } = advanceRun({
+      run,
+      physicsConfig,
+      sensorConfig,
+      snapshot,
+      trace,
+      stageId: 'pump',
+      controls: PUMP_CONTROLS,
+      endS: strokeAtS,
+      nextSampleAtS,
+      sampleIndex,
+    }));
+    const pump = applyFreePumpStroke(run.physics, physicsConfig, PUMP_CONTROLS, {
+      atS: run.timeS,
+      strength: 1,
+    });
+    if (pump.accepted) {
+      run = { ...run, physics: pump.state };
+    }
+    recordSample('pump');
+  }
+  ({ run, nextSampleAtS, sampleIndex } = advanceRun({
+    run,
+    physicsConfig,
+    sensorConfig,
+    snapshot,
+    trace,
+    stageId: 'pump',
+    controls: PUMP_CONTROLS,
+    endS: pumpEndS,
+    nextSampleAtS,
+    sampleIndex,
+  }));
+
   const stabilizeStartS = pumpEndS;
-  const stabilizeEndS = roundNumber(stabilizeStartS + stabilizeDurationS, 2);
+  const stabilizeEndS = roundFinite(stabilizeStartS + HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS, 2);
+  ({ run, nextSampleAtS, sampleIndex } = advanceRun({
+    run,
+    physicsConfig,
+    sensorConfig,
+    snapshot,
+    trace,
+    stageId: 'stabilize',
+    controls: CLOSED_CONTROLS,
+    endS: stabilizeEndS,
+    nextSampleAtS,
+    sampleIndex,
+  }));
+  const u1Run = run;
+
   const releaseStartS = stabilizeEndS;
-  const releaseEndS = roundNumber(releaseStartS + releaseDurationS, 2);
+  const releaseEndS = roundFinite(releaseStartS + HEAT_CAPACITY_STANDARD_OPERATION.openDurationS, 2);
+  ({ run, nextSampleAtS, sampleIndex } = advanceRun({
+    run,
+    physicsConfig,
+    sensorConfig,
+    snapshot,
+    trace,
+    stageId: 'release',
+    controls: RELEASE_CONTROLS,
+    endS: releaseEndS,
+    nextSampleAtS,
+    sampleIndex,
+  }));
+
   const recoverStartS = releaseEndS;
-  const recoverEndS = roundNumber(recoverStartS + recoverDurationS, 2);
-  const leakageRate = config.physics.leakage.enabled ? Math.max(0, config.physics.leakage.ratePerS) : 0;
-  const standardU1Mv = roundNumber(targetPressureMv * Math.exp(-leakageRate * stabilizeDurationS * 0.2), 3);
-  const standardU2Mv = roundNumber(u2CorrectedMv * Math.exp(-leakageRate * recoverDurationS * 0.2), 3);
-  const trace: HeatCapacityProcessReferencePoint[] = [];
-  const createPoint = createPointFactory(config, seed);
-  const pumpTempSpikeK = clampNumber(targetPressureMv / Math.max(1, config.sensor.pressureMvPerKPa) * 0.11, 0.1, 0.9);
-  const releaseTempDipK = -clampNumber((standardU1Mv - standardU2Mv) /
-    Math.max(1, config.sensor.pressureMvPerKPa) * 0.08, 0.05, 0.7);
+  const recoverEndS = roundFinite(recoverStartS + HEAT_CAPACITY_STANDARD_OPERATION.waitAfterReleaseS, 2);
+  ({ run, nextSampleAtS, sampleIndex } = advanceRun({
+    run,
+    physicsConfig,
+    sensorConfig,
+    snapshot,
+    trace,
+    stageId: 'recover',
+    controls: CLOSED_CONTROLS,
+    endS: recoverEndS,
+    nextSampleAtS,
+    sampleIndex,
+  }));
+  const u2Run = run;
 
-  pushStagePoints(trace, createPoint, 'zero', zeroStartS, zeroEndS, () => ({
-    pressureMv: 0,
-    temperatureDeltaK: 0,
-  }));
-  pushStagePoints(trace, createPoint, 'pump', pumpStartS, pumpEndS, (progress) => {
-    const smooth = smoothStep(progress);
-    return {
-      pressureMv: targetPressureMv * smooth,
-      temperatureDeltaK: pumpTempSpikeK * Math.sin(progress * Math.PI),
-    };
-  });
-  pushStagePoints(trace, createPoint, 'stabilize', stabilizeStartS, stabilizeEndS, (progress) => ({
-    pressureMv: targetPressureMv + (standardU1Mv - targetPressureMv) * progress,
-    temperatureDeltaK: pumpTempSpikeK * (1 - smoothStep(progress)),
-  }));
-  pushStagePoints(trace, createPoint, 'release', releaseStartS, releaseEndS, (progress) => {
-    const smooth = smoothStep(progress);
-    return {
-      pressureMv: standardU1Mv + (standardU2Mv - standardU1Mv) * smooth,
-      temperatureDeltaK: releaseTempDipK * smooth,
-    };
-  });
-  pushStagePoints(trace, createPoint, 'recover', recoverStartS, recoverEndS, (progress) => ({
-    pressureMv: standardU2Mv,
-    temperatureDeltaK: releaseTempDipK * (1 - smoothStep(progress)),
-  }));
-
-  const stages = [
-    createStage('zero', '调零', zeroStartS, zeroEndS),
-    createStage('pump', '标准打气', pumpStartS, pumpEndS, {
-      durationText: `${roundNumber(pumpDurationS, 2)} s`,
-    }),
-    createStage('stabilize', '回温稳定', stabilizeStartS, stabilizeEndS),
-    createStage('release', '标准放气', releaseStartS, releaseEndS, {
-      durationText: `${roundNumber(releaseDurationS, 2)} s`,
-    }),
-    createStage('recover', '关阀回温', recoverStartS, recoverEndS),
-  ];
-  const u0TimeS = roundNumber((zeroStartS + zeroEndS) / 2, 2);
-  const u1TimeS = stabilizeEndS;
-  const u2TimeS = recoverEndS;
   const recordWindows = [
-    createWindow('u0', u0TimeS, 0, config.sensor.temperatureMvAtAmbient, config, 100, '标准调零稳定窗口。'),
-    createWindow('u1', u1TimeS, standardU1Mv, config.sensor.temperatureMvAtAmbient, config, 100, '标准打气后的回温稳定窗口。'),
-    createWindow('u2', u2TimeS, standardU2Mv, config.sensor.temperatureMvAtAmbient, config, 100, '标准放气后的回温稳定窗口。'),
+    createWindow('u0', u0Run, snapshot, 100, '标准调零稳定窗口。'),
+    createWindow('u1', u1Run, snapshot, 100, '标准打气后等待 300 s 的记录窗口。'),
+    createWindow('u2', u2Run, snapshot, 100, '标准放气后等待 300 s 的记录窗口。'),
   ];
-  const syntheticTrial = createSyntheticTrial(trial, traceTrial, recordWindows);
-  const signals = calculateFreeHeatCapacityTrialSignals(syntheticTrial, {
-    atmosphericPressureKPa: config.environment.ambientPressureKPa,
-    pressureSensitivityMvPerKPa: config.sensor.pressureMvPerKPa,
+  const standardRecordTrial = createStandardRecordTrial(trial, traceTrial, recordWindows);
+  const signals = calculateFreeHeatCapacityTrialSignals(standardRecordTrial, {
+    atmosphericPressureKPa: snapshot.environment.ambientPressureKPa,
+    pressureSensitivityMvPerKPa: snapshot.sensor.pressureMvPerKPa,
   });
   const gamma = signals?.gamma ?? null;
+  const targetPressureMv = recordWindows.find((window) => window.recordId === 'u1')?.displayPressureMv ?? null;
   const standardSummary: HeatCapacityStandardProcessSummary = {
     feasible: gamma !== null,
     seed,
     gamma,
     relativeErrorPercent: calculateRelativeError(gamma, theoreticalGamma),
     targetPressureMv,
-    targetPressureDeltaKPa: roundNumber(targetPressureMv / Math.max(0.000001, config.sensor.pressureMvPerKPa), 3),
-    releaseDurationS,
-    u1TimeS,
-    u2TimeS,
+    targetPressureDeltaKPa: targetPressureMv === null
+      ? null
+      : roundNumber(targetPressureMv / Math.max(0.000001, snapshot.sensor.pressureMvPerKPa), 3),
+    releaseDurationS: HEAT_CAPACITY_STANDARD_OPERATION.openDurationS,
+    u1TimeS: roundFinite(u1Run.timeS, 2),
+    u2TimeS: roundFinite(u2Run.timeS, 2),
     assumptions: ASSUMPTIONS,
     explanation: {
-      operation: '标准过程使用同一参数快打、稳定、快放和回温记录流程生成。',
-      windows: 'U0/U1/U2 显示为标准操作推荐记录窗口，而不是从实际 trace 中反选出的窗口。',
+      operation: '标准过程使用当前实验参数快照，按固定 18 次打气、12 s、300 s、0.35 s、300 s 流程由真实模型生成。',
+      windows: 'U0/U1/U2 显示为固定标准流程对应的记录窗口，不从实际 trace 中反选。',
     },
   };
   const actualGamma = trial.correctedSignals?.gamma ?? null;
@@ -468,9 +580,26 @@ export const createHeatCapacityFreeStandardProcess = ({
     windows: recordWindows,
   };
 
+  const stages = [
+    createStage('zero', '调零', zeroStartS, zeroEndS),
+    createStage('pump', '标准打气', pumpStartS, pumpEndS, {
+      countText: `x${HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes}`,
+      durationText: `${HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS.toFixed(1)} s`,
+    }),
+    createStage('stabilize', '回温稳定', stabilizeStartS, stabilizeEndS, {
+      durationText: `${HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS} s`,
+    }),
+    createStage('release', '标准放气', releaseStartS, releaseEndS, {
+      durationText: `${HEAT_CAPACITY_STANDARD_OPERATION.openDurationS.toFixed(2)} s`,
+    }),
+    createStage('recover', '关阀回温', recoverStartS, recoverEndS, {
+      durationText: `${HEAT_CAPACITY_STANDARD_OPERATION.waitAfterReleaseS} s`,
+    }),
+  ];
+
   return {
     ...standardSummary,
-    configSnapshot: config,
+    configSnapshot: snapshot,
     trace,
     stages,
     recordWindows,

@@ -222,38 +222,6 @@ const runFreeScenario = (
   };
 };
 
-const pressureAfterSinglePumpStroke = (draft: HeatCapacityFreeParameterDraft) => {
-  const applied = applyHeatCapacityFreeParameterDraftToConfigs(draft);
-  const physicsConfig = applied.physicsConfig;
-  const initial = createDefaultFreePhysicsState(physicsConfig);
-  const stroke = applyFreePumpStroke(
-    initial,
-    physicsConfig,
-    {
-      powerOn: true,
-      pumpValveOpen: true,
-      stopcockOpen: false,
-    },
-    {
-      atS: 0,
-      strength: 1,
-    },
-  );
-  assert.equal(stroke.accepted, true, 'single pump stroke should be accepted');
-  const stepped = stepFreePhysics(
-    stroke.state,
-    physicsConfig,
-    {
-      powerOn: true,
-      pumpValveOpen: true,
-      stopcockOpen: false,
-    },
-    0.1,
-    0.1,
-  );
-  return deriveFreePhysicalState(stepped, physicsConfig).pressureDeltaKPa;
-};
-
 const pumpAcceptanceAtPressure = (
   draft: HeatCapacityFreeParameterDraft,
   absolutePressureKPa: number,
@@ -454,15 +422,6 @@ registerDraftImpact(
 );
 
 registerDraftImpact(
-  'vesselVolumeL',
-  'state equation and vessel',
-  'same pump sequence changes gas heat capacity through vessel volume',
-  'free realtime thermal recovery curve',
-  0.75,
-  (draft) => runFreeScenario(draft).recovered.gasTemperatureK,
-);
-
-registerDraftImpact(
   'gamma',
   'state equation and vessel',
   'same release sequence uses a different adiabatic exponent',
@@ -530,13 +489,6 @@ const hotLeakingFinal = stepFreePhysics(
 assert.ok(
   hotLeakingFinal.gasAmountRatio < hotLeakingInitial.gasAmountRatio,
   'leakage should move a hot sealed vessel toward pressure equilibrium even when amount ratio starts at 1',
-);
-
-const smallVPressureDelta = pressureAfterSinglePumpStroke(createDraft({ vesselVolumeL: 2 }));
-const largeVPressureDelta = pressureAfterSinglePumpStroke(createDraft({ vesselVolumeL: 4 }));
-assert.ok(
-  largeVPressureDelta < smallVPressureDelta,
-  'same fixed effective gas inflow per stroke should create a smaller pressure rise in a larger vessel',
 );
 
 const lowDangerDraft = createDraft({ pressureDangerMv: 30 });
@@ -778,7 +730,7 @@ assert.equal(
 
 assert.equal(
   impactRows.length,
-  19,
+  18,
   'impact audit should cover every Heat Capacity Free parameter that still has immediate model, sensor, safety, zeroing, or visualization impact',
 );
 

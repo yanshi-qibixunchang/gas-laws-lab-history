@@ -288,61 +288,65 @@ export const createEmptyHeatCapacityReferenceStore = (): HeatCapacityReferenceSt
 
 export const createHeatCapacityFreeConfigSnapshotFromFile = (
   file: WorkbenchHeatCapacityState,
-): HeatCapacityFreeConfigSnapshot => ({
-  version: HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
-  environment: {
-    ambientPressureKPa: file.heatCapacityFreePhysicsConfig.environment.ambientPressureKPa,
-    ambientTemperatureK: file.heatCapacityFreePhysicsConfig.environment.ambientTemperatureK,
-  },
-  physics: {
-    gamma: file.heatCapacityFreePhysicsConfig.gamma,
-    vesselVolumeL: file.heatCapacityFreePhysicsConfig.vesselVolumeL,
-    pumpAmountGainRatio: file.heatCapacityFreePhysicsConfig.pumpAmountGainRatio,
-    pumpPressureLimitKPa: file.heatCapacityFreePhysicsConfig.pumpPressureLimitKPa,
-    pumpStrokeDurationS: FREE_PUMP_STROKE_DURATION_S,
-    recommendedPumpIntervalS: 0.1,
-    stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
-    releaseVisualResponseDelayS: FREE_RELEASE_RESPONSE_DELAY_S,
-    releaseVisualMainDurationS: FREE_RELEASE_MAIN_DURATION_S,
-    thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
-    pumpValveExchange: normalizeFreePumpValveExchangeConfig(
-      file.heatCapacityFreePhysicsConfig.pumpValveExchange,
-    ),
-    environmentDisturbance: normalizeFreeEnvironmentDisturbanceConfig(
-      file.heatCapacityFreePhysicsConfig.environmentDisturbance,
-    ),
-    leakage: { ...file.heatCapacityFreePhysicsConfig.leakage },
-  },
-  sensor: {
-    pressureMvPerKPa: file.heatCapacityFreeSensorConfig.pressureMvPerKPa,
-    temperatureMvAtAmbient: file.heatCapacityFreeSensorConfig.temperatureMvAtAmbient,
-    temperatureMvPerK: file.heatCapacityFreeSensorConfig.temperatureMvPerK,
-    lagRate: file.heatCapacityFreeSensorConfig.lagRate,
-    pumpLagRate: HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE,
-    noiseMv: file.heatCapacityFreeSensorConfig.noiseMv,
-    quantizationMv: file.heatCapacityFreeSensorConfig.quantizationMv,
-    minSampleIntervalS: file.heatCapacityFreeSensorConfig.minSampleIntervalS,
-    maxSampleIntervalS: file.heatCapacityFreeSensorConfig.maxSampleIntervalS,
-    fastProcessSampleStepS: HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S,
-    historyWindowS: file.heatCapacityFreeSensorConfig.historyWindowS,
-    pressureNonlinearity: normalizeFreePressureSensorNonlinearityConfig(
-      file.heatCapacityFreeSensorConfig.pressureNonlinearity,
-    ),
-  },
-  record: {
-    u0ZeroToleranceMv: file.heatCapacityFreeRecordConfig.u0ZeroToleranceMv,
-    pressureStableSlopeMvPerS: file.heatCapacityFreeRecordConfig.pressureStableSlopeMvPerS,
-    temperatureStableSlopeMvPerS: file.heatCapacityFreeRecordConfig.temperatureStableSlopeMvPerS,
-    temperatureAmbientToleranceMv: file.heatCapacityFreeRecordConfig.temperatureAmbientToleranceMv,
-    minimumUsefulU1CorrectedMv: file.heatCapacityFreeRecordConfig.minimumUsefulU1CorrectedMv,
-    overVentedMinimumU2CorrectedMv: file.heatCapacityFreeRecordConfig.overVentedMinimumU2CorrectedMv,
-    pressureWarningMv: file.heatCapacityFreePressureWarningMv,
-    pressureDangerMv: file.heatCapacityFreeRecordConfig.pressureDangerMv,
-  },
-  scoring: {
-    processScoringVersion: HEAT_CAPACITY_PROCESS_SCORING_VERSION,
-  },
-});
+): HeatCapacityFreeConfigSnapshot => {
+  const fallback = createDefaultFreeConfigSnapshot();
+  return {
+    version: HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
+    environment: {
+      ambientPressureKPa: file.heatCapacityFreePhysicsConfig.environment.ambientPressureKPa,
+      ambientTemperatureK: file.heatCapacityFreePhysicsConfig.environment.ambientTemperatureK,
+    },
+    physics: {
+      ...fallback.physics,
+      gamma: file.heatCapacityFreePhysicsConfig.gamma,
+      vesselVolumeL: fallback.physics.vesselVolumeL,
+      pumpAmountGainRatio: fallback.physics.pumpAmountGainRatio,
+      pumpPressureLimitKPa: file.heatCapacityFreePhysicsConfig.pumpPressureLimitKPa,
+      pumpStrokeDurationS: FREE_PUMP_STROKE_DURATION_S,
+      recommendedPumpIntervalS: 0.1,
+      stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
+      releaseVisualResponseDelayS: FREE_RELEASE_RESPONSE_DELAY_S,
+      releaseVisualMainDurationS: FREE_RELEASE_MAIN_DURATION_S,
+      thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
+      pumpValveExchange: normalizeFreePumpValveExchangeConfig(
+        file.heatCapacityFreePhysicsConfig.pumpValveExchange,
+      ),
+      environmentDisturbance: normalizeFreeEnvironmentDisturbanceConfig(
+        file.heatCapacityFreePhysicsConfig.environmentDisturbance,
+      ),
+      leakage: { ...file.heatCapacityFreePhysicsConfig.leakage },
+    },
+    sensor: {
+      pressureMvPerKPa: file.heatCapacityFreeSensorConfig.pressureMvPerKPa,
+      temperatureMvAtAmbient: file.heatCapacityFreeSensorConfig.temperatureMvAtAmbient,
+      temperatureMvPerK: file.heatCapacityFreeSensorConfig.temperatureMvPerK,
+      lagRate: file.heatCapacityFreeSensorConfig.lagRate,
+      pumpLagRate: HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE,
+      noiseMv: file.heatCapacityFreeSensorConfig.noiseMv,
+      quantizationMv: file.heatCapacityFreeSensorConfig.quantizationMv,
+      minSampleIntervalS: file.heatCapacityFreeSensorConfig.minSampleIntervalS,
+      maxSampleIntervalS: file.heatCapacityFreeSensorConfig.maxSampleIntervalS,
+      fastProcessSampleStepS: HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S,
+      historyWindowS: file.heatCapacityFreeSensorConfig.historyWindowS,
+      pressureNonlinearity: normalizeFreePressureSensorNonlinearityConfig(
+        file.heatCapacityFreeSensorConfig.pressureNonlinearity,
+      ),
+    },
+    record: {
+      u0ZeroToleranceMv: file.heatCapacityFreeRecordConfig.u0ZeroToleranceMv,
+      pressureStableSlopeMvPerS: file.heatCapacityFreeRecordConfig.pressureStableSlopeMvPerS,
+      temperatureStableSlopeMvPerS: file.heatCapacityFreeRecordConfig.temperatureStableSlopeMvPerS,
+      temperatureAmbientToleranceMv: file.heatCapacityFreeRecordConfig.temperatureAmbientToleranceMv,
+      minimumUsefulU1CorrectedMv: file.heatCapacityFreeRecordConfig.minimumUsefulU1CorrectedMv,
+      overVentedMinimumU2CorrectedMv: file.heatCapacityFreeRecordConfig.overVentedMinimumU2CorrectedMv,
+      pressureWarningMv: file.heatCapacityFreePressureWarningMv,
+      pressureDangerMv: file.heatCapacityFreeRecordConfig.pressureDangerMv,
+    },
+    scoring: {
+      processScoringVersion: HEAT_CAPACITY_PROCESS_SCORING_VERSION,
+    },
+  };
+};
 
 export const createHeatCapacityPersistencePayload = (
   file: WorkbenchHeatCapacityState,

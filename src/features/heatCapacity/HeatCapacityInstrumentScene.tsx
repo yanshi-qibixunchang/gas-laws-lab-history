@@ -62,7 +62,6 @@ interface HeatCapacityInstrumentSceneProps {
   pressureReleaseBurstActive: boolean;
   releaseFlowActive: boolean;
   releaseTimeline: HeatCapacityHardSphereReleaseTimeline;
-  stopcockFlowOpen: boolean;
   pumpFlowActive: boolean;
   pumpFlowIntensity: number;
   hardSphereViewEnabled: boolean;
@@ -2504,9 +2503,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           gasTemperatureK={props.gasTemperatureK}
           ambientTemperatureK={props.ambientTemperatureK}
           phase={props.phase}
-          releaseFlowActive={props.releaseFlowActive}
           releaseTimeline={props.releaseTimeline}
-          stopcockFlowOpen={props.stopcockFlowOpen}
           glassStopcockOpen={stopcockState === 'open'}
           pumpValveOpen={props.pumpValveOpen}
           pumpBulbState={props.pumpBulbState}
@@ -3168,9 +3165,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           phase={props.phase}
           temperatureSignalMv={props.temperatureSignalMv}
           pressureSignalMv={props.pressureSignalMv}
-          releaseFlowActive={props.releaseFlowActive}
           releaseTimeline={props.releaseTimeline}
-          stopcockFlowOpen={props.stopcockFlowOpen}
           pumpValveOpen={props.pumpValveOpen}
           pumpBulbState={props.pumpBulbState}
           pumpPulseId={props.pumpPulseId}

@@ -1245,20 +1245,18 @@ const releaseCoolingHardSphereVisual = getHeatCapacityHardSphereVisualState({
   ambientTemperatureK: 298.15,
   phase: 'releasing',
   glassStopcockOpen: true,
-  stopcockFlowOpen: true,
   pumpValveOpen: false,
   pumpBulbState: 'idle',
-  releaseFlowActive: true,
 });
 assert.equal(
   releaseCoolingHardSphereVisual.outflowDriftSpeed > 0,
   true,
-  'confirmed release should create directed release drift instead of changing random thermal speed',
+  'open glass stopcock with pressure difference should create directed release drift instead of changing random thermal speed',
 );
 assert.equal(
   Object.prototype.hasOwnProperty.call(releaseCoolingHardSphereVisual, 'exitSelectionRate'),
   false,
-  'confirmed release should leave particle-count selection to the release timeline',
+  'scheduled release should leave particle-count selection to the release timeline',
 );
 assert.equal(
   releaseCoolingHardSphereVisual.thermalSpeedMultiplier < poweredOffHardSphereVisual.thermalSpeedMultiplier,

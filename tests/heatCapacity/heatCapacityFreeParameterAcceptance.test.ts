@@ -441,8 +441,16 @@ assert.notEqual(configuredTraceTrial, undefined, 'Free trace trial should exist 
 assert.equal(configuredTraceTrial!.configSnapshot.environment.ambientPressureKPa, 100.8);
 assert.equal(configuredTraceTrial!.configSnapshot.environment.ambientTemperatureK, 299.25);
 assert.equal(configuredTraceTrial!.configSnapshot.physics.gamma, 1.37);
-assert.equal(configuredTraceTrial!.configSnapshot.physics.vesselVolumeL, 2.4);
-assert.equal(configuredTraceTrial!.configSnapshot.physics.pumpAmountGainRatio, 0.0065);
+assert.equal(
+  configuredTraceTrial!.configSnapshot.physics.vesselVolumeL,
+  2,
+  'new Free trace snapshots should keep vessel volume fixed even if a stale file config carries a custom value',
+);
+assert.equal(
+  configuredTraceTrial!.configSnapshot.physics.pumpAmountGainRatio,
+  0.00345,
+  'new Free trace snapshots should keep pump amount gain fixed even if a stale file config carries a custom value',
+);
 assert.equal(configuredTraceTrial!.configSnapshot.physics.thermal.gasWallConductanceWPerK, 0.45);
 assert.equal(configuredTraceTrial!.configSnapshot.physics.thermal.wallAmbientConductanceWPerK, 1.85);
 assert.equal(configuredTraceTrial!.configSnapshot.sensor.pressureMvPerKPa, 21.5);
