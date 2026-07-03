@@ -1,4 +1,4 @@
-import type { HeatCapacityProcessSampleKey } from './heatCapacityExperimentModel.ts';
+import type { HeatCapacityProcessSampleKey } from './heatCapacityProcessTypes.ts';
 import {
   HEAT_CAPACITY_STANDARD_OPERATION,
 } from './heatCapacityDefaultConfig.ts';

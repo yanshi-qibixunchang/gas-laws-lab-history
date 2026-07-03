@@ -16,20 +16,22 @@ import {
 import {
   applyHeatCapacityPumpStroke as applyHeatCapacityRuntimePumpStroke,
   captureHeatCapacityProcessSample,
-  DEFAULT_HEAT_CAPACITY_MODEL_CONFIG,
   HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA,
   createDefaultHeatCapacityRuntimeState,
   powerHeatCapacityRuntimeState,
   stepHeatCapacityExperiment,
   updateHeatCapacityRuntimeZeroOffset,
-  type HeatCapacityProcessSampleKey,
-  type HeatCapacityProcessSamplePoint,
-  type HeatCapacityProcessSamples,
-  type HeatCapacityRuntimePhase,
   type HeatCapacityRuntimeState,
-} from '../../domain/heatCapacity/heatCapacityExperimentModel.ts';
+} from '../../domain/heatCapacity/heatCapacityTeachingRuntimeModel.ts';
+import type {
+  HeatCapacityProcessSampleKey,
+  HeatCapacityProcessSamplePoint,
+  HeatCapacityProcessSamples,
+  HeatCapacityRuntimePhase,
+} from '../../domain/heatCapacity/heatCapacityProcessTypes.ts';
 import {
   applyPressureZero,
+  DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG,
 } from '../../domain/heatCapacity/heatCapacitySensorMapping.ts';
 import {
   HEAT_CAPACITY_PRESSURE_DISPLAY_RESPONSE,
@@ -442,7 +444,7 @@ const getHeatCapacityGaugeConfig = (file: Partial<WorkbenchHeatCapacityState> = 
     ? Math.max(0.001, Number(freeSensorConfig?.pressureMvPerKPa))
     : Number.isFinite(file.pressureSensitivityMvPerKPa)
     ? Math.max(0.001, Number(file.pressureSensitivityMvPerKPa))
-    : DEFAULT_HEAT_CAPACITY_MODEL_CONFIG.sensor.pressureSensitivityMvPerKPa;
+    : DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG.pressureSensitivityMvPerKPa;
   const pressureThresholdsMv = getHeatCapacityPressureThresholdsMv(file);
   const gaugePressureMinKPa = Number.isFinite(file.gaugePressureMinKPa)
     ? Number(file.gaugePressureMinKPa)

@@ -11,7 +11,7 @@ import {
 import type {
   HeatCapacityProcessSamplePoint,
   HeatCapacityProcessSamples,
-} from './heatCapacityExperimentModel.ts';
+} from './heatCapacityProcessTypes.ts';
 
 export type HeatCapacityGuideRecordKind = 'u0' | 'u1' | 'u2';
 

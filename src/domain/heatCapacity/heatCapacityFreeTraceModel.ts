@@ -1,6 +1,6 @@
 import type {
   HeatCapacityRuntimePhase,
-} from './heatCapacityExperimentModel.ts';
+} from './heatCapacityProcessTypes.ts';
 import {
   FREE_PUMP_STROKE_DURATION_S,
   FREE_RELEASE_MAIN_DURATION_S,

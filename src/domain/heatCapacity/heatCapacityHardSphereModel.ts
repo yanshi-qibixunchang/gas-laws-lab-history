@@ -1,4 +1,4 @@
-import type { HeatCapacityRuntimePhase } from './heatCapacityExperimentModel.ts';
+import type { HeatCapacityRuntimePhase } from './heatCapacityProcessTypes.ts';
 
 export type HeatCapacityHardSpherePumpBulbState = 'idle' | 'compressing' | 'releasing';
 

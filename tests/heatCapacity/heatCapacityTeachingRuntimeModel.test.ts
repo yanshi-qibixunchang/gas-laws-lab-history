@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import {
   applyHeatCapacityPumpStroke,
   captureHeatCapacityProcessSample,
@@ -6,7 +6,7 @@ import {
   powerHeatCapacityRuntimeState,
   stepHeatCapacityExperiment,
   updateHeatCapacityRuntimeZeroOffset,
-} from '../../src/domain/heatCapacity/heatCapacityExperimentModel.ts';
+} from '../../src/domain/heatCapacity/heatCapacityTeachingRuntimeModel.ts';
 import {
   calculateAirHeatCapacityTargets,
   createHeatCapacityExperimentProfile,
@@ -375,4 +375,4 @@ assert.equal(sampled.heatCapacityProcessSamples.releaseLowSample?.pumpValveOpen,
 assert.equal(sampled.heatCapacityProcessSamples.releaseLowSample?.stopcockOpen, true);
 assert.equal('heatCapacityTrace' in sampled, false, 'process sampling should stay independent from realtime chart history');
 
-console.log('heatCapacityExperimentModel tests passed');
+console.log('heatCapacityTeachingRuntimeModel tests passed');

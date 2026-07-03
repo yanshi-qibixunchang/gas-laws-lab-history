@@ -1,4 +1,5 @@
 import {
+  DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG,
   mapHeatCapacitySignals,
   type HeatCapacitySensorMappingConfig,
 } from './heatCapacitySensorMapping.ts';
@@ -7,50 +8,25 @@ import {
   getHeatCapacityRangeMidpoint,
   getHeatCapacityRangeValue,
 } from './heatCapacityDisplayResponse.ts';
+import type {
+  HeatCapacityProcessSampleKey,
+  HeatCapacityProcessSamplePoint,
+  HeatCapacityProcessSamples,
+  HeatCapacityRuntimePhase,
+} from './heatCapacityProcessTypes.ts';
 const DEFAULT_HEAT_CAPACITY_RESULT_OPTIONS = {
   atmosphericPressureKPa: 101.3,
-  pressureSensitivityMvPerKPa: 20,
   theoreticalGamma: 1.4,
 } as const;
 
-export type HeatCapacityRuntimePhase =
-  | 'powerOff'
-  | 'readyToZero'
-  | 'zeroed'
-  | 'readyToPump'
-  | 'pumping'
-  | 'sealedStabilizing'
-  | 'releasing'
-  | 'recovering'
-  | 'demoComplete';
-
 export type HeatCapacityPumpFrequencyStatus = 'idle' | 'tooSlow' | 'suitable';
 
-export interface HeatCapacityProcessSamplePoint {
-  timeS: number;
-  phase: HeatCapacityRuntimePhase;
-  temperatureSignalMv: number;
-  pressureSignalMv: number;
-  gasTemperatureK: number;
-  gasPressureKPaAbs: number;
-  pressureDeltaKPa: number;
-  pumpFrequency: number;
-  pumpValveOpen: boolean;
-  stopcockOpen: boolean;
-}
-
-export type HeatCapacityProcessSampleKey =
-  | 'startSample'
-  | 'zeroedSample'
-  | 'afterPumpSample'
-  | 'pumpPeakSample'
-  | 'beforeReleaseSample'
-  | 'stableBeforeReleaseSample'
-  | 'afterReleaseSample'
-  | 'releaseLowSample'
-  | 'recoverySample';
-
-export type HeatCapacityProcessSamples = Partial<Record<HeatCapacityProcessSampleKey, HeatCapacityProcessSamplePoint>>;
+export type {
+  HeatCapacityProcessSampleKey,
+  HeatCapacityProcessSamplePoint,
+  HeatCapacityProcessSamples,
+  HeatCapacityRuntimePhase,
+};
 
 // Scripted Demo/Guide runtime config. Profile-derived target fields here keep
 // teaching behavior stable and must not be used as Free Mode physical truth.
@@ -143,10 +119,8 @@ export const DEFAULT_HEAT_CAPACITY_MODEL_CONFIG: HeatCapacityModelConfig = {
   releaseTemperatureMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.releaseTemperatureMvRange),
   recoveryTemperatureMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.recoveryTemperatureMvRange),
   sensor: {
-    pressureSensitivityMvPerKPa: DEFAULT_HEAT_CAPACITY_RESULT_OPTIONS.pressureSensitivityMvPerKPa,
+    ...DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG,
     temperatureBaseMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.initialTemperatureMvRange),
-    temperatureSensitivityMvPerK: 4,
-    noiseStdDevMv: 0,
   },
 };
 

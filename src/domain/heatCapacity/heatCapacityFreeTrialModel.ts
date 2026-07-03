@@ -5,7 +5,7 @@ import {
 } from './heatCapacityFreeCalibrationModel.ts';
 import type {
   HeatCapacityRuntimePhase,
-} from './heatCapacityExperimentModel.ts';
+} from './heatCapacityProcessTypes.ts';
 import {
   HEAT_CAPACITY_FREE_CALCULATION_VERSION,
   type HeatCapacityFreeConfigSnapshot,

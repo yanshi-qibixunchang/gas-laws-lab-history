@@ -1,10 +1,10 @@
-import {
-  DEFAULT_HEAT_CAPACITY_MODEL_CONFIG,
-} from './heatCapacityExperimentModel.ts';
 import type {
   HeatCapacityFreeEnvironmentConfig,
   HeatCapacityFreePhysicsConfig,
 } from './heatCapacityFreePhysicsEngine.ts';
+import {
+  DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG,
+} from './heatCapacitySensorMapping.ts';
 import type {
   HeatCapacityFreeRecordConfig,
 } from './heatCapacityFreeRecordModel.ts';
@@ -122,8 +122,8 @@ export const createDefaultHeatCapacityFreePhysicsConfig = (): HeatCapacityFreePh
 };
 
 export const createDefaultHeatCapacityFreeSensorConfig = (): HeatCapacityFreeSensorConfig => ({
-  pressureMvPerKPa: DEFAULT_HEAT_CAPACITY_MODEL_CONFIG.sensor.pressureSensitivityMvPerKPa,
-  temperatureMvAtAmbient: DEFAULT_HEAT_CAPACITY_MODEL_CONFIG.sensor.temperatureBaseMv,
+  pressureMvPerKPa: DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG.pressureSensitivityMvPerKPa,
+  temperatureMvAtAmbient: DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG.temperatureBaseMv,
   temperatureMvPerK: 2,
   lagRate: 8,
   noiseMv: 0.04,
