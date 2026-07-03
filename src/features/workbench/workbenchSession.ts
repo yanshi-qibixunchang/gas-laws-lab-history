@@ -10,9 +10,9 @@ import {
   normalizeHeatCapacityFileName,
   normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
   normalizeHeatCapacityFreePhysicsConfig,
-  normalizeHeatCapacityFreeStopcockFlowPurpose,
   WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
   type WorkbenchFileState,
+  type WorkbenchHeatCapacityState,
   type WorkbenchPanelKey,
   type WorkbenchHeatCapacityTabId,
 } from './workbenchState.ts';
@@ -257,7 +257,7 @@ const normalizeHeatCapacityFreeExperimentGroupStatus = (
 const normalizeHeatCapacityFreeConfigSnapshot = (
   value: unknown,
 ): HeatCapacityFreeConfigSnapshot | null => {
-  if (!isRecord(value)) return null;
+  if (!isRecord(value) || value.version !== HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION) return null;
   const fallback = createDefaultFreeConfigSnapshot();
   const record = isRecord(value.record) ? value.record : {};
   const physics = isRecord(value.physics) ? value.physics : {};
@@ -442,6 +442,14 @@ const normalizeHeatCapacityFreeTraceStore = (value: unknown): HeatCapacityFreeTr
   };
 };
 
+const normalizePersistedHeatCapacityFreeStopcockFlowPurpose = (
+  value: unknown,
+  stopcockOpen: boolean,
+): WorkbenchHeatCapacityState['heatCapacityFreeStopcockFlowPurpose'] => {
+  if (!stopcockOpen) return 'none';
+  return value === 'release' || value === 'zeroing' ? value : 'none';
+};
+
 const fallbackSession = (): WorkbenchSessionState => {
   return {
     version: WORKBENCH_SESSION_VERSION,
@@ -543,9 +551,8 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       : savedFreeSensorConfig.noiseMv > 0;
     const savedFreeStopcockFlowOpen = file.heatCapacityFreeStopcockFlowOpen === true;
     const savedFreeStopcockPendingOpenAtMs = normalizeNullableNumber(file.heatCapacityFreeStopcockPendingOpenAtMs);
-    const savedFreeStopcockFlowPurpose = normalizeHeatCapacityFreeStopcockFlowPurpose(
+    const savedFreeStopcockFlowPurpose = normalizePersistedHeatCapacityFreeStopcockFlowPurpose(
       file.heatCapacityFreeStopcockFlowPurpose,
-      { heatCapacityFreeTrials },
       savedFreeStopcockFlowOpen || savedFreeStopcockPendingOpenAtMs !== null,
     );
     const fallbackFreeParameterDraft = createHeatCapacityFreeParameterDraftFromConfigs(

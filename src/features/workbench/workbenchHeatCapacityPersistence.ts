@@ -35,7 +35,6 @@ import {
   createDefaultHeatCapacityFile,
   normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
   normalizeHeatCapacityFreePhysicsConfig,
-  normalizeHeatCapacityFreeStopcockFlowPurpose,
   type WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier,
   type WorkbenchHeatCapacityState,
 } from './workbenchState.ts';
@@ -137,13 +136,13 @@ export interface HeatCapacityFreePersistenceDataV1 {
   traceVersion: typeof HEAT_CAPACITY_FREE_TRACE_VERSION;
   calculationVersion: typeof HEAT_CAPACITY_FREE_CALCULATION_VERSION;
   config: HeatCapacityFreeConfigSnapshot;
-  parameterDraft?: HeatCapacityFreeParameterDraft;
-  experimentGroupStatus?: HeatCapacityFreeExperimentGroupStatus;
-  activeRunConfigSnapshot?: HeatCapacityFreeConfigSnapshot | null;
-  advancedRiskAccepted?: boolean;
-  recordConfig?: HeatCapacityFreeRecordConfig;
-  pressureWarningMv?: number;
-  instrumentNoiseEnabled?: boolean;
+  parameterDraft: HeatCapacityFreeParameterDraft;
+  experimentGroupStatus: HeatCapacityFreeExperimentGroupStatus;
+  activeRunConfigSnapshot: HeatCapacityFreeConfigSnapshot | null;
+  advancedRiskAccepted: boolean;
+  recordConfig: HeatCapacityFreeRecordConfig;
+  pressureWarningMv: number;
+  instrumentNoiseEnabled: boolean;
   runtime: WorkbenchHeatCapacityState['heatCapacityFreePhysicsState'];
   controls: {
     powerOn: boolean;
@@ -371,6 +370,21 @@ export const validateHeatCapacityPersistencePayload = (
   const config = isRecord(free.config) ? free.config : null;
   const environment = config && isRecord(config.environment) ? config.environment : null;
   const physics = config && isRecord(config.physics) ? config.physics : null;
+  if (!config || config.version !== HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION) {
+    errors.push('free.config.version is unsupported');
+  }
+  if (!isRecord(free.parameterDraft)) {
+    errors.push('free.parameterDraft is required');
+  }
+  if (!isRecord(free.recordConfig)) {
+    errors.push('free.recordConfig is required');
+  }
+  if (!isFiniteNumber(free.pressureWarningMv)) {
+    errors.push('free.pressureWarningMv must be a finite number');
+  }
+  if (typeof free.instrumentNoiseEnabled !== 'boolean') {
+    errors.push('free.instrumentNoiseEnabled must be a boolean');
+  }
   if (!environment || !isFiniteNumber(environment.ambientTemperatureK) || environment.ambientTemperatureK <= 0) {
     errors.push('free.config.environment.ambientTemperatureK must be > 0');
   }
@@ -440,7 +454,9 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
   value: unknown,
 ): HeatCapacityFreeConfigSnapshot => {
   const fallback = createDefaultFreeConfigSnapshot();
-  if (!isRecord(value)) return fallback;
+  if (!isRecord(value) || value.version !== HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION) {
+    return fallback;
+  }
   const environment = isRecord(value.environment) ? value.environment : {};
   const physics = isRecord(value.physics) ? value.physics : {};
   const thermal = isRecord(physics.thermal) ? physics.thermal : {};
@@ -661,6 +677,23 @@ const normalizePumpBulbState = (
   value === 'compressing' || value === 'releasing' || value === 'idle' ? value : 'idle'
 );
 
+const normalizePersistedStopcockFlowPurpose = (
+  value: unknown,
+  stopcockOpen: boolean,
+): WorkbenchHeatCapacityState['heatCapacityFreeStopcockFlowPurpose'] => {
+  if (!stopcockOpen) return 'none';
+  return value === 'release' || value === 'zeroing' ? value : 'none';
+};
+
+const hasCurrentFreeParameterPayload = (
+  value: Partial<HeatCapacityFreePersistenceDataV1> | null,
+) => (
+  isRecord(value?.parameterDraft) &&
+  isRecord(value?.recordConfig) &&
+  isFiniteNumber(value?.pressureWarningMv) &&
+  typeof value?.instrumentNoiseEnabled === 'boolean'
+);
+
 const restoreEquilibriumSpeed = (
   value: unknown,
 ): WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier => (
@@ -772,7 +805,10 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
   const guided = isRecord(heatPayload.guided) ? heatPayload.guided as Partial<HeatCapacityGuidePersistenceDataV1> : null;
   const common = isRecord(heatPayload.common) ? heatPayload.common as Partial<HeatCapacityPersistencePayloadV1['common']> : {};
   const restoredMode = normalizePayloadMode(heatPayload.mode);
-  const snapshot = normalizeHeatCapacityFreeConfigSnapshot(free?.config);
+  const freeHasCurrentParameterPayload = hasCurrentFreeParameterPayload(free);
+  const snapshot = freeHasCurrentParameterPayload
+    ? normalizeHeatCapacityFreeConfigSnapshot(free?.config)
+    : createDefaultFreeConfigSnapshot();
   const uiReplay = isRecord(free?.uiReplay) ? free!.uiReplay as Partial<HeatCapacityFreeUiReplayV1> : {};
   const controls = isRecord(free?.controls) ? free!.controls as Partial<HeatCapacityFreePersistenceDataV1['controls']> : {};
   const physicsConfig = createPhysicsConfigFromSnapshot(snapshot);
@@ -787,14 +823,15 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     overVentedMinimumU2CorrectedMv: snapshot.record.overVentedMinimumU2CorrectedMv,
     pressureDangerMv: snapshot.record.pressureDangerMv,
   };
-  const recordConfig = normalizeHeatCapacityFreeRecordConfig(free?.recordConfig, fallbackRecordConfig);
-  const pressureWarningMv = finiteOrDefault(
-    free?.pressureWarningMv,
-    snapshot.record.pressureWarningMv ?? HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
-  );
-  const instrumentNoiseEnabled = typeof free?.instrumentNoiseEnabled === 'boolean'
-    ? free.instrumentNoiseEnabled
-    : sensorConfig.noiseMv > 0;
+  const recordConfig = freeHasCurrentParameterPayload
+    ? normalizeHeatCapacityFreeRecordConfig(free?.recordConfig, fallbackRecordConfig)
+    : fallback.heatCapacityFreeRecordConfig;
+  const pressureWarningMv = freeHasCurrentParameterPayload
+    ? finiteOrDefault(free?.pressureWarningMv, snapshot.record.pressureWarningMv ?? HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV)
+    : fallback.heatCapacityFreePressureWarningMv;
+  const instrumentNoiseEnabled = freeHasCurrentParameterPayload
+    ? free?.instrumentNoiseEnabled === true
+    : fallback.heatCapacityFreeInstrumentNoiseEnabled;
   const fallbackDraft = createHeatCapacityFreeParameterDraftFromConfigs(
     physicsConfig,
     sensorConfig,
@@ -802,10 +839,12 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     pressureWarningMv,
     instrumentNoiseEnabled,
   );
-  const parameterDraft = normalizeHeatCapacityFreeParameterDraft(free?.parameterDraft, fallbackDraft);
+  const parameterDraft = freeHasCurrentParameterPayload
+    ? normalizeHeatCapacityFreeParameterDraft(free?.parameterDraft, fallbackDraft)
+    : fallback.heatCapacityFreeParameterDraft;
   const activeRunConfigSnapshot = free?.activeRunConfigSnapshot === null
     ? null
-    : isRecord(free?.activeRunConfigSnapshot)
+    : freeHasCurrentParameterPayload && isRecord(free?.activeRunConfigSnapshot)
       ? normalizeHeatCapacityFreeConfigSnapshot(free.activeRunConfigSnapshot)
       : null;
   const layout = fileEnvelope.layout;
@@ -832,9 +871,8 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     Number.isFinite(uiReplay.heatCapacityFreeStopcockPendingOpenAtMs)
       ? uiReplay.heatCapacityFreeStopcockPendingOpenAtMs
       : null;
-  const restoredStopcockFlowPurpose = normalizeHeatCapacityFreeStopcockFlowPurpose(
-    controls.stopcockFlowPurpose ?? uiReplay.heatCapacityFreeStopcockFlowPurpose,
-    { heatCapacityFreeTrials: restoredFreeTrials },
+  const restoredStopcockFlowPurpose = normalizePersistedStopcockFlowPurpose(
+    controls.stopcockFlowPurpose,
     restoredStopcockFlowOpen || restoredStopcockPendingOpenAtMs !== null,
   );
   const restoredOpenHeatCapacityTabs = Array.isArray(common.openHeatCapacityTabs)

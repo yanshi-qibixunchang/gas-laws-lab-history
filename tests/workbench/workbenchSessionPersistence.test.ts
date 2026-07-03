@@ -344,9 +344,9 @@ assert.equal(closedDecoded.handled, true);
 assert.equal(closedDecoded.files.length, 1);
 assert.equal(closedDecoded.files[0].id, heatReplayFile.id);
 
-const legacySnapshotWithoutU0 = createDefaultFreeConfigSnapshot();
-legacySnapshotWithoutU0.version = 4 as never;
-delete (legacySnapshotWithoutU0.record as Partial<typeof legacySnapshotWithoutU0.record>).u0ZeroToleranceMv;
+const currentActiveRunSnapshot = createDefaultFreeConfigSnapshot();
+currentActiveRunSnapshot.environment.ambientPressureKPa = 99.2;
+currentActiveRunSnapshot.record.pressureDangerMv = 152;
 const customFreeSessionFile = {
   ...createDefaultHeatCapacityFile(9),
   heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
@@ -354,7 +354,7 @@ const customFreeSessionFile = {
   heatCapacityFreeAdvancedRiskAccepted: true,
   heatCapacityFreeInstrumentNoiseEnabled: false,
   heatCapacityFreePressureWarningMv: 123,
-  heatCapacityFreeActiveRunConfigSnapshot: legacySnapshotWithoutU0,
+  heatCapacityFreeActiveRunConfigSnapshot: currentActiveRunSnapshot,
   heatCapacityFreeRecordConfig: {
     ...heatCapacity.heatCapacityFreeRecordConfig,
     pressureDangerMv: 152,
@@ -384,10 +384,10 @@ assert.equal(customFreeFile.heatCapacityFreeRecordConfig.pressureDangerMv, 152);
 assert.equal(customFreeFile.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.2);
 assert.equal(customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.version, 7);
 assert.equal(
-  customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.physics.releaseVisualMainDurationS,
-  0.18,
+  customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.environment.ambientPressureKPa,
+  99.2,
 );
-assert.equal(customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.record.u0ZeroToleranceMv, 0.12);
+assert.equal(customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.record.pressureDangerMv, 152);
 
 const futureEnvelope = {
   ...envelope,

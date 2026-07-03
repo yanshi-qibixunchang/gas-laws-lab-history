@@ -2322,53 +2322,6 @@ assert.equal(restoredHeatFile.pressureSignalMv, 0);
 assert.equal(restoredHeatFile.pressureReleaseBurstUntilMs, 123_456);
 assert.equal(restoredHeatFile.heatCapacityFreeStopcockFlowPurpose, 'none');
 
-const zeroingFlowRestored = decodeWorkbenchSession({
-  version: WORKBENCH_SESSION_VERSION,
-  activeFileId: defaultFile.id,
-  selectedPanel: 'preview',
-  files: [{
-    ...defaultFile,
-    heatCapacityFreeStopcockFlowOpen: true,
-    heatCapacityFreeStopcockFlowPurpose: undefined,
-  }],
-});
-const zeroingFlowHeatFile = zeroingFlowRestored.files[0];
-assert.equal(zeroingFlowHeatFile.kind, 'heatCapacity');
-assert.equal(
-  zeroingFlowHeatFile.heatCapacityFreeStopcockFlowPurpose,
-  'zeroing',
-  'legacy Free session files with open stopcock flow and no U1 record should restore as zeroing flow',
-);
-
-const releaseFlowRestored = decodeWorkbenchSession({
-  version: WORKBENCH_SESSION_VERSION,
-  activeFileId: defaultFile.id,
-  selectedPanel: 'preview',
-  files: [{
-    ...defaultFile,
-    heatCapacityFreeStopcockFlowOpen: true,
-    heatCapacityFreeStopcockFlowPurpose: undefined,
-    heatCapacityFreeTrials: [{
-      ...createHeatCapacityFreeTrial('session-release'),
-      u1: normalizeHeatCapacityFreeRecordInput({
-        atS: 300,
-        displayPressureMv: 25,
-        displayTemperatureMv: initialTemperatureMv,
-        calibrationVersion: 1,
-        zeroEventId: 'zero-1',
-        phaseAtRecord: 'sealedStabilizing',
-      }),
-    }],
-  }],
-});
-const releaseFlowHeatFile = releaseFlowRestored.files[0];
-assert.equal(releaseFlowHeatFile.kind, 'heatCapacity');
-assert.equal(
-  releaseFlowHeatFile.heatCapacityFreeStopcockFlowPurpose,
-  'release',
-  'legacy Free session files with U1 but no U2 should restore open stopcock flow as release',
-);
-
 const legacyFile = { ...defaultFile } as Record<string, unknown>;
 delete legacyFile.stopcockAngleDeg;
 delete legacyFile.pressureZeroed;

@@ -81,6 +81,16 @@ const invalid = validateHeatCapacityPersistencePayload({
 assert.equal(invalid.valid, false);
 assert.equal(invalid.errors.includes('free.runtime.gasAmountRatio must be > 0'), true);
 
+const missingCurrentParameterPayload = validateHeatCapacityPersistencePayload({
+  ...payload,
+  free: {
+    ...payload.free!,
+    parameterDraft: undefined,
+  },
+});
+assert.equal(missingCurrentParameterPayload.valid, false);
+assert.equal(missingCurrentParameterPayload.errors.includes('free.parameterDraft is required'), true);
+
 const tracedFile = recordHeatCapacityFreeTraceEvent({
   ...file,
   powerOn: true,
@@ -169,21 +179,6 @@ const recordedPayloadRestored = restoreHeatCapacityFileFromPersistencePayload({
 }, recordedPayload, 2);
 assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].completedAtMs, 12_345);
 
-const legacyRecordedPayload = structuredClone(recordedPayload);
-delete (legacyRecordedPayload.free!.trials[0] as unknown as Record<string, unknown>).completedAtMs;
-const legacyRecordedPayloadRestored = restoreHeatCapacityFileFromPersistencePayload({
-  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
-  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
-  id: 'heat-file-legacy-recorded-trial-restore',
-  kind: 'heatCapacity',
-  name: 'Legacy Recorded Trial Restore',
-  createdAt: 10,
-  updatedAt: 20,
-  layout: {},
-  payload: legacyRecordedPayload as unknown as Record<string, unknown>,
-}, legacyRecordedPayload, 2);
-assert.equal(legacyRecordedPayloadRestored.heatCapacityFreeTrials[0].completedAtMs, null);
-
 const rollbackSnapshotFile = {
   ...file,
   powerOn: true,
@@ -261,24 +256,17 @@ assert.equal(restored.heatCapacityFreeStopcockFlowPurpose, 'none');
 const newFile = createDefaultHeatCapacityFile(2);
 assert.equal(newFile.heatCapacityFreeAdvancedRiskAccepted, false);
 
-const legacyPayload = structuredClone(editedPayload);
-delete legacyPayload.free!.parameterDraft;
-delete legacyPayload.free!.recordConfig;
-delete legacyPayload.free!.pressureWarningMv;
-delete legacyPayload.free!.instrumentNoiseEnabled;
-delete legacyPayload.free!.advancedRiskAccepted;
-legacyPayload.free!.config.version = 4 as never;
-legacyPayload.free!.config.physics.releaseVisualMainDurationS = undefined as never;
-delete (legacyPayload.free!.config.record as Partial<typeof legacyPayload.free.config.record>).u0ZeroToleranceMv;
-const legacyRestored = restoreHeatCapacityFileFromPersistencePayload(envelope, legacyPayload, 3);
-assert.equal(legacyRestored.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.4);
-assert.equal(legacyRestored.heatCapacityFreeRecordConfig.u0ZeroToleranceMv, 0.12);
-assert.equal(legacyRestored.heatCapacityFreeActiveRunConfigSnapshot, null);
-assert.equal(legacyRestored.heatCapacityFreeAdvancedRiskAccepted, false);
-assert.equal(
-  legacyRestored.heatCapacityFreeInstrumentNoiseEnabled,
-  legacyRestored.heatCapacityFreeSensorConfig.noiseMv > 0,
-);
-assert.equal(legacyRestored.heatCapacityFreeStopcockFlowPurpose, 'none');
+const incompletePayload = structuredClone(editedPayload);
+delete incompletePayload.free!.parameterDraft;
+delete incompletePayload.free!.recordConfig;
+delete incompletePayload.free!.pressureWarningMv;
+delete incompletePayload.free!.instrumentNoiseEnabled;
+const incompleteRestored = restoreHeatCapacityFileFromPersistencePayload(envelope, incompletePayload, 3);
+const defaultFreeFile = createDefaultHeatCapacityFile(3);
+assert.equal(incompleteRestored.heatCapacityFreeParameterDraft.ambientPressureKPa, defaultFreeFile.heatCapacityFreeParameterDraft.ambientPressureKPa);
+assert.equal(incompleteRestored.heatCapacityFreeRecordConfig.pressureDangerMv, defaultFreeFile.heatCapacityFreeRecordConfig.pressureDangerMv);
+assert.equal(incompleteRestored.heatCapacityFreePressureWarningMv, defaultFreeFile.heatCapacityFreePressureWarningMv);
+assert.equal(incompleteRestored.heatCapacityFreeInstrumentNoiseEnabled, defaultFreeFile.heatCapacityFreeInstrumentNoiseEnabled);
+assert.equal(incompleteRestored.heatCapacityFreeActiveRunConfigSnapshot, null);
 
 console.log('heatCapacityFreePersistence tests passed');
