@@ -424,12 +424,12 @@ const differentAutomaticCandidate = {
   ...automaticU0!,
   displayPressureMv: 5,
 };
-const manualU0WithDifferentAutomatic = recordFreeU0(
+const officialU0WithDifferentAutomatic = recordFreeU0(
   createHeatCapacityFreeTrial('manual-u0-source-check', differentAutomaticCandidate),
   u0Input,
 );
-assert.equal(manualU0WithDifferentAutomatic.accepted, true);
-const sourceCheckU1 = recordFreeU1(manualU0WithDifferentAutomatic.trial, u1Input);
+assert.equal(officialU0WithDifferentAutomatic.accepted, true);
+const sourceCheckU1 = recordFreeU1(officialU0WithDifferentAutomatic.trial, u1Input);
 assert.equal(sourceCheckU1.accepted, true);
 const sourceCheckU2 = recordFreeU2(sourceCheckU1.trial, {
   atS: 42,
@@ -443,7 +443,7 @@ assert.equal(sourceCheckU2.trial.correctedSignals?.U0DisplayMv, 0);
 assert.equal(sourceCheckU2.trial.correctedSignals?.U1CorrectedMv, 112);
 assert.equal(
   sourceCheckU2.trial.correctedSignals?.U1CorrectedMv,
-  sourceCheckU1.trial.u1!.displayPressureMv - manualU0WithDifferentAutomatic.trial.u0!.displayPressureMv,
+  sourceCheckU1.trial.u1!.displayPressureMv - officialU0WithDifferentAutomatic.trial.u0!.displayPressureMv,
   'official Free correction must use user-clicked U0 instead of the automatic advisory candidate',
 );
 

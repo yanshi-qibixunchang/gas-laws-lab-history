@@ -68,12 +68,12 @@ const hasCurrentCalibration = (
   trial: HeatCapacityFreeTrial,
   calibration: HeatCapacityFreeCalibrationState,
 ) => {
-  const manualU0 = trial.u0;
-  if (!manualU0) {
+  const officialU0 = trial.u0;
+  if (!officialU0) {
     return false;
   }
-  return manualU0.calibrationVersion === calibration.calibrationVersion &&
-    manualU0.zeroEventId === getLatestZeroEventId(calibration);
+  return officialU0.calibrationVersion === calibration.calibrationVersion &&
+    officialU0.zeroEventId === getLatestZeroEventId(calibration);
 };
 
 export const evaluateFreeU0Record = (
