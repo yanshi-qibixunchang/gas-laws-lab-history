@@ -7,9 +7,11 @@ import {
   getHeatCapacityRangeMidpoint,
   getHeatCapacityRangeValue,
 } from './heatCapacityDisplayResponse.ts';
-import {
-  DEFAULT_HEAT_CAPACITY_RESULT_OPTIONS,
-} from './heatCapacityResultModel.ts';
+const DEFAULT_HEAT_CAPACITY_RESULT_OPTIONS = {
+  atmosphericPressureKPa: 101.3,
+  pressureSensitivityMvPerKPa: 20,
+  theoreticalGamma: 1.4,
+} as const;
 
 export type HeatCapacityRuntimePhase =
   | 'powerOff'

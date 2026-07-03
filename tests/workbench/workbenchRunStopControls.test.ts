@@ -160,8 +160,8 @@ assert.notEqual(applyAutoDemoActionEnd, -1, 'auto-demo action dispatcher should 
 const applyAutoDemoActionBody = source.slice(applyAutoDemoActionStart, applyAutoDemoActionEnd);
 assert.match(
   applyAutoDemoActionBody,
-  /if \(action === 'markDemoComplete'\)[\s\S]*enterHeatCapacityFreeModeWorkbenchState\(/,
-  'natural auto-demo completion should also return the active file to Free mode',
+  /if \(action === 'markDemoComplete'\)[\s\S]*const completedFile = markHeatCapacityDemoComplete\(file, now\)[\s\S]*activeHeatCapacityTabId:\s*'records'[\s\S]*selectedHeatCapacityPanel:\s*'heatCapacityRecords'/,
+  'natural auto-demo completion should keep Demo results visible in the merged Data & Results page',
 );
 
 const clearAutoDemoUiStart = source.indexOf('const clearHeatCapacityAutoDemoUiState = () => {');
@@ -197,10 +197,10 @@ assert.match(
   'the header stop button should remain for standard previews and heat capacity should stop through its mode bar',
 );
 
-assert.match(
+assert.doesNotMatch(
   source,
-  /className="studio-heat-mode-action studio-heat-mode-action-next-trial"/,
-  'next-trial guide action should have a dedicated attention class',
+  /studio-heat-mode-action-next-trial/,
+  'single guide mode should not keep the old next-trial guide action',
 );
 
 assert.match(
@@ -215,16 +215,16 @@ assert.match(
   'mode action reveal should use the same slower 340ms smooth transition',
 );
 
-assert.match(
+assert.doesNotMatch(
   cssSource,
   /@keyframes studio-heat-next-trial-breathe/,
-  'next-trial guide action should define a restrained breathing animation',
+  'single guide mode should remove the old next-trial breathing animation',
 );
 
-assert.match(
+assert.doesNotMatch(
   cssSource,
   /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.studio-heat-mode-action-next-trial/,
-  'next-trial breathing should be disabled or softened for reduced motion users',
+  'single guide mode should not keep next-trial reduced-motion overrides',
 );
 
 assert.match(

@@ -37,10 +37,6 @@ import {
   type HeatCapacityFreeRecordConfig,
   type HeatCapacityFreeRecordInput,
 } from '../../src/domain/heatCapacity/heatCapacityFreeRecordModel.ts';
-import {
-  calculateHeatCapacityMeanResult,
-  createHeatCapacityTrial,
-} from '../../src/domain/heatCapacity/heatCapacityTrialModel.ts';
 
 const recordConfig: HeatCapacityFreeRecordConfig = {
   pressureStableSlopeMvPerS: 0.15,
@@ -537,24 +533,6 @@ assert.equal(freeRemovalU0.correctedSignals, null, 'removing Free U0 should clea
 const freeRemovalTrial = removeHeatCapacityFreeTrialRecord([recordedU2.trial], 0, 'trial');
 assert.equal(freeRemovalTrial.trials.length, 0, 'removing a Free trial should delete the whole group row');
 assert.equal(freeRemovalTrial.nextActiveTrialIndex, 0);
-
-const teachingResult = calculateHeatCapacityMeanResult([
-  {
-    ...createHeatCapacityTrial(1),
-    U1Mv: 120,
-    U2Mv: 34.3,
-    UT1Mv: 1526.1,
-    UT2Mv: 1522.3,
-    status: 'complete',
-  },
-], {
-  atmosphericPressureKPa: 101.3,
-  pressureSensitivityMvPerKPa: 20,
-  theoreticalGamma: 1.4,
-});
-assert.equal(teachingResult.status, 'ready');
-assert.equal(teachingResult.trialResults[0].deltaP1KPa, 6);
-assert.equal(teachingResult.trialResults[0].deltaP2KPa, 1.715);
 
 const version1PhysicsConfig: HeatCapacityFreePhysicsConfig = {
   environment: {

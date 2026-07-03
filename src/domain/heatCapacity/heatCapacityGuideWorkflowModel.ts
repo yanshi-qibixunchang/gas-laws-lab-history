@@ -174,11 +174,11 @@ export const getHeatCapacityGuideActionGuard = (
     case 'zeroRequired':
       return context.action === 'adjustZero' && context.pressureZeroReady === true
         ? accepted('压强已调零。', 'pressureZero')
-        : rejected(workflow, context, '请调节压力调零旋钮，使 Up 接近 0。');
+        : rejected(workflow, context, '请调节压力调零旋钮，使 Uₚ 接近 0。');
     case 'recordU0Required':
       return context.action === 'recordU0'
-        ? accepted('已记录 U0。', 'recordU0')
-        : rejected(workflow, context, '请记录 U0。');
+        ? accepted('已记录 U₀。', 'recordU0')
+        : rejected(workflow, context, '请记录 U₀。');
     case 'closeStopcockBeforePumpRequired':
       return context.action === 'closeStopcock' && !context.stopcockOpen
         ? accepted('玻璃旋塞已关闭。', 'stopcock')
@@ -188,23 +188,23 @@ export const getHeatCapacityGuideActionGuard = (
         ? accepted('打气阀门已打开。', 'pumpValve')
         : rejected(workflow, context, '请打开打气阀门。');
     case 'pumpRequired':
-      if (context.action === 'pressPumpBulb') return accepted('继续快速打气。', 'pumpBulb');
+      if (context.action === 'pressPumpBulb') return accepted('继续打气，直到 Uₚ ≥ 120 mV。', 'pumpBulb');
       if (context.action === 'closePumpValve' && context.displayPressureMv >= HEAT_CAPACITY_GUIDE_PUMP_TARGET_MV) {
-        return accepted('已达到建议打气压强。', 'pumpValve');
+        return accepted('已达到 Uₚ ≥ 120 mV。', 'pumpValve');
       }
-      return rejected(workflow, context, `请快速打气，直到 Uₚ 达到 ${HEAT_CAPACITY_GUIDE_PUMP_TARGET_MV.toFixed(1)} mV 以上。`);
+      return rejected(workflow, context, `请连续打气，直到 Uₚ ≥ ${HEAT_CAPACITY_GUIDE_PUMP_TARGET_MV.toFixed(0)} mV。`);
     case 'closePumpValveRequired':
       return context.action === 'closePumpValve' && !context.pumpValveOpen
         ? accepted('打气阀门已关闭。', 'pumpValve')
         : rejected(workflow, context, '请关闭打气阀门。');
     case 'u1Waiting':
       return context.action === 'timerComplete'
-        ? accepted('U1 等待完成。', 'recordU1')
-        : rejected(workflow, context, '请等待计时器达到 5 分钟。');
+        ? accepted('U₁ 等待完成。', 'recordU1')
+        : rejected(workflow, context, '请等待计时器达到 5 min。');
     case 'recordU1Required':
       return context.action === 'recordU1'
-        ? accepted('已记录 U1。', 'recordU1')
-        : rejected(workflow, context, '请记录 U1。');
+        ? accepted('已记录 U₁。', 'recordU1')
+        : rejected(workflow, context, '请记录 U₁。');
     case 'openStopcockForReleaseRequired':
       return context.action === 'openStopcock' && context.stopcockOpen
         ? accepted('放气旋塞已打开。', 'stopcock')
@@ -212,21 +212,21 @@ export const getHeatCapacityGuideActionGuard = (
     case 'closeStopcockAfterReleaseRequired':
       return context.action === 'closeStopcock' && !context.stopcockOpen && context.releaseDurationReady === true
         ? accepted('放气旋塞已关闭。', 'stopcock')
-        : rejected(workflow, context, '请在放气约 0.35 秒后关闭玻璃旋塞。');
+        : rejected(workflow, context, '请在放气约 0.35 s 后关闭玻璃旋塞。');
     case 'u2Waiting':
       return context.action === 'timerComplete'
-        ? accepted('U2 等待完成。', 'recordU2')
-        : rejected(workflow, context, '请等待计时器达到 5 分钟。');
+        ? accepted('U₂ 等待完成。', 'recordU2')
+        : rejected(workflow, context, '请等待计时器达到 5 min。');
     case 'recordU2Required':
       return context.action === 'recordU2'
-        ? accepted('已记录 U2。', 'recordU2')
-        : rejected(workflow, context, '请记录 U2。');
+        ? accepted('已记录 U₂。', 'recordU2')
+        : rejected(workflow, context, '请记录 U₂。');
     case 'closePowerRequired':
       return context.action === 'togglePower' && !context.powerOn
         ? accepted('实验已完成。', 'powerSwitch')
-        : rejected(workflow, context, '请关闭电源，完成本组实验。');
+        : rejected(workflow, context, '请关闭电源，完成本次引导实验。');
     case 'completed':
-      return rejected(workflow, context, '本组引导实验已完成。');
+      return rejected(workflow, context, '本次引导实验已完成。');
   }
 };
 

@@ -62,7 +62,7 @@ const isFiniteNumber = (value: unknown): value is number => (
 );
 
 const standardResultTabs = ['summary', 'dataTable', 'figures'] as const satisfies readonly WorkbenchStandardResultsTab[];
-const panelKeys = ['preview', 'realtime', 'results', 'experimentPoints', 'verification', 'heatCapacityGuide', 'heatCapacityRecords', 'heatCapacityProcessing', 'heatCapacityReview', 'history'] as const satisfies readonly WorkbenchPanelKey[];
+const panelKeys = ['preview', 'realtime', 'results', 'experimentPoints', 'verification', 'heatCapacityGuide', 'heatCapacityRecords', 'heatCapacityReview', 'history'] as const satisfies readonly WorkbenchPanelKey[];
 const runStates = ['idle', 'running', 'paused', 'finished', 'needs-reset'] as const satisfies readonly WorkbenchRunState[];
 
 const isWorkbenchRunState = (value: unknown): value is WorkbenchRunState => (

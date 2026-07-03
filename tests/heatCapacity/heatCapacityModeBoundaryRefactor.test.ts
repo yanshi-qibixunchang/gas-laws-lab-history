@@ -58,7 +58,7 @@ const stabilizeGuidePressureZero = (
 
   assert.equal(free.heatCapacityMode, 'free');
   assert.equal(free.heatCapacityExperimentProfile, null);
-  assert.deepEqual(free.heatCapacityTrials.map((trial) => trial.status), ['waiting', 'waiting', 'waiting']);
+  assert.deepEqual(free.heatCapacityFreeTrials, []);
   assert.equal(free.heatCapacityGuideTrial, null);
 }
 
@@ -158,12 +158,15 @@ const stabilizeGuidePressureZero = (
   assert.equal(u2Attempt.accepted, true);
   guide = u2Attempt.file;
   assert.equal(guide.heatCapacityGuideWorkflow.step, 'closePowerRequired');
-  assert.equal(guide.heatCapacityProcessingResult.status, 'ready');
+  assert.notEqual(guide.heatCapacityGuideTrial?.correctedSignals, null);
   assert.equal(guide.heatCapacityFreeTrials.length, 0);
 
   guide = powerHeatCapacityWorkbenchFile(guide, false, now += 100);
   assert.equal(guide.heatCapacityGuideWorkflow.step, 'completed');
+  assert.equal(guide.heatCapacityMode, 'free');
   assert.equal(guide.runState, 'finished');
+  assert.notEqual(guide.heatCapacityGuideTrial, null);
+  assert.equal(guide.heatCapacityGuideTrial?.source, 'guide');
   assert.equal(guide.heatCapacityFreeTrials.length, 0);
 }
 

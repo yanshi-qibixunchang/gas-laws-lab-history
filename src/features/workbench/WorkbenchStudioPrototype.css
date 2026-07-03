@@ -4421,52 +4421,6 @@
   outline: none;
 }
 
-.studio-heat-mode-action-next-trial {
-  --studio-heat-next-trial-rest-bg: #3f5a49;
-  --studio-heat-next-trial-rest-border: rgba(168, 218, 181, 0.68);
-  --studio-heat-next-trial-rest-text: #dff7e4;
-  --studio-heat-next-trial-rest-shadow: inset 0 0 0 1px rgba(220, 252, 231, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.1);
-  --studio-heat-next-trial-pulse-bg: #1f7a49;
-  --studio-heat-next-trial-pulse-border: rgba(190, 242, 202, 0.94);
-  --studio-heat-next-trial-pulse-text: #ffffff;
-  --studio-heat-next-trial-pulse-shadow: inset 0 0 0 2px rgba(220, 252, 231, 0.42), inset 0 0 16px rgba(190, 242, 202, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.24);
-  animation: studio-heat-next-trial-breathe 1.2s cubic-bezier(0.2, 0, 0, 1) infinite;
-  border-color: var(--studio-heat-next-trial-rest-border);
-  background: var(--studio-heat-next-trial-rest-bg);
-  box-shadow: var(--studio-heat-next-trial-rest-shadow);
-  color: var(--studio-heat-next-trial-rest-text);
-  margin-inline-start: 4px;
-  will-change: box-shadow, border-color, background, color;
-}
-
-.studio-theme-light .studio-heat-mode-action-next-trial {
-  --studio-heat-next-trial-rest-bg: #e2f5e7;
-  --studio-heat-next-trial-rest-border: rgba(22, 101, 52, 0.44);
-  --studio-heat-next-trial-rest-text: #14532d;
-  --studio-heat-next-trial-rest-shadow: inset 0 0 0 1px rgba(21, 128, 61, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.72);
-  --studio-heat-next-trial-pulse-bg: #15803d;
-  --studio-heat-next-trial-pulse-border: rgba(21, 128, 61, 0.86);
-  --studio-heat-next-trial-pulse-text: #ffffff;
-  --studio-heat-next-trial-pulse-shadow: inset 0 0 0 2px rgba(220, 252, 231, 0.48), inset 0 0 16px rgba(187, 247, 208, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-@keyframes studio-heat-next-trial-breathe {
-  0%,
-  100% {
-    border-color: var(--studio-heat-next-trial-rest-border);
-    background: var(--studio-heat-next-trial-rest-bg);
-    box-shadow: var(--studio-heat-next-trial-rest-shadow);
-    color: var(--studio-heat-next-trial-rest-text);
-  }
-
-  50% {
-    border-color: var(--studio-heat-next-trial-pulse-border);
-    background: var(--studio-heat-next-trial-pulse-bg);
-    box-shadow: var(--studio-heat-next-trial-pulse-shadow);
-    color: var(--studio-heat-next-trial-pulse-text);
-  }
-}
-
 @keyframes studio-heat-reset-feedback {
   0% {
     transform: scale(0.96);
@@ -4938,10 +4892,6 @@
   .studio-console-resizer {
     animation-duration: 80ms;
     transition-duration: 80ms;
-  }
-
-  .studio-heat-mode-action-next-trial {
-    animation: none;
   }
 
   .studio-heat-hard-sphere-tooltip {
@@ -10040,9 +9990,7 @@
 }
 
 .studio-heat-guide-doc,
-.studio-heat-recording,
-.studio-heat-processing,
-.studio-heat-processing-results {
+.studio-heat-recording {
   display: grid;
   gap: 12px;
 }
@@ -10160,18 +10108,13 @@
 
 .studio-heat-sample-status,
 .studio-heat-recording-controls,
-.studio-heat-processing-summary,
-.studio-heat-result-summary-line,
-.studio-heat-calculate-row,
-.studio-heat-formula-panel,
-.studio-heat-gamma-chart {
+.studio-heat-result-summary-line {
   border: 1px solid var(--studio-border-soft);
   background: rgba(32, 37, 44, 0.86);
 }
 
 .studio-heat-sample-status-header,
-.studio-heat-recording-controls,
-.studio-heat-calculate-row {
+.studio-heat-recording-controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -10180,16 +10123,13 @@
 }
 
 .studio-heat-sample-status-header strong,
-.studio-heat-recording-controls strong,
-.studio-heat-formula-title strong {
+.studio-heat-recording-controls strong {
   color: var(--studio-text);
   font-size: 12px;
 }
 
 .studio-heat-sample-status-header span,
-.studio-heat-recording-controls span,
-.studio-heat-formula-title span,
-.studio-heat-calculate-row span {
+.studio-heat-recording-controls span {
   color: var(--studio-subtle);
   font-size: 11px;
 }
@@ -10251,8 +10191,7 @@
 }
 
 .studio-heat-trial-count button,
-.studio-heat-trial-count input,
-.studio-heat-calculate-row button {
+.studio-heat-trial-count input {
   height: 28px;
   border: 1px solid var(--studio-border-soft);
   background: #20252c;
@@ -10267,8 +10206,7 @@
 }
 
 .studio-heat-trial-count-active,
-.studio-heat-trial-count button:hover,
-.studio-heat-calculate-row button:hover:not(:disabled) {
+.studio-heat-trial-count button:hover {
   border-color: rgba(79, 127, 184, 0.55);
   background: rgba(79, 127, 184, 0.16);
   color: var(--studio-text);
@@ -10308,12 +10246,6 @@
   color: var(--studio-danger);
 }
 
-.studio-heat-processing-summary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  padding: 0;
-}
-
 .studio-heat-result-summary-line {
   display: flex;
   min-width: 0;
@@ -10330,152 +10262,69 @@
   line-height: 1.4;
 }
 
-.studio-heat-processing-summary-cell {
+.studio-heat-guide-result-summary {
   display: grid;
-  min-width: 0;
-  grid-template-columns: minmax(96px, 0.34fr) minmax(0, 1fr);
-  align-items: stretch;
+  gap: 10px;
+  padding: 12px 14px;
 }
 
-.studio-heat-processing-summary-cell + .studio-heat-processing-summary-cell {
-  border-left: 1px solid var(--studio-border-soft);
-}
-
-.studio-heat-processing-summary-cell > span {
-  display: flex;
-  align-items: center;
-  padding: 10px 12px;
+.studio-heat-guide-result-summary > span {
   color: var(--studio-subtle);
   font-size: 11px;
 }
 
-.studio-heat-processing-summary-values {
+.studio-heat-guide-result-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.studio-heat-guide-result-summary-grid > div {
   display: flex;
   min-width: 0;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  border-left: 1px solid var(--studio-border-soft);
+  flex-direction: column;
+  gap: 5px;
+  border: 1px solid var(--studio-border-soft);
+  background: rgba(15, 23, 35, 0.25);
   padding: 10px 12px;
 }
 
-.studio-heat-processing-summary-values strong {
-  display: inline-flex;
-  min-width: max-content;
-  align-items: baseline;
-  gap: 2px;
+.studio-heat-guide-result-summary-grid span {
+  color: var(--studio-subtle);
+  font-size: 11px;
+}
+
+.studio-heat-guide-result-summary-grid strong {
+  min-width: 0;
   color: var(--studio-text);
   font-family: "JetBrains Mono", Consolas, "Microsoft YaHei UI", monospace;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: 15px;
+  line-height: 1.1;
   white-space: nowrap;
 }
 
-.studio-heat-processing-summary-values sub {
-  line-height: 0;
+.studio-heat-guide-calculation {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.35fr) minmax(0, 1fr);
+  gap: 12px;
 }
 
-.studio-heat-processing-summary-symbols {
-  gap: 10px;
-}
-
-.studio-heat-calculate-row button {
-  display: inline-flex;
-  align-items: center;
+.studio-heat-guide-calculation > div {
+  display: grid;
   gap: 7px;
-  cursor: pointer;
+  align-content: start;
 }
 
-.studio-heat-calculate-row button:disabled {
-  opacity: 0.48;
-  cursor: not-allowed;
-}
-
-.studio-heat-formula-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(260px, 1fr));
-  gap: 10px;
-}
-
-.studio-heat-formula-panel {
-  display: grid;
-  gap: 8px;
-  padding: 10px;
-}
-
-.studio-heat-formula-expression,
-.studio-heat-formula-result {
-  border-top: 1px solid rgba(79, 127, 184, 0.14);
-  padding-top: 7px;
-  color: var(--studio-muted);
-  font-family: "JetBrains Mono", Consolas, monospace;
+.studio-heat-guide-calculation strong {
+  color: var(--studio-text);
   font-size: 12px;
-  line-height: 1.5;
 }
 
-.studio-heat-formula-result {
-  color: var(--studio-text);
-}
-
-.studio-heat-formula-result-list,
-.studio-heat-formula-average {
-  display: grid;
-  gap: 6px;
-}
-
-.studio-heat-formula-result-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: baseline;
-}
-
-.studio-heat-formula-result-row strong,
-.studio-heat-formula-preview-note {
-  color: var(--studio-subtle);
-  font-size: 11px;
-}
-
-.studio-heat-formula-expand {
-  justify-self: start;
-  border: 1px solid rgba(79, 127, 184, 0.34);
-  border-radius: 6px;
-  background: rgba(79, 127, 184, 0.14);
-  color: var(--studio-text);
-  padding: 3px 8px;
-  font-family: inherit;
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.studio-heat-formula-expand:hover,
-.studio-heat-formula-expand:focus-visible {
-  border-color: rgba(103, 156, 216, 0.58);
-  background: rgba(79, 127, 184, 0.22);
-}
-
-.studio-heat-gamma-chart {
-  display: grid;
-  justify-self: center;
-  width: min(560px, 100%);
-  gap: 8px;
-  padding: 10px;
-}
-
-.studio-heat-gamma-chart svg {
-  display: block;
-  width: min(440px, 100%);
-  height: auto;
-  justify-self: center;
-  border: 1px solid rgba(79, 127, 184, 0.18);
-  background: rgba(16, 21, 27, 0.45);
-}
-
-.studio-heat-gamma-chart text {
-  fill: var(--studio-subtle);
-  font-family: "JetBrains Mono", Consolas, monospace;
-  font-size: 9px;
+.studio-heat-guide-calculation span {
+  color: var(--studio-muted);
+  font-family: "JetBrains Mono", Consolas, "Microsoft YaHei UI", monospace;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .studio-heat-chart-grid-line {
@@ -10687,9 +10536,7 @@
 }
 
 .studio-heat-guide-doc,
-.studio-heat-recording,
-.studio-heat-processing,
-.studio-heat-processing-results {
+.studio-heat-recording {
   gap: 10px;
   max-width: none;
 }
@@ -10777,24 +10624,18 @@
 }
 
 .studio-heat-sample-status,
-.studio-heat-recording-controls,
-.studio-heat-processing-summary,
-.studio-heat-calculate-row,
-.studio-heat-formula-panel,
-.studio-heat-gamma-chart {
+.studio-heat-recording-controls {
   border-color: var(--studio-border-soft);
   background: #20252c;
 }
 
 .studio-heat-sample-status-header,
-.studio-heat-recording-controls,
-.studio-heat-calculate-row {
+.studio-heat-recording-controls {
   padding: 8px 10px;
 }
 
 .studio-heat-sample-status-header strong,
-.studio-heat-recording-controls strong,
-.studio-heat-formula-title strong {
+.studio-heat-recording-controls strong {
   color: #dbe6f3;
   font-size: 12px;
   font-family: var(--studio-engineering-title-font);
@@ -10803,9 +10644,7 @@
 }
 
 .studio-heat-sample-status-header span,
-.studio-heat-recording-controls span,
-.studio-heat-formula-title span,
-.studio-heat-calculate-row span {
+.studio-heat-recording-controls span {
   color: var(--studio-subtle);
   font-size: 10px;
 }
@@ -10829,15 +10668,12 @@
 }
 
 .studio-heat-recording-table th,
-.studio-heat-recording-table td,
-.studio-heat-processing-table th,
-.studio-heat-processing-table td {
+.studio-heat-recording-table td {
   padding: 8px 10px;
   font-size: 11px;
 }
 
-.studio-heat-recording-table th,
-.studio-heat-processing-table th {
+.studio-heat-recording-table th {
   background: #2a313a;
   color: var(--studio-text);
 }
@@ -10849,82 +10685,17 @@
 }
 
 .studio-heat-trial-count button,
-.studio-heat-trial-count input,
-.studio-heat-calculate-row button {
+.studio-heat-trial-count input {
   height: 26px;
   border-radius: 2px;
   background: #20252c;
   font-size: 11px;
 }
 
-.studio-heat-formula-grid {
-  grid-template-columns: repeat(2, minmax(280px, 1fr));
-  gap: 10px;
-}
-
-.studio-heat-formula-panel {
-  gap: 7px;
-  padding: 10px 12px;
-}
-
-.studio-heat-formula-expression,
-.studio-heat-formula-result {
-  border-top-color: rgba(79, 127, 184, 0.12);
-  padding-top: 7px;
-  color: var(--studio-muted);
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.studio-heat-formula-result {
-  color: #dbe6f3;
-  font-weight: 700;
-}
-
-.studio-heat-formula-result-row strong,
-.studio-heat-formula-preview-note {
-  color: var(--studio-subtle);
-  font-weight: 600;
-}
-
-.studio-heat-gamma-chart {
-  width: min(520px, 100%);
-  padding: 10px 12px;
-}
-
-.studio-heat-gamma-chart svg {
-  width: min(400px, 100%);
-  border-color: rgba(79, 127, 184, 0.16);
-  background: rgba(16, 21, 27, 0.34);
-}
-
-.studio-heat-gamma-bar {
-  fill: rgba(79, 127, 184, 0.64);
-}
-
-.studio-heat-chart-theory-line {
-  stroke: rgba(228, 179, 99, 0.86);
-}
-
-.studio-heat-chart-mean-line {
-  stroke: rgba(123, 201, 155, 0.86);
-}
-
-.studio-heat-chart-legend {
-  gap: 10px;
-  font-size: 10px;
-}
-
 .studio-workbench[data-workbench-language='zh-CN'] .studio-heat-panel-content,
 .studio-workbench[data-workbench-language='zh-CN'] .studio-heat-panel-content button,
 .studio-workbench[data-workbench-language='zh-CN'] .studio-heat-panel-content input {
   font-family: "DengXian", "Microsoft JhengHei UI", "Segoe UI", sans-serif;
-}
-
-.studio-workbench[data-workbench-language='zh-CN'] .studio-heat-formula-expression,
-.studio-workbench[data-workbench-language='zh-CN'] .studio-heat-formula-result,
-.studio-workbench[data-workbench-language='zh-CN'] .studio-heat-gamma-chart text {
-  font-family: "JetBrains Mono", Consolas, "Microsoft YaHei UI", monospace;
 }
 
 .studio-heat-recording-controls {
@@ -11034,8 +10805,7 @@
 
 .studio-theme-light .studio-heat-panel-content-header,
 .studio-theme-light .studio-heat-sample-head,
-.studio-theme-light .studio-heat-recording-table th,
-.studio-theme-light .studio-heat-processing-table th {
+.studio-theme-light .studio-heat-recording-table th {
   background: #f1f5f9;
   color: #0f172a;
   border-color: #dbe4ef;
@@ -11048,8 +10818,6 @@
 .studio-theme-light .studio-heat-thinking-trigger,
 .studio-theme-light .studio-heat-sample-status-header strong,
 .studio-theme-light .studio-heat-recording-controls strong,
-.studio-theme-light .studio-heat-formula-title strong,
-.studio-theme-light .studio-heat-formula-result,
 .studio-theme-light .studio-heat-recording-progress strong {
   color: #0f172a;
 }
@@ -11057,34 +10825,17 @@
 .studio-theme-light .studio-heat-doc-header p,
 .studio-theme-light .studio-heat-guide-section p,
 .studio-theme-light .studio-heat-thinking-body p,
-.studio-theme-light .studio-heat-sample-row,
-.studio-theme-light .studio-heat-formula-expression {
+.studio-theme-light .studio-heat-sample-row {
   color: #475569;
 }
 
 .studio-theme-light .studio-heat-thinking,
 .studio-theme-light .studio-heat-sample-status,
 .studio-theme-light .studio-heat-recording-controls,
-.studio-theme-light .studio-heat-processing-summary,
 .studio-theme-light .studio-heat-result-summary-line,
-.studio-theme-light .studio-heat-calculate-row,
-.studio-theme-light .studio-heat-formula-panel,
-.studio-theme-light .studio-heat-gamma-chart,
 .studio-theme-light .studio-heat-table-scroll {
   border-color: #dbe4ef;
   background: #ffffff;
-}
-
-.studio-theme-light .studio-heat-formula-expand {
-  border-color: #b9cee7;
-  background: #f2f7fd;
-  color: #0f172a;
-}
-
-.studio-theme-light .studio-heat-formula-expand:hover,
-.studio-theme-light .studio-heat-formula-expand:focus-visible {
-  border-color: #7ea6d6;
-  background: #e7f1fc;
 }
 
 .studio-theme-light .studio-heat-thinking-trigger:hover,
@@ -11108,8 +10859,7 @@
 }
 
 .studio-theme-light .studio-heat-trial-count button,
-.studio-theme-light .studio-heat-trial-count input,
-.studio-theme-light .studio-heat-calculate-row button {
+.studio-theme-light .studio-heat-trial-count input {
   background: #ffffff;
   border-color: #cbd5e1;
   color: #334155;
@@ -11117,23 +10867,11 @@
 
 .studio-theme-light .studio-heat-trial-count button:hover,
 .studio-theme-light .studio-heat-trial-count button:focus-visible,
-.studio-theme-light .studio-heat-calculate-row button:hover:not(:disabled),
-.studio-theme-light .studio-heat-calculate-row button:focus-visible:not(:disabled),
 .studio-theme-light .studio-heat-trial-count-active {
   background: #eff6ff;
   border-color: rgba(37, 99, 235, 0.48);
   color: #0f172a;
   outline: none;
-}
-
-.studio-theme-light .studio-heat-calculate-row button:disabled {
-  background: #f8fafc;
-  color: #94a3b8;
-}
-
-.studio-theme-light .studio-heat-gamma-chart svg {
-  background: #f8fafc;
-  border-color: #dbe4ef;
 }
 
 .studio-figure-list {

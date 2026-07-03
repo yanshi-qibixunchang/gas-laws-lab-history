@@ -5,13 +5,6 @@ import {
   calculateAirHeatCapacityTargets,
   createHeatCapacityExperimentProfile,
 } from '../../src/domain/heatCapacity/heatCapacityExperimentRandom.ts';
-import {
-  calculateHeatCapacityGamma,
-} from '../../src/domain/heatCapacity/heatCapacityResultModel.ts';
-import {
-  calculateHeatCapacityMeanResult,
-  createHeatCapacityTrialFromAutoDemoSamples,
-} from '../../src/domain/heatCapacity/heatCapacityTrialModel.ts';
 
 const seed = 3757384;
 const profileSource = readFileSync(
@@ -46,69 +39,4 @@ const targets = calculateAirHeatCapacityTargets(first);
 assert.equal(targets.gamma >= 1.36 && targets.gamma <= 1.44, true);
 assert.equal(Math.abs(targets.gamma - (first.u1MeasuredMv / (first.u1MeasuredMv - first.u2MeasuredMv))) < 1e-9, true);
 
-const sampleResult = calculateHeatCapacityGamma([
-  {
-    key: 'zeroed',
-    label: 'U0',
-    timeS: 0,
-    phase: 'zeroed',
-    pressureSignalMv: first.u0MeasuredMv,
-    note: 'zeroed',
-  },
-  {
-    key: 'beforeRelease',
-    label: 'U1',
-    timeS: 1,
-    phase: 'sealedStabilizing',
-    pressureSignalMv: first.u1MeasuredMv,
-    note: 'before release',
-  },
-  {
-    key: 'afterRecovery',
-    label: 'U2',
-    timeS: 2,
-    phase: 'recovering',
-    pressureSignalMv: first.u2MeasuredMv,
-    note: 'after recovery',
-  },
-]);
-assert.equal(sampleResult.status, 'ready');
-assert.equal(sampleResult.gamma, targets.gamma);
-
-const autoDemoTrial = createHeatCapacityTrialFromAutoDemoSamples({
-  stableBeforeReleaseSample: {
-    timeS: 86.9,
-    phase: 'sealedStabilizing',
-    pressureSignalMv: first.u1MeasuredMv,
-    temperatureSignalMv: first.ambientTemperatureMv,
-    gasTemperatureK: 298.15,
-    gasPressureKPaAbs: 101.3,
-    pressureDeltaKPa: 0,
-    pumpFrequency: 0,
-    pumpValveOpen: false,
-    stopcockOpen: false,
-  },
-  recoverySample: {
-    timeS: 114.3,
-    phase: 'recovering',
-    pressureSignalMv: first.u2MeasuredMv,
-    temperatureSignalMv: first.ambientTemperatureMv,
-    gasTemperatureK: 298.15,
-    gasPressureKPaAbs: 101.3,
-    pressureDeltaKPa: 0,
-    pumpFrequency: 0,
-    pumpValveOpen: false,
-    stopcockOpen: false,
-  },
-}, 5000);
-const processingResult = calculateHeatCapacityMeanResult([autoDemoTrial], {
-  atmosphericPressureKPa: 101.3,
-  pressureSensitivityMvPerKPa: 20,
-  theoreticalGamma: 1.4,
-});
-assert.equal(processingResult.status, 'ready');
-assert.equal(Math.abs((processingResult.meanGamma ?? 0) - targets.gamma) < 0.003, true);
-assert.equal(processingResult.relativeErrorPercent !== null && processingResult.relativeErrorPercent < 3, true);
-
 console.log('heatCapacityExperimentRandom tests passed');
-

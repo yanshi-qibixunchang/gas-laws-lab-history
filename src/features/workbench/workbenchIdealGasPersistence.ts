@@ -76,7 +76,7 @@ const isFiniteNumber = (value: unknown): value is number => (
   typeof value === 'number' && Number.isFinite(value)
 );
 
-const panelKeys = ['preview', 'realtime', 'results', 'experimentPoints', 'verification', 'heatCapacityGuide', 'heatCapacityRecords', 'heatCapacityProcessing', 'heatCapacityReview', 'history'] as const satisfies readonly WorkbenchPanelKey[];
+const panelKeys = ['preview', 'realtime', 'results', 'experimentPoints', 'verification', 'heatCapacityGuide', 'heatCapacityRecords', 'heatCapacityReview', 'history'] as const satisfies readonly WorkbenchPanelKey[];
 const runStates = ['idle', 'running', 'paused', 'finished', 'needs-reset'] as const satisfies readonly WorkbenchRunState[];
 const idealTabs = ['experimentPoints', 'verification'] as const satisfies readonly WorkbenchIdealResultWindowKey[];
 const idealRelations = ['pt', 'pv', 'pn'] as const satisfies readonly ExperimentRelation[];

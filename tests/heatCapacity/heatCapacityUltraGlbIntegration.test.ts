@@ -413,7 +413,7 @@ assert.match(
 );
 const ultraControlMotionInvalidationStart = ultraModelSource.indexOf('const keepControlMotionRendering = (timestamp: number) => {');
 assert.notEqual(ultraControlMotionInvalidationStart, -1, 'Ultra timed control invalidation loop should exist');
-const ultraControlMotionInvalidationEnd = ultraModelSource.indexOf('  useFrame((_, delta) => {', ultraControlMotionInvalidationStart);
+const ultraControlMotionInvalidationEnd = ultraModelSource.search(/  useFrame\(\(\{ clock \}, delta\) => \{/);
 assert.notEqual(ultraControlMotionInvalidationEnd, -1, 'Ultra timed control invalidation loop should end before the runtime useFrame');
 assert.doesNotMatch(
   ultraModelSource.slice(ultraControlMotionInvalidationStart, ultraControlMotionInvalidationEnd),
@@ -567,13 +567,13 @@ assert.match(
 const ultraPumpBulbVisualTargetSection = ultraModelSource.match(/id: 'pumpBulb'[\s\S]*?focusShellPulsePopScale: 1\.11,/)?.[0] ?? '';
 assert.match(
   ultraPumpBulbVisualTargetSection,
-  /focusCueKind:\s*'pumpBulbContour'/,
-  'Ultra pump-bulb guide cue should use the fitted contour cue instead of copying the GLB bulb shell',
+  /focusShellNodeNames:\s*\['Pump_Bulb', 'Pump_RearSoftEnd', 'Pump_Nozzle', 'Pump_NozzleClamp'\]/,
+  'Ultra pump-bulb guide cue should copy the visible pump bulb assembly mesh shells like other focus targets',
 );
 assert.doesNotMatch(
   ultraPumpBulbVisualTargetSection,
-  /focusShellNodeNames:\s*\['Pump_Bulb'\]/,
-  'Ultra pump-bulb guide cue should not copy the full Pump_Bulb mesh shell because it renders as an oversized translucent sphere',
+  /focusCueKind:\s*'pumpBulbContour'/,
+  'Ultra pump-bulb guide cue should not keep the old dedicated contour cue path',
 );
 assert.doesNotMatch(
   ultraPumpBulbVisualTargetSection,
@@ -638,13 +638,23 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /focusShellNodeNames: \['FD_NCD_C_PowerSwitch_Base', 'HSL_PowerSwitch_Inset_Frame_Lip'\][\s\S]*focusShellNodeNames: \['FD_NCD_C_ZeroAdjustKnob'\][\s\S]*focusShellNodeNames: \['Stopcock_THandle', 'Stopcock_HandleStem', 'Stopcock_RotatingPlugCore'\][\s\S]*focusShellNodeNames: \['InletValue_Pivot'\]/,
-  'Ultra guide/demo focus should pulse real GLB shell nodes for compact controls while keeping the pump bulb on its fitted contour cue',
+  /focusShellNodeNames: \['FD_NCD_C_PowerSwitch_Base', 'HSL_PowerSwitch_Inset_Frame_Lip'\][\s\S]*focusShellNodeNames: \['FD_NCD_C_ZeroAdjustKnob'\][\s\S]*focusShellNodeNames: \['Stopcock_THandle', 'Stopcock_HandleStem', 'Stopcock_RotatingPlugCore'\][\s\S]*focusShellNodeNames: \['InletValue_Pivot'\][\s\S]*focusShellNodeNames: \['Pump_Bulb', 'Pump_RearSoftEnd', 'Pump_Nozzle', 'Pump_NozzleClamp'\]/,
+  'Ultra guide/demo focus should pulse real GLB shell nodes for compact controls and the pump bulb',
 );
 assert.match(
   ultraModelSource,
-  /target\.focusCueKind === 'pumpBulbContour'[\s\S]*HSL_UltraPumpBulbFocusCueShell[\s\S]*HSL_UltraPumpBulbFocusCueBandA[\s\S]*HSL_UltraPumpBulbFocusCueBandB/,
-  'Ultra pump-bulb focus cue should render a fitted shell and local contour bands',
+  /id: 'pumpBulb'[\s\S]*anchorNodeName: 'Pump_Bulb'[\s\S]*focusShellNodeNames: \['Pump_Bulb', 'Pump_RearSoftEnd', 'Pump_Nozzle', 'Pump_NozzleClamp'\]/,
+  'Ultra pump-bulb focus cue should use the visible pump bulb assembly surfaces',
+);
+assert.doesNotMatch(
+  ultraModelSource,
+  /focusCueKind|HSL_UltraPumpBulbFocusCue|HSL_UltraPumpBulbFocusCueBandA|HSL_UltraPumpBulbFocusCueBandB/,
+  'Ultra pump-bulb focus cue should delete the old dedicated contour cue path',
+);
+assert.match(
+  ultraModelSource,
+  /const focusShellUsesSurfaceScale = focusMode && focusShellMeshes\.length > 0;[\s\S]*localMatrixRef\.current\.compose\(\s*anchorPositionRef\.current,\s*anchorQuaternionRef\.current,\s*focusShellUsesSurfaceScale \? anchorScaleRef\.current : ULTRA_HITBOX_UNIT_SCALE,\s*\)/,
+  'Ultra focus shell halos should preserve the anchor node scale so scaled GLB meshes such as Pump_Bulb do not expand into their unscaled geometry',
 );
 assert.match(
   ultraModelSource,

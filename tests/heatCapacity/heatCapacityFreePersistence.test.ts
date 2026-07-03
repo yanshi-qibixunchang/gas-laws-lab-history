@@ -58,8 +58,7 @@ assert.equal(payload.free?.uiReplay.pressureGaugeNeedleAngle, file.pressureGauge
 assert.equal(payload.free?.uiReplay.stopcockAngleDeg, file.stopcockAngleDeg);
 assert.equal(payload.free?.uiReplay.hardSphereViewEnabled, file.hardSphereViewEnabled);
 assert.equal(payload.free?.uiReplay.heatCapacityFreeStopcockFlowPurpose, 'none');
-assert.equal(payload.free?.references.standard, null);
-assert.equal(payload.free?.references.operableBest, null);
+assert.equal('references' in payload.free!, false);
 
 const replay = getHeatCapacityPersistenceReplayFields(payload);
 assert.equal(replay.pressureGaugeNeedleAngle, file.pressureGaugeNeedleAngle);

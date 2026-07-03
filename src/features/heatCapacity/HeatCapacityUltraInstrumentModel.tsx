@@ -118,6 +118,7 @@ type HeatCapacityUltraInstrumentModelProps = {
 };
 
 const ULTRA_GLB_PATH = `${import.meta.env.BASE_URL}models/heat-capacity/fd-ncd-c-ultra.glb`;
+const ULTRA_PUMP_PULSE_VISUAL_HOLD_S = 0.42;
 const REQUIRED_ULTRA_NODE_NAMES = [
   'FD_NCD_C_PowerSwitch_Base',
   'FD_NCD_C_PowerSwitch_Button',
@@ -240,7 +241,6 @@ type UltraControlVisualTarget = UltraVisualShape & {
   focusControlIds: readonly UltraFocusControl[];
   focusShellNodeNames?: readonly string[];
   focusShellSide?: 'back' | 'double';
-  focusCueKind?: 'pumpBulbContour';
   offset?: [number, number, number];
   rotation?: [number, number, number];
   hoverScale?: number;
@@ -307,7 +307,7 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     tone: 'pumpBulb',
     hoverControl: 'pumpBulb',
     focusControlIds: ['pumpBulb'],
-    focusCueKind: 'pumpBulbContour',
+    focusShellNodeNames: ['Pump_Bulb', 'Pump_RearSoftEnd', 'Pump_Nozzle', 'Pump_NozzleClamp'],
     shape: 'sphere',
     args: [0.26, 24, 16],
     hoverScale: 0.78,
@@ -1928,12 +1928,6 @@ function UltraNodeHalo({
   const hoverMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
   const shellBreathRef = useRef<THREE.Group | null>(null);
   const shellPulseRef = useRef<THREE.Group | null>(null);
-  const pumpBulbCueShellRef = useRef<THREE.Mesh | null>(null);
-  const pumpBulbCueBandARef = useRef<THREE.Mesh | null>(null);
-  const pumpBulbCueBandBRef = useRef<THREE.Mesh | null>(null);
-  const pumpBulbCueShellMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
-  const pumpBulbCueBandMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
-  const pumpBulbCueBandBMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
   const focusPulseStartedAtRef = useRef<number | null>(null);
   const parentInverseMatrixRef = useRef(new THREE.Matrix4());
   const localMatrixRef = useRef(new THREE.Matrix4());
@@ -1948,9 +1942,7 @@ function UltraNodeHalo({
   const shellSide = target.focusShellSide === 'double' ? THREE.DoubleSide : THREE.BackSide;
   const focusShellDepthTest = target.focusShellSide !== 'double';
   const focusShellMeshes = useMemo(
-    () => (anchor && target.focusCueKind !== 'pumpBulbContour'
-      ? collectUltraFocusShellMeshes(target, nodeMap, anchor)
-      : []),
+    () => (anchor ? collectUltraFocusShellMeshes(target, nodeMap, anchor) : []),
     [anchor, nodeMap, target],
   );
   const shellBreathMaterial = useMemo(() => new THREE.MeshBasicMaterial({
@@ -2013,27 +2005,14 @@ function UltraNodeHalo({
       anchorQuaternionRef.current,
       anchorScaleRef.current,
     );
-    localMatrixRef.current.compose(anchorPositionRef.current, anchorQuaternionRef.current, ULTRA_HITBOX_UNIT_SCALE);
+    const focusShellUsesSurfaceScale = focusMode && focusShellMeshes.length > 0;
+    localMatrixRef.current.compose(
+      anchorPositionRef.current,
+      anchorQuaternionRef.current,
+      focusShellUsesSurfaceScale ? anchorScaleRef.current : ULTRA_HITBOX_UNIT_SCALE,
+    );
     group.matrix.multiplyMatrices(parentInverseMatrixRef.current, localMatrixRef.current);
     group.matrixWorldNeedsUpdate = true;
-
-    if (focusMode && target.focusCueKind === 'pumpBulbContour') {
-      const staticPulse = suspended ? 0.62 : null;
-      if (focusPulseStartedAtRef.current === null) focusPulseStartedAtRef.current = clock.elapsedTime;
-      const focusPulseElapsed = Math.max(0, clock.elapsedTime - focusPulseStartedAtRef.current);
-      const cuePulse = staticPulse ?? getUltraGuideCuePulse(focusPulseElapsed, effects.focusShellPulseRate);
-      const shellOpacity = effects.demoHaloMinOpacity +
-        cuePulse * (effects.demoHaloMaxOpacity - effects.demoHaloMinOpacity);
-      if (pumpBulbCueShellRef.current) {
-        pumpBulbCueShellRef.current.scale.set(1.42 + cuePulse * 0.16, 0.86 + cuePulse * 0.06, 0.92 + cuePulse * 0.08);
-      }
-      if (pumpBulbCueBandARef.current) pumpBulbCueBandARef.current.scale.setScalar(1.04 + cuePulse * 0.08);
-      if (pumpBulbCueBandBRef.current) pumpBulbCueBandBRef.current.scale.setScalar(0.96 + cuePulse * 0.08);
-      if (pumpBulbCueShellMaterialRef.current) pumpBulbCueShellMaterialRef.current.opacity = shellOpacity * 0.34;
-      if (pumpBulbCueBandMaterialRef.current) pumpBulbCueBandMaterialRef.current.opacity = shellOpacity * 0.78;
-      if (pumpBulbCueBandBMaterialRef.current) pumpBulbCueBandBMaterialRef.current.opacity = shellOpacity * 0.54;
-      return;
-    }
 
     if (focusMode && focusShellMeshes.length > 0) {
       const breathGroup = shellBreathRef.current;
@@ -2088,47 +2067,7 @@ function UltraNodeHalo({
 
   return (
     <group name={`HSL_UltraVisualHaloAnchor_${target.id}`} ref={groupRef} matrixAutoUpdate={false}>
-      {focusMode && target.focusCueKind === 'pumpBulbContour' ? (
-        <group name="HSL_UltraPumpBulbFocusCue" raycast={DISABLE_ULTRA_RAYCAST}>
-          <mesh name="HSL_UltraPumpBulbFocusCueShell" ref={pumpBulbCueShellRef} raycast={DISABLE_ULTRA_RAYCAST}>
-            <sphereGeometry args={[0.18, 36, 18]} />
-            <meshBasicMaterial
-              ref={pumpBulbCueShellMaterialRef}
-              color={effects.demoHaloColor}
-              transparent
-              opacity={effects.demoHaloMinOpacity * 0.34}
-              depthWrite={false}
-              depthTest={false}
-              side={THREE.BackSide}
-              toneMapped={false}
-            />
-          </mesh>
-          <mesh name="HSL_UltraPumpBulbFocusCueBandA" ref={pumpBulbCueBandARef} rotation={[Math.PI / 2, 0, 0]} raycast={DISABLE_ULTRA_RAYCAST}>
-            <torusGeometry args={[0.185, 0.0048, 10, 56]} />
-            <meshBasicMaterial
-              ref={pumpBulbCueBandMaterialRef}
-              color={effects.demoHaloColor}
-              transparent
-              opacity={effects.demoHaloMinOpacity * 0.78}
-              depthWrite={false}
-              depthTest={false}
-              toneMapped={false}
-            />
-          </mesh>
-          <mesh name="HSL_UltraPumpBulbFocusCueBandB" ref={pumpBulbCueBandBRef} position={[0, -0.034, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={DISABLE_ULTRA_RAYCAST}>
-            <torusGeometry args={[0.16, 0.0038, 10, 56]} />
-            <meshBasicMaterial
-              ref={pumpBulbCueBandBMaterialRef}
-              color={effects.demoHaloColor}
-              transparent
-              opacity={effects.demoHaloMinOpacity * 0.54}
-              depthWrite={false}
-              depthTest={false}
-              toneMapped={false}
-            />
-          </mesh>
-        </group>
-      ) : focusMode && focusShellMeshes.length > 0 ? (
+      {focusMode && focusShellMeshes.length > 0 ? (
         <>
           <group name={`HSL_UltraFocusShellBreath_${target.id}`} ref={shellBreathRef}>
             {focusShellMeshes.map((entry) => (
@@ -2317,6 +2256,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   const guideTargetHoleSignatureRef = useRef('');
   const pumpPulseRef = useRef(0);
   const pumpVisualWeightRef = useRef(0);
+  const pumpPulseVisualUntilRef = useRef(0);
   const pressureZeroDragRef = useRef({
     startKnobAngle: props.pressureZeroKnobAngle,
     lastPointerAngle: 0,
@@ -2769,7 +2709,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     props.stopcockAngleDeg,
   ]);
 
-  useFrame((_, delta) => {
+  useFrame(({ clock }, delta) => {
     const targetRotation = gaugeNeedleTargetRotation;
     const smoothing = 1 - Math.exp(-9 * delta);
     gaugeDisplayedRotationRef.current = clampSceneNumber(
@@ -2858,8 +2798,10 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     if (props.pumpPulseId !== pumpPulseRef.current) {
       pumpPulseRef.current = props.pumpPulseId;
       pumpVisualWeightRef.current = 1;
+      pumpPulseVisualUntilRef.current = clock.elapsedTime + ULTRA_PUMP_PULSE_VISUAL_HOLD_S;
     }
-    if (props.pumpBulbState !== 'idle') {
+    const pumpPulseOwnsVisual = clock.elapsedTime < pumpPulseVisualUntilRef.current;
+    if (!pumpPulseOwnsVisual && props.pumpBulbState !== 'idle') {
       pumpVisualWeightRef.current = Math.max(props.pumpBulbState === 'compressing' ? 1 : 0.45, pumpVisualWeightRef.current);
     }
     pumpVisualWeightRef.current = Math.max(0, pumpVisualWeightRef.current - delta * 2.4);

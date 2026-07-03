@@ -199,7 +199,7 @@ import {
     displayPressureMv: 120,
   });
   assert.equal(blocked.allowed, false);
-  assert.equal(blocked.message, '请快速打气，直到 Uₚ 达到 120.0 mV 以上。');
+  assert.equal(blocked.message, '请连续打气，直到 Uₚ ≥ 120 mV。');
   assert.equal(allowed.allowed, true);
 }
 
@@ -217,6 +217,17 @@ import {
   assert.equal(timerReady.stage, 'u1-ready');
   assert.equal(timerReady.complete, true);
 
+  const prematureRecord = getHeatCapacityGuideActionGuard(u1Waiting, {
+    action: 'recordU1',
+    powerOn: true,
+    stopcockOpen: false,
+    pumpValveOpen: false,
+    displayPressureMv: 120,
+    simulationTimeS: 10 + HEAT_CAPACITY_GUIDE_WAIT_TARGET_S - 1,
+  });
+  assert.equal(prematureRecord.allowed, false);
+  assert.equal(prematureRecord.message, '请等待计时器达到 5 min。');
+
   const workflowReady = transitionHeatCapacityGuideWorkflow(u1Waiting, {
     action: 'timerComplete',
     powerOn: true,
@@ -228,6 +239,17 @@ import {
   assert.equal(workflowReady.step, 'recordU1Required');
   assert.equal(workflowReady.paused, true);
   assert.equal(workflowReady.strongReminderTargetControlId, 'recordU1');
+
+  const readyGuard = getHeatCapacityGuideActionGuard(u1Waiting, {
+    action: 'timerComplete',
+    powerOn: true,
+    stopcockOpen: false,
+    pumpValveOpen: false,
+    displayPressureMv: 120,
+    simulationTimeS: 10 + HEAT_CAPACITY_GUIDE_WAIT_TARGET_S,
+  });
+  assert.equal(readyGuard.allowed, true);
+  assert.equal(readyGuard.message, 'U₁ 等待完成。');
 }
 
 {

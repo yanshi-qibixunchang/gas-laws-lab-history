@@ -1,3 +1,11 @@
+import {
+  HEAT_CAPACITY_AUTO_DEMO_RESULT_GAMMA,
+  HEAT_CAPACITY_AUTO_DEMO_RESULT_TEMPERATURE_MV,
+  HEAT_CAPACITY_AUTO_DEMO_RESULT_U0_MV,
+  HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV,
+  HEAT_CAPACITY_AUTO_DEMO_RESULT_U2_MV,
+} from './heatCapacityDefaultConfig.ts';
+
 // Demo/Guide-only teaching profile. These scripted target fields preserve the
 // guided experiment baseline and are not physical truth for Free Mode.
 export interface HeatCapacityTeachingProfile {
@@ -179,3 +187,27 @@ export const createHeatCapacityExperimentProfile = (
     displayNoiseLevel: roundNumber(randomUniform(random, 0.02, 0.08), 3),
   });
 };
+
+export const createHeatCapacityAutoDemoProfile = (): HeatCapacityTeachingProfile => clampHeatCapacityExperimentProfile({
+  seed: 'auto-demo-fixed',
+  gammaTarget: HEAT_CAPACITY_AUTO_DEMO_RESULT_GAMMA,
+  theoreticalGamma: AIR_THEORETICAL_GAMMA,
+  u0TargetMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U0_MV,
+  u1TargetMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV,
+  u2TargetMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U2_MV,
+  u0MeasuredMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U0_MV,
+  u1MeasuredMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV,
+  u2MeasuredMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U2_MV,
+  pumpPeakPressureMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV + 12,
+  stableBeforeReleaseMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV,
+  recoveryPressureMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U2_MV,
+  ambientTemperatureMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_TEMPERATURE_MV,
+  initialTemperatureMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_TEMPERATURE_MV,
+  stableTemperatureMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_TEMPERATURE_MV,
+  releaseTemperatureLowMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_TEMPERATURE_MV - 0.75,
+  recoveryTemperatureMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_TEMPERATURE_MV,
+  pumpEfficiency: 1,
+  releaseSpeed: 1,
+  thermalRecoveryRate: 1,
+  displayNoiseLevel: 0,
+});

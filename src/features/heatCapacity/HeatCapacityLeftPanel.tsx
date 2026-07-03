@@ -1,5 +1,5 @@
 ﻿import React, { useMemo, useState } from 'react';
-import { BarChart3, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import type {
   WorkbenchHeatCapacityPanelKey,
   WorkbenchHeatCapacityState,
@@ -9,16 +9,9 @@ import {
   getHeatCapacityFreeRecordDisplayTrialIndex,
 } from '../workbench/workbenchState.ts';
 import {
-  calculateHeatCapacityTrialResult,
-  getHeatCapacityCompletedTrialCount,
-  getHeatCapacityNextActiveTrialIndex,
-  type HeatCapacityProcessingTrialResult,
-  type HeatCapacityTrialRecordRemovalKind,
-  type HeatCapacityTrialStatus,
-} from '../../domain/heatCapacity/heatCapacityTrialModel.ts';
-import {
   calculateFreeHeatCapacityMeanResult,
   type HeatCapacityFreeProcessingTrialResult,
+  type HeatCapacityFreeTrialRecordRemovalKind,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 
 type WorkbenchLanguagePreference = 'zh-CN' | 'zh-TW' | 'en';
@@ -27,18 +20,13 @@ interface HeatCapacityLeftPanelProps {
   file: WorkbenchHeatCapacityState;
   language: WorkbenchLanguagePreference;
   panelKey: WorkbenchHeatCapacityPanelKey;
-  onExpectedTrialCountChange: (
-    count: number,
-    mode: WorkbenchHeatCapacityState['heatCapacityExpectedTrialCountMode'],
-  ) => void;
-  onCalculateResults: () => void;
   pendingRemoveTrialRecord: {
     trialIndex: number;
-    kind: HeatCapacityTrialRecordRemovalKind;
+    kind: HeatCapacityFreeTrialRecordRemovalKind;
   } | null;
   onRemoveTrialRecord: (
     trialIndex: number,
-    kind: HeatCapacityTrialRecordRemovalKind,
+    kind: HeatCapacityFreeTrialRecordRemovalKind,
   ) => void;
   onCancelRemoveTrialRecord: () => void;
 }
@@ -73,51 +61,24 @@ const formatFreeTrialCompletedAt = (value: number | null | undefined) => {
 
 const HeatSub = ({ children }: { children: React.ReactNode }) => <sub>{children}</sub>;
 const VarU = ({ index }: { index: React.ReactNode }) => <>U<sub>{index}</sub></>;
-const VarUT = ({ index }: { index: React.ReactNode }) => <>U<sub>T{index}</sub></>;
 const VarP = ({ index }: { index: React.ReactNode }) => <>P<sub>{index}</sub></>;
-const VarDeltaP = ({ index }: { index: React.ReactNode }) => <>ΔP<sub>{index}</sub></>;
-const VarGamma = ({ index }: { index?: React.ReactNode }) => <>γ{index !== undefined ? <sub>{index}</sub> : null}</>;
 const GammaAir = () => <>γ<sub>air</sub></>;
-const GammaMean = () => <>γ<sub>mean</sub></>;
-
-const statusClass = (status: HeatCapacityTrialStatus) => (
-  `studio-heat-trial-status studio-heat-trial-status-${status}`
-);
-
-const HEAT_CAPACITY_FORMULA_RESULT_PREVIEW_LIMIT = 3;
 
 const copyByLanguage = {
   'zh-CN': {
     guide: '实验指引',
-    recording: '数据记录',
-    processing: '数据处理',
     dataAndResults: '数据与结果',
     panelKicker: '空气比热容比',
     title: '空气比热容比实验',
     subtitle: '本实验通过压缩空气、快速放气和回温过程记录压强差信号，并使用绝对压强对数公式计算空气比热容比。粒子动画只作为气体运动状态的可视化。',
     thinking: '进一步思考',
-    known: '已知量',
-    measured: '实验测得量',
-    calculate: '计算结果',
-    imported: '组完整数据已导入',
-    emptyProcessing: '请先在数据记录页完成至少一组有效数据，再进行计算。',
     sampleScope: '仅属于空气比热容比实验',
-    recordingHint: '引导模式需在正确阶段使用 3D 预览中的记录按钮；自动演示会自动记录相同字段。',
-    recordingComplete: '数据记录已完成。请前往数据处理页并点击“计算结果”。',
-    recordingNextTrial: '本组已完成；提示结束后可在上方模式栏点击“下一组实验”。',
-    recordingReadyToProcess: '数据记录已完成，可进入数据处理并计算结果。',
-    expectedTrials: '预计组数',
-    currentTrial: (trialIndex: number) => `当前组：第 ${trialIndex} 组`,
-    group: '组',
-    custom: '自定义',
-    customAria: '自定义预计组数',
-    progress: (done: number, total: number) => `进度：已完成 ${done} / ${total} 组`,
     status: {
       waiting: '等待',
       partial: '部分记录',
       complete: '完成',
       invalid: '异常',
-    } satisfies Record<HeatCapacityTrialStatus, string>,
+    },
     sample: {
       title: 'U₀ / U₁ / U₂ 过程采样',
       point: '采样点',
@@ -177,30 +138,6 @@ const copyByLanguage = {
         },
       ],
     },
-    formula: {
-      pressure: '压强差换算',
-      absolute: '绝对压强计算',
-      gamma: '比热容比计算',
-      average: '平均值与相对误差',
-      result: '结果',
-      meanGamma: '平均 γ',
-      relativeError: '相对误差',
-      showAllResults: '展开全部',
-      collapseResults: '收起',
-      previewLimitNotice: (visible: number, total: number) => `已显示前 ${visible} 组，共 ${total} 组`,
-      resultStatus: '结果状态',
-      valid: '有效',
-      invalid: '异常',
-      reasonable: '合理',
-      notReady: '没有可用于计算的完整有效实验组。',
-    },
-    chart: {
-      title: '各组 γ 计算结果',
-      subtitle: '单组 γ / 理论 γ / 平均 γ',
-      trialGamma: '单组 γ',
-      theoreticalGamma: '理论 γ',
-      meanGamma: '平均 γ',
-    },
     table: {
       trial: '组次',
       status: '状态',
@@ -217,35 +154,18 @@ const copyByLanguage = {
   },
   'zh-TW': {
     guide: '實驗指引',
-    recording: '資料記錄',
-    processing: '資料處理',
     dataAndResults: '資料與結果',
     panelKicker: '空氣比熱容比',
     title: '空氣比熱容比實驗',
     subtitle: '本實驗透過壓縮空氣、快速放氣和回溫過程記錄壓強差信號，並使用絕對壓強對數公式計算空氣比熱容比。粒子動畫只作為氣體運動狀態的視覺化。',
     thinking: '進一步思考',
-    known: '已知量',
-    measured: '實驗測得量',
-    calculate: '計算結果',
-    imported: '組完整資料已匯入',
-    emptyProcessing: '請先在資料記錄頁完成至少一組有效資料，再進行計算。',
     sampleScope: '僅屬於空氣比熱容比實驗',
-    recordingHint: '引導模式需在正確階段使用 3D 預覽中的記錄按鈕；自動演示會自動記錄相同欄位。',
-    recordingComplete: '資料記錄已完成。請前往資料處理頁並點擊「計算結果」。',
-    recordingNextTrial: '本組已完成；提示結束後可在上方模式列點擊「下一組實驗」。',
-    recordingReadyToProcess: '資料記錄已完成，可進入資料處理並計算結果。',
-    expectedTrials: '預計組數',
-    currentTrial: (trialIndex: number) => `目前組：第 ${trialIndex} 組`,
-    group: '組',
-    custom: '自訂',
-    customAria: '自訂預計組數',
-    progress: (done: number, total: number) => `進度：已完成 ${done} / ${total} 組`,
     status: {
       waiting: '等待',
       partial: '部分記錄',
       complete: '完成',
       invalid: '異常',
-    } satisfies Record<HeatCapacityTrialStatus, string>,
+    },
     sample: {
       title: 'U₀ / U₁ / U₂ 過程採樣',
       point: '採樣點',
@@ -277,30 +197,6 @@ const copyByLanguage = {
         { title: 'Step 6：等待回溫並記錄', body: '關閉玻璃旋塞後等待氣體回溫，直到 Uₜ 和 Uₚ 再次趨穩，然後記錄 U₂ / Uₜ₂。', question: '為什麼 U₂ 不能取放氣瞬間值？', answer: '放氣瞬間瓶內壓強接近外界大氣壓，但瓶內氣體溫度尚未恢復。真實計算所需的 P₂ 是關閉旋塞並等待氣體回溫後得到的穩定壓強，而不是剛放氣時的瞬時壓強。' },
       ],
     },
-    formula: {
-      pressure: '壓強差換算',
-      absolute: '絕對壓強計算',
-      gamma: '比熱容比計算',
-      average: '平均值與相對誤差',
-      result: '結果',
-      meanGamma: '平均 γ',
-      relativeError: '相對誤差',
-      showAllResults: '展開全部',
-      collapseResults: '收起',
-      previewLimitNotice: (visible: number, total: number) => `已顯示前 ${visible} 組，共 ${total} 組`,
-      resultStatus: '結果狀態',
-      valid: '有效',
-      invalid: '異常',
-      reasonable: '合理',
-      notReady: '沒有可用於計算的完整有效實驗組。',
-    },
-    chart: {
-      title: '各組 γ 計算結果',
-      subtitle: '單組 γ / 理論 γ / 平均 γ',
-      trialGamma: '單組 γ',
-      theoreticalGamma: '理論 γ',
-      meanGamma: '平均 γ',
-    },
     table: {
       trial: '組次',
       status: '狀態',
@@ -317,35 +213,18 @@ const copyByLanguage = {
   },
   en: {
     guide: 'Experiment Guide',
-    recording: 'Data Recording',
-    processing: 'Data Processing',
     dataAndResults: 'Data & Results',
     panelKicker: 'Air Heat Capacity Ratio',
     title: 'Air Heat Capacity Ratio Experiment',
     subtitle: 'This experiment records pressure-difference signals during air compression, quick release, and thermal recovery, then calculates the air heat capacity ratio with the absolute-pressure logarithm formula. The particle animation is only a gas-motion visualization.',
     thinking: 'Further Thinking',
-    known: 'Known Values',
-    measured: 'Measured Values',
-    calculate: 'Calculate Results',
-    imported: 'complete trial(s) imported',
-    emptyProcessing: 'Complete at least one valid trial in Data Recording before calculating results.',
     sampleScope: 'Heat Capacity only',
-    recordingHint: 'Guide mode records through the stage buttons in the 3D preview. Auto demo records the same fields automatically.',
-    recordingComplete: 'Data recording complete. Go to Data Processing and click Calculate Results.',
-    recordingNextTrial: 'This trial is complete. After the notice, use Next Trial in the mode bar.',
-    recordingReadyToProcess: 'Data recording is complete. You can calculate results in Data Processing.',
-    expectedTrials: 'Expected trials',
-    currentTrial: (trialIndex: number) => `Current trial: ${trialIndex}`,
-    group: 'trials',
-    custom: 'Custom',
-    customAria: 'Custom expected trial count',
-    progress: (done: number, total: number) => `Progress: ${done} / ${total} trials completed`,
     status: {
       waiting: 'Waiting',
       partial: 'Partial',
       complete: 'Complete',
       invalid: 'Invalid',
-    } satisfies Record<HeatCapacityTrialStatus, string>,
+    },
     sample: {
       title: 'U₀ / U₁ / U₂ Process Samples',
       point: 'Sample',
@@ -376,30 +255,6 @@ const copyByLanguage = {
         { title: 'Step 5: Quick release', body: 'Open the glass stopcock quickly to connect the bottle to the atmosphere, then close it promptly. Do not record U₂ at the release instant.', question: 'Why must release be quick?', answer: 'A quick release lets the gas expand and do work over a short period, which is closer to an adiabatic process. If release is too slow, heat exchange with the environment becomes significant and affects the calculation.' },
         { title: 'Step 6: Recover and record', body: 'After closing the stopcock, wait for the gas to recover thermally until Uₜ and Uₚ stabilize again, then record U₂ / Uₜ₂.', question: 'Why cannot U₂ be the instant release value?', answer: 'At the release instant, bottle pressure is near atmospheric pressure, but the gas temperature has not recovered. The required P₂ is the stable pressure after the closed bottle returns toward ambient temperature, not the transient pressure right after release.' },
       ],
-    },
-    formula: {
-      pressure: 'Pressure Difference Conversion',
-      absolute: 'Absolute Pressure Calculation',
-      gamma: 'Gamma Calculation',
-      average: 'Average and Relative Error',
-      result: 'Result',
-      meanGamma: 'Mean γ',
-      relativeError: 'Relative error',
-      showAllResults: 'Show all',
-      collapseResults: 'Collapse',
-      previewLimitNotice: (visible: number, total: number) => `Showing first ${visible} of ${total} trials`,
-      resultStatus: 'Result status',
-      valid: 'Valid',
-      invalid: 'Invalid',
-      reasonable: 'Reasonable',
-      notReady: 'No complete valid trial is available for calculation.',
-    },
-    chart: {
-      title: 'Gamma Result by Trial',
-      subtitle: 'Trial γ / theoretical γ / mean γ',
-      trialGamma: 'Trial γ',
-      theoreticalGamma: 'Theoretical γ',
-      meanGamma: 'Mean γ',
     },
     table: {
       trial: 'Trial',
@@ -457,19 +312,30 @@ const freeCopyByLanguage = {
       reason: '原因',
     },
     guideResult: {
-      title: '引导模式单组结果',
-      source: '数据来源：引导模式独立实验组',
+      title: '引导模式数据与结果',
+      demoTitle: '演示模式数据与结果',
+      source: '数据来源：引导模式固定标准流程',
+      demoSource: '数据来源：自动演示的一次完整实验流程',
       waiting: '尚未完成引导实验。',
       completed: '引导实验已完成。',
+      demoCompleted: '自动演示已完成。',
+      resultStatus: '实验状态',
+      theoreticalGamma: '理论 γ',
+      relativeError: '相对误差',
       record: '记录',
       pressure: '压强 / mV',
       temperature: '温度 / mV',
-      corrected: '扣零值 / mV',
+      zeroCorrectedPressure: '扣零压强信号 / mV',
       gamma: 'γ',
       completedAt: '完成时间',
       status: '状态',
       pending: '待记录',
       done: '完成',
+      calculationDetails: '计算说明',
+      knownParameters: '已知参数',
+      formulaPath: '计算路径',
+      formalExperimentTitle: '正式实验提示',
+      formalExperimentMultiTrialNotice: '正式实验需要进行多次测量，并对各组 γᵢ 取平均值。',
       resultSummary: (theoreticalGamma: string, gamma: string, relativeError: string) => `理论 γ = ${theoreticalGamma}　单组 γ = ${gamma}　相对误差 = ${relativeError}`,
     },
   },
@@ -512,19 +378,30 @@ const freeCopyByLanguage = {
       reason: '原因',
     },
     guideResult: {
-      title: '引導模式單組結果',
-      source: '資料來源：引導模式獨立實驗組',
+      title: '引導模式資料與結果',
+      demoTitle: '演示模式資料與結果',
+      source: '資料來源：引導模式固定標準流程',
+      demoSource: '資料來源：自動演示的一次完整實驗流程',
       waiting: '尚未完成引導實驗。',
       completed: '引導實驗已完成。',
+      demoCompleted: '自動演示已完成。',
+      resultStatus: '實驗狀態',
+      theoreticalGamma: '理論 γ',
+      relativeError: '相對誤差',
       record: '記錄',
       pressure: '壓強 / mV',
       temperature: '溫度 / mV',
-      corrected: '扣零值 / mV',
+      zeroCorrectedPressure: '扣零壓強信號 / mV',
       gamma: 'γ',
       completedAt: '完成時間',
       status: '狀態',
       pending: '待記錄',
       done: '完成',
+      calculationDetails: '計算說明',
+      knownParameters: '已知參數',
+      formulaPath: '計算路徑',
+      formalExperimentTitle: '正式實驗提示',
+      formalExperimentMultiTrialNotice: '正式實驗需要進行多次測量，並對各組 γᵢ 取平均值。',
       resultSummary: (theoreticalGamma: string, gamma: string, relativeError: string) => `理論 γ = ${theoreticalGamma}　單組 γ = ${gamma}　相對誤差 = ${relativeError}`,
     },
   },
@@ -567,19 +444,30 @@ const freeCopyByLanguage = {
       reason: 'Reason',
     },
     guideResult: {
-      title: 'Guide single-trial result',
-      source: 'Source: independent Guide trial',
+      title: 'Guide Data & Results',
+      demoTitle: 'Demo Data & Results',
+      source: 'Source: fixed Guide standard procedure',
+      demoSource: 'Source: one complete auto-demo experiment',
       waiting: 'Guide experiment is not complete yet.',
       completed: 'Guide experiment complete.',
+      demoCompleted: 'Auto demo complete.',
+      resultStatus: 'Experiment status',
+      theoreticalGamma: 'Theoretical γ',
+      relativeError: 'Relative error',
       record: 'Record',
       pressure: 'Pressure / mV',
       temperature: 'Temperature / mV',
-      corrected: 'Zero-corrected / mV',
+      zeroCorrectedPressure: 'Zero-corrected pressure signal / mV',
       gamma: 'γ',
       completedAt: 'Completed at',
       status: 'Status',
       pending: 'pending',
       done: 'complete',
+      calculationDetails: 'Calculation notes',
+      knownParameters: 'Known parameters',
+      formulaPath: 'Formula path',
+      formalExperimentTitle: 'Formal experiment note',
+      formalExperimentMultiTrialNotice: 'A formal experiment should repeat the measurement and average the γᵢ values from valid groups.',
       resultSummary: (theoreticalGamma: string, gamma: string, relativeError: string) => `theoretical γ = ${theoreticalGamma}  single-trial γ = ${gamma}  relative error = ${relativeError}`,
     },
   },
@@ -607,89 +495,6 @@ const DocumentDisclosure = ({ id, title, children }: DocumentDisclosureProps) =>
         <div>{children}</div>
       </div>
     </div>
-  );
-};
-
-const renderProcessSampleStatus = (
-  file: WorkbenchHeatCapacityState,
-  copy: LocalizedText,
-  renderRemoveRecordButton: (
-    trialIndex: number,
-    kind: HeatCapacityTrialRecordRemovalKind,
-    visible: boolean,
-  ) => React.ReactNode,
-) => {
-  const beforeReleaseSample = file.heatCapacityProcessSamples.stableBeforeReleaseSample
-    ?? file.heatCapacityProcessSamples.beforeReleaseSample
-    ?? file.heatCapacityProcessSamples.pumpPeakSample
-    ?? null;
-  const sampleTrialIndex = Math.min(
-    file.heatCapacityTrials.length - 1,
-    Math.max(0, file.heatCapacityActiveTrialIndex),
-  );
-  const sampleTrial = file.heatCapacityTrials[sampleTrialIndex] ?? null;
-  const hasSampleTrialU1Record = sampleTrial !== null &&
-    (sampleTrial.U1Mv !== null || sampleTrial.UT1Mv !== null);
-  const hasSampleTrialU2Record = sampleTrial !== null &&
-    (sampleTrial.U2Mv !== null || sampleTrial.UT2Mv !== null);
-  const rows = [
-    {
-      key: 'U₀',
-      label: copy.sample.zeroLabel,
-      phase: copy.sample.zeroPhase,
-      sample: file.heatCapacityProcessSamples.zeroedSample ?? null,
-      kind: null,
-      actionVisible: false,
-    },
-    {
-      key: 'U₁',
-      label: copy.sample.u1Label,
-      phase: copy.sample.u1Phase,
-      sample: beforeReleaseSample,
-      kind: 'u1' as const,
-      actionVisible: hasSampleTrialU1Record,
-    },
-    {
-      key: 'U₂',
-      label: copy.sample.u2Label,
-      phase: copy.sample.u2Phase,
-      sample: file.heatCapacityProcessSamples.recoverySample ?? null,
-      kind: 'u2' as const,
-      actionVisible: hasSampleTrialU2Record,
-    },
-  ];
-
-  return (
-    <section className="studio-heat-sample-status" data-heat-capacity-sample-status="true">
-      <div className="studio-heat-sample-status-header">
-        <strong>{copy.sample.title}</strong>
-        <span>{copy.sampleScope}</span>
-      </div>
-      <div className="studio-heat-sample-grid">
-        <div className="studio-heat-sample-row studio-heat-sample-head">
-          <span>{copy.sample.point}</span>
-          <span>{copy.sample.value}</span>
-          <span>{copy.sample.time}</span>
-          <span>{copy.sample.phase}</span>
-          <span>{copy.sample.status}</span>
-          <span>{copy.table.action}</span>
-        </div>
-        {rows.map((row) => (
-          <div className="studio-heat-sample-row" key={row.key}>
-            <span><strong>{row.key}</strong><em>{row.label}</em></span>
-            <span>{formatNumber(row.sample?.pressureSignalMv, 2)}</span>
-            <span>{formatNumber(row.sample?.timeS, 1)}</span>
-            <span>{row.phase}</span>
-            <span className={row.sample ? 'studio-heat-sample-recorded' : 'studio-heat-sample-waiting'}>
-              {row.sample ? copy.sample.recorded : copy.sample.pending}
-            </span>
-            <span>
-              {row.kind ? renderRemoveRecordButton(sampleTrialIndex, row.kind, row.actionVisible) : null}
-            </span>
-          </div>
-        ))}
-      </div>
-    </section>
   );
 };
 
@@ -763,7 +568,7 @@ const renderFreeDataAndResultsTab = (
   );
   const renderRemoveRecordButton = (
     trialIndex: number,
-    kind: HeatCapacityTrialRecordRemovalKind,
+    kind: HeatCapacityFreeTrialRecordRemovalKind,
     visible: boolean,
   ) => {
     if (!visible) return null;
@@ -978,49 +783,73 @@ const renderFreeDataAndResultsTab = (
   );
 };
 
-const renderGuideDataAndResultsTab = (
+const renderSingleTrialDataAndResultsTab = (
   file: WorkbenchHeatCapacityState,
   copy: LocalizedText,
 ) => {
   const trial = file.heatCapacityGuideTrial;
   const signals = trial?.correctedSignals ?? null;
   const completed = signals !== null;
+  const isDemo = file.heatCapacityMode === 'demo';
   const relativeError = signals
     ? Math.abs((signals.gamma - file.theoreticalGamma) / file.theoreticalGamma) * 100
     : null;
+  const ambientPressureKPa = file.heatCapacityMode === 'guide'
+    ? file.heatCapacityGuidePhysicsConfig.environment.ambientPressureKPa
+    : file.ambientPressureKPa;
+  const pressureSensitivityMvPerKPa = file.pressureSensitivityMvPerKPa;
+  const deltaP1KPa = signals && pressureSensitivityMvPerKPa > 0
+    ? signals.U1CorrectedMv / pressureSensitivityMvPerKPa
+    : null;
+  const deltaP2KPa = signals && pressureSensitivityMvPerKPa > 0
+    ? signals.U2CorrectedMv / pressureSensitivityMvPerKPa
+    : null;
+  const P1KPa = deltaP1KPa !== null ? ambientPressureKPa + deltaP1KPa : null;
+  const P2KPa = deltaP2KPa !== null ? ambientPressureKPa + deltaP2KPa : null;
+  const guideSummaryItems = [
+    { label: copy.guideResult.resultStatus, value: completed ? copy.guideResult.done : copy.guideResult.pending },
+    { label: copy.guideResult.gamma, value: formatGamma(signals?.gamma) },
+    { label: copy.guideResult.theoreticalGamma, value: file.theoreticalGamma.toFixed(3) },
+    { label: copy.guideResult.relativeError, value: formatPercent(relativeError) },
+    { label: copy.guideResult.completedAt, value: formatFreeTrialCompletedAt(trial?.completedAtMs) },
+  ];
   const renderGuideRecordRow = (
     key: string,
     record: NonNullable<WorkbenchHeatCapacityState['heatCapacityGuideTrial']>['u0'] | null | undefined,
     corrected: number | null | undefined,
-  ) => (
-    <tr>
-      <td>{key}</td>
-      <td>{formatNumber(record?.displayPressureMv, 2)}</td>
-      <td>{formatNumber(record?.displayTemperatureMv, 2)}</td>
-      <td>{formatNumber(corrected, 2)}</td>
-      <td>{record ? copy.guideResult.done : copy.guideResult.pending}</td>
-    </tr>
-  );
+  ) => {
+    const zeroCorrected = key === 'U₀' ? 0 : corrected;
+    return (
+      <tr>
+        <td>{key}</td>
+        <td>{formatNumber(record?.displayPressureMv, 2)}</td>
+        <td>{formatNumber(record?.displayTemperatureMv, 2)}</td>
+        <td>{formatNumber(zeroCorrected, 2)}</td>
+        <td>{record ? copy.guideResult.done : copy.guideResult.pending}</td>
+      </tr>
+    );
+  };
 
   return (
     <div
       className="studio-heat-recording"
       data-heat-capacity-recording-tab="true"
-      data-heat-capacity-record-source="guide"
+      data-heat-capacity-record-source={file.heatCapacityMode}
     >
       <div className={`studio-result-status ${completed ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
-        <strong>{copy.guideResult.title}</strong>
-        <span>{completed ? copy.guideResult.completed : copy.guideResult.waiting}</span>
+        <strong>{isDemo ? copy.guideResult.demoTitle : copy.guideResult.title}</strong>
+        <span>{completed ? (isDemo ? copy.guideResult.demoCompleted : copy.guideResult.completed) : copy.guideResult.waiting}</span>
       </div>
-      <section className="studio-heat-result-summary-line" data-heat-capacity-guide-result-summary="true">
-        <strong>
-          {copy.guideResult.resultSummary(
-            file.theoreticalGamma.toFixed(2),
-            formatGamma(signals?.gamma),
-            formatPercent(relativeError),
-          )}
-        </strong>
-        <span>{copy.guideResult.source}</span>
+      <section className="studio-heat-guide-result-summary" data-heat-capacity-guide-result-summary="true">
+        <div className="studio-heat-guide-result-summary-grid" data-heat-capacity-guide-result-summary-grid="true">
+          {guideSummaryItems.map((item) => (
+            <div key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
+        <span>{isDemo ? copy.guideResult.demoSource : copy.guideResult.source}</span>
       </section>
       <div className="studio-heat-table-scroll">
         <table className="studio-table studio-heat-recording-table" data-heat-capacity-guide-record-table="true">
@@ -1029,7 +858,7 @@ const renderGuideDataAndResultsTab = (
               <th>{copy.guideResult.record}</th>
               <th>{copy.guideResult.pressure}</th>
               <th>{copy.guideResult.temperature}</th>
-              <th>{copy.guideResult.corrected}</th>
+              <th>{copy.guideResult.zeroCorrectedPressure}</th>
               <th>{copy.guideResult.status}</th>
             </tr>
           </thead>
@@ -1040,435 +869,36 @@ const renderGuideDataAndResultsTab = (
           </tbody>
         </table>
       </div>
-      <div className="studio-heat-table-scroll">
-        <table className="studio-table studio-heat-processing-table" data-heat-capacity-guide-result-table="true">
-          <thead>
-            <tr>
-              <th>{copy.guideResult.gamma}</th>
-              <th>{copy.guideResult.completedAt}</th>
-              <th>{copy.guideResult.status}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>{formatGamma(signals?.gamma)}</td>
-              <td>{formatFreeTrialCompletedAt(trial?.completedAtMs)}</td>
-              <td>{completed ? copy.guideResult.done : copy.guideResult.pending}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
-
-const renderRecordingTab = (
-  file: WorkbenchHeatCapacityState,
-  copy: LocalizedText,
-  onExpectedTrialCountChange: HeatCapacityLeftPanelProps['onExpectedTrialCountChange'],
-  pendingRemoveTrialRecord: HeatCapacityLeftPanelProps['pendingRemoveTrialRecord'],
-  onRemoveTrialRecord: HeatCapacityLeftPanelProps['onRemoveTrialRecord'],
-  onCancelRemoveTrialRecord: HeatCapacityLeftPanelProps['onCancelRemoveTrialRecord'],
-) => {
-  if (file.heatCapacityMode === 'free') {
-    return renderFreeDataAndResultsTab(
-      file,
-      copy,
-      pendingRemoveTrialRecord,
-      onRemoveTrialRecord,
-      onCancelRemoveTrialRecord,
-    );
-  }
-  const completed = getHeatCapacityCompletedTrialCount(file.heatCapacityTrials);
-  const expected = file.heatCapacityExpectedTrialCount;
-  const allTrialsComplete = completed >= expected;
-  const nextActiveTrialIndex = getHeatCapacityNextActiveTrialIndex(file.heatCapacityTrials);
-  const currentTrialNumber = Math.min(expected, nextActiveTrialIndex + 1);
-  const currentTrial = file.heatCapacityTrials[nextActiveTrialIndex];
-  const processSampleCount = Object.keys(file.heatCapacityProcessSamples).length;
-  const waitingForNextTrial = completed > 0
-    && completed < expected
-    && currentTrial?.status === 'waiting'
-    && !file.powerOn
-    && processSampleCount === 0;
-  const recordingStatusTitle = allTrialsComplete
-    ? copy.recordingReadyToProcess
-    : waitingForNextTrial
-      ? copy.recordingNextTrial
-      : `${completed} ${copy.imported}`;
-  const recordingStatusBody = allTrialsComplete
-    ? copy.recordingComplete
-    : waitingForNextTrial
-      ? copy.recordingNextTrial
-      : copy.recordingHint;
-  const renderRemoveRecordButton = (
-    trialIndex: number,
-    kind: HeatCapacityTrialRecordRemovalKind,
-    visible: boolean,
-  ) => {
-    if (!visible) return null;
-    const pending = pendingRemoveTrialRecord?.trialIndex === trialIndex &&
-      pendingRemoveTrialRecord.kind === kind;
-    return (
-      <span className={`studio-table-action-row ${pending ? 'studio-table-action-row-pending' : ''}`}>
-        <button
-          type="button"
-          className={`studio-table-action ${pending ? 'studio-table-action-confirm' : ''}`}
-          onClick={() => onRemoveTrialRecord(trialIndex, kind)}
-        >
-          {pending
-            ? copy.table.confirmDelete
-            : kind === 'u0'
-              ? copy.table.deleteU0
-              : kind === 'u1'
-                ? copy.table.deleteU1
-                : kind === 'u2'
-                  ? copy.table.deleteU2
-                  : copy.table.deleteTrial}
-        </button>
-        {pending ? (
-          <button
-            type="button"
-            className="studio-table-action studio-table-action-cancel"
-            onClick={onCancelRemoveTrialRecord}
-          >
-            {copy.table.cancel}
-          </button>
-        ) : null}
-      </span>
-    );
-  };
-  return (
-    <div
-      className="studio-heat-recording"
-      data-heat-capacity-recording-tab="true"
-      data-heat-capacity-record-source={file.heatCapacityMode}
-    >
-      {renderProcessSampleStatus(file, copy, renderRemoveRecordButton)}
-      <div className="studio-heat-recording-controls">
-        <div className="studio-heat-recording-progress">
-          <span>{copy.expectedTrials}</span>
-          <strong>{copy.progress(completed, expected)}</strong>
-          <span>{copy.currentTrial(currentTrialNumber)}</span>
-        </div>
-        <div className="studio-heat-trial-count">
-          <button type="button" className={file.heatCapacityExpectedTrialCountMode === '3' ? 'studio-heat-trial-count-active' : ''} onClick={() => onExpectedTrialCountChange(3, '3')}>3 {copy.group}</button>
-          <button type="button" className={file.heatCapacityExpectedTrialCountMode === '5' ? 'studio-heat-trial-count-active' : ''} onClick={() => onExpectedTrialCountChange(5, '5')}>5 {copy.group}</button>
-          <button type="button" className={file.heatCapacityExpectedTrialCountMode === 'custom' ? 'studio-heat-trial-count-active' : ''} onClick={() => onExpectedTrialCountChange(file.heatCapacityExpectedTrialCount, 'custom')}>{copy.custom}</button>
-          {file.heatCapacityExpectedTrialCountMode === 'custom' ? (
-            <input
-              type="number"
-              min={1}
-              max={10}
-              value={file.heatCapacityExpectedTrialCount}
-              onChange={(event) => onExpectedTrialCountChange(Number(event.target.value), 'custom')}
-              aria-label={copy.customAria}
-            />
-          ) : null}
-        </div>
-      </div>
-      <div className={`studio-result-status ${allTrialsComplete ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
-        <strong>{recordingStatusTitle}</strong>
-        <span>{recordingStatusBody}</span>
-      </div>
-      <div className="studio-heat-table-scroll">
-        <table className="studio-table studio-heat-recording-table">
-          <thead>
-            <tr>
-              <th>{copy.table.trial}</th>
-              <th><VarU index={1} /> / mV</th>
-              <th><VarU index={2} /> / mV</th>
-              <th><VarUT index={1} /> / mV</th>
-              <th><VarUT index={2} /> / mV</th>
-              <th><VarGamma index="i" /></th>
-              <th>{copy.table.status}</th>
-              <th>{copy.table.action}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {file.heatCapacityTrials.map((trial, trialIndex) => {
-              const trialResult = calculateHeatCapacityTrialResult(trial, {
-                atmosphericPressureKPa: file.ambientPressureKPa,
-                pressureSensitivityMvPerKPa: file.pressureSensitivityMvPerKPa,
-                theoreticalGamma: file.theoreticalGamma,
-              });
-              return (
-                <tr key={trial.id}>
-                  <td>{trial.trialIndex}</td>
-                  <td>{formatNumber(trial.U1Mv, 2)}</td>
-                  <td>{formatNumber(trial.U2Mv, 2)}</td>
-                  <td>{formatNumber(trial.UT1Mv, 1)}</td>
-                  <td>{formatNumber(trial.UT2Mv, 1)}</td>
-                  <td>{formatGamma(trialResult.gamma)}</td>
-                  <td><span className={statusClass(trial.status)}>{copy.status[trial.status]}</span></td>
-                  <td>
-                    <div className="studio-table-action-row">
-                      {renderRemoveRecordButton(
-                        trialIndex,
-                        'trial',
-                        trial.U1Mv !== null || trial.U2Mv !== null || trial.UT1Mv !== null || trial.UT2Mv !== null,
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
-
-const renderFormulaPanel = (
-  title: string,
-  formula: React.ReactNode,
-  result: React.ReactNode,
-) => (
-  <div className="studio-heat-formula-panel">
-    <div className="studio-heat-formula-title"><strong>{title}</strong></div>
-    <div className="studio-heat-formula-expression">{formula}</div>
-    <div className="studio-heat-formula-result">{result}</div>
-  </div>
-);
-
-const renderFormulaTrialResults = (
-  trialResults: HeatCapacityProcessingTrialResult[],
-  copy: LocalizedText,
-  formulaResultsExpanded: boolean,
-  setFormulaResultsExpanded: React.Dispatch<React.SetStateAction<boolean>>,
-  renderTrial: (trial: HeatCapacityProcessingTrialResult) => React.ReactNode,
-) => {
-  const shouldCollapse = trialResults.length > HEAT_CAPACITY_FORMULA_RESULT_PREVIEW_LIMIT;
-  const visibleResults = shouldCollapse && !formulaResultsExpanded
-    ? trialResults.slice(0, HEAT_CAPACITY_FORMULA_RESULT_PREVIEW_LIMIT)
-    : trialResults;
-  return (
-    <div className="studio-heat-formula-result-list">
-      {visibleResults.map((trial) => (
-        <div className="studio-heat-formula-result-row" key={trial.trialIndex}>
-          <strong>{copy.table.trial} {trial.trialIndex}</strong>
-          <span>{renderTrial(trial)}</span>
-        </div>
-      ))}
-      {shouldCollapse && !formulaResultsExpanded ? (
-        <span className="studio-heat-formula-preview-note">
-          {copy.formula.previewLimitNotice(HEAT_CAPACITY_FORMULA_RESULT_PREVIEW_LIMIT, trialResults.length)}
-        </span>
-      ) : null}
-      {shouldCollapse ? (
-        <button
-          className="studio-heat-formula-expand"
-          type="button"
-          onClick={() => setFormulaResultsExpanded((expanded) => !expanded)}
-        >
-          {formulaResultsExpanded ? copy.formula.collapseResults : copy.formula.showAllResults}
-        </button>
-      ) : null}
-    </div>
-  );
-};
-
-const renderGammaChart = (
-  trialResults: HeatCapacityProcessingTrialResult[],
-  theoreticalGamma: number,
-  meanGamma: number | null,
-  copy: LocalizedText['chart'],
-) => {
-  const validResults = trialResults.filter((trial) => trial.status === 'valid' && trial.gamma !== null);
-  if (validResults.length < 2 || meanGamma === null) return null;
-  const values = validResults.map((trial) => trial.gamma ?? 0);
-  const minY = Math.min(1.25, theoreticalGamma, meanGamma, ...values) - 0.03;
-  const maxY = Math.max(1.45, theoreticalGamma, meanGamma, ...values) + 0.03;
-  const width = 420;
-  const height = 170;
-  const left = 42;
-  const right = 18;
-  const top = 18;
-  const bottom = 30;
-  const plotWidth = width - left - right;
-  const plotHeight = height - top - bottom;
-  const y = (value: number) => top + (maxY - value) / (maxY - minY) * plotHeight;
-  const barWidth = Math.max(18, Math.min(42, plotWidth / validResults.length * 0.5));
-  const xFor = (index: number) => left + (index + 0.5) * (plotWidth / validResults.length);
-
-  return (
-    <div className="studio-heat-gamma-chart" data-heat-capacity-gamma-chart="true">
-      <div className="studio-heat-formula-title">
-        <strong>{copy.title}</strong>
-        <span>{copy.subtitle}</span>
-      </div>
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={copy.title}>
-        {[0, 1, 2].map((index) => {
-          const value = minY + (maxY - minY) * (index / 2);
-          return (
-            <g key={index}>
-              <line x1={left} x2={width - right} y1={y(value)} y2={y(value)} className="studio-heat-chart-grid-line" />
-              <text x={left - 8} y={y(value) + 3} textAnchor="end">{value.toFixed(2)}</text>
-            </g>
-          );
-        })}
-        <line x1={left} x2={width - right} y1={y(theoreticalGamma)} y2={y(theoreticalGamma)} className="studio-heat-chart-theory-line" />
-        <line x1={left} x2={width - right} y1={y(meanGamma)} y2={y(meanGamma)} className="studio-heat-chart-mean-line" />
-        {validResults.map((trial, index) => {
-          const gamma = trial.gamma ?? 0;
-          const x = xFor(index) - barWidth / 2;
-          const barTop = y(gamma);
-          return (
-            <g key={trial.trialIndex}>
-              <rect x={x} y={barTop} width={barWidth} height={top + plotHeight - barTop} rx="3" className="studio-heat-gamma-bar" />
-              <text x={xFor(index)} y={height - 10} textAnchor="middle">{trial.trialIndex}</text>
-            </g>
-          );
-        })}
-      </svg>
-      <div className="studio-heat-chart-legend">
-        <span><i className="studio-heat-legend-bar" />{copy.trialGamma}</span>
-        <span><i className="studio-heat-legend-theory" />{copy.theoreticalGamma}</span>
-        <span><i className="studio-heat-legend-mean" />{copy.meanGamma}</span>
-      </div>
-    </div>
-  );
-};
-
-const renderProcessingTab = (
-  file: WorkbenchHeatCapacityState,
-  copy: LocalizedText,
-  onCalculateResults: () => void,
-  formulaResultsExpanded: boolean,
-  setFormulaResultsExpanded: React.Dispatch<React.SetStateAction<boolean>>,
-) => {
-  const result = file.heatCapacityProcessingResult;
-  const completed = getHeatCapacityCompletedTrialCount(file.heatCapacityTrials);
-  const validFormulaResults = result.trialResults.filter((trial) => trial.status === 'valid' && trial.gamma !== null);
-
-  return (
-    <div className="studio-heat-processing" data-heat-capacity-processing-tab="true">
-      <div className="studio-heat-processing-summary">
-        <div className="studio-heat-processing-summary-cell">
-          <span>{copy.known}</span>
-          <div className="studio-heat-processing-summary-values">
-            <strong><VarP index={0} /> = {formatNumber(file.ambientPressureKPa, 2)} kPa</strong>
-            <strong>S = {formatNumber(file.pressureSensitivityMvPerKPa, 0)} mV/kPa</strong>
-            <strong><GammaAir /> = {file.theoreticalGamma.toFixed(2)}</strong>
+      <DocumentDisclosure id={`${isDemo ? 'demo' : 'guide'}-single-trial-calculation`} title={copy.guideResult.calculationDetails}>
+        <div className="studio-heat-guide-calculation">
+          <div>
+            <strong>{copy.guideResult.knownParameters}</strong>
+            <span><VarP index={0} /> = {formatNumber(ambientPressureKPa, 2)} kPa</span>
+            <span>S = {formatNumber(pressureSensitivityMvPerKPa, 2)} mV/kPa</span>
+            <span><GammaAir /> = {file.theoreticalGamma.toFixed(3)}</span>
+          </div>
+          <div>
+            <strong>{copy.guideResult.formulaPath}</strong>
+            <span>U₁′ = U₁ - U₀ = {formatNumber(signals?.U1CorrectedMv, 2)} mV</span>
+            <span>U₂′ = U₂ - U₀ = {formatNumber(signals?.U2CorrectedMv, 2)} mV</span>
+            <span>P₁ = P₀ + U₁′ / S = {formatNumber(P1KPa, 3)} kPa</span>
+            <span>P₂ = P₀ + U₂′ / S = {formatNumber(P2KPa, 3)} kPa</span>
+            <span>γ = ln(P₁ / P₀) / ln(P₁ / P₂) = {formatGamma(signals?.gamma)}</span>
+            <span>{copy.guideResult.relativeError} = {formatPercent(relativeError)}</span>
           </div>
         </div>
-        <div className="studio-heat-processing-summary-cell">
-          <span>{copy.measured}</span>
-          <div className="studio-heat-processing-summary-values studio-heat-processing-summary-symbols">
-            <strong><VarU index={1} /></strong>
-            <strong><VarU index={2} /></strong>
-            <strong><VarUT index={1} /></strong>
-            <strong><VarUT index={2} /></strong>
-          </div>
-        </div>
-      </div>
-      <div className="studio-heat-calculate-row">
-        <span>{completed} {copy.imported}</span>
-        <button
-          type="button"
-          data-heat-capacity-calculate="teaching"
-          onClick={onCalculateResults}
-          disabled={completed < file.heatCapacityExpectedTrialCount}
-        >
-          <BarChart3 size={14} />
-          {copy.calculate}
-        </button>
-      </div>
-      {!result.calculated ? <div className="studio-empty-panel-tree">{copy.emptyProcessing}</div> : null}
-      {result.calculated ? (
-        <div className="studio-heat-processing-results">
-          <div className="studio-heat-formula-grid">
-            {renderFormulaPanel(
-              copy.formula.pressure,
-              <span><VarDeltaP index="1,i" /> = <VarU index="1,i" /> / S; <VarDeltaP index="2,i" /> = <VarU index="2,i" /> / S</span>,
-              renderFormulaTrialResults(
-                result.trialResults,
-                copy,
-                formulaResultsExpanded,
-                setFormulaResultsExpanded,
-                (trial) => <><VarDeltaP index={`1,${trial.trialIndex}`} /> = {formatNumber(trial.deltaP1KPa, 2)} kPa, <VarDeltaP index={`2,${trial.trialIndex}`} /> = {formatNumber(trial.deltaP2KPa, 2)} kPa</>,
-              ),
-            )}
-            {renderFormulaPanel(
-              copy.formula.absolute,
-              <span><VarP index="1,i" /> = <VarP index={0} /> + <VarDeltaP index="1,i" />; <VarP index="2,i" /> = <VarP index={0} /> + <VarDeltaP index="2,i" /></span>,
-              renderFormulaTrialResults(
-                result.trialResults,
-                copy,
-                formulaResultsExpanded,
-                setFormulaResultsExpanded,
-                (trial) => <><VarP index={`1,${trial.trialIndex}`} /> = {formatNumber(trial.P1KPa, 2)} kPa, <VarP index={`2,${trial.trialIndex}`} /> = {formatNumber(trial.P2KPa, 2)} kPa</>,
-              ),
-            )}
-            {renderFormulaPanel(
-              copy.formula.gamma,
-              <span><VarGamma index="i" /> = <VarU index="1,i" /> / (<VarU index="1,i" /> - <VarU index="2,i" />)</span>,
-              renderFormulaTrialResults(
-                result.trialResults,
-                copy,
-                formulaResultsExpanded,
-                setFormulaResultsExpanded,
-                (trial) => <><VarGamma index={trial.trialIndex} /> = {formatGamma(trial.gamma)}</>,
-              ),
-            )}
-            {renderFormulaPanel(
-              copy.formula.average,
-              <span><GammaMean /> = average(<VarGamma index="i" />); ε = |<GammaMean /> - <GammaAir />| / <GammaAir /> × 100%</span>,
-              <div className="studio-heat-formula-average">
-                {renderFormulaTrialResults(
-                  validFormulaResults,
-                  copy,
-                  formulaResultsExpanded,
-                  setFormulaResultsExpanded,
-                  (trial) => <><VarGamma index={trial.trialIndex} /> = {formatGamma(trial.gamma)}</>,
-                )}
-                <span>{copy.formula.result}: {copy.formula.meanGamma} = {formatGamma(result.meanGamma)}, {copy.formula.relativeError} = {formatNumber(result.relativeErrorPercent, 2)}%</span>
-              </div>,
-            )}
-          </div>
-          <div className={`studio-result-status ${result.status === 'ready' ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
-            <strong>{copy.formula.meanGamma} = {formatGamma(result.meanGamma)}</strong>
-            <span><GammaAir /> = {result.theoreticalGamma.toFixed(3)} · {copy.formula.relativeError} = {formatNumber(result.relativeErrorPercent, 2)}% · {copy.formula.resultStatus}: {result.status === 'ready' ? copy.formula.reasonable : (result.message || copy.formula.notReady)}</span>
-          </div>
-          <div className="studio-heat-table-scroll">
-            <table className="studio-table studio-heat-processing-table">
-              <thead>
-                <tr>
-                  <th>{copy.table.trial}</th>
-                  <th><VarU index={1} /></th>
-                  <th><VarU index={2} /></th>
-                  <th><VarDeltaP index={1} /></th>
-                  <th><VarDeltaP index={2} /></th>
-                  <th><VarP index={1} /></th>
-                  <th><VarP index={2} /></th>
-                  <th><VarGamma index="i" /></th>
-                  <th>{copy.table.status}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.trialResults.map((trial) => (
-                  <tr key={trial.trialIndex}>
-                    <td>{trial.trialIndex}</td>
-                    <td>{formatNumber(trial.U1Mv, 2)}</td>
-                    <td>{formatNumber(trial.U2Mv, 2)}</td>
-                    <td>{formatNumber(trial.deltaP1KPa, 2)}</td>
-                    <td>{formatNumber(trial.deltaP2KPa, 2)}</td>
-                    <td>{formatNumber(trial.P1KPa, 2)}</td>
-                    <td>{formatNumber(trial.P2KPa, 2)}</td>
-                    <td>{formatGamma(trial.gamma)}</td>
-                    <td>{trial.status === 'valid' ? copy.formula.valid : copy.formula.invalid}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {renderGammaChart(result.trialResults, result.theoreticalGamma, result.meanGamma, copy.chart)}
-        </div>
-      ) : null}
-      <DocumentDisclosure id="mean-gamma-first" title={<>{copy.thinking}: {copy.thinkingMeanTitle}</>}>
-        <p>{copy.thinkingMeanBody}</p>
       </DocumentDisclosure>
+      {isDemo ? (
+        <>
+          <div className="studio-result-status studio-result-status-waiting" data-heat-capacity-demo-formal-notice="true">
+            <strong>{copy.guideResult.formalExperimentTitle}</strong>
+            <span>{copy.guideResult.formalExperimentMultiTrialNotice}</span>
+          </div>
+          <DocumentDisclosure id="demo-mean-gamma-thinking" title={<>{copy.thinking}: {copy.thinkingMeanTitle}</>}>
+            <p>{copy.thinkingMeanBody}</p>
+          </DocumentDisclosure>
+        </>
+      ) : null}
     </div>
   );
 };
@@ -1477,31 +907,19 @@ export const HeatCapacityLeftPanel = ({
   file,
   language,
   panelKey,
-  onExpectedTrialCountChange,
-  onCalculateResults,
   pendingRemoveTrialRecord,
   onRemoveTrialRecord,
   onCancelRemoveTrialRecord,
 }: HeatCapacityLeftPanelProps) => {
   const copy = text(language);
-  const [formulaResultsExpanded, setFormulaResultsExpanded] = useState(false);
-  const freeDataResultsPanel = file.heatCapacityMode === 'free' && (
-    panelKey === 'heatCapacityRecords' || panelKey === 'heatCapacityProcessing'
-  );
-  const guideDataResultsPanel = file.heatCapacityMode === 'guide' && (
-    panelKey === 'heatCapacityRecords' || panelKey === 'heatCapacityProcessing'
-  );
   const contentTitle = useMemo(() => {
-    if (
-      (file.heatCapacityMode === 'free' || file.heatCapacityMode === 'guide') &&
-      (panelKey === 'heatCapacityRecords' || panelKey === 'heatCapacityProcessing')
-    ) {
-      return copy.dataAndResults;
-    }
-    if (panelKey === 'heatCapacityRecords') return copy.recording;
-    if (panelKey === 'heatCapacityProcessing') return copy.processing;
+    if (panelKey === 'heatCapacityRecords') return copy.dataAndResults;
     return copy.guide;
-  }, [copy.dataAndResults, copy.guide, copy.processing, copy.recording, file.heatCapacityMode, panelKey]);
+  }, [copy.dataAndResults, copy.guide, panelKey]);
+  const shouldShowCompletedGuideResult =
+    file.heatCapacityMode === 'free' &&
+    file.heatCapacityGuideWorkflow.step === 'completed' &&
+    file.heatCapacityGuideTrial !== null;
 
   return (
     <section className="studio-heat-panel-content" data-heat-capacity-panel-content="true" data-heat-capacity-panel-key={panelKey}>
@@ -1512,7 +930,7 @@ export const HeatCapacityLeftPanel = ({
       <div className="studio-heat-left-content">
         {panelKey === 'heatCapacityGuide'
           ? renderGuideTab(language)
-          : freeDataResultsPanel
+          : file.heatCapacityMode === 'free' && !shouldShowCompletedGuideResult
             ? renderFreeDataAndResultsTab(
                 file,
                 copy,
@@ -1520,18 +938,7 @@ export const HeatCapacityLeftPanel = ({
                 onRemoveTrialRecord,
                 onCancelRemoveTrialRecord,
               )
-          : guideDataResultsPanel
-            ? renderGuideDataAndResultsTab(file, copy)
-          : panelKey === 'heatCapacityRecords'
-            ? renderRecordingTab(
-                file,
-                copy,
-                onExpectedTrialCountChange,
-                pendingRemoveTrialRecord,
-                onRemoveTrialRecord,
-                onCancelRemoveTrialRecord,
-              )
-            : renderProcessingTab(file, copy, onCalculateResults, formulaResultsExpanded, setFormulaResultsExpanded)}
+            : renderSingleTrialDataAndResultsTab(file, copy)}
       </div>
     </section>
   );

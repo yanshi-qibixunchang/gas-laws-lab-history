@@ -1,4 +1,7 @@
 import type { HeatCapacityProcessSampleKey } from './heatCapacityExperimentModel.ts';
+import {
+  HEAT_CAPACITY_STANDARD_OPERATION,
+} from './heatCapacityDefaultConfig.ts';
 
 export type HeatCapacityAutoDemoAction =
   | 'powerOn'
@@ -41,6 +44,7 @@ export interface HeatCapacityAutoDemoStep {
   title: string;
   description: string;
   target: string;
+  progressCriterion: string;
   note: string;
   targetControlId?: HeatCapacityAutoDemoControlId;
   focusSequence?: HeatCapacityAutoDemoStepFocus[];
@@ -61,15 +65,18 @@ export interface HeatCapacityAutoDemoTimelineItem {
   focusControlId?: HeatCapacityAutoDemoControlId;
 }
 
-const DEFAULT_PRE_HIGHLIGHT_MS = 5_000;
-const DEFAULT_OBSERVE_MS = 6_000;
+const DEFAULT_PRE_HIGHLIGHT_MS = 4_000;
+const DEFAULT_OBSERVE_MS = 3_000;
 const STOPCOCK_TRANSITION_MS = 1_000;
 const POWER_TRANSITION_MS = 650;
 const PUMP_VALVE_TRANSITION_MS = 420;
-export const HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT = 4;
-export const HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS = 100;
+export const HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT = HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes;
+export const HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS = Math.round(
+  (HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS * 1000) /
+    Math.max(1, HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT - 1),
+);
 const HEAT_CAPACITY_TEACHING_PUMP_SAMPLE_DELAY_MS =
-  HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT * HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS + 300;
+  (HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT - 1) * HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS + 300;
 
 const createTeachingPumpStrokeActions = (): HeatCapacityAutoDemoStepAction[] => [
   ...Array.from({ length: HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT }, (_, index): HeatCapacityAutoDemoStepAction => ({
@@ -85,11 +92,12 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     title: '开启电源',
     description: '打开电源，使温度与压强测量系统开始工作',
     target: '电源开关',
+    progressCriterion: '仪表亮起并显示 Uₜ / Uₚ 后进入下一步。',
     note: '观察仪表屏幕亮起，并出现 Uₜ 与 Uₚ 读数',
     targetControlId: 'powerSwitch',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: POWER_TRANSITION_MS,
-    observeDurationMs: 4_000,
+    observeDurationMs: DEFAULT_OBSERVE_MS,
     actions: [{ action: 'powerOn' }],
   },
   {
@@ -97,6 +105,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     title: '打开玻璃旋塞',
     description: '打开旋塞，使气瓶与外界连通，确保内外气压一致',
     target: '玻璃旋塞',
+    progressCriterion: '气瓶与外界连通后进入压强差调零。',
     note: '调零前先让气瓶与外界相通，再检查和校正压强差示数',
     targetControlId: 'stopcock',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
@@ -109,6 +118,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     title: '压强差调零',
     description: '旋转压力调零旋钮，使压强差 Uₚ 接近 0',
     target: 'Uₚ 显示屏 / 压力调零旋钮',
+    progressCriterion: 'Uₚ 接近 0 mV 后记录 U₀。',
     note: '调零后压强差 Uₚ 示数在 0mv 附近上下波动',
     targetControlId: 'pressureZero',
     focusSequence: [
@@ -129,6 +139,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     title: '关闭玻璃旋塞',
     description: '关闭旋塞，使气瓶形成封闭空间',
     target: '玻璃旋塞',
+    progressCriterion: '玻璃旋塞关闭后准备打开打气阀门。',
     note: '封闭后才能进行有效加压',
     targetControlId: 'stopcock',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
@@ -141,6 +152,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     title: '打开打气阀门',
     description: '打开阀门，允许打气球向气瓶输入空气',
     target: '打气阀门',
+    progressCriterion: '打气阀门打开后开始连续打气。',
     note: '阀门打开后，指示灯变绿',
     targetControlId: 'pumpValve',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
@@ -151,9 +163,10 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
   {
     id: 'pump-pressurize',
     title: '连续打气加压',
-    description: '连续快速打气，使瓶内压强升高',
+    description: '连续快速按压打气球，使 Uₚ 升高',
     target: '打气球',
-    note: '打气操作需在短时内完成，压力表指针不得超过安全上限',
+    progressCriterion: '打到 Uₚ ≥ 120 mV 后，关闭打气阀门进入稳定等待。',
+    note: '标准看 Uₚ 读数，不按打气次数判断；压强不得超过安全上限。',
     targetControlId: 'pumpBulb',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: HEAT_CAPACITY_TEACHING_PUMP_SAMPLE_DELAY_MS + 300,
@@ -167,6 +180,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     title: '关闭打气阀门',
     description: '关闭阀门，停止加压',
     target: '打气阀门',
+    progressCriterion: '打气阀门关闭后进入封闭等待。',
     note: '关闭后打气球不再形成有效加压通路',
     targetControlId: 'pumpValve',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
@@ -177,9 +191,10 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
   {
     id: 'sealed-stabilize',
     title: '封闭等待稳定',
-    description: '等待气体状态相对稳定，观察压强和温度信号变化',
+    description: '关闭打气阀门后保持气瓶封闭，等待压强和温度信号稳定',
     target: 'Uₚ / Uₜ 显示屏',
-    note: '稳定不是完全静止，末位读数会在小范围内波动',
+    progressCriterion: '等待 5 min 后记录 U₁ / Uₜ₁。',
+    note: '演示会加速播放，但这里对应真实实验中的 5 min 等待规范。',
     targetControlId: 'instrumentPanel',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: 2_900,
@@ -191,6 +206,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     title: '打开旋塞放气，并快速关闭',
     description: '让瓶内气体快速突出容器外',
     target: '玻璃旋塞',
+    progressCriterion: '快速放气后立即关闭玻璃旋塞。',
     note: '咻的一声完全消失立即关闭，系统进入回温过程',
     targetControlId: 'stopcock',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
@@ -205,9 +221,10 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
   {
     id: 'thermal-recovery',
     title: '等待回温',
-    description: '等待瓶内空气与环境换热，温度信号逐渐恢复',
+    description: '快速放气并关闭玻璃旋塞后，等待瓶内空气回温',
     target: 'Uₜ / Uₚ 显示屏',
-    note: 'Uₜ 变化慢于 Uₚ，Uₚ 小幅恢复或趋稳',
+    progressCriterion: '等待 5 min 后记录 U₂ / Uₜ₂。',
+    note: 'U₂ 不取刚放气瞬间值，应取回温稳定后的读数。',
     targetControlId: 'instrumentTemperatureDisplay',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: 2_900,
@@ -219,6 +236,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     title: '关闭电源',
     description: '实验演示结束，关闭电源',
     target: '电源开关',
+    progressCriterion: '电源关闭后演示结束。',
     note: '显示屏进入非工作状态',
     targetControlId: 'powerSwitch',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
@@ -272,20 +290,21 @@ export const getHeatCapacityAutoDemoTimeline = (
       });
     });
 
-    timeline.push({
-      atMs: actionBaseMs + step.actionDurationMs,
-      stage: 'observe',
-      stepIndex,
-      step,
-    });
     const nextCursorMs = cursorMs + step.preHighlightMs + step.actionDurationMs + step.observeDurationMs;
     const nextStep = steps[stepIndex + 1];
     if (nextStep) {
       timeline.push({
-        atMs: nextCursorMs - 1_000,
+        atMs: actionBaseMs + step.actionDurationMs,
         stage: 'preview',
         stepIndex: stepIndex + 1,
         step: nextStep,
+      });
+    } else {
+      timeline.push({
+        atMs: actionBaseMs + step.actionDurationMs,
+        stage: 'observe',
+        stepIndex,
+        step,
       });
     }
     cursorMs = nextCursorMs;

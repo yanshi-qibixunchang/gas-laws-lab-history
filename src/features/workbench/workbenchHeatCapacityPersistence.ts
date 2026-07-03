@@ -56,7 +56,6 @@ import type {
 } from './workbenchPersistenceSchema.ts';
 
 export const HEAT_CAPACITY_SCHEMA_VERSION = 1 as const;
-export const HEAT_CAPACITY_REFERENCE_GENERATOR_VERSION = 'free-reference-v1' as const;
 export const HEAT_CAPACITY_PROCESS_SCORING_VERSION = 'free-process-score-v1' as const;
 
 const heatCapacityFreeUiReplayKeys = [
@@ -65,11 +64,6 @@ const heatCapacityFreeUiReplayKeys = [
   'activeHeatCapacityTabId',
   'heatCapacityMaterialsExpanded',
   'heatCapacityTabContainerHeight',
-  'heatCapacityExpectedTrialCount',
-  'heatCapacityExpectedTrialCountMode',
-  'heatCapacityActiveTrialIndex',
-  'heatCapacityProcessingCalculated',
-  'heatCapacityProcessingResult',
   'heatCapacityPhase',
   'glassPistonState',
   'stopcockAngleDeg',
@@ -138,47 +132,6 @@ export type HeatCapacityFreeUiReplayV1 = Pick<
   typeof heatCapacityFreeUiReplayKeys[number]
 >;
 
-export interface HeatCapacityReferenceStoreV1 {
-  standard: null | HeatCapacityReferenceCurveV1;
-  operableBest: null | HeatCapacityReferenceCurveV1;
-}
-
-export interface HeatCapacityReferenceCurveV1 {
-  id: string;
-  kind: 'standard' | 'operableBest';
-  generatorVersion: string;
-  generatedAt: number;
-  configSnapshot: HeatCapacityFreeConfigSnapshot;
-  operationScript: {
-    steps: Array<{
-      action: string;
-      atS: number;
-      durationS?: number;
-    }>;
-  };
-  alignmentMode: 'nativeTime' | 'stageScaled';
-  trace: Array<{
-    sampleId: string;
-    stageId: string;
-    timeS: number;
-    pressureDeltaKPa: number;
-    temperatureDeltaK: number;
-  }>;
-  stages: Array<{
-    id: string;
-    label: string;
-    startS: number;
-    endS: number;
-    countText?: string;
-    durationText?: string;
-  }>;
-  records: {
-    u0: unknown | null;
-    u1: unknown | null;
-    u2: unknown | null;
-  };
-}
-
 export interface HeatCapacityFreePersistenceDataV1 {
   runtimeVersion: typeof HEAT_CAPACITY_FREE_RUNTIME_VERSION;
   traceVersion: typeof HEAT_CAPACITY_FREE_TRACE_VERSION;
@@ -205,7 +158,6 @@ export interface HeatCapacityFreePersistenceDataV1 {
   rollbackSnapshots: WorkbenchHeatCapacityState['heatCapacityFreeRollbackSnapshots'];
   traceStore: WorkbenchHeatCapacityState['heatCapacityFreeTraceStore'];
   trials: WorkbenchHeatCapacityState['heatCapacityFreeTrials'];
-  references: HeatCapacityReferenceStoreV1;
   uiReplay: HeatCapacityFreeUiReplayV1;
 }
 
@@ -221,16 +173,10 @@ export interface HeatCapacityPersistencePayloadV1 {
   heatCapacitySchemaVersion: typeof HEAT_CAPACITY_SCHEMA_VERSION;
   mode: WorkbenchHeatCapacityState['heatCapacityMode'];
   common: {
-    trials: WorkbenchHeatCapacityState['heatCapacityTrials'];
-    expectedTrialCount: number;
-    expectedTrialCountMode: WorkbenchHeatCapacityState['heatCapacityExpectedTrialCountMode'];
-    activeTrialIndex: number;
     materialsExpanded: boolean;
     selectedHeatCapacityPanel: WorkbenchHeatCapacityState['selectedHeatCapacityPanel'];
     openHeatCapacityTabs: WorkbenchHeatCapacityState['openHeatCapacityTabs'];
     activeHeatCapacityTabId: WorkbenchHeatCapacityState['activeHeatCapacityTabId'];
-    processingCalculated: boolean;
-    processingResult: WorkbenchHeatCapacityState['heatCapacityProcessingResult'];
     experimentSeed: WorkbenchHeatCapacityState['heatCapacityExperimentSeed'];
     experimentProfile: WorkbenchHeatCapacityState['heatCapacityExperimentProfile'];
   };
@@ -280,11 +226,6 @@ const createHeatCapacityFreeUiReplay = (
     clonePersistenceValue(file[key]),
   ])) as HeatCapacityFreeUiReplayV1
 );
-
-export const createEmptyHeatCapacityReferenceStore = (): HeatCapacityReferenceStoreV1 => ({
-  standard: null,
-  operableBest: null,
-});
 
 export const createHeatCapacityFreeConfigSnapshotFromFile = (
   file: WorkbenchHeatCapacityState,
@@ -358,16 +299,10 @@ export const createHeatCapacityPersistencePayload = (
     heatCapacitySchemaVersion: HEAT_CAPACITY_SCHEMA_VERSION,
     mode: file.heatCapacityMode,
     common: {
-      trials: clonePersistenceValue(file.heatCapacityTrials),
-      expectedTrialCount: file.heatCapacityExpectedTrialCount,
-      expectedTrialCountMode: file.heatCapacityExpectedTrialCountMode,
-      activeTrialIndex: file.heatCapacityActiveTrialIndex,
       materialsExpanded: file.heatCapacityMaterialsExpanded,
       selectedHeatCapacityPanel: file.selectedHeatCapacityPanel,
       openHeatCapacityTabs: clonePersistenceValue(file.openHeatCapacityTabs),
       activeHeatCapacityTabId: file.activeHeatCapacityTabId,
-      processingCalculated: file.heatCapacityProcessingCalculated,
-      processingResult: clonePersistenceValue(file.heatCapacityProcessingResult),
       experimentSeed: file.heatCapacityExperimentSeed,
       experimentProfile: clonePersistenceValue(file.heatCapacityExperimentProfile),
     },
@@ -397,10 +332,9 @@ export const createHeatCapacityPersistencePayload = (
       rollbackSnapshots: clonePersistenceValue(file.heatCapacityFreeRollbackSnapshots),
       traceStore: clonePersistenceValue(file.heatCapacityFreeTraceStore),
       trials: clonePersistenceValue(file.heatCapacityFreeTrials),
-      references: createEmptyHeatCapacityReferenceStore(),
       uiReplay: createHeatCapacityFreeUiReplay(file),
     },
-    guided: file.heatCapacityMode === 'guide'
+    guided: file.heatCapacityMode === 'guide' || file.heatCapacityGuideTrial !== null
       ? {
           physicsConfig: clonePersistenceValue(file.heatCapacityGuidePhysicsConfig),
           physicsState: clonePersistenceValue(file.heatCapacityGuidePhysicsState),
@@ -822,7 +756,7 @@ const normalizeGuidePhysicsState = (
 const normalizeGuideTrial = (
   value: unknown,
 ): WorkbenchHeatCapacityState['heatCapacityGuideTrial'] => (
-  isRecord(value) && value.source === 'guide' && typeof value.id === 'string'
+  isRecord(value) && (value.source === 'guide' || value.source === 'demo') && typeof value.id === 'string'
     ? clonePersistenceValue(value) as unknown as WorkbenchHeatCapacityState['heatCapacityGuideTrial']
     : null
 );
@@ -876,7 +810,13 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
       : null;
   const layout = fileEnvelope.layout;
   const visiblePanels = Array.isArray(layout.visiblePanels)
-    ? layout.visiblePanels
+    ? layout.visiblePanels.filter((panel): panel is WorkbenchHeatCapacityState['visiblePanels'][number] => (
+        panel === 'preview' ||
+        panel === 'realtime' ||
+        panel === 'heatCapacityGuide' ||
+        panel === 'heatCapacityRecords' ||
+        panel === 'heatCapacityReview'
+      ))
     : fallback.visiblePanels;
   const liveWorkspaceSplitRatio = isFiniteNumber(layout.liveWorkspaceSplitRatio)
     ? layout.liveWorkspaceSplitRatio
@@ -897,7 +837,26 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     { heatCapacityFreeTrials: restoredFreeTrials },
     restoredStopcockFlowOpen || restoredStopcockPendingOpenAtMs !== null,
   );
-  const restoredGuideFields = restoredMode === 'guide' && guided
+  const restoredOpenHeatCapacityTabs = Array.isArray(common.openHeatCapacityTabs)
+    ? common.openHeatCapacityTabs.filter((tab): tab is WorkbenchHeatCapacityState['openHeatCapacityTabs'][number] => (
+        tab === 'guide' ||
+        tab === 'records' ||
+        tab === 'review'
+      ))
+    : fallback.openHeatCapacityTabs;
+  const restoredActiveHeatCapacityTabId =
+    common.activeHeatCapacityTabId === 'guide' ||
+    common.activeHeatCapacityTabId === 'records' ||
+    common.activeHeatCapacityTabId === 'review'
+      ? common.activeHeatCapacityTabId
+      : fallback.activeHeatCapacityTabId;
+  const restoredSelectedHeatCapacityPanel =
+    common.selectedHeatCapacityPanel === 'heatCapacityGuide' ||
+    common.selectedHeatCapacityPanel === 'heatCapacityRecords' ||
+    common.selectedHeatCapacityPanel === 'heatCapacityReview'
+      ? common.selectedHeatCapacityPanel
+      : fallback.selectedHeatCapacityPanel;
+  const restoredGuideFields = guided
     ? {
         heatCapacityGuidePhysicsConfig: normalizeGuidePhysicsConfig(
           guided.physicsConfig,
@@ -927,26 +886,14 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     createdAt: fileEnvelope.createdAt,
     updatedAt: fileEnvelope.updatedAt,
     lastOpenedAt: fileEnvelope.lastOpenedAt ?? fileEnvelope.updatedAt,
-    visiblePanels: visiblePanels as WorkbenchHeatCapacityState['visiblePanels'],
+    visiblePanels: visiblePanels.length > 0 ? visiblePanels : fallback.visiblePanels,
     liveWorkspaceSplitRatio,
     heatCapacityMode: restoredMode,
-    heatCapacityTrials: Array.isArray(common.trials) ? common.trials : fallback.heatCapacityTrials,
-    heatCapacityExpectedTrialCount: isFiniteNumber(common.expectedTrialCount)
-      ? common.expectedTrialCount
-      : fallback.heatCapacityExpectedTrialCount,
-    heatCapacityExpectedTrialCountMode: common.expectedTrialCountMode ?? fallback.heatCapacityExpectedTrialCountMode,
-    heatCapacityActiveTrialIndex: isFiniteNumber(common.activeTrialIndex)
-      ? common.activeTrialIndex
-      : fallback.heatCapacityActiveTrialIndex,
-    heatCapacityProcessingCalculated: common.processingCalculated === true,
-    heatCapacityProcessingResult: common.processingResult ?? fallback.heatCapacityProcessingResult,
     heatCapacityExperimentSeed: common.experimentSeed ?? fallback.heatCapacityExperimentSeed,
     heatCapacityExperimentProfile: common.experimentProfile ?? fallback.heatCapacityExperimentProfile,
-    selectedHeatCapacityPanel: common.selectedHeatCapacityPanel ?? fallback.selectedHeatCapacityPanel,
-    openHeatCapacityTabs: Array.isArray(common.openHeatCapacityTabs)
-      ? common.openHeatCapacityTabs
-      : fallback.openHeatCapacityTabs,
-    activeHeatCapacityTabId: common.activeHeatCapacityTabId ?? fallback.activeHeatCapacityTabId,
+    selectedHeatCapacityPanel: restoredSelectedHeatCapacityPanel,
+    openHeatCapacityTabs: restoredOpenHeatCapacityTabs,
+    activeHeatCapacityTabId: restoredActiveHeatCapacityTabId,
     heatCapacityFreeRuntimeVersion: free?.runtimeVersion ?? HEAT_CAPACITY_FREE_RUNTIME_VERSION,
     heatCapacityFreeTraceVersion: free?.traceVersion ?? HEAT_CAPACITY_FREE_TRACE_VERSION,
     heatCapacityFreeEnvironmentConfig: { ...snapshot.environment },
