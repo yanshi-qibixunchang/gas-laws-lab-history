@@ -96,12 +96,17 @@ assert.match(
 );
 assert.match(
   workbenchSource,
+  /const cleanFile = source === 'user'[\s\S]*prepareHeatCapacityFreeExperimentGroupForUserOperation\(file, now\)[\s\S]*powerHeatCapacityWorkbenchFile\(cleanFile, resolvedPowerOn, now\)/,
+  'The first real Free Mode control action after a completed group should prepare a blank next group before powering on',
+);
+assert.match(
+  workbenchSource,
   /updateHeatCapacityStopcockOpen[\s\S]*?source === 'user'[\s\S]*?collapseHeatCapacityFreeParameterSidebarForExperimentAction\(\)/,
   'Changing stopcock from user action should collapse the parameter sidebar',
 );
 assert.match(
   workbenchSource,
-  /const updateHeatCapacityStopcockOpen = \(nextOpen\?: boolean[\s\S]*const resolvedOpen = nextOpen \?\? getHeatCapacityStopcockState\(file\.stopcockAngleDeg\) !== 'open'[\s\S]*getHeatCapacityStopcockTargetAngle\(resolvedOpen\)/,
+  /const updateHeatCapacityStopcockOpen = \(nextOpen\?: boolean[\s\S]*const operationFile = source === 'user'[\s\S]*prepareHeatCapacityFreeExperimentGroupForUserOperation\(file, now\)[\s\S]*const resolvedOpen = nextOpen \?\? getHeatCapacityStopcockState\(operationFile\.stopcockAngleDeg\) !== 'open'[\s\S]*getHeatCapacityStopcockTargetAngle\(resolvedOpen\)/,
   'Fast 3D stopcock clicks should be able to toggle from the latest workbench file state instead of a stale scene prop',
 );
 assert.match(
@@ -695,6 +700,11 @@ assert.match(workbenchSource, /setHeatCapacityFreeResetFeedbackActive\(true\)[\s
 assert.match(workbenchSource, /studio-heat-mode-action-feedback[\s\S]*data-heat-capacity-mode-action="reset-free"/, 'Free Mode reset button should apply a visible feedback class after clicks');
 assert.match(styleSource, /\.studio-heat-mode-action-feedback \{[\s\S]*animation:\s*studio-heat-reset-feedback/, 'Free Mode reset feedback should have an explicit animation style');
 assert.match(styleSource, /@keyframes studio-heat-reset-feedback/, 'Free Mode reset feedback should define the reset confirmation keyframes');
+assert.match(workbenchSource, /heatCapacityTeachingCompleted && heatCapacityActiveMode === 'demo'[\s\S]*showHeatCapacityTeachingCompletedLockedInteraction\(\)/, 'Completed demo mode should only lock repeated clicks on the active demo segment');
+assert.match(workbenchSource, /heatCapacityTeachingCompleted && heatCapacityActiveMode === 'guide'[\s\S]*showHeatCapacityTeachingCompletedLockedInteraction\(\)/, 'Completed guide mode should only lock repeated clicks on the active guide segment');
+assert.doesNotMatch(workbenchSource, /if \(heatCapacityTeachingCompleted\) \{\s*showHeatCapacityTeachingCompletedLockedInteraction\(\);\s*return;\s*\}\s*if \(heatCapacityActiveMode !== 'demo'/, 'Completed demo state should not block switching directly to another mode');
+assert.doesNotMatch(workbenchSource, /if \(heatCapacityTeachingCompleted\) \{\s*showHeatCapacityTeachingCompletedLockedInteraction\(\);\s*return;\s*\}\s*if \(heatCapacityActiveMode !== 'guide'/, 'Completed guide state should not block switching directly to another mode');
+assert.doesNotMatch(workbenchSource, /if \(heatCapacityTeachingCompleted\) \{\s*showHeatCapacityTeachingCompletedLockedInteraction\(\);\s*return;\s*\}\s*if \(\s*heatCapacityActiveMode !== 'free'/, 'Completed teaching state should not block switching directly to Free Mode');
 assert.match(leftPanelSource, /const shouldShowSingleTrialResult =[\s\S]*file\.heatCapacityTeachingStatus === 'completed'[\s\S]*file\.heatCapacityGuideTrial !== null/, 'completed Demo and Guide results should remain visible while the teaching mode is waiting for explicit exit');
 assert.match(leftPanelSource, /file\.heatCapacityMode === 'free' && !shouldShowSingleTrialResult[\s\S]*renderFreeDataAndResultsTab/, 'ordinary Free Mode panels should route to the merged Data & Results page');
 assert.match(leftPanelSource, /data-heat-capacity-record-source=\{file\.heatCapacityMode\}/, 'recording panel should expose the active record source');
@@ -1531,7 +1541,7 @@ assert.match(workbenchSource, /const showHeatCapacityPressureAlarm = [\s\S]*heat
 assert.match(workbenchSource, /if \([\s\S]*mode === 'pump'[\s\S]*isHeatCapacityPumpFocusBlockedByAlarm\(currentFile\)[\s\S]*return;[\s\S]*heatCapacityFocusSessionRef\.current =/, 'entering pump focus should be blocked once a pressure alarm has fired for the current pumping session');
 assert.match(
   workbenchSource,
-  /const pressHeatCapacityPumpBulb = [\s\S]*?const fileBeforePump = filesRef\.current\.find\(\(file\) => file\.id === fileId\);[\s\S]*?if \([\s\S]*?source !== 'autoDemo'[\s\S]*?fileBeforePump\?\.kind === 'heatCapacity'[\s\S]*?fileBeforePump\.heatCapacityMode === 'free'[\s\S]*?isHeatCapacityPumpFocusBlockedByAlarm\(fileBeforePump\)[\s\S]*?\) \{[\s\S]*?showHeatCapacityPressureAlarm\(fileBeforePump\.id,\s*fileBeforePump\.name\);[\s\S]*?return;[\s\S]*?\}[\s\S]*?registerHeatCapacityPumpStroke\(fileBeforePump,\s*now\)/,
+  /const pressHeatCapacityPumpBulb = [\s\S]*?const fileBeforePump = filesRef\.current\.find\(\(file\) => file\.id === fileId\);[\s\S]*?if \([\s\S]*?source !== 'autoDemo'[\s\S]*?fileBeforePump\?\.kind === 'heatCapacity'[\s\S]*?fileBeforePump\.heatCapacityMode === 'free'[\s\S]*?isHeatCapacityPumpFocusBlockedByAlarm\(fileBeforePump\)[\s\S]*?\) \{[\s\S]*?showHeatCapacityPressureAlarm\(fileBeforePump\.id,\s*fileBeforePump\.name\);[\s\S]*?return;[\s\S]*?\}[\s\S]*?const pumpSourceFile = source === 'user'[\s\S]*?prepareHeatCapacityFreeExperimentGroupForUserOperation\(fileBeforePump, now\)[\s\S]*?registerHeatCapacityPumpStroke\(pumpSourceFile,\s*now\)/,
   'Free Mode pump presses after an active/already-fired pressure alarm should rerun the full alarm exit path before any new pump stroke',
 );
 assert.match(workbenchSource, /showHeatCapacityPolicyToast\(heatCapacityRealtimeCopy\.closePumpValveReminder,\s*'pressureCloseValve'\)/, 'post-alarm close-valve reminder should use the same overriding bottom-center hint path');
@@ -1552,7 +1562,7 @@ assert.match(workbenchSource, /showHeatCapacityPolicyToast\(heatCapacityRealtime
 assert.match(workbenchSource, /if \(!currentFile\.pumpValveOpen\) return;[\s\S]*showHeatCapacityPolicyToast\(heatCapacityRealtimeCopy\.closePumpValveReminder,\s*'pressureCloseValve'\)/, 'post-alarm close-valve reminder should depend on the valve still being open, not on pressure still being over limit');
 assert.doesNotMatch(workbenchSource, /if \(!currentFile\.pressureOverLimit \|\| !currentFile\.pumpValveOpen\) return;/, 'post-alarm close-valve reminder must not disappear just because pressure naturally falls below the alarm threshold');
 assert.doesNotMatch(workbenchSource, /let pumpedHeatCapacityFile[\s\S]*updateFileById\(fileId,\s*\(file\) => \{[\s\S]*pumpedHeatCapacityFile = nextFile/, 'pressure threshold events must not depend on assigning a value inside a React state updater');
-assert.match(workbenchSource, /let nextHeatCapacityFile = fileBeforePump\?\.kind === 'heatCapacity'[\s\S]*registerHeatCapacityPumpStroke\(fileBeforePump,\s*now\)/, 'pump result should be calculated synchronously before updating React state');
+assert.match(workbenchSource, /let nextHeatCapacityFile = pumpSourceFile\?\.kind === 'heatCapacity'[\s\S]*registerHeatCapacityPumpStroke\(pumpSourceFile,\s*now\)/, 'pump result should be calculated synchronously before updating React state');
 assert.match(workbenchSource, /updateFileById\(fileId,\s*\(file\) => \{[\s\S]*return nextHeatCapacityFile;/, 'React state update should use the synchronously calculated pump result');
 assert.match(workbenchSource, /if \(source !== 'autoDemo' && nextHeatCapacityFile && !guidePumpTargetReached\) \{[\s\S]*showHeatCapacityPressureAlarm\(nextHeatCapacityFile\.id,\s*nextHeatCapacityFile\.name\)/, 'warning and alarm overlays should still be triggered from the synchronously calculated pump result outside the Guide target-reached branch');
 assert.match(workbenchSource, /getHeatCapacityPressureThresholdsMv\(file\)/, 'pressure toast status should read the current Heat Capacity safety thresholds from the active file');
@@ -1804,7 +1814,7 @@ assert.match(workbenchSource, /guideRecordBlockedMessages:\s*\{[\s\S]*u0NeedZero
 assert.match(workbenchSource, /guideUsageHints:\s*\{[\s\S]*zeroFocus:\s*'请双击仪表进入聚焦模式，开始压力调零。'[\s\S]*zeroAdjust:\s*'拖拽旋钮进行粗调，使用滚轮进行细调。'[\s\S]*pumpValve:\s*'请打开打气阀门。'[\s\S]*pumpFocus:\s*'请双击打气球进入聚焦模式。'/, 'guide mode should include distinct hints for opening the pump valve and then focusing the pump bulb');
 assert.match(workbenchSource, /openPumpValveRequired:\s*heatCapacityRealtimeCopy\.guideUsageHints\.pumpValve/, 'opening the pump-valve step should not show the pump-bulb focus instruction');
 assert.doesNotMatch(workbenchSource, /nextFile\.heatCapacityMode === 'guide'[\s\S]*captureHeatCapacityWorkbenchSample\([^)]*,\s*'afterPumpSample'/, 'Guide pumping should not write old teaching process samples after the independent Guide runtime is introduced');
-assert.match(workbenchSource, /registerHeatCapacityPumpStroke\(fileBeforePump,\s*now\)/, 'Guide pumping should route through the workbench state pump action, which owns Guide workflow transitions');
+assert.match(workbenchSource, /registerHeatCapacityPumpStroke\(pumpSourceFile,\s*now\)/, 'Guide pumping should route through the workbench state pump action, which owns Guide workflow transitions');
 assert.match(workbenchSource, /const getGuideHeatCapacityMinimumU1PlatformMv = \([\s\S]*HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV[\s\S]*const hasGuideHeatCapacityReachedPumpTarget = \(/, 'guided pumping should require reaching the 120 mV suggested-stop target before the user can leave the pump stage');
 assert.match(workbenchSource, /const pumpTargetReached = hasGuideHeatCapacityReachedPumpTarget\(file\);[\s\S]*file\.pumpValveOpen && !pumpTargetReached[\s\S]*return 'pumpRequired'/, 'guide mode should keep asking for rapid pumping until the 120 mV target has been reached');
 assert.match(workbenchSource, /pumpAction:\s*'双击聚焦打气球，快速点按打气球，按压至 Uₚ ≥ 120 mV 后自动退出。'/, 'Simplified Chinese guide pump instruction should tell users to focus the pump bulb, use rapid clicks, and stop at the displayed target');

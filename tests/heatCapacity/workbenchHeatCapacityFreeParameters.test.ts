@@ -11,6 +11,7 @@ import {
   isHeatCapacityFreeExperimentGroupComplete,
   isHeatCapacityFreeParameterEditingAvailable,
   powerHeatCapacityWorkbenchFile,
+  prepareHeatCapacityFreeExperimentGroupForUserOperation,
   prepareNextHeatCapacityFreeExperimentGroupWorkbenchState,
   resetHeatCapacityFreeRunWorkbenchState,
   shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
@@ -131,9 +132,12 @@ assert.equal(isHeatCapacityFreeExperimentGroupComplete(completedGroupPowerOffFil
 assert.equal(shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(completedGroupPowerOffFile), false);
 
 const preparedAfterPowerOff = powerHeatCapacityWorkbenchFile(completedGroupPowerOnFile, false, 2000);
-assert.equal(preparedAfterPowerOff.heatCapacityFreeExperimentGroupStatus, 'draft');
-assert.equal(preparedAfterPowerOff.heatCapacityFreeActiveRunConfigSnapshot, null);
+assert.equal(preparedAfterPowerOff.heatCapacityFreeExperimentGroupStatus, 'completed');
+assert.notEqual(preparedAfterPowerOff.heatCapacityFreeActiveRunConfigSnapshot, null);
 assert.equal(isHeatCapacityFreeParameterEditingAvailable(preparedAfterPowerOff), true);
+const preparedForNextUserOperation = prepareHeatCapacityFreeExperimentGroupForUserOperation(preparedAfterPowerOff, 2100);
+assert.equal(preparedForNextUserOperation.heatCapacityFreeExperimentGroupStatus, 'draft');
+assert.equal(preparedForNextUserOperation.heatCapacityFreeActiveRunConfigSnapshot, null);
 
 const gammaEditedFile = applyHeatCapacityFreeParameterDraftWorkbenchState(defaultFile, {
   ...defaultFile.heatCapacityFreeParameterDraft,

@@ -1124,7 +1124,10 @@ export const getHeatCapacityFreeRecordDisplayTrialIndex = (
   const lastTrial = file.heatCapacityFreeTrials[lastIndex] ?? null;
   if (
     file.powerOn === false &&
-    file.heatCapacityFreeExperimentGroupStatus === 'draft' &&
+    (
+      file.heatCapacityFreeExperimentGroupStatus === 'draft' ||
+      file.heatCapacityFreeExperimentGroupStatus === 'completed'
+    ) &&
     lastTrial !== null &&
     isHeatCapacityFreeTrialRecordComplete(lastTrial)
   ) {
@@ -2210,6 +2213,29 @@ const markHeatCapacityFreeTraceTrialCompleted = (
         ? { ...traceTrial, status: 'completed' }
         : traceTrial
     )),
+  };
+};
+
+const finalizeCompletedHeatCapacityFreeExperimentGroupWorkbenchState = (
+  file: WorkbenchHeatCapacityState,
+  now: number,
+): WorkbenchHeatCapacityState => {
+  const stampedFile = stampLatestCompletedHeatCapacityFreeTrial(file, now);
+  const latestTrial = stampedFile.heatCapacityFreeTrials[stampedFile.heatCapacityFreeTrials.length - 1] ?? null;
+  if (!latestTrial || !isHeatCapacityFreeTrialComplete(latestTrial)) return stampedFile;
+
+  const activeTraceTrialId = stampedFile.heatCapacityFreeTraceStore.activeTraceTrialId;
+  let traceStore = markHeatCapacityFreeTraceTrialCompleted(
+    stampedFile.heatCapacityFreeTraceStore,
+    latestTrial.traceTrialId,
+  );
+  traceStore = activeTraceTrialId && activeTraceTrialId !== latestTrial.traceTrialId
+    ? removeHeatCapacityFreeTraceTrialFromStore(traceStore, activeTraceTrialId)
+    : { ...traceStore, activeTraceTrialId: null };
+
+  return {
+    ...stampedFile,
+    heatCapacityFreeTraceStore: traceStore,
   };
 };
 
@@ -3397,10 +3423,7 @@ export const powerHeatCapacityWorkbenchFile = (
       now,
     );
     if (!nextPowerOn && isHeatCapacityFreeExperimentGroupComplete(tracedFile)) {
-      return resetHeatCapacityFreeRunWorkbenchState(
-        stampLatestCompletedHeatCapacityFreeTrial(tracedFile, now),
-        now,
-      );
+      return finalizeCompletedHeatCapacityFreeExperimentGroupWorkbenchState(tracedFile, now);
     }
     return tracedFile;
   }
@@ -4598,6 +4621,15 @@ export const resetHeatCapacityFreeRunWorkbenchState = (
     updatedAt: now,
   };
 };
+
+export const prepareHeatCapacityFreeExperimentGroupForUserOperation = (
+  file: WorkbenchHeatCapacityState,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => (
+  isHeatCapacityFreeExperimentGroupComplete(file)
+    ? resetHeatCapacityFreeRunWorkbenchState(file, now)
+    : file
+);
 
 export const selectActiveHeatCapacityWorkbenchDisplay = (
   file: WorkbenchHeatCapacityState,

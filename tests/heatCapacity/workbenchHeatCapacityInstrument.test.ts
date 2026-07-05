@@ -41,6 +41,7 @@ import {
   getHeatCapacityFreeRecordButtonState,
   isHeatCapacityPressureZeroWithinTolerance,
   isHeatCapacityFreeEquilibriumSpeedAvailable,
+  prepareHeatCapacityFreeExperimentGroupForUserOperation,
   registerHeatCapacityPumpStroke,
   recordHeatCapacityFreeTraceEventWithReference,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
@@ -611,7 +612,7 @@ const completedPowerOffPrepared = powerHeatCapacityWorkbenchFile({
   heatCapacityFreeTrials: [traceLinkedCompleteTrial],
 }, false, 1_650);
 assert.equal(completedPowerOffPrepared.powerOn, false);
-assert.equal(completedPowerOffPrepared.heatCapacityFreeExperimentGroupStatus, 'draft');
+assert.equal(completedPowerOffPrepared.heatCapacityFreeExperimentGroupStatus, 'completed');
 assert.equal(completedPowerOffPrepared.heatCapacityFreeTrials.length, 1);
 assert.equal(completedPowerOffPrepared.heatCapacityFreeTrials[0].id, traceLinkedCompleteTrial.id);
 assert.equal(
@@ -625,10 +626,6 @@ assert.equal(
   'Powering off after U2 should auto-save the completed Free group trace',
 );
 assert.equal(completedPowerOffPrepared.heatCapacityFreeTraceStore.activeTraceTrialId, null);
-assert.equal(completedPowerOffPrepared.heatCapacityFreePhysicsState.pumpStrokeCount, 0);
-assert.equal(completedPowerOffPrepared.heatCapacityFreePhysicsState.releaseStarted, false);
-assert.equal(completedPowerOffPrepared.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
-assert.equal(completedPowerOffPrepared.pumpValveOpen, false);
 assert.equal(getActiveHeatCapacityFreeTrialIndex(completedPowerOffPrepared), -1);
 assert.equal(
   getHeatCapacityFreeRecordDisplayTrialIndex(completedPowerOffPrepared),
@@ -640,13 +637,21 @@ assert.deepEqual(
   { visible: false, mode: 'record', disabledReason: 'zero-not-ready' },
   'Auto-saved Free history should not remain as a current re-record target',
 );
-const completedPowerOnNextSeed = powerHeatCapacityWorkbenchFile(completedPowerOffPrepared, true, 1_690);
+const completedPowerOnNextSeed = powerHeatCapacityWorkbenchFile(
+  prepareHeatCapacityFreeExperimentGroupForUserOperation(completedPowerOffPrepared, 1_690),
+  true,
+  1_690,
+);
 assert.equal(getActiveHeatCapacityFreeTrialIndex(completedPowerOnNextSeed), -1);
 assert.equal(
   getHeatCapacityFreeRecordDisplayTrialIndex(completedPowerOnNextSeed),
   -1,
   'Opening power for the next Free group should switch the current-record display to the blank new group',
 );
+assert.equal(completedPowerOnNextSeed.heatCapacityFreePhysicsState.pumpStrokeCount, 0);
+assert.equal(completedPowerOnNextSeed.heatCapacityFreePhysicsState.releaseStarted, false);
+assert.equal(completedPowerOnNextSeed.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(completedPowerOnNextSeed.pumpValveOpen, false);
 const completedResetOnce = resetHeatCapacityFreeRunWorkbenchState(completedPowerOffPrepared, 1_700);
 const completedResetTwice = resetHeatCapacityFreeRunWorkbenchState(completedResetOnce, 1_700);
 assert.equal(completedResetTwice.heatCapacityFreeTrials.length, 1);
