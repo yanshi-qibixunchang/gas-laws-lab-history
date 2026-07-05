@@ -174,7 +174,7 @@ const rejectRecord = (
   },
 });
 
-const inputMatchesManualU0 = (
+const inputMatchesOfficialU0 = (
   trial: HeatCapacityFreeTrial,
   input: HeatCapacityFreeRecordInput,
 ) => (
@@ -213,7 +213,7 @@ export const recordFreeU1 = (
   if (!trial.u0) {
     return rejectRecord(trial, 'missing-u0');
   }
-  if (!inputMatchesManualU0(trial, input)) {
+  if (!inputMatchesOfficialU0(trial, input)) {
     return rejectRecord(trial, 'calibration-changed');
   }
   return {
@@ -243,7 +243,7 @@ export const recordFreeU2 = (
     return rejectRecord(trial, 'invalid-sequence');
   }
   if (
-    !inputMatchesManualU0(trial, input) ||
+    !inputMatchesOfficialU0(trial, input) ||
     input.calibrationVersion !== trial.u1.calibrationVersion ||
     input.zeroEventId !== trial.u1.zeroEventId
   ) {

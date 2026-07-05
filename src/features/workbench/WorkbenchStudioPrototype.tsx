@@ -3551,7 +3551,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [heatCapacityFreeSpeedOverlayExiting, setHeatCapacityFreeSpeedOverlayExiting] = useState(false);
   const [heatCapacityReviewSelectionByFileId, setHeatCapacityReviewSelectionByFileId] = useState<Record<string, {
     selectedTrialId: string | null;
-    manual: boolean;
+    userSelected: boolean;
   }>>({});
   const [guideHeatCapacityRollback, setGuideHeatCapacityRollback] = useState<{
     animation: GuideHeatCapacityRollbackAnimation;
@@ -13673,7 +13673,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       const reviewSelection = heatCapacityReviewSelectionByFileId[activeFile.id] ?? null;
       const reviewOptionIds = new Set(activeFile.heatCapacityFreeTrials.map((trial) => trial.id));
       const requestedReviewTrialId =
-        reviewSelection?.manual && reviewSelection.selectedTrialId && reviewOptionIds.has(reviewSelection.selectedTrialId)
+        reviewSelection?.userSelected && reviewSelection.selectedTrialId && reviewOptionIds.has(reviewSelection.selectedTrialId)
           ? reviewSelection.selectedTrialId
           : null;
       const review = selectHeatCapacityFreeProcessReview({
@@ -13691,7 +13691,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           onSelectedTrialChange={(trialId) => {
             setHeatCapacityReviewSelectionByFileId((previous) => ({
               ...previous,
-              [activeFile.id]: { selectedTrialId: trialId, manual: true },
+              [activeFile.id]: { selectedTrialId: trialId, userSelected: true },
             }));
           }}
         />
