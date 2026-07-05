@@ -45,6 +45,9 @@ import {
   createDefaultHeatCapacityFreePhysicsConfig,
   createDefaultHeatCapacityFreeSensorConfig,
 } from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import type {
+  HeatCapacityMode,
+} from '../../domain/heatCapacity/heatCapacityModeTypes.ts';
 import {
   createHeatCapacityAutoDemoProfile,
   type HeatCapacityTeachingProfile,
@@ -219,7 +222,7 @@ export type WorkbenchHeatCapacityPumpFrequencyStatus = 'idle' | 'tooSlow' | 'sui
 export type WorkbenchHeatCapacityPressureZeroAdjustMode = 'none' | 'fineWheel' | 'coarseDrag';
 export type WorkbenchHeatCapacityPressureSafetyStatus = 'normal' | 'warning' | 'danger';
 export type WorkbenchHeatCapacityFreeStopcockFlowPurpose = 'none' | 'zeroing' | 'release';
-export type HeatCapacityMode = 'demo' | 'guide' | 'free';
+export type { HeatCapacityMode };
 export type HeatCapacityTeachingStatus = 'idle' | 'running' | 'completed';
 export type HeatCapacityFreeWorkflowStage =
   | 'beforePower'

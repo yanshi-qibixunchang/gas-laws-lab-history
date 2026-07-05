@@ -116,6 +116,7 @@ import {
   type WorkbenchExportEnvironmentStatus,
   type WorkbenchFileKind,
   type WorkbenchFileState,
+  type HeatCapacityMode,
   type WorkbenchHeatCapacityState,
   type WorkbenchIdealState,
   type WorkbenchIdealResultWindowKey,
@@ -149,6 +150,24 @@ import {
   type HeatCapacityFreeNumberParameterDefinition,
   type HeatCapacityFreeParameterSymbolPart,
 } from '../heatCapacity/heatCapacityFreeParameterPanelModel.ts';
+import {
+  createHeatCapacityToastMessage,
+  HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY,
+  HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY,
+  HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS,
+  isHeatCapacityGuideToast,
+  isHeatCapacityPressureToast,
+  resolveHeatCapacityToastAdvance,
+  resolveHeatCapacityToastClear,
+  resolveHeatCapacityToastShow,
+  type HeatCapacityToastLevel,
+  type HeatCapacityToastMessage,
+  type HeatCapacityToastSource,
+} from '../heatCapacity/heatCapacityToastController.ts';
+import {
+  selectHeatCapacityModeControlState,
+  type HeatCapacityModeControlAction,
+} from '../heatCapacity/heatCapacityModeControlModel.ts';
 import {
   createHeatCapacityAutoDemoSteps,
   getHeatCapacityAutoDemoTimeline,
@@ -276,7 +295,6 @@ const WORKBENCH_WINDOW_CONTROL_COPY: Record<WorkbenchLanguagePreference, {
 type IdealSamplingPresetKey = 'fast' | 'balanced' | 'stable';
 type WorkbenchParameterSymbolPart = string | { sub: string };
 type HeatCapacityGuideRecordKind = 'u0' | 'u1' | 'u2';
-type HeatCapacityMode = 'demo' | 'guide' | 'free';
 type WorkbenchUpdateStatus = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'retrying' | 'downloaded' | 'installing' | 'unsupported' | 'error';
 type WorkbenchLocalizedText = Partial<Record<WorkbenchLanguagePreference, string>>;
 
@@ -514,22 +532,6 @@ type GuideHeatCapacityAction =
 
 type GuideHeatCapacityRollbackAnimation = 'valveBounce' | 'stopcockBounce' | 'pumpBulbBounce' | 'knobBounce' | 'powerBounce';
 type HeatCapacityLockedControl = 'powerSwitch' | 'pressureZero' | 'stopcock' | 'pumpValve' | 'pumpBulb';
-type HeatCapacityToastLevel = 'info' | 'success' | 'warning' | 'danger';
-type HeatCapacityToastSource =
-  | 'guide'
-  | 'guide-blocked'
-  | 'pressure-warning'
-  | 'pressure-close-valve'
-  | 'pressure-alarm';
-
-interface HeatCapacityToastMessage {
-  id: string;
-  text: string;
-  level: HeatCapacityToastLevel;
-  priority: number;
-  source: HeatCapacityToastSource;
-  createdAt: number;
-}
 
 interface GuideHeatCapacityGuardResult {
   allowed: boolean;
@@ -549,7 +551,6 @@ const HEAT_CAPACITY_GUIDE_RELEASE_DURATION_MS = 350;
 const HEAT_CAPACITY_GUIDE_WAIT_DURATION_S = HEAT_CAPACITY_GUIDE_WAIT_DURATION_MS / 1000;
 const HEAT_CAPACITY_GUIDE_RELEASE_DURATION_S = HEAT_CAPACITY_GUIDE_RELEASE_DURATION_MS / 1000;
 const HEAT_CAPACITY_GUIDE_START_NOTICE_MS = 1000;
-const HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS = 2000;
 const HEAT_CAPACITY_PRESSURE_ALARM_DURATION_MS = 2000;
 const HEAT_CAPACITY_CLOSE_PUMP_VALVE_REMINDER_AFTER_ALARM_MS = 220;
 const HEAT_CAPACITY_FREE_RESET_FEEDBACK_MS = 650;
@@ -561,14 +562,6 @@ const HEAT_CAPACITY_GUIDE_CHECKLIST_SNAP_MS = 120;
 const HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS = 2500;
 const HEAT_CAPACITY_GUIDE_CHECKLIST_WHEEL_SCALE = 0.72;
 const HEAT_CAPACITY_GUIDE_CHECKLIST_MAX_FRAME_STEPS = 2;
-const HEAT_CAPACITY_TOAST_PRIORITY: Record<HeatCapacityToastLevel, number> = {
-  info: 0,
-  success: 0,
-  warning: 1,
-  danger: 2,
-};
-const HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY = 3;
-const HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY = 4;
 
 interface HeatCapacityGuideChecklistStepDefinition {
   id: string;
@@ -5291,30 +5284,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
     heatCapacityToastTimerRef.current = window.setTimeout(() => {
       heatCapacityToastTimerRef.current = null;
-      const pendingMessage = heatCapacityToastPendingRef.current;
-      if (pendingMessage) {
-        setHeatCapacityToastPendingState(null);
-        setHeatCapacityToastCurrentState({
-          ...pendingMessage,
-          createdAt: Date.now(),
-        });
+      const nextState = resolveHeatCapacityToastAdvance({
+        current: heatCapacityToastCurrentRef.current,
+        pending: heatCapacityToastPendingRef.current,
+      }, Date.now());
+      setHeatCapacityToastPendingState(nextState.pending);
+      setHeatCapacityToastCurrentState(nextState.current);
+      if (nextState.shouldContinueTimer) {
         scheduleHeatCapacityToastAdvance();
-        return;
       }
-      setHeatCapacityToastCurrentState(null);
     }, HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS);
   };
-
-  const isHeatCapacityPressureToast = (message: HeatCapacityToastMessage | null) => (
-    message?.source === 'pressure-warning' ||
-    message?.source === 'pressure-close-valve' ||
-    message?.source === 'pressure-alarm'
-  );
-
-  const isHeatCapacityGuideToast = (message: HeatCapacityToastMessage | null) => (
-    message?.source === 'guide' ||
-    message?.source === 'guide-blocked'
-  );
 
   const isHeatCapacityPressureAlertActive = () => (
     heatCapacityPressureAlarmVisibleRef.current ||
@@ -5329,69 +5309,40 @@ const WorkbenchStudioPrototype: React.FC = () => {
     level: HeatCapacityToastLevel = 'info',
     options: { interrupt?: boolean; priority?: number; source?: HeatCapacityToastSource } = {},
   ) => {
-    const nextMessage: HeatCapacityToastMessage = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      text,
-      level,
-      priority: options.priority ?? HEAT_CAPACITY_TOAST_PRIORITY[level],
+    const nextMessage = createHeatCapacityToastMessage(text, level, {
+      priority: options.priority,
       source: options.source ?? 'guide',
-      createdAt: Date.now(),
-    };
-    const currentMessage = heatCapacityToastCurrentRef.current;
-    if (!isHeatCapacityPressureToast(nextMessage) && isHeatCapacityPressureAlertActive()) return;
-    if (isHeatCapacityPressureToast(currentMessage) && !isHeatCapacityPressureToast(nextMessage)) return;
-    if (options.interrupt) {
-      if (currentMessage && currentMessage.priority > nextMessage.priority) return;
-      if (heatCapacityToastTimerRef.current !== null) {
-        window.clearTimeout(heatCapacityToastTimerRef.current);
-        heatCapacityToastTimerRef.current = null;
-      }
-      setHeatCapacityToastPendingState(null);
-      setHeatCapacityToastCurrentState(nextMessage);
-      scheduleHeatCapacityToastAdvance();
-      return;
+    });
+    const nextState = resolveHeatCapacityToastShow({
+      current: heatCapacityToastCurrentRef.current,
+      pending: heatCapacityToastPendingRef.current,
+      pressureAlertActive: isHeatCapacityPressureAlertActive(),
+    }, nextMessage, { interrupt: options.interrupt });
+    if (!nextState.changed) return;
+    if (nextState.shouldRestartTimer && heatCapacityToastTimerRef.current !== null) {
+      window.clearTimeout(heatCapacityToastTimerRef.current);
+      heatCapacityToastTimerRef.current = null;
     }
-    if (!currentMessage) {
-      setHeatCapacityToastCurrentState(nextMessage);
-      scheduleHeatCapacityToastAdvance();
-      return;
-    }
-    if (nextMessage.priority < currentMessage.priority) return;
-    const pendingMessage = heatCapacityToastPendingRef.current;
-    if (isHeatCapacityPressureToast(pendingMessage) && !isHeatCapacityPressureToast(nextMessage)) return;
-    if (
-      !pendingMessage ||
-      nextMessage.priority >= pendingMessage.priority
-    ) {
-      setHeatCapacityToastPendingState(nextMessage);
-    }
+    setHeatCapacityToastCurrentState(nextState.current);
+    setHeatCapacityToastPendingState(nextState.pending);
+    if (nextState.shouldRestartTimer) scheduleHeatCapacityToastAdvance();
   };
 
   const clearHeatCapacityToastBySource = (
     predicate: (message: HeatCapacityToastMessage | null) => boolean,
   ) => {
-    const currentMessage = heatCapacityToastCurrentRef.current;
-    const pendingMessage = heatCapacityToastPendingRef.current;
-    const clearCurrent = predicate(currentMessage);
-    const clearPending = predicate(pendingMessage);
-    if (!clearCurrent && !clearPending) return;
-    if (clearPending) setHeatCapacityToastPendingState(null);
-    if (!clearCurrent) return;
+    const nextState = resolveHeatCapacityToastClear({
+      current: heatCapacityToastCurrentRef.current,
+      pending: heatCapacityToastPendingRef.current,
+    }, predicate, Date.now());
+    if (!nextState.changed) return;
     if (heatCapacityToastTimerRef.current !== null) {
       window.clearTimeout(heatCapacityToastTimerRef.current);
       heatCapacityToastTimerRef.current = null;
     }
-    const nextCurrent = clearPending ? null : pendingMessage;
-    setHeatCapacityToastPendingState(null);
-    if (nextCurrent) {
-      setHeatCapacityToastCurrentState({
-        ...nextCurrent,
-        createdAt: Date.now(),
-      });
-      scheduleHeatCapacityToastAdvance();
-      return;
-    }
-    setHeatCapacityToastCurrentState(null);
+    setHeatCapacityToastCurrentState(nextState.current);
+    setHeatCapacityToastPendingState(nextState.pending);
+    if (nextState.shouldRestartTimer) scheduleHeatCapacityToastAdvance();
   };
 
   const clearHeatCapacityToastQueue = () => {
@@ -11391,16 +11342,118 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (activeFile.kind !== 'heatCapacity') return null;
     const heatCapacityActiveMode: HeatCapacityMode = activeFile.heatCapacityMode;
     const heatCapacityTeachingCompleted = activeFile.heatCapacityTeachingStatus === 'completed';
-    const heatCapacityDemoActionsVisible = heatCapacityActiveMode === 'demo'
-      && (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked || heatCapacityTeachingCompleted);
-    const heatCapacityGuideActionsVisible = heatCapacityActiveMode === 'guide';
-    const heatCapacityFreeActionsVisible = heatCapacityActiveMode === 'free';
-    const heatCapacityModeActionsVisible = heatCapacityDemoActionsVisible || heatCapacityGuideActionsVisible || heatCapacityFreeActionsVisible;
+    const heatCapacityModeControlState = selectHeatCapacityModeControlState({
+      activeMode: heatCapacityActiveMode,
+      autoDemoInteractionLocked,
+      autoDemoPaused,
+      autoDemoRunning,
+      teachingCompleted: heatCapacityTeachingCompleted,
+    });
+    const heatCapacityDemoActionsVisible = heatCapacityModeControlState.demo.actionsVisible;
+    const heatCapacityGuideActionsVisible = heatCapacityModeControlState.guide.actionsVisible;
+    const heatCapacityFreeActionsVisible = heatCapacityModeControlState.free.actionsVisible;
     const heatCapacityModeSegmentClassName = (mode: HeatCapacityMode) => `studio-heat-mode-segment studio-heat-mode-segment-${mode} ${heatCapacityActiveMode === mode ? 'studio-heat-mode-segment-active' : ''}`;
+    const heatCapacityModeActionClassName = (action: HeatCapacityModeControlAction) => {
+      const resetFeedbackClass = action.id === 'reset-free' && heatCapacityFreeResetFeedbackActive
+        ? ' studio-heat-mode-action-feedback'
+        : '';
+      const toneClass = action.tone === 'danger' ? ' studio-heat-mode-action-danger' : '';
+      return `studio-heat-mode-action studio-heat-mode-action-icon${toneClass}${resetFeedbackClass}`;
+    };
+    const renderHeatCapacityModeAction = (action: HeatCapacityModeControlAction) => {
+      if (action.id === 'exit-teaching') {
+        return (
+          <button
+            key={action.id}
+            type="button"
+            className={heatCapacityModeActionClassName(action)}
+            data-heat-capacity-mode-action="exit-teaching"
+            title={heatCapacityRealtimeCopy.exitTeachingMode}
+            aria-label={heatCapacityRealtimeCopy.exitTeachingMode}
+            onClick={heatCapacityActiveMode === 'guide' ? exitHeatCapacityGuideMode : exitCompletedHeatCapacityTeachingMode}
+          >
+            <LogOut size={13} strokeWidth={2.7} />
+          </button>
+        );
+      }
+      if (action.id === 'resume-demo') {
+        return (
+          <button
+            key={action.id}
+            type="button"
+            className={heatCapacityModeActionClassName(action)}
+            data-heat-capacity-mode-action="resume-demo"
+            title={heatCapacityRealtimeCopy.autoDemoResume}
+            aria-label={heatCapacityRealtimeCopy.autoDemoResume}
+            onClick={runHeatCapacityAutoDemo}
+          >
+            <Play size={13} strokeWidth={2.7} />
+          </button>
+        );
+      }
+      if (action.id === 'pause-demo') {
+        return (
+          <button
+            key={action.id}
+            type="button"
+            className={heatCapacityModeActionClassName(action)}
+            data-heat-capacity-mode-action="pause-demo"
+            title={heatCapacityRealtimeCopy.autoDemoPause}
+            aria-label={heatCapacityRealtimeCopy.autoDemoPause}
+            onClick={pauseHeatCapacityAutoDemo}
+          >
+            <Pause size={13} strokeWidth={2.7} />
+          </button>
+        );
+      }
+      if (action.id === 'stop-demo') {
+        return (
+          <button
+            key={action.id}
+            type="button"
+            className={heatCapacityModeActionClassName(action)}
+            data-heat-capacity-mode-action="stop-demo"
+            title={heatCapacityRealtimeCopy.autoDemoStop}
+            aria-label={heatCapacityRealtimeCopy.autoDemoStop}
+            onClick={terminateHeatCapacityAutoDemo}
+          >
+            <Square size={12} strokeWidth={2.8} />
+          </button>
+        );
+      }
+      if (action.id === 'exit-guide') {
+        return (
+          <button
+            key={action.id}
+            type="button"
+            className={heatCapacityModeActionClassName(action)}
+            data-heat-capacity-mode-action="exit-guide"
+            title={heatCapacityRealtimeCopy.exitGuideMode}
+            aria-label={heatCapacityRealtimeCopy.exitGuideMode}
+            onClick={exitHeatCapacityGuideMode}
+          >
+            <Square size={12} strokeWidth={2.8} />
+          </button>
+        );
+      }
+      return (
+        <button
+          key={action.id}
+          type="button"
+          className={heatCapacityModeActionClassName(action)}
+          data-heat-capacity-mode-action="reset-free"
+          title={heatCapacityRealtimeCopy.resetFreeMode}
+          aria-label={heatCapacityRealtimeCopy.resetFreeMode}
+          onClick={resetHeatCapacityFreeRun}
+        >
+          <RotateCcw size={13} strokeWidth={2.7} />
+        </button>
+      );
+    };
 
     return (
       <div
-        className={`studio-heat-mode-control studio-heat-mode-control-${heatCapacityActiveMode} ${heatCapacityModeActionsVisible ? 'studio-heat-mode-control-expanded' : ''}`}
+        className={`studio-heat-mode-control studio-heat-mode-control-${heatCapacityActiveMode} ${heatCapacityModeControlState.expanded ? 'studio-heat-mode-control-expanded' : ''}`}
         data-heat-capacity-mode-control="true"
       >
         <div
@@ -11425,56 +11478,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             {heatCapacityRealtimeCopy.modeDemo}
           </button>
           <div className="studio-heat-mode-actions studio-heat-mode-actions-demo" aria-hidden={!heatCapacityDemoActionsVisible}>
-            {heatCapacityDemoActionsVisible ? (
-              heatCapacityTeachingCompleted ? (
-                <button
-                  type="button"
-                  className="studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger"
-                  data-heat-capacity-mode-action="exit-teaching"
-                  title={heatCapacityRealtimeCopy.exitTeachingMode}
-                  aria-label={heatCapacityRealtimeCopy.exitTeachingMode}
-                  onClick={exitCompletedHeatCapacityTeachingMode}
-                >
-                  <LogOut size={13} strokeWidth={2.7} />
-                </button>
-              ) : (
-                <>
-                  {autoDemoPaused ? (
-                    <button
-                      type="button"
-                      className="studio-heat-mode-action studio-heat-mode-action-icon"
-                      data-heat-capacity-mode-action="resume-demo"
-                      title={heatCapacityRealtimeCopy.autoDemoResume}
-                      aria-label={heatCapacityRealtimeCopy.autoDemoResume}
-                      onClick={runHeatCapacityAutoDemo}
-                    >
-                      <Play size={13} strokeWidth={2.7} />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="studio-heat-mode-action studio-heat-mode-action-icon"
-                      data-heat-capacity-mode-action="pause-demo"
-                      title={heatCapacityRealtimeCopy.autoDemoPause}
-                      aria-label={heatCapacityRealtimeCopy.autoDemoPause}
-                      onClick={pauseHeatCapacityAutoDemo}
-                    >
-                      <Pause size={13} strokeWidth={2.7} />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger"
-                    data-heat-capacity-mode-action="stop-demo"
-                    title={heatCapacityRealtimeCopy.autoDemoStop}
-                    aria-label={heatCapacityRealtimeCopy.autoDemoStop}
-                    onClick={terminateHeatCapacityAutoDemo}
-                  >
-                    <Square size={12} strokeWidth={2.8} />
-                  </button>
-                </>
-              )
-            ) : null}
+            {heatCapacityModeControlState.demo.actions.map(renderHeatCapacityModeAction)}
           </div>
         </div>
         <div
@@ -11499,22 +11503,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             {heatCapacityRealtimeCopy.modeGuide}
           </button>
           <div className="studio-heat-mode-actions studio-heat-mode-actions-guide" aria-hidden={!heatCapacityGuideActionsVisible}>
-            {heatCapacityGuideActionsVisible ? (
-              <>
-                <button
-                  type="button"
-                  className="studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger"
-                  data-heat-capacity-mode-action={heatCapacityTeachingCompleted ? 'exit-teaching' : 'exit-guide'}
-                  title={heatCapacityTeachingCompleted ? heatCapacityRealtimeCopy.exitTeachingMode : heatCapacityRealtimeCopy.exitGuideMode}
-                  aria-label={heatCapacityTeachingCompleted ? heatCapacityRealtimeCopy.exitTeachingMode : heatCapacityRealtimeCopy.exitGuideMode}
-                  onClick={exitHeatCapacityGuideMode}
-                >
-                  {heatCapacityTeachingCompleted
-                    ? <LogOut size={13} strokeWidth={2.7} />
-                    : <Square size={12} strokeWidth={2.8} />}
-                </button>
-              </>
-            ) : null}
+            {heatCapacityModeControlState.guide.actions.map(renderHeatCapacityModeAction)}
           </div>
         </div>
         <div
@@ -11544,18 +11533,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             {heatCapacityRealtimeCopy.modeFree}
           </button>
           <div className="studio-heat-mode-actions studio-heat-mode-actions-free" aria-hidden={!heatCapacityFreeActionsVisible}>
-            {heatCapacityFreeActionsVisible ? (
-              <button
-                type="button"
-                className={`studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger ${heatCapacityFreeResetFeedbackActive ? 'studio-heat-mode-action-feedback' : ''}`}
-                data-heat-capacity-mode-action="reset-free"
-                title={heatCapacityRealtimeCopy.resetFreeMode}
-                aria-label={heatCapacityRealtimeCopy.resetFreeMode}
-                onClick={resetHeatCapacityFreeRun}
-              >
-                <RotateCcw size={13} strokeWidth={2.7} />
-              </button>
-            ) : null}
+            {heatCapacityModeControlState.free.actions.map(renderHeatCapacityModeAction)}
           </div>
         </div>
       </div>
