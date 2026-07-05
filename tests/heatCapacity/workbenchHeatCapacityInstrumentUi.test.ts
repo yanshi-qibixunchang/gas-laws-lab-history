@@ -1042,7 +1042,7 @@ assert.match(stateSource, /pressureZeroDisplayedSamples/, 'heat-capacity state s
 assert.match(stateSource, /createHeatCapacityInitialPressureBiasMv/, 'initial pressure-zero bias should be generated through one helper');
 assert.match(stateSource, /isHeatCapacityPressureZeroWithinTolerance/, 'U0 readiness should be based on the displayed sample window');
 assert.doesNotMatch(stateSource, /HEAT_CAPACITY_MANUAL_INITIAL_PRESSURE_BIAS_MV\s*=\s*0\.6/, 'guide experiments must not use the old fixed +0.6 mV zero bias');
-assert.doesNotMatch(stateSource, /Math\.abs\(file\.pressureDisplayedPlaceholder\)\s*<=\s*0\.2/, 'U0 readiness must not use the old loose <=0.2 mV gate');
+assert.doesNotMatch(stateSource, /Math\.abs\(file\.pressureSignalReadoutMv\)\s*<=\s*0\.2/, 'U0 readiness must not use the old loose <=0.2 mV gate');
 assert.match(stateSource, /clampHeatCapacityPressureZeroKnobAngle/, 'pressure zero knob angle changes should clamp at physical stops');
 assert.match(stateSource, /getHeatCapacityPressureZeroOffsetForKnobAngle/, 'pressure zero offset should be derived from a continuous angle-to-offset mapping');
 assert.match(sceneSource, /pressureZeroInteractionEnabled = focusMode === 'instrument'/, 'pressure zero knob should only rotate in instrument focus mode');
@@ -1251,9 +1251,9 @@ assert.match(sceneSource, /const poweredInstrumentReadout = \(displayValue: stri
 assert.match(sceneSource, /const poweredInstrumentNumber = \(displayValue: string\) => props\.powerOn \? displayValue : '--'/, 'instrument focus panel should hide numeric placeholders while powered off');
 assert.match(sceneSource, /<strong>\{poweredInstrumentReadout\(temperatureDisplay\)\}<\/strong>/, 'instrument focus Uₜ should be guarded by power state');
 assert.match(sceneSource, /<strong>\{poweredInstrumentReadout\(pressureDisplay\)\}<\/strong>/, 'instrument focus Uₚ should be guarded by power state');
-assert.match(sceneSource, /<strong>\{poweredInstrumentNumber\(`\$\{formatHeatCapacitySignalMv\(props\.pressureDisplayedPlaceholder\)\} mV`\)\}<\/strong>/, 'instrument focus displayed pressure should show one truncated mV decimal and hide while powered off');
+assert.match(sceneSource, /<strong>\{poweredInstrumentNumber\(`\$\{formatHeatCapacitySignalMv\(props\.pressureSignalReadoutMv\)\} mV`\)\}<\/strong>/, 'instrument focus displayed pressure should show one truncated mV decimal and hide while powered off');
 assert.match(sceneSource, /<strong>\{poweredInstrumentNumber\(`\$\{formatHeatCapacitySignalMv\(props\.pressureZeroOffset\)\} mV`\)\}<\/strong>/, 'instrument focus zero offset should show one truncated mV decimal and hide while powered off');
-assert.match(sceneSource, /<strong>\{poweredInstrumentNumber\(`\$\{formatPanelNumber\(props\.pressurePlaceholder, 2\)\} kPa`\)\}<\/strong>/, 'instrument focus placeholder pressure should not leak values while powered off');
+assert.match(sceneSource, /<strong>\{poweredInstrumentNumber\(`\$\{formatPanelNumber\(props\.vesselPressureReadoutKPa, 2\)\} kPa`\)\}<\/strong>/, 'instrument focus vessel pressure should not leak values while powered off');
 assert.match(sceneSource, /getPumpBulbDisplayLabel/, 'pump bulb display state should be mapped for user-facing UI');
 assert.doesNotMatch(sceneSource, /sceneCopy\.focus\.opened|sceneCopy\.focus\.closed/, 'removed shared stopcock focus panel should not keep its pump-valve state copy path');
 assert.doesNotMatch(sceneSource, /snapNearestOpen|吸附|磁吸|magnetic/i, 'stopcock focus panel should not expose magnetic snap controls');
@@ -1497,6 +1497,18 @@ assert.doesNotMatch(workbenchSource, /activeFile\.pressureSafetyMessage \?\? hea
 assert.match(workbenchSource, /const showHeatCapacityPressureAlarm = [\s\S]*exitHeatCapacityFocusMode\(\);/, 'pressure alarm should exit any manual focus mode');
 assert.match(workbenchSource, /const heatCapacityPumpFocusAlarmBlockedFileIdsRef = useRef<Set<string>>\(new Set\(\)\)/, 'pressure alarm should keep a per-file pump-focus block after exiting focus');
 assert.match(workbenchSource, /const isHeatCapacityPumpFocusBlockedByAlarm = [\s\S]*heatCapacityPumpFocusAlarmBlockedFileIdsRef\.current\.has\(file\.id\)[\s\S]*file\.pressureSafetyStatus === 'danger'/, 'pump focus block should cover both active danger state and files already alarmed in the current pumping session');
+{
+  const pumpFocusBlockSection = workbenchSource.match(/const isHeatCapacityPumpFocusBlockedByAlarm = \([\s\S]*?\n  \};/)?.[0] ?? '';
+  assert.doesNotMatch(
+    pumpFocusBlockSection,
+    /file\.pumpValveOpen/,
+    'stale pressure-alarm pump focus lock should not treat merely opening the pump valve as the same pumping session',
+  );
+}
+assert.match(workbenchSource, /const clearHeatCapacityPressureAlarmInteractionLock = \([\s\S]*heatCapacityPumpFocusAlarmBlockedFileIdsRef\.current/, 'Free/Demo/Guide mode boundaries should have a dedicated helper for clearing transient pressure-alarm interaction locks');
+assert.match(workbenchSource, /const clearHeatCapacityPressureAlarmInteractionLock = \([\s\S]*heatCapacityPressureAlarmVisibleRef\.current = false;[\s\S]*setHeatCapacityPressureAlarmVisible\(false\)/, 'clearing the transient pressure alarm lock should synchronously reset the alarm-visible ref as well as React state');
+assert.match(workbenchSource, /const resetHeatCapacityFreeRun = \(\) => \{[\s\S]*clearHeatCapacityPressureAlarmInteractionLock\(activeFile\.id\)/, 'Free Mode reset should clear stale pressure-alarm interaction locks without deleting recorded alarm data');
+assert.match(workbenchSource, /const enterHeatCapacityFreeMode = \(\) => \{[\s\S]*clearHeatCapacityPressureAlarmInteractionLock\(activeFile\.id\)/, 'returning to Free Mode should clear stale pressure-alarm interaction locks for the active file');
 assert.match(workbenchSource, /const showHeatCapacityPressureAlarm = [\s\S]*heatCapacityPumpFocusAlarmBlockedFileIdsRef\.current\.add\(fileId\)[\s\S]*exitHeatCapacityFocusMode\(\);/, 'pressure alarm should mark the current file before leaving pump focus so the user cannot re-enter pump focus');
 assert.match(workbenchSource, /if \([\s\S]*mode === 'pump'[\s\S]*isHeatCapacityPumpFocusBlockedByAlarm\(currentFile\)[\s\S]*return;[\s\S]*heatCapacityFocusSessionRef\.current =/, 'entering pump focus should be blocked once a pressure alarm has fired for the current pumping session');
 assert.match(
@@ -1562,7 +1574,7 @@ assert.match(workbenchSource, /updateHeatCapacityPower/);
 assert.match(workbenchSource, /updateHeatCapacityStopcockOpen/);
 assert.doesNotMatch(workbenchSource, /const updateHeatCapacityStopcockAngle/, 'Workbench should not keep the continuous stopcock angle updater');
 assert.doesNotMatch(workbenchSource, /zeroHeatCapacityPressure/, 'workbench should not keep the old one-click pressure-zero path');
-assert.doesNotMatch(workbenchSource, /setHeatCapacityPressureZeroOffset\(file,\s*file\.pressureRawPlaceholder/, 'pressure-zero action must not directly jump the displayed pressure to zero');
+assert.doesNotMatch(workbenchSource, /setHeatCapacityPressureZeroOffset\(file,\s*file\.pressureSignalRawReadoutMv/, 'pressure-zero action must not directly jump the displayed pressure to zero');
 assert.doesNotMatch(workbenchSource, /captureHeatCapacityWorkbenchSample\(zeroedFile,\s*'zeroedSample'\)/, 'auto demo must not bypass U0 zero readiness by directly capturing after one-click zero');
 assert.match(workbenchSource, /updateHeatCapacityPumpValve/);
 assert.match(workbenchSource, /pressHeatCapacityPumpBulb/);

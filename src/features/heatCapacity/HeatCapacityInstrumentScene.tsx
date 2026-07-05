@@ -33,8 +33,8 @@ interface HeatCapacityInstrumentSceneProps {
   pressureZeroKnobAngle: number;
   pressureZeroOffset: number;
   pressureZeroDisplayText: string;
-  pressureRawPlaceholder: number;
-  pressureDisplayedPlaceholder: number;
+  pressureSignalRawReadoutMv: number;
+  pressureSignalReadoutMv: number;
   pressureGaugeDisplayValue: number;
   gaugePressureMinKPa: number;
   gaugePressureMaxKPa: number;
@@ -54,8 +54,8 @@ interface HeatCapacityInstrumentSceneProps {
   pumpFrequency: number;
   pumpFrequencyStatus: 'idle' | 'tooSlow' | 'suitable';
   pumpHint: string;
-  pressurePlaceholder: number;
-  temperaturePlaceholder: number;
+  vesselPressureReadoutKPa: number;
+  vesselTemperatureReadoutK: number;
   phase: string;
   temperatureSignalMv: number | null;
   pressureSignalMv: number | null;
@@ -180,10 +180,10 @@ const heatCapacitySceneCopies = {
       zeroed: '已调零',
       notZeroed: '未调零',
       displayedPressure: '显示压力',
-      placeholderTemperature: '瓶内温度',
+      vesselTemperature: '瓶内温度',
       currentPhase: '当前阶段',
       zeroOffset: '零点偏移',
-      placeholderPressure: '瓶内压强',
+      vesselPressure: '瓶内压强',
     },
   },
   'zh-TW': {
@@ -224,10 +224,10 @@ const heatCapacitySceneCopies = {
       zeroed: '已調零',
       notZeroed: '未調零',
       displayedPressure: '顯示壓力',
-      placeholderTemperature: '瓶內溫度',
+      vesselTemperature: '瓶內溫度',
       currentPhase: '目前階段',
       zeroOffset: '零點偏移',
-      placeholderPressure: '瓶內壓強',
+      vesselPressure: '瓶內壓強',
     },
   },
   en: {
@@ -268,10 +268,10 @@ const heatCapacitySceneCopies = {
       zeroed: 'Zeroed',
       notZeroed: 'Not zeroed',
       displayedPressure: 'Displayed pressure',
-      placeholderTemperature: 'Vessel temperature',
+      vesselTemperature: 'Vessel temperature',
       currentPhase: 'Current phase',
       zeroOffset: 'Zero offset',
-      placeholderPressure: 'Vessel pressure',
+      vesselPressure: 'Vessel pressure',
     },
   },
 } as const;
@@ -3386,11 +3386,11 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                     </div>
                     <div className="studio-heat-focus-panel-row">
                       <span>{sceneCopy.focus.displayedPressure}</span>
-                      <strong>{poweredInstrumentNumber(`${formatHeatCapacitySignalMv(props.pressureDisplayedPlaceholder)} mV`)}</strong>
+                      <strong>{poweredInstrumentNumber(`${formatHeatCapacitySignalMv(props.pressureSignalReadoutMv)} mV`)}</strong>
                     </div>
                     <div className="studio-heat-focus-panel-row">
-                      <span>{sceneCopy.focus.placeholderTemperature}</span>
-                      <strong>{poweredInstrumentNumber(formatPanelNumber(props.temperaturePlaceholder, 3))}</strong>
+                      <span>{sceneCopy.focus.vesselTemperature}</span>
+                      <strong>{poweredInstrumentNumber(formatPanelNumber(props.vesselTemperatureReadoutK, 3))}</strong>
                     </div>
                   </div>
                   <div className="studio-heat-focus-column">
@@ -3407,8 +3407,8 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                       <strong>{poweredInstrumentNumber(`${formatHeatCapacitySignalMv(props.pressureZeroOffset)} mV`)}</strong>
                     </div>
                     <div className="studio-heat-focus-panel-row">
-                      <span>{sceneCopy.focus.placeholderPressure}</span>
-                      <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.pressurePlaceholder, 2)} kPa`)}</strong>
+                      <span>{sceneCopy.focus.vesselPressure}</span>
+                      <strong>{poweredInstrumentNumber(`${formatPanelNumber(props.vesselPressureReadoutKPa, 2)} kPa`)}</strong>
                     </div>
                   </div>
                 </div>

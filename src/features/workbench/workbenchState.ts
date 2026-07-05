@@ -769,7 +769,7 @@ export const setHeatCapacityPressureZeroOffset = (
       : {
         ...mergedFile,
         pressureSignalMv: steppedFile.pressureSignalMv,
-        pressureDisplayedPlaceholder: steppedFile.pressureDisplayedPlaceholder,
+        pressureSignalReadoutMv: steppedFile.pressureSignalReadoutMv,
         pressureZeroDisplayedSamples: steppedFile.pressureZeroDisplayedSamples,
         pressureZeroed: steppedFile.pressureZeroed,
       };
@@ -1019,8 +1019,8 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   pressureZeroOffset: number;
   pressureZeroDisplayText: string;
   releaseRecoveryTargetDeltaKPa: number | null;
-  pressureRawPlaceholder: number;
-  pressureDisplayedPlaceholder: number;
+  pressureSignalRawReadoutMv: number;
+  pressureSignalReadoutMv: number;
   pressureGaugeTargetValue: number;
   pressureGaugeDisplayValue: number;
   pressureGaugeNeedleAngle: number;
@@ -1052,8 +1052,8 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   visualizationMode: 'particle';
   calculationModel: 'airHeatCapacityRatio';
   pressureSensitivityMvPerKPa: number;
-  pressurePlaceholder: number;
-  temperaturePlaceholder: number;
+  vesselPressureReadoutKPa: number;
+  vesselTemperatureReadoutK: number;
   recordedPressures: {
     p0: number | null;
     p1: number | null;
@@ -1658,8 +1658,8 @@ const mergeHeatCapacityRuntimeState = (
     pressureReleaseBurstUntilMs: pressureReleaseBurstActive ? file.pressureReleaseBurstUntilMs : null,
     temperatureDisplayJitterOffset: roundNumber(temperatureJitterState.offset, 4),
     temperatureDisplayNextJitterAtMs: temperatureJitterState.nextJitterAtMs,
-    pressureRawPlaceholder: roundNumber(runtime.pressureSignalMvRaw, 2),
-    pressureDisplayedPlaceholder: roundNumber(runtime.pressureSignalMvDisplayed, 2),
+    pressureSignalRawReadoutMv: roundNumber(runtime.pressureSignalMvRaw, 2),
+    pressureSignalReadoutMv: roundNumber(runtime.pressureSignalMvDisplayed, 2),
     pressureGaugeTargetValue: gaugePressureState.pressureGaugeTargetValue,
     pressureGaugeDisplayValue: gaugePressureState.pressureGaugeDisplayValue,
     pressureGaugeNeedleAngle: gaugePressureState.pressureGaugeNeedleAngle,
@@ -1685,8 +1685,8 @@ const mergeHeatCapacityRuntimeState = (
     visualizationMode: runtime.modelConfig.visualizationMode,
     calculationModel: runtime.modelConfig.calculationModel,
     pressureSensitivityMvPerKPa: runtime.modelConfig.sensor.pressureSensitivityMvPerKPa,
-    pressurePlaceholder: roundNumber(runtime.gasPressureKPaAbs, 2),
-    temperaturePlaceholder: roundNumber(runtime.gasTemperatureK, 3),
+    vesselPressureReadoutKPa: roundNumber(runtime.gasPressureKPaAbs, 2),
+    vesselTemperatureReadoutK: roundNumber(runtime.gasTemperatureK, 3),
     heatCapacityPhase,
     heatCapacityProcessSamples: runtime.heatCapacityProcessSamples,
     stats: {
@@ -1787,8 +1787,8 @@ const mergeHeatCapacityFreeRuntimeState = (
       : null,
     temperatureDisplayJitterOffset: 0,
     temperatureDisplayNextJitterAtMs: now,
-    pressureRawPlaceholder: roundNumber(sensorState.displayPressureMv, 2),
-    pressureDisplayedPlaceholder: roundNumber(display.displayPressureMv, 2),
+    pressureSignalRawReadoutMv: roundNumber(sensorState.displayPressureMv, 2),
+    pressureSignalReadoutMv: roundNumber(display.displayPressureMv, 2),
     pressureGaugeTargetValue: gaugePressureState.pressureGaugeTargetValue,
     pressureGaugeDisplayValue: gaugePressureState.pressureGaugeDisplayValue,
     pressureGaugeNeedleAngle: gaugePressureState.pressureGaugeNeedleAngle,
@@ -1811,8 +1811,8 @@ const mergeHeatCapacityFreeRuntimeState = (
     visualizationMode: 'particle',
     calculationModel: 'airHeatCapacityRatio',
     pressureSensitivityMvPerKPa: sensorConfig.pressureMvPerKPa,
-    pressurePlaceholder: roundNumber(derived.gasPressureKPa, 2),
-    temperaturePlaceholder: roundNumber(physicsState.gasTemperatureK, 3),
+    vesselPressureReadoutKPa: roundNumber(derived.gasPressureKPa, 2),
+    vesselTemperatureReadoutK: roundNumber(physicsState.gasTemperatureK, 3),
     heatCapacityPhase,
     heatCapacityProcessSamples: file.heatCapacityProcessSamples,
     stats: {
@@ -3513,8 +3513,8 @@ export const prepareHeatCapacityAutoDemoStart = (
     pressureZeroKnobAngle: 0,
     pressureZeroAdjustMode: 'none',
     pressureZeroDisplayText: getHeatCapacityPressureZeroDisplayText(false, 0),
-    pressureRawPlaceholder: 0,
-    pressureDisplayedPlaceholder: pressureInitialBiasMv,
+    pressureSignalRawReadoutMv: 0,
+    pressureSignalReadoutMv: pressureInitialBiasMv,
     pressureGaugeTargetValue: gaugePressureState.pressureGaugeTargetValue,
     pressureGaugeDisplayValue: gaugePressureState.pressureGaugeDisplayValue,
     pressureGaugeNeedleAngle: gaugePressureState.pressureGaugeNeedleAngle,
@@ -3542,8 +3542,8 @@ export const prepareHeatCapacityAutoDemoStart = (
     visualizationMode: file.visualizationMode,
     calculationModel: file.calculationModel,
     pressureSensitivityMvPerKPa: file.pressureSensitivityMvPerKPa,
-    pressurePlaceholder: file.ambientPressureKPa,
-    temperaturePlaceholder: file.ambientTemperatureK,
+    vesselPressureReadoutKPa: file.ambientPressureKPa,
+    vesselTemperatureReadoutK: file.ambientTemperatureK,
     recordedPressures: { p0: file.ambientPressureKPa, p1: null, p2: null },
     heatCapacityGuideTrial: null,
     heatCapacityExperimentSeed: experimentProfile.seed,
@@ -3682,9 +3682,9 @@ const mergeHeatCapacityGuideRuntimeState = (
     pressureSafetyMessage: gaugeState.pressureSafetyMessage,
     pressureBlockedPumping: gaugeState.pressureBlockedPumping,
     pressureOverLimit: gaugeState.pressureOverLimit,
-    pressurePlaceholder: roundNumber(derived.gasPressureKPa, 2),
-    pressureDisplayedPlaceholder: roundNumber(pressureSignalMv ?? pressureSignalTargetMv, 2),
-    temperaturePlaceholder: roundNumber(guidePhysicsState.gasTemperatureK, 3),
+    vesselPressureReadoutKPa: roundNumber(derived.gasPressureKPa, 2),
+    pressureSignalReadoutMv: roundNumber(pressureSignalMv ?? pressureSignalTargetMv, 2),
+    vesselTemperatureReadoutK: roundNumber(guidePhysicsState.gasTemperatureK, 3),
     updatedAt: now,
   };
 };
@@ -4460,8 +4460,8 @@ export const createDefaultHeatCapacityFile = (
     pressureZeroOffset: 0,
     pressureZeroDisplayText: '未调零',
     releaseRecoveryTargetDeltaKPa: runtime.releaseRecoveryTargetDeltaKPa,
-    pressureRawPlaceholder: roundNumber(runtime.pressureSignalMvRaw, 2),
-    pressureDisplayedPlaceholder: roundNumber(runtime.pressureSignalMvDisplayed, 2),
+    pressureSignalRawReadoutMv: roundNumber(runtime.pressureSignalMvRaw, 2),
+    pressureSignalReadoutMv: roundNumber(runtime.pressureSignalMvDisplayed, 2),
     pressureGaugeTargetValue: gaugePressureState.pressureGaugeTargetValue,
     pressureGaugeDisplayValue: gaugePressureState.pressureGaugeDisplayValue,
     pressureGaugeNeedleAngle: gaugePressureState.pressureGaugeNeedleAngle,
@@ -4490,8 +4490,8 @@ export const createDefaultHeatCapacityFile = (
     pumpStrokeCount: 0,
     pumpHint: '未打气',
     hardSphereViewEnabled: false,
-    pressurePlaceholder: roundNumber(runtime.gasPressureKPaAbs, 2),
-    temperaturePlaceholder: roundNumber(runtime.gasTemperatureK, 3),
+    vesselPressureReadoutKPa: roundNumber(runtime.gasPressureKPaAbs, 2),
+    vesselTemperatureReadoutK: roundNumber(runtime.gasTemperatureK, 3),
     recordedPressures: {
       p0: runtime.modelConfig.ambientPressureKPa,
       p1: null,
@@ -4540,8 +4540,8 @@ export const startHeatCapacityGuideWorkbenchState = (
     pressureZeroOffset: 0,
     pressureZeroDisplayText: getHeatCapacityPressureZeroDisplayText(false, 0),
     pressureZeroAdjustMode: 'none',
-    pressureRawPlaceholder: 0,
-    pressureDisplayedPlaceholder: pressureInitialBiasMv,
+    pressureSignalRawReadoutMv: 0,
+    pressureSignalReadoutMv: pressureInitialBiasMv,
     pressureReleaseBurstUntilMs: null,
     pressureSafetyStatus: 'normal',
     pressureSafetyMessage: null,

@@ -503,14 +503,14 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
     const stopcockAngleDeg = shouldMigrateBySavedState
       ? getHeatCapacityStopcockTargetAngle(file.glassPistonState === 'open')
       : normalizedSavedStopcockAngle;
-    const pressureRawPlaceholder = normalizeNullableNumber(file.pressureRawPlaceholder)
-      ?? fallback.pressureRawPlaceholder;
+    const pressureSignalRawReadoutMv = normalizeNullableNumber(file.pressureSignalRawReadoutMv)
+      ?? fallback.pressureSignalRawReadoutMv;
     const pressureInitialBiasMv = normalizeNullableNumber(file.pressureInitialBiasMv)
       ?? fallback.pressureInitialBiasMv;
     const pressureZeroOffset = normalizeNullableNumber(file.pressureZeroOffset)
       ?? fallback.pressureZeroOffset;
-    const pressureDisplayedPlaceholder = normalizeNullableNumber(file.pressureDisplayedPlaceholder)
-      ?? applyHeatCapacityPressureZero(pressureRawPlaceholder, pressureInitialBiasMv, pressureZeroOffset);
+    const pressureSignalReadoutMv = normalizeNullableNumber(file.pressureSignalReadoutMv)
+      ?? applyHeatCapacityPressureZero(pressureSignalRawReadoutMv, pressureInitialBiasMv, pressureZeroOffset);
     const pressureZeroAdjusted = file.pressureZeroAdjusted === true || file.pressureZeroed === true;
     const pressureZeroAdjustMode = file.pressureZeroAdjustMode === 'fineWheel' || file.pressureZeroAdjustMode === 'coarseDrag'
       ? file.pressureZeroAdjustMode
@@ -659,11 +659,11 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       pressureDeltaKPa: normalizeNullableNumber(file.pressureDeltaKPa) ?? fallback.pressureDeltaKPa,
       simulationTimeS: normalizeNullableNumber(file.simulationTimeS) ?? fallback.simulationTimeS,
       lastUpdateMs: normalizeNullableNumber(file.lastUpdateMs),
-      pressureSignalMvRaw: normalizeNullableNumber(file.pressureSignalMvRaw) ?? pressureRawPlaceholder,
-      pressureSignalMvDisplayed: normalizeNullableNumber(file.pressureSignalMvDisplayed) ?? pressureDisplayedPlaceholder,
+      pressureSignalMvRaw: normalizeNullableNumber(file.pressureSignalMvRaw) ?? pressureSignalRawReadoutMv,
+      pressureSignalMvDisplayed: normalizeNullableNumber(file.pressureSignalMvDisplayed) ?? pressureSignalReadoutMv,
       pressureInitialBiasMv,
       temperatureSignalTargetMv: normalizeNullableNumber(file.temperatureSignalTargetMv) ?? fallback.temperatureSignalTargetMv,
-      pressureSignalTargetMv: normalizeNullableNumber(file.pressureSignalTargetMv) ?? pressureDisplayedPlaceholder,
+      pressureSignalTargetMv: normalizeNullableNumber(file.pressureSignalTargetMv) ?? pressureSignalReadoutMv,
       displayResponseLastUpdateMs: normalizeNullableNumber(file.displayResponseLastUpdateMs),
       pressureReleaseBurstUntilMs: normalizeNullableNumber(file.pressureReleaseBurstUntilMs),
       pressureZeroDisplayedSamples: Array.isArray(file.pressureZeroDisplayedSamples)
@@ -684,8 +684,8 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
         ? file.pressureZeroDisplayText
         : fallback.pressureZeroDisplayText,
       releaseRecoveryTargetDeltaKPa: normalizeNullableNumber(file.releaseRecoveryTargetDeltaKPa),
-      pressureRawPlaceholder,
-      pressureDisplayedPlaceholder,
+      pressureSignalRawReadoutMv,
+      pressureSignalReadoutMv,
       pressureGaugeDisplayValue: normalizeNullableNumber(file.pressureGaugeDisplayValue) ?? fallback.pressureGaugeDisplayValue,
       gaugePressureMinKPa: normalizeNullableNumber(file.gaugePressureMinKPa) ?? fallback.gaugePressureMinKPa,
       gaugePressureMaxKPa: normalizeNullableNumber(file.gaugePressureMaxKPa) ?? fallback.gaugePressureMaxKPa,
@@ -708,8 +708,8 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       pumpStrokeCount: normalizeNullableNumber(file.pumpStrokeCount) ?? 0,
       pumpHint: typeof file.pumpHint === 'string' ? file.pumpHint : fallback.pumpHint,
       hardSphereViewEnabled: file.hardSphereViewEnabled === true,
-      pressurePlaceholder: normalizeNullableNumber(file.pressurePlaceholder) ?? fallback.pressurePlaceholder,
-      temperaturePlaceholder: normalizeNullableNumber(file.temperaturePlaceholder) ?? fallback.temperaturePlaceholder,
+      vesselPressureReadoutKPa: normalizeNullableNumber(file.vesselPressureReadoutKPa) ?? fallback.vesselPressureReadoutKPa,
+      vesselTemperatureReadoutK: normalizeNullableNumber(file.vesselTemperatureReadoutK) ?? fallback.vesselTemperatureReadoutK,
       visualizationMode: file.visualizationMode === 'particle' ? file.visualizationMode : fallback.visualizationMode,
       calculationModel: file.calculationModel === 'airHeatCapacityRatio' ? file.calculationModel : fallback.calculationModel,
       pressureSensitivityMvPerKPa: normalizeNullableNumber(file.pressureSensitivityMvPerKPa) ?? fallback.pressureSensitivityMvPerKPa,

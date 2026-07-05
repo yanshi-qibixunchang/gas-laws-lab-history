@@ -5395,6 +5395,25 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setHeatCapacityToastPendingState(null);
   };
 
+  const clearHeatCapacityPressureAlarmInteractionLock = (fileId?: string | null) => {
+    if (fileId) {
+      heatCapacityPumpFocusAlarmBlockedFileIdsRef.current.delete(fileId);
+    } else {
+      heatCapacityPumpFocusAlarmBlockedFileIdsRef.current.clear();
+    }
+    if (heatCapacityPressureAlarmTimerRef.current !== null) {
+      window.clearTimeout(heatCapacityPressureAlarmTimerRef.current);
+      heatCapacityPressureAlarmTimerRef.current = null;
+    }
+    if (heatCapacityClosePumpValveReminderTimerRef.current !== null) {
+      window.clearTimeout(heatCapacityClosePumpValveReminderTimerRef.current);
+      heatCapacityClosePumpValveReminderTimerRef.current = null;
+    }
+    heatCapacityPressureAlarmVisibleRef.current = false;
+    setHeatCapacityPressureAlarmVisible(false);
+    clearHeatCapacityToastBySource(isHeatCapacityPressureToast);
+  };
+
   const clearHeatCapacityGuideStartTimer = () => {
     if (heatCapacityGuideStartTimerRef.current !== null) {
       window.clearTimeout(heatCapacityGuideStartTimerRef.current);
@@ -5489,7 +5508,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
       heatCapacityPressureAlarmVisibleRef.current
     );
     const samePumpingSession = (
-      file.pumpValveOpen ||
       file.pumpStrokeCount > 0 ||
       file.heatCapacityFreePhysicsState.pumpStrokeCount > 0 ||
       file.heatCapacityGuidePhysicsState.pumpStrokeCount > 0
@@ -6397,6 +6415,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const activateHeatCapacityGuideExperiment = (fileId: string, fileName: string) => {
     const now = Date.now();
+    clearHeatCapacityPressureAlarmInteractionLock(fileId);
     clearGuideHeatCapacityGuidance();
     setGuideHeatCapacityActiveFileId(fileId);
     setAutoDemoStepTitle('');
@@ -6443,6 +6462,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const enterHeatCapacityFreeMode = () => {
+    clearHeatCapacityPressureAlarmInteractionLock(activeFile.id);
     clearHeatCapacityGuideStartTimer();
     clearHeatCapacityRecordSuccessToastTimers();
     clearHeatCapacityAutoDemoTimers();
@@ -6477,6 +6497,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     clearHeatCapacityAutoDemoTimers();
     clearHeatCapacityPumpAnimationTimers();
     clearHeatCapacityAutoDemoUiState();
+    clearHeatCapacityPressureAlarmInteractionLock(activeFile.id);
     clearGuideHeatCapacityGuidance();
     setPendingRemoveHeatCapacityTrialRecord(null);
     setGuideHeatCapacityActiveFileId(null);
@@ -7177,6 +7198,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     clearGuideHeatCapacityGuidance();
     setGuideHeatCapacityActiveFileId(null);
     const demoFileId = activeFile.id;
+    clearHeatCapacityPressureAlarmInteractionLock(demoFileId);
     const steps = createHeatCapacityAutoDemoSteps();
   const timeline = getHeatCapacityAutoDemoTimeline(steps);
   setHeatCapacityFocusResetKey((key) => key + 1);
@@ -12149,8 +12171,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   pressureZeroKnobAngle={activeFile.pressureZeroKnobAngle}
                   pressureZeroOffset={activeFile.pressureZeroOffset}
                   pressureZeroDisplayText={activeFile.pressureZeroDisplayText}
-                  pressureRawPlaceholder={activeFile.pressureRawPlaceholder}
-                  pressureDisplayedPlaceholder={activeFile.pressureDisplayedPlaceholder}
+                  pressureSignalRawReadoutMv={activeFile.pressureSignalRawReadoutMv}
+                  pressureSignalReadoutMv={activeFile.pressureSignalReadoutMv}
                   pressureGaugeDisplayValue={activeFile.pressureGaugeDisplayValue}
                   gaugePressureMinKPa={activeFile.gaugePressureMinKPa}
                   gaugePressureMaxKPa={activeFile.gaugePressureMaxKPa}
@@ -12170,8 +12192,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   pumpFrequency={activeFile.pumpFrequency}
                   pumpFrequencyStatus={activeFile.pumpFrequencyStatus}
                   pumpHint={activeFile.pumpHint}
-                  pressurePlaceholder={activeFile.pressurePlaceholder}
-                  temperaturePlaceholder={activeFile.temperaturePlaceholder}
+                  vesselPressureReadoutKPa={activeFile.vesselPressureReadoutKPa}
+                  vesselTemperatureReadoutK={activeFile.vesselTemperatureReadoutK}
                   phase={heatCapacityDisplayPhase}
                   temperatureSignalMv={activeFile.powerOn ? activeHeatCapacityDisplay.temperatureMv : null}
                   pressureSignalMv={activeFile.powerOn ? activeHeatCapacityDisplay.pressureMv : null}
