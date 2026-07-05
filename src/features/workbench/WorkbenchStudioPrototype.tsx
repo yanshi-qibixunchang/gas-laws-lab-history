@@ -18,6 +18,7 @@ import {
   Languages,
   Loader2,
   LockKeyhole,
+  LogOut,
   MoreHorizontal,
   PanelLeft,
   PanelTopOpen,
@@ -58,6 +59,7 @@ import {
   captureHeatCapacityFreeRollbackSnapshot,
   completeHeatCapacityTeachingModeWorkbenchState,
   enterHeatCapacityFreeModeWorkbenchState,
+  exitHeatCapacityTeachingModeWorkbenchState,
   freezeHeatCapacityFreeParametersForCurrentGroup,
   getActiveHeatCapacityFreeTrialIndex,
   getHeatCapacityFreeDisplayPhase,
@@ -511,6 +513,7 @@ type GuideHeatCapacityAction =
   | 'recordU2';
 
 type GuideHeatCapacityRollbackAnimation = 'valveBounce' | 'stopcockBounce' | 'pumpBulbBounce' | 'knobBounce' | 'powerBounce';
+type HeatCapacityLockedControl = 'powerSwitch' | 'pressureZero' | 'stopcock' | 'pumpValve' | 'pumpBulb';
 type HeatCapacityToastLevel = 'info' | 'success' | 'warning' | 'danger';
 type HeatCapacityToastSource =
   | 'guide'
@@ -1937,6 +1940,7 @@ const heatCapacityRealtimeCopies = {
     freeSpeedNoticeKicker: '倍速',
     freeSpeedNotice: '真实实验等待过程较慢，仿真已提供倍速等待以加快达到平衡。',
     exitGuideMode: '退出引导',
+    exitTeachingMode: '退出教学模式',
     singleTrialBadge: '本次实验',
     trialBadge: (trialIndex: number) => `第 ${trialIndex} 组实验`,
     autoDemoFinishedLabel: '演示完成',
@@ -2023,9 +2027,12 @@ const heatCapacityRealtimeCopies = {
     pressureAlarmLog: (name: string) => `${name}：压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。`,
     toastSystemKicker: '系统',
     autoDemoLockedToast: '演示中无法操作',
+    autoDemoCompletedLockedToast: '演示已完成，请退出后进入自由模式操作。',
+    guideCompletedLockedToast: '引导内容已完成，请退出后进入自由模式操作。',
     autoDemoCompletionToast: '演示完成',
     guideModeStartingToast: '正在启动引导模式',
     guideModeExitedToast: '引导模式已终止',
+    teachingModeExitedToast: '已退出教学模式',
     guideModeExitedLog: (name: string) => `${name}：引导模式已终止。`,
     autoDemoPreparingHint: '系统正在自动恢复默认状态，稍后开始演示',
     autoDemoReadyToCompleteHint: '自动演示即将完成，过程采样已保留',
@@ -2145,6 +2152,7 @@ const heatCapacityRealtimeCopies = {
     freeSpeedNoticeKicker: '倍速',
     freeSpeedNotice: '真實實驗等待過程較慢，仿真已提供倍速等待以加快達到平衡。',
     exitGuideMode: '退出引導',
+    exitTeachingMode: '退出教學模式',
     singleTrialBadge: '本次實驗',
     trialBadge: (trialIndex: number) => `第 ${trialIndex} 組實驗`,
     autoDemoFinishedLabel: '演示完成',
@@ -2231,9 +2239,12 @@ const heatCapacityRealtimeCopies = {
     pressureAlarmLog: (name: string) => `${name}：壓強已超過安全閾值，瓶塞可能被頂開，請立即停止打氣。`,
     toastSystemKicker: '系統',
     autoDemoLockedToast: '演示中無法操作',
+    autoDemoCompletedLockedToast: '演示已完成，請退出後進入自由模式操作。',
+    guideCompletedLockedToast: '引導內容已完成，請退出後進入自由模式操作。',
     autoDemoCompletionToast: '演示完成',
     guideModeStartingToast: '正在啟動引導模式',
     guideModeExitedToast: '引導模式已終止',
+    teachingModeExitedToast: '已退出教學模式',
     guideModeExitedLog: (name: string) => `${name}：引導模式已終止。`,
     autoDemoPreparingHint: '系統正在自動恢復預設狀態，稍後開始演示',
     autoDemoReadyToCompleteHint: '自動演示即將完成，過程採樣已保留',
@@ -2353,6 +2364,7 @@ const heatCapacityRealtimeCopies = {
     freeSpeedNoticeKicker: 'Speed',
     freeSpeedNotice: 'Real experiments wait slowly; simulation speed controls are available to reach equilibrium faster.',
     exitGuideMode: 'Exit guide',
+    exitTeachingMode: 'Exit teaching mode',
     singleTrialBadge: 'This experiment',
     trialBadge: (trialIndex: number) => `Trial ${trialIndex}`,
     autoDemoFinishedLabel: 'Demo complete',
@@ -2439,9 +2451,12 @@ const heatCapacityRealtimeCopies = {
     pressureAlarmLog: (name: string) => `${name}: Pressure exceeds the safety threshold. The stopper may be forced open. Stop pumping immediately.`,
     toastSystemKicker: 'SYSTEM',
     autoDemoLockedToast: 'Cannot operate during the demo',
+    autoDemoCompletedLockedToast: 'Demo is complete. Exit before operating in Free Mode.',
+    guideCompletedLockedToast: 'Guide is complete. Exit before operating in Free Mode.',
     autoDemoCompletionToast: 'Demo complete',
     guideModeStartingToast: 'Starting guide mode',
     guideModeExitedToast: 'Guide mode stopped',
+    teachingModeExitedToast: 'Teaching mode exited',
     guideModeExitedLog: (name: string) => `${name}: guide mode stopped.`,
     autoDemoPreparingHint: 'The system is restoring default state and will start the demo shortly',
     autoDemoReadyToCompleteHint: 'Auto demo is about to finish; process samples are retained',
@@ -5428,25 +5443,25 @@ const WorkbenchStudioPrototype: React.FC = () => {
         : heatCapacityRealtimeCopy.recordU2SuccessToast
   );
 
-  const showHeatCapacityRecordSuccessSequence = ({
-    recordMessage,
-    trialCompleteMessage,
+  const showHeatCapacitySuccessToastSequence = ({
+    primaryMessage,
+    followUpMessage,
   }: {
-    recordMessage: string;
-    trialCompleteMessage: string | null;
+    primaryMessage: string;
+    followUpMessage: string | null;
   }) => {
     clearHeatCapacityRecordSuccessToastTimers();
     setHeatCapacityRecordToastSequenceActive(true);
-    showHeatCapacityToast(recordMessage, 'success', { interrupt: true });
+    showHeatCapacityToast(primaryMessage, 'success', { interrupt: true });
 
-    if (trialCompleteMessage) {
-      const trialCompleteTimerId = window.setTimeout(() => {
-        showHeatCapacityToast(trialCompleteMessage, 'success', { interrupt: true });
+    if (followUpMessage) {
+      const followUpTimerId = window.setTimeout(() => {
+        showHeatCapacityToast(followUpMessage, 'success', { interrupt: true });
       }, HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS);
-      heatCapacityRecordSuccessToastTimersRef.current.push(trialCompleteTimerId);
+      heatCapacityRecordSuccessToastTimersRef.current.push(followUpTimerId);
     }
 
-    const releaseDelay = trialCompleteMessage
+    const releaseDelay = followUpMessage
       ? HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS * 2
       : HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS;
     const releaseTimerId = window.setTimeout(() => {
@@ -5454,6 +5469,26 @@ const WorkbenchStudioPrototype: React.FC = () => {
       setHeatCapacityRecordToastSequenceActive(false);
     }, releaseDelay);
     heatCapacityRecordSuccessToastTimersRef.current.push(releaseTimerId);
+  };
+
+  const showHeatCapacityRecordSuccessSequence = ({
+    recordMessage,
+    trialCompleteMessage,
+  }: {
+    recordMessage: string;
+    trialCompleteMessage: string | null;
+  }) => {
+    showHeatCapacitySuccessToastSequence({
+      primaryMessage: recordMessage,
+      followUpMessage: trialCompleteMessage,
+    });
+  };
+
+  const showHeatCapacityGuidePowerOffCompletionToast = () => {
+    showHeatCapacitySuccessToastSequence({
+      primaryMessage: heatCapacityRealtimeCopy.finalTrialCompleteToast,
+      followUpMessage: null,
+    });
   };
 
   const getHeatCapacityFocusControlSnapshot = (
@@ -5650,7 +5685,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     source: Extract<HeatCapacityToastSource, 'guide' | 'guide-blocked'> = 'guide',
   ) => {
     if (isHeatCapacityPressureAlertActive()) return;
-    showHeatCapacityToast(message, level, { source });
+    const shouldReplaceActiveGuideBlockedToast = source === 'guide-blocked';
+    showHeatCapacityToast(message, level, { source, interrupt: shouldReplaceActiveGuideBlockedToast });
     pulseGuideHeatCapacityControl(controlId);
   };
 
@@ -6143,6 +6179,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (activeFile.heatCapacityMode !== 'guide') return;
     const workflow = activeFile.heatCapacityGuideWorkflow;
     if (!workflow.strongReminderActive || !workflow.strongReminderTargetControlId) return;
+    if (heatCapacityRecordToastSequenceActive) return;
     if (
       guideHeatCapacityStrongReminderActive &&
       guideHeatCapacityStrongReminderControlId === workflow.strongReminderTargetControlId
@@ -6158,6 +6195,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityGuideWorkflow.strongReminderActive : null,
     activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityGuideWorkflow.strongReminderTargetControlId : null,
     activeHeatCapacityGuideFileId,
+    heatCapacityRecordToastSequenceActive,
     guideHeatCapacityActiveFileId,
     guideHeatCapacityStrongReminderActive,
     guideHeatCapacityStrongReminderControlId,
@@ -6314,7 +6352,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         heatCapacityFocusSessionRef.current = null;
         showHeatCapacityRecordSuccessSequence({
           recordMessage: message,
-          trialCompleteMessage: kind === 'u2' ? heatCapacityRealtimeCopy.finalTrialCompleteToast : null,
+          trialCompleteMessage: null,
         });
         pushLog(message, 'success');
         return;
@@ -6400,14 +6438,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
     const guardedPowerOn = nextPowerOn ?? (currentFile?.kind === 'heatCapacity' ? !currentFile.powerOn : true);
     if (!guardGuideHeatCapacityAction(guardedPowerOn ? 'turnPowerOn' : 'turnPowerOff', source)) return;
+    const shouldShowGuidePowerOffCompletionToast = source === 'user' &&
+      currentFile?.kind === 'heatCapacity' &&
+      currentFile.heatCapacityMode === 'guide' &&
+      currentFile.heatCapacityGuideWorkflow.step === 'closePowerRequired' &&
+      currentFile.powerOn &&
+      guardedPowerOn === false &&
+      guideHeatCapacityActiveFileIdRef.current === currentFile.id;
     if (source === 'user') collapseHeatCapacityFreeParameterSidebarForExperimentAction();
     const now = Date.now();
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
       const resolvedPowerOn = nextPowerOn ?? !file.powerOn;
-      const cleanFile = resolvedPowerOn && source === 'user' && file.heatCapacityMode === 'demo'
-        ? completeHeatCapacityTeachingModeWorkbenchState(file, now)
-        : file;
+      const cleanFile = file;
       if (resolvedPowerOn && cleanFile.heatCapacityMode === 'demo' && !cleanFile.heatCapacityExperimentProfile) {
         const experimentProfile = createHeatCapacityAutoDemoProfile();
         return powerHeatCapacityWorkbenchFile({
@@ -6418,6 +6461,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
       }
       return powerHeatCapacityWorkbenchFile(cleanFile, resolvedPowerOn, now);
     });
+    if (shouldShowGuidePowerOffCompletionToast) {
+      showHeatCapacityGuidePowerOffCompletionToast();
+      pushLog(heatCapacityRealtimeCopy.finalTrialCompleteToast, 'success');
+    }
   };
 
   const activateHeatCapacityGuideExperiment = (fileId: string, fileName: string) => {
@@ -6458,12 +6505,27 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const exitHeatCapacityGuideMode = () => {
+    const guideCompleted = activeFile.kind === 'heatCapacity' && activeFile.heatCapacityTeachingStatus === 'completed';
     resetHeatCapacityModeUiForFreeBase();
     updateActiveFile((file) => file.kind === 'heatCapacity'
-      ? abortHeatCapacityGuideWorkbenchState(file, Date.now())
+      ? guideCompleted
+        ? exitHeatCapacityTeachingModeWorkbenchState(file, Date.now())
+        : abortHeatCapacityGuideWorkbenchState(file, Date.now())
       : file);
-    showHeatCapacityAutoDemoCompletionToast(heatCapacityRealtimeCopy.guideModeExitedToast);
+    showHeatCapacityAutoDemoCompletionToast(guideCompleted
+      ? heatCapacityRealtimeCopy.teachingModeExitedToast
+      : heatCapacityRealtimeCopy.guideModeExitedToast);
     pushLog(heatCapacityRealtimeCopy.guideModeExitedLog(activeFile.name), 'warning');
+  };
+
+  const exitCompletedHeatCapacityTeachingMode = () => {
+    if (activeFile.kind !== 'heatCapacity') return;
+    resetHeatCapacityModeUiForFreeBase();
+    updateActiveFile((file) => file.kind === 'heatCapacity'
+      ? exitHeatCapacityTeachingModeWorkbenchState(file, Date.now())
+      : file);
+    showHeatCapacityAutoDemoCompletionToast(heatCapacityRealtimeCopy.teachingModeExitedToast);
+    pushLog(heatCapacityRealtimeCopy.freeModeActiveLog(activeFile.name), 'info');
   };
 
   const enterHeatCapacityFreeMode = () => {
@@ -6678,6 +6740,31 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
     heatCapacityAutoDemoLockedToastLastShownRef.current = { message, at: now };
     showHeatCapacityToast(message, 'warning');
+  };
+
+  const showHeatCapacityTeachingCompletedLockedInteraction = (
+    message?: string,
+    control?: HeatCapacityLockedControl,
+  ) => {
+    const fallbackMessage = activeFile.kind === 'heatCapacity' && activeFile.heatCapacityMode === 'guide'
+      ? heatCapacityRealtimeCopy.guideCompletedLockedToast
+      : heatCapacityRealtimeCopy.autoDemoCompletedLockedToast;
+    const rollbackByControl: Partial<Record<HeatCapacityLockedControl, GuideHeatCapacityRollbackAnimation>> = {
+      powerSwitch: 'powerBounce',
+      pressureZero: 'knobBounce',
+      stopcock: 'stopcockBounce',
+      pumpValve: 'valveBounce',
+      pumpBulb: 'pumpBulbBounce',
+    };
+    const rollbackAnimation = control ? rollbackByControl[control] ?? null : null;
+    if (rollbackAnimation === 'pumpBulbBounce') setHeatCapacityPumpPulseId((pulseId) => pulseId + 1);
+    if (rollbackAnimation) {
+      setGuideHeatCapacityRollback({
+        animation: rollbackAnimation,
+        key: Date.now(),
+      });
+    }
+    showHeatCapacityAutoDemoLockedToast(message ?? fallbackMessage);
   };
 
   const showHeatCapacityAutoDemoCompletionToast = (message: string = heatCapacityRealtimeCopy.autoDemoCompletionToast, durationMs = 3000) => {
@@ -7093,7 +7180,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const finishHeatCapacityAutoDemoUi = (message: string = heatCapacityRealtimeCopy.autoDemoCompletionToast) => {
-    resetHeatCapacityModeUiForFreeBase();
+    clearHeatCapacityAutoDemoTimers();
+    setAutoDemoRunning(false);
+    setAutoDemoPaused(false);
+    setAutoDemoInteractionLocked(false);
+    setDemoFocusControlId(null);
+    setDemoFocusPulseActive(false);
     hideHeatCapacityAutoDemoStepPanel();
     showHeatCapacityAutoDemoCompletionToast(message);
   };
@@ -8320,7 +8412,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
       const now = Date.now();
-      return completeHeatCapacityTeachingModeWorkbenchState(file, now);
+      return exitHeatCapacityTeachingModeWorkbenchState(file, now);
     });
     setAutoDemoStepTitle(heatCapacityRealtimeCopy.autoDemoTerminatedTitle);
     setAutoDemoStepDescription(heatCapacityRealtimeCopy.autoDemoTerminatedDescription);
@@ -11298,8 +11390,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const renderHeatCapacityModeControl = () => {
     if (activeFile.kind !== 'heatCapacity') return null;
     const heatCapacityActiveMode: HeatCapacityMode = activeFile.heatCapacityMode;
+    const heatCapacityTeachingCompleted = activeFile.heatCapacityTeachingStatus === 'completed';
     const heatCapacityDemoActionsVisible = heatCapacityActiveMode === 'demo'
-      && (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked);
+      && (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked || heatCapacityTeachingCompleted);
     const heatCapacityGuideActionsVisible = heatCapacityActiveMode === 'guide';
     const heatCapacityFreeActionsVisible = heatCapacityActiveMode === 'free';
     const heatCapacityModeActionsVisible = heatCapacityDemoActionsVisible || heatCapacityGuideActionsVisible || heatCapacityFreeActionsVisible;
@@ -11320,6 +11413,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
             data-heat-capacity-mode="demo"
             aria-pressed={heatCapacityActiveMode === 'demo'}
             onClick={() => {
+              if (heatCapacityTeachingCompleted) {
+                showHeatCapacityTeachingCompletedLockedInteraction();
+                return;
+              }
               if (heatCapacityActiveMode !== 'demo' || !heatCapacityDemoActionsVisible) {
                 runHeatCapacityAutoDemo();
               }
@@ -11329,41 +11426,54 @@ const WorkbenchStudioPrototype: React.FC = () => {
           </button>
           <div className="studio-heat-mode-actions studio-heat-mode-actions-demo" aria-hidden={!heatCapacityDemoActionsVisible}>
             {heatCapacityDemoActionsVisible ? (
-              <>
-                {autoDemoPaused ? (
-                  <button
-                    type="button"
-                    className="studio-heat-mode-action studio-heat-mode-action-icon"
-                    data-heat-capacity-mode-action="resume-demo"
-                    title={heatCapacityRealtimeCopy.autoDemoResume}
-                    aria-label={heatCapacityRealtimeCopy.autoDemoResume}
-                    onClick={runHeatCapacityAutoDemo}
-                  >
-                    <Play size={13} strokeWidth={2.7} />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="studio-heat-mode-action studio-heat-mode-action-icon"
-                    data-heat-capacity-mode-action="pause-demo"
-                    title={heatCapacityRealtimeCopy.autoDemoPause}
-                    aria-label={heatCapacityRealtimeCopy.autoDemoPause}
-                    onClick={pauseHeatCapacityAutoDemo}
-                  >
-                    <Pause size={13} strokeWidth={2.7} />
-                  </button>
-                )}
+              heatCapacityTeachingCompleted ? (
                 <button
                   type="button"
                   className="studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger"
-                  data-heat-capacity-mode-action="stop-demo"
-                  title={heatCapacityRealtimeCopy.autoDemoStop}
-                  aria-label={heatCapacityRealtimeCopy.autoDemoStop}
-                  onClick={terminateHeatCapacityAutoDemo}
+                  data-heat-capacity-mode-action="exit-teaching"
+                  title={heatCapacityRealtimeCopy.exitTeachingMode}
+                  aria-label={heatCapacityRealtimeCopy.exitTeachingMode}
+                  onClick={exitCompletedHeatCapacityTeachingMode}
                 >
-                  <Square size={12} strokeWidth={2.8} />
+                  <LogOut size={13} strokeWidth={2.7} />
                 </button>
-              </>
+              ) : (
+                <>
+                  {autoDemoPaused ? (
+                    <button
+                      type="button"
+                      className="studio-heat-mode-action studio-heat-mode-action-icon"
+                      data-heat-capacity-mode-action="resume-demo"
+                      title={heatCapacityRealtimeCopy.autoDemoResume}
+                      aria-label={heatCapacityRealtimeCopy.autoDemoResume}
+                      onClick={runHeatCapacityAutoDemo}
+                    >
+                      <Play size={13} strokeWidth={2.7} />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="studio-heat-mode-action studio-heat-mode-action-icon"
+                      data-heat-capacity-mode-action="pause-demo"
+                      title={heatCapacityRealtimeCopy.autoDemoPause}
+                      aria-label={heatCapacityRealtimeCopy.autoDemoPause}
+                      onClick={pauseHeatCapacityAutoDemo}
+                    >
+                      <Pause size={13} strokeWidth={2.7} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger"
+                    data-heat-capacity-mode-action="stop-demo"
+                    title={heatCapacityRealtimeCopy.autoDemoStop}
+                    aria-label={heatCapacityRealtimeCopy.autoDemoStop}
+                    onClick={terminateHeatCapacityAutoDemo}
+                  >
+                    <Square size={12} strokeWidth={2.8} />
+                  </button>
+                </>
+              )
             ) : null}
           </div>
         </div>
@@ -11377,6 +11487,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
             data-heat-capacity-mode="guide"
             aria-pressed={heatCapacityActiveMode === 'guide'}
             onClick={() => {
+              if (heatCapacityTeachingCompleted) {
+                showHeatCapacityTeachingCompletedLockedInteraction();
+                return;
+              }
               if (heatCapacityActiveMode !== 'guide') {
                 startHeatCapacityGuideExperiment();
               }
@@ -11390,12 +11504,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 <button
                   type="button"
                   className="studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger"
-                  data-heat-capacity-mode-action="exit-guide"
-                  title={heatCapacityRealtimeCopy.exitGuideMode}
-                  aria-label={heatCapacityRealtimeCopy.exitGuideMode}
+                  data-heat-capacity-mode-action={heatCapacityTeachingCompleted ? 'exit-teaching' : 'exit-guide'}
+                  title={heatCapacityTeachingCompleted ? heatCapacityRealtimeCopy.exitTeachingMode : heatCapacityRealtimeCopy.exitGuideMode}
+                  aria-label={heatCapacityTeachingCompleted ? heatCapacityRealtimeCopy.exitTeachingMode : heatCapacityRealtimeCopy.exitGuideMode}
                   onClick={exitHeatCapacityGuideMode}
                 >
-                  <Square size={12} strokeWidth={2.8} />
+                  {heatCapacityTeachingCompleted
+                    ? <LogOut size={13} strokeWidth={2.7} />
+                    : <Square size={12} strokeWidth={2.8} />}
                 </button>
               </>
             ) : null}
@@ -11411,6 +11527,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
             data-heat-capacity-mode="free"
             aria-pressed={heatCapacityActiveMode === 'free'}
             onClick={() => {
+              if (heatCapacityTeachingCompleted) {
+                showHeatCapacityTeachingCompletedLockedInteraction();
+                return;
+              }
               if (
                 heatCapacityActiveMode !== 'free' ||
                 autoDemoRunning ||
@@ -11462,6 +11582,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             }}
           >
             {(() => {
+              const heatCapacityTeachingCompleted = activeFile.heatCapacityTeachingStatus === 'completed';
               const activeHeatCapacityDisplay = selectActiveHeatCapacityWorkbenchDisplay(activeFile);
               const activeHeatCapacityUsesPhysicalKernel = isHeatCapacityPhysicalKernelMode(activeFile.heatCapacityMode);
               const heatCapacityDisplayPhase = activeHeatCapacityUsesPhysicalKernel
@@ -12173,7 +12294,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   speedMultiplier={heatCapacityQualityProfile.speedMultiplier}
                   hardSphereVisualResetKey={heatCapacityHardSphereVisualResetKey}
                   hardSpherePaused={heatCapacityHardSpherePaused}
-                  interactionLocked={autoDemoInteractionLocked}
+                  interactionLocked={autoDemoInteractionLocked || heatCapacityTeachingCompleted}
+                  cameraInteractionLocked={autoDemoInteractionLocked}
                   demoFocusControlId={guideHeatCapacityFocusControlId ?? demoFocusControlId}
                   demoFocusPulseActive={demoFocusPulseActive || guideHeatCapacityPulseActive}
                   guideRollbackAnimation={guideHeatCapacityRollback?.animation ?? null}
@@ -12190,7 +12312,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   onGuideTargetHolesChange={setHeatCapacityGuideProjectedHoles}
                   onFocusModeChange={updateHeatCapacityFocusMode}
                   onFocusExitRequest={handleHeatCapacityFocusExitRequest}
-                  onLockedInteraction={showHeatCapacityAutoDemoLockedToast}
+                  onLockedInteraction={heatCapacityTeachingCompleted
+                    ? showHeatCapacityTeachingCompletedLockedInteraction
+                    : showHeatCapacityAutoDemoLockedToast}
                   onPowerToggle={updateHeatCapacityPower}
                   onStopcockOpenChange={updateHeatCapacityStopcockOpen}
                   onPressureZeroFineAdjust={adjustHeatCapacityPressureZeroFineFromScene}

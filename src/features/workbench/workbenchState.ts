@@ -220,6 +220,7 @@ export type WorkbenchHeatCapacityPressureZeroAdjustMode = 'none' | 'fineWheel' |
 export type WorkbenchHeatCapacityPressureSafetyStatus = 'normal' | 'warning' | 'danger';
 export type WorkbenchHeatCapacityFreeStopcockFlowPurpose = 'none' | 'zeroing' | 'release';
 export type HeatCapacityMode = 'demo' | 'guide' | 'free';
+export type HeatCapacityTeachingStatus = 'idle' | 'running' | 'completed';
 export type HeatCapacityFreeWorkflowStage =
   | 'beforePower'
   | 'zeroing'
@@ -955,6 +956,7 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   kind: 'heatCapacity';
   particles: Particle[];
   heatCapacityMode: HeatCapacityMode;
+  heatCapacityTeachingStatus: HeatCapacityTeachingStatus;
   heatCapacityFreeRuntimeVersion: number;
   heatCapacityFreeExperimentGroupStatus: HeatCapacityFreeExperimentGroupStatus;
   heatCapacityFreeParameterDraft: HeatCapacityFreeParameterDraft;
@@ -3213,12 +3215,92 @@ export const refreshHeatCapacityPumpFrequency = (
   };
 };
 
+const createHeatCapacityAutoDemoResultTrial = (
+  file: WorkbenchHeatCapacityState,
+  now: number,
+): HeatCapacityGuideTrial => {
+  const profile = file.heatCapacityExperimentProfile ?? createHeatCapacityAutoDemoProfile();
+  const samples = file.heatCapacityProcessSamples;
+  const baseTrial: HeatCapacityGuideTrial = {
+    ...createHeatCapacityGuideTrial('demo-trial-1'),
+    source: 'demo',
+  };
+  const u0Recorded = recordGuideU0(baseTrial, {
+    atS: samples.zeroedSample?.timeS ?? 10,
+    displayPressureMv: profile.u0MeasuredMv,
+    displayTemperatureMv: samples.zeroedSample?.temperatureSignalMv ?? profile.initialTemperatureMv,
+    calibrationVersion: 1,
+    zeroEventId: 'demo-u0',
+  });
+  const u1Recorded = recordGuideU1(u0Recorded, {
+    atS: samples.stableBeforeReleaseSample?.timeS ?? 86.9,
+    displayPressureMv: profile.u1MeasuredMv,
+    displayTemperatureMv: samples.stableBeforeReleaseSample?.temperatureSignalMv ?? profile.stableTemperatureMv,
+    calibrationVersion: 1,
+    zeroEventId: 'demo-u1',
+  });
+  return recordGuideU2(u1Recorded, {
+    atS: samples.recoverySample?.timeS ?? 114.3,
+    displayPressureMv: profile.u2MeasuredMv,
+    displayTemperatureMv: samples.recoverySample?.temperatureSignalMv ?? profile.recoveryTemperatureMv,
+    calibrationVersion: 1,
+    zeroEventId: 'demo-u2',
+  }, now, {
+    atmosphericPressureKPa: file.ambientPressureKPa,
+    pressureSensitivityMvPerKPa: file.pressureSensitivityMvPerKPa,
+  });
+};
+
 export function completeHeatCapacityTeachingModeWorkbenchState(
+  file: WorkbenchHeatCapacityState,
+  now = Date.now(),
+): WorkbenchHeatCapacityState {
+  const heatCapacityGuideTrial = file.heatCapacityMode === 'demo'
+    ? createHeatCapacityAutoDemoResultTrial(file, now)
+    : file.heatCapacityGuideTrial;
+  return {
+    ...file,
+    heatCapacityTeachingStatus: 'completed',
+    heatCapacityGuideTrial,
+    powerOn: false,
+    runState: 'idle',
+    heatCapacityPhase: 'powerOff',
+    glassPistonState: 'closed',
+    stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
+    pressureSignalMv: null,
+    temperatureSignalMv: null,
+    pressureKPa: null,
+    pressureReleaseBurstUntilMs: null,
+    pressureZeroed: false,
+    pressureZeroAdjusted: false,
+    pressureZeroKnobAngle: 0,
+    pressureZeroOffset: 0,
+    pressureZeroDisplayText: getHeatCapacityPressureZeroDisplayText(false, 0),
+    pressureZeroAdjustMode: 'none',
+    pressureZeroDisplayedSamples: [],
+    pumpValveOpen: false,
+    pumpValveState: 'closed',
+    pumpBulbState: 'idle',
+    pumpStrokeTimestamps: [],
+    pumpFrequency: 0,
+    pumpFrequencyStatus: 'idle',
+    lastPumpTime: null,
+    pumpStrokeCount: 0,
+    pumpHint: '教学流程已完成',
+    heatCapacityFreeStopcockFlowOpen: false,
+    heatCapacityFreeStopcockPendingOpenAtMs: null,
+    heatCapacityFreeStopcockFlowPurpose: 'none',
+    updatedAt: now,
+  };
+}
+
+export function exitHeatCapacityTeachingModeWorkbenchState(
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
 ): WorkbenchHeatCapacityState {
   return resetHeatCapacityFreeRunWorkbenchState({
     ...file,
+    heatCapacityTeachingStatus: 'idle',
     heatCapacityExperimentSeed: null,
     heatCapacityExperimentProfile: null,
     heatCapacityGuideTrial: null,
@@ -3356,6 +3438,7 @@ export const prepareHeatCapacityAutoDemoStart = (
     ...file,
     ...guideRuntimeFields,
     heatCapacityMode: 'demo',
+    heatCapacityTeachingStatus: 'running',
     powerOn: false,
     runState: 'running',
     heatCapacityPhase: 'powerOff',
@@ -3426,6 +3509,7 @@ export const prepareHeatCapacityAutoDemoStart = (
   const poweredFile = powerHeatCapacityWorkbenchFile(resetFile, true, now);
   return {
     ...poweredFile,
+    heatCapacityTeachingStatus: 'running',
     runState: 'running',
     pressureZeroAdjusted: false,
     pressureZeroed: false,
@@ -4238,6 +4322,7 @@ export const createDefaultHeatCapacityFile = (
     kind: 'heatCapacity',
     particles: [],
     heatCapacityMode: 'free',
+    heatCapacityTeachingStatus: 'idle',
     ...freeRuntimeFields,
     heatCapacityFreeTraceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
     heatCapacityFreeTraceStore: createDefaultFreeTraceStore(),
@@ -4335,6 +4420,7 @@ export const startHeatCapacityGuideWorkbenchState = (
     ...file,
     ...guideRuntimeFields,
     heatCapacityMode: 'guide',
+    heatCapacityTeachingStatus: 'running',
     heatCapacityGuideTrial: createHeatCapacityGuideTrial('guide-trial-1'),
     powerOn: false,
     runState: 'idle',
@@ -4446,6 +4532,7 @@ export const resetHeatCapacityFreeRunWorkbenchState = (
       ...guideRuntimeFields,
       heatCapacityFreeTraceStore: resetStructure.heatCapacityFreeTraceStore,
       heatCapacityMode: 'free',
+      heatCapacityTeachingStatus: 'idle',
       powerOn: false,
       runState: 'idle',
       heatCapacityPhase: 'powerOff',

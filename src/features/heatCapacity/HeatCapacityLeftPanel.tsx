@@ -914,9 +914,8 @@ export const HeatCapacityLeftPanel = ({
     if (panelKey === 'heatCapacityRecords') return copy.dataAndResults;
     return copy.guide;
   }, [copy.dataAndResults, copy.guide, panelKey]);
-  const shouldShowCompletedGuideResult =
-    file.heatCapacityMode === 'free' &&
-    file.heatCapacityGuideWorkflow.step === 'completed' &&
+  const shouldShowSingleTrialResult =
+    file.heatCapacityTeachingStatus === 'completed' &&
     file.heatCapacityGuideTrial !== null;
 
   return (
@@ -928,7 +927,7 @@ export const HeatCapacityLeftPanel = ({
       <div className="studio-heat-left-content">
         {panelKey === 'heatCapacityGuide'
           ? renderGuideTab(language)
-          : file.heatCapacityMode === 'free' && !shouldShowCompletedGuideResult
+          : file.heatCapacityMode === 'free' && !shouldShowSingleTrialResult
             ? renderFreeDataAndResultsTab(
                 file,
                 copy,

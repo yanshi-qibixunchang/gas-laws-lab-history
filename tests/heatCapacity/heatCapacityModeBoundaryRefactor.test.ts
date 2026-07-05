@@ -4,8 +4,10 @@ import { join } from 'node:path';
 import {
   abortHeatCapacityGuideWorkbenchState,
   applyHeatCapacityGuideRecordWorkbenchState,
+  completeHeatCapacityTeachingModeWorkbenchState,
   createDefaultHeatCapacityFile,
   enterHeatCapacityFreeModeWorkbenchState,
+  exitHeatCapacityTeachingModeWorkbenchState,
   getHeatCapacityPressureZeroKnobAngleForOffset,
   prepareHeatCapacityAutoDemoStart,
   powerHeatCapacityWorkbenchFile,
@@ -162,19 +164,46 @@ const stabilizeGuidePressureZero = (
   assert.equal(guide.heatCapacityFreeTrials.length, 0);
 
   guide = powerHeatCapacityWorkbenchFile(guide, false, now += 100);
-  assert.equal(guide.heatCapacityMode, 'free');
+  assert.equal(guide.heatCapacityMode, 'guide');
+  assert.equal(guide.heatCapacityTeachingStatus, 'completed');
   assert.equal(guide.runState, 'idle');
   assert.equal(guide.heatCapacityPhase, 'powerOff');
   assert.equal(guide.powerOn, false);
-  assert.equal(guide.heatCapacityGuideTrial, null);
+  assert.notEqual(guide.heatCapacityGuideTrial, null);
+  assert.notEqual(guide.heatCapacityGuideTrial?.correctedSignals, null);
   assert.equal(guide.heatCapacityFreeTrials.length, 0);
-  assert.equal(guide.heatCapacityGuideWorkflow.step, 'powerRequired');
+  assert.equal(guide.heatCapacityGuideWorkflow.step, 'completed');
 
-  const poweredFree = powerHeatCapacityWorkbenchFile(guide, true, now += 100);
+  const exitedGuide = exitHeatCapacityTeachingModeWorkbenchState(guide, now += 100);
+  assert.equal(exitedGuide.heatCapacityMode, 'free');
+  assert.equal(exitedGuide.heatCapacityTeachingStatus, 'idle');
+  assert.equal(exitedGuide.heatCapacityGuideTrial, null);
+  assert.equal(exitedGuide.heatCapacityGuideWorkflow.step, 'powerRequired');
+
+  const poweredFree = powerHeatCapacityWorkbenchFile(exitedGuide, true, now += 100);
   assert.equal(poweredFree.heatCapacityMode, 'free');
   assert.equal(poweredFree.powerOn, true);
   assert.notEqual(poweredFree.heatCapacityMode, 'guide');
   assert.equal(poweredFree.heatCapacityGuideWorkflow.step, 'powerRequired');
+}
+
+{
+  const demo = prepareHeatCapacityAutoDemoStart(createBaseFile(), 60_000);
+  const completedDemo = completeHeatCapacityTeachingModeWorkbenchState(demo, 61_000);
+  assert.equal(completedDemo.heatCapacityMode, 'demo');
+  assert.equal(completedDemo.heatCapacityTeachingStatus, 'completed');
+  assert.equal(completedDemo.runState, 'idle');
+  assert.equal(completedDemo.powerOn, false);
+  assert.notEqual(completedDemo.heatCapacityGuideTrial, null);
+  assert.equal(completedDemo.heatCapacityGuideTrial?.source, 'demo');
+  assert.notEqual(completedDemo.heatCapacityGuideTrial?.correctedSignals, null);
+
+  const exitedDemo = exitHeatCapacityTeachingModeWorkbenchState(completedDemo, 62_000);
+  assert.equal(exitedDemo.heatCapacityMode, 'free');
+  assert.equal(exitedDemo.heatCapacityTeachingStatus, 'idle');
+  assert.equal(exitedDemo.heatCapacityGuideTrial, null);
+  assert.equal(exitedDemo.heatCapacityExperimentProfile, null);
+  assert.deepEqual(exitedDemo.heatCapacityProcessSamples, {});
 }
 
 {

@@ -71,6 +71,7 @@ interface HeatCapacityInstrumentSceneProps {
   hardSphereVisualResetKey: number;
   hardSpherePaused: boolean;
   interactionLocked: boolean;
+  cameraInteractionLocked?: boolean;
   demoFocusControlId: string | null;
   demoFocusPulseActive: boolean;
   guideFocusMode?: HeatCapacityFocusMode | null;
@@ -80,7 +81,7 @@ interface HeatCapacityInstrumentSceneProps {
   focusResetKey: number;
   onFocusModeChange: (mode: HeatCapacityFocusMode) => void;
   onFocusExitRequest?: (mode: HeatCapacityFocusMode) => boolean;
-  onLockedInteraction: (message?: string) => void;
+  onLockedInteraction: (message?: string, control?: HeatCapacityLockedControl) => void;
   onPowerToggle: (nextPowerOn?: boolean) => void;
   onStopcockOpenChange: (nextOpen?: boolean) => void;
   onPressureZeroFineAdjust: (direction: number) => void;
@@ -97,6 +98,8 @@ interface HeatCapacityInstrumentSceneProps {
   overlayGuideMask?: React.ReactNode;
   onGuideTargetHolesChange?: (holes: HeatCapacityGuideProjectedHoles) => void;
 }
+
+type HeatCapacityLockedControl = 'powerSwitch' | 'pressureZero' | 'stopcock' | 'pumpValve' | 'pumpBulb';
 
 type HeatCapacityFocusMode = 'none' | 'instrument' | 'pump' | 'bottle';
 type HeatCapacityHoveredControl = null | 'stopcock' | 'pumpBulb' | 'pumpValve' | 'powerSwitch' | 'pressureZero';
@@ -1392,7 +1395,7 @@ function InstrumentBox({
   const handlePressureZeroWheel = (event: ThreeEvent<WheelEvent>) => {
     event.stopPropagation();
     if (interactionLocked) {
-      onLockedInteraction();
+      onLockedInteraction(undefined, 'pressureZero');
       return;
     }
     const requestedDelta = (event.deltaY < 0 ? PRESSURE_ZERO_FINE_ANGLE_STEP_DEG : -PRESSURE_ZERO_FINE_ANGLE_STEP_DEG) * PRESSURE_ZERO_DRAG_DIRECTION;
@@ -1401,7 +1404,7 @@ function InstrumentBox({
     const boundedDelta = nextKnobAngle - pressureZeroKnobAngle;
     if (Math.abs(boundedDelta) < 0.01) {
       const limitMessage = getPressureZeroLimitMessage(requestedKnobAngle, sceneCopy);
-      if (limitMessage) onLockedInteraction(limitMessage);
+      if (limitMessage) onLockedInteraction(limitMessage, 'pressureZero');
       return;
     }
     onPressureZeroFineAdjust(boundedDelta);
@@ -1410,7 +1413,7 @@ function InstrumentBox({
   const startPressureZeroDrag = (event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation();
     if (interactionLocked) {
-      onLockedInteraction();
+      onLockedInteraction(undefined, 'pressureZero');
       return;
     }
     const pointerAngle = getPressureZeroPointerAngle(event.clientX, event.clientY);
@@ -1436,7 +1439,7 @@ function InstrumentBox({
       const incrementalDelta = nextKnobAngle - dragState.lastAppliedKnobAngle;
       if (Math.abs(incrementalDelta) < 0.15) {
         const limitMessage = getPressureZeroLimitMessage(requestedKnobAngle, sceneCopy);
-        if (limitMessage) onLockedInteraction(limitMessage);
+        if (limitMessage) onLockedInteraction(limitMessage, 'pressureZero');
         return;
       }
       dragState.lastAppliedKnobAngle = nextKnobAngle;
@@ -1460,7 +1463,7 @@ function InstrumentBox({
     event.stopPropagation();
     schedulePowerSwitchSingleClick(() => {
       if (interactionLocked) {
-        onLockedInteraction();
+        onLockedInteraction(undefined, 'powerSwitch');
         return;
       }
       onPowerToggle();
@@ -1471,7 +1474,7 @@ function InstrumentBox({
     event.stopPropagation();
     clearPowerSwitchSingleClick();
     if (interactionLocked) {
-      onLockedInteraction();
+      onLockedInteraction(undefined, 'powerSwitch');
       return;
     }
     onFocus('instrument');
@@ -1485,7 +1488,7 @@ function InstrumentBox({
         event.stopPropagation();
         clearPowerSwitchSingleClick();
         if (interactionLocked) {
-          onLockedInteraction();
+          onLockedInteraction(undefined, 'powerSwitch');
           return;
         }
         onFocus('instrument');
@@ -1627,14 +1630,14 @@ function InstrumentBox({
         onClick={(event) => {
           event.stopPropagation();
           if (interactionLocked) {
-            onLockedInteraction();
+            onLockedInteraction(undefined, 'pressureZero');
             return;
           }
         }}
         onDoubleClick={(event) => {
           event.stopPropagation();
           if (interactionLocked) {
-            onLockedInteraction();
+            onLockedInteraction(undefined, 'pressureZero');
             return;
           }
           onFocus('instrument');
@@ -1782,7 +1785,7 @@ function GlassStopcock({
     event.nativeEvent.stopPropagation();
     event.nativeEvent.stopImmediatePropagation?.();
     if (interactionLocked) {
-      onLockedInteraction();
+      onLockedInteraction(undefined, 'stopcock');
       return;
     }
     onStopcockOpenChange();
@@ -2137,7 +2140,7 @@ function PumpAssembly({
     event.nativeEvent.stopPropagation();
     event.nativeEvent.stopImmediatePropagation?.();
     if (interactionLocked) {
-      onLockedInteraction();
+      onLockedInteraction(undefined, 'pumpBulb');
       return;
     }
     onPumpBulbPress();
@@ -2148,7 +2151,7 @@ function PumpAssembly({
     event.nativeEvent.stopPropagation();
     event.nativeEvent.stopImmediatePropagation?.();
     if (interactionLocked) {
-      onLockedInteraction();
+      onLockedInteraction(undefined, 'pumpValve');
       return;
     }
     onPumpValveToggle();
@@ -2311,7 +2314,7 @@ function PumpAssembly({
         onDoubleClick={(event) => {
           event.stopPropagation();
           if (interactionLocked) {
-            onLockedInteraction();
+            onLockedInteraction(undefined, 'pumpBulb');
             return;
           }
           if (focusMode === 'pump') return;
@@ -3052,7 +3055,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     props.demoFocusPulseActive ||
     Boolean(props.guideRollbackAnimation);
   const interactionQualityReduced = isOrbitInteracting || qualityProfile.reduceInteractionQuality;
-  const orbitControlsEnabled = focusMode === 'none' && !props.interactionLocked;
+  const orbitControlsEnabled = focusMode === 'none' && !(props.cameraInteractionLocked ?? props.interactionLocked);
   const cameraViewScheme = useMemo(() => getCameraViewScheme(qualityProfile), [qualityProfile]);
   const canvasProps = useMemo(() => ({
     camera: { position: cameraViewScheme.defaultView.position, fov: cameraViewScheme.fov },

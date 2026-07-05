@@ -814,8 +814,8 @@ assert.doesNotMatch(
 );
 assert.match(
   sceneSource,
-  /const orbitControlsEnabled = focusMode === 'none' && !props\.interactionLocked;/,
-  'Ultra focus mode should use the same orbit-lock policy as the procedural model so the smooth focused view stays stable',
+  /const orbitControlsEnabled = focusMode === 'none' && !\(props\.cameraInteractionLocked \?\? props\.interactionLocked\);/,
+  'Ultra focus mode should keep the same focus lock while allowing completed teaching states to inspect the model camera',
 );
 assert.match(
   sceneSource,

@@ -34,6 +34,7 @@ import {
   completeHeatCapacityTeachingModeWorkbenchState,
   createHeatCapacityInitialPressureBiasMv,
   enterHeatCapacityFreeModeWorkbenchState,
+  exitHeatCapacityTeachingModeWorkbenchState,
   getHeatCapacityFreeEquilibriumSpeedMultiplier,
   getActiveHeatCapacityFreeTrialIndex,
   getHeatCapacityFreeRecordDisplayTrialIndex,
@@ -1620,7 +1621,8 @@ const completedDemo = completeHeatCapacityTeachingModeWorkbenchState({
   pressureZeroOffset: 1.2,
   pressureZeroAdjustMode: 'coarseDrag',
 }, 30_000);
-assert.equal(completedDemo.heatCapacityMode, 'free');
+assert.equal(completedDemo.heatCapacityMode, 'demo');
+assert.equal(completedDemo.heatCapacityTeachingStatus, 'completed');
 assert.equal(completedDemo.runState, 'idle');
 assert.equal(completedDemo.heatCapacityPhase, 'powerOff');
 assert.equal(completedDemo.powerOn, false);
@@ -1643,15 +1645,23 @@ assert.equal(completedDemo.hardSphereViewEnabled, true, 'returning to Free base 
 assert.equal('hardSphereParticleMultiplier' in completedDemo, false);
 assert.equal('hardSphereSpeedMultiplier' in completedDemo, false);
 assert.equal(completedDemo.pressureReleaseBurstUntilMs, null);
-assert.equal(completedDemo.heatCapacityGuideTrial, null);
+assert.notEqual(completedDemo.heatCapacityGuideTrial, null);
+assert.equal(completedDemo.heatCapacityGuideTrial?.source, 'demo');
+assert.notEqual(completedDemo.heatCapacityGuideTrial?.correctedSignals, null);
 assert.equal(completedDemo.recordedPressures.p1, null);
 assert.equal(completedDemo.recordedPressures.p2, null);
 assert.equal('heatCapacityExpectedTrialCount' in completedDemo, false);
 assert.equal('heatCapacityTrials' in completedDemo, false);
 assert.equal('heatCapacityProcessingCalculated' in completedDemo, false);
-assert.deepEqual(completedDemo.heatCapacityProcessSamples, {});
+assert.notDeepEqual(completedDemo.heatCapacityProcessSamples, {});
 
-const poweredAfterTeachingCompletion = powerHeatCapacityWorkbenchFile(completedDemo, true, 31_100);
+const exitedAfterTeachingCompletion = exitHeatCapacityTeachingModeWorkbenchState(completedDemo, 31_000);
+assert.equal(exitedAfterTeachingCompletion.heatCapacityMode, 'free');
+assert.equal(exitedAfterTeachingCompletion.heatCapacityTeachingStatus, 'idle');
+assert.equal(exitedAfterTeachingCompletion.heatCapacityGuideTrial, null);
+assert.deepEqual(exitedAfterTeachingCompletion.heatCapacityProcessSamples, {});
+
+const poweredAfterTeachingCompletion = powerHeatCapacityWorkbenchFile(exitedAfterTeachingCompletion, true, 31_100);
 assert.equal(poweredAfterTeachingCompletion.heatCapacityMode, 'free');
 assert.equal(poweredAfterTeachingCompletion.powerOn, true);
 assert.equal(poweredAfterTeachingCompletion.pressureDeltaKPa, 0);

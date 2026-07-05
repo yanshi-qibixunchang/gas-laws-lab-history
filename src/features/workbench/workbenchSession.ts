@@ -647,6 +647,9 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       heatCapacityMode: file.heatCapacityMode === 'demo' || file.heatCapacityMode === 'guide' || file.heatCapacityMode === 'free'
         ? file.heatCapacityMode
         : fallback.heatCapacityMode,
+      heatCapacityTeachingStatus: file.heatCapacityTeachingStatus === 'running' || file.heatCapacityTeachingStatus === 'completed'
+        ? file.heatCapacityTeachingStatus
+        : fallback.heatCapacityTeachingStatus,
       heatCapacityFreeTrials,
       heatCapacityFreeTraceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
       heatCapacityFreeTraceStore,
