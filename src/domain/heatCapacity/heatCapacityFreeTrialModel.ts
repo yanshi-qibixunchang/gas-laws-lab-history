@@ -105,7 +105,7 @@ export interface HeatCapacityFreeProcessingResult {
   message: string;
 }
 
-export interface HeatCapacityFreeProcessingOptions extends HeatCapacityFreeGammaCalculationOptions {
+export interface HeatCapacityFreeProcessingOptions {
   theoreticalGamma?: number;
 }
 
@@ -222,14 +222,17 @@ const invalidFreeTrialResult = (
 export const calculateFreeHeatCapacityTrialResult = (
   trial: HeatCapacityFreeTrial,
   trialIndex: number,
-  options: HeatCapacityFreeGammaCalculationOptions = {},
 ): HeatCapacityFreeProcessingTrialResult => {
+  if (!trial.u0 || !trial.u1 || !trial.u2) {
+    return invalidFreeTrialResult(trial, trialIndex, 'Free trial is incomplete or invalid.');
+  }
+  if (!trial.configSnapshot) {
+    return invalidFreeTrialResult(trial, trialIndex, 'Free trial is missing its parameter snapshot.');
+  }
   const correctedSignals = trial.correctedSignals ??
     calculateFreeHeatCapacityTrialSignals(
       trial,
-      trial.configSnapshot
-        ? getFreeGammaOptionsFromConfigSnapshot(trial.configSnapshot)
-        : options,
+      getFreeGammaOptionsFromConfigSnapshot(trial.configSnapshot),
     );
   if (!correctedSignals) {
     return invalidFreeTrialResult(trial, trialIndex, 'Free trial is incomplete or invalid.');
@@ -250,7 +253,7 @@ export const calculateFreeHeatCapacityMeanResult = (
 ): HeatCapacityFreeProcessingResult => {
   const theoreticalGamma = options.theoreticalGamma ?? 1.4;
   const trialResults = trials.map((trial, index) => (
-    calculateFreeHeatCapacityTrialResult(trial, index + 1, options)
+    calculateFreeHeatCapacityTrialResult(trial, index + 1)
   ));
   const validResults = trialResults.filter((trial) => (
     trial.status === 'valid' && trial.gamma !== null

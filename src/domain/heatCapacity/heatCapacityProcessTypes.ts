@@ -6,8 +6,7 @@ export type HeatCapacityRuntimePhase =
   | 'pumping'
   | 'sealedStabilizing'
   | 'releasing'
-  | 'recovering'
-  | 'demoComplete';
+  | 'recovering';
 
 export interface HeatCapacityProcessSamplePoint {
   timeS: number;

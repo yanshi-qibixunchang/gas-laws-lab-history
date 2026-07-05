@@ -44,7 +44,7 @@ assert.equal(
 assert.equal(actionSequence.includes('openStopcockForRelease'), true);
 assert.equal(actionSequence.includes('closeStopcockForRecovery'), true);
 assert.equal(actionSequence.includes('powerOff'), true);
-assert.equal(actionSequence.includes('markDemoComplete'), true);
+assert.equal(actionSequence.includes('completeTeachingMode'), true);
 const pumpPressurizeStep = steps.find((step) => step.id === 'pump-pressurize');
 assert.notEqual(pumpPressurizeStep, undefined);
 assert.equal(pumpPressurizeStep?.title, '连续打气加压');
@@ -132,7 +132,7 @@ assert.deepEqual(
 );
 assert.equal(timeline.every((item, index) => index === 0 || item.atMs >= timeline[index - 1].atMs), true);
 assert.equal(timeline.at(-1)?.step.id, 'power-off');
-assert.equal(timeline.at(-1)?.action?.action, 'markDemoComplete');
+assert.equal(timeline.at(-1)?.action?.action, 'completeTeachingMode');
 assert.equal((timeline.at(-1)?.atMs ?? 0) >= 105_000, true);
 assert.equal((timeline.at(-1)?.atMs ?? 0) <= 110_000, true);
 

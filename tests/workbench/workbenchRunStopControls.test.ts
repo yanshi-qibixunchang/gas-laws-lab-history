@@ -144,7 +144,7 @@ assert.notEqual(terminateAutoDemoEnd, -1, 'heat capacity auto-demo termination h
 const terminateAutoDemoBody = source.slice(terminateAutoDemoStart, terminateAutoDemoEnd);
 assert.match(
   terminateAutoDemoBody,
-  /enterHeatCapacityFreeModeWorkbenchState\(\s*markHeatCapacityDemoComplete\(file, now\),\s*now,\s*\)/,
+  /completeHeatCapacityTeachingModeWorkbenchState\(file,\s*now\)/,
   'terminating auto demo should end the teaching workflow by returning the active file to Free mode',
 );
 assert.doesNotMatch(
@@ -160,8 +160,8 @@ assert.notEqual(applyAutoDemoActionEnd, -1, 'auto-demo action dispatcher should 
 const applyAutoDemoActionBody = source.slice(applyAutoDemoActionStart, applyAutoDemoActionEnd);
 assert.match(
   applyAutoDemoActionBody,
-  /if \(action === 'markDemoComplete'\)[\s\S]*const completedFile = markHeatCapacityDemoComplete\(file, now\)[\s\S]*activeHeatCapacityTabId:\s*'records'[\s\S]*selectedHeatCapacityPanel:\s*'heatCapacityRecords'/,
-  'natural auto-demo completion should keep Demo results visible in the merged Data & Results page',
+  /if \(action === 'completeTeachingMode'\)[\s\S]*const completedFile = completeHeatCapacityTeachingModeWorkbenchState\(file, now\)[\s\S]*heatCapacityMaterialsExpanded:\s*true/,
+  'natural auto-demo completion should return the file to the clean Free base state',
 );
 
 const clearAutoDemoUiStart = source.indexOf('const clearHeatCapacityAutoDemoUiState = () => {');

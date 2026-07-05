@@ -162,12 +162,19 @@ const stabilizeGuidePressureZero = (
   assert.equal(guide.heatCapacityFreeTrials.length, 0);
 
   guide = powerHeatCapacityWorkbenchFile(guide, false, now += 100);
-  assert.equal(guide.heatCapacityGuideWorkflow.step, 'completed');
   assert.equal(guide.heatCapacityMode, 'free');
-  assert.equal(guide.runState, 'finished');
-  assert.notEqual(guide.heatCapacityGuideTrial, null);
-  assert.equal(guide.heatCapacityGuideTrial?.source, 'guide');
+  assert.equal(guide.runState, 'idle');
+  assert.equal(guide.heatCapacityPhase, 'powerOff');
+  assert.equal(guide.powerOn, false);
+  assert.equal(guide.heatCapacityGuideTrial, null);
   assert.equal(guide.heatCapacityFreeTrials.length, 0);
+  assert.equal(guide.heatCapacityGuideWorkflow.step, 'powerRequired');
+
+  const poweredFree = powerHeatCapacityWorkbenchFile(guide, true, now += 100);
+  assert.equal(poweredFree.heatCapacityMode, 'free');
+  assert.equal(poweredFree.powerOn, true);
+  assert.notEqual(poweredFree.heatCapacityMode, 'guide');
+  assert.equal(poweredFree.heatCapacityGuideWorkflow.step, 'powerRequired');
 }
 
 {
@@ -229,4 +236,10 @@ assert.doesNotMatch(
   workbenchStateSource,
   /getHeatCapacityFreeStopcockFlowPurpose[\s\S]{0,500}heatCapacityMode === 'guide'/,
   'Free stopcock-flow purpose must not inspect Guide teaching state',
+);
+
+assert.doesNotMatch(
+  workbenchStateSource,
+  /heatCapacityPhase === 'demoComplete'[\s\S]{0,500}resetHeatCapacityForGuideExperiment/,
+  'Powering on from a completed teaching flow must not route through the old Guide reset helper',
 );

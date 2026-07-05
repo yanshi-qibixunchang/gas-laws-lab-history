@@ -154,10 +154,6 @@ export const getHeatCapacityHardSphereVisualState = (
     densityMultiplier = clampNumber(densityMultiplier, 0.64, 1.24);
     emissiveIntensity = 0.16;
     stability = 0.86;
-  } else if (phase === 'demoComplete') {
-    densityMultiplier = clampNumber(densityMultiplier, 0.68, 1.18);
-    emissiveIntensity = 0.14;
-    stability = 0.92;
   }
 
   const visualThermalSpeedMultiplier = clampNumber(thermalSpeedMultiplier * requestedSpeedMultiplier, 0.68, 2.65);

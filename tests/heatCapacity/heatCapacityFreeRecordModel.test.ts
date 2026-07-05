@@ -28,6 +28,9 @@ import {
   type HeatCapacityFreeTrial,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
+  createDefaultFreeConfigSnapshot,
+} from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
+import {
   evaluateFreeU0Record,
   evaluateFreeU1Record,
   evaluateFreeU2Record,
@@ -211,10 +214,10 @@ assert.deepEqual(
     ready: false,
     reason: 'zero-not-ready',
   },
-  'manual U0 must require a prior zero event instead of creating one implicitly',
+  'official U0 must require a prior zero event instead of creating one implicitly',
 );
 
-const createTrialWithManualU0 = (): HeatCapacityFreeTrial => {
+const createTrialWithOfficialU0 = (): HeatCapacityFreeTrial => {
   const result = recordFreeU0(createTrialWithU0(), u0Input);
   assert.equal(result.accepted, true);
   assert.equal(result.reason, 'accepted');
@@ -224,7 +227,7 @@ const createTrialWithManualU0 = (): HeatCapacityFreeTrial => {
 };
 
 const u1Ready = evaluateFreeU1Record(
-  createTrialWithManualU0(),
+  createTrialWithOfficialU0(),
   { ...calibration, automaticU0 },
   display,
   closedPumpedPhysics,
@@ -242,7 +245,7 @@ const u1Input: HeatCapacityFreeRecordInput = {
   calibrationVersion: 1,
   zeroEventId: 'zero-1',
 };
-const recordedU1 = recordFreeU1(createTrialWithManualU0(), u1Input);
+const recordedU1 = recordFreeU1(createTrialWithOfficialU0(), u1Input);
 assert.equal(recordedU1.accepted, true);
 assert.equal(recordedU1.reason, 'accepted');
 assert.equal(recordedU1.trial.u0?.source, 'user');
@@ -266,7 +269,7 @@ const changedCalibration = {
   zeroOffsetMv: -0.12,
 };
 assert.deepEqual(
-  evaluateFreeU1Record(createTrialWithManualU0(), changedCalibration, display, closedPumpedPhysics, recordConfig),
+  evaluateFreeU1Record(createTrialWithOfficialU0(), changedCalibration, display, closedPumpedPhysics, recordConfig),
   {
     ready: false,
     reason: 'calibration-changed',
@@ -281,7 +284,7 @@ assert.deepEqual(
 );
 
 assert.deepEqual(
-  evaluateFreeU1Record(createTrialWithManualU0(), { ...calibration, automaticU0 }, {
+  evaluateFreeU1Record(createTrialWithOfficialU0(), { ...calibration, automaticU0 }, {
     ...display,
     pressureSlopeMvPerS: 0.4,
   }, closedPumpedPhysics, recordConfig),
@@ -292,7 +295,7 @@ assert.deepEqual(
   'Free U1 recording should allow unstable pressure so poor timing remains recordable',
 );
 assert.deepEqual(
-  evaluateFreeU1Record(createTrialWithManualU0(), { ...calibration, automaticU0 }, {
+  evaluateFreeU1Record(createTrialWithOfficialU0(), { ...calibration, automaticU0 }, {
     ...display,
     temperatureSlopeMvPerS: 0.5,
   }, closedPumpedPhysics, recordConfig),
@@ -311,7 +314,7 @@ assert.deepEqual(
   },
 );
 assert.deepEqual(
-  evaluateFreeU1Record(createTrialWithManualU0(), { ...calibration, automaticU0 }, {
+  evaluateFreeU1Record(createTrialWithOfficialU0(), { ...calibration, automaticU0 }, {
     ...display,
     displayPressureMv: 265,
   }, closedPumpedPhysics, recordConfig),
@@ -322,7 +325,7 @@ assert.deepEqual(
   'Free U1 recording should not be blocked only because the pressure is already above the alarm line',
 );
 assert.deepEqual(
-  evaluateFreeU1Record(createTrialWithManualU0(), { ...calibration, automaticU0 }, {
+  evaluateFreeU1Record(createTrialWithOfficialU0(), { ...calibration, automaticU0 }, {
     ...display,
     displayPressureMv: 15,
   }, closedPumpedPhysics, recordConfig),
@@ -346,7 +349,7 @@ assert.deepEqual(
     reason: 'ready',
   },
 );
-const overAlarmRecordedU1 = recordFreeU1(createTrialWithManualU0(), {
+const overAlarmRecordedU1 = recordFreeU1(createTrialWithOfficialU0(), {
   ...u1Input,
   displayPressureMv: 300,
 });
@@ -425,7 +428,7 @@ const differentAutomaticCandidate = {
   displayPressureMv: 5,
 };
 const officialU0WithDifferentAutomatic = recordFreeU0(
-  createHeatCapacityFreeTrial('manual-u0-source-check', differentAutomaticCandidate),
+  createHeatCapacityFreeTrial('official-u0-source-check', differentAutomaticCandidate),
   u0Input,
 );
 assert.equal(officialU0WithDifferentAutomatic.accepted, true);
@@ -455,7 +458,7 @@ assert.deepEqual(
   },
 );
 assert.deepEqual(
-  evaluateFreeU2Record(createTrialWithManualU0(), { ...calibration, automaticU0 }, u2Display, recoveredPhysics, recordConfig),
+  evaluateFreeU2Record(createTrialWithOfficialU0(), { ...calibration, automaticU0 }, u2Display, recoveredPhysics, recordConfig),
   {
     ready: false,
     reason: 'invalid-sequence',
@@ -499,7 +502,12 @@ assert.equal(invalidRawU2.accepted, true, 'raw invalid U2 records should be acce
 assert.equal(invalidRawU2.trial.u2?.displayPressureMv, 130);
 assert.equal(invalidRawU2.trial.correctedSignals, null, 'invalid gamma math should be deferred to processing diagnostics');
 
-const freeProcessing = calculateFreeHeatCapacityMeanResult([recordedU2.trial], {
+const recordedU2TrialWithSnapshot = {
+  ...recordedU2.trial,
+  configSnapshot: createDefaultFreeConfigSnapshot(),
+};
+
+const freeProcessing = calculateFreeHeatCapacityMeanResult([recordedU2TrialWithSnapshot], {
   theoreticalGamma: 1.4,
 });
 assert.equal(freeProcessing.status, 'ready');
@@ -512,19 +520,19 @@ assert.equal(freeProcessing.trialResults[0].U2CorrectedMv, 31.4);
 assert.equal(freeProcessing.trialResults[0].gamma, 1.400222);
 assert.equal(freeProcessing.meanGamma, 1.400222);
 
-const freeRemovalU2 = removeHeatCapacityFreeTrialRecord([recordedU2.trial], 0, 'u2').trials[0];
+const freeRemovalU2 = removeHeatCapacityFreeTrialRecord([recordedU2TrialWithSnapshot], 0, 'u2').trials[0];
 assert.notEqual(freeRemovalU2.u0, null);
 assert.notEqual(freeRemovalU2.u1, null);
 assert.equal(freeRemovalU2.u2, null);
 assert.equal(freeRemovalU2.correctedSignals, null, 'removing Free U2 should invalidate calculated gamma');
 
-const freeRemovalU1 = removeHeatCapacityFreeTrialRecord([recordedU2.trial], 0, 'u1').trials[0];
+const freeRemovalU1 = removeHeatCapacityFreeTrialRecord([recordedU2TrialWithSnapshot], 0, 'u1').trials[0];
 assert.notEqual(freeRemovalU1.u0, null);
 assert.equal(freeRemovalU1.u1, null);
 assert.equal(freeRemovalU1.u2, null);
 assert.equal(freeRemovalU1.correctedSignals, null, 'removing Free U1 should also clear dependent U2');
 
-const freeRemovalU0 = removeHeatCapacityFreeTrialRecord([recordedU2.trial], 0, 'u0').trials[0];
+const freeRemovalU0 = removeHeatCapacityFreeTrialRecord([recordedU2TrialWithSnapshot], 0, 'u0').trials[0];
 assert.equal(freeRemovalU0.u0, null);
 assert.equal(freeRemovalU0.u1, null);
 assert.equal(freeRemovalU0.u2, null);
@@ -664,12 +672,12 @@ const createScriptedRun = (): ScriptedFreeRun => ({
   calibration: makeAutomaticCalibration(),
 });
 
-const createManualU0TrialFromCalibration = (
+const createOfficialU0TrialFromCalibration = (
   id: string,
   calibrationState: HeatCapacityFreeCalibrationState,
 ) => {
   const automaticCandidate = calibrationState.automaticU0;
-  assert.notEqual(automaticCandidate, null, 'manual U0 fixture requires an advisory automatic candidate');
+  assert.notEqual(automaticCandidate, null, 'official U0 fixture requires an advisory automatic candidate');
   const result = recordFreeU0(createHeatCapacityFreeTrial(id, automaticCandidate), {
     atS: automaticCandidate!.atS,
     displayPressureMv: automaticCandidate!.displayPressureMv,
@@ -732,7 +740,7 @@ const pumpScriptedRun = (
 
 const createGoodOperationU1 = () => {
   const pumpedRun = pumpScriptedRun(createScriptedRun(), 3);
-  const trial = createManualU0TrialFromCalibration('excellent', pumpedRun.calibration);
+  const trial = createOfficialU0TrialFromCalibration('excellent', pumpedRun.calibration);
   const u1Evaluation = evaluateFreeU1Record(
     trial,
     pumpedRun.calibration,
@@ -877,7 +885,7 @@ assert.equal(
 const insufficientRun = pumpScriptedRun(createScriptedRun(), 1);
 assert.deepEqual(
   evaluateFreeU1Record(
-    createManualU0TrialFromCalibration('insufficient', insufficientRun.calibration),
+    createOfficialU0TrialFromCalibration('insufficient', insufficientRun.calibration),
     insufficientRun.calibration,
     displayFromRun(insufficientRun),
     insufficientRun.physics,
@@ -914,7 +922,7 @@ assert.deepEqual(
 
 assert.deepEqual(
   evaluateFreeU1Record(
-    createManualU0TrialFromCalibration('danger', excellentRecovered.calibration),
+    createOfficialU0TrialFromCalibration('danger', excellentRecovered.calibration),
     excellentRecovered.calibration,
     {
       ...displayFromRun(excellentRecovered),

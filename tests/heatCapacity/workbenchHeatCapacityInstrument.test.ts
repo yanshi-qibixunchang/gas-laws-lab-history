@@ -31,6 +31,7 @@ import {
   DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
   HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER,
   HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS,
+  completeHeatCapacityTeachingModeWorkbenchState,
   createHeatCapacityInitialPressureBiasMv,
   enterHeatCapacityFreeModeWorkbenchState,
   getHeatCapacityFreeEquilibriumSpeedMultiplier,
@@ -39,11 +40,9 @@ import {
   getHeatCapacityFreeRecordButtonState,
   isHeatCapacityPressureZeroWithinTolerance,
   isHeatCapacityFreeEquilibriumSpeedAvailable,
-  markHeatCapacityDemoComplete,
   registerHeatCapacityPumpStroke,
   recordHeatCapacityFreeTraceEventWithReference,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
-  resetHeatCapacityForGuideExperiment,
   resetHeatCapacityFreeRunWorkbenchState,
   normalizeHeatCapacityStopcockAngle,
   powerHeatCapacityWorkbenchFile,
@@ -80,9 +79,6 @@ import {
 import {
   getHeatCapacityHardSphereVisualState,
 } from '../../src/domain/heatCapacity/heatCapacityHardSphereModel.ts';
-import {
-  createHeatCapacityDemoTrialFromPreset,
-} from '../../src/domain/heatCapacity/heatCapacityGuideTrialModel.ts';
 import {
   createHeatCapacityFreeTrial,
   normalizeHeatCapacityFreeRecordInput,
@@ -145,8 +141,8 @@ assert.equal(defaultFile.heatCapacityFreeStopcockFlowOpen, false);
 assert.equal(defaultFile.heatCapacityFreeStopcockPendingOpenAtMs, null);
 assert.equal(defaultFile.heatCapacityFreeStopcockFlowPurpose, 'none');
 assert.deepEqual(HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS, [2, 4, 8, 16]);
-assert.equal(HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER, 4);
-assert.equal(defaultFile.heatCapacityFreeEquilibriumSpeedMultiplier, 4);
+assert.equal(HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER, 8);
+assert.equal(defaultFile.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
 assert.equal(defaultFile.heatCapacityFreeEquilibriumSpeedHintShown, false);
 assert.notEqual(
   defaultFile.heatCapacityFreeSensorState.displayPressureMv,
@@ -336,7 +332,7 @@ assert.equal(resetFreeRun.pressureReleaseBurstUntilMs, null);
 assert.equal(resetFreeRun.heatCapacityFreeStopcockFlowOpen, false);
 assert.equal(resetFreeRun.heatCapacityFreeStopcockPendingOpenAtMs, null);
 assert.equal(resetFreeRun.heatCapacityFreeStopcockFlowPurpose, 'none');
-assert.equal(resetFreeRun.heatCapacityFreeEquilibriumSpeedMultiplier, 4);
+assert.equal(resetFreeRun.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
 assert.equal(resetFreeRun.heatCapacityFreeEquilibriumSpeedHintShown, false);
 assert.deepEqual(resetFreeRun.heatCapacityFreePhysicsConfig.leakage, {
   enabled: true,
@@ -479,9 +475,9 @@ const invalidSpeedFallback = setHeatCapacityFreeEquilibriumSpeedMultiplier(
   99,
   1_050,
 );
-assert.equal(invalidSpeedFallback.heatCapacityFreeEquilibriumSpeedMultiplier, 4);
-const legacySpeedOneFallback = setHeatCapacityFreeEquilibriumSpeedMultiplier(freePowered, 1, 1_055);
-assert.equal(legacySpeedOneFallback.heatCapacityFreeEquilibriumSpeedMultiplier, 4);
+assert.equal(invalidSpeedFallback.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
+const speedOneFallback = setHeatCapacityFreeEquilibriumSpeedMultiplier(freePowered, 1, 1_055);
+assert.equal(speedOneFallback.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
 const selectedSpeedEight = setHeatCapacityFreeEquilibriumSpeedMultiplier(freePowered, 8, 1_060);
 assert.equal(selectedSpeedEight.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
 assert.equal(selectedSpeedEight.updatedAt, 1_060);
@@ -1322,64 +1318,6 @@ assert.equal(isHeatCapacityPressureZeroWithinTolerance([
   { atMs: 400, valueMv: 0.04 },
 ]), false);
 
-const presetDemoTrialWithoutSamples = createHeatCapacityDemoTrialFromPreset({}, 1_500, {
-  atmosphericPressureKPa: 101.3,
-  pressureSensitivityMvPerKPa: 20,
-});
-assert.equal(presetDemoTrialWithoutSamples.source, 'demo');
-assert.notEqual(presetDemoTrialWithoutSamples.correctedSignals, null);
-assert.equal(presetDemoTrialWithoutSamples.u1?.displayPressureMv, HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV);
-assert.equal(presetDemoTrialWithoutSamples.u2?.displayPressureMv, HEAT_CAPACITY_AUTO_DEMO_RESULT_U2_MV);
-assert.equal(Number((presetDemoTrialWithoutSamples.correctedSignals?.gamma ?? 0).toFixed(3)), HEAT_CAPACITY_AUTO_DEMO_RESULT_GAMMA);
-
-const presetDemoTrialWithSampleTimes = createHeatCapacityDemoTrialFromPreset({
-  zeroedSample: {
-    timeS: 1,
-    phase: 'zeroed',
-    temperatureSignalMv: initialTemperatureMv,
-    pressureSignalMv: 0,
-    gasTemperatureK: 298.15,
-    gasPressureKPaAbs: 101.3,
-    pressureDeltaKPa: 0,
-    pumpFrequency: 0,
-    pumpValveOpen: false,
-    stopcockOpen: true,
-  },
-  stableBeforeReleaseSample: {
-    timeS: 2,
-    phase: 'sealedStabilizing',
-    temperatureSignalMv: 1526,
-    pressureSignalMv: 120,
-    gasTemperatureK: 304.9,
-    gasPressureKPaAbs: 107.3,
-    pressureDeltaKPa: 6,
-    pumpFrequency: 0.67,
-    pumpValveOpen: false,
-    stopcockOpen: false,
-  },
-  recoverySample: {
-    timeS: 3,
-    phase: 'recovering',
-    temperatureSignalMv: 1522,
-    pressureSignalMv: 34.3,
-    gasTemperatureK: 303.9,
-    gasPressureKPaAbs: 102.9,
-    pressureDeltaKPa: 1.6,
-    pumpFrequency: 0,
-    pumpValveOpen: false,
-    stopcockOpen: false,
-  },
-}, 2_000, {
-  atmosphericPressureKPa: 101.3,
-  pressureSensitivityMvPerKPa: 20,
-});
-assert.equal(presetDemoTrialWithSampleTimes.u0?.atS, 1);
-assert.equal(presetDemoTrialWithSampleTimes.u1?.atS, 2);
-assert.equal(presetDemoTrialWithSampleTimes.u2?.atS, 3);
-assert.equal(presetDemoTrialWithSampleTimes.correctedSignals?.U1DisplayMv, HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV);
-assert.equal(presetDemoTrialWithSampleTimes.correctedSignals?.U2DisplayMv, HEAT_CAPACITY_AUTO_DEMO_RESULT_U2_MV);
-assert.equal(Number((presetDemoTrialWithSampleTimes.correctedSignals?.gamma ?? 0).toFixed(3)), HEAT_CAPACITY_AUTO_DEMO_RESULT_GAMMA);
-
 const poweredFile = powerHeatCapacityWorkbenchFile(startHeatCapacityGuideWorkbenchState(defaultFile, 900), true, 1_000);
 assert.equal(poweredFile.powerOn, true);
 assert.equal(poweredFile.heatCapacityMode, 'guide');
@@ -1626,7 +1564,7 @@ assert.equal(autoDemoPressureFile.pressureSignalTargetMv >= HEAT_CAPACITY_PRESSU
 assert.equal(autoDemoPressureFile.pressureSignalTargetMv >= HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, true, 'auto demo standard pumping should reach the guided target region');
 assert.equal(autoDemoPressureFile.pressureOverLimit, false, 'auto demo pumping must not set the alarm state');
 
-const completedDemo = markHeatCapacityDemoComplete({
+const completedDemo = completeHeatCapacityTeachingModeWorkbenchState({
   ...demoStart,
   hardSphereViewEnabled: true,
   heatCapacityProcessSamples: {
@@ -1682,8 +1620,9 @@ const completedDemo = markHeatCapacityDemoComplete({
   pressureZeroOffset: 1.2,
   pressureZeroAdjustMode: 'coarseDrag',
 }, 30_000);
-assert.equal(completedDemo.runState, 'finished');
-assert.equal(completedDemo.heatCapacityPhase, 'demoComplete');
+assert.equal(completedDemo.heatCapacityMode, 'free');
+assert.equal(completedDemo.runState, 'idle');
+assert.equal(completedDemo.heatCapacityPhase, 'powerOff');
 assert.equal(completedDemo.powerOn, false);
 assert.equal(completedDemo.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
 assert.equal(completedDemo.glassPistonState, 'closed');
@@ -1700,70 +1639,24 @@ assert.equal(completedDemo.pressureZeroOffset, 0);
 assert.equal(completedDemo.pressureZeroAdjustMode, 'none');
 assert.equal(completedDemo.temperatureSignalMv, null);
 assert.equal(completedDemo.pressureSignalMv, null);
-assert.equal(completedDemo.hardSphereViewEnabled, true, 'auto demo completion should preserve the hard-sphere teaching toggle');
+assert.equal(completedDemo.hardSphereViewEnabled, true, 'returning to Free base should preserve the user-facing hard-sphere teaching toggle');
 assert.equal('hardSphereParticleMultiplier' in completedDemo, false);
 assert.equal('hardSphereSpeedMultiplier' in completedDemo, false);
 assert.equal(completedDemo.pressureReleaseBurstUntilMs, null);
-assert.equal(completedDemo.heatCapacityMode, 'demo');
-assert.equal(completedDemo.heatCapacityGuideTrial?.source, 'demo');
-assert.notEqual(completedDemo.heatCapacityGuideTrial?.correctedSignals, null);
-assert.equal(completedDemo.heatCapacityGuideTrial?.u1?.displayPressureMv, HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV);
-assert.equal(completedDemo.heatCapacityGuideTrial?.u2?.displayPressureMv, HEAT_CAPACITY_AUTO_DEMO_RESULT_U2_MV);
-assert.equal(Number((completedDemo.heatCapacityGuideTrial?.correctedSignals?.gamma ?? 0).toFixed(3)), HEAT_CAPACITY_AUTO_DEMO_RESULT_GAMMA);
-assert.equal(completedDemo.recordedPressures.p1, HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV);
-assert.equal(completedDemo.recordedPressures.p2, HEAT_CAPACITY_AUTO_DEMO_RESULT_U2_MV);
+assert.equal(completedDemo.heatCapacityGuideTrial, null);
+assert.equal(completedDemo.recordedPressures.p1, null);
+assert.equal(completedDemo.recordedPressures.p2, null);
+assert.equal('heatCapacityExpectedTrialCount' in completedDemo, false);
+assert.equal('heatCapacityTrials' in completedDemo, false);
+assert.equal('heatCapacityProcessingCalculated' in completedDemo, false);
+assert.deepEqual(completedDemo.heatCapacityProcessSamples, {});
 
-const returnedFreeAfterDemo = enterHeatCapacityFreeModeWorkbenchState(completedDemo, 30_500);
-assert.equal(returnedFreeAfterDemo.heatCapacityMode, 'free');
-assert.equal(returnedFreeAfterDemo.runState, 'idle');
-assert.equal(returnedFreeAfterDemo.heatCapacityPhase, 'powerOff');
-assert.equal(returnedFreeAfterDemo.powerOn, false);
-assert.equal(returnedFreeAfterDemo.pumpValveOpen, false);
-
-const manualResetAfterDemo = resetHeatCapacityForGuideExperiment({
-  ...completedDemo,
-  heatCapacityProcessSamples: {
-    ...completedDemo.heatCapacityProcessSamples,
-    recoverySample: {
-      timeS: 114.3,
-      phase: 'recovering',
-      temperatureSignalMv: 1504.4,
-      pressureSignalMv: 31.77,
-      gasTemperatureK: 298.6,
-      gasPressureKPaAbs: completedDemo.ambientPressureKPa + 1.5885,
-      pressureDeltaKPa: 1.5885,
-      pumpFrequency: 0,
-      pumpValveOpen: false,
-      stopcockOpen: false,
-    },
-  },
-  pressureSignalMvDisplayed: 31.77,
-  pressureSignalReadoutMv: 31.77,
-  pressureDeltaKPa: 1.5885,
-  gasPressureKPaAbs: completedDemo.ambientPressureKPa + 1.5885,
-}, 31_000);
-assert.equal(manualResetAfterDemo.powerOn, false);
-assert.equal(manualResetAfterDemo.runState, 'idle');
-assert.equal(manualResetAfterDemo.heatCapacityPhase, 'powerOff');
-assert.equal(manualResetAfterDemo.pressureDeltaKPa, 0);
-assert.equal(manualResetAfterDemo.gasPressureKPaAbs, manualResetAfterDemo.ambientPressureKPa);
-assert.equal(Math.abs(manualResetAfterDemo.pressureSignalReadoutMv) <= 1.5, true);
-assert.equal(manualResetAfterDemo.heatCapacityGuideTrial, null);
-assert.equal('heatCapacityExpectedTrialCount' in manualResetAfterDemo, false);
-assert.equal('heatCapacityTrials' in manualResetAfterDemo, false);
-assert.equal('heatCapacityProcessingCalculated' in manualResetAfterDemo, false);
-assert.deepEqual(manualResetAfterDemo.heatCapacityProcessSamples, {});
-
-const poweredAfterManualReset = powerHeatCapacityWorkbenchFile(manualResetAfterDemo, true, 31_100);
-assert.equal(poweredAfterManualReset.powerOn, true);
-assert.equal(poweredAfterManualReset.heatCapacityPhase, 'readyToZero');
-assert.equal(poweredAfterManualReset.pressureDeltaKPa, 0);
-assert.equal(poweredAfterManualReset.gasPressureKPaAbs, poweredAfterManualReset.ambientPressureKPa);
-assert.equal(Math.abs(poweredAfterManualReset.pressureInitialBiasMv) <= 1.5, true);
-assert.equal(Math.abs(poweredAfterManualReset.pressureSignalMv ?? 0) <= 1.6, true);
-assert.equal(poweredAfterManualReset.heatCapacityExperimentProfile, null);
-assert.equal(poweredAfterManualReset.heatCapacityFreePhysicsConfig.leakage.enabled, false);
-assert.equal(poweredAfterManualReset.heatCapacityFreeInstrumentNoiseEnabled, false);
+const poweredAfterTeachingCompletion = powerHeatCapacityWorkbenchFile(completedDemo, true, 31_100);
+assert.equal(poweredAfterTeachingCompletion.heatCapacityMode, 'free');
+assert.equal(poweredAfterTeachingCompletion.powerOn, true);
+assert.equal(poweredAfterTeachingCompletion.pressureDeltaKPa, 0);
+assert.equal(poweredAfterTeachingCompletion.gasPressureKPaAbs, poweredAfterTeachingCompletion.ambientPressureKPa);
+assert.equal(poweredAfterTeachingCompletion.heatCapacityExperimentProfile, null);
 
 const pumpedTarget = registerHeatCapacityPumpStroke({
   ...demoStart,
@@ -2104,7 +1997,7 @@ assert.equal(sampledWorkbenchFile.heatCapacityProcessSamples.pumpPeakSample?.pum
 assert.equal(sampledWorkbenchFile.heatCapacityProcessSamples.pumpPeakSample?.stopcockOpen, true);
 assert.equal(sampledWorkbenchFile.heatCapacityProcessSamples.pumpPeakSample?.pumpFrequency, 0.67);
 
-const profiledManualSampleSource = {
+const profiledSampleSource = {
   ...openValvePump,
   heatCapacityMode: 'demo' as const,
   pressureSignalMv: 88,
@@ -2128,7 +2021,7 @@ const profiledManualSampleSource = {
   },
 };
 const profileAdjustedSample = captureHeatCapacityWorkbenchSample(
-  profiledManualSampleSource,
+  profiledSampleSource,
   'stableBeforeReleaseSample',
   10_300,
 );
@@ -2157,14 +2050,14 @@ assert.equal(
   true,
   'guide/demo teaching U2 fixture should preserve the same U1/U2 gamma relationship',
 );
-const manualActualSample = captureHeatCapacityWorkbenchSample(
-  profiledManualSampleSource,
+const actualSample = captureHeatCapacityWorkbenchSample(
+  profiledSampleSource,
   'stableBeforeReleaseSample',
   10_300,
   { applyProfile: false },
 );
-assert.equal(manualActualSample.heatCapacityProcessSamples.stableBeforeReleaseSample?.pressureSignalMv, 88, 'manual recording should preserve the current instrument reading instead of the profile U1');
-assert.equal(manualActualSample.heatCapacityProcessSamples.stableBeforeReleaseSample?.temperatureSignalMv, initialTemperatureMv + 6, 'manual recording should preserve the current temperature reading so unstable data is rejected upstream');
+assert.equal(actualSample.heatCapacityProcessSamples.stableBeforeReleaseSample?.pressureSignalMv, 88, 'user recording should preserve the current instrument reading instead of the profile U1');
+assert.equal(actualSample.heatCapacityProcessSamples.stableBeforeReleaseSample?.temperatureSignalMv, initialTemperatureMv + 6, 'user recording should preserve the current temperature reading so unstable data is rejected upstream');
 
 const rapidPumpSecondStroke = registerHeatCapacityPumpStroke({
   ...openValvePump,
@@ -2322,31 +2215,31 @@ assert.equal(restoredHeatFile.pressureSignalMv, 0);
 assert.equal(restoredHeatFile.pressureReleaseBurstUntilMs, 123_456);
 assert.equal(restoredHeatFile.heatCapacityFreeStopcockFlowPurpose, 'none');
 
-const legacyFile = { ...defaultFile } as Record<string, unknown>;
-delete legacyFile.stopcockAngleDeg;
-delete legacyFile.pressureZeroed;
-delete legacyFile.temperatureSignalMv;
-delete legacyFile.pressureSignalMv;
+const storedFileMissingInstrumentFields = { ...defaultFile } as Record<string, unknown>;
+delete storedFileMissingInstrumentFields.stopcockAngleDeg;
+delete storedFileMissingInstrumentFields.pressureZeroed;
+delete storedFileMissingInstrumentFields.temperatureSignalMv;
+delete storedFileMissingInstrumentFields.pressureSignalMv;
 
-const legacyRestored = decodeWorkbenchSession({
+const restoredFromIncompleteFile = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
   activeFileId: defaultFile.id,
   selectedPanel: 'preview',
-  files: [legacyFile],
+  files: [storedFileMissingInstrumentFields],
 });
 
-const legacyHeatFile = legacyRestored.files[0];
-assert.equal(legacyHeatFile.kind, 'heatCapacity');
-assert.equal(legacyHeatFile.powerOn, false);
-assert.equal(legacyHeatFile.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
-assert.equal(legacyHeatFile.glassPistonState, 'closed');
-assert.equal(legacyHeatFile.pressureZeroed, false);
-assert.equal(legacyHeatFile.temperatureSignalMv, null);
-assert.equal(legacyHeatFile.pressureSignalMv, null);
-assert.equal(legacyHeatFile.pumpValveOpen, false);
-assert.equal(legacyHeatFile.pumpFrequencyStatus, 'idle');
-assert.deepEqual(legacyHeatFile.pumpStrokeTimestamps, []);
-assert.equal(legacyHeatFile.pressureReleaseBurstUntilMs, null);
+const restoredIncompleteHeatFile = restoredFromIncompleteFile.files[0];
+assert.equal(restoredIncompleteHeatFile.kind, 'heatCapacity');
+assert.equal(restoredIncompleteHeatFile.powerOn, false);
+assert.equal(restoredIncompleteHeatFile.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(restoredIncompleteHeatFile.glassPistonState, 'closed');
+assert.equal(restoredIncompleteHeatFile.pressureZeroed, false);
+assert.equal(restoredIncompleteHeatFile.temperatureSignalMv, null);
+assert.equal(restoredIncompleteHeatFile.pressureSignalMv, null);
+assert.equal(restoredIncompleteHeatFile.pumpValveOpen, false);
+assert.equal(restoredIncompleteHeatFile.pumpFrequencyStatus, 'idle');
+assert.deepEqual(restoredIncompleteHeatFile.pumpStrokeTimestamps, []);
+assert.equal(restoredIncompleteHeatFile.pressureReleaseBurstUntilMs, null);
 
 const invalidTimerPhysicsFile = {
   ...defaultFile,
@@ -2369,29 +2262,29 @@ assert.equal(
   'restoring Free physics should discard invalid timer anchors',
 );
 
-const legacyOpenFile = { ...defaultFile, stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG, glassPistonState: 'open' };
-const legacyOpenRestored = decodeWorkbenchSession({
+const storedOpenStopcockFile = { ...defaultFile, stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG, glassPistonState: 'open' };
+const restoredFromOpenStopcockFile = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
   activeFileId: defaultFile.id,
   selectedPanel: 'preview',
-  files: [legacyOpenFile],
+  files: [storedOpenStopcockFile],
 });
-const legacyOpenHeatFile = legacyOpenRestored.files[0];
-assert.equal(legacyOpenHeatFile.kind, 'heatCapacity');
-assert.equal(legacyOpenHeatFile.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
-assert.equal(legacyOpenHeatFile.glassPistonState, 'open');
+const restoredOpenStopcockHeatFile = restoredFromOpenStopcockFile.files[0];
+assert.equal(restoredOpenStopcockHeatFile.kind, 'heatCapacity');
+assert.equal(restoredOpenStopcockHeatFile.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
+assert.equal(restoredOpenStopcockHeatFile.glassPistonState, 'open');
 
-const legacyClosedFile = { ...defaultFile, stopcockAngleDeg: 90, glassPistonState: 'closed' };
-const legacyClosedRestored = decodeWorkbenchSession({
+const storedClosedStopcockFile = { ...defaultFile, stopcockAngleDeg: 90, glassPistonState: 'closed' };
+const restoredFromClosedStopcockFile = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
   activeFileId: defaultFile.id,
   selectedPanel: 'preview',
-  files: [legacyClosedFile],
+  files: [storedClosedStopcockFile],
 });
-const legacyClosedHeatFile = legacyClosedRestored.files[0];
-assert.equal(legacyClosedHeatFile.kind, 'heatCapacity');
-assert.equal(legacyClosedHeatFile.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
-assert.equal(legacyClosedHeatFile.glassPistonState, 'closed');
+const restoredClosedStopcockHeatFile = restoredFromClosedStopcockFile.files[0];
+assert.equal(restoredClosedStopcockHeatFile.kind, 'heatCapacity');
+assert.equal(restoredClosedStopcockHeatFile.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
+assert.equal(restoredClosedStopcockHeatFile.glassPistonState, 'closed');
 
 const workbenchSource = readFileSync(join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx'), 'utf8');
 assert.doesNotMatch(

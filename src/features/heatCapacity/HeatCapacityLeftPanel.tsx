@@ -318,7 +318,7 @@ const freeCopyByLanguage = {
       demoSource: '数据来源：自动演示的一次完整实验流程',
       waiting: '尚未完成引导实验。',
       completed: '引导实验已完成。',
-      demoCompleted: '自动演示已完成。',
+      autoDemoFinished: '自动演示已完成。',
       resultStatus: '实验状态',
       theoreticalGamma: '理论 γ',
       relativeError: '相对误差',
@@ -384,7 +384,7 @@ const freeCopyByLanguage = {
       demoSource: '資料來源：自動演示的一次完整實驗流程',
       waiting: '尚未完成引導實驗。',
       completed: '引導實驗已完成。',
-      demoCompleted: '自動演示已完成。',
+      autoDemoFinished: '自動演示已完成。',
       resultStatus: '實驗狀態',
       theoreticalGamma: '理論 γ',
       relativeError: '相對誤差',
@@ -450,7 +450,7 @@ const freeCopyByLanguage = {
       demoSource: 'Source: one complete auto-demo experiment',
       waiting: 'Guide experiment is not complete yet.',
       completed: 'Guide experiment complete.',
-      demoCompleted: 'Auto demo complete.',
+      autoDemoFinished: 'Auto demo complete.',
       resultStatus: 'Experiment status',
       theoreticalGamma: 'Theoretical γ',
       relativeError: 'Relative error',
@@ -549,8 +549,6 @@ const renderFreeDataAndResultsTab = (
   const completed = file.heatCapacityFreeTrials.filter((trial) => trial.u0 && trial.u1 && trial.u2).length;
   const result = calculateFreeHeatCapacityMeanResult(file.heatCapacityFreeTrials, {
     theoreticalGamma: file.theoreticalGamma,
-    atmosphericPressureKPa: file.heatCapacityFreeEnvironmentConfig.ambientPressureKPa,
-    pressureSensitivityMvPerKPa: file.heatCapacityFreeSensorConfig.pressureMvPerKPa,
   });
   const trialResultsById = new Map<string, HeatCapacityFreeProcessingTrialResult>(
     result.trialResults.map((trial) => [trial.trialId, trial]),
@@ -838,7 +836,7 @@ const renderSingleTrialDataAndResultsTab = (
     >
       <div className={`studio-result-status ${completed ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
         <strong>{isDemo ? copy.guideResult.demoTitle : copy.guideResult.title}</strong>
-        <span>{completed ? (isDemo ? copy.guideResult.demoCompleted : copy.guideResult.completed) : copy.guideResult.waiting}</span>
+        <span>{completed ? (isDemo ? copy.guideResult.autoDemoFinished : copy.guideResult.completed) : copy.guideResult.waiting}</span>
       </div>
       <section className="studio-heat-guide-result-summary" data-heat-capacity-guide-result-summary="true">
         <div className="studio-heat-guide-result-summary-grid" data-heat-capacity-guide-result-summary-grid="true">

@@ -474,7 +474,7 @@ const quickRows = lowSignalDiagnosticReport.rows.filter((row) => row.openDuratio
 assert.deepEqual(
   quickRows.map((row) => row.pumpStrokes),
   [2, 3, 4, 5],
-  'legacy low-signal diagnostic smoke should still cover 2-5 pump strokes',
+  'low-signal diagnostic smoke should still cover 2-5 pump strokes',
 );
 
 for (const strokes of [3, 4]) {

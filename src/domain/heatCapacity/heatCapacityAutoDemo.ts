@@ -16,7 +16,7 @@ export type HeatCapacityAutoDemoAction =
   | 'captureSample'
   | 'openStopcockForRelease'
   | 'closeStopcockForRecovery'
-  | 'markDemoComplete';
+  | 'completeTeachingMode';
 
 export type HeatCapacityAutoDemoControlId =
   | 'powerSwitch'
@@ -244,7 +244,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     observeDurationMs: DEFAULT_OBSERVE_MS,
     actions: [
       { action: 'powerOff' },
-      { action: 'markDemoComplete', delayMs: POWER_TRANSITION_MS + DEFAULT_OBSERVE_MS },
+      { action: 'completeTeachingMode', delayMs: POWER_TRANSITION_MS + DEFAULT_OBSERVE_MS },
     ],
   },
 ];

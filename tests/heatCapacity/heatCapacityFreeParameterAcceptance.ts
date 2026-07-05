@@ -283,7 +283,7 @@ const getSafetyStatus = (
   return 'normal';
 };
 
-const createManualU0Trial = (
+const createOfficialU0Trial = (
   id: string,
   calibration: HeatCapacityFreeCalibrationState,
 ): HeatCapacityFreeTrial => {
@@ -299,7 +299,7 @@ const createManualU0Trial = (
     zeroEventId: automaticU0.zeroEventId,
   });
   if (!record.accepted) {
-    throw new Error(`Free parameter acceptance failed to create manual U0: ${record.reason}`);
+    throw new Error(`Free parameter acceptance failed to create official U0: ${record.reason}`);
   }
   return record.trial;
 };
@@ -518,7 +518,7 @@ const simulateScenario = (
     physicsConfig,
     sensorConfig,
   );
-  let trial = createManualU0Trial(`free-acceptance-${input.id}`, run.calibration);
+  let trial = createOfficialU0Trial(`free-acceptance-${input.id}`, run.calibration);
   const pumped = pumpMode === 'instant-equivalent'
     ? pumpScriptedRunInstantEquivalent(run, physicsConfig, input.pumpStrokes)
     : pumpScriptedRun(
@@ -593,7 +593,6 @@ const simulateScenario = (
       ? recordFreeU2(trial, createRecordInput(run), {
           atmosphericPressureKPa: physicsConfig.environment.ambientPressureKPa,
           pressureSensitivityMvPerKPa: sensorConfig.pressureMvPerKPa,
-          theoreticalGamma: physicsConfig.gamma,
         })
       : null;
     if (u2Record?.accepted) {
@@ -632,13 +631,13 @@ const simulateScenario = (
   };
 };
 
-const simulateLegacyRow = (
+const simulateLowSignalDiagnosticRow = (
   pumpStrokes: number,
   openDurationS: number,
   waitAfterPumpS: number,
   waitAfterReleaseS: number,
 ): HeatCapacityFreeParameterAcceptanceRow => simulateScenario({
-  id: `legacy-${pumpStrokes}-${openDurationS}`,
+  id: `low-signal-${pumpStrokes}-${openDurationS}`,
   label: `${pumpStrokes} strokes / ${openDurationS}s`,
   pumpStrokes,
   pumpTotalDurationS: 0,
@@ -661,7 +660,7 @@ export const runHeatCapacityFreeParameterAcceptance = (
   const waitAfterReleaseS = options.waitAfterReleaseS ?? DEFAULT_WAIT_AFTER_RELEASE_S;
   return {
     rows: openDurationsS.flatMap((openDurationS) => pumpStrokes.map((strokes) => (
-      simulateLegacyRow(strokes, openDurationS, waitAfterPumpS, waitAfterReleaseS)
+      simulateLowSignalDiagnosticRow(strokes, openDurationS, waitAfterPumpS, waitAfterReleaseS)
     ))),
   };
 };

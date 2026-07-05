@@ -62,7 +62,7 @@ assert.equal('references' in payload.free!, false);
 
 const replay = getHeatCapacityPersistenceReplayFields(payload);
 assert.equal(replay.pressureGaugeNeedleAngle, file.pressureGaugeNeedleAngle);
-assert.equal(replay.heatCapacityFreeEquilibriumSpeedMultiplier, 4);
+assert.equal(replay.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
 
 const validation = validateHeatCapacityPersistencePayload(payload);
 assert.deepEqual(validation.errors, []);

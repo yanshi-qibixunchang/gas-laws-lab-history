@@ -76,7 +76,7 @@ assert.equal(migrated.files[0].name, 'Heat Capacity Ratio - 007');
 assert.equal(migrated.files[0].liveWorkspaceSplitRatio, 0.62);
 assert.equal(migrated.selectedPanel, 'realtime');
 
-const legacyHardSphereGamma = 1 + 2 / 3;
+const hardSphereDefaultGamma = 1 + 2 / 3;
 const oldHardSphereRestored = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
   activeFileId: heatOne.id,
@@ -84,7 +84,7 @@ const oldHardSphereRestored = decodeWorkbenchSession({
   files: [
     {
       ...heatOne,
-      theoreticalGamma: legacyHardSphereGamma,
+      theoreticalGamma: hardSphereDefaultGamma,
     },
   ],
 });
@@ -96,7 +96,7 @@ assert.equal(restoredHeatFile.theoreticalGamma, 1.4, 'restored heat-capacity fil
 assert.equal('heatCapacityProcessingCalculated' in restoredHeatFile, false);
 assert.equal('heatCapacityProcessingResult' in restoredHeatFile, false);
 
-const customName = 'My Manual Heat Capacity Study';
+const customName = 'My Custom Heat Capacity Study';
 const customRestored = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
   activeFileId: heatOne.id,

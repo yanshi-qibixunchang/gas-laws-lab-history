@@ -1,12 +1,12 @@
 import {
   type HeatCapacityFreeCalibrationState,
+  type HeatCapacityFreeGammaCalculationOptions,
 } from './heatCapacityFreeCalibrationModel.ts';
 import {
   type HeatCapacityFreePhysicsState,
 } from './heatCapacityFreePhysicsEngine.ts';
 import {
   calculateFreeHeatCapacityTrialSignals,
-  type HeatCapacityFreeProcessingOptions,
   type HeatCapacityFreeRecordInput,
   type HeatCapacityFreeRecordRejectReason,
   type HeatCapacityFreeTrial,
@@ -234,7 +234,7 @@ export const recordFreeU1 = (
 export const recordFreeU2 = (
   trial: HeatCapacityFreeTrial,
   input: HeatCapacityFreeRecordInput,
-  options: HeatCapacityFreeProcessingOptions = {},
+  options: HeatCapacityFreeGammaCalculationOptions = {},
 ): HeatCapacityFreeRecordResult => {
   if (!trial.u0) {
     return rejectRecord(trial, 'missing-u0');

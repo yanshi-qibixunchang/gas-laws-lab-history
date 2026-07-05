@@ -343,8 +343,13 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const resolveUltraActionControl = useCallback\([\s\S]*const panelResolvedControl = resolveUltraPanelPointerControl\(control, clientX, clientY\)[\s\S]*panelResolvedControl === 'pumpValve' && props\.hoveredControl === 'stopcock'[\s\S]*const handleUltraControlClick = useCallback\([\s\S]*const clientX = event\.clientX;[\s\S]*const clientY = event\.clientY;[\s\S]*const resolvedControl = resolveUltraActionControl\(control, clientX, clientY\)/,
+  /const resolveUltraActionControl = useCallback\([\s\S]*const panelResolvedControl = resolveUltraPanelPointerControl\(control, clientX, clientY\)[\s\S]*resolveUltraClickControl\(control, panelResolvedControl, props\.hoveredControl\)[\s\S]*const handleUltraControlClick = useCallback\([\s\S]*const clientX = event\.clientX;[\s\S]*const clientY = event\.clientY;[\s\S]*const resolvedControl = resolveUltraActionControl\(control, clientX, clientY\)/,
   'Ultra GLB clicks should use the same panel disambiguation before dispatching power-switch and zero-knob behavior',
+);
+assert.match(
+  ultraModelSource,
+  /const resolveUltraClickControl = \([\s\S]*control === 'powerSwitch'[\s\S]*panelResolvedControl === 'pressureZero'[\s\S]*hoveredControl === 'powerSwitch'[\s\S]*return 'powerSwitch'/,
+  'Ultra GLB power-switch clicks should preserve a hovered power-switch decision instead of being swallowed by the adjacent pressure-zero hitbox',
 );
 assert.match(
   ultraModelSource,
@@ -597,7 +602,7 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const resolveUltraActionControl = useCallback\([\s\S]*panelResolvedControl === 'pumpValve' && props\.hoveredControl === 'stopcock'[\s\S]*const handleUltraControlClick = useCallback\([\s\S]*const resolvedControl = resolveUltraActionControl\(control, clientX, clientY\)[\s\S]*const runControlClick = \(\) => \{[\s\S]*if \(resolvedControl === 'powerSwitch'\)[\s\S]*else if \(resolvedControl === 'stopcock'\)[\s\S]*else if \(resolvedControl === 'pumpValve'\)/,
+  /const resolveUltraClickControl = \([\s\S]*panelResolvedControl === 'pumpValve' && hoveredControl === 'stopcock'[\s\S]*const handleUltraControlClick = useCallback\([\s\S]*const resolvedControl = resolveUltraActionControl\(control, clientX, clientY\)[\s\S]*const runControlClick = \(\) => \{[\s\S]*if \(resolvedControl === 'powerSwitch'\)[\s\S]*else if \(resolvedControl === 'stopcock'\)[\s\S]*else if \(resolvedControl === 'pumpValve'\)/,
   'Ultra GLB valve clicks should honor the current hover target so pump-valve depth does not steal stopcock-handle clicks',
 );
 assert.match(

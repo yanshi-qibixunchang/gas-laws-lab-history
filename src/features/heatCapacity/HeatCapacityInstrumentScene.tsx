@@ -969,7 +969,6 @@ const getHardSphereNoteText = (
   language: HeatCapacityInstrumentSceneProps['language'],
 ) => {
   const copy = heatCapacityHardSphereNoteCopies[language] ?? heatCapacityHardSphereNoteCopies['zh-CN'];
-  if (props.phase === 'demoComplete') return copy.recovering;
   if (!props.powerOn || props.phase === 'powerOff') return copy.poweredOff;
   if (props.releaseFlowActive) return copy.releasing;
   if (props.phase === 'recovering') return copy.recovering;

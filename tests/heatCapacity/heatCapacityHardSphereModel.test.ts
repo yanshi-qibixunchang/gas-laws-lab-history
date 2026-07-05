@@ -381,22 +381,6 @@ const blockedBounce = getHeatCapacityHardSphereVisualState({
 assert.equal(blockedBounce.outflowActive, false, 'rollback animations must not be treated as real outflow');
 assert.equal(blockedBounce.targetParticleCount >= 26, true);
 
-const demoComplete = getHeatCapacityHardSphereVisualState({
-  powerOn: false,
-  temperatureMv: null,
-  pressureMv: null,
-  gasAmountRatio: 1,
-  gasTemperatureK: 298.15,
-  ambientTemperatureK: 298.15,
-  phase: 'demoComplete',
-  glassStopcockOpen: false,
-  pumpValveOpen: false,
-  pumpBulbState: 'idle',
-});
-
-assert.equal(demoComplete.targetParticleCount > 0, true, 'demoComplete should keep a final teaching particle state when the view remains enabled');
-assert.equal(demoComplete.outflowActive, false);
-
 const poweredOff = getHeatCapacityHardSphereVisualState({
   powerOn: false,
   temperatureMv: 1499,

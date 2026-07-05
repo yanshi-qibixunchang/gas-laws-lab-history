@@ -56,6 +56,7 @@ import {
   abortHeatCapacityGuideWorkbenchState,
   canOpenHeatCapacityParameterSidebar,
   captureHeatCapacityFreeRollbackSnapshot,
+  completeHeatCapacityTeachingModeWorkbenchState,
   enterHeatCapacityFreeModeWorkbenchState,
   freezeHeatCapacityFreeParametersForCurrentGroup,
   getActiveHeatCapacityFreeTrialIndex,
@@ -84,7 +85,6 @@ import {
   getWorkbenchParameterRows,
   normalizeHeatCapacityFileName,
   captureHeatCapacityWorkbenchSample,
-  markHeatCapacityDemoComplete,
   powerHeatCapacityWorkbenchFile,
   prepareNextHeatCapacityFreeExperimentGroupWorkbenchState,
   prepareHeatCapacityAutoDemoStart,
@@ -93,7 +93,6 @@ import {
   recordHeatCapacityFreeTraceEvent,
   registerHeatCapacityPumpStroke,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
-  resetHeatCapacityForGuideExperiment,
   resetHeatCapacityFreeRunWorkbenchState,
   selectActiveHeatCapacityWorkbenchDisplay,
   setHeatCapacityFreeEquilibriumSpeedHintShown,
@@ -1940,14 +1939,14 @@ const heatCapacityRealtimeCopies = {
     exitGuideMode: '退出引导',
     singleTrialBadge: '本次实验',
     trialBadge: (trialIndex: number) => `第 ${trialIndex} 组实验`,
-    demoCompleteLabel: '演示完成',
+    autoDemoFinishedLabel: '演示完成',
     demoPausedLabel: '已暂停',
     demoDoneLabel: '已完成',
     demoTargetLabel: '目标控件',
     demoProgressLabel: '推进标准',
     demoObservationLabel: '观察要点',
-    demoCompleteTitle: '演示完成',
-    demoCompleteDescription: '演示完成，可重新开始或进入引导 / 自由操作。',
+    autoDemoFinishedTitle: '演示完成',
+    autoDemoFinishedDescription: '演示完成，可重新开始或进入引导 / 自由操作。',
     demoFallbackNote: '过程采样已保留。',
     startGuideExperiment: '引导模式',
     skipRecoveryWait: '真实实验中需要等待系统稳定；程序已省略该等待过程。',
@@ -1987,7 +1986,7 @@ const heatCapacityRealtimeCopies = {
       zeroAdjust: '拖拽旋钮进行粗调，使用滚轮进行细调。',
       pumpValve: '请打开打气阀门。',
       pumpFocus: '请双击打气球进入聚焦模式。',
-      pumpAction: '请连续快速按压打气球，直到 Uₚ ≥ 120 mV。标准看 Uₚ 读数，达到后将自动退出聚焦。',
+      pumpAction: '双击聚焦打气球，快速点按打气球，按压至 Uₚ ≥ 120 mV 后自动退出。',
       waitU1Ready: '5 min 到了，记录 U₁ / Uₜ₁。',
       releaseReady: '放气时间到了，请关闭玻璃旋塞。',
       waitU2Ready: '5 min 到了，记录 U₂ / Uₜ₂。',
@@ -2066,7 +2065,6 @@ const heatCapacityRealtimeCopies = {
       sealedStabilizing: '封闭等待稳定',
       releasing: '快速放气',
       recovering: '等待回温',
-      demoComplete: '演示结束',
       fallback: '实验准备',
     },
     stopcock: { open: '打开', closed: '关闭' },
@@ -2084,7 +2082,6 @@ const heatCapacityRealtimeCopies = {
       notReady: '未就绪',
     },
     hints: {
-      demoComplete: '自动演示已结束，可重新开始或查看数据与结果。',
       powerOff: '请先打开电源。',
       readyToZero: '请观察 Uₚ，并进行压强调零。',
       readyToPump: '请关闭玻璃旋塞并准备打气。',
@@ -2150,14 +2147,14 @@ const heatCapacityRealtimeCopies = {
     exitGuideMode: '退出引導',
     singleTrialBadge: '本次實驗',
     trialBadge: (trialIndex: number) => `第 ${trialIndex} 組實驗`,
-    demoCompleteLabel: '演示完成',
+    autoDemoFinishedLabel: '演示完成',
     demoPausedLabel: '已暫停',
     demoDoneLabel: '已完成',
     demoTargetLabel: '目標控件',
     demoProgressLabel: '推進標準',
     demoObservationLabel: '觀察要點',
-    demoCompleteTitle: '演示完成',
-    demoCompleteDescription: '演示完成，可重新開始或進入引導 / 自由操作。',
+    autoDemoFinishedTitle: '演示完成',
+    autoDemoFinishedDescription: '演示完成，可重新開始或進入引導 / 自由操作。',
     demoFallbackNote: '過程採樣已保留。',
     startGuideExperiment: '引導模式',
     skipRecoveryWait: '真實實驗中需要等待系統穩定；程序已省略該等待過程。',
@@ -2197,7 +2194,7 @@ const heatCapacityRealtimeCopies = {
       zeroAdjust: '拖曳旋鈕進行粗調，使用滾輪進行細調。',
       pumpValve: '請打開打氣閥門。',
       pumpFocus: '請雙擊打氣球進入聚焦模式。',
-      pumpAction: '請連續快速按壓打氣球，直到 Uₚ ≥ 120 mV。標準看 Uₚ 讀數，達到後將自動退出聚焦。',
+      pumpAction: '雙擊聚焦打氣球，快速點按打氣球，按壓至 Uₚ ≥ 120 mV 後自動退出。',
       waitU1Ready: '5 min 到了，記錄 U₁ / Uₜ₁。',
       releaseReady: '放氣時間到了，請關閉玻璃旋塞。',
       waitU2Ready: '5 min 到了，記錄 U₂ / Uₜ₂。',
@@ -2276,7 +2273,6 @@ const heatCapacityRealtimeCopies = {
       sealedStabilizing: '封閉等待穩定',
       releasing: '快速放氣',
       recovering: '等待回溫',
-      demoComplete: '演示結束',
       fallback: '實驗準備',
     },
     stopcock: { open: '打開', closed: '關閉' },
@@ -2294,7 +2290,6 @@ const heatCapacityRealtimeCopies = {
       notReady: '未就緒',
     },
     hints: {
-      demoComplete: '自動演示已結束，可重新開始或查看資料與結果。',
       powerOff: '請先打開電源。',
       readyToZero: '請觀察 Uₚ，並進行壓強調零。',
       readyToPump: '請關閉玻璃旋塞並準備打氣。',
@@ -2360,14 +2355,14 @@ const heatCapacityRealtimeCopies = {
     exitGuideMode: 'Exit guide',
     singleTrialBadge: 'This experiment',
     trialBadge: (trialIndex: number) => `Trial ${trialIndex}`,
-    demoCompleteLabel: 'Demo complete',
+    autoDemoFinishedLabel: 'Demo complete',
     demoPausedLabel: 'Paused',
     demoDoneLabel: 'Complete',
     demoTargetLabel: 'Target control',
     demoProgressLabel: 'Standard',
     demoObservationLabel: 'Observation',
-    demoCompleteTitle: 'Demo complete',
-    demoCompleteDescription: 'Demo complete. You can restart or use guide / free mode.',
+    autoDemoFinishedTitle: 'Demo complete',
+    autoDemoFinishedDescription: 'Demo complete. You can restart or use guide / free mode.',
     demoFallbackNote: 'Process samples are retained.',
     startGuideExperiment: 'Guide mode',
     skipRecoveryWait: 'The real experiment would wait for the system to stabilize; this program omits that wait.',
@@ -2407,7 +2402,7 @@ const heatCapacityRealtimeCopies = {
       zeroAdjust: 'Drag the knob for coarse adjustment and use the wheel for fine adjustment.',
       pumpValve: 'Open the pump valve.',
       pumpFocus: 'Double-click the pump bulb to enter focus mode.',
-      pumpAction: 'Press the pump bulb rapidly until Uₚ ≥ 120 mV. Use the Uₚ reading as the standard; focus exits automatically after the target is reached.',
+      pumpAction: 'Double-click the pump bulb to focus, then click rapidly until Uₚ ≥ 120 mV; focus exits automatically.',
       waitU1Ready: '5 min has elapsed. Record U₁ / Uₜ₁.',
       releaseReady: 'Release time has elapsed. Close the glass stopcock.',
       waitU2Ready: '5 min has elapsed. Record U₂ / Uₜ₂.',
@@ -2486,7 +2481,6 @@ const heatCapacityRealtimeCopies = {
       sealedStabilizing: 'Sealed stabilization',
       releasing: 'Quick release',
       recovering: 'Thermal recovery',
-      demoComplete: 'Demo ended',
       fallback: 'Experiment ready',
     },
     stopcock: { open: 'Open', closed: 'Closed' },
@@ -2504,7 +2498,6 @@ const heatCapacityRealtimeCopies = {
       notReady: 'Not ready',
     },
     hints: {
-      demoComplete: 'Auto demo has ended. Restart or review Data & Results.',
       powerOff: 'Turn on the power first.',
       readyToZero: 'Observe Uₚ and zero the pressure signal.',
       readyToPump: 'Close the glass stopcock and prepare to pump.',
@@ -5120,7 +5113,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       }
     }
     if (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked) return 'idle';
-    if (file.heatCapacityPhase === 'demoComplete' || file.runState === 'finished') return 'idle';
+    if (file.runState === 'finished') return 'idle';
     if (!file.powerOn) return 'powerOnRequired';
 
     const stopcockState = getHeatCapacityStopcockState(file.stopcockAngleDeg);
@@ -5736,6 +5729,22 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setHeatCapacityFocusResetKey((key) => key + 1);
     setHeatCapacityHardSphereVisualResetKey((key) => key + 1);
     heatCapacityFocusSessionRef.current = null;
+  };
+
+  const resetHeatCapacityModeUiForFreeBase = () => {
+    clearHeatCapacityGuideStartTimer();
+    clearHeatCapacityRecordSuccessToastTimers();
+    clearHeatCapacityAutoDemoTimers();
+    clearHeatCapacityPumpAnimationTimers();
+    clearHeatCapacityAutoDemoUiState();
+    resetHeatCapacityGuideUiStateForModeChange();
+    setPendingRemoveHeatCapacityTrialRecord(null);
+    setAutoDemoStepTitle('');
+    setAutoDemoStepDescription('');
+    setAutoDemoStepTarget('');
+    setAutoDemoStepNote('');
+    setAutoDemoStepPanelMode('hidden');
+    setAutoDemoCompletionMessage(null);
   };
 
   const registerGuideHeatCapacityMiss = (guard: GuideHeatCapacityGuardResult) => {
@@ -6396,10 +6405,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
       const resolvedPowerOn = nextPowerOn ?? !file.powerOn;
-      const cleanFile = resolvedPowerOn && source === 'user' && (file.heatCapacityPhase === 'demoComplete' || file.runState === 'finished')
-        ? file.heatCapacityMode === 'guide'
-          ? startHeatCapacityGuideWorkbenchState(file, now)
-          : resetHeatCapacityForGuideExperiment(file, now)
+      const cleanFile = resolvedPowerOn && source === 'user' && file.heatCapacityMode === 'demo'
+        ? completeHeatCapacityTeachingModeWorkbenchState(file, now)
         : file;
       if (resolvedPowerOn && cleanFile.heatCapacityMode === 'demo' && !cleanFile.heatCapacityExperimentProfile) {
         const experimentProfile = createHeatCapacityAutoDemoProfile();
@@ -6451,9 +6458,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const exitHeatCapacityGuideMode = () => {
-    clearHeatCapacityGuideStartTimer();
-    clearHeatCapacityRecordSuccessToastTimers();
-    resetHeatCapacityGuideUiStateForModeChange();
+    resetHeatCapacityModeUiForFreeBase();
     updateActiveFile((file) => file.kind === 'heatCapacity'
       ? abortHeatCapacityGuideWorkbenchState(file, Date.now())
       : file);
@@ -6463,18 +6468,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const enterHeatCapacityFreeMode = () => {
     clearHeatCapacityPressureAlarmInteractionLock(activeFile.id);
-    clearHeatCapacityGuideStartTimer();
-    clearHeatCapacityRecordSuccessToastTimers();
-    clearHeatCapacityAutoDemoTimers();
-    clearHeatCapacityPumpAnimationTimers();
-    clearHeatCapacityAutoDemoUiState();
-    resetHeatCapacityGuideUiStateForModeChange();
-    setAutoDemoStepTitle('');
-    setAutoDemoStepDescription('');
-    setAutoDemoStepTarget('');
-    setAutoDemoStepNote('');
-    setAutoDemoStepPanelMode('hidden');
-    setAutoDemoCompletionMessage(null);
+    resetHeatCapacityModeUiForFreeBase();
     updateActiveFile((file) => file.kind === 'heatCapacity'
       ? enterHeatCapacityFreeModeWorkbenchState(file, Date.now())
       : file);
@@ -6492,20 +6486,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
       heatCapacityFreeResetFeedbackTimerRef.current = null;
       setHeatCapacityFreeResetFeedbackActive(false);
     }, HEAT_CAPACITY_FREE_RESET_FEEDBACK_MS);
-    clearHeatCapacityGuideStartTimer();
-    clearHeatCapacityRecordSuccessToastTimers();
-    clearHeatCapacityAutoDemoTimers();
-    clearHeatCapacityPumpAnimationTimers();
-    clearHeatCapacityAutoDemoUiState();
+    resetHeatCapacityModeUiForFreeBase();
     clearHeatCapacityPressureAlarmInteractionLock(activeFile.id);
-    clearGuideHeatCapacityGuidance();
-    setPendingRemoveHeatCapacityTrialRecord(null);
-    setGuideHeatCapacityActiveFileId(null);
-    setGuideHeatCapacityRollback(null);
-    setAutoDemoCompletionMessage(null);
-    setHeatCapacityFocusResetKey((key) => key + 1);
-    setHeatCapacityHardSphereVisualResetKey((key) => key + 1);
-    heatCapacityFocusSessionRef.current = null;
     captureUndoSnapshot('reset heat-capacity free run');
     updateActiveFile((file) => file.kind === 'heatCapacity'
       ? resetHeatCapacityFreeRunWorkbenchState(file, now)
@@ -7070,20 +7052,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
         };
       }
 
-      if (action === 'markDemoComplete') {
-        const completedFile = markHeatCapacityDemoComplete(file, now);
+      if (action === 'completeTeachingMode') {
+        const completedFile = completeHeatCapacityTeachingModeWorkbenchState(file, now);
         window.setTimeout(() => {
           pushLog(heatCapacityRealtimeCopy.autoDemoImportedCompleteLog(completedFile.name), 'success');
         }, 0);
-        const openHeatCapacityTabs = completedFile.openHeatCapacityTabs.includes('records')
-          ? completedFile.openHeatCapacityTabs
-          : [...completedFile.openHeatCapacityTabs, 'records' as const];
         return {
           ...completedFile,
-          visiblePanels: Array.from(new Set([...completedFile.visiblePanels, 'heatCapacityRecords' as const])),
-          openHeatCapacityTabs,
-          activeHeatCapacityTabId: 'records',
-          selectedHeatCapacityPanel: 'heatCapacityRecords',
           heatCapacityMaterialsExpanded: true,
           updatedAt: now,
         };
@@ -7118,14 +7093,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const finishHeatCapacityAutoDemoUi = (message: string = heatCapacityRealtimeCopy.autoDemoCompletionToast) => {
-    setAutoDemoInteractionLocked(false);
-    setAutoDemoRunning(false);
-    setAutoDemoPaused(false);
-    setDemoFocusControlId(null);
-    setDemoFocusPulseActive(false);
-    heatCapacityAutoDemoFileIdRef.current = null;
-    heatCapacityAutoDemoPausedFileIdRef.current = null;
-    heatCapacityAutoDemoPausedElapsedMsRef.current = 0;
+    resetHeatCapacityModeUiForFreeBase();
     hideHeatCapacityAutoDemoStepPanel();
     showHeatCapacityAutoDemoCompletionToast(message);
   };
@@ -7154,7 +7122,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         }
         if (timelineItem.stage === 'action' && timelineItem.action) {
           applyHeatCapacityAutoDemoAction(demoFileId, timelineItem.action.action, timelineItem.action.sampleKey);
-          if (timelineItem.action.action === 'markDemoComplete') {
+          if (timelineItem.action.action === 'completeTeachingMode') {
             setSelectedPanel('heatCapacityRecords');
             finishHeatCapacityAutoDemoUi();
           }
@@ -8348,15 +8316,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const terminateHeatCapacityAutoDemo = () => {
-    clearHeatCapacityAutoDemoTimers();
-    clearHeatCapacityAutoDemoUiState();
+    resetHeatCapacityModeUiForFreeBase();
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
       const now = Date.now();
-      return enterHeatCapacityFreeModeWorkbenchState(
-        markHeatCapacityDemoComplete(file, now),
-        now,
-      );
+      return completeHeatCapacityTeachingModeWorkbenchState(file, now);
     });
     setAutoDemoStepTitle(heatCapacityRealtimeCopy.autoDemoTerminatedTitle);
     setAutoDemoStepDescription(heatCapacityRealtimeCopy.autoDemoTerminatedDescription);
@@ -8463,9 +8427,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
         applyActiveFileParams();
         return;
       }
+      resetHeatCapacityModeUiForFreeBase();
       updateActiveFile((file) => {
         if (file.kind !== 'heatCapacity') return file;
-        return resetHeatCapacityForGuideExperiment(file, Date.now());
+        return resetHeatCapacityFreeRunWorkbenchState(file, Date.now());
       });
       pushLog(`${activeFile.name}: heat-capacity UI state reset.`, 'warning');
       return;
@@ -11537,11 +11502,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   data-heat-capacity-demo-step-panel="true"
                 >
                   <div className="studio-heat-demo-step-kicker">
-                    <span>{autoDemoRunning || autoDemoPaused ? `Step ${autoDemoStepIndex} / ${autoDemoStepCount}` : heatCapacityRealtimeCopy.demoCompleteLabel}</span>
+                    <span>{autoDemoRunning || autoDemoPaused ? `Step ${autoDemoStepIndex} / ${autoDemoStepCount}` : heatCapacityRealtimeCopy.autoDemoFinishedLabel}</span>
                     <i>{autoDemoPaused ? heatCapacityRealtimeCopy.demoPausedLabel : autoDemoRunning ? heatCapacityRealtimeCopy.demoRunning : heatCapacityRealtimeCopy.demoDoneLabel}</i>
                   </div>
-                  <strong>{renderScientificText(autoDemoStepTitle || heatCapacityRealtimeCopy.demoCompleteTitle)}</strong>
-                  <p>{renderScientificText(autoDemoStepDescription || heatCapacityRealtimeCopy.demoCompleteDescription)}</p>
+                  <strong>{renderScientificText(autoDemoStepTitle || heatCapacityRealtimeCopy.autoDemoFinishedTitle)}</strong>
+                  <p>{renderScientificText(autoDemoStepDescription || heatCapacityRealtimeCopy.autoDemoFinishedDescription)}</p>
                   <div><span>{heatCapacityRealtimeCopy.demoTargetLabel}</span><em>{renderScientificText(autoDemoStepTarget || '--')}</em></div>
                   <div><span>{heatCapacityRealtimeCopy.demoProgressLabel}</span><em>{renderScientificText(autoDemoStepProgressCriterion || '--')}</em></div>
                   <div><span>{heatCapacityRealtimeCopy.demoObservationLabel}</span><em>{renderScientificText(autoDemoStepNote || heatCapacityRealtimeCopy.demoFallbackNote)}</em></div>
@@ -12382,7 +12347,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
       if (phase === 'sealedStabilizing') return heatCapacityRealtimeCopy.phaseLabels.sealedStabilizing;
       if (phase === 'releasing') return heatCapacityRealtimeCopy.phaseLabels.releasing;
       if (phase === 'recovering') return heatCapacityRealtimeCopy.phaseLabels.recovering;
-      if (phase === 'demoComplete') return heatCapacityRealtimeCopy.phaseLabels.demoComplete;
       return heatCapacityRealtimeCopy.phaseLabels.fallback;
     };
     const heatCapacityDisplayPhase = isHeatCapacityPhysicalKernelMode(activeFile.heatCapacityMode)
@@ -12457,7 +12421,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
           return getGuideStepGuidance(guideStep, activeFile).message;
         }
       }
-      if (heatCapacityDisplayPhase === 'demoComplete') return heatCapacityRealtimeCopy.hints.demoComplete;
       if (!activeFile.powerOn || heatCapacityDisplayPhase === 'powerOff') return heatCapacityRealtimeCopy.hints.powerOff;
       if (heatCapacityDisplayPhase === 'readyToZero') return heatCapacityRealtimeCopy.hints.readyToZero;
       if (heatCapacityDisplayPhase === 'zeroed' || heatCapacityDisplayPhase === 'readyToPump') return heatCapacityRealtimeCopy.hints.readyToPump;

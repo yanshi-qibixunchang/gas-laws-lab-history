@@ -81,37 +81,20 @@ const trialAWithSignals = {
 };
 const trialBWithSnapshot = createCompleteTrial('trial-b', snapshotB);
 
-const changedCurrentOptions = {
-  atmosphericPressureKPa: 130,
-  pressureSensitivityMvPerKPa: 30,
-  theoreticalGamma: 1.4,
-};
-
 const trialAResultBefore = calculateFreeHeatCapacityTrialResult(
   trialAWithSignals,
   1,
-  changedCurrentOptions,
 );
-const trialAResultAfterOptionsChange = calculateFreeHeatCapacityTrialResult(
-  trialAWithSignals,
-  1,
-  {
-    atmosphericPressureKPa: 65,
-    pressureSensitivityMvPerKPa: 8,
-  },
-);
-assert.equal(trialAResultBefore.gamma, trialAResultAfterOptionsChange.gamma);
 assert.equal(trialAResultBefore.gamma, trialAWithSignals.correctedSignals?.gamma);
 assert.equal(
   trialAResultBefore.pressureSensitivityMvPerKPa,
   snapshotA.sensor.pressureMvPerKPa,
-  'trial correctedSignals should win over later current options',
+  'trial correctedSignals should remain frozen once recorded',
 );
 
 const trialBResult = calculateFreeHeatCapacityTrialResult(
   trialBWithSnapshot,
   2,
-  changedCurrentOptions,
 );
 const trialBExpected = calculateFreeHeatCapacityTrialSignals(trialBWithSnapshot, {
   atmosphericPressureKPa: snapshotB.environment.ambientPressureKPa,
@@ -124,25 +107,26 @@ assert.equal(
   'trial configSnapshot should be used when correctedSignals are absent',
 );
 
-const legacyTrial = createCompleteTrial('legacy', null);
-const legacyResult = calculateFreeHeatCapacityTrialResult(legacyTrial, 3, changedCurrentOptions);
-const legacyExpected = calculateFreeHeatCapacityTrialSignals(legacyTrial, changedCurrentOptions);
-assert.equal(legacyResult.gamma, legacyExpected?.gamma);
+const missingSnapshotTrial = createCompleteTrial('missing-snapshot', null);
+const missingSnapshotResult = calculateFreeHeatCapacityTrialResult(missingSnapshotTrial, 3);
+assert.equal(missingSnapshotResult.status, 'invalid');
+assert.equal(missingSnapshotResult.gamma, null);
 assert.equal(
-  legacyResult.pressureSensitivityMvPerKPa,
-  changedCurrentOptions.pressureSensitivityMvPerKPa,
-  'legacy trial without correctedSignals or configSnapshot should still use current options',
+  missingSnapshotResult.message,
+  'Free trial is missing its parameter snapshot.',
+  'complete Free trial records must not fall back to current parameters when their frozen snapshot is missing',
 );
 
 const mean = calculateFreeHeatCapacityMeanResult([
   trialAWithSignals,
   trialBWithSnapshot,
-  legacyTrial,
-], changedCurrentOptions);
+  missingSnapshotTrial,
+], { theoreticalGamma: 1.4 });
 assert.equal(mean.status, 'ready');
 assert.equal(mean.trialResults[0].gamma, trialAResultBefore.gamma);
 assert.equal(mean.trialResults[1].gamma, trialBExpected?.gamma);
-assert.equal(mean.trialResults[2].gamma, legacyExpected?.gamma);
+assert.equal(mean.trialResults[2].status, 'invalid');
+assert.equal(mean.validTrialCount, 2);
 
 for (const kind of ['u0', 'u1', 'u2'] as const) {
   const removed = removeHeatCapacityFreeTrialRecord([trialAWithSignals], 0, kind).trials[0];

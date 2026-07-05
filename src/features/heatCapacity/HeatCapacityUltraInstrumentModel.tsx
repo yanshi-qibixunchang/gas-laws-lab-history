@@ -227,6 +227,23 @@ const getUltraScreenDistanceSq = (
   return dx * dx + dy * dy;
 };
 
+const resolveUltraClickControl = (
+  control: UltraPointerControl,
+  panelResolvedControl: UltraPointerControl,
+  hoveredControl: UltraHoveredControl,
+): UltraPointerControl => {
+  if (
+    control === 'powerSwitch' &&
+    panelResolvedControl === 'pressureZero' &&
+    hoveredControl === 'powerSwitch'
+  ) {
+    return 'powerSwitch';
+  }
+  return panelResolvedControl === 'pumpValve' && hoveredControl === 'stopcock'
+    ? 'stopcock'
+    : panelResolvedControl;
+};
+
 type UltraVisualShape =
   | { shape: 'box'; size: [number, number, number] }
   | { shape: 'plane'; size: [number, number] }
@@ -2387,9 +2404,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     clientY: number,
   ): UltraPointerControl => {
     const panelResolvedControl = resolveUltraPanelPointerControl(control, clientX, clientY);
-    return panelResolvedControl === 'pumpValve' && props.hoveredControl === 'stopcock'
-      ? 'stopcock'
-      : panelResolvedControl;
+    return resolveUltraClickControl(control, panelResolvedControl, props.hoveredControl);
   }, [props.hoveredControl, resolveUltraPanelPointerControl]);
 
   const getPressureZeroPointerAngle = useCallback((clientX: number, clientY: number) => {

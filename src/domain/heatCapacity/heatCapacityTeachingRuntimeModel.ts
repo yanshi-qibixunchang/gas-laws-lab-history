@@ -83,7 +83,6 @@ export interface HeatCapacityStepControls {
   stopcockOpen: boolean;
   pumpFrequency: number;
   pumpFrequencyStatus: HeatCapacityPumpFrequencyStatus;
-  demoComplete?: boolean;
 }
 
 export interface HeatCapacityPumpStrokeResult {
@@ -224,7 +223,6 @@ const getPassivePhase = (
   controls: HeatCapacityStepControls,
 ): HeatCapacityRuntimePhase => {
   if (!controls.powerOn) return 'powerOff';
-  if (controls.demoComplete) return 'demoComplete';
   const phase = state.heatCapacityPhase as HeatCapacityRuntimePhase;
   if (phase === 'releasing' || phase === 'recovering') {
     return controls.stopcockOpen && state.pressureDeltaKPa > HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA
@@ -365,14 +363,6 @@ export const stepHeatCapacityExperiment = (
       heatCapacityPhase: 'powerOff',
     });
   }
-  if (controls.demoComplete || state.heatCapacityPhase === 'demoComplete') {
-    return {
-      ...state,
-      lastUpdateMs: now,
-      heatCapacityPhase: 'demoComplete',
-    };
-  }
-
   let gasPressureKPaAbs = state.gasPressureKPaAbs;
   let gasTemperatureK = state.gasTemperatureK;
   let heatCapacityPhase = getPassivePhase(state, controls);
