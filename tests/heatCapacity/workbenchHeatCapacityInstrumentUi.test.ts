@@ -16,6 +16,8 @@ const processReviewStageScalePath = join(process.cwd(), 'src', 'features', 'heat
 const parameterConfigPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityFreeParameterConfig.ts');
 const freeParameterPanelModelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'heatCapacityFreeParameterPanelModel.ts');
 const toastControllerPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'heatCapacityToastController.ts');
+const toastPolicyPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'heatCapacityToastPolicy.ts');
+const guideStepModelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'heatCapacityGuideStepModel.ts');
 const modeTypesPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityModeTypes.ts');
 const modeControlModelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'heatCapacityModeControlModel.ts');
 const defaultConfigPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityDefaultConfig.ts');
@@ -59,6 +61,8 @@ const hardSphereToggleMountSection = sceneSource.match(/<HeatCapacityHardSphereT
 const parameterConfigSource = readFileSync(parameterConfigPath, 'utf8');
 const freeParameterPanelModelSource = readFileSync(freeParameterPanelModelPath, 'utf8');
 const toastControllerSource = readFileSync(toastControllerPath, 'utf8');
+const toastPolicySource = readFileSync(toastPolicyPath, 'utf8');
+const guideStepModelSource = readFileSync(guideStepModelPath, 'utf8');
 const modeTypesSource = readFileSync(modeTypesPath, 'utf8');
 const modeControlModelSource = readFileSync(modeControlModelPath, 'utf8');
 const defaultConfigSource = readFileSync(defaultConfigPath, 'utf8');
@@ -1375,7 +1379,10 @@ assert.match(styleSource, /\.studio-panel-actions \.studio-heat-mode-action \{[\
 assert.match(styleSource, /\.studio-panel-actions \.studio-heat-mode-action-danger \{[\s\S]*background: #c96a6f;[\s\S]*color: #ffffff;/, 'dark theme panel-action overrides should preserve red heat-capacity stop actions');
 assert.match(styleSource, /\.studio-theme-light \.studio-panel-actions \.studio-heat-mode-action \{[\s\S]*#edf7ef[\s\S]*#16783a/, 'light theme panel-action overrides should preserve green heat-capacity mode actions');
 assert.match(styleSource, /\.studio-theme-light \.studio-panel-actions \.studio-heat-mode-action-danger \{[\s\S]*#fee2e2[\s\S]*#991b1b/, 'light theme panel-action overrides should preserve red heat-capacity stop actions');
-assert.match(workbenchSource, /type GuideHeatCapacityStep =[\s\S]*openStopcockForZeroRequired[\s\S]*recordU0Required[\s\S]*recordU1Required[\s\S]*recordU2Required[\s\S]*closePowerRequired[\s\S]*completed/, 'guide heat-capacity workflow should model one guided experiment with U0/U1/U2 recording and final power-off');
+assert.match(guideStepModelSource, /export type GuideHeatCapacityStep =[\s\S]*openStopcockForZeroRequired[\s\S]*recordU0Required[\s\S]*recordU1Required[\s\S]*recordU2Required[\s\S]*closePowerRequired[\s\S]*completed/, 'guide heat-capacity workflow should model one guided experiment with U0/U1/U2 recording and final power-off');
+assert.match(workbenchSource, /getHeatCapacityGuideStepControlId/, 'Workbench should consume the shared guide step control-id model');
+assert.match(workbenchSource, /getHeatCapacityGuideAllowedActions/, 'Workbench should consume the shared guide allowed-action model');
+assert.match(workbenchSource, /getHeatCapacityGuideRollbackAnimation/, 'Workbench should consume the shared guide rollback-animation model');
 assert.doesNotMatch(workbenchSource, /nextTrialRequired|calculateRequired|startNextTrial/, 'guide mode should not keep old multi-trial continuation or standalone calculation steps');
 assert.match(workbenchSource, /guardGuideHeatCapacityAction/, 'guide heat-capacity controls should pass through one shared guard');
 assert.match(workbenchSource, /guideHeatCapacityActiveFileId/, 'guide heat-capacity tutorial should have an explicit active file binding');
@@ -1426,7 +1433,7 @@ const u1ReadyBlock = workbenchSource.match(/const isGuideU1RecordReady =[\s\S]*?
 assert.doesNotMatch(u1ReadyBlock, /file\.heatCapacityPhase === 'recovering'/, 'U1 readiness must not treat the post-release recovery phase as before-release stability');
 assert.match(workbenchSource, /const isGuideU0ZeroReady =/, 'guide U0 recording should have a dedicated zero-ready helper');
 assert.match(workbenchSource, /const isGuideU0ZeroAttempted =/, 'guide zero guidance should distinguish no adjustment from an incomplete adjustment');
-assert.match(workbenchSource, /recordU0Required:\s*\['adjustPressureZero',\s*'recordU0'\]/, 'U0 recording stage should still allow continued pressure-zero adjustment');
+assert.match(guideStepModelSource, /recordU0Required:\s*\['adjustPressureZero',\s*'recordU0'\]/, 'U0 recording stage should still allow continued pressure-zero adjustment');
 assert.match(workbenchSource, /if \(!isGuideU0ZeroReady\(file\)\) return 'zeroAdjustRequired'/, 'guide workflow should not advance to U0 recording until the pressure-zero value is actually acceptable');
 assert.doesNotMatch(workbenchSource, /if \(!file\.pressureZeroAdjusted\) return 'zeroAdjustRequired';\s*return 'recordU0Required';/, 'guide workflow should not treat any pressure-zero adjustment as a successful zero');
 assert.doesNotMatch(workbenchSource, /kind === 'u0'[\s\S]*Math\.abs\(zeroReferenceMv\) > 1\.5[\s\S]*recordU0Warning/, 'record U0 click should not run a second, looser validation after the workflow already exposes the button');
@@ -1434,8 +1441,8 @@ assert.doesNotMatch(workbenchSource, /pressureValue\s*[<>]=?\s*80/, 'guide U1 fl
 assert.doesNotMatch(workbenchSource, /不建议记录 U₀|不建議記錄 U₀|U₀ recording is not recommended/, 'U0 guidance should not imply optional recording after the workflow exposes the record button');
 assert.doesNotMatch(workbenchSource, /--heat-record-focus-offset/, 'guide record controls should move through the shared overlay slot instead of a measured focus-panel offset');
 assert.doesNotMatch(styleSource, /studio-heat-record-controls-focus-raised/, 'guide record controls should not use focus-only lift classes');
-assert.match(workbenchSource, /openStopcockForZeroRequired:\s*\['openStopcock'\]/, 'guide workflow should require opening the stopcock before pressure zeroing');
-assert.match(workbenchSource, /openStopcockReleaseRequired:\s*\['openStopcock'\]/, 'guide workflow should block release until the U1 step has been satisfied');
+assert.match(guideStepModelSource, /openStopcockForZeroRequired:\s*\['openStopcock'\]/, 'guide workflow should require opening the stopcock before pressure zeroing');
+assert.match(guideStepModelSource, /openStopcockReleaseRequired:\s*\['openStopcock'\]/, 'guide workflow should block release until the U1 step has been satisfied');
 assert.doesNotMatch(workbenchSource, /getHeatCapacityCompletedTrialCount\(file\.heatCapacityTrials\)[\s\S]*file\.heatCapacityExpectedTrialCount[\s\S]*return 'nextTrialRequired'/, 'guide workflow should not require old expected trial counts');
 assert.doesNotMatch(workbenchSource, /const startNextHeatCapacityGuideTrial|data-heat-capacity-mode-action="next-trial"|calculateRequired:\s*\['calculate'\]/, 'guide mode should not render or guard old next-trial/calculation actions');
 assert.doesNotMatch(workbenchSource, /const animateHeatCapacityStopcockAngle =/, 'auto demo stopcock actions should not use the old continuous angle writer that fights the scene-level two-state animation');
@@ -1484,9 +1491,9 @@ assert.match(workbenchSource, /closePumpValveReminder:\s*'Close the pump valve\.
 assert.match(workbenchSource, /heatCapacityPressureAlarmVisible/, 'center pressure alarm should be controlled by a transient visible state instead of staying mounted while over limit');
 assert.match(workbenchSource, /const effectivePressureSafetyStatus = heatCapacityPressureAlarmVisible \? 'danger' : activeFile\.pressureSafetyStatus/, 'right-side safety card should show danger while the center alarm is visible');
 assert.match(workbenchSource, /studio-heat-safety-\$\{effectivePressureSafetyStatus\}/, 'right-side safety card color should follow the effective visible alarm status');
-assert.match(workbenchSource, /showHeatCapacityToast\(heatCapacityRealtimeCopy\.pressureWarningMessage,\s*'info',\s*\{[\s\S]*interrupt:\s*true,[\s\S]*priority:\s*HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY,[\s\S]*\}\)/, 'suggested-stop hint should use ordinary info styling while keeping localized copy visible');
-assert.match(workbenchSource, /HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY/, 'prewarning should have an explicit safety toast priority above ordinary guidance');
-assert.match(workbenchSource, /HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY/, 'alarm and close-valve reminders should have an explicit priority above prewarning');
+assert.match(workbenchSource, /showHeatCapacityPolicyToast\(heatCapacityRealtimeCopy\.pressureWarningMessage,\s*'pressureWarning'\)/, 'suggested-stop hint should use ordinary info styling while keeping localized copy visible');
+assert.match(toastPolicySource, /pressureWarning:\s*\{[\s\S]*level:\s*'info'[\s\S]*priority:\s*HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY[\s\S]*source:\s*'pressure-warning'/, 'prewarning should have an explicit safety toast policy above ordinary guidance');
+assert.match(toastPolicySource, /pressureAlarm:\s*\{[\s\S]*priority:\s*HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY[\s\S]*source:\s*'pressure-alarm'[\s\S]*pressureCloseValve:\s*\{[\s\S]*priority:\s*HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY[\s\S]*source:\s*'pressure-close-valve'/, 'alarm and close-valve reminders should have an explicit policy above prewarning');
 assert.match(toastControllerSource, /export type HeatCapacityToastSource =[\s\S]*'guide'[\s\S]*'guide-blocked'[\s\S]*'pressure-warning'[\s\S]*'pressure-close-valve'/, 'heat-capacity bottom toasts should track their source in the shared toast controller');
 assert.match(toastControllerSource, /export type HeatCapacityToastLevel = 'info' \| 'success' \| 'warning' \| 'danger'/, 'heat-capacity bottom toasts should support a green success level in the shared toast controller');
 assert.match(workbenchSource, /resolveHeatCapacityToastShow/, 'Workbench should delegate heat-capacity toast queue decisions to the shared toast controller');
@@ -1498,9 +1505,9 @@ assert.match(toastControllerSource, /isHeatCapacityPressureToast\(pending\) && !
 assert.match(workbenchSource, /const clearGuideHeatCapacityGuidance = \(\) => \{[\s\S]*clearHeatCapacityToastBySource\(isHeatCapacityGuideToast\)/, 'clearing guide guidance must not erase pressure warning or post-alarm close-valve reminders');
 assert.match(toastControllerSource, /current && current\.priority > nextMessage\.priority[\s\S]*return unchangedToastQueue\(state\)/, 'lower-priority toasts must not interrupt an active safety warning or critical reminder');
 assert.match(toastControllerSource, /nextMessage\.priority < current\.priority[\s\S]*return unchangedToastQueue\(state\)/, 'lower-priority toasts must not queue behind an active safety warning');
-assert.match(workbenchSource, /heatCapacityRealtimeCopy\.pressureWarningMessage,\s*'info',\s*\{[\s\S]*interrupt:\s*true,[\s\S]*priority:\s*HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY,[\s\S]*source:\s*'pressure-warning'[\s\S]*\}/, 'suggested-stop hint should use the protected pressure-warning source and explicit priority');
-assert.match(workbenchSource, /heatCapacityRealtimeCopy\.closePumpValveReminder,\s*'warning',\s*\{[\s\S]*interrupt:\s*true,[\s\S]*priority:\s*HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY,[\s\S]*source:\s*'pressure-close-valve'[\s\S]*\}/, 'post-alarm close-valve reminder should use a protected source and outrank prewarning and ordinary guidance');
-assert.match(workbenchSource, /else if \(pressureStatusAfterPump === 'warning'\) \{[\s\S]*showHeatCapacityToast\(heatCapacityRealtimeCopy\.pressureWarningMessage,\s*'info'/, 'suggested-stop hint should remain visible when the user continues pumping inside the warning band');
+assert.match(toastPolicySource, /pressureWarning:\s*\{[\s\S]*interrupt:\s*true,[\s\S]*priority:\s*HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY,[\s\S]*source:\s*'pressure-warning'/, 'suggested-stop hint should use the protected pressure-warning source and explicit priority');
+assert.match(toastPolicySource, /pressureCloseValve:\s*\{[\s\S]*interrupt:\s*true,[\s\S]*priority:\s*HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY,[\s\S]*source:\s*'pressure-close-valve'/, 'post-alarm close-valve reminder should use a protected source and outrank prewarning and ordinary guidance');
+assert.match(workbenchSource, /else if \(pressureStatusAfterPump === 'warning'\) \{[\s\S]*showHeatCapacityPolicyToast\(heatCapacityRealtimeCopy\.pressureWarningMessage,\s*'pressureWarning'\)/, 'suggested-stop hint should remain visible when the user continues pumping inside the warning band');
 assert.doesNotMatch(workbenchSource, /pressureStatusAfterPump === 'warning' && pressureStatusBeforePump === 'normal'/, 'prewarning should not depend only on a perfect normal-to-warning transition');
 assert.match(workbenchSource, /clearHeatCapacityToastQueue\(\)[\s\S]*setHeatCapacityPressureAlarmVisible\(true\)/, 'showing the center alarm should immediately remove the bottom warning hint');
 assert.match(workbenchSource, /<span>\{heatCapacityRealtimeCopy\.pressureWarningFallback\}<\/span>/, 'center pressure alarm should always show the confirmed alarm message instead of a stale realtime safety message');
@@ -1527,7 +1534,7 @@ assert.match(
   /const pressHeatCapacityPumpBulb = [\s\S]*?const fileBeforePump = filesRef\.current\.find\(\(file\) => file\.id === fileId\);[\s\S]*?if \([\s\S]*?source !== 'autoDemo'[\s\S]*?fileBeforePump\?\.kind === 'heatCapacity'[\s\S]*?fileBeforePump\.heatCapacityMode === 'free'[\s\S]*?isHeatCapacityPumpFocusBlockedByAlarm\(fileBeforePump\)[\s\S]*?\) \{[\s\S]*?showHeatCapacityPressureAlarm\(fileBeforePump\.id,\s*fileBeforePump\.name\);[\s\S]*?return;[\s\S]*?\}[\s\S]*?registerHeatCapacityPumpStroke\(fileBeforePump,\s*now\)/,
   'Free Mode pump presses after an active/already-fired pressure alarm should rerun the full alarm exit path before any new pump stroke',
 );
-assert.match(workbenchSource, /showHeatCapacityToast\(heatCapacityRealtimeCopy\.closePumpValveReminder,\s*'warning',\s*\{[\s\S]*interrupt:\s*true,[\s\S]*priority:\s*HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY,[\s\S]*\}\)/, 'post-alarm close-valve reminder should use the same overriding bottom-center hint path');
+assert.match(workbenchSource, /showHeatCapacityPolicyToast\(heatCapacityRealtimeCopy\.closePumpValveReminder,\s*'pressureCloseValve'\)/, 'post-alarm close-valve reminder should use the same overriding bottom-center hint path');
 {
   const alarmFunctionStart = workbenchSource.indexOf('const showHeatCapacityPressureAlarm =');
   const alarmTimerStart = workbenchSource.indexOf('heatCapacityPressureAlarmTimerRef.current = window.setTimeout(() => {', alarmFunctionStart);
@@ -1542,7 +1549,7 @@ assert.match(workbenchSource, /showHeatCapacityToast\(heatCapacityRealtimeCopy\.
     'close-valve reminder should be scheduled from inside the alarm-hide timer so it cannot overlap the center alarm',
   );
 }
-assert.match(workbenchSource, /if \(!currentFile\.pumpValveOpen\) return;[\s\S]*showHeatCapacityToast\(heatCapacityRealtimeCopy\.closePumpValveReminder,\s*'warning'/, 'post-alarm close-valve reminder should depend on the valve still being open, not on pressure still being over limit');
+assert.match(workbenchSource, /if \(!currentFile\.pumpValveOpen\) return;[\s\S]*showHeatCapacityPolicyToast\(heatCapacityRealtimeCopy\.closePumpValveReminder,\s*'pressureCloseValve'\)/, 'post-alarm close-valve reminder should depend on the valve still being open, not on pressure still being over limit');
 assert.doesNotMatch(workbenchSource, /if \(!currentFile\.pressureOverLimit \|\| !currentFile\.pumpValveOpen\) return;/, 'post-alarm close-valve reminder must not disappear just because pressure naturally falls below the alarm threshold');
 assert.doesNotMatch(workbenchSource, /let pumpedHeatCapacityFile[\s\S]*updateFileById\(fileId,\s*\(file\) => \{[\s\S]*pumpedHeatCapacityFile = nextFile/, 'pressure threshold events must not depend on assigning a value inside a React state updater');
 assert.match(workbenchSource, /let nextHeatCapacityFile = fileBeforePump\?\.kind === 'heatCapacity'[\s\S]*registerHeatCapacityPumpStroke\(fileBeforePump,\s*now\)/, 'pump result should be calculated synchronously before updating React state');
@@ -1557,8 +1564,8 @@ assert.doesNotMatch(workbenchSource, /pushLog\(`\$\{[^`]+\.name\}: 压强已达�
 assert.match(workbenchSource, /nextFrequencyState\.pumpFrequencyStatus === 'tooSlow'/, 'slow-pump toast should follow the same frequency status as the realtime panel');
 assert.match(workbenchSource, /nextFrequencyState\.timestamps\.length >= 2/, 'slow-pump toast should wait for at least two strokes before judging cadence');
 assert.doesNotMatch(workbenchSource, /nextFrequencyState\.pumpFrequency < HEAT_CAPACITY_PUMP_RATE_SLOW_THRESHOLD_HZ/, 'slow-pump toast should not use a stale separate 2 Hz threshold');
-assert.match(workbenchSource, /closePumpValveRequired:\s*\['closePumpValve'\]/, 'Guide should not accept more pump-bulb presses after the displayed pressure reaches the target');
-assert.doesNotMatch(workbenchSource, /closePumpValveRequired:\s*\[[^\]]*'pumpBulb'/, 'Guide close-pump-valve step must not keep the old pump-bulb action path');
+assert.match(guideStepModelSource, /closePumpValveRequired:\s*\['closePumpValve'\]/, 'Guide should not accept more pump-bulb presses after the displayed pressure reaches the target');
+assert.doesNotMatch(guideStepModelSource, /closePumpValveRequired:\s*\[[^\]]*'pumpBulb'/, 'Guide close-pump-valve step must not keep the old pump-bulb action path');
 assert.doesNotMatch(u1ReadyBlock, /!file\.pressureOverLimit/, 'guide U1 readiness should allow continuing the experiment after an alarm once the user closes the valve and readings stabilize');
 assert.doesNotMatch(workbenchSource, /input\.pressureOverLimit \|\| input\.pressureSafetyStatus === 'danger'/, 'current recording should not reject U1 solely because the pressure alarm was reached through a legacy trial helper');
 assert.match(workbenchSource, /willHeatCapacityAutoDemoPumpExceedAlarm/, 'auto demo pumping should have an explicit alarm-boundary guard');
@@ -1717,7 +1724,7 @@ assert.match(workbenchSource, /startGuideExperiment:\s*'Guide mode'/, 'auto-demo
 assert.match(workbenchSource, /data-heat-capacity-mode="guide"/, 'preview header should render guide mode in the unified mode bar');
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-manual-reset="true"/, 'preview should not keep the old guide-experiment reset button');
 assert.doesNotMatch(workbenchSource, /resetHeatCapacityForGuideExperiment/, 'Workbench should not route normal Heat Capacity UI resets through the old Guide reset helper');
-assert.match(workbenchSource, /const isHeatCapacityGuideRecordStep = \(step: GuideHeatCapacityStep\) => \([\s\S]*recordU0Required[\s\S]*recordU1Required[\s\S]*recordU2Required/, 'record-ready guide steps should be classified separately from waiting-for-good-data steps');
+assert.match(guideStepModelSource, /export const isHeatCapacityGuideRecordStep = \(step: GuideHeatCapacityStep\) => \([\s\S]*recordU0Required[\s\S]*recordU1Required[\s\S]*recordU2Required/, 'record-ready guide steps should be classified separately from waiting-for-good-data steps');
 assert.match(workbenchSource, /recordU0SuccessToast:\s*'U₀ 记录成功。'/, 'U0 record success should have the confirmed Simplified Chinese success toast copy');
 assert.match(workbenchSource, /recordU1SuccessToast:\s*'U₁ 和 Uₜ 记录成功。'/, 'U1 record success should have the confirmed Simplified Chinese success toast copy');
 assert.match(workbenchSource, /recordU2SuccessToast:\s*'U₂ 和 Uₜ 记录成功。'/, 'U2 record success should have the confirmed Simplified Chinese success toast copy');
@@ -1734,8 +1741,8 @@ assert.match(workbenchSource, /const currentFile = filesRef\.current\.find\(\(fi
 assert.doesNotMatch(workbenchSource, /heatCapacityGuideNextTrialNoticeHoldKey|nextTrialKey/, 'next-trial wait-skip guidance state should be removed');
 assert.match(workbenchSource, /heatCapacityRecordToastSequenceActive[\s\S]*return undefined;/, 'ordinary guide hints should not interrupt the record-success toast sequence');
 assert.doesNotMatch(workbenchSource, /if \(action === 'turnPowerOff'\) return \{ allowed: true \}/, 'guide mode should not allow power-off clicks to bypass the current-step guard');
-assert.match(workbenchSource, /type GuideHeatCapacityRollbackAnimation =[\s\S]*'powerBounce'/, 'invalid guide-mode power switch clicks should have a dedicated visual rollback animation');
-assert.match(workbenchSource, /turnPowerOff:\s*'powerBounce'[\s\S]*turnPowerOn:\s*'powerBounce'|turnPowerOn:\s*'powerBounce'[\s\S]*turnPowerOff:\s*'powerBounce'/, 'invalid power switch actions should route to the power-switch rollback animation');
+assert.match(guideStepModelSource, /export type GuideHeatCapacityRollbackAnimation =[\s\S]*'powerBounce'/, 'invalid guide-mode power switch clicks should have a dedicated visual rollback animation');
+assert.match(guideStepModelSource, /turnPowerOff:\s*'powerBounce'[\s\S]*turnPowerOn:\s*'powerBounce'|turnPowerOn:\s*'powerBounce'[\s\S]*turnPowerOff:\s*'powerBounce'/, 'invalid power switch actions should route to the power-switch rollback animation');
 assert.match(sceneSource, /guideRollbackAnimation !== 'powerBounce'/, 'instrument scene should animate invalid power-switch clicks without changing the real power state');
 assert.match(workbenchSource, /isHeatCapacityGuideRecordStep\(step\)[\s\S]*suppressGuidance:\s*true/, 'clicks outside a visible U0/U1/U2 record button should be blocked without showing stale bad-data guidance');
 assert.match(workbenchSource, /if \(guard\.suppressGuidance\) \{[\s\S]*if \(shouldOpenStrongReminder\) scheduleGuideHeatCapacityStrongReminderAfterToast[\s\S]*return;[\s\S]*\}/, 'suppressed record-ready guard failures should keep rollback feedback, skip ordinary guidance, and still allow delayed strong reminder escalation');
@@ -1748,15 +1755,16 @@ assert.match(workbenchSource, /GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS = 10
 assert.match(workbenchSource, /HEAT_CAPACITY_GUIDE_WAIT_DURATION_MS = 5 \* 60 \* 1000/, 'guide mode U1 and U2 waits should use the real five-minute teaching wait');
 assert.match(workbenchSource, /HEAT_CAPACITY_GUIDE_RELEASE_DURATION_MS = 350/, 'guide mode release pause should target 0.35 seconds of physical stopcock opening');
 assert.match(workbenchSource, /GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS = 4000/, 'guide mode should pulse the current target every four seconds before strong reminder escalation');
-const guidePauseStepSection = workbenchSource.match(/const isGuideHeatCapacityPauseStep = \(step: GuideHeatCapacityStep\) => \([\s\S]*?\);/)?.[0] ?? '';
+const guidePauseStepSection = guideStepModelSource.match(/export const isGuideHeatCapacityPauseStep = \(step: GuideHeatCapacityStep\) => \([\s\S]*?\);/)?.[0] ?? '';
 assert.match(guidePauseStepSection, /recordU1Required[\s\S]*recordU2Required[\s\S]*closePowerRequired/, 'guide mode should pause physics at guided record and final-close checkpoints');
 assert.doesNotMatch(guidePauseStepSection, /closeStopcockAfterReleaseRequired/, 'guide release-close waiting must keep physics stepping so releaseReference and particle outflow can animate');
 assert.match(workbenchSource, /guideHeatCapacityActiveFileIdRef\.current === file\.id[\s\S]*isGuideHeatCapacityPauseStep\(getHeatCapacityGuideStep\(file\)\)[\s\S]*return file;/, 'guide mode pause steps should freeze workbench physics stepping for the active guided file');
 assert.match(workbenchSource, /const shouldOpenStrongReminder = guard\.suppressStrongReminder \? false : registerGuideHeatCapacityMiss\(guard\);[\s\S]*showGuideHeatCapacityGuidance\(guard\.expectedMessage[\s\S]*if \(shouldOpenStrongReminder\) \{[\s\S]*scheduleGuideHeatCapacityStrongReminderAfterToast/, 'two wrong or premature guided clicks should show the reason toast before scheduling the strong reminder unless the current step explicitly suppresses strong escalation');
-assert.match(workbenchSource, /const shouldReplaceActiveGuideBlockedToast = source === 'guide-blocked';[\s\S]*showHeatCapacityToast\(message,\s*level,\s*\{ source,\s*interrupt:\s*shouldReplaceActiveGuideBlockedToast \}\)/, 'rapid repeated guide mistakes should replace the active guide-blocked toast instead of queueing stale prompts');
+assert.match(workbenchSource, /showHeatCapacityPolicyToast\(message,\s*source === 'guide-blocked' \? 'guideBlocked' : 'guide',\s*level\)/, 'rapid repeated guide mistakes should replace the active guide-blocked toast instead of queueing stale prompts');
+assert.match(toastPolicySource, /guideBlocked:\s*\{[\s\S]*options:\s*\{ source:\s*'guide-blocked',\s*interrupt:\s*true \}/, 'guide-blocked toast replacement should be centralized in the shared toast policy');
 assert.match(workbenchSource, /guard\.suppressStrongReminder \? false : registerGuideHeatCapacityMiss\(guard\)/, 'guide waiting-step wrong clicks should be able to show ordinary feedback without accumulating strong-reminder misses');
 assert.match(workbenchSource, /step === 'stabilizeBeforeReleaseRequired'[\s\S]*suppressStrongReminder:\s*true[\s\S]*step === 'recoverRequired'[\s\S]*suppressStrongReminder:\s*true/, 'U1 and U2 five-minute waiting steps should not trigger strong reminders from premature clicks');
-assert.match(workbenchSource, /step === 'stabilizeBeforeReleaseRequired'[\s\S]*rollbackAnimation:\s*rollbackByAction\[action\][\s\S]*step === 'recoverRequired'[\s\S]*rollbackAnimation:\s*rollbackByAction\[action\]/, 'U1 and U2 five-minute waiting steps should still bounce visible controls without changing experiment state');
+assert.match(workbenchSource, /const rollbackAnimation = getHeatCapacityGuideRollbackAnimation\(action\);[\s\S]*step === 'stabilizeBeforeReleaseRequired'[\s\S]*rollbackAnimation,[\s\S]*step === 'recoverRequired'[\s\S]*rollbackAnimation,/, 'U1 and U2 five-minute waiting steps should still bounce visible controls without changing experiment state');
 assert.match(workbenchSource, /guideHeatCapacityStrongReminderTimerRef\.current = window\.setTimeout\([\s\S]*activateGuideHeatCapacityStrongReminder[\s\S]*GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS/, 'guided target inactivity should escalate through the ten-second strong reminder timer');
 assert.match(workbenchSource, /const workflow = activeFile\.heatCapacityGuideWorkflow;[\s\S]*workflow\.strongReminderActive[\s\S]*heatCapacityRecordToastSequenceActive[\s\S]*return;[\s\S]*activateGuideHeatCapacityStrongReminder\(workflow\.strongReminderTargetControlId\)/, 'workflow-driven strong reminders should wait for record-success toasts and then reopen instead of being permanently cleared');
 assert.match(workbenchSource, /activeHeatCapacityGuideStep === 'stabilizeBeforeReleaseRequired' \|\|[\s\S]*activeHeatCapacityGuideStep === 'recoverRequired'[\s\S]*return undefined;/, 'guided five-minute waiting steps should not start the inactivity strong-reminder timer');

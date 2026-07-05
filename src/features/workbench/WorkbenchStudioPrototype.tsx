@@ -152,8 +152,6 @@ import {
 } from '../heatCapacity/heatCapacityFreeParameterPanelModel.ts';
 import {
   createHeatCapacityToastMessage,
-  HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY,
-  HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY,
   HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS,
   isHeatCapacityGuideToast,
   isHeatCapacityPressureToast,
@@ -165,9 +163,23 @@ import {
   type HeatCapacityToastSource,
 } from '../heatCapacity/heatCapacityToastController.ts';
 import {
+  getHeatCapacityToastPolicySpec,
+  type HeatCapacityToastPolicy,
+} from '../heatCapacity/heatCapacityToastPolicy.ts';
+import {
   selectHeatCapacityModeControlState,
   type HeatCapacityModeControlAction,
 } from '../heatCapacity/heatCapacityModeControlModel.ts';
+import {
+  getHeatCapacityGuideAllowedActions,
+  getHeatCapacityGuideRollbackAnimation,
+  getHeatCapacityGuideStepControlId,
+  isGuideHeatCapacityPauseStep,
+  isHeatCapacityGuideRecordStep,
+  type GuideHeatCapacityAction,
+  type GuideHeatCapacityRollbackAnimation,
+  type GuideHeatCapacityStep,
+} from '../heatCapacity/heatCapacityGuideStepModel.ts';
 import {
   createHeatCapacityAutoDemoSteps,
   getHeatCapacityAutoDemoTimeline,
@@ -224,6 +236,23 @@ import {
   persistWorkbenchSession,
   type WorkbenchSessionState,
 } from './workbenchSession.ts';
+import {
+  IDEAL_RESULT_MAX_HEIGHT_RATIO,
+  IDEAL_RESULT_MIN_HEIGHT_RATIO,
+  clampIdealResultHeightRatio,
+  createDefaultWorkbenchLayoutDefaults,
+  idealResultWindowKeys,
+  isIdealResultWindowKey,
+  isStandardResultsTab,
+  loadWorkbenchLayoutDefaults,
+  normalizeIdealWindowLayoutState,
+  normalizeStandardResultsLayout,
+  persistWorkbenchLayoutDefaults,
+  sanitizeWorkbenchLayoutDefaultState,
+  sanitizeWorkbenchLayoutDefaults,
+  standardResultsTabKeys,
+  type WorkbenchLayoutDefaults,
+} from './workbenchLayoutCompatibility.ts';
 import {
   clonePointsByRelation,
   createIdealGasExperimentPoint,
@@ -498,39 +527,6 @@ const mergeWorkbenchUpdateDialogState = (
 
 const WORKBENCH_APP_VERSION = __APP_VERSION__;
 
-type GuideHeatCapacityStep =
-  | 'idle'
-  | 'powerOnRequired'
-  | 'openStopcockForZeroRequired'
-  | 'zeroAdjustRequired'
-  | 'recordU0Required'
-  | 'closeStopcockRequired'
-  | 'openPumpValveRequired'
-  | 'pumpRequired'
-  | 'closePumpValveRequired'
-  | 'stabilizeBeforeReleaseRequired'
-  | 'recordU1Required'
-  | 'openStopcockReleaseRequired'
-  | 'closeStopcockAfterReleaseRequired'
-  | 'recoverRequired'
-  | 'recordU2Required'
-  | 'closePowerRequired'
-  | 'completed';
-
-type GuideHeatCapacityAction =
-  | 'turnPowerOn'
-  | 'turnPowerOff'
-  | 'adjustPressureZero'
-  | 'recordU0'
-  | 'closeStopcock'
-  | 'openStopcock'
-  | 'openPumpValve'
-  | 'closePumpValve'
-  | 'pumpBulb'
-  | 'recordU1'
-  | 'recordU2';
-
-type GuideHeatCapacityRollbackAnimation = 'valveBounce' | 'stopcockBounce' | 'pumpBulbBounce' | 'knobBounce' | 'powerBounce';
 type HeatCapacityLockedControl = 'powerSwitch' | 'pressureZero' | 'stopcock' | 'pumpValve' | 'pumpBulb';
 
 interface GuideHeatCapacityGuardResult {
@@ -823,18 +819,6 @@ const renderHeatCapacityGuideStrongMaskHole = (
     />
   );
 };
-
-const isHeatCapacityGuideRecordStep = (step: GuideHeatCapacityStep) => (
-  step === 'recordU0Required' ||
-  step === 'recordU1Required' ||
-  step === 'recordU2Required'
-);
-
-const isGuideHeatCapacityPauseStep = (step: GuideHeatCapacityStep) => (
-  step === 'recordU1Required' ||
-  step === 'recordU2Required' ||
-  step === 'closePowerRequired'
-);
 
 const renderHeatCapacityParameterSymbol = (
   parts: HeatCapacityFreeParameterSymbolPart[],
@@ -1549,13 +1533,9 @@ const IDEAL_SCAN_SNAP_THRESHOLD: Record<ExperimentRelation, number> = {
   pv: 0.25,
   pn: 8,
 };
-const IDEAL_RESULT_MIN_HEIGHT_RATIO = 0.25;
-const IDEAL_RESULT_MAX_HEIGHT_RATIO = 1;
 const HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO = IDEAL_RESULT_MIN_HEIGHT_RATIO;
 const STANDARD_RESULTS_BOTTOM_INSET = 10;
 const RESIZER_GRAB_SAFE_SPACE = 14;
-const IDEAL_RESULT_WINDOW_DEFAULTS_STORAGE_KEY = 'hsl_workbench_ideal_result_window_defaults';
-const WORKBENCH_LAYOUT_DEFAULTS_STORAGE_KEY = 'hsl_workbench_layout_defaults_v1';
 const WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY = 'hsl_workbench_general_settings_v2';
 const WORKBENCH_IGNORED_UPDATE_VERSION_KEY = 'hslIgnoredUpdateVersion';
 const HEAT_CAPACITY_AUTO_DEMO_RESET_MS = 1_800;
@@ -2539,17 +2519,6 @@ const getHeatCapacityFreeRecordRejectMessage = (
   copy: ReturnType<typeof getHeatCapacityRealtimeCopy>,
 ) => copy.freeRecordRejectMessages[reason];
 
-interface WorkbenchLayoutDefaultState {
-  resultsHeightRatio: number;
-  liveWorkspaceSplitRatio: number;
-}
-
-interface WorkbenchLayoutDefaults {
-  standard: WorkbenchLayoutDefaultState;
-  ideal: WorkbenchLayoutDefaultState;
-  heatCapacity: WorkbenchLayoutDefaultState;
-}
-
 const hasDesktopExportBridge = () => (
   typeof window !== 'undefined' && Boolean(window.hardSphereLabExporter)
 );
@@ -2951,18 +2920,8 @@ const idealRelationOptions: Array<{ key: ExperimentRelation; label: string }> = 
 ];
 
 const idealRelationKeys: ExperimentRelation[] = ['pt', 'pv', 'pn'];
-const standardResultsTabKeys: WorkbenchStandardResultsTab[] = ['summary', 'dataTable', 'figures'];
-const idealResultWindowKeys: WorkbenchIdealResultWindowKey[] = ['experimentPoints', 'verification'];
 const heatCapacityMaterialsTabOrder: WorkbenchHeatCapacityTabId[] = ['guide', 'records', 'review'];
 const getHeatCapacityMaterialsTabOrder = (_file: WorkbenchFileState): WorkbenchHeatCapacityTabId[] => heatCapacityMaterialsTabOrder;
-
-const isIdealResultWindowKey = (key: string): key is WorkbenchIdealResultWindowKey => (
-  key === 'experimentPoints' || key === 'verification'
-);
-
-const isStandardResultsTab = (key: string): key is WorkbenchStandardResultsTab => (
-  standardResultsTabKeys.includes(key as WorkbenchStandardResultsTab)
-);
 
 const isHeatCapacityPanelKey = (key: WorkbenchPanelKey): key is WorkbenchHeatCapacityPanelKey => (
   key === 'heatCapacityGuide' ||
@@ -2988,144 +2947,10 @@ const heatCapacityPanelKeyToTabId = (panelKey: WorkbenchPanelKey): WorkbenchHeat
       : null
 );
 
-const clampIdealResultHeightRatio = (value: number) => (
-  clamp(value, IDEAL_RESULT_MIN_HEIGHT_RATIO, IDEAL_RESULT_MAX_HEIGHT_RATIO)
-);
-
-const normalizeIdealWindowLayoutState = (
-  layout: WorkbenchIdealWindowLayout | (Partial<WorkbenchIdealWindowLayout> & {
-    openPanels?: WorkbenchIdealResultWindowKey[];
-    frontHeightRatio?: number;
-    backHeightRatio?: number;
-    hasCustomHeights?: boolean;
-  }) | null | undefined,
-  defaults?: Partial<WorkbenchLayoutDefaultState>,
-): WorkbenchIdealWindowLayout => {
-  const legacyLayout = layout as (Partial<WorkbenchIdealWindowLayout> & {
-    openPanels?: string[];
-    frontHeightRatio?: number;
-    backHeightRatio?: number;
-    hasCustomHeights?: boolean;
-  }) | null | undefined;
-  const openTabs = legacyLayout?.openTabs?.filter(isIdealResultWindowKey) as WorkbenchIdealResultWindowKey[] | undefined;
-  const legacyOpenPanels = legacyLayout?.openPanels?.filter(isIdealResultWindowKey) as WorkbenchIdealResultWindowKey[] | undefined;
-  const activeIdealResultTab: WorkbenchIdealResultWindowKey = legacyLayout?.activeIdealResultTab
-    ?? legacyOpenPanels?.slice(-1)[0]
-    ?? 'experimentPoints';
-  const normalizedOpenTabs: WorkbenchIdealResultWindowKey[] = openTabs?.length ? openTabs : ['experimentPoints', 'verification'];
-  const heightRatio = clampIdealResultHeightRatio(
-    legacyLayout?.heightRatio
-    ?? legacyLayout?.frontHeightRatio
-    ?? legacyLayout?.backHeightRatio
-    ?? defaults?.resultsHeightRatio
-    ?? IDEAL_RESULT_HEIGHT_RATIO,
-  );
-
-  return {
-    openTabs: normalizedOpenTabs,
-    activeIdealResultTab: normalizedOpenTabs.includes(activeIdealResultTab) ? activeIdealResultTab : normalizedOpenTabs[0],
-    heightRatio,
-    hasCustomHeight: Boolean(legacyLayout?.hasCustomHeight ?? legacyLayout?.hasCustomHeights),
-  };
-};
-
-const normalizeStandardResultsLayout = (
-  layout: Partial<WorkbenchStandardResultsLayout> | null | undefined,
-  defaults?: Partial<WorkbenchLayoutDefaultState>,
-): WorkbenchStandardResultsLayout => {
-  const openTabs = layout?.openTabs?.filter(isStandardResultsTab) as WorkbenchStandardResultsTab[] | undefined;
-  const normalizedOpenTabs: WorkbenchStandardResultsTab[] = openTabs?.length ? openTabs : ['summary', 'dataTable', 'figures'];
-  const activeTab = layout?.activeTab && normalizedOpenTabs.includes(layout.activeTab)
-    ? layout.activeTab
-    : normalizedOpenTabs[0];
-
-  return {
-    openTabs: normalizedOpenTabs,
-    activeTab,
-    heightRatio: clampIdealResultHeightRatio(layout?.heightRatio ?? defaults?.resultsHeightRatio ?? IDEAL_RESULT_HEIGHT_RATIO),
-  };
-};
-
 const pickNextOpenTab = <T extends string>(tabs: T[], closingTab: T) => {
   const closingIndex = tabs.indexOf(closingTab);
   if (closingIndex < 0) return tabs[0] ?? null;
   return tabs[closingIndex + 1] ?? tabs[closingIndex - 1] ?? null;
-};
-
-const createDefaultWorkbenchLayoutDefaults = (): WorkbenchLayoutDefaults => ({
-  standard: {
-    resultsHeightRatio: IDEAL_RESULT_HEIGHT_RATIO,
-    liveWorkspaceSplitRatio: WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
-  },
-  ideal: {
-    resultsHeightRatio: IDEAL_RESULT_HEIGHT_RATIO,
-    liveWorkspaceSplitRatio: WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
-  },
-  heatCapacity: {
-    resultsHeightRatio: IDEAL_RESULT_HEIGHT_RATIO,
-    liveWorkspaceSplitRatio: WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
-  },
-});
-
-const sanitizeWorkbenchLayoutDefaultState = (
-  defaults: Partial<WorkbenchLayoutDefaultState> | null | undefined,
-): WorkbenchLayoutDefaultState => ({
-  resultsHeightRatio: clampIdealResultHeightRatio(defaults?.resultsHeightRatio ?? IDEAL_RESULT_HEIGHT_RATIO),
-  liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(defaults?.liveWorkspaceSplitRatio),
-});
-
-const sanitizeIdealResultWindowDefaults = (
-  defaults: Partial<Pick<WorkbenchIdealWindowLayout, 'heightRatio'>> | null | undefined,
-): WorkbenchLayoutDefaultState => {
-  const legacyDefaults = defaults as Partial<Pick<WorkbenchIdealWindowLayout, 'heightRatio'>> & {
-    frontHeightRatio?: number;
-    backHeightRatio?: number;
-  } | null | undefined;
-  return {
-    resultsHeightRatio: clampIdealResultHeightRatio(
-      legacyDefaults?.heightRatio
-      ?? legacyDefaults?.frontHeightRatio
-      ?? legacyDefaults?.backHeightRatio
-      ?? IDEAL_RESULT_HEIGHT_RATIO,
-    ),
-    liveWorkspaceSplitRatio: WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
-  };
-};
-
-const sanitizeWorkbenchLayoutDefaults = (
-  defaults: Partial<WorkbenchLayoutDefaults> | null | undefined,
-): WorkbenchLayoutDefaults => {
-  const fallback = createDefaultWorkbenchLayoutDefaults();
-  return {
-    standard: sanitizeWorkbenchLayoutDefaultState(defaults?.standard ?? fallback.standard),
-    ideal: sanitizeWorkbenchLayoutDefaultState(defaults?.ideal ?? fallback.ideal),
-    heatCapacity: sanitizeWorkbenchLayoutDefaultState(defaults?.heatCapacity ?? fallback.heatCapacity),
-  };
-};
-
-const loadWorkbenchLayoutDefaults = (): WorkbenchLayoutDefaults => {
-  if (typeof window === 'undefined') return createDefaultWorkbenchLayoutDefaults();
-
-  try {
-    const stored = window.localStorage.getItem(WORKBENCH_LAYOUT_DEFAULTS_STORAGE_KEY);
-    if (stored) return sanitizeWorkbenchLayoutDefaults(JSON.parse(stored) as Partial<WorkbenchLayoutDefaults>);
-
-    const legacyStored = window.localStorage.getItem(IDEAL_RESULT_WINDOW_DEFAULTS_STORAGE_KEY);
-    if (!legacyStored) return createDefaultWorkbenchLayoutDefaults();
-    return sanitizeWorkbenchLayoutDefaults({
-      ideal: sanitizeIdealResultWindowDefaults(JSON.parse(legacyStored)),
-    });
-  } catch {
-    return createDefaultWorkbenchLayoutDefaults();
-  }
-};
-
-const persistWorkbenchLayoutDefaults = (defaults: WorkbenchLayoutDefaults) => {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(
-    WORKBENCH_LAYOUT_DEFAULTS_STORAGE_KEY,
-    JSON.stringify(sanitizeWorkbenchLayoutDefaults(defaults)),
-  );
 };
 
 const idealSamplingPresets: Array<{ key: IdealSamplingPresetKey; label: string; equilibriumTime: number; statsDuration: number }> = [
@@ -4874,19 +4699,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
   ) => {
     const pressureThresholdsMv = getHeatCapacityPressureThresholdsMv(file);
     if (pressureMv >= pressureThresholdsMv.pressureDangerThresholdMv) {
-      showHeatCapacityToast(heatCapacityRealtimeCopy.pressureAlarmMessage, 'danger', {
-        interrupt: true,
-        priority: HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY,
-        source: 'pressure-alarm',
-      });
+      showHeatCapacityPolicyToast(heatCapacityRealtimeCopy.pressureAlarmMessage, 'pressureAlarm');
       return;
     }
     if (pressureMv >= pressureThresholdsMv.pressureWarningThresholdMv) {
-      showHeatCapacityToast(heatCapacityRealtimeCopy.pressureWarningMessage, 'info', {
-        interrupt: true,
-        priority: HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY,
-        source: 'pressure-warning',
-      });
+      showHeatCapacityPolicyToast(heatCapacityRealtimeCopy.pressureWarningMessage, 'pressureWarning');
     }
   };
 
@@ -5220,26 +5037,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
       closePowerRequired: isEn ? 'Turn off the power to finish this guided experiment.' : isTw ? '請關閉電源，完成本次引導實驗。' : '请关闭电源，完成本次引导实验。',
       completed: isEn ? 'Guide experiment complete.' : isTw ? '引導實驗已完成。' : '引导实验已完成。',
     };
-    const controlByStep: Record<GuideHeatCapacityStep, string | null> = {
-      idle: null,
-      powerOnRequired: 'powerSwitch',
-      openStopcockForZeroRequired: 'stopcock',
-      zeroAdjustRequired: 'pressureZero',
-      recordU0Required: 'recordU0',
-      closeStopcockRequired: 'stopcock',
-      openPumpValveRequired: 'pumpValve',
-      pumpRequired: 'pumpBulb',
-      closePumpValveRequired: 'pumpValve',
-      stabilizeBeforeReleaseRequired: temperatureReady ? 'instrumentPressureDisplay' : 'instrumentTemperatureDisplay',
-      recordU1Required: 'recordU1',
-      openStopcockReleaseRequired: 'stopcock',
-      closeStopcockAfterReleaseRequired: 'stopcock',
-      recoverRequired: temperatureReady ? 'instrumentPressureDisplay' : 'instrumentTemperatureDisplay',
-      recordU2Required: 'recordU2',
-      closePowerRequired: 'powerSwitch',
-      completed: null,
+    return {
+      message: messages[step],
+      controlId: getHeatCapacityGuideStepControlId(step, { temperatureReady }),
     };
-    return { message: messages[step], controlId: controlByStep[step] };
   };
 
   const getGuideHeatCapacityRecordBlockedMessage = (
@@ -5328,6 +5129,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (nextState.shouldRestartTimer) scheduleHeatCapacityToastAdvance();
   };
 
+  const showHeatCapacityPolicyToast = (
+    text: string,
+    policy: HeatCapacityToastPolicy,
+    levelOverride?: HeatCapacityToastLevel,
+  ) => {
+    const spec = getHeatCapacityToastPolicySpec(policy);
+    showHeatCapacityToast(text, levelOverride ?? spec.level, spec.options);
+  };
+
   const clearHeatCapacityToastBySource = (
     predicate: (message: HeatCapacityToastMessage | null) => boolean,
   ) => {
@@ -5403,11 +5213,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
   }) => {
     clearHeatCapacityRecordSuccessToastTimers();
     setHeatCapacityRecordToastSequenceActive(true);
-    showHeatCapacityToast(primaryMessage, 'success', { interrupt: true });
+    showHeatCapacityPolicyToast(primaryMessage, 'success');
 
     if (followUpMessage) {
       const followUpTimerId = window.setTimeout(() => {
-        showHeatCapacityToast(followUpMessage, 'success', { interrupt: true });
+        showHeatCapacityPolicyToast(followUpMessage, 'success');
       }, HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS);
       heatCapacityRecordSuccessToastTimersRef.current.push(followUpTimerId);
     }
@@ -5535,11 +5345,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (currentFile?.kind === 'heatCapacity') {
       if (mode === 'pump' && isHeatCapacityPumpFocusBlockedByAlarm(currentFile)) {
         exitHeatCapacityFocusMode();
-        showHeatCapacityToast(heatCapacityRealtimeCopy.closePumpValveReminder, 'warning', {
-          interrupt: true,
-          priority: HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY,
-          source: 'pressure-close-valve',
-        });
+        showHeatCapacityPolicyToast(heatCapacityRealtimeCopy.closePumpValveReminder, 'pressureCloseValve');
         return;
       }
       const currentSession = heatCapacityFocusSessionRef.current;
@@ -5601,11 +5407,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         const currentFile = filesRef.current.find((file) => file.id === fileId);
         if (currentFile?.kind !== 'heatCapacity') return;
         if (!currentFile.pumpValveOpen) return;
-        showHeatCapacityToast(heatCapacityRealtimeCopy.closePumpValveReminder, 'warning', {
-          interrupt: true,
-          priority: HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY,
-          source: 'pressure-close-valve',
-        });
+        showHeatCapacityPolicyToast(heatCapacityRealtimeCopy.closePumpValveReminder, 'pressureCloseValve');
       }, HEAT_CAPACITY_CLOSE_PUMP_VALVE_REMINDER_AFTER_ALARM_MS);
     }, HEAT_CAPACITY_PRESSURE_ALARM_DURATION_MS);
   };
@@ -5636,8 +5438,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     source: Extract<HeatCapacityToastSource, 'guide' | 'guide-blocked'> = 'guide',
   ) => {
     if (isHeatCapacityPressureAlertActive()) return;
-    const shouldReplaceActiveGuideBlockedToast = source === 'guide-blocked';
-    showHeatCapacityToast(message, level, { source, interrupt: shouldReplaceActiveGuideBlockedToast });
+    showHeatCapacityPolicyToast(message, source === 'guide-blocked' ? 'guideBlocked' : 'guide', level);
     pulseGuideHeatCapacityControl(controlId);
   };
 
@@ -5755,35 +5556,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
   ): GuideHeatCapacityGuardResult => {
     const step = getHeatCapacityGuideStep(file);
     const guidance = getGuideStepGuidance(step, file);
-    const rollbackByAction: Partial<Record<GuideHeatCapacityAction, GuideHeatCapacityRollbackAnimation>> = {
-      adjustPressureZero: 'knobBounce',
-      openStopcock: 'stopcockBounce',
-      closeStopcock: 'stopcockBounce',
-      openPumpValve: 'valveBounce',
-      closePumpValve: 'valveBounce',
-      pumpBulb: 'pumpBulbBounce',
-      turnPowerOn: 'powerBounce',
-      turnPowerOff: 'powerBounce',
-    };
-    const allowedActions: Record<GuideHeatCapacityStep, GuideHeatCapacityAction[]> = {
-      idle: ['turnPowerOn'],
-      powerOnRequired: ['turnPowerOn'],
-      openStopcockForZeroRequired: ['openStopcock'],
-      zeroAdjustRequired: ['adjustPressureZero'],
-      recordU0Required: ['adjustPressureZero', 'recordU0'],
-      closeStopcockRequired: ['closeStopcock'],
-      openPumpValveRequired: ['openPumpValve'],
-      pumpRequired: ['pumpBulb'],
-      closePumpValveRequired: ['closePumpValve'],
-      stabilizeBeforeReleaseRequired: [],
-      recordU1Required: ['recordU1'],
-      openStopcockReleaseRequired: ['openStopcock'],
-      closeStopcockAfterReleaseRequired: ['closeStopcock'],
-      recoverRequired: [],
-      recordU2Required: ['recordU2'],
-      closePowerRequired: ['turnPowerOff'],
-      completed: [],
-    };
+    const rollbackAnimation = getHeatCapacityGuideRollbackAnimation(action);
+    const allowedActions = getHeatCapacityGuideAllowedActions(step);
     if (
       action === 'closePumpValve' &&
       (step === 'pumpRequired' || step === 'closePumpValveRequired') &&
@@ -5803,7 +5577,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         expectedControlId: 'recordU1',
         expectedMessage: guidance.message,
         expectedLevel: 'warning',
-        rollbackAnimation: rollbackByAction[action],
+        rollbackAnimation,
         suppressStrongReminder: true,
       };
     }
@@ -5813,16 +5587,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
         expectedControlId: 'recordU2',
         expectedMessage: guidance.message,
         expectedLevel: 'warning',
-        rollbackAnimation: rollbackByAction[action],
+        rollbackAnimation,
         suppressStrongReminder: true,
       };
     }
-    if (allowedActions[step]?.includes(action)) return { allowed: true };
+    if (allowedActions.includes(action)) return { allowed: true };
     if (isHeatCapacityGuideRecordStep(step)) {
       return {
         allowed: false,
         expectedControlId: guidance.controlId ?? undefined,
-        rollbackAnimation: rollbackByAction[action],
+        rollbackAnimation,
         suppressGuidance: true,
       };
     }
@@ -5831,7 +5605,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       expectedControlId: guidance.controlId ?? undefined,
       expectedMessage: guidance.message,
       expectedLevel: 'warning',
-      rollbackAnimation: rollbackByAction[action],
+      rollbackAnimation,
     };
   };
 
@@ -6858,11 +6632,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       if (
         pressureBeforePumpMv >= getHeatCapacityPressureThresholdsMv(fileBeforePump).pressureDangerThresholdMv
       ) {
-        showHeatCapacityToast(heatCapacityRealtimeCopy.pressureAlarmMessage, 'danger', {
-          interrupt: true,
-          priority: HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY,
-          source: 'pressure-alarm',
-        });
+        showHeatCapacityPolicyToast(heatCapacityRealtimeCopy.pressureAlarmMessage, 'pressureAlarm');
       }
       const nextFrequencyState = getHeatCapacityPumpFrequencyState(
         [...fileBeforePump.pumpStrokeTimestamps, now],
@@ -6888,11 +6658,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       if (pressureStatusAfterPump === 'danger' && pressureStatusBeforePump !== 'danger') {
         showHeatCapacityPressureAlarm(nextHeatCapacityFile.id, nextHeatCapacityFile.name);
       } else if (pressureStatusAfterPump === 'warning') {
-        showHeatCapacityToast(heatCapacityRealtimeCopy.pressureWarningMessage, 'info', {
-          interrupt: true,
-          priority: HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY,
-          source: 'pressure-warning',
-        });
+        showHeatCapacityPolicyToast(heatCapacityRealtimeCopy.pressureWarningMessage, 'pressureWarning');
       } else if (pressureStatusAfterPump === 'danger') {
         showHeatCapacityPressureThresholdToast(pressureAfterPumpMv, nextHeatCapacityFile);
       }

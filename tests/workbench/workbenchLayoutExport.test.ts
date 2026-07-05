@@ -5,6 +5,7 @@ const studioSource = readFileSync(new URL('../../src/features/workbench/Workbenc
 const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
 const sessionSource = readFileSync(new URL('../../src/features/workbench/workbenchSession.ts', import.meta.url), 'utf8');
 const resultsSource = readFileSync(new URL('../../src/features/workbench/workbenchResults.ts', import.meta.url), 'utf8');
+const layoutCompatibilitySource = readFileSync(new URL('../../src/features/workbench/workbenchLayoutCompatibility.ts', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
@@ -38,19 +39,19 @@ assert.match(
 );
 
 assert.match(
-  studioSource,
+  layoutCompatibilitySource,
   /WORKBENCH_LAYOUT_DEFAULTS_STORAGE_KEY = 'hsl_workbench_layout_defaults_v1'/,
   'generic workbench layout defaults should use their own storage key',
 );
 
 assert.match(
-  studioSource,
+  layoutCompatibilitySource,
   /standard: \{[\s\S]*?resultsHeightRatio[\s\S]*?liveWorkspaceSplitRatio/,
   'standard default layout should store result height and split ratio',
 );
 
 assert.match(
-  studioSource,
+  layoutCompatibilitySource,
   /ideal: \{[\s\S]*?resultsHeightRatio[\s\S]*?liveWorkspaceSplitRatio/,
   'ideal default layout should store result height and split ratio',
 );
@@ -134,5 +135,4 @@ assert.match(
 );
 
 console.log('workbenchLayoutExport tests passed');
-
 

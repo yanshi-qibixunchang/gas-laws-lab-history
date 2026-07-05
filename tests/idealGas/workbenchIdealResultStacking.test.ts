@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
+const layoutCompatibilitySource = readFileSync(new URL('../../src/features/workbench/workbenchLayoutCompatibility.ts', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
@@ -22,9 +23,9 @@ assert.match(
 );
 
 assert.match(
-  source,
+  layoutCompatibilitySource,
   /IDEAL_RESULT_WINDOW_DEFAULTS_STORAGE_KEY/,
-  'workbench should define a localStorage key for saved ideal result window defaults',
+  'workbench layout compatibility should define a localStorage key for saved ideal result window defaults',
 );
 assert.match(
   source,
@@ -99,5 +100,4 @@ assert.doesNotMatch(
 );
 
 console.log('workbenchIdealResultStacking tests passed');
-
 
