@@ -905,6 +905,7 @@ assert.match(sceneSource, /dark:\s*\{[\s\S]*scene:\s*\{[\s\S]*deck:\s*'#252b35'/
 assert.match(sceneSource, /hardSpherePaused:\s*boolean/, 'heat-capacity scene should accept a hard-sphere pause flag for guided record checkpoints');
 assert.match(hardSphereLayerSource, /paused\?:\s*boolean/, 'hard-sphere layer should expose a pause input instead of only freezing Workbench physics state');
 assert.match(hardSphereLayerSource, /if\s*\(paused\)\s*return;/, 'hard-sphere layer should stop particle simulation without rebuilding positions while guided checkpoints are paused');
+assert.match(workbenchSource, /const heatCapacityHardSpherePaused =[\s\S]*autoDemoPaused[\s\S]*activeFile\.heatCapacityMode === 'guide'/, 'demo pause should also pause hard-sphere particle motion');
 assert.match(workbenchSource, /const heatCapacityHardSphereGasAmountRatio =/, 'Workbench should derive hard-sphere gas amount through a mode-aware visual source');
 assert.match(workbenchSource, /activeFile\.heatCapacityMode === 'guide'[\s\S]*activeFile\.heatCapacityGuidePhysicsState\.gasAmountRatio/, 'Guide hard-sphere visualization should use Guide physics gas amount, not stale Free physics');
 assert.match(workbenchSource, /activeFile\.heatCapacityMode === 'guide'[\s\S]*activeFile\.heatCapacityGuidePhysicsState\.gasTemperatureK/, 'Guide hard-sphere visualization should use Guide physics gas temperature for color and speed mapping');
@@ -918,6 +919,9 @@ assert.match(hardSphereModelSource, /type HeatCapacityHardSphereReleasePhase[\s\
 assert.match(sceneSource, /releaseTimeline:\s*HeatCapacityHardSphereReleaseTimeline/, 'instrument scene should receive the hard-sphere release timeline');
 assert.match(sceneSource, /releaseTimeline=\{props\.releaseTimeline\}/, 'instrument scene should pass the release timeline into the hard-sphere layer');
 assert.match(sceneSource, /<HeatCapacityUltraInstrumentModel[\s\S]*releaseTimeline=\{props\.releaseTimeline\}/, 'Ultra model should receive the same hard-sphere release timeline props');
+assert.match(workbenchSource, /scheduleHeatCapacityAutoDemoLockedPointerToast/, 'demo locked pointer fallback should be scheduled instead of firing immediately from the preview wrapper');
+assert.match(workbenchSource, /cancelHeatCapacityAutoDemoLockedPointerToast/, '3D control locked interactions should cancel the wrapper fallback toast to avoid duplicate locked messages');
+assert.doesNotMatch(workbenchSource, /onPointerDownCapture=\{\(event\) => \{[\s\S]{0,360}if \(autoDemoInteractionLocked\) showHeatCapacityAutoDemoLockedToast\(\);/, 'preview wrapper should not immediately show the demo locked toast before 3D controls handle the same gesture');
 assert.doesNotMatch(hardSphereLayerSource, /pumpMotionEnabled|releaseMotionEnabled/, 'hard-sphere layer should not keep old pump/release motion gates after the full Ultra path is connected');
 assert.match(hardSphereLayerSource, /releaseTimeline\?:\s*HeatCapacityHardSphereReleaseTimeline/, 'hard-sphere layer should consume a release timeline instead of inferring release solely from pressure');
 assert.match(hardSphereLayerSource, /getHeatCapacityHardSphereScheduleFrame/, 'hard-sphere layer should use the deterministic visual schedule for release budgeting');

@@ -106,7 +106,7 @@ type HeatCapacityUltraInstrumentModelProps = {
   visualEffects: UltraVisualEffects;
   hoveredControl: UltraHoveredControl;
   setHoveredControl: (control: UltraHoveredControl) => void;
-  onLockedInteraction: (message?: string) => void;
+  onLockedInteraction: (message?: string, control?: UltraPointerControl) => void;
   onGuideTargetHolesChange?: (holes: HeatCapacityGuideProjectedHoles) => void;
   onPowerToggle: (nextPowerOn?: boolean) => void;
   onStopcockOpenChange: (nextOpen?: boolean) => void;
@@ -2444,7 +2444,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     if (resolvedControl === 'pressureZero') return;
     const runControlClick = () => {
       if (props.interactionLocked) {
-        props.onLockedInteraction();
+        props.onLockedInteraction(undefined, resolvedControl);
         return;
       }
       if (resolvedControl === 'powerSwitch') {
@@ -2475,7 +2475,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     clearPendingUltraSingleClick();
     const resolvedControl = resolveUltraActionControl(control, event.clientX, event.clientY);
     if (props.interactionLocked) {
-      props.onLockedInteraction();
+      props.onLockedInteraction(undefined, resolvedControl);
       return;
     }
     if (resolvedControl === 'powerSwitch' || resolvedControl === 'pressureZero') {
@@ -2505,7 +2505,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     }
     absorbUltraPointerEvent(event);
     if (props.interactionLocked) {
-      props.onLockedInteraction();
+      props.onLockedInteraction(undefined, resolvedControl);
       return;
     }
     if (!props.pressureZeroInteractionEnabled) {
@@ -2562,7 +2562,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     if (resolvedControl !== 'pressureZero') return;
     absorbUltraPointerEvent(event);
     if (props.interactionLocked) {
-      props.onLockedInteraction();
+      props.onLockedInteraction(undefined, resolvedControl);
       return;
     }
     if (!props.pressureZeroInteractionEnabled) {

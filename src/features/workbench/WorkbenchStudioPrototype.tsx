@@ -543,6 +543,7 @@ interface GuideHeatCapacityGuardResult {
 const GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS = 10_000;
 const GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS = 4000;
 const HEAT_CAPACITY_AUTO_DEMO_LOCKED_TOAST_DEDUPE_MS = 250;
+const HEAT_CAPACITY_AUTO_DEMO_LOCKED_POINTER_FALLBACK_MS = 320;
 const HEAT_CAPACITY_GUIDE_WAIT_DURATION_MS = 5 * 60 * 1000;
 const HEAT_CAPACITY_GUIDE_RELEASE_DURATION_MS = 350;
 const HEAT_CAPACITY_GUIDE_WAIT_DURATION_S = HEAT_CAPACITY_GUIDE_WAIT_DURATION_MS / 1000;
@@ -3336,6 +3337,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const heatCapacityGuideChecklistViewedIndexRef = useRef(0);
   const heatCapacityGuideChecklistCurrentIndexRef = useRef(0);
   const heatCapacityAutoDemoLockedToastLastShownRef = useRef<{ message: string; at: number } | null>(null);
+  const heatCapacityAutoDemoLockedPointerToastTimerRef = useRef<number | null>(null);
   const heatCapacityRecordControlsClosingTimerRef = useRef<number | null>(null);
   const heatCapacityFreeResetFeedbackTimerRef = useRef<number | null>(null);
   const heatCapacityFreeSpeedNoticeTimerRef = useRef<number | null>(null);
@@ -6483,12 +6485,21 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
   };
 
+  const cancelHeatCapacityAutoDemoLockedPointerToast = () => {
+    if (heatCapacityAutoDemoLockedPointerToastTimerRef.current !== null) {
+      window.clearTimeout(heatCapacityAutoDemoLockedPointerToastTimerRef.current);
+      heatCapacityAutoDemoLockedPointerToastTimerRef.current = null;
+    }
+  };
+
   const clearHeatCapacityAutoDemoTimers = () => {
     heatCapacityAutoDemoTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
     heatCapacityAutoDemoTimersRef.current = [];
+    cancelHeatCapacityAutoDemoLockedPointerToast();
   };
 
   const showHeatCapacityAutoDemoLockedToast = (message: string = heatCapacityRealtimeCopy.autoDemoLockedToast) => {
+    cancelHeatCapacityAutoDemoLockedPointerToast();
     const now = Date.now();
     const lastShown = heatCapacityAutoDemoLockedToastLastShownRef.current;
     if (
@@ -6500,6 +6511,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
     heatCapacityAutoDemoLockedToastLastShownRef.current = { message, at: now };
     showHeatCapacityToast(message, 'warning');
+  };
+
+  const scheduleHeatCapacityAutoDemoLockedPointerToast = () => {
+    cancelHeatCapacityAutoDemoLockedPointerToast();
+    heatCapacityAutoDemoLockedPointerToastTimerRef.current = window.setTimeout(() => {
+      heatCapacityAutoDemoLockedPointerToastTimerRef.current = null;
+      showHeatCapacityAutoDemoLockedToast();
+    }, HEAT_CAPACITY_AUTO_DEMO_LOCKED_POINTER_FALLBACK_MS);
   };
 
   const showHeatCapacityTeachingCompletedLockedInteraction = (
@@ -6559,6 +6578,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const clearHeatCapacityAutoDemoUiState = () => {
+    cancelHeatCapacityAutoDemoLockedPointerToast();
     if (heatCapacityAutoDemoCompleteToastTimerRef.current !== null) {
       window.clearTimeout(heatCapacityAutoDemoCompleteToastTimerRef.current);
       heatCapacityAutoDemoCompleteToastTimerRef.current = null;
@@ -11355,12 +11375,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
             onPointerDownCapture={(event) => {
               const target = event.target instanceof Element ? event.target : null;
               if (target?.closest('[data-heat-capacity-hard-sphere-toggle="true"]')) return;
-              if (autoDemoInteractionLocked) showHeatCapacityAutoDemoLockedToast();
+              if (autoDemoInteractionLocked) scheduleHeatCapacityAutoDemoLockedPointerToast();
             }}
             onWheelCapture={(event) => {
               const target = event.target instanceof Element ? event.target : null;
               if (target?.closest('[data-heat-capacity-hard-sphere-toggle="true"]')) return;
-              if (autoDemoInteractionLocked) showHeatCapacityAutoDemoLockedToast();
+              if (autoDemoInteractionLocked) scheduleHeatCapacityAutoDemoLockedPointerToast();
             }}
           >
             {(() => {
@@ -12024,9 +12044,23 @@ const WorkbenchStudioPrototype: React.FC = () => {
               ), 0));
               const pumpFlowActive = pumpFlowIntensity > 0 ||
                 (!activeHeatCapacityUsesVisualPhysics && activeFile.pumpValveOpen && activeFile.pumpBulbState === 'compressing');
-              const heatCapacityHardSpherePaused = activeFile.heatCapacityMode === 'guide'
-                ? activeFile.heatCapacityGuideWorkflow.paused
-                : false;
+              const heatCapacityHardSpherePaused = autoDemoPaused ||
+                (
+                  activeFile.heatCapacityMode === 'guide'
+                    ? activeFile.heatCapacityGuideWorkflow.paused
+                    : false
+                );
+              const handleHeatCapacitySceneLockedInteraction = (
+                message?: string,
+                control?: HeatCapacityLockedControl,
+              ) => {
+                cancelHeatCapacityAutoDemoLockedPointerToast();
+                if (heatCapacityTeachingCompleted) {
+                  showHeatCapacityTeachingCompletedLockedInteraction(message, control);
+                  return;
+                }
+                showHeatCapacityAutoDemoLockedToast(message);
+              };
               return (
                 <HeatCapacityInstrumentScene
                   performanceMode={settingsPerformanceMode}
@@ -12094,9 +12128,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   onGuideTargetHolesChange={setHeatCapacityGuideProjectedHoles}
                   onFocusModeChange={updateHeatCapacityFocusMode}
                   onFocusExitRequest={handleHeatCapacityFocusExitRequest}
-                  onLockedInteraction={heatCapacityTeachingCompleted
-                    ? showHeatCapacityTeachingCompletedLockedInteraction
-                    : showHeatCapacityAutoDemoLockedToast}
+                  onLockedInteraction={handleHeatCapacitySceneLockedInteraction}
                   onPowerToggle={updateHeatCapacityPower}
                   onStopcockOpenChange={updateHeatCapacityStopcockOpen}
                   onPressureZeroFineAdjust={adjustHeatCapacityPressureZeroFineFromScene}

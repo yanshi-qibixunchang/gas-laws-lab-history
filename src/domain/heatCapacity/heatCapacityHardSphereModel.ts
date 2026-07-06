@@ -107,11 +107,6 @@ export const getHeatCapacityHardSphereVisualState = (
 
   const pressureDeltaKPa = finiteOrFallback(input.pressureDeltaKPa, finiteOrFallback(input.pressureMv, 0) / 20);
   const smoothedPressureMv = Math.max(0, roundToStep(finiteOrFallback(input.pressureMv, pressureDeltaKPa * 20), 2));
-  const temperatureColorFactor = normalizeClamped(
-    gasTemperatureK - ambientTemperatureK,
-    HEAT_CAPACITY_HARD_SPHERE_COLD_DELTA_K,
-    HEAT_CAPACITY_HARD_SPHERE_HOT_DELTA_K,
-  );
   const pressureFactor = normalizeClamped(smoothedPressureMv, 0, nominalPressureMv);
   const releasePressureFactor = Math.max(pressureFactor, normalizeClamped(pressureDeltaKPa, 0, 6));
   const compressionThermalFactor = Math.max(pressureFactor, normalizeClamped(pressureDeltaKPa, 0, 6));
@@ -120,13 +115,25 @@ export const getHeatCapacityHardSphereVisualState = (
     Math.abs(pressureDeltaKPa) > HEAT_CAPACITY_HARD_SPHERE_OUTFLOW_EQUILIBRIUM_KPA;
   const activePump = phase === 'pumping' && input.pumpValveOpen && input.pumpBulbState === 'compressing';
   const pumpFlowIntensity = clampNumber(finiteOrFallback(input.pumpFlowIntensity, input.pumpFlowActive ? 1 : 0), 0, 1.6);
+  const pumpCompressionTemperatureBoostK = activePump
+    ? lerpNumber(0.35, 1.45, compressionThermalFactor) * clampNumber(pumpFlowIntensity || 1, 0.55, 1.15)
+    : 0;
+  const rawTemperatureDeltaK = gasTemperatureK - ambientTemperatureK;
+  const effectiveTemperatureDeltaK = activePump
+    ? Math.max(rawTemperatureDeltaK, pumpCompressionTemperatureBoostK)
+    : rawTemperatureDeltaK;
+  const temperatureColorFactor = normalizeClamped(
+    effectiveTemperatureDeltaK,
+    HEAT_CAPACITY_HARD_SPHERE_COLD_DELTA_K,
+    HEAT_CAPACITY_HARD_SPHERE_HOT_DELTA_K,
+  );
 
   let baseCount = Math.round(
     HEAT_CAPACITY_HARD_SPHERE_BASE_PARTICLES *
       (1 + (gasAmountRatio - 1) * HEAT_CAPACITY_HARD_SPHERE_AMOUNT_EXAGGERATION),
   );
   let densityMultiplier = clampNumber(0.88 + (gasAmountRatio - 1) * 3.4, 0.54, 1.9);
-  const thermalSpeedMultiplier = clampNumber(1 + (gasTemperatureK - ambientTemperatureK) * 0.1, 0.78, 1.55);
+  const thermalSpeedMultiplier = clampNumber(1 + effectiveTemperatureDeltaK * 0.1, 0.78, 1.55);
   let emissiveIntensity = lerpNumber(0.14, 0.34, temperatureColorFactor);
   let stability = lerpNumber(0.92, 0.5, temperatureColorFactor);
   let outflowDriftSpeed = 0;

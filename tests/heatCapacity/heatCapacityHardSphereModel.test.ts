@@ -113,6 +113,33 @@ assert.equal(demoTeachingPumping.targetParticleCount > ambient.targetParticleCou
 assert.equal(demoTeachingPumping.thermalSpeedMultiplier > ambient.thermalSpeedMultiplier, true, 'demo pumping should accelerate random thermal motion only through the teaching temperature signal');
 assert.equal(demoTeachingPumping.temperatureColorFactor > ambient.temperatureColorFactor, true, 'demo pumping should drive particle color from the teaching temperature signal');
 
+const liveCompressionBeforeSensorCatchUp = getHeatCapacityHardSphereVisualState({
+  powerOn: true,
+  temperatureMv: 1499,
+  pressureMv: 90,
+  gasAmountRatio: 1.045,
+  gasTemperatureK: 298.15,
+  ambientTemperatureK: 298.15,
+  phase: 'pumping',
+  glassStopcockOpen: false,
+  pumpValveOpen: true,
+  pumpBulbState: 'compressing',
+  pumpFlowActive: true,
+  pumpFlowIntensity: 0.75,
+  pressureDeltaKPa: 4.5,
+});
+
+assert.equal(
+  liveCompressionBeforeSensorCatchUp.temperatureColorFactor > ambient.temperatureColorFactor,
+  true,
+  'active pump compression should show a visible warm color response even before the sensor temperature catches up',
+);
+assert.equal(
+  liveCompressionBeforeSensorCatchUp.thermalSpeedMultiplier > ambient.thermalSpeedMultiplier,
+  true,
+  'active pump compression should visibly accelerate particles even before the sensor temperature catches up',
+);
+
 const sameTemperatureFast = getHeatCapacityHardSphereVisualState({
   powerOn: true,
   temperatureMv: 1499,
