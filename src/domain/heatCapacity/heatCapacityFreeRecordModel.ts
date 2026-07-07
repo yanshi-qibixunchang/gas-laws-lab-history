@@ -159,6 +159,10 @@ export const evaluateFreeU2Record = (
   if (!physics.releaseStarted || !physics.releaseReference) {
     return createEvaluation('release-not-started');
   }
+  const correctedU2Mv = display.displayPressureMv - trial.u0.displayPressureMv;
+  if (correctedU2Mv < config.overVentedMinimumU2CorrectedMv) {
+    return createEvaluation('over-vented');
+  }
   return createEvaluation('ready');
 };
 

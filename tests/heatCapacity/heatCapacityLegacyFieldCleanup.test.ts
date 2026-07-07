@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 const rootDir = process.cwd();
@@ -28,6 +28,16 @@ const sourceFiles = (dir: string, files: string[] = []): string[] => {
   }
   return files;
 };
+
+const forbiddenFiles = [
+  path.join(srcDir, 'domain', 'heatCapacity', 'heatCapacityFreeIdealReferenceModel.ts'),
+] as const;
+
+assert.deepEqual(
+  forbiddenFiles.filter((filePath) => existsSync(filePath)).map((filePath) => path.relative(rootDir, filePath)),
+  [],
+  'obsolete synthetic heat-capacity reference models should be removed from src',
+);
 
 const matches: string[] = [];
 

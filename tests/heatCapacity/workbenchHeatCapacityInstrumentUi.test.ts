@@ -721,13 +721,13 @@ assert.match(leftPanelSource, /renderFreeDataAndResultsTab = \(\s*file:[\s\S]*co
 assert.match(leftPanelSource, /copy\.freeRecording\.(title|source|automaticCandidate|emptyRecords|trial)/, 'Free record table should render localized Free recording labels');
 assert.match(leftPanelSource, /summaryLine:\s*\(\s*theoreticalGamma:\s*string,\s*trialCount:\s*number,\s*meanGamma:\s*string,\s*relativeError:\s*string\s*\) => `理论 γ = \$\{theoreticalGamma\}　实验组数 = \$\{trialCount\}　平均 γ = \$\{meanGamma\}　相对误差 = \$\{relativeError\}`/, 'Free result summary should use the approved one-line Simplified Chinese wording');
 assert.match(leftPanelSource, /renderFreeDataAndResultsTab = \(\s*file:[\s\S]*pendingRemoveTrialRecord:[\s\S]*onRemoveTrialRecord:[\s\S]*onCancelRemoveTrialRecord:/, 'Free data/result page should receive deletion confirmation callbacks');
-assert.match(leftPanelSource, /calculateFreeHeatCapacityMeanResult\(file\.heatCapacityFreeTrials/, 'Free data/result page should calculate γ and mean automatically from current records');
+assert.match(leftPanelSource, /selectDisplayedHeatCapacityFreeDomain\(file\)[\s\S]*calculateFreeHeatCapacityMeanResult\(displayedTrials/, 'Free data/result page should calculate γ and mean automatically from the selected display domain');
 assert.match(leftPanelSource, /data-heat-capacity-free-result-summary="true"/, 'Free data/result page should include the derived result summary in the merged panel');
 assert.match(leftPanelSource, /copy\.freeRecording\.summaryLine\([\s\S]*file\.theoreticalGamma[\s\S]*result\.validTrialCount[\s\S]*result\.meanGamma[\s\S]*result\.relativeErrorPercent/, 'Free result summary should render one localized summary line with theory, group count, mean gamma, and relative error');
 assert.match(leftPanelSource, /formatPercent\(result\.relativeErrorPercent\)/, 'Free result summary should format relative error through the shared percent formatter');
 assert.doesNotMatch(freeResultSummarySection, /<span>\{copy\.freeRecording\.resultSummaryTitle\}<\/span>|<span>\{result\.message\}<\/span>|γair =|γmean =/, 'Free result summary should not split into multiple table-like cells or show internal English result messages');
 assert.doesNotMatch(leftPanelSource, /const renderFreeProcessingTab/, 'Free Mode should not keep a separate processing renderer after merging data and results');
-assert.match(leftPanelSource, /getHeatCapacityFreeRecordDisplayTrialIndex\(file\)/, 'Free current-record display should use a display index separate from the active action target');
+assert.match(leftPanelSource, /getHeatCapacityFreeRecordDisplayTrialIndex\(displayTrialSource\)/, 'Free current-record display should use a display-domain index separate from the active action target');
 assert.match(leftPanelSource, /displayFreeTrialIndex === activeFreeTrialIndex/, 'Free current-record row actions should only appear for the active editable trial, not the post-power-off review display');
 assert.match(leftPanelSource, /data-heat-capacity-free-record-table="true"[\s\S]*copy\.table\.action/, 'Free record table should include an action column');
 assert.match(leftPanelSource, /completedAt:\s*'完成时间'/, 'Free table copy should include a localized completion-time label');
@@ -1868,7 +1868,7 @@ assert.match(workbenchSource, /pumpValve:[\s\S]*sceneHoleIds:\s*\['bottleControl
 assert.match(workbenchSource, /recordU1:[\s\S]*domHoles:[\s\S]*data-heat-capacity-guided-record="u1"[\s\S]*data-heat-capacity-free-wait-timer="true"[\s\S]*sceneHoleIds:\s*\['instrumentDisplay'\][\s\S]*recordU2:[\s\S]*data-heat-capacity-guided-record="u2"[\s\S]*data-heat-capacity-free-wait-timer="true"[\s\S]*sceneHoleIds:\s*\['instrumentDisplay'\]/, 'U1 and U2 strong reminders should expose the record button, timer, and projected instrument display');
 assert.match(workbenchSource, /guideHeatCapacityStrongReminderControlId[\s\S]*getHeatCapacityGuideStrongTargetSpec\(guideHeatCapacityStrongReminderControlId\)/, 'strong reminder rendering should use the active target control instead of a generic center ring');
 assert.match(workbenchSource, /heatCapacityGuideProjectedHoles/, 'Workbench should store runtime projected 3D guide holes from the scene');
-assert.match(workbenchSource, /getHeatCapacityGuideDomHole[\s\S]*getBoundingClientRect\(\)/, 'Workbench should measure DOM guide holes from actual button and timer rectangles');
+assert.match(workbenchSource, /getHeatCapacityGuideDomCutout[\s\S]*getBoundingClientRect\(\)/, 'Workbench should measure DOM guide cutouts from actual button and timer rectangles');
 assert.match(workbenchSource, /viewBox=\{`0 0 \$\{heatCapacityGuideMaskBounds\.width\} \$\{heatCapacityGuideMaskBounds\.height\}`\}/, 'strong reminder mask SVG should use actual pixel bounds');
 assert.doesNotMatch(workbenchSource, /viewBox="0 0 100 100"|preserveAspectRatio="none"/, 'strong reminder mask should not use a stretched static percentage viewport');
 assert.match(workbenchSource, /guideFocusMode=\{heatCapacityGuideFocusMode\}/, 'Workbench should pass guide focus mode into the Heat Capacity scene');
@@ -1884,9 +1884,12 @@ assert.match(workbenchSource, /const initialHeatCapacityGuideSessionFileId = get
 assert.match(workbenchSource, /restoredHeatCapacityGuideStrongReminderControlIdRef[\s\S]*initialSession\.heatCapacityGuideSession\?\.strongReminderControlId/, 'Workbench should remember the exact Guide strong-reminder target requested before refresh');
 assert.match(workbenchSource, /restoreGuideHeatCapacitySession[\s\S]*activateGuideHeatCapacityStrongReminder\(restoredControlId \?\? guidance\.controlId\)/, 'refreshing during an active strong reminder should reopen the same target when possible and otherwise fall back to the current guide step');
 assert.match(workbenchSource, /guideHeatCapacityStrongReminderActive &&[\s\S]*guideHeatCapacityStrongReminderControlId === guidance\.controlId[\s\S]*return undefined;/, 'the ordinary ten-second Guide timer should not clear an already restored strong reminder for the same step');
-assert.match(styleSource, /\.studio-heat-guide-strong-mask\s*\{[\s\S]*position:\s*absolute;[\s\S]*inset:\s*0;[\s\S]*pointer-events:\s*none;/, 'strong reminder should cover the preview without stealing input yet');
+assert.match(styleSource, /\.studio-heat-guide-strong-mask\s*\{[\s\S]*position:\s*absolute;[\s\S]*inset:\s*0;[\s\S]*pointer-events:\s*none;/, 'strong reminder shell should preserve click-through target cutouts instead of blocking the highlighted target');
+assert.match(workbenchSource, /<path[\s\S]*className="studio-heat-guide-strong-dim"[\s\S]*fillRule="evenodd"[\s\S]*clipRule="evenodd"/, 'strong reminder dimmed mask should use a real even-odd path so target cutouts remain clickable');
+assert.doesNotMatch(workbenchSource, /<mask|maskUnits|className="studio-heat-guide-strong-dim"[\s\S]{0,220}\smask=/, 'strong reminder dimmed layer must not use the obsolete SVG mask hit-test path');
+assert.match(styleSource, /\.studio-heat-guide-strong-dim\s*\{[^}]*pointer-events:\s*auto;/, 'strong reminder dimmed mask should intercept covered-area controls while leaving target holes usable');
 assert.match(styleSource, /\.studio-preview-overlay-slot-top-center\s*\{[\s\S]*z-index:\s*14;/, 'guide wait timer and speed controls should render above the strong-reminder mask layer');
-assert.match(styleSource, /\.studio-heat-guide-strong-mask-svg\s*\{[\s\S]*position:\s*absolute;[\s\S]*inset:\s*0;/, 'strong reminder should render target cutouts through an SVG mask');
+assert.match(styleSource, /\.studio-heat-guide-strong-cutout-svg\s*\{[\s\S]*position:\s*absolute;[\s\S]*inset:\s*0;/, 'strong reminder should render target cutouts through the even-odd SVG layer');
 assert.doesNotMatch(workbenchSource, /studio-heat-guide-strong-ring/, 'strong reminder should not use the obsolete generic center ring');
 assert.match(workbenchSource, /HEAT_CAPACITY_AUTO_DEMO_LOCKED_TOAST_DEDUPE_MS = 250/, 'auto demo locked-interaction feedback should dedupe pointer and scene callback events');
 assert.match(workbenchSource, /heatCapacityAutoDemoLockedToastLastShownRef[\s\S]*now - lastShown\.at < HEAT_CAPACITY_AUTO_DEMO_LOCKED_TOAST_DEDUPE_MS/, 'auto demo locked-interaction toasts should ignore duplicate events from one click');
@@ -2025,16 +2028,16 @@ const freeBasicNumberParametersSection = freeParameterPanelModelSource.match(/ex
 const freeAdvancedNumberParametersSection = freeParameterPanelModelSource.match(/export const heatCapacityFreeAdvancedNumberParameters:[\s\S]*?\n\];/)?.[0] ?? '';
 assert.match(
   freeBasicNumberParametersSection,
-  /id:\s*'ambientPressureKPa'[\s\S]*id:\s*'ambientTemperatureK'[\s\S]*id:\s*'pressureMvPerKPa'/,
-  'Free Mode basic parameter list should expose pressure, Celsius temperature, and pressure sensitivity in order',
+  /id:\s*'ambientPressureKPa'[\s\S]*id:\s*'ambientTemperatureK'/,
+  'Free Mode basic parameter list should expose pressure and Celsius temperature in order',
 );
 assert.match(freeBasicNumberParametersSection, /parts:\s*\['P',\s*\{\s*sub:\s*'0'\s*\}\]/, 'Free Mode basic parameter list should include P subscript 0');
 assert.match(freeBasicNumberParametersSection, /parts:\s*\['t',\s*\{\s*sub:\s*'0'\s*\}\]/, 'Free Mode basic temperature should use t subscript 0 because the displayed value is Celsius');
 assert.match(freeBasicNumberParametersSection, /id:\s*'ambientTemperatureK'[\s\S]*unit:\s*'℃'[\s\S]*toInputValue:\s*\(kelvin\)\s*=>\s*kelvin - 273\.15[\s\S]*fromInputValue:\s*\(celsius\)\s*=>\s*celsius \+ 273\.15/, 'Free Mode basic temperature should display Celsius while storing Kelvin in the model draft');
 assert.doesNotMatch(freeBasicNumberParametersSection, /id:\s*'vesselVolumeL'/, 'Free Mode basic parameter list should not expose fixed vessel volume');
-assert.match(freeBasicNumberParametersSection, /id:\s*'pressureMvPerKPa'[\s\S]*parts:\s*\['S',\s*\{\s*sub:\s*'p'\s*\}\][\s\S]*unit:\s*'mV\/kPa'/, 'Free Mode basic parameter list should expose pressure sensitivity as S subscript p');
+assert.doesNotMatch(freeBasicNumberParametersSection, /id:\s*'pressureMvPerKPa'/, 'Free Mode basic parameter list should not expose fixed pressure sensitivity');
 assert.doesNotMatch(freeBasicNumberParametersSection, /gasWallConductanceWPerK|wallAmbientConductanceWPerK/, 'Free Mode basic parameter list should not keep advanced heat-exchange conductance fields');
-assert.doesNotMatch(freeAdvancedNumberParametersSection, /id:\s*'pressureMvPerKPa'|id:\s*'vesselVolumeL'/, 'Free Mode advanced parameters should not duplicate basic pressure sensitivity or expose fixed vessel volume');
+assert.doesNotMatch(freeAdvancedNumberParametersSection, /id:\s*'pressureMvPerKPa'|id:\s*'vesselVolumeL'/, 'Free Mode advanced parameters should not expose fixed pressure sensitivity or fixed vessel volume');
 assert.match(freeAdvancedNumberParametersSection, /id:\s*'gasWallConductanceWPerK'[\s\S]*id:\s*'wallAmbientConductanceWPerK'/, 'Free Mode advanced parameters should retain heat-exchange conductance fields after they leave the basic panel');
 assert.doesNotMatch(freeParameterPanelModelSource, /group:\s*'A' \| 'B' \| 'C' \| 'D'/, 'Free Mode parameter definitions should not keep the old letter-based group type');
 assert.doesNotMatch(freeBasicNumberParametersSection, /group:\s*'[A-D]'/, 'Free Mode basic parameter definitions should not keep stale advanced grouping metadata');
@@ -2069,12 +2072,35 @@ assert.doesNotMatch(getCssBlock('.studio-param-help-popover'), /inset\s+\d+px\s+
 assert.match(workbenchSource, /handleHeatCapacityParamHelpPointerDown[\s\S]*event\.preventDefault\(\);[\s\S]*event\.stopPropagation\(\);[\s\S]*setPinnedHeatCapacityParamHelpId\(null\)/, 'pinned Free Mode parameter help should consume the first outside pointerdown');
 assert.match(workbenchSource, /getHeatCapacityFreeParameterLockReason\(activeFile\)/, 'Free Mode parameter panel should use the shared lock-reason helper');
 assert.match(workbenchSource, /showHeatCapacityFreeParameterLockHint/, 'locked Free Mode parameter controls should surface the lock reason on click');
-assert.match(workbenchSource, /acknowledgeHeatCapacityFreeAdvancedRiskWorkbenchState/, 'advanced risk confirmation should persist acceptance on the current file');
+assert.match(workbenchSource, /studio-heat-free-scheme-button/, 'Free Mode parameter rail should render a real-or-ideal scheme toggle button');
+assert.match(
+  workbenchSource,
+  /\sdisabled=\{activeHeatCapacityFreeSchemeLocked\}/,
+  'real/ideal scheme toggle should become a true disabled button once the current experiment has started',
+);
+assert.match(
+  workbenchSource,
+  /aria-disabled=\{activeHeatCapacityFreeSchemeLocked\}/,
+  'real/ideal scheme toggle should expose locked state accessibly',
+);
+assert.match(workbenchSource, /renderHeatCapacityIdealProfileIntroDialog/, 'first ideal profile activation should render a centered introduction confirmation');
+assert.match(freeParameterPanelModelSource, /idealProfileIntroTitle:[\s\S]*idealProfileIntroBody:[\s\S]*confirmEnableIdealProfile:/, 'ideal profile introduction copy should live in shared free parameter copy');
+assert.match(workbenchSource, /requestToggleHeatCapacityFreeParameterScheme[\s\S]*acknowledgeHeatCapacityFreeFileNoticeWorkbenchState\(file,\s*'idealParameterProfileIntro'\)[\s\S]*setHeatCapacityIdealIntroOpen\(true\)/, 'ideal profile intro should be acknowledged for the file as soon as the first prompt is opened, not after a later experiment group');
+assert.match(workbenchSource, /confirmHeatCapacityIdealProfileIntro[\s\S]*isHeatCapacityFreeExperimentStarted/, 'ideal profile confirmation should re-check the latest file lock before switching schemes');
+assert.match(styleSource, /\.studio-heat-free-scheme-button-active[\s\S]*box-shadow:/, 'ideal scheme toggle should have a visible selected glow');
+assert.match(styleSource, /\.studio-heat-free-params\.is-ideal-readonly[\s\S]*opacity:/, 'ideal scheme should visibly grey out editable parameters');
+assert.match(leftPanelSource, /heatCapacityFreeDisplayScheme/, 'Heat Capacity left panel should receive the shared real-or-ideal display scheme');
+assert.match(`${leftPanelSource}\n${workbenchSource}`, /HeatCapacityFreeDisplaySchemeMenu/, 'data/results and process review panels should render the shared custom scheme menu');
+assert.doesNotMatch(`${leftPanelSource}\n${workbenchSource}`, /studio-heat-free-display-scheme-select/, 'real/ideal display switching should not use the browser-native select menu');
+assert.match(styleSource, /\.studio-heat-free-display-scheme-trigger[\s\S]*\.studio-heat-free-display-scheme-menu[\s\S]*\.studio-heat-free-display-scheme-active/, 'real/ideal display menus should share the custom language-menu visual pattern');
+assert.match(`${leftPanelSource}\n${processReviewPanelSource}`, /理想实验条件不参与评分。/, 'ideal process review should explain why scoring is omitted');
+assert.match(processReviewPanelSource, /operationScore[\s\S]*--/, 'ideal process review should render scoring as placeholders');
+assert.match(workbenchSource, /acknowledgeHeatCapacityFreeFileNoticeWorkbenchState[\s\S]*advancedParametersRisk/, 'advanced risk confirmation should persist through the shared file acknowledgement object');
 assert.match(workbenchSource, /applyHeatCapacityFreeParameterDraftWorkbenchState/, 'advanced parameter save should apply the draft through the shared Workbench helper');
 assert.match(workbenchSource, /studio-heat-advanced-overlay/, 'advanced parameters should use a centered overlay');
 assert.match(workbenchSource, /studio-heat-advanced-window/, 'advanced parameters should render a centered main window');
 assert.match(workbenchSource, /studio-heat-advanced-risk-window/, 'first advanced open should render a higher risk confirmation window');
-assert.match(workbenchSource, /const riskPending = !activeFile\.heatCapacityFreeAdvancedRiskAccepted;/, 'advanced parameter risk prompt should be pending only until the current file has acknowledged it');
+assert.match(workbenchSource, /const riskPending = !activeFile\.heatCapacityFreeFileAcknowledgements\.advancedParametersRisk;/, 'advanced parameter risk prompt should be pending only until the current file has acknowledged it');
 assert.match(workbenchSource, /riskPending \? renderHeatCapacityAdvancedRiskDialog\(\) : null/, 'advanced parameter dialog should render the risk confirmation before the current file is acknowledged');
 assert.match(freeParameterPanelModelSource, /riskTitle:\s*\{[\s\S]*'zh-CN':\s*'确认调整高级参数'/, 'advanced risk title should describe a confirmation step, not a later experiment-group side effect');
 assert.match(freeParameterPanelModelSource, /riskBody:\s*\{[\s\S]*'zh-CN':\s*'高级参数会影响当前实验文件的模型判定、传感器读数和记录阈值。确认后，本实验文件后续打开高级参数不再重复提示。'/, 'advanced risk body should state current-file-first acknowledgement semantics');
@@ -2094,6 +2120,17 @@ assert.match(workbenchSource, /heatCapacityFreeSharedText\.valueTooLarge/, 'Free
 assert.match(workbenchSource, /HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA/, 'Free Mode parameter UI should share the 300 kPa absolute pressure ceiling');
 assert.match(workbenchSource, /setScanInputToast\(message\)/, 'Free Mode parameter over-limit validation should surface a visible toast-style message');
 assert.match(workbenchSource, /definition\.id === 'gamma'[\s\S]*isHeatCapacityFreeGammaEditingAvailable/, 'gamma should be locked separately after a file has started a recorded experiment');
+assert.match(workbenchSource, /resetHeatCapacityFreeParametersToDefaultWorkbenchState/, 'Free Mode restore-default button should reuse the shared state reset instead of duplicating default constants in the UI');
+assert.match(workbenchSource, /openHeatCapacityRestoreDefaultConfirm[\s\S]*setHeatCapacityRestoreDefaultConfirmOpen\(true\)/, 'Free Mode restore-default button should open a confirmation dialog before resetting parameters');
+assert.match(workbenchSource, /confirmHeatCapacityRestoreDefault[\s\S]*resetHeatCapacityFreeParametersToDefaultWorkbenchState/, 'Free Mode restore-default confirmation should be the only path that applies the reset');
+assert.match(workbenchSource, /studio-heat-free-default-row[\s\S]*studio-heat-free-default-button[\s\S]*onClick=\{openHeatCapacityRestoreDefaultConfirm\}/, 'Free Mode parameter panel should render a restore-default button above the first basic parameter row');
+assert.match(workbenchSource, /renderHeatCapacityRestoreDefaultDialog[\s\S]*studio-heat-restore-default-confirm[\s\S]*role="alertdialog"[\s\S]*confirmHeatCapacityRestoreDefault/, 'Free Mode restore-default confirmation should render as a centered alert dialog with an explicit confirm action');
+assert.match(freeParameterPanelModelSource, /restoreDefault:\s*\{[\s\S]*'zh-CN':\s*'恢复默认'/, 'restore-default parameter action should use the shared heat-capacity parameter copy');
+assert.match(freeParameterPanelModelSource, /restoreDefaultTitle:\s*\{[\s\S]*restoreDefaultBody:[\s\S]*confirmRestoreDefault:/, 'restore-default confirmation should keep title, body, and confirm copy in the shared parameter copy');
+assert.match(freeParameterPanelModelSource, /'zh-CN':\s*'这会把普通参数和高级参数全部恢复为默认值，当前手动调整会被覆盖。'/, 'restore-default confirmation should describe the reset in user-facing parameter terms');
+assert.doesNotMatch(freeParameterPanelModelSource, /已暴露/, 'restore-default confirmation should not expose implementation vocabulary to users');
+assert.match(styleSource, /\.studio-heat-free-default-row\s*\{[\s\S]*display:\s*flex;[\s\S]*justify-content:\s*flex-end;/, 'Free Mode restore-default action should sit on its own right-aligned row above atmospheric pressure');
+assert.match(styleSource, /\.studio-heat-restore-default-confirm\s*\{[\s\S]*position:\s*fixed;[\s\S]*left:\s*50%;[\s\S]*top:\s*50%;[\s\S]*transform:\s*translate\(-50%,\s*-50%\)/, 'Free Mode restore-default confirmation should be centered in the viewport');
 assert.match(styleSource, /\.studio-heat-free-params\.is-locked[\s\S]*cursor:\s*not-allowed/, 'locked Free Mode parameter panel should visibly use not-allowed interaction');
 assert.match(styleSource, /\.studio-heat-free-param-row\s*\{[\s\S]*grid-template-columns:\s*minmax\(104px,\s*1fr\)\s*112px;[\s\S]*border-radius:\s*4px;/, 'Free Mode parameter rows should keep one left label tab stop and one fixed right input tab stop on the same line');
 assert.match(styleSource, /\.studio-heat-free-param-label\s*\{[\s\S]*display:\s*grid;[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*48px\s*20px;[\s\S]*gap:\s*5px;/, 'Free Mode parameter labels should reserve enough symbol space before the help button on one line');

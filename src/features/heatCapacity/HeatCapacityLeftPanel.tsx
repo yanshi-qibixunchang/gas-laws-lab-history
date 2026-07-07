@@ -1,18 +1,21 @@
 ﻿import React, { useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import type {
+  HeatCapacityFreeDisplayScheme,
   WorkbenchHeatCapacityPanelKey,
   WorkbenchHeatCapacityState,
 } from '../workbench/workbenchState.ts';
 import {
   getActiveHeatCapacityFreeTrialIndex,
   getHeatCapacityFreeRecordDisplayTrialIndex,
+  selectDisplayedHeatCapacityFreeDomain,
 } from '../workbench/workbenchState.ts';
 import {
   calculateFreeHeatCapacityMeanResult,
   type HeatCapacityFreeProcessingTrialResult,
   type HeatCapacityFreeTrialRecordRemovalKind,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import { HeatCapacityFreeDisplaySchemeMenu } from './HeatCapacityFreeDisplaySchemeMenu.tsx';
 
 type WorkbenchLanguagePreference = 'zh-CN' | 'zh-TW' | 'en';
 
@@ -23,12 +26,16 @@ interface HeatCapacityLeftPanelProps {
   pendingRemoveTrialRecord: {
     trialIndex: number;
     kind: HeatCapacityFreeTrialRecordRemovalKind;
+    scheme: HeatCapacityFreeDisplayScheme;
   } | null;
   onRemoveTrialRecord: (
     trialIndex: number,
     kind: HeatCapacityFreeTrialRecordRemovalKind,
+    scheme: HeatCapacityFreeDisplayScheme,
   ) => void;
   onCancelRemoveTrialRecord: () => void;
+  heatCapacityFreeDisplayScheme: HeatCapacityFreeDisplayScheme;
+  onHeatCapacityFreeDisplaySchemeChange: (scheme: HeatCapacityFreeDisplayScheme) => void;
 }
 
 interface DocumentDisclosureProps {
@@ -278,6 +285,12 @@ const freeCopyByLanguage = {
       dataAndResultsTitle: '数据与结果',
       title: '自由模式记录',
       source: '数据来源',
+      displayScheme: '实验类型',
+      realSimulation: '真实模拟',
+      idealProfile: '理想状态',
+      realSimulationHint: '参与评分与平均值',
+      idealProfileHint: '单独编号，不参与评分',
+      idealScoreNotice: '理想实验条件不参与评分。',
       automaticCandidate: '自动 U₀ 候选',
       automaticWaiting: '等待稳定的调零开旋塞状态',
       automaticSource: '传感器候选值',
@@ -344,6 +357,12 @@ const freeCopyByLanguage = {
       dataAndResultsTitle: '資料與結果',
       title: '自由模式記錄',
       source: '資料來源',
+      displayScheme: '實驗類型',
+      realSimulation: '真實模擬',
+      idealProfile: '理想狀態',
+      realSimulationHint: '參與評分與平均值',
+      idealProfileHint: '單獨編號，不參與評分',
+      idealScoreNotice: '理想實驗條件不參與評分。',
       automaticCandidate: '自動 U₀ 候選',
       automaticWaiting: '等待穩定的調零開旋塞狀態',
       automaticSource: '感測器候選值',
@@ -410,6 +429,12 @@ const freeCopyByLanguage = {
       dataAndResultsTitle: 'Data & Results',
       title: 'Free Mode records',
       source: 'Source: Free physical / sensor / calibration / record layers',
+      displayScheme: 'Experiment type',
+      realSimulation: 'Real Simulation',
+      idealProfile: 'Ideal State',
+      realSimulationHint: 'Scored and averaged',
+      idealProfileHint: 'Separate index, not scored',
+      idealScoreNotice: 'Ideal experiment conditions are not scored.',
       automaticCandidate: 'Automatic U₀ candidate',
       automaticWaiting: 'Waiting for stable zeroed open-stopcock state',
       automaticSource: 'Free sensor display candidate',
@@ -544,20 +569,34 @@ const renderFreeDataAndResultsTab = (
   pendingRemoveTrialRecord: HeatCapacityLeftPanelProps['pendingRemoveTrialRecord'],
   onRemoveTrialRecord: HeatCapacityLeftPanelProps['onRemoveTrialRecord'],
   onCancelRemoveTrialRecord: HeatCapacityLeftPanelProps['onCancelRemoveTrialRecord'],
+  heatCapacityFreeDisplayScheme: HeatCapacityFreeDisplayScheme,
+  onHeatCapacityFreeDisplaySchemeChange: (scheme: HeatCapacityFreeDisplayScheme) => void,
 ) => {
-  const automaticU0 = file.heatCapacityFreeCalibrationState.automaticU0;
-  const completed = file.heatCapacityFreeTrials.filter((trial) => trial.u0 && trial.u1 && trial.u2).length;
-  const result = calculateFreeHeatCapacityMeanResult(file.heatCapacityFreeTrials, {
+  const displayedDomain = selectDisplayedHeatCapacityFreeDomain(file);
+  const displayedTrials = displayedDomain.trials;
+  const displayMatchesActiveDomain = heatCapacityFreeDisplayScheme === file.heatCapacityFreeParameterScheme;
+  const automaticU0 = displayedDomain.calibrationState.automaticU0;
+  const completed = displayedTrials.filter((trial) => trial.u0 && trial.u1 && trial.u2).length;
+  const result = calculateFreeHeatCapacityMeanResult(displayedTrials, {
     theoreticalGamma: file.theoreticalGamma,
   });
   const trialResultsById = new Map<string, HeatCapacityFreeProcessingTrialResult>(
     result.trialResults.map((trial) => [trial.trialId, trial]),
   );
-  const activeFreeTrialIndex = getActiveHeatCapacityFreeTrialIndex(file);
-  const displayFreeTrialIndex = getHeatCapacityFreeRecordDisplayTrialIndex(file);
-  const currentFreeTrialIndex = displayFreeTrialIndex >= 0 ? displayFreeTrialIndex : file.heatCapacityFreeTrials.length;
-  const currentFreeTrial = displayFreeTrialIndex >= 0 ? file.heatCapacityFreeTrials[displayFreeTrialIndex] ?? null : null;
-  const currentFreeTrialEditable = displayFreeTrialIndex === activeFreeTrialIndex && activeFreeTrialIndex >= 0;
+  const displayTrialSource = {
+    heatCapacityFreeTrials: displayedTrials,
+    powerOn: displayMatchesActiveDomain ? file.powerOn : false,
+    heatCapacityFreeExperimentGroupStatus: displayedDomain.experimentGroupStatus,
+  };
+  const activeFreeTrialIndex = displayMatchesActiveDomain
+    ? getActiveHeatCapacityFreeTrialIndex(displayTrialSource)
+    : -1;
+  const displayFreeTrialIndex = getHeatCapacityFreeRecordDisplayTrialIndex(displayTrialSource);
+  const currentFreeTrialIndex = displayFreeTrialIndex >= 0 ? displayFreeTrialIndex : displayedTrials.length;
+  const currentFreeTrial = displayFreeTrialIndex >= 0 ? displayedTrials[displayFreeTrialIndex] ?? null : null;
+  const currentFreeTrialEditable = displayMatchesActiveDomain &&
+    displayFreeTrialIndex === activeFreeTrialIndex &&
+    activeFreeTrialIndex >= 0;
   const summaryLine = copy.freeRecording.summaryLine(
     file.theoreticalGamma.toFixed(2),
     result.validTrialCount,
@@ -571,7 +610,8 @@ const renderFreeDataAndResultsTab = (
   ) => {
     if (!visible) return null;
     const pending = pendingRemoveTrialRecord?.trialIndex === trialIndex &&
-      pendingRemoveTrialRecord.kind === kind;
+      pendingRemoveTrialRecord.kind === kind &&
+      pendingRemoveTrialRecord.scheme === heatCapacityFreeDisplayScheme;
     const label = kind === 'u0'
       ? copy.table.deleteU0
       : kind === 'u1'
@@ -584,7 +624,7 @@ const renderFreeDataAndResultsTab = (
         <button
           type="button"
           className={`studio-table-action ${pending ? 'studio-table-action-confirm' : ''}`}
-          onClick={() => onRemoveTrialRecord(trialIndex, kind)}
+          onClick={() => onRemoveTrialRecord(trialIndex, kind, heatCapacityFreeDisplayScheme)}
         >
           {pending ? copy.table.confirmDelete : label}
         </button>
@@ -604,6 +644,17 @@ const renderFreeDataAndResultsTab = (
   const canRemoveCurrentFreeU1 = currentFreeTrialEditable && (currentFreeTrial?.u1 ?? null) !== null;
   const canRemoveCurrentFreeU2 = currentFreeTrialEditable && (currentFreeTrial?.u2 ?? null) !== null;
   const currentFreeTrialActionsVisible = canRemoveCurrentFreeU0 || canRemoveCurrentFreeU1 || canRemoveCurrentFreeU2;
+  const renderDisplaySchemeSelect = () => (
+    <HeatCapacityFreeDisplaySchemeMenu
+      value={heatCapacityFreeDisplayScheme}
+      label={copy.freeRecording.displayScheme}
+      realLabel={copy.freeRecording.realSimulation}
+      idealLabel={copy.freeRecording.idealProfile}
+      realHint={copy.freeRecording.realSimulationHint}
+      idealHint={copy.freeRecording.idealProfileHint}
+      onChange={onHeatCapacityFreeDisplaySchemeChange}
+    />
+  );
   const renderCurrentFreeRecordRow = (
     key: string,
     label: string,
@@ -691,9 +742,15 @@ const renderFreeDataAndResultsTab = (
         <div className="studio-heat-recording-progress">
           <span>{copy.freeRecording.freeTrialSource}</span>
           <strong>{copy.freeRecording.completeTrials(completed)}</strong>
-          <span>{copy.freeRecording.totalRows(file.heatCapacityFreeTrials.length)}</span>
+          <span>{copy.freeRecording.totalRows(displayedTrials.length)}</span>
         </div>
+        {renderDisplaySchemeSelect()}
       </div>
+      {heatCapacityFreeDisplayScheme === 'ideal' ? (
+        <div className="studio-result-status studio-result-status-waiting" data-heat-capacity-ideal-score-notice="true">
+          <span>{copy.freeRecording.idealScoreNotice}</span>
+        </div>
+      ) : null}
       <section className="studio-heat-result-summary-line" data-heat-capacity-free-result-summary="true">
         <strong>{summaryLine}</strong>
       </section>
@@ -712,11 +769,11 @@ const renderFreeDataAndResultsTab = (
             </tr>
           </thead>
           <tbody>
-            {file.heatCapacityFreeTrials.length === 0 ? (
+            {displayedTrials.length === 0 ? (
               <tr>
                 <td colSpan={8}>{copy.freeRecording.emptyRecords}</td>
               </tr>
-            ) : file.heatCapacityFreeTrials.map((trial, index) => {
+            ) : displayedTrials.map((trial, index) => {
               const trialResult = trialResultsById.get(trial.id) ?? null;
               const completeTrial = Boolean(trial.u0 && trial.u1 && trial.u2);
               const includedInMean = trialResult?.status === 'valid' && trialResult.gamma !== null;
@@ -908,6 +965,8 @@ export const HeatCapacityLeftPanel = ({
   pendingRemoveTrialRecord,
   onRemoveTrialRecord,
   onCancelRemoveTrialRecord,
+  heatCapacityFreeDisplayScheme,
+  onHeatCapacityFreeDisplaySchemeChange,
 }: HeatCapacityLeftPanelProps) => {
   const copy = text(language);
   const contentTitle = useMemo(() => {
@@ -934,6 +993,8 @@ export const HeatCapacityLeftPanel = ({
                 pendingRemoveTrialRecord,
                 onRemoveTrialRecord,
                 onCancelRemoveTrialRecord,
+                heatCapacityFreeDisplayScheme,
+                onHeatCapacityFreeDisplaySchemeChange,
               )
             : renderSingleTrialDataAndResultsTab(file, copy)}
       </div>

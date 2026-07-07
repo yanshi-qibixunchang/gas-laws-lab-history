@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import {
+  acknowledgeHeatCapacityFreeFileNoticeWorkbenchState,
   applyHeatCapacityFreeParameterDraftWorkbenchState,
   captureHeatCapacityFreeRollbackSnapshot,
   HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
   createDefaultHeatCapacityFile,
+  getHeatCapacityFreeTrialsForAverage,
   recordHeatCapacityFreeTraceEvent,
+  setHeatCapacityFreeParameterSchemeWorkbenchState,
 } from '../../src/features/workbench/workbenchState.ts';
 import {
   HEAT_CAPACITY_FREE_CALCULATION_VERSION,
@@ -33,12 +36,22 @@ assert.equal(payload.heatCapacitySchemaVersion, 1);
 assert.equal(payload.mode, 'free');
 assert.equal(payload.free?.runtimeVersion, file.heatCapacityFreeRuntimeVersion);
 assert.equal(payload.free?.traceVersion, file.heatCapacityFreeTraceVersion);
+assert.equal(payload.free?.parameterScheme, 'real');
+assert.equal(payload.free?.displayScheme, 'real');
+assert.equal(payload.free?.real?.scheme, 'real');
+assert.equal(payload.free?.ideal?.scheme, 'ideal');
+assert.equal(payload.free?.real?.trials.length, 0);
+assert.equal(payload.free?.ideal?.trials.length, 0);
 assert.equal(payload.free?.config.version, 7);
 assert.equal(payload.free?.parameterDraft?.ambientPressureKPa, 101.3);
 assert.equal(payload.free?.recordConfig?.u0ZeroToleranceMv, 0.12);
 assert.equal(payload.free?.pressureWarningMv, 120);
 assert.equal(payload.free?.instrumentNoiseEnabled, true);
-assert.equal(payload.free?.advancedRiskAccepted, false);
+assert.deepEqual(payload.free?.acknowledgements, {
+  advancedParametersRisk: false,
+  idealParameterProfileIntro: false,
+});
+assert.equal('advancedRiskAccepted' in (payload.free ?? {}), false);
 assert.equal(payload.free?.config.physics.pumpAmountGainRatio, 0.00345);
 assert.equal('pumpInflowTemperatureRiseK' in payload.free!.config.physics, false);
 assert.equal(payload.free?.config.physics.pumpStrokeDurationS, 0.08);
@@ -166,6 +179,8 @@ const recordedPayload = createHeatCapacityPersistencePayload({
 assert.equal(recordedPayload.free?.trials[0].u1?.displayPressureMv, 119.8);
 assert.equal(recordedPayload.free?.trials[0].correctedSignals?.gamma, 1.39);
 assert.equal(recordedPayload.free?.trials[0].completedAtMs, 12_345);
+assert.equal(recordedPayload.free?.trials[0].parameterScheme, 'real');
+assert.equal(recordedPayload.free?.real?.trials[0].parameterScheme, 'real');
 const recordedPayloadRestored = restoreHeatCapacityFileFromPersistencePayload({
   schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
   fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
@@ -178,6 +193,34 @@ const recordedPayloadRestored = restoreHeatCapacityFileFromPersistencePayload({
   payload: recordedPayload as unknown as Record<string, unknown>,
 }, recordedPayload, 2);
 assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].completedAtMs, 12_345);
+assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].parameterScheme, 'real');
+
+const idealPersistedTrial = createHeatCapacityFreeTrial('ideal-persisted-trial', null, 'ideal');
+const idealPersistedFile = {
+  ...setHeatCapacityFreeParameterSchemeWorkbenchState(file, 'ideal', 556),
+  heatCapacityFreeTrials: [idealPersistedTrial],
+};
+const idealPersistedPayload = createHeatCapacityPersistencePayload(idealPersistedFile, 557);
+assert.equal(idealPersistedPayload.free?.parameterScheme, 'ideal');
+assert.equal(idealPersistedPayload.free?.trials[0].parameterScheme, 'ideal');
+assert.equal(idealPersistedPayload.free?.ideal?.trials[0].parameterScheme, 'ideal');
+const idealPersistedRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-ideal-trial-restore',
+  kind: 'heatCapacity',
+  name: 'Ideal Trial Restore',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: idealPersistedPayload as unknown as Record<string, unknown>,
+}, idealPersistedPayload, 2);
+assert.equal(idealPersistedRestored.heatCapacityFreeTrials[0].parameterScheme, 'ideal');
+assert.deepEqual(
+  getHeatCapacityFreeTrialsForAverage(idealPersistedRestored),
+  [],
+  'ideal-domain trials restored from disk should not enter the real Free Mode average',
+);
 
 const rollbackSnapshotFile = {
   ...file,
@@ -222,16 +265,20 @@ const editedFile = applyHeatCapacityFreeParameterDraftWorkbenchState(file, {
   pressureWarningMv: 121,
   pressureDangerMv: 151,
 });
-const acceptedRiskFile = {
-  ...editedFile,
-  heatCapacityFreeAdvancedRiskAccepted: true,
-};
+const acceptedRiskFile = acknowledgeHeatCapacityFreeFileNoticeWorkbenchState(
+  acknowledgeHeatCapacityFreeFileNoticeWorkbenchState(editedFile, 'advancedParametersRisk'),
+  'idealParameterProfileIntro',
+);
 const editedPayload = createHeatCapacityPersistencePayload(acceptedRiskFile, 999);
 assert.equal(editedPayload.free?.parameterDraft?.ambientPressureKPa, 99.4);
 assert.equal(editedPayload.free?.recordConfig?.pressureDangerMv, 151);
 assert.equal(editedPayload.free?.pressureWarningMv, 121);
 assert.equal(editedPayload.free?.instrumentNoiseEnabled, false);
-assert.equal(editedPayload.free?.advancedRiskAccepted, true);
+assert.deepEqual(editedPayload.free?.acknowledgements, {
+  advancedParametersRisk: true,
+  idealParameterProfileIntro: true,
+});
+assert.equal('advancedRiskAccepted' in (editedPayload.free ?? {}), false);
 
 const envelope: WorkbenchExperimentFileEnvelopeV1 = {
   schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
@@ -250,11 +297,41 @@ assert.equal(restored.heatCapacityFreeParameterDraft.instrumentNoiseEnabled, fal
 assert.equal(restored.heatCapacityFreeRecordConfig.pressureDangerMv, 151);
 assert.equal(restored.heatCapacityFreePressureWarningMv, 121);
 assert.equal(restored.heatCapacityFreeInstrumentNoiseEnabled, false);
-assert.equal(restored.heatCapacityFreeAdvancedRiskAccepted, true);
+assert.deepEqual(restored.heatCapacityFreeFileAcknowledgements, {
+  advancedParametersRisk: true,
+  idealParameterProfileIntro: true,
+});
+assert.equal(restored.heatCapacityFreeParameterScheme, 'real');
+assert.equal(restored.heatCapacityFreeDisplayScheme, 'real');
+assert.equal(restored.heatCapacityFreeRealDomain.scheme, 'real');
+assert.equal(restored.heatCapacityFreeIdealDomain.scheme, 'ideal');
 assert.equal(restored.heatCapacityFreeStopcockFlowPurpose, 'none');
 
 const newFile = createDefaultHeatCapacityFile(2);
-assert.equal(newFile.heatCapacityFreeAdvancedRiskAccepted, false);
+assert.deepEqual(newFile.heatCapacityFreeFileAcknowledgements, {
+  advancedParametersRisk: false,
+  idealParameterProfileIntro: false,
+});
+
+const idealSchemeFile = setHeatCapacityFreeParameterSchemeWorkbenchState(file, 'ideal', 444);
+const idealSchemePayload = createHeatCapacityPersistencePayload(idealSchemeFile, 445);
+assert.equal(idealSchemePayload.free?.parameterScheme, 'ideal');
+assert.equal(idealSchemePayload.free?.displayScheme, 'ideal');
+const idealSchemeRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-ideal-scheme-restore',
+  kind: 'heatCapacity',
+  name: 'Ideal Scheme Restore',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: idealSchemePayload as unknown as Record<string, unknown>,
+}, idealSchemePayload, 4);
+assert.equal(idealSchemeRestored.heatCapacityFreeParameterScheme, 'ideal');
+assert.equal(idealSchemeRestored.heatCapacityFreeDisplayScheme, 'ideal');
+assert.equal(idealSchemeRestored.heatCapacityFreePhysicsConfig.gamma, 1.4);
+assert.equal(idealSchemeRestored.heatCapacityFreeInstrumentNoiseEnabled, false);
 
 const incompletePayload = structuredClone(editedPayload);
 delete incompletePayload.free!.parameterDraft;

@@ -61,6 +61,66 @@ export const heatCapacityFreeSharedText = {
     'zh-TW': '進階參數',
     en: 'Advanced',
   },
+  restoreDefault: {
+    'zh-CN': '恢复默认',
+    'zh-TW': '恢復預設',
+    en: 'Restore default',
+  },
+  realSimulation: {
+    'zh-CN': '真实模拟',
+    'zh-TW': '真實模擬',
+    en: 'Real Simulation',
+  },
+  idealProfile: {
+    'zh-CN': '理想状态',
+    'zh-TW': '理想狀態',
+    en: 'Ideal State',
+  },
+  idealProfileLocked: {
+    'zh-CN': '实验开始后不能切换参数状态。',
+    'zh-TW': '實驗開始後不能切換參數狀態。',
+    en: 'The parameter state cannot be changed after the experiment starts.',
+  },
+  idealProfileReadonlyNote: {
+    'zh-CN': '理想状态下，普通参数和高级参数由系统按理想过程自动设定，暂不可编辑。',
+    'zh-TW': '理想狀態下，普通參數和進階參數由系統按理想過程自動設定，暫不可編輯。',
+    en: 'In Ideal State, basic and advanced parameters are set automatically by the ideal process and cannot be edited.',
+  },
+  idealProfileReadonlyToast: {
+    'zh-CN': '理想状态下参数由系统自动设定。',
+    'zh-TW': '理想狀態下參數由系統自動設定。',
+    en: 'Parameters are automatically set in Ideal State.',
+  },
+  idealProfileIntroTitle: {
+    'zh-CN': '确认开启理想状态',
+    'zh-TW': '確認開啟理想狀態',
+    en: 'Enable Ideal State',
+  },
+  idealProfileIntroBody: {
+    'zh-CN': '理想状态用于体验完全理想条件下的空气比热容比实验流程。开启后，普通参数和高级参数由系统按理想过程自动设定，暂不可编辑。如需回到真实模拟，再次点击此按钮即可。',
+    'zh-TW': '理想狀態用於體驗完全理想條件下的空氣比熱容比實驗流程。開啟後，普通參數和進階參數由系統按理想過程自動設定，暫不可編輯。如需回到真實模擬，再次點擊此按鈕即可。',
+    en: 'Ideal State lets you experience the heat-capacity ratio experiment under fully idealized conditions. Basic and advanced parameters are set automatically by the ideal process and cannot be edited. Click this button again to return to Real Simulation.',
+  },
+  confirmEnableIdealProfile: {
+    'zh-CN': '确认开启',
+    'zh-TW': '確認開啟',
+    en: 'Enable',
+  },
+  restoreDefaultTitle: {
+    'zh-CN': '确认恢复默认参数',
+    'zh-TW': '確認恢復預設參數',
+    en: 'Confirm Restore Defaults',
+  },
+  restoreDefaultBody: {
+    'zh-CN': '这会把普通参数和高级参数全部恢复为默认值，当前手动调整会被覆盖。',
+    'zh-TW': '這會把普通參數和進階參數全部恢復為預設值，目前手動調整會被覆蓋。',
+    en: 'This restores all basic and advanced parameters to their defaults and overwrites current manual edits.',
+  },
+  confirmRestoreDefault: {
+    'zh-CN': '确认恢复',
+    'zh-TW': '確認恢復',
+    en: 'Restore',
+  },
   cancel: {
     'zh-CN': '取消',
     'zh-TW': '取消',
@@ -131,19 +191,6 @@ export const heatCapacityFreeBasicNumberParameters: HeatCapacityFreeNumberParame
     min: -273.14,
     toInputValue: (kelvin) => kelvin - 273.15,
     fromInputValue: (celsius) => celsius + 273.15,
-  },
-  {
-    id: 'pressureMvPerKPa',
-    label: { 'zh-CN': '压力灵敏度', 'zh-TW': '壓力靈敏度', en: 'Pressure sensitivity' },
-    parts: ['S', { sub: 'p' }],
-    unit: 'mV/kPa',
-    effect: {
-      'zh-CN': '决定压力读数 mV 与 kPa 的换算比例。',
-      'zh-TW': '決定壓力讀數 mV 與 kPa 的換算比例。',
-      en: 'Sets the conversion between pressure signal mV and kPa.',
-    },
-    precision: 3,
-    min: 0.001,
   },
 ];
 

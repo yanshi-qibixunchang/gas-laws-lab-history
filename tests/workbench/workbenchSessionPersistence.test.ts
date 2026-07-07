@@ -351,7 +351,10 @@ const customFreeSessionFile = {
   ...createDefaultHeatCapacityFile(9),
   heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   heatCapacityFreeExperimentGroupStatus: 'running' as const,
-  heatCapacityFreeAdvancedRiskAccepted: true,
+  heatCapacityFreeFileAcknowledgements: {
+    advancedParametersRisk: true,
+    idealParameterProfileIntro: true,
+  },
   heatCapacityFreeInstrumentNoiseEnabled: false,
   heatCapacityFreePressureWarningMv: 123,
   heatCapacityFreeActiveRunConfigSnapshot: currentActiveRunSnapshot,
@@ -377,7 +380,10 @@ const customFreeFile = customFreeRestored.files[0];
 assert.equal(customFreeFile.kind, 'heatCapacity');
 if (customFreeFile.kind !== 'heatCapacity') throw new Error('expected heat capacity custom session file');
 assert.equal(customFreeFile.heatCapacityFreeExperimentGroupStatus, 'running');
-assert.equal(customFreeFile.heatCapacityFreeAdvancedRiskAccepted, true);
+assert.deepEqual(customFreeFile.heatCapacityFreeFileAcknowledgements, {
+  advancedParametersRisk: true,
+  idealParameterProfileIntro: true,
+});
 assert.equal(customFreeFile.heatCapacityFreeInstrumentNoiseEnabled, false);
 assert.equal(customFreeFile.heatCapacityFreePressureWarningMv, 123);
 assert.equal(customFreeFile.heatCapacityFreeRecordConfig.pressureDangerMv, 152);

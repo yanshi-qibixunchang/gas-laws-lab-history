@@ -192,6 +192,7 @@ const roundNumber = (value: number, digits = 2) => (
 
 const PROCESS_REVIEW_POST_U2_BUFFER_S = 6;
 const PROCESS_REVIEW_POWER_OFF_GRACE_S = 30;
+const IDEAL_REVIEW_THEORETICAL_GAMMA = 1.4;
 
 const formatNumber = (value: number, digits = 1) => (
   Number.isFinite(value) ? value.toFixed(digits) : '--'
@@ -585,6 +586,25 @@ const createChartData = (
   };
 };
 
+const createReviewUpperBound = (
+  trial: HeatCapacityFreeTrial,
+  standardProcess: HeatCapacityFreeStandardProcess,
+  theoreticalGamma: number,
+): HeatCapacityOperationUpperBound => {
+  if (trial.parameterScheme !== 'ideal') {
+    return standardProcess.upperBound;
+  }
+  const actualGamma = trial.correctedSignals?.gamma ?? null;
+  return {
+    gamma: theoreticalGamma,
+    relativeErrorPercent: calculateRelativeError(theoreticalGamma, theoreticalGamma),
+    gapFromActualPercent: actualGamma === null || theoreticalGamma === 0
+      ? null
+      : roundNumber(Math.abs(theoreticalGamma - actualGamma) / Math.abs(theoreticalGamma) * 100, 2),
+    windows: standardProcess.upperBound.windows,
+  };
+};
+
 const createSummary = (
   trial: HeatCapacityFreeTrial,
   trialIndex: number,
@@ -877,26 +897,30 @@ export const selectHeatCapacityFreeProcessReview = ({
     };
   }
 
+  const reviewTheoreticalGamma = selected.trial.parameterScheme === 'ideal'
+    ? IDEAL_REVIEW_THEORETICAL_GAMMA
+    : theoreticalGamma;
   const standardProcess = createHeatCapacityFreeStandardProcess({
     traceTrial,
     branch,
     trial: selected.trial,
-    theoreticalGamma,
+    theoreticalGamma: reviewTheoreticalGamma,
   });
+  const upperBound = createReviewUpperBound(selected.trial, standardProcess, reviewTheoreticalGamma);
   const summary = createSummary(
     selected.trial,
     selected.index,
     traceTrial,
     branch,
-    theoreticalGamma,
-    standardProcess.upperBound,
+    reviewTheoreticalGamma,
+    upperBound,
   );
   const score = scoreHeatCapacityFreeProcess({
     traceTrial,
     branch,
     trial: selected.trial,
     summary,
-    upperBound: standardProcess.upperBound,
+    upperBound,
     standardProcess,
   });
   return {

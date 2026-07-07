@@ -7,10 +7,14 @@ import {
   getHeatCapacityFreeDisplayPhase,
   getHeatCapacityFreeRecordBlockReason,
   getHeatCapacityFreeRecordButtonState,
+  getHeatCapacityFreeTrialsForAverage,
   HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
   HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
   HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
+  resetHeatCapacityFreeRunWorkbenchState,
+  selectActiveHeatCapacityFreeDomain,
+  setHeatCapacityFreeParameterSchemeWorkbenchState,
   type WorkbenchHeatCapacityState,
 } from '../../src/features/workbench/workbenchState.ts';
 import {
@@ -655,6 +659,118 @@ assert.equal(
   Math.abs(removeU0Rollback.pressureSignalMv ?? 0) > 0.05,
   true,
   'deleting U0 should create a fresh unzeroed pressure display that requires zeroing again',
+);
+
+const realAverageTrial = createHeatCapacityFreeTrial('real-domain-trial', null, 'real');
+const idealAverageTrial = createHeatCapacityFreeTrial('ideal-domain-trial', null, 'ideal');
+const mixedDomainFile: WorkbenchHeatCapacityState = {
+  ...createDefaultHeatCapacityFile(5),
+  heatCapacityFreeTrials: [realAverageTrial],
+  heatCapacityFreeRealDomain: {
+    ...createDefaultHeatCapacityFile(5).heatCapacityFreeRealDomain,
+    trials: [realAverageTrial],
+  },
+  heatCapacityFreeIdealDomain: {
+    ...createDefaultHeatCapacityFile(5).heatCapacityFreeIdealDomain,
+    trials: [idealAverageTrial],
+  },
+};
+assert.deepEqual(
+  getHeatCapacityFreeTrialsForAverage(mixedDomainFile).map((trial) => trial.id),
+  ['real-domain-trial'],
+  'Free Mode mean result should only use real-domain trials; ideal-domain trials stay isolated',
+);
+
+const idealSelectedFile = setHeatCapacityFreeParameterSchemeWorkbenchState(
+  createDefaultHeatCapacityFile(6),
+  'ideal',
+  31_000,
+);
+assert.equal(selectActiveHeatCapacityFreeDomain(idealSelectedFile).scheme, 'ideal');
+const idealFileWithUnmarkedTrial: WorkbenchHeatCapacityState = {
+  ...idealSelectedFile,
+  heatCapacityFreeTrials: [createHeatCapacityFreeTrial('ideal-runtime-unmarked')],
+};
+const idealResetFile = resetHeatCapacityFreeRunWorkbenchState(idealFileWithUnmarkedTrial, 31_500);
+assert.equal(
+  idealResetFile.heatCapacityFreeParameterScheme,
+  'ideal',
+  'resetting an ideal Free run should keep the active ideal parameter state',
+);
+assert.equal(
+  idealResetFile.heatCapacityFreeDisplayScheme,
+  'ideal',
+  'resetting an ideal Free run should keep the display on the ideal domain',
+);
+assert.equal(
+  idealResetFile.heatCapacityFreeTrials.every((trial) => trial.parameterScheme === 'ideal'),
+  true,
+  'runtime trials should be stamped with the active ideal domain when stored',
+);
+
+const idealTrialA = createHeatCapacityFreeTrial('ideal-delete-a', null, 'ideal');
+const idealTrialB = createHeatCapacityFreeTrial('ideal-delete-b', null, 'ideal');
+const idealFileWithTwoTrials: WorkbenchHeatCapacityState = {
+  ...idealSelectedFile,
+  heatCapacityFreeTrials: [idealTrialA, idealTrialB],
+  heatCapacityFreeIdealDomain: {
+    ...idealSelectedFile.heatCapacityFreeIdealDomain,
+    trials: [idealTrialA, idealTrialB],
+  },
+};
+const idealAfterDeleteTrial = removeHeatCapacityFreeTrialRecordWorkbenchState(
+  idealFileWithTwoTrials,
+  0,
+  'trial',
+  32_000,
+);
+assert.deepEqual(
+  idealAfterDeleteTrial.heatCapacityFreeIdealDomain.trials.map((trial) => trial.id),
+  ['ideal-delete-b'],
+  'deleting an ideal Free group should remove it from the active ideal domain, not only the transient runtime list',
+);
+assert.deepEqual(
+  idealAfterDeleteTrial.heatCapacityFreeTrials.map((trial) => trial.id),
+  ['ideal-delete-b'],
+  'deleting an ideal Free group should keep the top-level runtime list synchronized with the active domain',
+);
+
+const realTrialForDisplayedDelete = createHeatCapacityFreeTrial('real-delete-control', null, 'real');
+const displayedIdealDeleteFile: WorkbenchHeatCapacityState = {
+  ...createDefaultHeatCapacityFile(7),
+  heatCapacityFreeParameterScheme: 'real',
+  heatCapacityFreeDisplayScheme: 'ideal',
+  heatCapacityFreeTrials: [realTrialForDisplayedDelete],
+  heatCapacityFreeRealDomain: {
+    ...createDefaultHeatCapacityFile(7).heatCapacityFreeRealDomain,
+    trials: [realTrialForDisplayedDelete],
+  },
+  heatCapacityFreeIdealDomain: {
+    ...createDefaultHeatCapacityFile(7).heatCapacityFreeIdealDomain,
+    trials: [idealTrialA, idealTrialB],
+  },
+};
+const displayedIdealAfterDeleteTrial = removeHeatCapacityFreeTrialRecordWorkbenchState(
+  displayedIdealDeleteFile,
+  0,
+  'trial',
+  33_000,
+  'ideal',
+);
+assert.deepEqual(
+  displayedIdealAfterDeleteTrial.heatCapacityFreeIdealDomain.trials.map((trial) => trial.id),
+  ['ideal-delete-b'],
+  'deleting a displayed ideal group should update the ideal domain even when the active runtime domain is real',
+);
+assert.deepEqual(
+  displayedIdealAfterDeleteTrial.heatCapacityFreeRealDomain.trials.map((trial) => trial.id),
+  ['real-delete-control'],
+  'deleting a displayed ideal group should not remove records from the active real domain',
+);
+assert.deepEqual(
+  displayedIdealAfterDeleteTrial.heatCapacityFreeTrials.map((trial) => trial.id),
+  ['real-delete-control'],
+  'deleting a displayed ideal group should leave the top-level runtime fields on the active real domain',
 );
 
 console.log('workbenchHeatCapacityFreeRecordAttempt tests passed');

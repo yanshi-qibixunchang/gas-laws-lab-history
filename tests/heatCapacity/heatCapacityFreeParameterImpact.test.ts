@@ -17,6 +17,7 @@ import {
 } from '../../src/domain/heatCapacity/heatCapacityFreeCalibrationModel.ts';
 import {
   evaluateFreeU0Record,
+  evaluateFreeU2Record,
 } from '../../src/domain/heatCapacity/heatCapacityFreeRecordModel.ts';
 import {
   createDefaultFreeSensorState,
@@ -31,13 +32,6 @@ import {
   normalizeHeatCapacityFreeRecordInput,
   type HeatCapacityFreeTrial,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
-import {
-  createDefaultFreeConfigSnapshot,
-  type HeatCapacityFreeConfigSnapshot,
-} from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
-import {
-  createHeatCapacityIdealReference,
-} from '../../src/domain/heatCapacity/heatCapacityFreeIdealReferenceModel.ts';
 import {
   applyHeatCapacityFreeParameterDraftWorkbenchState,
   createDefaultHeatCapacityFile,
@@ -315,6 +309,15 @@ const createCompletedTrial = (
   }),
 });
 
+const createTrialReadyForU2 = (
+  u0Mv: number,
+  u1Mv: number,
+): HeatCapacityFreeTrial => ({
+  ...createCompletedTrial(u0Mv, u1Mv, 30),
+  u2: null,
+  correctedSignals: null,
+});
+
 const createRecordPhysics = (
   overrides: Partial<HeatCapacityFreePhysicsState> = {},
 ) => ({
@@ -407,18 +410,6 @@ registerDraftImpact(
   'free realtime wall/gas recovery curve',
   2,
   (draft) => runFreeScenario(draft, { recoveryWaitS: 10 }).recovered.wallTemperatureK,
-);
-
-registerDraftImpact(
-  'pressureMvPerKPa',
-  'sensor and result mapping',
-  'same physical pressure uses a different voltage sensitivity',
-  'realtime pressure card and processing sensitivity',
-  28,
-  (draft) => ({
-    displayPressureMv: runFreeScenario(draft).pumped.displayPressureMv,
-    result: resultGammaMetric(draft),
-  }),
 );
 
 registerDraftImpact(
@@ -564,6 +555,40 @@ registerDraftImpact(
 );
 
 registerDraftImpact(
+  'overVentedMinimumU2CorrectedMv',
+  'record decision',
+  'U2 is attempted near the over-vented lower boundary',
+  'U2 record button readiness and blocked reason',
+  0.5,
+  (draft) => {
+    const applied = applyHeatCapacityFreeParameterDraftToConfigs(draft);
+    return evaluateFreeU2Record(
+      createTrialReadyForU2(0, 120),
+      defaultCalibration,
+      {
+        displayPressureMv: 0.3,
+        displayTemperatureMv: 1500,
+        pressureSlopeMvPerS: 0,
+        temperatureSlopeMvPerS: 0,
+      },
+      createRecordPhysics({
+        releaseStarted: true,
+        releaseReference: {
+          pressureBeforeKPa: 107,
+          temperatureBeforeK: 298,
+          amountBeforeRatio: 1.05,
+          openedAtS: 10,
+          reachedAmbientAtS: 10.1,
+        },
+        lastStopcockOpenedAtS: 10,
+        lastStopcockClosedAtS: 10.2,
+      }),
+      applied.recordConfig,
+    );
+  },
+);
+
+registerDraftImpact(
   'pressureStableSlopeMvPerS',
   'record decision',
   'U0 is attempted with pressure slope between the old and new limits',
@@ -646,87 +671,6 @@ assertMetricChanged(impactRows, {
   baseMetric: workbenchVisibleMetric(baseViewFile),
   variantMetric: workbenchVisibleMetric(variantViewFile),
 });
-
-const idealSignature = (snapshot: HeatCapacityFreeConfigSnapshot) => (
-  createHeatCapacityIdealReference(snapshot, 1.4).trace
-    .filter((point) => point.stageId !== 'zero')
-    .map((point) => `${point.stageId}:${point.timeS}:${point.pressureDeltaKPa}:${point.temperatureDeltaK}`)
-    .join('|')
-);
-
-const defaultIdealSnapshot = createDefaultFreeConfigSnapshot();
-const withGammaChanged: HeatCapacityFreeConfigSnapshot = {
-  ...defaultIdealSnapshot,
-  physics: {
-    ...defaultIdealSnapshot.physics,
-    gamma: 1.67,
-  },
-};
-assert.notEqual(
-  idealSignature(withGammaChanged),
-  idealSignature(defaultIdealSnapshot),
-  'ideal reference should change when gamma changes',
-);
-
-const withThermalChanged: HeatCapacityFreeConfigSnapshot = {
-  ...defaultIdealSnapshot,
-  physics: {
-    ...defaultIdealSnapshot.physics,
-    thermal: {
-      ...defaultIdealSnapshot.physics.thermal,
-      gasWallConductanceWPerK: defaultIdealSnapshot.physics.thermal.gasWallConductanceWPerK * 1.8,
-    },
-  },
-};
-assert.notEqual(
-  idealSignature(withThermalChanged),
-  idealSignature(defaultIdealSnapshot),
-  'ideal reference should change when thermal conductance changes',
-);
-
-const withLeakageEnabled: HeatCapacityFreeConfigSnapshot = {
-  ...defaultIdealSnapshot,
-  physics: {
-    ...defaultIdealSnapshot.physics,
-    leakage: {
-      ...defaultIdealSnapshot.physics.leakage,
-      enabled: true,
-      ratePerS: 0.025,
-    },
-  },
-};
-assert.equal(
-  idealSignature(withLeakageEnabled),
-  idealSignature(defaultIdealSnapshot),
-  'ideal reference should ignore leakage by definition',
-);
-
-const withSensorLagChanged: HeatCapacityFreeConfigSnapshot = {
-  ...defaultIdealSnapshot,
-  sensor: {
-    ...defaultIdealSnapshot.sensor,
-    lagRate: 1.1,
-    pumpLagRate: 1.3,
-  },
-};
-assert.equal(
-  idealSignature(withSensorLagChanged),
-  idealSignature(defaultIdealSnapshot),
-  'ideal reference should ignore sensor lag by definition',
-);
-
-const withNoiseChanged: HeatCapacityFreeConfigSnapshot = {
-  ...defaultIdealSnapshot,
-  sensor: {
-    ...defaultIdealSnapshot.sensor,
-    noiseMv: 0.8,
-  },
-};
-assert.equal(
-  idealSignature(withNoiseChanged),
-  idealSignature(defaultIdealSnapshot),
-  'ideal reference should ignore instrument noise by definition',
-);
 
 assert.equal(
   impactRows.length,

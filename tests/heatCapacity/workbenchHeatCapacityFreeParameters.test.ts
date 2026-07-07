@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {
-  acknowledgeHeatCapacityFreeAdvancedRiskWorkbenchState,
+  acknowledgeHeatCapacityFreeFileNoticeWorkbenchState,
   applyHeatCapacityFreeParameterDraftWorkbenchState,
   canOpenHeatCapacityParameterSidebar,
   createDefaultHeatCapacityFile,
@@ -13,6 +13,7 @@ import {
   powerHeatCapacityWorkbenchFile,
   prepareHeatCapacityFreeExperimentGroupForUserOperation,
   prepareNextHeatCapacityFreeExperimentGroupWorkbenchState,
+  resetHeatCapacityFreeParametersToDefaultWorkbenchState,
   resetHeatCapacityFreeRunWorkbenchState,
   shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
 } from '../../src/features/workbench/workbenchState.ts';
@@ -28,7 +29,12 @@ assert.equal(defaultFile.heatCapacityFreeParameterDraft.wallAmbientConductanceWP
 assert.equal(defaultFile.heatCapacityFreeParameterDraft.leakageEnabled, true);
 assert.equal(defaultFile.heatCapacityFreeParameterDraft.instrumentNoiseEnabled, true);
 assert.equal(defaultFile.heatCapacityFreeActiveRunConfigSnapshot, null);
-assert.equal(defaultFile.heatCapacityFreeAdvancedRiskAccepted, false);
+assert.deepEqual(defaultFile.heatCapacityFreeFileAcknowledgements, {
+  advancedParametersRisk: false,
+  idealParameterProfileIntro: false,
+});
+assert.equal(defaultFile.heatCapacityFreeParameterScheme, 'real');
+assert.equal(defaultFile.heatCapacityFreeDisplayScheme, 'real');
 assert.equal(defaultFile.heatCapacityFreeInstrumentNoiseEnabled, true);
 assert.equal(defaultFile.heatCapacityFreeRecordConfig.u0ZeroToleranceMv, 0.12);
 assert.equal(defaultFile.heatCapacityFreePressureWarningMv, 120);
@@ -153,6 +159,7 @@ const gammaNextGroupFile = prepareNextHeatCapacityFreeExperimentGroupWorkbenchSt
     {
       id: 'completed-gamma-lock-marker',
       source: 'free',
+      parameterScheme: 'real',
       traceTrialId: null,
       branchCount: 0,
       automaticU0: null,
@@ -186,9 +193,72 @@ assert.equal(resetGammaEdit.heatCapacityFreeTrials.length, 0);
 assert.equal(resetGammaEdit.heatCapacityFreeParameterDraft.gamma, 1.33);
 assert.equal(resetGammaEdit.theoreticalGamma, 1.33);
 
+const allEditableParametersChanged = applyHeatCapacityFreeParameterDraftWorkbenchState(defaultFile, {
+  ...defaultFile.heatCapacityFreeParameterDraft,
+  ambientPressureKPa: 99.1,
+  ambientTemperatureK: 302.4,
+  leakageEnabled: false,
+  instrumentNoiseEnabled: false,
+  gamma: 1.53,
+  gasWallConductanceWPerK: 0.31,
+  wallAmbientConductanceWPerK: 0.82,
+  wallHeatCapacityJPerK: 72,
+  leakageRatePerS: 0.0002,
+  noiseMv: 0.11,
+  sensorLagTimeS: 0.42,
+  u0ZeroToleranceMv: 0.2,
+  pressureStableSlopeMvPerS: 0.4,
+  temperatureStableSlopeMvPerS: 0.3,
+  temperatureAmbientToleranceMv: 0.6,
+  minimumUsefulU1CorrectedMv: 80,
+  overVentedMinimumU2CorrectedMv: 1.5,
+  pressureWarningMv: 118,
+  pressureDangerMv: 148,
+});
+const restoredDefaultParameters = resetHeatCapacityFreeParametersToDefaultWorkbenchState(
+  {
+    ...allEditableParametersChanged,
+    hardSphereViewEnabled: true,
+  },
+);
+assert.deepEqual(
+  restoredDefaultParameters.heatCapacityFreeParameterDraft,
+  defaultFile.heatCapacityFreeParameterDraft,
+  'default reset should restore every exposed Free parameter, including advanced values',
+);
+assert.equal(restoredDefaultParameters.heatCapacityFreePhysicsConfig.gamma, defaultFile.heatCapacityFreePhysicsConfig.gamma);
+assert.equal(restoredDefaultParameters.theoreticalGamma, defaultFile.theoreticalGamma);
+assert.equal(restoredDefaultParameters.heatCapacityFreeInstrumentNoiseEnabled, defaultFile.heatCapacityFreeInstrumentNoiseEnabled);
+assert.equal(restoredDefaultParameters.heatCapacityFreePressureWarningMv, defaultFile.heatCapacityFreePressureWarningMv);
+assert.equal(restoredDefaultParameters.hardSphereViewEnabled, defaultFile.hardSphereViewEnabled);
+
+const lockedDefaultResetAttempt = resetHeatCapacityFreeParametersToDefaultWorkbenchState(
+  freezeHeatCapacityFreeParametersForCurrentGroup(allEditableParametersChanged),
+);
 assert.equal(
-  acknowledgeHeatCapacityFreeAdvancedRiskWorkbenchState(defaultFile).heatCapacityFreeAdvancedRiskAccepted,
+  lockedDefaultResetAttempt.heatCapacityFreeParameterDraft.ambientPressureKPa,
+  allEditableParametersChanged.heatCapacityFreeParameterDraft.ambientPressureKPa,
+  'default reset should respect the same lock as manual parameter edits',
+);
+
+const acknowledgedAdvanced = acknowledgeHeatCapacityFreeFileNoticeWorkbenchState(
+  defaultFile,
+  'advancedParametersRisk',
+);
+assert.equal(acknowledgedAdvanced.heatCapacityFreeFileAcknowledgements.advancedParametersRisk, true);
+assert.equal(acknowledgedAdvanced.heatCapacityFreeFileAcknowledgements.idealParameterProfileIntro, false);
+
+const acknowledgedIdeal = acknowledgeHeatCapacityFreeFileNoticeWorkbenchState(
+  defaultFile,
+  'idealParameterProfileIntro',
+);
+assert.equal(acknowledgedIdeal.heatCapacityFreeFileAcknowledgements.idealParameterProfileIntro, true);
+assert.equal(acknowledgedIdeal.heatCapacityFreeFileAcknowledgements.advancedParametersRisk, false);
+const resetAfterIdealAcknowledgement = resetHeatCapacityFreeRunWorkbenchState(acknowledgedIdeal, 42_000);
+assert.equal(
+  resetAfterIdealAcknowledgement.heatCapacityFreeFileAcknowledgements.idealParameterProfileIntro,
   true,
+  'resetting a Free run should preserve file-level ideal-profile acknowledgement',
 );
 
 assert.equal(

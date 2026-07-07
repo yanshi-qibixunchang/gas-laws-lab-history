@@ -45,7 +45,6 @@ export interface HeatCapacityFreeParameterDraft {
   wallAmbientConductanceWPerK: number;
   leakageEnabled: boolean;
   instrumentNoiseEnabled: boolean;
-  pressureMvPerKPa: number;
   gamma: number;
   wallHeatCapacityJPerK: number;
   leakageRatePerS: number;
@@ -79,6 +78,9 @@ const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG = createDefaultHeatCapacityFreeP
 const DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG = createDefaultHeatCapacityFreeSensorConfig();
 const DEFAULT_HEAT_CAPACITY_FREE_RECORD_CONFIG = createDefaultHeatCapacityFreeRecordConfig();
 const DEFAULT_HEAT_CAPACITY_FREE_PRESSURE_WARNING_MV = HEAT_CAPACITY_DEFAULT_PRESSURE_WARNING_MV;
+const HEAT_CAPACITY_FREE_FIXED_PRESSURE_MV_PER_KPA =
+  DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.pressureMvPerKPa;
+const HEAT_CAPACITY_FREE_PRESSURE_THRESHOLD_GAP_MV = 0.01;
 
 const finiteNumberOr = (value: unknown, fallback: number) => (
   typeof value === 'number' && Number.isFinite(value) ? value : fallback
@@ -105,18 +107,14 @@ const booleanOr = (value: unknown, fallback: boolean) => (
 );
 
 export const getHeatCapacityFreePressureDangerLimitKPa = (
-  draft: Pick<HeatCapacityFreeParameterDraft, 'ambientPressureKPa' | 'pressureMvPerKPa' | 'pressureDangerMv'>,
+  draft: Pick<HeatCapacityFreeParameterDraft, 'ambientPressureKPa' | 'pressureDangerMv'>,
 ) => {
   const ambientPressureKPa = finiteAtLeastOr(
     draft.ambientPressureKPa,
     DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG.ambientPressureKPa,
     0.001,
   );
-  const pressureMvPerKPa = finiteAtLeastOr(
-    draft.pressureMvPerKPa,
-    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.pressureMvPerKPa,
-    0.001,
-  );
+  const pressureMvPerKPa = HEAT_CAPACITY_FREE_FIXED_PRESSURE_MV_PER_KPA;
   const pressureDangerMv = finiteAtLeastOr(
     draft.pressureDangerMv,
     DEFAULT_HEAT_CAPACITY_FREE_RECORD_CONFIG.pressureDangerMv,
@@ -139,18 +137,14 @@ export const getHeatCapacityFreePressureDangerLimitKPa = (
 };
 
 export const getHeatCapacityFreePressureDangerUpperLimitMv = (
-  draft: Pick<HeatCapacityFreeParameterDraft, 'ambientPressureKPa' | 'pressureMvPerKPa'>,
+  draft: Pick<HeatCapacityFreeParameterDraft, 'ambientPressureKPa'>,
 ) => {
   const ambientPressureKPa = finiteAtLeastOr(
     draft.ambientPressureKPa,
     DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG.ambientPressureKPa,
     0.001,
   );
-  const pressureMvPerKPa = finiteAtLeastOr(
-    draft.pressureMvPerKPa,
-    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.pressureMvPerKPa,
-    0.001,
-  );
+  const pressureMvPerKPa = HEAT_CAPACITY_FREE_FIXED_PRESSURE_MV_PER_KPA;
   return Math.max(
     0,
     (HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA - ambientPressureKPa) * pressureMvPerKPa,
@@ -205,11 +199,7 @@ const normalizeHeatCapacityFreePhysicsConfig = (
 const normalizeHeatCapacityFreeSensorConfig = (
   value: Partial<HeatCapacityFreeSensorConfig> | null | undefined,
 ): HeatCapacityFreeSensorConfig => ({
-  pressureMvPerKPa: finiteAtLeastOr(
-    value?.pressureMvPerKPa,
-    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.pressureMvPerKPa,
-    0.001,
-  ),
+  pressureMvPerKPa: HEAT_CAPACITY_FREE_FIXED_PRESSURE_MV_PER_KPA,
   temperatureMvAtAmbient: finiteNumberOr(
     value?.temperatureMvAtAmbient,
     DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient,
@@ -321,7 +311,6 @@ export const createHeatCapacityFreeParameterDraftFromConfigs = (
     wallAmbientConductanceWPerK: physics.thermal.wallAmbientConductanceWPerK,
     leakageEnabled: physics.leakage.enabled,
     instrumentNoiseEnabled,
-    pressureMvPerKPa: sensor.pressureMvPerKPa,
     gamma: physics.gamma,
     wallHeatCapacityJPerK: physics.thermal.wallHeatCapacityJPerK,
     leakageRatePerS: physics.leakage.ratePerS,
@@ -355,44 +344,59 @@ const createDefaultHeatCapacityFreeParameterDraft = () => (
 export const normalizeHeatCapacityFreeParameterDraft = (
   value: Partial<HeatCapacityFreeParameterDraft> | null | undefined,
   fallback: HeatCapacityFreeParameterDraft = createDefaultHeatCapacityFreeParameterDraft(),
-): HeatCapacityFreeParameterDraft => ({
-  ambientPressureKPa: finiteAtLeastOr(value?.ambientPressureKPa, fallback.ambientPressureKPa, 0.001),
-  ambientTemperatureK: finiteAtLeastOr(value?.ambientTemperatureK, fallback.ambientTemperatureK, 0.001),
-  gasWallConductanceWPerK: finiteAtLeastOr(value?.gasWallConductanceWPerK, fallback.gasWallConductanceWPerK, 0),
-  wallAmbientConductanceWPerK: finiteAtLeastOr(value?.wallAmbientConductanceWPerK, fallback.wallAmbientConductanceWPerK, 0),
-  leakageEnabled: booleanOr(value?.leakageEnabled, fallback.leakageEnabled),
-  instrumentNoiseEnabled: booleanOr(value?.instrumentNoiseEnabled, fallback.instrumentNoiseEnabled),
-  pressureMvPerKPa: finiteAtLeastOr(value?.pressureMvPerKPa, fallback.pressureMvPerKPa, 0.001),
-  gamma: finiteAtLeastOr(value?.gamma, fallback.gamma, 1.001),
-  wallHeatCapacityJPerK: finiteAtLeastOr(value?.wallHeatCapacityJPerK, fallback.wallHeatCapacityJPerK, 1),
-  leakageRatePerS: finiteAtLeastOr(value?.leakageRatePerS, fallback.leakageRatePerS, 0),
-  noiseMv: finiteAtLeastOr(value?.noiseMv, fallback.noiseMv, 0),
-  sensorLagTimeS: finiteGreaterThanOr(value?.sensorLagTimeS, fallback.sensorLagTimeS, 0),
-  u0ZeroToleranceMv: finiteAtLeastOr(value?.u0ZeroToleranceMv, fallback.u0ZeroToleranceMv, 0),
-  pressureStableSlopeMvPerS: finiteAtLeastOr(value?.pressureStableSlopeMvPerS, fallback.pressureStableSlopeMvPerS, 0),
-  temperatureStableSlopeMvPerS: finiteAtLeastOr(
-    value?.temperatureStableSlopeMvPerS,
-    fallback.temperatureStableSlopeMvPerS,
+): HeatCapacityFreeParameterDraft => {
+  const pressureDangerMv = finiteAtLeastOr(value?.pressureDangerMv, fallback.pressureDangerMv, 0);
+  const rawPressureWarningMv = finiteAtLeastOr(value?.pressureWarningMv, fallback.pressureWarningMv, 0);
+  const pressureWarningMv = Math.min(
+    rawPressureWarningMv,
+    Math.max(0, pressureDangerMv - HEAT_CAPACITY_FREE_PRESSURE_THRESHOLD_GAP_MV),
+  );
+  const maximumUsefulU1Mv = Math.max(
     0,
-  ),
-  temperatureAmbientToleranceMv: finiteAtLeastOr(
-    value?.temperatureAmbientToleranceMv,
-    fallback.temperatureAmbientToleranceMv,
-    0,
-  ),
-  minimumUsefulU1CorrectedMv: finiteAtLeastOr(
-    value?.minimumUsefulU1CorrectedMv,
-    fallback.minimumUsefulU1CorrectedMv,
-    0,
-  ),
-  overVentedMinimumU2CorrectedMv: finiteAtLeastOr(
-    value?.overVentedMinimumU2CorrectedMv,
-    fallback.overVentedMinimumU2CorrectedMv,
-    0,
-  ),
-  pressureWarningMv: finiteAtLeastOr(value?.pressureWarningMv, fallback.pressureWarningMv, 0),
-  pressureDangerMv: finiteAtLeastOr(value?.pressureDangerMv, fallback.pressureDangerMv, 0),
-});
+    Math.min(pressureWarningMv, pressureDangerMv * 0.85) / 1.08,
+  );
+  const minimumUsefulU1CorrectedMv = Math.min(
+    finiteAtLeastOr(
+      value?.minimumUsefulU1CorrectedMv,
+      fallback.minimumUsefulU1CorrectedMv,
+      0,
+    ),
+    maximumUsefulU1Mv,
+  );
+  return {
+    ambientPressureKPa: finiteAtLeastOr(value?.ambientPressureKPa, fallback.ambientPressureKPa, 0.001),
+    ambientTemperatureK: finiteAtLeastOr(value?.ambientTemperatureK, fallback.ambientTemperatureK, 0.001),
+    gasWallConductanceWPerK: finiteAtLeastOr(value?.gasWallConductanceWPerK, fallback.gasWallConductanceWPerK, 0),
+    wallAmbientConductanceWPerK: finiteAtLeastOr(value?.wallAmbientConductanceWPerK, fallback.wallAmbientConductanceWPerK, 0),
+    leakageEnabled: booleanOr(value?.leakageEnabled, fallback.leakageEnabled),
+    instrumentNoiseEnabled: booleanOr(value?.instrumentNoiseEnabled, fallback.instrumentNoiseEnabled),
+    gamma: finiteAtLeastOr(value?.gamma, fallback.gamma, 1.001),
+    wallHeatCapacityJPerK: finiteAtLeastOr(value?.wallHeatCapacityJPerK, fallback.wallHeatCapacityJPerK, 1),
+    leakageRatePerS: finiteAtLeastOr(value?.leakageRatePerS, fallback.leakageRatePerS, 0),
+    noiseMv: finiteAtLeastOr(value?.noiseMv, fallback.noiseMv, 0),
+    sensorLagTimeS: finiteGreaterThanOr(value?.sensorLagTimeS, fallback.sensorLagTimeS, 0),
+    u0ZeroToleranceMv: finiteAtLeastOr(value?.u0ZeroToleranceMv, fallback.u0ZeroToleranceMv, 0),
+    pressureStableSlopeMvPerS: finiteAtLeastOr(value?.pressureStableSlopeMvPerS, fallback.pressureStableSlopeMvPerS, 0),
+    temperatureStableSlopeMvPerS: finiteAtLeastOr(
+      value?.temperatureStableSlopeMvPerS,
+      fallback.temperatureStableSlopeMvPerS,
+      0,
+    ),
+    temperatureAmbientToleranceMv: finiteAtLeastOr(
+      value?.temperatureAmbientToleranceMv,
+      fallback.temperatureAmbientToleranceMv,
+      0,
+    ),
+    minimumUsefulU1CorrectedMv,
+    overVentedMinimumU2CorrectedMv: finiteAtLeastOr(
+      value?.overVentedMinimumU2CorrectedMv,
+      fallback.overVentedMinimumU2CorrectedMv,
+      0,
+    ),
+    pressureWarningMv,
+    pressureDangerMv,
+  };
+};
 
 export const applyHeatCapacityFreeParameterDraftToConfigs = (
   draft: HeatCapacityFreeParameterDraft,
@@ -423,7 +427,6 @@ export const applyHeatCapacityFreeParameterDraftToConfigs = (
   });
   const sensorConfig = normalizeHeatCapacityFreeSensorConfig({
     ...DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
-    pressureMvPerKPa: normalizedDraft.pressureMvPerKPa,
     lagRate: convertSensorLagTimeSToLagRate(normalizedDraft.sensorLagTimeS),
     noiseMv: normalizedDraft.noiseMv,
   });

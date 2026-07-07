@@ -49,7 +49,10 @@ import {
   normalizeHeatCapacityStopcockAngle,
   powerHeatCapacityWorkbenchFile,
   prepareHeatCapacityAutoDemoStart,
+  selectActiveHeatCapacityFreeDomain,
+  selectHeatCapacityFreeDomain,
   selectActiveHeatCapacityWorkbenchDisplay,
+  setHeatCapacityFreeParameterSchemeWorkbenchState,
   setHeatCapacityGuideStopcockOpen,
   setHeatCapacityFreeEquilibriumSpeedHintShown,
   setHeatCapacityFreeEquilibriumSpeedMultiplier,
@@ -81,6 +84,9 @@ import {
 import {
   getHeatCapacityHardSphereVisualState,
 } from '../../src/domain/heatCapacity/heatCapacityHardSphereModel.ts';
+import {
+  deriveFreePhysicalState,
+} from '../../src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
 import {
   createHeatCapacityFreeTrial,
   normalizeHeatCapacityFreeRecordInput,
@@ -159,6 +165,143 @@ assert.equal(
 assert.equal(defaultFile.heatCapacityFreeSensorState.displayTemperatureMv, initialTemperatureMv);
 assert.equal(defaultFile.heatCapacityFreeCalibrationState.calibrationVersion, 0);
 assert.deepEqual(defaultFile.heatCapacityFreeTrials, []);
+assert.equal(defaultFile.heatCapacityFreeRealDomain.trials.length, 0);
+assert.equal(defaultFile.heatCapacityFreeIdealDomain.trials.length, 0);
+assert.equal(selectHeatCapacityFreeDomain(defaultFile, 'real').scheme, 'real');
+assert.equal(selectHeatCapacityFreeDomain(defaultFile, 'ideal').scheme, 'ideal');
+assert.equal(selectActiveHeatCapacityFreeDomain(defaultFile).scheme, 'real');
+const idealSelected = setHeatCapacityFreeParameterSchemeWorkbenchState(defaultFile, 'ideal', 1_000);
+assert.equal(idealSelected.heatCapacityFreeParameterScheme, 'ideal');
+assert.equal(idealSelected.heatCapacityFreeDisplayScheme, 'ideal');
+assert.equal(selectActiveHeatCapacityFreeDomain(idealSelected).scheme, 'ideal');
+assert.equal(idealSelected.heatCapacityFreeRealDomain.trials.length, 0);
+const realSelectedAgain = setHeatCapacityFreeParameterSchemeWorkbenchState(idealSelected, 'real', 1_100);
+assert.equal(realSelectedAgain.heatCapacityFreeParameterScheme, 'real');
+assert.equal(realSelectedAgain.heatCapacityFreeDisplayScheme, 'real');
+assert.equal(selectActiveHeatCapacityFreeDomain(realSelectedAgain).scheme, 'real');
+assert.equal(realSelectedAgain.heatCapacityFreeIdealDomain.trials.length, 0);
+const poweredIdeal = powerHeatCapacityWorkbenchFile(idealSelected, true, 1_200);
+assert.equal(poweredIdeal.heatCapacityFreeParameterScheme, 'ideal');
+assert.equal(poweredIdeal.heatCapacityFreeRealDomain.physicsState.simulationTimeS, 0);
+assert.equal(poweredIdeal.heatCapacityFreeRealDomain.traceStore.traceTrials.length, 0);
+assert.equal(poweredIdeal.heatCapacityFreeIdealDomain.traceStore.traceTrials.length > 0, true);
+assert.equal(poweredIdeal.heatCapacityFreeIdealDomain.physicsConfig.gamma, 1.4);
+const idealFastProcessHotState = {
+  ...poweredIdeal.heatCapacityFreeIdealDomain.physicsState,
+  simulationTimeS: 0,
+  gasTemperatureK: poweredIdeal.heatCapacityFreeIdealDomain.physicsConfig.environment.ambientTemperatureK + 10,
+  wallTemperatureK: poweredIdeal.heatCapacityFreeIdealDomain.physicsConfig.environment.ambientTemperatureK,
+  pumpProcesses: [
+    {
+      startedAtS: 0,
+      strength: 0,
+      appliedProgress: 0,
+    },
+  ],
+};
+const idealFastProcessStep = stepHeatCapacityWorkbenchFile({
+  ...poweredIdeal,
+  lastUpdateMs: 1_200,
+  heatCapacityFreePhysicsState: idealFastProcessHotState,
+  heatCapacityFreeIdealDomain: {
+    ...poweredIdeal.heatCapacityFreeIdealDomain,
+    physicsState: idealFastProcessHotState,
+  },
+}, 1_240);
+assert.equal(
+  Math.abs(
+    idealFastProcessStep.heatCapacityFreeIdealDomain.physicsState.gasTemperatureK -
+      idealFastProcessHotState.gasTemperatureK,
+  ) < 0.000001,
+  true,
+  'ideal Free runtime should keep active fast processes adiabatic',
+);
+const idealReleaseTargetU1Mv = 120;
+const idealReleasePressureDeltaKPa = idealReleaseTargetU1Mv /
+  poweredIdeal.heatCapacityFreeIdealDomain.sensorConfig.pressureMvPerKPa;
+const idealReleaseStartAmountRatio = 1 + idealReleasePressureDeltaKPa /
+  poweredIdeal.heatCapacityFreeIdealDomain.physicsConfig.environment.ambientPressureKPa;
+const idealReleaseStartState = {
+  ...poweredIdeal.heatCapacityFreeIdealDomain.physicsState,
+  simulationTimeS: 0,
+  gasAmountRatio: idealReleaseStartAmountRatio,
+  gasTemperatureK: poweredIdeal.heatCapacityFreeIdealDomain.physicsConfig.environment.ambientTemperatureK,
+  wallTemperatureK: poweredIdeal.heatCapacityFreeIdealDomain.physicsConfig.environment.ambientTemperatureK,
+  lastStopcockOpenedAtS: 0,
+  lastStopcockClosedAtS: null,
+  releaseStarted: true,
+  releaseReference: {
+    pressureBeforeKPa:
+      poweredIdeal.heatCapacityFreeIdealDomain.physicsConfig.environment.ambientPressureKPa +
+        idealReleasePressureDeltaKPa,
+    temperatureBeforeK: poweredIdeal.heatCapacityFreeIdealDomain.physicsConfig.environment.ambientTemperatureK,
+    amountBeforeRatio: idealReleaseStartAmountRatio,
+    openedAtS: 0,
+    reachedAmbientAtS: null,
+  },
+};
+const idealReleaseTrial = {
+  ...createHeatCapacityFreeTrial('ideal-release-trial', null, 'ideal'),
+  u0: normalizeHeatCapacityFreeRecordInput({
+    atS: 0,
+    displayPressureMv: 0,
+    displayTemperatureMv: poweredIdeal.heatCapacityFreeIdealDomain.sensorConfig.temperatureMvAtAmbient,
+    calibrationVersion: 1,
+    zeroEventId: 'zero-1',
+  }),
+  u1: normalizeHeatCapacityFreeRecordInput({
+    atS: 1,
+    displayPressureMv: idealReleaseTargetU1Mv,
+    displayTemperatureMv: poweredIdeal.heatCapacityFreeIdealDomain.sensorConfig.temperatureMvAtAmbient,
+    calibrationVersion: 1,
+    zeroEventId: 'zero-1',
+  }),
+};
+const idealReleaseOpen = stepHeatCapacityWorkbenchFile({
+  ...poweredIdeal,
+  lastUpdateMs: 1_200,
+  heatCapacityFreePhysicsState: idealReleaseStartState,
+  heatCapacityFreeStopcockFlowOpen: true,
+  heatCapacityFreeStopcockFlowPurpose: 'release',
+  heatCapacityFreeTrials: [idealReleaseTrial],
+  heatCapacityFreeIdealDomain: {
+    ...poweredIdeal.heatCapacityFreeIdealDomain,
+    physicsState: idealReleaseStartState,
+    stopcockFlowOpen: true,
+    stopcockFlowPurpose: 'release',
+    trials: [idealReleaseTrial],
+  },
+}, 1_700);
+const idealReleaseClosedState = {
+  ...idealReleaseOpen.heatCapacityFreeIdealDomain.physicsState,
+  lastStopcockClosedAtS: idealReleaseOpen.heatCapacityFreeIdealDomain.physicsState.simulationTimeS,
+};
+const idealReleaseRecovered = stepHeatCapacityWorkbenchFile({
+  ...idealReleaseOpen,
+  lastUpdateMs: 1_700,
+  heatCapacityFreePhysicsState: idealReleaseClosedState,
+  heatCapacityFreeStopcockFlowOpen: false,
+  heatCapacityFreeStopcockFlowPurpose: 'none',
+  heatCapacityFreeIdealDomain: {
+    ...idealReleaseOpen.heatCapacityFreeIdealDomain,
+    physicsState: idealReleaseClosedState,
+    stopcockFlowOpen: false,
+    stopcockFlowPurpose: 'none',
+  },
+}, 301_700);
+const idealRecoveredPhysical = deriveFreePhysicalState(
+  idealReleaseRecovered.heatCapacityFreeIdealDomain.physicsState,
+  idealReleaseRecovered.heatCapacityFreeIdealDomain.physicsConfig,
+);
+const idealRecoveredU2Mv = idealRecoveredPhysical.pressureDeltaKPa *
+  idealReleaseRecovered.heatCapacityFreeIdealDomain.sensorConfig.pressureMvPerKPa;
+assert.equal(
+  idealRecoveredU2Mv > 30 && idealRecoveredU2Mv < 36,
+  true,
+  'ideal release should stay adiabatic until the stopcock closes so recovered U2 remains near the 1.4 result',
+);
+const switchAfterIdealStart = setHeatCapacityFreeParameterSchemeWorkbenchState(poweredIdeal, 'real', 1_300);
+assert.equal(switchAfterIdealStart.heatCapacityFreeParameterScheme, 'ideal');
 for (const freeRuntimeState of [
   defaultFile.heatCapacityFreePhysicsState,
   defaultFile.heatCapacityFreeSensorState,
@@ -636,6 +779,26 @@ assert.deepEqual(
   getHeatCapacityFreeRecordButtonState(completedPowerOffPrepared, 'u0'),
   { visible: false, mode: 'record', disabledReason: 'zero-not-ready' },
   'Auto-saved Free history should not remain as a current re-record target',
+);
+const switchSchemeAfterCompletedHistory = setHeatCapacityFreeParameterSchemeWorkbenchState(
+  completedPowerOffPrepared,
+  'ideal',
+  1_680,
+);
+assert.equal(
+  switchSchemeAfterCompletedHistory.heatCapacityFreeParameterScheme,
+  'ideal',
+  'Completed Free history should not lock the real/ideal parameter scheme; only a current active run should lock it',
+);
+assert.equal(
+  switchSchemeAfterCompletedHistory.heatCapacityFreeRealDomain.trials.length,
+  1,
+  'Switching to ideal after completed real history should preserve the real-domain completed group',
+);
+assert.equal(
+  switchSchemeAfterCompletedHistory.heatCapacityFreeIdealDomain.trials.length,
+  0,
+  'Switching to ideal after completed real history should enter a blank ideal-domain run',
 );
 const completedPowerOnNextSeed = powerHeatCapacityWorkbenchFile(
   prepareHeatCapacityFreeExperimentGroupForUserOperation(completedPowerOffPrepared, 1_690),

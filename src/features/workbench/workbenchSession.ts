@@ -2,6 +2,7 @@ import {
   clampWorkbenchLiveSplitRatio,
   applyHeatCapacityPressureZero,
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  createDefaultHeatCapacityFreeFileAcknowledgements,
   createDefaultHeatCapacityFreeRuntimeFields,
   createDefaultHeatCapacityFile,
   getHeatCapacityStopcockTargetAngle,
@@ -196,6 +197,7 @@ const normalizeHeatCapacityFreeTrial = (value: unknown): HeatCapacityFreeTrial |
   return {
     id: value.id,
     source: 'free',
+    parameterScheme: value.parameterScheme === 'ideal' ? 'ideal' : 'real',
     traceTrialId: typeof value.traceTrialId === 'string' ? value.traceTrialId : null,
     branchCount: normalizeNullableNumber(value.branchCount) ?? 0,
     automaticU0: isRecord(value.automaticU0)
@@ -578,7 +580,10 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
           heatCapacityFreeActiveRunConfigSnapshot: normalizeHeatCapacityFreeConfigSnapshot(
             file.heatCapacityFreeActiveRunConfigSnapshot,
           ),
-          heatCapacityFreeAdvancedRiskAccepted: file.heatCapacityFreeAdvancedRiskAccepted === true,
+          heatCapacityFreeFileAcknowledgements: {
+            ...createDefaultHeatCapacityFreeFileAcknowledgements(),
+            ...(isRecord(file.heatCapacityFreeFileAcknowledgements) ? file.heatCapacityFreeFileAcknowledgements : {}),
+          },
           heatCapacityFreeRecordConfig: savedFreeRecordConfig,
           heatCapacityFreePressureWarningMv: savedFreePressureWarningMv,
           heatCapacityFreeInstrumentNoiseEnabled: savedFreeInstrumentNoiseEnabled,

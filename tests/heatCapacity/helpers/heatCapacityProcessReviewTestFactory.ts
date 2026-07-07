@@ -214,6 +214,7 @@ export const createTrialForProcessReviewTest = (
   const baseTrial: HeatCapacityFreeTrial = {
     id: setup.traceTrial.linkedTrialId ?? 'free-trial-1',
     source: 'free',
+    parameterScheme: 'real',
     traceTrialId: setup.traceTrial.id,
     branchCount: setup.traceTrial.branches.length,
     automaticU0: null,

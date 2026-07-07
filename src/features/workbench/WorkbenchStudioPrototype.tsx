@@ -1,12 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   Archive,
+  ArrowLeft,
   BarChart3,
   BookOpen,
   ChevronDown,
   ChevronRight,
   Download,
+  ExternalLink,
   FilePlus2,
   FileArchive,
   FileText,
@@ -16,6 +18,7 @@ import {
   Gauge,
   Info,
   Languages,
+  ListTree,
   Loader2,
   LockKeyhole,
   LogOut,
@@ -51,7 +54,7 @@ import {
   createDefaultIdealWindowLayout,
   createDefaultStandardFile,
   createDefaultStandardResultsLayout,
-  acknowledgeHeatCapacityFreeAdvancedRiskWorkbenchState,
+  acknowledgeHeatCapacityFreeFileNoticeWorkbenchState,
   applyHeatCapacityFreeParameterDraftWorkbenchState,
   applyHeatCapacityGuideRecordWorkbenchState,
   abortHeatCapacityGuideWorkbenchState,
@@ -81,6 +84,7 @@ import {
   HEAT_CAPACITY_RELEASE_BURST_DURATION_MS,
   HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV,
   HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
+  isHeatCapacityFreeExperimentStarted,
   isHeatCapacityPhysicalKernelMode,
   isHeatCapacityFreeEquilibriumSpeedAvailable,
   isHeatCapacityPressureZeroWithinTolerance,
@@ -96,10 +100,14 @@ import {
   recordHeatCapacityFreeTraceEvent,
   registerHeatCapacityPumpStroke,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
+  resetHeatCapacityFreeParametersToDefaultWorkbenchState,
   resetHeatCapacityFreeRunWorkbenchState,
   selectActiveHeatCapacityWorkbenchDisplay,
+  selectDisplayedHeatCapacityFreeDomain,
+  setHeatCapacityFreeDisplaySchemeWorkbenchState,
   setHeatCapacityFreeEquilibriumSpeedHintShown,
   setHeatCapacityFreeEquilibriumSpeedMultiplier,
+  setHeatCapacityFreeParameterSchemeWorkbenchState,
   setHeatCapacityGuideEquilibriumSpeedMultiplier,
   setHeatCapacityGuidePumpValveOpen,
   setHeatCapacityGuideStopcockOpen,
@@ -124,6 +132,7 @@ import {
   type WorkbenchIdealWindowLayout,
   type WorkbenchHeatCapacityPanelKey,
   type WorkbenchHeatCapacityTabId,
+  type HeatCapacityFreeDisplayScheme,
   type WorkbenchPanelKey,
   type WorkbenchParameterRow,
   type WorkbenchStandardResultsLayout,
@@ -134,6 +143,7 @@ import {
 } from './workbenchHardSpherePersistence.ts';
 import HeatCapacityInstrumentScene from '../heatCapacity/HeatCapacityInstrumentScene';
 import { HeatCapacityLeftPanel } from '../heatCapacity/HeatCapacityLeftPanel.tsx';
+import { HeatCapacityFreeDisplaySchemeMenu } from '../heatCapacity/HeatCapacityFreeDisplaySchemeMenu.tsx';
 import HeatCapacityProcessReviewPanel from '../heatCapacity/HeatCapacityProcessReviewPanel.tsx';
 import {
   HEAT_CAPACITY_FREE_PARAMETER_SIDEBAR_BLOCK_FALLBACK,
@@ -344,7 +354,7 @@ type HeatCapacityFocusSession = {
   nonReversibleAction: boolean;
 };
 
-type HeatCapacityGuideStrongMaskHole =
+type HeatCapacityGuideStrongCutout =
   | {
       id: string;
       shape: 'rect';
@@ -363,7 +373,7 @@ type HeatCapacityGuideStrongMaskHole =
       ry: number;
     };
 
-type HeatCapacityGuideStrongDomHole = {
+type HeatCapacityGuideStrongDomCutout = {
   id: string;
   selector: string;
   padding?: number;
@@ -375,7 +385,7 @@ type HeatCapacityGuideStrongTargetSpec = {
   id: string;
   focusMode: HeatCapacityFocusMode | null;
   sceneHoleIds: string[];
-  domHoles?: HeatCapacityGuideStrongDomHole[];
+  domHoles?: HeatCapacityGuideStrongDomCutout[];
   reminderCopyKey?: 'guideStrongReminder' | 'guideStrongReminderPressureZero';
 };
 
@@ -727,11 +737,11 @@ const getHeatCapacityGuideStrongTargetSpec = (controlId: string | null): HeatCap
   controlId ? HEAT_CAPACITY_GUIDE_STRONG_TARGET_CONFIGS[controlId] ?? HEAT_CAPACITY_GUIDE_STRONG_TARGET_FALLBACK : HEAT_CAPACITY_GUIDE_STRONG_TARGET_FALLBACK
 );
 
-const getHeatCapacityGuideDomHole = (
+const getHeatCapacityGuideDomCutout = (
   maskRoot: HTMLElement | null,
-  domHole: HeatCapacityGuideStrongDomHole,
+  domHole: HeatCapacityGuideStrongDomCutout,
   bounds: { width: number; height: number },
-): HeatCapacityGuideStrongMaskHole | null => {
+): HeatCapacityGuideStrongCutout | null => {
   if (!maskRoot || bounds.width <= 0 || bounds.height <= 0) return null;
   const sceneRoot = maskRoot.closest('[data-heat-capacity-instrument-scene="true"]') as HTMLElement | null;
   const element = sceneRoot?.querySelector(domHole.selector) as HTMLElement | null;
@@ -756,22 +766,22 @@ const getHeatCapacityGuideDomHole = (
   };
 };
 
-const getHeatCapacityGuideStrongMaskHoles = (
+const getHeatCapacityGuideStrongCutouts = (
   targetSpec: HeatCapacityGuideStrongTargetSpec,
-  projectedHoles: Record<string, HeatCapacityGuideStrongMaskHole>,
+  projectedHoles: Record<string, HeatCapacityGuideStrongCutout>,
   maskRoot: HTMLElement | null,
   bounds: { width: number; height: number },
-): HeatCapacityGuideStrongMaskHole[] => {
-  const holes: HeatCapacityGuideStrongMaskHole[] = [];
+): HeatCapacityGuideStrongCutout[] => {
+  const cutouts: HeatCapacityGuideStrongCutout[] = [];
   targetSpec.sceneHoleIds.forEach((holeId) => {
     const projectedHole = projectedHoles[holeId];
-    if (projectedHole) holes.push(projectedHole);
+    if (projectedHole) cutouts.push(projectedHole);
   });
   targetSpec.domHoles?.forEach((domHole) => {
-    const hole = getHeatCapacityGuideDomHole(maskRoot, domHole, bounds);
-    if (hole) holes.push(hole);
+    const cutout = getHeatCapacityGuideDomCutout(maskRoot, domHole, bounds);
+    if (cutout) cutouts.push(cutout);
   });
-  if (holes.length > 0) return holes;
+  if (cutouts.length > 0) return cutouts;
   return [
     {
       id: 'centerViewport',
@@ -785,42 +795,99 @@ const getHeatCapacityGuideStrongMaskHoles = (
   ];
 };
 
-const renderHeatCapacityGuideStrongMaskHole = (
-  hole: HeatCapacityGuideStrongMaskHole,
-  variant: 'mask' | 'outline',
+const renderHeatCapacityGuideStrongCutoutOutline = (
+  cutout: HeatCapacityGuideStrongCutout,
 ) => {
-  const isMask = variant === 'mask';
   const commonProps = {
-    fill: isMask ? '#000' : 'rgba(56, 189, 248, 0.1)',
-    stroke: isMask ? 'none' : 'rgba(125, 211, 252, 0.95)',
-    strokeWidth: isMask ? 0 : 0.55,
-    className: isMask ? undefined : 'studio-heat-guide-strong-cutout-outline',
+    fill: 'rgba(56, 189, 248, 0.1)',
+    stroke: 'rgba(125, 211, 252, 0.95)',
+    strokeWidth: 0.55,
+    className: 'studio-heat-guide-strong-cutout-outline',
     vectorEffect: 'non-scaling-stroke' as const,
   };
-  if (hole.shape === 'rect') {
+  if (cutout.shape === 'rect') {
     return (
       <rect
-        key={`${variant}-${hole.id}`}
+        key={`outline-${cutout.id}`}
         {...commonProps}
-        x={hole.x}
-        y={hole.y}
-        width={hole.width}
-        height={hole.height}
-        rx={hole.rx ?? 2}
+        x={cutout.x}
+        y={cutout.y}
+        width={cutout.width}
+        height={cutout.height}
+        rx={cutout.rx ?? 2}
       />
     );
   }
   return (
     <ellipse
-      key={`${variant}-${hole.id}`}
+      key={`outline-${cutout.id}`}
       {...commonProps}
-      cx={hole.cx}
-      cy={hole.cy}
-      rx={hole.rx}
-      ry={hole.ry}
+      cx={cutout.cx}
+      cy={cutout.cy}
+      rx={cutout.rx}
+      ry={cutout.ry}
     />
   );
 };
+
+const createHeatCapacityGuideStrongRectPath = (
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  rx = 0,
+) => {
+  const safeWidth = Math.max(0, width);
+  const safeHeight = Math.max(0, height);
+  const radius = Math.max(0, Math.min(rx, safeWidth / 2, safeHeight / 2));
+  if (safeWidth <= 0 || safeHeight <= 0) return '';
+  if (radius <= 0) {
+    return `M${x} ${y}H${x + safeWidth}V${y + safeHeight}H${x}Z`;
+  }
+  return [
+    `M${x + radius} ${y}`,
+    `H${x + safeWidth - radius}`,
+    `Q${x + safeWidth} ${y} ${x + safeWidth} ${y + radius}`,
+    `V${y + safeHeight - radius}`,
+    `Q${x + safeWidth} ${y + safeHeight} ${x + safeWidth - radius} ${y + safeHeight}`,
+    `H${x + radius}`,
+    `Q${x} ${y + safeHeight} ${x} ${y + safeHeight - radius}`,
+    `V${y + radius}`,
+    `Q${x} ${y} ${x + radius} ${y}`,
+    'Z',
+  ].join('');
+};
+
+const createHeatCapacityGuideStrongCutoutPath = (
+  cutout: HeatCapacityGuideStrongCutout,
+) => {
+  if (cutout.shape === 'rect') {
+    return createHeatCapacityGuideStrongRectPath(
+      cutout.x,
+      cutout.y,
+      cutout.width,
+      cutout.height,
+      cutout.rx ?? 2,
+    );
+  }
+  const rx = Math.max(0, cutout.rx);
+  const ry = Math.max(0, cutout.ry);
+  if (rx <= 0 || ry <= 0) return '';
+  return [
+    `M${cutout.cx + rx} ${cutout.cy}`,
+    `A${rx} ${ry} 0 1 0 ${cutout.cx - rx} ${cutout.cy}`,
+    `A${rx} ${ry} 0 1 0 ${cutout.cx + rx} ${cutout.cy}`,
+    'Z',
+  ].join('');
+};
+
+const createHeatCapacityGuideStrongDimPath = (
+  bounds: { width: number; height: number },
+  cutouts: HeatCapacityGuideStrongCutout[],
+) => [
+  createHeatCapacityGuideStrongRectPath(0, 0, bounds.width, bounds.height),
+  ...cutouts.map(createHeatCapacityGuideStrongCutoutPath),
+].filter(Boolean).join('');
 
 const renderHeatCapacityParameterSymbol = (
   parts: HeatCapacityFreeParameterSymbolPart[],
@@ -884,6 +951,29 @@ interface WorkbenchGeneralSettings {
   performanceMode: WorkbenchPerformanceMode;
 }
 
+interface WorkbenchBuildNoticeTable {
+  headers: string[];
+  rows: string[][];
+}
+
+type WorkbenchLegalMaterialId = DesktopLegalFileId;
+
+interface WorkbenchBuildNoticeMaterial {
+  id: WorkbenchLegalMaterialId;
+  title: string;
+  description: string;
+}
+
+interface WorkbenchBuildNoticeSection {
+  id: string;
+  title: string;
+  eyebrow: string;
+  paragraphs: string[];
+  bullets?: string[];
+  tables?: WorkbenchBuildNoticeTable[];
+  materials?: WorkbenchBuildNoticeMaterial[];
+}
+
 interface WorkbenchCopy {
   menus: {
     newStudy: string;
@@ -938,6 +1028,18 @@ interface WorkbenchCopy {
     localDataExportEnvironment: string;
     workspaceSessionCache: string;
     buildNotes: string;
+    openBuildNotice: string;
+    closeBuildNotice: string;
+    buildNoticeTitle: string;
+    buildNoticeSubtitle: string;
+    buildNoticeNavToggle: string;
+    buildNoticeNavTitle: string;
+    buildNoticeBack: string;
+    buildNoticeOpenLocalFile: string;
+    buildNoticeOpenInBrowser: string;
+    buildNoticeLargeFileBody: string;
+    buildNoticePreviewUnavailable: string;
+    buildNoticeOpenUnavailable: string;
     updateNotConfigured: string;
     checking: string;
     available: string;
@@ -974,7 +1076,6 @@ interface WorkbenchCopy {
     updateDownloadFailedStatus: (attempt: number | null, maxAttempts: number | null) => string;
     retryDownload: string;
     manualDownload: string;
-    buildPlaceholder: string;
     sessionCacheSummary: (total: number) => string;
     sessionCacheBreakdown: (ideal: number, heat: number, standard: number) => string;
   };
@@ -1549,6 +1650,241 @@ const defaultWorkbenchGeneralSettings: WorkbenchGeneralSettings = {
   performanceMode: DEFAULT_HEAT_CAPACITY_QUALITY_MODE,
 };
 
+const buildNoticeLegalMaterialFiles: Record<WorkbenchLegalMaterialId, {
+  previewPath?: string;
+  previewKind?: 'html' | 'text';
+  largeFile?: boolean;
+}> = {
+  dependencies: { previewPath: '/legal/third-party-dependencies.html', previewKind: 'html' },
+  licenseTexts: { previewPath: '/legal/third-party-license-texts.html', previewKind: 'html' },
+  electron: { previewPath: '/legal/LICENSE.electron.txt', previewKind: 'text' },
+  chromium: { largeFile: true },
+  fonts: { previewPath: '/legal/font-licenses.txt', previewKind: 'text' },
+  exporter: { previewPath: '/legal/exporter-licenses.html', previewKind: 'html' },
+};
+
+const buildNoticeSections: Record<WorkbenchLanguagePreference, WorkbenchBuildNoticeSection[]> = {
+  'zh-CN': [
+    {
+      id: 'localPermissions',
+      eyebrow: '权限',
+      title: '本机权限说明',
+      paragraphs: [
+        '热容比实验室默认在用户本机运行。软件不要求注册账户，也不主动要求用户提供姓名、手机号、身份证号、地址、支付信息等个人身份信息。',
+        '软件在安装、运行、导出和更新过程中，可能使用以下本机能力：',
+      ],
+      bullets: [
+        '保存工作区会话、界面设置、布局默认值、关闭文件记录和更新提示偏好。',
+        '读取用户主动打开或导入的实验文件。',
+        '将用户主动导出的报告、图表、CSV 数据和元数据写入本地目录。',
+        '在导出 PDF 报告或完整实验包时，临时生成中间文件。',
+        '在桌面版中检查更新、下载更新或打开项目用户指南页面。',
+        '在卸载桌面版时，根据用户选择保留或删除应用数据和缓存。',
+      ],
+    },
+    {
+      id: 'localDataAccess',
+      eyebrow: '数据',
+      title: '本地数据与文件访问',
+      paragraphs: [
+        '软件可能在浏览器本地存储、浏览器会话存储、桌面应用用户数据目录、系统文档目录、系统临时目录或用户选择的导出目录中保存数据。',
+        '可能保存或处理的数据包括：',
+      ],
+      bullets: [
+        '实验文件名称、实验类型、实验参数、采样数据、模拟结果和导出元数据。',
+        '工作区状态，例如当前打开的实验文件、选中的窗口、面板布局和关闭文件记录。',
+        '通用设置，例如语言、主题、界面偏好、布局默认值和忽略的更新版本。',
+        '导出状态、运行提示、警告信息和本地控制台中显示的操作记录。',
+        '用户主动选择的导入路径、保存路径或导出目录。',
+      ],
+    },
+    {
+      id: 'localFileExport',
+      eyebrow: '导出',
+      title: '本地导出与临时文件',
+      paragraphs: [
+        '桌面版默认导出目录为系统“文档”目录下的 Heat Capacity Ratio Lab Exports 文件夹。用户也可以在导出时选择其他目录。',
+        'PDF 报告导出过程中，软件可能在系统临时目录中写入中间 JSON 文件和临时输出目录。导出结束后，软件会清理该次导出的临时目录。用户最终导出的 PDF、图表、CSV 和元数据文件由用户自行管理。',
+        '用户可以通过浏览器站点数据清理功能删除网页版或预览版保存的本地数据。Windows 桌面版卸载时会提示用户是否删除应用数据和缓存；用户也可以手动删除已经导出的文件和本机缓存。',
+      ],
+    },
+    {
+      id: 'networkAccess',
+      eyebrow: '网络',
+      title: '网络访问说明',
+      paragraphs: [
+        '软件的核心实验、记录和导出功能以本地运行为主。以下功能可能访问外部网络：',
+      ],
+      bullets: [
+        '打开用户指南：跳转到项目 GitHub 页面或相关在线文档。',
+        '检查更新：桌面版通过配置的 GitHub Release 更新源检查是否存在新版本。',
+        '下载更新：用户确认后，桌面版可能下载新版安装包。',
+        '手动下载：当自动更新不可用或用户主动选择时，软件可能打开可信的下载页面。',
+      ],
+    },
+    {
+      id: 'networkBoundary',
+      eyebrow: '网络',
+      title: '网络数据边界',
+      paragraphs: [
+        '软件不会把实验文件或实验结果作为检查更新的内容上传。网络服务提供方可能依据其自身隐私政策记录常规访问日志，例如 IP 地址、请求时间和客户端环境信息。',
+        '如果用户不希望软件访问外部网络，可以避免使用在线用户指南、检查更新、下载更新和手动下载入口。本地实验、数据记录、结果查看和已经安装的导出功能仍可继续使用。',
+      ],
+    },
+    {
+      id: 'thirdPartyLicenses',
+      eyebrow: '开源',
+      title: '第三方开源许可',
+      paragraphs: [
+        '热容比实验室使用第三方开源组件完成界面渲染、3D 可视化、桌面打包、自动更新、PDF 处理、浏览器测试、样式构建、字体显示和报告导出等功能。',
+        '本软件尊重第三方开源许可证。用户可以在本页面查看第三方组件的名称、版本、许可证、来源链接、版权声明、许可证全文和必要的通知文件。',
+        '第三方开源组件的许可证适用于对应组件本身。除第三方许可证另有约定外，热容比实验室的项目特有代码、界面设计、实验文案、模拟流程、模型组织、导出模板和构建配置由相应权利人保留权利。',
+      ],
+    },
+    {
+      id: 'licenseMaterials',
+      eyebrow: '材料',
+      title: '第三方许可材料',
+      paragraphs: ['以下材料可在本页面中查看，或通过本页面打开随软件分发的本地许可文件。'],
+      materials: [
+        { id: 'dependencies', title: '完整第三方依赖清单', description: 'npm 依赖、版本、许可证、来源链接和安装位置' },
+        { id: 'licenseTexts', title: '许可证全文', description: 'MIT、ISC、Apache-2.0、BSD、MPL-2.0、OFL、CC-BY-4.0、0BSD、Unlicense、BlueOak、Python-2.0、WTFPL 及相关双许可证文本' },
+        { id: 'electron', title: 'Electron 许可证', description: 'Electron 运行时许可证文本' },
+        { id: 'chromium', title: 'Chromium 第三方许可证', description: 'Chromium 及其第三方组件许可证集合' },
+        { id: 'fonts', title: '字体许可证', description: 'Inter、JetBrains Mono、Playfair Display 等字体许可说明' },
+        { id: 'exporter', title: '导出组件许可证', description: '报告导出组件及其 Python 依赖许可说明' },
+      ],
+    },
+    {
+      id: 'runtimeComponents',
+      eyebrow: '组件',
+      title: '直接使用的运行时组件',
+      paragraphs: ['以下组件为软件运行或桌面功能直接使用的第三方 npm 依赖。完整组件名称、锁定版本、来源链接和安装位置以“完整第三方依赖清单”为准。'],
+      tables: [
+        {
+          headers: ['组件', '用途', '许可证'],
+          rows: [
+            ['React / React DOM', '用户界面渲染', 'MIT'],
+            ['Three.js', '3D 场景渲染', 'MIT'],
+            ['React Three Fiber / Drei', 'React 与 Three.js 集成', 'MIT'],
+            ['Electron Updater', '桌面版自动更新', 'MIT'],
+            ['PDF.js', 'PDF 预览和处理能力', 'Apache-2.0'],
+            ['Lucide React', '界面图标', 'ISC'],
+            ['Capacitor 相关组件', '应用平台接口和文件能力', 'MIT'],
+          ],
+        },
+      ],
+    },
+    {
+      id: 'electronChromium',
+      eyebrow: '桌面',
+      title: 'Electron 与 Chromium',
+      paragraphs: [
+        'Windows 桌面版使用 Electron 构建。Electron 本身基于 Chromium，并包含 Chromium 相关第三方开源组件。',
+        '用户可以通过以下入口查看相关许可材料：',
+      ],
+      tables: [
+        {
+          headers: ['入口', '内容'],
+          rows: [
+            ['查看 Electron 许可证', 'Electron 许可证文本'],
+            ['查看 Chromium 第三方许可证', 'Chromium 第三方许可证集合'],
+          ],
+        },
+      ],
+    },
+    {
+      id: 'fontsResources',
+      eyebrow: '字体',
+      title: '字体与界面资源',
+      paragraphs: [
+        '软件包含本地字体文件，用于保证界面在离线环境和桌面环境中的显示一致性。',
+      ],
+      tables: [
+        {
+          headers: ['字体', '许可证'],
+          rows: [
+            ['Inter', 'SIL Open Font License 1.1'],
+            ['JetBrains Mono', 'SIL Open Font License 1.1'],
+            ['Playfair Display', 'SIL Open Font License 1.1'],
+          ],
+        },
+      ],
+    },
+    {
+      id: 'iconResources',
+      eyebrow: '图标',
+      title: '界面图标',
+      paragraphs: ['界面图标主要来自 Lucide React，许可证为 ISC。'],
+    },
+    {
+      id: 'exporterComponents',
+      eyebrow: '导出',
+      title: '导出组件',
+      paragraphs: [
+        '软件的部分报告导出功能可能使用本地导出组件。导出组件可能包含 Python 运行时依赖和用于生成图表、PDF 报告或数据文件的第三方包。',
+        '用户可以通过“查看导出组件许可证”入口查看导出组件及其依赖的许可材料。',
+      ],
+    },
+    {
+      id: 'usageBoundary',
+      eyebrow: '边界',
+      title: '使用边界',
+      paragraphs: [
+        '用户可以在合法取得软件后安装和运行本软件，并使用自己生成的实验数据、报告、图表和导出文件。',
+        '未经权利人单独授权，用户不得删除版权和许可说明、冒充软件作者、重新销售软件整体、将软件用于侵权用途，或以破坏更新、绕过保护、获取未授权数据为目的修改软件。',
+        '第三方组件的许可证不限制用户正常使用本软件生成自己的实验记录和报告；但用户在再分发软件、修改软件、二次打包或商业分发时，应重新核对全部第三方许可证要求。',
+      ],
+    },
+    {
+      id: 'userConfirmation',
+      eyebrow: '确认',
+      title: '用户确认',
+      paragraphs: [
+        '用户继续安装、运行或使用本软件，即表示已经阅读并理解本页面关于本地权限、文件访问、网络访问、第三方开源许可和软件使用边界的说明。',
+        '如果用户不同意本页面内容，可以停止使用软件，并根据需要删除本地导出文件、浏览器站点数据、桌面应用数据和应用缓存。',
+      ],
+    },
+  ],
+  'zh-TW': [
+    {
+      id: 'localPermissions',
+      eyebrow: '權限',
+      title: '本機權限說明',
+      paragraphs: ['熱容比實驗室預設在使用者本機執行。軟體不要求註冊帳戶，也不主動要求使用者提供姓名、手機號碼、身分證號、地址、付款資訊等個人身分資訊。', '軟體在安裝、執行、匯出和更新過程中，可能使用以下本機能力：'],
+      bullets: ['保存工作區會話、介面設定、版面預設值、關閉檔案記錄和更新提示偏好。', '讀取使用者主動開啟或匯入的實驗檔案。', '將使用者主動匯出的報告、圖表、CSV 資料和中繼資料寫入本機目錄。', '在匯出 PDF 報告或完整實驗包時，暫時產生中間檔案。', '在桌面版中檢查更新、下載更新或開啟專案使用者指南頁面。', '在解除安裝桌面版時，依據使用者選擇保留或刪除應用程式資料和快取。'],
+    },
+    { id: 'localDataAccess', eyebrow: '資料', title: '本機資料與檔案存取', paragraphs: ['軟體可能在瀏覽器本機儲存、瀏覽器會話儲存、桌面應用程式使用者資料目錄、系統文件目錄、系統暫存目錄或使用者選擇的匯出目錄中保存資料。', '可能保存或處理的資料包括：'], bullets: ['實驗檔案名稱、實驗類型、實驗參數、取樣資料、模擬結果和匯出中繼資料。', '工作區狀態，例如目前開啟的實驗檔案、選中的視窗、面板版面和關閉檔案記錄。', '通用設定，例如語言、主題、介面偏好、版面預設值和忽略的更新版本。', '匯出狀態、執行提示、警告資訊和本機控制台中顯示的操作記錄。', '使用者主動選擇的匯入路徑、保存路徑或匯出目錄。'] },
+    { id: 'localFileExport', eyebrow: '匯出', title: '本機匯出與暫存檔案', paragraphs: ['桌面版預設匯出目錄為系統「文件」目錄下的 Heat Capacity Ratio Lab Exports 資料夾。使用者也可以在匯出時選擇其他目錄。', 'PDF 報告匯出過程中，軟體可能在系統暫存目錄中寫入中間 JSON 檔案和暫時輸出目錄。匯出結束後，軟體會清理該次匯出的暫存目錄。使用者最終匯出的 PDF、圖表、CSV 和中繼資料檔案由使用者自行管理。', '使用者可以透過瀏覽器網站資料清理功能刪除網頁版或預覽版保存的本機資料。Windows 桌面版解除安裝時會提示使用者是否刪除應用程式資料和快取；使用者也可以手動刪除已經匯出的檔案和本機快取。'] },
+    { id: 'networkAccess', eyebrow: '網路', title: '網路存取說明', paragraphs: ['軟體的核心實驗、記錄和匯出功能以本機執行為主。以下功能可能存取外部網路：'], bullets: ['開啟使用者指南：跳轉到專案 GitHub 頁面或相關線上文件。', '檢查更新：桌面版透過配置的 GitHub Release 更新來源檢查是否存在新版本。', '下載更新：使用者確認後，桌面版可能下載新版安裝包。', '手動下載：當自動更新不可用或使用者主動選擇時，軟體可能開啟可信的下載頁面。'] },
+    { id: 'networkBoundary', eyebrow: '網路', title: '網路資料邊界', paragraphs: ['軟體不會把實驗檔案或實驗結果作為檢查更新的內容上傳。網路服務提供方可能依據其自身隱私政策記錄常規存取日誌，例如 IP 位址、請求時間和客戶端環境資訊。', '如果使用者不希望軟體存取外部網路，可以避免使用線上使用者指南、檢查更新、下載更新和手動下載入口。本機實驗、資料記錄、結果查看和已經安裝的匯出功能仍可繼續使用。'] },
+    { id: 'thirdPartyLicenses', eyebrow: '開源', title: '第三方開源授權', paragraphs: ['熱容比實驗室使用第三方開源元件完成介面渲染、3D 視覺化、桌面打包、自動更新、PDF 處理、瀏覽器測試、樣式建置、字型顯示和報告匯出等功能。', '本軟體尊重第三方開源授權。使用者可以在本頁面查看第三方元件的名稱、版本、授權、來源連結、版權聲明、授權全文和必要通知文件。', '第三方開源元件的授權適用於對應元件本身。除第三方授權另有約定外，熱容比實驗室的專案特有程式碼、介面設計、實驗文案、模擬流程、模型組織、匯出範本和建置配置由相應權利人保留權利。'] },
+    { id: 'licenseMaterials', eyebrow: '材料', title: '第三方授權材料', paragraphs: ['以下材料可在本頁面中查看，或透過本頁面開啟隨軟體分發的本機授權文件。'], materials: [{ id: 'dependencies', title: '完整第三方依賴清單', description: 'npm 依賴、版本、授權、來源連結和安裝位置' }, { id: 'licenseTexts', title: '授權全文', description: 'MIT、ISC、Apache-2.0、BSD、MPL-2.0、OFL、CC-BY-4.0、0BSD、Unlicense、BlueOak、Python-2.0、WTFPL 及相關雙授權文本' }, { id: 'electron', title: 'Electron 授權', description: 'Electron 執行時授權文本' }, { id: 'chromium', title: 'Chromium 第三方授權', description: 'Chromium 及其第三方元件授權集合' }, { id: 'fonts', title: '字型授權', description: 'Inter、JetBrains Mono、Playfair Display 等字型授權說明' }, { id: 'exporter', title: '匯出元件授權', description: '報告匯出元件及其 Python 依賴授權說明' }] },
+    { id: 'runtimeComponents', eyebrow: '元件', title: '直接使用的執行時元件', paragraphs: ['以下元件為軟體執行或桌面功能直接使用的第三方 npm 依賴。完整元件名稱、鎖定版本、來源連結和安裝位置以「完整第三方依賴清單」為準。'], tables: [{ headers: ['元件', '用途', '授權'], rows: [['React / React DOM', '使用者介面渲染', 'MIT'], ['Three.js', '3D 場景渲染', 'MIT'], ['React Three Fiber / Drei', 'React 與 Three.js 整合', 'MIT'], ['Electron Updater', '桌面版自動更新', 'MIT'], ['PDF.js', 'PDF 預覽和處理能力', 'Apache-2.0'], ['Lucide React', '介面圖示', 'ISC'], ['Capacitor 相關元件', '應用平台介面和檔案能力', 'MIT']] }] },
+    { id: 'electronChromium', eyebrow: '桌面', title: 'Electron 與 Chromium', paragraphs: ['Windows 桌面版使用 Electron 建置。Electron 本身基於 Chromium，並包含 Chromium 相關第三方開源元件。', '使用者可以透過以下入口查看相關授權材料：'], tables: [{ headers: ['入口', '內容'], rows: [['查看 Electron 授權', 'Electron 授權文本'], ['查看 Chromium 第三方授權', 'Chromium 第三方授權集合']] }] },
+    { id: 'fontsResources', eyebrow: '字型', title: '字型與介面資源', paragraphs: ['軟體包含本機字型檔案，用於保證介面在離線環境和桌面環境中的顯示一致性。'], tables: [{ headers: ['字型', '授權'], rows: [['Inter', 'SIL Open Font License 1.1'], ['JetBrains Mono', 'SIL Open Font License 1.1'], ['Playfair Display', 'SIL Open Font License 1.1']] }] },
+    { id: 'iconResources', eyebrow: '圖示', title: '介面圖示', paragraphs: ['介面圖示主要來自 Lucide React，授權為 ISC。'] },
+    { id: 'exporterComponents', eyebrow: '匯出', title: '匯出元件', paragraphs: ['軟體的部分報告匯出功能可能使用本機匯出元件。匯出元件可能包含 Python 執行時依賴和用於生成圖表、PDF 報告或資料檔案的第三方包。', '使用者可以透過「查看匯出元件授權」入口查看匯出元件及其依賴的授權材料。'] },
+    { id: 'usageBoundary', eyebrow: '邊界', title: '使用邊界', paragraphs: ['使用者可以在合法取得軟體後安裝和執行本軟體，並使用自己生成的實驗資料、報告、圖表和匯出檔案。', '未經權利人單獨授權，使用者不得刪除版權和授權說明、冒充軟體作者、重新銷售軟體整體、將軟體用於侵權用途，或以破壞更新、繞過保護、取得未授權資料為目的修改軟體。', '第三方元件的授權不限制使用者正常使用本軟體生成自己的實驗記錄和報告；但使用者在再分發軟體、修改軟體、二次打包或商業分發時，應重新核對全部第三方授權要求。'] },
+    { id: 'userConfirmation', eyebrow: '確認', title: '使用者確認', paragraphs: ['使用者繼續安裝、執行或使用本軟體，即表示已經閱讀並理解本頁面關於本機權限、檔案存取、網路存取、第三方開源授權和軟體使用邊界的說明。', '如果使用者不同意本頁面內容，可以停止使用軟體，並根據需要刪除本機匯出檔案、瀏覽器網站資料、桌面應用程式資料和應用程式快取。'] },
+  ],
+  en: [
+    { id: 'localPermissions', eyebrow: 'Permissions', title: 'Local Permissions', paragraphs: ['Heat Capacity Ratio Lab runs locally by default. The software does not require account registration and does not actively ask users to provide personal identity information such as name, phone number, government ID, address, or payment information.', 'During installation, use, export, and update operations, the software may use the following local capabilities:'], bullets: ['Save workspace sessions, interface settings, layout defaults, closed-file records, and update prompt preferences.', 'Read experiment files actively opened or imported by the user.', 'Write exported reports, figures, CSV data, and metadata to local directories selected by the user.', 'Create temporary intermediate files when exporting PDF reports or complete experiment bundles.', 'Check for updates, download updates, or open the project user guide page in the desktop app.', 'Keep or remove application data and cache during desktop uninstallation according to the user choice.'] },
+    { id: 'localDataAccess', eyebrow: 'Data', title: 'Local Data and File Access', paragraphs: ['The software may store data in browser local storage, browser session storage, the desktop application user-data directory, the system Documents directory, the system temporary directory, or an export directory selected by the user.', 'Data that may be saved or processed includes:'], bullets: ['Experiment file names, experiment types, experiment parameters, sampled data, simulation results, and export metadata.', 'Workspace state, such as opened experiment files, selected windows, panel layouts, and closed-file records.', 'General settings, such as language, theme, interface preferences, layout defaults, and ignored update versions.', 'Export status, runtime prompts, warnings, and operation records shown in the local console.', 'Import paths, save paths, or export directories actively selected by the user.'] },
+    { id: 'localFileExport', eyebrow: 'Export', title: 'Local Export and Temporary Files', paragraphs: ['The desktop app exports by default to the Heat Capacity Ratio Lab Exports folder under the system Documents directory. Users may also select another directory during export.', 'During PDF report export, the software may write intermediate JSON files and temporary output folders in the system temporary directory. After export, the software cleans up the temporary directory for that export. Final exported PDF, figure, CSV, and metadata files are managed by the user.', 'Users can remove browser or preview data through browser site-data cleanup. The Windows desktop uninstaller asks whether to remove application data and cache; users may also manually remove exported files and local cache.'] },
+    { id: 'networkAccess', eyebrow: 'Network', title: 'Network Access', paragraphs: ['Core experiment, recording, and export features run locally. The following features may access the external network:'], bullets: ['Open the user guide: opens the project GitHub page or related online documentation.', 'Check for updates: the desktop app checks the configured GitHub Release update source for new versions.', 'Download updates: after user confirmation, the desktop app may download a new installer.', 'Manual download: when automatic update is unavailable or selected by the user, the software may open a trusted download page.'] },
+    { id: 'networkBoundary', eyebrow: 'Network', title: 'Network Data Boundary', paragraphs: ['The software does not upload experiment files or experiment results as update-check content. Network service providers may record standard access logs according to their own privacy policies, such as IP address, request time, and client environment information.', 'Users who do not want the software to access the external network can avoid the online user guide, update check, update download, and manual download entries. Local experiments, data recording, result viewing, and installed export features remain available.'] },
+    { id: 'thirdPartyLicenses', eyebrow: 'Open Source', title: 'Third-Party Open-Source Licenses', paragraphs: ['Heat Capacity Ratio Lab uses third-party open-source components for UI rendering, 3D visualization, desktop packaging, automatic updates, PDF handling, browser testing, style building, font display, and report export.', 'The software respects third-party open-source licenses. Users can view component names, versions, licenses, source links, copyright notices, license texts, and required notice files from this page.', 'Third-party open-source licenses apply to their corresponding components. Unless otherwise provided by third-party licenses, project-specific code, interface design, experiment text, simulation flows, model organization, export templates, and build configuration for Heat Capacity Ratio Lab remain reserved by their respective rights holders.'] },
+    { id: 'licenseMaterials', eyebrow: 'Materials', title: 'Third-Party License Materials', paragraphs: ['The following materials can be viewed on this page or opened from local license files distributed with the software.'], materials: [{ id: 'dependencies', title: 'Complete third-party dependency list', description: 'npm dependencies, versions, licenses, source links, and install locations' }, { id: 'licenseTexts', title: 'License texts', description: 'MIT, ISC, Apache-2.0, BSD, MPL-2.0, OFL, CC-BY-4.0, 0BSD, Unlicense, BlueOak, Python-2.0, WTFPL, and related dual-license texts' }, { id: 'electron', title: 'Electron license', description: 'Electron runtime license text' }, { id: 'chromium', title: 'Chromium third-party licenses', description: 'Chromium and bundled third-party component license collection' }, { id: 'fonts', title: 'Font licenses', description: 'License notes for Inter, JetBrains Mono, Playfair Display, and related fonts' }, { id: 'exporter', title: 'Exporter component licenses', description: 'License notes for report exporter components and their Python dependencies' }] },
+    { id: 'runtimeComponents', eyebrow: 'Components', title: 'Direct Runtime Components', paragraphs: ['The following components are direct third-party npm dependencies used by the software runtime or desktop features. Complete component names, locked versions, source links, and install locations are provided in the complete third-party dependency list.'], tables: [{ headers: ['Component', 'Purpose', 'License'], rows: [['React / React DOM', 'UI rendering', 'MIT'], ['Three.js', '3D scene rendering', 'MIT'], ['React Three Fiber / Drei', 'React and Three.js integration', 'MIT'], ['Electron Updater', 'Desktop automatic updates', 'MIT'], ['PDF.js', 'PDF preview and handling', 'Apache-2.0'], ['Lucide React', 'Interface icons', 'ISC'], ['Capacitor components', 'Application platform and file capabilities', 'MIT']] }] },
+    { id: 'electronChromium', eyebrow: 'Desktop', title: 'Electron and Chromium', paragraphs: ['The Windows desktop app is built with Electron. Electron is based on Chromium and includes Chromium-related third-party open-source components.', 'Users can view related license materials through the following entries:'], tables: [{ headers: ['Entry', 'Content'], rows: [['View Electron license', 'Electron license text'], ['View Chromium third-party licenses', 'Chromium third-party license collection']] }] },
+    { id: 'fontsResources', eyebrow: 'Fonts', title: 'Fonts and Interface Resources', paragraphs: ['The software includes local font files to keep interface rendering consistent in offline and desktop environments.'], tables: [{ headers: ['Font', 'License'], rows: [['Inter', 'SIL Open Font License 1.1'], ['JetBrains Mono', 'SIL Open Font License 1.1'], ['Playfair Display', 'SIL Open Font License 1.1']] }] },
+    { id: 'iconResources', eyebrow: 'Icons', title: 'Interface Icons', paragraphs: ['Interface icons are mainly provided by Lucide React under the ISC license.'] },
+    { id: 'exporterComponents', eyebrow: 'Export', title: 'Exporter Components', paragraphs: ['Some report export features may use a local exporter component. The exporter may include Python runtime dependencies and third-party packages used to generate figures, PDF reports, or data files.', 'Users can view exporter component and dependency license materials through the View exporter component licenses entry.'] },
+    { id: 'usageBoundary', eyebrow: 'Boundary', title: 'Use Boundary', paragraphs: ['Users may install and run the software after obtaining it legally, and may use experiment data, reports, figures, and exported files generated by themselves.', 'Without separate authorization from the rights holder, users must not remove copyright or license notices, impersonate the software author, resell the software as a whole, use the software for infringing purposes, or modify the software to break updates, bypass protection, or obtain unauthorized data.', 'Third-party component licenses do not restrict normal use of this software to generate user experiment records and reports. Users who redistribute, modify, repackage, or commercially distribute the software should re-check all third-party license requirements.'] },
+    { id: 'userConfirmation', eyebrow: 'Confirmation', title: 'User Confirmation', paragraphs: ['By continuing to install, run, or use this software, users confirm that they have read and understood this page regarding local permissions, file access, network access, third-party open-source licenses, and software use boundaries.', 'Users who do not agree with this page may stop using the software and remove local exported files, browser site data, desktop application data, and application cache as needed.'] },
+  ],
+};
 const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
   'zh-CN': {
     menus: {
@@ -1576,6 +1912,18 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       localDataExportEnvironment: '本地数据导出环境',
       workspaceSessionCache: '工作区会话缓存',
       buildNotes: '构建说明',
+      openBuildNotice: '打开权限说明与第三方开源许可',
+      closeBuildNotice: '关闭权限说明与第三方开源许可',
+      buildNoticeTitle: '权限说明与第三方开源许可',
+      buildNoticeSubtitle: '本机权限、本地数据、网络访问和第三方许可',
+      buildNoticeNavToggle: '打开或收起声明目录',
+      buildNoticeNavTitle: '声明目录',
+      buildNoticeBack: '返回权限说明',
+      buildNoticeOpenLocalFile: '打开完整本地文件',
+      buildNoticeOpenInBrowser: '在浏览器中打开',
+      buildNoticeLargeFileBody: '该许可材料内容较长，已随软件安装包完整提供。请使用下方按钮在系统浏览器或默认查看器中打开完整本地文件。',
+      buildNoticePreviewUnavailable: '当前环境无法直接预览该材料，请打开完整本地文件查看。',
+      buildNoticeOpenUnavailable: '当前环境无法打开本地文件。',
       updateNotConfigured: '更新通道尚未配置',
       checking: '正在检查',
       available: '可用',
@@ -1612,7 +1960,6 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       updateDownloadFailedStatus: (attempt, maxAttempts) => '自动更新失败' + (attempt && maxAttempts ? '，已重试 ' + attempt + '/' + maxAttempts + ' 次' : '') + '。可以稍后重试或手动下载安装包。',
       retryDownload: '重试下载',
       manualDownload: '手动下载',
-      buildPlaceholder: '版权和构建说明预留到正式发布前补充。',
       sessionCacheSummary: (total) => '当前会话包含 ' + total + ' 个实验文件',
       sessionCacheBreakdown: (ideal, heat, standard) => '理想/比热/标准：' + ideal + '/' + heat + '/' + standard,
     },
@@ -1683,6 +2030,18 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       localDataExportEnvironment: '本地資料匯出環境',
       workspaceSessionCache: '工作區工作階段快取',
       buildNotes: '建置說明',
+      openBuildNotice: '打開權限說明與第三方開源授權',
+      closeBuildNotice: '關閉權限說明與第三方開源授權',
+      buildNoticeTitle: '權限說明與第三方開源授權',
+      buildNoticeSubtitle: '本機權限、本機資料、網路存取和第三方授權',
+      buildNoticeNavToggle: '打開或收起聲明目錄',
+      buildNoticeNavTitle: '聲明目錄',
+      buildNoticeBack: '返回權限說明',
+      buildNoticeOpenLocalFile: '開啟完整本機文件',
+      buildNoticeOpenInBrowser: '在瀏覽器中開啟',
+      buildNoticeLargeFileBody: '該授權材料內容較長，已隨軟體安裝包完整提供。請使用下方按鈕在系統瀏覽器或預設檢視器中開啟完整本機文件。',
+      buildNoticePreviewUnavailable: '目前環境無法直接預覽該材料，請開啟完整本機文件查看。',
+      buildNoticeOpenUnavailable: '目前環境無法開啟本機文件。',
       updateNotConfigured: '更新通道尚未配置',
       checking: '正在檢查',
       available: '可用',
@@ -1719,7 +2078,6 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       updateDownloadFailedStatus: (attempt, maxAttempts) => '自動更新失敗' + (attempt && maxAttempts ? '，已重試 ' + attempt + '/' + maxAttempts + ' 次' : '') + '。可以稍後重試或手動下載安裝程式。',
       retryDownload: '重試下載',
       manualDownload: '手動下載',
-      buildPlaceholder: '版權和建置說明預留到正式發布前補充。',
       sessionCacheSummary: (total) => '目前工作階段包含 ' + total + ' 個實驗檔案',
       sessionCacheBreakdown: (ideal, heat, standard) => '理想/熱容比/標準：' + ideal + '/' + heat + '/' + standard,
     },
@@ -1790,6 +2148,18 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       localDataExportEnvironment: 'Local Data Export Environment',
       workspaceSessionCache: 'Workspace Session Cache',
       buildNotes: 'Build Notes',
+      openBuildNotice: 'Open permissions and third-party open-source licenses',
+      closeBuildNotice: 'Close permissions and third-party open-source licenses',
+      buildNoticeTitle: 'Permissions and Third-Party Open-Source Licenses',
+      buildNoticeSubtitle: 'Local permissions, local data, network access, and third-party licenses',
+      buildNoticeNavToggle: 'Open or collapse notice table of contents',
+      buildNoticeNavTitle: 'Notice Contents',
+      buildNoticeBack: 'Back to permissions notice',
+      buildNoticeOpenLocalFile: 'Open full local file',
+      buildNoticeOpenInBrowser: 'Open in browser',
+      buildNoticeLargeFileBody: 'This license material is large and is provided in full with the installed software. Use the button below to open the complete local file in the system browser or default viewer.',
+      buildNoticePreviewUnavailable: 'This material cannot be previewed directly in the current environment. Open the complete local file to view it.',
+      buildNoticeOpenUnavailable: 'The current environment cannot open local files.',
       updateNotConfigured: 'Update channel is not configured',
       checking: 'Checking',
       available: 'Available',
@@ -1826,7 +2196,6 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       updateDownloadFailedStatus: (attempt, maxAttempts) => 'Automatic update failed' + (attempt && maxAttempts ? ' after ' + attempt + '/' + maxAttempts + ' attempts' : '') + '. You can retry later or download the installer manually.',
       retryDownload: 'Retry Download',
       manualDownload: 'Manual Download',
-      buildPlaceholder: 'Copyright and build details reserved for the final release.',
       sessionCacheSummary: (total) => 'Current session contains ' + total + ' experiment files',
       sessionCacheBreakdown: (ideal, heat, standard) => 'Ideal / Heat / Standard: ' + ideal + '/' + heat + '/' + standard,
     },
@@ -2541,6 +2910,10 @@ const hasDesktopWindowControlBridge = () => (
   )
 );
 
+const hasDesktopLegalBridge = () => (
+  typeof window !== 'undefined' && Boolean(window.hardSphereLabLegal?.openLegalFile)
+);
+
 const getFreshWorkbenchWindowUrl = () => {
   if (typeof window === 'undefined') return '';
   const url = new URL(window.location.href);
@@ -3184,6 +3557,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [pinnedTopCommandSubmenu, setPinnedTopCommandSubmenu] = useState<TopCommandSubmenu | null>(null);
   const [settingsGeneralOpen, setSettingsGeneralOpen] = useState(false);
   const [aboutWindowOpen, setAboutWindowOpen] = useState(false);
+  const [buildNoticeWindowOpen, setBuildNoticeWindowOpen] = useState(false);
+  const [buildNoticeNavOpen, setBuildNoticeNavOpen] = useState(false);
+  const [activeBuildNoticeMaterialId, setActiveBuildNoticeMaterialId] = useState<WorkbenchLegalMaterialId | null>(null);
+  const [buildNoticeTextPreview, setBuildNoticeTextPreview] = useState<{ id: WorkbenchLegalMaterialId; content: string } | null>(null);
+  const [buildNoticeOpenError, setBuildNoticeOpenError] = useState<string | null>(null);
   const [aboutResultNotice, setAboutResultNotice] = useState<{ title: string; body: string } | null>(null);
   const [aboutUpdateChecking, setAboutUpdateChecking] = useState(false);
   const [updaterState, setUpdaterState] = useState<WorkbenchUpdateState>(() => ({
@@ -3236,6 +3614,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [pendingRemoveHeatCapacityTrialRecord, setPendingRemoveHeatCapacityTrialRecord] = useState<{
     trialIndex: number;
     kind: HeatCapacityFreeTrialRecordRemovalKind;
+    scheme: HeatCapacityFreeDisplayScheme;
   } | null>(null);
   const [pendingClearRelationKey, setPendingClearRelationKey] = useState<string | null>(null);
   const [resultsChildrenCollapsed, setResultsChildrenCollapsed] = useState(false);
@@ -3250,6 +3629,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [heatCapacityAdvancedDraft, setHeatCapacityAdvancedDraft] = useState<HeatCapacityFreeParameterDraft | null>(null);
   const [heatCapacityAdvancedInputDrafts, setHeatCapacityAdvancedInputDrafts] = useState<Record<string, string>>({});
   const [heatCapacityAdvancedInputErrors, setHeatCapacityAdvancedInputErrors] = useState<Record<string, string>>({});
+  const [heatCapacityRestoreDefaultConfirmOpen, setHeatCapacityRestoreDefaultConfirmOpen] = useState(false);
+  const [heatCapacityIdealIntroOpen, setHeatCapacityIdealIntroOpen] = useState(false);
   const [hoveredHeatCapacityParamHelpId, setHoveredHeatCapacityParamHelpId] = useState<string | null>(null);
   const [pinnedHeatCapacityParamHelpId, setPinnedHeatCapacityParamHelpId] = useState<string | null>(null);
   const [heatCapacityParamHelpPopoverStyle, setHeatCapacityParamHelpPopoverStyle] = useState<
@@ -3292,6 +3673,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const consoleBodyRef = useRef<HTMLDivElement | null>(null);
   const currentParametersBodyRef = useRef<HTMLDivElement | null>(null);
   const heatCapacityParamHelpSuppressClickRef = useRef(false);
+  const buildNoticeReturnScrollTopRef = useRef(0);
+  const buildNoticeRestoreScrollOnReturnRef = useRef(false);
   const idealAdvancedSettingsBodyRef = useRef<HTMLDivElement | null>(null);
   const idealAdvancedSettingsPreviousScrollTopRef = useRef(0);
   const idealAdvancedScrollFrameRef = useRef<number | null>(null);
@@ -3374,7 +3757,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [guideHeatCapacityStrongReminderControlId, setGuideHeatCapacityStrongReminderControlId] = useState<string | null>(null);
   const [guideHeatCapacityStrongReminderFocusKey, setGuideHeatCapacityStrongReminderFocusKey] = useState(0);
   const [heatCapacityGuideMaskBounds, setHeatCapacityGuideMaskBounds] = useState({ width: 1, height: 1 });
-  const [heatCapacityGuideProjectedHoles, setHeatCapacityGuideProjectedHoles] = useState<Record<string, HeatCapacityGuideStrongMaskHole>>({});
+  const [heatCapacityGuideProjectedHoles, setHeatCapacityGuideProjectedHoles] = useState<Record<string, HeatCapacityGuideStrongCutout>>({});
   const [heatCapacityGuideChecklistViewedIndex, setHeatCapacityGuideChecklistViewedIndex] = useState(0);
   const [heatCapacityRecordToastSequenceActive, setHeatCapacityRecordToastSequenceActive] = useState(false);
   const [heatCapacityFreeResetFeedbackActive, setHeatCapacityFreeResetFeedbackActive] = useState(false);
@@ -3440,6 +3823,62 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (!buildNoticeWindowOpen) {
+      setBuildNoticeNavOpen(false);
+      setActiveBuildNoticeMaterialId(null);
+      setBuildNoticeTextPreview(null);
+      setBuildNoticeOpenError(null);
+      buildNoticeReturnScrollTopRef.current = 0;
+      buildNoticeRestoreScrollOnReturnRef.current = false;
+    }
+  }, [buildNoticeWindowOpen]);
+
+  useLayoutEffect(() => {
+    const container = document.querySelector<HTMLDivElement>('.studio-build-notice-body');
+    if (!container) return;
+
+    if (activeBuildNoticeMaterialId) {
+      container.scrollTo({ top: 0, behavior: 'auto' });
+      return;
+    }
+
+    if (buildNoticeRestoreScrollOnReturnRef.current) {
+      const restoredScrollTop = buildNoticeReturnScrollTopRef.current;
+      buildNoticeRestoreScrollOnReturnRef.current = false;
+      container.scrollTo({ top: restoredScrollTop, behavior: 'auto' });
+    }
+  }, [activeBuildNoticeMaterialId]);
+
+  useEffect(() => {
+    if (!activeBuildNoticeMaterialId) {
+      setBuildNoticeTextPreview(null);
+      return;
+    }
+
+    const fileConfig = buildNoticeLegalMaterialFiles[activeBuildNoticeMaterialId];
+    if (fileConfig.previewKind !== 'text' || !fileConfig.previewPath) {
+      setBuildNoticeTextPreview(null);
+      return;
+    }
+
+    let cancelled = false;
+    fetch(fileConfig.previewPath)
+      .then((response) => (response.ok ? response.text() : Promise.reject(new Error(response.statusText))))
+      .then((content) => {
+        if (!cancelled) {
+          setBuildNoticeTextPreview({ id: activeBuildNoticeMaterialId, content });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setBuildNoticeTextPreview(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeBuildNoticeMaterialId]);
+
   const emptyWorkbenchFile = useMemo(() => createDefaultStandardFile(0), []);
   const isWorkbenchEmpty = files.length === 0;
   const activeFile = files.find((file) => file.id === activeFileId) ?? emptyWorkbenchFile;
@@ -3447,6 +3886,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const activeHeatCapacityFreeParameterLocked = activeFile.kind === 'heatCapacity' &&
     activeFile.heatCapacityMode === 'free' &&
     activeHeatCapacityFreeParameterLockReason !== null;
+  const activeHeatCapacityFreeIdealReadonly = activeFile.kind === 'heatCapacity' &&
+    activeFile.heatCapacityMode === 'free' &&
+    activeFile.heatCapacityFreeParameterScheme === 'ideal';
+  const activeHeatCapacityFreeSchemeLocked = activeFile.kind === 'heatCapacity' &&
+    activeFile.heatCapacityMode === 'free' &&
+    isHeatCapacityFreeExperimentStarted(activeFile);
+  const activeHeatCapacityFreeParameterInputDisabled =
+    activeHeatCapacityFreeParameterLocked || activeHeatCapacityFreeIdealReadonly;
   const visibleHeatCapacityParamHelpId =
     pinnedHeatCapacityParamHelpId ?? hoveredHeatCapacityParamHelpId;
   const openableClosedFiles = closedFiles.filter((file) => !files.some((openFile) => openFile.id === file.id));
@@ -3660,6 +4107,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const closeAboutWindow = () => {
     setAboutWindowOpen(false);
+    setBuildNoticeWindowOpen(false);
+    setBuildNoticeNavOpen(false);
+    setActiveBuildNoticeMaterialId(null);
+    setBuildNoticeTextPreview(null);
+    setBuildNoticeOpenError(null);
+    buildNoticeReturnScrollTopRef.current = 0;
+    buildNoticeRestoreScrollOnReturnRef.current = false;
     setAboutResultNotice(null);
     if (aboutResultNoticeTimerRef.current !== null) {
       window.clearTimeout(aboutResultNoticeTimerRef.current);
@@ -3671,7 +4125,91 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setOpenTopMenu(null);
     setSettingsGeneralOpen(false);
     setSettingsLanguageMenuOpen(false);
+    setBuildNoticeWindowOpen(false);
+    setBuildNoticeNavOpen(false);
+    setActiveBuildNoticeMaterialId(null);
+    setBuildNoticeTextPreview(null);
+    setBuildNoticeOpenError(null);
+    buildNoticeReturnScrollTopRef.current = 0;
+    buildNoticeRestoreScrollOnReturnRef.current = false;
     setAboutWindowOpen(true);
+  };
+
+  const openBuildNoticeWindow = () => {
+    setBuildNoticeWindowOpen(true);
+    setBuildNoticeNavOpen(false);
+    setActiveBuildNoticeMaterialId(null);
+    setBuildNoticeTextPreview(null);
+    setBuildNoticeOpenError(null);
+    buildNoticeReturnScrollTopRef.current = 0;
+    buildNoticeRestoreScrollOnReturnRef.current = false;
+  };
+
+  const closeBuildNoticeWindow = () => {
+    setBuildNoticeWindowOpen(false);
+    setBuildNoticeNavOpen(false);
+    setActiveBuildNoticeMaterialId(null);
+    setBuildNoticeTextPreview(null);
+    setBuildNoticeOpenError(null);
+    buildNoticeReturnScrollTopRef.current = 0;
+    buildNoticeRestoreScrollOnReturnRef.current = false;
+  };
+
+  const jumpToBuildNoticeSection = (sectionId: string) => {
+    setActiveBuildNoticeMaterialId(null);
+    setBuildNoticeOpenError(null);
+    setBuildNoticeNavOpen(false);
+    window.setTimeout(() => {
+      const container = document.querySelector<HTMLDivElement>('.studio-build-notice-body');
+      const target = document.getElementById(`studio-build-notice-section-${sectionId}`);
+      if (!container || !target) return;
+
+      const containerTop = container.getBoundingClientRect().top;
+      const targetTop = target.getBoundingClientRect().top;
+      const scrollMarginTop = Number.parseFloat(window.getComputedStyle(target).scrollMarginTop) || 0;
+      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+      const nextScrollTop = Math.min(
+        maxScrollTop,
+        Math.max(0, container.scrollTop + targetTop - containerTop - scrollMarginTop),
+      );
+      container.scrollTo({ top: nextScrollTop, behavior: 'smooth' });
+    }, 90);
+  };
+
+  const openBuildNoticeMaterial = (materialId: WorkbenchLegalMaterialId) => {
+    const container = document.querySelector<HTMLDivElement>('.studio-build-notice-body');
+    buildNoticeReturnScrollTopRef.current = container?.scrollTop ?? 0;
+    buildNoticeRestoreScrollOnReturnRef.current = false;
+    setActiveBuildNoticeMaterialId(materialId);
+    setBuildNoticeNavOpen(false);
+    setBuildNoticeOpenError(null);
+  };
+
+  const closeBuildNoticeMaterial = () => {
+    buildNoticeRestoreScrollOnReturnRef.current = true;
+    setActiveBuildNoticeMaterialId(null);
+    setBuildNoticeTextPreview(null);
+    setBuildNoticeOpenError(null);
+  };
+
+  const openBuildNoticeLegalFile = async (materialId: WorkbenchLegalMaterialId) => {
+    setBuildNoticeOpenError(null);
+    const fileConfig = buildNoticeLegalMaterialFiles[materialId];
+
+    if (hasDesktopLegalBridge()) {
+      const result = await window.hardSphereLabLegal!.openLegalFile(materialId);
+      if (result.status === 'error') {
+        setBuildNoticeOpenError(result.message || workbenchCopy.about.buildNoticeOpenUnavailable);
+      }
+      return;
+    }
+
+    if (fileConfig.previewPath) {
+      window.open(fileConfig.previewPath, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    setBuildNoticeOpenError(workbenchCopy.about.buildNoticeOpenUnavailable);
   };
 
   const getIgnoredUpdateVersion = () => (
@@ -3978,6 +4516,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setHeatCapacityAdvancedDraft(null);
     setHeatCapacityAdvancedInputDrafts({});
     setHeatCapacityAdvancedInputErrors({});
+    setHeatCapacityRestoreDefaultConfirmOpen(false);
+    setHeatCapacityIdealIntroOpen(false);
     setParameterInputDrafts({});
     setHoveredHeatCapacityParamHelpId(null);
     setPinnedHeatCapacityParamHelpId(null);
@@ -3988,6 +4528,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (!canOpenHeatCapacityParameterSidebar(activeFile)) {
       setParametersCollapsed(true);
       setHeatCapacityAdvancedOpen(false);
+      setHeatCapacityRestoreDefaultConfirmOpen(false);
+      setHeatCapacityIdealIntroOpen(false);
       setPinnedHeatCapacityParamHelpId(null);
       setHoveredHeatCapacityParamHelpId(null);
       setHeatCapacityParamHelpPopoverStyle(undefined);
@@ -4397,6 +4939,71 @@ const WorkbenchStudioPrototype: React.FC = () => {
     pushLog(`${activeFile.name}: ${message}`, 'warning');
   };
 
+  const showHeatCapacityFreeIdealReadonlyHint = () => {
+    const message = heatCapacityFreeSharedText.idealProfileReadonlyToast[settingsLanguagePreference];
+    setScanInputToast(message);
+    pushLog(`${activeFile.name}: ${message}`, 'warning');
+  };
+
+  const showHeatCapacityFreeSchemeLockHint = () => {
+    const message = heatCapacityFreeSharedText.idealProfileLocked[settingsLanguagePreference];
+    setScanInputToast(message);
+    pushLog(`${activeFile.name}: ${message}`, 'warning');
+  };
+
+  const requestToggleHeatCapacityFreeParameterScheme = () => {
+    const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
+    if (!currentFile || currentFile.kind !== 'heatCapacity' || currentFile.heatCapacityMode !== 'free') return;
+    if (isHeatCapacityFreeExperimentStarted(currentFile)) {
+      showHeatCapacityFreeSchemeLockHint();
+      return;
+    }
+    if (currentFile.heatCapacityFreeParameterScheme === 'ideal') {
+      updateActiveFile((file) => (
+        file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+          ? setHeatCapacityFreeParameterSchemeWorkbenchState(file, 'real', Date.now())
+        : file
+      ));
+      return;
+    }
+    if (!currentFile.heatCapacityFreeFileAcknowledgements.idealParameterProfileIntro) {
+      updateActiveFile((file) => (
+        file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+          ? {
+              ...acknowledgeHeatCapacityFreeFileNoticeWorkbenchState(file, 'idealParameterProfileIntro'),
+              updatedAt: Date.now(),
+            }
+          : file
+      ));
+      setHeatCapacityIdealIntroOpen(true);
+      return;
+    }
+    updateActiveFile((file) => (
+      file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+        ? setHeatCapacityFreeParameterSchemeWorkbenchState(file, 'ideal', Date.now())
+        : file
+    ));
+  };
+
+  const cancelHeatCapacityIdealProfileIntro = () => {
+    setHeatCapacityIdealIntroOpen(false);
+  };
+
+  const confirmHeatCapacityIdealProfileIntro = () => {
+    const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
+    if (currentFile?.kind === 'heatCapacity' && currentFile.heatCapacityMode === 'free' && isHeatCapacityFreeExperimentStarted(currentFile)) {
+      setHeatCapacityIdealIntroOpen(false);
+      showHeatCapacityFreeSchemeLockHint();
+      return;
+    }
+    updateActiveFile((file) => {
+      if (file.kind !== 'heatCapacity' || file.heatCapacityMode !== 'free') return file;
+      const acknowledgedFile = acknowledgeHeatCapacityFreeFileNoticeWorkbenchState(file, 'idealParameterProfileIntro');
+      return setHeatCapacityFreeParameterSchemeWorkbenchState(acknowledgedFile, 'ideal', Date.now());
+    });
+    setHeatCapacityIdealIntroOpen(false);
+  };
+
   const setHeatCapacityHardSphereViewEnabled = (checked: boolean) => {
     updateActiveFile((file) => file.kind === 'heatCapacity'
       ? {
@@ -4469,6 +5076,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     parameterId: HeatCapacityFreeDraftNumberKey,
     valueText: string,
   ) => {
+    if (activeHeatCapacityFreeIdealReadonly) {
+      showHeatCapacityFreeIdealReadonlyHint();
+      return;
+    }
     if (activeHeatCapacityFreeParameterLocked) {
       showHeatCapacityFreeParameterLockHint();
       return;
@@ -4519,6 +5130,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
       setHeatCapacityHardSphereViewEnabled(checked);
       return;
     }
+    if (activeHeatCapacityFreeIdealReadonly) {
+      showHeatCapacityFreeIdealReadonlyHint();
+      return;
+    }
     if (activeHeatCapacityFreeParameterLocked) {
       showHeatCapacityFreeParameterLockHint();
       return;
@@ -4533,6 +5148,49 @@ const WorkbenchStudioPrototype: React.FC = () => {
         updatedAt: Date.now(),
       };
     });
+  };
+
+  const openHeatCapacityRestoreDefaultConfirm = () => {
+    if (activeHeatCapacityFreeIdealReadonly) {
+      showHeatCapacityFreeIdealReadonlyHint();
+      return;
+    }
+    if (activeHeatCapacityFreeParameterLocked) {
+      showHeatCapacityFreeParameterLockHint();
+      return;
+    }
+    setHeatCapacityRestoreDefaultConfirmOpen(true);
+  };
+
+  const cancelHeatCapacityRestoreDefault = () => {
+    setHeatCapacityRestoreDefaultConfirmOpen(false);
+  };
+
+  const confirmHeatCapacityRestoreDefault = () => {
+    if (activeHeatCapacityFreeIdealReadonly) {
+      setHeatCapacityRestoreDefaultConfirmOpen(false);
+      showHeatCapacityFreeIdealReadonlyHint();
+      return;
+    }
+    if (activeHeatCapacityFreeParameterLocked) {
+      setHeatCapacityRestoreDefaultConfirmOpen(false);
+      showHeatCapacityFreeParameterLockHint();
+      return;
+    }
+    updateActiveFile((file) => {
+      if (file.kind !== 'heatCapacity' || file.heatCapacityMode !== 'free') return file;
+      return {
+        ...resetHeatCapacityFreeParametersToDefaultWorkbenchState(file),
+        updatedAt: Date.now(),
+      };
+    });
+    setHeatCapacityBasicInputDrafts({});
+    setHeatCapacityBasicInputErrors({});
+    setHeatCapacityAdvancedOpen(false);
+    setHeatCapacityAdvancedDraft(null);
+    setHeatCapacityAdvancedInputDrafts({});
+    setHeatCapacityAdvancedInputErrors({});
+    setHeatCapacityRestoreDefaultConfirmOpen(false);
   };
 
   const createHeatCapacityAdvancedDraftFromFile = (): HeatCapacityFreeParameterDraft | null => (
@@ -4564,6 +5222,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const saveHeatCapacityAdvancedParameterDraft = (
     draft: HeatCapacityFreeParameterDraft,
   ) => {
+    if (activeHeatCapacityFreeIdealReadonly) {
+      showHeatCapacityFreeIdealReadonlyHint();
+      return;
+    }
     if (activeHeatCapacityFreeParameterLocked) {
       showHeatCapacityFreeParameterLockHint();
       return;
@@ -4620,7 +5282,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     updateActiveFile((file) => (
       file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
         ? {
-            ...acknowledgeHeatCapacityFreeAdvancedRiskWorkbenchState(file),
+            ...acknowledgeHeatCapacityFreeFileNoticeWorkbenchState(file, 'advancedParametersRisk'),
             updatedAt: Date.now(),
           }
         : file
@@ -6144,14 +6806,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const requestRemoveHeatCapacityTrialRecord = (
     trialIndex: number,
     kind: HeatCapacityFreeTrialRecordRemovalKind,
+    scheme: HeatCapacityFreeDisplayScheme,
   ) => {
     if (!activeFile || activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return;
     const pendingMatches = pendingRemoveHeatCapacityTrialRecord?.trialIndex === trialIndex &&
-      pendingRemoveHeatCapacityTrialRecord.kind === kind;
+      pendingRemoveHeatCapacityTrialRecord.kind === kind &&
+      pendingRemoveHeatCapacityTrialRecord.scheme === scheme;
     const recordLabel = kind === 'u0' ? 'U₀' : kind === 'u1' ? 'U₁' : kind === 'u2' ? 'U₂' : '本组';
     const displayTrialIndex = trialIndex + 1;
     if (!pendingMatches) {
-      setPendingRemoveHeatCapacityTrialRecord({ trialIndex, kind });
+      setPendingRemoveHeatCapacityTrialRecord({ trialIndex, kind, scheme });
       pushLog(`${activeFile.name}: 再次点击确认删除第 ${displayTrialIndex} 组${kind === 'trial' ? '' : ` ${recordLabel}`}记录。`, 'warning');
       return;
     }
@@ -6160,7 +6824,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
       if (file.heatCapacityMode === 'free') {
-        return removeHeatCapacityFreeTrialRecordWorkbenchState(file, trialIndex, kind, Date.now());
+        return removeHeatCapacityFreeTrialRecordWorkbenchState(file, trialIndex, kind, Date.now(), scheme);
       }
       return file;
     });
@@ -10112,14 +10776,48 @@ const WorkbenchStudioPrototype: React.FC = () => {
         ? activeFile.hardSphereViewEnabled
         : Boolean(draft[id])
     );
+    const schemeIsIdeal = activeFile.heatCapacityFreeParameterScheme === 'ideal';
+    const schemeButtonText = schemeIsIdeal
+      ? heatCapacityFreeSharedText.idealProfile[settingsLanguagePreference]
+      : heatCapacityFreeSharedText.realSimulation[settingsLanguagePreference];
+    const schemeButtonTitle = activeHeatCapacityFreeSchemeLocked
+      ? heatCapacityFreeSharedText.idealProfileLocked[settingsLanguagePreference]
+      : heatCapacityFreeSharedText.idealProfileIntroBody[settingsLanguagePreference];
     return (
       <>
+        <div className={`studio-heat-free-default-row ${activeHeatCapacityFreeParameterLocked ? 'studio-heat-free-default-row-locked' : ''}`}>
+          <button
+            type="button"
+            className={`studio-heat-free-scheme-button ${schemeIsIdeal ? 'studio-heat-free-scheme-button-active' : ''} ${activeHeatCapacityFreeSchemeLocked ? 'studio-heat-free-scheme-button-locked' : ''}`}
+            disabled={activeHeatCapacityFreeSchemeLocked}
+            aria-disabled={activeHeatCapacityFreeSchemeLocked}
+            title={schemeButtonTitle}
+            aria-pressed={schemeIsIdeal}
+            onClick={requestToggleHeatCapacityFreeParameterScheme}
+          >
+            <span>{schemeButtonText}</span>
+          </button>
+          <button
+            type="button"
+            className="studio-heat-free-default-button"
+            disabled={activeHeatCapacityFreeParameterInputDisabled}
+            title={
+              activeHeatCapacityFreeIdealReadonly
+                ? heatCapacityFreeSharedText.idealProfileReadonlyNote[settingsLanguagePreference]
+                : activeHeatCapacityFreeParameterLockReason ?? heatCapacityFreeSharedText.restoreDefault[settingsLanguagePreference]
+            }
+            onClick={openHeatCapacityRestoreDefaultConfirm}
+          >
+            <RotateCcw size={13} />
+            <span>{heatCapacityFreeSharedText.restoreDefault[settingsLanguagePreference]}</span>
+          </button>
+        </div>
         {heatCapacityFreeBasicNumberParameters.map((definition) => (
           renderHeatCapacityFreeNumberInputRow(
             definition,
             draft,
             'basic',
-            activeHeatCapacityFreeParameterLocked,
+            activeHeatCapacityFreeParameterInputDisabled,
           )
         ))}
         {heatCapacityFreeBasicCheckboxes.map((definition) => (
@@ -10128,7 +10826,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
             checkboxValue(definition.id),
             definition.id === 'hardSphereViewEnabled'
               ? false
-              : activeHeatCapacityFreeParameterLocked,
+              : activeHeatCapacityFreeParameterLocked
+                ? true
+                : activeHeatCapacityFreeIdealReadonly,
           )
         ))}
       </>
@@ -10139,9 +10839,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return null;
     return (
       <section
-        className={`studio-heat-free-params ${activeHeatCapacityFreeParameterLocked ? 'is-locked' : ''}`}
+        className={`studio-heat-free-params ${activeHeatCapacityFreeParameterLocked ? 'is-locked' : ''} ${activeHeatCapacityFreeIdealReadonly ? 'is-ideal-readonly' : ''}`}
         data-heat-capacity-free-parameter-panel="true"
-        aria-disabled={activeHeatCapacityFreeParameterLocked}
+        aria-disabled={activeHeatCapacityFreeParameterInputDisabled}
         onPointerDownCapture={(event) => {
           if (!activeHeatCapacityFreeParameterLocked) return;
           const target = event.target instanceof Element ? event.target : null;
@@ -10170,6 +10870,74 @@ const WorkbenchStudioPrototype: React.FC = () => {
           </span>
         </div>
       </section>
+    );
+  };
+
+  const renderHeatCapacityRestoreDefaultDialog = () => {
+    if (
+      !heatCapacityRestoreDefaultConfirmOpen ||
+      activeFile.kind !== 'heatCapacity' ||
+      activeFile.heatCapacityMode !== 'free'
+    ) {
+      return null;
+    }
+    return (
+      <div className="studio-heat-restore-default-overlay" role="presentation" onMouseDown={cancelHeatCapacityRestoreDefault}>
+        <section
+          className="studio-heat-restore-default-confirm"
+          role="alertdialog"
+          aria-modal="true"
+          aria-label={heatCapacityFreeSharedText.restoreDefaultTitle[settingsLanguagePreference]}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <div>
+            <strong>{heatCapacityFreeSharedText.restoreDefaultTitle[settingsLanguagePreference]}</strong>
+            <span>{heatCapacityFreeSharedText.restoreDefaultBody[settingsLanguagePreference]}</span>
+          </div>
+          <footer>
+            <button type="button" onClick={cancelHeatCapacityRestoreDefault}>
+              {heatCapacityFreeSharedText.cancel[settingsLanguagePreference]}
+            </button>
+            <button type="button" className="studio-heat-restore-default-primary" onClick={confirmHeatCapacityRestoreDefault}>
+              {heatCapacityFreeSharedText.confirmRestoreDefault[settingsLanguagePreference]}
+            </button>
+          </footer>
+        </section>
+      </div>
+    );
+  };
+
+  const renderHeatCapacityIdealProfileIntroDialog = () => {
+    if (
+      !heatCapacityIdealIntroOpen ||
+      activeFile.kind !== 'heatCapacity' ||
+      activeFile.heatCapacityMode !== 'free'
+    ) {
+      return null;
+    }
+    return (
+      <div className="studio-heat-restore-default-overlay" role="presentation" onMouseDown={cancelHeatCapacityIdealProfileIntro}>
+        <section
+          className="studio-heat-restore-default-confirm studio-heat-ideal-intro-confirm"
+          role="alertdialog"
+          aria-modal="true"
+          aria-label={heatCapacityFreeSharedText.idealProfileIntroTitle[settingsLanguagePreference]}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <div>
+            <strong>{heatCapacityFreeSharedText.idealProfileIntroTitle[settingsLanguagePreference]}</strong>
+            <span>{heatCapacityFreeSharedText.idealProfileIntroBody[settingsLanguagePreference]}</span>
+          </div>
+          <footer>
+            <button type="button" onClick={cancelHeatCapacityIdealProfileIntro}>
+              {heatCapacityFreeSharedText.cancel[settingsLanguagePreference]}
+            </button>
+            <button type="button" className="studio-heat-restore-default-primary" onClick={confirmHeatCapacityIdealProfileIntro}>
+              {heatCapacityFreeSharedText.confirmEnableIdealProfile[settingsLanguagePreference]}
+            </button>
+          </footer>
+        </section>
+      </div>
     );
   };
 
@@ -10208,7 +10976,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     ) {
       return null;
     }
-    const riskPending = !activeFile.heatCapacityFreeAdvancedRiskAccepted;
+    const riskPending = !activeFile.heatCapacityFreeFileAcknowledgements.advancedParametersRisk;
     return (
       <div className="studio-heat-advanced-overlay" role="presentation">
         <section
@@ -10221,12 +10989,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <header className="studio-heat-advanced-header">
             <div>
               <strong>{heatCapacityFreeSharedText.advancedTitle[settingsLanguagePreference]}</strong>
+              {activeHeatCapacityFreeIdealReadonly ? (
+                <span className="studio-heat-advanced-readonly-note">
+                  {heatCapacityFreeSharedText.idealProfileReadonlyNote[settingsLanguagePreference]}
+                </span>
+              ) : null}
             </div>
             <button type="button" onClick={cancelHeatCapacityAdvancedParameterDraft} aria-label={workbenchCopy.actions.close}>
               <X size={15} />
             </button>
           </header>
-          <div className="studio-heat-advanced-groups" aria-disabled={riskPending}>
+          <div className="studio-heat-advanced-groups" aria-disabled={riskPending || activeHeatCapacityFreeIdealReadonly}>
             {heatCapacityFreeAdvancedParameterGroups.map((group) => (
               <section className="studio-heat-advanced-group" key={group.id} data-heat-capacity-advanced-group-section={group.id}>
                 <h3 className="studio-heat-advanced-group-title">{group.title[settingsLanguagePreference]}</h3>
@@ -10241,7 +11014,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                             definition,
                             heatCapacityAdvancedDraft,
                             'advanced',
-                            riskPending || gammaLocked,
+                            riskPending || gammaLocked || activeHeatCapacityFreeIdealReadonly,
                           )}
                         </div>
                       );
@@ -10257,7 +11030,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             <button
               type="button"
               className="studio-heat-advanced-primary"
-              disabled={riskPending}
+              disabled={riskPending || activeHeatCapacityFreeIdealReadonly}
               onClick={() => saveHeatCapacityAdvancedParameterDraft(heatCapacityAdvancedDraft)}
             >
               {heatCapacityFreeSharedText.save[settingsLanguagePreference]}
@@ -10505,6 +11278,173 @@ const WorkbenchStudioPrototype: React.FC = () => {
     );
   };
 
+  const renderBuildNoticeWindow = () => {
+    if (!buildNoticeWindowOpen) return null;
+
+    const sections = buildNoticeSections[settingsLanguagePreference];
+    const materialEntries = sections.flatMap((section) => section.materials ?? []);
+    const activeMaterial = activeBuildNoticeMaterialId
+      ? materialEntries.find((material) => material.id === activeBuildNoticeMaterialId) ?? null
+      : null;
+    const activeMaterialFile = activeMaterial ? buildNoticeLegalMaterialFiles[activeMaterial.id] : null;
+    const openLegalFileLabel = !hasDesktopLegalBridge() && activeMaterialFile?.previewPath
+      ? workbenchCopy.about.buildNoticeOpenInBrowser
+      : workbenchCopy.about.buildNoticeOpenLocalFile;
+
+    return (
+      <div className="studio-build-notice-overlay" role="presentation" onMouseDown={closeBuildNoticeWindow}>
+        <section
+          className={`studio-build-notice-window ${buildNoticeNavOpen ? 'studio-build-notice-nav-open' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="studio-build-notice-title"
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <div className="studio-build-notice-header">
+            <div>
+              <strong id="studio-build-notice-title">{workbenchCopy.about.buildNoticeTitle}</strong>
+              <span>{workbenchCopy.about.buildNoticeSubtitle}</span>
+            </div>
+            <button type="button" className="studio-build-notice-close" aria-label={workbenchCopy.about.closeBuildNotice} onClick={closeBuildNoticeWindow}>
+              <X size={15} />
+            </button>
+          </div>
+
+          <div className="studio-build-notice-shell">
+            <aside className="studio-build-notice-rail" aria-label={workbenchCopy.about.buildNoticeNavTitle}>
+              <button
+                type="button"
+                className="studio-build-notice-rail-toggle"
+                aria-label={workbenchCopy.about.buildNoticeNavToggle}
+                aria-expanded={buildNoticeNavOpen}
+                onClick={() => setBuildNoticeNavOpen((open) => !open)}
+              >
+                <ListTree size={15} />
+              </button>
+            </aside>
+            {buildNoticeNavOpen ? (
+              <button
+                type="button"
+                className="studio-build-notice-nav-scrim"
+                aria-label={workbenchCopy.about.buildNoticeNavToggle}
+                onClick={() => setBuildNoticeNavOpen(false)}
+              />
+            ) : null}
+            <nav className="studio-build-notice-nav-panel" aria-label={workbenchCopy.about.buildNoticeNavTitle} aria-hidden={!buildNoticeNavOpen}>
+              <strong>{workbenchCopy.about.buildNoticeNavTitle}</strong>
+              <div>
+                {sections.map((section) => (
+                  <button type="button" className="studio-build-notice-nav-item" key={section.id} onClick={() => jumpToBuildNoticeSection(section.id)}>
+                    <span className="studio-build-notice-nav-item-text">{section.title}</span>
+                  </button>
+                ))}
+              </div>
+            </nav>
+            <div className={`studio-build-notice-body ${buildNoticeNavOpen ? 'studio-build-notice-body-dimmed' : ''}`}>
+              {activeMaterial && activeMaterialFile ? (
+                <article className="studio-build-notice-document studio-build-notice-detail-document">
+                  <button type="button" className="studio-build-notice-back" onClick={closeBuildNoticeMaterial}>
+                    <ArrowLeft size={15} />
+                    <span>{workbenchCopy.about.buildNoticeBack}</span>
+                  </button>
+                  <h2 className="studio-build-notice-document-title">{activeMaterial.title}</h2>
+                  <p className="studio-build-notice-detail-summary">{activeMaterial.description}</p>
+                  <div className="studio-build-notice-detail-actions">
+                    <button type="button" onClick={() => openBuildNoticeLegalFile(activeMaterial.id)}>
+                      <ExternalLink size={15} />
+                      <span>{openLegalFileLabel}</span>
+                    </button>
+                  </div>
+                  {buildNoticeOpenError ? (
+                    <p className="studio-build-notice-detail-error">{buildNoticeOpenError}</p>
+                  ) : null}
+                  {activeMaterialFile.largeFile ? (
+                    <p className="studio-build-notice-detail-note">{workbenchCopy.about.buildNoticeLargeFileBody}</p>
+                  ) : null}
+                  {!activeMaterialFile.largeFile && activeMaterialFile.previewKind === 'html' && activeMaterialFile.previewPath ? (
+                    <iframe
+                      className="studio-build-notice-detail-frame"
+                      src={activeMaterialFile.previewPath}
+                      title={activeMaterial.title}
+                      sandbox="allow-popups allow-popups-to-escape-sandbox"
+                    />
+                  ) : null}
+                  {!activeMaterialFile.largeFile && activeMaterialFile.previewKind === 'text' ? (
+                    buildNoticeTextPreview?.id === activeMaterial.id ? (
+                      <pre className="studio-build-notice-detail-text">{buildNoticeTextPreview.content}</pre>
+                    ) : (
+                      <p className="studio-build-notice-detail-note">{workbenchCopy.about.buildNoticePreviewUnavailable}</p>
+                    )
+                  ) : null}
+                  {!activeMaterialFile.largeFile && !activeMaterialFile.previewKind ? (
+                    <p className="studio-build-notice-detail-note">{workbenchCopy.about.buildNoticePreviewUnavailable}</p>
+                  ) : null}
+                </article>
+              ) : (
+                <article className="studio-build-notice-document">
+                  <h2 className="studio-build-notice-document-title">{workbenchCopy.about.buildNoticeTitle}</h2>
+                  {sections.map((section) => (
+                    <section className="studio-build-notice-section" id={`studio-build-notice-section-${section.id}`} key={section.id}>
+                      <span>{section.eyebrow}</span>
+                      <h3>{section.title}</h3>
+                      {section.paragraphs.map((paragraph, index) => (
+                        <p key={index}>{paragraph}</p>
+                      ))}
+                      {section.bullets && section.bullets.length > 0 ? (
+                        <ul>
+                          {section.bullets.map((item, index) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      {section.tables && section.tables.length > 0 ? (
+                        section.tables.map((table, tableIndex) => (
+                          <div className="studio-build-notice-table-wrap" key={tableIndex}>
+                            <table>
+                              <thead>
+                                <tr>
+                                  {table.headers.map((header) => (
+                                    <th key={header}>{header}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {table.rows.map((row, rowIndex) => (
+                                  <tr key={rowIndex}>
+                                    {row.map((cell, cellIndex) => (
+                                      <td key={`${rowIndex}-${cellIndex}`}>{cell}</td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ))
+                      ) : null}
+                      {section.materials && section.materials.length > 0 ? (
+                        <div className="studio-build-notice-materials">
+                          {section.materials.map((material) => (
+                            <button type="button" className="studio-build-notice-material-row" key={material.id} onClick={() => openBuildNoticeMaterial(material.id)}>
+                              <span>
+                                <strong>{material.title}</strong>
+                                <small>{material.description}</small>
+                              </span>
+                              <ChevronRight size={15} />
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </section>
+                  ))}
+                </article>
+              )}
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  };
+
   const renderAboutWindow = () => {
     if (!aboutWindowOpen) return null;
 
@@ -10565,10 +11505,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   <span className="studio-about-cache-breakdown">{sessionCacheSummary.breakdown}</span>
                 </span>
               </div>
-              <div className="studio-about-row">
+              <button type="button" className="studio-about-row studio-about-action-row" onClick={openBuildNoticeWindow} aria-label={workbenchCopy.about.openBuildNotice}>
                 <span className="studio-about-label">{workbenchCopy.about.buildNotes}</span>
-                <span className="studio-about-value studio-about-build-note">{workbenchCopy.about.buildPlaceholder}</span>
-              </div>
+                <span className="studio-about-value">
+                  <span className="studio-about-action-icon" aria-hidden="true">
+                    <ChevronRight size={17} />
+                  </span>
+                </span>
+              </button>
             </section>
           </div>
 
@@ -11853,17 +12797,18 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 ? getHeatCapacityGuideStrongTargetSpec(guideHeatCapacityStrongReminderControlId)
                 : null;
               const heatCapacityGuideFocusMode = heatCapacityGuideStrongTargetSpec?.focusMode ?? null;
-              const heatCapacityGuideMaskHoles = heatCapacityGuideStrongTargetSpec
-                ? getHeatCapacityGuideStrongMaskHoles(
+              const heatCapacityGuideCutouts = heatCapacityGuideStrongTargetSpec
+                ? getHeatCapacityGuideStrongCutouts(
                   heatCapacityGuideStrongTargetSpec,
                   heatCapacityGuideProjectedHoles,
                   heatCapacityGuideMaskRef.current,
                   heatCapacityGuideMaskBounds,
                 )
                 : [];
-              const heatCapacityGuideMaskId = heatCapacityGuideStrongTargetSpec
-                ? `heat-capacity-guide-mask-${heatCapacityGuideStrongTargetSpec.id}`
-                : 'heat-capacity-guide-mask';
+              const heatCapacityGuideDimPath = createHeatCapacityGuideStrongDimPath(
+                heatCapacityGuideMaskBounds,
+                heatCapacityGuideCutouts,
+              );
               const heatCapacityGuideStrongReminderText = heatCapacityGuideStrongTargetSpec
                 ? heatCapacityRealtimeCopy[heatCapacityGuideStrongTargetSpec.reminderCopyKey ?? 'guideStrongReminder']
                 : heatCapacityRealtimeCopy.guideStrongReminder;
@@ -11875,26 +12820,18 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   data-heat-capacity-guide-mask-target={heatCapacityGuideStrongTargetSpec.id}
                 >
                   <svg
-                    className="studio-heat-guide-strong-mask-svg"
+                    className="studio-heat-guide-strong-cutout-svg"
                     viewBox={`0 0 ${heatCapacityGuideMaskBounds.width} ${heatCapacityGuideMaskBounds.height}`}
                     aria-hidden="true"
                   >
-                    <defs>
-                      <mask id={heatCapacityGuideMaskId} maskUnits="userSpaceOnUse">
-                        <rect x="0" y="0" width={heatCapacityGuideMaskBounds.width} height={heatCapacityGuideMaskBounds.height} fill="#fff" />
-                        {heatCapacityGuideMaskHoles.map((hole) => renderHeatCapacityGuideStrongMaskHole(hole, 'mask'))}
-                      </mask>
-                    </defs>
-                    <rect
+                    <path
                       className="studio-heat-guide-strong-dim"
-                      x="0"
-                      y="0"
-                      width={heatCapacityGuideMaskBounds.width}
-                      height={heatCapacityGuideMaskBounds.height}
-                      mask={`url(#${heatCapacityGuideMaskId})`}
+                      d={heatCapacityGuideDimPath}
+                      fillRule="evenodd"
+                      clipRule="evenodd"
                     />
                     <g>
-                      {heatCapacityGuideMaskHoles.map((hole) => renderHeatCapacityGuideStrongMaskHole(hole, 'outline'))}
+                      {heatCapacityGuideCutouts.map(renderHeatCapacityGuideStrongCutoutOutline)}
                     </g>
                   </svg>
                   <div className="studio-heat-guide-strong-card">
@@ -13593,31 +14530,51 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (panel.key === 'results') return renderResultsPanel();
     if (panel.key === 'experimentPoints') return renderIdealPointsWindow();
     if (activeFile.kind === 'heatCapacity' && panel.key === 'heatCapacityReview') {
-      const reviewSelection = heatCapacityReviewSelectionByFileId[activeFile.id] ?? null;
-      const reviewOptionIds = new Set(activeFile.heatCapacityFreeTrials.map((trial) => trial.id));
+      const displayedDomain = selectDisplayedHeatCapacityFreeDomain(activeFile);
+      const reviewSelectionKey = `${activeFile.id}:${activeFile.heatCapacityFreeDisplayScheme}`;
+      const reviewSelection = heatCapacityReviewSelectionByFileId[reviewSelectionKey] ?? null;
+      const reviewOptionIds = new Set(displayedDomain.trials.map((trial) => trial.id));
       const requestedReviewTrialId =
         reviewSelection?.userSelected && reviewSelection.selectedTrialId && reviewOptionIds.has(reviewSelection.selectedTrialId)
           ? reviewSelection.selectedTrialId
           : null;
       const review = selectHeatCapacityFreeProcessReview({
-        trials: activeFile.heatCapacityFreeTrials,
-        traceStore: activeFile.heatCapacityFreeTraceStore,
+        trials: displayedDomain.trials,
+        traceStore: displayedDomain.traceStore,
         theoreticalGamma: activeFile.theoreticalGamma,
         selectedTrialId: requestedReviewTrialId,
       });
       return (
-        <HeatCapacityProcessReviewPanel
-          mode={activeFile.heatCapacityMode}
-          review={review}
-          selectedTrialId={review.selectedTrialId}
-          language={settingsLanguagePreference}
-          onSelectedTrialChange={(trialId) => {
-            setHeatCapacityReviewSelectionByFileId((previous) => ({
-              ...previous,
-              [activeFile.id]: { selectedTrialId: trialId, userSelected: true },
-            }));
-          }}
-        />
+        <div className="studio-heat-review-with-scheme">
+          <div className="studio-heat-review-scheme-row">
+            <HeatCapacityFreeDisplaySchemeMenu
+              value={activeFile.heatCapacityFreeDisplayScheme}
+              label={`${heatCapacityFreeSharedText.realSimulation[settingsLanguagePreference]} / ${heatCapacityFreeSharedText.idealProfile[settingsLanguagePreference]}`}
+              realLabel={heatCapacityFreeSharedText.realSimulation[settingsLanguagePreference]}
+              idealLabel={heatCapacityFreeSharedText.idealProfile[settingsLanguagePreference]}
+              onChange={(scheme) => {
+                updateActiveFile((file) => (
+                  file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+                    ? setHeatCapacityFreeDisplaySchemeWorkbenchState(file, scheme, Date.now())
+                    : file
+                ));
+              }}
+            />
+          </div>
+          <HeatCapacityProcessReviewPanel
+            mode={activeFile.heatCapacityMode}
+            review={review}
+            selectedTrialId={review.selectedTrialId}
+            language={settingsLanguagePreference}
+            isIdealExperimentReview={activeFile.heatCapacityFreeDisplayScheme === 'ideal'}
+            onSelectedTrialChange={(trialId) => {
+              setHeatCapacityReviewSelectionByFileId((previous) => ({
+                ...previous,
+                [reviewSelectionKey]: { selectedTrialId: trialId, userSelected: true },
+              }));
+            }}
+          />
+        </div>
       );
     }
     if (activeFile.kind === 'heatCapacity' && isHeatCapacityPanelKey(panel.key)) {
@@ -13629,6 +14586,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
           pendingRemoveTrialRecord={pendingRemoveHeatCapacityTrialRecord}
           onRemoveTrialRecord={requestRemoveHeatCapacityTrialRecord}
           onCancelRemoveTrialRecord={() => setPendingRemoveHeatCapacityTrialRecord(null)}
+          heatCapacityFreeDisplayScheme={activeFile.heatCapacityFreeDisplayScheme}
+          onHeatCapacityFreeDisplaySchemeChange={(scheme) => {
+            updateActiveFile((file) => (
+              file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+                ? setHeatCapacityFreeDisplaySchemeWorkbenchState(file, scheme, Date.now())
+                : file
+            ));
+          }}
         />
       );
     }
@@ -14070,6 +15035,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
           {scanInputToast}
         </div>
       ) : null}
+      {renderHeatCapacityRestoreDefaultDialog()}
+      {renderHeatCapacityIdealProfileIntroDialog()}
       {renderHeatCapacityAdvancedParameterDialog()}
       <div
         className={`studio-shell ${consoleCollapsed ? 'studio-shell-console-collapsed' : ''}`}
@@ -14133,6 +15100,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           {renderTopMenu()}
         </header>
         {renderAboutWindow()}
+        {renderBuildNoticeWindow()}
         {renderUpdateDialog()}
         {renderGeneralSettingsWindow()}
 

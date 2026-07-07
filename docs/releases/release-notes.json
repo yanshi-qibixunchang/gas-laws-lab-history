@@ -3,6 +3,165 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.2.1",
+      "date": "2026-07-07",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.2.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.2.1/heat-capacity-lab-setup-4.2.1.exe"
+      },
+      "summary": {
+        "zh-CN": "重构空气比热容比实验的真实/理想参数体系、引导与演示流程、过程回顾和 GLB 交互细节，并清理旧模型与旧 UI 残余，使自由实验、引导实验和演示实验的边界更清晰。",
+        "zh-TW": "重構空氣比熱容比實驗的真實／理想參數體系、引導與演示流程、過程回顧和 GLB 互動細節，並清理舊模型與舊 UI 殘餘，使自由實驗、引導實驗和演示實驗的邊界更清晰。",
+        "en": "Rebuilds the heat-capacity ratio lab around clearer real/ideal parameter profiles, guided and demo workflows, process review, and GLB interactions, while removing legacy model and UI paths."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "新增",
+            "zh-TW": "新增",
+            "en": "Added"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-ideal-profile",
+              "importance": "high",
+              "title": {
+                "zh-CN": "自由模式新增理想状态参数组合",
+                "zh-TW": "自由模式新增理想狀態參數組合",
+                "en": "Ideal parameter profile for Free Mode"
+              },
+              "body": {
+                "zh-CN": "当前参数侧栏新增真实模拟 / 理想状态切换。理想状态会锁定可调参数、关闭非理想干扰、隔离实验组编号，并在数据与过程回顾中单独显示，不参与真实模拟平均值和评分。",
+                "zh-TW": "目前參數側欄新增真實模擬／理想狀態切換。理想狀態會鎖定可調參數、關閉非理想干擾、隔離實驗組編號，並在資料與過程回顧中單獨顯示，不參與真實模擬平均值和評分。",
+                "en": "The Current Parameters sidebar now has a real/ideal profile toggle. Ideal runs lock adjustable parameters, disable non-ideal disturbances, keep separate trial numbering, and are excluded from real-run averages and scoring."
+              }
+            },
+            {
+              "scope": "heat-capacity-results",
+              "importance": "high",
+              "title": {
+                "zh-CN": "真实与理想实验组独立查看",
+                "zh-TW": "真實與理想實驗組獨立查看",
+                "en": "Separate real and ideal result views"
+              },
+              "body": {
+                "zh-CN": "数据与结果、过程回顾新增统一的实验类型菜单，可在真实模拟和理想状态之间切换，并保持两类实验各自独立编号。",
+                "zh-TW": "資料與結果、過程回顧新增統一的實驗類型選單，可在真實模擬和理想狀態之間切換，並保持兩類實驗各自獨立編號。",
+                "en": "Data & Results and Process Review now share an experiment-type menu for switching between real and ideal records with independent numbering."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "改进",
+            "zh-TW": "改進",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-guide-demo",
+              "importance": "high",
+              "title": {
+                "zh-CN": "演示模式与引导模式流程统一",
+                "zh-TW": "演示模式與引導模式流程統一",
+                "en": "Unified demo and guide workflows"
+              },
+              "body": {
+                "zh-CN": "演示和引导流程现在明确展示 120 mV 打气目标、五分钟回温等待和完成后的退出状态。完成后可继续查看左侧栏数据，点击退出后再回到自由模式。",
+                "zh-TW": "演示和引導流程現在明確展示 120 mV 打氣目標、五分鐘回溫等待和完成後的退出狀態。完成後可繼續查看左側欄資料，點擊退出後再回到自由模式。",
+                "en": "Demo and guide flows now clearly show the 120 mV pumping target, five-minute recovery wait, and a completed state that keeps results visible until the user exits back to Free Mode."
+              }
+            },
+            {
+              "scope": "heat-capacity-parameters",
+              "importance": "high",
+              "title": {
+                "zh-CN": "普通参数和高级参数界面重建",
+                "zh-TW": "普通參數和高級參數介面重建",
+                "en": "Rebuilt basic and advanced parameter UI"
+              },
+              "body": {
+                "zh-CN": "参数行改为统一的左右制表位布局，单位固定在输入框右侧；高级参数按语义分组，并把高级参数确认、恢复默认确认和理想状态说明统一为文件级提示。",
+                "zh-TW": "參數列改為統一的左右定位布局，單位固定在輸入框右側；高級參數按語義分組，並把高級參數確認、恢復預設確認和理想狀態說明統一為檔案級提示。",
+                "en": "Parameter rows now use a consistent two-column layout with units inside inputs. Advanced parameters are semantically grouped, and risk/default/ideal confirmations use file-level acknowledgement."
+              }
+            },
+            {
+              "scope": "heat-capacity-process-review",
+              "importance": "high",
+              "title": {
+                "zh-CN": "过程回顾与标准过程更清晰",
+                "zh-TW": "過程回顧與標準過程更清晰",
+                "en": "Clearer process review and standard process"
+              },
+              "body": {
+                "zh-CN": "过程回顾现在将实际曲线、标准曲线、记录窗口、事件时间轴和操作评分放在同一套结构中。理想状态下理论上限固定为 1.400，并以占位符说明不参与评分。",
+                "zh-TW": "過程回顧現在將實際曲線、標準曲線、記錄窗口、事件時間軸和操作評分放在同一套結構中。理想狀態下理論上限固定為 1.400，並以佔位符說明不參與評分。",
+                "en": "Process Review now combines actual traces, standard traces, record windows, event timelines, and operation scoring. Ideal runs use a fixed 1.400 theoretical upper bound and show scoring placeholders."
+              }
+            },
+            {
+              "scope": "heat-capacity-glb",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "GLB 视角、性能档位和交互动效调整",
+                "zh-TW": "GLB 視角、效能檔位和互動動效調整",
+                "en": "GLB view, quality tiers, and interaction effects"
+              },
+              "body": {
+                "zh-CN": "更新 GLB 默认视角、聚焦视角和性能档位映射，改进控件悬浮提示、打气球高亮扩散、强提醒遮罩与可操作区域的命中逻辑。",
+                "zh-TW": "更新 GLB 預設視角、聚焦視角和效能檔位映射，改進控制項懸浮提示、打氣球高亮擴散、強提醒遮罩與可操作區域的命中邏輯。",
+                "en": "Updates the GLB default and focus views, quality-tier mapping, hover tooltips, pump-bulb highlighting, and strong-reminder hit testing."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-interaction",
+              "importance": "high",
+              "title": {
+                "zh-CN": "修复自由模式和引导模式的关键交互边界",
+                "zh-TW": "修復自由模式和引導模式的關鍵互動邊界",
+                "en": "Fixes core interaction boundaries"
+              },
+              "body": {
+                "zh-CN": "修复引导完成后自由模式电源异常、打气阀门提示残留、压强报警后仍可继续聚焦打气、U1 记录时机过早、完成实验组删除失效等问题。",
+                "zh-TW": "修復引導完成後自由模式電源異常、打氣閥門提示殘留、壓強警報後仍可繼續聚焦打氣、U1 記錄時機過早、完成實驗組刪除失效等問題。",
+                "en": "Fixes power handling after teaching completion, stale pump-valve warnings, pressure-alarm pump focus locking, early U1 recording, and completed-trial deletion."
+              }
+            },
+            {
+              "scope": "heat-capacity-model-cleanup",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "清理旧模型和旧字段残余",
+                "zh-TW": "清理舊模型和舊欄位殘餘",
+                "en": "Removes legacy model and field residue"
+              },
+              "body": {
+                "zh-CN": "删除旧的合成标准过程模型，统一使用当前标准流程和真实/理想参数域；继续清理旧温升字段、旧多组引导结构、旧性能和旧处理页相关路径。",
+                "zh-TW": "刪除舊的合成標準過程模型，統一使用目前標準流程和真實／理想參數域；繼續清理舊溫升欄位、舊多組引導結構、舊效能和舊處理頁相關路徑。",
+                "en": "Removes the obsolete synthetic standard-process model and keeps standard-flow generation tied to the current real/ideal domains, while guarding against legacy heat-rise, multi-guide, performance, and processing paths."
+              }
+            }
+          ]
+        }
+      ],
+      "knownIssues": []
+    },
+    {
       "version": "4.1.22",
       "date": "2026-06-18",
       "channel": "stable",

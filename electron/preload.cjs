@@ -22,6 +22,10 @@ contextBridge.exposeInMainWorld('hardSphereLabUserGuide', {
   openUserGuide: (language) => ipcRenderer.invoke('hsl-user-guide:open', language),
 });
 
+contextBridge.exposeInMainWorld('hardSphereLabLegal', {
+  openLegalFile: (fileId) => ipcRenderer.invoke('hsl-legal:open-file', fileId),
+});
+
 contextBridge.exposeInMainWorld('hardSphereLabUpdater', {
   checkForUpdates: () => ipcRenderer.invoke('hsl-updater:check'),
   downloadUpdate: () => ipcRenderer.invoke('hsl-updater:download'),

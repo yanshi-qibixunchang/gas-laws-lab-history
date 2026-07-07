@@ -1,0 +1,48 @@
+{
+  "generatedAt": "2026-07-07T01:32:59.649Z",
+  "packageRecordCount": 483,
+  "licenseCounts": {
+    "MIT": 382,
+    "ISC": 42,
+    "Apache-2.0": 19,
+    "BSD-2-Clause": 7,
+    "Python-2.0": 1,
+    "CC-BY-4.0": 1,
+    "BlueOak-1.0.0": 7,
+    "BSD-3-Clause": 6,
+    "MPL-2.0": 12,
+    "WTFPL OR ISC": 1,
+    "WTFPL": 1,
+    "0BSD": 1,
+    "(MIT OR CC0-1.0)": 1,
+    "(WTFPL OR MIT)": 1,
+    "UNKNOWN": 1
+  },
+  "files": [
+    {
+      "id": "dependencies",
+      "path": "third-party-dependencies.html",
+      "title": "Third-Party Dependency List"
+    },
+    {
+      "id": "licenseTexts",
+      "path": "third-party-license-texts.html",
+      "title": "Third-Party License Texts"
+    },
+    {
+      "id": "electron",
+      "path": "LICENSE.electron.txt",
+      "title": "Electron License"
+    },
+    {
+      "id": "fonts",
+      "path": "font-licenses.txt",
+      "title": "Font Licenses"
+    },
+    {
+      "id": "exporter",
+      "path": "exporter-licenses.html",
+      "title": "Exporter Component Licenses"
+    }
+  ]
+}

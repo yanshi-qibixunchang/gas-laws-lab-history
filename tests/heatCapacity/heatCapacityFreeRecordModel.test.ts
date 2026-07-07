@@ -470,10 +470,10 @@ assert.deepEqual(
     displayPressureMv: 0.12,
   }, recoveredPhysics, recordConfig),
   {
-    ready: true,
-    reason: 'ready',
+    ready: false,
+    reason: 'over-vented',
   },
-  'Free U2 recording should allow over-vented values so extreme operation remains recordable',
+  'Free U2 recording should reject values below the over-vented minimum threshold',
 );
 
 assert.deepEqual(

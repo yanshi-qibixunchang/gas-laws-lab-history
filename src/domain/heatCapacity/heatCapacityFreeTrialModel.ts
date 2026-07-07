@@ -63,9 +63,12 @@ export interface HeatCapacityFreeCorrectedSignals {
   gamma: number;
 }
 
+export type HeatCapacityFreeTrialParameterScheme = 'real' | 'ideal';
+
 export interface HeatCapacityFreeTrial {
   id: string;
   source: 'free';
+  parameterScheme: HeatCapacityFreeTrialParameterScheme;
   traceTrialId: string | null;
   branchCount: number;
   automaticU0: HeatCapacityFreeCalibrationState['automaticU0'];
@@ -126,9 +129,11 @@ const DEFAULT_FREE_PRESSURE_SENSITIVITY_MV_PER_KPA = 20;
 export const createHeatCapacityFreeTrial = (
   id: string,
   automaticU0: HeatCapacityFreeCalibrationState['automaticU0'] = null,
+  parameterScheme: HeatCapacityFreeTrialParameterScheme = 'real',
 ): HeatCapacityFreeTrial => ({
   id,
   source: 'free',
+  parameterScheme,
   traceTrialId: null,
   branchCount: 0,
   automaticU0,

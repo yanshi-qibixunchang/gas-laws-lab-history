@@ -122,6 +122,14 @@
   --app-font-data: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 html {
   font-family: var(--app-font-ui-en);
   text-rendering: optimizeLegibility;

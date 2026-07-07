@@ -67,7 +67,6 @@ const finalDraftKeys = [
   'wallAmbientConductanceWPerK',
   'leakageEnabled',
   'instrumentNoiseEnabled',
-  'pressureMvPerKPa',
   'gamma',
   'wallHeatCapacityJPerK',
   'leakageRatePerS',
@@ -88,6 +87,7 @@ const excludedDraftKeys = [
   'gammaRef',
   'pumpAmountGainRatio',
   'vesselVolumeL',
+  'pressureMvPerKPa',
   'minimumGasHeatCapacityJPerK',
   'quantizationMv',
   'temperatureMvPerK',
@@ -173,11 +173,43 @@ assert.equal(
 assert.equal(applied.physicsConfig.leakage.enabled, true);
 assert.equal(applied.physicsConfig.leakage.ratePerS, 0.0025);
 assert.equal(applied.sensorConfig.noiseMv, 0.055);
+assert.equal(
+  applied.sensorConfig.pressureMvPerKPa,
+  20,
+  'applying a Free parameter draft should keep pressure sensitivity as a fixed instrument constant',
+);
 assert.equal(applied.sensorConfig.lagRate, convertSensorLagTimeSToLagRate(0.5));
 assert.equal(applied.recordConfig.u0ZeroToleranceMv, 0.12);
 assert.equal(applied.recordConfig.pressureDangerMv, 145);
 assert.equal(applied.pressureWarningMv, 118);
 assert.equal(applied.instrumentNoiseEnabled, false);
+
+const clampedThresholds = applyHeatCapacityFreeParameterDraftToConfigs({
+  ...draft,
+  pressureWarningMv: 160,
+  pressureDangerMv: 140,
+});
+assert.equal(
+  clampedThresholds.pressureWarningMv < clampedThresholds.recordConfig.pressureDangerMv,
+  true,
+  'pressure warning should remain below the danger threshold even when the draft enters them out of order',
+);
+
+const clampedMinimumUsefulU1 = applyHeatCapacityFreeParameterDraftToConfigs({
+  ...draft,
+  minimumUsefulU1CorrectedMv: 130,
+  pressureWarningMv: 120,
+  pressureDangerMv: 140,
+});
+assert.equal(
+  clampedMinimumUsefulU1.recordConfig.minimumUsefulU1CorrectedMv <=
+    Math.min(
+      clampedMinimumUsefulU1.pressureWarningMv,
+      clampedMinimumUsefulU1.recordConfig.pressureDangerMv * 0.85,
+    ) / 1.08,
+  true,
+  'minimum useful U1 should stay inside the safe target-pressure envelope',
+);
 
 const effectiveSensorConfig = getEffectiveHeatCapacityFreeSensorConfig(
   applied.sensorConfig,

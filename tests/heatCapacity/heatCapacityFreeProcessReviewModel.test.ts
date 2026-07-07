@@ -57,6 +57,46 @@ assert.equal(
     review.summary?.gamma ?? Number.NEGATIVE_INFINITY,
   ),
 );
+
+const idealTrial: HeatCapacityFreeTrial = {
+  ...parts.trial,
+  id: 'ideal-upper-bound-trial',
+  parameterScheme: 'ideal',
+  traceTrialId: parts.traceTrial.id,
+  correctedSignals: parts.trial.correctedSignals
+    ? {
+      ...parts.trial.correctedSignals,
+      gamma: 1.404,
+    }
+    : null,
+};
+const idealReview = selectHeatCapacityFreeProcessReview({
+  trials: [idealTrial],
+  traceStore: parts.traceStore,
+  theoreticalGamma: 1.67,
+  selectedTrialId: idealTrial.id,
+});
+assert.equal(idealReview.status, 'ready');
+assert.equal(
+  idealReview.summary?.relativeErrorPercent,
+  0.29,
+  'ideal parameter reviews should calculate result error against the fixed air gamma 1.4',
+);
+assert.equal(
+  idealReview.summary?.upperBoundGamma,
+  1.4,
+  'ideal parameter reviews should use fixed air gamma 1.4 as the operation upper bound',
+);
+assert.equal(
+  idealReview.summary?.upperBoundRelativeErrorPercent,
+  0,
+  'ideal operation upper bound should have zero theory error',
+);
+assert.equal(
+  idealReview.summary?.upperBoundGapPercent,
+  0.29,
+  'ideal operation upper bound gap should still compare the actual result against gamma 1.4',
+);
 assert.equal(
   'idealReferenceTrace' in review.chart,
   false,

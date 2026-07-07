@@ -78,6 +78,20 @@ declare global {
     message?: string;
   }
 
+  type DesktopLegalFileId =
+    | 'dependencies'
+    | 'licenseTexts'
+    | 'electron'
+    | 'chromium'
+    | 'fonts'
+    | 'exporter';
+
+  interface DesktopLegalOpenResult {
+    status: 'opened' | 'error';
+    path?: string;
+    message?: string;
+  }
+
   interface DesktopWindowState {
     maximized: boolean;
     fullscreen: boolean;
@@ -105,6 +119,9 @@ declare global {
     };
     hardSphereLabUserGuide?: {
       openUserGuide: (language: 'zh-CN' | 'zh-TW' | 'en') => Promise<DesktopManualDownloadResult>;
+    };
+    hardSphereLabLegal?: {
+      openLegalFile: (fileId: DesktopLegalFileId) => Promise<DesktopLegalOpenResult>;
     };
   }
 }

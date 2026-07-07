@@ -29,6 +29,7 @@ interface HeatCapacityProcessReviewPanelProps {
   selectedTrialId: string | null;
   onSelectedTrialChange: (trialId: string) => void;
   language?: HeatCapacityProcessReviewLanguage;
+  isIdealExperimentReview?: boolean;
 }
 
 type ChartKind = 'pressure' | 'temperature';
@@ -80,6 +81,7 @@ interface HeatCapacityProcessReviewCopy {
   upperBoundHelp: string;
   operationScore: string;
   scoreDerived: string;
+  idealScoreNotice?: string;
   retakeTitle: string;
   timeUnit: string;
   hiddenBranchPrefix: string;
@@ -412,6 +414,12 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     scoreDetailSuffix: ' score details',
     noIssue: 'No issue',
   },
+};
+
+const idealScoreNoticeByLanguage: Record<HeatCapacityProcessReviewLanguage, string> = {
+  'zh-CN': '理想实验条件不参与评分。',
+  'zh-TW': '理想實驗條件不參與評分。',
+  en: 'Ideal experiment conditions are not scored.',
 };
 
 const getHeatCapacityProcessReviewCopy = (
@@ -1001,6 +1009,7 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
   selectedTrialId,
   onSelectedTrialChange,
   language = 'zh-CN',
+  isIdealExperimentReview = false,
 }) => {
   const [hoveredStageId, setHoveredStageId] = useState<HeatCapacityProcessStageId | null>(null);
   const [hoveredControlId, setHoveredControlId] = useState<string | null>(null);
@@ -1009,6 +1018,7 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
   const [expandedDiagnosisRows, setExpandedDiagnosisRows] = useState<Set<string>>(() => new Set());
   const trialSelectRef = useRef<HTMLDivElement | null>(null);
   const copy = getHeatCapacityProcessReviewCopy(language);
+  const idealScoreNotice = copy.idealScoreNotice ?? idealScoreNoticeByLanguage[language];
   const sharedCompressedDurationS = useMemo(() => {
     const standardStages = review.chart.standardStages.length > 0
       ? review.chart.standardStages
@@ -1116,8 +1126,8 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
           </div>
           <div>
             <span>{copy.operationScore}</span>
-            <strong>{formatScore(review.score.total, review.score.maxScore)}</strong>
-            <small>{copy.upperBoundGap} {formatMetric(summary.upperBoundGapPercent, 2, '%')}</small>
+            <strong>{isIdealExperimentReview ? '--' : formatScore(review.score.total, review.score.maxScore)}</strong>
+            <small>{isIdealExperimentReview ? idealScoreNotice : `${copy.upperBoundGap} ${formatMetric(summary.upperBoundGapPercent, 2, '%')}`}</small>
           </div>
           <div>
             <span>{copy.retakeTitle}</span>
@@ -1252,7 +1262,9 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
                   <span className="hpr-diagnosis-summary-cell">{normalizeDiagnosisText(row.relation ?? '--', copy.noIssue)}</span>
                   <span className="hpr-diagnosis-summary-cell">{normalizeDiagnosisText(row.recommendation, copy.noIssue)}</span>
                   <em className={`hpr-diagnosis-status hpr-diagnosis-status-${row.status}`}>
-                    {typeof row.score === 'number' && typeof row.maxScore === 'number'
+                    {isIdealExperimentReview
+                      ? '--'
+                      : typeof row.score === 'number' && typeof row.maxScore === 'number'
                       ? formatScore(row.score, row.maxScore)
                       : copy.diagnosisStatusLabels[row.status]}
                   </em>
@@ -1266,7 +1278,7 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
                         <span>{normalizeDiagnosisText(detail.reason, copy.noIssue)}</span>
                         <span>{normalizeDiagnosisText(detail.recommendation, copy.noIssue)}</span>
                         <em className={`hpr-diagnosis-status hpr-diagnosis-status-${detail.status}`}>
-                          {formatScore(detail.score, detail.maxScore)}
+                          {isIdealExperimentReview ? '--' : formatScore(detail.score, detail.maxScore)}
                         </em>
                       </div>
                     ))}

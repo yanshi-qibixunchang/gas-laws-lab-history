@@ -27,6 +27,13 @@ const USER_GUIDE_URLS = {
   'zh-TW': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.zh-TW.md',
   en: 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.en.md',
 };
+const LEGAL_FILE_NAMES = {
+  dependencies: 'third-party-dependencies.html',
+  licenseTexts: 'third-party-license-texts.html',
+  electron: 'LICENSE.electron.txt',
+  fonts: 'font-licenses.txt',
+  exporter: 'exporter-licenses.html',
+};
 let selectedExporterRuntime = null;
 let updateCheckPromise = null;
 let updateDownloadInProgress = false;
@@ -60,6 +67,39 @@ const getErrorMessage = (error) => (error instanceof Error ? error.message : Str
 const getUserGuideUrl = (language) => {
   if (language === 'zh-TW' || language === 'en') return USER_GUIDE_URLS[language];
   return USER_GUIDE_URLS['zh-CN'];
+};
+
+const getLegalDirectoryCandidates = () => ([
+  path.join(process.resourcesPath || '', 'legal'),
+  path.join(rootDir, 'public', 'legal'),
+]);
+
+const findExistingFile = (candidates) => (
+  candidates.find((candidate) => {
+    try {
+      return fsSync.existsSync(candidate) && fsSync.statSync(candidate).isFile();
+    } catch {
+      return false;
+    }
+  }) || null
+);
+
+const getChromiumLicensePath = () => findExistingFile([
+  path.join(path.dirname(process.execPath), 'LICENSES.chromium.html'),
+  path.join(process.resourcesPath || '', '..', 'LICENSES.chromium.html'),
+  path.join(rootDir, 'node_modules', 'electron', 'dist', 'LICENSES.chromium.html'),
+  path.join(rootDir, 'release', 'win-unpacked', 'LICENSES.chromium.html'),
+]);
+
+const resolveLegalFilePath = (fileId) => {
+  if (fileId === 'chromium') return getChromiumLicensePath();
+
+  const fileName = LEGAL_FILE_NAMES[fileId];
+  if (!fileName) return null;
+
+  return findExistingFile(
+    getLegalDirectoryCandidates().map((directory) => path.join(directory, fileName)),
+  );
 };
 
 const normalizeUpdateInfo = (info = {}) => {
@@ -689,6 +729,30 @@ ipcMain.handle('hsl-user-guide:open', async (_event, language) => {
   return {
     status: 'opened',
     url: targetUrl,
+  };
+});
+
+ipcMain.handle('hsl-legal:open-file', async (_event, fileId) => {
+  const targetPath = resolveLegalFilePath(fileId);
+  if (!targetPath) {
+    return {
+      status: 'error',
+      message: 'The requested legal file is unavailable.',
+    };
+  }
+
+  const message = await shell.openPath(targetPath);
+  if (message) {
+    return {
+      status: 'error',
+      path: targetPath,
+      message,
+    };
+  }
+
+  return {
+    status: 'opened',
+    path: targetPath,
   };
 });
 

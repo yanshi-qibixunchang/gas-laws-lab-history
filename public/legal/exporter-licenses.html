@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Exporter Component Licenses</title>
+  <style>
+    :root {
+      color-scheme: dark light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+    body {
+      margin: 0;
+      padding: 32px;
+      color: #d9e2ec;
+      background: #17202a;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 24px;
+      line-height: 1.25;
+    }
+    h2 {
+      margin: 28px 0 10px;
+      font-size: 18px;
+    }
+    p {
+      margin: 0 0 14px;
+      color: #aab7c6;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 18px;
+      font-size: 13px;
+    }
+    th,
+    td {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: #f1f5f9;
+      font-weight: 700;
+    }
+    a {
+      color: #8ec5ff;
+    }
+    pre {
+      overflow: auto;
+      padding: 14px;
+      color: #d9e2ec;
+      background: rgba(2, 6, 23, 0.36);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 6px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .meta {
+      margin-bottom: 24px;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+      <h1>Exporter Component Licenses</h1>
+      <p class="meta">Generated at 2026-07-07T01:32:59.649Z.</p>
+      <p>The local report exporter is built from tools/exporter/hsl_exporter.py and may be distributed as resources/exporter/hsl-exporter.exe.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>License family</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>matplotlib</td><td>Matplotlib license, BSD-style</td><td><a href="https://matplotlib.org/" target="_blank" rel="noopener noreferrer">https://matplotlib.org/</a></td></tr>
+          <tr><td>reportlab</td><td>BSD-style ReportLab license</td><td><a href="https://www.reportlab.com/dev/docs/" target="_blank" rel="noopener noreferrer">https://www.reportlab.com/dev/docs/</a></td></tr>
+          <tr><td>PyInstaller</td><td>GPL with special exception for packaging applications</td><td><a href="https://pyinstaller.org/" target="_blank" rel="noopener noreferrer">https://pyinstaller.org/</a></td></tr>
+        </tbody>
+      </table>
+      <p>Depending on the local exporter build environment, the bundled exporter may also include runtime packages such as numpy, Pillow, contourpy, cycler, fonttools, kiwisolver, packaging, pyparsing, python-dateutil, and six. Release builds should keep the full license texts and binary-library notices from the actual exporter bundle.</p>
+    
+</body>
+</html>

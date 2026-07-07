@@ -33,8 +33,15 @@ import {
   HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV,
   HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
   createDefaultHeatCapacityFile,
+  createDefaultHeatCapacityFreeFileAcknowledgements,
+  createDefaultHeatCapacityFreeExperimentDomainState,
   normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
   normalizeHeatCapacityFreePhysicsConfig,
+  storeHeatCapacityFreeRuntimeFieldsInDomain,
+  type HeatCapacityFreeDisplayScheme,
+  type HeatCapacityFreeExperimentDomainState,
+  type HeatCapacityFreeFileAcknowledgements,
+  type HeatCapacityFreeParameterScheme,
   type WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier,
   type WorkbenchHeatCapacityState,
 } from './workbenchState.ts';
@@ -135,11 +142,15 @@ export interface HeatCapacityFreePersistenceDataV1 {
   runtimeVersion: typeof HEAT_CAPACITY_FREE_RUNTIME_VERSION;
   traceVersion: typeof HEAT_CAPACITY_FREE_TRACE_VERSION;
   calculationVersion: typeof HEAT_CAPACITY_FREE_CALCULATION_VERSION;
+  parameterScheme: HeatCapacityFreeParameterScheme;
+  displayScheme: HeatCapacityFreeDisplayScheme;
+  real: HeatCapacityFreeExperimentDomainState;
+  ideal: HeatCapacityFreeExperimentDomainState;
   config: HeatCapacityFreeConfigSnapshot;
   parameterDraft: HeatCapacityFreeParameterDraft;
   experimentGroupStatus: HeatCapacityFreeExperimentGroupStatus;
   activeRunConfigSnapshot: HeatCapacityFreeConfigSnapshot | null;
-  advancedRiskAccepted: boolean;
+  acknowledgements: HeatCapacityFreeFileAcknowledgements;
   recordConfig: HeatCapacityFreeRecordConfig;
   pressureWarningMv: number;
   instrumentNoiseEnabled: boolean;
@@ -213,6 +224,7 @@ const normalizePersistedHeatCapacityFreeTrial = (value: unknown): HeatCapacityFr
   if (!isRecord(value) || typeof value.id !== 'string') return null;
   return {
     ...(value as unknown as HeatCapacityFreeTrial),
+    parameterScheme: value.parameterScheme === 'ideal' ? 'ideal' : 'real',
     completedAtMs: isFiniteNumber(value.completedAtMs) ? value.completedAtMs : null,
   };
 };
@@ -293,6 +305,10 @@ export const createHeatCapacityPersistencePayload = (
   savedAt: number,
 ): HeatCapacityPersistencePayloadV1 => {
   void savedAt;
+  const fileWithCurrentDomain = storeHeatCapacityFreeRuntimeFieldsInDomain(
+    file,
+    file.heatCapacityFreeParameterScheme,
+  );
   return {
     experimentKind: 'heatCapacity',
     heatCapacitySchemaVersion: HEAT_CAPACITY_SCHEMA_VERSION,
@@ -309,11 +325,15 @@ export const createHeatCapacityPersistencePayload = (
       runtimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
       traceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
       calculationVersion: HEAT_CAPACITY_FREE_CALCULATION_VERSION,
+      parameterScheme: fileWithCurrentDomain.heatCapacityFreeParameterScheme,
+      displayScheme: fileWithCurrentDomain.heatCapacityFreeDisplayScheme,
+      real: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeRealDomain),
+      ideal: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeIdealDomain),
       config: createHeatCapacityFreeConfigSnapshotFromFile(file),
       parameterDraft: clonePersistenceValue(file.heatCapacityFreeParameterDraft),
       experimentGroupStatus: file.heatCapacityFreeExperimentGroupStatus,
       activeRunConfigSnapshot: clonePersistenceValue(file.heatCapacityFreeActiveRunConfigSnapshot),
-      advancedRiskAccepted: file.heatCapacityFreeAdvancedRiskAccepted,
+      acknowledgements: clonePersistenceValue(file.heatCapacityFreeFileAcknowledgements),
       recordConfig: clonePersistenceValue(file.heatCapacityFreeRecordConfig),
       pressureWarningMv: file.heatCapacityFreePressureWarningMv,
       instrumentNoiseEnabled: file.heatCapacityFreeInstrumentNoiseEnabled,
@@ -448,6 +468,13 @@ const normalizeHeatCapacityFreeExperimentGroupStatus = (
   value === 'draft' || value === 'running' || value === 'completed'
     ? value
     : fallback
+);
+
+const normalizeHeatCapacityFreeParameterScheme = (
+  value: unknown,
+  fallback: HeatCapacityFreeParameterScheme,
+): HeatCapacityFreeParameterScheme => (
+  value === 'ideal' || value === 'real' ? value : fallback
 );
 
 const normalizeHeatCapacityFreeConfigSnapshot = (
@@ -865,6 +892,20 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
         .map(normalizePersistedHeatCapacityFreeTrial)
         .filter((trial): trial is HeatCapacityFreeTrial => trial !== null)
     : fallback.heatCapacityFreeTrials;
+  const restoredParameterScheme = normalizeHeatCapacityFreeParameterScheme(
+    free?.parameterScheme,
+    fallback.heatCapacityFreeParameterScheme,
+  );
+  const restoredDisplayScheme = normalizeHeatCapacityFreeParameterScheme(
+    free?.displayScheme,
+    restoredParameterScheme,
+  );
+  const restoredRealDomain = isRecord(free?.real)
+    ? clonePersistenceValue(free!.real) as unknown as HeatCapacityFreeExperimentDomainState
+    : createDefaultHeatCapacityFreeExperimentDomainState('real', `${fileEnvelope.id}:real`);
+  const restoredIdealDomain = isRecord(free?.ideal)
+    ? clonePersistenceValue(free!.ideal) as unknown as HeatCapacityFreeExperimentDomainState
+    : createDefaultHeatCapacityFreeExperimentDomainState('ideal', `${fileEnvelope.id}:ideal`);
   const restoredStopcockFlowOpen = controls.stopcockFlowOpen === true;
   const restoredStopcockPendingOpenAtMs =
     typeof uiReplay.heatCapacityFreeStopcockPendingOpenAtMs === 'number' &&
@@ -934,6 +975,10 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     activeHeatCapacityTabId: restoredActiveHeatCapacityTabId,
     heatCapacityFreeRuntimeVersion: free?.runtimeVersion ?? HEAT_CAPACITY_FREE_RUNTIME_VERSION,
     heatCapacityFreeTraceVersion: free?.traceVersion ?? HEAT_CAPACITY_FREE_TRACE_VERSION,
+    heatCapacityFreeParameterScheme: restoredParameterScheme,
+    heatCapacityFreeDisplayScheme: restoredDisplayScheme,
+    heatCapacityFreeRealDomain: restoredRealDomain,
+    heatCapacityFreeIdealDomain: restoredIdealDomain,
     heatCapacityFreeEnvironmentConfig: { ...snapshot.environment },
     heatCapacityFreeExperimentGroupStatus: normalizeHeatCapacityFreeExperimentGroupStatus(
       free?.experimentGroupStatus,
@@ -941,7 +986,10 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     ),
     heatCapacityFreeParameterDraft: parameterDraft,
     heatCapacityFreeActiveRunConfigSnapshot: activeRunConfigSnapshot,
-    heatCapacityFreeAdvancedRiskAccepted: free?.advancedRiskAccepted === true,
+    heatCapacityFreeFileAcknowledgements: {
+      ...createDefaultHeatCapacityFreeFileAcknowledgements(),
+      ...(free?.acknowledgements ?? {}),
+    },
     heatCapacityFreeRecordConfig: recordConfig,
     heatCapacityFreePressureWarningMv: pressureWarningMv,
     heatCapacityFreeInstrumentNoiseEnabled: instrumentNoiseEnabled,

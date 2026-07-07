@@ -1,16 +1,17 @@
 {
   "name": "hard-sphere-lab",
-  "version": "4.1.22",
+  "version": "4.2.1",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "dev:temp": "vite --host 127.0.0.1 --port 5184 --strictPort",
-    "build": "vite build",
-    "desktop:dev": "vite build && electron .",
-    "desktop:build": "vite build",
-    "desktop:installer": "vite build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win nsis --x64 && node scripts/writeReleaseMetadata.cjs",
-    "desktop:portable": "vite build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win portable --x64",
+    "legal:generate": "node scripts/generateLegalNotices.cjs",
+    "build": "node scripts/generateLegalNotices.cjs && vite build",
+    "desktop:dev": "node scripts/generateLegalNotices.cjs && vite build && electron .",
+    "desktop:build": "node scripts/generateLegalNotices.cjs && vite build",
+    "desktop:installer": "node scripts/generateLegalNotices.cjs && vite build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win nsis --x64 && node scripts/writeReleaseMetadata.cjs",
+    "desktop:portable": "node scripts/generateLegalNotices.cjs && vite build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win portable --x64",
     "exporter:bundle": "node scripts/bundleExporter.cjs",
     "test": "node scripts/runTests.cjs",
     "preview": "vite preview"
@@ -41,6 +42,13 @@
       {
         "from": "resources/app-icon",
         "to": "app-icon",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "public/legal",
+        "to": "legal",
         "filter": [
           "**/*"
         ]

@@ -72,6 +72,17 @@ const snapshotB: HeatCapacityFreeConfigSnapshot = {
   },
 };
 
+assert.equal(
+  createHeatCapacityFreeTrial('default-scheme').parameterScheme,
+  'real',
+  'new Free Mode trials should default to the real simulation domain',
+);
+assert.equal(
+  createHeatCapacityFreeTrial('ideal-scheme', null, 'ideal').parameterScheme,
+  'ideal',
+  'Free Mode trial creation should support the isolated ideal domain',
+);
+
 const trialAWithSignals = {
   ...createCompleteTrial('trial-a', snapshotA),
   correctedSignals: calculateFreeHeatCapacityTrialSignals(createCompleteTrial('trial-a-base', snapshotA), {
