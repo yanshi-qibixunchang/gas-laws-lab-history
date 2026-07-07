@@ -228,8 +228,8 @@ assert.match(
 );
 assert.match(
   processReviewPanelSource,
-  /zh-TW[\s\S]*standardProcess:\s*'標準過程'[\s\S]*en:[\s\S]*standardProcess:\s*'Standard process'/,
-  'standard process review copy should cover Traditional Chinese and English',
+  /zh-TW[\s\S]*standardReference:\s*'標準過程'[\s\S]*en:[\s\S]*standardReference:\s*'Standard process'/,
+  'standard reference review copy should cover Traditional Chinese and English while keeping the visible Standard process label',
 );
 assert.match(
   processReviewPanelSource,
@@ -388,7 +388,7 @@ const getRootCssBlock = (selector: string) => {
 };
 assert.match(
   getLastRootCssBlock('.studio-heat-materials-toolbar'),
-  /min-height:\s*44px;[\s\S]*border-bottom:\s*0;[\s\S]*padding:\s*0 16px;/,
+  /min-height:\s*54px;[\s\S]*border-bottom:\s*0;[\s\S]*padding:\s*0 16px;/,
   'heat materials window title bar should have enough room and should not visually merge with the tab row',
 );
 assert.match(
@@ -413,8 +413,8 @@ assert.match(
 );
 assert.match(
   getLastRootCssBlock('.studio-heat-materials-tabs .studio-results-tab-active'),
-  /box-shadow:\s*inset 0 -2px 0 var\(--studio-accent\);/,
-  'heat materials active tab should use a bottom rule so it does not collide with the title area',
+  /box-shadow:\s*inset 0 -2px 0 var\(--studio-accent\);[\s\S]*font-weight:\s*600;/,
+  'heat materials active tab should use a bottom rule and slightly stronger label weight',
 );
 assert.match(
   styleSource,
@@ -531,6 +531,31 @@ assert.match(processReviewStyleSource, /\.hpr-stage-focus-area/, 'generic stage 
 assert.match(processReviewPanelSource, /handleReviewWheel/, 'process review chart should translate horizontal wheel input into horizontal chart scrolling');
 assert.match(processReviewPanelSource, /data-hpr-scroll-window="true"/, 'process review chart should expose a stable horizontal scroll window');
 assert.match(processReviewPanelSource, /data-hpr-trial-select="true"/, 'process review should expose a group-selection menu');
+assert.match(
+  processReviewPanelSource,
+  /className=\{`hpr-trial-select studio-heat-free-display-scheme-control \$\{trialMenuOpen \? 'studio-heat-free-display-scheme-open' : ''\}`\}/,
+  'process review group selector should reuse the shared display-scheme dropdown control shell',
+);
+assert.match(
+  processReviewPanelSource,
+  /className="hpr-trial-select-trigger studio-heat-free-display-scheme-trigger"[\s\S]*<ChevronDown[\s\S]*studio-heat-free-display-scheme-chevron/,
+  'process review group selector should reuse the shared dropdown trigger and animated chevron',
+);
+assert.match(
+  processReviewPanelSource,
+  /className="hpr-trial-select-menu studio-heat-free-display-scheme-menu"[\s\S]*className=\{option\.trialId === selectedTrialId \? 'studio-heat-free-display-scheme-active' : ''\}/,
+  'process review group selector menu should reuse the shared menu and active option styling',
+);
+assert.match(
+  processReviewStyleSource,
+  /\.hpr-trial-select-trigger\s*\{[\s\S]*min-height:\s*30px;[\s\S]*min-width:\s*112px;[\s\S]*border:\s*1px solid var\(--studio-border\);[\s\S]*border-radius:\s*4px;[\s\S]*background:\s*#171b20;/,
+  'process review group selector trigger should match the display-scheme dropdown trigger sizing and surface',
+);
+assert.match(
+  processReviewStyleSource,
+  /\.hpr-trial-select-menu\s*\{[\s\S]*z-index:\s*6;[\s\S]*min-width:\s*142px;[\s\S]*border:\s*1px solid rgba\(79, 127, 184, 0\.48\);[\s\S]*border-radius:\s*6px;[\s\S]*animation:\s*studioDisplaySchemeMenuIn 150ms ease both;/,
+  'process review group selector menu should match the display-scheme dropdown border, radius, width, and animation',
+);
 assert.match(processReviewPanelSource, /trialOptions\.map/, 'process review menu should list all reviewable groups');
 assert.match(processReviewPanelSource, /onSelectedTrialChange/, 'process review menu should report selected group changes to the workbench');
 assert.match(processReviewPanelSource, /trialSelectRef/, 'process review menu should close from outside-click handling');
@@ -561,10 +586,23 @@ assert.match(processReviewPanelSource, /记录窗口/, 'actual record window leg
 assert.doesNotMatch(processReviewPanelSource, />记录时间：|>电信号：|>换算压强差：|>换算温度差：/, 'record hover callout labels should not be hard-coded Chinese JSX literals');
 assert.doesNotMatch(processReviewPanelSource, /实际记录时刻：/, 'record window title should be localized instead of hard-coded Chinese');
 assert.doesNotMatch(processReviewPanelSource, /hpr-best-window-label/, 'record windows should not place text inside the plot band');
-assert.match(processReviewPanelSource, /standardTrace/, 'process review charts should consume standard process trace data');
-assert.match(processReviewPanelSource, /standardStages/, 'process review charts should consume standard process stages');
-assert.match(processReviewPanelSource, /standardProcess/, 'process review should expose a standard process summary');
-assert.match(processReviewPanelSource, /standardWindows/, 'process review should expose standard record windows');
+assert.doesNotMatch(processReviewPanelSource, /hpr-line-legend-window" title=\{copy\.recordWindowTitle\}/, 'process review record-window legend should not keep the old browser-native title tooltip');
+assert.doesNotMatch(processReviewPanelSource, /className="hpr-summary-help"[\s\S]*title=\{copy\.upperBoundHelp\}/, 'process review upper-bound help should not keep the old browser-native title tooltip');
+assert.match(processReviewPanelSource, /hpr-tooltip-anchor[\s\S]*data-hpr-tooltip=\{copy\.recordWindowTitle\}/, 'process review record-window legend should use the shared fixed tooltip style');
+assert.match(processReviewPanelSource, /hpr-tooltip-anchor[\s\S]*data-hpr-tooltip=\{copy\.upperBoundHelp\}/, 'process review upper-bound help should use the shared fixed tooltip style');
+assert.match(processReviewStyleSource, /\.hpr-tooltip-anchor::after\s*\{[\s\S]*font-size:\s*11px;[\s\S]*border-radius:\s*6px;/, 'process review fixed tooltips should match the unified Heat Capacity tooltip sizing');
+assert.match(processReviewPanelSource, /chart\.actualTrace/, 'process review charts should consume the actual trace through the renamed actualTrace field');
+assert.match(processReviewPanelSource, /standardReference\?\.trace/, 'process review charts should consume standard reference trace data from one snapshot object');
+assert.match(processReviewPanelSource, /standardReference\?\.stages/, 'process review charts should consume standard reference stages from one snapshot object');
+assert.match(processReviewPanelSource, /standardReferenceSummary/, 'process review should expose the standard reference summary from one snapshot object');
+assert.match(processReviewPanelSource, /standardReference\?\.recordWindows/, 'process review should expose standard record windows from one snapshot object');
+const oldScatteredStandardChartFields = new RegExp([
+  'chart\\.' + 'standard' + 'Trace',
+  'chart\\.' + 'standard' + 'Stages',
+  'chart\\.' + 'standard' + 'Process',
+  'chart\\.' + 'standard' + 'Windows',
+].join('|'));
+assert.doesNotMatch(processReviewPanelSource, oldScatteredStandardChartFields, 'process review should not consume old scattered standard-process chart fields');
 assert.match(processReviewPanelSource, /upperBoundHelp/, 'operation upper-bound card should expose concise help copy');
 assert.doesNotMatch(processReviewPanelSource, /idealReferenceAssumptions/, 'process review should not keep old ideal reference assumption copy');
 assert.match(processReviewPanelSource, /createNiceAxis/, 'process review charts should use readable engineering axis ticks instead of raw equal divisions');
@@ -595,7 +633,7 @@ assert.match(processReviewPanelSource, /过程时间 \(s，等待压缩\)/, 'pro
 assert.doesNotMatch(processReviewPanelSource, /时间 \/ s|ΔP \/ kPa|ΔT \/ K/, 'process review chart axes should not use slash unit labels');
 assert.doesNotMatch(processReviewPanelSource, /showXAxis=\{?false\}?|showXAxis\s*=\s*false/, 'both process review charts should expose the time axis label');
 assert.match(processReviewPanelSource, /chart\.records\.map/, 'process review charts should consume actual record events for record windows');
-assert.doesNotMatch(processReviewPanelSource, /chart\.bestWindows\.map/, 'process review charts should not consume best-window data for plot bands');
+assert.doesNotMatch(processReviewPanelSource, new RegExp('chart\\.' + 'best' + 'Windows\\.map'), 'process review charts should not consume best-window data for plot bands');
 assert.match(processReviewPanelSource, /formatHeatCapacitySignalMv\(record\.signalMv\)/, 'process review record hover mV signal should show one truncated decimal');
 assert.doesNotMatch(processReviewPanelSource, /record\.signalMv\.toFixed\(2\)/, 'process review record hover mV signal should not show two decimals');
 assert.match(processReviewPanelSource, /const hoveredRecordDetail = hoveredRecordId[\s\S]*className="hpr-record-detail-layer"/, 'record hover detail should render from a dedicated top SVG layer');
@@ -624,7 +662,7 @@ assert.match(processReviewPanelSource, /标准操作/, 'standard process summary
 assert.match(processReviewPanelSource, /row\.details/, 'diagnosis rows should render expandable sub-score details');
 assert.match(processReviewPanelSource, /expandedDiagnosisRows/, 'diagnosis rows should keep local expand-collapse state');
 assert.match(processReviewPanelSource, /hpr-diagnosis-expand-open/, 'diagnosis expand chevrons should animate by rotating the same pointed glyph');
-assert.match(processReviewPanelSource, /import \{ ChevronRight \} from 'lucide-react';/, 'diagnosis expand controls should reuse the same lucide chevron family as the left tree');
+assert.match(processReviewPanelSource, /import \{[^}]*ChevronRight[^}]*\} from 'lucide-react';/, 'diagnosis expand controls should reuse the same lucide chevron family as the left tree');
 assert.match(processReviewPanelSource, /<ChevronRight\s+aria-hidden="true"/, 'diagnosis expand controls should render one reusable chevron icon');
 assert.doesNotMatch(processReviewPanelSource, /<span aria-hidden="true">▸<\/span>/, 'diagnosis expand controls should not use a separate text glyph');
 assert.doesNotMatch(processReviewPanelSource, /expanded \? '▾' : '▸'/, 'diagnosis expand controls should not swap glyphs instead of rotating');
@@ -674,6 +712,7 @@ assert.match(workbenchSource, /className="studio-results-body studio-heat-materi
 assert.match(styleSource, /\.studio-heat-materials-body\s*\{[\s\S]*overflow:\s*auto;/, 'Heat Capacity material tabs should use the same native vertical scroll behavior as other result tabs');
 assert.match(workbenchSource, /const HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO = IDEAL_RESULT_MIN_HEIGHT_RATIO;/, 'Heat Capacity materials window should use the same minimum resize ratio as other result windows');
 assert.match(workbenchSource, /const getHeatCapacityMaterialsMaxHeightRatio = \(\) => \{[\s\S]*?fileTabsRect[\s\S]*?RESIZER_GRAB_SAFE_SPACE[\s\S]*?IDEAL_RESULT_MAX_HEIGHT_RATIO/, 'Heat Capacity materials window should use the file-tab-aware maximum height calculation');
+assert.match(workbenchSource, /const getHeatCapacityMaterialsMaxHeightRatio = \(\) => \{[\s\S]*?liveWorkspaceRef\.current\?\.getBoundingClientRect\(\)[\s\S]*?const liveWorkspaceCoverageHeight = liveWorkspaceRect\.height;[\s\S]*?liveWorkspaceCoverageHeight \/ workspaceRect\.height/, 'Heat Capacity materials maximum height should match the live 3D workspace height when fully expanded');
 assert.match(workbenchSource, /const maxHeightRatio = getHeatCapacityMaterialsMaxHeightRatio\(\)[\s\S]*?HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO[\s\S]*?maxHeightRatio/, 'Heat Capacity materials resize should clamp to the workspace-aware maximum height ratio');
 assert.match(workbenchSource, /const materialsMaxHeightRatio = getHeatCapacityMaterialsMaxHeightRatio\(\)[\s\S]*?HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO[\s\S]*?materialsMaxHeightRatio/, 'Heat Capacity materials render height should clamp to the same workspace-aware maximum height ratio');
 assert.doesNotMatch(workbenchSource, /const HEAT_CAPACITY_MATERIALS_MAX_HEIGHT_RATIO = 0\.82;/, 'Heat Capacity materials window should not use a fixed low maximum height ratio');
@@ -830,12 +869,14 @@ assert.match(sceneSource, /HeatCapacityHardSphereToggle/, 'instrument scene shou
 assert.match(sceneSource, /HeatCapacityHardSphereLayer/, 'instrument scene should render the hard-sphere particle layer inside the 3D canvas');
 assert.match(hardSphereToggleSource, /data-heat-capacity-hard-sphere-toggle="true"/, 'hard-sphere toggle should have a stable UI marker');
 assert.match(hardSphereToggleSource, /descriptionId\?:\s*string/, 'hard-sphere toggle should accept a tooltip description id for keyboard focus');
-assert.match(hardSphereToggleSource, /title=\{disabled \? undefined : enabled \? copy\.tooltipOn : copy\.tooltipOff\}/, 'disabled hard-sphere toggle should not expose the normal teaching tooltip');
+assert.doesNotMatch(hardSphereToggleSource, /title=\{disabled \? undefined : enabled \? copy\.tooltipOn : copy\.tooltipOff\}/, 'hard-sphere toggle should not keep the old browser-native tooltip path');
+assert.match(hardSphereToggleSource, /aria-label=\{enabled \? copy\.tooltipOn : copy\.tooltipOff\}/, 'hard-sphere toggle should keep accessible tooltip copy without native title UI');
 assert.match(sceneSource, /data-heat-capacity-hard-sphere-tooltip="true"/, 'hard-sphere explanation should have a stable tooltip marker');
 assert.doesNotMatch(sceneSource, /const hardSphereViewUnavailable = props\.performanceMode === 'ultra'/, 'Ultra GLB tier should no longer disable the hard-sphere teaching layer');
 assert.match(sceneSource, /const hardSphereViewActive = props\.hardSphereViewEnabled;/, 'Ultra GLB tier should preserve the saved hard-sphere enabled state');
 assert.match(sceneSource, /const hardSphereTooltipId = 'heat-capacity-hard-sphere-tooltip';/, 'hard-sphere explanation should remain available from the toggle hover anchor in Ultra');
-assert.match(sceneSource, /studio-heat-hard-sphere-tooltip-anchor[\s\S]*title=\{`\$\{hardSphereNoteCopy\.title\}/, 'hard-sphere explanation title should not be removed for Ultra');
+assert.doesNotMatch(sceneSource, /studio-heat-hard-sphere-tooltip-anchor[\s\S]*title=\{`\$\{hardSphereNoteCopy\.title\}/, 'hard-sphere explanation should not duplicate the custom tooltip with a browser-native title');
+assert.match(sceneSource, /studio-heat-hard-sphere-tooltip-anchor[\s\S]*aria-label=\{`\$\{hardSphereNoteCopy\.title\}/, 'hard-sphere explanation should keep accessible copy on the custom tooltip anchor');
 assert.match(sceneSource, /\{hardSphereTooltipId \? \([\s\S]*data-heat-capacity-hard-sphere-tooltip="true"[\s\S]*\) : null\}/, 'hard-sphere explanation panel should remain available for all supported model tiers');
 assert.doesNotMatch(sceneSource, /data-heat-capacity-hard-sphere-note="true"/, 'hard-sphere explanation should not remain as a persistent note panel');
 assert.match(sceneSource, /sceneShouldAnimate = hardSphereViewActive/, 'enabled particle visualization should keep the demand-rendered scene animating only when the selected tier supports it');
@@ -1873,6 +1914,13 @@ assert.match(workbenchSource, /viewBox=\{`0 0 \$\{heatCapacityGuideMaskBounds\.w
 assert.doesNotMatch(workbenchSource, /viewBox="0 0 100 100"|preserveAspectRatio="none"/, 'strong reminder mask should not use a stretched static percentage viewport');
 assert.match(workbenchSource, /guideFocusMode=\{heatCapacityGuideFocusMode\}/, 'Workbench should pass guide focus mode into the Heat Capacity scene');
 assert.match(workbenchSource, /guideFocusKey=\{guideHeatCapacityStrongReminderFocusKey\}/, 'Workbench should pass a guide focus key so repeated strong reminders can reset the view');
+assert.match(sceneSource, /demoCameraFocusMode\?: HeatCapacityFocusMode \| null;/, 'Heat Capacity scene should accept demo-driven camera focus without enabling guide UI');
+assert.match(sceneSource, /props\.demoCameraFocusMode !== undefined && props\.demoCameraFocusMode !== null[\s\S]*setFocusMode\(props\.demoCameraFocusMode\)[\s\S]*props\.demoCameraFocusKey/, 'scene should apply scripted demo camera focus from the workbench');
+assert.match(workbenchSource, /const \[demoCameraFocusMode, setDemoCameraFocusMode\] = useState<Exclude<HeatCapacityFocusMode, 'none'> \| null>\(null\);/, 'Workbench should keep demo camera focus independent from guide strong reminders');
+assert.match(workbenchSource, /const mapHeatCapacityAutoDemoCameraFocusMode = \([\s\S]*HeatCapacityAutoDemoTimelineItem\['cameraFocusMode'\][\s\S]*Exclude<HeatCapacityFocusMode, 'none'> \| null/, 'Workbench should map auto-demo timeline camera modes to scene focus modes explicitly');
+assert.match(workbenchSource, /setHeatCapacityAutoDemoCameraFocus\(\(stage === 'highlight' \|\| stage === 'action'\) \? mapHeatCapacityAutoDemoCameraFocusMode\(cameraFocusMode\) : null\);/, 'auto demo highlight and action stages should drive camera focus while preview gaps release it');
+assert.match(workbenchSource, /demoCameraFocusMode=\{demoCameraFocusMode\}/, 'Workbench should pass demo camera focus mode into the Heat Capacity scene');
+assert.match(workbenchSource, /demoCameraFocusKey=\{demoCameraFocusKey\}/, 'Workbench should pass a demo camera focus key so repeated demo focus stages can retrigger the view');
 assert.match(workbenchSource, /overlayGuideMask=\{heatCapacityGuideMaskOverlay\}/, 'Workbench should pass the strong-reminder mask into the Heat Capacity scene');
 assert.match(workbenchSource, /onGuideTargetHolesChange=\{setHeatCapacityGuideProjectedHoles\}/, 'Workbench should receive scene-projected guide holes');
 assert.match(workbenchSource, /const clearGuideHeatCapacityStrongReminderFocus = \(\) => \{[\s\S]*setHeatCapacityFocusResetKey\(\(key\) => key \+ 1\);[\s\S]*heatCapacityFocusSessionRef\.current = null;/, 'successful strong-reminder target actions should have a shared way to restore the default 3D view');
@@ -2026,6 +2074,25 @@ assert.doesNotMatch(workbenchSource, /definition\.id === 'hardSphereViewEnabled'
 assert.match(workbenchSource, /renderHeatCapacityParameterSymbol[\s\S]*<sub key=\{index\}>\{part\.sub\}<\/sub>/, 'Free Mode parameter symbols should render true subscript nodes');
 const freeBasicNumberParametersSection = freeParameterPanelModelSource.match(/export const heatCapacityFreeBasicNumberParameters:[\s\S]*?\n\];/)?.[0] ?? '';
 const freeAdvancedNumberParametersSection = freeParameterPanelModelSource.match(/export const heatCapacityFreeAdvancedNumberParameters:[\s\S]*?\n\];/)?.[0] ?? '';
+const freeGasTypeOptionsSection = freeParameterPanelModelSource.match(/export const heatCapacityFreeGasTypeOptions:[\s\S]*?\n\];/)?.[0] ?? '';
+const freeGasTypeRowRendererSection = workbenchSource.match(/const renderHeatCapacityFreeGasTypeRow = \(\) => \{[\s\S]*?const renderHeatCapacityBasicParameterRows/)?.[0] ?? '';
+const freeBasicParameterRowsRendererSection = workbenchSource.match(/const renderHeatCapacityBasicParameterRows = \(\) => \{[\s\S]*?const renderHeatCapacityFreeParameterPanel/)?.[0] ?? '';
+assert.match(freeGasTypeOptionsSection, /id:\s*'air'[\s\S]*id:\s*'helium'/, 'Free Mode gas type options should expose air and helium in order');
+assert.match(freeParameterPanelModelSource, /getHeatCapacityFreeGasTypeGamma/, 'Free Mode gas type UI should read theory values from the shared gas configuration');
+assert.match(freeGasTypeOptionsSection, /theoreticalGamma:\s*getHeatCapacityFreeGasTypeGamma\('air'\)[\s\S]*theoreticalGamma:\s*getHeatCapacityFreeGasTypeGamma\('helium'\)/, 'Free Mode gas type options should derive theory values from gas type');
+assert.doesNotMatch(freeGasTypeOptionsSection, /theoreticalGamma:\s*(1\.4|5\s*\/\s*3)/, 'Free Mode gas type options should not duplicate hard-coded gamma values');
+assert.match(workbenchSource, /renderHeatCapacityFreeGasTypeRow[\s\S]*heatCapacityFreeGasTypeOptions\.map/, 'Free Mode basic parameters should render the gas type selector from model options');
+assert.match(workbenchSource, /renderHeatCapacityFreeGasTypeRow\(\)[\s\S]*heatCapacityFreeBasicNumberParameters\.map/, 'Free Mode gas type selector should sit before atmospheric pressure in the basic parameter area');
+assert.match(workbenchSource, /data-heat-capacity-gas-type-option=\{option\.id\}/, 'Free Mode gas type choices should expose stable markup');
+assert.match(workbenchSource, /renderHeatCapacityTooltipPopover/, 'Heat Capacity hover hints should use one shared tooltip renderer');
+assert.match(workbenchSource, /renderHeatCapacityTooltipAnchor/, 'Heat Capacity hover hints should use one shared tooltip anchor');
+assert.match(styleSource, /\.studio-heat-unified-tooltip\s*\{[\s\S]*font-size:\s*11px;[\s\S]*border-radius:\s*6px;/, 'Heat Capacity tooltips should share a fixed rounded-rectangle visual style');
+assert.match(freeGasTypeRowRendererSection, /studio-heat-free-gas-type-help[\s\S]*renderHeatCapacityTooltipAnchor/, 'Free Mode gas type help question marks should use the shared tooltip anchor inside each selectable option');
+assert.doesNotMatch(freeGasTypeRowRendererSection, /title=\{option\.help\[settingsLanguagePreference\]\}/, 'Free Mode gas type help should not fall back to the browser-native title tooltip');
+assert.match(freeBasicParameterRowsRendererSection, /renderHeatCapacityTooltipAnchor[\s\S]*studio-heat-free-scheme-tooltip-anchor[\s\S]*heatCapacityFreeSharedText\.idealProfileLockedHint|heatCapacityFreeSharedText\.idealProfileLockedHint[\s\S]*renderHeatCapacityTooltipAnchor[\s\S]*studio-heat-free-scheme-tooltip-anchor/, 'locked real/ideal scheme switching should expose the shared disabled tooltip copy');
+assert.match(freeParameterPanelModelSource, /idealProfileLockedHint:/, 'real/ideal locked tooltip copy should live in the shared parameter-panel copy');
+assert.doesNotMatch(freeParameterPanelModelSource, /idealProfileLocked:\s*\{/, 'real/ideal switching should not keep a second shorter locked-copy path');
+assert.match(workbenchSource, /showHeatCapacityFreeSchemeLockHint[\s\S]*heatCapacityFreeSharedText\.idealProfileLockedHint/, 'real/ideal locked click toast should use the same copy as the hover tooltip');
 assert.match(
   freeBasicNumberParametersSection,
   /id:\s*'ambientPressureKPa'[\s\S]*id:\s*'ambientTemperatureK'/,
@@ -2042,7 +2109,8 @@ assert.match(freeAdvancedNumberParametersSection, /id:\s*'gasWallConductanceWPer
 assert.doesNotMatch(freeParameterPanelModelSource, /group:\s*'A' \| 'B' \| 'C' \| 'D'/, 'Free Mode parameter definitions should not keep the old letter-based group type');
 assert.doesNotMatch(freeBasicNumberParametersSection, /group:\s*'[A-D]'/, 'Free Mode basic parameter definitions should not keep stale advanced grouping metadata');
 assert.doesNotMatch(freeAdvancedNumberParametersSection, /group:\s*'[A-D]'/, 'Free Mode advanced parameter definitions should use semantic group ids instead of old letter groups');
-assert.match(freeAdvancedNumberParametersSection, /id:\s*'gamma'[\s\S]*group:\s*'gasTheory'/, 'gamma should belong to the gas-theory advanced group');
+assert.doesNotMatch(freeAdvancedNumberParametersSection, /id:\s*'gamma'/, 'gamma should not remain as a directly editable advanced parameter');
+assert.doesNotMatch(freeParameterPanelModelSource, /id:\s*'gasTheory'/, 'advanced parameter groups should not keep an empty gas-theory group after gas type moves to basic parameters');
 assert.match(freeAdvancedNumberParametersSection, /id:\s*'gasWallConductanceWPerK'[\s\S]*group:\s*'thermalExchange'[\s\S]*parts:\s*\[\]/, 'gas-wall conductance should belong to thermal exchange and show only the Chinese name');
 assert.match(freeAdvancedNumberParametersSection, /id:\s*'wallAmbientConductanceWPerK'[\s\S]*group:\s*'thermalExchange'[\s\S]*parts:\s*\[\]/, 'wall-ambient conductance should belong to thermal exchange and show only the Chinese name');
 assert.match(freeAdvancedNumberParametersSection, /id:\s*'wallHeatCapacityJPerK'[\s\S]*group:\s*'thermalExchange'/, 'wall heat capacity should belong to the thermal-exchange advanced group');
@@ -2108,7 +2176,6 @@ assert.doesNotMatch(freeParameterPanelModelSource, /调整高级参数会改变�
 assert.match(workbenchSource, /studio-heat-advanced-grid/, 'advanced parameter form should use a responsive grid');
 assert.match(workbenchSource, /heatCapacityFreeAdvancedParameterGroups/, 'advanced parameter form should use an explicit ordered group definition');
 assert.doesNotMatch(freeParameterPanelModelSource, /title:\s*\{\s*'zh-CN':\s*'压力信号标定'/, 'advanced parameter groups should not keep an empty pressure calibration group after pressure sensitivity moves to the basic panel');
-assert.match(freeParameterPanelModelSource, /id:\s*'gasTheory'[\s\S]*title:\s*\{\s*'zh-CN':\s*'气体理论参数'/, 'advanced parameters should expose a semantic gas-theory group');
 assert.match(freeParameterPanelModelSource, /id:\s*'thermalExchange'[\s\S]*title:\s*\{\s*'zh-CN':\s*'热交换模型'/, 'advanced parameters should expose a semantic thermal-exchange group');
 assert.match(freeParameterPanelModelSource, /id:\s*'nonIdealCorrection'[\s\S]*title:\s*\{\s*'zh-CN':\s*'非理想过程修正'/, 'advanced parameters should expose a semantic non-ideal correction group');
 assert.match(freeParameterPanelModelSource, /id:\s*'recordCriteria'[\s\S]*title:\s*\{\s*'zh-CN':\s*'记录判定与安全阈值'/, 'advanced parameters should expose a semantic record-criteria group');
@@ -2119,7 +2186,8 @@ assert.doesNotMatch(`${workbenchSource}\n${freeParameterPanelModelSource}`, /adv
 assert.match(workbenchSource, /heatCapacityFreeSharedText\.valueTooLarge/, 'Free Mode parameter validation should have a localized over-limit message');
 assert.match(workbenchSource, /HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA/, 'Free Mode parameter UI should share the 300 kPa absolute pressure ceiling');
 assert.match(workbenchSource, /setScanInputToast\(message\)/, 'Free Mode parameter over-limit validation should surface a visible toast-style message');
-assert.match(workbenchSource, /definition\.id === 'gamma'[\s\S]*isHeatCapacityFreeGammaEditingAvailable/, 'gamma should be locked separately after a file has started a recorded experiment');
+assert.match(workbenchSource, /setHeatCapacityFreeGasType[\s\S]*isHeatCapacityFreeGasTypeEditingAvailable/, 'gas type should be locked separately after a file has started a recorded experiment');
+assert.doesNotMatch(workbenchSource, /definition\.id === 'gamma'[\s\S]*isHeatCapacityFreeGammaEditingAvailable/, 'Free Mode should no longer lock an editable gamma row because gamma is derived from gas type');
 assert.match(workbenchSource, /resetHeatCapacityFreeParametersToDefaultWorkbenchState/, 'Free Mode restore-default button should reuse the shared state reset instead of duplicating default constants in the UI');
 assert.match(workbenchSource, /openHeatCapacityRestoreDefaultConfirm[\s\S]*setHeatCapacityRestoreDefaultConfirmOpen\(true\)/, 'Free Mode restore-default button should open a confirmation dialog before resetting parameters');
 assert.match(workbenchSource, /confirmHeatCapacityRestoreDefault[\s\S]*resetHeatCapacityFreeParametersToDefaultWorkbenchState/, 'Free Mode restore-default confirmation should be the only path that applies the reset');

@@ -24,6 +24,10 @@ import {
   type HeatCapacityFreeTrial,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
+  getHeatCapacityFreeGasTypeModelDefaults,
+  type HeatCapacityFreeGasType,
+} from '../../src/domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
+import {
   evaluateFreeU1Record,
   evaluateFreeU2Record,
   recordFreeU0,
@@ -50,6 +54,7 @@ export type HeatCapacityFreeParameterAcceptanceReleaseMode =
 export interface HeatCapacityFreeParameterAcceptanceScenarioInput {
   id: string;
   label?: string;
+  gasType?: HeatCapacityFreeGasType;
   pumpMode?: HeatCapacityFreeParameterAcceptancePumpMode;
   releaseMode?: HeatCapacityFreeParameterAcceptanceReleaseMode;
   pumpStrokes: number;
@@ -138,26 +143,40 @@ const clonePhysicsConfig = (
     | 'leakageRatePerS'
     | 'pumpValveExchangeEnabled'
     | 'environmentDisturbanceEnabled'
+    | 'gasType'
   > = {},
-): HeatCapacityFreePhysicsConfig => ({
-  ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
-  environment: { ...DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG },
-  pumpValveExchange: {
-    ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpValveExchange,
-    enabled: input.pumpValveExchangeEnabled ??
-      (DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpValveExchange?.enabled === true),
-  },
-  environmentDisturbance: {
-    ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.environmentDisturbance,
-    enabled: input.environmentDisturbanceEnabled ??
-      (DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.environmentDisturbance?.enabled === true),
-  },
-  leakage: {
-    ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.leakage,
-    enabled: input.leakageEnabled ?? DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.leakage.enabled,
-    ratePerS: input.leakageRatePerS ?? DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.leakage.ratePerS,
-  },
-});
+): HeatCapacityFreePhysicsConfig => {
+  const gasTypeDefaults = input.gasType
+    ? getHeatCapacityFreeGasTypeModelDefaults(input.gasType)
+    : null;
+  return {
+    ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
+    environment: { ...DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG },
+    gamma: gasTypeDefaults?.gamma ?? DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.gamma,
+    thermal: {
+      ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.thermal,
+      gasWallConductanceWPerK: gasTypeDefaults?.gasWallConductanceWPerK ??
+        DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.thermal.gasWallConductanceWPerK,
+    },
+    pumpValveExchange: {
+      ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpValveExchange,
+      enabled: input.pumpValveExchangeEnabled ??
+        (DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpValveExchange?.enabled === true),
+    },
+    environmentDisturbance: {
+      ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.environmentDisturbance,
+      enabled: input.environmentDisturbanceEnabled ??
+        (DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.environmentDisturbance?.enabled === true),
+    },
+    leakage: {
+      ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.leakage,
+      enabled: input.leakageEnabled ?? DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.leakage.enabled,
+      ratePerS: input.leakageRatePerS ??
+        gasTypeDefaults?.leakageRatePerS ??
+        DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.leakage.ratePerS,
+    },
+  };
+};
 
 const cloneSensorConfig = (
   instrumentNoiseEnabled = true,

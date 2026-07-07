@@ -205,6 +205,7 @@ export const recordFreeU0 = (
       blockedReason: null,
       correctedSignals: null,
       configSnapshot: null,
+      standardReferenceSnapshot: null,
       completedAtMs: null,
     },
   };
@@ -230,6 +231,7 @@ export const recordFreeU1 = (
       blockedReason: null,
       correctedSignals: null,
       configSnapshot: null,
+      standardReferenceSnapshot: null,
       completedAtMs: null,
     },
   };
@@ -259,6 +261,7 @@ export const recordFreeU2 = (
     blockedReason: null,
     correctedSignals: null,
     configSnapshot: null,
+    standardReferenceSnapshot: null,
     completedAtMs: null,
   };
   const correctedSignals = calculateFreeHeatCapacityTrialSignals(nextTrial, options);

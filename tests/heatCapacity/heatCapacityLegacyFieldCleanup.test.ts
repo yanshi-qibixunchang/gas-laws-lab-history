@@ -31,6 +31,7 @@ const sourceFiles = (dir: string, files: string[] = []): string[] => {
 
 const forbiddenFiles = [
   path.join(srcDir, 'domain', 'heatCapacity', 'heatCapacityFreeIdealReferenceModel.ts'),
+  path.join(srcDir, 'domain', 'heatCapacity', 'heatCapacityFreeStandardProcessModel.ts'),
 ] as const;
 
 assert.deepEqual(
@@ -40,6 +41,24 @@ assert.deepEqual(
 );
 
 const matches: string[] = [];
+const forbiddenSourceTokens = [
+  'createHeatCapacityFreeStandardProcess',
+  'HeatCapacityFreeStandardProcess',
+] as const;
+const forbiddenHardCodedTheoryDefaults = [
+  {
+    file: path.join(srcDir, 'domain', 'heatCapacity', 'heatCapacityFreeProcessReviewModel.ts'),
+    pattern: /theoreticalGamma\s*=\s*1\.4|IDEAL_REVIEW_THEORETICAL_GAMMA\s*=\s*1\.4/,
+  },
+  {
+    file: path.join(srcDir, 'domain', 'heatCapacity', 'heatCapacityFreeStandardReferenceModel.ts'),
+    pattern: /theoreticalGamma\s*=\s*1\.4/,
+  },
+  {
+    file: path.join(srcDir, 'domain', 'heatCapacity', 'heatCapacityFreeTrialModel.ts'),
+    pattern: /theoreticalGamma\s*=\s*options\.theoreticalGamma\s*\?\?\s*1\.4/,
+  },
+] as const;
 
 for (const filePath of sourceFiles(srcDir)) {
   const source = readFileSync(filePath, 'utf8');
@@ -47,6 +66,18 @@ for (const filePath of sourceFiles(srcDir)) {
     if (source.includes(field)) {
       matches.push(`${path.relative(rootDir, filePath)}: ${field}`);
     }
+  }
+  for (const token of forbiddenSourceTokens) {
+    if (source.includes(token)) {
+      matches.push(`${path.relative(rootDir, filePath)}: ${token}`);
+    }
+  }
+}
+
+for (const { file, pattern } of forbiddenHardCodedTheoryDefaults) {
+  const source = readFileSync(file, 'utf8');
+  if (pattern.test(source)) {
+    matches.push(`${path.relative(rootDir, file)}: hard-coded theoretical gamma default`);
   }
 }
 

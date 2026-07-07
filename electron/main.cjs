@@ -756,6 +756,32 @@ ipcMain.handle('hsl-legal:open-file', async (_event, fileId) => {
   };
 });
 
+ipcMain.handle('hsl-legal:read-file', async (_event, fileId) => {
+  const targetPath = resolveLegalFilePath(fileId);
+  if (!targetPath) {
+    return {
+      status: 'error',
+      message: 'The requested legal file is unavailable.',
+    };
+  }
+
+  try {
+    const content = await fs.readFile(targetPath, 'utf8');
+    return {
+      status: 'ok',
+      path: targetPath,
+      content,
+      mimeType: path.extname(targetPath).toLowerCase() === '.html' ? 'text/html' : 'text/plain',
+    };
+  } catch (error) {
+    return {
+      status: 'error',
+      path: targetPath,
+      message: getErrorMessage(error),
+    };
+  }
+});
+
 ipcMain.handle('hsl-exporter:check', async () => {
   await ensureDefaultExportRoot();
   const result = await resolveExporterRuntime();

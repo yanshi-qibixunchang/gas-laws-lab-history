@@ -3,6 +3,164 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.2.2",
+      "date": "2026-07-07",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.2.2",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.2.2/heat-capacity-lab-setup-4.2.2.exe"
+      },
+      "summary": {
+        "zh-CN": "继续完善自由模式真实/理想参数体系，加入空气与氦气气体类型联动，校准氦气 1.67 组的正常结果和错误操作偏差，并统一过程回顾、下拉菜单、悬浮提示和桌面更新说明。",
+        "zh-TW": "繼續完善自由模式真實/理想參數體系，加入空氣與氦氣氣體類型連動，校準氦氣 1.67 組的正常結果和錯誤操作偏差，並統一過程回顧、下拉選單、懸浮提示和桌面更新說明。",
+        "en": "Continues refining Free Mode real/ideal parameters with air and helium gas-type linking, calibrated helium 1.67 behavior, clearer error-operation separation, and unified process review, dropdowns, tooltips, and desktop update notes."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "新增",
+            "zh-TW": "新增",
+            "en": "Added"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-gas-type",
+              "importance": "high",
+              "title": {
+                "zh-CN": "自由模式加入空气 / 氦气气体类型",
+                "zh-TW": "自由模式加入空氣 / 氦氣氣體類型",
+                "en": "Air and helium gas types in Free Mode"
+              },
+              "body": {
+                "zh-CN": "普通参数区现在可以选择空气或氦气。空气使用双原子分子理论 gamma = 1.400，氦气使用单原子分子理论 gamma = 1.667，并同步切换底层物理参数、过程回顾和数据结果中的理论值。",
+                "zh-TW": "普通參數區現在可以選擇空氣或氦氣。空氣使用雙原子分子理論 gamma = 1.400，氦氣使用單原子分子理論 gamma = 1.667，並同步切換底層物理參數、過程回顧和資料結果中的理論值。",
+                "en": "The basic parameter section can now switch between air and helium. Air uses the diatomic theoretical gamma = 1.400, helium uses the monatomic theoretical gamma = 1.667, and the physics model, Process Review, and Data & Results theory values stay linked."
+              }
+            },
+            {
+              "scope": "heat-capacity-standard-reference",
+              "importance": "high",
+              "title": {
+                "zh-CN": "过程回顾使用标准流程参考快照",
+                "zh-TW": "過程回顧使用標準流程參考快照",
+                "en": "Standard-process reference snapshot for Process Review"
+              },
+              "body": {
+                "zh-CN": "过程回顾保存同一参数条件下的标准操作参考曲线、记录窗口和操作上限，用于对比实际操作与标准流程，并移除旧的合成标准过程模型。",
+                "zh-TW": "過程回顧保存同一參數條件下的標準操作參考曲線、記錄窗口和操作上限，用於對比實際操作與標準流程，並移除舊的合成標準過程模型。",
+                "en": "Process Review stores a same-parameter standard-operation trace, record windows, and operation limit for comparing actual work against the standard flow, replacing the old synthetic standard-process model."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "改进",
+            "zh-TW": "改進",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-error-calibration",
+              "importance": "high",
+              "title": {
+                "zh-CN": "校准氦气 1.67 组的正常区间和错误偏差",
+                "zh-TW": "校準氦氣 1.67 組的正常區間和錯誤偏差",
+                "en": "Calibrated helium 1.67 normal and error ranges"
+              },
+              "body": {
+                "zh-CN": "氦气标准操作现在稳定贴近 1.67；旋塞长开和 U2 迟记等错误会围绕氦气理论值产生更明显偏差，避免错误操作只与正常结果相差很小。",
+                "zh-TW": "氦氣標準操作現在穩定貼近 1.67；旋塞長開和 U2 遲記等錯誤會圍繞氦氣理論值產生更明顯偏差，避免錯誤操作只與正常結果相差很小。",
+                "en": "Helium standard operation now stays close to 1.67, while long stopcock openings and late U2 recording produce clearer deviations around the helium theory value instead of nearly matching normal runs."
+              }
+            },
+            {
+              "scope": "heat-capacity-process-review-ui",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "优化过程回顾窗口和下拉菜单样式",
+                "zh-TW": "優化過程回顧窗口和下拉選單樣式",
+                "en": "Polished Process Review window and dropdown styling"
+              },
+              "body": {
+                "zh-CN": "过程回顾页签、窗口标题、实验组下拉菜单和真实/理想状态菜单的层级、边距、字号、箭头动效和菜单边框保持一致，减少视觉拥挤。",
+                "zh-TW": "過程回顧頁籤、窗口標題、實驗組下拉選單和真實/理想狀態選單的層級、邊距、字號、箭頭動效和選單邊框保持一致，減少視覺擁擠。",
+                "en": "The Process Review tab, window heading, trial dropdown, and real/ideal state menu now align hierarchy, spacing, type scale, chevron animation, and menu borders for a less crowded interface."
+              }
+            },
+            {
+              "scope": "heat-capacity-demo-focus",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "增强演示模式视角引导",
+                "zh-TW": "增強演示模式視角引導",
+                "en": "Stronger demo-mode camera focus"
+              },
+              "body": {
+                "zh-CN": "演示模式会在调零、打气、阀门和旋塞动作时切换到更合适的观察视角，操作完成后自动回到默认视角，不显示引导模式面板。",
+                "zh-TW": "演示模式會在調零、打氣、閥門和旋塞動作時切換到更合適的觀察視角，操作完成後自動回到預設視角，不顯示引導模式面板。",
+                "en": "Demo Mode now shifts to clearer viewing angles for zeroing, pumping, valve, and stopcock actions, then returns to the default view without showing the guided-mode panel."
+              }
+            },
+            {
+              "scope": "heat-capacity-tooltips",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "统一悬浮提示和禁用说明",
+                "zh-TW": "統一懸浮提示和停用說明",
+                "en": "Unified tooltips and disabled-state copy"
+              },
+              "body": {
+                "zh-CN": "气体类型、真实/理想状态、参数说明和禁用状态现在使用统一固定样式的悬浮提示；已有进程或实验组时会说明为什么不能切换。",
+                "zh-TW": "氣體類型、真實/理想狀態、參數說明和停用狀態現在使用統一固定樣式的懸浮提示；已有進程或實驗組時會說明為什麼不能切換。",
+                "en": "Gas type, real/ideal profile, parameter help, and disabled states now use one fixed tooltip style, including explanations when progress or existing trial groups lock a switch."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-model-cleanup",
+              "importance": "high",
+              "title": {
+                "zh-CN": "清理旧模型和旧字段残留",
+                "zh-TW": "清理舊模型和舊欄位殘留",
+                "en": "Cleaned legacy model and field residue"
+              },
+              "body": {
+                "zh-CN": "删除旧标准过程实现，保留必要的旧文件兼容迁移，并增加静态回归测试，防止旧处理页、旧字段、旧多组引导和旧标准参考路径重新进入源码。",
+                "zh-TW": "刪除舊標準過程實作，保留必要的舊檔相容遷移，並增加靜態回歸測試，防止舊處理頁、舊欄位、舊多組引導和舊標準參考路徑重新進入源碼。",
+                "en": "Deletes the old standard-process implementation, keeps only required legacy-file migrations, and adds static regression checks so removed processing pages, fields, multi-group guide paths, and standard-reference paths do not return."
+              }
+            },
+            {
+              "scope": "desktop-update",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "桌面自动更新资产保持完整",
+                "zh-TW": "桌面自動更新資產保持完整",
+                "en": "Desktop auto-update assets remain complete"
+              },
+              "body": {
+                "zh-CN": "本版本继续发布 NSIS 安装包、latest.yml 和 blockmap，已安装的 4.2.1 客户端可以通过应用内更新检测到 4.2.2。",
+                "zh-TW": "本版本繼續發布 NSIS 安裝包、latest.yml 和 blockmap，已安裝的 4.2.1 用戶端可以透過應用內更新偵測到 4.2.2。",
+                "en": "This release continues to publish the NSIS installer, latest.yml, and blockmap so installed 4.2.1 clients can detect 4.2.2 in-app."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "4.2.1",
       "date": "2026-07-07",
       "channel": "stable",

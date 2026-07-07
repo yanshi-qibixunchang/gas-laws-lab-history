@@ -25,9 +25,11 @@ import {
   normalizeHeatCapacityFreeRecordInput,
   type HeatCapacityFreeTrial,
 } from './heatCapacityFreeTrialModel.ts';
+import {
+  getHeatCapacityFreeGasTypeGamma,
+} from './heatCapacityGasTheory.ts';
 import type {
   HeatCapacityFreeConfigSnapshot,
-  HeatCapacityFreeTraceBranch,
   HeatCapacityFreeTraceTrial,
 } from './heatCapacityFreeTraceModel.ts';
 import type {
@@ -39,13 +41,15 @@ import type {
   HeatCapacityProcessStageSegment,
 } from './heatCapacityFreeProcessReviewTypes.ts';
 
-export interface HeatCapacityStandardProcessAssumptions {
+export const HEAT_CAPACITY_STANDARD_REFERENCE_GENERATOR_VERSION = 'free-standard-reference-v1' as const;
+
+export interface HeatCapacityStandardReferenceAssumptions {
   operationMode: 'standard-operation';
   disturbancesPreserved: true;
   stageAligned: true;
 }
 
-export interface HeatCapacityStandardProcessSummary {
+export interface HeatCapacityStandardReferenceSummary {
   feasible: boolean;
   seed: number;
   gamma: number | null;
@@ -55,25 +59,28 @@ export interface HeatCapacityStandardProcessSummary {
   releaseDurationS: number | null;
   u1TimeS: number | null;
   u2TimeS: number | null;
-  assumptions: HeatCapacityStandardProcessAssumptions;
+  assumptions: HeatCapacityStandardReferenceAssumptions;
   explanation: {
     operation: string;
     windows: string;
   };
 }
 
-export interface HeatCapacityFreeStandardProcess extends HeatCapacityStandardProcessSummary {
+export interface HeatCapacityFreeStandardReference extends HeatCapacityStandardReferenceSummary {
+  generatorVersion: typeof HEAT_CAPACITY_STANDARD_REFERENCE_GENERATOR_VERSION;
+  operationPreset: typeof HEAT_CAPACITY_STANDARD_OPERATION;
   configSnapshot: HeatCapacityFreeConfigSnapshot;
   trace: HeatCapacityProcessReferencePoint[];
   stages: HeatCapacityProcessStageSegment[];
   recordWindows: HeatCapacityBestRecordWindow[];
-  standard: HeatCapacityStandardProcessSummary;
-  upperBound: HeatCapacityOperationUpperBound;
+  summary: HeatCapacityStandardReferenceSummary;
+  operationUpperBound: HeatCapacityOperationUpperBound;
 }
 
-export interface CreateHeatCapacityFreeStandardProcessInput {
+export type HeatCapacityFreeStandardReferenceSnapshot = HeatCapacityFreeStandardReference;
+
+export interface CreateHeatCapacityFreeStandardReferenceInput {
   traceTrial: HeatCapacityFreeTraceTrial;
-  branch: HeatCapacityFreeTraceBranch;
   trial: HeatCapacityFreeTrial;
   theoreticalGamma?: number;
 }
@@ -88,8 +95,9 @@ interface StandardRunState {
 const ZERO_DURATION_S = 1.2;
 const SAMPLE_STEP_S = 0.2;
 const SIMULATION_STEP_S = 0.05;
+const DEFAULT_STANDARD_REFERENCE_THEORETICAL_GAMMA = getHeatCapacityFreeGasTypeGamma('air');
 
-const ASSUMPTIONS: HeatCapacityStandardProcessAssumptions = {
+const ASSUMPTIONS: HeatCapacityStandardReferenceAssumptions = {
   operationMode: 'standard-operation',
   disturbancesPreserved: true,
   stageAligned: true,
@@ -134,13 +142,11 @@ const hashText = (text: string) => {
 
 const createSeed = (
   traceTrial: HeatCapacityFreeTraceTrial,
-  branch: HeatCapacityFreeTraceBranch,
   trial: HeatCapacityFreeTrial,
   theoreticalGamma: number,
 ) => hashText([
-  'free-standard-operation-v2',
+  HEAT_CAPACITY_STANDARD_REFERENCE_GENERATOR_VERSION,
   traceTrial.id,
-  branch.id,
   trial.id,
   traceTrial.configSnapshot.version,
   traceTrial.configSnapshot.scoring.processScoringVersion,
@@ -408,16 +414,73 @@ const calculateRelativeError = (
     : null
 );
 
-export const createHeatCapacityFreeStandardProcess = ({
+const isRecord = (value: unknown): value is Record<string, unknown> => (
+  typeof value === 'object' && value !== null
+);
+
+const cloneConfigSnapshot = (
+  snapshot: HeatCapacityFreeConfigSnapshot,
+): HeatCapacityFreeConfigSnapshot => ({
+  version: snapshot.version,
+  environment: { ...snapshot.environment },
+  physics: {
+    ...snapshot.physics,
+    thermal: { ...snapshot.physics.thermal },
+    pumpValveExchange: snapshot.physics.pumpValveExchange
+      ? { ...snapshot.physics.pumpValveExchange }
+      : undefined,
+    environmentDisturbance: snapshot.physics.environmentDisturbance
+      ? { ...snapshot.physics.environmentDisturbance }
+      : undefined,
+    leakage: { ...snapshot.physics.leakage },
+  },
+  sensor: { ...snapshot.sensor },
+  record: { ...snapshot.record },
+  scoring: { ...snapshot.scoring },
+});
+
+export const cloneHeatCapacityFreeStandardReferenceSnapshot = (
+  snapshot: HeatCapacityFreeStandardReferenceSnapshot,
+): HeatCapacityFreeStandardReferenceSnapshot => ({
+  ...snapshot,
+  operationPreset: { ...snapshot.operationPreset },
+  configSnapshot: cloneConfigSnapshot(snapshot.configSnapshot),
+  trace: snapshot.trace.map((point) => ({ ...point })),
+  stages: snapshot.stages.map((stage) => ({ ...stage })),
+  recordWindows: snapshot.recordWindows.map((window) => ({ ...window })),
+  summary: {
+    ...snapshot.summary,
+    assumptions: { ...snapshot.summary.assumptions },
+    explanation: { ...snapshot.summary.explanation },
+  },
+  operationUpperBound: {
+    ...snapshot.operationUpperBound,
+    windows: snapshot.operationUpperBound.windows.map((window) => ({ ...window })),
+  },
+});
+
+export const normalizeHeatCapacityFreeStandardReferenceSnapshot = (
+  value: unknown,
+): HeatCapacityFreeStandardReferenceSnapshot | null => {
+  if (!isRecord(value)) return null;
+  if (value.generatorVersion !== HEAT_CAPACITY_STANDARD_REFERENCE_GENERATOR_VERSION) return null;
+  if (!isRecord(value.configSnapshot)) return null;
+  if (!Array.isArray(value.trace) || !Array.isArray(value.stages) || !Array.isArray(value.recordWindows)) {
+    return null;
+  }
+  if (!isRecord(value.summary) || !isRecord(value.operationUpperBound)) return null;
+  return cloneHeatCapacityFreeStandardReferenceSnapshot(value as unknown as HeatCapacityFreeStandardReferenceSnapshot);
+};
+
+export const createHeatCapacityFreeStandardReference = ({
   traceTrial,
-  branch,
   trial,
-  theoreticalGamma = 1.4,
-}: CreateHeatCapacityFreeStandardProcessInput): HeatCapacityFreeStandardProcess => {
+  theoreticalGamma = DEFAULT_STANDARD_REFERENCE_THEORETICAL_GAMMA,
+}: CreateHeatCapacityFreeStandardReferenceInput): HeatCapacityFreeStandardReference => {
   const snapshot = traceTrial.configSnapshot;
   const physicsConfig = createPhysicsConfig(snapshot);
   const sensorConfig = createSensorConfig(snapshot);
-  const seed = createSeed(traceTrial, branch, trial, theoreticalGamma);
+  const seed = createSeed(traceTrial, trial, theoreticalGamma);
   const trace: HeatCapacityProcessReferencePoint[] = [];
   let run = createInitialRun(snapshot, physicsConfig, sensorConfig, seed);
   let nextSampleAtS = 0;
@@ -547,7 +610,7 @@ export const createHeatCapacityFreeStandardProcess = ({
   });
   const gamma = signals?.gamma ?? null;
   const targetPressureMv = recordWindows.find((window) => window.recordId === 'u1')?.displayPressureMv ?? null;
-  const standardSummary: HeatCapacityStandardProcessSummary = {
+  const summary: HeatCapacityStandardReferenceSummary = {
     feasible: gamma !== null,
     seed,
     gamma,
@@ -571,7 +634,7 @@ export const createHeatCapacityFreeStandardProcess = ({
     : gamma === null
       ? actualGamma
       : Math.max(actualGamma, gamma);
-  const upperBound: HeatCapacityOperationUpperBound = {
+  const operationUpperBound: HeatCapacityOperationUpperBound = {
     gamma: upperBoundGamma,
     relativeErrorPercent: calculateRelativeError(upperBoundGamma, theoreticalGamma),
     gapFromActualPercent: upperBoundGamma === null || actualGamma === null || upperBoundGamma === 0
@@ -598,12 +661,14 @@ export const createHeatCapacityFreeStandardProcess = ({
   ];
 
   return {
-    ...standardSummary,
+    ...summary,
+    generatorVersion: HEAT_CAPACITY_STANDARD_REFERENCE_GENERATOR_VERSION,
+    operationPreset: { ...HEAT_CAPACITY_STANDARD_OPERATION },
     configSnapshot: snapshot,
     trace,
     stages,
     recordWindows,
-    standard: standardSummary,
-    upperBound,
+    summary,
+    operationUpperBound,
   };
 };

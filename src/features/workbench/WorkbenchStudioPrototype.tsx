@@ -72,7 +72,7 @@ import {
   getHeatCapacityFreeStopcockFlowPurpose,
   getHeatCapacityParameterSidebarBlockReason,
   hasCompletedHeatCapacityFreeRecordSet,
-  isHeatCapacityFreeGammaEditingAvailable,
+  isHeatCapacityFreeGasTypeEditingAvailable,
   getHeatCapacityStopcockTargetAngle,
   getHeatCapacityStopcockState,
   getHeatCapacityPressureReleaseBurstUntilMs,
@@ -154,13 +154,18 @@ import {
   heatCapacityFreeAdvancedParameterGroups,
   heatCapacityFreeBasicCheckboxes,
   heatCapacityFreeBasicNumberParameters,
+  heatCapacityFreeGasTypeOptions,
   heatCapacityFreeSharedText,
   type HeatCapacityFreeBasicCheckboxKey,
   type HeatCapacityFreeCheckboxDefinition,
   type HeatCapacityFreeDraftNumberKey,
+  type HeatCapacityFreeGasTypeOptionDefinition,
   type HeatCapacityFreeNumberParameterDefinition,
   type HeatCapacityFreeParameterSymbolPart,
 } from '../heatCapacity/heatCapacityFreeParameterPanelModel.ts';
+import type {
+  HeatCapacityFreeGasType,
+} from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 import {
   createHeatCapacityToastMessage,
   HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS,
@@ -352,6 +357,15 @@ type HeatCapacityFocusSession = {
   parametersCollapsedBeforeFocus: boolean;
   baseline: HeatCapacityFocusControlSnapshot;
   nonReversibleAction: boolean;
+};
+
+const mapHeatCapacityAutoDemoCameraFocusMode = (
+  cameraFocusMode: HeatCapacityAutoDemoTimelineItem['cameraFocusMode'],
+): Exclude<HeatCapacityFocusMode, 'none'> | null => {
+  if (cameraFocusMode === 'instrument' || cameraFocusMode === 'pump' || cameraFocusMode === 'bottle') {
+    return cameraFocusMode;
+  }
+  return null;
 };
 
 type HeatCapacityGuideStrongCutout =
@@ -2914,6 +2928,10 @@ const hasDesktopLegalBridge = () => (
   typeof window !== 'undefined' && Boolean(window.hardSphereLabLegal?.openLegalFile)
 );
 
+const hasDesktopLegalReadBridge = () => (
+  typeof window !== 'undefined' && Boolean(window.hardSphereLabLegal?.readLegalFile)
+);
+
 const getFreshWorkbenchWindowUrl = () => {
   if (typeof window === 'undefined') return '';
   const url = new URL(window.location.href);
@@ -3560,7 +3578,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [buildNoticeWindowOpen, setBuildNoticeWindowOpen] = useState(false);
   const [buildNoticeNavOpen, setBuildNoticeNavOpen] = useState(false);
   const [activeBuildNoticeMaterialId, setActiveBuildNoticeMaterialId] = useState<WorkbenchLegalMaterialId | null>(null);
-  const [buildNoticeTextPreview, setBuildNoticeTextPreview] = useState<{ id: WorkbenchLegalMaterialId; content: string } | null>(null);
+  const [buildNoticeFilePreview, setBuildNoticeFilePreview] = useState<{
+    id: WorkbenchLegalMaterialId;
+    kind: 'html' | 'text';
+    content: string;
+  } | null>(null);
   const [buildNoticeOpenError, setBuildNoticeOpenError] = useState<string | null>(null);
   const [aboutResultNotice, setAboutResultNotice] = useState<{ title: string; body: string } | null>(null);
   const [aboutUpdateChecking, setAboutUpdateChecking] = useState(false);
@@ -3691,6 +3713,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const heatCapacityAutoDemoStartedAtMsRef = useRef(0);
   const heatCapacityAutoDemoPausedElapsedMsRef = useRef(0);
   const heatCapacityAutoDemoPausedFileIdRef = useRef<string | null>(null);
+  const demoCameraFocusModeRef = useRef<Exclude<HeatCapacityFocusMode, 'none'> | null>(null);
   const heatCapacityAutoDemoCompleteToastTimerRef = useRef<number | null>(null);
   const heatCapacityAutoDemoStepPanelTimerRef = useRef<number | null>(null);
   const heatCapacityGuideStartTimerRef = useRef<number | null>(null);
@@ -3747,6 +3770,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [autoDemoCompletionMessage, setAutoDemoCompletionMessage] = useState<string | null>(null);
   const [demoFocusControlId, setDemoFocusControlId] = useState<string | null>(null);
   const [demoFocusPulseActive, setDemoFocusPulseActive] = useState(false);
+  const [demoCameraFocusMode, setDemoCameraFocusMode] = useState<Exclude<HeatCapacityFocusMode, 'none'> | null>(null);
+  const [demoCameraFocusKey, setDemoCameraFocusKey] = useState(0);
   const [heatCapacityFocusResetKey, setHeatCapacityFocusResetKey] = useState(0);
   const [heatCapacityHardSphereVisualResetKey, setHeatCapacityHardSphereVisualResetKey] = useState(0);
   const [heatCapacityRecordControlsClosing, setHeatCapacityRecordControlsClosing] = useState<HeatCapacityGuideRecordKind | null>(null);
@@ -3827,7 +3852,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (!buildNoticeWindowOpen) {
       setBuildNoticeNavOpen(false);
       setActiveBuildNoticeMaterialId(null);
-      setBuildNoticeTextPreview(null);
+      setBuildNoticeFilePreview(null);
       setBuildNoticeOpenError(null);
       buildNoticeReturnScrollTopRef.current = 0;
       buildNoticeRestoreScrollOnReturnRef.current = false;
@@ -3852,27 +3877,41 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   useEffect(() => {
     if (!activeBuildNoticeMaterialId) {
-      setBuildNoticeTextPreview(null);
+      setBuildNoticeFilePreview(null);
       return;
     }
 
     const fileConfig = buildNoticeLegalMaterialFiles[activeBuildNoticeMaterialId];
-    if (fileConfig.previewKind !== 'text' || !fileConfig.previewPath) {
-      setBuildNoticeTextPreview(null);
+    const previewKind = fileConfig.previewKind;
+    if (!previewKind || fileConfig.largeFile || !fileConfig.previewPath) {
+      setBuildNoticeFilePreview(null);
       return;
     }
 
     let cancelled = false;
-    fetch(fileConfig.previewPath)
-      .then((response) => (response.ok ? response.text() : Promise.reject(new Error(response.statusText))))
-      .then((content) => {
-        if (!cancelled) {
-          setBuildNoticeTextPreview({ id: activeBuildNoticeMaterialId, content });
+
+    const loadPreview = async () => {
+      if (hasDesktopLegalReadBridge()) {
+        const result = await window.hardSphereLabLegal!.readLegalFile(activeBuildNoticeMaterialId);
+        if (!cancelled && result.status === 'ok' && typeof result.content === 'string') {
+          setBuildNoticeFilePreview({ id: activeBuildNoticeMaterialId, kind: previewKind, content: result.content });
+        } else if (!cancelled) {
+          setBuildNoticeFilePreview(null);
         }
-      })
-      .catch(() => {
-        if (!cancelled) setBuildNoticeTextPreview(null);
-      });
+        return;
+      }
+
+      const response = await fetch(fileConfig.previewPath!);
+      if (!response.ok) throw new Error(response.statusText);
+      const content = await response.text();
+      if (!cancelled) {
+        setBuildNoticeFilePreview({ id: activeBuildNoticeMaterialId, kind: previewKind, content });
+      }
+    };
+
+    loadPreview().catch(() => {
+      if (!cancelled) setBuildNoticeFilePreview(null);
+    });
 
     return () => {
       cancelled = true;
@@ -4110,7 +4149,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setBuildNoticeWindowOpen(false);
     setBuildNoticeNavOpen(false);
     setActiveBuildNoticeMaterialId(null);
-    setBuildNoticeTextPreview(null);
+    setBuildNoticeFilePreview(null);
     setBuildNoticeOpenError(null);
     buildNoticeReturnScrollTopRef.current = 0;
     buildNoticeRestoreScrollOnReturnRef.current = false;
@@ -4128,7 +4167,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setBuildNoticeWindowOpen(false);
     setBuildNoticeNavOpen(false);
     setActiveBuildNoticeMaterialId(null);
-    setBuildNoticeTextPreview(null);
+    setBuildNoticeFilePreview(null);
     setBuildNoticeOpenError(null);
     buildNoticeReturnScrollTopRef.current = 0;
     buildNoticeRestoreScrollOnReturnRef.current = false;
@@ -4139,7 +4178,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setBuildNoticeWindowOpen(true);
     setBuildNoticeNavOpen(false);
     setActiveBuildNoticeMaterialId(null);
-    setBuildNoticeTextPreview(null);
+    setBuildNoticeFilePreview(null);
     setBuildNoticeOpenError(null);
     buildNoticeReturnScrollTopRef.current = 0;
     buildNoticeRestoreScrollOnReturnRef.current = false;
@@ -4149,7 +4188,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setBuildNoticeWindowOpen(false);
     setBuildNoticeNavOpen(false);
     setActiveBuildNoticeMaterialId(null);
-    setBuildNoticeTextPreview(null);
+    setBuildNoticeFilePreview(null);
     setBuildNoticeOpenError(null);
     buildNoticeReturnScrollTopRef.current = 0;
     buildNoticeRestoreScrollOnReturnRef.current = false;
@@ -4188,7 +4227,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const closeBuildNoticeMaterial = () => {
     buildNoticeRestoreScrollOnReturnRef.current = true;
     setActiveBuildNoticeMaterialId(null);
-    setBuildNoticeTextPreview(null);
+    setBuildNoticeFilePreview(null);
     setBuildNoticeOpenError(null);
   };
 
@@ -4946,7 +4985,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const showHeatCapacityFreeSchemeLockHint = () => {
-    const message = heatCapacityFreeSharedText.idealProfileLocked[settingsLanguagePreference];
+    const message = heatCapacityFreeSharedText.idealProfileLockedHint[settingsLanguagePreference];
     setScanInputToast(message);
     pushLog(`${activeFile.name}: ${message}`, 'warning');
   };
@@ -5150,6 +5189,40 @@ const WorkbenchStudioPrototype: React.FC = () => {
     });
   };
 
+  const setHeatCapacityFreeGasType = (
+    gasType: HeatCapacityFreeGasType,
+  ) => {
+    const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
+    if (!currentFile || currentFile.kind !== 'heatCapacity' || currentFile.heatCapacityMode !== 'free') return;
+    if (currentFile.heatCapacityFreeParameterDraft.gasType === gasType) return;
+    if (currentFile.heatCapacityFreeParameterScheme === 'ideal') {
+      showHeatCapacityFreeIdealReadonlyHint();
+      return;
+    }
+    const parameterLockReason = getHeatCapacityFreeParameterLockReason(currentFile);
+    if (parameterLockReason) {
+      setScanInputToast(parameterLockReason);
+      pushLog(`${currentFile.name}: ${parameterLockReason}`, 'warning');
+      return;
+    }
+    if (!isHeatCapacityFreeGasTypeEditingAvailable(currentFile)) {
+      const message = heatCapacityFreeSharedText.gasTypeLocked[settingsLanguagePreference];
+      setScanInputToast(message);
+      pushLog(`${currentFile.name}: ${message}`, 'warning');
+      return;
+    }
+    updateActiveFile((file) => {
+      if (file.kind !== 'heatCapacity' || file.heatCapacityMode !== 'free') return file;
+      return {
+        ...applyHeatCapacityFreeParameterDraftWorkbenchState(file, {
+          ...file.heatCapacityFreeParameterDraft,
+          gasType,
+        }),
+        updatedAt: Date.now(),
+      };
+    });
+  };
+
   const openHeatCapacityRestoreDefaultConfirm = () => {
     if (activeHeatCapacityFreeIdealReadonly) {
       showHeatCapacityFreeIdealReadonlyHint();
@@ -5313,6 +5386,69 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const top = Math.min(Math.max(margin, preferredTop), maxTop);
     setHeatCapacityParamHelpPopoverStyle({ left, top, width, maxHeight });
   };
+
+  const renderHeatCapacityTooltipPopover = (
+    tooltipId: string,
+    message: string,
+    handlers?: {
+      onMouseEnter?: () => void;
+      onMouseLeave?: () => void;
+    },
+  ) => (
+    visibleHeatCapacityParamHelpId === tooltipId
+      ? createPortal(
+        <span
+          className={`studio-param-help-popover studio-heat-unified-tooltip studio-param-help-popover-${resolvedWorkbenchTheme}`}
+          data-heat-capacity-param-help-popover-id={tooltipId}
+          data-heat-capacity-tooltip-popover-id={tooltipId}
+          role="tooltip"
+          style={heatCapacityParamHelpPopoverStyle}
+          onMouseEnter={handlers?.onMouseEnter}
+          onMouseLeave={handlers?.onMouseLeave}
+        >
+          {message}
+        </span>,
+        document.body,
+      )
+      : null
+  );
+
+  const hideHeatCapacityHoverTooltip = () => {
+    if (pinnedHeatCapacityParamHelpId !== null) return;
+    setHoveredHeatCapacityParamHelpId(null);
+    setHeatCapacityParamHelpPopoverStyle(undefined);
+  };
+
+  const renderHeatCapacityTooltipAnchor = (
+    tooltipId: string,
+    message: string,
+    children: React.ReactNode,
+    options?: {
+      className?: string;
+      target?: string;
+      focusable?: boolean;
+    },
+  ) => (
+    <span
+      className={`studio-heat-tooltip-anchor ${options?.className ?? ''}`.trim()}
+      data-heat-capacity-tooltip-target={options?.target ?? tooltipId}
+      tabIndex={options?.focusable ? 0 : undefined}
+      aria-label={options?.focusable ? message : undefined}
+      onMouseEnter={(event) => {
+        updateHeatCapacityParamHelpPopoverStyle(event.currentTarget);
+        setHoveredHeatCapacityParamHelpId(tooltipId);
+      }}
+      onMouseLeave={hideHeatCapacityHoverTooltip}
+      onFocus={(event) => {
+        updateHeatCapacityParamHelpPopoverStyle(event.currentTarget);
+        setHoveredHeatCapacityParamHelpId(tooltipId);
+      }}
+      onBlur={hideHeatCapacityHoverTooltip}
+    >
+      {children}
+      {renderHeatCapacityTooltipPopover(tooltipId, message)}
+    </span>
+  );
 
   const getGuideHeatCapacityDecisionPressureMv = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
@@ -7241,6 +7377,18 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }, HEAT_CAPACITY_AUTO_DEMO_STEP_PANEL_EXIT_MS);
   };
 
+  const setHeatCapacityAutoDemoCameraFocus = (mode: Exclude<HeatCapacityFocusMode, 'none'> | null) => {
+    if (demoCameraFocusModeRef.current === mode) return;
+    demoCameraFocusModeRef.current = mode;
+    setDemoCameraFocusMode(mode);
+    if (mode) {
+      setDemoCameraFocusKey((key) => key + 1);
+      return;
+    }
+    setHeatCapacityFocusResetKey((key) => key + 1);
+    heatCapacityFocusSessionRef.current = null;
+  };
+
   const clearHeatCapacityAutoDemoUiState = () => {
     cancelHeatCapacityAutoDemoLockedPointerToast();
     if (heatCapacityAutoDemoCompleteToastTimerRef.current !== null) {
@@ -7257,6 +7405,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setAutoDemoCompletionMessage(null);
     setDemoFocusControlId(null);
     setDemoFocusPulseActive(false);
+    setHeatCapacityAutoDemoCameraFocus(null);
     setAutoDemoStepIndex(0);
     setAutoDemoStepCount(0);
     setAutoDemoStepTitle('');
@@ -7599,6 +7748,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     stepIndex: number,
     stage: HeatCapacityAutoDemoTimelineItem['stage'],
     focusControlId?: HeatCapacityAutoDemoTimelineItem['focusControlId'],
+    cameraFocusMode?: HeatCapacityAutoDemoTimelineItem['cameraFocusMode'],
   ) => {
     showHeatCapacityAutoDemoStepPanel();
     setAutoDemoStepIndex(stepIndex + 1);
@@ -7616,6 +7766,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const nextFocusControlId = focusControlId ?? step.targetControlId ?? null;
     setDemoFocusControlId(stage === 'highlight' ? nextFocusControlId : null);
     setDemoFocusPulseActive(stage === 'highlight' && Boolean(nextFocusControlId));
+    setHeatCapacityAutoDemoCameraFocus((stage === 'highlight' || stage === 'action') ? mapHeatCapacityAutoDemoCameraFocusMode(cameraFocusMode) : null);
   };
 
   const finishHeatCapacityAutoDemoUi = (message: string = heatCapacityRealtimeCopy.autoDemoCompletionToast) => {
@@ -7625,6 +7776,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setAutoDemoInteractionLocked(false);
     setDemoFocusControlId(null);
     setDemoFocusPulseActive(false);
+    setHeatCapacityAutoDemoCameraFocus(null);
     hideHeatCapacityAutoDemoStepPanel();
     showHeatCapacityAutoDemoCompletionToast(message);
   };
@@ -7647,6 +7799,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           timelineItem.stepIndex,
           timelineItem.stage,
           timelineItem.focusControlId,
+          timelineItem.cameraFocusMode,
         );
         if (timelineItem.stage === 'preview') {
           setDemoFocusPulseActive(false);
@@ -7696,6 +7849,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     clearHeatCapacityAutoDemoTimers();
     clearGuideHeatCapacityGuidance();
     setGuideHeatCapacityActiveFileId(null);
+    setHeatCapacityAutoDemoCameraFocus(null);
     const demoFileId = activeFile.id;
     clearHeatCapacityPressureAlarmInteractionLock(demoFileId);
     const steps = createHeatCapacityAutoDemoSteps();
@@ -7997,9 +8151,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const getHeatCapacityMaterialsMaxHeightRatio = () => {
     const workspaceRect = centerWorkspaceRef.current?.getBoundingClientRect();
-    const fileTabsRect = fileTabsRef.current?.getBoundingClientRect();
     if (!workspaceRect || workspaceRect.height <= 0) return IDEAL_RESULT_MAX_HEIGHT_RATIO;
 
+    const liveWorkspaceRect = liveWorkspaceRef.current?.getBoundingClientRect();
+    if (liveWorkspaceRect && liveWorkspaceRect.height > 0) {
+      const liveWorkspaceCoverageHeight = liveWorkspaceRect.height;
+      return clamp(
+        liveWorkspaceCoverageHeight / workspaceRect.height,
+        HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO,
+        IDEAL_RESULT_MAX_HEIGHT_RATIO,
+      );
+    }
+
+    const fileTabsRect = fileTabsRef.current?.getBoundingClientRect();
     const fileTabOverlap = fileTabsRect
       ? Math.max(0, fileTabsRect.bottom - workspaceRect.top)
       : 0;
@@ -8839,6 +9003,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setAutoDemoInteractionLocked(true);
     setDemoFocusControlId(null);
     setDemoFocusPulseActive(false);
+    setHeatCapacityAutoDemoCameraFocus(null);
     updateActiveFile((file) => file.kind === 'heatCapacity'
       ? { ...file, runState: 'paused', pumpHint: heatCapacityRealtimeCopy.autoDemoPausedHint, updatedAt: Date.now() }
       : file);
@@ -10482,24 +10647,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const workbenchHelpId = `workbench-${parameterId}`;
     const helpVisible = visibleHeatCapacityParamHelpId === workbenchHelpId;
     const helpPopover = helpVisible
-      ? createPortal(
-        <span
-          className={`studio-param-help-popover studio-param-help-popover-${resolvedWorkbenchTheme}`}
-          data-heat-capacity-param-help-popover-id={workbenchHelpId}
-          role="tooltip"
-          style={heatCapacityParamHelpPopoverStyle}
-          onMouseEnter={() => setHoveredHeatCapacityParamHelpId(workbenchHelpId)}
-          onMouseLeave={() => {
-            if (pinnedHeatCapacityParamHelpId === null) {
-              setHoveredHeatCapacityParamHelpId(null);
-              setHeatCapacityParamHelpPopoverStyle(undefined);
-            }
-          }}
-        >
-          {modelEffect}
-        </span>,
-        document.body,
-      )
+      ? renderHeatCapacityTooltipPopover(workbenchHelpId, modelEffect, {
+        onMouseEnter: () => setHoveredHeatCapacityParamHelpId(workbenchHelpId),
+        onMouseLeave: hideHeatCapacityHoverTooltip,
+      })
       : null;
     return (
       <span
@@ -10594,24 +10745,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   ) => {
     const helpVisible = visibleHeatCapacityParamHelpId === parameterId;
     const helpPopover = helpVisible
-      ? createPortal(
-        <span
-          className={`studio-param-help-popover studio-param-help-popover-${resolvedWorkbenchTheme}`}
-          data-heat-capacity-param-help-popover-id={parameterId}
-          role="tooltip"
-          style={heatCapacityParamHelpPopoverStyle}
-          onMouseEnter={() => setHoveredHeatCapacityParamHelpId(parameterId)}
-          onMouseLeave={() => {
-            if (pinnedHeatCapacityParamHelpId === null) {
-              setHoveredHeatCapacityParamHelpId(null);
-              setHeatCapacityParamHelpPopoverStyle(undefined);
-            }
-          }}
-        >
-          {modelEffect}
-        </span>,
-        document.body,
-      )
+      ? renderHeatCapacityTooltipPopover(parameterId, modelEffect, {
+        onMouseEnter: () => setHoveredHeatCapacityParamHelpId(parameterId),
+        onMouseLeave: hideHeatCapacityHoverTooltip,
+      })
       : null;
     return (
       <span
@@ -10768,6 +10905,75 @@ const WorkbenchStudioPrototype: React.FC = () => {
     );
   };
 
+  const renderHeatCapacityFreeGasTypeRow = () => {
+    if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return null;
+    const selectedGasType = activeFile.heatCapacityFreeParameterDraft.gasType;
+    const gasTypeLocked = !isHeatCapacityFreeGasTypeEditingAvailable(activeFile);
+    const disabled = activeHeatCapacityFreeIdealReadonly || gasTypeLocked;
+    const nativeDisabled = activeHeatCapacityFreeIdealReadonly;
+    const renderOption = (option: HeatCapacityFreeGasTypeOptionDefinition) => {
+      const selected = selectedGasType === option.id;
+      const gasTypeHelp = (
+        <span
+          className="studio-heat-free-gas-type-help"
+          aria-label={option.help[settingsLanguagePreference]}
+        >
+          ?
+        </span>
+      );
+      return (
+        <button
+          key={option.id}
+          type="button"
+          className={`studio-heat-free-gas-type-option ${selected ? 'studio-heat-free-gas-type-option-active' : ''}`}
+          data-heat-capacity-gas-type-option={option.id}
+          aria-pressed={selected}
+          aria-disabled={disabled}
+          disabled={nativeDisabled}
+          onClick={() => {
+            if (disabled) {
+              if (activeHeatCapacityFreeIdealReadonly) {
+                showHeatCapacityFreeIdealReadonlyHint();
+              } else {
+                const message = heatCapacityFreeSharedText.gasTypeLocked[settingsLanguagePreference];
+                setScanInputToast(message);
+                pushLog(`${activeFile.name}: ${message}`, 'warning');
+              }
+              return;
+            }
+            setHeatCapacityFreeGasType(option.id);
+          }}
+        >
+          <span>{option.label[settingsLanguagePreference]}</span>
+          {renderHeatCapacityTooltipAnchor(
+            `gasType-${option.id}`,
+            option.help[settingsLanguagePreference],
+            gasTypeHelp,
+            {
+              className: 'studio-heat-free-gas-type-help-anchor',
+              target: `gasType-${option.id}`,
+            },
+          )}
+        </button>
+      );
+    };
+    return (
+      <div
+        className={`studio-heat-free-param-row studio-heat-free-gas-type-row ${disabled ? 'studio-heat-free-param-row-locked' : ''}`}
+        data-heat-capacity-free-param-id="gasType"
+      >
+        <span className="studio-heat-free-param-label studio-heat-free-param-label-no-symbol">
+          <span className="studio-heat-free-param-name">
+            {heatCapacityFreeSharedText.gasTypeLabel[settingsLanguagePreference]}
+          </span>
+        </span>
+        <span className="studio-heat-free-gas-type-control" role="group" aria-label={heatCapacityFreeSharedText.gasTypeLabel[settingsLanguagePreference]}>
+          {heatCapacityFreeGasTypeOptions.map(renderOption)}
+        </span>
+      </div>
+    );
+  };
+
   const renderHeatCapacityBasicParameterRows = () => {
     if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return null;
     const draft = activeFile.heatCapacityFreeParameterDraft;
@@ -10780,38 +10986,54 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const schemeButtonText = schemeIsIdeal
       ? heatCapacityFreeSharedText.idealProfile[settingsLanguagePreference]
       : heatCapacityFreeSharedText.realSimulation[settingsLanguagePreference];
-    const schemeButtonTitle = activeHeatCapacityFreeSchemeLocked
-      ? heatCapacityFreeSharedText.idealProfileLocked[settingsLanguagePreference]
+    const schemeButtonTooltip = activeHeatCapacityFreeSchemeLocked
+      ? heatCapacityFreeSharedText.idealProfileLockedHint[settingsLanguagePreference]
       : heatCapacityFreeSharedText.idealProfileIntroBody[settingsLanguagePreference];
+    const restoreDefaultTooltip = activeHeatCapacityFreeIdealReadonly
+      ? heatCapacityFreeSharedText.idealProfileReadonlyNote[settingsLanguagePreference]
+      : activeHeatCapacityFreeParameterLockReason ?? heatCapacityFreeSharedText.restoreDefault[settingsLanguagePreference];
     return (
       <>
         <div className={`studio-heat-free-default-row ${activeHeatCapacityFreeParameterLocked ? 'studio-heat-free-default-row-locked' : ''}`}>
-          <button
-            type="button"
-            className={`studio-heat-free-scheme-button ${schemeIsIdeal ? 'studio-heat-free-scheme-button-active' : ''} ${activeHeatCapacityFreeSchemeLocked ? 'studio-heat-free-scheme-button-locked' : ''}`}
-            disabled={activeHeatCapacityFreeSchemeLocked}
-            aria-disabled={activeHeatCapacityFreeSchemeLocked}
-            title={schemeButtonTitle}
-            aria-pressed={schemeIsIdeal}
-            onClick={requestToggleHeatCapacityFreeParameterScheme}
-          >
-            <span>{schemeButtonText}</span>
-          </button>
-          <button
-            type="button"
-            className="studio-heat-free-default-button"
-            disabled={activeHeatCapacityFreeParameterInputDisabled}
-            title={
-              activeHeatCapacityFreeIdealReadonly
-                ? heatCapacityFreeSharedText.idealProfileReadonlyNote[settingsLanguagePreference]
-                : activeHeatCapacityFreeParameterLockReason ?? heatCapacityFreeSharedText.restoreDefault[settingsLanguagePreference]
-            }
-            onClick={openHeatCapacityRestoreDefaultConfirm}
-          >
-            <RotateCcw size={13} />
-            <span>{heatCapacityFreeSharedText.restoreDefault[settingsLanguagePreference]}</span>
-          </button>
+          {renderHeatCapacityTooltipAnchor(
+            'heatCapacityFreeParameterScheme',
+            schemeButtonTooltip,
+            <button
+              type="button"
+              className={`studio-heat-free-scheme-button ${schemeIsIdeal ? 'studio-heat-free-scheme-button-active' : ''} ${activeHeatCapacityFreeSchemeLocked ? 'studio-heat-free-scheme-button-locked' : ''}`}
+              disabled={activeHeatCapacityFreeSchemeLocked}
+              aria-disabled={activeHeatCapacityFreeSchemeLocked}
+              aria-pressed={schemeIsIdeal}
+              onClick={requestToggleHeatCapacityFreeParameterScheme}
+            >
+              <span>{schemeButtonText}</span>
+            </button>,
+            {
+              className: 'studio-heat-free-scheme-tooltip-anchor',
+              target: 'scheme',
+              focusable: activeHeatCapacityFreeSchemeLocked,
+            },
+          )}
+          {renderHeatCapacityTooltipAnchor(
+            'heatCapacityRestoreDefault',
+            restoreDefaultTooltip,
+            <button
+              type="button"
+              className="studio-heat-free-default-button"
+              disabled={activeHeatCapacityFreeParameterInputDisabled}
+              onClick={openHeatCapacityRestoreDefaultConfirm}
+            >
+              <RotateCcw size={13} />
+              <span>{heatCapacityFreeSharedText.restoreDefault[settingsLanguagePreference]}</span>
+            </button>,
+            {
+              className: 'studio-heat-free-default-tooltip-anchor',
+              target: 'restore-default',
+              focusable: activeHeatCapacityFreeParameterInputDisabled,
+            },
+          )}
         </div>
+        {renderHeatCapacityFreeGasTypeRow()}
         {heatCapacityFreeBasicNumberParameters.map((definition) => (
           renderHeatCapacityFreeNumberInputRow(
             definition,
@@ -10854,20 +11076,27 @@ const WorkbenchStudioPrototype: React.FC = () => {
       >
         {renderHeatCapacityBasicParameterRows()}
         <div className={`studio-heat-free-advanced-entry ${activeHeatCapacityFreeParameterLocked ? 'studio-heat-free-advanced-entry-locked' : ''}`}>
-          <span onPointerDownCapture={() => {
-            if (activeHeatCapacityFreeParameterLocked) showHeatCapacityFreeParameterLockHint();
-          }}>
+          {renderHeatCapacityTooltipAnchor(
+            'heatCapacityAdvancedSettings',
+            activeHeatCapacityFreeParameterLockReason ?? heatCapacityFreeSharedText.advancedOpen[settingsLanguagePreference],
             <button
               type="button"
               className="studio-heat-free-advanced-button"
               disabled={activeHeatCapacityFreeParameterLocked}
-              title={activeHeatCapacityFreeParameterLockReason ?? undefined}
               onClick={openHeatCapacityAdvancedSettings}
+              onPointerDownCapture={() => {
+                if (activeHeatCapacityFreeParameterLocked) showHeatCapacityFreeParameterLockHint();
+              }}
             >
               <Wrench size={14} />
               <span>{heatCapacityFreeSharedText.advancedOpen[settingsLanguagePreference]}</span>
-            </button>
-          </span>
+            </button>,
+            {
+              className: 'studio-heat-free-advanced-tooltip-anchor',
+              target: 'advanced-settings',
+              focusable: activeHeatCapacityFreeParameterLocked,
+            },
+          )}
         </div>
       </section>
     );
@@ -11006,15 +11235,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 <div className="studio-heat-advanced-grid">
                   {heatCapacityFreeAdvancedNumberParameters.filter((definition) => definition.group === group.id)
                     .map((definition) => {
-                      const gammaLocked = definition.id === 'gamma' &&
-                        !isHeatCapacityFreeGammaEditingAvailable(activeFile);
                       return (
                         <div className="studio-heat-advanced-grid-item" key={definition.id} data-heat-capacity-advanced-group={group.id}>
                           {renderHeatCapacityFreeNumberInputRow(
                             definition,
                             heatCapacityAdvancedDraft,
                             'advanced',
-                            riskPending || gammaLocked || activeHeatCapacityFreeIdealReadonly,
+                            riskPending || activeHeatCapacityFreeIdealReadonly,
                           )}
                         </div>
                       );
@@ -11287,6 +11514,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
       ? materialEntries.find((material) => material.id === activeBuildNoticeMaterialId) ?? null
       : null;
     const activeMaterialFile = activeMaterial ? buildNoticeLegalMaterialFiles[activeMaterial.id] : null;
+    const activeMaterialPreview = activeMaterial && buildNoticeFilePreview?.id === activeMaterial.id
+      ? buildNoticeFilePreview
+      : null;
+    const desktopLegalReadAvailable = hasDesktopLegalReadBridge();
     const openLegalFileLabel = !hasDesktopLegalBridge() && activeMaterialFile?.previewPath
       ? workbenchCopy.about.buildNoticeOpenInBrowser
       : workbenchCopy.about.buildNoticeOpenLocalFile;
@@ -11364,14 +11595,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   {!activeMaterialFile.largeFile && activeMaterialFile.previewKind === 'html' && activeMaterialFile.previewPath ? (
                     <iframe
                       className="studio-build-notice-detail-frame"
-                      src={activeMaterialFile.previewPath}
+                      src={desktopLegalReadAvailable ? undefined : activeMaterialFile.previewPath}
+                      srcDoc={desktopLegalReadAvailable ? activeMaterialPreview?.content : undefined}
                       title={activeMaterial.title}
                       sandbox="allow-popups allow-popups-to-escape-sandbox"
                     />
                   ) : null}
                   {!activeMaterialFile.largeFile && activeMaterialFile.previewKind === 'text' ? (
-                    buildNoticeTextPreview?.id === activeMaterial.id ? (
-                      <pre className="studio-build-notice-detail-text">{buildNoticeTextPreview.content}</pre>
+                    activeMaterialPreview?.kind === 'text' ? (
+                      <pre className="studio-build-notice-detail-text">{activeMaterialPreview.content}</pre>
                     ) : (
                       <p className="studio-build-notice-detail-note">{workbenchCopy.about.buildNoticePreviewUnavailable}</p>
                     )
@@ -13051,6 +13283,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   cameraInteractionLocked={autoDemoInteractionLocked}
                   demoFocusControlId={guideHeatCapacityFocusControlId ?? demoFocusControlId}
                   demoFocusPulseActive={demoFocusPulseActive || guideHeatCapacityPulseActive}
+                  demoCameraFocusMode={demoCameraFocusMode}
+                  demoCameraFocusKey={demoCameraFocusKey}
                   guideRollbackAnimation={guideHeatCapacityRollback?.animation ?? null}
                   guideRollbackKey={guideHeatCapacityRollback?.key ?? 0}
                   focusResetKey={heatCapacityFocusResetKey}

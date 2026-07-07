@@ -28,6 +28,8 @@ export type HeatCapacityAutoDemoControlId =
   | 'instrumentTemperatureDisplay'
   | 'instrumentPanel';
 
+export type HeatCapacityAutoDemoCameraFocusMode = 'instrument' | 'pump' | 'bottle';
+
 export interface HeatCapacityAutoDemoStepAction {
   action: HeatCapacityAutoDemoAction;
   delayMs?: number;
@@ -36,6 +38,7 @@ export interface HeatCapacityAutoDemoStepAction {
 
 export interface HeatCapacityAutoDemoStepFocus {
   targetControlId: HeatCapacityAutoDemoControlId;
+  cameraFocusMode?: HeatCapacityAutoDemoCameraFocusMode;
   durationMs: number;
 }
 
@@ -47,6 +50,7 @@ export interface HeatCapacityAutoDemoStep {
   progressCriterion: string;
   note: string;
   targetControlId?: HeatCapacityAutoDemoControlId;
+  cameraFocusMode?: HeatCapacityAutoDemoCameraFocusMode;
   focusSequence?: HeatCapacityAutoDemoStepFocus[];
   preHighlightMs: number;
   actionDurationMs: number;
@@ -63,6 +67,7 @@ export interface HeatCapacityAutoDemoTimelineItem {
   step: HeatCapacityAutoDemoStep;
   action?: HeatCapacityAutoDemoStepAction;
   focusControlId?: HeatCapacityAutoDemoControlId;
+  cameraFocusMode?: HeatCapacityAutoDemoCameraFocusMode;
 }
 
 const DEFAULT_PRE_HIGHLIGHT_MS = 4_000;
@@ -95,6 +100,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     progressCriterion: '仪表亮起并显示 Uₜ / Uₚ 后进入下一步。',
     note: '观察仪表屏幕亮起，并出现 Uₜ 与 Uₚ 读数',
     targetControlId: 'powerSwitch',
+    cameraFocusMode: 'instrument',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: POWER_TRANSITION_MS,
     observeDurationMs: DEFAULT_OBSERVE_MS,
@@ -108,6 +114,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     progressCriterion: '气瓶与外界连通后进入压强差调零。',
     note: '调零前先让气瓶与外界相通，再检查和校正压强差示数',
     targetControlId: 'stopcock',
+    cameraFocusMode: 'bottle',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: STOPCOCK_TRANSITION_MS,
     observeDurationMs: DEFAULT_OBSERVE_MS,
@@ -121,9 +128,10 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     progressCriterion: 'Uₚ 接近 0 mV 后记录 U₀。',
     note: '调零后压强差 Uₚ 示数在 0mv 附近上下波动',
     targetControlId: 'pressureZero',
+    cameraFocusMode: 'instrument',
     focusSequence: [
-      { targetControlId: 'instrumentPressureDisplay', durationMs: 4_000 },
-      { targetControlId: 'pressureZero', durationMs: 4_000 },
+      { targetControlId: 'instrumentPressureDisplay', cameraFocusMode: 'instrument', durationMs: 4_000 },
+      { targetControlId: 'pressureZero', cameraFocusMode: 'instrument', durationMs: 4_000 },
     ],
     preHighlightMs: 8_000,
     actionDurationMs: 1_200,
@@ -142,6 +150,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     progressCriterion: '玻璃旋塞关闭后准备打开打气阀门。',
     note: '封闭后才能进行有效加压',
     targetControlId: 'stopcock',
+    cameraFocusMode: 'bottle',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: STOPCOCK_TRANSITION_MS,
     observeDurationMs: DEFAULT_OBSERVE_MS,
@@ -155,6 +164,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     progressCriterion: '打气阀门打开后开始连续打气。',
     note: '阀门打开后，指示灯变绿',
     targetControlId: 'pumpValve',
+    cameraFocusMode: 'bottle',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: PUMP_VALVE_TRANSITION_MS,
     observeDurationMs: DEFAULT_OBSERVE_MS,
@@ -168,6 +178,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     progressCriterion: '打到 Uₚ ≥ 120 mV 后，关闭打气阀门进入稳定等待。',
     note: '标准看 Uₚ 读数，不按打气次数判断；压强不得超过安全上限。',
     targetControlId: 'pumpBulb',
+    cameraFocusMode: 'pump',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: HEAT_CAPACITY_TEACHING_PUMP_SAMPLE_DELAY_MS + 300,
     observeDurationMs: DEFAULT_OBSERVE_MS,
@@ -183,6 +194,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     progressCriterion: '打气阀门关闭后进入封闭等待。',
     note: '关闭后打气球不再形成有效加压通路',
     targetControlId: 'pumpValve',
+    cameraFocusMode: 'bottle',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: PUMP_VALVE_TRANSITION_MS,
     observeDurationMs: DEFAULT_OBSERVE_MS,
@@ -196,6 +208,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     progressCriterion: '等待 5 min 后记录 U₁ / Uₜ₁。',
     note: '演示会加速播放，但这里对应真实实验中的 5 min 等待规范。',
     targetControlId: 'instrumentPanel',
+    cameraFocusMode: 'instrument',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: 2_900,
     observeDurationMs: DEFAULT_OBSERVE_MS,
@@ -209,6 +222,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     progressCriterion: '快速放气后立即关闭玻璃旋塞。',
     note: '咻的一声完全消失立即关闭，系统进入回温过程',
     targetControlId: 'stopcock',
+    cameraFocusMode: 'bottle',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: 2_700,
     observeDurationMs: DEFAULT_OBSERVE_MS,
@@ -226,6 +240,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     progressCriterion: '等待 5 min 后记录 U₂ / Uₜ₂。',
     note: 'U₂ 不取刚放气瞬间值，应取回温稳定后的读数。',
     targetControlId: 'instrumentTemperatureDisplay',
+    cameraFocusMode: 'instrument',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: 2_900,
     observeDurationMs: DEFAULT_OBSERVE_MS,
@@ -239,6 +254,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     progressCriterion: '电源关闭后演示结束。',
     note: '显示屏进入非工作状态',
     targetControlId: 'powerSwitch',
+    cameraFocusMode: 'instrument',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: POWER_TRANSITION_MS,
     observeDurationMs: DEFAULT_OBSERVE_MS,
@@ -267,6 +283,7 @@ export const getHeatCapacityAutoDemoTimeline = (
         stepIndex,
         step,
         focusControlId: focus.targetControlId,
+        cameraFocusMode: focus.cameraFocusMode ?? step.cameraFocusMode,
       });
       focusCursorMs += focus.durationMs;
     });
@@ -287,6 +304,7 @@ export const getHeatCapacityAutoDemoTimeline = (
         stepIndex,
         step,
         action,
+        cameraFocusMode: step.cameraFocusMode,
       });
     });
 

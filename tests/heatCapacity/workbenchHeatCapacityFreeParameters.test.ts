@@ -17,6 +17,12 @@ import {
   resetHeatCapacityFreeRunWorkbenchState,
   shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
 } from '../../src/features/workbench/workbenchState.ts';
+import {
+  HEAT_CAPACITY_STANDARD_REFERENCE_GENERATOR_VERSION,
+} from '../../src/domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
+import {
+  createCompleteProcessReviewFixtureParts,
+} from './helpers/heatCapacityProcessReviewTestFactory.ts';
 
 const defaultFile = createDefaultHeatCapacityFile(1);
 
@@ -28,6 +34,10 @@ assert.equal(defaultFile.heatCapacityFreeParameterDraft.gasWallConductanceWPerK,
 assert.equal(defaultFile.heatCapacityFreeParameterDraft.wallAmbientConductanceWPerK, 0.45);
 assert.equal(defaultFile.heatCapacityFreeParameterDraft.leakageEnabled, true);
 assert.equal(defaultFile.heatCapacityFreeParameterDraft.instrumentNoiseEnabled, true);
+assert.equal(defaultFile.heatCapacityFreeGasType, 'air');
+assert.equal(defaultFile.heatCapacityFreeParameterDraft.gasType, 'air');
+assert.equal(defaultFile.theoreticalGamma, 1.4);
+assert.equal(defaultFile.heatCapacityFreePhysicsConfig.gamma, 1.4);
 assert.equal(defaultFile.heatCapacityFreeActiveRunConfigSnapshot, null);
 assert.deepEqual(defaultFile.heatCapacityFreeFileAcknowledgements, {
   advancedParametersRisk: false,
@@ -141,23 +151,79 @@ const preparedAfterPowerOff = powerHeatCapacityWorkbenchFile(completedGroupPower
 assert.equal(preparedAfterPowerOff.heatCapacityFreeExperimentGroupStatus, 'completed');
 assert.notEqual(preparedAfterPowerOff.heatCapacityFreeActiveRunConfigSnapshot, null);
 assert.equal(isHeatCapacityFreeParameterEditingAvailable(preparedAfterPowerOff), true);
+
+const snapshotParts = createCompleteProcessReviewFixtureParts();
+const completedFileForStandardReferenceSnapshot = {
+  ...defaultFile,
+  powerOn: true,
+  runState: 'idle' as const,
+  pressureZeroed: true,
+  heatCapacityFreeExperimentGroupStatus: 'completed' as const,
+  heatCapacityFreeActiveRunConfigSnapshot: snapshotParts.traceTrial.configSnapshot,
+  heatCapacityFreeTraceStore: snapshotParts.traceStore,
+  heatCapacityFreeTrials: [{
+    ...snapshotParts.trial,
+    completedAtMs: null,
+    standardReferenceSnapshot: null,
+  }],
+};
+const finalizedFileWithStandardReferenceSnapshot = powerHeatCapacityWorkbenchFile(
+  completedFileForStandardReferenceSnapshot,
+  false,
+  2400,
+);
+const persistedStandardReferenceSnapshot =
+  finalizedFileWithStandardReferenceSnapshot.heatCapacityFreeTrials[0]?.standardReferenceSnapshot ?? null;
+assert.notEqual(
+  persistedStandardReferenceSnapshot,
+  null,
+  'closing power after a complete Free Mode group should persist the standard reference snapshot on the trial',
+);
+assert.equal(
+  persistedStandardReferenceSnapshot?.generatorVersion,
+  HEAT_CAPACITY_STANDARD_REFERENCE_GENERATOR_VERSION,
+);
+assert.equal(persistedStandardReferenceSnapshot?.operationPreset.pumpStrokes, 18);
+assert.equal((persistedStandardReferenceSnapshot?.trace.length ?? 0) > 0, true);
 const preparedForNextUserOperation = prepareHeatCapacityFreeExperimentGroupForUserOperation(preparedAfterPowerOff, 2100);
 assert.equal(preparedForNextUserOperation.heatCapacityFreeExperimentGroupStatus, 'draft');
 assert.equal(preparedForNextUserOperation.heatCapacityFreeActiveRunConfigSnapshot, null);
 
-const gammaEditedFile = applyHeatCapacityFreeParameterDraftWorkbenchState(defaultFile, {
+const heliumGasFile = applyHeatCapacityFreeParameterDraftWorkbenchState(defaultFile, {
   ...defaultFile.heatCapacityFreeParameterDraft,
-  gamma: 1.67,
+  gasType: 'helium',
 });
-assert.equal(gammaEditedFile.theoreticalGamma, 1.67);
-assert.equal(gammaEditedFile.heatCapacityFreePhysicsConfig.gamma, 1.67);
+assert.equal(heliumGasFile.heatCapacityFreeGasType, 'helium');
+assert.equal(heliumGasFile.heatCapacityFreeParameterDraft.gasType, 'helium');
+assert.equal(heliumGasFile.theoreticalGamma, 5 / 3);
+assert.equal(heliumGasFile.heatCapacityFreePhysicsConfig.gamma, 5 / 3);
+assert.equal(
+  heliumGasFile.heatCapacityFreeParameterDraft.gasWallConductanceWPerK,
+  0.03,
+  'switching to helium should apply the tuned monatomic gas-wall conductance default',
+);
+assert.equal(
+  heliumGasFile.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK,
+  0.03,
+  'helium physics config should use the tuned monatomic gas-wall conductance',
+);
+assert.equal(
+  heliumGasFile.heatCapacityFreeParameterDraft.leakageRatePerS,
+  0.00004,
+  'switching to helium should apply the tuned monatomic leakage default',
+);
+assert.equal(
+  heliumGasFile.heatCapacityFreePhysicsConfig.leakage.ratePerS,
+  0.00004,
+  'helium physics config should use the tuned monatomic leakage rate',
+);
 
-const gammaFrozenFile = freezeHeatCapacityFreeParametersForCurrentGroup(gammaEditedFile);
-const gammaNextGroupFile = prepareNextHeatCapacityFreeExperimentGroupWorkbenchState({
-  ...gammaFrozenFile,
+const gasTypeFrozenFile = freezeHeatCapacityFreeParametersForCurrentGroup(heliumGasFile);
+const gasTypeNextGroupFile = prepareNextHeatCapacityFreeExperimentGroupWorkbenchState({
+  ...gasTypeFrozenFile,
   heatCapacityFreeTrials: [
     {
-      id: 'completed-gamma-lock-marker',
+      id: 'completed-gas-type-lock-marker',
       source: 'free',
       parameterScheme: 'real',
       traceTrialId: null,
@@ -168,30 +234,35 @@ const gammaNextGroupFile = prepareNextHeatCapacityFreeExperimentGroupWorkbenchSt
       u2: null,
       blockedReason: null,
       correctedSignals: null,
-      configSnapshot: gammaFrozenFile.heatCapacityFreeActiveRunConfigSnapshot,
+      configSnapshot: gasTypeFrozenFile.heatCapacityFreeActiveRunConfigSnapshot,
+      standardReferenceSnapshot: null,
       completedAtMs: null,
     },
   ],
 });
-const gammaLockedEdit = applyHeatCapacityFreeParameterDraftWorkbenchState(gammaNextGroupFile, {
-  ...gammaNextGroupFile.heatCapacityFreeParameterDraft,
+const gasTypeLockedEdit = applyHeatCapacityFreeParameterDraftWorkbenchState(gasTypeNextGroupFile, {
+  ...gasTypeNextGroupFile.heatCapacityFreeParameterDraft,
   ambientPressureKPa: 100.1,
-  gamma: 1.2,
+  gasType: 'air',
 });
-assert.equal(gammaLockedEdit.heatCapacityFreeParameterDraft.ambientPressureKPa, 100.1);
-assert.equal(gammaLockedEdit.heatCapacityFreeParameterDraft.gamma, 1.67);
-assert.equal(gammaLockedEdit.heatCapacityFreePhysicsConfig.gamma, 1.67);
-assert.equal(gammaLockedEdit.theoreticalGamma, 1.67);
+assert.equal(gasTypeLockedEdit.heatCapacityFreeParameterDraft.ambientPressureKPa, 100.1);
+assert.equal(gasTypeLockedEdit.heatCapacityFreeGasType, 'helium');
+assert.equal(gasTypeLockedEdit.heatCapacityFreeParameterDraft.gasType, 'helium');
+assert.equal(gasTypeLockedEdit.heatCapacityFreePhysicsConfig.gamma, 5 / 3);
+assert.equal(gasTypeLockedEdit.theoreticalGamma, 5 / 3);
 
-const incompleteGammaRun = freezeHeatCapacityFreeParametersForCurrentGroup(gammaEditedFile);
-const resetGammaFile = resetHeatCapacityFreeRunWorkbenchState(incompleteGammaRun, 1234);
-const resetGammaEdit = applyHeatCapacityFreeParameterDraftWorkbenchState(resetGammaFile, {
-  ...resetGammaFile.heatCapacityFreeParameterDraft,
-  gamma: 1.33,
+const incompleteGasTypeRun = freezeHeatCapacityFreeParametersForCurrentGroup(heliumGasFile);
+const resetGasTypeFile = resetHeatCapacityFreeRunWorkbenchState(incompleteGasTypeRun, 1234);
+const resetGasTypeEdit = applyHeatCapacityFreeParameterDraftWorkbenchState(resetGasTypeFile, {
+  ...resetGasTypeFile.heatCapacityFreeParameterDraft,
+  gasType: 'air',
 });
-assert.equal(resetGammaEdit.heatCapacityFreeTrials.length, 0);
-assert.equal(resetGammaEdit.heatCapacityFreeParameterDraft.gamma, 1.33);
-assert.equal(resetGammaEdit.theoreticalGamma, 1.33);
+assert.equal(resetGasTypeEdit.heatCapacityFreeTrials.length, 0);
+assert.equal(resetGasTypeEdit.heatCapacityFreeGasType, 'air');
+assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.gasType, 'air');
+assert.equal(resetGasTypeEdit.theoreticalGamma, 1.4);
+assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.gasWallConductanceWPerK, 0.14);
+assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.leakageRatePerS, 0.00005);
 
 const allEditableParametersChanged = applyHeatCapacityFreeParameterDraftWorkbenchState(defaultFile, {
   ...defaultFile.heatCapacityFreeParameterDraft,
@@ -199,7 +270,7 @@ const allEditableParametersChanged = applyHeatCapacityFreeParameterDraftWorkbenc
   ambientTemperatureK: 302.4,
   leakageEnabled: false,
   instrumentNoiseEnabled: false,
-  gamma: 1.53,
+  gasType: 'helium',
   gasWallConductanceWPerK: 0.31,
   wallAmbientConductanceWPerK: 0.82,
   wallHeatCapacityJPerK: 72,

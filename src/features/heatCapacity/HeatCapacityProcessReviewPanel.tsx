@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import type {
   HeatCapacityFreeProcessReview,
   HeatCapacityProcessChartData,
@@ -46,7 +46,7 @@ interface HeatCapacityProcessReviewCopy {
   systemLabels: Record<HeatCapacityProcessSystemKind, string>;
   diagnosisStatusLabels: Record<HeatCapacityProcessDiagnosisStatus, string>;
   measured: string;
-  standardProcess: string;
+  standardReference: string;
   recordWindow: string;
   recordWindowTitle: string;
   recordTimeLabel: string;
@@ -61,8 +61,8 @@ interface HeatCapacityProcessReviewCopy {
   pressureYLabel: string;
   temperatureYLabel: string;
   xAxisLabel: string;
-  standardProcessAssumptions: string;
-  standardProcessUnavailable: string;
+  standardReferenceAssumptions: string;
+  standardReferenceUnavailable: string;
   notFreeTitle: string;
   notFreeBody: string;
   missingTraceTitle: string;
@@ -192,7 +192,7 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     },
     diagnosisStatusLabels,
     measured: '实测',
-    standardProcess: '标准过程',
+    standardReference: '标准过程',
     recordWindow: '记录窗口',
     recordWindowTitle: 'U0/U1/U2 最佳记录窗口',
     recordTimeLabel: '记录时间',
@@ -207,8 +207,8 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     pressureYLabel: 'ΔP (kPa)',
     temperatureYLabel: 'ΔT (K)',
     xAxisLabel: '过程时间 (s，等待压缩)',
-    standardProcessAssumptions: '同一参数和干扰条件下生成；标准操作窗口用于估计本组可达到的操作上限。',
-    standardProcessUnavailable: '当前参数下未生成可用标准过程。',
+    standardReferenceAssumptions: '同一参数和干扰条件下生成；标准操作窗口用于估计本组可达到的操作上限。',
+    standardReferenceUnavailable: '当前参数下未生成可用标准过程。',
     notFreeTitle: '过程回顾仅用于自由模式',
     notFreeBody: '演示模式和引导模式保持教学预设行为，不读取自由模式真实 trace。',
     missingTraceTitle: '本组缺少过程 trace',
@@ -277,7 +277,7 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
       'insufficient-data': '數據不足',
     },
     measured: '實測',
-    standardProcess: '標準過程',
+    standardReference: '標準過程',
     recordWindow: '記錄窗口',
     recordWindowTitle: 'U0/U1/U2 最佳記錄窗口',
     recordTimeLabel: '記錄時間',
@@ -292,8 +292,8 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     pressureYLabel: 'ΔP (kPa)',
     temperatureYLabel: 'ΔT (K)',
     xAxisLabel: '過程時間 (s，等待壓縮)',
-    standardProcessAssumptions: '同一參數和干擾條件下生成；標準操作窗口用於估計本組可達到的操作上限。',
-    standardProcessUnavailable: '目前參數下未生成可用標準過程。',
+    standardReferenceAssumptions: '同一參數和干擾條件下生成；標準操作窗口用於估計本組可達到的操作上限。',
+    standardReferenceUnavailable: '目前參數下未生成可用標準過程。',
     notFreeTitle: '過程回顧僅用於自由模式',
     notFreeBody: '演示模式和引導模式保持教學預設行為，不讀取自由模式真實 trace。',
     missingTraceTitle: '本組缺少過程 trace',
@@ -362,7 +362,7 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
       'insufficient-data': 'Insufficient',
     },
     measured: 'Measured',
-    standardProcess: 'Standard process',
+    standardReference: 'Standard process',
     recordWindow: 'Record window',
     recordWindowTitle: 'Best U0/U1/U2 record window',
     recordTimeLabel: 'Record time',
@@ -377,8 +377,8 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     pressureYLabel: 'ΔP (kPa)',
     temperatureYLabel: 'ΔT (K)',
     xAxisLabel: 'Process time (s, waits compressed)',
-    standardProcessAssumptions: 'Generated with the same parameters and disturbance settings; standard operation windows estimate this trial operation limit.',
-    standardProcessUnavailable: 'No standard process is available with the current parameters.',
+    standardReferenceAssumptions: 'Generated with the same parameters and disturbance settings; standard operation windows estimate this trial operation limit.',
+    standardReferenceUnavailable: 'No standard process is available with the current parameters.',
     notFreeTitle: 'Process review is Free Mode only',
     notFreeBody: 'Demo and guided modes keep their teaching presets and do not read the real Free Mode trace.',
     missingTraceTitle: 'This trial is missing its process trace',
@@ -822,7 +822,10 @@ const ProcessChart: React.FC<{
   hoveredStageId,
   showXAxis = true,
 }) => {
-  const standardStages = chart.standardStages.length > 0 ? chart.standardStages : chart.stages;
+  const standardReference = chart.standardReference;
+  const standardStages = standardReference?.stages.length ? standardReference.stages : chart.stages;
+  const standardCurveTrace = standardReference?.trace ?? [];
+  const standardCurveWindows = standardReference?.recordWindows ?? [];
   const sharedCompressedDurationS = useMemo(
     () => Math.max(
       calculateHeatCapacityProcessReviewCompressedDurationS(chart.stages),
@@ -862,29 +865,29 @@ const ProcessChart: React.FC<{
   const timeToX = stageLayout.timeToX;
   const axis = useMemo(
     () => createNiceAxis([
-      ...chart.trace,
-      ...chart.standardTrace,
+      ...chart.actualTrace,
+      ...standardCurveTrace,
     ], kind),
-    [chart.standardTrace, chart.trace, kind],
+    [chart.actualTrace, standardCurveTrace, kind],
   );
   const linePath = useMemo(
     () => buildPumpAwareLinePath(
-      chart.trace,
+      chart.actualTrace,
       kind,
       (point) => stageLayout.timeToX(point.timeS),
       axis,
       chart.stages,
     ),
-    [chart.stages, chart.trace, kind, stageLayout, axis],
+    [chart.stages, chart.actualTrace, kind, stageLayout, axis],
   );
   const standardPath = useMemo(
     () => buildContinuousLinePath(
-      chart.standardTrace,
+      standardCurveTrace,
       kind,
       (point) => alignedStandardPointToX(point),
       axis,
     ),
-    [chart.standardTrace, kind, alignedStandardPointToX, axis],
+    [standardCurveTrace, kind, alignedStandardPointToX, axis],
   );
   const yTicks = axis.ticks;
   const xTicks = stageLayout.axisTicks;
@@ -908,8 +911,14 @@ const ProcessChart: React.FC<{
         </div>
         <div className="hpr-chart-line-legend" aria-label={`${title} legend`}>
           <span className="hpr-line-legend hpr-line-legend-trace">{copy.measured}</span>
-          <span className="hpr-line-legend hpr-line-legend-standard-process">{copy.standardProcess}</span>
-          <span className="hpr-line-legend hpr-line-legend-window" title={copy.recordWindowTitle}>{copy.recordWindow}</span>
+          <span className="hpr-line-legend hpr-line-legend-standard-process">{copy.standardReference}</span>
+          <span
+            className="hpr-tooltip-anchor hpr-line-legend hpr-line-legend-window"
+            data-hpr-tooltip={copy.recordWindowTitle}
+            aria-label={`${copy.recordWindow}: ${copy.recordWindowTitle}`}
+          >
+            {copy.recordWindow}
+          </span>
         </div>
       </div>
       <svg
@@ -942,7 +951,7 @@ const ProcessChart: React.FC<{
             </g>
           );
         })}
-        {chart.standardWindows.map((window) => {
+        {standardCurveWindows.map((window) => {
           const stageId = standardWindowStageByRecordId[window.recordId] ?? undefined;
           const startX = alignedStandardPointToX({ stageId, timeS: window.startS });
           const endX = alignedStandardPointToX({ stageId, timeS: window.endS });
@@ -951,7 +960,7 @@ const ProcessChart: React.FC<{
           return (
             <g className={`hpr-standard-window hpr-standard-window-${window.recordId}`} key={`${kind}-standard-${window.recordId}`}>
               <rect x={x} y={PLOT_TOP} width={width} height={PLOT_BOTTOM - PLOT_TOP} />
-              <title>{`${window.recordId.toUpperCase()} ${copy.standardProcess}: ${formatSeconds(window.startS)} - ${formatSeconds(window.endS)}`}</title>
+              <title>{`${window.recordId.toUpperCase()} ${copy.standardReference}: ${formatSeconds(window.startS)} - ${formatSeconds(window.endS)}`}</title>
             </g>
           );
         })}
@@ -1019,16 +1028,17 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
   const trialSelectRef = useRef<HTMLDivElement | null>(null);
   const copy = getHeatCapacityProcessReviewCopy(language);
   const idealScoreNotice = copy.idealScoreNotice ?? idealScoreNoticeByLanguage[language];
+  const standardReference = review.chart.standardReference;
   const sharedCompressedDurationS = useMemo(() => {
-    const standardStages = review.chart.standardStages.length > 0
-      ? review.chart.standardStages
+    const standardStages = standardReference?.stages.length
+      ? standardReference.stages
       : review.chart.stages;
     return Math.max(
       calculateHeatCapacityProcessReviewCompressedDurationS(review.chart.stages),
       calculateHeatCapacityProcessReviewCompressedDurationS(standardStages),
     );
-  }, [review.chart.standardStages, review.chart.stages]);
-  const standardProcess = review.chart.standardProcess;
+  }, [standardReference, review.chart.stages]);
+  const standardReferenceSummary = standardReference?.summary ?? null;
   const toggleDiagnosisRow = (rowId: string) => {
     setExpandedDiagnosisRows((current) => {
       const next = new Set(current);
@@ -1114,9 +1124,9 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
               {copy.upperBoundGamma}
               <button
                 type="button"
-                className="hpr-summary-help"
+                className="hpr-tooltip-anchor hpr-summary-help"
                 aria-label={copy.upperBoundHelp}
-                title={copy.upperBoundHelp}
+                data-hpr-tooltip={copy.upperBoundHelp}
               >
                 ?
               </button>
@@ -1142,25 +1152,35 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
           <div>
             <strong>{copy.processTitle}</strong>
           </div>
-          <div className="hpr-trial-select" data-hpr-trial-select="true" ref={trialSelectRef}>
+          <div
+            className={`hpr-trial-select studio-heat-free-display-scheme-control ${trialMenuOpen ? 'studio-heat-free-display-scheme-open' : ''}`}
+            data-hpr-trial-select="true"
+            ref={trialSelectRef}
+          >
             <button
               type="button"
-              className="hpr-trial-select-trigger"
-              aria-haspopup="menu"
+              className="hpr-trial-select-trigger studio-heat-free-display-scheme-trigger"
+              aria-haspopup="listbox"
               aria-expanded={trialMenuOpen}
               onClick={() => setTrialMenuOpen((open) => !open)}
             >
-              {formatTrialLabel(copy, summary.trialIndex)}
-              <span aria-hidden="true">▾</span>
+              <span>
+                <strong>{formatTrialLabel(copy, summary.trialIndex)}</strong>
+              </span>
+              <ChevronDown
+                size={14}
+                className={`studio-heat-free-display-scheme-chevron ${trialMenuOpen ? 'studio-heat-free-display-scheme-chevron-open' : ''}`}
+              />
             </button>
             {trialMenuOpen ? (
-              <div className="hpr-trial-select-menu" role="menu">
+              <div className="hpr-trial-select-menu studio-heat-free-display-scheme-menu" role="listbox" aria-label={copy.processTitle}>
                 {review.trialOptions.map((option) => (
                   <button
                     type="button"
-                    role="menuitemradio"
-                    aria-checked={option.trialId === selectedTrialId}
+                    role="option"
+                    aria-selected={option.trialId === selectedTrialId}
                     key={option.trialId}
+                    className={option.trialId === selectedTrialId ? 'studio-heat-free-display-scheme-active' : ''}
                     onClick={() => {
                       onSelectedTrialChange(option.trialId);
                       setTrialMenuOpen(false);
@@ -1176,23 +1196,23 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
             ) : null}
           </div>
         </div>
-        <div className={`hpr-standard-process-summary ${standardProcess.feasible ? '' : 'hpr-standard-process-summary-warning'}`}>
-          <strong>{copy.standardProcess}</strong>
-          {standardProcess.feasible ? (
+        <div className={`hpr-standard-process-summary ${standardReferenceSummary?.feasible ? '' : 'hpr-standard-process-summary-warning'}`}>
+          <strong>{copy.standardReference}</strong>
+          {standardReferenceSummary?.feasible ? (
             <>
               <span>
                 {formatStandardProcessSummary(
                   language,
-                  formatMetric(standardProcess.targetPressureMv, 1, ' mV'),
-                  formatMetric(standardProcess.releaseDurationS, 2, ' s'),
-                  formatMetric(standardProcess.gamma, 3),
-                  formatMetric(standardProcess.relativeErrorPercent, 2, '%'),
+                  formatMetric(standardReferenceSummary.targetPressureMv, 1, ' mV'),
+                  formatMetric(standardReferenceSummary.releaseDurationS, 2, ' s'),
+                  formatMetric(standardReferenceSummary.gamma, 3),
+                  formatMetric(standardReferenceSummary.relativeErrorPercent, 2, '%'),
                 )}
               </span>
-              <small>{copy.standardProcessAssumptions}</small>
+              <small>{copy.standardReferenceAssumptions}</small>
             </>
           ) : (
-            <span>{copy.standardProcessUnavailable}</span>
+            <span>{copy.standardReferenceUnavailable}</span>
           )}
         </div>
         <div className="hpr-chart-shell">

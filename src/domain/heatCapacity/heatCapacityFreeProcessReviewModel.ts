@@ -15,7 +15,6 @@ import type {
   HeatCapacityProcessDiagnosisId,
   HeatCapacityProcessDiagnosisStatus,
   HeatCapacityProcessRecordId,
-  HeatCapacityProcessReferencePoint,
   HeatCapacityProcessReviewTrialOption,
   HeatCapacityProcessScore,
   HeatCapacityProcessScoreItem,
@@ -24,13 +23,15 @@ import type {
   HeatCapacityProcessStageSegment,
 } from './heatCapacityFreeProcessReviewTypes.ts';
 import {
-  createHeatCapacityFreeStandardProcess,
-  type HeatCapacityFreeStandardProcess,
-  type HeatCapacityStandardProcessSummary,
-} from './heatCapacityFreeStandardProcessModel.ts';
+  createHeatCapacityFreeStandardReference,
+  type HeatCapacityFreeStandardReferenceSnapshot,
+} from './heatCapacityFreeStandardReferenceModel.ts';
 import {
   scoreHeatCapacityFreeProcess,
 } from './heatCapacityFreeProcessScoringModel.ts';
+import {
+  getHeatCapacityFreeGasTypeGamma,
+} from './heatCapacityGasTheory.ts';
 
 export type {
   HeatCapacityProcessDiagnosisId,
@@ -109,14 +110,11 @@ export interface HeatCapacityProcessSystemEvent {
 
 export interface HeatCapacityProcessChartData {
   stages: HeatCapacityProcessStageSegment[];
-  trace: HeatCapacityProcessTracePoint[];
+  actualTrace: HeatCapacityProcessTracePoint[];
   records: HeatCapacityProcessRecordEvent[];
   controls: HeatCapacityProcessControlEvent[];
   systemEvents: HeatCapacityProcessSystemEvent[];
-  standardTrace: HeatCapacityProcessReferencePoint[];
-  standardStages: HeatCapacityProcessStageSegment[];
-  standardProcess: HeatCapacityStandardProcessSummary;
-  standardWindows: HeatCapacityFreeStandardProcess['recordWindows'];
+  standardReference: HeatCapacityFreeStandardReferenceSnapshot | null;
 }
 
 export interface HeatCapacityProcessDiagnosisRow {
@@ -151,33 +149,11 @@ export interface SelectHeatCapacityFreeProcessReviewOptions {
 
 const emptyChart = (): HeatCapacityProcessChartData => ({
   stages: [],
-  trace: [],
+  actualTrace: [],
   records: [],
   controls: [],
   systemEvents: [],
-  standardTrace: [],
-  standardStages: [],
-  standardProcess: {
-    feasible: false,
-    seed: 0,
-    targetPressureMv: null,
-    targetPressureDeltaKPa: null,
-    releaseDurationS: null,
-    gamma: null,
-    relativeErrorPercent: null,
-    u1TimeS: null,
-    u2TimeS: null,
-    assumptions: {
-      operationMode: 'standard-operation',
-      disturbancesPreserved: true,
-      stageAligned: true,
-    },
-    explanation: {
-      operation: '暂无可用标准过程。',
-      windows: '暂无可用标准记录窗口。',
-    },
-  },
-  standardWindows: [],
+  standardReference: null,
 });
 
 const emptyScore = (): HeatCapacityProcessScore => ({
@@ -192,7 +168,8 @@ const roundNumber = (value: number, digits = 2) => (
 
 const PROCESS_REVIEW_POST_U2_BUFFER_S = 6;
 const PROCESS_REVIEW_POWER_OFF_GRACE_S = 30;
-const IDEAL_REVIEW_THEORETICAL_GAMMA = 1.4;
+const DEFAULT_PROCESS_REVIEW_THEORETICAL_GAMMA = getHeatCapacityFreeGasTypeGamma('air');
+const IDEAL_REVIEW_THEORETICAL_GAMMA = DEFAULT_PROCESS_REVIEW_THEORETICAL_GAMMA;
 
 const formatNumber = (value: number, digits = 1) => (
   Number.isFinite(value) ? value.toFixed(digits) : '--'
@@ -554,14 +531,14 @@ const createChartData = (
   traceTrial: HeatCapacityFreeTraceTrial,
   branch: HeatCapacityFreeTraceBranch,
   trial: HeatCapacityFreeTrial,
-  standardProcess: HeatCapacityFreeStandardProcess,
+  standardReference: HeatCapacityFreeStandardReferenceSnapshot,
 ): HeatCapacityProcessChartData => {
   const pressureSensitivity = getPressureSensitivity(traceTrial, trial);
   const temperatureSensitivity = getTemperatureSensitivity(traceTrial);
   const u0Pressure = trial.u0?.displayPressureMv ?? 0;
   const u0Temperature = trial.u0?.displayTemperatureMv ?? traceTrial.configSnapshot.sensor.temperatureMvAtAmbient;
   const stages = createStages(branch, trial);
-  const trace = branch.samples.filter((sample) => isWithinStageWindow(sample.atS, stages)).map((sample) => ({
+  const actualTrace = branch.samples.filter((sample) => isWithinStageWindow(sample.atS, stages)).map((sample) => ({
     sampleId: sample.id,
     timeS: roundNumber(sample.atS, 2),
     pressureDeltaKPa: roundNumber((sample.sensor.displayPressureMv - u0Pressure) / pressureSensitivity, 3),
@@ -575,24 +552,21 @@ const createChartData = (
 
   return {
     stages,
-    trace,
+    actualTrace,
     records,
     controls: createControls(branch, stages),
     systemEvents: createSystemEvents(branch, stages),
-    standardTrace: standardProcess.trace,
-    standardStages: standardProcess.stages,
-    standardProcess: standardProcess.standard,
-    standardWindows: standardProcess.recordWindows,
+    standardReference,
   };
 };
 
 const createReviewUpperBound = (
   trial: HeatCapacityFreeTrial,
-  standardProcess: HeatCapacityFreeStandardProcess,
+  standardReference: HeatCapacityFreeStandardReferenceSnapshot,
   theoreticalGamma: number,
 ): HeatCapacityOperationUpperBound => {
   if (trial.parameterScheme !== 'ideal') {
-    return standardProcess.upperBound;
+    return standardReference.operationUpperBound;
   }
   const actualGamma = trial.correctedSignals?.gamma ?? null;
   return {
@@ -601,7 +575,7 @@ const createReviewUpperBound = (
     gapFromActualPercent: actualGamma === null || theoreticalGamma === 0
       ? null
       : roundNumber(Math.abs(theoreticalGamma - actualGamma) / Math.abs(theoreticalGamma) * 100, 2),
-    windows: standardProcess.upperBound.windows,
+    windows: standardReference.operationUpperBound.windows,
   };
 };
 
@@ -854,7 +828,7 @@ const createDiagnostics = (
 export const selectHeatCapacityFreeProcessReview = ({
   trials,
   traceStore,
-  theoreticalGamma = 1.4,
+  theoreticalGamma = DEFAULT_PROCESS_REVIEW_THEORETICAL_GAMMA,
   trialIndex,
   selectedTrialId,
 }: SelectHeatCapacityFreeProcessReviewOptions): HeatCapacityFreeProcessReview => {
@@ -900,13 +874,12 @@ export const selectHeatCapacityFreeProcessReview = ({
   const reviewTheoreticalGamma = selected.trial.parameterScheme === 'ideal'
     ? IDEAL_REVIEW_THEORETICAL_GAMMA
     : theoreticalGamma;
-  const standardProcess = createHeatCapacityFreeStandardProcess({
+  const standardReference = selected.trial.standardReferenceSnapshot ?? createHeatCapacityFreeStandardReference({
     traceTrial,
-    branch,
     trial: selected.trial,
     theoreticalGamma: reviewTheoreticalGamma,
   });
-  const upperBound = createReviewUpperBound(selected.trial, standardProcess, reviewTheoreticalGamma);
+  const upperBound = createReviewUpperBound(selected.trial, standardReference, reviewTheoreticalGamma);
   const summary = createSummary(
     selected.trial,
     selected.index,
@@ -921,14 +894,14 @@ export const selectHeatCapacityFreeProcessReview = ({
     trial: selected.trial,
     summary,
     upperBound,
-    standardProcess,
+    standardReference,
   });
   return {
     status: selected.trial.u0 && selected.trial.u1 && selected.trial.u2 ? 'ready' : 'incomplete',
     selectedTrialId: selected.trial.id,
     trialOptions,
     summary,
-    chart: createChartData(traceTrial, branch, selected.trial, standardProcess),
+    chart: createChartData(traceTrial, branch, selected.trial, standardReference),
     diagnostics: createDiagnostics(score),
     score,
   };

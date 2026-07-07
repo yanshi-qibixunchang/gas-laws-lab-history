@@ -47,8 +47,12 @@ import {
 } from './workbenchState.ts';
 import {
   createHeatCapacityFreeParameterDraftFromConfigs,
+  getHeatCapacityFreeGasTypeGamma,
+  normalizeHeatCapacityFreeGasType,
   normalizeHeatCapacityFreeParameterDraft,
+  resolveHeatCapacityFreeGasTypeFromGamma,
   type HeatCapacityFreeExperimentGroupStatus,
+  type HeatCapacityFreeGasType,
   type HeatCapacityFreeParameterDraft,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 import type {
@@ -57,6 +61,9 @@ import type {
 import type {
   HeatCapacityFreeTrial,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import {
+  normalizeHeatCapacityFreeStandardReferenceSnapshot,
+} from '../../domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
 import type {
   WorkbenchExperimentFileEnvelopeV1,
 } from './workbenchPersistenceSchema.ts';
@@ -144,6 +151,7 @@ export interface HeatCapacityFreePersistenceDataV1 {
   calculationVersion: typeof HEAT_CAPACITY_FREE_CALCULATION_VERSION;
   parameterScheme: HeatCapacityFreeParameterScheme;
   displayScheme: HeatCapacityFreeDisplayScheme;
+  gasType: HeatCapacityFreeGasType;
   real: HeatCapacityFreeExperimentDomainState;
   ideal: HeatCapacityFreeExperimentDomainState;
   config: HeatCapacityFreeConfigSnapshot;
@@ -225,6 +233,7 @@ const normalizePersistedHeatCapacityFreeTrial = (value: unknown): HeatCapacityFr
   return {
     ...(value as unknown as HeatCapacityFreeTrial),
     parameterScheme: value.parameterScheme === 'ideal' ? 'ideal' : 'real',
+    standardReferenceSnapshot: normalizeHeatCapacityFreeStandardReferenceSnapshot(value.standardReferenceSnapshot),
     completedAtMs: isFiniteNumber(value.completedAtMs) ? value.completedAtMs : null,
   };
 };
@@ -327,6 +336,7 @@ export const createHeatCapacityPersistencePayload = (
       calculationVersion: HEAT_CAPACITY_FREE_CALCULATION_VERSION,
       parameterScheme: fileWithCurrentDomain.heatCapacityFreeParameterScheme,
       displayScheme: fileWithCurrentDomain.heatCapacityFreeDisplayScheme,
+      gasType: fileWithCurrentDomain.heatCapacityFreeGasType,
       real: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeRealDomain),
       ideal: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeIdealDomain),
       config: createHeatCapacityFreeConfigSnapshotFromFile(file),
@@ -395,6 +405,13 @@ export const validateHeatCapacityPersistencePayload = (
   }
   if (!isRecord(free.parameterDraft)) {
     errors.push('free.parameterDraft is required');
+  }
+  if (
+    free.gasType !== undefined &&
+    free.gasType !== 'air' &&
+    free.gasType !== 'helium'
+  ) {
+    errors.push('free.gasType must be air or helium');
   }
   if (!isRecord(free.recordConfig)) {
     errors.push('free.recordConfig is required');
@@ -664,10 +681,11 @@ const normalizeHeatCapacityFreeConfigSnapshot = (
 
 const createPhysicsConfigFromSnapshot = (
   snapshot: HeatCapacityFreeConfigSnapshot,
+  gasType: HeatCapacityFreeGasType,
 ): HeatCapacityFreePhysicsConfig => normalizeHeatCapacityFreePhysicsConfig({
   environment: { ...snapshot.environment },
   vesselVolumeL: snapshot.physics.vesselVolumeL,
-  gamma: snapshot.physics.gamma,
+  gamma: getHeatCapacityFreeGasTypeGamma(gasType),
   pumpAmountGainRatio: snapshot.physics.pumpAmountGainRatio,
   pumpPressureLimitKPa: snapshot.physics.pumpPressureLimitKPa,
   stopcockFlowRate: snapshot.physics.stopcockFlowRate,
@@ -838,7 +856,15 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     : createDefaultFreeConfigSnapshot();
   const uiReplay = isRecord(free?.uiReplay) ? free!.uiReplay as Partial<HeatCapacityFreeUiReplayV1> : {};
   const controls = isRecord(free?.controls) ? free!.controls as Partial<HeatCapacityFreePersistenceDataV1['controls']> : {};
-  const physicsConfig = createPhysicsConfigFromSnapshot(snapshot);
+  const parameterDraftRecord = isRecord(free?.parameterDraft) ? free!.parameterDraft as Record<string, unknown> : {};
+  const restoredGasType = normalizeHeatCapacityFreeGasType(
+    free?.gasType,
+    normalizeHeatCapacityFreeGasType(
+      parameterDraftRecord.gasType,
+      resolveHeatCapacityFreeGasTypeFromGamma(parameterDraftRecord.gamma ?? snapshot.physics.gamma),
+    ),
+  );
+  const physicsConfig = createPhysicsConfigFromSnapshot(snapshot, restoredGasType);
   const sensorConfig = createSensorConfigFromSnapshot(snapshot);
   const fallbackRecordConfig = {
     ...fallback.heatCapacityFreeRecordConfig,
@@ -867,7 +893,13 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     instrumentNoiseEnabled,
   );
   const parameterDraft = freeHasCurrentParameterPayload
-    ? normalizeHeatCapacityFreeParameterDraft(free?.parameterDraft, fallbackDraft)
+    ? normalizeHeatCapacityFreeParameterDraft(
+        {
+          ...parameterDraftRecord,
+          gasType: restoredGasType,
+        },
+        fallbackDraft,
+      )
     : fallback.heatCapacityFreeParameterDraft;
   const activeRunConfigSnapshot = free?.activeRunConfigSnapshot === null
     ? null
@@ -906,6 +938,20 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
   const restoredIdealDomain = isRecord(free?.ideal)
     ? clonePersistenceValue(free!.ideal) as unknown as HeatCapacityFreeExperimentDomainState
     : createDefaultHeatCapacityFreeExperimentDomainState('ideal', `${fileEnvelope.id}:ideal`);
+  const restoredRealDomainWithGasType: HeatCapacityFreeExperimentDomainState = {
+    ...restoredRealDomain,
+    physicsConfig: {
+      ...normalizeHeatCapacityFreePhysicsConfig(restoredRealDomain.physicsConfig),
+      gamma: getHeatCapacityFreeGasTypeGamma(restoredGasType),
+    },
+  };
+  const restoredIdealDomainWithGasType: HeatCapacityFreeExperimentDomainState = {
+    ...restoredIdealDomain,
+    physicsConfig: {
+      ...normalizeHeatCapacityFreePhysicsConfig(restoredIdealDomain.physicsConfig),
+      gamma: getHeatCapacityFreeGasTypeGamma('air'),
+    },
+  };
   const restoredStopcockFlowOpen = controls.stopcockFlowOpen === true;
   const restoredStopcockPendingOpenAtMs =
     typeof uiReplay.heatCapacityFreeStopcockPendingOpenAtMs === 'number' &&
@@ -977,8 +1023,9 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityFreeTraceVersion: free?.traceVersion ?? HEAT_CAPACITY_FREE_TRACE_VERSION,
     heatCapacityFreeParameterScheme: restoredParameterScheme,
     heatCapacityFreeDisplayScheme: restoredDisplayScheme,
-    heatCapacityFreeRealDomain: restoredRealDomain,
-    heatCapacityFreeIdealDomain: restoredIdealDomain,
+    heatCapacityFreeGasType: parameterDraft.gasType,
+    heatCapacityFreeRealDomain: restoredRealDomainWithGasType,
+    heatCapacityFreeIdealDomain: restoredIdealDomainWithGasType,
     heatCapacityFreeEnvironmentConfig: { ...snapshot.environment },
     heatCapacityFreeExperimentGroupStatus: normalizeHeatCapacityFreeExperimentGroupStatus(
       free?.experimentGroupStatus,
@@ -993,7 +1040,10 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityFreeRecordConfig: recordConfig,
     heatCapacityFreePressureWarningMv: pressureWarningMv,
     heatCapacityFreeInstrumentNoiseEnabled: instrumentNoiseEnabled,
-    heatCapacityFreePhysicsConfig: physicsConfig,
+    heatCapacityFreePhysicsConfig: {
+      ...physicsConfig,
+      gamma: getHeatCapacityFreeGasTypeGamma(parameterDraft.gasType),
+    },
     heatCapacityFreePhysicsState: free?.runtime ?? fallback.heatCapacityFreePhysicsState,
     heatCapacityFreeSensorConfig: sensorConfig,
     heatCapacityFreeSensorState: free?.sensor ?? fallback.heatCapacityFreeSensorState,
@@ -1002,6 +1052,7 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityFreeTraceStore: free?.traceStore ?? createDefaultFreeTraceStore(),
     heatCapacityFreeTrials: restoredFreeTrials,
     ...uiReplay,
+    theoreticalGamma: getHeatCapacityFreeGasTypeGamma(parameterDraft.gasType),
     heatCapacityFreeEquilibriumSpeedMultiplier: restoreEquilibriumSpeed(
       uiReplay.heatCapacityFreeEquilibriumSpeedMultiplier,
     ),

@@ -74,6 +74,8 @@ interface HeatCapacityInstrumentSceneProps {
   cameraInteractionLocked?: boolean;
   demoFocusControlId: string | null;
   demoFocusPulseActive: boolean;
+  demoCameraFocusMode?: HeatCapacityFocusMode | null;
+  demoCameraFocusKey?: number;
   guideFocusMode?: HeatCapacityFocusMode | null;
   guideFocusKey?: number;
   guideRollbackAnimation: 'valveBounce' | 'stopcockBounce' | 'pumpBulbBounce' | 'knobBounce' | 'powerBounce' | null;
@@ -3033,6 +3035,12 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     triggerSmoothDefaultView();
   }, [props.focusResetKey, triggerSmoothDefaultView]);
   useEffect(() => {
+    if (props.demoCameraFocusMode !== undefined && props.demoCameraFocusMode !== null) {
+      setFocusMode(props.demoCameraFocusMode);
+      setViewResetKey((key) => key + 1);
+    }
+  }, [props.demoCameraFocusMode, props.demoCameraFocusKey]);
+  useEffect(() => {
     if (props.guideFocusMode !== undefined && props.guideFocusMode !== null) {
       setFocusMode(props.guideFocusMode);
       setViewResetKey((key) => key + 1);
@@ -3244,7 +3252,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           <div
             className="studio-heat-hard-sphere-tooltip-anchor"
             data-preview-overlay-item="heat-hard-sphere-toggle"
-            title={`${hardSphereNoteCopy.title}: ${hardSphereNoteText} ${hardSphereNoteCopy.footnote}`}
+            aria-label={`${hardSphereNoteCopy.title}: ${hardSphereNoteText} ${hardSphereNoteCopy.footnote}`}
           >
             <HeatCapacityHardSphereToggle
               enabled={hardSphereViewActive}

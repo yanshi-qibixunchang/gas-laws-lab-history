@@ -26,8 +26,14 @@ import {
   type HeatCapacityFreeTrial,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
+  normalizeHeatCapacityFreeStandardReferenceSnapshot,
+} from '../../domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
+import {
   createHeatCapacityFreeParameterDraftFromConfigs,
+  getHeatCapacityFreeGasTypeGamma,
+  normalizeHeatCapacityFreeGasType,
   normalizeHeatCapacityFreeParameterDraft,
+  resolveHeatCapacityFreeGasTypeFromGamma,
   type HeatCapacityFreeExperimentGroupStatus,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 import type {
@@ -211,6 +217,7 @@ const normalizeHeatCapacityFreeTrial = (value: unknown): HeatCapacityFreeTrial |
       : null,
     correctedSignals: isRecord(value.u0) ? normalizeCorrectedSignals(value.correctedSignals) : null,
     configSnapshot: normalizeHeatCapacityFreeConfigSnapshot(value.configSnapshot),
+    standardReferenceSnapshot: normalizeHeatCapacityFreeStandardReferenceSnapshot(value.standardReferenceSnapshot),
     completedAtMs: normalizeNullableNumber(value.completedAtMs),
   };
 };
@@ -523,7 +530,6 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
     const activeHeatCapacityTabId = file.activeHeatCapacityTabId && openHeatCapacityTabs.includes(file.activeHeatCapacityTabId)
       ? file.activeHeatCapacityTabId
       : openHeatCapacityTabs[0] ?? null;
-    const theoreticalGamma = fallback.theoreticalGamma;
     const heatCapacityFreeTrials = Array.isArray(file.heatCapacityFreeTrials)
       ? file.heatCapacityFreeTrials
           .map(normalizeHeatCapacityFreeTrial)
@@ -534,7 +540,7 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
     const savedFreeSensorState = isRecord(file.heatCapacityFreeSensorState)
       ? file.heatCapacityFreeSensorState as typeof fallbackFreeRuntimeFields.heatCapacityFreeSensorState
       : null;
-    const savedFreePhysicsConfig = savedFreeRuntimeCompatible && isRecord(file.heatCapacityFreePhysicsConfig)
+    const savedFreePhysicsConfigRaw = savedFreeRuntimeCompatible && isRecord(file.heatCapacityFreePhysicsConfig)
       ? normalizeHeatCapacityFreePhysicsConfig(file.heatCapacityFreePhysicsConfig)
       : fallbackFreeRuntimeFields.heatCapacityFreePhysicsConfig;
     const savedFreeSensorConfig = isRecord(file.heatCapacityFreeSensorConfig)
@@ -558,12 +564,36 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
       savedFreeStopcockFlowOpen || savedFreeStopcockPendingOpenAtMs !== null,
     );
     const fallbackFreeParameterDraft = createHeatCapacityFreeParameterDraftFromConfigs(
-      savedFreePhysicsConfig,
+      savedFreePhysicsConfigRaw,
       savedFreeSensorConfig,
       savedFreeRecordConfig,
       savedFreePressureWarningMv,
       savedFreeInstrumentNoiseEnabled,
     );
+    const savedFreeParameterDraftRecord: Record<string, unknown> = isRecord(file.heatCapacityFreeParameterDraft)
+      ? file.heatCapacityFreeParameterDraft
+      : {};
+    const savedFreeGasType = normalizeHeatCapacityFreeGasType(
+      file.heatCapacityFreeGasType,
+      normalizeHeatCapacityFreeGasType(
+        savedFreeParameterDraftRecord.gasType,
+        resolveHeatCapacityFreeGasTypeFromGamma(savedFreeParameterDraftRecord.gamma ?? savedFreePhysicsConfigRaw.gamma),
+      ),
+    );
+    const savedFreeParameterDraft = normalizeHeatCapacityFreeParameterDraft(
+      {
+        ...savedFreeParameterDraftRecord,
+        gasType: savedFreeGasType,
+      },
+      {
+        ...fallbackFreeParameterDraft,
+        gasType: savedFreeGasType,
+      },
+    );
+    const savedFreePhysicsConfig = {
+      ...savedFreePhysicsConfigRaw,
+      gamma: getHeatCapacityFreeGasTypeGamma(savedFreeParameterDraft.gasType),
+    };
     const savedFreePhysicsState = savedFreeRuntimeCompatible && isRecord(file.heatCapacityFreePhysicsState)
       ? file.heatCapacityFreePhysicsState
       : null;
@@ -573,10 +603,8 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
           heatCapacityFreeExperimentGroupStatus: normalizeHeatCapacityFreeExperimentGroupStatus(
             file.heatCapacityFreeExperimentGroupStatus,
           ),
-          heatCapacityFreeParameterDraft: normalizeHeatCapacityFreeParameterDraft(
-            file.heatCapacityFreeParameterDraft,
-            fallbackFreeParameterDraft,
-          ),
+          heatCapacityFreeGasType: savedFreeParameterDraft.gasType,
+          heatCapacityFreeParameterDraft: savedFreeParameterDraft,
           heatCapacityFreeActiveRunConfigSnapshot: normalizeHeatCapacityFreeConfigSnapshot(
             file.heatCapacityFreeActiveRunConfigSnapshot,
           ),
@@ -726,7 +754,7 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
         ...file.recordedPressures,
         p0: normalizeNullableNumber(file.recordedPressures?.p0) ?? fallback.recordedPressures.p0,
       },
-      theoreticalGamma,
+      theoreticalGamma: getHeatCapacityFreeGasTypeGamma(normalizedFreeRuntimeFields.heatCapacityFreeGasType),
       heatCapacityProcessSamples: {
         ...fallback.heatCapacityProcessSamples,
         ...normalizeHeatCapacityProcessSamples(file.heatCapacityProcessSamples),

@@ -4,7 +4,9 @@ import {
   convertSensorLagTimeSToLagRate,
   createHeatCapacityFreeParameterDraftFromConfigs,
   getEffectiveHeatCapacityFreeSensorConfig,
+  getHeatCapacityFreeGasTypeGamma,
   normalizeHeatCapacityFreeParameterDraft,
+  resolveHeatCapacityFreeGasTypeFromGamma,
 } from '../../src/domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 import type {
   HeatCapacityFreePhysicsConfig,
@@ -67,7 +69,7 @@ const finalDraftKeys = [
   'wallAmbientConductanceWPerK',
   'leakageEnabled',
   'instrumentNoiseEnabled',
-  'gamma',
+  'gasType',
   'wallHeatCapacityJPerK',
   'leakageRatePerS',
   'noiseMv',
@@ -84,6 +86,7 @@ const finalDraftKeys = [
 
 const excludedDraftKeys = [
   'stopcockFlowRate',
+  'gamma',
   'gammaRef',
   'pumpAmountGainRatio',
   'vesselVolumeL',
@@ -121,13 +124,19 @@ assert.equal(draft.gasWallConductanceWPerK, 0.45);
 assert.equal(draft.wallAmbientConductanceWPerK, 1.85);
 assert.equal(draft.leakageEnabled, true);
 assert.equal(draft.instrumentNoiseEnabled, true);
+assert.equal(draft.gasType, 'air');
 assert.equal(draft.sensorLagTimeS, 0.25);
+assert.equal(getHeatCapacityFreeGasTypeGamma('air'), 1.4);
+assert.equal(getHeatCapacityFreeGasTypeGamma('helium'), 5 / 3);
+assert.equal(resolveHeatCapacityFreeGasTypeFromGamma(1.53), 'air');
+assert.equal(resolveHeatCapacityFreeGasTypeFromGamma(1.6), 'helium');
 
 const normalizedDraft = normalizeHeatCapacityFreeParameterDraft(
   {
     ...draft,
     ambientPressureKPa: Number.NaN,
     sensorLagTimeS: 0,
+    gasType: 'argon' as any,
     pressureDangerMv: 152,
     instrumentNoiseEnabled: false,
   },
@@ -144,12 +153,18 @@ assert.equal(
   'non-positive lag time should fall back to the supplied draft',
 );
 assert.equal(normalizedDraft.pressureDangerMv, 152);
+assert.equal(
+  normalizedDraft.gasType,
+  draft.gasType,
+  'invalid gas type draft values should fall back to the supplied draft',
+);
 assert.equal(normalizedDraft.instrumentNoiseEnabled, false);
 
 const applied = applyHeatCapacityFreeParameterDraftToConfigs({
   ...draft,
   leakageEnabled: true,
   leakageRatePerS: 0.0025,
+  gasType: 'helium',
   instrumentNoiseEnabled: false,
   noiseMv: 0.055,
   sensorLagTimeS: 0.5,
@@ -172,6 +187,7 @@ assert.equal(
 );
 assert.equal(applied.physicsConfig.leakage.enabled, true);
 assert.equal(applied.physicsConfig.leakage.ratePerS, 0.0025);
+assert.equal(applied.physicsConfig.gamma, 5 / 3);
 assert.equal(applied.sensorConfig.noiseMv, 0.055);
 assert.equal(
   applied.sensorConfig.pressureMvPerKPa,

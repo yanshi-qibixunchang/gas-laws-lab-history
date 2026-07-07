@@ -10,9 +10,15 @@ import {
   HEAT_CAPACITY_FREE_CALCULATION_VERSION,
   type HeatCapacityFreeConfigSnapshot,
 } from './heatCapacityFreeTraceModel.ts';
+import type {
+  HeatCapacityFreeStandardReferenceSnapshot,
+} from './heatCapacityFreeStandardReferenceModel.ts';
 import {
   truncateHeatCapacitySignalMv,
 } from './heatCapacitySignalDisplayModel.ts';
+import {
+  getHeatCapacityFreeGasTypeGamma,
+} from './heatCapacityGasTheory.ts';
 
 export type HeatCapacityFreeRecordRejectReason =
   | 'zero-not-ready'
@@ -78,6 +84,7 @@ export interface HeatCapacityFreeTrial {
   blockedReason: HeatCapacityFreeRecordRejectReason | null;
   correctedSignals: HeatCapacityFreeCorrectedSignals | null;
   configSnapshot: HeatCapacityFreeConfigSnapshot | null;
+  standardReferenceSnapshot: HeatCapacityFreeStandardReferenceSnapshot | null;
   completedAtMs: number | null;
 }
 
@@ -125,6 +132,7 @@ const roundNumber = (value: number, digits = 6) => (
 
 const DEFAULT_FREE_ATMOSPHERIC_PRESSURE_KPA = 101.3;
 const DEFAULT_FREE_PRESSURE_SENSITIVITY_MV_PER_KPA = 20;
+const DEFAULT_FREE_PROCESSING_THEORETICAL_GAMMA = getHeatCapacityFreeGasTypeGamma('air');
 
 export const createHeatCapacityFreeTrial = (
   id: string,
@@ -143,6 +151,7 @@ export const createHeatCapacityFreeTrial = (
   blockedReason: null,
   correctedSignals: null,
   configSnapshot: null,
+  standardReferenceSnapshot: null,
   completedAtMs: null,
 });
 
@@ -256,7 +265,7 @@ export const calculateFreeHeatCapacityMeanResult = (
   trials: HeatCapacityFreeTrial[],
   options: HeatCapacityFreeProcessingOptions = {},
 ): HeatCapacityFreeProcessingResult => {
-  const theoreticalGamma = options.theoreticalGamma ?? 1.4;
+  const theoreticalGamma = options.theoreticalGamma ?? DEFAULT_FREE_PROCESSING_THEORETICAL_GAMMA;
   const trialResults = trials.map((trial, index) => (
     calculateFreeHeatCapacityTrialResult(trial, index + 1)
   ));
@@ -322,6 +331,7 @@ export const removeHeatCapacityFreeTrialRecord = (
           blockedReason: null,
           correctedSignals: null,
           configSnapshot: null,
+          standardReferenceSnapshot: null,
           completedAtMs: null,
         };
       }
@@ -333,6 +343,7 @@ export const removeHeatCapacityFreeTrialRecord = (
           blockedReason: null,
           correctedSignals: null,
           configSnapshot: null,
+          standardReferenceSnapshot: null,
           completedAtMs: null,
         };
       }
@@ -342,6 +353,7 @@ export const removeHeatCapacityFreeTrialRecord = (
         blockedReason: null,
         correctedSignals: null,
         configSnapshot: null,
+        standardReferenceSnapshot: null,
         completedAtMs: null,
       };
     }),

@@ -413,11 +413,11 @@ registerDraftImpact(
 );
 
 registerDraftImpact(
-  'gamma',
+  'gasType',
   'state equation and vessel',
-  'same release sequence uses a different adiabatic exponent',
+  'same release sequence uses the helium monatomic gas theory value',
   'release pressure and temperature curve',
-  1.67,
+  'helium',
   (draft) => {
     const released = runFreeScenario(draft).released;
     return {

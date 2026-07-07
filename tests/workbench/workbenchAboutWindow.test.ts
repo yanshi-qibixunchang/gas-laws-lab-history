@@ -18,6 +18,7 @@ const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import
 };
 const electronMain = readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8');
 const electronPreload = readFileSync(new URL('../../electron/preload.cjs', import.meta.url), 'utf8');
+const electronTypes = readFileSync(new URL('../../electron.d.ts', import.meta.url), 'utf8');
 const indexHtml = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
 const webManifest = readFileSync(new URL('../../public/manifest.webmanifest', import.meta.url), 'utf8');
 const installerNsh = readFileSync(new URL('../../build/installer.nsh', import.meta.url), 'utf8');
@@ -90,10 +91,14 @@ assert.match(
   'desktop exporter child processes should run from the real runtime directory',
 );
 assert.ok(electronMain.includes("ipcMain.handle('hsl-legal:open-file'"), 'desktop main process should expose a legal-file open handler');
+assert.ok(electronMain.includes("ipcMain.handle('hsl-legal:read-file'"), 'desktop main process should expose a legal-file read handler for embedded previews');
 assert.ok(electronMain.includes('const LEGAL_FILE_NAMES = {'), 'desktop legal-file handler should use an allowlist instead of arbitrary paths');
 assert.ok(electronMain.includes('LICENSES.chromium.html'), 'desktop legal-file handler should resolve the full Chromium license file');
 assert.ok(electronPreload.includes("contextBridge.exposeInMainWorld('hardSphereLabLegal'"), 'preload should expose the legal-file bridge');
 assert.ok(electronPreload.includes("ipcRenderer.invoke('hsl-legal:open-file'"), 'preload legal bridge should call the allowlisted IPC handler');
+assert.ok(electronPreload.includes("readLegalFile: (fileId) => ipcRenderer.invoke('hsl-legal:read-file', fileId)"), 'preload legal bridge should expose allowlisted file reads for desktop embedded previews');
+assert.ok(electronTypes.includes('interface DesktopLegalReadResult'), 'desktop types should describe legal file read results');
+assert.ok(electronTypes.includes('readLegalFile: (fileId: DesktopLegalFileId) => Promise<DesktopLegalReadResult>;'), 'desktop legal bridge type should include the readLegalFile API');
 assert.ok(indexHtml.includes('<title>热容比实验室</title>'), 'web document title should use the current Chinese app name');
 assert.ok(webManifest.includes('"name": "热容比实验室"'), 'web manifest should use the current app name');
 assert.ok(!source.includes('Heat Capacity Ratio Lab with Hard Sphere'), 'workbench copy should not use the old hard-sphere product subtitle');
@@ -195,6 +200,8 @@ assert.match(source, /studio-build-notice-document/, 'build notice body should u
 assert.match(source, /studio-build-notice-table-wrap/, 'build notice should render approved table-style notice sections');
 assert.match(source, /studio-build-notice-material-row/, 'build notice should render clickable legal material rows');
 assert.match(source, /activeBuildNoticeMaterialId/, 'build notice should support an in-window legal material detail view');
+assert.match(source, /const \[buildNoticeFilePreview, setBuildNoticeFilePreview\]/, 'build notice detail should keep a unified local/web preview content state');
+assert.doesNotMatch(source, /buildNoticeTextPreview/, 'build notice detail should not retain the old text-only preview state');
 assert.match(source, /const buildNoticeReturnScrollTopRef = useRef\(0\);/, 'build notice should remember the document scroll position before opening a legal detail view');
 assert.match(source, /const buildNoticeRestoreScrollOnReturnRef = useRef\(false\);/, 'build notice should track whether a return scroll restore is pending');
 assert.match(source, /useLayoutEffect\(\(\) => \{[\s\S]*?buildNoticeRestoreScrollOnReturnRef\.current[\s\S]*?container\.scrollTo\(\{ top: restoredScrollTop, behavior: 'auto' \}\);[\s\S]*?\}, \[activeBuildNoticeMaterialId\]\);/, 'build notice should restore the saved scroll position in the layout phase before the browser paints');
@@ -206,7 +213,9 @@ assert.match(
 );
 assert.doesNotMatch(closeBuildNoticeMaterialSource, /setTimeout/, 'returning from a legal detail view should not use a delayed scroll restore that can visibly flicker');
 assert.match(source, /hardSphereLabLegal!\.openLegalFile/, 'build notice detail view should open allowlisted local legal files in desktop builds');
+assert.match(source, /hardSphereLabLegal!\.readLegalFile/, 'build notice detail view should read allowlisted local legal files for desktop embedded previews');
 assert.match(source, /studio-build-notice-detail-frame/, 'build notice detail view should preview generated HTML legal files');
+assert.match(source, /srcDoc=\{desktopLegalReadAvailable \? activeMaterialPreview\?\.content : undefined\}/, 'desktop build notice HTML previews should use srcDoc from the allowlisted local file bridge');
 assert.match(source, /buildNoticeLargeFileBody/, 'build notice detail view should explain large local legal files instead of embedding them');
 assert.match(buildNoticeNavSource, /className="studio-build-notice-nav-item"/, 'build notice navigation entries should use a left-sidebar-like row item class');
 assert.doesNotMatch(buildNoticeNavSource, /section\.eyebrow/, 'build notice navigation entries should not repeat eyebrow labels');

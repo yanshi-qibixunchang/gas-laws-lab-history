@@ -1,26 +1,30 @@
 import assert from 'node:assert/strict';
 import {
-  createHeatCapacityFreeStandardProcess,
-} from '../../src/domain/heatCapacity/heatCapacityFreeStandardProcessModel.ts';
+  createHeatCapacityFreeStandardReference,
+  HEAT_CAPACITY_STANDARD_REFERENCE_GENERATOR_VERSION,
+} from '../../src/domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
+import {
+  HEAT_CAPACITY_STANDARD_OPERATION,
+} from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
 import {
   createCompleteProcessReviewFixtureParts,
 } from './helpers/heatCapacityProcessReviewTestFactory.ts';
 
 const fixture = createCompleteProcessReviewFixtureParts();
-const first = createHeatCapacityFreeStandardProcess({
+const first = createHeatCapacityFreeStandardReference({
   traceTrial: fixture.traceTrial,
-  branch: fixture.branch,
   trial: fixture.trial,
   theoreticalGamma: 1.4,
 });
-const second = createHeatCapacityFreeStandardProcess({
+const second = createHeatCapacityFreeStandardReference({
   traceTrial: fixture.traceTrial,
-  branch: fixture.branch,
   trial: fixture.trial,
   theoreticalGamma: 1.4,
 });
 
+assert.equal(first.generatorVersion, HEAT_CAPACITY_STANDARD_REFERENCE_GENERATOR_VERSION);
 assert.equal(first.seed, second.seed);
+assert.deepEqual(first.operationPreset, HEAT_CAPACITY_STANDARD_OPERATION);
 assert.deepEqual(first.recordWindows.map((window) => window.recordId), ['u0', 'u1', 'u2']);
 assert.equal(first.trace.some((point) => point.stageId === 'pump'), true);
 assert.equal(first.trace.some((point) => point.stageId === 'release'), true);
@@ -29,32 +33,37 @@ assert.equal(stageById.get('pump')?.countText, 'x18');
 assert.equal(
   Number(((stageById.get('pump')!.endS - stageById.get('pump')!.startS)).toFixed(2)),
   12,
-  'standard process should use the fixed 18-stroke / 12 s pump procedure',
+  'standard reference should use the fixed 18-stroke / 12 s pump procedure',
 );
 assert.equal(
   Number(((stageById.get('stabilize')!.endS - stageById.get('stabilize')!.startS)).toFixed(2)),
   300,
-  'standard process should wait 300 s before recording U1',
+  'standard reference should wait 300 s before recording U1',
 );
 assert.equal(
   Number(((stageById.get('release')!.endS - stageById.get('release')!.startS)).toFixed(2)),
   0.35,
-  'standard process should release for the tuned 0.35 s window, not a synthesized duration',
+  'standard reference should release for the tuned 0.35 s window, not a synthesized duration',
 );
 assert.equal(
   Number(((stageById.get('recover')!.endS - stageById.get('recover')!.startS)).toFixed(2)),
   300,
-  'standard process should wait 300 s before recording U2',
+  'standard reference should wait 300 s before recording U2',
 );
-assert.equal(first.assumptions.disturbancesPreserved, true);
-assert.equal(first.assumptions.operationMode, 'standard-operation');
-assert.equal(first.assumptions.stageAligned, true);
-assert.equal(first.standard.gamma, first.gamma);
-assert.equal(first.upperBound.gamma, Math.max(
-  first.standard.gamma ?? Number.NEGATIVE_INFINITY,
+assert.equal(first.summary.assumptions.disturbancesPreserved, true);
+assert.equal(first.summary.assumptions.operationMode, 'standard-operation');
+assert.equal(first.summary.assumptions.stageAligned, true);
+assert.equal(first.summary.gamma, first.gamma);
+assert.equal(first.operationUpperBound.gamma, Math.max(
+  first.summary.gamma ?? Number.NEGATIVE_INFINITY,
   fixture.trial.correctedSignals?.gamma ?? Number.NEGATIVE_INFINITY,
 ));
-assert.equal(first.upperBound.windows, first.recordWindows);
+assert.deepEqual(
+  first.operationUpperBound.windows.map((window) => window.recordId),
+  first.recordWindows.map((window) => window.recordId),
+);
+assert.equal('standard' in first, false, 'standard reference should not keep the old nested standard summary');
+assert.equal('upperBound' in first, false, 'standard reference should expose operationUpperBound instead of upperBound');
 
 const disturbedConfig = {
   ...fixture.traceTrial.configSnapshot,
@@ -83,9 +92,8 @@ const disturbedTraceTrial = {
   ...fixture.traceTrial,
   configSnapshot: disturbedConfig,
 };
-const disturbed = createHeatCapacityFreeStandardProcess({
+const disturbed = createHeatCapacityFreeStandardReference({
   traceTrial: disturbedTraceTrial,
-  branch: fixture.branch,
   trial: {
     ...fixture.trial,
     configSnapshot: disturbedConfig,
@@ -93,7 +101,7 @@ const disturbed = createHeatCapacityFreeStandardProcess({
   theoreticalGamma: 1.4,
 });
 
-assert.equal(disturbed.assumptions.disturbancesPreserved, true);
+assert.equal(disturbed.summary.assumptions.disturbancesPreserved, true);
 assert.equal(disturbed.configSnapshot.physics.leakage.enabled, true);
 assert.equal(disturbed.configSnapshot.physics.environmentDisturbance?.enabled, true);
 assert.equal(disturbed.configSnapshot.sensor.noiseMv, 0.08);

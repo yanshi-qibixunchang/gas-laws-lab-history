@@ -105,6 +105,13 @@ const PRESSURE_NEAR_AMBIENT_KPA = 0.03;
 const FREE_OPEN_FLOW_MAX_SUBSTEP_S = 0.02;
 const MIN_GAS_AMOUNT_RATIO = 0.000001;
 const MIN_GAS_TEMPERATURE_K = 1;
+const FREE_RELEASE_OVEROPEN_EXCHANGE_START_S = 0.35;
+const FREE_RELEASE_OVEROPEN_EXCHANGE_MULTIPLIER = 2.4;
+const FREE_RELEASE_OVEROPEN_THERMAL_RAMP_S = 0.65;
+const FREE_RELEASE_OVEROPEN_THERMAL_MAX_MULTIPLIER = 5;
+const FREE_POST_RELEASE_LATE_LEAK_START_S = 300;
+const FREE_POST_RELEASE_LATE_LEAK_RAMP_S = 180;
+const FREE_POST_RELEASE_LATE_LEAK_MAX_MULTIPLIER = 3.5;
 export const FREE_PUMP_STROKE_DURATION_S = 0.08;
 export const FREE_RELEASE_RESPONSE_DELAY_S = 0.02;
 export const FREE_RELEASE_MAIN_DURATION_S = 0.18;
@@ -587,17 +594,34 @@ const stepSealedLeakageAmountRatio = (
   config: HeatCapacityFreePhysicsConfig,
   gasTemperatureK: number,
   dtS: number,
-) => stepFreeLeakageAmountRatio(
-  state.gasAmountRatio,
-  config.leakage,
-  {
-    ambientPressureKPa: config.environment.ambientPressureKPa,
-    ambientTemperatureK: config.environment.ambientTemperatureK,
-    gasAmountRatio: state.gasAmountRatio,
-    gasTemperatureK,
-    dtS,
-  },
-);
+) => {
+  const closedElapsedBeforeS = state.releaseStarted && state.lastStopcockClosedAtS !== null
+    ? Math.max(0, state.simulationTimeS - state.lastStopcockClosedAtS)
+    : 0;
+  const lateLeakRamp = clampUnit(
+    (closedElapsedBeforeS - FREE_POST_RELEASE_LATE_LEAK_START_S) /
+      FREE_POST_RELEASE_LATE_LEAK_RAMP_S,
+  );
+  const leakage = lateLeakRamp > 0
+    ? {
+        ...config.leakage,
+        ratePerS: config.leakage.ratePerS * (
+          1 + (FREE_POST_RELEASE_LATE_LEAK_MAX_MULTIPLIER - 1) * lateLeakRamp
+        ),
+      }
+    : config.leakage;
+  return stepFreeLeakageAmountRatio(
+    state.gasAmountRatio,
+    leakage,
+    {
+      ambientPressureKPa: config.environment.ambientPressureKPa,
+      ambientTemperatureK: config.environment.ambientTemperatureK,
+      gasAmountRatio: state.gasAmountRatio,
+      gasTemperatureK,
+      dtS,
+    },
+  );
+};
 
 const applyEnvironmentDisturbanceState = (
   state: HeatCapacityFreePhysicsState,
@@ -685,25 +709,64 @@ const applyPumpValveTiming = (
   };
 };
 
+const getReleaseStopcockEffectiveDtS = (
+  openElapsedBeforeS: number,
+  dtS: number,
+) => {
+  const baseEffectiveDtS = getFreeStopcockApertureEffectiveDtS(openElapsedBeforeS, dtS);
+  const startS = clampNonNegativeFinite(openElapsedBeforeS);
+  const endS = startS + clampNonNegativeFinite(dtS);
+  const overopenS = Math.max(0, endS - Math.max(startS, FREE_RELEASE_OVEROPEN_EXCHANGE_START_S));
+  return baseEffectiveDtS + overopenS * (FREE_RELEASE_OVEROPEN_EXCHANGE_MULTIPLIER - 1);
+};
+
+const getReleaseOveropenThermalMultiplier = (
+  openElapsedS: number,
+) => {
+  const ramp = clampUnit(
+    (openElapsedS - FREE_RELEASE_OVEROPEN_EXCHANGE_START_S) /
+      FREE_RELEASE_OVEROPEN_THERMAL_RAMP_S,
+  );
+  return 1 + (FREE_RELEASE_OVEROPEN_THERMAL_MAX_MULTIPLIER - 1) * ramp;
+};
+
 const stepOpenState = (
   state: HeatCapacityFreePhysicsState,
   config: HeatCapacityFreePhysicsConfig,
   dtS: number,
   atS: number,
   openElapsedBeforeS: number,
+  releaseEligible: boolean,
 ) => {
   let nextState = state;
   let remainingS = clampNonNegativeFinite(dtS);
   let openElapsedS = clampNonNegativeFinite(openElapsedBeforeS);
   while (remainingS > 0) {
     const stepS = Math.min(remainingS, FREE_OPEN_FLOW_MAX_SUBSTEP_S);
-    const thermal = stepThermalState(nextState, config, stepS);
+    const thermalMultiplier = releaseEligible
+      ? getReleaseOveropenThermalMultiplier(openElapsedS)
+      : 1;
+    const thermal = stepThermalState(
+      nextState,
+      thermalMultiplier === 1
+        ? config
+        : {
+            ...config,
+            thermal: {
+              ...config.thermal,
+              gasWallConductanceWPerK: config.thermal.gasWallConductanceWPerK * thermalMultiplier,
+            },
+          },
+      stepS,
+    );
     const thermalState = {
       ...nextState,
       gasTemperatureK: thermal.state.gasTemperatureK,
       wallTemperatureK: thermal.state.wallTemperatureK,
     };
-    const effectiveFlowDtS = getFreeStopcockApertureEffectiveDtS(openElapsedS, stepS);
+    const effectiveFlowDtS = releaseEligible
+      ? getReleaseStopcockEffectiveDtS(openElapsedS, stepS)
+      : getFreeStopcockApertureEffectiveDtS(openElapsedS, stepS);
     nextState = stepOpenFlowAmountAndTemperature(
       thermalState,
       config,
@@ -813,6 +876,7 @@ export const stepFreePhysics = (
     dtS,
     atS,
     stopcockOpenElapsedBeforeS,
+    releaseEligible || releaseCandidate.releaseStarted,
   );
   const timedFlowedState = applyPumpValveTiming(
     flowedState,

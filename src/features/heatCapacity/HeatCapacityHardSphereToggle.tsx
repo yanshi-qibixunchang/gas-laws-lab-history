@@ -51,7 +51,7 @@ const HeatCapacityHardSphereToggle: React.FC<HeatCapacityHardSphereToggleProps> 
       aria-pressed={enabled}
       disabled={disabled}
       aria-describedby={disabled ? undefined : descriptionId}
-      title={disabled ? undefined : enabled ? copy.tooltipOn : copy.tooltipOff}
+      aria-label={enabled ? copy.tooltipOn : copy.tooltipOff}
       onPointerDown={(event) => {
         event.stopPropagation();
       }}

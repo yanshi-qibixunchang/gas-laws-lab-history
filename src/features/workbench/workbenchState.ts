@@ -103,6 +103,9 @@ import {
   type HeatCapacityFreeTrialRecordRemovalKind,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
+  createHeatCapacityFreeStandardReference,
+} from '../../domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
+import {
   evaluateFreeU0Record,
   evaluateFreeU1Record,
   evaluateFreeU2Record,
@@ -137,11 +140,16 @@ import {
   truncateHeatCapacitySignalMv,
 } from '../../domain/heatCapacity/heatCapacitySignalDisplayModel.ts';
 import {
+  applyHeatCapacityFreeGasTypeModelDefaultsToDraft,
   applyHeatCapacityFreeParameterDraftToConfigs,
   createHeatCapacityFreeParameterDraftFromConfigs,
+  getHeatCapacityFreeGasTypeGamma,
   getEffectiveHeatCapacityFreeSensorConfig,
   normalizeHeatCapacityFreeParameterDraft,
+  normalizeHeatCapacityFreeGasType,
+  resolveHeatCapacityFreeGasTypeFromGamma,
   type HeatCapacityFreeExperimentGroupStatus,
+  type HeatCapacityFreeGasType,
   type HeatCapacityFreeParameterApplyResult,
   type HeatCapacityFreeParameterDraft,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
@@ -1010,6 +1018,7 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityTeachingStatus: HeatCapacityTeachingStatus;
   heatCapacityFreeRuntimeVersion: number;
   heatCapacityFreeExperimentGroupStatus: HeatCapacityFreeExperimentGroupStatus;
+  heatCapacityFreeGasType: HeatCapacityFreeGasType;
   heatCapacityFreeParameterDraft: HeatCapacityFreeParameterDraft;
   heatCapacityFreeActiveRunConfigSnapshot: HeatCapacityFreeTraceTrial['configSnapshot'] | null;
   heatCapacityFreeFileAcknowledgements: HeatCapacityFreeFileAcknowledgements;
@@ -1325,9 +1334,9 @@ export const isHeatCapacityFreeParameterEditingAvailable = (
   file.runState !== 'paused'
 );
 
-export const isHeatCapacityFreeGammaEditingAvailable = (
+export const isHeatCapacityFreeGasTypeEditingAvailable = (
   file: WorkbenchFileState | null,
-): file is WorkbenchHeatCapacityState => (
+): boolean => (
   isHeatCapacityFreeParameterEditingAvailable(file) &&
   file.heatCapacityFreeTrials.length === 0
 );
@@ -1372,22 +1381,35 @@ export const applyHeatCapacityFreeParameterDraftWorkbenchState = (
   draft: HeatCapacityFreeParameterDraft,
 ): WorkbenchHeatCapacityState => {
   if (!isHeatCapacityFreeParameterEditingAvailable(file)) return file;
-  const gammaEditingAvailable = file.heatCapacityFreeTrials.length === 0;
+  const gasTypeEditingAvailable = isHeatCapacityFreeGasTypeEditingAvailable(file);
+  const lockedGasType = normalizeHeatCapacityFreeGasType(
+    file.heatCapacityFreeGasType,
+    resolveHeatCapacityFreeGasTypeFromGamma(file.heatCapacityFreePhysicsConfig.gamma),
+  );
+  const requestedGasType = normalizeHeatCapacityFreeGasType(draft.gasType, lockedGasType);
+  const gasTypeChanged = gasTypeEditingAvailable && requestedGasType !== lockedGasType;
+  const shouldApplyGasTypeModelDefaults = gasTypeChanged &&
+    draft.gasWallConductanceWPerK === file.heatCapacityFreeParameterDraft.gasWallConductanceWPerK &&
+    draft.leakageRatePerS === file.heatCapacityFreeParameterDraft.leakageRatePerS;
+  const requestedDraft = shouldApplyGasTypeModelDefaults
+    ? applyHeatCapacityFreeGasTypeModelDefaultsToDraft(draft, requestedGasType)
+    : draft;
   const normalizedDraft = normalizeHeatCapacityFreeParameterDraft(
-    gammaEditingAvailable
-      ? draft
+    gasTypeEditingAvailable
+      ? requestedDraft
       : {
-          ...draft,
-          gamma: file.heatCapacityFreePhysicsConfig.gamma,
+          ...requestedDraft,
+          gasType: lockedGasType,
         },
     file.heatCapacityFreeParameterDraft,
   );
   const parameterState = applyHeatCapacityFreeParameterDraftToConfigs(normalizedDraft);
-  const theoreticalGamma = gammaEditingAvailable
+  const theoreticalGamma = gasTypeEditingAvailable
     ? parameterState.physicsConfig.gamma
     : file.theoreticalGamma;
   return {
     ...file,
+    heatCapacityFreeGasType: parameterState.gasType,
     heatCapacityFreeParameterDraft: normalizedDraft,
     heatCapacityFreeEnvironmentConfig: parameterState.environmentConfig,
     heatCapacityFreePhysicsConfig: parameterState.physicsConfig,
@@ -2251,6 +2273,37 @@ const isHeatCapacityFreeTrialComplete = (trial: HeatCapacityFreeTrial) => (
   isHeatCapacityFreeTrialRecordComplete(trial)
 );
 
+const findHeatCapacityFreeTraceTrialForTrial = (
+  store: HeatCapacityFreeTraceStore,
+  trial: HeatCapacityFreeTrial,
+) => store.traceTrials.find((candidate) => (
+  candidate.id === trial.traceTrialId ||
+  candidate.linkedTrialId === trial.id
+)) ?? null;
+
+const getHeatCapacityFreeReviewTheoreticalGamma = (
+  file: WorkbenchHeatCapacityState,
+  trial: HeatCapacityFreeTrial,
+) => (
+  trial.parameterScheme === 'ideal' ? 1.4 : file.theoreticalGamma
+);
+
+const createStandardReferenceSnapshotForCompletedFreeTrial = (
+  file: WorkbenchHeatCapacityState,
+  trial: HeatCapacityFreeTrial,
+) => {
+  if (trial.standardReferenceSnapshot || !isHeatCapacityFreeTrialComplete(trial)) {
+    return trial.standardReferenceSnapshot;
+  }
+  const traceTrial = findHeatCapacityFreeTraceTrialForTrial(file.heatCapacityFreeTraceStore, trial);
+  if (!traceTrial) return null;
+  return createHeatCapacityFreeStandardReference({
+    traceTrial,
+    trial,
+    theoreticalGamma: getHeatCapacityFreeReviewTheoreticalGamma(file, trial),
+  });
+};
+
 const stampLatestCompletedHeatCapacityFreeTrial = (
   file: WorkbenchHeatCapacityState,
   completedAtMs: number,
@@ -2262,7 +2315,11 @@ const stampLatestCompletedHeatCapacityFreeTrial = (
     ...file,
     heatCapacityFreeTrials: file.heatCapacityFreeTrials.map((trial, index) => (
       index === trialIndex
-        ? { ...trial, completedAtMs }
+        ? {
+            ...trial,
+            completedAtMs,
+            standardReferenceSnapshot: createStandardReferenceSnapshotForCompletedFreeTrial(file, trial),
+          }
         : trial
     )),
   };
@@ -4479,6 +4536,7 @@ export const createDefaultHeatCapacityFreeRuntimeFields = (
   return {
     heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
     heatCapacityFreeExperimentGroupStatus: 'draft' as const,
+    heatCapacityFreeGasType: parameterDraft.gasType,
     heatCapacityFreeParameterDraft: parameterDraft,
     heatCapacityFreeActiveRunConfigSnapshot: null,
     heatCapacityFreeFileAcknowledgements: createDefaultHeatCapacityFreeFileAcknowledgements(),
@@ -4515,6 +4573,7 @@ const createHeatCapacityFreeIdealParameterState = (): HeatCapacityFreeParameterA
     recordConfig: ideal.record,
     pressureWarningMv: ideal.pressureWarningMv,
     instrumentNoiseEnabled: ideal.instrumentNoiseEnabled,
+    gasType: resolveHeatCapacityFreeGasTypeFromGamma(ideal.physics.gamma),
   };
 };
 
@@ -4624,34 +4683,42 @@ export const getHeatCapacityFreeTrialsForAverage = (
 const applyHeatCapacityFreeDomainToRuntimeFields = (
   file: WorkbenchHeatCapacityState,
   domain: HeatCapacityFreeExperimentDomainState,
-): WorkbenchHeatCapacityState => ({
-  ...file,
-  heatCapacityFreeExperimentGroupStatus: domain.experimentGroupStatus,
-  heatCapacityFreeParameterDraft: createHeatCapacityFreeParameterDraftFromConfigs(
+): WorkbenchHeatCapacityState => {
+  const parameterDraft = createHeatCapacityFreeParameterDraftFromConfigs(
     domain.physicsConfig,
     domain.sensorConfig,
     domain.recordConfig,
     domain.pressureWarningMv,
     domain.instrumentNoiseEnabled,
-  ),
-  heatCapacityFreeActiveRunConfigSnapshot: domain.activeRunConfigSnapshot,
-  heatCapacityFreeRecordConfig: domain.recordConfig,
-  heatCapacityFreePressureWarningMv: domain.pressureWarningMv,
-  heatCapacityFreeInstrumentNoiseEnabled: domain.instrumentNoiseEnabled,
-  heatCapacityFreeEnvironmentConfig: domain.environmentConfig,
-  heatCapacityFreePhysicsConfig: domain.physicsConfig,
-  heatCapacityFreePhysicsState: domain.physicsState,
-  heatCapacityFreeSensorConfig: domain.sensorConfig,
-  heatCapacityFreeSensorState: domain.sensorState,
-  heatCapacityFreeCalibrationState: domain.calibrationState,
-  heatCapacityFreeStopcockFlowOpen: domain.stopcockFlowOpen,
-  heatCapacityFreeStopcockPendingOpenAtMs: domain.stopcockPendingOpenAtMs,
-  heatCapacityFreeStopcockFlowPurpose: domain.stopcockFlowPurpose,
-  heatCapacityFreeRollbackSnapshots: domain.rollbackSnapshots,
-  heatCapacityFreeTraceStore: domain.traceStore,
-  heatCapacityFreeTrials: withHeatCapacityFreeTrialsParameterScheme(domain.trials, domain.scheme),
-  theoreticalGamma: domain.physicsConfig.gamma,
-});
+  );
+  const gasTypeGamma = getHeatCapacityFreeGasTypeGamma(parameterDraft.gasType);
+  return {
+    ...file,
+    heatCapacityFreeExperimentGroupStatus: domain.experimentGroupStatus,
+    heatCapacityFreeGasType: parameterDraft.gasType,
+    heatCapacityFreeParameterDraft: parameterDraft,
+    heatCapacityFreeActiveRunConfigSnapshot: domain.activeRunConfigSnapshot,
+    heatCapacityFreeRecordConfig: domain.recordConfig,
+    heatCapacityFreePressureWarningMv: domain.pressureWarningMv,
+    heatCapacityFreeInstrumentNoiseEnabled: domain.instrumentNoiseEnabled,
+    heatCapacityFreeEnvironmentConfig: domain.environmentConfig,
+    heatCapacityFreePhysicsConfig: {
+      ...domain.physicsConfig,
+      gamma: gasTypeGamma,
+    },
+    heatCapacityFreePhysicsState: domain.physicsState,
+    heatCapacityFreeSensorConfig: domain.sensorConfig,
+    heatCapacityFreeSensorState: domain.sensorState,
+    heatCapacityFreeCalibrationState: domain.calibrationState,
+    heatCapacityFreeStopcockFlowOpen: domain.stopcockFlowOpen,
+    heatCapacityFreeStopcockPendingOpenAtMs: domain.stopcockPendingOpenAtMs,
+    heatCapacityFreeStopcockFlowPurpose: domain.stopcockFlowPurpose,
+    heatCapacityFreeRollbackSnapshots: domain.rollbackSnapshots,
+    heatCapacityFreeTraceStore: domain.traceStore,
+    heatCapacityFreeTrials: withHeatCapacityFreeTrialsParameterScheme(domain.trials, domain.scheme),
+    theoreticalGamma: gasTypeGamma,
+  };
+};
 
 export const storeHeatCapacityFreeRuntimeFieldsInDomain = (
   file: WorkbenchHeatCapacityState,
@@ -4854,7 +4921,7 @@ export const createDefaultHeatCapacityFile = (
     calculationModel: runtime.modelConfig.calculationModel,
     pressureSensitivityMvPerKPa: runtime.modelConfig.sensor.pressureSensitivityMvPerKPa,
     heatCapacityProcessSamples: runtime.heatCapacityProcessSamples,
-    theoreticalGamma: runtime.modelConfig.theoreticalGamma,
+    theoreticalGamma: getHeatCapacityFreeGasTypeGamma(freeRuntimeFields.heatCapacityFreeGasType),
   };
 };
 

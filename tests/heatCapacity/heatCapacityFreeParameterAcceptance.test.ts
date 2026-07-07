@@ -3,10 +3,31 @@ import {
   runHeatCapacityFreeParameterAcceptance,
   HEAT_CAPACITY_FREE_PARAMETER_ACCEPTANCE_RECORD_CONFIG,
 } from './heatCapacityFreeParameterAcceptance.ts';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   createDefaultHeatCapacityFile,
   recordHeatCapacityFreeTraceEventWithReference,
 } from '../../src/features/workbench/workbenchState.ts';
+
+const HELIUM_THEORETICAL_GAMMA = 5 / 3;
+const GAMMA_BEST_OPERATION_TOLERANCE = 0.03;
+const GAMMA_SUITABLE_OPERATION_TOLERANCE = 0.06;
+const acceptanceHelperSource = readFileSync(
+  join(process.cwd(), 'tests', 'heatCapacity', 'heatCapacityFreeParameterAcceptance.ts'),
+  'utf8',
+);
+
+assert.doesNotMatch(
+  acceptanceHelperSource,
+  /theoreticalGamma\??:/,
+  'parameter acceptance scenarios should not keep an arbitrary theoretical-gamma override',
+);
+assert.doesNotMatch(
+  acceptanceHelperSource,
+  /input\.theoreticalGamma/,
+  'parameter acceptance should derive gamma from the selected gas type instead of an arbitrary override',
+);
 
 const lowSignalDiagnosticReport = runHeatCapacityFreeParameterAcceptance({
   pumpStrokes: [2, 3, 4, 5],
@@ -395,6 +416,133 @@ assert.equal(
     Math.abs(instantCurrentEquivalentReleaseCore!.gamma - absoluteIdeal!.gamma) <= 0.006,
   true,
   'current-model-equivalent instant release should stay close to the ideal instant release core result',
+);
+
+const heliumTargetedReport = runHeatCapacityFreeParameterAcceptance({
+  scenarios: [
+    {
+      id: 'H-C1-absolute-ideal',
+      label: 'helium absolute ideal instant pump and instant adiabatic release',
+      gasType: 'helium',
+      pumpMode: 'instant-equivalent',
+      releaseMode: 'instant-adiabatic-to-ambient',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 0,
+      waitAfterPumpS: 300,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 300,
+      leakageEnabled: false,
+      leakageRatePerS: 0,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'H-B0-best-realistic-smoke',
+      gasType: 'helium',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 300,
+      leakageEnabled: true,
+      instrumentNoiseEnabled: true,
+    },
+    {
+      id: 'H-E1-u1-too-early',
+      gasType: 'helium',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 0,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 300,
+      leakageEnabled: true,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'H-E2-u2-too-early',
+      gasType: 'helium',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 0,
+      leakageEnabled: true,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'H-E4-open-2.5',
+      gasType: 'helium',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 2.5,
+      waitAfterReleaseS: 300,
+      leakageEnabled: true,
+      instrumentNoiseEnabled: false,
+    },
+    {
+      id: 'H-E6-u2-wait-12m',
+      gasType: 'helium',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0.35,
+      waitAfterReleaseS: 720,
+      leakageEnabled: true,
+      instrumentNoiseEnabled: false,
+    },
+  ],
+});
+const heliumById = new Map(heliumTargetedReport.rows.map((row) => [row.id, row]));
+const heliumAbsoluteIdeal = heliumById.get('H-C1-absolute-ideal');
+const heliumBestRealisticSmoke = heliumById.get('H-B0-best-realistic-smoke');
+const heliumU1TooEarly = heliumById.get('H-E1-u1-too-early');
+const heliumU2TooEarly = heliumById.get('H-E2-u2-too-early');
+const heliumOpenVeryLong = heliumById.get('H-E4-open-2.5');
+const heliumU2TwelveMinute = heliumById.get('H-E6-u2-wait-12m');
+
+assert.equal(
+  heliumAbsoluteIdeal?.gamma !== null &&
+    heliumAbsoluteIdeal?.gamma !== undefined &&
+    Math.abs(heliumAbsoluteIdeal.gamma - HELIUM_THEORETICAL_GAMMA) <= 0.006,
+  true,
+  'helium absolute ideal operation should calculate around the helium theoretical gamma instead of the air center',
+);
+assert.equal(
+  heliumBestRealisticSmoke?.gamma !== null &&
+    heliumBestRealisticSmoke?.gamma !== undefined &&
+    Math.abs(heliumBestRealisticSmoke.gamma - HELIUM_THEORETICAL_GAMMA) <= GAMMA_BEST_OPERATION_TOLERANCE,
+  true,
+  'helium best realistic smoke run should stay inside the same +/-0.03 best-operation band around helium gamma',
+);
+assert.equal(
+  heliumU1TooEarly?.gamma !== null &&
+    heliumU1TooEarly?.gamma !== undefined &&
+    heliumBestRealisticSmoke?.gamma !== null &&
+    heliumBestRealisticSmoke?.gamma !== undefined &&
+    heliumU1TooEarly.gamma > heliumBestRealisticSmoke.gamma + 0.02,
+  true,
+  'helium U1-too-early error should keep the same high-bias direction around the helium center',
+);
+assert.equal(
+  heliumU2TooEarly?.gamma !== null &&
+    heliumU2TooEarly?.gamma !== undefined &&
+    Math.abs(heliumU2TooEarly.gamma - HELIUM_THEORETICAL_GAMMA) > GAMMA_SUITABLE_OPERATION_TOLERANCE,
+  true,
+  'helium U2-too-early error should move outside the same suitable-operation band around helium gamma',
+);
+assert.equal(
+  heliumOpenVeryLong?.gamma !== null &&
+    heliumOpenVeryLong?.gamma !== undefined &&
+    Math.abs(heliumOpenVeryLong.gamma - HELIUM_THEORETICAL_GAMMA) > 0.1,
+  true,
+  'helium 2.5s long-open error should be visibly wrong around the helium center',
+);
+assert.equal(
+  heliumU2TwelveMinute?.gamma !== null &&
+    heliumU2TwelveMinute?.gamma !== undefined &&
+    Math.abs(heliumU2TwelveMinute.gamma - HELIUM_THEORETICAL_GAMMA) > 0.1,
+  true,
+  'helium 12min U2 wait error should be visibly wrong around the helium center',
 );
 
 assert.equal(

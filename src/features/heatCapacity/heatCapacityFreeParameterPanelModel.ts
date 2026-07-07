@@ -1,5 +1,7 @@
-import type {
-  HeatCapacityFreeParameterDraft,
+import {
+  getHeatCapacityFreeGasTypeGamma,
+  type HeatCapacityFreeGasType,
+  type HeatCapacityFreeParameterDraft,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 
 export type HeatCapacityParameterLanguage = 'zh-CN' | 'zh-TW' | 'en';
@@ -16,7 +18,6 @@ export type HeatCapacityFreeBasicCheckboxKey =
 export type HeatCapacityFreeParameterSymbolPart = string | { sub: string };
 
 export type HeatCapacityFreeAdvancedParameterGroupId =
-  | 'gasTheory'
   | 'thermalExchange'
   | 'nonIdealCorrection'
   | 'recordCriteria';
@@ -48,9 +49,26 @@ export interface HeatCapacityFreeCheckboxDefinition {
   effect: Record<HeatCapacityParameterLanguage, string>;
 }
 
+export interface HeatCapacityFreeGasTypeOptionDefinition {
+  id: HeatCapacityFreeGasType;
+  label: Record<HeatCapacityParameterLanguage, string>;
+  help: Record<HeatCapacityParameterLanguage, string>;
+  theoreticalGamma: number;
+}
+
 export const HEAT_CAPACITY_FREE_PARAMETER_SIDEBAR_BLOCK_FALLBACK = '只有自由实验模式可以调整参数。';
 
 export const heatCapacityFreeSharedText = {
+  gasTypeLabel: {
+    'zh-CN': '气体类型',
+    'zh-TW': '氣體類型',
+    en: 'Gas type',
+  },
+  gasTypeLocked: {
+    'zh-CN': '本文件已有自由实验记录，气体类型已锁定。',
+    'zh-TW': '本檔案已有自由實驗記錄，氣體類型已鎖定。',
+    en: 'This file already has Free Mode records, so the gas type is locked.',
+  },
   advancedTitle: {
     'zh-CN': '高级参数',
     'zh-TW': '進階參數',
@@ -76,10 +94,10 @@ export const heatCapacityFreeSharedText = {
     'zh-TW': '理想狀態',
     en: 'Ideal State',
   },
-  idealProfileLocked: {
-    'zh-CN': '实验开始后不能切换参数状态。',
-    'zh-TW': '實驗開始後不能切換參數狀態。',
-    en: 'The parameter state cannot be changed after the experiment starts.',
+  idealProfileLockedHint: {
+    'zh-CN': '该实验文件已经有进程或实验组，真实模拟 / 理想状态只能在新建的自由实验文件中切换。',
+    'zh-TW': '此實驗檔案已經有進程或實驗組，真實模擬 / 理想狀態只能在新建的自由實驗檔案中切換。',
+    en: 'This experiment file already has progress or experiment groups. Real Simulation / Ideal State can only be changed in a newly created Free Mode file.',
   },
   idealProfileReadonlyNote: {
     'zh-CN': '理想状态下，普通参数和高级参数由系统按理想过程自动设定，暂不可编辑。',
@@ -162,6 +180,29 @@ export const heatCapacityFreeSharedText = {
     en: 'Value exceeds the usable upper limit.',
   },
 } as const;
+
+export const heatCapacityFreeGasTypeOptions: HeatCapacityFreeGasTypeOptionDefinition[] = [
+  {
+    id: 'air',
+    label: { 'zh-CN': '空气', 'zh-TW': '空氣', en: 'Air' },
+    help: {
+      'zh-CN': '空气：近似双原子分子，理论 γ = 1.400。',
+      'zh-TW': '空氣：近似雙原子分子，理論 γ = 1.400。',
+      en: 'Air: approximated as a diatomic gas, theoretical γ = 1.400.',
+    },
+    theoreticalGamma: getHeatCapacityFreeGasTypeGamma('air'),
+  },
+  {
+    id: 'helium',
+    label: { 'zh-CN': '氦气', 'zh-TW': '氦氣', en: 'Helium' },
+    help: {
+      'zh-CN': '氦气：单原子分子，理论 γ = 1.667。',
+      'zh-TW': '氦氣：單原子分子，理論 γ = 1.667。',
+      en: 'Helium: a monatomic gas, theoretical γ = 1.667.',
+    },
+    theoreticalGamma: getHeatCapacityFreeGasTypeGamma('helium'),
+  },
+];
 
 export const heatCapacityFreeBasicNumberParameters: HeatCapacityFreeNumberParameterDefinition[] = [
   {
@@ -261,20 +302,6 @@ export const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberPar
     },
     precision: 3,
     min: 0,
-  },
-  {
-    id: 'gamma',
-    group: 'gasTheory',
-    label: { 'zh-CN': '气体绝热指数', 'zh-TW': '氣體絕熱指數', en: 'Gas adiabatic index' },
-    parts: ['γ'],
-    unit: '',
-    effect: {
-      'zh-CN': '同时作为气体绝热指数和本文件理论参考值；文件已有实验数据后锁定。',
-      'zh-TW': '同時作為氣體絕熱指數和本檔理論參考值；檔案已有實驗資料後鎖定。',
-      en: 'Acts as both gas adiabatic index and file-level theoretical reference; locks after this file has experiment data.',
-    },
-    precision: 3,
-    min: 1.001,
   },
   {
     id: 'wallHeatCapacityJPerK',
@@ -447,10 +474,6 @@ export const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberPar
 ];
 
 export const heatCapacityFreeAdvancedParameterGroups: HeatCapacityFreeAdvancedParameterGroupDefinition[] = [
-  {
-    id: 'gasTheory',
-    title: { 'zh-CN': '气体理论参数', 'zh-TW': '氣體理論參數', en: 'Gas Theory' },
-  },
   {
     id: 'thermalExchange',
     title: { 'zh-CN': '热交换模型', 'zh-TW': '熱交換模型', en: 'Heat Exchange Model' },

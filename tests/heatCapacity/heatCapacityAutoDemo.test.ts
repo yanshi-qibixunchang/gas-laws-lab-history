@@ -32,6 +32,14 @@ assert.deepEqual(
     ['pressureZero', 4_000],
   ],
 );
+assert.deepEqual(
+  steps[2].focusSequence?.map((focus) => [focus.targetControlId, focus.cameraFocusMode]),
+  [
+    ['instrumentPressureDisplay', 'instrument'],
+    ['pressureZero', 'instrument'],
+  ],
+  'zero-pressure demo should drive the camera to the instrument focus view while it previews the display and knob',
+);
 
 assert.equal(actionSequence.includes('zeroPressure'), true);
 assert.equal(actionSequence.includes('openStopcockForZero'), true);
@@ -98,6 +106,23 @@ assert.equal(
   true,
 );
 assert.equal(steps.some((step) => step.targetControlId === 'stopcock' && step.actionDurationMs === 1_000), true);
+assert.deepEqual(
+  steps.map((step) => [step.id, step.cameraFocusMode]),
+  [
+    ['power-on', 'instrument'],
+    ['open-stopcock-for-zero', 'bottle'],
+    ['zero-pressure', 'instrument'],
+    ['close-stopcock-before-pump', 'bottle'],
+    ['open-pump-valve', 'bottle'],
+    ['pump-pressurize', 'pump'],
+    ['close-pump-valve', 'bottle'],
+    ['sealed-stabilize', 'instrument'],
+    ['release-and-close-stopcock', 'bottle'],
+    ['thermal-recovery', 'instrument'],
+    ['power-off', 'instrument'],
+  ],
+  'auto demo should script camera focus modes for each visible instrument operation',
+);
 
 const timeline = getHeatCapacityAutoDemoTimeline(steps);
 assert.equal(timeline[0].stage, 'highlight');
@@ -129,6 +154,24 @@ assert.deepEqual(
     ['instrumentPressureDisplay', 15_650],
     ['pressureZero', 19_650],
   ],
+);
+assert.deepEqual(
+  timeline.filter((item) => item.step.id === 'zero-pressure' && item.stage === 'highlight').map((item) => [item.focusControlId, item.cameraFocusMode]),
+  [
+    ['instrumentPressureDisplay', 'instrument'],
+    ['pressureZero', 'instrument'],
+  ],
+  'zero-pressure focus sequence should carry camera focus through the generated timeline',
+);
+assert.equal(
+  timeline.filter((item) => item.step.id === 'pump-pressurize' && item.stage === 'action').every((item) => item.cameraFocusMode === 'pump'),
+  true,
+  'pump actions should keep the camera on the pump focus view until the operation window ends',
+);
+assert.equal(
+  timeline.filter((item) => item.stage === 'preview').every((item) => item.cameraFocusMode === undefined),
+  true,
+  'preview gaps should release scripted demo camera focus so the scene can return to default view',
 );
 assert.equal(timeline.every((item, index) => index === 0 || item.atMs >= timeline[index - 1].atMs), true);
 assert.equal(timeline.at(-1)?.step.id, 'power-off');

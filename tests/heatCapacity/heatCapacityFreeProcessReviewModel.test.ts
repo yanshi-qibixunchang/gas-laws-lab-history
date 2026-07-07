@@ -11,6 +11,9 @@ import {
   selectHeatCapacityFreeProcessReview,
 } from '../../src/domain/heatCapacity/heatCapacityFreeProcessReviewModel.ts';
 import {
+  createHeatCapacityFreeStandardReference,
+} from '../../src/domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
+import {
   createCompleteProcessReviewFixtureParts,
 } from './helpers/heatCapacityProcessReviewTestFactory.ts';
 
@@ -34,28 +37,30 @@ assert.equal(review.trialOptions.length, 1);
 assert.equal(review.trialOptions[0]?.status, 'complete');
 assert.equal(review.selectedTrialId, parts.trial.id);
 
-assert.equal(review.chart.trace.length > 0, true);
+assert.equal(review.chart.actualTrace.length > 0, true);
 assert.equal(review.chart.records.map((record) => record.id).join(','), 'u0,u1,u2');
-assert.equal(review.chart.standardTrace.length > 0, true);
-assert.equal(review.chart.standardTrace.some((point) => point.stageId === 'pump'), true);
-assert.equal(review.chart.standardTrace.some((point) => point.stageId === 'release'), true);
-assert.equal(review.chart.standardStages.length > 0, true);
-assert.equal(review.chart.standardWindows.length, 3);
-assert.deepEqual(review.chart.standardWindows.map((window) => window.source), [
+assert.notEqual(review.chart.standardReference, null);
+const standardReference = review.chart.standardReference;
+if (!standardReference) throw new Error('ready review should include a standard reference snapshot');
+assert.equal(standardReference.trace.length > 0, true);
+assert.equal(standardReference.trace.some((point) => point.stageId === 'pump'), true);
+assert.equal(standardReference.trace.some((point) => point.stageId === 'release'), true);
+assert.equal(standardReference.stages.length > 0, true);
+assert.equal(standardReference.recordWindows.length, 3);
+assert.deepEqual(standardReference.recordWindows.map((window) => window.source), [
   'standard-operation',
   'standard-operation',
   'standard-operation',
 ]);
-assert.equal(review.chart.standardProcess.feasible, true);
-assert.equal(review.chart.standardProcess.assumptions.operationMode, 'standard-operation');
-assert.equal(review.chart.standardProcess.assumptions.disturbancesPreserved, true);
-assert.equal(review.chart.standardProcess.assumptions.stageAligned, true);
+assert.equal(standardReference.summary.feasible, true);
+assert.equal(standardReference.summary.assumptions.operationMode, 'standard-operation');
+assert.equal(standardReference.summary.assumptions.disturbancesPreserved, true);
+assert.equal(standardReference.summary.assumptions.stageAligned, true);
 assert.equal(
   review.summary?.upperBoundGamma,
-  Math.max(
-    review.chart.standardProcess.gamma ?? Number.NEGATIVE_INFINITY,
-    review.summary?.gamma ?? Number.NEGATIVE_INFINITY,
-  ),
+  standardReference.operationUpperBound.gamma === null
+    ? null
+    : Number(standardReference.operationUpperBound.gamma.toFixed(3)),
 );
 
 const idealTrial: HeatCapacityFreeTrial = {
@@ -97,15 +102,35 @@ assert.equal(
   0.29,
   'ideal operation upper bound gap should still compare the actual result against gamma 1.4',
 );
+const oldIdealReferenceTraceField = 'ideal' + 'Reference' + 'Trace';
 assert.equal(
-  'idealReferenceTrace' in review.chart,
+  oldIdealReferenceTraceField in review.chart,
   false,
   'process review should not expose the old ideal-reference trace field',
 );
+const oldBestWindowsField = 'best' + 'Windows';
 assert.equal(
-  'bestWindows' in review.chart,
+  oldBestWindowsField in review.chart,
   false,
   'process review should not expose the old actual-trace best-window field',
+);
+const oldScatteredStandardTraceField = 'standard' + 'Trace';
+assert.equal(
+  oldScatteredStandardTraceField in review.chart,
+  false,
+  'process review should keep standard reference data under chart.standardReference',
+);
+const oldScatteredStandardWindowsField = 'standard' + 'Windows';
+assert.equal(
+  oldScatteredStandardWindowsField in review.chart,
+  false,
+  'process review should keep standard record windows under chart.standardReference.recordWindows',
+);
+const oldScatteredStandardSummaryField = 'standard' + 'Process';
+assert.equal(
+  oldScatteredStandardSummaryField in review.chart,
+  false,
+  'process review should keep standard summary under chart.standardReference.summary',
 );
 
 assert.equal(review.score.maxScore, 100);
@@ -141,11 +166,55 @@ const selectReviewWithSnapshot = (
 };
 
 const standardSignature = (candidate: typeof review) => (
-  candidate.chart.standardTrace
+  (candidate.chart.standardReference?.trace ?? [])
     .filter((point) => point.stageId !== 'zero')
     .map((point) => `${point.stageId}:${point.timeS}:${point.pressureDeltaKPa}:${point.temperatureDeltaK}`)
     .join('|')
 );
+
+const storedReference = createHeatCapacityFreeStandardReference({
+  traceTrial: parts.traceTrial,
+  trial: parts.trial,
+  theoreticalGamma: 1.4,
+});
+const storedReview = selectHeatCapacityFreeProcessReview({
+  trials: [{
+    ...parts.trial,
+    id: 'trial-with-stored-standard-reference',
+    standardReferenceSnapshot: {
+      ...storedReference,
+      trace: [
+        {
+          ...storedReference.trace[0]!,
+          sampleId: 'stored-standard-reference-sentinel',
+          pressureDeltaKPa: 9.876,
+        },
+        ...storedReference.trace.slice(1),
+      ],
+      summary: {
+        ...storedReference.summary,
+        targetPressureMv: 88.8,
+      },
+      operationUpperBound: {
+        ...storedReference.operationUpperBound,
+        gamma: 1.999,
+        relativeErrorPercent: 42.79,
+        gapFromActualPercent: 31.23,
+      },
+    },
+  }],
+  traceStore: parts.traceStore,
+  theoreticalGamma: 1.4,
+  selectedTrialId: 'trial-with-stored-standard-reference',
+});
+assert.equal(storedReview.status, 'ready');
+assert.equal(
+  storedReview.chart.standardReference?.trace[0]?.sampleId,
+  'stored-standard-reference-sentinel',
+  'process review should read the persisted standard reference snapshot instead of regenerating it',
+);
+assert.equal(storedReview.chart.standardReference?.summary.targetPressureMv, 88.8);
+assert.equal(storedReview.summary?.upperBoundGamma, 1.999);
 
 const baseConfig = createDefaultFreeConfigSnapshot();
 const leakyReview = selectReviewWithSnapshot('leaky', {
@@ -193,7 +262,7 @@ const incompleteReview = selectHeatCapacityFreeProcessReview({
 assert.equal(incompleteReview.status, 'incomplete');
 assert.equal(incompleteReview.summary?.gamma, null);
 assert.equal(incompleteReview.score.total, null);
-assert.equal(incompleteReview.chart.trace.length > 0, true);
+assert.equal(incompleteReview.chart.actualTrace.length > 0, true);
 
 const emptyReview = selectHeatCapacityFreeProcessReview({
   trials: [],

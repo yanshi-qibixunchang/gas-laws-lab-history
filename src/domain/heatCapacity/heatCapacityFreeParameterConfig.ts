@@ -35,6 +35,23 @@ import {
   createDefaultHeatCapacityFreeSensorConfig,
   createDefaultHeatCapacityThermalConfig,
 } from './heatCapacityDefaultConfig.ts';
+export {
+  HEAT_CAPACITY_FREE_GAS_TYPES,
+  HEAT_CAPACITY_FREE_GAS_TYPE_MODEL_DEFAULTS,
+  getHeatCapacityFreeGasTypeGamma,
+  getHeatCapacityFreeGasTypeModelDefaults,
+  normalizeHeatCapacityFreeGasType,
+  resolveHeatCapacityFreeGasTypeFromGamma,
+  type HeatCapacityFreeGasType,
+  type HeatCapacityFreeGasTypeModelDefaults,
+} from './heatCapacityGasTheory.ts';
+import {
+  getHeatCapacityFreeGasTypeGamma,
+  getHeatCapacityFreeGasTypeModelDefaults,
+  normalizeHeatCapacityFreeGasType,
+  resolveHeatCapacityFreeGasTypeFromGamma,
+  type HeatCapacityFreeGasType,
+} from './heatCapacityGasTheory.ts';
 
 export type HeatCapacityFreeExperimentGroupStatus = 'draft' | 'running' | 'completed';
 
@@ -45,7 +62,7 @@ export interface HeatCapacityFreeParameterDraft {
   wallAmbientConductanceWPerK: number;
   leakageEnabled: boolean;
   instrumentNoiseEnabled: boolean;
-  gamma: number;
+  gasType: HeatCapacityFreeGasType;
   wallHeatCapacityJPerK: number;
   leakageRatePerS: number;
   noiseMv: number;
@@ -67,6 +84,7 @@ export interface HeatCapacityFreeParameterApplyResult {
   recordConfig: HeatCapacityFreeRecordConfig;
   pressureWarningMv: number;
   instrumentNoiseEnabled: boolean;
+  gasType: HeatCapacityFreeGasType;
 }
 
 const DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG = createDefaultHeatCapacityEnvironmentConfig();
@@ -304,6 +322,7 @@ export const createHeatCapacityFreeParameterDraftFromConfigs = (
   const physics = normalizeHeatCapacityFreePhysicsConfig(physicsConfig);
   const sensor = normalizeHeatCapacityFreeSensorConfig(sensorConfig);
   const record = normalizeHeatCapacityFreeRecordConfig(recordConfig);
+  const gasType = resolveHeatCapacityFreeGasTypeFromGamma(physics.gamma);
   return {
     ambientPressureKPa: physics.environment.ambientPressureKPa,
     ambientTemperatureK: physics.environment.ambientTemperatureK,
@@ -311,7 +330,7 @@ export const createHeatCapacityFreeParameterDraftFromConfigs = (
     wallAmbientConductanceWPerK: physics.thermal.wallAmbientConductanceWPerK,
     leakageEnabled: physics.leakage.enabled,
     instrumentNoiseEnabled,
-    gamma: physics.gamma,
+    gasType,
     wallHeatCapacityJPerK: physics.thermal.wallHeatCapacityJPerK,
     leakageRatePerS: physics.leakage.ratePerS,
     noiseMv: sensor.noiseMv,
@@ -345,6 +364,17 @@ export const normalizeHeatCapacityFreeParameterDraft = (
   value: Partial<HeatCapacityFreeParameterDraft> | null | undefined,
   fallback: HeatCapacityFreeParameterDraft = createDefaultHeatCapacityFreeParameterDraft(),
 ): HeatCapacityFreeParameterDraft => {
+  const legacyGamma = typeof (value as { gamma?: unknown } | null | undefined)?.gamma === 'number'
+    ? (value as { gamma?: number }).gamma
+    : undefined;
+  const gasTypeFallback = normalizeHeatCapacityFreeGasType(
+    fallback.gasType,
+    resolveHeatCapacityFreeGasTypeFromGamma(legacyGamma),
+  );
+  const gasType = normalizeHeatCapacityFreeGasType(
+    value?.gasType,
+    legacyGamma === undefined ? gasTypeFallback : resolveHeatCapacityFreeGasTypeFromGamma(legacyGamma, gasTypeFallback),
+  );
   const pressureDangerMv = finiteAtLeastOr(value?.pressureDangerMv, fallback.pressureDangerMv, 0);
   const rawPressureWarningMv = finiteAtLeastOr(value?.pressureWarningMv, fallback.pressureWarningMv, 0);
   const pressureWarningMv = Math.min(
@@ -370,7 +400,7 @@ export const normalizeHeatCapacityFreeParameterDraft = (
     wallAmbientConductanceWPerK: finiteAtLeastOr(value?.wallAmbientConductanceWPerK, fallback.wallAmbientConductanceWPerK, 0),
     leakageEnabled: booleanOr(value?.leakageEnabled, fallback.leakageEnabled),
     instrumentNoiseEnabled: booleanOr(value?.instrumentNoiseEnabled, fallback.instrumentNoiseEnabled),
-    gamma: finiteAtLeastOr(value?.gamma, fallback.gamma, 1.001),
+    gasType,
     wallHeatCapacityJPerK: finiteAtLeastOr(value?.wallHeatCapacityJPerK, fallback.wallHeatCapacityJPerK, 1),
     leakageRatePerS: finiteAtLeastOr(value?.leakageRatePerS, fallback.leakageRatePerS, 0),
     noiseMv: finiteAtLeastOr(value?.noiseMv, fallback.noiseMv, 0),
@@ -398,6 +428,19 @@ export const normalizeHeatCapacityFreeParameterDraft = (
   };
 };
 
+export const applyHeatCapacityFreeGasTypeModelDefaultsToDraft = (
+  draft: HeatCapacityFreeParameterDraft,
+  gasType: HeatCapacityFreeGasType,
+): HeatCapacityFreeParameterDraft => {
+  const defaults = getHeatCapacityFreeGasTypeModelDefaults(gasType);
+  return normalizeHeatCapacityFreeParameterDraft({
+    ...draft,
+    gasType,
+    gasWallConductanceWPerK: defaults.gasWallConductanceWPerK,
+    leakageRatePerS: defaults.leakageRatePerS,
+  }, draft);
+};
+
 export const applyHeatCapacityFreeParameterDraftToConfigs = (
   draft: HeatCapacityFreeParameterDraft,
 ): HeatCapacityFreeParameterApplyResult => {
@@ -409,7 +452,7 @@ export const applyHeatCapacityFreeParameterDraftToConfigs = (
   const physicsConfig = normalizeHeatCapacityFreePhysicsConfig({
     ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
     environment: environmentConfig,
-    gamma: normalizedDraft.gamma,
+    gamma: getHeatCapacityFreeGasTypeGamma(normalizedDraft.gasType),
     vesselVolumeL: DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.vesselVolumeL,
     pumpAmountGainRatio: DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpAmountGainRatio,
     pumpPressureLimitKPa: getHeatCapacityFreePressureDangerLimitKPa(normalizedDraft),
@@ -446,6 +489,7 @@ export const applyHeatCapacityFreeParameterDraftToConfigs = (
     recordConfig,
     pressureWarningMv: normalizedDraft.pressureWarningMv,
     instrumentNoiseEnabled: normalizedDraft.instrumentNoiseEnabled,
+    gasType: normalizedDraft.gasType,
   };
 };
 

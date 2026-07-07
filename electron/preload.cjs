@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('hardSphereLabUserGuide', {
 
 contextBridge.exposeInMainWorld('hardSphereLabLegal', {
   openLegalFile: (fileId) => ipcRenderer.invoke('hsl-legal:open-file', fileId),
+  readLegalFile: (fileId) => ipcRenderer.invoke('hsl-legal:read-file', fileId),
 });
 
 contextBridge.exposeInMainWorld('hardSphereLabUpdater', {

@@ -92,6 +92,14 @@ declare global {
     message?: string;
   }
 
+  interface DesktopLegalReadResult {
+    status: 'ok' | 'error';
+    path?: string;
+    content?: string;
+    mimeType?: string;
+    message?: string;
+  }
+
   interface DesktopWindowState {
     maximized: boolean;
     fullscreen: boolean;
@@ -122,6 +130,7 @@ declare global {
     };
     hardSphereLabLegal?: {
       openLegalFile: (fileId: DesktopLegalFileId) => Promise<DesktopLegalOpenResult>;
+      readLegalFile: (fileId: DesktopLegalFileId) => Promise<DesktopLegalReadResult>;
     };
   }
 }

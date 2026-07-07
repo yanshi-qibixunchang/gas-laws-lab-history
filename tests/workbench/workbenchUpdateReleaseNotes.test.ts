@@ -78,7 +78,7 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '4.2.1', 'next desktop update release should bump package version to 4.2.1');
+assert.equal(packageJson.version, '4.2.2', 'next desktop update release should bump package version to 4.2.2');
 
 const currentRelease = findRelease(packageJson.version ?? '');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
@@ -98,16 +98,16 @@ assert.equal(
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
 assert.ok(
-  currentItems.some((item) => item.scope === 'heat-capacity-ideal-profile' && item.importance === 'high'),
-  '4.2.1 should include the high-importance ideal parameter profile update',
+  currentItems.some((item) => item.scope === 'heat-capacity-gas-type' && item.importance === 'high'),
+  '4.2.2 should include the high-importance gas-type parameter update',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'heat-capacity-results' && item.importance === 'high'),
-  '4.2.1 should include the high-importance real/ideal result view update',
+  currentItems.some((item) => item.scope === 'heat-capacity-error-calibration' && item.importance === 'high'),
+  '4.2.2 should include the high-importance helium error-calibration update',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'heat-capacity-interaction' && item.importance === 'high'),
-  '4.2.1 should include the high-importance heat-capacity interaction fixes',
+  currentItems.some((item) => item.scope === 'heat-capacity-model-cleanup' && item.importance === 'high'),
+  '4.2.2 should include the high-importance heat-capacity model cleanup',
 );
 
 const standardResultsRelease = findRelease('4.1.22');

@@ -107,6 +107,44 @@
   line-height: 15px;
 }
 
+.hpr-tooltip-anchor {
+  position: relative;
+}
+
+.hpr-tooltip-anchor::after {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 7px);
+  left: 50%;
+  width: max-content;
+  max-width: min(260px, calc(100vw - 48px));
+  border: 1px solid var(--hpr-detail-border);
+  background: var(--hpr-detail-bg);
+  color: var(--hpr-text);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+  content: attr(data-hpr-tooltip);
+  font-size: 11px;
+  border-radius: 6px;
+  padding: 8px 9px;
+  font-weight: 600;
+  line-height: 1.45;
+  opacity: 0;
+  pointer-events: none;
+  text-align: left;
+  transform: translate(-50%, -2px);
+  transition: opacity 150ms ease, transform 150ms ease, visibility 0s linear 150ms;
+  visibility: hidden;
+  white-space: normal;
+}
+
+.hpr-tooltip-anchor:hover::after,
+.hpr-tooltip-anchor:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  transition: opacity 150ms ease, transform 150ms ease, visibility 0s linear 0s;
+  visibility: visible;
+}
+
 .hpr-summary-help {
   display: inline-flex;
   flex: 0 0 15px;
@@ -255,43 +293,62 @@
 }
 
 .hpr-trial-select-trigger {
-  display: inline-flex;
+  display: flex;
+  min-height: 30px;
+  min-width: 112px;
   align-items: center;
-  gap: 8px;
-  border: 1px solid var(--hpr-border);
-  border-radius: 5px;
-  background: var(--hpr-panel-bg-elevated);
-  color: var(--hpr-text);
-  padding: 5px 10px;
-  font-size: 12px;
-  font-weight: 720;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--studio-border);
+  border-radius: 4px;
+  background: #171b20;
+  color: var(--studio-text);
+  padding: 6px 9px 6px 11px;
+  text-align: left;
+  cursor: pointer;
 }
 
-.hpr-trial-select-trigger:hover {
-  background: var(--hpr-panel-bg-muted);
-  color: var(--hpr-text-strong);
+.hpr-trial-select-trigger:hover,
+.hpr-trial-select-trigger:focus-visible,
+.hpr-trial-select.studio-heat-free-display-scheme-open .hpr-trial-select-trigger {
+  border-color: rgba(79, 127, 184, 0.62);
+  background: rgba(79, 127, 184, 0.1);
+  outline: none;
+}
+
+.hpr-trial-select-trigger > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .hpr-trial-select-menu {
   position: absolute;
-  top: calc(100% + 5px);
+  top: calc(100% + 6px);
   right: 0;
-  z-index: 20;
+  z-index: 6;
   display: grid;
-  min-width: 210px;
-  border: 1px solid var(--hpr-border);
-  background: var(--hpr-detail-bg);
+  min-width: 142px;
+  overflow: hidden;
+  border: 1px solid rgba(79, 127, 184, 0.48);
+  border-radius: 6px;
+  background: #20252c;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  animation: studioDisplaySchemeMenuIn 150ms ease both;
 }
 
 .hpr-trial-select-menu button {
-  display: grid;
-  gap: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   border: 0;
-  border-top: 1px solid var(--hpr-border-soft);
+  border-top: 1px solid var(--studio-border-soft);
   background: transparent;
-  color: var(--hpr-text);
-  padding: 8px 10px;
+  color: var(--studio-muted);
+  padding: 8px 11px;
   text-align: left;
+  cursor: pointer;
 }
 
 .hpr-trial-select-menu button:first-child {
@@ -299,20 +356,30 @@
 }
 
 .hpr-trial-select-menu button:hover,
-.hpr-trial-select-menu button[aria-checked='true'] {
-  background: var(--hpr-panel-bg-muted);
+.hpr-trial-select-menu button:focus-visible,
+.hpr-trial-select-menu .studio-heat-free-display-scheme-active {
+  background: rgba(79, 127, 184, 0.14);
+  color: var(--studio-text);
+  outline: none;
 }
 
+.hpr-trial-select-trigger strong,
 .hpr-trial-select-menu strong {
-  color: var(--hpr-text-strong);
-  font-size: 12px;
-  font-weight: 760;
+  overflow: hidden;
+  color: var(--studio-text);
+  font-size: 11px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hpr-trial-select-menu span {
-  color: var(--hpr-muted);
-  font-size: 11px;
-  font-weight: 650;
+  overflow: hidden;
+  color: var(--studio-subtle);
+  font-size: 9px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hpr-chart-shell {

@@ -17,7 +17,7 @@ const actualStages: HeatCapacityProcessStageSegment[] = [
   { id: 'recover', label: 'Recover', startS: 62.3, endS: 92 },
 ];
 
-const standardProcessStages: HeatCapacityProcessStageSegment[] = [
+const standardReferenceStages: HeatCapacityProcessStageSegment[] = [
   { id: 'zero', label: 'Zero', startS: 0, endS: 4 },
   { id: 'pump', label: 'Pump', startS: 4, endS: 5.2 },
   { id: 'stabilize', label: 'Stabilize', startS: 5.2, endS: 15.2 },
@@ -27,7 +27,7 @@ const standardProcessStages: HeatCapacityProcessStageSegment[] = [
 
 const sharedCompressedDurationS = Math.max(
   calculateHeatCapacityProcessReviewCompressedDurationS(actualStages),
-  calculateHeatCapacityProcessReviewCompressedDurationS(standardProcessStages),
+  calculateHeatCapacityProcessReviewCompressedDurationS(standardReferenceStages),
 );
 
 const layout = createHeatCapacityProcessReviewStageLayout({
@@ -37,8 +37,8 @@ const layout = createHeatCapacityProcessReviewStageLayout({
   compressedTotalS: sharedCompressedDurationS,
 });
 
-const standardProcessLayout = createHeatCapacityProcessReviewStageLayout({
-  stages: standardProcessStages,
+const standardReferenceLayout = createHeatCapacityProcessReviewStageLayout({
+  stages: standardReferenceStages,
   plotLeft: 42,
   plotRight: 1206,
   compressedTotalS: sharedCompressedDurationS,
@@ -52,7 +52,7 @@ const standardPumpPoints: HeatCapacityProcessReviewStageScalePoint[] = [
   { stageId: 'pump', timeS: 5.2 },
 ];
 
-const pumpXs = standardPumpPoints.map((point) => standardProcessLayout.pointToX(point));
+const pumpXs = standardPumpPoints.map((point) => standardReferenceLayout.pointToX(point));
 const pumpSpan = Math.max(...pumpXs) - Math.min(...pumpXs);
 
 assert.equal(
@@ -70,15 +70,15 @@ const stabilizeWidth = layout.stageWidth('stabilize');
 const recoverWidth = layout.stageWidth('recover');
 const pumpWidth = layout.stageWidth('pump');
 const releaseWidth = layout.stageWidth('release');
-const standardProcessEndX = standardProcessLayout.timeToX(36);
+const standardReferenceEndX = standardReferenceLayout.timeToX(36);
 const actualEndX = layout.timeToX(92);
-const standardProcessReleaseX = standardProcessLayout.timeToX(15.2);
+const standardReferenceReleaseX = standardReferenceLayout.timeToX(15.2);
 const actualReleaseX = layout.timeToX(61.2);
 const alignedStandardPointToX = createHeatCapacityAlignedReferencePointToX({
   actualStages,
-  referenceStages: standardProcessStages,
+  referenceStages: standardReferenceStages,
   actualTimeToX: layout.timeToX,
-  referencePointToX: standardProcessLayout.pointToX,
+  referencePointToX: standardReferenceLayout.pointToX,
   actualStageId: 'pump',
   referenceStageId: 'pump',
 });
@@ -107,12 +107,12 @@ assert.equal(
   `long recover stage should be compressed, got ${recoverWidth}`,
 );
 assert.equal(
-  standardProcessEndX < actualEndX - 120,
+  standardReferenceEndX < actualEndX - 120,
   true,
   'an independently timed standard process trace should be allowed to end before a slower actual trace',
 );
 assert.equal(
-  standardProcessReleaseX < actualReleaseX - 120,
+  standardReferenceReleaseX < actualReleaseX - 120,
   true,
   'standard process release should keep its own phase timing instead of aligning to the actual release stage',
 );
