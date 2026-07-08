@@ -16,6 +16,7 @@ import {
   resetHeatCapacityFreeParametersToDefaultWorkbenchState,
   resetHeatCapacityFreeRunWorkbenchState,
   shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
+  stepHeatCapacityWorkbenchFile,
 } from '../../src/features/workbench/workbenchState.ts';
 import {
   HEAT_CAPACITY_STANDARD_REFERENCE_GENERATOR_VERSION,
@@ -51,6 +52,34 @@ assert.equal(defaultFile.heatCapacityFreePressureWarningMv, 120);
 assert.equal(isHeatCapacityFreeParameterEditingAvailable(defaultFile), true);
 assert.equal(getHeatCapacityFreeParameterLockReason(defaultFile), null);
 
+const contaminatedProjectionFile = {
+  ...defaultFile,
+  heatCapacityFreePhysicsConfig: {
+    ...defaultFile.heatCapacityFreePhysicsConfig,
+    thermal: {
+      ...defaultFile.heatCapacityFreePhysicsConfig.thermal,
+      gasWallConductanceWPerK: 5,
+      wallAmbientConductanceWPerK: 5,
+    },
+  },
+  heatCapacityFreeParameterDraft: {
+    ...defaultFile.heatCapacityFreeParameterDraft,
+    gasWallConductanceWPerK: 5,
+    wallAmbientConductanceWPerK: 5,
+  },
+};
+const repairedProjectionFile = stepHeatCapacityWorkbenchFile(contaminatedProjectionFile, 1000);
+assert.equal(
+  repairedProjectionFile.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK,
+  0.14,
+  'free-mode runtime hydration should rebuild a polluted real top-level projection from the real domain',
+);
+assert.equal(
+  repairedProjectionFile.heatCapacityFreeRealDomain.physicsConfig.thermal.gasWallConductanceWPerK,
+  0.14,
+  'free-mode runtime hydration must not write a polluted top-level projection back into the real domain',
+);
+
 const editedDraft = {
   ...defaultFile.heatCapacityFreeParameterDraft,
   ambientPressureKPa: 99.8,
@@ -79,7 +108,7 @@ assert.equal(
 const frozenFile = freezeHeatCapacityFreeParametersForCurrentGroup(editedFile);
 assert.equal(frozenFile.heatCapacityFreeExperimentGroupStatus, 'running');
 assert.equal(isHeatCapacityFreeParameterEditingAvailable(frozenFile), false);
-assert.match(getHeatCapacityFreeParameterLockReason(frozenFile) ?? '', /已开始|锁定/);
+assert.equal(getHeatCapacityFreeParameterLockReason(frozenFile), 'groupStarted');
 assert.notEqual(frozenFile.heatCapacityFreeActiveRunConfigSnapshot, null);
 assert.equal(
   frozenFile.heatCapacityFreeActiveRunConfigSnapshot?.environment.ambientPressureKPa,
@@ -129,7 +158,7 @@ assert.equal(shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(completedGroupP
 assert.equal(isHeatCapacityFreeParameterEditingAvailable(completedGroupPowerOnFile), false);
 assert.equal(
   getHeatCapacityFreeParameterLockReason(completedGroupPowerOnFile),
-  '请先关闭电源，完成本组实验后再调整参数。',
+  'powerOffBeforeNextGroup',
 );
 
 const incompleteGroupPowerOnFile = {
@@ -362,7 +391,7 @@ for (const heatCapacityMode of ['demo', 'guide'] as const) {
   assert.equal(canOpenHeatCapacityParameterSidebar(teachingFile), false);
   assert.equal(
     getHeatCapacityParameterSidebarBlockReason(teachingFile),
-    '只有自由实验模式可以调整参数。',
+    'freeModeOnly',
   );
 }
 

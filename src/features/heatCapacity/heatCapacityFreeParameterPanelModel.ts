@@ -56,7 +56,37 @@ export interface HeatCapacityFreeGasTypeOptionDefinition {
   theoreticalGamma: number;
 }
 
-export const HEAT_CAPACITY_FREE_PARAMETER_SIDEBAR_BLOCK_FALLBACK = '只有自由实验模式可以调整参数。';
+export type HeatCapacityFreeParameterLockReasonId =
+  | 'freeModeOnly'
+  | 'runningOrPaused'
+  | 'powerOffBeforeNextGroup'
+  | 'groupStarted';
+
+export const heatCapacityFreeParameterLockText: Record<
+  HeatCapacityFreeParameterLockReasonId,
+  Record<HeatCapacityParameterLanguage, string>
+> = {
+  freeModeOnly: {
+    'zh-CN': '只有自由实验模式可以调整参数。',
+    'zh-TW': '只有自由實驗模式可以調整參數。',
+    en: 'Only Free Mode can adjust parameters.',
+  },
+  runningOrPaused: {
+    'zh-CN': '当前实验正在运行或暂停，参数已锁定。',
+    'zh-TW': '目前實驗正在執行或暫停，參數已鎖定。',
+    en: 'The current experiment is running or paused, so parameters are locked.',
+  },
+  powerOffBeforeNextGroup: {
+    'zh-CN': '请先关闭电源，完成本组实验后再调整参数。',
+    'zh-TW': '請先關閉電源，完成本組實驗後再調整參數。',
+    en: 'Turn off power first, then adjust parameters after this group is complete.',
+  },
+  groupStarted: {
+    'zh-CN': '当前实验组已开始，参数已锁定。',
+    'zh-TW': '目前實驗組已開始，參數已鎖定。',
+    en: 'The current experiment group has started, so parameters are locked.',
+  },
+};
 
 export const heatCapacityFreeSharedText = {
   gasTypeLabel: {

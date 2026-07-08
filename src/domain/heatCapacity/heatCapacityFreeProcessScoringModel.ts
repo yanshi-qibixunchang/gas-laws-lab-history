@@ -36,9 +36,11 @@ export const SCORE_MAX = {
   retake: 10,
 } as const;
 
-const RELEASE_MIN_REASONABLE_DURATION_S = 0.25;
-const RELEASE_MAX_REASONABLE_DURATION_S = 2.5;
-const RELEASE_SEVERE_DURATION_S = 5;
+const RELEASE_TARGET_DURATION_S = 0.35;
+const RELEASE_MIN_REASONABLE_DURATION_S = 0.1;
+const RELEASE_MAX_REASONABLE_DURATION_S = 0.8;
+const RELEASE_SEVERE_DURATION_S = 2.5;
+const RELEASE_DURATION_EPSILON_S = 0.000001;
 
 const formatNumber = (value: number | null | undefined, digits = 2) => (
   typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '--'
@@ -327,6 +329,55 @@ const createReleaseDetails = (input: {
   }),
 ]);
 
+const scoreReleaseDuration = (
+  durationS: number | null,
+) => {
+  const durationMissing = durationS === null;
+  if (
+    durationMissing ||
+    (durationS !== null && durationS >= RELEASE_SEVERE_DURATION_S - RELEASE_DURATION_EPSILON_S)
+  ) {
+    return {
+      durationMissing,
+      durationReview: true,
+      durationSevere: true,
+      valveScore: 0,
+      responseScore: 2,
+    };
+  }
+
+  const outsideReasonableWindow =
+    durationS < RELEASE_MIN_REASONABLE_DURATION_S - RELEASE_DURATION_EPSILON_S ||
+    durationS > RELEASE_MAX_REASONABLE_DURATION_S + RELEASE_DURATION_EPSILON_S;
+  if (outsideReasonableWindow) {
+    return {
+      durationMissing,
+      durationReview: true,
+      durationSevere: false,
+      valveScore: 5,
+      responseScore: 5,
+    };
+  }
+
+  const span = durationS <= RELEASE_TARGET_DURATION_S
+    ? RELEASE_TARGET_DURATION_S - RELEASE_MIN_REASONABLE_DURATION_S
+    : RELEASE_MAX_REASONABLE_DURATION_S - RELEASE_TARGET_DURATION_S;
+  const distanceRatio = span > 0
+    ? Math.min(1, Math.abs(durationS - RELEASE_TARGET_DURATION_S) / span)
+    : 0;
+  const closeness = 1 - distanceRatio;
+  const valveScore = Math.round(8 + 6 * closeness);
+  const responseScore = Math.round(6 + 2 * closeness);
+
+  return {
+    durationMissing,
+    durationReview: valveScore < 14 || responseScore < 8,
+    durationSevere: false,
+    valveScore,
+    responseScore,
+  };
+};
+
 const scoreRelease = (
   input: HeatCapacityProcessScoringInput,
 ): HeatCapacityProcessScoreItem => {
@@ -376,15 +427,11 @@ const scoreRelease = (
   const durationText = `${formatNumber(durationS, 1)} s`;
   const ratioText = formatNumber(ratio, 2);
   const overVented = input.summary.u2.pressureDeltaKPa <= 0 || ratio < 0.08;
-  const durationMissing = durationS === null;
-  const durationReview = durationS !== null && (
-    durationS < RELEASE_MIN_REASONABLE_DURATION_S ||
-    durationS > RELEASE_MAX_REASONABLE_DURATION_S
-  );
-  const durationSevere = durationMissing || (durationS !== null && durationS > RELEASE_SEVERE_DURATION_S);
+  const durationScore = scoreReleaseDuration(durationS);
+  const { durationReview, durationSevere } = durationScore;
   const severeRelease = overVented || durationSevere;
-  const valveScore = severeRelease ? 0 : durationReview ? 5 : 14;
-  const responseScore = severeRelease ? 2 : durationReview ? 6 : 8;
+  const valveScore = severeRelease ? 0 : durationScore.valveScore;
+  const responseScore = severeRelease ? 2 : durationScore.responseScore;
   const recoverScore = severeRelease ? 2 : 4;
   const retentionScore = severeRelease ? 2 : 4;
   const score = valveScore + responseScore + recoverScore + retentionScore;

@@ -66,6 +66,21 @@ const leakageConfig = {
   },
 } as HeatCapacityFreePhysicsConfig;
 
+const physicsEngineSource = readFileSync(
+  join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityFreePhysicsEngine.ts'),
+  'utf8',
+);
+assert.doesNotMatch(
+  physicsEngineSource,
+  /FREE_RELEASE_OVEROPEN|getReleaseStopcockEffectiveDtS|getReleaseOveropenThermalMultiplier/,
+  'release long-open should not keep the extra over-open exchange enhancement',
+);
+assert.match(
+  physicsEngineSource,
+  /FREE_POST_RELEASE_LATE_LEAK_START_S[\s\S]*FREE_POST_RELEASE_LATE_LEAK_MAX_MULTIPLIER[\s\S]*lateLeakRamp/,
+  'U2 delayed-record sealed micro-leak enhancement should remain in the physics engine',
+);
+
 const expectClose = (actual: number, expected: number, tolerance: number, message: string) => {
   assert.equal(
     Math.abs(actual - expected) <= tolerance,

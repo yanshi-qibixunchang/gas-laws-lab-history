@@ -35,7 +35,9 @@ import {
   createDefaultHeatCapacityFile,
   createDefaultHeatCapacityFreeFileAcknowledgements,
   createDefaultHeatCapacityFreeExperimentDomainState,
+  hasHeatCapacityFreeIdealThermalBoundaryContamination,
   normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
+  normalizeHeatCapacityFreeExperimentDomainBoundary,
   normalizeHeatCapacityFreePhysicsConfig,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
   type HeatCapacityFreeDisplayScheme,
@@ -230,10 +232,14 @@ const clonePersistenceValue = <T>(value: T): T => {
 
 const normalizePersistedHeatCapacityFreeTrial = (value: unknown): HeatCapacityFreeTrial | null => {
   if (!isRecord(value) || typeof value.id !== 'string') return null;
+  const standardReferenceSnapshot = normalizeHeatCapacityFreeStandardReferenceSnapshot(value.standardReferenceSnapshot);
   return {
     ...(value as unknown as HeatCapacityFreeTrial),
     parameterScheme: value.parameterScheme === 'ideal' ? 'ideal' : 'real',
-    standardReferenceSnapshot: normalizeHeatCapacityFreeStandardReferenceSnapshot(value.standardReferenceSnapshot),
+    standardReferenceSnapshot: standardReferenceSnapshot &&
+      !hasHeatCapacityFreeIdealThermalBoundaryContamination(standardReferenceSnapshot.configSnapshot.physics)
+      ? standardReferenceSnapshot
+      : null,
     completedAtMs: isFiniteNumber(value.completedAtMs) ? value.completedAtMs : null,
   };
 };
@@ -314,10 +320,7 @@ export const createHeatCapacityPersistencePayload = (
   savedAt: number,
 ): HeatCapacityPersistencePayloadV1 => {
   void savedAt;
-  const fileWithCurrentDomain = storeHeatCapacityFreeRuntimeFieldsInDomain(
-    file,
-    file.heatCapacityFreeParameterScheme,
-  );
+  const fileWithCurrentDomain = createHeatCapacityPersistenceSourceFile(file);
   return {
     experimentKind: 'heatCapacity',
     heatCapacitySchemaVersion: HEAT_CAPACITY_SCHEMA_VERSION,
@@ -339,29 +342,29 @@ export const createHeatCapacityPersistencePayload = (
       gasType: fileWithCurrentDomain.heatCapacityFreeGasType,
       real: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeRealDomain),
       ideal: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeIdealDomain),
-      config: createHeatCapacityFreeConfigSnapshotFromFile(file),
-      parameterDraft: clonePersistenceValue(file.heatCapacityFreeParameterDraft),
-      experimentGroupStatus: file.heatCapacityFreeExperimentGroupStatus,
-      activeRunConfigSnapshot: clonePersistenceValue(file.heatCapacityFreeActiveRunConfigSnapshot),
-      acknowledgements: clonePersistenceValue(file.heatCapacityFreeFileAcknowledgements),
-      recordConfig: clonePersistenceValue(file.heatCapacityFreeRecordConfig),
-      pressureWarningMv: file.heatCapacityFreePressureWarningMv,
-      instrumentNoiseEnabled: file.heatCapacityFreeInstrumentNoiseEnabled,
-      runtime: clonePersistenceValue(file.heatCapacityFreePhysicsState),
+      config: createHeatCapacityFreeConfigSnapshotFromFile(fileWithCurrentDomain),
+      parameterDraft: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeParameterDraft),
+      experimentGroupStatus: fileWithCurrentDomain.heatCapacityFreeExperimentGroupStatus,
+      activeRunConfigSnapshot: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeActiveRunConfigSnapshot),
+      acknowledgements: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeFileAcknowledgements),
+      recordConfig: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeRecordConfig),
+      pressureWarningMv: fileWithCurrentDomain.heatCapacityFreePressureWarningMv,
+      instrumentNoiseEnabled: fileWithCurrentDomain.heatCapacityFreeInstrumentNoiseEnabled,
+      runtime: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreePhysicsState),
       controls: {
-        powerOn: file.powerOn,
-        pumpValveOpen: file.pumpValveOpen,
-        stopcockOpen: file.glassPistonState === 'open',
-        pumpBulbState: file.pumpBulbState,
-        stopcockFlowOpen: file.heatCapacityFreeStopcockFlowOpen,
-        stopcockFlowPurpose: file.heatCapacityFreeStopcockFlowPurpose,
+        powerOn: fileWithCurrentDomain.powerOn,
+        pumpValveOpen: fileWithCurrentDomain.pumpValveOpen,
+        stopcockOpen: fileWithCurrentDomain.glassPistonState === 'open',
+        pumpBulbState: fileWithCurrentDomain.pumpBulbState,
+        stopcockFlowOpen: fileWithCurrentDomain.heatCapacityFreeStopcockFlowOpen,
+        stopcockFlowPurpose: fileWithCurrentDomain.heatCapacityFreeStopcockFlowPurpose,
       },
-      sensor: clonePersistenceValue(file.heatCapacityFreeSensorState),
-      calibration: clonePersistenceValue(file.heatCapacityFreeCalibrationState),
-      rollbackSnapshots: clonePersistenceValue(file.heatCapacityFreeRollbackSnapshots),
-      traceStore: clonePersistenceValue(file.heatCapacityFreeTraceStore),
-      trials: clonePersistenceValue(file.heatCapacityFreeTrials),
-      uiReplay: createHeatCapacityFreeUiReplay(file),
+      sensor: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeSensorState),
+      calibration: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeCalibrationState),
+      rollbackSnapshots: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeRollbackSnapshots),
+      traceStore: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeTraceStore),
+      trials: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeTrials),
+      uiReplay: createHeatCapacityFreeUiReplay(fileWithCurrentDomain),
     },
     guided: file.heatCapacityMode === 'guide' || file.heatCapacityGuideTrial !== null
       ? {
@@ -710,6 +713,96 @@ const createSensorConfigFromSnapshot = (
   pressureNonlinearity: normalizeFreePressureSensorNonlinearityConfig(snapshot.sensor.pressureNonlinearity),
 });
 
+const createRuntimeFieldsFromRestoredFreeDomain = (
+  domain: HeatCapacityFreeExperimentDomainState,
+) => {
+  const parameterDraft = createHeatCapacityFreeParameterDraftFromConfigs(
+    domain.physicsConfig,
+    domain.sensorConfig,
+    domain.recordConfig,
+    domain.pressureWarningMv,
+    domain.instrumentNoiseEnabled,
+  );
+  const gasTypeGamma = getHeatCapacityFreeGasTypeGamma(parameterDraft.gasType);
+  return {
+    heatCapacityFreeGasType: parameterDraft.gasType,
+    heatCapacityFreeExperimentGroupStatus: domain.experimentGroupStatus,
+    heatCapacityFreeParameterDraft: parameterDraft,
+    heatCapacityFreeActiveRunConfigSnapshot: domain.activeRunConfigSnapshot,
+    heatCapacityFreeRecordConfig: domain.recordConfig,
+    heatCapacityFreePressureWarningMv: domain.pressureWarningMv,
+    heatCapacityFreeInstrumentNoiseEnabled: domain.instrumentNoiseEnabled,
+    heatCapacityFreeEnvironmentConfig: domain.environmentConfig,
+    heatCapacityFreePhysicsConfig: {
+      ...domain.physicsConfig,
+      gamma: gasTypeGamma,
+    },
+    heatCapacityFreePhysicsState: domain.physicsState,
+    heatCapacityFreeSensorConfig: domain.sensorConfig,
+    heatCapacityFreeSensorState: domain.sensorState,
+    heatCapacityFreeCalibrationState: domain.calibrationState,
+    heatCapacityFreeStopcockFlowOpen: domain.stopcockFlowOpen,
+    heatCapacityFreeStopcockPendingOpenAtMs: domain.stopcockPendingOpenAtMs,
+    heatCapacityFreeStopcockFlowPurpose: domain.stopcockFlowPurpose,
+    heatCapacityFreeRollbackSnapshots: domain.rollbackSnapshots,
+    heatCapacityFreeTraceStore: domain.traceStore,
+    heatCapacityFreeTrials: domain.trials,
+    theoreticalGamma: gasTypeGamma,
+  };
+};
+
+const createHeatCapacityPersistenceSourceFile = (
+  file: WorkbenchHeatCapacityState,
+): WorkbenchHeatCapacityState => {
+  // Boundary rule: real/ideal domains are the durable stores; top-level fields are
+  // only the active runtime projection. If that projection is visibly polluted by
+  // ideal thermal settings, rebuild it from the active domain before persisting.
+  const normalizedRealDomain = normalizeHeatCapacityFreeExperimentDomainBoundary(
+    file.heatCapacityFreeRealDomain,
+    'real',
+    file.heatCapacityFreeGasType,
+  );
+  const normalizedIdealDomain = normalizeHeatCapacityFreeExperimentDomainBoundary(
+    file.heatCapacityFreeIdealDomain,
+    'ideal',
+    'air',
+  );
+  const fileWithBoundaryDomains: WorkbenchHeatCapacityState = {
+    ...file,
+    heatCapacityFreeRealDomain: normalizedRealDomain,
+    heatCapacityFreeIdealDomain: normalizedIdealDomain,
+  };
+  const activeDomain = file.heatCapacityFreeParameterScheme === 'ideal'
+    ? normalizedIdealDomain
+    : normalizedRealDomain;
+  const useDomainAsActiveSource =
+    file.heatCapacityFreeParameterScheme === 'real' &&
+    hasHeatCapacityFreeIdealThermalBoundaryContamination(file.heatCapacityFreePhysicsConfig);
+  const synchronizedFile = useDomainAsActiveSource
+    ? {
+        ...fileWithBoundaryDomains,
+        ...createRuntimeFieldsFromRestoredFreeDomain(activeDomain),
+      }
+    : storeHeatCapacityFreeRuntimeFieldsInDomain(
+        fileWithBoundaryDomains,
+        file.heatCapacityFreeParameterScheme,
+      );
+
+  return {
+    ...synchronizedFile,
+    heatCapacityFreeRealDomain: normalizeHeatCapacityFreeExperimentDomainBoundary(
+      synchronizedFile.heatCapacityFreeRealDomain,
+      'real',
+      synchronizedFile.heatCapacityFreeGasType,
+    ),
+    heatCapacityFreeIdealDomain: normalizeHeatCapacityFreeExperimentDomainBoundary(
+      synchronizedFile.heatCapacityFreeIdealDomain,
+      'ideal',
+      'air',
+    ),
+  };
+};
+
 const normalizePayloadMode = (
   value: unknown,
 ): WorkbenchHeatCapacityState['heatCapacityMode'] => (
@@ -932,26 +1025,34 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     free?.displayScheme,
     restoredParameterScheme,
   );
-  const restoredRealDomain = isRecord(free?.real)
+  const hasPersistedRealDomain = isRecord(free?.real);
+  const hasPersistedIdealDomain = isRecord(free?.ideal);
+  const restoredRealDomain = hasPersistedRealDomain
     ? clonePersistenceValue(free!.real) as unknown as HeatCapacityFreeExperimentDomainState
     : createDefaultHeatCapacityFreeExperimentDomainState('real', `${fileEnvelope.id}:real`);
-  const restoredIdealDomain = isRecord(free?.ideal)
+  const restoredIdealDomain = hasPersistedIdealDomain
     ? clonePersistenceValue(free!.ideal) as unknown as HeatCapacityFreeExperimentDomainState
     : createDefaultHeatCapacityFreeExperimentDomainState('ideal', `${fileEnvelope.id}:ideal`);
-  const restoredRealDomainWithGasType: HeatCapacityFreeExperimentDomainState = {
-    ...restoredRealDomain,
-    physicsConfig: {
-      ...normalizeHeatCapacityFreePhysicsConfig(restoredRealDomain.physicsConfig),
-      gamma: getHeatCapacityFreeGasTypeGamma(restoredGasType),
-    },
-  };
-  const restoredIdealDomainWithGasType: HeatCapacityFreeExperimentDomainState = {
-    ...restoredIdealDomain,
-    physicsConfig: {
-      ...normalizeHeatCapacityFreePhysicsConfig(restoredIdealDomain.physicsConfig),
-      gamma: getHeatCapacityFreeGasTypeGamma('air'),
-    },
-  };
+  const restoredRealDomainWithGasType = normalizeHeatCapacityFreeExperimentDomainBoundary(
+    restoredRealDomain,
+    'real',
+    restoredGasType,
+  );
+  const restoredIdealDomainWithGasType = normalizeHeatCapacityFreeExperimentDomainBoundary(
+    restoredIdealDomain,
+    'ideal',
+    'air',
+  );
+  const restoredActiveDomain = restoredParameterScheme === 'ideal'
+    ? restoredIdealDomainWithGasType
+    : restoredRealDomainWithGasType;
+  const activeDomainPersisted = restoredParameterScheme === 'ideal'
+    ? hasPersistedIdealDomain
+    : hasPersistedRealDomain;
+  const hasPersistedActiveDomain = freeHasCurrentParameterPayload && activeDomainPersisted;
+  const restoredActiveDomainRuntimeFields = hasPersistedActiveDomain
+    ? createRuntimeFieldsFromRestoredFreeDomain(restoredActiveDomain)
+    : null;
   const restoredStopcockFlowOpen = controls.stopcockFlowOpen === true;
   const restoredStopcockPendingOpenAtMs =
     typeof uiReplay.heatCapacityFreeStopcockPendingOpenAtMs === 'number' &&
@@ -1051,6 +1152,7 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityFreeRollbackSnapshots: free?.rollbackSnapshots ?? fallback.heatCapacityFreeRollbackSnapshots,
     heatCapacityFreeTraceStore: free?.traceStore ?? createDefaultFreeTraceStore(),
     heatCapacityFreeTrials: restoredFreeTrials,
+    ...(restoredActiveDomainRuntimeFields ?? {}),
     ...uiReplay,
     theoreticalGamma: getHeatCapacityFreeGasTypeGamma(parameterDraft.gasType),
     heatCapacityFreeEquilibriumSpeedMultiplier: restoreEquilibriumSpeed(

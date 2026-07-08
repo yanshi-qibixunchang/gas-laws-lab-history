@@ -105,10 +105,6 @@ const PRESSURE_NEAR_AMBIENT_KPA = 0.03;
 const FREE_OPEN_FLOW_MAX_SUBSTEP_S = 0.02;
 const MIN_GAS_AMOUNT_RATIO = 0.000001;
 const MIN_GAS_TEMPERATURE_K = 1;
-const FREE_RELEASE_OVEROPEN_EXCHANGE_START_S = 0.35;
-const FREE_RELEASE_OVEROPEN_EXCHANGE_MULTIPLIER = 2.4;
-const FREE_RELEASE_OVEROPEN_THERMAL_RAMP_S = 0.65;
-const FREE_RELEASE_OVEROPEN_THERMAL_MAX_MULTIPLIER = 5;
 const FREE_POST_RELEASE_LATE_LEAK_START_S = 300;
 const FREE_POST_RELEASE_LATE_LEAK_RAMP_S = 180;
 const FREE_POST_RELEASE_LATE_LEAK_MAX_MULTIPLIER = 3.5;
@@ -709,54 +705,21 @@ const applyPumpValveTiming = (
   };
 };
 
-const getReleaseStopcockEffectiveDtS = (
-  openElapsedBeforeS: number,
-  dtS: number,
-) => {
-  const baseEffectiveDtS = getFreeStopcockApertureEffectiveDtS(openElapsedBeforeS, dtS);
-  const startS = clampNonNegativeFinite(openElapsedBeforeS);
-  const endS = startS + clampNonNegativeFinite(dtS);
-  const overopenS = Math.max(0, endS - Math.max(startS, FREE_RELEASE_OVEROPEN_EXCHANGE_START_S));
-  return baseEffectiveDtS + overopenS * (FREE_RELEASE_OVEROPEN_EXCHANGE_MULTIPLIER - 1);
-};
-
-const getReleaseOveropenThermalMultiplier = (
-  openElapsedS: number,
-) => {
-  const ramp = clampUnit(
-    (openElapsedS - FREE_RELEASE_OVEROPEN_EXCHANGE_START_S) /
-      FREE_RELEASE_OVEROPEN_THERMAL_RAMP_S,
-  );
-  return 1 + (FREE_RELEASE_OVEROPEN_THERMAL_MAX_MULTIPLIER - 1) * ramp;
-};
-
 const stepOpenState = (
   state: HeatCapacityFreePhysicsState,
   config: HeatCapacityFreePhysicsConfig,
   dtS: number,
   atS: number,
   openElapsedBeforeS: number,
-  releaseEligible: boolean,
 ) => {
   let nextState = state;
   let remainingS = clampNonNegativeFinite(dtS);
   let openElapsedS = clampNonNegativeFinite(openElapsedBeforeS);
   while (remainingS > 0) {
     const stepS = Math.min(remainingS, FREE_OPEN_FLOW_MAX_SUBSTEP_S);
-    const thermalMultiplier = releaseEligible
-      ? getReleaseOveropenThermalMultiplier(openElapsedS)
-      : 1;
     const thermal = stepThermalState(
       nextState,
-      thermalMultiplier === 1
-        ? config
-        : {
-            ...config,
-            thermal: {
-              ...config.thermal,
-              gasWallConductanceWPerK: config.thermal.gasWallConductanceWPerK * thermalMultiplier,
-            },
-          },
+      config,
       stepS,
     );
     const thermalState = {
@@ -764,9 +727,7 @@ const stepOpenState = (
       gasTemperatureK: thermal.state.gasTemperatureK,
       wallTemperatureK: thermal.state.wallTemperatureK,
     };
-    const effectiveFlowDtS = releaseEligible
-      ? getReleaseStopcockEffectiveDtS(openElapsedS, stepS)
-      : getFreeStopcockApertureEffectiveDtS(openElapsedS, stepS);
+    const effectiveFlowDtS = getFreeStopcockApertureEffectiveDtS(openElapsedS, stepS);
     nextState = stepOpenFlowAmountAndTemperature(
       thermalState,
       config,
@@ -876,7 +837,6 @@ export const stepFreePhysics = (
     dtS,
     atS,
     stopcockOpenElapsedBeforeS,
-    releaseEligible || releaseCandidate.releaseStarted,
   );
   const timedFlowedState = applyPumpValveTiming(
     flowedState,

@@ -320,11 +320,29 @@ const shortOpenExact = runHeatCapacityFreeParameterAcceptance({
     },
   ],
 }).rows;
+const airReasonableReleaseWindow = runHeatCapacityFreeParameterAcceptance({
+  scenarios: [0.1, 0.2, 0.35, 0.5, 0.65, 0.8].map((openDurationS) => ({
+    id: `R3-open-window-${openDurationS}`,
+    pumpStrokes: 18,
+    pumpTotalDurationS: 12,
+    waitAfterPumpS: 300,
+    openDurationS,
+    waitAfterReleaseS: 300,
+    leakageEnabled: true,
+    leakageRatePerS: 0.00005,
+    instrumentNoiseEnabled: false,
+  })),
+}).rows;
 
 assert.equal(
   shortOpenExact[0].u2CorrectedMv! > shortOpenExact[1].u2CorrectedMv!,
   true,
   '0.03s should remain physically shorter than 0.05s instead of being swallowed by a 0.05s click step',
+);
+assert.equal(
+  airReasonableReleaseWindow.every((row) => row.gamma !== null && row.gamma >= 1.35),
+  true,
+  'air 0.1-0.8s release window should stay above gamma 1.35 in the clean real model',
 );
 assert.notEqual(absoluteIdeal, undefined, 'absolute ideal scenario should exist in targeted acceptance report');
 assert.notEqual(idealExperiment, undefined, 'ideal experiment scenario should exist in targeted acceptance report');
@@ -533,9 +551,12 @@ assert.equal(
 assert.equal(
   heliumOpenVeryLong?.gamma !== null &&
     heliumOpenVeryLong?.gamma !== undefined &&
-    Math.abs(heliumOpenVeryLong.gamma - HELIUM_THEORETICAL_GAMMA) > 0.1,
+    heliumBestRealisticSmoke?.gamma !== null &&
+    heliumBestRealisticSmoke?.gamma !== undefined &&
+    Math.abs(heliumOpenVeryLong.gamma - HELIUM_THEORETICAL_GAMMA) <= 0.1 &&
+    heliumOpenVeryLong.gamma < heliumBestRealisticSmoke.gamma,
   true,
-  'helium 2.5s long-open error should be visibly wrong around the helium center',
+  'helium 2.5s long-open should no longer use the removed long-open enhancement while still degrading relative to the best realistic run',
 );
 assert.equal(
   heliumU2TwelveMinute?.gamma !== null &&

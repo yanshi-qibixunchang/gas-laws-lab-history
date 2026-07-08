@@ -13,9 +13,18 @@ import {
   HEAT_CAPACITY_FREE_CALCULATION_VERSION,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
+  createDefaultHeatCapacityFreePhysicsConfig,
+} from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import {
+  getHeatCapacityFreeGasTypeModelDefaults,
+} from '../../src/domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
+import {
   createHeatCapacityFreeTrial,
   normalizeHeatCapacityFreeRecordInput,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import {
+  createHeatCapacityFreeStandardReference,
+} from '../../src/domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
 import {
   createHeatCapacityPersistencePayload,
   getHeatCapacityPersistenceReplayFields,
@@ -27,6 +36,9 @@ import {
   WORKBENCH_FILE_SCHEMA_VERSION,
   type WorkbenchExperimentFileEnvelopeV1,
 } from '../../src/features/workbench/workbenchPersistenceSchema.ts';
+import {
+  createCompleteProcessReviewFixtureParts,
+} from './helpers/heatCapacityProcessReviewTestFactory.ts';
 
 const file = createDefaultHeatCapacityFile(1);
 const payload = createHeatCapacityPersistencePayload(file, 12345);
@@ -197,6 +209,36 @@ const recordedPayloadRestored = restoreHeatCapacityFileFromPersistencePayload({
 assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].completedAtMs, 12_345);
 assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].parameterScheme, 'real');
 
+const standardReferenceFixture = createCompleteProcessReviewFixtureParts();
+const contaminatedStandardReference = createHeatCapacityFreeStandardReference({
+  traceTrial: standardReferenceFixture.traceTrial,
+  trial: standardReferenceFixture.trial,
+  theoreticalGamma: 1.4,
+});
+contaminatedStandardReference.configSnapshot.physics.thermal.gasWallConductanceWPerK = 5;
+contaminatedStandardReference.configSnapshot.physics.thermal.wallAmbientConductanceWPerK = 5;
+contaminatedStandardReference.summary.gamma = 1.154;
+contaminatedStandardReference.operationUpperBound.gamma = 1.154;
+const contaminatedSnapshotPayload = structuredClone(recordedPayload);
+contaminatedSnapshotPayload.free!.trials[0].standardReferenceSnapshot = contaminatedStandardReference;
+contaminatedSnapshotPayload.free!.real.trials[0].standardReferenceSnapshot = contaminatedStandardReference;
+const contaminatedSnapshotRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-contaminated-standard-reference-restore',
+  kind: 'heatCapacity',
+  name: 'Contaminated Standard Reference Restore',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: contaminatedSnapshotPayload as unknown as Record<string, unknown>,
+}, contaminatedSnapshotPayload, 8);
+assert.equal(
+  contaminatedSnapshotRestored.heatCapacityFreeTrials[0].standardReferenceSnapshot,
+  null,
+  'restoring Free Mode trials should drop standard reference snapshots generated from contaminated ideal thermal parameters',
+);
+
 const idealPersistedTrial = createHeatCapacityFreeTrial('ideal-persisted-trial', null, 'ideal');
 const idealPersistedFile = {
   ...setHeatCapacityFreeParameterSchemeWorkbenchState(file, 'ideal', 556),
@@ -362,6 +404,166 @@ assert.equal(idealSchemeRestored.heatCapacityFreeParameterScheme, 'ideal');
 assert.equal(idealSchemeRestored.heatCapacityFreeDisplayScheme, 'ideal');
 assert.equal(idealSchemeRestored.heatCapacityFreePhysicsConfig.gamma, 1.4);
 assert.equal(idealSchemeRestored.heatCapacityFreeInstrumentNoiseEnabled, false);
+
+const realPhysicsDefaults = createDefaultHeatCapacityFreePhysicsConfig();
+const airModelDefaults = getHeatCapacityFreeGasTypeModelDefaults('air');
+const staleTopLevelRealFile = {
+  ...file,
+  heatCapacityFreeParameterScheme: 'real' as const,
+  heatCapacityFreeDisplayScheme: 'real' as const,
+  heatCapacityFreePhysicsConfig: {
+    ...file.heatCapacityFreePhysicsConfig,
+    thermal: {
+      ...file.heatCapacityFreePhysicsConfig.thermal,
+      gasWallConductanceWPerK: 5,
+      wallAmbientConductanceWPerK: 5,
+    },
+    pumpValveExchange: {
+      ...file.heatCapacityFreePhysicsConfig.pumpValveExchange!,
+      enabled: false,
+      gasExchangeRatePerS: 0,
+      thermalConductanceWPerK: 0,
+    },
+    environmentDisturbance: {
+      ...file.heatCapacityFreePhysicsConfig.environmentDisturbance!,
+      enabled: false,
+      pressureAmplitudeKPa: 0,
+      temperatureAmplitudeK: 0,
+    },
+    leakage: {
+      enabled: false,
+      ratePerS: 0,
+    },
+  },
+  heatCapacityFreeParameterDraft: {
+    ...file.heatCapacityFreeParameterDraft,
+    gasWallConductanceWPerK: 5,
+    wallAmbientConductanceWPerK: 5,
+    leakageEnabled: false,
+    leakageRatePerS: 0,
+  },
+  heatCapacityFreeRealDomain: {
+    ...file.heatCapacityFreeRealDomain,
+    physicsConfig: {
+      ...file.heatCapacityFreeRealDomain.physicsConfig,
+      thermal: {
+        ...file.heatCapacityFreeRealDomain.physicsConfig.thermal,
+        gasWallConductanceWPerK: airModelDefaults.gasWallConductanceWPerK,
+        wallAmbientConductanceWPerK: realPhysicsDefaults.thermal.wallAmbientConductanceWPerK,
+      },
+    },
+  },
+};
+const staleTopLevelRealFilePayload = createHeatCapacityPersistencePayload(staleTopLevelRealFile, 446);
+assert.equal(
+  staleTopLevelRealFilePayload.free?.config.physics.thermal.gasWallConductanceWPerK,
+  airModelDefaults.gasWallConductanceWPerK,
+);
+assert.equal(
+  staleTopLevelRealFilePayload.free?.parameterDraft.gasWallConductanceWPerK,
+  airModelDefaults.gasWallConductanceWPerK,
+);
+assert.equal(
+  staleTopLevelRealFilePayload.free?.real.physicsConfig.thermal.gasWallConductanceWPerK,
+  airModelDefaults.gasWallConductanceWPerK,
+);
+
+const staleTopLevelRealPayload = structuredClone(payload) as typeof payload;
+staleTopLevelRealPayload.free!.parameterScheme = 'real';
+staleTopLevelRealPayload.free!.displayScheme = 'real';
+staleTopLevelRealPayload.free!.gasType = 'air';
+staleTopLevelRealPayload.free!.config.physics.thermal.gasWallConductanceWPerK = 5;
+staleTopLevelRealPayload.free!.config.physics.thermal.wallAmbientConductanceWPerK = 5;
+staleTopLevelRealPayload.free!.parameterDraft.gasWallConductanceWPerK = 5;
+staleTopLevelRealPayload.free!.real.physicsConfig.thermal.gasWallConductanceWPerK =
+  airModelDefaults.gasWallConductanceWPerK;
+staleTopLevelRealPayload.free!.real.physicsConfig.thermal.wallAmbientConductanceWPerK =
+  realPhysicsDefaults.thermal.wallAmbientConductanceWPerK;
+const staleTopLevelRealRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-stale-top-level-real-restore',
+  kind: 'heatCapacity',
+  name: 'Stale Top-level Real Restore',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: staleTopLevelRealPayload as unknown as Record<string, unknown>,
+}, staleTopLevelRealPayload, 6);
+assert.equal(
+  staleTopLevelRealRestored.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK,
+  airModelDefaults.gasWallConductanceWPerK,
+);
+assert.equal(
+  staleTopLevelRealRestored.heatCapacityFreeParameterDraft.gasWallConductanceWPerK,
+  airModelDefaults.gasWallConductanceWPerK,
+);
+
+const contaminatedRealDomainPayload = structuredClone(payload) as typeof payload;
+contaminatedRealDomainPayload.free!.parameterScheme = 'real';
+contaminatedRealDomainPayload.free!.displayScheme = 'real';
+contaminatedRealDomainPayload.free!.gasType = 'air';
+contaminatedRealDomainPayload.free!.real.physicsConfig.thermal.gasWallConductanceWPerK = 5;
+contaminatedRealDomainPayload.free!.real.physicsConfig.thermal.wallAmbientConductanceWPerK = 5;
+contaminatedRealDomainPayload.free!.real.physicsConfig.pumpValveExchange = {
+  ...contaminatedRealDomainPayload.free!.real.physicsConfig.pumpValveExchange!,
+  enabled: false,
+  gasExchangeRatePerS: 0,
+  thermalConductanceWPerK: 0,
+};
+contaminatedRealDomainPayload.free!.real.physicsConfig.environmentDisturbance = {
+  ...contaminatedRealDomainPayload.free!.real.physicsConfig.environmentDisturbance!,
+  enabled: false,
+  pressureAmplitudeKPa: 0,
+  temperatureAmplitudeK: 0,
+};
+contaminatedRealDomainPayload.free!.real.physicsConfig.leakage = {
+  enabled: false,
+  ratePerS: 0,
+};
+contaminatedRealDomainPayload.free!.real.scheme = 'ideal';
+contaminatedRealDomainPayload.free!.ideal.scheme = 'real';
+contaminatedRealDomainPayload.free!.real.trials = [
+  createHeatCapacityFreeTrial('real-domain-boundary-trial', null, 'ideal'),
+];
+contaminatedRealDomainPayload.free!.ideal.trials = [
+  createHeatCapacityFreeTrial('ideal-domain-boundary-trial', null, 'real'),
+];
+const contaminatedRealDomainRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-contaminated-real-domain-restore',
+  kind: 'heatCapacity',
+  name: 'Contaminated Real Domain Restore',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: contaminatedRealDomainPayload as unknown as Record<string, unknown>,
+}, contaminatedRealDomainPayload, 7);
+assert.equal(
+  contaminatedRealDomainRestored.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK,
+  airModelDefaults.gasWallConductanceWPerK,
+);
+assert.equal(
+  contaminatedRealDomainRestored.heatCapacityFreePhysicsConfig.thermal.wallAmbientConductanceWPerK,
+  realPhysicsDefaults.thermal.wallAmbientConductanceWPerK,
+);
+assert.equal(contaminatedRealDomainRestored.heatCapacityFreePhysicsConfig.leakage.enabled, true);
+assert.equal(
+  contaminatedRealDomainRestored.heatCapacityFreePhysicsConfig.leakage.ratePerS,
+  airModelDefaults.leakageRatePerS,
+);
+assert.equal(contaminatedRealDomainRestored.heatCapacityFreePhysicsConfig.pumpValveExchange?.enabled, true);
+assert.equal(contaminatedRealDomainRestored.heatCapacityFreePhysicsConfig.environmentDisturbance?.enabled, true);
+assert.equal(
+  contaminatedRealDomainRestored.heatCapacityFreeRealDomain.physicsConfig.thermal.gasWallConductanceWPerK,
+  airModelDefaults.gasWallConductanceWPerK,
+);
+assert.equal(contaminatedRealDomainRestored.heatCapacityFreeRealDomain.scheme, 'real');
+assert.equal(contaminatedRealDomainRestored.heatCapacityFreeIdealDomain.scheme, 'ideal');
+assert.equal(contaminatedRealDomainRestored.heatCapacityFreeRealDomain.trials[0].parameterScheme, 'real');
+assert.equal(contaminatedRealDomainRestored.heatCapacityFreeIdealDomain.trials[0].parameterScheme, 'ideal');
+assert.equal(contaminatedRealDomainRestored.heatCapacityFreeTrials[0].parameterScheme, 'real');
 
 const incompletePayload = structuredClone(editedPayload);
 delete incompletePayload.free!.parameterDraft;

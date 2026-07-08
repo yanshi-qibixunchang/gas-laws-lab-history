@@ -76,6 +76,44 @@ assert.equal(
   'a 12 s release should be treated as a severe operation error',
 );
 
+const createReleaseDurationScore = (durationS: number) => {
+  const fixture = createCompleteProcessScoringInputFixture();
+  const openEvent = fixture.branch.events.find((event) => (
+    event.type === 'stopcock-open' && fixture.summary.u1 && event.atS > fixture.summary.u1.atS
+  ));
+  assert.notEqual(openEvent, undefined, 'release duration fixture needs a release open event');
+  const branch = {
+    ...fixture.branch,
+    events: fixture.branch.events.map((event) => (
+      event.type === 'stopcock-close' && openEvent && event.atS >= openEvent.atS
+        ? { ...event, atS: openEvent.atS + durationS }
+        : event
+    )),
+  };
+  const score = scoreHeatCapacityFreeProcess({ ...fixture, branch });
+  const release = score.items.find((item) => item.id === 'release');
+  assert.notEqual(release, undefined, 'release score item should exist');
+  return release!;
+};
+
+const releaseAt010 = createReleaseDurationScore(0.1);
+const releaseAt035 = createReleaseDurationScore(0.35);
+const releaseAt080 = createReleaseDurationScore(0.8);
+const releaseAt250 = createReleaseDurationScore(2.5);
+assert.equal(
+  releaseAt035.score > releaseAt010.score && releaseAt035.score > releaseAt080.score,
+  true,
+  'release duration scoring should peak at the 0.35 s standard operation',
+);
+assert.equal(
+  releaseAt010.score > releaseAt250.score && releaseAt080.score > releaseAt250.score,
+  true,
+  '0.1-0.8 s releases should remain partial-score operations instead of being treated like long venting',
+);
+assert.equal(releaseAt035.status, 'reasonable');
+assert.equal(releaseAt010.status, 'review');
+assert.equal(releaseAt080.status, 'review');
+
 const largeResultDeviation = scoreHeatCapacityFreeProcess({
   ...complete,
   summary: {

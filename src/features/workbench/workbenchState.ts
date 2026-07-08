@@ -144,6 +144,7 @@ import {
   applyHeatCapacityFreeParameterDraftToConfigs,
   createHeatCapacityFreeParameterDraftFromConfigs,
   getHeatCapacityFreeGasTypeGamma,
+  getHeatCapacityFreeGasTypeModelDefaults,
   getEffectiveHeatCapacityFreeSensorConfig,
   normalizeHeatCapacityFreeParameterDraft,
   normalizeHeatCapacityFreeGasType,
@@ -153,6 +154,9 @@ import {
   type HeatCapacityFreeParameterApplyResult,
   type HeatCapacityFreeParameterDraft,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
+import type {
+  HeatCapacityFreeParameterLockReasonId,
+} from '../heatCapacity/heatCapacityFreeParameterPanelModel.ts';
 import {
   createHeatCapacityFreeIdealEffectiveConfigs,
   createHeatCapacityFreeIdealStagePhysicsConfig,
@@ -1343,20 +1347,20 @@ export const isHeatCapacityFreeGasTypeEditingAvailable = (
 
 export const getHeatCapacityFreeParameterLockReason = (
   file: WorkbenchFileState | null,
-) => {
+): HeatCapacityFreeParameterLockReasonId | null => {
   if (!file || file.kind !== 'heatCapacity') return null;
-  if (file.heatCapacityMode !== 'free') return '只有自由实验模式可以调整参数。';
+  if (file.heatCapacityMode !== 'free') return 'freeModeOnly';
   if (file.runState === 'running' || file.runState === 'paused') {
-    return '当前实验正在运行或暂停，参数已锁定。';
+    return 'runningOrPaused';
   }
   if (shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(file)) {
-    return '请先关闭电源，完成本组实验后再调整参数。';
+    return 'powerOffBeforeNextGroup';
   }
   if (isHeatCapacityFreeExperimentGroupComplete(file)) {
     return null;
   }
   if (file.heatCapacityFreeExperimentGroupStatus !== 'draft') {
-    return '当前实验组已开始，参数已锁定。';
+    return 'groupStarted';
   }
   return null;
 };
@@ -1370,9 +1374,9 @@ export const canOpenHeatCapacityParameterSidebar = (
 
 export const getHeatCapacityParameterSidebarBlockReason = (
   file: WorkbenchFileState | null,
-) => (
+): HeatCapacityFreeParameterLockReasonId | null => (
   file?.kind === 'heatCapacity' && file.heatCapacityMode !== 'free'
-    ? '只有自由实验模式可以调整参数。'
+    ? 'freeModeOnly'
     : null
 );
 
@@ -4617,10 +4621,15 @@ export const withHeatCapacityFreeTrialParameterScheme = (
   trial: HeatCapacityFreeTrial,
   scheme: HeatCapacityFreeParameterScheme,
 ): HeatCapacityFreeTrial => {
-  if (trial.parameterScheme === scheme) return trial;
+  const standardReferenceSnapshot = trial.standardReferenceSnapshot &&
+    !hasHeatCapacityFreeIdealThermalBoundaryContamination(trial.standardReferenceSnapshot.configSnapshot.physics)
+    ? trial.standardReferenceSnapshot
+    : null;
+  if (trial.parameterScheme === scheme && trial.standardReferenceSnapshot === standardReferenceSnapshot) return trial;
   return {
     ...trial,
     parameterScheme: scheme,
+    standardReferenceSnapshot,
   };
 };
 
@@ -4657,7 +4666,13 @@ export const selectHeatCapacityFreeDomain = (
   file: WorkbenchHeatCapacityState,
   scheme: HeatCapacityFreeParameterScheme,
 ): HeatCapacityFreeExperimentDomainState => (
-  scheme === 'ideal' ? file.heatCapacityFreeIdealDomain : file.heatCapacityFreeRealDomain
+  scheme === 'ideal'
+    ? normalizeHeatCapacityFreeExperimentDomainBoundary(file.heatCapacityFreeIdealDomain, 'ideal', 'air')
+    : normalizeHeatCapacityFreeExperimentDomainBoundary(
+        file.heatCapacityFreeRealDomain,
+        'real',
+        file.heatCapacityFreeGasType,
+      )
 );
 
 export const selectActiveHeatCapacityFreeDomain = (
@@ -4679,6 +4694,71 @@ export const getHeatCapacityFreeTrialsForAverage = (
     normalizeHeatCapacityFreeTrialParameterScheme(trial.parameterScheme) === 'real'
   ))
 );
+
+const REAL_DOMAIN_IDEAL_THERMAL_CONTAMINATION_THRESHOLD_W_PER_K = 4;
+
+export const hasHeatCapacityFreeIdealThermalBoundaryContamination = (
+  physicsConfig: Partial<HeatCapacityFreePhysicsConfig> | null | undefined,
+): boolean => {
+  const normalizedPhysicsConfig = normalizeHeatCapacityFreePhysicsConfig(physicsConfig);
+  return normalizedPhysicsConfig.thermal.gasWallConductanceWPerK >=
+    REAL_DOMAIN_IDEAL_THERMAL_CONTAMINATION_THRESHOLD_W_PER_K &&
+    normalizedPhysicsConfig.thermal.wallAmbientConductanceWPerK >=
+    REAL_DOMAIN_IDEAL_THERMAL_CONTAMINATION_THRESHOLD_W_PER_K;
+};
+
+export const normalizeHeatCapacityFreeExperimentDomainBoundary = (
+  domain: HeatCapacityFreeExperimentDomainState,
+  scheme: HeatCapacityFreeParameterScheme,
+  gasType: HeatCapacityFreeGasType,
+): HeatCapacityFreeExperimentDomainState => {
+  const physicsConfig = normalizeHeatCapacityFreePhysicsConfig(domain.physicsConfig);
+  if (scheme === 'ideal') {
+    return {
+      ...domain,
+      scheme: 'ideal',
+      physicsConfig: {
+        ...physicsConfig,
+        gamma: getHeatCapacityFreeGasTypeGamma('air'),
+      },
+      trials: withHeatCapacityFreeTrialsParameterScheme(domain.trials, 'ideal'),
+    };
+  }
+
+  if (!hasHeatCapacityFreeIdealThermalBoundaryContamination(physicsConfig)) {
+    return {
+      ...domain,
+      scheme: 'real',
+      physicsConfig: {
+        ...physicsConfig,
+        gamma: getHeatCapacityFreeGasTypeGamma(gasType),
+      },
+      trials: withHeatCapacityFreeTrialsParameterScheme(domain.trials, 'real'),
+    };
+  }
+
+  const realDefaults = createDefaultHeatCapacityFreePhysicsConfig();
+  const gasDefaults = getHeatCapacityFreeGasTypeModelDefaults(gasType);
+  return {
+    ...domain,
+    scheme: 'real',
+    physicsConfig: {
+      ...physicsConfig,
+      gamma: getHeatCapacityFreeGasTypeGamma(gasType),
+      thermal: {
+        ...realDefaults.thermal,
+        gasWallConductanceWPerK: gasDefaults.gasWallConductanceWPerK,
+      },
+      pumpValveExchange: normalizeFreePumpValveExchangeConfig(realDefaults.pumpValveExchange),
+      environmentDisturbance: normalizeFreeEnvironmentDisturbanceConfig(realDefaults.environmentDisturbance),
+      leakage: {
+        ...realDefaults.leakage,
+        ratePerS: gasDefaults.leakageRatePerS,
+      },
+    },
+    trials: withHeatCapacityFreeTrialsParameterScheme(domain.trials, 'real'),
+  };
+};
 
 const applyHeatCapacityFreeDomainToRuntimeFields = (
   file: WorkbenchHeatCapacityState,
@@ -4724,9 +4804,20 @@ export const storeHeatCapacityFreeRuntimeFieldsInDomain = (
   file: WorkbenchHeatCapacityState,
   scheme: HeatCapacityFreeParameterScheme,
 ): WorkbenchHeatCapacityState => {
-  const domain = createHeatCapacityFreeExperimentDomainStateFromFile(file, scheme);
+  const activeDomain = selectHeatCapacityFreeDomain(file, scheme);
+  const shouldUseExistingDomain =
+    scheme === 'real' &&
+    hasHeatCapacityFreeIdealThermalBoundaryContamination(file.heatCapacityFreePhysicsConfig);
+  const sourceFile = shouldUseExistingDomain
+    ? applyHeatCapacityFreeDomainToRuntimeFields(file, activeDomain)
+    : file;
+  const domain = normalizeHeatCapacityFreeExperimentDomainBoundary(
+    createHeatCapacityFreeExperimentDomainStateFromFile(sourceFile, scheme),
+    scheme,
+    sourceFile.heatCapacityFreeGasType,
+  );
   const fileWithNormalizedRuntime = {
-    ...file,
+    ...sourceFile,
     heatCapacityFreeTrials: domain.trials,
   };
   return scheme === 'ideal'

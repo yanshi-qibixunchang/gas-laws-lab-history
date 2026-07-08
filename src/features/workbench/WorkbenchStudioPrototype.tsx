@@ -146,7 +146,6 @@ import { HeatCapacityLeftPanel } from '../heatCapacity/HeatCapacityLeftPanel.tsx
 import { HeatCapacityFreeDisplaySchemeMenu } from '../heatCapacity/HeatCapacityFreeDisplaySchemeMenu.tsx';
 import HeatCapacityProcessReviewPanel from '../heatCapacity/HeatCapacityProcessReviewPanel.tsx';
 import {
-  HEAT_CAPACITY_FREE_PARAMETER_SIDEBAR_BLOCK_FALLBACK,
   formatHeatCapacityFreeParameterValue,
   getHeatCapacityFreeParameterDraftValue,
   getHeatCapacityFreeParameterInputValue,
@@ -155,12 +154,14 @@ import {
   heatCapacityFreeBasicCheckboxes,
   heatCapacityFreeBasicNumberParameters,
   heatCapacityFreeGasTypeOptions,
+  heatCapacityFreeParameterLockText,
   heatCapacityFreeSharedText,
   type HeatCapacityFreeBasicCheckboxKey,
   type HeatCapacityFreeCheckboxDefinition,
   type HeatCapacityFreeDraftNumberKey,
   type HeatCapacityFreeGasTypeOptionDefinition,
   type HeatCapacityFreeNumberParameterDefinition,
+  type HeatCapacityFreeParameterLockReasonId,
   type HeatCapacityFreeParameterSymbolPart,
 } from '../heatCapacity/heatCapacityFreeParameterPanelModel.ts';
 import type {
@@ -303,6 +304,10 @@ type WorkbenchThemePreference = 'system' | 'light' | 'dark';
 type WorkbenchResolvedTheme = 'light' | 'dark';
 type WorkbenchLanguagePreference = 'zh-CN' | 'zh-TW' | 'en';
 type WorkbenchPerformanceMode = HeatCapacityQualityMode;
+const getHeatCapacityFreeParameterLockMessage = (
+  reason: HeatCapacityFreeParameterLockReasonId | null,
+  language: WorkbenchLanguagePreference,
+) => (reason ? heatCapacityFreeParameterLockText[reason][language] : null);
 const WORKBENCH_USER_GUIDE_URLS: Record<WorkbenchLanguagePreference, string> = {
   'zh-CN': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release#readme',
   'zh-TW': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.zh-TW.md',
@@ -1122,6 +1127,9 @@ interface WorkbenchCopy {
     ideal: string;
     heat: string;
     workspaceAria: string;
+    usageHintAria: string;
+    clickSelectHint: string;
+    doubleClickOpenHint: string;
     openActions: (name: string) => string;
   };
   panels: {
@@ -1981,7 +1989,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       openFiles: '打开文件', files: '文件', panels: '面板', noOpenFiles: '没有打开的文件', noOpenFileState: '当前没有打开的实验文件', noOpenPanelState: '打开实验后显示可用面板。', emptyHint: '在主工作区新建或打开实验。',
       noOpenStudy: '没有打开的研究', emptyTitle: '开始新的实验工作区', emptyBody: '创建标准模拟、理想气体关系研究或空气比热容比实验，以恢复预览、图表、结果和参数面板。',
       createStandard: '创建标准模拟研究', createIdeal: '创建理想气体模拟研究', createHeatCapacity: '创建空气比热容比实验', rename: '重命名', delete: '删除', confirmDelete: '确认删除', closeExperiment: '关闭实验', confirmCloseRunningExperiment: (name) => '实验正在运行。确认关闭 ' + name + ' 吗？', cancel: '取消',
-      locked: '锁定', shown: '显示', open: '打开', active: '活动', off: '关闭', std: '标准', ideal: '理想', heat: '热容', workspaceAria: '文件工作区', openActions: (name) => '打开 ' + name + ' 的操作菜单',
+      locked: '锁定', shown: '显示', open: '打开', active: '活动', off: '关闭', std: '标准', ideal: '理想', heat: '热容', workspaceAria: '文件工作区', usageHintAria: '文件树操作提示', clickSelectHint: '单击选中', doubleClickOpenHint: '双击打开', openActions: (name) => '打开 ' + name + ' 的操作菜单',
     },
     panels: {
       previewTitle: '3D 预览', previewHint: '实时分子视口', realtimeTitle: '实时数据 / 图表', heatRealtimeTitle: '实时数据', standardRealtimeHint: '实时温度、压力和图表轨迹', idealRealtimeHint: '实时 T、P、关系和图表轨迹', heatRealtimeHint: 'Uₜ / Uₚ、压强和过程采样',
@@ -2099,7 +2107,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       openFiles: '開啟檔案', files: '檔案', panels: '面板', noOpenFiles: '沒有開啟的檔案', noOpenFileState: '目前沒有開啟的實驗檔案', noOpenPanelState: '開啟實驗後顯示可用面板。', emptyHint: '在主工作區建立或開啟實驗。',
       noOpenStudy: '沒有開啟的研究', emptyTitle: '開始新的實驗工作區', emptyBody: '建立標準模擬、理想氣體關係研究或空氣比熱容比實驗，以恢復預覽、圖表、結果和參數面板。',
       createStandard: '建立標準模擬研究', createIdeal: '建立理想氣體模擬研究', createHeatCapacity: '建立空氣比熱容比實驗', rename: '重新命名', delete: '刪除', confirmDelete: '確認刪除', closeExperiment: '關閉實驗', confirmCloseRunningExperiment: (name) => '實驗正在執行。確認關閉 ' + name + ' 嗎？', cancel: '取消',
-      locked: '鎖定', shown: '顯示', open: '開啟', active: '作用中', off: '關閉', std: '標準', ideal: '理想', heat: '熱容', workspaceAria: '檔案工作區', openActions: (name) => '開啟 ' + name + ' 的操作選單',
+      locked: '鎖定', shown: '顯示', open: '開啟', active: '作用中', off: '關閉', std: '標準', ideal: '理想', heat: '熱容', workspaceAria: '檔案工作區', usageHintAria: '檔案樹操作提示', clickSelectHint: '單擊選取', doubleClickOpenHint: '雙擊開啟', openActions: (name) => '開啟 ' + name + ' 的操作選單',
     },
     panels: {
       previewTitle: '3D 預覽', previewHint: '即時分子視口', realtimeTitle: '即時資料 / 圖表', heatRealtimeTitle: '即時資料', standardRealtimeHint: '即時溫度、壓力和圖表軌跡', idealRealtimeHint: '即時 T、P、關係和圖表軌跡', heatRealtimeHint: 'Uₜ / Uₚ、壓強和過程採樣',
@@ -2217,7 +2225,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       openFiles: 'Open Files', files: 'Files', panels: 'Panels', noOpenFiles: 'No open files', noOpenFileState: 'No experiment file is currently open', noOpenPanelState: 'Available panels appear after an experiment is opened.', emptyHint: 'Create or open an experiment from the main workspace.',
       noOpenStudy: 'No open study', emptyTitle: 'Start a new Heat Capacity Ratio Lab file', emptyBody: 'Create an ideal gas study, heat capacity ratio experiment, or standard simulation to restore previews, charts, results, and parameter panels.',
       createStandard: 'Create Standard Simulation Study', createIdeal: 'Create Ideal Gas Simulation Study', createHeatCapacity: 'Create Heat Capacity Ratio Experiment', rename: 'Rename', delete: 'Delete', confirmDelete: 'Confirm Delete', closeExperiment: 'Close Experiment', confirmCloseRunningExperiment: (name) => 'The experiment is running. Close ' + name + '?', cancel: 'Cancel',
-      locked: 'locked', shown: 'shown', open: 'open', active: 'active', off: 'off', std: 'Standard', ideal: 'Ideal', heat: 'Heat', workspaceAria: 'File workspace', openActions: (name) => 'Open actions for ' + name,
+      locked: 'locked', shown: 'shown', open: 'open', active: 'active', off: 'off', std: 'Standard', ideal: 'Ideal', heat: 'Heat', workspaceAria: 'File workspace', usageHintAria: 'File tree usage hint', clickSelectHint: 'Click to select', doubleClickOpenHint: 'Double-click to open', openActions: (name) => 'Open actions for ' + name,
     },
     panels: {
       previewTitle: '3D Preview', previewHint: 'Realtime molecular viewport', realtimeTitle: 'Realtime Data / Charts', heatRealtimeTitle: 'Realtime Data', standardRealtimeHint: 'Live temperature, pressure, and chart traces', idealRealtimeHint: 'Live T, P, relation, and chart traces', heatRealtimeHint: 'Uₜ / Uₚ, pressure, and process samples',
@@ -2383,6 +2391,22 @@ const heatCapacityRealtimeCopies = {
     pressureWarningMessage: '压强已达到建议打气范围，请停止打气并等待回温。',
     pressureAlarmMessage: '压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。',
     closePumpValveReminder: '请关闭打气阀门。',
+    pumpHints: {
+      idle: '未打气',
+      pumpValveOpen: '打气阀门已打开',
+      pumpValveClosed: '打气阀门已关闭',
+      needPower: '请先打开电源，再执行有效打气',
+      stopcockOpenBlocksPump: '玻璃旋塞已打开，无法形成有效加压',
+      needPumpValve: '打气阀门未打开，无法有效打气',
+      pressureDanger: '压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。',
+      pressureWarning: '压强已达到建议打气范围，请停止打气并等待回温。',
+      pumpTargetReached: '已达到打气标准，请关闭打气阀门。',
+      pumpRateGood: '打气频率合适，可以继续观察压强变化',
+      pumpRateSlow: '打气速率偏低，实验效果可能不明显',
+      teachingComplete: '教学流程已完成',
+      autoDemoStarted: '自动演示已启动',
+      observeInitialPressure: '观察初始压强差示数是否为零',
+    },
     pressureAlarmLog: (name: string) => `${name}：压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。`,
     toastSystemKicker: '系统',
     autoDemoLockedToast: '演示中无法操作',
@@ -2406,7 +2430,6 @@ const heatCapacityRealtimeCopies = {
     autoDemoInitializingToast: '正在初始化自动演示',
     autoDemoStartedLog: (name: string) => `${name}：自动演示已启动。`,
     autoDemoPausedHint: '自动演示已暂停',
-    autoDemoPausedToast: '演示已暂停',
     autoDemoPausedLog: (name: string) => `${name}：自动演示已暂停。`,
     autoDemoTerminatedHint: '自动演示已终止',
     autoDemoTerminatedTitle: '演示已终止',
@@ -2596,6 +2619,22 @@ const heatCapacityRealtimeCopies = {
     pressureWarningMessage: '壓強已達到建議打氣範圍，請停止打氣並等待回溫。',
     pressureAlarmMessage: '壓強已超過安全閾值，瓶塞可能被頂開，請立即停止打氣。',
     closePumpValveReminder: '請關閉打氣閥門。',
+    pumpHints: {
+      idle: '未打氣',
+      pumpValveOpen: '打氣閥門已打開',
+      pumpValveClosed: '打氣閥門已關閉',
+      needPower: '請先打開電源，再執行有效打氣',
+      stopcockOpenBlocksPump: '玻璃旋塞已打開，無法形成有效加壓',
+      needPumpValve: '打氣閥門未打開，無法有效打氣',
+      pressureDanger: '壓強已超過安全閾值，瓶塞可能被頂開，請立即停止打氣。',
+      pressureWarning: '壓強已達到建議打氣範圍，請停止打氣並等待回溫。',
+      pumpTargetReached: '已達到打氣標準，請關閉打氣閥門。',
+      pumpRateGood: '打氣頻率合適，可以繼續觀察壓強變化',
+      pumpRateSlow: '打氣速率偏低，實驗效果可能不明顯',
+      teachingComplete: '教學流程已完成',
+      autoDemoStarted: '自動演示已啟動',
+      observeInitialPressure: '觀察初始壓強差示數是否為零',
+    },
     pressureAlarmLog: (name: string) => `${name}：壓強已超過安全閾值，瓶塞可能被頂開，請立即停止打氣。`,
     toastSystemKicker: '系統',
     autoDemoLockedToast: '演示中無法操作',
@@ -2619,7 +2658,6 @@ const heatCapacityRealtimeCopies = {
     autoDemoInitializingToast: '正在初始化自動演示',
     autoDemoStartedLog: (name: string) => `${name}：自動演示已啟動。`,
     autoDemoPausedHint: '自動演示已暫停',
-    autoDemoPausedToast: '演示已暫停',
     autoDemoPausedLog: (name: string) => `${name}：自動演示已暫停。`,
     autoDemoTerminatedHint: '自動演示已終止',
     autoDemoTerminatedTitle: '演示已終止',
@@ -2809,6 +2847,22 @@ const heatCapacityRealtimeCopies = {
     pressureWarningMessage: 'Pressure has reached the recommended pumping range. Stop pumping and wait for thermal recovery.',
     pressureAlarmMessage: 'Pressure exceeds the safety threshold. The stopper may be forced open. Stop pumping immediately.',
     closePumpValveReminder: 'Close the pump valve.',
+    pumpHints: {
+      idle: 'Not pumped',
+      pumpValveOpen: 'Pump valve is open',
+      pumpValveClosed: 'Pump valve is closed',
+      needPower: 'Turn on the power before effective pumping',
+      stopcockOpenBlocksPump: 'The glass stopcock is open, so pressure cannot build effectively',
+      needPumpValve: 'Open the pump valve before effective pumping',
+      pressureDanger: 'Pressure exceeds the safety threshold. The stopper may be forced open. Stop pumping immediately.',
+      pressureWarning: 'Pressure has reached the recommended pumping range. Stop pumping and wait for thermal recovery.',
+      pumpTargetReached: 'Pumping target reached. Close the pump valve.',
+      pumpRateGood: 'Pumping rate is suitable. Continue watching the pressure change',
+      pumpRateSlow: 'Pumping rate is low, so the experiment may be less visible',
+      teachingComplete: 'Teaching flow complete',
+      autoDemoStarted: 'Auto demo started',
+      observeInitialPressure: 'Observe whether the initial pressure-difference reading is zero',
+    },
     pressureAlarmLog: (name: string) => `${name}: Pressure exceeds the safety threshold. The stopper may be forced open. Stop pumping immediately.`,
     toastSystemKicker: 'SYSTEM',
     autoDemoLockedToast: 'Cannot operate during the demo',
@@ -2832,7 +2886,6 @@ const heatCapacityRealtimeCopies = {
     autoDemoInitializingToast: 'Initializing auto demo',
     autoDemoStartedLog: (name: string) => `${name}: auto demo started.`,
     autoDemoPausedHint: 'Auto demo paused',
-    autoDemoPausedToast: 'Demo paused',
     autoDemoPausedLog: (name: string) => `${name}: auto demo paused.`,
     autoDemoTerminatedHint: 'Auto demo stopped',
     autoDemoTerminatedTitle: 'Demo stopped',
@@ -2901,6 +2954,34 @@ const heatCapacityRealtimeCopies = {
 const getHeatCapacityRealtimeCopy = (language: WorkbenchLanguagePreference) => (
   heatCapacityRealtimeCopies[language] ?? heatCapacityRealtimeCopies['zh-CN']
 );
+
+type HeatCapacityRealtimeCopy = (typeof heatCapacityRealtimeCopies)[WorkbenchLanguagePreference];
+type HeatCapacityPumpHintKey = keyof HeatCapacityRealtimeCopy['pumpHints'];
+
+const HEAT_CAPACITY_REALTIME_STATE_HINT_FIELDS = [
+  'autoDemoPreparingHint',
+  'autoDemoReadyToCompleteHint',
+  'autoDemoPausedHint',
+  'autoDemoTerminatedHint',
+] as const satisfies readonly (keyof HeatCapacityRealtimeCopy)[];
+
+const getLocalizedHeatCapacityPumpHint = (
+  value: string | null | undefined,
+  language: WorkbenchLanguagePreference,
+) => {
+  if (!value) return '';
+  const targetCopy = getHeatCapacityRealtimeCopy(language);
+  const allCopies = Object.values(heatCapacityRealtimeCopies) as HeatCapacityRealtimeCopy[];
+  for (const sourceCopy of allCopies) {
+    for (const key of Object.keys(sourceCopy.pumpHints) as HeatCapacityPumpHintKey[]) {
+      if (sourceCopy.pumpHints[key] === value) return targetCopy.pumpHints[key];
+    }
+    for (const key of HEAT_CAPACITY_REALTIME_STATE_HINT_FIELDS) {
+      if (sourceCopy[key] === value) return targetCopy[key];
+    }
+  }
+  return value;
+};
 
 const getHeatCapacityFreeRecordRejectMessage = (
   reason: HeatCapacityFreeRecordRejectReason,
@@ -3922,6 +4003,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const isWorkbenchEmpty = files.length === 0;
   const activeFile = files.find((file) => file.id === activeFileId) ?? emptyWorkbenchFile;
   const activeHeatCapacityFreeParameterLockReason = getHeatCapacityFreeParameterLockReason(activeFile);
+  const activeHeatCapacityFreeParameterLockMessage = getHeatCapacityFreeParameterLockMessage(
+    activeHeatCapacityFreeParameterLockReason,
+    settingsLanguagePreference,
+  );
   const activeHeatCapacityFreeParameterLocked = activeFile.kind === 'heatCapacity' &&
     activeFile.heatCapacityMode === 'free' &&
     activeHeatCapacityFreeParameterLockReason !== null;
@@ -4954,7 +5039,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
     if (!canOpenHeatCapacityParameterSidebar(activeFile)) {
       showParameterSidebarBlockReason(
-        getHeatCapacityParameterSidebarBlockReason(activeFile) ?? HEAT_CAPACITY_FREE_PARAMETER_SIDEBAR_BLOCK_FALLBACK,
+        getHeatCapacityFreeParameterLockMessage(
+          getHeatCapacityParameterSidebarBlockReason(activeFile),
+          settingsLanguagePreference,
+        ),
       );
       return;
     }
@@ -4972,7 +5060,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const showHeatCapacityFreeParameterLockHint = () => {
-    const message = getHeatCapacityFreeParameterLockReason(activeFile);
+    const message = getHeatCapacityFreeParameterLockMessage(
+      getHeatCapacityFreeParameterLockReason(activeFile),
+      settingsLanguagePreference,
+    );
     if (!message) return;
     setScanInputToast(message);
     pushLog(`${activeFile.name}: ${message}`, 'warning');
@@ -5201,8 +5292,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
     const parameterLockReason = getHeatCapacityFreeParameterLockReason(currentFile);
     if (parameterLockReason) {
-      setScanInputToast(parameterLockReason);
-      pushLog(`${currentFile.name}: ${parameterLockReason}`, 'warning');
+      const message = getHeatCapacityFreeParameterLockMessage(parameterLockReason, settingsLanguagePreference);
+      if (message) {
+        setScanInputToast(message);
+        pushLog(`${currentFile.name}: ${message}`, 'warning');
+      }
       return;
     }
     if (!isHeatCapacityFreeGasTypeEditingAvailable(currentFile)) {
@@ -7239,7 +7333,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
         ...operationFile,
         pumpValveOpen,
         pumpValveState: pumpValveOpen ? 'open' : 'closed',
-        pumpHint: pumpValveOpen ? '打气阀门已打开' : '打气阀门已关闭',
+        pumpHint: pumpValveOpen
+          ? heatCapacityRealtimeCopy.pumpHints.pumpValveOpen
+          : heatCapacityRealtimeCopy.pumpHints.pumpValveClosed,
         updatedAt: now,
       };
       const shouldCaptureFreeBeforePump = nextFileBase.heatCapacityMode === 'free' &&
@@ -7692,7 +7788,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           ...file,
           pumpValveOpen: true,
           pumpValveState: 'open',
-          pumpHint: '打气阀门已打开',
+          pumpHint: heatCapacityRealtimeCopy.pumpHints.pumpValveOpen,
           updatedAt: now,
         };
       }
@@ -7702,7 +7798,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           ...file,
           pumpValveOpen: false,
           pumpValveState: 'closed',
-          pumpHint: '打气阀门已关闭',
+          pumpHint: heatCapacityRealtimeCopy.pumpHints.pumpValveClosed,
           updatedAt: now,
         };
       }
@@ -7714,7 +7810,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       if (action === 'observeInitialPressure') {
         return {
           ...file,
-          pumpHint: '观察初始压强差示数是否为零',
+          pumpHint: heatCapacityRealtimeCopy.pumpHints.observeInitialPressure,
           updatedAt: now,
         };
       }
@@ -7766,7 +7862,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const nextFocusControlId = focusControlId ?? step.targetControlId ?? null;
     setDemoFocusControlId(stage === 'highlight' ? nextFocusControlId : null);
     setDemoFocusPulseActive(stage === 'highlight' && Boolean(nextFocusControlId));
-    setHeatCapacityAutoDemoCameraFocus((stage === 'highlight' || stage === 'action') ? mapHeatCapacityAutoDemoCameraFocusMode(cameraFocusMode) : null);
+    if (stage === 'highlight' || stage === 'action') {
+      const nextDemoCameraFocusMode = mapHeatCapacityAutoDemoCameraFocusMode(cameraFocusMode);
+      if (nextDemoCameraFocusMode) {
+        setHeatCapacityAutoDemoCameraFocus(nextDemoCameraFocusMode);
+      }
+    }
   };
 
   const finishHeatCapacityAutoDemoUi = (message: string = heatCapacityRealtimeCopy.autoDemoCompletionToast) => {
@@ -9001,13 +9102,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setAutoDemoRunning(false);
     setAutoDemoPaused(true);
     setAutoDemoInteractionLocked(true);
-    setDemoFocusControlId(null);
-    setDemoFocusPulseActive(false);
-    setHeatCapacityAutoDemoCameraFocus(null);
     updateActiveFile((file) => file.kind === 'heatCapacity'
-      ? { ...file, runState: 'paused', pumpHint: heatCapacityRealtimeCopy.autoDemoPausedHint, updatedAt: Date.now() }
+      ? { ...file, runState: 'paused', updatedAt: Date.now() }
       : file);
-    showHeatCapacityAutoDemoLockedToast(heatCapacityRealtimeCopy.autoDemoPausedToast);
     pushLog(heatCapacityRealtimeCopy.autoDemoPausedLog(activeFile.name), 'warning');
   };
 
@@ -10991,7 +11088,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       : heatCapacityFreeSharedText.idealProfileIntroBody[settingsLanguagePreference];
     const restoreDefaultTooltip = activeHeatCapacityFreeIdealReadonly
       ? heatCapacityFreeSharedText.idealProfileReadonlyNote[settingsLanguagePreference]
-      : activeHeatCapacityFreeParameterLockReason ?? heatCapacityFreeSharedText.restoreDefault[settingsLanguagePreference];
+      : activeHeatCapacityFreeParameterLockMessage ?? heatCapacityFreeSharedText.restoreDefault[settingsLanguagePreference];
     return (
       <>
         <div className={`studio-heat-free-default-row ${activeHeatCapacityFreeParameterLocked ? 'studio-heat-free-default-row-locked' : ''}`}>
@@ -11078,7 +11175,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         <div className={`studio-heat-free-advanced-entry ${activeHeatCapacityFreeParameterLocked ? 'studio-heat-free-advanced-entry-locked' : ''}`}>
           {renderHeatCapacityTooltipAnchor(
             'heatCapacityAdvancedSettings',
-            activeHeatCapacityFreeParameterLockReason ?? heatCapacityFreeSharedText.advancedOpen[settingsLanguagePreference],
+            activeHeatCapacityFreeParameterLockMessage ?? heatCapacityFreeSharedText.advancedOpen[settingsLanguagePreference],
             <button
               type="button"
               className="studio-heat-free-advanced-button"
@@ -13230,6 +13327,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 }
                 showHeatCapacityAutoDemoLockedToast(message);
               };
+              const localizedHeatCapacityPumpHint = getLocalizedHeatCapacityPumpHint(
+                activeFile.pumpHint,
+                settingsLanguagePreference,
+              );
               return (
                 <HeatCapacityInstrumentScene
                   performanceMode={settingsPerformanceMode}
@@ -13262,7 +13363,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   pumpPulseId={heatCapacityPumpPulseId}
                   pumpFrequency={activeFile.pumpFrequency}
                   pumpFrequencyStatus={activeFile.pumpFrequencyStatus}
-                  pumpHint={activeFile.pumpHint}
+                  pumpHint={localizedHeatCapacityPumpHint}
                   vesselPressureReadoutKPa={activeFile.vesselPressureReadoutKPa}
                   vesselTemperatureReadoutK={activeFile.vesselTemperatureReadoutK}
                   phase={heatCapacityDisplayPhase}
@@ -13523,6 +13624,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
       : canZeroHeatCapacityPressure(activeFile)
         ? heatCapacityRealtimeCopy.zeroStatus.adjustable
         : heatCapacityRealtimeCopy.zeroStatus.notReady;
+    const localizedHeatCapacityPumpHint = getLocalizedHeatCapacityPumpHint(
+      activeFile.pumpHint,
+      settingsLanguagePreference,
+    );
     const currentHint = (() => {
       if (guideHeatCapacityActiveFileId === activeFile.id && !autoDemoRunning && !autoDemoPaused && !autoDemoInteractionLocked) {
         const guideStep = getHeatCapacityGuideStep(activeFile);
@@ -13537,7 +13642,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       if (heatCapacityDisplayPhase === 'sealedStabilizing') return heatCapacityRealtimeCopy.hints.sealedStabilizing;
       if (heatCapacityDisplayPhase === 'releasing') return heatCapacityRealtimeCopy.hints.releasing;
       if (heatCapacityDisplayPhase === 'recovering') return heatCapacityRealtimeCopy.hints.recovering;
-      return activeFile.pumpHint || heatCapacityRealtimeCopy.hints.fallback;
+      return localizedHeatCapacityPumpHint || heatCapacityRealtimeCopy.hints.fallback;
     })();
     return (
       <div className="studio-realtime-panel studio-realtime-panel-heat">
@@ -15656,9 +15761,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 </div>
               </section>
             </div>
-            <div className="studio-sidebar-usage-hint" aria-label="文件树操作提示">
-              <span>单击选中</span>
-              <span>双击打开</span>
+            <div className="studio-sidebar-usage-hint" aria-label={workbenchCopy.files.usageHintAria}>
+              <span>{workbenchCopy.files.clickSelectHint}</span>
+              <span>{workbenchCopy.files.doubleClickOpenHint}</span>
             </div>
             <div
               className="studio-sidebar-resizer"

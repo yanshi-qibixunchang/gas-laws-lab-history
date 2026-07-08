@@ -1918,7 +1918,11 @@ assert.match(sceneSource, /demoCameraFocusMode\?: HeatCapacityFocusMode \| null;
 assert.match(sceneSource, /props\.demoCameraFocusMode !== undefined && props\.demoCameraFocusMode !== null[\s\S]*setFocusMode\(props\.demoCameraFocusMode\)[\s\S]*props\.demoCameraFocusKey/, 'scene should apply scripted demo camera focus from the workbench');
 assert.match(workbenchSource, /const \[demoCameraFocusMode, setDemoCameraFocusMode\] = useState<Exclude<HeatCapacityFocusMode, 'none'> \| null>\(null\);/, 'Workbench should keep demo camera focus independent from guide strong reminders');
 assert.match(workbenchSource, /const mapHeatCapacityAutoDemoCameraFocusMode = \([\s\S]*HeatCapacityAutoDemoTimelineItem\['cameraFocusMode'\][\s\S]*Exclude<HeatCapacityFocusMode, 'none'> \| null/, 'Workbench should map auto-demo timeline camera modes to scene focus modes explicitly');
-assert.match(workbenchSource, /setHeatCapacityAutoDemoCameraFocus\(\(stage === 'highlight' \|\| stage === 'action'\) \? mapHeatCapacityAutoDemoCameraFocusMode\(cameraFocusMode\) : null\);/, 'auto demo highlight and action stages should drive camera focus while preview gaps release it');
+assert.match(workbenchSource, /if \(stage === 'highlight' \|\| stage === 'action'\) \{[\s\S]*const nextDemoCameraFocusMode = mapHeatCapacityAutoDemoCameraFocusMode\(cameraFocusMode\);[\s\S]*if \(nextDemoCameraFocusMode\) \{[\s\S]*setHeatCapacityAutoDemoCameraFocus\(nextDemoCameraFocusMode\);[\s\S]*\}/, 'auto demo highlight and action stages should move the camera without forcing preview gaps back to the default view');
+assert.doesNotMatch(workbenchSource, /setHeatCapacityAutoDemoCameraFocus\(\(stage === 'highlight' \|\| stage === 'action'\) \? mapHeatCapacityAutoDemoCameraFocusMode\(cameraFocusMode\) : null\);/, 'auto demo preview and observe gaps should not reset an active scripted camera view');
+const pauseAutoDemoBlock = workbenchSource.match(/const pauseHeatCapacityAutoDemo = \(\) => \{[\s\S]*?pushLog\(heatCapacityRealtimeCopy\.autoDemoPausedLog\(activeFile\.name\), 'warning'\);\s*\};/)?.[0] ?? '';
+assert.match(pauseAutoDemoBlock, /heatCapacityAutoDemoPausedElapsedMsRef\.current = elapsedMs;/, 'auto demo pause should preserve the elapsed timeline position for resume');
+assert.doesNotMatch(pauseAutoDemoBlock, /setHeatCapacityAutoDemoCameraFocus\(null\)|setDemoFocusControlId\(null\)|setDemoFocusPulseActive\(false\)|hideHeatCapacityAutoDemoStepPanel\(\)|pumpHint:\s*heatCapacityRealtimeCopy\.autoDemoPausedHint|showHeatCapacityAutoDemoLockedToast\(heatCapacityRealtimeCopy\.autoDemoPausedToast\)/, 'auto demo pause should not change the visible step panel, focus highlight, scripted camera view, or current hint surface');
 assert.match(workbenchSource, /demoCameraFocusMode=\{demoCameraFocusMode\}/, 'Workbench should pass demo camera focus mode into the Heat Capacity scene');
 assert.match(workbenchSource, /demoCameraFocusKey=\{demoCameraFocusKey\}/, 'Workbench should pass a demo camera focus key so repeated demo focus stages can retrigger the view');
 assert.match(workbenchSource, /overlayGuideMask=\{heatCapacityGuideMaskOverlay\}/, 'Workbench should pass the strong-reminder mask into the Heat Capacity scene');
@@ -2059,8 +2063,21 @@ assert.doesNotMatch(styleSource, /\.studio-settings-performance-toggle i/, 'sett
 
 assert.match(workbenchSource, /canOpenHeatCapacityParameterSidebar/, 'Heat Capacity parameter rail should use the free-mode sidebar admission helper');
 assert.match(workbenchSource, /getHeatCapacityParameterSidebarBlockReason/, 'blocked Heat Capacity parameter rail clicks should show the configured free-mode-only reason');
-assert.match(freeParameterPanelModelSource, /只有自由实验模式可以调整参数。/, 'demo and guide Heat Capacity modes should explain why the parameter rail cannot expand');
-assert.match(workbenchSource, /HEAT_CAPACITY_FREE_PARAMETER_SIDEBAR_BLOCK_FALLBACK/, 'Workbench should consume the Free Mode parameter-sidebar fallback from the parameter panel model');
+assert.match(freeParameterPanelModelSource, /heatCapacityFreeParameterLockText[\s\S]*freeModeOnly:[\s\S]*'zh-CN':\s*'只有自由实验模式可以调整参数。'[\s\S]*'zh-TW':\s*'只有自由實驗模式可以調整參數。'[\s\S]*en:\s*'Only Free Mode can adjust parameters\.'/,
+  'demo and guide Heat Capacity parameter-sidebar lock copy should be localized for all three languages');
+assert.doesNotMatch(workbenchSource, /HEAT_CAPACITY_FREE_PARAMETER_SIDEBAR_BLOCK_FALLBACK/, 'Workbench should not consume a single-language parameter-sidebar fallback string');
+assert.match(workbenchSource, /getHeatCapacityFreeParameterLockMessage\(\s*getHeatCapacityParameterSidebarBlockReason\(activeFile\),\s*settingsLanguagePreference/s,
+  'blocked Heat Capacity parameter rail clicks should localize the configured lock reason id');
+assert.match(workbenchSource, /pumpHints:\s*\{[\s\S]*pumpValveOpen:\s*'打气阀门已打开'[\s\S]*pumpValveClosed:\s*'打气阀门已关闭'[\s\S]*observeInitialPressure:\s*'观察初始压强差示数是否为零'[\s\S]*pumpHints:\s*\{[\s\S]*pumpValveOpen:\s*'打氣閥門已打開'[\s\S]*pumpValveClosed:\s*'打氣閥門已關閉'[\s\S]*observeInitialPressure:\s*'觀察初始壓強差示數是否為零'[\s\S]*pumpHints:\s*\{[\s\S]*pumpValveOpen:\s*'Pump valve is open'[\s\S]*pumpValveClosed:\s*'Pump valve is closed'[\s\S]*observeInitialPressure:\s*'Observe whether the initial pressure-difference reading is zero'/,
+  'Heat Capacity pump-status hints should be localized for zh-CN, zh-TW, and en');
+assert.match(workbenchSource, /const getLocalizedHeatCapacityPumpHint = \(/, 'Heat Capacity pump hints stored in runtime state should be localized at display time');
+assert.match(workbenchSource, /pumpHint=\{localizedHeatCapacityPumpHint\}/, '3D Heat Capacity scene should receive the localized pump hint');
+assert.doesNotMatch(workbenchSource, /pumpHint=\{activeFile\.pumpHint\}/, '3D Heat Capacity scene should not render raw state pump hints');
+assert.doesNotMatch(workbenchSource, /return activeFile\.pumpHint \|\| heatCapacityRealtimeCopy\.hints\.fallback/, 'Realtime hint fallback should localize raw state pump hints before display');
+assert.doesNotMatch(workbenchSource, /pumpHint:\s*'(?:打气阀门已打开|打气阀门已关闭|观察初始压强差示数是否为零)'/, 'Workbench event handlers should not write new single-language pump hints directly');
+assert.match(workbenchSource, /usageHintAria:\s*'文件树操作提示'[\s\S]*clickSelectHint:\s*'单击选中'[\s\S]*doubleClickOpenHint:\s*'双击打开'[\s\S]*usageHintAria:\s*'檔案樹操作提示'[\s\S]*clickSelectHint:\s*'單擊選取'[\s\S]*doubleClickOpenHint:\s*'雙擊開啟'[\s\S]*usageHintAria:\s*'File tree usage hint'[\s\S]*clickSelectHint:\s*'Click to select'[\s\S]*doubleClickOpenHint:\s*'Double-click to open'/,
+  'left sidebar usage hints should be localized for all three languages');
+assert.doesNotMatch(workbenchSource, /aria-label="文件树操作提示"|<span>单击选中<\/span>|<span>双击打开<\/span>/, 'left sidebar usage hints should not render hard-coded Simplified Chinese text');
 assert.match(styleSource, /\.studio-workspace-shell\.studio-params-collapsed\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*0;/, 'collapsed parameter sidebars should keep winning over responsive workspace grid rules');
 assert.match(styleSource, /\.studio-params-collapsed \.studio-current-params\s*\{[\s\S]*visibility:\s*hidden;/, 'collapsed parameter sidebars should hide the right panel content instead of leaving it visible in demo and guide modes');
 assert.match(workbenchSource, /renderHeatCapacityFreeParameterPanel/, 'Free Mode should render a dedicated parameter panel instead of generic parameter rows');
@@ -2212,6 +2229,36 @@ assert.match(styleSource, /\.studio-heat-free-input-shell\s*\{[\s\S]*position:\s
 assert.match(styleSource, /\.studio-heat-free-unit\s*\{[\s\S]*position:\s*absolute;[\s\S]*inset-inline-end:\s*10px;[\s\S]*text-align:\s*right;/, 'Free Mode numeric units should sit inside the input field and align to the right edge');
 assert.doesNotMatch(styleSource, /@container\s*\(max-width:\s*320px\)[\s\S]*studio-heat-free-param-row/, 'Free Mode parameter rows should not keep the old narrow-sidebar stacked fallback');
 assert.doesNotMatch(styleSource, /@media\s*\(max-width:\s*640px\)\s*\{\s*\.studio-heat-advanced-grid,\s*\.studio-heat-free-param-row/, 'Free Mode parameter rows should not be reintroduced into the generic small-screen stacked media rule');
+assert.match(
+  getRootCssBlock('.studio-file-tab-name'),
+  /font-weight:\s*650;/,
+  'top file-tab names should be slightly heavier than secondary tab metadata',
+);
+assert.match(
+  getRootCssBlock('.studio-tree-row-child:not(.studio-heat-materials-group) > span:nth-child(2)'),
+  /font-weight:\s*650;/,
+  'left sidebar direct panel rows should use a clearer medium-bold label weight',
+);
+assert.match(
+  getRootCssBlock('.studio-tree-row-child:not(.studio-heat-materials-group) > svg'),
+  /stroke-width:\s*2\.25;/,
+  'left sidebar direct panel icons should use a slightly stronger stroke',
+);
+assert.match(
+  getRootCssBlock('.studio-heat-materials-group .studio-results-folder-label'),
+  /font-weight:\s*600;/,
+  'Heat Capacity materials parent row should not receive the heavier child-row emphasis',
+);
+assert.match(
+  getRootCssBlock('.studio-heat-materials-nav button'),
+  /font-weight:\s*650;/,
+  'Heat Capacity materials child buttons should be slightly bolder for hierarchy clarity',
+);
+assert.match(
+  getRootCssBlock('.studio-heat-materials-nav button > svg'),
+  /stroke-width:\s*2\.25;/,
+  'Heat Capacity materials child icons should use the same stronger stroke as panel rows',
+);
 assert.match(styleSource, /\.studio-heat-advanced-groups\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*12px;[\s\S]*padding:\s*14px 18px 16px;/, 'advanced parameter groups should stack vertically with the modal body padding');
 assert.match(styleSource, /\.studio-heat-advanced-group-title\s*\{[\s\S]*font-size:\s*12px;[\s\S]*font-weight:\s*700;/, 'advanced parameter group titles should use compact engineering-style headings');
 assert.match(getCssBlock('.studio-heat-advanced-group-title::before'), /display:\s*none;/, 'advanced parameter group titles should not add decorative color bars');
@@ -2220,6 +2267,16 @@ assert.match(styleSource, /\.studio-heat-advanced-window\s*\{[\s\S]*overflow-x:\
 assert.match(styleSource, /\.studio-heat-advanced-actions button,\s*\.studio-heat-advanced-risk-window button\s*\{[\s\S]*min-width:\s*86px;[\s\S]*justify-content:\s*center;/, 'advanced parameter confirm/cancel buttons should be wide enough for Chinese labels');
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-advanced-window\s*\{[\s\S]*background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*border-color:/, 'advanced parameter window should have a dedicated light-theme surface');
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-free-input-cell input\s*\{[\s\S]*background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*border-color:/, 'Free Mode parameter inputs should have dedicated light-theme contrast');
+assert.match(
+  styleSource,
+  /\.studio-theme-light \.studio-heat-free-scheme-button\s*\{[\s\S]*background:\s*#ecfdf5;[\s\S]*color:\s*#0f5f5a;[\s\S]*border-color:\s*rgba\(15,\s*118,\s*110,\s*0\.42\)/,
+  'light theme real-simulation button should use a readable green surface instead of low-contrast cyan',
+);
+assert.match(
+  styleSource,
+  /\.studio-theme-light \.studio-heat-free-scheme-button-active\s*\{[\s\S]*background:\s*#dbeafe;[\s\S]*color:\s*#1e40af;[\s\S]*border-color:\s*rgba\(37,\s*99,\s*235,\s*0\.48\)/,
+  'light theme ideal-state button should use a separate high-contrast selected surface',
+);
 assert.match(
   styleSource,
   /\.studio-theme-light \.studio-heat-free-advanced-button\s*\{[\s\S]*background:\s*#eaf2ff;[\s\S]*color:\s*#1f3f67;[\s\S]*border-color:\s*rgba\(37,\s*99,\s*235,\s*0\.28\)/,
@@ -2246,9 +2303,9 @@ assert.match(
   'console filter tabs should use the thin annotated border width',
 );
 assert.match(
-  styleSource,
-  /\.studio-heat-materials-nav button\s*\{[\s\S]*font-size:\s*12px;[\s\S]*font-weight:\s*300;/,
-  'heat materials tree child buttons should use the light annotated font weight',
+  `${leftPanelSource}\n${freeParameterPanelModelSource}\n${processReviewPanelSource}`,
+  /'zh-CN'[\s\S]*'zh-TW'[\s\S]*en:/,
+  'Heat Capacity user-facing copy touched since v4.1.17 should keep Simplified Chinese, Traditional Chinese, and English variants',
 );
 assert.match(
   getCssBlock('.studio-tree-title-button-panels'),
