@@ -16,6 +16,25 @@ const ultraModelSource = readFileSync(ultraModelPath, 'utf8');
 const hardSphereLayerSource = readFileSync(hardSphereLayerPath, 'utf8');
 const workbenchSource = readFileSync(workbenchPath, 'utf8');
 const runtimeGlbBinary = readFileSync(runtimeGlbPath);
+const readGlbJsonChunk = (binary: Buffer) => {
+  assert.equal(binary.toString('utf8', 0, 4), 'glTF', 'runtime GLB should use the binary glTF container format');
+  let offset = 12;
+  while (offset < binary.length) {
+    const chunkLength = binary.readUInt32LE(offset);
+    const chunkType = binary.toString('utf8', offset + 4, offset + 8);
+    if (chunkType === 'JSON') {
+      return JSON.parse(binary.toString('utf8', offset + 8, offset + 8 + chunkLength)) as {
+        nodes?: Array<{
+          name?: string;
+          rotation?: number[];
+        }>;
+      };
+    }
+    offset += 8 + chunkLength;
+  }
+  throw new Error('runtime GLB should include a JSON chunk');
+};
+const runtimeGlbJson = readGlbJsonChunk(runtimeGlbBinary);
 
 assert.match(
   sceneSource,
@@ -106,10 +125,103 @@ assert.doesNotMatch(
   'Hard-sphere layer should not retain retired breakpoint-only motion gates',
 );
 
+const glbNeedlePivot = runtimeGlbJson.nodes?.find((node) => node.name === 'HSL_PressureGauge_NeedlePivot');
+assert.notEqual(glbNeedlePivot, undefined, 'Ultra GLB should expose the pressure gauge needle pivot');
+assert.deepEqual(
+  glbNeedlePivot?.rotation?.map((value) => Number(value.toFixed(6))),
+  [0, 0, -0.87959, 0.475732],
+  'Ultra GLB needle pivot should keep the authored low-pressure base transform used by the front-view pressure-gauge contract',
+);
 assert.match(
   ultraModelSource,
-  /getPressureGaugeNeedleRotation[\s\S]*modelPressureGaugeAngleToVisualAngle/,
-  'Ultra pressure gauge needle should reuse the shared pressure gauge contract mapping',
+  /const getUltraPressureGaugeNeedleLocalRotation = \(modelAngle: number\) => PRESSURE_GAUGE_MIN_ROTATION - modelAngle;/,
+  'Ultra pressure gauge should rotate from the authored low-pressure pose toward the right-side danger zone as semantic pressure increases',
+);
+const ultraNeedleRuntimeBlock = ultraModelSource.match(/const pressureNeedle = nodeMap\.get\('HSL_PressureGauge_NeedlePivot'\);[\s\S]*?\n    \}/)?.[0] ?? '';
+assert.match(
+  ultraNeedleRuntimeBlock,
+  /getUltraPressureGaugeNeedleLocalRotation\(gaugeDisplayedRotationRef\.current\)/,
+  'Ultra pressure gauge should drive the GLB needle through the GLB-local clockwise pressure delta',
+);
+[
+  'PressureSensor_Wire_Black',
+  'PressureSensor_Wire_Orange',
+  'TemperatureSensor_Wire',
+  'PressureSensor_SoftTube',
+  'HSL_PressureSensor_SoftTube_WhiteCore',
+  'HSL_PumpTube_Rebuilt',
+  'HSL_CleanValve_Soft_Grey_Tube',
+].forEach((nodeName) => {
+  assert.match(
+    ultraModelSource,
+    new RegExp(`const ULTRA_HIDDEN_SOURCE_PIPELINE_NODE_NAMES = \\[[\\s\\S]*'${nodeName}'`),
+    `Ultra GLB should hide the source baked pipe mesh ${nodeName} before drawing the single current runtime routing`,
+  );
+  assert.doesNotMatch(
+    ultraModelSource,
+    new RegExp(`setUltraNodeOwnMaterialColor\\(nodeMap,\\s*'${nodeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`),
+    `Hidden source pipeline mesh ${nodeName} should not keep a misleading theme/material override`,
+  );
+});
+assert.doesNotMatch(
+  ultraModelSource,
+  /ULTRA_(?:HIDDEN_LEGACY|REPLACED)_PIPELINE_NODE_NAMES/,
+  'Ultra GLB should not keep old-scheme pipeline naming after consolidating on one current runtime routing',
+);
+assert.match(
+  ultraModelSource,
+  /const ULTRA_PRESSURE_PORT_CLUSTER_SPACING = 0\.045;/,
+  'Ultra pressure orange/black box ports should use a tight grouped spacing instead of equal-spaced sensor-box sockets',
+);
+assert.match(
+  ultraModelSource,
+  /id: 'pressure-orange'[\s\S]*kind: 'pressure'[\s\S]*colorToken: 'orangeWire'[\s\S]*new THREE\.Vector3\(ULTRA_SENSOR_BOX_PRESSURE_PLUG_EXIT_X,\s*ULTRA_PRESSURE_ORANGE_BOX_PORT_Y,\s*0\.88\)/,
+  'Orange pressure wire should terminate at the outer tail of the upper tight pressure-port plug on the sensor box',
+);
+assert.match(
+  ultraModelSource,
+  /id: 'pressure-black'[\s\S]*kind: 'pressure'[\s\S]*colorToken: 'blackWire'[\s\S]*new THREE\.Vector3\(ULTRA_SENSOR_BOX_PRESSURE_PLUG_EXIT_X,\s*ULTRA_PRESSURE_BLACK_BOX_PORT_Y,\s*0\.88\)/,
+  'Black pressure wire should terminate at the outer tail of the lower tight pressure-port plug on the sensor box',
+);
+assert.match(
+  ultraModelSource,
+  /const ULTRA_DAQ_PLUG_EXIT_Z = 0\.575;[\s\S]*const ULTRA_DAQ_PLUG_OUTLET_Z = 0\.69;/,
+  'Ultra runtime wire routes should begin with a short rounded outlet segment from the DAQ plug bodies instead of starting inside the sockets',
+);
+assert.match(
+  ultraModelSource,
+  /const ULTRA_SENSOR_BOX_PRESSURE_PLUG_EXIT_X = 0\.365;/,
+  'Pressure wires should connect to the outer tail of the sensor-box plugs instead of terminating inside the socket holes',
+);
+assert.match(
+  ultraModelSource,
+  /id: 'pressure-orange'[\s\S]*new THREE\.Vector3\(1\.36,\s*0\.22,\s*ULTRA_DAQ_PLUG_EXIT_Z\),[\s\S]*new THREE\.Vector3\(1\.36,\s*0\.22,\s*ULTRA_DAQ_PLUG_OUTLET_Z\),[\s\S]*new THREE\.Vector3\(ULTRA_SENSOR_BOX_PRESSURE_PLUG_EXIT_X,\s*ULTRA_PRESSURE_ORANGE_BOX_PORT_Y,\s*0\.88\)/,
+  'Orange pressure wire should visibly exit the DAQ plug before bending and land on the sensor-box plug tail',
+);
+assert.match(
+  ultraModelSource,
+  /id: 'pressure-black'[\s\S]*new THREE\.Vector3\(1\.62,\s*0\.22,\s*ULTRA_DAQ_PLUG_EXIT_Z\),[\s\S]*new THREE\.Vector3\(1\.62,\s*0\.22,\s*ULTRA_DAQ_PLUG_OUTLET_Z\),[\s\S]*new THREE\.Vector3\(ULTRA_SENSOR_BOX_PRESSURE_PLUG_EXIT_X,\s*ULTRA_PRESSURE_BLACK_BOX_PORT_Y,\s*0\.88\)/,
+  'Black pressure wire should visibly exit the DAQ plug before bending and land on the sensor-box plug tail',
+);
+assert.match(
+  ultraModelSource,
+  /const ULTRA_TEMPERATURE_PROBE_EXIT_Y = 2\.126;[\s\S]*const ULTRA_TEMPERATURE_PROBE_CONNECTOR_OUTLET_Y = 2\.19;[\s\S]*const ULTRA_TEMPERATURE_PROBE_U_TURN_Y = 2\.28;[\s\S]*const ULTRA_TEMPERATURE_PROBE_U_TURN_Z = 0\.32;[\s\S]*const ULTRA_TEMPERATURE_ROUTE_MAX_Z = 0\.82;/,
+  'Blue temperature wire should use the probe connector surface with a visible outlet and rounded U-turn',
+);
+assert.match(
+  ultraModelSource,
+  /id: 'temperature-blue'[\s\S]*kind: 'temperature'[\s\S]*colorToken: 'blueWire'[\s\S]*new THREE\.Vector3\(1\.1,\s*0\.22,\s*ULTRA_DAQ_PLUG_EXIT_Z\),[\s\S]*new THREE\.Vector3\(1\.1,\s*0\.22,\s*ULTRA_DAQ_PLUG_OUTLET_Z\),[\s\S]*new THREE\.Vector3\(0\.72,\s*0\.36,\s*ULTRA_TEMPERATURE_ROUTE_MAX_Z\),[\s\S]*new THREE\.Vector3\(-1\.10,\s*2\.06,\s*0\.38\),[\s\S]*new THREE\.Vector3\(-1\.25,\s*ULTRA_TEMPERATURE_PROBE_U_TURN_Y,\s*ULTRA_TEMPERATURE_PROBE_U_TURN_Z\),[\s\S]*new THREE\.Vector3\(-1\.25,\s*ULTRA_TEMPERATURE_PROBE_CONNECTOR_OUTLET_Y,\s*0\.18\),[\s\S]*new THREE\.Vector3\(-1\.25,\s*ULTRA_TEMPERATURE_PROBE_EXIT_Y,\s*0\.16\)/,
+  'Blue temperature wire should leave the probe connector surface, loop through a visible U-turn, then run to the blue DAQ socket without dipping toward the pump bulb',
+);
+assert.match(
+  ultraModelSource,
+  /const ULTRA_PUMP_TUBE_FORWARD_REACH_Z = 1\.05;[\s\S]*const ULTRA_PUMP_TUBE_SAG_Y = 1\.30;/,
+  'Pump tube route should define a long valve-direction reach and sag point before returning to the bulb',
+);
+assert.match(
+  ultraModelSource,
+  /id: 'pump-soft-tube'[\s\S]*new THREE\.Vector3\(-1\.565,\s*1\.94,\s*0\.516\),[\s\S]*new THREE\.Vector3\(-1\.565,\s*1\.92,\s*ULTRA_PUMP_TUBE_FORWARD_REACH_Z\),[\s\S]*new THREE\.Vector3\(-1\.28,\s*ULTRA_PUMP_TUBE_SAG_Y,\s*1\.42\),[\s\S]*new THREE\.Vector3\(0\.805,\s*0\.245,\s*1\.70\)/,
+  'Pump tube should first extend outward from the valve, hang down naturally, then curve back to the pump bulb',
 );
 assert.match(
   ultraModelSource,
@@ -242,13 +354,8 @@ assert.match(
 });
 assert.match(
   ultraModelSource,
-  /setUltraNodeOwnMaterialColor\(nodeMap,\s*'PressureSensor_Box',\s*visuals\.sensorBox[\s\S]*setUltraNodeOwnMaterialColor\(nodeMap,\s*'PressureSensor_SoftTube',\s*visuals\.softTube[\s\S]*setUltraNodeOwnMaterialColor\(nodeMap,\s*'HSL_PressureSensor_SoftTube_WhiteCore',\s*visuals\.softTube[\s\S]*setUltraNodeOwnMaterialColor\(nodeMap,\s*'HSL_PumpTube_Rebuilt',\s*visuals\.softTube[\s\S]*setUltraNodeOwnMaterialColor\(nodeMap,\s*'HSL_CleanValve_Soft_Grey_Tube',\s*visuals\.softTube/s,
-  'Ultra GLB light theme should recolor the sensor box and soft tubes separately from the host panel',
-);
-assert.match(
-  ultraModelSource,
-  /setUltraNodeOwnMaterialColor\(nodeMap,\s*'TemperatureSensor_Wire',\s*visuals\.blueWire[\s\S]*setUltraNodeOwnMaterialColor\(nodeMap,\s*'PressureSensor_Wire_Orange',\s*visuals\.orangeWire[\s\S]*setUltraNodeOwnMaterialColor\(nodeMap,\s*'PressureSensor_Wire_Black',\s*visuals\.blackWire/s,
-  'Ultra GLB light theme should recolor the three signal wires with distinct functional colors',
+  /setUltraNodeOwnMaterialColor\(nodeMap,\s*'PressureSensor_Box',\s*visuals\.sensorBox/,
+  'Ultra GLB light theme should recolor the sensor box separately from the host panel while current runtime routes own tube and wire colors',
 );
 assert.match(
   ultraModelSource,

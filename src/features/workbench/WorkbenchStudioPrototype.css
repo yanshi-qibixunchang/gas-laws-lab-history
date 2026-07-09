@@ -2071,6 +2071,13 @@
   color: #16783a;
 }
 
+.studio-theme-light .studio-heat-guide-lesson-button {
+  border-color: rgba(14, 116, 144, 0.42);
+  background: #e0f7fb;
+  color: #036779;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
 .studio-theme-light .studio-heat-mode-button:hover,
 .studio-theme-light .studio-heat-mode-button:focus-visible {
   border-color: rgba(22, 101, 52, 0.28);
@@ -2079,10 +2086,12 @@
 }
 
 .studio-theme-light .studio-heat-mode-action:hover,
-.studio-theme-light .studio-heat-mode-action:focus-visible {
-  border-color: rgba(22, 101, 52, 0.34);
-  background: #dff0e3;
-  color: #14532d;
+.studio-theme-light .studio-heat-mode-action:focus-visible,
+.studio-theme-light .studio-heat-guide-lesson-button:hover,
+.studio-theme-light .studio-heat-guide-lesson-button:focus-visible {
+  border-color: rgba(14, 116, 144, 0.56);
+  background: #c7f2f8;
+  color: #075985;
 }
 
 .studio-theme-light .studio-heat-mode-button-active {
@@ -4736,9 +4745,17 @@
   pointer-events: none;
 }
 
+.studio-heat-mode-control-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  pointer-events: auto;
+}
+
 .studio-heat-mode-control {
   display: inline-flex;
-  max-width: 342px;
+  max-width: 372px;
   align-items: center;
   justify-content: flex-end;
   overflow: hidden;
@@ -4756,7 +4773,7 @@
 }
 
 .studio-heat-mode-control-expanded {
-  max-width: 620px;
+  max-width: 650px;
 }
 
 .studio-heat-mode-segment {
@@ -4904,6 +4921,54 @@
   background: #c96a6f;
   color: #ffffff;
   box-shadow: none;
+}
+
+.studio-heat-guide-lesson-button {
+  display: inline-grid;
+  box-sizing: border-box;
+  inline-size: 30px;
+  block-size: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(103, 232, 249, 0.58);
+  border-radius: 4px;
+  background: #20262c;
+  color: #cffafe;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.studio-panel-actions .studio-heat-guide-lesson-button {
+  display: inline-grid;
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  max-height: 30px;
+  padding: 0;
+  gap: 0;
+}
+
+.studio-heat-guide-lesson-button:hover,
+.studio-heat-guide-lesson-button:focus-visible {
+  border-color: rgba(165, 243, 252, 0.86);
+  background: rgba(8, 145, 178, 0.32);
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  outline: none;
+}
+
+.studio-heat-guide-lesson-button:active {
+  transform: translateY(1px);
 }
 
 .studio-heat-mode-action-danger:hover,
@@ -5418,6 +5483,10 @@
   .studio-heat-pressure-warning,
   .studio-heat-free-speed-overlay-visible,
   .studio-heat-free-speed-overlay-exiting,
+  .studio-heat-guide-lesson-layer,
+  .studio-heat-guide-lesson-card,
+  .studio-heat-guide-lesson-content-current,
+  .studio-heat-guide-lesson-content-outgoing,
   .studio-heat-free-speed-notice,
   .studio-heat-demo-complete-toast,
   .studio-heat-guide-step-hint,
@@ -6204,6 +6273,132 @@
   text-align: center;
 }
 
+.studio-heat-guide-lesson-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 22;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(2, 6, 23, 0.18);
+  pointer-events: auto;
+  animation: studioOverlayFadeIn var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) both;
+}
+
+.studio-heat-guide-lesson-layer-closing {
+  animation: studioOverlayFadeOut 180ms var(--studio-overlay-motion-ease) both;
+}
+
+.studio-heat-guide-lesson-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  width: min(420px, calc(100% - 36px));
+  height: 180px;
+  padding: 14px 16px;
+  overflow: hidden;
+  border: 1px solid rgba(125, 211, 252, 0.52);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.86);
+  box-shadow: 0 18px 42px rgba(2, 8, 23, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: #dbeafe;
+  backdrop-filter: blur(12px);
+  cursor: default;
+}
+
+.studio-heat-guide-lesson-kicker {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-right: 28px;
+  color: #67e8f9;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.studio-heat-guide-lesson-content-stack {
+  position: relative;
+  display: grid;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.studio-heat-guide-lesson-content {
+  grid-area: 1 / 1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  min-height: 0;
+}
+
+.studio-heat-guide-lesson-content-current {
+  animation: studioOverlayFadeIn 180ms var(--studio-overlay-motion-ease) both;
+}
+
+.studio-heat-guide-lesson-content-outgoing {
+  pointer-events: none;
+  animation: studioOverlayFadeOut 180ms var(--studio-overlay-motion-ease) both;
+}
+
+.studio-heat-guide-lesson-content > strong {
+  color: #f8fafc;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.18;
+}
+
+.studio-heat-guide-lesson-content > p {
+  min-height: 0;
+  margin: 0;
+  overflow: auto;
+  padding-right: 2px;
+  color: rgba(226, 232, 240, 0.92);
+  font-size: 13px;
+  font-weight: 720;
+  line-height: 1.62;
+}
+
+.studio-heat-guide-lesson-hint {
+  min-height: 13px;
+  color: rgba(148, 163, 184, 0.9);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.studio-heat-guide-lesson-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-grid;
+  inline-size: 22px;
+  block-size: 22px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.64);
+  color: rgba(226, 232, 240, 0.88);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.studio-heat-guide-lesson-close:hover,
+.studio-heat-guide-lesson-close:focus-visible {
+  border-color: rgba(226, 232, 240, 0.64);
+  background: rgba(30, 41, 59, 0.9);
+  color: #f8fafc;
+  outline: none;
+}
+
 .studio-heat-guide-step-hint strong {
   color: #f8fafc;
   font-size: 13px;
@@ -6341,6 +6536,46 @@
   background: rgba(248, 250, 252, 0.82);
   box-shadow: 0 12px 26px rgba(71, 85, 105, 0.18);
   color: #0f172a;
+}
+
+.studio-theme-light .studio-heat-guide-lesson-layer {
+  background: rgba(226, 232, 240, 0.22);
+}
+
+.studio-theme-light .studio-heat-guide-lesson-card {
+  border-color: rgba(14, 116, 144, 0.3);
+  background: rgba(248, 250, 252, 0.94);
+  box-shadow: 0 18px 42px rgba(71, 85, 105, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  color: #1e293b;
+}
+
+.studio-theme-light .studio-heat-guide-lesson-kicker {
+  color: #0369a1;
+}
+
+.studio-theme-light .studio-heat-guide-lesson-content > strong {
+  color: #075985;
+}
+
+.studio-theme-light .studio-heat-guide-lesson-content > p {
+  color: rgba(30, 41, 59, 0.92);
+}
+
+.studio-theme-light .studio-heat-guide-lesson-hint {
+  color: rgba(71, 85, 105, 0.78);
+}
+
+.studio-theme-light .studio-heat-guide-lesson-close {
+  border-color: rgba(100, 116, 139, 0.32);
+  background: rgba(241, 245, 249, 0.9);
+  color: #475569;
+}
+
+.studio-theme-light .studio-heat-guide-lesson-close:hover,
+.studio-theme-light .studio-heat-guide-lesson-close:focus-visible {
+  border-color: rgba(14, 116, 144, 0.36);
+  background: #e0f2fe;
+  color: #075985;
 }
 
 .studio-theme-light .studio-heat-guide-step-hint-warning {
@@ -8936,9 +9171,10 @@
 }
 
 .studio-heat-free-gas-type-control {
-  display: inline-flex;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   min-width: 0;
-  justify-content: flex-end;
   overflow: hidden;
   border: 1px solid rgba(123, 184, 139, 0.46);
   border-radius: 4px;
@@ -8947,7 +9183,35 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
+.studio-heat-free-gas-type-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc((100% - 4px) / 2);
+  border: 1px solid rgba(123, 184, 139, 0.72);
+  border-radius: 3px;
+  background: #254834;
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1),
+    0 0 0 1px rgba(123, 184, 139, 0.3),
+    0 0 14px rgba(123, 184, 139, 0.16);
+  pointer-events: none;
+  transform: translateX(0);
+  transition:
+    transform 220ms cubic-bezier(0.34, 0, 0.2, 1),
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.studio-heat-free-gas-type-control-helium .studio-heat-free-gas-type-thumb {
+  transform: translateX(100%);
+}
+
 .studio-heat-free-gas-type-option {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   min-width: 0;
   height: 24px;
@@ -8967,31 +9231,23 @@
   cursor: pointer;
   transition:
     border-color 160ms ease,
-    background 160ms ease,
     color 160ms ease,
     box-shadow 160ms ease;
 }
 
 .studio-heat-free-gas-type-option + .studio-heat-free-gas-type-option {
-  margin-left: 2px;
+  margin-left: 0;
 }
 
 .studio-heat-free-gas-type-option:hover,
 .studio-heat-free-gas-type-option:focus-visible {
   border-color: rgba(123, 184, 139, 0.42);
-  background: rgba(123, 184, 139, 0.1);
   color: #d2f2d7;
   outline: none;
 }
 
-.studio-heat-free-gas-type-option-active {
-  border-color: rgba(123, 184, 139, 0.72);
-  background: #254834;
+.studio-heat-free-gas-type-option[aria-pressed="true"] {
   color: #d8ffe0;
-  box-shadow:
-    inset 0 -1px 0 rgba(255, 255, 255, 0.1),
-    0 0 0 1px rgba(123, 184, 139, 0.3),
-    0 0 14px rgba(123, 184, 139, 0.16);
 }
 
 .studio-heat-free-gas-type-option[aria-disabled="true"] {
@@ -9586,6 +9842,14 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76), 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
+.studio-theme-light .studio-heat-free-gas-type-thumb {
+  border-color: rgba(37, 99, 235, 0.34);
+  background: #dbeafe;
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, 0.8),
+    0 0 0 1px rgba(37, 99, 235, 0.12);
+}
+
 .studio-theme-light .studio-heat-free-gas-type-option {
   color: #475569;
 }
@@ -9593,17 +9857,12 @@
 .studio-theme-light .studio-heat-free-gas-type-option:hover,
 .studio-theme-light .studio-heat-free-gas-type-option:focus-visible {
   border-color: rgba(37, 99, 235, 0.26);
-  background: #eaf2ff;
+  background: transparent;
   color: #1f3f67;
 }
 
-.studio-theme-light .studio-heat-free-gas-type-option-active {
-  border-color: rgba(37, 99, 235, 0.34);
-  background: #dbeafe;
+.studio-theme-light .studio-heat-free-gas-type-option[aria-pressed="true"] {
   color: #1e3a5f;
-  box-shadow:
-    inset 0 -1px 0 rgba(255, 255, 255, 0.8),
-    0 0 0 1px rgba(37, 99, 235, 0.12);
 }
 
 .studio-theme-light .studio-heat-free-gas-type-help {

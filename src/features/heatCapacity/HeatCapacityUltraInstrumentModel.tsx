@@ -151,9 +151,152 @@ const ULTRA_POWERED_DISPLAY_ART_NODE_NAMES = [
   'HSL_MainDisplay_PixelDigits_PowerOnPreview',
 ] as const;
 
+const ULTRA_HIDDEN_SOURCE_PIPELINE_NODE_NAMES = [
+  'PressureSensor_Wire_Black',
+  'PressureSensor_Wire_Orange',
+  'TemperatureSensor_Wire',
+  'PressureSensor_SoftTube',
+  'HSL_PressureSensor_SoftTube_WhiteCore',
+  'HSL_PumpTube_Rebuilt',
+  'HSL_CleanValve_Soft_Grey_Tube',
+] as const;
+const ULTRA_PRESSURE_PORT_CLUSTER_CENTER_Y = 0.1;
+const ULTRA_PRESSURE_PORT_CLUSTER_SPACING = 0.045;
+const ULTRA_PRESSURE_ORANGE_BOX_PORT_Y = ULTRA_PRESSURE_PORT_CLUSTER_CENTER_Y + ULTRA_PRESSURE_PORT_CLUSTER_SPACING / 2;
+const ULTRA_PRESSURE_BLACK_BOX_PORT_Y = ULTRA_PRESSURE_PORT_CLUSTER_CENTER_Y - ULTRA_PRESSURE_PORT_CLUSTER_SPACING / 2;
+const ULTRA_DAQ_PLUG_EXIT_Z = 0.575;
+const ULTRA_DAQ_PLUG_OUTLET_Z = 0.69;
+const ULTRA_TEMPERATURE_PROBE_EXIT_Y = 2.126;
+const ULTRA_TEMPERATURE_PROBE_CONNECTOR_OUTLET_Y = 2.19;
+const ULTRA_TEMPERATURE_PROBE_U_TURN_Y = 2.28;
+const ULTRA_TEMPERATURE_PROBE_U_TURN_Z = 0.32;
+const ULTRA_TEMPERATURE_ROUTE_MAX_Z = 0.82;
+const ULTRA_SENSOR_BOX_PRESSURE_PLUG_EXIT_X = 0.365;
+const ULTRA_SENSOR_BOX_PRESSURE_PLUG_OUTLET_X = 0.52;
+const ULTRA_SENSOR_BOX_LEFT_PLUG_EXIT_X = -0.365;
+const ULTRA_SENSOR_BOX_LEFT_PLUG_OUTLET_X = -0.50;
+const ULTRA_PUMP_TUBE_FORWARD_REACH_Z = 1.05;
+const ULTRA_PUMP_TUBE_SAG_Y = 1.30;
+const ULTRA_SENSOR_BOX_PRESSURE_PORT_GROUPS = [
+  {
+    y: ULTRA_PRESSURE_ORANGE_BOX_PORT_Y,
+    nodeNames: [
+      'PressureSensor_Box_SidePlug_01',
+      'PressureSensor_Box_SidePlug_01_MetalPin',
+      'PressureSensor_Box_SideSocket_01',
+      'PressureSensor_Box_SideSocket_01_Inner',
+    ],
+  },
+  {
+    y: ULTRA_PRESSURE_BLACK_BOX_PORT_Y,
+    nodeNames: [
+      'PressureSensor_Box_SidePlug_02',
+      'PressureSensor_Box_SidePlug_02_MetalPin',
+      'PressureSensor_Box_SideSocket_02',
+      'PressureSensor_Box_SideSocket_02_Inner',
+    ],
+  },
+] as const;
+type UltraCleanPipelineColorToken = 'blueWire' | 'orangeWire' | 'blackWire' | 'softTube';
+type UltraCleanPipelineKind = 'pressure' | 'temperature' | 'softTube' | 'pumpTube';
+type UltraCleanPipelineRoute = {
+  id: string;
+  kind: UltraCleanPipelineKind;
+  colorToken: UltraCleanPipelineColorToken;
+  radius: number;
+  tubularSegments: number;
+  points: THREE.Vector3[];
+};
+const ULTRA_CLEAN_PIPELINE_ROUTES: UltraCleanPipelineRoute[] = [
+  {
+    id: 'pressure-orange',
+    kind: 'pressure',
+    colorToken: 'orangeWire',
+    radius: 0.011,
+    tubularSegments: 48,
+    points: [
+      new THREE.Vector3(1.36, 0.22, ULTRA_DAQ_PLUG_EXIT_Z),
+      new THREE.Vector3(1.36, 0.22, ULTRA_DAQ_PLUG_OUTLET_Z),
+      new THREE.Vector3(1.15, 0.215, 0.77),
+      new THREE.Vector3(0.88, 0.18, 0.84),
+      new THREE.Vector3(0.62, 0.148, 0.90),
+      new THREE.Vector3(ULTRA_SENSOR_BOX_PRESSURE_PLUG_OUTLET_X, ULTRA_PRESSURE_ORANGE_BOX_PORT_Y, 0.88),
+      new THREE.Vector3(ULTRA_SENSOR_BOX_PRESSURE_PLUG_EXIT_X, ULTRA_PRESSURE_ORANGE_BOX_PORT_Y, 0.88),
+    ],
+  },
+  {
+    id: 'pressure-black',
+    kind: 'pressure',
+    colorToken: 'blackWire',
+    radius: 0.011,
+    tubularSegments: 48,
+    points: [
+      new THREE.Vector3(1.62, 0.22, ULTRA_DAQ_PLUG_EXIT_Z),
+      new THREE.Vector3(1.62, 0.22, ULTRA_DAQ_PLUG_OUTLET_Z),
+      new THREE.Vector3(1.40, 0.185, 0.78),
+      new THREE.Vector3(1.10, 0.135, 0.845),
+      new THREE.Vector3(0.76, 0.095, 0.905),
+      new THREE.Vector3(ULTRA_SENSOR_BOX_PRESSURE_PLUG_OUTLET_X, ULTRA_PRESSURE_BLACK_BOX_PORT_Y, 0.88),
+      new THREE.Vector3(ULTRA_SENSOR_BOX_PRESSURE_PLUG_EXIT_X, ULTRA_PRESSURE_BLACK_BOX_PORT_Y, 0.88),
+    ],
+  },
+  {
+    id: 'temperature-blue',
+    kind: 'temperature',
+    colorToken: 'blueWire',
+    radius: 0.013,
+    tubularSegments: 64,
+    points: [
+      new THREE.Vector3(1.1, 0.22, ULTRA_DAQ_PLUG_EXIT_Z),
+      new THREE.Vector3(1.1, 0.22, ULTRA_DAQ_PLUG_OUTLET_Z),
+      new THREE.Vector3(0.72, 0.36, ULTRA_TEMPERATURE_ROUTE_MAX_Z),
+      new THREE.Vector3(0.18, 0.78, 0.76),
+      new THREE.Vector3(-0.44, 1.28, 0.58),
+      new THREE.Vector3(-0.96, 1.78, 0.34),
+      new THREE.Vector3(-1.10, 2.06, 0.38),
+      new THREE.Vector3(-1.25, ULTRA_TEMPERATURE_PROBE_U_TURN_Y, ULTRA_TEMPERATURE_PROBE_U_TURN_Z),
+      new THREE.Vector3(-1.25, ULTRA_TEMPERATURE_PROBE_CONNECTOR_OUTLET_Y, 0.18),
+      new THREE.Vector3(-1.25, ULTRA_TEMPERATURE_PROBE_EXIT_Y, 0.16),
+    ],
+  },
+  {
+    id: 'pressure-soft-tube',
+    kind: 'softTube',
+    colorToken: 'softTube',
+    radius: 0.026,
+    tubularSegments: 72,
+    points: [
+      new THREE.Vector3(-1.06, 1.758, -0.14),
+      new THREE.Vector3(-0.86, 1.758, -0.14),
+      new THREE.Vector3(-0.72, 1.48, 0.08),
+      new THREE.Vector3(-0.62, 1.12, 0.38),
+      new THREE.Vector3(-0.54, 0.72, 0.68),
+      new THREE.Vector3(ULTRA_SENSOR_BOX_LEFT_PLUG_OUTLET_X, 0.34, 0.84),
+      new THREE.Vector3(ULTRA_SENSOR_BOX_LEFT_PLUG_OUTLET_X, 0.10, 0.88),
+      new THREE.Vector3(ULTRA_SENSOR_BOX_LEFT_PLUG_EXIT_X, 0.10, 0.88),
+    ],
+  },
+  {
+    id: 'pump-soft-tube',
+    kind: 'pumpTube',
+    colorToken: 'softTube',
+    radius: 0.026,
+    tubularSegments: 72,
+    points: [
+      new THREE.Vector3(-1.565, 1.94, 0.516),
+      new THREE.Vector3(-1.565, 1.92, ULTRA_PUMP_TUBE_FORWARD_REACH_Z),
+      new THREE.Vector3(-1.28, ULTRA_PUMP_TUBE_SAG_Y, 1.42),
+      new THREE.Vector3(-0.78, 0.78, 1.62),
+      new THREE.Vector3(-0.12, 0.42, 1.72),
+      new THREE.Vector3(0.52, 0.25, 1.74),
+      new THREE.Vector3(0.805, 0.245, 1.70),
+    ],
+  },
+];
+
 const PRESSURE_GAUGE_MIN_ROTATION = -2.15;
 const PRESSURE_GAUGE_MAX_ROTATION = 2.15;
-const modelPressureGaugeAngleToVisualAngle = (modelAngle: number) => Math.PI / 2 - modelAngle;
+const getUltraPressureGaugeNeedleLocalRotation = (modelAngle: number) => PRESSURE_GAUGE_MIN_ROTATION - modelAngle;
 const STOPCOCK_VISUAL_SMOOTHING_RATE = 8;
 const PUMP_VALVE_VISUAL_SMOOTHING_RATE = 5.6;
 const PRESSURE_ZERO_VISUAL_SMOOTHING_RATE = 10;
@@ -1239,6 +1382,21 @@ const setUltraNodeTreeVisible = (
   });
 };
 
+const applyUltraCleanPipelineNodeOverrides = (
+  nodeMap: Map<string, THREE.Object3D>,
+) => {
+  ULTRA_HIDDEN_SOURCE_PIPELINE_NODE_NAMES.forEach((nodeName) => {
+    setUltraNodeTreeVisible(nodeMap, nodeName, false);
+  });
+  ULTRA_SENSOR_BOX_PRESSURE_PORT_GROUPS.forEach((group) => {
+    group.nodeNames.forEach((nodeName) => {
+      const node = nodeMap.get(nodeName);
+      if (!node) return;
+      node.position.y = group.y;
+    });
+  });
+};
+
 const applyPowerSwitchVisualScale = (
   nodeMap: Map<string, THREE.Object3D>,
   baseTransforms: Map<string, { scale: THREE.Vector3 }>,
@@ -1316,36 +1474,7 @@ const applyUltraThemeVisuals = (
     toneMapped: false,
     clearTexture: true,
   });
-  setUltraNodeOwnMaterialColor(nodeMap, 'PressureSensor_SoftTube', visuals.softTube, {
-    roughness: 0.62,
-    metalness: 0.02,
-    opacity: sceneTheme === 'light' ? 0.92 : 0.82,
-    transparent: true,
-  });
-  setUltraNodeOwnMaterialColor(nodeMap, 'HSL_PressureSensor_SoftTube_WhiteCore', visuals.softTube, {
-    roughness: 0.66,
-    metalness: 0.02,
-  });
-  setUltraNodeOwnMaterialColor(nodeMap, 'HSL_PumpTube_Rebuilt', visuals.softTube, {
-    roughness: 0.64,
-    metalness: 0.02,
-  });
-  setUltraNodeOwnMaterialColor(nodeMap, 'HSL_CleanValve_Soft_Grey_Tube', visuals.softTube, {
-    roughness: 0.64,
-    metalness: 0.02,
-  });
-  setUltraNodeOwnMaterialColor(nodeMap, 'TemperatureSensor_Wire', visuals.blueWire, {
-    roughness: 0.42,
-    metalness: 0.01,
-  });
-  setUltraNodeOwnMaterialColor(nodeMap, 'PressureSensor_Wire_Orange', visuals.orangeWire, {
-    roughness: 0.42,
-    metalness: 0.01,
-  });
-  setUltraNodeOwnMaterialColor(nodeMap, 'PressureSensor_Wire_Black', visuals.blackWire, {
-    roughness: 0.46,
-    metalness: 0.01,
-  });
+  applyUltraCleanPipelineNodeOverrides(nodeMap);
   setUltraNodeOwnMaterialColor(nodeMap, 'Pump_Bulb', visuals.pumpBulb, {
     roughness: 0.5,
     metalness: 0.01,
@@ -2142,6 +2271,66 @@ function UltraNodeHalo({
   );
 }
 
+function UltraCleanPipelineRouteMesh({
+  route,
+  visuals,
+}: {
+  route: UltraCleanPipelineRoute;
+  visuals: UltraThemeVisuals;
+}) {
+  const curve = useMemo(() => (
+    new THREE.CatmullRomCurve3(route.points, false, 'centripetal', 0.45)
+  ), [route]);
+  const geometry = useMemo(() => (
+    new THREE.TubeGeometry(curve, route.tubularSegments, route.radius, 14, false)
+  ), [curve, route.radius, route.tubularSegments]);
+  const color = visuals[route.colorToken];
+  const softTube = route.kind === 'softTube' || route.kind === 'pumpTube';
+
+  useEffect(() => () => {
+    geometry.dispose();
+  }, [geometry]);
+
+  return (
+    <mesh
+      name={`HSL_UltraCleanPipeline_${route.id}`}
+      geometry={geometry}
+      castShadow={false}
+      receiveShadow
+      raycast={DISABLE_ULTRA_RAYCAST}
+      renderOrder={softTube ? 13 : 14}
+    >
+      <meshStandardMaterial
+        color={color}
+        roughness={softTube ? 0.66 : 0.44}
+        metalness={0.01}
+        emissive={color}
+        emissiveIntensity={softTube ? 0.018 : 0.035}
+        toneMapped={false}
+      />
+    </mesh>
+  );
+}
+
+function UltraCleanPipelineRouting({
+  sceneTheme,
+}: {
+  sceneTheme: HeatCapacityUltraInstrumentModelProps['sceneTheme'];
+}) {
+  const visuals = ULTRA_THEME_VISUALS[sceneTheme];
+  return (
+    <group name="HSL_UltraCleanPipelineRouting">
+      {ULTRA_CLEAN_PIPELINE_ROUTES.map((route) => (
+        <UltraCleanPipelineRouteMesh
+          key={route.id}
+          route={route}
+          visuals={visuals}
+        />
+      ))}
+    </group>
+  );
+}
+
 function UltraPowerSwitchSkirtedRocker({
   nodeMap,
   parentRef,
@@ -2739,7 +2928,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
         baseTransforms,
         'HSL_PressureGauge_NeedlePivot',
         new THREE.Vector3(0, 0, 1),
-        modelPressureGaugeAngleToVisualAngle(gaugeDisplayedRotationRef.current),
+        getUltraPressureGaugeNeedleLocalRotation(gaugeDisplayedRotationRef.current),
       );
     }
 
@@ -2839,6 +3028,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   return (
     <group name="HeatCapacityUltraInstrumentRuntime" ref={runtimeRootRef}>
       <primitive object={modelRoot} />
+      <UltraCleanPipelineRouting sceneTheme={props.sceneTheme} />
       {ULTRA_CONTROL_HITBOXES.map((definition) => (
       <UltraNodeHitbox
         key={definition.control}
