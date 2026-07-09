@@ -46,6 +46,8 @@ const payload = createHeatCapacityPersistencePayload(file, 12345);
 assert.equal(payload.experimentKind, 'heatCapacity');
 assert.equal(payload.heatCapacitySchemaVersion, 1);
 assert.equal(payload.mode, 'free');
+assert.equal(file.heatCapacityLessonIntroAutoShown, false);
+assert.equal(payload.common.lessonIntroAutoShown, false);
 assert.equal(payload.free?.runtimeVersion, file.heatCapacityFreeRuntimeVersion);
 assert.equal(payload.free?.traceVersion, file.heatCapacityFreeTraceVersion);
 assert.equal(payload.free?.parameterScheme, 'real');
@@ -86,6 +88,12 @@ assert.equal(payload.free?.uiReplay.stopcockAngleDeg, file.stopcockAngleDeg);
 assert.equal(payload.free?.uiReplay.hardSphereViewEnabled, file.hardSphereViewEnabled);
 assert.equal(payload.free?.uiReplay.heatCapacityFreeStopcockFlowPurpose, 'none');
 assert.equal('references' in payload.free!, false);
+
+const acknowledgedIntroPayload = createHeatCapacityPersistencePayload({
+  ...file,
+  heatCapacityLessonIntroAutoShown: true,
+}, 12346);
+assert.equal(acknowledgedIntroPayload.common.lessonIntroAutoShown, true);
 
 const replay = getHeatCapacityPersistenceReplayFields(payload);
 assert.equal(replay.pressureGaugeNeedleAngle, file.pressureGaugeNeedleAngle);
@@ -357,6 +365,21 @@ assert.equal(restored.heatCapacityFreeDisplayScheme, 'real');
 assert.equal(restored.heatCapacityFreeRealDomain.scheme, 'real');
 assert.equal(restored.heatCapacityFreeIdealDomain.scheme, 'ideal');
 assert.equal(restored.heatCapacityFreeStopcockFlowPurpose, 'none');
+
+const legacyIntroPayload = structuredClone(payload) as typeof payload;
+delete (legacyIntroPayload.common as any).lessonIntroAutoShown;
+const legacyIntroRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-legacy-intro-restore',
+  kind: 'heatCapacity',
+  name: 'Legacy Intro Restore',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: legacyIntroPayload as unknown as Record<string, unknown>,
+}, legacyIntroPayload, 4);
+assert.equal(legacyIntroRestored.heatCapacityLessonIntroAutoShown, true);
 
 const legacyGammaOnlyPayload = structuredClone(payload) as typeof payload;
 delete (legacyGammaOnlyPayload.free as any).gasType;

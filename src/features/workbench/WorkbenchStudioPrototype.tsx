@@ -589,6 +589,7 @@ const HEAT_CAPACITY_GUIDE_CHECKLIST_SNAP_MS = 120;
 const HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS = 2500;
 const HEAT_CAPACITY_GUIDE_CHECKLIST_WHEEL_SCALE = 0.72;
 const HEAT_CAPACITY_GUIDE_CHECKLIST_MAX_FRAME_STEPS = 2;
+const HEAT_CAPACITY_LESSON_DIALOG_ANIMATION_MS = 180 as const;
 
 interface HeatCapacityGuideChecklistStepDefinition {
   id: string;
@@ -2324,7 +2325,7 @@ const heatCapacityRealtimeCopies = {
     modeGuide: '引导模式',
     modeFree: '自由模式',
     guideLessonButtonLabel: '实验说明',
-    guideLessonDialogAria: '引导实验说明',
+    guideLessonDialogAria: '热容比实验说明',
     guideLessonContinueHint: '点击空白区域来继续',
     guideLessonIntroPages: [
       {
@@ -2334,6 +2335,10 @@ const heatCapacityRealtimeCopies = {
       {
         title: '压强与电压',
         body: 'Uₚ 是压强传感器输出的电压信号，不是压强本身。调零后，Uₚ 的变化代表瓶内外压强差。默认换算系数为 20 mV/kPa，所以 Uₚ = 120 mV 约对应 6 kPa 压强差，瓶内绝对压强约为大气压加 6 kPa。',
+      },
+      {
+        title: '重新查看',
+        body: '如果后续忘记这些内容，可以点击右上角、演示 / 引导 / 自由模式按钮右侧的扳手图标，重新查看刚刚的实验说明。',
       },
     ],
     guideLessonStepExplanations: {
@@ -2591,7 +2596,7 @@ const heatCapacityRealtimeCopies = {
     modeGuide: '引導模式',
     modeFree: '自由模式',
     guideLessonButtonLabel: '實驗說明',
-    guideLessonDialogAria: '引導實驗說明',
+    guideLessonDialogAria: '熱容比實驗說明',
     guideLessonContinueHint: '點擊空白區域繼續',
     guideLessonIntroPages: [
       {
@@ -2601,6 +2606,10 @@ const heatCapacityRealtimeCopies = {
       {
         title: '壓強與電壓',
         body: 'Uₚ 是壓強感測器輸出的電壓信號，不是壓強本身。調零後，Uₚ 的變化代表瓶內外壓強差。預設換算係數為 20 mV/kPa，所以 Uₚ = 120 mV 約對應 6 kPa 壓強差，瓶內絕對壓強約為大氣壓加 6 kPa。',
+      },
+      {
+        title: '重新查看',
+        body: '如果後續忘記這些內容，可以點擊右上角、演示 / 引導 / 自由模式按鈕右側的扳手圖標，重新查看剛剛的實驗說明。',
       },
     ],
     guideLessonStepExplanations: {
@@ -2858,7 +2867,7 @@ const heatCapacityRealtimeCopies = {
     modeGuide: 'Guide mode',
     modeFree: 'Free mode',
     guideLessonButtonLabel: 'Experiment notes',
-    guideLessonDialogAria: 'Guided experiment notes',
+    guideLessonDialogAria: 'Heat capacity experiment notes',
     guideLessonContinueHint: 'Click blank area to continue',
     guideLessonIntroPages: [
       {
@@ -2868,6 +2877,10 @@ const heatCapacityRealtimeCopies = {
       {
         title: 'Pressure and voltage',
         body: 'Uₚ is the pressure-sensor voltage signal, not pressure itself. After zeroing, changes in Uₚ represent the pressure difference between the vessel and the outside air. The default conversion is 20 mV/kPa, so Uₚ = 120 mV corresponds to about 6 kPa pressure difference, and the vessel absolute pressure is roughly atmospheric pressure plus 6 kPa.',
+      },
+      {
+        title: 'Review later',
+        body: 'If you forget this explanation later, click the wrench in the upper-right corner, just to the right of the Demo / Guide / Free mode buttons, to rewatch these experiment notes.',
       },
     ],
     guideLessonStepExplanations: {
@@ -3976,6 +3989,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     fileId: null,
     step: 'idle',
   });
+  const heatCapacityLessonDialogActiveRef = useRef(false);
+  const heatCapacityLessonPausedFileIdRef = useRef<string | null>(null);
   const heatCapacityGuideLessonTransitionTimerRef = useRef<number | null>(null);
   const heatCapacityGuideLessonCloseTimerRef = useRef<number | null>(null);
   const restoredHeatCapacityGuideStrongReminderFileIdRef = useRef<string | null>(
@@ -4017,6 +4032,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [heatCapacityGuideLessonDialog, setHeatCapacityGuideLessonDialog] = useState<HeatCapacityGuideLessonDialogState | null>(null);
   const [heatCapacityGuideLessonOutgoingView, setHeatCapacityGuideLessonOutgoingView] = useState<HeatCapacityGuideLessonView | null>(null);
   const [heatCapacityGuideLessonClosing, setHeatCapacityGuideLessonClosing] = useState(false);
+  const heatCapacityLessonDialogActive = heatCapacityGuideLessonDialog !== null || heatCapacityGuideLessonClosing;
   const [heatCapacityRecordToastSequenceActive, setHeatCapacityRecordToastSequenceActive] = useState(false);
   const [heatCapacityFreeResetFeedbackActive, setHeatCapacityFreeResetFeedbackActive] = useState(false);
   const [heatCapacityFreeSpeedNoticeVisible, setHeatCapacityFreeSpeedNoticeVisible] = useState(false);
@@ -4046,6 +4062,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   useEffect(() => {
     guideHeatCapacityActiveFileIdRef.current = guideHeatCapacityActiveFileId;
   }, [guideHeatCapacityActiveFileId]);
+
+  useEffect(() => {
+    heatCapacityLessonDialogActiveRef.current = heatCapacityLessonDialogActive;
+  }, [heatCapacityLessonDialogActive]);
 
   useEffect(() => {
     if (!guideHeatCapacityStrongReminderActive) return undefined;
@@ -5038,6 +5058,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
         let changed = false;
         const nextFiles = current.map((file) => {
           if (file.id !== activeId || file.kind !== 'heatCapacity') return file;
+          if (
+            heatCapacityLessonPausedFileIdRef.current === file.id ||
+            heatCapacityLessonDialogActiveRef.current
+          ) {
+            return file;
+          }
           if (
             guideHeatCapacityActiveFileIdRef.current === file.id &&
             isGuideHeatCapacityPauseStep(getHeatCapacityGuideStep(file))
@@ -6506,8 +6532,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
   };
 
+  const isHeatCapacityLessonQueueBlocked = () => heatCapacityLessonDialogActiveRef.current;
+
   const activateGuideHeatCapacityStrongReminder = (controlId?: string | null) => {
     if (isHeatCapacityPressureAlertActive()) return;
+    if (isHeatCapacityLessonQueueBlocked()) return;
     if (guideHeatCapacityStrongReminderTimerRef.current !== null) {
       window.clearTimeout(guideHeatCapacityStrongReminderTimerRef.current);
       guideHeatCapacityStrongReminderTimerRef.current = null;
@@ -6524,6 +6553,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     clearGuideHeatCapacityPendingStrongReminderTimer();
     guideHeatCapacityPendingStrongReminderTimerRef.current = window.setTimeout(() => {
       guideHeatCapacityPendingStrongReminderTimerRef.current = null;
+      if (isHeatCapacityLessonQueueBlocked()) return;
       activateGuideHeatCapacityStrongReminder(controlId ?? null);
     }, HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS);
   };
@@ -6544,6 +6574,28 @@ const WorkbenchStudioPrototype: React.FC = () => {
     heatCapacityFocusSessionRef.current = null;
   };
 
+  const resetHeatCapacityLessonResumeClock = (fileId: string | null = heatCapacityLessonPausedFileIdRef.current) => {
+    if (!fileId) return;
+    const now = Date.now();
+    updateFileById(fileId, (file) => {
+      if (file.kind !== 'heatCapacity') return file;
+      return {
+        ...file,
+        heatCapacityGuideWorkflow: file.heatCapacityMode === 'guide'
+          ? {
+              ...file.heatCapacityGuideWorkflow,
+              strongReminderActive: false,
+              strongReminderTargetControlId: null,
+            }
+          : file.heatCapacityGuideWorkflow,
+        lastUpdateMs: file.powerOn ? now : file.lastUpdateMs,
+        displayResponseLastUpdateMs: file.powerOn ? now : file.displayResponseLastUpdateMs,
+        updatedAt: now,
+      };
+    });
+    heatCapacityLessonPausedFileIdRef.current = null;
+  };
+
   const clearHeatCapacityGuideLessonTimers = () => {
     if (heatCapacityGuideLessonTransitionTimerRef.current !== null) {
       window.clearTimeout(heatCapacityGuideLessonTransitionTimerRef.current);
@@ -6559,6 +6611,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     clearHeatCapacityGuideLessonTimers();
     heatCapacityGuideLessonShownRef.current.clear();
     heatCapacityGuideLessonStepRef.current = { fileId: null, step: 'idle' };
+    heatCapacityLessonDialogActiveRef.current = false;
+    heatCapacityLessonPausedFileIdRef.current = null;
     setHeatCapacityGuideLessonDialog(null);
     setHeatCapacityGuideLessonOutgoingView(null);
     setHeatCapacityGuideLessonClosing(false);
@@ -6725,9 +6779,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
     ? getHeatCapacityGuideStep(activeFile)
     : 'idle';
 
-  const openHeatCapacityGuideLessonIntro = () => {
-    if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'guide') return;
+  const openHeatCapacityLessonIntro = (fileId: string | null = activeFileIdRef.current) => {
+    const targetFile = filesRef.current.find((file) => file.id === fileId);
+    if (!targetFile || targetFile.kind !== 'heatCapacity') return;
+    heatCapacityLessonPausedFileIdRef.current = targetFile.id;
     clearHeatCapacityGuideLessonTimers();
+    clearGuideHeatCapacityStrongReminder();
     setHeatCapacityGuideLessonOutgoingView(null);
     setHeatCapacityGuideLessonClosing(false);
     setHeatCapacityGuideLessonDialog({ kind: 'intro', pageIndex: 0 });
@@ -6735,6 +6792,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const closeHeatCapacityGuideLessonDialog = () => {
     if (!heatCapacityGuideLessonDialog) return;
+    const pausedFileId = heatCapacityLessonPausedFileIdRef.current;
     clearHeatCapacityGuideLessonTimers();
     setHeatCapacityGuideLessonOutgoingView(null);
     setHeatCapacityGuideLessonClosing(true);
@@ -6742,8 +6800,27 @@ const WorkbenchStudioPrototype: React.FC = () => {
       heatCapacityGuideLessonCloseTimerRef.current = null;
       setHeatCapacityGuideLessonDialog(null);
       setHeatCapacityGuideLessonClosing(false);
-    }, 180);
+      resetHeatCapacityLessonResumeClock(pausedFileId);
+    }, HEAT_CAPACITY_LESSON_DIALOG_ANIMATION_MS);
   };
+
+  useEffect(() => {
+    if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityLessonIntroAutoShown) return;
+    openHeatCapacityLessonIntro(activeFile.id);
+    updateFileById(activeFile.id, (file) => (
+      file.kind === 'heatCapacity'
+        ? {
+            ...file,
+            heatCapacityLessonIntroAutoShown: true,
+            updatedAt: Date.now(),
+          }
+        : file
+    ));
+  }, [
+    activeFile.id,
+    activeFile.kind,
+    activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityLessonIntroAutoShown : null,
+  ]);
 
   const getHeatCapacityGuideLessonView = (
     dialog: HeatCapacityGuideLessonDialogState,
@@ -6779,7 +6856,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         heatCapacityGuideLessonTransitionTimerRef.current = window.setTimeout(() => {
           heatCapacityGuideLessonTransitionTimerRef.current = null;
           setHeatCapacityGuideLessonOutgoingView(null);
-        }, 180);
+        }, HEAT_CAPACITY_LESSON_DIALOG_ANIMATION_MS);
         return;
       }
       closeHeatCapacityGuideLessonDialog();
@@ -6959,7 +7036,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
         !heatCapacityGuideLessonShownRef.current.has(lessonKey)
       ) {
         heatCapacityGuideLessonShownRef.current.add(lessonKey);
+        heatCapacityLessonPausedFileIdRef.current = activeFile.id;
         clearHeatCapacityGuideLessonTimers();
+        clearGuideHeatCapacityStrongReminder();
         setHeatCapacityGuideLessonOutgoingView(null);
         setHeatCapacityGuideLessonClosing(false);
         setHeatCapacityGuideLessonDialog({ kind: 'step', lessonId });
@@ -7029,6 +7108,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (guideHeatCapacityActiveFileId !== activeHeatCapacityGuideFileId) return;
     if (!isGuideHeatCapacityPauseStep(activeHeatCapacityGuideStep)) return;
     if (heatCapacityRecordToastSequenceActive) return;
+    if (heatCapacityLessonDialogActive) return;
     if (isHeatCapacityGuideRecordStep(activeHeatCapacityGuideStep)) {
       clearGuideHeatCapacityGuidance();
     }
@@ -7050,6 +7130,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (guideHeatCapacityActiveFileId !== activeHeatCapacityGuideFileId) return undefined;
     if (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked) return undefined;
     if (heatCapacityRecordToastSequenceActive) return undefined;
+    if (heatCapacityLessonDialogActive) return undefined;
     if (
       activeHeatCapacityGuideStep === 'idle' ||
       activeHeatCapacityGuideStep === 'stabilizeBeforeReleaseRequired' ||
@@ -7063,6 +7144,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       if (guideHeatCapacityActiveFileIdRef.current !== guideSessionFileId) return;
       if (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked) return;
       if (heatCapacityRecordToastSequenceActive) return;
+      if (isHeatCapacityLessonQueueBlocked()) return;
       const latestStep = getHeatCapacityGuideStep(latestFile);
       if (latestStep === 'idle' || latestStep === 'completed') return;
       const guidance = getGuideStepGuidance(latestStep, latestFile);
@@ -7078,6 +7160,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     autoDemoPaused,
     autoDemoInteractionLocked,
     heatCapacityRecordToastSequenceActive,
+    heatCapacityLessonDialogActive,
     guideHeatCapacityActiveFileId,
     settingsLanguagePreference,
   ]);
@@ -7091,6 +7174,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const workflow = activeFile.heatCapacityGuideWorkflow;
     if (!workflow.strongReminderActive || !workflow.strongReminderTargetControlId) return;
     if (heatCapacityRecordToastSequenceActive) return;
+    if (heatCapacityLessonDialogActive) return;
     if (
       guideHeatCapacityStrongReminderActive &&
       guideHeatCapacityStrongReminderControlId === workflow.strongReminderTargetControlId
@@ -7107,6 +7191,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityGuideWorkflow.strongReminderTargetControlId : null,
     activeHeatCapacityGuideFileId,
     heatCapacityRecordToastSequenceActive,
+    heatCapacityLessonDialogActive,
     guideHeatCapacityActiveFileId,
     guideHeatCapacityStrongReminderActive,
     guideHeatCapacityStrongReminderControlId,
@@ -7138,6 +7223,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       clearStaleStrongReminder();
       return undefined;
     }
+    if (heatCapacityLessonDialogActive) return undefined;
     if (activeFile.kind !== 'heatCapacity' || activeFile.id !== activeHeatCapacityGuideFileId) {
       clearStaleStrongReminder();
       return undefined;
@@ -7165,6 +7251,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       if (guideHeatCapacityActiveFileId !== guideSessionFileId) return;
       if (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked) return;
       if (heatCapacityRecordToastSequenceActive) return;
+      if (isHeatCapacityLessonQueueBlocked()) return;
       const latestStep = getHeatCapacityGuideStep(latestFile);
       if (latestStep === 'idle' || latestStep === 'completed') return;
       if (latestStep === 'stabilizeBeforeReleaseRequired' || latestStep === 'recoverRequired') return;
@@ -7185,6 +7272,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     autoDemoPaused,
     autoDemoInteractionLocked,
     heatCapacityRecordToastSequenceActive,
+    heatCapacityLessonDialogActive,
     guideHeatCapacityActiveFileId,
     guideHeatCapacityStrongReminderActive,
     guideHeatCapacityStrongReminderControlId,
@@ -12979,18 +13067,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
           </div>
         </div>
         </div>
-        {heatCapacityActiveMode === 'guide' ? (
-          <button
-            type="button"
-            className="studio-heat-guide-lesson-button"
-            data-heat-capacity-guide-lesson-button="true"
-            title={heatCapacityRealtimeCopy.guideLessonButtonLabel}
-            aria-label={heatCapacityRealtimeCopy.guideLessonButtonLabel}
-            onClick={openHeatCapacityGuideLessonIntro}
-          >
-            <Wrench size={18} strokeWidth={2.1} />
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className="studio-heat-guide-lesson-button"
+          data-heat-capacity-guide-lesson-button="true"
+          title={heatCapacityRealtimeCopy.guideLessonButtonLabel}
+          aria-label={heatCapacityRealtimeCopy.guideLessonButtonLabel}
+          onClick={() => openHeatCapacityLessonIntro(activeFile.id)}
+        >
+          <Wrench size={18} strokeWidth={2.1} />
+        </button>
       </div>
     );
   };
@@ -13675,7 +13761,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               ), 0));
               const pumpFlowActive = pumpFlowIntensity > 0 ||
                 (!activeHeatCapacityUsesVisualPhysics && activeFile.pumpValveOpen && activeFile.pumpBulbState === 'compressing');
-              const heatCapacityHardSpherePaused = autoDemoPaused ||
+              const heatCapacityHardSpherePaused = heatCapacityLessonDialogActive || autoDemoPaused ||
                 (
                   activeFile.heatCapacityMode === 'guide'
                     ? activeFile.heatCapacityGuideWorkflow.paused

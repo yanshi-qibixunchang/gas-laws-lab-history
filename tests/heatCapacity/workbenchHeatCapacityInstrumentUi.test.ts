@@ -1838,20 +1838,20 @@ assert.match(workbenchSource, /data-heat-capacity-guide-step-panel="true"[\s\S]*
 assert.match(workbenchSource, /const stepRecordKind = step\.status === 'current' && isCentered[\s\S]*data-heat-capacity-guide-step-record-action="true"[\s\S]*recordHeatCapacityGuideSample\(stepRecordKind\)/, 'current guided checklist rows should own the U0/U1/U2 record button instead of a separate floating action');
 assert.doesNotMatch(workbenchSource, /waitU1Ready:\s*'[^']*请点击按键|waitU2Ready:\s*'[^']*请点击按键|waitU1Ready:\s*'[^']*請點擊按鍵|waitU2Ready:\s*'[^']*請點擊按鍵|Click the button to record U[₁₂]/, 'U1 and U2 ready checklist copy should remove the click-the-button phrase so the in-row record button has room');
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-guide-process-prompt="true"/, 'ordinary guided process guidance should no longer render in the bottom-center prompt slot');
-assert.match(workbenchSource, /guideLessonButtonLabel:\s*'实验说明'[\s\S]*guideLessonContinueHint:\s*'点击空白区域来继续'[\s\S]*guideLessonIntroPages:\s*\[[\s\S]*本实验通过一次“加压、快速放气、回温”的过程[\s\S]*默认换算系数为 20 mV\/kPa[\s\S]*guideLessonButtonLabel:\s*'實驗說明'[\s\S]*guideLessonContinueHint:\s*'點擊空白區域繼續'[\s\S]*guideLessonButtonLabel:\s*'Experiment notes'[\s\S]*guideLessonContinueHint:\s*'Click blank area to continue'/, 'guided lesson intro copy should localize the button, continue hint, and the two manual pages for all supported languages');
+assert.match(workbenchSource, /guideLessonButtonLabel:\s*'实验说明'[\s\S]*guideLessonContinueHint:\s*'点击空白区域来继续'[\s\S]*guideLessonIntroPages:\s*\[[\s\S]*本实验通过一次“加压、快速放气、回温”的过程[\s\S]*默认换算系数为 20 mV\/kPa[\s\S]*重新查看刚刚的实验说明[\s\S]*guideLessonButtonLabel:\s*'實驗說明'[\s\S]*guideLessonContinueHint:\s*'點擊空白區域繼續'[\s\S]*guideLessonButtonLabel:\s*'Experiment notes'[\s\S]*guideLessonContinueHint:\s*'Click blank area to continue'/, 'heat-capacity lesson intro copy should localize the button, continue hint, and reusable intro pages for all supported languages');
 assert.match(workbenchSource, /guideLessonStepExplanations:\s*\{[\s\S]*pressureZeroBaseline:[\s\S]*压强差调零才有明确基准[\s\S]*sealedInitialState:[\s\S]*气瓶与外界隔离[\s\S]*pressureTarget:[\s\S]*120 mV[\s\S]*preReleaseStability:[\s\S]*U₁ 代表放气前稳定高压状态[\s\S]*quickReleaseState:[\s\S]*近似绝热过程[\s\S]*thermalRecovery:[\s\S]*U₂[\s\S]*guideLessonStepExplanations:\s*\{[\s\S]*pressureZeroBaseline:[\s\S]*guideLessonStepExplanations:\s*\{[\s\S]*pressureZeroBaseline:/, 'guided lesson step explanations should cover the six completed-step explanations in zh-CN, zh-TW, and English');
 assert.match(workbenchSource, /const HEAT_CAPACITY_GUIDE_LESSON_TRIGGER_BY_COMPLETED_STEP:[\s\S]*openStopcockForZeroRequired:\s*'pressureZeroBaseline'[\s\S]*closeStopcockRequired:\s*'sealedInitialState'[\s\S]*pumpRequired:\s*'pressureTarget'[\s\S]*stabilizeBeforeReleaseRequired:\s*'preReleaseStability'[\s\S]*closeStopcockAfterReleaseRequired:\s*'quickReleaseState'[\s\S]*recoverRequired:\s*'thermalRecovery'/, 'guided lesson step modals should map explanations to the guide step that has just been completed');
 assert.match(workbenchSource, /const \[heatCapacityGuideLessonDialog,\s*setHeatCapacityGuideLessonDialog\]/, 'guided lesson dialog should keep explicit React state instead of piggybacking on transient toasts');
-assert.match(workbenchSource, /className="studio-heat-mode-control-row"[\s\S]*data-heat-capacity-mode-control="true"[\s\S]*<\/div>\s*\{heatCapacityActiveMode === 'guide' \? \([\s\S]*className="studio-heat-guide-lesson-button"[\s\S]*data-heat-capacity-guide-lesson-button="true"/, 'guided lesson entry should render as one independent button frame outside the mode segmented frame');
+assert.match(workbenchSource, /className="studio-heat-mode-control-row"[\s\S]*data-heat-capacity-mode-control="true"[\s\S]*<\/div>\s*<button[\s\S]*className="studio-heat-guide-lesson-button"[\s\S]*data-heat-capacity-guide-lesson-button="true"/, 'heat-capacity lesson entry should render as one independent button frame outside the mode segmented frame');
 assert.doesNotMatch(workbenchSource, /studio-heat-guide-lesson-shell/, 'guided lesson entry should not keep an extra outer frame around the wrench button');
-assert.match(workbenchSource, /data-heat-capacity-guide-lesson-button="true"[\s\S]*<Wrench size=\{18\} strokeWidth=\{2\.1\}/, 'guided lesson entry should render a clear but lighter wrench icon beside the mode selector');
-assert.match(workbenchSource, /onClick=\{openHeatCapacityGuideLessonIntro\}/, 'guided lesson entry button should open the manual two-page lesson');
-assert.match(workbenchSource, /handleHeatCapacityGuideLessonDialogAdvance[\s\S]*kind === 'intro'[\s\S]*pageIndex < pageCount - 1[\s\S]*setHeatCapacityGuideLessonOutgoingView\(getHeatCapacityGuideLessonView\(heatCapacityGuideLessonDialog\)\)[\s\S]*pageIndex: pageIndex \+ 1[\s\S]*closeHeatCapacityGuideLessonDialog\(\)/, 'clicking blank lesson space should advance the first intro page, then close after the second page instead of looping');
+assert.match(workbenchSource, /data-heat-capacity-guide-lesson-button="true"[\s\S]*<Wrench size=\{18\} strokeWidth=\{2\.1\}/, 'heat-capacity lesson entry should render a clear but lighter wrench icon beside the mode selector');
+assert.match(workbenchSource, /onClick=\{\(\) => openHeatCapacityLessonIntro\(activeFile\.id\)\}/, 'heat-capacity lesson entry button should open the intro lesson for the active file');
+assert.match(workbenchSource, /handleHeatCapacityGuideLessonDialogAdvance[\s\S]*kind === 'intro'[\s\S]*pageIndex < pageCount - 1[\s\S]*setHeatCapacityGuideLessonOutgoingView\(getHeatCapacityGuideLessonView\(heatCapacityGuideLessonDialog\)\)[\s\S]*pageIndex: pageIndex \+ 1[\s\S]*closeHeatCapacityGuideLessonDialog\(\)/, 'clicking blank lesson space should advance intro pages, then close after the final page instead of looping');
 assert.match(workbenchSource, /handleHeatCapacityGuideLessonDialogAdvance[\s\S]*kind === 'step'[\s\S]*closeHeatCapacityGuideLessonDialog\(\)/, 'clicking blank lesson space should dismiss completed-step explanations through the shared fade-out close path');
-assert.doesNotMatch(workbenchSource, /data-heat-capacity-guide-lesson-(?:next|prev)="true"/, 'guided lesson dialog should not render dedicated previous or next page buttons');
+assert.doesNotMatch(workbenchSource, /data-heat-capacity-guide-lesson-(?:next|prev)="true"/, 'heat-capacity lesson dialog should not render dedicated previous or next page buttons');
 assert.match(workbenchSource, /data-heat-capacity-guide-lesson-dialog="true"[\s\S]*onMouseDown=\{\(event\) => event\.stopPropagation\(\)\}/, 'clicking inside the guided lesson card should not count as a blank-area advance or close action');
 assert.doesNotMatch(workbenchSource, /guideLesson(?:Click|Dismiss)Hint|studio-heat-guide-lesson-card > small|<small>\{lessonHint\}<\/small>/, 'guided lesson dialogs should not render bottom click hints or keep obsolete hint copy');
-assert.match(workbenchSource, /data-heat-capacity-guide-lesson-hint="true"[\s\S]*heatCapacityRealtimeCopy\.guideLessonContinueHint/, 'guided lesson dialogs should show a bottom hint telling users to click blank area to continue');
+assert.match(workbenchSource, /data-heat-capacity-guide-lesson-hint="true"[\s\S]*heatCapacityRealtimeCopy\.guideLessonContinueHint/, 'heat-capacity lesson dialogs should show a bottom hint telling users to click blank area to continue');
 assert.doesNotMatch(workbenchSource, /pageIndex \+ 1\s*\}\s*\/\s*\{introPageCount\}|lessonMeta|<em>\{lessonMeta\}<\/em>/, 'guided lesson intro should not display page numbers or a secondary meta label');
 assert.match(workbenchSource, /studio-heat-guide-lesson-layer-\$\{heatCapacityGuideLessonClosing \? 'closing' : 'open'\}/, 'guided lesson layer should keep mounted closing state so intro and step notes can fade out');
 assert.match(workbenchSource, /heatCapacityGuideLessonOutgoingView[\s\S]*studio-heat-guide-lesson-content-outgoing[\s\S]*studio-heat-guide-lesson-content-current/, 'guided lesson intro page changes should cross-fade outgoing and incoming content');
@@ -2347,6 +2347,96 @@ assert.match(
   `${leftPanelSource}\n${freeParameterPanelModelSource}\n${processReviewPanelSource}`,
   /'zh-CN'[\s\S]*'zh-TW'[\s\S]*en:/,
   'Heat Capacity user-facing copy touched since v4.1.17 should keep Simplified Chinese, Traditional Chinese, and English variants',
+);
+assert.match(
+  stateSource,
+  /heatCapacityLessonIntroAutoShown:\s*boolean;/,
+  'Heat Capacity files should store a durable intro-lesson acknowledgement flag instead of relying on transient UI state',
+);
+assert.match(
+  stateSource,
+  /heatCapacityLessonIntroAutoShown:\s*false,/,
+  'New Heat Capacity files should auto-show the intro lesson once before marking it acknowledged',
+);
+assert.match(
+  heatCapacityPersistenceSource,
+  /lessonIntroAutoShown:\s*boolean;/,
+  'Heat Capacity persistence common data should include the intro-lesson acknowledgement flag',
+);
+assert.match(
+  heatCapacityPersistenceSource,
+  /lessonIntroAutoShown:\s*file\.heatCapacityLessonIntroAutoShown/,
+  'Saving a Heat Capacity file should persist whether the intro lesson has already auto-shown',
+);
+assert.match(
+  heatCapacityPersistenceSource,
+  /heatCapacityLessonIntroAutoShown:\s*typeof common\.lessonIntroAutoShown === 'boolean'\s*\?\s*common\.lessonIntroAutoShown\s*:\s*true/,
+  'Restoring old Heat Capacity files without the intro flag should treat the lesson as already shown',
+);
+assert.match(
+  workbenchSource,
+  /const HEAT_CAPACITY_LESSON_DIALOG_ANIMATION_MS = 180 as const;/,
+  'Heat Capacity lesson animation duration should be a named constant for future timing adjustments',
+);
+assert.match(
+  workbenchSource,
+  /const heatCapacityLessonDialogActive = heatCapacityGuideLessonDialog !== null \|\| heatCapacityGuideLessonClosing;/,
+  'Heat Capacity lesson overlays should have one shared active-state flag used by timers and visuals',
+);
+assert.match(
+  workbenchSource,
+  /heatCapacityLessonDialogActiveRef\.current = heatCapacityLessonDialogActive;/,
+  'Asynchronous timers should read the current lesson active state from a ref',
+);
+assert.doesNotMatch(
+  workbenchSource,
+  /openHeatCapacityLessonIntro[\s\S]{0,180}heatCapacityMode !== 'guide'/,
+  'The wrench lesson intro should not be limited to Guide Mode',
+);
+assert.doesNotMatch(
+  workbenchSource,
+  /heatCapacityActiveMode === 'guide'\s*\?\s*\(\s*<button[\s\S]{0,260}data-heat-capacity-guide-lesson-button/,
+  'The wrench lesson button should render for every Heat Capacity mode, not only Guide Mode',
+);
+assert.match(
+  workbenchSource,
+  /activeFile\.kind !== 'heatCapacity' \|\| activeFile\.heatCapacityLessonIntroAutoShown[\s\S]*openHeatCapacityLessonIntro\(activeFile\.id\)[\s\S]*heatCapacityLessonIntroAutoShown:\s*true/,
+  'New Heat Capacity files should auto-open the intro lesson once and immediately persist the acknowledgement',
+);
+assert.match(
+  workbenchSource,
+  /heatCapacityLessonPausedFileIdRef\.current === file\.id[\s\S]*return file;/,
+  'The Heat Capacity stepping loop should not advance the active file while a lesson overlay is open',
+);
+assert.match(
+  workbenchSource,
+  /const resetHeatCapacityLessonResumeClock = \(fileId: string \| null = heatCapacityLessonPausedFileIdRef\.current\)[\s\S]*lastUpdateMs: file\.powerOn \? now : file\.lastUpdateMs/,
+  'Closing a lesson overlay should reset the runtime clock so reading time is not counted as experiment time',
+);
+assert.match(
+  workbenchSource,
+  /const isHeatCapacityLessonQueueBlocked = \(\) => heatCapacityLessonDialogActiveRef\.current;/,
+  'Guide reminder scheduling should share a named lesson-queue blocker',
+);
+assert.match(
+  workbenchSource,
+  /if \(isHeatCapacityLessonQueueBlocked\(\)\) return;/,
+  'Strong reminder activation should be blocked while the lesson overlay is open',
+);
+assert.match(
+  workbenchSource,
+  /if \(heatCapacityLessonDialogActive\) return undefined;[\s\S]*GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS/,
+  'The ordinary Guide strong-reminder timer should not start underneath a lesson overlay',
+);
+assert.match(
+  workbenchSource,
+  /const heatCapacityHardSpherePaused = heatCapacityLessonDialogActive \|\| autoDemoPaused/,
+  'Molecular visualization should pause whenever a Heat Capacity lesson overlay is open',
+);
+assert.match(
+  workbenchSource,
+  /guideLessonIntroPages:\s*\[[\s\S]*重新查看刚刚的实验说明[\s\S]*重新查看剛剛的實驗說明[\s\S]*rewatch these experiment notes/,
+  'The intro lesson should include a third localized page that tells users where to reopen it with the upper-right wrench',
 );
 assert.match(
   getCssBlock('.studio-tree-title-button-panels'),

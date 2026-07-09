@@ -199,6 +199,7 @@ export interface HeatCapacityPersistencePayloadV1 {
     activeHeatCapacityTabId: WorkbenchHeatCapacityState['activeHeatCapacityTabId'];
     experimentSeed: WorkbenchHeatCapacityState['heatCapacityExperimentSeed'];
     experimentProfile: WorkbenchHeatCapacityState['heatCapacityExperimentProfile'];
+    lessonIntroAutoShown: boolean;
   };
   free: HeatCapacityFreePersistenceDataV1 | null;
   guided: HeatCapacityGuidePersistenceDataV1 | null;
@@ -332,6 +333,7 @@ export const createHeatCapacityPersistencePayload = (
       activeHeatCapacityTabId: file.activeHeatCapacityTabId,
       experimentSeed: file.heatCapacityExperimentSeed,
       experimentProfile: clonePersistenceValue(file.heatCapacityExperimentProfile),
+      lessonIntroAutoShown: file.heatCapacityLessonIntroAutoShown,
     },
     free: {
       runtimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
@@ -1115,6 +1117,9 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     visiblePanels: visiblePanels.length > 0 ? visiblePanels : fallback.visiblePanels,
     liveWorkspaceSplitRatio,
     heatCapacityMode: restoredMode,
+    heatCapacityLessonIntroAutoShown: typeof common.lessonIntroAutoShown === 'boolean'
+      ? common.lessonIntroAutoShown
+      : true,
     heatCapacityExperimentSeed: common.experimentSeed ?? fallback.heatCapacityExperimentSeed,
     heatCapacityExperimentProfile: common.experimentProfile ?? fallback.heatCapacityExperimentProfile,
     selectedHeatCapacityPanel: restoredSelectedHeatCapacityPanel,

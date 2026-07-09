@@ -1020,6 +1020,7 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   particles: Particle[];
   heatCapacityMode: HeatCapacityMode;
   heatCapacityTeachingStatus: HeatCapacityTeachingStatus;
+  heatCapacityLessonIntroAutoShown: boolean;
   heatCapacityFreeRuntimeVersion: number;
   heatCapacityFreeExperimentGroupStatus: HeatCapacityFreeExperimentGroupStatus;
   heatCapacityFreeGasType: HeatCapacityFreeGasType;
@@ -4928,6 +4929,7 @@ export const createDefaultHeatCapacityFile = (
     particles: [],
     heatCapacityMode: 'free',
     heatCapacityTeachingStatus: 'idle',
+    heatCapacityLessonIntroAutoShown: false,
     ...freeRuntimeFields,
     heatCapacityFreeRealDomain,
     heatCapacityFreeIdealDomain,
