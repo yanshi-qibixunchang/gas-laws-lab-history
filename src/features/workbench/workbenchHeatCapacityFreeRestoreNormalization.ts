@@ -17,9 +17,10 @@ import {
   type HeatCapacityFreeTraceStore,
   type HeatCapacityFreeTraceTrial,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
-import type {
-  HeatCapacityFreeExperimentGroupStatus,
-  HeatCapacityFreeGasType,
+import {
+  normalizeHeatCapacityFreeGasType,
+  type HeatCapacityFreeExperimentGroupStatus,
+  type HeatCapacityFreeGasType,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 import type {
   HeatCapacityFreeRecordConfig,
@@ -801,6 +802,7 @@ export const normalizeHeatCapacityFreeRestoreExperimentDomain = (
     ...fallback,
     ...domain,
     scheme,
+    gasType: scheme === 'ideal' ? 'air' : normalizeHeatCapacityFreeGasType(domain.gasType, gasType),
     experimentGroupStatus: normalizeHeatCapacityFreeRestoreExperimentGroupStatus(
       domain.experimentGroupStatus,
     ),

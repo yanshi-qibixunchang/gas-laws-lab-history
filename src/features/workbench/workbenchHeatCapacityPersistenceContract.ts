@@ -147,6 +147,7 @@ export interface HeatCapacityPersistencePayloadV1 {
   mode: WorkbenchHeatCapacityState['heatCapacityMode'];
   common: {
     materialsExpanded: boolean;
+    teachingStatus: WorkbenchHeatCapacityState['heatCapacityTeachingStatus'];
     selectedHeatCapacityPanel: WorkbenchHeatCapacityState['selectedHeatCapacityPanel'];
     openHeatCapacityTabs: WorkbenchHeatCapacityState['openHeatCapacityTabs'];
     activeHeatCapacityTabId: WorkbenchHeatCapacityState['activeHeatCapacityTabId'];

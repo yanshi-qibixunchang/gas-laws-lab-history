@@ -11,6 +11,7 @@ import {
   recordHeatCapacityFreeTraceEvent,
   selectHeatCapacityFreeDomain,
   setHeatCapacityFreeParameterSchemeWorkbenchState,
+  startHeatCapacityGuideWorkbenchState,
 } from '../../src/features/workbench/workbenchState.ts';
 import {
   HEAT_CAPACITY_FREE_CALCULATION_VERSION,
@@ -218,6 +219,7 @@ const payload = createHeatCapacityPersistencePayload(file, 12345);
 assert.equal(payload.experimentKind, 'heatCapacity');
 assert.equal(payload.heatCapacitySchemaVersion, 1);
 assert.equal(payload.mode, 'free');
+assert.equal(payload.common.teachingStatus, 'idle');
 assert.equal(file.heatCapacityLessonIntroAutoShown, false);
 assert.equal(payload.common.lessonIntroAutoShown, false);
 assert.equal(payload.free?.runtimeVersion, file.heatCapacityFreeRuntimeVersion);
@@ -226,6 +228,8 @@ assert.equal(payload.free?.parameterScheme, 'real');
 assert.equal(payload.free?.displayScheme, 'real');
 assert.equal(payload.free?.real?.scheme, 'real');
 assert.equal(payload.free?.ideal?.scheme, 'ideal');
+assert.equal(payload.free?.real?.gasType, 'air');
+assert.equal(payload.free?.ideal?.gasType, 'air');
 assert.equal(payload.free?.real?.trials.length, 0);
 assert.equal(payload.free?.ideal?.trials.length, 0);
 assert.equal(payload.free?.gasType, 'air');
@@ -730,6 +734,8 @@ assert.equal(legacyIntroRestored.heatCapacityLessonIntroAutoShown, true);
 const legacyGammaOnlyPayload = structuredClone(payload) as typeof payload;
 delete (legacyGammaOnlyPayload.free as any).gasType;
 delete (legacyGammaOnlyPayload.free?.parameterDraft as any).gasType;
+delete (legacyGammaOnlyPayload.free?.real as any).gasType;
+delete (legacyGammaOnlyPayload.free?.ideal as any).gasType;
 (legacyGammaOnlyPayload.free!.parameterDraft as any).gamma = 1.6;
 legacyGammaOnlyPayload.free!.config.physics.gamma = 1.6;
 const legacyGammaRestored = restoreHeatCapacityFileFromPersistencePayload({
@@ -773,6 +779,73 @@ assert.equal(idealSchemeRestored.heatCapacityFreeParameterScheme, 'ideal');
 assert.equal(idealSchemeRestored.heatCapacityFreeDisplayScheme, 'ideal');
 assert.equal(idealSchemeRestored.heatCapacityFreePhysicsConfig.gamma, 1.4);
 assert.equal(idealSchemeRestored.heatCapacityFreeInstrumentNoiseEnabled, false);
+
+const heliumRealFile = applyHeatCapacityFreeParameterDraftWorkbenchState(file, {
+  ...file.heatCapacityFreeParameterDraft,
+  gasType: 'helium',
+});
+const heliumIdealFile = setHeatCapacityFreeParameterSchemeWorkbenchState(heliumRealFile, 'ideal', 778);
+const heliumIdealPayload = createHeatCapacityPersistencePayload(heliumIdealFile, 779);
+assert.equal(heliumIdealPayload.free?.real.gasType, 'helium');
+assert.equal(heliumIdealPayload.free?.real.physicsConfig.gamma, 5 / 3);
+assert.equal(heliumIdealPayload.free?.ideal.gasType, 'air');
+assert.equal(heliumIdealPayload.free?.ideal.physicsConfig.gamma, 1.4);
+const heliumIdealRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-helium-domain-roundtrip',
+  kind: 'heatCapacity',
+  name: 'Helium Domain Roundtrip',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: heliumIdealPayload as unknown as Record<string, unknown>,
+}, heliumIdealPayload, 6);
+assert.equal(heliumIdealRestored.heatCapacityFreeGasType, 'air');
+const heliumRealRestored = setHeatCapacityFreeParameterSchemeWorkbenchState(heliumIdealRestored, 'real', 780);
+assert.equal(heliumRealRestored.heatCapacityFreeGasType, 'helium');
+assert.equal(heliumRealRestored.heatCapacityFreeParameterDraft.gasType, 'helium');
+assert.equal(heliumRealRestored.heatCapacityFreePhysicsConfig.gamma, 5 / 3);
+assert.equal(heliumRealRestored.heatCapacityFreeRealDomain.gasType, 'helium');
+
+const runningGuideFile = startHeatCapacityGuideWorkbenchState(file, 880);
+const completedGuideFile = {
+  ...runningGuideFile,
+  heatCapacityTeachingStatus: 'completed' as const,
+  heatCapacityGuideWorkflow: {
+    ...runningGuideFile.heatCapacityGuideWorkflow,
+    step: 'completed' as const,
+  },
+};
+const completedGuidePayload = createHeatCapacityPersistencePayload(completedGuideFile, 881);
+assert.equal(completedGuidePayload.common.teachingStatus, 'completed');
+const completedGuideRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-guide-status-roundtrip',
+  kind: 'heatCapacity',
+  name: 'Guide Status Roundtrip',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: completedGuidePayload as unknown as Record<string, unknown>,
+}, completedGuidePayload, 7);
+assert.equal(completedGuideRestored.heatCapacityMode, 'guide');
+assert.equal(completedGuideRestored.heatCapacityTeachingStatus, 'completed');
+const legacyGuidePayload = structuredClone(completedGuidePayload) as typeof completedGuidePayload;
+delete (legacyGuidePayload.common as any).teachingStatus;
+const legacyGuideRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-legacy-guide-status',
+  kind: 'heatCapacity',
+  name: 'Legacy Guide Status',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: legacyGuidePayload as unknown as Record<string, unknown>,
+}, legacyGuidePayload, 8);
+assert.equal(legacyGuideRestored.heatCapacityTeachingStatus, 'completed');
 
 const realPhysicsDefaults = createDefaultHeatCapacityFreePhysicsConfig();
 const airModelDefaults = getHeatCapacityFreeGasTypeModelDefaults('air');

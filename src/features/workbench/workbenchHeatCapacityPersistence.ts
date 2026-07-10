@@ -118,6 +118,7 @@ export const createHeatCapacityPersistencePayload = (
     mode: file.heatCapacityMode,
     common: {
       materialsExpanded: file.heatCapacityMaterialsExpanded,
+      teachingStatus: file.heatCapacityTeachingStatus,
       selectedHeatCapacityPanel: file.selectedHeatCapacityPanel,
       openHeatCapacityTabs: clonePersistenceValue(file.openHeatCapacityTabs),
       activeHeatCapacityTabId: file.activeHeatCapacityTabId,
@@ -204,11 +205,11 @@ const createRuntimeFieldsFromRestoredFreeDomain = (
     domain.pressureWarningMv,
     domain.instrumentNoiseEnabled,
   );
-  const gasTypeGamma = getHeatCapacityFreeGasTypeGamma(parameterDraft.gasType);
+  const gasTypeGamma = getHeatCapacityFreeGasTypeGamma(domain.gasType);
   return {
-    heatCapacityFreeGasType: parameterDraft.gasType,
+    heatCapacityFreeGasType: domain.gasType,
     heatCapacityFreeExperimentGroupStatus: domain.experimentGroupStatus,
-    heatCapacityFreeParameterDraft: parameterDraft,
+    heatCapacityFreeParameterDraft: { ...parameterDraft, gasType: domain.gasType },
     heatCapacityFreeActiveRunConfigSnapshot: domain.activeRunConfigSnapshot,
     heatCapacityFreeRecordConfig: domain.recordConfig,
     heatCapacityFreePressureWarningMv: domain.pressureWarningMv,
@@ -241,12 +242,10 @@ const createHeatCapacityPersistenceSourceFile = (
   const normalizedRealDomain = normalizeHeatCapacityFreeExperimentDomainBoundary(
     file.heatCapacityFreeRealDomain,
     'real',
-    file.heatCapacityFreeGasType,
   );
   const normalizedIdealDomain = normalizeHeatCapacityFreeExperimentDomainBoundary(
     file.heatCapacityFreeIdealDomain,
     'ideal',
-    'air',
   );
   const fileWithBoundaryDomains: WorkbenchHeatCapacityState = {
     ...file,
@@ -274,12 +273,10 @@ const createHeatCapacityPersistenceSourceFile = (
     heatCapacityFreeRealDomain: normalizeHeatCapacityFreeExperimentDomainBoundary(
       synchronizedFile.heatCapacityFreeRealDomain,
       'real',
-      synchronizedFile.heatCapacityFreeGasType,
     ),
     heatCapacityFreeIdealDomain: normalizeHeatCapacityFreeExperimentDomainBoundary(
       synchronizedFile.heatCapacityFreeIdealDomain,
       'ideal',
-      'air',
     ),
   };
 };
@@ -453,6 +450,13 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatPayload.guided,
     fallback,
   );
+  const restoredTeachingStatus = common.teachingStatus === 'running' || common.teachingStatus === 'completed'
+    ? common.teachingStatus
+    : restoredMode === 'free'
+      ? 'idle'
+      : restoredGuideFields.heatCapacityGuideWorkflow.step === 'completed'
+        ? 'completed'
+        : 'running';
 
   const restoredFile: WorkbenchHeatCapacityState = {
     ...fallback,
@@ -464,6 +468,7 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     visiblePanels: visiblePanels.length > 0 ? visiblePanels : fallback.visiblePanels,
     liveWorkspaceSplitRatio,
     heatCapacityMode: restoredMode,
+    heatCapacityTeachingStatus: restoredTeachingStatus,
     heatCapacityLessonIntroAutoShown: typeof common.lessonIntroAutoShown === 'boolean'
       ? common.lessonIntroAutoShown
       : true,

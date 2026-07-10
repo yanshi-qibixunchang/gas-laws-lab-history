@@ -929,6 +929,7 @@ export type HeatCapacityFreeDisplayScheme = HeatCapacityFreeParameterScheme;
 
 export interface HeatCapacityFreeExperimentDomainState {
   scheme: HeatCapacityFreeParameterScheme;
+  gasType: HeatCapacityFreeGasType;
   experimentGroupStatus: HeatCapacityFreeExperimentGroupStatus;
   activeRunConfigSnapshot: HeatCapacityFreeTraceTrial['configSnapshot'] | null;
   recordConfig: HeatCapacityFreeRecordConfig;
@@ -4493,6 +4494,7 @@ export const createDefaultHeatCapacityFreeExperimentDomainState = (
   const fields = createDefaultHeatCapacityFreeRuntimeFields(seed, parameterState);
   return {
     scheme,
+    gasType: scheme === 'ideal' ? 'air' : parameterState.gasType,
     experimentGroupStatus: fields.heatCapacityFreeExperimentGroupStatus,
     activeRunConfigSnapshot: fields.heatCapacityFreeActiveRunConfigSnapshot,
     recordConfig: fields.heatCapacityFreeRecordConfig,
@@ -4539,6 +4541,7 @@ export const createHeatCapacityFreeExperimentDomainStateFromFile = (
   scheme: HeatCapacityFreeParameterScheme,
 ): HeatCapacityFreeExperimentDomainState => ({
   scheme,
+  gasType: scheme === 'ideal' ? 'air' : file.heatCapacityFreeGasType,
   experimentGroupStatus: file.heatCapacityFreeExperimentGroupStatus,
   activeRunConfigSnapshot: file.heatCapacityFreeActiveRunConfigSnapshot,
   recordConfig: file.heatCapacityFreeRecordConfig,
@@ -4563,12 +4566,8 @@ export const selectHeatCapacityFreeDomain = (
   scheme: HeatCapacityFreeParameterScheme,
 ): HeatCapacityFreeExperimentDomainState => (
   scheme === 'ideal'
-    ? normalizeHeatCapacityFreeExperimentDomainBoundary(file.heatCapacityFreeIdealDomain, 'ideal', 'air')
-    : normalizeHeatCapacityFreeExperimentDomainBoundary(
-        file.heatCapacityFreeRealDomain,
-        'real',
-        file.heatCapacityFreeGasType,
-      )
+    ? normalizeHeatCapacityFreeExperimentDomainBoundary(file.heatCapacityFreeIdealDomain, 'ideal')
+    : normalizeHeatCapacityFreeExperimentDomainBoundary(file.heatCapacityFreeRealDomain, 'real')
 );
 
 export const selectActiveHeatCapacityFreeDomain = (
@@ -4587,7 +4586,9 @@ export const getHeatCapacityFreeDisplayTheoreticalGamma = (
   file: WorkbenchHeatCapacityState,
   scheme: HeatCapacityFreeDisplayScheme = file.heatCapacityFreeDisplayScheme,
 ) => (
-  scheme === 'ideal' ? getHeatCapacityFreeIdealTheoreticalGamma() : file.theoreticalGamma
+  scheme === 'ideal'
+    ? getHeatCapacityFreeIdealTheoreticalGamma()
+    : getHeatCapacityFreeGasTypeGamma(selectHeatCapacityFreeDomain(file, 'real').gasType)
 );
 
 const REAL_DOMAIN_IDEAL_THERMAL_CONTAMINATION_THRESHOLD_W_PER_K = 4;
@@ -4605,13 +4606,23 @@ export const hasHeatCapacityFreeIdealThermalBoundaryContamination = (
 export const normalizeHeatCapacityFreeExperimentDomainBoundary = (
   domain: HeatCapacityFreeExperimentDomainState,
   scheme: HeatCapacityFreeParameterScheme,
-  gasType: HeatCapacityFreeGasType,
+  fallbackGasType?: HeatCapacityFreeGasType,
 ): HeatCapacityFreeExperimentDomainState => {
   const physicsConfig = normalizeHeatCapacityFreePhysicsConfig(domain.physicsConfig);
+  const gasType = scheme === 'ideal'
+    ? 'air'
+    : normalizeHeatCapacityFreeGasType(
+        domain.gasType,
+        normalizeHeatCapacityFreeGasType(
+          fallbackGasType,
+          resolveHeatCapacityFreeGasTypeFromGamma(physicsConfig.gamma),
+        ),
+      );
   if (scheme === 'ideal') {
     return {
       ...domain,
       scheme: 'ideal',
+      gasType,
       physicsConfig: {
         ...physicsConfig,
         gamma: getHeatCapacityFreeIdealTheoreticalGamma(),
@@ -4624,6 +4635,7 @@ export const normalizeHeatCapacityFreeExperimentDomainBoundary = (
     return {
       ...domain,
       scheme: 'real',
+      gasType,
       physicsConfig: {
         ...physicsConfig,
         gamma: getHeatCapacityFreeGasTypeGamma(gasType),
@@ -4637,6 +4649,7 @@ export const normalizeHeatCapacityFreeExperimentDomainBoundary = (
   return {
     ...domain,
     scheme: 'real',
+    gasType,
     physicsConfig: {
       ...physicsConfig,
       gamma: getHeatCapacityFreeGasTypeGamma(gasType),
@@ -4666,12 +4679,12 @@ const applyHeatCapacityFreeDomainToRuntimeFields = (
     domain.pressureWarningMv,
     domain.instrumentNoiseEnabled,
   );
-  const gasTypeGamma = getHeatCapacityFreeGasTypeGamma(parameterDraft.gasType);
+  const gasTypeGamma = getHeatCapacityFreeGasTypeGamma(domain.gasType);
   return {
     ...file,
     heatCapacityFreeExperimentGroupStatus: domain.experimentGroupStatus,
-    heatCapacityFreeGasType: parameterDraft.gasType,
-    heatCapacityFreeParameterDraft: parameterDraft,
+    heatCapacityFreeGasType: domain.gasType,
+    heatCapacityFreeParameterDraft: { ...parameterDraft, gasType: domain.gasType },
     heatCapacityFreeActiveRunConfigSnapshot: domain.activeRunConfigSnapshot,
     heatCapacityFreeRecordConfig: domain.recordConfig,
     heatCapacityFreePressureWarningMv: domain.pressureWarningMv,
@@ -4709,7 +4722,6 @@ export const storeHeatCapacityFreeRuntimeFieldsInDomain = (
   const domain = normalizeHeatCapacityFreeExperimentDomainBoundary(
     createHeatCapacityFreeExperimentDomainStateFromFile(sourceFile, scheme),
     scheme,
-    sourceFile.heatCapacityFreeGasType,
   );
   const fileWithNormalizedRuntime = {
     ...sourceFile,
