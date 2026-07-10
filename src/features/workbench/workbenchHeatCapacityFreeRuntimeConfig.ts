@@ -32,15 +32,37 @@ const clampNumber = (value: number, min: number, max: number) => Math.min(max, M
 export const normalizeHeatCapacityFreeSensorConfig = (
   config: Partial<HeatCapacityFreeSensorConfig> | null | undefined,
 ): HeatCapacityFreeSensorConfig => ({
-  ...DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
-  ...config,
+  pressureMvPerKPa: Math.max(0.001, finiteNumberOr(
+    config?.pressureMvPerKPa,
+    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.pressureMvPerKPa,
+  )),
+  temperatureMvAtAmbient: finiteNumberOr(
+    config?.temperatureMvAtAmbient,
+    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient,
+  ),
+  temperatureMvPerK: Math.max(0.001, finiteNumberOr(
+    config?.temperatureMvPerK,
+    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvPerK,
+  )),
   lagRate: clampNumber(
     finiteNumberOr(config?.lagRate, DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.lagRate),
     0.01,
     60,
   ),
+  noiseMv: Math.max(0, finiteNumberOr(
+    config?.noiseMv,
+    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.noiseMv,
+  )),
+  quantizationMv: Math.max(0, finiteNumberOr(
+    config?.quantizationMv,
+    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.quantizationMv,
+  )),
   minSampleIntervalS: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.minSampleIntervalS,
   maxSampleIntervalS: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.maxSampleIntervalS,
+  historyWindowS: Math.max(0.001, finiteNumberOr(
+    config?.historyWindowS,
+    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.historyWindowS,
+  )),
   pressureNonlinearity: normalizeFreePressureSensorNonlinearityConfig(
     config?.pressureNonlinearity ?? DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.pressureNonlinearity,
   ),

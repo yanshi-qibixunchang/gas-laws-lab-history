@@ -26,15 +26,14 @@ import {
   WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
   clampWorkbenchLiveSplitRatio,
   createDefaultIdealFile,
-  createDefaultIdealWindowLayout,
   createEmptyChartData,
   createIdleStats,
-  type WorkbenchIdealResultWindowKey,
   type WorkbenchIdealState,
   type WorkbenchIdealWindowLayout,
   type WorkbenchPanelKey,
   type WorkbenchRunState,
 } from './workbenchState.ts';
+import { normalizeIdealWindowLayoutState } from './workbenchLayoutCompatibility.ts';
 import type {
   WorkbenchExperimentFileEnvelopeV1,
 } from './workbenchPersistenceSchema.ts';
@@ -74,7 +73,6 @@ export interface IdealGasPayloadValidationResult {
 }
 
 const runStates = ['idle', 'running', 'paused', 'finished', 'needs-reset'] as const satisfies readonly WorkbenchRunState[];
-const idealTabs = ['experimentPoints', 'verification'] as const satisfies readonly WorkbenchIdealResultWindowKey[];
 const idealRelations = ['pt', 'pv', 'pn'] as const satisfies readonly ExperimentRelation[];
 const verificationStates = ['not-started', 'collecting', 'verified', 'failed'] as const satisfies readonly WorkbenchIdealState['verificationState'][];
 
@@ -86,25 +84,6 @@ const normalizeVisiblePanels = (
   value: unknown,
   fallback: WorkbenchPanelKey[],
 ): WorkbenchPanelKey[] => normalizeWorkbenchPanelKeys(value, fallback);
-
-const normalizeIdealWindowLayout = (
-  value: unknown,
-): WorkbenchIdealWindowLayout => {
-  const fallback = createDefaultIdealWindowLayout();
-  if (!isRecord(value)) return fallback;
-  const openTabs = Array.isArray(value.openTabs)
-    ? value.openTabs.filter((tab): tab is WorkbenchIdealResultWindowKey => idealTabs.includes(tab as WorkbenchIdealResultWindowKey))
-    : fallback.openTabs;
-  const activeIdealResultTab = idealTabs.includes(value.activeIdealResultTab as WorkbenchIdealResultWindowKey)
-    ? value.activeIdealResultTab as WorkbenchIdealResultWindowKey
-    : openTabs[0] ?? fallback.activeIdealResultTab;
-  return {
-    openTabs: openTabs.length > 0 ? openTabs : fallback.openTabs,
-    activeIdealResultTab,
-    heightRatio: isFiniteNumber(value.heightRatio) ? value.heightRatio : fallback.heightRatio,
-    hasCustomHeight: value.hasCustomHeight === true,
-  };
-};
 
 const normalizeStats = (value: unknown): SimulationStats => (
   isRecord(value) ? { ...createIdleStats(), ...value } as SimulationStats : createIdleStats()
@@ -209,10 +188,11 @@ export const restoreIdealGasFileFromPersistencePayload = (
   const runtime = isRecord(idealPayload.runtime) ? idealPayload.runtime as Partial<IdealGasPersistencePayloadV1['runtime']> : {};
   const experiment = isRecord(idealPayload.experiment) ? idealPayload.experiment as Partial<IdealGasPersistencePayloadV1['experiment']> : {};
   const results = isRecord(idealPayload.results) ? idealPayload.results as Partial<IdealGasPersistencePayloadV1['results']> : {};
+  const idealWindowLayout = normalizeIdealWindowLayoutState(
+    (results.idealWindowLayout ?? layout.idealWindowLayout) as Parameters<typeof normalizeIdealWindowLayoutState>[0],
+  );
   const fallback = createDefaultIdealFile(index, {
-    resultsHeightRatio: isRecord(layout.idealWindowLayout) && isFiniteNumber(layout.idealWindowLayout.heightRatio)
-      ? layout.idealWindowLayout.heightRatio
-      : undefined,
+    resultsHeightRatio: idealWindowLayout.heightRatio,
     liveWorkspaceSplitRatio: isFiniteNumber(layout.liveWorkspaceSplitRatio)
       ? layout.liveWorkspaceSplitRatio
       : WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
@@ -250,6 +230,6 @@ export const restoreIdealGasFileFromPersistencePayload = (
       ? experiment.verificationState as WorkbenchIdealState['verificationState']
       : fallback.verificationState,
     historyUnlocked: experiment.historyUnlocked === true,
-    idealWindowLayout: normalizeIdealWindowLayout(results.idealWindowLayout ?? layout.idealWindowLayout),
+    idealWindowLayout,
   };
 };

@@ -24,6 +24,16 @@ import type {
 import type {
   HeatCapacityFreeRecordConfig,
 } from '../../domain/heatCapacity/heatCapacityFreeRecordModel.ts';
+import type {
+  HeatCapacityFreePhysicsState,
+} from '../../domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
+import type {
+  HeatCapacityFreeSensorState,
+} from '../../domain/heatCapacity/heatCapacityFreeSensorModel.ts';
+import type {
+  HeatCapacityFreeCalibrationState,
+} from '../../domain/heatCapacity/heatCapacityFreeCalibrationModel.ts';
+import type { HeatCapacityRuntimePhase } from '../../domain/heatCapacity/heatCapacityProcessTypes.ts';
 import {
   normalizeHeatCapacityFreeRecordInput,
   type HeatCapacityFreeRecordInput,
@@ -37,16 +47,22 @@ import {
   type HeatCapacityFreeDisplayScheme,
   type HeatCapacityFreeExperimentDomainState,
   type HeatCapacityFreeParameterScheme,
+  type HeatCapacityFreeRollbackSnapshot,
+  type HeatCapacityFreeRollbackSnapshots,
   normalizeHeatCapacityFreeExperimentDomainBoundary,
+  normalizeHeatCapacityStopcockAngle,
 } from './workbenchState.ts';
-import { normalizeHeatCapacityFreePhysicsConfig } from './workbenchHeatCapacityFreeRuntimeConfig.ts';
+import {
+  normalizeHeatCapacityFreePhysicsConfig,
+  normalizeHeatCapacityFreeSensorConfig,
+} from './workbenchHeatCapacityFreeRuntimeConfig.ts';
 
 export const HEAT_CAPACITY_PROCESS_SCORING_VERSION = 'free-process-score-v1' as const;
 
 export const isHeatCapacityRestoreRecord = (
   value: unknown,
 ): value is Record<string, unknown> => (
-  typeof value === 'object' && value !== null
+  typeof value === 'object' && value !== null && !Array.isArray(value)
 );
 
 export const heatCapacityRestoreFiniteOrDefault = (
@@ -520,6 +536,245 @@ const normalizeHeatCapacityFreeRestoreStopcockFlowPurpose = (
   return value === 'release' || value === 'zeroing' ? value : 'none';
 };
 
+const normalizeHeatCapacityFreeRestoreDisplaySamples = (value: unknown) => (
+  Array.isArray(value)
+    ? value.flatMap((sample) => {
+        if (!isHeatCapacityRestoreRecord(sample)) return [];
+        const atS = heatCapacityRestoreNullableNumber(sample.atS);
+        const valueMv = heatCapacityRestoreNullableNumber(sample.valueMv);
+        return atS === null || valueMv === null ? [] : [{ atS, valueMv }];
+      })
+    : []
+);
+
+export const normalizeHeatCapacityFreeRestorePhysicsState = (
+  value: unknown,
+  fallback: HeatCapacityFreePhysicsState,
+): HeatCapacityFreePhysicsState => {
+  const state = isHeatCapacityRestoreRecord(value) ? value : {};
+  const pumpProcesses = Array.isArray(state.pumpProcesses)
+    ? state.pumpProcesses.flatMap((process) => {
+        if (!isHeatCapacityRestoreRecord(process)) return [];
+        const startedAtS = heatCapacityRestoreNullableNumber(process.startedAtS);
+        const strength = heatCapacityRestoreNullableNumber(process.strength);
+        const appliedProgress = heatCapacityRestoreNullableNumber(process.appliedProgress);
+        return startedAtS === null || strength === null || appliedProgress === null
+          ? []
+          : [{ startedAtS, strength, appliedProgress }];
+      })
+    : fallback.pumpProcesses;
+  const releaseReference = isHeatCapacityRestoreRecord(state.releaseReference)
+    ? {
+        pressureBeforeKPa: heatCapacityRestoreNullableNumber(state.releaseReference.pressureBeforeKPa),
+        temperatureBeforeK: heatCapacityRestoreNullableNumber(state.releaseReference.temperatureBeforeK),
+        amountBeforeRatio: heatCapacityRestoreNullableNumber(state.releaseReference.amountBeforeRatio),
+        openedAtS: heatCapacityRestoreNullableNumber(state.releaseReference.openedAtS),
+        reachedAmbientAtS: heatCapacityRestoreNullableNumber(state.releaseReference.reachedAmbientAtS),
+      }
+    : null;
+  const validReleaseReference = releaseReference &&
+    releaseReference.pressureBeforeKPa !== null &&
+    releaseReference.temperatureBeforeK !== null &&
+    releaseReference.amountBeforeRatio !== null &&
+    releaseReference.openedAtS !== null
+    ? releaseReference as HeatCapacityFreePhysicsState['releaseReference']
+    : null;
+  const gasAmountRatio = heatCapacityRestoreFiniteOrDefault(state.gasAmountRatio, fallback.gasAmountRatio);
+  return {
+    simulationTimeS: heatCapacityRestoreFiniteOrDefault(state.simulationTimeS, fallback.simulationTimeS),
+    gasAmountRatio: gasAmountRatio > 0 ? gasAmountRatio : fallback.gasAmountRatio,
+    gasTemperatureK: Math.max(0.001, heatCapacityRestoreFiniteOrDefault(state.gasTemperatureK, fallback.gasTemperatureK)),
+    wallTemperatureK: Math.max(0.001, heatCapacityRestoreFiniteOrDefault(state.wallTemperatureK, fallback.wallTemperatureK)),
+    pumpProcesses,
+    pumpStrokeCount: Math.max(0, heatCapacityRestoreFiniteOrDefault(state.pumpStrokeCount, fallback.pumpStrokeCount)),
+    lastPumpStrokeAtS: heatCapacityRestoreNullableNumber(state.lastPumpStrokeAtS),
+    lastPumpValveOpenedAtS: heatCapacityRestoreNullableNumber(state.lastPumpValveOpenedAtS),
+    lastPumpValveClosedAtS: heatCapacityRestoreNullableNumber(state.lastPumpValveClosedAtS),
+    currentPumpValveOpenDurationS: Math.max(0, heatCapacityRestoreFiniteOrDefault(state.currentPumpValveOpenDurationS, fallback.currentPumpValveOpenDurationS)),
+    environmentDisturbanceSeed: typeof state.environmentDisturbanceSeed === 'string' || typeof state.environmentDisturbanceSeed === 'number'
+      ? state.environmentDisturbanceSeed
+      : fallback.environmentDisturbanceSeed,
+    ambientPressureOffsetKPa: heatCapacityRestoreFiniteOrDefault(state.ambientPressureOffsetKPa, fallback.ambientPressureOffsetKPa),
+    ambientTemperatureOffsetK: heatCapacityRestoreFiniteOrDefault(state.ambientTemperatureOffsetK, fallback.ambientTemperatureOffsetK),
+    effectiveAmbientPressureKPa: heatCapacityRestoreFiniteOrDefault(state.effectiveAmbientPressureKPa, fallback.effectiveAmbientPressureKPa),
+    effectiveAmbientTemperatureK: heatCapacityRestoreFiniteOrDefault(state.effectiveAmbientTemperatureK, fallback.effectiveAmbientTemperatureK),
+    maxPressureKPa: heatCapacityRestoreFiniteOrDefault(state.maxPressureKPa, fallback.maxPressureKPa),
+    releaseStarted: state.releaseStarted === true,
+    lastStopcockOpenedAtS: heatCapacityRestoreNullableNumber(state.lastStopcockOpenedAtS),
+    lastStopcockClosedAtS: heatCapacityRestoreNullableNumber(state.lastStopcockClosedAtS),
+    currentStopcockOpenDurationS: Math.max(0, heatCapacityRestoreFiniteOrDefault(state.currentStopcockOpenDurationS, fallback.currentStopcockOpenDurationS)),
+    releaseReference: validReleaseReference,
+  };
+};
+
+export const normalizeHeatCapacityFreeRestoreSensorState = (
+  value: unknown,
+  fallback: HeatCapacityFreeSensorState,
+): HeatCapacityFreeSensorState => {
+  const state = isHeatCapacityRestoreRecord(value) ? value : {};
+  return {
+    seed: typeof state.seed === 'string' || typeof state.seed === 'number' ? state.seed : fallback.seed,
+    pressureInitialBiasMv: heatCapacityRestoreFiniteOrDefault(state.pressureInitialBiasMv, fallback.pressureInitialBiasMv),
+    displayPressureMv: heatCapacityRestoreFiniteOrDefault(state.displayPressureMv, fallback.displayPressureMv),
+    displayTemperatureMv: heatCapacityRestoreFiniteOrDefault(state.displayTemperatureMv, fallback.displayTemperatureMv),
+    nextSampleAtS: heatCapacityRestoreFiniteOrDefault(state.nextSampleAtS, fallback.nextSampleAtS),
+    pressureHistory: normalizeHeatCapacityFreeRestoreDisplaySamples(state.pressureHistory),
+    temperatureHistory: normalizeHeatCapacityFreeRestoreDisplaySamples(state.temperatureHistory),
+    pressureSlopeMvPerS: heatCapacityRestoreFiniteOrDefault(state.pressureSlopeMvPerS, fallback.pressureSlopeMvPerS),
+    temperatureSlopeMvPerS: heatCapacityRestoreFiniteOrDefault(state.temperatureSlopeMvPerS, fallback.temperatureSlopeMvPerS),
+    pressureReliability: Math.min(1, Math.max(0, heatCapacityRestoreFiniteOrDefault(state.pressureReliability, fallback.pressureReliability))),
+    pressureNonlinearErrorMv: heatCapacityRestoreFiniteOrDefault(state.pressureNonlinearErrorMv, fallback.pressureNonlinearErrorMv),
+    pressureStochasticErrorMv: heatCapacityRestoreFiniteOrDefault(state.pressureStochasticErrorMv, fallback.pressureStochasticErrorMv),
+  };
+};
+
+export const normalizeHeatCapacityFreeRestoreCalibrationState = (
+  value: unknown,
+  fallback: HeatCapacityFreeCalibrationState,
+): HeatCapacityFreeCalibrationState => {
+  const state = isHeatCapacityRestoreRecord(value) ? value : {};
+  const zeroEvents = Array.isArray(state.zeroEvents)
+    ? state.zeroEvents.flatMap((event) => {
+        if (!isHeatCapacityRestoreRecord(event) || typeof event.id !== 'string') return [];
+        const atS = heatCapacityRestoreNullableNumber(event.atS);
+        const displayPressureMv = heatCapacityRestoreNullableNumber(event.displayPressureMv);
+        const displayTemperatureMv = heatCapacityRestoreNullableNumber(event.displayTemperatureMv);
+        const zeroOffsetMv = heatCapacityRestoreNullableNumber(event.zeroOffsetMv);
+        if (atS === null || displayPressureMv === null || displayTemperatureMv === null || zeroOffsetMv === null) return [];
+        return [{
+          id: event.id,
+          atS,
+          displayPressureMv,
+          displayTemperatureMv,
+          zeroOffsetMv,
+          source: event.source === 'auto' ? 'auto' as const : 'user' as const,
+        }];
+      })
+    : fallback.zeroEvents;
+  const automaticU0Record = isHeatCapacityRestoreRecord(state.automaticU0) ? state.automaticU0 : null;
+  const automaticU0 = automaticU0Record && typeof automaticU0Record.zeroEventId === 'string'
+    ? {
+        displayPressureMv: heatCapacityRestoreNullableNumber(automaticU0Record.displayPressureMv),
+        displayTemperatureMv: heatCapacityRestoreNullableNumber(automaticU0Record.displayTemperatureMv),
+        calibrationVersion: heatCapacityRestoreNullableNumber(automaticU0Record.calibrationVersion),
+        zeroEventId: automaticU0Record.zeroEventId,
+        atS: heatCapacityRestoreNullableNumber(automaticU0Record.atS),
+      }
+    : null;
+  const validAutomaticU0 = automaticU0 &&
+    automaticU0.displayPressureMv !== null &&
+    automaticU0.displayTemperatureMv !== null &&
+    automaticU0.calibrationVersion !== null &&
+    automaticU0.atS !== null
+    ? automaticU0 as HeatCapacityFreeCalibrationState['automaticU0']
+    : null;
+  return {
+    calibrationVersion: Math.max(0, Math.floor(heatCapacityRestoreFiniteOrDefault(state.calibrationVersion, fallback.calibrationVersion))),
+    zeroOffsetMv: heatCapacityRestoreFiniteOrDefault(state.zeroOffsetMv, fallback.zeroOffsetMv),
+    zeroEvents,
+    automaticU0: validAutomaticU0,
+  };
+};
+
+const heatCapacityRestorePhases = [
+  'powerOff',
+  'readyToZero',
+  'zeroed',
+  'readyToPump',
+  'pumping',
+  'sealedStabilizing',
+  'releasing',
+  'recovering',
+] as const satisfies readonly HeatCapacityRuntimePhase[];
+
+const normalizeHeatCapacityFreeRestoreRollbackSnapshot = (
+  value: unknown,
+  fallback: HeatCapacityFreeExperimentDomainState,
+): HeatCapacityFreeRollbackSnapshot | null => {
+  if (!isHeatCapacityRestoreRecord(value)) return null;
+  if (
+    !isHeatCapacityRestoreRecord(value.heatCapacityFreePhysicsState) ||
+    !isHeatCapacityRestoreRecord(value.heatCapacityFreeSensorState) ||
+    !isHeatCapacityRestoreRecord(value.heatCapacityFreeCalibrationState)
+  ) {
+    return null;
+  }
+  const phase = heatCapacityRestorePhases.includes(value.heatCapacityPhase as HeatCapacityRuntimePhase)
+    ? value.heatCapacityPhase as HeatCapacityRuntimePhase
+    : 'powerOff';
+  const runState = value.runState === 'running' || value.runState === 'paused' || value.runState === 'finished' || value.runState === 'needs-reset'
+    ? value.runState
+    : 'idle';
+  const pumpValveOpen = value.pumpValveOpen === true;
+  const stopcockFlowOpen = value.heatCapacityFreeStopcockFlowOpen === true;
+  const stopcockPendingOpenAtMs = heatCapacityRestoreNullableNumber(value.heatCapacityFreeStopcockPendingOpenAtMs);
+  const zeroAdjusted = value.pressureZeroAdjusted === true || value.pressureZeroed === true;
+  return {
+    powerOn: value.powerOn === true,
+    runState,
+    heatCapacityPhase: phase,
+    glassPistonState: value.glassPistonState === 'open' ? 'open' : 'closed',
+    stopcockAngleDeg: normalizeHeatCapacityStopcockAngle(value.stopcockAngleDeg),
+    pressureSignalMv: heatCapacityRestoreNullableNumber(value.pressureSignalMv),
+    temperatureSignalMv: heatCapacityRestoreNullableNumber(value.temperatureSignalMv),
+    pressureSignalTargetMv: heatCapacityRestoreFiniteOrDefault(value.pressureSignalTargetMv, 0),
+    temperatureSignalTargetMv: heatCapacityRestoreFiniteOrDefault(value.temperatureSignalTargetMv, 0),
+    pressureInitialBiasMv: heatCapacityRestoreFiniteOrDefault(value.pressureInitialBiasMv, 0),
+    pressureZeroed: zeroAdjusted,
+    pressureZeroAdjusted: zeroAdjusted,
+    pressureZeroKnobAngle: heatCapacityRestoreFiniteOrDefault(value.pressureZeroKnobAngle, 0),
+    pressureZeroOffset: heatCapacityRestoreFiniteOrDefault(value.pressureZeroOffset, 0),
+    pressureZeroDisplayText: typeof value.pressureZeroDisplayText === 'string' ? value.pressureZeroDisplayText : '0.00',
+    pressureZeroAdjustMode: value.pressureZeroAdjustMode === 'fineWheel' || value.pressureZeroAdjustMode === 'coarseDrag'
+      ? value.pressureZeroAdjustMode
+      : 'none',
+    pressureZeroDisplayedSamples: Array.isArray(value.pressureZeroDisplayedSamples)
+      ? value.pressureZeroDisplayedSamples.flatMap((sample) => {
+          if (!isHeatCapacityRestoreRecord(sample)) return [];
+          const atMs = heatCapacityRestoreNullableNumber(sample.atMs);
+          const valueMv = heatCapacityRestoreNullableNumber(sample.valueMv);
+          return atMs === null || valueMv === null ? [] : [{ atMs, valueMv }];
+        })
+      : [],
+    pumpValveOpen,
+    pumpValveState: pumpValveOpen ? 'open' : 'closed',
+    pumpBulbState: value.pumpBulbState === 'compressing' || value.pumpBulbState === 'releasing'
+      ? value.pumpBulbState
+      : 'idle',
+    pumpStrokeTimestamps: Array.isArray(value.pumpStrokeTimestamps)
+      ? value.pumpStrokeTimestamps.filter((timestamp): timestamp is number => typeof timestamp === 'number' && Number.isFinite(timestamp))
+      : [],
+    pumpFrequency: Math.max(0, heatCapacityRestoreFiniteOrDefault(value.pumpFrequency, 0)),
+    pumpFrequencyStatus: value.pumpFrequencyStatus === 'tooSlow' || value.pumpFrequencyStatus === 'suitable'
+      ? value.pumpFrequencyStatus
+      : 'idle',
+    lastPumpTime: heatCapacityRestoreNullableNumber(value.lastPumpTime),
+    pumpStrokeCount: Math.max(0, Math.floor(heatCapacityRestoreFiniteOrDefault(value.pumpStrokeCount, 0))),
+    pumpHint: typeof value.pumpHint === 'string' ? value.pumpHint : '',
+    heatCapacityFreePhysicsState: normalizeHeatCapacityFreeRestorePhysicsState(value.heatCapacityFreePhysicsState, fallback.physicsState),
+    heatCapacityFreeSensorState: normalizeHeatCapacityFreeRestoreSensorState(value.heatCapacityFreeSensorState, fallback.sensorState),
+    heatCapacityFreeCalibrationState: normalizeHeatCapacityFreeRestoreCalibrationState(value.heatCapacityFreeCalibrationState, fallback.calibrationState),
+    heatCapacityFreeStopcockFlowOpen: stopcockFlowOpen,
+    heatCapacityFreeStopcockPendingOpenAtMs: stopcockPendingOpenAtMs,
+    heatCapacityFreeStopcockFlowPurpose: normalizeHeatCapacityFreeRestoreStopcockFlowPurpose(
+      value.heatCapacityFreeStopcockFlowPurpose,
+      stopcockFlowOpen || stopcockPendingOpenAtMs !== null,
+    ),
+  };
+};
+
+export const normalizeHeatCapacityFreeRestoreRollbackSnapshots = (
+  value: unknown,
+  fallback: HeatCapacityFreeExperimentDomainState,
+): HeatCapacityFreeRollbackSnapshots => {
+  const snapshots = isHeatCapacityRestoreRecord(value) ? value : {};
+  return {
+    afterPowerOn: normalizeHeatCapacityFreeRestoreRollbackSnapshot(snapshots.afterPowerOn, fallback),
+    beforePump: normalizeHeatCapacityFreeRestoreRollbackSnapshot(snapshots.beforePump, fallback),
+    beforeRelease: normalizeHeatCapacityFreeRestoreRollbackSnapshot(snapshots.beforeRelease, fallback),
+  };
+};
+
 export const normalizeHeatCapacityFreeRestoreExperimentDomain = (
   value: unknown,
   scheme: HeatCapacityFreeParameterScheme,
@@ -531,6 +786,12 @@ export const normalizeHeatCapacityFreeRestoreExperimentDomain = (
     : {};
   const stopcockFlowOpen = domain.stopcockFlowOpen === true;
   const stopcockPendingOpenAtMs = heatCapacityRestoreNullableNumber(domain.stopcockPendingOpenAtMs);
+  const physicsConfig = isHeatCapacityRestoreRecord(domain.physicsConfig)
+    ? normalizeHeatCapacityFreePhysicsConfig(domain.physicsConfig)
+    : fallback.physicsConfig;
+  const sensorConfig = isHeatCapacityRestoreRecord(domain.sensorConfig)
+    ? normalizeHeatCapacityFreeSensorConfig(domain.sensorConfig)
+    : fallback.sensorConfig;
   const trials = Array.isArray(domain.trials)
     ? domain.trials
         .map(normalizeHeatCapacityFreeRestoreTrial)
@@ -549,9 +810,13 @@ export const normalizeHeatCapacityFreeRestoreExperimentDomain = (
     instrumentNoiseEnabled: typeof domain.instrumentNoiseEnabled === 'boolean'
       ? domain.instrumentNoiseEnabled
       : fallback.instrumentNoiseEnabled,
-    physicsConfig: isHeatCapacityRestoreRecord(domain.physicsConfig)
-      ? normalizeHeatCapacityFreePhysicsConfig(domain.physicsConfig)
-      : fallback.physicsConfig,
+    environmentConfig: { ...physicsConfig.environment },
+    physicsConfig,
+    physicsState: normalizeHeatCapacityFreeRestorePhysicsState(domain.physicsState, fallback.physicsState),
+    sensorConfig,
+    sensorState: normalizeHeatCapacityFreeRestoreSensorState(domain.sensorState, fallback.sensorState),
+    calibrationState: normalizeHeatCapacityFreeRestoreCalibrationState(domain.calibrationState, fallback.calibrationState),
+    rollbackSnapshots: normalizeHeatCapacityFreeRestoreRollbackSnapshots(domain.rollbackSnapshots, fallback),
     traceStore: normalizeHeatCapacityFreeRestoreTraceStore(domain.traceStore),
     trials,
     stopcockFlowOpen,

@@ -3,9 +3,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  captureHeatCapacityFreeRollbackSnapshot,
   createDefaultHeatCapacityFile,
   createDefaultIdealFile,
   createDefaultStandardFile,
+  getHeatCapacityGaugePressureState,
   type WorkbenchPanelKey,
 } from '../../src/features/workbench/workbenchState.ts';
 import {
@@ -329,25 +331,100 @@ if (decodedStandard.kind === 'standard') {
   assert.equal(decodedStandard.hardSphereEngineSnapshot, null);
 }
 
+const heatReplayBaseFile = createDefaultHeatCapacityFile(8);
 const heatReplayFile = {
-  ...createDefaultHeatCapacityFile(8),
+  ...heatReplayBaseFile,
   pressureGaugeNeedleAngle: 33,
   heatCapacityFreeEquilibriumSpeedMultiplier: 8 as const,
   heatCapacityFreeEquilibriumSpeedHintShown: true,
   hardSphereViewEnabled: true,
+  heatCapacityFreeRollbackSnapshots: {
+    ...heatReplayBaseFile.heatCapacityFreeRollbackSnapshots,
+    afterPowerOn: captureHeatCapacityFreeRollbackSnapshot(heatReplayBaseFile),
+  },
 };
 const replayEnvelope = encodeWorkbenchStorageEnvelope([heatReplayFile], heatReplayFile.id, 'preview', 1000);
 const replayDecoded = decodeWorkbenchStorageEnvelope(replayEnvelope).session;
 const replayFile = replayDecoded.files[0];
 assert.equal(replayFile.kind, 'heatCapacity');
 if (replayFile.kind !== 'heatCapacity') throw new Error('expected heat capacity replay file');
-assert.equal(replayFile.pressureGaugeNeedleAngle, 33);
+assert.equal(
+  replayFile.pressureGaugeNeedleAngle,
+  getHeatCapacityGaugePressureState(
+    replayFile.pressureDeltaKPa,
+    replayFile.powerOn,
+    replayFile,
+    replayFile.pressureGaugeDisplayValue,
+  ).pressureGaugeNeedleAngle,
+  'restored gauge geometry should be derived from the current gauge model instead of replaying an obsolete angle',
+);
 assert.equal(replayFile.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
 assert.equal(replayFile.heatCapacityFreeEquilibriumSpeedHintShown, true);
 assert.equal(replayFile.hardSphereViewEnabled, true);
+assert.notEqual(replayFile.heatCapacityFreeRollbackSnapshots.afterPowerOn, null);
+assert.ok(Array.isArray(replayFile.heatCapacityFreeRollbackSnapshots.afterPowerOn?.heatCapacityFreePhysicsState.pumpProcesses));
+assert.ok(Array.isArray(replayFile.heatCapacityFreeRollbackSnapshots.afterPowerOn?.heatCapacityFreeSensorState.pressureHistory));
 assert.equal('hardSphereParticleMultiplier' in replayFile, false);
 assert.equal('hardSphereSpeedMultiplier' in replayFile, false);
 assert.equal('hardSphereTrailsEnabled' in replayFile, false);
+
+const malformedHeatEnvelope = structuredClone(replayEnvelope);
+const malformedHeatPayload = malformedHeatEnvelope.files[0].payload as any;
+malformedHeatPayload.free.real = {
+  physicsConfig: [],
+  physicsState: { gasAmountRatio: 0, gasTemperatureK: 'invalid', pumpProcesses: 'invalid' },
+  sensorState: { pressureHistory: 'invalid', pressureReliability: 9 },
+  calibrationState: { zeroEvents: 'invalid', calibrationVersion: -4 },
+  trials: 'invalid',
+};
+malformedHeatPayload.free.uiReplay = {
+  selectedHeatCapacityPanel: 'summary',
+  openHeatCapacityTabs: ['bogus'],
+  activeHeatCapacityTabId: 'bogus',
+  heatCapacityPhase: 'bogus',
+  pressureGaugeDisplayValue: 'invalid',
+  pressureGaugeNeedleAngle: Number.POSITIVE_INFINITY,
+  recordedPressures: { p0: 'invalid', p1: [], p2: {} },
+};
+const malformedHeatDecoded = decodeWorkbenchStorageEnvelope(malformedHeatEnvelope);
+assert.equal(malformedHeatDecoded.session.files.length, 1, 'a malformed persisted Free domain should fall back without dropping the experiment');
+const malformedHeatFile = malformedHeatDecoded.session.files[0];
+assert.equal(malformedHeatFile.kind, 'heatCapacity');
+if (malformedHeatFile.kind !== 'heatCapacity') throw new Error('expected normalized malformed heat-capacity file');
+assert.equal(malformedHeatFile.heatCapacityFreeRealDomain.scheme, 'real');
+assert.ok(Array.isArray(malformedHeatFile.heatCapacityFreeRealDomain.trials));
+assert.ok(malformedHeatFile.heatCapacityFreeRealDomain.physicsState.gasAmountRatio > 0);
+assert.ok(Number.isFinite(malformedHeatFile.heatCapacityFreeRealDomain.physicsState.gasTemperatureK));
+assert.ok(Array.isArray(malformedHeatFile.heatCapacityFreeRealDomain.physicsState.pumpProcesses));
+assert.ok(Array.isArray(malformedHeatFile.heatCapacityFreeRealDomain.sensorState.pressureHistory));
+assert.ok(malformedHeatFile.heatCapacityFreeRealDomain.sensorState.pressureReliability <= 1);
+assert.ok(Array.isArray(malformedHeatFile.heatCapacityFreeRealDomain.calibrationState.zeroEvents));
+assert.ok(malformedHeatFile.heatCapacityFreeRealDomain.calibrationState.calibrationVersion >= 0);
+assert.equal(malformedHeatFile.selectedHeatCapacityPanel, 'preview');
+assert.deepEqual(malformedHeatFile.openHeatCapacityTabs, []);
+assert.equal(malformedHeatFile.activeHeatCapacityTabId, null);
+assert.equal(malformedHeatFile.heatCapacityPhase, 'powerOff');
+assert.ok(Number.isFinite(malformedHeatFile.pressureGaugeDisplayValue));
+assert.ok(Number.isFinite(malformedHeatFile.pressureGaugeNeedleAngle));
+assert.deepEqual(
+  malformedHeatFile.recordedPressures,
+  createDefaultHeatCapacityFile(1).recordedPressures,
+  'invalid recorded-pressure replay values should fall back field by field',
+);
+
+const isolatedInvalidFileEnvelope = structuredClone(envelope);
+isolatedInvalidFileEnvelope.files[1].payload = {};
+const isolatedInvalidFileDecoded = decodeWorkbenchStorageEnvelope(isolatedInvalidFileEnvelope);
+assert.equal(
+  isolatedInvalidFileDecoded.session.files.length,
+  envelope.files.length - 1,
+  'one invalid experiment file should not discard the other files in the session',
+);
+assert.equal(
+  isolatedInvalidFileDecoded.diagnostics.some((entry) => entry.code === 'invalid-file' && entry.fileId === envelope.files[1].id),
+  true,
+  'an isolated file restore failure should produce a file-specific diagnostic',
+);
 
 const closedEnvelope = encodeWorkbenchClosedFilesStorageEnvelope([heatReplayFile], 1001);
 assert.equal(closedEnvelope.schemaFamily, WORKBENCH_CLOSED_FILES_SCHEMA_FAMILY);

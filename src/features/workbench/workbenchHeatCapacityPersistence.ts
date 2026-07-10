@@ -55,6 +55,7 @@ import {
   heatCapacityRestoreFiniteOrDefault as finiteOrDefault,
   normalizeHeatCapacityFreeRestoreConfigSnapshot,
   normalizeHeatCapacityFreeRestoreDisplayScheme,
+  normalizeHeatCapacityFreeRestoreExperimentDomain,
   normalizeHeatCapacityFreeRestoreExperimentGroupStatus,
   normalizeHeatCapacityFreeRestoreParameterScheme,
   normalizeHeatCapacityFreeRestoreTrial,
@@ -83,6 +84,9 @@ import {
   isWorkbenchHeatCapacityTabId,
   normalizeWorkbenchHeatCapacityTabIds,
 } from './workbenchHeatCapacityTabRegistry.ts';
+import {
+  normalizeHeatCapacitySessionRuntimeState,
+} from './workbenchHeatCapacitySessionRestore.ts';
 
 export {
   HEAT_CAPACITY_PROCESS_SCORING_VERSION,
@@ -403,21 +407,17 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
   );
   const hasPersistedRealDomain = isRecord(free?.real);
   const hasPersistedIdealDomain = isRecord(free?.ideal);
-  const restoredRealDomain = hasPersistedRealDomain
-    ? clonePersistenceValue(free!.real) as unknown as HeatCapacityFreeExperimentDomainState
-    : createDefaultHeatCapacityFreeExperimentDomainState('real', `${fileEnvelope.id}:real`);
-  const restoredIdealDomain = hasPersistedIdealDomain
-    ? clonePersistenceValue(free!.ideal) as unknown as HeatCapacityFreeExperimentDomainState
-    : createDefaultHeatCapacityFreeExperimentDomainState('ideal', `${fileEnvelope.id}:ideal`);
-  const restoredRealDomainWithGasType = normalizeHeatCapacityFreeExperimentDomainBoundary(
-    restoredRealDomain,
+  const restoredRealDomainWithGasType = normalizeHeatCapacityFreeRestoreExperimentDomain(
+    free?.real,
     'real',
     restoredGasType,
+    createDefaultHeatCapacityFreeExperimentDomainState('real', `${fileEnvelope.id}:real`),
   );
-  const restoredIdealDomainWithGasType = normalizeHeatCapacityFreeExperimentDomainBoundary(
-    restoredIdealDomain,
+  const restoredIdealDomainWithGasType = normalizeHeatCapacityFreeRestoreExperimentDomain(
+    free?.ideal,
     'ideal',
     'air',
+    createDefaultHeatCapacityFreeExperimentDomainState('ideal', `${fileEnvelope.id}:ideal`),
   );
   const restoredActiveDomain = restoredParameterScheme === 'ideal'
     ? restoredIdealDomainWithGasType
@@ -454,7 +454,7 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     fallback,
   );
 
-  return {
+  const restoredFile: WorkbenchHeatCapacityState = {
     ...fallback,
     id: fileEnvelope.id,
     name: fileEnvelope.name,
@@ -523,4 +523,5 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityFreeStopcockFlowPurpose: restoredStopcockFlowPurpose,
     ...restoredGuideFields,
   };
+  return normalizeHeatCapacitySessionRuntimeState(restoredFile);
 };

@@ -98,4 +98,27 @@ assert.equal(restored.historyUnlocked, true);
 assert.equal(restored.idealWindowLayout.activeIdealResultTab, 'verification');
 assert.equal(restored.hardSphereEngineSnapshot?.pressureHistory.length, snapshot.pressureHistory.length);
 
+const legacyLayoutPayload = structuredClone(payload) as unknown as Record<string, any>;
+legacyLayoutPayload.results.idealWindowLayout = {
+  openPanels: ['verification'],
+  frontHeightRatio: 0.47,
+  backHeightRatio: 0.52,
+  hasCustomHeights: true,
+};
+const legacyLayoutRestored = restoreIdealGasFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: sourceFile.id,
+  kind: 'ideal',
+  name: sourceFile.name,
+  createdAt: sourceFile.createdAt,
+  updatedAt: sourceFile.updatedAt,
+  layout: {},
+  payload: legacyLayoutPayload,
+}, legacyLayoutPayload, 4);
+assert.deepEqual(legacyLayoutRestored.idealWindowLayout.openTabs, ['experimentPoints', 'verification']);
+assert.equal(legacyLayoutRestored.idealWindowLayout.activeIdealResultTab, 'verification');
+assert.equal(legacyLayoutRestored.idealWindowLayout.heightRatio, 0.47);
+assert.equal(legacyLayoutRestored.idealWindowLayout.hasCustomHeight, true);
+
 console.log('workbenchIdealGasPersistence tests passed');

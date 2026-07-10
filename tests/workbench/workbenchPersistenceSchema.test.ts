@@ -215,7 +215,6 @@ for (const [sourceName, source] of [
   ['standard persistence', standardPersistenceSource],
   ['ideal-gas persistence', idealGasPersistenceSource],
   ['session restore', sessionSource],
-  ['heat-capacity session restore', heatCapacitySessionRestoreSource],
 ] as const) {
   assert.match(
     source,
@@ -228,5 +227,15 @@ for (const [sourceName, source] of [
     `${sourceName} should not keep a local full panel registry`,
   );
 }
+assert.match(
+  heatCapacitySessionRestoreSource,
+  /isHeatCapacityPanelKey[\s\S]*from '\.\/workbenchHeatCapacityTabRegistry\.ts'/,
+  'heat-capacity session restore should use the heat-capacity-specific panel registry',
+);
+assert.doesNotMatch(
+  heatCapacitySessionRestoreSource,
+  /const panelKeys\s*=/,
+  'heat-capacity session restore should not keep a local panel registry',
+);
 
 console.log('workbenchPersistenceSchema tests passed');

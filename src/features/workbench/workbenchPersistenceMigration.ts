@@ -211,22 +211,46 @@ const restoreHeatCapacityRuntimeFile = (
   return [restoreHeatCapacityFileFromPersistencePayload(fileEnvelope, fileEnvelope.payload, index)];
 };
 
+interface DecodedWorkbenchFiles {
+  files: WorkbenchFileState[];
+  diagnostics: WorkbenchPersistenceDiagnostic[];
+}
+
 const decodeFilesFromEnvelopes = (
   files: WorkbenchExperimentFileEnvelopeV1[],
-): WorkbenchFileState[] => files.flatMap((fileEnvelope, index) => {
-  if (fileEnvelope.kind === 'standard') {
-    return restoreStandardFile(fileEnvelope, index + 1);
+): DecodedWorkbenchFiles => files.reduce<DecodedWorkbenchFiles>((decoded, fileEnvelope, index) => {
+  try {
+    const restoredFiles = fileEnvelope.kind === 'standard'
+      ? restoreStandardFile(fileEnvelope, index + 1)
+      : fileEnvelope.kind === 'ideal'
+        ? restoreIdealGasFile(fileEnvelope, index + 1)
+        : restoreHeatCapacityRuntimeFile(fileEnvelope, index + 1);
+    if (restoredFiles.length === 0) {
+      decoded.diagnostics.push({
+        level: 'error',
+        code: 'invalid-file',
+        message: `Experiment file could not be restored: ${fileEnvelope.name}.`,
+        fileId: fileEnvelope.id,
+      });
+      return decoded;
+    }
+    decoded.files.push(...restoredFiles);
+  } catch (error) {
+    console.error(`[Workbench] Failed to restore experiment file ${fileEnvelope.id}:`, error);
+    decoded.diagnostics.push({
+      level: 'error',
+      code: 'invalid-file',
+      message: `Experiment file could not be restored: ${fileEnvelope.name}.`,
+      fileId: fileEnvelope.id,
+    });
   }
-  if (fileEnvelope.kind === 'ideal') {
-    return restoreIdealGasFile(fileEnvelope, index + 1);
-  }
-  return restoreHeatCapacityRuntimeFile(fileEnvelope, index + 1);
-});
+  return decoded;
+}, { files: [], diagnostics: [] });
 
 const decodeEnvelopeAsRuntimeSession = (
   envelope: WorkbenchSessionEnvelopeV2,
+  runtimeFiles = decodeFilesFromEnvelopes(envelope.files).files,
 ): WorkbenchSessionState => {
-  const runtimeFiles = decodeFilesFromEnvelopes(envelope.files);
   const heatCapacityGuideSession = envelope.heatCapacityGuideSession
     ? {
         ...envelope.heatCapacityGuideSession,
@@ -236,7 +260,9 @@ const decodeEnvelopeAsRuntimeSession = (
   return {
     version: 1,
     files: runtimeFiles,
-    activeFileId: envelope.activeFileId ?? runtimeFiles[0]?.id ?? '',
+    activeFileId: runtimeFiles.some((file) => file.id === envelope.activeFileId)
+      ? envelope.activeFileId ?? ''
+      : runtimeFiles[0]?.id ?? '',
     selectedPanel: envelope.selectedPanel,
     heatCapacityGuideSession,
   };
@@ -257,9 +283,10 @@ export const decodeWorkbenchStorageEnvelope = (
       };
     }
     if (isWorkbenchSessionEnvelope(value)) {
+      const decodedFiles = decodeFilesFromEnvelopes(value.files);
       return {
-        session: decodeEnvelopeAsRuntimeSession(value),
-        diagnostics: [],
+        session: decodeEnvelopeAsRuntimeSession(value, decodedFiles.files),
+        diagnostics: decodedFiles.diagnostics,
         readonly: false,
         handled: true,
       };
@@ -298,9 +325,10 @@ export const decodeWorkbenchClosedFilesStorageEnvelope = (
       };
     }
     if (isWorkbenchClosedFilesEnvelope(value)) {
+      const decodedFiles = decodeFilesFromEnvelopes(value.files);
       return {
-        files: decodeFilesFromEnvelopes(value.files),
-        diagnostics: [],
+        files: decodedFiles.files,
+        diagnostics: decodedFiles.diagnostics,
         readonly: false,
         handled: true,
       };
