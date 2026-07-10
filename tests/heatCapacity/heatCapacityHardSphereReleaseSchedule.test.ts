@@ -3,7 +3,6 @@ import {
   createHeatCapacityHardSphereMainReleaseSchedule,
   createHeatCapacityHardSpherePostExchangeSchedule,
   getHeatCapacityHardSphereScheduleFrame,
-  stopHeatCapacityHardSphereSchedule,
 } from '../../src/domain/heatCapacity/heatCapacityHardSphereReleaseSchedule.ts';
 
 const mainSchedule = createHeatCapacityHardSphereMainReleaseSchedule({
@@ -89,15 +88,6 @@ assert.equal(
   lateFrame.expectedExitedCount,
   mainSchedule.targetExitCount,
   'the completed main release should emit the full fast-burst budget',
-);
-
-const stopped = stopHeatCapacityHardSphereSchedule(firstFrame, 'stopcock-closing');
-assert.equal(stopped.phase, 'partial-stopped');
-assert.equal(stopped.stopReason, 'stopcock-closing');
-assert.equal(
-  stopped.expectedExitedCount,
-  firstFrame.expectedExitedCount,
-  'closing the stopcock should preserve only particles already emitted by the visual schedule',
 );
 
 const exchangeSchedule = createHeatCapacityHardSpherePostExchangeSchedule({

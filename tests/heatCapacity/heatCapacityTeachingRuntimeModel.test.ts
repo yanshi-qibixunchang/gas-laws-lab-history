@@ -8,10 +8,9 @@ import {
   updateHeatCapacityRuntimeZeroOffset,
 } from '../../src/domain/heatCapacity/heatCapacityTeachingRuntimeModel.ts';
 import {
-  calculateAirHeatCapacityTargets,
-  createHeatCapacityExperimentProfile,
+  createHeatCapacityAutoDemoProfile,
   type HeatCapacityTeachingProfile,
-} from '../../src/domain/heatCapacity/heatCapacityExperimentRandom.ts';
+} from '../../src/domain/heatCapacity/heatCapacityTeachingProfile.ts';
 import {
   HEAT_CAPACITY_VIDEO_PROFILE,
   getHeatCapacityRangeMidpoint,
@@ -52,7 +51,7 @@ const teachingPresetValueFields: Array<keyof HeatCapacityTeachingProfile> = [
   'displayNoiseLevel',
 ];
 
-const teachingProfile = createHeatCapacityExperimentProfile('batch-0-teaching-profile');
+const teachingProfile = createHeatCapacityAutoDemoProfile();
 assert.deepEqual(
   Object.keys(teachingProfile).sort(),
   ['seed', ...teachingPresetValueFields].sort(),
@@ -64,8 +63,8 @@ assert.equal(
   true,
   'teaching profile U2 should stay near U1 * (1 - 1 / gamma)',
 );
-const teachingProfileTargets = calculateAirHeatCapacityTargets(teachingProfile);
-assert.equal(teachingProfileTargets.gamma >= 1.36 && teachingProfileTargets.gamma <= 1.44, true);
+const teachingProfileGamma = teachingProfile.u1MeasuredMv / (teachingProfile.u1MeasuredMv - teachingProfile.u2MeasuredMv);
+assert.equal(teachingProfileGamma >= 1.36 && teachingProfileGamma <= 1.44, true);
 
 assert.equal(applyPressureZero(8.4, 0.6, -1.2), 7.8);
 assert.equal(applyPressureZero(0, 0.6, -0.6), 0);

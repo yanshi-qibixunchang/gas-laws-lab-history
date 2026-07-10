@@ -198,6 +198,9 @@ import {
 import {
   deriveHeatCapacityGuideExperimentTimer,
 } from '../../domain/heatCapacity/heatCapacityGuideExperimentTimerModel.ts';
+import type {
+  HeatCapacityGuideRecordKind,
+} from '../../domain/heatCapacity/heatCapacityGuideTrialModel.ts';
 import {
   HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA,
   FREE_RELEASE_MAIN_DURATION_S,
@@ -217,7 +220,7 @@ import {
 } from '../../domain/heatCapacity/heatCapacityFreeProcessReviewModel.ts';
 import {
   createHeatCapacityAutoDemoProfile,
-} from '../../domain/heatCapacity/heatCapacityExperimentRandom.ts';
+} from '../../domain/heatCapacity/heatCapacityTeachingProfile.ts';
 import {
   createWorkbenchExportPayload,
   createWorkbenchFigureSpecs,
@@ -237,6 +240,7 @@ import {
   IDEAL_RESULT_MIN_HEIGHT_RATIO,
   clampIdealResultHeightRatio,
   idealResultWindowKeys,
+  isWorkbenchFileLayoutDefault,
   isIdealResultWindowKey,
   loadWorkbenchLayoutDefaults,
   normalizeIdealWindowLayoutState,
@@ -376,7 +380,6 @@ const WORKBENCH_WINDOW_CONTROL_COPY: Record<WorkbenchLanguagePreference, {
   },
 };
 type WorkbenchParameterSymbolPart = string | { sub: string };
-type HeatCapacityGuideRecordKind = 'u0' | 'u1' | 'u2';
 
 type HeatCapacityFocusMode = 'none' | 'instrument' | 'pump' | 'bottle';
 type HeatCapacityFocusControlSnapshot = {
@@ -3381,7 +3384,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [autoDemoPaused, setAutoDemoPaused] = useState(false);
   const [autoDemoInteractionLocked, setAutoDemoInteractionLocked] = useState(false);
   const [heatCapacityToastCurrent, setHeatCapacityToastCurrent] = useState<HeatCapacityToastMessage | null>(null);
-  const [, setHeatCapacityToastPending] = useState<HeatCapacityToastMessage | null>(null);
   const [heatCapacityPressureAlarmVisible, setHeatCapacityPressureAlarmVisible] = useState(false);
   const [autoDemoCompletionMessage, setAutoDemoCompletionMessage] = useState<string | null>(null);
   const [demoFocusControlId, setDemoFocusControlId] = useState<string | null>(null);
@@ -5470,9 +5472,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setHeatCapacityToastCurrent(message);
   };
 
-  const setHeatCapacityToastPendingState = (message: HeatCapacityToastMessage | null) => {
+  const setPendingHeatCapacityToast = (message: HeatCapacityToastMessage | null) => {
     heatCapacityToastPendingRef.current = message;
-    setHeatCapacityToastPending(message);
   };
 
   const scheduleHeatCapacityToastAdvance = () => {
@@ -5486,7 +5487,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         current: heatCapacityToastCurrentRef.current,
         pending: heatCapacityToastPendingRef.current,
       }, Date.now());
-      setHeatCapacityToastPendingState(nextState.pending);
+      setPendingHeatCapacityToast(nextState.pending);
       setHeatCapacityToastCurrentState(nextState.current);
       if (nextState.shouldContinueTimer) {
         scheduleHeatCapacityToastAdvance();
@@ -5522,7 +5523,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       heatCapacityToastTimerRef.current = null;
     }
     setHeatCapacityToastCurrentState(nextState.current);
-    setHeatCapacityToastPendingState(nextState.pending);
+    setPendingHeatCapacityToast(nextState.pending);
     if (nextState.shouldRestartTimer) scheduleHeatCapacityToastAdvance();
   };
 
@@ -5548,7 +5549,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       heatCapacityToastTimerRef.current = null;
     }
     setHeatCapacityToastCurrentState(nextState.current);
-    setHeatCapacityToastPendingState(nextState.pending);
+    setPendingHeatCapacityToast(nextState.pending);
     if (nextState.shouldRestartTimer) scheduleHeatCapacityToastAdvance();
   };
 
@@ -5558,7 +5559,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       heatCapacityToastTimerRef.current = null;
     }
     setHeatCapacityToastCurrentState(null);
-    setHeatCapacityToastPendingState(null);
+    setPendingHeatCapacityToast(null);
   };
 
   const clearHeatCapacityPressureAlertUiState = () => {
@@ -9382,7 +9383,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setSelectedPanel(panelKey);
     updateActiveFile((file) => (
       file.kind === 'heatCapacity'
-        ? { ...file, activeHeatCapacityTabId: tabId, selectedHeatCapacityPanel: panelKey, updatedAt: Date.now() }
+        ? { ...file, activeHeatCapacityTabId: tabId, updatedAt: Date.now() }
         : file
     ));
   };
@@ -9411,7 +9412,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
         visiblePanels,
         openHeatCapacityTabs,
         activeHeatCapacityTabId: tabId,
-        selectedHeatCapacityPanel: panelKey,
         heatCapacityMaterialsExpanded: true,
         updatedAt: Date.now(),
       };
@@ -9430,13 +9430,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
       const materialTabOrder = getHeatCapacityMaterialsTabOrder(file);
       const panelKeys = materialTabOrder.map(heatCapacityTabIdToPanelKey);
       const activeTabId = materialTabOrder[0] ?? 'guide';
-      const selectedPanelKey = heatCapacityTabIdToPanelKey(activeTabId);
       return {
         ...file,
         visiblePanels: Array.from(new Set([...file.visiblePanels, ...panelKeys])),
         openHeatCapacityTabs: [...materialTabOrder],
         activeHeatCapacityTabId: activeTabId,
-        selectedHeatCapacityPanel: selectedPanelKey,
         heatCapacityMaterialsExpanded: true,
         updatedAt: Date.now(),
       };
@@ -9464,7 +9462,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
         visiblePanels: file.visiblePanels.filter((panel) => panel !== panelKey),
         openHeatCapacityTabs: file.openHeatCapacityTabs.filter((tab) => tab !== tabId),
         activeHeatCapacityTabId: nextActiveTab,
-        selectedHeatCapacityPanel: nextSelectedPanel as typeof file.selectedHeatCapacityPanel,
         updatedAt: Date.now(),
       };
     });
@@ -10260,17 +10257,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const resetLayout = () => {
-    const defaultLiveSplitRatio = activeFile.kind === 'standard'
-      ? workbenchLayoutDefaults.standard.liveWorkspaceSplitRatio
-      : activeFile.kind === 'ideal'
-        ? workbenchLayoutDefaults.ideal.liveWorkspaceSplitRatio
-        : workbenchLayoutDefaults.heatCapacity.liveWorkspaceSplitRatio;
-    if (
-      activeFile.visiblePanels.length === 2 &&
-      activeFile.visiblePanels.includes('preview') &&
-      activeFile.visiblePanels.includes('realtime') &&
-      activeFile.liveWorkspaceSplitRatio === defaultLiveSplitRatio
-    ) {
+    if (isWorkbenchFileLayoutDefault(activeFile, workbenchLayoutDefaults)) {
       setOpenTopMenu(null);
       pushLog(workbenchCopy.logs.layoutAlreadyDefault(activeFile.name));
       return;
@@ -10285,7 +10272,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
               visiblePanels: ['preview', 'realtime'],
               ...(file.kind === 'heatCapacity'
                 ? {
-                    selectedHeatCapacityPanel: 'preview' as const,
                     openHeatCapacityTabs: [] as WorkbenchHeatCapacityTabId[],
                     activeHeatCapacityTabId: null,
                     heatCapacityMaterialsExpanded: true,
@@ -13881,7 +13867,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
                           visiblePanels: file.visiblePanels.filter((panel) => !isHeatCapacityPanelKey(panel)),
                           openHeatCapacityTabs: [],
                           activeHeatCapacityTabId: null,
-                          selectedHeatCapacityPanel: 'preview',
                           updatedAt: Date.now(),
                         }
                       : file

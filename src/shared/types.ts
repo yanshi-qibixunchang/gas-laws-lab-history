@@ -13,16 +13,7 @@ export interface SimulationParams {
   statsDuration: number;   // Duration to collect stats
 }
 
-export type AppMode = 'standard' | 'experiment';
 export type ExperimentRelation = 'pt' | 'pv' | 'pn';
-
-export interface SavedConfig {
-  id: string;
-  name: string;
-  params: SimulationParams;
-  date: number;
-  isSystem: boolean;
-}
 
 export interface Particle {
   x: number;
@@ -96,14 +87,6 @@ export interface ChartData {
 
 // Translation Types
 export type LanguageCode = 'zh-CN' | 'zh-TW' | 'en-GB';
-
-export interface InputCapabilities {
-  supportsHover: boolean;
-  finePointer: boolean;
-  touchLike: boolean;
-  isCompactLandscape: boolean;
-  isCompactWidth: boolean;
-}
 
 export interface Translation {
   brand: {

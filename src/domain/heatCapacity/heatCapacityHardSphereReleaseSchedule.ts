@@ -331,14 +331,3 @@ export const getHeatCapacityHardSphereScheduleFrame = (
     stopReason: progress >= 1 ? 'duration-complete' : schedule.stopReason,
   };
 };
-
-export const stopHeatCapacityHardSphereSchedule = (
-  schedule: HeatCapacityHardSphereVisualFlowSchedule,
-  stopReason: Exclude<HeatCapacityHardSphereVisualFlowStopReason, 'none'>,
-): HeatCapacityHardSphereVisualFlowSchedule => ({
-  ...schedule,
-  phase: schedule.phase === 'complete' ? 'complete' : 'partial-stopped',
-  durationS: schedule.elapsedS,
-  progress: schedule.progress,
-  stopReason,
-});

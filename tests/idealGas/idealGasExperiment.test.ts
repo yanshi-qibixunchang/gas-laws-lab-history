@@ -3,7 +3,6 @@ import {
   calculateLinearRegression,
   createEmptyPointsByRelation,
   createIdealGasExperimentPoint,
-  getNextPresetValue,
   getRelationXValue,
   getTheoreticalSlope,
   hasCompletedPresetRound,
@@ -83,10 +82,6 @@ assert.equal(regression.intercept, 0);
 assert.equal(regression.rSquared, 1);
 assert.equal(regression.slopeError, 0);
 
-assert.equal(getNextPresetValue('pt', 1.2), 1.5);
-assert.equal(getNextPresetValue('pv', 17), 19);
-assert.equal(getNextPresetValue('pn', 320), 320);
-
 assert.equal(
   hasCompletedPresetRound('pn', [80, 120, 160, 200, 260, 320].map((particleCount) => point({ relation: 'pn', particleCount }))),
   true,
@@ -97,5 +92,4 @@ assert.equal(
 );
 
 console.log('idealGasExperiment tests passed');
-
 

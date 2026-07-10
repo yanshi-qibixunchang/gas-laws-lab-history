@@ -20,15 +20,16 @@ import {
   WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
   clampWorkbenchLiveSplitRatio,
   createDefaultStandardFile,
-  createDefaultStandardResultsLayout,
   createEmptyChartData,
   createIdleStats,
   type WorkbenchPanelKey,
   type WorkbenchRunState,
   type WorkbenchStandardResultsLayout,
-  type WorkbenchStandardResultsTab,
   type WorkbenchStandardState,
 } from './workbenchState.ts';
+import {
+  normalizeStandardResultsLayout,
+} from './workbenchLayoutCompatibility.ts';
 import type {
   WorkbenchExperimentFileEnvelopeV1,
 } from './workbenchPersistenceSchema.ts';
@@ -58,7 +59,6 @@ export interface StandardPayloadValidationResult {
   errors: string[];
 }
 
-const standardResultTabs = ['summary', 'dataTable', 'figures'] as const satisfies readonly WorkbenchStandardResultsTab[];
 const runStates = ['idle', 'running', 'paused', 'finished', 'needs-reset'] as const satisfies readonly WorkbenchRunState[];
 
 const isWorkbenchRunState = (value: unknown): value is WorkbenchRunState => (
@@ -69,24 +69,6 @@ const normalizeVisiblePanels = (
   value: unknown,
   fallback: WorkbenchPanelKey[],
 ): WorkbenchPanelKey[] => normalizeWorkbenchPanelKeys(value, fallback);
-
-const normalizeStandardResultsLayout = (
-  value: unknown,
-): WorkbenchStandardResultsLayout => {
-  const fallback = createDefaultStandardResultsLayout();
-  if (!isRecord(value)) return fallback;
-  const openTabs = Array.isArray(value.openTabs)
-    ? value.openTabs.filter((tab): tab is WorkbenchStandardResultsTab => standardResultTabs.includes(tab as WorkbenchStandardResultsTab))
-    : fallback.openTabs;
-  const activeTab = standardResultTabs.includes(value.activeTab as WorkbenchStandardResultsTab)
-    ? value.activeTab as WorkbenchStandardResultsTab
-    : openTabs[0] ?? fallback.activeTab;
-  return {
-    openTabs: openTabs.length > 0 ? openTabs : fallback.openTabs,
-    activeTab,
-    heightRatio: isFiniteNumber(value.heightRatio) ? value.heightRatio : fallback.heightRatio,
-  };
-};
 
 const normalizeStats = (value: unknown): SimulationStats => (
   isRecord(value) ? { ...createIdleStats(), ...value } as SimulationStats : createIdleStats()

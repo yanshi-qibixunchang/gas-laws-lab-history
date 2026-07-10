@@ -68,4 +68,30 @@ assert.equal(restored.finalChartData?.speed.length, sourceFile.finalChartData.sp
 assert.equal(restored.standardResultsLayout.activeTab, 'figures');
 assert.equal(restored.hardSphereEngineSnapshot?.collectedSampleWindowTotal, snapshot.collectedSampleWindowTotal);
 
+const malformedLayoutPayload = structuredClone(payload) as unknown as Record<string, any>;
+malformedLayoutPayload.results.standardResultsLayout = {
+  openTabs: 'summary',
+  activeTab: 'missing',
+  heightRatio: 4,
+};
+const malformedLayoutRestored = restoreStandardFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'standard-malformed-layout',
+  kind: 'standard',
+  name: 'Malformed layout',
+  createdAt: sourceFile.createdAt,
+  updatedAt: sourceFile.updatedAt,
+  lastOpenedAt: sourceFile.lastOpenedAt,
+  layout: {
+    visiblePanels: sourceFile.visiblePanels,
+    liveWorkspaceSplitRatio: sourceFile.liveWorkspaceSplitRatio,
+    standardResultsLayout: null as any,
+  },
+  payload: malformedLayoutPayload,
+}, malformedLayoutPayload, 4);
+assert.deepEqual(malformedLayoutRestored.standardResultsLayout.openTabs, ['summary', 'dataTable', 'figures']);
+assert.equal(malformedLayoutRestored.standardResultsLayout.activeTab, 'summary');
+assert.equal(malformedLayoutRestored.standardResultsLayout.heightRatio, 1);
+
 console.log('workbenchStandardPersistence tests passed');

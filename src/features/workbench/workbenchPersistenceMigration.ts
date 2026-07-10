@@ -101,7 +101,6 @@ const encodeFileEnvelope = (
     ...(file.kind === 'ideal' ? { idealWindowLayout: file.idealWindowLayout } : {}),
     ...(file.kind === 'heatCapacity'
       ? {
-          selectedHeatCapacityPanel: file.selectedHeatCapacityPanel,
           openHeatCapacityTabs: file.openHeatCapacityTabs,
           activeHeatCapacityTabId: file.activeHeatCapacityTabId,
         }

@@ -1,10 +1,12 @@
 import { ChevronDown, X } from 'lucide-react';
 import type { RefObject } from 'react';
 import { HEAT_CAPACITY_QUALITY_MODE_ORDER } from '../heatCapacity/heatCapacityQualityProfiles.ts';
-import type {
-  WorkbenchLanguagePreference,
-  WorkbenchPerformanceMode,
-  WorkbenchThemePreference,
+import {
+  WORKBENCH_LANGUAGE_PREFERENCE_ORDER,
+  WORKBENCH_THEME_PREFERENCE_ORDER,
+  type WorkbenchLanguagePreference,
+  type WorkbenchPerformanceMode,
+  type WorkbenchThemePreference,
 } from './workbenchGeneralSettings.ts';
 
 interface WorkbenchGeneralSettingsWindowCopy {
@@ -46,9 +48,6 @@ interface WorkbenchGeneralSettingsWindowProps {
   onLanguageMenuOpenChange: (open: boolean) => void;
 }
 
-const THEME_PREFERENCES: WorkbenchThemePreference[] = ['system', 'light', 'dark'];
-const LANGUAGE_PREFERENCES: WorkbenchLanguagePreference[] = ['zh-CN', 'zh-TW', 'en'];
-
 export const WorkbenchGeneralSettingsWindow = ({
   open,
   copy,
@@ -65,8 +64,8 @@ export const WorkbenchGeneralSettingsWindow = ({
 }: WorkbenchGeneralSettingsWindowProps) => {
   if (!open) return null;
 
-  const themeOptions = THEME_PREFERENCES.map((key) => ({ key, ...copy.settings.themeOptions[key] }));
-  const languageOptions = LANGUAGE_PREFERENCES.map((key) => ({ key, ...copy.settings.languageOptions[key] }));
+  const themeOptions = WORKBENCH_THEME_PREFERENCE_ORDER.map((key) => ({ key, ...copy.settings.themeOptions[key] }));
+  const languageOptions = WORKBENCH_LANGUAGE_PREFERENCE_ORDER.map((key) => ({ key, ...copy.settings.languageOptions[key] }));
   const activeLanguage = languageOptions.find((option) => option.key === languagePreference) ?? languageOptions[0];
 
   return (

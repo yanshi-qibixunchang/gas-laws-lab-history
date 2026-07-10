@@ -3,10 +3,16 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   createDefaultWorkbenchLayoutDefaults,
+  isWorkbenchFileLayoutDefault,
   normalizeIdealWindowLayoutState,
   sanitizeIdealResultWindowDefaults,
   sanitizeWorkbenchLayoutDefaults,
 } from '../../src/features/workbench/workbenchLayoutCompatibility.ts';
+import {
+  createDefaultHeatCapacityFile,
+  createDefaultIdealFile,
+  createDefaultStandardFile,
+} from '../../src/features/workbench/workbenchState.ts';
 
 const defaults = createDefaultWorkbenchLayoutDefaults();
 assert.equal(defaults.standard.liveWorkspaceSplitRatio > 0, true);
@@ -24,6 +30,15 @@ assert.equal(normalizedLegacyLayout.heightRatio, 0.47);
 assert.equal(normalizedLegacyLayout.hasCustomHeight, true);
 assert.deepEqual(normalizedLegacyLayout.openTabs, ['experimentPoints', 'verification']);
 
+const malformedIdealLayout = normalizeIdealWindowLayoutState({
+  openTabs: 'verification',
+  activeIdealResultTab: 'invalid',
+  heightRatio: Number.POSITIVE_INFINITY,
+});
+assert.deepEqual(malformedIdealLayout.openTabs, ['experimentPoints', 'verification']);
+assert.equal(malformedIdealLayout.activeIdealResultTab, 'experimentPoints');
+assert.equal(malformedIdealLayout.heightRatio, 0.5);
+
 const normalizedDefaults = sanitizeWorkbenchLayoutDefaults({
   ideal: sanitizeIdealResultWindowDefaults({
     backHeightRatio: 0.41,
@@ -32,6 +47,31 @@ const normalizedDefaults = sanitizeWorkbenchLayoutDefaults({
 
 assert.equal(normalizedDefaults.ideal.resultsHeightRatio, 0.41);
 assert.equal(normalizedDefaults.standard.resultsHeightRatio, defaults.standard.resultsHeightRatio);
+
+assert.equal(isWorkbenchFileLayoutDefault(createDefaultStandardFile(1), defaults), true);
+assert.equal(isWorkbenchFileLayoutDefault(createDefaultIdealFile(1), defaults), true);
+assert.equal(isWorkbenchFileLayoutDefault(createDefaultHeatCapacityFile(1), defaults), true);
+assert.equal(
+  isWorkbenchFileLayoutDefault({
+    ...createDefaultStandardFile(2),
+    visiblePanels: ['preview', 'realtime'],
+    standardResultsLayout: {
+      openTabs: [],
+      activeTab: 'summary',
+      heightRatio: 0.82,
+    },
+  }, defaults),
+  false,
+  'closed Results tabs with a custom height should still require layout reset',
+);
+assert.equal(
+  isWorkbenchFileLayoutDefault({
+    ...createDefaultHeatCapacityFile(2),
+    heatCapacityTabContainerHeight: 0.82,
+  }, defaults),
+  false,
+  'hidden Heat Capacity materials height should still require layout reset',
+);
 
 const workbenchSource = readFileSync(
   join(process.cwd(), 'src/features/workbench/WorkbenchStudioPrototype.tsx'),

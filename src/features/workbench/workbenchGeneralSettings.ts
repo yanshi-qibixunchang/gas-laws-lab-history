@@ -4,9 +4,12 @@ import {
   type HeatCapacityQualityMode,
 } from '../heatCapacity/heatCapacityQualityProfiles.ts';
 
-export type WorkbenchThemePreference = 'system' | 'light' | 'dark';
+export const WORKBENCH_THEME_PREFERENCE_ORDER = ['system', 'light', 'dark'] as const;
+export const WORKBENCH_LANGUAGE_PREFERENCE_ORDER = ['zh-CN', 'zh-TW', 'en'] as const;
+
+export type WorkbenchThemePreference = typeof WORKBENCH_THEME_PREFERENCE_ORDER[number];
 export type WorkbenchResolvedTheme = 'light' | 'dark';
-export type WorkbenchLanguagePreference = 'zh-CN' | 'zh-TW' | 'en';
+export type WorkbenchLanguagePreference = typeof WORKBENCH_LANGUAGE_PREFERENCE_ORDER[number];
 export type WorkbenchPerformanceMode = HeatCapacityQualityMode;
 
 export interface WorkbenchGeneralSettings {
@@ -24,11 +27,11 @@ export const defaultWorkbenchGeneralSettings: WorkbenchGeneralSettings = {
 };
 
 export const isWorkbenchThemePreference = (value: unknown): value is WorkbenchThemePreference => (
-  value === 'system' || value === 'light' || value === 'dark'
+  typeof value === 'string' && WORKBENCH_THEME_PREFERENCE_ORDER.includes(value as WorkbenchThemePreference)
 );
 
 export const isWorkbenchLanguagePreference = (value: unknown): value is WorkbenchLanguagePreference => (
-  value === 'zh-CN' || value === 'zh-TW' || value === 'en'
+  typeof value === 'string' && WORKBENCH_LANGUAGE_PREFERENCE_ORDER.includes(value as WorkbenchLanguagePreference)
 );
 
 export const isWorkbenchPerformanceMode = (value: unknown): value is WorkbenchPerformanceMode => (

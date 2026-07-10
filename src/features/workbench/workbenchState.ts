@@ -48,7 +48,7 @@ import type {
 import {
   createHeatCapacityAutoDemoProfile,
   type HeatCapacityTeachingProfile,
-} from '../../domain/heatCapacity/heatCapacityExperimentRandom.ts';
+} from '../../domain/heatCapacity/heatCapacityTeachingProfile.ts';
 import {
   applyFreePumpStroke as applyFreeRuntimePumpStroke,
   createDefaultFreePhysicsState,
@@ -987,7 +987,6 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityGuidePhysicsState: HeatCapacityGuidePhysicsState;
   heatCapacityGuideWorkflow: HeatCapacityGuideWorkflowState;
   heatCapacityGuideTrial: HeatCapacityGuideTrial | null;
-  selectedHeatCapacityPanel: Extract<WorkbenchPanelKey, 'preview' | 'realtime'> | WorkbenchHeatCapacityPanelKey;
   openHeatCapacityTabs: WorkbenchHeatCapacityTabId[];
   activeHeatCapacityTabId: WorkbenchHeatCapacityTabId | null;
   heatCapacityMaterialsExpanded: boolean;
@@ -4843,7 +4842,6 @@ export const createDefaultHeatCapacityFile = (
     heatCapacityFreeTraceStore: createDefaultFreeTraceStore(),
     heatCapacityFreeTrials: [],
     ...guideRuntimeFields,
-    selectedHeatCapacityPanel: 'preview',
     openHeatCapacityTabs: [],
     activeHeatCapacityTabId: null,
     heatCapacityMaterialsExpanded: true,

@@ -23,20 +23,9 @@ export const HEAT_CAPACITY_FREE_CALCULATION_VERSION = 'log-pressure-v1' as const
 export const HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S = 0.04;
 
 export const FREE_TRACE_MAX_SAMPLES_PER_TRIAL = 800;
-export const FREE_TRACE_MAX_EVENTS_PER_TRIAL = 200;
 
 export const FREE_TRACE_SIMILAR_PRESSURE_DELTA_MV = 0.2;
 export const FREE_TRACE_SIMILAR_TEMPERATURE_DELTA_MV = 0.1;
-
-export const FREE_TRACE_THRESHOLDS = {
-  zeroing: { pressureMv: 0.1, temperatureMv: 0.2 },
-  pumpingBurst: { pressureMv: 1.0, temperatureMv: 0.3 },
-  sealedStabilizing: { pressureMv: 0.5, temperatureMv: 0.2 },
-  releasing: { pressureMv: 0.5, temperatureMv: 0.2 },
-  recoveringEarly: { pressureMv: 0.3, temperatureMv: 0.15 },
-  recoveringStable: { pressureMv: 0.5, temperatureMv: 0.2 },
-  idle: { pressureMv: Number.POSITIVE_INFINITY, temperatureMv: Number.POSITIVE_INFINITY },
-} as const;
 
 export type HeatCapacityFreeTracePhase = HeatCapacityRuntimePhase;
 

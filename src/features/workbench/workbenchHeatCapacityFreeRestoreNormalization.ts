@@ -529,7 +529,7 @@ export const normalizeHeatCapacityFreeRestoreTraceStore = (
   };
 };
 
-const normalizeHeatCapacityFreeRestoreStopcockFlowPurpose = (
+export const normalizeHeatCapacityStopcockFlowPurpose = (
   value: unknown,
   stopcockOpen: boolean,
 ): HeatCapacityFreeExperimentDomainState['stopcockFlowPurpose'] => {
@@ -757,7 +757,7 @@ const normalizeHeatCapacityFreeRestoreRollbackSnapshot = (
     heatCapacityFreeCalibrationState: normalizeHeatCapacityFreeRestoreCalibrationState(value.heatCapacityFreeCalibrationState, fallback.calibrationState),
     heatCapacityFreeStopcockFlowOpen: stopcockFlowOpen,
     heatCapacityFreeStopcockPendingOpenAtMs: stopcockPendingOpenAtMs,
-    heatCapacityFreeStopcockFlowPurpose: normalizeHeatCapacityFreeRestoreStopcockFlowPurpose(
+    heatCapacityFreeStopcockFlowPurpose: normalizeHeatCapacityStopcockFlowPurpose(
       value.heatCapacityFreeStopcockFlowPurpose,
       stopcockFlowOpen || stopcockPendingOpenAtMs !== null,
     ),
@@ -823,7 +823,7 @@ export const normalizeHeatCapacityFreeRestoreExperimentDomain = (
     trials,
     stopcockFlowOpen,
     stopcockPendingOpenAtMs,
-    stopcockFlowPurpose: normalizeHeatCapacityFreeRestoreStopcockFlowPurpose(
+    stopcockFlowPurpose: normalizeHeatCapacityStopcockFlowPurpose(
       domain.stopcockFlowPurpose,
       stopcockFlowOpen || stopcockPendingOpenAtMs !== null,
     ),

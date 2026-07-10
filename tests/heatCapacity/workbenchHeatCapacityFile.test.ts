@@ -25,7 +25,7 @@ assert.equal(heatOne.name, 'Heat Capacity Ratio - 001');
 assert.equal(heatTwo.id, 'heatCapacity-002');
 assert.equal(heatTwo.name, 'Heat Capacity Ratio - 002');
 assert.deepEqual(heatOne.visiblePanels, ['preview', 'realtime']);
-assert.equal(heatOne.selectedHeatCapacityPanel, 'preview');
+assert.equal('selectedHeatCapacityPanel' in heatOne, false, 'Heat Capacity should not keep the removed duplicate selected-panel state');
 assert.ok(
   heatOne.liveWorkspaceSplitRatio > 0.5,
   'heatCapacity preview area should be wider than realtime data by default',
@@ -74,6 +74,7 @@ assert.equal(migrated.files.length, 1);
 assert.equal(migrated.files[0].kind, 'heatCapacity');
 assert.equal(migrated.files[0].name, 'Heat Capacity Ratio - 007');
 assert.equal(migrated.files[0].liveWorkspaceSplitRatio, 0.62);
+assert.equal('selectedHeatCapacityPanel' in migrated.files[0], false, 'legacy selected-panel state should be discarded');
 assert.equal(migrated.selectedPanel, 'realtime');
 
 const hardSphereDefaultGamma = 1 + 2 / 3;

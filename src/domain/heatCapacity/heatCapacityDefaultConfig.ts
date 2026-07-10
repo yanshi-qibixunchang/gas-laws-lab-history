@@ -36,8 +36,6 @@ import type {
   HeatCapacityGuidePhysicsConfig,
 } from './heatCapacityGuidePhysicsEngine.ts';
 
-export const HEAT_CAPACITY_TUNED_EFFECTIVE_PUMP_STROKE_VOLUME_L = 0.0069;
-
 export const HEAT_CAPACITY_GUIDE_FIXED_PUMP_TARGET_MV = 120;
 export const HEAT_CAPACITY_AUTO_DEMO_INITIAL_PRESSURE_BIAS_MV = 0.75;
 export const HEAT_CAPACITY_AUTO_DEMO_RESULT_U0_MV = 0;

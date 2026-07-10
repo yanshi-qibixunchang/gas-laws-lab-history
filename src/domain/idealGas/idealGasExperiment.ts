@@ -25,7 +25,6 @@ export {
 
 export type PointsByRelation = Record<ExperimentRelation, IdealGasExperimentPoint[]>;
 export type ExperimentParamKey = keyof SimulationParams | 'targetTemperature';
-export type ExperimentParams = SimulationParams & { targetTemperature: number };
 export type IdealExperimentLanguageCode = 'zh-CN' | 'zh-TW' | 'en-GB';
 
 export interface IdealHistoryContent {
@@ -66,21 +65,10 @@ const getTargetTemperature = (params: SimulationParams): number => {
     : DEFAULT_TARGET_TEMPERATURE;
 };
 
-export const createExperimentParams = (params: SimulationParams): ExperimentParams => ({
-  ...params,
-  targetTemperature: getTargetTemperature(params),
-});
-
 export const createEmptyPointsByRelation = (): PointsByRelation => ({
   pt: [],
   pv: [],
   pn: [],
-});
-
-export const clonePointsByRelation = (pointsByRelation: PointsByRelation): PointsByRelation => ({
-  pt: pointsByRelation.pt.map((point) => ({ ...point })),
-  pv: pointsByRelation.pv.map((point) => ({ ...point })),
-  pn: pointsByRelation.pn.map((point) => ({ ...point })),
 });
 
 export const getRelationVariableKey = (relation: ExperimentRelation): ExperimentParamKey => {
@@ -97,15 +85,6 @@ export const getRelationXValue = (relation: ExperimentRelation, point: IdealGasE
   if (relation === 'pt') return point.meanTemperature;
   if (relation === 'pv') return point.inverseVolume ?? 0;
   return point.particleCount ?? 0;
-};
-
-export const getRelationControlValue = (
-  relation: ExperimentRelation,
-  point: IdealGasExperimentPoint,
-): number | null => {
-  if (relation === 'pt') return point.targetTemperature;
-  if (relation === 'pv') return point.boxLength ?? null;
-  return point.particleCount ?? null;
 };
 
 export const getTheoreticalSlope = (relation: ExperimentRelation, params: SimulationParams): number | null => {
@@ -208,11 +187,6 @@ export const getPresetSequence = (relation: ExperimentRelation): readonly number
   if (relation === 'pt') return TEMPERATURE_PRESET_SEQUENCE;
   if (relation === 'pv') return BOX_LENGTH_PRESET_SEQUENCE;
   return PARTICLE_COUNT_PRESET_SEQUENCE;
-};
-
-export const getNextPresetValue = (relation: ExperimentRelation, currentValue: number): number => {
-  const preset = getPresetSequence(relation).find((value) => value > currentValue + 1e-6);
-  return preset ?? currentValue;
 };
 
 export const getIdealGasAnalysis = (

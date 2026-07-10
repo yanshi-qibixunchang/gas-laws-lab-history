@@ -1,10 +1,12 @@
 import {
   clampWorkbenchLiveSplitRatio,
+  createDefaultStandardResultsLayout,
   IDEAL_RESULT_HEIGHT_RATIO,
   WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
   WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
   type WorkbenchIdealResultWindowKey,
   type WorkbenchIdealWindowLayout,
+  type WorkbenchFileState,
   type WorkbenchStandardResultsLayout,
   type WorkbenchStandardResultsTab,
 } from './workbenchState.ts';
@@ -24,6 +26,14 @@ type StoredIdealResultWindowDefaults = Partial<Pick<WorkbenchIdealWindowLayout, 
   frontHeightRatio?: number;
   backHeightRatio?: number;
 };
+
+const isLayoutRecord = (value: unknown): value is Record<string, unknown> => (
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+);
+
+const getFiniteLayoutNumber = (value: unknown): number | undefined => (
+  typeof value === 'number' && Number.isFinite(value) ? value : undefined
+);
 
 export const IDEAL_RESULT_MIN_HEIGHT_RATIO = 0.25;
 export const IDEAL_RESULT_MAX_HEIGHT_RATIO = 1;
@@ -46,31 +56,29 @@ export const clampIdealResultHeightRatio = (value: number) => (
 );
 
 export const normalizeIdealWindowLayoutState = (
-  layout: WorkbenchIdealWindowLayout | (Partial<WorkbenchIdealWindowLayout> & {
-    openPanels?: WorkbenchIdealResultWindowKey[];
-    frontHeightRatio?: number;
-    backHeightRatio?: number;
-    hasCustomHeights?: boolean;
-  }) | null | undefined,
+  layout: unknown,
   defaults?: Partial<WorkbenchLayoutDefaultState>,
 ): WorkbenchIdealWindowLayout => {
-  const storedLayout = layout as (Partial<WorkbenchIdealWindowLayout> & {
-    openPanels?: string[];
-    frontHeightRatio?: number;
-    backHeightRatio?: number;
-    hasCustomHeights?: boolean;
-  }) | null | undefined;
-  const openTabs = storedLayout?.openTabs?.filter(isIdealResultWindowKey) as WorkbenchIdealResultWindowKey[] | undefined;
-  const storedOpenPanels = storedLayout?.openPanels?.filter(isIdealResultWindowKey) as WorkbenchIdealResultWindowKey[] | undefined;
-  const activeIdealResultTab: WorkbenchIdealResultWindowKey = storedLayout?.activeIdealResultTab
+  const storedLayout = isLayoutRecord(layout) ? layout : null;
+  const openTabs = Array.isArray(storedLayout?.openTabs)
+    ? storedLayout.openTabs.filter((key): key is WorkbenchIdealResultWindowKey => typeof key === 'string' && isIdealResultWindowKey(key))
+    : undefined;
+  const storedOpenPanels = Array.isArray(storedLayout?.openPanels)
+    ? storedLayout.openPanels.filter((key): key is WorkbenchIdealResultWindowKey => typeof key === 'string' && isIdealResultWindowKey(key))
+    : undefined;
+  const activeIdealResultTab: WorkbenchIdealResultWindowKey = (
+    typeof storedLayout?.activeIdealResultTab === 'string' && isIdealResultWindowKey(storedLayout.activeIdealResultTab)
+      ? storedLayout.activeIdealResultTab
+      : undefined
+  )
     ?? storedOpenPanels?.slice(-1)[0]
     ?? 'experimentPoints';
   const normalizedOpenTabs: WorkbenchIdealResultWindowKey[] = openTabs?.length ? openTabs : ['experimentPoints', 'verification'];
   const heightRatio = clampIdealResultHeightRatio(
-    storedLayout?.heightRatio
-    ?? storedLayout?.frontHeightRatio
-    ?? storedLayout?.backHeightRatio
-    ?? defaults?.resultsHeightRatio
+    getFiniteLayoutNumber(storedLayout?.heightRatio)
+    ?? getFiniteLayoutNumber(storedLayout?.frontHeightRatio)
+    ?? getFiniteLayoutNumber(storedLayout?.backHeightRatio)
+    ?? getFiniteLayoutNumber(defaults?.resultsHeightRatio)
     ?? IDEAL_RESULT_HEIGHT_RATIO,
   );
 
@@ -78,24 +86,31 @@ export const normalizeIdealWindowLayoutState = (
     openTabs: normalizedOpenTabs,
     activeIdealResultTab: normalizedOpenTabs.includes(activeIdealResultTab) ? activeIdealResultTab : normalizedOpenTabs[0],
     heightRatio,
-    hasCustomHeight: Boolean(storedLayout?.hasCustomHeight ?? storedLayout?.hasCustomHeights),
+    hasCustomHeight: storedLayout?.hasCustomHeight === true || storedLayout?.hasCustomHeights === true,
   };
 };
 
 export const normalizeStandardResultsLayout = (
-  layout: Partial<WorkbenchStandardResultsLayout> | null | undefined,
+  layout: unknown,
   defaults?: Partial<WorkbenchLayoutDefaultState>,
 ): WorkbenchStandardResultsLayout => {
-  const openTabs = layout?.openTabs?.filter(isStandardResultsTab) as WorkbenchStandardResultsTab[] | undefined;
+  const storedLayout = isLayoutRecord(layout) ? layout : null;
+  const openTabs = Array.isArray(storedLayout?.openTabs)
+    ? storedLayout.openTabs.filter((key): key is WorkbenchStandardResultsTab => typeof key === 'string' && isStandardResultsTab(key))
+    : undefined;
   const normalizedOpenTabs: WorkbenchStandardResultsTab[] = openTabs?.length ? openTabs : ['summary', 'dataTable', 'figures'];
-  const activeTab = layout?.activeTab && normalizedOpenTabs.includes(layout.activeTab)
-    ? layout.activeTab
+  const activeTab = typeof storedLayout?.activeTab === 'string' && isStandardResultsTab(storedLayout.activeTab) && normalizedOpenTabs.includes(storedLayout.activeTab)
+    ? storedLayout.activeTab
     : normalizedOpenTabs[0];
 
   return {
     openTabs: normalizedOpenTabs,
     activeTab,
-    heightRatio: clampIdealResultHeightRatio(layout?.heightRatio ?? defaults?.resultsHeightRatio ?? IDEAL_RESULT_HEIGHT_RATIO),
+    heightRatio: clampIdealResultHeightRatio(
+      getFiniteLayoutNumber(storedLayout?.heightRatio)
+      ?? getFiniteLayoutNumber(defaults?.resultsHeightRatio)
+      ?? IDEAL_RESULT_HEIGHT_RATIO,
+    ),
   };
 };
 
@@ -114,22 +129,70 @@ export const createDefaultWorkbenchLayoutDefaults = (): WorkbenchLayoutDefaults 
   },
 });
 
+const areLayoutTabsEqual = <T extends string>(current: readonly T[], expected: readonly T[]) => (
+  current.length === expected.length && current.every((tab, index) => tab === expected[index])
+);
+
+export const isWorkbenchFileLayoutDefault = (
+  file: WorkbenchFileState,
+  defaults: WorkbenchLayoutDefaults,
+): boolean => {
+  const defaultLiveSplitRatio = defaults[file.kind].liveWorkspaceSplitRatio;
+  const baseLayoutDefault = file.visiblePanels.length === 2
+    && file.visiblePanels.includes('preview')
+    && file.visiblePanels.includes('realtime')
+    && file.liveWorkspaceSplitRatio === defaultLiveSplitRatio;
+  if (!baseLayoutDefault) return false;
+
+  if (file.kind === 'standard') {
+    const expected = createDefaultStandardResultsLayout({
+      heightRatio: defaults.standard.resultsHeightRatio,
+    });
+    return areLayoutTabsEqual(file.standardResultsLayout.openTabs, expected.openTabs)
+      && file.standardResultsLayout.activeTab === expected.activeTab
+      && file.standardResultsLayout.heightRatio === expected.heightRatio;
+  }
+
+  if (file.kind === 'ideal') {
+    const expected = {
+      openTabs: ['experimentPoints', 'verification'] as WorkbenchIdealResultWindowKey[],
+      activeIdealResultTab: 'experimentPoints' as const,
+      heightRatio: defaults.ideal.resultsHeightRatio,
+      hasCustomHeight: false,
+    };
+    return areLayoutTabsEqual(file.idealWindowLayout.openTabs, expected.openTabs)
+      && file.idealWindowLayout.activeIdealResultTab === expected.activeIdealResultTab
+      && file.idealWindowLayout.heightRatio === expected.heightRatio
+      && file.idealWindowLayout.hasCustomHeight === expected.hasCustomHeight;
+  }
+
+  return file.openHeatCapacityTabs.length === 0
+    && file.activeHeatCapacityTabId === null
+    && file.heatCapacityMaterialsExpanded
+    && file.heatCapacityTabContainerHeight === IDEAL_RESULT_HEIGHT_RATIO;
+};
+
 export const sanitizeWorkbenchLayoutDefaultState = (
-  defaults: Partial<WorkbenchLayoutDefaultState> | null | undefined,
+  defaults: unknown,
 ): WorkbenchLayoutDefaultState => ({
-  resultsHeightRatio: clampIdealResultHeightRatio(defaults?.resultsHeightRatio ?? IDEAL_RESULT_HEIGHT_RATIO),
-  liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(defaults?.liveWorkspaceSplitRatio),
+  resultsHeightRatio: clampIdealResultHeightRatio(
+    getFiniteLayoutNumber(isLayoutRecord(defaults) ? defaults.resultsHeightRatio : undefined)
+    ?? IDEAL_RESULT_HEIGHT_RATIO,
+  ),
+  liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(
+    getFiniteLayoutNumber(isLayoutRecord(defaults) ? defaults.liveWorkspaceSplitRatio : undefined),
+  ),
 });
 
 export const sanitizeIdealResultWindowDefaults = (
-  defaults: StoredIdealResultWindowDefaults | null | undefined,
+  defaults: unknown,
 ): WorkbenchLayoutDefaultState => {
-  const storedDefaults = defaults;
+  const storedDefaults = isLayoutRecord(defaults) ? defaults as StoredIdealResultWindowDefaults : null;
   return {
     resultsHeightRatio: clampIdealResultHeightRatio(
-      storedDefaults?.heightRatio
-      ?? storedDefaults?.frontHeightRatio
-      ?? storedDefaults?.backHeightRatio
+      getFiniteLayoutNumber(storedDefaults?.heightRatio)
+      ?? getFiniteLayoutNumber(storedDefaults?.frontHeightRatio)
+      ?? getFiniteLayoutNumber(storedDefaults?.backHeightRatio)
       ?? IDEAL_RESULT_HEIGHT_RATIO,
     ),
     liveWorkspaceSplitRatio: WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
@@ -137,13 +200,14 @@ export const sanitizeIdealResultWindowDefaults = (
 };
 
 export const sanitizeWorkbenchLayoutDefaults = (
-  defaults: Partial<WorkbenchLayoutDefaults> | null | undefined,
+  defaults: unknown,
 ): WorkbenchLayoutDefaults => {
   const fallback = createDefaultWorkbenchLayoutDefaults();
+  const storedDefaults = isLayoutRecord(defaults) ? defaults : null;
   return {
-    standard: sanitizeWorkbenchLayoutDefaultState(defaults?.standard ?? fallback.standard),
-    ideal: sanitizeWorkbenchLayoutDefaultState(defaults?.ideal ?? fallback.ideal),
-    heatCapacity: sanitizeWorkbenchLayoutDefaultState(defaults?.heatCapacity ?? fallback.heatCapacity),
+    standard: sanitizeWorkbenchLayoutDefaultState(storedDefaults?.standard ?? fallback.standard),
+    ideal: sanitizeWorkbenchLayoutDefaultState(storedDefaults?.ideal ?? fallback.ideal),
+    heatCapacity: sanitizeWorkbenchLayoutDefaultState(storedDefaults?.heatCapacity ?? fallback.heatCapacity),
   };
 };
 

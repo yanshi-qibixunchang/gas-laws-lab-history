@@ -1720,7 +1720,8 @@ assert.match(workbenchSource, /data-heat-capacity-toast="true"/, 'preview should
 assert.match(workbenchSource, /heatCapacityToastCurrentRef/, 'guide heat-capacity toasts should track the currently displayed message');
 assert.match(workbenchSource, /heatCapacityToastPendingRef/, 'guide heat-capacity toasts should retain only one pending message');
 assert.match(toastControllerSource, /HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS = 2000/, 'guide heat-capacity toasts should display each visible message for two seconds');
-assert.match(workbenchSource, /setHeatCapacityToastPendingState\(nextState\.pending\)/, 'new guide heat-capacity toasts should update the pending message through the shared queue result');
+assert.match(workbenchSource, /setPendingHeatCapacityToast\(nextState\.pending\)/, 'new guide heat-capacity toasts should update the pending ref through the shared queue result');
+assert.doesNotMatch(workbenchSource, /setHeatCapacityToastPending/, 'the ref-only pending toast queue should not trigger redundant React state updates');
 assert.doesNotMatch(workbenchSource, /autoDemoToastMessage|guideHeatCapacityHintMessage/, 'old independent heat-capacity toast states should not remain');
 assert.match(workbenchSource, /prepareHeatCapacityAutoDemoStart/, 'auto demo should initialize with a non-zero pressure display bias without changing gas pressure');
 assert.doesNotMatch(stateSource, /prepareHeatCapacityAutoDemoStart[\s\S]*stopcockAngleDeg:\s*HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG/, 'auto demo start must not silently open the stopcock during the power-on step');

@@ -1,6 +1,8 @@
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  WORKBENCH_LANGUAGE_PREFERENCE_ORDER,
+  WORKBENCH_THEME_PREFERENCE_ORDER,
   defaultWorkbenchGeneralSettings,
   normalizeWorkbenchGeneralSettings,
 } from '../../src/features/workbench/workbenchGeneralSettings.ts';
@@ -17,11 +19,7 @@ const getCssBlock = (selector: string) => {
   return match[0];
 };
 
-assert.match(
-  settingsSource,
-  /type WorkbenchThemePreference = 'system' \| 'light' \| 'dark';/,
-  'general settings should define a constrained theme preference type',
-);
+assert.deepEqual(WORKBENCH_THEME_PREFERENCE_ORDER, ['system', 'light', 'dark']);
 
 assert.match(
   settingsSource,
@@ -29,11 +27,8 @@ assert.match(
   'system theme resolution should use a constrained light-or-dark type',
 );
 
-assert.match(
-  settingsSource,
-  /type WorkbenchLanguagePreference = 'zh-CN' \| 'zh-TW' \| 'en';/,
-  'general settings should define a constrained language preference type',
-);
+assert.deepEqual(WORKBENCH_LANGUAGE_PREFERENCE_ORDER, ['zh-CN', 'zh-TW', 'en']);
+assert.doesNotMatch(generalSettingsWindowSource, /const THEME_PREFERENCES|const LANGUAGE_PREFERENCES/, 'settings UI should reuse shared preference order registries');
 
 assert.match(
   settingsSource,

@@ -1,4 +1,4 @@
-import type { HeatCapacityTeachingProfile } from '../../domain/heatCapacity/heatCapacityExperimentRandom.ts';
+import type { HeatCapacityTeachingProfile } from '../../domain/heatCapacity/heatCapacityTeachingProfile.ts';
 import type { HeatCapacityRuntimePhase } from '../../domain/heatCapacity/heatCapacityProcessTypes.ts';
 import {
   createHeatCapacityFreeParameterDraftFromConfigs,
@@ -44,6 +44,7 @@ import {
   normalizeHeatCapacityFreeRestoreSensorState,
   normalizeHeatCapacityFreeRestoreTraceStore,
   normalizeHeatCapacityFreeRestoreTrial,
+  normalizeHeatCapacityStopcockFlowPurpose,
 } from './workbenchHeatCapacityFreeRestoreNormalization.ts';
 import {
   isPersistenceFiniteNumber as isFiniteNumber,
@@ -147,24 +148,19 @@ const normalizeHeatCapacityProcessSamples = (value: unknown) => {
   }, {});
 };
 
-const normalizePersistedHeatCapacityFreeStopcockFlowPurpose = (
-  value: unknown,
-  stopcockOpen: boolean,
-): WorkbenchHeatCapacityState['heatCapacityFreeStopcockFlowPurpose'] => {
-  if (!stopcockOpen) return 'none';
-  return value === 'release' || value === 'zeroing' ? value : 'none';
-};
-
 export const normalizeHeatCapacitySessionRuntimeState = (
   file: WorkbenchHeatCapacityState,
 ): WorkbenchHeatCapacityState => {
+  const {
+    selectedHeatCapacityPanel: discardedLegacySelectedPanel,
+    ...fileWithoutLegacySelectedPanel
+  } = file as WorkbenchHeatCapacityState & { selectedHeatCapacityPanel?: unknown };
+  void discardedLegacySelectedPanel;
   const fallback = createDefaultHeatCapacityFile(1);
   const heatCapacityVisiblePanels = file.visiblePanels.filter((panel) => (
     panel === 'preview' ||
     panel === 'realtime' ||
-    panel === 'heatCapacityGuide' ||
-    panel === 'heatCapacityRecords' ||
-    panel === 'heatCapacityReview'
+    isHeatCapacityPanelKey(panel)
   ));
   const hasSavedStopcockAngle = isFiniteNumber(file.stopcockAngleDeg);
   const normalizedSavedStopcockAngle = hasSavedStopcockAngle
@@ -220,7 +216,7 @@ export const normalizeHeatCapacitySessionRuntimeState = (
     : savedFreeSensorConfig.noiseMv > 0;
   const savedFreeStopcockFlowOpen = file.heatCapacityFreeStopcockFlowOpen === true;
   const savedFreeStopcockPendingOpenAtMs = normalizeNullableNumber(file.heatCapacityFreeStopcockPendingOpenAtMs);
-  const savedFreeStopcockFlowPurpose = normalizePersistedHeatCapacityFreeStopcockFlowPurpose(
+  const savedFreeStopcockFlowPurpose = normalizeHeatCapacityStopcockFlowPurpose(
     file.heatCapacityFreeStopcockFlowPurpose,
     savedFreeStopcockFlowOpen || savedFreeStopcockPendingOpenAtMs !== null,
   );
@@ -357,7 +353,7 @@ export const normalizeHeatCapacitySessionRuntimeState = (
   );
   const normalizedHeatCapacityFile: WorkbenchHeatCapacityState = {
     ...fallback,
-    ...file,
+    ...fileWithoutLegacySelectedPanel,
     ...normalizedFreeRuntimeFields,
     heatCapacityFreeParameterScheme: savedFreeParameterScheme,
     heatCapacityFreeDisplayScheme: savedFreeDisplayScheme,
@@ -371,9 +367,6 @@ export const normalizeHeatCapacitySessionRuntimeState = (
     liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(
       file.liveWorkspaceSplitRatio ?? WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
     ),
-    selectedHeatCapacityPanel: isHeatCapacityPanelKey(file.selectedHeatCapacityPanel)
-      ? file.selectedHeatCapacityPanel
-      : 'preview',
     openHeatCapacityTabs,
     activeHeatCapacityTabId,
     heatCapacityMaterialsExpanded: file.heatCapacityMaterialsExpanded !== false,

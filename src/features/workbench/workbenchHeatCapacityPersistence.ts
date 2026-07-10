@@ -61,6 +61,7 @@ import {
   normalizeHeatCapacityFreeRestoreParameterScheme,
   normalizeHeatCapacityFreeRestoreTrial,
   normalizeHeatCapacityFreeRestoreRecordConfig,
+  normalizeHeatCapacityStopcockFlowPurpose,
 } from './workbenchHeatCapacityFreeRestoreNormalization.ts';
 import {
   HEAT_CAPACITY_SCHEMA_VERSION,
@@ -81,7 +82,6 @@ import {
   normalizeHeatCapacityFreePhysicsConfig,
 } from './workbenchHeatCapacityFreeRuntimeConfig.ts';
 import {
-  isHeatCapacityPanelKey,
   isWorkbenchHeatCapacityTabId,
   normalizeWorkbenchHeatCapacityTabIds,
 } from './workbenchHeatCapacityTabRegistry.ts';
@@ -120,7 +120,6 @@ export const createHeatCapacityPersistencePayload = (
     common: {
       materialsExpanded: file.heatCapacityMaterialsExpanded,
       teachingStatus: file.heatCapacityTeachingStatus,
-      selectedHeatCapacityPanel: file.selectedHeatCapacityPanel,
       openHeatCapacityTabs: clonePersistenceValue(file.openHeatCapacityTabs),
       activeHeatCapacityTabId: file.activeHeatCapacityTabId,
       experimentSeed: file.heatCapacityExperimentSeed,
@@ -294,14 +293,6 @@ const normalizePumpBulbState = (
   value === 'compressing' || value === 'releasing' || value === 'idle' ? value : 'idle'
 );
 
-const normalizePersistedStopcockFlowPurpose = (
-  value: unknown,
-  stopcockOpen: boolean,
-): WorkbenchHeatCapacityState['heatCapacityFreeStopcockFlowPurpose'] => {
-  if (!stopcockOpen) return 'none';
-  return value === 'release' || value === 'zeroing' ? value : 'none';
-};
-
 const hasCurrentFreeParameterPayload = (
   value: Partial<HeatCapacityFreePersistenceDataV1> | null,
 ) => (
@@ -433,7 +424,7 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     Number.isFinite(uiReplay.heatCapacityFreeStopcockPendingOpenAtMs)
       ? uiReplay.heatCapacityFreeStopcockPendingOpenAtMs
       : null;
-  const restoredStopcockFlowPurpose = normalizePersistedStopcockFlowPurpose(
+  const restoredStopcockFlowPurpose = normalizeHeatCapacityStopcockFlowPurpose(
     controls.stopcockFlowPurpose,
     restoredStopcockFlowOpen || restoredStopcockPendingOpenAtMs !== null,
   );
@@ -444,9 +435,6 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
   const restoredActiveHeatCapacityTabId = isWorkbenchHeatCapacityTabId(common.activeHeatCapacityTabId)
     ? common.activeHeatCapacityTabId
     : fallback.activeHeatCapacityTabId;
-  const restoredSelectedHeatCapacityPanel = isHeatCapacityPanelKey(common.selectedHeatCapacityPanel)
-    ? common.selectedHeatCapacityPanel
-    : fallback.selectedHeatCapacityPanel;
   const restoredGuideFields = restoreHeatCapacityGuidePersistenceFields(
     heatPayload.guided,
     fallback,
@@ -475,7 +463,6 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
       : true,
     heatCapacityExperimentSeed: common.experimentSeed ?? fallback.heatCapacityExperimentSeed,
     heatCapacityExperimentProfile: common.experimentProfile ?? fallback.heatCapacityExperimentProfile,
-    selectedHeatCapacityPanel: restoredSelectedHeatCapacityPanel,
     openHeatCapacityTabs: restoredOpenHeatCapacityTabs,
     activeHeatCapacityTabId: restoredActiveHeatCapacityTabId,
     heatCapacityFreeRuntimeVersion: free?.runtimeVersion ?? HEAT_CAPACITY_FREE_RUNTIME_VERSION,

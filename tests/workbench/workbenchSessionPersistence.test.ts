@@ -237,7 +237,7 @@ if (restoredHeatCapacity.kind === 'heatCapacity') {
   assert.equal(restoredHeatCapacity.heatCapacityMode, 'free');
   assert.deepEqual(restoredHeatCapacity.openHeatCapacityTabs, ['guide', 'review']);
   assert.equal(restoredHeatCapacity.activeHeatCapacityTabId, 'review');
-  assert.equal(restoredHeatCapacity.selectedHeatCapacityPanel, 'heatCapacityReview');
+  assert.equal('selectedHeatCapacityPanel' in restoredHeatCapacity, false);
   assert.equal(restoredHeatCapacity.heatCapacityFreeTraceVersion, HEAT_CAPACITY_FREE_TRACE_VERSION);
   assert.deepEqual(
     restoredHeatCapacity.heatCapacityFreeTraceStore.traceTrials,
@@ -400,7 +400,7 @@ assert.ok(Array.isArray(malformedHeatFile.heatCapacityFreeRealDomain.sensorState
 assert.ok(malformedHeatFile.heatCapacityFreeRealDomain.sensorState.pressureReliability <= 1);
 assert.ok(Array.isArray(malformedHeatFile.heatCapacityFreeRealDomain.calibrationState.zeroEvents));
 assert.ok(malformedHeatFile.heatCapacityFreeRealDomain.calibrationState.calibrationVersion >= 0);
-assert.equal(malformedHeatFile.selectedHeatCapacityPanel, 'preview');
+assert.equal('selectedHeatCapacityPanel' in malformedHeatFile, false);
 assert.deepEqual(malformedHeatFile.openHeatCapacityTabs, []);
 assert.equal(malformedHeatFile.activeHeatCapacityTabId, null);
 assert.equal(malformedHeatFile.heatCapacityPhase, 'powerOff');
