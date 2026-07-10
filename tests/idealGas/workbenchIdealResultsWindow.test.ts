@@ -220,11 +220,6 @@ assert.match(
   'ideal realtime current point summary should render as a compact strip',
 );
 assert.match(
-  cssSource,
-  /\.studio-realtime-panel-ideal\.studio-realtime-panel-compact \.studio-ideal-point-strip[\s\S]*?display:\s*none/,
-  'ideal compact realtime mode should hide the current point strip',
-);
-assert.match(
   source,
   /studio-verification-panel-\$\{activeFile\.relation\}/,
   'ideal Verification should add a relation-specific panel class',
@@ -341,4 +336,3 @@ assert.match(
 );
 
 console.log('workbenchIdealResultsWindow tests passed');
-

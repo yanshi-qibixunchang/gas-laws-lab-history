@@ -33,10 +33,6 @@ expectRadius(
   'current-parameter state badges should use compact engineering radius',
 );
 expectRadius(
-  '.studio-param-row input',
-  'right-side parameter edit inputs should use compact engineering radius',
-);
-expectRadius(
   '.studio-ideal-relation-buttons button',
   'ideal-gas relation buttons should use compact engineering radius',
 );
@@ -51,10 +47,6 @@ expectRadius(
 expectRadius(
   '.studio-param-errors',
   'parameter validation error boxes should use compact engineering radius',
-);
-expectRadius(
-  '.studio-export-actions button',
-  'standard export buttons should use compact engineering radius',
 );
 expectRadius(
   '.studio-ideal-export-actions button',
@@ -76,5 +68,4 @@ assert.doesNotMatch(
 );
 
 console.log('workbenchRoundedControls tests passed');
-
 

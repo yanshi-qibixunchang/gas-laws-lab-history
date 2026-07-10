@@ -2110,7 +2110,6 @@ assert.doesNotMatch(leftPanelSource, /studio-heat-processing-intro[\s\S]{0,260}s
 assert.doesNotMatch(styleSource, /\.studio-heat-processing-summary/, 'legacy Heat Capacity processing summary CSS should be removed');
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-panel-content/, 'light theme should cover Heat Capacity materials panel content');
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-thinking-trigger:hover/, 'light theme should keep Heat Capacity thinking hover states light');
-assert.match(styleSource, /\.studio-theme-light \.studio-heat-trial-count button:hover/, 'light theme should cover Heat Capacity trial count button hover states');
 assert.match(styleSource, /\.studio-settings-performance-segmented/, 'performance mode segmented control should have dedicated CSS');
 assert.match(styleSource, /\.studio-settings-performance-thumb/, 'performance mode segmented control should have a sliding thumb');
 assert.match(styleSource, /\.studio-settings-performance-option/, 'performance mode segmented control should style each tier option');
