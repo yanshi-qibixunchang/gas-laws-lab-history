@@ -32,7 +32,6 @@ import {
   HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER,
   HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS,
   completeHeatCapacityTeachingModeWorkbenchState,
-  createHeatCapacityInitialPressureBiasMv,
   enterHeatCapacityFreeModeWorkbenchState,
   exitHeatCapacityTeachingModeWorkbenchState,
   getHeatCapacityFreeEquilibriumSpeedMultiplier,
@@ -1465,10 +1464,6 @@ assert.equal(getHeatCapacityPressureZeroKnobAngleForOffset(-0.6), -216);
 assert.equal(getHeatCapacityPressureZeroKnobAngleForOffset(0.8), 288);
 assert.equal(getHeatCapacityPressureZeroOffsetForKnobAngle(-216), -0.6);
 assert.equal(getHeatCapacityPressureZeroOffsetForKnobAngle(288), 0.8);
-for (let index = 0; index < 40; index += 1) {
-  const biasMv = createHeatCapacityInitialPressureBiasMv();
-  assert.equal(biasMv >= -1.5 && biasMv <= 1.5, true, 'initial pressure-zero bias should stay in the three-turn correction range');
-}
 assert.equal(isHeatCapacityPressureZeroWithinTolerance([
   { atMs: 0, valueMv: 0.08 },
   { atMs: 100, valueMv: -0.04 },

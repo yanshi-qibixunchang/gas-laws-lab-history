@@ -1126,7 +1126,8 @@ assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG = 540/
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_ZERO_TOLERANCE_MV = 0\.1/, 'pressure zero readiness should use the strict +-0.1 mV tolerance');
 assert.match(stateSource, /pressureInitialBiasMv/, 'heat-capacity state should keep the per-run initial zero bias');
 assert.match(stateSource, /pressureZeroDisplayedSamples/, 'heat-capacity state should keep a displayed Uₚ zeroing window');
-assert.match(stateSource, /createHeatCapacityInitialPressureBiasMv/, 'initial pressure-zero bias should be generated through one helper');
+assert.match(stateSource, /createSeededFreePressureInitialBiasMv/, 'initial pressure-zero bias should use the deterministic sensor helper');
+assert.doesNotMatch(stateSource, /createHeatCapacityInitialPressureBiasMv/, 'the old non-deterministic pressure-bias helper should not remain');
 assert.match(stateSource, /isHeatCapacityPressureZeroWithinTolerance/, 'U0 readiness should be based on the displayed sample window');
 assert.doesNotMatch(stateSource, /HEAT_CAPACITY_MANUAL_INITIAL_PRESSURE_BIAS_MV\s*=\s*0\.6/, 'guide experiments must not use the old fixed +0.6 mV zero bias');
 assert.doesNotMatch(stateSource, /Math\.abs\(file\.pressureSignalReadoutMv\)\s*<=\s*0\.2/, 'U0 readiness must not use the old loose <=0.2 mV gate');

@@ -7,13 +7,13 @@ import {
   getHeatCapacityFreeDisplayPhase,
   getHeatCapacityFreeRecordBlockReason,
   getHeatCapacityFreeRecordButtonState,
-  getHeatCapacityFreeTrialsForAverage,
   HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
   HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
   HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
   resetHeatCapacityFreeRunWorkbenchState,
   selectActiveHeatCapacityFreeDomain,
+  selectHeatCapacityFreeDomain,
   setHeatCapacityFreeParameterSchemeWorkbenchState,
   type WorkbenchHeatCapacityState,
 } from '../../src/features/workbench/workbenchState.ts';
@@ -676,9 +676,9 @@ const mixedDomainFile: WorkbenchHeatCapacityState = {
   },
 };
 assert.deepEqual(
-  getHeatCapacityFreeTrialsForAverage(mixedDomainFile).map((trial) => trial.id),
+  selectHeatCapacityFreeDomain(mixedDomainFile, 'real').trials.map((trial) => trial.id),
   ['real-domain-trial'],
-  'Free Mode mean result should only use real-domain trials; ideal-domain trials stay isolated',
+  'Free Mode real-domain trials should stay isolated from ideal-domain trials',
 );
 
 const idealSelectedFile = setHeatCapacityFreeParameterSchemeWorkbenchState(

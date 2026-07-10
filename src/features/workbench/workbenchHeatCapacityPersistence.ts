@@ -65,7 +65,6 @@ import {
   createHeatCapacityFreeUiReplay,
   normalizeHeatCapacityFreeUiReplay,
   type HeatCapacityFreePersistenceDataV1,
-  type HeatCapacityFreeUiReplayV1,
   type HeatCapacityPersistencePayloadV1,
 } from './workbenchHeatCapacityPersistenceContract.ts';
 import {
@@ -159,12 +158,6 @@ export const createHeatCapacityPersistencePayload = (
     demo: null,
   };
 };
-
-export const getHeatCapacityPersistenceReplayFields = (
-  payload: HeatCapacityPersistencePayloadV1,
-): HeatCapacityFreeUiReplayV1 => (
-  payload.free?.uiReplay ?? createHeatCapacityFreeUiReplay(createDefaultHeatCapacityFile(1))
-);
 
 const createPhysicsConfigFromSnapshot = (
   snapshot: HeatCapacityFreeConfigSnapshot,

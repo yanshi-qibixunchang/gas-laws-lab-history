@@ -1,6 +1,7 @@
 ﻿import assert from 'node:assert/strict';
 import {
   createDefaultFreeSensorState,
+  createSeededFreePressureInitialBiasMv,
   getFreeSensorDisplay,
   stepFreeSensor,
   type HeatCapacityFreePhysicalDisplayInput,
@@ -55,6 +56,19 @@ const ambientPhysical: HeatCapacityFreePhysicalDisplayInput = {
   gasTemperatureK: 298.15,
   ambientTemperatureK: 298.15,
 };
+
+const seededInitialBiasMv = createSeededFreePressureInitialBiasMv('initial-bias', 1.5);
+assert.equal(seededInitialBiasMv, createSeededFreePressureInitialBiasMv('initial-bias', 1.5));
+assert.equal(
+  seededInitialBiasMv >= -1.5 && seededInitialBiasMv <= 1.5,
+  true,
+  'seeded initial pressure-zero bias should stay inside the physical adjustment range',
+);
+assert.equal(
+  Math.abs(seededInitialBiasMv) >= 0.25,
+  true,
+  'seeded initial pressure-zero bias should remain large enough to require visible zero adjustment',
+);
 
 const jumpedPhysical: HeatCapacityFreePhysicalDisplayInput = {
   gasPressureKPa: 111.3,
@@ -265,4 +279,3 @@ assert.equal(Math.abs(unstable.pressureSlopeMvPerS) > 1, true);
 assert.equal(Math.abs(unstable.temperatureSlopeMvPerS) > 0.1, true);
 
 console.log('heatCapacityFreeSensorModel tests passed');
-

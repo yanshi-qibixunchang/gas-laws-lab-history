@@ -86,7 +86,6 @@ import {
   type HeatCapacityFreeRecordRejectReason,
   type HeatCapacityFreeRecordTraceReference,
   type HeatCapacityFreeTrial,
-  type HeatCapacityFreeTrialParameterScheme,
   type HeatCapacityFreeTrialRecordRemovalKind,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
@@ -511,12 +510,6 @@ export const getHeatCapacityGaugePressureState = (
     pressureOverLimit: powerOn && pressureForSafetyMv >= pressureThresholdsMv.pressureDangerThresholdMv,
   };
 };
-
-export const createHeatCapacityInitialPressureBiasMv = () => roundNumber(
-  -HEAT_CAPACITY_PRESSURE_ZERO_RANGE_MV +
-    Math.random() * (HEAT_CAPACITY_PRESSURE_ZERO_RANGE_MV * 2),
-  2,
-);
 
 export const getHeatCapacityStopcockTargetAngle = (
   open: boolean,
@@ -4520,12 +4513,6 @@ export const createDefaultHeatCapacityFreeExperimentDomainState = (
   };
 };
 
-const normalizeHeatCapacityFreeTrialParameterScheme = (
-  value: unknown,
-): HeatCapacityFreeTrialParameterScheme => (
-  value === 'ideal' ? 'ideal' : 'real'
-);
-
 export const withHeatCapacityFreeTrialParameterScheme = (
   trial: HeatCapacityFreeTrial,
   scheme: HeatCapacityFreeParameterScheme,
@@ -4601,14 +4588,6 @@ export const getHeatCapacityFreeDisplayTheoreticalGamma = (
   scheme: HeatCapacityFreeDisplayScheme = file.heatCapacityFreeDisplayScheme,
 ) => (
   scheme === 'ideal' ? getHeatCapacityFreeIdealTheoreticalGamma() : file.theoreticalGamma
-);
-
-export const getHeatCapacityFreeTrialsForAverage = (
-  file: WorkbenchHeatCapacityState,
-): HeatCapacityFreeTrial[] => (
-  selectHeatCapacityFreeDomain(file, 'real').trials.filter((trial) => (
-    normalizeHeatCapacityFreeTrialParameterScheme(trial.parameterScheme) === 'real'
-  ))
 );
 
 const REAL_DOMAIN_IDEAL_THERMAL_CONTAMINATION_THRESHOLD_W_PER_K = 4;
@@ -5486,11 +5465,6 @@ export const applyHeatCapacityFreeRecordWorkbenchState = (
     file: storeActiveHeatCapacityFreeDomainRuntimeFields(attempt.file, scheme),
   };
 };
-
-export const createInitialWorkbenchFiles = (): WorkbenchFileState[] => [
-  createDefaultStandardFile(1),
-  createDefaultIdealFile(1),
-];
 
 export const areWorkbenchParamsEqual = (a: SimulationParams, b: SimulationParams) => (
   a.N === b.N &&

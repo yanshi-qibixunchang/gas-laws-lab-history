@@ -2,11 +2,18 @@
 import { readFileSync } from 'node:fs';
 
 const sessionSource = readFileSync(new URL('../../src/features/workbench/workbenchSession.ts', import.meta.url), 'utf8');
+const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
 
 assert.doesNotMatch(
   sessionSource,
   /import \{ createInitialWorkbenchFiles \}/,
   'session fallback should not import default sample studies',
+);
+
+assert.doesNotMatch(
+  stateSource,
+  /createInitialWorkbenchFiles/,
+  'the obsolete default sample-study factory should not remain after empty-workbench startup became canonical',
 );
 
 assert.match(
@@ -34,5 +41,4 @@ assert.match(
 );
 
 console.log('workbenchEmptySession tests passed');
-
 

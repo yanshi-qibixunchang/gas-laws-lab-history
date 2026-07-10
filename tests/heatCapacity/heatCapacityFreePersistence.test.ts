@@ -8,8 +8,8 @@ import {
   HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
   createDefaultHeatCapacityFile,
   freezeHeatCapacityFreeParametersForCurrentGroup,
-  getHeatCapacityFreeTrialsForAverage,
   recordHeatCapacityFreeTraceEvent,
+  selectHeatCapacityFreeDomain,
   setHeatCapacityFreeParameterSchemeWorkbenchState,
 } from '../../src/features/workbench/workbenchState.ts';
 import {
@@ -33,7 +33,6 @@ import {
 } from '../../src/domain/heatCapacity/heatCapacityGuideTrialModel.ts';
 import {
   createHeatCapacityPersistencePayload,
-  getHeatCapacityPersistenceReplayFields,
   restoreHeatCapacityFileFromPersistencePayload,
   validateHeatCapacityPersistencePayload,
 } from '../../src/features/workbench/workbenchHeatCapacityPersistence.ts';
@@ -329,10 +328,6 @@ assert.equal(restoredGuidePersistenceFile.heatCapacityGuidePhysicsState.simulati
 assert.equal(restoredGuidePersistenceFile.heatCapacityGuidePhysicsState.pumpStrokeCount, 4);
 assert.equal(restoredGuidePersistenceFile.heatCapacityGuideTrial?.id, 'guide-persistence-trial');
 
-const replay = getHeatCapacityPersistenceReplayFields(payload);
-assert.equal(replay.pressureGaugeNeedleAngle, file.pressureGaugeNeedleAngle);
-assert.equal(replay.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
-
 const validation = validateHeatCapacityPersistencePayload(payload);
 assert.deepEqual(validation.errors, []);
 assert.equal(validation.valid, true);
@@ -519,9 +514,9 @@ const idealPersistedRestored = restoreHeatCapacityFileFromPersistencePayload({
 }, idealPersistedPayload, 2);
 assert.equal(idealPersistedRestored.heatCapacityFreeTrials[0].parameterScheme, 'ideal');
 assert.deepEqual(
-  getHeatCapacityFreeTrialsForAverage(idealPersistedRestored),
+  selectHeatCapacityFreeDomain(idealPersistedRestored, 'real').trials,
   [],
-  'ideal-domain trials restored from disk should not enter the real Free Mode average',
+  'ideal-domain trials restored from disk should remain isolated from the real Free Mode domain',
 );
 
 const rollbackSnapshotFile = {
