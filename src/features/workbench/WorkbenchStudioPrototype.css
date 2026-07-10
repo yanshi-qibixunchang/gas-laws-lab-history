@@ -123,18 +123,6 @@
   white-space: nowrap;
 }
 
-.studio-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 100%;
-  margin-right: 14px;
-  font-family: var(--studio-engineering-title-font);
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
 .studio-brand-mark {
   display: inline-grid;
   height: 18px;
@@ -161,7 +149,6 @@
 .studio-window-control-button,
 .studio-file-tab,
 .studio-tree-row,
-.studio-panel-action,
 .studio-panel-collapse,
 .studio-results-folder-button,
 .studio-rail-button {
@@ -1870,22 +1857,6 @@
   padding: 10px;
 }
 
-.studio-settings-shortcuts-copy {
-  display: grid;
-  min-width: 0;
-  gap: 4px;
-}
-
-.studio-settings-shortcuts-copy strong {
-  color: var(--studio-text);
-  font-size: 13px;
-}
-
-.studio-settings-shortcuts-copy span {
-  color: var(--studio-muted);
-  font-size: 11px;
-}
-
 .studio-settings-shortcuts-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
@@ -2199,7 +2170,6 @@
 .studio-theme-light .studio-command-menu button:hover,
 .studio-theme-light .studio-window-panel-row:hover,
 .studio-theme-light .studio-tree-row:hover,
-.studio-theme-light .studio-tree-row-active,
 .studio-theme-light .studio-file-row-active,
 .studio-theme-light .studio-panel-row-active,
 .studio-theme-light .studio-file-tab-active,
@@ -3259,7 +3229,6 @@
   margin-bottom: 14px;
 }
 
-.studio-tree-title,
 .studio-tree-title-button {
   margin-bottom: 6px;
   color: var(--studio-subtle);
@@ -3446,11 +3415,6 @@
   padding-left: 22px;
 }
 
-.studio-tree-row-child:not(.studio-heat-materials-group) > span:nth-child(2) {
-  font-size: 12px;
-  font-weight: 650;
-}
-
 .studio-tree-row-child:not(.studio-heat-materials-group) > svg {
   stroke-width: 2.25;
 }
@@ -3484,8 +3448,6 @@
   font-size: 12px;
 }
 
-.studio-empty-file-actions,
-.studio-empty-file-open-actions,
 .studio-empty-actions,
 .studio-empty-open-actions,
 .studio-empty-param-actions {
@@ -3514,10 +3476,6 @@
   background: rgba(79, 127, 184, 0.15);
   color: var(--studio-text);
   outline: none;
-}
-
-.studio-empty-file-open-actions {
-  margin-top: 4px;
 }
 
 .studio-empty-open-actions {
@@ -11116,7 +11074,6 @@
   color: var(--studio-muted);
   padding: 7px 8px;
   font: inherit;
-  font-size: 12px;
   font-weight: 650;
   text-align: left;
   cursor: pointer;
@@ -11635,8 +11592,6 @@
   display: block;
   min-width: 0;
   color: inherit;
-  font-size: 12px;
-  font-weight: 650;
   letter-spacing: 0;
   text-overflow: ellipsis;
   white-space: nowrap;

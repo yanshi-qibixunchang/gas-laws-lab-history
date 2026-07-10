@@ -243,6 +243,12 @@ assert.doesNotMatch(
   'file rows should not reuse the generic tree active class because file and panel selection are different levels',
 );
 
+assert.doesNotMatch(
+  cssSource,
+  /\.studio-brand(?:\s|,|\{)|\.studio-panel-action(?:\s|,|\{)|\.studio-settings-shortcuts-copy|\.studio-tree-row-active|\.studio-tree-title(?:\s|,|\{)|\.studio-empty-file-(?:open-)?actions/,
+  'obsolete brand, panel, settings, tree, and empty-workspace selectors should not remain in the shared stylesheet',
+);
+
 assert.match(
   source,
   /className=\{`studio-tree-row studio-tree-row-child \$\{selectedPanel === panel\.key \? 'studio-panel-row-active' : ''\}`\}/,

@@ -2312,14 +2312,14 @@ assert.match(
   'top file-tab names should be slightly heavier than secondary tab metadata',
 );
 assert.match(
-  getRootCssBlock('.studio-tree-row-child:not(.studio-heat-materials-group) > span:nth-child(2)'),
+  getRootCssBlock('.studio-tree-row span:nth-child(2)'),
   /font-weight:\s*650;/,
-  'left sidebar direct panel rows should use a clearer medium-bold label weight',
+  'left sidebar rows should share one clearer medium-bold label weight',
 );
 assert.match(
-  getRootCssBlock('.studio-tree-row-child:not(.studio-heat-materials-group) > span:nth-child(2)'),
+  getRootCssBlock('.studio-tree-row span:nth-child(2)'),
   /font-size:\s*12px;/,
-  'left sidebar direct panel rows should use the same label size as the 3D preview row',
+  'left sidebar rows should share the same label size as the 3D preview row',
 );
 assert.match(
   getRootCssBlock('.studio-tree-row-child:not(.studio-heat-materials-group) > svg'),
@@ -2327,22 +2327,22 @@ assert.match(
   'left sidebar direct panel icons should use a slightly stronger stroke',
 );
 assert.match(
-  getRootCssBlock('.studio-heat-materials-group .studio-results-folder-label'),
+  getRootCssBlock('.studio-tree-row span:nth-child(2)'),
   /font-weight:\s*650;/,
-  'Heat Capacity materials parent row should match the 3D preview row label weight',
+  'Heat Capacity materials parent row should inherit the shared sidebar label weight',
 );
 assert.match(
-  getRootCssBlock('.studio-heat-materials-group .studio-results-folder-label'),
+  getRootCssBlock('.studio-tree-row span:nth-child(2)'),
   /font-size:\s*12px;/,
-  'Heat Capacity materials parent row should match the 3D preview row label size',
+  'Heat Capacity materials parent row should inherit the shared sidebar label size',
 );
 assert.match(
-  getRootCssBlock('.studio-heat-materials-nav button'),
+  getLastRootCssBlock('.studio-heat-materials-nav button'),
   /font-weight:\s*650;/,
   'Heat Capacity materials child buttons should match the direct panel row label weight',
 );
 assert.match(
-  getRootCssBlock('.studio-heat-materials-nav button'),
+  getLastRootCssBlock('.studio-heat-materials-nav button'),
   /font-size:\s*12px;/,
   'Heat Capacity materials child buttons should match the direct panel row label size',
 );
