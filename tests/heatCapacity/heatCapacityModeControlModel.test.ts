@@ -5,9 +5,7 @@ import {
 
 const runningDemo = selectHeatCapacityModeControlState({
   activeMode: 'demo',
-  autoDemoInteractionLocked: false,
-  autoDemoPaused: false,
-  autoDemoRunning: true,
+  autoDemoPhase: 'running',
   teachingCompleted: false,
 });
 
@@ -18,9 +16,7 @@ assert.equal(runningDemo.free.actions.length, 0);
 
 const pausedDemo = selectHeatCapacityModeControlState({
   activeMode: 'demo',
-  autoDemoInteractionLocked: false,
-  autoDemoPaused: true,
-  autoDemoRunning: false,
+  autoDemoPhase: 'paused',
   teachingCompleted: false,
 });
 
@@ -28,9 +24,7 @@ assert.deepEqual(pausedDemo.demo.actions.map((action) => action.id), ['resume-de
 
 const completedDemo = selectHeatCapacityModeControlState({
   activeMode: 'demo',
-  autoDemoInteractionLocked: false,
-  autoDemoPaused: false,
-  autoDemoRunning: false,
+  autoDemoPhase: 'idle',
   teachingCompleted: true,
 });
 
@@ -39,9 +33,7 @@ assert.equal(completedDemo.demo.actions[0]?.tone, 'danger');
 
 const runningGuide = selectHeatCapacityModeControlState({
   activeMode: 'guide',
-  autoDemoInteractionLocked: false,
-  autoDemoPaused: false,
-  autoDemoRunning: false,
+  autoDemoPhase: 'idle',
   teachingCompleted: false,
 });
 
@@ -49,9 +41,7 @@ assert.deepEqual(runningGuide.guide.actions.map((action) => action.id), ['exit-g
 
 const completedGuide = selectHeatCapacityModeControlState({
   activeMode: 'guide',
-  autoDemoInteractionLocked: false,
-  autoDemoPaused: false,
-  autoDemoRunning: false,
+  autoDemoPhase: 'idle',
   teachingCompleted: true,
 });
 
@@ -59,9 +49,7 @@ assert.deepEqual(completedGuide.guide.actions.map((action) => action.id), ['exit
 
 const free = selectHeatCapacityModeControlState({
   activeMode: 'free',
-  autoDemoInteractionLocked: false,
-  autoDemoPaused: false,
-  autoDemoRunning: false,
+  autoDemoPhase: 'idle',
   teachingCompleted: false,
 });
 

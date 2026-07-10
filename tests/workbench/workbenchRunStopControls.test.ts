@@ -96,8 +96,8 @@ const runAutoDemoBody = source.slice(runAutoDemoStart, runAutoDemoEnd);
 
 const freshAutoDemoStart = runAutoDemoBody.indexOf('const demoFileId = activeFile.id;');
 assert.notEqual(freshAutoDemoStart, -1, 'fresh auto demo start path should exist');
-const firstAutoDemoRunningFlag = runAutoDemoBody.indexOf('setAutoDemoRunning(true);', freshAutoDemoStart);
-assert.notEqual(firstAutoDemoRunningFlag, -1, 'fresh auto demo start should mark the demo as running');
+const firstAutoDemoRunningFlag = runAutoDemoBody.indexOf("setAutoDemoPhase('running');", freshAutoDemoStart);
+assert.notEqual(firstAutoDemoRunningFlag, -1, 'fresh auto demo start should enter the running lifecycle phase');
 const immediateModeUpdate = runAutoDemoBody.indexOf("heatCapacityMode: 'demo'", freshAutoDemoStart);
 assert.ok(
   immediateModeUpdate !== -1 && immediateModeUpdate < firstAutoDemoRunningFlag,
@@ -121,8 +121,8 @@ assert.match(
 );
 assert.match(
   selectFileBody,
-  /autoDemoRunning[\s\S]*autoDemoPaused[\s\S]*autoDemoInteractionLocked/,
-  'file switching should treat heat-capacity auto-demo global state as active even when the persisted run state is not running',
+  /autoDemoInteractionLocked/,
+  'file switching should treat the derived heat-capacity auto-demo lock as active even when the persisted run state is not running',
 );
 
 assert.match(
@@ -133,7 +133,7 @@ assert.match(
 
 assert.match(
   source,
-  /data-heat-capacity-mode="free"[\s\S]*heatCapacityActiveMode !== 'free'[\s\S]*autoDemoRunning[\s\S]*autoDemoPaused[\s\S]*autoDemoInteractionLocked[\s\S]*enterHeatCapacityFreeMode\(\)/,
+  /data-heat-capacity-mode="free"[\s\S]*heatCapacityActiveMode !== 'free'[\s\S]*autoDemoInteractionLocked[\s\S]*enterHeatCapacityFreeMode\(\)/,
   'free mode button should clear stale auto-demo runtime locks even when the file is already marked as Free mode',
 );
 

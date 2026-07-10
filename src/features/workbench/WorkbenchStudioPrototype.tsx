@@ -164,6 +164,7 @@ import {
 } from '../heatCapacity/heatCapacityToastPolicy.ts';
 import {
   selectHeatCapacityModeControlState,
+  type HeatCapacityAutoDemoPhase,
   type HeatCapacityModeControlAction,
 } from '../heatCapacity/heatCapacityModeControlModel.ts';
 import {
@@ -3380,9 +3381,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const heatCapacityFreeSpeedOverlayExitTimerRef = useRef<number | null>(null);
   const aboutResultNoticeTimerRef = useRef<number | null>(null);
   const [heatCapacityPumpPulseId, setHeatCapacityPumpPulseId] = useState(0);
-  const [autoDemoRunning, setAutoDemoRunning] = useState(false);
-  const [autoDemoPaused, setAutoDemoPaused] = useState(false);
-  const [autoDemoInteractionLocked, setAutoDemoInteractionLocked] = useState(false);
+  const [autoDemoPhase, setAutoDemoPhase] = useState<HeatCapacityAutoDemoPhase>('idle');
+  const autoDemoRunning = autoDemoPhase === 'running';
+  const autoDemoPaused = autoDemoPhase === 'paused';
+  const autoDemoInteractionLocked = autoDemoPhase !== 'idle';
   const [heatCapacityToastCurrent, setHeatCapacityToastCurrent] = useState<HeatCapacityToastMessage | null>(null);
   const [heatCapacityPressureAlarmVisible, setHeatCapacityPressureAlarmVisible] = useState(false);
   const [autoDemoCompletionMessage, setAutoDemoCompletionMessage] = useState<string | null>(null);
@@ -5361,7 +5363,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           return 'completed';
       }
     }
-    if (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked) return 'idle';
+    if (autoDemoInteractionLocked) return 'idle';
     if (file.runState === 'finished') return 'idle';
     if (!file.powerOn) return 'powerOnRequired';
 
@@ -6481,7 +6483,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     clearGuideHeatCapacityGuidancePulseTimer();
     if (!activeHeatCapacityGuideFileId) return undefined;
     if (guideHeatCapacityActiveFileId !== activeHeatCapacityGuideFileId) return undefined;
-    if (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked) return undefined;
+    if (autoDemoInteractionLocked) return undefined;
     if (heatCapacityRecordToastSequenceActive) return undefined;
     if (heatCapacityLessonDialogActive) return undefined;
     if (
@@ -6495,7 +6497,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       const latestFile = filesRef.current.find((file) => file.id === guideSessionFileId);
       if (!latestFile || latestFile.kind !== 'heatCapacity') return;
       if (guideHeatCapacityActiveFileIdRef.current !== guideSessionFileId) return;
-      if (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked) return;
+      if (autoDemoInteractionLocked) return;
       if (heatCapacityRecordToastSequenceActive) return;
       if (isHeatCapacityLessonQueueBlocked()) return;
       const latestStep = getHeatCapacityGuideStep(latestFile);
@@ -6509,8 +6511,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
   }, [
     activeHeatCapacityGuideFileId,
     activeHeatCapacityGuideStep,
-    autoDemoRunning,
-    autoDemoPaused,
     autoDemoInteractionLocked,
     heatCapacityRecordToastSequenceActive,
     heatCapacityLessonDialogActive,
@@ -6568,7 +6568,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       clearStaleStrongReminder();
       return undefined;
     }
-    if (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked) {
+    if (autoDemoInteractionLocked) {
       clearStaleStrongReminder();
       return undefined;
     }
@@ -6602,7 +6602,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       const latestFile = filesRef.current.find((file) => file.id === guideSessionFileId);
       if (!latestFile || latestFile.kind !== 'heatCapacity') return;
       if (guideHeatCapacityActiveFileId !== guideSessionFileId) return;
-      if (autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked) return;
+      if (autoDemoInteractionLocked) return;
       if (heatCapacityRecordToastSequenceActive) return;
       if (isHeatCapacityLessonQueueBlocked()) return;
       const latestStep = getHeatCapacityGuideStep(latestFile);
@@ -6621,8 +6621,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
   }, [
     activeHeatCapacityGuideFileId,
     activeHeatCapacityGuideStep,
-    autoDemoRunning,
-    autoDemoPaused,
     autoDemoInteractionLocked,
     heatCapacityRecordToastSequenceActive,
     heatCapacityLessonDialogActive,
@@ -7278,9 +7276,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       window.clearTimeout(heatCapacityAutoDemoStepPanelTimerRef.current);
       heatCapacityAutoDemoStepPanelTimerRef.current = null;
     }
-    setAutoDemoRunning(false);
-    setAutoDemoPaused(false);
-    setAutoDemoInteractionLocked(false);
+    setAutoDemoPhase('idle');
     setAutoDemoCompletionMessage(null);
     setDemoFocusControlId(null);
     setDemoFocusPulseActive(false);
@@ -7645,9 +7641,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const finishHeatCapacityAutoDemoUi = (message: string = heatCapacityRealtimeCopy.autoDemoCompletionToast) => {
     clearHeatCapacityAutoDemoTimers();
-    setAutoDemoRunning(false);
-    setAutoDemoPaused(false);
-    setAutoDemoInteractionLocked(false);
+    setAutoDemoPhase('idle');
     setDemoFocusControlId(null);
     setDemoFocusPulseActive(false);
     setHeatCapacityAutoDemoCameraFocus(null);
@@ -7700,9 +7694,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (autoDemoPaused && activeFile.runState === 'paused' && heatCapacityAutoDemoPausedFileIdRef.current === activeFile.id) {
       clearHeatCapacityAutoDemoTimers();
       showHeatCapacityAutoDemoStepPanel();
-      setAutoDemoRunning(true);
-      setAutoDemoPaused(false);
-      setAutoDemoInteractionLocked(true);
+      setAutoDemoPhase('running');
       updateActiveFile((file) => file.kind === 'heatCapacity'
         ? { ...file, runState: 'running', updatedAt: Date.now() }
         : file);
@@ -7715,7 +7707,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return;
     }
 
-    if (autoDemoRunning || activeFile.runState === 'running') {
+    if (autoDemoInteractionLocked || activeFile.runState === 'running') {
       pushLog(heatCapacityRealtimeCopy.autoDemoRunningLog(activeFile.name), 'warning');
       return;
     }
@@ -7748,9 +7740,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         }
       : file);
     showHeatCapacityAutoDemoStepPanel();
-    setAutoDemoRunning(true);
-    setAutoDemoPaused(false);
-    setAutoDemoInteractionLocked(true);
+    setAutoDemoPhase('running');
     setAutoDemoStepCount(steps.length);
     setAutoDemoStepIndex(0);
     setAutoDemoStepTitle(heatCapacityRealtimeCopy.autoDemoPreparingTitle);
@@ -8872,9 +8862,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     heatCapacityAutoDemoPausedElapsedMsRef.current = elapsedMs;
     heatCapacityAutoDemoPausedFileIdRef.current = activeFile.id;
     clearHeatCapacityAutoDemoTimers();
-    setAutoDemoRunning(false);
-    setAutoDemoPaused(true);
-    setAutoDemoInteractionLocked(true);
+    setAutoDemoPhase('paused');
     updateActiveFile((file) => file.kind === 'heatCapacity'
       ? { ...file, runState: 'paused', updatedAt: Date.now() }
       : file);
@@ -10172,11 +10160,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const file = closedFiles.find((candidate) => candidate.id === fileId);
     if (!file || files.some((candidate) => candidate.id === fileId)) return;
 
-    const activeHeatCapacityRuntimeActive = activeFile.kind === 'heatCapacity' && (
-      autoDemoRunning ||
-      autoDemoPaused ||
-      autoDemoInteractionLocked
-    );
+    const activeHeatCapacityRuntimeActive = activeFile.kind === 'heatCapacity' && autoDemoInteractionLocked;
     if (!isWorkbenchEmpty && (activeFile.runState === 'running' || activeHeatCapacityRuntimeActive)) {
       if (activeFile.kind === 'heatCapacity') {
         releaseHeatCapacityRuntimeState(activeFile.id);
@@ -10297,11 +10281,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const selectFile = (file: WorkbenchFileState) => {
     setSelectedFileId(file.id);
-    const activeHeatCapacityRuntimeActive = activeFile.kind === 'heatCapacity' && (
-      autoDemoRunning ||
-      autoDemoPaused ||
-      autoDemoInteractionLocked
-    );
+    const activeHeatCapacityRuntimeActive = activeFile.kind === 'heatCapacity' && autoDemoInteractionLocked;
     if (file.id !== activeFile.id && (activeFile.runState === 'running' || activeHeatCapacityRuntimeActive)) {
       if (activeFile.kind === 'heatCapacity') {
         releaseHeatCapacityRuntimeState(activeFile.id);
@@ -11151,9 +11131,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const heatCapacityTeachingCompleted = activeFile.heatCapacityTeachingStatus === 'completed';
     const heatCapacityModeControlState = selectHeatCapacityModeControlState({
       activeMode: heatCapacityActiveMode,
-      autoDemoInteractionLocked,
-      autoDemoPaused,
-      autoDemoRunning,
+      autoDemoPhase,
       teachingCompleted: heatCapacityTeachingCompleted,
     });
     const heatCapacityDemoActionsVisible = heatCapacityModeControlState.demo.actionsVisible;
@@ -11330,8 +11308,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
               }
               if (
                 heatCapacityActiveMode !== 'free' ||
-                autoDemoRunning ||
-                autoDemoPaused ||
                 autoDemoInteractionLocked
               ) {
                 enterHeatCapacityFreeMode();
@@ -11397,7 +11373,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
               const activeGuideRecordKind: HeatCapacityGuideRecordKind | null =
                 guideHeatCapacityActiveFileId === activeFile.id &&
                 activeFile.heatCapacityMode === 'guide' &&
-                !autoDemoRunning &&
                 !autoDemoInteractionLocked
                   ? guideRecordU0ButtonState?.visible
                     ? 'u0'
@@ -11433,8 +11408,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
               const heatCapacityGuideProcessPromptBlocked = heatCapacityPressureAlarmVisible ||
                 heatCapacityFreeSpeedNoticeVisible ||
                 autoDemoCompletionMessage ||
-                autoDemoRunning ||
-                autoDemoPaused ||
                 autoDemoInteractionLocked;
               const heatCapacityGuideStepPanel = heatCapacityGuideProcessPromptBlocked
                 ? null
@@ -11766,7 +11739,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   ) : null}
                   {(() => {
                     const guideStep = getHeatCapacityGuideStep(activeFile);
-                    const activeRecordKind = guideHeatCapacityActiveFileId === activeFile.id && !autoDemoRunning && !autoDemoInteractionLocked
+                    const activeRecordKind = guideHeatCapacityActiveFileId === activeFile.id && !autoDemoInteractionLocked
                       ? activeFile.heatCapacityMode !== 'guide'
                         ? guideStep === 'recordU0Required'
                           ? 'u0'
@@ -12065,7 +12038,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   performanceMode={settingsPerformanceMode}
                   sceneTheme={resolvedWorkbenchTheme}
                   language={settingsLanguagePreference}
-                  autoDemoActive={autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked}
+                  autoDemoActive={autoDemoInteractionLocked}
                   powerOn={activeFile.powerOn}
                   stopcockAngleDeg={activeFile.stopcockAngleDeg}
                   pressureZeroAdjusted={activeFile.pressureZeroAdjusted}
@@ -12309,7 +12282,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         className: 'studio-heat-status-badge-trial',
         dataAttr: true,
       },
-      ...(autoDemoRunning || autoDemoPaused || autoDemoInteractionLocked
+      ...(autoDemoInteractionLocked
         ? [{
             key: 'demo',
             label: autoDemoPaused ? heatCapacityRealtimeCopy.demoPaused : autoDemoRunning ? heatCapacityRealtimeCopy.demoRunning : heatCapacityRealtimeCopy.demoReady,
@@ -12358,7 +12331,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       settingsLanguagePreference,
     );
     const currentHint = (() => {
-      if (guideHeatCapacityActiveFileId === activeFile.id && !autoDemoRunning && !autoDemoPaused && !autoDemoInteractionLocked) {
+      if (guideHeatCapacityActiveFileId === activeFile.id && !autoDemoInteractionLocked) {
         const guideStep = getHeatCapacityGuideStep(activeFile);
         if (guideStep !== 'idle' && guideStep !== 'completed') {
           return getGuideStepGuidance(guideStep, activeFile).message;

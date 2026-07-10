@@ -1691,7 +1691,7 @@ assert.match(workbenchSource, /timelineItem\.atMs < startFromElapsedMs/, 'auto d
 assert.match(workbenchSource, /scheduleHeatCapacityAutoDemoTimeline\(demoFileId, timeline, 0, HEAT_CAPACITY_AUTO_DEMO_RESET_MS\)/, 'auto demo timeline should start after the default reset phase');
 assert.match(workbenchSource, /timelineItem\.stage === 'preview'/, 'auto demo should update the step panel through explicit preview timeline items');
 assert.match(workbenchSource, /autoDemoInteractionLocked/, 'workbench should lock user actions while auto demo is running');
-assert.match(workbenchSource, /autoDemoPaused/, 'heat capacity auto demo should keep an explicit paused state');
+assert.match(workbenchSource, /const \[autoDemoPhase, setAutoDemoPhase\] = useState<HeatCapacityAutoDemoPhase>\('idle'\)/, 'heat capacity auto demo should use one explicit lifecycle state');
 assert.match(workbenchSource, /pauseHeatCapacityAutoDemo/, 'heat capacity pause button should pause the demo instead of showing a future-batch warning');
 assert.match(workbenchSource, /terminateHeatCapacityAutoDemo/, 'heat capacity stop button should terminate the demo instead of showing a future-batch warning');
 assert.match(workbenchSource, /terminateHeatCapacityAutoDemo[\s\S]*exitHeatCapacityTeachingModeWorkbenchState/, 'terminating heat capacity auto demo should exit to Free through the explicit teaching-exit path');
@@ -1985,6 +1985,7 @@ assert.match(workbenchSource, /if \(stage === 'highlight' \|\| stage === 'action
 assert.doesNotMatch(workbenchSource, /setHeatCapacityAutoDemoCameraFocus\(\(stage === 'highlight' \|\| stage === 'action'\) \? mapHeatCapacityAutoDemoCameraFocusMode\(cameraFocusMode\) : null\);/, 'auto demo preview and observe gaps should not reset an active scripted camera view');
 const pauseAutoDemoBlock = workbenchSource.match(/const pauseHeatCapacityAutoDemo = \(\) => \{[\s\S]*?pushLog\(heatCapacityRealtimeCopy\.autoDemoPausedLog\(activeFile\.name\), 'warning'\);\s*\};/)?.[0] ?? '';
 assert.match(pauseAutoDemoBlock, /heatCapacityAutoDemoPausedElapsedMsRef\.current = elapsedMs;/, 'auto demo pause should preserve the elapsed timeline position for resume');
+assert.match(pauseAutoDemoBlock, /setAutoDemoPhase\('paused'\)/, 'auto demo pause should transition the single lifecycle state');
 assert.doesNotMatch(pauseAutoDemoBlock, /setHeatCapacityAutoDemoCameraFocus\(null\)|setDemoFocusControlId\(null\)|setDemoFocusPulseActive\(false\)|hideHeatCapacityAutoDemoStepPanel\(\)|pumpHint:\s*heatCapacityRealtimeCopy\.autoDemoPausedHint|showHeatCapacityAutoDemoLockedToast\(heatCapacityRealtimeCopy\.autoDemoPausedToast\)/, 'auto demo pause should not change the visible step panel, focus highlight, scripted camera view, or current hint surface');
 assert.match(workbenchSource, /demoCameraFocusMode=\{demoCameraFocusMode\}/, 'Workbench should pass demo camera focus mode into the Heat Capacity scene');
 assert.match(workbenchSource, /demoCameraFocusKey=\{demoCameraFocusKey\}/, 'Workbench should pass a demo camera focus key so repeated demo focus stages can retrigger the view');

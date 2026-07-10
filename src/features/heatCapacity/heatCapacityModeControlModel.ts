@@ -8,6 +8,8 @@ export type HeatCapacityModeControlActionId =
   | 'exit-teaching'
   | 'reset-free';
 
+export type HeatCapacityAutoDemoPhase = 'idle' | 'running' | 'paused';
+
 export interface HeatCapacityModeControlAction {
   id: HeatCapacityModeControlActionId;
   tone: 'default' | 'danger';
@@ -29,32 +31,24 @@ export interface HeatCapacityModeControlState {
 
 export interface HeatCapacityModeControlInput {
   activeMode: HeatCapacityMode;
-  autoDemoInteractionLocked: boolean;
-  autoDemoPaused: boolean;
-  autoDemoRunning: boolean;
+  autoDemoPhase: HeatCapacityAutoDemoPhase;
   teachingCompleted: boolean;
 }
 
 export const selectHeatCapacityModeControlState = ({
   activeMode,
-  autoDemoInteractionLocked,
-  autoDemoPaused,
-  autoDemoRunning,
+  autoDemoPhase,
   teachingCompleted,
 }: HeatCapacityModeControlInput): HeatCapacityModeControlState => {
-  const demoActionsVisible = activeMode === 'demo' && (
-    autoDemoRunning ||
-    autoDemoPaused ||
-    autoDemoInteractionLocked ||
-    teachingCompleted
-  );
+  const autoDemoActive = autoDemoPhase !== 'idle';
+  const demoActionsVisible = activeMode === 'demo' && (autoDemoActive || teachingCompleted);
   const guideActionsVisible = activeMode === 'guide';
   const freeActionsVisible = activeMode === 'free';
   const demoActions: HeatCapacityModeControlAction[] = demoActionsVisible
     ? teachingCompleted
       ? [{ id: 'exit-teaching', tone: 'danger' }]
       : [
-          { id: autoDemoPaused ? 'resume-demo' : 'pause-demo', tone: 'default' },
+          { id: autoDemoPhase === 'paused' ? 'resume-demo' : 'pause-demo', tone: 'default' },
           { id: 'stop-demo', tone: 'danger' },
         ]
     : [];
