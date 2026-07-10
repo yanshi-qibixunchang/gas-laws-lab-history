@@ -170,6 +170,12 @@ assert.match(
   'language preference should drive the current workbench copy source',
 );
 
+assert.match(
+  source,
+  /settingsSummary=\{`\$\{workbenchCopy\.settings\.themeOptions\[settingsThemePreference\]\.label\} \/ \$\{workbenchCopy\.settings\.languageOptions\[settingsLanguagePreference\]\.label\} \/ \$\{workbenchCopy\.settings\.performanceModeSummary\[settingsPerformanceMode\]\}`\}/,
+  'top-menu settings summary should display localized labels instead of internal preference keys',
+);
+
 for (const expression of [
   'copy.settings.title',
   'copy.settings.themeOptions[key]',

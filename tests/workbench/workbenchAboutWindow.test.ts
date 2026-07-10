@@ -230,6 +230,8 @@ assert.match(
 );
 assert.doesNotMatch(closeBuildNoticeMaterialSource, /setTimeout/, 'returning from a legal detail view should not use a delayed scroll restore that can visibly flicker');
 assert.match(source, /hardSphereLabLegal!\.openLegalFile/, 'build notice detail view should open allowlisted local legal files in desktop builds');
+assert.doesNotMatch(source, /setBuildNoticeOpenError\(result\.message/, 'desktop legal bridge errors should not bypass the active UI language');
+assert.match(source, /setBuildNoticeOpenError\(workbenchCopy\.about\.buildNoticeOpenUnavailable\)/, 'desktop legal bridge errors should use the localized build-notice message');
 assert.match(source, /hardSphereLabLegal!\.readLegalFile/, 'build notice detail view should read allowlisted local legal files for desktop embedded previews');
 assert.match(source, /return \(\) => \{\s*cancelled = true;\s*\};/, 'closing or switching a build notice detail should cancel an in-flight preview update');
 assert.match(source, /studio-build-notice-detail-frame/, 'build notice detail view should preview generated HTML legal files');

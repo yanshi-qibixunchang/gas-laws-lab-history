@@ -3851,7 +3851,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (hasDesktopLegalBridge()) {
       const result = await window.hardSphereLabLegal!.openLegalFile(materialId);
       if (result.status === 'error') {
-        setBuildNoticeOpenError(result.message || workbenchCopy.about.buildNoticeOpenUnavailable);
+        console.error('[Workbench] Failed to open legal material:', result.message);
+        setBuildNoticeOpenError(workbenchCopy.about.buildNoticeOpenUnavailable);
       }
       return;
     }
@@ -3911,7 +3912,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if ((nextState.status === 'unsupported' || nextState.status === 'error') && options.manual) {
       showAboutResultNotice(
         workbenchCopy.about.updateResultTitle,
-        nextState.message || getAboutUpdateStatusLabel(nextState, workbenchCopy.about, hasDesktopUpdaterBridge()),
+        getAboutUpdateStatusLabel(nextState, workbenchCopy.about, hasDesktopUpdaterBridge()),
       );
     }
   };
@@ -3933,12 +3934,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
     void updateCheckRequest
       .then((result) => applyUpdaterState(result, { manual: true }))
       .catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
+        console.error('[Workbench] Update check failed:', error);
         applyUpdaterState({
           ...updaterState,
           status: 'error',
           currentVersion: WORKBENCH_APP_VERSION,
-          message,
+          message: workbenchCopy.about.updateErrorStatus,
         }, { manual: true });
       });
   };
@@ -3960,12 +3961,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
     void downloadRequest
       .then((result) => applyUpdaterState(result))
       .catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
+        console.error('[Workbench] Update download failed:', error);
         applyUpdaterState({
           ...updaterState,
           status: 'error',
           currentVersion: WORKBENCH_APP_VERSION,
-          message,
+          message: workbenchCopy.about.updateErrorStatus,
         }, { manual: true });
       });
   };
@@ -4394,11 +4395,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (!manualDownloadRequest) return;
     void manualDownloadRequest.then((result) => {
       if (result.status === 'error') {
-        showAboutResultNotice(workbenchCopy.about.updateResultTitle, result.message || workbenchCopy.about.updateErrorStatus);
+        console.error('[Workbench] Manual update page failed to open:', result.message);
+        showAboutResultNotice(workbenchCopy.about.updateResultTitle, workbenchCopy.about.updateErrorStatus);
       }
     }).catch((error) => {
-      const message = error instanceof Error ? error.message : String(error);
-      showAboutResultNotice(workbenchCopy.about.updateResultTitle, message);
+      console.error('[Workbench] Manual update page failed to open:', error);
+      showAboutResultNotice(workbenchCopy.about.updateResultTitle, workbenchCopy.about.updateErrorStatus);
     });
   };
 
@@ -14229,7 +14231,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             redoCount={redoStack.length}
             activeFileName={activeFile.name}
             windowPanels={topMenuWindowPanels}
-            settingsSummary={`${settingsThemePreference} / ${settingsLanguagePreference} / ${workbenchCopy.settings.performanceModeSummary[settingsPerformanceMode]}`}
+            settingsSummary={`${workbenchCopy.settings.themeOptions[settingsThemePreference].label} / ${workbenchCopy.settings.languageOptions[settingsLanguagePreference].label} / ${workbenchCopy.settings.performanceModeSummary[settingsPerformanceMode]}`}
             layoutSummary={topMenuLayoutSummary}
             onToggleMenu={toggleTopCommandMenu}
             onOpenNewWindow={openNewWorkbenchWindow}

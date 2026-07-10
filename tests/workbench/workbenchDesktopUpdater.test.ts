@@ -73,5 +73,15 @@ const workbenchSource = readFileSync(
 );
 assert.match(workbenchSource, /from '\.\/workbenchDesktopUpdater\.ts'/);
 assert.doesNotMatch(workbenchSource, /interface WorkbenchUpdateState|const mergeWorkbenchUpdateDialogState\s*=/);
+assert.doesNotMatch(
+  workbenchSource,
+  /showAboutResultNotice\(workbenchCopy\.about\.updateResultTitle,\s*(?:result\.)?message/,
+  'desktop updater failures should not expose unlocalized bridge error text in the UI',
+);
+assert.match(
+  workbenchSource,
+  /showAboutResultNotice\(workbenchCopy\.about\.updateResultTitle, workbenchCopy\.about\.updateErrorStatus\)/,
+  'manual updater failures should use the active localized error copy',
+);
 
 console.log('workbenchDesktopUpdater tests passed');
