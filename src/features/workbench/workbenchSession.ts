@@ -170,7 +170,7 @@ export const encodeWorkbenchSession = (
   heatCapacityGuideSession: WorkbenchHeatCapacityGuideSessionState = createDefaultHeatCapacityGuideSession(),
 ): WorkbenchSessionState => decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
-  files: files.map(normalizeRuntimeState),
+  files,
   activeFileId,
   selectedPanel,
   heatCapacityGuideSession,

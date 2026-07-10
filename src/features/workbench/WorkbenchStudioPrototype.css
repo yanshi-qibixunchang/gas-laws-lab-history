@@ -476,7 +476,8 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.studio-settings-header {
+.studio-settings-header,
+.studio-build-notice-header {
   display: flex;
   min-height: 52px;
   align-items: center;
@@ -487,23 +488,27 @@
   padding: 0 14px;
 }
 
-.studio-settings-header > div {
+.studio-settings-header > div,
+.studio-build-notice-header > div {
   display: grid;
   min-width: 0;
   gap: 2px;
 }
 
-.studio-settings-header strong {
+.studio-settings-header strong,
+.studio-build-notice-header strong {
   color: var(--studio-text);
   font-size: 14px;
 }
 
-.studio-settings-header span {
+.studio-settings-header span,
+.studio-build-notice-header span {
   color: var(--studio-subtle);
   font-size: 11px;
 }
 
-.studio-settings-close {
+.studio-settings-close,
+.studio-build-notice-close {
   display: grid;
   width: 30px;
   height: 30px;
@@ -517,7 +522,9 @@
 }
 
 .studio-settings-close:hover,
-.studio-settings-close:focus-visible {
+.studio-settings-close:focus-visible,
+.studio-build-notice-close:hover,
+.studio-build-notice-close:focus-visible {
   border-color: rgba(79, 127, 184, 0.68);
   background: rgba(79, 127, 184, 0.14);
   color: var(--studio-text);
@@ -767,54 +774,6 @@
     0 26px 62px rgba(0, 0, 0, 0.52),
     0 0 0 1px rgba(148, 163, 184, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-
-.studio-build-notice-header {
-  display: flex;
-  min-height: 52px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid var(--studio-border);
-  background: #30363e;
-  padding: 0 14px;
-}
-
-.studio-build-notice-header > div {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-}
-
-.studio-build-notice-header strong {
-  color: var(--studio-text);
-  font-size: 14px;
-}
-
-.studio-build-notice-header span {
-  color: var(--studio-subtle);
-  font-size: 11px;
-}
-
-.studio-build-notice-close {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid var(--studio-border-soft);
-  border-radius: 5px;
-  background: #252b32;
-  color: var(--studio-muted);
-  cursor: pointer;
-}
-
-.studio-build-notice-close:hover,
-.studio-build-notice-close:focus-visible {
-  border-color: rgba(79, 127, 184, 0.68);
-  background: rgba(79, 127, 184, 0.14);
-  color: var(--studio-text);
-  outline: none;
 }
 
 .studio-build-notice-shell {
@@ -1194,17 +1153,6 @@
     0 26px 62px rgba(15, 23, 42, 0.22),
     0 0 0 1px rgba(148, 163, 184, 0.32),
     inset 0 1px 0 rgba(255, 255, 255, 0.72);
-}
-
-.studio-theme-light .studio-build-notice-header {
-  background: #f8fafc;
-  border-color: var(--studio-border);
-}
-
-.studio-theme-light .studio-build-notice-close {
-  background: #f8fafc;
-  border-color: var(--studio-border);
-  color: var(--studio-muted);
 }
 
 .studio-theme-light .studio-build-notice-close:hover,
@@ -2513,7 +2461,8 @@
   box-shadow: inset 1px 0 0 #f8fafc, inset 0 1px 0 #f8fafc;
 }
 
-.studio-theme-light .studio-settings-header {
+.studio-theme-light .studio-settings-header,
+.studio-theme-light .studio-build-notice-header {
   background: #f8fafc;
   border-color: var(--studio-border);
 }
@@ -2573,6 +2522,7 @@
 }
 
 .studio-theme-light .studio-settings-close,
+.studio-theme-light .studio-build-notice-close,
 .studio-theme-light .studio-panel-collapse,
 .studio-theme-light .studio-panel-actions button,
 .studio-theme-light .studio-results-actions button,
@@ -9530,7 +9480,8 @@
   width: min(460px, calc(100vw - 44px));
 }
 
-.studio-heat-restore-default-confirm footer {
+.studio-heat-restore-default-confirm footer,
+.studio-heat-advanced-risk-window footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
@@ -9551,20 +9502,16 @@
   font-weight: 700;
 }
 
-.studio-heat-restore-default-confirm button:hover:not(:disabled),
-.studio-heat-restore-default-confirm button:focus-visible:not(:disabled) {
-  background: var(--studio-action-neutral-bg-hover);
-  color: var(--studio-action-neutral-text);
-  outline: none;
-}
-
-.studio-heat-restore-default-primary {
+.studio-heat-restore-default-primary,
+.studio-heat-advanced-risk-window .studio-heat-advanced-primary {
   background: var(--studio-action-warning-bg) !important;
   color: var(--studio-action-warning-text) !important;
 }
 
 .studio-heat-restore-default-primary:hover:not(:disabled),
-.studio-heat-restore-default-primary:focus-visible:not(:disabled) {
+.studio-heat-restore-default-primary:focus-visible:not(:disabled),
+.studio-heat-advanced-risk-window .studio-heat-advanced-primary:hover:not(:disabled),
+.studio-heat-advanced-risk-window .studio-heat-advanced-primary:focus-visible:not(:disabled) {
   background: var(--studio-action-warning-bg-hover) !important;
   color: var(--studio-action-warning-text) !important;
 }
@@ -9727,6 +9674,8 @@
 
 .studio-heat-advanced-actions button:hover:not(:disabled),
 .studio-heat-advanced-actions button:focus-visible:not(:disabled),
+.studio-heat-restore-default-confirm button:hover:not(:disabled),
+.studio-heat-restore-default-confirm button:focus-visible:not(:disabled),
 .studio-heat-advanced-risk-window button:hover:not(:disabled),
 .studio-heat-advanced-risk-window button:focus-visible:not(:disabled) {
   background: var(--studio-action-neutral-bg-hover);
@@ -9738,17 +9687,6 @@
 .studio-heat-advanced-primary:focus-visible:not(:disabled) {
   background: var(--studio-action-primary-bg-hover) !important;
   color: var(--studio-action-primary-text) !important;
-}
-
-.studio-heat-advanced-risk-window .studio-heat-advanced-primary {
-  background: var(--studio-action-warning-bg) !important;
-  color: var(--studio-action-warning-text) !important;
-}
-
-.studio-heat-advanced-risk-window .studio-heat-advanced-primary:hover:not(:disabled),
-.studio-heat-advanced-risk-window .studio-heat-advanced-primary:focus-visible:not(:disabled) {
-  background: var(--studio-action-warning-bg-hover) !important;
-  color: var(--studio-action-warning-text) !important;
 }
 
 .studio-heat-advanced-risk-window {
@@ -9783,12 +9721,6 @@
   color: var(--studio-muted);
   font-size: 12px;
   line-height: 1.5;
-}
-
-.studio-heat-advanced-risk-window footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
 }
 
 .studio-theme-light .studio-heat-free-param-row:hover,
@@ -9999,8 +9931,7 @@
 }
 
 .studio-theme-light .studio-heat-advanced-header strong,
-.studio-theme-light .studio-heat-advanced-group-title,
-.studio-theme-light .studio-heat-advanced-risk-window strong {
+.studio-theme-light .studio-heat-advanced-group-title {
   color: #0f172a;
 }
 

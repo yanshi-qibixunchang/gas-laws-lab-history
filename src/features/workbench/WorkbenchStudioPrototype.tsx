@@ -10842,7 +10842,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
     const riskPending = !activeFile.heatCapacityFreeFileAcknowledgements.advancedParametersRisk;
     return (
-      <div className="studio-heat-advanced-overlay" role="presentation">
+      <div
+        className="studio-heat-advanced-overlay"
+        role="presentation"
+        onMouseDown={cancelHeatCapacityAdvancedParameterDraft}
+      >
         <section
           className={`studio-heat-advanced-window ${riskPending ? 'studio-heat-advanced-window-blocked' : ''}`}
           role="dialog"

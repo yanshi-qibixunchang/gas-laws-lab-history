@@ -25,6 +25,7 @@ import {
   HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
   createDefaultHeatCapacityFile,
   createDefaultHeatCapacityFreeExperimentDomainState,
+  getHeatCapacityStopcockTargetAngle,
   hasHeatCapacityFreeIdealThermalBoundaryContamination,
   normalizeHeatCapacityFreeFileAcknowledgements,
   normalizeHeatCapacityFreeExperimentDomainBoundary,
@@ -512,17 +513,17 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     ...uiReplay,
     heatCapacityMaterialsExpanded: typeof common.materialsExpanded === 'boolean'
       ? common.materialsExpanded
-      : typeof uiReplay.heatCapacityMaterialsExpanded === 'boolean'
-        ? uiReplay.heatCapacityMaterialsExpanded
-        : fallback.heatCapacityMaterialsExpanded,
+      : fallback.heatCapacityMaterialsExpanded,
     theoreticalGamma: getHeatCapacityFreeGasTypeGamma(parameterDraft.gasType),
     heatCapacityFreeEquilibriumSpeedMultiplier: normalizeHeatCapacityPersistenceEquilibriumSpeed(
       uiReplay.heatCapacityFreeEquilibriumSpeedMultiplier,
     ),
     powerOn: controls.powerOn === true,
+    glassPistonState: controls.stopcockOpen === true ? 'open' : 'closed',
+    stopcockAngleDeg: getHeatCapacityStopcockTargetAngle(controls.stopcockOpen === true),
     pumpValveOpen: controls.pumpValveOpen === true,
     pumpValveState: controls.pumpValveOpen === true ? 'open' : 'closed',
-    pumpBulbState: normalizePumpBulbState(controls.pumpBulbState ?? uiReplay.pumpBulbState),
+    pumpBulbState: normalizePumpBulbState(controls.pumpBulbState),
     heatCapacityFreeStopcockFlowOpen: restoredStopcockFlowOpen,
     heatCapacityFreeStopcockPendingOpenAtMs: restoredStopcockPendingOpenAtMs,
     heatCapacityFreeStopcockFlowPurpose: restoredStopcockFlowPurpose,

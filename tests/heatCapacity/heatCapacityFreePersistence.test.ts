@@ -258,11 +258,24 @@ assert.equal(payload.free?.runtime.gasAmountRatio, 1);
 assert.equal(payload.free?.controls.powerOn, false);
 assert.equal(payload.free?.controls.stopcockFlowOpen, false);
 assert.equal(payload.free?.controls.stopcockFlowPurpose, 'none');
-assert.equal(payload.free?.uiReplay.heatCapacityMaterialsExpanded, true);
-assert.equal(payload.free?.uiReplay.pressureGaugeNeedleAngle, file.pressureGaugeNeedleAngle);
-assert.equal(payload.free?.uiReplay.stopcockAngleDeg, file.stopcockAngleDeg);
+assert.equal('heatCapacityMaterialsExpanded' in payload.free!.uiReplay, false);
+assert.equal('pressureGaugeNeedleAngle' in payload.free!.uiReplay, false);
+assert.equal('stopcockAngleDeg' in payload.free!.uiReplay, false);
 assert.equal(payload.free?.uiReplay.hardSphereViewEnabled, file.hardSphereViewEnabled);
-assert.equal(payload.free?.uiReplay.heatCapacityFreeStopcockFlowPurpose, 'none');
+assert.equal('heatCapacityFreeStopcockFlowPurpose' in payload.free!.uiReplay, false);
+for (const derivedKey of [
+  'selectedHeatCapacityPanel',
+  'openHeatCapacityTabs',
+  'activeHeatCapacityTabId',
+  'pressureGaugeTargetValue',
+  'pressureWarningThresholdKPa',
+  'pressureSafetyStatus',
+  'pressureOverLimit',
+  'pressureSensitivityMvPerKPa',
+  'theoreticalGamma',
+]) {
+  assert.equal(derivedKey in payload.free!.uiReplay, false, `${derivedKey} should not be duplicated in UI replay`);
+}
 assert.equal('references' in payload.free!, false);
 
 const noiseDisabledFile = {
@@ -698,7 +711,7 @@ contaminatedMaterialsReplayPayload.common.materialsExpanded = false;
 contaminatedMaterialsReplayPayload.free!.uiReplay = {
   ...contaminatedMaterialsReplayPayload.free!.uiReplay,
   heatCapacityMaterialsExpanded: true,
-};
+} as any;
 const contaminatedMaterialsReplayRestored = restoreHeatCapacityFileFromPersistencePayload({
   schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
   fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
