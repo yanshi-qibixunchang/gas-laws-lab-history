@@ -24,6 +24,7 @@ const modeTypesPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heat
 const modeControlModelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'heatCapacityModeControlModel.ts');
 const defaultConfigPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityDefaultConfig.ts');
 const workbenchPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx');
+const parameterDialogsPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchHeatCapacityParameterDialogs.tsx');
 const emptyWorkspacePath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchEmptyWorkspace.tsx');
 const statePath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchState.ts');
 const sessionPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchSession.ts');
@@ -79,6 +80,7 @@ const heatCapacityPersistencePath = join(process.cwd(), 'src', 'features', 'work
 const heatCapacityPersistenceSource = readFileSync(heatCapacityPersistencePath, 'utf8');
 const heatCapacityPersistenceContractPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityPersistenceContract.ts');
 const heatCapacityPersistenceContractSource = readFileSync(heatCapacityPersistenceContractPath, 'utf8');
+const parameterDialogsSource = readFileSync(parameterDialogsPath, 'utf8');
 const heatCapacityTabRegistryPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityTabRegistry.ts');
 const heatCapacityTabRegistrySource = readFileSync(heatCapacityTabRegistryPath, 'utf8');
 const workbenchGeneralSettingsPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchGeneralSettings.ts');
@@ -2241,7 +2243,7 @@ assert.match(
   /aria-disabled=\{activeHeatCapacityFreeSchemeLocked\}/,
   'real/ideal scheme toggle should expose locked state accessibly',
 );
-assert.match(workbenchSource, /renderHeatCapacityIdealProfileIntroDialog/, 'first ideal profile activation should render a centered introduction confirmation');
+assert.match(workbenchSource, /<WorkbenchHeatCapacityIdealProfileIntroDialog/, 'first ideal profile activation should render a centered introduction confirmation');
 assert.match(freeParameterPanelModelSource, /idealProfileIntroTitle:[\s\S]*idealProfileIntroBody:[\s\S]*confirmEnableIdealProfile:/, 'ideal profile introduction copy should live in shared free parameter copy');
 assert.match(workbenchSource, /requestToggleHeatCapacityFreeParameterScheme[\s\S]*acknowledgeHeatCapacityFreeFileNoticeWorkbenchState\(file,\s*'idealParameterProfileIntro'\)[\s\S]*setHeatCapacityIdealIntroOpen\(true\)/, 'ideal profile intro should be acknowledged for the file as soon as the first prompt is opened, not after a later experiment group');
 assert.match(workbenchSource, /confirmHeatCapacityIdealProfileIntro[\s\S]*isHeatCapacityFreeExperimentStarted/, 'ideal profile confirmation should re-check the latest file lock before switching schemes');
@@ -2257,9 +2259,9 @@ assert.match(workbenchSource, /acknowledgeHeatCapacityFreeFileNoticeWorkbenchSta
 assert.match(workbenchSource, /applyHeatCapacityFreeParameterDraftWorkbenchState/, 'advanced parameter save should apply the draft through the shared Workbench helper');
 assert.match(workbenchSource, /studio-heat-advanced-overlay/, 'advanced parameters should use a centered overlay');
 assert.match(workbenchSource, /studio-heat-advanced-window/, 'advanced parameters should render a centered main window');
-assert.match(workbenchSource, /studio-heat-advanced-risk-window/, 'first advanced open should render a higher risk confirmation window');
+assert.match(parameterDialogsSource, /studio-heat-advanced-risk-window/, 'first advanced open should render a higher risk confirmation window');
 assert.match(workbenchSource, /const riskPending = !activeFile\.heatCapacityFreeFileAcknowledgements\.advancedParametersRisk;/, 'advanced parameter risk prompt should be pending only until the current file has acknowledged it');
-assert.match(workbenchSource, /riskPending \? renderHeatCapacityAdvancedRiskDialog\(\) : null/, 'advanced parameter dialog should render the risk confirmation before the current file is acknowledged');
+assert.match(workbenchSource, /<WorkbenchHeatCapacityAdvancedRiskDialog[\s\S]*open=\{riskPending\}/, 'advanced parameter dialog should render the risk confirmation before the current file is acknowledged');
 assert.match(freeParameterPanelModelSource, /riskTitle:\s*\{[\s\S]*'zh-CN':\s*'确认调整高级参数'/, 'advanced risk title should describe a confirmation step, not a later experiment-group side effect');
 assert.match(freeParameterPanelModelSource, /riskBody:\s*\{[\s\S]*'zh-CN':\s*'高级参数会影响当前实验文件的模型判定、传感器读数和记录阈值。确认后，本实验文件后续打开高级参数不再重复提示。'/, 'advanced risk body should state current-file-first acknowledgement semantics');
 assert.doesNotMatch(freeParameterPanelModelSource, /调整高级参数会改变后续实验组|後續實驗組|future groups/, 'advanced risk copy should not keep the old future-group wording');
@@ -2282,7 +2284,8 @@ assert.match(workbenchSource, /resetHeatCapacityFreeParametersToDefaultWorkbench
 assert.match(workbenchSource, /openHeatCapacityRestoreDefaultConfirm[\s\S]*setHeatCapacityRestoreDefaultConfirmOpen\(true\)/, 'Free Mode restore-default button should open a confirmation dialog before resetting parameters');
 assert.match(workbenchSource, /confirmHeatCapacityRestoreDefault[\s\S]*resetHeatCapacityFreeParametersToDefaultWorkbenchState/, 'Free Mode restore-default confirmation should be the only path that applies the reset');
 assert.match(workbenchSource, /studio-heat-free-default-row[\s\S]*studio-heat-free-default-button[\s\S]*onClick=\{openHeatCapacityRestoreDefaultConfirm\}/, 'Free Mode parameter panel should render a restore-default button above the first basic parameter row');
-assert.match(workbenchSource, /renderHeatCapacityRestoreDefaultDialog[\s\S]*studio-heat-restore-default-confirm[\s\S]*role="alertdialog"[\s\S]*confirmHeatCapacityRestoreDefault/, 'Free Mode restore-default confirmation should render as a centered alert dialog with an explicit confirm action');
+assert.match(parameterDialogsSource, /studio-heat-restore-default-confirm[\s\S]*role="alertdialog"/, 'Free Mode restore-default confirmation should render as a centered alert dialog');
+assert.match(workbenchSource, /<WorkbenchHeatCapacityRestoreDefaultDialog[\s\S]*onConfirm=\{confirmHeatCapacityRestoreDefault\}/, 'Free Mode restore-default confirmation should retain an explicit confirm action');
 assert.match(freeParameterPanelModelSource, /restoreDefault:\s*\{[\s\S]*'zh-CN':\s*'恢复默认'/, 'restore-default parameter action should use the shared heat-capacity parameter copy');
 assert.match(freeParameterPanelModelSource, /restoreDefaultTitle:\s*\{[\s\S]*restoreDefaultBody:[\s\S]*confirmRestoreDefault:/, 'restore-default confirmation should keep title, body, and confirm copy in the shared parameter copy');
 assert.match(freeParameterPanelModelSource, /'zh-CN':\s*'这会把普通参数和高级参数全部恢复为默认值，当前手动调整会被覆盖。'/, 'restore-default confirmation should describe the reset in user-facing parameter terms');

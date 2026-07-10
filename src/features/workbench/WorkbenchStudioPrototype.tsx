@@ -286,7 +286,16 @@ import { WorkbenchUpdateDialog } from './WorkbenchUpdateDialog.tsx';
 import { WorkbenchEmptyWorkspace } from './WorkbenchEmptyWorkspace.tsx';
 import { WorkbenchGeneralSettingsWindow } from './WorkbenchGeneralSettingsWindow.tsx';
 import { WorkbenchAboutWindow } from './WorkbenchAboutWindow.tsx';
-import { WorkbenchTopCommands, type WorkbenchTopMenuId } from './WorkbenchTopCommands.tsx';
+import {
+  WorkbenchTopCommands,
+  type WorkbenchTopMenuId,
+  type WorkbenchTopMenuResultChild,
+} from './WorkbenchTopCommands.tsx';
+import {
+  WorkbenchHeatCapacityAdvancedRiskDialog,
+  WorkbenchHeatCapacityIdealProfileIntroDialog,
+  WorkbenchHeatCapacityRestoreDefaultDialog,
+} from './WorkbenchHeatCapacityParameterDialogs.tsx';
 import {
   WorkbenchBuildNoticeWindow,
 } from './WorkbenchBuildNoticeWindow.tsx';
@@ -9695,64 +9704,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const getLocalizedTreeState = (state: 'locked' | 'shown' | 'open' | 'active' | 'off') => workbenchCopy.files[state];
 
-  const renderWindowResultsChildRows = () => {
-    if (activeFile.kind === 'ideal') {
-      return idealResultWindowPanels.map((panel) => {
-        const state = getIdealResultTabState(panel.key);
-        const visible = state !== 'off';
-        return (
-          <div className="studio-window-panel-row studio-window-panel-child-row" key={`window-${panel.key}`}>
-            {panel.icon}
-            <span>{panel.title}</span>
-            <span className="studio-window-panel-status">{getLocalizedTreeState(state)}</span>
-            <button
-              type="button"
-              className={`studio-window-switch ${visible ? 'studio-window-switch-on' : 'studio-window-switch-off'}`}
-              role="switch"
-              aria-checked={visible}
-              aria-label={`${panel.title} ${getLocalizedTreeState(state)}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                runWindowMenuSwitch(() => toggleWindowIdealResultTab(panel.key));
-              }}
-            >
-              <span className="studio-window-switch-thumb" />
-            </button>
-          </div>
-        );
-      });
-    }
-
-    if (activeFile.kind === 'standard') {
-      return resultsSections.map((section) => {
-        const state = getStandardResultsTabState(section.key);
-        const visible = state !== 'off';
-        return (
-          <div className="studio-window-panel-row studio-window-panel-child-row" key={`window-${section.key}`}>
-            {section.icon}
-            <span>{section.title}</span>
-            <span className="studio-window-panel-status">{getLocalizedTreeState(state)}</span>
-            <button
-              type="button"
-              className={`studio-window-switch ${visible ? 'studio-window-switch-on' : 'studio-window-switch-off'}`}
-              role="switch"
-              aria-checked={visible}
-              aria-label={`${section.title} ${getLocalizedTreeState(state)}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                runWindowMenuSwitch(() => toggleWindowStandardResultsTab(section.key));
-              }}
-            >
-              <span className="studio-window-switch-thumb" />
-            </button>
-          </div>
-        );
-      });
-    }
-
-    return null;
-  };
-
   const changeIdealRelation = (nextRelation: ExperimentRelation) => {
     if (activeFile.kind !== 'ideal') return;
     if (activeFile.runState === 'running') {
@@ -10926,100 +10877,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
     );
   };
 
-  const renderHeatCapacityRestoreDefaultDialog = () => {
-    if (
-      !heatCapacityRestoreDefaultConfirmOpen ||
-      activeFile.kind !== 'heatCapacity' ||
-      activeFile.heatCapacityMode !== 'free'
-    ) {
-      return null;
-    }
-    return (
-      <div className="studio-heat-restore-default-overlay" role="presentation" onMouseDown={cancelHeatCapacityRestoreDefault}>
-        <section
-          className="studio-heat-restore-default-confirm"
-          role="alertdialog"
-          aria-modal="true"
-          aria-label={heatCapacityFreeSharedText.restoreDefaultTitle[settingsLanguagePreference]}
-          onMouseDown={(event) => event.stopPropagation()}
-        >
-          <div>
-            <strong>{heatCapacityFreeSharedText.restoreDefaultTitle[settingsLanguagePreference]}</strong>
-            <span>{heatCapacityFreeSharedText.restoreDefaultBody[settingsLanguagePreference]}</span>
-          </div>
-          <footer>
-            <button type="button" onClick={cancelHeatCapacityRestoreDefault}>
-              {heatCapacityFreeSharedText.cancel[settingsLanguagePreference]}
-            </button>
-            <button type="button" className="studio-heat-restore-default-primary" onClick={confirmHeatCapacityRestoreDefault}>
-              {heatCapacityFreeSharedText.confirmRestoreDefault[settingsLanguagePreference]}
-            </button>
-          </footer>
-        </section>
-      </div>
-    );
-  };
-
-  const renderHeatCapacityIdealProfileIntroDialog = () => {
-    if (
-      !heatCapacityIdealIntroOpen ||
-      activeFile.kind !== 'heatCapacity' ||
-      activeFile.heatCapacityMode !== 'free'
-    ) {
-      return null;
-    }
-    return (
-      <div className="studio-heat-restore-default-overlay" role="presentation" onMouseDown={cancelHeatCapacityIdealProfileIntro}>
-        <section
-          className="studio-heat-restore-default-confirm studio-heat-ideal-intro-confirm"
-          role="alertdialog"
-          aria-modal="true"
-          aria-label={heatCapacityFreeSharedText.idealProfileIntroTitle[settingsLanguagePreference]}
-          onMouseDown={(event) => event.stopPropagation()}
-        >
-          <div>
-            <strong>{heatCapacityFreeSharedText.idealProfileIntroTitle[settingsLanguagePreference]}</strong>
-            <span>{heatCapacityFreeSharedText.idealProfileIntroBody[settingsLanguagePreference]}</span>
-          </div>
-          <footer>
-            <button type="button" onClick={cancelHeatCapacityIdealProfileIntro}>
-              {heatCapacityFreeSharedText.cancel[settingsLanguagePreference]}
-            </button>
-            <button type="button" className="studio-heat-restore-default-primary" onClick={confirmHeatCapacityIdealProfileIntro}>
-              {heatCapacityFreeSharedText.confirmEnableIdealProfile[settingsLanguagePreference]}
-            </button>
-          </footer>
-        </section>
-      </div>
-    );
-  };
-
-  const renderHeatCapacityAdvancedRiskDialog = () => {
-    if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return null;
-    return (
-      <section
-        className="studio-heat-advanced-risk-window"
-        role="alertdialog"
-        aria-modal="true"
-        aria-label={heatCapacityFreeSharedText.riskTitle[settingsLanguagePreference]}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div>
-          <strong>{heatCapacityFreeSharedText.riskTitle[settingsLanguagePreference]}</strong>
-          <span>{heatCapacityFreeSharedText.riskBody[settingsLanguagePreference]}</span>
-        </div>
-        <footer>
-          <button type="button" onClick={cancelHeatCapacityAdvancedParameterDraft}>
-            {heatCapacityFreeSharedText.cancel[settingsLanguagePreference]}
-          </button>
-          <button type="button" className="studio-heat-advanced-primary" onClick={acknowledgeHeatCapacityFreeAdvancedRisk}>
-            {heatCapacityFreeSharedText.confirm[settingsLanguagePreference]}
-          </button>
-        </footer>
-      </section>
-    );
-  };
-
   const renderHeatCapacityAdvancedParameterDialog = () => {
     if (
       !heatCapacityAdvancedOpen ||
@@ -11088,7 +10945,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
             </button>
           </footer>
         </section>
-        {riskPending ? renderHeatCapacityAdvancedRiskDialog() : null}
+        <WorkbenchHeatCapacityAdvancedRiskDialog
+          open={riskPending}
+          copy={{
+            title: heatCapacityFreeSharedText.riskTitle[settingsLanguagePreference],
+            body: heatCapacityFreeSharedText.riskBody[settingsLanguagePreference],
+            cancel: heatCapacityFreeSharedText.cancel[settingsLanguagePreference],
+            confirm: heatCapacityFreeSharedText.confirm[settingsLanguagePreference],
+          }}
+          onCancel={cancelHeatCapacityAdvancedParameterDraft}
+          onConfirm={acknowledgeHeatCapacityFreeAdvancedRisk}
+        />
       </div>
     );
   };
@@ -14283,6 +14150,31 @@ const WorkbenchStudioPrototype: React.FC = () => {
     );
   };
 
+  const topMenuResultChildren: WorkbenchTopMenuResultChild[] = activeFile.kind === 'ideal'
+    ? idealResultWindowPanels.map((panel) => {
+        const state = getIdealResultTabState(panel.key);
+        return {
+          kind: 'ideal' as const,
+          key: panel.key,
+          title: panel.title,
+          icon: panel.icon,
+          visible: state !== 'off',
+          status: getLocalizedTreeState(state),
+        };
+      })
+    : activeFile.kind === 'standard'
+      ? resultsSections.map((section) => {
+          const state = getStandardResultsTabState(section.key);
+          return {
+            kind: 'standard' as const,
+            key: section.key,
+            title: section.title,
+            icon: section.icon,
+            visible: state !== 'off',
+            status: getLocalizedTreeState(state),
+          };
+        })
+      : [];
   const topMenuWindowPanels = availablePanels
     .filter((panel) => !(activeFile.kind === 'ideal' && isIdealResultWindowKey(panel.key)))
     .map((panel) => {
@@ -14295,7 +14187,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         locked,
         visible,
         status: locked ? workbenchCopy.files.locked : visible ? workbenchCopy.files.shown : workbenchCopy.files.off,
-        childRows: panel.key === 'results' ? renderWindowResultsChildRows() : null,
+        children: panel.key === 'results' ? topMenuResultChildren : [],
       };
     });
   const activeLayoutDefaults = activeFile.kind === 'ideal'
@@ -14313,8 +14205,36 @@ const WorkbenchStudioPrototype: React.FC = () => {
           {scanInputToast}
         </div>
       ) : null}
-      {renderHeatCapacityRestoreDefaultDialog()}
-      {renderHeatCapacityIdealProfileIntroDialog()}
+      <WorkbenchHeatCapacityRestoreDefaultDialog
+        open={
+          heatCapacityRestoreDefaultConfirmOpen &&
+          activeFile.kind === 'heatCapacity' &&
+          activeFile.heatCapacityMode === 'free'
+        }
+        copy={{
+          title: heatCapacityFreeSharedText.restoreDefaultTitle[settingsLanguagePreference],
+          body: heatCapacityFreeSharedText.restoreDefaultBody[settingsLanguagePreference],
+          cancel: heatCapacityFreeSharedText.cancel[settingsLanguagePreference],
+          confirm: heatCapacityFreeSharedText.confirmRestoreDefault[settingsLanguagePreference],
+        }}
+        onCancel={cancelHeatCapacityRestoreDefault}
+        onConfirm={confirmHeatCapacityRestoreDefault}
+      />
+      <WorkbenchHeatCapacityIdealProfileIntroDialog
+        open={
+          heatCapacityIdealIntroOpen &&
+          activeFile.kind === 'heatCapacity' &&
+          activeFile.heatCapacityMode === 'free'
+        }
+        copy={{
+          title: heatCapacityFreeSharedText.idealProfileIntroTitle[settingsLanguagePreference],
+          body: heatCapacityFreeSharedText.idealProfileIntroBody[settingsLanguagePreference],
+          cancel: heatCapacityFreeSharedText.cancel[settingsLanguagePreference],
+          confirm: heatCapacityFreeSharedText.confirmEnableIdealProfile[settingsLanguagePreference],
+        }}
+        onCancel={cancelHeatCapacityIdealProfileIntro}
+        onConfirm={confirmHeatCapacityIdealProfileIntro}
+      />
       {renderHeatCapacityAdvancedParameterDialog()}
       <div
         className={`studio-shell ${consoleCollapsed ? 'studio-shell-console-collapsed' : ''}`}
@@ -14361,6 +14281,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
             onRedo={redoLastEdit}
             onClearHistory={clearEditHistory}
             onToggleWindowPanel={(panelKey) => runWindowMenuSwitch(() => toggleWindowPanel(panelKey))}
+            onToggleWindowResultChild={(child) => runWindowMenuSwitch(() => {
+              if (child.kind === 'ideal') {
+                toggleWindowIdealResultTab(child.key);
+              } else {
+                toggleWindowStandardResultsTab(child.key);
+              }
+            })}
             onResetLayout={resetLayout}
             onOpenGeneralSettings={openGeneralSettings}
             onSaveLayoutDefault={saveCurrentWorkbenchLayoutAsDefault}

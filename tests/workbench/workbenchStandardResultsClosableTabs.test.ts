@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
@@ -67,7 +68,12 @@ assert.match(
 
 assert.match(
   source,
-  /toggleWindowStandardResultsTab\(section\.key\)/,
+  /kind: 'standard' as const,[\s\S]*?key: section\.key/,
+  'workbench should expose standard Results child tabs through the structured Window-menu view model',
+);
+assert.match(
+  topCommandsSource,
+  /panel\.children\.map\(\(child\)[\s\S]*?onToggleWindowResultChild\(child\)/,
   'standard Results child tabs should be toggleable from the Window menu with a single click',
 );
 
@@ -90,5 +96,4 @@ assert.match(
 );
 
 console.log('workbenchStandardResultsClosableTabs tests passed');
-
 

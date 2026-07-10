@@ -108,9 +108,15 @@ assert.match(
 );
 
 assert.match(
+  topCommandsSource,
+  /panel\.children\.map\(\(child\) => \([\s\S]*?studio-window-panel-child-row[\s\S]*?onToggleWindowResultChild\(child\)/,
+  'Window menu should render structured Results child tab switches under the Results row',
+);
+
+assert.doesNotMatch(
   source,
-  /renderWindowResultsChildRows\(\)/,
-  'Window menu should render dedicated Results child tab switches under the Results row',
+  /renderWindowResultsChildRows|childRows:/,
+  'workbench controller should no longer render Window-menu child rows as embedded React nodes',
 );
 
 assert.match(
@@ -133,7 +139,7 @@ assert.match(
 
 assert.match(
   source,
-  /runWindowMenuSwitch\(\(\) => toggleWindowIdealResultTab\(panel\.key\)\);/,
+  /onToggleWindowResultChild=\{\(child\) => runWindowMenuSwitch\(\(\) => \{[\s\S]*?child\.kind === 'ideal'[\s\S]*?toggleWindowIdealResultTab\(child\.key\)/,
   'ideal Results child switches in the Window menu should close the menu after changing tabs',
 );
 
@@ -157,7 +163,7 @@ assert.match(
 
 assert.match(
   source,
-  /runWindowMenuSwitch\(\(\) => toggleWindowStandardResultsTab\(section\.key\)\);/,
+  /onToggleWindowResultChild=\{\(child\) => runWindowMenuSwitch\(\(\) => \{[\s\S]*?toggleWindowStandardResultsTab\(child\.key\)/,
   'standard Results child switches in the Window menu should close the menu after changing tabs',
 );
 
@@ -216,4 +222,3 @@ assert.match(
 );
 
 console.log('workbenchResultsAndWindowSwitch tests passed');
-

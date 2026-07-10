@@ -19,7 +19,12 @@ import {
   Wrench,
 } from 'lucide-react';
 import { useEffect, useState, type FocusEvent, type ReactNode, type RefObject } from 'react';
-import type { WorkbenchFileKind, WorkbenchPanelKey } from './workbenchState.ts';
+import type {
+  WorkbenchFileKind,
+  WorkbenchIdealResultWindowKey,
+  WorkbenchPanelKey,
+  WorkbenchStandardResultsTab,
+} from './workbenchState.ts';
 
 export type WorkbenchTopMenuId = 'new' | 'edit' | 'window' | 'settings' | 'help' | null;
 
@@ -67,6 +72,24 @@ interface WorkbenchTopMenuClosedFile {
   kindLabel: string;
 }
 
+export type WorkbenchTopMenuResultChild =
+  | {
+      kind: 'ideal';
+      key: WorkbenchIdealResultWindowKey;
+      title: string;
+      icon: ReactNode;
+      visible: boolean;
+      status: string;
+    }
+  | {
+      kind: 'standard';
+      key: WorkbenchStandardResultsTab;
+      title: string;
+      icon: ReactNode;
+      visible: boolean;
+      status: string;
+    };
+
 interface WorkbenchTopMenuPanel {
   key: WorkbenchPanelKey;
   title: string;
@@ -74,7 +97,7 @@ interface WorkbenchTopMenuPanel {
   locked: boolean;
   visible: boolean;
   status: string;
-  childRows: ReactNode;
+  children: WorkbenchTopMenuResultChild[];
 }
 
 interface WorkbenchTopCommandsProps {
@@ -100,6 +123,7 @@ interface WorkbenchTopCommandsProps {
   onRedo: () => void;
   onClearHistory: () => void;
   onToggleWindowPanel: (panelKey: WorkbenchPanelKey) => void;
+  onToggleWindowResultChild: (child: WorkbenchTopMenuResultChild) => void;
   onResetLayout: () => void;
   onOpenGeneralSettings: () => void;
   onSaveLayoutDefault: () => void;
@@ -135,6 +159,7 @@ export const WorkbenchTopCommands = ({
   onRedo,
   onClearHistory,
   onToggleWindowPanel,
+  onToggleWindowResultChild,
   onResetLayout,
   onOpenGeneralSettings,
   onSaveLayoutDefault,
@@ -298,7 +323,26 @@ export const WorkbenchTopCommands = ({
                   <span className="studio-window-switch-thumb" />
                 </button>
               </div>
-              {panel.childRows}
+              {panel.children.map((child) => (
+                <div className="studio-window-panel-row studio-window-panel-child-row" key={`${child.kind}-${child.key}`}>
+                  {child.icon}
+                  <span>{child.title}</span>
+                  <span className="studio-window-panel-status">{child.status}</span>
+                  <button
+                    type="button"
+                    className={`studio-window-switch ${child.visible ? 'studio-window-switch-on' : 'studio-window-switch-off'}`}
+                    role="switch"
+                    aria-checked={child.visible}
+                    aria-label={`${child.title} ${child.status}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onToggleWindowResultChild(child);
+                    }}
+                  >
+                    <span className="studio-window-switch-thumb" />
+                  </button>
+                </div>
+              ))}
             </div>
           ))}
           <button type="button" onClick={onResetLayout}>
