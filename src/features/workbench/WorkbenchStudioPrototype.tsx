@@ -3479,17 +3479,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => {
-    if (!buildNoticeWindowOpen) {
-      setBuildNoticeNavOpen(false);
-      setActiveBuildNoticeMaterialId(null);
-      setBuildNoticeFilePreview(null);
-      setBuildNoticeOpenError(null);
-      buildNoticeReturnScrollTopRef.current = 0;
-      buildNoticeRestoreScrollOnReturnRef.current = false;
-    }
-  }, [buildNoticeWindowOpen]);
-
   useLayoutEffect(() => {
     const container = document.querySelector<HTMLDivElement>('.studio-build-notice-body');
     if (!container) return;
@@ -3782,12 +3771,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const closeAboutWindow = () => {
     setAboutWindowOpen(false);
     setBuildNoticeWindowOpen(false);
-    setBuildNoticeNavOpen(false);
-    setActiveBuildNoticeMaterialId(null);
-    setBuildNoticeFilePreview(null);
-    setBuildNoticeOpenError(null);
-    buildNoticeReturnScrollTopRef.current = 0;
-    buildNoticeRestoreScrollOnReturnRef.current = false;
+    resetBuildNoticeTransientState();
     setAboutResultNotice(null);
     if (aboutResultNoticeTimerRef.current !== null) {
       window.clearTimeout(aboutResultNoticeTimerRef.current);
@@ -3800,33 +3784,27 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setSettingsGeneralOpen(false);
     setSettingsLanguageMenuOpen(false);
     setBuildNoticeWindowOpen(false);
+    resetBuildNoticeTransientState();
+    setAboutWindowOpen(true);
+  };
+
+  const resetBuildNoticeTransientState = () => {
     setBuildNoticeNavOpen(false);
     setActiveBuildNoticeMaterialId(null);
     setBuildNoticeFilePreview(null);
     setBuildNoticeOpenError(null);
     buildNoticeReturnScrollTopRef.current = 0;
     buildNoticeRestoreScrollOnReturnRef.current = false;
-    setAboutWindowOpen(true);
   };
 
   const openBuildNoticeWindow = () => {
     setBuildNoticeWindowOpen(true);
-    setBuildNoticeNavOpen(false);
-    setActiveBuildNoticeMaterialId(null);
-    setBuildNoticeFilePreview(null);
-    setBuildNoticeOpenError(null);
-    buildNoticeReturnScrollTopRef.current = 0;
-    buildNoticeRestoreScrollOnReturnRef.current = false;
+    resetBuildNoticeTransientState();
   };
 
   const closeBuildNoticeWindow = () => {
     setBuildNoticeWindowOpen(false);
-    setBuildNoticeNavOpen(false);
-    setActiveBuildNoticeMaterialId(null);
-    setBuildNoticeFilePreview(null);
-    setBuildNoticeOpenError(null);
-    buildNoticeReturnScrollTopRef.current = 0;
-    buildNoticeRestoreScrollOnReturnRef.current = false;
+    resetBuildNoticeTransientState();
   };
 
   const jumpToBuildNoticeSection = (sectionId: string) => {

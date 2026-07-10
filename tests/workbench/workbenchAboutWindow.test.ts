@@ -155,6 +155,10 @@ const closeBuildNoticeMaterialSource = source.slice(
   indexOfOrFail(source, 'const closeBuildNoticeMaterial = () => {', 'build notice material closer should exist'),
   indexOfOrFail(source, 'const openBuildNoticeLegalFile = async', 'legal file opener should follow material closer'),
 );
+const resetBuildNoticeTransientStateSource = source.slice(
+  indexOfOrFail(source, 'const resetBuildNoticeTransientState = () => {', 'build notice transient-state reset helper should exist'),
+  indexOfOrFail(source, 'const openBuildNoticeWindow = () => {', 'build notice opener should follow the transient-state reset helper'),
+);
 assert.ok(
   aboutSource.indexOf('copy.currentVersion') < aboutSource.indexOf('copy.checkUpdates')
     && aboutSource.indexOf('copy.checkUpdates') < aboutSource.indexOf('copy.localDataExportEnvironment'),
@@ -174,6 +178,22 @@ assert.match(
   'about build notes row should be a clickable action row with only a right-arrow affordance',
 );
 assert.match(source, /const \[buildNoticeWindowOpen, setBuildNoticeWindowOpen\] = useState\(false\);/, 'build notice should have independent secondary-window state');
+assert.doesNotMatch(source, /if \(!buildNoticeWindowOpen\)/, 'build notice closing should not depend on a delayed effect reset');
+for (const resetExpression of [
+  'setBuildNoticeNavOpen(false);',
+  'setActiveBuildNoticeMaterialId(null);',
+  'setBuildNoticeFilePreview(null);',
+  'setBuildNoticeOpenError(null);',
+  'buildNoticeReturnScrollTopRef.current = 0;',
+  'buildNoticeRestoreScrollOnReturnRef.current = false;',
+]) {
+  assert.ok(resetBuildNoticeTransientStateSource.includes(resetExpression), `build notice reset helper should include ${resetExpression}`);
+}
+for (const controllerName of ['closeAboutWindow', 'openAboutWindow', 'openBuildNoticeWindow', 'closeBuildNoticeWindow']) {
+  const controllerStart = indexOfOrFail(source, `const ${controllerName} = () => {`, `${controllerName} should exist`);
+  const controllerBody = source.slice(controllerStart, source.indexOf('\n  };', controllerStart));
+  assert.ok(controllerBody.includes('resetBuildNoticeTransientState();'), `${controllerName} should use the shared transient-state reset helper`);
+}
 assert.match(workbenchSource, /<WorkbenchBuildNoticeWindow/, 'build notice secondary-window component should be mounted');
 assert.doesNotMatch(workbenchSource, /const renderBuildNoticeWindow = \(\) => \{/, 'legacy inline build notice renderer should be removed');
 assert.match(workbenchSource, /sections=\{buildNoticeSections\[settingsLanguagePreference\]\}/, 'build notice should receive the active localized section set');
@@ -211,6 +231,7 @@ assert.match(
 assert.doesNotMatch(closeBuildNoticeMaterialSource, /setTimeout/, 'returning from a legal detail view should not use a delayed scroll restore that can visibly flicker');
 assert.match(source, /hardSphereLabLegal!\.openLegalFile/, 'build notice detail view should open allowlisted local legal files in desktop builds');
 assert.match(source, /hardSphereLabLegal!\.readLegalFile/, 'build notice detail view should read allowlisted local legal files for desktop embedded previews');
+assert.match(source, /return \(\) => \{\s*cancelled = true;\s*\};/, 'closing or switching a build notice detail should cancel an in-flight preview update');
 assert.match(source, /studio-build-notice-detail-frame/, 'build notice detail view should preview generated HTML legal files');
 assert.match(source, /srcDoc=\{desktopLegalReadAvailable \? activeMaterialPreview\?\.content : undefined\}/, 'desktop build notice HTML previews should use srcDoc from the allowlisted local file bridge');
 assert.match(source, /buildNoticeLargeFileBody/, 'build notice detail view should explain large local legal files instead of embedding them');
