@@ -27,7 +27,6 @@ import {
 } from './heatCapacityFreeThermalModel.ts';
 import {
   HEAT_CAPACITY_DEFAULT_PRESSURE_WARNING_MV,
-  HEAT_CAPACITY_TUNED_EFFECTIVE_PUMP_STROKE_VOLUME_L,
   createDefaultHeatCapacityEnvironmentConfig,
   createDefaultHeatCapacityFreeLeakageConfig,
   createDefaultHeatCapacityFreePhysicsConfig,
@@ -92,7 +91,6 @@ export interface HeatCapacityFreeParameterApplyResult {
 const DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG = createDefaultHeatCapacityEnvironmentConfig();
 const DEFAULT_HEAT_CAPACITY_FREE_THERMAL_CONFIG = createDefaultHeatCapacityThermalConfig();
 const DEFAULT_HEAT_CAPACITY_FREE_LEAKAGE_CONFIG = createDefaultHeatCapacityFreeLeakageConfig();
-export const HEAT_CAPACITY_FREE_PUMP_STROKE_VOLUME_L = HEAT_CAPACITY_TUNED_EFFECTIVE_PUMP_STROKE_VOLUME_L;
 const HEAT_CAPACITY_FREE_PUMP_TRANSIENT_PRESSURE_MARGIN_KPA = 0.7;
 const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG = createDefaultHeatCapacityFreePhysicsConfig();
 const DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG = createDefaultHeatCapacityFreeSensorConfig();

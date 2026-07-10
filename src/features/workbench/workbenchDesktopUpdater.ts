@@ -1,9 +1,6 @@
 import type { WorkbenchLanguagePreference } from './workbenchGeneralSettings.ts';
 
-export type WorkbenchUpdateStatus = DesktopUpdateStatus;
 export type WorkbenchLocalizedText = Record<string, string>;
-export type WorkbenchUpdateReleaseItem = DesktopUpdateReleaseItem;
-export type WorkbenchUpdateReleaseSection = DesktopUpdateReleaseSection;
 export type WorkbenchUpdateState = DesktopUpdateState;
 
 export interface WorkbenchUpdateStatusCopy {

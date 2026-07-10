@@ -303,7 +303,6 @@ export const HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV = 90;
 export const HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 120;
 export const HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV = 140;
 export const HEAT_CAPACITY_RELEASE_BURST_DURATION_MS = 1_000;
-export const HEAT_CAPACITY_PRESSURE_RAW_PLACEHOLDER_MV = 3.2;
 export const HEAT_CAPACITY_PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 2;
 export const HEAT_CAPACITY_PRESSURE_ZERO_MV_PER_TURN = 1;
 export const HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS = 420;
@@ -325,7 +324,6 @@ export const normalizeHeatCapacityFreeEquilibriumSpeedMultiplier = (
     : HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER
 );
 
-export const HEAT_CAPACITY_PRESSURE_ZERO_TOTAL_TURNS = 3;
 export const HEAT_CAPACITY_PRESSURE_ZERO_RANGE_MV = 1.5;
 export const HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MIN_MV = -1.5;
 export const HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MAX_MV = 1.5;
@@ -344,8 +342,6 @@ const HEAT_CAPACITY_GAUGE_DANGER_START_FRACTION = (
   (HEAT_CAPACITY_GAUGE_ROTATION_MAX_RAD - HEAT_CAPACITY_GAUGE_ROTATION_MIN_RAD)
 );
 const radiansToRoundedDegrees = (radians: number) => Math.round((radians * 180 / Math.PI) * 100) / 100;
-export const HEAT_CAPACITY_GAUGE_ANGLE_MIN_DEG = radiansToRoundedDegrees(HEAT_CAPACITY_GAUGE_ROTATION_MIN_RAD);
-export const HEAT_CAPACITY_GAUGE_ANGLE_MAX_DEG = radiansToRoundedDegrees(HEAT_CAPACITY_GAUGE_ROTATION_MAX_RAD);
 export const HEAT_CAPACITY_GAUGE_RISE_RATE = 3.2;
 export const HEAT_CAPACITY_GAUGE_FALL_RATE = 9.5;
 export { HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA };
@@ -839,10 +835,6 @@ export const adjustHeatCapacityPressureZeroCoarse = (
   'coarseDrag',
   file.pressureZeroKnobAngle + angleDeltaDeg,
   now,
-);
-
-export const isHeatCapacityPressureZeroValid = (file: WorkbenchHeatCapacityState) => (
-  isHeatCapacityPressureZeroWithinTolerance(file.pressureZeroDisplayedSamples)
 );
 
 export interface WorkbenchStandardResultsLayout {
@@ -5005,11 +4997,6 @@ export const startHeatCapacityGuideWorkbenchState = (
     updatedAt: now,
   };
 };
-
-export const resetHeatCapacityGuideWorkbenchState = (
-  file: WorkbenchHeatCapacityState,
-  now = Date.now(),
-): WorkbenchHeatCapacityState => startHeatCapacityGuideWorkbenchState(file, now);
 
 export const abortHeatCapacityGuideWorkbenchState = (
   file: WorkbenchHeatCapacityState,

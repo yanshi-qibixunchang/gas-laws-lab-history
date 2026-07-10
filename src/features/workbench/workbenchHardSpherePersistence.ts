@@ -180,7 +180,3 @@ export const normalizeHardSphereEngineSnapshot = (
     latestMeasuredPressure: value.latestMeasuredPressure,
   };
 };
-
-export const isValidHardSphereEngineSnapshot = (value: unknown): value is PhysicsEngineSnapshotV1 => (
-  normalizeHardSphereEngineSnapshot(value) !== null
-);
