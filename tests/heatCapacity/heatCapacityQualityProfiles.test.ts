@@ -6,6 +6,8 @@ const profilePath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'heat
 const scenePath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityInstrumentScene.tsx');
 const ultraModelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityUltraInstrumentModel.tsx');
 const workbenchPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx');
+const generalSettingsPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchGeneralSettings.ts');
+const generalSettingsWindowPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchGeneralSettingsWindow.tsx');
 const stylePath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.css');
 
 assert.equal(existsSync(profilePath), true, 'Heat Capacity quality profiles should live in one dedicated module');
@@ -14,6 +16,8 @@ const profileSource = readFileSync(profilePath, 'utf8');
 const sceneSource = readFileSync(scenePath, 'utf8');
 const ultraModelSource = readFileSync(ultraModelPath, 'utf8');
 const workbenchSource = readFileSync(workbenchPath, 'utf8');
+const generalSettingsSource = readFileSync(generalSettingsPath, 'utf8');
+const generalSettingsWindowSource = readFileSync(generalSettingsWindowPath, 'utf8');
 const styleSource = readFileSync(stylePath, 'utf8');
 
 assert.match(
@@ -54,32 +58,37 @@ assert.match(
 
 assert.match(
   workbenchSource,
-  /import \{[\s\S]*DEFAULT_HEAT_CAPACITY_QUALITY_MODE[\s\S]*HEAT_CAPACITY_QUALITY_MODE_ORDER[\s\S]*HEAT_CAPACITY_QUALITY_PROFILES[\s\S]*type HeatCapacityQualityMode[\s\S]*\} from '\.\.\/heatCapacity\/heatCapacityQualityProfiles';/,
-  'Workbench should consume the single quality profile module',
+  /import \{[\s\S]*HEAT_CAPACITY_QUALITY_PROFILES[\s\S]*\} from '\.\.\/heatCapacity\/heatCapacityQualityProfiles';/,
+  'Workbench should consume the active quality profile values it uses for rendering',
 );
 assert.match(
-  workbenchSource,
-  /type WorkbenchPerformanceMode = HeatCapacityQualityMode;/,
-  'Workbench should keep a local alias only for existing settings plumbing',
+  generalSettingsWindowSource,
+  /import \{ HEAT_CAPACITY_QUALITY_MODE_ORDER \} from '\.\.\/heatCapacity\/heatCapacityQualityProfiles\.ts';/,
+  'General settings should consume the shared quality-mode order used by its segmented control',
 );
 assert.match(
-  workbenchSource,
-  /const WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY = 'hsl_workbench_general_settings_v2';/,
+  generalSettingsSource,
+  /export type WorkbenchPerformanceMode = HeatCapacityQualityMode;/,
+  'general settings should own the quality-mode alias used by settings plumbing',
+);
+assert.match(
+  generalSettingsSource,
+  /export const WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY = 'hsl_workbench_general_settings_v2';/,
   'new quality settings should use a fresh storage key and ignore old local debug settings',
 );
 assert.match(
-  workbenchSource,
+  generalSettingsSource,
   /performanceMode:\s*DEFAULT_HEAT_CAPACITY_QUALITY_MODE/,
   'general settings should default through the quality profile module',
 );
 assert.match(
-  workbenchSource,
-  /const isWorkbenchPerformanceMode = \(value: unknown\): value is WorkbenchPerformanceMode => \(\s*typeof value === 'string' && HEAT_CAPACITY_QUALITY_MODE_ORDER\.includes\(value as HeatCapacityQualityMode\)\s*\);/,
+  generalSettingsSource,
+  /export const isWorkbenchPerformanceMode = \(value: unknown\): value is WorkbenchPerformanceMode => \(\s*typeof value === 'string' && HEAT_CAPACITY_QUALITY_MODE_ORDER\.includes\(value as HeatCapacityQualityMode\)\s*\);/,
   'settings validation should use the central quality mode order instead of old hard-coded keys',
 );
 assert.match(
-  workbenchSource,
-  /const performanceModeOptions = useMemo\(\(\) => \(\s*HEAT_CAPACITY_QUALITY_MODE_ORDER\.map\(\(mode\) => \(\{ mode, label: workbenchCopy\.settings\.performanceModeSummary\[mode\] \}\)\)\s*\)/,
+  generalSettingsWindowSource,
+  /HEAT_CAPACITY_QUALITY_MODE_ORDER\.map\(\(mode\) => \(/,
   'settings segmented control should render directly from quality mode order',
 );
 assert.match(

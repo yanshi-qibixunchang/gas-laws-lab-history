@@ -1,7 +1,11 @@
 ﻿import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 
-const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const workbenchSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const aboutSource = readFileSync(new URL('../../src/features/workbench/WorkbenchAboutWindow.tsx', import.meta.url), 'utf8');
+const buildNoticeSource = readFileSync(new URL('../../src/features/workbench/WorkbenchBuildNoticeWindow.tsx', import.meta.url), 'utf8');
+const source = `${workbenchSource}\n${aboutSource}\n${buildNoticeSource}`;
+const emptyWorkspaceSource = readFileSync(new URL('../../src/features/workbench/WorkbenchEmptyWorkspace.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const rootStyles = readFileSync(new URL('../../index.css', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
@@ -117,13 +121,9 @@ assert.ok(
   'New Study menu should order entries as ideal / heat capacity / standard',
 );
 
-const emptyActionsSource = source.slice(
-  indexOfOrFail(source, 'const renderEmptyStudyActions', 'empty study action renderer should exist'),
-  indexOfOrFail(source, 'const renderEmptyWorkbench', 'empty workbench renderer should exist'),
-);
 assert.ok(
-  emptyActionsSource.indexOf("createFile('ideal')") < emptyActionsSource.indexOf("createFile('heatCapacity')")
-    && emptyActionsSource.indexOf("createFile('heatCapacity')") < emptyActionsSource.indexOf("createFile('standard')"),
+  emptyWorkspaceSource.indexOf("onCreateFile('ideal')") < emptyWorkspaceSource.indexOf("onCreateFile('heatCapacity')")
+    && emptyWorkspaceSource.indexOf("onCreateFile('heatCapacity')") < emptyWorkspaceSource.indexOf("onCreateFile('standard')"),
   'empty-state create actions should order entries as ideal / heat capacity / standard',
 );
 
@@ -135,18 +135,10 @@ assert.ok(!settingsMenuSource.includes('menus.exportEnvironment'), 'settings men
 assert.ok(!settingsMenuSource.includes('exportEnvironmentStatus'), 'settings menu should not expose raw export environment status');
 
 assert.match(source, /const \[aboutWindowOpen, setAboutWindowOpen\] = useState\(false\);/, 'about window should have independent open state');
-assert.match(source, /const renderAboutWindow = \(\) => \{/, 'about window renderer should exist');
+assert.match(workbenchSource, /<WorkbenchAboutWindow/, 'about window component should be mounted by the workbench');
+assert.doesNotMatch(workbenchSource, /const renderAboutWindow = \(\) => \{/, 'legacy inline about renderer should be removed');
 assert.match(source, /onClick=\{openAboutWindow\}[\s\S]*?\{workbenchCopy\.menus\.about\}/, 'Help > About should open the about window instead of logging a mock action');
-assert.ok(source.includes('{renderAboutWindow()}'), 'about window should render above the main interface');
-
-const aboutSource = source.slice(
-  indexOfOrFail(source, 'const renderAboutWindow = () => {', 'about renderer should exist'),
-  indexOfOrFail(source, 'const renderGeneralSettingsWindow = () => {', 'settings renderer should follow about renderer'),
-);
-const buildNoticeSource = source.slice(
-  indexOfOrFail(source, 'const renderBuildNoticeWindow = () => {', 'build notice renderer should exist'),
-  indexOfOrFail(source, 'const renderAboutWindow = () => {', 'about renderer should follow build notice renderer'),
-);
+assert.match(workbenchSource, /<WorkbenchAboutWindow[\s\S]*?onOpenBuildNotice=\{openBuildNoticeWindow\}/, 'about window should receive controller callbacks through explicit props');
 const buildNoticeNavSource = buildNoticeSource.slice(
   indexOfOrFail(buildNoticeSource, '<nav className="studio-build-notice-nav-panel"', 'build notice nav panel should exist'),
   indexOfOrFail(buildNoticeSource, '<div className={`studio-build-notice-body', 'build notice body should follow nav panel'),
@@ -160,26 +152,27 @@ const closeBuildNoticeMaterialSource = source.slice(
   indexOfOrFail(source, 'const openBuildNoticeLegalFile = async', 'legal file opener should follow material closer'),
 );
 assert.ok(
-  aboutSource.indexOf('workbenchCopy.about.currentVersion') < aboutSource.indexOf('workbenchCopy.about.checkUpdates')
-    && aboutSource.indexOf('workbenchCopy.about.checkUpdates') < aboutSource.indexOf('workbenchCopy.about.localDataExportEnvironment'),
+  aboutSource.indexOf('copy.currentVersion') < aboutSource.indexOf('copy.checkUpdates')
+    && aboutSource.indexOf('copy.checkUpdates') < aboutSource.indexOf('copy.localDataExportEnvironment'),
   'about rows should order current version, update check, then local data export environment',
 );
-assert.ok(aboutSource.includes('WORKBENCH_APP_VERSION'), 'about window should display the package-derived version');
+assert.match(workbenchSource, /appVersion=\{WORKBENCH_APP_VERSION\}/, 'about window should display the package-derived version');
 assert.ok(source.includes('getWorkbenchSessionCacheSummary(files, workbenchCopy)'), 'about window should summarize current workspace session files');
 assert.ok(aboutSource.includes('<ChevronRight size={17} />'), 'check rows should use a right-arrow icon when idle');
 assert.ok(aboutSource.includes('<Loader2 size={15} />'), 'check rows should use a spinner icon while checking');
 assert.ok(aboutSource.includes('studio-about-result-toast'), 'about window should show centered check-result feedback');
 assert.doesNotMatch(source, /buildPlaceholder/, 'about copy should remove the old build-placeholder field entirely');
 assert.doesNotMatch(styles, /studio-about-build-note/, 'about CSS should remove the old build-placeholder note class');
-assert.doesNotMatch(aboutSource, /workbenchCopy\.about\.buildPlaceholder/, 'about build notes should no longer show the placeholder release text');
+assert.doesNotMatch(aboutSource, /copy\.buildPlaceholder/, 'about build notes should no longer show the placeholder release text');
 assert.match(
   aboutSource,
-  /onClick=\{openBuildNoticeWindow\}[\s\S]*workbenchCopy\.about\.buildNotes[\s\S]*<ChevronRight size=\{17\} \/>/,
+  /onClick=\{onOpenBuildNotice\}[\s\S]*copy\.buildNotes[\s\S]*<ChevronRight size=\{17\} \/>/,
   'about build notes row should be a clickable action row with only a right-arrow affordance',
 );
 assert.match(source, /const \[buildNoticeWindowOpen, setBuildNoticeWindowOpen\] = useState\(false\);/, 'build notice should have independent secondary-window state');
-assert.match(source, /const renderBuildNoticeWindow = \(\) => \{/, 'build notice secondary-window renderer should exist');
-assert.ok(source.includes('{renderBuildNoticeWindow()}'), 'build notice secondary window should render above the main interface');
+assert.match(workbenchSource, /<WorkbenchBuildNoticeWindow/, 'build notice secondary-window component should be mounted');
+assert.doesNotMatch(workbenchSource, /const renderBuildNoticeWindow = \(\) => \{/, 'legacy inline build notice renderer should be removed');
+assert.match(workbenchSource, /sections=\{buildNoticeSections\[settingsLanguagePreference\]\}/, 'build notice should receive the active localized section set');
 assert.doesNotMatch(source, /scrollIntoView/, 'build notice table-of-contents clicks should not ask the browser to scroll outer ancestors');
 assert.match(
   source,
@@ -200,7 +193,7 @@ assert.match(source, /studio-build-notice-document/, 'build notice body should u
 assert.match(source, /studio-build-notice-table-wrap/, 'build notice should render approved table-style notice sections');
 assert.match(source, /studio-build-notice-material-row/, 'build notice should render clickable legal material rows');
 assert.match(source, /activeBuildNoticeMaterialId/, 'build notice should support an in-window legal material detail view');
-assert.match(source, /const \[buildNoticeFilePreview, setBuildNoticeFilePreview\]/, 'build notice detail should keep a unified local/web preview content state');
+assert.match(source, /const \[buildNoticeFilePreview, setBuildNoticeFilePreview\] = useState<WorkbenchBuildNoticeFilePreview/, 'build notice detail should keep a unified local/web preview content state');
 assert.doesNotMatch(source, /buildNoticeTextPreview/, 'build notice detail should not retain the old text-only preview state');
 assert.match(source, /const buildNoticeReturnScrollTopRef = useRef\(0\);/, 'build notice should remember the document scroll position before opening a legal detail view');
 assert.match(source, /const buildNoticeRestoreScrollOnReturnRef = useRef\(false\);/, 'build notice should track whether a return scroll restore is pending');

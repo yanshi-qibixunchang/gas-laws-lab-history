@@ -8,9 +8,14 @@ import type {
 } from '../../shared/types.ts';
 import {
   cloneHardSphereEngineSnapshot,
-  clonePersistenceValue,
   normalizeHardSphereEngineSnapshot,
 } from './workbenchHardSpherePersistence.ts';
+import {
+  clonePersistenceValue,
+  isPersistenceFiniteNumber as isFiniteNumber,
+  isPersistenceRecord as isRecord,
+} from './workbenchPersistenceValue.ts';
+import { normalizeWorkbenchPanelKeys } from './workbenchPanelRegistry.ts';
 import {
   WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
   clampWorkbenchLiveSplitRatio,
@@ -53,16 +58,7 @@ export interface StandardPayloadValidationResult {
   errors: string[];
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> => (
-  typeof value === 'object' && value !== null
-);
-
-const isFiniteNumber = (value: unknown): value is number => (
-  typeof value === 'number' && Number.isFinite(value)
-);
-
 const standardResultTabs = ['summary', 'dataTable', 'figures'] as const satisfies readonly WorkbenchStandardResultsTab[];
-const panelKeys = ['preview', 'realtime', 'results', 'experimentPoints', 'verification', 'heatCapacityGuide', 'heatCapacityRecords', 'heatCapacityReview', 'history'] as const satisfies readonly WorkbenchPanelKey[];
 const runStates = ['idle', 'running', 'paused', 'finished', 'needs-reset'] as const satisfies readonly WorkbenchRunState[];
 
 const isWorkbenchRunState = (value: unknown): value is WorkbenchRunState => (
@@ -72,11 +68,7 @@ const isWorkbenchRunState = (value: unknown): value is WorkbenchRunState => (
 const normalizeVisiblePanels = (
   value: unknown,
   fallback: WorkbenchPanelKey[],
-): WorkbenchPanelKey[] => (
-  Array.isArray(value)
-    ? value.filter((panel): panel is WorkbenchPanelKey => panelKeys.includes(panel as WorkbenchPanelKey))
-    : fallback
-);
+): WorkbenchPanelKey[] => normalizeWorkbenchPanelKeys(value, fallback);
 
 const normalizeStandardResultsLayout = (
   value: unknown,

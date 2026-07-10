@@ -21,6 +21,8 @@ const electronMain = readFileSync(new URL('../../electron/main.cjs', import.meta
 const preload = readFileSync(new URL('../../electron/preload.cjs', import.meta.url), 'utf8');
 const electronTypes = readFileSync(new URL('../../electron.d.ts', import.meta.url), 'utf8');
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const updaterModule = readFileSync(new URL('../../src/features/workbench/workbenchDesktopUpdater.ts', import.meta.url), 'utf8');
+const updateDialogSource = readFileSync(new URL('../../src/features/workbench/WorkbenchUpdateDialog.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.ok(packageJson.dependencies?.['electron-updater'], 'electron-updater must be installed as an app dependency');
@@ -97,15 +99,16 @@ assert.ok(preload.includes("ipcRenderer.on('hsl-updater:status'"), 'preload upda
 assert.ok(electronTypes.includes("hardSphereLabUpdater?: {"), 'desktop TypeScript declarations should include the updater bridge');
 assert.ok(electronTypes.includes('openManualDownload'), 'desktop TypeScript declarations should type the manual download bridge');
 
-assert.ok(source.includes('interface WorkbenchDesktopUpdaterBridge'), 'workbench should type the updater bridge');
+assert.doesNotMatch(source, /interface WorkbenchDesktopUpdaterBridge/, 'workbench should rely on the shared desktop bridge declaration instead of duplicating it locally');
 assert.ok(source.includes('const [updateDialogState, setUpdateDialogState]'), 'workbench should keep dedicated update dialog state');
-assert.ok(source.includes('hslIgnoredUpdateVersion'), 'workbench should persist ignored update versions');
+assert.ok(updaterModule.includes("WORKBENCH_IGNORED_UPDATE_VERSION_KEY = 'hslIgnoredUpdateVersion'"), 'updater boundary should own the ignored-version storage key');
+assert.ok(source.includes('WORKBENCH_IGNORED_UPDATE_VERSION_KEY'), 'workbench should persist ignored update versions through the updater boundary');
 assert.ok(source.includes('window.hardSphereLabUpdater?.checkForUpdates'), 'About > Check for Updates should call the desktop update bridge');
 assert.ok(source.includes('window.hardSphereLabUpdater?.downloadUpdate'), 'update dialog should start downloads through the desktop bridge');
 assert.ok(source.includes('window.hardSphereLabUpdater?.quitAndInstall'), 'downloaded updates should offer restart-and-install');
 assert.ok(source.includes('window.hardSphereLabUpdater?.openManualDownload'), 'failed updates should offer the direct manual installer download');
 assert.match(
-  source,
+  updaterModule,
   /const mergeWorkbenchUpdateDialogState = \([\s\S]*releaseSummary: nextState\.releaseSummary \?\? previousState\.releaseSummary[\s\S]*releaseSections: nextState\.releaseSections \?\? previousState\.releaseSections/,
   'renderer update dialog should preserve structured release notes across partial updater states',
 );
@@ -114,14 +117,14 @@ assert.match(
   /setUpdateDialogState\(\(currentDialogState\) => mergeWorkbenchUpdateDialogState\(nextState, currentDialogState\)\)/,
   'renderer should merge partial downloading and retrying status payloads into the existing dialog state',
 );
-assert.ok(source.includes('const renderUpdateDialog = () => {'), 'workbench should render a dedicated update dialog');
-assert.ok(source.includes('studio-update-dialog'), 'update dialog should use a dedicated engineering-style CSS block');
-assert.ok(source.includes('workbenchCopy.about.updateAvailableTitle'), 'update dialog should use localized update-available copy');
-assert.ok(source.includes('workbenchCopy.about.retryingUpdateStatus'), 'update dialog should localize retrying status');
-assert.ok(source.includes('workbenchCopy.about.manualDownload'), 'update dialog should localize the manual download action');
-assert.ok(source.includes('releaseSections'), 'update dialog should render structured release sections');
-assert.ok(source.includes('workbenchCopy.about.ignoreThisVersion'), 'update dialog should offer an ignore-version action');
-assert.ok(source.includes('workbenchCopy.about.updateNow'), 'update dialog should offer an immediate update action');
+assert.ok(source.includes('<WorkbenchUpdateDialog'), 'workbench should mount the dedicated update dialog component');
+assert.ok(updateDialogSource.includes('studio-update-dialog'), 'update dialog should use a dedicated engineering-style CSS block');
+assert.ok(updateDialogSource.includes('copy.updateAvailableTitle'), 'update dialog should use localized update-available copy');
+assert.ok(updateDialogSource.includes('copy.retryingUpdateStatus'), 'update dialog should localize retrying status');
+assert.ok(updateDialogSource.includes('copy.manualDownload'), 'update dialog should localize the manual download action');
+assert.ok(updateDialogSource.includes('releaseSections'), 'update dialog should render structured release sections');
+assert.ok(updateDialogSource.includes('copy.ignoreThisVersion'), 'update dialog should offer an ignore-version action');
+assert.ok(updateDialogSource.includes('copy.updateNow'), 'update dialog should offer an immediate update action');
 
 assert.match(
   styles,

@@ -38,6 +38,9 @@ import {
   type WorkbenchPersistenceDiagnostic,
   type WorkbenchSessionEnvelopeV2,
 } from './workbenchPersistenceSchema.ts';
+import {
+  isPersistenceRecord as isRecord,
+} from './workbenchPersistenceValue.ts';
 
 export interface DecodeWorkbenchStorageResult {
   session: WorkbenchSessionState;
@@ -52,10 +55,6 @@ export interface DecodeWorkbenchClosedFilesStorageResult {
   readonly: boolean;
   handled: boolean;
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> => (
-  typeof value === 'object' && value !== null
-);
 
 const fallbackSession = (): WorkbenchSessionState => ({
   version: 1,

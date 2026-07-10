@@ -55,7 +55,6 @@ export const getHeatCapacityDisplayValue = ({
   target,
   previousTarget,
   elapsedS,
-  now,
   config,
 }: {
   current: number | null;

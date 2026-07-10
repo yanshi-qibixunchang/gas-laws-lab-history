@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   WORKBENCH_CLOSED_FILES_SCHEMA_FAMILY,
   WORKBENCH_CLOSED_FILES_SCHEMA_VERSION,
@@ -12,6 +14,8 @@ import {
   isWorkbenchExperimentFileEnvelope,
   isWorkbenchSessionEnvelope,
 } from '../../src/features/workbench/workbenchPersistenceSchema.ts';
+import * as persistenceValueModule from '../../src/features/workbench/workbenchPersistenceValue.ts';
+import * as panelRegistryModule from '../../src/features/workbench/workbenchPanelRegistry.ts';
 
 const baseFileEnvelope = {
   schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
@@ -75,5 +79,154 @@ assert.equal(isWorkbenchClosedFilesEnvelope({
   savedAt: 1,
   files: [baseFileEnvelope],
 }), false);
+
+const workbenchSourceRoot = join(process.cwd(), 'src', 'features', 'workbench');
+const persistenceValuePath = join(workbenchSourceRoot, 'workbenchPersistenceValue.ts');
+const persistenceValueSource = existsSync(persistenceValuePath)
+  ? readFileSync(persistenceValuePath, 'utf8')
+  : '';
+const hardSpherePersistenceSource = readFileSync(
+  join(workbenchSourceRoot, 'workbenchHardSpherePersistence.ts'),
+  'utf8',
+);
+const standardPersistenceSource = readFileSync(
+  join(workbenchSourceRoot, 'workbenchStandardPersistence.ts'),
+  'utf8',
+);
+const idealGasPersistenceSource = readFileSync(
+  join(workbenchSourceRoot, 'workbenchIdealGasPersistence.ts'),
+  'utf8',
+);
+const heatCapacityPersistenceSource = readFileSync(
+  join(workbenchSourceRoot, 'workbenchHeatCapacityPersistence.ts'),
+  'utf8',
+);
+const persistenceSchemaSource = readFileSync(
+  join(workbenchSourceRoot, 'workbenchPersistenceSchema.ts'),
+  'utf8',
+);
+const persistenceMigrationSource = readFileSync(
+  join(workbenchSourceRoot, 'workbenchPersistenceMigration.ts'),
+  'utf8',
+);
+const sessionSource = readFileSync(
+  join(workbenchSourceRoot, 'workbenchSession.ts'),
+  'utf8',
+);
+const heatCapacitySessionRestoreSource = readFileSync(
+  join(workbenchSourceRoot, 'workbenchHeatCapacitySessionRestore.ts'),
+  'utf8',
+);
+
+assert.deepEqual(panelRegistryModule.WORKBENCH_PANEL_KEYS, [
+  'preview',
+  'realtime',
+  'results',
+  'experimentPoints',
+  'verification',
+  'heatCapacityGuide',
+  'heatCapacityRecords',
+  'heatCapacityReview',
+  'history',
+]);
+assert.equal(panelRegistryModule.isWorkbenchPanelKey('preview'), true);
+assert.equal(panelRegistryModule.isWorkbenchPanelKey('unknown-panel'), false);
+assert.deepEqual(
+  panelRegistryModule.normalizeWorkbenchPanelKeys(['preview', 'unknown-panel', 'history'], ['realtime']),
+  ['preview', 'history'],
+);
+assert.deepEqual(
+  panelRegistryModule.normalizeWorkbenchPanelKeys(null, ['realtime']),
+  ['realtime'],
+);
+
+assert.equal(
+  existsSync(persistenceValuePath),
+  true,
+  'shared persistence value helpers should live outside hard-sphere persistence',
+);
+assert.match(persistenceValueSource, /export const clonePersistenceValue/);
+assert.match(persistenceValueSource, /export const isPersistenceRecord/);
+assert.match(persistenceValueSource, /export const isPersistenceFiniteNumber/);
+assert.equal(typeof persistenceValueModule.normalizePersistenceNullableNumber, 'function');
+assert.equal(persistenceValueModule.normalizePersistenceNullableNumber(12.5), 12.5);
+assert.equal(persistenceValueModule.normalizePersistenceNullableNumber(Number.POSITIVE_INFINITY), null);
+assert.equal(persistenceValueModule.normalizePersistenceNullableNumber('12.5'), null);
+assert.match(persistenceValueSource, /export const normalizePersistenceNullableNumber/);
+assert.doesNotMatch(
+  hardSpherePersistenceSource,
+  /export const clonePersistenceValue\s*=/,
+  'hard-sphere persistence should not own generic value cloning',
+);
+assert.doesNotMatch(
+  heatCapacityPersistenceSource,
+  /const clonePersistenceValue\s*=/,
+  'heat-capacity persistence should use the shared value cloner',
+);
+assert.match(standardPersistenceSource, /from '\.\/workbenchPersistenceValue\.ts'/);
+assert.match(idealGasPersistenceSource, /from '\.\/workbenchPersistenceValue\.ts'/);
+assert.match(heatCapacityPersistenceSource, /from '\.\/workbenchPersistenceValue\.ts'/);
+assert.match(
+  persistenceSchemaSource,
+  /from '\.\/workbenchPersistenceValue\.ts'/,
+  'schema validators should use shared persistence value guards',
+);
+assert.match(
+  persistenceMigrationSource,
+  /from '\.\/workbenchPersistenceValue\.ts'/,
+  'migration decoders should use shared persistence value guards',
+);
+assert.doesNotMatch(
+  persistenceSchemaSource,
+  /const isRecord\s*=/,
+  'schema validators should not keep a local record guard',
+);
+assert.doesNotMatch(
+  persistenceSchemaSource,
+  /const isFiniteNumber\s*=/,
+  'schema validators should not keep a local finite-number guard',
+);
+assert.doesNotMatch(
+  persistenceMigrationSource,
+  /const isRecord\s*=/,
+  'migration decoders should not keep a local record guard',
+);
+assert.match(
+  sessionSource,
+  /from '\.\/workbenchPersistenceValue\.ts'/,
+  'session restore should use shared persistence value helpers',
+);
+assert.doesNotMatch(
+  sessionSource,
+  /const isRecord\s*=/,
+  'session restore should not keep a local record guard',
+);
+assert.doesNotMatch(
+  sessionSource,
+  /const normalizeNullableNumber\s*=/,
+  'session restore should use the shared nullable-number normalizer',
+);
+assert.doesNotMatch(
+  sessionSource,
+  /Number\.isFinite/,
+  'session restore should not keep ad hoc finite-number checks',
+);
+for (const [sourceName, source] of [
+  ['standard persistence', standardPersistenceSource],
+  ['ideal-gas persistence', idealGasPersistenceSource],
+  ['session restore', sessionSource],
+  ['heat-capacity session restore', heatCapacitySessionRestoreSource],
+] as const) {
+  assert.match(
+    source,
+    /from '\.\/workbenchPanelRegistry\.ts'/,
+    `${sourceName} should use the shared workbench panel registry`,
+  );
+  assert.doesNotMatch(
+    source,
+    /const panelKeys\s*=/,
+    `${sourceName} should not keep a local full panel registry`,
+  );
+}
 
 console.log('workbenchPersistenceSchema tests passed');

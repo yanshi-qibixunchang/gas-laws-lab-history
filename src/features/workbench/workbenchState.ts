@@ -36,14 +36,11 @@ import {
 import {
   HEAT_CAPACITY_PRESSURE_DISPLAY_RESPONSE,
   HEAT_CAPACITY_TEMPERATURE_DISPLAY_RESPONSE,
-  HEAT_CAPACITY_VIDEO_PROFILE,
   getHeatCapacityDisplayValue,
 } from '../../domain/heatCapacity/heatCapacityDisplayResponse.ts';
 import {
   HEAT_CAPACITY_AUTO_DEMO_INITIAL_PRESSURE_BIAS_MV,
-  createDefaultHeatCapacityEnvironmentConfig,
   createDefaultHeatCapacityFreePhysicsConfig,
-  createDefaultHeatCapacityFreeSensorConfig,
 } from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
 import type {
   HeatCapacityMode,
@@ -53,7 +50,6 @@ import {
   type HeatCapacityTeachingProfile,
 } from '../../domain/heatCapacity/heatCapacityExperimentRandom.ts';
 import {
-  HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA,
   applyFreePumpStroke as applyFreeRuntimePumpStroke,
   createDefaultFreePhysicsState,
   deriveFreePhysicalState,
@@ -62,12 +58,6 @@ import {
   type HeatCapacityFreePhysicsConfig,
   type HeatCapacityFreePhysicsState,
 } from '../../domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
-import {
-  normalizeFreeThermalConfig,
-} from '../../domain/heatCapacity/heatCapacityFreeThermalModel.ts';
-import {
-  normalizeFreeLeakageConfig,
-} from '../../domain/heatCapacity/heatCapacityFreeLeakageModel.ts';
 import {
   normalizeFreePumpValveExchangeConfig,
 } from '../../domain/heatCapacity/heatCapacityFreePumpValveExchangeModel.ts';
@@ -83,9 +73,6 @@ import {
   type HeatCapacityFreeSensorConfig,
   type HeatCapacityFreeSensorState,
 } from '../../domain/heatCapacity/heatCapacityFreeSensorModel.ts';
-import {
-  normalizeFreePressureSensorNonlinearityConfig,
-} from '../../domain/heatCapacity/heatCapacityFreePressureSensorNonlinearityModel.ts';
 import {
   applyFreeZeroCalibration,
   captureAutomaticU0IfReady,
@@ -120,7 +107,6 @@ import {
   appendFreeTraceEvent,
   appendFreeTraceSample,
   compactFreeTraceBranch,
-  createDefaultFreeConfigSnapshot,
   createDefaultFreeTraceStore,
   createFreeTraceTrial,
   HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S,
@@ -131,6 +117,21 @@ import {
   type HeatCapacityFreeTraceStore,
   type HeatCapacityFreeTraceTrial,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
+import {
+  createHeatCapacityFreeConfigSnapshotFromFile,
+} from './workbenchHeatCapacityFreeConfigSnapshot.ts';
+import {
+  DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
+  DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
+  normalizeHeatCapacityFreePhysicsConfig,
+  normalizeHeatCapacityFreeSensorConfig,
+} from './workbenchHeatCapacityFreeRuntimeConfig.ts';
+export {
+  DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG,
+  DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
+  DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
+  normalizeHeatCapacityFreePhysicsConfig,
+} from './workbenchHeatCapacityFreeRuntimeConfig.ts';
 import {
   selectHeatCapacityDisplaySource,
   type HeatCapacityDisplaySource,
@@ -145,6 +146,7 @@ import {
   createHeatCapacityFreeParameterDraftFromConfigs,
   getHeatCapacityFreeGasTypeGamma,
   getHeatCapacityFreeGasTypeModelDefaults,
+  getHeatCapacityFreeIdealTheoreticalGamma,
   getEffectiveHeatCapacityFreeSensorConfig,
   normalizeHeatCapacityFreeParameterDraft,
   normalizeHeatCapacityFreeGasType,
@@ -313,29 +315,6 @@ export const HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER:
 export const HEAT_CAPACITY_FREE_ACCELERATED_SAMPLE_STEP_S = HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S;
 const HEAT_CAPACITY_FREE_ACCELERATED_MAX_SEGMENTS = 600;
 const HEAT_CAPACITY_GUIDE_RELEASE_TARGET_S = 0.35;
-export const DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG: HeatCapacityFreeEnvironmentConfig = {
-  ...createDefaultHeatCapacityEnvironmentConfig(),
-};
-export const DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG: HeatCapacityFreePhysicsConfig =
-  createDefaultHeatCapacityFreePhysicsConfig();
-export const DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG: HeatCapacityFreeSensorConfig =
-  createDefaultHeatCapacityFreeSensorConfig();
-const normalizeHeatCapacityFreeSensorConfig = (
-  config: Partial<HeatCapacityFreeSensorConfig> | null | undefined,
-): HeatCapacityFreeSensorConfig => ({
-  ...DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
-  ...config,
-  lagRate: clampNumber(
-    finiteNumberOr(config?.lagRate, DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.lagRate),
-    0.01,
-    60,
-  ),
-  minSampleIntervalS: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.minSampleIntervalS,
-  maxSampleIntervalS: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.maxSampleIntervalS,
-  pressureNonlinearity: normalizeFreePressureSensorNonlinearityConfig(
-    config?.pressureNonlinearity ?? DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.pressureNonlinearity,
-  ),
-});
 export const normalizeHeatCapacityFreeEquilibriumSpeedMultiplier = (
   value: unknown,
 ): WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier => (
@@ -346,53 +325,6 @@ export const normalizeHeatCapacityFreeEquilibriumSpeedMultiplier = (
     : HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER
 );
 
-const finiteNumberOr = (value: unknown, fallback: number) => (
-  typeof value === 'number' && Number.isFinite(value) ? value : fallback
-);
-
-export const normalizeHeatCapacityFreePhysicsConfig = (
-  value: Partial<HeatCapacityFreePhysicsConfig> | null | undefined,
-): HeatCapacityFreePhysicsConfig => {
-  const environment = {
-    ambientPressureKPa: finiteNumberOr(
-      value?.environment?.ambientPressureKPa,
-      DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG.ambientPressureKPa,
-    ),
-    ambientTemperatureK: finiteNumberOr(
-      value?.environment?.ambientTemperatureK,
-      DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG.ambientTemperatureK,
-    ),
-  };
-  return {
-    environment,
-    vesselVolumeL: DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.vesselVolumeL,
-    gamma: Math.max(1.001, finiteNumberOr(
-      value?.gamma,
-      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.gamma,
-    )),
-    pumpAmountGainRatio: DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpAmountGainRatio,
-    pumpPressureLimitKPa: clampNumber(
-      Math.max(0.001, finiteNumberOr(
-        value?.pumpPressureLimitKPa,
-        DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpPressureLimitKPa,
-      )),
-      0.001,
-      HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA,
-    ),
-    stopcockFlowRate: Math.max(0, finiteNumberOr(
-      value?.stopcockFlowRate,
-      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.stopcockFlowRate,
-    )),
-    thermal: normalizeFreeThermalConfig(value?.thermal),
-    pumpValveExchange: normalizeFreePumpValveExchangeConfig(
-      value?.pumpValveExchange ?? DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpValveExchange,
-    ),
-    environmentDisturbance: normalizeFreeEnvironmentDisturbanceConfig(
-      value?.environmentDisturbance ?? DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.environmentDisturbance,
-    ),
-    leakage: normalizeFreeLeakageConfig(value?.leakage),
-  };
-};
 export const HEAT_CAPACITY_PRESSURE_ZERO_TOTAL_TURNS = 3;
 export const HEAT_CAPACITY_PRESSURE_ZERO_RANGE_MV = 1.5;
 export const HEAT_CAPACITY_PRESSURE_ZERO_OFFSET_MIN_MV = -1.5;
@@ -991,6 +923,22 @@ export const createDefaultHeatCapacityFreeFileAcknowledgements = (): HeatCapacit
   idealParameterProfileIntro: false,
 });
 
+const isHeatCapacityFreeAcknowledgementRecord = (value: unknown): value is Record<string, unknown> => (
+  typeof value === 'object' && value !== null
+);
+
+export const normalizeHeatCapacityFreeFileAcknowledgements = (
+  value: unknown,
+): HeatCapacityFreeFileAcknowledgements => {
+  const record = isHeatCapacityFreeAcknowledgementRecord(value) ? value : {};
+  return {
+    advancedParametersRisk:
+      record.advancedParametersRisk === true ||
+      record.advancedRiskAccepted === true,
+    idealParameterProfileIntro: record.idealParameterProfileIntro === true,
+  };
+};
+
 export type HeatCapacityFreeParameterScheme = 'real' | 'ideal';
 export type HeatCapacityFreeDisplayScheme = HeatCapacityFreeParameterScheme;
 
@@ -1457,7 +1405,7 @@ export const freezeHeatCapacityFreeParametersForCurrentGroup = (
   return {
     ...appliedFile,
     heatCapacityFreeExperimentGroupStatus: 'running',
-    heatCapacityFreeActiveRunConfigSnapshot: createHeatCapacityFreeConfigSnapshotFromFile(appliedFile),
+    heatCapacityFreeActiveRunConfigSnapshot: createHeatCapacityFreeRuntimeConfigSnapshotFromFile(appliedFile),
   };
 };
 
@@ -1485,7 +1433,7 @@ export const acknowledgeHeatCapacityFreeFileNoticeWorkbenchState = (
 ): WorkbenchHeatCapacityState => ({
   ...file,
   heatCapacityFreeFileAcknowledgements: {
-    ...file.heatCapacityFreeFileAcknowledgements,
+    ...normalizeHeatCapacityFreeFileAcknowledgements(file.heatCapacityFreeFileAcknowledgements),
     [notice]: true,
   },
 });
@@ -1553,7 +1501,7 @@ const getHeatCapacityRuntimeStateFromFile = (
 
 const getStatsPhaseForHeatCapacity = (
   file: WorkbenchHeatCapacityState,
-  runtime: HeatCapacityRuntimeState,
+  _runtime: HeatCapacityRuntimeState,
 ): SimulationStats['phase'] => {
   if (file.runState === 'running') return 'collecting';
   return 'idle';
@@ -1901,51 +1849,19 @@ const mergeHeatCapacityFreeRuntimeState = (
   };
 };
 
-const createHeatCapacityFreeConfigSnapshotFromFile = (
+const createHeatCapacityFreeRuntimeConfigSnapshotFromFile = (
   file: WorkbenchHeatCapacityState,
 ) => {
-  const fallback = createDefaultFreeConfigSnapshot();
   const sensorConfig = getEffectiveHeatCapacityFreeSensorConfig(
     normalizeHeatCapacityFreeSensorConfig(file.heatCapacityFreeSensorConfig),
     file.heatCapacityFreeInstrumentNoiseEnabled,
   );
   const recordConfig = file.heatCapacityFreeRecordConfig ?? createDefaultHeatCapacityFreeRecordConfig();
-  return {
-    ...fallback,
-    environment: { ...file.heatCapacityFreeEnvironmentConfig },
-    physics: {
-      ...fallback.physics,
-      gamma: file.heatCapacityFreePhysicsConfig.gamma,
-      vesselVolumeL: fallback.physics.vesselVolumeL,
-      pumpAmountGainRatio: fallback.physics.pumpAmountGainRatio,
-      pumpPressureLimitKPa: file.heatCapacityFreePhysicsConfig.pumpPressureLimitKPa,
-      stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
-      thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
-      pumpValveExchange: normalizeFreePumpValveExchangeConfig(
-        file.heatCapacityFreePhysicsConfig.pumpValveExchange,
-      ),
-      environmentDisturbance: normalizeFreeEnvironmentDisturbanceConfig(
-        file.heatCapacityFreePhysicsConfig.environmentDisturbance,
-      ),
-      leakage: { ...file.heatCapacityFreePhysicsConfig.leakage },
-    },
-    sensor: {
-      ...fallback.sensor,
-      ...sensorConfig,
-    },
-    record: {
-      ...fallback.record,
-      u0ZeroToleranceMv: recordConfig.u0ZeroToleranceMv,
-      pressureStableSlopeMvPerS: recordConfig.pressureStableSlopeMvPerS,
-      temperatureStableSlopeMvPerS: recordConfig.temperatureStableSlopeMvPerS,
-      temperatureAmbientToleranceMv: recordConfig.temperatureAmbientToleranceMv,
-      minimumUsefulU1CorrectedMv: recordConfig.minimumUsefulU1CorrectedMv,
-      overVentedMinimumU2CorrectedMv: recordConfig.overVentedMinimumU2CorrectedMv,
-      pressureWarningMv: file.heatCapacityFreePressureWarningMv,
-      pressureDangerMv: recordConfig.pressureDangerMv,
-    },
-    scoring: { ...fallback.scoring },
-  };
+  return createHeatCapacityFreeConfigSnapshotFromFile(file, {
+    environmentConfig: file.heatCapacityFreeEnvironmentConfig,
+    sensorConfig,
+    recordConfig,
+  });
 };
 
 const ensureActiveHeatCapacityFreeTraceTrial = (
@@ -1960,7 +1876,7 @@ const ensureActiveHeatCapacityFreeTraceTrial = (
   }
   const { store } = createFreeTraceTrial(
     file.heatCapacityFreeTraceStore,
-    createHeatCapacityFreeConfigSnapshotFromFile(file),
+    createHeatCapacityFreeRuntimeConfigSnapshotFromFile(file),
   );
   return {
     ...file,
@@ -2290,7 +2206,7 @@ const getHeatCapacityFreeReviewTheoreticalGamma = (
   file: WorkbenchHeatCapacityState,
   trial: HeatCapacityFreeTrial,
 ) => (
-  trial.parameterScheme === 'ideal' ? 1.4 : file.theoreticalGamma
+  trial.parameterScheme === 'ideal' ? getHeatCapacityFreeIdealTheoreticalGamma() : file.theoreticalGamma
 );
 
 const createStandardReferenceSnapshotForCompletedFreeTrial = (
@@ -4688,6 +4604,13 @@ export const selectDisplayedHeatCapacityFreeDomain = (
   selectHeatCapacityFreeDomain(file, file.heatCapacityFreeDisplayScheme)
 );
 
+export const getHeatCapacityFreeDisplayTheoreticalGamma = (
+  file: WorkbenchHeatCapacityState,
+  scheme: HeatCapacityFreeDisplayScheme = file.heatCapacityFreeDisplayScheme,
+) => (
+  scheme === 'ideal' ? getHeatCapacityFreeIdealTheoreticalGamma() : file.theoreticalGamma
+);
+
 export const getHeatCapacityFreeTrialsForAverage = (
   file: WorkbenchHeatCapacityState,
 ): HeatCapacityFreeTrial[] => (
@@ -4720,7 +4643,7 @@ export const normalizeHeatCapacityFreeExperimentDomainBoundary = (
       scheme: 'ideal',
       physicsConfig: {
         ...physicsConfig,
-        gamma: getHeatCapacityFreeGasTypeGamma('air'),
+        gamma: getHeatCapacityFreeIdealTheoreticalGamma(),
       },
       trials: withHeatCapacityFreeTrialsParameterScheme(domain.trials, 'ideal'),
     };

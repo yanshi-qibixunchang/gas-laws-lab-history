@@ -5,6 +5,7 @@ import type {
   HeatCapacityProcessChartData,
   HeatCapacityProcessControlEvent,
   HeatCapacityProcessControlKind,
+  HeatCapacityProcessDiagnosisRow,
   HeatCapacityProcessDiagnosisStatus,
   HeatCapacityProcessRecordEvent,
   HeatCapacityProcessStageId,
@@ -41,6 +42,7 @@ interface HeatCapacityProcessReviewCopy {
   timelineTitle: string;
   timelineSubtitle: string;
   controlLegendAria: string;
+  chartLegendAria: (title: string) => string;
   stageLabels: Record<HeatCapacityProcessStageId, string>;
   controlLabels: Record<HeatCapacityProcessControlKind, string>;
   systemLabels: Record<HeatCapacityProcessSystemKind, string>;
@@ -182,6 +184,7 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     timelineTitle: '阶段时间轴',
     timelineSubtitle: '记录事件 / 控件事件 / 系统标签',
     controlLegendAria: '控件事件图例',
+    chartLegendAria: (title: string) => `${title}图例`,
     stageLabels: stageLabelsZhCn,
     controlLabels,
     systemLabels: {
@@ -249,6 +252,7 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     timelineTitle: '階段時間軸',
     timelineSubtitle: '記錄事件 / 控件事件 / 系統標籤',
     controlLegendAria: '控件事件圖例',
+    chartLegendAria: (title: string) => `${title}圖例`,
     stageLabels: {
       zero: '調零',
       fill: '快速充氣',
@@ -334,6 +338,7 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     timelineTitle: 'Stage timeline',
     timelineSubtitle: 'Record events / control events / system tags',
     controlLegendAria: 'Control event legend',
+    chartLegendAria: (title: string) => `${title} legend`,
     stageLabels: {
       zero: 'Zero',
       fill: 'Fast fill',
@@ -485,6 +490,244 @@ const normalizeDiagnosisText = (value: string | null | undefined, fallback = '�
     .replace(/\s+/g, ' ')
     .trim();
   return text || fallback;
+};
+
+type LocalizedProcessDiagnosisDetail = NonNullable<HeatCapacityProcessDiagnosisRow['details']>[number] & {
+  localizedLabel: string;
+  localizedEvidence: string;
+  localizedReason: string;
+  localizedRecommendation: string;
+};
+
+interface LocalizedProcessDiagnosisRow {
+  id: HeatCapacityProcessDiagnosisRow['id'];
+  title: string;
+  status: HeatCapacityProcessDiagnosisStatus;
+  evidence: string;
+  relation?: string;
+  recommendation: string;
+  score?: number | null;
+  maxScore?: number | null;
+  details: LocalizedProcessDiagnosisDetail[];
+}
+
+const diagnosisItemLabelsByLanguage: Record<
+  HeatCapacityProcessReviewLanguage,
+  Partial<Record<HeatCapacityProcessDiagnosisRow['id'], string>>
+> = {
+  'zh-CN': {},
+  'zh-TW': {
+    pumping: '打氣過程',
+    release: '放氣操作',
+    recording: '記錄鏈路',
+    retake: '重錄情況',
+  },
+  en: {
+    pumping: 'Pumping process',
+    release: 'Release operation',
+    recording: 'Record chain',
+    retake: 'Retake status',
+  },
+};
+
+const diagnosisDetailLabelsByLanguage: Record<HeatCapacityProcessReviewLanguage, Record<string, string>> = {
+  'zh-CN': {},
+  'zh-TW': {
+    'pumping-pressure-target': '目標壓強',
+    'pumping-safety': '安全提示',
+    'pumping-rhythm': '打氣節奏',
+    'pumping-stability': '穩定等待',
+    'release-valve': '開閥放氣',
+    'release-response': '泄放響應',
+    'release-recover': '關閥回溫',
+    'release-retention': 'U2 保留量',
+    'record-chain-completeness': '資料完整性',
+    'record-chain-result': '結果合理性',
+    'record-chain-zeroing': '調零與 U0',
+    'record-chain-timing': '記錄時機',
+    'retake-count': '重錄情況',
+  },
+  en: {
+    'pumping-pressure-target': 'Target pressure',
+    'pumping-safety': 'Safety prompts',
+    'pumping-rhythm': 'Pumping rhythm',
+    'pumping-stability': 'Stability wait',
+    'release-valve': 'Valve release',
+    'release-response': 'Release response',
+    'release-recover': 'Closed-valve recovery',
+    'release-retention': 'U2 retention',
+    'record-chain-completeness': 'Data completeness',
+    'record-chain-result': 'Result quality',
+    'record-chain-zeroing': 'Zeroing and U0',
+    'record-chain-timing': 'Record timing',
+    'retake-count': 'Retake status',
+  },
+};
+
+const diagnosisStatusTextByLanguage: Record<
+  HeatCapacityProcessReviewLanguage,
+  Record<HeatCapacityProcessDiagnosisStatus, {
+    evidence: (label: string, scoreText: string) => string;
+    relation: string;
+    recommendation: string;
+    detailReason: string;
+  }>
+> = {
+  'zh-CN': {
+    reasonable: {
+      evidence: (label, scoreText) => `${label}：${scoreText}`,
+      relation: '当前判据内表现正常',
+      recommendation: '保持当前操作',
+      detailReason: '该项满足当前判据',
+    },
+    review: {
+      evidence: (label, scoreText) => `${label}：${scoreText}`,
+      relation: '结果可审核，但仍有偏差来源',
+      recommendation: '结合曲线复核相关操作',
+      detailReason: '该项需要结合曲线复核',
+    },
+    'needs-improvement': {
+      evidence: (label, scoreText) => `${label}：${scoreText}`,
+      relation: '该项已经明显影响结果',
+      recommendation: '下一组优先修正该步骤',
+      detailReason: '该项偏离当前判据',
+    },
+    retaken: {
+      evidence: (label, scoreText) => `${label}：${scoreText}`,
+      relation: '存在退回或重录分支',
+      recommendation: '对比分支定位退回原因',
+      detailReason: '该项包含重录信息',
+    },
+    'insufficient-data': {
+      evidence: (label, scoreText) => `${label}：${scoreText}`,
+      relation: '数据不足，无法完成判断',
+      recommendation: '补全本组记录后再查看诊断',
+      detailReason: '该项缺少必要记录',
+    },
+  },
+  'zh-TW': {
+    reasonable: {
+      evidence: (label, scoreText) => `${label}：${scoreText}`,
+      relation: '目前判據內表現正常',
+      recommendation: '保持目前操作',
+      detailReason: '該項符合目前判據',
+    },
+    review: {
+      evidence: (label, scoreText) => `${label}：${scoreText}`,
+      relation: '結果可審核，但仍有偏差來源',
+      recommendation: '結合曲線複核相關操作',
+      detailReason: '該項需要結合曲線複核',
+    },
+    'needs-improvement': {
+      evidence: (label, scoreText) => `${label}：${scoreText}`,
+      relation: '該項已經明顯影響結果',
+      recommendation: '下一組優先修正該步驟',
+      detailReason: '該項偏離目前判據',
+    },
+    retaken: {
+      evidence: (label, scoreText) => `${label}：${scoreText}`,
+      relation: '存在退回或重錄分支',
+      recommendation: '對比分支定位退回原因',
+      detailReason: '該項包含重錄資訊',
+    },
+    'insufficient-data': {
+      evidence: (label, scoreText) => `${label}：${scoreText}`,
+      relation: '資料不足，無法完成判斷',
+      recommendation: '補全本組記錄後再查看診斷',
+      detailReason: '該項缺少必要記錄',
+    },
+  },
+  en: {
+    reasonable: {
+      evidence: (label, scoreText) => `${label}: ${scoreText}`,
+      relation: 'This item is within the current criteria',
+      recommendation: 'Keep the current operation',
+      detailReason: 'This item meets the current criteria',
+    },
+    review: {
+      evidence: (label, scoreText) => `${label}: ${scoreText}`,
+      relation: 'The result is reviewable, with remaining error sources',
+      recommendation: 'Review this operation against the curve',
+      detailReason: 'This item should be reviewed with the curve',
+    },
+    'needs-improvement': {
+      evidence: (label, scoreText) => `${label}: ${scoreText}`,
+      relation: 'This item is already affecting the result',
+      recommendation: 'Prioritize this step in the next trial',
+      detailReason: 'This item is outside the current criteria',
+    },
+    retaken: {
+      evidence: (label, scoreText) => `${label}: ${scoreText}`,
+      relation: 'Backtracked or retaken branches exist',
+      recommendation: 'Compare branches to locate the cause',
+      detailReason: 'This item includes retake information',
+    },
+    'insufficient-data': {
+      evidence: (label, scoreText) => `${label}: ${scoreText}`,
+      relation: 'There is not enough data to judge this item',
+      recommendation: 'Complete the trial records before reviewing diagnostics',
+      detailReason: 'This item is missing required records',
+    },
+  },
+};
+
+const getLocalizedDiagnosisScoreText = (
+  score: number | null | undefined,
+  maxScore: number | null | undefined,
+  statusLabel: string,
+) => (
+  typeof score === 'number' && Number.isFinite(score) &&
+  typeof maxScore === 'number' && Number.isFinite(maxScore)
+    ? formatScore(score, maxScore)
+    : statusLabel
+);
+
+const localizeProcessDiagnosisRow = (
+  row: HeatCapacityProcessDiagnosisRow,
+  language: HeatCapacityProcessReviewLanguage,
+  copy: HeatCapacityProcessReviewCopy,
+): LocalizedProcessDiagnosisRow => {
+  if (language === 'zh-CN') {
+    return {
+      ...row,
+      details: row.details?.map((detail) => ({
+        ...detail,
+        localizedLabel: detail.label,
+        localizedEvidence: detail.evidence,
+        localizedReason: detail.reason,
+        localizedRecommendation: detail.recommendation,
+      })) ?? [],
+    };
+  }
+
+  const itemLabels = diagnosisItemLabelsByLanguage[language];
+  const detailLabels = diagnosisDetailLabelsByLanguage[language];
+  const statusText = diagnosisStatusTextByLanguage[language][row.status];
+  const title = itemLabels[row.id] ?? row.title;
+  const scoreText = getLocalizedDiagnosisScoreText(
+    row.score,
+    row.maxScore,
+    copy.diagnosisStatusLabels[row.status],
+  );
+
+  return {
+    ...row,
+    title,
+    evidence: statusText.evidence(title, scoreText),
+    relation: statusText.relation,
+    recommendation: statusText.recommendation,
+    details: row.details?.map((detail) => {
+      const label = detailLabels[detail.id] ?? detail.label;
+      const detailStatusText = diagnosisStatusTextByLanguage[language][detail.status];
+      return {
+        ...detail,
+        localizedLabel: label,
+        localizedEvidence: detailStatusText.evidence(label, formatScore(detail.score, detail.maxScore)),
+        localizedReason: detailStatusText.detailReason,
+        localizedRecommendation: detailStatusText.recommendation,
+      };
+    }) ?? [],
+  };
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -909,7 +1152,7 @@ const ProcessChart: React.FC<{
           <span>{title}</span>
           <small>{subtitle}</small>
         </div>
-        <div className="hpr-chart-line-legend" aria-label={`${title} legend`}>
+        <div className="hpr-chart-line-legend" aria-label={copy.chartLegendAria(title)}>
           <span className="hpr-line-legend hpr-line-legend-trace">{copy.measured}</span>
           <span className="hpr-line-legend hpr-line-legend-standard-process">{copy.standardReference}</span>
           <span
@@ -1260,7 +1503,8 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
         </div>
         <div className="hpr-diagnosis-list">
           {review.diagnostics.map((row) => {
-            const details = row.details ?? [];
+            const localizedRow = localizeProcessDiagnosisRow(row, language, copy);
+            const details = localizedRow.details;
             const expanded = expandedDiagnosisRows.has(row.id);
             return (
               <React.Fragment key={row.id}>
@@ -1269,34 +1513,34 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
                     <button
                       type="button"
                       className={`hpr-diagnosis-expand ${expanded ? 'hpr-diagnosis-expand-open' : ''}`}
-                      aria-label={`${expanded ? copy.collapse : copy.expand}${row.title}${copy.scoreDetailSuffix}`}
+                      aria-label={`${expanded ? copy.collapse : copy.expand}${localizedRow.title}${copy.scoreDetailSuffix}`}
                       aria-expanded={expanded}
                       disabled={details.length === 0}
                       onClick={() => toggleDiagnosisRow(row.id)}
                     >
                       <ChevronRight aria-hidden="true" size={14} strokeWidth={2.2} />
                     </button>
-                    <strong>{row.title}</strong>
+                    <strong>{localizedRow.title}</strong>
                   </div>
-                  <span className="hpr-diagnosis-summary-cell">{normalizeDiagnosisText(row.evidence, copy.noIssue)}</span>
-                  <span className="hpr-diagnosis-summary-cell">{normalizeDiagnosisText(row.relation ?? '--', copy.noIssue)}</span>
-                  <span className="hpr-diagnosis-summary-cell">{normalizeDiagnosisText(row.recommendation, copy.noIssue)}</span>
-                  <em className={`hpr-diagnosis-status hpr-diagnosis-status-${row.status}`}>
+                  <span className="hpr-diagnosis-summary-cell">{normalizeDiagnosisText(localizedRow.evidence, copy.noIssue)}</span>
+                  <span className="hpr-diagnosis-summary-cell">{normalizeDiagnosisText(localizedRow.relation ?? '--', copy.noIssue)}</span>
+                  <span className="hpr-diagnosis-summary-cell">{normalizeDiagnosisText(localizedRow.recommendation, copy.noIssue)}</span>
+                  <em className={`hpr-diagnosis-status hpr-diagnosis-status-${localizedRow.status}`}>
                     {isIdealExperimentReview
                       ? '--'
-                      : typeof row.score === 'number' && typeof row.maxScore === 'number'
-                      ? formatScore(row.score, row.maxScore)
-                      : copy.diagnosisStatusLabels[row.status]}
+                      : typeof localizedRow.score === 'number' && typeof localizedRow.maxScore === 'number'
+                      ? formatScore(localizedRow.score, localizedRow.maxScore)
+                      : copy.diagnosisStatusLabels[localizedRow.status]}
                   </em>
                 </div>
                 {expanded && details.length > 0 ? (
                   <div className="hpr-diagnosis-details" data-hpr-diagnosis-details={row.id}>
                     {details.map((detail) => (
                       <div className="hpr-diagnosis-detail-row" key={detail.id}>
-                        <strong>{detail.label}</strong>
-                        <span>{normalizeDiagnosisText(detail.evidence, copy.noIssue)}</span>
-                        <span>{normalizeDiagnosisText(detail.reason, copy.noIssue)}</span>
-                        <span>{normalizeDiagnosisText(detail.recommendation, copy.noIssue)}</span>
+                        <strong>{detail.localizedLabel}</strong>
+                        <span>{normalizeDiagnosisText(detail.localizedEvidence, copy.noIssue)}</span>
+                        <span>{normalizeDiagnosisText(detail.localizedReason, copy.noIssue)}</span>
+                        <span>{normalizeDiagnosisText(detail.localizedRecommendation, copy.noIssue)}</span>
                         <em className={`hpr-diagnosis-status hpr-diagnosis-status-${detail.status}`}>
                           {isIdealExperimentReview ? '--' : formatScore(detail.score, detail.maxScore)}
                         </em>

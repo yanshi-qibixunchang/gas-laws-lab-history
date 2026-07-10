@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   acknowledgeHeatCapacityFreeFileNoticeWorkbenchState,
   applyHeatCapacityFreeParameterDraftWorkbenchState,
   captureHeatCapacityFreeRollbackSnapshot,
   HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
   createDefaultHeatCapacityFile,
+  freezeHeatCapacityFreeParametersForCurrentGroup,
   getHeatCapacityFreeTrialsForAverage,
   recordHeatCapacityFreeTraceEvent,
   setHeatCapacityFreeParameterSchemeWorkbenchState,
@@ -26,6 +29,9 @@ import {
   createHeatCapacityFreeStandardReference,
 } from '../../src/domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
 import {
+  createHeatCapacityGuideTrial,
+} from '../../src/domain/heatCapacity/heatCapacityGuideTrialModel.ts';
+import {
   createHeatCapacityPersistencePayload,
   getHeatCapacityPersistenceReplayFields,
   restoreHeatCapacityFileFromPersistencePayload,
@@ -39,6 +45,173 @@ import {
 import {
   createCompleteProcessReviewFixtureParts,
 } from './helpers/heatCapacityProcessReviewTestFactory.ts';
+
+const restoreNormalizationPath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityFreeRestoreNormalization.ts',
+);
+const restoreNormalizationSource = existsSync(restoreNormalizationPath)
+  ? readFileSync(restoreNormalizationPath, 'utf8')
+  : '';
+const heatCapacityPersistenceSource = readFileSync(
+  join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityPersistence.ts'),
+  'utf8',
+);
+const persistenceContractPath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityPersistenceContract.ts',
+);
+const persistenceContractSource = existsSync(persistenceContractPath)
+  ? readFileSync(persistenceContractPath, 'utf8')
+  : '';
+const guidePersistencePath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityGuidePersistence.ts',
+);
+const guidePersistenceSource = existsSync(guidePersistencePath)
+  ? readFileSync(guidePersistencePath, 'utf8')
+  : '';
+const configSnapshotPath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityFreeConfigSnapshot.ts',
+);
+const configSnapshotSource = existsSync(configSnapshotPath)
+  ? readFileSync(configSnapshotPath, 'utf8')
+  : '';
+const workbenchSessionSource = readFileSync(
+  join(process.cwd(), 'src', 'features', 'workbench', 'workbenchSession.ts'),
+  'utf8',
+);
+const stateSource = readFileSync(
+  join(process.cwd(), 'src', 'features', 'workbench', 'workbenchState.ts'),
+  'utf8',
+);
+const heatCapacitySessionRestoreSource = readFileSync(
+  join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacitySessionRestore.ts'),
+  'utf8',
+);
+
+assert.equal(
+  existsSync(restoreNormalizationPath),
+  true,
+  'Free restore normalization must live in a shared module used by .hsl and session restore.',
+);
+assert.equal(
+  existsSync(persistenceContractPath),
+  true,
+  'Heat Capacity persistence schema and UI replay fields must live in a dedicated contract module.',
+);
+assert.match(persistenceContractSource, /export const HEAT_CAPACITY_SCHEMA_VERSION/);
+assert.match(persistenceContractSource, /export const createHeatCapacityFreeUiReplay/);
+assert.match(persistenceContractSource, /export const normalizeHeatCapacityFreeUiReplay/);
+assert.match(persistenceContractSource, /export const validateHeatCapacityPersistencePayload/);
+assert.match(persistenceContractSource, /export interface HeatCapacityPersistencePayloadV1/);
+assert.match(
+  heatCapacityPersistenceSource,
+  /from '\.\/workbenchHeatCapacityPersistenceContract\.ts'/,
+);
+assert.doesNotMatch(heatCapacityPersistenceSource, /const heatCapacityFreeUiReplayKeys\s*=/);
+assert.doesNotMatch(heatCapacityPersistenceSource, /export interface HeatCapacityPersistencePayloadV1/);
+assert.doesNotMatch(
+  heatCapacityPersistenceSource,
+  /export const validateHeatCapacityPersistencePayload\s*=/,
+);
+assert.equal(
+  existsSync(guidePersistencePath),
+  true,
+  'Guide persistence save and restore rules must live outside the Free persistence flow.',
+);
+assert.match(guidePersistenceSource, /export const createHeatCapacityGuidePersistenceData/);
+assert.match(guidePersistenceSource, /export const restoreHeatCapacityGuidePersistenceFields/);
+assert.match(
+  heatCapacityPersistenceSource,
+  /from '\.\/workbenchHeatCapacityGuidePersistence\.ts'/,
+);
+assert.doesNotMatch(heatCapacityPersistenceSource, /const guideWorkflowSteps\s*=/);
+assert.equal(
+  existsSync(configSnapshotPath),
+  true,
+  'Free configuration snapshot mapping must be shared by runtime freeze and file persistence.',
+);
+assert.match(configSnapshotSource, /export const createHeatCapacityFreeConfigSnapshotFromFile/);
+assert.match(
+  heatCapacityPersistenceSource,
+  /from '\.\/workbenchHeatCapacityFreeConfigSnapshot\.ts'/,
+);
+assert.match(stateSource, /from '\.\/workbenchHeatCapacityFreeConfigSnapshot\.ts'/);
+assert.doesNotMatch(
+  heatCapacityPersistenceSource,
+  /export const createHeatCapacityFreeConfigSnapshotFromFile\s*=/,
+);
+assert.doesNotMatch(
+  stateSource,
+  /const createHeatCapacityFreeConfigSnapshotFromFile\s*=/,
+);
+assert.match(
+  restoreNormalizationSource,
+  /export const normalizeHeatCapacityFreeRestoreConfigSnapshot/,
+);
+assert.match(
+  restoreNormalizationSource,
+  /export const normalizeHeatCapacityFreeRestoreTrial/,
+);
+assert.match(
+  restoreNormalizationSource,
+  /export const normalizeHeatCapacityFreeRestoreTraceStore/,
+);
+assert.match(
+  restoreNormalizationSource,
+  /export const normalizeHeatCapacityFreeRestoreExperimentDomain/,
+);
+assert.match(
+  heatCapacityPersistenceSource,
+  /normalizeHeatCapacityFreeRestoreConfigSnapshot/,
+);
+assert.match(
+  heatCapacityPersistenceSource,
+  /normalizeHeatCapacityFreeRestoreTrial/,
+);
+assert.match(
+  heatCapacitySessionRestoreSource,
+  /normalizeHeatCapacityFreeRestoreConfigSnapshot/,
+);
+assert.match(
+  heatCapacitySessionRestoreSource,
+  /normalizeHeatCapacityFreeRestoreTraceStore/,
+);
+assert.match(
+  heatCapacitySessionRestoreSource,
+  /normalizeHeatCapacityFreeRestoreExperimentDomain/,
+);
+assert.doesNotMatch(
+  heatCapacityPersistenceSource,
+  /const normalizeHeatCapacityFreeConfigSnapshot\s*=/,
+);
+assert.doesNotMatch(
+  heatCapacitySessionRestoreSource,
+  /const normalizeHeatCapacityFreeConfigSnapshot\s*=/,
+);
+assert.doesNotMatch(
+  heatCapacityPersistenceSource,
+  /const normalizePersistedHeatCapacityFreeTrial\s*=/,
+);
+assert.doesNotMatch(
+  heatCapacitySessionRestoreSource,
+  /const normalizeHeatCapacityFree(TraceBranch|TraceTrial|TraceStore|SessionDomain)\s*=/,
+);
+assert.match(workbenchSessionSource, /normalizeHeatCapacitySessionRuntimeState/);
 
 const file = createDefaultHeatCapacityFile(1);
 const payload = createHeatCapacityPersistencePayload(file, 12345);
@@ -89,11 +262,72 @@ assert.equal(payload.free?.uiReplay.hardSphereViewEnabled, file.hardSphereViewEn
 assert.equal(payload.free?.uiReplay.heatCapacityFreeStopcockFlowPurpose, 'none');
 assert.equal('references' in payload.free!, false);
 
+const noiseDisabledFile = {
+  ...file,
+  heatCapacityFreeInstrumentNoiseEnabled: false,
+  heatCapacityFreeParameterDraft: {
+    ...file.heatCapacityFreeParameterDraft,
+    instrumentNoiseEnabled: false,
+  },
+};
+const frozenNoiseDisabledFile = freezeHeatCapacityFreeParametersForCurrentGroup(noiseDisabledFile);
+assert.equal(
+  frozenNoiseDisabledFile.heatCapacityFreeActiveRunConfigSnapshot?.sensor.noiseMv,
+  0,
+  'runtime parameter freeze should snapshot the effective disabled-noise sensor configuration',
+);
+assert.equal(
+  createHeatCapacityPersistencePayload(noiseDisabledFile, 12345).free?.config.sensor.noiseMv,
+  noiseDisabledFile.heatCapacityFreeSensorConfig.noiseMv,
+  'file persistence should retain the configured noise magnitude separately from the enabled flag',
+);
+
 const acknowledgedIntroPayload = createHeatCapacityPersistencePayload({
   ...file,
   heatCapacityLessonIntroAutoShown: true,
 }, 12346);
 assert.equal(acknowledgedIntroPayload.common.lessonIntroAutoShown, true);
+
+const guidePersistenceFile = {
+  ...file,
+  heatCapacityMode: 'guide' as const,
+  heatCapacityGuidePhysicsState: {
+    ...file.heatCapacityGuidePhysicsState,
+    simulationTimeS: 42,
+    pumpStrokeCount: 4,
+  },
+  heatCapacityGuideWorkflow: {
+    ...file.heatCapacityGuideWorkflow,
+    step: 'u1Waiting' as const,
+    speedMultiplier: 8 as const,
+    paused: true,
+    waitStartedAtS: 21,
+    waitStage: 'u1' as const,
+  },
+  heatCapacityGuideTrial: createHeatCapacityGuideTrial('guide-persistence-trial'),
+};
+const guidePersistencePayload = createHeatCapacityPersistencePayload(guidePersistenceFile, 12347);
+assert.equal(guidePersistencePayload.guided?.workflow.step, 'u1Waiting');
+assert.equal(guidePersistencePayload.guided?.physicsState.simulationTimeS, 42);
+assert.equal(guidePersistencePayload.guided?.trial?.id, 'guide-persistence-trial');
+const restoredGuidePersistenceFile = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'guide-persistence-file',
+  kind: 'heatCapacity',
+  name: 'Guide Persistence',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: guidePersistencePayload as unknown as Record<string, unknown>,
+}, guidePersistencePayload, 1);
+assert.equal(restoredGuidePersistenceFile.heatCapacityGuideWorkflow.step, 'u1Waiting');
+assert.equal(restoredGuidePersistenceFile.heatCapacityGuideWorkflow.paused, true);
+assert.equal(restoredGuidePersistenceFile.heatCapacityGuideWorkflow.waitStartedAtS, 21);
+assert.equal(restoredGuidePersistenceFile.heatCapacityGuideWorkflow.waitStage, 'u1');
+assert.equal(restoredGuidePersistenceFile.heatCapacityGuidePhysicsState.simulationTimeS, 42);
+assert.equal(restoredGuidePersistenceFile.heatCapacityGuidePhysicsState.pumpStrokeCount, 4);
+assert.equal(restoredGuidePersistenceFile.heatCapacityGuideTrial?.id, 'guide-persistence-trial');
 
 const replay = getHeatCapacityPersistenceReplayFields(payload);
 assert.equal(replay.pressureGaugeNeedleAngle, file.pressureGaugeNeedleAngle);
@@ -102,6 +336,22 @@ assert.equal(replay.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
 const validation = validateHeatCapacityPersistencePayload(payload);
 assert.deepEqual(validation.errors, []);
 assert.equal(validation.valid, true);
+assert.deepEqual(
+  validateHeatCapacityPersistencePayload(null),
+  { valid: false, errors: ['payload must be an object'] },
+);
+assert.equal(
+  validateHeatCapacityPersistencePayload({ ...payload, experimentKind: 'ideal' })
+    .errors.includes('experimentKind must be heatCapacity'),
+  true,
+);
+assert.equal(
+  validateHeatCapacityPersistencePayload({
+    ...payload,
+    free: { ...payload.free!, gasType: 'oxygen' },
+  }).errors.includes('free.gasType must be air or helium'),
+  true,
+);
 
 const invalid = validateHeatCapacityPersistencePayload({
   ...payload,
@@ -365,6 +615,107 @@ assert.equal(restored.heatCapacityFreeDisplayScheme, 'real');
 assert.equal(restored.heatCapacityFreeRealDomain.scheme, 'real');
 assert.equal(restored.heatCapacityFreeIdealDomain.scheme, 'ideal');
 assert.equal(restored.heatCapacityFreeStopcockFlowPurpose, 'none');
+
+const contaminatedAcknowledgementsPayload = structuredClone(editedPayload) as typeof editedPayload;
+contaminatedAcknowledgementsPayload.free!.acknowledgements = {
+  advancedParametersRisk: 'false',
+  idealParameterProfileIntro: true,
+  staleNoticeKey: true,
+} as any;
+const contaminatedAcknowledgementsRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-contaminated-acknowledgement-restore',
+  kind: 'heatCapacity',
+  name: 'Contaminated Acknowledgement Restore',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: contaminatedAcknowledgementsPayload as unknown as Record<string, unknown>,
+}, contaminatedAcknowledgementsPayload, 6);
+assert.deepEqual(
+  contaminatedAcknowledgementsRestored.heatCapacityFreeFileAcknowledgements,
+  {
+    advancedParametersRisk: false,
+    idealParameterProfileIntro: true,
+  },
+  'restoring persisted Free acknowledgements should accept only known strict boolean keys',
+);
+assert.equal(
+  'staleNoticeKey' in contaminatedAcknowledgementsRestored.heatCapacityFreeFileAcknowledgements,
+  false,
+);
+
+const contaminatedUiReplayPayload = structuredClone(editedPayload) as typeof editedPayload;
+contaminatedUiReplayPayload.common.lessonIntroAutoShown = true;
+contaminatedUiReplayPayload.free!.uiReplay = {
+  ...contaminatedUiReplayPayload.free!.uiReplay,
+  heatCapacityLessonIntroAutoShown: false,
+  heatCapacityFreeFileAcknowledgements: {
+    advancedParametersRisk: 'false',
+    idealParameterProfileIntro: true,
+    staleNoticeKey: true,
+  },
+  heatCapacityFreeParameterScheme: 'ideal',
+  heatCapacityFreeDisplayScheme: 'ideal',
+} as any;
+const contaminatedUiReplayRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-contaminated-ui-replay-restore',
+  kind: 'heatCapacity',
+  name: 'Contaminated Ui Replay Restore',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: contaminatedUiReplayPayload as unknown as Record<string, unknown>,
+}, contaminatedUiReplayPayload, 7);
+assert.equal(
+  contaminatedUiReplayRestored.heatCapacityLessonIntroAutoShown,
+  true,
+  'Free UI replay should not override normalized common lesson intro state',
+);
+assert.deepEqual(
+  contaminatedUiReplayRestored.heatCapacityFreeFileAcknowledgements,
+  {
+    advancedParametersRisk: true,
+    idealParameterProfileIntro: true,
+  },
+  'Free UI replay should not override normalized persisted acknowledgements',
+);
+assert.equal(
+  contaminatedUiReplayRestored.heatCapacityFreeParameterScheme,
+  'real',
+  'Free UI replay should not override the persisted active parameter scheme',
+);
+assert.equal(
+  contaminatedUiReplayRestored.heatCapacityFreeDisplayScheme,
+  'real',
+  'Free UI replay should not override the persisted display scheme',
+);
+
+const contaminatedMaterialsReplayPayload = structuredClone(editedPayload) as typeof editedPayload;
+contaminatedMaterialsReplayPayload.common.materialsExpanded = false;
+contaminatedMaterialsReplayPayload.free!.uiReplay = {
+  ...contaminatedMaterialsReplayPayload.free!.uiReplay,
+  heatCapacityMaterialsExpanded: true,
+};
+const contaminatedMaterialsReplayRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-contaminated-materials-replay-restore',
+  kind: 'heatCapacity',
+  name: 'Contaminated Materials Replay Restore',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: contaminatedMaterialsReplayPayload as unknown as Record<string, unknown>,
+}, contaminatedMaterialsReplayPayload, 8);
+assert.equal(
+  contaminatedMaterialsReplayRestored.heatCapacityMaterialsExpanded,
+  false,
+  'Free UI replay should not override the normalized common materials expanded state',
+);
 
 const legacyIntroPayload = structuredClone(payload) as typeof payload;
 delete (legacyIntroPayload.common as any).lessonIntroAutoShown;

@@ -7,6 +7,7 @@ import type {
 } from '../workbench/workbenchState.ts';
 import {
   getActiveHeatCapacityFreeTrialIndex,
+  getHeatCapacityFreeDisplayTheoreticalGamma,
   getHeatCapacityFreeRecordDisplayTrialIndex,
   selectDisplayedHeatCapacityFreeDomain,
 } from '../workbench/workbenchState.ts';
@@ -66,8 +67,6 @@ const formatFreeTrialCompletedAt = (value: number | null | undefined) => {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 };
 
-const HeatSub = ({ children }: { children: React.ReactNode }) => <sub>{children}</sub>;
-const VarU = ({ index }: { index: React.ReactNode }) => <>U<sub>{index}</sub></>;
 const VarP = ({ index }: { index: React.ReactNode }) => <>P<sub>{index}</sub></>;
 const GammaAir = () => <>γ<sub>air</sub></>;
 
@@ -577,8 +576,9 @@ const renderFreeDataAndResultsTab = (
   const displayMatchesActiveDomain = heatCapacityFreeDisplayScheme === file.heatCapacityFreeParameterScheme;
   const automaticU0 = displayedDomain.calibrationState.automaticU0;
   const completed = displayedTrials.filter((trial) => trial.u0 && trial.u1 && trial.u2).length;
+  const displayedTheoreticalGamma = getHeatCapacityFreeDisplayTheoreticalGamma(file, displayedDomain.scheme);
   const result = calculateFreeHeatCapacityMeanResult(displayedTrials, {
-    theoreticalGamma: file.theoreticalGamma,
+    theoreticalGamma: displayedTheoreticalGamma,
   });
   const trialResultsById = new Map<string, HeatCapacityFreeProcessingTrialResult>(
     result.trialResults.map((trial) => [trial.trialId, trial]),
@@ -598,7 +598,7 @@ const renderFreeDataAndResultsTab = (
     displayFreeTrialIndex === activeFreeTrialIndex &&
     activeFreeTrialIndex >= 0;
   const summaryLine = copy.freeRecording.summaryLine(
-    file.theoreticalGamma.toFixed(2),
+    displayedTheoreticalGamma.toFixed(2),
     result.validTrialCount,
     formatGamma(result.meanGamma),
     formatPercent(result.relativeErrorPercent),

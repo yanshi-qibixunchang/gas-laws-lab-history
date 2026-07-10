@@ -2,6 +2,8 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const generalSettingsWindowSource = readFileSync(new URL('../../src/features/workbench/WorkbenchGeneralSettingsWindow.tsx', import.meta.url), 'utf8');
+const uiSource = `${source}\n${generalSettingsWindowSource}`;
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
@@ -36,7 +38,7 @@ const getLanguageBlock = (languageKey) => {
 const zhCNBlock = getLanguageBlock("'zh-CN'");
 const zhTWBlock = getLanguageBlock("'zh-TW'");
 const enBlock = getLanguageBlock('en');
-const renderSource = source.slice(source.indexOf('interface WorkbenchLayoutDefaultState'));
+const renderSource = `${source.slice(source.indexOf('interface WorkbenchLayoutDefaultState'))}\n${generalSettingsWindowSource}`;
 
 for (const [field, zhCNText, zhTWText, enText] of [
   ['openFiles', '打开文件', '開啟檔案', 'Open Files'],
@@ -81,7 +83,7 @@ assert.doesNotMatch(
 
 for (const expression of [
   'workbenchCopy.menus.experimentFiles',
-  'workbenchCopy.settings.title',
+  'copy.settings.title',
   'workbenchCopy.files.openFiles',
   'workbenchCopy.parameters.title',
   'workbenchCopy.parameters.samplingPreset',
@@ -135,10 +137,10 @@ for (const expression of [
   'workbenchCopy.console.tabs[tab]',
   'workbenchCopy.status.activeFile',
   'workbenchCopy.status.idealRuntime',
-  'workbenchCopy.shortcuts.title',
-  'workbenchCopy.shortcuts.undo',
+  'copy.shortcuts.title',
+  'copy.shortcuts.undo',
 ]) {
-  assert.ok(source.includes(expression), `core UI should render ${expression}`);
+  assert.ok(uiSource.includes(expression), `core UI should render ${expression}`);
 }
 
 for (const copyMember of [
@@ -326,7 +328,7 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  source,
+  generalSettingsWindowSource,
   /className="studio-settings-shortcuts-card"/,
   'General settings should render shortcut help inside the settings window',
 );

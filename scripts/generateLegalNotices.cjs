@@ -1,15 +1,33 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { createHash } = require('node:crypto');
 
 const rootDir = path.resolve(__dirname, '..');
 const outputDir = path.join(rootDir, 'public', 'legal');
 const packageJsonPath = path.join(rootDir, 'package.json');
 const packageLockPath = path.join(rootDir, 'package-lock.json');
 const nodeModulesDir = path.join(rootDir, 'node_modules');
+const summaryPath = path.join(outputDir, 'third-party-summary.json');
 
-const generatedAt = new Date().toISOString();
+let generatedAt = new Date().toISOString();
+let contentFingerprint = '';
 
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+const readJsonIfExists = (filePath) => {
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    return readJson(filePath);
+  } catch {
+    return null;
+  }
+};
+
+const writeTextFileIfChanged = (filePath, content) => {
+  if (fs.existsSync(filePath) && fs.readFileSync(filePath, 'utf8') === content) return false;
+  fs.writeFileSync(filePath, content, 'utf8');
+  return true;
+};
 
 const escapeHtml = (value) => String(value ?? '')
   .replace(/&/g, '&amp;')
@@ -100,6 +118,31 @@ const getLicenseFilesForPackagePath = (lockPath) => {
     .filter((name) => /^(license|licence|notice|copying)(\..*)?$/i.test(name))
     .sort((left, right) => left.localeCompare(right))
     .map((name) => path.join(packageDir, name));
+};
+
+const getLegalNoticeInputFingerprint = (records) => {
+  const hash = createHash('sha256');
+  const appendFile = (filePath) => {
+    if (!fs.existsSync(filePath)) return;
+    hash.update(normalizePathForHtml(path.relative(rootDir, filePath)));
+    hash.update('\0');
+    hash.update(fs.readFileSync(filePath));
+    hash.update('\0');
+  };
+
+  appendFile(packageJsonPath);
+  appendFile(packageLockPath);
+  appendFile(__filename);
+  appendFile(path.join(nodeModulesDir, 'electron', 'dist', 'LICENSE'));
+  appendFile(path.join(rootDir, 'public', 'fonts', 'LICENSES.txt'));
+
+  for (const record of records) {
+    for (const lockPath of record.paths) {
+      for (const filePath of getLicenseFilesForPackagePath(lockPath)) appendFile(filePath);
+    }
+  }
+
+  return hash.digest('hex');
 };
 
 const createHtmlDocument = ({ title, body }) => `<!doctype html>
@@ -211,7 +254,7 @@ const writeDependenciesHtml = (records) => {
       </table>
     `,
   });
-  fs.writeFileSync(path.join(outputDir, 'third-party-dependencies.html'), html, 'utf8');
+  writeTextFileIfChanged(path.join(outputDir, 'third-party-dependencies.html'), html);
 };
 
 const writeLicenseTextsHtml = (records) => {
@@ -246,7 +289,7 @@ const writeLicenseTextsHtml = (records) => {
       ${sections.join('\n')}
     `,
   });
-  fs.writeFileSync(path.join(outputDir, 'third-party-license-texts.html'), html, 'utf8');
+  writeTextFileIfChanged(path.join(outputDir, 'third-party-license-texts.html'), html);
 };
 
 const writeExporterLicensesHtml = () => {
@@ -273,12 +316,15 @@ const writeExporterLicensesHtml = () => {
       <p>Depending on the local exporter build environment, the bundled exporter may also include runtime packages such as numpy, Pillow, contourpy, cycler, fonttools, kiwisolver, packaging, pyparsing, python-dateutil, and six. Release builds should keep the full license texts and binary-library notices from the actual exporter bundle.</p>
     `,
   });
-  fs.writeFileSync(path.join(outputDir, 'exporter-licenses.html'), html, 'utf8');
+  writeTextFileIfChanged(path.join(outputDir, 'exporter-licenses.html'), html);
 };
 
 const copyIfExists = (sourcePath, fileName) => {
   if (!fs.existsSync(sourcePath)) return false;
-  fs.copyFileSync(sourcePath, path.join(outputDir, fileName));
+  const targetPath = path.join(outputDir, fileName);
+  const source = fs.readFileSync(sourcePath);
+  if (fs.existsSync(targetPath) && fs.readFileSync(targetPath).equals(source)) return false;
+  fs.writeFileSync(targetPath, source);
   return true;
 };
 
@@ -289,6 +335,7 @@ const writeSummary = (records) => {
   }, {});
   const summary = {
     generatedAt,
+    contentFingerprint,
     packageRecordCount: records.length,
     licenseCounts,
     files: [
@@ -299,11 +346,20 @@ const writeSummary = (records) => {
       { id: 'exporter', path: 'exporter-licenses.html', title: 'Exporter Component Licenses' },
     ],
   };
-  fs.writeFileSync(path.join(outputDir, 'third-party-summary.json'), `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+  writeTextFileIfChanged(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);
 };
 
 ensureOutputDir();
 const records = getPackageRecords();
+contentFingerprint = getLegalNoticeInputFingerprint(records);
+const existingSummary = readJsonIfExists(summaryPath);
+if (
+  existingSummary?.contentFingerprint === contentFingerprint &&
+  typeof existingSummary.generatedAt === 'string' &&
+  !Number.isNaN(Date.parse(existingSummary.generatedAt))
+) {
+  generatedAt = existingSummary.generatedAt;
+}
 writeDependenciesHtml(records);
 writeLicenseTextsHtml(records);
 writeExporterLicensesHtml();

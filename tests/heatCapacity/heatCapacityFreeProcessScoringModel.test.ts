@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   scoreHeatCapacityFreeProcess,
 } from '../../src/domain/heatCapacity/heatCapacityFreeProcessScoringModel.ts';
@@ -10,6 +12,17 @@ import {
 import {
   appendFreeTraceEvent,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
+
+const scoringModelSource = readFileSync(
+  join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityFreeProcessScoringModel.ts'),
+  'utf8',
+);
+
+assert.doesNotMatch(
+  scoringModelSource,
+  /HeatCapacityFreeStandardReferenceSnapshot|HeatCapacityOperationUpperBound|upperBound:\s*HeatCapacityOperationUpperBound|standardReference\?:/,
+  'process scoring input should only depend on the actual process and summary, not review reference-limit fields',
+);
 
 const complete = createCompleteProcessScoringInputFixture();
 const completeScore = scoreHeatCapacityFreeProcess(complete);

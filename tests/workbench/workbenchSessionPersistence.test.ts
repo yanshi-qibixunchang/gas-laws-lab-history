@@ -20,6 +20,7 @@ import {
   WORKBENCH_SESSION_VERSION,
   decodeWorkbenchSession,
   encodeWorkbenchSession,
+  getRestorableHeatCapacityGuideSessionFileId,
 } from '../../src/features/workbench/workbenchSession.ts';
 import {
   WORKBENCH_CLOSED_FILES_SCHEMA_FAMILY,
@@ -39,6 +40,12 @@ import {
 import {
   IDEAL_GAS_SCHEMA_VERSION,
 } from '../../src/features/workbench/workbenchIdealGasPersistence.ts';
+import {
+  createDefaultHeatCapacityFreePhysicsConfig,
+} from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import {
+  getHeatCapacityFreeGasTypeModelDefaults,
+} from '../../src/domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 
 const standard = createDefaultStandardFile(1);
 const ideal = createDefaultIdealFile(1);
@@ -255,6 +262,11 @@ assert.deepEqual(encoded.heatCapacityGuideSession, {
   strongReminderActive: true,
   strongReminderControlId: 'recordU1',
 });
+assert.equal(
+  getRestorableHeatCapacityGuideSessionFileId(encoded),
+  restoredHeatCapacity.id,
+  'the session boundary should identify the guided file that can resume after refresh',
+);
 
 const invalidGuideSession = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
@@ -270,6 +282,7 @@ const invalidGuideSession = decodeWorkbenchSession({
 assert.equal(invalidGuideSession.heatCapacityGuideSession.fileId, null);
 assert.equal(invalidGuideSession.heatCapacityGuideSession.strongReminderActive, false);
 assert.equal(invalidGuideSession.heatCapacityGuideSession.strongReminderControlId, null);
+assert.equal(getRestorableHeatCapacityGuideSessionFileId(invalidGuideSession), null);
 
 const fallback = decodeWorkbenchSession({ version: 999, files: [], activeFileId: 'missing', selectedPanel: 'history' });
 assert.deepEqual(
@@ -395,6 +408,236 @@ assert.equal(
 );
 assert.equal(customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.record.pressureDangerMv, 152);
 
+const airModelDefaults = getHeatCapacityFreeGasTypeModelDefaults('air');
+const realPhysicsDefaults = createDefaultHeatCapacityFreePhysicsConfig();
+const contaminatedSessionPhysicsConfig = {
+  ...heatCapacity.heatCapacityFreePhysicsConfig,
+  thermal: {
+    ...heatCapacity.heatCapacityFreePhysicsConfig.thermal,
+    gasWallConductanceWPerK: 5,
+    wallAmbientConductanceWPerK: 5,
+  },
+  pumpValveExchange: {
+    ...heatCapacity.heatCapacityFreePhysicsConfig.pumpValveExchange!,
+    enabled: false,
+    gasExchangeRatePerS: 0,
+    thermalConductanceWPerK: 0,
+  },
+  environmentDisturbance: {
+    ...heatCapacity.heatCapacityFreePhysicsConfig.environmentDisturbance!,
+    enabled: false,
+    pressureAmplitudeKPa: 0,
+    temperatureAmplitudeK: 0,
+  },
+  leakage: {
+    enabled: false,
+    ratePerS: 0,
+  },
+};
+const contaminatedDomainSessionFile = {
+  ...heatCapacity,
+  heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  heatCapacityFreeTraceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
+  heatCapacityFreeParameterScheme: 'stale-real' as any,
+  heatCapacityFreeDisplayScheme: 'stale-ideal' as any,
+  heatCapacityFreePhysicsConfig: contaminatedSessionPhysicsConfig,
+  heatCapacityFreeParameterDraft: {
+    ...heatCapacity.heatCapacityFreeParameterDraft,
+    gasType: 'air',
+    gasWallConductanceWPerK: 5,
+    wallAmbientConductanceWPerK: 5,
+    leakageEnabled: false,
+    leakageRatePerS: 0,
+  },
+  heatCapacityFreeTrials: [
+    createHeatCapacityFreeTrial('session-top-level-domain-trial', null, 'ideal'),
+  ],
+  heatCapacityFreeTraceStore: {
+    activeTraceTrialId: 'session-contaminated-trace',
+    nextTraceTrialIndex: 2,
+    traceTrials: [
+      {
+        id: 'session-contaminated-trace',
+        linkedTrialId: 'session-top-level-domain-trial',
+        status: 'active',
+        activeBranchId: 'session-contaminated-branch',
+        nextBranchIndex: 2,
+        branches: [
+          {
+            id: 'session-contaminated-branch',
+            parentBranchId: null,
+            createdByEventId: null,
+            status: 'main',
+            hiddenInDefaultChart: false,
+            nextSampleIndex: 1,
+            nextEventIndex: 1,
+            nextSampleAtS: null,
+            lastKeptSampleId: null,
+            idleState: {
+              lastUserActionAtS: null,
+              dormantSinceS: null,
+              lastHeartbeatAtS: null,
+            },
+            samples: [],
+            events: [],
+          },
+        ],
+        configSnapshot: {
+          ...createDefaultFreeConfigSnapshot(),
+          version: 999,
+          record: {
+            ...createDefaultFreeConfigSnapshot().record,
+            u0ZeroToleranceMv: 'bad',
+          },
+        },
+      },
+    ],
+  },
+  heatCapacityFreeRealDomain: {
+    ...heatCapacity.heatCapacityFreeRealDomain,
+    scheme: 'ideal' as any,
+    physicsConfig: contaminatedSessionPhysicsConfig,
+    traceStore: {
+      activeTraceTrialId: 'session-contaminated-trace',
+      nextTraceTrialIndex: 2,
+      traceTrials: [
+        {
+          id: 'session-contaminated-trace',
+          linkedTrialId: 'session-real-domain-trial',
+          status: 'active',
+          activeBranchId: 'session-contaminated-branch',
+          nextBranchIndex: 2,
+          branches: [
+            {
+              id: 'session-contaminated-branch',
+              parentBranchId: null,
+              createdByEventId: null,
+              status: 'main',
+              hiddenInDefaultChart: false,
+              nextSampleIndex: 1,
+              nextEventIndex: 1,
+              nextSampleAtS: null,
+              lastKeptSampleId: null,
+              idleState: {
+                lastUserActionAtS: null,
+                dormantSinceS: null,
+                lastHeartbeatAtS: null,
+              },
+              samples: [],
+              events: [],
+            },
+          ],
+          configSnapshot: {
+            ...createDefaultFreeConfigSnapshot(),
+            version: 999,
+            record: {
+              ...createDefaultFreeConfigSnapshot().record,
+              u0ZeroToleranceMv: 'bad',
+            },
+          },
+        },
+      ],
+    },
+    trials: [
+      createHeatCapacityFreeTrial('session-real-domain-trial', null, 'ideal'),
+    ],
+  },
+  heatCapacityFreeIdealDomain: {
+    ...heatCapacity.heatCapacityFreeIdealDomain,
+    scheme: 'real' as any,
+    trials: [
+      createHeatCapacityFreeTrial('session-ideal-domain-trial', null, 'real'),
+    ],
+  },
+};
+const contaminatedDomainSessionRestored = decodeWorkbenchSession({
+  version: WORKBENCH_SESSION_VERSION,
+  activeFileId: contaminatedDomainSessionFile.id,
+  selectedPanel: 'preview',
+  files: [contaminatedDomainSessionFile],
+});
+const contaminatedDomainFile = contaminatedDomainSessionRestored.files[0];
+assert.equal(contaminatedDomainFile.kind, 'heatCapacity');
+if (contaminatedDomainFile.kind !== 'heatCapacity') throw new Error('expected heat capacity contaminated domain file');
+assert.equal(
+  contaminatedDomainFile.heatCapacityFreeParameterScheme,
+  'real',
+  'raw heat-capacity sessions should normalize an invalid active parameter scheme to real',
+);
+assert.equal(
+  contaminatedDomainFile.heatCapacityFreeDisplayScheme,
+  'real',
+  'raw heat-capacity sessions should normalize an invalid display scheme to the active scheme',
+);
+assert.equal(contaminatedDomainFile.heatCapacityFreeRealDomain.scheme, 'real');
+assert.equal(contaminatedDomainFile.heatCapacityFreeIdealDomain.scheme, 'ideal');
+assert.equal(contaminatedDomainFile.heatCapacityFreeRealDomain.trials[0]?.parameterScheme, 'real');
+assert.equal(contaminatedDomainFile.heatCapacityFreeIdealDomain.trials[0]?.parameterScheme, 'ideal');
+assert.equal(contaminatedDomainFile.heatCapacityFreeTrials[0]?.parameterScheme, 'real');
+assert.equal(
+  contaminatedDomainFile.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK,
+  airModelDefaults.gasWallConductanceWPerK,
+  'raw session restore should not keep ideal thermal settings in the active real runtime',
+);
+assert.equal(
+  contaminatedDomainFile.heatCapacityFreePhysicsConfig.thermal.wallAmbientConductanceWPerK,
+  realPhysicsDefaults.thermal.wallAmbientConductanceWPerK,
+);
+assert.equal(contaminatedDomainFile.heatCapacityFreePhysicsConfig.leakage.enabled, true);
+assert.equal(
+  contaminatedDomainFile.heatCapacityFreePhysicsConfig.leakage.ratePerS,
+  airModelDefaults.leakageRatePerS,
+);
+assert.equal(contaminatedDomainFile.heatCapacityFreeTraceStore.traceTrials.length, 1);
+assert.equal(
+  contaminatedDomainFile.heatCapacityFreeTraceStore.traceTrials[0]?.configSnapshot.version,
+  createDefaultFreeConfigSnapshot().version,
+  'raw session trace trial snapshots should use the current normalized config snapshot version',
+);
+assert.equal(
+  contaminatedDomainFile.heatCapacityFreeTraceStore.traceTrials[0]?.configSnapshot.record.u0ZeroToleranceMv,
+  createDefaultFreeConfigSnapshot().record.u0ZeroToleranceMv,
+  'raw session trace trial snapshots should normalize contaminated record fields',
+);
+
+const legacyHeatSessionFile = {
+  ...createDefaultHeatCapacityFile(10),
+  heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  heatCapacityFreeFileAcknowledgements: {
+    advancedParametersRisk: 'false',
+    idealParameterProfileIntro: true,
+    staleNoticeKey: true,
+  },
+};
+delete (legacyHeatSessionFile as Partial<typeof legacyHeatSessionFile>).heatCapacityLessonIntroAutoShown;
+const legacyHeatRestored = decodeWorkbenchSession({
+  version: WORKBENCH_SESSION_VERSION,
+  activeFileId: legacyHeatSessionFile.id,
+  selectedPanel: 'preview',
+  files: [legacyHeatSessionFile],
+});
+const legacyHeatFile = legacyHeatRestored.files[0];
+assert.equal(legacyHeatFile.kind, 'heatCapacity');
+if (legacyHeatFile.kind !== 'heatCapacity') throw new Error('expected legacy heat-capacity session file');
+assert.equal(
+  legacyHeatFile.heatCapacityLessonIntroAutoShown,
+  true,
+  'legacy raw heat-capacity sessions missing the intro flag should restore as already shown',
+);
+assert.deepEqual(
+  legacyHeatFile.heatCapacityFreeFileAcknowledgements,
+  {
+    advancedParametersRisk: false,
+    idealParameterProfileIntro: true,
+  },
+  'Free file acknowledgements restored from raw sessions should accept only known strict boolean keys',
+);
+assert.equal(
+  'staleNoticeKey' in legacyHeatFile.heatCapacityFreeFileAcknowledgements,
+  false,
+  'unknown acknowledgement keys should not survive raw session normalization',
+);
+
 const futureEnvelope = {
   ...envelope,
   schemaVersion: WORKBENCH_SESSION_SCHEMA_VERSION + 1,
@@ -412,9 +655,20 @@ const sessionSource = readFileSync(
   join(process.cwd(), 'src', 'features', 'workbench', 'workbenchSession.ts'),
   'utf8',
 );
+const heatCapacitySessionRestoreSource = readFileSync(
+  join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacitySessionRestore.ts'),
+  'utf8',
+);
 assert.match(sessionSource, /decodeWorkbenchStorageEnvelope/);
 assert.match(sessionSource, /encodeWorkbenchStorageEnvelope/);
 assert.match(sessionSource, /decodeWorkbenchClosedFilesStorageEnvelope/);
 assert.match(sessionSource, /encodeWorkbenchClosedFilesStorageEnvelope/);
+assert.match(sessionSource, /normalizeHeatCapacitySessionRuntimeState/);
+assert.doesNotMatch(sessionSource, /normalizeHeatCapacityFreeRestoreTraceStore/);
+assert.doesNotMatch(sessionSource, /createDefaultHeatCapacityFreeRuntimeFields/);
+assert.match(
+  heatCapacitySessionRestoreSource,
+  /export const normalizeHeatCapacitySessionRuntimeState/,
+);
 
 console.log('workbenchSessionPersistence tests passed');

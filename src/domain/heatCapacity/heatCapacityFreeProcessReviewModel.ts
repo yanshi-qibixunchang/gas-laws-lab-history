@@ -19,7 +19,6 @@ import type {
   HeatCapacityProcessScore,
   HeatCapacityProcessScoreItem,
   HeatCapacityProcessScoreSubItem,
-  HeatCapacityProcessStageId,
   HeatCapacityProcessStageSegment,
 } from './heatCapacityFreeProcessReviewTypes.ts';
 import {
@@ -248,16 +247,6 @@ const selectMainBranch = (
   traceTrial.branches[0] ??
   null
 );
-
-const findSampleForRecord = (
-  traceTrial: HeatCapacityFreeTraceTrial,
-  mainBranch: HeatCapacityFreeTraceBranch,
-  record: HeatCapacityFreeRecord | null,
-) => {
-  if (!record?.traceSampleId) return null;
-  const branch = traceTrial.branches.find((candidate) => candidate.id === record.traceBranchId) ?? mainBranch;
-  return branch.samples.find((sample) => sample.id === record.traceSampleId) ?? null;
-};
 
 const getPressureSensitivity = (
   traceTrial: HeatCapacityFreeTraceTrial,
@@ -611,185 +600,6 @@ const createSummary = (
   };
 };
 
-const sampleIsStableForRecord = (
-  sample: HeatCapacityFreeTraceSample | null,
-  traceTrial: HeatCapacityFreeTraceTrial,
-) => (
-  sample !== null &&
-  sample.stability.pressureStable &&
-  sample.stability.temperatureStable &&
-  Math.abs(sample.sensor.pressureSlopeMvPerS) <= traceTrial.configSnapshot.record.pressureStableSlopeMvPerS &&
-  Math.abs(sample.sensor.temperatureSlopeMvPerS) <= traceTrial.configSnapshot.record.temperatureStableSlopeMvPerS
-);
-
-const createPumpingDiagnosis = (
-  branch: HeatCapacityFreeTraceBranch,
-  summary: HeatCapacityProcessReviewSummary,
-  traceTrial: HeatCapacityFreeTraceTrial,
-): HeatCapacityProcessDiagnosisRow => {
-  const pumpCount = branch.events.filter((event) => event.type === 'pump-stroke').length;
-  const warningCount = branch.events.filter((event) => event.type === 'pressure-warning').length;
-  const dangerCount = branch.events.filter((event) => event.type === 'pressure-danger').length;
-  const minimumUsefulPressureKPa = traceTrial.configSnapshot.record.minimumUsefulU1CorrectedMv /
-    traceTrial.configSnapshot.sensor.pressureMvPerKPa;
-  if (!summary.u1 || pumpCount === 0) {
-    return {
-      id: 'pumping',
-      title: '打气过程',
-      status: 'insufficient-data',
-      evidence: '没有找到有效打气事件或 U1 记录。',
-      recommendation: '完成打气和 U1 记录后再判断打气质量。',
-    };
-  }
-  if (summary.u1.pressureDeltaKPa < minimumUsefulPressureKPa || dangerCount > 0) {
-    return {
-      id: 'pumping',
-      title: '打气过程',
-      status: 'needs-improvement',
-      evidence: `打气 ${pumpCount} 次，U1 压强差 ${formatNumber(summary.u1.pressureDeltaKPa, 2)} kPa。`,
-      recommendation: dangerCount > 0
-        ? '打气进入报警区，下一组应降低单次加压或提前停止。'
-        : 'U1 压强差低于有效范围，下一组应继续打气到安全提示允许的有效区间。',
-    };
-  }
-  if (warningCount > 0) {
-    return {
-      id: 'pumping',
-      title: '打气过程',
-      status: 'review',
-      evidence: `打气 ${pumpCount} 次，U1 压强差 ${formatNumber(summary.u1.pressureDeltaKPa, 2)} kPa，出现 ${warningCount} 次预警。`,
-      recommendation: '本组可审核，但打气末段应留意预警提示和记录有效区间的关系。',
-    };
-  }
-  return {
-    id: 'pumping',
-    title: '打气过程',
-    status: 'reasonable',
-    evidence: `打气 ${pumpCount} 次，U1 压强差 ${formatNumber(summary.u1.pressureDeltaKPa, 2)} kPa。`,
-    recommendation: '打气幅度处于可用范围，未发现压力安全事件。',
-  };
-};
-
-const createReleaseDiagnosis = (
-  branch: HeatCapacityFreeTraceBranch,
-  summary: HeatCapacityProcessReviewSummary,
-): HeatCapacityProcessDiagnosisRow => {
-  const samples = [...branch.samples].sort((left, right) => left.atS - right.atS);
-  const releaseStart = branch.events.find((event) => (
-    event.type === 'stopcock-open' &&
-    event.atS >= (summary.u1?.atS ?? 0)
-  ));
-  const releaseFlowStartS = releaseStart
-    ? findStopcockFlowStartTime(samples, releaseStart.atS)
-    : null;
-  const releaseEnd = releaseFlowStartS !== null
-    ? branch.events.find((event) => event.type === 'stopcock-close' && event.atS >= releaseFlowStartS)
-    : null;
-  if (!summary.u1 || !summary.u2 || releaseFlowStartS === null || !releaseEnd) {
-    return {
-      id: 'release',
-      title: '放气操作',
-      status: 'insufficient-data',
-      evidence: '缺少 U1、U2 或玻璃旋塞开闭事件。',
-      recommendation: '需要完整记录放气开始、关闭和 U2 回温记录。',
-    };
-  }
-  const durationS = releaseEnd.atS - releaseFlowStartS;
-  const ratio = summary.u1.pressureDeltaKPa > 0
-    ? summary.u2.pressureDeltaKPa / summary.u1.pressureDeltaKPa
-    : NaN;
-  if (summary.u2.pressureDeltaKPa <= 0 || ratio < 0.08) {
-    return {
-      id: 'release',
-      title: '放气操作',
-      status: 'needs-improvement',
-      evidence: `放气 ${formatNumber(durationS, 1)} s，U2/U1 = ${formatNumber(ratio, 2)}。`,
-      recommendation: 'U2 过低，可能放气过度，下一组应更快关闭玻璃旋塞。',
-    };
-  }
-  if (durationS < 0.25 || durationS > 2.5) {
-    return {
-      id: 'release',
-      title: '放气操作',
-      status: 'review',
-      evidence: `放气 ${formatNumber(durationS, 1)} s，U2/U1 = ${formatNumber(ratio, 2)}。`,
-      recommendation: '放气时长偏离常规范围，建议结合曲线拐点复核。',
-    };
-  }
-  return {
-    id: 'release',
-    title: '放气操作',
-    status: 'reasonable',
-    evidence: `放气 ${formatNumber(durationS, 1)} s，U2/U1 = ${formatNumber(ratio, 2)}。`,
-    recommendation: '放气动作和 U2 保留量可用于本组计算。',
-  };
-};
-
-const createRecordingDiagnosis = (
-  traceTrial: HeatCapacityFreeTraceTrial,
-  branch: HeatCapacityFreeTraceBranch,
-  trial: HeatCapacityFreeTrial,
-): HeatCapacityProcessDiagnosisRow => {
-  const u1Sample = findSampleForRecord(traceTrial, branch, trial.u1);
-  const u2Sample = findSampleForRecord(traceTrial, branch, trial.u2);
-  const blockedCount = branch.events.filter((event) => event.type === 'record-blocked').length;
-  if (!u1Sample || !u2Sample) {
-    return {
-      id: 'recording',
-      title: '记录时机',
-      status: 'insufficient-data',
-      evidence: 'U1 或 U2 缺少 trace 样本引用。',
-      recommendation: '需要通过自由模式按钮完成记录，才能定位记录时机。',
-    };
-  }
-  const stable = sampleIsStableForRecord(u1Sample, traceTrial) && sampleIsStableForRecord(u2Sample, traceTrial);
-  if (!stable) {
-    return {
-      id: 'recording',
-      title: '记录时机',
-      status: 'needs-improvement',
-      evidence: 'U1 或 U2 记录点仍存在明显压强/温度变化。',
-      recommendation: '下一组应等待读数斜率进入稳定阈值后再记录。',
-    };
-  }
-  if (blockedCount > 0) {
-    return {
-      id: 'recording',
-      title: '记录时机',
-      status: 'review',
-      evidence: `记录前出现 ${blockedCount} 次系统拦截，最终 U1/U2 记录点已稳定。`,
-      recommendation: '本组可审核，但应减少无效记录尝试。',
-    };
-  }
-  return {
-    id: 'recording',
-    title: '记录时机',
-    status: 'reasonable',
-    evidence: 'U1 和 U2 记录点均满足压强/温度稳定阈值。',
-    recommendation: '记录链路清晰，时机符合当前判据。',
-  };
-};
-
-const createRetakeDiagnosis = (
-  summary: HeatCapacityProcessReviewSummary,
-): HeatCapacityProcessDiagnosisRow => (
-  summary.retakeCount > 0
-    ? {
-      id: 'retake',
-      title: '重录情况',
-      status: 'retaken',
-      evidence: `本组存在 ${summary.retakeCount} 条隐藏分支，主图仅显示当前主线。`,
-      recommendation: '后续查看分支时可对比被退回操作，但默认计算只使用主线记录。',
-    }
-    : {
-      id: 'retake',
-      title: '重录情况',
-      status: 'reasonable',
-      evidence: '本组没有重录分支。',
-      recommendation: '过程和结果来自同一条主线。',
-    }
-);
-
 const diagnosisTitleByScoreId: Partial<Record<HeatCapacityProcessScoreItem['id'], string>> = {
   pumping: '打气过程',
   release: '放气操作',
@@ -893,8 +703,6 @@ export const selectHeatCapacityFreeProcessReview = ({
     branch,
     trial: selected.trial,
     summary,
-    upperBound,
-    standardReference,
   });
   return {
     status: selected.trial.u0 && selected.trial.u1 && selected.trial.u2 ? 'ready' : 'incomplete',

@@ -7,30 +7,14 @@ import type {
   PressureWindowPoint,
   SimulationParams,
 } from '../../shared/types.ts';
-
-const isRecord = (value: unknown): value is Record<string, unknown> => (
-  typeof value === 'object' && value !== null
-);
-
-const isFiniteNumber = (value: unknown): value is number => (
-  typeof value === 'number' && Number.isFinite(value)
-);
+import {
+  isPersistenceFiniteNumber as isFiniteNumber,
+  isPersistenceRecord as isRecord,
+} from './workbenchPersistenceValue.ts';
 
 const cloneParticle = (particle: Particle): Particle => ({ ...particle });
 
 const clonePressureWindowPoint = (point: PressureWindowPoint): PressureWindowPoint => ({ ...point });
-
-export const clonePersistenceValue = <T>(value: T): T => {
-  if (Array.isArray(value)) {
-    return value.map((item) => clonePersistenceValue(item)) as T;
-  }
-  if (isRecord(value)) {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, clonePersistenceValue(item)]),
-    ) as T;
-  }
-  return value;
-};
 
 export const cloneHardSphereEngineSnapshot = (
   snapshot: PhysicsEngineSnapshotV1 | null | undefined,

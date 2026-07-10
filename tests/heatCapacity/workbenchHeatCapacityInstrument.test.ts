@@ -68,9 +68,6 @@ import {
   getHeatCapacityRangeMidpoint,
 } from '../../src/domain/heatCapacity/heatCapacityDisplayResponse.ts';
 import {
-  calculateAirHeatCapacityTargets,
-} from '../../src/domain/heatCapacity/heatCapacityExperimentRandom.ts';
-import {
   createHeatCapacityAutoDemoSteps,
   HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT,
 } from '../../src/domain/heatCapacity/heatCapacityAutoDemo.ts';

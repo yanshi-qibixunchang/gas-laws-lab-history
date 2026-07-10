@@ -97,8 +97,6 @@ export class PhysicsEngine {
     const spacing = this.params.L / perSide;
     
     let count = 0;
-    let attempts = 0;
-    const maxAttempts = this.params.N * 100; // Prevent infinite loop
 
     // Grid placement strategy
     for (let i = 0; i < perSide && count < this.params.N; i++) {

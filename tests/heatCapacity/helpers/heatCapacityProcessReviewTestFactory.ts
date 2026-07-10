@@ -17,9 +17,6 @@ import {
   type HeatCapacityFreeTraceStore,
   type HeatCapacityFreeTraceTrial,
 } from '../../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
-import {
-  createHeatCapacityFreeStandardReference,
-} from '../../../src/domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
 import type {
   HeatCapacityProcessScoringInput,
 } from '../../../src/domain/heatCapacity/heatCapacityFreeProcessScoringModel.ts';
@@ -328,42 +325,33 @@ export const createProcessReviewSummaryForTest = (
 export const createCompleteProcessScoringInputFixture = (): HeatCapacityProcessScoringInput => {
   const { traceTrial, branch, trial } = createCompleteProcessReviewFixtureParts();
   const summary = createProcessReviewSummaryForTest(traceTrial, branch, trial, 1.4);
-  const standardReference = createHeatCapacityFreeStandardReference({ traceTrial, trial, theoreticalGamma: 1.4 });
   return {
     traceTrial,
     branch,
     trial,
     summary,
-    upperBound: standardReference.operationUpperBound,
-    standardReference,
   };
 };
 
 export const createOverVentedProcessScoringInputFixture = (): HeatCapacityProcessScoringInput => {
   const { traceTrial, branch, trial } = createOverVentedProcessReviewFixtureParts();
   const summary = createProcessReviewSummaryForTest(traceTrial, branch, trial, 1.4);
-  const standardReference = createHeatCapacityFreeStandardReference({ traceTrial, trial, theoreticalGamma: 1.4 });
   return {
     traceTrial,
     branch,
     trial,
     summary,
-    upperBound: standardReference.operationUpperBound,
-    standardReference,
   };
 };
 
 export const createIncompleteProcessScoringInputFixture = (): HeatCapacityProcessScoringInput => {
   const { traceTrial, branch, trial } = createIncompleteProcessReviewFixtureParts();
   const summary = createProcessReviewSummaryForTest(traceTrial, branch, trial, 1.4);
-  const standardReference = createHeatCapacityFreeStandardReference({ traceTrial, trial, theoreticalGamma: 1.4 });
   return {
     traceTrial,
     branch,
     trial,
     summary,
-    upperBound: standardReference.operationUpperBound,
-    standardReference,
   };
 };
 

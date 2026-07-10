@@ -2,13 +2,11 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import {
   Activity,
   Archive,
-  ArrowLeft,
   BarChart3,
   BookOpen,
   ChevronDown,
   ChevronRight,
   Download,
-  ExternalLink,
   FilePlus2,
   FileArchive,
   FileText,
@@ -17,9 +15,6 @@ import {
   FolderOpen,
   Gauge,
   Info,
-  Languages,
-  ListTree,
-  Loader2,
   LockKeyhole,
   LogOut,
   MoreHorizontal,
@@ -115,9 +110,6 @@ import {
   shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
   startHeatCapacityGuideWorkbenchState,
   stepHeatCapacityWorkbenchFile,
-  WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
-  IDEAL_RESULT_HEIGHT_RATIO,
-  WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
   WORKBENCH_LIVE_SPLIT_MIN_RATIO,
   WORKBENCH_LIVE_SPLIT_MAX_RATIO,
   clampWorkbenchLiveSplitRatio,
@@ -129,18 +121,12 @@ import {
   type WorkbenchHeatCapacityState,
   type WorkbenchIdealState,
   type WorkbenchIdealResultWindowKey,
-  type WorkbenchIdealWindowLayout,
-  type WorkbenchHeatCapacityPanelKey,
   type WorkbenchHeatCapacityTabId,
   type HeatCapacityFreeDisplayScheme,
   type WorkbenchPanelKey,
   type WorkbenchParameterRow,
-  type WorkbenchStandardResultsLayout,
   type WorkbenchStandardResultsTab,
 } from './workbenchState';
-import {
-  cloneHardSphereEngineSnapshot,
-} from './workbenchHardSpherePersistence.ts';
 import HeatCapacityInstrumentScene from '../heatCapacity/HeatCapacityInstrumentScene';
 import { HeatCapacityLeftPanel } from '../heatCapacity/HeatCapacityLeftPanel.tsx';
 import { HeatCapacityFreeDisplaySchemeMenu } from '../heatCapacity/HeatCapacityFreeDisplaySchemeMenu.tsx';
@@ -247,20 +233,18 @@ import {
 } from './workbenchResults';
 import {
   encodeWorkbenchSession,
+  getRestorableHeatCapacityGuideSessionFileId,
   loadClosedWorkbenchFiles,
   loadWorkbenchSession,
   persistClosedWorkbenchFiles,
   persistWorkbenchSession,
-  type WorkbenchSessionState,
 } from './workbenchSession.ts';
 import {
   IDEAL_RESULT_MAX_HEIGHT_RATIO,
   IDEAL_RESULT_MIN_HEIGHT_RATIO,
   clampIdealResultHeightRatio,
-  createDefaultWorkbenchLayoutDefaults,
   idealResultWindowKeys,
   isIdealResultWindowKey,
-  isStandardResultsTab,
   loadWorkbenchLayoutDefaults,
   normalizeIdealWindowLayoutState,
   normalizeStandardResultsLayout,
@@ -271,7 +255,6 @@ import {
   type WorkbenchLayoutDefaults,
 } from './workbenchLayoutCompatibility.ts';
 import {
-  clonePointsByRelation,
   createIdealGasExperimentPoint,
   getIdealFailureReasonText,
   getIdealGasAnalysis,
@@ -288,11 +271,60 @@ import {
   type IdealExperimentLanguageCode,
 } from '../../domain/idealGas/idealGasExperiment';
 import {
-  DEFAULT_HEAT_CAPACITY_QUALITY_MODE,
-  HEAT_CAPACITY_QUALITY_MODE_ORDER,
   HEAT_CAPACITY_QUALITY_PROFILES,
-  type HeatCapacityQualityMode,
 } from '../heatCapacity/heatCapacityQualityProfiles';
+import { cloneWorkbenchFiles } from './workbenchFileSnapshot.ts';
+import {
+  getSystemWorkbenchTheme,
+  loadWorkbenchGeneralSettings,
+  persistWorkbenchGeneralSettings,
+  type WorkbenchLanguagePreference,
+  type WorkbenchPerformanceMode,
+  type WorkbenchResolvedTheme,
+  type WorkbenchThemePreference,
+} from './workbenchGeneralSettings.ts';
+import {
+  WORKBENCH_IGNORED_UPDATE_VERSION_KEY,
+  getAboutUpdateStatusLabel,
+  mergeWorkbenchUpdateDialogState,
+  type WorkbenchUpdateState,
+} from './workbenchDesktopUpdater.ts';
+import { WorkbenchUpdateDialog } from './WorkbenchUpdateDialog.tsx';
+import { WorkbenchEmptyWorkspace } from './WorkbenchEmptyWorkspace.tsx';
+import { WorkbenchGeneralSettingsWindow } from './WorkbenchGeneralSettingsWindow.tsx';
+import { WorkbenchAboutWindow } from './WorkbenchAboutWindow.tsx';
+import {
+  WorkbenchBuildNoticeWindow,
+  type WorkbenchBuildNoticeFilePreview,
+  type WorkbenchBuildNoticeLegalFile,
+  type WorkbenchBuildNoticeSection,
+  type WorkbenchLegalMaterialId,
+} from './WorkbenchBuildNoticeWindow.tsx';
+import {
+  getWorkbenchFileKindLabel,
+  getWorkbenchSessionCacheSummary,
+} from './workbenchFilePresentation.ts';
+import {
+  IDEAL_SCAN_SNAP_THRESHOLD,
+  IDEAL_SCAN_THUMB_HIT_RADIUS,
+  IDEAL_SCAN_THUMB_SIZE,
+  getIdealScanDecimals,
+  getIdealScanInputLabel,
+  getIdealScanPositionPercent,
+  getIdealScanStep,
+  getIdealScanStepLabel,
+  idealRelationOptions,
+  idealSamplingPresets,
+  isIdealScanValueOnStep,
+  type IdealSamplingPreset,
+  type IdealSamplingPresetKey,
+} from './workbenchIdealControls.ts';
+import {
+  getHeatCapacityMaterialsTabOrder,
+  heatCapacityPanelKeyToTabId,
+  heatCapacityTabIdToPanelKey,
+  isHeatCapacityPanelKey,
+} from './workbenchHeatCapacityTabRegistry.ts';
 import './WorkbenchStudioPrototype.css';
 
 type LogKind = 'info' | 'warning' | 'success' | 'error';
@@ -300,10 +332,6 @@ type ConsoleTab = 'logs' | 'warnings' | 'summary';
 type TopMenu = 'new' | 'edit' | 'window' | 'settings' | 'help' | null;
 type TopCommandSubmenu = 'newExperiment' | 'openExperiment';
 type ResultsSectionKey = WorkbenchStandardResultsTab;
-type WorkbenchThemePreference = 'system' | 'light' | 'dark';
-type WorkbenchResolvedTheme = 'light' | 'dark';
-type WorkbenchLanguagePreference = 'zh-CN' | 'zh-TW' | 'en';
-type WorkbenchPerformanceMode = HeatCapacityQualityMode;
 const getHeatCapacityFreeParameterLockMessage = (
   reason: HeatCapacityFreeParameterLockReasonId | null,
   language: WorkbenchLanguagePreference,
@@ -342,11 +370,8 @@ const WORKBENCH_WINDOW_CONTROL_COPY: Record<WorkbenchLanguagePreference, {
     close: 'Close',
   },
 };
-type IdealSamplingPresetKey = 'fast' | 'balanced' | 'stable';
 type WorkbenchParameterSymbolPart = string | { sub: string };
 type HeatCapacityGuideRecordKind = 'u0' | 'u1' | 'u2';
-type WorkbenchUpdateStatus = 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'retrying' | 'downloaded' | 'installing' | 'unsupported' | 'error';
-type WorkbenchLocalizedText = Partial<Record<WorkbenchLanguagePreference, string>>;
 
 type HeatCapacityFocusMode = 'none' | 'instrument' | 'pump' | 'bottle';
 type HeatCapacityFocusControlSnapshot = {
@@ -407,19 +432,6 @@ type HeatCapacityGuideStrongTargetSpec = {
   domHoles?: HeatCapacityGuideStrongDomCutout[];
   reminderCopyKey?: 'guideStrongReminder' | 'guideStrongReminderPressureZero';
 };
-
-interface WorkbenchUpdateReleaseItem {
-  scope: string;
-  importance: string;
-  title: WorkbenchLocalizedText;
-  body: WorkbenchLocalizedText;
-}
-
-interface WorkbenchUpdateReleaseSection {
-  type: string;
-  title: WorkbenchLocalizedText;
-  items: WorkbenchUpdateReleaseItem[];
-}
 
 const WORKBENCH_PARAMETER_DETAILS: Record<ExperimentParamKey, {
   symbol: WorkbenchParameterSymbolPart[];
@@ -505,54 +517,6 @@ const WORKBENCH_PARAMETER_DETAILS: Record<ExperimentParamKey, {
       en: 'Sets the duration of the statistics collection window.',
     },
   },
-};
-
-interface WorkbenchUpdateState {
-  status: WorkbenchUpdateStatus;
-  currentVersion: string;
-  latestVersion?: string | null;
-  releaseName?: string | null;
-  releaseDate?: string | null;
-  releaseNotes?: string | null;
-  releaseSummary?: WorkbenchLocalizedText | null;
-  releaseSections?: WorkbenchUpdateReleaseSection[] | null;
-  releasePageUrl?: string | null;
-  manualDownloadUrl?: string | null;
-  downloadAttempt?: number | null;
-  maxDownloadAttempts?: number | null;
-  retrying?: boolean;
-  errorKind?: string | null;
-  percent?: number | null;
-  message?: string;
-}
-
-interface WorkbenchDesktopUpdaterBridge {
-  checkForUpdates?: () => Promise<WorkbenchUpdateState>;
-  downloadUpdate?: () => Promise<WorkbenchUpdateState>;
-  quitAndInstall?: () => Promise<WorkbenchUpdateState>;
-  openManualDownload?: () => Promise<{ status: 'opened' | 'error'; url?: string; message?: string }>;
-  onStatus?: (callback: (state: WorkbenchUpdateState) => void) => (() => void);
-}
-
-const mergeWorkbenchUpdateDialogState = (
-  nextState: WorkbenchUpdateState,
-  previousState: WorkbenchUpdateState | null,
-): WorkbenchUpdateState => {
-  if (!previousState) return nextState;
-  const nextVersion = nextState.latestVersion ?? null;
-  const previousVersion = previousState.latestVersion ?? null;
-  if (nextVersion && previousVersion && nextVersion !== previousVersion) return nextState;
-
-  return {
-    ...nextState,
-    releaseName: nextState.releaseName ?? previousState.releaseName,
-    releaseDate: nextState.releaseDate ?? previousState.releaseDate,
-    releaseNotes: nextState.releaseNotes ?? previousState.releaseNotes,
-    releaseSummary: nextState.releaseSummary ?? previousState.releaseSummary,
-    releaseSections: nextState.releaseSections ?? previousState.releaseSections,
-    releasePageUrl: nextState.releasePageUrl ?? previousState.releasePageUrl,
-    manualDownloadUrl: nextState.manualDownloadUrl ?? previousState.manualDownloadUrl,
-  };
 };
 
 const WORKBENCH_APP_VERSION = __APP_VERSION__;
@@ -991,35 +955,6 @@ interface UpdateIdealScanVariableOptions {
   snap?: boolean;
 }
 
-interface WorkbenchGeneralSettings {
-  theme: WorkbenchThemePreference;
-  language: WorkbenchLanguagePreference;
-  performanceMode: WorkbenchPerformanceMode;
-}
-
-interface WorkbenchBuildNoticeTable {
-  headers: string[];
-  rows: string[][];
-}
-
-type WorkbenchLegalMaterialId = DesktopLegalFileId;
-
-interface WorkbenchBuildNoticeMaterial {
-  id: WorkbenchLegalMaterialId;
-  title: string;
-  description: string;
-}
-
-interface WorkbenchBuildNoticeSection {
-  id: string;
-  title: string;
-  eyebrow: string;
-  paragraphs: string[];
-  bullets?: string[];
-  tables?: WorkbenchBuildNoticeTable[];
-  materials?: WorkbenchBuildNoticeMaterial[];
-}
-
 interface WorkbenchCopy {
   menus: {
     newStudy: string;
@@ -1455,8 +1390,6 @@ interface WorkbenchCopy {
     simulationPaused: (name: string, kind: string) => string;
     standardTerminated: (name: string) => string;
     idealTerminated: (name: string) => string;
-    standardReset: (name: string) => string;
-    idealReset: (name: string, relation: string) => string;
     panelOpened: (name: string, panel: string) => string;
     panelClosed: (name: string, panel: string) => string;
     pauseBeforeSwitchingRelation: (name: string) => string;
@@ -1504,8 +1437,6 @@ type WorkbenchExperimentLogCopy = Pick<WorkbenchCopy['logs'],
   | 'simulationPaused'
   | 'standardTerminated'
   | 'idealTerminated'
-  | 'standardReset'
-  | 'idealReset'
   | 'panelOpened'
   | 'panelClosed'
   | 'pauseBeforeSwitchingRelation'
@@ -1553,8 +1484,6 @@ const experimentLogCopies = {
     simulationPaused: (name, kind) => name + '：' + kind + '已暂停。',
     standardTerminated: (name) => name + '：标准模拟已终止并返回初始状态。',
     idealTerminated: (name) => name + '：理想气体模拟已终止并返回初始状态。',
-    standardReset: (name) => name + '：标准运行时已重置。',
-    idealReset: (name, relation) => name + '：' + relation + ' 理想运行时已重置。',
     panelOpened: (name, panel) => name + '：已打开面板 ' + panel + '。',
     panelClosed: (name, panel) => name + '：已关闭面板 ' + panel + '。',
     pauseBeforeSwitchingRelation: (name) => name + '：请先暂停当前理想气体运行，再切换关系。',
@@ -1600,8 +1529,6 @@ const experimentLogCopies = {
     simulationPaused: (name, kind) => name + '：' + kind + '已暫停。',
     standardTerminated: (name) => name + '：標準模擬已終止並返回初始狀態。',
     idealTerminated: (name) => name + '：理想氣體模擬已終止並返回初始狀態。',
-    standardReset: (name) => name + '：標準執行階段已重置。',
-    idealReset: (name, relation) => name + '：' + relation + ' 理想執行階段已重置。',
     panelOpened: (name, panel) => name + '：已開啟面板 ' + panel + '。',
     panelClosed: (name, panel) => name + '：已關閉面板 ' + panel + '。',
     pauseBeforeSwitchingRelation: (name) => name + '：請先暫停目前理想氣體執行，再切換關係。',
@@ -1647,8 +1574,6 @@ const experimentLogCopies = {
     simulationPaused: (name, kind) => name + ': ' + kind + ' paused.',
     standardTerminated: (name) => name + ': standard simulation terminated and returned to its start state.',
     idealTerminated: (name) => name + ': ideal-gas simulation terminated and returned to its start state.',
-    standardReset: (name) => name + ': standard runtime reset.',
-    idealReset: (name, relation) => name + ': ideal runtime reset for ' + relation + '.',
     panelOpened: (name, panel) => name + ': opened panel ' + panel + '.',
     panelClosed: (name, panel) => name + ': closed panel ' + panel + '.',
     pauseBeforeSwitchingRelation: (name) => name + ': pause the current ideal run before switching relation.',
@@ -1678,32 +1603,13 @@ const PARAM_SIDEBAR_MAX = 420;
 const EDIT_HISTORY_LIMIT = 50;
 const SIMULATION_TICK_INTERVAL_MS = 16;
 const IDEAL_ADVANCED_SCROLL_DURATION_MS = 420;
-const IDEAL_SCAN_THUMB_SIZE = 13;
-const IDEAL_SCAN_THUMB_HIT_RADIUS = 9.1;
-const IDEAL_SCAN_SNAP_THRESHOLD: Record<ExperimentRelation, number> = {
-  pt: 0.04,
-  pv: 0.25,
-  pn: 8,
-};
 const HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO = IDEAL_RESULT_MIN_HEIGHT_RATIO;
 const STANDARD_RESULTS_BOTTOM_INSET = 10;
 const RESIZER_GRAB_SAFE_SPACE = 14;
-const WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY = 'hsl_workbench_general_settings_v2';
-const WORKBENCH_IGNORED_UPDATE_VERSION_KEY = 'hslIgnoredUpdateVersion';
 const HEAT_CAPACITY_AUTO_DEMO_RESET_MS = 1_800;
 const HEAT_CAPACITY_AUTO_DEMO_STEP_PANEL_EXIT_MS = 560;
 
-const defaultWorkbenchGeneralSettings: WorkbenchGeneralSettings = {
-  theme: 'system',
-  language: 'zh-CN',
-  performanceMode: DEFAULT_HEAT_CAPACITY_QUALITY_MODE,
-};
-
-const buildNoticeLegalMaterialFiles: Record<WorkbenchLegalMaterialId, {
-  previewPath?: string;
-  previewKind?: 'html' | 'text';
-  largeFile?: boolean;
-}> = {
+const buildNoticeLegalMaterialFiles: Record<WorkbenchLegalMaterialId, WorkbenchBuildNoticeLegalFile> = {
   dependencies: { previewPath: '/legal/third-party-dependencies.html', previewKind: 'html' },
   licenseTexts: { previewPath: '/legal/third-party-license-texts.html', previewKind: 'html' },
   electron: { previewPath: '/legal/LICENSE.electron.txt', previewKind: 'text' },
@@ -2327,6 +2233,8 @@ const heatCapacityRealtimeCopies = {
     guideLessonButtonLabel: '实验说明',
     guideLessonDialogAria: '热容比实验说明',
     guideLessonContinueHint: '点击空白区域来继续',
+    guideChecklistLabel: '引导清单',
+    guideStepLabel: '步骤',
     guideLessonIntroPages: [
       {
         title: '实验目标',
@@ -2598,6 +2506,8 @@ const heatCapacityRealtimeCopies = {
     guideLessonButtonLabel: '實驗說明',
     guideLessonDialogAria: '熱容比實驗說明',
     guideLessonContinueHint: '點擊空白區域繼續',
+    guideChecklistLabel: '引導清單',
+    guideStepLabel: '步驟',
     guideLessonIntroPages: [
       {
         title: '實驗目標',
@@ -2869,10 +2779,12 @@ const heatCapacityRealtimeCopies = {
     guideLessonButtonLabel: 'Experiment notes',
     guideLessonDialogAria: 'Heat capacity experiment notes',
     guideLessonContinueHint: 'Click blank area to continue',
+    guideChecklistLabel: 'Guide checklist',
+    guideStepLabel: 'Step',
     guideLessonIntroPages: [
       {
         title: 'Experiment goal',
-        body: 'This experiment records U₀, U₁, and U₂ through one pressurizing, quick-release, and thermal-recovery sequence. Those readings are converted into pressure states and used to calculate the gas heat capacity ratio γ. Each guided operation supports reliable values for these three readings.',
+        body: 'This experiment records U₀, U₁, and U₂ through one pressurizing, quick-release, and thermal-recovery sequence. Those readings are converted into pressure states and used to calculate the gas heat capacity ratio γ. Each experiment step supports reliable values for these three readings.',
       },
       {
         title: 'Pressure and voltage',
@@ -3199,28 +3111,6 @@ const getAboutEnvironmentResultBody = (
   return copy.about.environmentResultUnavailable;
 };
 
-const getAboutUpdateStatusLabel = (
-  state: WorkbenchUpdateState,
-  copy: WorkbenchCopy,
-) => {
-  if (state.status === 'checking') return copy.about.checking;
-  if (state.status === 'available') return copy.about.updateAvailableStatus(state.latestVersion || '--');
-  if (state.status === 'not-available') return copy.about.upToDateStatus;
-  if (state.status === 'downloading') return copy.about.downloadingUpdateStatus(state.percent ?? null);
-  if (state.status === 'retrying') return copy.about.retryingUpdateStatus(state.downloadAttempt ?? null, state.maxDownloadAttempts ?? null);
-  if (state.status === 'downloaded') return copy.about.updateReadyStatus;
-  if (state.status === 'unsupported') return copy.about.unsupportedUpdateStatus;
-  if (state.status === 'error') return copy.about.updateErrorStatus;
-  return hasDesktopUpdaterBridge() ? copy.about.available : copy.about.unsupportedUpdateStatus;
-};
-
-const getWorkbenchLocalizedText = (
-  value: WorkbenchLocalizedText | null | undefined,
-  language: WorkbenchLanguagePreference,
-) => (
-  value?.[language] || value?.['zh-CN'] || value?.en || null
-);
-
 const WORKBENCH_VALIDATION_ERROR_COPIES: Record<WorkbenchLanguagePreference, Record<string, string>> = {
   'zh-CN': {
     'N must be greater than 0.': 'N 必须大于 0。',
@@ -3259,114 +3149,6 @@ const getLocalizedWorkbenchValidationErrors = (
   return errors.map((error) => copy[error] ?? error);
 };
 
-const formatWorkbenchReleaseDate = (
-  value: string | null | undefined,
-  language: WorkbenchLanguagePreference,
-) => {
-  if (!value) return '--';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  const locale = language === 'en' ? 'en-GB' : language;
-  return new Intl.DateTimeFormat(locale, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-};
-
-const getWorkbenchFileKindLabel = (kind: WorkbenchFileKind, copy: WorkbenchCopy['files']) => (
-  kind === 'standard' ? copy.std : kind === 'ideal' ? copy.ideal : copy.heat
-);
-
-const formatWorkbenchLastOpenedAt = (
-  timestamp: number,
-  language: WorkbenchLanguagePreference,
-) => {
-  const date = new Date(timestamp);
-  if (!Number.isFinite(timestamp) || Number.isNaN(date.getTime())) return '--';
-
-  const formatter = new Intl.DateTimeFormat(language === 'en' ? 'en-US' : language, {
-    year: 'numeric',
-    month: language === 'en' ? 'short' : '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-  if (language === 'en') return formatter.format(date);
-
-  const parts = formatter.formatToParts(date).reduce<Record<string, string>>((result, part) => {
-    if (part.type !== 'literal') result[part.type] = part.value;
-    return result;
-  }, {});
-  return `${parts.year}年${parts.month}月${parts.day}日 ${parts.hour}:${parts.minute}`;
-};
-
-const getWorkbenchSessionCacheSummary = (
-  files: WorkbenchFileState[],
-  copy: WorkbenchCopy,
-) => {
-  const counts = files.reduce(
-    (nextCounts, file) => ({
-      ideal: nextCounts.ideal + (file.kind === 'ideal' ? 1 : 0),
-      heat: nextCounts.heat + (file.kind === 'heatCapacity' ? 1 : 0),
-      standard: nextCounts.standard + (file.kind === 'standard' ? 1 : 0),
-    }),
-    { ideal: 0, heat: 0, standard: 0 },
-  );
-  return {
-    summary: copy.about.sessionCacheSummary(files.length),
-    breakdown: copy.about.sessionCacheBreakdown(counts.ideal, counts.heat, counts.standard),
-  };
-};
-
-const isWorkbenchThemePreference = (value: unknown): value is WorkbenchThemePreference => (
-  value === 'system' || value === 'light' || value === 'dark'
-);
-
-const isWorkbenchLanguagePreference = (value: unknown): value is WorkbenchLanguagePreference => (
-  value === 'zh-CN' || value === 'zh-TW' || value === 'en'
-);
-
-const isWorkbenchPerformanceMode = (value: unknown): value is WorkbenchPerformanceMode => (
-  typeof value === 'string' && HEAT_CAPACITY_QUALITY_MODE_ORDER.includes(value as HeatCapacityQualityMode)
-);
-
-const getSystemWorkbenchTheme = (): WorkbenchResolvedTheme => {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'light';
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-};
-
-const loadWorkbenchGeneralSettings = (): WorkbenchGeneralSettings => {
-  if (typeof window === 'undefined') return defaultWorkbenchGeneralSettings;
-
-  try {
-    const raw = window.localStorage.getItem(WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY);
-    if (!raw) return defaultWorkbenchGeneralSettings;
-
-    const parsed = JSON.parse(raw) as Partial<WorkbenchGeneralSettings>;
-    return {
-      theme: isWorkbenchThemePreference(parsed.theme) ? parsed.theme : defaultWorkbenchGeneralSettings.theme,
-      language: isWorkbenchLanguagePreference(parsed.language) ? parsed.language : defaultWorkbenchGeneralSettings.language,
-      performanceMode: isWorkbenchPerformanceMode(parsed.performanceMode) ? parsed.performanceMode : defaultWorkbenchGeneralSettings.performanceMode,
-    };
-  } catch {
-    return defaultWorkbenchGeneralSettings;
-  }
-};
-
-const persistWorkbenchGeneralSettings = (settings: WorkbenchGeneralSettings) => {
-  if (typeof window === 'undefined') return;
-
-  try {
-    window.localStorage.setItem(WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // Settings are UI preferences; failing to persist should not affect simulation work.
-  }
-};
-
 const snapshotParticles = (engine: PhysicsEngine): Particle[] => (
   engine.particles.map((particle) => ({ ...particle }))
 );
@@ -3392,33 +3174,6 @@ const getHeatCapacityFreeWaitTimerProgressColor = (progressRatio: number) => {
   return `rgb(${red}, ${green}, ${blue})`;
 };
 
-const getIdealScanStep = (relation: ExperimentRelation) => (
-  relation === 'pn' ? 1 : relation === 'pv' ? 0.1 : 0.01
-);
-
-const getIdealScanDecimals = (relation: ExperimentRelation) => (
-  relation === 'pn' ? 0 : relation === 'pv' ? 1 : 2
-);
-
-const getIdealScanStepLabel = (relation: ExperimentRelation) => (
-  relation === 'pt' ? '0.01' : relation === 'pv' ? '0.1' : '1'
-);
-
-const getIdealScanInputLabel = (relation: ExperimentRelation) => (
-  relation === 'pt' ? 'Target temperature' : relation === 'pv' ? 'L' : 'N'
-);
-
-const isIdealScanValueOnStep = (rawValue: string, relation: ExperimentRelation) => {
-  if (relation === 'pn') return /^\d+$/.test(rawValue.trim());
-  const fractionalPart = rawValue.trim().split('.')[1] ?? '';
-  const trimmedFractionalPart = fractionalPart.replace(/0+$/, '');
-  return trimmedFractionalPart.length <= getIdealScanDecimals(relation);
-};
-
-const getIdealScanPositionPercent = (value: number, scanMin: number, scanRange: number) => (
-  scanRange > 0 ? clamp(((value - scanMin) / scanRange) * 100, 0, 100) : 0
-);
-
 const formatMaybeMetric = (value: number | null | undefined, digits = 3) => (
   typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '--'
 );
@@ -3437,8 +3192,6 @@ const renderScientificText = (text: string): React.ReactNode => {
 const formatPercent = (value: number) => `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-const getHistogramSampleCount = (bins: HistogramBin[]) => bins.reduce((sum, bin) => sum + bin.count, 0);
 
 const getCompactHistogramBins = (bins: HistogramBin[], maxBars = 36) => {
   if (bins.length <= maxBars) return bins;
@@ -3546,52 +3299,11 @@ const createResultsSections = (copy: WorkbenchCopy): Array<{ key: ResultsSection
   { key: 'figures', title: copy.panels.figuresTitle, icon: <BarChart3 size={12} /> },
 ];
 
-const idealRelationOptions: Array<{ key: ExperimentRelation; label: string }> = [
-  { key: 'pt', label: 'P-T' },
-  { key: 'pv', label: 'P-V' },
-  { key: 'pn', label: 'P-N' },
-];
-
-const idealRelationKeys: ExperimentRelation[] = ['pt', 'pv', 'pn'];
-const heatCapacityMaterialsTabOrder: WorkbenchHeatCapacityTabId[] = ['guide', 'records', 'review'];
-const getHeatCapacityMaterialsTabOrder = (_file: WorkbenchFileState): WorkbenchHeatCapacityTabId[] => heatCapacityMaterialsTabOrder;
-
-const isHeatCapacityPanelKey = (key: WorkbenchPanelKey): key is WorkbenchHeatCapacityPanelKey => (
-  key === 'heatCapacityGuide' ||
-  key === 'heatCapacityRecords' ||
-  key === 'heatCapacityReview'
-);
-
-const heatCapacityTabIdToPanelKey = (tabId: WorkbenchHeatCapacityTabId): WorkbenchHeatCapacityPanelKey => (
-  tabId === 'guide'
-    ? 'heatCapacityGuide'
-    : tabId === 'records'
-      ? 'heatCapacityRecords'
-      : 'heatCapacityReview'
-);
-
-const heatCapacityPanelKeyToTabId = (panelKey: WorkbenchPanelKey): WorkbenchHeatCapacityTabId | null => (
-  panelKey === 'heatCapacityGuide'
-    ? 'guide'
-    : panelKey === 'heatCapacityRecords'
-      ? 'records'
-    : panelKey === 'heatCapacityReview'
-      ? 'review'
-      : null
-);
-
 const pickNextOpenTab = <T extends string>(tabs: T[], closingTab: T) => {
   const closingIndex = tabs.indexOf(closingTab);
   if (closingIndex < 0) return tabs[0] ?? null;
   return tabs[closingIndex + 1] ?? tabs[closingIndex - 1] ?? null;
 };
-
-const idealSamplingPresets: Array<{ key: IdealSamplingPresetKey; label: string; equilibriumTime: number; statsDuration: number }> = [
-  { key: 'fast', label: 'Fast', equilibriumTime: 2, statsDuration: 6 },
-  { key: 'balanced', label: 'Balanced', equilibriumTime: 4, statsDuration: 12 },
-  { key: 'stable', label: 'Stable', equilibriumTime: 6, statsDuration: 20 },
-] as const;
-type IdealSamplingPreset = typeof idealSamplingPresets[number];
 
 const formatTime = () => new Date().toLocaleTimeString('en-GB', { hour12: false });
 
@@ -3669,91 +3381,6 @@ const isEditableElement = (element: EventTarget | Element | null) => {
   );
 };
 
-const cloneWorkbenchChartData = (data: WorkbenchFileState['chartData']) => ({
-  speed: data.speed.map((item) => ({ ...item })),
-  energy: data.energy.map((item) => ({ ...item })),
-  energyLog: data.energyLog.map((item) => ({ ...item })),
-  tempHistory: data.tempHistory.map((item) => ({ ...item })),
-});
-
-const cloneHeatCapacityProcessSamples = (
-  samples: WorkbenchHeatCapacityState['heatCapacityProcessSamples'],
-): WorkbenchHeatCapacityState['heatCapacityProcessSamples'] => (
-  Object.fromEntries(
-    Object.entries(samples).map(([key, point]) => [key, point ? { ...point } : point]),
-  ) as WorkbenchHeatCapacityState['heatCapacityProcessSamples']
-);
-
-const cloneWorkbenchFiles = (filesToClone: WorkbenchFileState[]): WorkbenchFileState[] => (
-  filesToClone.map((file): WorkbenchFileState => {
-    const common = {
-      params: cloneParams(file.params),
-      appliedParams: cloneParams(file.appliedParams),
-      stats: { ...file.stats },
-      chartData: cloneWorkbenchChartData(file.chartData),
-      finalChartData: file.finalChartData ? cloneWorkbenchChartData(file.finalChartData) : null,
-      visiblePanels: [...file.visiblePanels],
-    };
-
-    if (file.kind === 'standard') {
-      return {
-        ...file,
-        ...common,
-        particles: file.particles.map((particle) => ({ ...particle })),
-        hardSphereEngineSnapshot: cloneHardSphereEngineSnapshot(file.hardSphereEngineSnapshot),
-        standardResultsLayout: normalizeStandardResultsLayout(file.standardResultsLayout),
-      };
-    }
-
-    if (file.kind === 'ideal') {
-      return {
-        ...file,
-        ...common,
-        activeParams: cloneParams(file.activeParams),
-        pointsByRelation: clonePointsByRelation(file.pointsByRelation),
-        latestPressureSummary: file.latestPressureSummary
-          ? {
-              ...file.latestPressureSummary,
-              history: file.latestPressureSummary.history.map((point) => ({ ...point })),
-            }
-          : null,
-        particles: file.particles.map((particle) => ({ ...particle })),
-        hardSphereEngineSnapshot: cloneHardSphereEngineSnapshot(file.hardSphereEngineSnapshot),
-        idealWindowLayout: normalizeIdealWindowLayoutState(file.idealWindowLayout),
-      };
-    }
-
-    return {
-      ...file,
-      ...common,
-      name: normalizeHeatCapacityFileName(file.name),
-      particles: file.particles.map((particle) => ({ ...particle })),
-      heatCapacityExperimentProfile: file.heatCapacityExperimentProfile ? { ...file.heatCapacityExperimentProfile } : null,
-      pressureZeroDisplayedSamples: file.pressureZeroDisplayedSamples.map((sample) => ({ ...sample })),
-      pumpStrokeTimestamps: [...file.pumpStrokeTimestamps],
-      recordedPressures: { ...file.recordedPressures },
-      heatCapacityProcessSamples: cloneHeatCapacityProcessSamples(file.heatCapacityProcessSamples),
-      openHeatCapacityTabs: [...file.openHeatCapacityTabs],
-      heatCapacityFreeTrials: file.heatCapacityFreeTrials.map((trial) => ({ ...trial })),
-      heatCapacityFreePhysicsState: { ...file.heatCapacityFreePhysicsState },
-      heatCapacityFreeSensorState: { ...file.heatCapacityFreeSensorState },
-      heatCapacityFreeCalibrationState: {
-        ...file.heatCapacityFreeCalibrationState,
-        zeroEvents: file.heatCapacityFreeCalibrationState.zeroEvents.map((event) => ({ ...event })),
-      },
-    };
-  })
-);
-
-const getRestorableHeatCapacityGuideSessionFileId = (session: WorkbenchSessionState) => {
-  const fileId = session.heatCapacityGuideSession?.fileId;
-  if (!fileId) return null;
-  const file = session.files.find((candidate) => candidate.id === fileId);
-  return file?.kind === 'heatCapacity' && file.heatCapacityMode === 'guide'
-    ? file.id
-    : null;
-};
-
 const WorkbenchStudioPrototype: React.FC = () => {
   const [initialSession] = useState(() => loadWorkbenchSession());
   const initialHeatCapacityGuideSessionFileId = getRestorableHeatCapacityGuideSessionFileId(initialSession);
@@ -3815,11 +3442,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [buildNoticeWindowOpen, setBuildNoticeWindowOpen] = useState(false);
   const [buildNoticeNavOpen, setBuildNoticeNavOpen] = useState(false);
   const [activeBuildNoticeMaterialId, setActiveBuildNoticeMaterialId] = useState<WorkbenchLegalMaterialId | null>(null);
-  const [buildNoticeFilePreview, setBuildNoticeFilePreview] = useState<{
-    id: WorkbenchLegalMaterialId;
-    kind: 'html' | 'text';
-    content: string;
-  } | null>(null);
+  const [buildNoticeFilePreview, setBuildNoticeFilePreview] = useState<WorkbenchBuildNoticeFilePreview | null>(null);
   const [buildNoticeOpenError, setBuildNoticeOpenError] = useState<string | null>(null);
   const [aboutResultNotice, setAboutResultNotice] = useState<{ title: string; body: string } | null>(null);
   const [aboutUpdateChecking, setAboutUpdateChecking] = useState(false);
@@ -3852,9 +3475,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const workbenchCopy = workbenchCopies[settingsLanguagePreference];
   const windowControlCopy = WORKBENCH_WINDOW_CONTROL_COPY[settingsLanguagePreference];
   const desktopWindowControlsAvailable = hasDesktopWindowControlBridge();
-  const performanceModeOptions = useMemo(() => (
-    HEAT_CAPACITY_QUALITY_MODE_ORDER.map((mode) => ({ mode, label: workbenchCopy.settings.performanceModeSummary[mode] }))
-  ), [workbenchCopy]);
   const heatCapacityQualityProfile = HEAT_CAPACITY_QUALITY_PROFILES[settingsPerformanceMode];
   const workbenchTranslation = translations[settingsLanguagePreference === 'en' ? 'en-GB' : settingsLanguagePreference];
   const [leftCollapsed, setLeftCollapsed] = useState(false);
@@ -3993,6 +3613,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const heatCapacityLessonPausedFileIdRef = useRef<string | null>(null);
   const heatCapacityGuideLessonTransitionTimerRef = useRef<number | null>(null);
   const heatCapacityGuideLessonCloseTimerRef = useRef<number | null>(null);
+  const heatCapacityGuideLessonDialogRef = useRef<HTMLElement | null>(null);
   const restoredHeatCapacityGuideStrongReminderFileIdRef = useRef<string | null>(
     initialSession.heatCapacityGuideSession?.strongReminderActive === true
       ? initialHeatCapacityGuideSessionFileId
@@ -4066,6 +3687,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
   useEffect(() => {
     heatCapacityLessonDialogActiveRef.current = heatCapacityLessonDialogActive;
   }, [heatCapacityLessonDialogActive]);
+
+  useEffect(() => {
+    if (!heatCapacityGuideLessonDialog) return;
+    heatCapacityGuideLessonDialogRef.current?.focus();
+  }, [heatCapacityGuideLessonDialog]);
 
   useEffect(() => {
     if (!guideHeatCapacityStrongReminderActive) return undefined;
@@ -4553,7 +4179,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
 
     if ((nextState.status === 'unsupported' || nextState.status === 'error') && options.manual) {
-      showAboutResultNotice(workbenchCopy.about.updateResultTitle, nextState.message || getAboutUpdateStatusLabel(nextState, workbenchCopy));
+      showAboutResultNotice(
+        workbenchCopy.about.updateResultTitle,
+        nextState.message || getAboutUpdateStatusLabel(nextState, workbenchCopy.about, hasDesktopUpdaterBridge()),
+      );
     }
   };
 
@@ -5852,19 +5481,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return null;
   };
 
-  const getGuideHeatCapacityExpectedU2Mv = (
-    file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
-    recordedU1Mv: number | null,
-  ) => {
-    if (recordedU1Mv !== null) return recordedU1Mv * (1 - 1 / file.theoreticalGamma);
-    const profile = file.heatCapacityExperimentProfile;
-    if (profile && Number.isFinite(profile.recoveryPressureMv)) return profile.recoveryPressureMv;
-    if (profile && Number.isFinite(profile.u2MeasuredMv)) return profile.u2MeasuredMv;
-    const recoverySample = file.heatCapacityProcessSamples.recoverySample;
-    if (recoverySample && Number.isFinite(recoverySample.pressureSignalMv)) return recoverySample.pressureSignalMv;
-    return null;
-  };
-
   const hasGuideHeatCapacityWaitElapsed = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
     kind: 'u1' | 'u2',
@@ -6117,31 +5733,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
       message: messages[step],
       controlId: getHeatCapacityGuideStepControlId(step, { temperatureReady }),
     };
-  };
-
-  const getGuideHeatCapacityRecordBlockedMessage = (
-    kind: HeatCapacityGuideRecordKind,
-    file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
-    latestStep: GuideHeatCapacityStep,
-  ) => {
-    const messages = heatCapacityRealtimeCopy.guideRecordBlockedMessages;
-    const stopcockState = getHeatCapacityStopcockState(file.stopcockAngleDeg);
-    if (kind === 'u0') {
-      if (!file.powerOn) return messages.u0NeedPower;
-      if (stopcockState !== 'open') return messages.u0NeedStopcock;
-      if (!isGuideU0ZeroReady(file)) return messages.u0NeedZero;
-      return messages.u0NeedCurrentStep;
-    }
-    if (kind === 'u1') {
-      if (file.pumpStrokeCount === 0 && !file.heatCapacityProcessSamples.pumpPeakSample) return messages.u1NeedPump;
-      if (file.pumpValveOpen) return messages.u1NeedClosePumpValve;
-      if (!hasGuideHeatCapacityWaitElapsed(file, 'u1')) return messages.u1NeedWait;
-      return latestStep === 'recordU1Required' ? heatCapacityRealtimeCopy.recordU1Warning : messages.u1NeedCurrentStep;
-    }
-    if (!isGuideHeatCapacityReleaseCompleteForU2(file, getActiveTrialRecordedU1Mv(file))) return messages.u2NeedRelease;
-    if (stopcockState === 'open') return messages.u2NeedCloseStopcock;
-    if (!hasGuideHeatCapacityWaitElapsed(file, 'u2')) return messages.u2NeedWait;
-    return latestStep === 'recordU2Required' ? heatCapacityRealtimeCopy.recordU2Warning : messages.u2NeedCurrentStep;
   };
 
   const setHeatCapacityToastCurrentState = (message: HeatCapacityToastMessage | null) => {
@@ -6535,8 +6126,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const isHeatCapacityLessonQueueBlocked = () => heatCapacityLessonDialogActiveRef.current;
 
   const activateGuideHeatCapacityStrongReminder = (controlId?: string | null) => {
-    if (isHeatCapacityPressureAlertActive()) return;
-    if (isHeatCapacityLessonQueueBlocked()) return;
+    if (isHeatCapacityPressureAlertActive()) return false;
+    if (isHeatCapacityLessonQueueBlocked()) return false;
     if (guideHeatCapacityStrongReminderTimerRef.current !== null) {
       window.clearTimeout(guideHeatCapacityStrongReminderTimerRef.current);
       guideHeatCapacityStrongReminderTimerRef.current = null;
@@ -6547,6 +6138,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setGuideHeatCapacityStrongReminderFocusKey((key) => key + 1);
     pulseGuideHeatCapacityControl(controlId ?? null);
     setGuideHeatCapacityStrongReminderActive(true);
+    return true;
   };
 
   const scheduleGuideHeatCapacityStrongReminderAfterToast = (controlId?: string | null) => {
@@ -6608,6 +6200,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const clearHeatCapacityGuideLessonState = () => {
+    resetHeatCapacityLessonResumeClock(heatCapacityLessonPausedFileIdRef.current);
     clearHeatCapacityGuideLessonTimers();
     heatCapacityGuideLessonShownRef.current.clear();
     heatCapacityGuideLessonStepRef.current = { fileId: null, step: 'idle' };
@@ -6657,7 +6250,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setAutoDemoCompletionMessage(null);
   };
 
-  const registerGuideHeatCapacityMiss = (guard: GuideHeatCapacityGuardResult) => {
+  const registerGuideHeatCapacityMiss = (_guard: GuideHeatCapacityGuardResult) => {
     const missCount = guideHeatCapacityMissCountRef.current + 1;
     guideHeatCapacityMissCountRef.current = missCount;
     return missCount >= 2;
@@ -6668,6 +6261,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       window.clearTimeout(heatCapacityRecordControlsClosingTimerRef.current);
       heatCapacityRecordControlsClosingTimerRef.current = null;
     }
+    clearHeatCapacityGuideLessonTimers();
     clearGuideHeatCapacityGuidancePulseTimer();
     clearGuideHeatCapacityStrongReminder();
   }, []);
@@ -6785,6 +6379,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     heatCapacityLessonPausedFileIdRef.current = targetFile.id;
     clearHeatCapacityGuideLessonTimers();
     clearGuideHeatCapacityStrongReminder();
+    heatCapacityLessonDialogActiveRef.current = true;
     setHeatCapacityGuideLessonOutgoingView(null);
     setHeatCapacityGuideLessonClosing(false);
     setHeatCapacityGuideLessonDialog({ kind: 'intro', pageIndex: 0 });
@@ -6798,9 +6393,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setHeatCapacityGuideLessonClosing(true);
     heatCapacityGuideLessonCloseTimerRef.current = window.setTimeout(() => {
       heatCapacityGuideLessonCloseTimerRef.current = null;
+      resetHeatCapacityLessonResumeClock(pausedFileId);
       setHeatCapacityGuideLessonDialog(null);
       setHeatCapacityGuideLessonClosing(false);
-      resetHeatCapacityLessonResumeClock(pausedFileId);
+      heatCapacityLessonDialogActiveRef.current = false;
     }, HEAT_CAPACITY_LESSON_DIALOG_ANIMATION_MS);
   };
 
@@ -6865,6 +6461,33 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (heatCapacityGuideLessonDialog.kind === 'step') {
       closeHeatCapacityGuideLessonDialog();
     }
+  };
+
+  const handleHeatCapacityGuideLessonDialogKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      closeHeatCapacityGuideLessonDialog();
+      return;
+    }
+    if (event.target instanceof HTMLElement && event.target.closest('button')) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      event.stopPropagation();
+      handleHeatCapacityGuideLessonDialogAdvance();
+    }
+  };
+
+  const handleHeatCapacityGuideLessonCloseButtonMouseDown = (
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) => {
+    event.stopPropagation();
+  };
+
+  const handleHeatCapacityGuideLessonCloseButtonClick = (
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) => {
+    event.stopPropagation();
+    closeHeatCapacityGuideLessonDialog();
   };
 
   const applyHeatCapacityGuideChecklistView = (
@@ -7014,10 +6637,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         fileId: activeHeatCapacityGuideFileId,
         step: activeHeatCapacityGuideStep,
       };
-      clearHeatCapacityGuideLessonTimers();
-      setHeatCapacityGuideLessonDialog(null);
-      setHeatCapacityGuideLessonOutgoingView(null);
-      setHeatCapacityGuideLessonClosing(false);
+      clearHeatCapacityGuideLessonState();
       return;
     }
 
@@ -7039,6 +6659,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         heatCapacityLessonPausedFileIdRef.current = activeFile.id;
         clearHeatCapacityGuideLessonTimers();
         clearGuideHeatCapacityStrongReminder();
+        heatCapacityLessonDialogActiveRef.current = true;
         setHeatCapacityGuideLessonOutgoingView(null);
         setHeatCapacityGuideLessonClosing(false);
         setHeatCapacityGuideLessonDialog({ kind: 'step', lessonId });
@@ -7120,6 +6741,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     activeHeatCapacityGuideFileId,
     activeHeatCapacityGuideStep,
     heatCapacityRecordToastSequenceActive,
+    heatCapacityLessonDialogActive,
     guideHeatCapacityActiveFileId,
     settingsLanguagePreference,
   ]);
@@ -7297,7 +6919,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
     const guidance = getGuideStepGuidance(latestStep, activeFile);
     const restoredControlId = restoredHeatCapacityGuideStrongReminderControlIdRef.current;
-    activateGuideHeatCapacityStrongReminder(restoredControlId ?? guidance.controlId);
+    if (!activateGuideHeatCapacityStrongReminder(restoredControlId ?? guidance.controlId)) return;
     restoredHeatCapacityGuideStrongReminderFileIdRef.current = null;
     restoredHeatCapacityGuideStrongReminderControlIdRef.current = null;
   };
@@ -7310,6 +6932,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null,
     activeHeatCapacityGuideStep,
     guideHeatCapacityActiveFileId,
+    heatCapacityLessonDialogActive,
     settingsLanguagePreference,
   ]);
 
@@ -7324,21 +6947,23 @@ const WorkbenchStudioPrototype: React.FC = () => {
         onMouseDown={handleHeatCapacityGuideLessonDialogAdvance}
       >
         <section
+          ref={heatCapacityGuideLessonDialogRef}
           className={`studio-heat-guide-lesson-card studio-heat-guide-lesson-card-${heatCapacityGuideLessonDialog.kind}`}
           data-heat-capacity-guide-lesson-dialog="true"
           role="dialog"
           aria-label={heatCapacityRealtimeCopy.guideLessonDialogAria}
+          aria-modal="true"
+          tabIndex={-1}
           onMouseDown={(event) => event.stopPropagation()}
+          onKeyDown={handleHeatCapacityGuideLessonDialogKeyDown}
         >
           <button
             type="button"
             className="studio-heat-guide-lesson-close"
             data-heat-capacity-guide-lesson-close="true"
             aria-label={windowControlCopy.close}
-            onMouseDown={(event) => {
-              event.stopPropagation();
-              closeHeatCapacityGuideLessonDialog();
-            }}
+            onMouseDown={handleHeatCapacityGuideLessonCloseButtonMouseDown}
+            onClick={handleHeatCapacityGuideLessonCloseButtonClick}
           >
             <X size={13} strokeWidth={2.7} />
           </button>
@@ -7945,16 +7570,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const isHeatCapacityUserInteractionLocked = (source: 'user' | 'autoDemo' = 'user') => (
     source !== 'autoDemo' && autoDemoInteractionLocked
   );
-
-  const willHeatCapacityAutoDemoPumpExceedAlarm = (
-    file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
-    now: number,
-  ) => {
-    const projectedFile = registerHeatCapacityPumpStroke(file, now);
-    return getGuideHeatCapacityThresholdPressureMv(projectedFile) >= (
-      getHeatCapacityPressureThresholdsMv(file).pressureDangerThresholdMv
-    );
-  };
 
   const pressHeatCapacityPumpBulb = (
     fileId = activeFileIdRef.current,
@@ -9637,77 +9252,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
     pushLog(workbenchCopy.logs.idealTerminated(activeFile.name), 'warning');
   };
 
-  const resetActiveFile = () => {
-    if (activeFile.runState === 'running') {
-      cancelRuntimeFrame(activeFile.id);
-    }
-
-    if (activeFile.kind === 'heatCapacity') {
-      if (parametersDirty) {
-        applyActiveFileParams();
-        return;
-      }
-      resetHeatCapacityModeUiForFreeBase();
-      updateActiveFile((file) => {
-        if (file.kind !== 'heatCapacity') return file;
-        return resetHeatCapacityFreeRunWorkbenchState(file, Date.now());
-      });
-      pushLog(`${activeFile.name}: heat-capacity UI state reset.`, 'warning');
-      return;
-    }
-
-    if (parametersDirty || (activeFile.kind === 'ideal' && activeFile.needsReset)) {
-      applyActiveFileParams();
-      return;
-    }
-
-    if (activeFile.kind === 'standard') {
-      const nextRuntime = createStandardRuntime(activeFile);
-      if (!nextRuntime) return;
-
-      standardRuntimeRef.current[activeFile.id] = nextRuntime;
-      updateActiveFile((file) => {
-        if (file.kind !== 'standard') return file;
-        return {
-          ...file,
-          runState: 'idle',
-          stats: nextRuntime.engine.getStats(),
-          chartData: nextRuntime.engine.getHistogramData(false),
-          finalChartData: null,
-          particles: snapshotParticles(nextRuntime.engine),
-          hardSphereEngineSnapshot: nextRuntime.engine.createSnapshot(),
-          updatedAt: Date.now(),
-        };
-      });
-      pushLog(workbenchCopy.logs.standardReset(activeFile.name), 'warning');
-      return;
-    }
-
-    const nextRuntime = createIdealRuntime(activeFile);
-    if (!nextRuntime) return;
-
-    idealRuntimeRef.current[activeFile.id] = nextRuntime;
-    updateActiveFile((file) => {
-      if (file.kind !== 'ideal') return file;
-      const analysis = getIdealGasAnalysis(file.relation, file.pointsByRelation, file.activeParams);
-      return {
-        ...file,
-        runState: 'idle',
-        stats: nextRuntime.engine.getStats(),
-        chartData: nextRuntime.engine.getHistogramData(false),
-        finalChartData: null,
-        latestPressureSummary: nextRuntime.engine.getPressureMeasurementSummary(),
-        needsReset: false,
-        particles: snapshotParticles(nextRuntime.engine),
-        hardSphereEngineSnapshot: nextRuntime.engine.createSnapshot(),
-        verificationState: getIdealVerificationState(analysis),
-        historyUnlocked: analysis.isVerified,
-        updatedAt: Date.now(),
-      };
-    });
-    pushLog(workbenchCopy.logs.idealReset(activeFile.name, getRelationLabel(activeFile.relation)), 'warning');
-  };
-
   useEffect(() => {
     filesRef.current
       .forEach((file) => {
@@ -9989,10 +9533,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
         updatedAt: Date.now(),
       };
     });
-  };
-
-  const closeIdealResultWindow = (panel: WorkbenchIdealResultWindowKey) => {
-    closeIdealResultTab(panel);
   };
 
   const setActiveStandardResultsTab = (tab: WorkbenchStandardResultsTab) => {
@@ -12034,552 +11574,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
     );
   };
 
-  const renderBuildNoticeWindow = () => {
-    if (!buildNoticeWindowOpen) return null;
-
-    const sections = buildNoticeSections[settingsLanguagePreference];
-    const materialEntries = sections.flatMap((section) => section.materials ?? []);
-    const activeMaterial = activeBuildNoticeMaterialId
-      ? materialEntries.find((material) => material.id === activeBuildNoticeMaterialId) ?? null
-      : null;
-    const activeMaterialFile = activeMaterial ? buildNoticeLegalMaterialFiles[activeMaterial.id] : null;
-    const activeMaterialPreview = activeMaterial && buildNoticeFilePreview?.id === activeMaterial.id
-      ? buildNoticeFilePreview
-      : null;
-    const desktopLegalReadAvailable = hasDesktopLegalReadBridge();
-    const openLegalFileLabel = !hasDesktopLegalBridge() && activeMaterialFile?.previewPath
-      ? workbenchCopy.about.buildNoticeOpenInBrowser
-      : workbenchCopy.about.buildNoticeOpenLocalFile;
-
-    return (
-      <div className="studio-build-notice-overlay" role="presentation" onMouseDown={closeBuildNoticeWindow}>
-        <section
-          className={`studio-build-notice-window ${buildNoticeNavOpen ? 'studio-build-notice-nav-open' : ''}`}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="studio-build-notice-title"
-          onMouseDown={(event) => event.stopPropagation()}
-        >
-          <div className="studio-build-notice-header">
-            <div>
-              <strong id="studio-build-notice-title">{workbenchCopy.about.buildNoticeTitle}</strong>
-              <span>{workbenchCopy.about.buildNoticeSubtitle}</span>
-            </div>
-            <button type="button" className="studio-build-notice-close" aria-label={workbenchCopy.about.closeBuildNotice} onClick={closeBuildNoticeWindow}>
-              <X size={15} />
-            </button>
-          </div>
-
-          <div className="studio-build-notice-shell">
-            <aside className="studio-build-notice-rail" aria-label={workbenchCopy.about.buildNoticeNavTitle}>
-              <button
-                type="button"
-                className="studio-build-notice-rail-toggle"
-                aria-label={workbenchCopy.about.buildNoticeNavToggle}
-                aria-expanded={buildNoticeNavOpen}
-                onClick={() => setBuildNoticeNavOpen((open) => !open)}
-              >
-                <ListTree size={15} />
-              </button>
-            </aside>
-            {buildNoticeNavOpen ? (
-              <button
-                type="button"
-                className="studio-build-notice-nav-scrim"
-                aria-label={workbenchCopy.about.buildNoticeNavToggle}
-                onClick={() => setBuildNoticeNavOpen(false)}
-              />
-            ) : null}
-            <nav className="studio-build-notice-nav-panel" aria-label={workbenchCopy.about.buildNoticeNavTitle} aria-hidden={!buildNoticeNavOpen}>
-              <strong>{workbenchCopy.about.buildNoticeNavTitle}</strong>
-              <div>
-                {sections.map((section) => (
-                  <button type="button" className="studio-build-notice-nav-item" key={section.id} onClick={() => jumpToBuildNoticeSection(section.id)}>
-                    <span className="studio-build-notice-nav-item-text">{section.title}</span>
-                  </button>
-                ))}
-              </div>
-            </nav>
-            <div className={`studio-build-notice-body ${buildNoticeNavOpen ? 'studio-build-notice-body-dimmed' : ''}`}>
-              {activeMaterial && activeMaterialFile ? (
-                <article className="studio-build-notice-document studio-build-notice-detail-document">
-                  <button type="button" className="studio-build-notice-back" onClick={closeBuildNoticeMaterial}>
-                    <ArrowLeft size={15} />
-                    <span>{workbenchCopy.about.buildNoticeBack}</span>
-                  </button>
-                  <h2 className="studio-build-notice-document-title">{activeMaterial.title}</h2>
-                  <p className="studio-build-notice-detail-summary">{activeMaterial.description}</p>
-                  <div className="studio-build-notice-detail-actions">
-                    <button type="button" onClick={() => openBuildNoticeLegalFile(activeMaterial.id)}>
-                      <ExternalLink size={15} />
-                      <span>{openLegalFileLabel}</span>
-                    </button>
-                  </div>
-                  {buildNoticeOpenError ? (
-                    <p className="studio-build-notice-detail-error">{buildNoticeOpenError}</p>
-                  ) : null}
-                  {activeMaterialFile.largeFile ? (
-                    <p className="studio-build-notice-detail-note">{workbenchCopy.about.buildNoticeLargeFileBody}</p>
-                  ) : null}
-                  {!activeMaterialFile.largeFile && activeMaterialFile.previewKind === 'html' && activeMaterialFile.previewPath ? (
-                    <iframe
-                      className="studio-build-notice-detail-frame"
-                      src={desktopLegalReadAvailable ? undefined : activeMaterialFile.previewPath}
-                      srcDoc={desktopLegalReadAvailable ? activeMaterialPreview?.content : undefined}
-                      title={activeMaterial.title}
-                      sandbox="allow-popups allow-popups-to-escape-sandbox"
-                    />
-                  ) : null}
-                  {!activeMaterialFile.largeFile && activeMaterialFile.previewKind === 'text' ? (
-                    activeMaterialPreview?.kind === 'text' ? (
-                      <pre className="studio-build-notice-detail-text">{activeMaterialPreview.content}</pre>
-                    ) : (
-                      <p className="studio-build-notice-detail-note">{workbenchCopy.about.buildNoticePreviewUnavailable}</p>
-                    )
-                  ) : null}
-                  {!activeMaterialFile.largeFile && !activeMaterialFile.previewKind ? (
-                    <p className="studio-build-notice-detail-note">{workbenchCopy.about.buildNoticePreviewUnavailable}</p>
-                  ) : null}
-                </article>
-              ) : (
-                <article className="studio-build-notice-document">
-                  <h2 className="studio-build-notice-document-title">{workbenchCopy.about.buildNoticeTitle}</h2>
-                  {sections.map((section) => (
-                    <section className="studio-build-notice-section" id={`studio-build-notice-section-${section.id}`} key={section.id}>
-                      <span>{section.eyebrow}</span>
-                      <h3>{section.title}</h3>
-                      {section.paragraphs.map((paragraph, index) => (
-                        <p key={index}>{paragraph}</p>
-                      ))}
-                      {section.bullets && section.bullets.length > 0 ? (
-                        <ul>
-                          {section.bullets.map((item, index) => (
-                            <li key={index}>{item}</li>
-                          ))}
-                        </ul>
-                      ) : null}
-                      {section.tables && section.tables.length > 0 ? (
-                        section.tables.map((table, tableIndex) => (
-                          <div className="studio-build-notice-table-wrap" key={tableIndex}>
-                            <table>
-                              <thead>
-                                <tr>
-                                  {table.headers.map((header) => (
-                                    <th key={header}>{header}</th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {table.rows.map((row, rowIndex) => (
-                                  <tr key={rowIndex}>
-                                    {row.map((cell, cellIndex) => (
-                                      <td key={`${rowIndex}-${cellIndex}`}>{cell}</td>
-                                    ))}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        ))
-                      ) : null}
-                      {section.materials && section.materials.length > 0 ? (
-                        <div className="studio-build-notice-materials">
-                          {section.materials.map((material) => (
-                            <button type="button" className="studio-build-notice-material-row" key={material.id} onClick={() => openBuildNoticeMaterial(material.id)}>
-                              <span>
-                                <strong>{material.title}</strong>
-                                <small>{material.description}</small>
-                              </span>
-                              <ChevronRight size={15} />
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-                    </section>
-                  ))}
-                </article>
-              )}
-            </div>
-          </div>
-        </section>
-      </div>
-    );
-  };
-
-  const renderAboutWindow = () => {
-    if (!aboutWindowOpen) return null;
-
-    const environmentChecking = exportEnvironmentStatus === 'checking';
-    const updateChecking = aboutUpdateChecking;
-    const environmentStatusLabel = getAboutEnvironmentStatusLabel(exportEnvironmentStatus, workbenchCopy);
-
-    return (
-      <div className="studio-settings-overlay studio-about-overlay" role="presentation" onMouseDown={closeAboutWindow}>
-        <section
-          className="studio-settings-window studio-about-window"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="studio-about-title"
-          onMouseDown={(event) => event.stopPropagation()}
-        >
-          <div className="studio-settings-header studio-about-header">
-            <div>
-              <strong id="studio-about-title">{workbenchCopy.about.title}</strong>
-              <span>{workbenchCopy.about.subtitle}</span>
-            </div>
-            <button type="button" className="studio-settings-close" aria-label={workbenchCopy.about.closeAria} onClick={closeAboutWindow}>
-              <X size={15} />
-            </button>
-          </div>
-
-          <div className="studio-about-body">
-            <section className="studio-about-card">
-              <div className="studio-about-row">
-                <span className="studio-about-label">{workbenchCopy.about.currentVersion}</span>
-                <span className="studio-about-value"><strong>{WORKBENCH_APP_VERSION}</strong></span>
-              </div>
-              <button type="button" className="studio-about-row studio-about-action-row" onClick={runAboutUpdateCheck}>
-                <span className="studio-about-label">{workbenchCopy.about.checkUpdates}</span>
-                <span className="studio-about-value">
-                  <span>{updateChecking ? workbenchCopy.about.checking : getAboutUpdateStatusLabel(updaterState, workbenchCopy)}</span>
-                  <span className="studio-about-action-icon" aria-hidden="true">
-                    {updateChecking ? <Loader2 size={15} /> : <ChevronRight size={17} />}
-                  </span>
-                </span>
-              </button>
-              <button type="button" className="studio-about-row studio-about-action-row" onClick={runAboutEnvironmentCheck}>
-                <span className="studio-about-label">{workbenchCopy.about.localDataExportEnvironment}</span>
-                <span className="studio-about-value">
-                  <span className="studio-about-status">
-                    <i className={`studio-about-status-dot ${isExportEnvironmentAvailableStatus(exportEnvironmentStatus) ? 'studio-about-status-dot-ready' : ''}`} />
-                    <span>{environmentStatusLabel}</span>
-                  </span>
-                  <span className="studio-about-action-icon" aria-hidden="true">
-                    {environmentChecking ? <Loader2 size={15} /> : <ChevronRight size={17} />}
-                  </span>
-                </span>
-              </button>
-              <div className="studio-about-row studio-about-cache-row">
-                <span className="studio-about-label">{workbenchCopy.about.workspaceSessionCache}</span>
-                <span className="studio-about-value">
-                  <strong>{sessionCacheSummary.summary}</strong>
-                  <span className="studio-about-cache-breakdown">{sessionCacheSummary.breakdown}</span>
-                </span>
-              </div>
-              <button type="button" className="studio-about-row studio-about-action-row" onClick={openBuildNoticeWindow} aria-label={workbenchCopy.about.openBuildNotice}>
-                <span className="studio-about-label">{workbenchCopy.about.buildNotes}</span>
-                <span className="studio-about-value">
-                  <span className="studio-about-action-icon" aria-hidden="true">
-                    <ChevronRight size={17} />
-                  </span>
-                </span>
-              </button>
-            </section>
-          </div>
-
-          {aboutResultNotice ? (
-            <div className="studio-about-result-toast" role="status" aria-live="polite">
-              <strong>{aboutResultNotice.title}</strong>
-              <span>{aboutResultNotice.body}</span>
-            </div>
-          ) : null}
-        </section>
-      </div>
-    );
-  };
-
-  const renderUpdateDialog = () => {
-    if (!updateDialogState) return null;
-
-    const downloading = updateDialogState.status === 'downloading';
-    const retrying = updateDialogState.status === 'retrying';
-    const downloaded = updateDialogState.status === 'downloaded';
-    const installing = updateDialogState.status === 'installing';
-    const failed = updateDialogState.status === 'error';
-    const releaseNotes = updateDialogState.releaseNotes?.trim() || workbenchCopy.about.noReleaseNotes;
-    const releaseSummary = getWorkbenchLocalizedText(updateDialogState.releaseSummary, settingsLanguagePreference);
-    const releaseSections = updateDialogState.releaseSections ?? [];
-    const latestVersion = updateDialogState.latestVersion || '--';
-    const title = downloaded || installing ? workbenchCopy.about.updateReadyTitle : workbenchCopy.about.updateAvailableTitle;
-    const body = downloaded || installing ? workbenchCopy.about.updateReadyBody : workbenchCopy.about.updateAvailableBody;
-    const statusMessage = installing
-      ? workbenchCopy.about.updateReadyStatus
-      : retrying
-        ? workbenchCopy.about.retryingUpdateStatus(updateDialogState.downloadAttempt ?? null, updateDialogState.maxDownloadAttempts ?? null)
-        : failed
-          ? workbenchCopy.about.updateDownloadFailedStatus(updateDialogState.downloadAttempt ?? null, updateDialogState.maxDownloadAttempts ?? null)
-          : workbenchCopy.about.downloadingUpdateStatus(updateDialogState.percent ?? null);
-    const showStatus = downloading || retrying || installing || failed;
-
-    return (
-      <div className="studio-settings-overlay studio-update-overlay" role="presentation" onMouseDown={() => setUpdateDialogState(null)}>
-        <section
-          className="studio-settings-window studio-update-dialog"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="studio-update-title"
-          onMouseDown={(event) => event.stopPropagation()}
-        >
-          <div className="studio-settings-header studio-update-header">
-            <div>
-              <strong id="studio-update-title">{title}</strong>
-              <span>{body}</span>
-            </div>
-            <button type="button" className="studio-settings-close" aria-label={workbenchCopy.about.later} onClick={() => setUpdateDialogState(null)}>
-              <X size={15} />
-            </button>
-          </div>
-          <div className="studio-update-body">
-            <div className="studio-update-version-grid">
-              <span>{workbenchCopy.about.currentVersionLabel}</span>
-              <strong>{updateDialogState.currentVersion || WORKBENCH_APP_VERSION}</strong>
-              <span>{workbenchCopy.about.latestVersionLabel}</span>
-              <strong>{latestVersion}</strong>
-              <span>{workbenchCopy.about.releaseDateLabel}</span>
-              <strong>{formatWorkbenchReleaseDate(updateDialogState.releaseDate, settingsLanguagePreference)}</strong>
-            </div>
-            {releaseSummary ? (
-              <p className="studio-update-summary">{releaseSummary}</p>
-            ) : null}
-            <section className="studio-update-notes">
-              <strong>{workbenchCopy.about.releaseNotesLabel}</strong>
-              {releaseSections.length > 0 ? (
-                <div className="studio-update-note-sections">
-                  {releaseSections.map((section) => {
-                    const sectionTitle = getWorkbenchLocalizedText(section.title, settingsLanguagePreference) || section.type;
-                    return (
-                      <section className="studio-update-note-section" key={section.type}>
-                        <h4>{sectionTitle}</h4>
-                        <ul>
-                          {section.items.map((item, index) => {
-                            const itemTitle = getWorkbenchLocalizedText(item.title, settingsLanguagePreference) || item.scope;
-                            const itemBody = getWorkbenchLocalizedText(item.body, settingsLanguagePreference);
-                            return (
-                              <li key={item.scope + '-' + index}>
-                                <span>{itemTitle}</span>
-                                {itemBody ? <p>{itemBody}</p> : null}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </section>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p>{releaseNotes}</p>
-              )}
-            </section>
-            {showStatus ? (
-              <div className={'studio-update-status studio-update-status-' + updateDialogState.status}>
-                <span>{statusMessage}</span>
-                {downloading || installing ? (
-                  <i style={{ width: `${Math.max(0, Math.min(100, updateDialogState.percent ?? 0))}%` }} />
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-          <footer className="studio-update-actions">
-            {downloaded || installing ? (
-              <>
-                <button type="button" className="studio-update-secondary" onClick={() => setUpdateDialogState(null)}>
-                  {workbenchCopy.about.later}
-                </button>
-                <button type="button" className="studio-update-primary" onClick={restartAndInstallUpdate} disabled={installing}>
-                  {installing ? <Loader2 size={14} /> : <Download size={14} />}
-                  {workbenchCopy.about.restartAndInstall}
-                </button>
-              </>
-            ) : failed ? (
-              <>
-                <button type="button" className="studio-update-secondary" onClick={() => setUpdateDialogState(null)}>
-                  {workbenchCopy.about.later}
-                </button>
-                <button type="button" className="studio-update-secondary" onClick={startUpdateDownload}>
-                  <Download size={14} />
-                  {workbenchCopy.about.retryDownload}
-                </button>
-                <button type="button" className="studio-update-primary" onClick={openManualUpdateDownload} disabled={!updateDialogState.manualDownloadUrl}>
-                  <Download size={14} />
-                  {workbenchCopy.about.manualDownload}
-                </button>
-              </>
-            ) : (
-              <>
-                <button type="button" className="studio-update-secondary" onClick={ignoreUpdateDialogVersion} disabled={downloading || retrying}>
-                  {workbenchCopy.about.ignoreThisVersion}
-                </button>
-                <button type="button" className="studio-update-primary" onClick={startUpdateDownload} disabled={downloading || retrying}>
-                  {downloading || retrying ? <Loader2 size={14} /> : <Download size={14} />}
-                  {workbenchCopy.about.updateNow}
-                </button>
-              </>
-            )}
-          </footer>
-        </section>
-      </div>
-    );
-  };
-
-  const renderGeneralSettingsWindow = () => {
-    if (!settingsGeneralOpen) return null;
-
-    const themeOptions: Array<{ key: WorkbenchThemePreference; label: string; hint: string }> = (
-      ['system', 'light', 'dark'] as WorkbenchThemePreference[]
-    ).map((key) => ({ key, ...workbenchCopy.settings.themeOptions[key] }));
-    const languageOptions: Array<{ key: WorkbenchLanguagePreference; label: string; hint: string }> = (
-      ['zh-CN', 'zh-TW', 'en'] as WorkbenchLanguagePreference[]
-    ).map((key) => ({ key, ...workbenchCopy.settings.languageOptions[key] }));
-    const activeLanguage = languageOptions.find((option) => option.key === settingsLanguagePreference) ?? languageOptions[0];
-
-    return (
-      <div className="studio-settings-overlay" role="presentation" onMouseDown={closeGeneralSettings}>
-        <section
-          className="studio-settings-window"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="studio-settings-title"
-          onMouseDown={(event) => event.stopPropagation()}
-        >
-          <div className="studio-settings-header">
-            <div>
-              <strong id="studio-settings-title">{workbenchCopy.settings.title}</strong>
-              <span>{workbenchCopy.settings.subtitle}</span>
-            </div>
-            <button type="button" className="studio-settings-close" aria-label={workbenchCopy.settings.closeAria} onClick={closeGeneralSettings}>
-              <X size={15} />
-            </button>
-          </div>
-
-          <div className="studio-settings-body">
-            <section className="studio-settings-section">
-              <div className="studio-settings-section-title">
-                <strong>{workbenchCopy.settings.theme}</strong>
-                <span>{workbenchCopy.settings.themeHint}</span>
-              </div>
-              <div className="studio-settings-theme-grid" role="radiogroup" aria-label={workbenchCopy.settings.theme}>
-                {themeOptions.map((option) => (
-                  <button
-                    type="button"
-                    key={option.key}
-                    role="radio"
-                    aria-checked={settingsThemePreference === option.key}
-                    className={`studio-settings-theme-card studio-settings-theme-${option.key} ${settingsThemePreference === option.key ? 'studio-settings-theme-card-active' : ''}`}
-                    onClick={() => updateSettingsThemePreference(option.key)}
-                  >
-                    <span className="studio-settings-theme-card-copy">
-                      <strong>{option.label}</strong>
-                      <small>{option.hint}</small>
-                    </span>
-                    <span className="studio-settings-preview" aria-hidden="true">
-                      <i className="studio-settings-preview-menu" />
-                      <i className="studio-settings-preview-left" />
-                      <i className="studio-settings-preview-main" />
-                      <i className="studio-settings-preview-right" />
-                      <i className="studio-settings-preview-chart" />
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="studio-settings-section studio-settings-control-row">
-              <div className="studio-settings-section-title">
-                <strong>{workbenchCopy.settings.language}</strong>
-                <span>{workbenchCopy.settings.languageHint}</span>
-              </div>
-              <div className="studio-settings-control-surface">
-                <div className={`studio-settings-language-select ${settingsLanguageMenuOpen ? 'studio-settings-language-select-open' : ''}`}>
-                  <button
-                    type="button"
-                    className="studio-settings-language-trigger"
-                    ref={settingsLanguageTriggerRef}
-                    aria-haspopup="listbox"
-                    aria-expanded={settingsLanguageMenuOpen}
-                    onClick={() => setSettingsLanguageMenuOpen((current) => !current)}
-                  >
-                    <span>
-                      <strong>{activeLanguage.label}</strong>
-                      <small>{activeLanguage.hint}</small>
-                    </span>
-                    <ChevronDown
-                      size={15}
-                      className={`studio-settings-language-chevron ${settingsLanguageMenuOpen ? 'studio-settings-language-chevron-open' : ''}`}
-                    />
-                  </button>
-                  {settingsLanguageMenuOpen ? (
-                    <div className="studio-settings-language-menu" role="listbox" aria-label={workbenchCopy.settings.language}>
-                      {languageOptions.map((option) => (
-                        <button
-                          type="button"
-                          key={option.key}
-                          role="option"
-                          aria-selected={settingsLanguagePreference === option.key}
-                          className={settingsLanguagePreference === option.key ? 'studio-settings-language-active' : ''}
-                          onClick={() => updateSettingsLanguagePreference(option.key)}
-                        >
-                          <strong>{option.label}</strong>
-                          <span>{option.hint}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </section>
-
-            <section className="studio-settings-section studio-settings-control-row studio-settings-performance-row">
-              <div className="studio-settings-section-title">
-                <strong>{workbenchCopy.settings.performanceMode}</strong>
-                <span>{workbenchCopy.settings.performanceModeHint}</span>
-              </div>
-              <div className="studio-settings-control-surface">
-                <div
-                  className={`studio-settings-performance-segmented studio-settings-performance-segmented-${settingsPerformanceMode}`}
-                  role="radiogroup"
-                  aria-label={workbenchCopy.settings.performanceMode}
-                >
-                  <span className="studio-settings-performance-thumb" aria-hidden="true" />
-                  {performanceModeOptions.map((option) => (
-                    <button
-                      key={option.mode}
-                      type="button"
-                      role="radio"
-                      aria-checked={settingsPerformanceMode === option.mode}
-                      className={`studio-settings-performance-option ${
-                        settingsPerformanceMode === option.mode ? 'studio-settings-performance-option-active' : ''
-                      }`}
-                      onClick={() => updateSettingsPerformanceMode(option.mode)}
-                    >
-                      <strong>{option.label}</strong>
-                      <small>{workbenchCopy.settings.performanceModeSummary[option.mode]}</small>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            <section className="studio-settings-section studio-settings-shortcuts-section">
-              <div className="studio-settings-section-title">
-                <strong>{workbenchCopy.shortcuts.title}</strong>
-                <span>{workbenchCopy.shortcuts.hint}</span>
-              </div>
-              <div className="studio-settings-control-surface">
-                <div className="studio-settings-shortcuts-card">
-                  <div className="studio-settings-shortcuts-list" aria-label={workbenchCopy.shortcuts.title}>
-                    <span><kbd>Ctrl+Z</kbd>{workbenchCopy.shortcuts.undo}</span>
-                    <span><kbd>Ctrl+Y</kbd><kbd>Ctrl+Shift+Z</kbd>{workbenchCopy.shortcuts.redo}</span>
-                    <span><kbd>Esc</kbd>{workbenchCopy.shortcuts.closeSettings}</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
-        </section>
-      </div>
-    );
-  };
-
   const openTopCommandSubmenu = (submenu: TopCommandSubmenu) => {
     setPinnedTopCommandSubmenu((current) => (current === submenu ? current : null));
     setActiveTopCommandSubmenu(submenu);
@@ -12789,83 +11783,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     return null;
   };
-
-  const renderCachedExperimentOpenActions = (className = 'studio-empty-open-actions') => (
-    <div className={className}>
-      <div className="studio-empty-open-heading">
-        <FolderOpen size={14} />
-        <span>{workbenchCopy.menus.openExperiment}</span>
-      </div>
-      <div className="studio-empty-open-list">
-        {openableClosedFiles.length === 0 ? (
-          <button type="button" className="studio-empty-command-row studio-empty-command-row-disabled" disabled>
-            <Archive size={14} />
-            <span>{workbenchCopy.menus.noCachedExperiments}</span>
-          </button>
-        ) : openableClosedFiles.slice(0, 5).map((file) => (
-          <button
-            type="button"
-            className="studio-empty-command-row studio-empty-open-row"
-            key={file.id}
-            onClick={() => openClosedWorkbenchFile(file.id)}
-          >
-            {file.kind === 'standard' ? <Activity size={14} /> : file.kind === 'ideal' ? <FlaskConical size={14} /> : <Gauge size={14} />}
-            <span>{file.name}</span>
-            <span className="studio-empty-open-meta">
-              <strong>{getWorkbenchFileKindLabel(file.kind, workbenchCopy.files)}</strong>
-              <time dateTime={new Date(file.lastOpenedAt).toISOString()}>
-                {formatWorkbenchLastOpenedAt(file.lastOpenedAt, settingsLanguagePreference)}
-              </time>
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
-  const renderEmptyStudyActions = (className = 'studio-empty-actions') => (
-    <div className={className}>
-      <button
-        type="button"
-        className="studio-empty-command-row"
-        data-workbench-create-experiment="ideal"
-        onClick={() => createFile('ideal')}
-      >
-        <FlaskConical size={14} />
-        {workbenchCopy.files.createIdeal}
-      </button>
-      <button
-        type="button"
-        className="studio-empty-command-row"
-        data-workbench-create-experiment="heatCapacity"
-        onClick={() => createFile('heatCapacity')}
-      >
-        <Gauge size={14} />
-        {workbenchCopy.files.createHeatCapacity}
-      </button>
-      <button
-        type="button"
-        className="studio-empty-command-row"
-        data-workbench-create-experiment="standard"
-        onClick={() => createFile('standard')}
-      >
-        <Activity size={14} />
-        {workbenchCopy.files.createStandard}
-      </button>
-    </div>
-  );
-
-  const renderEmptyWorkbench = () => (
-    <div className="studio-empty-workbench">
-      <div>
-        <span className="studio-empty-kicker">{workbenchCopy.files.noOpenStudy}</span>
-        <h2>{workbenchCopy.files.emptyTitle}</h2>
-        <p>{workbenchCopy.files.emptyBody}</p>
-        {renderEmptyStudyActions()}
-        {renderCachedExperimentOpenActions()}
-      </div>
-    </div>
-  );
 
   const renderHeatCapacityModeControl = () => {
     if (activeFile.kind !== 'heatCapacity') return null;
@@ -13199,12 +12116,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
                       <section
                         className="studio-heat-guide-step-panel"
                         data-heat-capacity-guide-step-panel="true"
-                        aria-label={settingsLanguagePreference === 'en' ? 'Guide checklist' : settingsLanguagePreference === 'zh-TW' ? '引導清單' : '引导清单'}
+                        aria-label={heatCapacityRealtimeCopy.guideChecklistLabel}
                       >
                         <div className="studio-heat-guide-step-header">
-                          <span>{settingsLanguagePreference === 'en' ? 'Guide checklist' : settingsLanguagePreference === 'zh-TW' ? '引導清單' : '引导清单'}</span>
+                          <span>{heatCapacityRealtimeCopy.guideChecklistLabel}</span>
                           <em>
-                            {settingsLanguagePreference === 'en' ? 'Step' : settingsLanguagePreference === 'zh-TW' ? '步驟' : '步骤'}
+                            {heatCapacityRealtimeCopy.guideStepLabel}
                             {' '}
                             {heatCapacityGuideViewedStepIndex + 1}
                             {' / '}
@@ -15889,10 +14806,65 @@ const WorkbenchStudioPrototype: React.FC = () => {
           ) : null}
           {renderTopMenu()}
         </header>
-        {renderAboutWindow()}
-        {renderBuildNoticeWindow()}
-        {renderUpdateDialog()}
-        {renderGeneralSettingsWindow()}
+        <WorkbenchAboutWindow
+          open={aboutWindowOpen}
+          copy={workbenchCopy.about}
+          appVersion={WORKBENCH_APP_VERSION}
+          updateChecking={aboutUpdateChecking}
+          updateStatusLabel={getAboutUpdateStatusLabel(updaterState, workbenchCopy.about, hasDesktopUpdaterBridge())}
+          environmentChecking={exportEnvironmentStatus === 'checking'}
+          environmentAvailable={isExportEnvironmentAvailableStatus(exportEnvironmentStatus)}
+          environmentStatusLabel={getAboutEnvironmentStatusLabel(exportEnvironmentStatus, workbenchCopy)}
+          sessionCacheSummary={sessionCacheSummary}
+          resultNotice={aboutResultNotice}
+          onClose={closeAboutWindow}
+          onCheckUpdates={runAboutUpdateCheck}
+          onCheckEnvironment={runAboutEnvironmentCheck}
+          onOpenBuildNotice={openBuildNoticeWindow}
+        />
+        <WorkbenchBuildNoticeWindow
+          open={buildNoticeWindowOpen}
+          copy={workbenchCopy.about}
+          sections={buildNoticeSections[settingsLanguagePreference]}
+          legalMaterialFiles={buildNoticeLegalMaterialFiles}
+          navOpen={buildNoticeNavOpen}
+          activeMaterialId={activeBuildNoticeMaterialId}
+          filePreview={buildNoticeFilePreview}
+          openError={buildNoticeOpenError}
+          desktopLegalBridgeAvailable={hasDesktopLegalBridge()}
+          desktopLegalReadAvailable={hasDesktopLegalReadBridge()}
+          onClose={closeBuildNoticeWindow}
+          onNavOpenChange={setBuildNoticeNavOpen}
+          onJumpToSection={jumpToBuildNoticeSection}
+          onOpenMaterial={openBuildNoticeMaterial}
+          onCloseMaterial={closeBuildNoticeMaterial}
+          onOpenLegalFile={openBuildNoticeLegalFile}
+        />
+        <WorkbenchUpdateDialog
+          state={updateDialogState}
+          appVersion={WORKBENCH_APP_VERSION}
+          language={settingsLanguagePreference}
+          copy={workbenchCopy.about}
+          onClose={() => setUpdateDialogState(null)}
+          onIgnoreVersion={ignoreUpdateDialogVersion}
+          onDownload={startUpdateDownload}
+          onRestartAndInstall={restartAndInstallUpdate}
+          onManualDownload={openManualUpdateDownload}
+        />
+        <WorkbenchGeneralSettingsWindow
+          open={settingsGeneralOpen}
+          copy={workbenchCopy}
+          themePreference={settingsThemePreference}
+          languagePreference={settingsLanguagePreference}
+          performanceMode={settingsPerformanceMode}
+          languageMenuOpen={settingsLanguageMenuOpen}
+          languageTriggerRef={settingsLanguageTriggerRef}
+          onClose={closeGeneralSettings}
+          onThemeChange={updateSettingsThemePreference}
+          onLanguageChange={updateSettingsLanguagePreference}
+          onPerformanceModeChange={updateSettingsPerformanceMode}
+          onLanguageMenuOpenChange={setSettingsLanguageMenuOpen}
+        />
 
         <main
           className={`studio-body ${leftCollapsed ? 'studio-left-collapsed' : ''}`}
@@ -16276,7 +15248,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 ref={centerWorkspaceRef}
               >
                 {isWorkbenchEmpty ? (
-                  renderEmptyWorkbench()
+                  <WorkbenchEmptyWorkspace
+                    openableClosedFiles={openableClosedFiles}
+                    language={settingsLanguagePreference}
+                    copy={workbenchCopy}
+                    onCreateFile={createFile}
+                    onOpenFile={openClosedWorkbenchFile}
+                  />
                 ) : (
                   <>
                     <div

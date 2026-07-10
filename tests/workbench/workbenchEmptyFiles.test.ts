@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const emptyWorkspaceSource = readFileSync(new URL('../../src/features/workbench/WorkbenchEmptyWorkspace.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.doesNotMatch(
@@ -29,8 +30,8 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /const renderEmptyWorkbench = \(\) => \(/,
+  emptyWorkspaceSource,
+  /export const WorkbenchEmptyWorkspace = \(/,
   'empty workbench should render a dedicated main welcome surface',
 );
 
@@ -71,8 +72,8 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /workbenchCopy\.files\.createIdeal[\s\S]*?workbenchCopy\.files\.createHeatCapacity[\s\S]*?workbenchCopy\.files\.createStandard/,
+  emptyWorkspaceSource,
+  /copy\.files\.createIdeal[\s\S]*?copy\.files\.createHeatCapacity[\s\S]*?copy\.files\.createStandard/,
   'empty workbench should offer direct new-study actions in ideal / heat / standard order',
 );
 
@@ -131,5 +132,4 @@ assert.match(
 );
 
 console.log('workbenchEmptyFiles tests passed');
-
 

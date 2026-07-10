@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
+const idealControlsSource = readFileSync(new URL('../../src/features/workbench/workbenchIdealControls.ts', import.meta.url), 'utf8');
 const commitWorkbenchParameterInputBody = source.slice(
   source.indexOf('  const commitWorkbenchParameterInput = ('),
   source.indexOf('  const applyActiveFileParams = ('),
@@ -70,8 +71,8 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  source,
-  /const IDEAL_SCAN_SNAP_THRESHOLD: Record<ExperimentRelation, number> = \{[\s\S]*?pt:\s*0\.04[\s\S]*?pv:\s*0\.25[\s\S]*?pn:\s*8/,
+  idealControlsSource,
+  /IDEAL_SCAN_SNAP_THRESHOLD: Record<ExperimentRelation, number> = \{[\s\S]*?pt:\s*0\.04[\s\S]*?pv:\s*0\.25[\s\S]*?pn:\s*8/,
   'ideal scan snapping should use short relation-specific thresholds',
 );
 
@@ -114,26 +115,26 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  source,
-  /const getIdealScanStep = \(relation: ExperimentRelation\) =>[\s\S]*?relation === 'pn' \? 1[\s\S]*?relation === 'pv' \? 0\.1[\s\S]*?: 0\.01/,
+  idealControlsSource,
+  /getIdealScanStep = \(relation: ExperimentRelation\) =>[\s\S]*?relation === 'pn' \? 1[\s\S]*?relation === 'pv' \? 0\.1[\s\S]*?: 0\.01/,
   'scan input validation should use relation-specific minimum steps of temperature 0.01, L 0.1, and N 1',
 );
 
 assert.match(
-  source,
-  /const getIdealScanDecimals = \(relation: ExperimentRelation\) =>[\s\S]*?relation === 'pn' \? 0[\s\S]*?relation === 'pv' \? 1[\s\S]*?: 2/,
+  idealControlsSource,
+  /getIdealScanDecimals = \(relation: ExperimentRelation\) =>[\s\S]*?relation === 'pn' \? 0[\s\S]*?relation === 'pv' \? 1[\s\S]*?: 2/,
   'scan input display precision should be temperature 2 decimals, L 1 decimal, and N integer',
 );
 
 assert.match(
-  source,
-  /const getIdealScanStepLabel = \(relation: ExperimentRelation\) =>[\s\S]*?relation === 'pt' \? '0\.01'[\s\S]*?relation === 'pv' \? '0\.1'[\s\S]*?: '1'/,
+  idealControlsSource,
+  /getIdealScanStepLabel = \(relation: ExperimentRelation\) =>[\s\S]*?relation === 'pt' \? '0\.01'[\s\S]*?relation === 'pv' \? '0\.1'[\s\S]*?: '1'/,
   'scan input minimum-step errors should show the exact supported step for each relation',
 );
 
 assert.match(
-  source,
-  /const isIdealScanValueOnStep = \(rawValue: string,\s*relation: ExperimentRelation\) =>[\s\S]*?trimmedFractionalPart\.length <= getIdealScanDecimals\(relation\)/,
+  idealControlsSource,
+  /isIdealScanValueOnStep = \(rawValue: string,\s*relation: ExperimentRelation\) =>[\s\S]*?trimmedFractionalPart\.length <= getIdealScanDecimals\(relation\)/,
   'decimal scan input should reject values that use finer precision than the supported minimum step',
 );
 
@@ -204,4 +205,3 @@ assert.match(
 );
 
 console.log('workbenchStartAutoApplyScanControls tests passed');
-

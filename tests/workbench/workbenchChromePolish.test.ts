@@ -5,6 +5,8 @@ const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudi
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
 const sessionSource = readFileSync(new URL('../../src/features/workbench/workbenchSession.ts', import.meta.url), 'utf8');
+const filePresentationSource = readFileSync(new URL('../../src/features/workbench/workbenchFilePresentation.ts', import.meta.url), 'utf8');
+const emptyWorkspaceSource = readFileSync(new URL('../../src/features/workbench/WorkbenchEmptyWorkspace.tsx', import.meta.url), 'utf8');
 const electronMainSource = readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8');
 const electronPreloadSource = readFileSync(new URL('../../electron/preload.cjs', import.meta.url), 'utf8');
 
@@ -19,8 +21,8 @@ const getRuleBody = (selector: string) => {
 };
 
 assert.match(
-  source,
-  /const getWorkbenchFileKindLabel = \(kind: WorkbenchFileKind, copy: WorkbenchCopy\['files'\]\) =>/,
+  filePresentationSource,
+  /export const getWorkbenchFileKindLabel = \(/,
   'file kind labels should be centralized so file rows, tabs, and cached-open entries stay localized consistently',
 );
 
@@ -49,14 +51,14 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /const renderCachedExperimentOpenActions = \(className = 'studio-empty-open-actions'\) =>/,
+  emptyWorkspaceSource,
+  /export const WorkbenchEmptyWorkspace = \(/,
   'empty workspace should expose a cached-experiment open action block',
 );
 
 assert.match(
   source,
-  /renderCachedExperimentOpenActions\(\)/,
+  /<WorkbenchEmptyWorkspace/,
   'main empty workspace should offer opening cached experiments in addition to creating new ones',
 );
 
@@ -85,13 +87,13 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /const formatWorkbenchLastOpenedAt = \(\s*timestamp: number,\s*language: WorkbenchLanguagePreference,\s*\) =>/,
+  filePresentationSource,
+  /export const formatWorkbenchLastOpenedAt = \(\s*timestamp: number,\s*language: WorkbenchLanguagePreference,\s*\) =>/,
   'recent experiment timestamps should be formatted through a localized helper',
 );
 
 assert.match(
-  source,
+  filePresentationSource,
   /new Intl\.DateTimeFormat\(language === 'en' \? 'en-US' : language,/,
   'recent experiment timestamp formatting should adapt to the active workbench language',
 );
@@ -109,25 +111,25 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /<span className="studio-empty-open-meta">\s*<strong>\{getWorkbenchFileKindLabel\(file\.kind, workbenchCopy\.files\)\}<\/strong>\s*<time dateTime=\{new Date\(file\.lastOpenedAt\)\.toISOString\(\)\}>/,
+  emptyWorkspaceSource,
+  /<span className="studio-empty-open-meta">\s*<strong>\{getWorkbenchFileKindLabel\(file\.kind, copy\.files\)\}<\/strong>\s*<time dateTime=\{new Date\(file\.lastOpenedAt\)\.toISOString\(\)\}>/,
   'main recent experiment rows should show the localized last-opened time beside the experiment type',
 );
 
 assert.match(
-  source,
-  /const renderEmptyStudyActions = \(className = 'studio-empty-actions'\) => \(\s*<div className=\{className\}>\s*<button[\s\S]*?className="studio-empty-command-row"[\s\S]*?data-workbench-create-experiment="ideal"/,
+  emptyWorkspaceSource,
+  /<div className="studio-empty-actions">\s*<button[\s\S]*?className="studio-empty-command-row"[\s\S]*?data-workbench-create-experiment="ideal"/,
   'empty study creation entries should render as VS Code style command rows',
 );
 
 assert.match(
-  source,
+  emptyWorkspaceSource,
   /<div className="studio-empty-open-list">\s*\{openableClosedFiles\.length === 0 \? \(\s*<button type="button" className="studio-empty-command-row studio-empty-command-row-disabled" disabled>/,
   'empty cached-open disabled hint should use the command-row disabled treatment',
 );
 
 assert.match(
-  source,
+  emptyWorkspaceSource,
   /openableClosedFiles\.slice\(0, 5\)\.map\(\(file\) => \(\s*<button[\s\S]*?className="studio-empty-command-row studio-empty-open-row"/,
   'cached-open entries should render as command rows, not boxed buttons',
 );

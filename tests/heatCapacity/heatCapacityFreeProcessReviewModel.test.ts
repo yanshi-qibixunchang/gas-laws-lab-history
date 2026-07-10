@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   createDefaultFreeConfigSnapshot,
   type HeatCapacityFreeConfigSnapshot,
@@ -16,6 +18,17 @@ import {
 import {
   createCompleteProcessReviewFixtureParts,
 } from './helpers/heatCapacityProcessReviewTestFactory.ts';
+
+const processReviewModelSource = readFileSync(
+  join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityFreeProcessReviewModel.ts'),
+  'utf8',
+);
+
+assert.doesNotMatch(
+  processReviewModelSource,
+  /const sampleIsStableForRecord|const createPumpingDiagnosis|const createReleaseDiagnosis|const createRecordingDiagnosis|const createRetakeDiagnosis/,
+  'process review should not keep the old parallel diagnosis row builder after score-item diagnostics become the source of truth',
+);
 
 const parts = createCompleteProcessReviewFixtureParts();
 const review = selectHeatCapacityFreeProcessReview({

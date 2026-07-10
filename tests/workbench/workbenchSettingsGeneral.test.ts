@@ -1,7 +1,13 @@
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import {
+  defaultWorkbenchGeneralSettings,
+  normalizeWorkbenchGeneralSettings,
+} from '../../src/features/workbench/workbenchGeneralSettings.ts';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const generalSettingsWindowSource = readFileSync(new URL('../../src/features/workbench/WorkbenchGeneralSettingsWindow.tsx', import.meta.url), 'utf8');
+const settingsSource = readFileSync(new URL('../../src/features/workbench/workbenchGeneralSettings.ts', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const getCssBlock = (selector: string) => {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -11,37 +17,42 @@ const getCssBlock = (selector: string) => {
 };
 
 assert.match(
-  source,
+  settingsSource,
   /type WorkbenchThemePreference = 'system' \| 'light' \| 'dark';/,
   'general settings should define a constrained theme preference type',
 );
 
 assert.match(
-  source,
+  settingsSource,
   /type WorkbenchResolvedTheme = 'light' \| 'dark';/,
   'system theme resolution should use a constrained light-or-dark type',
 );
 
 assert.match(
-  source,
+  settingsSource,
   /type WorkbenchLanguagePreference = 'zh-CN' \| 'zh-TW' \| 'en';/,
   'general settings should define a constrained language preference type',
 );
 
 assert.match(
-  source,
+  settingsSource,
   /const WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY = 'hsl_workbench_general_settings_v2';/,
   'general settings should use the planned localStorage key',
 );
 
 assert.match(
-  source,
-  /const loadWorkbenchGeneralSettings = \(\): WorkbenchGeneralSettings => \{[\s\S]*?window\.localStorage\.getItem\(WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY\)[\s\S]*?isWorkbenchThemePreference[\s\S]*?isWorkbenchLanguagePreference[\s\S]*?\};/,
+  settingsSource,
+  /const loadWorkbenchGeneralSettings = \(\): WorkbenchGeneralSettings => \{[\s\S]*?window\.localStorage\.getItem\(WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY\)[\s\S]*?normalizeWorkbenchGeneralSettings\(JSON\.parse\(raw\)\)[\s\S]*?\};/,
   'general settings should load persisted preferences with enum validation and fallback',
+);
+assert.match(
+  settingsSource,
+  /const normalizeWorkbenchGeneralSettings[\s\S]*?isWorkbenchThemePreference[\s\S]*?isWorkbenchLanguagePreference[\s\S]*?isWorkbenchPerformanceMode/,
+  'general settings normalization should own all preference validation',
 );
 
 assert.match(
-  source,
+  settingsSource,
   /const persistWorkbenchGeneralSettings = \(settings: WorkbenchGeneralSettings\) => \{[\s\S]*?window\.localStorage\.setItem\(WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY, JSON\.stringify\(settings\)\);[\s\S]*?\};/,
   'general settings should persist valid preferences immediately',
 );
@@ -83,10 +94,31 @@ assert.match(
 );
 
 assert.match(
-  source,
+  settingsSource,
   /const getSystemWorkbenchTheme = \(\): WorkbenchResolvedTheme => \{[\s\S]*?window\.matchMedia\('\(prefers-color-scheme: dark\)'\)[\s\S]*?\};/,
   'system theme resolution should read prefers-color-scheme from the browser',
 );
+
+assert.deepEqual(
+  normalizeWorkbenchGeneralSettings({
+    theme: 'invalid',
+    language: 'invalid',
+    performanceMode: 'invalid',
+  }),
+  defaultWorkbenchGeneralSettings,
+  'invalid general settings should fall back to defaults',
+);
+assert.deepEqual(
+  normalizeWorkbenchGeneralSettings({
+    theme: 'dark',
+    language: 'en',
+    performanceMode: 'highPerformance',
+  }),
+  { theme: 'dark', language: 'en', performanceMode: 'highPerformance' },
+  'valid general settings should survive normalization',
+);
+assert.match(source, /from '\.\/workbenchGeneralSettings\.ts'/);
+assert.doesNotMatch(source, /const loadWorkbenchGeneralSettings\s*=/);
 
 assert.match(
   source,
@@ -126,9 +158,10 @@ assert.doesNotMatch(
 
 assert.match(
   source,
-  /const renderGeneralSettingsWindow = \(\) => \{/,
-  'general settings window should render theme cards and language choices',
+  /<WorkbenchGeneralSettingsWindow/,
+  'workbench should mount the extracted general settings window',
 );
+assert.doesNotMatch(source, /const renderGeneralSettingsWindow = \(\) => \{/, 'legacy inline settings renderer should be removed');
 
 assert.match(
   source,
@@ -137,22 +170,19 @@ assert.match(
 );
 
 for (const expression of [
-  'workbenchCopy.settings.title',
-  'workbenchCopy.settings.themeOptions[key]',
-  'workbenchCopy.settings.languageOptions[key]',
-  'workbenchCopy.settings.languageHint',
-  'workbenchCopy.shortcuts.title',
-  'workbenchCopy.shortcuts.undo',
-  'workbenchCopy.shortcuts.redo',
-  'workbenchCopy.shortcuts.closeSettings',
+  'copy.settings.title',
+  'copy.settings.themeOptions[key]',
+  'copy.settings.languageOptions[key]',
+  'copy.settings.languageHint',
+  'copy.shortcuts.title',
+  'copy.shortcuts.undo',
+  'copy.shortcuts.redo',
+  'copy.shortcuts.closeSettings',
 ]) {
-  assert.ok(source.includes(expression), `general settings window should use ${expression}`);
+  assert.ok(generalSettingsWindowSource.includes(expression), `general settings window should use ${expression}`);
 }
 
-const generalWindowSource = source.slice(
-  source.indexOf('const renderGeneralSettingsWindow = () => {'),
-  source.indexOf('const renderTopCommand ='),
-);
+const generalWindowSource = generalSettingsWindowSource;
 
 assert.doesNotMatch(
   generalWindowSource,
@@ -174,7 +204,7 @@ assert.match(
 
 assert.match(
   generalWindowSource,
-  /\{settingsLanguageMenuOpen \? \([\s\S]*className="studio-settings-language-menu"/,
+  /\{languageMenuOpen \? \([\s\S]*className="studio-settings-language-menu"/,
   'language menu should only render while open so a focused option is never hidden with aria-hidden',
 );
 
@@ -204,7 +234,7 @@ assert.doesNotMatch(
 
 assert.match(
   source,
-  /\{renderGeneralSettingsWindow\(\)\}/,
+  /<WorkbenchGeneralSettingsWindow[\s\S]*?onLanguageMenuOpenChange=\{setSettingsLanguageMenuOpen\}/,
   'general settings window should render above the main interface',
 );
 

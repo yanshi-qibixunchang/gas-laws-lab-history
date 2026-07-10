@@ -38,8 +38,10 @@ import {
 export {
   HEAT_CAPACITY_FREE_GAS_TYPES,
   HEAT_CAPACITY_FREE_GAS_TYPE_MODEL_DEFAULTS,
+  HEAT_CAPACITY_FREE_IDEAL_GAS_TYPE,
   getHeatCapacityFreeGasTypeGamma,
   getHeatCapacityFreeGasTypeModelDefaults,
+  getHeatCapacityFreeIdealTheoreticalGamma,
   normalizeHeatCapacityFreeGasType,
   resolveHeatCapacityFreeGasTypeFromGamma,
   type HeatCapacityFreeGasType,

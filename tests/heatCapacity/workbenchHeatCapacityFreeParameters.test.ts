@@ -347,6 +347,25 @@ const acknowledgedAdvanced = acknowledgeHeatCapacityFreeFileNoticeWorkbenchState
 );
 assert.equal(acknowledgedAdvanced.heatCapacityFreeFileAcknowledgements.advancedParametersRisk, true);
 assert.equal(acknowledgedAdvanced.heatCapacityFreeFileAcknowledgements.idealParameterProfileIntro, false);
+const acknowledgedFromContaminatedState = acknowledgeHeatCapacityFreeFileNoticeWorkbenchState(
+  {
+    ...defaultFile,
+    heatCapacityFreeFileAcknowledgements: {
+      advancedParametersRisk: 'false',
+      idealParameterProfileIntro: true,
+      staleNoticeKey: true,
+    } as any,
+  },
+  'advancedParametersRisk',
+);
+assert.deepEqual(
+  acknowledgedFromContaminatedState.heatCapacityFreeFileAcknowledgements,
+  {
+    advancedParametersRisk: true,
+    idealParameterProfileIntro: true,
+  },
+  'acknowledging a Free notice should keep only strict known acknowledgement flags',
+);
 
 const acknowledgedIdeal = acknowledgeHeatCapacityFreeFileNoticeWorkbenchState(
   defaultFile,

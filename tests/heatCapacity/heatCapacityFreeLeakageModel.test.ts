@@ -13,14 +13,6 @@ const baseInput = {
   dtS: 10,
 };
 
-const expectClose = (actual: number, expected: number, tolerance: number, message: string) => {
-  assert.equal(
-    Math.abs(actual - expected) <= tolerance,
-    true,
-    `${message}: expected ${actual} to be within ${tolerance} of ${expected}`,
-  );
-};
-
 const disabled: HeatCapacityFreeLeakageConfig = {
   enabled: false,
   ratePerS: 0.00005,

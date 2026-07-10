@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const idealControlsSource = readFileSync(new URL('../../src/features/workbench/workbenchIdealControls.ts', import.meta.url), 'utf8');
 
 assert.match(
   source,
@@ -25,8 +26,8 @@ assert.match(
   'ideal scan slider should distinguish thumb hover from track hover',
 );
 assert.match(
-  source,
-  /const getIdealScanPositionPercent = \(value: number,\s*scanMin: number,\s*scanRange: number\) =>[\s\S]*?clamp\(\(\(value - scanMin\) \/ scanRange\) \* 100,\s*0,\s*100\)/,
+  idealControlsSource,
+  /export const getIdealScanPositionPercent = \([\s\S]*?Math\.min\(100, Math\.max\(0, \(\(value - scanMin\) \/ scanRange\) \* 100\)\)/,
   'ideal scan slider and tick labels should share the same value-to-position calculation',
 );
 assert.match(
@@ -117,5 +118,4 @@ assert.match(
 );
 
 console.log('workbenchIdealScanSliderHover tests passed');
-
 

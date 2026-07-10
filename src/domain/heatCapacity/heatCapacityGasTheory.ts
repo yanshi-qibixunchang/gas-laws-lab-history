@@ -1,6 +1,7 @@
 export type HeatCapacityFreeGasType = 'air' | 'helium';
 
 export const HEAT_CAPACITY_FREE_GAS_TYPES: readonly HeatCapacityFreeGasType[] = ['air', 'helium'];
+export const HEAT_CAPACITY_FREE_IDEAL_GAS_TYPE: HeatCapacityFreeGasType = 'air';
 
 export interface HeatCapacityFreeGasTypeModelDefaults {
   gamma: number;
@@ -28,6 +29,10 @@ export const getHeatCapacityFreeGasTypeGamma = (
   gasType: HeatCapacityFreeGasType,
 ): number => (
   HEAT_CAPACITY_FREE_GAS_TYPE_MODEL_DEFAULTS[gasType].gamma
+);
+
+export const getHeatCapacityFreeIdealTheoreticalGamma = (): number => (
+  getHeatCapacityFreeGasTypeGamma(HEAT_CAPACITY_FREE_IDEAL_GAS_TYPE)
 );
 
 export const getHeatCapacityFreeGasTypeModelDefaults = (

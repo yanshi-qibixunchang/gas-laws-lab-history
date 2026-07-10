@@ -23,14 +23,12 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
   particles,
   L,
   r,
-  isRunning,
   t,
   isFocused,
   onFocusChange,
   showNotification,
   supportsHover = true,
   touchLike = false,
-  isCompactLandscape = false,
   canvasHeight = null,
   variant = 'classic'
 }) => {

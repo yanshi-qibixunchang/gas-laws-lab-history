@@ -11,10 +11,6 @@ import type {
   HeatCapacityProcessReviewSummary,
 } from './heatCapacityFreeProcessReviewModel.ts';
 import type {
-  HeatCapacityFreeStandardReferenceSnapshot,
-} from './heatCapacityFreeStandardReferenceModel.ts';
-import type {
-  HeatCapacityOperationUpperBound,
   HeatCapacityProcessScore,
   HeatCapacityProcessScoreItem,
   HeatCapacityProcessScoreSubItem,
@@ -25,8 +21,6 @@ export interface HeatCapacityProcessScoringInput {
   branch: HeatCapacityFreeTraceBranch;
   trial: HeatCapacityFreeTrial;
   summary: HeatCapacityProcessReviewSummary;
-  upperBound: HeatCapacityOperationUpperBound;
-  standardReference?: HeatCapacityFreeStandardReferenceSnapshot;
 }
 
 export const SCORE_MAX = {

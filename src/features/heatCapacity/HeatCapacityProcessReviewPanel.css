@@ -21,6 +21,11 @@
   --hpr-pressure-line: #3c7db8;
   --hpr-temperature-line: #16a1a9;
   --hpr-standard-process-line: #b9945e;
+  --hpr-status-reasonable: #37d67a;
+  --hpr-status-review: #7fc7ff;
+  --hpr-status-needs-improvement: #f4b54d;
+  --hpr-status-retaken: #f2a85d;
+  --hpr-status-insufficient-data: #a8b7c8;
   --hpr-scroll-thumb: #586b7f;
   --hpr-scroll-track: #111820;
 }
@@ -48,6 +53,11 @@
   --hpr-pressure-line: #226399;
   --hpr-temperature-line: #178b99;
   --hpr-standard-process-line: #a77738;
+  --hpr-status-reasonable: #047857;
+  --hpr-status-review: #245f9f;
+  --hpr-status-needs-improvement: #915f00;
+  --hpr-status-retaken: #8b5a24;
+  --hpr-status-insufficient-data: #52677e;
   --hpr-scroll-thumb: #8795a4;
   --hpr-scroll-track: transparent;
 }
@@ -897,23 +907,23 @@
 }
 
 .hpr-diagnosis-status-reasonable {
-  color: #098348;
+  color: var(--hpr-status-reasonable);
 }
 
 .hpr-diagnosis-status-review {
-  color: #2e638f;
+  color: var(--hpr-status-review);
 }
 
 .hpr-diagnosis-status-needs-improvement {
-  color: #ad6b00;
+  color: var(--hpr-status-needs-improvement);
 }
 
 .hpr-diagnosis-status-retaken {
-  color: #a2682a;
+  color: var(--hpr-status-retaken);
 }
 
 .hpr-diagnosis-status-insufficient-data {
-  color: var(--hpr-subtle);
+  color: var(--hpr-status-insufficient-data);
 }
 
 .hpr-diagnosis-details {

@@ -12,6 +12,9 @@ import type {
 import type {
   HeatCapacityFreeSensorConfig,
 } from './heatCapacityFreeSensorModel.ts';
+import {
+  getHeatCapacityFreeIdealTheoreticalGamma,
+} from './heatCapacityGasTheory.ts';
 
 export type HeatCapacityFreeIdealStage =
   | 'fastAdiabatic'
@@ -93,7 +96,7 @@ export const createHeatCapacityFreeIdealEffectiveConfigs = (
     physics: {
       ...physics,
       environment,
-      gamma: 1.4,
+      gamma: getHeatCapacityFreeIdealTheoreticalGamma(),
     },
     sensor: {
       ...baseSensor,

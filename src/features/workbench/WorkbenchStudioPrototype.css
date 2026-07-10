@@ -3447,6 +3447,7 @@
 }
 
 .studio-tree-row-child:not(.studio-heat-materials-group) > span:nth-child(2) {
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -3459,6 +3460,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .studio-empty-files,
@@ -11113,6 +11116,7 @@
   color: var(--studio-muted);
   padding: 7px 8px;
   font: inherit;
+  font-size: 12px;
   font-weight: 650;
   text-align: left;
   cursor: pointer;
@@ -11632,7 +11636,7 @@
   min-width: 0;
   color: inherit;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 650;
   letter-spacing: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
