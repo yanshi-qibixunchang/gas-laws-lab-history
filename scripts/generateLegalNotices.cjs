@@ -26,12 +26,13 @@ const readJsonIfExists = (filePath) => {
 };
 
 const writeTextFileIfChanged = (filePath, content) => {
-  if (fs.existsSync(filePath) && fs.readFileSync(filePath, 'utf8') === content) return false;
+  const normalizedContent = content.replace(/[ \t]+$/gm, '');
+  if (fs.existsSync(filePath) && fs.readFileSync(filePath, 'utf8') === normalizedContent) return false;
   if (checkOnly) {
     staleOutputs.push(path.relative(rootDir, filePath));
     return true;
   }
-  fs.writeFileSync(filePath, content, 'utf8');
+  fs.writeFileSync(filePath, normalizedContent, 'utf8');
   return true;
 };
 

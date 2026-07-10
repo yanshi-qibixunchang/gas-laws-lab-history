@@ -11,6 +11,7 @@ import argparse
 import csv
 import json
 import math
+import os
 import platform
 import shutil
 import sys
@@ -29,7 +30,8 @@ from professional_graph_style import (
     style_axes,
 )
 
-EXPORTER_VERSION = "0.1.0"
+EXPORTER_VERSION = "0.2.0"
+EXPORTER_SOURCE_FINGERPRINT = os.environ.get("HSL_EXPORTER_SOURCE_FINGERPRINT", "development")
 ENERGY_LOG_THEORY_FLOOR = 1e-12
 FONT_DIR = Path("C:/Windows/Fonts")
 FONT_NAMES = {
@@ -95,6 +97,7 @@ def self_check() -> int:
     print(json.dumps(
         {
             "exporterVersion": EXPORTER_VERSION,
+            "sourceFingerprint": EXPORTER_SOURCE_FINGERPRINT,
             "python": sys.version.split()[0],
             "platform": platform.platform(),
             "matplotlib": deps["matplotlib"].__version__,

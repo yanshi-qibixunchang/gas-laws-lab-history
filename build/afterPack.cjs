@@ -1,9 +1,14 @@
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const {
+  assertBundledExporterCurrent,
+} = require('./exporterBundlePolicy.cjs');
 
 exports.default = async function afterPack(context) {
   if (context.electronPlatformName !== 'win32') return;
+
+  assertBundledExporterCurrent(context.packager.projectDir);
 
   const exePath = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.exe`);
   const rceditTargetPath = path.join(context.appOutDir, 'hsl-rcedit-target.exe');

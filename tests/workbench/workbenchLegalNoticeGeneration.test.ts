@@ -30,6 +30,9 @@ assert.deepEqual(
   before,
   'legal notice checks must remain read-only',
 );
+for (const fileName of legalFiles.filter((candidate) => candidate.endsWith('.html'))) {
+  assert.doesNotMatch(before[fileName], /[ \t]+$/m, `${fileName} should not contain generated trailing whitespace`);
+}
 
 const summary = JSON.parse(before['third-party-summary.json']) as {
   generatedAt?: string;

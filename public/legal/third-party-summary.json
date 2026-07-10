@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-07-10T17:56:37.612Z",
-  "contentFingerprint": "336d26dac9efd72849e29faa4a6f0641ee10598ca3cdf5d9b49b62fc6dcf23fc",
-  "packageRecordCount": 468,
+  "generatedAt": "2026-07-10T22:53:13.813Z",
+  "contentFingerprint": "75c653f9b0dbee37c164d6b37d7ca57ecc60ce0754b471c0b2d05ec5acc761bd",
+  "packageRecordCount": 465,
   "licenseCounts": {
-    "MIT": 369,
+    "MIT": 368,
     "ISC": 41,
-    "Apache-2.0": 18,
+    "Apache-2.0": 16,
     "BSD-2-Clause": 7,
     "Python-2.0": 1,
     "CC-BY-4.0": 1,
