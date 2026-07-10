@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
@@ -59,20 +60,20 @@ assert.match(
 );
 
 assert.match(
-  source,
+  topCommandsSource,
   /className="studio-window-panel-row"/,
   'Window menu panel entries should render as rows, not full-row toggle buttons',
 );
 
 assert.match(
-  source,
-  /className=\{`studio-window-switch \$\{switchOn \? 'studio-window-switch-on' : 'studio-window-switch-off'\}\$\{locked \? ' studio-window-switch-locked' : ''\}`\}/,
+  topCommandsSource,
+  /className=\{`studio-window-switch \$\{panel\.locked \|\| panel\.visible \? 'studio-window-switch-on' : 'studio-window-switch-off'\}\$\{panel\.locked \? ' studio-window-switch-locked' : ''\}`\}/,
   'Window menu should render a stateful capsule switch for each panel',
 );
 
 assert.match(
-  source,
-  /onClick=\{\(event\) => \{[\s\S]*?event\.stopPropagation\(\);[\s\S]*?toggleWindowPanel\(panel\.key\)/,
+  topCommandsSource,
+  /onClick=\{\(event\) => \{[\s\S]*?event\.stopPropagation\(\);[\s\S]*?onToggleWindowPanel\(panel\.key\)/,
   'only the capsule switch click handler should toggle Window menu panels',
 );
 
@@ -96,7 +97,7 @@ assert.match(
 
 assert.match(
   source,
-  /onClick=\{\(event\) => \{[\s\S]*?event\.stopPropagation\(\);[\s\S]*?runWindowMenuSwitch\(\(\) => toggleWindowPanel\(panel\.key\)\);[\s\S]*?\}\}/,
+  /onToggleWindowPanel=\{\(panelKey\) => runWindowMenuSwitch\(\(\) => toggleWindowPanel\(panelKey\)\)\}/,
   'top-level Window menu switches should close the menu after toggling a panel',
 );
 
@@ -167,8 +168,8 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /className=\{`studio-window-switch \$\{switchOn \? 'studio-window-switch-on' : 'studio-window-switch-off'\}\$\{locked \? ' studio-window-switch-locked' : ''\}`\}/,
+  topCommandsSource,
+  /aria-checked=\{panel\.locked \|\| panel\.visible\}/,
   'locked visible panels should still render the capsule switch in the on position',
 );
 
@@ -215,5 +216,4 @@ assert.match(
 );
 
 console.log('workbenchResultsAndWindowSwitch tests passed');
-
 

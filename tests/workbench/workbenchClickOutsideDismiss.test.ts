@@ -47,8 +47,8 @@ assert.match(
 
 assert.match(
   source,
-  /ref=\{topMenuRef\}/,
-  'rendered top command menus should attach the outside-dismiss ref',
+  /menuRef=\{topMenuRef\}/,
+  'workbench should pass the outside-dismiss ref into the top command component',
 );
 
 assert.match(
@@ -88,5 +88,4 @@ assert.match(
 );
 
 console.log('workbenchClickOutsideDismiss tests passed');
-
 

@@ -7,7 +7,7 @@ const electronSource = readFileSync(new URL('../../electron/main.cjs', import.me
 
 assert.match(
   source,
-  /Square,\s*\n\s*Settings,/,
+  /^\s*Square,\s*$/m,
   'workbench preview controls should import the square stop icon used by IDE run toolbars',
 );
 

@@ -7,6 +7,7 @@ import {
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const generalSettingsWindowSource = readFileSync(new URL('../../src/features/workbench/WorkbenchGeneralSettingsWindow.tsx', import.meta.url), 'utf8');
+const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const settingsSource = readFileSync(new URL('../../src/features/workbench/workbenchGeneralSettings.ts', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const getCssBlock = (selector: string) => {
@@ -145,8 +146,8 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /\{workbenchCopy\.menus\.general\}/,
+  topCommandsSource,
+  /\{copy\.menus\.general\}/,
   'Settings menu should include a localized General first-level item',
 );
 

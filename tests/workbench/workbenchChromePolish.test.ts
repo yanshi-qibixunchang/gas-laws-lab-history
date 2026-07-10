@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
 const sessionSource = readFileSync(new URL('../../src/features/workbench/workbenchSession.ts', import.meta.url), 'utf8');
@@ -177,8 +178,8 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /<button type="button" onClick=\{openNewWorkbenchWindow\}>\s*<PanelTopOpen size=\{14\} \/>\s*<span>\{workbenchCopy\.menus\.newWindow\}<\/span>/,
+  topCommandsSource,
+  /<button type="button" onClick=\{onOpenNewWindow\}>\s*<PanelTopOpen size=\{14\} \/>\s*<span>\{copy\.menus\.newWindow\}<\/span>/,
   'Experiment Files root menu should expose New Window as a direct command row before experiment submenus',
 );
 
@@ -333,20 +334,20 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /type TopCommandSubmenu = 'newExperiment' \| 'openExperiment';/,
+  topCommandsSource,
+  /type WorkbenchTopCommandSubmenuId = 'newExperiment' \| 'openExperiment';/,
   'Experiment Files nested menus should have explicit submenu ids for hover and pinned state',
 );
 
 assert.match(
-  source,
-  /const openTopCommandSubmenu = \(submenu: TopCommandSubmenu\) => \{[\s\S]*?setPinnedTopCommandSubmenu\(\(current\) => \(current === submenu \? current : null\)\);[\s\S]*?setActiveTopCommandSubmenu\(submenu\);[\s\S]*?\};/,
+  topCommandsSource,
+  /const openSubmenu = \(submenu: WorkbenchTopCommandSubmenuId\) => \{[\s\S]*?setPinnedSubmenu\(\(current\) => \(current === submenu \? current : null\)\);[\s\S]*?setActiveSubmenu\(submenu\);[\s\S]*?\};/,
   'hovering a different nested command submenu should release the previously pinned submenu and show the new one as hover-only',
 );
 
 assert.match(
-  source,
-  /const pinTopCommandSubmenu = \(submenu: TopCommandSubmenu\) => \{[\s\S]*?setActiveTopCommandSubmenu\(submenu\);[\s\S]*?setPinnedTopCommandSubmenu\(submenu\);[\s\S]*?\};/,
+  topCommandsSource,
+  /const pinSubmenu = \(submenu: WorkbenchTopCommandSubmenuId\) => \{[\s\S]*?setActiveSubmenu\(submenu\);[\s\S]*?setPinnedSubmenu\(submenu\);[\s\S]*?\};/,
   'clicking inside a nested command submenu should pin the currently active submenu',
 );
 

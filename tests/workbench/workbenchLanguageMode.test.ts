@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const generalSettingsWindowSource = readFileSync(new URL('../../src/features/workbench/WorkbenchGeneralSettingsWindow.tsx', import.meta.url), 'utf8');
-const uiSource = `${source}\n${generalSettingsWindowSource}`;
+const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
+const uiSource = `${source}\n${generalSettingsWindowSource}\n${topCommandsSource}`;
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
@@ -38,7 +39,7 @@ const getLanguageBlock = (languageKey) => {
 const zhCNBlock = getLanguageBlock("'zh-CN'");
 const zhTWBlock = getLanguageBlock("'zh-TW'");
 const enBlock = getLanguageBlock('en');
-const renderSource = `${source.slice(source.indexOf('interface WorkbenchLayoutDefaultState'))}\n${generalSettingsWindowSource}`;
+const renderSource = `${source.slice(source.indexOf('interface WorkbenchLayoutDefaultState'))}\n${generalSettingsWindowSource}\n${topCommandsSource}`;
 
 for (const [field, zhCNText, zhTWText, enText] of [
   ['openFiles', '打开文件', '開啟檔案', 'Open Files'],
@@ -82,7 +83,7 @@ assert.doesNotMatch(
 );
 
 for (const expression of [
-  'workbenchCopy.menus.experimentFiles',
+  'copy.menus.experimentFiles',
   'copy.settings.title',
   'workbenchCopy.files.openFiles',
   'workbenchCopy.parameters.title',

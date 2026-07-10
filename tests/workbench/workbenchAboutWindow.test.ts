@@ -4,7 +4,10 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 const workbenchSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const aboutSource = readFileSync(new URL('../../src/features/workbench/WorkbenchAboutWindow.tsx', import.meta.url), 'utf8');
 const buildNoticeSource = readFileSync(new URL('../../src/features/workbench/WorkbenchBuildNoticeWindow.tsx', import.meta.url), 'utf8');
-const source = `${workbenchSource}\n${aboutSource}\n${buildNoticeSource}`;
+const buildNoticeContractSource = readFileSync(new URL('../../src/features/workbench/workbenchBuildNoticeContract.ts', import.meta.url), 'utf8');
+const buildNoticeContentSource = readFileSync(new URL('../../src/features/workbench/workbenchBuildNoticeContent.ts', import.meta.url), 'utf8');
+const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
+const source = `${workbenchSource}\n${aboutSource}\n${buildNoticeSource}\n${buildNoticeContractSource}\n${buildNoticeContentSource}\n${topCommandsSource}`;
 const emptyWorkspaceSource = readFileSync(new URL('../../src/features/workbench/WorkbenchEmptyWorkspace.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const rootStyles = readFileSync(new URL('../../index.css', import.meta.url), 'utf8');
@@ -111,13 +114,13 @@ assert.ok(!source.includes('开始新的硬球工作台'), 'empty-state copy sho
 assert.match(viteConfig, /define:\s*\{[\s\S]*?__APP_VERSION__:\s*JSON\.stringify\(packageJson\.version\)/, 'Vite should expose package.json version to the app');
 assert.ok(source.includes('const WORKBENCH_APP_VERSION = __APP_VERSION__;'), 'about window should read the app version from Vite package metadata');
 
-const newMenuSource = source.slice(
-  indexOfOrFail(source, "if (openTopMenu === 'new')", 'new menu should exist'),
-  indexOfOrFail(source, "if (openTopMenu === 'edit')", 'edit menu should exist'),
+const newMenuSource = topCommandsSource.slice(
+  indexOfOrFail(topCommandsSource, "if (openMenu === 'new')", 'new menu should exist'),
+  indexOfOrFail(topCommandsSource, "if (openMenu === 'edit')", 'edit menu should exist'),
 );
 assert.ok(
-  newMenuSource.indexOf("createFile('ideal')") < newMenuSource.indexOf("createFile('heatCapacity')")
-    && newMenuSource.indexOf("createFile('heatCapacity')") < newMenuSource.indexOf("createFile('standard')"),
+  newMenuSource.indexOf("onCreateFile('ideal')") < newMenuSource.indexOf("onCreateFile('heatCapacity')")
+    && newMenuSource.indexOf("onCreateFile('heatCapacity')") < newMenuSource.indexOf("onCreateFile('standard')"),
   'New Study menu should order entries as ideal / heat capacity / standard',
 );
 
@@ -127,9 +130,9 @@ assert.ok(
   'empty-state create actions should order entries as ideal / heat capacity / standard',
 );
 
-const settingsMenuSource = source.slice(
-  indexOfOrFail(source, "if (openTopMenu === 'settings')", 'settings menu should exist'),
-  indexOfOrFail(source, "if (openTopMenu === 'help')", 'help menu should exist'),
+const settingsMenuSource = topCommandsSource.slice(
+  indexOfOrFail(topCommandsSource, "if (openMenu === 'settings')", 'settings menu should exist'),
+  indexOfOrFail(topCommandsSource, "if (openMenu === 'help')", 'help menu should exist'),
 );
 assert.ok(!settingsMenuSource.includes('menus.exportEnvironment'), 'settings menu should not expose the export environment row');
 assert.ok(!settingsMenuSource.includes('exportEnvironmentStatus'), 'settings menu should not expose raw export environment status');
@@ -137,7 +140,8 @@ assert.ok(!settingsMenuSource.includes('exportEnvironmentStatus'), 'settings men
 assert.match(source, /const \[aboutWindowOpen, setAboutWindowOpen\] = useState\(false\);/, 'about window should have independent open state');
 assert.match(workbenchSource, /<WorkbenchAboutWindow/, 'about window component should be mounted by the workbench');
 assert.doesNotMatch(workbenchSource, /const renderAboutWindow = \(\) => \{/, 'legacy inline about renderer should be removed');
-assert.match(source, /onClick=\{openAboutWindow\}[\s\S]*?\{workbenchCopy\.menus\.about\}/, 'Help > About should open the about window instead of logging a mock action');
+assert.match(topCommandsSource, /onClick=\{onOpenAbout\}[\s\S]*?\{copy\.menus\.about\}/, 'Help > About should use the component callback instead of logging a mock action');
+assert.match(workbenchSource, /onOpenAbout=\{openAboutWindow\}/, 'workbench should connect Help > About to the about-window controller');
 assert.match(workbenchSource, /<WorkbenchAboutWindow[\s\S]*?onOpenBuildNotice=\{openBuildNoticeWindow\}/, 'about window should receive controller callbacks through explicit props');
 const buildNoticeNavSource = buildNoticeSource.slice(
   indexOfOrFail(buildNoticeSource, '<nav className="studio-build-notice-nav-panel"', 'build notice nav panel should exist'),

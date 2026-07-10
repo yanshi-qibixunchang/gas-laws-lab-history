@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const sessionSource = readFileSync(new URL('../../src/features/workbench/workbenchSession.ts', import.meta.url), 'utf8');
 
@@ -24,20 +25,20 @@ assert.ok(sessionSource.includes('WORKBENCH_CLOSED_FILES_STORAGE_KEY'), 'session
 assert.ok(sessionSource.includes('loadClosedWorkbenchFiles'), 'session storage should load closed cached files');
 assert.ok(sessionSource.includes('persistClosedWorkbenchFiles'), 'session storage should persist closed cached files');
 
-const newMenuSource = source.slice(
-  indexOfOrFail(source, "if (openTopMenu === 'new')", 'experiment files menu should exist'),
-  indexOfOrFail(source, "if (openTopMenu === 'edit')", 'edit menu should follow experiment files menu'),
+const newMenuSource = topCommandsSource.slice(
+  indexOfOrFail(topCommandsSource, "if (openMenu === 'new')", 'experiment files menu should exist'),
+  indexOfOrFail(topCommandsSource, "if (openMenu === 'edit')", 'edit menu should follow experiment files menu'),
 );
 assert.ok(newMenuSource.includes('studio-command-submenu'), 'Experiment Files menu should render second-level submenus');
-assert.ok(newMenuSource.includes('workbenchCopy.menus.newExperiment'), 'Experiment Files menu should include New Experiment');
-assert.ok(newMenuSource.includes('workbenchCopy.menus.openExperiment'), 'Experiment Files menu should include Open Experiment');
+assert.ok(newMenuSource.includes('copy.menus.newExperiment'), 'Experiment Files menu should include New Experiment');
+assert.ok(newMenuSource.includes('copy.menus.openExperiment'), 'Experiment Files menu should include Open Experiment');
 assert.ok(source.includes('const openableClosedFiles = closedFiles.filter'), 'Open Experiment submenu should list cached files not currently open');
-assert.ok(newMenuSource.includes('openClosedWorkbenchFile(file.id)'), 'Open Experiment entries should reopen cached files');
-assert.ok(newMenuSource.includes('workbenchCopy.menus.noCachedExperiments'), 'Open Experiment submenu should show an empty state');
+assert.ok(newMenuSource.includes('onOpenClosedFile(file.id)'), 'Open Experiment entries should reopen cached files');
+assert.ok(newMenuSource.includes('copy.menus.noCachedExperiments'), 'Open Experiment submenu should show an empty state');
 
 assert.ok(
-  newMenuSource.indexOf("createFile('ideal')") < newMenuSource.indexOf("createFile('heatCapacity')")
-    && newMenuSource.indexOf("createFile('heatCapacity')") < newMenuSource.indexOf("createFile('standard')"),
+  newMenuSource.indexOf("onCreateFile('ideal')") < newMenuSource.indexOf("onCreateFile('heatCapacity')")
+    && newMenuSource.indexOf("onCreateFile('heatCapacity')") < newMenuSource.indexOf("onCreateFile('standard')"),
   'New Experiment submenu should order entries as ideal / heat capacity / standard',
 );
 
@@ -117,5 +118,4 @@ assert.match(
 );
 
 console.log('workbenchExperimentFiles tests passed');
-
 
