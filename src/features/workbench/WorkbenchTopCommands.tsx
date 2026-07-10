@@ -58,11 +58,6 @@ interface WorkbenchTopCommandsCopy {
     theoryPdf: string;
     about: string;
   };
-  files: {
-    locked: string;
-    shown: string;
-    off: string;
-  };
 }
 
 interface WorkbenchTopMenuClosedFile {

@@ -962,7 +962,6 @@ interface UpdateIdealScanVariableOptions {
 
 interface WorkbenchCopy {
   menus: {
-    newStudy: string;
     experimentFiles: string;
     newWindow: string;
     newExperiment: string;
@@ -983,8 +982,6 @@ interface WorkbenchCopy {
     panelsFor: (name: string) => string;
     resetDefaultLayout: string;
     default: string;
-    performanceMode: string;
-    exportEnvironment: string;
     saveWorkbenchLayoutDefault: string;
     userGuide: string;
     theoryPdf: string;
@@ -1026,7 +1023,6 @@ interface WorkbenchCopy {
     buildNoticeLargeFileBody: string;
     buildNoticePreviewUnavailable: string;
     buildNoticeOpenUnavailable: string;
-    updateNotConfigured: string;
     checking: string;
     available: string;
     unavailable: string;
@@ -1036,7 +1032,6 @@ interface WorkbenchCopy {
     environmentResultUnavailable: string;
     environmentResultError: string;
     updateResultTitle: string;
-    updateResultBody: string;
     updateAvailableTitle: string;
     updateAvailableBody: string;
     updateReadyTitle: string;
@@ -1124,8 +1119,6 @@ interface WorkbenchCopy {
     title: string;
     currentFileValues: string;
     lockedUntilStopped: string;
-    editValues: string;
-    hide: string;
     standardSimulation: string;
     idealSimulation: string;
     heatCapacityExperiment: string;
@@ -1151,16 +1144,9 @@ interface WorkbenchCopy {
     advancedShow: string;
     advancedHide: string;
     edit: string;
-    save: string;
-    saveHint: string;
     standardReadonlyNote: string;
     idealReadonlyNote: string;
     heatCapacityReadonlyNote: string;
-    microscopicVisualization: string;
-    hardSphereView: string;
-    hardSphereOn: string;
-    hardSphereOff: string;
-    hardSphereTeachingOnly: string;
     controlledLockHint: string;
   };
   results: {
@@ -1617,10 +1603,10 @@ const HEAT_CAPACITY_AUTO_DEMO_STEP_PANEL_EXIT_MS = 560;
 const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
   'zh-CN': {
     menus: {
-      newStudy: '新建研究', experimentFiles: '实验文件', newWindow: '新窗口', newExperiment: '新建实验', openExperiment: '打开实验', noCachedExperiments: '没有可打开的缓存实验', edit: '编辑', window: '窗口', settings: '设置', help: '帮助', general: '通用',
+      experimentFiles: '实验文件', newWindow: '新窗口', newExperiment: '新建实验', openExperiment: '打开实验', noCachedExperiments: '没有可打开的缓存实验', edit: '编辑', window: '窗口', settings: '设置', help: '帮助', general: '通用',
       standardStudy: '标准模拟研究', idealStudy: '理想气体模拟研究', heatCapacityStudy: '空气比热容比实验', undo: '撤销', redo: '重做', empty: '空',
       clearEditHistory: '清空编辑历史', panelsFor: (name) => name + ' 的面板', resetDefaultLayout: '恢复默认布局', default: '默认',
-      performanceMode: '3D 性能模式', exportEnvironment: '导出环境', saveWorkbenchLayoutDefault: '保存当前窗口布局为默认',
+      saveWorkbenchLayoutDefault: '保存当前窗口布局为默认',
       userGuide: '用户指南', theoryPdf: '理论文档 PDF', about: '关于热容比实验室', topCommandsAria: '顶部命令',
     },
     settings: {
@@ -1653,7 +1639,6 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       buildNoticeLargeFileBody: '该许可材料内容较长，已随软件安装包完整提供。请使用下方按钮在系统浏览器或默认查看器中打开完整本地文件。',
       buildNoticePreviewUnavailable: '当前环境无法直接预览该材料，请打开完整本地文件查看。',
       buildNoticeOpenUnavailable: '当前环境无法打开本地文件。',
-      updateNotConfigured: '更新通道尚未配置',
       checking: '正在检查',
       available: '可用',
       unavailable: '不可用',
@@ -1663,7 +1648,6 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       environmentResultUnavailable: '本地数据导出环境不可用，当前环境不能直接导出 PDF / 图像。',
       environmentResultError: '本地数据导出环境检查失败。模拟、实时图表和结果预览仍可使用。',
       updateResultTitle: '更新检查完成',
-      updateResultBody: '更新通道尚未配置，当前仅显示占位结果。',
       updateAvailableTitle: '发现可用更新',
       updateAvailableBody: '新版本已发布，可以立即下载并准备安装。',
       updateReadyTitle: '更新已下载',
@@ -1705,13 +1689,13 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       summaryTitle: '摘要', dataTableTitle: '数据表', figuresTitle: '图像', liveWorkspaceResizeAria: '调整视图预览和实时数据区域大小',
     },
     parameters: {
-      title: '当前参数', currentFileValues: '当前文件值', lockedUntilStopped: '停止或完成前锁定', editValues: '编辑参数值', hide: '隐藏',
+      title: '当前参数', currentFileValues: '当前文件值', lockedUntilStopped: '停止或完成前锁定',
       standardSimulation: '标准模拟', idealSimulation: '理想气体模拟', heatCapacityExperiment: '空气比热容比实验', savedChangesOnStart: '启动时已保存参数', idealRuntimeOnStart: '理想运行时将在开始时连接', applied: '参数已应用',
       relation: '关系', scanVariable: '扫描变量', samplingPreset: '采样预设', targetTemperature: '目标温度', boxLength: '盒长 L', particleCount: '粒子数 N', customPreset: '自定义', setSamplingPrecision: '设置采样精度', relationHints: { pt: '固定 N 和 V 扫描温度', pv: '通过盒长 L 扫描体积', pn: '固定 T 和 V 扫描粒子数' }, setScanValue: (title) => '设置' + title, adjustScanValue: (title) => '调整' + title, recommendedValues: (title) => title + '推荐值',
       parameterLabels: { N: '粒子数量', r: '粒子半径', L: '容器边长', m: '粒子质量', k: '玻尔兹曼常数', dt: '时间步长', nu: '碰撞频率', targetTemperature: '目标温度', equilibriumTime: '平衡时间', statsDuration: '统计时长', relation: '关系' },
       samplingPresets: { fast: '快速', balanced: '平衡', stable: '稳定' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's 平衡 / ' + statsDuration + 's 统计',
-      advancedSettings: '高级设置', advancedShow: '显示模型常数和采样值', advancedHide: '隐藏模型常数和采样值', edit: '编辑', save: '保存', saveHint: '保存高级参数到当前工作台文件',
-      standardReadonlyNote: '标准模拟参数在这里直接显示。', idealReadonlyNote: '关系、扫描变量和采样预设在上方控制。', heatCapacityReadonlyNote: '粒子动画仅用于可视化气体分子运动状态；最终比热容比按 FD-NCD-C 空气实验模型计算。', microscopicVisualization: '微观可视化', hardSphereView: '硬球可视化', hardSphereOn: '开', hardSphereOff: '关', hardSphereTeachingOnly: '只影响三维教学显示，不参与 Uₜ、Uₚ、U₀/U₁/U₂ 或 γ 计算。', controlledLockHint: '当前关系已有数据，受控变量已锁定。',
+      advancedSettings: '高级设置', advancedShow: '显示模型常数和采样值', advancedHide: '隐藏模型常数和采样值', edit: '编辑',
+      standardReadonlyNote: '标准模拟参数在这里直接显示。', idealReadonlyNote: '关系、扫描变量和采样预设在上方控制。', heatCapacityReadonlyNote: '粒子动画仅用于可视化气体分子运动状态；最终比热容比按 FD-NCD-C 空气实验模型计算。', controlledLockHint: '当前关系已有数据，受控变量已锁定。',
     },
     results: {
       title: '结果', experimentStatus: '实验状态', scan: '扫描', temperature: '温度', pressure: '压强', measuredPressure: '实测 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 点', pointsShort: (count) => count + ' 点', recordedPoints: (count) => count + ' 个记录点',
@@ -1735,10 +1719,10 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
   },
   'zh-TW': {
     menus: {
-      newStudy: '新增研究', experimentFiles: '實驗檔案', newWindow: '新視窗', newExperiment: '新增實驗', openExperiment: '開啟實驗', noCachedExperiments: '沒有可開啟的快取實驗', edit: '編輯', window: '視窗', settings: '設定', help: '說明', general: '一般',
+      experimentFiles: '實驗檔案', newWindow: '新視窗', newExperiment: '新增實驗', openExperiment: '開啟實驗', noCachedExperiments: '沒有可開啟的快取實驗', edit: '編輯', window: '視窗', settings: '設定', help: '說明', general: '一般',
       standardStudy: '標準模擬研究', idealStudy: '理想氣體模擬研究', heatCapacityStudy: '空氣比熱容比實驗', undo: '復原', redo: '重做', empty: '空',
       clearEditHistory: '清除編輯記錄', panelsFor: (name) => name + ' 的面板', resetDefaultLayout: '還原預設版面', default: '預設',
-      performanceMode: '3D 效能模式', exportEnvironment: '匯出環境', saveWorkbenchLayoutDefault: '將目前視窗版面存為預設',
+      saveWorkbenchLayoutDefault: '將目前視窗版面存為預設',
       userGuide: '使用指南', theoryPdf: '理論文件 PDF', about: '關於熱容比實驗室', topCommandsAria: '頂部命令',
     },
     settings: {
@@ -1771,7 +1755,6 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       buildNoticeLargeFileBody: '該授權材料內容較長，已隨軟體安裝包完整提供。請使用下方按鈕在系統瀏覽器或預設檢視器中開啟完整本機文件。',
       buildNoticePreviewUnavailable: '目前環境無法直接預覽該材料，請開啟完整本機文件查看。',
       buildNoticeOpenUnavailable: '目前環境無法開啟本機文件。',
-      updateNotConfigured: '更新通道尚未配置',
       checking: '正在檢查',
       available: '可用',
       unavailable: '不可用',
@@ -1781,7 +1764,6 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       environmentResultUnavailable: '本地資料匯出環境不可用，目前環境不能直接匯出 PDF / 圖像。',
       environmentResultError: '本地資料匯出環境檢查失敗。模擬、即時圖表和結果預覽仍可使用。',
       updateResultTitle: '更新檢查完成',
-      updateResultBody: '更新通道尚未配置，目前僅顯示佔位結果。',
       updateAvailableTitle: '發現可用更新',
       updateAvailableBody: '新版本已發布，可以立即下載並準備安裝。',
       updateReadyTitle: '更新已下載',
@@ -1823,13 +1805,13 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       summaryTitle: '摘要', dataTableTitle: '資料表', figuresTitle: '圖像', liveWorkspaceResizeAria: '調整視圖預覽和即時資料區域大小',
     },
     parameters: {
-      title: '目前參數', currentFileValues: '目前檔案值', lockedUntilStopped: '停止或完成前鎖定', editValues: '編輯參數值', hide: '隱藏',
+      title: '目前參數', currentFileValues: '目前檔案值', lockedUntilStopped: '停止或完成前鎖定',
       standardSimulation: '標準模擬', idealSimulation: '理想氣體模擬', heatCapacityExperiment: '空氣比熱容比實驗', savedChangesOnStart: '啟動時已儲存參數', idealRuntimeOnStart: '理想執行階段將在開始時連接', applied: '參數已套用',
       relation: '關係', scanVariable: '掃描變量', samplingPreset: '採樣預設', targetTemperature: '目標溫度', boxLength: '盒長 L', particleCount: '粒子數 N', customPreset: '自訂', setSamplingPrecision: '設定採樣精度', relationHints: { pt: '固定 N 和 V 掃描溫度', pv: '透過盒長 L 掃描體積', pn: '固定 T 和 V 掃描粒子數' }, setScanValue: (title) => '設定' + title, adjustScanValue: (title) => '調整' + title, recommendedValues: (title) => title + '建議值',
       parameterLabels: { N: '粒子數量', r: '粒子半徑', L: '容器邊長', m: '粒子質量', k: '波茲曼常數', dt: '時間步長', nu: '碰撞頻率', targetTemperature: '目標溫度', equilibriumTime: '平衡時間', statsDuration: '統計時長', relation: '關係' },
       samplingPresets: { fast: '快速', balanced: '平衡', stable: '穩定' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's 平衡 / ' + statsDuration + 's 統計',
-      advancedSettings: '進階設定', advancedShow: '顯示模型常數和採樣值', advancedHide: '隱藏模型常數和採樣值', edit: '編輯', save: '儲存', saveHint: '將進階參數儲存到目前工作台檔案',
-      standardReadonlyNote: '標準模擬參數在這裡直接顯示。', idealReadonlyNote: '關係、掃描變量和採樣預設在上方控制。', heatCapacityReadonlyNote: '粒子動畫僅用於視覺化氣體分子運動狀態；最終比熱容比按 FD-NCD-C 空氣實驗模型計算。', microscopicVisualization: '微觀可視化', hardSphereView: '硬球可視化', hardSphereOn: '開', hardSphereOff: '關', hardSphereTeachingOnly: '只影響三維教學顯示，不參與 Uₜ、Uₚ、U₀/U₁/U₂ 或 γ 計算。', controlledLockHint: '目前關係已有資料，受控變量已鎖定。',
+      advancedSettings: '進階設定', advancedShow: '顯示模型常數和採樣值', advancedHide: '隱藏模型常數和採樣值', edit: '編輯',
+      standardReadonlyNote: '標準模擬參數在這裡直接顯示。', idealReadonlyNote: '關係、掃描變量和採樣預設在上方控制。', heatCapacityReadonlyNote: '粒子動畫僅用於視覺化氣體分子運動狀態；最終比熱容比按 FD-NCD-C 空氣實驗模型計算。', controlledLockHint: '目前關係已有資料，受控變量已鎖定。',
     },
     results: {
       title: '結果', experimentStatus: '實驗狀態', scan: '掃描', temperature: '溫度', pressure: '壓強', measuredPressure: '實測 P', idealPressure: '理想 P', gap: '差值', pointsTitle: (relation) => relation + ' 點', pointsShort: (count) => count + ' 點', recordedPoints: (count) => count + ' 個記錄點',
@@ -1853,10 +1835,10 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
   },
   en: {
     menus: {
-      newStudy: 'New Study', experimentFiles: 'Experiment Files', newWindow: 'New Window', newExperiment: 'New Experiment', openExperiment: 'Open Experiment', noCachedExperiments: 'No cached experiments to open', edit: 'Edit', window: 'Window', settings: 'Settings', help: 'Help', general: 'General',
+      experimentFiles: 'Experiment Files', newWindow: 'New Window', newExperiment: 'New Experiment', openExperiment: 'Open Experiment', noCachedExperiments: 'No cached experiments to open', edit: 'Edit', window: 'Window', settings: 'Settings', help: 'Help', general: 'General',
       standardStudy: 'Standard Simulation Study', idealStudy: 'Ideal Gas Simulation Study', heatCapacityStudy: 'Heat Capacity Ratio Experiment', undo: 'Undo', redo: 'Redo', empty: 'empty',
       clearEditHistory: 'Clear Edit History', panelsFor: (name) => 'Panels for ' + name, resetDefaultLayout: 'Reset Default Layout', default: 'default',
-      performanceMode: '3D Performance Mode', exportEnvironment: 'Export Environment', saveWorkbenchLayoutDefault: 'Save Current Window Layout as Default',
+      saveWorkbenchLayoutDefault: 'Save Current Window Layout as Default',
       userGuide: 'User Guide', theoryPdf: 'Theory Document PDF', about: 'About Heat Capacity Ratio Lab', topCommandsAria: 'Top commands',
     },
     settings: {
@@ -1889,7 +1871,6 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       buildNoticeLargeFileBody: 'This license material is large and is provided in full with the installed software. Use the button below to open the complete local file in the system browser or default viewer.',
       buildNoticePreviewUnavailable: 'This material cannot be previewed directly in the current environment. Open the complete local file to view it.',
       buildNoticeOpenUnavailable: 'The current environment cannot open local files.',
-      updateNotConfigured: 'Update channel is not configured',
       checking: 'Checking',
       available: 'Available',
       unavailable: 'Unavailable',
@@ -1899,7 +1880,6 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       environmentResultUnavailable: 'Local data export environment is unavailable. This environment cannot directly export PDF / image files.',
       environmentResultError: 'Local data export environment check failed. Simulation, live charts, and result previews remain available.',
       updateResultTitle: 'Update Check Complete',
-      updateResultBody: 'Update channel is not configured. This is a placeholder result.',
       updateAvailableTitle: 'Update Available',
       updateAvailableBody: 'A newer version is available and can be downloaded now.',
       updateReadyTitle: 'Update Downloaded',
@@ -1941,13 +1921,13 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       summaryTitle: 'Summary', dataTableTitle: 'Data Table', figuresTitle: 'Figures', liveWorkspaceResizeAria: 'Resize view preview and realtime data',
     },
     parameters: {
-      title: 'Current Parameters', currentFileValues: 'current file values', lockedUntilStopped: 'locked until stopped or finished', editValues: 'edit parameter values', hide: 'Hide',
+      title: 'Current Parameters', currentFileValues: 'current file values', lockedUntilStopped: 'locked until stopped or finished',
       standardSimulation: 'Standard Simulation', idealSimulation: 'Ideal Gas Simulation', heatCapacityExperiment: 'Heat Capacity Ratio Experiment', savedChangesOnStart: 'parameters saved on start', idealRuntimeOnStart: 'ideal runtime will connect on start', applied: 'parameters applied',
       relation: 'Relation', scanVariable: 'Scan Variable', samplingPreset: 'Sampling Preset', targetTemperature: 'Target Temperature', boxLength: 'Box Length L', particleCount: 'Particle Count N', customPreset: 'Custom', setSamplingPrecision: 'Set sampling precision', relationHints: { pt: 'Scan temperature at fixed N and V', pv: 'Scan volume through box length L', pn: 'Scan particle count at fixed T and V' }, setScanValue: (title) => 'Set ' + title, adjustScanValue: (title) => 'Adjust ' + title, recommendedValues: (title) => title + ' recommended values',
       parameterLabels: { N: 'Particle count', r: 'Particle radius', L: 'Box length', m: 'Particle mass', k: 'Boltzmann constant', dt: 'Time step', nu: 'Collision frequency', targetTemperature: 'Target temperature', equilibriumTime: 'Equilibration time', statsDuration: 'Sampling duration', relation: 'Relation' },
       samplingPresets: { fast: 'Fast', balanced: 'Balanced', stable: 'Stable' }, samplingDuration: (equilibriumTime, statsDuration) => equilibriumTime + 's eq / ' + statsDuration + 's stats',
-      advancedSettings: 'Advanced settings', advancedShow: 'Show model constants and sampling values', advancedHide: 'Hide model constants and sampling values', edit: 'Edit', save: 'Save', saveHint: 'Save advanced parameters to this workbench file',
-      standardReadonlyNote: 'Standard simulation parameters are shown directly here.', idealReadonlyNote: 'Relation, scan variable, and sampling preset are controlled above.', heatCapacityReadonlyNote: 'The particle animation only visualizes molecular motion; the heat capacity ratio is still calculated by the FD-NCD-C air experiment model.', microscopicVisualization: 'Microscopic Visualization', hardSphereView: 'Hard-Sphere View', hardSphereOn: 'ON', hardSphereOff: 'OFF', hardSphereTeachingOnly: 'Affects only the 3D teaching display. It is not used for Uₜ, Uₚ, U₀/U₁/U₂, or γ.', controlledLockHint: 'This relation already has data, so controlled variables are locked.',
+      advancedSettings: 'Advanced settings', advancedShow: 'Show model constants and sampling values', advancedHide: 'Hide model constants and sampling values', edit: 'Edit',
+      standardReadonlyNote: 'Standard simulation parameters are shown directly here.', idealReadonlyNote: 'Relation, scan variable, and sampling preset are controlled above.', heatCapacityReadonlyNote: 'The particle animation only visualizes molecular motion; the heat capacity ratio is still calculated by the FD-NCD-C air experiment model.', controlledLockHint: 'This relation already has data, so controlled variables are locked.',
     },
     results: {
       title: 'Results', experimentStatus: 'Experiment status', scan: 'Scan', temperature: 'Temperature', pressure: 'Pressure', measuredPressure: 'Measured P', idealPressure: 'Ideal P', gap: 'Gap', pointsTitle: (relation) => relation + ' points', pointsShort: (count) => count + ' pts', recordedPoints: (count) => count + ' recorded points',

@@ -832,7 +832,7 @@ assert.match(sceneSource, /@react-three\/drei/);
 assert.doesNotMatch(autoDemoSource, asciiSubscriptPattern, 'auto demo user-facing copy should use real Unicode subscripts instead of underscores');
 assert.doesNotMatch(leftPanelSource, asciiSubscriptPattern, 'heat-capacity guide copy should use real Unicode subscripts instead of underscores');
 assert.doesNotMatch(workbenchSource, /heatRealtimeHint:\s*'[^']*U_/, 'heat-capacity realtime hint should not expose underscore subscripts');
-assert.doesNotMatch(workbenchSource, /hardSphereTeachingOnly:\s*'[^']*U_/, 'hard-sphere teaching note should not expose underscore subscripts');
+assert.doesNotMatch(`${hardSphereToggleSource}\n${freeParameterPanelModelSource}`, asciiSubscriptPattern, 'current hard-sphere teaching copy should not expose underscore subscripts');
 assert.doesNotMatch(workbenchSource, /(recordDialogPressure|recordDialogTemperature|readyToZero|sealedStabilizing|recovering|delta):\s*'[^']*U_/, 'heat-capacity status and dialog copy should not expose underscore subscripts');
 assert.match(workbenchSource, /heatRealtimeHint:\s*'Uₜ \/ Uₚ、压强和过程采样'/, 'Simplified Chinese realtime hint should use real subscripts');
 assert.doesNotMatch(sceneSource, /<Html[\s\S]*(TemperatureDisplay|PressureDisplay|FD-NCD-C|INPUT|PRESS IN)/, 'instrument panel labels should not use camera-facing Html overlays');

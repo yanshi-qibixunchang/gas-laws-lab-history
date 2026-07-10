@@ -16,6 +16,7 @@ assert.match(componentSource, /onCreateFile: \(kind: WorkbenchFileKind\) => void
 assert.match(componentSource, /onToggleWindowPanel: \(panelKey: WorkbenchPanelKey\) => void;/, 'window panel changes should remain an explicit controller callback');
 assert.match(componentSource, /onToggleWindowResultChild: \(child: WorkbenchTopMenuResultChild\) => void;/, 'result-child changes should remain an explicit controller callback');
 assert.match(componentSource, /children: WorkbenchTopMenuResultChild\[\];/, 'window panels should expose structured result children instead of embedded JSX');
+assert.doesNotMatch(componentSource, /copy\.files|files:\s*\{\s*locked:/, 'top commands should not retain the unused file-state copy branch');
 assert.match(
   componentSource,
   /useEffect\(\(\) => \{[\s\S]*?if \(openMenu === 'new'\) return;[\s\S]*?setActiveSubmenu\(null\);[\s\S]*?setPinnedSubmenu\(null\);[\s\S]*?\}, \[openMenu\]\);/,

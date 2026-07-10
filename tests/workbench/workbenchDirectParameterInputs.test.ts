@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const hardSphereToggleSource = readFileSync(new URL('../../src/features/heatCapacity/HeatCapacityHardSphereToggle.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
@@ -59,21 +60,21 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /hardSphereTeachingOnly: '只影响三维教学显示，不参与 Uₜ、Uₚ、U₀\/U₁\/U₂ 或 γ 计算。'/,
-  'Simplified Chinese hard-sphere copy should use the gamma symbol consistently',
+  hardSphereToggleSource,
+  /tooltipOn: '关闭瓶内小球分子可视化。该显示仅用于教学解释，不参与数据计算。'/,
+  'Simplified Chinese hard-sphere copy should state the current calculation boundary',
 );
 
 assert.match(
-  source,
-  /hardSphereTeachingOnly: '只影響三維教學顯示，不參與 Uₜ、Uₚ、U₀\/U₁\/U₂ 或 γ 計算。'/,
-  'Traditional Chinese hard-sphere copy should use the gamma symbol consistently',
+  hardSphereToggleSource,
+  /tooltipOn: '關閉瓶內小球分子可視化。該顯示僅用於教學解釋，不參與資料計算。'/,
+  'Traditional Chinese hard-sphere copy should state the current calculation boundary',
 );
 
 assert.match(
-  source,
-  /hardSphereTeachingOnly: 'Affects only the 3D teaching display\. It is not used for Uₜ, Uₚ, U₀\/U₁\/U₂, or γ\.'/,
-  'English hard-sphere copy should use the gamma symbol consistently',
+  hardSphereToggleSource,
+  /tooltipOn: 'Disable the in-bottle molecule visualization\. This display is explanatory only and is not used in calculations\.'/,
+  'English hard-sphere copy should state the current calculation boundary',
 );
 
 assert.match(
