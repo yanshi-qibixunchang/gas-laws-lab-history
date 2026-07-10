@@ -2316,8 +2316,7 @@
 .studio-theme-light .studio-ideal-preset-trigger:disabled,
 .studio-theme-light .studio-ideal-preset-trigger:disabled:hover,
 .studio-theme-light .studio-ideal-preset-menu button:disabled,
-.studio-theme-light .studio-ideal-preset-menu button:disabled:hover,
-.studio-theme-light .studio-ideal-scan-tick-button:disabled {
+.studio-theme-light .studio-ideal-preset-menu button:disabled:hover {
   background: #eef2f7 !important;
   border-color: #d7e0ec !important;
   color: #7a8da6 !important;

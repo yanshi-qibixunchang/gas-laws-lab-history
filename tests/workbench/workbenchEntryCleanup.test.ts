@@ -4,6 +4,8 @@ import { join } from 'node:path';
 
 const root = process.cwd();
 const appSource = readFileSync(join(root, 'src', 'app', 'App.tsx'), 'utf8');
+const indexHtml = readFileSync(join(root, 'index.html'), 'utf8');
+const globalStyles = readFileSync(join(root, 'index.css'), 'utf8');
 
 assert.match(appSource, /<WorkbenchStudioPrototype \/>/, 'App entry should render the Workbench product');
 assert.doesNotMatch(appSource, /SHOW_WORKBENCH_PROTOTYPE/, 'App entry should not keep the old constant-gated legacy branch');
@@ -28,5 +30,11 @@ assert.doesNotMatch(appSource, /CollapsibleCard|StatsPanel|ModeSwitch|StackedRes
 
 assert.equal(existsSync(join(root, 'src', 'components', 'SimulationCanvas.tsx')), true, 'current Workbench canvas component must remain');
 assert.equal(existsSync(join(root, 'src', 'components', 'PdfModal.tsx')), false, 'unused legacy PDF viewer should be removed with its dead dependency stack');
+assert.doesNotMatch(indexHtml, /ambient-orb|orb-[12]/, 'Workbench entry should not mount the removed decorative background layers');
+assert.doesNotMatch(
+  globalStyles,
+  /ambient-orb|orbFloat|text-metallic|sharpShine|pdf-modal-|sidebar-scroll|main-scroll/,
+  'global CSS should not retain styles from removed entry decorations, PDF viewer, or old scroll shells',
+);
 
 console.log('workbenchEntryCleanup tests passed');
