@@ -1,32 +1,24 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 
 const viteConfigSource = readFileSync(new URL('../../vite.config.ts', import.meta.url), 'utf8');
+const require = createRequire(import.meta.url);
+const buildPolicy = require('../../build/workbenchBuildPolicy.cjs') as {
+  WORKBENCH_MAX_JAVASCRIPT_CHUNK_BYTES: number;
+  WORKBENCH_REQUIRED_CHUNK_NAMES: string[];
+  getWorkbenchChunkName: (id: string) => string | null;
+};
 
-assert.match(
-  viteConfigSource,
-  /const normalizedId = id\.replace\(\/\\\\\/g, '\/'\)/,
-  'manual chunk matching should normalize Windows paths before applying package rules',
-);
-assert.match(
-  viteConfigSource,
-  /normalizedId\.includes\('\/node_modules\/@react-three\/'\)[\s\S]*return 'react-three'/,
-  'React Three dependencies should be cached separately from frequently changing application code',
-);
-assert.match(
-  viteConfigSource,
-  /normalizedId\.includes\('\/node_modules\/three\/'\)[\s\S]*return 'three-core'/,
-  'Three core should have an explicit vendor boundary',
-);
-assert.match(
-  viteConfigSource,
-  /chunkSizeWarningLimit:\s*1000/,
-  'the warning threshold should remain below one megabyte per minified chunk',
-);
-assert.doesNotMatch(
-  viteConfigSource,
-  /chunkSizeWarningLimit:\s*(?:[2-9]\d{3,}|\d{5,})/,
-  'the build should not silence genuinely oversized chunks with an unbounded warning threshold',
-);
+assert.equal(buildPolicy.getWorkbenchChunkName('C:\\repo\\node_modules\\three\\src\\Three.js'), 'react-three');
+assert.equal(buildPolicy.getWorkbenchChunkName('/repo/node_modules/three/examples/jsm/controls/OrbitControls.js'), 'react-three');
+assert.equal(buildPolicy.getWorkbenchChunkName('/repo/node_modules/@react-three/fiber/dist/index.js'), 'react-three');
+assert.equal(buildPolicy.getWorkbenchChunkName('/repo/node_modules/react-dom/index.js'), 'vendor');
+assert.equal(buildPolicy.getWorkbenchChunkName('/repo/src/main.tsx'), null);
+assert.deepEqual(buildPolicy.WORKBENCH_REQUIRED_CHUNK_NAMES, ['vendor', 'react-three']);
+assert.equal(buildPolicy.WORKBENCH_MAX_JAVASCRIPT_CHUNK_BYTES, 1_000_000);
+assert.match(viteConfigSource, /codeSplitting:\s*\{[\s\S]*groups: \[\{ name: getWorkbenchChunkName \}\]/);
+assert.match(viteConfigSource, /chunkSizeWarningLimit: WORKBENCH_MAX_JAVASCRIPT_CHUNK_BYTES \/ 1000/);
+assert.doesNotMatch(viteConfigSource, /manualChunks/);
 
 console.log('workbenchBuildChunking tests passed');

@@ -137,7 +137,14 @@ const getLegalNoticeInputFingerprint = (records) => {
     hash.update('\0');
   };
 
-  appendFile(packageJsonPath);
+  const packageJson = readJson(packageJsonPath);
+  const dependencyManifest = Object.fromEntries([
+    ...Object.entries(packageJson.dependencies || {}),
+    ...Object.entries(packageJson.devDependencies || {}),
+    ...Object.entries(packageJson.optionalDependencies || {}),
+  ].sort(([left], [right]) => left.localeCompare(right)));
+  hash.update(JSON.stringify(dependencyManifest));
+  hash.update('\0');
   appendFile(packageLockPath);
   appendFile(__filename);
   appendFile(path.join(nodeModulesDir, 'electron', 'dist', 'LICENSE'));
