@@ -17,7 +17,23 @@ const collectTests = (dir, tests = []) => {
   return tests;
 };
 
-const tests = collectTests(testsRoot).sort((a, b) => a.localeCompare(b));
+const requestedTests = process.argv.slice(2).map((value) => value.replace(/\\/g, '/'));
+const tests = collectTests(testsRoot)
+  .sort((a, b) => a.localeCompare(b))
+  .filter((testPath) => {
+    if (requestedTests.length === 0) return true;
+    const relativePath = path.relative(root, testPath).replace(/\\/g, '/');
+    return requestedTests.some((requested) => (
+      relativePath === requested ||
+      relativePath.endsWith(requested) ||
+      relativePath.includes(requested)
+    ));
+  });
+
+if (tests.length === 0) {
+  console.error(`No test files matched: ${requestedTests.join(', ')}`);
+  process.exit(1);
+}
 
 for (const testPath of tests) {
   const relativePath = path.relative(root, testPath);

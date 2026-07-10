@@ -19,9 +19,6 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           const normalizedId = id.replace(/\\/g, '/');
-          if (normalizedId.includes('/node_modules/pdfjs-dist/')) {
-            return 'pdf';
-          }
           if (normalizedId.includes('/node_modules/three/examples/')) {
             return 'three-addons';
           }
@@ -41,8 +38,7 @@ export default defineConfig({
             normalizedId.includes('/node_modules/react-dom/') ||
             normalizedId.includes('/node_modules/react/') ||
             normalizedId.includes('/node_modules/scheduler/') ||
-            normalizedId.includes('/node_modules/lucide-react/') ||
-            normalizedId.includes('/node_modules/@capacitor/')
+            normalizedId.includes('/node_modules/lucide-react/')
           ) {
             return 'vendor';
           }

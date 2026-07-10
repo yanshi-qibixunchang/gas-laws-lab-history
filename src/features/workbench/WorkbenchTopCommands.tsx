@@ -5,7 +5,6 @@ import {
   ChevronDown,
   ChevronRight,
   FilePlus2,
-  FileText,
   FlaskConical,
   FolderOpen,
   Gauge,
@@ -55,7 +54,6 @@ interface WorkbenchTopCommandsCopy {
     general: string;
     saveWorkbenchLayoutDefault: string;
     userGuide: string;
-    theoryPdf: string;
     about: string;
   };
 }
@@ -123,7 +121,6 @@ interface WorkbenchTopCommandsProps {
   onOpenGeneralSettings: () => void;
   onSaveLayoutDefault: () => void;
   onOpenUserGuide: () => void;
-  onOpenTheoryPdf: () => void;
   onOpenAbout: () => void;
 }
 
@@ -159,7 +156,6 @@ export const WorkbenchTopCommands = ({
   onOpenGeneralSettings,
   onSaveLayoutDefault,
   onOpenUserGuide,
-  onOpenTheoryPdf,
   onOpenAbout,
 }: WorkbenchTopCommandsProps) => {
   const [activeSubmenu, setActiveSubmenu] = useState<WorkbenchTopCommandSubmenuId | null>(null);
@@ -372,10 +368,6 @@ export const WorkbenchTopCommands = ({
           <button type="button" onClick={onOpenUserGuide}>
             <BookOpen size={14} />
             <span>{copy.menus.userGuide}</span>
-          </button>
-          <button type="button" onClick={onOpenTheoryPdf}>
-            <FileText size={14} />
-            <span>{copy.menus.theoryPdf}</span>
           </button>
           <button type="button" onClick={onOpenAbout}>
             <Info size={14} />

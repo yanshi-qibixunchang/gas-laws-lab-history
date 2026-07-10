@@ -27,6 +27,6 @@ assert.doesNotMatch(appSource, /CollapsibleCard|StatsPanel|ModeSwitch|StackedRes
 });
 
 assert.equal(existsSync(join(root, 'src', 'components', 'SimulationCanvas.tsx')), true, 'current Workbench canvas component must remain');
-assert.equal(existsSync(join(root, 'src', 'components', 'PdfModal.tsx')), true, 'PDF viewer component must remain for later reuse');
+assert.equal(existsSync(join(root, 'src', 'components', 'PdfModal.tsx')), false, 'unused legacy PDF viewer should be removed with its dead dependency stack');
 
 console.log('workbenchEntryCleanup tests passed');

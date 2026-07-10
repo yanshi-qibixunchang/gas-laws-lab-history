@@ -8,6 +8,8 @@ const packageJsonPath = path.join(rootDir, 'package.json');
 const packageLockPath = path.join(rootDir, 'package-lock.json');
 const nodeModulesDir = path.join(rootDir, 'node_modules');
 const summaryPath = path.join(outputDir, 'third-party-summary.json');
+const checkOnly = process.argv.includes('--check');
+const staleOutputs = [];
 
 let generatedAt = new Date().toISOString();
 let contentFingerprint = '';
@@ -25,6 +27,10 @@ const readJsonIfExists = (filePath) => {
 
 const writeTextFileIfChanged = (filePath, content) => {
   if (fs.existsSync(filePath) && fs.readFileSync(filePath, 'utf8') === content) return false;
+  if (checkOnly) {
+    staleOutputs.push(path.relative(rootDir, filePath));
+    return true;
+  }
   fs.writeFileSync(filePath, content, 'utf8');
   return true;
 };
@@ -43,6 +49,7 @@ const renderExternalLink = (href, label = href) => (
 const normalizePathForHtml = (value) => value.split(path.sep).join('/');
 
 const ensureOutputDir = () => {
+  if (checkOnly) return;
   fs.mkdirSync(outputDir, { recursive: true });
 };
 
@@ -324,6 +331,10 @@ const copyIfExists = (sourcePath, fileName) => {
   const targetPath = path.join(outputDir, fileName);
   const source = fs.readFileSync(sourcePath);
   if (fs.existsSync(targetPath) && fs.readFileSync(targetPath).equals(source)) return false;
+  if (checkOnly) {
+    staleOutputs.push(path.relative(rootDir, targetPath));
+    return true;
+  }
   fs.writeFileSync(targetPath, source);
   return true;
 };
@@ -367,4 +378,11 @@ copyIfExists(path.join(rootDir, 'node_modules', 'electron', 'dist', 'LICENSE'), 
 copyIfExists(path.join(rootDir, 'public', 'fonts', 'LICENSES.txt'), 'font-licenses.txt');
 writeSummary(records);
 
-console.log(`Generated legal notices in ${path.relative(rootDir, outputDir)} (${records.length} package records).`);
+if (checkOnly && staleOutputs.length > 0) {
+  console.error(`Legal notices are out of date:\n${staleOutputs.map((filePath) => `- ${filePath}`).join('\n')}`);
+  process.exitCode = 1;
+} else if (checkOnly) {
+  console.log(`Legal notices are current (${records.length} package records).`);
+} else {
+  console.log(`Generated legal notices in ${path.relative(rootDir, outputDir)} (${records.length} package records).`);
+}

@@ -7,6 +7,8 @@ const legalFiles = [
   'third-party-dependencies.html',
   'third-party-license-texts.html',
   'third-party-summary.json',
+  'LICENSE.electron.txt',
+  'font-licenses.txt',
 ] as const;
 
 const readLegalFiles = () => Object.fromEntries(legalFiles.map((fileName) => [
@@ -15,16 +17,16 @@ const readLegalFiles = () => Object.fromEntries(legalFiles.map((fileName) => [
 ]));
 
 const before = readLegalFiles();
-const result = spawnSync(process.execPath, ['scripts/generateLegalNotices.cjs'], {
+const result = spawnSync(process.execPath, ['scripts/generateLegalNotices.cjs', '--check'], {
   cwd: process.cwd(),
   encoding: 'utf8',
 });
 
-assert.equal(result.status, 0, result.stderr || 'legal notice generation should succeed');
+assert.equal(result.status, 0, result.stderr || 'legal notice check should succeed without writing files');
 assert.deepEqual(
   readLegalFiles(),
   before,
-  'legal notice generation should not rewrite tracked outputs when its inputs are unchanged',
+  'legal notice checks must remain read-only',
 );
 
 const summary = JSON.parse(before['third-party-summary.json']) as {
