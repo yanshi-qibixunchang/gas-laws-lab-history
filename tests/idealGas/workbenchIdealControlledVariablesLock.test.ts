@@ -41,8 +41,8 @@ assert.match(
 
 assert.match(
   source,
-  /const editableCurrentParameters = currentParameters\.filter\(\(param\) => !\(activeFile\.kind === 'ideal' && \(param\.key === 'targetTemperature' \|\| param\.key === 'relation'\)\)\);/,
-  'targetTemperature and the read-only relation row should be omitted from the lower ideal Current Parameters table',
+  /const editableCurrentParameters = useMemo\(\(\) => getWorkbenchParameterRows\(activeFile\), \[activeFile\]\);/,
+  'the lower ideal Current Parameters table should consume only registry-selected advanced rows',
 );
 
 assert.match(
@@ -82,4 +82,3 @@ assert.match(
 );
 
 console.log('workbenchIdealControlledVariablesLock tests passed');
-

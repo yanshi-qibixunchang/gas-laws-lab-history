@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
+const parameterRegistrySource = readFileSync(new URL('../../src/features/workbench/workbenchParameterRegistry.ts', import.meta.url), 'utf8');
 const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
 
 assert.match(
@@ -109,8 +110,13 @@ assert.match(
 
 assert.match(
   source,
-  /const editableCurrentParameters = currentParameters\.filter\(\(param\) => !\(activeFile\.kind === 'ideal' && \(param\.key === 'targetTemperature' \|\| param\.key === 'relation'\)\)\);/,
-  'ideal advanced settings should exclude the scan-owned temperature row and read-only verification relation row',
+  /const editableCurrentParameters = useMemo\(\(\) => getWorkbenchParameterRows\(activeFile\), \[activeFile\]\);/,
+  'ideal advanced settings should consume rows selected by the shared parameter registry',
+);
+assert.match(
+  parameterRegistrySource,
+  /key: 'targetTemperature'[\s\S]*?surfaceByKind: \{ standard: 'internal', ideal: 'dedicated' \}/,
+  'the registry should keep target temperature on the dedicated ideal scan control',
 );
 
 assert.match(
@@ -144,5 +150,4 @@ assert.match(
 );
 
 console.log('workbenchIdealAdvancedSettings tests passed');
-
 

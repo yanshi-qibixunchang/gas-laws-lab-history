@@ -120,6 +120,10 @@ import {
   type WorkbenchParameterRow,
   type WorkbenchStandardResultsTab,
 } from './workbenchState';
+import {
+  WORKBENCH_TRACKED_PARAMETER_KEYS,
+  assignWorkbenchParameterValue,
+} from './workbenchParameterRegistry.ts';
 import HeatCapacityInstrumentScene from '../heatCapacity/HeatCapacityInstrumentScene';
 import { HeatCapacityLeftPanel } from '../heatCapacity/HeatCapacityLeftPanel.tsx';
 import { HeatCapacityFreeDisplaySchemeMenu } from '../heatCapacity/HeatCapacityFreeDisplaySchemeMenu.tsx';
@@ -2992,24 +2996,11 @@ const getIdealExperimentLanguageCode = (
   language === 'en' ? 'en-GB' : language
 );
 
-const idealParamKeys: ExperimentParamKey[] = [
-  'N',
-  'L',
-  'r',
-  'm',
-  'k',
-  'dt',
-  'nu',
-  'targetTemperature',
-  'equilibriumTime',
-  'statsDuration',
-];
-
 const getChangedIdealParamKeys = (
   previousParams: SimulationParams,
   nextParams: SimulationParams,
 ): ExperimentParamKey[] => (
-  idealParamKeys.filter((key) => {
+  WORKBENCH_TRACKED_PARAMETER_KEYS.filter((key) => {
     const previousValue = previousParams[key as keyof SimulationParams];
     const nextValue = nextParams[key as keyof SimulationParams];
     return previousValue !== nextValue;
@@ -3091,36 +3082,8 @@ const getWorkbenchParameterDisplayUnit = (
 };
 
 const getWorkbenchParameterDetail = (param: WorkbenchParameterRow) => (
-  param.key === 'relation' ? null : WORKBENCH_PARAMETER_DETAILS[param.key as ExperimentParamKey]
+  WORKBENCH_PARAMETER_DETAILS[param.key]
 );
-
-const assignWorkbenchParameterValue = (
-  params: SimulationParams,
-  key: keyof SimulationParams | 'relation',
-  parsedValue: number,
-) => {
-  if (key === 'N') {
-    params.N = Math.round(parsedValue);
-  } else if (key === 'L') {
-    params.L = parsedValue;
-  } else if (key === 'r') {
-    params.r = parsedValue;
-  } else if (key === 'm') {
-    params.m = parsedValue;
-  } else if (key === 'k') {
-    params.k = parsedValue;
-  } else if (key === 'dt') {
-    params.dt = parsedValue;
-  } else if (key === 'nu') {
-    params.nu = parsedValue;
-  } else if (key === 'equilibriumTime') {
-    params.equilibriumTime = parsedValue;
-  } else if (key === 'statsDuration') {
-    params.statsDuration = parsedValue;
-  } else if (key === 'targetTemperature') {
-    params.targetTemperature = parsedValue;
-  }
-};
 
 const getLocalizedStatusValue = (value: string | undefined, copy: WorkbenchCopy) => (
   value ? copy.status.verdictStates[value] ?? copy.status.runStates[value as WorkbenchFileState['runState']] ?? value : copy.status.none
@@ -3609,7 +3572,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     ? idealResultWindowPanels.filter((panel) => activeFile.visiblePanels.includes(panel.key))
     : [];
 
-  const currentParameters = useMemo(() => getWorkbenchParameterRows(activeFile), [activeFile]);
+  const editableCurrentParameters = useMemo(() => getWorkbenchParameterRows(activeFile), [activeFile]);
   const sessionCacheSummary = useMemo(() => getWorkbenchSessionCacheSummary(files, workbenchCopy), [files, workbenchCopy]);
   const resultSummary = useMemo(() => createWorkbenchResultSummary(activeFile), [activeFile]);
   const figureSpecs = useMemo(
@@ -3624,7 +3587,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
     ),
     [activeFile],
   );
-  const editableCurrentParameters = currentParameters.filter((param) => !(activeFile.kind === 'ideal' && (param.key === 'targetTemperature' || param.key === 'relation')));
   const parametersDirty = !areWorkbenchParamsEqual(activeFile.params, activeFile.appliedParams);
   const parameterControlsLocked = activeFile.runState === 'running' || activeFile.runState === 'paused';
   const currentParameterControlsLocked = activeFile.kind === 'heatCapacity' && activeFile.heatCapacityMode === 'free'
@@ -8597,7 +8559,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return;
     }
 
-    if (!param.editable || param.key === 'relation') {
+    if (!param.editable) {
       clearWorkbenchParameterInputDraft(param.key);
       return;
     }

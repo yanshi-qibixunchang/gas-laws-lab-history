@@ -11,8 +11,12 @@ import type {
 } from '../../domain/hardSphere/PhysicsEngine.ts';
 import {
   createEmptyPointsByRelation,
+  type ExperimentParamKey,
   type PointsByRelation,
 } from '../../domain/idealGas/idealGasExperiment.ts';
+import {
+  getWorkbenchAdvancedParameterDefinitions,
+} from './workbenchParameterRegistry.ts';
 import {
   applyHeatCapacityPumpStroke as applyHeatCapacityRuntimePumpStroke,
   captureHeatCapacityProcessSample,
@@ -844,7 +848,7 @@ export interface WorkbenchIdealWindowLayout {
 }
 
 export interface WorkbenchParameterRow {
-  key: keyof SimulationParams | 'relation';
+  key: ExperimentParamKey;
   label: string;
   value: string;
   unit?: string;
@@ -5490,35 +5494,14 @@ export const areWorkbenchParamsEqual = (a: SimulationParams, b: SimulationParams
 );
 
 export const getWorkbenchParameterRows = (file: WorkbenchFileState): WorkbenchParameterRow[] => {
-  const rows: WorkbenchParameterRow[] = [
-    { key: 'N', label: 'N', value: formatNumber(file.params.N), unit: 'particles', editable: true },
-    { key: 'r', label: 'r', value: formatNumber(file.params.r), editable: true },
-    { key: 'L', label: 'L', value: formatNumber(file.params.L), editable: true },
-    { key: 'dt', label: 'dt', value: formatNumber(file.params.dt), editable: true },
-    { key: 'nu', label: 'nu', value: formatNumber(file.params.nu), editable: true },
-    { key: 'equilibriumTime', label: 'equilibriumTime', value: formatNumber(file.params.equilibriumTime), unit: 's', editable: true },
-    { key: 'statsDuration', label: 'statsDuration', value: formatNumber(file.params.statsDuration), unit: 's', editable: true },
-  ];
-
-  if (file.kind === 'ideal') {
-    rows.push(
-      {
-        key: 'targetTemperature',
-        label: 'targetTemperature',
-        value: formatNumber(file.params.targetTemperature),
-        unit: 'K*',
-        editable: true,
-      },
-      {
-        key: 'relation',
-        label: 'verification',
-        value: file.relation === 'pt' ? 'P-T relation' : file.relation === 'pv' ? 'P-V relation' : 'P-N relation',
-        editable: false,
-      },
-    );
-  }
-
-  return rows;
+  if (file.kind === 'heatCapacity') return [];
+  return getWorkbenchAdvancedParameterDefinitions(file.kind).map((definition) => ({
+    key: definition.key,
+    label: definition.label,
+    value: formatNumber(file.params[definition.key]),
+    unit: definition.unit,
+    editable: definition.editable,
+  }));
 };
 
 export const validateWorkbenchParams = (params: SimulationParams): WorkbenchValidationResult => {

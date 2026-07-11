@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const parameterRegistrySource = readFileSync(new URL('../../src/features/workbench/workbenchParameterRegistry.ts', import.meta.url), 'utf8');
 const hardSphereToggleSource = readFileSync(new URL('../../src/features/heatCapacity/HeatCapacityHardSphereToggle.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
@@ -15,6 +16,11 @@ assert.match(
   source,
   /const commitWorkbenchParameterInput = \([\s\S]*?param: WorkbenchParameterRow[\s\S]*?rawValue: string[\s\S]*?\) => \{[\s\S]*?if \(parameterControlsLocked\)[\s\S]*?Number\(rawValue\)[\s\S]*?validateWorkbenchParams\(nextParams\)[\s\S]*?rejectLockedIdealControlledVariables\(nextParams\)[\s\S]*?applyActiveFileParams\(nextParams\)/,
   'committing a direct parameter input should validate, honor ideal locks, and apply through the existing parameter path',
+);
+assert.match(
+  parameterRegistrySource,
+  /export const assignWorkbenchParameterValue = \([\s\S]*?normalizeInput\(value\)/,
+  'direct parameter inputs should normalize values through the shared field registry',
 );
 
 assert.match(
