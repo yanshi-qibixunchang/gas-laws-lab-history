@@ -6,10 +6,8 @@ import {
   WORKBENCH_CLOSED_FILES_SCHEMA_VERSION,
   WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
   WORKBENCH_FILE_SCHEMA_VERSION,
-  WORKBENCH_OFFICIAL_COMPATIBILITY_EPOCH,
   WORKBENCH_SESSION_SCHEMA_FAMILY,
   WORKBENCH_SESSION_SCHEMA_VERSION,
-  getWorkbenchUnsupportedFutureVersionPolicy,
   isWorkbenchClosedFilesEnvelope,
   isWorkbenchExperimentFileEnvelope,
   isWorkbenchSessionEnvelope,
@@ -35,13 +33,6 @@ assert.equal(WORKBENCH_CLOSED_FILES_SCHEMA_FAMILY, 'hard-sphere-lab.closed-files
 assert.equal(WORKBENCH_SESSION_SCHEMA_VERSION, 2);
 assert.equal(WORKBENCH_FILE_SCHEMA_VERSION, 1);
 assert.equal(WORKBENCH_CLOSED_FILES_SCHEMA_VERSION, 1);
-assert.equal(WORKBENCH_OFFICIAL_COMPATIBILITY_EPOCH, null);
-assert.equal(
-  getWorkbenchUnsupportedFutureVersionPolicy(),
-  'reject',
-  'before the first formal release, unsupported future files must be rejected',
-);
-
 assert.equal(isWorkbenchSessionEnvelope({
   schemaFamily: WORKBENCH_SESSION_SCHEMA_FAMILY,
   schemaVersion: WORKBENCH_SESSION_SCHEMA_VERSION,

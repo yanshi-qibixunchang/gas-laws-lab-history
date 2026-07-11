@@ -316,7 +316,6 @@ assert.equal('runtimeState' in envelope.files[1].payload, false, 'ideal files sh
 assert.equal(envelope.files[2].payload.experimentKind, 'heatCapacity');
 const decodedEnvelope = decodeWorkbenchStorageEnvelope(envelope);
 assert.equal(decodedEnvelope.handled, true);
-assert.equal(decodedEnvelope.readonly, false);
 assert.deepEqual(decodedEnvelope.diagnostics.filter((entry) => entry.level === 'error'), []);
 assert.equal(decodedEnvelope.session.files.length, restored.files.length);
 assert.equal(decodedEnvelope.session.activeFileId, restored.activeFileId);
@@ -721,7 +720,6 @@ const futureEnvelope = {
 };
 const futureDecoded = decodeWorkbenchStorageEnvelope(futureEnvelope);
 assert.equal(futureDecoded.handled, true);
-assert.equal(futureDecoded.readonly, false);
 assert.equal(futureDecoded.session.files.length, 0);
 assert.equal(
   futureDecoded.diagnostics.some((entry) => entry.code === 'unsupported-future-version'),

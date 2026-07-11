@@ -15,19 +15,12 @@ export const WORKBENCH_SESSION_SCHEMA_VERSION = 2 as const;
 export const WORKBENCH_FILE_SCHEMA_VERSION = 1 as const;
 export const WORKBENCH_CLOSED_FILES_SCHEMA_VERSION = 1 as const;
 
-export const WORKBENCH_OFFICIAL_COMPATIBILITY_EPOCH: string | null = null;
-
-export type WorkbenchUnsupportedFutureVersionPolicy = 'reject' | 'readonly';
-
 export interface WorkbenchPersistenceDiagnostic {
   level: 'info' | 'warning' | 'error';
   code:
-    | 'legacy-session'
-    | 'development-cache-reset'
     | 'unsupported-future-version'
     | 'invalid-envelope'
-    | 'invalid-file'
-    | 'readonly-future-version';
+    | 'invalid-file';
   message: string;
   fileId?: string;
 }
@@ -70,10 +63,6 @@ export interface WorkbenchClosedFilesEnvelopeV1 {
 
 const isWorkbenchFileKind = (value: unknown): value is WorkbenchFileKind => (
   value === 'standard' || value === 'ideal' || value === 'heatCapacity'
-);
-
-export const getWorkbenchUnsupportedFutureVersionPolicy = (): WorkbenchUnsupportedFutureVersionPolicy => (
-  WORKBENCH_OFFICIAL_COMPATIBILITY_EPOCH === null ? 'reject' : 'readonly'
 );
 
 export const isWorkbenchExperimentFileEnvelope = (

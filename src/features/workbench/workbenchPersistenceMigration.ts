@@ -30,7 +30,6 @@ import {
   WORKBENCH_FILE_SCHEMA_VERSION,
   WORKBENCH_SESSION_SCHEMA_FAMILY,
   WORKBENCH_SESSION_SCHEMA_VERSION,
-  getWorkbenchUnsupportedFutureVersionPolicy,
   isWorkbenchClosedFilesEnvelope,
   isWorkbenchSessionEnvelope,
   type WorkbenchClosedFilesEnvelopeV1,
@@ -45,14 +44,12 @@ import {
 export interface DecodeWorkbenchStorageResult {
   session: WorkbenchSessionState;
   diagnostics: WorkbenchPersistenceDiagnostic[];
-  readonly: boolean;
   handled: boolean;
 }
 
 export interface DecodeWorkbenchClosedFilesStorageResult {
   files: WorkbenchFileState[];
   diagnostics: WorkbenchPersistenceDiagnostic[];
-  readonly: boolean;
   handled: boolean;
 }
 
@@ -70,17 +67,11 @@ const fallbackSession = (): WorkbenchSessionState => ({
 
 const createUnsupportedFutureDiagnostic = (
   schemaVersion: number,
-): { diagnostics: WorkbenchPersistenceDiagnostic[]; readonly: boolean } => {
-  const policy = getWorkbenchUnsupportedFutureVersionPolicy();
-  return {
-    diagnostics: [{
-      level: policy === 'reject' ? 'error' : 'warning',
-      code: policy === 'reject' ? 'unsupported-future-version' : 'readonly-future-version',
-      message: `Unsupported future workbench schema version: ${schemaVersion}.`,
-    }],
-    readonly: policy === 'readonly',
-  };
-};
+): WorkbenchPersistenceDiagnostic => ({
+  level: 'error',
+  code: 'unsupported-future-version',
+  message: `Unsupported future workbench schema version: ${schemaVersion}.`,
+});
 
 const encodeFileEnvelope = (
   file: WorkbenchFileState,
@@ -273,11 +264,9 @@ export const decodeWorkbenchStorageEnvelope = (
   if (isRecord(value) && value.schemaFamily === WORKBENCH_SESSION_SCHEMA_FAMILY) {
     const version = value.schemaVersion;
     if (typeof version === 'number' && version > WORKBENCH_SESSION_SCHEMA_VERSION) {
-      const future = createUnsupportedFutureDiagnostic(version);
       return {
         session: fallbackSession(),
-        diagnostics: future.diagnostics,
-        readonly: future.readonly,
+        diagnostics: [createUnsupportedFutureDiagnostic(version)],
         handled: true,
       };
     }
@@ -286,7 +275,6 @@ export const decodeWorkbenchStorageEnvelope = (
       return {
         session: decodeEnvelopeAsRuntimeSession(value, decodedFiles.files),
         diagnostics: decodedFiles.diagnostics,
-        readonly: false,
         handled: true,
       };
     }
@@ -297,14 +285,12 @@ export const decodeWorkbenchStorageEnvelope = (
         code: 'invalid-envelope',
         message: 'Workbench session envelope is invalid.',
       }],
-      readonly: false,
       handled: true,
     };
   }
   return {
     session: fallbackSession(),
     diagnostics: [],
-    readonly: false,
     handled: false,
   };
 };
@@ -315,11 +301,9 @@ export const decodeWorkbenchClosedFilesStorageEnvelope = (
   if (isRecord(value) && value.schemaFamily === WORKBENCH_CLOSED_FILES_SCHEMA_FAMILY) {
     const version = value.schemaVersion;
     if (typeof version === 'number' && version > WORKBENCH_CLOSED_FILES_SCHEMA_VERSION) {
-      const future = createUnsupportedFutureDiagnostic(version);
       return {
         files: [],
-        diagnostics: future.diagnostics,
-        readonly: future.readonly,
+        diagnostics: [createUnsupportedFutureDiagnostic(version)],
         handled: true,
       };
     }
@@ -328,7 +312,6 @@ export const decodeWorkbenchClosedFilesStorageEnvelope = (
       return {
         files: decodedFiles.files,
         diagnostics: decodedFiles.diagnostics,
-        readonly: false,
         handled: true,
       };
     }
@@ -339,14 +322,12 @@ export const decodeWorkbenchClosedFilesStorageEnvelope = (
         code: 'invalid-envelope',
         message: 'Workbench closed-files envelope is invalid.',
       }],
-      readonly: false,
       handled: true,
     };
   }
   return {
     files: [],
     diagnostics: [],
-    readonly: false,
     handled: false,
   };
 };
