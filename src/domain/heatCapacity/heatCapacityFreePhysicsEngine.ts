@@ -1,4 +1,5 @@
 import {
+  createDefaultFreeThermalState,
   stepFreeThermalState,
   type HeatCapacityFreeThermalConfig,
 } from './heatCapacityFreeThermalModel.ts';
@@ -184,8 +185,7 @@ export const createDefaultFreePhysicsState = (
 ): HeatCapacityFreePhysicsState => ({
   simulationTimeS: 0,
   gasAmountRatio: 1,
-  gasTemperatureK: config.environment.ambientTemperatureK,
-  wallTemperatureK: config.environment.ambientTemperatureK,
+  ...createDefaultFreeThermalState(config.environment.ambientTemperatureK),
   pumpProcesses: [],
   pumpStrokeCount: 0,
   lastPumpStrokeAtS: null,

@@ -638,10 +638,6 @@ export const createHeatCapacityHardSphereSimulation = (
   seed: options.seed,
 });
 
-export const getHeatCapacityHardSphereVisibleParticles = (
-  simulation: HeatCapacityHardSphereSimulation,
-) => simulation.particles.filter((particle) => particle.state !== 'hidden');
-
 export const stepHeatCapacityHardSphereSimulation = (
   simulation: HeatCapacityHardSphereSimulation,
   input: HeatCapacityHardSphereSimulationStepInput,

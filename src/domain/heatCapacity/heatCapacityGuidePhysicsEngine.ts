@@ -2,6 +2,7 @@ import {
   getFreeStopcockApertureEffectiveDtS,
 } from './heatCapacityFreeStopcockApertureModel.ts';
 import {
+  createDefaultFreeThermalState,
   stepFreeThermalState,
 } from './heatCapacityFreeThermalModel.ts';
 import {
@@ -112,8 +113,7 @@ export const createDefaultGuidePhysicsState = (
 ): HeatCapacityGuidePhysicsState => ({
   simulationTimeS: 0,
   gasAmountRatio: 1,
-  gasTemperatureK: config.environment.ambientTemperatureK,
-  wallTemperatureK: config.environment.ambientTemperatureK,
+  ...createDefaultFreeThermalState(config.environment.ambientTemperatureK),
   pumpProcesses: [],
   pumpStrokeCount: 0,
   lastPumpStrokeAtS: null,

@@ -6,7 +6,6 @@ import {
 } from '../../src/domain/heatCapacity/heatCapacityHardSphereGeometry.ts';
 import {
   createHeatCapacityHardSphereSimulation,
-  getHeatCapacityHardSphereVisibleParticles,
   stepHeatCapacityHardSphereSimulation,
 } from '../../src/domain/heatCapacity/heatCapacityHardSphereSimulation.ts';
 
@@ -17,6 +16,9 @@ const container = createHeatCapacityHardSphereBoxContainer({
   pumpPortPoint: { x: -0.67, y: 0.28, z: 0.26 },
 });
 const particleRadius = 0.048;
+const getHeatCapacityHardSphereVisibleParticles = (
+  simulation: ReturnType<typeof createHeatCapacityHardSphereSimulation>,
+) => simulation.particles.filter((particle) => particle.state !== 'hidden');
 
 const stepIdle = (
   simulation: ReturnType<typeof createHeatCapacityHardSphereSimulation>,

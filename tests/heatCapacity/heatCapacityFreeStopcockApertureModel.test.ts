@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import {
   FREE_STOPCOCK_APERTURE_RAMP_S,
-  getFreeStopcockAperture,
   getFreeStopcockApertureEffectiveDtS,
   integrateFreeStopcockAperture,
 } from '../../src/domain/heatCapacity/heatCapacityFreeStopcockApertureModel.ts';
@@ -20,17 +19,6 @@ const expectClose = (
 };
 
 assert.equal(FREE_STOPCOCK_APERTURE_RAMP_S, 0.1);
-assert.equal(getFreeStopcockAperture(-1), 0);
-assert.equal(getFreeStopcockAperture(0), 0);
-expectClose(
-  getFreeStopcockAperture(0.05),
-  0.5,
-  1e-12,
-  '0.05s should be half-open by smoothstep',
-);
-assert.equal(getFreeStopcockAperture(0.1), 1);
-assert.equal(getFreeStopcockAperture(1), 1);
-
 expectClose(integrateFreeStopcockAperture(0.03), 0.002295, 1e-9, '0.03s integral');
 expectClose(integrateFreeStopcockAperture(0.05), 0.009375, 1e-9, '0.05s integral');
 expectClose(integrateFreeStopcockAperture(0.1), 0.05, 1e-12, '0.1s integral');
