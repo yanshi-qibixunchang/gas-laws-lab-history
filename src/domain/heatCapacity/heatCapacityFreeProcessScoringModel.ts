@@ -15,6 +15,9 @@ import type {
   HeatCapacityProcessScoreItem,
   HeatCapacityProcessScoreSubItem,
 } from './heatCapacityFreeProcessReviewTypes.ts';
+import {
+  findHeatCapacityStopcockFlowStartTime,
+} from './heatCapacityFreeProcessMetrics.ts';
 
 export interface HeatCapacityProcessScoringInput {
   traceTrial: HeatCapacityFreeTraceTrial;
@@ -71,24 +74,6 @@ const createItem = (
   ...item,
   details: item.details.map(createSubItem),
 });
-
-const findStopcockFlowStartTime = (
-  samples: HeatCapacityFreeTraceSample[],
-  visualOpenS: number,
-) => {
-  const confirmedFlowSample = samples.find((sample) => (
-    sample.atS >= visualOpenS &&
-    sample.controls.stopcockFlowOpen
-  ));
-  if (confirmedFlowSample) return confirmedFlowSample.atS;
-
-  const releasingSample = samples.find((sample) => (
-    sample.atS >= visualOpenS &&
-    sample.controls.stopcockOpen &&
-    sample.physical.releaseStarted
-  ));
-  return releasingSample?.atS ?? visualOpenS;
-};
 
 const findRecordTraceSample = (
   branch: HeatCapacityFreeTraceBranch,
@@ -409,7 +394,7 @@ const scoreRelease = (
     event.type === 'stopcock-open' && event.atS > input.summary.u1!.atS
   ));
   const releaseFlowStartS = releaseStart
-    ? findStopcockFlowStartTime([...input.branch.samples].sort((left, right) => left.atS - right.atS), releaseStart.atS)
+    ? findHeatCapacityStopcockFlowStartTime([...input.branch.samples].sort((left, right) => left.atS - right.atS), releaseStart.atS)
     : null;
   const releaseEnd = releaseFlowStartS !== null
     ? input.branch.events.find((event) => event.type === 'stopcock-close' && event.atS >= releaseFlowStartS)

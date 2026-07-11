@@ -31,6 +31,10 @@ import {
 import {
   getHeatCapacityFreeGasTypeGamma,
 } from './heatCapacityGasTheory.ts';
+import {
+  calculateHeatCapacityRelativeErrorPercent,
+  findHeatCapacityStopcockFlowStartTime,
+} from './heatCapacityFreeProcessMetrics.ts';
 
 export type {
   HeatCapacityProcessDiagnosisId,
@@ -276,15 +280,6 @@ const convertRecordValue = (
   };
 };
 
-const calculateRelativeError = (
-  gamma: number | null,
-  theoreticalGamma: number,
-) => (
-  gamma !== null && Number.isFinite(gamma) && theoreticalGamma > 0
-    ? roundNumber(Math.abs(gamma - theoreticalGamma) / theoreticalGamma * 100, 2)
-    : null
-);
-
 const eventTime = (
   events: HeatCapacityFreeEvent[],
   type: HeatCapacityFreeEventType,
@@ -311,24 +306,6 @@ const findPressurePeakSampleTime = (
     sample.sensor.displayPressureMv > best.sensor.displayPressureMv ? sample : best
   ), candidates[0]);
   return peak.atS;
-};
-
-const findStopcockFlowStartTime = (
-  samples: HeatCapacityFreeTraceSample[],
-  visualOpenS: number,
-) => {
-  const confirmedFlowSample = samples.find((sample) => (
-    sample.atS >= visualOpenS &&
-    sample.controls.stopcockFlowOpen
-  ));
-  if (confirmedFlowSample) return confirmedFlowSample.atS;
-
-  const releasingSample = samples.find((sample) => (
-    sample.atS >= visualOpenS &&
-    sample.controls.stopcockOpen &&
-    sample.physical.releaseStarted
-  ));
-  return releasingSample?.atS ?? visualOpenS;
 };
 
 const getProcessReviewEndS = (
@@ -379,7 +356,7 @@ const createStages = (
     : pumpValveCloseTime ?? pumpStart;
   const releaseStartEvent = findEventAfter(eventsInWindow, 'stopcock-open', pumpEnd);
   const releaseStart = releaseStartEvent
-    ? findStopcockFlowStartTime(samples, releaseStartEvent.atS)
+    ? findHeatCapacityStopcockFlowStartTime(samples, releaseStartEvent.atS)
     : trial.u1?.atS ?? pumpEnd;
   const releaseEnd = findEventAfter(eventsInWindow, 'stopcock-close', releaseStart)?.atS ?? releaseStart;
   const segments: HeatCapacityProcessStageSegment[] = [];
@@ -560,7 +537,7 @@ const createReviewUpperBound = (
   const actualGamma = trial.correctedSignals?.gamma ?? null;
   return {
     gamma: theoreticalGamma,
-    relativeErrorPercent: calculateRelativeError(theoreticalGamma, theoreticalGamma),
+    relativeErrorPercent: calculateHeatCapacityRelativeErrorPercent(theoreticalGamma, theoreticalGamma),
     gapFromActualPercent: actualGamma === null || theoreticalGamma === 0
       ? null
       : roundNumber(Math.abs(theoreticalGamma - actualGamma) / Math.abs(theoreticalGamma) * 100, 2),
@@ -593,7 +570,7 @@ const createSummary = (
     u1: convertRecordValue(trial.u1, trial.u0, pressureSensitivity, temperatureSensitivity),
     u2: convertRecordValue(trial.u2, trial.u0, pressureSensitivity, temperatureSensitivity),
     gamma: gamma === null ? null : roundNumber(gamma, 3),
-    relativeErrorPercent: calculateRelativeError(gamma, theoreticalGamma),
+    relativeErrorPercent: calculateHeatCapacityRelativeErrorPercent(gamma, theoreticalGamma),
     upperBoundGamma: upperBound.gamma === null ? null : roundNumber(upperBound.gamma, 3),
     upperBoundRelativeErrorPercent: upperBound.relativeErrorPercent,
     upperBoundGapPercent: upperBound.gapFromActualPercent,

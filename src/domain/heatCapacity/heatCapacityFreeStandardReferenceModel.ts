@@ -28,6 +28,9 @@ import {
 import {
   getHeatCapacityFreeGasTypeGamma,
 } from './heatCapacityGasTheory.ts';
+import {
+  calculateHeatCapacityRelativeErrorPercent,
+} from './heatCapacityFreeProcessMetrics.ts';
 import type {
   HeatCapacityFreeConfigSnapshot,
   HeatCapacityFreeTraceTrial,
@@ -405,15 +408,6 @@ const createStandardRecordTrial = (
   };
 };
 
-const calculateRelativeError = (
-  gamma: number | null,
-  theoreticalGamma: number,
-) => (
-  gamma !== null && Number.isFinite(gamma) && theoreticalGamma > 0
-    ? roundNumber(Math.abs(gamma - theoreticalGamma) / theoreticalGamma * 100, 2)
-    : null
-);
-
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null
 );
@@ -614,7 +608,7 @@ export const createHeatCapacityFreeStandardReference = ({
     feasible: gamma !== null,
     seed,
     gamma,
-    relativeErrorPercent: calculateRelativeError(gamma, theoreticalGamma),
+    relativeErrorPercent: calculateHeatCapacityRelativeErrorPercent(gamma, theoreticalGamma),
     targetPressureMv,
     targetPressureDeltaKPa: targetPressureMv === null
       ? null
@@ -636,7 +630,7 @@ export const createHeatCapacityFreeStandardReference = ({
       : Math.max(actualGamma, gamma);
   const operationUpperBound: HeatCapacityOperationUpperBound = {
     gamma: upperBoundGamma,
-    relativeErrorPercent: calculateRelativeError(upperBoundGamma, theoreticalGamma),
+    relativeErrorPercent: calculateHeatCapacityRelativeErrorPercent(upperBoundGamma, theoreticalGamma),
     gapFromActualPercent: upperBoundGamma === null || actualGamma === null || upperBoundGamma === 0
       ? null
       : roundNumber(Math.abs(upperBoundGamma - actualGamma) / Math.abs(upperBoundGamma) * 100, 2),
