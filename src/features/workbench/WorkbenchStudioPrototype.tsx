@@ -284,7 +284,7 @@ import {
 import {
   WORKBENCH_IGNORED_UPDATE_VERSION_KEY,
   getAboutUpdateStatusLabel,
-  mergeWorkbenchUpdateDialogState,
+  mergeWorkbenchUpdateState,
   type WorkbenchUpdateState,
 } from './workbenchDesktopUpdater.ts';
 import { WorkbenchUpdateDialog } from './WorkbenchUpdateDialog.tsx';
@@ -3199,7 +3199,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [buildNoticeFilePreview, setBuildNoticeFilePreview] = useState<WorkbenchBuildNoticeFilePreview | null>(null);
   const [buildNoticeOpenError, setBuildNoticeOpenError] = useState<string | null>(null);
   const [aboutResultNotice, setAboutResultNotice] = useState<{ title: string; body: string } | null>(null);
-  const [aboutUpdateChecking, setAboutUpdateChecking] = useState(false);
   const [updaterState, setUpdaterState] = useState<WorkbenchUpdateState>(() => ({
     status: hasDesktopUpdaterBridge() ? 'idle' : 'unsupported',
     currentVersion: WORKBENCH_APP_VERSION,
@@ -3218,7 +3217,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     percent: null,
     message: '',
   }));
-  const [updateDialogState, setUpdateDialogState] = useState<WorkbenchUpdateState | null>(null);
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const aboutUpdateChecking = updaterState.status === 'checking';
+  const updateDialogState = updateDialogOpen ? updaterState : null;
   const [desktopWindowMaximized, setDesktopWindowMaximized] = useState(false);
   const [settingsThemePreference, setSettingsThemePreference] = useState<WorkbenchThemePreference>(() => initialGeneralSettings.theme);
   const [systemWorkbenchTheme, setSystemWorkbenchTheme] = useState<WorkbenchResolvedTheme>(() => getSystemWorkbenchTheme());
@@ -3880,18 +3881,18 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const applyUpdaterState = (nextState: WorkbenchUpdateState, options: { manual?: boolean } = {}) => {
-    setUpdaterState(nextState);
-    setAboutUpdateChecking(nextState.status === 'checking');
+    setUpdaterState((currentState) => mergeWorkbenchUpdateState(nextState, currentState));
 
     if (nextState.status === 'available') {
       const latestVersion = nextState.latestVersion || '';
       if (latestVersion && getIgnoredUpdateVersion() === latestVersion) {
+        setUpdateDialogOpen(false);
         if (options.manual) {
           showAboutResultNotice(workbenchCopy.about.ignoredVersionTitle, workbenchCopy.about.ignoredVersionBody(latestVersion));
         }
         return;
       }
-      setUpdateDialogState((currentDialogState) => mergeWorkbenchUpdateDialogState(nextState, currentDialogState));
+      setUpdateDialogOpen(true);
       return;
     }
 
@@ -3902,9 +3903,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
       || nextState.status === 'installing'
       || (nextState.status === 'error' && Boolean(nextState.latestVersion || nextState.manualDownloadUrl || nextState.releasePageUrl))
     ) {
-      setUpdateDialogState((currentDialogState) => mergeWorkbenchUpdateDialogState(nextState, currentDialogState));
+      setUpdateDialogOpen(true);
       return;
     }
+
+    setUpdateDialogOpen(false);
 
     if (nextState.status === 'not-available' && options.manual) {
       showAboutResultNotice(workbenchCopy.about.updateResultTitle, workbenchCopy.about.upToDateStatus);
@@ -3932,7 +3935,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
       applyUpdaterState(unsupportedState, { manual: true });
       return;
     }
-    setAboutUpdateChecking(true);
+    setUpdaterState((currentState) => ({
+      ...currentState,
+      status: 'checking',
+      message: '',
+    }));
     void updateCheckRequest
       .then((result) => applyUpdaterState(result, { manual: true }))
       .catch((error) => {
@@ -3947,19 +3954,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const ignoreUpdateDialogVersion = () => {
-    const version = updateDialogState?.latestVersion;
+    const version = updaterState.latestVersion;
     if (version) {
       rememberIgnoredUpdateVersion(version);
       showAboutResultNotice(workbenchCopy.about.ignoredVersionTitle, workbenchCopy.about.ignoredVersionBody(version));
     }
-    setUpdateDialogState(null);
+    setUpdateDialogOpen(false);
   };
 
   const startUpdateDownload = () => {
     if (!updateDialogState) return;
     const downloadRequest = window.hardSphereLabUpdater?.downloadUpdate?.();
     if (!downloadRequest) return;
-    setUpdateDialogState({ ...updateDialogState, status: 'downloading', percent: 0 });
+    setUpdaterState((currentState) => ({ ...currentState, status: 'downloading', percent: 0 }));
     void downloadRequest
       .then((result) => applyUpdaterState(result))
       .catch((error) => {
@@ -3977,7 +3984,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (!updateDialogState) return;
     const installRequest = window.hardSphereLabUpdater?.quitAndInstall?.();
     if (!installRequest) return;
-    setUpdateDialogState({ ...updateDialogState, status: 'installing', percent: 100 });
+    setUpdaterState((currentState) => ({ ...currentState, status: 'installing', percent: 100 }));
     void installRequest;
   };
 
@@ -14285,7 +14292,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           appVersion={WORKBENCH_APP_VERSION}
           language={settingsLanguagePreference}
           copy={workbenchCopy.about}
-          onClose={() => setUpdateDialogState(null)}
+          onClose={() => setUpdateDialogOpen(false)}
           onIgnoreVersion={ignoreUpdateDialogVersion}
           onDownload={startUpdateDownload}
           onRestartAndInstall={restartAndInstallUpdate}

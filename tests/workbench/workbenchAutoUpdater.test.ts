@@ -100,7 +100,8 @@ assert.ok(electronTypes.includes("hardSphereLabUpdater?: {"), 'desktop TypeScrip
 assert.ok(electronTypes.includes('openManualDownload'), 'desktop TypeScript declarations should type the manual download bridge');
 
 assert.doesNotMatch(source, /interface WorkbenchDesktopUpdaterBridge/, 'workbench should rely on the shared desktop bridge declaration instead of duplicating it locally');
-assert.ok(source.includes('const [updateDialogState, setUpdateDialogState]'), 'workbench should keep dedicated update dialog state');
+assert.ok(source.includes('const [updateDialogOpen, setUpdateDialogOpen]'), 'workbench should keep dialog visibility separate from the authoritative updater state');
+assert.ok(source.includes('const updateDialogState = updateDialogOpen ? updaterState : null;'), 'the update dialog should render directly from the authoritative updater state');
 assert.ok(updaterModule.includes("WORKBENCH_IGNORED_UPDATE_VERSION_KEY = 'hslIgnoredUpdateVersion'"), 'updater boundary should own the ignored-version storage key');
 assert.ok(source.includes('WORKBENCH_IGNORED_UPDATE_VERSION_KEY'), 'workbench should persist ignored update versions through the updater boundary');
 assert.ok(source.includes('window.hardSphereLabUpdater?.checkForUpdates'), 'About > Check for Updates should call the desktop update bridge');
@@ -109,13 +110,13 @@ assert.ok(source.includes('window.hardSphereLabUpdater?.quitAndInstall'), 'downl
 assert.ok(source.includes('window.hardSphereLabUpdater?.openManualDownload'), 'failed updates should offer the direct manual installer download');
 assert.match(
   updaterModule,
-  /const mergeWorkbenchUpdateDialogState = \([\s\S]*releaseSummary: nextState\.releaseSummary \?\? previousState\.releaseSummary[\s\S]*releaseSections: nextState\.releaseSections \?\? previousState\.releaseSections/,
-  'renderer update dialog should preserve structured release notes across partial updater states',
+  /const mergeWorkbenchUpdateState = \([\s\S]*latestVersion: nextState\.latestVersion \?\? previousState\.latestVersion[\s\S]*releaseSummary: nextState\.releaseSummary \?\? previousState\.releaseSummary[\s\S]*releaseSections: nextState\.releaseSections \?\? previousState\.releaseSections/,
+  'renderer updater state should preserve release identity and structured notes across partial events',
 );
 assert.match(
   source,
-  /setUpdateDialogState\(\(currentDialogState\) => mergeWorkbenchUpdateDialogState\(nextState, currentDialogState\)\)/,
-  'renderer should merge partial downloading and retrying status payloads into the existing dialog state',
+  /setUpdaterState\(\(currentState\) => mergeWorkbenchUpdateState\(nextState, currentState\)\)/,
+  'renderer should merge partial downloading and retrying events into one authoritative updater state',
 );
 assert.ok(source.includes('<WorkbenchUpdateDialog'), 'workbench should mount the dedicated update dialog component');
 assert.ok(updateDialogSource.includes('studio-update-dialog'), 'update dialog should use a dedicated engineering-style CSS block');

@@ -17,7 +17,7 @@ export interface WorkbenchUpdateStatusCopy {
 
 export const WORKBENCH_IGNORED_UPDATE_VERSION_KEY = 'hslIgnoredUpdateVersion';
 
-export const mergeWorkbenchUpdateDialogState = (
+export const mergeWorkbenchUpdateState = (
   nextState: WorkbenchUpdateState,
   previousState: WorkbenchUpdateState | null,
 ): WorkbenchUpdateState => {
@@ -28,6 +28,7 @@ export const mergeWorkbenchUpdateDialogState = (
 
   return {
     ...nextState,
+    latestVersion: nextState.latestVersion ?? previousState.latestVersion,
     releaseName: nextState.releaseName ?? previousState.releaseName,
     releaseDate: nextState.releaseDate ?? previousState.releaseDate,
     releaseNotes: nextState.releaseNotes ?? previousState.releaseNotes,

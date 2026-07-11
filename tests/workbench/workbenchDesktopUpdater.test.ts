@@ -5,7 +5,7 @@ import {
   formatWorkbenchReleaseDate,
   getAboutUpdateStatusLabel,
   getWorkbenchLocalizedText,
-  mergeWorkbenchUpdateDialogState,
+  mergeWorkbenchUpdateState,
   type WorkbenchUpdateState,
   type WorkbenchUpdateStatusCopy,
 } from '../../src/features/workbench/workbenchDesktopUpdater.ts';
@@ -27,8 +27,8 @@ const downloading: WorkbenchUpdateState = {
   percent: 25,
 };
 
-assert.deepEqual(mergeWorkbenchUpdateDialogState(downloading, null), downloading);
-assert.deepEqual(mergeWorkbenchUpdateDialogState(downloading, previous), {
+assert.deepEqual(mergeWorkbenchUpdateState(downloading, null), downloading);
+assert.deepEqual(mergeWorkbenchUpdateState(downloading, previous), {
   ...downloading,
   releaseName: previous.releaseName,
   releaseDate: previous.releaseDate,
@@ -39,9 +39,14 @@ assert.deepEqual(mergeWorkbenchUpdateDialogState(downloading, previous), {
   manualDownloadUrl: undefined,
 });
 assert.deepEqual(
-  mergeWorkbenchUpdateDialogState({ ...downloading, latestVersion: '4.3.0' }, previous),
+  mergeWorkbenchUpdateState({ ...downloading, latestVersion: '4.3.0' }, previous),
   { ...downloading, latestVersion: '4.3.0' },
   'metadata from one release must not leak into a different version',
+);
+assert.equal(
+  mergeWorkbenchUpdateState({ ...downloading, latestVersion: null }, previous).latestVersion,
+  previous.latestVersion,
+  'partial updater events should preserve the current release identity',
 );
 
 assert.equal(getWorkbenchLocalizedText(previous.releaseSummary, 'zh-CN'), '更新摘要');
@@ -72,7 +77,7 @@ const workbenchSource = readFileSync(
   'utf8',
 );
 assert.match(workbenchSource, /from '\.\/workbenchDesktopUpdater\.ts'/);
-assert.doesNotMatch(workbenchSource, /interface WorkbenchUpdateState|const mergeWorkbenchUpdateDialogState\s*=/);
+assert.doesNotMatch(workbenchSource, /interface WorkbenchUpdateState|const mergeWorkbenchUpdateState\s*=/);
 assert.doesNotMatch(
   workbenchSource,
   /showAboutResultNotice\(workbenchCopy\.about\.updateResultTitle,\s*(?:result\.)?message/,
