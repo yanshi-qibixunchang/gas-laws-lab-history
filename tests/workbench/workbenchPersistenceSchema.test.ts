@@ -104,6 +104,10 @@ const sessionSource = readFileSync(
   join(workbenchSourceRoot, 'workbenchSession.ts'),
   'utf8',
 );
+const runtimePersistenceSource = readFileSync(
+  join(workbenchSourceRoot, 'workbenchRuntimePersistence.ts'),
+  'utf8',
+);
 const heatCapacitySessionRestoreSource = readFileSync(
   join(workbenchSourceRoot, 'workbenchHeatCapacitySessionRestore.ts'),
   'utf8',
@@ -202,15 +206,15 @@ assert.doesNotMatch(
   /Number\.isFinite/,
   'session restore should not keep ad hoc finite-number checks',
 );
-for (const [sourceName, source] of [
-  ['standard persistence', standardPersistenceSource],
-  ['ideal-gas persistence', idealGasPersistenceSource],
-  ['session restore', sessionSource],
+for (const [sourceName, source, dependency] of [
+  ['standard persistence', standardPersistenceSource, 'workbenchRuntimePersistence'],
+  ['ideal-gas persistence', idealGasPersistenceSource, 'workbenchRuntimePersistence'],
+  ['session restore', sessionSource, 'workbenchPanelRegistry'],
 ] as const) {
   assert.match(
     source,
-    /from '\.\/workbenchPanelRegistry\.ts'/,
-    `${sourceName} should use the shared workbench panel registry`,
+    new RegExp(`from '\\.\\/${dependency}\\.ts'`),
+    `${sourceName} should use its shared persistence boundary`,
   );
   assert.doesNotMatch(
     source,
@@ -218,6 +222,11 @@ for (const [sourceName, source] of [
     `${sourceName} should not keep a local full panel registry`,
   );
 }
+assert.match(
+  runtimePersistenceSource,
+  /from '\.\/workbenchPanelRegistry\.ts'/,
+  'shared runtime persistence should own panel registry normalization',
+);
 assert.match(
   heatCapacitySessionRestoreSource,
   /isHeatCapacityPanelKey[\s\S]*from '\.\/workbenchHeatCapacityTabRegistry\.ts'/,
