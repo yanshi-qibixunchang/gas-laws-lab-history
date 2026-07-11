@@ -1,153 +1,118 @@
-# Hard Sphere Lab v4.1.5
+# Hard Sphere Lab
 
-[English README](./README.md)
+[English](./README.md)
 
-Hard Sphere Lab 是面向 Windows 桌面端的工程软件工作台，用于硬球分子动力学模拟、理想气体关系验证，以及 FD-NCD-C 空气比热容比实验。当前正式发布路线是 Electron 桌面程序，并内置本地导出器，用于生成 PDF 报告、图像和 CSV 数据。
+Hard Sphere Lab 是面向 Windows 的工程软件工作台，用于硬球分子动力学模拟、理想气体关系研究，以及 FD-NCD-C 空气比热容比实验。
 
-## V4.1.5 更新
+当前已公开发布的桌面稳定版是 `v4.2.3`。`main` 可以包含该标签之后已经评审的开发内容；只有在明确确定版本号、同步更新版本文件并发布完整更新资产后，主线源码才构成新的桌面版本。
 
-- 测试并验证后续版本更新说明的远端结构化读取。
-- 确保更新弹窗按当前界面语言显示，不再同时展示所有语言的更新说明。
-- 移除更新弹窗版本信息区域的蓝色强调边和强调阴影，保持更简洁的工程软件风格。
-- 保留旧版客户端和异常场景可读的纯文本更新说明兜底。
-- 将应用版本、包元数据、发布元数据和文档统一更新到 `4.1.5`。
-
-## V4.1.4 更新
-
-- 新增热容自由实验按实验组生效的参数调整体系，包含可编辑参数、历史结果快照隔离和自由模式持久化。
-- 新增结构化高级热容参数分组、更清晰的工程风格参数行，并改进实验侧栏的亮/暗主题样式。
-- 改进热容自由模式物理链路，覆盖热交换、泄漏、传感响应、安全阈值、过程回顾和参数影响检查。
-- 新增结构化桌面更新说明、网络波动下载重试，以及自动更新失败后的手动安装包下载入口。
-- 将应用版本、包元数据、发布元数据和文档统一更新到 `4.1.4`。
+- 公开下载与更新元数据：[hard-sphere-lab-release](https://github.com/yanshi-qibixunchang/hard-sphere-lab-release)
+- 安全与漏洞报告规则：[SECURITY.md](./SECURITY.md)
+- 协作、提交与隐私检查：[CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## 产品范围
 
-- 标准硬球模拟：实时 3D 预览、实时图表和最终结果标签页。
-- 理想气体关系研究：`P-T`、`P-V`、`P-N` 数据采集、关系验证和历史内容解锁。
-- FD-NCD-C 空气比热容比实验：演示模式、引导模式和自由模式。
-- 桌面端导出：PDF 报告、PNG/PDF 图像、CSV 数据。
+- 标准硬球模拟：实时 3D 预览、实时图表和结果标签页。
+- 理想气体关系研究：`P-T`、`P-V`、`P-N` 采样、验证和历史视图。
+- FD-NCD-C 空气比热容比实验：演示、引导和自由三种模式。
+- 桌面端本地导出：PDF 报告、PDF/PNG 图像、CSV 数据和元数据。
 - 支持简体中文、繁体中文和英文界面。
+
+## 当前源码重点
+
+- 工作台已按职责拆分为命令、设置、更新器、参数、持久化和实验功能模块。
+- 热容比实验运行态与标准模拟、理想气体文件使用各自明确的状态边界。
+- `v4.2.3` 标签之后的源码工作可以在网页刷新后恢复热容比实验模式、时间线、暂停状态、精确视角、已打开窗口、引导/提醒状态和 3D 最后一帧；这不代表已经发布 `v4.2.4` 安装包。
+- 桌面发布目标只指向公开更新仓库，源码仓库不是更新通道。
 
 ## 仓库结构
 
-- `src/app/`：React 入口。
-- `src/components/`：跨功能复用的可视化组件。
-- `src/features/`：Workbench、理想气体和热容比功能界面。
-- `src/domain/`：硬球模拟、理想气体和热容比计算模型。
-- `src/shared/`：共享类型和工具定义。
-- `src/i18n/`：应用级多语言文案。
-- `tests/`：按功能划分的回归测试。
-- `scripts/`：项目维护脚本，包括测试发现和导出器打包。
-- `electron/`：Electron 主进程和 preload 桥接层，用于桌面导出。
-- `tools/exporter/`：Python 导出器源码和样例载荷。
-- `resources/exporter/`：PyInstaller 生成的内置导出器目录，被 Git 忽略，打包前可重新生成。
-- `resources/app-icon/`：桌面应用图标。
-- `docs/theory/`：理论说明和推导材料。
-- `docs/instrument-modeling/`：FD-NCD-C 建模资料和 Blender 接入规则。
-- `release/`：本地构建输出目录，被 Git 忽略。
+- `src/app/`：React 应用入口。
+- `src/components/`：共享可视化组件。
+- `src/features/`：工作台、理想气体和热容比界面及编排逻辑。
+- `src/domain/`：模拟和实验计算模型。
+- `src/shared/`：共享类型和工具。
+- `src/i18n/`：应用多语言文案。
+- `tests/`：硬球、理想气体、热容比、工作台和导出器回归测试。
+- `electron/`：Electron 主进程、preload 桥接和自动更新集成。
+- `tools/exporter/`：Python 导出器源码。
+- `scripts/`、`build/`：构建、校验、打包和安装器辅助脚本。
+- `public/`：运行时模型、字体、图标、界面素材和生成的第三方许可说明。
+- `resources/`：桌面图标和生成的导出器资源。
+- `docs/`：发布说明、理论资料、仪器建模参考和内部设计记录。
 
-## Web 部署
+`node_modules/`、`dist/`、`release/`、`output/`、`tmp/` 等依赖或生成目录均被 Git 忽略。
 
-安装依赖：
+## 私有协作与 Codex 访问
+
+队友使用 Codex 阅读源码不要求把仓库公开：
+
+1. 将每位队友的 GitHub 账号邀请为私有源码仓库的协作者。
+2. 队友接受 GitHub 邀请。
+3. 队友可以克隆仓库后在 Codex 中打开本地目录，也可以在 Codex/ChatGPT 连接 GitHub 时授权访问这个仓库。
+
+个人账号名下的私有仓库只能给协作者写权限。如果团队需要只读权限，应把源码仓库转移到 GitHub Organization，再给队友分配 `Read` 角色。
+
+## 本地开发
+
+按锁文件安装依赖：
 
 ```powershell
-npm.cmd install
+npm.cmd ci
 ```
 
-构建静态网页：
-
-```powershell
-npm.cmd run build
-```
-
-将生成的 `dist/` 目录部署到任意静态托管平台即可。开发预览使用项目固定端口：
+使用固定端口启动预览：
 
 ```powershell
 npm.cmd run dev -- --host 127.0.0.1 --port 5174 --strictPort
 ```
 
-预览地址：
+预览地址：`http://127.0.0.1:5174/`
 
-```text
-http://127.0.0.1:5174/
-```
-
-浏览器部署可以预览模拟器和工作台界面，但 PDF/图像本地导出依赖 Electron 桌面桥接。
-
-## 桌面程序与安装包
-
-先构建内置导出器：
+运行常规质量检查：
 
 ```powershell
-npm.cmd run exporter:bundle
+npm.cmd run check
+npm.cmd run build
 ```
 
-再构建正式 Windows 安装包：
-
-```powershell
-npm.cmd run desktop:installer
-```
-
-V4.1.5 的正式分发文件是：
-
-```text
-release/heat-capacity-lab-setup-4.1.5.exe
-```
-
-本地桌面开发运行：
+本地运行 Electron 桌面程序：
 
 ```powershell
 npm.cmd run desktop:dev
 ```
 
-## 软件界面
+浏览器预览覆盖模拟器和工作台界面；本地报告/图像导出依赖 Electron 桥接和导出器环境。
 
-- 顶部菜单：新建/打开实验、新窗口、撤销/重做、窗口布局、设置、帮助和关于。
-- 左侧栏：打开的实验文件，以及当前文件关联的面板。
-- 中央工作区：3D 预览、实时数据/图表、结果、实验记录和数据处理。
-- 右侧栏：当前参数、关系选择、扫描变量、采样预设和高级设置。
-- 底部控制台：日志、警告和运行摘要。
-- 通用设置：主题、语言、性能模式和布局偏好。
-- 关于窗口：版本、本地导出环境状态和工作区缓存摘要。
+## 桌面发布边界
 
-## 基本使用流程
+不能因为 `main` 有新提交就直接制作安装包。只有明确确定版本号，并同步更新 `package.json` 和 `package-lock.json` 后，才能进入桌面发布流程。
 
-1. 从顶部菜单或空工作区新建/打开实验。
-2. 在左侧栏选择实验文件。
-3. 运行前在右侧栏调整参数。
-4. 启动模拟或按空气比热容比流程操作。
-5. 查看实时图表、结果标签页、数据记录和处理结果。
-6. 在结果或导出区域导出报告、图像或 CSV 数据。
+正式发布时，公开更新仓库必须同时收到 `release/` 中版本一致的三个更新资产：
 
-## 导出细节
+- `heat-capacity-lab-setup-<version>.exe`
+- `heat-capacity-lab-setup-<version>.exe.blockmap`
+- `latest.yml`
 
-桌面程序按以下顺序检查导出环境：
+公开更新仓库可以保留面向用户的 README、更新日志、安全说明和结构化发布说明，但不能包含本仓库源码、开发分支、构建输入、本地报告、凭据或个人信息。
 
-1. 优先使用系统 Python 导出器。
-2. 系统环境不可用时，使用随安装包内置的 PyInstaller 导出器。
+## 隐私与仓库卫生
 
-导出器会生成 PDF 报告、PDF/PNG 图像、CSV 数据和 metadata 文件。默认桌面导出目录位于用户 Documents 下。
+- Git 提交统一使用 GitHub 提供的 `noreply` 邮箱。
+- 禁止提交凭据、`.env` 文件、个人联系方式、参赛者姓名、学校信息、用户绝对路径，以及文档/图片作者元数据。
+- 任何仓库转为公开前，都要检查当前文件、全部已推送分支和标签、提交身份、历史删除对象、发布资产和二进制元数据。
+- 开源许可证和学术引用中依法或规范保留的第三方作者属于来源归属，不等同于项目成员身份；两者必须分开判断。
 
-## 验证命令
+## 仪器模型边界
 
-发布前建议运行：
+FD-NCD-C 3D 模型只作为状态机驱动的显示和交互载体，不能成为 `P0`、`P1`、`P2`、`U_p`、`U_T` 或 `gamma` 的数据源。
 
-```powershell
-npm.cmd test
-npm.cmd exec tsc -- --noEmit
-npm.cmd run build
-npm.cmd run exporter:bundle
-npm.cmd run desktop:installer
-```
-
-打包后还需要验证生成的安装包和安装包内导出器，再创建 GitHub Release。
-
-## 空气比热容比 / Blender 模型规则
-
-FD-NCD-C 空气比热容比实验的仪器控制骨架继续遵循 v4.0.1 建模合同。3D/Blender 模型只作为状态机驱动的可视化与交互载体，不能成为 `P0`、`P1`、`P2`、`U_p`、`U_T` 或 `gamma` 的数据源。
-
-独立 Blender 建模人员应遵循：
+Blender 接入规则位于：
 
 ```text
 docs/instrument-modeling/reference/Blender模型接入规则-v4.0.1.md
 ```
+
+## 许可说明
+
+项目源码当前没有声明开源许可证。获得仓库访问权限不等于获得再分发授权。第三方组件和参考材料继续遵循各自条款，详见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。

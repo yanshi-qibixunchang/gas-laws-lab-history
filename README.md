@@ -1,153 +1,118 @@
-# Hard Sphere Lab v4.1.5
+# Hard Sphere Lab
 
-[简体中文 README](./README.zh-CN.md)
+[简体中文](./README.zh-CN.md)
 
-Hard Sphere Lab is a Windows desktop engineering workbench for hard-sphere molecular dynamics, ideal-gas relation verification, and the FD-NCD-C air heat-capacity-ratio experiment. The active release path is the Electron desktop app with a packaged local exporter for PDF reports, figures, and CSV data.
+Hard Sphere Lab is a Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and the FD-NCD-C air heat-capacity-ratio experiment.
 
-## What Changed In v4.1.5
+The latest published desktop release is `v4.2.3`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
 
-- Tests and verifies remote structured release-note loading for future updates.
-- Ensures update dialogs match the current interface language instead of showing every release-note language at once.
-- Removes the blue accent edge and emphasis shadow from the update dialog version-information block for a simpler engineering-software style.
-- Keeps plain-text release-note fallback for older clients and failure cases.
-- Updates the app, package metadata, release metadata, and documentation version to `4.1.5`.
-
-## What Changed In v4.1.4
-
-- Added the heat-capacity free-experiment parameter adjustment system, including per-group editable parameters, locked historical snapshots, and persisted free-mode settings.
-- Added structured advanced heat-capacity parameter groups, clearer engineering-style parameter rows, and improved light/dark theme styling across the experiment sidebars.
-- Improved the heat-capacity free-mode physics path with thermal exchange, leakage, sensor response, safety thresholds, process review, and parameter impact checks.
-- Added structured desktop update notes, transient-network download retries, and a direct manual installer download path after automatic update failures.
-- Updated the app, package metadata, release metadata, and documentation version to `4.1.4`.
+- Public downloads and update metadata: [hard-sphere-lab-release](https://github.com/yanshi-qibixunchang/hard-sphere-lab-release)
+- Security and disclosure policy: [SECURITY.md](./SECURITY.md)
+- Contribution and privacy checks: [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## Product Scope
 
-- Standard hard-sphere simulation with live 3D preview, realtime charts, and final result tabs.
-- Ideal-gas relation studies for `P-T`, `P-V`, and `P-N`, including point collection, verification, and history unlocks.
-- FD-NCD-C air heat-capacity-ratio experiment with demo, guided, and free modes.
-- Desktop export for PDF reports, PNG/PDF figures, and CSV data.
+- Standard hard-sphere simulation with a live 3D preview, realtime charts, and result tabs.
+- Ideal-gas `P-T`, `P-V`, and `P-N` studies with sampling, verification, and history views.
+- FD-NCD-C heat-capacity-ratio experiment with Demo, Guide, and Free modes.
+- Local desktop export for PDF reports, PDF/PNG figures, CSV data, and metadata.
 - Simplified Chinese, Traditional Chinese, and English interface text.
+
+## Current Source Highlights
+
+- The workbench UI is split into focused command, settings, updater, parameter, persistence, and experiment modules.
+- Heat-capacity runtime state is modeled separately from standard and ideal-gas files.
+- Post-`v4.2.3` source work preserves heat-capacity mode, timeline, pause state, exact camera pose, open windows, guidance/reminder state, and the last rendered 3D frame across a page refresh. This work is not a published `v4.2.4` installer.
+- Desktop publishing targets only the public release repository. The source repository is not an update channel.
 
 ## Repository Layout
 
-- `src/app/`: React Workbench entrypoint.
+- `src/app/`: React application entrypoint.
 - `src/components/`: shared visual components.
-- `src/features/`: workbench UI, ideal-gas UI, and heat-capacity UI.
-- `src/domain/`: simulation, ideal-gas, and heat-capacity calculation models.
-- `src/shared/`: shared types and utility definitions.
-- `src/i18n/`: app-level translation tables.
-- `tests/`: feature regression tests.
-- `scripts/`: project maintenance scripts, including test discovery and exporter bundling.
-- `electron/`: Electron main process and preload bridge for desktop export.
-- `tools/exporter/`: Python exporter source and sample payloads.
-- `resources/exporter/`: generated PyInstaller exporter output; ignored by Git and regenerated before packaging.
-- `resources/app-icon/`: desktop application icons.
-- `docs/theory/`: theory and derivation materials.
-- `docs/instrument-modeling/`: FD-NCD-C modeling references and Blender integration contract.
-- `release/`: local build output, ignored by Git.
+- `src/features/`: workbench, ideal-gas, and heat-capacity UI and orchestration.
+- `src/domain/`: simulation and experiment calculation models.
+- `src/shared/`: shared types and utilities.
+- `src/i18n/`: application translation tables.
+- `tests/`: hard-sphere, ideal-gas, heat-capacity, workbench, and exporter regression tests.
+- `electron/`: Electron main process, preload bridge, and update integration.
+- `tools/exporter/`: Python exporter source.
+- `scripts/` and `build/`: build, validation, packaging, and installer helpers.
+- `public/`: runtime models, fonts, icons, mockups, and generated legal notices.
+- `resources/`: desktop icons and generated exporter resources.
+- `docs/`: release notes, theory, instrument-modeling references, and internal design records.
 
-## Web Deployment
+Generated dependencies and outputs such as `node_modules/`, `dist/`, `release/`, `output/`, and `tmp/` are intentionally ignored.
 
-Install dependencies:
+## Private Collaboration And Codex Access
+
+The source repository does not need to be public for teammates to use Codex:
+
+1. Invite each teammate's GitHub account as a collaborator on the private repository.
+2. The teammate accepts the GitHub invitation.
+3. The teammate either clones the repository and opens the local folder in Codex, or authorizes the repository when connecting GitHub to Codex/ChatGPT.
+
+A personal-account private repository gives collaborators write access. If the team needs read-only roles, transfer the source repository to a GitHub organization and grant an organization `Read` role instead.
+
+## Development
+
+Install the locked dependency set:
 
 ```powershell
-npm.cmd install
+npm.cmd ci
 ```
 
-Build the static web bundle:
-
-```powershell
-npm.cmd run build
-```
-
-Deploy the generated `dist/` folder to any static host. For local browser preview during development, use the fixed project port:
+Run the fixed local preview:
 
 ```powershell
 npm.cmd run dev -- --host 127.0.0.1 --port 5174 --strictPort
 ```
 
-Preview URL:
+Preview URL: `http://127.0.0.1:5174/`
 
-```text
-http://127.0.0.1:5174/
-```
-
-Browser deployment can preview the simulator and workbench UI, but local PDF/image export requires the Electron desktop bridge.
-
-## Desktop App And Installer
-
-Build the bundled exporter first:
+Run the normal quality gates:
 
 ```powershell
-npm.cmd run exporter:bundle
+npm.cmd run check
+npm.cmd run build
 ```
 
-Build the official Windows installer:
-
-```powershell
-npm.cmd run desktop:installer
-```
-
-The formal distributable for v4.1.5 is:
-
-```text
-release/heat-capacity-lab-setup-4.1.5.exe
-```
-
-Run the desktop app locally for development:
+Run the Electron application locally:
 
 ```powershell
 npm.cmd run desktop:dev
 ```
 
-## Interface Guide
+The browser preview covers the simulator and workbench UI. Local report and figure export requires the Electron bridge and exporter environment.
 
-- Top menu: create/open experiments, open a fresh window, undo/redo, layout controls, settings, and help/about.
-- Left sidebar: open experiment files and file-specific panels.
-- Center workspace: 3D preview, realtime data/charts, results, experiment records, and processing panels.
-- Right sidebar: current parameters, relation controls, scan variable controls, sampling presets, and advanced settings.
-- Bottom console: logs, warnings, and runtime summaries.
-- Settings: theme, language, performance mode, and layout preferences.
-- About: version, local export environment status, and workspace cache summary.
+## Desktop Release Boundary
 
-## Basic Workflow
+Do not build or publish a new installer merely because `main` changed. A desktop release starts only after a version is chosen and `package.json` plus `package-lock.json` are updated.
 
-1. Create or open an experiment from the top menu or empty workspace.
-2. Choose the experiment file in the left sidebar.
-3. Adjust parameters in the right sidebar before running.
-4. Run the simulation or heat-capacity workflow.
-5. Review realtime charts and result tabs.
-6. Export reports, figures, or CSV data from the result/export controls.
+For an approved release, the public update repository must receive exactly the matching update assets from `release/`:
 
-## Export Details
+- `heat-capacity-lab-setup-<version>.exe`
+- `heat-capacity-lab-setup-<version>.exe.blockmap`
+- `latest.yml`
 
-The desktop app checks the export environment in this order:
+The public update repository may also contain user-facing README, changelog, security, and structured release-note files. It must not contain this repository's source tree, development branches, build inputs, local reports, credentials, or personal information.
 
-1. System Python exporter, if available.
-2. Bundled PyInstaller exporter packaged with the app.
+## Privacy And Repository Hygiene
 
-The exporter creates PDF reports, PDF/PNG figures, CSV data, and metadata under the selected output folder. The default desktop export folder is under the user's Documents directory.
+- Use a GitHub-provided `noreply` address for commits.
+- Do not commit credentials, `.env` files, personal contact details, participant names, school affiliations, absolute user paths, or document/image author metadata.
+- Before any repository becomes public, audit the current tree, every pushed branch and tag, commit identities, deleted historical blobs, release assets, and binary metadata.
+- Third-party author names required by licenses or academic citations are source attribution, not project-member identity; keep those records separate from participant information.
 
-## Verification
+## Instrument Model Contract
 
-Recommended checks before publishing:
+The FD-NCD-C 3D model is a state-machine-driven visualization and interaction carrier. It is not the source of truth for `P0`, `P1`, `P2`, `U_p`, `U_T`, or `gamma`.
 
-```powershell
-npm.cmd test
-npm.cmd exec tsc -- --noEmit
-npm.cmd run build
-npm.cmd run exporter:bundle
-npm.cmd run desktop:installer
-```
-
-After packaging, verify the generated installer and the bundled exporter before creating a GitHub Release.
-
-## Heat Capacity / Blender Model Contract
-
-The FD-NCD-C air heat-capacity-ratio instrument-control skeleton remains governed by the v4.0.1 modeling contract. The 3D/Blender model is a state-machine-driven visualization and interaction carrier; it must not become the source of truth for `P0`, `P1`, `P2`, `U_p`, `U_T`, or `gamma`.
-
-Independent Blender model development should follow:
+The Blender integration contract is documented at:
 
 ```text
 docs/instrument-modeling/reference/Blender模型接入规则-v4.0.1.md
 ```
+
+## Licensing
+
+No open-source license is declared for the project source. Access to the repository does not grant redistribution rights. Third-party components and reference materials retain their own terms; see [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
