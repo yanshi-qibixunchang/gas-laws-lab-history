@@ -3,6 +3,140 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "4.2.3",
+      "date": "2026-07-11",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.2.3",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.2.3/heat-capacity-lab-setup-4.2.3.exe"
+      },
+      "summary": {
+        "zh-CN": "完成工作台架构收口和发布前稳定化，统一持久化、参数、更新器与热容实验运行边界，并清理不再使用的旧模型、旧样式和重复约束。",
+        "zh-TW": "完成工作臺架構收口與發佈前穩定化，統一持久化、參數、更新器與熱容實驗執行邊界，並清理不再使用的舊模型、舊樣式和重複約束。",
+        "en": "Completes the workbench architecture consolidation and release stabilization, unifies persistence, parameter, updater, and heat-capacity runtime boundaries, and removes obsolete models, styles, and duplicate contracts."
+      },
+      "sections": [
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "改进",
+            "zh-TW": "改進",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "workbench-architecture",
+              "importance": "high",
+              "title": {
+                "zh-CN": "工作台核心界面按职责拆分",
+                "zh-TW": "工作臺核心介面按職責拆分",
+                "en": "Workbench UI responsibilities modularized"
+              },
+              "body": {
+                "zh-CN": "顶部命令、设置窗口、更新窗口、参数对话框、空工作区和文件展示逻辑现在由独立组件与模块维护，降低主工作台文件的耦合度。",
+                "zh-TW": "頂部命令、設定視窗、更新視窗、參數對話框、空工作區和檔案展示邏輯現在由獨立元件與模組維護，降低主工作臺檔案的耦合度。",
+                "en": "Top commands, settings, updates, parameter dialogs, empty workspace, and file presentation now live in focused components and modules, reducing coupling in the main workbench."
+              }
+            },
+            {
+              "scope": "persistence-boundaries",
+              "importance": "high",
+              "title": {
+                "zh-CN": "统一实验持久化和恢复边界",
+                "zh-TW": "統一實驗持久化和恢復邊界",
+                "en": "Unified experiment persistence boundaries"
+              },
+              "body": {
+                "zh-CN": "标准模拟与理想气体共享运行态恢复规则，热容实验使用独立配置快照、恢复归一化和标签页注册表，同时继续读取必要的旧存档格式。",
+                "zh-TW": "標準模擬與理想氣體共用執行態恢復規則，熱容實驗使用獨立設定快照、恢復正規化和分頁登錄表，同時繼續讀取必要的舊存檔格式。",
+                "en": "Standard and ideal-gas experiments share runtime recovery rules, while heat-capacity files use dedicated configuration snapshots, recovery normalization, and tab registries with required legacy save compatibility."
+              }
+            },
+            {
+              "scope": "heat-capacity-guidance",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "完善热容实验说明和导航一致性",
+                "zh-TW": "完善熱容實驗說明和導覽一致性",
+                "en": "Improved heat-capacity guidance and navigation"
+              },
+              "body": {
+                "zh-CN": "实验说明入口现在可在演示、引导和自由模式使用，新建实验时自动展示一次；左侧栏子项字号和粗细与 3D 预览保持一致。",
+                "zh-TW": "實驗說明入口現在可在演示、引導和自由模式使用，新建實驗時自動展示一次；左側欄子項字號和粗細與 3D 預覽保持一致。",
+                "en": "Experiment guidance is available in Demo, Guide, and Free modes and appears once for new files; left-sidebar child labels now match the 3D Preview typography."
+              }
+            },
+            {
+              "scope": "model-metrics",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "统一热容过程指标与参数策略",
+                "zh-TW": "統一熱容過程指標與參數策略",
+                "en": "Unified heat-capacity metrics and parameter policy"
+              },
+              "body": {
+                "zh-CN": "过程回顾、评分和标准参考共用放气起点与相对误差计算；高级参数可见性和输入归一化由统一注册表维护。",
+                "zh-TW": "過程回顧、評分和標準參考共用放氣起點與相對誤差計算；進階參數可見性和輸入正規化由統一登錄表維護。",
+                "en": "Process Review, scoring, and standard references share release-start and relative-error calculations, while advanced parameter visibility and input normalization use one registry."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修復",
+            "en": "Fixed"
+          },
+          "items": [
+            {
+              "scope": "guidance-pause-queue",
+              "importance": "high",
+              "title": {
+                "zh-CN": "修复说明、暂停和提醒队列边界",
+                "zh-TW": "修復說明、暫停和提醒佇列邊界",
+                "en": "Fixed guidance, pause, and reminder queue boundaries"
+              },
+              "body": {
+                "zh-CN": "实验说明不再被非引导模式错误关闭；说明弹出期间会暂停分子动画和强提醒计时。演示模式暂停时保留当前观察视角和步骤等待进度。",
+                "zh-TW": "實驗說明不再被非引導模式錯誤關閉；說明彈出期間會暫停分子動畫和強提醒計時。演示模式暫停時保留目前觀察視角和步驟等待進度。",
+                "en": "Guidance no longer closes outside Guide mode; open lessons suspend molecule animation and reminder timing, while Demo pause preserves the current camera and step wait progress."
+              }
+            },
+            {
+              "scope": "legacy-cleanup",
+              "importance": "high",
+              "title": {
+                "zh-CN": "清理旧模型、样式和重复接口",
+                "zh-TW": "清理舊模型、樣式和重複介面",
+                "en": "Removed obsolete models, styles, and interfaces"
+              },
+              "body": {
+                "zh-CN": "删除未引用工作台样式、旧 PDF 查看器、旧全局 UI 状态、重复持久化归一化器、重复过程指标和无生产用途的导出接口。",
+                "zh-TW": "刪除未引用工作臺樣式、舊 PDF 檢視器、舊全域 UI 狀態、重複持久化正規化器、重複過程指標和無生產用途的匯出介面。",
+                "en": "Removed unused workbench styles, the legacy PDF viewer, obsolete global UI state, duplicate persistence normalizers and process metrics, and production exports without runtime consumers."
+              }
+            },
+            {
+              "scope": "release-integrity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "强化桌面构建与更新资产完整性",
+                "zh-TW": "強化桌面建置與更新資產完整性",
+                "en": "Hardened desktop build and update integrity"
+              },
+              "body": {
+                "zh-CN": "生产构建现在校验输出边界、导出器源码指纹、版本元数据和第三方版权清单，防止旧导出器或不完整更新资产进入发布。",
+                "zh-TW": "生產建置現在驗證輸出邊界、匯出器原始碼指紋、版本中繼資料和第三方版權清單，防止舊匯出器或不完整更新資產進入發佈。",
+                "en": "Production builds now validate output boundaries, exporter source fingerprints, version metadata, and third-party notices to keep stale exporters and incomplete update assets out of releases."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "4.2.2",
       "date": "2026-07-07",
       "channel": "stable",
