@@ -3,6 +3,7 @@ const WORKBENCH_MAX_JAVASCRIPT_CHUNK_BYTES = 1_000_000;
 const WORKBENCH_REQUIRED_CHUNK_NAMES = [
   'vendor',
   'react-three',
+  'heat-capacity-scene',
 ];
 
 const getWorkbenchChunkName = (id) => {
@@ -24,6 +25,13 @@ const getWorkbenchChunkName = (id) => {
     normalizedId.includes('/node_modules/lucide-react/')
   ) {
     return 'vendor';
+  }
+  if (
+    normalizedId.includes('/src/features/heatCapacity/HeatCapacityInstrumentScene.') ||
+    normalizedId.includes('/src/features/heatCapacity/HeatCapacityUltraInstrumentModel.') ||
+    normalizedId.includes('/src/features/heatCapacity/HeatCapacityHardSphereLayer.')
+  ) {
+    return 'heat-capacity-scene';
   }
   return null;
 };

@@ -38,18 +38,148 @@ const runtimeGlbJson = readGlbJsonChunk(runtimeGlbBinary);
 
 assert.match(
   sceneSource,
-  /import HeatCapacityUltraInstrumentModel from '\.\/HeatCapacityUltraInstrumentModel';/,
+  /import HeatCapacityUltraInstrumentModel, \{[\s\S]*clearHeatCapacityUltraInstrumentModelCache,[\s\S]*type HeatCapacityUltraVisualState,[\s\S]*\} from '\.\/HeatCapacityUltraInstrumentModel';/,
   'Heat Capacity scene should import the Ultra GLB adapter',
 );
 assert.match(
   sceneSource,
-  /const proceduralSceneContent = \([\s\S]*<InstrumentSceneContent[\s\S]*const instrumentSceneContent = qualityProfile\.renderModel === 'ultraGlb'[\s\S]*<HeatCapacityUltraInstrumentModel[\s\S]*: proceduralSceneContent/,
+  /const proceduralSceneContent = \([\s\S]*<InstrumentSceneContent[\s\S]*const proceduralSceneWithReadyGate = \([\s\S]*const instrumentSceneContent = qualityProfile\.renderModel === 'ultraGlb'[\s\S]*<HeatCapacityUltraInstrumentModel[\s\S]*: proceduralSceneWithReadyGate/,
   'Heat Capacity scene should render the Ultra GLB adapter for GLB quality profiles and keep the procedural fallback for other modes',
 );
 assert.match(
   sceneSource,
-  /<HeatCapacityUltraModelErrorBoundary fallback=\{proceduralSceneContent\}>[\s\S]*<Suspense fallback=\{proceduralSceneContent\}>/,
-  'Ultra GLB should retain the procedural fallback when the model fails or is still loading',
+  /<HeatCapacityUltraModelErrorBoundary key=\{ultraLoadAttempt\} onError=\{handleUltraModelError\}>[\s\S]*<Suspense fallback=\{null\}>/,
+  'Ultra GLB should keep normal Suspense loading visually empty and remount its guarded loader on retry',
+);
+assert.doesNotMatch(
+  sceneSource,
+  /<HeatCapacityUltraModelErrorBoundary[^>]*fallback=\{proceduralSceneWithReadyGate\}/,
+  'Ultra GLB failures must never reveal the procedural skeleton',
+);
+assert.match(
+  sceneSource,
+  /data-heat-capacity-ultra-load-error="true"[\s\S]*data-heat-capacity-ultra-load-retry="true"[\s\S]*onClick=\{retryUltraModelLoad\}/,
+  'Ultra GLB failures should expose an explicit retryable error layer',
+);
+assert.match(
+  ultraModelSource,
+  /export const clearHeatCapacityUltraInstrumentModelCache = \(\) => \{[\s\S]*useGLTF\.clear\(ULTRA_GLB_PATH\);/,
+  'Ultra GLB retry should clear the rejected loader cache before remounting',
+);
+assert.doesNotMatch(
+  sceneSource,
+  /<Suspense fallback=\{proceduralScene(?:Content|WithReadyGate)\}>/,
+  'Ultra GLB loading must not flash the procedural skeleton before the real model mounts',
+);
+assert.match(
+  sceneSource,
+  /export type HeatCapacityCameraPose = \{[\s\S]*position: \[number, number, number\];[\s\S]*target: \[number, number, number\];[\s\S]*fov: number;/,
+  'Heat Capacity scene should export a serializable arbitrary camera pose contract',
+);
+assert.match(
+  sceneSource,
+  /initialCameraPose\?: HeatCapacityCameraPose \| null;[\s\S]*onCameraPoseChange\?: \(sceneFileId: string, pose: HeatCapacityCameraPose\) => void;[\s\S]*restoredSceneFrameDataUrl\?: string \| null;[\s\S]*onSceneFrameCapture\?: \([\s\S]*sceneFileId: string,[\s\S]*dataUrl: string,[\s\S]*cameraPose: HeatCapacityCameraPose,[\s\S]*metadata: HeatCapacitySceneFrameCaptureMetadata,[\s\S]*\) => void;[\s\S]*onSceneReady\?: \(\) => void;/,
+  'Heat Capacity scene should expose camera, last-good-frame, and readiness restore hooks',
+);
+assert.match(
+  sceneSource,
+  /useLayoutEffect\(\(\) => \{[\s\S]*camera\.position\.set\(\.\.\.initialCameraPose\.position\);[\s\S]*controlsRef\.current\.target\.set\(\.\.\.initialCameraPose\.target\);/,
+  'CameraRig should apply the restored position and OrbitControls target before the first visible frame',
+);
+assert.match(
+  sceneSource,
+  /HEAT_CAPACITY_SCENE_FRAME_CAPTURE_SETTLE_DELAY_MS[\s\S]*function HeatCapacitySceneFrameCaptureBridge[\s\S]*sceneDirtyRef\.current[\s\S]*gl\.domElement\.toDataURL\('image\/webp'/,
+  'Heat Capacity scene should debounce settled last-good-frame captures and track animation dirtiness without periodic encoding',
+);
+assert.doesNotMatch(
+  sceneSource,
+  /useFrame\(\(\) => \{\s*if \(active\) captureSceneFrame/,
+  'active Heat Capacity animation frames must not synchronously encode a restore image on a fixed cadence',
+);
+assert.match(
+  workbenchSource,
+  /const persistLifecycleCheckpoint = \(\) => \{[\s\S]*sceneCaptureRegistration\?\.fileId === activeSceneFile\.id[\s\S]*sceneCaptureCompleted = sceneCaptureProvider\(\) !== null;[\s\S]*persistWorkbenchSession\(encodeWorkbenchSession[\s\S]*heatCapacityRefreshPersistRef\.current\(\);[\s\S]*window\.addEventListener\('pagehide', persistBeforePageHide\)[\s\S]*document\.addEventListener\('visibilitychange', persistWhenHidden\)/,
+  'Workbench should own the final scene → main-session → refresh-checkpoint lifecycle flush for hidden tabs and page hide',
+);
+assert.match(
+  workbenchSource,
+  /const persistLifecycleCheckpointOnce = \(\) => \{[\s\S]*HEAT_CAPACITY_LIFECYCLE_DUPLICATE_FLUSH_WINDOW_MS[\s\S]*if \(persistLifecycleCheckpoint\(\)\)[\s\S]*const persistBeforePageHide = \(\) => persistLifecycleCheckpointOnce\(\);[\s\S]*document\.visibilityState === 'hidden'[\s\S]*persistLifecycleCheckpointOnce\(\);/,
+  'pagehide and visibility-hidden should share an order-independent, short-window lifecycle flush guard',
+);
+assert.match(
+  workbenchSource,
+  /const handleHeatCapacitySceneFrameCapture = \([\s\S]*sceneFileId: string,[\s\S]*if \(sceneFileId !== activeFileIdRef\.current\) return;[\s\S]*currentFile\.id !== sceneFileId/,
+  'stale captures from an unmounting Heat Capacity file must never be stored under the newly active file',
+);
+assert.match(
+  workbenchSource,
+  /if \(heatCapacitySceneCaptureProviderRef\.current\?\.fileId === sceneFileId\) \{\s*heatCapacitySceneCaptureProviderRef\.current = null;/,
+  'an old keyed scene may clear only its own lifecycle capture provider registration',
+);
+assert.match(
+  sceneSource,
+  /gl: \{ preserveDrawingBuffer: sceneFrameCaptureEnabled \}/,
+  'Canvas should preserve its drawing buffer only when refresh-frame capture is connected',
+);
+assert.match(
+  sceneSource,
+  /props\.restoredSceneFrameDataUrl && !sceneRevealReady[\s\S]*data-heat-capacity-restored-scene-frame="true"/,
+  'A restored Canvas frame should remain above WebGL until the parent restore acknowledgement and reveal frame complete',
+);
+assert.match(
+  sceneSource,
+  /sceneRestoreAcknowledged\?: boolean;[\s\S]*const parentRestoreAcknowledged = props\.sceneRestoreAcknowledged \?\? true;[\s\S]*<HeatCapacitySceneRevealBridge[\s\S]*requested=\{sceneRevealRequested\}/,
+  'The restored frame reveal must be gated by an explicit parent acknowledgement and a rendered-frame handshake',
+);
+assert.match(
+  sceneSource,
+  /const handleSceneRevealReady = useCallback\(\(\) => \{\s*setSceneRevealReady\(true\);\s*props\.onSceneRestoreRevealComplete\?\.\(props\.sceneFileId\);/,
+  'the scene should tell its parent when the one-time restored-frame reveal handshake completes',
+);
+assert.match(
+  workbenchSource,
+  /const handleHeatCapacitySceneRestoreRevealComplete = useCallback\(\(sceneFileId: string\) => \{[\s\S]*setHeatCapacityInitialSceneRestoreEnabled\(false\);[\s\S]*onSceneRestoreRevealComplete=\{handleHeatCapacitySceneRestoreRevealComplete\}/,
+  'Workbench should permanently consume the initial restore frame so theme or performance changes cannot resurrect it',
+);
+assert.match(
+  sceneSource,
+  /export type HeatCapacityCameraTransitionState = \{[\s\S]*targetPosition: \[number, number, number\];[\s\S]*target: \[number, number, number\];[\s\S]*durationMs: number;[\s\S]*elapsedMs: number;[\s\S]*remainingMs: number;/,
+  'Camera refresh metadata should retain the in-flight transition target and remaining duration',
+);
+assert.match(
+  sceneSource,
+  /pendingInitialTransitionRef[\s\S]*if \(restoredTransition && !sceneReady\) return;[\s\S]*resumedFromElapsedMs: restoredTransition\.elapsedMs[\s\S]*useFrame\(\(\) => \{[\s\S]*remainingMs: Math\.max/,
+  'CameraRig should freeze a restored transition until acknowledgement, then continue its original easing timeline',
+);
+assert.equal(
+  (sceneSource.match(/if \(restoredInitialCameraPose && !sceneReadyReportedRef\.current\) return;/g) ?? []).length,
+  3,
+  'Strict Mode effect replay must not let reset, Demo focus, or Guide focus overwrite an exact restored camera pose',
+);
+assert.match(
+  sceneSource,
+  /cameraTransition: getCameraTransitionState\(\),[\s\S]*ultraVisualState: getUltraVisualState\(\),[\s\S]*hardSphereVisualCheckpoint: getHardSphereVisualCheckpoint\(\),/,
+  'Every captured frame should carry camera, Ultra smoothing, and hard-sphere visual checkpoints',
+);
+assert.match(
+  ultraModelSource,
+  /export type HeatCapacityUltraVisualState = \{[\s\S]*gaugeNeedleRotationRad: number;[\s\S]*stopcockRotationRad: number;[\s\S]*pumpValveRotationRad: number;[\s\S]*pressureZeroRotationRad: number;[\s\S]*powerSwitchRotationRad: number;[\s\S]*pumpVisualWeight: number;/,
+  'Ultra refresh state should include every internally smoothed control and gauge value',
+);
+assert.match(
+  ultraModelSource,
+  /const visualDelta = props\.restorePaused \? 0 : delta;[\s\S]*gaugeDisplayedRotationRef\.current[\s\S]*stopcockDisplayedAngleRef\.current[\s\S]*pumpValveDisplayedAngleRef\.current[\s\S]*pressureZeroDisplayedAngleRef\.current[\s\S]*powerSwitchDisplayedRotationRef\.current/,
+  'Ultra smoothing should remain frozen behind the restored frame and resume only after acknowledgement',
+);
+assert.match(
+  hardSphereLayerSource,
+  /export type HeatCapacityHardSphereVisualCheckpoint = \{[\s\S]*particles: HeatCapacityHardSphereParticleCheckpoint\[\];[\s\S]*displayVisualState:[\s\S]*activeReleaseScheduleElapsedS:[\s\S]*kineticSpeedState:/,
+  'Hard-sphere refresh state should preserve particle positions, release scheduling, and smoothed visual kinetics',
+);
+assert.doesNotMatch(
+  sceneSource,
+  /useGLTF\.preload|\.preload\([^)]*fd-ncd-c-ultra/,
+  'The scene must not add module-level GLB preload side effects while implementing the restore gate',
 );
 assert.match(
   ultraModelSource,
@@ -549,8 +679,8 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /camera: \{ position: cameraViewScheme\.defaultView\.position, fov: cameraViewScheme\.fov \}/,
-  'Canvas should use the active scheme initial FOV before CameraRig applies aspect-responsive updates',
+  /camera: \{[\s\S]*position: restoredInitialCameraPose\?\.position \?\? cameraViewScheme\.defaultView\.position,[\s\S]*fov: restoredInitialCameraPose\?\.fov \?\? cameraViewScheme\.fov/,
+  'Canvas should apply a restored camera pose on its first frame and otherwise use the active scheme defaults',
 );
 assert.match(
   sceneSource,
@@ -911,7 +1041,7 @@ assert.doesNotMatch(
 );
 assert.match(
   sceneSource,
-  /if \(focusMode !== 'none'\) return;[\s\S]*getCameraFovForAspect\(cameraViewScheme, aspect\)[\s\S]*const startFov = camera\.fov[\s\S]*const nextFov = focusView[\s\S]*\? focusView\.fov \?\? cameraViewScheme\.fov[\s\S]*: getCameraFovForAspect\(cameraViewScheme, aspect\)[\s\S]*camera\.fov = THREE\.MathUtils\.lerp\(startFov, nextFov, eased\)/,
+  /if \(focusMode !== 'none'\) return;[\s\S]*getCameraFovForAspect\(cameraViewScheme, aspect\)[\s\S]*const startFov = camera\.fov[\s\S]*const nextFov = focusView[\s\S]*\? focusView\.fov \?\? cameraViewScheme\.fov[\s\S]*: getCameraFovForAspect\(cameraViewScheme, aspect\)[\s\S]*startFov,[\s\S]*targetFov: nextFov[\s\S]*camera\.fov = THREE\.MathUtils\.lerp\(runtime\.state\.startFov, runtime\.state\.targetFov, eased\)/,
   'Ultra focus views should animate back to the base model FOV so short-wide canvases do not shrink focused controls',
 );
 assert.doesNotMatch(

@@ -55,8 +55,8 @@ assert.match(
 
 assert.match(
   source,
-  /const \[settingsGeneralOpen, setSettingsGeneralOpen\] = useState\(false\);/,
-  'general settings window should have independent open state',
+  /const \[settingsGeneralOpen, setSettingsGeneralOpen\] = useState\(\(\) => \([\s\S]*?getHeatCapacityRefreshBoolean\(initialHeatCapacityRefreshWindows, 'settingsGeneralOpen'\)/,
+  'general settings window should have independent state restored from the active heat-capacity refresh session',
 );
 
 assert.match(

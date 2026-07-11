@@ -137,7 +137,11 @@ const settingsMenuSource = topCommandsSource.slice(
 assert.ok(!settingsMenuSource.includes('menus.exportEnvironment'), 'settings menu should not expose the export environment row');
 assert.ok(!settingsMenuSource.includes('exportEnvironmentStatus'), 'settings menu should not expose raw export environment status');
 
-assert.match(source, /const \[aboutWindowOpen, setAboutWindowOpen\] = useState\(false\);/, 'about window should have independent open state');
+assert.match(
+  source,
+  /const \[aboutWindowOpen, setAboutWindowOpen\] = useState\(\(\) => \([\s\S]*?getHeatCapacityRefreshBoolean\(initialHeatCapacityRefreshWindows, 'aboutWindowOpen'\)/,
+  'about window should have independent state restored from the active heat-capacity refresh session',
+);
 assert.match(workbenchSource, /<WorkbenchAboutWindow/, 'about window component should be mounted by the workbench');
 assert.doesNotMatch(workbenchSource, /const renderAboutWindow = \(\) => \{/, 'legacy inline about renderer should be removed');
 assert.match(topCommandsSource, /onClick=\{onOpenAbout\}[\s\S]*?\{copy\.menus\.about\}/, 'Help > About should use the component callback instead of logging a mock action');
@@ -177,7 +181,11 @@ assert.match(
   /onClick=\{onOpenBuildNotice\}[\s\S]*copy\.buildNotes[\s\S]*<ChevronRight size=\{17\} \/>/,
   'about build notes row should be a clickable action row with only a right-arrow affordance',
 );
-assert.match(source, /const \[buildNoticeWindowOpen, setBuildNoticeWindowOpen\] = useState\(false\);/, 'build notice should have independent secondary-window state');
+assert.match(
+  source,
+  /const \[buildNoticeWindowOpen, setBuildNoticeWindowOpen\] = useState\(\(\) => \([\s\S]*?getHeatCapacityRefreshBoolean\(initialHeatCapacityRefreshWindows, 'buildNoticeWindowOpen'\)/,
+  'build notice should have independent secondary-window state restored from the active heat-capacity refresh session',
+);
 assert.doesNotMatch(source, /if \(!buildNoticeWindowOpen\)/, 'build notice closing should not depend on a delayed effect reset');
 for (const resetExpression of [
   'setBuildNoticeNavOpen(false);',

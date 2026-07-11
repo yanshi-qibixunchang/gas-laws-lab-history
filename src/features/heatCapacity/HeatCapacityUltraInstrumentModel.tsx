@@ -7,7 +7,10 @@ import {
   HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG,
   getHeatCapacityStopcockState,
 } from '../workbench/workbenchState';
-import HeatCapacityHardSphereLayer from './HeatCapacityHardSphereLayer';
+import HeatCapacityHardSphereLayer, {
+  type HeatCapacityHardSphereCheckpointProvider,
+  type HeatCapacityHardSphereVisualCheckpoint,
+} from './HeatCapacityHardSphereLayer';
 import type { HeatCapacityHardSphereReleaseTimeline } from '../../domain/heatCapacity/heatCapacityHardSphereModel.ts';
 import {
   formatHeatCapacitySignalMv,
@@ -69,6 +72,17 @@ type UltraVisualEffects = {
   pumpBulbHoverHaloOpacity: number;
 };
 
+export type HeatCapacityUltraVisualState = {
+  gaugeNeedleRotationRad: number;
+  stopcockRotationRad: number;
+  pumpValveRotationRad: number;
+  pressureZeroRotationRad: number;
+  powerSwitchRotationRad: number;
+  pumpVisualWeight: number;
+  pumpPulseId: number;
+  pumpPulseRemainingMs: number;
+};
+
 type HeatCapacityUltraInstrumentModelProps = {
   powerOn: boolean;
   sceneTheme: 'dark' | 'light';
@@ -115,10 +129,19 @@ type HeatCapacityUltraInstrumentModelProps = {
   onPumpValveToggle: () => void;
   onPumpBulbPress: () => void;
   onFocus: (mode: UltraFocusMode) => void;
+  initialVisualState?: HeatCapacityUltraVisualState | null;
+  onVisualStateChange?: (state: HeatCapacityUltraVisualState) => void;
+  initialHardSphereVisualCheckpoint?: HeatCapacityHardSphereVisualCheckpoint | null;
+  onHardSphereCheckpointProviderChange?: (provider: HeatCapacityHardSphereCheckpointProvider | null) => void;
+  restorePaused?: boolean;
 };
 
 const ULTRA_GLB_PATH = `${import.meta.env.BASE_URL}models/heat-capacity/fd-ncd-c-ultra.glb`;
 const ULTRA_PUMP_PULSE_VISUAL_HOLD_S = 0.42;
+
+export const clearHeatCapacityUltraInstrumentModelCache = () => {
+  useGLTF.clear(ULTRA_GLB_PATH);
+};
 const REQUIRED_ULTRA_NODE_NAMES = [
   'FD_NCD_C_PowerSwitch_Base',
   'FD_NCD_C_PowerSwitch_Button',
@@ -1028,6 +1051,59 @@ const dampUltraControlAngle = (current: number, target: number, smoothingRate: n
   THREE.MathUtils.damp(current, target, smoothingRate, delta)
 );
 const getUltraStopcockVisualAngleRad = (angleDeg: number) => -THREE.MathUtils.degToRad(angleDeg);
+
+const getFiniteUltraVisualValue = (
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): number | null => (
+  typeof value === 'number' && Number.isFinite(value)
+    ? clampSceneNumber(value, minimum, maximum)
+    : null
+);
+
+export const normalizeHeatCapacityUltraVisualState = (
+  value: unknown,
+): HeatCapacityUltraVisualState | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const gaugeNeedleRotationRad = getFiniteUltraVisualValue(
+    record.gaugeNeedleRotationRad,
+    PRESSURE_GAUGE_MIN_ROTATION,
+    PRESSURE_GAUGE_MAX_ROTATION,
+  );
+  const stopcockRotationRad = getFiniteUltraVisualValue(record.stopcockRotationRad, -Math.PI * 2, Math.PI * 2);
+  const pumpValveRotationRad = getFiniteUltraVisualValue(record.pumpValveRotationRad, -Math.PI * 2, Math.PI * 2);
+  const pressureZeroRotationRad = getFiniteUltraVisualValue(
+    record.pressureZeroRotationRad,
+    THREE.MathUtils.degToRad(HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG),
+    THREE.MathUtils.degToRad(HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG),
+  );
+  const powerSwitchRotationRad = getFiniteUltraVisualValue(record.powerSwitchRotationRad, -Math.PI / 2, Math.PI / 2);
+  const pumpVisualWeight = getFiniteUltraVisualValue(record.pumpVisualWeight, 0, 1);
+  const pumpPulseId = getFiniteUltraVisualValue(record.pumpPulseId, 0, Number.MAX_SAFE_INTEGER);
+  const pumpPulseRemainingMs = getFiniteUltraVisualValue(record.pumpPulseRemainingMs, 0, 10_000);
+  if (
+    gaugeNeedleRotationRad === null ||
+    stopcockRotationRad === null ||
+    pumpValveRotationRad === null ||
+    pressureZeroRotationRad === null ||
+    powerSwitchRotationRad === null ||
+    pumpVisualWeight === null ||
+    pumpPulseId === null ||
+    pumpPulseRemainingMs === null
+  ) return null;
+  return {
+    gaugeNeedleRotationRad,
+    stopcockRotationRad,
+    pumpValveRotationRad,
+    pressureZeroRotationRad,
+    powerSwitchRotationRad,
+    pumpVisualWeight,
+    pumpPulseId: Math.round(pumpPulseId),
+    pumpPulseRemainingMs,
+  };
+};
 
 const cloneModelScene = (sourceScene: THREE.Object3D) => {
   const clonedScene = sourceScene.clone(true);
@@ -2455,13 +2531,16 @@ function UltraPowerSwitchSkirtedRocker({
 function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentModelProps) {
   const gltf = useGLTF(ULTRA_GLB_PATH);
   const { camera, gl, invalidate, size } = useThree();
+  const initialVisualState = normalizeHeatCapacityUltraVisualState(props.initialVisualState);
   const runtimeRootRef = useRef<THREE.Group | null>(null);
   const displayTextureRef = useRef<THREE.CanvasTexture | null>(null);
   const ultraMaterialHighlightSnapshotsRef = useRef(new Map<THREE.Material, UltraMaterialSnapshot>());
   const guideTargetHoleSignatureRef = useRef('');
-  const pumpPulseRef = useRef(0);
-  const pumpVisualWeightRef = useRef(0);
+  const pumpPulseRef = useRef(initialVisualState?.pumpPulseId ?? props.pumpPulseId);
+  const pumpVisualWeightRef = useRef(initialVisualState?.pumpVisualWeight ?? 0);
   const pumpPulseVisualUntilRef = useRef(0);
+  const initialPumpPulseRemainingSRef = useRef((initialVisualState?.pumpPulseRemainingMs ?? 0) / 1000);
+  const pumpPulseClockInitializedRef = useRef(false);
   const pressureZeroDragRef = useRef({
     startKnobAngle: props.pressureZeroKnobAngle,
     lastPointerAngle: 0,
@@ -2469,11 +2548,19 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     lastAppliedKnobAngle: props.pressureZeroKnobAngle,
   });
   const pendingUltraSingleClickRef = useRef<number | null>(null);
-  const gaugeDisplayedRotationRef = useRef(PRESSURE_GAUGE_MIN_ROTATION);
-  const stopcockDisplayedAngleRef = useRef(getUltraStopcockVisualAngleRad(props.stopcockAngleDeg));
-  const pumpValveDisplayedAngleRef = useRef(props.pumpValveOpen ? 0 : Math.PI / 2);
-  const pressureZeroDisplayedAngleRef = useRef(THREE.MathUtils.degToRad(props.pressureZeroKnobAngle));
-  const powerSwitchDisplayedRotationRef = useRef(props.powerOn ? POWER_SWITCH_ON_ROTATION_RAD : POWER_SWITCH_OFF_ROTATION_RAD);
+  const gaugeDisplayedRotationRef = useRef(initialVisualState?.gaugeNeedleRotationRad ?? PRESSURE_GAUGE_MIN_ROTATION);
+  const stopcockDisplayedAngleRef = useRef(
+    initialVisualState?.stopcockRotationRad ?? getUltraStopcockVisualAngleRad(props.stopcockAngleDeg),
+  );
+  const pumpValveDisplayedAngleRef = useRef(
+    initialVisualState?.pumpValveRotationRad ?? (props.pumpValveOpen ? 0 : Math.PI / 2),
+  );
+  const pressureZeroDisplayedAngleRef = useRef(
+    initialVisualState?.pressureZeroRotationRad ?? THREE.MathUtils.degToRad(props.pressureZeroKnobAngle),
+  );
+  const powerSwitchDisplayedRotationRef = useRef(
+    initialVisualState?.powerSwitchRotationRad ?? (props.powerOn ? POWER_SWITCH_ON_ROTATION_RAD : POWER_SWITCH_OFF_ROTATION_RAD),
+  );
   const gaugeNeedleTargetRotation = getPressureGaugeNeedleRotation(
     props.pressureGaugeDisplayValue,
     props.gaugePressureMinKPa,
@@ -2913,8 +3000,15 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   ]);
 
   useFrame(({ clock }, delta) => {
+    const visualDelta = props.restorePaused ? 0 : delta;
+    if (!pumpPulseClockInitializedRef.current) {
+      pumpPulseClockInitializedRef.current = true;
+      pumpPulseVisualUntilRef.current = clock.elapsedTime + initialPumpPulseRemainingSRef.current;
+    } else if (props.restorePaused) {
+      pumpPulseVisualUntilRef.current += Math.max(0, delta);
+    }
     const targetRotation = gaugeNeedleTargetRotation;
-    const smoothing = 1 - Math.exp(-9 * delta);
+    const smoothing = 1 - Math.exp(-9 * visualDelta);
     gaugeDisplayedRotationRef.current = clampSceneNumber(
       THREE.MathUtils.lerp(gaugeDisplayedRotationRef.current, targetRotation, smoothing),
       PRESSURE_GAUGE_MIN_ROTATION,
@@ -2936,7 +3030,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       stopcockDisplayedAngleRef.current,
       stopcockTargetAngle,
       STOPCOCK_VISUAL_SMOOTHING_RATE,
-      delta,
+      visualDelta,
     );
     applyLocalAxisRotation(
       nodeMap,
@@ -2951,7 +3045,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       pumpValveDisplayedAngleRef.current,
       pumpValveTargetAngle,
       PUMP_VALVE_VISUAL_SMOOTHING_RATE,
-      delta,
+      visualDelta,
     );
     applyLocalAxisRotation(
       nodeMap,
@@ -2966,7 +3060,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       pressureZeroDisplayedAngleRef.current,
       pressureZeroTargetAngle,
       PRESSURE_ZERO_VISUAL_SMOOTHING_RATE,
-      delta,
+      visualDelta,
     );
     applyLocalAxisRotation(
       nodeMap,
@@ -2981,7 +3075,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       powerSwitchDisplayedRotationRef.current,
       powerSwitchTargetRotation,
       POWER_SWITCH_VISUAL_SMOOTHING_RATE,
-      delta,
+      visualDelta,
     );
     const powerSwitch = nodeMap.get('FD_NCD_C_PowerSwitch_Button');
     const powerBase = baseTransforms.get('FD_NCD_C_PowerSwitch_Button');
@@ -2998,28 +3092,38 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       powerSwitchDisplayedRotationRef.current,
     );
 
-    if (props.pumpPulseId !== pumpPulseRef.current) {
+    if (!props.restorePaused && props.pumpPulseId !== pumpPulseRef.current) {
       pumpPulseRef.current = props.pumpPulseId;
       pumpVisualWeightRef.current = 1;
       pumpPulseVisualUntilRef.current = clock.elapsedTime + ULTRA_PUMP_PULSE_VISUAL_HOLD_S;
     }
     const pumpPulseOwnsVisual = clock.elapsedTime < pumpPulseVisualUntilRef.current;
-    if (!pumpPulseOwnsVisual && props.pumpBulbState !== 'idle') {
+    if (!props.restorePaused && !pumpPulseOwnsVisual && props.pumpBulbState !== 'idle') {
       pumpVisualWeightRef.current = Math.max(props.pumpBulbState === 'compressing' ? 1 : 0.45, pumpVisualWeightRef.current);
     }
-    pumpVisualWeightRef.current = Math.max(0, pumpVisualWeightRef.current - delta * 2.4);
+    pumpVisualWeightRef.current = Math.max(0, pumpVisualWeightRef.current - visualDelta * 2.4);
     const pumpBulb = nodeMap.get('Pump_Bulb') as THREE.Mesh | undefined;
     if (pumpBulb?.morphTargetInfluences?.length) {
       pumpBulb.morphTargetInfluences[0] = pumpVisualWeightRef.current;
     }
-    if (
+    props.onVisualStateChange?.({
+      gaugeNeedleRotationRad: gaugeDisplayedRotationRef.current,
+      stopcockRotationRad: stopcockDisplayedAngleRef.current,
+      pumpValveRotationRad: pumpValveDisplayedAngleRef.current,
+      pressureZeroRotationRad: pressureZeroDisplayedAngleRef.current,
+      powerSwitchRotationRad: powerSwitchDisplayedRotationRef.current,
+      pumpVisualWeight: pumpVisualWeightRef.current,
+      pumpPulseId: pumpPulseRef.current,
+      pumpPulseRemainingMs: Math.max(0, (pumpPulseVisualUntilRef.current - clock.elapsedTime) * 1000),
+    });
+    if (!props.restorePaused && (
       Math.abs(gaugeDisplayedRotationRef.current - targetRotation) > 0.001 ||
       Math.abs(stopcockDisplayedAngleRef.current - stopcockTargetAngle) > 0.002 ||
       Math.abs(pumpValveDisplayedAngleRef.current - pumpValveTargetAngle) > 0.002 ||
       Math.abs(pressureZeroDisplayedAngleRef.current - pressureZeroTargetAngle) > 0.002 ||
       Math.abs(powerSwitchDisplayedRotationRef.current - powerSwitchTargetRotation) > 0.002 ||
       pumpVisualWeightRef.current > 0
-    ) {
+    )) {
       invalidate();
     }
   });
@@ -3096,6 +3200,8 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
         visualResetKey={props.hardSphereVisualResetKey}
         paused={props.hardSpherePaused}
         sceneTheme={props.sceneTheme}
+        initialVisualCheckpoint={props.initialHardSphereVisualCheckpoint}
+        onCheckpointProviderChange={props.onHardSphereCheckpointProviderChange}
       />
     </group>
   );

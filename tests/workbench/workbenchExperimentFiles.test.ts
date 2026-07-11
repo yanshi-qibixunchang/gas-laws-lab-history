@@ -56,7 +56,11 @@ const fileMenuSource = source.slice(
 assert.ok(fileMenuSource.includes('onContextMenu={(event) =>'), 'file tree rows should open the action menu on right click');
 assert.ok(fileMenuSource.includes('requestCloseWorkbenchFile(file)'), 'file tree menu should include Close Experiment');
 assert.ok(fileMenuSource.includes('requestDeleteWorkbenchFile(file)'), 'file tree menu should keep Delete');
-assert.ok(source.includes('const [selectedFileId, setSelectedFileId] = useState(initialSession.activeFileId);'), 'workbench should track selected experiment separately from the active experiment');
+assert.match(
+  source,
+  /const \[selectedFileId, setSelectedFileId\] = useState\(\(\) => \{[\s\S]*?restoredSelectedFileId[\s\S]*?: initialSession\.activeFileId;/,
+  'workbench should track selected experiment separately from the active experiment and restore that selection on heat-capacity refresh',
+);
 const fileRowSingleClickSource = fileMenuSource.slice(
   indexOfOrFail(fileMenuSource, 'onClick={() => {', 'file row single-click handler should exist'),
   indexOfOrFail(fileMenuSource, 'onDoubleClick={() => {', 'file row double-click handler should exist'),
@@ -118,4 +122,3 @@ assert.match(
 );
 
 console.log('workbenchExperimentFiles tests passed');
-

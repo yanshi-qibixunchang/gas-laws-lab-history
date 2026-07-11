@@ -26,7 +26,9 @@ export default defineConfig({
     chunkSizeWarningLimit: WORKBENCH_MAX_JAVASCRIPT_CHUNK_BYTES / 1000,
     rollupOptions: {
       output: {
+        strictExecutionOrder: true,
         codeSplitting: {
+          includeDependenciesRecursively: false,
           groups: [{ name: getWorkbenchChunkName }],
         },
       }

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
@@ -35,6 +35,37 @@ import {
   type HeatCapacityHardSphereKineticSpeedState,
 } from '../../domain/heatCapacity/heatCapacityHardSphereKineticSpeed.ts';
 
+export type HeatCapacityHardSphereParticleCheckpoint = {
+  id: number;
+  position: { x: number; y: number; z: number };
+  velocity: { x: number; y: number; z: number };
+  state: 'inside' | 'entering' | 'exiting' | 'hidden';
+  outflowProgress: number;
+  exitInertiaSpeed?: number;
+  exitInertiaAgeS?: number;
+  exitDelayS?: number;
+};
+
+export type HeatCapacityHardSphereVisualCheckpoint = {
+  version: 1;
+  containerProfile: 'skeleton-box' | 'ultra-cylinder';
+  particles: HeatCapacityHardSphereParticleCheckpoint[];
+  accumulatorS: number;
+  entryAccumulator: number;
+  exitAccumulator: number;
+  lastSubStepCount: number;
+  seed: number;
+  displayVisualState: HeatCapacityHardSphereVisualState | null;
+  outflowTailRemainingS: number;
+  outflowDriftSpeed: number;
+  activeReleaseScheduleId: string | null;
+  activeReleaseScheduleElapsedS: number;
+  submittedReleaseExitCount: number;
+  kineticSpeedState: HeatCapacityHardSphereKineticSpeedState | null;
+};
+
+export type HeatCapacityHardSphereCheckpointProvider = () => HeatCapacityHardSphereVisualCheckpoint | null;
+
 interface HeatCapacityHardSphereLayerProps {
   enabled: boolean;
   containerProfile?: 'skeleton-box' | 'ultra-cylinder';
@@ -58,6 +89,8 @@ interface HeatCapacityHardSphereLayerProps {
   speedMultiplier?: number;
   visualResetKey?: number;
   paused?: boolean;
+  initialVisualCheckpoint?: HeatCapacityHardSphereVisualCheckpoint | null;
+  onCheckpointProviderChange?: (provider: HeatCapacityHardSphereCheckpointProvider | null) => void;
 }
 
 const BOTTLE_INNER_HALF_SIZE = new THREE.Vector3(0.73, 0.73, 0.73);
@@ -141,6 +174,157 @@ const hardSphereContainerProfiles: Record<NonNullable<HeatCapacityHardSphereLaye
   },
 };
 
+const isHardSphereCheckpointRecord = (value: unknown): value is Record<string, unknown> => (
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+);
+
+const readHardSphereCheckpointNumber = (
+  value: unknown,
+  minimum = -1_000_000,
+  maximum = 1_000_000,
+): number | null => (
+  typeof value === 'number' && Number.isFinite(value)
+    ? clampNumber(value, minimum, maximum)
+    : null
+);
+
+const readHardSphereCheckpointVector = (value: unknown) => {
+  if (!isHardSphereCheckpointRecord(value)) return null;
+  const x = readHardSphereCheckpointNumber(value.x);
+  const y = readHardSphereCheckpointNumber(value.y);
+  const z = readHardSphereCheckpointNumber(value.z);
+  return x === null || y === null || z === null ? null : { x, y, z };
+};
+
+const readHardSphereVisualState = (value: unknown): HeatCapacityHardSphereVisualState | null => {
+  if (!isHardSphereCheckpointRecord(value)) return null;
+  const densityMultiplier = readHardSphereCheckpointNumber(value.densityMultiplier, 0, 100);
+  const thermalSpeedMultiplier = readHardSphereCheckpointNumber(value.thermalSpeedMultiplier, 0, 100);
+  const speedMultiplier = readHardSphereCheckpointNumber(value.speedMultiplier, 0, 100);
+  const temperatureColorFactor = readHardSphereCheckpointNumber(value.temperatureColorFactor, 0, 1);
+  const emissiveIntensity = readHardSphereCheckpointNumber(value.emissiveIntensity, 0, 100);
+  const outflowDriftSpeed = readHardSphereCheckpointNumber(value.outflowDriftSpeed, 0, 100);
+  const stability = readHardSphereCheckpointNumber(value.stability, 0, 1);
+  const targetParticleCount = readHardSphereCheckpointNumber(
+    value.targetParticleCount,
+    0,
+    HEAT_CAPACITY_HARD_SPHERE_MAX_PARTICLES,
+  );
+  if (
+    densityMultiplier === null || thermalSpeedMultiplier === null || speedMultiplier === null ||
+    temperatureColorFactor === null || emissiveIntensity === null || outflowDriftSpeed === null ||
+    stability === null || targetParticleCount === null
+  ) return null;
+  return {
+    densityMultiplier,
+    thermalSpeedMultiplier,
+    speedMultiplier,
+    temperatureColorFactor,
+    emissiveIntensity,
+    outflowActive: value.outflowActive === true,
+    outflowDriftSpeed,
+    stability,
+    targetParticleCount: Math.round(targetParticleCount),
+  };
+};
+
+const readHardSphereParticleCheckpoint = (value: unknown): HeatCapacityHardSphereParticleCheckpoint | null => {
+  if (!isHardSphereCheckpointRecord(value)) return null;
+  const id = readHardSphereCheckpointNumber(value.id, 0, HEAT_CAPACITY_HARD_SPHERE_MAX_PARTICLES - 1);
+  const position = readHardSphereCheckpointVector(value.position);
+  const velocity = readHardSphereCheckpointVector(value.velocity);
+  const outflowProgress = readHardSphereCheckpointNumber(value.outflowProgress, 0, 100);
+  if (
+    id === null || position === null || velocity === null || outflowProgress === null ||
+    (value.state !== 'inside' && value.state !== 'entering' && value.state !== 'exiting' && value.state !== 'hidden')
+  ) return null;
+  const readOptional = (candidate: unknown) => (
+    candidate === undefined ? undefined : readHardSphereCheckpointNumber(candidate, 0, 100)
+  );
+  const exitInertiaSpeed = readOptional(value.exitInertiaSpeed);
+  const exitInertiaAgeS = readOptional(value.exitInertiaAgeS);
+  const exitDelayS = readOptional(value.exitDelayS);
+  if (exitInertiaSpeed === null || exitInertiaAgeS === null || exitDelayS === null) return null;
+  return {
+    id: Math.round(id),
+    position,
+    velocity,
+    state: value.state,
+    outflowProgress,
+    ...(exitInertiaSpeed === undefined ? {} : { exitInertiaSpeed }),
+    ...(exitInertiaAgeS === undefined ? {} : { exitInertiaAgeS }),
+    ...(exitDelayS === undefined ? {} : { exitDelayS }),
+  };
+};
+
+export const normalizeHeatCapacityHardSphereVisualCheckpoint = (
+  value: unknown,
+  expectedContainerProfile?: HeatCapacityHardSphereVisualCheckpoint['containerProfile'],
+): HeatCapacityHardSphereVisualCheckpoint | null => {
+  if (!isHardSphereCheckpointRecord(value) || value.version !== 1) return null;
+  const containerProfile = value.containerProfile === 'ultra-cylinder' ? 'ultra-cylinder'
+    : value.containerProfile === 'skeleton-box' ? 'skeleton-box'
+      : null;
+  if (!containerProfile || (expectedContainerProfile && containerProfile !== expectedContainerProfile)) return null;
+  if (!Array.isArray(value.particles) || value.particles.length !== HEAT_CAPACITY_HARD_SPHERE_MAX_PARTICLES) return null;
+  const particles = value.particles.map(readHardSphereParticleCheckpoint);
+  if (particles.some((particle) => particle === null)) return null;
+  const normalizedParticles = particles as HeatCapacityHardSphereParticleCheckpoint[];
+  const particleIds = new Set(normalizedParticles.map((particle) => particle.id));
+  if (particleIds.size !== HEAT_CAPACITY_HARD_SPHERE_MAX_PARTICLES) return null;
+  const accumulatorS = readHardSphereCheckpointNumber(value.accumulatorS, 0, 1);
+  const entryAccumulator = readHardSphereCheckpointNumber(value.entryAccumulator, 0, 1);
+  const exitAccumulator = readHardSphereCheckpointNumber(value.exitAccumulator, 0, 1);
+  const lastSubStepCount = readHardSphereCheckpointNumber(value.lastSubStepCount, 0, 10_000);
+  const seed = readHardSphereCheckpointNumber(value.seed, 0, Number.MAX_SAFE_INTEGER);
+  const outflowTailRemainingS = readHardSphereCheckpointNumber(value.outflowTailRemainingS, 0, 10);
+  const outflowDriftSpeed = readHardSphereCheckpointNumber(value.outflowDriftSpeed, 0, 100);
+  const activeReleaseScheduleElapsedS = readHardSphereCheckpointNumber(value.activeReleaseScheduleElapsedS, 0, 10_000);
+  const submittedReleaseExitCount = readHardSphereCheckpointNumber(
+    value.submittedReleaseExitCount,
+    0,
+    HEAT_CAPACITY_HARD_SPHERE_MAX_PARTICLES,
+  );
+  if (
+    accumulatorS === null || entryAccumulator === null || exitAccumulator === null || lastSubStepCount === null ||
+    seed === null || outflowTailRemainingS === null || outflowDriftSpeed === null ||
+    activeReleaseScheduleElapsedS === null || submittedReleaseExitCount === null
+  ) return null;
+  const displayVisualState = value.displayVisualState === null ? null : readHardSphereVisualState(value.displayVisualState);
+  if (value.displayVisualState !== null && displayVisualState === null) return null;
+  let kineticSpeedState: HeatCapacityHardSphereKineticSpeedState | null = null;
+  if (value.kineticSpeedState !== null) {
+    if (!isHardSphereCheckpointRecord(value.kineticSpeedState)) return null;
+    const speed = readHardSphereCheckpointNumber(value.kineticSpeedState.speed, 0, 100);
+    const releaseMemoryRemainingS = readHardSphereCheckpointNumber(
+      value.kineticSpeedState.releaseMemoryRemainingS,
+      0,
+      10,
+    );
+    if (speed === null || releaseMemoryRemainingS === null) return null;
+    kineticSpeedState = { speed, releaseMemoryRemainingS };
+  }
+  return {
+    version: 1,
+    containerProfile,
+    particles: normalizedParticles.sort((left, right) => left.id - right.id),
+    accumulatorS,
+    entryAccumulator,
+    exitAccumulator,
+    lastSubStepCount: Math.round(lastSubStepCount),
+    seed: Math.round(seed),
+    displayVisualState,
+    outflowTailRemainingS,
+    outflowDriftSpeed,
+    activeReleaseScheduleId: typeof value.activeReleaseScheduleId === 'string'
+      ? value.activeReleaseScheduleId.slice(0, 1_024)
+      : null,
+    activeReleaseScheduleElapsedS,
+    submittedReleaseExitCount: Math.round(submittedReleaseExitCount),
+    kineticSpeedState,
+  };
+};
+
 const createSimulation = (
   container: HeatCapacityHardSphereContainer,
   particleRadius: number,
@@ -152,6 +336,60 @@ const createSimulation = (
     seed: HARD_SPHERE_SIMULATION_SEED,
   })
 );
+
+const createSimulationFromCheckpoint = (
+  container: HeatCapacityHardSphereContainer,
+  particleRadius: number,
+  checkpoint: HeatCapacityHardSphereVisualCheckpoint | null,
+): HeatCapacityHardSphereSimulation => {
+  const simulation = createSimulation(container, particleRadius);
+  if (!checkpoint) return simulation;
+  return {
+    ...simulation,
+    particles: checkpoint.particles.map((particle) => ({
+      ...particle,
+      position: { ...particle.position },
+      velocity: { ...particle.velocity },
+    })),
+    accumulatorS: checkpoint.accumulatorS,
+    entryAccumulator: checkpoint.entryAccumulator,
+    exitAccumulator: checkpoint.exitAccumulator,
+    lastSubStepCount: checkpoint.lastSubStepCount,
+    seed: checkpoint.seed,
+  };
+};
+
+const createHardSphereVisualCheckpoint = (
+  containerProfile: HeatCapacityHardSphereVisualCheckpoint['containerProfile'],
+  simulation: HeatCapacityHardSphereSimulation,
+  displayVisualState: HeatCapacityHardSphereVisualState | null,
+  outflowTailRemainingS: number,
+  outflowDriftSpeed: number,
+  activeReleaseScheduleId: string | null,
+  activeReleaseScheduleElapsedS: number,
+  submittedReleaseExitCount: number,
+  kineticSpeedState: HeatCapacityHardSphereKineticSpeedState | null,
+): HeatCapacityHardSphereVisualCheckpoint => ({
+  version: 1,
+  containerProfile,
+  particles: simulation.particles.map((particle) => ({
+    ...particle,
+    position: { ...particle.position },
+    velocity: { ...particle.velocity },
+  })),
+  accumulatorS: simulation.accumulatorS,
+  entryAccumulator: simulation.entryAccumulator,
+  exitAccumulator: simulation.exitAccumulator,
+  lastSubStepCount: simulation.lastSubStepCount,
+  seed: simulation.seed,
+  displayVisualState: displayVisualState ? cloneHeatCapacityHardSphereVisualState(displayVisualState) : null,
+  outflowTailRemainingS,
+  outflowDriftSpeed,
+  activeReleaseScheduleId,
+  activeReleaseScheduleElapsedS,
+  submittedReleaseExitCount,
+  kineticSpeedState: kineticSpeedState ? { ...kineticSpeedState } : null,
+});
 
 const resolveProfileParticleCount = (
   targetParticleCount: number,
@@ -321,6 +559,25 @@ const hideParticlePool = (
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 };
 
+const renderParticlePool = (
+  mesh: THREE.InstancedMesh,
+  simulation: HeatCapacityHardSphereSimulation,
+  particleRadius: number,
+  visualState: HeatCapacityHardSphereVisualState,
+  sceneTheme: HeatCapacityHardSphereSceneTheme,
+) => {
+  for (const particle of simulation.particles) {
+    const visible = particle.state !== 'hidden';
+    dummyObject.position.set(particle.position.x, particle.position.y, particle.position.z);
+    dummyObject.scale.setScalar(visible ? particleRadius : 0);
+    dummyObject.updateMatrix();
+    mesh.setMatrixAt(particle.id, dummyObject.matrix);
+    mesh.setColorAt(particle.id, visible ? getParticleColor(visualState, sceneTheme) : hiddenParticleColor);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+};
+
 const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = ({
   enabled,
   containerProfile = 'skeleton-box',
@@ -344,20 +601,38 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
   speedMultiplier = 1,
   visualResetKey = 0,
   paused = false,
+  initialVisualCheckpoint = null,
+  onCheckpointProviderChange,
 }) => {
   const hardSphereProfile = hardSphereContainerProfiles[containerProfile];
+  const restoredInitialCheckpoint = normalizeHeatCapacityHardSphereVisualCheckpoint(
+    initialVisualCheckpoint,
+    containerProfile,
+  );
+  const resetSignature = `${enabled}:${containerProfile}:${particleMultiplier}:${visualResetKey}`;
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const visualStateRef = useRef<HeatCapacityHardSphereVisualState | null>(null);
-  const displayVisualStateRef = useRef<HeatCapacityHardSphereVisualState | null>(null);
-  const outflowTailRemainingRef = useRef(0);
-  const outflowDriftSpeedRef = useRef(0);
-  const activeReleaseScheduleIdRef = useRef<string | null>(null);
-  const activeReleaseScheduleElapsedRef = useRef(0);
-  const submittedReleaseExitCountRef = useRef(0);
-  const kineticSpeedStateRef = useRef<HeatCapacityHardSphereKineticSpeedState | null>(null);
-  const simulationRef = useRef<HeatCapacityHardSphereSimulation>(
-    createSimulation(hardSphereProfile.container, hardSphereProfile.particleRadius),
+  const displayVisualStateRef = useRef<HeatCapacityHardSphereVisualState | null>(
+    restoredInitialCheckpoint?.displayVisualState
+      ? cloneHeatCapacityHardSphereVisualState(restoredInitialCheckpoint.displayVisualState)
+      : null,
   );
+  const outflowTailRemainingRef = useRef(restoredInitialCheckpoint?.outflowTailRemainingS ?? 0);
+  const outflowDriftSpeedRef = useRef(restoredInitialCheckpoint?.outflowDriftSpeed ?? 0);
+  const activeReleaseScheduleIdRef = useRef<string | null>(restoredInitialCheckpoint?.activeReleaseScheduleId ?? null);
+  const activeReleaseScheduleElapsedRef = useRef(restoredInitialCheckpoint?.activeReleaseScheduleElapsedS ?? 0);
+  const submittedReleaseExitCountRef = useRef(restoredInitialCheckpoint?.submittedReleaseExitCount ?? 0);
+  const kineticSpeedStateRef = useRef<HeatCapacityHardSphereKineticSpeedState | null>(
+    restoredInitialCheckpoint?.kineticSpeedState ? { ...restoredInitialCheckpoint.kineticSpeedState } : null,
+  );
+  const simulationRef = useRef<HeatCapacityHardSphereSimulation>(
+    createSimulationFromCheckpoint(
+      hardSphereProfile.container,
+      hardSphereProfile.particleRadius,
+      restoredInitialCheckpoint,
+    ),
+  );
+  const lastResetSignatureRef = useRef<string | null>(restoredInitialCheckpoint ? resetSignature : null);
   const particleGeometry = useMemo(() => new THREE.SphereGeometry(1, 16, 16), []);
   const particleColors = useMemo(() => createParticleColors(sceneTheme), [sceneTheme]);
   const particleMaterial = useMemo(() => new THREE.MeshStandardMaterial({
@@ -409,6 +684,25 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     temperatureMv,
   ]);
 
+  const getVisualCheckpoint = useCallback<HeatCapacityHardSphereCheckpointProvider>(() => (
+    createHardSphereVisualCheckpoint(
+      containerProfile,
+      simulationRef.current,
+      displayVisualStateRef.current,
+      outflowTailRemainingRef.current,
+      outflowDriftSpeedRef.current,
+      activeReleaseScheduleIdRef.current,
+      activeReleaseScheduleElapsedRef.current,
+      submittedReleaseExitCountRef.current,
+      kineticSpeedStateRef.current,
+    )
+  ), [containerProfile]);
+
+  useEffect(() => {
+    onCheckpointProviderChange?.(getVisualCheckpoint);
+    return () => onCheckpointProviderChange?.(null);
+  }, [getVisualCheckpoint, onCheckpointProviderChange]);
+
   useEffect(() => {
     visualStateRef.current = visualState;
     if (displayVisualStateRef.current === null) {
@@ -423,14 +717,30 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     particleMaterial.dispose();
   }, [particleGeometry, particleMaterial]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (lastResetSignatureRef.current === resetSignature) {
+      const mesh = meshRef.current;
+      const restoredDisplayVisualState = displayVisualStateRef.current ?? visualState;
+      if (mesh) {
+        applyVisualMaterial(particleMaterial, restoredDisplayVisualState, particleColors, sceneTheme);
+        renderParticlePool(
+          mesh,
+          simulationRef.current,
+          hardSphereProfile.particleRadius,
+          restoredDisplayVisualState,
+          sceneTheme,
+        );
+      }
+      return;
+    }
+    lastResetSignatureRef.current = resetSignature;
     simulationRef.current = createSimulation(hardSphereProfile.container, hardSphereProfile.particleRadius);
     hideParticlePool(meshRef.current, simulationRef.current);
     activeReleaseScheduleIdRef.current = null;
     activeReleaseScheduleElapsedRef.current = 0;
     submittedReleaseExitCountRef.current = 0;
     kineticSpeedStateRef.current = null;
-  }, [enabled, hardSphereProfile, particleMultiplier, visualResetKey]);
+  }, [hardSphereProfile, particleColors, particleMaterial, resetSignature, sceneTheme, visualState]);
 
   useFrame((_, delta) => {
     if (!enabled) return;
@@ -519,17 +829,13 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
       releaseMinimumParticleCount: currentScheduleFrame.releaseMinimumParticleCount,
     });
 
-    for (const particle of simulationRef.current.particles) {
-      const visible = particle.state !== 'hidden';
-      dummyObject.position.set(particle.position.x, particle.position.y, particle.position.z);
-      dummyObject.scale.setScalar(visible ? hardSphereProfile.particleRadius : 0);
-      dummyObject.updateMatrix();
-      mesh.setMatrixAt(particle.id, dummyObject.matrix);
-      mesh.setColorAt(particle.id, visible ? getParticleColor(displayVisualState, sceneTheme) : hiddenParticleColor);
-    }
-
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    renderParticlePool(
+      mesh,
+      simulationRef.current,
+      hardSphereProfile.particleRadius,
+      displayVisualState,
+      sceneTheme,
+    );
   });
 
   if (!enabled) return null;
