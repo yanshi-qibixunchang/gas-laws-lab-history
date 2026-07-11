@@ -2,8 +2,6 @@ const packageJson = require('../package.json');
 const releaseNotesCatalog = require('../docs/releases/release-notes.json');
 
 const MAX_DOWNLOAD_ATTEMPTS = 3;
-const DEFAULT_LOCALE = 'zh-CN';
-const FALLBACK_LOCALE = 'en';
 const LEGACY_RELEASE_TARGETS = [
   { owner: 'yanshi-qibixunchang', repo: 'hard-sphere-lab-1' },
 ];
@@ -60,12 +58,6 @@ const findReleaseEntry = (version) => {
   const normalizedVersion = normalizeVersion(version);
   const releases = Array.isArray(releaseNotesCatalog.releases) ? releaseNotesCatalog.releases : [];
   return releases.find((release) => normalizeVersion(release?.version) === normalizedVersion) || null;
-};
-
-const getLocalizedReleaseText = (value, language) => {
-  if (!value || typeof value !== 'object') return null;
-  const normalizedLanguage = language === 'zh-TW' || language === 'en' ? language : DEFAULT_LOCALE;
-  return value[normalizedLanguage] || value[DEFAULT_LOCALE] || value[FALLBACK_LOCALE] || null;
 };
 
 const isLocalizedTextMap = (value) => (
@@ -187,11 +179,8 @@ const isTransientUpdateError = (error) => {
 
 module.exports = {
   MAX_DOWNLOAD_ATTEMPTS,
-  getGeneratedReleaseTargets,
-  getLocalizedReleaseText,
   getReleaseMetadataForUpdateInfo,
   getReleaseMetadataForVersion,
   isAllowedManualDownloadUrl,
   isTransientUpdateError,
-  normalizeReleaseNotesText,
 };

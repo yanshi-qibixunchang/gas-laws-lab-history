@@ -32,19 +32,12 @@ const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import
 const releaseMetadataScript = readFileSync(new URL('../../scripts/writeReleaseMetadata.cjs', import.meta.url), 'utf8');
 
 const {
-  getGeneratedReleaseTargets,
   getReleaseMetadataForVersion,
   getReleaseMetadataForUpdateInfo,
-  getLocalizedReleaseText,
-  normalizeReleaseNotesText,
   isAllowedManualDownloadUrl,
   isTransientUpdateError,
   MAX_DOWNLOAD_ATTEMPTS,
 } = require('../../electron/updaterMetadata.cjs') as {
-  getGeneratedReleaseTargets: (version: string) => {
-    manualDownloadUrl: string | null;
-    releasePageUrl: string | null;
-  };
   getReleaseMetadataForVersion: (version: string) => {
     manualDownloadUrl: string | null;
     releasePageUrl: string | null;
@@ -65,8 +58,6 @@ const {
     releaseSections: Array<{ type: string; title: Record<string, string>; items: unknown[] }> | null;
     releaseNotes: string | null;
   };
-  getLocalizedReleaseText: (value: Record<string, string> | null | undefined, language: string) => string | null;
-  normalizeReleaseNotesText: (value: unknown) => string | null;
   isAllowedManualDownloadUrl: (url: string | null | undefined) => boolean;
   isTransientUpdateError: (error: unknown) => boolean;
   MAX_DOWNLOAD_ATTEMPTS: number;
@@ -179,7 +170,7 @@ for (const locale of locales) {
   assert.ok(helpItem?.body?.[locale]?.trim(), `4.1.7 Help item body should include ${locale}`);
 }
 
-const futureTargets = getGeneratedReleaseTargets('4.1.8');
+const futureTargets = getReleaseMetadataForVersion('4.1.8');
 assert.equal(
   futureTargets.releasePageUrl,
   'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.8',
@@ -272,12 +263,12 @@ const remoteStructuredMetadata = getReleaseMetadataForUpdateInfo({
 });
 const firstRemoteItem = remoteStructuredMetadata.releaseSections?.[0]?.items?.[0] as { title?: Record<string, string> };
 assert.equal(
-  getLocalizedReleaseText(remoteStructuredMetadata.releaseSummary, 'zh-CN'),
+  remoteStructuredMetadata.releaseSummary?.['zh-CN'],
   '远端简体摘要',
   'remote structured summary should take priority over packaged release notes',
 );
 assert.equal(
-  getLocalizedReleaseText(firstRemoteItem.title, 'en'),
+  firstRemoteItem.title?.en,
   'Remote structured notes',
   'renderer localization helpers should select the requested language from remote sections',
 );
@@ -285,15 +276,16 @@ assert.equal(remoteStructuredMetadata.releaseSections?.[0]?.type, 'fixed', 'remo
 assert.equal(remoteStructuredMetadata.releaseNotes?.includes('<h1>'), false, 'HTML fallback release notes should be sanitized');
 assert.match(remoteStructuredMetadata.releaseNotes ?? '', /HTML fallback/, 'sanitized fallback should keep readable text');
 
-const htmlNotes = normalizeReleaseNotesText([
-  { version: '4.1.5', note: '<h2>修复</h2><ul><li>测试修复后续版本更新说明的远端结构化读取与语言匹配。</li></ul>' },
-]);
+const htmlNotes = getReleaseMetadataForUpdateInfo({
+  version: '4.1.5',
+  releaseNotes: [
+    { version: '4.1.5', note: '<h2>修复</h2><ul><li>测试修复后续版本更新说明的远端结构化读取与语言匹配。</li></ul>' },
+  ],
+}).releaseNotes;
 assert.equal(htmlNotes?.includes('<li>'), false, 'array release notes should also strip HTML tags');
 assert.match(htmlNotes ?? '', /4\.1\.5/, 'array release notes should keep the source version');
 assert.match(htmlNotes ?? '', /测试修复后续版本更新说明/, 'array release notes should keep the readable note body');
 
-assert.equal(getLocalizedReleaseText({ en: 'English fallback' }, 'zh-CN'), 'English fallback', 'localized text should fall back to English');
-assert.equal(getLocalizedReleaseText({ 'zh-CN': '简体回退' }, 'zh-TW'), '简体回退', 'localized text should fall back to Simplified Chinese');
 
 assert.equal(isAllowedManualDownloadUrl(firstRelease.download?.windowsInstaller), true, 'direct installer URL should be allowed');
 assert.equal(isAllowedManualDownloadUrl(firstRelease.download?.releasePage), true, 'release page URL should be allowed');

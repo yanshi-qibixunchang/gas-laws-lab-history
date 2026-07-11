@@ -91,11 +91,7 @@ const assertBundledExporterCurrent = (rootDir) => {
 };
 
 module.exports = {
-  EXPORTER_BUNDLE_MANIFEST_SCHEMA_VERSION,
-  EXPORTER_SOURCE_FILES,
   assertBundledExporterCurrent,
   createExporterBundleManifest,
   getExporterBundlePaths,
-  getExporterSourceFingerprint,
-  getExporterSourceVersion,
 };
