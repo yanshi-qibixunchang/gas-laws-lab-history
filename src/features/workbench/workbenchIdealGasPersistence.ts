@@ -21,22 +21,25 @@ import {
   isPersistenceFiniteNumber as isFiniteNumber,
   isPersistenceRecord as isRecord,
 } from './workbenchPersistenceValue.ts';
-import { normalizeWorkbenchPanelKeys } from './workbenchPanelRegistry.ts';
 import {
   WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
   clampWorkbenchLiveSplitRatio,
   createDefaultIdealFile,
-  createEmptyChartData,
-  createIdleStats,
   type WorkbenchIdealState,
   type WorkbenchIdealWindowLayout,
-  type WorkbenchPanelKey,
   type WorkbenchRunState,
 } from './workbenchState.ts';
 import { normalizeIdealWindowLayoutState } from './workbenchLayoutCompatibility.ts';
 import type {
   WorkbenchExperimentFileEnvelopeV1,
 } from './workbenchPersistenceSchema.ts';
+import {
+  isPersistedWorkbenchRunState,
+  normalizePersistedChartData,
+  normalizePersistedParticles,
+  normalizePersistedSimulationStats,
+  normalizePersistedVisiblePanels,
+} from './workbenchRuntimePersistence.ts';
 
 export const IDEAL_GAS_SCHEMA_VERSION = 1 as const;
 
@@ -72,30 +75,8 @@ export interface IdealGasPayloadValidationResult {
   errors: string[];
 }
 
-const runStates = ['idle', 'running', 'paused', 'finished', 'needs-reset'] as const satisfies readonly WorkbenchRunState[];
 const idealRelations = ['pt', 'pv', 'pn'] as const satisfies readonly ExperimentRelation[];
 const verificationStates = ['not-started', 'collecting', 'verified', 'failed'] as const satisfies readonly WorkbenchIdealState['verificationState'][];
-
-const isWorkbenchRunState = (value: unknown): value is WorkbenchRunState => (
-  runStates.includes(value as WorkbenchRunState)
-);
-
-const normalizeVisiblePanels = (
-  value: unknown,
-  fallback: WorkbenchPanelKey[],
-): WorkbenchPanelKey[] => normalizeWorkbenchPanelKeys(value, fallback);
-
-const normalizeStats = (value: unknown): SimulationStats => (
-  isRecord(value) ? { ...createIdleStats(), ...value } as SimulationStats : createIdleStats()
-);
-
-const normalizeChartData = (value: unknown): ChartData => (
-  isRecord(value) ? clonePersistenceValue(value) as unknown as ChartData : createEmptyChartData()
-);
-
-const normalizeParticles = (value: unknown): Particle[] => (
-  Array.isArray(value) ? clonePersistenceValue(value) as Particle[] : []
-);
 
 const normalizeRelation = (value: unknown, fallback: ExperimentRelation): ExperimentRelation => (
   idealRelations.includes(value as ExperimentRelation) ? value as ExperimentRelation : fallback
@@ -170,7 +151,7 @@ export const validateIdealGasPersistencePayload = (
   if (!runtime) {
     errors.push('runtime is required');
   } else {
-    if (!isWorkbenchRunState(runtime.runState)) errors.push('runtime.runState is invalid');
+    if (!isPersistedWorkbenchRunState(runtime.runState)) errors.push('runtime.runState is invalid');
     if (runtime.engineSnapshot !== null && normalizeHardSphereEngineSnapshot(runtime.engineSnapshot) === null) {
       errors.push('runtime.engineSnapshot is invalid');
     }
@@ -197,7 +178,7 @@ export const restoreIdealGasFileFromPersistencePayload = (
       ? layout.liveWorkspaceSplitRatio
       : WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
   });
-  const runState = isWorkbenchRunState(runtime.runState)
+  const runState = isPersistedWorkbenchRunState(runtime.runState)
     ? runtime.runState === 'running' ? 'paused' : runtime.runState
     : fallback.runState;
   return {
@@ -207,7 +188,7 @@ export const restoreIdealGasFileFromPersistencePayload = (
     createdAt: fileEnvelope.createdAt,
     updatedAt: fileEnvelope.updatedAt,
     lastOpenedAt: fileEnvelope.lastOpenedAt ?? fileEnvelope.updatedAt,
-    visiblePanels: normalizeVisiblePanels(layout.visiblePanels, fallback.visiblePanels),
+    visiblePanels: normalizePersistedVisiblePanels(layout.visiblePanels, fallback.visiblePanels),
     liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(layout.liveWorkspaceSplitRatio),
     relation: normalizeRelation(idealPayload.relation, fallback.relation),
     params: isRecord(idealPayload.params) ? clonePersistenceValue(idealPayload.params) as WorkbenchIdealState['params'] : fallback.params,
@@ -218,12 +199,12 @@ export const restoreIdealGasFileFromPersistencePayload = (
       ? clonePersistenceValue(idealPayload.activeParams) as WorkbenchIdealState['activeParams']
       : fallback.activeParams,
     runState,
-    stats: normalizeStats(runtime.stats),
-    chartData: normalizeChartData(runtime.chartData),
-    finalChartData: runtime.finalChartData === null ? null : normalizeChartData(runtime.finalChartData),
+    stats: normalizePersistedSimulationStats(runtime.stats),
+    chartData: normalizePersistedChartData(runtime.chartData),
+    finalChartData: runtime.finalChartData === null ? null : normalizePersistedChartData(runtime.finalChartData),
     latestPressureSummary: normalizePressureSummary(runtime.latestPressureSummary),
     needsReset: experiment.needsReset === true,
-    particles: normalizeParticles(runtime.particles),
+    particles: normalizePersistedParticles(runtime.particles),
     hardSphereEngineSnapshot: normalizeHardSphereEngineSnapshot(runtime.engineSnapshot),
     pointsByRelation: normalizePointsByRelation(experiment.pointsByRelation),
     verificationState: verificationStates.includes(experiment.verificationState as WorkbenchIdealState['verificationState'])

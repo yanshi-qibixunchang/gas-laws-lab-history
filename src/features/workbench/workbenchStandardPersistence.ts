@@ -15,14 +15,10 @@ import {
   isPersistenceFiniteNumber as isFiniteNumber,
   isPersistenceRecord as isRecord,
 } from './workbenchPersistenceValue.ts';
-import { normalizeWorkbenchPanelKeys } from './workbenchPanelRegistry.ts';
 import {
   WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
   clampWorkbenchLiveSplitRatio,
   createDefaultStandardFile,
-  createEmptyChartData,
-  createIdleStats,
-  type WorkbenchPanelKey,
   type WorkbenchRunState,
   type WorkbenchStandardResultsLayout,
   type WorkbenchStandardState,
@@ -33,6 +29,13 @@ import {
 import type {
   WorkbenchExperimentFileEnvelopeV1,
 } from './workbenchPersistenceSchema.ts';
+import {
+  isPersistedWorkbenchRunState,
+  normalizePersistedChartData,
+  normalizePersistedParticles,
+  normalizePersistedSimulationStats,
+  normalizePersistedVisiblePanels,
+} from './workbenchRuntimePersistence.ts';
 
 export const STANDARD_SIMULATION_SCHEMA_VERSION = 1 as const;
 
@@ -58,29 +61,6 @@ export interface StandardPayloadValidationResult {
   valid: boolean;
   errors: string[];
 }
-
-const runStates = ['idle', 'running', 'paused', 'finished', 'needs-reset'] as const satisfies readonly WorkbenchRunState[];
-
-const isWorkbenchRunState = (value: unknown): value is WorkbenchRunState => (
-  runStates.includes(value as WorkbenchRunState)
-);
-
-const normalizeVisiblePanels = (
-  value: unknown,
-  fallback: WorkbenchPanelKey[],
-): WorkbenchPanelKey[] => normalizeWorkbenchPanelKeys(value, fallback);
-
-const normalizeStats = (value: unknown): SimulationStats => (
-  isRecord(value) ? { ...createIdleStats(), ...value } as SimulationStats : createIdleStats()
-);
-
-const normalizeChartData = (value: unknown): ChartData => (
-  isRecord(value) ? clonePersistenceValue(value) as unknown as ChartData : createEmptyChartData()
-);
-
-const normalizeParticles = (value: unknown): Particle[] => (
-  Array.isArray(value) ? clonePersistenceValue(value) as Particle[] : []
-);
 
 export const createStandardPersistencePayload = (
   file: WorkbenchStandardState,
@@ -123,7 +103,7 @@ export const validateStandardPersistencePayload = (
   if (!runtime) {
     errors.push('runtime is required');
   } else {
-    if (!isWorkbenchRunState(runtime.runState)) errors.push('runtime.runState is invalid');
+    if (!isPersistedWorkbenchRunState(runtime.runState)) errors.push('runtime.runState is invalid');
     if (runtime.engineSnapshot !== null && normalizeHardSphereEngineSnapshot(runtime.engineSnapshot) === null) {
       errors.push('runtime.engineSnapshot is invalid');
     }
@@ -148,7 +128,7 @@ export const restoreStandardFileFromPersistencePayload = (
       ? layout.liveWorkspaceSplitRatio
       : WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
   });
-  const runState = isWorkbenchRunState(runtime.runState)
+  const runState = isPersistedWorkbenchRunState(runtime.runState)
     ? runtime.runState === 'running' ? 'paused' : runtime.runState
     : fallback.runState;
   return {
@@ -158,17 +138,17 @@ export const restoreStandardFileFromPersistencePayload = (
     createdAt: fileEnvelope.createdAt,
     updatedAt: fileEnvelope.updatedAt,
     lastOpenedAt: fileEnvelope.lastOpenedAt ?? fileEnvelope.updatedAt,
-    visiblePanels: normalizeVisiblePanels(layout.visiblePanels, fallback.visiblePanels),
+    visiblePanels: normalizePersistedVisiblePanels(layout.visiblePanels, fallback.visiblePanels),
     liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(layout.liveWorkspaceSplitRatio),
     params: isRecord(standardPayload.params) ? clonePersistenceValue(standardPayload.params) as WorkbenchStandardState['params'] : fallback.params,
     appliedParams: isRecord(standardPayload.appliedParams)
       ? clonePersistenceValue(standardPayload.appliedParams) as WorkbenchStandardState['appliedParams']
       : fallback.appliedParams,
     runState,
-    stats: normalizeStats(runtime.stats),
-    chartData: normalizeChartData(runtime.chartData),
-    finalChartData: runtime.finalChartData === null ? null : normalizeChartData(runtime.finalChartData),
-    particles: normalizeParticles(runtime.particles),
+    stats: normalizePersistedSimulationStats(runtime.stats),
+    chartData: normalizePersistedChartData(runtime.chartData),
+    finalChartData: runtime.finalChartData === null ? null : normalizePersistedChartData(runtime.finalChartData),
+    particles: normalizePersistedParticles(runtime.particles),
     hardSphereEngineSnapshot: normalizeHardSphereEngineSnapshot(runtime.engineSnapshot),
     standardResultsLayout: normalizeStandardResultsLayout(
       results.standardResultsLayout ?? layout.standardResultsLayout,
