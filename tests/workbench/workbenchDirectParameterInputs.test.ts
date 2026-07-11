@@ -37,8 +37,13 @@ assert.match(
 
 assert.match(
   source,
-  /const WORKBENCH_PARAMETER_DETAILS: Record<ExperimentParamKey, \{[\s\S]*?symbol: WorkbenchParameterSymbolPart\[\];[\s\S]*?help: Record<WorkbenchLanguagePreference, string>[\s\S]*?N:[\s\S]*?r:[\s\S]*?L:[\s\S]*?dt:[\s\S]*?nu:[\s\S]*?equilibriumTime:[\s\S]*?statsDuration:[\s\S]*?targetTemperature:/,
-  'standard and ideal direct parameter rows should have symbols and short model-effect help for every editable row',
+  /const WORKBENCH_PARAMETER_DETAILS: Record<WorkbenchAdvancedParameterKey, \{[\s\S]*?symbol: WorkbenchParameterSymbolPart\[\];[\s\S]*?help: Record<WorkbenchLanguagePreference, string>[\s\S]*?N:[\s\S]*?r:[\s\S]*?L:[\s\S]*?dt:[\s\S]*?nu:[\s\S]*?equilibriumTime:[\s\S]*?statsDuration:/,
+  'standard and ideal advanced parameter rows should have symbols and model-effect help for every visible field',
+);
+assert.doesNotMatch(
+  source.match(/const WORKBENCH_PARAMETER_DETAILS:[\s\S]*?\n\};/)?.[0] ?? '',
+  /\n\s+(?:m|k|targetTemperature):\s*\{/,
+  'internal and dedicated fields should not retain unreachable advanced-row help entries',
 );
 
 assert.match(

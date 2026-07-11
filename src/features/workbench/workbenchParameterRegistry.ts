@@ -16,7 +16,7 @@ export interface WorkbenchParameterDefinition {
 
 const preserveInput = (value: number) => value;
 
-const parameterDefinitions: readonly WorkbenchParameterDefinition[] = [
+const parameterDefinitions = [
   {
     key: 'N',
     label: 'N',
@@ -101,7 +101,18 @@ const parameterDefinitions: readonly WorkbenchParameterDefinition[] = [
     surfaceByKind: { standard: 'advanced', ideal: 'advanced' },
     normalizeInput: preserveInput,
   },
-];
+] as const satisfies readonly WorkbenchParameterDefinition[];
+
+type WorkbenchParameterRegistryEntry = (typeof parameterDefinitions)[number];
+type WorkbenchAdvancedParameterRegistryEntry = Extract<
+  WorkbenchParameterRegistryEntry,
+  { readonly surfaceByKind: { readonly standard: 'advanced'; readonly ideal: 'advanced' } }
+>;
+export type WorkbenchAdvancedParameterKey = WorkbenchAdvancedParameterRegistryEntry['key'];
+export type WorkbenchAdvancedParameterDefinition = WorkbenchParameterDefinition & {
+  key: WorkbenchAdvancedParameterKey;
+  surfaceByKind: Record<WorkbenchParameterFileKind, 'advanced'>;
+};
 
 export const WORKBENCH_TRACKED_PARAMETER_KEYS = parameterDefinitions.map(({ key }) => key);
 
@@ -115,7 +126,7 @@ export const getWorkbenchAdvancedParameterDefinitions = (kind: WorkbenchParamete
   parameterDefinitions
     .filter((definition) => definition.surfaceByKind[kind] === 'advanced')
     .sort((left, right) => left.displayOrder - right.displayOrder)
-);
+) as WorkbenchAdvancedParameterDefinition[];
 
 export const assignWorkbenchParameterValue = (
   params: SimulationParams,

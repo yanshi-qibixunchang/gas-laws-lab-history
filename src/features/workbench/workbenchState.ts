@@ -11,11 +11,11 @@ import type {
 } from '../../domain/hardSphere/PhysicsEngine.ts';
 import {
   createEmptyPointsByRelation,
-  type ExperimentParamKey,
   type PointsByRelation,
 } from '../../domain/idealGas/idealGasExperiment.ts';
 import {
   getWorkbenchAdvancedParameterDefinitions,
+  type WorkbenchAdvancedParameterKey,
 } from './workbenchParameterRegistry.ts';
 import {
   applyHeatCapacityPumpStroke as applyHeatCapacityRuntimePumpStroke,
@@ -848,7 +848,7 @@ export interface WorkbenchIdealWindowLayout {
 }
 
 export interface WorkbenchParameterRow {
-  key: ExperimentParamKey;
+  key: WorkbenchAdvancedParameterKey;
   label: string;
   value: string;
   unit?: string;

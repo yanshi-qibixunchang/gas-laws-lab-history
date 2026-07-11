@@ -123,6 +123,7 @@ import {
 import {
   WORKBENCH_TRACKED_PARAMETER_KEYS,
   assignWorkbenchParameterValue,
+  type WorkbenchAdvancedParameterKey,
 } from './workbenchParameterRegistry.ts';
 import HeatCapacityInstrumentScene from '../heatCapacity/HeatCapacityInstrumentScene';
 import { HeatCapacityLeftPanel } from '../heatCapacity/HeatCapacityLeftPanel.tsx';
@@ -446,7 +447,7 @@ type HeatCapacityGuideStrongTargetSpec = {
   reminderCopyKey?: 'guideStrongReminder' | 'guideStrongReminderPressureZero';
 };
 
-const WORKBENCH_PARAMETER_DETAILS: Record<ExperimentParamKey, {
+const WORKBENCH_PARAMETER_DETAILS: Record<WorkbenchAdvancedParameterKey, {
   symbol: WorkbenchParameterSymbolPart[];
   help: Record<WorkbenchLanguagePreference, string>;
 }> = {
@@ -474,22 +475,6 @@ const WORKBENCH_PARAMETER_DETAILS: Record<ExperimentParamKey, {
       en: 'Sets the cubic container side length, changing volume and pressure scaling.',
     },
   },
-  m: {
-    symbol: ['m'],
-    help: {
-      'zh-CN': '决定单个粒子的质量，用于速度、能量和碰撞响应。',
-      'zh-TW': '決定單個粒子的質量，用於速度、能量和碰撞響應。',
-      en: 'Sets particle mass for velocity, energy, and collision response.',
-    },
-  },
-  k: {
-    symbol: ['k'],
-    help: {
-      'zh-CN': '归一化玻尔兹曼常数，用于温度和粒子动能换算。',
-      'zh-TW': '歸一化波茲曼常數，用於溫度和粒子動能換算。',
-      en: 'Sets the normalized Boltzmann constant for temperature-energy conversion.',
-    },
-  },
   dt: {
     symbol: ['dt'],
     help: {
@@ -504,14 +489,6 @@ const WORKBENCH_PARAMETER_DETAILS: Record<ExperimentParamKey, {
       'zh-CN': '控制 Andersen 热浴碰撞频率，影响达到目标温度的速度。',
       'zh-TW': '控制 Andersen 熱浴碰撞頻率，影響達到目標溫度的速度。',
       en: 'Sets the Andersen thermostat collision frequency and equilibration speed.',
-    },
-  },
-  targetTemperature: {
-    symbol: ['T', { sub: 'target' }],
-    help: {
-      'zh-CN': '设定理想气体实验的热浴目标温度。',
-      'zh-TW': '設定理想氣體實驗的熱浴目標溫度。',
-      en: 'Sets the thermostat target temperature for ideal-gas runs.',
     },
   },
   equilibriumTime: {
