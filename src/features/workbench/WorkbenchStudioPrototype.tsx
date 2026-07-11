@@ -6339,7 +6339,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
         fileId: activeHeatCapacityGuideFileId,
         step: activeHeatCapacityGuideStep,
       };
-      clearHeatCapacityGuideLessonState();
+      if (heatCapacityGuideLessonDialog?.kind === 'step') {
+        clearHeatCapacityGuideLessonState();
+      }
       return;
     }
 
@@ -6379,6 +6381,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     activeHeatCapacityGuideFileId,
     activeHeatCapacityGuideStep,
     guideHeatCapacityActiveFileId,
+    heatCapacityGuideLessonDialog?.kind,
   ]);
 
   useEffect(() => () => {

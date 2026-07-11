@@ -2457,6 +2457,11 @@ assert.match(
 );
 assert.match(
   workbenchSource,
+  /if \(!activeGuideLessonFile\) \{[\s\S]*?if \(heatCapacityGuideLessonDialog\?\.kind === 'step'\) \{[\s\S]*?clearHeatCapacityGuideLessonState\(\);[\s\S]*?\}[\s\S]*?return;/,
+  'Leaving Guide mode should clear only step lessons and preserve the all-mode experiment intro',
+);
+assert.match(
+  workbenchSource,
   /heatCapacityLessonPausedFileIdRef\.current === file\.id[\s\S]*return file;/,
   'The Heat Capacity stepping loop should not advance the active file while a lesson overlay is open',
 );
