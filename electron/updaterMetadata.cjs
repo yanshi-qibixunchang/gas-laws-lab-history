@@ -188,12 +188,10 @@ const isTransientUpdateError = (error) => {
 module.exports = {
   MAX_DOWNLOAD_ATTEMPTS,
   getGeneratedReleaseTargets,
-  getInstallerAssetName,
   getLocalizedReleaseText,
   getReleaseMetadataForUpdateInfo,
   getReleaseMetadataForVersion,
   isAllowedManualDownloadUrl,
   isTransientUpdateError,
   normalizeReleaseNotesText,
-  normalizeVersion,
 };
