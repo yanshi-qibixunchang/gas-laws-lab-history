@@ -43,9 +43,11 @@ The latest published desktop release is `v4.2.3`. The `main` branch may contain 
 
 Generated dependencies and outputs such as `node_modules/`, `dist/`, `release/`, `output/`, and `tmp/` are intentionally ignored.
 
-## Private Collaboration And Codex Access
+## Repository Access And Codex Collaboration
 
-The source repository does not need to be public for teammates to use Codex:
+While the source repository is public, teammates can open its GitHub URL in Codex or clone it locally without a repository invitation.
+
+If the repository is later returned to private visibility, teammates can continue through explicit GitHub access:
 
 1. Invite each teammate's GitHub account as a collaborator on the private repository.
 2. The teammate accepts the GitHub invitation.

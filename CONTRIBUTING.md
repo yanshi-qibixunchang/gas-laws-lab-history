@@ -1,6 +1,6 @@
 # Contributing
 
-This repository is developed as a private collaboration project. Keep changes focused, reviewable, and free of participant identity information.
+This repository is developed as a team collaboration project and its visibility may change during the collaboration lifecycle. Keep changes focused, reviewable, and free of participant identity information.
 
 ## Workflow
 

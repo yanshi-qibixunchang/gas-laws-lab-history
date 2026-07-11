@@ -43,9 +43,11 @@ Hard Sphere Lab 是面向 Windows 的工程软件工作台，用于硬球分子�
 
 `node_modules/`、`dist/`、`release/`、`output/`、`tmp/` 等依赖或生成目录均被 Git 忽略。
 
-## 私有协作与 Codex 访问
+## 仓库访问与 Codex 协作
 
-队友使用 Codex 阅读源码不要求把仓库公开：
+源码仓库公开期间，队友可以直接在 Codex 中使用 GitHub 仓库链接，或克隆到本地后用 Codex 打开，不需要单独发送仓库邀请。
+
+如果协作结束后重新改为私有，队友可以通过明确授权继续访问：
 
 1. 将每位队友的 GitHub 账号邀请为私有源码仓库的协作者。
 2. 队友接受 GitHub 邀请。
