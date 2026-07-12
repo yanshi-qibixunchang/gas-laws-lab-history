@@ -8,7 +8,6 @@ import {
   createDefaultHeatCapacityFile,
   getHeatCapacityPumpFrequencyState,
   getHeatCapacityGaugePressureState,
-  getHeatCapacityPressureReleaseBurstUntilMs,
   getHeatCapacityPressureZeroKnobAngleForOffset,
   getHeatCapacityPressureZeroOffsetForKnobAngle,
   getHeatCapacityStopcockTargetAngle,
@@ -27,7 +26,6 @@ import {
   HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA,
   HEAT_CAPACITY_GAUGE_PRESSURE_MAX_KPA,
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
-  HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
   DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
   HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER,
   HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS,
@@ -53,6 +51,7 @@ import {
   selectActiveHeatCapacityWorkbenchDisplay,
   setHeatCapacityFreeParameterSchemeWorkbenchState,
   setHeatCapacityGuideStopcockOpen,
+  setHeatCapacityFreeStopcockOpen,
   setHeatCapacityFreeEquilibriumSpeedHintShown,
   setHeatCapacityFreeEquilibriumSpeedMultiplier,
   setHeatCapacityPressureZeroOffset,
@@ -68,15 +67,22 @@ import {
 } from '../../src/domain/heatCapacity/heatCapacityDisplayResponse.ts';
 import {
   createHeatCapacityAutoDemoSteps,
+  HEAT_CAPACITY_AUTO_DEMO_RELEASE_CLOSE_DELAY_MS,
   HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT,
 } from '../../src/domain/heatCapacity/heatCapacityAutoDemo.ts';
 import {
   HEAT_CAPACITY_AUTO_DEMO_INITIAL_PRESSURE_BIAS_MV,
   HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV,
-  HEAT_CAPACITY_AUTO_DEMO_RESULT_U2_MV,
-  HEAT_CAPACITY_AUTO_DEMO_RESULT_GAMMA,
+  HEAT_CAPACITY_RELEASE_TIMING,
   HEAT_CAPACITY_STANDARD_OPERATION,
 } from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import {
+  calculateHeatCapacityGammaFromDisplayedSignals,
+} from '../../src/domain/heatCapacity/heatCapacityTeachingProfile.ts';
+import {
+  advanceHeatCapacityReleaseState,
+  beginHeatCapacityReleaseOpening,
+} from '../../src/domain/heatCapacity/heatCapacityReleaseModel.ts';
 import {
   getHeatCapacityHardSphereVisualState,
 } from '../../src/domain/heatCapacity/heatCapacityHardSphereModel.ts';
@@ -141,9 +147,8 @@ assert.deepEqual(defaultFile.heatCapacityFreePhysicsConfig.leakage, {
 assert.equal(defaultFile.heatCapacityFreeSensorConfig.lagRate, 8);
 assert.equal(defaultFile.heatCapacityFreeSensorConfig.minSampleIntervalS, 0.08);
 assert.equal(defaultFile.heatCapacityFreeSensorConfig.maxSampleIntervalS, 0.12);
-assert.equal(defaultFile.heatCapacityFreeStopcockFlowOpen, false);
-assert.equal(defaultFile.heatCapacityFreeStopcockPendingOpenAtMs, null);
-assert.equal(defaultFile.heatCapacityFreeStopcockFlowPurpose, 'none');
+assert.equal(defaultFile.heatCapacityReleaseState.phase, 'closed');
+assert.equal(defaultFile.heatCapacityReleaseState.purpose, 'none');
 assert.deepEqual(HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS, [2, 4, 8, 16]);
 assert.equal(HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER, 8);
 assert.equal(defaultFile.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
@@ -257,14 +262,28 @@ const idealReleaseOpen = stepHeatCapacityWorkbenchFile({
   ...poweredIdeal,
   lastUpdateMs: 1_200,
   heatCapacityFreePhysicsState: idealReleaseStartState,
-  heatCapacityFreeStopcockFlowOpen: true,
-  heatCapacityFreeStopcockFlowPurpose: 'release',
+  heatCapacityReleaseState: {
+    ...poweredIdeal.heatCapacityReleaseState,
+    phase: 'releasing',
+    purpose: 'release',
+    attemptId: 1,
+    openingStartedAtS: idealReleaseStartState.simulationTimeS,
+    openingCompletedAtS: idealReleaseStartState.simulationTimeS,
+    formedRelease: true,
+  },
   heatCapacityFreeTrials: [idealReleaseTrial],
   heatCapacityFreeIdealDomain: {
     ...poweredIdeal.heatCapacityFreeIdealDomain,
     physicsState: idealReleaseStartState,
-    stopcockFlowOpen: true,
-    stopcockFlowPurpose: 'release',
+    releaseState: {
+      ...poweredIdeal.heatCapacityReleaseState,
+      phase: 'releasing',
+      purpose: 'release',
+      attemptId: 1,
+      openingStartedAtS: idealReleaseStartState.simulationTimeS,
+      openingCompletedAtS: idealReleaseStartState.simulationTimeS,
+      formedRelease: true,
+    },
     trials: [idealReleaseTrial],
   },
 }, 1_700);
@@ -276,13 +295,21 @@ const idealReleaseRecovered = stepHeatCapacityWorkbenchFile({
   ...idealReleaseOpen,
   lastUpdateMs: 1_700,
   heatCapacityFreePhysicsState: idealReleaseClosedState,
-  heatCapacityFreeStopcockFlowOpen: false,
-  heatCapacityFreeStopcockFlowPurpose: 'none',
+  heatCapacityReleaseState: {
+    ...idealReleaseOpen.heatCapacityReleaseState,
+    phase: 'closedAfterRelease',
+    closeCommandAtS: idealReleaseOpen.heatCapacityFreeIdealDomain.physicsState.simulationTimeS,
+    closingCompletedAtS: idealReleaseOpen.heatCapacityFreeIdealDomain.physicsState.simulationTimeS,
+  },
   heatCapacityFreeIdealDomain: {
     ...idealReleaseOpen.heatCapacityFreeIdealDomain,
     physicsState: idealReleaseClosedState,
-    stopcockFlowOpen: false,
-    stopcockFlowPurpose: 'none',
+    releaseState: {
+      ...idealReleaseOpen.heatCapacityReleaseState,
+      phase: 'closedAfterRelease',
+      closeCommandAtS: idealReleaseOpen.heatCapacityFreeIdealDomain.physicsState.simulationTimeS,
+      closingCompletedAtS: idealReleaseOpen.heatCapacityFreeIdealDomain.physicsState.simulationTimeS,
+    },
   },
 }, 301_700);
 const idealRecoveredPhysical = deriveFreePhysicalState(
@@ -441,10 +468,14 @@ const resetFreeRun = resetHeatCapacityFreeRunWorkbenchState({
   pressureZeroOffset: 0.8,
   pressureZeroDisplayText: 'dirty zero',
   pressureZeroAdjustMode: 'coarseDrag',
-  pressureReleaseBurstUntilMs: 3200,
-  heatCapacityFreeStopcockFlowOpen: true,
-  heatCapacityFreeStopcockPendingOpenAtMs: 3100,
-  heatCapacityFreeStopcockFlowPurpose: 'release',
+  heatCapacityReleaseState: {
+    ...defaultFile.heatCapacityReleaseState,
+    phase: 'opening',
+    purpose: 'release',
+    attemptId: 1,
+    phaseStartedAtS: 1,
+    openingStartedAtS: 1,
+  },
   heatCapacityFreeEquilibriumSpeedMultiplier: 8,
   heatCapacityFreeEquilibriumSpeedHintShown: true,
   heatCapacityFreeTrials: [freeTrial],
@@ -469,10 +500,8 @@ assert.equal(resetFreeRun.pressureZeroKnobAngle, 0);
 assert.equal(resetFreeRun.pressureZeroOffset, 0);
 assert.equal(resetFreeRun.pressureZeroDisplayText, '未调零');
 assert.equal(resetFreeRun.pressureZeroAdjustMode, 'none');
-assert.equal(resetFreeRun.pressureReleaseBurstUntilMs, null);
-assert.equal(resetFreeRun.heatCapacityFreeStopcockFlowOpen, false);
-assert.equal(resetFreeRun.heatCapacityFreeStopcockPendingOpenAtMs, null);
-assert.equal(resetFreeRun.heatCapacityFreeStopcockFlowPurpose, 'none');
+assert.equal(resetFreeRun.heatCapacityReleaseState.phase, 'closed');
+assert.equal(resetFreeRun.heatCapacityReleaseState.purpose, 'none');
 assert.equal(resetFreeRun.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
 assert.equal(resetFreeRun.heatCapacityFreeEquilibriumSpeedHintShown, false);
 assert.deepEqual(resetFreeRun.heatCapacityFreePhysicsConfig.leakage, {
@@ -890,7 +919,13 @@ const freeInstantZeroKnob = setHeatCapacityPressureZeroOffset({
   ...freePowered,
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
   glassPistonState: 'open',
-  heatCapacityFreeStopcockFlowOpen: true,
+  heatCapacityReleaseState: {
+    ...freePowered.heatCapacityReleaseState,
+    phase: 'open',
+    purpose: 'zeroing',
+    openingStartedAtS: freePowered.heatCapacityFreePhysicsState.simulationTimeS,
+    openingCompletedAtS: freePowered.heatCapacityFreePhysicsState.simulationTimeS,
+  },
   heatCapacityFreeSensorState: {
     ...freePowered.heatCapacityFreeSensorState,
     displayPressureMv: 0.73,
@@ -1213,23 +1248,29 @@ const freeReadyForRelease = {
     },
   ],
 };
-const freeReleaseStarted = stepHeatCapacityWorkbenchFile({
-  ...freeReadyForRelease,
-  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
-  glassPistonState: 'open',
-  heatCapacityFreeStopcockFlowOpen: true,
-  heatCapacityFreeStopcockFlowPurpose: 'release',
-}, 2_000);
-assert.equal(freeReleaseStarted.heatCapacityFreePhysicsState.releaseStarted, true, 'opening the stopcock in Free Mode should enter the Free release path');
-assert.equal(freeReleaseStarted.heatCapacityFreeStopcockFlowPurpose, 'release');
+const freeReleaseOpening = setHeatCapacityFreeStopcockOpen(freeReadyForRelease, true, 2_000);
+assert.equal(freeReleaseOpening.heatCapacityReleaseState.phase, 'opening');
+assert.equal(freeReleaseOpening.heatCapacityReleaseState.releaseDurationS, 0);
+assert.equal(freeReleaseOpening.heatCapacityFreePhysicsState.releaseStarted, false);
+const openingAlmostComplete = stepHeatCapacityWorkbenchFile(
+  freeReleaseOpening,
+  2_000 + HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs - 1,
+);
+assert.equal(openingAlmostComplete.heatCapacityReleaseState.phase, 'opening');
+assert.equal(openingAlmostComplete.heatCapacityReleaseState.releaseDurationS, 0);
+const freeReleaseStarted = stepHeatCapacityWorkbenchFile(
+  openingAlmostComplete,
+  2_000 + HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs + 20,
+);
+assert.equal(freeReleaseStarted.heatCapacityReleaseState.phase, 'releasing');
+assert.equal(freeReleaseStarted.heatCapacityReleaseState.purpose, 'release');
+assert.equal(freeReleaseStarted.heatCapacityFreePhysicsState.releaseStarted, true, 'real release should begin only after the opening animation completes');
+
+const freeZeroingOpening = setHeatCapacityFreeStopcockOpen(freePowered, true, 2_000);
 const freeZeroingOpen = stepHeatCapacityWorkbenchFile({
-  ...freePowered,
-  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
-  glassPistonState: 'open',
-  heatCapacityFreeStopcockFlowOpen: true,
-  heatCapacityFreeStopcockFlowPurpose: 'zeroing',
+  ...freeZeroingOpening,
   heatCapacityFreeSensorState: {
-    ...freePowered.heatCapacityFreeSensorState,
+    ...freeZeroingOpening.heatCapacityFreeSensorState,
     displayPressureMv: 0.02,
     displayTemperatureMv: initialTemperatureMv,
     pressureSlopeMvPerS: 0,
@@ -1240,7 +1281,7 @@ const freeZeroingOpen = stepHeatCapacityWorkbenchFile({
     { atMs: 1_900, valueMv: 0.01 },
     { atMs: 2_000, valueMv: 0 },
   ],
-}, 2_000);
+}, 2_000 + HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs);
 assert.equal(
   freeZeroingOpen.heatCapacityFreePhysicsState.releaseStarted,
   false,
@@ -1251,64 +1292,32 @@ assert.equal(
   'readyToZero',
   'U0 zeroing flow should stay in the zeroing path instead of jumping to quick release',
 );
-assert.equal(freeZeroingOpen.heatCapacityFreeStopcockFlowPurpose, 'zeroing');
-const delayedFlowOpening = stepHeatCapacityWorkbenchFile({
-  ...freeReadyForRelease,
-  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
-  glassPistonState: 'open',
-  heatCapacityFreeStopcockFlowOpen: false,
-  heatCapacityFreeStopcockPendingOpenAtMs: 2_000 + HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
-  heatCapacityFreeStopcockFlowPurpose: 'release',
-}, 2_000 + HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS - 1);
-assert.equal(
-  delayedFlowOpening.heatCapacityFreeStopcockFlowOpen,
+assert.equal(freeZeroingOpen.heatCapacityReleaseState.purpose, 'zeroing');
+const closeCommandAtMs = 2_000 + HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs + 40;
+const closedFlowImmediately = setHeatCapacityFreeStopcockOpen(freeReleaseStarted, false, closeCommandAtMs);
+const frozenReleaseDurationS = closedFlowImmediately.heatCapacityReleaseState.releaseDurationS;
+assert.equal(closedFlowImmediately.heatCapacityReleaseState.phase, 'closing');
+assert.equal(frozenReleaseDurationS > 0, true);
+const closingFinished = stepHeatCapacityWorkbenchFile(
+  closedFlowImmediately,
+  closeCommandAtMs + HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs,
+);
+assert.equal(closingFinished.heatCapacityReleaseState.releaseDurationS, frozenReleaseDurationS);
+assert.equal(closingFinished.heatCapacityReleaseState.phase, 'closedAfterRelease');
+
+const quickOpening = setHeatCapacityFreeStopcockOpen(freeReadyForRelease, true, 3_000);
+const quickToggleBeforeFlowOpen = setHeatCapacityFreeStopcockOpen(
+  quickOpening,
   false,
-  'Free physical stopcock flow should stay closed during the visual opening animation',
+  3_000 + Math.floor(HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs / 2),
 );
-assert.equal(
-  delayedFlowOpening.heatCapacityFreePhysicsState.releaseStarted,
-  false,
-  'Free release must not start before the physical flow path opens',
-);
-const flowOpenedAfterDelay = stepHeatCapacityWorkbenchFile(delayedFlowOpening, 2_000 + HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS + 20);
-assert.equal(flowOpenedAfterDelay.heatCapacityFreeStopcockFlowOpen, true);
-assert.equal(flowOpenedAfterDelay.heatCapacityFreeStopcockPendingOpenAtMs, null);
-assert.equal(flowOpenedAfterDelay.heatCapacityFreePhysicsState.releaseStarted, true);
-const closedFlowImmediately = stepHeatCapacityWorkbenchFile({
-  ...flowOpenedAfterDelay,
-  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
-  glassPistonState: 'closed',
-  heatCapacityFreeStopcockFlowOpen: false,
-  heatCapacityFreeStopcockPendingOpenAtMs: null,
-}, 2_000 + HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS + 40);
-assert.equal(
-  closedFlowImmediately.heatCapacityFreeStopcockFlowOpen,
-  false,
-  'Free physical stopcock flow should close immediately when the user starts closing the stopcock',
-);
-assert.equal(
-  closedFlowImmediately.heatCapacityFreePhysicsState.currentStopcockOpenDurationS,
-  0,
-  'closing the visual stopcock should not continue accumulating Free release time during the closing animation',
-);
-const quickToggleBeforeFlowOpen = stepHeatCapacityWorkbenchFile({
-  ...freeReadyForRelease,
-  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
-  glassPistonState: 'closed',
-  heatCapacityFreeStopcockFlowOpen: false,
-  heatCapacityFreeStopcockPendingOpenAtMs: null,
-}, 2_000 + Math.floor(HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS / 2));
-assert.equal(
-  quickToggleBeforeFlowOpen.heatCapacityFreePhysicsState.releaseStarted,
-  false,
-  'a quick open-close before the flow delay expires should not count as a physical Free release',
-);
+assert.equal(quickToggleBeforeFlowOpen.heatCapacityReleaseState.quickToggle, true);
+assert.equal(quickToggleBeforeFlowOpen.heatCapacityReleaseState.releaseDurationS, 0);
+assert.equal(quickToggleBeforeFlowOpen.heatCapacityFreePhysicsState.releaseStarted, false);
 const freeZeroed = setHeatCapacityPressureZeroOffset({
-  ...freePowered,
+  ...freeZeroingOpen,
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
   glassPistonState: 'open',
-  heatCapacityFreeStopcockFlowOpen: true,
-  heatCapacityFreeStopcockPendingOpenAtMs: null,
   heatCapacityFreeSensorState: {
     ...freePowered.heatCapacityFreeSensorState,
     displayPressureMv: 0.02,
@@ -1448,7 +1457,6 @@ assert.equal(defaultFile.pumpStrokeCount, 0);
 assert.equal(defaultFile.hardSphereViewEnabled, false);
 assert.equal('hardSphereParticleMultiplier' in defaultFile, false);
 assert.equal('hardSphereSpeedMultiplier' in defaultFile, false);
-assert.equal(defaultFile.pressureReleaseBurstUntilMs, null);
 assert.equal(defaultFile.visualizationMode, 'particle');
 assert.equal(defaultFile.calculationModel, 'airHeatCapacityRatio');
 assert.equal(defaultFile.pressureSensitivityMvPerKPa, 20);
@@ -1680,10 +1688,18 @@ assert.equal(demoStart.temperatureSignalTargetMv, demoStart.heatCapacityExperime
 assert.equal(demoStart.temperatureSignalMv, truncateHeatCapacitySignalMv(demoStart.heatCapacityExperimentProfile?.initialTemperatureMv ?? 0));
 assert.equal(demoStart.heatCapacityExperimentProfile !== null, true);
 const demoTeachingProfile = demoStart.heatCapacityExperimentProfile!;
-assert.equal(demoTeachingProfile.seed, 'auto-demo-fixed');
+assert.match(String(demoTeachingProfile.seed), /^auto-demo-\d+$/);
 assert.equal(demoTeachingProfile.u1MeasuredMv, HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV);
-assert.equal(demoTeachingProfile.u2MeasuredMv, HEAT_CAPACITY_AUTO_DEMO_RESULT_U2_MV);
-assert.equal(demoTeachingProfile.gammaTarget, HEAT_CAPACITY_AUTO_DEMO_RESULT_GAMMA);
+assert.equal(demoTeachingProfile.gammaTarget >= 1.37 && demoTeachingProfile.gammaTarget <= 1.43, true);
+assert.equal(demoTeachingProfile.gammaTarget.toFixed(3).length, 5);
+assert.equal(
+  Math.abs(demoTeachingProfile.gammaTarget - calculateHeatCapacityGammaFromDisplayedSignals(
+    demoTeachingProfile.u0MeasuredMv,
+    demoTeachingProfile.u1MeasuredMv,
+    demoTeachingProfile.u2MeasuredMv,
+  )) < 1e-6,
+  true,
+);
 assert.equal(demoStart.heatCapacityGuideTrial, null);
 assert.equal('heatCapacityExpectedTrialCount' in demoStart, false);
 assert.equal('heatCapacityTrials' in demoStart, false);
@@ -1697,7 +1713,6 @@ const visualDemoStart = prepareHeatCapacityAutoDemoStart({
 assert.equal(visualDemoStart.hardSphereViewEnabled, true, 'auto demo start should preserve the hard-sphere teaching toggle');
 assert.equal('hardSphereParticleMultiplier' in visualDemoStart, false);
 assert.equal('hardSphereSpeedMultiplier' in visualDemoStart, false);
-assert.equal(visualDemoStart.pressureReleaseBurstUntilMs, null);
 
 const autoDemoPumpActions = createHeatCapacityAutoDemoSteps()
   .flatMap((step) => step.actions)
@@ -1707,6 +1722,14 @@ assert.equal(
   autoDemoPumpActions.length,
   HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes,
   'auto demo should reuse the standard operation pump stroke count',
+);
+const autoDemoReleaseStep = createHeatCapacityAutoDemoSteps().find((step) => step.id === 'release-and-close-stopcock')!;
+const autoDemoCloseAction = autoDemoReleaseStep.actions.find((action) => action.action === 'closeStopcockForRecovery')!;
+assert.equal(autoDemoCloseAction.delayMs, HEAT_CAPACITY_AUTO_DEMO_RELEASE_CLOSE_DELAY_MS);
+assert.equal(
+  autoDemoCloseAction.delayMs,
+  HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs +
+    HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS * 1000,
 );
 let autoDemoPressureFile: WorkbenchHeatCapacityState = {
   ...demoStart,
@@ -1804,7 +1827,6 @@ assert.equal(completedDemo.pressureSignalMv, null);
 assert.equal(completedDemo.hardSphereViewEnabled, true, 'returning to Free base should preserve the user-facing hard-sphere teaching toggle');
 assert.equal('hardSphereParticleMultiplier' in completedDemo, false);
 assert.equal('hardSphereSpeedMultiplier' in completedDemo, false);
-assert.equal(completedDemo.pressureReleaseBurstUntilMs, null);
 assert.notEqual(completedDemo.heatCapacityGuideTrial, null);
 assert.equal(completedDemo.heatCapacityGuideTrial?.source, 'demo');
 assert.notEqual(completedDemo.heatCapacityGuideTrial?.correctedSignals, null);
@@ -1850,17 +1872,6 @@ assert.equal(Math.abs(settledDisplay.pressureGaugeTargetValue - settledDisplay.p
 assert.equal(settledDisplay.pressureGaugeDisplayValue > pumpedTarget.pressureGaugeDisplayValue, true);
 
 assert.equal(HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA, 0.12);
-assert.equal(getHeatCapacityPressureReleaseBurstUntilMs({
-  ...poweredFile,
-  pressureDeltaKPa: HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA - 0.01,
-  pressureSignalTargetMv: (HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA - 0.01) * poweredFile.pressureSensitivityMvPerKPa,
-}, true, 40_000), null, 'opening the stopcock without a useful pressure difference should not start a release burst');
-assert.equal(getHeatCapacityPressureReleaseBurstUntilMs({
-  ...poweredFile,
-  pressureDeltaKPa: HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA + 0.01,
-  pressureSignalTargetMv: (HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA + 0.01) * poweredFile.pressureSensitivityMvPerKPa,
-}, true, 40_000), 41_000, 'opening the stopcock with pressure difference should start a one-second release burst');
-
 const releaseReadyFile: WorkbenchHeatCapacityState = {
   ...poweredFile,
   heatCapacityMode: 'demo',
@@ -1881,28 +1892,27 @@ const releaseReadyFile: WorkbenchHeatCapacityState = {
   pressureGaugeDisplayValue: 5,
   lastUpdateMs: 22_000,
   displayResponseLastUpdateMs: 22_000,
-  pressureReleaseBurstUntilMs: 23_000,
+  heatCapacityReleaseState: {
+    ...poweredFile.heatCapacityReleaseState,
+    phase: 'releasing',
+    purpose: 'release',
+    attemptId: 1,
+    phaseStartedAtS: poweredFile.simulationTimeS,
+    openingStartedAtS: poweredFile.simulationTimeS - HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs / 1000,
+    openingCompletedAtS: poweredFile.simulationTimeS,
+    formedRelease: true,
+  },
 };
-const releasedDuringBurst = stepHeatCapacityWorkbenchFile(releaseReadyFile, 22_700);
-assert.equal(releasedDuringBurst.heatCapacityPhase, 'releasing');
-assert.equal(releasedDuringBurst.pressureDeltaKPa < HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA, true, 'release should rapidly reduce pressure difference toward zero');
-assert.equal(releasedDuringBurst.pressureReleaseBurstUntilMs, 23_000);
-assert.equal(Math.abs(releasedDuringBurst.pressureSignalMv ?? 0) > 0.2, true, 'release burst should allow a short stronger near-zero display fluctuation');
-
-const releasedAfterBurst = stepHeatCapacityWorkbenchFile({
-  ...releasedDuringBurst,
-  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
-  glassPistonState: 'open',
-}, 23_200);
-assert.equal(releasedAfterBurst.heatCapacityPhase === 'releasing', false, 'release should not continue after the one-second burst window');
-assert.equal(releasedAfterBurst.pressureReleaseBurstUntilMs, null);
-assert.equal(releasedAfterBurst.pressureDeltaKPa <= HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA, true);
-const openStillAfterBurst = stepHeatCapacityWorkbenchFile({
-  ...releasedAfterBurst,
-  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
-  glassPistonState: 'open',
-}, 24_200);
-assert.equal(openStillAfterBurst.pressureDeltaKPa <= HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA, true, 'pressure should not recover while the stopcock remains open');
+const releasedDuringPreset = stepHeatCapacityWorkbenchFile(releaseReadyFile, 22_200);
+assert.equal(releasedDuringPreset.heatCapacityReleaseState.phase, 'releasing');
+assert.equal(releasedDuringPreset.pressureDeltaKPa < releaseReadyFile.pressureDeltaKPa, true);
+const releasedAfterPreset = stepHeatCapacityWorkbenchFile(releasedDuringPreset, 22_500);
+assert.equal(releasedAfterPreset.heatCapacityReleaseState.phase, 'closing');
+assert.equal(
+  releasedAfterPreset.heatCapacityReleaseState.releaseDurationS,
+  HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS,
+  'auto demo should stop main release at the canonical preset duration',
+);
 
 const noPressureOpenFile = stepHeatCapacityWorkbenchFile({
   ...poweredFile,
@@ -1920,12 +1930,17 @@ const noPressureOpenFile = stepHeatCapacityWorkbenchFile({
   pressureSignalMv: 0,
   pressureSignalMvDisplayed: 0,
   pressureSignalReadoutMv: 0,
-  pressureReleaseBurstUntilMs: null,
+  heatCapacityReleaseState: {
+    ...poweredFile.heatCapacityReleaseState,
+    phase: 'open',
+    purpose: 'zeroing',
+    openingStartedAtS: poweredFile.simulationTimeS,
+    openingCompletedAtS: poweredFile.simulationTimeS,
+  },
   lastUpdateMs: 50_000,
   displayResponseLastUpdateMs: 50_000,
 }, 50_600);
 assert.equal(noPressureOpenFile.heatCapacityPhase === 'releasing', false, 'opening the stopcock at zero pressure difference should stay a normal open state');
-assert.equal(noPressureOpenFile.pressureReleaseBurstUntilMs, null);
 assert.equal(Math.abs(noPressureOpenFile.pressureSignalMv ?? 0) < 0.2, true, 'zero-pressure stopcock opening should only show ordinary low-amplitude jitter');
 
 assert.deepEqual(getHeatCapacityGaugePressureState(12, true, defaultFile), {
@@ -2223,7 +2238,7 @@ assert.equal(
 const actualSample = captureHeatCapacityWorkbenchSample(
   profiledSampleSource,
   'stableBeforeReleaseSample',
-  10_300,
+  profiledSampleSource.lastUpdateMs ?? 10_300,
   { applyProfile: false },
 );
 assert.equal(actualSample.heatCapacityProcessSamples.stableBeforeReleaseSample?.pressureSignalMv, 88, 'user recording should preserve the current instrument reading instead of the profile U1');
@@ -2370,9 +2385,15 @@ const restored = decodeWorkbenchSession({
     powerOn: true,
     stopcockAngleDeg: 359,
     glassPistonState: 'open',
+    heatCapacityReleaseState: {
+      ...defaultFile.heatCapacityReleaseState,
+      phase: 'open',
+      purpose: 'zeroing',
+      openingStartedAtS: 0,
+      openingCompletedAtS: 0,
+    },
     pressureZeroed: true,
     pressureSignalMv: 0,
-    pressureReleaseBurstUntilMs: 123_456,
   }],
 });
 
@@ -2382,8 +2403,7 @@ assert.equal(restoredHeatFile.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_OPEN_ANGL
 assert.equal(restoredHeatFile.glassPistonState, 'open');
 assert.equal(restoredHeatFile.pressureZeroed, true);
 assert.equal(restoredHeatFile.pressureSignalMv, 0);
-assert.equal(restoredHeatFile.pressureReleaseBurstUntilMs, 123_456);
-assert.equal(restoredHeatFile.heatCapacityFreeStopcockFlowPurpose, 'none');
+assert.equal(restoredHeatFile.heatCapacityReleaseState.purpose, 'zeroing');
 
 const storedFileMissingInstrumentFields = { ...defaultFile } as Record<string, unknown>;
 delete storedFileMissingInstrumentFields.stopcockAngleDeg;
@@ -2409,7 +2429,6 @@ assert.equal(restoredIncompleteHeatFile.pressureSignalMv, null);
 assert.equal(restoredIncompleteHeatFile.pumpValveOpen, false);
 assert.equal(restoredIncompleteHeatFile.pumpFrequencyStatus, 'idle');
 assert.deepEqual(restoredIncompleteHeatFile.pumpStrokeTimestamps, []);
-assert.equal(restoredIncompleteHeatFile.pressureReleaseBurstUntilMs, null);
 
 const invalidTimerPhysicsFile = {
   ...defaultFile,
@@ -2432,7 +2451,20 @@ assert.equal(
   'restoring Free physics should discard invalid timer anchors',
 );
 
-const storedOpenStopcockFile = { ...defaultFile, stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG, glassPistonState: 'open' };
+const storedOpenReleaseState = advanceHeatCapacityReleaseState(
+  beginHeatCapacityReleaseOpening(defaultFile.heatCapacityReleaseState, 'zeroing', 0),
+  HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs / 1000,
+).state;
+const storedOpenStopcockFile = {
+  ...defaultFile,
+  heatCapacityReleaseState: storedOpenReleaseState,
+  heatCapacityFreeRealDomain: {
+    ...defaultFile.heatCapacityFreeRealDomain,
+    releaseState: storedOpenReleaseState,
+  },
+  stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
+  glassPistonState: 'open' as const,
+};
 const restoredFromOpenStopcockFile = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
   activeFileId: defaultFile.id,

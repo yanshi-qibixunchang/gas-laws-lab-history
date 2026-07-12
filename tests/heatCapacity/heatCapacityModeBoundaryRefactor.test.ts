@@ -20,6 +20,9 @@ import {
   stepHeatCapacityWorkbenchFile,
   type WorkbenchHeatCapacityState,
 } from '../../src/features/workbench/workbenchState.ts';
+import {
+  HEAT_CAPACITY_RELEASE_TIMING,
+} from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
 
 const createBaseFile = (): WorkbenchHeatCapacityState => createDefaultHeatCapacityFile(1);
 const workbenchStateSource = readFileSync(
@@ -147,7 +150,11 @@ const stabilizeGuidePressureZero = (
   guide = setHeatCapacityGuideStopcockOpen(guide, true, now += 100);
   assert.equal(guide.heatCapacityGuideWorkflow.step, 'closeStopcockAfterReleaseRequired');
 
-  guide = stepHeatCapacityWorkbenchFile(guide, now += 350);
+  guide = stepHeatCapacityWorkbenchFile(
+    guide,
+    now += HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs +
+      HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS * 1000,
+  );
   guide = setHeatCapacityGuideStopcockOpen(guide, false, now += 1);
   assert.equal(guide.heatCapacityGuideWorkflow.step, 'u2Waiting');
   const u2WaitStartedAtS = guide.heatCapacityGuideWorkflow.waitStartedAtS ?? Number.NaN;

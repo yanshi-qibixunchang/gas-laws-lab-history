@@ -19,13 +19,11 @@ import {
   createDefaultHeatCapacityFreeExperimentDomainState,
   createDefaultHeatCapacityFreeRuntimeFields,
   getHeatCapacityGaugePressureState,
-  getHeatCapacityStopcockState,
   getHeatCapacityStopcockTargetAngle,
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   normalizeHeatCapacityFileName,
   normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
   normalizeHeatCapacityFreeFileAcknowledgements,
-  normalizeHeatCapacityStopcockAngle,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
   WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
   type WorkbenchHeatCapacityState,
@@ -44,8 +42,11 @@ import {
   normalizeHeatCapacityFreeRestoreSensorState,
   normalizeHeatCapacityFreeRestoreTraceStore,
   normalizeHeatCapacityFreeRestoreTrial,
-  normalizeHeatCapacityStopcockFlowPurpose,
 } from './workbenchHeatCapacityFreeRestoreNormalization.ts';
+import {
+  createClosedHeatCapacityReleaseState,
+  normalizeHeatCapacityReleaseState,
+} from '../../domain/heatCapacity/heatCapacityReleaseModel.ts';
 import {
   isPersistenceFiniteNumber as isFiniteNumber,
   isPersistenceRecord as isRecord,
@@ -153,27 +154,26 @@ export const normalizeHeatCapacitySessionRuntimeState = (
 ): WorkbenchHeatCapacityState => {
   const {
     selectedHeatCapacityPanel: discardedLegacySelectedPanel,
+    heatCapacityFreeStopcockFlowOpen: discardedLegacyFlowOpen,
+    heatCapacityFreeStopcockPendingOpenAtMs: discardedLegacyPendingOpen,
+    heatCapacityFreeStopcockFlowPurpose: discardedLegacyFlowPurpose,
     ...fileWithoutLegacySelectedPanel
-  } = file as WorkbenchHeatCapacityState & { selectedHeatCapacityPanel?: unknown };
+  } = file as WorkbenchHeatCapacityState & {
+    selectedHeatCapacityPanel?: unknown;
+    heatCapacityFreeStopcockFlowOpen?: unknown;
+    heatCapacityFreeStopcockPendingOpenAtMs?: unknown;
+    heatCapacityFreeStopcockFlowPurpose?: unknown;
+  };
   void discardedLegacySelectedPanel;
+  void discardedLegacyFlowOpen;
+  void discardedLegacyPendingOpen;
+  void discardedLegacyFlowPurpose;
   const fallback = createDefaultHeatCapacityFile(1);
   const heatCapacityVisiblePanels = file.visiblePanels.filter((panel) => (
     panel === 'preview' ||
     panel === 'realtime' ||
     isHeatCapacityPanelKey(panel)
   ));
-  const hasSavedStopcockAngle = isFiniteNumber(file.stopcockAngleDeg);
-  const normalizedSavedStopcockAngle = hasSavedStopcockAngle
-    ? normalizeHeatCapacityStopcockAngle(file.stopcockAngleDeg)
-    : fallback.stopcockAngleDeg;
-  const savedStopcockState = getHeatCapacityStopcockState(normalizedSavedStopcockAngle);
-  const shouldMigrateBySavedState = (
-    (file.glassPistonState === 'open' || file.glassPistonState === 'closed') &&
-    (!hasSavedStopcockAngle || file.glassPistonState !== savedStopcockState)
-  );
-  const stopcockAngleDeg = shouldMigrateBySavedState
-    ? getHeatCapacityStopcockTargetAngle(file.glassPistonState === 'open')
-    : normalizedSavedStopcockAngle;
   const pressureSignalRawReadoutMv = normalizeNullableNumber(file.pressureSignalRawReadoutMv)
     ?? fallback.pressureSignalRawReadoutMv;
   const pressureInitialBiasMv = normalizeNullableNumber(file.pressureInitialBiasMv)
@@ -214,12 +214,6 @@ export const normalizeHeatCapacitySessionRuntimeState = (
   const savedFreeInstrumentNoiseEnabled = typeof file.heatCapacityFreeInstrumentNoiseEnabled === 'boolean'
     ? file.heatCapacityFreeInstrumentNoiseEnabled
     : savedFreeSensorConfig.noiseMv > 0;
-  const savedFreeStopcockFlowOpen = file.heatCapacityFreeStopcockFlowOpen === true;
-  const savedFreeStopcockPendingOpenAtMs = normalizeNullableNumber(file.heatCapacityFreeStopcockPendingOpenAtMs);
-  const savedFreeStopcockFlowPurpose = normalizeHeatCapacityStopcockFlowPurpose(
-    file.heatCapacityFreeStopcockFlowPurpose,
-    savedFreeStopcockFlowOpen || savedFreeStopcockPendingOpenAtMs !== null,
-  );
   const fallbackFreeParameterDraft = createHeatCapacityFreeParameterDraftFromConfigs(
     savedFreePhysicsConfigRaw,
     savedFreeSensorConfig,
@@ -299,9 +293,10 @@ export const normalizeHeatCapacitySessionRuntimeState = (
         heatCapacityFreeSensorConfig: savedFreeSensorConfig,
         heatCapacityFreeSensorState: savedFreeSensorState,
         heatCapacityFreeCalibrationState: savedFreeCalibrationState,
-        heatCapacityFreeStopcockFlowOpen: savedFreeStopcockFlowOpen,
-        heatCapacityFreeStopcockPendingOpenAtMs: savedFreeStopcockPendingOpenAtMs,
-        heatCapacityFreeStopcockFlowPurpose: savedFreeStopcockFlowPurpose,
+        heatCapacityReleaseState: normalizeHeatCapacityReleaseState(
+          file.heatCapacityReleaseState,
+          createClosedHeatCapacityReleaseState(savedFreePhysicsState.simulationTimeS),
+        ),
         heatCapacityFreeEquilibriumSpeedMultiplier: normalizeHeatCapacityFreeEquilibriumSpeedMultiplier(
           file.heatCapacityFreeEquilibriumSpeedMultiplier,
         ),
@@ -337,6 +332,17 @@ export const normalizeHeatCapacitySessionRuntimeState = (
     ? file.heatCapacityMode
     : fallback.heatCapacityMode;
   const normalizedPowerOn = file.powerOn === true;
+  const normalizedReleaseState = normalizeHeatCapacityReleaseState(
+    file.heatCapacityReleaseState ?? activeFreeDomain.releaseState,
+    createClosedHeatCapacityReleaseState(
+      normalizedHeatCapacityMode === 'guide'
+        ? file.heatCapacityGuidePhysicsState.simulationTimeS
+        : savedFreePhysicsState.simulationTimeS,
+    ),
+  );
+  const normalizedStopcockOpen = normalizedReleaseState.phase === 'opening' ||
+    normalizedReleaseState.phase === 'open' ||
+    normalizedReleaseState.phase === 'releasing';
   const normalizedPressureDeltaKPa = normalizeNullableNumber(file.pressureDeltaKPa) ?? fallback.pressureDeltaKPa;
   const restoredGaugeDisplayValue = normalizeNullableNumber(file.pressureGaugeDisplayValue);
   const gaugePressureState = getHeatCapacityGaugePressureState(
@@ -387,8 +393,9 @@ export const normalizeHeatCapacitySessionRuntimeState = (
     heatCapacityFreeTrials,
     heatCapacityFreeTraceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
     heatCapacityFreeTraceStore,
-    stopcockAngleDeg,
-    glassPistonState: getHeatCapacityStopcockState(stopcockAngleDeg),
+    heatCapacityReleaseState: normalizedReleaseState,
+    stopcockAngleDeg: getHeatCapacityStopcockTargetAngle(normalizedStopcockOpen),
+    glassPistonState: normalizedStopcockOpen ? 'open' : 'closed',
     ambientPressureKPa: normalizeNullableNumber(file.ambientPressureKPa) ?? fallback.ambientPressureKPa,
     ambientTemperatureK: normalizeNullableNumber(file.ambientTemperatureK) ?? fallback.ambientTemperatureK,
     gasPressureKPaAbs: normalizeNullableNumber(file.gasPressureKPaAbs) ?? fallback.gasPressureKPaAbs,
@@ -404,7 +411,6 @@ export const normalizeHeatCapacitySessionRuntimeState = (
     displayResponseLastUpdateMs: normalizeNullableNumber(file.displayResponseLastUpdateMs),
     pressureDisplayJitterOffset: normalizeNullableNumber(file.pressureDisplayJitterOffset) ?? fallback.pressureDisplayJitterOffset,
     pressureDisplayNextJitterAtMs: normalizeNullableNumber(file.pressureDisplayNextJitterAtMs) ?? fallback.pressureDisplayNextJitterAtMs,
-    pressureReleaseBurstUntilMs: normalizeNullableNumber(file.pressureReleaseBurstUntilMs),
     temperatureDisplayJitterOffset: normalizeNullableNumber(file.temperatureDisplayJitterOffset) ?? fallback.temperatureDisplayJitterOffset,
     temperatureDisplayNextJitterAtMs: normalizeNullableNumber(file.temperatureDisplayNextJitterAtMs) ?? fallback.temperatureDisplayNextJitterAtMs,
     pressureZeroDisplayedSamples: Array.isArray(file.pressureZeroDisplayedSamples)

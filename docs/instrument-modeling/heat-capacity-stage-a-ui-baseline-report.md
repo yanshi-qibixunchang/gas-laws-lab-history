@@ -78,9 +78,9 @@ node tests\heatCapacity\workbenchHeatCapacityInstrumentUi.test.ts
 
 ## 3. 已发现问题
 
-### 2026-06-20 修复状态更新
+### 2026-07-12 修复状态更新
 
-- BUG-A1 已按审核方案修复：新增 `heatCapacityFreeStopcockFlowPurpose`，将自由模式玻璃旋塞流通语义区分为 `none` / `zeroing` / `release`。
+- BUG-A1 已并入三模式共用的 `heatCapacityReleaseState`：由单一状态机同时表达 `zeroing` / `release` 用途及 opening / releasing / closing 时序，不再保存自由模式专用的并行流通字段。
 - U0 调零阶段打开玻璃旋塞会继续允许真实物理连通，但不会创建 `releaseReference`，也不会把阶段推入 `releasing/recovering`。
 - 只有当前自由实验组已记录 U1 且尚未记录 U2 时，打开玻璃旋塞才会以 `release` 语义传入物理引擎。
 - RISK-A2 已做最小修复：程序化 3D 电源开关 hitbox 从 `[0.34, 0.34, 0.22]` 扩展为 `[0.42, 0.42, 0.28]`，不改变可见模型和打气球聚焦设计。
@@ -104,7 +104,7 @@ node tests\heatCapacity\workbenchHeatCapacityInstrumentUi.test.ts
 初步原因：
 
 - U0 记录模型本身是对的：要求电源开、玻璃旋塞打开、压差接近零。
-- 当前自由物理推进只要 `heatCapacityFreeStopcockFlowOpen` 为 true，就会把玻璃旋塞流通交给 `stepFreePhysics`。
+- 旧实现只按一个自由模式流通布尔值把玻璃旋塞交给 `stepFreePhysics`，无法表达动画与真实主放气的边界。
 - `stepFreePhysics` 不区分“U0 调零通大气”和“U1 后快速放气”，开阀后会创建 `releaseReference` 并把 `releaseStarted` 置为 true。
 - `getHeatCapacityFreeRuntimePhase` 再根据 `stopcockOpen && releaseStarted` 推导为 `releasing`。
 
@@ -112,7 +112,7 @@ node tests\heatCapacity\workbenchHeatCapacityInstrumentUi.test.ts
 
 1. 在工作台层引入“放气有效门槛”：只有当前自由实验组已经记录 U1 后，玻璃旋塞打开才允许作为 release 输入传给物理层。
 2. U0/调零阶段的玻璃旋塞打开仍应允许与外界连通、允许压差归零，但不应生成 `releaseReference`，也不应把阶段推进到 `releasing/recovering`。
-3. 更干净的结构是增加一个语义状态，例如 `stopcockFlowPurpose: "zeroing" | "release"`，或者在 `stepHeatCapacityWorkbenchFile` 内计算 `stopcockOpenForRelease = hasCurrentFreeU1 && heatCapacityFreeStopcockFlowOpen`。
+3. 已采用统一状态机：用途、阶段、尝试编号、起止模拟时间和快速开关判定都由一个状态对象维护。
 4. 增加回归测试：`power on + stopcock open + record U0 + wait` 后，阶段不得进入 `releasing/recovering`；关闭旋塞后应进入准备打气或等待打气状态。
 
 ### RISK-A2：3D 坐标点击对边界点敏感

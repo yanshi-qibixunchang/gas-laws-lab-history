@@ -60,7 +60,6 @@ export interface HeatCapacityGuideActionContext {
   pumpValveOpen: boolean;
   displayPressureMv: number;
   pressureZeroReady?: boolean;
-  releaseDurationReady?: boolean;
   simulationTimeS?: number;
 }
 
@@ -210,9 +209,9 @@ export const getHeatCapacityGuideActionGuard = (
         ? accepted('放气旋塞已打开。', 'stopcock')
         : rejected(workflow, context, '请打开玻璃旋塞进行放气。');
     case 'closeStopcockAfterReleaseRequired':
-      return context.action === 'closeStopcock' && !context.stopcockOpen && context.releaseDurationReady === true
+      return context.action === 'closeStopcock' && !context.stopcockOpen
         ? accepted('放气旋塞已关闭。', 'stopcock')
-        : rejected(workflow, context, '请在放气约 0.35 s 后关闭玻璃旋塞。');
+        : rejected(workflow, context, '请关闭玻璃旋塞结束放气。');
     case 'u2Waiting':
       return context.action === 'timerComplete'
         ? accepted('U₂ 等待完成。', 'recordU2')

@@ -12,6 +12,9 @@ import {
   type HeatCapacityFreePhysicsConfig,
   type HeatCapacityFreePhysicsState,
 } from '../../src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
+import {
+  HEAT_CAPACITY_STANDARD_OPERATION,
+} from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
 
 const baseConfig: HeatCapacityFreePhysicsConfig = {
   environment: {
@@ -552,11 +555,11 @@ const releasedAmountLossForDuration = (
 const loss003 = releasedAmountLossForDuration(0.03);
 const loss005 = releasedAmountLossForDuration(0.05);
 const loss010 = releasedAmountLossForDuration(0.1);
-const loss035 = releasedAmountLossForDuration(0.35);
+const lossStandard = releasedAmountLossForDuration(HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS);
 
 assert.equal(loss003 > 0, true, '0.03s should still create a real but small release');
 assert.equal(
-  loss003 < loss005 && loss005 < loss010 && loss010 < loss035,
+  loss003 < loss005 && loss005 < loss010 && loss010 < lossStandard,
   true,
   'release loss should increase with open duration',
 );
@@ -566,9 +569,12 @@ const apertureProbeConfig = {
   stopcockFlowRate: 0.2,
 } as HeatCapacityFreePhysicsConfig;
 const apertureProbeLoss003 = releasedAmountLossForDuration(0.03, apertureProbeConfig);
-const apertureProbeLoss035 = releasedAmountLossForDuration(0.35, apertureProbeConfig);
+const apertureProbeLossStandard = releasedAmountLossForDuration(
+  HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
+  apertureProbeConfig,
+);
 assert.equal(
-  apertureProbeLoss003 / apertureProbeLoss035 < 0.03,
+  apertureProbeLoss003 / apertureProbeLossStandard < 0.03,
   true,
   '0.03s loss should be much smaller than the old full-aperture proportional duration',
 );

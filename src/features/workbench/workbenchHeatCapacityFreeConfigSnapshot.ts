@@ -1,7 +1,5 @@
 import {
   FREE_PUMP_STROKE_DURATION_S,
-  FREE_RELEASE_MAIN_DURATION_S,
-  FREE_RELEASE_RESPONSE_DELAY_S,
   type HeatCapacityFreeEnvironmentConfig,
 } from '../../domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
 import {
@@ -52,8 +50,6 @@ export const createHeatCapacityFreeConfigSnapshotFromFile = (
       pumpStrokeDurationS: FREE_PUMP_STROKE_DURATION_S,
       recommendedPumpIntervalS: 0.1,
       stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
-      releaseVisualResponseDelayS: FREE_RELEASE_RESPONSE_DELAY_S,
-      releaseVisualMainDurationS: FREE_RELEASE_MAIN_DURATION_S,
       thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
       pumpValveExchange: normalizeFreePumpValveExchangeConfig(
         file.heatCapacityFreePhysicsConfig.pumpValveExchange,

@@ -2,10 +2,17 @@
 import {
   createHeatCapacityAutoDemoSteps,
   getHeatCapacityAutoDemoTimeline,
+  HEAT_CAPACITY_AUTO_DEMO_RELEASE_ACTION_DURATION_MS,
+  HEAT_CAPACITY_AUTO_DEMO_RELEASE_CLOSE_DELAY_MS,
+  HEAT_CAPACITY_AUTO_DEMO_RECOVERY_ACTION_DURATION_MS,
+  HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_ACTION_DURATION_MS,
+  HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_PUMP_MS,
+  HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_RELEASE_MS,
   HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT,
   HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS,
 } from '../../src/domain/heatCapacity/heatCapacityAutoDemo.ts';
 import {
+  HEAT_CAPACITY_RELEASE_TIMING,
   HEAT_CAPACITY_STANDARD_OPERATION,
 } from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
 
@@ -69,9 +76,26 @@ assert.equal(
 const sealedStabilizeStep = steps.find((step) => step.id === 'sealed-stabilize');
 assert.notEqual(sealedStabilizeStep, undefined);
 assert.equal(sealedStabilizeStep?.progressCriterion, '等待 5 min 后记录 U₁ / Uₜ₁。');
+assert.equal(sealedStabilizeStep?.note, '演示按标准操作实际等待 5 min，不压缩等待时长。');
+assert.equal(
+  sealedStabilizeStep?.actionDurationMs,
+  HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_ACTION_DURATION_MS,
+);
 const thermalRecoveryStep = steps.find((step) => step.id === 'thermal-recovery');
 assert.notEqual(thermalRecoveryStep, undefined);
 assert.equal(thermalRecoveryStep?.progressCriterion, '等待 5 min 后记录 U₂ / Uₜ₂。');
+assert.equal(
+  thermalRecoveryStep?.actionDurationMs,
+  HEAT_CAPACITY_AUTO_DEMO_RECOVERY_ACTION_DURATION_MS,
+);
+assert.equal(
+  HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_PUMP_MS,
+  HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS * 1000,
+);
+assert.equal(
+  HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_RELEASE_MS,
+  HEAT_CAPACITY_STANDARD_OPERATION.waitAfterReleaseS * 1000,
+);
 assert.equal(
   HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS,
   Math.round(
@@ -105,7 +129,17 @@ assert.equal(
   steps.some((step) => step.focusSequence?.some((focus) => focus.targetControlId === 'instrumentPressureDisplay')),
   true,
 );
-assert.equal(steps.some((step) => step.targetControlId === 'stopcock' && step.actionDurationMs === 1_000), true);
+assert.equal(steps[1].actionDurationMs, HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs);
+assert.equal(steps[3].actionDurationMs, HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs);
+assert.equal(steps[8].actionDurationMs, HEAT_CAPACITY_AUTO_DEMO_RELEASE_ACTION_DURATION_MS);
+assert.equal(
+  steps[8].actions.find((action) => action.action === 'closeStopcockForRecovery')?.delayMs,
+  HEAT_CAPACITY_AUTO_DEMO_RELEASE_CLOSE_DELAY_MS,
+);
+assert.equal(
+  HEAT_CAPACITY_AUTO_DEMO_RELEASE_CLOSE_DELAY_MS - HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs,
+  HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS * 1000,
+);
 assert.deepEqual(
   steps.map((step) => [step.id, step.cameraFocusMode]),
   [
@@ -137,6 +171,37 @@ assert.equal(
   'auto demo panel should not stay on a completed operation during the waiting window',
 );
 
+const closePumpValveAtMs = timeline.find(
+  (item) => item.action?.action === 'closePumpValve',
+)?.atMs;
+const stableSampleAtMs = timeline.find(
+  (item) => item.action?.sampleKey === 'stableBeforeReleaseSample',
+)?.atMs;
+const closePumpValveStep = steps.find((step) => step.id === 'close-pump-valve');
+assert.equal(typeof closePumpValveAtMs, 'number');
+assert.equal(typeof stableSampleAtMs, 'number');
+assert.equal(
+  (stableSampleAtMs ?? 0) - ((closePumpValveAtMs ?? 0) + (closePumpValveStep?.actionDurationMs ?? 0)),
+  HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_PUMP_MS,
+  'auto demo must wait the full standard interval after the pump valve has finished closing',
+);
+
+const closeStopcockAtMs = timeline.find(
+  (item) => item.action?.action === 'closeStopcockForRecovery',
+)?.atMs;
+const recoverySampleAtMs = timeline.find(
+  (item) => item.action?.sampleKey === 'recoverySample',
+)?.atMs;
+assert.equal(typeof closeStopcockAtMs, 'number');
+assert.equal(typeof recoverySampleAtMs, 'number');
+assert.equal(
+  (recoverySampleAtMs ?? 0) - (
+    (closeStopcockAtMs ?? 0) + HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs
+  ),
+  HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_RELEASE_MS,
+  'auto demo must wait the full standard interval after the stopcock has finished closing',
+);
+
 const zeroPressureFirstHighlight = timeline.find((item) => item.step.id === 'zero-pressure' && item.stage === 'highlight');
 const zeroPressurePreview = timeline.find((item) => item.step.id === 'zero-pressure' && item.stage === 'preview');
 const openStopcockFirstHighlight = timeline.find((item) => item.step.id === 'open-stopcock-for-zero' && item.stage === 'highlight');
@@ -151,8 +216,8 @@ assert.equal(
 assert.deepEqual(
   timeline.filter((item) => item.step.id === 'zero-pressure' && item.stage === 'highlight').map((item) => [item.focusControlId, item.atMs]),
   [
-    ['instrumentPressureDisplay', 15_650],
-    ['pressureZero', 19_650],
+    ['instrumentPressureDisplay', 15_070],
+    ['pressureZero', 19_070],
   ],
 );
 assert.deepEqual(
@@ -176,7 +241,6 @@ assert.equal(
 assert.equal(timeline.every((item, index) => index === 0 || item.atMs >= timeline[index - 1].atMs), true);
 assert.equal(timeline.at(-1)?.step.id, 'power-off');
 assert.equal(timeline.at(-1)?.action?.action, 'completeTeachingMode');
-assert.equal((timeline.at(-1)?.atMs ?? 0) >= 105_000, true);
-assert.equal((timeline.at(-1)?.atMs ?? 0) <= 110_000, true);
+assert.equal((timeline.at(-1)?.atMs ?? 0) > 10 * 60 * 1000, true);
 
 console.log('heatCapacityAutoDemo tests passed');

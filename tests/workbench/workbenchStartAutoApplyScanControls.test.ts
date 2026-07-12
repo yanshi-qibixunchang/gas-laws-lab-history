@@ -86,7 +86,8 @@ assert.ok(
   source.includes('const parseIdealScanInput = (') &&
     source.includes('const decimalPattern = /^(?:\\d+(?:\\.\\d*)?|\\.\\d+)$/;') &&
     source.includes('const integerPattern = /^\\d+$/;') &&
-    source.includes('return { valid: false'),
+    source.includes('const invalid = (getMessage: WorkbenchConsoleMessageFactory) => ({') &&
+    source.includes('return invalid('),
   'ideal scan keyboard input should reject unsupported decimal/integer formats before updating params',
 );
 
@@ -98,13 +99,13 @@ assert.match(
 
 assert.match(
   source,
-  /const showScanInputError = \(message: string,\s*options: \{ refocus\?: boolean; rawValue\?: string \} = \{\}\) => \{[\s\S]*?setScanInputToast\(message\)[\s\S]*?pushLog\(`\$\{activeFile\.name\}: \$\{message\}`,\s*'error'\)[\s\S]*?scanInputRef\.current\?\.focus\(\)[\s\S]*?scanInputRef\.current\?\.select\(\)/,
+  /const showScanInputError = \(\s*message: string,\s*getMessage: WorkbenchConsoleMessageFactory,\s*options: \{ refocus\?: boolean; rawValue\?: string \} = \{\},?\s*\) => \{[\s\S]*?setScanInputToast\(message\)[\s\S]*?pushLog\(\(language\) => `\$\{activeFile\.name\}: \$\{getMessage\(language\)\}`, 'error'\)[\s\S]*?scanInputRef\.current\?\.focus\(\)[\s\S]*?scanInputRef\.current\?\.select\(\)/,
   'invalid scan input should set inline error, show a transient app toast, write to the console log, and refocus for direct correction',
 );
 
 assert.match(
   source,
-  /const validateIdealScanDraft = \(rawValue: string\) => \{[\s\S]*?parseIdealScanInput\(rawValue[\s\S]*?showScanInputError\(parsed\.message,\s*\{ rawValue \}\)[\s\S]*?return false;/,
+  /const validateIdealScanDraft = \(rawValue: string\) => \{[\s\S]*?parseIdealScanInput\(rawValue[\s\S]*?showScanInputError\(parsed\.message, parsed\.getMessage, \{ rawValue \}\)[\s\S]*?return false;/,
   'typing an unsupported scan value should validate immediately and send the error to the console/log flow',
 );
 
@@ -140,7 +141,7 @@ assert.match(
 
 assert.match(
   source,
-  /message: workbenchCopy\.logs\.scanInputStep\(getIdealScanInputLabel\(relation\), getIdealScanStepLabel\(relation\)\)/,
+  /return invalid\(\(language\) => workbenchCopies\[language\]\.logs\.scanInputStep\(\s*getIdealScanInputLabel\(relation\),\s*getIdealScanStepLabel\(relation\),?\s*\)\)/,
   'valid-looking scan input with unsupported precision should mention the minimum step',
 );
 
@@ -164,7 +165,7 @@ assert.match(
 
 assert.match(
   source,
-  /showScanInputError\(parsed\.message,\s*\{ refocus: true,\s*rawValue: scanInputDraft \}\);[\s\S]*?return;/,
+  /showScanInputError\(parsed\.message, parsed\.getMessage, \{ refocus: true,\s*rawValue: scanInputDraft \}\);[\s\S]*?return;/,
   'invalid scan input submission should keep the same editor focused and preserve the current draft',
 );
 

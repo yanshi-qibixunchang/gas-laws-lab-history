@@ -83,7 +83,11 @@ for (const requiredCall of [
   'workbenchCopy.logs.relationHasNoPoints',
   'getLocalizedWorkbenchValidationErrors(validation.errors, settingsLanguagePreference)',
 ]) {
-  assert.ok(renderSource.includes(requiredCall), `${requiredCall} should be used by experiment UI/log logic`);
+  const languageReactiveCall = requiredCall.replace('workbenchCopy.logs', 'workbenchCopies[language].logs');
+  assert.ok(
+    renderSource.includes(requiredCall) || renderSource.includes(languageReactiveCall),
+    `${requiredCall} should be used by experiment UI/log logic`,
+  );
 }
 
 for (const hardcodedText of [

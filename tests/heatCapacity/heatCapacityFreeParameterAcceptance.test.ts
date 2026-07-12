@@ -9,10 +9,16 @@ import {
   createDefaultHeatCapacityFile,
   recordHeatCapacityFreeTraceEventWithReference,
 } from '../../src/features/workbench/workbenchState.ts';
+import {
+  HEAT_CAPACITY_RELEASE_TIMING,
+  HEAT_CAPACITY_STANDARD_OPERATION,
+} from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import { getHeatCapacityFreeGasTypeModelDefaults } from '../../src/domain/heatCapacity/heatCapacityGasTheory.ts';
 
 const HELIUM_THEORETICAL_GAMMA = 5 / 3;
 const GAMMA_BEST_OPERATION_TOLERANCE = 0.03;
 const GAMMA_SUITABLE_OPERATION_TOLERANCE = 0.06;
+const AIR_MODEL_DEFAULTS = getHeatCapacityFreeGasTypeModelDefaults('air');
 const acceptanceHelperSource = readFileSync(
   join(process.cwd(), 'tests', 'heatCapacity', 'heatCapacityFreeParameterAcceptance.ts'),
   'utf8',
@@ -31,7 +37,11 @@ assert.doesNotMatch(
 
 const lowSignalDiagnosticReport = runHeatCapacityFreeParameterAcceptance({
   pumpStrokes: [2, 3, 4, 5],
-  openDurationsS: [0, 0.3, 0.7],
+  openDurationsS: [
+    HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMinS / 2,
+    HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
+    HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS + 0.5,
+  ],
 });
 
 const targetedReport = runHeatCapacityFreeParameterAcceptance({
@@ -44,7 +54,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 300,
       leakageEnabled: false,
       leakageRatePerS: 0,
@@ -55,7 +65,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 12,
       waitAfterPumpS: 300,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 300,
       leakageEnabled: false,
       leakageRatePerS: 0,
@@ -66,10 +76,10 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 12,
       waitAfterPumpS: 300,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 300,
       leakageEnabled: true,
-      leakageRatePerS: 0.00005,
+      leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
       instrumentNoiseEnabled: true,
     },
     {
@@ -77,10 +87,10 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 12,
       waitAfterPumpS: 280,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 300,
       leakageEnabled: true,
-      leakageRatePerS: 0.00005,
+      leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
       instrumentNoiseEnabled: false,
     },
     {
@@ -88,10 +98,10 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 12,
       waitAfterPumpS: 320,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 300,
       leakageEnabled: true,
-      leakageRatePerS: 0.00005,
+      leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
       instrumentNoiseEnabled: false,
     },
     {
@@ -99,10 +109,10 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 12,
       waitAfterPumpS: 300,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 280,
       leakageEnabled: true,
-      leakageRatePerS: 0.00005,
+      leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
       instrumentNoiseEnabled: false,
     },
     {
@@ -110,10 +120,10 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 12,
       waitAfterPumpS: 300,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 320,
       leakageEnabled: true,
-      leakageRatePerS: 0.00005,
+      leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
       instrumentNoiseEnabled: false,
     },
     {
@@ -124,7 +134,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       openDurationS: 0.25,
       waitAfterReleaseS: 300,
       leakageEnabled: true,
-      leakageRatePerS: 0.00005,
+      leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
       instrumentNoiseEnabled: false,
     },
     {
@@ -135,7 +145,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       openDurationS: 0.45,
       waitAfterReleaseS: 300,
       leakageEnabled: true,
-      leakageRatePerS: 0.00005,
+      leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
       instrumentNoiseEnabled: false,
     },
     {
@@ -143,10 +153,10 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 12,
       waitAfterPumpS: 0,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 300,
       leakageEnabled: true,
-      leakageRatePerS: 0.00005,
+      leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
       instrumentNoiseEnabled: false,
     },
     {
@@ -154,10 +164,10 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 12,
       waitAfterPumpS: 300,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 0,
       leakageEnabled: true,
-      leakageRatePerS: 0.00005,
+      leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
       instrumentNoiseEnabled: false,
     },
     {
@@ -168,7 +178,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       openDurationS: 0.05,
       waitAfterReleaseS: 300,
       leakageEnabled: true,
-      leakageRatePerS: 0.00005,
+      leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
       instrumentNoiseEnabled: false,
     },
     {
@@ -179,7 +189,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       openDurationS: 2.5,
       waitAfterReleaseS: 300,
       leakageEnabled: true,
-      leakageRatePerS: 0.00005,
+      leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
       instrumentNoiseEnabled: false,
     },
     {
@@ -190,7 +200,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       openDurationS: 10,
       waitAfterReleaseS: 300,
       leakageEnabled: true,
-      leakageRatePerS: 0.00005,
+      leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
       instrumentNoiseEnabled: false,
     },
     {
@@ -198,10 +208,10 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 12,
       waitAfterPumpS: 300,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 600,
       leakageEnabled: true,
-      leakageRatePerS: 0.00005,
+      leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
       instrumentNoiseEnabled: false,
     },
     {
@@ -209,10 +219,10 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 12,
       waitAfterPumpS: 300,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 1200,
       leakageEnabled: true,
-      leakageRatePerS: 0.00005,
+      leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
       instrumentNoiseEnabled: false,
     },
     {
@@ -220,10 +230,10 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 12,
       waitAfterPumpS: 300,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 1800,
       leakageEnabled: true,
-      leakageRatePerS: 0.00005,
+      leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
       instrumentNoiseEnabled: false,
     },
     {
@@ -234,7 +244,7 @@ const targetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 300,
       leakageEnabled: false,
       leakageRatePerS: 0,
@@ -320,16 +330,39 @@ const shortOpenExact = runHeatCapacityFreeParameterAcceptance({
     },
   ],
 }).rows;
-const airReasonableReleaseWindow = runHeatCapacityFreeParameterAcceptance({
-  scenarios: [0.1, 0.2, 0.35, 0.5, 0.65, 0.8].map((openDurationS) => ({
-    id: `R3-open-window-${openDurationS}`,
+const zeroDurationRelease = runHeatCapacityFreeParameterAcceptance({
+  scenarios: [
+    {
+      id: 'zero-duration-no-release',
+      pumpStrokes: 18,
+      pumpTotalDurationS: 12,
+      waitAfterPumpS: 300,
+      openDurationS: 0,
+      waitAfterReleaseS: 300,
+      leakageEnabled: false,
+      pumpValveExchangeEnabled: false,
+      environmentDisturbanceEnabled: false,
+      instrumentNoiseEnabled: false,
+    },
+  ],
+}).rows[0];
+const canonicalReleaseDurationsS = [
+  HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMinS / 2,
+  HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMinS,
+  HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
+  HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS,
+  HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS + 0.5,
+];
+const airCanonicalReleaseWindow = runHeatCapacityFreeParameterAcceptance({
+  scenarios: canonicalReleaseDurationsS.map((openDurationS) => ({
+    id: `R3-open-canonical-${openDurationS}`,
     pumpStrokes: 18,
     pumpTotalDurationS: 12,
     waitAfterPumpS: 300,
     openDurationS,
     waitAfterReleaseS: 300,
     leakageEnabled: true,
-    leakageRatePerS: 0.00005,
+    leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
     instrumentNoiseEnabled: false,
   })),
 }).rows;
@@ -339,10 +372,40 @@ assert.equal(
   true,
   '0.03s should remain physically shorter than 0.05s instead of being swallowed by a 0.05s click step',
 );
+assert.equal(zeroDurationRelease.openDurationS, 0);
+assert.equal(zeroDurationRelease.u2Recordable, false);
+assert.equal(zeroDurationRelease.gamma, null);
 assert.equal(
-  airReasonableReleaseWindow.every((row) => row.gamma !== null && row.gamma >= 1.35),
+  zeroDurationRelease.u2Reason,
+  'release-not-started',
+  'a zero-duration release must stay a true no-op without synthesized release time',
+);
+assert.equal(
+  airCanonicalReleaseWindow
+    .filter((row) => (
+      row.openDurationS >= HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMinS &&
+      row.openDurationS <= HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS
+    ))
+    .every((row) => row.gamma !== null && row.gamma >= 1.35),
   true,
-  'air 0.1-0.8s release window should stay above gamma 1.35 in the clean real model',
+  'the canonical 0.3-0.5s release window should stay above gamma 1.35 in the clean real model',
+);
+const canonicalStandardRelease = airCanonicalReleaseWindow.find((row) => (
+  row.openDurationS === HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS
+));
+const canonicalTooShortRelease = airCanonicalReleaseWindow[0];
+const canonicalTooLongRelease = airCanonicalReleaseWindow.at(-1)!;
+assert.notEqual(canonicalStandardRelease?.gamma, null);
+assert.notEqual(canonicalStandardRelease?.gamma, undefined);
+assert.equal(
+  Math.abs(canonicalTooShortRelease.gamma! - 1.4) > Math.abs(canonicalStandardRelease!.gamma! - 1.4),
+  true,
+  'a too-short physical release should have larger absolute gamma error than the canonical demo duration',
+);
+assert.equal(
+  Math.abs(canonicalTooLongRelease.gamma! - 1.4) > Math.abs(canonicalStandardRelease!.gamma! - 1.4),
+  true,
+  'a too-long physical release should have larger absolute gamma error than the canonical demo duration',
 );
 assert.notEqual(absoluteIdeal, undefined, 'absolute ideal scenario should exist in targeted acceptance report');
 assert.notEqual(idealExperiment, undefined, 'ideal experiment scenario should exist in targeted acceptance report');
@@ -447,7 +510,7 @@ const heliumTargetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 0,
       waitAfterPumpS: 300,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 300,
       leakageEnabled: false,
       leakageRatePerS: 0,
@@ -459,7 +522,7 @@ const heliumTargetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 12,
       waitAfterPumpS: 300,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 300,
       leakageEnabled: true,
       instrumentNoiseEnabled: true,
@@ -470,7 +533,7 @@ const heliumTargetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 12,
       waitAfterPumpS: 0,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 300,
       leakageEnabled: true,
       instrumentNoiseEnabled: false,
@@ -481,7 +544,7 @@ const heliumTargetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 12,
       waitAfterPumpS: 300,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 0,
       leakageEnabled: true,
       instrumentNoiseEnabled: false,
@@ -503,7 +566,7 @@ const heliumTargetedReport = runHeatCapacityFreeParameterAcceptance({
       pumpStrokes: 18,
       pumpTotalDurationS: 12,
       waitAfterPumpS: 300,
-      openDurationS: 0.35,
+      openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
       waitAfterReleaseS: 720,
       leakageEnabled: true,
       instrumentNoiseEnabled: false,
@@ -639,18 +702,20 @@ assert.equal(
   'Free config snapshot should be copied at trace creation instead of reading later file config changes',
 );
 
-const quickRows = lowSignalDiagnosticReport.rows.filter((row) => row.openDurationS === 0);
+const standardReleaseRows = lowSignalDiagnosticReport.rows.filter((row) => (
+  row.openDurationS === HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS
+));
 assert.deepEqual(
-  quickRows.map((row) => row.pumpStrokes),
+  standardReleaseRows.map((row) => row.pumpStrokes),
   [2, 3, 4, 5],
   'low-signal diagnostic smoke should still cover 2-5 pump strokes',
 );
 
 for (const strokes of [3, 4]) {
-  const row = quickRows.find((candidate) => candidate.pumpStrokes === strokes);
+  const row = standardReleaseRows.find((candidate) => candidate.pumpStrokes === strokes);
   assert.notEqual(row, undefined, `${strokes} pump strokes should be represented`);
   assert.equal(row?.u1Recordable, true, `${strokes} pump strokes should be recordable as U1`);
-  assert.equal(row?.u2Recordable, true, `${strokes} pump strokes should be recordable as U2 after quick release`);
+  assert.equal(row?.u2Recordable, true, `${strokes} pump strokes should be recordable as U2 after the standard release`);
   assert.equal(
     row !== undefined &&
       row.u1CorrectedMv !== null &&
@@ -660,7 +725,7 @@ for (const strokes of [3, 4]) {
   );
 }
 
-const twoStroke = quickRows.find((row) => row.pumpStrokes === 2);
+const twoStroke = standardReleaseRows.find((row) => row.pumpStrokes === 2);
 assert.equal(twoStroke?.u1Recordable, true, '2 pump strokes should be recordable after minimum U1 is downgraded to diagnostics');
 assert.equal(twoStroke?.u2Recordable, true, '2 pump strokes should remain recordable through U2 for later diagnosis');
 assert.equal(
@@ -672,10 +737,10 @@ assert.equal(
 );
 assert.equal(twoStroke?.safetyStatus, 'normal', '2 pump strokes should remain below the warning line');
 
-const fourStroke = quickRows.find((row) => row.pumpStrokes === 4);
+const fourStroke = standardReleaseRows.find((row) => row.pumpStrokes === 4);
 assert.equal(fourStroke?.safetyStatus, 'normal', '4-pump low-signal diagnostic row should remain below the suggested stop line');
 
-const fiveStroke = quickRows.find((row) => row.pumpStrokes === 5);
+const fiveStroke = standardReleaseRows.find((row) => row.pumpStrokes === 5);
 assert.equal(fiveStroke?.safetyStatus, 'normal', '5-pump low-signal diagnostic row should remain below the suggested stop line');
 assert.equal(
   fiveStroke?.u1Recordable,
@@ -683,17 +748,20 @@ assert.equal(
   '5 requested pump strokes should remain recordable for low-pressure diagnostic review',
 );
 
-const slowClose = lowSignalDiagnosticReport.rows.find((row) => row.pumpStrokes === 4 && row.openDurationS === 0.7);
+const slowClose = lowSignalDiagnosticReport.rows.find((row) => (
+  row.pumpStrokes === 4 &&
+  row.openDurationS === HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS + 0.5
+));
 assert.equal(slowClose?.u2Recordable, true, 'moderately slow close should still produce a recordable U2 row');
-const quickFourStroke = quickRows.find((row) => row.pumpStrokes === 4);
+const standardFourStroke = standardReleaseRows.find((row) => row.pumpStrokes === 4);
 assert.equal(
   slowClose !== undefined &&
     slowClose.gamma !== null &&
-    quickFourStroke !== undefined &&
-    quickFourStroke.gamma !== null &&
-    slowClose.gamma < quickFourStroke.gamma - 0.015,
+    standardFourStroke !== undefined &&
+    standardFourStroke.gamma !== null &&
+    slowClose.gamma < standardFourStroke.gamma - 0.015,
   true,
-  'moderately slow close should visibly degrade gamma in the acceptance report',
+  'a release beyond the canonical window should visibly degrade gamma in the acceptance report',
 );
 
 console.log('heatCapacityFreeParameterAcceptance tests passed');

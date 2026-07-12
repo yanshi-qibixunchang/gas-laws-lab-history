@@ -40,15 +40,30 @@ export const HEAT_CAPACITY_GUIDE_FIXED_PUMP_TARGET_MV = 120;
 export const HEAT_CAPACITY_AUTO_DEMO_INITIAL_PRESSURE_BIAS_MV = 0.75;
 export const HEAT_CAPACITY_AUTO_DEMO_RESULT_U0_MV = 0;
 export const HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV = HEAT_CAPACITY_GUIDE_FIXED_PUMP_TARGET_MV;
-export const HEAT_CAPACITY_AUTO_DEMO_RESULT_U2_MV = 33.46;
-export const HEAT_CAPACITY_AUTO_DEMO_RESULT_GAMMA = 1.398;
 export const HEAT_CAPACITY_AUTO_DEMO_RESULT_TEMPERATURE_MV = 1499;
+
+export const HEAT_CAPACITY_RELEASE_TIMING = {
+  openingAnimationDurationMs: 420,
+  closingAnimationDurationMs: 420,
+  releaseApertureRampS: 0.1,
+  releaseOptimalMinS: 0.3,
+  releaseOptimalMaxS: 0.5,
+  autoDemoReleaseDurationS: 0.375,
+} as const;
+
+export const HEAT_CAPACITY_GAMMA_ABSOLUTE_ERROR_LIMITS = {
+  absoluteIdeal: 0.005,
+  idealExperiment: 0.01,
+  bestRealistic: 0.03,
+  suitable: 0.06,
+  severe: 0.1,
+} as const;
 
 export const HEAT_CAPACITY_STANDARD_OPERATION = {
   pumpStrokes: 18,
   pumpTotalDurationS: 12,
   waitAfterPumpS: 300,
-  openDurationS: 0.35,
+  releaseDurationS: HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS,
   waitAfterReleaseS: 300,
 } as const;
 
@@ -80,7 +95,7 @@ export const createDefaultHeatCapacityCorePhysicsDefaults = (): HeatCapacityCore
   gamma: 1.4,
   pumpAmountGainRatio: 0.00345,
   pumpPressureLimitKPa: 109,
-  stopcockFlowRate: 5.25,
+  stopcockFlowRate: 0.79,
   thermal: createDefaultHeatCapacityThermalConfig(),
 });
 

@@ -41,9 +41,9 @@ assert.equal(
   'standard reference should wait 300 s before recording U1',
 );
 assert.equal(
-  Number(((stageById.get('release')!.endS - stageById.get('release')!.startS)).toFixed(2)),
-  0.35,
-  'standard reference should release for the tuned 0.35 s window, not a synthesized duration',
+  Number(((stageById.get('release')!.endS - stageById.get('release')!.startS)).toFixed(3)),
+  HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
+  'standard reference should use the canonical configured release duration',
 );
 assert.equal(
   Number(((stageById.get('recover')!.endS - stageById.get('recover')!.startS)).toFixed(2)),

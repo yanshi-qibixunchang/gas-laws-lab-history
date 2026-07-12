@@ -14,17 +14,21 @@ import {
 
 const configSnapshot = createDefaultFreeConfigSnapshot();
 
-assert.equal(HEAT_CAPACITY_FREE_TRACE_VERSION, 4);
-assert.equal(HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION, 7);
-assert.equal(configSnapshot.version, 7);
+assert.equal(HEAT_CAPACITY_FREE_TRACE_VERSION, 5);
+assert.equal(HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION, 8);
+assert.equal(configSnapshot.version, 8);
 assert.equal(configSnapshot.physics.vesselVolumeL, 2);
 assert.equal(configSnapshot.physics.pumpAmountGainRatio, 0.00345);
 assert.equal('pumpInflowTemperatureRiseK' in configSnapshot.physics, false);
 assert.equal('chamberTemperatureRiseK' in configSnapshot.physics.pumpValveExchange!, false);
 assert.equal(configSnapshot.physics.pumpStrokeDurationS, 0.08);
 assert.equal(configSnapshot.physics.recommendedPumpIntervalS, 0.1);
-assert.equal(configSnapshot.physics.releaseVisualResponseDelayS, 0.02);
-assert.equal(configSnapshot.physics.releaseVisualMainDurationS, 0.18);
+assert.equal(configSnapshot.physics.openingAnimationDurationMs, 420);
+assert.equal(configSnapshot.physics.closingAnimationDurationMs, 420);
+assert.equal(configSnapshot.physics.releaseApertureRampS, 0.1);
+assert.equal(configSnapshot.physics.releaseOptimalMinS, 0.3);
+assert.equal(configSnapshot.physics.releaseOptimalMaxS, 0.5);
+assert.equal(configSnapshot.physics.autoDemoReleaseDurationS, 0.375);
 assert.equal(configSnapshot.physics.thermal.gasWallConductanceWPerK, 0.14);
 assert.equal(configSnapshot.physics.thermal.wallAmbientConductanceWPerK, 0.45);
 assert.equal(configSnapshot.physics.thermal.wallHeatCapacityJPerK, 45);
@@ -59,7 +63,7 @@ assert.deepEqual(configSnapshot.sensor.pressureNonlinearity, {
 });
 assert.equal(configSnapshot.record.pressureWarningMv, 120);
 assert.equal(configSnapshot.record.u0ZeroToleranceMv, 0.12);
-assert.equal(configSnapshot.scoring.processScoringVersion, 'free-process-score-v1');
+assert.equal(configSnapshot.scoring.processScoringVersion, 'free-process-score-v2');
 assert.equal('reservedPhysicsV2' in configSnapshot, false);
 assert.ok(
   Math.abs(configSnapshot.physics.pumpAmountGainRatio * configSnapshot.physics.vesselVolumeL * 1000 - 6.9) < 1e-9,
@@ -104,7 +108,9 @@ const createSampleInput = (
     stopcockOpen: false,
     pumpValveOpen: false,
     pumpBulbState: 'idle',
-    stopcockFlowOpen: false,
+    releaseFlowOpen: false,
+    releasePhase: 'closed',
+    releaseDurationS: 0,
   },
   physical: {
     gasPressureKPa: 106,

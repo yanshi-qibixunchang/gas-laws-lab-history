@@ -1,6 +1,10 @@
 import {
-  getFreeStopcockApertureEffectiveDtS,
+  getHeatCapacityReleaseApertureEffectiveDtS,
 } from './heatCapacityFreeStopcockApertureModel.ts';
+import {
+  stepHeatCapacityReleaseGasState,
+  type HeatCapacityReleasePurpose,
+} from './heatCapacityReleaseModel.ts';
 import {
   createDefaultFreeThermalState,
   stepFreeThermalState,
@@ -61,6 +65,7 @@ export interface HeatCapacityGuideControls {
   powerOn: boolean;
   pumpValveOpen: boolean;
   stopcockOpen: boolean;
+  stopcockFlowPurpose?: HeatCapacityReleasePurpose;
 }
 
 export interface HeatCapacityGuidePumpStrokeEvent {
@@ -83,7 +88,6 @@ export interface HeatCapacityGuidePumpStrokeResult {
 const MIN_GAS_AMOUNT_RATIO = 0.000001;
 const MIN_GAS_TEMPERATURE_K = 1;
 const PRESSURE_EPSILON_KPA = 0.000001;
-const PRESSURE_NEAR_AMBIENT_KPA = 0.03;
 const GUIDE_PUMP_STROKE_DURATION_S = 0.08;
 const GUIDE_OPEN_FLOW_MAX_SUBSTEP_S = 0.02;
 const GUIDE_CLOSED_WAIT_MAX_SUBSTEP_S = 1;
@@ -278,37 +282,26 @@ const createReleaseReference = (
   };
 };
 
-const calculateFlowAmountRatio = (input: {
-  gasPressureKPa: number;
-  ambientPressureKPa: number;
-  coefficient: number;
-  effectiveDtS: number;
-}) => {
-  const pressureDeltaKPa = input.gasPressureKPa - input.ambientPressureKPa;
-  if (Math.abs(pressureDeltaKPa) <= PRESSURE_NEAR_AMBIENT_KPA) return 0;
-  const drive = Math.sqrt(Math.abs(pressureDeltaKPa) / Math.max(PRESSURE_EPSILON_KPA, input.ambientPressureKPa));
-  const amountRatio = clampNonNegativeFinite(input.coefficient) * drive * clampNonNegativeFinite(input.effectiveDtS);
-  return pressureDeltaKPa > 0 ? -amountRatio : amountRatio;
-};
-
 const stepOpenStopcock = (
   state: HeatCapacityGuidePhysicsState,
   config: HeatCapacityGuidePhysicsConfig,
   dtS: number,
 ) => {
-  const effectiveDtS = getFreeStopcockApertureEffectiveDtS(
+  const effectiveDtS = getHeatCapacityReleaseApertureEffectiveDtS(
     state.currentStopcockOpenDurationS,
     dtS,
   );
   if (effectiveDtS <= 0) return state;
-  const derived = deriveGuidePhysicalState(state, config);
-  const amountDelta = calculateFlowAmountRatio({
-    gasPressureKPa: derived.gasPressureKPa,
+  const released = stepHeatCapacityReleaseGasState(state, {
     ambientPressureKPa: config.environment.ambientPressureKPa,
+    ambientTemperatureK: config.environment.ambientTemperatureK,
+    gamma: config.gamma,
     coefficient: config.stopcockFlowRate,
-    effectiveDtS,
-  });
-  if (amountDelta === 0) {
+  }, effectiveDtS);
+  if (
+    released.gasAmountRatio === state.gasAmountRatio &&
+    released.gasTemperatureK === state.gasTemperatureK
+  ) {
     return {
       ...state,
       releaseReference: state.releaseReference && state.releaseReference.reachedAmbientAtS === null
@@ -317,33 +310,11 @@ const stepOpenStopcock = (
     };
   }
 
-  const nextAmountRatio = Math.max(MIN_GAS_AMOUNT_RATIO, state.gasAmountRatio + amountDelta);
-  const outflow = amountDelta < 0;
-  const gasTemperatureK = outflow
-    ? Math.max(
-        MIN_GAS_TEMPERATURE_K,
-        state.gasTemperatureK * Math.pow(nextAmountRatio / Math.max(MIN_GAS_AMOUNT_RATIO, state.gasAmountRatio), config.gamma - 1),
-      )
-    : (
-        state.gasAmountRatio * state.gasTemperatureK +
-        amountDelta * config.environment.ambientTemperatureK
-      ) / nextAmountRatio;
   const nextState = {
     ...state,
-    gasAmountRatio: nextAmountRatio,
-    gasTemperatureK,
+    gasAmountRatio: released.gasAmountRatio,
+    gasTemperatureK: released.gasTemperatureK,
   };
-  const nextDerived = deriveGuidePhysicalState(nextState, config);
-  if (nextDerived.gasPressureKPa <= config.environment.ambientPressureKPa + PRESSURE_NEAR_AMBIENT_KPA) {
-    const ambientAmountRatio = config.environment.ambientTemperatureK / Math.max(MIN_GAS_TEMPERATURE_K, gasTemperatureK);
-    return {
-      ...nextState,
-      gasAmountRatio: Math.max(MIN_GAS_AMOUNT_RATIO, ambientAmountRatio),
-      releaseReference: nextState.releaseReference && nextState.releaseReference.reachedAmbientAtS === null
-        ? { ...nextState.releaseReference, reachedAmbientAtS: nextState.simulationTimeS }
-        : nextState.releaseReference,
-    };
-  }
   return nextState;
 };
 
@@ -395,13 +366,16 @@ export const stepGuidePhysicsState = (
       (nextState.lastStopcockClosedAtS === null || nextState.lastStopcockOpenedAtS >= nextState.lastStopcockClosedAtS);
 
     if (input.stopcockOpen && !wasStopcockOpen) {
+      const mainRelease = input.stopcockFlowPurpose === 'release';
       nextState = {
         ...nextState,
         lastStopcockOpenedAtS: nextState.simulationTimeS,
         lastStopcockClosedAtS: null,
         currentStopcockOpenDurationS: 0,
-        releaseStarted: true,
-        releaseReference: createReleaseReference(nextState, config, nextState.simulationTimeS),
+        releaseStarted: nextState.releaseStarted || mainRelease,
+        releaseReference: mainRelease
+          ? createReleaseReference(nextState, config, nextState.simulationTimeS)
+          : nextState.releaseReference,
       };
     } else if (!input.stopcockOpen && wasStopcockOpen) {
       nextState = {
@@ -416,6 +390,8 @@ export const stepGuidePhysicsState = (
       simulationTimeS: atS,
     };
 
+    nextState = stepThermal(nextState, config, stepS);
+
     if (input.stopcockOpen) {
       nextState = stepOpenStopcock(nextState, config, stepS);
       nextState = {
@@ -423,8 +399,6 @@ export const stepGuidePhysicsState = (
         currentStopcockOpenDurationS: nextState.currentStopcockOpenDurationS + stepS,
       };
     }
-
-    nextState = stepThermal(nextState, config, stepS);
     remainingS -= stepS;
   }
 

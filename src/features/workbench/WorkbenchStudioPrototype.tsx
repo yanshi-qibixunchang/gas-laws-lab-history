@@ -57,19 +57,15 @@ import {
   getHeatCapacityFreeParameterLockReason,
   getHeatCapacityFreeRecordButtonState,
   getHeatCapacityGuideRecordButtonState,
-  getHeatCapacityFreeStopcockFlowPurpose,
   getHeatCapacityParameterSidebarBlockReason,
   hasCompletedHeatCapacityFreeRecordSet,
   isHeatCapacityFreeGasTypeEditingAvailable,
   getHeatCapacityStopcockTargetAngle,
   getHeatCapacityStopcockState,
-  getHeatCapacityPressureReleaseBurstUntilMs,
   getHeatCapacityPressureZeroKnobAngleForOffset,
   getHeatCapacityPressureThresholdsMv,
   getHeatCapacityPumpFrequencyState,
   HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS,
-  HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
-  HEAT_CAPACITY_RELEASE_BURST_DURATION_MS,
   HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV,
   HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
   isHeatCapacityFreeExperimentStarted,
@@ -99,6 +95,8 @@ import {
   setHeatCapacityGuideEquilibriumSpeedMultiplier,
   setHeatCapacityGuidePumpValveOpen,
   setHeatCapacityGuideStopcockOpen,
+  setHeatCapacityFreeStopcockOpen,
+  setHeatCapacityScriptedStopcockOpen,
   setHeatCapacityPressureZeroOffset,
   shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
   startHeatCapacityGuideWorkbenchState,
@@ -198,6 +196,10 @@ import {
   type GuideHeatCapacityStep,
 } from '../heatCapacity/heatCapacityGuideStepModel.ts';
 import {
+  HeatCapacityRejectedInteractionTracker,
+  type HeatCapacityControlInteractionId,
+} from '../heatCapacity/heatCapacityControlInteraction.ts';
+import {
   createHeatCapacityAutoDemoSteps,
   getHeatCapacityAutoDemoTimeline,
   type HeatCapacityAutoDemoAction,
@@ -224,9 +226,16 @@ import type {
 } from '../../domain/heatCapacity/heatCapacityGuideTrialModel.ts';
 import {
   HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA,
-  FREE_RELEASE_MAIN_DURATION_S,
-  FREE_RELEASE_RESPONSE_DELAY_S,
 } from '../../domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
+import {
+  HEAT_CAPACITY_RELEASE_TIMING,
+} from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import {
+  getHeatCapacityReleaseDurationS,
+  HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA,
+  isHeatCapacityReleaseFlowOpen,
+  isHeatCapacityMainReleaseFlowOpen,
+} from '../../domain/heatCapacity/heatCapacityReleaseModel.ts';
 import {
   HEAT_CAPACITY_HARD_SPHERE_IDLE_RELEASE_TIMELINE,
   clampNumber as clampHeatCapacityHardSphereNumber,
@@ -301,6 +310,17 @@ import {
   type WorkbenchResolvedTheme,
   type WorkbenchThemePreference,
 } from './workbenchGeneralSettings.ts';
+import { clampAudioVolume } from '../../audio/core/audioSettings.ts';
+import { useAudioEngine } from '../../audio/react/useAudioEngine.ts';
+import {
+  createWorkbenchConsoleMessageTranslations,
+  materializeWorkbenchConsoleMessage,
+  normalizeWorkbenchConsoleMessageTranslations,
+  resolveWorkbenchConsoleMessage,
+  type WorkbenchConsoleMessageFactory,
+  type WorkbenchConsoleMessageInput,
+  type WorkbenchLocalizedConsoleMessage,
+} from './workbenchConsoleLocalization.ts';
 import {
   WORKBENCH_IGNORED_UPDATE_VERSION_KEY,
   getAboutUpdateStatusLabel,
@@ -458,10 +478,6 @@ const shiftHeatCapacityRefreshRollbackSnapshot = (
   })),
   pumpStrokeTimestamps: snapshot.pumpStrokeTimestamps.map((timestamp) => timestamp + offsetMs),
   lastPumpTime: shiftHeatCapacityRefreshTimestamp(snapshot.lastPumpTime, offsetMs),
-  heatCapacityFreeStopcockPendingOpenAtMs: shiftHeatCapacityRefreshTimestamp(
-    snapshot.heatCapacityFreeStopcockPendingOpenAtMs,
-    offsetMs,
-  ),
 } : null;
 
 const rebaseHeatCapacityFileAfterRefresh = (
@@ -481,7 +497,6 @@ const rebaseHeatCapacityFileAfterRefresh = (
     domain: WorkbenchHeatCapacityState['heatCapacityFreeRealDomain'],
   ): WorkbenchHeatCapacityState['heatCapacityFreeRealDomain'] => ({
     ...domain,
-    stopcockPendingOpenAtMs: shiftHeatCapacityRefreshTimestamp(domain.stopcockPendingOpenAtMs, offsetMs),
     rollbackSnapshots: shiftRollbackSnapshots(domain.rollbackSnapshots),
   });
 
@@ -489,12 +504,7 @@ const rebaseHeatCapacityFileAfterRefresh = (
     ...file,
     lastUpdateMs: shiftHeatCapacityRefreshTimestamp(file.lastUpdateMs, offsetMs),
     displayResponseLastUpdateMs: shiftHeatCapacityRefreshTimestamp(file.displayResponseLastUpdateMs, offsetMs),
-    heatCapacityFreeStopcockPendingOpenAtMs: shiftHeatCapacityRefreshTimestamp(
-      file.heatCapacityFreeStopcockPendingOpenAtMs,
-      offsetMs,
-    ),
     pressureDisplayNextJitterAtMs: file.pressureDisplayNextJitterAtMs + offsetMs,
-    pressureReleaseBurstUntilMs: shiftHeatCapacityRefreshTimestamp(file.pressureReleaseBurstUntilMs, offsetMs),
     temperatureDisplayNextJitterAtMs: file.temperatureDisplayNextJitterAtMs + offsetMs,
     pressureZeroDisplayedSamples: file.pressureZeroDisplayedSamples.map((sample) => ({
       ...sample,
@@ -689,9 +699,7 @@ const GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS = 4000;
 const HEAT_CAPACITY_AUTO_DEMO_LOCKED_TOAST_DEDUPE_MS = 250;
 const HEAT_CAPACITY_AUTO_DEMO_LOCKED_POINTER_FALLBACK_MS = 320;
 const HEAT_CAPACITY_GUIDE_WAIT_DURATION_MS = 5 * 60 * 1000;
-const HEAT_CAPACITY_GUIDE_RELEASE_DURATION_MS = 350;
 const HEAT_CAPACITY_GUIDE_WAIT_DURATION_S = HEAT_CAPACITY_GUIDE_WAIT_DURATION_MS / 1000;
-const HEAT_CAPACITY_GUIDE_RELEASE_DURATION_S = HEAT_CAPACITY_GUIDE_RELEASE_DURATION_MS / 1000;
 const HEAT_CAPACITY_GUIDE_START_NOTICE_MS = 1000;
 const HEAT_CAPACITY_PRESSURE_ALARM_DURATION_MS = 2000;
 const HEAT_CAPACITY_CLOSE_PUMP_VALVE_REMINDER_AFTER_ALARM_MS = 220;
@@ -1068,11 +1076,10 @@ const renderHeatCapacityParameterSymbol = (
   );
 };
 
-interface ConsoleLog {
+interface ConsoleLog extends WorkbenchLocalizedConsoleMessage {
   id: number;
   time: string;
   kind: LogKind;
-  message: string;
 }
 
 interface WorkbenchEditSnapshot {
@@ -1146,6 +1153,10 @@ interface WorkbenchCopy {
     performanceMode: string;
     performanceModeHint: string;
     performanceModeSummary: Record<WorkbenchPerformanceMode, string>;
+    audio: string;
+    audioHint: string;
+    audioToggleAria: string;
+    audioVolumeAria: string;
   };
   about: {
     title: string;
@@ -1754,13 +1765,17 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       userGuide: '用户指南', about: '关于热容比实验室', topCommandsAria: '顶部命令',
     },
     settings: {
-      title: '通用设置', subtitle: '主题、语言、快捷键和布局偏好', closeAria: '关闭通用设置', theme: '主题', themeHint: '使用系统、亮色或暗色模式',
+      title: '通用设置', subtitle: '主题、语言、音效、快捷键和布局偏好', closeAria: '关闭通用设置', theme: '主题', themeHint: '使用系统、亮色或暗色模式',
       themeOptions: { system: { label: '跟随系统', hint: '遵循系统偏好' }, light: { label: '亮色', hint: '亮色工作区预览' }, dark: { label: '暗色', hint: '暗色工作区预览' } },
       language: '语言', languageHint: '选择界面语言',
       languageOptions: { 'zh-CN': { label: '简体中文', hint: '简体中文界面' }, 'zh-TW': { label: '繁體中文', hint: '繁體中文介面' }, en: { label: 'English', hint: 'English interface' } },
       performanceMode: '3D 性能模式',
       performanceModeHint: '用四档模式控制 Heat Capacity 小球数量、速率和运行负载',
       performanceModeSummary: { lowLoad: '低负载', balanced: '均衡', highPerformance: '高性能', ultra: '极致画质' },
+      audio: '音效',
+      audioHint: '增强仪器操作反馈，仅调节软件内音量',
+      audioToggleAria: '启用或关闭音效',
+      audioVolumeAria: '软件音效音量',
     },
     about: {
       title: '关于热容比实验室',
@@ -1870,13 +1885,17 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       userGuide: '使用指南', about: '關於熱容比實驗室', topCommandsAria: '頂部命令',
     },
     settings: {
-      title: '一般設定', subtitle: '主題、語言、快捷鍵與版面偏好', closeAria: '關閉一般設定', theme: '主題', themeHint: '使用系統、亮色或暗色模式',
+      title: '一般設定', subtitle: '主題、語言、音效、快捷鍵與版面偏好', closeAria: '關閉一般設定', theme: '主題', themeHint: '使用系統、亮色或暗色模式',
       themeOptions: { system: { label: '跟隨系統', hint: '依照系統偏好' }, light: { label: '亮色', hint: '亮色工作區預覽' }, dark: { label: '暗色', hint: '暗色工作區預覽' } },
       language: '語言', languageHint: '選擇介面語言',
       languageOptions: { 'zh-CN': { label: '简体中文', hint: '簡體中文介面' }, 'zh-TW': { label: '繁體中文', hint: '繁體中文介面' }, en: { label: 'English', hint: 'English interface' } },
       performanceMode: '3D 效能模式',
       performanceModeHint: '用四檔模式控制 Heat Capacity 小球數量、速率和運行負載',
       performanceModeSummary: { lowLoad: '低負載', balanced: '均衡', highPerformance: '高效能', ultra: '極致畫質' },
+      audio: '音效',
+      audioHint: '增強儀器操作回饋，僅調整軟體內音量',
+      audioToggleAria: '啟用或關閉音效',
+      audioVolumeAria: '軟體音效音量',
     },
     about: {
       title: '關於熱容比實驗室',
@@ -1986,13 +2005,17 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       userGuide: 'User Guide', about: 'About Heat Capacity Ratio Lab', topCommandsAria: 'Top commands',
     },
     settings: {
-      title: 'General Settings', subtitle: 'Theme, language, shortcuts, and layout preferences', closeAria: 'Close General Settings', theme: 'Theme', themeHint: 'Use system, light, or dark mode',
+      title: 'General Settings', subtitle: 'Theme, language, sound, shortcuts, and layout preferences', closeAria: 'Close General Settings', theme: 'Theme', themeHint: 'Use system, light, or dark mode',
       themeOptions: { system: { label: 'System', hint: 'Follow OS preference' }, light: { label: 'Light', hint: 'Bright workspace preview' }, dark: { label: 'Dark', hint: 'Dark workspace preview' } },
       language: 'Language', languageHint: 'Choose the interface language',
       languageOptions: { 'zh-CN': { label: '简体中文', hint: 'Simplified Chinese interface' }, 'zh-TW': { label: '繁體中文', hint: 'Traditional Chinese interface' }, en: { label: 'English', hint: 'English interface' } },
       performanceMode: '3D performance mode',
       performanceModeHint: 'Use four modes to control Heat Capacity particle count, speed, and runtime load',
       performanceModeSummary: { lowLoad: 'Low load', balanced: 'Balanced', highPerformance: 'High performance', ultra: 'Ultra' },
+      audio: 'Sound effects',
+      audioHint: 'Enhances instrument feedback and only changes in-app volume',
+      audioToggleAria: 'Enable or disable sound effects',
+      audioVolumeAria: 'In-app sound-effect volume',
     },
     about: {
       title: 'About Heat Capacity Ratio Lab',
@@ -2234,7 +2257,7 @@ const heatCapacityRealtimeCopies = {
       pumpFocus: '请双击打气球进入聚焦模式。',
       pumpAction: '双击聚焦打气球，快速点按打气球，按压至 Uₚ ≥ 120 mV 后自动退出。',
       waitU1Ready: '5 min 到了，记录 U₁ / Uₜ₁。',
-      releaseReady: '放气时间到了，请关闭玻璃旋塞。',
+      releaseReady: '请在开启动画完成并形成实际放气后关闭玻璃旋塞；快速开关后可重新操作。',
       waitU2Ready: '5 min 到了，记录 U₂ / Uₜ₂。',
     },
     recordU0Success: 'U₀ 已记录。',
@@ -2507,7 +2530,7 @@ const heatCapacityRealtimeCopies = {
       pumpFocus: '請雙擊打氣球進入聚焦模式。',
       pumpAction: '雙擊聚焦打氣球，快速點按打氣球，按壓至 Uₚ ≥ 120 mV 後自動退出。',
       waitU1Ready: '5 min 到了，記錄 U₁ / Uₜ₁。',
-      releaseReady: '放氣時間到了，請關閉玻璃旋塞。',
+      releaseReady: '請在開啟動畫完成並形成實際放氣後關閉玻璃旋塞；快速開關後可重新操作。',
       waitU2Ready: '5 min 到了，記錄 U₂ / Uₜ₂。',
     },
     recordU0Success: 'U₀ 已記錄。',
@@ -2780,7 +2803,7 @@ const heatCapacityRealtimeCopies = {
       pumpFocus: 'Double-click the pump bulb to enter focus mode.',
       pumpAction: 'Double-click the pump bulb to focus, then click rapidly until Uₚ ≥ 120 mV; focus exits automatically.',
       waitU1Ready: '5 min has elapsed. Record U₁ / Uₜ₁.',
-      releaseReady: 'Release time has elapsed. Close the glass stopcock.',
+      releaseReady: 'Close the glass stopcock after the opening animation forms an actual release; retry after a quick toggle.',
       waitU2Ready: '5 min has elapsed. Record U₂ / Uₜ₂.',
     },
     recordU0Success: 'U₀ recorded.',
@@ -2922,6 +2945,66 @@ const getHeatCapacityRealtimeCopy = (language: WorkbenchLanguagePreference) => (
 );
 
 type HeatCapacityRealtimeCopy = (typeof heatCapacityRealtimeCopies)[WorkbenchLanguagePreference];
+
+const getLocalizedHeatCapacityGuideRecordFailure = (
+  file: WorkbenchHeatCapacityState,
+  kind: HeatCapacityGuideRecordKind,
+  language: WorkbenchLanguagePreference,
+  fallback: string,
+) => {
+  if (file.heatCapacityMode !== 'guide') return fallback;
+  const messages = getHeatCapacityRealtimeCopy(language).guideRecordBlockedMessages;
+  const step = file.heatCapacityGuideWorkflow.step;
+  if (kind === 'u0') {
+    if (step === 'powerRequired') return messages.u0NeedPower;
+    if (step === 'openStopcockForZeroRequired') return messages.u0NeedStopcock;
+    if (step === 'zeroRequired') return messages.u0NeedZero;
+    return messages.u0NeedCurrentStep;
+  }
+  if (kind === 'u1') {
+    if (step === 'closePumpValveRequired') return messages.u1NeedClosePumpValve;
+    if (step === 'u1Waiting') return messages.u1NeedWait;
+    if (step === 'closeStopcockBeforePumpRequired' || step === 'openPumpValveRequired' || step === 'pumpRequired') {
+      return messages.u1NeedPump;
+    }
+    return messages.u1NeedCurrentStep;
+  }
+  if (step === 'closeStopcockAfterReleaseRequired') return messages.u2NeedCloseStopcock;
+  if (step === 'u2Waiting') return messages.u2NeedWait;
+  if (step === 'openStopcockForReleaseRequired') return messages.u2NeedRelease;
+  return messages.u2NeedCurrentStep;
+};
+
+const knownLocalizedConsoleMessageFactories: WorkbenchConsoleMessageFactory[] = [
+  (language) => workbenchCopies[language].logs.initialized,
+  (language) => workbenchCopies[language].logs.defaultLayout,
+  (language) => workbenchCopies[language].logs.standardConnected,
+  (language) => workbenchCopies[language].logs.exportBridgeRequired,
+  (language) => workbenchCopies[language].logs.editHistoryCleared,
+  (language) => workbenchCopies[language].logs.layoutSaveNeedsFile,
+  (language) => workbenchCopies[language].logs.fileNameCannotBeEmpty,
+  ...(['checking', 'available-system', 'available-bundled', 'unavailable', 'error'] as const).map(
+    (status): WorkbenchConsoleMessageFactory => (
+      (language) => workbenchCopies[language].exportEnvironment[status].detail
+    ),
+  ),
+  (language) => getHeatCapacityRealtimeCopy(language).recordU0SuccessToast,
+  (language) => getHeatCapacityRealtimeCopy(language).recordU1SuccessToast,
+  (language) => getHeatCapacityRealtimeCopy(language).recordU2SuccessToast,
+  (language) => getHeatCapacityRealtimeCopy(language).finalTrialCompleteToast,
+  (language) => getHeatCapacityRealtimeCopy(language).freeGroupCompleteToast,
+  (language) => getHeatCapacityRealtimeCopy(language).freeRecordSuccessLog.u0,
+  (language) => getHeatCapacityRealtimeCopy(language).freeRecordSuccessLog.u1,
+  (language) => getHeatCapacityRealtimeCopy(language).freeRecordSuccessLog.u2,
+];
+
+const findKnownConsoleMessageTranslations = (message: string) => {
+  for (const factory of knownLocalizedConsoleMessageFactories) {
+    const messages = createWorkbenchConsoleMessageTranslations(factory);
+    if (Object.values(messages).includes(message)) return messages;
+  }
+  return null;
+};
 type HeatCapacityPumpHintKey = keyof HeatCapacityRealtimeCopy['pumpHints'];
 
 const HEAT_CAPACITY_REALTIME_STATE_HINT_FIELDS = [
@@ -3184,6 +3267,151 @@ const createResultsSections = (copy: WorkbenchCopy): Array<{ key: ResultsSection
   { key: 'figures', title: copy.panels.figuresTitle, icon: <BarChart3 size={12} /> },
 ];
 
+const getLocalizedWorkbenchPanelTitle = (
+  title: string,
+  language: WorkbenchLanguagePreference,
+) => {
+  const getPanelGroups = (nextLanguage: WorkbenchLanguagePreference) => [
+    createStandardPanels(workbenchCopies[nextLanguage]),
+    createIdealPanels(workbenchCopies[nextLanguage]),
+    createHeatCapacityPanels(workbenchCopies[nextLanguage], getHeatCapacityRealtimeCopy(nextLanguage)),
+  ];
+  for (const sourceLanguage of Object.keys(workbenchCopies) as WorkbenchLanguagePreference[]) {
+    const sourceGroups = getPanelGroups(sourceLanguage);
+    for (let groupIndex = 0; groupIndex < sourceGroups.length; groupIndex += 1) {
+      const sourcePanel = sourceGroups[groupIndex].find((panel) => panel.title === title);
+      if (!sourcePanel) continue;
+      return getPanelGroups(language)[groupIndex]
+        .find((panel) => panel.key === sourcePanel.key)?.title ?? title;
+    }
+  }
+  return title;
+};
+
+const getLocalizedWorkbenchTabTitle = (
+  title: string,
+  language: WorkbenchLanguagePreference,
+) => {
+  const getTabGroups = (nextLanguage: WorkbenchLanguagePreference) => [
+    createResultsSections(workbenchCopies[nextLanguage]),
+    createIdealPanels(workbenchCopies[nextLanguage]).filter((panel) => isIdealResultWindowKey(panel.key)),
+    createHeatCapacityPanels(workbenchCopies[nextLanguage], getHeatCapacityRealtimeCopy(nextLanguage)),
+  ];
+  for (const sourceLanguage of Object.keys(workbenchCopies) as WorkbenchLanguagePreference[]) {
+    const sourceGroups = getTabGroups(sourceLanguage);
+    for (let groupIndex = 0; groupIndex < sourceGroups.length; groupIndex += 1) {
+      const sourceTab = sourceGroups[groupIndex].find((tab) => tab.title === title || tab.key === title);
+      if (!sourceTab) continue;
+      return getTabGroups(language)[groupIndex]
+        .find((tab) => tab.key === sourceTab.key)?.title ?? title;
+    }
+  }
+  return getLocalizedWorkbenchPanelTitle(title, language);
+};
+
+const getLocalizedWorkbenchEditLabel = (
+  label: string,
+  language: WorkbenchLanguagePreference,
+) => {
+  const exactCopies: Record<WorkbenchLanguagePreference, Record<string, string>> = {
+    'zh-CN': {
+      'reset heat-capacity free run': '重置热容比自由模式运行',
+      'saved heat capacity parameters': '保存热容比参数',
+      'applied heat capacity parameters': '应用热容比参数',
+      'saved parameters': '保存参数',
+      'saved and applied ideal parameters': '保存并应用理想气体参数',
+      'applied ideal parameters': '应用理想气体参数',
+      'saved and applied parameters': '保存并应用参数',
+      'applied parameters': '应用参数',
+      'opened ideal Results window': '打开理想气体结果窗口',
+      'closed ideal Results window': '关闭理想气体结果窗口',
+      'opened Results panel': '打开结果面板',
+      'opened heat-capacity materials tabs': '打开热容比实验资料标签页',
+      'changed ideal relation': '更改理想气体关系',
+      'changed ideal scan variable': '更改理想气体扫描变量',
+      'removed ideal experiment point': '移除理想气体实验点',
+      'cleared ideal relation points': '清空理想气体关系点',
+      'renamed file': '重命名文件',
+      'deleted file': '删除文件',
+      'reset layout': '重置布局',
+    },
+    'zh-TW': {
+      'reset heat-capacity free run': '重設熱容比自由模式執行',
+      'saved heat capacity parameters': '儲存熱容比參數',
+      'applied heat capacity parameters': '套用熱容比參數',
+      'saved parameters': '儲存參數',
+      'saved and applied ideal parameters': '儲存並套用理想氣體參數',
+      'applied ideal parameters': '套用理想氣體參數',
+      'saved and applied parameters': '儲存並套用參數',
+      'applied parameters': '套用參數',
+      'opened ideal Results window': '開啟理想氣體結果視窗',
+      'closed ideal Results window': '關閉理想氣體結果視窗',
+      'opened Results panel': '開啟結果面板',
+      'opened heat-capacity materials tabs': '開啟熱容比實驗資料分頁',
+      'changed ideal relation': '變更理想氣體關係',
+      'changed ideal scan variable': '變更理想氣體掃描變量',
+      'removed ideal experiment point': '移除理想氣體實驗點',
+      'cleared ideal relation points': '清空理想氣體關係點',
+      'renamed file': '重新命名檔案',
+      'deleted file': '刪除檔案',
+      'reset layout': '重設版面',
+    },
+    en: {},
+  };
+  const exactCopy = exactCopies[language][label];
+  if (exactCopy) return exactCopy;
+
+  const createdFileMatch = /^created (standard|ideal|heatCapacity) file$/.exec(label);
+  if (createdFileMatch) {
+    const kind = createdFileMatch[1] as WorkbenchFileKind;
+    if (language === 'zh-CN') {
+      const kindLabel = kind === 'standard' ? '标准模拟' : kind === 'ideal' ? '理想气体' : '热容比实验';
+      return `创建${kindLabel}文件`;
+    }
+    if (language === 'zh-TW') {
+      const kindLabel = kind === 'standard' ? '標準模擬' : kind === 'ideal' ? '理想氣體' : '熱容比實驗';
+      return `建立${kindLabel}檔案`;
+    }
+  }
+
+  const removedRecordMatch = /^removed heat-capacity (u0|u1|u2|trial) record$/.exec(label);
+  if (removedRecordMatch && language !== 'en') {
+    const recordLabel = removedRecordMatch[1] === 'trial'
+      ? language === 'zh-CN' ? '整组' : '整組'
+      : removedRecordMatch[1].toUpperCase();
+    return language === 'zh-CN'
+      ? `删除热容比 ${recordLabel} 记录`
+      : `刪除熱容比 ${recordLabel} 記錄`;
+  }
+
+  const localizedContainerLabel = (
+    pattern: RegExp,
+    container: 'tab' | 'heat-capacity tab' | 'panel',
+  ) => {
+    const match = pattern.exec(label);
+    if (!match || language === 'en') return null;
+    const action = match[1] === 'opened'
+      ? language === 'zh-CN' ? '打开' : '開啟'
+      : language === 'zh-CN' ? '关闭' : '關閉';
+    const title = container === 'panel'
+      ? getLocalizedWorkbenchPanelTitle(match[2], language)
+      : getLocalizedWorkbenchTabTitle(match[2], language);
+    if (container === 'panel') return `${action}${title}面板`;
+    if (container === 'heat-capacity tab') {
+      return language === 'zh-CN' ? `${action}${title}热容比标签页` : `${action}${title}熱容比分頁`;
+    }
+    return language === 'zh-CN' ? `${action}${title}标签页` : `${action}${title}分頁`;
+  };
+  const containerCopy = localizedContainerLabel(/^(opened|closed) (.+) heat-capacity tab$/, 'heat-capacity tab')
+    ?? localizedContainerLabel(/^(opened|closed) (.+) panel$/, 'panel')
+    ?? localizedContainerLabel(/^(opened|closed) (.+) tab$/, 'tab');
+  if (containerCopy) return containerCopy;
+
+  if (language === 'zh-CN') return '工作台操作';
+  if (language === 'zh-TW') return '工作台操作';
+  return label;
+};
+
 const pickNextOpenTab = <T extends string>(tabs: T[], closingTab: T) => {
   const closingIndex = tabs.indexOf(closingTab);
   if (closingIndex < 0) return tabs[0] ?? null;
@@ -3192,15 +3420,24 @@ const pickNextOpenTab = <T extends string>(tabs: T[], closingTab: T) => {
 
 const formatTime = () => new Date().toLocaleTimeString('en-GB', { hour12: false });
 
-const createInitialLogs = (language: WorkbenchLanguagePreference): ConsoleLog[] => {
-  const copy = workbenchCopies[language].logs;
-  return [
-  { id: 1, time: formatTime(), kind: 'info', message: copy.initialized },
-  { id: 2, time: formatTime(), kind: 'success', message: copy.defaultLayout },
-  { id: 3, time: formatTime(), kind: 'success', message: copy.standardConnected },
-  { id: 4, time: formatTime(), kind: 'warning', message: copy.exportBridgeRequired },
+const createConsoleLog = (
+  id: number,
+  kind: LogKind,
+  input: WorkbenchConsoleMessageInput,
+  language: WorkbenchLanguagePreference,
+): ConsoleLog => ({
+  id,
+  time: formatTime(),
+  kind,
+  ...materializeWorkbenchConsoleMessage(input, language),
+});
+
+const createInitialLogs = (language: WorkbenchLanguagePreference): ConsoleLog[] => [
+  createConsoleLog(1, 'info', (nextLanguage) => workbenchCopies[nextLanguage].logs.initialized, language),
+  createConsoleLog(2, 'success', (nextLanguage) => workbenchCopies[nextLanguage].logs.defaultLayout, language),
+  createConsoleLog(3, 'success', (nextLanguage) => workbenchCopies[nextLanguage].logs.standardConnected, language),
+  createConsoleLog(4, 'warning', (nextLanguage) => workbenchCopies[nextLanguage].logs.exportBridgeRequired, language),
 ];
-};
 
 const getWorkbenchParameterDisplayLabel = (
   param: WorkbenchParameterRow,
@@ -3239,6 +3476,7 @@ const isEditableElement = (element: EventTarget | Element | null) => {
 };
 
 const WorkbenchStudioPrototype: React.FC = () => {
+  const { updateSettings: updateAudioSettings } = useAudioEngine();
   const [initialSession] = useState(() => loadWorkbenchSession());
   const [loadedHeatCapacityRefreshSession] = useState(() => loadWorkbenchHeatCapacityRefreshSession());
   const initialHeatCapacityRefreshSession = useMemo(() => {
@@ -3407,11 +3645,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
         (entry.kind !== 'info' && entry.kind !== 'warning' && entry.kind !== 'success' && entry.kind !== 'error') ||
         typeof entry.message !== 'string'
       ) return [];
+      const messages = normalizeWorkbenchConsoleMessageTranslations(entry.messages)
+        ?? findKnownConsoleMessageTranslations(entry.message);
       return [{
         id: entry.id,
         time: entry.time,
         kind: entry.kind,
         message: entry.message,
+        ...(messages ? { messages } : {}),
       }];
     });
     return normalizedLogs.length > 0 ? normalizedLogs : createInitialLogs(initialGeneralSettings.language);
@@ -3419,7 +3660,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [exportEnvironmentStatus, setExportEnvironmentStatus] = useState<WorkbenchExportEnvironmentStatus>(() => (
     hasDesktopExportBridge() ? 'checking' : 'unavailable'
   ));
-  const [exportEnvironmentDetail, setExportEnvironmentDetail] = useState<string | null>(null);
   const [exportInProgress, setExportInProgress] = useState(false);
   const [consoleTab, setConsoleTab] = useState<ConsoleTab>(() => {
     const restored = getHeatCapacityRefreshString(initialHeatCapacityRefreshLayout, 'consoleTab');
@@ -3492,6 +3732,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [systemWorkbenchTheme, setSystemWorkbenchTheme] = useState<WorkbenchResolvedTheme>(() => getSystemWorkbenchTheme());
   const [settingsLanguagePreference, setSettingsLanguagePreference] = useState<WorkbenchLanguagePreference>(() => initialGeneralSettings.language);
   const [settingsPerformanceMode, setSettingsPerformanceMode] = useState<WorkbenchPerformanceMode>(() => initialGeneralSettings.performanceMode);
+  const [settingsAudioEnabled, setSettingsAudioEnabled] = useState(() => initialGeneralSettings.audioEnabled);
+  const [settingsAudioVolume, setSettingsAudioVolume] = useState(() => initialGeneralSettings.audioVolume);
   const [settingsLanguageMenuOpen, setSettingsLanguageMenuOpen] = useState(() => (
     getHeatCapacityRefreshBoolean(initialHeatCapacityRefreshWindows, 'settingsLanguageMenuOpen')
   ));
@@ -3730,7 +3972,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const heatCapacityClosePumpValveReminderFileIdRef = useRef<string | null>(null);
   const heatCapacityFocusSessionRef = useRef<HeatCapacityFocusSession | null>(initialHeatCapacityFocusSession);
   const heatCapacitySceneFocusModeRef = useRef<HeatCapacityFocusMode>(initialHeatCapacityFocusMode);
-  const guidePumpInputLockedRef = useRef(false);
   const guidePassivePumpTargetNoticeKeyRef = useRef<string | null>(null);
   const heatCapacityPressureAlarmVisibleRef = useRef(
     initialHeatCapacityRefreshSession?.guide.pressureAlarmVisible ?? false,
@@ -3786,6 +4027,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const guideHeatCapacityPendingStrongReminderDeadlineAtMsRef = useRef<number | null>(null);
   const guideHeatCapacityPendingStrongReminderControlIdRef = useRef<string | null>(null);
   const guideHeatCapacityMissCountRef = useRef(initialHeatCapacityRefreshSession?.guide.missCount ?? 0);
+  const guideHeatCapacityRejectedInteractionRef = useRef(new HeatCapacityRejectedInteractionTracker());
   const guideHeatCapacityActiveFileIdRef = useRef<string | null>(
     initialHeatCapacityRefreshSession?.mode === 'guide'
       ? initialHeatCapacityRefreshSession.activeHeatCapacityFileId
@@ -3873,6 +4115,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     initialHeatCapacityRefreshSession !== null,
   );
   const [heatCapacityPumpPulseId, setHeatCapacityPumpPulseId] = useState(0);
+  const [heatCapacityRecordPulseId, setHeatCapacityRecordPulseId] = useState(0);
   const [autoDemoPhase, setAutoDemoPhase] = useState<HeatCapacityAutoDemoPhase>(() => (
     initialHeatCapacityRefreshSession?.mode === 'demo'
       ? initialHeatCapacityRefreshSession.demo.phase
@@ -4571,19 +4814,62 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const updateSettingsThemePreference = (theme: WorkbenchThemePreference) => {
     setSettingsThemePreference(theme);
-    persistWorkbenchGeneralSettings({ theme, language: settingsLanguagePreference, performanceMode: settingsPerformanceMode });
+    persistWorkbenchGeneralSettings({
+      theme,
+      language: settingsLanguagePreference,
+      performanceMode: settingsPerformanceMode,
+      audioEnabled: settingsAudioEnabled,
+      audioVolume: settingsAudioVolume,
+    });
   };
 
   const updateSettingsLanguagePreference = (language: WorkbenchLanguagePreference) => {
     setSettingsLanguagePreference(language);
     setSettingsLanguageMenuOpen(false);
-    persistWorkbenchGeneralSettings({ theme: settingsThemePreference, language, performanceMode: settingsPerformanceMode });
+    persistWorkbenchGeneralSettings({
+      theme: settingsThemePreference,
+      language,
+      performanceMode: settingsPerformanceMode,
+      audioEnabled: settingsAudioEnabled,
+      audioVolume: settingsAudioVolume,
+    });
     window.setTimeout(() => settingsLanguageTriggerRef.current?.focus(), 0);
   };
 
   const updateSettingsPerformanceMode = (performanceMode: WorkbenchPerformanceMode) => {
     setSettingsPerformanceMode(performanceMode);
-    persistWorkbenchGeneralSettings({ theme: settingsThemePreference, language: settingsLanguagePreference, performanceMode });
+    persistWorkbenchGeneralSettings({
+      theme: settingsThemePreference,
+      language: settingsLanguagePreference,
+      performanceMode,
+      audioEnabled: settingsAudioEnabled,
+      audioVolume: settingsAudioVolume,
+    });
+  };
+
+  const updateSettingsAudioEnabled = (audioEnabled: boolean) => {
+    setSettingsAudioEnabled(audioEnabled);
+    updateAudioSettings({ enabled: audioEnabled, volume: settingsAudioVolume });
+    persistWorkbenchGeneralSettings({
+      theme: settingsThemePreference,
+      language: settingsLanguagePreference,
+      performanceMode: settingsPerformanceMode,
+      audioEnabled,
+      audioVolume: settingsAudioVolume,
+    });
+  };
+
+  const updateSettingsAudioVolume = (volume: number) => {
+    const audioVolume = clampAudioVolume(volume);
+    setSettingsAudioVolume(audioVolume);
+    updateAudioSettings({ enabled: settingsAudioEnabled, volume: audioVolume });
+    persistWorkbenchGeneralSettings({
+      theme: settingsThemePreference,
+      language: settingsLanguagePreference,
+      performanceMode: settingsPerformanceMode,
+      audioEnabled: settingsAudioEnabled,
+      audioVolume,
+    });
   };
 
   useEffect(() => {
@@ -4890,85 +5176,74 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
   }, []);
 
-  const pushLog = (message: string, kind: LogKind = 'info') => {
+  const pushLog = (message: WorkbenchConsoleMessageInput, kind: LogKind = 'info') => {
     setLogs((current) => [
       ...current,
-      {
-        id: current.length + 1,
-        time: formatTime(),
-        kind,
-        message,
-      },
+      createConsoleLog(current.length + 1, kind, message, settingsLanguagePreference),
     ]);
   };
 
   const showWorkbenchValidationErrors = (validation: { errors: string[] }) => {
     const localizedErrors = getLocalizedWorkbenchValidationErrors(validation.errors, settingsLanguagePreference);
     setParameterErrors(localizedErrors);
-    localizedErrors.forEach((error) => pushLog(`${activeFile.name}: ${error}`, 'error'));
+    validation.errors.forEach((error) => pushLog(
+      (language) => `${activeFile.name}: ${getLocalizedWorkbenchValidationErrors([error], language)[0] ?? error}`,
+      'error',
+    ));
   };
 
   useEffect(() => {
     const bridge = window.hardSphereLabExporter;
     if (!bridge) {
       setExportEnvironmentStatus('unavailable');
-      setExportEnvironmentDetail(workbenchCopy.exportEnvironment.unavailable.detail);
       return;
     }
 
     let cancelled = false;
     setExportEnvironmentStatus('checking');
-    setExportEnvironmentDetail(workbenchCopy.exportEnvironment.checking.detail);
 
     bridge.checkExportEnvironment()
       .then((result) => {
         if (cancelled) return;
         const nextStatus = result.status === 'available-bundled' ? 'available-bundled' : result.status;
-        const localizedDetail = workbenchCopy.exportEnvironment[nextStatus].detail;
         setExportEnvironmentStatus(nextStatus);
-        setExportEnvironmentDetail(localizedDetail);
         setLogs((current) => [
           ...current,
-          {
-            id: current.length + 1,
-            time: formatTime(),
-            kind: nextStatus === 'available-system' || nextStatus === 'available-bundled' ? 'success' : 'warning',
-            message: localizedDetail,
-          },
+          createConsoleLog(
+            current.length + 1,
+            nextStatus === 'available-system' || nextStatus === 'available-bundled' ? 'success' : 'warning',
+            (language) => workbenchCopies[language].exportEnvironment[nextStatus].detail,
+            settingsLanguagePreference,
+          ),
         ]);
       })
       .catch(() => {
         if (cancelled) return;
-        const message = workbenchCopy.exportEnvironment.error.detail;
         setExportEnvironmentStatus('error');
-        setExportEnvironmentDetail(message);
         setLogs((current) => [
           ...current,
-          {
-            id: current.length + 1,
-            time: formatTime(),
-            kind: 'error',
-            message,
-          },
+          createConsoleLog(
+            current.length + 1,
+            'error',
+            (language) => workbenchCopies[language].exportEnvironment.error.detail,
+            settingsLanguagePreference,
+          ),
         ]);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [workbenchCopy.exportEnvironment]);
+  }, []);
 
   const runAboutEnvironmentCheck = () => {
     const bridge = window.hardSphereLabExporter;
     setExportEnvironmentStatus('checking');
-    setExportEnvironmentDetail(workbenchCopy.exportEnvironment.checking.detail);
 
     if (!bridge) {
       window.setTimeout(() => {
         const nextStatus: WorkbenchExportEnvironmentStatus = 'unavailable';
-        const detail = workbenchCopy.exportEnvironment[nextStatus].detail;
         setExportEnvironmentStatus(nextStatus);
-        setExportEnvironmentDetail(detail);
         showAboutResultNotice(workbenchCopy.about.environmentResultTitle, getAboutEnvironmentResultBody(nextStatus, workbenchCopy));
       }, 650);
       return;
@@ -4977,18 +5252,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
     bridge.checkExportEnvironment()
       .then((result) => {
         const nextStatus = result.status === 'available-bundled' ? 'available-bundled' : result.status;
-        const localizedDetail = workbenchCopy.exportEnvironment[nextStatus].detail;
         setExportEnvironmentStatus(nextStatus);
-        setExportEnvironmentDetail(localizedDetail);
-        pushLog(localizedDetail, isExportEnvironmentAvailableStatus(nextStatus) ? 'success' : 'warning');
+        pushLog(
+          (language) => workbenchCopies[language].exportEnvironment[nextStatus].detail,
+          isExportEnvironmentAvailableStatus(nextStatus) ? 'success' : 'warning',
+        );
         showAboutResultNotice(workbenchCopy.about.environmentResultTitle, getAboutEnvironmentResultBody(nextStatus, workbenchCopy));
       })
       .catch(() => {
         const nextStatus: WorkbenchExportEnvironmentStatus = 'error';
-        const message = workbenchCopy.exportEnvironment[nextStatus].detail;
         setExportEnvironmentStatus(nextStatus);
-        setExportEnvironmentDetail(message);
-        pushLog(message, 'error');
+        pushLog((language) => workbenchCopies[language].exportEnvironment[nextStatus].detail, 'error');
         showAboutResultNotice(workbenchCopy.about.environmentResultTitle, getAboutEnvironmentResultBody(nextStatus, workbenchCopy));
       });
   };
@@ -5176,23 +5450,26 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setHeatCapacityHardSphereViewEnabled(!activeFile.hardSphereViewEnabled);
   };
 
-  const showParameterSidebarBlockReason = (message: string | null) => {
+  const showParameterSidebarBlockReason = (
+    getMessage: (language: WorkbenchLanguagePreference) => string | null,
+  ) => {
+    const message = getMessage(settingsLanguagePreference);
     if (!message) return;
     setScanInputToast(message);
-    pushLog(`${activeFile.name}: ${message}`, 'warning');
+    pushLog((language) => `${activeFile.name}: ${getMessage(language) ?? message}`, 'warning');
   };
 
   const openParameterSidebarFromRail = () => {
     if (shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(activeFile)) {
-      showParameterSidebarBlockReason(heatCapacityRealtimeCopy.freePowerOffBeforeNextGroup);
+      showParameterSidebarBlockReason(
+        (language) => getHeatCapacityRealtimeCopy(language).freePowerOffBeforeNextGroup,
+      );
       return;
     }
     if (!canOpenHeatCapacityParameterSidebar(activeFile)) {
+      const blockReason = getHeatCapacityParameterSidebarBlockReason(activeFile);
       showParameterSidebarBlockReason(
-        getHeatCapacityFreeParameterLockMessage(
-          getHeatCapacityParameterSidebarBlockReason(activeFile),
-          settingsLanguagePreference,
-        ),
+        (language) => getHeatCapacityFreeParameterLockMessage(blockReason, language),
       );
       return;
     }
@@ -5210,25 +5487,32 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const showHeatCapacityFreeParameterLockHint = () => {
-    const message = getHeatCapacityFreeParameterLockMessage(
-      getHeatCapacityFreeParameterLockReason(activeFile),
-      settingsLanguagePreference,
-    );
+    const lockReason = getHeatCapacityFreeParameterLockReason(activeFile);
+    const message = getHeatCapacityFreeParameterLockMessage(lockReason, settingsLanguagePreference);
     if (!message) return;
     setScanInputToast(message);
-    pushLog(`${activeFile.name}: ${message}`, 'warning');
+    pushLog(
+      (language) => `${activeFile.name}: ${getHeatCapacityFreeParameterLockMessage(lockReason, language) ?? message}`,
+      'warning',
+    );
   };
 
   const showHeatCapacityFreeIdealReadonlyHint = () => {
     const message = heatCapacityFreeSharedText.idealProfileReadonlyToast[settingsLanguagePreference];
     setScanInputToast(message);
-    pushLog(`${activeFile.name}: ${message}`, 'warning');
+    pushLog(
+      (language) => `${activeFile.name}: ${heatCapacityFreeSharedText.idealProfileReadonlyToast[language]}`,
+      'warning',
+    );
   };
 
   const showHeatCapacityFreeSchemeLockHint = () => {
     const message = heatCapacityFreeSharedText.idealProfileLockedHint[settingsLanguagePreference];
     setScanInputToast(message);
-    pushLog(`${activeFile.name}: ${message}`, 'warning');
+    pushLog(
+      (language) => `${activeFile.name}: ${heatCapacityFreeSharedText.idealProfileLockedHint[language]}`,
+      'warning',
+    );
   };
 
   const requestToggleHeatCapacityFreeParameterScheme = () => {
@@ -5306,8 +5590,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const getHeatCapacityFreeValueTooLargeMessage = (
     definition: HeatCapacityFreeNumberParameterDefinition,
     maxValue: number,
+    language: WorkbenchLanguagePreference = settingsLanguagePreference,
   ) => {
-    const label = definition.label[settingsLanguagePreference];
+    const label = definition.label[language];
     const formattedMax = formatHeatCapacityFreeParameterValue(
       getHeatCapacityFreeParameterInputValue(definition, maxValue),
       definition.precision,
@@ -5315,12 +5600,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const limitText = definition.id === 'pressureDangerMv'
       ? `${formattedMax} ${definition.unit} / ${HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA} kPa`
       : `${formattedMax} ${definition.unit}`.trim();
-    return `${label}${heatCapacityFreeSharedText.valueTooLarge[settingsLanguagePreference]} ${limitText}`;
+    return `${label}${heatCapacityFreeSharedText.valueTooLarge[language]} ${limitText}`;
   };
 
-  const showHeatCapacityFreeParameterInputError = (message: string) => {
+  const showHeatCapacityFreeParameterInputError = (
+    message: string,
+    getMessage?: WorkbenchConsoleMessageFactory,
+  ) => {
     setScanInputToast(message);
-    pushLog(`${activeFile.name}: ${message}`, 'warning');
+    pushLog((language) => `${activeFile.name}: ${getMessage?.(language) ?? message}`, 'warning');
   };
 
   const validateHeatCapacityFreeNumberValue = (
@@ -5328,16 +5616,21 @@ const WorkbenchStudioPrototype: React.FC = () => {
     valueText: string,
     draft: HeatCapacityFreeParameterDraft,
     options: { checkMax?: boolean } = {},
-  ): { valid: true; value: number } | { valid: false; message: string } => {
+  ): { valid: true; value: number } | { valid: false; message: string; getMessage: WorkbenchConsoleMessageFactory } => {
+    const invalid = (getMessage: WorkbenchConsoleMessageFactory) => ({
+      valid: false as const,
+      message: getMessage(settingsLanguagePreference),
+      getMessage,
+    });
     if (valueText.trim() === '') {
-      return { valid: false, message: heatCapacityFreeSharedText.invalidNumber[settingsLanguagePreference] };
+      return invalid((language) => heatCapacityFreeSharedText.invalidNumber[language]);
     }
     const parsedValue = Number(valueText.trim());
     if (!Number.isFinite(parsedValue)) {
-      return { valid: false, message: heatCapacityFreeSharedText.invalidNumber[settingsLanguagePreference] };
+      return invalid((language) => heatCapacityFreeSharedText.invalidNumber[language]);
     }
     if (parsedValue < definition.min) {
-      return { valid: false, message: heatCapacityFreeSharedText.valueTooSmall[settingsLanguagePreference] };
+      return invalid((language) => heatCapacityFreeSharedText.valueTooSmall[language]);
     }
     const draftValue = getHeatCapacityFreeParameterDraftValue(definition, parsedValue);
     if (options.checkMax !== false) {
@@ -5346,7 +5639,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         [definition.id]: draftValue,
       });
       if (maxValue !== null && draftValue > maxValue) {
-        return { valid: false, message: getHeatCapacityFreeValueTooLargeMessage(definition, maxValue) };
+        return invalid((language) => getHeatCapacityFreeValueTooLargeMessage(definition, maxValue, language));
       }
     }
     return { valid: true, value: draftValue };
@@ -5378,7 +5671,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         [parameterId]: validation.message,
       }));
       if (validation.message.includes(heatCapacityFreeSharedText.valueTooLarge[settingsLanguagePreference])) {
-        showHeatCapacityFreeParameterInputError(validation.message);
+        showHeatCapacityFreeParameterInputError(validation.message, validation.getMessage);
       }
       return;
     }
@@ -5445,14 +5738,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
       const message = getHeatCapacityFreeParameterLockMessage(parameterLockReason, settingsLanguagePreference);
       if (message) {
         setScanInputToast(message);
-        pushLog(`${currentFile.name}: ${message}`, 'warning');
+        pushLog(
+          (language) => `${currentFile.name}: ${getHeatCapacityFreeParameterLockMessage(parameterLockReason, language) ?? message}`,
+          'warning',
+        );
       }
       return;
     }
     if (!isHeatCapacityFreeGasTypeEditingAvailable(currentFile)) {
       const message = heatCapacityFreeSharedText.gasTypeLocked[settingsLanguagePreference];
       setScanInputToast(message);
-      pushLog(`${currentFile.name}: ${message}`, 'warning');
+      pushLog(
+        (language) => `${currentFile.name}: ${heatCapacityFreeSharedText.gasTypeLocked[language]}`,
+        'warning',
+      );
       return;
     }
     updateActiveFile((file) => {
@@ -5549,6 +5848,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
     const nextDraft = { ...draft };
     const nextErrors: Record<string, string> = {};
+    const nextErrorMessages: Record<string, WorkbenchConsoleMessageFactory> = {};
     const parsedValues: Partial<Record<HeatCapacityFreeDraftNumberKey, number>> = {};
     heatCapacityFreeAdvancedNumberParameters.forEach((definition) => {
       const rawValue = heatCapacityAdvancedInputDrafts[definition.id];
@@ -5561,6 +5861,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       );
       if (validation.valid === false) {
         nextErrors[definition.id] = validation.message;
+        nextErrorMessages[definition.id] = validation.getMessage;
         return;
       }
       parsedValues[definition.id] = validation.value;
@@ -5572,13 +5873,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
       const maxValue = getHeatCapacityFreeParameterMaximum(definition, nextDraft);
       if (maxValue !== null && nextDraft[definition.id] > maxValue) {
         nextErrors[definition.id] = getHeatCapacityFreeValueTooLargeMessage(definition, maxValue);
+        nextErrorMessages[definition.id] = (language) => getHeatCapacityFreeValueTooLargeMessage(
+          definition,
+          maxValue,
+          language,
+        );
       }
     });
     if (Object.keys(nextErrors).length > 0) {
       setHeatCapacityAdvancedInputErrors(nextErrors);
-      const firstError = Object.values(nextErrors)[0];
+      const firstErrorId = Object.keys(nextErrors)[0];
+      const firstError = nextErrors[firstErrorId];
       if (firstError.includes(heatCapacityFreeSharedText.valueTooLarge[settingsLanguagePreference])) {
-        showHeatCapacityFreeParameterInputError(firstError);
+        showHeatCapacityFreeParameterInputError(firstError, nextErrorMessages[firstErrorId]);
       }
       return;
     }
@@ -5835,13 +6142,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return Math.max(0, file.simulationTimeS - referenceSample.timeS) >= HEAT_CAPACITY_GUIDE_WAIT_DURATION_S;
   };
 
-  const isGuideHeatCapacityReleaseDurationReady = (
+  const hasGuideHeatCapacityFormedRelease = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
-  ) => {
-    const releaseStartSample = file.heatCapacityProcessSamples.beforeReleaseSample;
-    if (!releaseStartSample) return false;
-    return Math.max(0, file.simulationTimeS - releaseStartSample.timeS) >= HEAT_CAPACITY_GUIDE_RELEASE_DURATION_S;
-  };
+  ) => file.heatCapacityReleaseState.formedRelease;
 
   const hasGuideHeatCapacityEnteredRecovery = (
     file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
@@ -5858,9 +6161,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (file.heatCapacityProcessSamples.releaseLowSample || file.heatCapacityProcessSamples.afterReleaseSample) {
       return true;
     }
-    if (hasGuideHeatCapacityEnteredRecovery(file) && isGuideHeatCapacityReleaseDurationReady(file)) return true;
+    if (hasGuideHeatCapacityEnteredRecovery(file) && hasGuideHeatCapacityFormedRelease(file)) return true;
     const pressureTarget = getGuideHeatCapacityDecisionPressureMv(file);
-    return pressureTarget <= Math.max(5, recordedU1Mv * 0.14) && isGuideHeatCapacityReleaseDurationReady(file);
+    return pressureTarget <= Math.max(5, recordedU1Mv * 0.14) && hasGuideHeatCapacityFormedRelease(file);
   };
 
   const getGuideHeatCapacityMinimumU1PlatformMv = (
@@ -6053,6 +6356,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
       : isTw
         ? '請關閉玻璃旋塞後等待 5 min；回溫穩定後記錄 U₂ / Uₜ₂。'
         : '请关闭玻璃旋塞后等待 5 min；回温稳定后记录 U₂ / Uₜ₂。';
+    const releaseStateMessage = file?.heatCapacityReleaseState.phase === 'opening'
+      ? isEn
+        ? 'Opening the glass stopcock; release timing starts after the opening animation completes.'
+        : isTw
+          ? '正在打開玻璃旋塞；開啟動畫完整結束後才開始計算放氣時間。'
+          : '正在打开玻璃旋塞；开启动画完整结束后才开始计算放气时间。'
+      : file?.heatCapacityReleaseState.phase === 'releasing'
+        ? isEn
+          ? 'Releasing now. Close the glass stopcock when you judge the release should end.'
+          : isTw
+            ? '正在放氣；請在你判斷應結束時關閉玻璃旋塞。'
+            : '正在放气；请在你判断应结束时关闭玻璃旋塞。'
+        : heatCapacityRealtimeCopy.guideUsageHints.releaseReady;
     const messages: Record<GuideHeatCapacityStep, string> = {
       idle: isEn ? 'Start guide mode when ready.' : isTw ? '需要時開始引導模式。' : '需要时开始引导模式。',
       powerOnRequired: isEn ? 'Turn on the power first.' : isTw ? '請先打開電源。' : '请先打开电源。',
@@ -6066,7 +6382,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       stabilizeBeforeReleaseRequired: waitBeforeU1Message,
       recordU1Required: heatCapacityRealtimeCopy.guideUsageHints.waitU1Ready,
       openStopcockReleaseRequired: openReleaseMessage,
-      closeStopcockAfterReleaseRequired: heatCapacityRealtimeCopy.guideUsageHints.releaseReady,
+      closeStopcockAfterReleaseRequired: releaseStateMessage,
       recoverRequired: recoverMessage,
       recordU2Required: heatCapacityRealtimeCopy.guideUsageHints.waitU2Ready,
       closePowerRequired: isEn ? 'Turn off the power to finish this guided experiment.' : isTw ? '請關閉電源，完成本次引導實驗。' : '请关闭电源，完成本次引导实验。',
@@ -6345,22 +6661,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
     };
   };
 
-  const shouldBlockHeatCapacityPumpForPressureDanger = (
-    file: WorkbenchHeatCapacityState,
-  ) => {
-    const activeDanger = (
-      file.pressureSafetyStatus === 'danger' ||
-      file.pressureOverLimit
-    );
-    if (!activeDanger) {
-      if (isHeatCapacityPressureAlertActive()) {
-        clearHeatCapacityPressureAlertUiState();
-      }
-      return false;
-    }
-    return true;
-  };
-
   const exitHeatCapacityFocusMode = () => {
     heatCapacitySceneFocusModeRef.current = 'none';
     const session = heatCapacityFocusSessionRef.current;
@@ -6398,11 +6698,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
     const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
     if (currentFile?.kind === 'heatCapacity') {
-      if (mode === 'pump' && shouldBlockHeatCapacityPumpForPressureDanger(currentFile)) {
-        exitHeatCapacityFocusMode();
-        showHeatCapacityPolicyToast(heatCapacityRealtimeCopy.closePumpValveReminder, 'pressureCloseValve');
-        return;
-      }
       const currentSession = heatCapacityFocusSessionRef.current;
       heatCapacityFocusSessionRef.current = currentSession?.fileId === currentFile.id
         ? {
@@ -6447,7 +6742,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     heatCapacityPressureAlarmVisibleRef.current = true;
     setHeatCapacityPressureAlarmVisible(true);
     exitHeatCapacityFocusMode();
-    pushLog(heatCapacityRealtimeCopy.pressureAlarmLog(fileName), 'warning');
+    pushLog(
+      (language) => getHeatCapacityRealtimeCopy(language).pressureAlarmLog(fileName),
+      'warning',
+    );
     if (heatCapacityPressureAlarmTimerRef.current !== null) {
       window.clearTimeout(heatCapacityPressureAlarmTimerRef.current);
     }
@@ -6560,6 +6858,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     guideHeatCapacityRestoredStrongReminderTimerRef.current = null;
     clearGuideHeatCapacityPendingStrongReminderTimer();
     guideHeatCapacityMissCountRef.current = 0;
+    guideHeatCapacityRejectedInteractionRef.current.reset();
     setGuideHeatCapacityStrongReminderActive(false);
     setGuideHeatCapacityStrongReminderControlId(null);
   };
@@ -6737,12 +7036,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const applyGuideHeatCapacityGuardFailure = (guard: GuideHeatCapacityGuardResult) => {
-    if (guard.rollbackAnimation === 'pumpBulbBounce') setHeatCapacityPumpPulseId((pulseId) => pulseId + 1);
     if (guard.rollbackAnimation) {
-      setGuideHeatCapacityRollback({
-        animation: guard.rollbackAnimation,
-        key: Date.now(),
-      });
+      setGuideHeatCapacityRollback((previous) => ({
+        animation: guard.rollbackAnimation!,
+        key: Math.max(Date.now(), (previous?.key ?? 0) + 1),
+      }));
     }
     const shouldOpenStrongReminder = guard.suppressStrongReminder ? false : registerGuideHeatCapacityMiss(guard);
     if (guard.suppressGuidance) {
@@ -6758,6 +7056,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const guardGuideHeatCapacityAction = (
     action: GuideHeatCapacityAction,
     source: 'user' | 'autoDemo' = 'user',
+    interactionId?: HeatCapacityControlInteractionId,
   ) => {
     if (source === 'autoDemo') return true;
     if (!activeFile || activeFile.kind !== 'heatCapacity') return true;
@@ -6775,6 +7074,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
       }
       return true;
     }
+    if (!guideHeatCapacityRejectedInteractionRef.current.shouldApplyFailure(
+      activeFile.id,
+      action,
+      interactionId,
+    )) return false;
     applyGuideHeatCapacityGuardFailure(guard);
     return false;
   };
@@ -7110,7 +7414,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
       activeFile.heatCapacityMode === 'guide' &&
       activeFile.heatCapacityGuideWorkflow.step === 'pumpRequired'
     ) {
-      guidePumpInputLockedRef.current = false;
       guidePassivePumpTargetNoticeKeyRef.current = null;
     }
   }, [
@@ -7130,7 +7433,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (focusSession?.fileId === activeFile.id && focusSession.mode === 'pump') {
       exitHeatCapacityFocusMode();
     }
-    guidePumpInputLockedRef.current = true;
     const noticeKey = `${activeFile.id}:${activeFile.pumpStrokeCount}:close-pump-valve`;
     if (guidePassivePumpTargetNoticeKeyRef.current === noticeKey) return;
     guidePassivePumpTargetNoticeKeyRef.current = noticeKey;
@@ -7487,6 +7789,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (!activeFile || activeFile.kind !== 'heatCapacity') return;
     const action = kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2';
     if (!guardGuideHeatCapacityAction(action)) return;
+    setHeatCapacityRecordPulseId((pulseId) => pulseId + 1);
     const now = Date.now();
     const currentFile = filesRef.current.find((file) => file.id === activeFile.id);
     if (!currentFile || currentFile.kind !== 'heatCapacity') return;
@@ -7512,7 +7815,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
           recordMessage: message,
           trialCompleteMessage: null,
         });
-        pushLog(message, 'success');
+        pushLog(
+          (language) => {
+            const copy = getHeatCapacityRealtimeCopy(language);
+            return kind === 'u0'
+              ? copy.recordU0SuccessToast
+              : kind === 'u1'
+                ? copy.recordU1SuccessToast
+                : copy.recordU2SuccessToast;
+          },
+          'success',
+        );
         return;
       }
       showGuideHeatCapacityGuidance(
@@ -7521,13 +7834,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
         'warning',
         'guide-blocked',
       );
-      pushLog(message, 'warning');
+      pushLog(
+        (language) => getLocalizedHeatCapacityGuideRecordFailure(currentFile, kind, language, message),
+        'warning',
+      );
       return;
     }
   };
 
   const recordFreeHeatCapacitySample = (kind: HeatCapacityGuideRecordKind) => {
     if (!activeFile || activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return;
+    setHeatCapacityRecordPulseId((pulseId) => pulseId + 1);
     const now = Date.now();
     const currentFile = filesRef.current.find((file) => file.id === activeFile.id);
     if (!currentFile || currentFile.kind !== 'heatCapacity' || currentFile.heatCapacityMode !== 'free') return;
@@ -7553,12 +7870,21 @@ const WorkbenchStudioPrototype: React.FC = () => {
       markHeatCapacityFocusSessionNonReversible();
       clearGuideHeatCapacityGuidance();
       showGuideHeatCapacityGuidance(message, kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2', 'success');
-      pushLog(message, 'success');
+      pushLog(
+        (language) => getHeatCapacityRealtimeCopy(language).freeRecordSuccessLog[kind],
+        'success',
+      );
       return;
     }
     clearGuideHeatCapacityGuidance();
     showGuideHeatCapacityGuidance(message, kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2', 'warning', 'guide-blocked');
-    pushLog(message, 'warning');
+    pushLog(
+      (language) => getHeatCapacityFreeRecordRejectMessage(
+        attempt.reason as HeatCapacityFreeRecordRejectReason,
+        getHeatCapacityRealtimeCopy(language),
+      ),
+      'warning',
+    );
   };
 
   const requestRemoveHeatCapacityTrialRecord = (
@@ -7574,7 +7900,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const displayTrialIndex = trialIndex + 1;
     if (!pendingMatches) {
       setPendingRemoveHeatCapacityTrialRecord({ trialIndex, kind, scheme });
-      pushLog(`${activeFile.name}: 再次点击确认删除第 ${displayTrialIndex} 组${kind === 'trial' ? '' : ` ${recordLabel}`}记录。`, 'warning');
+      pushLog((language) => {
+        const recordSuffix = kind === 'trial' ? '' : ` ${recordLabel}`;
+        if (language === 'zh-CN') {
+          return `${activeFile.name}: 再次点击确认删除第 ${displayTrialIndex} 组${recordSuffix}记录。`;
+        }
+        if (language === 'zh-TW') {
+          return `${activeFile.name}: 再次點擊確認刪除第 ${displayTrialIndex} 組${recordSuffix}記錄。`;
+        }
+        return `${activeFile.name}: Click Confirm Delete again to delete the${recordSuffix} record from trial ${displayTrialIndex}.`;
+      }, 'warning');
       return;
     }
 
@@ -7587,7 +7922,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return file;
     });
     setPendingRemoveHeatCapacityTrialRecord(null);
-    pushLog(`${activeFile.name}: 已删除第 ${displayTrialIndex} 组${kind === 'trial' ? '' : ` ${recordLabel}`}记录。`);
+    pushLog((language) => {
+      const recordSuffix = kind === 'trial' ? '' : ` ${recordLabel}`;
+      if (language === 'zh-CN') return `${activeFile.name}: 已删除第 ${displayTrialIndex} 组${recordSuffix}记录。`;
+      if (language === 'zh-TW') return `${activeFile.name}: 已刪除第 ${displayTrialIndex} 組${recordSuffix}記錄。`;
+      return `${activeFile.name}: Deleted the${recordSuffix} record from trial ${displayTrialIndex}.`;
+    });
   };
 
   const updateHeatCapacityPower = (nextPowerOn?: boolean, source: 'user' | 'autoDemo' = 'user') => {
@@ -7631,11 +7971,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
     });
     if (shouldShowGuidePowerOffCompletionToast) {
       showHeatCapacityGuidePowerOffCompletionToast();
-      pushLog(heatCapacityRealtimeCopy.finalTrialCompleteToast, 'success');
+      pushLog(
+        (language) => getHeatCapacityRealtimeCopy(language).finalTrialCompleteToast,
+        'success',
+      );
     }
     if (shouldShowFreePowerOffCompletionToast) {
       showHeatCapacityFreeGroupCompletionToast();
-      pushLog(heatCapacityRealtimeCopy.freeGroupCompleteToast, 'success');
+      pushLog(
+        (language) => getHeatCapacityRealtimeCopy(language).freeGroupCompleteToast,
+        'success',
+      );
     }
   };
 
@@ -7654,7 +8000,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
         ? startHeatCapacityGuideWorkbenchState(file, now)
         : file
     ));
-    pushLog(`${fileName}: heat-capacity guide mode reset.`, 'success');
+    pushLog((language) => {
+      if (language === 'zh-CN') return `${fileName}：热容比引导模式已重置。`;
+      if (language === 'zh-TW') return `${fileName}：熱容比引導模式已重設。`;
+      return `${fileName}: heat-capacity guide mode reset.`;
+    }, 'success');
   };
 
   const startHeatCapacityGuideExperiment = () => {
@@ -7687,7 +8037,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     showHeatCapacityAutoDemoCompletionToast(guideCompleted
       ? heatCapacityRealtimeCopy.teachingModeExitedToast
       : heatCapacityRealtimeCopy.guideModeExitedToast);
-    pushLog(heatCapacityRealtimeCopy.guideModeExitedLog(activeFile.name), 'warning');
+    pushLog(
+      (language) => getHeatCapacityRealtimeCopy(language).guideModeExitedLog(activeFile.name),
+      'warning',
+    );
   };
 
   const exitCompletedHeatCapacityTeachingMode = () => {
@@ -7697,7 +8050,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
       ? exitHeatCapacityTeachingModeWorkbenchState(file, Date.now())
       : file);
     showHeatCapacityAutoDemoCompletionToast(heatCapacityRealtimeCopy.teachingModeExitedToast);
-    pushLog(heatCapacityRealtimeCopy.freeModeActiveLog(activeFile.name), 'info');
+    pushLog(
+      (language) => getHeatCapacityRealtimeCopy(language).freeModeActiveLog(activeFile.name),
+      'info',
+    );
   };
 
   const enterHeatCapacityFreeMode = () => {
@@ -7706,7 +8062,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     updateActiveFile((file) => file.kind === 'heatCapacity'
       ? enterHeatCapacityFreeModeWorkbenchState(file, Date.now())
       : file);
-    pushLog(heatCapacityRealtimeCopy.freeModeActiveLog(activeFile.name), 'info');
+    pushLog(
+      (language) => getHeatCapacityRealtimeCopy(language).freeModeActiveLog(activeFile.name),
+      'info',
+    );
   };
 
   const resetHeatCapacityFreeRun = () => {
@@ -7726,7 +8085,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     updateActiveFile((file) => file.kind === 'heatCapacity'
       ? resetHeatCapacityFreeRunWorkbenchState(file, now)
       : file);
-    pushLog(heatCapacityRealtimeCopy.freeRunResetLog(activeFile.name), 'warning');
+    pushLog(
+      (language) => getHeatCapacityRealtimeCopy(language).freeRunResetLog(activeFile.name),
+      'warning',
+    );
   };
 
   const updateHeatCapacityStopcockOpen = (nextOpen?: boolean, source: 'user' | 'autoDemo' = 'user') => {
@@ -7753,25 +8115,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
       if (operationFile.heatCapacityMode === 'guide') {
         return setHeatCapacityGuideStopcockOpen(operationFile, resolvedOpen, now);
       }
+      if (operationFile.heatCapacityMode === 'free') {
+        return setHeatCapacityFreeStopcockOpen(operationFile, resolvedOpen, now);
+      }
+      if (operationFile.heatCapacityMode === 'demo') {
+        return setHeatCapacityScriptedStopcockOpen(operationFile, resolvedOpen, now);
+      }
       const stopcockAngleDeg = getHeatCapacityStopcockTargetAngle(resolvedOpen);
-      const wasOpen = getHeatCapacityStopcockState(operationFile.stopcockAngleDeg) === 'open';
-      const stopcockFlowPurpose = getHeatCapacityFreeStopcockFlowPurpose(operationFile, resolvedOpen);
-      const pressureReleaseBurstUntilMs = !wasOpen
-        ? getHeatCapacityPressureReleaseBurstUntilMs(operationFile, resolvedOpen, now)
-        : operationFile.pressureReleaseBurstUntilMs;
-      const freeStopcockFlowPatch = isHeatCapacityPhysicalKernelMode(operationFile.heatCapacityMode)
-        ? resolvedOpen
-          ? {
-              heatCapacityFreeStopcockFlowOpen: false,
-              heatCapacityFreeStopcockPendingOpenAtMs: now + HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
-              heatCapacityFreeStopcockFlowPurpose: stopcockFlowPurpose,
-            }
-          : {
-              heatCapacityFreeStopcockFlowOpen: false,
-              heatCapacityFreeStopcockPendingOpenAtMs: null,
-              heatCapacityFreeStopcockFlowPurpose: 'none' as const,
-            }
-        : {};
       const isGuideReleaseClosure = source === 'user' &&
         !resolvedOpen &&
         guideHeatCapacityActiveFileId === file.id &&
@@ -7784,9 +8134,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
         ...operationFile,
         stopcockAngleDeg,
         glassPistonState: resolvedOpen ? 'open' : 'closed',
-        ...freeStopcockFlowPatch,
-        pressureReleaseBurstUntilMs: resolvedOpen ? pressureReleaseBurstUntilMs : null,
-        pressureDisplayNextJitterAtMs: pressureReleaseBurstUntilMs ? now : operationFile.pressureDisplayNextJitterAtMs,
         updatedAt: now,
       }, now);
       const releaseStartFile = isGuideReleaseOpening
@@ -7795,23 +8142,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
       const sampledFile = isGuideReleaseClosure
         ? captureHeatCapacityWorkbenchSample(releaseStartFile, 'releaseLowSample', now)
         : releaseStartFile;
-      return sampledFile.heatCapacityMode === 'free'
-        ? recordHeatCapacityFreeTraceEvent(
-            sampledFile,
-            resolvedOpen ? 'stopcock-open' : 'stopcock-close',
-            now,
-            { visualStopcockOpen: resolvedOpen },
-          )
-        : sampledFile;
+      return sampledFile;
     });
   };
 
-  const adjustHeatCapacityPressureZeroFineFromScene = (direction: number, source: 'user' | 'autoDemo' = 'user') => {
+  const adjustHeatCapacityPressureZeroFineFromScene = (
+    direction: number,
+    interactionId?: HeatCapacityControlInteractionId,
+    source: 'user' | 'autoDemo' = 'user',
+  ) => {
     if (isHeatCapacityUserInteractionLocked(source)) {
       showHeatCapacityAutoDemoLockedToast();
-      return;
+      return false;
     }
-    if (!guardGuideHeatCapacityAction('adjustPressureZero', source)) return;
+    if (!guardGuideHeatCapacityAction('adjustPressureZero', source, interactionId)) return false;
     const now = Date.now();
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
@@ -7820,14 +8164,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
         : file;
       return adjustHeatCapacityPressureZeroFine(operationFile, direction, now);
     });
+    return true;
   };
 
-  const adjustHeatCapacityPressureZeroCoarseFromScene = (angleDeltaDeg: number, source: 'user' | 'autoDemo' = 'user') => {
+  const adjustHeatCapacityPressureZeroCoarseFromScene = (
+    angleDeltaDeg: number,
+    interactionId?: HeatCapacityControlInteractionId,
+    source: 'user' | 'autoDemo' = 'user',
+  ) => {
     if (isHeatCapacityUserInteractionLocked(source)) {
       showHeatCapacityAutoDemoLockedToast();
-      return;
+      return false;
     }
-    if (!guardGuideHeatCapacityAction('adjustPressureZero', source)) return;
+    if (!guardGuideHeatCapacityAction('adjustPressureZero', source, interactionId)) return false;
     const now = Date.now();
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
@@ -7836,6 +8185,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         : file;
       return adjustHeatCapacityPressureZeroCoarse(operationFile, angleDeltaDeg, now);
     });
+    return true;
   };
 
   const updateHeatCapacityPumpValve = (source: 'user' | 'autoDemo' = 'user') => {
@@ -8076,12 +8426,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
       pumpBulb: 'pumpBulbBounce',
     };
     const rollbackAnimation = control ? rollbackByControl[control] ?? null : null;
-    if (rollbackAnimation === 'pumpBulbBounce') setHeatCapacityPumpPulseId((pulseId) => pulseId + 1);
     if (rollbackAnimation) {
-      setGuideHeatCapacityRollback({
+      setGuideHeatCapacityRollback((previous) => ({
         animation: rollbackAnimation,
-        key: Date.now(),
-      });
+        key: Math.max(Date.now(), (previous?.key ?? 0) + 1),
+      }));
     }
     showHeatCapacityAutoDemoLockedToast(message ?? fallbackMessage);
   };
@@ -8174,29 +8523,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
       showHeatCapacityAutoDemoLockedToast();
       return;
     }
+    if (source !== 'autoDemo' && heatCapacitySceneFocusModeRef.current !== 'pump') return;
     const fileBeforePump = filesRef.current.find((file) => file.id === fileId);
-    if (
-      source !== 'autoDemo' &&
-      fileBeforePump?.kind === 'heatCapacity' &&
-      fileBeforePump.heatCapacityMode === 'free' &&
-      shouldBlockHeatCapacityPumpForPressureDanger(fileBeforePump)
-    ) {
-      showHeatCapacityPressureAlarm(fileBeforePump.id, fileBeforePump.name);
-      return;
-    }
-    if (
-      source !== 'autoDemo' &&
-      fileBeforePump?.kind === 'heatCapacity' &&
-      fileBeforePump.heatCapacityMode === 'guide' &&
-      fileBeforePump.id === activeFileIdRef.current
-    ) {
-      if (
-        guidePumpInputLockedRef.current ||
-        fileBeforePump.heatCapacityGuideWorkflow.step !== 'pumpRequired'
-      ) {
-        return;
-      }
-    }
     if (source !== 'autoDemo' && fileId === activeFileIdRef.current && !guardGuideHeatCapacityAction('pumpBulb', source)) return;
     const now = Date.now();
     const pumpSourceFile = source === 'user' && fileBeforePump?.kind === 'heatCapacity'
@@ -8212,9 +8540,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
       nextHeatCapacityFile.heatCapacityGuideWorkflow.step === 'closePumpValveRequired' &&
       getGuideHeatCapacityDisplayedPressureMv(nextHeatCapacityFile) >= HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
     );
-    if (guidePumpTargetReached) {
-      guidePumpInputLockedRef.current = true;
-    }
     if (source === 'user' && nextHeatCapacityFile) {
       collapseHeatCapacityFreeParameterSidebarForExperimentAction();
       markHeatCapacityFocusSessionNonReversible();
@@ -8283,31 +8608,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const stopcockAngleDeg = getHeatCapacityStopcockTargetAngle(nextOpen);
     updateFileById(fileId, (file) => {
       if (file.kind !== 'heatCapacity') return file;
-      const wasOpen = getHeatCapacityStopcockState(file.stopcockAngleDeg) === 'open';
-      const stopcockFlowPurpose = getHeatCapacityFreeStopcockFlowPurpose(file, nextOpen);
-      const pressureReleaseBurstUntilMs = !wasOpen
-        ? getHeatCapacityPressureReleaseBurstUntilMs(file, nextOpen, now)
-        : file.pressureReleaseBurstUntilMs;
-      const freeStopcockFlowPatch = isHeatCapacityPhysicalKernelMode(file.heatCapacityMode)
-        ? nextOpen
-          ? {
-              heatCapacityFreeStopcockFlowOpen: false,
-              heatCapacityFreeStopcockPendingOpenAtMs: now + HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
-              heatCapacityFreeStopcockFlowPurpose: stopcockFlowPurpose,
-            }
-          : {
-              heatCapacityFreeStopcockFlowOpen: false,
-              heatCapacityFreeStopcockPendingOpenAtMs: null,
-              heatCapacityFreeStopcockFlowPurpose: 'none' as const,
-            }
-        : {};
+      if (file.heatCapacityMode === 'guide') {
+        return setHeatCapacityGuideStopcockOpen(file, nextOpen, now);
+      }
+      if (file.heatCapacityMode === 'free') {
+        return setHeatCapacityFreeStopcockOpen(file, nextOpen, now);
+      }
+      if (file.heatCapacityMode === 'demo') {
+        return setHeatCapacityScriptedStopcockOpen(file, nextOpen, now);
+      }
       return stepHeatCapacityWorkbenchFile({
         ...file,
         stopcockAngleDeg,
         glassPistonState: nextOpen ? 'open' : 'closed',
-        ...freeStopcockFlowPatch,
-        pressureReleaseBurstUntilMs: nextOpen ? pressureReleaseBurstUntilMs : null,
-        pressureDisplayNextJitterAtMs: pressureReleaseBurstUntilMs ? now : file.pressureDisplayNextJitterAtMs,
         updatedAt: now,
       }, now);
     });
@@ -8455,7 +8768,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
       if (action === 'completeTeachingMode') {
         const completedFile = completeHeatCapacityTeachingModeWorkbenchState(file, now);
         window.setTimeout(() => {
-          pushLog(heatCapacityRealtimeCopy.autoDemoImportedCompleteLog(completedFile.name), 'success');
+          pushLog(
+            (language) => getHeatCapacityRealtimeCopy(language).autoDemoImportedCompleteLog(completedFile.name),
+            'success',
+          );
         }, 0);
         return {
           ...completedFile,
@@ -8590,12 +8906,18 @@ const WorkbenchStudioPrototype: React.FC = () => {
         heatCapacityAutoDemoPausedElapsedMsRef.current,
         heatCapacityAutoDemoInitialDelayRemainingMsRef.current,
       );
-      pushLog(heatCapacityRealtimeCopy.autoDemoResumedLog(activeFile.name), 'success');
+      pushLog(
+        (language) => getHeatCapacityRealtimeCopy(language).autoDemoResumedLog(activeFile.name),
+        'success',
+      );
       return;
     }
 
     if (autoDemoInteractionLocked || activeFile.runState === 'running') {
-      pushLog(heatCapacityRealtimeCopy.autoDemoRunningLog(activeFile.name), 'warning');
+      pushLog(
+        (language) => getHeatCapacityRealtimeCopy(language).autoDemoRunningLog(activeFile.name),
+        'warning',
+      );
       return;
     }
 
@@ -8644,7 +8966,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     showHeatCapacityAutoDemoCompletionToast(heatCapacityRealtimeCopy.autoDemoInitializingToast, HEAT_CAPACITY_AUTO_DEMO_RESET_MS);
     commitHeatCapacityAutoDemoDefaultReset(demoFileId);
     scheduleHeatCapacityAutoDemoTimeline(demoFileId, timeline, 0, HEAT_CAPACITY_AUTO_DEMO_RESET_MS);
-    pushLog(heatCapacityRealtimeCopy.autoDemoStartedLog(activeFile.name), 'success');
+    pushLog(
+      (language) => getHeatCapacityRealtimeCopy(language).autoDemoStartedLog(activeFile.name),
+      'success',
+    );
   };
 
   const getHeatCapacityRefreshRemainingMs = (deadlineAtMs: number | null) => (
@@ -9428,7 +9753,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setUndoStack((current) => current.slice(0, -1));
     setRedoStack((current) => [...current, currentSnapshot].slice(-EDIT_HISTORY_LIMIT));
     restoreSnapshot(snapshot);
-    pushLog(workbenchCopy.logs.undoAction(snapshot.label), 'warning');
+    pushLog(
+      (language) => workbenchCopies[language].logs.undoAction(
+        getLocalizedWorkbenchEditLabel(snapshot.label, language),
+      ),
+      'warning',
+    );
   };
 
   const redoLastEdit = () => {
@@ -9439,14 +9769,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setRedoStack((current) => current.slice(0, -1));
     setUndoStack((current) => [...current, currentSnapshot].slice(-EDIT_HISTORY_LIMIT));
     restoreSnapshot(snapshot);
-    pushLog(workbenchCopy.logs.redoAction(snapshot.label), 'success');
+    pushLog(
+      (language) => workbenchCopies[language].logs.redoAction(
+        getLocalizedWorkbenchEditLabel(snapshot.label, language),
+      ),
+      'success',
+    );
   };
 
   const clearEditHistory = () => {
     setUndoStack([]);
     setRedoStack([]);
     setOpenTopMenu(null);
-    pushLog(workbenchCopy.logs.editHistoryCleared, 'warning');
+    pushLog((language) => workbenchCopies[language].logs.editHistoryCleared, 'warning');
   };
 
   useEffect(() => {
@@ -9856,7 +10191,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const saveCurrentWorkbenchLayoutAsDefault = () => {
     if (isWorkbenchEmpty) {
-      pushLog(workbenchCopy.logs.layoutSaveNeedsFile, 'warning');
+      pushLog((language) => workbenchCopies[language].logs.layoutSaveNeedsFile, 'warning');
       return;
     }
 
@@ -9876,7 +10211,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setWorkbenchLayoutDefaults(nextDefaults);
     persistWorkbenchLayoutDefaults(nextDefaults);
     setOpenTopMenu(null);
-    pushLog(workbenchCopy.logs.layoutDefaultSaved(activeFile.name), 'success');
+    pushLog(
+      (language) => workbenchCopies[language].logs.layoutDefaultSaved(activeFile.name),
+      'success',
+    );
   };
 
   const cancelRuntimeFrame = (fileId: string) => {
@@ -9992,7 +10330,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
         runState: 'paused',
         updatedAt: Date.now(),
       }));
-        pushLog(workbenchCopy.logs.autoPausedSingleRuntime(file.name), 'warning');
+        pushLog(
+          (language) => workbenchCopies[language].logs.autoPausedSingleRuntime(file.name),
+          'warning',
+        );
     });
   };
 
@@ -10045,8 +10386,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     if (finished) {
       cancelRuntimeFrame(file.id);
-      pushLog(workbenchCopy.logs.standardFinished(file.name), 'success');
-      pushLog(workbenchCopy.logs.standardResultsReady(file.name), 'success');
+      pushLog(
+        (language) => workbenchCopies[language].logs.standardFinished(file.name),
+        'success',
+      );
+      pushLog(
+        (language) => workbenchCopies[language].logs.standardResultsReady(file.name),
+        'success',
+      );
       return;
     }
 
@@ -10138,9 +10485,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     cancelRuntimeFrame(file.id);
     pushLog(
-      recordedPoint
-        ? workbenchCopy.logs.idealPointRecorded(file.name, getRelationLabel(file.relation), formatMetric(getRelationVariableNumericValue(file.relation, file.activeParams), 3))
-        : workbenchCopy.logs.idealPointMissingSummary(file.name),
+      (language) => recordedPoint
+        ? workbenchCopies[language].logs.idealPointRecorded(file.name, getRelationLabel(file.relation), formatMetric(getRelationVariableNumericValue(file.relation, file.activeParams), 3))
+        : workbenchCopies[language].logs.idealPointMissingSummary(file.name),
       recordedPoint ? 'success' : 'warning',
     );
   };
@@ -10152,7 +10499,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     const message = workbenchCopy.logs.controlledVariablesLocked(activeFile.name, getRelationLabel(activeFile.relation), lockedKeys.join(', '));
     setParameterErrors([message]);
-    pushLog(message, 'warning');
+    pushLog(
+      (language) => workbenchCopies[language].logs.controlledVariablesLocked(activeFile.name, getRelationLabel(activeFile.relation), lockedKeys.join(', ')),
+      'warning',
+    );
     return true;
   };
 
@@ -10173,7 +10523,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     rawValue: string,
   ) => {
     if (parameterControlsLocked) {
-      pushLog(workbenchCopy.logs.pauseBeforeEditingParameters(activeFile.name), 'warning');
+      pushLog(
+        (language) => workbenchCopies[language].logs.pauseBeforeEditingParameters(activeFile.name),
+        'warning',
+      );
       return;
     }
 
@@ -10185,7 +10538,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const parsedValue = Number(rawValue);
     if (!Number.isFinite(parsedValue)) {
       setParameterErrors([workbenchCopy.logs.invalidParameter(activeFile.name, param.label, rawValue)]);
-      pushLog(workbenchCopy.logs.invalidParameter(activeFile.name, param.label, rawValue), 'error');
+      pushLog(
+        (language) => workbenchCopies[language].logs.invalidParameter(
+          activeFile.name,
+          getWorkbenchParameterDisplayLabel(param, workbenchCopies[language]),
+          rawValue,
+        ),
+        'error',
+      );
       return;
     }
 
@@ -10217,7 +10577,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     options: ApplyActiveFileParamsOptions = {},
   ): StandardEngineRuntime | null => {
     if (activeFile.runState === 'running') {
-      if (!options.silent) pushLog(workbenchCopy.logs.pauseBeforeApplyingParameters(activeFile.name), 'warning');
+      if (!options.silent) pushLog(
+        (language) => workbenchCopies[language].logs.pauseBeforeApplyingParameters(activeFile.name),
+        'warning',
+      );
       return null;
     }
 
@@ -10231,12 +10594,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const forceReset = options.forceReset === true;
 
     if (activeFile.kind === 'ideal' && !forceReset && !hasOverride && !parametersDirty && !activeFile.needsReset) {
-      if (!options.silent) pushLog(workbenchCopy.logs.idealRuntimeAlreadyApplied(activeFile.name));
+      if (!options.silent) pushLog(
+        (language) => workbenchCopies[language].logs.idealRuntimeAlreadyApplied(activeFile.name),
+      );
       return getIdealRuntime(activeFile);
     }
 
     if (activeFile.kind === 'standard' && !forceReset && !hasOverride && !parametersDirty) {
-      if (!options.silent) pushLog(workbenchCopy.logs.noSavedParameterChanges(activeFile.name));
+      if (!options.silent) pushLog(
+        (language) => workbenchCopies[language].logs.noSavedParameterChanges(activeFile.name),
+      );
       return getStandardRuntime(activeFile);
     }
 
@@ -10261,7 +10628,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
       });
       setParameterErrors([]);
       if (!options.silent) {
-        pushLog(`${activeFile.name}: heat-capacity UI parameters saved; no simulation runtime started.`, 'success');
+        pushLog((language) => {
+          if (language === 'zh-CN') return `${activeFile.name}：热容比界面参数已保存；未启动模拟运行时。`;
+          if (language === 'zh-TW') return `${activeFile.name}：熱容比介面參數已儲存；未啟動模擬執行階段。`;
+          return `${activeFile.name}: heat-capacity UI parameters saved; no simulation runtime started.`;
+        }, 'success');
       }
       return null;
     }
@@ -10276,7 +10647,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
         updatedAt: Date.now(),
       }));
       setParameterErrors([]);
-      if (!options.silent) pushLog(`${activeFile.name}: edited parameters match the applied runtime. No rebuild needed.`);
+      if (!options.silent) pushLog((language) => {
+        if (language === 'zh-CN') return `${activeFile.name}：编辑后的参数与已应用运行时一致，无需重建。`;
+        if (language === 'zh-TW') return `${activeFile.name}：編輯後的參數與已套用執行階段一致，無需重建。`;
+        return `${activeFile.name}: edited parameters match the applied runtime. No rebuild needed.`;
+      });
       return getStandardRuntime(activeFile);
     }
 
@@ -10327,7 +10702,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
       setParameterErrors([]);
       if (!options.silent) {
         pushLog(
-          workbenchCopy.logs.idealRuntimeApplied(activeFile.name, getRelationLabel(activeFile.relation), changedKeys.length > 0 ? changedKeys.join(', ') : workbenchCopy.results.noneValue),
+          (language) => workbenchCopies[language].logs.idealRuntimeApplied(
+            activeFile.name,
+            getRelationLabel(activeFile.relation),
+            changedKeys.length > 0 ? changedKeys.join(', ') : workbenchCopies[language].results.noneValue,
+          ),
           'success',
         );
       }
@@ -10361,7 +10740,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setParameterErrors([]);
     if (!options.silent) {
       pushLog(
-        workbenchCopy.logs.standardParametersApplied(activeFile.name, hasOverride ? workbenchCopy.logs.parametersSavedAndApplied : workbenchCopy.logs.parametersApplied),
+        (language) => workbenchCopies[language].logs.standardParametersApplied(
+          activeFile.name,
+          hasOverride
+            ? workbenchCopies[language].logs.parametersSavedAndApplied
+            : workbenchCopies[language].logs.parametersApplied,
+        ),
         'success',
       );
     }
@@ -10403,9 +10787,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
       : idealRuntimeRef.current[activeFile.id] ?? getIdealRuntime(activeFile);
     if (!runtime) {
       pushLog(
-        workbenchCopy.logs.runtimeCreateFailed(
+        (language) => workbenchCopies[language].logs.runtimeCreateFailed(
           activeFile.name,
-          activeFile.kind === 'standard' ? workbenchCopy.parameters.standardSimulation : workbenchCopy.parameters.idealSimulation,
+          activeFile.kind === 'standard'
+            ? workbenchCopies[language].parameters.standardSimulation
+            : workbenchCopies[language].parameters.idealSimulation,
         ),
         'error',
       );
@@ -10431,9 +10817,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
       };
     });
     pushLog(
-      activeFile.kind === 'standard'
-        ? workbenchCopy.logs.standardStarted(activeFile.name)
-        : workbenchCopy.logs.idealStarted(activeFile.name, getRelationLabel(activeFile.relation)),
+      (language) => activeFile.kind === 'standard'
+        ? workbenchCopies[language].logs.standardStarted(activeFile.name)
+        : workbenchCopies[language].logs.idealStarted(activeFile.name, getRelationLabel(activeFile.relation)),
       'success',
     );
     if (activeFile.kind === 'standard') {
@@ -10458,7 +10844,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     updateActiveFile((file) => file.kind === 'heatCapacity'
       ? { ...file, runState: 'paused', updatedAt: Date.now() }
       : file);
-    pushLog(heatCapacityRealtimeCopy.autoDemoPausedLog(activeFile.name), 'warning');
+    pushLog(
+      (language) => getHeatCapacityRealtimeCopy(language).autoDemoPausedLog(activeFile.name),
+      'warning',
+    );
   };
 
   const terminateHeatCapacityAutoDemo = () => {
@@ -10475,7 +10864,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setAutoDemoStepNote(heatCapacityRealtimeCopy.autoDemoTerminatedNote);
     hideHeatCapacityAutoDemoStepPanel();
     showHeatCapacityAutoDemoCompletionToast(heatCapacityRealtimeCopy.autoDemoTerminatedToast);
-    pushLog(heatCapacityRealtimeCopy.autoDemoTerminatedLog(activeFile.name), 'warning');
+    pushLog(
+      (language) => getHeatCapacityRealtimeCopy(language).autoDemoTerminatedLog(activeFile.name),
+      'warning',
+    );
   };
 
   const pauseActiveFile = () => {
@@ -10491,9 +10883,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
       updatedAt: Date.now(),
     }));
     pushLog(
-      workbenchCopy.logs.simulationPaused(
+      (language) => workbenchCopies[language].logs.simulationPaused(
         activeFile.name,
-        activeFile.kind === 'standard' ? workbenchCopy.parameters.standardSimulation : workbenchCopy.parameters.idealSimulation,
+        activeFile.kind === 'standard'
+          ? workbenchCopies[language].parameters.standardSimulation
+          : workbenchCopies[language].parameters.idealSimulation,
       ),
       'warning',
     );
@@ -10534,7 +10928,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
           updatedAt: Date.now(),
         };
       });
-      pushLog(workbenchCopy.logs.standardTerminated(activeFile.name), 'warning');
+      pushLog(
+        (language) => workbenchCopies[language].logs.standardTerminated(activeFile.name),
+        'warning',
+      );
       return;
     }
 
@@ -10560,7 +10957,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
         updatedAt: Date.now(),
       };
     });
-    pushLog(workbenchCopy.logs.idealTerminated(activeFile.name), 'warning');
+    pushLog(
+      (language) => workbenchCopies[language].logs.idealTerminated(activeFile.name),
+      'warning',
+    );
   };
 
   useEffect(() => {
@@ -10636,7 +11036,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
         runState: 'paused',
         updatedAt: Date.now(),
       }));
-      pushLog(workbenchCopy.logs.autoPausedCreateFile(activeFile.name), 'warning');
+      pushLog(
+        (language) => workbenchCopies[language].logs.autoPausedCreateFile(activeFile.name),
+        'warning',
+      );
     }
 
     setWorkbenchFiles((current) => [...current, file]);
@@ -10651,7 +11054,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (file.kind === 'heatCapacity') {
       clearHeatCapacityAutoDemoUiState();
     }
-    pushLog(workbenchCopy.logs.fileCreated(file.name), 'success');
+    pushLog(
+      (language) => workbenchCopies[language].logs.fileCreated(file.name),
+      'success',
+    );
   };
 
   const openNewWorkbenchWindow = () => {
@@ -10707,7 +11113,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const handleLockedPanel = (title: string) => {
-    pushLog(workbenchCopy.logs.lockedPanel(title), 'warning');
+    pushLog(
+      (language) => workbenchCopies[language].logs.lockedPanel(
+        getLocalizedWorkbenchPanelTitle(title, language),
+      ),
+      'warning',
+    );
   };
 
   const normalizeIdealResultLayout = (
@@ -10787,7 +11198,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
       if (file.kind !== 'ideal') return file;
       return normalizeIdealResultLayout(file, true, tab, Boolean(options.openAllTabs), Boolean(options.replaceOpenTabs));
     });
-    pushLog(workbenchCopy.logs.idealResultsOpened(activeFile.name, tab));
+    pushLog(
+      (language) => workbenchCopies[language].logs.idealResultsOpened(
+        activeFile.name,
+        createIdealPanels(workbenchCopies[language]).find((panel) => panel.key === tab)?.title ?? tab,
+      ),
+    );
   };
 
   const openIdealResultsWindow = (tab: WorkbenchIdealResultWindowKey = 'experimentPoints', openAllTabs = false, replaceOpenTabs = false) => {
@@ -10809,7 +11225,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return normalizeIdealResultLayout(file, false);
     });
     if (isIdealResultWindowKey(selectedPanel)) setSelectedPanel('preview');
-    pushLog(workbenchCopy.logs.idealResultsClosed(activeFile.name));
+    pushLog(
+      (language) => workbenchCopies[language].logs.idealResultsClosed(activeFile.name),
+    );
   };
 
   const closeIdealResultTab = (tab: WorkbenchIdealResultWindowKey) => {
@@ -10894,10 +11312,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
         updatedAt: Date.now(),
       };
     });
-    pushLog(workbenchCopy.logs.standardResultsOpened(
-      activeFile.name,
-      resultsSections.find((section) => section.key === tab)?.title ?? tab,
-    ));
+    pushLog(
+      (language) => workbenchCopies[language].logs.standardResultsOpened(
+        activeFile.name,
+        createResultsSections(workbenchCopies[language]).find((section) => section.key === tab)?.title ?? tab,
+      ),
+    );
   };
 
   const closeStandardResultsTab = (tab: WorkbenchStandardResultsTab) => {
@@ -11097,7 +11517,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
         };
       }),
     );
-    pushLog(workbenchCopy.logs.panelOpened(activeFile.name, availablePanels.find((item) => item.key === panel)?.title ?? panel));
+    const panelTitle = availablePanels.find((item) => item.key === panel)?.title ?? panel;
+    pushLog(
+      (language) => workbenchCopies[language].logs.panelOpened(
+        activeFile.name,
+        getLocalizedWorkbenchPanelTitle(panelTitle, language),
+      ),
+    );
   };
 
   const closePanel = (panel: WorkbenchPanelKey, recordUndo = true) => {
@@ -11130,7 +11556,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
       }),
     );
     if (selectedPanel === panel) setSelectedPanel('preview');
-    pushLog(workbenchCopy.logs.panelClosed(activeFile.name, availablePanels.find((item) => item.key === panel)?.title ?? panel));
+    const panelTitle = availablePanels.find((item) => item.key === panel)?.title ?? panel;
+    pushLog(
+      (language) => workbenchCopies[language].logs.panelClosed(
+        activeFile.name,
+        getLocalizedWorkbenchPanelTitle(panelTitle, language),
+      ),
+    );
   };
 
   const togglePanel = (panel: WorkbenchPanelKey) => {
@@ -11238,11 +11670,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const changeIdealRelation = (nextRelation: ExperimentRelation) => {
     if (activeFile.kind !== 'ideal') return;
     if (activeFile.runState === 'running') {
-      pushLog(workbenchCopy.logs.pauseBeforeSwitchingRelation(activeFile.name), 'warning');
+      pushLog(
+        (language) => workbenchCopies[language].logs.pauseBeforeSwitchingRelation(activeFile.name),
+        'warning',
+      );
       return;
     }
     if (activeFile.relation === nextRelation) {
-      pushLog(workbenchCopy.logs.relationAlreadyActive(activeFile.name, getRelationLabel(nextRelation)));
+      pushLog(
+        (language) => workbenchCopies[language].logs.relationAlreadyActive(activeFile.name, getRelationLabel(nextRelation)),
+      );
       return;
     }
 
@@ -11261,13 +11698,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setPendingRemovePointId(null);
     setPendingClearRelationKey(null);
     setSamplingPresetMenuOpen(false);
-    pushLog(workbenchCopy.logs.relationSwitched(activeFile.name, getRelationLabel(nextRelation)), 'success');
+    pushLog(
+      (language) => workbenchCopies[language].logs.relationSwitched(activeFile.name, getRelationLabel(nextRelation)),
+      'success',
+    );
   };
 
   const applyIdealSamplingPreset = (preset: IdealSamplingPreset) => {
     if (activeFile.kind !== 'ideal') return;
     if (activeFile.runState === 'running') {
-      pushLog(workbenchCopy.logs.pauseBeforeChangingSamplingPreset(activeFile.name), 'warning');
+      pushLog(
+        (language) => workbenchCopies[language].logs.pauseBeforeChangingSamplingPreset(activeFile.name),
+        'warning',
+      );
       return;
     }
 
@@ -11292,14 +11735,18 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return closest.distance <= threshold ? closest.value : rawValue;
   };
 
-  const showScanInputError = (message: string, options: { refocus?: boolean; rawValue?: string } = {}) => {
+  const showScanInputError = (
+    message: string,
+    getMessage: WorkbenchConsoleMessageFactory,
+    options: { refocus?: boolean; rawValue?: string } = {},
+  ) => {
     setScanInputError(message);
     setParameterErrors([message]);
     setScanInputToast(message);
     const errorKey = `${message}\n${options.rawValue ?? ''}`;
     if (lastScanInputErrorRef.current !== errorKey) {
       lastScanInputErrorRef.current = errorKey;
-      pushLog(`${activeFile.name}: ${message}`, 'error');
+      pushLog((language) => `${activeFile.name}: ${getMessage(language)}`, 'error');
     }
     if (options.refocus) {
       window.setTimeout(() => {
@@ -11320,43 +11767,53 @@ const WorkbenchStudioPrototype: React.FC = () => {
     relation: ExperimentRelation,
     scanMin: number,
     scanMax: number,
-  ): { valid: true; value: number } | { valid: false; message: string } => {
+  ): { valid: true; value: number } | { valid: false; message: string; getMessage: WorkbenchConsoleMessageFactory } => {
     const trimmedValue = rawValue.trim();
     const relationKey = getRelationVariableKey(relation);
     const decimalPattern = /^(?:\d+(?:\.\d*)?|\.\d+)$/;
     const integerPattern = /^\d+$/;
-    const formatName = relationKey === 'N' ? workbenchCopy.logs.formatPositiveInteger : workbenchCopy.logs.formatDecimalNumber;
     const decimals = getIdealScanDecimals(relation);
+    const invalid = (getMessage: WorkbenchConsoleMessageFactory) => ({
+      valid: false as const,
+      message: getMessage(settingsLanguagePreference),
+      getMessage,
+    });
 
     if (!trimmedValue) {
-      return { valid: false, message: workbenchCopy.logs.scanInputRequired(String(relationKey), formatName) };
+      return invalid((language) => workbenchCopies[language].logs.scanInputRequired(
+        String(relationKey),
+        relationKey === 'N'
+          ? workbenchCopies[language].logs.formatPositiveInteger
+          : workbenchCopies[language].logs.formatDecimalNumber,
+      ));
     }
 
     if (relationKey === 'N' && !integerPattern.test(trimmedValue)) {
-      return { valid: false, message: workbenchCopy.logs.scanInputIntegerOnly };
+      return invalid((language) => workbenchCopies[language].logs.scanInputIntegerOnly);
     }
 
     if (relationKey !== 'N' && !decimalPattern.test(trimmedValue)) {
-      return { valid: false, message: workbenchCopy.logs.scanInputDecimalOnly(String(relationKey)) };
+      return invalid((language) => workbenchCopies[language].logs.scanInputDecimalOnly(String(relationKey)));
     }
 
     const parsedValue = Number(trimmedValue);
     if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
-      return { valid: false, message: workbenchCopy.logs.scanInputGreaterThanZero(String(relationKey)) };
+      return invalid((language) => workbenchCopies[language].logs.scanInputGreaterThanZero(String(relationKey)));
     }
 
     if (!isIdealScanValueOnStep(trimmedValue, relation)) {
-      return {
-        valid: false,
-        message: workbenchCopy.logs.scanInputStep(getIdealScanInputLabel(relation), getIdealScanStepLabel(relation)),
-      };
+      return invalid((language) => workbenchCopies[language].logs.scanInputStep(
+        getIdealScanInputLabel(relation),
+        getIdealScanStepLabel(relation),
+      ));
     }
 
     if (parsedValue < scanMin || parsedValue > scanMax) {
-      return {
-        valid: false,
-        message: workbenchCopy.logs.scanInputRange(String(relationKey), formatMetric(scanMin, decimals), formatMetric(scanMax, decimals)),
-      };
+      return invalid((language) => workbenchCopies[language].logs.scanInputRange(
+        String(relationKey),
+        formatMetric(scanMin, decimals),
+        formatMetric(scanMax, decimals),
+      ));
     }
 
     return { valid: true, value: relationKey === 'N' ? Math.round(parsedValue) : parsedValue };
@@ -11371,7 +11828,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const parsed = parseIdealScanInput(rawValue, activeFile.relation, scanMin, scanMax);
 
     if (parsed.valid === false) {
-      showScanInputError(parsed.message, { rawValue });
+      showScanInputError(parsed.message, parsed.getMessage, { rawValue });
       return false;
     }
 
@@ -11382,7 +11839,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const updateIdealScanVariable = (rawValue: number, options: UpdateIdealScanVariableOptions = {}) => {
     if (activeFile.kind !== 'ideal') return;
     if (activeFile.runState === 'running') {
-      pushLog(workbenchCopy.logs.pauseBeforeChangingScanVariable(activeFile.name), 'warning');
+      pushLog(
+        (language) => workbenchCopies[language].logs.pauseBeforeChangingScanVariable(activeFile.name),
+        'warning',
+      );
       return;
     }
 
@@ -11430,7 +11890,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const parsed = parseIdealScanInput(scanInputDraft, activeFile.relation, scanMin, scanMax);
 
     if (parsed.valid === false) {
-      showScanInputError(parsed.message, { refocus: true, rawValue: scanInputDraft });
+      showScanInputError(parsed.message, parsed.getMessage, { refocus: true, rawValue: scanInputDraft });
       return;
     }
 
@@ -11456,7 +11916,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     if (pendingRemovePointId !== point.id) {
       setPendingRemovePointId(point.id);
-      pushLog(workbenchCopy.logs.confirmRemoveIdealPoint(activeFile.name, getRelationLabel(point.relation)), 'warning');
+      pushLog(
+        (language) => workbenchCopies[language].logs.confirmRemoveIdealPoint(activeFile.name, getRelationLabel(point.relation)),
+        'warning',
+      );
       return;
     }
 
@@ -11477,7 +11940,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
       };
     });
     setPendingRemovePointId(null);
-    pushLog(workbenchCopy.logs.idealPointRemoved(activeFile.name), 'warning');
+    pushLog(
+      (language) => workbenchCopies[language].logs.idealPointRemoved(activeFile.name),
+      'warning',
+    );
   };
 
   const cancelRemoveIdealPoint = () => {
@@ -11515,14 +11981,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     const points = activeFile.pointsByRelation[activeFile.relation];
     if (points.length === 0) {
-      pushLog(workbenchCopy.logs.relationHasNoPoints(activeFile.name, getRelationLabel(activeFile.relation)));
+      pushLog(
+        (language) => workbenchCopies[language].logs.relationHasNoPoints(activeFile.name, getRelationLabel(activeFile.relation)),
+      );
       return;
     }
 
     const clearKey = `${activeFile.id}:${activeFile.relation}`;
     if (pendingClearRelationKey !== clearKey) {
       setPendingClearRelationKey(clearKey);
-      pushLog(workbenchCopy.logs.confirmClear(activeFile.name, getRelationLabel(activeFile.relation)), 'warning');
+      pushLog(
+        (language) => workbenchCopies[language].logs.confirmClear(activeFile.name, getRelationLabel(activeFile.relation)),
+        'warning',
+      );
       return;
     }
 
@@ -11544,7 +12015,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     });
     setPendingClearRelationKey(null);
     setPendingRemovePointId(null);
-    pushLog(workbenchCopy.logs.clearedRelation(activeFile.name, getRelationLabel(activeFile.relation)), 'warning');
+    pushLog(
+      (language) => workbenchCopies[language].logs.clearedRelation(activeFile.name, getRelationLabel(activeFile.relation)),
+      'warning',
+    );
   };
 
   const beginRenameFile = (file: WorkbenchFileState) => {
@@ -11569,14 +12043,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const commitRenameFile = (fileId: string) => {
     const nextName = renameDraft.trim();
     if (!nextName) {
-      pushLog(workbenchCopy.logs.fileNameCannotBeEmpty, 'error');
+      pushLog((language) => workbenchCopies[language].logs.fileNameCannotBeEmpty, 'error');
       return;
     }
 
     const targetFile = files.find((file) => file.id === fileId);
     if (targetFile && targetFile.name === nextName) {
       cancelRenameFile();
-      pushLog(workbenchCopy.logs.fileNameUnchanged(nextName));
+      pushLog((language) => workbenchCopies[language].logs.fileNameUnchanged(nextName));
       return;
     }
 
@@ -11590,7 +12064,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     renameSelectionModeRef.current = 'normal';
     setRenamingFileId(null);
     setRenameDraft('');
-    pushLog(workbenchCopy.logs.fileRenamed(nextName), 'success');
+    pushLog((language) => workbenchCopies[language].logs.fileRenamed(nextName), 'success');
   };
 
   const cancelRenameFile = () => {
@@ -11606,7 +12080,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     const nextName = renameDraft.trim();
     if (!nextName) {
-      pushLog(workbenchCopy.logs.fileNameCannotBeEmpty, 'error');
+      pushLog((language) => workbenchCopies[language].logs.fileNameCannotBeEmpty, 'error');
       renamingFileIdRef.current = null;
       renameSelectionModeRef.current = 'normal';
       setRenamingFileId(null);
@@ -11617,7 +12091,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const targetFile = filesRef.current.find((file) => file.id === fileId);
     if (targetFile && targetFile.name === nextName) {
       cancelRenameFile();
-      pushLog(workbenchCopy.logs.fileNameUnchanged(nextName));
+      pushLog((language) => workbenchCopies[language].logs.fileNameUnchanged(nextName));
       return;
     }
 
@@ -11631,7 +12105,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     renameSelectionModeRef.current = 'normal';
     setRenamingFileId(null);
     setRenameDraft('');
-    pushLog(workbenchCopy.logs.fileRenamed(nextName), 'success');
+    pushLog((language) => workbenchCopies[language].logs.fileRenamed(nextName), 'success');
   };
 
   useEffect(() => {
@@ -11737,7 +12211,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       setIdealAdvancedSettingsOpen(false);
       setIdealAdvancedSettingsBodyVisible(false);
     }
-    pushLog(workbenchCopy.logs.fileClosed(file.name), 'warning');
+    pushLog((language) => workbenchCopies[language].logs.fileClosed(file.name), 'warning');
   };
 
   const requestCloseWorkbenchFile = (file: WorkbenchFileState) => {
@@ -11764,7 +12238,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
         runState: 'paused',
         updatedAt: Date.now(),
       }));
-      pushLog(workbenchCopy.logs.autoPausedSwitchFile(activeFile.name), 'warning');
+      pushLog(
+        (language) => workbenchCopies[language].logs.autoPausedSwitchFile(activeFile.name),
+        'warning',
+      );
     }
 
     const reopenedFile = prepareReopenedWorkbenchFile(file);
@@ -11780,7 +12257,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setIdealAdvancedSettingsOpen(false);
     setIdealAdvancedSettingsBodyVisible(false);
     setOpenTopMenu(null);
-    pushLog(workbenchCopy.logs.fileOpenedFromCache(reopenedFile.name), 'success');
+    pushLog(
+      (language) => workbenchCopies[language].logs.fileOpenedFromCache(reopenedFile.name),
+      'success',
+    );
   };
 
   const deleteWorkbenchFile = (fileId: string) => {
@@ -11814,7 +12294,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setParameterErrors([]);
     setIdealAdvancedSettingsOpen(false);
     setIdealAdvancedSettingsBodyVisible(false);
-    pushLog(workbenchCopy.logs.fileRemoved(file.name), 'warning');
+    pushLog((language) => workbenchCopies[language].logs.fileRemoved(file.name), 'warning');
   };
 
   const requestDeleteWorkbenchFile = (file: WorkbenchFileState) => {
@@ -11824,7 +12304,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
 
     setPendingDeleteFileId(file.id);
-    pushLog(workbenchCopy.logs.confirmDeleteFile(file.name), 'warning');
+    pushLog((language) => workbenchCopies[language].logs.confirmDeleteFile(file.name), 'warning');
   };
 
   const cancelDeleteWorkbenchFile = () => {
@@ -11835,7 +12315,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const resetLayout = () => {
     if (isWorkbenchFileLayoutDefault(activeFile, workbenchLayoutDefaults)) {
       setOpenTopMenu(null);
-      pushLog(workbenchCopy.logs.layoutAlreadyDefault(activeFile.name));
+      pushLog((language) => workbenchCopies[language].logs.layoutAlreadyDefault(activeFile.name));
       return;
     }
 
@@ -11868,7 +12348,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       ),
     );
     setOpenTopMenu(null);
-    pushLog(workbenchCopy.logs.layoutReset(activeFile.name), 'warning');
+    pushLog((language) => workbenchCopies[language].logs.layoutReset(activeFile.name), 'warning');
   };
 
   const selectFile = (file: WorkbenchFileState) => {
@@ -11885,7 +12365,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
         runState: 'paused',
         updatedAt: Date.now(),
       }));
-      pushLog(workbenchCopy.logs.autoPausedSwitchFile(activeFile.name), 'warning');
+      pushLog(
+        (language) => workbenchCopies[language].logs.autoPausedSwitchFile(activeFile.name),
+        'warning',
+      );
     }
 
     if (file.id !== activeFile.id) {
@@ -11909,7 +12392,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     renamingFileIdRef.current = null;
     setRenamingFileId(null);
     setSamplingPresetMenuOpen(false);
-    pushLog(workbenchCopy.logs.fileSelected(file.name));
+    pushLog((language) => workbenchCopies[language].logs.fileSelected(file.name));
   };
 
   const renderWorkbenchParameterSymbol = (parts: WorkbenchParameterSymbolPart[]) => (
@@ -12219,7 +12702,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
               } else {
                 const message = heatCapacityFreeSharedText.gasTypeLocked[settingsLanguagePreference];
                 setScanInputToast(message);
-                pushLog(`${activeFile.name}: ${message}`, 'warning');
+                pushLog(
+                  (language) => `${activeFile.name}: ${heatCapacityFreeSharedText.gasTypeLocked[language]}`,
+                  'warning',
+                );
               }
               return;
             }
@@ -13462,7 +13948,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   {heatCapacityGuideLessonOverlay}
                 </>
               ) : null;
-              const heatCapacitySceneNow = Date.now();
               const heatCapacityHardSphereGasTemperatureK = activeFile.heatCapacityMode === 'guide'
                 ? activeFile.heatCapacityGuidePhysicsState.gasTemperatureK
                 : activeFile.heatCapacityMode === 'free'
@@ -13487,26 +13972,29 @@ const WorkbenchStudioPrototype: React.FC = () => {
               const heatCapacityPhysicalReleaseReference = activeFile.heatCapacityMode === 'guide'
                 ? activeFile.heatCapacityGuidePhysicsState.releaseReference
                 : activeFile.heatCapacityFreePhysicsState.releaseReference;
-              const heatCapacityPhysicalStopcockFlowOpen = activeFile.heatCapacityMode === 'guide'
-                ? getHeatCapacityStopcockState(activeFile.stopcockAngleDeg) === 'open' &&
-                  heatCapacityPhysicalReleaseReference !== null
-                : activeFile.heatCapacityFreeStopcockFlowOpen;
+              const heatCapacityPhysicalStopcockFlowOpen =
+                isHeatCapacityMainReleaseFlowOpen(activeFile.heatCapacityReleaseState);
               const physicalReleaseFlowActive = activeHeatCapacityUsesVisualPhysics &&
                 heatCapacityPhysicalStopcockFlowOpen &&
                 heatCapacityPhysicalReleaseReference !== null &&
-                activeFile.pressureDeltaKPa > 0.08;
-              const teachingStopcockFlowOpen = getHeatCapacityStopcockState(activeFile.stopcockAngleDeg) === 'open';
-              const teachingReleaseRemainingMs = !activeHeatCapacityUsesVisualPhysics &&
-                typeof activeFile.pressureReleaseBurstUntilMs === 'number'
-                ? Math.max(0, activeFile.pressureReleaseBurstUntilMs - heatCapacitySceneNow)
-                : 0;
+                activeFile.pressureDeltaKPa > HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA;
+              const teachingStopcockFlowOpen = isHeatCapacityReleaseFlowOpen(activeFile.heatCapacityReleaseState);
+              const teachingReleaseElapsedS = getHeatCapacityReleaseDurationS(
+                activeFile.heatCapacityReleaseState,
+                activeFile.simulationTimeS,
+              );
               const teachingReleaseFlowActive = !activeHeatCapacityUsesVisualPhysics &&
-                teachingStopcockFlowOpen &&
-                teachingReleaseRemainingMs > 0;
+                isHeatCapacityMainReleaseFlowOpen(activeFile.heatCapacityReleaseState);
               const teachingReleaseProgress = teachingReleaseFlowActive
-                ? Math.min(1, Math.max(0, 1 - teachingReleaseRemainingMs / HEAT_CAPACITY_RELEASE_BURST_DURATION_MS))
+                ? Math.min(1, Math.max(
+                    0,
+                    teachingReleaseElapsedS / HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS,
+                  ))
                 : 0;
               const releaseFlowActive = physicalReleaseFlowActive || teachingReleaseFlowActive;
+              const releaseAudioFlowActive =
+                isHeatCapacityReleaseFlowOpen(activeFile.heatCapacityReleaseState) &&
+                activeFile.pressureDeltaKPa > HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA;
               const stopcockFlowOpen = activeHeatCapacityUsesVisualPhysics
                 ? heatCapacityPhysicalStopcockFlowOpen
                 : teachingStopcockFlowOpen;
@@ -13530,23 +14018,26 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     const physicalState = activeFile.heatCapacityMode === 'guide'
                       ? activeFile.heatCapacityGuidePhysicsState
                       : activeFile.heatCapacityFreePhysicsState;
-                    const elapsedS = Math.max(
-                      0,
-                      physicalState.currentStopcockOpenDurationS,
+                    const elapsedS = getHeatCapacityReleaseDurationS(
+                      activeFile.heatCapacityReleaseState,
+                      physicalState.simulationTimeS,
                     );
                     const progress = releaseReference.reachedAmbientAtS === null
-                      ? Math.min(1, Math.max(0, elapsedS / FREE_RELEASE_MAIN_DURATION_S))
+                      ? Math.min(1, Math.max(
+                          0,
+                          elapsedS / HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS,
+                        ))
                       : 1;
                     const gasTemperatureK = Math.max(1, heatCapacityHardSphereGasTemperatureK);
                     const ambientPressureAmountRatio =
                       heatCapacityHardSphereAmbientTemperatureK / gasTemperatureK;
                     return {
                       phase: releaseReference.reachedAmbientAtS === null
-                        ? elapsedS > FREE_RELEASE_RESPONSE_DELAY_S ? 'main-release' : 'response-delay'
+                        ? 'main-release'
                         : 'post-release-exchange',
                       elapsedS,
-                      responseDelayS: FREE_RELEASE_RESPONSE_DELAY_S,
-                      mainDurationS: FREE_RELEASE_MAIN_DURATION_S,
+                      responseDelayS: 0,
+                      mainDurationS: HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS,
                       progress,
                       pressureFactor,
                       amountBeforeRatio: releaseReference.amountBeforeRatio,
@@ -13559,8 +14050,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     return {
                       ...idleTimeline,
                       phase: 'partial-stopped',
-                      responseDelayS: FREE_RELEASE_RESPONSE_DELAY_S,
-                      mainDurationS: FREE_RELEASE_MAIN_DURATION_S,
+                      responseDelayS: 0,
+                      mainDurationS: HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS,
                     };
                   }
 
@@ -13570,10 +14061,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 if (teachingReleaseFlowActive) {
                   const teachingReleaseAmountDelta = 0.018 + pressureFactor * 0.042;
                   return {
-                    phase: teachingReleaseProgress > 0 ? 'main-release' : 'response-delay',
-                    elapsedS: teachingReleaseProgress * (HEAT_CAPACITY_RELEASE_BURST_DURATION_MS / 1000),
+                    phase: 'main-release',
+                    elapsedS: teachingReleaseElapsedS,
                     responseDelayS: 0,
-                    mainDurationS: HEAT_CAPACITY_RELEASE_BURST_DURATION_MS / 1000,
+                    mainDurationS: HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS,
                     progress: teachingReleaseProgress,
                     pressureFactor,
                     amountBeforeRatio: gasAmountRatio + teachingReleaseAmountDelta,
@@ -13582,12 +14073,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   };
                 }
 
-                if (stopcockFlowOpen && activeFile.pressureDeltaKPa <= 0.08) {
+                if (stopcockFlowOpen && activeFile.pressureDeltaKPa <= HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA) {
                   return {
                     ...idleTimeline,
                     phase: 'post-release-exchange',
                     responseDelayS: 0,
-                    mainDurationS: HEAT_CAPACITY_RELEASE_BURST_DURATION_MS / 1000,
+                    mainDurationS: HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS,
                     progress: 1,
                   };
                 }
@@ -13604,12 +14095,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
               ), 0));
               const pumpFlowActive = pumpFlowIntensity > 0 ||
                 (!activeHeatCapacityUsesVisualPhysics && activeFile.pumpValveOpen && activeFile.pumpBulbState === 'compressing');
-              const heatCapacityHardSpherePaused = heatCapacityRefreshRestoring || activeFile.runState === 'paused' || heatCapacityLessonDialogActive || autoDemoPaused ||
-                (
-                  activeFile.heatCapacityMode === 'guide'
-                    ? activeFile.heatCapacityGuideWorkflow.paused
-                    : false
-                );
+              const heatCapacityHardSpherePaused = heatCapacityRefreshRestoring ||
+                activeFile.runState === 'paused' ||
+                heatCapacityLessonDialogActive ||
+                autoDemoPaused;
               const handleHeatCapacitySceneLockedInteraction = (
                 message?: string,
                 control?: HeatCapacityLockedControl,
@@ -13629,6 +14118,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 <HeatCapacityInstrumentScene
                   key={activeFile.id}
                   sceneFileId={activeFile.id}
+                  experimentMode={activeFile.heatCapacityMode}
                   performanceMode={settingsPerformanceMode}
                   sceneTheme={resolvedWorkbenchTheme}
                   language={settingsLanguagePreference}
@@ -13657,6 +14147,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   pumpValveState={activeFile.pumpValveState}
                   pumpBulbState={activeFile.pumpBulbState}
                   pumpPulseId={heatCapacityPumpPulseId}
+                  recordPulseId={heatCapacityRecordPulseId}
                   pumpFrequency={activeFile.pumpFrequency}
                   pumpFrequencyStatus={activeFile.pumpFrequencyStatus}
                   pumpHint={localizedHeatCapacityPumpHint}
@@ -13665,8 +14156,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   phase={heatCapacityDisplayPhase}
                   temperatureSignalMv={activeFile.powerOn ? activeHeatCapacityDisplay.temperatureMv : null}
                   pressureSignalMv={activeFile.powerOn ? activeHeatCapacityDisplay.pressureMv : null}
-                  pressureReleaseBurstActive={!activeHeatCapacityUsesPhysicalKernel && typeof activeFile.pressureReleaseBurstUntilMs === 'number' && heatCapacitySceneNow <= activeFile.pressureReleaseBurstUntilMs}
+                  pressureReleaseBurstActive={releaseFlowActive}
                   releaseFlowActive={releaseFlowActive}
+                  releaseAudioFlowActive={releaseAudioFlowActive}
                   releaseTimeline={heatCapacityHardSphereReleaseTimeline}
                   pumpFlowActive={pumpFlowActive}
                   pumpFlowIntensity={pumpFlowIntensity}
@@ -13763,7 +14255,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
             t={workbenchTranslation}
             isFocused={isCanvasFocused}
             onFocusChange={setIsCanvasFocused}
-            showNotification={(text) => pushLog(`${workbenchCopy.panels.previewTitle}: ${text}`)}
+            showNotification={(text) => {
+              const messageKey = (['locked', 'autoExit', 'switchedToPan', 'switchedToRotate'] as const)
+                .find((key) => workbenchTranslation.canvas[key] === text);
+              pushLog((language) => {
+                const translation = translations[language === 'en' ? 'en-GB' : language];
+                return `${workbenchCopies[language].panels.previewTitle}: ${messageKey ? translation.canvas[messageKey] : text}`;
+              });
+            }}
             supportsHover
             touchLike={false}
             isCompactLandscape={false}
@@ -14298,13 +14797,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
   );
 
   const handleExportAction = async (mode: WorkbenchExportMode) => {
-    const exportLabel = workbenchCopy.logs.exportLabels[mode];
-
     if (!isExportModeDataReady(mode)) {
       pushLog(
-        activeFile.kind === 'ideal' && mode !== 'pointsCsv' && idealPointCount > 0
-          ? workbenchCopy.logs.exportNeedsTwoPoints(activeFile.name)
-          : workbenchCopy.logs.exportNotReady(activeFile.name),
+        (language) => activeFile.kind === 'ideal' && mode !== 'pointsCsv' && idealPointCount > 0
+          ? workbenchCopies[language].logs.exportNeedsTwoPoints(activeFile.name)
+          : workbenchCopies[language].logs.exportNotReady(activeFile.name),
         'warning',
       );
       return;
@@ -14314,18 +14811,39 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const bridge = window.hardSphereLabExporter;
 
     if (!exportAvailable) {
-      const detail = exportEnvironmentDetail ?? exportCopy.detail;
-      pushLog(workbenchCopy.logs.exportPayloadPrepared(activeFile.name, exportLabel, payload.filename, detail), 'warning');
+      pushLog(
+        (language) => workbenchCopies[language].logs.exportPayloadPrepared(
+          activeFile.name,
+          workbenchCopies[language].logs.exportLabels[mode],
+          payload.filename,
+          workbenchCopies[language].exportEnvironment[exportEnvironmentStatus].detail,
+        ),
+        'warning',
+      );
       return;
     }
 
     if (!bridge) {
-      pushLog(workbenchCopy.logs.exportPayloadPrepared(activeFile.name, exportLabel, payload.filename, workbenchCopy.exportEnvironment.unavailable.detail), 'warning');
+      pushLog(
+        (language) => workbenchCopies[language].logs.exportPayloadPrepared(
+          activeFile.name,
+          workbenchCopies[language].logs.exportLabels[mode],
+          payload.filename,
+          workbenchCopies[language].exportEnvironment.unavailable.detail,
+        ),
+        'warning',
+      );
       return;
     }
 
     setExportInProgress(true);
-    pushLog(workbenchCopy.logs.exportPreparing(activeFile.name, exportLabel), 'info');
+    pushLog(
+      (language) => workbenchCopies[language].logs.exportPreparing(
+        activeFile.name,
+        workbenchCopies[language].logs.exportLabels[mode],
+      ),
+      'info',
+    );
 
     try {
       const result = await bridge.exportWorkbenchPayload(payload, {
@@ -14335,28 +14853,62 @@ const WorkbenchStudioPrototype: React.FC = () => {
       });
 
       if (result.status === 'cancelled') {
-        pushLog(workbenchCopy.logs.exportCancelled(activeFile.name, exportLabel), 'warning');
+        pushLog(
+          (language) => workbenchCopies[language].logs.exportCancelled(
+            activeFile.name,
+            workbenchCopies[language].logs.exportLabels[mode],
+          ),
+          'warning',
+        );
         return;
       }
 
       if (result.status !== 'ok') {
-        pushLog(workbenchCopy.logs.exportFailed(activeFile.name, exportLabel, result.message ?? workbenchCopy.logs.unknownExporterError), 'error');
+        pushLog(
+          (language) => workbenchCopies[language].logs.exportFailed(
+            activeFile.name,
+            workbenchCopies[language].logs.exportLabels[mode],
+            result.message ?? workbenchCopies[language].logs.unknownExporterError,
+          ),
+          'error',
+        );
         return;
       }
 
       const fileCount = result.files?.length ?? 0;
       if (mode === 'pointsCsv') {
-        pushLog(workbenchCopy.logs.exportCsvSaved(activeFile.name, result.files?.[0] ?? result.outDir ?? workbenchCopy.logs.selectedLocation), 'success');
+        pushLog(
+          (language) => workbenchCopies[language].logs.exportCsvSaved(
+            activeFile.name,
+            result.files?.[0] ?? result.outDir ?? workbenchCopies[language].logs.selectedLocation,
+          ),
+          'success',
+        );
         return;
       }
 
-      const figureHint = mode === 'verificationFigure' || mode === 'figuresZip'
-        ? ` ${workbenchCopy.logs.exportFigureHint}`
-        : '';
-      pushLog(workbenchCopy.logs.exportCompleted(activeFile.name, exportLabel, result.outDir ?? workbenchCopy.logs.selectedFolder, fileCount, figureHint), 'success');
+      pushLog(
+        (language) => workbenchCopies[language].logs.exportCompleted(
+          activeFile.name,
+          workbenchCopies[language].logs.exportLabels[mode],
+          result.outDir ?? workbenchCopies[language].logs.selectedFolder,
+          fileCount,
+          mode === 'verificationFigure' || mode === 'figuresZip'
+            ? ` ${workbenchCopies[language].logs.exportFigureHint}`
+            : '',
+        ),
+        'success',
+      );
     } catch (error) {
-      const message = error instanceof Error ? error.message : workbenchCopy.logs.unknownExporterError;
-      pushLog(workbenchCopy.logs.exportFailed(activeFile.name, exportLabel, message), 'error');
+      const message = error instanceof Error ? error.message : null;
+      pushLog(
+        (language) => workbenchCopies[language].logs.exportFailed(
+          activeFile.name,
+          workbenchCopies[language].logs.exportLabels[mode],
+          message ?? workbenchCopies[language].logs.unknownExporterError,
+        ),
+        'error',
+      );
     } finally {
       setExportInProgress(false);
     }
@@ -15936,12 +16488,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
           themePreference={settingsThemePreference}
           languagePreference={settingsLanguagePreference}
           performanceMode={settingsPerformanceMode}
+          audioEnabled={settingsAudioEnabled}
+          audioVolume={settingsAudioVolume}
           languageMenuOpen={settingsLanguageMenuOpen}
           languageTriggerRef={settingsLanguageTriggerRef}
           onClose={closeGeneralSettings}
           onThemeChange={updateSettingsThemePreference}
           onLanguageChange={updateSettingsLanguagePreference}
           onPerformanceModeChange={updateSettingsPerformanceMode}
+          onAudioEnabledChange={updateSettingsAudioEnabled}
+          onAudioVolumeChange={updateSettingsAudioVolume}
           onLanguageMenuOpenChange={setSettingsLanguageMenuOpen}
         />
 
@@ -16523,7 +17079,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 <div><span>{workbenchCopy.console.errors}</span><strong>{consoleSummary.counts.error}</strong></div>
                 <div className="studio-console-summary-wide">
                   <span>{workbenchCopy.console.latest}</span>
-                  <strong>{consoleSummary.latest ? `${consoleSummary.latest.time} ${consoleSummary.latest.message}` : workbenchCopy.console.noLogs}</strong>
+                  <strong>{consoleSummary.latest ? `${consoleSummary.latest.time} ${resolveWorkbenchConsoleMessage(consoleSummary.latest, settingsLanguagePreference)}` : workbenchCopy.console.noLogs}</strong>
                 </div>
                 <div className="studio-console-summary-wide">
                   <span>{workbenchCopy.console.runtime}</span>
@@ -16543,7 +17099,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                           ? workbenchCopy.console.warnings
                           : workbenchCopy.console.errors}
                   </span>
-                  <span>{log.message}</span>
+                  <span>{resolveWorkbenchConsoleMessage(log, settingsLanguagePreference)}</span>
                 </div>
               ))
             ) : (

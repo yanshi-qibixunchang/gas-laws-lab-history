@@ -615,7 +615,7 @@ assert.doesNotMatch(
 );
 assert.match(
   ultraModelSource,
-  /const handleUltraControlWheel = useCallback\([\s\S]*const resolvedControl = resolveUltraPanelPointerControl\(control, event\.clientX, event\.clientY\)[\s\S]*if \(resolvedControl !== 'pressureZero'\) return;[\s\S]*absorbUltraPointerEvent\(event\);[\s\S]*if \(!props\.pressureZeroInteractionEnabled\) \{[\s\S]*return;[\s\S]*\}[\s\S]*const requestedDelta = \(event\.deltaY < 0 \? PRESSURE_ZERO_FINE_ANGLE_STEP_DEG : -PRESSURE_ZERO_FINE_ANGLE_STEP_DEG\)\s*\*\s*PRESSURE_ZERO_DRAG_DIRECTION;[\s\S]*props\.onPressureZeroFineAdjust\(boundedDelta\);/,
+  /const handleUltraControlWheel = useCallback\([\s\S]*const resolvedControl = resolveUltraPanelPointerControl\(control, event\.clientX, event\.clientY\)[\s\S]*if \(resolvedControl !== 'pressureZero'\) return;[\s\S]*absorbUltraPointerEvent\(event\);[\s\S]*if \(!props\.pressureZeroInteractionEnabled\) \{[\s\S]*return;[\s\S]*\}[\s\S]*const requestedDelta = \(event\.deltaY < 0 \? PRESSURE_ZERO_FINE_ANGLE_STEP_DEG : -PRESSURE_ZERO_FINE_ANGLE_STEP_DEG\)\s*\*\s*PRESSURE_ZERO_DRAG_DIRECTION;[\s\S]*props\.onPressureZeroFineAdjust\([\s\S]*boundedDelta,[\s\S]*pressureZeroWheelGestureRef\.current\.getInteractionId\(now\)/,
   'Ultra GLB pressure-zero wheel fine adjustment should reuse the same hitbox disambiguation and fine-step scaling as the skeleton model',
 );
 assert.match(
@@ -1057,7 +1057,7 @@ assert.match(
 assert.match(
   sceneSource,
   /<HeatCapacityUltraInstrumentModel[\s\S]*pressureZeroInteractionEnabled=\{focusMode === 'instrument'\}[\s\S]*pumpBulbInteractionEnabled=\{focusMode === 'pump'\}[\s\S]*onFocus=\{setFocusMode\}/,
-  'Heat Capacity scene should pass the focused-mode zero-knob gate and focus entry callback into the Ultra GLB hitbox layer',
+  'Heat Capacity scene should keep pressure-zero and pump-bulb operation behind their focused-mode gates',
 );
 assert.match(
   ultraModelSource,
@@ -1072,7 +1072,7 @@ assert.match(
 assert.match(
   ultraModelSource,
   /else if \(resolvedControl === 'pumpBulb'\) \{[\s\S]*if \(!props\.pumpBulbInteractionEnabled\) return;[\s\S]*props\.onPumpBulbPress\(\);/,
-  'Ultra pump bulb clicks should be ignored outside pump focus so the default view cannot trigger pump animation or pressure changes',
+  'Ultra pump bulb clicks should remain inactive outside pump focus so double-clicking only enters focus',
 );
 assert.match(
   ultraModelSource,

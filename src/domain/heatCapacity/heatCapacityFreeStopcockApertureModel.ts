@@ -1,19 +1,22 @@
-export const FREE_STOPCOCK_APERTURE_RAMP_S = 0.1;
+import {
+  HEAT_CAPACITY_RELEASE_TIMING,
+} from './heatCapacityDefaultConfig.ts';
 
 const clampNonNegative = (value: number) => (
   Number.isFinite(value) && value > 0 ? value : 0
 );
 
-export const integrateFreeStopcockAperture = (openElapsedS: number) => {
+export const integrateHeatCapacityReleaseAperture = (openElapsedS: number) => {
   const elapsedS = clampNonNegative(openElapsedS);
-  const rampElapsedS = Math.min(elapsedS, FREE_STOPCOCK_APERTURE_RAMP_S);
-  const x = rampElapsedS / FREE_STOPCOCK_APERTURE_RAMP_S;
-  const rampIntegralS = FREE_STOPCOCK_APERTURE_RAMP_S *
+  const rampDurationS = HEAT_CAPACITY_RELEASE_TIMING.releaseApertureRampS;
+  const rampElapsedS = Math.min(elapsedS, rampDurationS);
+  const x = rampElapsedS / rampDurationS;
+  const rampIntegralS = rampDurationS *
     (x * x * x - 0.5 * x * x * x * x);
-  return rampIntegralS + Math.max(0, elapsedS - FREE_STOPCOCK_APERTURE_RAMP_S);
+  return rampIntegralS + Math.max(0, elapsedS - rampDurationS);
 };
 
-export const getFreeStopcockApertureEffectiveDtS = (
+export const getHeatCapacityReleaseApertureEffectiveDtS = (
   openElapsedBeforeS: number,
   dtS: number,
 ) => {
@@ -21,6 +24,6 @@ export const getFreeStopcockApertureEffectiveDtS = (
   const endS = startS + clampNonNegative(dtS);
   return Math.max(
     0,
-    integrateFreeStopcockAperture(endS) - integrateFreeStopcockAperture(startS),
+    integrateHeatCapacityReleaseAperture(endS) - integrateHeatCapacityReleaseAperture(startS),
   );
 };

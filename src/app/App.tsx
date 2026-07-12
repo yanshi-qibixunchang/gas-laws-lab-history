@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import WorkbenchStudioPrototype from '../features/workbench/WorkbenchStudioPrototype';
+import { loadWorkbenchGeneralSettings } from '../features/workbench/workbenchGeneralSettings.ts';
+import { AudioProvider } from '../audio/react/AudioProvider.tsx';
 
 const WORKBENCH_FRAME_WIDTH = 1440;
 const WORKBENCH_FRAME_HEIGHT = 810;
@@ -129,7 +131,19 @@ const WorkbenchAspectFrame = () => {
 };
 
 function App() {
-  return <WorkbenchAspectFrame />;
+  const initialAudioSettings = useMemo(() => {
+    const settings = loadWorkbenchGeneralSettings();
+    return {
+      enabled: settings.audioEnabled,
+      volume: settings.audioVolume,
+    };
+  }, []);
+
+  return (
+    <AudioProvider initialSettings={initialAudioSettings}>
+      <WorkbenchAspectFrame />
+    </AudioProvider>
+  );
 }
 
 export default App;

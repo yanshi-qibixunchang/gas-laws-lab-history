@@ -16,8 +16,12 @@ import type {
   HeatCapacityProcessScoreSubItem,
 } from './heatCapacityFreeProcessReviewTypes.ts';
 import {
-  findHeatCapacityStopcockFlowStartTime,
-} from './heatCapacityFreeProcessMetrics.ts';
+  HEAT_CAPACITY_RELEASE_TIMING,
+} from './heatCapacityDefaultConfig.ts';
+import {
+  calculateHeatCapacityGammaAbsoluteError,
+  classifyHeatCapacityGammaAbsoluteError,
+} from './heatCapacityGasTheory.ts';
 
 export interface HeatCapacityProcessScoringInput {
   traceTrial: HeatCapacityFreeTraceTrial;
@@ -33,11 +37,35 @@ export const SCORE_MAX = {
   retake: 10,
 } as const;
 
-const RELEASE_TARGET_DURATION_S = 0.35;
-const RELEASE_MIN_REASONABLE_DURATION_S = 0.1;
-const RELEASE_MAX_REASONABLE_DURATION_S = 0.8;
-const RELEASE_SEVERE_DURATION_S = 2.5;
 const RELEASE_DURATION_EPSILON_S = 0.000001;
+const SCORE_QUANTUM = 0.5;
+
+export const roundHeatCapacityHalfToEven = (
+  value: number,
+  digits = 0,
+) => {
+  if (!Number.isFinite(value)) return value;
+  if (!Number.isInteger(digits) || digits < 0 || digits > 12) {
+    throw new RangeError('digits must be an integer between 0 and 12.');
+  }
+
+  const factor = 10 ** digits;
+  const scaled = value * factor;
+  const lower = Math.floor(scaled);
+  const fraction = scaled - lower;
+  const tieTolerance = Number.EPSILON * Math.max(1, Math.abs(scaled)) * 8;
+  const rounded = Math.abs(fraction - 0.5) <= tieTolerance
+    ? lower % 2 === 0
+      ? lower
+      : lower + 1
+    : Math.round(scaled);
+  const result = rounded / factor;
+  return Object.is(result, -0) ? 0 : result;
+};
+
+export const quantizeHeatCapacityScore = (score: number) => (
+  roundHeatCapacityHalfToEven(score / SCORE_QUANTUM) * SCORE_QUANTUM
+);
 
 const formatNumber = (value: number | null | undefined, digits = 2) => (
   typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '--'
@@ -308,14 +336,13 @@ const createReleaseDetails = (input: {
   }),
 ]);
 
-const scoreReleaseDuration = (
+export const scoreHeatCapacityReleaseDuration = (
   durationS: number | null,
+  optimalMinS: number = HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMinS,
+  optimalMaxS: number = HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS,
 ) => {
   const durationMissing = durationS === null;
-  if (
-    durationMissing ||
-    (durationS !== null && durationS >= RELEASE_SEVERE_DURATION_S - RELEASE_DURATION_EPSILON_S)
-  ) {
+  if (durationMissing || durationS === null || !Number.isFinite(durationS)) {
     return {
       durationMissing,
       durationReview: true,
@@ -325,33 +352,22 @@ const scoreReleaseDuration = (
     };
   }
 
-  const outsideReasonableWindow =
-    durationS < RELEASE_MIN_REASONABLE_DURATION_S - RELEASE_DURATION_EPSILON_S ||
-    durationS > RELEASE_MAX_REASONABLE_DURATION_S + RELEASE_DURATION_EPSILON_S;
-  if (outsideReasonableWindow) {
-    return {
-      durationMissing,
-      durationReview: true,
-      durationSevere: false,
-      valveScore: 5,
-      responseScore: 5,
-    };
-  }
-
-  const span = durationS <= RELEASE_TARGET_DURATION_S
-    ? RELEASE_TARGET_DURATION_S - RELEASE_MIN_REASONABLE_DURATION_S
-    : RELEASE_MAX_REASONABLE_DURATION_S - RELEASE_TARGET_DURATION_S;
-  const distanceRatio = span > 0
-    ? Math.min(1, Math.abs(durationS - RELEASE_TARGET_DURATION_S) / span)
-    : 0;
-  const closeness = 1 - distanceRatio;
-  const valveScore = Math.round(8 + 6 * closeness);
-  const responseScore = Math.round(6 + 2 * closeness);
+  const distanceS = durationS < optimalMinS
+    ? optimalMinS - durationS
+    : durationS > optimalMaxS
+      ? durationS - optimalMaxS
+      : 0;
+  const closeness = Math.exp(-4 * distanceS);
+  const rawValveScore = 14 * closeness;
+  const rawResponseScore = 8 * closeness;
+  const quantizedDurationScore = quantizeHeatCapacityScore(rawValveScore + rawResponseScore);
+  const valveScore = quantizeHeatCapacityScore(rawValveScore);
+  const responseScore = quantizedDurationScore - valveScore;
 
   return {
     durationMissing,
-    durationReview: valveScore < 14 || responseScore < 8,
-    durationSevere: false,
+    durationReview: distanceS > RELEASE_DURATION_EPSILON_S,
+    durationSevere: closeness < 0.35,
     valveScore,
     responseScore,
   };
@@ -391,22 +407,34 @@ const scoreRelease = (
   }
 
   const releaseStart = input.branch.events.find((event) => (
-    event.type === 'stopcock-open' && event.atS > input.summary.u1!.atS
+    event.type === 'release-start' && event.atS > input.summary.u1!.atS
   ));
-  const releaseFlowStartS = releaseStart
-    ? findHeatCapacityStopcockFlowStartTime([...input.branch.samples].sort((left, right) => left.atS - right.atS), releaseStart.atS)
+  const releaseAttemptId = releaseStart?.payload?.attemptId;
+  const releaseEnd = releaseStart
+    ? input.branch.events.find((event) => (
+        event.type === 'stopcock-close' &&
+        event.atS >= releaseStart.atS &&
+        (releaseAttemptId === undefined || event.payload?.attemptId === releaseAttemptId) &&
+        event.payload?.formedRelease !== false
+      ))
     : null;
-  const releaseEnd = releaseFlowStartS !== null
-    ? input.branch.events.find((event) => event.type === 'stopcock-close' && event.atS >= releaseFlowStartS)
+  const payloadDurationS = releaseEnd?.payload?.releaseDurationS;
+  const durationS = releaseStart && releaseEnd
+    ? typeof payloadDurationS === 'number' && Number.isFinite(payloadDurationS)
+      ? payloadDurationS
+      : releaseEnd.atS - releaseStart.atS
     : null;
-  const durationS = releaseFlowStartS !== null && releaseEnd ? releaseEnd.atS - releaseFlowStartS : null;
   const ratio = input.summary.u1.pressureDeltaKPa > 0
     ? input.summary.u2.pressureDeltaKPa / input.summary.u1.pressureDeltaKPa
     : 0;
   const durationText = `${formatNumber(durationS, 1)} s`;
   const ratioText = formatNumber(ratio, 2);
   const overVented = input.summary.u2.pressureDeltaKPa <= 0 || ratio < 0.08;
-  const durationScore = scoreReleaseDuration(durationS);
+  const durationScore = scoreHeatCapacityReleaseDuration(
+    durationS,
+    input.traceTrial.configSnapshot.physics.releaseOptimalMinS,
+    input.traceTrial.configSnapshot.physics.releaseOptimalMaxS,
+  );
   const { durationReview, durationSevere } = durationScore;
   const severeRelease = overVented || durationSevere;
   const valveScore = severeRelease ? 0 : durationScore.valveScore;
@@ -470,14 +498,19 @@ const scoreRelease = (
 };
 
 const scoreResultDeviation = (
-  relativeErrorPercent: number | null,
+  gamma: number | null,
+  theoreticalGamma: number,
   hasSignals: boolean,
 ) => {
-  if (!hasSignals || relativeErrorPercent === null || !Number.isFinite(relativeErrorPercent)) return 0;
-  if (relativeErrorPercent <= 5) return 12;
-  if (relativeErrorPercent <= 10) return 8;
-  if (relativeErrorPercent <= 15) return 5;
-  if (relativeErrorPercent <= 20) return 2;
+  if (!hasSignals) return 0;
+  const level = classifyHeatCapacityGammaAbsoluteError(
+    calculateHeatCapacityGammaAbsoluteError(gamma, theoreticalGamma),
+  );
+  if (level === 'absoluteIdeal') return 12;
+  if (level === 'idealExperiment') return 11;
+  if (level === 'bestRealistic') return 10;
+  if (level === 'suitable') return 7;
+  if (level === 'severe') return 3;
   return 0;
 };
 
@@ -496,7 +529,10 @@ const scoreRecordChain = (
   const timingScore = (input.trial.u0 ? 2 : 0) + (u1Stable ? 4 : 0) + (u2Stable ? 4 : 0) -
     Math.min(3, blockedCount * 2);
   const completenessScore = complete ? 8 : 0;
-  const resultScore = scoreResultDeviation(input.summary.relativeErrorPercent, Boolean(input.trial.correctedSignals));
+  const gamma = input.trial.correctedSignals?.gamma ?? null;
+  const theoreticalGamma = input.traceTrial.configSnapshot.physics.gamma;
+  const gammaAbsoluteError = calculateHeatCapacityGammaAbsoluteError(gamma, theoreticalGamma);
+  const resultScore = scoreResultDeviation(gamma, theoreticalGamma, Boolean(input.trial.correctedSignals));
   const recordTimingScore = clampScore(timingScore, 10);
   const score = completenessScore + resultScore + u0Score + recordTimingScore;
   const status = statusFromScore(score, SCORE_MAX.recordChain, !complete);
@@ -518,7 +554,7 @@ const scoreRecordChain = (
       maxScore: 12,
       status: statusFromScore(resultScore, 12, !input.trial.correctedSignals),
       evidence: input.trial.correctedSignals
-        ? `γ = ${formatNumber(input.trial.correctedSignals.gamma, 3)}，相对误差 ${formatNumber(input.summary.relativeErrorPercent, 2)}%。`
+        ? `γ = ${formatNumber(input.trial.correctedSignals.gamma, 3)}，绝对误差 ${formatNumber(gammaAbsoluteError, 3)}。`
         : '当前无有效 γ。',
       reason: resultScore === 12
         ? '实验结果接近理论参考。'

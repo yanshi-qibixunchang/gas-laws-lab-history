@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  appendFreeTraceEvent,
   createDefaultFreeConfigSnapshot,
   type HeatCapacityFreeConfigSnapshot,
   type HeatCapacityFreeTraceTrial,
@@ -49,6 +50,71 @@ assert.equal(review.summary?.upperBoundGapPercent !== null, true);
 assert.equal(review.trialOptions.length, 1);
 assert.equal(review.trialOptions[0]?.status, 'complete');
 assert.equal(review.selectedTrialId, parts.trial.id);
+
+let quickToggleBranch = appendFreeTraceEvent(parts.branch, {
+  atS: 30.1,
+  type: 'stopcock-open',
+  traceSampleId: parts.branch.samples[1]!.id,
+  payload: {
+    attemptId: 7,
+    purpose: 'release',
+  },
+}).branch;
+quickToggleBranch = appendFreeTraceEvent(quickToggleBranch, {
+  atS: 30.2,
+  type: 'stopcock-close',
+  traceSampleId: parts.branch.samples[1]!.id,
+  payload: {
+    attemptId: 7,
+    formedRelease: false,
+    quickToggle: true,
+    releaseDurationS: 0,
+  },
+}).branch;
+const quickToggleTraceTrial: HeatCapacityFreeTraceTrial = {
+  ...parts.traceTrial,
+  branches: parts.traceTrial.branches.map((branch) => (
+    branch.id === quickToggleBranch.id ? quickToggleBranch : branch
+  )),
+};
+const quickToggleReview = selectHeatCapacityFreeProcessReview({
+  trials: [parts.trial],
+  traceStore: {
+    ...parts.traceStore,
+    traceTrials: parts.traceStore.traceTrials.map((traceTrial) => (
+      traceTrial.id === quickToggleTraceTrial.id ? quickToggleTraceTrial : traceTrial
+    )),
+  },
+  theoreticalGamma: 1.4,
+  selectedTrialId: parts.trial.id,
+});
+const quickToggleReleaseStage = quickToggleReview.chart.stages.find((stage) => stage.id === 'release');
+assert.notEqual(quickToggleReleaseStage, undefined);
+assert.equal(quickToggleReleaseStage?.startS, 30.72);
+assert.equal(quickToggleReleaseStage?.endS, 31.095);
+const releaseAttemptControls = quickToggleReview.chart.controls.filter((control) => (
+  control.kind === 'stopcock' && control.timeS >= 30
+));
+assert.deepEqual(
+  releaseAttemptControls.map((control) => control.timeS),
+  [30.1, 30.2, 30.3, 31.095],
+  'quick-toggle operation points should remain visible before the successful release pair',
+);
+assert.equal(
+  releaseAttemptControls[1]!.label.length > releaseAttemptControls[3]!.label.length,
+  true,
+  'the quick close point should carry a neutral no-release annotation',
+);
+assert.equal(
+  releaseAttemptControls[1]!.quickToggle,
+  true,
+  'the quick close point should expose structured quick-toggle metadata for localized UI copy',
+);
+assert.equal(
+  quickToggleReview.chart.stages.filter((stage) => stage.id === 'release').length,
+  1,
+  'a quick toggle must not create a release/failure bar',
+);
 
 assert.equal(review.chart.actualTrace.length > 0, true);
 assert.equal(review.chart.records.map((record) => record.id).join(','), 'u0,u1,u2');

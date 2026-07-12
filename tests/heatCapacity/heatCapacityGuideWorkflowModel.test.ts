@@ -24,6 +24,16 @@ import {
   recordGuideU1,
   recordGuideU2,
 } from '../../src/domain/heatCapacity/heatCapacityGuideTrialModel.ts';
+import {
+  createDefaultHeatCapacityCorePhysicsDefaults,
+  createDefaultHeatCapacityFreePhysicsConfig,
+  HEAT_CAPACITY_RELEASE_TIMING,
+} from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import {
+  createDefaultFreePhysicsState,
+  deriveFreePhysicalState,
+  stepFreePhysics,
+} from '../../src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
 
 {
   const trial0 = createHeatCapacityGuideTrial('guide-trial-1');
@@ -62,7 +72,7 @@ import {
   assert.equal(config.vesselVolumeL, 2);
   assert.equal(config.pumpAmountGainRatio, 0.00345);
   assert.equal(config.pumpPressureLimitKPa, 109);
-  assert.equal(config.stopcockFlowRate, 5.25);
+  assert.equal(config.stopcockFlowRate, createDefaultHeatCapacityCorePhysicsDefaults().stopcockFlowRate);
   assert.deepEqual(config.thermal, {
     gasWallConductanceWPerK: 0.14,
     wallAmbientConductanceWPerK: 0.45,
@@ -117,6 +127,93 @@ import {
   assert.doesNotMatch(source, /Leakage|leakage|EnvironmentDisturbance|environmentDisturbance/);
   assert.doesNotMatch(source, /PressureSensorNonlinearity|pressureNonlinearity/);
   assert.doesNotMatch(source, /PumpValveExchange|pumpValveExchange/);
+}
+
+{
+  const guideConfig = createDefaultGuidePhysicsConfig();
+  const freeDefaults = createDefaultHeatCapacityFreePhysicsConfig();
+  const guideEquivalentFreeConfig = {
+    ...freeDefaults,
+    environment: { ...guideConfig.environment },
+    vesselVolumeL: guideConfig.vesselVolumeL,
+    gamma: guideConfig.gamma,
+    pumpAmountGainRatio: guideConfig.pumpAmountGainRatio,
+    pumpPressureLimitKPa: guideConfig.pumpPressureLimitKPa,
+    stopcockFlowRate: guideConfig.stopcockFlowRate,
+    thermal: { ...guideConfig.thermal },
+    leakage: {
+      ...freeDefaults.leakage,
+      enabled: false,
+      ratePerS: 0,
+    },
+    pumpValveExchange: {
+      ...freeDefaults.pumpValveExchange!,
+      enabled: false,
+      gasExchangeRatePerS: 0,
+      thermalConductanceWPerK: 0,
+    },
+    environmentDisturbance: {
+      ...freeDefaults.environmentDisturbance!,
+      enabled: false,
+      pressureAmplitudeKPa: 0,
+      temperatureAmplitudeK: 0,
+    },
+  };
+
+  for (const releaseDurationS of [
+    HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMinS,
+    HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS,
+    HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS,
+  ]) {
+    let guideState = {
+      ...createDefaultGuidePhysicsState(guideConfig),
+      gasAmountRatio: 1.06,
+    };
+    let freeState = {
+      ...createDefaultFreePhysicsState(guideEquivalentFreeConfig, 'guide-free-parity'),
+      gasAmountRatio: 1.06,
+    };
+
+    guideState = stepGuidePhysicsState(guideState, guideConfig, {
+      dtS: releaseDurationS,
+      powerOn: true,
+      pumpValveOpen: false,
+      stopcockOpen: true,
+      stopcockFlowPurpose: 'release',
+    });
+    freeState = stepFreePhysics(freeState, guideEquivalentFreeConfig, {
+      powerOn: true,
+      pumpValveOpen: false,
+      stopcockOpen: true,
+      stopcockFlowPurpose: 'release',
+    }, releaseDurationS, releaseDurationS);
+
+    assert.equal(guideState.gasAmountRatio, freeState.gasAmountRatio);
+    assert.equal(guideState.gasTemperatureK, freeState.gasTemperatureK);
+    assert.equal(
+      deriveGuidePhysicalState(guideState, guideConfig).pressureDeltaKPa,
+      deriveFreePhysicalState(freeState, guideEquivalentFreeConfig).pressureDeltaKPa,
+    );
+
+    guideState = stepGuidePhysicsState(guideState, guideConfig, {
+      dtS: 300,
+      powerOn: true,
+      pumpValveOpen: false,
+      stopcockOpen: false,
+    });
+    freeState = stepFreePhysics(freeState, guideEquivalentFreeConfig, {
+      powerOn: true,
+      pumpValveOpen: false,
+      stopcockOpen: false,
+    }, 300, releaseDurationS + 300);
+
+    assert.equal(guideState.gasAmountRatio, freeState.gasAmountRatio);
+    assert.equal(guideState.gasTemperatureK, freeState.gasTemperatureK);
+    assert.equal(
+      deriveGuidePhysicalState(guideState, guideConfig).pressureDeltaKPa,
+      deriveFreePhysicalState(freeState, guideEquivalentFreeConfig).pressureDeltaKPa,
+    );
+  }
 }
 
 {

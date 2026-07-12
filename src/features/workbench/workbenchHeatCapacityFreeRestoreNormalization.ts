@@ -36,6 +36,10 @@ import type {
 } from '../../domain/heatCapacity/heatCapacityFreeCalibrationModel.ts';
 import type { HeatCapacityRuntimePhase } from '../../domain/heatCapacity/heatCapacityProcessTypes.ts';
 import {
+  createClosedHeatCapacityReleaseState,
+  normalizeHeatCapacityReleaseState,
+} from '../../domain/heatCapacity/heatCapacityReleaseModel.ts';
+import {
   normalizeHeatCapacityFreeRecordInput,
   type HeatCapacityFreeRecordInput,
   type HeatCapacityFreeTrial,
@@ -58,7 +62,7 @@ import {
   normalizeHeatCapacityFreeSensorConfig,
 } from './workbenchHeatCapacityFreeRuntimeConfig.ts';
 
-export const HEAT_CAPACITY_PROCESS_SCORING_VERSION = 'free-process-score-v1' as const;
+export const HEAT_CAPACITY_PROCESS_SCORING_VERSION = 'free-process-score-v2' as const;
 
 export const isHeatCapacityRestoreRecord = (
   value: unknown,
@@ -203,13 +207,29 @@ export const normalizeHeatCapacityFreeRestoreConfigSnapshot = (
         physics.stopcockFlowRate,
         fallback.physics.stopcockFlowRate,
       ),
-      releaseVisualResponseDelayS: heatCapacityRestoreFiniteOrDefault(
-        physics.releaseVisualResponseDelayS,
-        fallback.physics.releaseVisualResponseDelayS,
+      openingAnimationDurationMs: heatCapacityRestoreFiniteOrDefault(
+        physics.openingAnimationDurationMs,
+        fallback.physics.openingAnimationDurationMs,
       ),
-      releaseVisualMainDurationS: heatCapacityRestoreFiniteOrDefault(
-        physics.releaseVisualMainDurationS,
-        fallback.physics.releaseVisualMainDurationS,
+      closingAnimationDurationMs: heatCapacityRestoreFiniteOrDefault(
+        physics.closingAnimationDurationMs,
+        fallback.physics.closingAnimationDurationMs,
+      ),
+      releaseApertureRampS: heatCapacityRestoreFiniteOrDefault(
+        physics.releaseApertureRampS,
+        fallback.physics.releaseApertureRampS,
+      ),
+      releaseOptimalMinS: heatCapacityRestoreFiniteOrDefault(
+        physics.releaseOptimalMinS,
+        fallback.physics.releaseOptimalMinS,
+      ),
+      releaseOptimalMaxS: heatCapacityRestoreFiniteOrDefault(
+        physics.releaseOptimalMaxS,
+        fallback.physics.releaseOptimalMaxS,
+      ),
+      autoDemoReleaseDurationS: heatCapacityRestoreFiniteOrDefault(
+        physics.autoDemoReleaseDurationS,
+        fallback.physics.autoDemoReleaseDurationS,
       ),
       thermal: {
         gasWallConductanceWPerK: heatCapacityRestoreFiniteOrDefault(
@@ -513,6 +533,18 @@ export const normalizeHeatCapacityFreeRestoreTraceStore = (
   if (!isHeatCapacityRestoreRecord(value) || !Array.isArray(value.traceTrials)) {
     return createDefaultFreeTraceStore();
   }
+  const incompatibleTrace = value.traceTrials.some((trial) => (
+    isHeatCapacityRestoreRecord(trial) && Array.isArray(trial.branches) && trial.branches.some((branch) => (
+      isHeatCapacityRestoreRecord(branch) && Array.isArray(branch.samples) && branch.samples.some((sample) => {
+        if (!isHeatCapacityRestoreRecord(sample) || !isHeatCapacityRestoreRecord(sample.controls)) return true;
+        return typeof sample.controls.releaseFlowOpen !== 'boolean' ||
+          typeof sample.controls.releaseDurationS !== 'number' ||
+          !['closed', 'opening', 'open', 'releasing', 'closing', 'closedAfterRelease']
+            .includes(String(sample.controls.releasePhase));
+      })
+    ))
+  ));
+  if (incompatibleTrace) return createDefaultFreeTraceStore();
   const traceTrials = value.traceTrials
     .map(normalizeHeatCapacityFreeRestoreTraceTrial)
     .filter((trial): trial is HeatCapacityFreeTraceTrial => trial !== null);
@@ -527,14 +559,6 @@ export const normalizeHeatCapacityFreeRestoreTraceStore = (
       traceTrials.length + 1,
     traceTrials,
   };
-};
-
-export const normalizeHeatCapacityStopcockFlowPurpose = (
-  value: unknown,
-  stopcockOpen: boolean,
-): HeatCapacityFreeExperimentDomainState['stopcockFlowPurpose'] => {
-  if (!stopcockOpen) return 'none';
-  return value === 'release' || value === 'zeroing' ? value : 'none';
 };
 
 const normalizeHeatCapacityFreeRestoreDisplaySamples = (value: unknown) => (
@@ -707,9 +731,11 @@ const normalizeHeatCapacityFreeRestoreRollbackSnapshot = (
     ? value.runState
     : 'idle';
   const pumpValveOpen = value.pumpValveOpen === true;
-  const stopcockFlowOpen = value.heatCapacityFreeStopcockFlowOpen === true;
-  const stopcockPendingOpenAtMs = heatCapacityRestoreNullableNumber(value.heatCapacityFreeStopcockPendingOpenAtMs);
   const zeroAdjusted = value.pressureZeroAdjusted === true || value.pressureZeroed === true;
+  const physicsState = normalizeHeatCapacityFreeRestorePhysicsState(
+    value.heatCapacityFreePhysicsState,
+    fallback.physicsState,
+  );
   return {
     powerOn: value.powerOn === true,
     runState,
@@ -752,14 +778,12 @@ const normalizeHeatCapacityFreeRestoreRollbackSnapshot = (
     lastPumpTime: heatCapacityRestoreNullableNumber(value.lastPumpTime),
     pumpStrokeCount: Math.max(0, Math.floor(heatCapacityRestoreFiniteOrDefault(value.pumpStrokeCount, 0))),
     pumpHint: typeof value.pumpHint === 'string' ? value.pumpHint : '',
-    heatCapacityFreePhysicsState: normalizeHeatCapacityFreeRestorePhysicsState(value.heatCapacityFreePhysicsState, fallback.physicsState),
+    heatCapacityFreePhysicsState: physicsState,
     heatCapacityFreeSensorState: normalizeHeatCapacityFreeRestoreSensorState(value.heatCapacityFreeSensorState, fallback.sensorState),
     heatCapacityFreeCalibrationState: normalizeHeatCapacityFreeRestoreCalibrationState(value.heatCapacityFreeCalibrationState, fallback.calibrationState),
-    heatCapacityFreeStopcockFlowOpen: stopcockFlowOpen,
-    heatCapacityFreeStopcockPendingOpenAtMs: stopcockPendingOpenAtMs,
-    heatCapacityFreeStopcockFlowPurpose: normalizeHeatCapacityStopcockFlowPurpose(
-      value.heatCapacityFreeStopcockFlowPurpose,
-      stopcockFlowOpen || stopcockPendingOpenAtMs !== null,
+    heatCapacityReleaseState: normalizeHeatCapacityReleaseState(
+      value.heatCapacityReleaseState,
+      createClosedHeatCapacityReleaseState(physicsState.simulationTimeS),
     ),
   };
 };
@@ -785,14 +809,16 @@ export const normalizeHeatCapacityFreeRestoreExperimentDomain = (
   const domain = isHeatCapacityRestoreRecord(value)
     ? value as unknown as Partial<HeatCapacityFreeExperimentDomainState>
     : {};
-  const stopcockFlowOpen = domain.stopcockFlowOpen === true;
-  const stopcockPendingOpenAtMs = heatCapacityRestoreNullableNumber(domain.stopcockPendingOpenAtMs);
   const physicsConfig = isHeatCapacityRestoreRecord(domain.physicsConfig)
     ? normalizeHeatCapacityFreePhysicsConfig(domain.physicsConfig)
     : fallback.physicsConfig;
   const sensorConfig = isHeatCapacityRestoreRecord(domain.sensorConfig)
     ? normalizeHeatCapacityFreeSensorConfig(domain.sensorConfig)
     : fallback.sensorConfig;
+  const physicsState = normalizeHeatCapacityFreeRestorePhysicsState(
+    domain.physicsState,
+    fallback.physicsState,
+  );
   const trials = Array.isArray(domain.trials)
     ? domain.trials
         .map(normalizeHeatCapacityFreeRestoreTrial)
@@ -800,7 +826,6 @@ export const normalizeHeatCapacityFreeRestoreExperimentDomain = (
     : fallback.trials;
   return normalizeHeatCapacityFreeExperimentDomainBoundary({
     ...fallback,
-    ...domain,
     scheme,
     gasType: scheme === 'ideal' ? 'air' : normalizeHeatCapacityFreeGasType(domain.gasType, gasType),
     experimentGroupStatus: normalizeHeatCapacityFreeRestoreExperimentGroupStatus(
@@ -814,18 +839,16 @@ export const normalizeHeatCapacityFreeRestoreExperimentDomain = (
       : fallback.instrumentNoiseEnabled,
     environmentConfig: { ...physicsConfig.environment },
     physicsConfig,
-    physicsState: normalizeHeatCapacityFreeRestorePhysicsState(domain.physicsState, fallback.physicsState),
+    physicsState,
     sensorConfig,
     sensorState: normalizeHeatCapacityFreeRestoreSensorState(domain.sensorState, fallback.sensorState),
     calibrationState: normalizeHeatCapacityFreeRestoreCalibrationState(domain.calibrationState, fallback.calibrationState),
     rollbackSnapshots: normalizeHeatCapacityFreeRestoreRollbackSnapshots(domain.rollbackSnapshots, fallback),
     traceStore: normalizeHeatCapacityFreeRestoreTraceStore(domain.traceStore),
     trials,
-    stopcockFlowOpen,
-    stopcockPendingOpenAtMs,
-    stopcockFlowPurpose: normalizeHeatCapacityStopcockFlowPurpose(
-      domain.stopcockFlowPurpose,
-      stopcockFlowOpen || stopcockPendingOpenAtMs !== null,
+    releaseState: normalizeHeatCapacityReleaseState(
+      domain.releaseState,
+      createClosedHeatCapacityReleaseState(physicsState.simulationTimeS),
     ),
   } as HeatCapacityFreeExperimentDomainState, scheme, gasType);
 };

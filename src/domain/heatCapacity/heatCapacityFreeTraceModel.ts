@@ -1,24 +1,26 @@
 import type {
   HeatCapacityRuntimePhase,
 } from './heatCapacityProcessTypes.ts';
+import type {
+  HeatCapacityReleasePhase,
+} from './heatCapacityReleaseModel.ts';
 import {
   FREE_PUMP_STROKE_DURATION_S,
-  FREE_RELEASE_MAIN_DURATION_S,
-  FREE_RELEASE_RESPONSE_DELAY_S,
 } from './heatCapacityFreePhysicsEngine.ts';
 import {
   HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE,
 } from './heatCapacityFreeSensorModel.ts';
 import {
   HEAT_CAPACITY_DEFAULT_PRESSURE_WARNING_MV,
+  HEAT_CAPACITY_RELEASE_TIMING,
   createDefaultHeatCapacityEnvironmentConfig,
   createDefaultHeatCapacityFreePhysicsConfig,
   createDefaultHeatCapacityFreeRecordConfig,
   createDefaultHeatCapacityFreeSensorConfig,
 } from './heatCapacityDefaultConfig.ts';
 
-export const HEAT_CAPACITY_FREE_TRACE_VERSION = 4;
-export const HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION = 7;
+export const HEAT_CAPACITY_FREE_TRACE_VERSION = 5;
+export const HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION = 8;
 export const HEAT_CAPACITY_FREE_CALCULATION_VERSION = 'log-pressure-v1' as const;
 export const HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S = 0.04;
 
@@ -49,6 +51,7 @@ export type HeatCapacityFreeEventType =
   | 'pump-valve-close'
   | 'pump-stroke'
   | 'stopcock-open'
+  | 'release-start'
   | 'stopcock-close'
   | 'record-u0'
   | 'record-u1'
@@ -108,7 +111,9 @@ export interface HeatCapacityFreeTraceSample {
     stopcockOpen: boolean;
     pumpValveOpen: boolean;
     pumpBulbState: 'idle' | 'compressing' | 'releasing';
-    stopcockFlowOpen: boolean;
+    releaseFlowOpen: boolean;
+    releasePhase: HeatCapacityReleasePhase;
+    releaseDurationS: number;
   };
   physical: {
     gasPressureKPa: number;
@@ -160,7 +165,7 @@ export interface HeatCapacityFreeEvent {
 export type HeatCapacityFreeEventInput = Omit<HeatCapacityFreeEvent, 'id' | 'index'>;
 
 export interface HeatCapacityFreeConfigSnapshot {
-  version: 7;
+  version: 8;
   environment: {
     ambientPressureKPa: number;
     ambientTemperatureK: number;
@@ -173,8 +178,12 @@ export interface HeatCapacityFreeConfigSnapshot {
     pumpStrokeDurationS: number;
     recommendedPumpIntervalS: number;
     stopcockFlowRate: number;
-    releaseVisualResponseDelayS: number;
-    releaseVisualMainDurationS: number;
+    openingAnimationDurationMs: number;
+    closingAnimationDurationMs: number;
+    releaseApertureRampS: number;
+    releaseOptimalMinS: number;
+    releaseOptimalMaxS: number;
+    autoDemoReleaseDurationS: number;
     thermal: {
       gasWallConductanceWPerK: number;
       wallAmbientConductanceWPerK: number;
@@ -229,7 +238,7 @@ export interface HeatCapacityFreeConfigSnapshot {
     pressureDangerMv: number;
   };
   scoring: {
-    processScoringVersion: 'free-process-score-v1';
+    processScoringVersion: 'free-process-score-v2';
   };
 }
 
@@ -255,8 +264,7 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
       pumpStrokeDurationS: FREE_PUMP_STROKE_DURATION_S,
       recommendedPumpIntervalS: 0.1,
       stopcockFlowRate: physics.stopcockFlowRate,
-      releaseVisualResponseDelayS: FREE_RELEASE_RESPONSE_DELAY_S,
-      releaseVisualMainDurationS: FREE_RELEASE_MAIN_DURATION_S,
+      ...HEAT_CAPACITY_RELEASE_TIMING,
       thermal: { ...physics.thermal },
       pumpValveExchange: physics.pumpValveExchange ? { ...physics.pumpValveExchange } : undefined,
       environmentDisturbance: physics.environmentDisturbance ? { ...physics.environmentDisturbance } : undefined,
@@ -287,7 +295,7 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
       pressureDangerMv: record.pressureDangerMv,
     },
     scoring: {
-      processScoringVersion: 'free-process-score-v1',
+      processScoringVersion: 'free-process-score-v2',
     },
   };
 };

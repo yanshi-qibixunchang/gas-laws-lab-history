@@ -43,6 +43,10 @@ import {
   HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV,
   HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
 } from '../../src/features/workbench/workbenchState.ts';
+import {
+  HEAT_CAPACITY_RELEASE_TIMING,
+  HEAT_CAPACITY_STANDARD_OPERATION,
+} from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
 
 export type HeatCapacityFreeParameterAcceptanceSafetyStatus = 'normal' | 'warning' | 'danger';
 export type HeatCapacityFreeParameterAcceptancePumpMode = 'runtime-strokes' | 'instant-equivalent';
@@ -126,11 +130,14 @@ export const HEAT_CAPACITY_FREE_PARAMETER_ACCEPTANCE_RECORD_CONFIG = {
 } satisfies HeatCapacityFreeRecordConfig;
 
 const DEFAULT_PUMP_STROKES = [2, 3, 4, 5];
-const DEFAULT_OPEN_DURATIONS_S = [0, 0.3, 0.7];
+const DEFAULT_OPEN_DURATIONS_S = [
+  HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMinS / 2,
+  HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
+  HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS + 0.5,
+];
 const DEFAULT_WAIT_AFTER_PUMP_S = 24;
 const DEFAULT_WAIT_AFTER_RELEASE_S = 40;
 const SIMULATION_STEP_S = 0.1;
-const LEGACY_BASE_OPEN_DURATION_S = 0.25;
 
 const roundNumber = (value: number | null, digits = 2) => (
   value === null || !Number.isFinite(value) ? null : Number(value.toFixed(digits))
@@ -526,7 +533,6 @@ const releaseAndRecover = (
 
 const simulateScenario = (
   input: HeatCapacityFreeParameterAcceptanceScenarioInput,
-  rowOpenDurationS = input.openDurationS,
 ): HeatCapacityFreeParameterAcceptanceRow => {
   const physicsConfig = clonePhysicsConfig(input);
   const sensorConfig = cloneSensorConfig(input.instrumentNoiseEnabled ?? true);
@@ -629,7 +635,7 @@ const simulateScenario = (
     releaseMode,
     pumpStrokes: input.pumpStrokes,
     pumpTotalDurationS: input.pumpTotalDurationS,
-    openDurationS: rowOpenDurationS,
+    openDurationS: input.openDurationS,
     waitAfterPumpS: input.waitAfterPumpS,
     waitAfterReleaseS: input.waitAfterReleaseS,
     leakageEnabled: physicsConfig.leakage.enabled,
@@ -661,9 +667,9 @@ const simulateLowSignalDiagnosticRow = (
   pumpStrokes,
   pumpTotalDurationS: 0,
   waitAfterPumpS,
-  openDurationS: LEGACY_BASE_OPEN_DURATION_S + openDurationS,
+  openDurationS,
   waitAfterReleaseS,
-}, openDurationS);
+});
 
 export const runHeatCapacityFreeParameterAcceptance = (
   options: HeatCapacityFreeParameterAcceptanceOptions = {},

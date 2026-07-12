@@ -5,8 +5,15 @@ import {
   type HeatCapacityFreeParameterAcceptanceRow,
   type HeatCapacityFreeParameterAcceptanceScenarioInput,
 } from './heatCapacityFreeParameterAcceptance.ts';
+import {
+  HEAT_CAPACITY_GAMMA_ABSOLUTE_ERROR_LIMITS,
+  HEAT_CAPACITY_RELEASE_TIMING,
+  HEAT_CAPACITY_STANDARD_OPERATION,
+} from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import { getHeatCapacityFreeGasTypeModelDefaults } from '../../src/domain/heatCapacity/heatCapacityGasTheory.ts';
 
 type ScenarioInput = HeatCapacityFreeParameterAcceptanceScenarioInput;
+const AIR_MODEL_DEFAULTS = getHeatCapacityFreeGasTypeModelDefaults('air');
 
 const baseScenario = (
   id: string,
@@ -16,10 +23,10 @@ const baseScenario = (
   pumpStrokes: 18,
   pumpTotalDurationS: 12,
   waitAfterPumpS: 300,
-  openDurationS: 0.35,
+  openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
   waitAfterReleaseS: 300,
   leakageEnabled: true,
-  leakageRatePerS: 0.00005,
+  leakageRatePerS: AIR_MODEL_DEFAULTS.leakageRatePerS,
   instrumentNoiseEnabled: true,
   ...overrides,
 });
@@ -155,7 +162,7 @@ const suitableScenarios = [
     pumpStrokes: 17,
     pumpTotalDurationS: 12,
     waitAfterPumpS: 280,
-    openDurationS: 0.25,
+    openDurationS: HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMinS,
     waitAfterReleaseS: 280,
   })],
   ['high-extreme', baseScenario('high-extreme', {
@@ -169,7 +176,7 @@ const suitableScenarios = [
     pumpStrokes: 17,
     pumpTotalDurationS: 0,
     waitAfterPumpS: 320,
-    openDurationS: 0.35,
+    openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
     waitAfterReleaseS: 280,
   })],
   ['sample-b', baseScenario('sample-b', {
@@ -183,7 +190,7 @@ const suitableScenarios = [
     pumpStrokes: 19,
     pumpTotalDurationS: 0,
     waitAfterPumpS: 280,
-    openDurationS: 0.25,
+    openDurationS: HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMinS,
     waitAfterReleaseS: 320,
   })],
 ] as const;
@@ -214,8 +221,8 @@ for (const [label, scenario] of suitableScenarios) {
     environmentDisturbanceEnabled: false,
     instrumentNoiseEnabled: false,
   }));
-  const openStandard035 = runSingle(baseScenario('open-0.35s-no-noise', {
-    openDurationS: 0.35,
+  const openStandard = runSingle(baseScenario('open-standard-no-noise', {
+    openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
     leakageEnabled: false,
     leakageRatePerS: 0,
     pumpValveExchangeEnabled: false,
@@ -223,23 +230,23 @@ for (const [label, scenario] of suitableScenarios) {
     instrumentNoiseEnabled: false,
   }));
   assertRecordableSeries(
-    [openShort003, openShort005, openStandard035],
+    [openShort003, openShort005, openStandard],
     'short open no-noise diagnostic',
   );
   assert.equal(
-    openShort003.u2CorrectedMv! - openStandard035.u2CorrectedMv! > 1.2,
+    openShort003.u2CorrectedMv! - openStandard.u2CorrectedMv! > 1.2,
     true,
-    `0.03s should have a larger U2 gap than the old model: got ${openShort003.u2CorrectedMv} vs ${openStandard035.u2CorrectedMv}`,
+    `0.03s should have a larger U2 gap than the canonical release: got ${openShort003.u2CorrectedMv} vs ${openStandard.u2CorrectedMv}`,
   );
   assert.equal(
-    openShort003.gamma! - openStandard035.gamma! > 0.05,
+    openShort003.gamma! - openStandard.gamma! > 0.05,
     true,
-    `0.03s gamma should deviate by more than 0.05 from standard 0.35s release: got ${openShort003.gamma} vs ${openStandard035.gamma}`,
+    `0.03s gamma should deviate by more than 0.05 from the canonical release: got ${openShort003.gamma} vs ${openStandard.gamma}`,
   );
   assert.equal(
-    openShort005.u2CorrectedMv! - openStandard035.u2CorrectedMv! > 1.0,
+    openShort005.u2CorrectedMv! - openStandard.u2CorrectedMv! > 1.0,
     true,
-    `0.05s should have a larger U2 gap than the old model: got ${openShort005.u2CorrectedMv} vs ${openStandard035.u2CorrectedMv}`,
+    `0.05s should have a larger U2 gap than the canonical release: got ${openShort005.u2CorrectedMv} vs ${openStandard.u2CorrectedMv}`,
   );
 }
 
@@ -329,9 +336,10 @@ const u2TooEarly = runSingle(baseScenario('u2-too-early', {
   instrumentNoiseEnabled: false,
 }));
 assert.equal(
-  u2TooEarly.gamma !== null && (u2TooEarly.gamma < 1.3 || u2TooEarly.gamma > 1.5),
+  u2TooEarly.gamma !== null &&
+    Math.abs(u2TooEarly.gamma - 1.4) > HEAT_CAPACITY_GAMMA_ABSOLUTE_ERROR_LIMITS.suitable,
   true,
-  `U2 immediate record should leave [1.3, 1.5], got ${u2TooEarly.gamma}`,
+  `U2 immediate record should exceed the suitable absolute-error band, got ${u2TooEarly.gamma}`,
 );
 
 const openVeryLong = runSingle(baseScenario('open-2.5s', {
@@ -339,9 +347,10 @@ const openVeryLong = runSingle(baseScenario('open-2.5s', {
   instrumentNoiseEnabled: false,
 }));
 assert.equal(
-  openVeryLong.gamma !== null && (openVeryLong.gamma < 1.34 || openVeryLong.gamma > 1.46),
+  openVeryLong.gamma !== null &&
+    Math.abs(openVeryLong.gamma - 1.4) > HEAT_CAPACITY_GAMMA_ABSOLUTE_ERROR_LIMITS.suitable,
   true,
-  `2.5s open duration should leave [1.34, 1.46], got ${openVeryLong.gamma}`,
+  `the long-open diagnostic should exceed the suitable absolute-error band, got ${openVeryLong.gamma}`,
 );
 
 const openExtremeLong = runSingle(baseScenario('open-10s', {
@@ -349,9 +358,10 @@ const openExtremeLong = runSingle(baseScenario('open-10s', {
   instrumentNoiseEnabled: false,
 }));
 assert.equal(
-  openExtremeLong.gamma !== null && (openExtremeLong.gamma < 1.3 || openExtremeLong.gamma > 1.5),
+  openExtremeLong.gamma !== null &&
+    Math.abs(openExtremeLong.gamma - 1.4) > HEAT_CAPACITY_GAMMA_ABSOLUTE_ERROR_LIMITS.severe,
   true,
-  `10s open duration should leave [1.3, 1.5], got ${openExtremeLong.gamma}`,
+  `the extreme long-open diagnostic should exceed the severe absolute-error band, got ${openExtremeLong.gamma}`,
 );
 
 const u2TenMinutes = runSingle(baseScenario('u2-10min', {
@@ -359,9 +369,10 @@ const u2TenMinutes = runSingle(baseScenario('u2-10min', {
   instrumentNoiseEnabled: false,
 }));
 assert.equal(
-  u2TenMinutes.gamma !== null && (u2TenMinutes.gamma < 1.37 || u2TenMinutes.gamma > 1.43),
+  u2TenMinutes.gamma !== null &&
+    Math.abs(u2TenMinutes.gamma - 1.4) > HEAT_CAPACITY_GAMMA_ABSOLUTE_ERROR_LIMITS.bestRealistic,
   true,
-  `10min U2 wait should leave [1.37, 1.43], got ${u2TenMinutes.gamma}`,
+  `10min U2 wait should exceed the best-realistic absolute-error band, got ${u2TenMinutes.gamma}`,
 );
 
 const u2TwentyMinutes = runSingle(baseScenario('u2-20min', {
@@ -369,9 +380,10 @@ const u2TwentyMinutes = runSingle(baseScenario('u2-20min', {
   instrumentNoiseEnabled: false,
 }));
 assert.equal(
-  u2TwentyMinutes.gamma !== null && (u2TwentyMinutes.gamma < 1.34 || u2TwentyMinutes.gamma > 1.46),
+  u2TwentyMinutes.gamma !== null &&
+    Math.abs(u2TwentyMinutes.gamma - 1.4) > HEAT_CAPACITY_GAMMA_ABSOLUTE_ERROR_LIMITS.suitable,
   true,
-  `20min U2 wait should leave [1.34, 1.46], got ${u2TwentyMinutes.gamma}`,
+  `20min U2 wait should exceed the suitable absolute-error band, got ${u2TwentyMinutes.gamma}`,
 );
 
 console.log('heatCapacityFreeSixClassValidation tests passed');

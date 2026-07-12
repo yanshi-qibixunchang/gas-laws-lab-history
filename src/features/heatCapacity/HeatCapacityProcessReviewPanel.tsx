@@ -45,6 +45,7 @@ interface HeatCapacityProcessReviewCopy {
   chartLegendAria: (title: string) => string;
   stageLabels: Record<HeatCapacityProcessStageId, string>;
   controlLabels: Record<HeatCapacityProcessControlKind, string>;
+  quickToggleSuffix: string;
   systemLabels: Record<HeatCapacityProcessSystemKind, string>;
   diagnosisStatusLabels: Record<HeatCapacityProcessDiagnosisStatus, string>;
   measured: string;
@@ -187,6 +188,7 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     chartLegendAria: (title: string) => `${title}图例`,
     stageLabels: stageLabelsZhCn,
     controlLabels,
+    quickToggleSuffix: '（快速开关，未形成实际放气）',
     systemLabels: {
       warning: '警告',
       danger: '危险',
@@ -267,6 +269,7 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
       pumpBulb: '打氣球',
       stopcock: '玻璃旋塞',
     },
+    quickToggleSuffix: '（快速開關，未形成實際放氣）',
     systemLabels: {
       warning: '警告',
       danger: '危險',
@@ -353,6 +356,7 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
       pumpBulb: 'Pump bulb',
       stopcock: 'Stopcock',
     },
+    quickToggleSuffix: ' (quick toggle; no release formed)',
     systemLabels: {
       warning: 'Warning',
       danger: 'Danger',
@@ -477,11 +481,11 @@ const formatMetric = (
     : '--'
 );
 
-const formatScore = (score: number | null | undefined, max = 100) => (
-  typeof score === 'number' && Number.isFinite(score)
-    ? `${score} / ${max}`
-    : '--'
-);
+const formatScore = (score: number | null | undefined, max = 100) => {
+  if (typeof score !== 'number' || !Number.isFinite(score)) return '--';
+  const scoreText = Number.isInteger(score) ? score.toFixed(0) : score.toFixed(1);
+  return `${scoreText} / ${max}`;
+};
 
 const normalizeDiagnosisText = (value: string | null | undefined, fallback = '无误') => {
   const text = (value ?? '--')
@@ -1026,6 +1030,7 @@ const SharedTimeline: React.FC<{
           const callout = getControlCallout(event, timeToX);
           const hovered = hoveredControlId === event.id;
           const color = controlPalette[event.kind];
+          const eventLabel = `${copy.controlLabels[event.kind]}${event.quickToggle ? copy.quickToggleSuffix : ''}`;
           return (
             <g
               className="hpr-control-event"
@@ -1033,11 +1038,12 @@ const SharedTimeline: React.FC<{
               onMouseEnter={() => onControlHover(event.id)}
               onMouseLeave={() => onControlHover(null)}
             >
+              <title>{eventLabel}</title>
               <circle className="hpr-control-hit" cx={callout.x} cy={CONTROL_Y} r={8} />
               <circle className="hpr-control-dot" cx={callout.x} cy={CONTROL_Y} r={3.4} fill={color} />
               <g className={`hpr-control-callout ${hovered ? 'hpr-control-callout-visible' : ''}`}>
                 <path d={callout.path} stroke={color} />
-                <text x={callout.labelX} y={callout.labelY} fill={color}>{copy.controlLabels[event.kind]}</text>
+                <text x={callout.labelX} y={callout.labelY} fill={color}>{eventLabel}</text>
               </g>
             </g>
           );

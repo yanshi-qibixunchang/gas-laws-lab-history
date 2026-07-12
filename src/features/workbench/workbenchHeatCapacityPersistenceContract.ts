@@ -35,7 +35,6 @@ export const HEAT_CAPACITY_FREE_UI_REPLAY_KEYS = [
   'pressureZeroDisplayedSamples',
   'pressureDisplayJitterOffset',
   'pressureDisplayNextJitterAtMs',
-  'pressureReleaseBurstUntilMs',
   'temperatureDisplayJitterOffset',
   'temperatureDisplayNextJitterAtMs',
   'pressureZeroed',
@@ -58,7 +57,6 @@ export const HEAT_CAPACITY_FREE_UI_REPLAY_KEYS = [
   'lastPumpTime',
   'pumpStrokeCount',
   'pumpHint',
-  'heatCapacityFreeStopcockPendingOpenAtMs',
   'heatCapacityFreeEquilibriumSpeedMultiplier',
   'heatCapacityFreeEquilibriumSpeedHintShown',
   'hardSphereViewEnabled',
@@ -96,8 +94,7 @@ export interface HeatCapacityFreePersistenceDataV1 {
     pumpValveOpen: boolean;
     stopcockOpen: boolean;
     pumpBulbState: WorkbenchHeatCapacityState['pumpBulbState'];
-    stopcockFlowOpen: boolean;
-    stopcockFlowPurpose: WorkbenchHeatCapacityState['heatCapacityFreeStopcockFlowPurpose'];
+    releaseState: WorkbenchHeatCapacityState['heatCapacityReleaseState'];
   };
   sensor: WorkbenchHeatCapacityState['heatCapacityFreeSensorState'];
   calibration: WorkbenchHeatCapacityState['heatCapacityFreeCalibrationState'];

@@ -85,7 +85,7 @@ assert.match(
 
 assert.match(
   source,
-  /const updateSettingsThemePreference = \(theme: WorkbenchThemePreference\) => \{[\s\S]*?setSettingsThemePreference\(theme\);[\s\S]*?persistWorkbenchGeneralSettings\(\{ theme, language: settingsLanguagePreference, performanceMode: settingsPerformanceMode \}\);[\s\S]*?\};/,
+  /const updateSettingsThemePreference = \(theme: WorkbenchThemePreference\) => \{[\s\S]*?setSettingsThemePreference\(theme\);[\s\S]*?persistWorkbenchGeneralSettings\(\{[\s\S]*?theme,[\s\S]*?language: settingsLanguagePreference,[\s\S]*?performanceMode: settingsPerformanceMode,[\s\S]*?audioEnabled: settingsAudioEnabled,[\s\S]*?audioVolume: settingsAudioVolume,[\s\S]*?\}\);[\s\S]*?\};/,
   'theme option clicks should update state and persist immediately',
 );
 
@@ -110,7 +110,13 @@ assert.deepEqual(
     language: 'en',
     performanceMode: 'highPerformance',
   }),
-  { theme: 'dark', language: 'en', performanceMode: 'highPerformance' },
+  {
+    theme: 'dark',
+    language: 'en',
+    performanceMode: 'highPerformance',
+    audioEnabled: true,
+    audioVolume: 0.6,
+  },
   'valid general settings should survive normalization',
 );
 assert.match(source, /from '\.\/workbenchGeneralSettings\.ts'/);
@@ -136,7 +142,7 @@ assert.match(
 
 assert.match(
   source,
-  /const updateSettingsLanguagePreference = \(language: WorkbenchLanguagePreference\) => \{[\s\S]*?setSettingsLanguagePreference\(language\);[\s\S]*?setSettingsLanguageMenuOpen\(false\);[\s\S]*?persistWorkbenchGeneralSettings\(\{ theme: settingsThemePreference, language, performanceMode: settingsPerformanceMode \}\);[\s\S]*?\};/,
+  /const updateSettingsLanguagePreference = \(language: WorkbenchLanguagePreference\) => \{[\s\S]*?setSettingsLanguagePreference\(language\);[\s\S]*?setSettingsLanguageMenuOpen\(false\);[\s\S]*?persistWorkbenchGeneralSettings\(\{[\s\S]*?theme: settingsThemePreference,[\s\S]*?language,[\s\S]*?performanceMode: settingsPerformanceMode,[\s\S]*?audioEnabled: settingsAudioEnabled,[\s\S]*?audioVolume: settingsAudioVolume,[\s\S]*?\}\);[\s\S]*?\};/,
   'language option clicks should update state, close the capsule menu, and persist immediately',
 );
 
@@ -176,6 +182,10 @@ for (const expression of [
   'copy.settings.themeOptions[key]',
   'copy.settings.languageOptions[key]',
   'copy.settings.languageHint',
+  'copy.settings.audio',
+  'copy.settings.audioHint',
+  'copy.settings.audioToggleAria',
+  'copy.settings.audioVolumeAria',
   'copy.shortcuts.title',
   'copy.shortcuts.undo',
   'copy.shortcuts.redo',

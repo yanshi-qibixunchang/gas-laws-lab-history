@@ -16,6 +16,7 @@ import {
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
   createDefaultFreeConfigSnapshot,
+  HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
   HEAT_CAPACITY_FREE_TRACE_VERSION,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
@@ -477,7 +478,10 @@ assert.equal(customFreeFile.heatCapacityFreeInstrumentNoiseEnabled, false);
 assert.equal(customFreeFile.heatCapacityFreePressureWarningMv, 123);
 assert.equal(customFreeFile.heatCapacityFreeRecordConfig.pressureDangerMv, 152);
 assert.equal(customFreeFile.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.2);
-assert.equal(customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.version, 7);
+assert.equal(
+  customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.version,
+  HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
+);
 assert.equal(
   customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.environment.ambientPressureKPa,
   99.2,

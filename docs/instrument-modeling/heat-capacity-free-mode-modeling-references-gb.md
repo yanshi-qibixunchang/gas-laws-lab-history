@@ -1,6 +1,6 @@
 # 空气比热容比 Free Mode 建模参考文献
 
-> 格式按 GB/T 7714 风格整理。网络资料访问日期统一记为 2026-06-19。每条后附“本项目用途”，说明它在模型设计中对应哪一部分。
+> 格式按 GB/T 7714 风格整理。网络资料访问日期统一记为 2026-06-19；项目映射口径更新于 2026-07-12。每条后附“本项目用途”，说明它在模型设计中对应哪一部分。
 
 ## 参考文献
 
@@ -14,7 +14,7 @@
 
 [3] National Tsing Hua University General Physics Laboratory. 實驗: 空氣γ值的測定[EB/OL]. [2026-06-19]. https://www.phys.nthu.edu.tw/~gplab/file/11%20The%20Adiabatic%20Expansion/Cv%20to%20Cp%20ratio%20measurement.pdf.
 
-本项目用途：用于实验操作时间的外部参照。该讲义描述了空气比热容比的放气实验流程，包含快速开口、等待数分钟热平衡、改变开口时间观察误差等操作思想；本项目据此把 `5min` 等待作为真实操作基准，并把 `0.03s/0.05s/0.10s/0.25s/0.35s/0.45s/0.60s/1s/2.5s/10s` 纳入开阀时长扫描。
+本项目用途：用于实验操作时间的外部参照。该讲义描述了空气比热容比的放气实验流程，包含快速开口、等待数分钟热平衡、改变开口时间观察误差等操作思想；本项目据此把 `5min` 等待作为真实操作基准，并围绕 `0.375s` 标准点、`0.30–0.50s` 时序窗口及更短/更长探针建立连续时长扫描。
 
 [4] CHURCHILL S W, CHU H H S. Correlating equations for laminar and turbulent free convection from a horizontal cylinder[J]. International Journal of Heat and Mass Transfer, 1975, 18(9): 1049-1053. DOI: 10.1016/0017-9310(75)90222-7.
 
@@ -62,11 +62,11 @@
 
 [15] Spirax Sarco. Control valve characteristics[EB/OL]. [2026-06-19]. https://www.spiraxsarco.com/learn-about-steam/control-hardware-electric-pneumatic-actuation/control-valve-characteristics?sc_lang=en-GB.
 
-本项目用途：用于放气阀有效开度模型。该资料说明阀门开度、阀芯/阀座形状、流通面积和流量之间存在特性关系；在相同压差下，流量与实际流通面积直接相关。本项目据此把当前理论放气流量改为 `理论放气流量 × aperture(openElapsedS)`，其中 `aperture` 表示旋塞从关闭到有效全开的归一化流通能力。
+本项目用途：用于放气阀有效开度模型。该资料说明阀门开度、阀芯/阀座形状、流通面积和流量之间存在特性关系；在相同压差下，流量与实际流通面积直接相关。本项目据此把当前理论放气流量改为 `理论放气流量 × aperture(releaseElapsedS)`，其中 `aperture` 从开启动画完成的主放气起点开始计算。
 
 [16] docs.gl. smoothstep[EB/OL]. [2026-06-19]. https://docs.gl/sl4/smoothstep.
 
-本项目用途：用于有效开度曲线公式。该资料给出 `smoothstep` 的标准 Hermite 平滑插值形式：`t = clamp((x - edge0) / (edge1 - edge0), 0, 1)`，`smoothstep = t * t * (3 - 2 * t)`。本项目据此定义 `x = clamp(openElapsedS / 0.1, 0, 1)`，`aperture = x * x * (3 - 2 * x)`，并使用该函数的解析积分计算时间段内的平均开度，避免只取步末开度。
+本项目用途：用于有效开度曲线公式。该资料给出 `smoothstep` 的标准 Hermite 平滑插值形式：`t = clamp((x - edge0) / (edge1 - edge0), 0, 1)`，`smoothstep = t * t * (3 - 2 * t)`。本项目据此定义 `x = clamp(releaseElapsedS / 0.1, 0, 1)`，并使用解析积分计算时间段内的平均开度，避免只取步末开度。
 
 [17] ZHANG X, LU Y H, LI Y, ZHANG C, WANG R. Numerical calculation and experimental study on response characteristics of pneumatic solenoid valves[J/OL]. Measurement and Control, 2019. DOI: 10.1177/0020294019866853.
 
@@ -75,7 +75,7 @@
 ## 建模使用说明
 
 - [1] 和 [2] 支撑开阀流动与能量守恒主链路：U2 由实时粒子数、温度和热交换恢复得到，不再由 `gamma` 直接反推。
-- [3] 支撑验收操作组：5min 等待、`18` 下 `12s` 内完成打气、`0.35s` 物理开阀中心和开口时间变化都应进入测试矩阵。
+- [3] 支撑验收操作组：5min 等待、`18` 下 `12s` 内完成打气、快速开闭及开口时间变化都应进入测试矩阵；项目统一标准点为 `0.375s`，最佳时序窗口为 `0.30–0.50s`。
 - [4] 和 [5] 支撑热交换改造：本轮采用温差驱动的有效换热系数，不额外暴露 UI 参数。
 - [6] 支撑漏气改造：弱漏用于真实默认参数，强漏用于错误操作和极端长等待验证。
 - [7] 补充打气建模口径：打气本身不作为直接惩罚项，而是通过气体量、升温、热交换、漏气和后续开阀状态间接影响结果。
@@ -84,4 +84,4 @@
 - [11]、[12] 和 [13] 支撑低压传感器不敏感模型：低压区不要求 mean gamma 固定偏向某一侧，而要求多 seed 下平均绝对误差或 RMSE 增大，且打气次数越少误差期望越大。
 - [11] 和 [12] 支撑环境扰动模型：真实模式中的环境温度/压力漂移应弱、低频、可复现，并保持在和仪器示数波动同级或更低一级。
 - [14] 补充支撑泵阀模型：慢打气影响必须来自打气阀开启期间的压差驱动泄漏和温差驱动交换，而不是人为时间惩罚。
-- [15]、[16] 和 [17] 支撑放气阀有效开度模型：理论放气流量仍由压缩气体流动公式决定，但需要乘以随开阀时间平滑增长的 `aperture(openElapsedS)`；短开阀必须按时间段积分开度计算，不能用步末开度或固定最小 0.05s 开阀代替。
+- [15]、[16] 和 [17] 支撑放气阀有效开度模型：理论放气流量仍由压缩气体流动公式决定，但需要乘以从开启动画完成时刻起平滑增长的 `aperture(releaseElapsedS)`；短开阀必须按时间段积分开度计算，不能用步末开度或固定最小时间代替。

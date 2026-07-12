@@ -1774,6 +1774,123 @@
   color: #e5f5ff;
 }
 
+.studio-settings-audio-controls {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 28px minmax(90px, 1fr) 44px;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.studio-settings-audio-button {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--studio-text);
+  padding: 0;
+  cursor: pointer;
+  transition: color 140ms ease, background 140ms ease;
+}
+
+.studio-settings-audio-button:hover {
+  background: rgba(79, 127, 184, 0.14);
+}
+
+.studio-settings-audio-button:focus-visible {
+  outline: 2px solid rgba(82, 198, 201, 0.7);
+  outline-offset: 2px;
+}
+
+.studio-settings-audio-button-muted {
+  color: var(--studio-subtle);
+}
+
+.studio-settings-audio-button svg {
+  width: 25px;
+  height: 22px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.studio-settings-audio-controls input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  height: 4px;
+  appearance: none;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    rgba(98, 205, 220, 0.88) 0,
+    rgba(98, 205, 220, 0.88) var(--studio-audio-volume-percent),
+    rgba(148, 163, 184, 0.42) var(--studio-audio-volume-percent),
+    rgba(148, 163, 184, 0.42) 100%
+  );
+  cursor: pointer;
+}
+
+.studio-settings-audio-controls input[type="range"]::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  appearance: none;
+  border: 1px solid rgba(206, 246, 255, 0.78);
+  border-radius: 50%;
+  background: #4da8cf;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.34);
+}
+
+.studio-settings-audio-controls input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(206, 246, 255, 0.78);
+  border-radius: 50%;
+  background: #4da8cf;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.34);
+}
+
+.studio-settings-audio-controls input[type="range"]:focus-visible {
+  outline: 2px solid rgba(82, 198, 201, 0.65);
+  outline-offset: 4px;
+}
+
+.studio-settings-audio-controls input[type="range"]:disabled {
+  background: rgba(148, 163, 184, 0.2);
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.studio-settings-audio-controls input[type="range"]:disabled::-webkit-slider-thumb {
+  border-color: rgba(148, 163, 184, 0.45);
+  background: #65717e;
+  box-shadow: none;
+}
+
+.studio-settings-audio-controls input[type="range"]:disabled::-moz-range-thumb {
+  border-color: rgba(148, 163, 184, 0.45);
+  background: #65717e;
+  box-shadow: none;
+}
+
+.studio-settings-audio-controls output {
+  color: var(--studio-text);
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.studio-settings-audio-controls-disabled output {
+  color: var(--studio-subtle);
+}
+
 .studio-settings-language-menu button:hover,
 .studio-settings-language-menu button:focus-visible,
 .studio-settings-language-active {

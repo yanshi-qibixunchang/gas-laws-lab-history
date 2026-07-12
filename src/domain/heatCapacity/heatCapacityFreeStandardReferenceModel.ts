@@ -44,7 +44,7 @@ import type {
   HeatCapacityProcessStageSegment,
 } from './heatCapacityFreeProcessReviewTypes.ts';
 
-export const HEAT_CAPACITY_STANDARD_REFERENCE_GENERATOR_VERSION = 'free-standard-reference-v1' as const;
+export const HEAT_CAPACITY_STANDARD_REFERENCE_GENERATOR_VERSION = 'free-standard-reference-v2' as const;
 
 export interface HeatCapacityStandardReferenceAssumptions {
   operationMode: 'standard-operation';
@@ -336,8 +336,8 @@ const createStage = (
 ): HeatCapacityProcessStageSegment => ({
   id,
   label,
-  startS: roundFinite(startS, 2),
-  endS: roundFinite(Math.max(startS, endS), 2),
+  startS: roundFinite(startS, 3),
+  endS: roundFinite(Math.max(startS, endS), 3),
   ...extras,
 });
 
@@ -562,7 +562,7 @@ export const createHeatCapacityFreeStandardReference = ({
   const u1Run = run;
 
   const releaseStartS = stabilizeEndS;
-  const releaseEndS = roundFinite(releaseStartS + HEAT_CAPACITY_STANDARD_OPERATION.openDurationS, 2);
+  const releaseEndS = roundFinite(releaseStartS + HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS, 3);
   ({ run, nextSampleAtS, sampleIndex } = advanceRun({
     run,
     physicsConfig,
@@ -577,7 +577,7 @@ export const createHeatCapacityFreeStandardReference = ({
   }));
 
   const recoverStartS = releaseEndS;
-  const recoverEndS = roundFinite(recoverStartS + HEAT_CAPACITY_STANDARD_OPERATION.waitAfterReleaseS, 2);
+  const recoverEndS = roundFinite(recoverStartS + HEAT_CAPACITY_STANDARD_OPERATION.waitAfterReleaseS, 3);
   ({ run, nextSampleAtS, sampleIndex } = advanceRun({
     run,
     physicsConfig,
@@ -613,12 +613,12 @@ export const createHeatCapacityFreeStandardReference = ({
     targetPressureDeltaKPa: targetPressureMv === null
       ? null
       : roundNumber(targetPressureMv / Math.max(0.000001, snapshot.sensor.pressureMvPerKPa), 3),
-    releaseDurationS: HEAT_CAPACITY_STANDARD_OPERATION.openDurationS,
+    releaseDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
     u1TimeS: roundFinite(u1Run.timeS, 2),
     u2TimeS: roundFinite(u2Run.timeS, 2),
     assumptions: ASSUMPTIONS,
     explanation: {
-      operation: '标准过程使用当前实验参数快照，按固定 18 次打气、12 s、300 s、0.35 s、300 s 流程由真实模型生成。',
+      operation: `标准过程使用当前实验参数快照，按固定 ${HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes} 次打气、${HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS} s、${HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS} s、${HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS.toFixed(3)} s、${HEAT_CAPACITY_STANDARD_OPERATION.waitAfterReleaseS} s 流程由真实模型生成。`,
       windows: 'U0/U1/U2 显示为固定标准流程对应的记录窗口，不从实际 trace 中反选。',
     },
   };
@@ -647,7 +647,7 @@ export const createHeatCapacityFreeStandardReference = ({
       durationText: `${HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS} s`,
     }),
     createStage('release', '标准放气', releaseStartS, releaseEndS, {
-      durationText: `${HEAT_CAPACITY_STANDARD_OPERATION.openDurationS.toFixed(2)} s`,
+      durationText: `${HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS.toFixed(3)} s`,
     }),
     createStage('recover', '关阀回温', recoverStartS, recoverEndS, {
       durationText: `${HEAT_CAPACITY_STANDARD_OPERATION.waitAfterReleaseS} s`,

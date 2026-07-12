@@ -1,9 +1,11 @@
 import { ChevronDown, X } from 'lucide-react';
-import type { RefObject } from 'react';
+import type { CSSProperties, RefObject } from 'react';
 import { HEAT_CAPACITY_QUALITY_MODE_ORDER } from '../heatCapacity/heatCapacityQualityProfiles.ts';
 import {
   WORKBENCH_LANGUAGE_PREFERENCE_ORDER,
   WORKBENCH_THEME_PREFERENCE_ORDER,
+  getWorkbenchAudioVolumeIconLevel,
+  type WorkbenchAudioVolumeIconLevel,
   type WorkbenchLanguagePreference,
   type WorkbenchPerformanceMode,
   type WorkbenchThemePreference,
@@ -23,6 +25,10 @@ interface WorkbenchGeneralSettingsWindowCopy {
     performanceMode: string;
     performanceModeHint: string;
     performanceModeSummary: Record<WorkbenchPerformanceMode, string>;
+    audio: string;
+    audioHint: string;
+    audioToggleAria: string;
+    audioVolumeAria: string;
   };
   shortcuts: {
     title: string;
@@ -39,14 +45,36 @@ interface WorkbenchGeneralSettingsWindowProps {
   themePreference: WorkbenchThemePreference;
   languagePreference: WorkbenchLanguagePreference;
   performanceMode: WorkbenchPerformanceMode;
+  audioEnabled: boolean;
+  audioVolume: number;
   languageMenuOpen: boolean;
   languageTriggerRef: RefObject<HTMLButtonElement | null>;
   onClose: () => void;
   onThemeChange: (theme: WorkbenchThemePreference) => void;
   onLanguageChange: (language: WorkbenchLanguagePreference) => void;
   onPerformanceModeChange: (mode: WorkbenchPerformanceMode) => void;
+  onAudioEnabledChange: (enabled: boolean) => void;
+  onAudioVolumeChange: (volume: number) => void;
   onLanguageMenuOpenChange: (open: boolean) => void;
 }
+
+const WorkbenchAudioVolumeIcon = ({ level }: { level: WorkbenchAudioVolumeIconLevel }) => (
+  <svg viewBox="0 0 28 24" aria-hidden="true" focusable="false">
+    <path d="M3.5 9h4l5-4v14l-5-4h-4z" />
+    {level === 0 ? (
+      <>
+        <path d="m17 9 6 6" />
+        <path d="m23 9-6 6" />
+      </>
+    ) : (
+      <>
+        {level >= 1 ? <path d="M16 9.2a4 4 0 0 1 0 5.6" /> : null}
+        {level >= 2 ? <path d="M19 6.8a7.5 7.5 0 0 1 0 10.4" /> : null}
+        {level >= 3 ? <path d="M22 4.4a11 11 0 0 1 0 15.2" /> : null}
+      </>
+    )}
+  </svg>
+);
 
 export const WorkbenchGeneralSettingsWindow = ({
   open,
@@ -54,12 +82,16 @@ export const WorkbenchGeneralSettingsWindow = ({
   themePreference,
   languagePreference,
   performanceMode,
+  audioEnabled,
+  audioVolume,
   languageMenuOpen,
   languageTriggerRef,
   onClose,
   onThemeChange,
   onLanguageChange,
   onPerformanceModeChange,
+  onAudioEnabledChange,
+  onAudioVolumeChange,
   onLanguageMenuOpenChange,
 }: WorkbenchGeneralSettingsWindowProps) => {
   if (!open) return null;
@@ -67,6 +99,10 @@ export const WorkbenchGeneralSettingsWindow = ({
   const themeOptions = WORKBENCH_THEME_PREFERENCE_ORDER.map((key) => ({ key, ...copy.settings.themeOptions[key] }));
   const languageOptions = WORKBENCH_LANGUAGE_PREFERENCE_ORDER.map((key) => ({ key, ...copy.settings.languageOptions[key] }));
   const activeLanguage = languageOptions.find((option) => option.key === languagePreference) ?? languageOptions[0];
+  const audioIconLevel = getWorkbenchAudioVolumeIconLevel(audioEnabled, audioVolume);
+  const audioRangeStyle = {
+    '--studio-audio-volume-percent': `${Math.round(audioVolume * 100)}%`,
+  } as CSSProperties;
 
   return (
     <div className="studio-settings-overlay" role="presentation" onMouseDown={onClose}>
@@ -191,6 +227,38 @@ export const WorkbenchGeneralSettingsWindow = ({
                     <small>{copy.settings.performanceModeSummary[mode]}</small>
                   </button>
                 ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="studio-settings-section studio-settings-control-row studio-settings-audio-row">
+            <div className="studio-settings-section-title">
+              <strong>{copy.settings.audio}</strong>
+              <span>{copy.settings.audioHint}</span>
+            </div>
+            <div className="studio-settings-control-surface">
+              <div className={`studio-settings-audio-controls ${audioEnabled ? '' : 'studio-settings-audio-controls-disabled'}`}>
+                <button
+                  type="button"
+                  className={`studio-settings-audio-button ${audioEnabled ? '' : 'studio-settings-audio-button-muted'}`}
+                  aria-label={copy.settings.audioToggleAria}
+                  aria-pressed={!audioEnabled}
+                  onClick={() => onAudioEnabledChange(!audioEnabled)}
+                >
+                  <WorkbenchAudioVolumeIcon level={audioIconLevel} />
+                </button>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={audioVolume}
+                  disabled={!audioEnabled}
+                  aria-label={copy.settings.audioVolumeAria}
+                  style={audioRangeStyle}
+                  onChange={(event) => onAudioVolumeChange(Number(event.currentTarget.value))}
+                />
+                <output aria-live="polite">{Math.round(audioVolume * 100)}%</output>
               </div>
             </div>
           </section>

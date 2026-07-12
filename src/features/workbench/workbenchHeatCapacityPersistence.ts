@@ -61,8 +61,11 @@ import {
   normalizeHeatCapacityFreeRestoreParameterScheme,
   normalizeHeatCapacityFreeRestoreTrial,
   normalizeHeatCapacityFreeRestoreRecordConfig,
-  normalizeHeatCapacityStopcockFlowPurpose,
 } from './workbenchHeatCapacityFreeRestoreNormalization.ts';
+import {
+  createClosedHeatCapacityReleaseState,
+  normalizeHeatCapacityReleaseState,
+} from '../../domain/heatCapacity/heatCapacityReleaseModel.ts';
 import {
   HEAT_CAPACITY_SCHEMA_VERSION,
   createHeatCapacityFreeUiReplay,
@@ -149,8 +152,7 @@ export const createHeatCapacityPersistencePayload = (
         pumpValveOpen: fileWithCurrentDomain.pumpValveOpen,
         stopcockOpen: fileWithCurrentDomain.glassPistonState === 'open',
         pumpBulbState: fileWithCurrentDomain.pumpBulbState,
-        stopcockFlowOpen: fileWithCurrentDomain.heatCapacityFreeStopcockFlowOpen,
-        stopcockFlowPurpose: fileWithCurrentDomain.heatCapacityFreeStopcockFlowPurpose,
+        releaseState: clonePersistenceValue(fileWithCurrentDomain.heatCapacityReleaseState),
       },
       sensor: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeSensorState),
       calibration: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeCalibrationState),
@@ -223,9 +225,7 @@ const createRuntimeFieldsFromRestoredFreeDomain = (
     heatCapacityFreeSensorConfig: domain.sensorConfig,
     heatCapacityFreeSensorState: domain.sensorState,
     heatCapacityFreeCalibrationState: domain.calibrationState,
-    heatCapacityFreeStopcockFlowOpen: domain.stopcockFlowOpen,
-    heatCapacityFreeStopcockPendingOpenAtMs: domain.stopcockPendingOpenAtMs,
-    heatCapacityFreeStopcockFlowPurpose: domain.stopcockFlowPurpose,
+    heatCapacityReleaseState: { ...domain.releaseState },
     heatCapacityFreeRollbackSnapshots: domain.rollbackSnapshots,
     heatCapacityFreeTraceStore: domain.traceStore,
     heatCapacityFreeTrials: domain.trials,
@@ -418,16 +418,15 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
   const restoredActiveDomainRuntimeFields = hasPersistedActiveDomain
     ? createRuntimeFieldsFromRestoredFreeDomain(restoredActiveDomain)
     : null;
-  const restoredStopcockFlowOpen = controls.stopcockFlowOpen === true;
-  const restoredStopcockPendingOpenAtMs =
-    typeof uiReplay.heatCapacityFreeStopcockPendingOpenAtMs === 'number' &&
-    Number.isFinite(uiReplay.heatCapacityFreeStopcockPendingOpenAtMs)
-      ? uiReplay.heatCapacityFreeStopcockPendingOpenAtMs
-      : null;
-  const restoredStopcockFlowPurpose = normalizeHeatCapacityStopcockFlowPurpose(
-    controls.stopcockFlowPurpose,
-    restoredStopcockFlowOpen || restoredStopcockPendingOpenAtMs !== null,
+  const restoredReleaseState = normalizeHeatCapacityReleaseState(
+    controls.releaseState,
+    createClosedHeatCapacityReleaseState(
+      restoredActiveDomain.physicsState.simulationTimeS,
+    ),
   );
+  const restoredStopcockOpen = restoredReleaseState.phase === 'opening' ||
+    restoredReleaseState.phase === 'open' ||
+    restoredReleaseState.phase === 'releasing';
   const restoredOpenHeatCapacityTabs = normalizeWorkbenchHeatCapacityTabIds(
     common.openHeatCapacityTabs,
     fallback.openHeatCapacityTabs,
@@ -506,14 +505,12 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
       uiReplay.heatCapacityFreeEquilibriumSpeedMultiplier,
     ),
     powerOn: controls.powerOn === true,
-    glassPistonState: controls.stopcockOpen === true ? 'open' : 'closed',
-    stopcockAngleDeg: getHeatCapacityStopcockTargetAngle(controls.stopcockOpen === true),
+    glassPistonState: restoredStopcockOpen ? 'open' : 'closed',
+    stopcockAngleDeg: getHeatCapacityStopcockTargetAngle(restoredStopcockOpen),
     pumpValveOpen: controls.pumpValveOpen === true,
     pumpValveState: controls.pumpValveOpen === true ? 'open' : 'closed',
     pumpBulbState: normalizePumpBulbState(controls.pumpBulbState),
-    heatCapacityFreeStopcockFlowOpen: restoredStopcockFlowOpen,
-    heatCapacityFreeStopcockPendingOpenAtMs: restoredStopcockPendingOpenAtMs,
-    heatCapacityFreeStopcockFlowPurpose: restoredStopcockFlowPurpose,
+    heatCapacityReleaseState: restoredReleaseState,
     ...restoredGuideFields,
   };
   return normalizeHeatCapacitySessionRuntimeState(restoredFile);

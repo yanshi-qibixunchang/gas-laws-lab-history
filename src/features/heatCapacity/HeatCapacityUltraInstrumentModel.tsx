@@ -15,6 +15,23 @@ import type { HeatCapacityHardSphereReleaseTimeline } from '../../domain/heatCap
 import {
   formatHeatCapacitySignalMv,
 } from '../../domain/heatCapacity/heatCapacitySignalDisplayModel.ts';
+import {
+  HEAT_CAPACITY_RELEASE_TIMING,
+} from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import {
+  HEAT_CAPACITY_BLOCKED_VALVE_TRAVEL_DEG,
+  HeatCapacityGuideRollbackMotion,
+  createHeatCapacityBinaryRollbackPlan,
+  createHeatCapacityKnobRollbackPlan,
+  createHeatCapacityPumpBulbRollbackPlan,
+  type HeatCapacityGuideRollbackAnimation,
+  type HeatCapacityGuideRollbackCue,
+} from './heatCapacityGuideRollbackMotion.ts';
+import {
+  HeatCapacityWheelGestureTracker,
+  createHeatCapacityControlInteractionId,
+  type HeatCapacityControlInteractionId,
+} from './heatCapacityControlInteraction.ts';
 
 type UltraPointerControl = 'powerSwitch' | 'pressureZero' | 'stopcock' | 'pumpValve' | 'pumpBulb';
 type UltraHoveredControl = UltraPointerControl | null;
@@ -124,8 +141,14 @@ type HeatCapacityUltraInstrumentModelProps = {
   onGuideTargetHolesChange?: (holes: HeatCapacityGuideProjectedHoles) => void;
   onPowerToggle: (nextPowerOn?: boolean) => void;
   onStopcockOpenChange: (nextOpen?: boolean) => void;
-  onPressureZeroFineAdjust: (direction: number) => void;
-  onPressureZeroCoarseAdjust: (angleDeltaDeg: number) => void;
+  onPressureZeroFineAdjust: (
+    direction: number,
+    interactionId: HeatCapacityControlInteractionId,
+  ) => boolean;
+  onPressureZeroCoarseAdjust: (
+    angleDeltaDeg: number,
+    interactionId: HeatCapacityControlInteractionId,
+  ) => boolean;
   onPumpValveToggle: () => void;
   onPumpBulbPress: () => void;
   onFocus: (mode: UltraFocusMode) => void;
@@ -134,6 +157,9 @@ type HeatCapacityUltraInstrumentModelProps = {
   initialHardSphereVisualCheckpoint?: HeatCapacityHardSphereVisualCheckpoint | null;
   onHardSphereCheckpointProviderChange?: (provider: HeatCapacityHardSphereCheckpointProvider | null) => void;
   restorePaused?: boolean;
+  guideRollbackAnimation: HeatCapacityGuideRollbackAnimation | null;
+  guideRollbackKey: number;
+  onGuideRollbackCue: (cue: HeatCapacityGuideRollbackCue) => void;
 };
 
 const ULTRA_GLB_PATH = `${import.meta.env.BASE_URL}models/heat-capacity/fd-ncd-c-ultra.glb`;
@@ -320,7 +346,8 @@ const ULTRA_CLEAN_PIPELINE_ROUTES: UltraCleanPipelineRoute[] = [
 const PRESSURE_GAUGE_MIN_ROTATION = -2.15;
 const PRESSURE_GAUGE_MAX_ROTATION = 2.15;
 const getUltraPressureGaugeNeedleLocalRotation = (modelAngle: number) => PRESSURE_GAUGE_MIN_ROTATION - modelAngle;
-const STOPCOCK_VISUAL_SMOOTHING_RATE = 8;
+const STOPCOCK_VISUAL_SMOOTHING_RATE = -Math.log(0.035) /
+  (HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs / 1000);
 const PUMP_VALVE_VISUAL_SMOOTHING_RATE = 5.6;
 const PRESSURE_ZERO_VISUAL_SMOOTHING_RATE = 10;
 const PRESSURE_ZERO_FINE_ANGLE_STEP_DEG = 12;
@@ -2546,7 +2573,13 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     lastPointerAngle: 0,
     totalDelta: 0,
     lastAppliedKnobAngle: props.pressureZeroKnobAngle,
+    rejected: false,
+    interactionId: null as HeatCapacityControlInteractionId | null,
   });
+  const pressureZeroWheelGestureRef = useRef(new HeatCapacityWheelGestureTracker());
+  useEffect(() => {
+    if (props.focusMode !== 'instrument') pressureZeroWheelGestureRef.current.reset();
+  }, [props.focusMode]);
   const pendingUltraSingleClickRef = useRef<number | null>(null);
   const gaugeDisplayedRotationRef = useRef(initialVisualState?.gaugeNeedleRotationRad ?? PRESSURE_GAUGE_MIN_ROTATION);
   const stopcockDisplayedAngleRef = useRef(
@@ -2561,6 +2594,11 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   const powerSwitchDisplayedRotationRef = useRef(
     initialVisualState?.powerSwitchRotationRad ?? (props.powerOn ? POWER_SWITCH_ON_ROTATION_RAD : POWER_SWITCH_OFF_ROTATION_RAD),
   );
+  const stopcockRollbackMotionRef = useRef(new HeatCapacityGuideRollbackMotion());
+  const pumpValveRollbackMotionRef = useRef(new HeatCapacityGuideRollbackMotion());
+  const pressureZeroRollbackMotionRef = useRef(new HeatCapacityGuideRollbackMotion());
+  const powerSwitchRollbackMotionRef = useRef(new HeatCapacityGuideRollbackMotion());
+  const pumpBulbRollbackMotionRef = useRef(new HeatCapacityGuideRollbackMotion());
   const gaugeNeedleTargetRotation = getPressureGaugeNeedleRotation(
     props.pressureGaugeDisplayValue,
     props.gaugePressureMinKPa,
@@ -2793,6 +2831,8 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       lastPointerAngle: pointerAngle,
       totalDelta: 0,
       lastAppliedKnobAngle: props.pressureZeroKnobAngle,
+      rejected: false,
+      interactionId: createHeatCapacityControlInteractionId('pressureZero', 'drag'),
     };
     const pointerId = event.pointerId;
     gl.domElement.style.cursor = 'grabbing';
@@ -2808,6 +2848,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       const nextPointerAngle = getPressureZeroPointerAngle(moveEvent.clientX, moveEvent.clientY);
       if (nextPointerAngle === null) return;
       const dragState = pressureZeroDragRef.current;
+      if (dragState.rejected) return;
       const pointerDelta = getSignedAngleDelta(nextPointerAngle, dragState.lastPointerAngle);
       dragState.lastPointerAngle = nextPointerAngle;
       dragState.totalDelta += pointerDelta * PRESSURE_ZERO_DRAG_DIRECTION;
@@ -2816,20 +2857,34 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       const incrementalDelta = nextKnobAngle - dragState.lastAppliedKnobAngle;
       if (Math.abs(incrementalDelta) < 0.15) return;
       dragState.lastAppliedKnobAngle = nextKnobAngle;
-      props.onPressureZeroCoarseAdjust(incrementalDelta);
+      if (dragState.interactionId) {
+        dragState.rejected = !props.onPressureZeroCoarseAdjust(
+          incrementalDelta,
+          dragState.interactionId,
+        );
+      }
     };
-    const handlePointerUp = () => {
+    let finished = false;
+    const finishPointerGesture = () => {
+      if (finished) return;
+      finished = true;
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', finishPointerGesture);
+      window.removeEventListener('pointercancel', finishPointerGesture);
+      window.removeEventListener('lostpointercapture', finishPointerGesture);
       try {
-        gl.domElement.releasePointerCapture?.(pointerId);
+        if (gl.domElement.hasPointerCapture?.(pointerId)) {
+          gl.domElement.releasePointerCapture?.(pointerId);
+        }
       } catch {
         // Matching guard for synthetic pointer events.
       }
       gl.domElement.style.cursor = props.hoveredControl === 'pressureZero' && props.pressureZeroInteractionEnabled ? 'grab' : '';
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
     };
     window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp, { once: true });
+    window.addEventListener('pointerup', finishPointerGesture, { once: true });
+    window.addEventListener('pointercancel', finishPointerGesture, { once: true });
+    window.addEventListener('lostpointercapture', finishPointerGesture, { once: true });
   }, [getPressureZeroPointerAngle, gl, props, resolveUltraPanelPointerControl]);
 
   const handleUltraControlWheel = useCallback((control: UltraPointerControl, event: ThreeEvent<WheelEvent>) => {
@@ -2849,7 +2904,11 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     const nextKnobAngle = clampPressureZeroSceneKnobAngle(requestedKnobAngle);
     const boundedDelta = nextKnobAngle - props.pressureZeroKnobAngle;
     if (Math.abs(boundedDelta) < 0.01) return;
-    props.onPressureZeroFineAdjust(boundedDelta);
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    props.onPressureZeroFineAdjust(
+      boundedDelta,
+      pressureZeroWheelGestureRef.current.getInteractionId(now),
+    );
   }, [props, resolveUltraPanelPointerControl]);
 
   const handleUltraControlPointerOver = useCallback((control: UltraPointerControl, event: ThreeEvent<PointerEvent>) => {
@@ -2980,6 +3039,72 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   }, [gaugeNeedleTargetRotation, invalidate]);
 
   useEffect(() => {
+    if (!props.guideRollbackAnimation || props.guideRollbackKey <= 0) return;
+    let cues: HeatCapacityGuideRollbackCue[] = [];
+    if (props.guideRollbackAnimation === 'stopcockBounce') {
+      cues = stopcockRollbackMotionRef.current.trigger(
+        props.guideRollbackKey,
+        createHeatCapacityBinaryRollbackPlan({
+          animation: 'stopcockBounce',
+          amplitude: THREE.MathUtils.degToRad(
+            stopcockOpen
+              ? HEAT_CAPACITY_BLOCKED_VALVE_TRAVEL_DEG
+              : -HEAT_CAPACITY_BLOCKED_VALVE_TRAVEL_DEG,
+          ),
+          departureAction: stopcockOpen ? 'stopcockClose' : 'stopcockOpen',
+          returnAction: stopcockOpen ? 'stopcockOpen' : 'stopcockClose',
+        }),
+      );
+    } else if (props.guideRollbackAnimation === 'valveBounce') {
+      cues = pumpValveRollbackMotionRef.current.trigger(
+        props.guideRollbackKey,
+        createHeatCapacityBinaryRollbackPlan({
+          animation: 'valveBounce',
+          amplitude: THREE.MathUtils.degToRad(
+            props.pumpValveOpen
+              ? HEAT_CAPACITY_BLOCKED_VALVE_TRAVEL_DEG
+              : -HEAT_CAPACITY_BLOCKED_VALVE_TRAVEL_DEG,
+          ),
+          departureAction: props.pumpValveOpen ? 'pumpValveClose' : 'pumpValveOpen',
+          returnAction: props.pumpValveOpen ? 'pumpValveOpen' : 'pumpValveClose',
+        }),
+      );
+    } else if (props.guideRollbackAnimation === 'knobBounce') {
+      cues = pressureZeroRollbackMotionRef.current.trigger(
+        props.guideRollbackKey,
+        createHeatCapacityKnobRollbackPlan(Math.PI / 180),
+      );
+    } else if (props.guideRollbackAnimation === 'powerBounce') {
+      cues = powerSwitchRollbackMotionRef.current.trigger(
+        props.guideRollbackKey,
+        createHeatCapacityBinaryRollbackPlan({
+          animation: 'powerBounce',
+          amplitude: props.powerOn
+            ? POWER_SWITCH_OFF_ROTATION_RAD - POWER_SWITCH_ON_ROTATION_RAD
+            : POWER_SWITCH_ON_ROTATION_RAD - POWER_SWITCH_OFF_ROTATION_RAD,
+          departureAction: props.powerOn ? 'powerOff' : 'powerOn',
+          returnAction: props.powerOn ? 'powerOn' : 'powerOff',
+        }),
+      );
+    } else if (props.guideRollbackAnimation === 'pumpBulbBounce') {
+      cues = pumpBulbRollbackMotionRef.current.trigger(
+        props.guideRollbackKey,
+        createHeatCapacityPumpBulbRollbackPlan(),
+      );
+    }
+    cues.forEach(props.onGuideRollbackCue);
+    invalidate();
+  }, [
+    invalidate,
+    props.guideRollbackAnimation,
+    props.guideRollbackKey,
+    props.onGuideRollbackCue,
+    props.powerOn,
+    props.pumpValveOpen,
+    stopcockOpen,
+  ]);
+
+  useEffect(() => {
     const startedAt = window.performance.now();
     let frameId = 0;
     const keepControlMotionRendering = (timestamp: number) => {
@@ -3001,6 +3126,16 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
 
   useFrame(({ clock }, delta) => {
     const visualDelta = props.restorePaused ? 0 : delta;
+    const stopcockRollback = stopcockRollbackMotionRef.current.step(visualDelta);
+    const pumpValveRollback = pumpValveRollbackMotionRef.current.step(visualDelta);
+    const pressureZeroRollback = pressureZeroRollbackMotionRef.current.step(visualDelta);
+    const powerSwitchRollback = powerSwitchRollbackMotionRef.current.step(visualDelta);
+    const pumpBulbRollback = pumpBulbRollbackMotionRef.current.step(visualDelta);
+    stopcockRollback.cues.forEach(props.onGuideRollbackCue);
+    pumpValveRollback.cues.forEach(props.onGuideRollbackCue);
+    pressureZeroRollback.cues.forEach(props.onGuideRollbackCue);
+    powerSwitchRollback.cues.forEach(props.onGuideRollbackCue);
+    pumpBulbRollback.cues.forEach(props.onGuideRollbackCue);
     if (!pumpPulseClockInitializedRef.current) {
       pumpPulseClockInitializedRef.current = true;
       pumpPulseVisualUntilRef.current = clock.elapsedTime + initialPumpPulseRemainingSRef.current;
@@ -3026,9 +3161,10 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     }
 
     const stopcockTargetAngle = getUltraStopcockVisualAngleRad(props.stopcockAngleDeg);
+    const stopcockVisualTargetAngle = stopcockTargetAngle + stopcockRollback.value;
     stopcockDisplayedAngleRef.current = dampUltraControlAngle(
       stopcockDisplayedAngleRef.current,
-      stopcockTargetAngle,
+      stopcockVisualTargetAngle,
       STOPCOCK_VISUAL_SMOOTHING_RATE,
       visualDelta,
     );
@@ -3041,9 +3177,10 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     );
 
     const pumpValveTargetAngle = props.pumpValveOpen ? 0 : Math.PI / 2;
+    const pumpValveVisualTargetAngle = pumpValveTargetAngle + pumpValveRollback.value;
     pumpValveDisplayedAngleRef.current = dampUltraControlAngle(
       pumpValveDisplayedAngleRef.current,
-      pumpValveTargetAngle,
+      pumpValveVisualTargetAngle,
       PUMP_VALVE_VISUAL_SMOOTHING_RATE,
       visualDelta,
     );
@@ -3056,9 +3193,10 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     );
 
     const pressureZeroTargetAngle = THREE.MathUtils.degToRad(props.pressureZeroKnobAngle);
+    const pressureZeroVisualTargetAngle = pressureZeroTargetAngle + pressureZeroRollback.value;
     pressureZeroDisplayedAngleRef.current = dampUltraControlAngle(
       pressureZeroDisplayedAngleRef.current,
-      pressureZeroTargetAngle,
+      pressureZeroVisualTargetAngle,
       PRESSURE_ZERO_VISUAL_SMOOTHING_RATE,
       visualDelta,
     );
@@ -3071,9 +3209,10 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     );
 
     const powerSwitchTargetRotation = props.powerOn ? POWER_SWITCH_ON_ROTATION_RAD : POWER_SWITCH_OFF_ROTATION_RAD;
+    const powerSwitchVisualTargetRotation = powerSwitchTargetRotation + powerSwitchRollback.value;
     powerSwitchDisplayedRotationRef.current = dampUltraControlAngle(
       powerSwitchDisplayedRotationRef.current,
-      powerSwitchTargetRotation,
+      powerSwitchVisualTargetRotation,
       POWER_SWITCH_VISUAL_SMOOTHING_RATE,
       visualDelta,
     );
@@ -3104,7 +3243,10 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     pumpVisualWeightRef.current = Math.max(0, pumpVisualWeightRef.current - visualDelta * 2.4);
     const pumpBulb = nodeMap.get('Pump_Bulb') as THREE.Mesh | undefined;
     if (pumpBulb?.morphTargetInfluences?.length) {
-      pumpBulb.morphTargetInfluences[0] = pumpVisualWeightRef.current;
+      pumpBulb.morphTargetInfluences[0] = Math.max(
+        pumpVisualWeightRef.current,
+        pumpBulbRollback.value,
+      );
     }
     props.onVisualStateChange?.({
       gaugeNeedleRotationRad: gaugeDisplayedRotationRef.current,
@@ -3118,10 +3260,15 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     });
     if (!props.restorePaused && (
       Math.abs(gaugeDisplayedRotationRef.current - targetRotation) > 0.001 ||
-      Math.abs(stopcockDisplayedAngleRef.current - stopcockTargetAngle) > 0.002 ||
-      Math.abs(pumpValveDisplayedAngleRef.current - pumpValveTargetAngle) > 0.002 ||
-      Math.abs(pressureZeroDisplayedAngleRef.current - pressureZeroTargetAngle) > 0.002 ||
-      Math.abs(powerSwitchDisplayedRotationRef.current - powerSwitchTargetRotation) > 0.002 ||
+      Math.abs(stopcockDisplayedAngleRef.current - stopcockVisualTargetAngle) > 0.002 ||
+      Math.abs(pumpValveDisplayedAngleRef.current - pumpValveVisualTargetAngle) > 0.002 ||
+      Math.abs(pressureZeroDisplayedAngleRef.current - pressureZeroVisualTargetAngle) > 0.002 ||
+      Math.abs(powerSwitchDisplayedRotationRef.current - powerSwitchVisualTargetRotation) > 0.002 ||
+      stopcockRollback.active ||
+      pumpValveRollback.active ||
+      pressureZeroRollback.active ||
+      powerSwitchRollback.active ||
+      pumpBulbRollback.active ||
       pumpVisualWeightRef.current > 0
     )) {
       invalidate();

@@ -71,7 +71,9 @@ export const createSampleInputForProcessReviewTest = (
     stopcockOpen: false,
     pumpValveOpen: false,
     pumpBulbState: 'idle',
-    stopcockFlowOpen: false,
+    releaseFlowOpen: false,
+    releasePhase: 'closed',
+    releaseDurationS: 0,
     ...controlOverrides,
   };
   const physical: HeatCapacityFreeTraceSampleInput['physical'] = {
@@ -161,8 +163,25 @@ export const createTraceTrialForProcessReviewTest = (
     branch = appendEventAtSample(branch, u1Sample, 'record-u1');
   }
   if (u1Sample && u2Sample) {
-    branch = appendEventAtSample(branch, u2Sample, 'stopcock-open', u1Sample.atS + 0.3);
-    branch = appendEventAtSample(branch, u2Sample, 'stopcock-close', u1Sample.atS + 1);
+    const openCommandAtS = u1Sample.atS + 0.3;
+    const releaseStartAtS = openCommandAtS + 0.42;
+    const releaseDurationS = 0.375;
+    branch = appendEventAtSample(branch, u2Sample, 'stopcock-open', openCommandAtS, {
+      attemptId: 1,
+      purpose: 'release',
+    });
+    branch = appendEventAtSample(branch, u2Sample, 'release-start', releaseStartAtS, {
+      attemptId: 1,
+      formedRelease: true,
+      openingCompletedAtS: releaseStartAtS,
+      releaseDurationS: 0,
+    });
+    branch = appendEventAtSample(branch, u2Sample, 'stopcock-close', releaseStartAtS + releaseDurationS, {
+      attemptId: 1,
+      formedRelease: true,
+      quickToggle: false,
+      releaseDurationS,
+    });
     branch = appendEventAtSample(branch, u2Sample, 'record-u2');
   }
 
@@ -241,7 +260,7 @@ export const createCompleteProcessReviewFixtureParts = (): HeatCapacityProcessRe
       controls: { powerOn: true, stopcockOpen: true, pumpValveOpen: false },
     }),
     createSampleInputForProcessReviewTest(30, 112, 1499.05, { phase: 'sealedStabilizing' }),
-    createSampleInputForProcessReviewTest(60, 35, 1498.98, { phase: 'recovering' }),
+    createSampleInputForProcessReviewTest(60, 31.4, 1498.98, { phase: 'recovering' }),
   ]);
   return {
     traceStore: setup.traceStore,

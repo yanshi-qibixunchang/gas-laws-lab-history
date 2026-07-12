@@ -24,6 +24,9 @@ import {
 import {
   createCompleteProcessReviewFixtureParts,
 } from './helpers/heatCapacityProcessReviewTestFactory.ts';
+import {
+  HEAT_CAPACITY_FREE_GAS_TYPE_MODEL_DEFAULTS,
+} from '../../src/domain/heatCapacity/heatCapacityGasTheory.ts';
 
 const defaultFile = createDefaultHeatCapacityFile(1);
 
@@ -238,12 +241,12 @@ assert.equal(
 );
 assert.equal(
   heliumGasFile.heatCapacityFreeParameterDraft.leakageRatePerS,
-  0.00004,
+  HEAT_CAPACITY_FREE_GAS_TYPE_MODEL_DEFAULTS.helium.leakageRatePerS,
   'switching to helium should apply the tuned monatomic leakage default',
 );
 assert.equal(
   heliumGasFile.heatCapacityFreePhysicsConfig.leakage.ratePerS,
-  0.00004,
+  HEAT_CAPACITY_FREE_GAS_TYPE_MODEL_DEFAULTS.helium.leakageRatePerS,
   'helium physics config should use the tuned monatomic leakage rate',
 );
 

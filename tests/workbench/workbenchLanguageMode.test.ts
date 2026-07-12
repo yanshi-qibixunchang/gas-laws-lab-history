@@ -193,22 +193,22 @@ assert.match(
 
 assert.match(
   source,
-  /workbenchCopy\.logs\.fileSelected\(file\.name\)/,
-  'Common dynamic logs should read from the active copy table',
+  /workbenchCopies\[language\]\.logs\.fileSelected\(file\.name\)/,
+  'Common dynamic logs should read from the language selected at render time',
 );
 
 for (const dynamicLogCall of [
-  'workbenchCopy.logs.autoPausedSingleRuntime',
-  'workbenchCopy.logs.autoPausedCreateFile',
-  'workbenchCopy.logs.autoPausedSwitchFile',
-  'workbenchCopy.logs.fileCreated',
-  'workbenchCopy.logs.layoutReset',
-  'workbenchCopy.logs.exportPayloadPrepared',
-  'workbenchCopy.logs.exportNeedsTwoPoints',
-  'workbenchCopy.logs.exportCsvSaved',
-  'workbenchCopy.logs.standardResultsOpened',
-  'workbenchCopy.logs.fileNameCannotBeEmpty',
-  'workbenchCopy.logs.confirmDeleteFile',
+  'workbenchCopies[language].logs.autoPausedSingleRuntime',
+  'workbenchCopies[language].logs.autoPausedCreateFile',
+  'workbenchCopies[language].logs.autoPausedSwitchFile',
+  'workbenchCopies[language].logs.fileCreated',
+  'workbenchCopies[language].logs.layoutReset',
+  'workbenchCopies[language].logs.exportPayloadPrepared',
+  'workbenchCopies[language].logs.exportNeedsTwoPoints',
+  'workbenchCopies[language].logs.exportCsvSaved',
+  'workbenchCopies[language].logs.standardResultsOpened',
+  'workbenchCopies[language].logs.fileNameCannotBeEmpty',
+  'workbenchCopies[language].logs.confirmDeleteFile',
 ]) {
   assert.ok(source.includes(dynamicLogCall), `${dynamicLogCall} should localize common dynamic logs`);
 }

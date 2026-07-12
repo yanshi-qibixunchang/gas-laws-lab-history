@@ -4,10 +4,14 @@ const WORKBENCH_REQUIRED_CHUNK_NAMES = [
   'vendor',
   'react-three',
   'heat-capacity-scene',
+  'audio',
 ];
 
 const getWorkbenchChunkName = (id) => {
   const normalizedId = String(id).replace(/\\/g, '/');
+  if (normalizedId.includes('/src/audio/')) {
+    return 'audio';
+  }
   if (
     normalizedId.includes('/node_modules/three/') ||
     normalizedId.includes('/node_modules/@react-three/') ||
@@ -26,11 +30,7 @@ const getWorkbenchChunkName = (id) => {
   ) {
     return 'vendor';
   }
-  if (
-    normalizedId.includes('/src/features/heatCapacity/HeatCapacityInstrumentScene.') ||
-    normalizedId.includes('/src/features/heatCapacity/HeatCapacityUltraInstrumentModel.') ||
-    normalizedId.includes('/src/features/heatCapacity/HeatCapacityHardSphereLayer.')
-  ) {
+  if (normalizedId.includes('/src/features/heatCapacity/')) {
     return 'heat-capacity-scene';
   }
   return null;

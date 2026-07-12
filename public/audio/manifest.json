@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-12",
+  "common": [],
+  "experiments": [
+    {
+      "experimentId": "heat-capacity",
+      "manifest": "audio/experiments/heat-capacity/manifest.json"
+    }
+  ]
+}

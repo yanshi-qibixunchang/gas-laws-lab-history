@@ -7,7 +7,6 @@ import {
   getHeatCapacityFreeDisplayPhase,
   getHeatCapacityFreeRecordBlockReason,
   getHeatCapacityFreeRecordButtonState,
-  HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
   HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
   HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
@@ -42,8 +41,6 @@ const createStableFreeU1File = (): WorkbenchHeatCapacityState => {
     glassPistonState: 'closed',
     pumpStrokeCount: 9,
     pressureSafetyStatus: 'normal',
-    heatCapacityFreeStopcockFlowOpen: false,
-    heatCapacityFreeStopcockPendingOpenAtMs: null,
     heatCapacityFreePhysicsState: {
       ...base.heatCapacityFreePhysicsState,
       simulationTimeS: 60,
@@ -113,8 +110,13 @@ const createNoisyFreeU0File = (): WorkbenchHeatCapacityState => {
     glassPistonState: 'open',
     pressureSignalMv: 0.19,
     temperatureSignalMv: 1499.09,
-    heatCapacityFreeStopcockFlowOpen: true,
-    heatCapacityFreeStopcockPendingOpenAtMs: null,
+    heatCapacityReleaseState: {
+      ...base.heatCapacityReleaseState,
+      phase: 'open',
+      purpose: 'zeroing',
+      openingStartedAtS: 10,
+      openingCompletedAtS: 10,
+    },
     heatCapacityFreePhysicsState: {
       ...base.heatCapacityFreePhysicsState,
       simulationTimeS: 12,
@@ -179,7 +181,7 @@ const createClosedStopcockFreeU0File = (): WorkbenchHeatCapacityState => {
     ...base,
     stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
     glassPistonState: 'closed',
-    heatCapacityFreeStopcockFlowOpen: false,
+    heatCapacityReleaseState: { ...base.heatCapacityReleaseState },
     heatCapacityFreePhysicsState: {
       ...base.heatCapacityFreePhysicsState,
       lastStopcockClosedAtS: 12,
@@ -316,9 +318,13 @@ const staleU1DuringFreshZeroingFile: WorkbenchHeatCapacityState = {
   pressureZeroAdjusted: true,
   glassPistonState: 'open',
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
-  heatCapacityFreeStopcockFlowOpen: true,
-  heatCapacityFreeStopcockPendingOpenAtMs: null,
-  heatCapacityFreeStopcockFlowPurpose: 'zeroing',
+  heatCapacityReleaseState: {
+    ...repeatedU1BeforeReleaseAttempt.file.heatCapacityReleaseState,
+    phase: 'open',
+    purpose: 'zeroing',
+    openingStartedAtS: 60,
+    openingCompletedAtS: 60,
+  },
   heatCapacityFreePhysicsState: {
     ...repeatedU1BeforeReleaseAttempt.file.heatCapacityFreePhysicsState,
     releaseStarted: false,
@@ -346,19 +352,24 @@ const visualReleaseOpeningAfterU1File: WorkbenchHeatCapacityState = {
   heatCapacityPhase: 'readyToZero',
   glassPistonState: 'open',
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
-  heatCapacityFreeStopcockFlowOpen: false,
-  heatCapacityFreeStopcockPendingOpenAtMs: 20_300 + HEAT_CAPACITY_FREE_STOPCOCK_OPEN_FLOW_DELAY_MS,
-  heatCapacityFreeStopcockFlowPurpose: 'release',
+  heatCapacityReleaseState: {
+    ...repeatedU1BeforeReleaseAttempt.file.heatCapacityReleaseState,
+    phase: 'opening',
+    purpose: 'release',
+    attemptId: 1,
+    phaseStartedAtS: 60,
+    openingStartedAtS: 60,
+  },
 };
 assert.equal(
   deriveHeatCapacityFreeWorkflowStage(visualReleaseOpeningAfterU1File),
-  'releasing',
-  'opening the stopcock after U1 should lock U1 immediately even before physical flow starts',
+  'beforeRelease',
+  'opening animation should remain in the preceding equilibrium stage until real release starts',
 );
 assert.equal(
   getHeatCapacityFreeDisplayPhase(visualReleaseOpeningAfterU1File),
-  'releasing',
-  'the instrument panel should not display readyToZero during a Free release-opening transition',
+  'sealedStabilizing',
+  'the instrument panel should show the preceding equilibrium phase during release opening',
 );
 assert.deepEqual(
   getHeatCapacityFreeRecordButtonState(visualReleaseOpeningAfterU1File, 'u1'),
@@ -374,8 +385,13 @@ assert.deepEqual(
 const releaseFlowStillOpenFile: WorkbenchHeatCapacityState = {
   ...visualReleaseOpeningAfterU1File,
   heatCapacityPhase: 'releasing',
-  heatCapacityFreeStopcockFlowOpen: true,
-  heatCapacityFreeStopcockPendingOpenAtMs: null,
+  heatCapacityReleaseState: {
+    ...visualReleaseOpeningAfterU1File.heatCapacityReleaseState,
+    phase: 'releasing',
+    openingCompletedAtS: 60.42,
+    formedRelease: true,
+    releaseDurationS: 0.1,
+  },
   heatCapacityFreePhysicsState: {
     ...visualReleaseOpeningAfterU1File.heatCapacityFreePhysicsState,
     releaseStarted: true,
@@ -501,9 +517,11 @@ const closedAfterU0File = {
   ...repeatedU0WhileZeroingAttempt.file,
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
   glassPistonState: 'closed' as const,
-  heatCapacityFreeStopcockFlowOpen: false,
-  heatCapacityFreeStopcockPendingOpenAtMs: null,
-  heatCapacityFreeStopcockFlowPurpose: 'none' as const,
+  heatCapacityReleaseState: {
+    ...repeatedU0WhileZeroingAttempt.file.heatCapacityReleaseState,
+    phase: 'closed' as const,
+    purpose: 'none' as const,
+  },
 };
 assert.equal(deriveHeatCapacityFreeWorkflowStage(closedAfterU0File), 'beforePump');
 assert.deepEqual(

@@ -1,10 +1,11 @@
 import {
-  HEAT_CAPACITY_AUTO_DEMO_RESULT_GAMMA,
   HEAT_CAPACITY_AUTO_DEMO_RESULT_TEMPERATURE_MV,
   HEAT_CAPACITY_AUTO_DEMO_RESULT_U0_MV,
   HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV,
-  HEAT_CAPACITY_AUTO_DEMO_RESULT_U2_MV,
 } from './heatCapacityDefaultConfig.ts';
+import {
+  truncateHeatCapacitySignalMv,
+} from './heatCapacitySignalDisplayModel.ts';
 
 // Demo/Guide-only teaching profile. These scripted target fields preserve the
 // guided experiment baseline and are not physical truth for Free Mode.
@@ -33,6 +34,10 @@ export interface HeatCapacityTeachingProfile {
 }
 
 const AIR_THEORETICAL_GAMMA = 1.4;
+const AUTO_DEMO_GAMMA_MIN = 1.37;
+const AUTO_DEMO_GAMMA_MAX = 1.43;
+const AUTO_DEMO_ATMOSPHERIC_PRESSURE_KPA = 101.3;
+const AUTO_DEMO_PRESSURE_SENSITIVITY_MV_PER_KPA = 20;
 
 const clampNumber = (value: number, min: number, max: number) => (
   Math.min(max, Math.max(min, value))
@@ -43,19 +48,49 @@ const roundNumber = (value: number, digits = 3) => {
   return Math.round(value * factor) / factor;
 };
 
+export const calculateHeatCapacityGammaFromDisplayedSignals = (
+  u0Mv: number,
+  u1Mv: number,
+  u2Mv: number,
+  atmosphericPressureKPa = AUTO_DEMO_ATMOSPHERIC_PRESSURE_KPA,
+  pressureSensitivityMvPerKPa = AUTO_DEMO_PRESSURE_SENSITIVITY_MV_PER_KPA,
+) => {
+  const p0 = atmosphericPressureKPa;
+  const p1 = p0 + (u1Mv - u0Mv) / pressureSensitivityMvPerKPa;
+  const p2 = p0 + (u2Mv - u0Mv) / pressureSensitivityMvPerKPa;
+  const denominator = Math.log(p1 / p2);
+  return p1 > p2 && p2 > p0 && denominator > 0
+    ? Math.log(p1 / p0) / denominator
+    : Number.NaN;
+};
+
+export const calculateHeatCapacityU2ForGamma = (
+  u0Mv: number,
+  u1Mv: number,
+  gamma: number,
+  atmosphericPressureKPa = AUTO_DEMO_ATMOSPHERIC_PRESSURE_KPA,
+  pressureSensitivityMvPerKPa = AUTO_DEMO_PRESSURE_SENSITIVITY_MV_PER_KPA,
+) => {
+  const p0 = atmosphericPressureKPa;
+  const p1 = p0 + (u1Mv - u0Mv) / pressureSensitivityMvPerKPa;
+  const p2 = p1 / Math.exp(Math.log(p1 / p0) / gamma);
+  return u0Mv + (p2 - p0) * pressureSensitivityMvPerKPa;
+};
+
 export const clampHeatCapacityTeachingProfile = (
   profile: HeatCapacityTeachingProfile,
 ): HeatCapacityTeachingProfile => {
-  const gammaTarget = clampNumber(profile.gammaTarget, 1.36, 1.44);
-  const u1MeasuredMv = clampNumber(profile.u1MeasuredMv, 105, 130);
-  const targetU2MeasuredMv = u1MeasuredMv * (1 - 1 / gammaTarget);
-  const minGammaU2Mv = u1MeasuredMv * (1 - 1 / 1.36);
-  const maxGammaU2Mv = u1MeasuredMv * (1 - 1 / 1.44);
-  const u2MeasuredMv = roundNumber(clampNumber(
-    profile.u2MeasuredMv,
-    Math.max(25, minGammaU2Mv, targetU2MeasuredMv - 0.95),
-    Math.min(u1MeasuredMv - 12, maxGammaU2Mv, targetU2MeasuredMv + 0.95),
-  ), 2);
+  const requestedGamma = clampNumber(profile.gammaTarget, AUTO_DEMO_GAMMA_MIN, AUTO_DEMO_GAMMA_MAX);
+  const u0MeasuredMv = truncateHeatCapacitySignalMv(clampNumber(profile.u0MeasuredMv, -0.03, 0.03));
+  const u1MeasuredMv = truncateHeatCapacitySignalMv(clampNumber(profile.u1MeasuredMv, 105, 130));
+  const u2MeasuredMv = truncateHeatCapacitySignalMv(
+    roundNumber(calculateHeatCapacityU2ForGamma(u0MeasuredMv, u1MeasuredMv, requestedGamma), 6),
+  );
+  const gammaTarget = roundNumber(calculateHeatCapacityGammaFromDisplayedSignals(
+    u0MeasuredMv,
+    u1MeasuredMv,
+    u2MeasuredMv,
+  ), 6);
   const ambientTemperatureMv = clampNumber(
     Number.isFinite(profile.ambientTemperatureMv) ? profile.ambientTemperatureMv : profile.initialTemperatureMv,
     1498.8,
@@ -69,7 +104,10 @@ export const clampHeatCapacityTeachingProfile = (
     ...profile,
     theoreticalGamma: AIR_THEORETICAL_GAMMA,
     gammaTarget,
-    u0MeasuredMv: clampNumber(profile.u0MeasuredMv, -0.03, 0.03),
+    u0TargetMv: u0MeasuredMv,
+    u1TargetMv: u1MeasuredMv,
+    u2TargetMv: u2MeasuredMv,
+    u0MeasuredMv,
     u1MeasuredMv,
     u2MeasuredMv,
     stableBeforeReleaseMv: u1MeasuredMv,
@@ -83,19 +121,40 @@ export const clampHeatCapacityTeachingProfile = (
   };
 };
 
-export const createHeatCapacityAutoDemoProfile = (): HeatCapacityTeachingProfile => clampHeatCapacityTeachingProfile({
-  seed: 'auto-demo-fixed',
-  gammaTarget: HEAT_CAPACITY_AUTO_DEMO_RESULT_GAMMA,
+const AUTO_DEMO_U2_CHOICES_MV = Array.from({ length: 1200 }, (_, index) => index / 10)
+  .filter((u2Mv) => {
+    const gamma = calculateHeatCapacityGammaFromDisplayedSignals(
+      HEAT_CAPACITY_AUTO_DEMO_RESULT_U0_MV,
+      HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV,
+      u2Mv,
+    );
+    return gamma >= AUTO_DEMO_GAMMA_MIN && gamma <= AUTO_DEMO_GAMMA_MAX;
+  });
+
+export const createHeatCapacityAutoDemoProfile = (
+  random: () => number = Math.random,
+): HeatCapacityTeachingProfile => {
+  const randomUnit = clampNumber(random(), 0, 0.999999999);
+  const choiceIndex = Math.floor(randomUnit * AUTO_DEMO_U2_CHOICES_MV.length);
+  const u2MeasuredMv = AUTO_DEMO_U2_CHOICES_MV[choiceIndex];
+  const gammaTarget = calculateHeatCapacityGammaFromDisplayedSignals(
+    HEAT_CAPACITY_AUTO_DEMO_RESULT_U0_MV,
+    HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV,
+    u2MeasuredMv,
+  );
+  return clampHeatCapacityTeachingProfile({
+  seed: `auto-demo-${choiceIndex}`,
+  gammaTarget,
   theoreticalGamma: AIR_THEORETICAL_GAMMA,
   u0TargetMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U0_MV,
   u1TargetMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV,
-  u2TargetMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U2_MV,
+  u2TargetMv: u2MeasuredMv,
   u0MeasuredMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U0_MV,
   u1MeasuredMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV,
-  u2MeasuredMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U2_MV,
+  u2MeasuredMv,
   pumpPeakPressureMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV + 12,
   stableBeforeReleaseMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV,
-  recoveryPressureMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_U2_MV,
+  recoveryPressureMv: u2MeasuredMv,
   ambientTemperatureMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_TEMPERATURE_MV,
   initialTemperatureMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_TEMPERATURE_MV,
   stableTemperatureMv: HEAT_CAPACITY_AUTO_DEMO_RESULT_TEMPERATURE_MV,
@@ -105,4 +164,5 @@ export const createHeatCapacityAutoDemoProfile = (): HeatCapacityTeachingProfile
   releaseSpeed: 1,
   thermalRecoveryRate: 1,
   displayNoiseLevel: 0,
-});
+  });
+};

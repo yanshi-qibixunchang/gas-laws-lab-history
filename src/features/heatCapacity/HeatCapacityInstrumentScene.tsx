@@ -25,10 +25,29 @@ import {
   formatHeatCapacitySignalMv,
 } from '../../domain/heatCapacity/heatCapacitySignalDisplayModel.ts';
 import {
+  HEAT_CAPACITY_RELEASE_TIMING,
+} from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import {
   HEAT_CAPACITY_QUALITY_PROFILES,
   type HeatCapacityQualityMode,
   type HeatCapacityQualityProfile,
 } from './heatCapacityQualityProfiles';
+import { useHeatCapacityAudioController } from '../../audio/experiments/heatCapacity/heatCapacityAudioController.ts';
+import {
+  HEAT_CAPACITY_BLOCKED_VALVE_TRAVEL_DEG,
+  createHeatCapacityBinaryRollbackPlan,
+  createHeatCapacityKnobRollbackPlan,
+  createHeatCapacityPumpBulbRollbackPlan,
+  useHeatCapacityGuideRollbackMotion,
+  type HeatCapacityGuideRollbackCue,
+} from './heatCapacityGuideRollbackMotion.ts';
+import {
+  HeatCapacityWheelGestureTracker,
+  createHeatCapacityControlInteractionId,
+  type HeatCapacityControlInteractionId,
+} from './heatCapacityControlInteraction.ts';
+
+type HeatCapacityGuideRollbackCueHandler = (cue: HeatCapacityGuideRollbackCue) => void;
 
 export type HeatCapacityCameraPose = {
   position: [number, number, number];
@@ -68,6 +87,7 @@ export type HeatCapacitySceneCaptureProvider = () => HeatCapacityCameraPose | nu
 
 interface HeatCapacityInstrumentSceneProps {
   sceneFileId: string;
+  experimentMode: 'demo' | 'guide' | 'free';
   performanceMode: HeatCapacityQualityMode;
   sceneTheme: 'dark' | 'light';
   language: 'zh-CN' | 'zh-TW' | 'en';
@@ -96,6 +116,7 @@ interface HeatCapacityInstrumentSceneProps {
   pumpValveState: 'open' | 'closed';
   pumpBulbState: 'idle' | 'compressing' | 'releasing';
   pumpPulseId: number;
+  recordPulseId: number;
   pumpFrequency: number;
   pumpFrequencyStatus: 'idle' | 'tooSlow' | 'suitable';
   pumpHint: string;
@@ -106,6 +127,7 @@ interface HeatCapacityInstrumentSceneProps {
   pressureSignalMv: number | null;
   pressureReleaseBurstActive: boolean;
   releaseFlowActive: boolean;
+  releaseAudioFlowActive: boolean;
   releaseTimeline: HeatCapacityHardSphereReleaseTimeline;
   pumpFlowActive: boolean;
   pumpFlowIntensity: number;
@@ -131,8 +153,14 @@ interface HeatCapacityInstrumentSceneProps {
   onLockedInteraction: (message?: string, control?: HeatCapacityLockedControl) => void;
   onPowerToggle: (nextPowerOn?: boolean) => void;
   onStopcockOpenChange: (nextOpen?: boolean) => void;
-  onPressureZeroFineAdjust: (direction: number) => void;
-  onPressureZeroCoarseAdjust: (angleDeltaDeg: number) => void;
+  onPressureZeroFineAdjust: (
+    direction: number,
+    interactionId: HeatCapacityControlInteractionId,
+  ) => boolean;
+  onPressureZeroCoarseAdjust: (
+    angleDeltaDeg: number,
+    interactionId: HeatCapacityControlInteractionId,
+  ) => boolean;
   onPumpValveToggle: () => void;
   onPumpBulbPress: () => void;
   onHardSphereViewToggle: () => void;
@@ -1420,6 +1448,7 @@ function InstrumentBox({
   demoFocusPulseActive,
   guideRollbackAnimation,
   guideRollbackKey,
+  onGuideRollbackCue,
   onLockedInteraction,
   interactionQualityReduced,
   panelTextInteractionReduced,
@@ -1437,6 +1466,7 @@ function InstrumentBox({
   panelTextInteractionReduced: boolean;
   sceneCopy: HeatCapacitySceneCopy;
   scenePalette: HeatCapacityScenePalette;
+  onGuideRollbackCue: HeatCapacityGuideRollbackCueHandler;
 }) {
   const temperatureText = powerOn ? formatSignal(temperatureSignalMv) : '';
   const pressureText = powerOn ? formatSignal(pressureSignalMv) : '';
@@ -1459,15 +1489,40 @@ function InstrumentBox({
   const invalidate = useThree((state) => state.invalidate);
   const gaugeNeedlePivotRef = useRef<THREE.Group | null>(null);
   const pressureZeroKnobRef = useRef<THREE.Group | null>(null);
-  const [pressureZeroRollbackOffsetDeg, setPressureZeroRollbackOffsetDeg] = useState(0);
-  const [powerSwitchRollbackOffset, setPowerSwitchRollbackOffset] = useState(0);
+  const knobRollbackPlan = useMemo(() => createHeatCapacityKnobRollbackPlan(), []);
+  const powerRollbackPlan = useMemo(() => createHeatCapacityBinaryRollbackPlan({
+    animation: 'powerBounce',
+    amplitude: powerOn ? 0.7 : -0.7,
+    departureAction: powerOn ? 'powerOff' : 'powerOn',
+    returnAction: powerOn ? 'powerOn' : 'powerOff',
+  }), [powerOn]);
+  const pressureZeroRollbackOffsetDeg = useHeatCapacityGuideRollbackMotion({
+    active: guideRollbackAnimation === 'knobBounce',
+    cycleKey: guideRollbackKey,
+    plan: knobRollbackPlan,
+    onCue: onGuideRollbackCue,
+    onFrame: invalidate,
+  });
+  const powerSwitchRollbackOffset = useHeatCapacityGuideRollbackMotion({
+    active: guideRollbackAnimation === 'powerBounce',
+    cycleKey: guideRollbackKey,
+    plan: powerRollbackPlan,
+    onCue: onGuideRollbackCue,
+    onFrame: invalidate,
+  });
   const pressureZeroDragRef = useRef({
     startKnobAngle: pressureZeroKnobAngle,
     lastPointerAngle: 0,
     totalDelta: 0,
     lastAppliedKnobAngle: pressureZeroKnobAngle,
     moved: false,
+    rejected: false,
+    interactionId: null as HeatCapacityControlInteractionId | null,
   });
+  const pressureZeroWheelGestureRef = useRef(new HeatCapacityWheelGestureTracker());
+  useEffect(() => {
+    if (focusMode !== 'instrument') pressureZeroWheelGestureRef.current.reset();
+  }, [focusMode]);
   const gaugeNeedleTargetRotation = getPressureGaugeNeedleRotation(
     pressureGaugeDisplayValue,
     gaugePressureMinKPa,
@@ -1504,49 +1559,6 @@ function InstrumentBox({
     }
   });
 
-  useEffect(() => {
-    if (guideRollbackAnimation !== 'knobBounce' || guideRollbackKey <= 0) return undefined;
-    const startTime = performance.now();
-    let frameId = 0;
-    const animate = (timestamp: number) => {
-      const progress = Math.min(1, (timestamp - startTime) / 360);
-      setPressureZeroRollbackOffsetDeg(Math.sin(progress * Math.PI) * 18);
-      invalidate();
-      if (progress < 1) {
-        frameId = window.requestAnimationFrame(animate);
-      } else {
-        setPressureZeroRollbackOffsetDeg(0);
-      }
-    };
-    frameId = window.requestAnimationFrame(animate);
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      setPressureZeroRollbackOffsetDeg(0);
-    };
-  }, [invalidate, guideRollbackAnimation, guideRollbackKey]);
-
-  useEffect(() => {
-    if (guideRollbackAnimation !== 'powerBounce' || guideRollbackKey <= 0) return undefined;
-    const startTime = performance.now();
-    const direction = powerOn ? 1 : -1;
-    let frameId = 0;
-    const animate = (timestamp: number) => {
-      const progress = Math.min(1, (timestamp - startTime) / 320);
-      setPowerSwitchRollbackOffset(Math.sin(progress * Math.PI) * 0.7 * direction);
-      invalidate();
-      if (progress < 1) {
-        frameId = window.requestAnimationFrame(animate);
-      } else {
-        setPowerSwitchRollbackOffset(0);
-      }
-    };
-    frameId = window.requestAnimationFrame(animate);
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      setPowerSwitchRollbackOffset(0);
-    };
-  }, [invalidate, guideRollbackAnimation, guideRollbackKey, powerOn]);
-
   const getPressureZeroPointerAngle = useCallback((clientX: number, clientY: number) => {
     if (!pressureZeroKnobRef.current) return null;
     const rect = gl.domElement.getBoundingClientRect();
@@ -1578,7 +1590,11 @@ function InstrumentBox({
       if (limitMessage) onLockedInteraction(limitMessage, 'pressureZero');
       return;
     }
-    onPressureZeroFineAdjust(boundedDelta);
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    onPressureZeroFineAdjust(
+      boundedDelta,
+      pressureZeroWheelGestureRef.current.getInteractionId(now),
+    );
   };
 
   const startPressureZeroDrag = (event: ThreeEvent<PointerEvent>) => {
@@ -1595,6 +1611,8 @@ function InstrumentBox({
       totalDelta: 0,
       lastAppliedKnobAngle: pressureZeroKnobAngle,
       moved: false,
+      rejected: false,
+      interactionId: createHeatCapacityControlInteractionId('pressureZero', 'drag'),
     };
     const pointerId = event.pointerId;
     gl.domElement.setPointerCapture?.(pointerId);
@@ -1602,6 +1620,7 @@ function InstrumentBox({
       const nextPointerAngle = getPressureZeroPointerAngle(moveEvent.clientX, moveEvent.clientY);
       if (nextPointerAngle === null) return;
       const dragState = pressureZeroDragRef.current;
+      if (dragState.rejected) return;
       const pointerDelta = getSignedAngleDelta(nextPointerAngle, dragState.lastPointerAngle);
       dragState.lastPointerAngle = nextPointerAngle;
       dragState.totalDelta += pointerDelta * PRESSURE_ZERO_DRAG_DIRECTION;
@@ -1615,15 +1634,33 @@ function InstrumentBox({
       }
       dragState.lastAppliedKnobAngle = nextKnobAngle;
       dragState.moved = true;
-      onPressureZeroCoarseAdjust(incrementalDelta);
+      if (dragState.interactionId) {
+        dragState.rejected = !onPressureZeroCoarseAdjust(
+          incrementalDelta,
+          dragState.interactionId,
+        );
+      }
     };
-    const handlePointerUp = () => {
-      gl.domElement.releasePointerCapture?.(pointerId);
+    let finished = false;
+    const finishPointerGesture = () => {
+      if (finished) return;
+      finished = true;
       window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointerup', finishPointerGesture);
+      window.removeEventListener('pointercancel', finishPointerGesture);
+      window.removeEventListener('lostpointercapture', finishPointerGesture);
+      try {
+        if (gl.domElement.hasPointerCapture?.(pointerId)) {
+          gl.domElement.releasePointerCapture?.(pointerId);
+        }
+      } catch {
+        // Synthetic browser-test events may not own a real pointer capture.
+      }
     };
     window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp, { once: true });
+    window.addEventListener('pointerup', finishPointerGesture, { once: true });
+    window.addEventListener('pointercancel', finishPointerGesture, { once: true });
+    window.addEventListener('lostpointercapture', finishPointerGesture, { once: true });
   };
 
   const powerSwitchRotation = powerOn ? -0.35 : 0.35;
@@ -1885,6 +1922,7 @@ function GlassStopcock({
   demoFocusPulseActive,
   guideRollbackAnimation,
   guideRollbackKey,
+  onGuideRollbackCue,
   onLockedInteraction,
   interactionQualityReduced,
   scenePalette,
@@ -1895,11 +1933,26 @@ function GlassStopcock({
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
   interactionQualityReduced: boolean;
   scenePalette: HeatCapacityScenePalette;
+  onGuideRollbackCue: HeatCapacityGuideRollbackCueHandler;
 }) {
   const stopcockCoreRef = useRef<THREE.Group | null>(null);
   const [displayAngleDeg, setDisplayAngleDeg] = useState(angleDeg);
   const displayAngleRef = useRef(angleDeg);
-  const [stopcockRollbackOffsetDeg, setStopcockRollbackOffsetDeg] = useState(0);
+  const stopcockOpen = getHeatCapacityStopcockState(angleDeg) === 'open';
+  const stopcockRollbackPlan = useMemo(() => createHeatCapacityBinaryRollbackPlan({
+    animation: 'stopcockBounce',
+    amplitude: stopcockOpen
+      ? -HEAT_CAPACITY_BLOCKED_VALVE_TRAVEL_DEG
+      : HEAT_CAPACITY_BLOCKED_VALVE_TRAVEL_DEG,
+    departureAction: stopcockOpen ? 'stopcockClose' : 'stopcockOpen',
+    returnAction: stopcockOpen ? 'stopcockOpen' : 'stopcockClose',
+  }), [stopcockOpen]);
+  const stopcockRollbackOffsetDeg = useHeatCapacityGuideRollbackMotion({
+    active: guideRollbackAnimation === 'stopcockBounce',
+    cycleKey: guideRollbackKey,
+    plan: stopcockRollbackPlan,
+    onCue: onGuideRollbackCue,
+  });
 
   useEffect(() => {
     const startAngle = displayAngleRef.current;
@@ -1910,7 +1963,9 @@ function GlassStopcock({
       return undefined;
     }
     const startTime = performance.now();
-    const durationMs = PUMP_VALVE_TRANSITION_MS;
+    const durationMs = targetAngle > startAngle
+      ? HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs
+      : HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs;
     let frameId = 0;
     const animate = (timestamp: number) => {
       const progress = Math.min(1, (timestamp - startTime) / durationMs);
@@ -1923,27 +1978,6 @@ function GlassStopcock({
     frameId = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frameId);
   }, [angleDeg]);
-
-  useEffect(() => {
-    if (guideRollbackAnimation !== 'stopcockBounce' || guideRollbackKey <= 0) return undefined;
-    const startTime = performance.now();
-    let frameId = 0;
-    const direction = getHeatCapacityStopcockState(angleDeg) === 'open' ? -1 : 1;
-    const animate = (timestamp: number) => {
-      const progress = Math.min(1, (timestamp - startTime) / 360);
-      setStopcockRollbackOffsetDeg(Math.sin(progress * Math.PI) * 24 * direction);
-      if (progress < 1) {
-        frameId = window.requestAnimationFrame(animate);
-      } else {
-        setStopcockRollbackOffsetDeg(0);
-      }
-    };
-    frameId = window.requestAnimationFrame(animate);
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      setStopcockRollbackOffsetDeg(0);
-    };
-  }, [angleDeg, guideRollbackAnimation, guideRollbackKey]);
 
   const state = getHeatCapacityStopcockState(angleDeg);
   const stopcockHovered = hoveredControl === 'stopcock';
@@ -2108,6 +2142,7 @@ function PressureBottle({
   demoFocusPulseActive,
   guideRollbackAnimation,
   guideRollbackKey,
+  onGuideRollbackCue,
   onLockedInteraction,
   interactionQualityReduced,
   scenePalette,
@@ -2118,6 +2153,7 @@ function PressureBottle({
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
   interactionQualityReduced: boolean;
   scenePalette: HeatCapacityScenePalette;
+  onGuideRollbackCue: HeatCapacityGuideRollbackCueHandler;
 }) {
   return (
     <group name="SquareGlassPressureBottle" position={[-1.3, -0.28, 0]}>
@@ -2179,6 +2215,7 @@ function PressureBottle({
         demoFocusPulseActive={demoFocusPulseActive}
         guideRollbackAnimation={guideRollbackAnimation}
         guideRollbackKey={guideRollbackKey}
+        onGuideRollbackCue={onGuideRollbackCue}
         onLockedInteraction={onLockedInteraction}
         interactionQualityReduced={interactionQualityReduced}
         scenePalette={scenePalette}
@@ -2263,6 +2300,7 @@ function PumpAssembly({
   demoFocusPulseActive,
   guideRollbackAnimation,
   guideRollbackKey,
+  onGuideRollbackCue,
   onLockedInteraction,
   interactionQualityReduced,
   scenePalette,
@@ -2273,13 +2311,36 @@ function PumpAssembly({
   setHoveredControl: (control: HeatCapacityHoveredControl) => void;
   interactionQualityReduced: boolean;
   scenePalette: HeatCapacityScenePalette;
+  onGuideRollbackCue: HeatCapacityGuideRollbackCueHandler;
 }) {
   const bulbHovered = hoveredControl === 'pumpBulb';
   const valveHovered = hoveredControl === 'pumpValve';
   const pumpBulbDemoFocused = demoFocusPulseActive && demoFocusControlId === 'pumpBulb';
   const pumpValveDemoFocused = demoFocusPulseActive && demoFocusControlId === 'pumpValve';
   const [valveHandleAngle, setValveHandleAngle] = useState(pumpValveOpen ? 0 : Math.PI / 2);
-  const [valveRollbackOffset, setValveRollbackOffset] = useState(0);
+  const valveRollbackPlan = useMemo(() => createHeatCapacityBinaryRollbackPlan({
+    animation: 'valveBounce',
+    amplitude: THREE.MathUtils.degToRad(
+      pumpValveOpen
+        ? HEAT_CAPACITY_BLOCKED_VALVE_TRAVEL_DEG
+        : -HEAT_CAPACITY_BLOCKED_VALVE_TRAVEL_DEG,
+    ),
+    departureAction: pumpValveOpen ? 'pumpValveClose' : 'pumpValveOpen',
+    returnAction: pumpValveOpen ? 'pumpValveOpen' : 'pumpValveClose',
+  }), [pumpValveOpen]);
+  const valveRollbackOffset = useHeatCapacityGuideRollbackMotion({
+    active: guideRollbackAnimation === 'valveBounce',
+    cycleKey: guideRollbackKey,
+    plan: valveRollbackPlan,
+    onCue: onGuideRollbackCue,
+  });
+  const pumpBulbRollbackPlan = useMemo(() => createHeatCapacityPumpBulbRollbackPlan(), []);
+  const pumpBulbRollbackWeight = useHeatCapacityGuideRollbackMotion({
+    active: guideRollbackAnimation === 'pumpBulbBounce',
+    cycleKey: guideRollbackKey,
+    plan: pumpBulbRollbackPlan,
+    onCue: onGuideRollbackCue,
+  });
   const pumpPulseTimersRef = useRef<{
     releaseTimerId: number | null;
     idleTimerId: number | null;
@@ -2290,9 +2351,14 @@ function PumpAssembly({
     ? [1.08, 0.7, 1.06]
     : visualPumpBulbState === 'releasing'
       ? [1.02, 0.92, 1.01]
-      : [1, 1, 1];
-  const pumpBulbActive = visualPumpBulbState !== 'idle';
-  const tubeColor = pumpValveOpen && pumpBulbActive ? scenePalette.pump.tubeActive : scenePalette.pump.tubeIdle;
+      : [
+          1 + 0.08 * pumpBulbRollbackWeight,
+          1 - 0.3 * pumpBulbRollbackWeight,
+          1 + 0.06 * pumpBulbRollbackWeight,
+        ];
+  const realPumpBulbActive = visualPumpBulbState !== 'idle';
+  const pumpBulbActive = realPumpBulbActive || pumpBulbRollbackWeight > 0.001;
+  const tubeColor = pumpValveOpen && realPumpBulbActive ? scenePalette.pump.tubeActive : scenePalette.pump.tubeIdle;
 
   const clearPumpPulseTimers = () => {
     const timers = pumpPulseTimersRef.current;
@@ -2345,27 +2411,6 @@ function PumpAssembly({
     frameId = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frameId);
   }, [pumpValveOpen]);
-
-  useEffect(() => {
-    if (guideRollbackAnimation !== 'valveBounce' || guideRollbackKey <= 0) return undefined;
-    const startTime = performance.now();
-    let frameId = 0;
-    const direction = pumpValveOpen ? 1 : -1;
-    const animate = (timestamp: number) => {
-      const progress = Math.min(1, (timestamp - startTime) / 320);
-      setValveRollbackOffset(Math.sin(progress * Math.PI) * 0.38 * direction);
-      if (progress < 1) {
-        frameId = window.requestAnimationFrame(animate);
-      } else {
-        setValveRollbackOffset(0);
-      }
-    };
-    frameId = window.requestAnimationFrame(animate);
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      setValveRollbackOffset(0);
-    };
-  }, [guideRollbackAnimation, guideRollbackKey, pumpValveOpen]);
 
   useEffect(() => {
     if (pumpPulseId <= 0) return undefined;
@@ -2563,6 +2608,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
   panelTextInteractionReduced: boolean;
   sceneCopy: HeatCapacitySceneCopy;
   scenePalette: HeatCapacityScenePalette;
+  onGuideRollbackCue: HeatCapacityGuideRollbackCueHandler;
 }) {
   const stopcockState = getHeatCapacityStopcockState(props.stopcockAngleDeg);
   const zeroEnabled = props.powerOn && stopcockState === 'open';
@@ -2588,6 +2634,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           demoFocusPulseActive={props.demoFocusPulseActive}
           guideRollbackAnimation={props.guideRollbackAnimation}
           guideRollbackKey={props.guideRollbackKey}
+          onGuideRollbackCue={props.onGuideRollbackCue}
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
           scenePalette={scenePalette}
@@ -2632,6 +2679,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           demoFocusPulseActive={props.demoFocusPulseActive}
           guideRollbackAnimation={props.guideRollbackAnimation}
           guideRollbackKey={props.guideRollbackKey}
+          onGuideRollbackCue={props.onGuideRollbackCue}
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
           scenePalette={scenePalette}
@@ -2661,6 +2709,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           demoFocusPulseActive={props.demoFocusPulseActive}
           guideRollbackAnimation={props.guideRollbackAnimation}
           guideRollbackKey={props.guideRollbackKey}
+          onGuideRollbackCue={props.onGuideRollbackCue}
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
           panelTextInteractionReduced={props.panelTextInteractionReduced}
@@ -3313,6 +3362,21 @@ function HeatCapacityOrbitControls({
 }
 
 export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumentSceneProps) {
+  const { playGuideRollbackCue } = useHeatCapacityAudioController({
+    sceneFileId: props.sceneFileId,
+    experimentMode: props.experimentMode,
+    resetKey: props.hardSphereVisualResetKey,
+    powerOn: props.powerOn,
+    stopcockAngleDeg: props.stopcockAngleDeg,
+    pumpValveOpen: props.pumpValveOpen,
+    pressureZeroKnobAngle: props.pressureZeroKnobAngle,
+    pressureZeroAdjustMode: props.pressureZeroAdjustMode,
+    pumpPulseId: props.pumpPulseId,
+    recordPulseId: props.recordPulseId,
+    outwardReleaseFlowActive: props.releaseAudioFlowActive,
+    pressureDeltaKPa: props.pressureDeltaKPa,
+    paused: props.hardSpherePaused,
+  });
   const sceneRootRef = useRef<HTMLDivElement | null>(null);
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const sceneFrameCaptureHandlerRef = useRef<HeatCapacitySceneFrameCaptureHandler | null>(null);
@@ -3760,6 +3824,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       panelTextInteractionReduced={isOrbitInteracting}
       sceneCopy={sceneCopy}
       scenePalette={scenePalette}
+      onGuideRollbackCue={playGuideRollbackCue}
       initialHardSphereVisualCheckpoint={hardSphereVisualCheckpointRef.current ?? restoredInitialHardSphereVisualCheckpoint}
       onHardSphereCheckpointProviderChange={setHardSphereCheckpointProvider}
       hardSpherePaused={props.hardSpherePaused || restoreAnimationsPaused}
@@ -3848,6 +3913,9 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           initialHardSphereVisualCheckpoint={hardSphereVisualCheckpointRef.current ?? restoredInitialHardSphereVisualCheckpoint}
           onHardSphereCheckpointProviderChange={setHardSphereCheckpointProvider}
           restorePaused={restoreAnimationsPaused}
+          guideRollbackAnimation={props.guideRollbackAnimation}
+          guideRollbackKey={props.guideRollbackKey}
+          onGuideRollbackCue={playGuideRollbackCue}
         />
         <HeatCapacitySceneReadyBridge onReady={handleSceneReady} />
       </Suspense>

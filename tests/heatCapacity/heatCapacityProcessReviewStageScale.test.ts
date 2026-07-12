@@ -21,7 +21,7 @@ const standardReferenceStages: HeatCapacityProcessStageSegment[] = [
   { id: 'zero', label: 'Zero', startS: 0, endS: 4 },
   { id: 'pump', label: 'Pump', startS: 4, endS: 5.2 },
   { id: 'stabilize', label: 'Stabilize', startS: 5.2, endS: 15.2 },
-  { id: 'release', label: 'Release', startS: 15.2, endS: 15.55, durationText: '0.35 s' },
+  { id: 'release', label: 'Release', startS: 15.2, endS: 15.575, durationText: '0.375 s' },
   { id: 'recover', label: 'Recover', startS: 15.55, endS: 36 },
 ];
 

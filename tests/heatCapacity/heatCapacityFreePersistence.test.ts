@@ -233,7 +233,7 @@ assert.equal(payload.free?.ideal?.gasType, 'air');
 assert.equal(payload.free?.real?.trials.length, 0);
 assert.equal(payload.free?.ideal?.trials.length, 0);
 assert.equal(payload.free?.gasType, 'air');
-assert.equal(payload.free?.config.version, 7);
+assert.equal(payload.free?.config.version, 8);
 assert.equal(payload.free?.parameterDraft?.ambientPressureKPa, 101.3);
 assert.equal(payload.free?.parameterDraft?.gasType, 'air');
 assert.equal(payload.free?.recordConfig?.u0ZeroToleranceMv, 0.12);
@@ -247,17 +247,20 @@ assert.equal('advancedRiskAccepted' in (payload.free ?? {}), false);
 assert.equal(payload.free?.config.physics.pumpAmountGainRatio, 0.00345);
 assert.equal('pumpInflowTemperatureRiseK' in payload.free!.config.physics, false);
 assert.equal(payload.free?.config.physics.pumpStrokeDurationS, 0.08);
-assert.equal(payload.free?.config.physics.releaseVisualMainDurationS, 0.18);
-assert.equal('releaseMainDurationS' in payload.free!.config.physics, false);
+assert.equal(payload.free?.config.physics.openingAnimationDurationMs, 420);
+assert.equal(payload.free?.config.physics.releaseApertureRampS, 0.1);
+assert.equal(payload.free?.config.physics.releaseOptimalMinS, 0.3);
+assert.equal(payload.free?.config.physics.releaseOptimalMaxS, 0.5);
+assert.equal(payload.free?.config.physics.autoDemoReleaseDurationS, 0.375);
 assert.equal('chamberTemperatureRiseK' in payload.free!.config.physics.pumpValveExchange!, false);
 assert.equal(payload.free?.config.sensor.pumpLagRate, 36);
 assert.equal(payload.free?.config.sensor.fastProcessSampleStepS, 0.04);
-assert.equal(payload.free?.config.scoring.processScoringVersion, 'free-process-score-v1');
+assert.equal(payload.free?.config.scoring.processScoringVersion, 'free-process-score-v2');
 assert.equal(payload.free?.config.record.u0ZeroToleranceMv, 0.12);
 assert.equal(payload.free?.runtime.gasAmountRatio, 1);
 assert.equal(payload.free?.controls.powerOn, false);
-assert.equal(payload.free?.controls.stopcockFlowOpen, false);
-assert.equal(payload.free?.controls.stopcockFlowPurpose, 'none');
+assert.equal(payload.free?.controls.releaseState.phase, 'closed');
+assert.equal(payload.free?.controls.releaseState.purpose, 'none');
 assert.equal('heatCapacityMaterialsExpanded' in payload.free!.uiReplay, false);
 assert.equal('pressureGaugeNeedleAngle' in payload.free!.uiReplay, false);
 assert.equal('stopcockAngleDeg' in payload.free!.uiReplay, false);
@@ -395,12 +398,19 @@ const tracedFile = recordHeatCapacityFreeTraceEvent({
   pumpBulbState: 'compressing',
   glassPistonState: 'open',
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
-  heatCapacityFreeStopcockFlowOpen: true,
+  heatCapacityReleaseState: {
+    ...file.heatCapacityReleaseState,
+    phase: 'releasing',
+    purpose: 'release',
+    openingStartedAtS: 0,
+    openingCompletedAtS: 0.42,
+    formedRelease: true,
+  },
 }, 'pump-stroke', 123);
 const tracedTrial = tracedFile.heatCapacityFreeTraceStore.traceTrials[0];
 const tracedSample = tracedTrial.branches[0].samples[0];
 assert.equal(tracedSample.controls.stopcockOpen, true);
-assert.equal(tracedSample.controls.stopcockFlowOpen, true);
+assert.equal(tracedSample.controls.releaseFlowOpen, true);
 assert.equal(tracedSample.controls.pumpBulbState, 'compressing');
 
 const recordedTrial = {
@@ -626,7 +636,7 @@ assert.equal(restored.heatCapacityFreeParameterScheme, 'real');
 assert.equal(restored.heatCapacityFreeDisplayScheme, 'real');
 assert.equal(restored.heatCapacityFreeRealDomain.scheme, 'real');
 assert.equal(restored.heatCapacityFreeIdealDomain.scheme, 'ideal');
-assert.equal(restored.heatCapacityFreeStopcockFlowPurpose, 'none');
+assert.equal(restored.heatCapacityReleaseState.purpose, 'none');
 
 const contaminatedAcknowledgementsPayload = structuredClone(editedPayload) as typeof editedPayload;
 contaminatedAcknowledgementsPayload.free!.acknowledgements = {

@@ -1,5 +1,6 @@
 import type { HeatCapacityProcessSampleKey } from './heatCapacityProcessTypes.ts';
 import {
+  HEAT_CAPACITY_RELEASE_TIMING,
   HEAT_CAPACITY_STANDARD_OPERATION,
 } from './heatCapacityDefaultConfig.ts';
 
@@ -72,9 +73,30 @@ export interface HeatCapacityAutoDemoTimelineItem {
 
 const DEFAULT_PRE_HIGHLIGHT_MS = 4_000;
 const DEFAULT_OBSERVE_MS = 3_000;
-const STOPCOCK_TRANSITION_MS = 1_000;
 const POWER_TRANSITION_MS = 650;
 const PUMP_VALVE_TRANSITION_MS = 420;
+export const HEAT_CAPACITY_AUTO_DEMO_ZEROING_ACTION_DURATION_MS = 1_200;
+const STOPCOCK_OPENING_MS = HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs;
+const STOPCOCK_CLOSING_MS = HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs;
+export const HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_PUMP_MS = Math.round(
+  HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS * 1000,
+);
+export const HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_RELEASE_MS = Math.round(
+  HEAT_CAPACITY_STANDARD_OPERATION.waitAfterReleaseS * 1000,
+);
+const getAutoDemoWaitActionDurationMs = (standardWaitMs: number) => Math.max(
+  0,
+  standardWaitMs - DEFAULT_OBSERVE_MS - DEFAULT_PRE_HIGHLIGHT_MS,
+);
+export const HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_ACTION_DURATION_MS =
+  getAutoDemoWaitActionDurationMs(HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_PUMP_MS);
+export const HEAT_CAPACITY_AUTO_DEMO_RECOVERY_ACTION_DURATION_MS =
+  getAutoDemoWaitActionDurationMs(HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_RELEASE_MS);
+export const HEAT_CAPACITY_AUTO_DEMO_RELEASE_CLOSE_DELAY_MS = Math.round(
+  STOPCOCK_OPENING_MS + HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS * 1000,
+);
+export const HEAT_CAPACITY_AUTO_DEMO_RELEASE_ACTION_DURATION_MS =
+  HEAT_CAPACITY_AUTO_DEMO_RELEASE_CLOSE_DELAY_MS + STOPCOCK_CLOSING_MS;
 export const HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT = HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes;
 export const HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS = Math.round(
   (HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS * 1000) /
@@ -116,7 +138,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     targetControlId: 'stopcock',
     cameraFocusMode: 'bottle',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
-    actionDurationMs: STOPCOCK_TRANSITION_MS,
+    actionDurationMs: STOPCOCK_OPENING_MS,
     observeDurationMs: DEFAULT_OBSERVE_MS,
     actions: [{ action: 'openStopcockForZero' }],
   },
@@ -134,7 +156,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
       { targetControlId: 'pressureZero', cameraFocusMode: 'instrument', durationMs: 4_000 },
     ],
     preHighlightMs: 8_000,
-    actionDurationMs: 1_200,
+    actionDurationMs: HEAT_CAPACITY_AUTO_DEMO_ZEROING_ACTION_DURATION_MS,
     observeDurationMs: DEFAULT_OBSERVE_MS,
     actions: [
       { action: 'observeInitialPressure' },
@@ -152,7 +174,7 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     targetControlId: 'stopcock',
     cameraFocusMode: 'bottle',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
-    actionDurationMs: STOPCOCK_TRANSITION_MS,
+    actionDurationMs: STOPCOCK_CLOSING_MS,
     observeDurationMs: DEFAULT_OBSERVE_MS,
     actions: [{ action: 'closeStopcockForPumping' }],
   },
@@ -206,13 +228,17 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     description: '关闭打气阀门后保持气瓶封闭，等待压强和温度信号稳定',
     target: 'Uₚ / Uₜ 显示屏',
     progressCriterion: '等待 5 min 后记录 U₁ / Uₜ₁。',
-    note: '演示会加速播放，但这里对应真实实验中的 5 min 等待规范。',
+    note: '演示按标准操作实际等待 5 min，不压缩等待时长。',
     targetControlId: 'instrumentPanel',
     cameraFocusMode: 'instrument',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
-    actionDurationMs: 2_900,
+    actionDurationMs: HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_ACTION_DURATION_MS,
     observeDurationMs: DEFAULT_OBSERVE_MS,
-    actions: [{ action: 'captureSample', delayMs: 2_800, sampleKey: 'stableBeforeReleaseSample' }],
+    actions: [{
+      action: 'captureSample',
+      delayMs: HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_ACTION_DURATION_MS,
+      sampleKey: 'stableBeforeReleaseSample',
+    }],
   },
   {
     id: 'release-and-close-stopcock',
@@ -224,12 +250,16 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     targetControlId: 'stopcock',
     cameraFocusMode: 'bottle',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
-    actionDurationMs: 2_700,
+    actionDurationMs: HEAT_CAPACITY_AUTO_DEMO_RELEASE_ACTION_DURATION_MS,
     observeDurationMs: DEFAULT_OBSERVE_MS,
     actions: [
       { action: 'openStopcockForRelease' },
-      { action: 'captureSample', delayMs: 1_450, sampleKey: 'releaseLowSample' },
-      { action: 'closeStopcockForRecovery', delayMs: 1_650 },
+      {
+        action: 'captureSample',
+        delayMs: HEAT_CAPACITY_AUTO_DEMO_RELEASE_CLOSE_DELAY_MS,
+        sampleKey: 'releaseLowSample',
+      },
+      { action: 'closeStopcockForRecovery', delayMs: HEAT_CAPACITY_AUTO_DEMO_RELEASE_CLOSE_DELAY_MS },
     ],
   },
   {
@@ -238,13 +268,17 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     description: '快速放气并关闭玻璃旋塞后，等待瓶内空气回温',
     target: 'Uₜ / Uₚ 显示屏',
     progressCriterion: '等待 5 min 后记录 U₂ / Uₜ₂。',
-    note: 'U₂ 不取刚放气瞬间值，应取回温稳定后的读数。',
+    note: '演示按标准操作实际等待 5 min，再取回温稳定后的 U₂ 读数。',
     targetControlId: 'instrumentTemperatureDisplay',
     cameraFocusMode: 'instrument',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
-    actionDurationMs: 2_900,
+    actionDurationMs: HEAT_CAPACITY_AUTO_DEMO_RECOVERY_ACTION_DURATION_MS,
     observeDurationMs: DEFAULT_OBSERVE_MS,
-    actions: [{ action: 'captureSample', delayMs: 2_800, sampleKey: 'recoverySample' }],
+    actions: [{
+      action: 'captureSample',
+      delayMs: HEAT_CAPACITY_AUTO_DEMO_RECOVERY_ACTION_DURATION_MS,
+      sampleKey: 'recoverySample',
+    }],
   },
   {
     id: 'power-off',

@@ -33,7 +33,6 @@ import {
 } from './heatCapacityGasTheory.ts';
 import {
   calculateHeatCapacityRelativeErrorPercent,
-  findHeatCapacityStopcockFlowStartTime,
 } from './heatCapacityFreeProcessMetrics.ts';
 
 export type {
@@ -101,6 +100,7 @@ export interface HeatCapacityProcessControlEvent {
   kind: HeatCapacityProcessControlKind;
   label: string;
   timeS: number;
+  quickToggle?: boolean;
   count?: number;
 }
 
@@ -290,7 +290,8 @@ const findEventAfter = (
   events: HeatCapacityFreeEvent[],
   type: HeatCapacityFreeEventType,
   afterS: number,
-) => events.find((event) => event.type === type && event.atS >= afterS) ?? null;
+  predicate: (event: HeatCapacityFreeEvent) => boolean = () => true,
+) => events.find((event) => event.type === type && event.atS >= afterS && predicate(event)) ?? null;
 
 const findPressurePeakSampleTime = (
   samples: HeatCapacityFreeTraceSample[],
@@ -354,18 +355,24 @@ const createStages = (
   const pumpEnd = lastPumpEvent
     ? findPressurePeakSampleTime(samples, lastPumpEvent.atS, pumpPeakSearchEnd) ?? lastPumpEvent.atS
     : pumpValveCloseTime ?? pumpStart;
-  const releaseStartEvent = findEventAfter(eventsInWindow, 'stopcock-open', pumpEnd);
-  const releaseStart = releaseStartEvent
-    ? findHeatCapacityStopcockFlowStartTime(samples, releaseStartEvent.atS)
-    : trial.u1?.atS ?? pumpEnd;
-  const releaseEnd = findEventAfter(eventsInWindow, 'stopcock-close', releaseStart)?.atS ?? releaseStart;
+  const releaseStartEvent = findEventAfter(eventsInWindow, 'release-start', pumpEnd);
+  const releaseAttemptId = releaseStartEvent?.payload?.attemptId;
+  const releaseCloseEvent = releaseStartEvent
+    ? findEventAfter(eventsInWindow, 'stopcock-close', releaseStartEvent.atS, (event) => (
+        releaseAttemptId === undefined || event.payload?.attemptId === releaseAttemptId
+      ) && event.payload?.formedRelease !== false)
+    : null;
+  const releaseStart = releaseStartEvent?.atS ?? null;
+  const releaseEnd = releaseStart === null
+    ? null
+    : releaseCloseEvent?.atS ?? lastTime;
   const segments: HeatCapacityProcessStageSegment[] = [];
   const addSegment = (segment: HeatCapacityProcessStageSegment) => {
     if (segment.endS > segment.startS) {
       segments.push({
         ...segment,
-        startS: roundNumber(segment.startS, 2),
-        endS: roundNumber(segment.endS, 2),
+        startS: roundNumber(segment.startS, 3),
+        endS: roundNumber(segment.endS, 3),
       });
     }
   };
@@ -378,15 +385,26 @@ const createStages = (
     endS: pumpEnd,
     countText: pumpEvents.length > 0 ? `x${pumpEvents.length}` : undefined,
   });
-  addSegment({ id: 'stabilize', label: '回温稳定', startS: pumpEnd, endS: releaseStart });
   addSegment({
-    id: 'release',
-    label: '开阀放气',
-    startS: releaseStart,
-    endS: releaseEnd,
-    durationText: releaseEnd > releaseStart ? `${formatNumber(releaseEnd - releaseStart, 1)} s` : undefined,
+    id: 'stabilize',
+    label: '回温稳定',
+    startS: pumpEnd,
+    endS: releaseStart ?? lastTime,
   });
-  addSegment({ id: 'recover', label: '关阀回温', startS: releaseEnd, endS: lastTime });
+  if (releaseStart !== null && releaseEnd !== null) {
+    addSegment({
+      id: 'release',
+      label: '开阀放气',
+      startS: releaseStart,
+      endS: releaseEnd,
+      durationText: releaseEnd > releaseStart
+        ? `${formatNumber(releaseEnd - releaseStart, 3)} s`
+        : undefined,
+    });
+  }
+  if (releaseCloseEvent && releaseEnd !== null) {
+    addSegment({ id: 'recover', label: '关阀回温', startS: releaseEnd, endS: lastTime });
+  }
   return segments;
 };
 
@@ -422,13 +440,13 @@ const createControls = (
 ) => {
   const controls: HeatCapacityProcessControlEvent[] = branch.events
     .filter((event) => isWithinStageWindow(event.atS, stages))
-    .flatMap((event) => {
+    .flatMap<HeatCapacityProcessControlEvent>((event) => {
       if (event.type === 'pump-stroke') {
         return [{
           id: event.id,
           kind: 'pumpBulb',
           label: '打气球',
-          timeS: roundNumber(event.atS, 2),
+          timeS: roundNumber(event.atS, 3),
         }];
       }
       const mapped = controlEventTypeMap[event.type];
@@ -436,8 +454,11 @@ const createControls = (
         ? [{
           id: event.id,
           kind: mapped.kind,
-          label: mapped.label,
-          timeS: roundNumber(event.atS, 2),
+          label: event.type === 'stopcock-close' && event.payload?.quickToggle === true
+            ? `${mapped.label}（快速开关，未形成实际放气）`
+            : mapped.label,
+          timeS: roundNumber(event.atS, 3),
+          quickToggle: event.type === 'stopcock-close' && event.payload?.quickToggle === true,
         }]
         : [];
     });
