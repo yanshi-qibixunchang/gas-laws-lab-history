@@ -15,6 +15,7 @@ export interface HeatCapacityHardSphereParticle {
   exitInertiaSpeed?: number;
   exitInertiaAgeS?: number;
   exitDelayS?: number;
+  releaseRecoveryDelayS?: number;
 }
 
 export interface HeatCapacityHardSphereBoxContainer {

@@ -1466,16 +1466,6 @@ const releaseCoolingHardSphereVisual = getHeatCapacityHardSphereVisualState({
   pumpBulbState: 'idle',
 });
 assert.equal(
-  releaseCoolingHardSphereVisual.outflowDriftSpeed > 0,
-  true,
-  'open glass stopcock with pressure difference should create directed release drift instead of changing random thermal speed',
-);
-assert.equal(
-  Object.prototype.hasOwnProperty.call(releaseCoolingHardSphereVisual, 'exitSelectionRate'),
-  false,
-  'scheduled release should leave particle-count selection to the release timeline',
-);
-assert.equal(
   releaseCoolingHardSphereVisual.thermalSpeedMultiplier < poweredOffHardSphereVisual.thermalSpeedMultiplier,
   true,
   'release cooling should slow random thermal motion through temperature, not through pressure',

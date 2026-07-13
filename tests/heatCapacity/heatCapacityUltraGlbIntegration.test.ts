@@ -224,11 +224,6 @@ assert.match(
   /<HeatCapacityHardSphereLayer[\s\S]*containerProfile="ultra-cylinder"/,
   'Ultra GLB should mount hard spheres in the measured cylinder profile',
 );
-assert.doesNotMatch(
-  ultraModelSource,
-  /motionMode=/,
-  'Ultra GLB should not pass the retired hard-sphere breakpoint motion mode',
-);
 assert.match(
   hardSphereLayerSource,
   /const ULTRA_HARD_SPHERE_CYLINDER_CENTER = new THREE\.Vector3\(-1\.399999976158142,\s*0\.7625,\s*0\);[\s\S]*const ULTRA_HARD_SPHERE_CYLINDER_RADIUS = 0\.48500001430511475;[\s\S]*const ULTRA_HARD_SPHERE_CYLINDER_HALF_HEIGHT = 0\.6325;/,
@@ -236,8 +231,8 @@ assert.match(
 );
 assert.match(
   hardSphereLayerSource,
-  /const ULTRA_HARD_SPHERE_PARTICLE_RADIUS = PARTICLE_RADIUS \* 0\.75;[\s\S]*particleRadius: ULTRA_HARD_SPHERE_PARTICLE_RADIUS[\s\S]*particleCountScale: 0\.75[\s\S]*pumpEntryRateScale: 0\.5/,
-  'Ultra cylinder particles should render and collide at three quarters of the current radius and count, with half-rate pump entry',
+  /const ULTRA_HARD_SPHERE_PARTICLE_RADIUS = PARTICLE_RADIUS \* 0\.75;[\s\S]*particleRadius: ULTRA_HARD_SPHERE_PARTICLE_RADIUS[\s\S]*particleCountScale: 0\.525[\s\S]*pumpEntryRateScale: 0\.5/,
+  'Ultra cylinder particles should keep the smaller radius and conservative 70-percent population, with half-rate pump entry',
 );
 assert.match(
   hardSphereLayerSource,
@@ -246,13 +241,8 @@ assert.match(
 );
 assert.match(
   hardSphereLayerSource,
-  /pumpFlowActive: pumpPortActive[\s\S]*releasePhase: currentReleaseTimeline\.phase/,
-  'Hard-sphere simulation steps should keep pump entry and release phase connected without the retired motion gate',
-);
-assert.doesNotMatch(
-  hardSphereLayerSource,
-  /motionMode|pump-only|staticMotionOnly|pumpMotionEnabled|releaseMotionEnabled/,
-  'Hard-sphere layer should not retain retired breakpoint-only motion gates',
+  /pumpFlowActive: pumpPortActive[\s\S]*releaseExitBudget,[\s\S]*releaseFeedback,[\s\S]*releaseJustStopped,/,
+  'Hard-sphere simulation steps should connect pump entry and canonical release feedback directly',
 );
 
 const glbNeedlePivot = runtimeGlbJson.nodes?.find((node) => node.name === 'HSL_PressureGauge_NeedlePivot');

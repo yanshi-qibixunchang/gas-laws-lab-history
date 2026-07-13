@@ -35,7 +35,6 @@ const pumped = getHeatCapacityHardSphereVisualState({
   pumpFlowIntensity: 1,
 });
 
-assert.equal(ambient.outflowActive, false);
 assert.equal(ambient.targetParticleCount, 42, 'baseline gas amount should map to the baseline molecule count');
 assert.equal(ambient.temperatureColorFactor, 0.625, 'room-temperature hard-sphere color factor should be the neutral point of the -5 K to +3 K range');
 assert.equal(pumped.thermalSpeedMultiplier > ambient.thermalSpeedMultiplier, true, 'higher gas temperature should visibly increase random thermal particle speed');
@@ -103,7 +102,6 @@ const demoTeachingPumping = getHeatCapacityHardSphereVisualState({
   pressureDeltaKPa: 4.5,
 });
 
-assert.equal(demoTeachingPumping.outflowActive, false, 'demo pumping should not be treated as a release outflow');
 assert.equal(demoTeachingPumping.targetParticleCount > ambient.targetParticleCount, true, 'demo pumping should increase the visible molecule pool only from the gas amount state');
 assert.equal(demoTeachingPumping.thermalSpeedMultiplier > ambient.thermalSpeedMultiplier, true, 'demo pumping should accelerate random thermal motion only through the teaching temperature signal');
 assert.equal(demoTeachingPumping.temperatureColorFactor > ambient.temperatureColorFactor, true, 'demo pumping should drive particle color from the teaching temperature signal');
@@ -176,13 +174,7 @@ const releasing = getHeatCapacityHardSphereVisualState({
   pressureDeltaKPa: 5.5,
 });
 
-assert.equal(releasing.outflowActive, true, 'open glass stopcock with pressure difference should trigger particle outflow');
-assert.equal(releasing.outflowDriftSpeed > 0, true, 'open glass stopcock with pressure difference should create directed drift speed');
-assert.equal(
-  Object.prototype.hasOwnProperty.call(releasing, 'exitSelectionRate'),
-  false,
-  'release particle counts should be owned by the release timeline, not the visual drift model',
-);
+assert.equal(releasing.stability < ambient.stability, true, 'active release should visibly bias the teaching display away from equilibrium');
 assert.equal(releasing.thermalSpeedMultiplier < ambient.thermalSpeedMultiplier, true, 'release cooling should slow random thermal motion through the temperature reading itself');
 assert.equal(releasing.temperatureColorFactor < ambient.temperatureColorFactor, true, 'release cooling should lower the temperature color factor through the temperature reading itself');
 assert.equal(releasing.targetParticleCount > ambient.targetParticleCount, true, 'partial release should still show more molecules than the fully vented baseline when gas amount remains above 1');
@@ -202,14 +194,14 @@ const confirmedTeachingReleaseStart = getHeatCapacityHardSphereVisualState({
 });
 
 assert.equal(
-  confirmedTeachingReleaseStart.outflowActive,
-  true,
-  'teaching-mode open stopcock with pressure difference should start directed molecule outflow immediately',
+  confirmedTeachingReleaseStart.stability,
+  releasing.stability,
+  'teaching and free modes should use the same release-state visual response',
 );
 assert.equal(
-  confirmedTeachingReleaseStart.outflowDriftSpeed >= releasing.outflowDriftSpeed - 0.01,
-  true,
-  'teaching-mode pressure difference should use the same fast directed outflow drift as free mode',
+  confirmedTeachingReleaseStart.targetParticleCount,
+  releasing.targetParticleCount,
+  'teaching and free modes should use the same gas-amount population mapping',
 );
 
 const nearEquilibriumRelease = getHeatCapacityHardSphereVisualState({
@@ -226,11 +218,10 @@ const nearEquilibriumRelease = getHeatCapacityHardSphereVisualState({
 });
 
 assert.equal(
-  nearEquilibriumRelease.outflowActive,
-  false,
+  nearEquilibriumRelease.stability > releasing.stability,
+  true,
   'near-equal inner and outer pressure should return hard spheres to non-directed thermal motion',
 );
-assert.equal(nearEquilibriumRelease.outflowDriftSpeed, 0, 'near-equal pressure should not apply outlet drift');
 
 const oneStrokeAmount = getHeatCapacityHardSphereVisualState({
   temperatureMv: 1500,
@@ -266,8 +257,6 @@ const openStopcockPressureDifferencePoweredOff = getHeatCapacityHardSphereVisual
   pressureDeltaKPa: 5.5,
 });
 
-assert.equal(openStopcockPressureDifferencePoweredOff.outflowActive, true, 'open glass stopcock with pressure difference should trigger directed particle motion even when the power is off and no release workflow is active');
-assert.equal(openStopcockPressureDifferencePoweredOff.outflowDriftSpeed > 0, true, 'open glass stopcock with pressure difference should create outlet drift without requiring powered sensors');
 assert.equal(openStopcockPressureDifferencePoweredOff.targetParticleCount > releasing.targetParticleCount, true, 'pre-release molecule count should still reflect the larger gas amount');
 
 const noPressureOpen = getHeatCapacityHardSphereVisualState({
@@ -283,9 +272,12 @@ const noPressureOpen = getHeatCapacityHardSphereVisualState({
   pressureDeltaKPa: 0,
 });
 
-assert.equal(noPressureOpen.outflowActive, false, 'opening the stopcock without pressure difference should not create directed outflow');
-assert.equal(noPressureOpen.outflowDriftSpeed, 0, 'zero pressure difference should not create directed drift even when the stopcock is open');
 assert.equal(noPressureOpen.targetParticleCount, 42);
+assert.equal(
+  openStopcockPressureDifferencePoweredOff.stability < noPressureOpen.stability,
+  true,
+  'physical pressure difference should affect the teaching display even while the instrument is powered off',
+);
 
 const cooledVentedStandard = getHeatCapacityHardSphereVisualState({
   temperatureMv: 1494,
@@ -364,11 +356,6 @@ const highPressureRelease = getHeatCapacityHardSphereVisualState({
 });
 
 assert.equal(
-  highPressureRelease.outflowDriftSpeed > lowPressureRelease.outflowDriftSpeed,
-  true,
-  'larger pressure difference should create faster directed release drift',
-);
-assert.equal(
   highPressureRelease.thermalSpeedMultiplier,
   lowPressureRelease.thermalSpeedMultiplier,
   'pressure difference should not change random thermal speed at the same temperature',
@@ -386,7 +373,6 @@ const blockedBounce = getHeatCapacityHardSphereVisualState({
   pumpBulbState: 'releasing',
 });
 
-assert.equal(blockedBounce.outflowActive, false, 'rollback animations must not be treated as real outflow');
 assert.equal(blockedBounce.targetParticleCount >= 26, true);
 
 const poweredOff = getHeatCapacityHardSphereVisualState({
@@ -425,33 +411,28 @@ assert.match(
 );
 assert.match(
   hardSphereSimulationSource,
-  /EXIT_OCCLUSION_OFFSET/,
-  'release particles should disappear at the stopper occlusion plane instead of visibly crossing the stopper',
+  /getExitOcclusionOffset/,
+  'release particles should keep a short visible path beyond the stopper before being hidden',
+);
+assert.match(
+  hardSphereSimulationSource,
+  /minimumVisibleExitS/,
+  'near-outlet particles should have a minimum visible travel time instead of disappearing in one frame',
 );
 assert.doesNotMatch(
   hardSphereLayerSource,
   /motion\.velocity\.addScaledVector\(OUTLET_DIRECTION/,
   'release drift should be aimed toward the mouth/stopper target, not only along the global outlet axis',
 );
-assert.doesNotMatch(
-  hardSphereLayerSource,
-  /RELEASE_EXIT_RATE_PER_S|RELEASE_REPLENISH_RATE_PER_S/,
-  'hard-sphere layer should not keep legacy release constants after release timelines own exit counts',
-);
 assert.match(
   hardSphereLayerSource,
   /resolveHeatCapacityReleaseFeedback/,
   'release animation should use the shared aperture-and-pressure feedback model',
 );
-assert.doesNotMatch(
-  hardSphereLayerSource,
-  /createHeatCapacityHardSpherePostExchangeSchedule/,
-  'the obsolete multi-second directed post-release exchange path should be removed',
-);
 assert.match(
   hardSphereLayerSource,
-  /outflowActive:\s*releaseFeedback\.active/,
-  'release feedback should stop selecting particles when the shared physical flow has stopped',
+  /releaseFeedback,/,
+  'the shared release feedback should be passed directly into the simulation',
 );
 assert.match(
   hardSphereLayerSource,
@@ -462,16 +443,6 @@ assert.match(
   hardSphereSimulationSource,
   /releaseExitBudget/,
   'hard-sphere simulation should select release particles from explicit release timeline budgets',
-);
-assert.doesNotMatch(
-  hardSphereSimulationSource,
-  /exitSelectionRate|EXIT_SELECTION/,
-  'hard-sphere simulation should not keep legacy pressure-rate particle selection',
-);
-assert.doesNotMatch(
-  modelSource,
-  /outflowIntensity|releaseProgress\?:|exitSelectionRate/,
-  'hard-sphere visual model should not expose legacy combined outflow, progress, or selection-rate fields',
 );
 assert.match(
   hardSphereSimulationSource,

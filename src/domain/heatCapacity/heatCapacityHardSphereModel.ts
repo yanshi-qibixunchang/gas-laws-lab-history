@@ -1,5 +1,8 @@
 import type { HeatCapacityRuntimePhase } from './heatCapacityProcessTypes.ts';
 import { HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA } from './heatCapacityReleaseModel.ts';
+import {
+  resolveHeatCapacityHardSpherePopulation,
+} from './heatCapacityHardSpherePopulation.ts';
 
 export type HeatCapacityHardSpherePumpBulbState = 'idle' | 'compressing' | 'releasing';
 
@@ -31,6 +34,7 @@ export interface HeatCapacityHardSphereVisualInput {
   pumpValveOpen: boolean;
   pumpBulbState: HeatCapacityHardSpherePumpBulbState;
   particleMultiplier?: number;
+  particleCountScale?: number;
   speedMultiplier?: number;
   gasAmountRatio?: number;
   gasTemperatureK?: number;
@@ -49,16 +53,10 @@ export interface HeatCapacityHardSphereVisualState {
   speedMultiplier: number;
   temperatureColorFactor: number;
   emissiveIntensity: number;
-  outflowActive: boolean;
-  outflowDriftSpeed: number;
   stability: number;
   targetParticleCount: number;
 }
 
-export const HEAT_CAPACITY_HARD_SPHERE_MAX_PARTICLES = 128;
-export const HEAT_CAPACITY_HARD_SPHERE_MIN_PARTICLES = 24;
-export const HEAT_CAPACITY_HARD_SPHERE_BASE_PARTICLES = 42;
-export const HEAT_CAPACITY_HARD_SPHERE_AMOUNT_EXAGGERATION = 19;
 export const HEAT_CAPACITY_HARD_SPHERE_COLD_DELTA_K = -5;
 export const HEAT_CAPACITY_HARD_SPHERE_HOT_DELTA_K = 3;
 export const HEAT_CAPACITY_HARD_SPHERE_OUTFLOW_EQUILIBRIUM_KPA = HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA;
@@ -108,7 +106,6 @@ export const getHeatCapacityHardSphereVisualState = (
   const pressureDeltaKPa = finiteOrFallback(input.pressureDeltaKPa, finiteOrFallback(input.pressureMv, 0) / 20);
   const smoothedPressureMv = Math.max(0, roundToStep(finiteOrFallback(input.pressureMv, pressureDeltaKPa * 20), 2));
   const pressureFactor = normalizeClamped(smoothedPressureMv, 0, nominalPressureMv);
-  const releasePressureFactor = Math.max(pressureFactor, normalizeClamped(pressureDeltaKPa, 0, 6));
   const compressionThermalFactor = Math.max(pressureFactor, normalizeClamped(pressureDeltaKPa, 0, 6));
   const phase = input.phase;
   const actualOutflow = input.glassStopcockOpen === true &&
@@ -128,15 +125,15 @@ export const getHeatCapacityHardSphereVisualState = (
     HEAT_CAPACITY_HARD_SPHERE_HOT_DELTA_K,
   );
 
-  let baseCount = Math.round(
-    HEAT_CAPACITY_HARD_SPHERE_BASE_PARTICLES *
-      (1 + (gasAmountRatio - 1) * HEAT_CAPACITY_HARD_SPHERE_AMOUNT_EXAGGERATION),
-  );
+  const population = resolveHeatCapacityHardSpherePopulation({
+    amountRatio: gasAmountRatio,
+    particleMultiplier,
+    particleCountScale: input.particleCountScale,
+  });
   let densityMultiplier = clampNumber(0.88 + (gasAmountRatio - 1) * 3.4, 0.54, 1.9);
   const thermalSpeedMultiplier = clampNumber(1 + effectiveTemperatureDeltaK * 0.1, 0.78, 1.55);
   let emissiveIntensity = lerpNumber(0.14, 0.34, temperatureColorFactor);
   let stability = lerpNumber(0.92, 0.5, temperatureColorFactor);
-  let outflowDriftSpeed = 0;
 
   if (activePump) {
     densityMultiplier += 0.24;
@@ -156,7 +153,6 @@ export const getHeatCapacityHardSphereVisualState = (
     densityMultiplier = clampNumber(densityMultiplier * 0.9, 0.5, 1.6);
     emissiveIntensity = 0.18;
     stability = 0.28;
-    outflowDriftSpeed = clampNumber(lerpNumber(0.72, 1.45, releasePressureFactor), 0.65, 1.45);
   } else if (phase === 'recovering') {
     densityMultiplier = clampNumber(densityMultiplier, 0.64, 1.24);
     emissiveIntensity = 0.16;
@@ -164,14 +160,7 @@ export const getHeatCapacityHardSphereVisualState = (
   }
 
   const visualThermalSpeedMultiplier = clampNumber(thermalSpeedMultiplier * requestedSpeedMultiplier, 0.68, 2.65);
-  const baselineParticleCount = Math.round(HEAT_CAPACITY_HARD_SPHERE_BASE_PARTICLES * particleMultiplier);
-  const minimumParticleCount = Math.max(HEAT_CAPACITY_HARD_SPHERE_MIN_PARTICLES, baselineParticleCount);
-
-  const targetParticleCount = clampNumber(
-    Math.round(baseCount * particleMultiplier),
-    minimumParticleCount,
-    HEAT_CAPACITY_HARD_SPHERE_MAX_PARTICLES,
-  );
+  const targetParticleCount = population.targetParticleCount;
 
   return {
     densityMultiplier: clampNumber(densityMultiplier * particleMultiplier, 0.42, 2.05),
@@ -179,8 +168,6 @@ export const getHeatCapacityHardSphereVisualState = (
     speedMultiplier: visualThermalSpeedMultiplier,
     temperatureColorFactor,
     emissiveIntensity,
-    outflowActive: actualOutflow,
-    outflowDriftSpeed,
     stability: clampNumber(stability, 0.25, 0.96),
     targetParticleCount,
   };

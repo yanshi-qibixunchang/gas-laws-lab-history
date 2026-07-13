@@ -6,7 +6,6 @@ import {
   type HeatCapacityHardSphereParticle,
   type HeatCapacityHardSphereVec3,
 } from './heatCapacityHardSphereGeometry.ts';
-import type { HeatCapacityHardSphereReleasePhase } from './heatCapacityHardSphereModel.ts';
 import { HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE } from './heatCapacityHardSphereReleaseSchedule.ts';
 import type {
   HeatCapacityReleaseFeedback,
@@ -38,18 +37,18 @@ export interface HeatCapacityHardSphereSimulationStepInput {
   dtS: number;
   targetParticleCount: number;
   thermalSpeedMultiplier: number;
-  outflowActive: boolean;
-  outflowDriftSpeed: number;
-  releasePhase?: HeatCapacityHardSphereReleasePhase;
-  releaseExitBudget?: number;
-  releaseExitSpeed?: number;
-  releaseMinimumParticleCount?: number;
-  releaseFinalizeExitBudget?: number;
-  releaseJustStopped?: boolean;
-  releaseFeedback?: HeatCapacityReleaseFeedback;
+  releaseExitBudget: number;
+  releaseExitSpeed: number;
+  releaseMinimumParticleCount: number;
+  releaseJustStopped: boolean;
+  releaseFeedback: HeatCapacityReleaseFeedback;
   pumpFlowActive: boolean;
   pumpFlowIntensity: number;
   pumpEntryRateScale?: number;
+}
+
+export interface HeatCapacityHardSphereSimulationStepResult {
+  acceptedReleaseExitCount: number;
 }
 
 const FIXED_DT_S = 1 / 120;
@@ -57,11 +56,9 @@ const MAX_SUB_STEPS = 5;
 const BASE_PARTICLE_SPEED = 0.54;
 const SPAWN_ATTEMPTS = 24;
 const COLLISION_SOLVER_ITERATIONS = 2;
-const EXIT_OCCLUSION_OFFSET = 0.06;
 const PUMP_ENTRY_BASE_RATE_PER_S = 18;
 const PUMP_ENTRY_INTENSITY_RATE_PER_S = 54;
 const MAIN_RELEASE_STAGGER_MAX_S = HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.mainStaggerMaxS;
-const NATURAL_RELEASE_STAGGER_MAX_S = 0.08;
 
 const clampNumber = (value: number, min: number, max: number) => (
   Math.min(max, Math.max(min, value))
@@ -223,6 +220,10 @@ const clearExitInertia = (particle: HeatCapacityHardSphereParticle) => {
   particle.exitDelayS = 0;
 };
 
+const clearReleaseRecovery = (particle: HeatCapacityHardSphereParticle) => {
+  particle.releaseRecoveryDelayS = 0;
+};
+
 const getOutletSignedDistance = (
   container: HeatCapacityHardSphereContainer,
   position: HeatCapacityHardSphereVec3,
@@ -237,6 +238,13 @@ const hasParticleCrossedOutlet = (
   simulation: HeatCapacityHardSphereSimulation,
 ) => getOutletSignedDistance(simulation.container, particle.position) >= simulation.particleRadius * 0.3;
 
+const getExitOcclusionOffset = (simulation: HeatCapacityHardSphereSimulation) => (
+  Math.max(
+    simulation.particleRadius * HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.exitOcclusionRadii,
+    0.12,
+  )
+);
+
 const beginReleaseRecovery = (
   simulation: HeatCapacityHardSphereSimulation,
   stopReason: HeatCapacityReleaseFeedbackStopReason,
@@ -249,24 +257,18 @@ const beginReleaseRecovery = (
 
   for (const particle of simulation.particles) {
     if (particle.state === 'exiting') {
-      if (pressureBalanced || hasParticleCrossedOutlet(particle, simulation)) {
-        particle.state = 'hidden';
-        particle.outflowProgress = 0;
-        clearExitInertia(particle);
+      if (hasParticleCrossedOutlet(particle, simulation)) {
         continue;
       }
       particle.state = 'inside';
       particle.outflowProgress = 0;
       clearExitInertia(particle);
     }
-    if (!pressureBalanced || particle.state !== 'inside') continue;
-    const outletDirection = getOutletAttractionDirection(simulation.container, particle.position);
-    const outwardSpeed = dotVec3(particle.velocity, outletDirection);
-    if (outwardSpeed <= 0) continue;
-    const reboundFactor = HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.balancedReboundFactor;
-    particle.velocity.x -= outletDirection.x * outwardSpeed * (1 + reboundFactor);
-    particle.velocity.y -= outletDirection.y * outwardSpeed * (1 + reboundFactor);
-    particle.velocity.z -= outletDirection.z * outwardSpeed * (1 + reboundFactor);
+    if (particle.state !== 'inside') continue;
+    particle.releaseRecoveryDelayS = pressureBalanced
+      ? seededNoise(particle.id * 43.19 + simulation.seed * 0.07) *
+        HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.maximumRecoveryDelayS
+      : 0;
   }
 };
 
@@ -285,11 +287,9 @@ const steerParticleThroughReleaseGradient = (
   dtS: number,
 ) => {
   const outletProximity = getOutletProximity(simulation.container, particle.position);
-  const distanceWeight = 0.48 + Math.pow(outletProximity, 1.25) * 0.52;
   const drive = clampNumber(Math.sqrt(Math.max(0, flowDriveRatio)), 0, 1);
-  const responseDrive = Math.max(0.08, drive) * distanceWeight;
-  const responseS = HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.approachResponseS /
-    Math.max(0.1, responseDrive);
+  const responseS = HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.approachResponseS *
+    (1.18 - outletProximity * 0.42);
   const blend = 1 - Math.exp(-dtS / Math.max(0.001, responseS));
   const speedMultiplier = (
     HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.farApproachSpeedMultiplier +
@@ -297,7 +297,7 @@ const steerParticleThroughReleaseGradient = (
       HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.nearApproachSpeedMultiplier -
       HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.farApproachSpeedMultiplier
     ) * outletProximity
-  ) * (0.76 + drive * 0.24);
+  ) * (0.82 + drive * 0.18);
   const outletDirection = getOutletAttractionDirection(simulation.container, particle.position);
   const targetVelocity = scaleVec3(outletDirection, BASE_PARTICLE_SPEED * speedMultiplier);
   particle.velocity.x += (targetVelocity.x - particle.velocity.x) * blend;
@@ -307,12 +307,33 @@ const steerParticleThroughReleaseGradient = (
 
 const recoverParticleVelocity = (
   particle: HeatCapacityHardSphereParticle,
+  simulation: HeatCapacityHardSphereSimulation,
   dtS: number,
 ) => {
-  const speed = lengthVec3(particle.velocity);
-  if (speed <= 0.000001) return;
+  const recoveryDelayS = Math.max(0, particle.releaseRecoveryDelayS ?? 0);
+  if (recoveryDelayS > 0) {
+    particle.releaseRecoveryDelayS = Math.max(0, recoveryDelayS - dtS);
+    return;
+  }
   const responseS = HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.recoveryResponseS;
   const blend = 1 - Math.exp(-dtS / Math.max(0.001, responseS));
+  if (simulation.releaseRecoveryReason === 'pressure-balanced') {
+    const outletDirection = getOutletAttractionDirection(simulation.container, particle.position);
+    const thermalDirection = deterministicDirection(simulation.seed + particle.id * 37 + 17);
+    const returnBias = HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.pressureBalancedReturnBias;
+    const targetDirection = normalizeVec3({
+      x: thermalDirection.x * (1 - returnBias) - outletDirection.x * returnBias,
+      y: thermalDirection.y * (1 - returnBias) - outletDirection.y * returnBias,
+      z: thermalDirection.z * (1 - returnBias) - outletDirection.z * returnBias,
+    }, scaleVec3(outletDirection, -1));
+    const targetVelocity = scaleVec3(targetDirection, BASE_PARTICLE_SPEED);
+    particle.velocity.x += (targetVelocity.x - particle.velocity.x) * blend;
+    particle.velocity.y += (targetVelocity.y - particle.velocity.y) * blend;
+    particle.velocity.z += (targetVelocity.z - particle.velocity.z) * blend;
+    return;
+  }
+  const speed = lengthVec3(particle.velocity);
+  if (speed <= 0.000001) return;
   const nextSpeed = speed + (BASE_PARTICLE_SPEED - speed) * blend;
   particle.velocity = scaleVec3(particle.velocity, nextSpeed / speed);
 };
@@ -335,34 +356,21 @@ const restoreFiniteParticle = (
   }
 };
 
-const resolveReleasePhase = (
-  input: HeatCapacityHardSphereSimulationStepInput,
-) => input.releasePhase ?? 'none';
-
 const resolveInputExitSpeed = (
   input: HeatCapacityHardSphereSimulationStepInput,
-  _releasePhase: HeatCapacityHardSphereReleasePhase,
 ) => {
-  const exitIntensity = Math.max(0.86, clampNumber(input.outflowDriftSpeed, 0, 1.6));
-  const scheduledExitSpeed = Number.isFinite(input.releaseExitSpeed ?? 0) && (input.releaseExitSpeed ?? 0) > 0
-    ? Math.max(0.4, input.releaseExitSpeed ?? 0)
-    : null;
-  return scheduledExitSpeed ?? (1.9 + exitIntensity * 1.25);
+  if (!Number.isFinite(input.releaseExitSpeed) || input.releaseExitSpeed <= 0) {
+    return HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.exitSpeed;
+  }
+  return Math.max(0.4, input.releaseExitSpeed);
 };
-
-const resolveExitProgressScale = (
-  _releasePhase: HeatCapacityHardSphereReleasePhase,
-) => HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.exitProgressScale;
 
 const resolveExitStaggerDelayS = (
   particle: HeatCapacityHardSphereParticle,
-  releasePhase: HeatCapacityHardSphereReleasePhase,
   order: number,
   batchSize: number,
 ) => {
-  const maxDelayS = releasePhase === 'main-release'
-    ? MAIN_RELEASE_STAGGER_MAX_S
-    : NATURAL_RELEASE_STAGGER_MAX_S;
+  const maxDelayS = MAIN_RELEASE_STAGGER_MAX_S;
   if (maxDelayS <= 0 || batchSize <= 1 || order <= 0) return 0;
   const orderProgress = clampNumber(order / Math.max(batchSize - 1, 1), 0, 1);
   const stableJitter = (seededNoise(particle.id * 29.17 + batchSize * 3.11) - 0.5) * 0.22;
@@ -376,13 +384,13 @@ const startParticleExit = (
   order: number,
   batchSize: number,
 ) => {
-  const releasePhase = resolveReleasePhase(input);
   particle.state = 'exiting';
   particle.outflowProgress = Math.max(particle.outflowProgress, 0.12);
   const outletProximity = getOutletProximity(container, particle.position);
-  particle.exitInertiaSpeed = resolveInputExitSpeed(input, releasePhase) * (0.74 + outletProximity * 0.26);
+  particle.exitInertiaSpeed = resolveInputExitSpeed(input) * (0.74 + outletProximity * 0.26);
   particle.exitInertiaAgeS = 0;
-  particle.exitDelayS = resolveExitStaggerDelayS(particle, releasePhase, order, batchSize);
+  particle.exitDelayS = resolveExitStaggerDelayS(particle, order, batchSize);
+  clearReleaseRecovery(particle);
 };
 
 const isSpawnPositionFree = (
@@ -429,6 +437,7 @@ const spawnParticle = (
     );
     particle.outflowProgress = 0;
     clearExitInertia(particle);
+    clearReleaseRecovery(particle);
     particle.state = mode === 'pump' ? 'entering' : 'inside';
     return true;
   }
@@ -438,7 +447,7 @@ const spawnParticle = (
 const reconcileParticleCount = (
   simulation: HeatCapacityHardSphereSimulation,
   input: HeatCapacityHardSphereSimulationStepInput,
-) => {
+): number => {
   const targetParticleCount = clampNumber(
     Math.round(input.targetParticleCount),
     0,
@@ -454,11 +463,8 @@ const reconcileParticleCount = (
   ), 0);
   const insideCount = countParticlesByState(simulation.particles, 'inside');
   const fromPumpPort = input.pumpFlowActive || input.pumpFlowIntensity > 0;
-  const releasePhase = input.releasePhase ?? 'none';
-  const timelineOutletFlow = releasePhase === 'main-release' || releasePhase === 'post-release-exchange';
-  const releaseFeedbackActive = input.releaseFeedback?.active ?? timelineOutletFlow;
   const releaseMinimumParticleCount = clampNumber(
-    Math.round(Number.isFinite(input.releaseMinimumParticleCount ?? 0) ? input.releaseMinimumParticleCount ?? 0 : 0),
+    Math.round(Number.isFinite(input.releaseMinimumParticleCount) ? input.releaseMinimumParticleCount : 0),
     0,
     simulation.maxParticles,
   );
@@ -501,30 +507,9 @@ const reconcileParticleCount = (
 
   const releaseExitBudget = Math.max(
     0,
-    Number.isFinite(input.releaseExitBudget ?? 0) ? input.releaseExitBudget ?? 0 : 0,
+    Number.isFinite(input.releaseExitBudget) ? input.releaseExitBudget : 0,
   );
-  const releaseFinalizeExitBudget = Math.max(
-    0,
-    Number.isFinite(input.releaseFinalizeExitBudget ?? 0) ? input.releaseFinalizeExitBudget ?? 0 : 0,
-  );
-  if (releaseFinalizeExitBudget > 0) {
-    const requestedFinalizeCount = Math.floor(releaseFinalizeExitBudget);
-    const releasableInsideCount = Math.max(0, insideCount - releaseMinimumParticleCount);
-    const finalizeCount = Math.min(releasableInsideCount, requestedFinalizeCount);
-    const selectedInside = simulation.particles
-      .filter((particle) => particle.state === 'inside')
-      .sort((left, right) => getOutletPriority(right, simulation.container) - getOutletPriority(left, simulation.container))
-      .slice(0, finalizeCount);
-    for (const particle of selectedInside) {
-      particle.state = 'hidden';
-      particle.outflowProgress = 0;
-      clearExitInertia(particle);
-    }
-    simulation.exitAccumulator = 0;
-    return;
-  }
-
-  if (timelineOutletFlow && releaseFeedbackActive && releaseExitBudget > 0) {
+  if (input.releaseFeedback.active && releaseExitBudget > 0) {
     const available = Math.max(0, simulation.exitAccumulator) + releaseExitBudget;
     const requestedTrimLimit = Math.floor(available);
     const releasableInsideCount = Math.max(0, insideCount - releaseMinimumParticleCount);
@@ -532,7 +517,7 @@ const reconcileParticleCount = (
     simulation.exitAccumulator = requestedTrimLimit > releasableInsideCount
       ? 0
       : clampNumber(available - trimLimit, 0, 0.999999);
-    if (trimLimit <= 0) return;
+    if (trimLimit <= 0) return 0;
     const sortedInside = simulation.particles
       .filter((particle) => particle.state === 'inside')
       .sort((left, right) => getOutletPriority(right, simulation.container) - getOutletPriority(left, simulation.container));
@@ -542,10 +527,11 @@ const reconcileParticleCount = (
       if (!particle) continue;
       startParticleExit(particle, simulation.container, input, index, selectedInside.length);
     }
-    return;
+    return trimLimit;
   }
 
   simulation.exitAccumulator = 0;
+  return 0;
 };
 
 const resolveParticleCollisions = (
@@ -619,17 +605,15 @@ const stepParticle = (
     particle.velocity.x += Math.sin(particle.id * 8.17 + particle.position.y * 2.1) * jitterScale;
     particle.velocity.y += Math.cos(particle.id * 6.73 + particle.position.z * 1.7) * jitterScale;
     particle.velocity.z += Math.sin(particle.id * 5.31 + particle.position.x * 1.9) * jitterScale;
-    const releaseActive = input.releaseFeedback?.active ?? input.outflowActive;
-    if (releaseActive) {
-      const legacyDriveRatio = clampNumber(input.outflowDriftSpeed / 1.45, 0, 1);
+    if (input.releaseFeedback.active) {
       steerParticleThroughReleaseGradient(
         particle,
         simulation,
-        input.releaseFeedback?.flowDriveRatio ?? legacyDriveRatio,
+        input.releaseFeedback.flowDriveRatio,
         dtS,
       );
     } else if (simulation.releaseRecoveryRemainingS > 0) {
-      recoverParticleVelocity(particle, dtS);
+      recoverParticleVelocity(particle, simulation, dtS);
     } else {
       resetVelocityMagnitude(particle, simulation.seed + particle.id);
     }
@@ -665,32 +649,39 @@ const stepParticle = (
       }, thermalMix), BASE_PARTICLE_SPEED);
     }
   } else if (particle.state === 'exiting') {
-    if (input.releaseFeedback && !input.releaseFeedback.active) {
+    const releaseFeedbackStopped = !input.releaseFeedback.active;
+    const crossedOutletBeforeStep = hasParticleCrossedOutlet(particle, simulation);
+    if (releaseFeedbackStopped && !crossedOutletBeforeStep) {
       particle.state = 'inside';
       particle.outflowProgress = 0;
       clearExitInertia(particle);
       return;
     }
-    const releasePhase = resolveReleasePhase(input);
     const delayS = clampNumber(particle.exitDelayS ?? 0, 0, 2);
     if (delayS > 0) {
       particle.exitDelayS = Math.max(0, delayS - dtS);
       if (delayS >= dtS) return;
     }
     const activeDtS = delayS > 0 ? dtS - delayS : dtS;
-    const inputExitSpeed = resolveInputExitSpeed(input, releasePhase);
+    const inputExitSpeed = resolveInputExitSpeed(input);
     const storedExitSpeed = Number.isFinite(particle.exitInertiaSpeed ?? 0) && (particle.exitInertiaSpeed ?? 0) > 0
       ? particle.exitInertiaSpeed ?? inputExitSpeed
       : inputExitSpeed;
     const exitInertiaAgeS = Math.max(0, particle.exitInertiaAgeS ?? 0);
-    const releaseIntensity = input.releaseFeedback?.intensity ?? 1;
-    const exitSpeed = storedExitSpeed * (0.82 + clampNumber(releaseIntensity, 0, 1) * 0.18);
-    const exitDirection = getOutletAttractionDirection(simulation.container, particle.position);
+    const releaseIntensity = input.releaseFeedback.intensity;
+    const activeExitSpeed = storedExitSpeed * (0.82 + clampNumber(releaseIntensity, 0, 1) * 0.18);
+    const coastScale = releaseFeedbackStopped
+      ? Math.max(0.38, Math.exp(-exitInertiaAgeS / 0.22))
+      : 1;
+    const exitSpeed = activeExitSpeed * coastScale;
+    const exitDirection = crossedOutletBeforeStep
+      ? simulation.container.outletDirection
+      : getOutletAttractionDirection(simulation.container, particle.position);
     particle.velocity = scaleVec3(exitDirection, exitSpeed);
     particle.position.x += particle.velocity.x * activeDtS;
     particle.position.y += particle.velocity.y * activeDtS;
     particle.position.z += particle.velocity.z * activeDtS;
-    const progressRate = exitSpeed * resolveExitProgressScale(releasePhase);
+    const progressRate = exitSpeed * HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.exitProgressScale;
     particle.outflowProgress = clampNumber(
       particle.outflowProgress + activeDtS * progressRate,
       0,
@@ -698,10 +689,12 @@ const stepParticle = (
     );
     const nextExitInertiaAgeS = exitInertiaAgeS + activeDtS;
     particle.exitInertiaAgeS = nextExitInertiaAgeS;
-    if (
-      particle.outflowProgress >= 1 ||
-      getOutletSignedDistance(simulation.container, particle.position) > EXIT_OCCLUSION_OFFSET
-    ) {
+    const crossedOutletAfterStep = hasParticleCrossedOutlet(particle, simulation);
+    const visibleLongEnough = nextExitInertiaAgeS >=
+      HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.minimumVisibleExitS;
+    const reachedExitTail = particle.outflowProgress >= 1 ||
+      getOutletSignedDistance(simulation.container, particle.position) > getExitOcclusionOffset(simulation);
+    if (crossedOutletAfterStep && visibleLongEnough && reachedExitTail) {
       particle.state = 'hidden';
       particle.outflowProgress = 0;
       clearExitInertia(particle);
@@ -721,6 +714,7 @@ export const createHeatCapacityHardSphereSimulation = (
     exitInertiaSpeed: 0,
     exitInertiaAgeS: 0,
     exitDelayS: 0,
+    releaseRecoveryDelayS: 0,
   })),
   maxParticles: options.maxParticles,
   particleRadius: options.particleRadius,
@@ -737,14 +731,14 @@ export const createHeatCapacityHardSphereSimulation = (
 export const stepHeatCapacityHardSphereSimulation = (
   simulation: HeatCapacityHardSphereSimulation,
   input: HeatCapacityHardSphereSimulationStepInput,
-) => {
-  reconcileParticleCount(simulation, input);
+): HeatCapacityHardSphereSimulationStepResult => {
+  const acceptedReleaseExitCount = reconcileParticleCount(simulation, input);
   if (input.releaseJustStopped) {
     beginReleaseRecovery(
       simulation,
-      input.releaseFeedback?.stopReason ?? 'path-closed',
+      input.releaseFeedback.stopReason,
     );
-  } else if (input.releaseFeedback?.active) {
+  } else if (input.releaseFeedback.active) {
     simulation.releaseRecoveryRemainingS = 0;
     simulation.releaseRecoveryReason = 'none';
   }
@@ -774,4 +768,7 @@ export const stepHeatCapacityHardSphereSimulation = (
     simulation.lastSubStepCount += 1;
   }
   simulation.seed += simulation.lastSubStepCount + 1;
+  return {
+    acceptedReleaseExitCount,
+  };
 };
