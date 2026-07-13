@@ -138,8 +138,8 @@
 | 2. 新旧方案全仓库审计与删除 | 已完成 | 旧 Guide ratio/T、旧温度标定迁移、旧可选传感器温度及对应测试已删除 | 清理检查点 |
 | 3. 仪器身份口径统一 | 已完成 | 运行界面、README、源码注释和建模文档统一为通用空气比热容比实验身份 | 身份检查点 |
 | 4. 3D 显示组件唯一外观调整 | 已完成 | 删除独立型号；显示矩形整体放大 1.32 倍并校正位置；范围同步；正面/常用视角通过 | 3D 检查点 |
-| 5. UI 重构前验证与私有远端检查点 | 待办 | tsc/test/专项/预览/交互；推送私有 `-1` 仓库 | UI 前稳定提交 |
-| 6. 创建 `codex/engineering-ui-redesign` | 待办 | 独立 UI 分支 | 分支建立 |
+| 5. UI 重构前验证与私有远端检查点 | 本地已完成；远端阻塞 | tsc/test/build/预览/交互全部通过；`origin` 当前实际为公开 `hard-sphere-lab-1`，未推送 | UI 前稳定提交 |
+| 6. 创建 `codex/engineering-ui-redesign` | 进行中 | 独立 UI 分支 | 分支建立 |
 | 7. 配色令牌、字体与字号基础 | 待办 | 亮/暗配色；Noto Sans SC / JetBrains Mono；字号层级；不改布局 | UI 提交 1 |
 | 8. 主工作台、导航和栏区视觉统一 | 待办 | 仅配色/字体/字号与防裁切适配，保留现有布局 | UI 提交 2 |
 | 9. 子窗口、弹窗、菜单和提示视觉统一 | 待办 | 仅配色/字体/字号与防裁切适配，保留现有结构 | UI 提交 3 |
@@ -218,7 +218,8 @@
 | 任务开始基线 | `codex/heat-capacity-temperature-physics-v4.2.3` | `bcdb505` | 当前分支领先上游的既有粒子反馈与引导计时提交 | 仅本地，领先上游 1 |
 | 清理前安全提交 | `codex/heat-capacity-temperature-physics-v4.2.3` | `b786529d025ec1c3a84b24daad8341b02180358f` | 保存阶段 0 决定、当前热容比物理/工作流/UI/测试/文档修改；39 文件，978 行新增、269 行删除 | 仅本地；当前远端公开，禁止推送 |
 | 旧方案清理 | `codex/heat-capacity-temperature-physics-v4.2.3` | `951add6` | 删除旧 Guide ratio/T、旧 2/4 mV/K 标定迁移、旧可选传感器温度及对应测试 | 仅本地；待稳定检查点统一处理 |
-| UI 重构前稳定提交 | 待执行 | 待填写 | 清理、身份、3D 唯一例外与验证 | 仅允许推送私有 `-1` 仓库 |
+| 身份与 3D 显示检查点 | `codex/heat-capacity-temperature-physics-v4.2.3` | `055fc98` | 通用仪器身份、显示组件整体放大与用户可见型号清理 | 仅本地；当前远端公开，禁止推送 |
+| UI 重构前稳定提交 | `codex/heat-capacity-temperature-physics-v4.2.3` | 待本计划提交后填写 | 清理、身份、3D 唯一例外与全量验证记录 | 仅本地；当前远端公开，禁止推送 |
 | UI 令牌/字体/基础表面 | `codex/engineering-ui-redesign` | 待填写 | 待执行 | 待执行 |
 | UI 主工作台/导航/栏区 | `codex/engineering-ui-redesign` | 待填写 | 待执行 | 待执行 |
 | UI 子窗口/弹窗/菜单/提示 | `codex/engineering-ui-redesign` | 待填写 | 待执行 | 待执行 |
@@ -259,6 +260,15 @@
 - `npm.cmd exec tsc -- --noEmit`：通过。
 - `heatCapacityUltraGlbIntegration.test.ts`、`workbenchHeatCapacityInstrumentUi.test.ts`：通过。
 
+### 阶段 5：UI 调整前稳定基线
+
+- `npm.cmd exec tsc -- --noEmit`：通过。
+- `npm.cmd test`：146 个测试文件全部通过。
+- `npm.cmd run build`：通过；法律声明生成、Vite 生产构建和构建产物策略检查均通过。
+- 固定预览 `http://127.0.0.1:5174/`：HTTP 200；应用内浏览器检查通用仪器身份和 3D 显示组件正常。
+- Git 跟踪工作区：干净；未把 `dist`、临时截图或构建缓存纳入版本控制。
+- 远端安全门：`origin` 指向 `yanshi-qibixunchang/hard-sphere-lab-1`，GitHub 实时可见性为 `PUBLIC`；与“仅推送私有仓库”冲突，因此本阶段只建立本地检查点，不推送、不更改远端。
+
 ### 后续最低验证矩阵
 
 - `npm.cmd exec tsc -- --noEmit`
@@ -282,9 +292,9 @@
 
 ### 当前唯一下一步
 
-1. 建立清理前本地安全提交，并把提交哈希写入本计划。
-2. 审计当前分支领先提交与全部未提交改动的旧方案残留。
-3. 在删除任何预先存在或归属不明确的目标前，按 `AGENTS.md` 列出精确目标和理由并取得明确确认。
+1. 提交本阶段全量验证记录，作为 UI 调整前本地稳定检查点。
+2. 从该检查点创建 `codex/engineering-ui-redesign`。
+3. 在完全保留现有布局的前提下实施配色、字体、字号与必要防裁切调整。
 
 ### 用户选择后的连续执行入口
 
