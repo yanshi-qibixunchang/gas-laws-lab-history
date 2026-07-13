@@ -353,7 +353,6 @@ const pumpScriptedRun = (
     : 0;
   for (let index = 0; index < strokes; index += 1) {
     const controls: HeatCapacityFreeControls = {
-      powerOn: true,
       pumpValveOpen: true,
       stopcockOpen: false,
     };
@@ -434,13 +433,11 @@ const releaseAndRecover = (
   releaseMode: HeatCapacityFreeParameterAcceptanceReleaseMode,
 ) => {
   const openControls: HeatCapacityFreeControls = {
-    powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: true,
     stopcockFlowPurpose: 'release',
   };
   const closedControls: HeatCapacityFreeControls = {
-    powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: false,
   };
@@ -558,7 +555,6 @@ const simulateScenario = (
     physicsConfig,
     sensorConfig,
     {
-      powerOn: true,
       pumpValveOpen: false,
       stopcockOpen: false,
     },

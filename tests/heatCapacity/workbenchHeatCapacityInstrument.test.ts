@@ -30,6 +30,7 @@ import {
   HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER,
   HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS,
   completeHeatCapacityTeachingModeWorkbenchState,
+  completeHeatCapacityGuidePreheatWorkbenchState,
   enterHeatCapacityFreeModeWorkbenchState,
   exitHeatCapacityTeachingModeWorkbenchState,
   getHeatCapacityFreeEquilibriumSpeedMultiplier,
@@ -51,8 +52,8 @@ import {
   selectActiveHeatCapacityWorkbenchDisplay,
   setHeatCapacityFreeParameterSchemeWorkbenchState,
   setHeatCapacityGuideStopcockOpen,
+  setHeatCapacityFreePumpValveOpen,
   setHeatCapacityFreeStopcockOpen,
-  setHeatCapacityFreeEquilibriumSpeedHintShown,
   setHeatCapacityFreeEquilibriumSpeedMultiplier,
   setHeatCapacityPressureZeroOffset,
   startHeatCapacityGuideWorkbenchState,
@@ -152,7 +153,6 @@ assert.equal(defaultFile.heatCapacityReleaseState.purpose, 'none');
 assert.deepEqual(HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS, [2, 4, 8, 16]);
 assert.equal(HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER, 8);
 assert.equal(defaultFile.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
-assert.equal(defaultFile.heatCapacityFreeEquilibriumSpeedHintShown, false);
 assert.notEqual(
   defaultFile.heatCapacityFreeSensorState.displayPressureMv,
   0,
@@ -477,7 +477,6 @@ const resetFreeRun = resetHeatCapacityFreeRunWorkbenchState({
     openingStartedAtS: 1,
   },
   heatCapacityFreeEquilibriumSpeedMultiplier: 8,
-  heatCapacityFreeEquilibriumSpeedHintShown: true,
   heatCapacityFreeTrials: [freeTrial],
 }, 3_000);
 assert.equal(resetFreeRun.powerOn, false, 'Free reset should turn the instrument power off');
@@ -503,7 +502,6 @@ assert.equal(resetFreeRun.pressureZeroAdjustMode, 'none');
 assert.equal(resetFreeRun.heatCapacityReleaseState.phase, 'closed');
 assert.equal(resetFreeRun.heatCapacityReleaseState.purpose, 'none');
 assert.equal(resetFreeRun.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
-assert.equal(resetFreeRun.heatCapacityFreeEquilibriumSpeedHintShown, false);
 assert.deepEqual(resetFreeRun.heatCapacityFreePhysicsConfig.leakage, {
   enabled: true,
   ratePerS: 0.00005,
@@ -653,9 +651,6 @@ assert.equal(selectedSpeedEight.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
 assert.equal(selectedSpeedEight.updatedAt, 1_060);
 const selectedSpeedSixteen = setHeatCapacityFreeEquilibriumSpeedMultiplier(freePowered, 16, 1_065);
 assert.equal(selectedSpeedSixteen.heatCapacityFreeEquilibriumSpeedMultiplier, 16);
-const markedSpeedHintShown = setHeatCapacityFreeEquilibriumSpeedHintShown(freePowered, true, 1_070);
-assert.equal(markedSpeedHintShown.heatCapacityFreeEquilibriumSpeedHintShown, true);
-assert.equal(markedSpeedHintShown.updatedAt, 1_070);
 const freeRecordTraceEvent = recordHeatCapacityFreeTraceEventWithReference(freePumped, 'record-u1', 1_300, {
   kind: 'u1',
   trialIndex: 1,
@@ -737,6 +732,9 @@ const traceLinkedCompleteTrial = {
     U2DisplayMv: 32,
     U1CorrectedMv: 112,
     U2CorrectedMv: 32,
+    u0Source: 'recorded' as const,
+    formulaGamma: 1.4,
+    preheatBiasGamma: 0,
     gamma: 1.4,
   },
 };
@@ -802,7 +800,7 @@ assert.equal(
 );
 assert.deepEqual(
   getHeatCapacityFreeRecordButtonState(completedPowerOffPrepared, 'u0'),
-  { visible: false, mode: 'record', disabledReason: 'zero-not-ready' },
+  { visible: false, mode: 'record', disabledReason: 'invalid-sequence' },
   'Auto-saved Free history should not remain as a current re-record target',
 );
 const switchSchemeAfterCompletedHistory = setHeatCapacityFreeParameterSchemeWorkbenchState(
@@ -915,7 +913,7 @@ assert.equal(
   truncateHeatCapacitySignalMv(freePumped.heatCapacityFreeSensorState.displayPressureMv),
   'Free display should expose the one-decimal instrument reading while keeping the sensor output precise',
 );
-const freeInstantZeroKnob = setHeatCapacityPressureZeroOffset({
+const freeInstantZeroSource: typeof freePowered = {
   ...freePowered,
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
   glassPistonState: 'open',
@@ -938,15 +936,25 @@ const freeInstantZeroKnob = setHeatCapacityPressureZeroOffset({
     { atMs: 900, valueMv: 0.73 },
     { atMs: 950, valueMv: 0.73 },
   ],
-}, -0.73, 'coarseDrag', getHeatCapacityPressureZeroKnobAngleForOffset(-0.73), 1_050);
+};
+const freeInstantZeroStepped = stepHeatCapacityWorkbenchFile(freeInstantZeroSource, 1_050);
+const freeInstantZeroKnob = setHeatCapacityPressureZeroOffset(
+  freeInstantZeroSource,
+  -0.73,
+  'coarseDrag',
+  getHeatCapacityPressureZeroKnobAngleForOffset(-0.73),
+  1_050,
+);
 assert.equal(
-  Math.abs((freeInstantZeroKnob.pressureSignalMv ?? Number.NaN)) < 0.001,
-  true,
+  freeInstantZeroKnob.pressureSignalMv,
+  truncateHeatCapacitySignalMv(
+    freeInstantZeroKnob.heatCapacityFreeSensorState.displayPressureMv - 0.73,
+  ),
   'Free zero knob should update the visible U_p immediately instead of passing through sensor lag',
 );
 assert.equal(
   freeInstantZeroKnob.heatCapacityFreeSensorState.displayPressureMv,
-  0.73,
+  freeInstantZeroStepped.heatCapacityFreeSensorState.displayPressureMv,
   'Free zero knob should not mutate the raw sensor measurement layer',
 );
 assert.equal(
@@ -991,13 +999,12 @@ let calibratedPumpFile: WorkbenchHeatCapacityState = freePumpReady;
 for (let strokeIndex = 0; strokeIndex < 18; strokeIndex += 1) {
   calibratedPumpFile = registerHeatCapacityPumpStroke(calibratedPumpFile, 3_000 + strokeIndex * 400);
 }
-let stableCalibratedPumpFile = calibratedPumpFile;
 const calibratedPumpLastAtMs = 3_000 + 17 * 400;
-stableCalibratedPumpFile = {
-  ...stableCalibratedPumpFile,
-  pumpValveOpen: false,
-  pumpValveState: 'closed',
-};
+let stableCalibratedPumpFile = setHeatCapacityFreePumpValveOpen(
+  calibratedPumpFile,
+  false,
+  calibratedPumpLastAtMs,
+);
 for (let stepIndex = 1; stepIndex <= 30; stepIndex += 1) {
   stableCalibratedPumpFile = stepHeatCapacityWorkbenchFile(
     stableCalibratedPumpFile,
@@ -1014,11 +1021,8 @@ assert.equal(
 assert.equal(stableCalibratedPumpFile.pressureSafetyStatus, 'normal');
 assert.equal(stableCalibratedPumpFile.pressureBlockedPumping, false);
 const sealedWaitBase = {
-  ...calibratedPumpFile,
-  pumpValveOpen: false,
-  pumpValveState: 'closed' as const,
+  ...setHeatCapacityFreePumpValveOpen(calibratedPumpFile, false, calibratedPumpLastAtMs),
   pumpBulbState: 'idle' as const,
-  heatCapacityPhase: 'sealedStabilizing' as const,
   heatCapacityFreeEquilibriumSpeedMultiplier: 4 as const,
   lastUpdateMs: calibratedPumpLastAtMs,
   updatedAt: calibratedPumpLastAtMs,
@@ -1341,7 +1345,6 @@ const freeAutomaticU0 = stepHeatCapacityWorkbenchFile({
 }, 1_350);
 assert.equal(freeAutomaticU0.heatCapacityFreeCalibrationState.automaticU0?.zeroEventId, 'zero-1', 'Free Mode should capture U0 automatically from a stable zeroed open state');
 const poweredOffHardSphereVisual = getHeatCapacityHardSphereVisualState({
-  powerOn: false,
   temperatureMv: null,
   pressureMv: null,
   phase: 'powerOff',
@@ -1352,7 +1355,6 @@ const poweredOffHardSphereVisual = getHeatCapacityHardSphereVisualState({
 assert.equal(poweredOffHardSphereVisual.targetParticleCount > 0, true, 'hard-sphere teaching layer should remain visible before power is turned on');
 assert.equal(poweredOffHardSphereVisual.thermalSpeedMultiplier > 0, true, 'powered-off hard-sphere teaching layer should still show room-temperature motion');
 const poweredOffPressurizedHardSphereVisual = getHeatCapacityHardSphereVisualState({
-  powerOn: false,
   temperatureMv: null,
   pressureMv: null,
   pressureDeltaKPa: 5.5,
@@ -1368,7 +1370,6 @@ assert.equal(
   'powered-off hard-sphere teaching layer should keep showing the extra pumped gas already inside the bottle',
 );
 const lowPressurePumpingHardSphereVisual = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: initialTemperatureMv + 8,
   pressureMv: 20,
   pressureDeltaKPa: 1,
@@ -1381,7 +1382,6 @@ const lowPressurePumpingHardSphereVisual = getHeatCapacityHardSphereVisualState(
   pumpBulbState: 'compressing',
 });
 const highPressurePumpingHardSphereVisual = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: initialTemperatureMv + 8,
   pressureMv: 110,
   pressureDeltaKPa: 5.5,
@@ -1399,7 +1399,6 @@ assert.equal(
   'hard-sphere random thermal speed should visibly increase as gas temperature rises',
 );
 const releaseCoolingHardSphereVisual = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: initialTemperatureMv + 8,
   pressureMv: 110,
   pressureDeltaKPa: 5.5,
@@ -1487,7 +1486,9 @@ assert.equal(isHeatCapacityPressureZeroWithinTolerance([
   { atMs: 400, valueMv: 0.04 },
 ]), false);
 
-const poweredFile = powerHeatCapacityWorkbenchFile(startHeatCapacityGuideWorkbenchState(defaultFile, 900), true, 1_000);
+const poweredBeforePreheat = powerHeatCapacityWorkbenchFile(startHeatCapacityGuideWorkbenchState(defaultFile, 900), true, 1_000);
+assert.equal(poweredBeforePreheat.heatCapacityGuideWorkflow.step, 'preheatRequired');
+const poweredFile = completeHeatCapacityGuidePreheatWorkbenchState(poweredBeforePreheat, 1_001);
 assert.equal(poweredFile.powerOn, true);
 assert.equal(poweredFile.heatCapacityMode, 'guide');
 assert.equal(poweredFile.heatCapacityExperimentProfile, null);
@@ -1571,6 +1572,7 @@ let guideZeroNoAdjustment: WorkbenchHeatCapacityState = powerHeatCapacityWorkben
   true,
   21_100,
 );
+guideZeroNoAdjustment = completeHeatCapacityGuidePreheatWorkbenchState(guideZeroNoAdjustment, 21_101);
 guideZeroNoAdjustment = {
   ...guideZeroNoAdjustment,
   pressureInitialBiasMv: 0,
@@ -2320,7 +2322,7 @@ assert.equal(canZeroHeatCapacityPressure({
   ...defaultFile,
   powerOn: false,
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
-}), false);
+}), true);
 
 const nearZeroFreeSensorState = {
   ...defaultFile.heatCapacityFreeSensorState,

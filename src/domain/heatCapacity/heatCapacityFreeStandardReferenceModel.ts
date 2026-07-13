@@ -107,19 +107,16 @@ const ASSUMPTIONS: HeatCapacityStandardReferenceAssumptions = {
 };
 
 const CLOSED_CONTROLS: HeatCapacityFreeControls = {
-  powerOn: true,
   pumpValveOpen: false,
   stopcockOpen: false,
 };
 
 const PUMP_CONTROLS: HeatCapacityFreeControls = {
-  powerOn: true,
   pumpValveOpen: true,
   stopcockOpen: false,
 };
 
 const RELEASE_CONTROLS: HeatCapacityFreeControls = {
-  powerOn: true,
   pumpValveOpen: false,
   stopcockOpen: true,
   stopcockFlowPurpose: 'release',

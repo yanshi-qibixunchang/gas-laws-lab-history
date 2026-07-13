@@ -2,6 +2,9 @@ import type {
   HeatCapacityFreeRecord,
   HeatCapacityFreeTrial,
 } from './heatCapacityFreeTrialModel.ts';
+import {
+  isHeatCapacityFreeTrialComplete,
+} from './heatCapacityFreeTrialModel.ts';
 import type {
   HeatCapacityFreeEvent,
   HeatCapacityFreeEventType,
@@ -184,7 +187,7 @@ const createEmptyDiagnosis = (): HeatCapacityProcessDiagnosisRow[] => ([
     title: '打气过程',
     status: 'insufficient-data',
     evidence: '当前没有可复盘的自由模式实验组。',
-    recommendation: '完成 U0、U1、U2 记录后再查看过程诊断。',
+    recommendation: '完成 U1、U2 记录后再查看过程诊断。',
   },
 ]);
 
@@ -207,7 +210,7 @@ const createTrialOptions = (
     traceTrialId: traceTrial?.id ?? trial.traceTrialId,
     trialIndex: index + 1,
     status: traceTrial
-      ? trial.u0 && trial.u1 && trial.u2
+      ? isHeatCapacityFreeTrialComplete(trial)
         ? 'complete'
         : 'incomplete'
       : 'missing-trace',
@@ -234,7 +237,7 @@ const selectTrial = (
   }
   for (let index = trials.length - 1; index >= 0; index -= 1) {
     const trial = trials[index];
-    if (trial.u0 && trial.u1 && trial.u2) {
+    if (isHeatCapacityFreeTrialComplete(trial)) {
       return { trial, index };
     }
   }
@@ -266,17 +269,18 @@ const getTemperatureSensitivity = (
 
 const convertRecordValue = (
   record: HeatCapacityFreeRecord | null,
-  u0: HeatCapacityFreeRecord | null,
+  baselinePressureMv: number,
+  baselineTemperatureMv: number,
   pressureSensitivityMvPerKPa: number,
   temperatureMvPerK: number,
 ): HeatCapacityProcessReviewRecordValue | null => {
-  if (!record || !u0) return null;
+  if (!record) return null;
   return {
     atS: roundNumber(record.atS, 2),
     displayPressureMv: roundNumber(record.displayPressureMv, 2),
     displayTemperatureMv: roundNumber(record.displayTemperatureMv, 2),
-    pressureDeltaKPa: roundNumber((record.displayPressureMv - u0.displayPressureMv) / pressureSensitivityMvPerKPa, 2),
-    temperatureDeltaK: roundNumber((record.displayTemperatureMv - u0.displayTemperatureMv) / temperatureMvPerK, 2),
+    pressureDeltaKPa: roundNumber((record.displayPressureMv - baselinePressureMv) / pressureSensitivityMvPerKPa, 2),
+    temperatureDeltaK: roundNumber((record.displayTemperatureMv - baselineTemperatureMv) / temperatureMvPerK, 2),
   };
 };
 
@@ -496,11 +500,18 @@ const createSystemEvents = (
 const createRecordEvent = (
   id: HeatCapacityProcessRecordId,
   record: HeatCapacityFreeRecord | null,
-  u0: HeatCapacityFreeRecord | null,
+  baselinePressureMv: number,
+  baselineTemperatureMv: number,
   pressureSensitivityMvPerKPa: number,
   temperatureMvPerK: number,
 ): HeatCapacityProcessRecordEvent | null => {
-  const value = convertRecordValue(record, u0, pressureSensitivityMvPerKPa, temperatureMvPerK);
+  const value = convertRecordValue(
+    record,
+    baselinePressureMv,
+    baselineTemperatureMv,
+    pressureSensitivityMvPerKPa,
+    temperatureMvPerK,
+  );
   if (!record || !value) return null;
   return {
     id,
@@ -532,9 +543,16 @@ const createChartData = (
     temperatureDeltaK: roundNumber((sample.sensor.displayTemperatureMv - u0Temperature) / temperatureSensitivity, 3),
   }));
   const records = [
-    createRecordEvent('u0', trial.u0, trial.u0, pressureSensitivity, temperatureSensitivity),
-    createRecordEvent('u1', trial.u1, trial.u0, pressureSensitivity, temperatureSensitivity),
-    createRecordEvent('u2', trial.u2, trial.u0, pressureSensitivity, temperatureSensitivity),
+    createRecordEvent(
+      'u0',
+      trial.u0,
+      trial.u0?.displayPressureMv ?? 0,
+      trial.u0?.displayTemperatureMv ?? u0Temperature,
+      pressureSensitivity,
+      temperatureSensitivity,
+    ),
+    createRecordEvent('u1', trial.u1, u0Pressure, u0Temperature, pressureSensitivity, temperatureSensitivity),
+    createRecordEvent('u2', trial.u2, u0Pressure, u0Temperature, pressureSensitivity, temperatureSensitivity),
   ].filter((record): record is HeatCapacityProcessRecordEvent => record !== null);
 
   return {
@@ -588,8 +606,20 @@ const createSummary = (
     branchId: branch.id,
     branchCount,
     retakeCount: Math.max(0, branchCount - 1),
-    u1: convertRecordValue(trial.u1, trial.u0, pressureSensitivity, temperatureSensitivity),
-    u2: convertRecordValue(trial.u2, trial.u0, pressureSensitivity, temperatureSensitivity),
+    u1: convertRecordValue(
+      trial.u1,
+      trial.u0?.displayPressureMv ?? 0,
+      trial.u0?.displayTemperatureMv ?? traceTrial.configSnapshot.sensor.temperatureMvAtAmbient,
+      pressureSensitivity,
+      temperatureSensitivity,
+    ),
+    u2: convertRecordValue(
+      trial.u2,
+      trial.u0?.displayPressureMv ?? 0,
+      trial.u0?.displayTemperatureMv ?? traceTrial.configSnapshot.sensor.temperatureMvAtAmbient,
+      pressureSensitivity,
+      temperatureSensitivity,
+    ),
     gamma: gamma === null ? null : roundNumber(gamma, 3),
     relativeErrorPercent: calculateHeatCapacityRelativeErrorPercent(gamma, theoreticalGamma),
     upperBoundGamma: upperBound.gamma === null ? null : roundNumber(upperBound.gamma, 3),
@@ -703,7 +733,7 @@ export const selectHeatCapacityFreeProcessReview = ({
     summary,
   });
   return {
-    status: selected.trial.u0 && selected.trial.u1 && selected.trial.u2 ? 'ready' : 'incomplete',
+    status: isHeatCapacityFreeTrialComplete(selected.trial) ? 'ready' : 'incomplete',
     selectedTrialId: selected.trial.id,
     trialOptions,
     summary,

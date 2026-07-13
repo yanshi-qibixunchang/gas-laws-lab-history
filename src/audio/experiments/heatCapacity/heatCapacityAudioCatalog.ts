@@ -10,12 +10,14 @@ export const heatCapacityAudioCatalog = {
     files: [file('power-switch-on.wav')],
     bus: 'experiment',
     gain: 0.58,
+    voiceGroup: 'heatCapacity.power',
   },
   'heatCapacity.power.off': {
     id: 'heatCapacity.power.off',
     files: [file('power-switch-off.wav')],
     bus: 'experiment',
     gain: 0.56,
+    voiceGroup: 'heatCapacity.power',
   },
   'heatCapacity.pumpValve.open': {
     id: 'heatCapacity.pumpValve.open',
@@ -46,12 +48,14 @@ export const heatCapacityAudioCatalog = {
     files: [file('glass-stopcock-turn-open.wav')],
     bus: 'experiment',
     gain: 1.12,
+    voiceGroup: 'heatCapacity.stopcock',
   },
   'heatCapacity.stopcock.turnClose': {
     id: 'heatCapacity.stopcock.turnClose',
     files: [file('glass-stopcock-turn-close.wav')],
     bus: 'experiment',
     gain: 1.16,
+    voiceGroup: 'heatCapacity.stopcock',
   },
   'heatCapacity.zeroKnob.tick': {
     id: 'heatCapacity.zeroKnob.tick',
@@ -70,6 +74,7 @@ export const heatCapacityAudioCatalog = {
     bus: 'experiment',
     gain: 0.62,
     voiceGroup: 'heatCapacity.pumpBulb',
+    avoidImmediateRepeat: true,
   },
   'heatCapacity.record.write': {
     id: 'heatCapacity.record.write',

@@ -248,23 +248,39 @@ export class AudioEngine {
     }
     if (!this.settings.enabled || this.destroyed || !this.context || !this.busGraph) return null;
 
-    const group = options.voiceGroup ?? definition.voiceGroup ?? null;
+    const group = definition.voiceGroup ?? null;
     if (group && options.replaceGroup) this.stopGroup(group, options.crossfadeMs ?? 15);
 
     const source = this.context.createBufferSource();
     const output = this.context.createGain();
     const startAt = this.context.currentTime + Math.max(0, options.startDelayMs ?? 0) / 1000;
     const targetGain = Math.max(0, definition.gain * (options.gain ?? 1));
+    const durationMs = options.durationMs !== undefined && Number.isFinite(options.durationMs)
+      ? Math.max(1, options.durationMs)
+      : null;
+    const fadeOutMs = durationMs === null
+      ? 0
+      : Math.min(durationMs, Math.max(0, options.fadeOutMs ?? 0));
+    const fadeInMs = Math.min(
+      Math.max(0, options.fadeInMs ?? 0),
+      durationMs === null ? Number.POSITIVE_INFINITY : Math.max(0, durationMs - fadeOutMs),
+    );
     source.buffer = buffer;
     source.playbackRate.value = Math.min(4, Math.max(0.25, options.playbackRate ?? 1));
-    if ((options.fadeInMs ?? 0) > 0) {
+    if (fadeInMs > 0) {
       output.gain.setValueAtTime(0, startAt);
-      output.gain.linearRampToValueAtTime(targetGain, startAt + Math.max(0, options.fadeInMs ?? 0) / 1000);
+      output.gain.linearRampToValueAtTime(targetGain, startAt + fadeInMs / 1000);
     } else {
       output.gain.setValueAtTime(targetGain, startAt);
     }
+    if (durationMs !== null && fadeOutMs > 0) {
+      const endAt = startAt + durationMs / 1000;
+      const fadeOutAt = endAt - fadeOutMs / 1000;
+      output.gain.setValueAtTime(targetGain, Math.max(startAt + fadeInMs / 1000, fadeOutAt));
+      output.gain.linearRampToValueAtTime(0, endAt);
+    }
     source.connect(output);
-    output.connect(this.busGraph.getInput(options.bus ?? definition.bus));
+    output.connect(this.busGraph.getInput(definition.bus));
 
     const voice: InternalVoice = {
       id: this.nextVoiceId++,
@@ -292,6 +308,7 @@ export class AudioEngine {
     };
     this.registerVoice(voice);
     source.start(startAt);
+    if (durationMs !== null) source.stop(startAt + durationMs / 1000 + 0.005);
     return this.createHandle(voice);
   }
 
@@ -325,7 +342,7 @@ export class AudioEngine {
     }
     if (!this.settings.enabled || this.destroyed || !this.context || !this.busGraph) return null;
 
-    const group = options.voiceGroup ?? definition.voiceGroup ?? null;
+    const group = definition.voiceGroup ?? null;
     if (group && options.replaceGroup) this.stopGroup(group, options.crossfadeMs ?? 15);
 
     const output = this.context.createGain();
@@ -339,7 +356,7 @@ export class AudioEngine {
     } else {
       output.gain.setValueAtTime(targetGain, startAt);
     }
-    output.connect(this.busGraph.getInput(options.bus ?? definition.bus));
+    output.connect(this.busGraph.getInput(definition.bus));
 
     const voice: InternalVoice = {
       id: this.nextVoiceId++,

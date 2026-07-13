@@ -234,6 +234,7 @@ export const createTrialForProcessReviewTest = (
     traceTrialId: setup.traceTrial.id,
     branchCount: setup.traceTrial.branches.length,
     automaticU0: null,
+    preheatOutcome: 'completed',
     u0: createRecordForProcessReviewTest(u0Sample, setup.traceTrial, setup.branch, 'record-u0'),
     u1: createRecordForProcessReviewTest(u1Sample, setup.traceTrial, setup.branch, 'record-u1'),
     u2: createRecordForProcessReviewTest(u2Sample, setup.traceTrial, setup.branch, 'record-u2'),

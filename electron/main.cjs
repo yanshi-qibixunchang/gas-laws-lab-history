@@ -33,6 +33,7 @@ const LEGAL_FILE_NAMES = {
   electron: 'LICENSE.electron.txt',
   fonts: 'font-licenses.txt',
   exporter: 'exporter-licenses.html',
+  audio: 'audio-materials.html',
 };
 let selectedExporterRuntime = null;
 let updateCheckPromise = null;

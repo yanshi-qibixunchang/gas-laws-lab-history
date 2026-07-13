@@ -5,6 +5,7 @@ import {
   abortHeatCapacityGuideWorkbenchState,
   applyHeatCapacityGuideRecordWorkbenchState,
   completeHeatCapacityTeachingModeWorkbenchState,
+  completeHeatCapacityGuidePreheatWorkbenchState,
   createDefaultHeatCapacityFile,
   enterHeatCapacityFreeModeWorkbenchState,
   exitHeatCapacityTeachingModeWorkbenchState,
@@ -108,6 +109,8 @@ const stabilizeGuidePressureZero = (
   let now = 20_000;
   let guide = startHeatCapacityGuideWorkbenchState(createBaseFile(), now);
   guide = powerHeatCapacityWorkbenchFile(guide, true, now += 100);
+  assert.equal(guide.heatCapacityGuideWorkflow.step, 'preheatRequired');
+  guide = completeHeatCapacityGuidePreheatWorkbenchState(guide, now += 100);
   assert.equal(guide.heatCapacityGuideWorkflow.step, 'openStopcockForZeroRequired');
 
   guide = setHeatCapacityGuideStopcockOpen(guide, true, now += 100);
@@ -217,6 +220,7 @@ const stabilizeGuidePressureZero = (
   let now = 30_000;
   let guide = startHeatCapacityGuideWorkbenchState(createBaseFile(), now);
   guide = powerHeatCapacityWorkbenchFile(guide, true, now += 100);
+  guide = completeHeatCapacityGuidePreheatWorkbenchState(guide, now += 100);
   guide = setHeatCapacityGuideStopcockOpen(guide, true, now += 100);
   assert.equal(guide.heatCapacityGuideWorkflow.step, 'zeroRequired');
 
@@ -240,6 +244,7 @@ const stabilizeGuidePressureZero = (
   let now = 40_000;
   let guide = startHeatCapacityGuideWorkbenchState(createBaseFile(), now);
   guide = powerHeatCapacityWorkbenchFile(guide, true, now += 100);
+  guide = completeHeatCapacityGuidePreheatWorkbenchState(guide, now += 100);
   guide = setHeatCapacityGuideStopcockOpen(guide, true, now += 100);
   assert.equal(guide.heatCapacityGuideWorkflow.step, 'zeroRequired');
 

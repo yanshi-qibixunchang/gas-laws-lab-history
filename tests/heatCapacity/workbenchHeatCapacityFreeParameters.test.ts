@@ -145,7 +145,7 @@ const completedFreeTrial = {
   u1: { displayPressureMv: 72.5 },
   u2: { displayPressureMv: 51.2 },
   blockedReason: null,
-  correctedSignals: null,
+  correctedSignals: { gamma: 1.4 },
   configSnapshot: frozenFile.heatCapacityFreeActiveRunConfigSnapshot,
 } as any;
 const completedGroupPowerOnFile = {
@@ -261,6 +261,7 @@ const gasTypeNextGroupFile = prepareNextHeatCapacityFreeExperimentGroupWorkbench
       traceTrialId: null,
       branchCount: 0,
       automaticU0: null,
+      preheatOutcome: 'completed',
       u0: null,
       u1: null,
       u2: null,

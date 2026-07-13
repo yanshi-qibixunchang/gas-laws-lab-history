@@ -50,7 +50,6 @@ const settledState = stepFreePhysics(
   heatedState,
   createHeatCapacityFreeIdealStagePhysicsConfig(equilibriumConfig.physics, 'thermalEquilibrium'),
   {
-    powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: false,
   },
@@ -74,7 +73,6 @@ const adiabaticAfterFiveMinutes = stepFreePhysics(
   heatedState,
   createHeatCapacityFreeIdealStagePhysicsConfig(equilibriumConfig.physics, 'fastAdiabatic'),
   {
-    powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: false,
   },

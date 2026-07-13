@@ -16,12 +16,10 @@ export interface AudioAssetDefinition {
 
 export type AudioAssetCatalog = Readonly<Record<string, AudioAssetDefinition>>;
 
-export interface PlayOneShotOptions {
+interface AudioPlaybackOptions {
   gain?: number;
   playbackRate?: number;
   fileIndex?: number;
-  bus?: AudioBusId;
-  voiceGroup?: string;
   replaceGroup?: boolean;
   crossfadeMs?: number;
   fadeInMs?: number;
@@ -29,7 +27,12 @@ export interface PlayOneShotOptions {
   maxStartDelayMs?: number;
 }
 
-export interface PlayBurstOptions extends PlayOneShotOptions {
+export interface PlayOneShotOptions extends AudioPlaybackOptions {
+  durationMs?: number;
+  fadeOutMs?: number;
+}
+
+export interface PlayBurstOptions extends AudioPlaybackOptions {
   count: number;
   intervalMs: number;
   itemDurationMs?: number;

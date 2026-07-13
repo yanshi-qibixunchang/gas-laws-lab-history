@@ -1,4 +1,5 @@
 import type { HeatCapacityRuntimePhase } from './heatCapacityProcessTypes.ts';
+import { HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA } from './heatCapacityReleaseModel.ts';
 
 export type HeatCapacityHardSpherePumpBulbState = 'idle' | 'compressing' | 'releasing';
 
@@ -22,7 +23,6 @@ export interface HeatCapacityHardSphereReleaseTimeline {
 }
 
 export interface HeatCapacityHardSphereVisualInput {
-  powerOn: boolean;
   temperatureMv: number | null;
   pressureMv: number | null;
   phase: HeatCapacityRuntimePhase | string;
@@ -61,7 +61,7 @@ export const HEAT_CAPACITY_HARD_SPHERE_BASE_PARTICLES = 42;
 export const HEAT_CAPACITY_HARD_SPHERE_AMOUNT_EXAGGERATION = 19;
 export const HEAT_CAPACITY_HARD_SPHERE_COLD_DELTA_K = -5;
 export const HEAT_CAPACITY_HARD_SPHERE_HOT_DELTA_K = 3;
-export const HEAT_CAPACITY_HARD_SPHERE_OUTFLOW_EQUILIBRIUM_KPA = 0.08;
+export const HEAT_CAPACITY_HARD_SPHERE_OUTFLOW_EQUILIBRIUM_KPA = HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA;
 export const HEAT_CAPACITY_HARD_SPHERE_IDLE_RELEASE_TIMELINE: HeatCapacityHardSphereReleaseTimeline = {
   phase: 'none',
   elapsedS: 0,

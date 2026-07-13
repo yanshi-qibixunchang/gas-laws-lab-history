@@ -58,7 +58,6 @@ export const HEAT_CAPACITY_FREE_UI_REPLAY_KEYS = [
   'pumpStrokeCount',
   'pumpHint',
   'heatCapacityFreeEquilibriumSpeedMultiplier',
-  'heatCapacityFreeEquilibriumSpeedHintShown',
   'hardSphereViewEnabled',
   'vesselPressureReadoutKPa',
   'vesselTemperatureReadoutK',
@@ -75,6 +74,7 @@ export interface HeatCapacityFreePersistenceDataV1 {
   runtimeVersion: typeof HEAT_CAPACITY_FREE_RUNTIME_VERSION;
   traceVersion: typeof HEAT_CAPACITY_FREE_TRACE_VERSION;
   calculationVersion: typeof HEAT_CAPACITY_FREE_CALCULATION_VERSION;
+  preheatCompleted: boolean;
   parameterScheme: HeatCapacityFreeParameterScheme;
   displayScheme: HeatCapacityFreeDisplayScheme;
   gasType: HeatCapacityFreeGasType;

@@ -51,7 +51,6 @@ const baseConfig: HeatCapacityFreePhysicsConfig = {
 };
 
 const controls: HeatCapacityFreeControls = {
-  powerOn: true,
   pumpValveOpen: false,
   stopcockOpen: false,
 };
@@ -471,7 +470,6 @@ const rejectCases: Array<[
   HeatCapacityFreePhysicsState,
   HeatCapacityFreeControls,
 ]> = [
-  ['powerOff', initial, { ...controls, powerOn: false, pumpValveOpen: true }],
   ['pumpValveClosed', initial, controls],
   ['stopcockOpen', initial, { ...controls, pumpValveOpen: true, stopcockOpen: true }],
   [

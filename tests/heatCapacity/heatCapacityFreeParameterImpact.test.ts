@@ -164,7 +164,6 @@ const runFreeScenario = (
       physics,
       physicsConfig,
       {
-        powerOn: true,
         pumpValveOpen: true,
         stopcockOpen,
       },
@@ -180,7 +179,6 @@ const runFreeScenario = (
       physics,
       physicsConfig,
       {
-        powerOn: true,
         pumpValveOpen: true,
         stopcockOpen: false,
       },
@@ -233,7 +231,6 @@ const pumpAcceptanceAtPressure = (
     state,
     physicsConfig,
     {
-      powerOn: true,
       pumpValveOpen: true,
       stopcockOpen: false,
     },
@@ -470,7 +467,6 @@ const hotLeakingFinal = stepFreePhysics(
   hotLeakingInitial,
   hotLeakingApplied.physicsConfig,
   {
-    powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: false,
   },

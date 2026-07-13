@@ -1,6 +1,12 @@
+import {
+  getHeatCapacityGuideRollbackAnimationForControl,
+  type HeatCapacityInstrumentControl,
+} from '../../domain/heatCapacity/heatCapacityInstrumentFeedback.ts';
+
 export type GuideHeatCapacityStep =
   | 'idle'
   | 'powerOnRequired'
+  | 'preheatRequired'
   | 'openStopcockForZeroRequired'
   | 'zeroAdjustRequired'
   | 'recordU0Required'
@@ -30,20 +36,14 @@ export type GuideHeatCapacityAction =
   | 'recordU1'
   | 'recordU2';
 
-export type GuideHeatCapacityRollbackAnimation =
-  | 'valveBounce'
-  | 'stopcockBounce'
-  | 'pumpBulbBounce'
-  | 'knobBounce'
-  | 'powerBounce';
-
-export interface HeatCapacityGuideControlOptions {
+interface HeatCapacityGuideControlOptions {
   temperatureReady?: boolean;
 }
 
 const guideControlByStep: Record<GuideHeatCapacityStep, string | null> = {
   idle: null,
   powerOnRequired: 'powerSwitch',
+  preheatRequired: null,
   openStopcockForZeroRequired: 'stopcock',
   zeroAdjustRequired: 'pressureZero',
   recordU0Required: 'recordU0',
@@ -64,6 +64,7 @@ const guideControlByStep: Record<GuideHeatCapacityStep, string | null> = {
 const allowedActionsByStep: Record<GuideHeatCapacityStep, GuideHeatCapacityAction[]> = {
   idle: ['turnPowerOn'],
   powerOnRequired: ['turnPowerOn'],
+  preheatRequired: [],
   openStopcockForZeroRequired: ['openStopcock'],
   zeroAdjustRequired: ['adjustPressureZero'],
   recordU0Required: ['adjustPressureZero', 'recordU0'],
@@ -81,15 +82,15 @@ const allowedActionsByStep: Record<GuideHeatCapacityStep, GuideHeatCapacityActio
   completed: [],
 };
 
-const rollbackByAction: Partial<Record<GuideHeatCapacityAction, GuideHeatCapacityRollbackAnimation>> = {
-  adjustPressureZero: 'knobBounce',
-  openStopcock: 'stopcockBounce',
-  closeStopcock: 'stopcockBounce',
-  openPumpValve: 'valveBounce',
-  closePumpValve: 'valveBounce',
-  pumpBulb: 'pumpBulbBounce',
-  turnPowerOn: 'powerBounce',
-  turnPowerOff: 'powerBounce',
+const rollbackControlByAction: Partial<Record<GuideHeatCapacityAction, HeatCapacityInstrumentControl>> = {
+  adjustPressureZero: 'pressureZero',
+  openStopcock: 'stopcock',
+  closeStopcock: 'stopcock',
+  openPumpValve: 'pumpValve',
+  closePumpValve: 'pumpValve',
+  pumpBulb: 'pumpBulb',
+  turnPowerOn: 'powerSwitch',
+  turnPowerOff: 'powerSwitch',
 };
 
 export const getHeatCapacityGuideStepControlId = (
@@ -111,7 +112,10 @@ export const getHeatCapacityGuideAllowedActions = (
 
 export const getHeatCapacityGuideRollbackAnimation = (
   action: GuideHeatCapacityAction,
-) => rollbackByAction[action];
+) => {
+  const control = rollbackControlByAction[action];
+  return control ? getHeatCapacityGuideRollbackAnimationForControl(control) : undefined;
+};
 
 export const isHeatCapacityGuideRecordStep = (step: GuideHeatCapacityStep) => (
   step === 'recordU0Required' ||

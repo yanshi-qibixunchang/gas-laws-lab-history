@@ -133,6 +133,7 @@ export const createHeatCapacityPersistencePayload = (
       runtimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
       traceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
       calculationVersion: HEAT_CAPACITY_FREE_CALCULATION_VERSION,
+      preheatCompleted: fileWithCurrentDomain.heatCapacityFreePreheatCompleted,
       parameterScheme: fileWithCurrentDomain.heatCapacityFreeParameterScheme,
       displayScheme: fileWithCurrentDomain.heatCapacityFreeDisplayScheme,
       gasType: fileWithCurrentDomain.heatCapacityFreeGasType,
@@ -229,6 +230,7 @@ const createRuntimeFieldsFromRestoredFreeDomain = (
     heatCapacityFreeRollbackSnapshots: domain.rollbackSnapshots,
     heatCapacityFreeTraceStore: domain.traceStore,
     heatCapacityFreeTrials: domain.trials,
+    heatCapacityFreeActiveAttempt: domain.activeAttempt,
     theoreticalGamma: gasTypeGamma,
   };
 };
@@ -465,6 +467,9 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     openHeatCapacityTabs: restoredOpenHeatCapacityTabs,
     activeHeatCapacityTabId: restoredActiveHeatCapacityTabId,
     heatCapacityFreeRuntimeVersion: free?.runtimeVersion ?? HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+    heatCapacityFreePreheatCompleted: free !== null && Object.prototype.hasOwnProperty.call(free, 'preheatCompleted')
+      ? free.preheatCompleted === true
+      : true,
     heatCapacityFreeTraceVersion: free?.traceVersion ?? HEAT_CAPACITY_FREE_TRACE_VERSION,
     heatCapacityFreeParameterScheme: restoredParameterScheme,
     heatCapacityFreeDisplayScheme: restoredDisplayScheme,

@@ -63,7 +63,7 @@ assert.deepEqual(configSnapshot.sensor.pressureNonlinearity, {
 });
 assert.equal(configSnapshot.record.pressureWarningMv, 120);
 assert.equal(configSnapshot.record.u0ZeroToleranceMv, 0.12);
-assert.equal(configSnapshot.scoring.processScoringVersion, 'free-process-score-v2');
+assert.equal(configSnapshot.scoring.processScoringVersion, 'free-process-score-v3');
 assert.equal('reservedPhysicsV2' in configSnapshot, false);
 assert.ok(
   Math.abs(configSnapshot.physics.pumpAmountGainRatio * configSnapshot.physics.vesselVolumeL * 1000 - 6.9) < 1e-9,

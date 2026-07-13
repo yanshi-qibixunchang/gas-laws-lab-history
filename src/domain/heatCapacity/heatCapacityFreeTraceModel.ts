@@ -238,7 +238,7 @@ export interface HeatCapacityFreeConfigSnapshot {
     pressureDangerMv: number;
   };
   scoring: {
-    processScoringVersion: 'free-process-score-v2';
+    processScoringVersion: 'free-process-score-v3';
   };
 }
 
@@ -295,7 +295,7 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
       pressureDangerMv: record.pressureDangerMv,
     },
     scoring: {
-      processScoringVersion: 'free-process-score-v2',
+      processScoringVersion: 'free-process-score-v3',
     },
   };
 };

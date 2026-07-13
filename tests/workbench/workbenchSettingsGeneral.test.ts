@@ -85,7 +85,7 @@ assert.match(
 
 assert.match(
   source,
-  /const updateSettingsThemePreference = \(theme: WorkbenchThemePreference\) => \{[\s\S]*?setSettingsThemePreference\(theme\);[\s\S]*?persistWorkbenchGeneralSettings\(\{[\s\S]*?theme,[\s\S]*?language: settingsLanguagePreference,[\s\S]*?performanceMode: settingsPerformanceMode,[\s\S]*?audioEnabled: settingsAudioEnabled,[\s\S]*?audioVolume: settingsAudioVolume,[\s\S]*?\}\);[\s\S]*?\};/,
+  /const updateSettingsThemePreference = \(theme: WorkbenchThemePreference\) => \{[\s\S]*?setSettingsThemePreference\(theme\);[\s\S]*?persistWorkbenchGeneralSettings\(\{[\s\S]*?theme,[\s\S]*?language: settingsLanguagePreference,[\s\S]*?performanceMode: settingsPerformanceMode,[\s\S]*?audioEnabled: audioSettings\.enabled,[\s\S]*?audioVolume: audioSettings\.volume,[\s\S]*?\}\);[\s\S]*?\};/,
   'theme option clicks should update state and persist immediately',
 );
 
@@ -142,7 +142,7 @@ assert.match(
 
 assert.match(
   source,
-  /const updateSettingsLanguagePreference = \(language: WorkbenchLanguagePreference\) => \{[\s\S]*?setSettingsLanguagePreference\(language\);[\s\S]*?setSettingsLanguageMenuOpen\(false\);[\s\S]*?persistWorkbenchGeneralSettings\(\{[\s\S]*?theme: settingsThemePreference,[\s\S]*?language,[\s\S]*?performanceMode: settingsPerformanceMode,[\s\S]*?audioEnabled: settingsAudioEnabled,[\s\S]*?audioVolume: settingsAudioVolume,[\s\S]*?\}\);[\s\S]*?\};/,
+  /const updateSettingsLanguagePreference = \(language: WorkbenchLanguagePreference\) => \{[\s\S]*?setSettingsLanguagePreference\(language\);[\s\S]*?setSettingsLanguageMenuOpen\(false\);[\s\S]*?persistWorkbenchGeneralSettings\(\{[\s\S]*?theme: settingsThemePreference,[\s\S]*?language,[\s\S]*?performanceMode: settingsPerformanceMode,[\s\S]*?audioEnabled: audioSettings\.enabled,[\s\S]*?audioVolume: audioSettings\.volume,[\s\S]*?\}\);[\s\S]*?\};/,
   'language option clicks should update state, close the capsule menu, and persist immediately',
 );
 
@@ -184,7 +184,8 @@ for (const expression of [
   'copy.settings.languageHint',
   'copy.settings.audio',
   'copy.settings.audioHint',
-  'copy.settings.audioToggleAria',
+  'copy.settings.audioMuteAria',
+  'copy.settings.audioUnmuteAria',
   'copy.settings.audioVolumeAria',
   'copy.shortcuts.title',
   'copy.shortcuts.undo',
@@ -193,6 +194,22 @@ for (const expression of [
 ]) {
   assert.ok(generalSettingsWindowSource.includes(expression), `general settings window should use ${expression}`);
 }
+
+assert.match(
+  source,
+  /const \{ settings: audioSettings, updateSettings: updateAudioSettings \} = useAudioEngine\(\);/,
+  'the audio provider should be the single runtime source for mute and volume state',
+);
+assert.doesNotMatch(
+  source,
+  /settingsAudioEnabled|settingsAudioVolume|setSettingsAudioEnabled|setSettingsAudioVolume/,
+  'general settings should not retain a second audio-state copy beside the provider',
+);
+assert.doesNotMatch(
+  generalSettingsWindowSource,
+  /audioToggleAria|studio-settings-audio-switch|studio-window-switch-thumb/,
+  'the removed capsule-switch semantics should not remain in the audio settings UI',
+);
 
 const generalWindowSource = generalSettingsWindowSource;
 

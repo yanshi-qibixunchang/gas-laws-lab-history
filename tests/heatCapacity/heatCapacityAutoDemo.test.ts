@@ -15,32 +15,39 @@ import {
   HEAT_CAPACITY_RELEASE_TIMING,
   HEAT_CAPACITY_STANDARD_OPERATION,
 } from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import { getHeatCapacityPreheatTotalPresentationMs } from '../../src/domain/heatCapacity/heatCapacityPreheatModel.ts';
 
 const steps = createHeatCapacityAutoDemoSteps();
 const actionSequence = steps.flatMap((step) => step.actions.map((action) => action.action));
 
-assert.equal(steps.length, 11);
+assert.equal(steps.length, 12);
 assert.equal(steps[0].id, 'power-on');
 assert.equal(steps[0].title, '开启电源');
 assert.equal(steps[0].description, '打开电源，使温度与压强测量系统开始工作');
 assert.equal(steps[0].target, '电源开关');
 assert.equal(steps[0].actions[0].action, 'powerOn');
 
-assert.equal(steps[1].id, 'open-stopcock-for-zero');
-assert.equal(steps[1].targetControlId, 'stopcock');
-assert.deepEqual(steps[1].actions.map((action) => action.action), ['openStopcockForZero']);
+assert.equal(steps[1].id, 'sensor-preheat');
+assert.equal(steps[1].preHighlightMs, 0);
+assert.equal(steps[1].actionDurationMs, getHeatCapacityPreheatTotalPresentationMs());
+assert.equal(steps[1].observeDurationMs, 0);
+assert.deepEqual(steps[1].actions, []);
 
-assert.equal(steps[2].id, 'zero-pressure');
-assert.equal(steps[2].targetControlId, 'pressureZero');
+assert.equal(steps[2].id, 'open-stopcock-for-zero');
+assert.equal(steps[2].targetControlId, 'stopcock');
+assert.deepEqual(steps[2].actions.map((action) => action.action), ['openStopcockForZero']);
+
+assert.equal(steps[3].id, 'zero-pressure');
+assert.equal(steps[3].targetControlId, 'pressureZero');
 assert.deepEqual(
-  steps[2].focusSequence?.map((focus) => [focus.targetControlId, focus.durationMs]),
+  steps[3].focusSequence?.map((focus) => [focus.targetControlId, focus.durationMs]),
   [
     ['instrumentPressureDisplay', 4_000],
     ['pressureZero', 4_000],
   ],
 );
 assert.deepEqual(
-  steps[2].focusSequence?.map((focus) => [focus.targetControlId, focus.cameraFocusMode]),
+  steps[3].focusSequence?.map((focus) => [focus.targetControlId, focus.cameraFocusMode]),
   [
     ['instrumentPressureDisplay', 'instrument'],
     ['pressureZero', 'instrument'],
@@ -121,19 +128,20 @@ assert.deepEqual(
   steps.flatMap((step) => step.actions.map((action) => action.sampleKey).filter(Boolean)),
   ['zeroedSample', 'pumpPeakSample', 'stableBeforeReleaseSample', 'releaseLowSample', 'recoverySample'],
 );
-assert.equal(steps.every((step) => step.id === 'zero-pressure' ? step.preHighlightMs === 8_000 : step.preHighlightMs === 4_000), true);
-assert.equal(steps.every((step) => step.observeDurationMs === 3_000), true);
-assert.equal(steps[8].id, 'release-and-close-stopcock');
+assert.equal(steps.every((step) => step.id === 'sensor-preheat' ? step.preHighlightMs === 0 : step.id === 'zero-pressure' ? step.preHighlightMs === 8_000 : step.preHighlightMs === 4_000), true);
+assert.equal(steps.every((step) => step.id === 'sensor-preheat' || step.id === 'power-on' ? step.observeDurationMs === 0 : step.observeDurationMs === 3_000), true);
+const releaseStep = steps.find((step) => step.id === 'release-and-close-stopcock');
+assert.notEqual(releaseStep, undefined);
 assert.equal(steps.some((step) => step.targetControlId === 'pressureZero'), true);
 assert.equal(
   steps.some((step) => step.focusSequence?.some((focus) => focus.targetControlId === 'instrumentPressureDisplay')),
   true,
 );
-assert.equal(steps[1].actionDurationMs, HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs);
-assert.equal(steps[3].actionDurationMs, HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs);
-assert.equal(steps[8].actionDurationMs, HEAT_CAPACITY_AUTO_DEMO_RELEASE_ACTION_DURATION_MS);
+assert.equal(steps[2].actionDurationMs, HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs);
+assert.equal(steps[4].actionDurationMs, HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs);
+assert.equal(releaseStep?.actionDurationMs, HEAT_CAPACITY_AUTO_DEMO_RELEASE_ACTION_DURATION_MS);
 assert.equal(
-  steps[8].actions.find((action) => action.action === 'closeStopcockForRecovery')?.delayMs,
+  releaseStep?.actions.find((action) => action.action === 'closeStopcockForRecovery')?.delayMs,
   HEAT_CAPACITY_AUTO_DEMO_RELEASE_CLOSE_DELAY_MS,
 );
 assert.equal(
@@ -144,6 +152,7 @@ assert.deepEqual(
   steps.map((step) => [step.id, step.cameraFocusMode]),
   [
     ['power-on', 'instrument'],
+    ['sensor-preheat', undefined],
     ['open-stopcock-for-zero', 'bottle'],
     ['zero-pressure', 'instrument'],
     ['close-stopcock-before-pump', 'bottle'],
@@ -163,7 +172,7 @@ assert.equal(timeline[0].stage, 'highlight');
 assert.equal(timeline[0].step.id, 'power-on');
 assert.equal(timeline[1].stage, 'action');
 assert.equal(timeline[2].stage, 'preview');
-assert.equal(timeline[2].step.id, 'open-stopcock-for-zero');
+assert.equal(timeline[2].step.id, 'sensor-preheat');
 assert.equal(timeline.some((item) => item.stage === 'preview'), true);
 assert.equal(
   timeline.some((item) => item.stage === 'observe' && item.stepIndex < steps.length - 1),
@@ -207,17 +216,20 @@ const zeroPressurePreview = timeline.find((item) => item.step.id === 'zero-press
 const openStopcockFirstHighlight = timeline.find((item) => item.step.id === 'open-stopcock-for-zero' && item.stage === 'highlight');
 const openStopcockPreview = timeline.find((item) => item.step.id === 'open-stopcock-for-zero' && item.stage === 'preview');
 assert.equal(typeof zeroPressureFirstHighlight?.atMs, 'number');
-assert.equal(openStopcockPreview?.atMs, steps[0].preHighlightMs + steps[0].actionDurationMs);
+assert.equal(
+  openStopcockFirstHighlight?.atMs,
+  openStopcockPreview?.atMs,
+);
 assert.equal(
   zeroPressurePreview?.atMs,
-  (openStopcockFirstHighlight?.atMs ?? 0) + steps[1].preHighlightMs + steps[1].actionDurationMs,
+  (openStopcockFirstHighlight?.atMs ?? 0) + steps[2].preHighlightMs + steps[2].actionDurationMs,
 );
 
 assert.deepEqual(
   timeline.filter((item) => item.step.id === 'zero-pressure' && item.stage === 'highlight').map((item) => [item.focusControlId, item.atMs]),
   [
-    ['instrumentPressureDisplay', 15_070],
-    ['pressureZero', 19_070],
+    ['instrumentPressureDisplay', 17_670],
+    ['pressureZero', 21_670],
   ],
 );
 assert.deepEqual(

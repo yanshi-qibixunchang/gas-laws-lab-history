@@ -8,6 +8,9 @@ import {
   createHeatCapacityHardSphereSimulation,
   stepHeatCapacityHardSphereSimulation,
 } from '../../src/domain/heatCapacity/heatCapacityHardSphereSimulation.ts';
+import {
+  resolveHeatCapacityReleaseFeedback,
+} from '../../src/domain/heatCapacity/heatCapacityReleaseFeedbackModel.ts';
 
 const container = createHeatCapacityHardSphereBoxContainer({
   halfSize: { x: 0.73, y: 0.73, z: 0.73 },
@@ -618,67 +621,10 @@ for (let step = 0; step < 34; step += 1) {
     releaseExitSpeed: 0,
   });
 }
-assert.equal(
+assert.notEqual(
   visibleExitTailSimulation.particles[0].state,
   'exiting',
-  'a fast-release particle near the outlet should keep a visible inertial tail after crossing the bottle mouth',
-);
-
-const mainReleaseSpeedSimulation = createHeatCapacityHardSphereSimulation({
-  maxParticles: 1,
-  particleRadius,
-  container,
-  seed: 307,
-});
-const postExchangeSpeedSimulation = createHeatCapacityHardSphereSimulation({
-  maxParticles: 1,
-  particleRadius,
-  container,
-  seed: 307,
-});
-for (const speedSimulation of [mainReleaseSpeedSimulation, postExchangeSpeedSimulation]) {
-  const particle = speedSimulation.particles[0];
-  assert.ok(particle);
-  speedSimulation.particles[0] = {
-    ...particle,
-    position: { x: 0.46, y: 0.12, z: -0.22 },
-    velocity: { x: 0, y: 0.54, z: 0 },
-    state: 'exiting',
-    outflowProgress: 0.12,
-  };
-}
-const mainReleaseBefore = { ...mainReleaseSpeedSimulation.particles[0].position };
-const postExchangeBefore = { ...postExchangeSpeedSimulation.particles[0].position };
-stepWithFlow(mainReleaseSpeedSimulation, {
-  dtS: 1 / 120,
-  targetParticleCount: 0,
-  outflowActive: true,
-  outflowDriftSpeed: 1.45,
-  releasePhase: 'main-release',
-  releaseExitSpeed: 5.15,
-});
-stepWithFlow(postExchangeSpeedSimulation, {
-  dtS: 1 / 120,
-  targetParticleCount: 0,
-  outflowActive: false,
-  outflowDriftSpeed: 0,
-  releasePhase: 'post-release-exchange',
-  releaseExitSpeed: 1.28,
-});
-const mainReleaseMove = Math.hypot(
-  mainReleaseSpeedSimulation.particles[0].position.x - mainReleaseBefore.x,
-  mainReleaseSpeedSimulation.particles[0].position.y - mainReleaseBefore.y,
-  mainReleaseSpeedSimulation.particles[0].position.z - mainReleaseBefore.z,
-);
-const postExchangeMove = Math.hypot(
-  postExchangeSpeedSimulation.particles[0].position.x - postExchangeBefore.x,
-  postExchangeSpeedSimulation.particles[0].position.y - postExchangeBefore.y,
-  postExchangeSpeedSimulation.particles[0].position.z - postExchangeBefore.z,
-);
-assert.equal(
-  postExchangeMove < mainReleaseMove * 0.72,
-  true,
-  'post-release exchange should move exiting hard spheres more gently than main release',
+  'a release particle should not remain indefinitely in its directed exit state',
 );
 
 const explicitFastExitSimulation = createHeatCapacityHardSphereSimulation({
@@ -732,4 +678,226 @@ assert.equal(
   explicitFastMove > explicitSlowMove * 2.5,
   true,
   'explicit releaseExitSpeed should control scheduled outflow speed independently of pressure drift',
+);
+
+const uncappedExitSimulation = createHeatCapacityHardSphereSimulation({
+  maxParticles: 1,
+  particleRadius,
+  container,
+  seed: 403,
+});
+uncappedExitSimulation.particles[0] = {
+  id: 0,
+  position: { x: 0.32, y: 0, z: -0.16 },
+  velocity: { x: 0, y: 0.54, z: 0 },
+  state: 'exiting',
+  outflowProgress: 0.12,
+};
+const uncappedBefore = { ...uncappedExitSimulation.particles[0].position };
+stepWithFlow(uncappedExitSimulation, {
+  dtS: 1 / 120,
+  targetParticleCount: 0,
+  outflowActive: true,
+  outflowDriftSpeed: 1.45,
+  releasePhase: 'main-release',
+  releaseExitSpeed: 9.5,
+});
+const uncappedMove = Math.hypot(
+  uncappedExitSimulation.particles[0].position.x - uncappedBefore.x,
+  uncappedExitSimulation.particles[0].position.y - uncappedBefore.y,
+  uncappedExitSimulation.particles[0].position.z - uncappedBefore.z,
+);
+assert.ok(
+  uncappedMove > 8 / 120,
+  'the centralized 9.5 exit speed should not be silently capped back to the obsolete value of 8',
+);
+
+const gradientSimulation = createHeatCapacityHardSphereSimulation({
+  maxParticles: 2,
+  particleRadius,
+  container,
+  seed: 501,
+});
+gradientSimulation.particles[0] = {
+  id: 0,
+  position: { x: 0.04, y: 0.5, z: 0.02 },
+  velocity: { x: 0.54, y: 0, z: 0 },
+  state: 'inside',
+  outflowProgress: 0,
+};
+gradientSimulation.particles[1] = {
+  id: 1,
+  position: { x: -0.5, y: -0.5, z: -0.35 },
+  velocity: { x: 0.54, y: 0, z: 0 },
+  state: 'inside',
+  outflowProgress: 0,
+};
+const fullReleaseFeedback = resolveHeatCapacityReleaseFeedback({
+  releasePathOpen: true,
+  pressureDeltaKPa: 8,
+  initialPressureDeltaKPa: 8,
+  openElapsedS: 0.1,
+});
+for (let step = 0; step < 8; step += 1) {
+  stepHeatCapacityHardSphereSimulation(gradientSimulation, {
+    dtS: 1 / 120,
+    targetParticleCount: 2,
+    thermalSpeedMultiplier: 1,
+    outflowActive: true,
+    outflowDriftSpeed: 1.45,
+    releasePhase: 'main-release',
+    releaseFeedback: fullReleaseFeedback,
+    pumpFlowActive: false,
+    pumpFlowIntensity: 0,
+  });
+}
+const [nearGradientParticle, farGradientParticle] = gradientSimulation.particles;
+assert.ok(nearGradientParticle && farGradientParticle);
+assert.ok(
+  Math.hypot(
+    nearGradientParticle.velocity.x,
+    nearGradientParticle.velocity.y,
+    nearGradientParticle.velocity.z,
+  ) > Math.hypot(
+    farGradientParticle.velocity.x,
+    farGradientParticle.velocity.y,
+    farGradientParticle.velocity.z,
+  ),
+  'release response should form a continuous speed gradient with the near-outlet particle moving faster',
+);
+
+const prioritySimulation = createHeatCapacityHardSphereSimulation({
+  maxParticles: 3,
+  particleRadius,
+  container,
+  seed: 502,
+});
+prioritySimulation.particles[0] = {
+  id: 0,
+  position: { x: 0.02, y: 0.62, z: 0.01 },
+  velocity: { x: 0, y: 0.54, z: 0 },
+  state: 'inside',
+  outflowProgress: 0,
+};
+prioritySimulation.particles[1] = {
+  id: 1,
+  position: { x: 0.3, y: -0.2, z: 0.2 },
+  velocity: { x: 0, y: 0.54, z: 0 },
+  state: 'inside',
+  outflowProgress: 0,
+};
+prioritySimulation.particles[2] = {
+  id: 2,
+  position: { x: -0.45, y: -0.55, z: -0.4 },
+  velocity: { x: 0, y: 0.54, z: 0 },
+  state: 'inside',
+  outflowProgress: 0,
+};
+stepHeatCapacityHardSphereSimulation(prioritySimulation, {
+  dtS: 1 / 120,
+  targetParticleCount: 3,
+  thermalSpeedMultiplier: 1,
+  outflowActive: true,
+  outflowDriftSpeed: 1.45,
+  releasePhase: 'main-release',
+  releaseExitBudget: 1,
+  releaseExitSpeed: 9.5,
+  releaseFeedback: fullReleaseFeedback,
+  pumpFlowActive: false,
+  pumpFlowIntensity: 0,
+});
+assert.equal(
+  prioritySimulation.particles[0].state,
+  'exiting',
+  'particle removal should select the particle closest to the bottle outlet first',
+);
+
+const earlyCloseSimulation = createHeatCapacityHardSphereSimulation({
+  maxParticles: 1,
+  particleRadius,
+  container,
+  seed: 503,
+});
+earlyCloseSimulation.particles[0] = {
+  id: 0,
+  position: { x: 0, y: 0.48, z: 0 },
+  velocity: { x: 0, y: 9.5, z: 0 },
+  state: 'exiting',
+  outflowProgress: 0.2,
+  exitInertiaSpeed: 9.5,
+  exitInertiaAgeS: 0.01,
+  exitDelayS: 0,
+};
+const earlyCloseFeedback = resolveHeatCapacityReleaseFeedback({
+  releasePathOpen: false,
+  pressureDeltaKPa: 4,
+  initialPressureDeltaKPa: 6,
+  openElapsedS: 0.12,
+});
+stepHeatCapacityHardSphereSimulation(earlyCloseSimulation, {
+  dtS: 1 / 120,
+  targetParticleCount: 1,
+  thermalSpeedMultiplier: 1,
+  outflowActive: false,
+  outflowDriftSpeed: 0,
+  releasePhase: 'partial-stopped',
+  releaseExitBudget: 1,
+  releaseFeedback: earlyCloseFeedback,
+  releaseJustStopped: true,
+  pumpFlowActive: false,
+  pumpFlowIntensity: 0,
+});
+for (let step = 0; step < 12; step += 1) {
+  stepHeatCapacityHardSphereSimulation(earlyCloseSimulation, {
+    dtS: 1 / 120,
+    targetParticleCount: 1,
+    thermalSpeedMultiplier: 1,
+    outflowActive: false,
+    outflowDriftSpeed: 0,
+    releasePhase: 'partial-stopped',
+    releaseFeedback: earlyCloseFeedback,
+    pumpFlowActive: false,
+    pumpFlowIntensity: 0,
+  });
+}
+assert.equal(earlyCloseSimulation.particles[0].state, 'inside');
+assert.ok(
+  earlyCloseSimulation.particles[0].velocity.y < 0,
+  'an early close should stop new exits while preserving inertia until the particle bounces from the closed wall',
+);
+
+const balancedReboundSimulation = createHeatCapacityHardSphereSimulation({
+  maxParticles: 1,
+  particleRadius,
+  container,
+  seed: 505,
+});
+balancedReboundSimulation.particles[0] = {
+  id: 0,
+  position: { x: 0, y: 0, z: 0 },
+  velocity: { x: 0, y: 2, z: 0 },
+  state: 'inside',
+  outflowProgress: 0,
+};
+const balancedFeedback = resolveHeatCapacityReleaseFeedback({
+  releasePathOpen: true,
+  pressureDeltaKPa: 0.03,
+  initialPressureDeltaKPa: 6,
+  openElapsedS: 0.3,
+});
+stepHeatCapacityHardSphereSimulation(balancedReboundSimulation, {
+  dtS: 1 / 120,
+  targetParticleCount: 1,
+  thermalSpeedMultiplier: 1,
+  outflowActive: false,
+  outflowDriftSpeed: 0,
+  releasePhase: 'post-release-exchange',
+  releaseFeedback: balancedFeedback,
+  releaseJustStopped: true,
+  pumpFlowActive: false,
+  pumpFlowIntensity: 0,
+});
+assert.ok(
+  balancedReboundSimulation.particles[0].velocity.y < 0,
+  'natural pressure balance should reverse the remaining outward particle response',
 );

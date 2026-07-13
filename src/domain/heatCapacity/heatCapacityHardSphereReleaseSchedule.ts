@@ -30,7 +30,6 @@ export interface HeatCapacityHardSphereVisualFlowSchedule {
   exitSpeed: number;
   stopReason: HeatCapacityHardSphereVisualFlowStopReason;
   totalPlannedExitCount: number;
-  postExchangeReservedCount: number;
   baselineParticleCount: number;
   amountBeforeParticleCount: number;
   amountTargetParticleCount: number;
@@ -45,27 +44,25 @@ export interface HeatCapacityHardSphereMainReleaseScheduleInput {
   amountTargetRatio: number;
   particleMultiplier: number;
   elapsedS: number;
+  durationS: number;
+  feedbackProgress?: number;
 }
 
-export interface HeatCapacityHardSpherePostExchangeScheduleInput {
-  id: string;
-  reservedExitCount: number;
-  releaseMinimumParticleCount?: number;
-  gasTemperatureK: number;
-  ambientTemperatureK: number;
-  elapsedS: number;
-}
+export const HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE = Object.freeze({
+  exitSpeed: 9.5,
+  mainStaggerMaxS: 0.035,
+  farApproachSpeedMultiplier: 1.55,
+  nearApproachSpeedMultiplier: 2.4,
+  approachResponseS: 0.035,
+  balancedReboundFactor: 0.72,
+  balancedReboundDurationS: 0.14,
+  closedInertiaDurationS: 0.12,
+  recoveryResponseS: 0.085,
+  exitProgressScale: 1.25,
+});
 
-const MAIN_RELEASE_DURATION_S = 0.24;
-const MAIN_RELEASE_EXIT_SPEED = 5.15;
-const POST_EXCHANGE_EXIT_SPEED = 1.28;
 const MAIN_RELEASE_FIRST_BURST_S = 0.08;
 const MAIN_RELEASE_FIRST_BURST_PROGRESS = 0.62;
-const POST_EXCHANGE_MIN_DURATION_S = 3;
-const POST_EXCHANGE_MAX_DURATION_S = 8;
-const POST_EXCHANGE_RESERVE_RATIO = 0.25;
-const POST_EXCHANGE_TEMPERATURE_WINDOW_K = 8;
-const POST_EXCHANGE_VISIBLE_TEMPERATURE_DELTA_K = 0.55;
 
 const finiteOrFallback = (value: number, fallback: number) => (
   Number.isFinite(value) ? value : fallback
@@ -157,7 +154,6 @@ const createCompleteSchedule = (
   exitSpeed: 0,
   stopReason: 'duration-complete',
   totalPlannedExitCount: 0,
-  postExchangeReservedCount: 0,
 });
 
 const resolveMainReleaseProgress = (elapsedS: number, durationS: number) => {
@@ -186,33 +182,10 @@ const resolveLinearProgress = (elapsedS: number, durationS: number) => (
 const getExpectedCount = (
   targetExitCount: number,
   progress: number,
-) => Math.min(targetExitCount, Math.floor(targetExitCount * clampNumber(progress, 0, 1)));
-
-const resolveMainReleaseSplit = (totalPlannedExitCount: number) => {
-  if (totalPlannedExitCount <= 0) {
-    return { mainBurstExitCount: 0, postExchangeReservedCount: 0 };
-  }
-  if (totalPlannedExitCount < 4) {
-    return {
-      mainBurstExitCount: totalPlannedExitCount,
-      postExchangeReservedCount: 0,
-    };
-  }
-  const postExchangeReservedCount = clampNumber(
-    Math.round(totalPlannedExitCount * POST_EXCHANGE_RESERVE_RATIO),
-    1,
-    totalPlannedExitCount - 1,
-  );
-  if (totalPlannedExitCount < 10) {
-    return {
-      mainBurstExitCount: totalPlannedExitCount - postExchangeReservedCount,
-      postExchangeReservedCount,
-    };
-  }
-  return {
-    mainBurstExitCount: Math.max(1, totalPlannedExitCount - postExchangeReservedCount),
-    postExchangeReservedCount,
-  };
+) => {
+  const safeProgress = clampNumber(progress, 0, 1);
+  if (safeProgress <= 0) return 0;
+  return Math.min(targetExitCount, Math.ceil(targetExitCount * safeProgress));
 };
 
 export const createHeatCapacityHardSphereMainReleaseSchedule = (
@@ -230,22 +203,23 @@ export const createHeatCapacityHardSphereMainReleaseSchedule = (
   });
   const totalPlannedExitCount = releaseParticleBounds.totalPlannedExitCount;
   if (totalPlannedExitCount <= 0) return createCompleteSchedule(input.id, releaseParticleBounds);
-  const { mainBurstExitCount, postExchangeReservedCount } = resolveMainReleaseSplit(totalPlannedExitCount);
-  const elapsedS = clampNumber(finiteOrFallback(input.elapsedS, 0), 0, MAIN_RELEASE_DURATION_S);
-  const progress = resolveMainReleaseProgress(elapsedS, MAIN_RELEASE_DURATION_S);
+  const durationS = clampNumber(finiteOrFallback(input.durationS, 0.375), 0.05, 5);
+  const elapsedS = clampNumber(finiteOrFallback(input.elapsedS, 0), 0, durationS);
+  const progress = input.feedbackProgress === undefined
+    ? resolveMainReleaseProgress(elapsedS, durationS)
+    : clampNumber(finiteOrFallback(input.feedbackProgress, 0), 0, 1);
 
   return {
     id: input.id,
     phase: 'main-release',
     elapsedS,
-    durationS: MAIN_RELEASE_DURATION_S,
+    durationS,
     progress,
-    targetExitCount: mainBurstExitCount,
-    expectedExitedCount: getExpectedCount(mainBurstExitCount, progress),
-    exitSpeed: MAIN_RELEASE_EXIT_SPEED,
+    targetExitCount: totalPlannedExitCount,
+    expectedExitedCount: getExpectedCount(totalPlannedExitCount, progress),
+    exitSpeed: HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE.exitSpeed,
     stopReason: progress >= 1 ? 'duration-complete' : 'none',
     totalPlannedExitCount,
-    postExchangeReservedCount,
     baselineParticleCount: releaseParticleBounds.baselineParticleCount,
     amountBeforeParticleCount: releaseParticleBounds.amountBeforeParticleCount,
     amountTargetParticleCount: releaseParticleBounds.amountTargetParticleCount,
@@ -254,75 +228,17 @@ export const createHeatCapacityHardSphereMainReleaseSchedule = (
   };
 };
 
-export const estimateHeatCapacityHardSphereExchangeDurationS = (input: {
-  gasTemperatureK: number;
-  ambientTemperatureK: number;
-  minS?: number;
-  maxS?: number;
-}) => {
-  const minS = finiteOrFallback(input.minS ?? POST_EXCHANGE_MIN_DURATION_S, POST_EXCHANGE_MIN_DURATION_S);
-  const maxS = Math.max(minS, finiteOrFallback(input.maxS ?? POST_EXCHANGE_MAX_DURATION_S, POST_EXCHANGE_MAX_DURATION_S));
-  const temperatureDeltaK = Math.abs(
-    finiteOrFallback(input.gasTemperatureK, input.ambientTemperatureK) -
-      finiteOrFallback(input.ambientTemperatureK, input.gasTemperatureK),
-  );
-  if (temperatureDeltaK < POST_EXCHANGE_VISIBLE_TEMPERATURE_DELTA_K) return 0;
-  const progress = clampNumber(
-    (temperatureDeltaK - POST_EXCHANGE_VISIBLE_TEMPERATURE_DELTA_K) /
-      Math.max(POST_EXCHANGE_TEMPERATURE_WINDOW_K - POST_EXCHANGE_VISIBLE_TEMPERATURE_DELTA_K, 0.0001),
-    0,
-    1,
-  );
-  return minS + (maxS - minS) * progress;
-};
-
-export const createHeatCapacityHardSpherePostExchangeSchedule = (
-  input: HeatCapacityHardSpherePostExchangeScheduleInput,
-): HeatCapacityHardSphereVisualFlowSchedule => {
-  const targetExitCount = Math.max(0, Math.round(finiteOrFallback(input.reservedExitCount, 0)));
-  const releaseMinimumParticleCount = Math.max(
-    0,
-    Math.round(finiteOrFallback(input.releaseMinimumParticleCount ?? 0, 0)),
-  );
-  const durationS = estimateHeatCapacityHardSphereExchangeDurationS({
-    gasTemperatureK: input.gasTemperatureK,
-    ambientTemperatureK: input.ambientTemperatureK,
-  });
-  const particleBounds = {
-    baselineParticleCount: releaseMinimumParticleCount,
-    amountBeforeParticleCount: releaseMinimumParticleCount + targetExitCount,
-    amountTargetParticleCount: releaseMinimumParticleCount,
-    addedParticleCount: targetExitCount,
-    releaseMinimumParticleCount,
-  };
-  if (targetExitCount <= 0 || durationS <= 0) return createCompleteSchedule(input.id, particleBounds);
-  const elapsedS = clampNumber(finiteOrFallback(input.elapsedS, 0), 0, durationS);
-  const progress = resolveLinearProgress(elapsedS, durationS);
-
-  return {
-    id: input.id,
-    phase: 'post-release-exchange',
-    elapsedS,
-    durationS,
-    progress,
-    targetExitCount,
-    expectedExitedCount: getExpectedCount(targetExitCount, progress),
-    exitSpeed: POST_EXCHANGE_EXIT_SPEED,
-    stopReason: progress >= 1 ? 'duration-complete' : 'none',
-    totalPlannedExitCount: targetExitCount,
-    postExchangeReservedCount: targetExitCount,
-    ...particleBounds,
-  };
-};
-
 export const getHeatCapacityHardSphereScheduleFrame = (
   schedule: HeatCapacityHardSphereVisualFlowSchedule,
   elapsedS: number,
+  feedbackProgress?: number,
 ): HeatCapacityHardSphereVisualFlowSchedule => {
   const nextElapsedS = clampNumber(finiteOrFallback(elapsedS, schedule.elapsedS), 0, Math.max(schedule.durationS, 0));
-  const progress = schedule.phase === 'main-release'
-    ? resolveMainReleaseProgress(nextElapsedS, schedule.durationS)
-    : resolveLinearProgress(nextElapsedS, schedule.durationS);
+  const progress = feedbackProgress === undefined
+    ? schedule.phase === 'main-release'
+      ? resolveMainReleaseProgress(nextElapsedS, schedule.durationS)
+      : resolveLinearProgress(nextElapsedS, schedule.durationS)
+    : clampNumber(finiteOrFallback(feedbackProgress, schedule.progress), 0, 1);
   return {
     ...schedule,
     elapsedS: nextElapsedS,

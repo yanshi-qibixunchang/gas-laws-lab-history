@@ -517,7 +517,7 @@ const scoreResultDeviation = (
 const scoreRecordChain = (
   input: HeatCapacityProcessScoringInput,
 ): HeatCapacityProcessScoreItem => {
-  const complete = Boolean(input.trial.u0 && input.trial.u1 && input.trial.u2 && input.trial.correctedSignals);
+  const complete = Boolean(input.trial.u1 && input.trial.u2 && input.trial.correctedSignals);
   const u0Score = input.trial.u0 && Math.abs(input.trial.u0.displayPressureMv) <= input.traceTrial.configSnapshot.record.u0ZeroToleranceMv
     ? 10
     : input.trial.u0
@@ -526,26 +526,28 @@ const scoreRecordChain = (
   const u1Stable = sampleIsStableForRecording(findRecordTraceSample(input.branch, input.trial.u1), input.traceTrial);
   const u2Stable = sampleIsStableForRecording(findRecordTraceSample(input.branch, input.trial.u2), input.traceTrial);
   const blockedCount = input.branch.events.filter((event) => event.type === 'record-blocked').length;
-  const timingScore = (input.trial.u0 ? 2 : 0) + (u1Stable ? 4 : 0) + (u2Stable ? 4 : 0) -
+  const timingScore = (u1Stable ? 5 : 0) + (u2Stable ? 5 : 0) -
     Math.min(3, blockedCount * 2);
-  const completenessScore = complete ? 8 : 0;
+  const completenessScore = complete ? 5 : 0;
   const gamma = input.trial.correctedSignals?.gamma ?? null;
   const theoreticalGamma = input.traceTrial.configSnapshot.physics.gamma;
   const gammaAbsoluteError = calculateHeatCapacityGammaAbsoluteError(gamma, theoreticalGamma);
   const resultScore = scoreResultDeviation(gamma, theoreticalGamma, Boolean(input.trial.correctedSignals));
   const recordTimingScore = clampScore(timingScore, 10);
-  const score = completenessScore + resultScore + u0Score + recordTimingScore;
+  const preheatCompleted = input.trial.preheatOutcome !== 'omitted';
+  const preheatScore = preheatCompleted ? 3 : 0;
+  const score = completenessScore + resultScore + u0Score + recordTimingScore + preheatScore;
   const status = statusFromScore(score, SCORE_MAX.recordChain, !complete);
   const details = [
     createSubItem({
       id: 'record-chain-completeness',
       label: '数据完整性',
       score: completenessScore,
-      maxScore: 8,
-      status: statusFromScore(completenessScore, 8, !complete),
-      evidence: complete ? 'U0 / U1 / U2 与计算结果完整。' : '缺少完整 U0 / U1 / U2 或计算结果。',
+      maxScore: 5,
+      status: statusFromScore(completenessScore, 5, !complete),
+      evidence: complete ? 'U1 / U2 与计算结果完整。' : '缺少完整 U1 / U2 或计算结果。',
       reason: complete ? '数据链路完整。' : '数据链路不完整。',
-      recommendation: complete ? '保持完整记录链路。' : '完成三次记录后再查看评分。',
+      recommendation: complete ? '保持完整记录链路。' : '完成 U1、U2 记录后再查看评分。',
     }),
     createSubItem({
       id: 'record-chain-result',
@@ -573,8 +575,12 @@ const scoreRecordChain = (
       score: u0Score,
       maxScore: 10,
       status: statusFromScore(u0Score, 10, !input.trial.u0),
-      evidence: input.trial.u0 ? `U0 = ${formatNumber(input.trial.u0.displayPressureMv, 2)} mV。` : '缺少 U0。',
-      reason: u0Score === 10 ? 'U0 零点接近 0。' : 'U0 零点偏离当前容差。',
+      evidence: input.trial.u0 ? `U0 = ${formatNumber(input.trial.u0.displayPressureMv, 2)} mV。` : 'U0 未记录，按 0 mV 计算。',
+      reason: u0Score === 10
+        ? 'U0 零点接近 0。'
+        : input.trial.u0
+          ? 'U0 零点偏离当前容差。'
+          : '未记录 U0，本组计算明确按 U0 = 0 mV 处理。',
       recommendation: u0Score === 10 ? '保持调零后记录。' : '调零稳定后再记录 U0。',
     }),
     createSubItem({
@@ -587,6 +593,18 @@ const scoreRecordChain = (
       reason: recordTimingScore === 10 ? '记录点均处于稳定窗口。' : '至少一个记录点偏离稳定窗口。',
       recommendation: recordTimingScore === 10 ? '保持当前记录时机。' : '等待压力和温度斜率稳定后再记录。',
     }),
+    createSubItem({
+      id: 'record-chain-preheat',
+      label: '传感器预热',
+      score: preheatScore,
+      maxScore: 3,
+      status: statusFromScore(preheatScore, 3),
+      evidence: preheatCompleted ? '本组已完成等效 20 min 传感器预热。' : '本组未完成传感器预热。',
+      reason: preheatCompleted
+        ? '传感器在记录前已完成预热。'
+        : `未预热系统偏差 ${formatNumber(input.trial.correctedSignals?.preheatBiasGamma ?? 0, 3)} 已计入最终 γ。`,
+      recommendation: preheatCompleted ? '保持开机预热后再操作。' : '下一组先开机并完成预热。',
+    }),
   ];
 
   return createItem({
@@ -595,8 +613,14 @@ const scoreRecordChain = (
     maxScore: SCORE_MAX.recordChain,
     score,
     status,
-    evidence: complete ? 'U0 / U1 / U2 与计算结果完整。' : '记录链路不完整。',
-    relation: recordTimingScore === 10 && u0Score === 10 && resultScore === 12 ? '记录窗口稳定，结果偏差可接受。' : '结果偏差、记录窗口或零点仍需复核。',
+    evidence: complete
+      ? input.trial.u0
+        ? 'U0 / U1 / U2 与计算结果完整。'
+        : 'U1 / U2 完整；U0 未记录并按 0 mV 计算。'
+      : '记录链路不完整。',
+    relation: recordTimingScore === 10 && u0Score === 10 && resultScore === 12 && preheatScore === 3
+      ? '记录窗口稳定，结果偏差可接受。'
+      : '结果偏差、记录窗口、零点或预热状态仍需复核。',
     recommendation: status === 'reasonable' ? '保持当前记录链路。' : '下一组减少无效记录并等待稳定后记录。',
     details,
   });
@@ -646,7 +670,7 @@ export const scoreHeatCapacityFreeProcess = (
     scoreRecordChain(input),
     scoreRetake(input),
   ];
-  const complete = Boolean(input.trial.u0 && input.trial.u1 && input.trial.u2 && input.trial.correctedSignals);
+  const complete = Boolean(input.trial.u1 && input.trial.u2 && input.trial.correctedSignals);
   return {
     total: complete ? items.reduce((sum, item) => sum + item.score, 0) : null,
     maxScore: 100,

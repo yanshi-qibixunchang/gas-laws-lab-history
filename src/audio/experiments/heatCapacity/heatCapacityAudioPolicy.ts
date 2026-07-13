@@ -1,4 +1,7 @@
-import { HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA } from '../../../domain/heatCapacity/heatCapacityReleaseModel.ts';
+import {
+  HEAT_CAPACITY_RELEASE_FEEDBACK_FULL_SCALE_KPA,
+  resolveHeatCapacityReleaseFeedback,
+} from '../../../domain/heatCapacity/heatCapacityReleaseFeedbackModel.ts';
 
 export const HEAT_CAPACITY_ZERO_KNOB_MIN_DEGREES_PER_TICK = 4;
 export const HEAT_CAPACITY_ZERO_KNOB_CALIBRATED_DEGREES_PER_TICK = 10;
@@ -6,35 +9,48 @@ export const HEAT_CAPACITY_ZERO_KNOB_SPEED_ANCHORS_DEG_PER_S = [20, 40, 80, 160]
 export const HEAT_CAPACITY_ZERO_KNOB_RATE_ANCHORS_HZ = [2, 4, 8, 16] as const;
 export const HEAT_CAPACITY_PUMP_BULB_MIN_INTERVAL_MS = 125;
 export const HEAT_CAPACITY_RECORD_WRITING_MIN_INTERVAL_MS = 250;
-export const HEAT_CAPACITY_RELEASE_SOUND_FULL_SCALE_KPA = 8;
+export const HEAT_CAPACITY_RELEASE_SOUND_FULL_SCALE_KPA = HEAT_CAPACITY_RELEASE_FEEDBACK_FULL_SCALE_KPA;
 
-export interface HeatCapacityReleaseSoundState {
-  outwardFlowActive: boolean;
+interface HeatCapacityReleaseSoundState {
+  releasePathOpen: boolean;
   paused: boolean;
   pressureDeltaKPa: number;
   audioEnabled: boolean;
+  releaseElapsedS?: number;
+  apertureRatio?: number;
 }
 
-export const clampUnit = (value: number) => Math.min(1, Math.max(0, value));
+const clampUnit = (value: number) => Math.min(1, Math.max(0, value));
 
-export const getHeatCapacityReleasePressureRatio = (pressureDeltaKPa: number) => (
+const getHeatCapacityReleasePressureRatio = (pressureDeltaKPa: number) => (
   clampUnit(Math.max(0, pressureDeltaKPa) / HEAT_CAPACITY_RELEASE_SOUND_FULL_SCALE_KPA)
 );
 
-export const getHeatCapacityReleaseSoundIntensity = (pressureDeltaKPa: number) => (
-  Math.sqrt(getHeatCapacityReleasePressureRatio(pressureDeltaKPa))
-);
+export const getHeatCapacityReleaseSoundIntensity = (
+  pressureDeltaKPa: number,
+  apertureRatio = 1,
+) => resolveHeatCapacityReleaseFeedback({
+  releasePathOpen: true,
+  pressureDeltaKPa,
+  apertureRatio,
+}).intensity;
 
 export const getHeatCapacityReleaseLowpassHz = (pressureDeltaKPa: number) => (
   3_500 + 1_700 * getHeatCapacityReleasePressureRatio(pressureDeltaKPa)
 );
 
+export const resolveHeatCapacityReleaseSoundFeedback = (state: HeatCapacityReleaseSoundState) => (
+  resolveHeatCapacityReleaseFeedback({
+    releasePathOpen: state.releasePathOpen,
+    pressureDeltaKPa: state.pressureDeltaKPa,
+    openElapsedS: state.releaseElapsedS,
+    apertureRatio: state.apertureRatio,
+    paused: state.paused || !state.audioEnabled,
+  })
+);
+
 export const shouldPlayHeatCapacityReleaseSound = (state: HeatCapacityReleaseSoundState) => (
-  state.audioEnabled &&
-  !state.paused &&
-  state.outwardFlowActive &&
-  Number.isFinite(state.pressureDeltaKPa) &&
-  state.pressureDeltaKPa > HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA
+  state.audioEnabled && resolveHeatCapacityReleaseSoundFeedback(state).active
 );
 
 export class HeatCapacityKnobTickAccumulator {
@@ -89,16 +105,7 @@ export const getHeatCapacityZeroKnobAudioProfile = (angularSpeedDegPerS: number)
   };
 };
 
-export const getHeatCapacityPumpBulbVariation = (rateRandom: number, gainRandom: number) => {
-  const playbackRate = 0.97 + clampUnit(rateRandom) * 0.06;
-  const gainDb = -0.8 + clampUnit(gainRandom) * 1.6;
-  return {
-    playbackRate,
-    gain: 10 ** (gainDb / 20),
-  };
-};
-
-export const getHeatCapacityPumpValveVariation = (rateRandom: number, gainRandom: number) => {
+export const getHeatCapacityMechanicalVariation = (rateRandom: number, gainRandom: number) => {
   const playbackRate = 0.97 + clampUnit(rateRandom) * 0.06;
   const gainDb = -0.8 + clampUnit(gainRandom) * 1.6;
   return {

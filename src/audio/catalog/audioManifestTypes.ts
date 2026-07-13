@@ -1,4 +1,4 @@
-export interface ThirdPartyAudioSourceManifest {
+interface ThirdPartyAudioSourceManifest {
   assetId: string;
   originalFileName: string;
   sourceTitle: string;
@@ -11,7 +11,7 @@ export interface ThirdPartyAudioSourceManifest {
   sourceSha256: string;
 }
 
-export interface ProcessedAudioAssetManifest {
+interface ProcessedAudioAssetManifest {
   audioId: string;
   finalFileName: string | null;
   kind: 'third-party-derived' | 'first-party-procedural';

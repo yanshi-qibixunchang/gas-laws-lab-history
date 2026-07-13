@@ -24,9 +24,9 @@ import {
   createHeatCapacityBinaryRollbackPlan,
   createHeatCapacityKnobRollbackPlan,
   createHeatCapacityPumpBulbRollbackPlan,
-  type HeatCapacityGuideRollbackAnimation,
   type HeatCapacityGuideRollbackCue,
 } from './heatCapacityGuideRollbackMotion.ts';
+import type { HeatCapacityGuideRollbackAnimation } from '../../domain/heatCapacity/heatCapacityInstrumentFeedback.ts';
 import {
   HeatCapacityWheelGestureTracker,
   createHeatCapacityControlInteractionId,
@@ -811,9 +811,8 @@ const getPressureGaugeNeedleRotation = (
   pressureGaugeDisplayValue: number,
   gaugePressureMinKPa: number,
   gaugePressureMaxKPa: number,
-  powerOn: boolean,
 ) => {
-  if (!powerOn || typeof pressureGaugeDisplayValue !== 'number' || !Number.isFinite(pressureGaugeDisplayValue)) {
+  if (typeof pressureGaugeDisplayValue !== 'number' || !Number.isFinite(pressureGaugeDisplayValue)) {
     return PRESSURE_GAUGE_MIN_ROTATION;
   }
   return mapPressureGaugeValueToRotation(pressureGaugeDisplayValue, gaugePressureMinKPa, gaugePressureMaxKPa);
@@ -2603,7 +2602,6 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     props.pressureGaugeDisplayValue,
     props.gaugePressureMinKPa,
     props.gaugePressureMaxKPa,
-    props.powerOn,
   );
   const stopcockOpen = getHeatCapacityStopcockState(props.stopcockAngleDeg) === 'open';
   const activeUltraMaterialControls = useMemo(() => {
@@ -3328,7 +3326,6 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       <HeatCapacityHardSphereLayer
         enabled={props.hardSphereViewEnabled}
         containerProfile="ultra-cylinder"
-        powerOn={props.powerOn}
         temperatureMv={props.temperatureSignalMv}
         pressureMv={props.pressureSignalMv}
         pressureDeltaKPa={props.pressureDeltaKPa}

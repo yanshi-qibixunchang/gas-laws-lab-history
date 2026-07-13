@@ -7,6 +7,7 @@ const outputDir = path.join(rootDir, 'public', 'legal');
 const packageJsonPath = path.join(rootDir, 'package.json');
 const packageLockPath = path.join(rootDir, 'package-lock.json');
 const nodeModulesDir = path.join(rootDir, 'node_modules');
+const audioManifestPath = path.join(rootDir, 'public', 'audio', 'experiments', 'heat-capacity', 'manifest.json');
 const summaryPath = path.join(outputDir, 'third-party-summary.json');
 const checkOnly = process.argv.includes('--check');
 const staleOutputs = [];
@@ -150,6 +151,7 @@ const getLegalNoticeInputFingerprint = (records) => {
   appendFile(__filename);
   appendFile(path.join(nodeModulesDir, 'electron', 'dist', 'LICENSE'));
   appendFile(path.join(rootDir, 'public', 'fonts', 'LICENSES.txt'));
+  appendFile(audioManifestPath);
 
   for (const record of records) {
     for (const lockPath of record.paths) {
@@ -334,6 +336,72 @@ const writeExporterLicensesHtml = () => {
   writeTextFileIfChanged(path.join(outputDir, 'exporter-licenses.html'), html);
 };
 
+const writeAudioMaterialsHtml = (manifest) => {
+  const assetsBySource = new Map();
+  for (const asset of manifest.assets || []) {
+    if (!asset.sourceAssetId) continue;
+    const audioIds = assetsBySource.get(asset.sourceAssetId) || new Set();
+    audioIds.add(asset.audioId);
+    assetsBySource.set(asset.sourceAssetId, audioIds);
+  }
+  const renderRows = () => (manifest.sources || []).map((source) => {
+    const audioIds = [...(assetsBySource.get(source.assetId) || [])].sort().join(', ');
+    return `<tr>
+      <td><code>${escapeHtml(audioIds)}</code></td>
+      <td>${escapeHtml(source.sourceTitle)}</td>
+      <td>${escapeHtml(source.author)}</td>
+      <td>${renderExternalLink(source.sourceUrl)}</td>
+      <td>${renderExternalLink(source.licenseUrl, source.license)}</td>
+    </tr>`;
+  }).join('\n');
+  const proceduralAudioIds = (manifest.assets || [])
+    .filter((asset) => asset.kind === 'first-party-procedural')
+    .map((asset) => asset.audioId)
+    .sort()
+    .join(', ');
+  const sections = [
+    {
+      lang: 'zh-CN',
+      title: '音效素材与许可',
+      intro: '以下音效素材由项目内的音频清单自动生成。第三方录音均标记为 CC0 1.0；素材标题、作者和来源链接保持原始写法。',
+      headers: ['用途 / 音频 ID', '来源标题', '作者', '来源', '许可'],
+      procedural: `音频 ${proceduralAudioIds} 为软件运行时生成的第一方程序化音效，仅使用噪声、滤波器和包络合成，不包含外部录音样本。`,
+    },
+    {
+      lang: 'zh-TW',
+      title: '音效素材與授權',
+      intro: '以下音效素材由專案內的音訊清單自動生成。第三方錄音均標記為 CC0 1.0；素材標題、作者和來源連結保持原始寫法。',
+      headers: ['用途 / 音訊 ID', '來源標題', '作者', '來源', '授權'],
+      procedural: `音訊 ${proceduralAudioIds} 為軟體執行時生成的第一方程式化音效，僅使用雜訊、濾波器和包絡合成，不包含外部錄音樣本。`,
+    },
+    {
+      lang: 'en',
+      title: 'Audio Materials and Licenses',
+      intro: 'This list is generated from the project audio manifest. All third-party recordings are marked CC0 1.0; original source titles, author names, and source links are preserved.',
+      headers: ['Use / audio ID', 'Source title', 'Author', 'Source', 'License'],
+      procedural: `Audio ${proceduralAudioIds} is first-party procedural audio generated at runtime from noise, filters, and envelopes. It contains no external recording samples.`,
+    },
+  ];
+  const body = sections.map((section) => `
+    <section lang="${section.lang}">
+      <h2>${escapeHtml(section.title)}</h2>
+      <p>${escapeHtml(section.intro)}</p>
+      <table>
+        <thead><tr>${section.headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
+        <tbody>${renderRows()}</tbody>
+      </table>
+      <p><strong>${escapeHtml(section.procedural)}</strong></p>
+    </section>
+  `).join('\n');
+  const html = createHtmlDocument({
+    title: 'Audio Materials and Licenses',
+    body: `<h1>Audio Materials / 音效素材 / 音效素材</h1>
+      <p class="meta">Generated at ${escapeHtml(generatedAt)} from public/audio/experiments/heat-capacity/manifest.json.</p>
+      ${body}`,
+  });
+  writeTextFileIfChanged(path.join(outputDir, 'audio-materials.html'), html);
+};
+
 const copyIfExists = (sourcePath, fileName) => {
   if (!fs.existsSync(sourcePath)) return false;
   const targetPath = path.join(outputDir, fileName);
@@ -363,6 +431,7 @@ const writeSummary = (records) => {
       { id: 'electron', path: 'LICENSE.electron.txt', title: 'Electron License' },
       { id: 'fonts', path: 'font-licenses.txt', title: 'Font Licenses' },
       { id: 'exporter', path: 'exporter-licenses.html', title: 'Exporter Component Licenses' },
+      { id: 'audio', path: 'audio-materials.html', title: 'Audio Materials and Licenses' },
     ],
   };
   writeTextFileIfChanged(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);
@@ -382,6 +451,7 @@ if (
 writeDependenciesHtml(records);
 writeLicenseTextsHtml(records);
 writeExporterLicensesHtml();
+writeAudioMaterialsHtml(readJson(audioManifestPath));
 copyIfExists(path.join(rootDir, 'node_modules', 'electron', 'dist', 'LICENSE'), 'LICENSE.electron.txt');
 copyIfExists(path.join(rootDir, 'public', 'fonts', 'LICENSES.txt'), 'font-licenses.txt');
 writeSummary(records);

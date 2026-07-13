@@ -27,6 +27,9 @@ import {
   normalizeHeatCapacityFreeRecordInput,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
+  createHeatCapacityFreeAttempt,
+} from '../../src/domain/heatCapacity/heatCapacityFreeAttemptModel.ts';
+import {
   createHeatCapacityFreeStandardReference,
 } from '../../src/domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
 import {
@@ -223,6 +226,7 @@ assert.equal(payload.common.teachingStatus, 'idle');
 assert.equal(file.heatCapacityLessonIntroAutoShown, false);
 assert.equal(payload.common.lessonIntroAutoShown, false);
 assert.equal(payload.free?.runtimeVersion, file.heatCapacityFreeRuntimeVersion);
+assert.equal(payload.free?.preheatCompleted, false);
 assert.equal(payload.free?.traceVersion, file.heatCapacityFreeTraceVersion);
 assert.equal(payload.free?.parameterScheme, 'real');
 assert.equal(payload.free?.displayScheme, 'real');
@@ -255,7 +259,7 @@ assert.equal(payload.free?.config.physics.autoDemoReleaseDurationS, 0.375);
 assert.equal('chamberTemperatureRiseK' in payload.free!.config.physics.pumpValveExchange!, false);
 assert.equal(payload.free?.config.sensor.pumpLagRate, 36);
 assert.equal(payload.free?.config.sensor.fastProcessSampleStepS, 0.04);
-assert.equal(payload.free?.config.scoring.processScoringVersion, 'free-process-score-v2');
+assert.equal(payload.free?.config.scoring.processScoringVersion, 'free-process-score-v3');
 assert.equal(payload.free?.config.record.u0ZeroToleranceMv, 0.12);
 assert.equal(payload.free?.runtime.gasAmountRatio, 1);
 assert.equal(payload.free?.controls.powerOn, false);
@@ -280,6 +284,35 @@ for (const derivedKey of [
   assert.equal(derivedKey in payload.free!.uiReplay, false, `${derivedKey} should not be duplicated in UI replay`);
 }
 assert.equal('references' in payload.free!, false);
+
+const inFlightAttempt = createHeatCapacityFreeAttempt({
+  startReason: 'effective-pump',
+  preheatOutcome: 'omitted',
+  atS: 2,
+  wallClockMs: 2_000,
+  powerOn: false,
+});
+const inFlightPayload = createHeatCapacityPersistencePayload({
+  ...file,
+  heatCapacityFreeActiveAttempt: inFlightAttempt,
+  heatCapacityFreeRealDomain: {
+    ...file.heatCapacityFreeRealDomain,
+    activeAttempt: inFlightAttempt,
+  },
+}, 12_346);
+assert.deepEqual(inFlightPayload.free?.real.activeAttempt, inFlightAttempt);
+const restoredInFlight = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-in-flight-restore',
+  kind: 'heatCapacity',
+  name: 'In-flight Restore',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: inFlightPayload as unknown as Record<string, unknown>,
+}, inFlightPayload, 2);
+assert.deepEqual(restoredInFlight.heatCapacityFreeActiveAttempt, inFlightAttempt);
 
 const noiseDisabledFile = {
   ...file,
@@ -415,6 +448,7 @@ assert.equal(tracedSample.controls.pumpBulbState, 'compressing');
 
 const recordedTrial = {
   ...createHeatCapacityFreeTrial('trial-1'),
+  preheatOutcome: 'completed' as const,
   traceTrialId: 'free-trace-trial-1',
   branchCount: 1,
   completedAtMs: 12_345,
@@ -463,6 +497,9 @@ const recordedTrial = {
     U2DisplayMv: 35.4,
     U1CorrectedMv: 119.68,
     U2CorrectedMv: 35.28,
+    u0Source: 'recorded' as const,
+    formulaGamma: 1.39,
+    preheatBiasGamma: 0,
     gamma: 1.39,
   },
 };
@@ -488,6 +525,33 @@ const recordedPayloadRestored = restoreHeatCapacityFileFromPersistencePayload({
 }, recordedPayload, 2);
 assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].completedAtMs, 12_345);
 assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].parameterScheme, 'real');
+assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].preheatOutcome, 'completed');
+assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].correctedSignals?.u0Source, 'recorded');
+assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].correctedSignals?.formulaGamma, 1.39);
+assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].correctedSignals?.preheatBiasGamma, 0);
+
+const assumedZeroPayload = structuredClone(recordedPayload);
+assumedZeroPayload.free!.trials[0].u0 = null;
+assumedZeroPayload.free!.trials[0].correctedSignals!.U0DisplayMv = 0;
+assumedZeroPayload.free!.trials[0].correctedSignals!.u0Source = 'assumed-zero';
+assumedZeroPayload.free!.real.trials[0].u0 = null;
+assumedZeroPayload.free!.real.trials[0].correctedSignals!.U0DisplayMv = 0;
+assumedZeroPayload.free!.real.trials[0].correctedSignals!.u0Source = 'assumed-zero';
+const assumedZeroRestored = restoreHeatCapacityFileFromPersistencePayload({
+  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+  id: 'heat-file-assumed-zero-restore',
+  kind: 'heatCapacity',
+  name: 'Assumed Zero Restore',
+  createdAt: 10,
+  updatedAt: 20,
+  layout: {},
+  payload: assumedZeroPayload as unknown as Record<string, unknown>,
+}, assumedZeroPayload, 2);
+assert.equal(assumedZeroRestored.heatCapacityFreeTrials[0].u0, null);
+assert.notEqual(assumedZeroRestored.heatCapacityFreeTrials[0].u1, null);
+assert.notEqual(assumedZeroRestored.heatCapacityFreeTrials[0].u2, null);
+assert.equal(assumedZeroRestored.heatCapacityFreeTrials[0].correctedSignals?.u0Source, 'assumed-zero');
 
 const standardReferenceFixture = createCompleteProcessReviewFixtureParts();
 const contaminatedStandardReference = createHeatCapacityFreeStandardReference({
@@ -637,6 +701,20 @@ assert.equal(restored.heatCapacityFreeDisplayScheme, 'real');
 assert.equal(restored.heatCapacityFreeRealDomain.scheme, 'real');
 assert.equal(restored.heatCapacityFreeIdealDomain.scheme, 'ideal');
 assert.equal(restored.heatCapacityReleaseState.purpose, 'none');
+assert.equal(restored.heatCapacityFreePreheatCompleted, false);
+
+const legacyPreheatPayload = structuredClone(editedPayload) as typeof editedPayload;
+delete (legacyPreheatPayload.free as Partial<typeof legacyPreheatPayload.free> & { preheatCompleted?: boolean })?.preheatCompleted;
+const legacyPreheatRestored = restoreHeatCapacityFileFromPersistencePayload(
+  { ...envelope, id: 'heat-file-legacy-preheat' },
+  legacyPreheatPayload,
+  1,
+);
+assert.equal(
+  legacyPreheatRestored.heatCapacityFreePreheatCompleted,
+  true,
+  'files saved before the preheat marker existed must not unexpectedly replay preheat',
+);
 
 const contaminatedAcknowledgementsPayload = structuredClone(editedPayload) as typeof editedPayload;
 contaminatedAcknowledgementsPayload.free!.acknowledgements = {

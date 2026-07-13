@@ -182,7 +182,6 @@ import {
       stopcockFlowPurpose: 'release',
     });
     freeState = stepFreePhysics(freeState, guideEquivalentFreeConfig, {
-      powerOn: true,
       pumpValveOpen: false,
       stopcockOpen: true,
       stopcockFlowPurpose: 'release',
@@ -202,7 +201,6 @@ import {
       stopcockOpen: false,
     });
     freeState = stepFreePhysics(freeState, guideEquivalentFreeConfig, {
-      powerOn: true,
       pumpValveOpen: false,
       stopcockOpen: false,
     }, 300, releaseDurationS + 300);
@@ -238,9 +236,18 @@ import {
     pumpValveOpen: false,
     displayPressureMv: 0,
   });
-  assert.equal(workflow1.step, 'openStopcockForZeroRequired');
+  assert.equal(workflow1.step, 'preheatRequired');
 
-  const wrongGuard = getHeatCapacityGuideActionGuard(workflow1, {
+  const workflowAfterPreheat = transitionHeatCapacityGuideWorkflow(workflow1, {
+    action: 'preheatComplete',
+    powerOn: true,
+    stopcockOpen: false,
+    pumpValveOpen: false,
+    displayPressureMv: 0,
+  });
+  assert.equal(workflowAfterPreheat.step, 'openStopcockForZeroRequired');
+
+  const wrongGuard = getHeatCapacityGuideActionGuard(workflowAfterPreheat, {
     action: 'recordU0',
     powerOn: true,
     stopcockOpen: false,

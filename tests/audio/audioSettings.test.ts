@@ -42,7 +42,7 @@ assert.deepEqual(
     audioEnabled: true,
     audioVolume: 0.6,
   },
-  'old general-settings records should migrate with audio enabled at 60%',
+  'records created before audio preferences existed should receive the current audio defaults',
 );
 
 assert.deepEqual(

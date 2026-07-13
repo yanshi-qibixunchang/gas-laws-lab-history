@@ -7,8 +7,9 @@ import {
   type HeatCapacityFreeConfigSnapshot,
   type HeatCapacityFreeTraceTrial,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
-import type {
-  HeatCapacityFreeTrial,
+import {
+  calculateFreeHeatCapacityTrialSignals,
+  type HeatCapacityFreeTrial,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
   selectHeatCapacityFreeProcessReview,
@@ -50,6 +51,38 @@ assert.equal(review.summary?.upperBoundGapPercent !== null, true);
 assert.equal(review.trialOptions.length, 1);
 assert.equal(review.trialOptions[0]?.status, 'complete');
 assert.equal(review.selectedTrialId, parts.trial.id);
+
+const missingU0TrialBase: HeatCapacityFreeTrial = {
+  ...parts.trial,
+  id: 'missing-u0-review',
+  u0: null,
+  correctedSignals: null,
+};
+const missingU0Trial: HeatCapacityFreeTrial = {
+  ...missingU0TrialBase,
+  correctedSignals: calculateFreeHeatCapacityTrialSignals(missingU0TrialBase, {
+    atmosphericPressureKPa: parts.traceTrial.configSnapshot.environment.ambientPressureKPa,
+    pressureSensitivityMvPerKPa: parts.traceTrial.configSnapshot.sensor.pressureMvPerKPa,
+    theoreticalGamma: parts.traceTrial.configSnapshot.physics.gamma,
+  }),
+};
+const missingU0Review = selectHeatCapacityFreeProcessReview({
+  trials: [missingU0Trial],
+  traceStore: parts.traceStore,
+  theoreticalGamma: 1.4,
+  selectedTrialId: missingU0Trial.id,
+});
+assert.equal(missingU0Review.status, 'ready');
+assert.equal(missingU0Review.trialOptions[0]?.status, 'complete');
+assert.deepEqual(missingU0Review.chart.records.map((record) => record.id), ['u1', 'u2']);
+assert.equal(missingU0Review.summary?.u1?.pressureDeltaKPa, 5.6);
+assert.notEqual(missingU0Review.score.total, null);
+assert.equal(
+  missingU0Review.score.items
+    .find((item) => item.id === 'recordChain')
+    ?.details.find((detail) => detail.id === 'record-chain-zeroing')?.score,
+  0,
+);
 
 let quickToggleBranch = appendFreeTraceEvent(parts.branch, {
   atS: 30.1,

@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-07-11T18:34:24.704Z",
-  "contentFingerprint": "0faefd3a87679ae429006267cc6a438e8be7a99c79652f363b61c7c33d3ef32e",
+  "generatedAt": "2026-07-12T18:11:17.661Z",
+  "contentFingerprint": "9e6b7c8d44a84a0c97430baa6d18bf2ed78e41397306ed41972edc43a2084b63",
   "packageRecordCount": 465,
   "licenseCounts": {
     "MIT": 368,
@@ -44,6 +44,11 @@
       "id": "exporter",
       "path": "exporter-licenses.html",
       "title": "Exporter Component Licenses"
+    },
+    {
+      "id": "audio",
+      "path": "audio-materials.html",
+      "title": "Audio Materials and Licenses"
     }
   ]
 }

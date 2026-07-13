@@ -19,10 +19,13 @@ import {
 import {
   getHeatCapacityFreeGasTypeGamma,
 } from './heatCapacityGasTheory.ts';
+import {
+  applyHeatCapacityFreePreheatBias,
+  type HeatCapacityFreePreheatOutcome,
+} from './heatCapacityFreeResultBiasModel.ts';
 
 export type HeatCapacityFreeRecordRejectReason =
   | 'zero-not-ready'
-  | 'missing-u0'
   | 'calibration-changed'
   | 'unstable-pressure'
   | 'unstable-temperature'
@@ -66,6 +69,9 @@ export interface HeatCapacityFreeCorrectedSignals {
   U2DisplayMv: number;
   U1CorrectedMv: number;
   U2CorrectedMv: number;
+  u0Source: 'recorded' | 'assumed-zero';
+  formulaGamma: number;
+  preheatBiasGamma: number;
   gamma: number;
 }
 
@@ -78,6 +84,7 @@ export interface HeatCapacityFreeTrial {
   traceTrialId: string | null;
   branchCount: number;
   automaticU0: HeatCapacityFreeCalibrationState['automaticU0'];
+  preheatOutcome: HeatCapacityFreePreheatOutcome | null;
   u0: HeatCapacityFreeRecord | null;
   u1: HeatCapacityFreeRecord | null;
   u2: HeatCapacityFreeRecord | null;
@@ -99,6 +106,9 @@ export interface HeatCapacityFreeProcessingTrialResult {
   U2DisplayMv: number | null;
   U1CorrectedMv: number | null;
   U2CorrectedMv: number | null;
+  u0Source: 'recorded' | 'assumed-zero' | null;
+  formulaGamma: number | null;
+  preheatBiasGamma: number | null;
   gamma: number | null;
   status: 'valid' | 'invalid';
   message: string;
@@ -117,6 +127,12 @@ export interface HeatCapacityFreeProcessingResult {
 
 export interface HeatCapacityFreeProcessingOptions {
   theoreticalGamma?: number;
+}
+
+export interface HeatCapacityFreeTrialCalculationOptions extends HeatCapacityFreeGammaCalculationOptions {
+  theoreticalGamma?: number;
+  preheatOutcome?: HeatCapacityFreePreheatOutcome;
+  preheatBiasSeed?: string;
 }
 
 export type HeatCapacityFreeTrialRecordRemovalKind = 'u0' | 'u1' | 'u2' | 'trial';
@@ -145,6 +161,7 @@ export const createHeatCapacityFreeTrial = (
   traceTrialId: null,
   branchCount: 0,
   automaticU0,
+  preheatOutcome: null,
   u0: null,
   u1: null,
   u2: null,
@@ -171,13 +188,14 @@ export const normalizeHeatCapacityFreeRecordInput = (
 
 export const calculateFreeHeatCapacityTrialSignals = (
   trial: HeatCapacityFreeTrial,
-  options: HeatCapacityFreeGammaCalculationOptions = {},
+  options: HeatCapacityFreeTrialCalculationOptions = {},
 ): HeatCapacityFreeCorrectedSignals | null => {
-  if (!trial.u0 || !trial.u1 || !trial.u2) {
+  if (!trial.u1 || !trial.u2) {
     return null;
   }
+  const U0DisplayMv = trial.u0?.displayPressureMv ?? 0;
   const corrected = getFreeCorrectedSignals({
-    U0DisplayMv: trial.u0.displayPressureMv,
+    U0DisplayMv,
     U1DisplayMv: trial.u1.displayPressureMv,
     U2DisplayMv: trial.u2.displayPressureMv,
   }, options);
@@ -193,18 +211,32 @@ export const calculateFreeHeatCapacityTrialSignals = (
     DEFAULT_FREE_ATMOSPHERIC_PRESSURE_KPA;
   const pressureSensitivityMvPerKPa = options.pressureSensitivityMvPerKPa ??
     DEFAULT_FREE_PRESSURE_SENSITIVITY_MV_PER_KPA;
+  const formulaGamma = roundNumber(corrected.gamma);
+  const biased = applyHeatCapacityFreePreheatBias({
+    formulaGamma,
+    theoreticalGamma: options.theoreticalGamma ?? DEFAULT_FREE_PROCESSING_THEORETICAL_GAMMA,
+    preheatOutcome: options.preheatOutcome ?? trial.preheatOutcome ?? 'completed',
+    seed: options.preheatBiasSeed ?? trial.id,
+  });
   return {
     calculationVersion: HEAT_CAPACITY_FREE_CALCULATION_VERSION,
     atmosphericPressureKPa,
     pressureSensitivityMvPerKPa,
-    U0DisplayMv: trial.u0.displayPressureMv,
+    U0DisplayMv,
     U1DisplayMv: trial.u1.displayPressureMv,
     U2DisplayMv: trial.u2.displayPressureMv,
     U1CorrectedMv: roundNumber(corrected.U1CorrectedMv),
     U2CorrectedMv: roundNumber(corrected.U2CorrectedMv),
-    gamma: roundNumber(corrected.gamma),
+    u0Source: trial.u0 ? 'recorded' : 'assumed-zero',
+    formulaGamma,
+    preheatBiasGamma: biased.preheatBiasGamma,
+    gamma: biased.gamma,
   };
 };
+
+export const isHeatCapacityFreeTrialComplete = (
+  trial: Pick<HeatCapacityFreeTrial, 'u1' | 'u2' | 'correctedSignals'>,
+) => trial.u1 !== null && trial.u2 !== null && trial.correctedSignals !== null;
 
 const getFreeGammaOptionsFromConfigSnapshot = (
   configSnapshot: HeatCapacityFreeConfigSnapshot,
@@ -228,6 +260,9 @@ const invalidFreeTrialResult = (
   U2DisplayMv: trial.u2?.displayPressureMv ?? null,
   U1CorrectedMv: null,
   U2CorrectedMv: null,
+  u0Source: null,
+  formulaGamma: null,
+  preheatBiasGamma: null,
   gamma: null,
   status: 'invalid',
   message,
@@ -237,7 +272,7 @@ export const calculateFreeHeatCapacityTrialResult = (
   trial: HeatCapacityFreeTrial,
   trialIndex: number,
 ): HeatCapacityFreeProcessingTrialResult => {
-  if (!trial.u0 || !trial.u1 || !trial.u2) {
+  if (!trial.u1 || !trial.u2) {
     return invalidFreeTrialResult(trial, trialIndex, 'Free trial is incomplete or invalid.');
   }
   if (!trial.configSnapshot) {
@@ -246,7 +281,10 @@ export const calculateFreeHeatCapacityTrialResult = (
   const correctedSignals = trial.correctedSignals ??
     calculateFreeHeatCapacityTrialSignals(
       trial,
-      getFreeGammaOptionsFromConfigSnapshot(trial.configSnapshot),
+      {
+        ...getFreeGammaOptionsFromConfigSnapshot(trial.configSnapshot),
+        theoreticalGamma: trial.configSnapshot.physics.gamma,
+      },
     );
   if (!correctedSignals) {
     return invalidFreeTrialResult(trial, trialIndex, 'Free trial is incomplete or invalid.');
@@ -257,7 +295,9 @@ export const calculateFreeHeatCapacityTrialResult = (
     completedAtMs: trial.completedAtMs,
     ...correctedSignals,
     status: 'valid',
-    message: 'Valid',
+    message: correctedSignals.u0Source === 'assumed-zero'
+      ? 'Valid; U0 was not recorded and was calculated as 0 mV.'
+      : 'Valid',
   };
 };
 
@@ -323,16 +363,22 @@ export const removeHeatCapacityFreeTrialRecord = (
     trials: trials.map((trial, index) => {
       if (index !== boundedIndex) return trial;
       if (kind === 'u0') {
-        return {
+        const withoutU0: HeatCapacityFreeTrial = {
           ...trial,
           u0: null,
-          u1: null,
-          u2: null,
           blockedReason: null,
           correctedSignals: null,
-          configSnapshot: null,
           standardReferenceSnapshot: null,
-          completedAtMs: null,
+        };
+        const correctedSignals = withoutU0.u1 && withoutU0.u2 && withoutU0.configSnapshot
+          ? calculateFreeHeatCapacityTrialSignals(withoutU0, {
+              ...getFreeGammaOptionsFromConfigSnapshot(withoutU0.configSnapshot),
+              theoreticalGamma: withoutU0.configSnapshot.physics.gamma,
+            })
+          : null;
+        return {
+          ...withoutU0,
+          correctedSignals,
         };
       }
       if (kind === 'u1') {

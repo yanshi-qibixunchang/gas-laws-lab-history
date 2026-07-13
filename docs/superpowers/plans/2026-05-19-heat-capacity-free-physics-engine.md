@@ -879,7 +879,6 @@ Required public API:
 
 ```ts
 export type HeatCapacityFreeRecordRejectReason =
-  | 'missing-u0'
   | 'calibration-changed'
   | 'unstable-pressure'
   | 'unstable-temperature'
@@ -974,7 +973,7 @@ Record rules:
 - [x] Write failing U1-blocked test for unstable pressure/temperature.
 - [x] Write failing U2-ready test for quick release and recovery.
 - [x] Write failing U2-blocked test for long-open over-vented operation if U2 is too low or unstable.
-- [x] Write failing tests that blocked records return stable reason codes: `missing-u0`, `unstable-pressure`, `unstable-temperature`, `calibration-changed`, `over-vented`, and `invalid-sequence`.
+- [x] Write failing tests that blocked records return stable reason codes: `unstable-pressure`, `unstable-temperature`, `calibration-changed`, `over-vented`, and `invalid-sequence`.
 - [x] Write failing test proving record output uses sensor display mV.
 - [x] Write failing Free gamma calculation test using `U1 - U0` and `U2 - U0`.
 - [x] Write failing test proving teaching gamma calculation remains unchanged.

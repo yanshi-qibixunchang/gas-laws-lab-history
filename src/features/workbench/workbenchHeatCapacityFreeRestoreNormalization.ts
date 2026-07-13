@@ -34,6 +34,9 @@ import type {
 import type {
   HeatCapacityFreeCalibrationState,
 } from '../../domain/heatCapacity/heatCapacityFreeCalibrationModel.ts';
+import {
+  getFreeCorrectedSignals,
+} from '../../domain/heatCapacity/heatCapacityFreeCalibrationModel.ts';
 import type { HeatCapacityRuntimePhase } from '../../domain/heatCapacity/heatCapacityProcessTypes.ts';
 import {
   createClosedHeatCapacityReleaseState,
@@ -44,6 +47,9 @@ import {
   type HeatCapacityFreeRecordInput,
   type HeatCapacityFreeTrial,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import {
+  normalizeHeatCapacityFreeAttempt,
+} from '../../domain/heatCapacity/heatCapacityFreeAttemptModel.ts';
 import {
   normalizeHeatCapacityFreeStandardReferenceSnapshot,
 } from '../../domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
@@ -62,7 +68,7 @@ import {
   normalizeHeatCapacityFreeSensorConfig,
 } from './workbenchHeatCapacityFreeRuntimeConfig.ts';
 
-export const HEAT_CAPACITY_PROCESS_SCORING_VERSION = 'free-process-score-v2' as const;
+export const HEAT_CAPACITY_PROCESS_SCORING_VERSION = 'free-process-score-v3' as const;
 
 export const isHeatCapacityRestoreRecord = (
   value: unknown,
@@ -398,6 +404,7 @@ const normalizeHeatCapacityFreeRestoreRecord = (
 
 const normalizeHeatCapacityFreeRestoreCorrectedSignals = (
   value: unknown,
+  hasRecordedU0: boolean,
 ): HeatCapacityFreeTrial['correctedSignals'] => {
   if (!isHeatCapacityRestoreRecord(value)) return null;
   const U0DisplayMv = heatCapacityRestoreNullableNumber(value.U0DisplayMv);
@@ -405,27 +412,64 @@ const normalizeHeatCapacityFreeRestoreCorrectedSignals = (
   const U2DisplayMv = heatCapacityRestoreNullableNumber(value.U2DisplayMv);
   const U1CorrectedMv = heatCapacityRestoreNullableNumber(value.U1CorrectedMv);
   const U2CorrectedMv = heatCapacityRestoreNullableNumber(value.U2CorrectedMv);
-  const gamma = heatCapacityRestoreNullableNumber(value.gamma);
+  const persistedFormulaGamma = heatCapacityRestoreNullableNumber(value.formulaGamma);
+  const preheatBiasGamma = heatCapacityRestoreNullableNumber(value.preheatBiasGamma);
+  const persistedGamma = heatCapacityRestoreNullableNumber(value.gamma);
   if (
     U0DisplayMv === null ||
     U1DisplayMv === null ||
     U2DisplayMv === null ||
     U1CorrectedMv === null ||
-    U2CorrectedMv === null ||
-    gamma === null
+    U2CorrectedMv === null
   ) {
     return null;
   }
-  return {
-    calculationVersion: HEAT_CAPACITY_FREE_CALCULATION_VERSION,
-    atmosphericPressureKPa: heatCapacityRestoreNullableNumber(value.atmosphericPressureKPa) ?? 101.3,
-    pressureSensitivityMvPerKPa: heatCapacityRestoreNullableNumber(value.pressureSensitivityMvPerKPa) ?? 20,
-    U0DisplayMv,
+  const atmosphericPressureKPa = heatCapacityRestoreNullableNumber(value.atmosphericPressureKPa) ?? 101.3;
+  const pressureSensitivityMvPerKPa = heatCapacityRestoreNullableNumber(value.pressureSensitivityMvPerKPa) ?? 20;
+  if (hasRecordedU0) {
+    const normalizedPreheatBiasGamma = preheatBiasGamma ?? 0;
+    const formulaGamma = persistedFormulaGamma
+      ?? (persistedGamma === null ? null : Number((persistedGamma - normalizedPreheatBiasGamma).toFixed(6)));
+    if (formulaGamma === null) return null;
+    return {
+      calculationVersion: HEAT_CAPACITY_FREE_CALCULATION_VERSION,
+      atmosphericPressureKPa,
+      pressureSensitivityMvPerKPa,
+      U0DisplayMv,
+      U1DisplayMv,
+      U2DisplayMv,
+      U1CorrectedMv,
+      U2CorrectedMv,
+      u0Source: 'recorded',
+      formulaGamma,
+      preheatBiasGamma: normalizedPreheatBiasGamma,
+      gamma: persistedGamma ?? Number((formulaGamma + normalizedPreheatBiasGamma).toFixed(6)),
+    };
+  }
+  const effectiveU0DisplayMv = hasRecordedU0 ? U0DisplayMv : 0;
+  const corrected = getFreeCorrectedSignals({
+    U0DisplayMv: effectiveU0DisplayMv,
     U1DisplayMv,
     U2DisplayMv,
-    U1CorrectedMv,
-    U2CorrectedMv,
-    gamma,
+  }, {
+    atmosphericPressureKPa,
+    pressureSensitivityMvPerKPa,
+  });
+  const normalizedPreheatBiasGamma = preheatBiasGamma ?? 0;
+  const formulaGamma = Number(corrected.gamma.toFixed(6));
+  return {
+    calculationVersion: HEAT_CAPACITY_FREE_CALCULATION_VERSION,
+    atmosphericPressureKPa,
+    pressureSensitivityMvPerKPa,
+    U0DisplayMv: effectiveU0DisplayMv,
+    U1DisplayMv,
+    U2DisplayMv,
+    U1CorrectedMv: Number(corrected.U1CorrectedMv.toFixed(6)),
+    U2CorrectedMv: Number(corrected.U2CorrectedMv.toFixed(6)),
+    u0Source: hasRecordedU0 ? 'recorded' : 'assumed-zero',
+    formulaGamma,
+    preheatBiasGamma: normalizedPreheatBiasGamma,
+    gamma: Number((formulaGamma + normalizedPreheatBiasGamma).toFixed(6)),
   };
 };
 
@@ -433,6 +477,7 @@ export const normalizeHeatCapacityFreeRestoreTrial = (
   value: unknown,
 ): HeatCapacityFreeTrial | null => {
   if (!isHeatCapacityRestoreRecord(value) || typeof value.id !== 'string') return null;
+  const u0 = normalizeHeatCapacityFreeRestoreRecord(value.u0);
   const standardReferenceSnapshot = normalizeHeatCapacityFreeStandardReferenceSnapshot(
     value.standardReferenceSnapshot,
   );
@@ -445,14 +490,19 @@ export const normalizeHeatCapacityFreeRestoreTrial = (
     automaticU0: isHeatCapacityRestoreRecord(value.automaticU0)
       ? value.automaticU0 as HeatCapacityFreeTrial['automaticU0']
       : null,
-    u0: normalizeHeatCapacityFreeRestoreRecord(value.u0),
+    preheatOutcome: value.preheatOutcome === 'omitted'
+      ? 'omitted'
+      : value.preheatOutcome === 'completed'
+        ? 'completed'
+        : null,
+    u0,
     u1: normalizeHeatCapacityFreeRestoreRecord(value.u1),
     u2: normalizeHeatCapacityFreeRestoreRecord(value.u2),
     blockedReason: typeof value.blockedReason === 'string'
       ? value.blockedReason as HeatCapacityFreeTrial['blockedReason']
       : null,
-    correctedSignals: isHeatCapacityRestoreRecord(value.u0)
-      ? normalizeHeatCapacityFreeRestoreCorrectedSignals(value.correctedSignals)
+    correctedSignals: isHeatCapacityRestoreRecord(value.u1) && isHeatCapacityRestoreRecord(value.u2)
+      ? normalizeHeatCapacityFreeRestoreCorrectedSignals(value.correctedSignals, u0 !== null)
       : null,
     configSnapshot: normalizeHeatCapacityFreeRestoreConfigSnapshot(value.configSnapshot),
     standardReferenceSnapshot: standardReferenceSnapshot &&
@@ -846,6 +896,7 @@ export const normalizeHeatCapacityFreeRestoreExperimentDomain = (
     rollbackSnapshots: normalizeHeatCapacityFreeRestoreRollbackSnapshots(domain.rollbackSnapshots, fallback),
     traceStore: normalizeHeatCapacityFreeRestoreTraceStore(domain.traceStore),
     trials,
+    activeAttempt: normalizeHeatCapacityFreeAttempt(domain.activeAttempt),
     releaseState: normalizeHeatCapacityReleaseState(
       domain.releaseState,
       createClosedHeatCapacityReleaseState(physicsState.simulationTimeS),

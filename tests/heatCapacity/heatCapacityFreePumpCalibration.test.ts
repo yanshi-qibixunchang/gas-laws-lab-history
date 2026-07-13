@@ -28,13 +28,11 @@ import {
 } from '../../src/features/workbench/workbenchState.ts';
 
 const closedControls: HeatCapacityFreeControls = {
-  powerOn: true,
   pumpValveOpen: false,
   stopcockOpen: false,
 };
 
 const pumpControls: HeatCapacityFreeControls = {
-  powerOn: true,
   pumpValveOpen: true,
   stopcockOpen: false,
 };

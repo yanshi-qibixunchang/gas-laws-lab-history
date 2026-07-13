@@ -13,6 +13,7 @@ import {
 } from '../workbench/workbenchState.ts';
 import {
   calculateFreeHeatCapacityMeanResult,
+  isHeatCapacityFreeTrialComplete,
   type HeatCapacityFreeProcessingTrialResult,
   type HeatCapacityFreeTrialRecordRemovalKind,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
@@ -311,6 +312,12 @@ const freeCopyByLanguage = {
       u2Display: 'U₂ 记录值 / mV',
       u1Corrected: 'U₁ 扣零值 / mV',
       u2Corrected: 'U₂ 扣零值 / mV',
+      u0Source: 'U₀ 计算来源',
+      recordedU0Source: '正式记录',
+      assumedZeroU0Source: '未记录，按 0 mV 处理',
+      formulaGamma: '公式原始 γ',
+      preheatBiasGamma: '未预热系统偏差',
+      finalGamma: '最终报告 γ',
       status: '状态',
       emptyRecords: '暂无实验组记录。',
       statusComplete: '完成',
@@ -383,6 +390,12 @@ const freeCopyByLanguage = {
       u2Display: 'U₂ 記錄值 / mV',
       u1Corrected: 'U₁ 扣零值 / mV',
       u2Corrected: 'U₂ 扣零值 / mV',
+      u0Source: 'U₀ 計算來源',
+      recordedU0Source: '正式記錄',
+      assumedZeroU0Source: '未記錄，按 0 mV 處理',
+      formulaGamma: '公式原始 γ',
+      preheatBiasGamma: '未預熱系統偏差',
+      finalGamma: '最終報告 γ',
       status: '狀態',
       emptyRecords: '暫無實驗組記錄。',
       statusComplete: '完成',
@@ -455,6 +468,12 @@ const freeCopyByLanguage = {
       u2Display: 'U₂ recorded / mV',
       u1Corrected: 'U₁ zero-corrected / mV',
       u2Corrected: 'U₂ zero-corrected / mV',
+      u0Source: 'U₀ calculation source',
+      recordedU0Source: 'official record',
+      assumedZeroU0Source: 'not recorded; assumed 0 mV',
+      formulaGamma: 'Formula γ',
+      preheatBiasGamma: 'Unheated-system bias',
+      finalGamma: 'Reported γ',
       status: 'Status',
       emptyRecords: 'No Free Mode records yet.',
       statusComplete: 'complete',
@@ -575,7 +594,7 @@ const renderFreeDataAndResultsTab = (
   const displayedTrials = displayedDomain.trials;
   const displayMatchesActiveDomain = heatCapacityFreeDisplayScheme === file.heatCapacityFreeParameterScheme;
   const automaticU0 = displayedDomain.calibrationState.automaticU0;
-  const completed = displayedTrials.filter((trial) => trial.u0 && trial.u1 && trial.u2).length;
+  const completed = displayedTrials.filter(isHeatCapacityFreeTrialComplete).length;
   const displayedTheoreticalGamma = getHeatCapacityFreeDisplayTheoreticalGamma(file, displayedDomain.scheme);
   const result = calculateFreeHeatCapacityMeanResult(displayedTrials, {
     theoreticalGamma: displayedTheoreticalGamma,
@@ -775,7 +794,7 @@ const renderFreeDataAndResultsTab = (
               </tr>
             ) : displayedTrials.map((trial, index) => {
               const trialResult = trialResultsById.get(trial.id) ?? null;
-              const completeTrial = Boolean(trial.u0 && trial.u1 && trial.u2);
+              const completeTrial = isHeatCapacityFreeTrialComplete(trial);
               const includedInMean = trialResult?.status === 'valid' && trialResult.gamma !== null;
               const statusText = !completeTrial
                 ? trial.blockedReason ?? copy.freeRecording.statusPending
@@ -787,7 +806,11 @@ const renderFreeDataAndResultsTab = (
                   <tr>
                     <td>{index + 1}</td>
                     <td>{formatFreeTrialCompletedAt(trial.completedAtMs)}</td>
-                    <td>{formatNumber(trial.u0?.displayPressureMv, 2)}</td>
+                    <td>{trial.u0
+                      ? formatNumber(trial.u0.displayPressureMv, 2)
+                      : trialResult?.u0Source === 'assumed-zero'
+                        ? copy.freeRecording.assumedZeroU0Source
+                        : '--'}</td>
                     <td>{formatNumber(trial.u1?.displayPressureMv, 2)}</td>
                     <td>{formatNumber(trial.u2?.displayPressureMv, 2)}</td>
                     <td>{formatGamma(trialResult?.gamma)}</td>
@@ -813,6 +836,24 @@ const renderFreeDataAndResultsTab = (
                           <div className="studio-heat-sample-row">
                             <span>{copy.freeRecording.u2Corrected}</span>
                             <span>{formatNumber(trialResult?.U2CorrectedMv, 2)}</span>
+                          </div>
+                          <div className="studio-heat-sample-row">
+                            <span>{copy.freeRecording.u0Source}</span>
+                            <span>{trialResult?.u0Source === 'assumed-zero'
+                              ? copy.freeRecording.assumedZeroU0Source
+                              : copy.freeRecording.recordedU0Source}</span>
+                          </div>
+                          <div className="studio-heat-sample-row">
+                            <span>{copy.freeRecording.formulaGamma}</span>
+                            <span>{formatGamma(trialResult?.formulaGamma)}</span>
+                          </div>
+                          <div className="studio-heat-sample-row">
+                            <span>{copy.freeRecording.preheatBiasGamma}</span>
+                            <span>{formatNumber(trialResult?.preheatBiasGamma, 3)}</span>
+                          </div>
+                          <div className="studio-heat-sample-row">
+                            <span>{copy.freeRecording.finalGamma}</span>
+                            <span>{formatGamma(trialResult?.gamma)}</span>
                           </div>
                           <div className="studio-heat-sample-row">
                             <span>{copy.freeRecording.includedInMean}</span>

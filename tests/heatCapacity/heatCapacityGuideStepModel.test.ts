@@ -8,6 +8,10 @@ import {
   type GuideHeatCapacityAction,
   type GuideHeatCapacityStep,
 } from '../../src/features/heatCapacity/heatCapacityGuideStepModel.ts';
+import {
+  getHeatCapacityGuideRollbackAnimationForControl,
+  type HeatCapacityInstrumentControl,
+} from '../../src/domain/heatCapacity/heatCapacityInstrumentFeedback.ts';
 
 const allSteps: GuideHeatCapacityStep[] = [
   'idle',
@@ -62,6 +66,20 @@ const rollbackByAction: Partial<Record<GuideHeatCapacityAction, string>> = {
 
 Object.entries(rollbackByAction).forEach(([action, expected]) => {
   assert.equal(getHeatCapacityGuideRollbackAnimation(action as GuideHeatCapacityAction), expected);
+});
+
+const rollbackByControl: Record<HeatCapacityInstrumentControl, string> = {
+  powerSwitch: 'powerBounce',
+  pressureZero: 'knobBounce',
+  stopcock: 'stopcockBounce',
+  pumpValve: 'valveBounce',
+  pumpBulb: 'pumpBulbBounce',
+};
+Object.entries(rollbackByControl).forEach(([control, expected]) => {
+  assert.equal(
+    getHeatCapacityGuideRollbackAnimationForControl(control as HeatCapacityInstrumentControl),
+    expected,
+  );
 });
 
 allSteps.forEach((step) => {

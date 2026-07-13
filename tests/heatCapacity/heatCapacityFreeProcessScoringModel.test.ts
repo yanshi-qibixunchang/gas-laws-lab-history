@@ -52,12 +52,13 @@ assert.equal(
 );
 assert.equal(recordChainItem?.status, 'reasonable');
 assert.equal(recordChainItem?.score, recordChainItem?.maxScore);
-assert.deepEqual(recordChainItem?.details.map((detail) => detail.maxScore), [8, 12, 10, 10]);
+assert.deepEqual(recordChainItem?.details.map((detail) => detail.maxScore), [5, 12, 10, 10, 3]);
 assert.deepEqual(recordChainItem?.details.map((detail) => detail.id), [
   'record-chain-completeness',
   'record-chain-result',
   'record-chain-zeroing',
   'record-chain-timing',
+  'record-chain-preheat',
 ]);
 
 for (const item of completeScore.items) {
@@ -179,6 +180,58 @@ assert.equal(
   largeDeviationRecordChain?.details.find((detail) => detail.id === 'record-chain-result')?.score,
   0,
   'large gamma deviation should reduce the result score instead of only checking calculability',
+);
+
+const missingU0Fixture = createCompleteProcessScoringInputFixture();
+const missingU0Score = scoreHeatCapacityFreeProcess({
+  ...missingU0Fixture,
+  trial: {
+    ...missingU0Fixture.trial,
+    u0: null,
+    correctedSignals: missingU0Fixture.trial.correctedSignals
+      ? {
+          ...missingU0Fixture.trial.correctedSignals,
+          U0DisplayMv: 0,
+          u0Source: 'assumed-zero',
+        }
+      : null,
+  },
+});
+const missingU0RecordChain = missingU0Score.items.find((item) => item.id === 'recordChain');
+assert.notEqual(missingU0Score.total, null, 'missing U0 should not suppress the final score');
+assert.equal(
+  missingU0RecordChain?.details.find((detail) => detail.id === 'record-chain-completeness')?.score,
+  5,
+  'missing U0 must not be deducted again as incomplete data',
+);
+assert.equal(
+  missingU0RecordChain?.details.find((detail) => detail.id === 'record-chain-zeroing')?.score,
+  0,
+  'missing U0 should deduct the dedicated 10-point zeroing item',
+);
+assert.equal(
+  missingU0RecordChain?.details.find((detail) => detail.id === 'record-chain-timing')?.score,
+  10,
+  'missing U0 must not be deducted again from record timing',
+);
+
+const omittedPreheatFixture = createCompleteProcessScoringInputFixture();
+const omittedPreheatScore = scoreHeatCapacityFreeProcess({
+  ...omittedPreheatFixture,
+  trial: {
+    ...omittedPreheatFixture.trial,
+    preheatOutcome: 'omitted',
+  },
+});
+const omittedPreheatRecordChain = omittedPreheatScore.items.find((item) => item.id === 'recordChain');
+assert.equal(
+  omittedPreheatRecordChain?.details.find((detail) => detail.id === 'record-chain-preheat')?.score,
+  0,
+);
+assert.equal(
+  omittedPreheatRecordChain?.score,
+  (recordChainItem?.score ?? 0) - 3,
+  'omitted preheat should deduct exactly three points from the record chain',
 );
 
 const warningFixture = createCompleteProcessScoringInputFixture();

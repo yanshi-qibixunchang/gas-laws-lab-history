@@ -172,10 +172,10 @@ assert.deepEqual(
     recordConfig,
   ),
   {
-    ready: false,
-    reason: 'missing-u0',
+    ready: true,
+    reason: 'ready',
   },
-  'automatic U0 must not unlock official U1 recording',
+  'U1 recording should remain available when official U0 is omitted',
 );
 
 assert.deepEqual(
@@ -309,8 +309,8 @@ assert.deepEqual(
 assert.deepEqual(
   evaluateFreeU1Record(createHeatCapacityFreeTrial('missing-u0'), { ...calibration, automaticU0: null }, display, closedPumpedPhysics, recordConfig),
   {
-    ready: false,
-    reason: 'missing-u0',
+    ready: true,
+    reason: 'ready',
   },
 );
 assert.deepEqual(
@@ -385,6 +385,9 @@ assert.equal(recordedU2.trial.u2?.traceSampleId, null);
 assert.equal(recordedU2.trial.u2?.eventId, null);
 assert.equal(recordedU2.trial.correctedSignals?.U1CorrectedMv, 112);
 assert.equal(recordedU2.trial.correctedSignals?.U2CorrectedMv, 31.4);
+assert.equal(recordedU2.trial.correctedSignals?.u0Source, 'recorded');
+assert.equal(recordedU2.trial.correctedSignals?.formulaGamma, 1.400222);
+assert.equal(recordedU2.trial.correctedSignals?.preheatBiasGamma, 0);
 assert.equal(recordedU2.trial.correctedSignals?.gamma, 1.400222);
 assert.equal(recordedU2.trial.correctedSignals?.calculationVersion, 'log-pressure-v1');
 assert.equal(recordedU2.trial.correctedSignals?.atmosphericPressureKPa, 101.3);
@@ -449,6 +452,37 @@ assert.equal(
   sourceCheckU1.trial.u1!.displayPressureMv - officialU0WithDifferentAutomatic.trial.u0!.displayPressureMv,
   'official Free correction must use user-clicked U0 instead of the automatic advisory candidate',
 );
+
+const missingU0U1 = recordFreeU1(createHeatCapacityFreeTrial('missing-u0-calculation'), {
+  ...u1Input,
+  displayPressureMv: 112,
+});
+assert.equal(missingU0U1.accepted, true, 'missing U0 must not block U1');
+const missingU0U2 = recordFreeU2(missingU0U1.trial, {
+  atS: 42,
+  displayPressureMv: 31.4,
+  displayTemperatureMv: 1499,
+  calibrationVersion: 1,
+  zeroEventId: 'zero-1',
+}, {
+  atmosphericPressureKPa: 101.3,
+  pressureSensitivityMvPerKPa: 20,
+  theoreticalGamma: 1.4,
+});
+assert.equal(missingU0U2.accepted, true, 'missing U0 must not block U2');
+assert.equal(missingU0U2.trial.correctedSignals?.u0Source, 'assumed-zero');
+assert.equal(missingU0U2.trial.correctedSignals?.U0DisplayMv, 0);
+assert.equal(missingU0U2.trial.correctedSignals?.gamma, 1.400222);
+
+const missingU0CalibrationMismatch = recordFreeU2(missingU0U1.trial, {
+  atS: 42,
+  displayPressureMv: 31.4,
+  displayTemperatureMv: 1499,
+  calibrationVersion: 2,
+  zeroEventId: 'zero-2',
+});
+assert.equal(missingU0CalibrationMismatch.accepted, false);
+assert.equal(missingU0CalibrationMismatch.reason, 'calibration-changed');
 
 assert.deepEqual(
   evaluateFreeU2Record(recordedU1.trial, { ...calibration, automaticU0 }, u2Display, closedPumpedPhysics, recordConfig),
@@ -534,9 +568,10 @@ assert.equal(freeRemovalU1.correctedSignals, null, 'removing Free U1 should also
 
 const freeRemovalU0 = removeHeatCapacityFreeTrialRecord([recordedU2TrialWithSnapshot], 0, 'u0').trials[0];
 assert.equal(freeRemovalU0.u0, null);
-assert.equal(freeRemovalU0.u1, null);
-assert.equal(freeRemovalU0.u2, null);
-assert.equal(freeRemovalU0.correctedSignals, null, 'removing Free U0 should clear all official values that depend on it');
+assert.notEqual(freeRemovalU0.u1, null, 'removing Free U0 should preserve U1');
+assert.notEqual(freeRemovalU0.u2, null, 'removing Free U0 should preserve U2');
+assert.equal(freeRemovalU0.correctedSignals?.u0Source, 'assumed-zero');
+assert.equal(freeRemovalU0.correctedSignals?.U0DisplayMv, 0);
 
 const freeRemovalTrial = removeHeatCapacityFreeTrialRecord([recordedU2.trial], 0, 'trial');
 assert.equal(freeRemovalTrial.trials.length, 0, 'removing a Free trial should delete the whole group row');
@@ -708,7 +743,6 @@ const pumpScriptedRun = (
   let current = run;
   for (let index = 0; index < strokes; index += 1) {
     current = stepScriptedRun(current, {
-      powerOn: true,
       pumpValveOpen: true,
       stopcockOpen: false,
     }, 0.1);
@@ -716,7 +750,6 @@ const pumpScriptedRun = (
       current.physics,
       version1PhysicsConfig,
       {
-        powerOn: true,
         pumpValveOpen: true,
         stopcockOpen: false,
       },
@@ -732,7 +765,6 @@ const pumpScriptedRun = (
     };
   }
   return waitForRecordStable(current, {
-    powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: false,
   });
@@ -771,7 +803,6 @@ const recoverAfterRelease = (
   openDurationS: number,
 ) => {
   let current = stepScriptedRun(pumpedRun, {
-    powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: true,
     stopcockFlowPurpose: 'release',
@@ -779,19 +810,16 @@ const recoverAfterRelease = (
   const totalOpenDurationS = 0.2 + openDurationS;
   for (let elapsed = 0; elapsed < totalOpenDurationS; elapsed += 0.1) {
     current = stepScriptedRun(current, {
-      powerOn: true,
       pumpValveOpen: false,
       stopcockOpen: true,
       stopcockFlowPurpose: 'release',
     }, 0.1);
   }
   current = stepScriptedRun(current, {
-    powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: false,
   }, 0.05);
   return waitForRecordStable(current, {
-    powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: false,
   });

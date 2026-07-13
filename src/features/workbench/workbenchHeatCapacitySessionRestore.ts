@@ -300,7 +300,6 @@ export const normalizeHeatCapacitySessionRuntimeState = (
         heatCapacityFreeEquilibriumSpeedMultiplier: normalizeHeatCapacityFreeEquilibriumSpeedMultiplier(
           file.heatCapacityFreeEquilibriumSpeedMultiplier,
         ),
-        heatCapacityFreeEquilibriumSpeedHintShown: file.heatCapacityFreeEquilibriumSpeedHintShown === true,
         heatCapacityFreeRollbackSnapshots: isRecord(file.heatCapacityFreeRollbackSnapshots)
           ? file.heatCapacityFreeRollbackSnapshots as typeof fallbackFreeRuntimeFields.heatCapacityFreeRollbackSnapshots
           : fallbackFreeRuntimeFields.heatCapacityFreeRollbackSnapshots,
@@ -365,6 +364,7 @@ export const normalizeHeatCapacitySessionRuntimeState = (
     heatCapacityFreeDisplayScheme: savedFreeDisplayScheme,
     heatCapacityFreeRealDomain,
     heatCapacityFreeIdealDomain,
+    heatCapacityFreeActiveAttempt: activeFreeDomain.activeAttempt,
     heatCapacityFreeRollbackSnapshots,
     name: normalizeHeatCapacityFileName(file.name),
     lastOpenedAt: normalizeLastOpenedAt(file, fallback.lastOpenedAt),
@@ -388,6 +388,9 @@ export const normalizeHeatCapacitySessionRuntimeState = (
     heatCapacityTeachingStatus: file.heatCapacityTeachingStatus === 'running' || file.heatCapacityTeachingStatus === 'completed'
       ? file.heatCapacityTeachingStatus
       : fallback.heatCapacityTeachingStatus,
+    heatCapacityFreePreheatCompleted: Object.prototype.hasOwnProperty.call(file, 'heatCapacityFreePreheatCompleted')
+      ? file.heatCapacityFreePreheatCompleted === true
+      : true,
     heatCapacityPhase: normalizeHeatCapacityRuntimePhase(file.heatCapacityPhase, fallback.heatCapacityPhase),
     powerOn: normalizedPowerOn,
     heatCapacityFreeTrials,

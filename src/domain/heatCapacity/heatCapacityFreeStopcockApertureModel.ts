@@ -6,6 +6,13 @@ const clampNonNegative = (value: number) => (
   Number.isFinite(value) && value > 0 ? value : 0
 );
 
+export const getHeatCapacityReleaseApertureRatio = (openElapsedS: number) => {
+  const rampDurationS = HEAT_CAPACITY_RELEASE_TIMING.releaseApertureRampS;
+  if (rampDurationS <= 0) return 1;
+  const progress = Math.min(1, clampNonNegative(openElapsedS) / rampDurationS);
+  return progress * progress * (3 - 2 * progress);
+};
+
 export const integrateHeatCapacityReleaseAperture = (openElapsedS: number) => {
   const elapsedS = clampNonNegative(openElapsedS);
   const rampDurationS = HEAT_CAPACITY_RELEASE_TIMING.releaseApertureRampS;

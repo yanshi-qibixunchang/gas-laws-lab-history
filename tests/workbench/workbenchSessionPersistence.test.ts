@@ -226,7 +226,8 @@ if (restoredHeatCapacity.kind === 'heatCapacity') {
   assert.equal(restoredHeatCapacity.heatCapacityFreeTrials.length, 2, 'stale Free runtime normalization must preserve Free trials');
   assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[0].automaticU0?.zeroEventId, 'zero-1');
   assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[0].u0, null, 'automatic-only saved Free trials must not be promoted to official manual U0 records');
-  assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[0].correctedSignals, null, 'automatic-only saved Free trials must normalize as incomplete official records');
+  assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[0].correctedSignals?.u0Source, 'assumed-zero', 'restored U1/U2 records without formal U0 must use U0 = 0');
+  assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[0].correctedSignals?.U0DisplayMv, 0);
   assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[1].correctedSignals?.calculationVersion, 'log-pressure-v1');
   assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[1].correctedSignals?.atmosphericPressureKPa, 101.3);
   assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[1].correctedSignals?.pressureSensitivityMvPerKPa, 20);
@@ -336,7 +337,6 @@ const heatReplayFile = {
   ...heatReplayBaseFile,
   pressureGaugeNeedleAngle: 33,
   heatCapacityFreeEquilibriumSpeedMultiplier: 8 as const,
-  heatCapacityFreeEquilibriumSpeedHintShown: true,
   hardSphereViewEnabled: true,
   heatCapacityFreeRollbackSnapshots: {
     ...heatReplayBaseFile.heatCapacityFreeRollbackSnapshots,
@@ -359,7 +359,6 @@ assert.equal(
   'restored gauge geometry should be derived from the current gauge model instead of replaying an obsolete angle',
 );
 assert.equal(replayFile.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
-assert.equal(replayFile.heatCapacityFreeEquilibriumSpeedHintShown, true);
 assert.equal(replayFile.hardSphereViewEnabled, true);
 assert.notEqual(replayFile.heatCapacityFreeRollbackSnapshots.afterPowerOn, null);
 assert.ok(Array.isArray(replayFile.heatCapacityFreeRollbackSnapshots.afterPowerOn?.heatCapacityFreePhysicsState.pumpProcesses));

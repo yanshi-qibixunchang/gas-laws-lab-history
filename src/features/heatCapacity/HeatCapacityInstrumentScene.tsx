@@ -33,6 +33,10 @@ import {
   type HeatCapacityQualityProfile,
 } from './heatCapacityQualityProfiles';
 import { useHeatCapacityAudioController } from '../../audio/experiments/heatCapacity/heatCapacityAudioController.ts';
+import type {
+  HeatCapacityGuideRollbackAnimation,
+  HeatCapacityInstrumentControl,
+} from '../../domain/heatCapacity/heatCapacityInstrumentFeedback.ts';
 import {
   HEAT_CAPACITY_BLOCKED_VALVE_TRAVEL_DEG,
   createHeatCapacityBinaryRollbackPlan,
@@ -127,7 +131,7 @@ interface HeatCapacityInstrumentSceneProps {
   pressureSignalMv: number | null;
   pressureReleaseBurstActive: boolean;
   releaseFlowActive: boolean;
-  releaseAudioFlowActive: boolean;
+  releaseAudioPathOpen: boolean;
   releaseTimeline: HeatCapacityHardSphereReleaseTimeline;
   pumpFlowActive: boolean;
   pumpFlowIntensity: number;
@@ -145,12 +149,12 @@ interface HeatCapacityInstrumentSceneProps {
   demoCameraFocusKey?: number;
   guideFocusMode?: HeatCapacityFocusMode | null;
   guideFocusKey?: number;
-  guideRollbackAnimation: 'valveBounce' | 'stopcockBounce' | 'pumpBulbBounce' | 'knobBounce' | 'powerBounce' | null;
+  guideRollbackAnimation: HeatCapacityGuideRollbackAnimation | null;
   guideRollbackKey: number;
   focusResetKey: number;
   onFocusModeChange: (mode: HeatCapacityFocusMode) => void;
   onFocusExitRequest?: (mode: HeatCapacityFocusMode) => boolean;
-  onLockedInteraction: (message?: string, control?: HeatCapacityLockedControl) => void;
+  onLockedInteraction: (message?: string, control?: HeatCapacityInstrumentControl) => void;
   onPowerToggle: (nextPowerOn?: boolean) => void;
   onStopcockOpenChange: (nextOpen?: boolean) => void;
   onPressureZeroFineAdjust: (
@@ -169,6 +173,7 @@ interface HeatCapacityInstrumentSceneProps {
   overlayTopRight?: React.ReactNode;
   overlayBottomRight?: React.ReactNode;
   overlayCenter?: React.ReactNode;
+  overlayCenterAboveGuideMask?: boolean;
   overlayBottomCenter?: React.ReactNode;
   overlayGuideMask?: React.ReactNode;
   onGuideTargetHolesChange?: (holes: HeatCapacityGuideProjectedHoles) => void;
@@ -194,8 +199,6 @@ interface HeatCapacityInstrumentSceneProps {
   onSceneReady?: () => void;
   onSceneRestoreRevealComplete?: (sceneFileId: string) => void;
 }
-
-type HeatCapacityLockedControl = 'powerSwitch' | 'pressureZero' | 'stopcock' | 'pumpValve' | 'pumpBulb';
 
 type HeatCapacityFocusMode = 'none' | 'instrument' | 'pump' | 'bottle';
 type HeatCapacityHoveredControl = null | 'stopcock' | 'pumpBulb' | 'pumpValve' | 'powerSwitch' | 'pressureZero';
@@ -1171,7 +1174,6 @@ const getHardSphereNoteText = (
   language: HeatCapacityInstrumentSceneProps['language'],
 ) => {
   const copy = heatCapacityHardSphereNoteCopies[language] ?? heatCapacityHardSphereNoteCopies['zh-CN'];
-  if (!props.powerOn || props.phase === 'powerOff') return copy.poweredOff;
   if (props.releaseFlowActive) return copy.releasing;
   if (props.phase === 'recovering') return copy.recovering;
   if (props.phase === 'pumping') {
@@ -1179,6 +1181,7 @@ const getHardSphereNoteText = (
     return warming ? copy.warming : copy.pumping;
   }
   if (props.phase === 'sealedStabilizing') return copy.warming;
+  if (!props.powerOn || props.phase === 'powerOff') return copy.poweredOff;
   return copy.initial;
 };
 
@@ -1248,9 +1251,8 @@ const getPressureGaugeNeedleRotation = (
   pressureGaugeDisplayValue: number,
   gaugePressureMinKPa: number,
   gaugePressureMaxKPa: number,
-  powerOn: boolean,
 ) => {
-  if (!powerOn || typeof pressureGaugeDisplayValue !== 'number' || !Number.isFinite(pressureGaugeDisplayValue)) {
+  if (typeof pressureGaugeDisplayValue !== 'number' || !Number.isFinite(pressureGaugeDisplayValue)) {
     return PRESSURE_GAUGE_MIN_ROTATION;
   }
   return mapPressureGaugeValueToRotation(pressureGaugeDisplayValue, gaugePressureMinKPa, gaugePressureMaxKPa);
@@ -1515,7 +1517,6 @@ function InstrumentBox({
     lastPointerAngle: 0,
     totalDelta: 0,
     lastAppliedKnobAngle: pressureZeroKnobAngle,
-    moved: false,
     rejected: false,
     interactionId: null as HeatCapacityControlInteractionId | null,
   });
@@ -1527,7 +1528,6 @@ function InstrumentBox({
     pressureGaugeDisplayValue,
     gaugePressureMinKPa,
     gaugePressureMaxKPa,
-    powerOn,
   );
   const gaugeSafetyRotation = PRESSURE_GAUGE_DANGER_START_ROTATION;
   const gaugeNeedleTargetRotationRef = useRef(gaugeNeedleTargetRotation);
@@ -1610,7 +1610,6 @@ function InstrumentBox({
       lastPointerAngle: pointerAngle,
       totalDelta: 0,
       lastAppliedKnobAngle: pressureZeroKnobAngle,
-      moved: false,
       rejected: false,
       interactionId: createHeatCapacityControlInteractionId('pressureZero', 'drag'),
     };
@@ -1633,7 +1632,6 @@ function InstrumentBox({
         return;
       }
       dragState.lastAppliedKnobAngle = nextKnobAngle;
-      dragState.moved = true;
       if (dragState.interactionId) {
         dragState.rejected = !onPressureZeroCoarseAdjust(
           incrementalDelta,
@@ -2611,7 +2609,9 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
   onGuideRollbackCue: HeatCapacityGuideRollbackCueHandler;
 }) {
   const stopcockState = getHeatCapacityStopcockState(props.stopcockAngleDeg);
-  const zeroEnabled = props.powerOn && stopcockState === 'open';
+  const zeroEnabled = stopcockState === 'open' && (
+    props.experimentMode === 'free' || props.powerOn
+  );
   const scenePalette = props.scenePalette;
   const highClarityMode = props.qualityProfile.highClarityProcedural;
 
@@ -2641,7 +2641,6 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
         />
         <HeatCapacityHardSphereLayer
           enabled={props.hardSphereViewEnabled}
-          powerOn={props.powerOn}
           temperatureMv={props.temperatureSignalMv}
           pressureMv={props.pressureSignalMv}
           pressureDeltaKPa={props.pressureDeltaKPa}
@@ -3363,7 +3362,6 @@ function HeatCapacityOrbitControls({
 
 export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumentSceneProps) {
   const { playGuideRollbackCue } = useHeatCapacityAudioController({
-    sceneFileId: props.sceneFileId,
     experimentMode: props.experimentMode,
     resetKey: props.hardSphereVisualResetKey,
     powerOn: props.powerOn,
@@ -3373,7 +3371,8 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     pressureZeroAdjustMode: props.pressureZeroAdjustMode,
     pumpPulseId: props.pumpPulseId,
     recordPulseId: props.recordPulseId,
-    outwardReleaseFlowActive: props.releaseAudioFlowActive,
+    releasePathOpen: props.releaseAudioPathOpen,
+    releaseElapsedS: props.releaseTimeline.elapsedS,
     pressureDeltaKPa: props.pressureDeltaKPa,
     paused: props.hardSpherePaused,
   });
@@ -4302,7 +4301,10 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           ) : null}
         </div>
         {props.overlayCenter ? (
-          <div className="studio-preview-overlay-center" data-preview-overlay-center="true">
+          <div
+            className={`studio-preview-overlay-center ${props.overlayCenterAboveGuideMask ? 'studio-preview-overlay-center-above-guide-mask' : ''}`}
+            data-preview-overlay-center="true"
+          >
             {props.overlayCenter}
           </div>
         ) : null}

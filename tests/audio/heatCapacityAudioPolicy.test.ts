@@ -9,8 +9,7 @@ import {
   HEAT_CAPACITY_ZERO_KNOB_RATE_ANCHORS_HZ,
   HEAT_CAPACITY_ZERO_KNOB_SPEED_ANCHORS_DEG_PER_S,
   HeatCapacityKnobTickAccumulator,
-  getHeatCapacityPumpBulbVariation,
-  getHeatCapacityPumpValveVariation,
+  getHeatCapacityMechanicalVariation,
   getHeatCapacityZeroKnobAudioProfile,
   getHeatCapacityReleaseLowpassHz,
   getHeatCapacityReleaseSoundIntensity,
@@ -25,13 +24,13 @@ assert.deepEqual(HEAT_CAPACITY_ZERO_KNOB_SPEED_ANCHORS_DEG_PER_S, [20, 40, 80, 1
 assert.deepEqual(HEAT_CAPACITY_ZERO_KNOB_RATE_ANCHORS_HZ, [2, 4, 8, 16]);
 
 const baseReleaseState = {
-  outwardFlowActive: true,
+  releasePathOpen: true,
   paused: false,
   pressureDeltaKPa: 6,
   audioEnabled: true,
 };
 assert.equal(shouldPlayHeatCapacityReleaseSound(baseReleaseState), true);
-assert.equal(shouldPlayHeatCapacityReleaseSound({ ...baseReleaseState, outwardFlowActive: false }), false);
+assert.equal(shouldPlayHeatCapacityReleaseSound({ ...baseReleaseState, releasePathOpen: false }), false);
 assert.equal(shouldPlayHeatCapacityReleaseSound({ ...baseReleaseState, paused: true }), false);
 assert.equal(shouldPlayHeatCapacityReleaseSound({ ...baseReleaseState, audioEnabled: false }), false);
 assert.equal(shouldPlayHeatCapacityReleaseSound({
@@ -44,6 +43,7 @@ assert.equal(shouldPlayHeatCapacityReleaseSound({
 }), true);
 
 assert.equal(getHeatCapacityReleaseSoundIntensity(0), 0);
+assert.equal(getHeatCapacityReleaseSoundIntensity(6, 0), 0);
 assert.equal(getHeatCapacityReleaseSoundIntensity(HEAT_CAPACITY_RELEASE_SOUND_FULL_SCALE_KPA), 1);
 assert.ok(getHeatCapacityReleaseSoundIntensity(2) < getHeatCapacityReleaseSoundIntensity(6));
 assert.ok(getHeatCapacityReleaseLowpassHz(0) < getHeatCapacityReleaseLowpassHz(6));
@@ -75,20 +75,11 @@ assert.equal(beyondFastKnobProfile.degreesPerTick, 20);
 assert.ok(anchorKnobProfiles[3].itemDurationMs < anchorKnobProfiles[0].itemDurationMs,
   'fast drag should shorten each detent tail to preserve audible gaps');
 
-assert.deepEqual(getHeatCapacityPumpBulbVariation(0, 0), {
+assert.deepEqual(getHeatCapacityMechanicalVariation(0, 0), {
   playbackRate: 0.97,
   gain: 10 ** (-0.8 / 20),
 });
-assert.deepEqual(getHeatCapacityPumpBulbVariation(1, 1), {
-  playbackRate: 1.03,
-  gain: 10 ** (0.8 / 20),
-});
-
-assert.deepEqual(getHeatCapacityPumpValveVariation(0, 0), {
-  playbackRate: 0.97,
-  gain: 10 ** (-0.8 / 20),
-});
-assert.deepEqual(getHeatCapacityPumpValveVariation(1, 1), {
+assert.deepEqual(getHeatCapacityMechanicalVariation(1, 1), {
   playbackRate: 1.03,
   gain: 10 ** (0.8 / 20),
 });

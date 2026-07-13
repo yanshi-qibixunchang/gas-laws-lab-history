@@ -26,10 +26,12 @@ import {
 } from '../../domain/heatCapacity/heatCapacityHardSphereSimulation.ts';
 import {
   createHeatCapacityHardSphereMainReleaseSchedule,
-  createHeatCapacityHardSpherePostExchangeSchedule,
   getHeatCapacityHardSphereScheduleFrame,
   type HeatCapacityHardSphereVisualFlowSchedule,
 } from '../../domain/heatCapacity/heatCapacityHardSphereReleaseSchedule.ts';
+import {
+  resolveHeatCapacityReleaseFeedback,
+} from '../../domain/heatCapacity/heatCapacityReleaseFeedbackModel.ts';
 import {
   stepHeatCapacityHardSphereKineticSpeed,
   type HeatCapacityHardSphereKineticSpeedState,
@@ -56,8 +58,6 @@ export type HeatCapacityHardSphereVisualCheckpoint = {
   lastSubStepCount: number;
   seed: number;
   displayVisualState: HeatCapacityHardSphereVisualState | null;
-  outflowTailRemainingS: number;
-  outflowDriftSpeed: number;
   activeReleaseScheduleId: string | null;
   activeReleaseScheduleElapsedS: number;
   submittedReleaseExitCount: number;
@@ -70,7 +70,6 @@ interface HeatCapacityHardSphereLayerProps {
   enabled: boolean;
   containerProfile?: 'skeleton-box' | 'ultra-cylinder';
   sceneTheme: HeatCapacityHardSphereSceneTheme;
-  powerOn: boolean;
   temperatureMv: number | null;
   pressureMv: number | null;
   pressureDeltaKPa?: number;
@@ -101,7 +100,6 @@ const ULTRA_HARD_SPHERE_CYLINDER_CENTER = new THREE.Vector3(-1.399999976158142, 
 const ULTRA_HARD_SPHERE_CYLINDER_RADIUS = 0.48500001430511475;
 const ULTRA_HARD_SPHERE_CYLINDER_HALF_HEIGHT = 0.6325;
 const ULTRA_HARD_SPHERE_PARTICLE_RADIUS = PARTICLE_RADIUS * 0.75;
-const RELEASE_VISUAL_TAIL_S = 0.2;
 const HEAT_CAPACITY_HARD_SPHERE_VISUAL_SMOOTHING_RESPONSE_S = 0.46;
 const HARD_SPHERE_SIMULATION_SEED = 179;
 const dummyObject = new THREE.Object3D();
@@ -277,8 +275,6 @@ export const normalizeHeatCapacityHardSphereVisualCheckpoint = (
   const exitAccumulator = readHardSphereCheckpointNumber(value.exitAccumulator, 0, 1);
   const lastSubStepCount = readHardSphereCheckpointNumber(value.lastSubStepCount, 0, 10_000);
   const seed = readHardSphereCheckpointNumber(value.seed, 0, Number.MAX_SAFE_INTEGER);
-  const outflowTailRemainingS = readHardSphereCheckpointNumber(value.outflowTailRemainingS, 0, 10);
-  const outflowDriftSpeed = readHardSphereCheckpointNumber(value.outflowDriftSpeed, 0, 100);
   const activeReleaseScheduleElapsedS = readHardSphereCheckpointNumber(value.activeReleaseScheduleElapsedS, 0, 10_000);
   const submittedReleaseExitCount = readHardSphereCheckpointNumber(
     value.submittedReleaseExitCount,
@@ -287,8 +283,7 @@ export const normalizeHeatCapacityHardSphereVisualCheckpoint = (
   );
   if (
     accumulatorS === null || entryAccumulator === null || exitAccumulator === null || lastSubStepCount === null ||
-    seed === null || outflowTailRemainingS === null || outflowDriftSpeed === null ||
-    activeReleaseScheduleElapsedS === null || submittedReleaseExitCount === null
+    seed === null || activeReleaseScheduleElapsedS === null || submittedReleaseExitCount === null
   ) return null;
   const displayVisualState = value.displayVisualState === null ? null : readHardSphereVisualState(value.displayVisualState);
   if (value.displayVisualState !== null && displayVisualState === null) return null;
@@ -314,8 +309,6 @@ export const normalizeHeatCapacityHardSphereVisualCheckpoint = (
     lastSubStepCount: Math.round(lastSubStepCount),
     seed: Math.round(seed),
     displayVisualState,
-    outflowTailRemainingS,
-    outflowDriftSpeed,
     activeReleaseScheduleId: typeof value.activeReleaseScheduleId === 'string'
       ? value.activeReleaseScheduleId.slice(0, 1_024)
       : null,
@@ -363,8 +356,6 @@ const createHardSphereVisualCheckpoint = (
   containerProfile: HeatCapacityHardSphereVisualCheckpoint['containerProfile'],
   simulation: HeatCapacityHardSphereSimulation,
   displayVisualState: HeatCapacityHardSphereVisualState | null,
-  outflowTailRemainingS: number,
-  outflowDriftSpeed: number,
   activeReleaseScheduleId: string | null,
   activeReleaseScheduleElapsedS: number,
   submittedReleaseExitCount: number,
@@ -383,8 +374,6 @@ const createHardSphereVisualCheckpoint = (
   lastSubStepCount: simulation.lastSubStepCount,
   seed: simulation.seed,
   displayVisualState: displayVisualState ? cloneHeatCapacityHardSphereVisualState(displayVisualState) : null,
-  outflowTailRemainingS,
-  outflowDriftSpeed,
   activeReleaseScheduleId,
   activeReleaseScheduleElapsedS,
   submittedReleaseExitCount,
@@ -476,7 +465,6 @@ const getReleaseScheduleId = (
 ) => [
   timeline.phase,
   timeline.amountBeforeRatio.toFixed(4),
-  timeline.amountTargetRatio.toFixed(4),
   timeline.responseDelayS.toFixed(3),
   timeline.mainDurationS.toFixed(3),
 ].join(':');
@@ -484,9 +472,8 @@ const getReleaseScheduleId = (
 const getVisualFlowSchedule = (
   timeline: HeatCapacityHardSphereReleaseTimeline,
   particleMultiplier: number,
-  gasTemperatureK: number | undefined,
-  ambientTemperatureK: number | undefined,
   elapsedS: number,
+  feedbackProgress?: number,
 ): HeatCapacityHardSphereVisualFlowSchedule => {
   const id = getReleaseScheduleId(timeline);
   if (timeline.phase === 'main-release') {
@@ -497,24 +484,8 @@ const getVisualFlowSchedule = (
       amountTargetRatio: timeline.amountTargetRatio,
       particleMultiplier,
       elapsedS,
-    });
-  }
-  if (timeline.phase === 'post-release-exchange') {
-    const mainSchedule = createHeatCapacityHardSphereMainReleaseSchedule({
-      id: `${id}:main-source`,
-      amountBeforeRatio: timeline.amountBeforeRatio,
-      amountCurrentRatio: timeline.amountBeforeRatio,
-      amountTargetRatio: timeline.amountTargetRatio,
-      particleMultiplier,
-      elapsedS: 0,
-    });
-    return createHeatCapacityHardSpherePostExchangeSchedule({
-      id,
-      reservedExitCount: mainSchedule.postExchangeReservedCount,
-      releaseMinimumParticleCount: mainSchedule.releaseMinimumParticleCount,
-      gasTemperatureK: gasTemperatureK ?? ambientTemperatureK ?? 298.15,
-      ambientTemperatureK: ambientTemperatureK ?? gasTemperatureK ?? 298.15,
-      elapsedS,
+      durationS: timeline.mainDurationS,
+      feedbackProgress,
     });
   }
   return {
@@ -528,7 +499,6 @@ const getVisualFlowSchedule = (
     exitSpeed: 0,
     stopReason: 'none',
     totalPlannedExitCount: 0,
-    postExchangeReservedCount: 0,
     baselineParticleCount: 0,
     amountBeforeParticleCount: 0,
     amountTargetParticleCount: 0,
@@ -582,7 +552,6 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
   enabled,
   containerProfile = 'skeleton-box',
   sceneTheme,
-  powerOn,
   temperatureMv,
   pressureMv,
   pressureDeltaKPa,
@@ -617,11 +586,13 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
       ? cloneHeatCapacityHardSphereVisualState(restoredInitialCheckpoint.displayVisualState)
       : null,
   );
-  const outflowTailRemainingRef = useRef(restoredInitialCheckpoint?.outflowTailRemainingS ?? 0);
-  const outflowDriftSpeedRef = useRef(restoredInitialCheckpoint?.outflowDriftSpeed ?? 0);
   const activeReleaseScheduleIdRef = useRef<string | null>(restoredInitialCheckpoint?.activeReleaseScheduleId ?? null);
   const activeReleaseScheduleElapsedRef = useRef(restoredInitialCheckpoint?.activeReleaseScheduleElapsedS ?? 0);
   const submittedReleaseExitCountRef = useRef(restoredInitialCheckpoint?.submittedReleaseExitCount ?? 0);
+  const activeReleaseScheduleRef = useRef<HeatCapacityHardSphereVisualFlowSchedule | null>(null);
+  const releaseInitialPressureDeltaRef = useRef(0);
+  const releasePathWasOpenRef = useRef(false);
+  const releaseFeedbackWasActiveRef = useRef(false);
   const kineticSpeedStateRef = useRef<HeatCapacityHardSphereKineticSpeedState | null>(
     restoredInitialCheckpoint?.kineticSpeedState ? { ...restoredInitialCheckpoint.kineticSpeedState } : null,
   );
@@ -649,7 +620,6 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     toneMapped: false,
   }), [particleColors]);
   const visualState = useMemo(() => getHeatCapacityHardSphereVisualState({
-    powerOn,
     temperatureMv,
     pressureMv,
     pressureDeltaKPa,
@@ -673,7 +643,6 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     guideStep,
     particleMultiplier,
     phase,
-    powerOn,
     pressureDeltaKPa,
     pressureMv,
     pumpBulbState,
@@ -689,8 +658,6 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
       containerProfile,
       simulationRef.current,
       displayVisualStateRef.current,
-      outflowTailRemainingRef.current,
-      outflowDriftSpeedRef.current,
       activeReleaseScheduleIdRef.current,
       activeReleaseScheduleElapsedRef.current,
       submittedReleaseExitCountRef.current,
@@ -739,6 +706,10 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     activeReleaseScheduleIdRef.current = null;
     activeReleaseScheduleElapsedRef.current = 0;
     submittedReleaseExitCountRef.current = 0;
+    activeReleaseScheduleRef.current = null;
+    releaseInitialPressureDeltaRef.current = 0;
+    releasePathWasOpenRef.current = false;
+    releaseFeedbackWasActiveRef.current = false;
     kineticSpeedStateRef.current = null;
   }, [hardSphereProfile, particleColors, particleMaterial, resetSignature, sceneTheme, visualState]);
 
@@ -758,58 +729,68 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     displayVisualStateRef.current = displayVisualState;
     applyVisualMaterial(particleMaterial, displayVisualState, particleColors, sceneTheme);
 
-    if (currentVisual.outflowActive) {
-      outflowTailRemainingRef.current = RELEASE_VISUAL_TAIL_S;
-      outflowDriftSpeedRef.current = currentVisual.outflowDriftSpeed;
-    } else if (outflowTailRemainingRef.current > 0) {
-      outflowTailRemainingRef.current = Math.max(0, outflowTailRemainingRef.current - safeDelta);
+    const releasePathOpen = currentReleaseTimeline.phase === 'main-release' ||
+      currentReleaseTimeline.phase === 'post-release-exchange';
+    const currentPressureDeltaKPa = Math.max(0, Number.isFinite(pressureDeltaKPa ?? 0)
+      ? pressureDeltaKPa ?? 0
+      : 0);
+    if (releasePathOpen && !releasePathWasOpenRef.current) {
+      releaseInitialPressureDeltaRef.current = currentPressureDeltaKPa;
     }
-    const outflowTailFactor = RELEASE_VISUAL_TAIL_S > 0
-      ? clampNumber(outflowTailRemainingRef.current / RELEASE_VISUAL_TAIL_S, 0, 1)
-      : 0;
-    const effectiveOutflowDriftSpeed = currentVisual.outflowActive
-      ? currentVisual.outflowDriftSpeed
-      : outflowDriftSpeedRef.current * outflowTailFactor;
+    const releaseFeedback = resolveHeatCapacityReleaseFeedback({
+      releasePathOpen,
+      pressureDeltaKPa: currentPressureDeltaKPa,
+      openElapsedS: currentReleaseTimeline.elapsedS,
+      initialPressureDeltaKPa: releaseInitialPressureDeltaRef.current,
+    });
+    const releaseJustStopped = releaseFeedbackWasActiveRef.current && !releaseFeedback.active;
+    releasePathWasOpenRef.current = releasePathOpen;
+    releaseFeedbackWasActiveRef.current = releaseFeedback.active;
     const pumpPortActive = pumpFlowActive || (pumpBulbState === 'compressing' && pumpValveOpen);
     const baseVisualFlowSchedule = getVisualFlowSchedule(
       currentReleaseTimeline,
       particleMultiplier,
-      gasTemperatureK,
-      ambientTemperatureK,
       0,
+      releaseFeedback.progressRatio,
     );
-    const releaseScheduleActive = baseVisualFlowSchedule.phase === 'main-release' ||
-      baseVisualFlowSchedule.phase === 'post-release-exchange';
-    if (!releaseScheduleActive) {
-      activeReleaseScheduleIdRef.current = null;
-      activeReleaseScheduleElapsedRef.current = 0;
-      submittedReleaseExitCountRef.current = 0;
-    } else if (activeReleaseScheduleIdRef.current !== baseVisualFlowSchedule.id) {
+    const releaseScheduleActive = releaseFeedback.active && baseVisualFlowSchedule.phase === 'main-release';
+    if (releaseScheduleActive && activeReleaseScheduleIdRef.current !== baseVisualFlowSchedule.id) {
       activeReleaseScheduleIdRef.current = baseVisualFlowSchedule.id;
       activeReleaseScheduleElapsedRef.current = releaseScheduleDeltaS;
       submittedReleaseExitCountRef.current = 0;
-    } else {
+    } else if (releaseScheduleActive) {
       activeReleaseScheduleElapsedRef.current += releaseScheduleDeltaS;
     }
-    const currentScheduleFrame = getHeatCapacityHardSphereScheduleFrame(
-      getVisualFlowSchedule(
+    const currentScheduleFrame = releaseScheduleActive
+      ? getHeatCapacityHardSphereScheduleFrame(
+        getVisualFlowSchedule(
+          currentReleaseTimeline,
+          particleMultiplier,
+          activeReleaseScheduleElapsedRef.current,
+          releaseFeedback.progressRatio,
+        ),
+        activeReleaseScheduleElapsedRef.current,
+        releaseFeedback.progressRatio,
+      )
+      : activeReleaseScheduleRef.current ?? getVisualFlowSchedule(
         currentReleaseTimeline,
         particleMultiplier,
-        gasTemperatureK,
-        ambientTemperatureK,
-        activeReleaseScheduleElapsedRef.current,
-      ),
-      activeReleaseScheduleElapsedRef.current,
-    );
+        0,
+      );
+    if (releaseScheduleActive) activeReleaseScheduleRef.current = currentScheduleFrame;
     const releaseExitBudget = releaseScheduleActive
       ? Math.max(0, currentScheduleFrame.expectedExitedCount - submittedReleaseExitCountRef.current)
       : 0;
+    const releaseFinalizeExitBudget = releaseJustStopped && releaseFeedback.stopReason === 'pressure-balanced'
+      ? Math.max(0, currentScheduleFrame.targetExitCount - submittedReleaseExitCountRef.current)
+      : 0;
     submittedReleaseExitCountRef.current += releaseExitBudget;
+    submittedReleaseExitCountRef.current += releaseFinalizeExitBudget;
     const kineticSpeedState = stepHeatCapacityHardSphereKineticSpeed({
       currentSpeed: kineticSpeedStateRef.current?.speed ?? currentVisual.thermalSpeedMultiplier,
       targetSpeed: currentVisual.thermalSpeedMultiplier,
       releaseMemoryRemainingS: kineticSpeedStateRef.current?.releaseMemoryRemainingS ?? 0,
-      releaseActive: currentVisual.outflowActive || releaseScheduleActive,
+      releaseActive: releaseFeedback.active || releaseScheduleActive,
       dtS: safeDelta,
     });
     kineticSpeedStateRef.current = kineticSpeedState;
@@ -818,16 +799,27 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
       dtS: safeDelta,
       targetParticleCount: resolveProfileParticleCount(currentVisual.targetParticleCount, hardSphereProfile),
       thermalSpeedMultiplier: kineticSpeedState.speed,
-      outflowActive: currentVisual.outflowActive,
-      outflowDriftSpeed: effectiveOutflowDriftSpeed,
+      outflowActive: releaseFeedback.active,
+      outflowDriftSpeed: currentVisual.outflowDriftSpeed,
       pumpFlowActive: pumpPortActive,
       pumpFlowIntensity,
       pumpEntryRateScale: hardSphereProfile.pumpEntryRateScale,
       releasePhase: currentReleaseTimeline.phase,
       releaseExitBudget,
+      releaseFinalizeExitBudget,
       releaseExitSpeed: currentScheduleFrame.exitSpeed,
       releaseMinimumParticleCount: currentScheduleFrame.releaseMinimumParticleCount,
+      releaseFeedback,
+      releaseJustStopped,
     });
+
+    if (!releaseScheduleActive) {
+      activeReleaseScheduleIdRef.current = null;
+      activeReleaseScheduleElapsedRef.current = 0;
+      submittedReleaseExitCountRef.current = 0;
+      activeReleaseScheduleRef.current = null;
+    }
+    if (!releasePathOpen) releaseInitialPressureDeltaRef.current = 0;
 
     renderParticlePool(
       mesh,

@@ -1,6 +1,5 @@
 import {
   type HeatCapacityFreeCalibrationState,
-  type HeatCapacityFreeGammaCalculationOptions,
 } from './heatCapacityFreeCalibrationModel.ts';
 import {
   type HeatCapacityFreePhysicsState,
@@ -9,6 +8,7 @@ import {
   calculateFreeHeatCapacityTrialSignals,
   type HeatCapacityFreeRecordInput,
   type HeatCapacityFreeRecordRejectReason,
+  type HeatCapacityFreeTrialCalculationOptions,
   type HeatCapacityFreeTrial,
   normalizeHeatCapacityFreeRecordInput,
 } from './heatCapacityFreeTrialModel.ts';
@@ -64,16 +64,16 @@ const getLatestZeroEventId = (calibration: HeatCapacityFreeCalibrationState) => 
   calibration.zeroEvents[calibration.zeroEvents.length - 1]?.id ?? null
 );
 
-const hasCurrentCalibration = (
-  trial: HeatCapacityFreeTrial,
+const recordHasCurrentCalibration = (
+  record: HeatCapacityFreeTrial['u0'] | HeatCapacityFreeTrial['u1'],
   calibration: HeatCapacityFreeCalibrationState,
 ) => {
-  const officialU0 = trial.u0;
-  if (!officialU0) {
-    return false;
-  }
-  return officialU0.calibrationVersion === calibration.calibrationVersion &&
-    officialU0.zeroEventId === getLatestZeroEventId(calibration);
+  if (!record) return true;
+  if (record.calibrationVersion !== calibration.calibrationVersion) return false;
+  const latestZeroEventId = getLatestZeroEventId(calibration);
+  return latestZeroEventId === null
+    ? record.zeroEventId === '' || record.zeroEventId === `free-unzeroed-${calibration.calibrationVersion}`
+    : record.zeroEventId === latestZeroEventId;
 };
 
 export const evaluateFreeU0Record = (
@@ -103,25 +103,6 @@ export const evaluateFreeU0Record = (
   return createEvaluation('ready');
 };
 
-const evaluateCommonRecordReadiness = (
-  trial: HeatCapacityFreeTrial,
-  calibration: HeatCapacityFreeCalibrationState,
-  display: HeatCapacityFreeSensorDisplay,
-  physics: HeatCapacityFreePhysicsState,
-  config: HeatCapacityFreeRecordConfig,
-) => {
-  void display;
-  void physics;
-  void config;
-  if (!trial.u0) {
-    return createEvaluation('missing-u0');
-  }
-  if (!hasCurrentCalibration(trial, calibration)) {
-    return createEvaluation('calibration-changed');
-  }
-  return createEvaluation('ready');
-};
-
 export const evaluateFreeU1Record = (
   trial: HeatCapacityFreeTrial,
   calibration: HeatCapacityFreeCalibrationState,
@@ -129,12 +110,13 @@ export const evaluateFreeU1Record = (
   physics: HeatCapacityFreePhysicsState,
   config: HeatCapacityFreeRecordConfig,
 ): HeatCapacityFreeRecordEvaluation => {
-  const common = evaluateCommonRecordReadiness(trial, calibration, display, physics, config);
-  if (!common.ready) {
-    return common;
-  }
+  void display;
+  void config;
   if (trial.u1) {
     return createEvaluation('invalid-sequence');
+  }
+  if (!recordHasCurrentCalibration(trial.u0, calibration)) {
+    return createEvaluation('calibration-changed');
   }
   if (physics.pumpStrokeCount <= 0) {
     return createEvaluation('invalid-sequence');
@@ -149,17 +131,16 @@ export const evaluateFreeU2Record = (
   physics: HeatCapacityFreePhysicsState,
   config: HeatCapacityFreeRecordConfig,
 ): HeatCapacityFreeRecordEvaluation => {
-  const common = evaluateCommonRecordReadiness(trial, calibration, display, physics, config);
-  if (!common.ready) {
-    return common;
-  }
   if (!trial.u1 || trial.u2) {
     return createEvaluation('invalid-sequence');
+  }
+  if (!recordHasCurrentCalibration(trial.u1, calibration)) {
+    return createEvaluation('calibration-changed');
   }
   if (!physics.releaseStarted || !physics.releaseReference) {
     return createEvaluation('release-not-started');
   }
-  const correctedU2Mv = display.displayPressureMv - trial.u0.displayPressureMv;
+  const correctedU2Mv = display.displayPressureMv - (trial.u0?.displayPressureMv ?? 0);
   if (correctedU2Mv < config.overVentedMinimumU2CorrectedMv) {
     return createEvaluation('over-vented');
   }
@@ -178,13 +159,14 @@ const rejectRecord = (
   },
 });
 
-const inputMatchesOfficialU0 = (
+const inputMatchesCalibrationRecord = (
   trial: HeatCapacityFreeTrial,
   input: HeatCapacityFreeRecordInput,
 ) => (
-  trial.u0 !== null &&
-  input.calibrationVersion === trial.u0.calibrationVersion &&
-  input.zeroEventId === trial.u0.zeroEventId
+  trial.u0 === null || (
+    input.calibrationVersion === trial.u0.calibrationVersion &&
+    input.zeroEventId === trial.u0.zeroEventId
+  )
 );
 
 export const recordFreeU0 = (
@@ -215,10 +197,7 @@ export const recordFreeU1 = (
   trial: HeatCapacityFreeTrial,
   input: HeatCapacityFreeRecordInput,
 ): HeatCapacityFreeRecordResult => {
-  if (!trial.u0) {
-    return rejectRecord(trial, 'missing-u0');
-  }
-  if (!inputMatchesOfficialU0(trial, input)) {
+  if (!inputMatchesCalibrationRecord(trial, input)) {
     return rejectRecord(trial, 'calibration-changed');
   }
   return {
@@ -240,16 +219,13 @@ export const recordFreeU1 = (
 export const recordFreeU2 = (
   trial: HeatCapacityFreeTrial,
   input: HeatCapacityFreeRecordInput,
-  options: HeatCapacityFreeGammaCalculationOptions = {},
+  options: HeatCapacityFreeTrialCalculationOptions = {},
 ): HeatCapacityFreeRecordResult => {
-  if (!trial.u0) {
-    return rejectRecord(trial, 'missing-u0');
-  }
   if (!trial.u1) {
     return rejectRecord(trial, 'invalid-sequence');
   }
   if (
-    !inputMatchesOfficialU0(trial, input) ||
+    !inputMatchesCalibrationRecord(trial, input) ||
     input.calibrationVersion !== trial.u1.calibrationVersion ||
     input.zeroEventId !== trial.u1.zeroEventId
   ) {

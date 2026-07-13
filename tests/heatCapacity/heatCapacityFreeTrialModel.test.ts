@@ -11,6 +11,10 @@ import {
   createDefaultFreeConfigSnapshot,
   type HeatCapacityFreeConfigSnapshot,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
+import {
+  applyHeatCapacityFreePreheatBias,
+  deriveHeatCapacityFreePreheatBiasGamma,
+} from '../../src/domain/heatCapacity/heatCapacityFreeResultBiasModel.ts';
 
 const createCompleteTrial = (
   id: string,
@@ -139,7 +143,62 @@ assert.equal(mean.trialResults[1].gamma, trialBExpected?.gamma);
 assert.equal(mean.trialResults[2].status, 'invalid');
 assert.equal(mean.validTrialCount, 2);
 
-for (const kind of ['u0', 'u1', 'u2'] as const) {
+const missingU0Trial: HeatCapacityFreeTrial = {
+  ...createCompleteTrial('trial-with-assumed-zero', snapshotA),
+  u0: null,
+};
+const missingU0Signals = calculateFreeHeatCapacityTrialSignals(missingU0Trial, {
+  atmosphericPressureKPa: snapshotA.environment.ambientPressureKPa,
+  pressureSensitivityMvPerKPa: snapshotA.sensor.pressureMvPerKPa,
+  theoreticalGamma: snapshotA.physics.gamma,
+});
+assert.notEqual(missingU0Signals, null);
+assert.equal(missingU0Signals?.u0Source, 'assumed-zero');
+assert.equal(missingU0Signals?.U0DisplayMv, 0);
+
+const omittedPreheatTrial: HeatCapacityFreeTrial = {
+  ...missingU0Trial,
+  id: 'trial-with-omitted-preheat',
+  preheatOutcome: 'omitted',
+};
+const omittedPreheatSignals = calculateFreeHeatCapacityTrialSignals(omittedPreheatTrial, {
+  atmosphericPressureKPa: snapshotA.environment.ambientPressureKPa,
+  pressureSensitivityMvPerKPa: snapshotA.sensor.pressureMvPerKPa,
+  theoreticalGamma: snapshotA.physics.gamma,
+});
+assert.notEqual(omittedPreheatSignals, null);
+assert.equal(
+  omittedPreheatSignals?.preheatBiasGamma,
+  applyHeatCapacityFreePreheatBias({
+    formulaGamma: omittedPreheatSignals!.formulaGamma,
+    theoreticalGamma: snapshotA.physics.gamma,
+    preheatOutcome: 'omitted',
+    seed: omittedPreheatTrial.id,
+  }).preheatBiasGamma,
+);
+assert.equal(
+  Math.abs(omittedPreheatSignals?.preheatBiasGamma ?? 1) <= 0.01,
+  true,
+  'omitted-preheat bias must stay in the confirmed 0.000 to 0.010 range',
+);
+assert.equal(
+  Number.isInteger((omittedPreheatSignals?.preheatBiasGamma ?? 0) * 1000),
+  true,
+  'omitted-preheat bias must use 0.001 increments',
+);
+assert.equal(
+  Math.abs(omittedPreheatSignals!.gamma - snapshotA.physics.gamma) >=
+    Math.abs(omittedPreheatSignals!.formulaGamma - snapshotA.physics.gamma),
+  true,
+  'omitted-preheat bias must move the reported result away from theoretical gamma',
+);
+assert.equal(
+  deriveHeatCapacityFreePreheatBiasGamma(omittedPreheatTrial.id),
+  deriveHeatCapacityFreePreheatBiasGamma(omittedPreheatTrial.id),
+  'preheat bias must be deterministic for the same trial',
+);
+
+for (const kind of ['u1', 'u2'] as const) {
   const removed = removeHeatCapacityFreeTrialRecord([trialAWithSignals], 0, kind).trials[0];
   assert.equal(removed.correctedSignals, null);
   assert.equal(
@@ -148,5 +207,15 @@ for (const kind of ['u0', 'u1', 'u2'] as const) {
     `removing ${kind} should clear the stored config snapshot with dependent calculated data`,
   );
 }
+
+const removedU0 = removeHeatCapacityFreeTrialRecord([{
+  ...missingU0Trial,
+  u0: createCompleteTrial('u0-record', snapshotA).u0,
+  correctedSignals: calculateFreeHeatCapacityTrialSignals(createCompleteTrial('u0-record', snapshotA)),
+}], 0, 'u0').trials[0];
+assert.equal(removedU0.u0, null);
+assert.notEqual(removedU0.u1, null, 'removing U0 should preserve U1');
+assert.notEqual(removedU0.u2, null, 'removing U0 should preserve U2');
+assert.equal(removedU0.correctedSignals?.u0Source, 'assumed-zero');
 
 console.log('heatCapacityFreeTrialModel tests passed');

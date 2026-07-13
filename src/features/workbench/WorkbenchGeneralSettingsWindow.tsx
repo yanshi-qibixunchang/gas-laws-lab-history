@@ -27,7 +27,8 @@ interface WorkbenchGeneralSettingsWindowCopy {
     performanceModeSummary: Record<WorkbenchPerformanceMode, string>;
     audio: string;
     audioHint: string;
-    audioToggleAria: string;
+    audioMuteAria: string;
+    audioUnmuteAria: string;
     audioVolumeAria: string;
   };
   shortcuts: {
@@ -237,11 +238,11 @@ export const WorkbenchGeneralSettingsWindow = ({
               <span>{copy.settings.audioHint}</span>
             </div>
             <div className="studio-settings-control-surface">
-              <div className={`studio-settings-audio-controls ${audioEnabled ? '' : 'studio-settings-audio-controls-disabled'}`}>
+              <div className={`studio-settings-audio-controls ${audioEnabled ? '' : 'studio-settings-audio-controls-muted'}`}>
                 <button
                   type="button"
                   className={`studio-settings-audio-button ${audioEnabled ? '' : 'studio-settings-audio-button-muted'}`}
-                  aria-label={copy.settings.audioToggleAria}
+                  aria-label={audioEnabled ? copy.settings.audioMuteAria : copy.settings.audioUnmuteAria}
                   aria-pressed={!audioEnabled}
                   onClick={() => onAudioEnabledChange(!audioEnabled)}
                 >

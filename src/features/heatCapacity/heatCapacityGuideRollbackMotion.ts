@@ -1,13 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import type { HeatCapacityGuideRollbackAnimation } from '../../domain/heatCapacity/heatCapacityInstrumentFeedback.ts';
 
-export type HeatCapacityGuideRollbackAnimation =
-  | 'valveBounce'
-  | 'stopcockBounce'
-  | 'pumpBulbBounce'
-  | 'knobBounce'
-  | 'powerBounce';
-
-export type HeatCapacityGuideRollbackCueAction =
+type HeatCapacityGuideRollbackCueAction =
   | 'powerOn'
   | 'powerOff'
   | 'stopcockOpen'
@@ -17,7 +11,7 @@ export type HeatCapacityGuideRollbackCueAction =
   | 'pumpBulbStroke'
   | 'knobTick';
 
-export type HeatCapacityGuideRollbackCuePhase =
+type HeatCapacityGuideRollbackCuePhase =
   | 'departure'
   | 'turnaround'
   | 'knobLeftPeak'
@@ -31,14 +25,15 @@ export type HeatCapacityGuideRollbackCue = {
   cycleKey: number;
 };
 
-type PendingRollbackCue = Omit<HeatCapacityGuideRollbackCue, 'cycleKey'>;
+type PendingRollbackCue = Omit<HeatCapacityGuideRollbackCue, 'animation' | 'cycleKey'>;
 
 type HeatCapacityGuideRollbackTarget = {
   value: number;
   cue?: PendingRollbackCue;
 };
 
-export type HeatCapacityGuideRollbackPlan = {
+type HeatCapacityGuideRollbackPlan = {
+  animation: HeatCapacityGuideRollbackAnimation;
   targets: readonly HeatCapacityGuideRollbackTarget[];
   startCue?: PendingRollbackCue;
   interruptCue?: PendingRollbackCue;
@@ -65,8 +60,9 @@ const MAX_INTEGRATION_STEP_S = 1 / 120;
 
 const withCycleKey = (
   cue: PendingRollbackCue | undefined,
+  animation: HeatCapacityGuideRollbackAnimation,
   cycleKey: number,
-): HeatCapacityGuideRollbackCue[] => cue ? [{ ...cue, cycleKey }] : [];
+): HeatCapacityGuideRollbackCue[] => cue ? [{ ...cue, animation, cycleKey }] : [];
 
 export const createHeatCapacityBinaryRollbackPlan = ({
   animation,
@@ -79,13 +75,12 @@ export const createHeatCapacityBinaryRollbackPlan = ({
   departureAction: HeatCapacityGuideRollbackCueAction;
   returnAction: HeatCapacityGuideRollbackCueAction;
 }): HeatCapacityGuideRollbackPlan => ({
+  animation,
   startCue: {
-    animation,
     action: departureAction,
     phase: 'departure',
   },
   interruptCue: {
-    animation,
     action: returnAction,
     phase: 'turnaround',
   },
@@ -93,7 +88,6 @@ export const createHeatCapacityBinaryRollbackPlan = ({
     {
       value: amplitude,
       cue: {
-        animation,
         action: returnAction,
         phase: 'turnaround',
       },
@@ -107,11 +101,11 @@ export const createHeatCapacityBinaryRollbackPlan = ({
 export const createHeatCapacityKnobRollbackPlan = (
   angleScale = 1,
 ): HeatCapacityGuideRollbackPlan => ({
+  animation: 'knobBounce',
   targets: [
     {
       value: HEAT_CAPACITY_BLOCKED_KNOB_LEFT_TRAVEL_DEG * angleScale,
       cue: {
-        animation: 'knobBounce',
         action: 'knobTick',
         phase: 'knobLeftPeak',
       },
@@ -119,7 +113,6 @@ export const createHeatCapacityKnobRollbackPlan = (
     {
       value: HEAT_CAPACITY_BLOCKED_KNOB_RIGHT_TRAVEL_DEG * angleScale,
       cue: {
-        animation: 'knobBounce',
         action: 'knobTick',
         phase: 'knobRightPeak',
       },
@@ -127,7 +120,6 @@ export const createHeatCapacityKnobRollbackPlan = (
     {
       value: 0,
       cue: {
-        animation: 'knobBounce',
         action: 'knobTick',
         phase: 'settled',
       },
@@ -141,13 +133,12 @@ export const createHeatCapacityKnobRollbackPlan = (
 });
 
 export const createHeatCapacityPumpBulbRollbackPlan = (): HeatCapacityGuideRollbackPlan => ({
+  animation: 'pumpBulbBounce',
   startCue: {
-    animation: 'pumpBulbBounce',
     action: 'pumpBulbStroke',
     phase: 'departure',
   },
   interruptCue: {
-    animation: 'pumpBulbBounce',
     action: 'pumpBulbStroke',
     phase: 'turnaround',
   },
@@ -177,7 +168,7 @@ export class HeatCapacityGuideRollbackMotion {
     if (this.active && this.plan) {
       const finalTargetIndex = this.plan.targets.length - 1;
       if (this.targetIndex < finalTargetIndex) {
-        const cues = withCycleKey(this.plan.interruptCue, cycleKey);
+        const cues = withCycleKey(this.plan.interruptCue, this.plan.animation, cycleKey);
         this.targetIndex = finalTargetIndex;
         this.stageElapsedMs = 0;
         return cues;
@@ -188,7 +179,7 @@ export class HeatCapacityGuideRollbackMotion {
     this.targetIndex = 0;
     this.stageElapsedMs = 0;
     this.active = plan.targets.length > 0;
-    return withCycleKey(plan.startCue, cycleKey);
+    return withCycleKey(plan.startCue, plan.animation, cycleKey);
   }
 
   step(deltaS: number) {
@@ -219,7 +210,7 @@ export class HeatCapacityGuideRollbackMotion {
     if (stageReached) {
       this.value = target.value;
       this.velocity = 0;
-      cues.push(...withCycleKey(target.cue, this.cycleKey));
+      cues.push(...withCycleKey(target.cue, this.plan.animation, this.cycleKey));
       this.targetIndex += 1;
       this.stageElapsedMs = 0;
       if (this.targetIndex >= this.plan.targets.length) {

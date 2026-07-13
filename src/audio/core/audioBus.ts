@@ -39,7 +39,9 @@ export class AudioBusGraph {
   }
 
   getInput(busId: AudioBusId) {
-    return this.buses.get(busId) ?? this.buses.get('experiment')!;
+    const input = this.buses.get(busId);
+    if (!input) throw new Error(`Audio bus is not registered: ${busId}`);
+    return input;
   }
 
   applySettings(settings: AudioSettings, rampMs = AUDIO_MASTER_GAIN_RAMP_MS) {

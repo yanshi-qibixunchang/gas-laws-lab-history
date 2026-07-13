@@ -37,6 +37,7 @@ const legalFileUrls = [
   '../../public/legal/LICENSE.electron.txt',
   '../../public/legal/font-licenses.txt',
   '../../public/legal/exporter-licenses.html',
+  '../../public/legal/audio-materials.html',
 ].map((filePath) => new URL(filePath, import.meta.url));
 const generatedLegalHtmlFiles = [
   {
@@ -46,6 +47,10 @@ const generatedLegalHtmlFiles = [
   {
     label: 'exporter component licenses',
     html: readFileSync(new URL('../../public/legal/exporter-licenses.html', import.meta.url), 'utf8'),
+  },
+  {
+    label: 'audio materials and licenses',
+    html: readFileSync(new URL('../../public/legal/audio-materials.html', import.meta.url), 'utf8'),
   },
 ];
 

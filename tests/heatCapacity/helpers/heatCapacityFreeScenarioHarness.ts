@@ -191,7 +191,6 @@ const pump = (
   let current = run;
   for (let strokeIndex = 0; strokeIndex < strokes; strokeIndex += 1) {
     current = stepRun(current, {
-      powerOn: true,
       pumpValveOpen: true,
       stopcockOpen: false,
     }, TIME_STEP_S);
@@ -199,7 +198,6 @@ const pump = (
       current.physics,
       current.configs.physics,
       {
-        powerOn: true,
         pumpValveOpen: true,
         stopcockOpen: false,
       },
@@ -215,7 +213,6 @@ const pump = (
     };
   }
   return wait(current, {
-    powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: false,
   }, DEFAULT_STABLE_WAIT_S);
@@ -277,7 +274,6 @@ const releaseAndMaybeRecover = (
   recoveryWaitS: number,
 ) => {
   let current = stepRun(run, {
-    powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: true,
     stopcockFlowPurpose: 'release',
@@ -285,19 +281,16 @@ const releaseAndMaybeRecover = (
   const totalOpenDurationS = 0.2 + openExtraS;
   for (let elapsedS = 0; elapsedS < totalOpenDurationS - 1e-9; elapsedS += TIME_STEP_S) {
     current = stepRun(current, {
-      powerOn: true,
       pumpValveOpen: false,
       stopcockOpen: true,
       stopcockFlowPurpose: 'release',
     }, TIME_STEP_S);
   }
   current = stepRun(current, {
-    powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: false,
   }, 0.05);
   return wait(current, {
-    powerOn: true,
     pumpValveOpen: false,
     stopcockOpen: false,
   }, recoveryWaitS);
@@ -319,7 +312,7 @@ const completeScenario = (
       id: input.id,
       label: input.label,
       u1Evaluation: u1.evaluation,
-      u2Evaluation: { ready: false, reason: 'missing-u0' },
+      u2Evaluation: { ready: false, reason: 'invalid-sequence' },
       correctedSignals: null,
       recordTimes: {
         u1AtS: null,

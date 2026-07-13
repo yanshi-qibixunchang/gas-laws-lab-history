@@ -31,11 +31,11 @@
 
 - [x] **Step 1: Write failing UI source test**
 
-Add assertions that the Free speed overlay renders a timer region using stable markup:
+Add assertions that the independent Free wait controller renders only while U1/U2 wait state exists:
 
 ```ts
-assert.match(workbenchSource, /deriveHeatCapacityFreeExperimentTimer/, 'Workbench should derive Free experiment timer state from the active trial and physics state');
-assert.match(workbenchSource, /data-heat-capacity-free-wait-timer="true"/, 'Free wait speed overlay should render a wait timer region');
+assert.match(workbenchSource, /deriveHeatCapacityFreeWorkbenchAttemptWaitTimer/, 'Workbench should derive Free experiment timer state from the active attempt');
+assert.match(workbenchSource, /HeatCapacityWaitController/, 'Free waits should render the independent timer component');
 assert.match(workbenchSource, /freeWaitTimerLabel/, 'Free wait timer should use localized stage labels');
 assert.match(workbenchSource, /formatHeatCapacityFreeWaitTimer/, 'Free wait timer should format mm:ss elapsed and target values');
 ```
@@ -48,27 +48,20 @@ Run:
 node tests\heatCapacity\workbenchHeatCapacityInstrumentUi.test.ts
 ```
 
-Expected: FAIL because timer markup is not wired into the speed overlay.
+Expected: FAIL because the independent wait controller is not wired to attempt state.
 
 - [x] **Step 3: Implement timer display**
 
 In `WorkbenchStudioPrototype.tsx`:
 
-- import `deriveHeatCapacityFreeExperimentTimer`;
+- import `deriveHeatCapacityFreeWorkbenchAttemptWaitTimer` and `HeatCapacityWaitController`;
 - add localized copy:
   - `freeWaitTimerLabel.u1 = 'U₁ 等待'`
   - `freeWaitTimerLabel.u2 = 'U₂ 等待'`
   - English/TW equivalents;
-- add `formatHeatCapacityFreeWaitTimer(seconds)` returning `mm:ss`;
-- derive timer only for active Free Mode file and active trial;
-- render inside `.studio-heat-free-speed-control`:
-
-```tsx
-<span className="studio-heat-free-wait-timer" data-heat-capacity-free-wait-timer="true">
-  <span>{timerLabel}</span>
-  <strong>{elapsedText} / {targetText}</strong>
-</span>
-```
+- keep `formatHeatCapacityWaitDuration(seconds)` inside the independent component;
+- derive timer only for an active, valid U1/U2 wait attempt;
+- render `HeatCapacityWaitController` as an independent overlay, with the shared ×2/×4/×8/×16 options.
 
 Do not auto-record or show a strong prompt when the timer reaches 5 minutes.
 
@@ -172,7 +165,7 @@ Expected: PASS.
 node tests\heatCapacity\workbenchHeatCapacityInstrumentUi.test.ts
 node tests\heatCapacity\workbenchHeatCapacityInstrument.test.ts
 node tests\heatCapacity\workbenchHeatCapacityFreeRecordAttempt.test.ts
-node tests\heatCapacity\heatCapacityFreeExperimentTimerModel.test.ts
+node tests\heatCapacity\workbenchHeatCapacityFreeAttemptIntegration.test.ts
 node tests\heatCapacity\heatCapacityFreeSixClassValidation.test.ts
 ```
 

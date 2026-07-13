@@ -35,6 +35,7 @@ export class HeatCapacityReleaseSound {
   private startPromise: Promise<void> | null = null;
   private desiredActive = false;
   private pressureDeltaKPa = 0;
+  private apertureRatio = 1;
   private attackEndsAt = 0;
   private lowpass: BiquadFilterNode | null = null;
 
@@ -42,11 +43,12 @@ export class HeatCapacityReleaseSound {
     this.engine = engine;
   }
 
-  start(pressureDeltaKPa: number) {
+  start(pressureDeltaKPa: number, apertureRatio = 1) {
     this.desiredActive = true;
     this.pressureDeltaKPa = pressureDeltaKPa;
+    this.apertureRatio = apertureRatio;
     if (this.voice && !this.voice.stopped) {
-      this.update(pressureDeltaKPa);
+      this.update(pressureDeltaKPa, apertureRatio);
       return;
     }
     if (this.startPromise) return;
@@ -111,7 +113,10 @@ export class HeatCapacityReleaseSound {
     voice.output.gain.cancelScheduledValues(now);
     voice.output.gain.setValueAtTime(0, now);
     voice.output.gain.linearRampToValueAtTime(
-      HEAT_CAPACITY_RELEASE_AUDIO_BASE_GAIN * getHeatCapacityReleaseSoundIntensity(this.pressureDeltaKPa),
+      HEAT_CAPACITY_RELEASE_AUDIO_BASE_GAIN * getHeatCapacityReleaseSoundIntensity(
+        this.pressureDeltaKPa,
+        this.apertureRatio,
+      ),
       this.attackEndsAt,
     );
     this.updateFilter(lowpass, this.pressureDeltaKPa, 0);
@@ -126,13 +131,17 @@ export class HeatCapacityReleaseSound {
     );
   }
 
-  update(pressureDeltaKPa: number) {
+  update(pressureDeltaKPa: number, apertureRatio = 1) {
     this.pressureDeltaKPa = pressureDeltaKPa;
+    this.apertureRatio = apertureRatio;
     const voice = this.voice;
     if (!voice || voice.stopped) return;
     const context = voice.context;
     const now = context.currentTime;
-    const targetGain = HEAT_CAPACITY_RELEASE_AUDIO_BASE_GAIN * getHeatCapacityReleaseSoundIntensity(pressureDeltaKPa);
+    const targetGain = HEAT_CAPACITY_RELEASE_AUDIO_BASE_GAIN * getHeatCapacityReleaseSoundIntensity(
+      pressureDeltaKPa,
+      apertureRatio,
+    );
     const targetAt = Math.max(this.attackEndsAt, now + HEAT_CAPACITY_RELEASE_AUDIO_UPDATE_MS / 1000);
     voice.output.gain.cancelAndHoldAtTime(now);
     voice.output.gain.linearRampToValueAtTime(targetGain, targetAt);

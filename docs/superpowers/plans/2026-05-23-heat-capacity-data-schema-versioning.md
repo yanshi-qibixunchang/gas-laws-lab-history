@@ -552,7 +552,6 @@ export interface HeatCapacityFreeUiReplayV1 {
   heatCapacityFreeStopcockFlowOpen: boolean;
   heatCapacityFreeStopcockPendingOpenAtMs: number | null;
   heatCapacityFreeEquilibriumSpeedMultiplier: WorkbenchHeatCapacityState['heatCapacityFreeEquilibriumSpeedMultiplier'];
-  heatCapacityFreeEquilibriumSpeedHintShown: boolean;
   hardSphereViewEnabled: boolean;
   hardSphereParticleMultiplier: number;
   hardSphereSpeedMultiplier: number;
@@ -707,7 +706,6 @@ export const createHeatCapacityPersistencePayload = (
         heatCapacityFreeStopcockPendingOpenAtMs: file.heatCapacityFreeStopcockPendingOpenAtMs,
         heatCapacityFreeEquilibriumSpeedMultiplier:
           file.heatCapacityFreeEquilibriumSpeedMultiplier ?? HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER,
-        heatCapacityFreeEquilibriumSpeedHintShown: file.heatCapacityFreeEquilibriumSpeedHintShown,
         hardSphereViewEnabled: file.hardSphereViewEnabled,
         hardSphereParticleMultiplier: file.hardSphereParticleMultiplier,
         hardSphereSpeedMultiplier: file.hardSphereSpeedMultiplier,
@@ -1258,7 +1256,6 @@ const replayEnvelope = encodeWorkbenchStorageEnvelope([{
   ...heatReplayFile,
   pressureGaugeNeedleAngle: 33,
   heatCapacityFreeEquilibriumSpeedMultiplier: 8,
-  heatCapacityFreeEquilibriumSpeedHintShown: true,
   hardSphereViewEnabled: true,
   hardSphereParticleMultiplier: 1.2,
   hardSphereSpeedMultiplier: 1.1,
@@ -1270,7 +1267,6 @@ assert.equal(replayFile.kind, 'heatCapacity');
 if (replayFile.kind !== 'heatCapacity') throw new Error('expected heat capacity replay file');
 assert.equal(replayFile.pressureGaugeNeedleAngle, 33);
 assert.equal(replayFile.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
-assert.equal(replayFile.heatCapacityFreeEquilibriumSpeedHintShown, true);
 assert.equal(replayFile.hardSphereViewEnabled, true);
 assert.equal(replayFile.hardSphereParticleMultiplier, 1.2);
 assert.equal(replayFile.hardSphereSpeedMultiplier, 1.1);
@@ -1307,7 +1303,6 @@ if (fileEnvelope.kind === 'heatCapacity' && isRecord(fileEnvelope.payload)) {
       uiReplay.heatCapacityFreeEquilibriumSpeedMultiplier === 8
       ? uiReplay.heatCapacityFreeEquilibriumSpeedMultiplier
       : fallback.heatCapacityFreeEquilibriumSpeedMultiplier,
-    heatCapacityFreeEquilibriumSpeedHintShown: uiReplay.heatCapacityFreeEquilibriumSpeedHintShown === true,
     hardSphereViewEnabled: uiReplay.hardSphereViewEnabled === true,
     hardSphereParticleMultiplier: typeof uiReplay.hardSphereParticleMultiplier === 'number'
       ? uiReplay.hardSphereParticleMultiplier

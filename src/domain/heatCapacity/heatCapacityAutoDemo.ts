@@ -3,6 +3,7 @@ import {
   HEAT_CAPACITY_RELEASE_TIMING,
   HEAT_CAPACITY_STANDARD_OPERATION,
 } from './heatCapacityDefaultConfig.ts';
+import { getHeatCapacityPreheatTotalPresentationMs } from './heatCapacityPreheatModel.ts';
 
 export type HeatCapacityAutoDemoAction =
   | 'powerOn'
@@ -125,8 +126,20 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     cameraFocusMode: 'instrument',
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
     actionDurationMs: POWER_TRANSITION_MS,
-    observeDurationMs: DEFAULT_OBSERVE_MS,
+    observeDurationMs: 0,
     actions: [{ action: 'powerOn' }],
+  },
+  {
+    id: 'sensor-preheat',
+    title: '传感器预热',
+    description: '保持仪器通电，完成传感器预热。',
+    target: '温度与压强传感器',
+    progressCriterion: '仿真用 5 s 等效表示现实仪器连续预热 20 min。',
+    note: '预热完成后，传感器读数恢复并继续后续实验。',
+    preHighlightMs: 0,
+    actionDurationMs: getHeatCapacityPreheatTotalPresentationMs(),
+    observeDurationMs: 0,
+    actions: [],
   },
   {
     id: 'open-stopcock-for-zero',

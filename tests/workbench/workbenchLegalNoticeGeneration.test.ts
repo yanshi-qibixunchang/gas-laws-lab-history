@@ -6,6 +6,7 @@ const generatorSource = readFileSync(new URL('../../scripts/generateLegalNotices
 
 const legalFiles = [
   'exporter-licenses.html',
+  'audio-materials.html',
   'third-party-dependencies.html',
   'third-party-license-texts.html',
   'third-party-summary.json',
@@ -41,6 +42,7 @@ const summary = JSON.parse(before['third-party-summary.json']) as {
 assert.equal(Number.isNaN(Date.parse(summary.generatedAt ?? '')), false);
 assert.match(summary.contentFingerprint ?? '', /^[a-f0-9]{64}$/);
 assert.match(generatorSource, /const dependencyManifest = Object\.fromEntries/);
+assert.match(generatorSource, /appendFile\(audioManifestPath\)/);
 assert.doesNotMatch(generatorSource, /appendFile\(packageJsonPath\)/, 'unrelated package scripts should not invalidate generated legal notices');
 
 console.log('workbenchLegalNoticeGeneration tests passed');

@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  HEAT_CAPACITY_HARD_SPHERE_OUTFLOW_EQUILIBRIUM_KPA,
   getHeatCapacityHardSphereVisualState,
 } from '../../src/domain/heatCapacity/heatCapacityHardSphereModel.ts';
 import {
@@ -9,7 +10,6 @@ import {
 } from '../../src/domain/heatCapacity/heatCapacityHardSphereColor.ts';
 
 const ambient = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1499,
   pressureMv: 0,
   gasAmountRatio: 1,
@@ -22,7 +22,6 @@ const ambient = getHeatCapacityHardSphereVisualState({
 });
 
 const pumped = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1527,
   pressureMv: 120,
   gasAmountRatio: 1.06,
@@ -45,7 +44,6 @@ assert.equal(pumped.temperatureColorFactor, 1, 'heated U_T should move the tempe
 assert.equal(pumped.targetParticleCount, 90, 'active pump flow should not add temporary inlet-particle emphasis beyond the gas amount');
 assert.equal(pumped.targetParticleCount <= 128, true, 'visual particle pool should stay capped');
 const sealedAfterFourPumps = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1502,
   pressureMv: 120,
   gasAmountRatio: 1.06,
@@ -59,7 +57,6 @@ const sealedAfterFourPumps = getHeatCapacityHardSphereVisualState({
 assert.equal(sealedAfterFourPumps.targetParticleCount >= 89 && sealedAfterFourPumps.targetParticleCount <= 91, true, 'four completed pump strokes should keep visible molecule-count steps at least triple the previous mapping');
 
 const coldExtension = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1489,
   pressureMv: 0,
   gasAmountRatio: 1,
@@ -72,7 +69,6 @@ const coldExtension = getHeatCapacityHardSphereVisualState({
 });
 
 const warmExtension = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1527,
   pressureMv: 120,
   gasAmountRatio: 1.06,
@@ -93,7 +89,6 @@ assert.equal(warmExtension.thermalSpeedMultiplier > ambient.thermalSpeedMultipli
 assert.equal(warmExtension.targetParticleCount, sealedAfterFourPumps.targetParticleCount, 'same gas amount should use the same molecule count whether the pump is currently compressing or sealed');
 
 const demoTeachingPumping = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1518,
   pressureMv: 90,
   gasAmountRatio: 1.045,
@@ -114,7 +109,6 @@ assert.equal(demoTeachingPumping.thermalSpeedMultiplier > ambient.thermalSpeedMu
 assert.equal(demoTeachingPumping.temperatureColorFactor > ambient.temperatureColorFactor, true, 'demo pumping should drive particle color from the teaching temperature signal');
 
 const liveCompressionBeforeSensorCatchUp = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1499,
   pressureMv: 90,
   gasAmountRatio: 1.045,
@@ -141,7 +135,6 @@ assert.equal(
 );
 
 const sameTemperatureFast = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1499,
   pressureMv: 120,
   gasAmountRatio: 1,
@@ -171,7 +164,6 @@ assert.equal(
 );
 
 const releasing = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1490,
   pressureMv: 110,
   gasAmountRatio: 1.02,
@@ -197,7 +189,6 @@ assert.equal(releasing.targetParticleCount > ambient.targetParticleCount, true, 
 assert.equal(releasing.targetParticleCount < sealedAfterFourPumps.targetParticleCount, true, 'release should visibly reduce molecule count while staying above the initial state');
 
 const confirmedTeachingReleaseStart = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1490,
   pressureMv: 110,
   gasAmountRatio: 1.02,
@@ -222,7 +213,6 @@ assert.equal(
 );
 
 const nearEquilibriumRelease = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1498.8,
   pressureMv: 1.2,
   gasAmountRatio: 1,
@@ -232,7 +222,7 @@ const nearEquilibriumRelease = getHeatCapacityHardSphereVisualState({
   glassStopcockOpen: true,
   pumpValveOpen: false,
   pumpBulbState: 'idle',
-  pressureDeltaKPa: 0.06,
+  pressureDeltaKPa: HEAT_CAPACITY_HARD_SPHERE_OUTFLOW_EQUILIBRIUM_KPA,
 });
 
 assert.equal(
@@ -243,7 +233,6 @@ assert.equal(
 assert.equal(nearEquilibriumRelease.outflowDriftSpeed, 0, 'near-equal pressure should not apply outlet drift');
 
 const oneStrokeAmount = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1500,
   pressureMv: 30,
   gasAmountRatio: 1.015,
@@ -265,7 +254,6 @@ assert.equal(
 );
 
 const openStopcockPressureDifferencePoweredOff = getHeatCapacityHardSphereVisualState({
-  powerOn: false,
   temperatureMv: 1490,
   pressureMv: 110,
   gasAmountRatio: 1.06,
@@ -283,7 +271,6 @@ assert.equal(openStopcockPressureDifferencePoweredOff.outflowDriftSpeed > 0, tru
 assert.equal(openStopcockPressureDifferencePoweredOff.targetParticleCount > releasing.targetParticleCount, true, 'pre-release molecule count should still reflect the larger gas amount');
 
 const noPressureOpen = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1499,
   pressureMv: 0,
   gasAmountRatio: 1,
@@ -301,7 +288,6 @@ assert.equal(noPressureOpen.outflowDriftSpeed, 0, 'zero pressure difference shou
 assert.equal(noPressureOpen.targetParticleCount, 42);
 
 const cooledVentedStandard = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1494,
   pressureMv: 0,
   gasAmountRatio: 0.94,
@@ -321,7 +307,6 @@ assert.equal(
 );
 
 const highParticlePresetAmbient = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1499,
   pressureMv: 0,
   gasAmountRatio: 1,
@@ -334,7 +319,6 @@ const highParticlePresetAmbient = getHeatCapacityHardSphereVisualState({
   particleMultiplier: 1.25,
 });
 const highParticlePresetVented = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1494,
   pressureMv: 0,
   gasAmountRatio: 0.94,
@@ -354,7 +338,6 @@ assert.equal(
 );
 
 const lowPressureRelease = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1499,
   pressureMv: 20,
   gasAmountRatio: 1.02,
@@ -368,7 +351,6 @@ const lowPressureRelease = getHeatCapacityHardSphereVisualState({
 });
 
 const highPressureRelease = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: 1499,
   pressureMv: 120,
   gasAmountRatio: 1.02,
@@ -393,7 +375,6 @@ assert.equal(
 );
 
 const blockedBounce = getHeatCapacityHardSphereVisualState({
-  powerOn: true,
   temperatureMv: ambient.speedMultiplier,
   pressureMv: 0,
   gasAmountRatio: 1,
@@ -409,7 +390,6 @@ assert.equal(blockedBounce.outflowActive, false, 'rollback animations must not b
 assert.equal(blockedBounce.targetParticleCount >= 26, true);
 
 const poweredOff = getHeatCapacityHardSphereVisualState({
-  powerOn: false,
   temperatureMv: 1499,
   pressureMv: 0,
   gasAmountRatio: 1,
@@ -460,13 +440,18 @@ assert.doesNotMatch(
 );
 assert.match(
   hardSphereLayerSource,
-  /const RELEASE_VISUAL_TAIL_S = 0\.2;/,
-  'release animation should keep a visual tail so the visible release duration is roughly doubled',
+  /resolveHeatCapacityReleaseFeedback/,
+  'release animation should use the shared aperture-and-pressure feedback model',
+);
+assert.doesNotMatch(
+  hardSphereLayerSource,
+  /createHeatCapacityHardSpherePostExchangeSchedule/,
+  'the obsolete multi-second directed post-release exchange path should be removed',
 );
 assert.match(
   hardSphereLayerSource,
-  /outflowActive:\s*currentVisual\.outflowActive/,
-  'release tail should not mark new particles for exit after the physical outflow has stopped',
+  /outflowActive:\s*releaseFeedback\.active/,
+  'release feedback should stop selecting particles when the shared physical flow has stopped',
 );
 assert.match(
   hardSphereLayerSource,

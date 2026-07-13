@@ -84,7 +84,8 @@ declare global {
     | 'electron'
     | 'chromium'
     | 'fonts'
-    | 'exporter';
+    | 'exporter'
+    | 'audio';
 
   interface DesktopLegalOpenResult {
     status: 'opened' | 'error';

@@ -5,6 +5,7 @@ import {
 
 export type HeatCapacityGuideWorkflowStep =
   | 'powerRequired'
+  | 'preheatRequired'
   | 'openStopcockForZeroRequired'
   | 'zeroRequired'
   | 'recordU0Required'
@@ -23,6 +24,7 @@ export type HeatCapacityGuideWorkflowStep =
 
 export type HeatCapacityGuideAction =
   | 'togglePower'
+  | 'preheatComplete'
   | 'openStopcock'
   | 'closeStopcock'
   | 'adjustZero'
@@ -34,13 +36,6 @@ export type HeatCapacityGuideAction =
   | 'recordU2'
   | 'timerComplete'
   | 'abortGuide';
-
-export type HeatCapacityGuideRollbackAnimation =
-  | 'valveBounce'
-  | 'stopcockBounce'
-  | 'pumpBulbBounce'
-  | 'knobBounce'
-  | 'powerBounce';
 
 export interface HeatCapacityGuideWorkflowState {
   step: HeatCapacityGuideWorkflowStep;
@@ -66,7 +61,6 @@ export interface HeatCapacityGuideActionContext {
 export interface HeatCapacityGuideGuardResult {
   allowed: boolean;
   message: string;
-  rollbackAnimation?: HeatCapacityGuideRollbackAnimation;
   targetControlId: string | null;
 }
 
@@ -92,6 +86,8 @@ export const getHeatCapacityGuideTargetControlId = (
     case 'powerRequired':
     case 'closePowerRequired':
       return 'powerSwitch';
+    case 'preheatRequired':
+      return null;
     case 'openStopcockForZeroRequired':
     case 'closeStopcockBeforePumpRequired':
     case 'openStopcockForReleaseRequired':
@@ -115,27 +111,6 @@ export const getHeatCapacityGuideTargetControlId = (
   }
 };
 
-const rollbackForAction = (
-  action: HeatCapacityGuideAction,
-): HeatCapacityGuideRollbackAnimation | undefined => {
-  switch (action) {
-    case 'togglePower':
-      return 'powerBounce';
-    case 'openStopcock':
-    case 'closeStopcock':
-      return 'stopcockBounce';
-    case 'openPumpValve':
-    case 'closePumpValve':
-      return 'valveBounce';
-    case 'pressPumpBulb':
-      return 'pumpBulbBounce';
-    case 'adjustZero':
-      return 'knobBounce';
-    default:
-      return undefined;
-  }
-};
-
 const accepted = (message: string, targetControlId: string | null): HeatCapacityGuideGuardResult => ({
   allowed: true,
   message,
@@ -144,12 +119,10 @@ const accepted = (message: string, targetControlId: string | null): HeatCapacity
 
 const rejected = (
   workflow: HeatCapacityGuideWorkflowState,
-  context: HeatCapacityGuideActionContext,
   message: string,
 ): HeatCapacityGuideGuardResult => ({
   allowed: false,
   message,
-  rollbackAnimation: rollbackForAction(context.action),
   targetControlId: getHeatCapacityGuideTargetControlId(workflow.step),
 });
 
@@ -165,67 +138,71 @@ export const getHeatCapacityGuideActionGuard = (
     case 'powerRequired':
       return context.action === 'togglePower' && context.powerOn
         ? accepted('电源已打开。', 'powerSwitch')
-        : rejected(workflow, context, '请先打开电源。');
+        : rejected(workflow, '请先打开电源。');
+    case 'preheatRequired':
+      return context.action === 'preheatComplete' && context.powerOn
+        ? accepted('传感器预热完成。', null)
+        : rejected(workflow, '请等待传感器预热完成。');
     case 'openStopcockForZeroRequired':
       return context.action === 'openStopcock' && context.stopcockOpen
         ? accepted('玻璃旋塞已打开。', 'stopcock')
-        : rejected(workflow, context, '请先打开玻璃旋塞。');
+        : rejected(workflow, '请先打开玻璃旋塞。');
     case 'zeroRequired':
       return context.action === 'adjustZero' && context.pressureZeroReady === true
         ? accepted('压强已调零。', 'pressureZero')
-        : rejected(workflow, context, '请调节压力调零旋钮，使 Uₚ 接近 0。');
+        : rejected(workflow, '请调节压力调零旋钮，使 Uₚ 接近 0。');
     case 'recordU0Required':
       return context.action === 'recordU0'
         ? accepted('已记录 U₀。', 'recordU0')
-        : rejected(workflow, context, '请记录 U₀。');
+        : rejected(workflow, '请记录 U₀。');
     case 'closeStopcockBeforePumpRequired':
       return context.action === 'closeStopcock' && !context.stopcockOpen
         ? accepted('玻璃旋塞已关闭。', 'stopcock')
-        : rejected(workflow, context, '请先关闭玻璃旋塞，再开始打气。');
+        : rejected(workflow, '请先关闭玻璃旋塞，再开始打气。');
     case 'openPumpValveRequired':
       return context.action === 'openPumpValve' && context.pumpValveOpen
         ? accepted('打气阀门已打开。', 'pumpValve')
-        : rejected(workflow, context, '请打开打气阀门。');
+        : rejected(workflow, '请打开打气阀门。');
     case 'pumpRequired':
       if (context.action === 'pressPumpBulb') return accepted('继续打气，直到 Uₚ ≥ 120 mV。', 'pumpBulb');
       if (context.action === 'closePumpValve' && context.displayPressureMv >= HEAT_CAPACITY_GUIDE_PUMP_TARGET_MV) {
         return accepted('已达到 Uₚ ≥ 120 mV。', 'pumpValve');
       }
-      return rejected(workflow, context, `请连续打气，直到 Uₚ ≥ ${HEAT_CAPACITY_GUIDE_PUMP_TARGET_MV.toFixed(0)} mV。`);
+      return rejected(workflow, `请连续打气，直到 Uₚ ≥ ${HEAT_CAPACITY_GUIDE_PUMP_TARGET_MV.toFixed(0)} mV。`);
     case 'closePumpValveRequired':
       return context.action === 'closePumpValve' && !context.pumpValveOpen
         ? accepted('打气阀门已关闭。', 'pumpValve')
-        : rejected(workflow, context, '请关闭打气阀门。');
+        : rejected(workflow, '请关闭打气阀门。');
     case 'u1Waiting':
       return context.action === 'timerComplete'
         ? accepted('U₁ 等待完成。', 'recordU1')
-        : rejected(workflow, context, '请等待计时器达到 5 min。');
+        : rejected(workflow, '请等待计时器达到 5 min。');
     case 'recordU1Required':
       return context.action === 'recordU1'
         ? accepted('已记录 U₁。', 'recordU1')
-        : rejected(workflow, context, '请记录 U₁。');
+        : rejected(workflow, '请记录 U₁。');
     case 'openStopcockForReleaseRequired':
       return context.action === 'openStopcock' && context.stopcockOpen
         ? accepted('放气旋塞已打开。', 'stopcock')
-        : rejected(workflow, context, '请打开玻璃旋塞进行放气。');
+        : rejected(workflow, '请打开玻璃旋塞进行放气。');
     case 'closeStopcockAfterReleaseRequired':
       return context.action === 'closeStopcock' && !context.stopcockOpen
         ? accepted('放气旋塞已关闭。', 'stopcock')
-        : rejected(workflow, context, '请关闭玻璃旋塞结束放气。');
+        : rejected(workflow, '请关闭玻璃旋塞结束放气。');
     case 'u2Waiting':
       return context.action === 'timerComplete'
         ? accepted('U₂ 等待完成。', 'recordU2')
-        : rejected(workflow, context, '请等待计时器达到 5 min。');
+        : rejected(workflow, '请等待计时器达到 5 min。');
     case 'recordU2Required':
       return context.action === 'recordU2'
         ? accepted('已记录 U₂。', 'recordU2')
-        : rejected(workflow, context, '请记录 U₂。');
+        : rejected(workflow, '请记录 U₂。');
     case 'closePowerRequired':
       return context.action === 'togglePower' && !context.powerOn
         ? accepted('实验已完成。', 'powerSwitch')
-        : rejected(workflow, context, '请关闭电源，完成本次引导实验。');
+        : rejected(workflow, '请关闭电源，完成本次引导实验。');
     case 'completed':
-      return rejected(workflow, context, '本次引导实验已完成。');
+      return rejected(workflow, '本次引导实验已完成。');
   }
 };
 
@@ -254,6 +231,8 @@ export const transitionHeatCapacityGuideWorkflow = (
 
   switch (workflow.step) {
     case 'powerRequired':
+      return nextClean(workflow, { step: 'preheatRequired' });
+    case 'preheatRequired':
       return nextClean(workflow, { step: 'openStopcockForZeroRequired' });
     case 'openStopcockForZeroRequired':
       return nextClean(workflow, { step: 'zeroRequired' });

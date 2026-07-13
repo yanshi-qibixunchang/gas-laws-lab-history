@@ -80,7 +80,6 @@ export interface HeatCapacityFreePhysicsState {
 }
 
 export interface HeatCapacityFreeControls {
-  powerOn: boolean;
   pumpValveOpen: boolean;
   stopcockOpen: boolean;
   stopcockFlowPurpose?: 'zeroing' | 'release';
@@ -92,7 +91,6 @@ export interface HeatCapacityFreePumpStrokeEvent {
 }
 
 export type HeatCapacityFreePumpStrokeRejectReason =
-  | 'powerOff'
   | 'pumpValveClosed'
   | 'stopcockOpen'
   | 'pressureDanger';
@@ -347,9 +345,6 @@ export const applyFreePumpStroke = (
   controls: HeatCapacityFreeControls,
   event: HeatCapacityFreePumpStrokeEvent,
 ): HeatCapacityFreePumpStrokeResult => {
-  if (!controls.powerOn) {
-    return createPumpReject('powerOff', state);
-  }
   if (!controls.pumpValveOpen) {
     return createPumpReject('pumpValveClosed', state);
   }

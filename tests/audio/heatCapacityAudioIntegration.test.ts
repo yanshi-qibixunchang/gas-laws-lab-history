@@ -33,13 +33,21 @@ assert.match(controller, /heatCapacity\.record\.write[\s\S]*?playbackRate: 1\.1[
   'recording feedback should use one truly crossfaded writing voice');
 assert.match(catalog, /heatCapacity\.record\.write[\s\S]*?gain: 0\.29/,
   'writing feedback should use half of its previous linear gain');
-assert.match(controller, /cue\.action === 'pumpValveOpen'[\s\S]*?fileIndex[\s\S]*?itemDurationMs: 150[\s\S]*?itemFadeOutMs: 34/,
+assert.match(controller, /cue\.action === 'pumpValveOpen'[\s\S]*?fileIndex[\s\S]*?shortened: true[\s\S]*?maxStartDelayMs: 90/,
   'a blocked 30-degree pump-valve movement should use a paired short clip with its own fade envelope');
+assert.match(controller, /durationMs: shortened \? 150 : undefined[\s\S]*?fadeOutMs: shortened \? 34 : undefined/,
+  'short blocked valve feedback should use the one-shot duration API instead of a one-item burst');
+assert.doesNotMatch(controller, /engine\.playBurst\([\s\S]{0,180}heatCapacity\.pumpValve/,
+  'pump-valve feedback should not retain the one-item burst workaround');
 assert.match(controller, /rollbackPumpValveVariantRef\.current\.get\(cue\.cycleKey\)/,
   'the outbound and return portions of one blocked valve cycle should keep the same timbre variant');
-assert.match(controller, /cue\.action === 'pumpBulbStroke'[\s\S]*?HEAT_CAPACITY_PUMP_BULB_MIN_INTERVAL_MS[\s\S]*?heatCapacity\.pumpBulb\.stroke/,
+assert.match(controller, /const playPumpBulbStroke = useCallback[\s\S]*?HEAT_CAPACITY_PUMP_BULB_MIN_INTERVAL_MS[\s\S]*?heatCapacity\.pumpBulb\.stroke/,
   'a blocked bulb press should play one complete pump sound through the shared eight-per-second policy');
-assert.match(controller, /outwardFlowActive: state\.outwardReleaseFlowActive[\s\S]*?paused: state\.paused[\s\S]*?pressureDeltaKPa/);
+assert.match(controller, /releasePathOpen: state\.releasePathOpen[\s\S]*?paused: state\.paused[\s\S]*?pressureDeltaKPa/);
+assert.doesNotMatch(controller, /sceneFileId|getHeatCapacityPumpBulbVariation|getHeatCapacityPumpValveVariation/,
+  'the controller should not retain redundant file state or duplicate mechanical-variation policies');
+assert.doesNotMatch(controller, /voiceGroup:/,
+  'sample voice ownership should live in the catalog instead of being repeated at call sites');
 assert.match(releaseSound, /HEAT_CAPACITY_RELEASE_AUDIO_ATTACK_MS = 65/);
 assert.match(releaseSound, /HEAT_CAPACITY_RELEASE_AUDIO_STOP_FADE_MS = 15/);
 assert.match(releaseSound, /HEAT_CAPACITY_RELEASE_AUDIO_BASE_GAIN = 0\.28/);
@@ -49,9 +57,11 @@ assert.doesNotMatch(releaseSound, /setTimeout\([^)]*(300|400|420)/,
   'release audio must not use a fixed duration timer');
 
 assert.match(scene, /useHeatCapacityAudioController\(\{/);
-assert.match(workbench, /releaseAudioFlowActive =\s*isHeatCapacityReleaseFlowOpen\(activeFile\.heatCapacityReleaseState\)[\s\S]*?activeFile\.pressureDeltaKPa > HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA/,
-  'release audio should follow real outward flow even when the formal release workflow marker is absent');
-assert.match(workbench, /releaseAudioFlowActive=\{releaseAudioFlowActive\}/);
+assert.match(workbench, /releaseAudioPathOpen = isHeatCapacityReleaseFlowOpen\(activeFile\.heatCapacityReleaseState\)/,
+  'Workbench should report only the fully-open path and leave pressure qualification to the audio policy');
+assert.doesNotMatch(workbench, /releaseAudioPathOpen\s*=[\s\S]{0,180}HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA/,
+  'the release pressure threshold should have one owner instead of being duplicated in Workbench');
+assert.match(workbench, /releaseAudioPathOpen=\{releaseAudioPathOpen\}/);
 assert.match(
   workbench,
   /let nextHeatCapacityFile = [\s\S]*?registerHeatCapacityPumpStroke[\s\S]*?setHeatCapacityPumpPulseId\(\(pulseId\) => pulseId \+ 1\)/,
@@ -84,8 +94,13 @@ assert.match(
 );
 assert.match(settingsWindow, /type="range"[\s\S]*?min="0"[\s\S]*?max="1"[\s\S]*?step="0\.01"/);
 assert.match(settingsWindow, /disabled=\{!audioEnabled\}/);
+assert.match(settingsWindow, /audioEnabled \? copy\.settings\.audioMuteAria : copy\.settings\.audioUnmuteAria/);
+assert.doesNotMatch(settingsWindow, /audioToggleAria|studio-settings-audio-switch|studio-window-switch-thumb/);
 assert.match(catalog, /heatCapacity\.stopcock\.turnOpen[\s\S]*?gain: 1\.12/);
 assert.match(catalog, /heatCapacity\.stopcock\.turnClose[\s\S]*?gain: 1\.16/);
+assert.match(catalog, /heatCapacity\.power\.on[\s\S]*?voiceGroup: 'heatCapacity\.power'/);
+assert.match(catalog, /heatCapacity\.stopcock\.turnOpen[\s\S]*?voiceGroup: 'heatCapacity\.stopcock'/);
+assert.match(catalog, /heatCapacity\.pumpBulb\.stroke[\s\S]*?avoidImmediateRepeat: true/);
 assert.match(rollbackMotion, /HEAT_CAPACITY_BLOCKED_VALVE_TRAVEL_DEG = 30/);
 assert.match(rollbackMotion, /HEAT_CAPACITY_BLOCKED_PUMP_BULB_COMPRESSION = 0\.45/);
 assert.match(rollbackMotion, /this\.targetIndex = finalTargetIndex[\s\S]*?this\.stageElapsedMs = 0/,

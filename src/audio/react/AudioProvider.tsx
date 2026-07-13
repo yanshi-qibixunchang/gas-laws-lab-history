@@ -12,7 +12,7 @@ import { AudioEngine } from '../core/audioEngine.ts';
 import { DEFAULT_AUDIO_SETTINGS, normalizeAudioSettings } from '../core/audioSettings.ts';
 import type { AudioSettings } from '../core/audioTypes.ts';
 
-export interface AudioContextValue {
+interface AudioContextValue {
   engine: AudioEngine;
   settings: AudioSettings;
   updateSettings: (settings: AudioSettings) => void;
