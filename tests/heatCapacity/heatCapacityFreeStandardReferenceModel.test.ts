@@ -5,7 +5,11 @@ import {
 } from '../../src/domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
 import {
   HEAT_CAPACITY_STANDARD_OPERATION,
+  HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
 } from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import {
+  FREE_PUMP_STROKE_DURATION_S,
+} from '../../src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
 import {
   createCompleteProcessReviewFixtureParts,
 } from './helpers/heatCapacityProcessReviewTestFactory.ts';
@@ -30,11 +34,14 @@ assert.equal(first.trace.some((point) => point.stageId === 'pump'), true);
 assert.equal(first.trace.some((point) => point.stageId === 'release'), true);
 const stageById = new Map(first.stages.map((stage) => [stage.id, stage]));
 assert.equal(stageById.get('pump')?.countText, 'x18');
+assert.equal(HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS, 8);
+assert.equal(HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S, 8 / 17);
 assert.equal(
   Number(((stageById.get('pump')!.endS - stageById.get('pump')!.startS)).toFixed(2)),
-  12,
-  'standard reference should use the fixed 18-stroke / 12 s pump procedure',
+  HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS + FREE_PUMP_STROKE_DURATION_S,
+  'standard reference should start the eighteenth stroke at 8 s and finish it at 8.08 s',
 );
+assert.equal(stageById.get('pump')?.durationText, '8.08 s');
 assert.equal(
   Number(((stageById.get('stabilize')!.endS - stageById.get('stabilize')!.startS)).toFixed(2)),
   300,
@@ -105,3 +112,45 @@ assert.equal(disturbed.summary.assumptions.disturbancesPreserved, true);
 assert.equal(disturbed.configSnapshot.physics.leakage.enabled, true);
 assert.equal(disturbed.configSnapshot.physics.environmentDisturbance?.enabled, true);
 assert.equal(disturbed.configSnapshot.sensor.noiseMv, 0.08);
+
+const warmAmbientTemperatureK = 303.15;
+const warmRoomConfig = {
+  ...fixture.traceTrial.configSnapshot,
+  environment: {
+    ...fixture.traceTrial.configSnapshot.environment,
+    ambientTemperatureK: warmAmbientTemperatureK,
+  },
+  physics: {
+    ...fixture.traceTrial.configSnapshot.physics,
+    environmentDisturbance: {
+      ...(fixture.traceTrial.configSnapshot.physics.environmentDisturbance ?? {
+        pressureAmplitudeKPa: 0.002,
+        temperatureAmplitudeK: 0.015,
+        timeScaleS: 180,
+      }),
+      enabled: false,
+    },
+  },
+  sensor: {
+    ...fixture.traceTrial.configSnapshot.sensor,
+    noiseMv: 0,
+  },
+};
+const warmRoomReference = createHeatCapacityFreeStandardReference({
+  traceTrial: {
+    ...fixture.traceTrial,
+    configSnapshot: warmRoomConfig,
+  },
+  trial: {
+    ...fixture.trial,
+    configSnapshot: warmRoomConfig,
+  },
+  theoreticalGamma: 1.4,
+});
+assert.equal(
+  warmRoomReference.trace
+    .filter((point) => point.stageId === 'zero')
+    .every((point) => Math.abs(point.temperatureDeltaK) < 1e-9),
+  true,
+  'standard reference should initialize gas, wall, and sensor at the configured ambient temperature',
+);

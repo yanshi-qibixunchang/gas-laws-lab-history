@@ -8,6 +8,9 @@ import {
   normalizeFreePumpValveExchangeConfig,
 } from '../../domain/heatCapacity/heatCapacityFreePumpValveExchangeModel.ts';
 import {
+  HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
+} from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import {
   createDefaultFreeConfigSnapshot,
   createDefaultFreeTraceStore,
   HEAT_CAPACITY_FREE_CALCULATION_VERSION,
@@ -31,6 +34,9 @@ import type {
 import type {
   HeatCapacityFreeSensorState,
 } from '../../domain/heatCapacity/heatCapacityFreeSensorModel.ts';
+import {
+  HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
+} from '../../domain/heatCapacity/heatCapacitySensorMapping.ts';
 import type {
   HeatCapacityFreeCalibrationState,
 } from '../../domain/heatCapacity/heatCapacityFreeCalibrationModel.ts';
@@ -197,6 +203,10 @@ export const normalizeHeatCapacityFreeRestoreConfigSnapshot = (
         physics.pumpAmountGainRatio,
         fallback.physics.pumpAmountGainRatio,
       ),
+      pumpWorkRetention: heatCapacityRestoreFiniteOrDefault(
+        physics.pumpWorkRetention,
+        fallback.physics.pumpWorkRetention,
+      ),
       pumpPressureLimitKPa: heatCapacityRestoreFiniteOrDefault(
         physics.pumpPressureLimitKPa,
         fallback.physics.pumpPressureLimitKPa,
@@ -205,10 +215,7 @@ export const normalizeHeatCapacityFreeRestoreConfigSnapshot = (
         physics.pumpStrokeDurationS,
         fallback.physics.pumpStrokeDurationS,
       ),
-      recommendedPumpIntervalS: heatCapacityRestoreFiniteOrDefault(
-        physics.recommendedPumpIntervalS,
-        fallback.physics.recommendedPumpIntervalS,
-      ),
+      recommendedPumpIntervalS: HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
       stopcockFlowRate: heatCapacityRestoreFiniteOrDefault(
         physics.stopcockFlowRate,
         fallback.physics.stopcockFlowRate,
@@ -298,19 +305,11 @@ export const normalizeHeatCapacityFreeRestoreConfigSnapshot = (
         sensor.pressureMvPerKPa,
         fallback.sensor.pressureMvPerKPa,
       ),
-      temperatureMvAtAmbient: heatCapacityRestoreFiniteOrDefault(
-        sensor.temperatureMvAtAmbient,
-        fallback.sensor.temperatureMvAtAmbient,
-      ),
-      temperatureMvPerK: heatCapacityRestoreFiniteOrDefault(
-        sensor.temperatureMvPerK,
-        fallback.sensor.temperatureMvPerK,
-      ),
+      // Old mode-local 2/4 mV/K values are historical metadata only and must
+      // never re-enter the active shared instrument calibration.
+      temperatureMvAtAmbient: fallback.sensor.temperatureMvAtAmbient,
+      temperatureMvPerK: fallback.sensor.temperatureMvPerK,
       lagRate: heatCapacityRestoreFiniteOrDefault(sensor.lagRate, fallback.sensor.lagRate),
-      pumpLagRate: heatCapacityRestoreFiniteOrDefault(
-        sensor.pumpLagRate,
-        fallback.sensor.pumpLagRate,
-      ),
       noiseMv: heatCapacityRestoreFiniteOrDefault(sensor.noiseMv, fallback.sensor.noiseMv),
       quantizationMv: heatCapacityRestoreFiniteOrDefault(
         sensor.quantizationMv,
@@ -655,10 +654,32 @@ export const normalizeHeatCapacityFreeRestorePhysicsState = (
     ? releaseReference as HeatCapacityFreePhysicsState['releaseReference']
     : null;
   const gasAmountRatio = heatCapacityRestoreFiniteOrDefault(state.gasAmountRatio, fallback.gasAmountRatio);
+  const normalizedGasAmountRatio = gasAmountRatio > 0 ? gasAmountRatio : fallback.gasAmountRatio;
+  const gasTemperatureK = Math.max(
+    0.001,
+    heatCapacityRestoreFiniteOrDefault(state.gasTemperatureK, fallback.gasTemperatureK),
+  );
+  const referenceAmountMol = heatCapacityRestoreFiniteOrDefault(
+    state.referenceAmountMol,
+    fallback.referenceAmountMol ?? 0,
+  );
+  const amountMol = heatCapacityRestoreFiniteOrDefault(
+    state.amountMol,
+    referenceAmountMol * normalizedGasAmountRatio,
+  );
+  const internalEnergyJ = heatCapacityRestoreFiniteOrDefault(
+    state.internalEnergyJ,
+    (fallback.internalEnergyJ ?? 0) *
+      (amountMol / Math.max(1e-12, fallback.amountMol ?? amountMol)) *
+      (gasTemperatureK / Math.max(1e-12, fallback.gasTemperatureK)),
+  );
   return {
     simulationTimeS: heatCapacityRestoreFiniteOrDefault(state.simulationTimeS, fallback.simulationTimeS),
-    gasAmountRatio: gasAmountRatio > 0 ? gasAmountRatio : fallback.gasAmountRatio,
-    gasTemperatureK: Math.max(0.001, heatCapacityRestoreFiniteOrDefault(state.gasTemperatureK, fallback.gasTemperatureK)),
+    amountMol: amountMol > 0 ? amountMol : fallback.amountMol,
+    internalEnergyJ: internalEnergyJ > 0 ? internalEnergyJ : fallback.internalEnergyJ,
+    referenceAmountMol: referenceAmountMol > 0 ? referenceAmountMol : fallback.referenceAmountMol,
+    gasAmountRatio: normalizedGasAmountRatio,
+    gasTemperatureK,
     wallTemperatureK: Math.max(0.001, heatCapacityRestoreFiniteOrDefault(state.wallTemperatureK, fallback.wallTemperatureK)),
     pumpProcesses,
     pumpStrokeCount: Math.max(0, heatCapacityRestoreFiniteOrDefault(state.pumpStrokeCount, fallback.pumpStrokeCount)),
@@ -687,11 +708,18 @@ export const normalizeHeatCapacityFreeRestoreSensorState = (
   fallback: HeatCapacityFreeSensorState,
 ): HeatCapacityFreeSensorState => {
   const state = isHeatCapacityRestoreRecord(value) ? value : {};
+  const sensorTemperatureK = heatCapacityRestoreFiniteOrDefault(
+    state.sensorTemperatureK,
+    fallback.sensorTemperatureK ?? 298.15,
+  );
   return {
     seed: typeof state.seed === 'string' || typeof state.seed === 'number' ? state.seed : fallback.seed,
     pressureInitialBiasMv: heatCapacityRestoreFiniteOrDefault(state.pressureInitialBiasMv, fallback.pressureInitialBiasMv),
     displayPressureMv: heatCapacityRestoreFiniteOrDefault(state.displayPressureMv, fallback.displayPressureMv),
-    displayTemperatureMv: heatCapacityRestoreFiniteOrDefault(state.displayTemperatureMv, fallback.displayTemperatureMv),
+    displayTemperatureMv: fallback.displayTemperatureMv +
+      (sensorTemperatureK - (fallback.sensorTemperatureK ?? sensorTemperatureK)) *
+        HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
+    sensorTemperatureK,
     nextSampleAtS: heatCapacityRestoreFiniteOrDefault(state.nextSampleAtS, fallback.nextSampleAtS),
     pressureHistory: normalizeHeatCapacityFreeRestoreDisplaySamples(state.pressureHistory),
     temperatureHistory: normalizeHeatCapacityFreeRestoreDisplaySamples(state.temperatureHistory),

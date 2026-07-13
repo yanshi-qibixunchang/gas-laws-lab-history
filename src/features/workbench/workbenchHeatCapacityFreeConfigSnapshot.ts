@@ -2,9 +2,8 @@ import {
   FREE_PUMP_STROKE_DURATION_S,
   type HeatCapacityFreeEnvironmentConfig,
 } from '../../domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
-import {
-  HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE,
-  type HeatCapacityFreeSensorConfig,
+import type {
+  HeatCapacityFreeSensorConfig,
 } from '../../domain/heatCapacity/heatCapacityFreeSensorModel.ts';
 import {
   normalizeFreePressureSensorNonlinearityConfig,
@@ -15,6 +14,9 @@ import {
 import {
   normalizeFreeEnvironmentDisturbanceConfig,
 } from '../../domain/heatCapacity/heatCapacityFreeEnvironmentDisturbanceModel.ts';
+import {
+  HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
+} from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
 import {
   createDefaultFreeConfigSnapshot,
   HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
@@ -46,9 +48,10 @@ export const createHeatCapacityFreeConfigSnapshotFromFile = (
       gamma: file.heatCapacityFreePhysicsConfig.gamma,
       vesselVolumeL: fallback.physics.vesselVolumeL,
       pumpAmountGainRatio: fallback.physics.pumpAmountGainRatio,
+      pumpWorkRetention: fallback.physics.pumpWorkRetention,
       pumpPressureLimitKPa: file.heatCapacityFreePhysicsConfig.pumpPressureLimitKPa,
       pumpStrokeDurationS: FREE_PUMP_STROKE_DURATION_S,
-      recommendedPumpIntervalS: 0.1,
+      recommendedPumpIntervalS: HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
       stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
       thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
       pumpValveExchange: normalizeFreePumpValveExchangeConfig(
@@ -64,7 +67,6 @@ export const createHeatCapacityFreeConfigSnapshotFromFile = (
       temperatureMvAtAmbient: sensorConfig.temperatureMvAtAmbient,
       temperatureMvPerK: sensorConfig.temperatureMvPerK,
       lagRate: sensorConfig.lagRate,
-      pumpLagRate: HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE,
       noiseMv: sensorConfig.noiseMv,
       quantizationMv: sensorConfig.quantizationMv,
       minSampleIntervalS: sensorConfig.minSampleIntervalS,

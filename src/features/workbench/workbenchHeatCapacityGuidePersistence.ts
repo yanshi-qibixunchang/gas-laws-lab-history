@@ -13,11 +13,15 @@ import {
   isPersistenceFiniteNumber,
   isPersistenceRecord,
 } from './workbenchPersistenceValue.ts';
+import {
+  migrateGuidePhysicsState,
+} from '../../domain/heatCapacity/heatCapacityGuidePhysicsEngine.ts';
 
 type RestoredHeatCapacityGuideFields = Pick<
   WorkbenchHeatCapacityState,
   | 'heatCapacityGuidePhysicsConfig'
   | 'heatCapacityGuidePhysicsState'
+  | 'heatCapacityGuideTemperatureSensorState'
   | 'heatCapacityGuideWorkflow'
   | 'heatCapacityGuideTrial'
 >;
@@ -56,6 +60,7 @@ export const createHeatCapacityGuidePersistenceData = (
     ? {
         physicsConfig: clonePersistenceValue(file.heatCapacityGuidePhysicsConfig),
         physicsState: clonePersistenceValue(file.heatCapacityGuidePhysicsState),
+        temperatureSensorState: clonePersistenceValue(file.heatCapacityGuideTemperatureSensorState),
         workflow: clonePersistenceValue(file.heatCapacityGuideWorkflow),
         trial: clonePersistenceValue(file.heatCapacityGuideTrial),
       }
@@ -105,11 +110,19 @@ const normalizeGuidePhysicsConfig = (
 const normalizeGuidePhysicsState = (
   value: unknown,
   fallback: WorkbenchHeatCapacityState['heatCapacityGuidePhysicsState'],
+  config: WorkbenchHeatCapacityState['heatCapacityGuidePhysicsConfig'],
 ): WorkbenchHeatCapacityState['heatCapacityGuidePhysicsState'] => (
   isPersistenceRecord(value)
-    ? {
+    ? migrateGuidePhysicsState({
         ...fallback,
         ...clonePersistenceValue(value),
+        amountMol: isPersistenceFiniteNumber(value.amountMol) ? value.amountMol : Number.NaN,
+        internalEnergyJ: isPersistenceFiniteNumber(value.internalEnergyJ)
+          ? value.internalEnergyJ
+          : Number.NaN,
+        referenceAmountMol: isPersistenceFiniteNumber(value.referenceAmountMol)
+          ? value.referenceAmountMol
+          : Number.NaN,
         simulationTimeS: heatCapacityRestoreFiniteOrDefault(value.simulationTimeS, fallback.simulationTimeS),
         gasAmountRatio: heatCapacityRestoreFiniteOrDefault(value.gasAmountRatio, fallback.gasAmountRatio),
         gasTemperatureK: heatCapacityRestoreFiniteOrDefault(value.gasTemperatureK, fallback.gasTemperatureK),
@@ -123,7 +136,7 @@ const normalizeGuidePhysicsState = (
         lastPumpValveClosedAtS: isPersistenceFiniteNumber(value.lastPumpValveClosedAtS) ? value.lastPumpValveClosedAtS : null,
         lastStopcockOpenedAtS: isPersistenceFiniteNumber(value.lastStopcockOpenedAtS) ? value.lastStopcockOpenedAtS : null,
         lastStopcockClosedAtS: isPersistenceFiniteNumber(value.lastStopcockClosedAtS) ? value.lastStopcockClosedAtS : null,
-      } as WorkbenchHeatCapacityState['heatCapacityGuidePhysicsState']
+      } as WorkbenchHeatCapacityState['heatCapacityGuidePhysicsState'], config)
     : fallback
 );
 
@@ -143,19 +156,29 @@ export const restoreHeatCapacityGuidePersistenceFields = (
     return {
       heatCapacityGuidePhysicsConfig: fallback.heatCapacityGuidePhysicsConfig,
       heatCapacityGuidePhysicsState: fallback.heatCapacityGuidePhysicsState,
+      heatCapacityGuideTemperatureSensorState: fallback.heatCapacityGuideTemperatureSensorState,
       heatCapacityGuideWorkflow: fallback.heatCapacityGuideWorkflow,
       heatCapacityGuideTrial: fallback.heatCapacityGuideTrial,
     };
   }
+  const heatCapacityGuidePhysicsConfig = normalizeGuidePhysicsConfig(
+    value.physicsConfig,
+    fallback.heatCapacityGuidePhysicsConfig,
+  );
+  const heatCapacityGuidePhysicsState = normalizeGuidePhysicsState(
+    value.physicsState,
+    fallback.heatCapacityGuidePhysicsState,
+    heatCapacityGuidePhysicsConfig,
+  );
   return {
-    heatCapacityGuidePhysicsConfig: normalizeGuidePhysicsConfig(
-      value.physicsConfig,
-      fallback.heatCapacityGuidePhysicsConfig,
-    ),
-    heatCapacityGuidePhysicsState: normalizeGuidePhysicsState(
-      value.physicsState,
-      fallback.heatCapacityGuidePhysicsState,
-    ),
+    heatCapacityGuidePhysicsConfig,
+    heatCapacityGuidePhysicsState,
+    heatCapacityGuideTemperatureSensorState: {
+      temperatureK: isPersistenceRecord(value.temperatureSensorState) &&
+        isPersistenceFiniteNumber(value.temperatureSensorState.temperatureK)
+        ? value.temperatureSensorState.temperatureK
+        : heatCapacityGuidePhysicsState.gasTemperatureK,
+    },
     heatCapacityGuideWorkflow: normalizeGuideWorkflow(
       value.workflow,
       fallback.heatCapacityGuideWorkflow,

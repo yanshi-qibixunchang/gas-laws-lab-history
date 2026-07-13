@@ -8,11 +8,9 @@ import {
   FREE_PUMP_STROKE_DURATION_S,
 } from './heatCapacityFreePhysicsEngine.ts';
 import {
-  HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE,
-} from './heatCapacityFreeSensorModel.ts';
-import {
   HEAT_CAPACITY_DEFAULT_PRESSURE_WARNING_MV,
   HEAT_CAPACITY_RELEASE_TIMING,
+  HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
   createDefaultHeatCapacityEnvironmentConfig,
   createDefaultHeatCapacityFreePhysicsConfig,
   createDefaultHeatCapacityFreeRecordConfig,
@@ -20,7 +18,7 @@ import {
 } from './heatCapacityDefaultConfig.ts';
 
 export const HEAT_CAPACITY_FREE_TRACE_VERSION = 5;
-export const HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION = 8;
+export const HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION = 9;
 export const HEAT_CAPACITY_FREE_CALCULATION_VERSION = 'log-pressure-v1' as const;
 export const HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S = 0.04;
 
@@ -165,7 +163,7 @@ export interface HeatCapacityFreeEvent {
 export type HeatCapacityFreeEventInput = Omit<HeatCapacityFreeEvent, 'id' | 'index'>;
 
 export interface HeatCapacityFreeConfigSnapshot {
-  version: 8;
+  version: 9;
   environment: {
     ambientPressureKPa: number;
     ambientTemperatureK: number;
@@ -174,6 +172,7 @@ export interface HeatCapacityFreeConfigSnapshot {
     gamma: number;
     vesselVolumeL: number;
     pumpAmountGainRatio: number;
+    pumpWorkRetention: number;
     pumpPressureLimitKPa: number;
     pumpStrokeDurationS: number;
     recommendedPumpIntervalS: number;
@@ -212,7 +211,6 @@ export interface HeatCapacityFreeConfigSnapshot {
     temperatureMvAtAmbient: number;
     temperatureMvPerK: number;
     lagRate: number;
-    pumpLagRate: number;
     noiseMv: number;
     quantizationMv: number;
     minSampleIntervalS: number;
@@ -260,9 +258,10 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
       gamma: physics.gamma,
       vesselVolumeL: physics.vesselVolumeL,
       pumpAmountGainRatio: physics.pumpAmountGainRatio,
+      pumpWorkRetention: physics.pumpWorkRetention,
       pumpPressureLimitKPa: physics.pumpPressureLimitKPa,
       pumpStrokeDurationS: FREE_PUMP_STROKE_DURATION_S,
-      recommendedPumpIntervalS: 0.1,
+      recommendedPumpIntervalS: HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
       stopcockFlowRate: physics.stopcockFlowRate,
       ...HEAT_CAPACITY_RELEASE_TIMING,
       thermal: { ...physics.thermal },
@@ -275,7 +274,6 @@ export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapsho
       temperatureMvAtAmbient: sensor.temperatureMvAtAmbient,
       temperatureMvPerK: sensor.temperatureMvPerK,
       lagRate: sensor.lagRate,
-      pumpLagRate: HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE,
       noiseMv: sensor.noiseMv,
       quantizationMv: sensor.quantizationMv,
       minSampleIntervalS: sensor.minSampleIntervalS,

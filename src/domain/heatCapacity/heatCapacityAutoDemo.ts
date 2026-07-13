@@ -2,6 +2,7 @@ import type { HeatCapacityProcessSampleKey } from './heatCapacityProcessTypes.ts
 import {
   HEAT_CAPACITY_RELEASE_TIMING,
   HEAT_CAPACITY_STANDARD_OPERATION,
+  HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
 } from './heatCapacityDefaultConfig.ts';
 import { getHeatCapacityPreheatTotalPresentationMs } from './heatCapacityPreheatModel.ts';
 
@@ -99,17 +100,21 @@ export const HEAT_CAPACITY_AUTO_DEMO_RELEASE_CLOSE_DELAY_MS = Math.round(
 export const HEAT_CAPACITY_AUTO_DEMO_RELEASE_ACTION_DURATION_MS =
   HEAT_CAPACITY_AUTO_DEMO_RELEASE_CLOSE_DELAY_MS + STOPCOCK_CLOSING_MS;
 export const HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT = HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes;
-export const HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS = Math.round(
-  (HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS * 1000) /
-    Math.max(1, HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT - 1),
+export const HEAT_CAPACITY_TEACHING_PUMP_STROKE_DELAYS_MS = Array.from(
+  { length: HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT },
+  (_, index) => Math.round(index * HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S * 1000),
 );
+const HEAT_CAPACITY_TEACHING_LAST_PUMP_STROKE_DELAY_MS =
+  HEAT_CAPACITY_TEACHING_PUMP_STROKE_DELAYS_MS[
+    HEAT_CAPACITY_TEACHING_PUMP_STROKE_DELAYS_MS.length - 1
+  ] ?? 0;
 const HEAT_CAPACITY_TEACHING_PUMP_SAMPLE_DELAY_MS =
-  (HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT - 1) * HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS + 300;
+  HEAT_CAPACITY_TEACHING_LAST_PUMP_STROKE_DELAY_MS + 300;
 
 const createTeachingPumpStrokeActions = (): HeatCapacityAutoDemoStepAction[] => [
-  ...Array.from({ length: HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT }, (_, index): HeatCapacityAutoDemoStepAction => ({
+  ...HEAT_CAPACITY_TEACHING_PUMP_STROKE_DELAYS_MS.map((delayMs): HeatCapacityAutoDemoStepAction => ({
     action: 'pumpStroke',
-    delayMs: index * HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS,
+    delayMs,
   })),
   { action: 'captureSample', delayMs: HEAT_CAPACITY_TEACHING_PUMP_SAMPLE_DELAY_MS, sampleKey: 'pumpPeakSample' },
 ];

@@ -193,6 +193,7 @@ const normalizeHeatCapacityFreePhysicsConfig = (
       1.001,
     ),
     pumpAmountGainRatio: DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpAmountGainRatio,
+    pumpWorkRetention: DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpWorkRetention,
     pumpPressureLimitKPa: finiteAtLeastOr(
       value?.pumpPressureLimitKPa,
       DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpPressureLimitKPa,
@@ -218,15 +219,8 @@ const normalizeHeatCapacityFreeSensorConfig = (
   value: Partial<HeatCapacityFreeSensorConfig> | null | undefined,
 ): HeatCapacityFreeSensorConfig => ({
   pressureMvPerKPa: HEAT_CAPACITY_FREE_FIXED_PRESSURE_MV_PER_KPA,
-  temperatureMvAtAmbient: finiteNumberOr(
-    value?.temperatureMvAtAmbient,
-    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient,
-  ),
-  temperatureMvPerK: finiteAtLeastOr(
-    value?.temperatureMvPerK,
-    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvPerK,
-    0.001,
-  ),
+  temperatureMvAtAmbient: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient,
+  temperatureMvPerK: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvPerK,
   lagRate: finiteAtLeastOr(
     value?.lagRate,
     DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.lagRate,
@@ -455,6 +449,7 @@ export const applyHeatCapacityFreeParameterDraftToConfigs = (
     gamma: getHeatCapacityFreeGasTypeGamma(normalizedDraft.gasType),
     vesselVolumeL: DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.vesselVolumeL,
     pumpAmountGainRatio: DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpAmountGainRatio,
+    pumpWorkRetention: DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpWorkRetention,
     pumpPressureLimitKPa: getHeatCapacityFreePressureDangerLimitKPa(normalizedDraft),
     thermal: {
       ...DEFAULT_HEAT_CAPACITY_FREE_THERMAL_CONFIG,

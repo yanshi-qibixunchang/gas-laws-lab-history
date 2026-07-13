@@ -9,12 +9,16 @@ import {
   HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_PUMP_MS,
   HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_RELEASE_MS,
   HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT,
-  HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS,
+  HEAT_CAPACITY_TEACHING_PUMP_STROKE_DELAYS_MS,
 } from '../../src/domain/heatCapacity/heatCapacityAutoDemo.ts';
 import {
   HEAT_CAPACITY_RELEASE_TIMING,
   HEAT_CAPACITY_STANDARD_OPERATION,
+  HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
 } from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import {
+  FREE_PUMP_STROKE_DURATION_S,
+} from '../../src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
 import { getHeatCapacityPreheatTotalPresentationMs } from '../../src/domain/heatCapacity/heatCapacityPreheatModel.ts';
 
 const steps = createHeatCapacityAutoDemoSteps();
@@ -103,26 +107,40 @@ assert.equal(
   HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_RELEASE_MS,
   HEAT_CAPACITY_STANDARD_OPERATION.waitAfterReleaseS * 1000,
 );
-assert.equal(
-  HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS,
-  Math.round(
-    (HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS * 1000) /
-      (HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes - 1),
+assert.equal(HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS, 8);
+assert.equal(HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S, 8 / 17);
+assert.deepEqual(
+  HEAT_CAPACITY_TEACHING_PUMP_STROKE_DELAYS_MS,
+  Array.from(
+    { length: HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT },
+    (_, index) => Math.round(
+      index * HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S * 1000,
+    ),
   ),
-  'auto demo pumping cadence must preserve the standard operation pump window',
+  'auto demo must round each exact 8/17 s timestamp independently',
 );
 assert.deepEqual(
   pumpPressurizeStep?.actions
     .filter((action) => action.action === 'pumpStroke')
     .map((action) => action.delayMs ?? 0),
-  Array.from(
-    { length: HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT },
-    (_, index) => index * HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS,
-  ),
+  HEAT_CAPACITY_TEACHING_PUMP_STROKE_DELAYS_MS,
+);
+assert.equal(HEAT_CAPACITY_TEACHING_PUMP_STROKE_DELAYS_MS[0], 0);
+assert.equal(
+  HEAT_CAPACITY_TEACHING_PUMP_STROKE_DELAYS_MS[
+    HEAT_CAPACITY_TEACHING_PUMP_STROKE_DELAYS_MS.length - 1
+  ],
+  8_000,
+  'the eighteenth pump stroke must start exactly 8 s after the first stroke',
+);
+assert.equal(
+  HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS + FREE_PUMP_STROKE_DURATION_S,
+  8.08,
+  'the eighteenth 0.08 s stroke must complete at 8.08 s',
 );
 assert.equal(
   pumpPressurizeStep?.actions.find((action) => action.sampleKey === 'pumpPeakSample')?.delayMs,
-  (HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT - 1) * HEAT_CAPACITY_TEACHING_PUMP_STROKE_INTERVAL_MS + 300,
+  8_300,
 );
 assert.deepEqual(
   steps.flatMap((step) => step.actions.map((action) => action.sampleKey).filter(Boolean)),

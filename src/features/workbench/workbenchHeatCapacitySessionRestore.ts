@@ -1,4 +1,6 @@
-import type { HeatCapacityTeachingProfile } from '../../domain/heatCapacity/heatCapacityTeachingProfile.ts';
+import {
+  normalizeHeatCapacityTeachingProfile,
+} from '../../domain/heatCapacity/heatCapacityTeachingProfile.ts';
 import type { HeatCapacityRuntimePhase } from '../../domain/heatCapacity/heatCapacityProcessTypes.ts';
 import {
   createHeatCapacityFreeParameterDraftFromConfigs,
@@ -60,12 +62,6 @@ import {
   normalizeHeatCapacityFreePhysicsConfig,
   normalizeHeatCapacityFreeSensorConfig,
 } from './workbenchHeatCapacityFreeRuntimeConfig.ts';
-
-const normalizeHeatCapacityExperimentProfile = (value: unknown): HeatCapacityTeachingProfile | null => (
-  isRecord(value) && normalizeNullableNumber(value.u1MeasuredMv) !== null && normalizeNullableNumber(value.u2MeasuredMv) !== null
-    ? value as unknown as HeatCapacityTeachingProfile
-    : null
-);
 
 const normalizeLastOpenedAt = (file: WorkbenchHeatCapacityState, fallback: number) => (
   normalizeNullableNumber(file.lastOpenedAt) ??
@@ -380,7 +376,7 @@ export const normalizeHeatCapacitySessionRuntimeState = (
     heatCapacityExperimentSeed: typeof file.heatCapacityExperimentSeed === 'string' || typeof file.heatCapacityExperimentSeed === 'number'
       ? file.heatCapacityExperimentSeed
       : null,
-    heatCapacityExperimentProfile: normalizeHeatCapacityExperimentProfile(file.heatCapacityExperimentProfile),
+    heatCapacityExperimentProfile: normalizeHeatCapacityTeachingProfile(file.heatCapacityExperimentProfile),
     heatCapacityMode: normalizedHeatCapacityMode,
     heatCapacityLessonIntroAutoShown: typeof file.heatCapacityLessonIntroAutoShown === 'boolean'
       ? file.heatCapacityLessonIntroAutoShown

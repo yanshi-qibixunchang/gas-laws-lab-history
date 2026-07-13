@@ -15,6 +15,7 @@ import {
 } from '../../domain/heatCapacity/heatCapacityFreeEnvironmentDisturbanceModel.ts';
 import {
   HEAT_CAPACITY_FREE_CALCULATION_VERSION,
+  HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
   HEAT_CAPACITY_FREE_TRACE_VERSION,
   createDefaultFreeConfigSnapshot,
   createDefaultFreeTraceStore,
@@ -91,6 +92,9 @@ import {
 import {
   normalizeHeatCapacitySessionRuntimeState,
 } from './workbenchHeatCapacitySessionRestore.ts';
+import {
+  normalizeHeatCapacityTeachingProfile,
+} from '../../domain/heatCapacity/heatCapacityTeachingProfile.ts';
 
 export {
   HEAT_CAPACITY_PROCESS_SCORING_VERSION,
@@ -175,6 +179,7 @@ const createPhysicsConfigFromSnapshot = (
   vesselVolumeL: snapshot.physics.vesselVolumeL,
   gamma: getHeatCapacityFreeGasTypeGamma(gasType),
   pumpAmountGainRatio: snapshot.physics.pumpAmountGainRatio,
+  pumpWorkRetention: snapshot.physics.pumpWorkRetention,
   pumpPressureLimitKPa: snapshot.physics.pumpPressureLimitKPa,
   stopcockFlowRate: snapshot.physics.stopcockFlowRate,
   thermal: { ...snapshot.physics.thermal },
@@ -232,6 +237,94 @@ const createRuntimeFieldsFromRestoredFreeDomain = (
     heatCapacityFreeTrials: domain.trials,
     heatCapacityFreeActiveAttempt: domain.activeAttempt,
     theoreticalGamma: gasTypeGamma,
+  };
+};
+
+const migrateLegacyFreeTemperatureCalibrationDomain = (
+  domain: HeatCapacityFreeExperimentDomainState,
+  currentRecordDefaults: HeatCapacityFreeExperimentDomainState['recordConfig'],
+  currentSensorDefaults: HeatCapacityFreeExperimentDomainState['sensorConfig'],
+): HeatCapacityFreeExperimentDomainState => {
+  const sensorConfig = {
+    ...domain.sensorConfig,
+    temperatureMvAtAmbient: currentSensorDefaults.temperatureMvAtAmbient,
+    temperatureMvPerK: currentSensorDefaults.temperatureMvPerK,
+  };
+  const sensorTemperatureK = isFiniteNumber(domain.sensorState.sensorTemperatureK)
+    ? domain.sensorState.sensorTemperatureK
+    : domain.physicsState.gasTemperatureK;
+  const displayTemperatureMv = sensorConfig.temperatureMvAtAmbient +
+    (sensorTemperatureK - domain.physicsConfig.environment.ambientTemperatureK) *
+      sensorConfig.temperatureMvPerK;
+  const migrateRollbackSnapshot = (
+    snapshot: HeatCapacityFreeExperimentDomainState['rollbackSnapshots']['afterPowerOn'],
+  ) => {
+    if (snapshot === null) return null;
+    const rollbackSensorTemperatureK = isFiniteNumber(
+      snapshot.heatCapacityFreeSensorState.sensorTemperatureK,
+    )
+      ? snapshot.heatCapacityFreeSensorState.sensorTemperatureK
+      : snapshot.heatCapacityFreePhysicsState.gasTemperatureK;
+    const rollbackDisplayTemperatureMv = sensorConfig.temperatureMvAtAmbient +
+      (
+        rollbackSensorTemperatureK -
+        domain.physicsConfig.environment.ambientTemperatureK
+      ) * sensorConfig.temperatureMvPerK;
+    return {
+      ...snapshot,
+      temperatureSignalMv: snapshot.powerOn ? rollbackDisplayTemperatureMv : null,
+      temperatureSignalTargetMv: rollbackDisplayTemperatureMv,
+      heatCapacityFreeSensorState: {
+        ...snapshot.heatCapacityFreeSensorState,
+        sensorTemperatureK: rollbackSensorTemperatureK,
+        displayTemperatureMv: rollbackDisplayTemperatureMv,
+        temperatureHistory: [{
+          atS: snapshot.heatCapacityFreePhysicsState.simulationTimeS,
+          valueMv: rollbackDisplayTemperatureMv,
+        }],
+        temperatureSlopeMvPerS: 0,
+      },
+    };
+  };
+  return {
+    ...domain,
+    activeRunConfigSnapshot: domain.activeRunConfigSnapshot === null
+      ? null
+      : {
+          ...domain.activeRunConfigSnapshot,
+          version: HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
+          sensor: {
+            ...domain.activeRunConfigSnapshot.sensor,
+            temperatureMvAtAmbient: currentSensorDefaults.temperatureMvAtAmbient,
+            temperatureMvPerK: currentSensorDefaults.temperatureMvPerK,
+          },
+          record: {
+            ...domain.activeRunConfigSnapshot.record,
+            temperatureStableSlopeMvPerS: currentRecordDefaults.temperatureStableSlopeMvPerS,
+            temperatureAmbientToleranceMv: currentRecordDefaults.temperatureAmbientToleranceMv,
+          },
+        },
+    recordConfig: {
+      ...domain.recordConfig,
+      temperatureStableSlopeMvPerS: currentRecordDefaults.temperatureStableSlopeMvPerS,
+      temperatureAmbientToleranceMv: currentRecordDefaults.temperatureAmbientToleranceMv,
+    },
+    sensorConfig,
+    sensorState: {
+      ...domain.sensorState,
+      sensorTemperatureK,
+      displayTemperatureMv,
+      temperatureHistory: [{
+        atS: domain.physicsState.simulationTimeS,
+        valueMv: displayTemperatureMv,
+      }],
+      temperatureSlopeMvPerS: 0,
+    },
+    rollbackSnapshots: {
+      afterPowerOn: migrateRollbackSnapshot(domain.rollbackSnapshots.afterPowerOn),
+      beforePump: migrateRollbackSnapshot(domain.rollbackSnapshots.beforePump),
+      beforeRelease: migrateRollbackSnapshot(domain.rollbackSnapshots.beforeRelease),
+    },
   };
 };
 
@@ -315,6 +408,11 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
   const common = isRecord(heatPayload.common) ? heatPayload.common as Partial<HeatCapacityPersistencePayloadV1['common']> : {};
   const restoredMode = normalizePayloadMode(heatPayload.mode);
   const freeHasCurrentParameterPayload = hasCurrentFreeParameterPayload(free);
+  const persistedFreeConfigVersion = isRecord(free?.config) && isFiniteNumber(free.config.version)
+    ? free.config.version
+    : 0;
+  const migrateLegacyTemperatureCalibration = freeHasCurrentParameterPayload &&
+    persistedFreeConfigVersion < HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION;
   const snapshot = freeHasCurrentParameterPayload
     ? normalizeHeatCapacityFreeRestoreConfigSnapshot(free?.config) ?? createDefaultFreeConfigSnapshot()
     : createDefaultFreeConfigSnapshot();
@@ -340,9 +438,18 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     overVentedMinimumU2CorrectedMv: snapshot.record.overVentedMinimumU2CorrectedMv,
     pressureDangerMv: snapshot.record.pressureDangerMv,
   };
-  const recordConfig = freeHasCurrentParameterPayload
+  const normalizedPersistedRecordConfig = freeHasCurrentParameterPayload
     ? normalizeHeatCapacityFreeRestoreRecordConfig(free?.recordConfig, fallbackRecordConfig)
     : fallback.heatCapacityFreeRecordConfig;
+  const recordConfig = migrateLegacyTemperatureCalibration
+    ? {
+        ...normalizedPersistedRecordConfig,
+        temperatureStableSlopeMvPerS:
+          fallback.heatCapacityFreeRecordConfig.temperatureStableSlopeMvPerS,
+        temperatureAmbientToleranceMv:
+          fallback.heatCapacityFreeRecordConfig.temperatureAmbientToleranceMv,
+      }
+    : normalizedPersistedRecordConfig;
   const pressureWarningMv = freeHasCurrentParameterPayload
     ? finiteOrDefault(free?.pressureWarningMv, snapshot.record.pressureWarningMv ?? HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV)
     : fallback.heatCapacityFreePressureWarningMv;
@@ -356,7 +463,7 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     pressureWarningMv,
     instrumentNoiseEnabled,
   );
-  const parameterDraft = freeHasCurrentParameterPayload
+  const restoredParameterDraft = freeHasCurrentParameterPayload
     ? normalizeHeatCapacityFreeParameterDraft(
         {
           ...parameterDraftRecord,
@@ -365,11 +472,34 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
         fallbackDraft,
       )
     : fallback.heatCapacityFreeParameterDraft;
-  const activeRunConfigSnapshot = free?.activeRunConfigSnapshot === null
+  const parameterDraft = migrateLegacyTemperatureCalibration
+    ? {
+        ...restoredParameterDraft,
+        temperatureStableSlopeMvPerS: recordConfig.temperatureStableSlopeMvPerS,
+        temperatureAmbientToleranceMv: recordConfig.temperatureAmbientToleranceMv,
+      }
+    : restoredParameterDraft;
+  const normalizedActiveRunConfigSnapshot = free?.activeRunConfigSnapshot === null
     ? null
     : freeHasCurrentParameterPayload && isRecord(free?.activeRunConfigSnapshot)
       ? normalizeHeatCapacityFreeRestoreConfigSnapshot(free.activeRunConfigSnapshot)
       : null;
+  const activeRunConfigSnapshot = migrateLegacyTemperatureCalibration && normalizedActiveRunConfigSnapshot
+      ? {
+        ...normalizedActiveRunConfigSnapshot,
+        version: normalizedActiveRunConfigSnapshot.version,
+        sensor: {
+          ...normalizedActiveRunConfigSnapshot.sensor,
+          temperatureMvAtAmbient: sensorConfig.temperatureMvAtAmbient,
+          temperatureMvPerK: sensorConfig.temperatureMvPerK,
+        },
+        record: {
+          ...normalizedActiveRunConfigSnapshot.record,
+          temperatureStableSlopeMvPerS: recordConfig.temperatureStableSlopeMvPerS,
+          temperatureAmbientToleranceMv: recordConfig.temperatureAmbientToleranceMv,
+        },
+      }
+    : normalizedActiveRunConfigSnapshot;
   const layout = fileEnvelope.layout;
   const visiblePanels = Array.isArray(layout.visiblePanels)
     ? layout.visiblePanels.filter((panel): panel is WorkbenchHeatCapacityState['visiblePanels'][number] => (
@@ -398,18 +528,40 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
   );
   const hasPersistedRealDomain = isRecord(free?.real);
   const hasPersistedIdealDomain = isRecord(free?.ideal);
-  const restoredRealDomainWithGasType = normalizeHeatCapacityFreeRestoreExperimentDomain(
+  const fallbackRealDomain = createDefaultHeatCapacityFreeExperimentDomainState(
+    'real',
+    `${fileEnvelope.id}:real`,
+  );
+  const fallbackIdealDomain = createDefaultHeatCapacityFreeExperimentDomainState(
+    'ideal',
+    `${fileEnvelope.id}:ideal`,
+  );
+  const restoredRealDomain = normalizeHeatCapacityFreeRestoreExperimentDomain(
     free?.real,
     'real',
     restoredGasType,
-    createDefaultHeatCapacityFreeExperimentDomainState('real', `${fileEnvelope.id}:real`),
+    fallbackRealDomain,
   );
-  const restoredIdealDomainWithGasType = normalizeHeatCapacityFreeRestoreExperimentDomain(
+  const restoredIdealDomain = normalizeHeatCapacityFreeRestoreExperimentDomain(
     free?.ideal,
     'ideal',
     'air',
-    createDefaultHeatCapacityFreeExperimentDomainState('ideal', `${fileEnvelope.id}:ideal`),
+    fallbackIdealDomain,
   );
+  const restoredRealDomainWithGasType = migrateLegacyTemperatureCalibration
+      ? migrateLegacyFreeTemperatureCalibrationDomain(
+        restoredRealDomain,
+        fallbackRealDomain.recordConfig,
+        fallbackRealDomain.sensorConfig,
+      )
+    : restoredRealDomain;
+  const restoredIdealDomainWithGasType = migrateLegacyTemperatureCalibration
+      ? migrateLegacyFreeTemperatureCalibrationDomain(
+        restoredIdealDomain,
+        fallbackIdealDomain.recordConfig,
+        fallbackIdealDomain.sensorConfig,
+      )
+    : restoredIdealDomain;
   const restoredActiveDomain = restoredParameterScheme === 'ideal'
     ? restoredIdealDomainWithGasType
     : restoredRealDomainWithGasType;
@@ -447,6 +599,17 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
       : restoredGuideFields.heatCapacityGuideWorkflow.step === 'completed'
         ? 'completed'
         : 'running';
+  const migratedActiveSensorTemperatureK = isFiniteNumber(
+    restoredActiveDomain.sensorState.sensorTemperatureK,
+  )
+    ? restoredActiveDomain.sensorState.sensorTemperatureK
+    : restoredActiveDomain.physicsState.gasTemperatureK;
+  const migratedActiveTemperatureDisplayMv =
+    restoredActiveDomain.sensorConfig.temperatureMvAtAmbient +
+    (
+      migratedActiveSensorTemperatureK -
+      restoredActiveDomain.physicsConfig.environment.ambientTemperatureK
+    ) * restoredActiveDomain.sensorConfig.temperatureMvPerK;
 
   const restoredFile: WorkbenchHeatCapacityState = {
     ...fallback,
@@ -463,7 +626,7 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
       ? common.lessonIntroAutoShown
       : true,
     heatCapacityExperimentSeed: common.experimentSeed ?? fallback.heatCapacityExperimentSeed,
-    heatCapacityExperimentProfile: common.experimentProfile ?? fallback.heatCapacityExperimentProfile,
+    heatCapacityExperimentProfile: normalizeHeatCapacityTeachingProfile(common.experimentProfile),
     openHeatCapacityTabs: restoredOpenHeatCapacityTabs,
     activeHeatCapacityTabId: restoredActiveHeatCapacityTabId,
     heatCapacityFreeRuntimeVersion: free?.runtimeVersion ?? HEAT_CAPACITY_FREE_RUNTIME_VERSION,
@@ -502,6 +665,20 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityFreeTrials: restoredFreeTrials,
     ...(restoredActiveDomainRuntimeFields ?? {}),
     ...uiReplay,
+    ...(migrateLegacyTemperatureCalibration
+      ? {
+          gasTemperatureK: restoredActiveDomain.physicsState.gasTemperatureK,
+          sensorTemperatureK: migratedActiveSensorTemperatureK,
+          temperatureSignalTargetMv: migratedActiveTemperatureDisplayMv,
+          temperatureSignalMv: controls.powerOn === true
+            ? migratedActiveTemperatureDisplayMv
+            : null,
+          temperatureDisplayJitterOffset: 0,
+          temperatureDisplayNextJitterAtMs: fileEnvelope.updatedAt,
+          vesselTemperatureReadoutK: restoredActiveDomain.physicsState.gasTemperatureK,
+          heatCapacityProcessSamples: {},
+        }
+      : {}),
     heatCapacityMaterialsExpanded: typeof common.materialsExpanded === 'boolean'
       ? common.materialsExpanded
       : fallback.heatCapacityMaterialsExpanded,

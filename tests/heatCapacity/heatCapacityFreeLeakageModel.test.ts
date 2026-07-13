@@ -2,8 +2,14 @@ import assert from 'node:assert/strict';
 import {
   normalizeFreeLeakageConfig,
   stepFreeLeakageAmountRatio,
+  stepFreeLeakageThermodynamicState,
   type HeatCapacityFreeLeakageConfig,
 } from '../../src/domain/heatCapacity/heatCapacityFreeLeakageModel.ts';
+import {
+  createHeatCapacityThermodynamicStateAtAmbient,
+  createHeatCapacityThermodynamicStateFromTemperature,
+  deriveHeatCapacityThermodynamicState,
+} from '../../src/domain/heatCapacity/heatCapacityThermodynamicKernel.ts';
 
 const baseInput = {
   ambientPressureKPa: 101.3,
@@ -117,6 +123,58 @@ assert.equal(
   })),
   true,
   'leakage output must remain finite for invalid numeric input',
+);
+
+const thermodynamicInitialization = createHeatCapacityThermodynamicStateAtAmbient({
+  ambientPressureKPa: baseInput.ambientPressureKPa,
+  ambientTemperatureK: baseInput.ambientTemperatureK,
+  vesselVolumeL: 2,
+  gammaTrue: 1.4,
+});
+const thermodynamicLeakStart = createHeatCapacityThermodynamicStateFromTemperature({
+  amountMol: thermodynamicInitialization.system.referenceAmountMol * 1.08,
+  gasTemperatureK: baseInput.ambientTemperatureK + 8,
+  wallTemperatureK: baseInput.ambientTemperatureK,
+  gammaTrue: thermodynamicInitialization.system.gammaTrue,
+});
+const thermodynamicLeakEnd = stepFreeLeakageThermodynamicState(
+  thermodynamicLeakStart,
+  thermodynamicInitialization.system,
+  enabled,
+  {
+    ambientPressureKPa: baseInput.ambientPressureKPa,
+    ambientTemperatureK: baseInput.ambientTemperatureK,
+    dtS: baseInput.dtS,
+  },
+);
+const thermodynamicLeakStartDerived = deriveHeatCapacityThermodynamicState(
+  thermodynamicLeakStart,
+  thermodynamicInitialization.system,
+);
+const thermodynamicLeakEndDerived = deriveHeatCapacityThermodynamicState(
+  thermodynamicLeakEnd,
+  thermodynamicInitialization.system,
+);
+assert.equal(thermodynamicLeakEnd.amountMol < thermodynamicLeakStart.amountMol, true);
+assert.equal(
+  Math.abs(
+    thermodynamicLeakEndDerived.gasTemperatureK -
+    thermodynamicLeakStartDerived.gasTemperatureK
+  ) < 1e-10,
+  true,
+  'outward leakage must remove the current molar internal energy without a temperature jump',
+);
+const leakageAmountDeltaMol = thermodynamicLeakEnd.amountMol - thermodynamicLeakStart.amountMol;
+const leakageInternalEnergyDeltaJ = thermodynamicLeakEnd.internalEnergyJ -
+  thermodynamicLeakStart.internalEnergyJ;
+assert.equal(
+  Math.abs(
+    leakageInternalEnergyDeltaJ / leakageAmountDeltaMol -
+    thermodynamicLeakStartDerived.cvMolarJPerMolK *
+      thermodynamicLeakStartDerived.gasTemperatureK
+  ) < 1e-9,
+  true,
+  'leakage mass and internal-energy fluxes must use the same outgoing gas state',
 );
 
 console.log('heatCapacityFreeLeakageModel tests passed');

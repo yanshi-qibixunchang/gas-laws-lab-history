@@ -36,16 +36,17 @@ import type {
 import {
   applyPressureZero,
   DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG,
+  mapGasTemperatureToSignalMv,
 } from '../../domain/heatCapacity/heatCapacitySensorMapping.ts';
 import {
   HEAT_CAPACITY_PRESSURE_DISPLAY_RESPONSE,
-  HEAT_CAPACITY_TEMPERATURE_DISPLAY_RESPONSE,
   getHeatCapacityDisplayValue,
 } from '../../domain/heatCapacity/heatCapacityDisplayResponse.ts';
 import {
   HEAT_CAPACITY_AUTO_DEMO_INITIAL_PRESSURE_BIAS_MV,
   HEAT_CAPACITY_RELEASE_TIMING,
   createDefaultHeatCapacityFreePhysicsConfig,
+  createDefaultHeatCapacityFreeRecordConfig as createDefaultHeatCapacityFreeRecordConfigFromDomain,
 } from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
 import {
   advanceHeatCapacityReleaseState,
@@ -65,6 +66,7 @@ import type {
 } from '../../domain/heatCapacity/heatCapacityModeTypes.ts';
 import {
   createHeatCapacityAutoDemoProfile,
+  normalizeHeatCapacityTeachingProfile,
   type HeatCapacityTeachingProfile,
 } from '../../domain/heatCapacity/heatCapacityTeachingProfile.ts';
 import {
@@ -85,12 +87,16 @@ import {
 import {
   createDefaultFreeSensorState,
   createSeededFreePressureInitialBiasMv,
-  HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE,
   getFreeSensorDisplay,
   stepFreeSensor,
   type HeatCapacityFreeSensorConfig,
   type HeatCapacityFreeSensorState,
 } from '../../domain/heatCapacity/heatCapacityFreeSensorModel.ts';
+import {
+  createHeatCapacityTemperatureSensorState,
+  stepHeatCapacityTemperatureSensor,
+  type HeatCapacityTemperatureSensorState,
+} from '../../domain/heatCapacity/heatCapacityTemperatureSensorModel.ts';
 import {
   applyFreeZeroCalibration,
   captureAutomaticU0IfReady,
@@ -376,15 +382,8 @@ export const isHeatCapacityPhysicalKernelMode = (mode: HeatCapacityMode | null |
 const normalizeDegrees360 = (value: number) => ((value % 360) + 360) % 360;
 const clampNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-export const createDefaultHeatCapacityFreeRecordConfig = (): HeatCapacityFreeRecordConfig => ({
-  pressureStableSlopeMvPerS: 0.25,
-  temperatureStableSlopeMvPerS: 0.12,
-  temperatureAmbientToleranceMv: 0.35,
-  u0ZeroToleranceMv: 0.12,
-  minimumUsefulU1CorrectedMv: HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV,
-  overVentedMinimumU2CorrectedMv: 0.2,
-  pressureDangerMv: HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV,
-});
+export const createDefaultHeatCapacityFreeRecordConfig =
+  createDefaultHeatCapacityFreeRecordConfigFromDomain;
 const roundNumber = (value: number, digits = 2) => {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
@@ -1015,6 +1014,7 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityFreeActiveAttempt: HeatCapacityFreeAttempt | null;
   heatCapacityGuidePhysicsConfig: HeatCapacityGuidePhysicsConfig;
   heatCapacityGuidePhysicsState: HeatCapacityGuidePhysicsState;
+  heatCapacityGuideTemperatureSensorState: HeatCapacityTemperatureSensorState;
   heatCapacityGuideWorkflow: HeatCapacityGuideWorkflowState;
   heatCapacityGuideTrial: HeatCapacityGuideTrial | null;
   openHeatCapacityTabs: WorkbenchHeatCapacityTabId[];
@@ -1031,6 +1031,7 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   ambientTemperatureK: number;
   gasPressureKPaAbs: number;
   gasTemperatureK: number;
+  sensorTemperatureK: number;
   pressureDeltaKPa: number;
   simulationTimeS: number;
   lastUpdateMs: number | null;
@@ -1511,13 +1512,20 @@ const getHeatCapacityRuntimeStateFromFile = (
   file: WorkbenchHeatCapacityState,
 ): HeatCapacityRuntimeState => {
   const fallback = createDefaultHeatCapacityRuntimeState(file.lastUpdateMs);
-  const experimentProfile = file.heatCapacityExperimentProfile;
+  const experimentProfile = normalizeHeatCapacityTeachingProfile(
+    file.heatCapacityExperimentProfile,
+  );
   return {
     ...fallback,
     ambientPressureKPa: Number.isFinite(file.ambientPressureKPa) ? file.ambientPressureKPa : fallback.ambientPressureKPa,
     ambientTemperatureK: Number.isFinite(file.ambientTemperatureK) ? file.ambientTemperatureK : fallback.ambientTemperatureK,
     gasPressureKPaAbs: Number.isFinite(file.gasPressureKPaAbs) ? file.gasPressureKPaAbs : fallback.gasPressureKPaAbs,
     gasTemperatureK: Number.isFinite(file.gasTemperatureK) ? file.gasTemperatureK : fallback.gasTemperatureK,
+    sensorTemperatureK: Number.isFinite(file.sensorTemperatureK)
+      ? file.sensorTemperatureK
+      : Number.isFinite(file.gasTemperatureK)
+        ? file.gasTemperatureK
+        : fallback.sensorTemperatureK,
     pressureDeltaKPa: Number.isFinite(file.pressureDeltaKPa) ? file.pressureDeltaKPa : fallback.pressureDeltaKPa,
     simulationTimeS: Number.isFinite(file.simulationTimeS) ? file.simulationTimeS : fallback.simulationTimeS,
     lastUpdateMs: typeof file.lastUpdateMs === 'number' && Number.isFinite(file.lastUpdateMs) ? file.lastUpdateMs : fallback.lastUpdateMs,
@@ -1561,7 +1569,6 @@ const getHeatCapacityRuntimeStateFromFile = (
         pressureSensitivityMvPerKPa: Number.isFinite(file.pressureSensitivityMvPerKPa)
           ? file.pressureSensitivityMvPerKPa
           : fallback.modelConfig.sensor.pressureSensitivityMvPerKPa,
-        temperatureBaseMv: experimentProfile?.ambientTemperatureMv ?? experimentProfile?.initialTemperatureMv ?? fallback.modelConfig.sensor.temperatureBaseMv,
         noiseStdDevMv: experimentProfile?.displayNoiseLevel ?? fallback.modelConfig.sensor.noiseStdDevMv,
       },
     },
@@ -1651,16 +1658,10 @@ const mergeHeatCapacityRuntimeState = (
         config: HEAT_CAPACITY_PRESSURE_DISPLAY_RESPONSE,
       })
     : null;
-  const temperatureDisplayValue = powerOn
-    ? getHeatCapacityDisplayValue({
-        current: file.temperatureSignalMv,
-        target: temperatureSignalTargetMv,
-        previousTarget: Number.isFinite(file.temperatureSignalTargetMv) ? file.temperatureSignalTargetMv : temperatureSignalTargetMv,
-        elapsedS,
-        now,
-        config: HEAT_CAPACITY_TEMPERATURE_DISPLAY_RESPONSE,
-      })
-    : null;
+  // Temperature lag already lives in the physical sensor state. Applying a
+  // second UI-space low-pass here would make Demo respond differently from the
+  // same FD-NCD-C sensor used by Guide and Free modes.
+  const temperatureDisplayValue = powerOn ? temperatureSignalTargetMv : null;
   const pressureJitterState = updateHeatCapacityDisplayJitter({
     powerOn,
     now,
@@ -1718,6 +1719,7 @@ const mergeHeatCapacityRuntimeState = (
     ambientTemperatureK: runtime.ambientTemperatureK,
     gasPressureKPaAbs: runtime.gasPressureKPaAbs,
     gasTemperatureK: runtime.gasTemperatureK,
+    sensorTemperatureK: runtime.sensorTemperatureK,
     pressureDeltaKPa: runtime.pressureDeltaKPa,
     simulationTimeS: runtime.simulationTimeS,
     lastUpdateMs: runtime.lastUpdateMs,
@@ -1842,6 +1844,12 @@ const mergeHeatCapacityFreeRuntimeState = (
     ambientTemperatureK: file.heatCapacityFreeEnvironmentConfig.ambientTemperatureK,
     gasPressureKPaAbs: roundNumber(derived.gasPressureKPa, 4),
     gasTemperatureK: roundNumber(physicsState.gasTemperatureK, 4),
+    sensorTemperatureK: roundNumber(
+      Number.isFinite(sensorState.sensorTemperatureK)
+        ? sensorState.sensorTemperatureK as number
+        : physicsState.gasTemperatureK,
+      4,
+    ),
     pressureDeltaKPa: roundNumber(derived.pressureDeltaKPa, 4),
     simulationTimeS: roundNumber(physicsState.simulationTimeS, 4),
     lastUpdateMs: now,
@@ -1981,6 +1989,8 @@ const buildHeatCapacityFreeTraceSampleInput = (
   const latestZeroEventId = file.heatCapacityFreeCalibrationState.zeroEvents[
     file.heatCapacityFreeCalibrationState.zeroEvents.length - 1
   ]?.id ?? null;
+  const recordConfig = file.heatCapacityFreeRecordConfig ??
+    createDefaultHeatCapacityFreeRecordConfig();
   return {
     atS: file.heatCapacityFreePhysicsState.simulationTimeS,
     reason,
@@ -2027,8 +2037,10 @@ const buildHeatCapacityFreeTraceSampleInput = (
       zeroEventId: latestZeroEventId,
     },
     stability: {
-      pressureStable: Math.abs(file.heatCapacityFreeSensorState.pressureSlopeMvPerS) <= 0.25,
-      temperatureStable: Math.abs(file.heatCapacityFreeSensorState.temperatureSlopeMvPerS) <= 0.12,
+      pressureStable: Math.abs(file.heatCapacityFreeSensorState.pressureSlopeMvPerS) <=
+        recordConfig.pressureStableSlopeMvPerS,
+      temperatureStable: Math.abs(file.heatCapacityFreeSensorState.temperatureSlopeMvPerS) <=
+        recordConfig.temperatureStableSlopeMvPerS,
     },
     safetyStatus: file.pressureSafetyStatus,
   };
@@ -2980,12 +2992,7 @@ const stepHeatCapacityFreeWorkbenchFile = (
           ambientTemperatureK: workingFile.heatCapacityFreePhysicsConfig.environment.ambientTemperatureK,
         },
         workingFile.heatCapacityFreeCalibrationState,
-        hasActivePumpProcess
-          ? {
-              ...effectiveSensorConfig,
-              lagRate: Math.max(effectiveSensorConfig.lagRate, HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE),
-            }
-          : effectiveSensorConfig,
+        effectiveSensorConfig,
         physicsState.simulationTimeS,
       );
       workingFile = mergeHeatCapacityFreeRuntimeState(
@@ -3167,8 +3174,10 @@ const stepHeatCapacityFreeWorkbenchFile = (
       stopcockOpen: isHeatCapacityReleaseFlowOpen(releaseState),
       zeroed: mergedFile.pressureZeroed,
       zeroEventId: latestZeroEventId,
-      pressureStable: Math.abs(sensorState.pressureSlopeMvPerS) <= 0.25,
-      temperatureStable: Math.abs(sensorState.temperatureSlopeMvPerS) <= 0.12,
+      pressureStable: Math.abs(sensorState.pressureSlopeMvPerS) <=
+        mergedFile.heatCapacityFreeRecordConfig.pressureStableSlopeMvPerS,
+      temperatureStable: Math.abs(sensorState.temperatureSlopeMvPerS) <=
+        mergedFile.heatCapacityFreeRecordConfig.temperatureStableSlopeMvPerS,
       displayPressureMv: mergedDisplay.displayPressureMv,
       displayTemperatureMv: mergedDisplay.displayTemperatureMv,
     },
@@ -3570,7 +3579,8 @@ const createHeatCapacityAutoDemoResultTrial = (
   file: WorkbenchHeatCapacityState,
   now: number,
 ): HeatCapacityGuideTrial => {
-  const profile = file.heatCapacityExperimentProfile ?? createHeatCapacityAutoDemoProfile();
+  const profile = normalizeHeatCapacityTeachingProfile(file.heatCapacityExperimentProfile) ??
+    createHeatCapacityAutoDemoProfile();
   const samples = file.heatCapacityProcessSamples;
   const baseTrial: HeatCapacityGuideTrial = {
     ...createHeatCapacityGuideTrial('demo-trial-1'),
@@ -3879,8 +3889,44 @@ export const prepareHeatCapacityAutoDemoStart = (
 
 interface HeatCapacityGuideRuntimeMergeOptions {
   immediatePressureDisplay?: boolean;
-  immediateTemperatureDisplay?: boolean;
 }
+
+const HEAT_CAPACITY_GUIDE_SENSOR_COUPLED_MAX_STEP_S = 0.02;
+
+const stepHeatCapacityGuidePhysicsAndTemperatureSensor = (
+  physicsState: HeatCapacityGuidePhysicsState,
+  sensorState: HeatCapacityTemperatureSensorState,
+  config: HeatCapacityGuidePhysicsConfig,
+  controls: Omit<Parameters<typeof stepGuidePhysicsState>[2], 'dtS'>,
+  dtS: number,
+) => {
+  let nextPhysicsState = physicsState;
+  let nextSensorState = sensorState;
+  let remainingS = Math.max(0, dtS);
+  while (remainingS > 1e-9) {
+    const stepS = Math.min(remainingS, HEAT_CAPACITY_GUIDE_SENSOR_COUPLED_MAX_STEP_S);
+    nextPhysicsState = stepGuidePhysicsState(
+      nextPhysicsState,
+      config,
+      {
+        ...controls,
+        dtS: stepS,
+      },
+    );
+    nextSensorState = stepHeatCapacityTemperatureSensor(
+      nextSensorState,
+      {
+        gasTemperatureK: nextPhysicsState.gasTemperatureK,
+        dtS: stepS,
+      },
+    );
+    remainingS = Math.max(0, remainingS - stepS);
+  }
+  return {
+    physicsState: nextPhysicsState,
+    sensorState: nextSensorState,
+  };
+};
 
 const mergeHeatCapacityGuideRuntimeState = (
   file: WorkbenchHeatCapacityState,
@@ -3898,10 +3944,16 @@ const mergeHeatCapacityGuideRuntimeState = (
     file.pressureInitialBiasMv,
     file.pressureZeroOffset,
   ));
+  const guideSensorTemperatureK = Number.isFinite(
+    file.heatCapacityGuideTemperatureSensorState?.temperatureK,
+  )
+    ? file.heatCapacityGuideTemperatureSensorState.temperatureK
+    : file.heatCapacityGuidePhysicsConfig.environment.ambientTemperatureK;
   const temperatureSignalTargetMv = truncateHeatCapacitySignalMv(
-    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient +
-    (guidePhysicsState.gasTemperatureK - file.heatCapacityGuidePhysicsConfig.environment.ambientTemperatureK) *
-      DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvPerK,
+    mapGasTemperatureToSignalMv(
+      guideSensorTemperatureK,
+      file.heatCapacityGuidePhysicsConfig.environment.ambientTemperatureK,
+    ),
   );
   const powerOn = file.powerOn;
   const elapsedS = file.displayResponseLastUpdateMs === null
@@ -3921,20 +3973,7 @@ const mergeHeatCapacityGuideRuntimeState = (
         config: HEAT_CAPACITY_PRESSURE_DISPLAY_RESPONSE,
       })
     : null;
-  const temperatureDisplayValue = powerOn
-    ? options.immediateTemperatureDisplay
-      ? temperatureSignalTargetMv
-      : getHeatCapacityDisplayValue({
-        current: file.temperatureSignalMv,
-        target: temperatureSignalTargetMv,
-        previousTarget: Number.isFinite(file.temperatureSignalTargetMv)
-          ? file.temperatureSignalTargetMv
-          : temperatureSignalTargetMv,
-        elapsedS,
-        now,
-        config: HEAT_CAPACITY_TEMPERATURE_DISPLAY_RESPONSE,
-      })
-    : null;
+  const temperatureDisplayValue = powerOn ? temperatureSignalTargetMv : null;
   const pressureSignalMv = pressureDisplayValue === null
     ? null
     : truncateHeatCapacitySignalMv(pressureDisplayValue);
@@ -3976,6 +4015,7 @@ const mergeHeatCapacityGuideRuntimeState = (
     ),
     gasPressureKPaAbs: derived.gasPressureKPa,
     gasTemperatureK: guidePhysicsState.gasTemperatureK,
+    sensorTemperatureK: guideSensorTemperatureK,
     pressureDeltaKPa,
     simulationTimeS: guidePhysicsState.simulationTimeS,
     pressureSignalMvRaw: rawPressureMv,
@@ -4293,6 +4333,10 @@ export const stepHeatCapacityGuideWorkbenchFile = (
 ): WorkbenchHeatCapacityState => {
   const dtS = file.lastUpdateMs === null ? 0 : Math.max(0, (now - file.lastUpdateMs) / 1000);
   let guidePhysicsState = file.heatCapacityGuidePhysicsState;
+  let guideTemperatureSensorState = file.heatCapacityGuideTemperatureSensorState ??
+    createHeatCapacityTemperatureSensorState(
+      file.heatCapacityGuidePhysicsConfig.environment.ambientTemperatureK,
+    );
   let guideWorkflow = file.heatCapacityGuideWorkflow;
   let releaseState = advanceHeatCapacityReleaseState(
     file.heatCapacityReleaseState,
@@ -4321,17 +4365,20 @@ export const stepHeatCapacityGuideWorkbenchFile = (
           ? 0
           : remainingDtS;
       if (segmentDtS > 0) {
-        guidePhysicsState = stepGuidePhysicsState(
+        const coupledStep = stepHeatCapacityGuidePhysicsAndTemperatureSensor(
           guidePhysicsState,
+          guideTemperatureSensorState,
           file.heatCapacityGuidePhysicsConfig,
           {
-            dtS: segmentDtS,
             powerOn: file.powerOn,
             pumpValveOpen: file.pumpValveOpen,
             stopcockOpen: isHeatCapacityReleaseFlowOpen(releaseState),
             stopcockFlowPurpose: releaseState.purpose,
           },
+          segmentDtS,
         );
+        guidePhysicsState = coupledStep.physicsState;
+        guideTemperatureSensorState = coupledStep.sensorState;
         remainingDtS = Math.max(0, remainingDtS - segmentDtS);
       }
       const transition = advanceHeatCapacityReleaseState(
@@ -4367,7 +4414,11 @@ export const stepHeatCapacityGuideWorkbenchFile = (
   }
 
   let mergedFile = mergeHeatCapacityGuideRuntimeState(
-    { ...file, heatCapacityReleaseState: releaseState },
+    {
+      ...file,
+      heatCapacityReleaseState: releaseState,
+      heatCapacityGuideTemperatureSensorState: guideTemperatureSensorState,
+    },
     guidePhysicsState,
     guideWorkflow,
     now,
@@ -4516,7 +4567,7 @@ const applyHeatCapacityProfileToProcessSample = (
   file: WorkbenchHeatCapacityState,
   key: HeatCapacityProcessSampleKey,
 ): WorkbenchHeatCapacityState => {
-  const profile = file.heatCapacityExperimentProfile;
+  const profile = normalizeHeatCapacityTeachingProfile(file.heatCapacityExperimentProfile);
   if (!profile) return file;
   const sample = file.heatCapacityProcessSamples[key];
   if (!sample) return file;
@@ -4824,6 +4875,7 @@ export const createDefaultHeatCapacityFreeRuntimeFields = (
       pressureMv: pressureInitialBiasMv,
       pressureInitialBiasMv,
       temperatureMv: sensorConfig.temperatureMvAtAmbient,
+      sensorTemperatureK: physicsConfig.environment.ambientTemperatureK,
     }),
     heatCapacityFreeCalibrationState: createDefaultHeatCapacityFreeCalibrationState(),
     heatCapacityReleaseState: createClosedHeatCapacityReleaseState(),
@@ -5180,6 +5232,9 @@ const createDefaultHeatCapacityGuideRuntimeFields = () => {
   return {
     heatCapacityGuidePhysicsConfig,
     heatCapacityGuidePhysicsState: createDefaultGuidePhysicsState(heatCapacityGuidePhysicsConfig),
+    heatCapacityGuideTemperatureSensorState: createHeatCapacityTemperatureSensorState(
+      heatCapacityGuidePhysicsConfig.environment.ambientTemperatureK,
+    ),
     heatCapacityGuideWorkflow: createDefaultHeatCapacityGuideWorkflow(),
     heatCapacityGuideTrial: null,
   };
@@ -5229,6 +5284,7 @@ export const createDefaultHeatCapacityFile = (
     ambientTemperatureK: runtime.ambientTemperatureK,
     gasPressureKPaAbs: runtime.gasPressureKPaAbs,
     gasTemperatureK: runtime.gasTemperatureK,
+    sensorTemperatureK: runtime.sensorTemperatureK,
     pressureDeltaKPa: runtime.pressureDeltaKPa,
     simulationTimeS: runtime.simulationTimeS,
     lastUpdateMs: runtime.lastUpdateMs,
@@ -5358,6 +5414,7 @@ export const startHeatCapacityGuideWorkbenchState = (
     stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
     gasPressureKPaAbs: guideConfig.environment.ambientPressureKPa,
     gasTemperatureK: guideConfig.environment.ambientTemperatureK,
+    sensorTemperatureK: guideConfig.environment.ambientTemperatureK,
     pressureDeltaKPa: 0,
     simulationTimeS: 0,
     heatCapacityReleaseState: createClosedHeatCapacityReleaseState(),
@@ -5452,6 +5509,8 @@ const resetHeatCapacityFreeRunWorkbenchStateCore = (
         pressureMv: preservedSensorBiasMv,
         pressureInitialBiasMv: preservedSensorBiasMv,
         temperatureMv: generatedFreeRuntimeFields.heatCapacityFreeSensorConfig.temperatureMvAtAmbient,
+        sensorTemperatureK:
+          generatedFreeRuntimeFields.heatCapacityFreePhysicsConfig.environment.ambientTemperatureK,
       },
     ),
   };

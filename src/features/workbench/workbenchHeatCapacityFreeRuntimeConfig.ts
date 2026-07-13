@@ -14,6 +14,10 @@ import { normalizeFreeLeakageConfig } from '../../domain/heatCapacity/heatCapaci
 import { normalizeFreePumpValveExchangeConfig } from '../../domain/heatCapacity/heatCapacityFreePumpValveExchangeModel.ts';
 import { normalizeFreeEnvironmentDisturbanceConfig } from '../../domain/heatCapacity/heatCapacityFreeEnvironmentDisturbanceModel.ts';
 import { normalizeFreePressureSensorNonlinearityConfig } from '../../domain/heatCapacity/heatCapacityFreePressureSensorNonlinearityModel.ts';
+import {
+  HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
+  HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
+} from '../../domain/heatCapacity/heatCapacitySensorMapping.ts';
 
 export const DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG: HeatCapacityFreeEnvironmentConfig = {
   ...createDefaultHeatCapacityEnvironmentConfig(),
@@ -36,14 +40,11 @@ export const normalizeHeatCapacityFreeSensorConfig = (
     config?.pressureMvPerKPa,
     DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.pressureMvPerKPa,
   )),
-  temperatureMvAtAmbient: finiteNumberOr(
-    config?.temperatureMvAtAmbient,
-    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient,
-  ),
-  temperatureMvPerK: Math.max(0.001, finiteNumberOr(
-    config?.temperatureMvPerK,
-    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvPerK,
-  )),
+  // One FD-NCD-C instrument has one temperature calibration. Legacy files may
+  // still contain mode-specific 2/4 mV/K values, but they are deliberately not
+  // allowed back into the active runtime.
+  temperatureMvAtAmbient: HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
+  temperatureMvPerK: HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
   lagRate: clampNumber(
     finiteNumberOr(config?.lagRate, DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.lagRate),
     0.01,
@@ -89,6 +90,7 @@ export const normalizeHeatCapacityFreePhysicsConfig = (
       DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.gamma,
     )),
     pumpAmountGainRatio: DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpAmountGainRatio,
+    pumpWorkRetention: DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpWorkRetention,
     pumpPressureLimitKPa: clampNumber(
       Math.max(0.001, finiteNumberOr(
         value?.pumpPressureLimitKPa,

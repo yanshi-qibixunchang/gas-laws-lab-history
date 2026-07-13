@@ -1,5 +1,6 @@
 import {
   HEAT_CAPACITY_STANDARD_OPERATION,
+  HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
 } from './heatCapacityDefaultConfig.ts';
 import {
   type HeatCapacityFreeCalibrationState,
@@ -8,6 +9,7 @@ import {
   applyFreePumpStroke,
   createDefaultFreePhysicsState,
   deriveFreePhysicalState,
+  FREE_PUMP_STROKE_DURATION_S,
   stepFreePhysics,
   type HeatCapacityFreeControls,
   type HeatCapacityFreePhysicsConfig,
@@ -44,7 +46,7 @@ import type {
   HeatCapacityProcessStageSegment,
 } from './heatCapacityFreeProcessReviewTypes.ts';
 
-export const HEAT_CAPACITY_STANDARD_REFERENCE_GENERATOR_VERSION = 'free-standard-reference-v2' as const;
+export const HEAT_CAPACITY_STANDARD_REFERENCE_GENERATOR_VERSION = 'free-standard-reference-v3' as const;
 
 export interface HeatCapacityStandardReferenceAssumptions {
   operationMode: 'standard-operation';
@@ -161,6 +163,7 @@ const createPhysicsConfig = (
   vesselVolumeL: snapshot.physics.vesselVolumeL,
   gamma: snapshot.physics.gamma,
   pumpAmountGainRatio: snapshot.physics.pumpAmountGainRatio,
+  pumpWorkRetention: snapshot.physics.pumpWorkRetention,
   pumpPressureLimitKPa: snapshot.physics.pumpPressureLimitKPa,
   stopcockFlowRate: snapshot.physics.stopcockFlowRate,
   thermal: { ...snapshot.physics.thermal },
@@ -224,6 +227,7 @@ const createInitialRun = (
     pressureMv: 0,
     pressureInitialBiasMv: 0,
     temperatureMv: snapshot.sensor.temperatureMvAtAmbient,
+    sensorTemperatureK: physicsConfig.environment.ambientTemperatureK,
   }),
   calibration: createCalibrationState(sensorConfig),
 });
@@ -501,11 +505,12 @@ export const createHeatCapacityFreeStandardReference = ({
   const u0Run = run;
 
   const pumpStartS = zeroEndS;
-  const pumpEndS = roundFinite(pumpStartS + HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS, 2);
-  const strokeIntervalS = HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes > 1
-    ? HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS /
-      (HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes - 1)
-    : 0;
+  const lastPumpStrokeStartS = roundFinite(
+    pumpStartS + HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS,
+    6,
+  );
+  const pumpEndS = roundFinite(lastPumpStrokeStartS + FREE_PUMP_STROKE_DURATION_S, 2);
+  const strokeIntervalS = HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S;
   for (let index = 0; index < HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes; index += 1) {
     const strokeAtS = roundFinite(pumpStartS + strokeIntervalS * index, 6);
     ({ run, nextSampleAtS, sampleIndex } = advanceRun({
@@ -615,7 +620,9 @@ export const createHeatCapacityFreeStandardReference = ({
     u2TimeS: roundFinite(u2Run.timeS, 2),
     assumptions: ASSUMPTIONS,
     explanation: {
-      operation: `标准过程使用当前实验参数快照，按固定 ${HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes} 次打气、${HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS} s、${HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS} s、${HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS.toFixed(3)} s、${HEAT_CAPACITY_STANDARD_OPERATION.waitAfterReleaseS} s 流程由真实模型生成。`,
+      operation: `标准过程使用当前实验参数快照，固定打气 ${HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes} 次，首末打气起点跨度 ${HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS} s，末次行程于 ${(
+        HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS + FREE_PUMP_STROKE_DURATION_S
+      ).toFixed(2)} s 完成；随后按 ${HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS} s、${HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS.toFixed(3)} s、${HEAT_CAPACITY_STANDARD_OPERATION.waitAfterReleaseS} s 流程由真实模型生成。`,
       windows: 'U0/U1/U2 显示为固定标准流程对应的记录窗口，不从实际 trace 中反选。',
     },
   };
@@ -638,7 +645,9 @@ export const createHeatCapacityFreeStandardReference = ({
     createStage('zero', '调零', zeroStartS, zeroEndS),
     createStage('pump', '标准打气', pumpStartS, pumpEndS, {
       countText: `x${HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes}`,
-      durationText: `${HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS.toFixed(1)} s`,
+      durationText: `${(
+        HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS + FREE_PUMP_STROKE_DURATION_S
+      ).toFixed(2)} s`,
     }),
     createStage('stabilize', '回温稳定', stabilizeStartS, stabilizeEndS, {
       durationText: `${HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS} s`,

@@ -7,11 +7,18 @@ import {
   applyFreePumpStroke,
   createDefaultFreePhysicsState,
   deriveFreePhysicalState,
+  FREE_PUMP_STROKE_DURATION_S,
   stepFreePhysics,
+  synchronizeFreePhysicsThermodynamicState,
   type HeatCapacityFreeControls,
   type HeatCapacityFreePhysicsConfig,
   type HeatCapacityFreePhysicsState,
 } from '../../src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
+import {
+  applyHeatCapacityMassEnergyFlux,
+  createHeatCapacityThermodynamicStateFromTemperature,
+  createReducedFlowWorkPumpEnergyFluxV1,
+} from '../../src/domain/heatCapacity/heatCapacityThermodynamicKernel.ts';
 import {
   createDefaultFreeSensorState,
   getFreeSensorDisplay,
@@ -46,6 +53,7 @@ import {
 import {
   HEAT_CAPACITY_RELEASE_TIMING,
   HEAT_CAPACITY_STANDARD_OPERATION,
+  createDefaultHeatCapacityFreeRecordConfig,
 } from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
 
 export type HeatCapacityFreeParameterAcceptanceSafetyStatus = 'normal' | 'warning' | 'danger';
@@ -63,6 +71,8 @@ export interface HeatCapacityFreeParameterAcceptanceScenarioInput {
   releaseMode?: HeatCapacityFreeParameterAcceptanceReleaseMode;
   pumpStrokes: number;
   pumpTotalDurationS: number;
+  pumpAmountGainRatio?: number;
+  pumpWorkRetention?: number;
   waitAfterPumpS: number;
   openDurationS: number;
   waitAfterReleaseS: number;
@@ -86,6 +96,7 @@ export interface HeatCapacityFreeParameterAcceptanceRow {
   leakageEnabled: boolean;
   leakageRatePerS: number;
   u1DisplayMv: number | null;
+  u1TemperatureMv: number | null;
   u2DisplayMv: number | null;
   u1CorrectedMv: number | null;
   u2CorrectedMv: number | null;
@@ -120,12 +131,7 @@ interface ScriptedFreeRun {
 }
 
 export const HEAT_CAPACITY_FREE_PARAMETER_ACCEPTANCE_RECORD_CONFIG = {
-  pressureStableSlopeMvPerS: 0.25,
-  temperatureStableSlopeMvPerS: 0.12,
-  temperatureAmbientToleranceMv: 0.35,
-  u0ZeroToleranceMv: 0.12,
-  minimumUsefulU1CorrectedMv: 90,
-  overVentedMinimumU2CorrectedMv: 0.2,
+  ...createDefaultHeatCapacityFreeRecordConfig(),
   pressureDangerMv: HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV,
 } satisfies HeatCapacityFreeRecordConfig;
 
@@ -138,6 +144,7 @@ const DEFAULT_OPEN_DURATIONS_S = [
 const DEFAULT_WAIT_AFTER_PUMP_S = 24;
 const DEFAULT_WAIT_AFTER_RELEASE_S = 40;
 const SIMULATION_STEP_S = 0.1;
+const INSTANT_RELEASE_CORE_STEP_S = 0.02;
 
 const roundNumber = (value: number | null, digits = 2) => (
   value === null || !Number.isFinite(value) ? null : Number(value.toFixed(digits))
@@ -151,6 +158,8 @@ const clonePhysicsConfig = (
     | 'pumpValveExchangeEnabled'
     | 'environmentDisturbanceEnabled'
     | 'gasType'
+    | 'pumpAmountGainRatio'
+    | 'pumpWorkRetention'
   > = {},
 ): HeatCapacityFreePhysicsConfig => {
   const gasTypeDefaults = input.gasType
@@ -160,6 +169,10 @@ const clonePhysicsConfig = (
     ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
     environment: { ...DEFAULT_HEAT_CAPACITY_FREE_ENVIRONMENT_CONFIG },
     gamma: gasTypeDefaults?.gamma ?? DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.gamma,
+    pumpAmountGainRatio: input.pumpAmountGainRatio ??
+      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpAmountGainRatio,
+    pumpWorkRetention: input.pumpWorkRetention ??
+      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpWorkRetention,
     thermal: {
       ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.thermal,
       gasWallConductanceWPerK: gasTypeDefaults?.gasWallConductanceWPerK ??
@@ -377,6 +390,16 @@ const pumpScriptedRun = (
       physics: pump.state,
     };
   }
+  current = waitScriptedRun(
+    current,
+    physicsConfig,
+    sensorConfig,
+    {
+      pumpValveOpen: true,
+      stopcockOpen: false,
+    },
+    FREE_PUMP_STROKE_DURATION_S,
+  );
   return {
     run: current,
     accepted: true,
@@ -391,25 +414,32 @@ const pumpScriptedRunInstantEquivalent = (
 ) => {
   const safeStrokes = Math.max(0, Math.floor(strokes));
   const amountDeltaRatio = physicsConfig.pumpAmountGainRatio * safeStrokes;
-  const inflowTemperatureK = Math.max(
-    1,
-    physicsConfig.environment.ambientTemperatureK,
+  const synchronizedPhysics = synchronizeFreePhysicsThermodynamicState(
+    run.physics,
+    physicsConfig,
   );
-  const nextAmountRatio = run.physics.gasAmountRatio + amountDeltaRatio;
-  const nextPhysics: HeatCapacityFreePhysicsState = {
-    ...run.physics,
+  const amountDeltaMol = (synchronizedPhysics.referenceAmountMol ?? 0) * amountDeltaRatio;
+  const pumpEnergy = createReducedFlowWorkPumpEnergyFluxV1({
+    amountDeltaMol,
+    ambientTemperatureK: physicsConfig.environment.ambientTemperatureK,
+    gammaTrue: physicsConfig.gamma,
+    pumpWorkRetention: physicsConfig.pumpWorkRetention,
+  });
+  const nextThermodynamicState = applyHeatCapacityMassEnergyFlux(
+    {
+      amountMol: synchronizedPhysics.amountMol!,
+      internalEnergyJ: synchronizedPhysics.internalEnergyJ!,
+      wallTemperatureK: synchronizedPhysics.wallTemperatureK,
+    },
+    pumpEnergy.flux,
+  );
+  const nextPhysics = synchronizeFreePhysicsThermodynamicState({
+    ...synchronizedPhysics,
     simulationTimeS: run.timeS,
-    gasAmountRatio: nextAmountRatio,
-    gasTemperatureK: nextAmountRatio <= 0
-      ? run.physics.gasTemperatureK
-      : (
-          run.physics.gasAmountRatio * run.physics.gasTemperatureK +
-          amountDeltaRatio * inflowTemperatureK
-        ) / nextAmountRatio,
     pumpProcesses: [],
-    pumpStrokeCount: run.physics.pumpStrokeCount + safeStrokes,
-    lastPumpStrokeAtS: safeStrokes > 0 ? run.timeS : run.physics.lastPumpStrokeAtS,
-  };
+    pumpStrokeCount: synchronizedPhysics.pumpStrokeCount + safeStrokes,
+    lastPumpStrokeAtS: safeStrokes > 0 ? run.timeS : synchronizedPhysics.lastPumpStrokeAtS,
+  }, physicsConfig, nextThermodynamicState);
   const pressureKPa = deriveFreePhysicalState(nextPhysics, physicsConfig).gasPressureKPa;
   return {
     run: {
@@ -442,17 +472,30 @@ const releaseAndRecover = (
     stopcockOpen: false,
   };
 
-  const runRuntimeReleaseOnly = () => {
+  const runRuntimeReleaseOnly = ({
+    stopAtFirstAmbientReach = false,
+  }: {
+    stopAtFirstAmbientReach?: boolean;
+  } = {}) => {
     let current = run;
     const openDurationS = Math.max(0, actualOpenDurationS);
-    for (let elapsedS = 0; elapsedS < openDurationS - 1e-9; elapsedS += SIMULATION_STEP_S) {
+    const maxStepS = stopAtFirstAmbientReach
+      ? INSTANT_RELEASE_CORE_STEP_S
+      : SIMULATION_STEP_S;
+    for (let elapsedS = 0; elapsedS < openDurationS - 1e-9; elapsedS += maxStepS) {
       current = stepScriptedRun(
         current,
         physicsConfig,
         sensorConfig,
         openControls,
-        Math.min(SIMULATION_STEP_S, openDurationS - elapsedS),
+        Math.min(maxStepS, openDurationS - elapsedS),
       );
+      if (
+        stopAtFirstAmbientReach &&
+        typeof current.physics.releaseReference?.reachedAmbientAtS === 'number'
+      ) {
+        break;
+      }
     }
     return current;
   };
@@ -461,14 +504,22 @@ const releaseAndRecover = (
     amountAfterRatio: number,
     temperatureAfterK: number,
   ): ScriptedFreeRun => {
+    const synchronizedPhysics = synchronizeFreePhysicsThermodynamicState(
+      run.physics,
+      physicsConfig,
+    );
     const before = deriveFreePhysicalState(run.physics, physicsConfig);
     const safeAmountAfterRatio = Math.max(0.000001, amountAfterRatio);
     const safeTemperatureAfterK = Math.max(1, temperatureAfterK);
-    const nextPhysics: HeatCapacityFreePhysicsState = {
-      ...run.physics,
-      simulationTimeS: run.timeS,
-      gasAmountRatio: safeAmountAfterRatio,
+    const nextThermodynamicState = createHeatCapacityThermodynamicStateFromTemperature({
+      amountMol: synchronizedPhysics.referenceAmountMol! * safeAmountAfterRatio,
       gasTemperatureK: safeTemperatureAfterK,
+      wallTemperatureK: synchronizedPhysics.wallTemperatureK,
+      gammaTrue: physicsConfig.gamma,
+    });
+    const nextPhysics = synchronizeFreePhysicsThermodynamicState({
+      ...synchronizedPhysics,
+      simulationTimeS: run.timeS,
       pumpProcesses: [],
       releaseStarted: true,
       lastStopcockOpenedAtS: run.timeS,
@@ -481,7 +532,7 @@ const releaseAndRecover = (
         openedAtS: run.timeS,
         reachedAmbientAtS: run.timeS,
       },
-    };
+    }, physicsConfig, nextThermodynamicState);
     const after = deriveFreePhysicalState(nextPhysics, physicsConfig);
     return {
       ...run,
@@ -507,7 +558,7 @@ const releaseAndRecover = (
       run.physics.gasTemperatureK * Math.pow(pressureRatio, (gamma - 1) / gamma),
     );
   } else {
-    const reference = runRuntimeReleaseOnly();
+    const reference = runRuntimeReleaseOnly({ stopAtFirstAmbientReach: true });
     const gamma = Math.max(1.001, physicsConfig.gamma);
     const amountRatio = Math.min(
       1,
@@ -637,6 +688,7 @@ const simulateScenario = (
     leakageEnabled: physicsConfig.leakage.enabled,
     leakageRatePerS: physicsConfig.leakage.ratePerS,
     u1DisplayMv: roundNumber(u1Display.displayPressureMv),
+    u1TemperatureMv: roundNumber(u1Display.displayTemperatureMv),
     u2DisplayMv: roundNumber(u2DisplayMv),
     u1CorrectedMv: roundNumber(u1CorrectedMv),
     u2CorrectedMv: roundNumber(u2CorrectedMv),

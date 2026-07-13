@@ -170,6 +170,9 @@ import type {
   HeatCapacityFreeGasType,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 import {
+  HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
+} from '../../domain/heatCapacity/heatCapacitySensorMapping.ts';
+import {
   createHeatCapacityToastMessage,
   HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS,
   isHeatCapacityGuideToast,
@@ -5962,13 +5965,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const getGuideHeatCapacityAmbientTemperatureMv = (
-    file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
+    _file: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
   ) => {
-    const profile = file.heatCapacityExperimentProfile;
-    if (profile && Number.isFinite(profile.ambientTemperatureMv)) return profile.ambientTemperatureMv;
-    if (profile && Number.isFinite(profile.initialTemperatureMv)) return profile.initialTemperatureMv;
-    if (Number.isFinite(file.temperatureSignalTargetMv)) return file.temperatureSignalTargetMv;
-    return 1499.05;
+    return HEAT_CAPACITY_TEMPERATURE_BASELINE_MV;
   };
 
   const getGuideHeatCapacityDecisionTemperatureMv = (

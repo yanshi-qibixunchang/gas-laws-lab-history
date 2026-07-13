@@ -20,10 +20,14 @@ export interface HeatCapacityMappedSignals {
   temperatureSignalMv: number;
 }
 
+export const HEAT_CAPACITY_PRESSURE_SENSITIVITY_MV_PER_KPA = 20;
+export const HEAT_CAPACITY_TEMPERATURE_BASELINE_MV = 1498.7;
+export const HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K = 5;
+
 export const DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG: HeatCapacitySensorMappingConfig = {
-  pressureSensitivityMvPerKPa: 20,
-  temperatureBaseMv: 1499.05,
-  temperatureSensitivityMvPerK: 4,
+  pressureSensitivityMvPerKPa: HEAT_CAPACITY_PRESSURE_SENSITIVITY_MV_PER_KPA,
+  temperatureBaseMv: HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
+  temperatureSensitivityMvPerK: HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
   noiseStdDevMv: 0,
 };
 

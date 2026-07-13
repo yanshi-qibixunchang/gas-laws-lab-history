@@ -1,3 +1,10 @@
+import {
+  applyHeatCapacityMassEnergyFlux,
+  deriveHeatCapacityThermodynamicState,
+  type HeatCapacityThermodynamicState,
+  type HeatCapacityThermodynamicSystemConfig,
+} from './heatCapacityThermodynamicKernel.ts';
+
 export interface HeatCapacityFreeLeakageConfig {
   enabled: boolean;
   ratePerS: number;
@@ -73,4 +80,33 @@ export const stepFreeLeakageAmountRatio = (
     return Math.max(equilibriumAmountRatio, currentAmountRatio - maxStepRatio);
   }
   return Math.min(equilibriumAmountRatio, currentAmountRatio + maxStepRatio);
+};
+
+export const stepFreeLeakageThermodynamicState = (
+  state: HeatCapacityThermodynamicState,
+  system: HeatCapacityThermodynamicSystemConfig,
+  config: HeatCapacityFreeLeakageConfig,
+  input: Omit<HeatCapacityFreeLeakageStepInput, 'gasAmountRatio' | 'gasTemperatureK'>,
+): HeatCapacityThermodynamicState => {
+  const derived = deriveHeatCapacityThermodynamicState(state, system);
+  const nextAmountRatio = stepFreeLeakageAmountRatio(
+    derived.gasAmountRatio,
+    config,
+    {
+      ...input,
+      gasAmountRatio: derived.gasAmountRatio,
+      gasTemperatureK: derived.gasTemperatureK,
+    },
+  );
+  const amountDeltaMol = (nextAmountRatio - derived.gasAmountRatio) *
+    system.referenceAmountMol;
+  if (amountDeltaMol === 0) return state;
+  const sourceTemperatureK = amountDeltaMol > 0
+    ? positiveFiniteOrFallback(input.ambientTemperatureK, derived.gasTemperatureK)
+    : derived.gasTemperatureK;
+  return applyHeatCapacityMassEnergyFlux(state, {
+    source: 'sealed-leakage',
+    amountDeltaMol,
+    internalEnergyDeltaJ: amountDeltaMol * derived.cvMolarJPerMolK * sourceTemperatureK,
+  });
 };

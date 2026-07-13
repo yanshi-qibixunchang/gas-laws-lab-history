@@ -1,8 +1,13 @@
 import {
   DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG,
+  HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
+  HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
   mapHeatCapacitySignals,
   type HeatCapacitySensorMappingConfig,
 } from './heatCapacitySensorMapping.ts';
+import {
+  stepHeatCapacityTemperatureSensor,
+} from './heatCapacityTemperatureSensorModel.ts';
 import {
   HEAT_CAPACITY_VIDEO_PROFILE,
   getHeatCapacityRangeMidpoint,
@@ -62,6 +67,7 @@ export interface HeatCapacityRuntimeState {
   ambientTemperatureK: number;
   gasPressureKPaAbs: number;
   gasTemperatureK: number;
+  sensorTemperatureK: number;
   pressureDeltaKPa: number;
   simulationTimeS: number;
   lastUpdateMs: number | null;
@@ -119,7 +125,6 @@ export const DEFAULT_HEAT_CAPACITY_MODEL_CONFIG: HeatCapacityModelConfig = {
   recoveryTemperatureMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.recoveryTemperatureMvRange),
   sensor: {
     ...DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG,
-    temperatureBaseMv: getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.initialTemperatureMvRange),
   },
 };
 
@@ -191,26 +196,53 @@ const mergeModelConfig = (
   sensor: {
     ...DEFAULT_HEAT_CAPACITY_MODEL_CONFIG.sensor,
     ...config?.sensor,
+    // Demo keeps its teaching temperature trajectory, but it is rendered by
+    // the same FD-NCD-C calibration as Guide and Free modes.
+    temperatureBaseMv: HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
+    temperatureSensitivityMvPerK: HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
   },
 });
+
+const normalizeRuntimeTemperatureState = (
+  state: HeatCapacityRuntimeState,
+): HeatCapacityRuntimeState => {
+  const modelConfig = mergeModelConfig(state.modelConfig);
+  const gasTemperatureK = Number.isFinite(state.gasTemperatureK) && state.gasTemperatureK > 0
+    ? state.gasTemperatureK
+    : state.ambientTemperatureK;
+  const sensorTemperatureK = Number.isFinite(state.sensorTemperatureK) && state.sensorTemperatureK > 0
+    ? state.sensorTemperatureK
+    : gasTemperatureK;
+  return {
+    ...state,
+    gasTemperatureK,
+    sensorTemperatureK,
+    modelConfig,
+  };
+};
 
 const withMappedSignals = (
   state: HeatCapacityRuntimeState,
 ): HeatCapacityRuntimeState => {
-  const pressureDeltaKPa = roundNumber(Math.max(0, state.gasPressureKPaAbs - state.ambientPressureKPa), 4);
+  const normalizedState = normalizeRuntimeTemperatureState(state);
+  const pressureDeltaKPa = roundNumber(Math.max(
+    0,
+    normalizedState.gasPressureKPaAbs - normalizedState.ambientPressureKPa,
+  ), 4);
   const signals = mapHeatCapacitySignals({
-    ambientTemperatureK: state.ambientTemperatureK,
-    gasTemperatureK: state.gasTemperatureK,
+    ambientTemperatureK: normalizedState.ambientTemperatureK,
+    gasTemperatureK: normalizedState.sensorTemperatureK,
     pressureDeltaKPa,
-    pressureInitialBiasMv: state.pressureInitialBiasMv,
-    pressureZeroOffset: state.pressureZeroOffset,
-    config: state.modelConfig.sensor,
+    pressureInitialBiasMv: normalizedState.pressureInitialBiasMv,
+    pressureZeroOffset: normalizedState.pressureZeroOffset,
+    config: normalizedState.modelConfig.sensor,
   });
 
   return {
-    ...state,
-    gasPressureKPaAbs: roundNumber(state.gasPressureKPaAbs, 4),
-    gasTemperatureK: roundNumber(state.gasTemperatureK, 4),
+    ...normalizedState,
+    gasPressureKPaAbs: roundNumber(normalizedState.gasPressureKPaAbs, 4),
+    gasTemperatureK: roundNumber(normalizedState.gasTemperatureK, 4),
+    sensorTemperatureK: roundNumber(normalizedState.sensorTemperatureK, 6),
     pressureDeltaKPa,
     pressureSignalMvRaw: signals.pressureSignalMvRaw,
     pressureSignalMvDisplayed: signals.pressureSignalMvDisplayed,
@@ -246,6 +278,7 @@ export const createDefaultHeatCapacityRuntimeState = (
     ambientTemperatureK: modelConfig.ambientTemperatureK,
     gasPressureKPaAbs: modelConfig.ambientPressureKPa,
     gasTemperatureK: modelConfig.ambientTemperatureK,
+    sensorTemperatureK: modelConfig.ambientTemperatureK,
     pressureDeltaKPa: 0,
     simulationTimeS: 0,
     lastUpdateMs: now,
@@ -301,6 +334,7 @@ export const applyHeatCapacityPumpStroke = (
   controls: HeatCapacityStepControls,
   now = Date.now(),
 ): HeatCapacityPumpStrokeResult => {
+  state = withMappedSignals(state);
   if (!controls.powerOn) {
     return { accepted: false, reason: 'powerOff', state };
   }
@@ -355,6 +389,7 @@ export const stepHeatCapacityExperiment = (
   dtS: number,
   now = Date.now(),
 ): HeatCapacityRuntimeState => {
+  state = normalizeRuntimeTemperatureState(state);
   const dt = clampNumber(Number.isFinite(dtS) ? dtS : 0, 0, 2);
   if (!controls.powerOn) {
     return withMappedSignals({
@@ -469,6 +504,10 @@ export const stepHeatCapacityExperiment = (
     ...state,
     gasPressureKPaAbs,
     gasTemperatureK,
+    sensorTemperatureK: stepHeatCapacityTemperatureSensor(
+      { temperatureK: state.sensorTemperatureK },
+      { gasTemperatureK, dtS: dt },
+    ).temperatureK,
     simulationTimeS: state.simulationTimeS + dt,
     lastUpdateMs: now,
     heatCapacityPhase,
@@ -483,6 +522,7 @@ export const captureHeatCapacityProcessSample = (
   key: HeatCapacityProcessSampleKey,
   controls: Partial<Pick<HeatCapacityStepControls, 'pumpFrequency' | 'pumpValveOpen' | 'stopcockOpen'>> = {},
 ): HeatCapacityRuntimeState => {
+  state = withMappedSignals(state);
   const point: HeatCapacityProcessSamplePoint = {
     timeS: roundNumber(state.simulationTimeS, 3),
     phase: state.heatCapacityPhase,

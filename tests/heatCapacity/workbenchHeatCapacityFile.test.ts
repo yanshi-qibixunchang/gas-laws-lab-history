@@ -130,7 +130,7 @@ const outdatedRuntimeHeatFile = outdatedRuntimeRestored.files[0];
 assert.equal(outdatedRuntimeHeatFile.kind, 'heatCapacity');
 if (outdatedRuntimeHeatFile.kind !== 'heatCapacity') throw new Error('expected heat capacity file');
 assert.equal(outdatedRuntimeHeatFile.heatCapacityFreeRuntimeVersion, HEAT_CAPACITY_FREE_RUNTIME_VERSION);
-assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsConfig.pumpAmountGainRatio, 0.00345);
+assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsConfig.pumpAmountGainRatio, 0.00334);
 assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsState.gasAmountRatio, 1);
 assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsState.gasTemperatureK, 298.15);
 assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsState.wallTemperatureK, 298.15);

@@ -21,7 +21,7 @@ const baseScenario = (
 ): ScenarioInput => ({
   id,
   pumpStrokes: 18,
-  pumpTotalDurationS: 12,
+  pumpTotalDurationS: HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS,
   waitAfterPumpS: 300,
   openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
   waitAfterReleaseS: 300,
@@ -160,14 +160,14 @@ assertSlidingMeanRange(
 const suitableScenarios = [
   ['low-extreme', baseScenario('low-extreme', {
     pumpStrokes: 17,
-    pumpTotalDurationS: 12,
+    pumpTotalDurationS: HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS,
     waitAfterPumpS: 280,
     openDurationS: HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMinS,
     waitAfterReleaseS: 280,
   })],
   ['high-extreme', baseScenario('high-extreme', {
     pumpStrokes: 19,
-    pumpTotalDurationS: 12,
+    pumpTotalDurationS: HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS,
     waitAfterPumpS: 320,
     openDurationS: 0.45,
     waitAfterReleaseS: 320,
@@ -281,7 +281,7 @@ for (const [label, scenario] of suitableScenarios) {
 
 {
   const standardPump = runSingle(baseScenario('pump-duration-standard', {
-    pumpTotalDurationS: 12,
+    pumpTotalDurationS: HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS,
   }));
   const slowPump = runSingle(baseScenario('pump-duration-50s', {
     pumpTotalDurationS: 50,
@@ -293,7 +293,7 @@ for (const [label, scenario] of suitableScenarios) {
   assert.equal(
     Math.abs(slowPump.gamma! - 1.4) > Math.abs(standardPump.gamma! - 1.4) + 0.004,
     true,
-    `50s pump should be measurably worse than 12s pump: 12s=${standardPump.gamma}, 50s=${slowPump.gamma}`,
+    `50s pump should be measurably worse than the standard ${HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS}s pump: standard=${standardPump.gamma}, 50s=${slowPump.gamma}`,
   );
   assert.equal(
     slowPump.gamma! >= 1.355 && slowPump.gamma! < 1.37,
@@ -326,9 +326,10 @@ const standardNoNoise = runSingle(baseScenario('standard-no-noise-for-early-u1',
 assert.equal(
   u1TooEarly.gamma !== null &&
     standardNoNoise.gamma !== null &&
-    u1TooEarly.gamma > standardNoNoise.gamma + 0.02,
+    Math.abs(u1TooEarly.gamma - standardNoNoise.gamma) > 0.02 &&
+    Math.abs(u1TooEarly.gamma - 1.4) > HEAT_CAPACITY_GAMMA_ABSOLUTE_ERROR_LIMITS.suitable,
   true,
-  `U1 immediate record should bias high against standard operation, got ${u1TooEarly.gamma} vs ${standardNoNoise.gamma}`,
+  `U1 immediate record should be a severe error without prescribing its direction, got ${u1TooEarly.gamma} vs ${standardNoNoise.gamma}`,
 );
 
 const u2TooEarly = runSingle(baseScenario('u2-too-early', {

@@ -11,18 +11,25 @@ import {
   FREE_TRACE_MAX_SAMPLES_PER_TRIAL,
   type HeatCapacityFreeTraceSampleInput,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
+import {
+  HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
+} from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
 
 const configSnapshot = createDefaultFreeConfigSnapshot();
 
 assert.equal(HEAT_CAPACITY_FREE_TRACE_VERSION, 5);
-assert.equal(HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION, 8);
-assert.equal(configSnapshot.version, 8);
+assert.equal(HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION, 9);
+assert.equal(configSnapshot.version, 9);
 assert.equal(configSnapshot.physics.vesselVolumeL, 2);
-assert.equal(configSnapshot.physics.pumpAmountGainRatio, 0.00345);
+assert.equal(configSnapshot.physics.pumpAmountGainRatio, 0.00334);
+assert.equal(configSnapshot.physics.pumpWorkRetention, 0.3);
 assert.equal('pumpInflowTemperatureRiseK' in configSnapshot.physics, false);
 assert.equal('chamberTemperatureRiseK' in configSnapshot.physics.pumpValveExchange!, false);
 assert.equal(configSnapshot.physics.pumpStrokeDurationS, 0.08);
-assert.equal(configSnapshot.physics.recommendedPumpIntervalS, 0.1);
+assert.equal(
+  configSnapshot.physics.recommendedPumpIntervalS,
+  HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
+);
 assert.equal(configSnapshot.physics.openingAnimationDurationMs, 420);
 assert.equal(configSnapshot.physics.closingAnimationDurationMs, 420);
 assert.equal(configSnapshot.physics.releaseApertureRampS, 0.1);
@@ -49,9 +56,10 @@ assert.deepEqual(configSnapshot.physics.environmentDisturbance, {
   temperatureAmplitudeK: 0.015,
   timeScaleS: 180,
 });
-assert.equal(configSnapshot.sensor.pumpLagRate, 36);
+assert.equal('pumpLagRate' in configSnapshot.sensor, false);
 assert.equal(configSnapshot.sensor.fastProcessSampleStepS, 0.04);
-assert.equal(configSnapshot.sensor.temperatureMvAtAmbient, 1499.05);
+assert.equal(configSnapshot.sensor.temperatureMvAtAmbient, 1498.7);
+assert.equal(configSnapshot.sensor.temperatureMvPerK, 5);
 assert.equal(configSnapshot.sensor.noiseMv, 0.04);
 assert.equal(configSnapshot.sensor.historyWindowS, 2);
 assert.deepEqual(configSnapshot.sensor.pressureNonlinearity, {
@@ -66,8 +74,8 @@ assert.equal(configSnapshot.record.u0ZeroToleranceMv, 0.12);
 assert.equal(configSnapshot.scoring.processScoringVersion, 'free-process-score-v3');
 assert.equal('reservedPhysicsV2' in configSnapshot, false);
 assert.ok(
-  Math.abs(configSnapshot.physics.pumpAmountGainRatio * configSnapshot.physics.vesselVolumeL * 1000 - 6.9) < 1e-9,
-  'trace snapshots should preserve the same 6.9 mL effective pump stroke as Workbench Free Mode',
+  Math.abs(configSnapshot.physics.pumpAmountGainRatio * configSnapshot.physics.vesselVolumeL * 1000 - 6.68) < 1e-9,
+  'trace snapshots should preserve the calibrated 6.68 mL effective pump stroke',
 );
 assert.equal(
   configSnapshot.record.pressureDangerMv,

@@ -2,8 +2,14 @@ import assert from 'node:assert/strict';
 import {
   normalizeFreePumpValveExchangeConfig,
   stepFreePumpValveExchange,
+  stepFreePumpValveThermodynamicExchange,
   type HeatCapacityFreePumpValveExchangeConfig,
 } from '../../src/domain/heatCapacity/heatCapacityFreePumpValveExchangeModel.ts';
+import {
+  createHeatCapacityThermodynamicStateAtAmbient,
+  createHeatCapacityThermodynamicStateFromTemperature,
+  deriveHeatCapacityThermodynamicState,
+} from '../../src/domain/heatCapacity/heatCapacityThermodynamicKernel.ts';
 
 const baseInput = {
   ambientPressureKPa: 101.3,
@@ -157,5 +163,73 @@ const finite = stepFreePumpValveExchange({
 });
 assert.equal(Number.isFinite(finite.state.gasAmountRatio), true);
 assert.equal(Number.isFinite(finite.state.gasTemperatureK), true);
+
+const thermodynamicInitialization = createHeatCapacityThermodynamicStateAtAmbient({
+  ambientPressureKPa: baseInput.ambientPressureKPa,
+  ambientTemperatureK: baseInput.ambientTemperatureK,
+  vesselVolumeL: baseInput.vesselVolumeL,
+  gammaTrue: baseInput.gamma,
+});
+const thermodynamicOutflowStart = createHeatCapacityThermodynamicStateFromTemperature({
+  amountMol: thermodynamicInitialization.system.referenceAmountMol * 1.08,
+  gasTemperatureK: 304,
+  wallTemperatureK: baseInput.ambientTemperatureK,
+  gammaTrue: baseInput.gamma,
+});
+const thermodynamicOutflowEnd = stepFreePumpValveThermodynamicExchange(
+  thermodynamicOutflowStart,
+  thermodynamicInitialization.system,
+  {
+    ...enabled,
+    gasExchangeRatePerS: 0.001,
+    thermalConductanceWPerK: 0,
+    openingDelayS: 0,
+  },
+  baseInput,
+);
+const thermodynamicOutflowStartDerived = deriveHeatCapacityThermodynamicState(
+  thermodynamicOutflowStart,
+  thermodynamicInitialization.system,
+);
+const thermodynamicOutflowEndDerived = deriveHeatCapacityThermodynamicState(
+  thermodynamicOutflowEnd.state,
+  thermodynamicInitialization.system,
+);
+assert.equal(thermodynamicOutflowEnd.gasExchangeAmountMol < 0, true);
+expectClose(
+  thermodynamicOutflowEndDerived.gasTemperatureK,
+  thermodynamicOutflowStartDerived.gasTemperatureK,
+  1e-10,
+  'thermodynamic pump-valve outflow should remove current molar internal energy',
+);
+
+const clampedThermalExchange = stepFreePumpValveThermodynamicExchange(
+  createHeatCapacityThermodynamicStateFromTemperature({
+    amountMol: thermodynamicInitialization.system.referenceAmountMol,
+    gasTemperatureK: 400,
+    wallTemperatureK: baseInput.ambientTemperatureK,
+    gammaTrue: baseInput.gamma,
+  }),
+  thermodynamicInitialization.system,
+  {
+    ...enabled,
+    gasExchangeRatePerS: 0,
+    thermalConductanceWPerK: 1,
+    openingDelayS: 0,
+  },
+  {
+    ...baseInput,
+    dtS: 1_000_000,
+  },
+);
+expectClose(
+  deriveHeatCapacityThermodynamicState(
+    clampedThermalExchange.state,
+    thermodynamicInitialization.system,
+  ).gasTemperatureK,
+  baseInput.ambientTemperatureK,
+  1e-10,
+  'pump-valve thermal exchange should clamp at chamber equilibrium instead of overshooting',
+);
 
 console.log('heatCapacityFreePumpValveExchangeModel tests passed');

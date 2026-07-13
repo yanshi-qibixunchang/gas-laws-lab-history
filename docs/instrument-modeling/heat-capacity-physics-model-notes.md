@@ -29,10 +29,12 @@
 | --- | --- | --- |
 | 统一放气状态机 | `src/domain/heatCapacity/heatCapacityReleaseModel.ts` | 三模式共用的 opening / releasing / closing 时序、尝试编号、快速开关判定和气体流动内核 |
 | 统一放气配置 | `src/domain/heatCapacity/heatCapacityDefaultConfig.ts` | 动画、开度斜坡、最佳窗口和自动演示标准时长的唯一配置源 |
+| 共享热力学内核 | `src/domain/heatCapacity/heatCapacityThermodynamicKernel.ts` | `n/U` 权威态、理想气体状态推导、泵入质量/能量通量和气体—瓶壁—环境换热 |
 | Free 物理主循环 | `src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts` | 气体量、温度、压强、连续打气、连续放气、热交换、微漏 |
 | 热交换 | `src/domain/heatCapacity/heatCapacityFreeThermalModel.ts` | 气体、瓶壁、环境三节点热交换 |
 | 微漏 | `src/domain/heatCapacity/heatCapacityFreeLeakageModel.ts` | 关闭状态下由内外压差驱动的慢泄漏 |
-| 传感器 | `src/domain/heatCapacity/heatCapacityFreeSensorModel.ts` | 显示滞后、噪声、量化、采样历史 |
+| 共享温度传感器 | `src/domain/heatCapacity/heatCapacityTemperatureSensorModel.ts` | 三模式共用的独立 `Tsensor` 一阶迟滞 |
+| Free 显示传感器 | `src/domain/heatCapacity/heatCapacityFreeSensorModel.ts` | 统一温度映射、压力响应、噪声、量化和采样历史 |
 | Trace | `src/domain/heatCapacity/heatCapacityFreeTraceModel.ts` | trace store、样本、事件、配置快照、降采样 |
 | 过程图 | `src/domain/heatCapacity/heatCapacityFreeProcessReviewModel.ts` | 将 trace、记录值和参考曲线整理成图表数据 |
 | 3D 分子映射 | `src/domain/heatCapacity/heatCapacityHardSphereModel.ts` | 分子数量、速度、颜色、定向放气运动 |
@@ -44,7 +46,9 @@
 核心关系保持理想气体近似：
 
 ```text
-P_gas = P_ambient * gasAmountRatio * gasTemperatureK / ambientTemperatureK
+Cv = R / (gammaTrue - 1)
+T_gas = internalEnergyJ / (amountMol * Cv)
+P_gas = amountMol * R * T_gas / vesselVolume
 deltaP = P_gas - P_ambient
 U_p = deltaP * pressureMvPerKPa
 ```
@@ -62,8 +66,9 @@ gamma = 1.4
 
 ```text
 simulationTimeS
-gasAmountRatio
-gasTemperatureK
+amountMol
+internalEnergyJ
+referenceAmountMol
 wallTemperatureK
 pumpStrokeCount
 pumpProcesses
@@ -75,8 +80,9 @@ releaseReference
 
 说明：
 
-- `gasAmountRatio = 1` 且 `gasTemperatureK = ambientTemperatureK` 时，瓶内外压强相等。
-- `gasAmountRatio` 代表瓶内气体摩尔量相对初始状态的比例。
+- `amountMol`（气体物质的量 `n`）和 `internalEnergyJ`（气体总内能 `U`）是运行时权威状态；温度和压强只能从这两个状态前向推导，不能从当前压力显示值反推温度。
+- `referenceAmountMol` 是环境温度、环境压强和瓶体容积下的初始摩尔量；`gasAmountRatio = amountMol / referenceAmountMol` 与 `gasTemperatureK = internalEnergyJ / (amountMol * Cv)` 仅是兼容投影，不是第二套可独立写入的权威状态。
+- 初始 `amountMol = referenceAmountMol`、`internalEnergyJ = amountMol * Cv * ambientTemperatureK` 时，瓶内外压强相等。
 - `wallTemperatureK` 是热交换 v2 模型新增的瓶壁热容状态。
 
 ## 4. 连续打气模型
@@ -86,12 +92,14 @@ releaseReference
 默认参数：
 
 ```text
-pumpAmountGainRatio = 0.00345
+pumpAmountGainRatio = 0.00334
+pumpWorkRetention = 0.30
 vesselVolumeL = 2 L
-每次有效进气量约 6.9 mL
-pumpInflowTemperatureRiseK = 42
+每次有效进气量约 6.68 mL
 FREE_PUMP_STROKE_DURATION_S = 0.08
-推荐相邻打气间隔 = 0.1 s
+标准 18 次打气首末起点跨度 = 8 s
+标准相邻打气起点间隔 = 8 / 17 s ≈ 0.470588 s
+标准末次行程完成时刻 = 8.08 s
 ```
 
 一次打气的累计进度曲线：
@@ -107,9 +115,20 @@ FREE_PUMP_STROKE_DURATION_S = 0.08
 规则：
 
 - 用户每次有效打气会创建一个 `pumpProcess`。
-- 打气过程短于推荐 0.1 s 节奏；0.1 s 连续点击时，前一次打气应基本完成，过程图能显示出每次点击对应的独立阶梯。
+- 单次打气行程持续 0.08 s；在非标准的 0.1 s 快速交互压力测试中，前一次打气应基本完成，过程图能显示出每次点击对应的独立阶梯。
 - 每个推进步只应用“本步新增进度”，避免重复加气。
-- 打气以进入容器的气体物质的量为自变量；温度由原容器气体与高于环境温度的进气混合得到，压强再由状态方程推导。
+- 打气以进入容器的物质的量和总内能为权威状态。令本步进气量为 `Δn`，则环境气体携带的内能为 `Δn * Cv * T_ambient`，理想流动功上限为 `Δn * R * T_ambient`，写入瓶内的能量为：
+
+```text
+deltaU = deltaN * Cv * T_ambient
+       + pumpWorkRetention * deltaN * R * T_ambient
+n_next = n + deltaN
+U_next = U + deltaU
+T_next = U_next / (n_next * Cv)
+P_next = n_next * R * T_next / vesselVolume
+```
+
+- `pumpWorkRetention = 0.30` 只表示理想流动功中最终保留在瓶内气体里的比例，不改变 `Δn`；生产配置必须位于 `[0, 1)`，`1` 只用于理想绝热上限测试。
 - 单次打气不再直接叠加固定温升，也不直接叠加固定压强。
 - 当前已进入危险区时，新打气会被拒绝；从安全区或建议区继续打气导致的跨线过程会进入危险报警，随后禁止继续打气。
 - 被拒绝的打气不创建 `pumpProcess`，也不改变气体量。
@@ -117,9 +136,12 @@ FREE_PUMP_STROKE_DURATION_S = 0.08
 验收要点：
 
 - 单次隔离打气在充分热平衡后应约增加 7 mV 压力示数。
-- 快速连续打气达到约 127 mV 后，封闭等待 300 s 应回到约 114 mV。
-- 相邻 0.1 s 打气时，上升段应出现多个连续小阶梯，而不是一两个大跳变。
+- 标准 18 次/8 s 打气的第 18 次峰值应进入 `120–125 mV`，封闭等待 300 s 后约为 `110–115 mV`。
+- 标准空气组的温度电压峰值只要求高于 `1500 mV`；当前固定场景观测值约为 `1505.05 mV`，该观测值不构成额外的上下限验收带。
+- 非标准的相邻 0.1 s 快速打气压力测试中，上升段应出现多个连续小阶梯，而不是一两个大跳变。
 - 超过报警边界后，压强可自然保持或衰减，但新打气应被阻止。
+
+数值校准边界：上述 `0.00334`、`0.30`、压力区间和温度峰值只针对空气理想气体 `gammaTrue = 1.4`、标准 18 次打气首末起点跨度 8 s，并开启生产默认漏气、泵阀交换、热交换等真实影响因素的场景。其他气体只复用质量守恒、能量守恒和连续响应模型，不沿用空气的数值验收区间。
 
 ## 5. 连续放气模型
 
@@ -217,7 +239,15 @@ wallAmbientHeatFlowW = wallAmbientConductanceWPerK * (ambientTemperatureK - wall
 
 ## 8. 传感器和采样模型
 
-传感器层和物理层分开。
+传感器层和物理层分开。真实气体温度 `Tgas` 参与状态方程和换热；独立状态 `Tsensor` 只决定温度电压显示，不能回写物理引擎：
+
+```text
+dTsensor / dt = (Tgas - Tsensor) / tauSensor
+tauSensor = 0.8 s
+UT = 1498.7 mV + 5.0 mV/K * (Tsensor - T_ambient)
+```
+
+自由、引导和演示模式最终都使用这套共享映射。新建和重置时必须显式令 `Tgas = Twall = Tsensor = T_ambient`；旧存档缺少 `Tsensor` 时只在恢复边界做一次迁移，不能重新引入模式专属的温度灵敏度。
 
 常规采样参数：
 
@@ -237,13 +267,15 @@ activeFastProcessStepS = 0.04
 - 存在未完成的 `pumpProcess`。
 - 阀门确认接通且瓶内压强仍高于环境压强。
 
-打气阶段会使用更快的压力显示响应，避免 0.1 s 连续打气被传感器滞后拖成一段连续斜坡。
+打气阶段会使用更快的压力显示响应，避免非标准的 0.1 s 快速交互压力测试被传感器滞后拖成一段连续斜坡。温度通道不复用压力通道的快速响应或 UI 平滑，而是始终沿共享 `Tsensor` 一阶模型连续推进，因此显示会以连续小数变化追随真实温度，不会瞬间跳到最终值。
 
 Trace 写入仍会屏蔽过小的显示层波动，避免后台采集点被噪声填满。
 
 验收要点：
 
 - 打气和放气过程中，显示层采样点应足够密。
+- 打气、放气和关阀回温时，`Tgas` 可以快速变化，但 `UT` 必须按 `Tsensor` 的时间常数连续跟随。
+- 等待倍速必须同时推进 `Tgas`、`Twall` 和 `Tsensor`，不能只推进倒计时或压力通道。
 - 后台 trace 不应因为噪声产生大量无意义点。
 - 过程图展示的是采样结果，而不是 UI 人工修饰曲线。
 
@@ -296,7 +328,7 @@ Trace 写入仍会屏蔽过小的显示层波动，避免后台采集点被噪�
 
 代码级验收：
 
-- 连续打气过程可重叠，0.1 s 相邻打气不会合并成单次大跳。
+- 连续打气过程可重叠，非标准的 0.1 s 快速交互压力测试不会合并成单次大跳。
 - 连续放气只在 `420 ms` 开启动画完成后开始；自动演示主放气严格持续 `0.375 s`。
 - 点击阀门但未确认接通时，不触发定向分子运动。
 - 快速开关不形成放气，关闭完成后可再次正常开阀放气。
@@ -307,7 +339,7 @@ Trace 写入仍会屏蔽过小的显示层波动，避免后台采集点被噪�
 视觉验收：
 
 - 打气上升段应有多个连续小阶梯。
-- 以 0.1 s 节奏打 4 次时，应能看到 4 个清晰的压强阶梯，而不是一段连续斜坡。
+- 以非标准的 0.1 s 快速节奏打 4 次时，应能看到 4 个清晰的压强阶梯，而不是一段连续斜坡。
 - 放气下降段应快速但连续，不是单点跳变。
 - 阀门确认接通后才能看到分子定向外流。
 - 打气和放气后，3D 分子数量变化与瓶内气体量方向一致。

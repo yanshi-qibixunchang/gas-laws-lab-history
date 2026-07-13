@@ -6,6 +6,9 @@ import {
   normalizeFreePressureSensorNonlinearityConfig,
   type HeatCapacityFreePressureSensorNonlinearityConfig,
 } from './heatCapacityFreePressureSensorNonlinearityModel.ts';
+import {
+  stepHeatCapacityTemperatureSensor,
+} from './heatCapacityTemperatureSensorModel.ts';
 
 export interface HeatCapacityFreeDisplaySample {
   atS: number;
@@ -37,6 +40,12 @@ export interface HeatCapacityFreeSensorState {
   pressureInitialBiasMv: number;
   displayPressureMv: number;
   displayTemperatureMv: number;
+  /**
+   * The thermally lagged sensing element temperature. It is optional only at
+   * the legacy-persistence boundary; every newly-created or stepped state
+   * contains it.
+   */
+  sensorTemperatureK?: number;
   nextSampleAtS: number;
   pressureHistory: HeatCapacityFreeDisplaySample[];
   temperatureHistory: HeatCapacityFreeDisplaySample[];
@@ -46,8 +55,6 @@ export interface HeatCapacityFreeSensorState {
   pressureNonlinearErrorMv: number;
   pressureStochasticErrorMv: number;
 }
-
-export const HEAT_CAPACITY_FREE_PUMP_SENSOR_LAG_RATE = 36;
 
 const SAMPLE_TIME_EPSILON_S = 0.000000001;
 
@@ -123,6 +130,7 @@ const trimHistory = (
 
 const toTargetDisplay = (
   physical: HeatCapacityFreePhysicalDisplayInput,
+  sensorTemperatureK: number,
   config: HeatCapacityFreeSensorConfig,
   pressureInitialBiasMv: number,
   seedInput?: { seed: number | string; sampleIndex: number },
@@ -136,7 +144,7 @@ const toTargetDisplay = (
   return {
     pressureMv: pressureNonlinearity.pressureMv + pressureInitialBiasMv,
     temperatureMv: config.temperatureMvAtAmbient +
-      (physical.gasTemperatureK - physical.ambientTemperatureK) *
+      (sensorTemperatureK - physical.ambientTemperatureK) *
         config.temperatureMvPerK,
     pressureReliability: pressureNonlinearity.reliability,
     pressureNonlinearErrorMv: pressureNonlinearity.nonlinearErrorMv,
@@ -163,12 +171,14 @@ export const createDefaultFreeSensorState = (
     pressureMv: number;
     pressureInitialBiasMv?: number;
     temperatureMv: number;
+    sensorTemperatureK?: number;
   },
 ): HeatCapacityFreeSensorState => ({
   seed,
   pressureInitialBiasMv: initialDisplay.pressureInitialBiasMv ?? initialDisplay.pressureMv,
   displayPressureMv: initialDisplay.pressureMv,
   displayTemperatureMv: initialDisplay.temperatureMv,
+  sensorTemperatureK: initialDisplay.sensorTemperatureK,
   nextSampleAtS: 0,
   pressureHistory: [
     {
@@ -204,8 +214,23 @@ export const stepFreeSensor = (
   const lastSampleAtS = state.pressureHistory[state.pressureHistory.length - 1]?.atS ?? atS;
   const dtS = Math.max(0, atS - lastSampleAtS);
   void calibration;
+  const legacySensorTemperatureK = physical.ambientTemperatureK +
+    (state.displayTemperatureMv - config.temperatureMvAtAmbient) /
+      Math.max(0.001, config.temperatureMvPerK);
+  const sensorTemperatureK = stepHeatCapacityTemperatureSensor(
+    {
+      temperatureK: Number.isFinite(state.sensorTemperatureK)
+        ? state.sensorTemperatureK as number
+        : legacySensorTemperatureK,
+    },
+    {
+      gasTemperatureK: physical.gasTemperatureK,
+      dtS,
+    },
+  ).temperatureK;
   const target = toTargetDisplay(
     physical,
+    sensorTemperatureK,
     config,
     state.pressureInitialBiasMv,
     { seed: state.seed, sampleIndex },
@@ -222,8 +247,7 @@ export const stepFreeSensor = (
     config.quantizationMv,
   );
   const displayTemperatureMv = quantize(
-    approach(state.displayTemperatureMv, target.temperatureMv, config.lagRate, dtS) +
-      temperatureNoiseMv,
+    target.temperatureMv + temperatureNoiseMv,
     config.quantizationMv,
   );
   const pressureHistory = trimHistory(
@@ -254,6 +278,7 @@ export const stepFreeSensor = (
     pressureInitialBiasMv: state.pressureInitialBiasMv,
     displayPressureMv,
     displayTemperatureMv,
+    sensorTemperatureK,
     nextSampleAtS: atS + getNextSampleIntervalS(state.seed, sampleIndex, config),
     pressureHistory,
     temperatureHistory,

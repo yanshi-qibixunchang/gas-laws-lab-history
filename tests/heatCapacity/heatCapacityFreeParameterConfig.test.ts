@@ -26,6 +26,7 @@ const physicsConfig: HeatCapacityFreePhysicsConfig = {
   vesselVolumeL: 2.4,
   gamma: 1.37,
   pumpAmountGainRatio: 0.0065,
+  pumpWorkRetention: 0.25,
   pumpPressureLimitKPa: 112,
   stopcockFlowRate: 4.4,
   thermal: {
@@ -182,9 +183,10 @@ assert.equal(
 );
 assert.equal(
   applied.physicsConfig.pumpAmountGainRatio,
-  0.00345,
+  0.00334,
   'applying a Free parameter draft should keep fixed pump amount gain at the tuned device default',
 );
+assert.equal(applied.physicsConfig.pumpWorkRetention, 0.3);
 assert.equal(applied.physicsConfig.leakage.enabled, true);
 assert.equal(applied.physicsConfig.leakage.ratePerS, 0.0025);
 assert.equal(applied.physicsConfig.gamma, 5 / 3);

@@ -1,6 +1,12 @@
 import {
   calculateFreeGasHeatCapacityJPerK,
 } from './heatCapacityFreeThermalModel.ts';
+import {
+  applyHeatCapacityMassEnergyFlux,
+  deriveHeatCapacityThermodynamicState,
+  type HeatCapacityThermodynamicState,
+  type HeatCapacityThermodynamicSystemConfig,
+} from './heatCapacityThermodynamicKernel.ts';
 
 export interface HeatCapacityFreePumpValveExchangeConfig {
   enabled: boolean;
@@ -27,6 +33,13 @@ export interface HeatCapacityFreePumpValveExchangeResult {
   state: HeatCapacityFreePumpValveExchangeState;
   activeDtS: number;
   gasExchangeAmountRatio: number;
+  heatGasToChamberJ: number;
+}
+
+export interface HeatCapacityFreePumpValveThermodynamicExchangeResult {
+  state: HeatCapacityThermodynamicState;
+  activeDtS: number;
+  gasExchangeAmountMol: number;
   heatGasToChamberJ: number;
 }
 
@@ -280,5 +293,88 @@ export const stepFreePumpValveExchange = (
     activeDtS,
     gasExchangeAmountRatio: gasExchange.gasExchangeAmountRatio,
     heatGasToChamberJ: thermalExchange.heatGasToChamberJ,
+  };
+};
+
+export const stepFreePumpValveThermodynamicExchange = (
+  state: HeatCapacityThermodynamicState,
+  system: HeatCapacityThermodynamicSystemConfig,
+  config: HeatCapacityFreePumpValveExchangeConfig,
+  input: HeatCapacityFreePumpValveExchangeInput,
+): HeatCapacityFreePumpValveThermodynamicExchangeResult => {
+  const safeConfig = normalizeFreePumpValveExchangeConfig(config);
+  const activeDtS = safeConfig.enabled
+    ? calculateActiveOpenDurationS(
+      input.valveOpenElapsedBeforeS,
+      input.dtS,
+      safeConfig.openingDelayS,
+    )
+    : 0;
+  if (!safeConfig.enabled || activeDtS <= 0) {
+    return {
+      state,
+      activeDtS,
+      gasExchangeAmountMol: 0,
+      heatGasToChamberJ: 0,
+    };
+  }
+
+  const before = deriveHeatCapacityThermodynamicState(state, system);
+  const projectedExchange = stepGasExchange(
+    {
+      gasAmountRatio: before.gasAmountRatio,
+      gasTemperatureK: before.gasTemperatureK,
+    },
+    safeConfig,
+    input,
+    activeDtS,
+  );
+  const gasExchangeAmountMol = (
+    projectedExchange.state.gasAmountRatio - before.gasAmountRatio
+  ) * system.referenceAmountMol;
+  const sourceTemperatureK = gasExchangeAmountMol > 0
+    ? positiveFiniteOrFallback(input.ambientTemperatureK, before.gasTemperatureK)
+    : before.gasTemperatureK;
+  const massExchangedState = gasExchangeAmountMol === 0
+    ? state
+    : applyHeatCapacityMassEnergyFlux(state, {
+        source: 'pump-valve-gas-exchange',
+        amountDeltaMol: gasExchangeAmountMol,
+        internalEnergyDeltaJ: gasExchangeAmountMol *
+          before.cvMolarJPerMolK *
+          sourceTemperatureK,
+      });
+  const afterMassExchange = deriveHeatCapacityThermodynamicState(
+    massExchangedState,
+    system,
+  );
+  const chamberTemperatureK = positiveFiniteOrFallback(
+    input.ambientTemperatureK,
+    afterMassExchange.gasTemperatureK,
+  );
+  const requestedHeatGasToChamberJ = safeConfig.thermalConductanceWPerK *
+    (afterMassExchange.gasTemperatureK - chamberTemperatureK) *
+    activeDtS;
+  const equilibriumHeatGasToChamberJ = afterMassExchange.gasHeatCapacityJPerK *
+    (afterMassExchange.gasTemperatureK - chamberTemperatureK);
+  const heatGasToChamberJ = Math.sign(requestedHeatGasToChamberJ) ===
+    Math.sign(equilibriumHeatGasToChamberJ)
+    ? Math.sign(requestedHeatGasToChamberJ) * Math.min(
+        Math.abs(requestedHeatGasToChamberJ),
+        Math.abs(equilibriumHeatGasToChamberJ),
+      )
+    : 0;
+  const nextState = heatGasToChamberJ === 0
+    ? massExchangedState
+    : applyHeatCapacityMassEnergyFlux(massExchangedState, {
+        source: 'pump-valve-thermal-exchange',
+        amountDeltaMol: 0,
+        internalEnergyDeltaJ: -heatGasToChamberJ,
+      });
+  return {
+    state: nextState,
+    activeDtS,
+    gasExchangeAmountMol,
+    heatGasToChamberJ,
   };
 };

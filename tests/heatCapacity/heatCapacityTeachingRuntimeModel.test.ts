@@ -17,6 +17,8 @@ import {
 } from '../../src/domain/heatCapacity/heatCapacityDisplayResponse.ts';
 import {
   applyPressureZero,
+  HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
+  HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
   mapHeatCapacitySignals,
 } from '../../src/domain/heatCapacity/heatCapacitySensorMapping.ts';
 
@@ -27,8 +29,9 @@ const baseControls = {
   pumpFrequency: 0,
   pumpFrequencyStatus: 'idle' as const,
 };
-const initialTemperatureMv = getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.initialTemperatureMvRange);
+const initialTemperatureMv = HEAT_CAPACITY_TEMPERATURE_BASELINE_MV;
 const teachingPresetValueFields: Array<keyof HeatCapacityTeachingProfile> = [
+  'temperatureCalibrationVersion',
   'gammaTarget',
   'theoreticalGamma',
   'u0TargetMv',
@@ -91,6 +94,40 @@ assert.equal(powered.pressureSignalMvRaw, 0);
 assert.equal(powered.pressureSignalMvDisplayed, 0);
 assert.equal('heatCapacityTrace' in powered, false, 'runtime should not accumulate realtime chart trace history');
 
+const legacyCalibratedRuntime = createDefaultHeatCapacityRuntimeState(1_000, {
+  sensor: {
+    ...powered.modelConfig.sensor,
+    temperatureBaseMv: 1600,
+    temperatureSensitivityMvPerK: 2,
+  },
+});
+assert.equal(legacyCalibratedRuntime.modelConfig.sensor.temperatureBaseMv, initialTemperatureMv);
+assert.equal(
+  legacyCalibratedRuntime.modelConfig.sensor.temperatureSensitivityMvPerK,
+  HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
+);
+assert.equal(legacyCalibratedRuntime.temperatureSignalMv, initialTemperatureMv);
+
+const restoredLegacyRuntime = powerHeatCapacityRuntimeState({
+  ...powered,
+  sensorTemperatureK: undefined as unknown as number,
+  modelConfig: {
+    ...powered.modelConfig,
+    sensor: {
+      ...powered.modelConfig.sensor,
+      temperatureBaseMv: 1550,
+      temperatureSensitivityMvPerK: 4,
+    },
+  },
+}, true, 1_050);
+assert.equal(restoredLegacyRuntime.sensorTemperatureK, restoredLegacyRuntime.gasTemperatureK);
+assert.equal(restoredLegacyRuntime.modelConfig.sensor.temperatureBaseMv, initialTemperatureMv);
+assert.equal(
+  restoredLegacyRuntime.modelConfig.sensor.temperatureSensitivityMvPerK,
+  HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
+);
+assert.equal(restoredLegacyRuntime.temperatureSignalMv, initialTemperatureMv);
+
 const preOffsetState = {
   ...powered,
   gasPressureKPaAbs: powered.ambientPressureKPa + 0.5,
@@ -140,9 +177,40 @@ const slowPump = applyHeatCapacityPumpStroke(
 assert.equal(slowPump.accepted, true);
 assert.equal(slowPump.state.heatCapacityPhase, 'pumping');
 assert.equal(slowPump.state.pressureDeltaKPa > powered.pressureDeltaKPa, true);
-assert.equal(slowPump.state.temperatureSignalMv > powered.temperatureSignalMv, true);
+assert.equal(slowPump.state.gasTemperatureK > powered.gasTemperatureK, true);
+assert.equal(slowPump.state.sensorTemperatureK, powered.sensorTemperatureK);
+assert.equal(
+  slowPump.state.temperatureSignalMv,
+  powered.temperatureSignalMv,
+  'a pump stroke should change true temperature before the independent sensor responds',
+);
 assert.equal(slowPump.state.pressureSignalMvRaw >= 1.5, true);
 assert.equal(slowPump.state.pressureSignalMvRaw <= 2.5, true);
+
+const slowPumpSensorResponse = stepHeatCapacityExperiment(
+  slowPump.state,
+  { ...baseControls, pumpValveOpen: true },
+  0.1,
+  1_400,
+);
+assert.equal(slowPumpSensorResponse.sensorTemperatureK > powered.sensorTemperatureK, true);
+assert.equal(slowPumpSensorResponse.sensorTemperatureK < slowPumpSensorResponse.gasTemperatureK, true);
+assert.equal(slowPumpSensorResponse.temperatureSignalMv > powered.temperatureSignalMv, true);
+const expectedSensorTemperatureK = powered.sensorTemperatureK +
+  (slowPumpSensorResponse.gasTemperatureK - powered.sensorTemperatureK) *
+    (1 - Math.exp(-0.1 / 0.8));
+assert.equal(
+  Math.abs(slowPumpSensorResponse.sensorTemperatureK - expectedSensorTemperatureK) < 0.00001,
+  true,
+  'Demo runtime should use the shared 0.8 s first-order temperature sensor response',
+);
+assert.equal(
+  slowPumpSensorResponse.temperatureSignalMv,
+  Number((initialTemperatureMv +
+    HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K *
+      (slowPumpSensorResponse.sensorTemperatureK - slowPumpSensorResponse.ambientTemperatureK)).toFixed(3)),
+  'Demo U_T should be the direct shared mapping of sensor temperature without another UI lag',
+);
 
 const suitablePump = applyHeatCapacityPumpStroke(
   slowPump.state,
@@ -192,6 +260,12 @@ for (let index = 0; index < 8; index += 1) {
     },
     1_500 + index * 450,
   ).state;
+  warmedByPumping = stepHeatCapacityExperiment(
+    warmedByPumping,
+    { ...baseControls, pumpValveOpen: true },
+    0.45,
+    1_950 + index * 450,
+  );
 }
 const warmedTemperatureMv = warmedByPumping.temperatureSignalMv;
 const sealedCooling = stepHeatCapacityExperiment(
@@ -240,12 +314,20 @@ const released = stepHeatCapacityExperiment(
 assert.equal(released.heatCapacityPhase, 'releasing');
 assert.equal(released.pressureDeltaKPa < suitablePump.state.pressureDeltaKPa * 0.35, true);
 
-const recovered = stepHeatCapacityExperiment(
+let recovered = stepHeatCapacityExperiment(
   released,
   { ...baseControls, stopcockOpen: false },
   2.5,
   4_400,
 );
+for (let index = 0; index < 8; index += 1) {
+  recovered = stepHeatCapacityExperiment(
+    recovered,
+    { ...baseControls, stopcockOpen: false },
+    1,
+    5_400 + index * 1_000,
+  );
+}
 assert.equal(recovered.heatCapacityPhase === 'recovering' || recovered.heatCapacityPhase === 'sealedStabilizing', true);
 assert.equal(
   Math.abs(recovered.temperatureSignalMv - initialTemperatureMv) < Math.abs(released.temperatureSignalMv - initialTemperatureMv),

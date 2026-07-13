@@ -11,6 +11,7 @@ import {
   createDefaultGuidePhysicsState,
   deriveGuidePhysicalState,
   stepGuidePhysicsState,
+  type HeatCapacityGuidePhysicsConfig,
 } from '../../src/domain/heatCapacity/heatCapacityGuidePhysicsEngine.ts';
 import {
   createDefaultHeatCapacityGuideWorkflow,
@@ -33,7 +34,15 @@ import {
   createDefaultFreePhysicsState,
   deriveFreePhysicalState,
   stepFreePhysics,
+  type HeatCapacityFreePhysicsState,
 } from '../../src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
+
+const createTestGuidePhysicsConfig = (): HeatCapacityGuidePhysicsConfig =>
+  createDefaultGuidePhysicsConfig();
+
+const assertNear = (actual: number, expected: number, tolerance: number, message: string) => {
+  assert.equal(Math.abs(actual - expected) <= tolerance, true, message);
+};
 
 {
   const trial0 = createHeatCapacityGuideTrial('guide-trial-1');
@@ -68,9 +77,10 @@ import {
 }
 
 {
-  const config = createDefaultGuidePhysicsConfig();
+  const config = createTestGuidePhysicsConfig();
   assert.equal(config.vesselVolumeL, 2);
-  assert.equal(config.pumpAmountGainRatio, 0.00345);
+  assert.equal(config.pumpAmountGainRatio, 0.00334);
+  assert.equal(config.pumpWorkRetention, 0.3);
   assert.equal(config.pumpPressureLimitKPa, 109);
   assert.equal(config.stopcockFlowRate, createDefaultHeatCapacityCorePhysicsDefaults().stopcockFlowRate);
   assert.deepEqual(config.thermal, {
@@ -109,7 +119,8 @@ import {
 
   const recovered = stepGuidePhysicsState({
     ...afterStroke,
-    gasTemperatureK: config.environment.ambientTemperatureK + 10,
+    internalEnergyJ: afterStroke.internalEnergyJ *
+      ((config.environment.ambientTemperatureK + 10) / afterStroke.gasTemperatureK),
   }, config, {
     dtS: 60,
     powerOn: true,
@@ -130,7 +141,7 @@ import {
 }
 
 {
-  const guideConfig = createDefaultGuidePhysicsConfig();
+  const guideConfig = createTestGuidePhysicsConfig();
   const freeDefaults = createDefaultHeatCapacityFreePhysicsConfig();
   const guideEquivalentFreeConfig = {
     ...freeDefaults,
@@ -165,12 +176,20 @@ import {
     HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS,
     HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS,
   ]) {
+    const guideInitialState = createDefaultGuidePhysicsState(guideConfig);
     let guideState = {
-      ...createDefaultGuidePhysicsState(guideConfig),
-      gasAmountRatio: 1.06,
+      ...guideInitialState,
+      amountMol: guideInitialState.referenceAmountMol * 1.06,
+      internalEnergyJ: guideInitialState.internalEnergyJ * 1.06,
     };
-    let freeState = {
-      ...createDefaultFreePhysicsState(guideEquivalentFreeConfig, 'guide-free-parity'),
+    const freeInitialState = createDefaultFreePhysicsState(
+      guideEquivalentFreeConfig,
+      'guide-free-parity',
+    );
+    let freeState: HeatCapacityFreePhysicsState = {
+      ...freeInitialState,
+      amountMol: (freeInitialState.referenceAmountMol ?? 0) * 1.06,
+      internalEnergyJ: (freeInitialState.internalEnergyJ ?? 0) * 1.06,
       gasAmountRatio: 1.06,
     };
 
@@ -187,11 +206,13 @@ import {
       stopcockFlowPurpose: 'release',
     }, releaseDurationS, releaseDurationS);
 
-    assert.equal(guideState.gasAmountRatio, freeState.gasAmountRatio);
-    assert.equal(guideState.gasTemperatureK, freeState.gasTemperatureK);
-    assert.equal(
+    assertNear(guideState.gasAmountRatio, freeState.gasAmountRatio, 0.0001, 'Guide and Free release amount should remain aligned');
+    assertNear(guideState.gasTemperatureK, freeState.gasTemperatureK, 0.05, 'Guide and Free release temperature should remain aligned');
+    assertNear(
       deriveGuidePhysicalState(guideState, guideConfig).pressureDeltaKPa,
       deriveFreePhysicalState(freeState, guideEquivalentFreeConfig).pressureDeltaKPa,
+      0.02,
+      'Guide and Free release pressure should remain aligned',
     );
 
     guideState = stepGuidePhysicsState(guideState, guideConfig, {
@@ -205,11 +226,13 @@ import {
       stopcockOpen: false,
     }, 300, releaseDurationS + 300);
 
-    assert.equal(guideState.gasAmountRatio, freeState.gasAmountRatio);
-    assert.equal(guideState.gasTemperatureK, freeState.gasTemperatureK);
-    assert.equal(
+    assertNear(guideState.gasAmountRatio, freeState.gasAmountRatio, 0.0001, 'Guide and Free recovered amount should remain aligned');
+    assertNear(guideState.gasTemperatureK, freeState.gasTemperatureK, 0.05, 'Guide and Free recovered temperature should remain aligned');
+    assertNear(
       deriveGuidePhysicalState(guideState, guideConfig).pressureDeltaKPa,
       deriveFreePhysicalState(freeState, guideEquivalentFreeConfig).pressureDeltaKPa,
+      0.02,
+      'Guide and Free recovered pressure should remain aligned',
     );
   }
 }

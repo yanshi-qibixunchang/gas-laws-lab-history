@@ -8,10 +8,15 @@ import {
   FREE_PUMP_STROKE_DURATION_S,
   getFreePumpStrokeProgress,
   stepFreePhysics,
+  synchronizeFreePhysicsThermodynamicState,
   type HeatCapacityFreeControls,
   type HeatCapacityFreePhysicsConfig,
   type HeatCapacityFreePhysicsState,
 } from '../../src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
+import {
+  deriveHeatCapacityMolarProperties,
+  HEAT_CAPACITY_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K,
+} from '../../src/domain/heatCapacity/heatCapacityThermodynamicKernel.ts';
 import {
   HEAT_CAPACITY_STANDARD_OPERATION,
 } from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
@@ -24,6 +29,7 @@ const baseConfig: HeatCapacityFreePhysicsConfig = {
   vesselVolumeL: 2,
   gamma: 1.4,
   pumpAmountGainRatio: 0.00345,
+  pumpWorkRetention: 0.25,
   pumpPressureLimitKPa: 300,
   stopcockFlowRate: 4,
   thermal: {
@@ -91,16 +97,42 @@ const expectClose = (actual: number, expected: number, tolerance: number, messag
   );
 };
 
-const calculateMixedPumpTemperatureK = (
+const createLegacyFreePhysicsState = (
+  state: HeatCapacityFreePhysicsState,
+  overrides: Partial<HeatCapacityFreePhysicsState> = {},
+) => {
+  const legacy = {
+    ...state,
+    ...overrides,
+  };
+  delete legacy.amountMol;
+  delete legacy.internalEnergyJ;
+  delete legacy.referenceAmountMol;
+  return legacy as HeatCapacityFreePhysicsState;
+};
+
+const createThermodynamicTestState = (
+  state: HeatCapacityFreePhysicsState,
+  overrides: Partial<HeatCapacityFreePhysicsState>,
+  config = baseConfig,
+) => synchronizeFreePhysicsThermodynamicState(
+  createLegacyFreePhysicsState(state, overrides),
+  config,
+);
+
+const calculateReducedFlowWorkPumpTemperatureK = (
   amountRatio: number,
   temperatureK: number,
   amountDeltaRatio: number,
   config = baseConfig,
 ) => {
   const nextAmountRatio = amountRatio + amountDeltaRatio;
+  const retainedFlowWorkTemperatureRatio = config.pumpWorkRetention *
+    (config.gamma - 1);
   return (
     amountRatio * temperatureK +
-    amountDeltaRatio * config.environment.ambientTemperatureK
+    amountDeltaRatio * config.environment.ambientTemperatureK *
+      (1 + retainedFlowWorkTemperatureRatio)
   ) / nextAmountRatio;
 };
 
@@ -148,6 +180,9 @@ const initialDerived = deriveFreePhysicalState(initial, baseConfig);
 assert.equal(initial.gasAmountRatio, 1);
 assert.equal(initial.gasTemperatureK, baseConfig.environment.ambientTemperatureK);
 assert.equal(initial.wallTemperatureK, baseConfig.environment.ambientTemperatureK);
+assert.equal(Number.isFinite(initial.amountMol), true);
+assert.equal(Number.isFinite(initial.internalEnergyJ), true);
+assert.equal(Number.isFinite(initial.referenceAmountMol), true);
 assert.deepEqual(initial.pumpProcesses, []);
 assert.equal(initialDerived.gasPressureKPa, baseConfig.environment.ambientPressureKPa);
 assert.equal(initialDerived.pressureDeltaKPa, 0);
@@ -160,14 +195,41 @@ assert.equal(initial.ambientTemperatureOffsetK, 0);
 assert.equal(initial.effectiveAmbientPressureKPa, baseConfig.environment.ambientPressureKPa);
 assert.equal(initial.effectiveAmbientTemperatureK, baseConfig.environment.ambientTemperatureK);
 
-const modifiedAmount = {
+const migratedLegacyState = synchronizeFreePhysicsThermodynamicState(
+  createLegacyFreePhysicsState(initial, {
+    gasAmountRatio: 1.03,
+    gasTemperatureK: baseConfig.environment.ambientTemperatureK + 2,
+  }),
+  baseConfig,
+);
+expectClose(migratedLegacyState.gasAmountRatio, 1.03, 1e-12, 'legacy amount ratio should migrate to amountMol');
+expectClose(
+  migratedLegacyState.gasTemperatureK,
+  baseConfig.environment.ambientTemperatureK + 2,
+  1e-12,
+  'legacy temperature should migrate to internalEnergyJ',
+);
+assert.equal(Number.isFinite(migratedLegacyState.amountMol), true);
+assert.equal(Number.isFinite(migratedLegacyState.internalEnergyJ), true);
+
+const staleCompatibilityAliases = {
   ...initial,
+  gasAmountRatio: 4,
+  gasTemperatureK: 100,
+};
+expectClose(
+  deriveFreePhysicalState(staleCompatibilityAliases, baseConfig).gasPressureKPa,
+  initialDerived.gasPressureKPa,
+  1e-12,
+  'authoritative amountMol/internalEnergyJ must not be overwritten by stale compatibility aliases',
+);
+
+const modifiedAmount = createThermodynamicTestState(initial, {
   gasAmountRatio: 1.12,
-};
-const modifiedTemperature = {
-  ...modifiedAmount,
+});
+const modifiedTemperature = createThermodynamicTestState(modifiedAmount, {
   gasTemperatureK: baseConfig.environment.ambientTemperatureK + 12,
-};
+});
 assert.equal(
   deriveFreePhysicalState(modifiedAmount, baseConfig).gasPressureKPa >
     deriveFreePhysicalState(initial, baseConfig).gasPressureKPa,
@@ -186,11 +248,10 @@ assert.equal(
   'physical state must not store pressure as independent long-lived truth',
 );
 
-const hotSealed = {
-  ...initial,
+const hotSealed = createThermodynamicTestState(initial, {
   gasAmountRatio: 1.08,
   gasTemperatureK: baseConfig.environment.ambientTemperatureK + 10,
-};
+});
 const hotSealedPressure = deriveFreePhysicalState(hotSealed, baseConfig).gasPressureKPa;
 const cooledSealed = stepFreePhysics(hotSealed, baseConfig, controls, 2, 12);
 assert.equal(cooledSealed.gasAmountRatio, hotSealed.gasAmountRatio, 'closed waiting should preserve amount');
@@ -227,11 +288,41 @@ assert.equal(
   'micro-leak should reduce pressure through gas amount, not by clamping pressure',
 );
 
-const belowAmbientSealed = stepFreePhysics(
-  {
-    ...initial,
-    gasAmountRatio: 0.96,
+const leakageOnlyConfig: HeatCapacityFreePhysicsConfig = {
+  ...leakageConfig,
+  thermal: {
+    ...leakageConfig.thermal,
+    gasWallConductanceWPerK: 0,
+    wallAmbientConductanceWPerK: 0,
   },
+};
+const leakageOnlyStart = createThermodynamicTestState(
+  createDefaultFreePhysicsState(leakageOnlyConfig),
+  {
+    gasAmountRatio: 1.08,
+    gasTemperatureK: leakageOnlyConfig.environment.ambientTemperatureK + 8,
+  },
+  leakageOnlyConfig,
+);
+const leakageOnlyEnd = stepFreePhysics(
+  leakageOnlyStart,
+  leakageOnlyConfig,
+  controls,
+  1,
+  1,
+);
+assert.equal(leakageOnlyEnd.gasAmountRatio < leakageOnlyStart.gasAmountRatio, true);
+expectClose(
+  leakageOnlyEnd.gasTemperatureK,
+  leakageOnlyStart.gasTemperatureK,
+  1e-10,
+  'sealed outflow leakage should remove the current molar internal energy without a temperature jump',
+);
+
+const belowAmbientSealed = stepFreePhysics(
+  createThermodynamicTestState(initial, {
+    gasAmountRatio: 0.96,
+  }),
   leakageConfig,
   controls,
   60,
@@ -286,11 +377,13 @@ assert.equal(
 );
 expectClose(
   deriveFreePhysicalState(disturbedA, environmentDisturbanceConfig).gasPressureKPa,
-  disturbedA.effectiveAmbientPressureKPa *
-    disturbedA.gasAmountRatio *
-    (disturbedA.gasTemperatureK / disturbedA.effectiveAmbientTemperatureK),
+  (disturbedA.amountMol ?? 0) *
+    HEAT_CAPACITY_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K *
+    disturbedA.gasTemperatureK /
+    (environmentDisturbanceConfig.vesselVolumeL / 1000) /
+    1000,
   1e-9,
-  'derived pressure should use the effective disturbed environment',
+  'absolute gas pressure must be derived from nRT/V while the disturbed ambient only changes pressure delta',
 );
 
 const pumpValveExchangeConfig = {
@@ -306,10 +399,9 @@ const pumpValveExchangeControls = {
   ...controls,
   pumpValveOpen: true,
 };
-const pressurizedWithOpenPumpValve = {
-  ...initial,
+const pressurizedWithOpenPumpValve = createThermodynamicTestState(initial, {
   gasAmountRatio: 1.08,
-};
+});
 const pumpValveBeforeOpenDelay = stepFreePhysics(
   pressurizedWithOpenPumpValve,
   pumpValveExchangeConfig,
@@ -337,11 +429,48 @@ assert.equal(
   'pump-valve exchange should leak high-pressure gas outward after the opening delay',
 );
 assert.equal(pumpValveAfterOpenDelay.currentPumpValveOpenDurationS, 1.2);
-const pumpValveClosedImmediately = stepFreePhysics(
-  {
-    ...pumpValveAfterOpenDelay,
-    gasAmountRatio: 1.08,
+
+const pumpValveOutflowOnlyConfig: HeatCapacityFreePhysicsConfig = {
+  ...pumpValveExchangeConfig,
+  pumpValveExchange: {
+    ...pumpValveExchangeConfig.pumpValveExchange!,
+    openingDelayS: 0,
   },
+  thermal: {
+    ...pumpValveExchangeConfig.thermal,
+    gasWallConductanceWPerK: 0,
+    wallAmbientConductanceWPerK: 0,
+  },
+};
+const pumpValveOutflowOnlyStart = createThermodynamicTestState(
+  createDefaultFreePhysicsState(pumpValveOutflowOnlyConfig),
+  {
+    gasAmountRatio: 1.08,
+    gasTemperatureK: pumpValveOutflowOnlyConfig.environment.ambientTemperatureK + 8,
+  },
+  pumpValveOutflowOnlyConfig,
+);
+const pumpValveOutflowOnlyEnd = stepFreePhysics(
+  pumpValveOutflowOnlyStart,
+  pumpValveOutflowOnlyConfig,
+  pumpValveExchangeControls,
+  1,
+  1,
+);
+assert.equal(
+  pumpValveOutflowOnlyEnd.gasAmountRatio < pumpValveOutflowOnlyStart.gasAmountRatio,
+  true,
+);
+expectClose(
+  pumpValveOutflowOnlyEnd.gasTemperatureK,
+  pumpValveOutflowOnlyStart.gasTemperatureK,
+  1e-10,
+  'pump-valve outflow should remove the current molar internal energy without a temperature jump',
+);
+const pumpValveClosedImmediately = stepFreePhysics(
+  createThermodynamicTestState(pumpValveAfterOpenDelay, {
+    gasAmountRatio: 1.08,
+  }, pumpValveExchangeConfig),
   pumpValveExchangeConfig,
   controls,
   1,
@@ -365,6 +494,26 @@ assert.equal(pendingPump.accepted, true);
 assert.equal(pendingPump.state.gasAmountRatio, initial.gasAmountRatio, 'accepted pump should enqueue a continuous stroke instead of jumping gas amount');
 assert.equal(pendingPump.state.gasTemperatureK, initial.gasTemperatureK, 'accepted pump should not jump gas temperature before the stroke progresses');
 assert.equal(pendingPump.state.pumpProcesses.length, 1);
+assert.throws(
+  () => applyFreePumpStroke(
+    initial,
+    { ...baseConfig, pumpWorkRetention: undefined as unknown as number },
+    { ...controls, pumpValveOpen: true },
+    { atS: 1, strength: 1 },
+  ),
+  /pumpWorkRetention must be configured/,
+  'missing retention must not silently fall back to zero',
+);
+assert.throws(
+  () => applyFreePumpStroke(
+    initial,
+    { ...baseConfig, pumpWorkRetention: 1 },
+    { ...controls, pumpValveOpen: true },
+    { atS: 1, strength: 1 },
+  ),
+  /reserved for ideal-upper-bound tests/,
+  'production engine must reserve retention=1 for isolated upper-bound tests',
+);
 const halfPumped = stepFreePhysics(pendingPump.state, baseConfig, controls, 0.04, 1.04);
 expectClose(
   halfPumped.gasAmountRatio,
@@ -374,13 +523,13 @@ expectClose(
 );
 expectClose(
   halfPumped.gasTemperatureK,
-  calculateMixedPumpTemperatureK(
+  calculateReducedFlowWorkPumpTemperatureK(
     initial.gasAmountRatio,
     initial.gasTemperatureK,
     baseConfig.pumpAmountGainRatio * 0.68,
   ),
   0.002,
-  'early in the 0.08 s pump stroke should derive heating from the amount of incoming gas',
+  'early in the pump stroke should include retained compression flow work',
 );
 assert.equal(halfPumped.pumpProcesses.length, 1);
 const fullyPumped = stepFreePhysics(halfPumped, baseConfig, controls, 0.04, 1.08);
@@ -391,6 +540,110 @@ expectClose(
   'after 0.08 s the pump stroke should finish its full gas amount',
 );
 assert.equal(fullyPumped.pumpProcesses.length, 0, 'finished pump stroke should be removed from the active queue');
+
+const isolatedPumpConfig: HeatCapacityFreePhysicsConfig = {
+  ...baseConfig,
+  thermal: {
+    ...baseConfig.thermal,
+    gasWallConductanceWPerK: 0,
+    wallAmbientConductanceWPerK: 0,
+  },
+};
+const isolatedPumpInitial = createDefaultFreePhysicsState(isolatedPumpConfig);
+const isolatedPumpAccepted = applyFreePumpStroke(
+  isolatedPumpInitial,
+  isolatedPumpConfig,
+  { ...controls, pumpValveOpen: true },
+  { atS: 4, strength: 1 },
+);
+assert.equal(isolatedPumpAccepted.accepted, true);
+const isolatedPumpFinished = stepFreePhysics(
+  isolatedPumpAccepted.state,
+  isolatedPumpConfig,
+  controls,
+  FREE_PUMP_STROKE_DURATION_S,
+  4 + FREE_PUMP_STROKE_DURATION_S,
+);
+const { cvMolarJPerMolK } = deriveHeatCapacityMolarProperties(isolatedPumpConfig.gamma);
+const expectedPumpAmountDeltaMol = (isolatedPumpInitial.referenceAmountMol ?? 0) *
+  isolatedPumpConfig.pumpAmountGainRatio;
+const expectedPumpEnergyDeltaJ = expectedPumpAmountDeltaMol *
+  isolatedPumpConfig.environment.ambientTemperatureK *
+  (
+    cvMolarJPerMolK +
+    isolatedPumpConfig.pumpWorkRetention * HEAT_CAPACITY_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
+  );
+expectClose(
+  (isolatedPumpFinished.amountMol ?? 0) - (isolatedPumpInitial.amountMol ?? 0),
+  expectedPumpAmountDeltaMol,
+  1e-12,
+  'one pump stroke should add the configured amount of gas',
+);
+expectClose(
+  (isolatedPumpFinished.internalEnergyJ ?? 0) - (isolatedPumpInitial.internalEnergyJ ?? 0),
+  expectedPumpEnergyDeltaJ,
+  1e-10,
+  'one pump stroke should add ambient internal energy plus retained compression flow work',
+);
+assert.equal(
+  isolatedPumpFinished.gasTemperatureK > isolatedPumpInitial.gasTemperatureK,
+  true,
+  'the first physical pump stroke must raise gas temperature',
+);
+
+const runPumpCadence = (intervalS: number, strokeCount: number) => {
+  let state = createDefaultFreePhysicsState(baseConfig);
+  let atS = 0;
+  let peakTemperatureK = state.gasTemperatureK;
+  for (let index = 0; index < strokeCount; index += 1) {
+    const acceptedStroke = applyFreePumpStroke(
+      state,
+      baseConfig,
+      { ...controls, pumpValveOpen: true },
+      { atS, strength: 1 },
+    );
+    assert.equal(acceptedStroke.accepted, true);
+    const strokeEndS = atS + FREE_PUMP_STROKE_DURATION_S;
+    state = stepFreePhysics(
+      acceptedStroke.state,
+      baseConfig,
+      controls,
+      FREE_PUMP_STROKE_DURATION_S,
+      strokeEndS,
+    );
+    peakTemperatureK = Math.max(peakTemperatureK, state.gasTemperatureK);
+    const interStrokeWaitS = Math.max(0, intervalS - FREE_PUMP_STROKE_DURATION_S);
+    if (interStrokeWaitS > 0 && index < strokeCount - 1) {
+      atS += intervalS;
+      state = stepFreePhysics(
+        state,
+        baseConfig,
+        controls,
+        interStrokeWaitS,
+        atS,
+      );
+    } else {
+      atS = strokeEndS;
+    }
+  }
+  return { state, peakTemperatureK };
+};
+
+const rapidEightPumps = runPumpCadence(0.1, 8);
+const slowEightPumps = runPumpCadence(2, 8);
+assert.equal(
+  rapidEightPumps.peakTemperatureK > slowEightPumps.peakTemperatureK,
+  true,
+  'equal pump counts must peak hotter at a fast cadence because less heat escapes between strokes',
+);
+const rapidPumpPeaks = [4, 8, 12, 18].map((strokeCount) => (
+  runPumpCadence(0.1, strokeCount).peakTemperatureK
+));
+assert.equal(
+  rapidPumpPeaks.every((peak, index) => index === 0 || peak > rapidPumpPeaks[index - 1]),
+  true,
+  '4, 8, 12 and 18 rapid strokes should produce progressively higher gas-temperature peaks',
+);
 
 const rapidCadencePump = applyFreePumpStroke(
   initial,
@@ -408,7 +661,7 @@ const rapidCadenceAfterOneInterval = stepFreePhysics(
 assert.equal(
   rapidCadenceAfterOneInterval.pumpProcesses.length,
   0,
-  'a pump stroke should complete before the recommended 0.1 s next stroke so four clicks render as four visible steps',
+  'a pump stroke should complete before a non-standard rapid 0.1 s next stroke so four clicks render as four visible steps',
 );
 
 let rapidSeparatedPumps = applyFreePumpStroke(
@@ -429,7 +682,7 @@ expectClose(
   rapidSeparatedPumps.gasAmountRatio,
   initial.gasAmountRatio + baseConfig.pumpAmountGainRatio * (1 + 0.68),
   0.000000001,
-  'pump strokes 0.1 s apart should be separated enough to draw as visible stair steps',
+  'non-standard rapid pump strokes 0.1 s apart should remain visible as separate stair steps',
 );
 
 const pumped = pumpOnce(initial, 1, 1.25);
@@ -474,11 +727,13 @@ const rejectCases: Array<[
   ['stopcockOpen', initial, { ...controls, pumpValveOpen: true, stopcockOpen: true }],
   [
     'pressureDanger',
-    {
-      ...initial,
+    createThermodynamicTestState(initial, {
       gasAmountRatio: 3,
-      maxPressureKPa: deriveFreePhysicalState({ ...initial, gasAmountRatio: 3 }, baseConfig).gasPressureKPa,
-    },
+      maxPressureKPa: deriveFreePhysicalState(
+        createThermodynamicTestState(initial, { gasAmountRatio: 3 }),
+        baseConfig,
+      ).gasPressureKPa,
+    }),
     { ...controls, pumpValveOpen: true },
   ],
 ];
@@ -516,19 +771,21 @@ for (const [expectedReason, state, caseControls] of rejectCases) {
   assert.ok(u1Mv <= 120);
 }
 
-const aboveAmbient = {
-  ...initial,
+const aboveAmbient = createThermodynamicTestState(initial, {
   gasAmountRatio: 1.1,
   gasTemperatureK: baseConfig.environment.ambientTemperatureK,
-};
+});
 
 const createAboveAmbientReleaseState = (
   config = baseConfig,
-): HeatCapacityFreePhysicsState => ({
-  ...createDefaultFreePhysicsState(config),
-  gasAmountRatio: 1.08,
-  gasTemperatureK: config.environment.ambientTemperatureK,
-});
+): HeatCapacityFreePhysicsState => createThermodynamicTestState(
+  createDefaultFreePhysicsState(config),
+  {
+    gasAmountRatio: 1.08,
+    gasTemperatureK: config.environment.ambientTemperatureK,
+  },
+  config,
+);
 
 const releaseForDuration = (
   durationS: number,
@@ -617,11 +874,10 @@ assert.deepEqual(
   'micro-leak config should not alter the open-stopcock release path',
 );
 
-const belowAmbient = {
-  ...initial,
+const belowAmbient = createThermodynamicTestState(initial, {
   gasAmountRatio: 0.92,
   gasTemperatureK: baseConfig.environment.ambientTemperatureK,
-};
+});
 const filled = stepFreePhysics(
   belowAmbient,
   baseConfig,
@@ -672,8 +928,17 @@ assert.equal(settled.gasAmountRatio > initial.gasAmountRatio, true, 'state 2 amo
 assert.equal(quickReleased.gasAmountRatio < settled.gasAmountRatio, true, 'state 3 quick release should reduce amount');
 assert.equal(quickReleased.gasAmountRatio > initial.gasAmountRatio, true, 'state 3 amount should remain above initial after a good release');
 assert.equal(recovered.gasAmountRatio, quickReleased.gasAmountRatio, 'state 4 recovery should preserve state 3 amount');
-expectClose(state1.gasTemperatureK, initial.gasTemperatureK, 1e-9, 'state 1 should not gain fixed pump heat');
-expectClose(settled.gasTemperatureK, initial.gasTemperatureK, 1e-9, 'state 2 should stay near ambient without fixed pump heat');
+assert.equal(
+  state1.gasTemperatureK > initial.gasTemperatureK,
+  true,
+  'state 1 should gain temperature from retained pump flow work',
+);
+assert.equal(
+  settled.gasTemperatureK < state1.gasTemperatureK &&
+    settled.gasTemperatureK > initial.gasTemperatureK,
+  true,
+  'state 2 should cool continuously toward ambient without a scripted temperature reset',
+);
 assert.equal(quickReleased.gasTemperatureK < initial.gasTemperatureK, true, 'state 3 temperature should drop below ambient');
 assert.equal(recovered.gasTemperatureK > quickReleased.gasTemperatureK, true, 'state 4 temperature should recover from release cooling');
 assert.equal(recovered.gasTemperatureK < initial.gasTemperatureK, true, 'state 4 should still recover gradually through wall inertia');

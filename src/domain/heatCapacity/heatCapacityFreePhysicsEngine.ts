@@ -1,15 +1,14 @@
 import {
-  createDefaultFreeThermalState,
-  stepFreeThermalState,
+  deriveEffectiveFreeGasWallConductanceWPerK,
   type HeatCapacityFreeThermalConfig,
 } from './heatCapacityFreeThermalModel.ts';
 import {
-  stepFreeLeakageAmountRatio,
+  stepFreeLeakageThermodynamicState,
   type HeatCapacityFreeLeakageConfig,
 } from './heatCapacityFreeLeakageModel.ts';
 import {
   DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG,
-  stepFreePumpValveExchange,
+  stepFreePumpValveThermodynamicExchange,
   type HeatCapacityFreePumpValveExchangeConfig,
 } from './heatCapacityFreePumpValveExchangeModel.ts';
 import {
@@ -24,6 +23,17 @@ import {
   HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA,
   stepHeatCapacityReleaseGasState,
 } from './heatCapacityReleaseModel.ts';
+import {
+  applyHeatCapacityMassEnergyFlux,
+  calculateHeatCapacityIdealGasAmountMol,
+  createHeatCapacityThermodynamicStateAtAmbient,
+  createHeatCapacityThermodynamicStateFromTemperature,
+  createReducedFlowWorkPumpEnergyFluxV1,
+  deriveHeatCapacityThermodynamicState,
+  stepHeatCapacityThermodynamicHeatExchange,
+  type HeatCapacityThermodynamicState,
+  type HeatCapacityThermodynamicSystemConfig,
+} from './heatCapacityThermodynamicKernel.ts';
 
 export interface HeatCapacityFreeEnvironmentConfig {
   ambientTemperatureK: number;
@@ -35,6 +45,7 @@ export interface HeatCapacityFreePhysicsConfig {
   vesselVolumeL: number;
   gamma: number;
   pumpAmountGainRatio: number;
+  pumpWorkRetention: number;
   pumpPressureLimitKPa: number;
   stopcockFlowRate: number;
   thermal: HeatCapacityFreeThermalConfig;
@@ -51,8 +62,17 @@ export interface HeatCapacityFreePumpProcess {
 
 export interface HeatCapacityFreePhysicsState {
   simulationTimeS: number;
+  /** Authoritative gas amount. Optional only at the legacy persistence boundary. */
+  amountMol?: number;
+  /** Authoritative gas internal energy. Optional only at the legacy persistence boundary. */
+  internalEnergyJ?: number;
+  /** Fixed amount represented by gasAmountRatio = 1. */
+  referenceAmountMol?: number;
+  /** Compatibility projection; synchronized from amountMol. */
   gasAmountRatio: number;
+  /** Compatibility projection; synchronized from internalEnergyJ / (n Cv). */
   gasTemperatureK: number;
+  /** Shared kernel wall temperature projection. */
   wallTemperatureK: number;
   pumpProcesses: HeatCapacityFreePumpProcess[];
   pumpStrokeCount: number;
@@ -128,6 +148,110 @@ const clampUnit = (value: number) => (
   Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0
 );
 
+const requireProductionPumpWorkRetention = (value: number) => {
+  if (!Number.isFinite(value)) {
+    throw new RangeError('pumpWorkRetention must be configured as a finite number.');
+  }
+  if (value < 0 || value >= 1) {
+    throw new RangeError(
+      'production pumpWorkRetention must be in [0, 1); 1 is reserved for ideal-upper-bound tests.',
+    );
+  }
+  return value;
+};
+
+const resolveFreeReferenceAmountMol = (
+  state: Pick<HeatCapacityFreePhysicsState, 'referenceAmountMol'>,
+  config: HeatCapacityFreePhysicsConfig,
+) => (
+  Number.isFinite(state.referenceAmountMol) && (state.referenceAmountMol ?? 0) > 0
+    ? state.referenceAmountMol as number
+    : calculateHeatCapacityIdealGasAmountMol({
+        ambientPressureKPa: config.environment.ambientPressureKPa,
+        ambientTemperatureK: config.environment.ambientTemperatureK,
+        vesselVolumeL: config.vesselVolumeL,
+      })
+);
+
+const createFreeThermodynamicSystem = (
+  state: Pick<HeatCapacityFreePhysicsState, 'referenceAmountMol'>,
+  config: HeatCapacityFreePhysicsConfig,
+): HeatCapacityThermodynamicSystemConfig => ({
+  gammaTrue: config.gamma,
+  vesselVolumeL: config.vesselVolumeL,
+  referenceAmountMol: resolveFreeReferenceAmountMol(state, config),
+});
+
+const createFreeAmbientEquilibriumSystem = (
+  system: HeatCapacityThermodynamicSystemConfig,
+  config: HeatCapacityFreePhysicsConfig,
+): HeatCapacityThermodynamicSystemConfig => ({
+  ...system,
+  referenceAmountMol: calculateHeatCapacityIdealGasAmountMol({
+    ambientPressureKPa: config.environment.ambientPressureKPa,
+    ambientTemperatureK: config.environment.ambientTemperatureK,
+    vesselVolumeL: config.vesselVolumeL,
+  }),
+});
+
+const materializeFreeThermodynamicState = (
+  state: Pick<
+    HeatCapacityFreePhysicsState,
+    | 'amountMol'
+    | 'internalEnergyJ'
+    | 'referenceAmountMol'
+    | 'gasAmountRatio'
+    | 'gasTemperatureK'
+    | 'wallTemperatureK'
+  >,
+  config: HeatCapacityFreePhysicsConfig,
+) => {
+  const system = createFreeThermodynamicSystem(state, config);
+  const amountMol = Number.isFinite(state.amountMol) && (state.amountMol ?? 0) > 0
+    ? state.amountMol as number
+    : system.referenceAmountMol * Math.max(MIN_GAS_AMOUNT_RATIO, state.gasAmountRatio);
+  const gasTemperatureK = Math.max(MIN_GAS_TEMPERATURE_K, state.gasTemperatureK);
+  const wallTemperatureK = Math.max(MIN_GAS_TEMPERATURE_K, state.wallTemperatureK);
+  const migrated = createHeatCapacityThermodynamicStateFromTemperature({
+    amountMol,
+    gasTemperatureK,
+    wallTemperatureK,
+    gammaTrue: config.gamma,
+  });
+  const thermodynamicState: HeatCapacityThermodynamicState = {
+    ...migrated,
+    internalEnergyJ: Number.isFinite(state.internalEnergyJ) && (state.internalEnergyJ ?? 0) > 0
+      ? state.internalEnergyJ as number
+      : migrated.internalEnergyJ,
+  };
+  return {
+    system,
+    state: thermodynamicState,
+  };
+};
+
+export const synchronizeFreePhysicsThermodynamicState = (
+  state: HeatCapacityFreePhysicsState,
+  config: HeatCapacityFreePhysicsConfig,
+  thermodynamicState?: HeatCapacityThermodynamicState,
+): HeatCapacityFreePhysicsState => {
+  const materialized = materializeFreeThermodynamicState(state, config);
+  const authoritativeState = thermodynamicState ?? materialized.state;
+  const derived = deriveHeatCapacityThermodynamicState(
+    authoritativeState,
+    materialized.system,
+  );
+  return {
+    ...state,
+    amountMol: authoritativeState.amountMol,
+    internalEnergyJ: authoritativeState.internalEnergyJ,
+    referenceAmountMol: materialized.system.referenceAmountMol,
+    gasAmountRatio: derived.gasAmountRatio,
+    gasTemperatureK: derived.gasTemperatureK,
+    wallTemperatureK: authoritativeState.wallTemperatureK,
+  };
+};
+
 const isStopcockCurrentlyOpen = (state: HeatCapacityFreePhysicsState) => (
   state.lastStopcockOpenedAtS !== null &&
   (
@@ -163,74 +287,93 @@ export const deriveFreePhysicalState = (
   state: HeatCapacityFreePhysicsState,
   config: HeatCapacityFreePhysicsConfig,
 ) => {
+  const materialized = materializeFreeThermodynamicState(state, config);
+  const thermodynamic = deriveHeatCapacityThermodynamicState(
+    materialized.state,
+    materialized.system,
+  );
   const ambientPressureKPa = Number.isFinite(state.effectiveAmbientPressureKPa)
     ? state.effectiveAmbientPressureKPa
     : config.environment.ambientPressureKPa;
-  const ambientTemperatureK = Number.isFinite(state.effectiveAmbientTemperatureK)
-    ? state.effectiveAmbientTemperatureK
-    : config.environment.ambientTemperatureK;
-  const gasPressureKPa = ambientPressureKPa *
-    state.gasAmountRatio *
-    (state.gasTemperatureK / ambientTemperatureK);
   return {
-    gasPressureKPa,
-    pressureDeltaKPa: gasPressureKPa - ambientPressureKPa,
+    gasPressureKPa: thermodynamic.gasPressureKPa,
+    pressureDeltaKPa: thermodynamic.gasPressureKPa - ambientPressureKPa,
   };
 };
 
 export const createDefaultFreePhysicsState = (
   config: HeatCapacityFreePhysicsConfig,
   environmentDisturbanceSeed: number | string = 'free-physics',
-): HeatCapacityFreePhysicsState => ({
-  simulationTimeS: 0,
-  gasAmountRatio: 1,
-  ...createDefaultFreeThermalState(config.environment.ambientTemperatureK),
-  pumpProcesses: [],
-  pumpStrokeCount: 0,
-  lastPumpStrokeAtS: null,
-  lastPumpValveOpenedAtS: null,
-  lastPumpValveClosedAtS: null,
-  currentPumpValveOpenDurationS: 0,
-  environmentDisturbanceSeed,
-  ambientPressureOffsetKPa: 0,
-  ambientTemperatureOffsetK: 0,
-  effectiveAmbientPressureKPa: config.environment.ambientPressureKPa,
-  effectiveAmbientTemperatureK: config.environment.ambientTemperatureK,
-  maxPressureKPa: config.environment.ambientPressureKPa,
-  releaseStarted: false,
-  lastStopcockOpenedAtS: null,
-  lastStopcockClosedAtS: null,
-  currentStopcockOpenDurationS: 0,
-  releaseReference: null,
-});
+): HeatCapacityFreePhysicsState => {
+  const thermodynamic = createHeatCapacityThermodynamicStateAtAmbient({
+    ambientPressureKPa: config.environment.ambientPressureKPa,
+    ambientTemperatureK: config.environment.ambientTemperatureK,
+    vesselVolumeL: config.vesselVolumeL,
+    gammaTrue: config.gamma,
+  });
+  return {
+    simulationTimeS: 0,
+    amountMol: thermodynamic.state.amountMol,
+    internalEnergyJ: thermodynamic.state.internalEnergyJ,
+    referenceAmountMol: thermodynamic.system.referenceAmountMol,
+    gasAmountRatio: 1,
+    gasTemperatureK: config.environment.ambientTemperatureK,
+    wallTemperatureK: config.environment.ambientTemperatureK,
+    pumpProcesses: [],
+    pumpStrokeCount: 0,
+    lastPumpStrokeAtS: null,
+    lastPumpValveOpenedAtS: null,
+    lastPumpValveClosedAtS: null,
+    currentPumpValveOpenDurationS: 0,
+    environmentDisturbanceSeed,
+    ambientPressureOffsetKPa: 0,
+    ambientTemperatureOffsetK: 0,
+    effectiveAmbientPressureKPa: config.environment.ambientPressureKPa,
+    effectiveAmbientTemperatureK: config.environment.ambientTemperatureK,
+    maxPressureKPa: config.environment.ambientPressureKPa,
+    releaseStarted: false,
+    lastStopcockOpenedAtS: null,
+    lastStopcockClosedAtS: null,
+    currentStopcockOpenDurationS: 0,
+    releaseReference: null,
+  };
+};
 
 const getPumpProcesses = (
   state: HeatCapacityFreePhysicsState,
 ) => state.pumpProcesses ?? [];
 
 const applyPumpInflow = (
-  state: Pick<HeatCapacityFreePhysicsState, 'gasAmountRatio' | 'gasTemperatureK'>,
+  state: HeatCapacityFreePhysicsState,
   config: HeatCapacityFreePhysicsConfig,
   amountDeltaRatio: number,
-) => {
+): HeatCapacityFreePhysicsState => {
+  const synchronizedState = synchronizeFreePhysicsThermodynamicState(state, config);
   const safeAmountDeltaRatio = clampNonNegativeFinite(amountDeltaRatio);
   if (safeAmountDeltaRatio === 0) {
-    return state;
+    return synchronizedState;
   }
-  const gasAmountRatio = Math.max(MIN_GAS_AMOUNT_RATIO, state.gasAmountRatio);
-  const gasTemperatureK = Math.max(MIN_GAS_TEMPERATURE_K, state.gasTemperatureK);
-  const inflowTemperatureK = Math.max(
-    MIN_GAS_TEMPERATURE_K,
-    config.environment.ambientTemperatureK,
+  const materialized = materializeFreeThermodynamicState(synchronizedState, config);
+  const retention = requireProductionPumpWorkRetention(config.pumpWorkRetention);
+  const pumpEnergy = createReducedFlowWorkPumpEnergyFluxV1({
+    amountDeltaMol: materialized.system.referenceAmountMol * safeAmountDeltaRatio,
+    ambientTemperatureK: Math.max(
+      MIN_GAS_TEMPERATURE_K,
+      config.environment.ambientTemperatureK,
+    ),
+    gammaTrue: config.gamma,
+    pumpWorkRetention: retention,
+    usage: 'production',
+  });
+  const nextThermodynamicState = applyHeatCapacityMassEnergyFlux(
+    materialized.state,
+    pumpEnergy.flux,
   );
-  const nextAmountRatio = gasAmountRatio + safeAmountDeltaRatio;
-  return {
-    gasAmountRatio: nextAmountRatio,
-    gasTemperatureK: (
-      gasAmountRatio * gasTemperatureK +
-      safeAmountDeltaRatio * inflowTemperatureK
-    ) / nextAmountRatio,
-  };
+  return synchronizeFreePhysicsThermodynamicState(
+    synchronizedState,
+    config,
+    nextThermodynamicState,
+  );
 };
 
 const projectStateAfterPendingAndNewPump = (
@@ -238,30 +381,22 @@ const projectStateAfterPendingAndNewPump = (
   config: HeatCapacityFreePhysicsConfig,
   newStrength = 0,
 ) => {
-  let gasAmountRatio = state.gasAmountRatio;
-  let gasTemperatureK = state.gasTemperatureK;
+  let projectedState = synchronizeFreePhysicsThermodynamicState(state, config);
   for (const process of getPumpProcesses(state)) {
     const remainingProgress = 1 - clampUnit(process.appliedProgress);
     const strength = clampNonNegativeFinite(process.strength);
-    const pumped = applyPumpInflow(
-      { gasAmountRatio, gasTemperatureK },
+    projectedState = applyPumpInflow(
+      projectedState,
       config,
       config.pumpAmountGainRatio * strength * remainingProgress,
     );
-    gasAmountRatio = pumped.gasAmountRatio;
-    gasTemperatureK = pumped.gasTemperatureK;
   }
   const safeNewStrength = clampNonNegativeFinite(newStrength);
-  const pumped = applyPumpInflow(
-    { gasAmountRatio, gasTemperatureK },
+  return applyPumpInflow(
+    projectedState,
     config,
     config.pumpAmountGainRatio * safeNewStrength,
   );
-  return {
-    ...state,
-    gasAmountRatio: pumped.gasAmountRatio,
-    gasTemperatureK: pumped.gasTemperatureK,
-  };
 };
 
 const stepPumpProcesses = (
@@ -277,8 +412,7 @@ const stepPumpProcesses = (
     };
   }
 
-  let gasAmountRatio = state.gasAmountRatio;
-  let gasTemperatureK = state.gasTemperatureK;
+  let pumpedState = synchronizeFreePhysicsThermodynamicState(state, config);
   const nextProcesses: HeatCapacityFreePumpProcess[] = [];
 
   for (const process of processes) {
@@ -287,13 +421,11 @@ const stepPumpProcesses = (
     const nextProgress = getFreePumpStrokeProgress(atS - process.startedAtS);
     const progressDelta = Math.max(0, nextProgress - previousProgress);
     if (progressDelta > 0 && strength > 0) {
-      const pumped = applyPumpInflow(
-        { gasAmountRatio, gasTemperatureK },
+      pumpedState = applyPumpInflow(
+        pumpedState,
         config,
         config.pumpAmountGainRatio * strength * progressDelta,
       );
-      gasAmountRatio = pumped.gasAmountRatio;
-      gasTemperatureK = pumped.gasTemperatureK;
     }
     if (nextProgress < 1) {
       nextProcesses.push({
@@ -303,10 +435,8 @@ const stepPumpProcesses = (
     }
   }
 
-  const pumpedState: HeatCapacityFreePhysicsState = {
-    ...state,
-    gasAmountRatio,
-    gasTemperatureK,
+  pumpedState = {
+    ...pumpedState,
     pumpProcesses: nextProcesses,
   };
   const pressureKPa = deriveFreePhysicalState(pumpedState, config).gasPressureKPa;
@@ -345,36 +475,37 @@ export const applyFreePumpStroke = (
   controls: HeatCapacityFreeControls,
   event: HeatCapacityFreePumpStrokeEvent,
 ): HeatCapacityFreePumpStrokeResult => {
+  const synchronizedState = synchronizeFreePhysicsThermodynamicState(state, config);
   if (!controls.pumpValveOpen) {
-    return createPumpReject('pumpValveClosed', state);
+    return createPumpReject('pumpValveClosed', synchronizedState);
   }
   if (controls.stopcockOpen) {
-    return createPumpReject('stopcockOpen', state);
+    return createPumpReject('stopcockOpen', synchronizedState);
   }
 
-  const currentPressureKPa = deriveFreePhysicalState(state, config).gasPressureKPa;
+  const currentPressureKPa = deriveFreePhysicalState(synchronizedState, config).gasPressureKPa;
   const pressureLimitKPa = getFreePumpPressureLimitKPa(config);
   if (currentPressureKPa >= pressureLimitKPa) {
-    return createPumpReject('pressureDanger', state);
+    return createPumpReject('pressureDanger', synchronizedState);
   }
 
   const strength = clampNonNegativeFinite(event.strength);
-  const candidateState = projectStateAfterPendingAndNewPump(state, config, strength);
+  const candidateState = projectStateAfterPendingAndNewPump(synchronizedState, config, strength);
   const nextPressureKPa = deriveFreePhysicalState(candidateState, config).gasPressureKPa;
   if (nextPressureKPa >= HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA) {
-    return createPumpReject('pressureDanger', state);
+    return createPumpReject('pressureDanger', synchronizedState);
   }
 
   return {
     accepted: true,
     reason: 'accepted',
     state: {
-      ...state,
+      ...synchronizedState,
       simulationTimeS: event.atS,
-      pumpStrokeCount: state.pumpStrokeCount + 1,
+      pumpStrokeCount: synchronizedState.pumpStrokeCount + 1,
       lastPumpStrokeAtS: event.atS,
       pumpProcesses: [
-        ...getPumpProcesses(state),
+        ...getPumpProcesses(synchronizedState),
         {
           startedAtS: event.atS,
           strength,
@@ -408,21 +539,55 @@ const stepThermalState = (
   state: HeatCapacityFreePhysicsState,
   config: HeatCapacityFreePhysicsConfig,
   dtS: number,
-) => stepFreeThermalState(
-  {
-    gasTemperatureK: state.gasTemperatureK,
-    wallTemperatureK: state.wallTemperatureK,
-  },
-  config.thermal,
-  {
-    ambientPressureKPa: config.environment.ambientPressureKPa,
-    ambientTemperatureK: config.environment.ambientTemperatureK,
-    vesselVolumeL: config.vesselVolumeL,
-    gamma: config.gamma,
-    gasAmountRatio: state.gasAmountRatio,
-    dtS,
-  },
-);
+) => {
+  const synchronizedState = synchronizeFreePhysicsThermodynamicState(state, config);
+  const materialized = materializeFreeThermodynamicState(synchronizedState, config);
+  let thermodynamicState = materialized.state;
+  let remainingS = clampNonNegativeFinite(dtS);
+  let heatGasToWallJ = 0;
+  let heatWallToAmbientJ = 0;
+  while (remainingS > 0) {
+    const stepS = Math.min(remainingS, FREE_OPEN_FLOW_MAX_SUBSTEP_S);
+    const derived = deriveHeatCapacityThermodynamicState(
+      thermodynamicState,
+      materialized.system,
+    );
+    const gasWallConductanceWPerK = deriveEffectiveFreeGasWallConductanceWPerK(
+      config.thermal.gasWallConductanceWPerK,
+      Math.abs(derived.gasTemperatureK - thermodynamicState.wallTemperatureK),
+    );
+    const exchange = stepHeatCapacityThermodynamicHeatExchange(
+      thermodynamicState,
+      materialized.system,
+      {
+        ambientTemperatureK: config.environment.ambientTemperatureK,
+        gasWallConductanceWPerK,
+        wallAmbientConductanceWPerK: config.thermal.wallAmbientConductanceWPerK,
+        wallHeatCapacityJPerK: config.thermal.wallHeatCapacityJPerK,
+        maxSubstepS: stepS,
+      },
+      stepS,
+    );
+    thermodynamicState = exchange.state;
+    heatGasToWallJ += exchange.ledger.heatGasToWallJ;
+    heatWallToAmbientJ += exchange.ledger.heatWallToAmbientJ;
+    remainingS -= stepS;
+  }
+  const derived = deriveHeatCapacityThermodynamicState(
+    thermodynamicState,
+    materialized.system,
+  );
+  return {
+    state: synchronizeFreePhysicsThermodynamicState(
+      synchronizedState,
+      config,
+      thermodynamicState,
+    ),
+    gasHeatCapacityJPerK: derived.gasHeatCapacityJPerK,
+    heatGasToWallJ,
+    heatWallToAmbientJ,
+  };
+};
 
 const getOpenStopcockFlowRatePerS = (
   config: HeatCapacityFreePhysicsConfig,
@@ -439,26 +604,40 @@ const stepOpenFlowAmountAndTemperature = (
 ) => {
   const flowCoefficient = getOpenStopcockFlowRatePerS(config);
   if (flowCoefficient === 0 || dtS <= 0) {
-    return state;
+    return synchronizeFreePhysicsThermodynamicState(state, config);
   }
-
-  const next = stepHeatCapacityReleaseGasState(state, {
+  const synchronizedState = synchronizeFreePhysicsThermodynamicState(state, config);
+  const materialized = materializeFreeThermodynamicState(synchronizedState, config);
+  const flowSystem = createFreeAmbientEquilibriumSystem(materialized.system, config);
+  const derived = deriveHeatCapacityThermodynamicState(
+    materialized.state,
+    flowSystem,
+  );
+  const next = stepHeatCapacityReleaseGasState({
+    gasAmountRatio: derived.gasAmountRatio,
+    gasTemperatureK: derived.gasTemperatureK,
+  }, {
     ambientPressureKPa: config.environment.ambientPressureKPa,
     ambientTemperatureK: config.environment.ambientTemperatureK,
     gamma: config.gamma,
     coefficient: flowCoefficient,
   }, dtS);
-  return {
-    ...state,
-    gasAmountRatio: next.gasAmountRatio,
+  const nextThermodynamicState = createHeatCapacityThermodynamicStateFromTemperature({
+    amountMol: flowSystem.referenceAmountMol * next.gasAmountRatio,
     gasTemperatureK: next.gasTemperatureK,
-  };
+    wallTemperatureK: materialized.state.wallTemperatureK,
+    gammaTrue: config.gamma,
+  });
+  return synchronizeFreePhysicsThermodynamicState(
+    synchronizedState,
+    config,
+    nextThermodynamicState,
+  );
 };
 
-const stepSealedLeakageAmountRatio = (
+const stepSealedLeakageState = (
   state: HeatCapacityFreePhysicsState,
   config: HeatCapacityFreePhysicsConfig,
-  gasTemperatureK: number,
   dtS: number,
 ) => {
   const closedElapsedBeforeS = state.releaseStarted && state.lastStopcockClosedAtS !== null
@@ -476,16 +655,23 @@ const stepSealedLeakageAmountRatio = (
         ),
       }
     : config.leakage;
-  return stepFreeLeakageAmountRatio(
-    state.gasAmountRatio,
+  const synchronizedState = synchronizeFreePhysicsThermodynamicState(state, config);
+  const materialized = materializeFreeThermodynamicState(synchronizedState, config);
+  const flowSystem = createFreeAmbientEquilibriumSystem(materialized.system, config);
+  const nextThermodynamicState = stepFreeLeakageThermodynamicState(
+    materialized.state,
+    flowSystem,
     leakage,
     {
       ambientPressureKPa: config.environment.ambientPressureKPa,
       ambientTemperatureK: config.environment.ambientTemperatureK,
-      gasAmountRatio: state.gasAmountRatio,
-      gasTemperatureK,
       dtS,
     },
+  );
+  return synchronizeFreePhysicsThermodynamicState(
+    synchronizedState,
+    config,
+    nextThermodynamicState,
   );
 };
 
@@ -533,11 +719,12 @@ const stepPumpValveExchangeState = (
   dtS: number,
   valveOpenElapsedBeforeS: number,
 ) => {
-  const result = stepFreePumpValveExchange(
-    {
-      gasAmountRatio: state.gasAmountRatio,
-      gasTemperatureK: state.gasTemperatureK,
-    },
+  const synchronizedState = synchronizeFreePhysicsThermodynamicState(state, config);
+  const materialized = materializeFreeThermodynamicState(synchronizedState, config);
+  const flowSystem = createFreeAmbientEquilibriumSystem(materialized.system, config);
+  const result = stepFreePumpValveThermodynamicExchange(
+    materialized.state,
+    flowSystem,
     config.pumpValveExchange ?? DEFAULT_HEAT_CAPACITY_FREE_PUMP_VALVE_EXCHANGE_CONFIG,
     {
       ambientPressureKPa: config.environment.ambientPressureKPa,
@@ -548,11 +735,11 @@ const stepPumpValveExchangeState = (
       valveOpenElapsedBeforeS,
     },
   );
-  return {
-    ...state,
-    gasAmountRatio: result.state.gasAmountRatio,
-    gasTemperatureK: result.state.gasTemperatureK,
-  };
+  return synchronizeFreePhysicsThermodynamicState(
+    synchronizedState,
+    config,
+    result.state,
+  );
 };
 
 const applyPumpValveTiming = (
@@ -592,14 +779,9 @@ const stepOpenState = (
       config,
       stepS,
     );
-    const thermalState = {
-      ...nextState,
-      gasTemperatureK: thermal.state.gasTemperatureK,
-      wallTemperatureK: thermal.state.wallTemperatureK,
-    };
     const effectiveFlowDtS = getHeatCapacityReleaseApertureEffectiveDtS(openElapsedS, stepS);
     nextState = stepOpenFlowAmountAndTemperature(
-      thermalState,
+      thermal.state,
       config,
       effectiveFlowDtS,
     );
@@ -629,7 +811,8 @@ export const stepFreePhysics = (
   dtS: number,
   atS: number,
 ): HeatCapacityFreePhysicsState => {
-  const environmentState = applyEnvironmentDisturbanceState(state, config, atS);
+  const synchronizedState = synchronizeFreePhysicsThermodynamicState(state, config);
+  const environmentState = applyEnvironmentDisturbanceState(synchronizedState, config, atS);
   const effectiveConfig = createEffectiveEnvironmentConfig(config, environmentState);
   const wasStopcockOpen = isStopcockCurrentlyOpen(environmentState);
   const wasPumpValveOpen = isPumpValveCurrentlyOpen(environmentState);
@@ -643,18 +826,14 @@ export const stepFreePhysics = (
 
   if (!controls.stopcockOpen) {
     const thermal = stepThermalState(pumpedState, effectiveConfig, dtS);
-    const gasAmountRatio = stepSealedLeakageAmountRatio(
-      pumpedState,
+    const leakedState = stepSealedLeakageState(
+      thermal.state,
       effectiveConfig,
-      thermal.state.gasTemperatureK,
       dtS,
     );
     const thermalLeakageState: HeatCapacityFreePhysicsState = {
-      ...pumpedState,
+      ...leakedState,
       simulationTimeS: atS,
-      gasAmountRatio,
-      gasTemperatureK: thermal.state.gasTemperatureK,
-      wallTemperatureK: thermal.state.wallTemperatureK,
       lastStopcockClosedAtS: wasStopcockOpen ? atS : environmentState.lastStopcockClosedAtS,
       currentStopcockOpenDurationS: 0,
     };
@@ -686,10 +865,10 @@ export const stepFreePhysics = (
   const openedBaseState: HeatCapacityFreePhysicsState = {
     ...pumpedState,
     simulationTimeS: atS,
-    lastStopcockOpenedAtS: newlyOpened ? atS : state.lastStopcockOpenedAtS,
+    lastStopcockOpenedAtS: newlyOpened ? atS : synchronizedState.lastStopcockOpenedAtS,
     currentStopcockOpenDurationS: newlyOpened
       ? clampNonNegativeFinite(dtS)
-      : state.currentStopcockOpenDurationS + clampNonNegativeFinite(dtS),
+      : synchronizedState.currentStopcockOpenDurationS + clampNonNegativeFinite(dtS),
   };
   const openingReleaseReference = newlyOpened && releaseEligible
     ? createReleaseReference(openedBaseState, effectiveConfig, atS)

@@ -221,9 +221,13 @@ const pumpAcceptanceAtPressure = (
 ) => {
   const applied = applyHeatCapacityFreeParameterDraftToConfigs(draft);
   const physicsConfig = applied.physicsConfig;
+  const ambientState = createDefaultFreePhysicsState(physicsConfig);
+  const gasAmountRatio = absolutePressureKPa / physicsConfig.environment.ambientPressureKPa;
   const state: HeatCapacityFreePhysicsState = {
-    ...createDefaultFreePhysicsState(physicsConfig),
-    gasAmountRatio: absolutePressureKPa / physicsConfig.environment.ambientPressureKPa,
+    ...ambientState,
+    amountMol: ambientState.referenceAmountMol! * gasAmountRatio,
+    internalEnergyJ: ambientState.internalEnergyJ! * gasAmountRatio,
+    gasAmountRatio,
     gasTemperatureK: physicsConfig.environment.ambientTemperatureK,
     maxPressureKPa: absolutePressureKPa,
   };
@@ -458,8 +462,12 @@ const hotLeakingDraft = createDraft({
   leakageRatePerS: 0.02,
 });
 const hotLeakingApplied = applyHeatCapacityFreeParameterDraftToConfigs(hotLeakingDraft);
+const hotLeakingAmbientState = createDefaultFreePhysicsState(hotLeakingApplied.physicsConfig);
 const hotLeakingInitial: HeatCapacityFreePhysicsState = {
-  ...createDefaultFreePhysicsState(hotLeakingApplied.physicsConfig),
+  ...hotLeakingAmbientState,
+  internalEnergyJ: hotLeakingAmbientState.internalEnergyJ! *
+    310 /
+    hotLeakingApplied.physicsConfig.environment.ambientTemperatureK,
   gasAmountRatio: 1,
   gasTemperatureK: 310,
 };

@@ -40,7 +40,8 @@ export const HEAT_CAPACITY_GUIDE_FIXED_PUMP_TARGET_MV = 120;
 export const HEAT_CAPACITY_AUTO_DEMO_INITIAL_PRESSURE_BIAS_MV = 0.75;
 export const HEAT_CAPACITY_AUTO_DEMO_RESULT_U0_MV = 0;
 export const HEAT_CAPACITY_AUTO_DEMO_RESULT_U1_MV = HEAT_CAPACITY_GUIDE_FIXED_PUMP_TARGET_MV;
-export const HEAT_CAPACITY_AUTO_DEMO_RESULT_TEMPERATURE_MV = 1499;
+export const HEAT_CAPACITY_AUTO_DEMO_RESULT_TEMPERATURE_MV =
+  DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG.temperatureBaseMv;
 
 export const HEAT_CAPACITY_RELEASE_TIMING = {
   openingAnimationDurationMs: 420,
@@ -61,17 +62,23 @@ export const HEAT_CAPACITY_GAMMA_ABSOLUTE_ERROR_LIMITS = {
 
 export const HEAT_CAPACITY_STANDARD_OPERATION = {
   pumpStrokes: 18,
-  pumpTotalDurationS: 12,
+  // First-to-last stroke start span; the final physical stroke duration is additional.
+  pumpTotalDurationS: 8,
   waitAfterPumpS: 300,
   releaseDurationS: HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS,
   waitAfterReleaseS: 300,
 } as const;
+
+export const HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S =
+  HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS /
+  Math.max(1, HEAT_CAPACITY_STANDARD_OPERATION.pumpStrokes - 1);
 
 export interface HeatCapacityCorePhysicsDefaults {
   environment: HeatCapacityFreeEnvironmentConfig;
   vesselVolumeL: number;
   gamma: number;
   pumpAmountGainRatio: number;
+  pumpWorkRetention: number;
   pumpPressureLimitKPa: number;
   stopcockFlowRate: number;
   thermal: HeatCapacityFreeThermalConfig;
@@ -93,7 +100,10 @@ export const createDefaultHeatCapacityCorePhysicsDefaults = (): HeatCapacityCore
   environment: createDefaultHeatCapacityEnvironmentConfig(),
   vesselVolumeL: 2,
   gamma: 1.4,
-  pumpAmountGainRatio: 0.00345,
+  pumpAmountGainRatio: 0.00334,
+  // Calibrated jointly with pumpAmountGainRatio by the 18-stroke / 8 s air
+  // reference scenario. Keep strictly below the ideal-flow-work upper bound.
+  pumpWorkRetention: 0.3,
   pumpPressureLimitKPa: 109,
   stopcockFlowRate: 0.79,
   thermal: createDefaultHeatCapacityThermalConfig(),
@@ -125,6 +135,7 @@ export const createDefaultHeatCapacityFreePhysicsConfig = (): HeatCapacityFreePh
     vesselVolumeL: core.vesselVolumeL,
     gamma: core.gamma,
     pumpAmountGainRatio: core.pumpAmountGainRatio,
+    pumpWorkRetention: core.pumpWorkRetention,
     pumpPressureLimitKPa: core.pumpPressureLimitKPa,
     stopcockFlowRate: core.stopcockFlowRate,
     thermal: core.thermal,
@@ -137,7 +148,7 @@ export const createDefaultHeatCapacityFreePhysicsConfig = (): HeatCapacityFreePh
 export const createDefaultHeatCapacityFreeSensorConfig = (): HeatCapacityFreeSensorConfig => ({
   pressureMvPerKPa: DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG.pressureSensitivityMvPerKPa,
   temperatureMvAtAmbient: DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG.temperatureBaseMv,
-  temperatureMvPerK: 2,
+  temperatureMvPerK: DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG.temperatureSensitivityMvPerK,
   lagRate: 8,
   noiseMv: 0.04,
   quantizationMv: 0.01,
@@ -156,8 +167,8 @@ export const createDefaultHeatCapacityFreeSensorConfig = (): HeatCapacityFreeSen
 export const createDefaultHeatCapacityFreeRecordConfig = (): HeatCapacityFreeRecordConfig => ({
   u0ZeroToleranceMv: 0.12,
   pressureStableSlopeMvPerS: 0.25,
-  temperatureStableSlopeMvPerS: 0.12,
-  temperatureAmbientToleranceMv: 0.35,
+  temperatureStableSlopeMvPerS: 0.3,
+  temperatureAmbientToleranceMv: 0.875,
   minimumUsefulU1CorrectedMv: 90,
   overVentedMinimumU2CorrectedMv: 0.2,
   pressureDangerMv: 140,
@@ -172,6 +183,7 @@ export const createDefaultHeatCapacityGuidePhysicsConfig = (): HeatCapacityGuide
     vesselVolumeL: core.vesselVolumeL,
     gamma: core.gamma,
     pumpAmountGainRatio: core.pumpAmountGainRatio,
+    pumpWorkRetention: core.pumpWorkRetention,
     pumpPressureLimitKPa: core.pumpPressureLimitKPa,
     stopcockFlowRate: core.stopcockFlowRate,
     thermal: core.thermal,

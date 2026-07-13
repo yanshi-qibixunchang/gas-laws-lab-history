@@ -378,13 +378,13 @@ export const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberPar
   {
     id: 'sensorLagTimeS',
     group: 'nonIdealCorrection',
-    label: { 'zh-CN': '传感器滞后时间', 'zh-TW': '感測器滯後時間', en: 'Sensor lag time' },
+    label: { 'zh-CN': '压强通道滞后时间', 'zh-TW': '壓強通道滯後時間', en: 'Pressure-channel lag time' },
     parts: [],
     unit: 's',
     effect: {
-      'zh-CN': '决定显示读数追随真实状态的快慢；数值越大，读数越滞后。',
-      'zh-TW': '決定顯示讀數追隨真實狀態的快慢；數值越大，讀數越滯後。',
-      en: 'Controls how slowly displayed readings follow the true state; larger values lag more.',
+      'zh-CN': '决定压强读数追随真实压强的快慢；数值越大，压强读数越滞后。温度通道使用独立的共享传感器模型。',
+      'zh-TW': '決定壓強讀數追隨真實壓強的快慢；數值越大，壓強讀數越滯後。溫度通道使用獨立的共享感測器模型。',
+      en: 'Controls how slowly the pressure reading follows true pressure. The temperature channel uses its independent shared sensor model.',
     },
     precision: 3,
     min: 0.001,

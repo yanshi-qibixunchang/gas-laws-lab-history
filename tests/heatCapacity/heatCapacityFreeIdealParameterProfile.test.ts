@@ -41,9 +41,17 @@ assert.equal(equilibriumConfig.physics.thermal.gasWallConductanceWPerK > 0, true
 assert.equal(equilibriumConfig.physics.thermal.wallAmbientConductanceWPerK > 0, true);
 
 const hotOffsetK = 12;
+const ambientState = createDefaultFreePhysicsState(
+  equilibriumConfig.physics,
+  'ideal-thermal-profile-test',
+);
+const heatedGasTemperatureK = equilibriumConfig.environment.ambientTemperatureK + hotOffsetK;
 const heatedState = {
-  ...createDefaultFreePhysicsState(equilibriumConfig.physics, 'ideal-thermal-profile-test'),
-  gasTemperatureK: equilibriumConfig.environment.ambientTemperatureK + hotOffsetK,
+  ...ambientState,
+  internalEnergyJ: ambientState.internalEnergyJ! *
+    heatedGasTemperatureK /
+    equilibriumConfig.environment.ambientTemperatureK,
+  gasTemperatureK: heatedGasTemperatureK,
   wallTemperatureK: equilibriumConfig.environment.ambientTemperatureK,
 };
 const settledState = stepFreePhysics(

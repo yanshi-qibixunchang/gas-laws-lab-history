@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   adjustHeatCapacityPressureZeroCoarse,
   adjustHeatCapacityPressureZeroFine,
+  applyHeatCapacityFreeParameterDraftWorkbenchState,
   applyHeatCapacityPressureZero,
   canZeroHeatCapacityPressure,
   captureHeatCapacityWorkbenchSample,
@@ -64,7 +65,6 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   HEAT_CAPACITY_VIDEO_PROFILE,
-  getHeatCapacityRangeMidpoint,
 } from '../../src/domain/heatCapacity/heatCapacityDisplayResponse.ts';
 import {
   createHeatCapacityAutoDemoSteps,
@@ -113,7 +113,7 @@ const workbenchStateSource = readFileSync(
   join(process.cwd(), 'src', 'features', 'workbench', 'workbenchState.ts'),
   'utf8',
 );
-const initialTemperatureMv = getHeatCapacityRangeMidpoint(HEAT_CAPACITY_VIDEO_PROFILE.initialTemperatureMvRange);
+const initialTemperatureMv = DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient;
 
 assert.equal(defaultFile.powerOn, false);
 assert.equal(defaultFile.heatCapacityMode, 'free');
@@ -123,16 +123,17 @@ assert.deepEqual(defaultFile.heatCapacityFreeEnvironmentConfig, {
   ambientPressureKPa: 101.3,
 });
 assert.equal(defaultFile.heatCapacityFreePhysicsConfig.vesselVolumeL, 2);
-assert.equal(defaultFile.heatCapacityFreePhysicsConfig.pumpAmountGainRatio, 0.00345);
+assert.equal(defaultFile.heatCapacityFreePhysicsConfig.pumpAmountGainRatio, 0.00334);
+assert.equal(defaultFile.heatCapacityFreePhysicsConfig.pumpWorkRetention, 0.3);
 assert.equal('pumpInflowTemperatureRiseK' in defaultFile.heatCapacityFreePhysicsConfig, false);
 assert.ok(
   Math.abs(
     defaultFile.heatCapacityFreePhysicsConfig.pumpAmountGainRatio *
       defaultFile.heatCapacityFreePhysicsConfig.vesselVolumeL *
       1000 -
-      6.9,
+      6.68,
   ) < 1e-9,
-  'Free Mode should model 6.9 mL effective gas per pump stroke in a 2 L vessel',
+  'Free Mode should model the calibrated 6.68 mL effective gas per pump stroke in a 2 L vessel',
 );
 assert.equal(defaultFile.heatCapacityFreePhysicsState.gasAmountRatio, 1);
 assert.equal(defaultFile.heatCapacityFreePhysicsState.gasTemperatureK, 298.15);
@@ -163,7 +164,10 @@ assert.equal(
   defaultFile.heatCapacityFreeSensorState.pressureInitialBiasMv,
   'Free sensor display should expose the same initial pressure bias used by its sensor model',
 );
-assert.equal(defaultFile.heatCapacityFreeSensorState.displayTemperatureMv, initialTemperatureMv);
+assert.equal(
+  defaultFile.heatCapacityFreeSensorState.displayTemperatureMv,
+  defaultFile.heatCapacityFreeSensorConfig.temperatureMvAtAmbient,
+);
 assert.equal(defaultFile.heatCapacityFreeCalibrationState.calibrationVersion, 0);
 assert.deepEqual(defaultFile.heatCapacityFreeTrials, []);
 assert.equal(defaultFile.heatCapacityFreeRealDomain.trials.length, 0);
@@ -191,6 +195,10 @@ const idealFastProcessHotState = {
   ...poweredIdeal.heatCapacityFreeIdealDomain.physicsState,
   simulationTimeS: 0,
   gasTemperatureK: poweredIdeal.heatCapacityFreeIdealDomain.physicsConfig.environment.ambientTemperatureK + 10,
+  internalEnergyJ:
+    poweredIdeal.heatCapacityFreeIdealDomain.physicsState.internalEnergyJ! *
+    (poweredIdeal.heatCapacityFreeIdealDomain.physicsConfig.environment.ambientTemperatureK + 10) /
+    poweredIdeal.heatCapacityFreeIdealDomain.physicsState.gasTemperatureK,
   wallTemperatureK: poweredIdeal.heatCapacityFreeIdealDomain.physicsConfig.environment.ambientTemperatureK,
   pumpProcesses: [
     {
@@ -226,6 +234,12 @@ const idealReleaseStartState = {
   ...poweredIdeal.heatCapacityFreeIdealDomain.physicsState,
   simulationTimeS: 0,
   gasAmountRatio: idealReleaseStartAmountRatio,
+  amountMol:
+    poweredIdeal.heatCapacityFreeIdealDomain.physicsState.referenceAmountMol! *
+    idealReleaseStartAmountRatio,
+  internalEnergyJ:
+    poweredIdeal.heatCapacityFreeIdealDomain.physicsState.internalEnergyJ! *
+    idealReleaseStartAmountRatio,
   gasTemperatureK: poweredIdeal.heatCapacityFreeIdealDomain.physicsConfig.environment.ambientTemperatureK,
   wallTemperatureK: poweredIdeal.heatCapacityFreeIdealDomain.physicsConfig.environment.ambientTemperatureK,
   lastStopcockOpenedAtS: 0,
@@ -516,6 +530,39 @@ assert.equal('heatCapacityProcessingCalculated' in resetFreeRun, false);
 assert.equal(resetFreeRun.pressureSignalMv, null);
 assert.equal(resetFreeRun.temperatureSignalMv, null);
 assert.equal(resetFreeRun.pressureKPa, null);
+const customAmbientTemperatureK = 303.15;
+const customAmbientFile = createDefaultHeatCapacityFile(91);
+const configuredCustomAmbientFile = applyHeatCapacityFreeParameterDraftWorkbenchState(
+  customAmbientFile,
+  {
+    ...customAmbientFile.heatCapacityFreeParameterDraft,
+    ambientTemperatureK: customAmbientTemperatureK,
+  },
+);
+assert.equal(
+  configuredCustomAmbientFile.heatCapacityFreePhysicsConfig.environment.ambientTemperatureK,
+  customAmbientTemperatureK,
+  'the public parameter path should install the custom ambient temperature before reset',
+);
+const resetCustomAmbientFreeRun = resetHeatCapacityFreeRunWorkbenchState(
+  configuredCustomAmbientFile,
+  3_100,
+);
+assert.equal(
+  resetCustomAmbientFreeRun.heatCapacityFreePhysicsState.gasTemperatureK,
+  customAmbientTemperatureK,
+  'Free reset should initialize gas temperature from the active ambient parameter',
+);
+assert.equal(
+  resetCustomAmbientFreeRun.heatCapacityFreePhysicsState.wallTemperatureK,
+  customAmbientTemperatureK,
+  'Free reset should initialize wall temperature from the active ambient parameter',
+);
+assert.equal(
+  resetCustomAmbientFreeRun.heatCapacityFreeSensorState.sensorTemperatureK,
+  customAmbientTemperatureK,
+  'Free reset should explicitly initialize the independent temperature sensor at ambient',
+);
 const demoModeStep = stepHeatCapacityWorkbenchFile({
   ...defaultFile,
   heatCapacityMode: 'demo',
@@ -1095,18 +1142,24 @@ assert.equal(suggestedStopFreeFileStarted.heatCapacityFreePhysicsState.pumpStrok
 assert.equal(
   suggestedStopFreeFileStarted.pressureSafetyStatus,
   'warning',
-  'calibrated Free pumping should enter the suggested-stop region before danger',
+  `calibrated Free pumping should enter the suggested-stop region before danger, got ${suggestedStopFreeFileStarted.pressureSignalMv} mV`,
 );
 assert.equal(suggestedStopFreeFileStarted.pressureBlockedPumping, false);
 const fiveStrokeFreeFile = stepHeatCapacityWorkbenchFile(suggestedStopFreeFileStarted, suggestedStopPumpLastAtMs + 240);
 assert.equal(fiveStrokeFreeFile.heatCapacityFreePhysicsState.pumpStrokeCount, 20);
-assert.equal(fiveStrokeFreeFile.pressureSafetyStatus, 'warning');
-assert.equal(fiveStrokeFreeFile.pressureBlockedPumping, false);
+assert.equal(
+  fiveStrokeFreeFile.pressureSafetyStatus,
+  'danger',
+  `completed twentieth stroke should cross the 140 mV danger boundary, got ${fiveStrokeFreeFile.pressureSignalMv} mV`,
+);
+assert.equal(fiveStrokeFreeFile.pressureBlockedPumping, true);
 const hotOverLimitFreeFile = registerHeatCapacityPumpStroke({
   ...freePumpReady,
   lastUpdateMs: 8_000,
   heatCapacityFreePhysicsState: {
     ...freePumpReady.heatCapacityFreePhysicsState,
+    amountMol: undefined,
+    internalEnergyJ: undefined,
     gasAmountRatio: 1,
     gasTemperatureK: 321,
     wallTemperatureK: 321,
@@ -1199,6 +1252,8 @@ const freeVisibleDangerPumpBlocked = registerHeatCapacityPumpStroke({
   pressureOverLimit: true,
   heatCapacityFreePhysicsState: {
     ...freePowered.heatCapacityFreePhysicsState,
+    amountMol: undefined,
+    internalEnergyJ: undefined,
     gasAmountRatio: (freePowered.ambientPressureKPa + freePowered.pressureSafetyThresholdKPa) /
       freePowered.ambientPressureKPa,
     gasTemperatureK: freePowered.ambientTemperatureK,
@@ -1442,7 +1497,10 @@ assert.equal(HEAT_CAPACITY_VIDEO_PROFILE.stablePressureMvRange[1] < HEAT_CAPACIT
 assert.equal(defaultFile.pressureZeroMvPerTurn, HEAT_CAPACITY_PRESSURE_ZERO_MV_PER_TURN);
 assert.equal(defaultFile.temperatureSignalMv, null);
 assert.equal(defaultFile.pressureSignalMv, null);
-assert.equal(defaultFile.temperatureSignalTargetMv, initialTemperatureMv);
+assert.equal(
+  defaultFile.temperatureSignalTargetMv,
+  DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient,
+);
 assert.equal(defaultFile.pressureSignalTargetMv, 0);
 assert.equal(defaultFile.displayResponseLastUpdateMs, null);
 assert.equal(defaultFile.pumpValveOpen, false);
@@ -1496,11 +1554,17 @@ assert.equal(poweredFile.heatCapacityGuideTrial?.source, 'guide');
 assert.deepEqual(poweredFile.heatCapacityFreeTrials, []);
 assert.equal(poweredFile.heatCapacityGuideWorkflow.step, 'openStopcockForZeroRequired');
 assert.equal(poweredFile.heatCapacityPhase, 'readyToZero');
-assert.equal(poweredFile.temperatureSignalMv, 1499);
+assert.equal(
+  poweredFile.temperatureSignalMv,
+  truncateHeatCapacitySignalMv(DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient),
+);
 assert.equal(Math.abs(poweredFile.pressureInitialBiasMv) >= 0.25, true, 'Guide should start each run with a non-trivial pressure-zero bias');
 assert.equal(Math.abs(poweredFile.pressureInitialBiasMv) <= 1.5, true, 'Guide pressure-zero bias should stay inside the same range as Free Mode');
 assert.equal(poweredFile.pressureSignalMv, poweredFile.pressureInitialBiasMv);
-assert.equal(poweredFile.temperatureSignalTargetMv, truncateHeatCapacitySignalMv(initialTemperatureMv));
+assert.equal(
+  poweredFile.temperatureSignalTargetMv,
+  truncateHeatCapacitySignalMv(DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient),
+);
 assert.equal(poweredFile.pressureSignalTargetMv, poweredFile.pressureInitialBiasMv);
 const guideDisplayWithStaleFreeSignals = selectActiveHeatCapacityWorkbenchDisplay({
   ...poweredFile,
@@ -1512,7 +1576,11 @@ const guideDisplayWithStaleFreeSignals = selectActiveHeatCapacityWorkbenchDispla
 });
 assert.deepEqual(
   guideDisplayWithStaleFreeSignals,
-  { source: 'guide', pressureMv: poweredFile.pressureInitialBiasMv, temperatureMv: 1499 },
+  {
+    source: 'guide',
+    pressureMv: poweredFile.pressureInitialBiasMv,
+    temperatureMv: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient,
+  },
   'guided mode display should ignore stale Free sensor state and read the Guide display layer',
 );
 assert.equal(poweredFile.hardSphereViewEnabled, false, 'powering on should not automatically enable the teaching visualization');
@@ -1862,14 +1930,33 @@ const pumpedTarget = registerHeatCapacityPumpStroke({
 }, 21_000);
 assert.equal(pumpedTarget.pressureSignalTargetMv > demoStart.pressureSignalTargetMv, true);
 assert.equal(pumpedTarget.pressureSignalMv < pumpedTarget.pressureSignalTargetMv, true);
-assert.equal(pumpedTarget.temperatureSignalTargetMv > demoStart.temperatureSignalTargetMv, true);
-assert.equal(pumpedTarget.temperatureSignalMv < pumpedTarget.temperatureSignalTargetMv, true);
+assert.equal(
+  pumpedTarget.gasTemperatureK > demoStart.gasTemperatureK,
+  true,
+  'a pump stroke should add heat to the real gas immediately',
+);
+assert.equal(
+  pumpedTarget.sensorTemperatureK,
+  demoStart.sensorTemperatureK,
+  'the independent temperature sensor must not jump at the zero-duration pump event',
+);
+assert.equal(
+  pumpedTarget.temperatureSignalTargetMv,
+  demoStart.temperatureSignalTargetMv,
+  'UT should remain continuous until physical time advances through the sensor lag',
+);
+assert.equal(
+  pumpedTarget.temperatureSignalMv,
+  pumpedTarget.temperatureSignalTargetMv,
+  'Demo must not add a second display-space temperature low-pass',
+);
 assert.equal(Math.abs(pumpedTarget.pressureGaugeTargetValue - pumpedTarget.pressureDeltaKPa) < 0.01, true);
 assert.equal(pumpedTarget.pressureGaugeDisplayValue <= pumpedTarget.pressureGaugeTargetValue, true);
 
 const settledDisplay = stepHeatCapacityWorkbenchFile(pumpedTarget, 22_000);
 assert.equal(settledDisplay.pressureSignalMv > pumpedTarget.pressureSignalMv, true);
 assert.equal(settledDisplay.temperatureSignalMv > pumpedTarget.temperatureSignalMv, true);
+assert.equal(settledDisplay.temperatureSignalTargetMv > pumpedTarget.temperatureSignalTargetMv, true);
 assert.equal(Math.abs(settledDisplay.pressureGaugeTargetValue - settledDisplay.pressureDeltaKPa) < 0.01, true);
 assert.equal(settledDisplay.pressureGaugeDisplayValue > pumpedTarget.pressureGaugeDisplayValue, true);
 
@@ -2116,10 +2203,62 @@ assert.equal(guidePumpCompleted.pressureSignalTargetMv > guidePumpReadyFile.pres
 assert.equal(guidePumpCompleted.vesselTemperatureReadoutK >= guidePumpReadyFile.vesselTemperatureReadoutK, true);
 assert.equal((guidePumpCompleted.pressureSignalMv ?? Number.NaN) <= guidePumpCompleted.pressureSignalTargetMv, true);
 
+const guideAcceleratedWaitStart: WorkbenchHeatCapacityState = {
+  ...guidePumpCompleted,
+  pumpValveOpen: false,
+  pumpValveState: 'closed',
+  lastUpdateMs: 20_000,
+  heatCapacityGuideWorkflow: {
+    ...guidePumpCompleted.heatCapacityGuideWorkflow,
+    step: 'u1Waiting',
+    speedMultiplier: 8,
+    waitStartedAtS: guidePumpCompleted.heatCapacityGuidePhysicsState.simulationTimeS,
+    waitStage: 'u1',
+  },
+};
+const guideAcceleratedWaitCoarse = stepHeatCapacityWorkbenchFile(
+  guideAcceleratedWaitStart,
+  20_500,
+);
+let guideAcceleratedWaitFine = guideAcceleratedWaitStart;
+for (let index = 1; index <= 50; index += 1) {
+  guideAcceleratedWaitFine = stepHeatCapacityWorkbenchFile(
+    guideAcceleratedWaitFine,
+    20_000 + index * 10,
+  );
+}
+assert.equal(
+  Math.abs(
+    guideAcceleratedWaitCoarse.heatCapacityGuidePhysicsState.gasTemperatureK -
+      guideAcceleratedWaitFine.heatCapacityGuidePhysicsState.gasTemperatureK,
+  ) < 1e-8,
+  true,
+  'Guide accelerated waiting should produce the same gas trajectory independent of render-frame slicing',
+);
+assert.equal(
+  Math.abs(
+    guideAcceleratedWaitCoarse.heatCapacityGuideTemperatureSensorState.temperatureK -
+      guideAcceleratedWaitFine.heatCapacityGuideTemperatureSensorState.temperatureK,
+  ) < 1e-8,
+  true,
+  'Guide accelerated waiting must integrate the sensor along the same substeps as gas and wall temperatures',
+);
+
 const guideTargetVisibleGatePressureMv = HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV + 5;
 const guideTargetVisibleGateDeltaKPa = (
   guideTargetVisibleGatePressureMv - poweredFile.pressureInitialBiasMv
 ) / poweredFile.pressureSensitivityMvPerKPa;
+const guideTargetVisibleGateAmountRatio = (
+  poweredFile.heatCapacityGuidePhysicsConfig.environment.ambientPressureKPa +
+  guideTargetVisibleGateDeltaKPa
+) / poweredFile.heatCapacityGuidePhysicsConfig.environment.ambientPressureKPa;
+const guideTargetVisibleGateAmountMol =
+  guidePumpReadyFile.heatCapacityGuidePhysicsState.referenceAmountMol *
+  guideTargetVisibleGateAmountRatio;
+const guideTargetVisibleGateInternalEnergyJ =
+  guidePumpReadyFile.heatCapacityGuidePhysicsState.internalEnergyJ /
+  guidePumpReadyFile.heatCapacityGuidePhysicsState.amountMol *
+  guideTargetVisibleGateAmountMol;
 const guideTargetVisibleGateFile: WorkbenchHeatCapacityState = {
   ...guidePumpReadyFile,
   pumpValveOpen: true,
@@ -2133,10 +2272,9 @@ const guideTargetVisibleGateFile: WorkbenchHeatCapacityState = {
   lastUpdateMs: 50_000,
   heatCapacityGuidePhysicsState: {
     ...guidePumpReadyFile.heatCapacityGuidePhysicsState,
-    gasAmountRatio: (
-      poweredFile.heatCapacityGuidePhysicsConfig.environment.ambientPressureKPa +
-      guideTargetVisibleGateDeltaKPa
-    ) / poweredFile.heatCapacityGuidePhysicsConfig.environment.ambientPressureKPa,
+    amountMol: guideTargetVisibleGateAmountMol,
+    internalEnergyJ: guideTargetVisibleGateInternalEnergyJ,
+    gasAmountRatio: guideTargetVisibleGateAmountRatio,
     gasTemperatureK: poweredFile.heatCapacityGuidePhysicsConfig.environment.ambientTemperatureK,
     wallTemperatureK: poweredFile.heatCapacityGuidePhysicsConfig.environment.ambientTemperatureK,
     pumpProcesses: [],
@@ -2187,6 +2325,13 @@ assert.equal(sampledWorkbenchFile.heatCapacityProcessSamples.pumpPeakSample?.pum
 const profiledSampleSource = {
   ...openValvePump,
   heatCapacityMode: 'demo' as const,
+  gasPressureKPaAbs: openValvePump.ambientPressureKPa + (
+    88 - openValvePump.pressureInitialBiasMv + openValvePump.pressureZeroOffset
+  ) / openValvePump.pressureSensitivityMvPerKPa,
+  gasTemperatureK: openValvePump.ambientTemperatureK +
+    6 / DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvPerK,
+  sensorTemperatureK: openValvePump.ambientTemperatureK +
+    6 / DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvPerK,
   pressureSignalMv: 88,
   pressureSignalMvRaw: 88,
   pressureSignalMvDisplayed: 88,
@@ -2196,6 +2341,7 @@ const profiledSampleSource = {
   temperatureSignalTargetMv: initialTemperatureMv + 6,
   heatCapacityExperimentProfile: {
     ...demoTeachingProfile,
+    gammaTarget: calculateHeatCapacityGammaFromDisplayedSignals(0, 116, 33),
     u0MeasuredMv: 0,
     u1MeasuredMv: 116,
     u2MeasuredMv: 33,

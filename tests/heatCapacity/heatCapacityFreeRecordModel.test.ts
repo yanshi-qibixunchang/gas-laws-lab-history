@@ -89,6 +89,7 @@ const physicsConfig = {
   vesselVolumeL: 2,
   gamma: 1.4,
   pumpAmountGainRatio: 0.022,
+  pumpWorkRetention: 0.2,
   pumpPressureLimitKPa: 108.3,
   stopcockFlowRate: 4,
   thermal: {
@@ -585,6 +586,7 @@ const version1PhysicsConfig: HeatCapacityFreePhysicsConfig = {
   vesselVolumeL: 2,
   gamma: 1.4,
   pumpAmountGainRatio: 0.018,
+  pumpWorkRetention: 0.2,
   pumpPressureLimitKPa: 108.3,
   stopcockFlowRate: 4,
   thermal: {

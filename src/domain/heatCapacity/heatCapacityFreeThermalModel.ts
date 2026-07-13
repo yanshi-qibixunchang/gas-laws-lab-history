@@ -43,7 +43,7 @@ const clampFinite = (value: number, min: number, max: number, fallback: number) 
     : fallback
 );
 
-const deriveEffectiveGasWallConductanceWPerK = (
+export const deriveEffectiveFreeGasWallConductanceWPerK = (
   baseConductanceWPerK: number,
   deltaTK: number,
 ) => {
@@ -127,7 +127,7 @@ export const stepFreeThermalState = (
 
   while (remainingS > 0) {
     const stepS = Math.min(remainingS, FREE_THERMAL_MAX_SUBSTEP_S);
-    const gasWallConductanceStepWPerK = deriveEffectiveGasWallConductanceWPerK(
+    const gasWallConductanceStepWPerK = deriveEffectiveFreeGasWallConductanceWPerK(
       gasWallConductanceWPerK,
       Math.abs(gasTemperatureK - wallTemperatureK),
     );
