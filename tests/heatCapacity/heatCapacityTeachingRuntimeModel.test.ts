@@ -31,7 +31,6 @@ const baseControls = {
 };
 const initialTemperatureMv = HEAT_CAPACITY_TEMPERATURE_BASELINE_MV;
 const teachingPresetValueFields: Array<keyof HeatCapacityTeachingProfile> = [
-  'temperatureCalibrationVersion',
   'gammaTarget',
   'theoreticalGamma',
   'u0TargetMv',

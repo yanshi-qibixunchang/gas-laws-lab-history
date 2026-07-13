@@ -119,16 +119,14 @@ const normalizeGuidePhysicsState = (
     ? migrateGuidePhysicsState({
         ...fallback,
         ...clonePersistenceValue(value),
-        amountMol: isPersistenceFiniteNumber(value.amountMol) ? value.amountMol : Number.NaN,
+        amountMol: isPersistenceFiniteNumber(value.amountMol) ? value.amountMol : fallback.amountMol,
         internalEnergyJ: isPersistenceFiniteNumber(value.internalEnergyJ)
           ? value.internalEnergyJ
-          : Number.NaN,
+          : fallback.internalEnergyJ,
         referenceAmountMol: isPersistenceFiniteNumber(value.referenceAmountMol)
           ? value.referenceAmountMol
-          : Number.NaN,
+          : fallback.referenceAmountMol,
         simulationTimeS: heatCapacityRestoreFiniteOrDefault(value.simulationTimeS, fallback.simulationTimeS),
-        gasAmountRatio: heatCapacityRestoreFiniteOrDefault(value.gasAmountRatio, fallback.gasAmountRatio),
-        gasTemperatureK: heatCapacityRestoreFiniteOrDefault(value.gasTemperatureK, fallback.gasTemperatureK),
         wallTemperatureK: heatCapacityRestoreFiniteOrDefault(value.wallTemperatureK, fallback.wallTemperatureK),
         pumpProcesses: Array.isArray(value.pumpProcesses)
           ? clonePersistenceValue(value.pumpProcesses)
@@ -180,7 +178,7 @@ export const restoreHeatCapacityGuidePersistenceFields = (
       temperatureK: isPersistenceRecord(value.temperatureSensorState) &&
         isPersistenceFiniteNumber(value.temperatureSensorState.temperatureK)
         ? value.temperatureSensorState.temperatureK
-        : heatCapacityGuidePhysicsState.gasTemperatureK,
+        : fallback.heatCapacityGuideTemperatureSensorState.temperatureK,
     },
     heatCapacityGuideWorkflow: normalizeGuideWorkflow(
       value.workflow,

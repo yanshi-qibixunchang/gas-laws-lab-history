@@ -705,6 +705,7 @@ const createScriptedRun = (): ScriptedFreeRun => ({
   sensor: createDefaultFreeSensorState('version-1-run', {
     pressureMv: 0,
     temperatureMv: version1SensorConfig.temperatureMvAtAmbient,
+    sensorTemperatureK: version1PhysicsConfig.environment.ambientTemperatureK,
   }),
   calibration: makeAutomaticCalibration(),
 });

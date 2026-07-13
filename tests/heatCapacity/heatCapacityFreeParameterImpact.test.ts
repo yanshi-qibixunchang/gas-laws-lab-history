@@ -115,6 +115,7 @@ const createSensorState = (
   pressureMv: 0,
   pressureInitialBiasMv: 0,
   temperatureMv: config.temperatureMvAtAmbient,
+  sensorTemperatureK: 298.15,
 });
 
 const stepSensorNow = (

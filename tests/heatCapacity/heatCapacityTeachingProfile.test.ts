@@ -5,7 +5,6 @@ import {
   calculateHeatCapacityGammaFromDisplayedSignals,
   clampHeatCapacityTeachingProfile,
   createHeatCapacityAutoDemoProfile,
-  HEAT_CAPACITY_TEACHING_PROFILE_TEMPERATURE_CALIBRATION_VERSION,
   normalizeHeatCapacityTeachingProfile,
 } from '../../src/domain/heatCapacity/heatCapacityTeachingProfile.ts';
 import {
@@ -44,57 +43,10 @@ for (const generatedProfile of [lowerProfile, profile, upperProfile]) {
   assert.match(generatedProfile.gammaTarget.toFixed(3), /^1\.\d{3}$/);
 }
 assert.equal(profile.displayNoiseLevel, 0);
-assert.equal(
-  profile.temperatureCalibrationVersion,
-  HEAT_CAPACITY_TEACHING_PROFILE_TEMPERATURE_CALIBRATION_VERSION,
-);
 assert.deepEqual(
   normalizeHeatCapacityTeachingProfile(profile),
   profile,
   'a current profile must remain stable when normalized again',
-);
-
-const {
-  temperatureCalibrationVersion: discardedTemperatureCalibrationVersion,
-  ...legacyProfileSource
-} = profile;
-void discardedTemperatureCalibrationVersion;
-const legacyProfile = {
-  ...legacyProfileSource,
-  ambientTemperatureMv: 1499,
-  initialTemperatureMv: 1499,
-  stableTemperatureMv: 1499,
-  releaseTemperatureLowMv: 1498.25,
-  recoveryTemperatureMv: 1499,
-};
-const migratedLegacyProfile = normalizeHeatCapacityTeachingProfile(legacyProfile);
-assert.notEqual(migratedLegacyProfile, null);
-assert.equal(migratedLegacyProfile?.ambientTemperatureMv, HEAT_CAPACITY_TEMPERATURE_BASELINE_MV);
-assert.equal(migratedLegacyProfile?.initialTemperatureMv, HEAT_CAPACITY_TEMPERATURE_BASELINE_MV);
-assert.equal(migratedLegacyProfile?.stableTemperatureMv, HEAT_CAPACITY_TEMPERATURE_BASELINE_MV);
-assert.equal(
-  migratedLegacyProfile?.releaseTemperatureLowMv,
-  1497.76,
-  'legacy -0.75 mV at 4 mV/K should retain its Kelvin delta at 5 mV/K',
-);
-assert.equal(migratedLegacyProfile?.recoveryTemperatureMv, HEAT_CAPACITY_TEMPERATURE_BASELINE_MV);
-assert.equal(
-  migratedLegacyProfile?.temperatureCalibrationVersion,
-  HEAT_CAPACITY_TEACHING_PROFILE_TEMPERATURE_CALIBRATION_VERSION,
-);
-
-const unversionedSharedProfile = {
-  ...legacyProfileSource,
-  ambientTemperatureMv: HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
-  initialTemperatureMv: HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
-  stableTemperatureMv: HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
-  releaseTemperatureLowMv: HEAT_CAPACITY_TEMPERATURE_BASELINE_MV - 0.75,
-  recoveryTemperatureMv: HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
-};
-assert.equal(
-  normalizeHeatCapacityTeachingProfile(unversionedSharedProfile)?.releaseTemperatureLowMv,
-  profile.releaseTemperatureLowMv,
-  'an unversioned profile already written against the shared baseline must not be remapped twice',
 );
 assert.equal(normalizeHeatCapacityTeachingProfile({ u1MeasuredMv: 120 }), null);
 

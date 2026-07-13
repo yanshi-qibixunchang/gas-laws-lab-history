@@ -134,8 +134,8 @@
 | 阶段 | 状态 | 主要输出 | Git 检查点 |
 |---|---|---|---|
 | 0. 建立计划、真实界面取样、3 套设计方向 | 已完成 | 用户决定保留当前布局，只改配色/字体/字号 | 不提交 |
-| 1. 选择落盘、差异审计、清理前安全基线 | 进行中 | 选择记录；全差异清单；本地安全提交 | 清理前本地基线 |
-| 2. 新旧方案全仓库审计与删除 | 待办 | 旧字段/状态/函数/CSS/持久化/测试/文档删除证明 | 清理检查点 |
+| 1. 选择落盘、差异审计、清理前安全基线 | 已完成 | 选择记录；全差异清单；本地安全提交 `b786529` | 清理前本地基线 |
+| 2. 新旧方案全仓库审计与删除 | 已完成 | 旧 Guide ratio/T、旧温度标定迁移、旧可选传感器温度及对应测试已删除 | 清理检查点 |
 | 3. 仪器身份口径统一 | 待办 | 运行界面、README、源码/测试/文档身份调整 | 身份检查点 |
 | 4. 3D 显示组件唯一外观调整 | 待办 | 删除独立型号；整体放大与贴合；范围同步；正面/常用视角检查 | 3D 检查点 |
 | 5. UI 重构前验证与私有远端检查点 | 待办 | tsc/test/专项/预览/交互；推送私有 `-1` 仓库 | UI 前稳定提交 |
@@ -163,16 +163,60 @@
 - 删除不得以注释、deprecated 或兼容入口形式残留；新实现不得依赖旧实现才能工作。
 - 每轮清理后用全仓库搜索证明旧标识符/入口/文案不存在，并运行只接受新方案的测试。
 
-### 已删除
+### 已删除（2026-07-14，用户已确认）
 
-- 无（阶段 0 禁止清理）。
+- Guide 物理状态不再从旧 `gasAmountRatio/gasTemperatureK` 重建 n/U；缺少当前权威字段时回到当前环境默认热力学状态。
+- Guide 持久化不再解释旧 ratio/T 负载，也不再从旧气体温度恢复缺失的传感器温度。
+- Free 温度传感器状态中的 `sensorTemperatureK` 改为必填，删除从显示电压反推传感器温度的旧入口。
+- 删除 Free 持久化中的旧配置版本检测、2/4 mV/K 重映射及旧回滚快照温度迁移。
+- 删除 Teaching Profile 的旧 4 mV/K 映射、迁移版本字段及自动迁移路径。
+- 删除上述旧路径对应测试；当前测试只验证 n/U 权威投影、共享标定、当前 Profile 和当前持久化形状。
+- 全仓库搜索确认生产和测试目录不再含：`temperatureCalibrationVersion`、`LEGACY_HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K`、`mapLegacyTeachingTemperatureTarget`、`migrateLegacyFreeTemperatureCalibrationDomain`、`migrateLegacyTemperatureCalibration`、旧 Guide ratio/T 迁移断言。
+
+### 2026-07-14 全仓库审计结果（删除前）
+
+#### 已确认不再存在的本批旧入口
+
+- 硬球放气旧字段/路径：`outflowIntensity`、`exitSelectionRate`、`effectiveExitSelectionRate`、旧 `releaseProgress` 输入、旧 Workbench 粒子倍率写入器均未在生产源码中出现；现有测试以否定断言防止回归。
+- 旧打气频率过快阻拦、旧 Guide 打气同步锁、旧独立热容提示状态、旧 Workbench 自有调零/复位动画函数、旧多组 Guide/处理页入口均未在生产源码中出现。
+- 当前分支领先上游的粒子数教学放大采样、释放预算和引导时间冻结路径均有单一生产入口，没有并行备用实现。
+
+#### 已获确认并完成删除的兼容代码（均为代码块/测试块，未删除整个文件）
+
+1. `src/domain/heatCapacity/heatCapacityGuidePhysicsEngine.ts`
+   - 删除 `migrateGuidePhysicsState` 中“缺少 n/U 时从旧 `gasAmountRatio/gasTemperatureK` 重建”的分支；改为只从当前权威 `amountMol/internalEnergyJ/referenceAmountMol` 投影派生读数。
+2. `src/features/workbench/workbenchHeatCapacityGuidePersistence.ts`
+   - 删除对旧 Guide 比率/温度负载的迁移语义；当前字段缺失时只使用当前默认状态，不解释旧字段。
+3. `tests/heatCapacity/heatCapacityGuidePhysicsEngine.test.ts`
+   - 删除旧 Guide ratio/T → n/U 迁移用例，保留并加强当前 n/U 权威状态同步测试。
+4. `tests/heatCapacity/heatCapacityFreePersistence.test.ts`
+   - 删除旧 Guide 热力学负载迁移用例；删除 v8 旧温度 2 mV/K 负载迁移用例及其他仅为旧热容实验文件服务的兼容用例。
+5. `src/domain/heatCapacity/heatCapacityFreeSensorModel.ts`
+   - 将 `sensorTemperatureK` 设为当前状态必填字段，删除从旧温度电压反推传感器温度的兼容分支。
+6. `src/features/workbench/workbenchHeatCapacityPersistence.ts`
+   - 删除 `migrateLegacyFreeTemperatureCalibrationDomain`、旧配置版本判断和 2/4 mV/K 重映射分支；恢复只接受当前共享 5 mV/K 标定。
+7. `src/domain/heatCapacity/heatCapacityTeachingProfile.ts`
+   - 删除 `LEGACY_HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K`、`mapLegacyTeachingTemperatureTarget`、旧 profile 自动迁移和仅为迁移服务的 `temperatureCalibrationVersion` 字段。
+8. `tests/heatCapacity/heatCapacityTeachingProfile.test.ts`、`tests/heatCapacity/heatCapacityTeachingProfilePersistence.test.ts`
+   - 删除旧 4 mV/K profile 迁移断言，改为只验证当前共享标定与当前持久化形状。
+
+#### 暂不删除、理由明确的内容
+
+- `finiteOrFallback` 等数值防护：属于当前运行时非法数值保护，不是旧方案兼容。
+- `FD_NCD_C_*` GLB 节点名和 `fd-ncd-c-ultra.glb` 资源路径：属于既有 3D 模型技术契约；产品身份调整不应破坏节点绑定。用户可见型号文字会单独删除。
+- `docs/instrument-modeling/reference/**` 中具体型号：作为建模来源/历史参考保留，但会修正“软件就是该型号”的错误身份口径。
+- `docs/releases/**` 历史发布记录：属于历史事实，不因当前身份调整机械改写。
+
+#### 删除安全门
+
+- 用户已在看到精确路径与理由后明确授权执行；删除范围没有扩大到未确认的稳定旧文件兼容逻辑。
 
 ## 8. Git 检查点
 
 | 阶段 | 分支 | 提交 | 内容 | 推送状态 |
 |---|---|---|---|---|
 | 任务开始基线 | `codex/heat-capacity-temperature-physics-v4.2.3` | `bcdb505` | 当前分支领先上游的既有粒子反馈与引导计时提交 | 仅本地，领先上游 1 |
-| 清理前安全提交 | 待执行 | 待填写 | 当前 38 个未提交修改＋计划选择记录 | 禁止在远端仍公开时推送 |
+| 清理前安全提交 | `codex/heat-capacity-temperature-physics-v4.2.3` | `b786529d025ec1c3a84b24daad8341b02180358f` | 保存阶段 0 决定、当前热容比物理/工作流/UI/测试/文档修改；39 文件，978 行新增、269 行删除 | 仅本地；当前远端公开，禁止推送 |
 | UI 重构前稳定提交 | 待执行 | 待填写 | 清理、身份、3D 唯一例外与验证 | 仅允许推送私有 `-1` 仓库 |
 | UI 令牌/字体/基础表面 | `codex/engineering-ui-redesign` | 待填写 | 待执行 | 待执行 |
 | UI 主工作台/导航/栏区 | `codex/engineering-ui-redesign` | 待填写 | 待执行 | 待执行 |
@@ -190,6 +234,13 @@
 - 参考截图只存放于任务临时可视化目录 `D:\program\Codex\Home\visualizations\2026\07\12\019f53d2-a2a4-7b51-8674-0bdff7820351\ui-refactor-stage0`，不进入项目仓库。
 - 正式代码：未因阶段 0 修改，因此本阶段不重复运行完整 TypeScript/测试套件。
 - 三套方案：必须基于同一真实页面截图，并作为任务内独立设计稿展示；不得保存到正式产品资源目录。
+
+### 阶段 2：旧方案清理
+
+- `npm.cmd exec tsc -- --noEmit`：通过。
+- 6 个专项测试通过：Guide 物理引擎、Free 持久化、Free 传感器、Teaching Profile、Teaching Profile 持久化、Teaching Runtime。
+- `git diff --check`：通过。
+- 旧标识符全仓库搜索：目标生产/测试入口均无匹配。
 
 ### 后续最低验证矩阵
 

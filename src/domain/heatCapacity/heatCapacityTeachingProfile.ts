@@ -8,17 +8,11 @@ import {
 } from './heatCapacitySignalDisplayModel.ts';
 import {
   HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
-  HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
 } from './heatCapacitySensorMapping.ts';
-
-export const HEAT_CAPACITY_TEACHING_PROFILE_TEMPERATURE_CALIBRATION_VERSION = 1 as const;
-
-const LEGACY_HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K = 4;
 
 // Demo/Guide-only teaching profile. These scripted target fields preserve the
 // guided experiment baseline and are not physical truth for Free Mode.
 export interface HeatCapacityTeachingProfile {
-  temperatureCalibrationVersion: typeof HEAT_CAPACITY_TEACHING_PROFILE_TEMPERATURE_CALIBRATION_VERSION;
   seed: number | string;
   gammaTarget: number;
   theoreticalGamma: number;
@@ -92,21 +86,6 @@ const isTeachingProfileShape = (value: unknown): value is Record<string, number 
   ))
 );
 
-const mapLegacyTeachingTemperatureTarget = (
-  temperatureMv: number,
-  legacyAmbientMv: number,
-) => HEAT_CAPACITY_TEMPERATURE_BASELINE_MV +
-  (temperatureMv - legacyAmbientMv) /
-    LEGACY_HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K *
-    HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K;
-
-const hasSharedTemperatureCalibrationWithoutVersion = (
-  profile: Record<string, number | string>,
-) => (
-  Math.abs(Number(profile.ambientTemperatureMv) - HEAT_CAPACITY_TEMPERATURE_BASELINE_MV) <= 1e-6 &&
-  Math.abs(Number(profile.initialTemperatureMv) - HEAT_CAPACITY_TEMPERATURE_BASELINE_MV) <= 0.05
-);
-
 export const calculateHeatCapacityGammaFromDisplayedSignals = (
   u0Mv: number,
   u1Mv: number,
@@ -157,7 +136,6 @@ export const clampHeatCapacityTeachingProfile = (
   const recoveryTemperatureMv = clampNumber(profile.recoveryTemperatureMv, ambientTemperatureMv - 0.18, ambientTemperatureMv + 0.18);
   return {
     ...profile,
-    temperatureCalibrationVersion: HEAT_CAPACITY_TEACHING_PROFILE_TEMPERATURE_CALIBRATION_VERSION,
     theoreticalGamma: AIR_THEORETICAL_GAMMA,
     gammaTarget,
     u0TargetMv: u0MeasuredMv,
@@ -177,48 +155,11 @@ export const clampHeatCapacityTeachingProfile = (
   };
 };
 
-/**
- * Restores a Demo/Guide teaching profile into the current shared FD-NCD-C
- * temperature calibration. Profiles saved before the version marker used
- * 4 mV/K, so their temperature targets are migrated through Kelvin deltas
- * instead of being interpreted as absolute targets in the new 5 mV/K scale.
- */
 export const normalizeHeatCapacityTeachingProfile = (
   value: unknown,
 ): HeatCapacityTeachingProfile | null => {
   if (!isTeachingProfileShape(value)) return null;
-
-  const alreadyUsesSharedCalibration =
-    value.temperatureCalibrationVersion ===
-      HEAT_CAPACITY_TEACHING_PROFILE_TEMPERATURE_CALIBRATION_VERSION ||
-    hasSharedTemperatureCalibrationWithoutVersion(value);
-  const profile = alreadyUsesSharedCalibration
-    ? value
-    : (() => {
-        const legacyAmbientMv = Number(value.ambientTemperatureMv);
-        return {
-          ...value,
-          ambientTemperatureMv: HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
-          initialTemperatureMv: HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
-          stableTemperatureMv: mapLegacyTeachingTemperatureTarget(
-            Number(value.stableTemperatureMv),
-            legacyAmbientMv,
-          ),
-          releaseTemperatureLowMv: mapLegacyTeachingTemperatureTarget(
-            Number(value.releaseTemperatureLowMv),
-            legacyAmbientMv,
-          ),
-          recoveryTemperatureMv: mapLegacyTeachingTemperatureTarget(
-            Number(value.recoveryTemperatureMv),
-            legacyAmbientMv,
-          ),
-        };
-      })();
-
-  return clampHeatCapacityTeachingProfile({
-    ...profile,
-    temperatureCalibrationVersion: HEAT_CAPACITY_TEACHING_PROFILE_TEMPERATURE_CALIBRATION_VERSION,
-  } as HeatCapacityTeachingProfile);
+  return clampHeatCapacityTeachingProfile(value as unknown as HeatCapacityTeachingProfile);
 };
 
 const AUTO_DEMO_U2_CHOICES_MV = Array.from({ length: 1200 }, (_, index) => index / 10)
@@ -243,7 +184,6 @@ export const createHeatCapacityAutoDemoProfile = (
     u2MeasuredMv,
   );
   return clampHeatCapacityTeachingProfile({
-  temperatureCalibrationVersion: HEAT_CAPACITY_TEACHING_PROFILE_TEMPERATURE_CALIBRATION_VERSION,
   seed: `auto-demo-${choiceIndex}`,
   gammaTarget,
   theoreticalGamma: AIR_THEORETICAL_GAMMA,

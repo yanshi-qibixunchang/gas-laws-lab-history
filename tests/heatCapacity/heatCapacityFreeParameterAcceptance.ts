@@ -260,6 +260,7 @@ const createScriptedRun = (
     pressureMv: 0,
     pressureInitialBiasMv: 0,
     temperatureMv: sensorConfig.temperatureMvAtAmbient,
+    sensorTemperatureK: physicsConfig.environment.ambientTemperatureK,
   }),
   calibration: createInitialCalibration(sensorConfig),
 });

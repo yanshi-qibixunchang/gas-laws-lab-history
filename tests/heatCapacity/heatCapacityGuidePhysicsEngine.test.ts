@@ -94,27 +94,18 @@ assert.equal(
   'the first pump stroke should raise true gas temperature through retained flow work',
 );
 
-const {
-  amountMol: _legacyAmountMol,
-  internalEnergyJ: _legacyInternalEnergyJ,
-  referenceAmountMol: _legacyReferenceAmountMol,
-  ...legacyProjection
-} = initial;
-void _legacyAmountMol;
-void _legacyInternalEnergyJ;
-void _legacyReferenceAmountMol;
-const migrated = migrateGuidePhysicsState({
-  ...legacyProjection,
-  gasAmountRatio: 1.04,
-  gasTemperatureK: config.environment.ambientTemperatureK + 3,
-} as HeatCapacityGuidePhysicsState, config);
-assert.equal(migrated.amountMol > migrated.referenceAmountMol, true);
-assert.equal(Math.abs(migrated.gasAmountRatio - 1.04) < 1e-12, true);
+const synchronized = migrateGuidePhysicsState({
+  ...afterFirstPump,
+  gasAmountRatio: 999,
+  gasTemperatureK: 999,
+}, config);
+assert.equal(synchronized.amountMol, afterFirstPump.amountMol);
+assert.equal(synchronized.internalEnergyJ, afterFirstPump.internalEnergyJ);
 assert.equal(
-  Math.abs(migrated.gasTemperatureK - (config.environment.ambientTemperatureK + 3)) < 1e-10,
+  synchronized.gasAmountRatio < 2,
   true,
+  'the current n/U state must remain authoritative over derived projection fields',
 );
-assert.equal(migrated.internalEnergyJ > initial.internalEnergyJ, true);
 
 const fastPumping = runPumpSequence(config, 8);
 const slowPumping = runPumpSequence(config, 34);

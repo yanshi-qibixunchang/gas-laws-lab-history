@@ -40,12 +40,7 @@ export interface HeatCapacityFreeSensorState {
   pressureInitialBiasMv: number;
   displayPressureMv: number;
   displayTemperatureMv: number;
-  /**
-   * The thermally lagged sensing element temperature. It is optional only at
-   * the legacy-persistence boundary; every newly-created or stepped state
-   * contains it.
-   */
-  sensorTemperatureK?: number;
+  sensorTemperatureK: number;
   nextSampleAtS: number;
   pressureHistory: HeatCapacityFreeDisplaySample[];
   temperatureHistory: HeatCapacityFreeDisplaySample[];
@@ -171,7 +166,7 @@ export const createDefaultFreeSensorState = (
     pressureMv: number;
     pressureInitialBiasMv?: number;
     temperatureMv: number;
-    sensorTemperatureK?: number;
+    sensorTemperatureK: number;
   },
 ): HeatCapacityFreeSensorState => ({
   seed,
@@ -214,14 +209,9 @@ export const stepFreeSensor = (
   const lastSampleAtS = state.pressureHistory[state.pressureHistory.length - 1]?.atS ?? atS;
   const dtS = Math.max(0, atS - lastSampleAtS);
   void calibration;
-  const legacySensorTemperatureK = physical.ambientTemperatureK +
-    (state.displayTemperatureMv - config.temperatureMvAtAmbient) /
-      Math.max(0.001, config.temperatureMvPerK);
   const sensorTemperatureK = stepHeatCapacityTemperatureSensor(
     {
-      temperatureK: Number.isFinite(state.sensorTemperatureK)
-        ? state.sensorTemperatureK as number
-        : legacySensorTemperatureK,
+      temperatureK: state.sensorTemperatureK,
     },
     {
       gasTemperatureK: physical.gasTemperatureK,

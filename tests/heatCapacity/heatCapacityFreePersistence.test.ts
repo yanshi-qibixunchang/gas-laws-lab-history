@@ -17,10 +17,6 @@ import {
   HEAT_CAPACITY_FREE_CALCULATION_VERSION,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
-  HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
-  HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
-} from '../../src/domain/heatCapacity/heatCapacitySensorMapping.ts';
-import {
   createDefaultHeatCapacityFreePhysicsConfig,
 } from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
 import {
@@ -397,39 +393,6 @@ assert.equal(
 );
 assert.equal(restoredGuidePersistenceFile.heatCapacityGuideTrial?.id, 'guide-persistence-trial');
 
-const legacyGuideThermodynamicPayload = structuredClone(guidePersistencePayload) as typeof guidePersistencePayload;
-delete (legacyGuideThermodynamicPayload.guided!.physicsState as any).amountMol;
-delete (legacyGuideThermodynamicPayload.guided!.physicsState as any).internalEnergyJ;
-delete (legacyGuideThermodynamicPayload.guided!.physicsState as any).referenceAmountMol;
-delete (legacyGuideThermodynamicPayload.guided as any).temperatureSensorState;
-(legacyGuideThermodynamicPayload.guided!.physicsState as any).gasAmountRatio = 1.2;
-(legacyGuideThermodynamicPayload.guided!.physicsState as any).gasTemperatureK = 310;
-const restoredLegacyGuideThermodynamicFile = restoreHeatCapacityFileFromPersistencePayload({
-  schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
-  fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
-  id: 'legacy-guide-thermodynamic-file',
-  kind: 'heatCapacity',
-  name: 'Legacy Guide Thermodynamic Restore',
-  createdAt: 10,
-  updatedAt: 20,
-  layout: {},
-  payload: legacyGuideThermodynamicPayload as unknown as Record<string, unknown>,
-}, legacyGuideThermodynamicPayload, 1);
-assert.equal(
-  Math.abs(restoredLegacyGuideThermodynamicFile.heatCapacityGuidePhysicsState.gasAmountRatio - 1.2) < 1e-12,
-  true,
-  'legacy Guide ratio/T state must migrate before fallback n/U can mask it',
-);
-assert.equal(
-  Math.abs(restoredLegacyGuideThermodynamicFile.heatCapacityGuidePhysicsState.gasTemperatureK - 310) < 1e-10,
-  true,
-);
-assert.equal(
-  restoredLegacyGuideThermodynamicFile.heatCapacityGuideTemperatureSensorState.temperatureK,
-  310,
-  'a legacy Guide state without a sensor temperature should migrate from its gas temperature',
-);
-
 const validation = validateHeatCapacityPersistencePayload(payload);
 assert.deepEqual(validation.errors, []);
 assert.equal(validation.valid, true);
@@ -751,139 +714,6 @@ assert.equal(restored.heatCapacityFreeRealDomain.scheme, 'real');
 assert.equal(restored.heatCapacityFreeIdealDomain.scheme, 'ideal');
 assert.equal(restored.heatCapacityReleaseState.purpose, 'none');
 assert.equal(restored.heatCapacityFreePreheatCompleted, false);
-
-const legacyV8TemperaturePayload = structuredClone(payload) as any;
-legacyV8TemperaturePayload.free.controls.powerOn = true;
-legacyV8TemperaturePayload.free.experimentGroupStatus = 'running';
-legacyV8TemperaturePayload.free.config.version = 8;
-legacyV8TemperaturePayload.free.config.sensor.temperatureMvAtAmbient = 1475;
-legacyV8TemperaturePayload.free.config.sensor.temperatureMvPerK = 2;
-legacyV8TemperaturePayload.free.config.record.temperatureStableSlopeMvPerS = 0.12;
-legacyV8TemperaturePayload.free.config.record.temperatureAmbientToleranceMv = 0.35;
-legacyV8TemperaturePayload.free.recordConfig = {
-  ...legacyV8TemperaturePayload.free.recordConfig,
-  u0ZeroToleranceMv: 0.2,
-  temperatureStableSlopeMvPerS: 0.12,
-  temperatureAmbientToleranceMv: 0.35,
-};
-legacyV8TemperaturePayload.free.parameterDraft = {
-  ...legacyV8TemperaturePayload.free.parameterDraft,
-  temperatureStableSlopeMvPerS: 0.12,
-  temperatureAmbientToleranceMv: 0.35,
-};
-legacyV8TemperaturePayload.free.activeRunConfigSnapshot = structuredClone(
-  legacyV8TemperaturePayload.free.config,
-);
-legacyV8TemperaturePayload.free.uiReplay = {
-  ...legacyV8TemperaturePayload.free.uiReplay,
-  temperatureSignalTargetMv: 1777,
-  temperatureSignalMv: 1777,
-  temperatureDisplayJitterOffset: 12,
-  temperatureDisplayNextJitterAtMs: 1,
-  vesselTemperatureReadoutK: 777,
-  heatCapacityProcessSamples: {
-    pumpPeakSample: {
-      atS: 1,
-      pressureSignalMv: 1,
-      temperatureSignalMv: 1777,
-    },
-  },
-};
-for (const scheme of ['real', 'ideal'] as const) {
-  const domain = legacyV8TemperaturePayload.free[scheme];
-  domain.experimentGroupStatus = 'running';
-  domain.physicsState.simulationTimeS = 42;
-  domain.physicsState.gasTemperatureK = 300.15;
-  domain.sensorConfig.temperatureMvAtAmbient = 1475;
-  domain.sensorConfig.temperatureMvPerK = 2;
-  domain.sensorState.sensorTemperatureK = 299.15;
-  domain.sensorState.displayTemperatureMv = 1777;
-  domain.sensorState.temperatureHistory = [
-    { atS: 40, valueMv: 1760 },
-    { atS: 42, valueMv: 1777 },
-  ];
-  domain.sensorState.temperatureSlopeMvPerS = 8.5;
-  domain.recordConfig = {
-    ...domain.recordConfig,
-    u0ZeroToleranceMv: 0.2,
-    temperatureStableSlopeMvPerS: 0.12,
-    temperatureAmbientToleranceMv: 0.35,
-  };
-  domain.activeRunConfigSnapshot = structuredClone(legacyV8TemperaturePayload.free.config);
-}
-const legacyV8TemperatureRestored = restoreHeatCapacityFileFromPersistencePayload({
-  ...envelope,
-  id: 'heat-file-v8-temperature-calibration-restore',
-}, legacyV8TemperaturePayload, 31);
-const expectedMigratedTemperatureMv = HEAT_CAPACITY_TEMPERATURE_BASELINE_MV +
-  (299.15 - 298.15) * HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K;
-assert.equal(
-  legacyV8TemperatureRestored.heatCapacityFreeSensorConfig.temperatureMvAtAmbient,
-  HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
-);
-assert.equal(
-  legacyV8TemperatureRestored.heatCapacityFreeSensorConfig.temperatureMvPerK,
-  HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
-);
-assert.equal(
-  legacyV8TemperatureRestored.heatCapacityFreeRecordConfig.u0ZeroToleranceMv,
-  0.2,
-  'v8 migration should preserve unrelated record settings',
-);
-assert.equal(
-  legacyV8TemperatureRestored.heatCapacityFreeRecordConfig.temperatureStableSlopeMvPerS,
-  file.heatCapacityFreeRecordConfig.temperatureStableSlopeMvPerS,
-);
-assert.equal(
-  legacyV8TemperatureRestored.heatCapacityFreeRecordConfig.temperatureAmbientToleranceMv,
-  file.heatCapacityFreeRecordConfig.temperatureAmbientToleranceMv,
-);
-assert.equal(
-  legacyV8TemperatureRestored.heatCapacityFreeParameterDraft.temperatureStableSlopeMvPerS,
-  file.heatCapacityFreeParameterDraft.temperatureStableSlopeMvPerS,
-);
-assert.equal(
-  legacyV8TemperatureRestored.heatCapacityFreeParameterDraft.temperatureAmbientToleranceMv,
-  file.heatCapacityFreeParameterDraft.temperatureAmbientToleranceMv,
-);
-for (const [domain, expectedRecordConfig] of [
-  [
-    legacyV8TemperatureRestored.heatCapacityFreeRealDomain,
-    file.heatCapacityFreeRealDomain.recordConfig,
-  ],
-  [
-    legacyV8TemperatureRestored.heatCapacityFreeIdealDomain,
-    file.heatCapacityFreeIdealDomain.recordConfig,
-  ],
-] as const) {
-  assert.equal(domain.sensorConfig.temperatureMvAtAmbient, HEAT_CAPACITY_TEMPERATURE_BASELINE_MV);
-  assert.equal(domain.sensorConfig.temperatureMvPerK, HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K);
-  assert.equal(domain.sensorState.sensorTemperatureK, 299.15);
-  assert.equal(domain.sensorState.displayTemperatureMv, expectedMigratedTemperatureMv);
-  assert.deepEqual(domain.sensorState.temperatureHistory, [{
-    atS: 42,
-    valueMv: expectedMigratedTemperatureMv,
-  }]);
-  assert.equal(domain.sensorState.temperatureSlopeMvPerS, 0);
-  assert.equal(
-    domain.recordConfig.temperatureStableSlopeMvPerS,
-    expectedRecordConfig.temperatureStableSlopeMvPerS,
-  );
-  assert.equal(
-    domain.recordConfig.temperatureAmbientToleranceMv,
-    expectedRecordConfig.temperatureAmbientToleranceMv,
-  );
-  assert.equal(
-    domain.activeRunConfigSnapshot,
-    null,
-    'an incompatible v8 frozen snapshot must be discarded instead of reactivating old calibration',
-  );
-}
-assert.equal(legacyV8TemperatureRestored.temperatureSignalTargetMv, expectedMigratedTemperatureMv);
-assert.equal(legacyV8TemperatureRestored.temperatureSignalMv, expectedMigratedTemperatureMv);
-assert.equal(legacyV8TemperatureRestored.temperatureDisplayJitterOffset, 0);
-assert.equal(legacyV8TemperatureRestored.vesselTemperatureReadoutK, 300.15);
-assert.deepEqual(legacyV8TemperatureRestored.heatCapacityProcessSamples, {});
 
 const currentTemperaturePayload = structuredClone(payload) as any;
 currentTemperaturePayload.free.controls.powerOn = true;

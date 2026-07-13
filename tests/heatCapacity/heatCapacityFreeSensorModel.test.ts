@@ -81,6 +81,7 @@ const runSequence = (seed: number | string) => {
   let state = createDefaultFreeSensorState(seed, {
     pressureMv: 0,
     temperatureMv: 1499,
+    sensorTemperatureK: 298.15,
   });
   state = stepFreeSensor(state, ambientPhysical, calibration, baseConfig, 0);
   state = stepFreeSensor(state, jumpedPhysical, calibration, baseConfig, state.nextSampleAtS);
@@ -102,6 +103,7 @@ assert.notDeepEqual(
 const lagStart = createDefaultFreeSensorState('lag', {
   pressureMv: 0,
   temperatureMv: 1499,
+  sensorTemperatureK: 298.15,
 });
 const lagged = stepFreeSensor(lagStart, jumpedPhysical, calibration, quietConfig, 0.1);
 assert.equal(lagged.displayPressureMv > 0, true);
@@ -118,6 +120,7 @@ const lowNonlinear = stepFreeSensor(
     pressureMv: 0,
     pressureInitialBiasMv: 0,
     temperatureMv: 1499,
+    sensorTemperatureK: 298.15,
   }),
   {
     ...ambientPhysical,
@@ -133,6 +136,7 @@ const highNonlinear = stepFreeSensor(
     pressureMv: 0,
     pressureInitialBiasMv: 0,
     temperatureMv: 1499,
+    sensorTemperatureK: 298.15,
   }),
   {
     ...ambientPhysical,
@@ -154,6 +158,7 @@ const warmRoom = stepFreeSensor(
     pressureMv: 0,
     pressureInitialBiasMv: 0,
     temperatureMv: 1499,
+    sensorTemperatureK: 303.15,
   }),
   {
     gasPressureKPa: 101.3,
@@ -170,6 +175,7 @@ assert.equal(warmRoom.displayTemperatureMv, 1499);
 const biasedStart = createDefaultFreeSensorState('biased-zero', {
   pressureMv: 0.73,
   temperatureMv: 1499,
+  sensorTemperatureK: 298.15,
 });
 const biasedAmbient = stepFreeSensor(
   biasedStart,
@@ -223,6 +229,7 @@ const sampled = stepFreeSensor(
   createDefaultFreeSensorState('intervals', {
     pressureMv: 0,
     temperatureMv: 1499,
+    sensorTemperatureK: 298.15,
   }),
   ambientPhysical,
   calibration,
@@ -259,6 +266,7 @@ assert.notEqual(
 let stable = createDefaultFreeSensorState('stable', {
   pressureMv: 0,
   temperatureMv: 1499,
+  sensorTemperatureK: 298.15,
 });
 for (let index = 0; index < 8; index += 1) {
   stable = stepFreeSensor(stable, ambientPhysical, { ...calibration, zeroOffsetMv: 0 }, quietConfig, index * 0.1);

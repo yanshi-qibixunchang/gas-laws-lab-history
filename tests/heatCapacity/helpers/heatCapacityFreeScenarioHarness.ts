@@ -131,6 +131,7 @@ const createRun = (configs = createDefaultScenarioConfigs()): ScenarioRun => ({
     pressureMv: 0,
     pressureInitialBiasMv: 0,
     temperatureMv: configs.sensor.temperatureMvAtAmbient,
+    sensorTemperatureK: configs.physics.environment.ambientTemperatureK,
   }),
   calibration: createCalibration(configs.sensor),
   configs,

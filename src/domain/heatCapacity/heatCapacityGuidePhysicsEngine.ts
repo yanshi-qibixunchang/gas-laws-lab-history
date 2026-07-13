@@ -8,7 +8,6 @@ import {
 } from './heatCapacityReleaseModel.ts';
 import {
   applyHeatCapacityMassEnergyFlux,
-  calculateHeatCapacityIdealGasAmountMol,
   createHeatCapacityThermodynamicStateAtAmbient,
   createHeatCapacityThermodynamicStateFromTemperature,
   createReducedFlowWorkPumpEnergyFluxV1,
@@ -176,31 +175,17 @@ export const migrateGuidePhysicsState = (
     }, config);
   }
 
-  const referenceAmountMol = calculateHeatCapacityIdealGasAmountMol({
+  const initialized = createHeatCapacityThermodynamicStateAtAmbient({
     ambientPressureKPa: config.environment.ambientPressureKPa,
     ambientTemperatureK: config.environment.ambientTemperatureK,
     vesselVolumeL: config.vesselVolumeL,
-  });
-  const legacyAmountRatio = Number.isFinite(state.gasAmountRatio) && state.gasAmountRatio > 0
-    ? state.gasAmountRatio
-    : 1;
-  const legacyGasTemperatureK = Number.isFinite(state.gasTemperatureK) && state.gasTemperatureK > 0
-    ? state.gasTemperatureK
-    : config.environment.ambientTemperatureK;
-  const legacyWallTemperatureK = Number.isFinite(state.wallTemperatureK) && state.wallTemperatureK > 0
-    ? state.wallTemperatureK
-    : config.environment.ambientTemperatureK;
-  const thermodynamicState = createHeatCapacityThermodynamicStateFromTemperature({
-    amountMol: referenceAmountMol * legacyAmountRatio,
-    gasTemperatureK: legacyGasTemperatureK,
-    wallTemperatureK: legacyWallTemperatureK,
     gammaTrue: config.gamma,
   });
   return projectGuideThermodynamicState(
     state,
-    thermodynamicState,
+    initialized.state,
     config,
-    referenceAmountMol,
+    initialized.system.referenceAmountMol,
   );
 };
 
