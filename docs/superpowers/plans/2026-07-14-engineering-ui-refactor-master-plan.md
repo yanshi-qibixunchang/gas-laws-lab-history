@@ -312,3 +312,55 @@
 - [ ] 检查是否已选定 UI 方案；未选定时绝不改正式 UI
 - [ ] 检查 `origin` 是否确认为用户主要私有 `-1` 仓库；公开时绝不推送
 - [ ] 从“当前唯一下一步”或最后一个未完成阶段继续，不凭模糊记忆重做
+
+## 12. UI 实施与验收记录（2026-07-14）
+
+### 12.1 已完成范围
+
+- 当前实施分支：`codex/engineering-ui-redesign`。
+- UI 实施提交：`f867b18 refactor: unify engineering UI palette and typography`。
+- 保留原有布局、信息架构、控件位置、区域尺寸、圆角、阴影结构和交互关系；本阶段仅统一明暗主题配色、字体与字号层级，并做了字体切换所需的局部防裁切适配。
+- 工作台主界面、顶栏、标签、文件树、中央工作区、右侧参数区、底部控制台、通用设置、菜单、弹窗、提示和热容比专用窗口均接入共享的工程软件语义色令牌。
+- 明暗主题分别使用冷灰表面与克制的工程蓝；成功、注意、危险和禁用状态使用独立语义色，不再依赖高饱和发光、彩色描边或大面积渐变。
+- 主界面文字统一使用本地 `Noto Sans SC`；数值、参数和仪器数据继续使用 `JetBrains Mono`。未增加按模式分叉的字体或配色实现。
+- 3D 器材、分子动画、科学曲线颜色、实验物理、数据计算、持久化和操作流程均未因本阶段 UI 调整而改变。
+
+### 12.2 字体与许可
+
+- 新增字体：`public/fonts/NotoSansSC/NotoSansSC-Variable.ttf`。
+- 官方来源：Google Fonts `google/fonts` 仓库的 `ofl/notosanssc/NotoSansSC[wght].ttf`。
+- 字体 SHA-256：`A3041811A78C361B1DE50F953C805E0244951C21C5BD412F7232EF0D899AF0DA`。
+- 许可文件：`public/fonts/NotoSansSC/OFL.txt`；下载原件 SHA-256 为 `1C05C68C34F9708415AADA51F17E1B0092D2CEA709BF4A94CD38114F9E73D7D9`，仓库版本仅移除一处行末空格以满足差异检查，仓库文件 SHA-256 为 `BABCFE66C8A098B2FA279BC724A3A342F8124F77CE18941FBCC1BBB39823CDED`。
+- `THIRD_PARTY_NOTICES.md`、构建声明、字体清单、应用内法律声明与生成后的 `public/legal/*` 已统一为 Noto Sans SC + JetBrains Mono。
+- `lucide-react@0.292.0` 继续作为主要界面图标库，项目当前记录的许可证为 ISC；本阶段未引入新图标库，也未把文本符号、Emoji 或临时 SVG 作为通用图标替代。
+- 自定义扬声器图形属于现有产品专用音量语义；图表与等待控制器中的 SVG 属于数据或仪器可视化，不作为通用操作图标复用。
+
+### 12.3 旧方案清理状态
+
+- 生产源码、样式、构建声明和测试中已经没有 `Inter`、`Playfair Display`、旧字体文件 URL 或旧主色值入口；新 UI 不依赖这些旧方案工作。
+- 仍有 11 个预先存在、已跟踪但不再被引用的旧字体素材等待删除授权：`public/fonts/Inter-300.woff2` 至 `Inter-900.woff2` 共 7 个，以及 `public/fonts/PlayfairDisplay-600.woff2` 至 `PlayfairDisplay-900.woff2` 共 4 个。
+- 因仓库 `AGENTS.md` 将删除预先存在的已跟踪文件定义为高风险，已向用户列出精确目标和理由；在收到明确删除确认前不物理删除，也不以注释、deprecated 或兼容入口形式继续引用。
+
+### 12.4 验证结果
+
+- `git diff --check`：通过。
+- `npm.cmd exec tsc -- --noEmit`：通过。
+- `npm.cmd test`：146 个测试文件全部通过。
+- `npm.cmd run build`：通过；法律声明生成、Vite 构建和产物策略检查均通过。
+- `npm.cmd audit --omit=dev`：通过，0 个漏洞。
+- 固定预览 `http://127.0.0.1:5174/`：HTTP 200。
+- 应用内浏览器实机复核：1280×720 下浅色和暗色主界面、通用设置窗口及关键热容比界面可用；页面 `scrollWidth/scrollHeight` 与可视区一致，无全局横向或纵向溢出；Noto Sans SC 与 JetBrains Mono 均完成加载。
+- 缩放与窗口变化继续由现有 16:9 框架和 `visualViewport` 调整逻辑承载；`workbenchAspectFrame.test.ts` 覆盖缩放后尺寸重算、边界限制和背景补齐。本阶段没有改写该布局机制。
+- 视觉复核后已把预览恢复为浅色主题，并关闭通用设置窗口，没有重置用户当前实验状态。
+
+### 12.5 动画协调性审查
+
+- 本阶段冻结动画实现和参数；没有修改控件回弹、菜单显隐、分子动画、放气反馈或实验流程动画。
+- 现有动画在新明暗主题下未发现因颜色或字体替换造成的遮挡、裁切、层级反转或控件跳位，因此当前无需拆分或重写动画。
+- 后续若单独优化动画，应继续保持进入/退出方向、空间让位逻辑、控件物理含义和器材反馈，不与本次视觉令牌提交混合。
+
+### 12.6 远端安全门
+
+- 当前 `origin` 仍指向 `https://github.com/yanshi-qibixunchang/gas-laws-lab-history.git`，实时可见性为 PUBLIC。
+- 该状态违反“只推送私有 `-1` 仓库”的硬约束；本阶段只做本地分支与本地提交，不推送、不发布、不创建 GitHub Release。
+- 远端在用户确认并修正为目标私有仓库前，不得执行 `git push`。
