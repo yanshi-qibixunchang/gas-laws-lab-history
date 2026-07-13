@@ -107,9 +107,8 @@ The application ships local web font files under `public/fonts`.
 
 | Font family | License |
 | --- | --- |
-| Inter | SIL Open Font License 1.1 |
+| Noto Sans SC | SIL Open Font License 1.1 |
 | JetBrains Mono | SIL Open Font License 1.1 |
-| Playfair Display | SIL Open Font License 1.1 |
 
 Font-specific license notes are also provided in `public/fonts/LICENSES.txt`.
 

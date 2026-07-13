@@ -529,7 +529,7 @@ const createMainWindow = async (options = {}) => {
     minWidth: WORKBENCH_WINDOW_MIN_WIDTH,
     minHeight: WORKBENCH_WINDOW_MIN_HEIGHT,
     frame: false,
-    backgroundColor: '#20242a',
+    backgroundColor: '#1a1f25',
     icon: getAppIconPath(),
     webPreferences: {
       contextIsolation: true,

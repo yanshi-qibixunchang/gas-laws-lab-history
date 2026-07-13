@@ -1,57 +1,9 @@
 @font-face {
-  font-family: "Inter";
+  font-family: "Noto Sans SC";
   font-style: normal;
-  font-weight: 300;
+  font-weight: 100 900;
   font-display: swap;
-  src: url("/fonts/Inter-300.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Inter";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/Inter-400.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Inter";
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/Inter-500.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Inter";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/Inter-600.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Inter";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/Inter-700.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Inter";
-  font-style: normal;
-  font-weight: 800;
-  font-display: swap;
-  src: url("/fonts/Inter-800.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Inter";
-  font-style: normal;
-  font-weight: 900;
-  font-display: swap;
-  src: url("/fonts/Inter-900.woff2") format("woff2");
+  src: url("/fonts/NotoSansSC/NotoSansSC-Variable.ttf") format("truetype");
 }
 
 @font-face {
@@ -78,47 +30,16 @@
   src: url("/fonts/JetBrainsMono-700.woff2") format("woff2");
 }
 
-@font-face {
-  font-family: "Playfair Display";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/PlayfairDisplay-600.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Playfair Display";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/PlayfairDisplay-700.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Playfair Display";
-  font-style: normal;
-  font-weight: 800;
-  font-display: swap;
-  src: url("/fonts/PlayfairDisplay-800.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Playfair Display";
-  font-style: normal;
-  font-weight: 900;
-  font-display: swap;
-  src: url("/fonts/PlayfairDisplay-900.woff2") format("woff2");
-}
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --app-font-ui-zh-cn: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
-  --app-font-ui-zh-tw: "Inter", "PingFang TC", "Hiragino Sans CNS", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
-  --app-font-ui-en: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  --app-font-display: "Playfair Display", "Times New Roman", serif;
+  --app-font-ui: "Noto Sans SC", "Microsoft YaHei UI", "Segoe UI", sans-serif;
+  --app-font-ui-zh-cn: var(--app-font-ui);
+  --app-font-ui-zh-tw: var(--app-font-ui);
+  --app-font-ui-en: var(--app-font-ui);
+  --app-font-display: var(--app-font-ui);
   --app-font-data: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
@@ -155,8 +76,8 @@ html:lang(en-GB) {
 
 body {
   font-family: inherit;
-  background-color: #f8fafc; /* Slate-50 base */
-  color: #0f172a; /* Darker default text */
+  background-color: #e9edf1;
+  color: #202830;
   overflow-x: hidden;
   position: relative;
   min-height: 100vh;
@@ -202,5 +123,5 @@ textarea,
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #64748b; }
+::-webkit-scrollbar-thumb { background: #89949f; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #73808d; }

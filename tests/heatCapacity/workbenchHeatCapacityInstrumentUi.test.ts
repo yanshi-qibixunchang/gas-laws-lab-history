@@ -441,18 +441,18 @@ assert.match(
 );
 assert.match(
   styleSource,
-  /\.studio-theme-light \.studio-heat-materials-toolbar\s*\{[\s\S]*background:\s*#f8fafc;/,
-  'heat materials title bar should define a dedicated light-theme surface',
+  /\.studio-theme-light \.studio-heat-materials-toolbar\s*\{[\s\S]*background:\s*var\(--studio-surface-2\);/,
+  'heat materials title bar should use the shared secondary light-theme surface',
 );
 assert.match(
   styleSource,
-  /\.studio-theme-light \.studio-heat-materials-tabs \.studio-results-tab-active\s*\{[\s\S]*box-shadow:\s*inset 0 -2px 0 #2563eb;/,
+  /\.studio-theme-light \.studio-heat-materials-tabs \.studio-results-tab-active\s*\{[\s\S]*box-shadow:\s*inset 0 -2px 0 var\(--studio-accent\);/,
   'light theme heat materials active tab should keep the bottom-rule treatment',
 );
 assert.match(
   styleSource,
-  /\.studio-theme-light \.studio-heat-current-hint strong\s*\{[\s\S]*color:\s*#92400e;/,
-  'light theme heat current hint highlight should use a darker amber text color for contrast',
+  /\.studio-theme-light \.studio-heat-current-hint strong\s*\{[\s\S]*color:\s*var\(--studio-warning\);/,
+  'light theme heat current hint highlight should use the shared amber semantic color',
 );
 assert.match(sceneSource, /overlayBottomRight/, '3D scene should keep a lower-right overlay path for Free Mode record actions');
 assert.match(sceneSource, /overlayTopCenter/, '3D scene should expose a top-center overlay slot for Free wait speed controls');
@@ -547,12 +547,12 @@ assert.match(
 );
 assert.match(
   processReviewStyleSource,
-  /\.hpr-trial-select-trigger\s*\{[\s\S]*min-height:\s*30px;[\s\S]*min-width:\s*112px;[\s\S]*border:\s*1px solid var\(--studio-border\);[\s\S]*border-radius:\s*4px;[\s\S]*background:\s*#171b20;/,
+  /\.hpr-trial-select-trigger\s*\{[\s\S]*min-height:\s*30px;[\s\S]*min-width:\s*112px;[\s\S]*border:\s*1px solid var\(--studio-border\);[\s\S]*border-radius:\s*4px;[\s\S]*background:\s*var\(--studio-surface\);/,
   'process review group selector trigger should match the display-scheme dropdown trigger sizing and surface',
 );
 assert.match(
   processReviewStyleSource,
-  /\.hpr-trial-select-menu\s*\{[\s\S]*z-index:\s*6;[\s\S]*min-width:\s*142px;[\s\S]*border:\s*1px solid rgba\(79, 127, 184, 0\.48\);[\s\S]*border-radius:\s*6px;[\s\S]*animation:\s*studioDisplaySchemeMenuIn 150ms ease both;/,
+  /\.hpr-trial-select-menu\s*\{[\s\S]*z-index:\s*6;[\s\S]*min-width:\s*142px;[\s\S]*border:\s*1px solid var\(--studio-accent-border\);[\s\S]*border-radius:\s*6px;[\s\S]*animation:\s*studioDisplaySchemeMenuIn 150ms ease both;/,
   'process review group selector menu should match the display-scheme dropdown border, radius, width, and animation',
 );
 assert.match(processReviewPanelSource, /trialOptions\.map/, 'process review menu should list all reviewable groups');
@@ -1436,15 +1436,15 @@ assert.match(styleSource, /\.studio-heat-mode-control/, 'unified mode control sh
 assert.match(styleSource, /\.studio-heat-mode-actions/, 'mode-specific expanded actions should have a dedicated animated area');
 assert.match(styleSource, /\.studio-heat-mode-control[\s\S]*transition:[\s\S]*cubic-bezier\(0\.2, 0, 0, 1\)/, 'mode bar movement and extension should use a non-elastic engineering transition');
 assert.match(styleSource, /\.studio-heat-mode-segment \+ \.studio-heat-mode-segment \{[\s\S]*border-left:/, 'mode bar should draw divider lines between demo, guide, and free segments');
-assert.match(getRootCssBlock('.studio-heat-mode-control'), /rgba\(123, 184, 139/, 'mode bar should use the old run-control green palette instead of the previous blue glow');
+assert.match(getRootCssBlock('.studio-heat-mode-control'), /var\(--studio-success\)/, 'mode bar should use the shared semantic success palette instead of a component-local green');
 assert.doesNotMatch(getRootCssBlock('.studio-heat-mode-control'), /rgba\(125, 211, 252|backdrop-filter|0 14px 30px/, 'mode bar should not keep the previous cyan glass styling');
-assert.match(getRootCssBlock('.studio-heat-mode-action'), /#3f474f[\s\S]*#7bb88b/, 'positive mode actions should match the old simple green run-control style');
+assert.match(getRootCssBlock('.studio-heat-mode-action'), /var\(--studio-success-soft\)[\s\S]*var\(--studio-success\)/, 'positive mode actions should consume the shared semantic success tokens');
 assert.doesNotMatch(styleSource, /studio-heat-mode-action-next-trial|studio-heat-next-trial-breathe/, 'next-trial button CSS should be deleted with the guide multi-trial flow');
-assert.match(getRootCssBlock('.studio-heat-mode-action-danger'), /#c96a6f[\s\S]*#ffffff/, 'stop mode action should match the old simple red stop-control style');
-assert.match(styleSource, /\.studio-panel-actions \.studio-heat-mode-action \{[\s\S]*background: #3f474f;[\s\S]*color: #7bb88b;/, 'dark theme panel-action overrides should preserve green heat-capacity mode actions');
-assert.match(styleSource, /\.studio-panel-actions \.studio-heat-mode-action-danger \{[\s\S]*background: #c96a6f;[\s\S]*color: #ffffff;/, 'dark theme panel-action overrides should preserve red heat-capacity stop actions');
-assert.match(styleSource, /\.studio-theme-light \.studio-panel-actions \.studio-heat-mode-action \{[\s\S]*#edf7ef[\s\S]*#16783a/, 'light theme panel-action overrides should preserve green heat-capacity mode actions');
-assert.match(styleSource, /\.studio-theme-light \.studio-panel-actions \.studio-heat-mode-action-danger \{[\s\S]*#fee2e2[\s\S]*#991b1b/, 'light theme panel-action overrides should preserve red heat-capacity stop actions');
+assert.match(getRootCssBlock('.studio-heat-mode-action-danger'), /var\(--studio-danger\)[\s\S]*var\(--studio-action-primary-text\)/, 'stop mode action should consume the shared semantic danger tokens');
+assert.match(styleSource, /\.studio-panel-actions \.studio-heat-mode-action \{[\s\S]*var\(--studio-success-soft\)[\s\S]*var\(--studio-success\)/, 'dark theme panel-action overrides should preserve semantic success actions');
+assert.match(styleSource, /\.studio-panel-actions \.studio-heat-mode-action-danger \{[\s\S]*var\(--studio-danger\)[\s\S]*var\(--studio-action-primary-text\)/, 'dark theme panel-action overrides should preserve semantic danger actions');
+assert.match(styleSource, /\.studio-theme-light \.studio-panel-actions \.studio-heat-mode-action \{[\s\S]*var\(--studio-success-soft\)[\s\S]*var\(--studio-success\)/, 'light theme panel-action overrides should preserve semantic success actions');
+assert.match(styleSource, /\.studio-theme-light \.studio-panel-actions \.studio-heat-mode-action-danger \{[\s\S]*var\(--studio-danger-soft\)[\s\S]*var\(--studio-danger\)/, 'light theme panel-action overrides should preserve semantic danger actions');
 assert.match(guideStepModelSource, /export type GuideHeatCapacityStep =[\s\S]*openStopcockForZeroRequired[\s\S]*recordU0Required[\s\S]*recordU1Required[\s\S]*recordU2Required[\s\S]*closePowerRequired[\s\S]*completed/, 'guide heat-capacity workflow should model one guided experiment with U0/U1/U2 recording and final power-off');
 assert.match(workbenchSource, /getHeatCapacityGuideStepControlId/, 'Workbench should consume the shared guide step control-id model');
 assert.match(workbenchSource, /getHeatCapacityGuideAllowedActions/, 'Workbench should consume the shared guide allowed-action model');
@@ -2088,7 +2088,7 @@ assert.doesNotMatch(leftPanelSource, /actionVisible:\s*file\.heatCapacityProcess
 assert.match(leftPanelSource, /renderRemoveRecordButton\(\s*index,\s*'trial'/, 'the lower trial table should delete only the whole group');
 assert.doesNotMatch(leftPanelSource, /renderRemoveRecordButton\(trialIndex,\s*'u1'[\s\S]*renderRemoveRecordButton\(trialIndex,\s*'u2'/, 'the lower trial table should no longer concentrate U1 and U2 delete controls inside the data group row');
 assert.doesNotMatch(workbenchSource, /removeHeatCapacityTrialRecord|createDefaultHeatCapacityProcessingResult/, 'Workbench should not keep legacy trial rollback or standalone processing invalidation');
-assert.match(styleSource, /\.studio-theme-light \.studio-table-action\.studio-table-action-confirm \{[\s\S]*background: #b42318;[\s\S]*color: #ffffff;/, 'light theme two-step delete confirmation should keep readable white text on the red button');
+assert.match(styleSource, /\.studio-theme-light \.studio-table-action\.studio-table-action-confirm \{[\s\S]*background: var\(--studio-danger\);[\s\S]*color: #f8fafb;/, 'light theme two-step delete confirmation should keep readable light text on the semantic danger button');
 assert.doesNotMatch(leftPanelSource, /5\s*\/\s*3|1\.667/, 'Heat Capacity processing UI should not show hard-sphere theoretical gamma');
 assert.match(leftPanelSource, /zh-CN[\s\S]*实验指引[\s\S]*数据与结果/, 'Heat Capacity left panel should include Simplified Chinese copy for the merged result page');
 assert.match(leftPanelSource, /zh-TW[\s\S]*實驗指引[\s\S]*資料與結果/, 'Heat Capacity left panel should include Traditional Chinese copy for the merged result page');
@@ -2355,26 +2355,26 @@ assert.match(styleSource, /\.studio-heat-advanced-grid\s*\{[\s\S]*grid-template-
 assert.match(styleSource, /\.studio-heat-advanced-window\s*\{[\s\S]*overflow-x:\s*hidden/, 'advanced parameter window should never require horizontal scrolling');
 assert.match(styleSource, /\.studio-heat-advanced-actions button,\s*\.studio-heat-advanced-risk-window button\s*\{[\s\S]*min-width:\s*86px;[\s\S]*justify-content:\s*center;/, 'advanced parameter confirm/cancel buttons should be wide enough for Chinese labels');
 assert.match(styleSource, /\.studio-theme-light \.studio-heat-advanced-window\s*\{[\s\S]*background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*border-color:/, 'advanced parameter window should have a dedicated light-theme surface');
-assert.match(styleSource, /\.studio-theme-light \.studio-heat-free-input-cell input\s*\{[\s\S]*background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*border-color:/, 'Free Mode parameter inputs should have dedicated light-theme contrast');
+assert.match(styleSource, /\.studio-theme-light \.studio-heat-free-input-cell input\s*\{[\s\S]*background:\s*var\(--studio-surface\);[\s\S]*color:\s*var\(--studio-text\);[\s\S]*border-color:\s*var\(--studio-border\)/, 'Free Mode parameter inputs should consume the shared light-theme contrast tokens');
 assert.match(
   styleSource,
-  /\.studio-theme-light \.studio-heat-free-scheme-button\s*\{[\s\S]*background:\s*#ecfdf5;[\s\S]*color:\s*#0f5f5a;[\s\S]*border-color:\s*rgba\(15,\s*118,\s*110,\s*0\.42\)/,
-  'light theme real-simulation button should use a readable green surface instead of low-contrast cyan',
+  /\.studio-theme-light \.studio-heat-free-scheme-button\s*\{[\s\S]*background:\s*var\(--studio-success-soft\);[\s\S]*color:\s*var\(--studio-success\);[\s\S]*border-color:\s*color-mix/,
+  'light theme real-simulation button should use the shared readable success surface',
 );
 assert.match(
   styleSource,
-  /\.studio-theme-light \.studio-heat-free-scheme-button-active\s*\{[\s\S]*background:\s*#dbeafe;[\s\S]*color:\s*#1e40af;[\s\S]*border-color:\s*rgba\(37,\s*99,\s*235,\s*0\.48\)/,
-  'light theme ideal-state button should use a separate high-contrast selected surface',
+  /\.studio-theme-light \.studio-heat-free-scheme-button-active\s*\{[\s\S]*background:\s*var\(--studio-accent-soft\);[\s\S]*color:\s*var\(--studio-accent-strong\);[\s\S]*border-color:\s*var\(--studio-accent-border\)/,
+  'light theme ideal-state button should use the shared high-contrast selected surface',
 );
 assert.match(
   styleSource,
-  /\.studio-theme-light \.studio-heat-free-advanced-button\s*\{[\s\S]*background:\s*#eaf2ff;[\s\S]*color:\s*#1f3f67;[\s\S]*border-color:\s*rgba\(37,\s*99,\s*235,\s*0\.28\)/,
-  'light theme advanced-parameter entry button should use an independent light blue surface instead of dark neutral buttons',
+  /\.studio-theme-light \.studio-heat-free-advanced-button\s*\{[\s\S]*background:\s*var\(--studio-accent-softer\);[\s\S]*color:\s*var\(--studio-accent-strong\);[\s\S]*border-color:\s*var\(--studio-accent-border\)/,
+  'light theme advanced-parameter entry button should use the shared restrained accent surface',
 );
 assert.match(
   styleSource,
-  /\.studio-theme-light \.studio-heat-free-advanced-button,\s*\.studio-theme-light \.studio-heat-advanced-actions button,\s*\.studio-theme-light \.studio-heat-advanced-risk-window button\s*\{[\s\S]*background:\s*#eef4fb;[\s\S]*color:\s*#334155;[\s\S]*border-color:\s*#c5d2df/,
-  'light theme advanced-parameter neutral buttons should use dedicated light colors',
+  /\.studio-theme-light \.studio-heat-free-advanced-button,\s*\.studio-theme-light \.studio-heat-advanced-actions button,\s*\.studio-theme-light \.studio-heat-advanced-risk-window button\s*\{[\s\S]*background:\s*var\(--studio-surface-2\);[\s\S]*color:\s*var\(--studio-muted\);[\s\S]*border-color:\s*var\(--studio-border\)/,
+  'light theme advanced-parameter neutral buttons should consume shared light-theme tokens',
 );
 assert.match(
   getCssBlock('.studio-heat-free-record-controls button'),

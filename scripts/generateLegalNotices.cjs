@@ -171,7 +171,7 @@ const createHtmlDocument = ({ title, body }) => `<!doctype html>
   <style>
     :root {
       color-scheme: dark light;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: "Noto Sans SC", "Microsoft YaHei UI", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
       line-height: 1.55;
     }
     body {

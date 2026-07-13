@@ -79,7 +79,7 @@ const WorkbenchAspectFrame = () => {
           width: '100vw',
           height: '100vh',
           overflow: 'hidden',
-          background: '#20242a',
+          background: '#1a1f25',
         }}
       >
         <WorkbenchStudioPrototype />
@@ -102,7 +102,7 @@ const WorkbenchAspectFrame = () => {
         display: 'grid',
         placeItems: 'center',
         overflow: 'hidden',
-        background: '#0b0f14',
+        background: '#11161b',
       }}
     >
       <div
@@ -110,9 +110,9 @@ const WorkbenchAspectFrame = () => {
           width: scaledFrameWidth,
           height: scaledFrameHeight,
           overflow: 'hidden',
-          background: '#20242a',
-          outline: '1px solid rgba(148, 163, 184, 0.42)',
-          boxShadow: '0 0 0 1px rgba(15, 23, 42, 0.95), 0 24px 70px rgba(0, 0, 0, 0.52)',
+          background: '#1a1f25',
+          outline: '1px solid rgba(127, 139, 152, 0.38)',
+          boxShadow: '0 0 0 1px rgba(20, 26, 32, 0.95), 0 24px 70px rgba(0, 0, 0, 0.46)',
         }}
       >
         <div

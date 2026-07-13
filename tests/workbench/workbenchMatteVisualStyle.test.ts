@@ -18,14 +18,14 @@ const expectToken = (name: string, value: string) => {
   );
 };
 
-expectToken('--studio-bg', '#20242a');
-expectToken('--studio-surface', '#242a31');
-expectToken('--studio-surface-2', '#2d343d');
-expectToken('--studio-surface-3', '#343c46');
-expectToken('--studio-border', '#343c46');
-expectToken('--studio-border-soft', '#2b323a');
-expectToken('--studio-accent', '#4f7fb8');
-expectToken('--studio-accent-strong', '#6d95c4');
+expectToken('--studio-bg', '#1a1f25');
+expectToken('--studio-surface', '#20262d');
+expectToken('--studio-surface-2', '#262d35');
+expectToken('--studio-surface-3', '#2d3640');
+expectToken('--studio-border', '#3a4652');
+expectToken('--studio-border-soft', '#303943');
+expectToken('--studio-accent', '#4c78a1');
+expectToken('--studio-accent-strong', '#6b95bd');
 
 assert.doesNotMatch(
   cssSource,
@@ -77,14 +77,14 @@ assert.match(
 
 assert.match(
   cssSource,
-  /\.studio-file-tabs\s*\{[^}]*?border-bottom:\s*2px solid #151a20;/,
-  'top tab strip should use a darker separator so the workspace gap reads clearly',
+  /\.studio-file-tabs\s*\{[^}]*?border-bottom:\s*2px solid var\(--studio-separator-strong\);/,
+  'top tab strip should use the shared strong separator token so the workspace gap reads clearly',
 );
 
 assert.match(
   cssSource,
-  /\.studio-current-params\s*\{[^}]*?border-left:\s*2px solid #151a20;[^}]*?border-top:\s*2px solid #151a20;/,
-  'right parameter rail should use darker left and top separators against the workspace',
+  /\.studio-current-params\s*\{[^}]*?border-left:\s*2px solid var\(--studio-separator-strong\);[^}]*?border-top:\s*2px solid var\(--studio-separator-strong\);/,
+  'right parameter rail should use the shared strong separator token against the workspace',
 );
 
 for (const selector of ['.studio-body', '.studio-workspace-shell']) {
@@ -120,5 +120,4 @@ assert.match(
 );
 
 console.log('workbenchMatteVisualStyle tests passed');
-
 

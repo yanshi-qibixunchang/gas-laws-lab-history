@@ -53,12 +53,24 @@ const generatedLegalHtmlFiles = [
     html: readFileSync(new URL('../../public/legal/audio-materials.html', import.meta.url), 'utf8'),
   },
 ];
+const fontLicenseNotes = readFileSync(new URL('../../public/fonts/LICENSES.txt', import.meta.url), 'utf8');
+const generatedFontLicenseNotes = readFileSync(new URL('../../public/legal/font-licenses.txt', import.meta.url), 'utf8');
 
 const indexOfOrFail = (haystack: string, needle: string, message: string) => {
   const index = haystack.indexOf(needle);
   assert.notEqual(index, -1, message);
   return index;
 };
+
+assert.ok(existsSync(new URL('../../public/fonts/NotoSansSC/NotoSansSC-Variable.ttf', import.meta.url)), 'bundled Noto Sans SC variable font should exist');
+assert.ok(existsSync(new URL('../../public/fonts/NotoSansSC/OFL.txt', import.meta.url)), 'bundled Noto Sans SC OFL text should exist');
+assert.match(rootStyles, /font-family:\s*"Noto Sans SC"[\s\S]*font-weight:\s*100 900/, 'global styles should register the shared Noto Sans SC variable font');
+assert.match(rootStyles, /--app-font-ui:\s*"Noto Sans SC"/, 'global UI typography should use Noto Sans SC');
+assert.doesNotMatch(rootStyles, /font-family:\s*"(?:Inter|Playfair Display)"/, 'global styles should not register the superseded Inter or Playfair Display schemes');
+assert.match(fontLicenseNotes, /Noto Sans SC[\s\S]*JetBrains Mono/, 'source font notices should list the two retained font families');
+assert.doesNotMatch(fontLicenseNotes, /\bInter\b|Playfair Display/, 'source font notices should not retain superseded families');
+assert.equal(generatedFontLicenseNotes, fontLicenseNotes, 'generated font license notes should stay synchronized with the source notice');
+assert.doesNotMatch(buildNoticeContentSource, /\bInter\b|Playfair Display/, 'localized build notices should not claim superseded font families');
 
 assert.equal(packageJson.build?.productName, '热容比实验室', 'installer product name should use the Chinese app name');
 assert.equal(packageJson.build?.nsis?.shortcutName, '热容比实验室', 'Windows shortcut should use the Chinese app name');

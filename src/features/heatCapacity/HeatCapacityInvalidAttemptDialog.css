@@ -5,9 +5,9 @@
   border: 1px solid var(--studio-border);
   border-radius: 6px;
   background: var(--studio-surface);
-  box-shadow: 0 12px 28px rgba(2, 8, 23, 0.3);
+  box-shadow: 0 12px 28px rgba(7, 12, 18, 0.24);
   color: var(--studio-text);
-  font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft JhengHei UI", system-ui, sans-serif;
+  font-family: var(--app-font-ui);
   pointer-events: auto;
   animation: studioOverlayFadeIn var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) both;
 }
@@ -108,7 +108,7 @@
 }
 
 .studio-theme-light .studio-heat-invalid-attempt {
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
+  box-shadow: 0 12px 28px rgba(32, 40, 48, 0.16);
 }
 
 @media (max-width: 560px) {

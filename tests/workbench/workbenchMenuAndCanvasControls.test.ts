@@ -59,7 +59,7 @@ assert.match(
 );
 assert.match(
   getRuleBody('.studio-theme-dark .studio-file-tab:not(.studio-file-tab-active)'),
-  /background:\s*#[0-9a-fA-F]{6};[\s\S]*box-shadow:/,
+  /background:\s*var\(--studio-surface-2\);[\s\S]*box-shadow:/,
   'inactive dark file tabs should have their own surface and separation shadow so adjacent experiments are distinguishable',
 );
 assert.match(
@@ -79,22 +79,22 @@ assert.equal(
 );
 assert.match(
   getRuleBody('.studio-heat-mode-segment-active'),
-  /box-shadow:[\s\S]*inset 0 0 0 1px rgba\(123,\s*184,\s*139,\s*0\.[0-9]+\)/,
+  /box-shadow:[\s\S]*inset 0 0 0 1px color-mix\(in srgb, var\(--studio-success\) 38%, transparent\)/,
   'active heat-capacity mode segment should have a visible outline in dark mode',
 );
 assert.match(
   getRuleBody('.studio-heat-mode-button-active'),
-  /background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};[\s\S]*box-shadow:[\s\S]*0 0 0 1px rgba\(123,\s*184,\s*139,\s*0\.[0-9]+\)/,
+  /background:\s*color-mix\(in srgb, var\(--studio-success\) 32%, var\(--studio-surface\)\);[\s\S]*color:\s*color-mix\(in srgb, var\(--studio-success\) 52%, var\(--studio-text\)\);[\s\S]*box-shadow:[\s\S]*0 0 0 1px color-mix\(in srgb, var\(--studio-success\) 30%, transparent\)/,
   'active heat-capacity mode button should have higher contrast than inactive dark buttons',
 );
 assert.match(
   getRuleBody('.studio-heat-mode-button-active:hover'),
-  /background:\s*#[0-9a-fA-F]{6};[\s\S]*color:\s*#[0-9a-fA-F]{6};/,
+  /background:\s*color-mix\(in srgb, var\(--studio-success\) 40%, var\(--studio-surface\)\);[\s\S]*color:\s*var\(--studio-text\);/,
   'hovering the active heat-capacity mode should not fall back to the low-contrast generic hover style',
 );
 assert.match(
   getRuleBody('.studio-panel-actions .studio-heat-mode-button-active:hover'),
-  /border-color:\s*rgba\(168,\s*218,\s*181,\s*0\.[0-9]+\);[\s\S]*color:\s*#[0-9a-fA-F]{6};/,
+  /border-color:\s*color-mix\(in srgb, var\(--studio-success\) 82%, var\(--studio-border\)\);[\s\S]*color:\s*var\(--studio-text\);/,
   'active heat-capacity mode hover should override the generic panel action hover rule',
 );
 assert.match(

@@ -42,13 +42,13 @@ assert.match(
 
 assert.match(
   appSource,
-  /background:\s*'#0b0f14'/,
+  /background:\s*'#11161b'/,
   'Workbench desktop frame should use a darker matte backdrop outside the 16:9 stage',
 );
 
 assert.match(
   appSource,
-  /outline:\s*'1px solid rgba\(148, 163, 184, 0\.42\)'[\s\S]*?boxShadow:/,
+  /outline:\s*'1px solid rgba\(127, 139, 152, 0\.38\)'[\s\S]*?boxShadow:/,
   'Workbench desktop frame should render a clear boundary around the 16:9 stage',
 );
 
@@ -89,5 +89,4 @@ assert.doesNotMatch(
 );
 
 console.log('workbenchAspectFrame tests passed');
-
 

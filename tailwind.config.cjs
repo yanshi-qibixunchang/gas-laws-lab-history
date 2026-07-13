@@ -11,9 +11,9 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Noto Sans SC', 'Microsoft YaHei UI', 'Segoe UI', 'sans-serif'],
         mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
-        serif: ['Playfair Display', 'ui-serif', 'serif']
+        serif: ['Noto Sans SC', 'Microsoft YaHei UI', 'Segoe UI', 'sans-serif']
       },
       colors: {
         sciblue: {

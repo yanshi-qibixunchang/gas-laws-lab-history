@@ -1,64 +1,64 @@
 .hpr-panel,
 .hpr-empty {
-  --hpr-panel-bg: #171d24;
-  --hpr-panel-bg-soft: #1d252e;
-  --hpr-panel-bg-elevated: #222b35;
-  --hpr-panel-bg-muted: #202832;
-  --hpr-border: #344253;
-  --hpr-border-soft: #2a3644;
-  --hpr-text: #d9e2ec;
-  --hpr-text-strong: #f2f6fb;
-  --hpr-muted: #9aaabc;
-  --hpr-subtle: #718399;
-  --hpr-accent: #6d95c4;
-  --hpr-plot-bg: rgba(18, 25, 34, 0.52);
-  --hpr-plot-border: #637c96;
-  --hpr-tick: #70869e;
-  --hpr-detail-bg: #1d2630;
-  --hpr-detail-border: #53687d;
-  --hpr-process-note-bg: #202832;
-  --hpr-process-note-border: #344253;
+  --hpr-panel-bg: var(--studio-surface);
+  --hpr-panel-bg-soft: var(--studio-surface-2);
+  --hpr-panel-bg-elevated: var(--studio-surface-2);
+  --hpr-panel-bg-muted: var(--studio-surface-3);
+  --hpr-border: var(--studio-border);
+  --hpr-border-soft: var(--studio-border-soft);
+  --hpr-text: var(--studio-text);
+  --hpr-text-strong: var(--studio-text);
+  --hpr-muted: var(--studio-muted);
+  --hpr-subtle: var(--studio-subtle);
+  --hpr-accent: var(--studio-accent-strong);
+  --hpr-plot-bg: color-mix(in srgb, var(--studio-bg) 72%, transparent);
+  --hpr-plot-border: color-mix(in srgb, var(--studio-accent) 52%, var(--studio-border));
+  --hpr-tick: color-mix(in srgb, var(--studio-muted) 72%, var(--studio-border));
+  --hpr-detail-bg: var(--studio-surface-2);
+  --hpr-detail-border: var(--studio-border);
+  --hpr-process-note-bg: var(--studio-surface-3);
+  --hpr-process-note-border: var(--studio-border);
   --hpr-pressure-line: #3c7db8;
   --hpr-temperature-line: #16a1a9;
   --hpr-standard-process-line: #b9945e;
-  --hpr-status-reasonable: #37d67a;
-  --hpr-status-review: #7fc7ff;
-  --hpr-status-needs-improvement: #f4b54d;
-  --hpr-status-retaken: #f2a85d;
-  --hpr-status-insufficient-data: #a8b7c8;
-  --hpr-scroll-thumb: #586b7f;
-  --hpr-scroll-track: #111820;
+  --hpr-status-reasonable: var(--studio-success);
+  --hpr-status-review: var(--studio-accent-strong);
+  --hpr-status-needs-improvement: var(--studio-warning);
+  --hpr-status-retaken: #c58a52;
+  --hpr-status-insufficient-data: var(--studio-muted);
+  --hpr-scroll-thumb: color-mix(in srgb, var(--studio-muted) 58%, var(--studio-surface-3));
+  --hpr-scroll-track: var(--studio-bg);
 }
 
 .studio-theme-light .hpr-panel,
 .studio-theme-light .hpr-empty {
-  --hpr-panel-bg: #f8fbfe;
-  --hpr-panel-bg-soft: #f7fbff;
-  --hpr-panel-bg-elevated: #f6faff;
-  --hpr-panel-bg-muted: #eef4fa;
-  --hpr-border: #d5e1ec;
-  --hpr-border-soft: #dae5ef;
-  --hpr-text: #1e3148;
-  --hpr-text-strong: #07152b;
-  --hpr-muted: #62768b;
-  --hpr-subtle: #72849a;
-  --hpr-accent: #315383;
-  --hpr-plot-bg: rgba(248, 251, 254, 0.42);
-  --hpr-plot-border: #8fa8bf;
-  --hpr-tick: #8ba2b8;
-  --hpr-detail-bg: #f9fcfe;
-  --hpr-detail-border: #aabdd1;
-  --hpr-process-note-bg: #f3f7fb;
-  --hpr-process-note-border: #d6e2ed;
+  --hpr-panel-bg: var(--studio-surface);
+  --hpr-panel-bg-soft: var(--studio-surface-2);
+  --hpr-panel-bg-elevated: var(--studio-surface);
+  --hpr-panel-bg-muted: var(--studio-surface-2);
+  --hpr-border: var(--studio-border);
+  --hpr-border-soft: var(--studio-border-soft);
+  --hpr-text: var(--studio-text);
+  --hpr-text-strong: var(--studio-text);
+  --hpr-muted: var(--studio-muted);
+  --hpr-subtle: var(--studio-subtle);
+  --hpr-accent: var(--studio-accent-strong);
+  --hpr-plot-bg: color-mix(in srgb, var(--studio-surface) 72%, transparent);
+  --hpr-plot-border: color-mix(in srgb, var(--studio-accent) 42%, var(--studio-border));
+  --hpr-tick: color-mix(in srgb, var(--studio-muted) 64%, var(--studio-border));
+  --hpr-detail-bg: var(--studio-surface);
+  --hpr-detail-border: var(--studio-border);
+  --hpr-process-note-bg: var(--studio-surface-2);
+  --hpr-process-note-border: var(--studio-border);
   --hpr-pressure-line: #226399;
   --hpr-temperature-line: #178b99;
   --hpr-standard-process-line: #a77738;
-  --hpr-status-reasonable: #047857;
-  --hpr-status-review: #245f9f;
-  --hpr-status-needs-improvement: #915f00;
-  --hpr-status-retaken: #8b5a24;
-  --hpr-status-insufficient-data: #52677e;
-  --hpr-scroll-thumb: #8795a4;
+  --hpr-status-reasonable: var(--studio-success);
+  --hpr-status-review: var(--studio-accent-strong);
+  --hpr-status-needs-improvement: var(--studio-warning);
+  --hpr-status-retaken: #8b633d;
+  --hpr-status-insufficient-data: var(--studio-muted);
+  --hpr-scroll-thumb: color-mix(in srgb, var(--studio-muted) 60%, var(--studio-border));
   --hpr-scroll-track: transparent;
 }
 
@@ -311,7 +311,7 @@
   gap: 10px;
   border: 1px solid var(--studio-border);
   border-radius: 4px;
-  background: #171b20;
+  background: var(--studio-surface);
   color: var(--studio-text);
   padding: 6px 9px 6px 11px;
   text-align: left;
@@ -321,8 +321,8 @@
 .hpr-trial-select-trigger:hover,
 .hpr-trial-select-trigger:focus-visible,
 .hpr-trial-select.studio-heat-free-display-scheme-open .hpr-trial-select-trigger {
-  border-color: rgba(79, 127, 184, 0.62);
-  background: rgba(79, 127, 184, 0.1);
+  border-color: var(--studio-accent-border);
+  background: var(--studio-accent-softer);
   outline: none;
 }
 
@@ -341,10 +341,10 @@
   display: grid;
   min-width: 142px;
   overflow: hidden;
-  border: 1px solid rgba(79, 127, 184, 0.48);
+  border: 1px solid var(--studio-accent-border);
   border-radius: 6px;
-  background: #20252c;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  background: var(--studio-surface);
+  box-shadow: 0 12px 28px rgba(7, 12, 18, 0.26);
   animation: studioDisplaySchemeMenuIn 150ms ease both;
 }
 

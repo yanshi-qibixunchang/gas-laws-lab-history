@@ -1,21 +1,17 @@
 Font License Notes
 ==================
 
-This directory contains local web font files used by Hard Sphere Lab.
+This directory contains local web font files used by the application.
 
 Included font families:
 
-- Inter
+- Noto Sans SC
   License: SIL Open Font License 1.1
-  Upstream project: https://github.com/rsms/inter
+  Upstream project: https://fonts.google.com/noto/specimen/Noto+Sans+SC
 
 - JetBrains Mono
   License: SIL Open Font License 1.1
   Upstream project: https://www.jetbrains.com/lp/mono/
-
-- Playfair Display
-  License: SIL Open Font License 1.1
-  Upstream project: https://fonts.google.com/specimen/Playfair+Display
 
 The SIL Open Font License allows these fonts to be used, embedded, bundled,
 and redistributed with software, including commercial software, subject to the
