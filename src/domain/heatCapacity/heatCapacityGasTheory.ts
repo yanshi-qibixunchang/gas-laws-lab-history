@@ -27,7 +27,7 @@ export const HEAT_CAPACITY_FREE_GAS_TYPE_MODEL_DEFAULTS: Record<
 > = {
   air: {
     gamma: 1.4,
-    gasWallConductanceWPerK: 0.14,
+    gasWallConductanceWPerK: 0.08,
     leakageRatePerS: 0.00005,
   },
   helium: {

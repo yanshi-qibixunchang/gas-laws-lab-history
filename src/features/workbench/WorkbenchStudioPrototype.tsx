@@ -101,6 +101,7 @@ import {
   setHeatCapacityScriptedStopcockOpen,
   setHeatCapacityPressureZeroOffset,
   shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
+  shouldCommitHeatCapacityRealtimeTick,
   startHeatCapacityGuideWorkbenchState,
   stepHeatCapacityWorkbenchFile,
   WORKBENCH_LIVE_SPLIT_MIN_RATIO,
@@ -2203,7 +2204,7 @@ const heatCapacityRealtimeCopies = {
       },
       quickReleaseState: {
         title: '快速放气状态',
-        body: '短时间放气使瓶内气体迅速膨胀并降温，这一阶段近似绝热过程。关闭旋塞后，瓶内保留下放气后的低温、低压状态；如果放气时间过长，气体会过度泄出，后续读数会偏离标准实验条件。',
+        body: '真实实验中，主要通过放气声音判断玻璃旋塞的关闭时机。听到“咻”的一声后，应等待这声“咻”完整结束；此时气体快速释放完毕，请立即点击玻璃旋塞将其关闭。关闭过早或过晚，都会成为比热容比测量的重要误差来源。软件左上角设有“微观可视化”开关，开启后可观察瓶内分子动画：当分子不再持续朝瓶口定向运动并出现大量反弹时，说明内外压强已经趋于平衡，可用来辅助判断关闭时机。微观可视化仅作为辅助，实际操作仍应以“咻”声结束作为主要判断依据。短时间放气使瓶内气体迅速膨胀并降温，这一阶段近似绝热过程；关闭旋塞后，瓶内保留下放气后的低温、低压状态。',
       },
       thermalRecovery: {
         title: '回温后的读数',
@@ -2269,7 +2270,7 @@ const heatCapacityRealtimeCopies = {
       pumpFocus: '请双击打气球进入聚焦模式。',
       pumpAction: '双击聚焦打气球，快速点按打气球，按压至 Uₚ ≥ 120 mV 后自动退出。',
       waitU1Ready: '5 min 到了，记录 U₁ / Uₜ₁。',
-      releaseReady: '请在开启动画完成并形成实际放气后关闭玻璃旋塞；快速开关后可重新操作。',
+      releaseReady: '等待“咻”声结束，气体释放完毕，请立即关闭玻璃旋塞。',
       waitU2Ready: '5 min 到了，记录 U₂ / Uₜ₂。',
     },
     recordU0Success: 'U₀ 已记录。',
@@ -2473,7 +2474,7 @@ const heatCapacityRealtimeCopies = {
       },
       quickReleaseState: {
         title: '快速放氣狀態',
-        body: '短時間放氣使瓶內氣體迅速膨脹並降溫，這一階段近似絕熱過程。關閉旋塞後，瓶內保留下放氣後的低溫、低壓狀態；如果放氣時間過長，氣體會過度洩出，後續讀數會偏離標準實驗條件。',
+        body: '真實實驗中，主要通過放氣聲音判斷玻璃旋塞的關閉時機。聽到「咻」的一聲後，應等待這聲「咻」完整結束；此時氣體快速釋放完畢，請立即點擊玻璃旋塞將其關閉。關閉過早或過晚，都會成為比熱容比測量的重要誤差來源。軟件左上角設有「微觀可視化」開關，開啟後可觀察瓶內分子動畫：當分子不再持續朝瓶口定向運動並出現大量反彈時，說明內外壓強已經趨於平衡，可用來輔助判斷關閉時機。微觀可視化僅作為輔助，實際操作仍應以「咻」聲結束作為主要判斷依據。短時間放氣使瓶內氣體迅速膨脹並降溫，這一階段近似絕熱過程；關閉旋塞後，瓶內保留下放氣後的低溫、低壓狀態。',
       },
       thermalRecovery: {
         title: '回溫後的讀數',
@@ -2539,7 +2540,7 @@ const heatCapacityRealtimeCopies = {
       pumpFocus: '請雙擊打氣球進入聚焦模式。',
       pumpAction: '雙擊聚焦打氣球，快速點按打氣球，按壓至 Uₚ ≥ 120 mV 後自動退出。',
       waitU1Ready: '5 min 到了，記錄 U₁ / Uₜ₁。',
-      releaseReady: '請在開啟動畫完成並形成實際放氣後關閉玻璃旋塞；快速開關後可重新操作。',
+      releaseReady: '等待「咻」聲結束，氣體釋放完畢，請立即關閉玻璃旋塞。',
       waitU2Ready: '5 min 到了，記錄 U₂ / Uₜ₂。',
     },
     recordU0Success: 'U₀ 已記錄。',
@@ -2743,7 +2744,7 @@ const heatCapacityRealtimeCopies = {
       },
       quickReleaseState: {
         title: 'Quick-release state',
-        body: 'A short release makes the gas expand and cool rapidly, which is treated as an approximately adiabatic process. After the stopcock closes, the vessel keeps the low-temperature, lower-pressure state produced by the release. If the release lasts too long, too much gas escapes and the later readings move away from the standard experimental condition.',
+        body: 'In the real experiment, the release sound is the primary cue for closing the glass stopcock. After you hear the “whoosh,” wait for that sound to finish completely; the rapid gas release is then complete, so click the glass stopcock immediately to close it. Closing too early or too late is an important source of error in the measured heat-capacity ratio. A “Microscopic visualization” switch is available in the upper-left corner. When enabled, its molecular animation can assist your judgment: the internal and external pressures are approaching balance when molecules stop moving persistently toward the bottle opening and many of them rebound. This visualization is only an auxiliary cue; the end of the “whoosh” remains the primary operating criterion. The short release makes the gas expand and cool rapidly in an approximately adiabatic process, leaving a low-temperature, lower-pressure state after the stopcock closes.',
       },
       thermalRecovery: {
         title: 'Recovered U₂ reading',
@@ -2809,7 +2810,7 @@ const heatCapacityRealtimeCopies = {
       pumpFocus: 'Double-click the pump bulb to enter focus mode.',
       pumpAction: 'Double-click the pump bulb to focus, then click rapidly until Uₚ ≥ 120 mV; focus exits automatically.',
       waitU1Ready: '5 min has elapsed. Record U₁ / Uₜ₁.',
-      releaseReady: 'Close the glass stopcock after the opening animation forms an actual release; retry after a quick toggle.',
+      releaseReady: 'Wait for the “whoosh” to end; once the gas release is complete, close the glass stopcock immediately.',
       waitU2Ready: '5 min has elapsed. Record U₂ / Uₜ₂.',
     },
     recordU0Success: 'U₀ recorded.',
@@ -5284,12 +5285,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
           ) {
             return file;
           }
-          if (
-            guideHeatCapacityActiveFileIdRef.current === file.id &&
-            isGuideHeatCapacityPauseStep(getHeatCapacityGuideStep(file))
-          ) {
-            return file;
-          }
           const refreshedFile = refreshHeatCapacityPumpFrequency(file, now);
           const physicallySteppedFile = refreshedFile.powerOn || refreshedFile.heatCapacityMode === 'free'
             ? stepHeatCapacityWorkbenchFile(refreshedFile, now)
@@ -5298,17 +5293,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             physicallySteppedFile,
             now,
           );
-          if (
-            steppedFile.pumpFrequency === file.pumpFrequency
-            && steppedFile.pumpFrequencyStatus === file.pumpFrequencyStatus
-            && steppedFile.pumpBulbState === file.pumpBulbState
-            && steppedFile.pumpHint === file.pumpHint
-            && steppedFile.pumpStrokeTimestamps.length === file.pumpStrokeTimestamps.length
-            && steppedFile.simulationTimeS === file.simulationTimeS
-            && steppedFile.pressureSignalMv === file.pressureSignalMv
-            && steppedFile.temperatureSignalMv === file.temperatureSignalMv
-            && steppedFile.heatCapacityPhase === file.heatCapacityPhase
-          ) {
+          if (!shouldCommitHeatCapacityRealtimeTick(file, steppedFile)) {
             return file;
           }
           changed = true;
@@ -6242,10 +6227,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
           : '放气完成，请关闭玻璃旋塞。'
       : stopcockState === 'open'
         ? isEn
-          ? 'Keep the glass stopcock open until Uₚ drops close to 0.'
+          ? 'Keep the glass stopcock open and wait for the release process to finish.'
           : isTw
-            ? '請保持玻璃旋塞打開，等待 Uₚ 降至接近 0。'
-            : '请保持玻璃旋塞打开，等待 Uₚ 降至接近 0。'
+            ? '請保持玻璃旋塞打開，等待放氣過程完成。'
+            : '请保持玻璃旋塞打开，等待放气过程完成。'
         : isEn
           ? 'Open the glass stopcock for quick release.'
           : isTw
@@ -6256,19 +6241,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
       : isTw
         ? '請關閉玻璃旋塞後等待 5 min；回溫穩定後記錄 U₂ / Uₜ₂。'
         : '请关闭玻璃旋塞后等待 5 min；回温稳定后记录 U₂ / Uₜ₂。';
-    const releaseStateMessage = file?.heatCapacityReleaseState.phase === 'opening'
-      ? isEn
-        ? 'Opening the glass stopcock; release timing starts after the opening animation completes.'
-        : isTw
-          ? '正在打開玻璃旋塞；開啟動畫完整結束後才開始計算放氣時間。'
-          : '正在打开玻璃旋塞；开启动画完整结束后才开始计算放气时间。'
-      : file?.heatCapacityReleaseState.phase === 'releasing'
-        ? isEn
-          ? 'Releasing now. Close the glass stopcock when you judge the release should end.'
-          : isTw
-            ? '正在放氣；請在你判斷應結束時關閉玻璃旋塞。'
-            : '正在放气；请在你判断应结束时关闭玻璃旋塞。'
-        : heatCapacityRealtimeCopy.guideUsageHints.releaseReady;
+    const releaseStateMessage = isEn
+      ? 'Wait for the “whoosh” to end; once the gas release is complete, close the glass stopcock immediately.'
+      : isTw
+        ? '等待「咻」聲結束，氣體釋放完畢，請立即關閉玻璃旋塞。'
+        : '等待“咻”声结束，气体释放完毕，请立即关闭玻璃旋塞。';
     const messages: Record<GuideHeatCapacityStep, string> = {
       idle: isEn ? 'Start guide mode when ready.' : isTw ? '需要時開始引導模式。' : '需要时开始引导模式。',
       powerOnRequired: isEn ? 'Turn on the power first.' : isTw ? '請先打開電源。' : '请先打开电源。',
@@ -13971,7 +13948,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
               const heatCapacityHardSpherePaused = heatCapacityRefreshRestoring ||
                 activeFile.runState === 'paused' ||
                 heatCapacityLessonDialogActive ||
-                autoDemoPaused;
+                autoDemoPaused ||
+                (activeFile.heatCapacityMode === 'guide' && activeFile.heatCapacityGuideWorkflow.paused);
               const handleHeatCapacitySceneLockedInteraction = (
                 message?: string,
                 control?: HeatCapacityInstrumentControl,
@@ -14055,7 +14033,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   overlayTopRight={heatCapacityTopRightOverlay}
                   overlayBottomRight={heatCapacityBottomRightOverlay}
                   overlayCenter={heatCapacityCenterOverlay}
-                  overlayCenterAboveGuideMask={activeHeatCapacityModalLocked}
+                  overlayCenterAboveGuideMask={
+                    activeHeatCapacityModalLocked || guideHeatCapacityStrongReminderActive
+                  }
                   overlayBottomCenter={heatCapacityBottomCenterOverlay}
                   overlayGuideMask={heatCapacityGuideMaskOverlay}
                   guideFocusMode={heatCapacityGuideFocusMode}

@@ -26,7 +26,8 @@ expectClose(integrateHeatCapacityReleaseAperture(0.05), 0.009375, 1e-9, '0.05s i
 expectClose(integrateHeatCapacityReleaseAperture(0.1), 0.05, 1e-12, '0.1s integral');
 expectClose(
   integrateHeatCapacityReleaseAperture(HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS),
-  0.325,
+  HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS -
+    HEAT_CAPACITY_RELEASE_TIMING.releaseApertureRampS / 2,
   1e-12,
   'auto-demo release integral',
 );

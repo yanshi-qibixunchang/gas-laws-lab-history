@@ -48,7 +48,7 @@ assert.equal('heatCapacityProcessingResult' in heatOne, false);
 assert.equal(heatOne.heatCapacityFreeRuntimeVersion, HEAT_CAPACITY_FREE_RUNTIME_VERSION);
 assert.equal(heatOne.heatCapacityFreeTraceVersion, HEAT_CAPACITY_FREE_TRACE_VERSION);
 assert.equal(heatOne.heatCapacityFreePhysicsState.wallTemperatureK, 298.15);
-assert.equal(heatOne.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK, 0.14);
+assert.equal(heatOne.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK, 0.08);
 assert.equal(heatOne.heatCapacityFreePhysicsConfig.thermal.wallAmbientConductanceWPerK, 0.45);
 assert.deepEqual(heatOne.heatCapacityFreePhysicsConfig.leakage, {
   enabled: true,

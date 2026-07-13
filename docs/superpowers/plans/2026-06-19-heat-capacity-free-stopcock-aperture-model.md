@@ -69,7 +69,7 @@ assert.equal(getFreeStopcockAperture(1), 1);
 expectClose(integrateFreeStopcockAperture(0.03), 0.002295, 1e-9, '0.03s integral');
 expectClose(integrateFreeStopcockAperture(0.05), 0.009375, 1e-9, '0.05s integral');
 expectClose(integrateFreeStopcockAperture(0.1), 0.05, 1e-12, '0.1s integral');
-expectClose(integrateFreeStopcockAperture(0.35), 0.3, 1e-12, '0.35s integral');
+expectClose(integrateFreeStopcockAperture(0.6), 0.55, 1e-12, '0.6s integral');
 
 expectClose(
   getFreeStopcockApertureEffectiveDtS(0, 0.03),
@@ -186,12 +186,12 @@ const lossFor = (durationS: number) => {
 const loss003 = lossFor(0.03);
 const loss005 = lossFor(0.05);
 const loss010 = lossFor(0.1);
-const loss035 = lossFor(0.35);
+const loss060 = lossFor(0.6);
 
 assert.equal(loss003 > 0, true, '0.03s should still create a real but small release');
-assert.equal(loss003 < loss005 && loss005 < loss010 && loss010 < loss035, true, 'release loss should increase with open duration');
+assert.equal(loss003 < loss005 && loss005 < loss010 && loss010 < loss060, true, 'release loss should increase with open duration');
 assert.equal(
-  loss003 / loss035 < 0.03 / 0.35 * 0.35,
+  loss003 / loss060 < 0.03 / 0.6 * 0.35,
   true,
   '0.03s loss should be much smaller than the old full-aperture proportional duration',
 );
@@ -365,33 +365,21 @@ Run:
 node tests\heatCapacity\heatCapacityFreeSixClassValidation.test.ts
 ```
 
-Expected: likely FAIL or shifted results because `0.35s` now has only `0.30s` equivalent full-open time.
+Expected: verify that the `0.60s` operation representative remains accurate while the physical pressure-release cue can finish earlier.
 
 - [ ] **Step 2: Scan only release-related candidates**
 
-Allowed parameters:
+Calibration boundaries:
 
-- `stopcockFlowRate`
-- standard test `openDurationS` only if `stopcockFlowRate` alone cannot satisfy all tests
-
-Initial candidate:
-
-```text
-newStopcockFlowRate = 4 * 0.35 / 0.30 = 4.6666666667
-```
-
-Scan range:
-
-```text
-4.40, 4.50, 4.60, 4.67, 4.75, 4.85, 4.95
-```
+- Keep `stopcockFlowRate = 0.79` so the pressure-driven gas flow and sound retain their established duration.
+- Keep the user-operation representative at `0.60s`; it includes reaction time and must not be used as the physical sound duration.
+- Calibrate only the physically independent air gas-wall conductance for the post-release thermal trajectory; the selected value is `0.08 W/K`.
 
 Do not change:
 
 - `gamma`
 - pressure sensor nonlinearity
 - pump amount
-- thermal parameters
 - leakage parameters
 
 - [ ] **Step 3: Add validation assertions**
@@ -413,8 +401,8 @@ const openShort005 = runSingle(baseScenario('open-0.05s-no-noise', {
   environmentDisturbanceEnabled: false,
   instrumentNoiseEnabled: false,
 }));
-const openStandard035 = runSingle(baseScenario('open-0.35s-no-noise', {
-  openDurationS: 0.35,
+const openStandard060 = runSingle(baseScenario('open-0.60s-no-noise', {
+  openDurationS: 0.60,
   leakageEnabled: false,
   pumpValveExchangeEnabled: false,
   environmentDisturbanceEnabled: false,
@@ -422,40 +410,39 @@ const openStandard035 = runSingle(baseScenario('open-0.35s-no-noise', {
 }));
 
 assert.equal(
-  openShort003.u2CorrectedMv! - openStandard035.u2CorrectedMv! > 1.2,
+  openShort003.u2CorrectedMv! - openStandard060.u2CorrectedMv! > 1.2,
   true,
-  `0.03s should have a larger U2 gap than the old model: got ${openShort003.u2CorrectedMv} vs ${openStandard035.u2CorrectedMv}`,
+  `0.03s should have a larger U2 gap than the standard operation: got ${openShort003.u2CorrectedMv} vs ${openStandard060.u2CorrectedMv}`,
 );
 assert.equal(
-  openShort003.gamma! - openStandard035.gamma! > 0.05,
+  openShort003.gamma! - openStandard060.gamma! > 0.05,
   true,
-  `0.03s gamma should deviate by more than 0.05 from standard 0.35s release: got ${openShort003.gamma} vs ${openStandard035.gamma}`,
+  `0.03s gamma should deviate by more than 0.05 from standard 0.60s release: got ${openShort003.gamma} vs ${openStandard060.gamma}`,
 );
 assert.equal(
-  openShort005.u2CorrectedMv! - openStandard035.u2CorrectedMv! > 1.0,
+  openShort005.u2CorrectedMv! - openStandard060.u2CorrectedMv! > 1.0,
   true,
-  `0.05s should have a larger U2 gap than the old model: got ${openShort005.u2CorrectedMv} vs ${openStandard035.u2CorrectedMv}`,
+  `0.05s should have a larger U2 gap than the standard operation: got ${openShort005.u2CorrectedMv} vs ${openStandard060.u2CorrectedMv}`,
 );
 ```
 
 These thresholds are intentionally tied to the current pre-aperture baseline, where `0.03-0.05s` was only about `0.4-0.6 mV` above standard and gamma gap was about `0.007-0.011`. The stricter `0.03s` gamma gap `> 0.05` is a user-approved acceptance target. Durations `<0.1s` and `>2.5s` are not forced into a physical pass/fail diagnosis in this task; they are recorded for the later diagnostic/UI layer.
 
-- [ ] **Step 4: Apply selected `stopcockFlowRate`**
-
-If `4.67` passes, set both defaults:
+- [ ] **Step 4: Apply selected physical parameters**
 
 ```ts
-stopcockFlowRate: 4.67,
+stopcockFlowRate: 0.79,
+gasWallConductanceWPerK: 0.08,
 ```
 
-If it does not pass, choose the best scanned value that satisfies:
+The selected pair must satisfy:
 
 - absolute ideal remains `1.395-1.405`;
 - ideal experiment remains `1.39-1.41`;
 - best realistic operation remains continuous 3-run mean `1.37-1.43`;
 - suitable operation groups remain mean `1.34-1.46`;
 - `0.03s` and `0.05s` short release have larger deviation than old baseline;
-- `0.03s` gamma is more than `0.05` above the `0.35s` standard release gamma in the no-noise control scenario;
+- `0.03s` gamma is more than `0.05` above the `0.60s` standard release gamma in the no-noise control scenario;
 - `<0.1s` and `>2.5s` cases are recorded for diagnostic/UI decisions instead of being forced to pass a physical error threshold in this task.
 
 - [ ] **Step 5: Run six-class validation**
@@ -487,7 +474,7 @@ best realistic 30 seeds
 suitable 5 groups
 low pressure 4/8/12/16/18
 slow pump 12/50/120s
-short release 0.03/0.04/0.05/0.10/0.20/0.35s
+short release 0.03/0.04/0.05/0.10/0.20/0.60s
 long release 2.5/10s
 ```
 
@@ -497,7 +484,7 @@ Document:
 
 - final `stopcockFlowRate`;
 - `rampS = 0.1s`;
-- `0.03/0.05/0.35s` effective full-open durations;
+- `0.03/0.05/0.60s` effective full-open durations;
 - short-open U2/gamma deviation compared with old baseline;
 - all six-class pass/fail summaries.
 
@@ -570,5 +557,5 @@ Expected: HTTP 200.
 
 - This plan intentionally does not change UI in this batch.
 - This plan intentionally does not change `gamma`, pump amount, sensor nonlinearity, thermal exchange, or leakage to satisfy short-open behavior.
-- If `stopcockFlowRate` retuning alone cannot keep standard operation valid, pause and report the candidate table before changing standard `0.35s` open duration.
+- If `stopcockFlowRate` retuning alone cannot keep standard operation valid, pause and report the candidate table before changing standard `0.60s` open duration.
 - If short-open gamma moves toward the ideal value for a particular seed, use `U2_short - U2_standard` and multi-seed trend as the primary diagnostic; do not force a single-seed direction by adding nonphysical penalties.

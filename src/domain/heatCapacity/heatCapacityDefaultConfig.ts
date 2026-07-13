@@ -47,9 +47,9 @@ export const HEAT_CAPACITY_RELEASE_TIMING = {
   openingAnimationDurationMs: 420,
   closingAnimationDurationMs: 420,
   releaseApertureRampS: 0.1,
-  releaseOptimalMinS: 0.3,
-  releaseOptimalMaxS: 0.5,
-  autoDemoReleaseDurationS: 0.375,
+  releaseOptimalMinS: 0.5,
+  releaseOptimalMaxS: 0.7,
+  autoDemoReleaseDurationS: 0.6,
 } as const;
 
 export const HEAT_CAPACITY_GAMMA_ABSOLUTE_ERROR_LIMITS = {
@@ -90,7 +90,7 @@ export const createDefaultHeatCapacityEnvironmentConfig = (): HeatCapacityFreeEn
 });
 
 export const createDefaultHeatCapacityThermalConfig = (): HeatCapacityFreeThermalConfig => ({
-  gasWallConductanceWPerK: 0.14,
+  gasWallConductanceWPerK: 0.08,
   wallAmbientConductanceWPerK: 0.45,
   wallHeatCapacityJPerK: 45,
   minimumGasHeatCapacityJPerK: 0.1,

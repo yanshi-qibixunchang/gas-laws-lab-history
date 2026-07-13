@@ -2,6 +2,7 @@ import {
   resolveHeatCapacityHardSpherePopulation,
 } from './heatCapacityHardSpherePopulation.ts';
 import { clampNumber } from './heatCapacityHardSphereModel.ts';
+import { HEAT_CAPACITY_STANDARD_OPERATION } from './heatCapacityDefaultConfig.ts';
 
 export type HeatCapacityHardSphereVisualFlowPhase =
   | 'idle'
@@ -144,7 +145,11 @@ export const createHeatCapacityHardSphereMainReleaseSchedule = (
   });
   const exitAssignmentCount = releaseParticleBounds.exitAssignmentCount;
   if (exitAssignmentCount <= 0) return createCompleteSchedule(input.id, releaseParticleBounds);
-  const durationS = clampNumber(finiteOrFallback(input.durationS, 0.375), 0.05, 5);
+  const durationS = clampNumber(
+    finiteOrFallback(input.durationS, HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS),
+    0.05,
+    5,
+  );
   const elapsedS = clampNumber(finiteOrFallback(input.elapsedS, 0), 0, durationS);
   const progress = input.feedbackProgress === undefined
     ? resolveReleaseProgress(elapsedS, durationS)

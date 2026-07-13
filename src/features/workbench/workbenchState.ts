@@ -215,6 +215,7 @@ import {
   getHeatCapacityGuideActionGuard,
   transitionHeatCapacityGuideWorkflow,
   type HeatCapacityGuideAction,
+  type HeatCapacityGuideActionContext,
   type HeatCapacityGuideWorkflowState,
 } from '../../domain/heatCapacity/heatCapacityGuideWorkflowModel.ts';
 import {
@@ -3892,6 +3893,7 @@ interface HeatCapacityGuideRuntimeMergeOptions {
 }
 
 const HEAT_CAPACITY_GUIDE_SENSOR_COUPLED_MAX_STEP_S = 0.02;
+const HEAT_CAPACITY_GUIDE_RELEASE_COUPLED_MAX_STEP_S = 0.005;
 
 const stepHeatCapacityGuidePhysicsAndTemperatureSensor = (
   physicsState: HeatCapacityGuidePhysicsState,
@@ -3899,12 +3901,19 @@ const stepHeatCapacityGuidePhysicsAndTemperatureSensor = (
   config: HeatCapacityGuidePhysicsConfig,
   controls: Omit<Parameters<typeof stepGuidePhysicsState>[2], 'dtS'>,
   dtS: number,
+  options: { stopAtReleaseEquilibrium?: boolean } = {},
 ) => {
   let nextPhysicsState = physicsState;
   let nextSensorState = sensorState;
   let remainingS = Math.max(0, dtS);
+  let advancedDtS = 0;
   while (remainingS > 1e-9) {
-    const stepS = Math.min(remainingS, HEAT_CAPACITY_GUIDE_SENSOR_COUPLED_MAX_STEP_S);
+    const stepS = Math.min(
+      remainingS,
+      options.stopAtReleaseEquilibrium
+        ? HEAT_CAPACITY_GUIDE_RELEASE_COUPLED_MAX_STEP_S
+        : HEAT_CAPACITY_GUIDE_SENSOR_COUPLED_MAX_STEP_S,
+    );
     nextPhysicsState = stepGuidePhysicsState(
       nextPhysicsState,
       config,
@@ -3921,10 +3930,19 @@ const stepHeatCapacityGuidePhysicsAndTemperatureSensor = (
       },
     );
     remainingS = Math.max(0, remainingS - stepS);
+    advancedDtS += stepS;
+    if (
+      options.stopAtReleaseEquilibrium &&
+      nextPhysicsState.releaseReference?.reachedAmbientAtS !== null &&
+      nextPhysicsState.releaseReference?.reachedAmbientAtS !== undefined
+    ) {
+      break;
+    }
   }
   return {
     physicsState: nextPhysicsState,
     sensorState: nextSensorState,
+    advancedDtS,
   };
 };
 
@@ -4090,7 +4108,8 @@ const getHeatCapacityGuideRuntimePhase = (
 const getHeatCapacityGuideActionContext = (
   file: WorkbenchHeatCapacityState,
   action: HeatCapacityGuideAction,
-  overrides: Partial<ReturnType<typeof buildHeatCapacityGuideActionContextBase>> = {},
+  overrides: Partial<ReturnType<typeof buildHeatCapacityGuideActionContextBase> &
+    Pick<HeatCapacityGuideActionContext, 'wallClockMs'>> = {},
 ) => ({
   ...buildHeatCapacityGuideActionContextBase(file, action),
   ...overrides,
@@ -4109,6 +4128,7 @@ const buildHeatCapacityGuideActionContextBase = (
     : truncateHeatCapacitySignalMv(file.pressureSignalMvDisplayed),
   pressureZeroReady: file.pressureZeroed,
   simulationTimeS: file.heatCapacityGuidePhysicsState.simulationTimeS,
+  releaseFormed: file.heatCapacityReleaseState.formedRelease,
 });
 
 export const setHeatCapacityGuideStopcockOpen = (
@@ -4156,20 +4176,9 @@ export const setHeatCapacityGuideStopcockOpen = (
     heatCapacityReleaseState: releaseState,
     heatCapacityGuideTrial: guideTrial,
   };
-  const context = getHeatCapacityGuideActionContext(proposedFile, action);
+  const context = getHeatCapacityGuideActionContext(proposedFile, action, { wallClockMs: now });
   const guard = getHeatCapacityGuideActionGuard(currentFile.heatCapacityGuideWorkflow, context);
-  const quickReleaseToggle = !nextOpen &&
-    currentFile.heatCapacityGuideWorkflow.step === 'closeStopcockAfterReleaseRequired' &&
-    releaseState.quickToggle;
-  const workflow = quickReleaseToggle
-    ? {
-        ...currentFile.heatCapacityGuideWorkflow,
-        step: 'openStopcockForReleaseRequired' as const,
-        strongReminderActive: false,
-        strongReminderTargetControlId: null,
-        wrongActionCount: 0,
-      }
-    : transitionHeatCapacityGuideWorkflow(currentFile.heatCapacityGuideWorkflow, context);
+  const workflow = transitionHeatCapacityGuideWorkflow(currentFile.heatCapacityGuideWorkflow, context);
   const baseFile = guard.allowed ? proposedFile : currentFile;
   return mergeHeatCapacityGuideRuntimeState(
     baseFile,
@@ -4343,6 +4352,45 @@ export const stepHeatCapacityGuideWorkbenchFile = (
     guidePhysicsState.simulationTimeS,
   ).state;
 
+  if (guideWorkflow.paused) {
+    const releaseCloseReady = guideWorkflow.step === 'closeStopcockAfterReleaseRequired' &&
+      guideWorkflow.releaseCloseResumeAtMs !== null &&
+      now >= guideWorkflow.releaseCloseResumeAtMs;
+    if (releaseCloseReady) {
+      if (releaseState.phase === 'closing') {
+        releaseState = {
+          ...releaseState,
+          phase: releaseState.formedRelease ? 'closedAfterRelease' : 'closed',
+          phaseStartedAtS: guidePhysicsState.simulationTimeS,
+          closingCompletedAtS: guidePhysicsState.simulationTimeS,
+        };
+      }
+      guideWorkflow = transitionHeatCapacityGuideWorkflow(guideWorkflow, {
+        action: 'releaseCloseAnimationComplete',
+        powerOn: file.powerOn,
+        pumpValveOpen: file.pumpValveOpen,
+        stopcockOpen: false,
+        displayPressureMv: file.pressureSignalMvDisplayed,
+        simulationTimeS: guidePhysicsState.simulationTimeS,
+        wallClockMs: now,
+      });
+    }
+    const pausedFile = mergeHeatCapacityGuideRuntimeState(
+      {
+        ...file,
+        heatCapacityReleaseState: releaseState,
+        heatCapacityGuideTemperatureSensorState: guideTemperatureSensorState,
+      },
+      guidePhysicsState,
+      guideWorkflow,
+      now,
+    );
+    return {
+      ...pausedFile,
+      lastUpdateMs: now,
+    };
+  }
+
   if (dtS > 0) {
     const isWaitingStep = guideWorkflow.step === 'u1Waiting' || guideWorkflow.step === 'u2Waiting';
     const speed = isWaitingStep ? guideWorkflow.speedMultiplier : 1;
@@ -4365,6 +4413,9 @@ export const stepHeatCapacityGuideWorkbenchFile = (
           ? 0
           : remainingDtS;
       if (segmentDtS > 0) {
+        const stopAtReleaseEquilibrium = guideWorkflow.step === 'openStopcockForReleaseRequired' &&
+          releaseState.phase === 'releasing' &&
+          releaseState.purpose === 'release';
         const coupledStep = stepHeatCapacityGuidePhysicsAndTemperatureSensor(
           guidePhysicsState,
           guideTemperatureSensorState,
@@ -4376,10 +4427,35 @@ export const stepHeatCapacityGuideWorkbenchFile = (
             stopcockFlowPurpose: releaseState.purpose,
           },
           segmentDtS,
+          { stopAtReleaseEquilibrium },
         );
         guidePhysicsState = coupledStep.physicsState;
         guideTemperatureSensorState = coupledStep.sensorState;
-        remainingDtS = Math.max(0, remainingDtS - segmentDtS);
+        remainingDtS = Math.max(0, remainingDtS - coupledStep.advancedDtS);
+        const reachedAmbientAtS = guidePhysicsState.releaseReference?.reachedAmbientAtS;
+        if (
+          stopAtReleaseEquilibrium &&
+          reachedAmbientAtS !== null &&
+          reachedAmbientAtS !== undefined
+        ) {
+          releaseState = {
+            ...releaseState,
+            releaseDurationS: releaseState.openingCompletedAtS === null
+              ? 0
+              : Math.max(0, reachedAmbientAtS - releaseState.openingCompletedAtS),
+          };
+          guideWorkflow = transitionHeatCapacityGuideWorkflow(guideWorkflow, {
+            action: 'releaseComplete',
+            powerOn: file.powerOn,
+            pumpValveOpen: file.pumpValveOpen,
+            stopcockOpen: true,
+            displayPressureMv: file.pressureSignalMvDisplayed,
+            simulationTimeS: guidePhysicsState.simulationTimeS,
+            wallClockMs: now,
+          });
+          remainingDtS = 0;
+          break;
+        }
       }
       const transition = advanceHeatCapacityReleaseState(
         releaseState,
@@ -4562,6 +4638,27 @@ export const setHeatCapacityScriptedStopcockOpen = (
     updatedAt: now,
   };
 };
+
+export const shouldCommitHeatCapacityRealtimeTick = (
+  previousFile: WorkbenchHeatCapacityState,
+  nextFile: WorkbenchHeatCapacityState,
+) => (
+  nextFile.pumpFrequency !== previousFile.pumpFrequency ||
+  nextFile.pumpFrequencyStatus !== previousFile.pumpFrequencyStatus ||
+  nextFile.pumpBulbState !== previousFile.pumpBulbState ||
+  nextFile.pumpHint !== previousFile.pumpHint ||
+  nextFile.pumpStrokeTimestamps.length !== previousFile.pumpStrokeTimestamps.length ||
+  nextFile.simulationTimeS !== previousFile.simulationTimeS ||
+  nextFile.pressureSignalMv !== previousFile.pressureSignalMv ||
+  nextFile.temperatureSignalMv !== previousFile.temperatureSignalMv ||
+  nextFile.heatCapacityPhase !== previousFile.heatCapacityPhase ||
+  nextFile.heatCapacityReleaseState !== previousFile.heatCapacityReleaseState ||
+  (
+    previousFile.heatCapacityMode === 'guide' &&
+    nextFile.heatCapacityMode === 'guide' &&
+    nextFile.heatCapacityGuideWorkflow !== previousFile.heatCapacityGuideWorkflow
+  )
+);
 
 const applyHeatCapacityProfileToProcessSample = (
   file: WorkbenchHeatCapacityState,

@@ -44,12 +44,17 @@ assert.deepEqual(getHeatCapacityGuideAllowedActions('openStopcockForZeroRequired
 assert.deepEqual(getHeatCapacityGuideAllowedActions('idle'), ['turnPowerOn']);
 assert.deepEqual(getHeatCapacityGuideAllowedActions('recordU0Required'), ['adjustPressureZero', 'recordU0']);
 assert.deepEqual(getHeatCapacityGuideAllowedActions('pumpRequired'), ['pumpBulb']);
+assert.deepEqual(
+  getHeatCapacityGuideAllowedActions('openStopcockReleaseRequired'),
+  ['openStopcock', 'closeStopcock'],
+);
 assert.deepEqual(getHeatCapacityGuideAllowedActions('completed'), []);
 
 assert.equal(isHeatCapacityGuideRecordStep('recordU0Required'), true);
 assert.equal(isHeatCapacityGuideRecordStep('recordU1Required'), true);
 assert.equal(isHeatCapacityGuideRecordStep('pumpRequired'), false);
 assert.equal(isGuideHeatCapacityPauseStep('recordU1Required'), true);
+assert.equal(isGuideHeatCapacityPauseStep('closeStopcockAfterReleaseRequired'), true);
 assert.equal(isGuideHeatCapacityPauseStep('closePowerRequired'), true);
 assert.equal(isGuideHeatCapacityPauseStep('pumpRequired'), false);
 

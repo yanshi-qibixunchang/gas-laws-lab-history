@@ -2,6 +2,7 @@ import {
   getHeatCapacityReleaseApertureEffectiveDtS,
 } from './heatCapacityFreeStopcockApertureModel.ts';
 import {
+  HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA,
   stepHeatCapacityReleaseGasState,
   type HeatCapacityReleasePurpose,
 } from './heatCapacityReleaseModel.ts';
@@ -424,7 +425,19 @@ const stepOpenStopcock = (
     wallTemperatureK: migratedState.wallTemperatureK,
     gammaTrue: config.gamma,
   });
-  return projectGuideThermodynamicState(migratedState, thermodynamicState, config);
+  const projectedState = projectGuideThermodynamicState(migratedState, thermodynamicState, config);
+  const projectedPressureKPa = deriveGuidePhysicalState(projectedState, config).gasPressureKPa;
+  return {
+    ...projectedState,
+    releaseReference: projectedState.releaseReference &&
+      projectedState.releaseReference.reachedAmbientAtS === null &&
+      projectedPressureKPa <= config.environment.ambientPressureKPa + HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA
+      ? {
+          ...projectedState.releaseReference,
+          reachedAmbientAtS: projectedState.simulationTimeS,
+        }
+      : projectedState.releaseReference,
+  };
 };
 
 const stepThermal = (

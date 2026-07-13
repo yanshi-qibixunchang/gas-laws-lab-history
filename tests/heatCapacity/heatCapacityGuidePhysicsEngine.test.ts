@@ -9,6 +9,9 @@ import {
   type HeatCapacityGuidePhysicsConfig,
   type HeatCapacityGuidePhysicsState,
 } from '../../src/domain/heatCapacity/heatCapacityGuidePhysicsEngine.ts';
+import {
+  HEAT_CAPACITY_STANDARD_OPERATION,
+} from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
 
 const TEST_PUMP_WORK_RETENTION = 0.5;
 const PUMP_STROKE_DURATION_S = 0.08;
@@ -135,7 +138,7 @@ const afterRelease = stepGuidePhysicsState(beforeRelease, config, {
   pumpValveOpen: false,
   stopcockOpen: true,
   stopcockFlowPurpose: 'release',
-  dtS: 0.375,
+  dtS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
 });
 const pressureAfterRelease = deriveGuidePhysicalState(afterRelease, config).gasPressureKPa;
 assert.equal(afterRelease.amountMol < beforeRelease.amountMol, true);

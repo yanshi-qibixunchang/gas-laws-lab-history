@@ -8,6 +8,9 @@ import {
 import type {
   HeatCapacityProcessStageSegment,
 } from '../../src/domain/heatCapacity/heatCapacityFreeProcessReviewTypes.ts';
+import {
+  HEAT_CAPACITY_STANDARD_OPERATION,
+} from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
 
 const actualStages: HeatCapacityProcessStageSegment[] = [
   { id: 'zero', label: 'Zero', startS: 0, endS: 8 },
@@ -21,8 +24,14 @@ const standardReferenceStages: HeatCapacityProcessStageSegment[] = [
   { id: 'zero', label: 'Zero', startS: 0, endS: 4 },
   { id: 'pump', label: 'Pump', startS: 4, endS: 5.2 },
   { id: 'stabilize', label: 'Stabilize', startS: 5.2, endS: 15.2 },
-  { id: 'release', label: 'Release', startS: 15.2, endS: 15.575, durationText: '0.375 s' },
-  { id: 'recover', label: 'Recover', startS: 15.55, endS: 36 },
+  {
+    id: 'release',
+    label: 'Release',
+    startS: 15.2,
+    endS: 15.2 + HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
+    durationText: `${HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS.toFixed(3)} s`,
+  },
+  { id: 'recover', label: 'Recover', startS: 15.2 + HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS, endS: 36 },
 ];
 
 const sharedCompressedDurationS = Math.max(

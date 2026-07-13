@@ -86,6 +86,9 @@ const normalizeGuideWorkflow = (
     strongReminderTargetControlId: typeof value.strongReminderTargetControlId === 'string'
       ? value.strongReminderTargetControlId
       : null,
+    releaseCloseResumeAtMs: isPersistenceFiniteNumber(value.releaseCloseResumeAtMs)
+      ? value.releaseCloseResumeAtMs
+      : null,
   };
 };
 

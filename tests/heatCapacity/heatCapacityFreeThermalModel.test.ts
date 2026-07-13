@@ -97,7 +97,7 @@ const input = {
     wallHeatCapacityJPerK: 0,
     minimumGasHeatCapacityJPerK: Number.NaN,
   });
-  assert.equal(normalized.gasWallConductanceWPerK, 0.14);
+  assert.equal(normalized.gasWallConductanceWPerK, 0.08);
   assert.equal(normalized.wallAmbientConductanceWPerK, 0);
   assert.equal(normalized.wallHeatCapacityJPerK, 1);
   assert.equal(normalized.minimumGasHeatCapacityJPerK, 0.1);

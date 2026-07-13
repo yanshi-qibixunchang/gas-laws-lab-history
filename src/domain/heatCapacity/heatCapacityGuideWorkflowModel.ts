@@ -2,6 +2,9 @@ import {
   normalizeHeatCapacityGuideSpeedMultiplier,
   type HeatCapacityGuideSpeedMultiplier,
 } from './heatCapacityGuideExperimentTimerModel.ts';
+import {
+  HEAT_CAPACITY_RELEASE_TIMING,
+} from './heatCapacityDefaultConfig.ts';
 
 export type HeatCapacityGuideWorkflowStep =
   | 'powerRequired'
@@ -35,6 +38,8 @@ export type HeatCapacityGuideAction =
   | 'recordU1'
   | 'recordU2'
   | 'timerComplete'
+  | 'releaseComplete'
+  | 'releaseCloseAnimationComplete'
   | 'abortGuide';
 
 export interface HeatCapacityGuideWorkflowState {
@@ -46,6 +51,7 @@ export interface HeatCapacityGuideWorkflowState {
   strongReminderActive: boolean;
   strongReminderTargetControlId: string | null;
   wrongActionCount: number;
+  releaseCloseResumeAtMs: number | null;
 }
 
 export interface HeatCapacityGuideActionContext {
@@ -56,6 +62,8 @@ export interface HeatCapacityGuideActionContext {
   displayPressureMv: number;
   pressureZeroReady?: boolean;
   simulationTimeS?: number;
+  wallClockMs?: number;
+  releaseFormed?: boolean;
 }
 
 export interface HeatCapacityGuideGuardResult {
@@ -77,6 +85,7 @@ export const createDefaultHeatCapacityGuideWorkflow = (
   strongReminderActive: false,
   strongReminderTargetControlId: null,
   wrongActionCount: 0,
+  releaseCloseResumeAtMs: null,
 });
 
 export const getHeatCapacityGuideTargetControlId = (
@@ -182,10 +191,29 @@ export const getHeatCapacityGuideActionGuard = (
         ? accepted('已记录 U₁。', 'recordU1')
         : rejected(workflow, '请记录 U₁。');
     case 'openStopcockForReleaseRequired':
+      if (context.action === 'releaseComplete' && context.stopcockOpen) {
+        return accepted('放气完成。', 'stopcock');
+      }
+      if (context.action === 'closeStopcock' && !context.stopcockOpen) {
+        return accepted(
+          context.releaseFormed ? '已主动结束放气。' : '快速开关未形成放气，请重新打开玻璃旋塞。',
+          'stopcock',
+        );
+      }
       return context.action === 'openStopcock' && context.stopcockOpen
         ? accepted('放气旋塞已打开。', 'stopcock')
         : rejected(workflow, '请打开玻璃旋塞进行放气。');
     case 'closeStopcockAfterReleaseRequired':
+      if (
+        context.action === 'releaseCloseAnimationComplete' &&
+        workflow.releaseCloseResumeAtMs !== null &&
+        (context.wallClockMs ?? Number.NEGATIVE_INFINITY) >= workflow.releaseCloseResumeAtMs
+      ) {
+        return accepted('放气旋塞关闭动画已完成。', 'stopcock');
+      }
+      if (workflow.releaseCloseResumeAtMs !== null) {
+        return rejected(workflow, '玻璃旋塞正在关闭。');
+      }
       return context.action === 'closeStopcock' && !context.stopcockOpen
         ? accepted('放气旋塞已关闭。', 'stopcock')
         : rejected(workflow, '请关闭玻璃旋塞结束放气。');
@@ -215,6 +243,16 @@ const nextClean = (
   strongReminderActive: patch.strongReminderActive ?? false,
   strongReminderTargetControlId: patch.strongReminderTargetControlId ?? null,
   wrongActionCount: 0,
+});
+
+const beginReleaseCloseAnimationWait = (
+  workflow: HeatCapacityGuideWorkflowState,
+  context: HeatCapacityGuideActionContext,
+) => nextClean(workflow, {
+  step: 'closeStopcockAfterReleaseRequired',
+  paused: true,
+  releaseCloseResumeAtMs: (context.wallClockMs ?? 0) +
+    HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs,
 });
 
 export const transitionHeatCapacityGuideWorkflow = (
@@ -270,9 +308,33 @@ export const transitionHeatCapacityGuideWorkflow = (
         waitStage: null,
       });
     case 'openStopcockForReleaseRequired':
-      return nextClean(workflow, { step: 'closeStopcockAfterReleaseRequired' });
+      if (context.action === 'releaseComplete') {
+        return nextClean(workflow, {
+          step: 'closeStopcockAfterReleaseRequired',
+          paused: true,
+          releaseCloseResumeAtMs: null,
+        });
+      }
+      if (context.action === 'closeStopcock') {
+        return context.releaseFormed
+          ? beginReleaseCloseAnimationWait(workflow, context)
+          : nextClean(workflow, {
+              paused: false,
+              releaseCloseResumeAtMs: null,
+            });
+      }
+      return nextClean(workflow, {});
     case 'closeStopcockAfterReleaseRequired':
-      return nextClean(workflow, { step: 'u2Waiting', waitStartedAtS: context.simulationTimeS ?? null, waitStage: 'u2' });
+      if (context.action === 'closeStopcock') {
+        return beginReleaseCloseAnimationWait(workflow, context);
+      }
+      return nextClean(workflow, {
+        step: 'u2Waiting',
+        paused: false,
+        waitStartedAtS: context.simulationTimeS ?? null,
+        waitStage: 'u2',
+        releaseCloseResumeAtMs: null,
+      });
     case 'u2Waiting':
       return nextClean(workflow, {
         step: 'recordU2Required',

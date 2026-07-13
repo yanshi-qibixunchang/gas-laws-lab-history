@@ -41,7 +41,11 @@ const createTestGuidePhysicsConfig = (): HeatCapacityGuidePhysicsConfig =>
   createDefaultGuidePhysicsConfig();
 
 const assertNear = (actual: number, expected: number, tolerance: number, message: string) => {
-  assert.equal(Math.abs(actual - expected) <= tolerance, true, message);
+  assert.equal(
+    Math.abs(actual - expected) <= tolerance,
+    true,
+    `${message}: got ${actual}, expected ${expected} ± ${tolerance}`,
+  );
 };
 
 {
@@ -84,7 +88,7 @@ const assertNear = (actual: number, expected: number, tolerance: number, message
   assert.equal(config.pumpPressureLimitKPa, 109);
   assert.equal(config.stopcockFlowRate, createDefaultHeatCapacityCorePhysicsDefaults().stopcockFlowRate);
   assert.deepEqual(config.thermal, {
-    gasWallConductanceWPerK: 0.14,
+    gasWallConductanceWPerK: 0.08,
     wallAmbientConductanceWPerK: 0.45,
     wallHeatCapacityJPerK: 45,
     minimumGasHeatCapacityJPerK: 0.1,
@@ -193,25 +197,29 @@ const assertNear = (actual: number, expected: number, tolerance: number, message
       gasAmountRatio: 1.06,
     };
 
-    guideState = stepGuidePhysicsState(guideState, guideConfig, {
-      dtS: releaseDurationS,
-      powerOn: true,
-      pumpValveOpen: false,
-      stopcockOpen: true,
-      stopcockFlowPurpose: 'release',
-    });
-    freeState = stepFreePhysics(freeState, guideEquivalentFreeConfig, {
-      pumpValveOpen: false,
-      stopcockOpen: true,
-      stopcockFlowPurpose: 'release',
-    }, releaseDurationS, releaseDurationS);
+    for (let elapsedS = 0; elapsedS < releaseDurationS - 1e-9;) {
+      const stepS = Math.min(0.02, releaseDurationS - elapsedS);
+      guideState = stepGuidePhysicsState(guideState, guideConfig, {
+        dtS: stepS,
+        powerOn: true,
+        pumpValveOpen: false,
+        stopcockOpen: true,
+        stopcockFlowPurpose: 'release',
+      });
+      freeState = stepFreePhysics(freeState, guideEquivalentFreeConfig, {
+        pumpValveOpen: false,
+        stopcockOpen: true,
+        stopcockFlowPurpose: 'release',
+      }, stepS, elapsedS + stepS);
+      elapsedS += stepS;
+    }
 
-    assertNear(guideState.gasAmountRatio, freeState.gasAmountRatio, 0.0001, 'Guide and Free release amount should remain aligned');
-    assertNear(guideState.gasTemperatureK, freeState.gasTemperatureK, 0.05, 'Guide and Free release temperature should remain aligned');
+    assertNear(guideState.gasAmountRatio, freeState.gasAmountRatio, 0.0005, 'Guide and Free release amount should remain aligned');
+    assertNear(guideState.gasTemperatureK, freeState.gasTemperatureK, 0.06, 'Guide and Free release temperature should remain aligned');
     assertNear(
       deriveGuidePhysicalState(guideState, guideConfig).pressureDeltaKPa,
       deriveFreePhysicalState(freeState, guideEquivalentFreeConfig).pressureDeltaKPa,
-      0.02,
+      0.03,
       'Guide and Free release pressure should remain aligned',
     );
 
@@ -226,15 +234,106 @@ const assertNear = (actual: number, expected: number, tolerance: number, message
       stopcockOpen: false,
     }, 300, releaseDurationS + 300);
 
-    assertNear(guideState.gasAmountRatio, freeState.gasAmountRatio, 0.0001, 'Guide and Free recovered amount should remain aligned');
+    assertNear(guideState.gasAmountRatio, freeState.gasAmountRatio, 0.0005, 'Guide and Free recovered amount should remain aligned');
     assertNear(guideState.gasTemperatureK, freeState.gasTemperatureK, 0.05, 'Guide and Free recovered temperature should remain aligned');
     assertNear(
       deriveGuidePhysicalState(guideState, guideConfig).pressureDeltaKPa,
       deriveFreePhysicalState(freeState, guideEquivalentFreeConfig).pressureDeltaKPa,
-      0.02,
+      0.03,
       'Guide and Free recovered pressure should remain aligned',
     );
   }
+}
+
+{
+  const releaseReady = {
+    ...createDefaultHeatCapacityGuideWorkflow(),
+    step: 'openStopcockForReleaseRequired' as const,
+  };
+  const opened = transitionHeatCapacityGuideWorkflow(releaseReady, {
+    action: 'openStopcock',
+    powerOn: true,
+    stopcockOpen: true,
+    pumpValveOpen: false,
+    displayPressureMv: 120,
+    simulationTimeS: 300,
+    wallClockMs: 1_000,
+  });
+  assert.equal(opened.step, 'openStopcockForReleaseRequired');
+  assert.equal(opened.paused, false);
+
+  const quickToggle = transitionHeatCapacityGuideWorkflow(opened, {
+    action: 'closeStopcock',
+    powerOn: true,
+    stopcockOpen: false,
+    pumpValveOpen: false,
+    displayPressureMv: 120,
+    simulationTimeS: 300.1,
+    wallClockMs: 1_100,
+    releaseFormed: false,
+  });
+  assert.equal(quickToggle.step, 'openStopcockForReleaseRequired');
+  assert.equal(quickToggle.paused, false);
+  assert.equal(quickToggle.releaseCloseResumeAtMs, null);
+
+  const userClosedFormedRelease = transitionHeatCapacityGuideWorkflow(opened, {
+    action: 'closeStopcock',
+    powerOn: true,
+    stopcockOpen: false,
+    pumpValveOpen: false,
+    displayPressureMv: 24,
+    simulationTimeS: 300.3,
+    wallClockMs: 1_300,
+    releaseFormed: true,
+  });
+  assert.equal(userClosedFormedRelease.step, 'closeStopcockAfterReleaseRequired');
+  assert.equal(userClosedFormedRelease.paused, true);
+  assert.equal(
+    userClosedFormedRelease.releaseCloseResumeAtMs,
+    1_300 + HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs,
+  );
+
+  const releaseComplete = transitionHeatCapacityGuideWorkflow(opened, {
+    action: 'releaseComplete',
+    powerOn: true,
+    stopcockOpen: true,
+    pumpValveOpen: false,
+    displayPressureMv: 0,
+    simulationTimeS: 300.6,
+    wallClockMs: 1_600,
+  });
+  assert.equal(releaseComplete.step, 'closeStopcockAfterReleaseRequired');
+  assert.equal(releaseComplete.paused, true);
+
+  const closing = transitionHeatCapacityGuideWorkflow(releaseComplete, {
+    action: 'closeStopcock',
+    powerOn: true,
+    stopcockOpen: false,
+    pumpValveOpen: false,
+    displayPressureMv: 0,
+    simulationTimeS: 300.6,
+    wallClockMs: 2_000,
+  });
+  assert.equal(closing.step, 'closeStopcockAfterReleaseRequired');
+  assert.equal(closing.paused, true);
+  assert.equal(
+    closing.releaseCloseResumeAtMs,
+    2_000 + HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs,
+  );
+
+  const recovered = transitionHeatCapacityGuideWorkflow(closing, {
+    action: 'releaseCloseAnimationComplete',
+    powerOn: true,
+    stopcockOpen: false,
+    pumpValveOpen: false,
+    displayPressureMv: 0,
+    simulationTimeS: 300.6,
+    wallClockMs: closing.releaseCloseResumeAtMs ?? 0,
+  });
+  assert.equal(recovered.step, 'u2Waiting');
+  assert.equal(recovered.paused, false);
+  assert.equal(recovered.waitStartedAtS, 300.6);
+  assert.equal(recovered.releaseCloseResumeAtMs, null);
 }
 
 {

@@ -73,6 +73,8 @@ export interface HeatCapacityFreeParameterAcceptanceScenarioInput {
   pumpTotalDurationS: number;
   pumpAmountGainRatio?: number;
   pumpWorkRetention?: number;
+  stopcockFlowRate?: number;
+  gasWallConductanceWPerK?: number;
   waitAfterPumpS: number;
   openDurationS: number;
   waitAfterReleaseS: number;
@@ -160,6 +162,8 @@ const clonePhysicsConfig = (
     | 'gasType'
     | 'pumpAmountGainRatio'
     | 'pumpWorkRetention'
+    | 'stopcockFlowRate'
+    | 'gasWallConductanceWPerK'
   > = {},
 ): HeatCapacityFreePhysicsConfig => {
   const gasTypeDefaults = input.gasType
@@ -173,9 +177,12 @@ const clonePhysicsConfig = (
       DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpAmountGainRatio,
     pumpWorkRetention: input.pumpWorkRetention ??
       DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.pumpWorkRetention,
+    stopcockFlowRate: input.stopcockFlowRate ??
+      DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.stopcockFlowRate,
     thermal: {
       ...DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.thermal,
-      gasWallConductanceWPerK: gasTypeDefaults?.gasWallConductanceWPerK ??
+      gasWallConductanceWPerK: input.gasWallConductanceWPerK ??
+        gasTypeDefaults?.gasWallConductanceWPerK ??
         DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG.thermal.gasWallConductanceWPerK,
     },
     pumpValveExchange: {

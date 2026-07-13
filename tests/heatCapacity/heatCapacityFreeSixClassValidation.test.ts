@@ -169,7 +169,7 @@ const suitableScenarios = [
     pumpStrokes: 19,
     pumpTotalDurationS: HEAT_CAPACITY_STANDARD_OPERATION.pumpTotalDurationS,
     waitAfterPumpS: 320,
-    openDurationS: 0.45,
+    openDurationS: HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS,
     waitAfterReleaseS: 320,
   })],
   ['sample-a', baseScenario('sample-a', {
@@ -183,7 +183,7 @@ const suitableScenarios = [
     pumpStrokes: 18,
     pumpTotalDurationS: 6,
     waitAfterPumpS: 300,
-    openDurationS: 0.45,
+    openDurationS: HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS,
     waitAfterReleaseS: 300,
   })],
   ['sample-c', baseScenario('sample-c', {

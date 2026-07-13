@@ -20,9 +20,9 @@ assert.deepEqual(HEAT_CAPACITY_RELEASE_TIMING, {
   openingAnimationDurationMs: 420,
   closingAnimationDurationMs: 420,
   releaseApertureRampS: 0.1,
-  releaseOptimalMinS: 0.3,
-  releaseOptimalMaxS: 0.5,
-  autoDemoReleaseDurationS: 0.375,
+  releaseOptimalMinS: 0.5,
+  releaseOptimalMaxS: 0.7,
+  autoDemoReleaseDurationS: 0.6,
 });
 
 const closed = createClosedHeatCapacityReleaseState(5);
@@ -52,10 +52,16 @@ assert.equal(closing.phase, 'closing');
 assert.equal(isHeatCapacityReleaseFlowOpen(closing), false, 'the close command must stop flow immediately');
 assert.equal(closing.formedRelease, true);
 assert.equal(closing.quickToggle, false);
-assert.equal(closing.releaseDurationS, HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS);
 assert.equal(
-  getHeatCapacityReleaseDurationS(closing, normalCloseAtS + closingDurationS),
-  HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS,
+  Math.abs(closing.releaseDurationS - HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS) < 1e-9,
+  true,
+);
+assert.equal(
+  Math.abs(
+    getHeatCapacityReleaseDurationS(closing, normalCloseAtS + closingDurationS) -
+      HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS,
+  ) < 1e-9,
+  true,
   'the closing animation must not extend release duration',
 );
 const closedAfterRelease = advanceHeatCapacityReleaseState(
@@ -63,7 +69,10 @@ const closedAfterRelease = advanceHeatCapacityReleaseState(
   normalCloseAtS + closingDurationS,
 ).state;
 assert.equal(closedAfterRelease.phase, 'closedAfterRelease');
-assert.equal(closedAfterRelease.releaseDurationS, HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS);
+assert.equal(
+  Math.abs(closedAfterRelease.releaseDurationS - HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS) < 1e-9,
+  true,
+);
 
 const quickOpening = beginHeatCapacityReleaseOpening(
   createClosedHeatCapacityReleaseState(20),

@@ -4,8 +4,11 @@ import {
   getHeatCapacityHardSphereScheduleFrame,
   HEAT_CAPACITY_HARD_SPHERE_RELEASE_VISUAL_PROFILE,
 } from '../../src/domain/heatCapacity/heatCapacityHardSphereReleaseSchedule.ts';
+import {
+  HEAT_CAPACITY_STANDARD_OPERATION,
+} from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
 
-const standardDurationS = 0.375;
+const standardDurationS = HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS;
 const mainSchedule = createHeatCapacityHardSphereMainReleaseSchedule({
   id: 'release-a',
   amountBeforeRatio: 1.08,

@@ -258,9 +258,9 @@ assert.equal('pumpInflowTemperatureRiseK' in payload.free!.config.physics, false
 assert.equal(payload.free?.config.physics.pumpStrokeDurationS, 0.08);
 assert.equal(payload.free?.config.physics.openingAnimationDurationMs, 420);
 assert.equal(payload.free?.config.physics.releaseApertureRampS, 0.1);
-assert.equal(payload.free?.config.physics.releaseOptimalMinS, 0.3);
-assert.equal(payload.free?.config.physics.releaseOptimalMaxS, 0.5);
-assert.equal(payload.free?.config.physics.autoDemoReleaseDurationS, 0.375);
+assert.equal(payload.free?.config.physics.releaseOptimalMinS, 0.5);
+assert.equal(payload.free?.config.physics.releaseOptimalMaxS, 0.7);
+assert.equal(payload.free?.config.physics.autoDemoReleaseDurationS, 0.6);
 assert.equal('chamberTemperatureRiseK' in payload.free!.config.physics.pumpValveExchange!, false);
 assert.equal('pumpLagRate' in payload.free!.config.sensor, false);
 assert.equal(payload.free?.config.sensor.fastProcessSampleStepS, 0.04);

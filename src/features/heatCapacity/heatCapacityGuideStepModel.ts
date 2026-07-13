@@ -74,7 +74,7 @@ const allowedActionsByStep: Record<GuideHeatCapacityStep, GuideHeatCapacityActio
   closePumpValveRequired: ['closePumpValve'],
   stabilizeBeforeReleaseRequired: [],
   recordU1Required: ['recordU1'],
-  openStopcockReleaseRequired: ['openStopcock'],
+  openStopcockReleaseRequired: ['openStopcock', 'closeStopcock'],
   closeStopcockAfterReleaseRequired: ['closeStopcock'],
   recoverRequired: [],
   recordU2Required: ['recordU2'],
@@ -125,6 +125,7 @@ export const isHeatCapacityGuideRecordStep = (step: GuideHeatCapacityStep) => (
 
 export const isGuideHeatCapacityPauseStep = (step: GuideHeatCapacityStep) => (
   step === 'recordU1Required' ||
+  step === 'closeStopcockAfterReleaseRequired' ||
   step === 'recordU2Required' ||
   step === 'closePowerRequired'
 );

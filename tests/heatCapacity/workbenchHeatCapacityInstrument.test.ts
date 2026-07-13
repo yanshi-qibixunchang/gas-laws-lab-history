@@ -139,7 +139,7 @@ assert.equal(defaultFile.heatCapacityFreePhysicsState.gasAmountRatio, 1);
 assert.equal(defaultFile.heatCapacityFreePhysicsState.gasTemperatureK, 298.15);
 assert.equal(defaultFile.heatCapacityFreePhysicsState.wallTemperatureK, 298.15);
 assert.equal(defaultFile.heatCapacityFreePhysicsState.lastPumpStrokeAtS, null);
-assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK, 0.14);
+assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK, 0.08);
 assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.wallAmbientConductanceWPerK, 0.45);
 assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.wallHeatCapacityJPerK, 45);
 assert.deepEqual(defaultFile.heatCapacityFreePhysicsConfig.leakage, {
@@ -272,9 +272,12 @@ const idealReleaseTrial = {
     zeroEventId: 'zero-1',
   }),
 };
+const idealReleaseStartedAtMs = 1_200;
+const idealReleaseClosedAtMs = idealReleaseStartedAtMs +
+  HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS * 1_000;
 const idealReleaseOpen = stepHeatCapacityWorkbenchFile({
   ...poweredIdeal,
-  lastUpdateMs: 1_200,
+  lastUpdateMs: idealReleaseStartedAtMs,
   heatCapacityFreePhysicsState: idealReleaseStartState,
   heatCapacityReleaseState: {
     ...poweredIdeal.heatCapacityReleaseState,
@@ -300,14 +303,14 @@ const idealReleaseOpen = stepHeatCapacityWorkbenchFile({
     },
     trials: [idealReleaseTrial],
   },
-}, 1_700);
+}, idealReleaseClosedAtMs);
 const idealReleaseClosedState = {
   ...idealReleaseOpen.heatCapacityFreeIdealDomain.physicsState,
   lastStopcockClosedAtS: idealReleaseOpen.heatCapacityFreeIdealDomain.physicsState.simulationTimeS,
 };
 const idealReleaseRecovered = stepHeatCapacityWorkbenchFile({
   ...idealReleaseOpen,
-  lastUpdateMs: 1_700,
+  lastUpdateMs: idealReleaseClosedAtMs,
   heatCapacityFreePhysicsState: idealReleaseClosedState,
   heatCapacityReleaseState: {
     ...idealReleaseOpen.heatCapacityReleaseState,
@@ -325,7 +328,7 @@ const idealReleaseRecovered = stepHeatCapacityWorkbenchFile({
       closingCompletedAtS: idealReleaseOpen.heatCapacityFreeIdealDomain.physicsState.simulationTimeS,
     },
   },
-}, 301_700);
+}, idealReleaseClosedAtMs + 300_000);
 const idealRecoveredPhysical = deriveFreePhysicalState(
   idealReleaseRecovered.heatCapacityFreeIdealDomain.physicsState,
   idealReleaseRecovered.heatCapacityFreeIdealDomain.physicsConfig,
@@ -1985,11 +1988,17 @@ const releaseReadyFile: WorkbenchHeatCapacityState = {
 const releasedDuringPreset = stepHeatCapacityWorkbenchFile(releaseReadyFile, 22_200);
 assert.equal(releasedDuringPreset.heatCapacityReleaseState.phase, 'releasing');
 assert.equal(releasedDuringPreset.pressureDeltaKPa < releaseReadyFile.pressureDeltaKPa, true);
-const releasedAfterPreset = stepHeatCapacityWorkbenchFile(releasedDuringPreset, 22_500);
+const releasedAfterPreset = stepHeatCapacityWorkbenchFile(
+  releasedDuringPreset,
+  22_000 + HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS * 1_000 + 100,
+);
 assert.equal(releasedAfterPreset.heatCapacityReleaseState.phase, 'closing');
 assert.equal(
-  releasedAfterPreset.heatCapacityReleaseState.releaseDurationS,
-  HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS,
+  Math.abs(
+    releasedAfterPreset.heatCapacityReleaseState.releaseDurationS -
+      HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS,
+  ) < 1e-9,
+  true,
   'auto demo should stop main release at the canonical preset duration',
 );
 

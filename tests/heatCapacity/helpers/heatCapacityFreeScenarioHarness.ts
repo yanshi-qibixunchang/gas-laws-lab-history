@@ -41,6 +41,10 @@ import {
 import {
   getEffectiveHeatCapacityFreeSensorConfig,
 } from '../../../src/domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
+import {
+  HEAT_CAPACITY_RELEASE_TIMING,
+  HEAT_CAPACITY_STANDARD_OPERATION,
+} from '../../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
 
 interface ScenarioConfigs {
   physics: HeatCapacityFreePhysicsConfig;
@@ -270,21 +274,18 @@ const recordU1IfReady = (
 
 const releaseAndMaybeRecover = (
   run: ScenarioRun,
-  openExtraS: number,
+  openDurationS: number,
   recoveryWaitS: number,
 ) => {
-  let current = stepRun(run, {
-    pumpValveOpen: false,
-    stopcockOpen: true,
-    stopcockFlowPurpose: 'release',
-  }, 0.05);
-  const totalOpenDurationS = 0.2 + openExtraS;
-  for (let elapsedS = 0; elapsedS < totalOpenDurationS - 1e-9; elapsedS += TIME_STEP_S) {
+  let current = run;
+  for (let elapsedS = 0; elapsedS < openDurationS - 1e-9;) {
+    const stepS = Math.min(TIME_STEP_S, openDurationS - elapsedS);
     current = stepRun(current, {
       pumpValveOpen: false,
       stopcockOpen: true,
       stopcockFlowPurpose: 'release',
-    }, TIME_STEP_S);
+    }, stepS);
+    elapsedS += stepS;
   }
   current = stepRun(current, {
     pumpValveOpen: false,
@@ -301,7 +302,7 @@ const completeScenario = (
     id: string;
     label: string;
     pumpStrokes: number;
-    openExtraS: number;
+    openDurationS: number;
     recoveryWaitS: number;
   },
 ): HeatCapacityFreeScenarioBaselineEntry => {
@@ -324,7 +325,7 @@ const completeScenario = (
       },
     };
   }
-  const recovered = releaseAndMaybeRecover(run, input.openExtraS, input.recoveryWaitS);
+  const recovered = releaseAndMaybeRecover(run, input.openDurationS, input.recoveryWaitS);
   const display = getDisplay(recovered);
   const u2Evaluation = evaluateFreeU2Record(
     u1.trial,
@@ -383,35 +384,35 @@ export const runHeatCapacityFreeScenarioBaseline = (): HeatCapacityFreeScenarioB
     id: 'good-operation',
     label: 'Good operation',
     pumpStrokes: 18,
-    openExtraS: 0.15,
+    openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
     recoveryWaitS: DEFAULT_STABLE_WAIT_S,
   }),
   completeScenario({
     id: 'insufficient-pump',
     label: 'Insufficient pump',
     pumpStrokes: 4,
-    openExtraS: 0.15,
+    openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
     recoveryWaitS: DEFAULT_STABLE_WAIT_S,
   }),
   completeScenario({
     id: 'slow-close',
     label: 'Slow close',
     pumpStrokes: 18,
-    openExtraS: 0.7,
+    openDurationS: HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS + 0.7,
     recoveryWaitS: DEFAULT_STABLE_WAIT_S,
   }),
   completeScenario({
     id: 'long-open',
     label: 'Long open',
     pumpStrokes: 18,
-    openExtraS: 6,
+    openDurationS: HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS + 6,
     recoveryWaitS: DEFAULT_STABLE_WAIT_S,
   }),
   completeScenario({
     id: 'early-u2-record',
     label: 'Early U2 record',
     pumpStrokes: 18,
-    openExtraS: 0.15,
+    openDurationS: HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS,
     recoveryWaitS: 0,
   }),
 ];

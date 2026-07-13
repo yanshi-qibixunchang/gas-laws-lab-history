@@ -18,6 +18,9 @@ import {
   createHeatCapacityFreeStandardReference,
 } from '../../src/domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
 import {
+  HEAT_CAPACITY_STANDARD_OPERATION,
+} from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import {
   createCompleteProcessReviewFixtureParts,
 } from './helpers/heatCapacityProcessReviewTestFactory.ts';
 
@@ -122,15 +125,16 @@ const quickToggleReview = selectHeatCapacityFreeProcessReview({
   selectedTrialId: parts.trial.id,
 });
 const quickToggleReleaseStage = quickToggleReview.chart.stages.find((stage) => stage.id === 'release');
+const successfulReleaseEndS = 30.72 + HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS;
 assert.notEqual(quickToggleReleaseStage, undefined);
 assert.equal(quickToggleReleaseStage?.startS, 30.72);
-assert.equal(quickToggleReleaseStage?.endS, 31.095);
+assert.equal(quickToggleReleaseStage?.endS, successfulReleaseEndS);
 const releaseAttemptControls = quickToggleReview.chart.controls.filter((control) => (
   control.kind === 'stopcock' && control.timeS >= 30
 ));
 assert.deepEqual(
   releaseAttemptControls.map((control) => control.timeS),
-  [30.1, 30.2, 30.3, 31.095],
+  [30.1, 30.2, 30.3, successfulReleaseEndS],
   'quick-toggle operation points should remain visible before the successful release pair',
 );
 assert.equal(

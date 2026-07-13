@@ -17,6 +17,9 @@ import {
   type HeatCapacityFreeTraceStore,
   type HeatCapacityFreeTraceTrial,
 } from '../../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
+import {
+  HEAT_CAPACITY_STANDARD_OPERATION,
+} from '../../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
 import type {
   HeatCapacityProcessScoringInput,
 } from '../../../src/domain/heatCapacity/heatCapacityFreeProcessScoringModel.ts';
@@ -165,7 +168,7 @@ export const createTraceTrialForProcessReviewTest = (
   if (u1Sample && u2Sample) {
     const openCommandAtS = u1Sample.atS + 0.3;
     const releaseStartAtS = openCommandAtS + 0.42;
-    const releaseDurationS = 0.375;
+    const releaseDurationS = HEAT_CAPACITY_STANDARD_OPERATION.releaseDurationS;
     branch = appendEventAtSample(branch, u2Sample, 'stopcock-open', openCommandAtS, {
       attemptId: 1,
       purpose: 'release',

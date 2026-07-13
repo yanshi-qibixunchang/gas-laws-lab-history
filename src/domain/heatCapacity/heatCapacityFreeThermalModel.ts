@@ -60,7 +60,7 @@ export const deriveEffectiveFreeGasWallConductanceWPerK = (
 export const normalizeFreeThermalConfig = (
   value: Partial<HeatCapacityFreeThermalConfig> | null | undefined,
 ): HeatCapacityFreeThermalConfig => ({
-  gasWallConductanceWPerK: clampFinite(value?.gasWallConductanceWPerK ?? 0.14, 0, 5, 0.14),
+  gasWallConductanceWPerK: clampFinite(value?.gasWallConductanceWPerK ?? 0.08, 0, 5, 0.08),
   wallAmbientConductanceWPerK: clampFinite(value?.wallAmbientConductanceWPerK ?? 0.45, 0, 5, 0.45),
   wallHeatCapacityJPerK: clampFinite(value?.wallHeatCapacityJPerK ?? 45, 1, 5000, 45),
   minimumGasHeatCapacityJPerK: clampFinite(value?.minimumGasHeatCapacityJPerK ?? 0.1, 0.01, 10, 0.1),

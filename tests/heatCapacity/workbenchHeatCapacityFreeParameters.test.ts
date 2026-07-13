@@ -34,7 +34,7 @@ assert.equal(defaultFile.heatCapacityMode, 'free');
 assert.equal(defaultFile.heatCapacityFreeExperimentGroupStatus, 'draft');
 assert.equal(defaultFile.heatCapacityFreeParameterDraft.ambientPressureKPa, 101.3);
 assert.equal(defaultFile.heatCapacityFreeParameterDraft.ambientTemperatureK, 298.15);
-assert.equal(defaultFile.heatCapacityFreeParameterDraft.gasWallConductanceWPerK, 0.14);
+assert.equal(defaultFile.heatCapacityFreeParameterDraft.gasWallConductanceWPerK, 0.08);
 assert.equal(defaultFile.heatCapacityFreeParameterDraft.wallAmbientConductanceWPerK, 0.45);
 assert.equal(defaultFile.heatCapacityFreeParameterDraft.leakageEnabled, true);
 assert.equal(defaultFile.heatCapacityFreeParameterDraft.instrumentNoiseEnabled, true);
@@ -74,12 +74,12 @@ const contaminatedProjectionFile = {
 const repairedProjectionFile = stepHeatCapacityWorkbenchFile(contaminatedProjectionFile, 1000);
 assert.equal(
   repairedProjectionFile.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK,
-  0.14,
+  0.08,
   'free-mode runtime hydration should rebuild a polluted real top-level projection from the real domain',
 );
 assert.equal(
   repairedProjectionFile.heatCapacityFreeRealDomain.physicsConfig.thermal.gasWallConductanceWPerK,
-  0.14,
+  0.08,
   'free-mode runtime hydration must not write a polluted top-level projection back into the real domain',
 );
 
@@ -294,7 +294,7 @@ assert.equal(resetGasTypeEdit.heatCapacityFreeTrials.length, 0);
 assert.equal(resetGasTypeEdit.heatCapacityFreeGasType, 'air');
 assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.gasType, 'air');
 assert.equal(resetGasTypeEdit.theoreticalGamma, 1.4);
-assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.gasWallConductanceWPerK, 0.14);
+assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.gasWallConductanceWPerK, 0.08);
 assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.leakageRatePerS, 0.00005);
 
 const allEditableParametersChanged = applyHeatCapacityFreeParameterDraftWorkbenchState(defaultFile, {
