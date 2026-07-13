@@ -22,6 +22,11 @@
   --studio-action-warning-bg: #a9550a;
   --studio-action-warning-bg-hover: #8f4308;
   --studio-action-warning-text: #fff6e8;
+  --studio-heat-focus-action-border: rgba(125, 211, 252, 0.42);
+  --studio-heat-focus-action-bg: rgba(14, 116, 144, 0.76);
+  --studio-heat-focus-action-text: #ecfeff;
+  --studio-heat-focus-action-border-hover: rgba(165, 243, 252, 0.82);
+  --studio-heat-focus-action-bg-hover: rgba(8, 145, 178, 0.88);
   --studio-preview-corner-button-radius: 6px;
   --studio-preview-corner-button-shadow: 0 12px 26px rgba(7, 10, 16, 0.24);
   --studio-engineering-title-font: "DengXian", "Arial Narrow", "Segoe UI", "Microsoft JhengHei UI", sans-serif;
@@ -63,6 +68,11 @@
   --studio-action-warning-bg: #b45309;
   --studio-action-warning-bg-hover: #92400e;
   --studio-action-warning-text: #fff7ed;
+  --studio-heat-focus-action-border: rgba(14, 116, 144, 0.34);
+  --studio-heat-focus-action-bg: rgba(8, 145, 178, 0.82);
+  --studio-heat-focus-action-text: #f8fafc;
+  --studio-heat-focus-action-border-hover: rgba(14, 116, 144, 0.62);
+  --studio-heat-focus-action-bg-hover: rgba(3, 105, 161, 0.9);
   --studio-preview-corner-button-shadow: 0 10px 24px rgba(71, 85, 105, 0.14);
 }
 
@@ -6410,18 +6420,18 @@
 
 .studio-heat-focus-panel-actions button {
   height: 26px;
-  border: 1px solid rgba(125, 211, 252, 0.42);
+  border: 1px solid var(--studio-heat-focus-action-border);
   border-radius: 4px;
-  background: rgba(14, 116, 144, 0.76);
-  color: #ecfeff;
+  background: var(--studio-heat-focus-action-bg);
+  color: var(--studio-heat-focus-action-text);
   font-family: inherit;
   font-size: 11px;
   cursor: pointer;
 }
 
 .studio-heat-focus-panel-actions button:hover {
-  border-color: rgba(165, 243, 252, 0.82);
-  background: rgba(8, 145, 178, 0.88);
+  border-color: var(--studio-heat-focus-action-border-hover);
+  background: var(--studio-heat-focus-action-bg-hover);
 }
 
 .studio-theme-light .studio-heat-preview-stage {
@@ -6559,14 +6569,14 @@
 }
 
 .studio-theme-light .studio-heat-focus-panel-actions button {
-  border-color: rgba(14, 116, 144, 0.34);
-  background: rgba(8, 145, 178, 0.82);
-  color: #f8fafc;
+  border-color: var(--studio-heat-focus-action-border);
+  background: var(--studio-heat-focus-action-bg);
+  color: var(--studio-heat-focus-action-text);
 }
 
 .studio-theme-light .studio-heat-focus-panel-actions button:hover {
-  border-color: rgba(14, 116, 144, 0.62);
-  background: rgba(3, 105, 161, 0.9);
+  border-color: var(--studio-heat-focus-action-border-hover);
+  background: var(--studio-heat-focus-action-bg-hover);
 }
 
 .studio-heat-instrument-scene canvas {

@@ -1,87 +1,131 @@
 .studio-heat-invalid-attempt {
   display: grid;
-  width: min(430px, calc(100vw - 36px));
-  gap: 14px;
-  padding: 22px 24px;
-  border: 1px solid rgba(245, 158, 11, 0.62);
+  width: min(480px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid var(--studio-border);
   border-radius: 6px;
-  background: rgba(30, 25, 17, 0.94);
-  box-shadow: 0 20px 44px rgba(2, 8, 23, 0.5);
-  color: #fef3c7;
+  background: var(--studio-surface);
+  box-shadow: 0 12px 28px rgba(2, 8, 23, 0.3);
+  color: var(--studio-text);
+  font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft JhengHei UI", system-ui, sans-serif;
   pointer-events: auto;
-  backdrop-filter: blur(12px);
   animation: studioOverlayFadeIn var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) both;
 }
 
-.studio-heat-invalid-attempt header {
+.studio-heat-invalid-attempt-header {
   display: flex;
+  min-height: 44px;
   align-items: center;
-  justify-content: space-between;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
-  font-family: "JetBrains Mono", Consolas, monospace;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  gap: 9px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--studio-border-soft);
+  background: var(--studio-surface-2);
 }
 
-.studio-heat-invalid-attempt header em {
-  color: #f59e0b;
-  font-style: normal;
+.studio-heat-invalid-attempt-header svg {
+  flex: 0 0 auto;
+  color: var(--studio-warning);
 }
 
-.studio-heat-invalid-attempt > strong {
-  color: #fff7ed;
-  font-size: 20px;
-  font-weight: 900;
+.studio-heat-invalid-attempt-header strong {
+  color: var(--studio-text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
-.studio-heat-invalid-attempt p {
+.studio-heat-invalid-attempt-body {
+  display: grid;
+  gap: 7px;
+  padding: 16px 18px 9px;
+}
+
+.studio-heat-invalid-attempt-body p {
   margin: 0;
-  color: rgba(254, 243, 199, 0.92);
-  font-size: 13px;
-  font-weight: 650;
+  color: var(--studio-muted);
+  font-size: 12px;
+  font-weight: 400;
   line-height: 1.65;
+}
+
+.studio-heat-invalid-attempt-body p:last-child {
+  color: var(--studio-text);
+  font-weight: 500;
 }
 
 .studio-heat-invalid-attempt-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 2px;
+  gap: 8px;
+  margin: 0;
+  padding: 0 18px 14px;
 }
 
 .studio-heat-invalid-attempt-actions button {
-  min-width: 112px;
-  min-height: 34px;
-  border: 1px solid rgba(245, 158, 11, 0.55);
+  display: inline-flex;
+  min-width: 84px;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--studio-border);
   border-radius: 4px;
-  background: rgba(120, 53, 15, 0.42);
-  color: #fffbeb;
-  font-weight: 800;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
   cursor: pointer;
+  transition:
+    background-color var(--studio-heat-motion-fast) ease,
+    border-color var(--studio-heat-motion-fast) ease,
+    color var(--studio-heat-motion-fast) ease;
 }
 
-.studio-heat-invalid-attempt-actions button:last-child {
-  border-color: rgba(148, 163, 184, 0.5);
-  background: rgba(51, 65, 85, 0.58);
+.studio-heat-invalid-attempt-secondary {
+  background: var(--studio-surface);
+  color: var(--studio-text);
 }
 
-.studio-heat-invalid-attempt-actions button:hover {
-  filter: brightness(1.12);
+.studio-heat-invalid-attempt-secondary:hover {
+  background: var(--studio-surface-3);
+}
+
+.studio-heat-invalid-attempt-primary {
+  border-color: var(--studio-heat-focus-action-border) !important;
+  background: var(--studio-heat-focus-action-bg);
+  color: var(--studio-heat-focus-action-text);
+}
+
+.studio-heat-invalid-attempt-primary:hover {
+  border-color: var(--studio-heat-focus-action-border-hover) !important;
+  background: var(--studio-heat-focus-action-bg-hover);
+}
+
+.studio-heat-invalid-attempt-actions button:focus-visible {
+  outline: 2px solid var(--studio-accent-strong);
+  outline-offset: 2px;
 }
 
 .studio-theme-light .studio-heat-invalid-attempt {
-  border-color: rgba(217, 119, 6, 0.5);
-  background: rgba(255, 251, 235, 0.96);
-  box-shadow: 0 18px 38px rgba(71, 85, 105, 0.24);
-  color: #78350f;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
 }
 
-.studio-theme-light .studio-heat-invalid-attempt > strong,
-.studio-theme-light .studio-heat-invalid-attempt p {
-  color: #78350f;
+@media (max-width: 560px) {
+  .studio-heat-invalid-attempt {
+    width: min(440px, calc(100vw - 24px));
+  }
+
+  .studio-heat-invalid-attempt-header,
+  .studio-heat-invalid-attempt-body {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .studio-heat-invalid-attempt-actions {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
