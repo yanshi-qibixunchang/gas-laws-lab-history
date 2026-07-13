@@ -2,7 +2,7 @@
 
 [简体中文](./README.zh-CN.md)
 
-Hard Sphere Lab is a Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and the FD-NCD-C air heat-capacity-ratio experiment.
+Hard Sphere Lab is a Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and the adiabatic-expansion experiment for measuring the heat-capacity ratio of air.
 
 The latest published desktop release is `v4.2.3`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
 
@@ -14,7 +14,7 @@ The latest published desktop release is `v4.2.3`. The `main` branch may contain 
 
 - Standard hard-sphere simulation with a live 3D preview, realtime charts, and result tabs.
 - Ideal-gas `P-T`, `P-V`, and `P-N` studies with sampling, verification, and history views.
-- FD-NCD-C heat-capacity-ratio experiment with Demo, Guide, and Free modes.
+- Air heat-capacity-ratio experiment with Demo, Guide, and Free modes.
 - Local desktop export for PDF reports, PDF/PNG figures, CSV data, and metadata.
 - Simplified Chinese, Traditional Chinese, and English interface text.
 
@@ -107,7 +107,7 @@ The public update repository may also contain user-facing README, changelog, sec
 
 ## Instrument Model Contract
 
-The FD-NCD-C 3D model is a state-machine-driven visualization and interaction carrier. It is not the source of truth for `P0`, `P1`, `P2`, `U_p`, `U_T`, or `gamma`.
+The air heat-capacity-ratio apparatus model is a state-machine-driven visualization and interaction carrier. It is not the source of truth for `P0`, `P1`, `P2`, `U_p`, `U_T`, or `gamma`. Its structure and workflow draw on several teaching instruments, with FD-NCD-C serving as one of the principal references; this project is not an official simulation or digital replica of that model.
 
 The Blender integration contract is documented at:
 

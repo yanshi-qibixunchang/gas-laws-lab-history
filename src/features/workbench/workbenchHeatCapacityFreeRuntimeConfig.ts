@@ -40,9 +40,7 @@ export const normalizeHeatCapacityFreeSensorConfig = (
     config?.pressureMvPerKPa,
     DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.pressureMvPerKPa,
   )),
-  // One FD-NCD-C instrument has one temperature calibration. Legacy files may
-  // still contain mode-specific 2/4 mV/K values, but they are deliberately not
-  // allowed back into the active runtime.
+  // One virtual instrument has one temperature calibration, shared by every mode.
   temperatureMvAtAmbient: HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
   temperatureMvPerK: HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
   lagRate: clampNumber(

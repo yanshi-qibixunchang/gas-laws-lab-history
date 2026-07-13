@@ -199,6 +199,28 @@ const ULTRA_DISPLAY_TEXTURE_SURFACE_NODE_NAMES = [
 const ULTRA_POWERED_DISPLAY_ART_NODE_NAMES = [
   'HSL_MainDisplay_PixelDigits_PowerOnPreview',
 ] as const;
+const ULTRA_MAIN_DISPLAY_SCALE = 1.32;
+const ULTRA_MAIN_DISPLAY_CENTER = new THREE.Vector2(-0.485, 0.018);
+const ULTRA_MAIN_DISPLAY_OFFSET = new THREE.Vector2(0.03, 0.025);
+const ULTRA_MAIN_DISPLAY_COMPONENT_NODE_NAMES = [
+  'HSL_MainDisplay_RecessFrame',
+  'HSL_MainDisplay_RecessWell',
+  'HSL_MainDisplay_DynamicPlaneAnchor',
+  'HSL_MainDisplay_NameplateZone',
+  'HSL_MainDisplay_PixelScreenZone',
+  'HSL_MainDisplay_VerticalPartition',
+  'HSL_MainDisplay_ChannelLabelAnchor',
+  'HSL_MainDisplay_NameplateLabelArt_PowerPreview',
+  'HSL_MainDisplay_PixelDigits_PowerOnPreview',
+] as const;
+const ULTRA_MAIN_DISPLAY_MODEL_LABEL_NODE_NAMES = [
+  'HSL_MainDisplay_ModelLabelBand',
+  'HSL_MainDisplay_ModelLabelAnchor',
+  'HSL_MainDisplay_ModelNameWhiteArt',
+] as const;
+const ULTRA_MAIN_DISPLAY_ROW_HALO_SIZE: [number, number] = [1.2144, 0.2112];
+const ULTRA_MAIN_DISPLAY_PANEL_HALO_SIZE: [number, number] = [1.2672, 0.4752];
+const ULTRA_MAIN_DISPLAY_ROW_HALO_OFFSET_Y = 0.099;
 
 const ULTRA_HIDDEN_SOURCE_PIPELINE_NODE_NAMES = [
   'PressureSensor_Wire_Black',
@@ -531,8 +553,8 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     focusShellNodeNames: ['HSL_MainDisplay_PixelScreenZone', 'HSL_MainDisplay_DynamicPlaneAnchor'],
     focusShellSide: 'double',
     shape: 'plane',
-    size: [0.92, 0.16],
-    offset: [0, -0.075, 0.006],
+    size: ULTRA_MAIN_DISPLAY_ROW_HALO_SIZE,
+    offset: [0, -ULTRA_MAIN_DISPLAY_ROW_HALO_OFFSET_Y, 0.006],
     focusShellPulsePopScale: 1.08,
   },
   {
@@ -543,8 +565,8 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     focusShellNodeNames: ['HSL_MainDisplay_PixelScreenZone', 'HSL_MainDisplay_DynamicPlaneAnchor'],
     focusShellSide: 'double',
     shape: 'plane',
-    size: [0.92, 0.16],
-    offset: [0, 0.075, 0.006],
+    size: ULTRA_MAIN_DISPLAY_ROW_HALO_SIZE,
+    offset: [0, ULTRA_MAIN_DISPLAY_ROW_HALO_OFFSET_Y, 0.006],
     focusShellPulsePopScale: 1.08,
   },
   {
@@ -555,7 +577,7 @@ const ULTRA_CONTROL_VISUAL_TARGETS = [
     focusShellNodeNames: ['HSL_MainDisplay_RecessWell', 'HSL_MainDisplay_PixelScreenZone'],
     focusShellSide: 'double',
     shape: 'plane',
-    size: [0.96, 0.36],
+    size: ULTRA_MAIN_DISPLAY_PANEL_HALO_SIZE,
     offset: [0, 0, 0.005],
     focusShellPulsePopScale: 1.07,
   },
@@ -1146,6 +1168,37 @@ const cloneModelScene = (sourceScene: THREE.Object3D) => {
     }
   });
   return clonedScene;
+};
+
+const applyUltraMainDisplayLayout = (modelRoot: THREE.Object3D) => {
+  const nodeMap = collectNodes(modelRoot);
+  const instrumentRoot = nodeMap.get('FD_NCD_C_InstrumentBody');
+  if (!instrumentRoot) return;
+
+  ULTRA_MAIN_DISPLAY_MODEL_LABEL_NODE_NAMES.forEach((nodeName) => {
+    const node = nodeMap.get(nodeName);
+    if (node) node.visible = false;
+  });
+
+  const displayGroup = new THREE.Group();
+  displayGroup.name = 'HSL_MainDisplay_RuntimeLayout';
+  displayGroup.position.set(
+    ULTRA_MAIN_DISPLAY_CENTER.x + ULTRA_MAIN_DISPLAY_OFFSET.x,
+    ULTRA_MAIN_DISPLAY_CENTER.y + ULTRA_MAIN_DISPLAY_OFFSET.y,
+    0,
+  );
+  displayGroup.scale.set(ULTRA_MAIN_DISPLAY_SCALE, ULTRA_MAIN_DISPLAY_SCALE, 1);
+  instrumentRoot.add(displayGroup);
+
+  ULTRA_MAIN_DISPLAY_COMPONENT_NODE_NAMES.forEach((nodeName) => {
+    const node = nodeMap.get(nodeName);
+    if (!node || node.parent !== instrumentRoot) return;
+    const localX = node.position.x - ULTRA_MAIN_DISPLAY_CENTER.x;
+    const localY = node.position.y - ULTRA_MAIN_DISPLAY_CENTER.y;
+    const localZ = node.position.z;
+    displayGroup.add(node);
+    node.position.set(localX, localY, localZ);
+  });
 };
 
 const collectNodes = (root: THREE.Object3D) => {
@@ -2622,7 +2675,11 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     ),
   }));
 
-  const modelRoot = useMemo(() => cloneModelScene(gltf.scene), [gltf.scene]);
+  const modelRoot = useMemo(() => {
+    const clonedScene = cloneModelScene(gltf.scene);
+    applyUltraMainDisplayLayout(clonedScene);
+    return clonedScene;
+  }, [gltf.scene]);
   const nodeMap = useMemo(() => collectNodes(modelRoot), [modelRoot]);
   const baseTransforms = useMemo(() => collectBaseTransforms(nodeMap), [nodeMap]);
 

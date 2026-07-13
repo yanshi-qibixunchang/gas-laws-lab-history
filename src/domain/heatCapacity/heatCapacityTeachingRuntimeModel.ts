@@ -197,7 +197,7 @@ const mergeModelConfig = (
     ...DEFAULT_HEAT_CAPACITY_MODEL_CONFIG.sensor,
     ...config?.sensor,
     // Demo keeps its teaching temperature trajectory, but it is rendered by
-    // the same FD-NCD-C calibration as Guide and Free modes.
+    // the same virtual-instrument calibration as Guide and Free modes.
     temperatureBaseMv: HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
     temperatureSensitivityMvPerK: HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
   },

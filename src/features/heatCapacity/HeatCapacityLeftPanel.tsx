@@ -546,7 +546,7 @@ const renderGuideTab = (language: WorkbenchLanguagePreference) => {
   return (
     <div className="studio-heat-guide-doc">
       <header className="studio-heat-doc-header">
-        <span className="studio-heat-doc-kicker">FD-NCD-C</span>
+        <span className="studio-heat-doc-kicker">绝热膨胀法</span>
         <h3>{copy.title}</h3>
         <p>{copy.subtitle}</p>
       </header>

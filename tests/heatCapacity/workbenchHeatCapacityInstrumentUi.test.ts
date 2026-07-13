@@ -1641,10 +1641,13 @@ assert.match(sceneSource, /studio-preview-overlay-center-above-guide-mask/, 'sce
 assert.match(styleSource, /\.studio-preview-overlay-center-above-guide-mask\s*\{[\s\S]*?z-index:\s*12;/, 'raised center content should sit above the z-index 10 interaction lock and z-index 11 strong reminder');
 assert.match(sceneSource, /name="TemperatureDisplayChannelLabelText"[\s\S]*Uₜ \/ mV/, 'instrument host should label the left screen as the temperature signal channel');
 assert.match(sceneSource, /name="PressureDisplayChannelLabelText"[\s\S]*Uₚ \/ mV/, 'instrument host should label the pressure screen as the pressure signal channel');
-assert.match(sceneSource, /const INSTRUMENT_PANEL_TITLE_TEXT_SIZE = 0\.044;/, 'instrument title label should be enlarged without moving outside the host panel');
+assert.doesNotMatch(sceneSource, /InstrumentPanelTitleText|FD-NCD-C/, 'the fallback instrument must not retain a standalone model label');
 assert.match(sceneSource, /const INSTRUMENT_PANEL_CHANNEL_LABEL_TEXT_SIZE = 0\.034;/, 'instrument channel labels should be enlarged but remain smaller than display values');
 assert.match(sceneSource, /const INSTRUMENT_PANEL_INPUT_LABEL_TEXT_SIZE = 0\.032;/, 'instrument input labels should be enlarged but stay below the terminals');
-assert.match(sceneSource, /name="InstrumentPanelTitleText"\s+position=\{\[0, 0\.28, 0\.505\]\}\s+size=\{INSTRUMENT_PANEL_TITLE_TEXT_SIZE\}/, 'instrument title label should keep its safe top-panel position');
+assert.match(ultraModelSource, /const ULTRA_MAIN_DISPLAY_SCALE = 1\.32;/, 'the complete Ultra nameplate and digital display should share one proportional scale');
+assert.match(ultraModelSource, /ULTRA_MAIN_DISPLAY_MODEL_LABEL_NODE_NAMES[\s\S]*HSL_MainDisplay_ModelNameWhiteArt[\s\S]*node\.visible = false/, 'the Ultra instrument must hide the standalone model label and its backing nodes');
+assert.match(ultraModelSource, /displayGroup\.scale\.set\(ULTRA_MAIN_DISPLAY_SCALE, ULTRA_MAIN_DISPLAY_SCALE, 1\)/, 'the display component should scale as one runtime group without changing depth');
+assert.match(ultraModelSource, /ULTRA_MAIN_DISPLAY_ROW_HALO_SIZE[\s\S]*instrumentPressureDisplay[\s\S]*size: ULTRA_MAIN_DISPLAY_ROW_HALO_SIZE[\s\S]*instrumentTemperatureDisplay[\s\S]*size: ULTRA_MAIN_DISPLAY_ROW_HALO_SIZE/, 'display focus halos should follow the enlarged display geometry');
 assert.match(sceneSource, /name="TemperatureDisplayChannelLabelText"\s+position=\{\[-0\.64, 0\.215, 0\.505\]\}\s+size=\{INSTRUMENT_PANEL_CHANNEL_LABEL_TEXT_SIZE\}/, 'temperature channel label should keep its safe gap above the screen');
 assert.match(sceneSource, /name="PressureDisplayChannelLabelText"\s+position=\{\[0, 0\.215, 0\.505\]\}\s+size=\{INSTRUMENT_PANEL_CHANNEL_LABEL_TEXT_SIZE\}/, 'pressure channel label should keep its safe gap above the screen');
 assert.match(sceneSource, /name="TemperatureInputPortLabelText"\s+position=\{\[-0\.64, -0\.23, 0\.505\]\}\s+size=\{INSTRUMENT_PANEL_INPUT_LABEL_TEXT_SIZE\}/, 'temperature input label should keep its safe lower-panel position');

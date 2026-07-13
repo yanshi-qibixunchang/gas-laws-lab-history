@@ -1259,7 +1259,6 @@ const getPressureGaugeNeedleRotation = (
 };
 
 const INSTRUMENT_DIGITAL_DISPLAY_TEXT_SIZE = 0.054;
-const INSTRUMENT_PANEL_TITLE_TEXT_SIZE = 0.044;
 const INSTRUMENT_PANEL_CHANNEL_LABEL_TEXT_SIZE = 0.034;
 const INSTRUMENT_PANEL_INPUT_LABEL_TEXT_SIZE = 0.032;
 
@@ -1711,9 +1710,6 @@ function InstrumentBox({
         {highClarityMode ? <Edges color={scenePalette.instrument.hoverHalo} /> : null}
       </mesh>
 
-      <PanelText name="InstrumentPanelTitleText" position={[0, 0.28, 0.505]} size={INSTRUMENT_PANEL_TITLE_TEXT_SIZE} color={scenePalette.instrument.label}>
-        FD-NCD-C
-      </PanelText>
       <PanelText name="TemperatureDisplayChannelLabelText" position={[-0.64, 0.215, 0.505]} size={INSTRUMENT_PANEL_CHANNEL_LABEL_TEXT_SIZE} color={scenePalette.instrument.label}>
         Uₜ / mV
       </PanelText>

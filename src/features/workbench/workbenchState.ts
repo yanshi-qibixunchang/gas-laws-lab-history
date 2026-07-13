@@ -1661,7 +1661,7 @@ const mergeHeatCapacityRuntimeState = (
     : null;
   // Temperature lag already lives in the physical sensor state. Applying a
   // second UI-space low-pass here would make Demo respond differently from the
-  // same FD-NCD-C sensor used by Guide and Free modes.
+  // same virtual sensor used by Guide and Free modes.
   const temperatureDisplayValue = powerOn ? temperatureSignalTargetMv : null;
   const pressureJitterState = updateHeatCapacityDisplayJitter({
     powerOn,
