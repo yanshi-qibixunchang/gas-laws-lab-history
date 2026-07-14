@@ -78,13 +78,13 @@ assert.match(
 
 assert.match(
   source,
-  /const switchHeatCapacityMode = \(targetMode: HeatCapacityMode\) => \{[\s\S]*?suspendHeatCapacityModeSession\(currentFile, sourceCheckpoint, now\)[\s\S]*?resolveStoredHeatCapacityMode\(suspendedFile, targetMode, now\)/,
-  'mode switching should suspend the current mode and prefer restoring the target mode checkpoint',
+  /const switchHeatCapacityMode = \(targetMode: HeatCapacityMode\) => \{[\s\S]*?type: 'request',[\s\S]*?scheduleHeatCapacityModeTargetPreparation/,
+  'mode switching should enter the shared transition coordinator instead of projecting a target synchronously',
 );
 
 assert.match(
   source,
-  /if \(targetMode === 'guide'\) \{[\s\S]*?startHeatCapacityGuideWorkbenchState\(suspendedFile, now\)[\s\S]*?restoreHeatCapacityModeUi\(guideFile, null\)/,
+  /const resolveHeatCapacityModeTarget[\s\S]*?if \(targetMode === 'guide'\) \{[\s\S]*?startHeatCapacityGuideWorkbenchState\(suspendedFile, now\)[\s\S]*?activation: 'fresh-guide'/,
   'Guide mode should create a fresh guide runtime only when no resumable Guide checkpoint exists',
 );
 
@@ -123,13 +123,13 @@ assert.match(
 
 assert.match(
   source,
-  /data-heat-capacity-mode="demo"[\s\S]*heatCapacityActiveMode !== 'demo'[\s\S]*switchHeatCapacityMode\('demo'\)/,
+  /data-heat-capacity-mode="demo"[\s\S]*handleHeatCapacityModeSegmentClick\('demo'\)/,
   'Demo mode button should route mode entry through the session switcher',
 );
 
 assert.match(
   source,
-  /data-heat-capacity-mode="free"[\s\S]*heatCapacityActiveMode !== 'free'[\s\S]*autoDemoInteractionLocked[\s\S]*switchHeatCapacityMode\('free'\)/,
+  /const handleHeatCapacityModeSegmentClick[\s\S]*mode === 'free'[\s\S]*autoDemoInteractionLocked[\s\S]*switchHeatCapacityMode\('free'\)[\s\S]*data-heat-capacity-mode="free"[\s\S]*handleHeatCapacityModeSegmentClick\('free'\)/,
   'Free mode button should restore its independent Free session through the shared switcher',
 );
 

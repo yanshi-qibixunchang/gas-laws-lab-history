@@ -4518,6 +4518,104 @@
   pointer-events: none;
 }
 
+.studio-heat-mode-transition-scene-host,
+.studio-heat-mode-transition-overlay-host {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.studio-heat-mode-transition-scene-host {
+  z-index: 3;
+}
+
+.studio-heat-mode-transition-overlay-host {
+  z-index: 40;
+}
+
+.studio-heat-mode-transition-outgoing-scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  opacity: 1;
+  pointer-events: none;
+  user-select: none;
+  will-change: opacity;
+}
+
+.studio-heat-mode-transition-outgoing-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 1;
+  pointer-events: none !important;
+  will-change: opacity;
+}
+
+.studio-heat-mode-transition-outgoing-overlay *,
+.studio-heat-mode-transition-outgoing-overlay *::before,
+.studio-heat-mode-transition-outgoing-overlay *::after {
+  pointer-events: none !important;
+  animation: none !important;
+  transition: none !important;
+}
+
+.studio-heat-instrument-scene[data-heat-capacity-mode-transition-phase='prepared']
+  [data-preview-overlay-layer='heat-capacity'] {
+  opacity: 0;
+}
+
+.studio-heat-instrument-scene[data-heat-capacity-mode-transition-phase='active']
+  [data-preview-overlay-layer='heat-capacity'] {
+  opacity: 1;
+}
+
+.studio-heat-instrument-scene[data-heat-capacity-mode-transition-phase]
+  [data-preview-overlay-layer='heat-capacity']
+  :is(
+    .studio-heat-demo-step-panel,
+    .studio-heat-guide-step-panel,
+    .studio-heat-focus-panel,
+    .studio-heat-wait-overlay,
+    .studio-heat-record-controls,
+    .studio-heat-guide-step-hint,
+    .studio-heat-demo-complete-toast
+  ) {
+  animation: none !important;
+}
+
+.studio-heat-instrument-scene[data-heat-capacity-mode-transition-phase='active']
+  [data-preview-overlay-layer='heat-capacity']
+  :is(.studio-preview-overlay-slot-top-right, .studio-preview-overlay-slot-bottom-right) {
+  animation: studioOverlayEnterRight var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) 170ms both;
+}
+
+.studio-heat-instrument-scene[data-heat-capacity-mode-transition-phase='active']
+  [data-preview-overlay-layer='heat-capacity']
+  .studio-preview-overlay-slot-top-center > * {
+  animation: studioOverlayTopCenterIn var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) 170ms both;
+}
+
+.studio-heat-instrument-scene[data-heat-capacity-mode-transition-phase='active']
+  [data-preview-overlay-layer='heat-capacity']
+  .studio-preview-overlay-center > * {
+  animation: studioOverlayFadeIn var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) 170ms both;
+}
+
+.studio-heat-instrument-scene[data-heat-capacity-mode-transition-phase='active']
+  [data-preview-overlay-layer='heat-capacity']
+  .studio-preview-overlay-bottom-center > * {
+  animation: studioOverlayBottomCenterIn var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) 170ms both;
+}
+
+.studio-heat-instrument-scene[data-heat-capacity-mode-transition-phase='active']
+  :is(.studio-heat-mode-transition-outgoing-scene, .studio-heat-mode-transition-outgoing-overlay) {
+  animation: studioOverlayFadeOut var(--studio-heat-mode-transition-duration, 380ms) cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
 .studio-preview-overlay-slot {
   position: absolute;
   display: flex;
@@ -5442,6 +5540,8 @@
   .studio-heat-guide-lesson-content-outgoing,
   .studio-heat-demo-complete-toast,
   .studio-heat-guide-step-hint,
+  .studio-heat-mode-transition-outgoing-scene,
+  .studio-heat-mode-transition-outgoing-overlay,
   .studio-heat-mode-control,
   .studio-heat-mode-actions,
   .studio-shell,
@@ -7151,6 +7251,7 @@
   transition:
     opacity 180ms ease,
     transform 180ms ease;
+  animation: studioOverlayEnterRight var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) both;
 }
 
 .studio-heat-record-controls-exiting {

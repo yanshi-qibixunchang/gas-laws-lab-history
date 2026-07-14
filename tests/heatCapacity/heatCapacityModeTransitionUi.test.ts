@@ -1,0 +1,106 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const testDir = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(testDir, '..', '..');
+const readSource = (relativePath: string) => fs.readFileSync(path.join(projectRoot, relativePath), 'utf8');
+
+const workbenchSource = readSource('src/features/workbench/WorkbenchStudioPrototype.tsx');
+const sceneSource = readSource('src/features/heatCapacity/HeatCapacityInstrumentScene.tsx');
+const styleSource = readSource('src/features/workbench/WorkbenchStudioPrototype.css');
+const audioSource = readSource('src/audio/experiments/heatCapacity/heatCapacityAudioController.ts');
+
+assert.doesNotMatch(
+  workbenchSource,
+  /heatCapacityModeSceneRevision/,
+  'mode changes must not retain the old scene-remount revision switch',
+);
+assert.match(
+  workbenchSource,
+  /<HeatCapacityInstrumentScene[\s\S]*key=\{activeFile\.id\}/,
+  'the 3D scene should persist across mode changes within one experiment file',
+);
+assert.match(
+  workbenchSource,
+  /const rejectHeatCapacityUserInteraction = [\s\S]*phase === 'idle'[\s\S]*showHeatCapacityAutoDemoLockedToast/,
+  'transition-time instrument clicks should be ignored silently while ordinary locks retain their warning feedback',
+);
+assert.match(
+  workbenchSource,
+  /interactionLocked=\{autoDemoInteractionLocked \|\| activeHeatCapacityModalLocked \|\| heatCapacityTeachingCompleted \|\| heatCapacityModeTransitionLocked\}/,
+  'the mode coordinator must lock new scene interactions as soon as a switch request is accepted',
+);
+assert.match(
+  workbenchSource,
+  /restoreAudioMuted=\{[\s\S]*'preparing-target'[\s\S]*'animating'/,
+  'control restoration should be muted for the complete target projection and transition interval',
+);
+assert.match(
+  workbenchSource,
+  /captureRegistration\.provider\(\{ includeFrame: false \}\)/,
+  'mode switching should capture exact scene state without synchronously serializing a new canvas bitmap on the UI thread',
+);
+assert.match(
+  sceneSource,
+  /cloneNode\(true\)[\s\S]*studio-heat-mode-transition-outgoing-overlay[\s\S]*dataset\.heatCapacityModeTransitionPhase = 'active'/,
+  'the outgoing overlay should be frozen independently before the incoming layout starts',
+);
+assert.match(
+  sceneSource,
+  /restoreHardSphereVisualCheckpoint=\{props\.modeRestoreRequest\?\.hardSphereVisualCheckpoint \?\? null\}/,
+  'particle checkpoints should restore inside the persistent scene instead of remounting it',
+);
+assert.match(
+  sceneSource,
+  /modeRestoreRequest=\{props\.modeRestoreRequest \?\? null\}/,
+  'camera checkpoints should restore inside the persistent scene instead of remounting it',
+);
+assert.match(
+  workbenchSource,
+  /pressureZeroTimelineMotionActive=\{[\s\S]*timelineDriven &&[\s\S]*progress < 1/,
+  'scripted zero ownership must not be mistaken for active motion after the knob reaches its final angle',
+);
+assert.match(
+  styleSource,
+  /data-heat-capacity-mode-transition-phase='active'[\s\S]*studio-preview-overlay-slot-top-right[\s\S]*studioOverlayEnterRight[\s\S]*170ms both/,
+  'incoming target layouts should start their established entrance motion after the outgoing layout has begun fading',
+);
+assert.match(
+  styleSource,
+  /studio-heat-mode-transition-outgoing-scene, \.studio-heat-mode-transition-outgoing-overlay[\s\S]*studioOverlayFadeOut var\(--studio-heat-mode-transition-duration, 380ms\)/,
+  'the old scene and overlays should fade in place as one outgoing layer',
+);
+assert.match(
+  styleSource,
+  /\.studio-heat-record-controls\s*\{[\s\S]*animation:\s*studioOverlayEnterRight/,
+  'record controls should have a deliberate entrance animation rather than relying on incidental layout movement',
+);
+assert.match(
+  audioSource,
+  /previousRef\.current = nextPrevious;[\s\S]*if \(state\.restoreMuted\)[\s\S]*releaseSoundRef\.current\?\.stop\(\)/,
+  'muted mode restoration should synchronize the audio baseline without replaying mechanical differences',
+);
+assert.match(
+  workbenchSource,
+  /if \(heatCapacityRefreshRestorePendingRef\.current\) return;\s*if \(heatCapacityModeTransitionStateRef\.current\.phase !== 'idle'\) return;[\s\S]*activateHeatCapacityFileModeSession\(currentFile\.id\)/,
+  'anomalous demo recovery must not interrupt an in-flight mode transition',
+);
+assert.match(
+  workbenchSource,
+  /currentFile\.heatCapacityMode === 'demo' && targetMode !== 'demo' && autoDemoRunning[\s\S]*quiesceHeatCapacityAutoDemoForModeTransition\(currentFile\.id\)/,
+  'leaving a running demo should stop future scripted actions without cutting off the discrete action already in motion',
+);
+assert.match(
+  workbenchSource,
+  /const resumeQuiescedHeatCapacityAutoDemo[\s\S]*scheduleHeatCapacityAutoDemoTimeline[\s\S]*nextState\.phase === 'idle' && targetMode === currentFile\.heatCapacityMode[\s\S]*resumeQuiescedHeatCapacityAutoDemo/,
+  'canceling a queued switch back to the visible demo should resume the quiesced timeline',
+);
+assert.match(
+  workbenchSource,
+  /const handleHeatCapacityModeSegmentClick[\s\S]*if \(heatCapacityModeTransitionStateRef\.current\.phase !== 'idle'\) \{\s*switchHeatCapacityMode\(mode\);[\s\S]*onClick=\{\(\) => handleHeatCapacityModeSegmentClick\('demo'\)\}[\s\S]*onClick=\{\(\) => handleHeatCapacityModeSegmentClick\('guide'\)\}[\s\S]*onClick=\{\(\) => handleHeatCapacityModeSegmentClick\('free'\)\}/,
+  'all three mode segments should forward locked-period clicks so the final request can win or cancel',
+);
+
+console.log('heatCapacityModeTransitionUi tests passed');

@@ -156,7 +156,10 @@ type HeatCapacityUltraInstrumentModelProps = {
   initialVisualState?: HeatCapacityUltraVisualState | null;
   onVisualStateChange?: (state: HeatCapacityUltraVisualState) => void;
   initialHardSphereVisualCheckpoint?: HeatCapacityHardSphereVisualCheckpoint | null;
+  restoreHardSphereVisualCheckpoint?: HeatCapacityHardSphereVisualCheckpoint | null;
+  restoreHardSphereVisualCheckpointKey?: number | null;
   onHardSphereCheckpointProviderChange?: (provider: HeatCapacityHardSphereCheckpointProvider | null) => void;
+  onDiscreteMotionChange?: (active: boolean) => void;
   restorePaused?: boolean;
   guideRollbackAnimation: HeatCapacityGuideRollbackAnimation | null;
   guideRollbackKey: number;
@@ -2621,6 +2624,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   const pumpPulseVisualUntilRef = useRef(0);
   const initialPumpPulseRemainingSRef = useRef((initialVisualState?.pumpPulseRemainingMs ?? 0) / 1000);
   const pumpPulseClockInitializedRef = useRef(false);
+  const discreteMotionActiveRef = useRef(false);
   const pressureZeroDragRef = useRef({
     startKnobAngle: props.pressureZeroKnobAngle,
     lastPointerAngle: 0,
@@ -3180,6 +3184,10 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     props.stopcockAngleDeg,
   ]);
 
+  useEffect(() => () => {
+    if (discreteMotionActiveRef.current) props.onDiscreteMotionChange?.(false);
+  }, [props.onDiscreteMotionChange]);
+
   useFrame(({ clock }, delta) => {
     const visualDelta = props.restorePaused ? 0 : delta;
     const stopcockRollback = stopcockRollbackMotionRef.current.step(visualDelta);
@@ -3316,8 +3324,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       pumpPulseId: pumpPulseRef.current,
       pumpPulseRemainingMs: Math.max(0, (pumpPulseVisualUntilRef.current - clock.elapsedTime) * 1000),
     });
-    if (!props.restorePaused && (
-      Math.abs(gaugeDisplayedRotationRef.current - targetRotation) > 0.001 ||
+    const discreteMotionActive = !props.restorePaused && (
       Math.abs(stopcockDisplayedAngleRef.current - stopcockVisualTargetAngle) > 0.002 ||
       Math.abs(pumpValveDisplayedAngleRef.current - pumpValveVisualTargetAngle) > 0.002 ||
       Math.abs(pressureZeroDisplayedAngleRef.current - pressureZeroVisualTargetAngle) > 0.002 ||
@@ -3328,6 +3335,14 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       powerSwitchRollback.active ||
       pumpBulbRollback.active ||
       pumpVisualWeightRef.current > 0
+    );
+    if (discreteMotionActiveRef.current !== discreteMotionActive) {
+      discreteMotionActiveRef.current = discreteMotionActive;
+      props.onDiscreteMotionChange?.(discreteMotionActive);
+    }
+    if (!props.restorePaused && (
+      Math.abs(gaugeDisplayedRotationRef.current - targetRotation) > 0.001 ||
+      discreteMotionActive
     )) {
       invalidate();
     }
@@ -3405,6 +3420,8 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
         paused={props.hardSpherePaused}
         sceneTheme={props.sceneTheme}
         initialVisualCheckpoint={props.initialHardSphereVisualCheckpoint}
+        restoreVisualCheckpoint={props.restoreHardSphereVisualCheckpoint}
+        restoreVisualCheckpointKey={props.restoreHardSphereVisualCheckpointKey}
         onCheckpointProviderChange={props.onHardSphereCheckpointProviderChange}
       />
     </group>

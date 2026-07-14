@@ -29,6 +29,7 @@ interface HeatCapacityAudioControllerState {
   releaseElapsedS?: number;
   pressureDeltaKPa: number;
   paused: boolean;
+  restoreMuted?: boolean;
 }
 
 interface PreviousMechanicalState {
@@ -79,9 +80,12 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
   const knobSmoothedSpeedRef = useRef(0);
   const releaseSoundRef = useRef<HeatCapacityReleaseSound | null>(null);
   const rollbackPumpValveVariantRef = useRef(new Map<number, number>());
+  const restoreMutedRef = useRef(state.restoreMuted === true);
+  restoreMutedRef.current = state.restoreMuted === true;
   if (!releaseSoundRef.current) releaseSoundRef.current = new HeatCapacityReleaseSound(engine);
 
   const playPumpBulbStroke = useCallback(() => {
+    if (restoreMutedRef.current) return;
     if (!rateLimiterRef.current.accept(
       'heatCapacity.pumpBulb.stroke',
       HEAT_CAPACITY_PUMP_BULB_MIN_INTERVAL_MS,
@@ -98,6 +102,7 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
     powerOn: boolean,
     options: { interruptCurrent?: boolean; maxStartDelayMs: number },
   ) => {
+    if (restoreMutedRef.current) return;
     void engine.playOneShot(HEAT_CAPACITY_POWER_ASSET[powerOn ? 'on' : 'off'], {
       replaceGroup: options.interruptCurrent,
       crossfadeMs: options.interruptCurrent ? 12 : undefined,
@@ -110,6 +115,7 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
     open: boolean,
     options: { interruptCurrent?: boolean; maxStartDelayMs: number },
   ) => {
+    if (restoreMutedRef.current) return;
     void engine.playOneShot(HEAT_CAPACITY_STOPCOCK_ASSET[open ? 'open' : 'close'], {
       replaceGroup: options.interruptCurrent,
       crossfadeMs: options.interruptCurrent ? 10 : undefined,
@@ -122,6 +128,7 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
     open: boolean,
     options: { fileIndex?: number; shortened?: boolean; maxStartDelayMs: number },
   ) => {
+    if (restoreMutedRef.current) return;
     const shortened = options.shortened === true;
     void engine.playOneShot(HEAT_CAPACITY_PUMP_VALVE_ASSET[open ? 'open' : 'close'], {
       ...getHeatCapacityMechanicalVariation(Math.random(), Math.random()),
@@ -136,6 +143,7 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
   }, [engine]);
 
   const playGuideRollbackCue = useCallback((cue: HeatCapacityGuideRollbackCue) => {
+    if (restoreMutedRef.current) return;
     if (cue.action === 'pumpBulbStroke') {
       playPumpBulbStroke();
       return;
@@ -187,6 +195,15 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
     const nextPrevious = toPreviousMechanicalState(state);
     previousRef.current = nextPrevious;
     if (!previous) return;
+    if (state.restoreMuted) {
+      rateLimiterRef.current.reset();
+      knobAccumulatorRef.current.reset();
+      knobLastChangeAtRef.current = null;
+      knobSmoothedSpeedRef.current = 0;
+      rollbackPumpValveVariantRef.current.clear();
+      releaseSoundRef.current?.stop();
+      return;
+    }
     if (previous.resetKey !== state.resetKey) {
       rateLimiterRef.current.reset();
       knobAccumulatorRef.current.reset();
@@ -296,12 +313,17 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
     state.recordPulseId,
     state.pumpValveOpen,
     state.resetKey,
+    state.restoreMuted,
     state.stopcockAngleDeg,
   ]);
 
   useEffect(() => {
     const releaseSound = releaseSoundRef.current;
     if (!releaseSound) return;
+    if (state.restoreMuted) {
+      releaseSound.stop();
+      return;
+    }
     const releaseSoundState = {
       releasePathOpen: state.releasePathOpen,
       releaseElapsedS: state.releaseElapsedS,
@@ -322,6 +344,7 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
     state.releaseElapsedS,
     state.paused,
     state.pressureDeltaKPa,
+    state.restoreMuted,
   ]);
 
   useEffect(() => () => {

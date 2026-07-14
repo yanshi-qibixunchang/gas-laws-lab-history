@@ -195,7 +195,7 @@ const pickHeatCapacitySessionFields = <
   file: WorkbenchHeatCapacityState,
   keys: Keys,
 ): Pick<WorkbenchHeatCapacityState, Keys[number]> => (
-  Object.fromEntries(keys.map((key) => [key, clonePersistenceValue(file[key])])) as
+  Object.fromEntries(keys.map((key) => [key, file[key]])) as
     Pick<WorkbenchHeatCapacityState, Keys[number]>
 );
 
@@ -227,7 +227,7 @@ export const captureHeatCapacityModeRuntimeSnapshot = (
 const withoutSceneFrame = (
   checkpoint: WorkbenchHeatCapacityRefreshSession | null,
 ): WorkbenchHeatCapacityRefreshSession | null => checkpoint
-  ? clonePersistenceValue({
+  ? {
       ...checkpoint,
       ui: {
         windows: {},
@@ -244,7 +244,7 @@ const withoutSceneFrame = (
         },
       },
       sceneSnapshot: null,
-    })
+    }
   : null;
 
 export const suspendHeatCapacityModeSession = (
@@ -295,8 +295,8 @@ export const restoreHeatCapacityModeSession = (
   const resumesPhysicalClock = mode !== 'demo';
   return {
     ...file,
-    ...clonePersistenceValue(snapshot.common),
-    ...clonePersistenceValue(modeRuntime),
+    ...snapshot.common,
+    ...modeRuntime,
     heatCapacityMode: mode,
     runState: restoredRunState,
     lastUpdateMs: resumesPhysicalClock ? now : snapshot.common.lastUpdateMs,

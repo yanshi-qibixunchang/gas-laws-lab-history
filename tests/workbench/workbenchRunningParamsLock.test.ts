@@ -31,8 +31,8 @@ assert.match(
 );
 assert.match(
   source,
-  /hardSphereViewLocked=\{false\}/,
-  'the 3D hard-sphere visualization toggle should stay editable because it does not affect experiment data',
+  /hardSphereViewLocked=\{heatCapacityModeTransitionLocked\}/,
+  'the 3D hard-sphere visualization toggle should stay editable during normal runs and lock only while a mode transition restores the scene',
 );
 assert.match(
   source,

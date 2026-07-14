@@ -21,6 +21,13 @@ const freeSource = {
 const withSuspendedFree = suspendHeatCapacityModeSession(freeSource, null, 1_000);
 assert.equal(withSuspendedFree.heatCapacityModeSessions.free.status, 'suspended');
 assert.equal(withSuspendedFree.heatCapacityModeSessions.free.resumeRunState, 'running');
+assert.equal(
+  withSuspendedFree.heatCapacityModeSessions.free.snapshot?.mode === 'free'
+    ? withSuspendedFree.heatCapacityModeSessions.free.snapshot.free.heatCapacityFreePhysicsState
+    : null,
+  freeSource.heatCapacityFreePhysicsState,
+  'in-memory mode checkpoints should structurally share immutable physics state instead of deep-cloning it on the UI thread',
+);
 
 const guideSource = {
   ...startHeatCapacityGuideWorkbenchState(withSuspendedFree, 1_100),
@@ -48,6 +55,11 @@ assert.equal(restoredFree?.simulationTimeS, 137.5);
 assert.equal(restoredFree?.pumpStrokeCount, 9);
 assert.equal(restoredFree?.runState, 'running');
 assert.equal(restoredFree?.lastUpdateMs, 5_000);
+assert.equal(
+  restoredFree?.heatCapacityFreePhysicsState,
+  freeSource.heatCapacityFreePhysicsState,
+  'restoring a mode should reuse its immutable physics snapshot and avoid a second main-thread deep clone',
+);
 assert.equal(
   restoredFree?.simulationTimeS,
   freeSource.simulationTimeS,

@@ -78,7 +78,7 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /initialCameraPose\?: HeatCapacityCameraPose \| null;[\s\S]*onCameraPoseChange\?: \(sceneFileId: string, pose: HeatCapacityCameraPose\) => void;[\s\S]*restoredSceneFrameDataUrl\?: string \| null;[\s\S]*onSceneFrameCapture\?: \([\s\S]*sceneFileId: string,[\s\S]*dataUrl: string,[\s\S]*cameraPose: HeatCapacityCameraPose,[\s\S]*metadata: HeatCapacitySceneFrameCaptureMetadata,[\s\S]*\) => void;[\s\S]*onSceneReady\?: \(\) => void;/,
+  /initialCameraPose\?: HeatCapacityCameraPose \| null;[\s\S]*onCameraPoseChange\?: \(sceneFileId: string, pose: HeatCapacityCameraPose\) => void;[\s\S]*restoredSceneFrameDataUrl\?: string \| null;[\s\S]*onSceneFrameCapture\?: \([\s\S]*sceneFileId: string,[\s\S]*dataUrl: string \| null,[\s\S]*cameraPose: HeatCapacityCameraPose,[\s\S]*metadata: HeatCapacitySceneFrameCaptureMetadata,[\s\S]*\) => void;[\s\S]*onSceneReady\?: \(\) => void;/,
   'Heat Capacity scene should expose camera, last-good-frame, and readiness restore hooks',
 );
 assert.match(
@@ -1106,12 +1106,12 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /data-heat-capacity-mode="demo"[\s\S]*switchHeatCapacityMode\('demo'\)/,
+  /data-heat-capacity-mode="demo"[\s\S]*handleHeatCapacityModeSegmentClick\('demo'\)/,
   'Demo mode should start or restore directly now every quality profile supports teaching highlights',
 );
 assert.match(
   workbenchSource,
-  /data-heat-capacity-mode="guide"[\s\S]*switchHeatCapacityMode\('guide'\)/,
+  /data-heat-capacity-mode="guide"[\s\S]*handleHeatCapacityModeSegmentClick\('guide'\)/,
   'Guide mode should start or restore directly now every quality profile supports teaching highlights',
 );
 assert.doesNotMatch(

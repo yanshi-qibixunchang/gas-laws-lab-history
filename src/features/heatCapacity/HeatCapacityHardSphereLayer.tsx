@@ -83,6 +83,8 @@ interface HeatCapacityHardSphereLayerProps {
   visualResetKey?: number;
   paused?: boolean;
   initialVisualCheckpoint?: HeatCapacityHardSphereVisualCheckpoint | null;
+  restoreVisualCheckpoint?: HeatCapacityHardSphereVisualCheckpoint | null;
+  restoreVisualCheckpointKey?: number | null;
   onCheckpointProviderChange?: (provider: HeatCapacityHardSphereCheckpointProvider | null) => void;
 }
 
@@ -559,6 +561,8 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
   visualResetKey = 0,
   paused = false,
   initialVisualCheckpoint = null,
+  restoreVisualCheckpoint = null,
+  restoreVisualCheckpointKey = null,
   onCheckpointProviderChange,
 }) => {
   const hardSphereProfile = hardSphereContainerProfiles[containerProfile];
@@ -592,6 +596,7 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     ),
   );
   const lastResetSignatureRef = useRef<string | null>(restoredInitialCheckpoint ? resetSignature : null);
+  const lastRestoreVisualCheckpointKeyRef = useRef<number | null>(null);
   const particleGeometry = useMemo(() => new THREE.SphereGeometry(1, 16, 16), []);
   const particleColors = useMemo(() => createParticleColors(sceneTheme), [sceneTheme]);
   const particleMaterial = useMemo(() => new THREE.MeshStandardMaterial({
@@ -702,6 +707,56 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     releaseFeedbackWasActiveRef.current = false;
     kineticSpeedStateRef.current = null;
   }, [hardSphereProfile, particleColors, particleMaterial, resetSignature, sceneTheme, visualState]);
+
+  useLayoutEffect(() => {
+    if (
+      restoreVisualCheckpointKey === null ||
+      lastRestoreVisualCheckpointKeyRef.current === restoreVisualCheckpointKey
+    ) return;
+    lastRestoreVisualCheckpointKeyRef.current = restoreVisualCheckpointKey;
+    const checkpoint = normalizeHeatCapacityHardSphereVisualCheckpoint(
+      restoreVisualCheckpoint,
+      containerProfile,
+    );
+    simulationRef.current = createSimulationFromCheckpoint(
+      hardSphereProfile.container,
+      hardSphereProfile.particleRadius,
+      checkpoint,
+    );
+    displayVisualStateRef.current = checkpoint?.displayVisualState
+      ? cloneHeatCapacityHardSphereVisualState(checkpoint.displayVisualState)
+      : cloneHeatCapacityHardSphereVisualState(visualState);
+    activeReleaseScheduleIdRef.current = checkpoint?.activeReleaseScheduleId ?? null;
+    activeReleaseScheduleElapsedRef.current = checkpoint?.activeReleaseScheduleElapsedS ?? 0;
+    assignedReleaseExitCountRef.current = checkpoint?.assignedReleaseExitCount ?? 0;
+    activeReleaseScheduleRef.current = null;
+    releaseInitialPressureDeltaRef.current = 0;
+    releasePathWasOpenRef.current = false;
+    releaseFeedbackWasActiveRef.current = false;
+    kineticSpeedStateRef.current = checkpoint?.kineticSpeedState
+      ? { ...checkpoint.kineticSpeedState }
+      : null;
+    lastResetSignatureRef.current = resetSignature;
+    const displayVisualState = displayVisualStateRef.current;
+    applyVisualMaterial(particleMaterial, displayVisualState, particleColors, sceneTheme);
+    renderParticlePool(
+      meshRef.current,
+      simulationRef.current,
+      hardSphereProfile.particleRadius,
+      displayVisualState,
+      sceneTheme,
+    );
+  }, [
+    containerProfile,
+    hardSphereProfile,
+    particleColors,
+    particleMaterial,
+    resetSignature,
+    restoreVisualCheckpoint,
+    restoreVisualCheckpointKey,
+    sceneTheme,
+    visualState,
+  ]);
 
   useFrame((_, delta) => {
     if (!enabled) return;

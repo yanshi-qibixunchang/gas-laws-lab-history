@@ -47,7 +47,9 @@ const getOverlayLayoutRect = (item: HTMLElement, root: HTMLElement): OverlayLayo
   };
 };
 
-export const usePreviewOverlayMotion = <ElementType extends HTMLElement>() => {
+export const usePreviewOverlayMotion = <ElementType extends HTMLElement>(
+  options: { disabled?: boolean } = {},
+) => {
   const rootRef = useRef<ElementType | null>(null);
   const previousRectsRef = useRef<Map<string, OverlayLayoutRect>>(new Map());
   const activeAnimationsRef = useRef<Map<string, Animation>>(new Map());
@@ -72,7 +74,7 @@ export const usePreviewOverlayMotion = <ElementType extends HTMLElement>() => {
       }
     }
 
-    if (prefersReducedMotion()) {
+    if (options.disabled || prefersReducedMotion()) {
       activeAnimationsRef.current.forEach((animation) => {
         animation.cancel();
       });
@@ -120,7 +122,7 @@ export const usePreviewOverlayMotion = <ElementType extends HTMLElement>() => {
     }
 
     previousRectsRef.current = nextRects;
-  });
+  }, [options.disabled]);
 
   return rootRef;
 };
