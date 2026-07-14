@@ -78,14 +78,14 @@ assert.match(
 
 assert.match(
   source,
-  /const enterHeatCapacityFreeMode = \(\) => \{[\s\S]*?enterHeatCapacityFreeModeWorkbenchState\(file, Date\.now\(\)\)/,
-  'entering Free mode should reset the persisted Free runtime through the workbench state helper',
+  /const switchHeatCapacityMode = \(targetMode: HeatCapacityMode\) => \{[\s\S]*?suspendHeatCapacityModeSession\(currentFile, sourceCheckpoint, now\)[\s\S]*?resolveStoredHeatCapacityMode\(suspendedFile, targetMode, now\)/,
+  'mode switching should suspend the current mode and prefer restoring the target mode checkpoint',
 );
 
 assert.match(
   source,
-  /const startHeatCapacityGuideExperiment = \(\) => \{[\s\S]*activateHeatCapacityGuideExperiment\(guideFileId, guideFileName\);[\s\S]*showHeatCapacityAutoDemoCompletionToast\(heatCapacityRealtimeCopy\.guideModeStartingToast, HEAT_CAPACITY_GUIDE_START_NOTICE_MS\);[\s\S]*\};/,
-  'guide mode should become active immediately so the exit button appears at the same time as the start notice',
+  /if \(targetMode === 'guide'\) \{[\s\S]*?startHeatCapacityGuideWorkbenchState\(suspendedFile, now\)[\s\S]*?restoreHeatCapacityModeUi\(guideFile, null\)/,
+  'Guide mode should create a fresh guide runtime only when no resumable Guide checkpoint exists',
 );
 
 const runAutoDemoStart = source.indexOf('const runHeatCapacityAutoDemo = () => {');
@@ -94,19 +94,15 @@ const runAutoDemoEnd = source.indexOf('\n  const createEditSnapshot', runAutoDem
 assert.notEqual(runAutoDemoEnd, -1, 'heat capacity auto demo runner should end before edit snapshot helpers');
 const runAutoDemoBody = source.slice(runAutoDemoStart, runAutoDemoEnd);
 
-const freshAutoDemoStart = runAutoDemoBody.indexOf('const demoFileId = activeFile.id;');
-assert.notEqual(freshAutoDemoStart, -1, 'fresh auto demo start path should exist');
-const firstAutoDemoRunningFlag = runAutoDemoBody.indexOf("setAutoDemoPhase('running');", freshAutoDemoStart);
-assert.notEqual(firstAutoDemoRunningFlag, -1, 'fresh auto demo start should enter the running lifecycle phase');
-const immediateModeUpdate = runAutoDemoBody.indexOf("heatCapacityMode: 'demo'", freshAutoDemoStart);
-assert.ok(
-  immediateModeUpdate !== -1 && immediateModeUpdate < firstAutoDemoRunningFlag,
-  'fresh demo start should synchronously switch the active file into demo mode before locking the mode bar',
+assert.match(
+  runAutoDemoBody,
+  /if \(autoDemoPaused[\s\S]*?setAutoDemoPhase\('running'\)[\s\S]*?scheduleHeatCapacityAutoDemoTimeline\([\s\S]*?heatCapacityAutoDemoPausedElapsedMsRef\.current/,
+  'resuming Demo mode should continue from its stored timeline elapsed value instead of restarting',
 );
 assert.match(
-  runAutoDemoBody.slice(freshAutoDemoStart, firstAutoDemoRunningFlag),
-  /runState:\s*'running'/,
-  'fresh demo start should synchronously mark the heat-capacity file as running before the delayed timeline starts',
+  runAutoDemoBody,
+  /startHeatCapacityAutoDemoUi\(activeFile\.id, activeFile\.name\)/,
+  'a Demo mode without a paused checkpoint should use the shared fresh-start helper',
 );
 
 const selectFileStart = source.indexOf('const selectFile = (file: WorkbenchFileState) => {');
@@ -116,25 +112,25 @@ assert.notEqual(selectFileEnd, -1, 'file selection handler should end before ide
 const selectFileBody = source.slice(selectFileStart, selectFileEnd);
 assert.match(
   selectFileBody,
-  /activeFile\.kind === 'heatCapacity'[\s\S]*releaseHeatCapacityRuntimeState\(activeFile\.id\)/,
-  'switching away from a running heat-capacity file should release auto-demo and guide UI state instead of leaking global locks',
+  /activeFile\.kind === 'heatCapacity'[\s\S]*suspendActiveHeatCapacityModeForNavigation\(\)/,
+  'switching away from a heat-capacity file should capture and suspend its active mode checkpoint',
 );
 assert.match(
   selectFileBody,
-  /autoDemoInteractionLocked/,
-  'file switching should treat the derived heat-capacity auto-demo lock as active even when the persisted run state is not running',
+  /if \(switchingFile && file\.kind === 'heatCapacity'\) \{[\s\S]*activateHeatCapacityFileModeSession\(file\.id\)/,
+  'returning to a heat-capacity file should restore its selected mode session',
 );
 
 assert.match(
   source,
-  /data-heat-capacity-mode="demo"[\s\S]*heatCapacityActiveMode !== 'demo' \|\| !heatCapacityDemoActionsVisible[\s\S]*runHeatCapacityAutoDemo\(\)/,
-  'demo mode button should restart a stale or completed demo-mode file when no demo action is visible',
+  /data-heat-capacity-mode="demo"[\s\S]*heatCapacityActiveMode !== 'demo'[\s\S]*switchHeatCapacityMode\('demo'\)/,
+  'Demo mode button should route mode entry through the session switcher',
 );
 
 assert.match(
   source,
-  /data-heat-capacity-mode="free"[\s\S]*heatCapacityActiveMode !== 'free'[\s\S]*autoDemoInteractionLocked[\s\S]*enterHeatCapacityFreeMode\(\)/,
-  'free mode button should clear stale auto-demo runtime locks even when the file is already marked as Free mode',
+  /data-heat-capacity-mode="free"[\s\S]*heatCapacityActiveMode !== 'free'[\s\S]*autoDemoInteractionLocked[\s\S]*switchHeatCapacityMode\('free'\)/,
+  'Free mode button should restore its independent Free session through the shared switcher',
 );
 
 const terminateAutoDemoStart = source.indexOf('const terminateHeatCapacityAutoDemo = () => {');
@@ -144,8 +140,8 @@ assert.notEqual(terminateAutoDemoEnd, -1, 'heat capacity auto-demo termination h
 const terminateAutoDemoBody = source.slice(terminateAutoDemoStart, terminateAutoDemoEnd);
 assert.match(
   terminateAutoDemoBody,
-  /exitHeatCapacityTeachingModeWorkbenchState\(file,\s*now\)/,
-  'terminating auto demo should end the teaching workflow by returning the active file to Free mode',
+  /stopHeatCapacityTeachingModeToFree\('demo'\)/,
+  'terminating auto demo should clear the Demo session and restore the suspended Free session',
 );
 assert.doesNotMatch(
   terminateAutoDemoBody,

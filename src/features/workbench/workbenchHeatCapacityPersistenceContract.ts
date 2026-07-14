@@ -18,6 +18,9 @@ import {
   type HeatCapacityFreeParameterScheme,
   type WorkbenchHeatCapacityState,
 } from './workbenchState.ts';
+import type {
+  HeatCapacityModeSessionStore,
+} from '../heatCapacity/heatCapacityModeSessionModel.ts';
 import {
   clonePersistenceValue,
   isPersistenceFiniteNumber,
@@ -124,6 +127,7 @@ export interface HeatCapacityPersistencePayloadV1 {
     experimentSeed: WorkbenchHeatCapacityState['heatCapacityExperimentSeed'];
     experimentProfile: WorkbenchHeatCapacityState['heatCapacityExperimentProfile'];
     lessonIntroAutoShown: boolean;
+    modeSessions: HeatCapacityModeSessionStore;
   };
   free: HeatCapacityFreePersistenceDataV1 | null;
   guided: HeatCapacityGuidePersistenceDataV1 | null;

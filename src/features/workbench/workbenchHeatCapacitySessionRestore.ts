@@ -62,6 +62,9 @@ import {
   normalizeHeatCapacityFreePhysicsConfig,
   normalizeHeatCapacityFreeSensorConfig,
 } from './workbenchHeatCapacityFreeRuntimeConfig.ts';
+import {
+  normalizeHeatCapacityModeSessionStore,
+} from '../heatCapacity/heatCapacityModeSessionModel.ts';
 
 const normalizeLastOpenedAt = (file: WorkbenchHeatCapacityState, fallback: number) => (
   normalizeNullableNumber(file.lastOpenedAt) ??
@@ -378,6 +381,7 @@ export const normalizeHeatCapacitySessionRuntimeState = (
       : null,
     heatCapacityExperimentProfile: normalizeHeatCapacityTeachingProfile(file.heatCapacityExperimentProfile),
     heatCapacityMode: normalizedHeatCapacityMode,
+    heatCapacityModeSessions: normalizeHeatCapacityModeSessionStore(file.heatCapacityModeSessions),
     heatCapacityLessonIntroAutoShown: typeof file.heatCapacityLessonIntroAutoShown === 'boolean'
       ? file.heatCapacityLessonIntroAutoShown
       : true,

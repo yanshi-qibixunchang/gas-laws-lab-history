@@ -11,10 +11,10 @@ import {
   isHeatCapacityFreeExperimentGroupComplete,
   isHeatCapacityFreeParameterEditingAvailable,
   powerHeatCapacityWorkbenchFile,
-  prepareHeatCapacityFreeExperimentGroupForUserOperation,
-  prepareNextHeatCapacityFreeExperimentGroupWorkbenchState,
   resetHeatCapacityFreeParametersToDefaultWorkbenchState,
+  resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState,
   resetHeatCapacityFreeRunWorkbenchState,
+  startNextHeatCapacityFreeExperimentGroupWorkbenchState,
   shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
   stepHeatCapacityWorkbenchFile,
 } from '../../src/features/workbench/workbenchState.ts';
@@ -127,13 +127,8 @@ assert.equal(frozenFile.heatCapacityFreeInstrumentNoiseEnabled, false);
 assert.equal(frozenFile.heatCapacityFreePressureWarningMv, 122);
 assert.equal(frozenFile.heatCapacityFreeRecordConfig.pressureDangerMv, 150);
 
-const nextGroupFile = prepareNextHeatCapacityFreeExperimentGroupWorkbenchState(frozenFile);
-assert.equal(nextGroupFile.heatCapacityFreeExperimentGroupStatus, 'draft');
-assert.equal(nextGroupFile.heatCapacityFreeActiveRunConfigSnapshot, null);
-assert.equal(nextGroupFile.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.8);
-assert.equal(nextGroupFile.heatCapacityFreeParameterDraft.leakageRatePerS, 0.0018);
-assert.equal(nextGroupFile.heatCapacityFreeParameterDraft.instrumentNoiseEnabled, false);
-assert.equal(isHeatCapacityFreeParameterEditingAvailable(nextGroupFile), true);
+const blockedNextGroupFile = startNextHeatCapacityFreeExperimentGroupWorkbenchState(frozenFile);
+assert.equal(blockedNextGroupFile, frozenFile, 'Next Group must stay disabled until a valid group is complete and powered off');
 
 const completedFreeTrial = {
   id: 'completed-free-group',
@@ -217,9 +212,16 @@ assert.equal(
 );
 assert.equal(persistedStandardReferenceSnapshot?.operationPreset.pumpStrokes, 18);
 assert.equal((persistedStandardReferenceSnapshot?.trace.length ?? 0) > 0, true);
-const preparedForNextUserOperation = prepareHeatCapacityFreeExperimentGroupForUserOperation(preparedAfterPowerOff, 2100);
-assert.equal(preparedForNextUserOperation.heatCapacityFreeExperimentGroupStatus, 'draft');
-assert.equal(preparedForNextUserOperation.heatCapacityFreeActiveRunConfigSnapshot, null);
+const resetCompletedGroup = resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState(preparedAfterPowerOff, 2050);
+assert.equal(resetCompletedGroup.heatCapacityFreeExperimentGroupStatus, 'completed');
+assert.notEqual(resetCompletedGroup.heatCapacityFreeActiveRunConfigSnapshot, null);
+const preparedForNextGroup = startNextHeatCapacityFreeExperimentGroupWorkbenchState(preparedAfterPowerOff, 2100);
+assert.equal(preparedForNextGroup.heatCapacityFreeExperimentGroupStatus, 'draft');
+assert.equal(preparedForNextGroup.heatCapacityFreeActiveRunConfigSnapshot, null);
+assert.equal(preparedForNextGroup.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.8);
+assert.equal(preparedForNextGroup.heatCapacityFreeParameterDraft.leakageRatePerS, 0.0018);
+assert.equal(preparedForNextGroup.heatCapacityFreeParameterDraft.instrumentNoiseEnabled, false);
+assert.equal(isHeatCapacityFreeParameterEditingAvailable(preparedForNextGroup), true);
 
 const heliumGasFile = applyHeatCapacityFreeParameterDraftWorkbenchState(defaultFile, {
   ...defaultFile.heatCapacityFreeParameterDraft,
@@ -251,25 +253,16 @@ assert.equal(
 );
 
 const gasTypeFrozenFile = freezeHeatCapacityFreeParametersForCurrentGroup(heliumGasFile);
-const gasTypeNextGroupFile = prepareNextHeatCapacityFreeExperimentGroupWorkbenchState({
+const gasTypeNextGroupFile = startNextHeatCapacityFreeExperimentGroupWorkbenchState({
   ...gasTypeFrozenFile,
+  powerOn: false,
+  heatCapacityFreeExperimentGroupStatus: 'completed',
   heatCapacityFreeTrials: [
     {
+      ...completedFreeTrial,
       id: 'completed-gas-type-lock-marker',
-      source: 'free',
-      parameterScheme: 'real',
-      traceTrialId: null,
-      branchCount: 0,
-      automaticU0: null,
-      preheatOutcome: 'completed',
-      u0: null,
-      u1: null,
-      u2: null,
-      blockedReason: null,
-      correctedSignals: null,
       configSnapshot: gasTypeFrozenFile.heatCapacityFreeActiveRunConfigSnapshot,
-      standardReferenceSnapshot: null,
-      completedAtMs: null,
+      completedAtMs: 3000,
     },
   ],
 });

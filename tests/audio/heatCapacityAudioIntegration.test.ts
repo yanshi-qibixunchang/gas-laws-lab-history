@@ -26,8 +26,10 @@ assert.match(controller, /itemDurationMs[\s\S]*?itemFadeInMs[\s\S]*?itemFadeOutM
   'each scheduled knob detent should have its own shortened envelope');
 assert.doesNotMatch(controller, /HEAT_CAPACITY_ZERO_KNOB_MIN_INTERVAL_MS|maxStartDelayMs: 50/,
   'knob sounds should not use the removed rate limit or drop-late policy');
-assert.match(controller, /state\.experimentMode === 'demo'[\s\S]*?HEAT_CAPACITY_AUTO_DEMO_ZEROING_ACTION_DURATION_MS/,
-  'demo zeroing should spread its complete detent burst across the zeroing animation');
+assert.match(controller, /state\.pressureZeroTimelineDriven \|\| state\.pressureZeroAdjustMode === 'coarseDrag'[\s\S]*?knobAccumulatorRef\.current\.consume\(knobDelta, profile\.degreesPerTick\)/,
+  'demo zeroing and manual dragging should derive detent sounds from the same rendered angular deltas');
+assert.doesNotMatch(controller, /HEAT_CAPACITY_AUTO_DEMO_ZEROING_ACTION_DURATION_MS|state\.experimentMode === 'demo'/,
+  'the removed one-shot demo burst must not run independently of the visible knob trajectory');
 assert.match(controller, /state\.recordPulseId > previous\.recordPulseId[\s\S]*?HEAT_CAPACITY_RECORD_WRITING_MIN_INTERVAL_MS/);
 assert.match(controller, /heatCapacity\.record\.write[\s\S]*?playbackRate: 1\.1[\s\S]*?replaceGroup: true[\s\S]*?fadeInMs: 30/,
   'recording feedback should use one truly crossfaded writing voice');
@@ -57,6 +59,12 @@ assert.doesNotMatch(releaseSound, /setTimeout\([^)]*(300|400|420)/,
   'release audio must not use a fixed duration timer');
 
 assert.match(scene, /useHeatCapacityAudioController\(\{/);
+assert.match(scene, /pressureZeroTimelineDriven: props\.pressureZeroTimelineDriven/,
+  'the scene should feed the scripted visual trajectory directly into the shared audio controller');
+assert.match(workbench, /deriveHeatCapacityAutoDemoZeroKnobMotion\([\s\S]*heatCapacityAutoDemoElapsedMs[\s\S]*activeFile\.pressureZeroKnobAngle/,
+  'Workbench should derive demo knob angle and audio timing from one resumable timeline clock');
+assert.match(ultraModel, /props\.pressureZeroTimelineDriven[\s\S]*pressureZeroVisualTargetAngle[\s\S]*dampUltraControlAngle/,
+  'the GLB knob should not add a second lag while the shared demo trajectory is driving it');
 assert.match(workbench, /releaseAudioPathOpen = isHeatCapacityReleaseFlowOpen\(activeFile\.heatCapacityReleaseState\)/,
   'Workbench should report only the fully-open path and leave pressure qualification to the audio policy');
 assert.doesNotMatch(workbench, /releaseAudioPathOpen\s*=[\s\S]{0,180}HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA/,

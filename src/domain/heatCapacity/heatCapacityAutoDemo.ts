@@ -88,6 +88,7 @@ const DEFAULT_OBSERVE_MS = 3_000;
 const POWER_TRANSITION_MS = 650;
 const PUMP_VALVE_TRANSITION_MS = 420;
 export const HEAT_CAPACITY_AUTO_DEMO_ZEROING_ACTION_DURATION_MS = 1_200;
+export const HEAT_CAPACITY_AUTO_DEMO_ZERO_KNOB_MOTION_DURATION_MS = 900;
 const STOPCOCK_OPENING_MS = HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs;
 const STOPCOCK_CLOSING_MS = HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs;
 export const HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER = 16 as const;
@@ -412,6 +413,46 @@ export const getHeatCapacityAutoDemoTimeline = (
   });
 
   return timeline.sort((a, b) => a.atMs - b.atMs);
+};
+
+export interface HeatCapacityAutoDemoZeroKnobMotion {
+  angleDeg: number;
+  progress: number;
+  timelineDriven: boolean;
+}
+
+const easeHeatCapacityAutoDemoZeroKnobProgress = (progress: number): number => {
+  const clamped = Math.min(1, Math.max(0, progress));
+  return clamped * clamped * (3 - 2 * clamped);
+};
+
+export const deriveHeatCapacityAutoDemoZeroKnobMotion = (
+  timeline: HeatCapacityAutoDemoTimelineItem[],
+  elapsedMs: number,
+  targetAngleDeg: number,
+  startAngleDeg = 0,
+): HeatCapacityAutoDemoZeroKnobMotion => {
+  const zeroAction = timeline.find((item) => (
+    item.stage === 'action' && item.action?.action === 'zeroPressure'
+  ));
+  if (!zeroAction || !Number.isFinite(elapsedMs) || elapsedMs < zeroAction.atMs) {
+    return {
+      angleDeg: startAngleDeg,
+      progress: 0,
+      timelineDriven: false,
+    };
+  }
+
+  const progress = Math.min(
+    1,
+    Math.max(0, (elapsedMs - zeroAction.atMs) / HEAT_CAPACITY_AUTO_DEMO_ZERO_KNOB_MOTION_DURATION_MS),
+  );
+  const easedProgress = easeHeatCapacityAutoDemoZeroKnobProgress(progress);
+  return {
+    angleDeg: startAngleDeg + (targetAngleDeg - startAngleDeg) * easedProgress,
+    progress,
+    timelineDriven: true,
+  };
 };
 
 export interface HeatCapacityAutoDemoWaitTimer {

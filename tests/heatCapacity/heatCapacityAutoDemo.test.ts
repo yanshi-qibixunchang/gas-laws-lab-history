@@ -1,6 +1,7 @@
 ﻿import assert from 'node:assert/strict';
 import {
   createHeatCapacityAutoDemoSteps,
+  deriveHeatCapacityAutoDemoZeroKnobMotion,
   deriveHeatCapacityAutoDemoWaitTimer,
   getHeatCapacityAutoDemoTimeline,
   HEAT_CAPACITY_AUTO_DEMO_RELEASE_ACTION_DURATION_MS,
@@ -11,6 +12,7 @@ import {
   HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_RELEASE_MS,
   HEAT_CAPACITY_AUTO_DEMO_WAIT_EXIT_DURATION_MS,
   HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER,
+  HEAT_CAPACITY_AUTO_DEMO_ZERO_KNOB_MOTION_DURATION_MS,
   HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT,
   HEAT_CAPACITY_TEACHING_PUMP_STROKE_DELAYS_MS,
 } from '../../src/domain/heatCapacity/heatCapacityAutoDemo.ts';
@@ -296,10 +298,35 @@ assert.equal(
 );
 
 const zeroPressureFirstHighlight = timeline.find((item) => item.step.id === 'zero-pressure' && item.stage === 'highlight');
+const zeroPressureAction = timeline.find((item) => item.action?.action === 'zeroPressure');
 const zeroPressurePreview = timeline.find((item) => item.step.id === 'zero-pressure' && item.stage === 'preview');
 const openStopcockFirstHighlight = timeline.find((item) => item.step.id === 'open-stopcock-for-zero' && item.stage === 'highlight');
 const openStopcockPreview = timeline.find((item) => item.step.id === 'open-stopcock-for-zero' && item.stage === 'preview');
 assert.equal(typeof zeroPressureFirstHighlight?.atMs, 'number');
+assert.equal(typeof zeroPressureAction?.atMs, 'number');
+assert.deepEqual(
+  deriveHeatCapacityAutoDemoZeroKnobMotion(timeline, (zeroPressureAction?.atMs ?? 0) - 1, -180),
+  { angleDeg: 0, progress: 0, timelineDriven: false },
+  'the scripted zero knob should remain at its start angle before the zero action',
+);
+assert.deepEqual(
+  deriveHeatCapacityAutoDemoZeroKnobMotion(
+    timeline,
+    (zeroPressureAction?.atMs ?? 0) + HEAT_CAPACITY_AUTO_DEMO_ZERO_KNOB_MOTION_DURATION_MS / 2,
+    -180,
+  ),
+  { angleDeg: -90, progress: 0.5, timelineDriven: true },
+  'the scripted knob angle and tick clock should share one deterministic timeline',
+);
+assert.deepEqual(
+  deriveHeatCapacityAutoDemoZeroKnobMotion(
+    timeline,
+    (zeroPressureAction?.atMs ?? 0) + HEAT_CAPACITY_AUTO_DEMO_ZERO_KNOB_MOTION_DURATION_MS,
+    -180,
+  ),
+  { angleDeg: -180, progress: 1, timelineDriven: true },
+  'the scripted zero motion should reach the logical knob angle before U0 capture',
+);
 assert.equal(
   openStopcockFirstHighlight?.atMs,
   openStopcockPreview?.atMs,

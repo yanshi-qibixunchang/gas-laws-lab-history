@@ -40,11 +40,11 @@ import {
   getHeatCapacityFreeRecordButtonState,
   isHeatCapacityPressureZeroWithinTolerance,
   isHeatCapacityFreeEquilibriumSpeedAvailable,
-  prepareHeatCapacityFreeExperimentGroupForUserOperation,
   registerHeatCapacityPumpStroke,
   recordHeatCapacityFreeTraceEventWithReference,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
   resetHeatCapacityFreeRunWorkbenchState,
+  resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState,
   normalizeHeatCapacityStopcockAngle,
   powerHeatCapacityWorkbenchFile,
   prepareHeatCapacityAutoDemoStart,
@@ -58,6 +58,7 @@ import {
   setHeatCapacityFreeEquilibriumSpeedMultiplier,
   setHeatCapacityPressureZeroOffset,
   startHeatCapacityGuideWorkbenchState,
+  startNextHeatCapacityFreeExperimentGroupWorkbenchState,
   stepHeatCapacityWorkbenchFile,
   type WorkbenchHeatCapacityState,
 } from '../../src/features/workbench/workbenchState.ts';
@@ -874,7 +875,7 @@ assert.equal(
   'Switching to ideal after completed real history should enter a blank ideal-domain run',
 );
 const completedPowerOnNextSeed = powerHeatCapacityWorkbenchFile(
-  prepareHeatCapacityFreeExperimentGroupForUserOperation(completedPowerOffPrepared, 1_690),
+  startNextHeatCapacityFreeExperimentGroupWorkbenchState(completedPowerOffPrepared, 1_690),
   true,
   1_690,
 );
@@ -888,8 +889,8 @@ assert.equal(completedPowerOnNextSeed.heatCapacityFreePhysicsState.pumpStrokeCou
 assert.equal(completedPowerOnNextSeed.heatCapacityFreePhysicsState.releaseStarted, false);
 assert.equal(completedPowerOnNextSeed.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
 assert.equal(completedPowerOnNextSeed.pumpValveOpen, false);
-const completedResetOnce = resetHeatCapacityFreeRunWorkbenchState(completedPowerOffPrepared, 1_700);
-const completedResetTwice = resetHeatCapacityFreeRunWorkbenchState(completedResetOnce, 1_700);
+const completedResetOnce = resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState(completedPowerOffPrepared, 1_700);
+const completedResetTwice = resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState(completedResetOnce, 1_700);
 assert.equal(completedResetTwice.heatCapacityFreeTrials.length, 1);
 assert.equal(
   completedResetTwice.heatCapacityFreeTraceStore.traceTrials.length,

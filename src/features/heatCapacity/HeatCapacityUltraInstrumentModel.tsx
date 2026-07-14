@@ -105,6 +105,7 @@ type HeatCapacityUltraInstrumentModelProps = {
   sceneTheme: 'dark' | 'light';
   stopcockAngleDeg: number;
   pressureZeroKnobAngle: number;
+  pressureZeroTimelineDriven: boolean;
   pressureGaugeDisplayValue: number;
   gaugePressureMinKPa: number;
   gaugePressureMaxKPa: number;
@@ -3249,12 +3250,14 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
 
     const pressureZeroTargetAngle = THREE.MathUtils.degToRad(props.pressureZeroKnobAngle);
     const pressureZeroVisualTargetAngle = pressureZeroTargetAngle + pressureZeroRollback.value;
-    pressureZeroDisplayedAngleRef.current = dampUltraControlAngle(
-      pressureZeroDisplayedAngleRef.current,
-      pressureZeroVisualTargetAngle,
-      PRESSURE_ZERO_VISUAL_SMOOTHING_RATE,
-      visualDelta,
-    );
+    pressureZeroDisplayedAngleRef.current = props.pressureZeroTimelineDriven
+      ? pressureZeroVisualTargetAngle
+      : dampUltraControlAngle(
+          pressureZeroDisplayedAngleRef.current,
+          pressureZeroVisualTargetAngle,
+          PRESSURE_ZERO_VISUAL_SMOOTHING_RATE,
+          visualDelta,
+        );
     applyLocalAxisRotation(
       nodeMap,
       baseTransforms,

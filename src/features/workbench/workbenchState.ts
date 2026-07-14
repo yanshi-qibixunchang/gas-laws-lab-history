@@ -65,6 +65,10 @@ import type {
   HeatCapacityMode,
 } from '../../domain/heatCapacity/heatCapacityModeTypes.ts';
 import {
+  createDefaultHeatCapacityModeSessionStore,
+  type HeatCapacityModeSessionStore,
+} from '../heatCapacity/heatCapacityModeSessionModel.ts';
+import {
   createHeatCapacityAutoDemoProfile,
   normalizeHeatCapacityTeachingProfile,
   type HeatCapacityTeachingProfile,
@@ -984,6 +988,7 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   kind: 'heatCapacity';
   particles: Particle[];
   heatCapacityMode: HeatCapacityMode;
+  heatCapacityModeSessions: HeatCapacityModeSessionStore;
   heatCapacityTeachingStatus: HeatCapacityTeachingStatus;
   heatCapacityLessonIntroAutoShown: boolean;
   heatCapacityFreePreheatCompleted: boolean;
@@ -1477,24 +1482,6 @@ export const freezeHeatCapacityFreeParametersForCurrentGroup = (
     ...appliedFile,
     heatCapacityFreeExperimentGroupStatus: 'running',
     heatCapacityFreeActiveRunConfigSnapshot: createHeatCapacityFreeRuntimeConfigSnapshotFromFile(appliedFile),
-  };
-};
-
-export const prepareNextHeatCapacityFreeExperimentGroupWorkbenchState = (
-  file: WorkbenchHeatCapacityState,
-): WorkbenchHeatCapacityState => {
-  if (file.heatCapacityMode !== 'free') return file;
-  return {
-    ...file,
-    heatCapacityFreeExperimentGroupStatus: 'draft',
-    heatCapacityFreeActiveRunConfigSnapshot: null,
-    heatCapacityFreeParameterDraft: createHeatCapacityFreeParameterDraftFromConfigs(
-      file.heatCapacityFreePhysicsConfig,
-      file.heatCapacityFreeSensorConfig,
-      file.heatCapacityFreeRecordConfig,
-      file.heatCapacityFreePressureWarningMv,
-      file.heatCapacityFreeInstrumentNoiseEnabled,
-    ),
   };
 };
 
@@ -5357,6 +5344,7 @@ export const createDefaultHeatCapacityFile = (
     kind: 'heatCapacity',
     particles: [],
     heatCapacityMode: 'free',
+    heatCapacityModeSessions: createDefaultHeatCapacityModeSessionStore(),
     heatCapacityTeachingStatus: 'idle',
     heatCapacityLessonIntroAutoShown: false,
     heatCapacityFreePreheatCompleted: false,
@@ -5703,14 +5691,47 @@ export const resetHeatCapacityFreeRunWorkbenchState = (
   );
 };
 
-export const prepareHeatCapacityFreeExperimentGroupForUserOperation = (
+export const resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
-): WorkbenchHeatCapacityState => (
-  isHeatCapacityFreeExperimentGroupComplete(file)
-    ? resetHeatCapacityFreeRunWorkbenchState(file, now)
-    : file
-);
+): WorkbenchHeatCapacityState => {
+  if (file.heatCapacityMode !== 'free') return file;
+  const completedGroup = isHeatCapacityFreeExperimentGroupComplete(file);
+  const activeRunConfigSnapshot = file.heatCapacityFreeActiveRunConfigSnapshot;
+  const resetFile = resetHeatCapacityFreeRunWorkbenchState(file, now);
+  if (!completedGroup) return resetFile;
+  return storeActiveHeatCapacityFreeDomainRuntimeFields(
+    {
+      ...resetFile,
+      heatCapacityFreeExperimentGroupStatus: 'completed',
+      heatCapacityFreeActiveRunConfigSnapshot: activeRunConfigSnapshot,
+    },
+    resetFile.heatCapacityFreeParameterScheme,
+  );
+};
+
+export const startNextHeatCapacityFreeExperimentGroupWorkbenchState = (
+  file: WorkbenchHeatCapacityState,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  if (!isHeatCapacityFreeExperimentGroupComplete(file)) return file;
+  const resetFile = resetHeatCapacityFreeRunWorkbenchState(file, now);
+  return storeActiveHeatCapacityFreeDomainRuntimeFields(
+    {
+      ...resetFile,
+      heatCapacityFreeExperimentGroupStatus: 'draft',
+      heatCapacityFreeActiveRunConfigSnapshot: null,
+      heatCapacityFreeParameterDraft: createHeatCapacityFreeParameterDraftFromConfigs(
+        resetFile.heatCapacityFreePhysicsConfig,
+        resetFile.heatCapacityFreeSensorConfig,
+        resetFile.heatCapacityFreeRecordConfig,
+        resetFile.heatCapacityFreePressureWarningMv,
+        resetFile.heatCapacityFreeInstrumentNoiseEnabled,
+      ),
+    },
+    resetFile.heatCapacityFreeParameterScheme,
+  );
+};
 
 export const selectActiveHeatCapacityWorkbenchDisplay = (
   file: WorkbenchHeatCapacityState,

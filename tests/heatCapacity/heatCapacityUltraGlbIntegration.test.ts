@@ -1106,13 +1106,13 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /data-heat-capacity-mode="demo"[\s\S]*runHeatCapacityAutoDemo\(\)/,
-  'Demo mode should run directly now every quality profile supports teaching highlights',
+  /data-heat-capacity-mode="demo"[\s\S]*switchHeatCapacityMode\('demo'\)/,
+  'Demo mode should start or restore directly now every quality profile supports teaching highlights',
 );
 assert.match(
   workbenchSource,
-  /data-heat-capacity-mode="guide"[\s\S]*startHeatCapacityGuideExperiment\(\)/,
-  'Guide mode should run directly now every quality profile supports teaching highlights',
+  /data-heat-capacity-mode="guide"[\s\S]*switchHeatCapacityMode\('guide'\)/,
+  'Guide mode should start or restore directly now every quality profile supports teaching highlights',
 );
 assert.doesNotMatch(
   workbenchSource,

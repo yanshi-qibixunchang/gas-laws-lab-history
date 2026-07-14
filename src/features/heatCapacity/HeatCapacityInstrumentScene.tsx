@@ -100,6 +100,7 @@ interface HeatCapacityInstrumentSceneProps {
   stopcockAngleDeg: number;
   pressureZeroAdjusted: boolean;
   pressureZeroKnobAngle: number;
+  pressureZeroTimelineDriven: boolean;
   pressureZeroOffset: number;
   pressureZeroDisplayText: string;
   pressureSignalRawReadoutMv: number;
@@ -3358,12 +3359,12 @@ function HeatCapacityOrbitControls({
 
 export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumentSceneProps) {
   const { playGuideRollbackCue } = useHeatCapacityAudioController({
-    experimentMode: props.experimentMode,
     resetKey: props.hardSphereVisualResetKey,
     powerOn: props.powerOn,
     stopcockAngleDeg: props.stopcockAngleDeg,
     pumpValveOpen: props.pumpValveOpen,
     pressureZeroKnobAngle: props.pressureZeroKnobAngle,
+    pressureZeroTimelineDriven: props.pressureZeroTimelineDriven,
     pressureZeroAdjustMode: props.pressureZeroAdjustMode,
     pumpPulseId: props.pumpPulseId,
     recordPulseId: props.recordPulseId,
@@ -3839,6 +3840,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           sceneTheme={props.sceneTheme}
           stopcockAngleDeg={props.stopcockAngleDeg}
           pressureZeroKnobAngle={props.pressureZeroKnobAngle}
+          pressureZeroTimelineDriven={props.pressureZeroTimelineDriven}
           pressureGaugeDisplayValue={props.pressureGaugeDisplayValue}
           gaugePressureMinKPa={props.gaugePressureMinKPa}
           gaugePressureMaxKPa={props.gaugePressureMaxKPa}

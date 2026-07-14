@@ -13,16 +13,15 @@ import {
 } from './heatCapacityAudioPolicy.ts';
 import { HeatCapacityReleaseSound } from './heatCapacityReleaseSound.ts';
 import { heatCapacityAudioCatalog } from './heatCapacityAudioCatalog.ts';
-import { HEAT_CAPACITY_AUTO_DEMO_ZEROING_ACTION_DURATION_MS } from '../../../domain/heatCapacity/heatCapacityAutoDemo.ts';
 import type { HeatCapacityGuideRollbackCue } from '../../../features/heatCapacity/heatCapacityGuideRollbackMotion.ts';
 
 interface HeatCapacityAudioControllerState {
-  experimentMode: 'demo' | 'guide' | 'free';
   resetKey: number;
   powerOn: boolean;
   stopcockAngleDeg: number;
   pumpValveOpen: boolean;
   pressureZeroKnobAngle: number;
+  pressureZeroTimelineDriven: boolean;
   pressureZeroAdjustMode: 'none' | 'fineWheel' | 'coarseDrag';
   pumpPulseId: number;
   recordPulseId: number;
@@ -215,34 +214,7 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
     if (Math.abs(knobDelta) > 0.0001) {
       const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const previousChangeAt = knobLastChangeAtRef.current;
-      if (state.experimentMode === 'demo' && state.pressureZeroAdjustMode === 'fineWheel') {
-        knobAccumulatorRef.current.reset();
-        knobLastChangeAtRef.current = null;
-        knobSmoothedSpeedRef.current = 0;
-        const angularSpeedDegPerS = Math.abs(knobDelta) /
-          (HEAT_CAPACITY_AUTO_DEMO_ZEROING_ACTION_DURATION_MS / 1000);
-        const profile = getHeatCapacityZeroKnobAudioProfile(angularSpeedDegPerS);
-        const tickCount = Math.max(
-          1,
-          knobAccumulatorRef.current.consume(knobDelta, profile.degreesPerTick),
-        );
-        void engine.playBurst('heatCapacity.zeroKnob.tick', {
-          count: tickCount,
-          intervalMs: HEAT_CAPACITY_AUTO_DEMO_ZEROING_ACTION_DURATION_MS / tickCount,
-          itemDurationMs: profile.itemDurationMs,
-          itemFadeInMs: profile.itemFadeInMs,
-          itemFadeOutMs: profile.itemFadeOutMs,
-          playbackRate: knobDelta > 0 ? 1.02 : 0.98,
-          fadeInMs: 6,
-        });
-      } else if (state.pressureZeroAdjustMode === 'fineWheel') {
-        knobAccumulatorRef.current.reset();
-        knobLastChangeAtRef.current = null;
-        knobSmoothedSpeedRef.current = 0;
-        void engine.playOneShot('heatCapacity.zeroKnob.tick', {
-          playbackRate: knobDelta > 0 ? 1.02 : 0.98,
-        });
-      } else if (state.pressureZeroAdjustMode === 'coarseDrag') {
+      if (state.pressureZeroTimelineDriven || state.pressureZeroAdjustMode === 'coarseDrag') {
         knobLastChangeAtRef.current = now;
         const eventSpanMs = previousChangeAt === null
           ? HEAT_CAPACITY_ZERO_KNOB_DEFAULT_EVENT_SPAN_MS
@@ -272,6 +244,13 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
             fadeInMs: 4,
           });
         }
+      } else if (state.pressureZeroAdjustMode === 'fineWheel') {
+        knobAccumulatorRef.current.reset();
+        knobLastChangeAtRef.current = null;
+        knobSmoothedSpeedRef.current = 0;
+        void engine.playOneShot('heatCapacity.zeroKnob.tick', {
+          playbackRate: knobDelta > 0 ? 1.02 : 0.98,
+        });
       } else {
         knobAccumulatorRef.current.reset();
         knobLastChangeAtRef.current = null;
@@ -310,9 +289,9 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
     playPumpValveTransition,
     playStopcockTransition,
     state.powerOn,
-    state.experimentMode,
     state.pressureZeroAdjustMode,
     state.pressureZeroKnobAngle,
+    state.pressureZeroTimelineDriven,
     state.pumpPulseId,
     state.recordPulseId,
     state.pumpValveOpen,
