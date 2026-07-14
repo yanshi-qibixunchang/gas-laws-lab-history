@@ -45,6 +45,15 @@ export interface HeatCapacityAutoDemoStepFocus {
   durationMs: number;
 }
 
+export type HeatCapacityAutoDemoWaitStage = 'u1' | 'u2';
+
+export interface HeatCapacityAutoDemoWaitSpec {
+  stage: HeatCapacityAutoDemoWaitStage;
+  targetS: number;
+  speedMultiplier: typeof HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER;
+  sampleKey: HeatCapacityProcessSampleKey;
+}
+
 export interface HeatCapacityAutoDemoStep {
   id: string;
   title: string;
@@ -55,6 +64,7 @@ export interface HeatCapacityAutoDemoStep {
   targetControlId?: HeatCapacityAutoDemoControlId;
   cameraFocusMode?: HeatCapacityAutoDemoCameraFocusMode;
   focusSequence?: HeatCapacityAutoDemoStepFocus[];
+  wait?: HeatCapacityAutoDemoWaitSpec;
   preHighlightMs: number;
   actionDurationMs: number;
   observeDurationMs: number;
@@ -80,20 +90,25 @@ const PUMP_VALVE_TRANSITION_MS = 420;
 export const HEAT_CAPACITY_AUTO_DEMO_ZEROING_ACTION_DURATION_MS = 1_200;
 const STOPCOCK_OPENING_MS = HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs;
 const STOPCOCK_CLOSING_MS = HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs;
+export const HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER = 16 as const;
+export const HEAT_CAPACITY_AUTO_DEMO_WAIT_EXIT_DURATION_MS = 160;
 export const HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_PUMP_MS = Math.round(
   HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS * 1000,
 );
 export const HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_RELEASE_MS = Math.round(
   HEAT_CAPACITY_STANDARD_OPERATION.waitAfterReleaseS * 1000,
 );
-const getAutoDemoWaitActionDurationMs = (standardWaitMs: number) => Math.max(
-  0,
-  standardWaitMs - DEFAULT_OBSERVE_MS - DEFAULT_PRE_HIGHLIGHT_MS,
+const getAutoDemoWaitWallClockMs = (standardWaitMs: number) => Math.round(
+  standardWaitMs / HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER,
 );
-export const HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_ACTION_DURATION_MS =
-  getAutoDemoWaitActionDurationMs(HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_PUMP_MS);
-export const HEAT_CAPACITY_AUTO_DEMO_RECOVERY_ACTION_DURATION_MS =
-  getAutoDemoWaitActionDurationMs(HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_RELEASE_MS);
+const getAutoDemoWaitSampleDelayMs = (standardWaitMs: number) => Math.max(
+  0,
+  getAutoDemoWaitWallClockMs(standardWaitMs) - DEFAULT_OBSERVE_MS - DEFAULT_PRE_HIGHLIGHT_MS,
+);
+export const HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_SAMPLE_DELAY_MS =
+  getAutoDemoWaitSampleDelayMs(HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_PUMP_MS);
+export const HEAT_CAPACITY_AUTO_DEMO_RECOVERY_SAMPLE_DELAY_MS =
+  getAutoDemoWaitSampleDelayMs(HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_RELEASE_MS);
 export const HEAT_CAPACITY_AUTO_DEMO_RELEASE_CLOSE_DELAY_MS = Math.round(
   STOPCOCK_OPENING_MS + HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS * 1000,
 );
@@ -246,15 +261,23 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     description: '关闭打气阀门后保持气瓶封闭，等待压强和温度信号稳定',
     target: 'Uₚ / Uₜ 显示屏',
     progressCriterion: '等待 5 min 后记录 U₁ / Uₜ₁。',
-    note: '演示按标准操作实际等待 5 min，不压缩等待时长。',
+    note: '演示使用固定 ×16 倍速展示完整 5 min 计时，结束后自动记录稳定读数。',
     targetControlId: 'instrumentPanel',
     cameraFocusMode: 'instrument',
+    wait: {
+      stage: 'u1',
+      targetS: HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS,
+      speedMultiplier: HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER,
+      sampleKey: 'stableBeforeReleaseSample',
+    },
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
-    actionDurationMs: HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_ACTION_DURATION_MS,
+    actionDurationMs:
+      HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_SAMPLE_DELAY_MS +
+      HEAT_CAPACITY_AUTO_DEMO_WAIT_EXIT_DURATION_MS,
     observeDurationMs: DEFAULT_OBSERVE_MS,
     actions: [{
       action: 'captureSample',
-      delayMs: HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_ACTION_DURATION_MS,
+      delayMs: HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_SAMPLE_DELAY_MS,
       sampleKey: 'stableBeforeReleaseSample',
     }],
   },
@@ -286,15 +309,23 @@ export const createHeatCapacityAutoDemoSteps = (): HeatCapacityAutoDemoStep[] =>
     description: '快速放气并关闭玻璃旋塞后，等待瓶内空气回温',
     target: 'Uₜ / Uₚ 显示屏',
     progressCriterion: '等待 5 min 后记录 U₂ / Uₜ₂。',
-    note: '演示按标准操作实际等待 5 min，再取回温稳定后的 U₂ 读数。',
+    note: '演示使用固定 ×16 倍速展示完整 5 min 计时，结束后自动记录回温读数。',
     targetControlId: 'instrumentTemperatureDisplay',
     cameraFocusMode: 'instrument',
+    wait: {
+      stage: 'u2',
+      targetS: HEAT_CAPACITY_STANDARD_OPERATION.waitAfterReleaseS,
+      speedMultiplier: HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER,
+      sampleKey: 'recoverySample',
+    },
     preHighlightMs: DEFAULT_PRE_HIGHLIGHT_MS,
-    actionDurationMs: HEAT_CAPACITY_AUTO_DEMO_RECOVERY_ACTION_DURATION_MS,
+    actionDurationMs:
+      HEAT_CAPACITY_AUTO_DEMO_RECOVERY_SAMPLE_DELAY_MS +
+      HEAT_CAPACITY_AUTO_DEMO_WAIT_EXIT_DURATION_MS,
     observeDurationMs: DEFAULT_OBSERVE_MS,
     actions: [{
       action: 'captureSample',
-      delayMs: HEAT_CAPACITY_AUTO_DEMO_RECOVERY_ACTION_DURATION_MS,
+      delayMs: HEAT_CAPACITY_AUTO_DEMO_RECOVERY_SAMPLE_DELAY_MS,
       sampleKey: 'recoverySample',
     }],
   },
@@ -381,4 +412,54 @@ export const getHeatCapacityAutoDemoTimeline = (
   });
 
   return timeline.sort((a, b) => a.atMs - b.atMs);
+};
+
+export interface HeatCapacityAutoDemoWaitTimer {
+  stage: HeatCapacityAutoDemoWaitStage;
+  elapsedS: number;
+  targetS: number;
+  speedMultiplier: typeof HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER;
+  phase: 'active' | 'exiting';
+}
+
+export const deriveHeatCapacityAutoDemoWaitTimer = (
+  timeline: HeatCapacityAutoDemoTimelineItem[],
+  elapsedMs: number,
+): HeatCapacityAutoDemoWaitTimer | null => {
+  const normalizedElapsedMs = Number.isFinite(elapsedMs) ? Math.max(0, elapsedMs) : 0;
+  const waitSteps = new Map<number, HeatCapacityAutoDemoStep>();
+  timeline.forEach((item) => {
+    if (item.step.wait) waitSteps.set(item.stepIndex, item.step);
+  });
+
+  for (const [stepIndex, step] of waitSteps) {
+    const wait = step.wait;
+    if (!wait) continue;
+    const stepItems = timeline.filter((item) => item.stepIndex === stepIndex);
+    const waitStartedAtMs = Math.min(...stepItems.map((item) => item.atMs));
+    const waitCompletedAtMs = stepItems.find((item) => (
+      item.stage === 'action' && item.action?.sampleKey === wait.sampleKey
+    ))?.atMs;
+    if (!Number.isFinite(waitStartedAtMs) || waitCompletedAtMs === undefined) continue;
+    const waitExitedAtMs = timeline.find((item) => (
+      item.stage === 'preview' &&
+      item.stepIndex === stepIndex + 1 &&
+      item.atMs >= waitCompletedAtMs
+    ))?.atMs ?? waitCompletedAtMs + HEAT_CAPACITY_AUTO_DEMO_WAIT_EXIT_DURATION_MS;
+    if (normalizedElapsedMs < waitStartedAtMs || normalizedElapsedMs >= waitExitedAtMs) continue;
+
+    const activeElapsedMs = Math.min(normalizedElapsedMs, waitCompletedAtMs) - waitStartedAtMs;
+    return {
+      stage: wait.stage,
+      elapsedS: Math.min(
+        wait.targetS,
+        Math.max(0, activeElapsedMs / 1000 * wait.speedMultiplier),
+      ),
+      targetS: wait.targetS,
+      speedMultiplier: wait.speedMultiplier,
+      phase: normalizedElapsedMs < waitCompletedAtMs ? 'active' : 'exiting',
+    };
+  }
+
+  return null;
 };

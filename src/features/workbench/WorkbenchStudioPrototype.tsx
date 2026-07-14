@@ -214,7 +214,9 @@ import {
 } from '../heatCapacity/heatCapacityControlInteraction.ts';
 import {
   createHeatCapacityAutoDemoSteps,
+  deriveHeatCapacityAutoDemoWaitTimer,
   getHeatCapacityAutoDemoTimeline,
+  HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER,
   type HeatCapacityAutoDemoAction,
   type HeatCapacityAutoDemoStep,
   type HeatCapacityAutoDemoTimelineItem,
@@ -4110,6 +4112,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const autoDemoRunning = autoDemoPhase === 'running';
   const autoDemoPaused = autoDemoPhase === 'paused';
   const autoDemoInteractionLocked = autoDemoPhase !== 'idle';
+  const [autoDemoTimelineClockMs, setAutoDemoTimelineClockMs] = useState(0);
   const [heatCapacityToastCurrent, setHeatCapacityToastCurrent] = useState<HeatCapacityToastMessage | null>(
     initialHeatCapacityRefreshToast,
   );
@@ -4200,6 +4203,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [autoDemoStepPanelMode, setAutoDemoStepPanelMode] = useState<'hidden' | 'visible' | 'exiting'>(
     initialHeatCapacityRefreshSession?.demo.stepPanel.mode ?? 'hidden',
   );
+
+  useEffect(() => {
+    if (!autoDemoRunning) return undefined;
+    const refreshClock = () => setAutoDemoTimelineClockMs(performance.now());
+    refreshClock();
+    const intervalId = window.setInterval(refreshClock, 50);
+    return () => window.clearInterval(intervalId);
+  }, [autoDemoRunning]);
 
   useLayoutEffect(() => {
     if (!initialHeatCapacityRefreshSession) return undefined;
@@ -5328,7 +5339,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     updateActiveFile((file) => file.kind === 'heatCapacity'
       ? file.heatCapacityMode === 'guide'
         ? setHeatCapacityGuideEquilibriumSpeedMultiplier(file, multiplier, now)
-        : setHeatCapacityFreeEquilibriumSpeedMultiplier(file, multiplier, now)
+        : file.heatCapacityMode === 'free'
+          ? setHeatCapacityFreeEquilibriumSpeedMultiplier(file, multiplier, now)
+          : file
       : file);
   };
 
@@ -13545,16 +13558,31 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   {!heatCapacityDemoStepPanel ? heatCapacityGuideStepPanel : null}
                 </div>
               ) : null;
-              const heatCapacityActiveSpeedMultiplier = activeFile.heatCapacityMode === 'guide'
-                ? activeFile.heatCapacityGuideWorkflow.speedMultiplier
-                : activeFile.heatCapacityFreeEquilibriumSpeedMultiplier;
+              const heatCapacityActiveSpeedMultiplier = activeFile.heatCapacityMode === 'demo'
+                ? HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER
+                : activeFile.heatCapacityMode === 'guide'
+                  ? activeFile.heatCapacityGuideWorkflow.speedMultiplier
+                  : activeFile.heatCapacityFreeEquilibriumSpeedMultiplier;
               const heatCapacityFreeActiveTrialIndex = activeFile.heatCapacityMode === 'free'
                 ? getActiveHeatCapacityFreeTrialIndex(activeFile)
                 : -1;
               const heatCapacityFreeActiveTrial = heatCapacityFreeActiveTrialIndex >= 0
                 ? activeFile.heatCapacityFreeTrials[heatCapacityFreeActiveTrialIndex] ?? null
                 : null;
-              const heatCapacityFreeWaitTimer = activeFile.heatCapacityMode === 'guide'
+              const heatCapacityAutoDemoElapsedMs = activeFile.heatCapacityMode === 'demo'
+                ? autoDemoRunning
+                  ? Math.max(0, autoDemoTimelineClockMs - heatCapacityAutoDemoStartedAtMsRef.current)
+                  : autoDemoPaused
+                    ? heatCapacityAutoDemoPausedElapsedMsRef.current
+                    : 0
+                : 0;
+              const heatCapacityAutoDemoWaitTimer = activeFile.heatCapacityMode === 'demo'
+                ? deriveHeatCapacityAutoDemoWaitTimer(
+                    heatCapacityAutoDemoTimelineRef.current,
+                    heatCapacityAutoDemoElapsedMs,
+                  )
+                : null;
+              const heatCapacityWorkflowWaitTimer = activeFile.heatCapacityMode === 'guide'
                 ? deriveHeatCapacityGuideExperimentTimer(
                     activeFile.heatCapacityGuideWorkflow,
                     activeFile.heatCapacityGuidePhysicsState.simulationTimeS,
@@ -13562,51 +13590,62 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 : activeFile.heatCapacityMode === 'free'
                   ? deriveHeatCapacityFreeWorkbenchAttemptWaitTimer(activeFile)
                   : null;
-              const heatCapacityFreeWaitTimerDisplay =
-                heatCapacityFreeWaitTimer?.stage === 'u1-wait' ||
-                heatCapacityFreeWaitTimer?.stage === 'u2-wait' ||
-                heatCapacityFreeWaitTimer?.stage === 'u1-ready' ||
-                heatCapacityFreeWaitTimer?.stage === 'u2-ready'
+              const heatCapacityWaitTimer = heatCapacityAutoDemoWaitTimer
+                ? {
+                    stage: heatCapacityAutoDemoWaitTimer.stage === 'u1' ? 'u1-wait' as const : 'u2-wait' as const,
+                    elapsedS: heatCapacityAutoDemoWaitTimer.elapsedS,
+                    targetS: heatCapacityAutoDemoWaitTimer.targetS,
+                  }
+                : heatCapacityWorkflowWaitTimer;
+              const heatCapacityWaitTimerDisplay =
+                heatCapacityWaitTimer?.stage === 'u1-wait' ||
+                heatCapacityWaitTimer?.stage === 'u2-wait' ||
+                heatCapacityWaitTimer?.stage === 'u1-ready' ||
+                heatCapacityWaitTimer?.stage === 'u2-ready'
                   ? {
-                      label: heatCapacityFreeWaitTimer.stage === 'u1-wait' || heatCapacityFreeWaitTimer.stage === 'u1-ready'
+                      label: heatCapacityWaitTimer.stage === 'u1-wait' || heatCapacityWaitTimer.stage === 'u1-ready'
                         ? heatCapacityRealtimeCopy.freeWaitTimerLabel.u1
                         : heatCapacityRealtimeCopy.freeWaitTimerLabel.u2,
-                      statusText: heatCapacityFreeWaitTimer.stage === 'u1-wait' || heatCapacityFreeWaitTimer.stage === 'u1-ready'
-                        ? activeFile.heatCapacityMode === 'guide'
+                      statusText: heatCapacityWaitTimer.stage === 'u1-wait' || heatCapacityWaitTimer.stage === 'u1-ready'
+                        ? activeFile.heatCapacityMode !== 'free'
                           ? heatCapacityRealtimeCopy.freeWaitRecordStatus.pending
                           : heatCapacityFreeActiveTrial?.u1
                           ? heatCapacityRealtimeCopy.freeWaitRecordStatus.rerecord
                           : heatCapacityRealtimeCopy.freeWaitRecordStatus.pending
-                        : activeFile.heatCapacityMode === 'guide'
+                        : activeFile.heatCapacityMode !== 'free'
                           ? heatCapacityRealtimeCopy.freeWaitRecordStatus.pending
                           : heatCapacityFreeActiveTrial?.u2
                           ? heatCapacityRealtimeCopy.freeWaitRecordStatus.rerecord
                           : heatCapacityRealtimeCopy.freeWaitRecordStatus.pending,
                     }
                   : null;
-              const heatCapacityFreeSpeedOptionsDisabled = activeFile.heatCapacityMode === 'guide' &&
-                (
-                  heatCapacityFreeWaitTimer?.stage === 'u1-ready' ||
-                  heatCapacityFreeWaitTimer?.stage === 'u2-ready'
-                );
+              const heatCapacitySpeedOptionsDisabled = activeFile.heatCapacityMode === 'demo' || (
+                activeFile.heatCapacityMode === 'guide' &&
+                (heatCapacityWaitTimer?.stage === 'u1-ready' || heatCapacityWaitTimer?.stage === 'u2-ready')
+              );
               const heatCapacityTopCenterOverlay = !activeHeatCapacityModalLocked &&
-                heatCapacityFreeWaitTimerDisplay &&
-                heatCapacityFreeWaitTimer
+                heatCapacityWaitTimerDisplay &&
+                heatCapacityWaitTimer
                 ? (
                     <div
-                      className="studio-heat-wait-overlay"
+                      className={`studio-heat-wait-overlay${
+                        heatCapacityAutoDemoWaitTimer?.phase === 'exiting'
+                          ? ' studio-heat-wait-overlay-exiting'
+                          : ''
+                      }`}
                       data-heat-capacity-wait-overlay="true"
+                      data-heat-capacity-wait-mode={activeFile.heatCapacityMode}
                     >
                       <HeatCapacityWaitController
-                        elapsedS={heatCapacityFreeWaitTimer.elapsedS}
-                        targetS={heatCapacityFreeWaitTimer.targetS}
-                        phaseLabel={heatCapacityFreeWaitTimerDisplay.label}
-                        statusText={heatCapacityFreeWaitTimerDisplay.statusText}
+                        elapsedS={heatCapacityWaitTimer.elapsedS}
+                        targetS={heatCapacityWaitTimer.targetS}
+                        phaseLabel={heatCapacityWaitTimerDisplay.label}
+                        statusText={heatCapacityWaitTimerDisplay.statusText}
                         speedMultiplier={heatCapacityActiveSpeedMultiplier}
                         speedLabelCode={heatCapacityRealtimeCopy.freeSpeedLabelCode}
                         speedLabel={heatCapacityRealtimeCopy.freeSpeedLabel}
                         speedAriaLabel={heatCapacityRealtimeCopy.freeSpeedAria}
-                        speedOptionsDisabled={heatCapacityFreeSpeedOptionsDisabled}
+                        speedOptionsDisabled={heatCapacitySpeedOptionsDisabled}
                         onSpeedMultiplierChange={updateHeatCapacityFreeEquilibriumSpeedMultiplier}
                       />
                     </div>

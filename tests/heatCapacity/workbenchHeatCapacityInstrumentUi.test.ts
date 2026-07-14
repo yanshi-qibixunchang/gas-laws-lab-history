@@ -458,8 +458,12 @@ assert.match(sceneSource, /overlayBottomRight/, '3D scene should keep a lower-ri
 assert.match(sceneSource, /overlayTopCenter/, '3D scene should expose a top-center overlay slot for Free wait speed controls');
 assert.match(sceneSource, /studio-preview-overlay-slot-top-center/, 'top-center overlay should use the shared preview overlay slot system');
 assert.match(workbenchSource, /deriveHeatCapacityFreeWorkbenchAttemptWaitTimer\(activeFile\)/, 'Free timer should derive from the explicit active-attempt state instead of U0/trial inference');
-assert.match(workbenchSource, /heatCapacityFreeWaitTimerDisplay &&[\s\S]*<HeatCapacityWaitController/, 'the independent wait controller must not render without a real wait stage');
+assert.match(workbenchSource, /heatCapacityWaitTimerDisplay &&[\s\S]*<HeatCapacityWaitController/, 'the shared wait controller must not render without a real Guide, Free, or Demo wait stage');
 assert.match(workbenchSource, /data-heat-capacity-wait-overlay="true"/, 'wait overlay should use the new independent selector');
+assert.match(workbenchSource, /deriveHeatCapacityAutoDemoWaitTimer\([\s\S]*heatCapacityAutoDemoTimelineRef\.current,[\s\S]*heatCapacityAutoDemoElapsedMs/, 'Demo waits should derive from the independent scripted timeline clock');
+assert.match(workbenchSource, /activeFile\.heatCapacityMode === 'demo'[\s\S]*HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER/, 'Demo wait display should always select the fixed x16 speed');
+assert.match(workbenchSource, /heatCapacitySpeedOptionsDisabled = activeFile\.heatCapacityMode === 'demo'/, 'Demo wait speed controls should remain disabled throughout automatic playback');
+assert.match(workbenchSource, /data-heat-capacity-wait-mode=\{activeFile\.heatCapacityMode\}/, 'wait overlay should expose the active mode for browser verification');
 assert.match(waitControllerSource, /data-heat-capacity-wait-controller="true"/, 'independent wait controller should expose stable markup');
 assert.match(waitControllerSource, /data-heat-capacity-wait-timer="true"/, 'independent wait controller should expose its timer region');
 assert.match(waitControllerSource, /HEAT_CAPACITY_WAIT_SPEED_OPTIONS = HEAT_CAPACITY_FREE_WAIT_SPEED_OPTIONS/, 'wait controller should consume the shared approved speed options');
@@ -467,9 +471,9 @@ assert.match(waitControllerSource, /const progressRatio = targetS > 0 \? clampUn
 assert.match(waitControllerSource, /formatHeatCapacityWaitDuration\(elapsedS\)/, 'wait controller should format live elapsed time internally');
 assert.match(waitControllerSource, /--heat-capacity-wait-progress/, 'wait controller should own its progress CSS variables');
 assert.match(waitControllerStyleSource, /conic-gradient\([\s\S]*var\(--heat-capacity-wait-progress-color\)/, 'independent timer ring should render live progress');
-assert.match(waitControllerStyleSource, /\.heat-capacity-wait-controller__option:disabled\s*\{[\s\S]*opacity:\s*1;/, 'disabled Guide speed options should retain their instrument styling');
-assert.match(workbenchSource, /heatCapacityFreeWaitTimer\?\.stage === 'u1-ready'[\s\S]*heatCapacityFreeWaitTimer\?\.stage === 'u2-ready'/, 'Guide wait timer should stay visible after five minutes while the U1 or U2 record strong reminder is active');
-assert.match(workbenchSource, /speedOptionsDisabled=\{heatCapacityFreeSpeedOptionsDisabled\}/, 'Guide wait timer should become visual-only after the target is reached');
+assert.match(waitControllerStyleSource, /\.heat-capacity-wait-controller__option:disabled\s*\{[\s\S]*cursor:\s*not-allowed;[\s\S]*opacity:\s*1;/, 'disabled Demo and Guide speed options should retain instrument styling and show a prohibited cursor');
+assert.match(workbenchSource, /heatCapacityWaitTimer\?\.stage === 'u1-ready'[\s\S]*heatCapacityWaitTimer\?\.stage === 'u2-ready'/, 'Guide wait timer should stay visible after five minutes while the U1 or U2 record strong reminder is active');
+assert.match(workbenchSource, /speedOptionsDisabled=\{heatCapacitySpeedOptionsDisabled\}/, 'shared wait timer should disable speed controls for Demo and ready-state Guide waits');
 assert.match(waitControllerSource, /d="M 74 50 L 92 76 H 179 C 191 76 200 74 210 68 C 218 62 224 55 225 49 L 74 50 Z"/, 'independent timer should preserve the approved cabin geometry');
 assert.match(workbenchSource, /freeWaitTimerLabel/, 'Free wait timer should use localized stage labels');
 assert.match(workbenchSource, /freeSpeedLabelCode:\s*'WAIT RATE'/, 'Free wait speed control should localize its engineering code label through Heat Capacity copy');
@@ -491,6 +495,9 @@ assert.match(waitControllerStyleSource, /\.heat-capacity-wait-controller__screw 
 assert.match(waitControllerStyleSource, /\.heat-capacity-wait-controller__thumb \{[\s\S]*transition:\s*transform/, 'active speed highlight should slide between options');
 assert.match(waitControllerStyleSource, /\.heat-capacity-wait-controller--speed-3 \.heat-capacity-wait-controller__thumb \{[\s\S]*translateX\(96px\)/, 'x16 should move the highlight to the fourth slot');
 assert.match(styleSource, /\.studio-heat-wait-overlay \{[\s\S]*studioOverlayTopCenterIn/, 'wait controller should enter through the shared top-center overlay');
+assert.match(styleSource, /\.studio-heat-wait-overlay \{[\s\S]*margin-left:\s*0;/, 'Free wait controller should use the available preview center when no step panel occupies the right side');
+assert.match(styleSource, /\.studio-heat-wait-overlay\[data-heat-capacity-wait-mode='guide'\],[\s\S]*\.studio-heat-wait-overlay\[data-heat-capacity-wait-mode='demo'\][\s\S]*margin-left:\s*-150px;/, 'Guide and Demo should preserve the left-shifted timer center around their right-side instruction panels');
+assert.match(styleSource, /\.studio-heat-wait-overlay-exiting \{[\s\S]*studioOverlayTopCenterOut/, 'automatic Demo waits should leave through the shared top-center exit motion');
 assert.match(workbenchSource, /selectActiveHeatCapacityWorkbenchDisplay\(activeFile\)/, 'workbench should pass the active mode display source into the 3D instrument');
 assert.match(emptyWorkspaceSource, /data-workbench-create-experiment="heatCapacity"/, 'Workbench should expose a stable heat-capacity creation selector for browser automation');
 assert.match(workbenchSource, /recordFreeHeatCapacitySample\(kind\)/, 'Free Mode should route visible U0/U1/U2 record actions through the shared button renderer');
@@ -822,6 +829,9 @@ assert.match(stateSource, /stepFreeSensor\(/, 'Free Mode workbench stepping shou
 assert.match(sceneSource, /@react-three\/fiber/);
 assert.match(sceneSource, /@react-three\/drei/);
 assert.doesNotMatch(autoDemoSource, asciiSubscriptPattern, 'auto demo user-facing copy should use real Unicode subscripts instead of underscores');
+assert.match(autoDemoSource, /HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER = 16 as const/, 'auto demo should define one fixed x16 wait speed');
+assert.match(autoDemoSource, /standardWaitMs \/ HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER/, 'auto demo wall-clock waits should compress the scripted five-minute duration by x16');
+assert.doesNotMatch(autoDemoSource, /实际等待 5 min|不压缩等待时长|HEAT_CAPACITY_AUTO_DEMO_(?:STABILIZATION|RECOVERY)_ACTION_DURATION_MS/, 'the obsolete real five-minute Demo wait path should be physically removed');
 assert.doesNotMatch(leftPanelSource, asciiSubscriptPattern, 'heat-capacity guide copy should use real Unicode subscripts instead of underscores');
 assert.doesNotMatch(workbenchSource, /heatRealtimeHint:\s*'[^']*U_/, 'heat-capacity realtime hint should not expose underscore subscripts');
 assert.doesNotMatch(`${hardSphereToggleSource}\n${freeParameterPanelModelSource}`, asciiSubscriptPattern, 'current hard-sphere teaching copy should not expose underscore subscripts');
@@ -1386,7 +1396,7 @@ assert.match(getCssBlock('.studio-heat-hover-tooltip'), /transform:\s*translate3
 assert.match(getCssBlock('.studio-heat-hover-tooltip'), /pointer-events:\s*none;/, 'hover tooltip should not steal canvas interactions');
 assert.match(sceneSource, /studio-preview-overlay-slot-top-right[\s\S]*data-heat-capacity-view-reset="true"/, 'upper-right heat model window chrome should use the shared top-right slot');
 assert.match(getCssBlock('.studio-heat-view-reset'), /border:\s*0\.5px solid rgba\(148,\s*163,\s*184,\s*0\.44\)/, 'default-view button should use the thin annotated border');
-assert.match(styleSource, /\.studio-heat-demo-step-panel \{[\s\S]*width: min\(330px, 100%\);/, 'auto demo step panel should stay compact inside its overlay slot');
+assert.match(styleSource, /\.studio-heat-demo-step-panel \{[\s\S]*width: min\(280px, 100%\);/, 'auto demo step panel should trade horizontal width for wrapped vertical content beside the wait controller');
 assert.match(styleSource, /\[data-preview-overlay-item="heat-parent-top-right"\]\s*\{[\s\S]*display:\s*flex;[\s\S]*justify-content:\s*flex-end;[\s\S]*width:\s*100%;/, 'auto demo top-right wrapper should right-anchor the visual step panel inside the shared overlay slot');
 assert.match(styleSource, /\.studio-heat-demo-step-panel div:not\(\.studio-heat-demo-step-kicker\) \{[\s\S]*grid-template-columns: 58px minmax\(0, 1fr\);/, 'step panel should keep the original compact field layout');
 assert.match(styleSource, /\.studio-heat-preview-mount \{[\s\S]*overflow: hidden;/, 'heat preview mount should clip the step panel as it slides out to the right');

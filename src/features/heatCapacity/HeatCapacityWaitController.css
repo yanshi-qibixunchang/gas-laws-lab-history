@@ -157,7 +157,7 @@
     box-shadow 140ms ease;
 }
 
-.heat-capacity-wait-controller__option:hover {
+.heat-capacity-wait-controller__option:not(:disabled):hover {
   background: var(--studio-accent-softer);
   box-shadow:
     inset 0 0 0 1px rgba(203, 213, 225, 0.2),
@@ -165,7 +165,7 @@
 }
 
 .heat-capacity-wait-controller__option:disabled {
-  cursor: default;
+  cursor: not-allowed;
   opacity: 1;
 }
 

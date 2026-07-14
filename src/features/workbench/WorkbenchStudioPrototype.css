@@ -5270,7 +5270,7 @@
 .studio-heat-demo-step-panel {
   display: grid;
   gap: 7px;
-  width: min(330px, 100%);
+  width: min(280px, 100%);
   border: 1px solid rgba(103, 232, 249, 0.42);
   border-radius: 6px;
   background: rgba(15, 23, 42, 0.78);
@@ -5548,8 +5548,18 @@
   display: flex;
   justify-content: center;
   pointer-events: auto;
-  margin-left: -150px;
+  margin-left: 0;
   animation: studioOverlayTopCenterIn var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) both;
+}
+
+.studio-heat-wait-overlay[data-heat-capacity-wait-mode='guide'],
+.studio-heat-wait-overlay[data-heat-capacity-wait-mode='demo'] {
+  margin-left: -150px;
+}
+
+.studio-heat-wait-overlay-exiting {
+  pointer-events: none;
+  animation: studioOverlayTopCenterOut var(--studio-overlay-exit-duration) var(--studio-overlay-motion-ease) both;
 }
 
 .studio-heat-demo-step-panel sub,

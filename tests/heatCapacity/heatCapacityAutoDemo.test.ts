@@ -1,13 +1,16 @@
 ﻿import assert from 'node:assert/strict';
 import {
   createHeatCapacityAutoDemoSteps,
+  deriveHeatCapacityAutoDemoWaitTimer,
   getHeatCapacityAutoDemoTimeline,
   HEAT_CAPACITY_AUTO_DEMO_RELEASE_ACTION_DURATION_MS,
   HEAT_CAPACITY_AUTO_DEMO_RELEASE_CLOSE_DELAY_MS,
-  HEAT_CAPACITY_AUTO_DEMO_RECOVERY_ACTION_DURATION_MS,
-  HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_ACTION_DURATION_MS,
+  HEAT_CAPACITY_AUTO_DEMO_RECOVERY_SAMPLE_DELAY_MS,
+  HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_SAMPLE_DELAY_MS,
   HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_PUMP_MS,
   HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_RELEASE_MS,
+  HEAT_CAPACITY_AUTO_DEMO_WAIT_EXIT_DURATION_MS,
+  HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER,
   HEAT_CAPACITY_TEACHING_PUMP_STROKE_COUNT,
   HEAT_CAPACITY_TEACHING_PUMP_STROKE_DELAYS_MS,
 } from '../../src/domain/heatCapacity/heatCapacityAutoDemo.ts';
@@ -87,18 +90,40 @@ assert.equal(
 const sealedStabilizeStep = steps.find((step) => step.id === 'sealed-stabilize');
 assert.notEqual(sealedStabilizeStep, undefined);
 assert.equal(sealedStabilizeStep?.progressCriterion, '等待 5 min 后记录 U₁ / Uₜ₁。');
-assert.equal(sealedStabilizeStep?.note, '演示按标准操作实际等待 5 min，不压缩等待时长。');
+assert.equal(sealedStabilizeStep?.note, '演示使用固定 ×16 倍速展示完整 5 min 计时，结束后自动记录稳定读数。');
+assert.deepEqual(sealedStabilizeStep?.wait, {
+  stage: 'u1',
+  targetS: HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS,
+  speedMultiplier: 16,
+  sampleKey: 'stableBeforeReleaseSample',
+});
 assert.equal(
   sealedStabilizeStep?.actionDurationMs,
-  HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_ACTION_DURATION_MS,
+  HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_SAMPLE_DELAY_MS + HEAT_CAPACITY_AUTO_DEMO_WAIT_EXIT_DURATION_MS,
+);
+assert.equal(
+  sealedStabilizeStep?.actions.find((action) => action.sampleKey === 'stableBeforeReleaseSample')?.delayMs,
+  HEAT_CAPACITY_AUTO_DEMO_STABILIZATION_SAMPLE_DELAY_MS,
 );
 const thermalRecoveryStep = steps.find((step) => step.id === 'thermal-recovery');
 assert.notEqual(thermalRecoveryStep, undefined);
 assert.equal(thermalRecoveryStep?.progressCriterion, '等待 5 min 后记录 U₂ / Uₜ₂。');
+assert.equal(thermalRecoveryStep?.note, '演示使用固定 ×16 倍速展示完整 5 min 计时，结束后自动记录回温读数。');
+assert.deepEqual(thermalRecoveryStep?.wait, {
+  stage: 'u2',
+  targetS: HEAT_CAPACITY_STANDARD_OPERATION.waitAfterReleaseS,
+  speedMultiplier: 16,
+  sampleKey: 'recoverySample',
+});
 assert.equal(
   thermalRecoveryStep?.actionDurationMs,
-  HEAT_CAPACITY_AUTO_DEMO_RECOVERY_ACTION_DURATION_MS,
+  HEAT_CAPACITY_AUTO_DEMO_RECOVERY_SAMPLE_DELAY_MS + HEAT_CAPACITY_AUTO_DEMO_WAIT_EXIT_DURATION_MS,
 );
+assert.equal(
+  thermalRecoveryStep?.actions.find((action) => action.sampleKey === 'recoverySample')?.delayMs,
+  HEAT_CAPACITY_AUTO_DEMO_RECOVERY_SAMPLE_DELAY_MS,
+);
+assert.equal(HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER, 16);
 assert.equal(
   HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_PUMP_MS,
   HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS * 1000,
@@ -209,8 +234,8 @@ assert.equal(typeof closePumpValveAtMs, 'number');
 assert.equal(typeof stableSampleAtMs, 'number');
 assert.equal(
   (stableSampleAtMs ?? 0) - ((closePumpValveAtMs ?? 0) + (closePumpValveStep?.actionDurationMs ?? 0)),
-  HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_PUMP_MS,
-  'auto demo must wait the full standard interval after the pump valve has finished closing',
+  HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_PUMP_MS / HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER,
+  'auto demo should present the full standard U1 interval at fixed ×16 wall-clock speed',
 );
 
 const closeStopcockAtMs = timeline.find(
@@ -225,8 +250,49 @@ assert.equal(
   (recoverySampleAtMs ?? 0) - (
     (closeStopcockAtMs ?? 0) + HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs
   ),
-  HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_RELEASE_MS,
-  'auto demo must wait the full standard interval after the stopcock has finished closing',
+  HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_RELEASE_MS / HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER,
+  'auto demo should present the full standard U2 interval at fixed ×16 wall-clock speed',
+);
+
+const sealedWaitStartedAtMs = timeline.find((item) => (
+  item.stage === 'preview' && item.step.id === 'sealed-stabilize'
+))?.atMs;
+assert.equal(typeof sealedWaitStartedAtMs, 'number');
+assert.equal(deriveHeatCapacityAutoDemoWaitTimer(timeline, (sealedWaitStartedAtMs ?? 0) - 1), null);
+assert.deepEqual(deriveHeatCapacityAutoDemoWaitTimer(timeline, sealedWaitStartedAtMs ?? 0), {
+  stage: 'u1',
+  elapsedS: 0,
+  targetS: HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS,
+  speedMultiplier: 16,
+  phase: 'active',
+});
+assert.deepEqual(
+  deriveHeatCapacityAutoDemoWaitTimer(
+    timeline,
+    (sealedWaitStartedAtMs ?? 0) + HEAT_CAPACITY_AUTO_DEMO_WAIT_AFTER_PUMP_MS / 32,
+  ),
+  {
+    stage: 'u1',
+    elapsedS: HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS / 2,
+    targetS: HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS,
+    speedMultiplier: 16,
+    phase: 'active',
+  },
+);
+assert.deepEqual(deriveHeatCapacityAutoDemoWaitTimer(timeline, stableSampleAtMs ?? 0), {
+  stage: 'u1',
+  elapsedS: HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS,
+  targetS: HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS,
+  speedMultiplier: 16,
+  phase: 'exiting',
+});
+assert.equal(
+  deriveHeatCapacityAutoDemoWaitTimer(
+    timeline,
+    (stableSampleAtMs ?? 0) + HEAT_CAPACITY_AUTO_DEMO_WAIT_EXIT_DURATION_MS,
+  ),
+  null,
+  'the auto-demo wait controller should unmount after its short exit animation',
 );
 
 const zeroPressureFirstHighlight = timeline.find((item) => item.step.id === 'zero-pressure' && item.stage === 'highlight');
@@ -271,6 +337,6 @@ assert.equal(
 assert.equal(timeline.every((item, index) => index === 0 || item.atMs >= timeline[index - 1].atMs), true);
 assert.equal(timeline.at(-1)?.step.id, 'power-off');
 assert.equal(timeline.at(-1)?.action?.action, 'completeTeachingMode');
-assert.equal((timeline.at(-1)?.atMs ?? 0) > 10 * 60 * 1000, true);
+assert.equal((timeline.at(-1)?.atMs ?? 0) < 3 * 60 * 1000, true, 'fixed ×16 waits should keep the full demo under three minutes');
 
 console.log('heatCapacityAutoDemo tests passed');
