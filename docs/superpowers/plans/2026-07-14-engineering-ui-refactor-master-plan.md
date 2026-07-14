@@ -337,9 +337,9 @@
 
 ### 12.3 旧方案清理状态
 
-- 生产源码、样式、构建声明和测试中已经没有 `Inter`、`Playfair Display`、旧字体文件 URL 或旧主色值入口；新 UI 不依赖这些旧方案工作。
-- 仍有 11 个预先存在、已跟踪但不再被引用的旧字体素材等待删除授权：`public/fonts/Inter-300.woff2` 至 `Inter-900.woff2` 共 7 个，以及 `public/fonts/PlayfairDisplay-600.woff2` 至 `PlayfairDisplay-900.woff2` 共 4 个。
-- 因仓库 `AGENTS.md` 将删除预先存在的已跟踪文件定义为高风险，已向用户列出精确目标和理由；在收到明确删除确认前不物理删除，也不以注释、deprecated 或兼容入口形式继续引用。
+- 生产源码、样式、构建声明、第三方许可证、应用内版权说明和测试中已经没有 `Inter`、`Playfair Display`、旧字体文件 URL 或旧主色值入口；新 UI 不依赖这些旧方案工作。
+- 用户明确授权后，已物理删除 `public/fonts/Inter-300.woff2` 至 `Inter-900.woff2` 共 7 个，以及 `public/fonts/PlayfairDisplay-600.woff2` 至 `PlayfairDisplay-900.woff2` 共 4 个。
+- 回归测试同时验证 11 个旧素材文件不存在、字体许可证只列出 Noto Sans SC 与 JetBrains Mono、生成后的法律声明与源声明保持一致；旧方案没有以注释、deprecated、兼容入口或残留许可证条目的形式保留。
 
 ### 12.4 验证结果
 
