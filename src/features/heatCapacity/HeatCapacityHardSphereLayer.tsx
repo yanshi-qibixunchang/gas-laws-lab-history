@@ -710,9 +710,12 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
 
   useLayoutEffect(() => {
     if (
+      !enabled ||
       restoreVisualCheckpointKey === null ||
       lastRestoreVisualCheckpointKeyRef.current === restoreVisualCheckpointKey
     ) return;
+    const mesh = meshRef.current;
+    if (!mesh) return;
     lastRestoreVisualCheckpointKeyRef.current = restoreVisualCheckpointKey;
     const checkpoint = normalizeHeatCapacityHardSphereVisualCheckpoint(
       restoreVisualCheckpoint,
@@ -740,7 +743,7 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     const displayVisualState = displayVisualStateRef.current;
     applyVisualMaterial(particleMaterial, displayVisualState, particleColors, sceneTheme);
     renderParticlePool(
-      meshRef.current,
+      mesh,
       simulationRef.current,
       hardSphereProfile.particleRadius,
       displayVisualState,
@@ -748,6 +751,7 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     );
   }, [
     containerProfile,
+    enabled,
     hardSphereProfile,
     particleColors,
     particleMaterial,

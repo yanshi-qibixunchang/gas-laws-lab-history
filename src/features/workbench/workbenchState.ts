@@ -67,7 +67,7 @@ import type {
 import {
   createDefaultHeatCapacityModeSessionStore,
   type HeatCapacityModeSessionStore,
-} from '../heatCapacity/heatCapacityModeSessionModel.ts';
+} from './workbenchHeatCapacityModeSession.ts';
 import {
   createHeatCapacityAutoDemoProfile,
   normalizeHeatCapacityTeachingProfile,
@@ -4622,6 +4622,21 @@ export const setHeatCapacityScriptedStopcockOpen = (
     stopcockAngleDeg: getHeatCapacityStopcockTargetAngle(nextOpen),
     glassPistonState: nextOpen ? 'open' : 'closed',
     heatCapacityReleaseState: releaseState,
+    updatedAt: now,
+  };
+};
+
+export const setHeatCapacityScriptedPumpValveOpen = (
+  file: WorkbenchHeatCapacityState,
+  nextOpen: boolean,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  if (file.heatCapacityMode !== 'demo') return file;
+  const currentFile = stepHeatCapacityWorkbenchFile(file, now);
+  return {
+    ...currentFile,
+    pumpValveOpen: nextOpen,
+    pumpValveState: nextOpen ? 'open' : 'closed',
     updatedAt: now,
   };
 };

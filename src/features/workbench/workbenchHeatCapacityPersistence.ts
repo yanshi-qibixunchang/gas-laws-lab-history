@@ -96,7 +96,7 @@ import {
 } from '../../domain/heatCapacity/heatCapacityTeachingProfile.ts';
 import {
   normalizeHeatCapacityModeSessionStore,
-} from '../heatCapacity/heatCapacityModeSessionModel.ts';
+} from './workbenchHeatCapacityModeSession.ts';
 
 export {
   HEAT_CAPACITY_PROCESS_SCORING_VERSION,
@@ -478,7 +478,7 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     visiblePanels: visiblePanels.length > 0 ? visiblePanels : fallback.visiblePanels,
     liveWorkspaceSplitRatio,
     heatCapacityMode: restoredMode,
-    heatCapacityModeSessions: normalizeHeatCapacityModeSessionStore(common.modeSessions),
+    heatCapacityModeSessions: normalizeHeatCapacityModeSessionStore(common.modeSessions, fileEnvelope.id),
     heatCapacityTeachingStatus: restoredTeachingStatus,
     heatCapacityLessonIntroAutoShown: typeof common.lessonIntroAutoShown === 'boolean'
       ? common.lessonIntroAutoShown

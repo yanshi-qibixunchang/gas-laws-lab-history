@@ -12,11 +12,6 @@ const sceneSource = readSource('src/features/heatCapacity/HeatCapacityInstrument
 const styleSource = readSource('src/features/workbench/WorkbenchStudioPrototype.css');
 const audioSource = readSource('src/audio/experiments/heatCapacity/heatCapacityAudioController.ts');
 
-assert.doesNotMatch(
-  workbenchSource,
-  /heatCapacityModeSceneRevision/,
-  'mode changes must not retain the old scene-remount revision switch',
-);
 assert.match(
   workbenchSource,
   /<HeatCapacityInstrumentScene[\s\S]*key=\{activeFile\.id\}/,
@@ -42,10 +37,52 @@ assert.match(
   /captureRegistration\.provider\(\{ includeFrame: false \}\)/,
   'mode switching should capture exact scene state without synchronously serializing a new canvas bitmap on the UI thread',
 );
+const modeProjectionStart = workbenchSource.indexOf('const applyHeatCapacityModeUiProjection = (');
+const modeProjectionEnd = workbenchSource.indexOf('const commitHeatCapacityFileProjection = (', modeProjectionStart);
+assert.ok(
+  modeProjectionStart >= 0 && modeProjectionEnd > modeProjectionStart,
+  'the mode UI projection boundary should remain explicit',
+);
+const modeProjectionSource = workbenchSource.slice(modeProjectionStart, modeProjectionEnd);
+assert.match(
+  modeProjectionSource,
+  /clearHeatCapacityModeTransientUiRuntime\(\);[\s\S]*setHeatCapacityModeSceneCheckpoint\(checkpoint, modeTransitionRequestId\);/,
+  'mode projection should clear mode-only transient UI before restoring the target scene checkpoint',
+);
+assert.doesNotMatch(
+  modeProjectionSource,
+  /resetHeatCapacitySceneUiState|setHeatCapacityFocusResetKey|setHeatCapacityHardSphereVisualResetKey/,
+  'mode projection must not overwrite a restored camera, focus mode, or particle checkpoint with a group reset',
+);
+const groupResetStart = workbenchSource.indexOf('const resetHeatCapacityGroupUiRuntime = (');
+const groupResetEnd = workbenchSource.indexOf('const registerGuideHeatCapacityMiss = (', groupResetStart);
+assert.ok(
+  groupResetStart >= 0 && groupResetEnd > groupResetStart,
+  'new-group scene reset should remain separate from mode projection cleanup',
+);
+assert.match(
+  workbenchSource.slice(groupResetStart, groupResetEnd),
+  /clearHeatCapacityModeTransientUiRuntime\(\);[\s\S]*resetHeatCapacitySceneUiState\(\);/,
+  'an explicit run/group reset should still clear transient mode UI and reset the scene together',
+);
 assert.match(
   sceneSource,
   /cloneNode\(true\)[\s\S]*studio-heat-mode-transition-outgoing-overlay[\s\S]*dataset\.heatCapacityModeTransitionPhase = 'active'/,
   'the outgoing overlay should be frozen independently before the incoming layout starts',
+);
+const resumeTransitionStart = sceneSource.indexOf('resume: (requestId) => {');
+const resumeTransitionEnd = sceneSource.indexOf('finish: (requestId) => {', resumeTransitionStart);
+assert.ok(resumeTransitionStart >= 0 && resumeTransitionEnd > resumeTransitionStart, 'the scene transition controller should expose a refresh-resume path');
+const resumeTransitionSource = sceneSource.slice(resumeTransitionStart, resumeTransitionEnd);
+assert.match(
+  resumeTransitionSource,
+  /clearModeTransitionLayers\(\);[\s\S]*activeModeTransitionRequestIdRef\.current = requestId;[\s\S]*dataset\.heatCapacityModeTransitionPhase = 'active'/,
+  'refresh resume should idempotently restore the active visual phase for the same transition request',
+);
+assert.doesNotMatch(
+  resumeTransitionSource,
+  /cloneNode|append\(|onPowerToggle|onStopcockOpenChange|onPumpValveToggle|onPumpBulbPress|playGuideRollbackCue/,
+  'refresh resume must not clone the restored target as an outgoing layer or replay scene business and audio actions',
 );
 assert.match(
   sceneSource,

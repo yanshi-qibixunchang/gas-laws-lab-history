@@ -238,12 +238,16 @@ export const useHeatCapacityGuideRollbackMotion = ({
   plan,
   onCue,
   onFrame,
+  motionId,
+  onActiveChange,
 }: {
   active: boolean;
   cycleKey: number;
   plan: HeatCapacityGuideRollbackPlan;
   onCue: (cue: HeatCapacityGuideRollbackCue) => void;
   onFrame?: () => void;
+  motionId?: string;
+  onActiveChange?: (motionId: string, active: boolean) => void;
 }) => {
   const [value, setValue] = useState(0);
   const motionRef = useRef(new HeatCapacityGuideRollbackMotion());
@@ -251,8 +255,20 @@ export const useHeatCapacityGuideRollbackMotion = ({
   const lastFrameAtRef = useRef<number | null>(null);
   const onCueRef = useRef(onCue);
   const onFrameRef = useRef(onFrame);
+  const motionIdRef = useRef(motionId);
+  const onActiveChangeRef = useRef(onActiveChange);
+  const reportedActiveRef = useRef(false);
   onCueRef.current = onCue;
   onFrameRef.current = onFrame;
+  motionIdRef.current = motionId;
+  onActiveChangeRef.current = onActiveChange;
+
+  const reportActive = (nextActive: boolean) => {
+    if (reportedActiveRef.current === nextActive) return;
+    reportedActiveRef.current = nextActive;
+    const activeMotionId = motionIdRef.current;
+    if (activeMotionId) onActiveChangeRef.current?.(activeMotionId, nextActive);
+  };
 
   const requestMotionFrameRef = useRef<() => void>(() => undefined);
   requestMotionFrameRef.current = () => {
@@ -262,6 +278,7 @@ export const useHeatCapacityGuideRollbackMotion = ({
       const previousTimestamp = lastFrameAtRef.current ?? timestamp;
       lastFrameAtRef.current = timestamp;
       const result = motionRef.current.step((timestamp - previousTimestamp) / 1000);
+      reportActive(result.active);
       setValue(result.value);
       result.cues.forEach((cue) => onCueRef.current(cue));
       onFrameRef.current?.();
@@ -274,11 +291,13 @@ export const useHeatCapacityGuideRollbackMotion = ({
     if (!active || cycleKey <= 0) return;
     const cues = motionRef.current.trigger(cycleKey, plan);
     cues.forEach((cue) => onCueRef.current(cue));
+    reportActive(motionRef.current.getSnapshot().active);
     requestMotionFrameRef.current();
   }, [active, cycleKey, plan]);
 
   useEffect(() => () => {
     if (frameIdRef.current !== null) window.cancelAnimationFrame(frameIdRef.current);
+    reportActive(false);
   }, []);
 
   return value;

@@ -55,6 +55,11 @@ assert.match(motionSource, /top:\s*rootRect\.top\s*\+\s*top/, 'motion hook shoul
 assert.doesNotMatch(motionSource, /nextRects\.set\(key,\s*item\.getBoundingClientRect\(\)\)/, 'motion hook must not store animated visual rects as the next layout baseline');
 assert.match(motionSource, /\.cancel\(\)/, 'motion hook should cancel an old FLIP animation before replacing it');
 assert.match(motionSource, /animation\.finished/, 'motion hook should clean up active animation state after FLIP completes');
+assert.doesNotMatch(
+  motionSource,
+  /\}, \[options\.disabled\]\);/,
+  'overlay layout measurement must not stop after the disabled flag stabilizes; focus and sibling layout commits still need FLIP motion',
+);
 
 assert.match(sceneSource, /overlayTopLeft\?:\s*React\.ReactNode/, 'instrument scene should accept top-left overlays from the parent');
 assert.match(sceneSource, /overlayTopRight\?:\s*React\.ReactNode/, 'instrument scene should accept top-right overlays from the parent');

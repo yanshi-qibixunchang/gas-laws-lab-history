@@ -122,7 +122,7 @@ export const usePreviewOverlayMotion = <ElementType extends HTMLElement>(
     }
 
     previousRectsRef.current = nextRects;
-  }, [options.disabled]);
+  });
 
   return rootRef;
 };

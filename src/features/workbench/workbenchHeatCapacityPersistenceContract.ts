@@ -20,7 +20,7 @@ import {
 } from './workbenchState.ts';
 import type {
   HeatCapacityModeSessionStore,
-} from '../heatCapacity/heatCapacityModeSessionModel.ts';
+} from './workbenchHeatCapacityModeSession.ts';
 import {
   clonePersistenceValue,
   isPersistenceFiniteNumber,

@@ -17,6 +17,7 @@ import HeatCapacityHardSphereLayer, {
 import HeatCapacityHardSphereToggle from './HeatCapacityHardSphereToggle';
 import HeatCapacityUltraInstrumentModel, {
   clearHeatCapacityUltraInstrumentModelCache,
+  HeatCapacityUltraInstrumentAsset,
   normalizeHeatCapacityUltraVisualState,
   type HeatCapacityUltraVisualState,
 } from './HeatCapacityUltraInstrumentModel';
@@ -50,8 +51,13 @@ import {
   createHeatCapacityControlInteractionId,
   type HeatCapacityControlInteractionId,
 } from './heatCapacityControlInteraction.ts';
+import {
+  updateHeatCapacitySceneMotionSources,
+  type HeatCapacitySceneMotionReason,
+} from './heatCapacitySceneMotionSources.ts';
 
 type HeatCapacityGuideRollbackCueHandler = (cue: HeatCapacityGuideRollbackCue) => void;
+type HeatCapacityProceduralMotionChangeHandler = (motionId: string, active: boolean) => void;
 
 export type HeatCapacityCameraPose = {
   position: [number, number, number];
@@ -100,12 +106,37 @@ export type HeatCapacitySceneModeRestoreRequest = {
 
 export type HeatCapacitySceneDiscreteMotionState = {
   active: boolean;
-  reasons: Array<'camera' | 'orbit' | 'instrument' | 'pump' | 'scripted-zero'>;
+  reasons: HeatCapacitySceneMotionReason[];
+};
+
+type HeatCapacitySceneDiscreteMotionSources = {
+  cameraTransitionActive: boolean;
+  orbitInteractionActive: boolean;
+  instrumentMotionActive: boolean;
+  pumpMotionActive: boolean;
+  scriptedZeroMotionActive: boolean;
+};
+
+export const resolveHeatCapacitySceneDiscreteMotionState = ({
+  cameraTransitionActive,
+  orbitInteractionActive,
+  instrumentMotionActive,
+  pumpMotionActive,
+  scriptedZeroMotionActive,
+}: HeatCapacitySceneDiscreteMotionSources): HeatCapacitySceneDiscreteMotionState => {
+  const reasons: HeatCapacitySceneDiscreteMotionState['reasons'] = [];
+  if (cameraTransitionActive) reasons.push('camera');
+  if (orbitInteractionActive) reasons.push('orbit');
+  if (instrumentMotionActive) reasons.push('instrument');
+  if (pumpMotionActive) reasons.push('pump');
+  if (scriptedZeroMotionActive) reasons.push('scripted-zero');
+  return { active: reasons.length > 0, reasons };
 };
 
 export type HeatCapacitySceneModeTransitionController = {
   prepare: (requestId: number, outgoingSceneFrameDataUrl?: string | null) => void;
   start: (requestId: number) => void;
+  resume: (requestId: number) => void;
   finish: (requestId: number) => void;
 };
 
@@ -253,9 +284,17 @@ type HeatCapacityGuideProjectedHole =
     };
 type HeatCapacityGuideProjectedHoles = Record<string, HeatCapacityGuideProjectedHole>;
 
-class HeatCapacityUltraModelErrorBoundary extends React.Component<{
+type HeatCapacityUltraSceneErrorKind = 'asset' | 'runtime';
+
+type HeatCapacityUltraSceneError = {
+  kind: HeatCapacityUltraSceneErrorKind;
+  message: string;
+};
+
+class HeatCapacityUltraErrorBoundary extends React.Component<{
   children: React.ReactNode;
-  onError: (error: unknown) => void;
+  errorKind: HeatCapacityUltraSceneErrorKind;
+  onError: (kind: HeatCapacityUltraSceneErrorKind, error: unknown) => void;
 }, { hasError: boolean }> {
   state = { hasError: false };
 
@@ -264,8 +303,8 @@ class HeatCapacityUltraModelErrorBoundary extends React.Component<{
   }
 
   componentDidCatch(error: unknown) {
-    console.error('Heat Capacity Ultra GLB failed to render.', error);
-    this.props.onError(error);
+    console.error(`Heat Capacity Ultra ${this.props.errorKind} failed.`, error);
+    this.props.onError(this.props.errorKind, error);
   }
 
   render() {
@@ -274,21 +313,42 @@ class HeatCapacityUltraModelErrorBoundary extends React.Component<{
   }
 }
 
-const heatCapacityUltraLoadErrorCopies = {
+const heatCapacityUltraErrorCopies = {
   'zh-CN': {
-    title: '3D 模型加载失败',
-    body: '已保留刷新前画面。请检查模型文件或连接后重试。',
-    retry: '重试加载',
+    asset: {
+      title: '3D 模型加载失败',
+      body: '已保留刷新前画面。请检查模型文件或连接后重试。',
+      retry: '重试加载',
+    },
+    runtime: {
+      title: '3D 场景运行异常',
+      body: '已保留切换前画面。请重试恢复当前实验状态。',
+      retry: '重试恢复',
+    },
   },
   'zh-TW': {
-    title: '3D 模型載入失敗',
-    body: '已保留重新整理前畫面。請檢查模型檔案或連線後重試。',
-    retry: '重試載入',
+    asset: {
+      title: '3D 模型載入失敗',
+      body: '已保留重新整理前畫面。請檢查模型檔案或連線後重試。',
+      retry: '重試載入',
+    },
+    runtime: {
+      title: '3D 場景執行異常',
+      body: '已保留切換前畫面。請重試還原目前的實驗狀態。',
+      retry: '重試還原',
+    },
   },
   en: {
-    title: '3D model failed to load',
-    body: 'The pre-refresh frame is being kept. Check the model file or connection, then retry.',
-    retry: 'Retry loading',
+    asset: {
+      title: '3D model failed to load',
+      body: 'The pre-refresh frame is being kept. Check the model file or connection, then retry.',
+      retry: 'Retry loading',
+    },
+    runtime: {
+      title: '3D scene runtime error',
+      body: 'The pre-switch frame is being kept. Retry restoring the current experiment state.',
+      retry: 'Retry restore',
+    },
   },
 } as const;
 
@@ -1483,6 +1543,7 @@ function InstrumentBox({
   guideRollbackAnimation,
   guideRollbackKey,
   onGuideRollbackCue,
+  onGuideRollbackMotionChange,
   onLockedInteraction,
   interactionQualityReduced,
   panelTextInteractionReduced,
@@ -1501,6 +1562,7 @@ function InstrumentBox({
   sceneCopy: HeatCapacitySceneCopy;
   scenePalette: HeatCapacityScenePalette;
   onGuideRollbackCue: HeatCapacityGuideRollbackCueHandler;
+  onGuideRollbackMotionChange: HeatCapacityProceduralMotionChangeHandler;
 }) {
   const temperatureText = powerOn ? formatSignal(temperatureSignalMv) : '';
   const pressureText = powerOn ? formatSignal(pressureSignalMv) : '';
@@ -1536,6 +1598,8 @@ function InstrumentBox({
     plan: knobRollbackPlan,
     onCue: onGuideRollbackCue,
     onFrame: invalidate,
+    motionId: 'pressure-zero-rollback',
+    onActiveChange: onGuideRollbackMotionChange,
   });
   const powerSwitchRollbackOffset = useHeatCapacityGuideRollbackMotion({
     active: guideRollbackAnimation === 'powerBounce',
@@ -1543,6 +1607,8 @@ function InstrumentBox({
     plan: powerRollbackPlan,
     onCue: onGuideRollbackCue,
     onFrame: invalidate,
+    motionId: 'power-switch-rollback',
+    onActiveChange: onGuideRollbackMotionChange,
   });
   const pressureZeroDragRef = useRef({
     startKnobAngle: pressureZeroKnobAngle,
@@ -1950,6 +2016,7 @@ function GlassStopcock({
   guideRollbackAnimation,
   guideRollbackKey,
   onGuideRollbackCue,
+  onGuideRollbackMotionChange,
   onLockedInteraction,
   interactionQualityReduced,
   scenePalette,
@@ -1961,6 +2028,7 @@ function GlassStopcock({
   interactionQualityReduced: boolean;
   scenePalette: HeatCapacityScenePalette;
   onGuideRollbackCue: HeatCapacityGuideRollbackCueHandler;
+  onGuideRollbackMotionChange: HeatCapacityProceduralMotionChangeHandler;
 }) {
   const stopcockCoreRef = useRef<THREE.Group | null>(null);
   const [displayAngleDeg, setDisplayAngleDeg] = useState(angleDeg);
@@ -1979,6 +2047,8 @@ function GlassStopcock({
     cycleKey: guideRollbackKey,
     plan: stopcockRollbackPlan,
     onCue: onGuideRollbackCue,
+    motionId: 'stopcock-rollback',
+    onActiveChange: onGuideRollbackMotionChange,
   });
 
   useEffect(() => {
@@ -1987,8 +2057,10 @@ function GlassStopcock({
     if (Math.abs(targetAngle - startAngle) < 0.01) {
       displayAngleRef.current = targetAngle;
       setDisplayAngleDeg(targetAngle);
+      onGuideRollbackMotionChange('stopcock-state', false);
       return undefined;
     }
+    onGuideRollbackMotionChange('stopcock-state', true);
     const startTime = performance.now();
     const durationMs = targetAngle > startAngle
       ? HEAT_CAPACITY_RELEASE_TIMING.openingAnimationDurationMs
@@ -2001,10 +2073,14 @@ function GlassStopcock({
       displayAngleRef.current = nextAngle;
       setDisplayAngleDeg(nextAngle);
       if (progress < 1) frameId = window.requestAnimationFrame(animate);
+      else onGuideRollbackMotionChange('stopcock-state', false);
     };
     frameId = window.requestAnimationFrame(animate);
-    return () => window.cancelAnimationFrame(frameId);
-  }, [angleDeg]);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      onGuideRollbackMotionChange('stopcock-state', false);
+    };
+  }, [angleDeg, onGuideRollbackMotionChange]);
 
   const state = getHeatCapacityStopcockState(angleDeg);
   const stopcockHovered = hoveredControl === 'stopcock';
@@ -2170,6 +2246,7 @@ function PressureBottle({
   guideRollbackAnimation,
   guideRollbackKey,
   onGuideRollbackCue,
+  onGuideRollbackMotionChange,
   onLockedInteraction,
   interactionQualityReduced,
   scenePalette,
@@ -2181,6 +2258,7 @@ function PressureBottle({
   interactionQualityReduced: boolean;
   scenePalette: HeatCapacityScenePalette;
   onGuideRollbackCue: HeatCapacityGuideRollbackCueHandler;
+  onGuideRollbackMotionChange: HeatCapacityProceduralMotionChangeHandler;
 }) {
   return (
     <group name="SquareGlassPressureBottle" position={[-1.3, -0.28, 0]}>
@@ -2243,6 +2321,7 @@ function PressureBottle({
         guideRollbackAnimation={guideRollbackAnimation}
         guideRollbackKey={guideRollbackKey}
         onGuideRollbackCue={onGuideRollbackCue}
+        onGuideRollbackMotionChange={onGuideRollbackMotionChange}
         onLockedInteraction={onLockedInteraction}
         interactionQualityReduced={interactionQualityReduced}
         scenePalette={scenePalette}
@@ -2328,6 +2407,7 @@ function PumpAssembly({
   guideRollbackAnimation,
   guideRollbackKey,
   onGuideRollbackCue,
+  onGuideRollbackMotionChange,
   onLockedInteraction,
   interactionQualityReduced,
   scenePalette,
@@ -2339,6 +2419,7 @@ function PumpAssembly({
   interactionQualityReduced: boolean;
   scenePalette: HeatCapacityScenePalette;
   onGuideRollbackCue: HeatCapacityGuideRollbackCueHandler;
+  onGuideRollbackMotionChange: HeatCapacityProceduralMotionChangeHandler;
 }) {
   const bulbHovered = hoveredControl === 'pumpBulb';
   const valveHovered = hoveredControl === 'pumpValve';
@@ -2360,6 +2441,8 @@ function PumpAssembly({
     cycleKey: guideRollbackKey,
     plan: valveRollbackPlan,
     onCue: onGuideRollbackCue,
+    motionId: 'pump-valve-rollback',
+    onActiveChange: onGuideRollbackMotionChange,
   });
   const pumpBulbRollbackPlan = useMemo(() => createHeatCapacityPumpBulbRollbackPlan(), []);
   const pumpBulbRollbackWeight = useHeatCapacityGuideRollbackMotion({
@@ -2367,6 +2450,8 @@ function PumpAssembly({
     cycleKey: guideRollbackKey,
     plan: pumpBulbRollbackPlan,
     onCue: onGuideRollbackCue,
+    motionId: 'pump-bulb-rollback',
+    onActiveChange: onGuideRollbackMotionChange,
   });
   const pumpPulseTimersRef = useRef<{
     releaseTimerId: number | null;
@@ -2424,6 +2509,11 @@ function PumpAssembly({
   useEffect(() => {
     const targetAngle = pumpValveOpen ? 0 : Math.PI / 2;
     const startAngle = valveHandleAngle;
+    if (Math.abs(targetAngle - startAngle) < 0.0001) {
+      onGuideRollbackMotionChange('pump-valve-state', false);
+      return undefined;
+    }
+    onGuideRollbackMotionChange('pump-valve-state', true);
     const startTime = performance.now();
     const duration = PUMP_VALVE_TRANSITION_MS;
     let frameId = 0;
@@ -2433,11 +2523,16 @@ function PumpAssembly({
       setValveHandleAngle(startAngle + (targetAngle - startAngle) * eased);
       if (progress < 1) {
         frameId = window.requestAnimationFrame(animate);
+      } else {
+        onGuideRollbackMotionChange('pump-valve-state', false);
       }
     };
     frameId = window.requestAnimationFrame(animate);
-    return () => window.cancelAnimationFrame(frameId);
-  }, [pumpValveOpen]);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      onGuideRollbackMotionChange('pump-valve-state', false);
+    };
+  }, [onGuideRollbackMotionChange, pumpValveOpen]);
 
   useEffect(() => {
     if (pumpPulseId <= 0) return undefined;
@@ -2636,6 +2731,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
   sceneCopy: HeatCapacitySceneCopy;
   scenePalette: HeatCapacityScenePalette;
   onGuideRollbackCue: HeatCapacityGuideRollbackCueHandler;
+  onGuideRollbackMotionChange: HeatCapacityProceduralMotionChangeHandler;
 }) {
   const stopcockState = getHeatCapacityStopcockState(props.stopcockAngleDeg);
   const zeroEnabled = stopcockState === 'open' && (
@@ -2664,6 +2760,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           guideRollbackAnimation={props.guideRollbackAnimation}
           guideRollbackKey={props.guideRollbackKey}
           onGuideRollbackCue={props.onGuideRollbackCue}
+          onGuideRollbackMotionChange={props.onGuideRollbackMotionChange}
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
           scenePalette={scenePalette}
@@ -2710,6 +2807,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           guideRollbackAnimation={props.guideRollbackAnimation}
           guideRollbackKey={props.guideRollbackKey}
           onGuideRollbackCue={props.onGuideRollbackCue}
+          onGuideRollbackMotionChange={props.onGuideRollbackMotionChange}
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
           scenePalette={scenePalette}
@@ -2740,6 +2838,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           guideRollbackAnimation={props.guideRollbackAnimation}
           guideRollbackKey={props.guideRollbackKey}
           onGuideRollbackCue={props.onGuideRollbackCue}
+          onGuideRollbackMotionChange={props.onGuideRollbackMotionChange}
           onLockedInteraction={props.onLockedInteraction}
           interactionQualityReduced={props.interactionQualityReduced}
           panelTextInteractionReduced={props.panelTextInteractionReduced}
@@ -3437,8 +3536,8 @@ function HeatCapacityOrbitControls({
   enabled,
   defaultCameraTarget,
   initialCameraTarget,
-  onInteractionStart,
-  onInteractionEnd,
+  onInteractionStart: reportInteractionStart,
+  onInteractionEnd: reportInteractionEnd,
 }: {
   controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
   enabled: boolean;
@@ -3448,6 +3547,36 @@ function HeatCapacityOrbitControls({
   onInteractionEnd: () => void;
 }) {
   const invalidate = useThree((state) => state.invalidate);
+  const interactionActiveRef = useRef(false);
+  const interactionCallbacksRef = useRef({
+    start: reportInteractionStart,
+    end: reportInteractionEnd,
+  });
+
+  useLayoutEffect(() => {
+    interactionCallbacksRef.current = {
+      start: reportInteractionStart,
+      end: reportInteractionEnd,
+    };
+  }, [reportInteractionEnd, reportInteractionStart]);
+
+  const onInteractionStart = useCallback(() => {
+    if (interactionActiveRef.current) return;
+    interactionActiveRef.current = true;
+    interactionCallbacksRef.current.start();
+  }, []);
+
+  const onInteractionEnd = useCallback(() => {
+    if (!interactionActiveRef.current) return;
+    interactionActiveRef.current = false;
+    interactionCallbacksRef.current.end();
+  }, []);
+
+  useEffect(() => {
+    if (!enabled) onInteractionEnd();
+  }, [enabled, onInteractionEnd]);
+
+  useEffect(() => () => onInteractionEnd(), [onInteractionEnd]);
 
   useLayoutEffect(() => {
     if (!controlsRef.current) return;
@@ -3536,6 +3665,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const [cameraTransitionActive, setCameraTransitionActive] = useState(Boolean(restoredInitialCameraTransition));
   const [ultraDiscreteMotionActive, setUltraDiscreteMotionActive] = useState(false);
   const [proceduralDiscreteMotionActive, setProceduralDiscreteMotionActive] = useState(false);
+  const proceduralMotionSourcesRef = useRef(new Set<string>());
   const [hoveredControl, setHoveredControl] = useState<HeatCapacityHoveredControl>(null);
   const [hoverTooltipAnchor, setHoverTooltipAnchor] = useState<{ side: 'left' | 'right'; x: number; y: number } | null>(null);
   const [isOrbitInteracting, setIsOrbitInteracting] = useState(false);
@@ -3545,23 +3675,25 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const [sceneReady, setSceneReady] = useState(false);
   const [sceneRevealReady, setSceneRevealReady] = useState(false);
   const [restoredSceneFrameLoadFailed, setRestoredSceneFrameLoadFailed] = useState(false);
-  const [ultraModelError, setUltraModelError] = useState<string | null>(null);
-  const [ultraLoadAttempt, setUltraLoadAttempt] = useState(0);
+  const [ultraSceneError, setUltraSceneError] = useState<HeatCapacityUltraSceneError | null>(null);
+  const [ultraAssetLoadAttempt, setUltraAssetLoadAttempt] = useState(0);
+  const [ultraRuntimeRetryAttempt, setUltraRuntimeRetryAttempt] = useState(0);
   const focusResetEffectMountedRef = useRef(false);
   const demoCameraFocusEffectMountedRef = useRef(false);
   const guideCameraFocusEffectMountedRef = useRef(false);
   const sceneReadyReportedRef = useRef(false);
   const handledModeRestoreFocusRequestIdRef = useRef<number | null>(null);
-  const proceduralMotionSignatureRef = useRef<string | null>(null);
-  const proceduralMotionTimerRef = useRef<number | null>(null);
   const cameraCaptureEnabled = useMemo(() => isHeatCapacityCameraCaptureEnabled(), []);
   const sceneCopy = heatCapacitySceneCopies[props.language] ?? heatCapacitySceneCopies['zh-CN'];
   const sceneTheme: HeatCapacitySceneTheme = props.sceneTheme === 'light' ? 'light' : 'dark';
   const scenePalette = heatCapacityScenePalettes[sceneTheme];
   const qualityProfile = HEAT_CAPACITY_QUALITY_PROFILES[props.performanceMode];
-  const ultraLoadErrorCopy = heatCapacityUltraLoadErrorCopies[props.language] ?? heatCapacityUltraLoadErrorCopies['zh-CN'];
+  const ultraErrorCopySet = heatCapacityUltraErrorCopies[props.language] ?? heatCapacityUltraErrorCopies['zh-CN'];
+  const ultraSceneErrorCopy = ultraSceneError
+    ? ultraErrorCopySet[ultraSceneError.kind]
+    : ultraErrorCopySet.asset;
   const parentRestoreAcknowledged = props.sceneRestoreAcknowledged ?? true;
-  const sceneResumeReady = sceneReady && parentRestoreAcknowledged && ultraModelError === null;
+  const sceneResumeReady = sceneReady && parentRestoreAcknowledged && ultraSceneError === null;
   const sceneRevealRequested = sceneResumeReady;
   const restoreAnimationsPaused = Boolean(
     restoredInitialCameraTransition ||
@@ -3605,6 +3737,12 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       const root = sceneRootRef.current;
       if (root) root.dataset.heatCapacityModeTransitionPhase = 'active';
     },
+    resume: (requestId) => {
+      clearModeTransitionLayers();
+      activeModeTransitionRequestIdRef.current = requestId;
+      const root = sceneRootRef.current;
+      if (root) root.dataset.heatCapacityModeTransitionPhase = 'active';
+    },
     finish: (requestId) => {
       if (activeModeTransitionRequestIdRef.current !== requestId) return;
       clearModeTransitionLayers();
@@ -3615,6 +3753,16 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     return () => props.onModeTransitionControllerChange?.(null);
   }, [modeTransitionController, props.onModeTransitionControllerChange]);
   useEffect(() => () => clearModeTransitionLayers(), [clearModeTransitionLayers]);
+  const handleProceduralMotionChange = useCallback<HeatCapacityProceduralMotionChangeHandler>((motionId, active) => {
+    const update = updateHeatCapacitySceneMotionSources(
+      proceduralMotionSourcesRef.current,
+      motionId,
+      active,
+    );
+    if (!update.changed) return;
+    proceduralMotionSourcesRef.current = update.sources;
+    setProceduralDiscreteMotionActive(update.active);
+  }, []);
   useLayoutEffect(() => {
     const request = props.modeRestoreRequest;
     if (!request || handledModeRestoreFocusRequestIdRef.current === request.requestId) return;
@@ -3624,54 +3772,18 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     setHoveredControl(null);
     setHoverTooltipAnchor(null);
   }, [props.modeRestoreRequest]);
-  useEffect(() => {
-    const signature = [
-      props.powerOn ? 1 : 0,
-      props.stopcockAngleDeg,
-      props.pumpValveOpen ? 1 : 0,
-      props.pressureZeroKnobAngle,
-      props.pumpPulseId,
-      props.guideRollbackKey,
-    ].join(':');
-    const previousSignature = proceduralMotionSignatureRef.current;
-    proceduralMotionSignatureRef.current = signature;
-    if (qualityProfile.renderModel !== 'procedural' || previousSignature === null || previousSignature === signature) {
-      return undefined;
-    }
-    if (proceduralMotionTimerRef.current !== null) window.clearTimeout(proceduralMotionTimerRef.current);
-    setProceduralDiscreteMotionActive(true);
-    proceduralMotionTimerRef.current = window.setTimeout(() => {
-      proceduralMotionTimerRef.current = null;
-      setProceduralDiscreteMotionActive(false);
-    }, 460);
-    return undefined;
-  }, [
-    props.guideRollbackKey,
-    props.powerOn,
-    props.pressureZeroKnobAngle,
-    props.pumpPulseId,
-    props.pumpValveOpen,
-    props.stopcockAngleDeg,
-    qualityProfile.renderModel,
-  ]);
-  useEffect(() => () => {
-    if (proceduralMotionTimerRef.current !== null) window.clearTimeout(proceduralMotionTimerRef.current);
-  }, []);
-  const discreteMotionState = useMemo<HeatCapacitySceneDiscreteMotionState>(() => {
-    const reasons: HeatCapacitySceneDiscreteMotionState['reasons'] = [];
-    if (cameraTransitionActive) reasons.push('camera');
-    if (isOrbitInteracting) reasons.push('orbit');
-    if (ultraDiscreteMotionActive || proceduralDiscreteMotionActive || Boolean(props.guideRollbackAnimation)) {
-      reasons.push('instrument');
-    }
-    if (props.pumpBulbState !== 'idle') reasons.push('pump');
-    if (props.pressureZeroTimelineMotionActive) reasons.push('scripted-zero');
-    return { active: reasons.length > 0, reasons };
-  }, [
+  const discreteMotionState = useMemo<HeatCapacitySceneDiscreteMotionState>(() => (
+    resolveHeatCapacitySceneDiscreteMotionState({
+      cameraTransitionActive,
+      orbitInteractionActive: isOrbitInteracting,
+      instrumentMotionActive: ultraDiscreteMotionActive || proceduralDiscreteMotionActive,
+      pumpMotionActive: props.pumpBulbState !== 'idle',
+      scriptedZeroMotionActive: props.pressureZeroTimelineMotionActive,
+    })
+  ), [
     cameraTransitionActive,
     isOrbitInteracting,
     proceduralDiscreteMotionActive,
-    props.guideRollbackAnimation,
     props.pressureZeroTimelineMotionActive,
     props.pumpBulbState,
     ultraDiscreteMotionActive,
@@ -3911,20 +4023,29 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   ) => {
     onSceneFrameCaptureRef.current?.(sceneFileIdRef.current, dataUrl, cameraPose, metadata);
   }, []);
-  const handleUltraModelError = useCallback((error: unknown) => {
-    setUltraModelError(error instanceof Error && error.message ? error.message : 'unknown-model-load-error');
+  const handleUltraSceneError = useCallback((kind: HeatCapacityUltraSceneErrorKind, error: unknown) => {
+    setUltraSceneError({
+      kind,
+      message: error instanceof Error && error.message ? error.message : `unknown-ultra-${kind}-error`,
+    });
     setSceneReady(false);
     setSceneRevealReady(false);
     sceneReadyReportedRef.current = false;
   }, []);
-  const retryUltraModelLoad = useCallback(() => {
-    clearHeatCapacityUltraInstrumentModelCache();
-    setUltraModelError(null);
+  const retryUltraScene = useCallback(() => {
+    const errorKind = ultraSceneError?.kind;
+    if (!errorKind) return;
+    if (errorKind === 'asset') {
+      clearHeatCapacityUltraInstrumentModelCache();
+      setUltraAssetLoadAttempt((attempt) => attempt + 1);
+    } else {
+      setUltraRuntimeRetryAttempt((attempt) => attempt + 1);
+    }
+    setUltraSceneError(null);
     setSceneReady(false);
     setSceneRevealReady(false);
     sceneReadyReportedRef.current = false;
-    setUltraLoadAttempt((attempt) => attempt + 1);
-  }, []);
+  }, [ultraSceneError]);
   const handleSceneReady = useCallback(() => {
     if (sceneReadyReportedRef.current) return;
     sceneReadyReportedRef.current = true;
@@ -3993,7 +4114,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     props.releaseFlowActive ||
     props.pumpFlowActive ||
     props.demoFocusPulseActive ||
-    Boolean(props.guideRollbackAnimation);
+    discreteMotionState.active;
   const interactionQualityReduced = isOrbitInteracting || qualityProfile.reduceInteractionQuality;
   const orbitControlsEnabled = focusMode === 'none' && !(props.cameraInteractionLocked ?? props.interactionLocked);
   const cameraViewScheme = useMemo(() => getCameraViewScheme(qualityProfile), [qualityProfile]);
@@ -4067,6 +4188,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       sceneCopy={sceneCopy}
       scenePalette={scenePalette}
       onGuideRollbackCue={playGuideRollbackCue}
+      onGuideRollbackMotionChange={handleProceduralMotionChange}
       initialHardSphereVisualCheckpoint={hardSphereVisualCheckpointRef.current ?? restoredInitialHardSphereVisualCheckpoint}
       onHardSphereCheckpointProviderChange={setHardSphereCheckpointProvider}
       hardSpherePaused={props.hardSpherePaused || restoreAnimationsPaused}
@@ -4079,93 +4201,108 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     </>
   );
   const instrumentSceneContent = qualityProfile.renderModel === 'ultraGlb' ? (
-    <HeatCapacityUltraModelErrorBoundary key={ultraLoadAttempt} onError={handleUltraModelError}>
+    <HeatCapacityUltraErrorBoundary
+      key={`asset-${ultraAssetLoadAttempt}`}
+      errorKind="asset"
+      onError={handleUltraSceneError}
+    >
       <Suspense fallback={null}>
-        <HeatCapacityUltraInstrumentModel
-          powerOn={props.powerOn}
-          sceneTheme={props.sceneTheme}
-          stopcockAngleDeg={props.stopcockAngleDeg}
-          pressureZeroKnobAngle={props.pressureZeroKnobAngle}
-          pressureZeroTimelineDriven={props.pressureZeroTimelineDriven}
-          pressureGaugeDisplayValue={props.pressureGaugeDisplayValue}
-          gaugePressureMinKPa={props.gaugePressureMinKPa}
-          gaugePressureMaxKPa={props.gaugePressureMaxKPa}
-          pressureDeltaKPa={props.pressureDeltaKPa}
-          phase={props.phase}
-          temperatureSignalMv={props.temperatureSignalMv}
-          pressureSignalMv={props.pressureSignalMv}
-          releaseTimeline={props.releaseTimeline}
-          pumpValveOpen={props.pumpValveOpen}
-          pumpBulbState={props.pumpBulbState}
-          pumpPulseId={props.pumpPulseId}
-          pumpFlowActive={props.pumpFlowActive}
-          pumpFlowIntensity={props.pumpFlowIntensity}
-          gasAmountRatio={props.gasAmountRatio}
-          gasTemperatureK={props.gasTemperatureK}
-          ambientTemperatureK={props.ambientTemperatureK}
-          hardSphereViewEnabled={hardSphereViewActive}
-          particleMultiplier={props.particleMultiplier}
-          speedMultiplier={props.speedMultiplier}
-          hardSphereVisualResetKey={props.hardSphereVisualResetKey}
-          hardSpherePaused={props.hardSpherePaused || restoreAnimationsPaused}
-          interactionLocked={props.interactionLocked}
-          focusMode={focusMode}
-          pressureZeroInteractionEnabled={focusMode === 'instrument'}
-          pumpBulbInteractionEnabled={focusMode === 'pump'}
-          demoFocusControlId={props.demoFocusControlId}
-          demoFocusPulseActive={props.demoFocusPulseActive}
-          interactionQualityReduced={interactionQualityReduced}
-          visualEffects={{
-            hoverHaloColor: scenePalette.instrument.hoverHalo,
-            glassHoverHaloColor: scenePalette.glass.hoverHalo,
-            pumpBulbHoverHaloColor: scenePalette.pump.bulbHaloHover,
-            demoHaloColor: scenePalette.effects.demoHalo,
-            demoHaloMinOpacity: scenePalette.effects.demoHaloMinOpacity,
-            demoHaloMaxOpacity: scenePalette.effects.demoHaloMaxOpacity,
-            demoHaloBaseScale: scenePalette.effects.demoHaloBaseScale,
-            demoHaloPulseScale: scenePalette.effects.demoHaloPulseScale,
-            focusShellColor: scenePalette.effects.focusShellColor,
-            focusShellRimColor: scenePalette.effects.focusShellRimColor,
-            focusShellBlendMode: scenePalette.effects.focusShellBlendMode,
-            focusShellBreathMinOpacity: scenePalette.effects.focusShellBreathMinOpacity,
-            focusShellBreathMaxOpacity: scenePalette.effects.focusShellBreathMaxOpacity,
-            focusShellPulseOpacity: scenePalette.effects.focusShellPulseOpacity,
-            focusShellBaseScale: scenePalette.effects.focusShellBaseScale,
-            focusShellBreathScale: scenePalette.effects.focusShellBreathScale,
-            focusShellPulseStartScale: scenePalette.effects.focusShellPulseStartScale,
-            focusShellPulseScale: scenePalette.effects.focusShellPulseScale,
-            focusShellPulseRate: scenePalette.effects.focusShellPulseRate,
-            nonBulbHoverHaloOpacity: scenePalette.effects.nonBulbHoverHaloOpacity,
-            glassHoverHaloOpacity: scenePalette.effects.glassHoverHaloOpacity,
-            pumpBulbHoverHaloOpacity: scenePalette.effects.pumpBulbHoverHaloOpacity,
-          }}
-          hoveredControl={hoveredControl}
-          setHoveredControl={setStableHoveredControl}
-          onLockedInteraction={props.onLockedInteraction}
-          guideProjectionKey={props.focusResetKey}
-          onGuideTargetHolesChange={props.onGuideTargetHolesChange}
-          onPowerToggle={props.onPowerToggle}
-          onStopcockOpenChange={props.onStopcockOpenChange}
-          onPressureZeroFineAdjust={props.onPressureZeroFineAdjust}
-          onPressureZeroCoarseAdjust={props.onPressureZeroCoarseAdjust}
-          onPumpValveToggle={props.onPumpValveToggle}
-          onPumpBulbPress={props.onPumpBulbPress}
-          onFocus={setFocusMode}
-          initialVisualState={ultraVisualStateRef.current ?? restoredInitialUltraVisualState}
-          onVisualStateChange={updateUltraVisualState}
-          initialHardSphereVisualCheckpoint={hardSphereVisualCheckpointRef.current ?? restoredInitialHardSphereVisualCheckpoint}
-          restoreHardSphereVisualCheckpoint={props.modeRestoreRequest?.hardSphereVisualCheckpoint ?? null}
-          restoreHardSphereVisualCheckpointKey={props.modeRestoreRequest?.requestId ?? null}
-          onHardSphereCheckpointProviderChange={setHardSphereCheckpointProvider}
-          onDiscreteMotionChange={setUltraDiscreteMotionActive}
-          restorePaused={restoreAnimationsPaused}
-          guideRollbackAnimation={props.guideRollbackAnimation}
-          guideRollbackKey={props.guideRollbackKey}
-          onGuideRollbackCue={playGuideRollbackCue}
-        />
-        <HeatCapacitySceneReadyBridge onReady={handleSceneReady} />
+        <HeatCapacityUltraInstrumentAsset>
+          {(sourceScene) => (
+            <HeatCapacityUltraErrorBoundary
+              key={`runtime-${ultraRuntimeRetryAttempt}`}
+              errorKind="runtime"
+              onError={handleUltraSceneError}
+            >
+              <HeatCapacityUltraInstrumentModel
+                sourceScene={sourceScene}
+                powerOn={props.powerOn}
+                sceneTheme={props.sceneTheme}
+                stopcockAngleDeg={props.stopcockAngleDeg}
+                pressureZeroKnobAngle={props.pressureZeroKnobAngle}
+                pressureZeroTimelineDriven={props.pressureZeroTimelineDriven}
+                pressureGaugeDisplayValue={props.pressureGaugeDisplayValue}
+                gaugePressureMinKPa={props.gaugePressureMinKPa}
+                gaugePressureMaxKPa={props.gaugePressureMaxKPa}
+                pressureDeltaKPa={props.pressureDeltaKPa}
+                phase={props.phase}
+                temperatureSignalMv={props.temperatureSignalMv}
+                pressureSignalMv={props.pressureSignalMv}
+                releaseTimeline={props.releaseTimeline}
+                pumpValveOpen={props.pumpValveOpen}
+                pumpBulbState={props.pumpBulbState}
+                pumpPulseId={props.pumpPulseId}
+                pumpFlowActive={props.pumpFlowActive}
+                pumpFlowIntensity={props.pumpFlowIntensity}
+                gasAmountRatio={props.gasAmountRatio}
+                gasTemperatureK={props.gasTemperatureK}
+                ambientTemperatureK={props.ambientTemperatureK}
+                hardSphereViewEnabled={hardSphereViewActive}
+                particleMultiplier={props.particleMultiplier}
+                speedMultiplier={props.speedMultiplier}
+                hardSphereVisualResetKey={props.hardSphereVisualResetKey}
+                hardSpherePaused={props.hardSpherePaused || restoreAnimationsPaused}
+                interactionLocked={props.interactionLocked}
+                focusMode={focusMode}
+                pressureZeroInteractionEnabled={focusMode === 'instrument'}
+                pumpBulbInteractionEnabled={focusMode === 'pump'}
+                demoFocusControlId={props.demoFocusControlId}
+                demoFocusPulseActive={props.demoFocusPulseActive}
+                interactionQualityReduced={interactionQualityReduced}
+                visualEffects={{
+                  hoverHaloColor: scenePalette.instrument.hoverHalo,
+                  glassHoverHaloColor: scenePalette.glass.hoverHalo,
+                  pumpBulbHoverHaloColor: scenePalette.pump.bulbHaloHover,
+                  demoHaloColor: scenePalette.effects.demoHalo,
+                  demoHaloMinOpacity: scenePalette.effects.demoHaloMinOpacity,
+                  demoHaloMaxOpacity: scenePalette.effects.demoHaloMaxOpacity,
+                  demoHaloBaseScale: scenePalette.effects.demoHaloBaseScale,
+                  demoHaloPulseScale: scenePalette.effects.demoHaloPulseScale,
+                  focusShellColor: scenePalette.effects.focusShellColor,
+                  focusShellRimColor: scenePalette.effects.focusShellRimColor,
+                  focusShellBlendMode: scenePalette.effects.focusShellBlendMode,
+                  focusShellBreathMinOpacity: scenePalette.effects.focusShellBreathMinOpacity,
+                  focusShellBreathMaxOpacity: scenePalette.effects.focusShellBreathMaxOpacity,
+                  focusShellPulseOpacity: scenePalette.effects.focusShellPulseOpacity,
+                  focusShellBaseScale: scenePalette.effects.focusShellBaseScale,
+                  focusShellBreathScale: scenePalette.effects.focusShellBreathScale,
+                  focusShellPulseStartScale: scenePalette.effects.focusShellPulseStartScale,
+                  focusShellPulseScale: scenePalette.effects.focusShellPulseScale,
+                  focusShellPulseRate: scenePalette.effects.focusShellPulseRate,
+                  nonBulbHoverHaloOpacity: scenePalette.effects.nonBulbHoverHaloOpacity,
+                  glassHoverHaloOpacity: scenePalette.effects.glassHoverHaloOpacity,
+                  pumpBulbHoverHaloOpacity: scenePalette.effects.pumpBulbHoverHaloOpacity,
+                }}
+                hoveredControl={hoveredControl}
+                setHoveredControl={setStableHoveredControl}
+                onLockedInteraction={props.onLockedInteraction}
+                guideProjectionKey={props.focusResetKey}
+                onGuideTargetHolesChange={props.onGuideTargetHolesChange}
+                onPowerToggle={props.onPowerToggle}
+                onStopcockOpenChange={props.onStopcockOpenChange}
+                onPressureZeroFineAdjust={props.onPressureZeroFineAdjust}
+                onPressureZeroCoarseAdjust={props.onPressureZeroCoarseAdjust}
+                onPumpValveToggle={props.onPumpValveToggle}
+                onPumpBulbPress={props.onPumpBulbPress}
+                onFocus={setFocusMode}
+                initialVisualState={ultraVisualStateRef.current ?? restoredInitialUltraVisualState}
+                onVisualStateChange={updateUltraVisualState}
+                initialHardSphereVisualCheckpoint={hardSphereVisualCheckpointRef.current ?? restoredInitialHardSphereVisualCheckpoint}
+                restoreHardSphereVisualCheckpoint={props.modeRestoreRequest?.hardSphereVisualCheckpoint ?? null}
+                restoreHardSphereVisualCheckpointKey={props.modeRestoreRequest?.requestId ?? null}
+                onHardSphereCheckpointProviderChange={setHardSphereCheckpointProvider}
+                onDiscreteMotionChange={setUltraDiscreteMotionActive}
+                restorePaused={restoreAnimationsPaused}
+                guideRollbackAnimation={props.guideRollbackAnimation}
+                guideRollbackKey={props.guideRollbackKey}
+                onGuideRollbackCue={playGuideRollbackCue}
+              />
+              <HeatCapacitySceneReadyBridge onReady={handleSceneReady} />
+            </HeatCapacityUltraErrorBoundary>
+          )}
+        </HeatCapacityUltraInstrumentAsset>
       </Suspense>
-    </HeatCapacityUltraModelErrorBoundary>
+    </HeatCapacityUltraErrorBoundary>
   ) : proceduralSceneWithReadyGate;
 
   return (
@@ -4287,10 +4424,11 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           }}
         />
       ) : null}
-      {qualityProfile.renderModel === 'ultraGlb' && ultraModelError ? (
+      {qualityProfile.renderModel === 'ultraGlb' && ultraSceneError ? (
         <div
           role="alert"
-          data-heat-capacity-ultra-load-error="true"
+          data-heat-capacity-ultra-error="true"
+          data-heat-capacity-ultra-error-kind={ultraSceneError.kind}
           style={{
             position: 'absolute',
             inset: 0,
@@ -4317,12 +4455,12 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
               textAlign: 'center',
             }}
           >
-            <strong style={{ display: 'block', fontSize: 16 }}>{ultraLoadErrorCopy.title}</strong>
-            <p style={{ margin: '8px 0 14px', color: '#cbd5e1', lineHeight: 1.5 }}>{ultraLoadErrorCopy.body}</p>
+            <strong style={{ display: 'block', fontSize: 16 }}>{ultraSceneErrorCopy.title}</strong>
+            <p style={{ margin: '8px 0 14px', color: '#cbd5e1', lineHeight: 1.5 }}>{ultraSceneErrorCopy.body}</p>
             <button
               type="button"
-              data-heat-capacity-ultra-load-retry="true"
-              onClick={retryUltraModelLoad}
+              data-heat-capacity-ultra-error-retry="true"
+              onClick={retryUltraScene}
               style={{
                 minHeight: 34,
                 padding: '0 16px',
@@ -4334,7 +4472,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                 fontWeight: 650,
               }}
             >
-              {ultraLoadErrorCopy.retry}
+              {ultraSceneErrorCopy.retry}
             </button>
           </section>
         </div>

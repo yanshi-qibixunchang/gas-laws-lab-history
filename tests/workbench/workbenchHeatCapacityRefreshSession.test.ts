@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import {
+  HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION,
+} from '../../src/features/heatCapacity/heatCapacityModeTransitionModel.ts';
+import {
   WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_SCHEMA_FAMILY,
   WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_SCHEMA_VERSION,
   WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_STORAGE_KEY,
@@ -27,13 +30,28 @@ const createMemorySessionStorage = (): WorkbenchHeatCapacityRefreshSessionStorag
   };
 };
 
-assert.equal(WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_SCHEMA_VERSION, 1);
+assert.equal(WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_SCHEMA_VERSION, 2);
+assert.equal(
+  WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_STORAGE_KEY,
+  'hsl_workbench_heat_capacity_refresh_session_v2',
+);
 assert.equal(
   WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_SCHEMA_FAMILY,
   'hard-sphere-lab/workbench-heat-capacity-refresh-session',
 );
 
 const demoSession = createWorkbenchHeatCapacityRefreshSession('heat-capacity-1', 'demo', 1_720_000_000_000);
+assert.deepEqual(demoSession.modeTransition, {
+  schemaVersion: HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION,
+  phase: 'idle',
+  visibleMode: 'demo',
+  sourceMode: null,
+  targetMode: null,
+  queuedMode: null,
+  requestId: 0,
+  sourceBlockers: [],
+  visualRemainingMs: 0,
+});
 demoSession.checkpointId = 'checkpoint-42';
 demoSession.demo = {
   phase: 'running',
@@ -123,13 +141,261 @@ demoSession.sceneSnapshot = {
 const normalizedDemoSession = normalizeWorkbenchHeatCapacityRefreshSession(demoSession);
 assert.deepEqual(normalizedDemoSession, demoSession, 'a legal demo checkpoint should round-trip without loss');
 
+const animatingTransitionSession = createWorkbenchHeatCapacityRefreshSession(
+  'heat-capacity-transition',
+  'guide',
+  1_720_000_000_050,
+);
+animatingTransitionSession.modeTransition = {
+  schemaVersion: HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION,
+  phase: 'animating',
+  visibleMode: 'guide',
+  sourceMode: 'free',
+  targetMode: 'guide',
+  queuedMode: 'demo',
+  requestId: 9,
+  sourceBlockers: [],
+  visualRemainingMs: 217,
+};
+animatingTransitionSession.modeTransitionDemoClock = {
+  fileId: 'heat-capacity-transition',
+  elapsedMs: 18_750,
+  initialDelayRemainingMs: 0,
+};
+animatingTransitionSession.modeTransitionGuideUi = {
+  missCount: 2,
+  normalReminder: {
+    controlId: 'pressureZero',
+    timer: { state: 'waiting', remainingMs: 1_400 },
+  },
+  strongReminder: { active: true, controlId: 'pressureZero' },
+  lessonDialog: {
+    kind: 'step',
+    pageIndex: null,
+    lessonId: 'pressureZeroBaseline',
+  },
+  shownLessonIds: ['pressureZeroBaseline'],
+  checklistViewedIndex: 3,
+  pendingStrongReminder: {
+    controlId: 'pressureZero',
+    timer: { state: 'due' },
+  },
+  baseStrongReminder: null,
+};
+const normalizedAnimatingTransitionSession = normalizeWorkbenchHeatCapacityRefreshSession(
+  animatingTransitionSession,
+);
+assert.deepEqual(
+  normalizedAnimatingTransitionSession?.modeTransition,
+  animatingTransitionSession.modeTransition,
+  'an in-flight target animation should round-trip its visual progress',
+);
+assert.equal(
+  normalizedAnimatingTransitionSession?.modeTransitionDemoClock,
+  null,
+  'a frozen Demo source clock must not survive after another target mode has already been applied',
+);
+assert.deepEqual(
+  normalizedAnimatingTransitionSession?.modeTransitionGuideUi,
+  animatingTransitionSession.modeTransitionGuideUi,
+  'an incoming Guide animation must persist its deferred reminder and lesson payload across refresh',
+);
+
+for (const phase of ['preparing-target', 'waiting-for-motion'] as const) {
+  const queuedGuideTransitionSession = structuredClone(animatingTransitionSession);
+  queuedGuideTransitionSession.modeTransition = {
+    schemaVersion: HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION,
+    phase,
+    visibleMode: 'guide',
+    sourceMode: 'guide',
+    targetMode: 'demo',
+    queuedMode: null,
+    requestId: phase === 'preparing-target' ? 10 : 11,
+    sourceBlockers: phase === 'waiting-for-motion' ? ['camera'] : [],
+    visualRemainingMs: 0,
+  };
+  assert.deepEqual(
+    normalizeWorkbenchHeatCapacityRefreshSession(queuedGuideTransitionSession)?.modeTransitionGuideUi,
+    queuedGuideTransitionSession.modeTransitionGuideUi,
+    `a deferred Guide payload must survive refresh during ${phase}`,
+  );
+}
+
+const settledGuideWithStaleDeferredUi = structuredClone(animatingTransitionSession);
+settledGuideWithStaleDeferredUi.modeTransition = {
+  schemaVersion: HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION,
+  phase: 'idle',
+  visibleMode: 'guide',
+  sourceMode: null,
+  targetMode: null,
+  queuedMode: null,
+  requestId: 12,
+  sourceBlockers: [],
+  visualRemainingMs: 0,
+};
+assert.equal(
+  normalizeWorkbenchHeatCapacityRefreshSession(settledGuideWithStaleDeferredUi)?.modeTransitionGuideUi,
+  null,
+  'a settled Guide session must discard stale deferred UI instead of overriding current live UI',
+);
+
+const invalidDeferredGuideLesson = structuredClone(animatingTransitionSession);
+if (invalidDeferredGuideLesson.modeTransitionGuideUi?.lessonDialog?.kind === 'step') {
+  (invalidDeferredGuideLesson.modeTransitionGuideUi.lessonDialog as unknown as { lessonId: string }).lessonId =
+    'unknown-lesson';
+}
+assert.equal(
+  normalizeWorkbenchHeatCapacityRefreshSession(invalidDeferredGuideLesson)?.modeTransitionGuideUi,
+  null,
+  'an unknown Guide lesson id must not cross the refresh boundary',
+);
+
+const waitingDemoTransitionSession = createWorkbenchHeatCapacityRefreshSession(
+  'heat-capacity-demo-transition',
+  'demo',
+  1_720_000_000_075,
+);
+waitingDemoTransitionSession.demo.phase = 'running';
+waitingDemoTransitionSession.demo.elapsedMs = 18_750;
+waitingDemoTransitionSession.modeTransition = {
+  schemaVersion: HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION,
+  phase: 'waiting-for-motion',
+  visibleMode: 'demo',
+  sourceMode: 'demo',
+  targetMode: 'guide',
+  queuedMode: null,
+  requestId: 10,
+  sourceBlockers: ['camera', 'instrument'],
+  visualRemainingMs: 0,
+};
+waitingDemoTransitionSession.modeTransitionDemoClock = {
+  fileId: 'heat-capacity-demo-transition',
+  elapsedMs: 18_750,
+  initialDelayRemainingMs: 0,
+};
+assert.deepEqual(
+  normalizeWorkbenchHeatCapacityRefreshSession(waitingDemoTransitionSession),
+  waitingDemoTransitionSession,
+  'a running Demo source should round-trip its frozen clock while real source motion blocks the switch',
+);
+
+const incomingDemoTransitionSession = structuredClone(waitingDemoTransitionSession);
+incomingDemoTransitionSession.modeTransition = {
+  schemaVersion: HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION,
+  phase: 'animating',
+  visibleMode: 'demo',
+  sourceMode: 'free',
+  targetMode: 'demo',
+  queuedMode: null,
+  requestId: 11,
+  sourceBlockers: [],
+  visualRemainingMs: 190,
+};
+assert.deepEqual(
+  normalizeWorkbenchHeatCapacityRefreshSession(incomingDemoTransitionSession),
+  incomingDemoTransitionSession,
+  'an incoming Demo timeline should remain frozen if the page refreshes before its visual commit',
+);
+
+const stalePausedDemoClock = structuredClone(waitingDemoTransitionSession);
+stalePausedDemoClock.demo.phase = 'paused';
+assert.equal(
+  normalizeWorkbenchHeatCapacityRefreshSession(stalePausedDemoClock)?.modeTransitionDemoClock,
+  null,
+  'a stale frozen clock must be discarded when Demo is user-paused',
+);
+
+const wrongFileDemoClock = structuredClone(waitingDemoTransitionSession);
+wrongFileDemoClock.modeTransitionDemoClock!.fileId = 'another-file';
+assert.equal(
+  normalizeWorkbenchHeatCapacityRefreshSession(wrongFileDemoClock)?.modeTransitionDemoClock,
+  null,
+  'a frozen clock must be discarded when it belongs to another file',
+);
+
+const malformedTransitionSession = normalizeWorkbenchHeatCapacityRefreshSession({
+  ...animatingTransitionSession,
+  mode: 'free',
+  modeTransition: {
+    schemaVersion: HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION,
+    phase: 'waiting-for-motion',
+    visibleMode: 'not-a-mode',
+    sourceMode: 'guide',
+    targetMode: 'free',
+    requestId: 4,
+  },
+});
+assert.deepEqual(
+  malformedTransitionSession?.modeTransition,
+  {
+    schemaVersion: HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION,
+    phase: 'idle',
+    visibleMode: 'free',
+    sourceMode: null,
+    targetMode: null,
+    queuedMode: null,
+    requestId: 0,
+    sourceBlockers: [],
+    visualRemainingMs: 0,
+  },
+  'an invalid transition checkpoint should fall back to an idle checkpoint for the persisted session mode',
+);
+
+const splitSessionModeTransition = normalizeWorkbenchHeatCapacityRefreshSession({
+  ...waitingDemoTransitionSession,
+  mode: 'free',
+});
+assert.deepEqual(
+  splitSessionModeTransition?.modeTransition,
+  {
+    schemaVersion: HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION,
+    phase: 'idle',
+    visibleMode: 'free',
+    sourceMode: null,
+    targetMode: null,
+    queuedMode: null,
+    requestId: 10,
+    sourceBlockers: [],
+    visualRemainingMs: 0,
+  },
+  'a transition whose visible mode disagrees with the persisted file mode must fail closed',
+);
+assert.equal(
+  splitSessionModeTransition?.modeTransitionDemoClock,
+  null,
+  'a torn cross-mode checkpoint must not retain a frozen Demo clock',
+);
+
+const splitAnimatingTransition = normalizeWorkbenchHeatCapacityRefreshSession({
+  ...incomingDemoTransitionSession,
+  modeTransition: {
+    ...incomingDemoTransitionSession.modeTransition,
+    visibleMode: 'demo',
+    targetMode: 'guide',
+  },
+});
+assert.deepEqual(
+  splitAnimatingTransition?.modeTransition,
+  {
+    schemaVersion: HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION,
+    phase: 'idle',
+    visibleMode: 'demo',
+    sourceMode: null,
+    targetMode: null,
+    queuedMode: null,
+    requestId: 11,
+    sourceBlockers: [],
+    visualRemainingMs: 0,
+  },
+  'an animating checkpoint that does not display its applied target must fail closed',
+);
+assert.equal(splitAnimatingTransition?.modeTransitionDemoClock, null);
+
 const demoWithLessonDialog = structuredClone(demoSession);
 demoWithLessonDialog.guide.lessonDialog = {
   kind: 'step',
   pageIndex: null,
   lessonId: 'pressureZeroBaseline',
-  transition: 'stable',
-  transitionRemainingMs: 0,
 };
 demoWithLessonDialog.guide.shownLessonIds = ['pressureZeroBaseline'];
 demoWithLessonDialog.guide.toastQueue.current = {
@@ -193,8 +459,6 @@ guideSession.guide = {
     kind: 'intro',
     pageIndex: 1,
     lessonId: null,
-    transition: 'stable',
-    transitionRemainingMs: 0,
   },
   shownLessonIds: ['intro', 'pressureZeroBaseline'],
   toastQueue: {
@@ -309,6 +573,14 @@ assert.equal(
   }),
   null,
   'future schema versions must not be guessed',
+);
+assert.equal(
+  normalizeWorkbenchHeatCapacityRefreshSession({
+    ...demoSession,
+    schemaVersion: 1,
+  }),
+  null,
+  'the obsolete v1 refresh-session schema must not be restored through the v2 transition boundary',
 );
 assert.equal(
   normalizeWorkbenchHeatCapacityRefreshSession({

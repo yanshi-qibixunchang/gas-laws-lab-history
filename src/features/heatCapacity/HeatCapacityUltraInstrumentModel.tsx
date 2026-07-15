@@ -101,6 +101,7 @@ export type HeatCapacityUltraVisualState = {
 };
 
 type HeatCapacityUltraInstrumentModelProps = {
+  sourceScene: THREE.Object3D;
   powerOn: boolean;
   sceneTheme: 'dark' | 'light';
   stopcockAngleDeg: number;
@@ -172,6 +173,13 @@ const ULTRA_PUMP_PULSE_VISUAL_HOLD_S = 0.42;
 export const clearHeatCapacityUltraInstrumentModelCache = () => {
   useGLTF.clear(ULTRA_GLB_PATH);
 };
+
+export function HeatCapacityUltraInstrumentAsset(props: {
+  children: (sourceScene: THREE.Object3D) => React.ReactNode;
+}) {
+  const gltf = useGLTF(ULTRA_GLB_PATH);
+  return <>{props.children(gltf.scene)}</>;
+}
 const REQUIRED_ULTRA_NODE_NAMES = [
   'FD_NCD_C_PowerSwitch_Base',
   'FD_NCD_C_PowerSwitch_Button',
@@ -198,9 +206,6 @@ const REQUIRED_ULTRA_NODE_NAMES = [
 ] as const;
 const ULTRA_DISPLAY_TEXTURE_SURFACE_NODE_NAMES = [
   'HSL_MainDisplay_DynamicPlaneAnchor',
-  'HSL_MainDisplay_PixelDigits_PowerOnPreview',
-] as const;
-const ULTRA_POWERED_DISPLAY_ART_NODE_NAMES = [
   'HSL_MainDisplay_PixelDigits_PowerOnPreview',
 ] as const;
 const ULTRA_MAIN_DISPLAY_SCALE = 1.32;
@@ -1741,16 +1746,6 @@ const applyUltraDisplayTexture = (
   });
 };
 
-const setUltraPoweredDisplayArtVisible = (
-  nodeMap: Map<string, THREE.Object3D>,
-  visible: boolean,
-) => {
-  ULTRA_POWERED_DISPLAY_ART_NODE_NAMES.forEach((nodeName) => {
-    const artNode = nodeMap.get(nodeName);
-    if (artNode) artNode.visible = visible;
-  });
-};
-
 const absorbUltraPointerEvent = (event: ThreeEvent<PointerEvent | MouseEvent | WheelEvent>) => {
   event.stopPropagation();
   event.nativeEvent.stopPropagation();
@@ -2612,7 +2607,6 @@ function UltraPowerSwitchSkirtedRocker({
 }
 
 function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentModelProps) {
-  const gltf = useGLTF(ULTRA_GLB_PATH);
   const { camera, gl, invalidate, size } = useThree();
   const initialVisualState = normalizeHeatCapacityUltraVisualState(props.initialVisualState);
   const runtimeRootRef = useRef<THREE.Group | null>(null);
@@ -2681,10 +2675,10 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   }));
 
   const modelRoot = useMemo(() => {
-    const clonedScene = cloneModelScene(gltf.scene);
+    const clonedScene = cloneModelScene(props.sourceScene);
     applyUltraMainDisplayLayout(clonedScene);
     return clonedScene;
-  }, [gltf.scene]);
+  }, [props.sourceScene]);
   const nodeMap = useMemo(() => collectNodes(modelRoot), [modelRoot]);
   const baseTransforms = useMemo(() => collectBaseTransforms(nodeMap), [nodeMap]);
 
@@ -3020,7 +3014,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     const pressureDisplay = ultraDisplayPowered ? formatAlignedSignalParts(props.pressureSignalMv) : null;
     const themeVisuals = ULTRA_THEME_VISUALS[props.sceneTheme];
     setUltraNodeTreeVisible(nodeMap, 'HSL_MainDisplay_NameplateLabelArt_PowerPreview', true);
-    setUltraPoweredDisplayArtVisible(nodeMap, ultraDisplayPowered);
+    setUltraNodeTreeVisible(nodeMap, 'HSL_MainDisplay_PixelDigits_PowerOnPreview', true);
     context.imageSmoothingEnabled = false;
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = themeVisuals.displayScreen;

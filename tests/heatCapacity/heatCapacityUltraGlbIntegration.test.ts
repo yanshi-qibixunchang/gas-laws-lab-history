@@ -15,6 +15,9 @@ const sceneSource = readFileSync(scenePath, 'utf8');
 const ultraModelSource = readFileSync(ultraModelPath, 'utf8');
 const hardSphereLayerSource = readFileSync(hardSphereLayerPath, 'utf8');
 const workbenchSource = readFileSync(workbenchPath, 'utf8');
+const ultraRuntimeModelSource = ultraModelSource.slice(
+  ultraModelSource.indexOf('function HeatCapacityUltraInstrumentModel'),
+);
 const runtimeGlbBinary = readFileSync(runtimeGlbPath);
 const readGlbJsonChunk = (binary: Buffer) => {
   assert.equal(binary.toString('utf8', 0, 4), 'glTF', 'runtime GLB should use the binary glTF container format');
@@ -48,23 +51,43 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /<HeatCapacityUltraModelErrorBoundary key=\{ultraLoadAttempt\} onError=\{handleUltraModelError\}>[\s\S]*<Suspense fallback=\{null\}>/,
-  'Ultra GLB should keep normal Suspense loading visually empty and remount its guarded loader on retry',
+  /<HeatCapacityUltraErrorBoundary[\s\S]*key=\{`asset-\$\{ultraAssetLoadAttempt\}`\}[\s\S]*errorKind="asset"[\s\S]*<Suspense fallback=\{null\}>[\s\S]*<HeatCapacityUltraInstrumentAsset>[\s\S]*<HeatCapacityUltraErrorBoundary[\s\S]*key=\{`runtime-\$\{ultraRuntimeRetryAttempt\}`\}[\s\S]*errorKind="runtime"/,
+  'Ultra GLB loading and runtime restoration should use separate nested error boundaries',
 );
 assert.doesNotMatch(
   sceneSource,
-  /<HeatCapacityUltraModelErrorBoundary[^>]*fallback=\{proceduralSceneWithReadyGate\}/,
+  /<HeatCapacityUltraErrorBoundary[^>]*fallback=\{proceduralSceneWithReadyGate\}/,
   'Ultra GLB failures must never reveal the procedural skeleton',
 );
 assert.match(
   sceneSource,
-  /data-heat-capacity-ultra-load-error="true"[\s\S]*data-heat-capacity-ultra-load-retry="true"[\s\S]*onClick=\{retryUltraModelLoad\}/,
-  'Ultra GLB failures should expose an explicit retryable error layer',
+  /data-heat-capacity-ultra-error="true"[\s\S]*data-heat-capacity-ultra-error-kind=\{ultraSceneError\.kind\}[\s\S]*data-heat-capacity-ultra-error-retry="true"[\s\S]*onClick=\{retryUltraScene\}/,
+  'Ultra failures should expose an explicitly classified, retryable error layer',
+);
+assert.match(
+  ultraModelSource,
+  /export function HeatCapacityUltraInstrumentAsset[\s\S]*const gltf = useGLTF\(ULTRA_GLB_PATH\);[\s\S]*props\.children\(gltf\.scene\)/,
+  'the asset gate should be the sole owner of GLB loading',
+);
+assert.match(
+  ultraRuntimeModelSource,
+  /cloneModelScene\(props\.sourceScene\)/,
+  'the Ultra runtime should clone the scene supplied by the asset gate',
+);
+assert.doesNotMatch(
+  ultraRuntimeModelSource,
+  /useGLTF\(/,
+  'the Ultra runtime must not own or retry the GLB loader',
 );
 assert.match(
   ultraModelSource,
   /export const clearHeatCapacityUltraInstrumentModelCache = \(\) => \{[\s\S]*useGLTF\.clear\(ULTRA_GLB_PATH\);/,
   'Ultra GLB retry should clear the rejected loader cache before remounting',
+);
+assert.match(
+  sceneSource,
+  /if \(errorKind === 'asset'\) \{[\s\S]*clearHeatCapacityUltraInstrumentModelCache\(\);[\s\S]*setUltraAssetLoadAttempt[\s\S]*\} else \{[\s\S]*setUltraRuntimeRetryAttempt/,
+  'only an asset retry should clear the loader cache; runtime recovery should remount only the runtime boundary',
 );
 assert.doesNotMatch(
   sceneSource,
@@ -409,13 +432,13 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /ULTRA_POWERED_DISPLAY_ART_NODE_NAMES[\s\S]*HSL_MainDisplay_PixelDigits_PowerOnPreview[\s\S]*setUltraPoweredDisplayArtVisible\(nodeMap,\s*ultraDisplayPowered\)/,
-  'Ultra powered display should hide only the right-side numeric signal art with the power state',
+  /setUltraNodeTreeVisible\(nodeMap,\s*'HSL_MainDisplay_NameplateLabelArt_PowerPreview',\s*true\);[\s\S]*setUltraNodeTreeVisible\(nodeMap,\s*'HSL_MainDisplay_PixelDigits_PowerOnPreview',\s*true\);[\s\S]*context\.fillStyle = themeVisuals\.displayScreen;[\s\S]*context\.fillStyle = ultraDisplayPowered \? themeVisuals\.displayText : themeVisuals\.displayScreen;/,
+  'the enlarged runtime display surface should stay mounted at the same size while its canvas switches between an unpowered black face and powered digits',
 );
 assert.doesNotMatch(
-  ultraModelSource.match(/const ULTRA_POWERED_DISPLAY_ART_NODE_NAMES[\s\S]*?\] as const;/)?.[0] ?? '',
-  /HSL_MainDisplay_NameplateLabelArt_PowerPreview/,
-  'Ultra left-side display nameplate and U-channel symbols should stay permanently visible instead of following the power state',
+  ultraModelSource,
+  /ULTRA_POWERED_DISPLAY_ART_NODE_NAMES|setUltraPoweredDisplayArtVisible/,
+  'the removed power-gated preview-art path must not shrink the unpowered display back to the original GLB opening',
 );
 assert.match(
   ultraModelSource,
@@ -849,8 +872,13 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /const sceneShouldAnimate =[\s\S]*props\.demoFocusPulseActive[\s\S]*Boolean\(props\.guideRollbackAnimation\)/,
-  'Ultra GLB guide/demo focus halos should keep the demand-rendered canvas invalidating while they pulse',
+  /const sceneShouldAnimate =[\s\S]*props\.demoFocusPulseActive[\s\S]*discreteMotionState\.active/,
+  'Ultra GLB guide/demo focus halos and live scene motion should keep the demand-rendered canvas invalidating only while they are active',
+);
+assert.doesNotMatch(
+  sceneSource,
+  /Boolean\(props\.guideRollbackAnimation\)/,
+  'a retained rollback descriptor must not remain a permanent scene-motion blocker after its real animation finishes',
 );
 
 assert.match(

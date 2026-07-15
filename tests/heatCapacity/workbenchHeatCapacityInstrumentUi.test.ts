@@ -953,6 +953,7 @@ assert.match(hardSphereLayerSource, /displayVisualStateRef/, 'hard-sphere layer 
 assert.match(hardSphereLayerSource, /smoothHeatCapacityHardSphereVisualState/, 'hard-sphere layer should smooth temperature-driven visual fields frame by frame');
 assert.match(hardSphereLayerSource, /applyVisualMaterial\(particleMaterial,\s*displayVisualState,/, 'hard-sphere material glow should use the smoothed display visual state');
 assert.match(hardSphereLayerSource, /renderParticlePool\([\s\S]*displayVisualState,[\s\S]*sceneTheme,[\s\S]*\);/, 'hard-sphere instance colors should use the smoothed display visual state');
+assert.match(hardSphereLayerSource, /!enabled \|\|[\s\S]*const mesh = meshRef\.current;[\s\S]*if \(!mesh\) return;[\s\S]*renderParticlePool\(\s*mesh,/, 'a mode restore must wait for an enabled, mounted particle mesh instead of writing into a null instance pool');
 assert.match(hardSphereLayerSource, /depthTest:\s*true/, 'hard-sphere particles should respect scene depth and not cover foreground instruments');
 assert.doesNotMatch(hardSphereLayerSource, /depthTest:\s*false/, 'hard-sphere particles should not render as an always-on-top overlay');
 assert.doesNotMatch(hardSphereLayerSource, /particle\.size|size:\s*0\.88/, 'hard-sphere particles should keep a uniform visual size');
@@ -1293,7 +1294,10 @@ assert.match(sceneSource, /shadows: false/, 'heat-capacity 3D scene should disab
 assert.doesNotMatch(sceneSource, /castShadow|receiveShadow/, 'heat-capacity 3D scene should not keep mesh shadow flags when shadows are disabled');
 assert.match(sceneSource, /onStart=\{onInteractionStart\}/, 'orbit controls should enter a reduced-quality interaction state when dragging starts');
 assert.match(sceneSource, /onEnd=\{onInteractionEnd\}/, 'orbit controls should leave the reduced-quality interaction state when dragging ends');
+assert.match(sceneSource, /const interactionActiveRef = useRef\(false\)[\s\S]*if \(!enabled\) onInteractionEnd\(\)[\s\S]*useEffect\(\(\) => \(\) => onInteractionEnd\(\)/, 'disabling or unmounting OrbitControls should reliably close an in-flight orbit motion lifecycle');
 assert.match(sceneSource, /onChange=\{\(\) => invalidate\(\)\}/, 'orbit controls should invalidate demand rendering only when the camera changes');
+assert.match(sceneSource, /resolveHeatCapacitySceneDiscreteMotionState\(\{[\s\S]*instrumentMotionActive: ultraDiscreteMotionActive \|\| proceduralDiscreteMotionActive/, 'scene motion blocking should use the real Ultra or procedural animation lifecycle');
+assert.doesNotMatch(sceneSource, /ultraDiscreteMotionActive \|\| proceduralDiscreteMotionActive \|\| Boolean\(props\.guideRollbackAnimation\)/, 'a stale guide rollback descriptor should not keep instrument motion active forever');
 assert.match(sceneSource, /panelTextInteractionReduced: boolean/, 'instrument display text throttling should distinguish orbit dragging from performance-mode visual reduction');
 assert.match(sceneSource, /panelTextInteractionReduced=\{isOrbitInteracting\}/, 'instrument display text should only use the interaction throttle while the user is dragging the camera');
 assert.match(sceneSource, /type CameraViewScheme = \{[\s\S]*defaultView: CameraFocusView;[\s\S]*fov: number;[\s\S]*responsiveFov\?:[\s\S]*autoDemoView\?: CameraFocusView;[\s\S]*focusViews\?: CameraFocusViews;/, 'heat-capacity camera views should be grouped into explicit model schemes');
@@ -1599,7 +1603,7 @@ assert.match(workbenchSource, /const activeHeatCapacityPressureAlarmVisible = he
 assert.match(workbenchSource, /pressureAlarmVisible:\s*heatCapacityPressureAlarmFileIdRef\.current === currentFile\.id[\s\S]*pressureAlarmRemainingMs:\s*heatCapacityPressureAlarmFileIdRef\.current === currentFile\.id/, 'a pressure alarm must be serialized only into its owning file refresh checkpoint');
 assert.match(workbenchSource, /heatCapacityPressureAlarmFileIdRef\.current = restoreSession\.activeHeatCapacityFileId;[\s\S]*heatCapacityPressureAlarmDeadlineAtMsRef\.current = Date\.now\(\) \+ pressureAlarmRemainingMs;/, 'restored pressure-alarm timing should retain explicit ownership by the restored file');
 assert.match(workbenchSource, /const resetHeatCapacityFreeRun = \(\) => \{[\s\S]*clearHeatCapacityPressureAlertUiState\(\)/, 'Free Mode reset should clear transient pressure-alert UI without deleting recorded alarm data');
-assert.match(workbenchSource, /const clearHeatCapacityTransientUiRuntime = \(\) => \{[\s\S]*clearHeatCapacityPressureAlertUiState\(\)/, 'projecting an independent mode session should clear transient pressure-alert UI owned by the mode being left');
+assert.match(workbenchSource, /const clearHeatCapacityModeTransientUiRuntime = \(\) => \{[\s\S]*clearHeatCapacityPressureAlertUiState\(\)/, 'projecting an independent mode session should clear transient pressure-alert UI owned by the mode being left');
 assert.match(workbenchSource, /const updateHeatCapacityFocusMode = \(mode: HeatCapacityFocusMode\) => \{[\s\S]*heatCapacityFocusSessionRef\.current =/, 'pump focus entry should use the normal focus-session path without pressure-based UI blocking');
 assert.match(workbenchSource, /const pressHeatCapacityPumpBulb = [\s\S]*source !== 'autoDemo' && heatCapacitySceneFocusModeRef\.current !== 'pump'\) return;[\s\S]*guardGuideHeatCapacityAction\('pumpBulb', source\)[\s\S]*registerHeatCapacityPumpStroke\(fileBeforePump,\s*now\)[\s\S]*setHeatCapacityPumpPulseId/, 'focused user presses should follow one focus gate, one guide guard, one physical attempt, and one full feedback pulse');
 assert.match(workbenchSource, /showHeatCapacityPolicyToast\(heatCapacityRealtimeCopy\.closePumpValveReminder,\s*'pressureCloseValve'\)/, 'post-alarm close-valve reminder should use the same overriding bottom-center hint path');
@@ -1647,7 +1651,8 @@ assert.match(styleSource, /\.studio-heat-pressure-warning \{[\s\S]*background:[^
 assert.match(styleSource, /\.studio-heat-pressure-warning \{[\s\S]*animation:\s*studioOverlayFadeIn/, 'center alarm should fade in without movement or scale');
 assert.match(workbenchSource, /temperatureSignalMv=\{activeFile\.powerOn && !activeHeatCapacityPreheatLocked \? activeHeatCapacityDisplay\.temperatureMv : null\}/, 'instrument screens should read the active temperature display channel by mode and hide it during preheat');
 assert.match(workbenchSource, /pressureSignalMv=\{activeFile\.powerOn && !activeHeatCapacityPreheatLocked \? activeHeatCapacityDisplay\.pressureMv : null\}/, 'instrument screens should read the active pressure display channel by mode and hide it during preheat');
-assert.match(workbenchSource, /<HeatCapacityPreheatOverlay[\s\S]*paused=\{activeHeatCapacityPreheatMode === 'demo' && autoDemoPaused\}/, 'all heat-capacity modes should use the shared preheat overlay and pause it with the demo');
+assert.match(workbenchSource, /<HeatCapacityPreheatOverlay[\s\S]*paused=\{heatCapacityRefreshRestoring \|\| heatCapacityModeTransitionLocked \|\| \([\s\S]*activeHeatCapacityPreheatMode === 'demo' && autoDemoPaused[\s\S]*\)\}/, 'all heat-capacity modes should freeze the shared preheat overlay during refresh restoration or a mode transition, while Demo also follows the explicit pause state');
+assert.equal((workbenchSource.match(/normalizeHeatCapacityAutoDemoResumeCursor\(timeline,/g) ?? []).length, 2, 'mode-session return and page-refresh return must share the same interrupted-preheat normalization model');
 assert.match(workbenchSource, /overlayCenterAboveGuideMask=\{[\s\S]*activeHeatCapacityModalLocked \|\| guideHeatCapacityStrongReminderActive[\s\S]*\}/, 'modal content and information toasts should be raised above scene locks and strong reminders');
 assert.match(sceneSource, /studio-preview-overlay-center-above-guide-mask/, 'scene overlay should expose an explicit modal-above-mask layer');
 assert.match(styleSource, /\.studio-preview-overlay-center-above-guide-mask\s*\{[\s\S]*?z-index:\s*12;/, 'raised center content should sit above the z-index 10 interaction lock and z-index 11 strong reminder');
@@ -1917,7 +1922,8 @@ assert.match(styleSource, /\[data-preview-overlay-item="heat-parent-top-right"\]
 assert.match(workbenchSource, /const activateGuideHeatCapacityStrongReminder = \(controlId\?: string \| null\) => \{[\s\S]*clearGuideHeatCapacityGuidance\(\);[\s\S]*pulseGuideHeatCapacityControl\(controlId \?\? null\);[\s\S]*setGuideHeatCapacityStrongReminderActive\(true\);/, 'activating the strong reminder should clear ordinary toasts and pulse the target without showing a duplicate center prompt');
 const activateGuideStrongReminderSection = workbenchSource.match(/const activateGuideHeatCapacityStrongReminder = \(controlId\?: string \| null\) => \{[\s\S]*?\n  const scheduleGuideHeatCapacityStrongReminderAfterToast/)?.[0] ?? '';
 assert.doesNotMatch(activateGuideStrongReminderSection, /showGuideHeatCapacityGuidance/, 'strong reminder activation should not enqueue the ordinary guidance toast');
-assert.match(workbenchSource, /const resetHeatCapacityGuideUiStateForModeChange = \(\) => \{[\s\S]*clearGuideHeatCapacityStrongReminder\(\);[\s\S]*clearGuideHeatCapacityGuidancePulseTimer\(\);[\s\S]*setHeatCapacityFocusResetKey\(\(key\) => key \+ 1\);[\s\S]*heatCapacityFocusSessionRef\.current = null;[\s\S]*\}/, 'guide mode exits and restarts should clear strong reminders and reset the 3D focus state');
+assert.match(workbenchSource, /const clearHeatCapacityGuideTransientUiState = \(\) => \{[\s\S]*clearGuideHeatCapacityStrongReminder\(\);[\s\S]*clearGuideHeatCapacityGuidancePulseTimer\(\);[\s\S]*\}/, 'guide mode exits and restarts should clear strong reminders without owning scene restoration');
+assert.match(workbenchSource, /const resetHeatCapacitySceneUiState = \(\) => \{[\s\S]*setHeatCapacityFocusResetKey\(\(key\) => key \+ 1\);[\s\S]*heatCapacityFocusSessionRef\.current = null;[\s\S]*\}/, 'explicit experiment resets should keep a dedicated path for resetting the 3D focus state');
 assert.match(workbenchSource, /const exitHeatCapacityGuideMode = \(\) => \{[\s\S]*stopHeatCapacityTeachingModeToFree\('guide'\)/, 'stopping Guide Mode should discard that Guide session and restore the independently suspended Free session');
 assert.match(workbenchSource, /const resetHeatCapacityGuideExperiment = \(\) => \{[\s\S]*startHeatCapacityGuideWorkbenchState\([\s\S]*clearHeatCapacityModeSession\(activeFile, 'guide'\)[\s\S]*applyHeatCapacityModeUiProjection\(resetFile, null\)/, 'Guide reset should clear the previous checkpoint and initialize a clean Guide workflow through the shared mode UI projection path');
 assert.match(workbenchSource, /guideHeatCapacityPendingStrongReminderTimerRef/, 'wrong-click escalation should keep a separate pending-strong timer so the reason toast can fade first');
@@ -2575,8 +2581,13 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /baseStrongReminderRemainingMs:[\s\S]*guideHeatCapacityRestoredStrongReminderTimerRef\.current\?\.remainingMs/,
-  'The base Guide strong-reminder deadline should survive the scene-ready commit window and an immediate second refresh',
+  /const baseTimer =[\s\S]*guideHeatCapacityStrongReminderDeadlineAtMsRef\.current[\s\S]*guideHeatCapacityRestoredStrongReminderTimerRef\.current\?\.remainingMs[\s\S]*baseStrongReminder: baseTimer/,
+  'The shared Guide checkpoint capture should preserve the restored base strong-reminder deadline',
+);
+assert.match(
+  workbenchSource,
+  /baseStrongReminderRemainingMs: getHeatCapacityModeDeferredTimerRemainingMs\(\s*guideCapture\.baseStrongReminder\?\.timer/,
+  'The full refresh layout should serialize the base reminder from the shared Guide checkpoint instead of a parallel timer path',
 );
 assert.match(
   workbenchSource,

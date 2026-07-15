@@ -1,69 +1,47 @@
+import {
+  createHeatCapacityModeTransitionCheckpoint,
+  createHeatCapacityModeTransitionState,
+  normalizeHeatCapacityModeTransitionCheckpoint,
+  type HeatCapacityModeTransitionCheckpoint,
+} from '../heatCapacity/heatCapacityModeTransitionModel.ts';
+import type {
+  HeatCapacityModeTransitionDemoClock,
+} from '../heatCapacity/heatCapacityModeTransitionDemoClock.ts';
+import type {
+  HeatCapacityModeCameraPoseCheckpoint,
+  HeatCapacityModeDemoCheckpoint,
+  HeatCapacityModeGuideCheckpoint,
+  HeatCapacityModeJsonObject,
+  HeatCapacityModeJsonValue,
+  HeatCapacityModeLessonDialogCheckpoint,
+  HeatCapacityModePauseReason,
+  HeatCapacityModeQuaternionTuple,
+  HeatCapacityModeVector3Tuple,
+} from '../heatCapacity/heatCapacityModeUiCheckpoint.ts';
+import {
+  HEAT_CAPACITY_GUIDE_LESSON_STEP_IDS,
+  normalizeHeatCapacityModeGuideCheckpoint,
+} from '../heatCapacity/heatCapacityModeUiCheckpoint.ts';
+
 export const WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_SCHEMA_FAMILY =
   'hard-sphere-lab/workbench-heat-capacity-refresh-session' as const;
-export const WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_SCHEMA_VERSION = 1 as const;
+export const WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_SCHEMA_VERSION = 2 as const;
 export const WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_STORAGE_KEY =
-  'hsl_workbench_heat_capacity_refresh_session_v1' as const;
+  'hsl_workbench_heat_capacity_refresh_session_v2' as const;
 
 export type WorkbenchHeatCapacityRefreshMode = 'demo' | 'guide' | 'free';
-export type WorkbenchHeatCapacityDemoRefreshPhase = 'idle' | 'running' | 'paused';
-export type WorkbenchHeatCapacityDemoTimelineStage = 'highlight' | 'action' | 'observe' | 'preview';
-export type WorkbenchHeatCapacityDemoStepPanelMode = 'hidden' | 'visible' | 'exiting';
-export type WorkbenchHeatCapacityDemoCameraMode = 'instrument' | 'pump' | 'bottle';
-export type WorkbenchHeatCapacityRefreshPauseReason =
-  | 'user'
-  | 'lesson-dialog'
-  | 'guide-flow'
-  | 'safety';
-
-export type WorkbenchHeatCapacityRefreshJsonValue =
-  | null
-  | boolean
-  | number
-  | string
-  | WorkbenchHeatCapacityRefreshJsonValue[]
-  | WorkbenchHeatCapacityRefreshJsonObject;
-
-export interface WorkbenchHeatCapacityRefreshJsonObject {
-  [key: string]: WorkbenchHeatCapacityRefreshJsonValue;
-}
-
-export interface WorkbenchHeatCapacityDemoTimelineCheckpoint {
-  currentItemIndex: number | null;
-  nextItemIndex: number;
-  currentItemKey: string | null;
-  currentStage: WorkbenchHeatCapacityDemoTimelineStage | null;
-  currentStepId: string | null;
-  currentStepIndex: number | null;
-  currentActionId: string | null;
-  itemStartedAtElapsedMs: number | null;
-  executedItemKeys: string[];
-}
-
-export interface WorkbenchHeatCapacityDemoStepPanelCheckpoint {
-  mode: WorkbenchHeatCapacityDemoStepPanelMode;
-  stepIndex: number;
-  stepCount: number;
-  title: string;
-  description: string;
-  target: string;
-  progressCriterion: string;
-  note: string;
-}
-
-export interface WorkbenchHeatCapacityDemoRefreshCheckpoint {
-  phase: WorkbenchHeatCapacityDemoRefreshPhase;
-  elapsedMs: number;
-  initialDelayRemainingMs: number;
-  pauseReasons: WorkbenchHeatCapacityRefreshPauseReason[];
-  timeline: WorkbenchHeatCapacityDemoTimelineCheckpoint;
-  stepPanel: WorkbenchHeatCapacityDemoStepPanelCheckpoint;
-  focusControlId: string | null;
-  focusPulseActive: boolean;
-  cameraMode: WorkbenchHeatCapacityDemoCameraMode | null;
-  cameraFocusKey: number;
-  completionMessage: string | null;
-  completionMessageRemainingMs: number | null;
-}
+export type WorkbenchHeatCapacityDemoRefreshPhase = HeatCapacityModeDemoCheckpoint['phase'];
+export type WorkbenchHeatCapacityDemoTimelineStage = NonNullable<
+  HeatCapacityModeDemoCheckpoint['timeline']['currentStage']
+>;
+export type WorkbenchHeatCapacityDemoStepPanelMode = HeatCapacityModeDemoCheckpoint['stepPanel']['mode'];
+export type WorkbenchHeatCapacityDemoCameraMode = NonNullable<HeatCapacityModeDemoCheckpoint['cameraMode']>;
+export type WorkbenchHeatCapacityRefreshPauseReason = HeatCapacityModePauseReason;
+export type WorkbenchHeatCapacityRefreshJsonValue = HeatCapacityModeJsonValue;
+export type WorkbenchHeatCapacityRefreshJsonObject = HeatCapacityModeJsonObject;
+export type WorkbenchHeatCapacityDemoTimelineCheckpoint = HeatCapacityModeDemoCheckpoint['timeline'];
+export type WorkbenchHeatCapacityDemoStepPanelCheckpoint = HeatCapacityModeDemoCheckpoint['stepPanel'];
+export type WorkbenchHeatCapacityDemoRefreshCheckpoint = HeatCapacityModeDemoCheckpoint;
 
 export interface WorkbenchHeatCapacityReminderCheckpoint {
   active: boolean;
@@ -72,21 +50,7 @@ export interface WorkbenchHeatCapacityReminderCheckpoint {
   remainingMs: number | null;
 }
 
-export type WorkbenchHeatCapacityLessonDialogCheckpoint =
-  | {
-      kind: 'intro';
-      pageIndex: number;
-      lessonId: null;
-      transition: 'stable' | 'entering' | 'exiting';
-      transitionRemainingMs: number;
-    }
-  | {
-      kind: 'step';
-      pageIndex: null;
-      lessonId: string;
-      transition: 'stable' | 'entering' | 'exiting';
-      transitionRemainingMs: number;
-    };
+export type WorkbenchHeatCapacityLessonDialogCheckpoint = HeatCapacityModeLessonDialogCheckpoint;
 
 export type WorkbenchHeatCapacityToastLevel = 'info' | 'success' | 'warning' | 'danger';
 export type WorkbenchHeatCapacityToastSource =
@@ -136,30 +100,12 @@ export interface WorkbenchHeatCapacityUiRefreshCheckpoint {
   layout: WorkbenchHeatCapacityRefreshJsonObject;
 }
 
-export type WorkbenchHeatCapacityVector3Tuple = [number, number, number];
-export type WorkbenchHeatCapacityQuaternionTuple = [number, number, number, number];
-
-export interface WorkbenchHeatCapacityCameraViewportMetadata {
-  widthCssPx: number;
-  heightCssPx: number;
-  pixelRatio: number;
-}
-
-export interface WorkbenchHeatCapacityCameraPoseRefreshCheckpoint {
-  poseRevision: string;
-  capturedAtMs: number;
-  projection: 'perspective' | 'orthographic';
-  position: WorkbenchHeatCapacityVector3Tuple;
-  target: WorkbenchHeatCapacityVector3Tuple;
-  up: WorkbenchHeatCapacityVector3Tuple;
-  quaternion: WorkbenchHeatCapacityQuaternionTuple | null;
-  fovDeg: number;
-  zoom: number;
-  near: number;
-  far: number;
-  cameraMode: string | null;
-  viewport: WorkbenchHeatCapacityCameraViewportMetadata | null;
-}
+export type WorkbenchHeatCapacityVector3Tuple = HeatCapacityModeVector3Tuple;
+export type WorkbenchHeatCapacityQuaternionTuple = HeatCapacityModeQuaternionTuple;
+export type WorkbenchHeatCapacityCameraViewportMetadata = NonNullable<
+  HeatCapacityModeCameraPoseCheckpoint['viewport']
+>;
+export type WorkbenchHeatCapacityCameraPoseRefreshCheckpoint = HeatCapacityModeCameraPoseCheckpoint;
 
 export type WorkbenchHeatCapacitySceneSnapshotMimeType = 'image/png' | 'image/webp' | 'image/jpeg';
 
@@ -187,12 +133,18 @@ export interface WorkbenchHeatCapacityRefreshSession {
   mode: WorkbenchHeatCapacityRefreshMode;
   checkpointId: string;
   capturedAtMs: number;
+  modeTransition: HeatCapacityModeTransitionCheckpoint;
+  modeTransitionDemoClock: WorkbenchHeatCapacityModeTransitionDemoClockCheckpoint | null;
+  modeTransitionGuideUi: HeatCapacityModeGuideCheckpoint | null;
   demo: WorkbenchHeatCapacityDemoRefreshCheckpoint;
   guide: WorkbenchHeatCapacityGuideUiRefreshCheckpoint;
   ui: WorkbenchHeatCapacityUiRefreshCheckpoint;
   cameraPose: WorkbenchHeatCapacityCameraPoseRefreshCheckpoint | null;
   sceneSnapshot: WorkbenchHeatCapacitySceneSnapshotRefreshCheckpoint | null;
 }
+
+export type WorkbenchHeatCapacityModeTransitionDemoClockCheckpoint =
+  HeatCapacityModeTransitionDemoClock;
 
 export interface WorkbenchHeatCapacityRefreshSessionStorage {
   getItem(key: string): string | null;
@@ -324,7 +276,6 @@ const demoTimelineStages = ['highlight', 'action', 'observe', 'preview'] as cons
 const demoStepPanelModes = ['hidden', 'visible', 'exiting'] as const;
 const demoCameraModes = ['instrument', 'pump', 'bottle'] as const;
 const pauseReasons = ['user', 'lesson-dialog', 'guide-flow', 'safety'] as const;
-const lessonTransitions = ['stable', 'entering', 'exiting'] as const;
 const toastLevels = ['info', 'success', 'warning', 'danger'] as const;
 const toastSources = [
   'guide',
@@ -472,30 +423,21 @@ const normalizeReminder = (value: unknown): WorkbenchHeatCapacityReminderCheckpo
 
 const normalizeLessonDialog = (value: unknown): WorkbenchHeatCapacityLessonDialogCheckpoint | null => {
   if (!isRecord(value) || (value.kind !== 'intro' && value.kind !== 'step')) return null;
-  const transition = isOneOf(value.transition, lessonTransitions) ? value.transition : 'stable';
-  const transitionRemainingMs = normalizeFiniteNumber(
-    value.transitionRemainingMs,
-    0,
-    0,
-    Number.MAX_SAFE_INTEGER,
-  );
   if (value.kind === 'intro') {
     return {
       kind: 'intro',
       pageIndex: normalizeInteger(value.pageIndex, 0),
       lessonId: null,
-      transition,
-      transitionRemainingMs,
     };
   }
-  const lessonId = normalizeIdentifier(value.lessonId);
+  const lessonId = isOneOf(value.lessonId, HEAT_CAPACITY_GUIDE_LESSON_STEP_IDS)
+    ? value.lessonId
+    : null;
   if (!lessonId) return null;
   return {
     kind: 'step',
     pageIndex: null,
     lessonId,
-    transition,
-    transitionRemainingMs,
   };
 };
 
@@ -689,6 +631,24 @@ const normalizeSceneSnapshot = (
   };
 };
 
+const normalizeModeTransitionDemoClock = (
+  value: unknown,
+): WorkbenchHeatCapacityModeTransitionDemoClockCheckpoint | null => {
+  if (!isRecord(value)) return null;
+  const fileId = normalizeIdentifier(value.fileId);
+  if (!fileId) return null;
+  return {
+    fileId,
+    elapsedMs: normalizeFiniteNumber(value.elapsedMs, 0, 0, Number.MAX_SAFE_INTEGER),
+    initialDelayRemainingMs: normalizeFiniteNumber(
+      value.initialDelayRemainingMs,
+      0,
+      0,
+      Number.MAX_SAFE_INTEGER,
+    ),
+  };
+};
+
 export const createWorkbenchHeatCapacityRefreshSession = (
   activeHeatCapacityFileId: string,
   mode: WorkbenchHeatCapacityRefreshMode = 'free',
@@ -704,6 +664,12 @@ export const createWorkbenchHeatCapacityRefreshSession = (
     mode,
     checkpointId: `${normalizedFileId}:${normalizedCapturedAtMs}`,
     capturedAtMs: normalizedCapturedAtMs,
+    modeTransition: createHeatCapacityModeTransitionCheckpoint(
+      createHeatCapacityModeTransitionState(mode),
+      normalizedCapturedAtMs,
+    ),
+    modeTransitionDemoClock: null,
+    modeTransitionGuideUi: null,
     demo: createDefaultWorkbenchHeatCapacityDemoRefreshCheckpoint(),
     guide: createDefaultWorkbenchHeatCapacityGuideUiRefreshCheckpoint(),
     ui: createDefaultWorkbenchHeatCapacityUiRefreshCheckpoint(),
@@ -727,6 +693,7 @@ const normalizeWorkbenchHeatCapacityRefreshSessionUnchecked = (
   if (!activeHeatCapacityFileId || !checkpointId || !isOneOf(value.mode, ['demo', 'guide', 'free'] as const)) {
     return null;
   }
+  const capturedAtMs = normalizeFiniteNumber(value.capturedAtMs, 0, 0, Number.MAX_SAFE_INTEGER);
   const guide = normalizeGuideCheckpoint(value.guide, value.mode);
   let demo = normalizeDemoCheckpoint(value.demo, value.mode);
   if (value.mode === 'demo' && guide.lessonDialog && demo.phase !== 'idle') {
@@ -738,13 +705,59 @@ const normalizeWorkbenchHeatCapacityRefreshSessionUnchecked = (
         : [...demo.pauseReasons, 'lesson-dialog'],
     };
   }
+  const normalizedModeTransition = normalizeHeatCapacityModeTransitionCheckpoint(
+    value.modeTransition,
+    value.mode,
+    capturedAtMs,
+  );
+  const modeTransition = createHeatCapacityModeTransitionCheckpoint(
+    normalizedModeTransition,
+    capturedAtMs,
+  );
+  const candidateDemoClock = normalizeModeTransitionDemoClock(value.modeTransitionDemoClock);
+  const frozenSourceDemoClockIsValid =
+    (normalizedModeTransition.phase === 'waiting-for-motion' ||
+      normalizedModeTransition.phase === 'preparing-target') &&
+    normalizedModeTransition.visibleMode === 'demo' &&
+    normalizedModeTransition.sourceMode === 'demo' &&
+    normalizedModeTransition.targetMode !== 'demo';
+  const frozenIncomingDemoClockIsValid =
+    normalizedModeTransition.phase === 'animating' &&
+    normalizedModeTransition.visibleMode === 'demo' &&
+    normalizedModeTransition.targetMode === 'demo';
+  const modeTransitionDemoClock = candidateDemoClock &&
+    candidateDemoClock.fileId === activeHeatCapacityFileId &&
+    value.mode === 'demo' &&
+    demo.phase === 'running' &&
+    (frozenSourceDemoClockIsValid || frozenIncomingDemoClockIsValid)
+    ? candidateDemoClock
+    : null;
+  const candidateGuideUi = normalizeHeatCapacityModeGuideCheckpoint(value.modeTransitionGuideUi);
+  const frozenSourceGuideUiIsValid =
+    (normalizedModeTransition.phase === 'waiting-for-motion' ||
+      normalizedModeTransition.phase === 'preparing-target') &&
+    normalizedModeTransition.visibleMode === 'guide' &&
+    normalizedModeTransition.sourceMode === 'guide' &&
+    normalizedModeTransition.targetMode !== 'guide';
+  const frozenIncomingGuideUiIsValid =
+    normalizedModeTransition.phase === 'animating' &&
+    normalizedModeTransition.visibleMode === 'guide' &&
+    normalizedModeTransition.targetMode === 'guide';
+  const modeTransitionGuideUi = candidateGuideUi &&
+    value.mode === 'guide' &&
+    (frozenSourceGuideUiIsValid || frozenIncomingGuideUiIsValid)
+    ? candidateGuideUi
+    : null;
   return {
     schemaFamily: WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_SCHEMA_FAMILY,
     schemaVersion: WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_SCHEMA_VERSION,
     activeHeatCapacityFileId,
     mode: value.mode,
     checkpointId,
-    capturedAtMs: normalizeFiniteNumber(value.capturedAtMs, 0, 0, Number.MAX_SAFE_INTEGER),
+    capturedAtMs,
+    modeTransition,
+    modeTransitionDemoClock,
+    modeTransitionGuideUi,
     demo,
     guide,
     ui: normalizeUiCheckpoint(value.ui),

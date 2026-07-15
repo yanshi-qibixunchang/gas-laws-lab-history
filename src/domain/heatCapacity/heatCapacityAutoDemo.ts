@@ -83,6 +83,18 @@ export interface HeatCapacityAutoDemoTimelineItem {
   cameraFocusMode?: HeatCapacityAutoDemoCameraFocusMode;
 }
 
+export const getHeatCapacityAutoDemoTimelineItemKey = (
+  timelineItem: HeatCapacityAutoDemoTimelineItem,
+  timelineIndex: number,
+) => [
+  timelineIndex,
+  timelineItem.atMs,
+  timelineItem.step.id,
+  timelineItem.stage,
+  timelineItem.action?.action ?? '',
+  timelineItem.action?.sampleKey ?? '',
+].join(':');
+
 const DEFAULT_PRE_HIGHLIGHT_MS = 4_000;
 const DEFAULT_OBSERVE_MS = 3_000;
 const POWER_TRANSITION_MS = 650;
