@@ -14,6 +14,7 @@ import { selectHeatCapacityFreeProcessReview } from '../../src/domain/heatCapaci
 import type { HeatCapacityMode } from '../../src/domain/heatCapacity/heatCapacityModeTypes.ts';
 import {
   captureHeatCapacityModeRuntimeSnapshot,
+  normalizeHeatCapacityModeSessionStore,
   restoreHeatCapacityModeSession,
   suspendHeatCapacityModeSession,
   type HeatCapacityModeRuntimeSnapshot,
@@ -77,6 +78,7 @@ const createModeUiCheckpointFromRefreshFixture = (
     checkpointId: session.checkpointId,
     capturedAtMs: session.capturedAtMs,
     scene: {
+      focusMode: session.focusMode,
       cameraPose: session.cameraPose,
       cameraTransition: null,
       ultraVisualState: null,
@@ -555,9 +557,42 @@ const createSuspensionUiCheckpoint = (
   });
 };
 
+const REBASED_WALL_CLOCK_KEYS = new Set([
+  'startedAtWallClockMs',
+  'powerOffStartedAtWallClockMs',
+  'invalidatedAtWallClockMs',
+  'lastPumpTime',
+  'pressureDisplayNextJitterAtMs',
+  'temperatureDisplayNextJitterAtMs',
+  'releaseCloseResumeAtMs',
+]);
+
+const normalizeRebasedWallClockValue = (
+  value: unknown,
+  offsetMs: number,
+  parentKey: string | null = null,
+): unknown => {
+  if (typeof value === 'number') {
+    return REBASED_WALL_CLOCK_KEYS.has(parentKey ?? '') || parentKey === 'pumpStrokeTimestamps'
+      ? value - offsetMs
+      : value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeRebasedWallClockValue(item, offsetMs, parentKey));
+  }
+  if (typeof value !== 'object' || value === null) return value;
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+    key,
+    key === 'atMs' && 'valueMv' in value && typeof item === 'number'
+      ? item - offsetMs
+      : normalizeRebasedWallClockValue(item, offsetMs, key),
+  ]));
+};
+
 const normalizeRestoredSnapshot = (
   snapshot: HeatCapacityModeRuntimeSnapshot,
-) => ({
+  wallClockOffsetMs: number,
+) => normalizeRebasedWallClockValue({
   ...snapshot,
   common: {
     ...snapshot.common,
@@ -565,7 +600,7 @@ const normalizeRestoredSnapshot = (
     lastUpdateMs: null,
     displayResponseLastUpdateMs: null,
   },
-});
+}, wallClockOffsetMs);
 
 const assertRestoredSnapshot = (
   restored: WorkbenchHeatCapacityState,
@@ -578,7 +613,13 @@ const assertRestoredSnapshot = (
   } else {
     assert.equal(restored.runState, expected.common.runState);
   }
-  assert.deepEqual(normalizeRestoredSnapshot(actual), normalizeRestoredSnapshot(expected));
+  const wallClockOffsetMs = actual.common.pressureDisplayNextJitterAtMs -
+    expected.common.pressureDisplayNextJitterAtMs;
+  assert.equal(wallClockOffsetMs >= 0, true);
+  assert.deepEqual(
+    normalizeRestoredSnapshot(actual, wallClockOffsetMs),
+    normalizeRestoredSnapshot(expected, 0),
+  );
 };
 
 function selectCompletedModeResult(file: WorkbenchHeatCapacityState) {
@@ -741,6 +782,161 @@ const u2DomainRoutes: Route[] = pumpRoutes;
 u2DomainRoutes.forEach((route, routeIndex) => {
   runSessionRoute(route, 'u2-recovery-midpoint', pumpRoutes.length + routeIndex);
 });
+
+// Wait anchors are security-sensitive persistence state: restoring a forged
+// earlier anchor would make the required 300 s observation interval appear to
+// have elapsed. Exercise the decoder with states produced by the full public
+// Workbench action path rather than hand-assembled snapshots.
+{
+  const clock: TestClock = { nowMs: 50_000_000 };
+  const fixture = prepareSuspendedModeFixture(
+    createDefaultHeatCapacityFile(9_001),
+    'free',
+    'u2-recovery-midpoint',
+    clock,
+  );
+  const suspended = suspendFixture(fixture, clock);
+  const validStore = structuredClone(suspended.heatCapacityModeSessions);
+  assert.equal(
+    normalizeHeatCapacityModeSessionStore(validStore, suspended.id).free.status,
+    'suspended',
+    'a real Free waiting-U2 route must survive the mode-session decoder',
+  );
+
+  const forgedStore = structuredClone(suspended.heatCapacityModeSessions);
+  const freeSnapshot = (forgedStore.free.snapshot as unknown as Record<string, unknown>);
+  const freeRuntime = freeSnapshot.free as Record<string, unknown>;
+  const activeDomain = (
+    freeRuntime.heatCapacityFreeParameterScheme === 'ideal'
+      ? freeRuntime.heatCapacityFreeIdealDomain
+      : freeRuntime.heatCapacityFreeRealDomain
+  ) as Record<string, unknown>;
+  for (const attemptValue of [
+    freeRuntime.heatCapacityFreeActiveAttempt,
+    activeDomain.activeAttempt,
+  ]) {
+    const attempt = attemptValue as Record<string, unknown>;
+    const forgedCloseAtS = attempt.releaseStartedAtS as number;
+    attempt.releaseClosedAtS = forgedCloseAtS;
+    attempt.u2WaitStartedAtS = forgedCloseAtS;
+  }
+  assert.equal(
+    normalizeHeatCapacityModeSessionStore(forgedStore, suspended.id).free.status,
+    'empty',
+    'Free U2 wait time must be anchored to the authoritative release-close completion',
+  );
+
+  const futureWallClockStore = structuredClone(suspended.heatCapacityModeSessions);
+  const futureEntry = futureWallClockStore.free;
+  const futureSnapshot = futureEntry.snapshot as unknown as Record<string, unknown>;
+  const futureRuntime = futureSnapshot.free as Record<string, unknown>;
+  const futureDomain = (
+    futureRuntime.heatCapacityFreeParameterScheme === 'ideal'
+      ? futureRuntime.heatCapacityFreeIdealDomain
+      : futureRuntime.heatCapacityFreeRealDomain
+  ) as Record<string, unknown>;
+  for (const attemptValue of [
+    futureRuntime.heatCapacityFreeActiveAttempt,
+    futureDomain.activeAttempt,
+  ]) {
+    (attemptValue as Record<string, unknown>).startedAtWallClockMs = futureEntry.capturedAtMs! + 1;
+  }
+  assert.equal(
+    normalizeHeatCapacityModeSessionStore(futureWallClockStore, suspended.id).free.status,
+    'empty',
+    'Free attempt wall-clock events must not be persisted after their enclosing capture time',
+  );
+}
+
+{
+  const clock: TestClock = { nowMs: 60_000_000 };
+  const fixture = prepareSuspendedModeFixture(
+    createDefaultHeatCapacityFile(9_002),
+    'guide',
+    'u2-recovery-midpoint',
+    clock,
+  );
+  const suspended = suspendFixture(fixture, clock);
+  const validStore = structuredClone(suspended.heatCapacityModeSessions);
+  assert.equal(
+    normalizeHeatCapacityModeSessionStore(validStore, suspended.id).guide.status,
+    'suspended',
+    'a real Guide waiting-U2 route must survive the mode-session decoder',
+  );
+
+  const forgedStore = structuredClone(suspended.heatCapacityModeSessions);
+  const guideSnapshot = forgedStore.guide.snapshot as unknown as Record<string, unknown>;
+  const guideRuntime = guideSnapshot.guide as Record<string, unknown>;
+  const workflow = guideRuntime.heatCapacityGuideWorkflow as Record<string, unknown>;
+  workflow.waitStartedAtS = (workflow.waitStartedAtS as number) - 1;
+  assert.equal(
+    normalizeHeatCapacityModeSessionStore(forgedStore, suspended.id).guide.status,
+    'empty',
+    'Guide U2 wait time must be anchored to the authoritative release-close completion',
+  );
+}
+
+{
+  const clock: TestClock = { nowMs: 70_000_000 };
+  let file = activateFreshMode(createDefaultHeatCapacityFile(9_003), 'free', clock);
+  file = advanceFreeToPumpReady(file, clock);
+  file = registerHeatCapacityPumpStroke(file, nextTime(clock, 1));
+  file = stepHeatCapacityWorkbenchFile(file, nextTime(clock, 40));
+  assert.equal(file.heatCapacityFreePhysicsState.pumpProcesses.length, 1);
+  assert.equal(file.heatCapacityFreePhysicsState.pumpProcesses[0]?.appliedProgress > 0, true);
+  assert.equal(file.heatCapacityFreePhysicsState.pumpProcesses[0]?.appliedProgress < 1, true);
+  const suspended = suspendHeatCapacityModeSession(file, null, nextTime(clock, 1));
+  assert.equal(
+    normalizeHeatCapacityModeSessionStore(
+      structuredClone(suspended.heatCapacityModeSessions),
+      suspended.id,
+    ).free.status,
+    'suspended',
+    'a real partially applied pump process must survive persistence',
+  );
+
+  const forgedStore = structuredClone(suspended.heatCapacityModeSessions);
+  const freeSnapshot = forgedStore.free.snapshot as unknown as Record<string, unknown>;
+  const freeRuntime = freeSnapshot.free as Record<string, unknown>;
+  const activeDomain = (
+    freeRuntime.heatCapacityFreeParameterScheme === 'ideal'
+      ? freeRuntime.heatCapacityFreeIdealDomain
+      : freeRuntime.heatCapacityFreeRealDomain
+  ) as Record<string, unknown>;
+  for (const physicsValue of [
+    freeRuntime.heatCapacityFreePhysicsState,
+    activeDomain.physicsState,
+  ]) {
+    const physics = physicsValue as Record<string, unknown>;
+    const processes = physics.pumpProcesses as Record<string, unknown>[];
+    processes[0]!.strength = 100;
+  }
+  assert.equal(
+    normalizeHeatCapacityModeSessionStore(forgedStore, suspended.id).free.status,
+    'empty',
+    'a persisted pump process cannot inject a strength that no Workbench action can emit',
+  );
+}
+
+{
+  const clock: TestClock = { nowMs: 80_000_000 };
+  let file = activateFreshMode(createDefaultHeatCapacityFile(9_004), 'guide', clock);
+  file = advanceGuideToPumpReady(file, clock);
+  file = pumpGuideToTarget(file, clock);
+  file = setHeatCapacityGuidePumpValveOpen(file, false, nextTime(clock, 100));
+  file = setHeatCapacityGuideEquilibriumSpeedMultiplier(file, 16, nextTime(clock, 1));
+  file = advanceGuideWaitToElapsed(file, HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS, clock);
+  assert.equal(file.heatCapacityGuideWorkflow.step, 'recordU1Required');
+  const suspended = suspendHeatCapacityModeSession(file, null, nextTime(clock, 1));
+  assert.equal(
+    normalizeHeatCapacityModeSessionStore(
+      structuredClone(suspended.heatCapacityModeSessions),
+      suspended.id,
+    ).guide.status,
+    'suspended',
+    'Guide recordU1Required must remain restorable after the real 300-second wait completes',
+  );
+}
 
 // Demo's visible wait clock is owned by the UI timeline. The route fixtures above
 // pair its real scripted Workbench state with this exact public 150/300 s instant.

@@ -7,23 +7,33 @@ import {
   reduceHeatCapacityModeTransition,
 } from '../../src/features/heatCapacity/heatCapacityModeTransitionModel.ts';
 
-let state = createHeatCapacityModeTransitionState('free');
-state = reduceHeatCapacityModeTransition(state, {
+type TransitionState = ReturnType<typeof createHeatCapacityModeTransitionState>;
+const requestTransition = (
+  state: TransitionState,
+  targetMode: TransitionState['visibleMode'],
+  sceneMotionReasons: TransitionState['sourceBlockers'],
+  discardSource = false,
+) => reduceHeatCapacityModeTransition(state, {
   type: 'request',
-  targetMode: 'guide',
-  sceneMotionReasons: ['camera', 'instrument'],
+  intent: {
+    requestId: state.lastIssuedRequestId + 1,
+    sourceMode: state.visibleMode,
+    targetMode,
+    reason: 'mode-control',
+    discardSource,
+  },
+  sceneMotionReasons,
 });
+
+let state = createHeatCapacityModeTransitionState('free');
+state = requestTransition(state, 'guide', ['camera', 'instrument']);
 assert.equal(state.phase, 'waiting-for-motion');
 assert.deepEqual(state.sourceBlockers, ['camera', 'instrument']);
 assert.equal(state.sourceMode, 'free');
 assert.equal(state.targetMode, 'guide');
 assert.equal(isHeatCapacityModeTransitionLocked(state), true);
 
-state = reduceHeatCapacityModeTransition(state, {
-  type: 'request',
-  targetMode: 'demo',
-  sceneMotionReasons: ['camera'],
-});
+state = requestTransition(state, 'demo', ['camera']);
 assert.equal(state.phase, 'waiting-for-motion');
 assert.equal(state.targetMode, 'demo', 'the last request must replace an earlier request before switching starts');
 assert.deepEqual(state.sourceBlockers, ['camera'], 'the replacement request owns a fresh source barrier');
@@ -35,6 +45,7 @@ state = reduceHeatCapacityModeTransition(state, {
 assert.equal(state.phase, 'preparing-target');
 state = reduceHeatCapacityModeTransition(state, {
   type: 'target-applied',
+  requestId: state.requestId,
   targetMode: 'demo',
   startedAtMs: 1_000,
   durationMs: 380,
@@ -44,16 +55,8 @@ assert.equal(state.visibleMode, 'demo');
 assert.equal(state.sourceMode, 'free');
 assert.equal(state.targetMode, 'demo');
 
-state = reduceHeatCapacityModeTransition(state, {
-  type: 'request',
-  targetMode: 'guide',
-  sceneMotionReasons: [],
-});
-state = reduceHeatCapacityModeTransition(state, {
-  type: 'request',
-  targetMode: 'free',
-  sceneMotionReasons: [],
-});
+state = requestTransition(state, 'guide', []);
+state = requestTransition(state, 'free', []);
 assert.equal(state.queuedMode, 'free', 'the final click must win while the first transition is animating');
 assert.equal(state.visibleMode, 'demo');
 
@@ -64,6 +67,19 @@ assert.equal(hydratedAnimating.phase, 'animating');
 assert.equal(hydratedAnimating.visualStartedAtMs, 5_000);
 assert.equal(hydratedAnimating.visualDurationMs, 280);
 assert.equal(hydratedAnimating.queuedMode, 'free');
+const resumedAnimating = reduceHeatCapacityModeTransition(state, {
+  type: 'animation-clock-rebased',
+  requestId: state.requestId,
+  startedAtMs: 5_000,
+  durationMs: 75,
+});
+assert.equal(resumedAnimating.visualStartedAtMs, 5_000);
+assert.equal(resumedAnimating.visualDurationMs, 75);
+assert.equal(
+  createHeatCapacityModeTransitionCheckpoint(resumedAnimating, 5_025).visualRemainingMs,
+  50,
+  'a cancelled desktop exit or recovered renderer must resume only the frozen visual remainder',
+);
 
 state = reduceHeatCapacityModeTransition(state, {
   type: 'animation-finished',
@@ -75,6 +91,7 @@ assert.equal(state.targetMode, 'free');
 
 state = reduceHeatCapacityModeTransition(state, {
   type: 'target-applied',
+  requestId: state.requestId,
   targetMode: 'free',
   startedAtMs: 2_000,
   durationMs: 380,
@@ -89,43 +106,24 @@ assert.equal(state.sourceMode, null);
 assert.equal(isHeatCapacityModeTransitionLocked(state), false);
 
 let preparingState = createHeatCapacityModeTransitionState('free');
-preparingState = reduceHeatCapacityModeTransition(preparingState, {
-  type: 'request',
-  targetMode: 'guide',
-  sceneMotionReasons: [],
-});
+preparingState = requestTransition(preparingState, 'guide', []);
 const firstRequestId = preparingState.requestId;
-preparingState = reduceHeatCapacityModeTransition(preparingState, {
-  type: 'request',
-  targetMode: 'demo',
-  sceneMotionReasons: [],
-});
+preparingState = requestTransition(preparingState, 'demo', []);
 assert.equal(preparingState.phase, 'preparing-target');
 assert.equal(preparingState.targetMode, 'demo');
 assert.ok(preparingState.requestId > firstRequestId);
 
 let cancelQueuedState = createHeatCapacityModeTransitionState('free');
-cancelQueuedState = reduceHeatCapacityModeTransition(cancelQueuedState, {
-  type: 'request',
-  targetMode: 'guide',
-  sceneMotionReasons: [],
-});
+cancelQueuedState = requestTransition(cancelQueuedState, 'guide', []);
 cancelQueuedState = reduceHeatCapacityModeTransition(cancelQueuedState, {
   type: 'target-applied',
+  requestId: cancelQueuedState.requestId,
   targetMode: 'guide',
   startedAtMs: 10,
   durationMs: 380,
 });
-cancelQueuedState = reduceHeatCapacityModeTransition(cancelQueuedState, {
-  type: 'request',
-  targetMode: 'demo',
-  sceneMotionReasons: [],
-});
-cancelQueuedState = reduceHeatCapacityModeTransition(cancelQueuedState, {
-  type: 'request',
-  targetMode: 'guide',
-  sceneMotionReasons: [],
-});
+cancelQueuedState = requestTransition(cancelQueuedState, 'demo', []);
+cancelQueuedState = requestTransition(cancelQueuedState, 'guide', []);
 assert.equal(cancelQueuedState.queuedMode, null);
 
 const malformed = normalizeHeatCapacityModeTransitionCheckpoint({ phase: 'animating' }, 'guide');
@@ -276,16 +274,8 @@ for (const breakpoint of transitionBreakpoints) {
       assert.notEqual(supersededTarget, undefined, `${context}: a three-mode matrix must always have a superseded target`);
 
       const requestIdBeforeSegment = routeState.requestId;
-      routeState = reduceHeatCapacityModeTransition(routeState, {
-        type: 'request',
-        targetMode: supersededTarget!,
-        sceneMotionReasons: breakpoint.sceneMotionReasons,
-      });
-      routeState = reduceHeatCapacityModeTransition(routeState, {
-        type: 'request',
-        targetMode,
-        sceneMotionReasons: breakpoint.sceneMotionReasons,
-      });
+      routeState = requestTransition(routeState, supersededTarget!, [...breakpoint.sceneMotionReasons]);
+      routeState = requestTransition(routeState, targetMode, [...breakpoint.sceneMotionReasons]);
 
       assert.equal(
         routeState.phase,
@@ -325,6 +315,7 @@ for (const breakpoint of transitionBreakpoints) {
       const segmentStartedAtMs = matrixCaseCount * 10_000 + segmentIndex * 1_000;
       routeState = reduceHeatCapacityModeTransition(routeState, {
         type: 'target-applied',
+        requestId: routeState.requestId,
         targetMode,
         startedAtMs: segmentStartedAtMs,
         durationMs: 380,

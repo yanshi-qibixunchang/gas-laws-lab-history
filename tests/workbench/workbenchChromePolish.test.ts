@@ -5,7 +5,7 @@ const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudi
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
-const sessionSource = readFileSync(new URL('../../src/features/workbench/workbenchSession.ts', import.meta.url), 'utf8');
+const indexedDbPersistenceSource = readFileSync(new URL('../../src/features/workbench/workbenchIndexedDbPersistence.ts', import.meta.url), 'utf8');
 const filePresentationSource = readFileSync(new URL('../../src/features/workbench/workbenchFilePresentation.ts', import.meta.url), 'utf8');
 const emptyWorkspaceSource = readFileSync(new URL('../../src/features/workbench/WorkbenchEmptyWorkspace.tsx', import.meta.url), 'utf8');
 const electronMainSource = readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8');
@@ -191,32 +191,38 @@ assert.match(
 
 assert.match(
   electronMainSource,
-  /await createMainWindow\(\{ fresh: true \}\)/,
-  'desktop New Window should create a fresh no-file workbench instead of reusing the persisted session',
+  /createPersistentWorkbenchWindowNamespace\(randomUUID\)[\s\S]*workbenchWindowRegistry\.add\(namespace\)[\s\S]*createMainWindow\(\{ fresh: true, namespace \}\)/,
+  'desktop New Window should register a durable isolated workspace before creating its window',
 );
 
 assert.match(
-  sessionSource,
+  indexedDbPersistenceSource,
   /const isFreshWorkbenchWindow = \(\) =>/,
-  'session loading should detect a fresh workbench window request',
+  'IndexedDB bootstrap should detect a fresh workbench window request',
 );
 
 assert.match(
-  sessionSource,
+  indexedDbPersistenceSource,
   /searchParams\.get\('hslFreshWindow'\) === '1'/,
   'fresh workbench windows should be identified through an explicit URL parameter',
 );
 
 assert.match(
-  sessionSource,
-  /const getWorkbenchSessionStorage = \(\) =>/,
-  'session loading should centralize storage selection for regular and fresh workbench windows',
+  indexedDbPersistenceSource,
+  /const resolveWorkbenchNamespace = \(\) =>/,
+  'IndexedDB bootstrap should centralize durable desktop and temporary browser namespace selection',
 );
 
 assert.match(
-  sessionSource,
-  /isFreshWorkbenchWindow\(\) \? window\.sessionStorage : window\.localStorage/,
-  'fresh workbench windows should use per-window session storage instead of overwriting the persisted workspace',
+  indexedDbPersistenceSource,
+  /WORKBENCH_WINDOW_NAMESPACE_QUERY_PARAM[\s\S]*isExplicitWorkbenchNamespace\(explicitNamespace\)[\s\S]*return explicitNamespace;[\s\S]*window\.sessionStorage\.getItem\(WORKBENCH_TEMP_NAMESPACE_SESSION_KEY\)/,
+  'Electron windows should use validated durable namespaces while browser-only fresh tabs retain temporary isolation',
+);
+
+assert.match(
+  electronMainSource,
+  /restoreRegisteredWorkbenchWindows[\s\S]*registry\.namespaces[\s\S]*createMainWindow\(\{ fresh: true, namespace \}\)/,
+  'registered secondary workspaces should be reopened on the next desktop launch',
 );
 
 assert.match(

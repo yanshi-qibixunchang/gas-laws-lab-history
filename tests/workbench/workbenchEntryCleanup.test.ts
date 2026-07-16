@@ -24,6 +24,11 @@ assert.doesNotMatch(appSource, /CollapsibleCard|StatsPanel|ModeSwitch|StackedRes
   'src/components/ModeSwitch.tsx',
   'src/components/DistributionCharts.tsx',
   'src/components/StackedResults.tsx',
+  'src/features/heatCapacity/heatCapacityModeSessionModel.ts',
+  'tests/heatCapacity/heatCapacityModeSessionModel.test.ts',
+  'public/mockups/guide-checklist-panel.html',
+  'public/mockups/guide-timer-badge-options.html',
+  'public/mockups/guide-timer-badge-single.html',
 ].forEach((relativePath) => {
   assert.equal(existsSync(join(root, relativePath)), false, `${relativePath} should be removed`);
 });

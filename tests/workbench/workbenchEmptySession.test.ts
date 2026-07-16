@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 
 const sessionSource = readFileSync(new URL('../../src/features/workbench/workbenchSession.ts', import.meta.url), 'utf8');
+const indexedDbPersistenceSource = readFileSync(new URL('../../src/features/workbench/workbenchIndexedDbPersistence.ts', import.meta.url), 'utf8');
 const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
 
 assert.doesNotMatch(
@@ -29,9 +30,9 @@ assert.match(
 );
 
 assert.match(
-  sessionSource,
-  /storage\.setItem\(WORKBENCH_SESSION_STORAGE_KEY, JSON\.stringify\(envelope\)\);/,
-  'newly created studies should still persist through the selected session storage key via the versioned envelope',
+  indexedDbPersistenceSource,
+  /const records = preparedRecords \?\? createPersistenceRecords\(namespace, snapshot, migrationState\);[\s\S]*fileRecordsToWrite\.forEach\(\(record\) => fileStore\.put\(record\)\);[\s\S]*modeRecordsToWrite\.forEach\(\(record\) => modeStore\.put\(record\)\);[\s\S]*metaStore\.put\(records\.meta\);[\s\S]*await completed;/,
+  'newly created studies should persist atomically through the versioned, incrementally selected IndexedDB records',
 );
 
 assert.match(
@@ -41,4 +42,3 @@ assert.match(
 );
 
 console.log('workbenchEmptySession tests passed');
-

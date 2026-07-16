@@ -1,6 +1,7 @@
 import {
   FREE_PUMP_STROKE_DURATION_S,
   type HeatCapacityFreeEnvironmentConfig,
+  type HeatCapacityFreePhysicsConfig,
 } from '../../domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
 import type {
   HeatCapacityFreeSensorConfig,
@@ -32,35 +33,43 @@ export interface HeatCapacityFreeConfigSnapshotOptions {
   recordConfig?: HeatCapacityFreeRecordConfig;
 }
 
-export const createHeatCapacityFreeConfigSnapshotFromFile = (
-  file: WorkbenchHeatCapacityState,
-  options: HeatCapacityFreeConfigSnapshotOptions = {},
-): HeatCapacityFreeConfigSnapshot => {
+export interface HeatCapacityFreeRuntimeConfigSnapshotSource {
+  environmentConfig: HeatCapacityFreeEnvironmentConfig;
+  physicsConfig: HeatCapacityFreePhysicsConfig;
+  sensorConfig: HeatCapacityFreeSensorConfig;
+  recordConfig: HeatCapacityFreeRecordConfig;
+  pressureWarningMv: number;
+}
+
+export const createHeatCapacityFreeConfigSnapshotFromRuntimeConfigs = ({
+  environmentConfig,
+  physicsConfig,
+  sensorConfig,
+  recordConfig,
+  pressureWarningMv,
+}: HeatCapacityFreeRuntimeConfigSnapshotSource): HeatCapacityFreeConfigSnapshot => {
   const fallback = createDefaultFreeConfigSnapshot();
-  const environmentConfig = options.environmentConfig ?? file.heatCapacityFreePhysicsConfig.environment;
-  const sensorConfig = options.sensorConfig ?? file.heatCapacityFreeSensorConfig;
-  const recordConfig = options.recordConfig ?? file.heatCapacityFreeRecordConfig;
   return {
     version: HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
     environment: { ...environmentConfig },
     physics: {
       ...fallback.physics,
-      gamma: file.heatCapacityFreePhysicsConfig.gamma,
+      gamma: physicsConfig.gamma,
       vesselVolumeL: fallback.physics.vesselVolumeL,
       pumpAmountGainRatio: fallback.physics.pumpAmountGainRatio,
       pumpWorkRetention: fallback.physics.pumpWorkRetention,
-      pumpPressureLimitKPa: file.heatCapacityFreePhysicsConfig.pumpPressureLimitKPa,
+      pumpPressureLimitKPa: physicsConfig.pumpPressureLimitKPa,
       pumpStrokeDurationS: FREE_PUMP_STROKE_DURATION_S,
       recommendedPumpIntervalS: HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
-      stopcockFlowRate: file.heatCapacityFreePhysicsConfig.stopcockFlowRate,
-      thermal: { ...file.heatCapacityFreePhysicsConfig.thermal },
+      stopcockFlowRate: physicsConfig.stopcockFlowRate,
+      thermal: { ...physicsConfig.thermal },
       pumpValveExchange: normalizeFreePumpValveExchangeConfig(
-        file.heatCapacityFreePhysicsConfig.pumpValveExchange,
+        physicsConfig.pumpValveExchange,
       ),
       environmentDisturbance: normalizeFreeEnvironmentDisturbanceConfig(
-        file.heatCapacityFreePhysicsConfig.environmentDisturbance,
+        physicsConfig.environmentDisturbance,
       ),
-      leakage: { ...file.heatCapacityFreePhysicsConfig.leakage },
+      leakage: { ...physicsConfig.leakage },
     },
     sensor: {
       pressureMvPerKPa: sensorConfig.pressureMvPerKPa,
@@ -84,9 +93,25 @@ export const createHeatCapacityFreeConfigSnapshotFromFile = (
       temperatureAmbientToleranceMv: recordConfig.temperatureAmbientToleranceMv,
       minimumUsefulU1CorrectedMv: recordConfig.minimumUsefulU1CorrectedMv,
       overVentedMinimumU2CorrectedMv: recordConfig.overVentedMinimumU2CorrectedMv,
-      pressureWarningMv: file.heatCapacityFreePressureWarningMv,
+      pressureWarningMv,
       pressureDangerMv: recordConfig.pressureDangerMv,
     },
     scoring: { ...fallback.scoring },
   };
+};
+
+export const createHeatCapacityFreeConfigSnapshotFromFile = (
+  file: WorkbenchHeatCapacityState,
+  options: HeatCapacityFreeConfigSnapshotOptions = {},
+): HeatCapacityFreeConfigSnapshot => {
+  const environmentConfig = options.environmentConfig ?? file.heatCapacityFreePhysicsConfig.environment;
+  const sensorConfig = options.sensorConfig ?? file.heatCapacityFreeSensorConfig;
+  const recordConfig = options.recordConfig ?? file.heatCapacityFreeRecordConfig;
+  return createHeatCapacityFreeConfigSnapshotFromRuntimeConfigs({
+    environmentConfig,
+    physicsConfig: file.heatCapacityFreePhysicsConfig,
+    sensorConfig,
+    recordConfig,
+    pressureWarningMv: file.heatCapacityFreePressureWarningMv,
+  });
 };

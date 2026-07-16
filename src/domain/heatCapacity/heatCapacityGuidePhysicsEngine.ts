@@ -97,7 +97,7 @@ export interface HeatCapacityGuidePumpStrokeResult {
 }
 
 const PRESSURE_EPSILON_KPA = 0.000001;
-const GUIDE_PUMP_STROKE_DURATION_S = 0.08;
+export const GUIDE_PUMP_STROKE_DURATION_S = 0.08;
 const GUIDE_OPEN_FLOW_MAX_SUBSTEP_S = 0.02;
 const GUIDE_CLOSED_WAIT_MAX_SUBSTEP_S = 1;
 
@@ -240,7 +240,7 @@ export const deriveGuidePhysicalState = (
   };
 };
 
-const getGuidePumpStrokeProgress = (elapsedS: number) => {
+export const getGuidePumpStrokeProgress = (elapsedS: number) => {
   const elapsed = clampNonNegativeFinite(elapsedS);
   if (elapsed >= GUIDE_PUMP_STROKE_DURATION_S - 1e-9) return 1;
   for (let index = 1; index < GUIDE_PUMP_STROKE_PROGRESS_POINTS.length; index += 1) {
@@ -456,20 +456,10 @@ export const stepGuidePhysicsState = (
 ): HeatCapacityGuidePhysicsState => {
   const totalDtS = clampNonNegativeFinite(input.dtS);
   let nextState = migrateGuidePhysicsState(state, config);
-  if (!input.powerOn || totalDtS === 0) return nextState;
-  let remainingS = totalDtS;
-
-  while (remainingS > 0) {
-    const requiresFastStep = input.stopcockOpen || nextState.pumpProcesses.length > 0;
-    const stepS = Math.min(
-      remainingS,
-      requiresFastStep ? GUIDE_OPEN_FLOW_MAX_SUBSTEP_S : GUIDE_CLOSED_WAIT_MAX_SUBSTEP_S,
-    );
-    const atS = nextState.simulationTimeS + stepS;
-    const wasStopcockOpen = nextState.lastStopcockOpenedAtS !== null &&
-      (nextState.lastStopcockClosedAtS === null || nextState.lastStopcockOpenedAtS >= nextState.lastStopcockClosedAtS);
-
-    if (input.stopcockOpen && !wasStopcockOpen) {
+  if (!input.powerOn) return nextState;
+  const wasStopcockOpen = nextState.lastStopcockOpenedAtS !== null &&
+    (nextState.lastStopcockClosedAtS === null || nextState.lastStopcockOpenedAtS >= nextState.lastStopcockClosedAtS);
+  if (input.stopcockOpen && !wasStopcockOpen) {
       const mainRelease = input.stopcockFlowPurpose === 'release';
       nextState = {
         ...nextState,
@@ -481,13 +471,23 @@ export const stepGuidePhysicsState = (
           ? createReleaseReference(nextState, config, nextState.simulationTimeS)
           : nextState.releaseReference,
       };
-    } else if (!input.stopcockOpen && wasStopcockOpen) {
-      nextState = {
-        ...nextState,
-        lastStopcockClosedAtS: nextState.simulationTimeS,
-        currentStopcockOpenDurationS: 0,
-      };
-    }
+  } else if (!input.stopcockOpen && wasStopcockOpen) {
+    nextState = {
+      ...nextState,
+      lastStopcockClosedAtS: nextState.simulationTimeS,
+      currentStopcockOpenDurationS: 0,
+    };
+  }
+  if (totalDtS === 0) return nextState;
+  let remainingS = totalDtS;
+
+  while (remainingS > 0) {
+    const requiresFastStep = input.stopcockOpen || nextState.pumpProcesses.length > 0;
+    const stepS = Math.min(
+      remainingS,
+      requiresFastStep ? GUIDE_OPEN_FLOW_MAX_SUBSTEP_S : GUIDE_CLOSED_WAIT_MAX_SUBSTEP_S,
+    );
+    const atS = nextState.simulationTimeS + stepS;
 
     nextState = {
       ...stepPumpProcesses(nextState, config, atS),

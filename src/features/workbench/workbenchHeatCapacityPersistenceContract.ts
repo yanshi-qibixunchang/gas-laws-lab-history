@@ -46,6 +46,8 @@ export const HEAT_CAPACITY_FREE_UI_REPLAY_KEYS = [
   'pressureZeroOffset',
   'pressureZeroDisplayText',
   'releaseRecoveryTargetDeltaKPa',
+  'pressureSignalMvRaw',
+  'pressureSignalMvDisplayed',
   'pressureSignalRawReadoutMv',
   'pressureSignalReadoutMv',
   'pressureGaugeDisplayValue',
@@ -170,10 +172,60 @@ export const validateHeatCapacityPersistencePayload = (
   if (payload.heatCapacitySchemaVersion !== HEAT_CAPACITY_SCHEMA_VERSION) {
     errors.push('heatCapacitySchemaVersion is unsupported');
   }
+  if (payload.mode !== 'demo' && payload.mode !== 'guide' && payload.mode !== 'free') {
+    errors.push('mode is invalid');
+  }
+  const common = isPersistenceRecord(payload.common) ? payload.common : null;
+  if (!common) {
+    errors.push('common payload is required');
+  } else {
+    if (typeof common.materialsExpanded !== 'boolean') errors.push('common.materialsExpanded must be a boolean');
+    if (
+      common.teachingStatus !== 'idle' &&
+      common.teachingStatus !== 'running' &&
+      common.teachingStatus !== 'completed'
+    ) errors.push('common.teachingStatus is invalid');
+    if (!Array.isArray(common.openHeatCapacityTabs)) errors.push('common.openHeatCapacityTabs must be an array');
+    if (!isPersistenceRecord(common.modeSessions) || common.modeSessions.schemaVersion !== 2) {
+      errors.push('common.modeSessions is invalid');
+    } else {
+      (['demo', 'guide', 'free'] as const).forEach((mode) => {
+        const entry = common.modeSessions[mode];
+        if (
+          !isPersistenceRecord(entry) ||
+          (entry.status !== 'empty' && entry.status !== 'suspended' && entry.status !== 'completed') ||
+          (entry.snapshot !== null && !isPersistenceRecord(entry.snapshot)) ||
+          (entry.uiCheckpoint !== null && !isPersistenceRecord(entry.uiCheckpoint))
+        ) errors.push(`common.modeSessions.${mode} is invalid`);
+      });
+    }
+    if (typeof common.lessonIntroAutoShown !== 'boolean') {
+      errors.push('common.lessonIntroAutoShown must be a boolean');
+    }
+  }
   const free = isPersistenceRecord(payload.free) ? payload.free : null;
   if (!free) {
     errors.push('free payload is required');
     return { valid: false, errors };
+  }
+  if (free.runtimeVersion !== HEAT_CAPACITY_FREE_RUNTIME_VERSION) {
+    errors.push('free.runtimeVersion is unsupported');
+  }
+  if (free.traceVersion !== HEAT_CAPACITY_FREE_TRACE_VERSION) {
+    errors.push('free.traceVersion is unsupported');
+  }
+  if (free.calculationVersion !== HEAT_CAPACITY_FREE_CALCULATION_VERSION) {
+    errors.push('free.calculationVersion is unsupported');
+  }
+  if (typeof free.preheatCompleted !== 'boolean') errors.push('free.preheatCompleted must be a boolean');
+  if (free.parameterScheme !== 'real' && free.parameterScheme !== 'ideal') {
+    errors.push('free.parameterScheme is invalid');
+  }
+  if (free.displayScheme !== 'real' && free.displayScheme !== 'ideal') {
+    errors.push('free.displayScheme is invalid');
+  }
+  if (!isPersistenceRecord(free.real) || !isPersistenceRecord(free.ideal)) {
+    errors.push('free real and ideal domains are required');
   }
   const runtime = isPersistenceRecord(free.runtime) ? free.runtime : null;
   if (!runtime || !isPersistenceFiniteNumber(runtime.gasAmountRatio) || runtime.gasAmountRatio <= 0) {
@@ -198,6 +250,14 @@ export const validateHeatCapacityPersistencePayload = (
   if (!isPersistenceRecord(free.recordConfig)) {
     errors.push('free.recordConfig is required');
   }
+  if (!isPersistenceRecord(free.acknowledgements)) {
+    errors.push('free.acknowledgements is required');
+  }
+  if (!isPersistenceRecord(free.controls)) errors.push('free.controls is required');
+  if (!isPersistenceRecord(free.sensor)) errors.push('free.sensor is required');
+  if (!isPersistenceRecord(free.calibration)) errors.push('free.calibration is required');
+  if (!isPersistenceRecord(free.rollbackSnapshots)) errors.push('free.rollbackSnapshots is required');
+  if (!isPersistenceRecord(free.uiReplay)) errors.push('free.uiReplay is required');
   if (!isPersistenceFiniteNumber(free.pressureWarningMv)) {
     errors.push('free.pressureWarningMv must be a finite number');
   }
@@ -214,11 +274,37 @@ export const validateHeatCapacityPersistencePayload = (
   if (!physics || !isPersistenceFiniteNumber(physics.gamma) || physics.gamma <= 1) {
     errors.push('free.config.physics.gamma must be > 1');
   }
-  if (!isPersistenceRecord(free.traceStore) || !Array.isArray(free.traceStore.traceTrials)) {
+  if (
+    !isPersistenceRecord(free.traceStore) ||
+    !Array.isArray(free.traceStore.traceTrials) ||
+    !free.traceStore.traceTrials.every(isPersistenceRecord)
+  ) {
     errors.push('free.traceStore.traceTrials must be an array');
   }
-  if (!Array.isArray(free.trials)) {
+  if (!Array.isArray(free.trials) || !free.trials.every(isPersistenceRecord)) {
     errors.push('free.trials must be an array');
   }
+  if (payload.guided === null) {
+    if (payload.mode === 'guide') errors.push('guided payload is required for guide mode');
+  } else if (!isPersistenceRecord(payload.guided)) {
+    errors.push('guided payload must be an object or null');
+  } else {
+    if (!isPersistenceRecord(payload.guided.physicsConfig)) {
+      errors.push('guided.physicsConfig is required');
+    }
+    if (!isPersistenceRecord(payload.guided.physicsState)) {
+      errors.push('guided.physicsState is required');
+    }
+    if (!isPersistenceRecord(payload.guided.temperatureSensorState)) {
+      errors.push('guided.temperatureSensorState is required');
+    }
+    if (!isPersistenceRecord(payload.guided.workflow)) {
+      errors.push('guided.workflow is required');
+    }
+    if (payload.guided.trial !== null && !isPersistenceRecord(payload.guided.trial)) {
+      errors.push('guided.trial must be an object or null');
+    }
+  }
+  if (payload.demo !== null) errors.push('demo payload must be null');
   return { valid: errors.length === 0, errors };
 };

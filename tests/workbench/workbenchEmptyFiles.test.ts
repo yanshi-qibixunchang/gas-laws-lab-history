@@ -25,7 +25,7 @@ assert.match(
 
 assert.match(
   source,
-  /setActiveFileId\(nextActiveFile\?\.id \?\? ''\);[\s\S]*?activeFileIdRef\.current = nextActiveFile\?\.id \?\? '';/,
+  /const nextActiveFileId = nextActiveFile\?\.id \?\? '';[\s\S]*?commitWorkbenchFileCollections\(remainingFiles, nextClosedFiles, nextActiveFileId\);/,
   'deleting the active final file should clear the active file id instead of selecting a missing file',
 );
 
@@ -132,4 +132,3 @@ assert.match(
 );
 
 console.log('workbenchEmptyFiles tests passed');
-

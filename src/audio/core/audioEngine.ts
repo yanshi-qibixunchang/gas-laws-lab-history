@@ -49,8 +49,10 @@ export class AudioEngine {
   private readonly decodedAudioPromises = new Map<string, Promise<AudioBuffer>>();
   private readonly activeVoices = new Map<number, InternalVoice>();
   private readonly groupVoices = new Map<string, Set<number>>();
+  private readonly groupPlaybackGenerations = new Map<string, number>();
   private readonly lastSelectedFileByAssetId = new Map<string, string>();
   private nextVoiceId = 1;
+  private playbackGeneration = 0;
   private destroyed = false;
 
   constructor(
@@ -66,27 +68,49 @@ export class AudioEngine {
   }
 
   setSettings(settings: AudioSettings) {
-    const previous = this.settings;
     this.settings = normalizeAudioSettings(settings);
-    this.busGraph?.applySettings(this.settings);
-    if (previous.enabled && !this.settings.enabled) {
-      this.stopAll(AUDIO_MASTER_GAIN_RAMP_MS);
+    let applied = true;
+    try {
+      applied = this.busGraph?.applySettings(this.settings) ?? true;
+    } catch {
+      applied = false;
+    } finally {
+      if (!this.settings.enabled || this.settings.volume <= 0) {
+        this.stopAll(AUDIO_MASTER_GAIN_RAMP_MS);
+      }
     }
+    return applied;
+  }
+
+  private isPlaybackEnabled() {
+    return this.settings.enabled && this.settings.volume > 0;
   }
 
   private ensureContext() {
     if (this.destroyed || typeof window === 'undefined') return null;
-    if (this.context) return this.context;
+    if (this.context && this.busGraph) return this.context;
     const context = new AudioContext({ latencyHint: 'interactive' });
-    this.context = context;
-    this.busGraph = new AudioBusGraph(context, this.settings);
-    return context;
+    try {
+      const busGraph = new AudioBusGraph(context, this.settings);
+      this.context = context;
+      this.busGraph = busGraph;
+      return context;
+    } catch (error) {
+      try {
+        void context.close().catch(() => undefined);
+      } catch {
+        // A partially initialized browser audio context may already be closed.
+      }
+      this.context = null;
+      this.busGraph = null;
+      throw error;
+    }
   }
 
   async unlock() {
-    const context = this.ensureContext();
-    if (!context) return false;
     try {
+      const context = this.ensureContext();
+      if (!context) return false;
       if (context.state === 'suspended') await context.resume();
       if (context.state === 'running') {
         void this.decodePreloadedAudio();
@@ -165,6 +189,24 @@ export class AudioEngine {
     }
   }
 
+  private beginGroupPlayback(group: string | null) {
+    if (!group) return null;
+    const generation = (this.groupPlaybackGenerations.get(group) ?? 0) + 1;
+    this.groupPlaybackGenerations.set(group, generation);
+    return generation;
+  }
+
+  private isPlaybackCurrent(
+    playbackGeneration: number,
+    group: string | null,
+    groupPlaybackGeneration: number | null,
+  ) {
+    return playbackGeneration === this.playbackGeneration && (
+      groupPlaybackGeneration === null ||
+      (group !== null && this.groupPlaybackGenerations.get(group) === groupPlaybackGeneration)
+    );
+  }
+
   private stopVoice(voice: InternalVoice, fadeOutMs = 0) {
     if (voice.stopped) return;
     voice.stopped = true;
@@ -173,11 +215,19 @@ export class AudioEngine {
     if (!context) return;
     const now = context.currentTime;
     const stopAt = now + Math.max(0, fadeOutMs) / 1000;
-    voice.output.gain.cancelAndHoldAtTime(now);
-    if (fadeOutMs > 0) voice.output.gain.linearRampToValueAtTime(0, stopAt);
-    else voice.output.gain.setValueAtTime(0, now);
+    try {
+      voice.output.gain.cancelAndHoldAtTime(now);
+      if (fadeOutMs > 0) voice.output.gain.linearRampToValueAtTime(0, stopAt);
+      else voice.output.gain.setValueAtTime(0, now);
+    } catch {
+      try {
+        voice.output.gain.value = 0;
+      } catch {
+        // Teardown must continue even if the audio driver rejects gain updates.
+      }
+    }
     for (const source of voice.sources) safeStopSource(source, stopAt + 0.005);
-    window.setTimeout(() => {
+    const disconnectVoiceNodes = () => {
       for (const node of voice.nodes) {
         try {
           node.disconnect();
@@ -187,7 +237,12 @@ export class AudioEngine {
       }
       voice.nodes.clear();
       voice.sources.clear();
-    }, Math.max(0, fadeOutMs) + 30);
+    };
+    try {
+      window.setTimeout(disconnectVoiceNodes, Math.max(0, fadeOutMs) + 30);
+    } catch {
+      disconnectVoiceNodes();
+    }
   }
 
   private createHandle(voice: InternalVoice): AudioVoiceHandle {
@@ -221,7 +276,8 @@ export class AudioEngine {
   }
 
   async playOneShot(assetId: string, options: PlayOneShotOptions = {}) {
-    if (!this.settings.enabled || this.destroyed) return null;
+    if (!this.isPlaybackEnabled() || this.destroyed) return null;
+    const playbackGeneration = this.playbackGeneration;
     const definition = this.catalog[assetId];
     if (!definition) {
       console.warn(`[AudioEngine] Unknown audio asset: ${assetId}`);
@@ -229,16 +285,27 @@ export class AudioEngine {
     }
     const file = this.selectFile(assetId, definition, options.fileIndex);
     if (!file) return null;
+    const group = definition.voiceGroup ?? null;
+    const groupPlaybackGeneration = this.beginGroupPlayback(group);
     const requestedAtMs = getClockMs();
     const unlocked = await this.unlock();
-    if (!unlocked || !this.settings.enabled || this.destroyed) return null;
+    if (
+      !unlocked ||
+      !this.isPlaybackCurrent(playbackGeneration, group, groupPlaybackGeneration) ||
+      !this.isPlaybackEnabled() ||
+      this.destroyed
+    ) return null;
 
     let buffer: AudioBuffer;
     try {
       buffer = await this.decodeAudio(file);
     } catch (error) {
-      console.warn(`[AudioEngine] Could not decode ${assetId}.`, error);
-      return null;
+      if (
+        !this.isPlaybackCurrent(playbackGeneration, group, groupPlaybackGeneration) ||
+        !this.isPlaybackEnabled() ||
+        this.destroyed
+      ) return null;
+      throw new Error(`[AudioEngine] Could not decode ${assetId}.`, { cause: error });
     }
     if (
       options.maxStartDelayMs !== undefined &&
@@ -246,9 +313,14 @@ export class AudioEngine {
     ) {
       return null;
     }
-    if (!this.settings.enabled || this.destroyed || !this.context || !this.busGraph) return null;
+    if (
+      !this.isPlaybackCurrent(playbackGeneration, group, groupPlaybackGeneration) ||
+      !this.isPlaybackEnabled() ||
+      this.destroyed ||
+      !this.context ||
+      !this.busGraph
+    ) return null;
 
-    const group = definition.voiceGroup ?? null;
     if (group && options.replaceGroup) this.stopGroup(group, options.crossfadeMs ?? 15);
 
     const source = this.context.createBufferSource();
@@ -307,13 +379,19 @@ export class AudioEngine {
       voice.sources.clear();
     };
     this.registerVoice(voice);
-    source.start(startAt);
-    if (durationMs !== null) source.stop(startAt + durationMs / 1000 + 0.005);
+    try {
+      source.start(startAt);
+      if (durationMs !== null) source.stop(startAt + durationMs / 1000 + 0.005);
+    } catch (error) {
+      this.stopVoice(voice, 0);
+      throw new Error(`[AudioEngine] Could not start ${assetId}.`, { cause: error });
+    }
     return this.createHandle(voice);
   }
 
   async playBurst(assetId: string, options: PlayBurstOptions) {
-    if (!this.settings.enabled || this.destroyed) return null;
+    if (!this.isPlaybackEnabled() || this.destroyed) return null;
+    const playbackGeneration = this.playbackGeneration;
     const definition = this.catalog[assetId];
     if (!definition) {
       console.warn(`[AudioEngine] Unknown audio asset: ${assetId}`);
@@ -323,16 +401,27 @@ export class AudioEngine {
     if (count === 0) return null;
     const file = this.selectFile(assetId, definition, options.fileIndex);
     if (!file) return null;
+    const group = definition.voiceGroup ?? null;
+    const groupPlaybackGeneration = this.beginGroupPlayback(group);
     const requestedAtMs = getClockMs();
     const unlocked = await this.unlock();
-    if (!unlocked || !this.settings.enabled || this.destroyed) return null;
+    if (
+      !unlocked ||
+      !this.isPlaybackCurrent(playbackGeneration, group, groupPlaybackGeneration) ||
+      !this.isPlaybackEnabled() ||
+      this.destroyed
+    ) return null;
 
     let buffer: AudioBuffer;
     try {
       buffer = await this.decodeAudio(file);
     } catch (error) {
-      console.warn(`[AudioEngine] Could not decode ${assetId}.`, error);
-      return null;
+      if (
+        !this.isPlaybackCurrent(playbackGeneration, group, groupPlaybackGeneration) ||
+        !this.isPlaybackEnabled() ||
+        this.destroyed
+      ) return null;
+      throw new Error(`[AudioEngine] Could not decode ${assetId}.`, { cause: error });
     }
     if (
       options.maxStartDelayMs !== undefined &&
@@ -340,9 +429,14 @@ export class AudioEngine {
     ) {
       return null;
     }
-    if (!this.settings.enabled || this.destroyed || !this.context || !this.busGraph) return null;
+    if (
+      !this.isPlaybackCurrent(playbackGeneration, group, groupPlaybackGeneration) ||
+      !this.isPlaybackEnabled() ||
+      this.destroyed ||
+      !this.context ||
+      !this.busGraph
+    ) return null;
 
-    const group = definition.voiceGroup ?? null;
     if (group && options.replaceGroup) this.stopGroup(group, options.crossfadeMs ?? 15);
 
     const output = this.context.createGain();
@@ -367,6 +461,7 @@ export class AudioEngine {
       startedAt: getClockMs(),
       stopped: false,
     };
+    this.registerVoice(voice);
     let remainingSources = count;
     const finishSource = (source: AudioBufferSourceNode, itemGain: GainNode | null) => {
       try {
@@ -387,46 +482,59 @@ export class AudioEngine {
     };
     const playbackRate = Math.min(4, Math.max(0.25, options.playbackRate ?? 1));
     const intervalS = Math.max(0, options.intervalMs) / 1000;
-    for (let index = 0; index < count; index += 1) {
-      const source = this.context.createBufferSource();
-      const itemGain = options.itemDurationMs === undefined ? null : this.context.createGain();
-      const itemStartAt = startAt + index * intervalS;
-      source.buffer = buffer;
-      source.playbackRate.value = playbackRate;
-      source.onended = () => finishSource(source, itemGain);
-      if (itemGain) {
-        const durationMs = Math.max(1, options.itemDurationMs ?? 1);
-        const fadeInMs = Math.min(durationMs, Math.max(0, options.itemFadeInMs ?? 0));
-        const fadeOutMs = Math.min(durationMs - fadeInMs, Math.max(0, options.itemFadeOutMs ?? 0));
-        const fadeInEndAt = itemStartAt + fadeInMs / 1000;
-        const itemEndAt = itemStartAt + durationMs / 1000;
-        const fadeOutStartAt = itemEndAt - fadeOutMs / 1000;
-        itemGain.gain.setValueAtTime(fadeInMs > 0 ? 0 : 1, itemStartAt);
-        if (fadeInMs > 0) itemGain.gain.linearRampToValueAtTime(1, fadeInEndAt);
-        itemGain.gain.setValueAtTime(1, Math.max(fadeInEndAt, fadeOutStartAt));
-        if (fadeOutMs > 0) itemGain.gain.linearRampToValueAtTime(0, itemEndAt);
-        source.connect(itemGain);
-        itemGain.connect(output);
-        nodes.add(itemGain);
-        source.start(itemStartAt);
-        source.stop(itemEndAt + 0.005);
-      } else {
-        source.connect(output);
-        source.start(itemStartAt);
+    try {
+      for (let index = 0; index < count; index += 1) {
+        const source = this.context.createBufferSource();
+        const itemGain = options.itemDurationMs === undefined ? null : this.context.createGain();
+        const itemStartAt = startAt + index * intervalS;
+        source.buffer = buffer;
+        source.playbackRate.value = playbackRate;
+        source.onended = () => finishSource(source, itemGain);
+        sources.add(source);
+        nodes.add(source);
+        if (itemGain) {
+          const durationMs = Math.max(1, options.itemDurationMs ?? 1);
+          const fadeInMs = Math.min(durationMs, Math.max(0, options.itemFadeInMs ?? 0));
+          const fadeOutMs = Math.min(durationMs - fadeInMs, Math.max(0, options.itemFadeOutMs ?? 0));
+          const fadeInEndAt = itemStartAt + fadeInMs / 1000;
+          const itemEndAt = itemStartAt + durationMs / 1000;
+          const fadeOutStartAt = itemEndAt - fadeOutMs / 1000;
+          itemGain.gain.setValueAtTime(fadeInMs > 0 ? 0 : 1, itemStartAt);
+          if (fadeInMs > 0) itemGain.gain.linearRampToValueAtTime(1, fadeInEndAt);
+          itemGain.gain.setValueAtTime(1, Math.max(fadeInEndAt, fadeOutStartAt));
+          if (fadeOutMs > 0) itemGain.gain.linearRampToValueAtTime(0, itemEndAt);
+          nodes.add(itemGain);
+          source.connect(itemGain);
+          itemGain.connect(output);
+          source.start(itemStartAt);
+          source.stop(itemEndAt + 0.005);
+        } else {
+          source.connect(output);
+          source.start(itemStartAt);
+        }
       }
-      sources.add(source);
-      nodes.add(source);
+    } catch (error) {
+      this.stopVoice(voice, 0);
+      throw new Error(`[AudioEngine] Could not start ${assetId} burst.`, { cause: error });
     }
-    this.registerVoice(voice);
     return this.createHandle(voice);
   }
 
   async createProceduralVoice(options: ProceduralVoiceOptions): Promise<ProceduralAudioVoiceHandle | null> {
-    if (!this.settings.enabled || this.destroyed) return null;
-    const unlocked = await this.unlock();
-    if (!unlocked || !this.settings.enabled || !this.context || !this.busGraph || this.destroyed) return null;
-
+    if (!this.isPlaybackEnabled() || this.destroyed) return null;
+    const playbackGeneration = this.playbackGeneration;
     const group = options.voiceGroup ?? null;
+    const groupPlaybackGeneration = this.beginGroupPlayback(group);
+    const unlocked = await this.unlock();
+    if (
+      !unlocked ||
+      !this.isPlaybackCurrent(playbackGeneration, group, groupPlaybackGeneration) ||
+      !this.isPlaybackEnabled() ||
+      !this.context ||
+      !this.busGraph ||
+      this.destroyed
+    ) return null;
+
     if (group && options.replaceGroup) this.stopGroup(group, options.crossfadeMs ?? 15);
 
     const output = this.context.createGain();
@@ -459,7 +567,15 @@ export class AudioEngine {
   }
 
   stopAll(fadeOutMs = 0) {
-    for (const voice of [...this.activeVoices.values()]) this.stopVoice(voice, fadeOutMs);
+    this.playbackGeneration += 1;
+    for (const voice of [...this.activeVoices.values()]) {
+      try {
+        this.stopVoice(voice, fadeOutMs);
+      } catch {
+        voice.stopped = true;
+        this.unregisterVoice(voice);
+      }
+    }
   }
 
   async destroy() {
@@ -469,10 +585,16 @@ export class AudioEngine {
     this.rawAudioPromises.clear();
     this.decodedAudioPromises.clear();
     this.lastSelectedFileByAssetId.clear();
-    this.busGraph?.destroy();
+    this.groupPlaybackGenerations.clear();
+    const busGraph = this.busGraph;
     this.busGraph = null;
     const context = this.context;
     this.context = null;
+    try {
+      busGraph?.destroy();
+    } catch {
+      // A driver disconnect failure must not skip AudioContext closure.
+    }
     if (context && context.state !== 'closed') {
       try {
         await context.close();

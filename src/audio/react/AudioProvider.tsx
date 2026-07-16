@@ -66,7 +66,11 @@ export const AudioProvider = ({ children, initialSettings = DEFAULT_AUDIO_SETTIN
       window.clearTimeout(destroyTimerRef.current);
       destroyTimerRef.current = null;
     }
-    const handlePageHide = () => {
+    const handlePageHide = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        engine.stopAll(0);
+        return;
+      }
       if (destroyTimerRef.current !== null) {
         window.clearTimeout(destroyTimerRef.current);
         destroyTimerRef.current = null;

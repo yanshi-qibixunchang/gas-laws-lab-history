@@ -24,13 +24,13 @@ assert.match(
 
 assert.match(
   appSource,
-  /display:\s*'grid'[\s\S]*?placeItems:\s*'center'[\s\S]*?transform:\s*`scale\(\$\{scale\}\)`/,
+  /display:\s*'grid'[\s\S]*?placeItems:\s*'center'[\s\S]*?transform:\s*useFixedFrame \? `scale\(\$\{scale\}\)` : 'none'/,
   'Workbench desktop frame should use layout centering and reserve transform for scaling only',
 );
 
 assert.match(
   appSource,
-  /const scaledFrameWidth = WORKBENCH_FRAME_WIDTH \* scale;[\s\S]*?const scaledFrameHeight = WORKBENCH_FRAME_HEIGHT \* scale;[\s\S]*?width:\s*scaledFrameWidth,[\s\S]*?height:\s*scaledFrameHeight,/,
+  /const scaledFrameWidth = WORKBENCH_FRAME_WIDTH \* scale;[\s\S]*?const scaledFrameHeight = WORKBENCH_FRAME_HEIGHT \* scale;[\s\S]*?width:\s*useFixedFrame \? scaledFrameWidth : '100vw',[\s\S]*?height:\s*useFixedFrame \? scaledFrameHeight : '100vh',/,
   'Workbench desktop frame should center an explicit wrapper matching the scaled visual size',
 );
 
@@ -48,7 +48,7 @@ assert.match(
 
 assert.match(
   appSource,
-  /outline:\s*'1px solid rgba\(127, 139, 152, 0\.38\)'[\s\S]*?boxShadow:/,
+  /outline:\s*useFixedFrame \? '1px solid rgba\(127, 139, 152, 0\.38\)' : 'none'[\s\S]*?boxShadow:\s*useFixedFrame/,
   'Workbench desktop frame should render a clear boundary around the 16:9 stage',
 );
 
@@ -66,14 +66,20 @@ assert.match(
 
 assert.match(
   appSource,
-  /if \(!useFixedFrame\) \{[\s\S]*?<WorkbenchStudioPrototype \/>[\s\S]*?\}/,
-  'Workbench should keep a responsive fallback for narrow or touch-like viewports',
+  /data-workbench-aspect-frame=\{useFixedFrame \? 'fixed' : 'responsive'\}[\s\S]*?width:\s*useFixedFrame \? scaledFrameWidth : '100vw'[\s\S]*?height:\s*useFixedFrame \? scaledFrameHeight : '100vh'/,
+  'Responsive fallback should still provide a full viewport parent for the workbench root',
 );
 
-assert.match(
+assert.equal(
+  (appSource.match(/<WorkbenchStudioPrototype \/>/g) ?? []).length,
+  1,
+  'fixed and responsive layouts must share one Workbench component identity',
+);
+
+assert.doesNotMatch(
   appSource,
-  /width:\s*'100vw'[\s\S]*?height:\s*'100vh'[\s\S]*?<WorkbenchStudioPrototype \/>/,
-  'Responsive fallback should still provide a full viewport parent for the workbench root',
+  /if \(!useFixedFrame\) \{[\s\S]*?return \(/,
+  'crossing the desktop frame threshold must not switch to a different React subtree',
 );
 
 assert.match(
@@ -89,4 +95,3 @@ assert.doesNotMatch(
 );
 
 console.log('workbenchAspectFrame tests passed');
-

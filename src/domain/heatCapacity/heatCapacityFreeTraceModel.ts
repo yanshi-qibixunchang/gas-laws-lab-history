@@ -396,10 +396,12 @@ export const appendFreeTraceEvent = (
   input: HeatCapacityFreeEventInput,
 ) => {
   const eventIndex = branch.nextEventIndex;
+  const { payload, ...requiredInput } = input;
   const event: HeatCapacityFreeEvent = {
     id: `event-${eventIndex}`,
     index: eventIndex,
-    ...input,
+    ...requiredInput,
+    ...(payload === undefined ? {} : { payload }),
   };
   return {
     branch: {

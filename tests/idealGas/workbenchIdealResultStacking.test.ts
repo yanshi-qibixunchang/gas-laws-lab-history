@@ -64,7 +64,7 @@ assert.match(
 );
 assert.match(
   source,
-  /createEditSnapshot\('resized ideal result window'\)[\s\S]*?pushUndoSnapshot\(snapshot\)/,
+  /createEditSnapshot\('resized ideal result window',\s*'presentation'\)[\s\S]*?pushUndoSnapshot\(snapshot\)/,
   'resizing an ideal child result window should enter undo history once with the pre-drag snapshot',
 );
 
@@ -100,4 +100,3 @@ assert.doesNotMatch(
 );
 
 console.log('workbenchIdealResultStacking tests passed');
-

@@ -11,6 +11,7 @@ import type {
   HeatCapacityModeCameraPoseCheckpoint,
   HeatCapacityModeDemoCheckpoint,
   HeatCapacityModeGuideCheckpoint,
+  HeatCapacityModeFocusMode,
   HeatCapacityModeJsonObject,
   HeatCapacityModeJsonValue,
   HeatCapacityModeLessonDialogCheckpoint,
@@ -139,6 +140,7 @@ export interface WorkbenchHeatCapacityRefreshSession {
   demo: WorkbenchHeatCapacityDemoRefreshCheckpoint;
   guide: WorkbenchHeatCapacityGuideUiRefreshCheckpoint;
   ui: WorkbenchHeatCapacityUiRefreshCheckpoint;
+  focusMode: HeatCapacityModeFocusMode;
   cameraPose: WorkbenchHeatCapacityCameraPoseRefreshCheckpoint | null;
   sceneSnapshot: WorkbenchHeatCapacitySceneSnapshotRefreshCheckpoint | null;
 }
@@ -151,6 +153,61 @@ export interface WorkbenchHeatCapacityRefreshSessionStorage {
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
 }
+
+export interface WorkbenchHeatCapacityPressureAlertRefreshProjection {
+  pressureAlarmVisible: boolean;
+  pressureAlarmRemainingMs: number | null;
+  closePumpValveReminderFileId: string | null;
+  closePumpValveReminderRemainingMs: number | null;
+}
+
+export const resolveWorkbenchHeatCapacityPressureAlertRefreshProjection = ({
+  activeFileId,
+  pressureAlarmVisible,
+  pressureAlarmRemainingMs,
+  closePumpValveReminderRemainingMs,
+  closePumpValveReminderAfterAlarmMs,
+}: {
+  activeFileId: string;
+  pressureAlarmVisible: boolean;
+  pressureAlarmRemainingMs: number | null;
+  closePumpValveReminderRemainingMs: number | null;
+  closePumpValveReminderAfterAlarmMs: number;
+}): WorkbenchHeatCapacityPressureAlertRefreshProjection => {
+  const alarmRunning = pressureAlarmVisible &&
+    pressureAlarmRemainingMs !== null &&
+    pressureAlarmRemainingMs > 0;
+  const alarmExpiredBeforeCallback = pressureAlarmVisible && pressureAlarmRemainingMs === 0;
+  const projectedCloseReminderRemainingMs = alarmRunning
+    ? null
+    : alarmExpiredBeforeCallback
+      ? Math.max(0, closePumpValveReminderAfterAlarmMs)
+      : closePumpValveReminderRemainingMs;
+  return {
+    pressureAlarmVisible: alarmRunning,
+    pressureAlarmRemainingMs: alarmRunning ? pressureAlarmRemainingMs : null,
+    closePumpValveReminderFileId: projectedCloseReminderRemainingMs !== null ? activeFileId : null,
+    closePumpValveReminderRemainingMs: projectedCloseReminderRemainingMs,
+  };
+};
+
+export const selectPendingWorkbenchHeatCapacityRefreshSession = ({
+  restorePending,
+  initialRefreshSession,
+  activeFileId,
+  activeMode,
+}: {
+  restorePending: boolean;
+  initialRefreshSession: WorkbenchHeatCapacityRefreshSession | null;
+  activeFileId: string | null;
+  activeMode: WorkbenchHeatCapacityRefreshMode | null;
+}): WorkbenchHeatCapacityRefreshSession | null => (
+  restorePending &&
+  initialRefreshSession?.activeHeatCapacityFileId === activeFileId &&
+  initialRefreshSession.mode === activeMode
+    ? initialRefreshSession
+    : null
+);
 
 const MAX_SAFE_COUNT = 1_000_000;
 const MAX_JSON_DEPTH = 12;
@@ -351,7 +408,7 @@ const normalizeDemoStepPanel = (value: unknown): WorkbenchHeatCapacityDemoStepPa
   const fallback = createDefaultWorkbenchHeatCapacityDemoRefreshCheckpoint().stepPanel;
   if (!isRecord(value)) return fallback;
   return {
-    mode: isOneOf(value.mode, demoStepPanelModes) ? value.mode : 'hidden',
+    mode: isOneOf(value.mode, demoStepPanelModes) && value.mode !== 'exiting' ? value.mode : 'hidden',
     stepIndex: normalizeInteger(value.stepIndex, 0),
     stepCount: normalizeInteger(value.stepCount, 0),
     title: normalizeString(value.title),
@@ -485,7 +542,20 @@ const normalizeGuideCheckpoint = (
   const fallback = createDefaultWorkbenchHeatCapacityGuideUiRefreshCheckpoint();
   if (!isRecord(value)) return fallback;
   const guideModeActive = mode === 'guide';
-  const focusControlId = guideModeActive ? normalizeIdentifier(value.focusControlId) : null;
+  const candidateFocusControlId = guideModeActive ? normalizeIdentifier(value.focusControlId) : null;
+  const candidateNormalReminder = guideModeActive
+    ? normalizeReminder(value.normalReminder)
+    : createDefaultReminderCheckpoint();
+  const normalReminder = candidateNormalReminder.active &&
+    candidateNormalReminder.remainingMs !== null &&
+    candidateNormalReminder.remainingMs > 0
+    ? candidateNormalReminder
+    : createDefaultReminderCheckpoint();
+  const focusPulseActive = guideModeActive &&
+    value.focusPulseActive === true &&
+    candidateFocusControlId !== null &&
+    candidateFocusControlId === normalReminder.controlId;
+  const focusControlId = focusPulseActive ? candidateFocusControlId : null;
   const lessonDialog = normalizeLessonDialog(value.lessonDialog);
   const normalizedPauseReasons = normalizePauseReasons(value.pauseReasons);
   if (lessonDialog && !normalizedPauseReasons.includes('lesson-dialog')) {
@@ -498,10 +568,10 @@ const normalizeGuideCheckpoint = (
   const pressureAlarmRemainingMs = normalizeNullableNonNegativeNumber(value.pressureAlarmRemainingMs);
   return {
     focusControlId,
-    focusPulseActive: guideModeActive && value.focusPulseActive === true && focusControlId !== null,
+    focusPulseActive,
     missCount: guideModeActive ? normalizeInteger(value.missCount, 0) : 0,
     pauseReasons: normalizedPauseReasons,
-    normalReminder: guideModeActive ? normalizeReminder(value.normalReminder) : createDefaultReminderCheckpoint(),
+    normalReminder,
     strongReminder: guideModeActive ? normalizeReminder(value.strongReminder) : createDefaultReminderCheckpoint(),
     lessonDialog,
     shownLessonIds: normalizeIdentifierList(value.shownLessonIds),
@@ -509,8 +579,12 @@ const normalizeGuideCheckpoint = (
       current: normalizeToast(toastQueue.current),
       pending,
     },
-    pressureAlarmVisible: value.pressureAlarmVisible === true && pressureAlarmRemainingMs !== 0,
-    pressureAlarmRemainingMs: value.pressureAlarmVisible === true && pressureAlarmRemainingMs !== 0
+    pressureAlarmVisible: value.pressureAlarmVisible === true &&
+      pressureAlarmRemainingMs !== null &&
+      pressureAlarmRemainingMs > 0,
+    pressureAlarmRemainingMs: value.pressureAlarmVisible === true &&
+      pressureAlarmRemainingMs !== null &&
+      pressureAlarmRemainingMs > 0
       ? pressureAlarmRemainingMs
       : null,
   };
@@ -673,6 +747,7 @@ export const createWorkbenchHeatCapacityRefreshSession = (
     demo: createDefaultWorkbenchHeatCapacityDemoRefreshCheckpoint(),
     guide: createDefaultWorkbenchHeatCapacityGuideUiRefreshCheckpoint(),
     ui: createDefaultWorkbenchHeatCapacityUiRefreshCheckpoint(),
+    focusMode: 'none',
     cameraPose: null,
     sceneSnapshot: null,
   };
@@ -748,6 +823,16 @@ const normalizeWorkbenchHeatCapacityRefreshSessionUnchecked = (
     (frozenSourceGuideUiIsValid || frozenIncomingGuideUiIsValid)
     ? candidateGuideUi
     : null;
+  const hasFocusMode = Object.prototype.hasOwnProperty.call(value, 'focusMode');
+  if (hasFocusMode && !isOneOf(value.focusMode, ['none', 'instrument', 'pump', 'bottle'] as const)) {
+    return null;
+  }
+  const focusMode = hasFocusMode
+    ? value.focusMode as HeatCapacityModeFocusMode
+    : value.cameraPose && isRecord(value.cameraPose) &&
+        isOneOf(value.cameraPose.cameraMode, ['instrument', 'pump', 'bottle'] as const)
+      ? value.cameraPose.cameraMode
+      : 'none';
   return {
     schemaFamily: WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_SCHEMA_FAMILY,
     schemaVersion: WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_SCHEMA_VERSION,
@@ -761,6 +846,7 @@ const normalizeWorkbenchHeatCapacityRefreshSessionUnchecked = (
     demo,
     guide,
     ui: normalizeUiCheckpoint(value.ui),
+    focusMode,
     cameraPose: normalizeCameraPose(value.cameraPose),
     sceneSnapshot: normalizeSceneSnapshot(value.sceneSnapshot),
   };
@@ -785,12 +871,22 @@ const getTabSessionStorage = (): WorkbenchHeatCapacityRefreshSessionStorage | nu
   }
 };
 
+let bootstrappedRefreshSession: WorkbenchHeatCapacityRefreshSession | null = null;
+let refreshBootstrapInstalled = false;
+
+export const installWorkbenchHeatCapacityRefreshBootstrap = (value: unknown) => {
+  bootstrappedRefreshSession = normalizeWorkbenchHeatCapacityRefreshSession(value);
+  refreshBootstrapInstalled = true;
+};
+
 export const loadWorkbenchHeatCapacityRefreshSession = (
-  storage: WorkbenchHeatCapacityRefreshSessionStorage | null = getTabSessionStorage(),
+  storage?: WorkbenchHeatCapacityRefreshSessionStorage | null,
 ): WorkbenchHeatCapacityRefreshSession | null => {
-  if (!storage) return null;
+  if (storage === undefined && refreshBootstrapInstalled) return bootstrappedRefreshSession;
+  const resolvedStorage = storage === undefined ? getTabSessionStorage() : storage;
+  if (!resolvedStorage) return null;
   try {
-    const rawValue = storage.getItem(WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_STORAGE_KEY);
+    const rawValue = resolvedStorage.getItem(WORKBENCH_HEAT_CAPACITY_REFRESH_SESSION_STORAGE_KEY);
     if (!rawValue) return null;
     return normalizeWorkbenchHeatCapacityRefreshSession(JSON.parse(rawValue));
   } catch {

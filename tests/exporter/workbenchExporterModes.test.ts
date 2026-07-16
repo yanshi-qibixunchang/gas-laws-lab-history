@@ -13,13 +13,19 @@ assert.match(
 
 assert.match(
   electronMain,
-  /if \(payload\.kind === 'json' && options\?\.mode === 'report'\) \{[\s\S]*dialog\.showSaveDialog[\s\S]*--formats'[\s\S]*'report'[\s\S]*fs\.copyFile\(reportFile, target\)/,
-  'Report PDF export should use a save-file dialog and copy only the generated report PDF to the selected path',
+  /if \(payload\.kind === 'json' && options\?\.mode === 'report'\) \{[\s\S]*dialog\.showSaveDialog[\s\S]*'--formats', 'report'[\s\S]*validateExporterOutputManifest\(\{ fs, outDir, parsed \}\)[\s\S]*reportFiles\.length !== 1 \|\| outputManifest\.files\.length !== 1 \|\| outputManifest\.metadataPath !== null[\s\S]*replaceFileAtomically\(reportFiles\[0\], target\)/,
+  'Report PDF export should use a save-file dialog and atomically replace the selected path with one validated generated report PDF',
 );
 
 assert.match(
   electronMain,
-  /const result = await runExporter\(selectedExporterRuntime, \['--input', inputPath, '--out', outDir, '--formats', getExporterFormatsForMode\(options\?\.mode, payload\)\]\);/,
+  /app\.whenReady\(\)\.then\(async \(\) => \{[\s\S]*try \{[\s\S]*await ensureDefaultExportRoot\(\);[\s\S]*\} catch \(error\) \{[\s\S]*export commands will retry[\s\S]*\}[\s\S]*await restoreRegisteredWorkbenchWindows\(\);/,
+  'an unavailable default export directory must not prevent desktop workbench windows from opening',
+);
+
+assert.match(
+  electronMain,
+  /const result = await runExporter\(selectedExporterRuntime, \[[\s\S]*'--input', inputPath,[\s\S]*'--out', outDir,[\s\S]*'--formats', getExporterFormatsForMode\(options\?\.mode, payload\),?[\s\S]*\]\);/,
   'folder-based exports should pass the requested format filter to the Python exporter',
 );
 

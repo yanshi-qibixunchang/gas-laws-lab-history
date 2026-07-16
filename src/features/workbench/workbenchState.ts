@@ -7,8 +7,11 @@ import type {
   SimulationStats,
 } from '../../shared/types';
 import type {
-  PhysicsEngineSnapshotV1,
+  PhysicsEngineSnapshotV2,
 } from '../../domain/hardSphere/PhysicsEngine.ts';
+import {
+  validateHardSphereSimulationParams,
+} from '../../domain/hardSphere/hardSphereSimulationValidation.ts';
 import {
   createEmptyPointsByRelation,
   type PointsByRelation,
@@ -912,7 +915,7 @@ interface WorkbenchFileBase {
 export interface WorkbenchStandardState extends WorkbenchFileBase {
   kind: 'standard';
   particles: Particle[];
-  hardSphereEngineSnapshot: PhysicsEngineSnapshotV1 | null;
+  hardSphereEngineSnapshot: PhysicsEngineSnapshotV2 | null;
   standardResultsLayout: WorkbenchStandardResultsLayout;
 }
 
@@ -924,7 +927,7 @@ export interface WorkbenchIdealState extends WorkbenchFileBase {
   latestPressureSummary: PressureMeasurementSummary | null;
   needsReset: boolean;
   particles: Particle[];
-  hardSphereEngineSnapshot: PhysicsEngineSnapshotV1 | null;
+  hardSphereEngineSnapshot: PhysicsEngineSnapshotV2 | null;
   verificationState: 'not-started' | 'collecting' | 'verified' | 'failed';
   historyUnlocked: boolean;
   idealWindowLayout: WorkbenchIdealWindowLayout;
@@ -1778,13 +1781,78 @@ const getHeatCapacityFreeRuntimePhase = (
   return 'readyToPump';
 };
 
-const mergeHeatCapacityFreeRuntimeState = (
+type HeatCapacityValveTimingPhysicsState = Pick<
+  HeatCapacityFreePhysicsState,
+  | 'simulationTimeS'
+  | 'lastPumpValveOpenedAtS'
+  | 'lastPumpValveClosedAtS'
+  | 'currentPumpValveOpenDurationS'
+  | 'lastStopcockOpenedAtS'
+  | 'lastStopcockClosedAtS'
+  | 'currentStopcockOpenDurationS'
+>;
+
+const isHeatCapacityPhysicsValveTimingOpen = (
+  openedAtS: number | null,
+  closedAtS: number | null,
+) => openedAtS !== null && (closedAtS === null || openedAtS >= closedAtS);
+
+const synchronizeHeatCapacityPhysicsControlTiming = <State extends HeatCapacityValveTimingPhysicsState>(
+  state: State,
+  pumpValveOpen: boolean,
+  stopcockFlowOpen: boolean,
+): State => {
+  const pumpTimingOpen = isHeatCapacityPhysicsValveTimingOpen(
+    state.lastPumpValveOpenedAtS,
+    state.lastPumpValveClosedAtS,
+  );
+  const stopcockTimingOpen = isHeatCapacityPhysicsValveTimingOpen(
+    state.lastStopcockOpenedAtS,
+    state.lastStopcockClosedAtS,
+  );
+  return {
+    ...state,
+    lastPumpValveOpenedAtS: pumpValveOpen && !pumpTimingOpen
+      ? state.simulationTimeS
+      : state.lastPumpValveOpenedAtS,
+    lastPumpValveClosedAtS: pumpValveOpen
+      ? null
+      : pumpTimingOpen
+        ? state.simulationTimeS
+        : state.lastPumpValveClosedAtS,
+    currentPumpValveOpenDurationS: pumpValveOpen
+      ? pumpTimingOpen
+        ? state.currentPumpValveOpenDurationS
+        : 0
+      : 0,
+    lastStopcockOpenedAtS: stopcockFlowOpen && !stopcockTimingOpen
+      ? state.simulationTimeS
+      : state.lastStopcockOpenedAtS,
+    lastStopcockClosedAtS: stopcockFlowOpen
+      ? null
+      : stopcockTimingOpen
+        ? state.simulationTimeS
+        : state.lastStopcockClosedAtS,
+    currentStopcockOpenDurationS: stopcockFlowOpen
+      ? stopcockTimingOpen
+        ? state.currentStopcockOpenDurationS
+        : 0
+      : 0,
+  };
+};
+
+export const mergeHeatCapacityFreeRuntimeState = (
   file: WorkbenchHeatCapacityState,
   physicsState: HeatCapacityFreePhysicsState,
   sensorState: HeatCapacityFreeSensorState,
   calibrationState: HeatCapacityFreeCalibrationState,
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
+  physicsState = synchronizeHeatCapacityPhysicsControlTiming(
+    physicsState,
+    file.pumpValveOpen,
+    isHeatCapacityReleaseFlowOpen(file.heatCapacityReleaseState),
+  );
   const derived = deriveFreePhysicalState(physicsState, file.heatCapacityFreePhysicsConfig);
   const sensorConfig = normalizeHeatCapacityFreeSensorConfig(file.heatCapacityFreeSensorConfig);
   const effectiveSensorConfig = getEffectiveHeatCapacityFreeSensorConfig(
@@ -2165,35 +2233,6 @@ const recordHeatCapacityFreeAutomaticU0Event = (
     : nextFile
 );
 
-const stepFreeSensorAfterPumpStroke = (
-  sensorState: HeatCapacityFreeSensorState,
-  physicsState: HeatCapacityFreePhysicsState,
-  physicsConfig: HeatCapacityFreePhysicsConfig,
-  calibrationState: HeatCapacityFreeCalibrationState,
-  sensorConfig: HeatCapacityFreeSensorConfig,
-) => {
-  const physical = deriveFreePhysicalState(physicsState, physicsConfig);
-  const lastSensorAtS = sensorState.pressureHistory[sensorState.pressureHistory.length - 1]?.atS ??
-    physicsState.simulationTimeS;
-  const sensorIntervalS = Math.min(sensorConfig.minSampleIntervalS, sensorConfig.maxSampleIntervalS);
-  const sensorAtS = Math.max(
-    physicsState.simulationTimeS,
-    lastSensorAtS + Math.max(0.001, sensorIntervalS),
-  );
-  return stepFreeSensor(
-    { ...sensorState, nextSampleAtS: Number.NEGATIVE_INFINITY },
-    {
-      gasPressureKPa: physical.gasPressureKPa,
-      pressureDeltaKPa: physical.pressureDeltaKPa,
-      gasTemperatureK: physicsState.gasTemperatureK,
-      ambientTemperatureK: physicsConfig.environment.ambientTemperatureK,
-    },
-    calibrationState,
-    sensorConfig,
-    sensorAtS,
-  );
-};
-
 const recordHeatCapacityFreeSafetyTransitionEvents = (
   previousFile: WorkbenchHeatCapacityState,
   nextFile: WorkbenchHeatCapacityState,
@@ -2312,13 +2351,14 @@ const hasHeatCapacityFreeTrialProgress = (trial: HeatCapacityFreeTrial) => (
 const markHeatCapacityFreeTraceTrialCompleted = (
   store: HeatCapacityFreeTraceStore,
   traceTrialId: string | null,
+  linkedTrialId: string,
 ): HeatCapacityFreeTraceStore => {
   if (!traceTrialId) return store;
   return {
     ...store,
     traceTrials: store.traceTrials.map((traceTrial) => (
       traceTrial.id === traceTrialId
-        ? { ...traceTrial, status: 'completed' }
+        ? { ...traceTrial, linkedTrialId, status: 'completed' }
         : traceTrial
     )),
   };
@@ -2336,6 +2376,7 @@ const finalizeCompletedHeatCapacityFreeExperimentGroupWorkbenchState = (
   let traceStore = markHeatCapacityFreeTraceTrialCompleted(
     stampedFile.heatCapacityFreeTraceStore,
     latestTrial.traceTrialId,
+    latestTrial.id,
   );
   traceStore = activeTraceTrialId && activeTraceTrialId !== latestTrial.traceTrialId
     ? removeHeatCapacityFreeTraceTrialFromStore(traceStore, activeTraceTrialId)
@@ -2786,6 +2827,7 @@ const resolveHeatCapacityFreeResetStructure = (
     let traceStore = markHeatCapacityFreeTraceTrialCompleted(
       file.heatCapacityFreeTraceStore,
       lastTrial.traceTrialId,
+      lastTrial.id,
     );
     traceStore = activeTraceTrialId && activeTraceTrialId !== lastTrial.traceTrialId
       ? removeHeatCapacityFreeTraceTrialFromStore(traceStore, activeTraceTrialId)
@@ -3072,6 +3114,15 @@ const stepHeatCapacityFreeWorkbenchFile = (
     }
 
     releaseState = transition.state;
+    if (transition.transitions.some((releaseTransition) => (
+      releaseTransition.type === 'opening-complete'
+    ))) {
+      // Materialize the exact flow-open boundary in the physical state before
+      // advancing the remaining segment. Otherwise the engine observes the
+      // end of that segment as the opening instant and loses the authoritative
+      // release-start reference.
+      physicsState = stepPhysicsSegment(physicsState, 0, releaseState);
+    }
     mergedFile = mergeHeatCapacityFreeRuntimeState(
       {
         ...mergedFile,
@@ -3082,6 +3133,8 @@ const stepHeatCapacityFreeWorkbenchFile = (
       mergedFile.heatCapacityFreeCalibrationState,
       now,
     );
+    physicsState = mergedFile.heatCapacityFreePhysicsState;
+    sensorState = mergedFile.heatCapacityFreeSensorState;
     for (const releaseTransition of transition.transitions) {
       if (releaseTransition.type === 'opening-complete' && releaseTransition.purpose === 'release') {
         mergedFile = transitionHeatCapacityFreeWorkbenchAttempt(
@@ -3205,9 +3258,16 @@ export const setHeatCapacityFreeStopcockOpen = (
     heatCapacityReleaseState: releaseState,
     updatedAt: now,
   };
+  const synchronizedCommandedFile = mergeHeatCapacityFreeRuntimeState(
+    commandedFile,
+    commandedFile.heatCapacityFreePhysicsState,
+    commandedFile.heatCapacityFreeSensorState,
+    commandedFile.heatCapacityFreeCalibrationState,
+    now,
+  );
   const attemptedFile = nextOpen
-    ? transitionHeatCapacityFreeWorkbenchAttempt(commandedFile, 'stopcock-opened', now)
-    : commandedFile;
+    ? transitionHeatCapacityFreeWorkbenchAttempt(synchronizedCommandedFile, 'stopcock-opened', now)
+    : synchronizedCommandedFile;
   const tracedFile = recordHeatCapacityFreeTraceEvent(
     attemptedFile,
     nextOpen ? 'stopcock-open' : 'stopcock-close',
@@ -3245,8 +3305,15 @@ export const setHeatCapacityFreePumpValveOpen = (
     pumpHint: nextOpen ? '打气阀门已打开' : '打气阀门已关闭',
     updatedAt: now,
   };
-  const transitionedFile = transitionHeatCapacityFreeWorkbenchAttempt(
+  const synchronizedCommandedFile = mergeHeatCapacityFreeRuntimeState(
     commandedFile,
+    commandedFile.heatCapacityFreePhysicsState,
+    commandedFile.heatCapacityFreeSensorState,
+    commandedFile.heatCapacityFreeCalibrationState,
+    now,
+  );
+  const transitionedFile = transitionHeatCapacityFreeWorkbenchAttempt(
+    synchronizedCommandedFile,
     nextOpen ? 'pump-valve-opened' : 'pump-valve-closed',
     now,
   );
@@ -3414,19 +3481,20 @@ const registerHeatCapacityPumpStrokeCore = (
         updatedAt: now,
       };
     }
-    const postPumpSensorState = stepFreeSensorAfterPumpStroke(
-      pumpCandidateFile.heatCapacityFreeSensorState,
-      stroke.state,
-      pumpCandidateFile.heatCapacityFreePhysicsConfig,
-      pumpCandidateFile.heatCapacityFreeCalibrationState,
-      getEffectiveHeatCapacityFreeSensorConfig(
-        pumpCandidateFile.heatCapacityFreeSensorConfig,
-        pumpCandidateFile.heatCapacityFreeInstrumentNoiseEnabled,
-      ),
-    );
+    const pumpCandidateWithRollback = file.heatCapacityMode === 'free' &&
+      pumpCandidateFile.heatCapacityFreeRollbackSnapshots.beforePump === null &&
+      pumpCandidateFile.heatCapacityFreePhysicsState.pumpStrokeCount === 0
+      ? {
+          ...pumpCandidateFile,
+          heatCapacityFreeRollbackSnapshots: {
+            ...pumpCandidateFile.heatCapacityFreeRollbackSnapshots,
+            beforePump: captureHeatCapacityFreeRollbackSnapshot(pumpCandidateFile),
+          },
+        }
+      : pumpCandidateFile;
     const pumpedPhysicalFile = mergeHeatCapacityFreeRuntimeState(
       {
-        ...pumpCandidateFile,
+        ...pumpCandidateWithRollback,
         pumpBulbState: 'compressing',
         pumpStrokeTimestamps: frequencyState.timestamps,
         pumpFrequency: frequencyState.pumpFrequency,
@@ -3438,8 +3506,8 @@ const registerHeatCapacityPumpStrokeCore = (
           : '打气速率偏低，实验效果可能不明显',
       },
       stroke.state,
-      postPumpSensorState,
-      pumpCandidateFile.heatCapacityFreeCalibrationState,
+      pumpCandidateWithRollback.heatCapacityFreeSensorState,
+      pumpCandidateWithRollback.heatCapacityFreeCalibrationState,
       now,
     );
     const pumpedFile = file.heatCapacityMode !== 'free'
@@ -3579,21 +3647,21 @@ const createHeatCapacityAutoDemoResultTrial = (
     displayPressureMv: profile.u0MeasuredMv,
     displayTemperatureMv: samples.zeroedSample?.temperatureSignalMv ?? profile.initialTemperatureMv,
     calibrationVersion: 1,
-    zeroEventId: 'demo-u0',
+    zeroEventId: 'demo-zero-1',
   });
   const u1Recorded = recordGuideU1(u0Recorded, {
     atS: samples.stableBeforeReleaseSample?.timeS ?? 86.9,
     displayPressureMv: profile.u1MeasuredMv,
     displayTemperatureMv: samples.stableBeforeReleaseSample?.temperatureSignalMv ?? profile.stableTemperatureMv,
     calibrationVersion: 1,
-    zeroEventId: 'demo-u1',
+    zeroEventId: 'demo-zero-1',
   });
   return recordGuideU2(u1Recorded, {
     atS: samples.recoverySample?.timeS ?? 114.3,
     displayPressureMv: profile.u2MeasuredMv,
     displayTemperatureMv: samples.recoverySample?.temperatureSignalMv ?? profile.recoveryTemperatureMv,
     calibrationVersion: 1,
-    zeroEventId: 'demo-u2',
+    zeroEventId: 'demo-zero-1',
   }, now, {
     atmosphericPressureKPa: file.ambientPressureKPa,
     pressureSensitivityMvPerKPa: file.pressureSensitivityMvPerKPa,
@@ -3607,6 +3675,10 @@ export function completeHeatCapacityTeachingModeWorkbenchState(
   const heatCapacityGuideTrial = file.heatCapacityMode === 'demo'
     ? createHeatCapacityAutoDemoResultTrial(file, now)
     : file.heatCapacityGuideTrial;
+  const completedReleaseState = file.heatCapacityReleaseState.formedRelease &&
+    file.heatCapacityReleaseState.phase === 'closedAfterRelease'
+    ? file.heatCapacityReleaseState
+    : createClosedHeatCapacityReleaseState(file.simulationTimeS);
   return {
     ...file,
     heatCapacityTeachingStatus: 'completed',
@@ -3635,7 +3707,7 @@ export function completeHeatCapacityTeachingModeWorkbenchState(
     lastPumpTime: null,
     pumpStrokeCount: 0,
     pumpHint: '教学流程已完成',
-    heatCapacityReleaseState: createClosedHeatCapacityReleaseState(file.simulationTimeS),
+    heatCapacityReleaseState: completedReleaseState,
     updatedAt: now,
   };
 }
@@ -3661,10 +3733,10 @@ const powerHeatCapacityWorkbenchFileCore = (
 ): WorkbenchHeatCapacityState => {
   if (file.heatCapacityMode === 'guide') {
     const currentFile = stepHeatCapacityGuideWorkbenchFile(file, now);
-    const proposedFile = {
+    const proposedFile: WorkbenchHeatCapacityState = {
       ...currentFile,
       powerOn: nextPowerOn,
-      runState: nextPowerOn ? currentFile.runState : 'idle',
+      runState: nextPowerOn ? 'running' : 'idle',
       pressureZeroed: nextPowerOn ? currentFile.pressureZeroed : false,
     };
     const context = getHeatCapacityGuideActionContext(proposedFile, 'togglePower');
@@ -3933,13 +4005,18 @@ const stepHeatCapacityGuidePhysicsAndTemperatureSensor = (
   };
 };
 
-const mergeHeatCapacityGuideRuntimeState = (
+export const mergeHeatCapacityGuideRuntimeState = (
   file: WorkbenchHeatCapacityState,
   guidePhysicsState: HeatCapacityGuidePhysicsState,
   guideWorkflow: HeatCapacityGuideWorkflowState,
   now: number,
   options: HeatCapacityGuideRuntimeMergeOptions = {},
 ): WorkbenchHeatCapacityState => {
+  guidePhysicsState = synchronizeHeatCapacityPhysicsControlTiming(
+    guidePhysicsState,
+    file.pumpValveOpen,
+    isHeatCapacityReleaseFlowOpen(file.heatCapacityReleaseState),
+  );
   let nextGuideWorkflow = guideWorkflow;
   const derived = deriveGuidePhysicalState(guidePhysicsState, file.heatCapacityGuidePhysicsConfig);
   const pressureDeltaKPa = derived.pressureDeltaKPa;
@@ -4453,6 +4530,24 @@ export const stepHeatCapacityGuideWorkbenchFile = (
         continue;
       }
       releaseState = transition.state;
+      if (transition.transitions.some((releaseTransition) => (
+        releaseTransition.type === 'opening-complete'
+      ))) {
+        // Materialize the exact flow-open edge before the runtime merge
+        // synchronizes persisted valve timing. Otherwise the guide engine sees
+        // an already-open valve and never creates its release reference.
+        guidePhysicsState = stepGuidePhysicsState(
+          guidePhysicsState,
+          file.heatCapacityGuidePhysicsConfig,
+          {
+            powerOn: file.powerOn,
+            pumpValveOpen: file.pumpValveOpen,
+            stopcockOpen: isHeatCapacityReleaseFlowOpen(releaseState),
+            stopcockFlowPurpose: releaseState.purpose,
+            dtS: 0,
+          },
+        );
+      }
     }
     if (releaseState.phase === 'releasing') {
       releaseState = {
@@ -5189,7 +5284,7 @@ export const normalizeHeatCapacityFreeExperimentDomainBoundary = (
   };
 };
 
-const applyHeatCapacityFreeDomainToRuntimeFields = (
+export const applyHeatCapacityFreeDomainToRuntimeFields = (
   file: WorkbenchHeatCapacityState,
   domain: HeatCapacityFreeExperimentDomainState,
 ): WorkbenchHeatCapacityState => {
@@ -6144,24 +6239,5 @@ export const getWorkbenchParameterRows = (file: WorkbenchFileState): WorkbenchPa
 };
 
 export const validateWorkbenchParams = (params: SimulationParams): WorkbenchValidationResult => {
-  const errors: string[] = [];
-
-  if (!Number.isFinite(params.N) || params.N <= 0) errors.push('N must be greater than 0.');
-  if (!Number.isFinite(params.L) || params.L <= 0) errors.push('L must be greater than 0.');
-  if (!Number.isFinite(params.r) || params.r <= 0) errors.push('r must be greater than 0.');
-  if (!Number.isFinite(params.dt) || params.dt <= 0) errors.push('dt must be greater than 0.');
-  if (!Number.isFinite(params.equilibriumTime) || params.equilibriumTime < 0) {
-    errors.push('equilibriumTime must be 0 or greater.');
-  }
-  if (!Number.isFinite(params.statsDuration) || params.statsDuration <= 0) {
-    errors.push('statsDuration must be greater than 0.');
-  }
-  if (typeof params.targetTemperature === 'number' && (!Number.isFinite(params.targetTemperature) || params.targetTemperature <= 0)) {
-    errors.push('targetTemperature must be greater than 0.');
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
+  return validateHardSphereSimulationParams(params);
 };

@@ -81,56 +81,84 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
   const releaseSoundRef = useRef<HeatCapacityReleaseSound | null>(null);
   const rollbackPumpValveVariantRef = useRef(new Map<number, number>());
   const restoreMutedRef = useRef(state.restoreMuted === true);
+  const audioDisabledAfterFailureRef = useRef(false);
+  const reportAudioFailureRef = useRef<(error: unknown) => void>(() => undefined);
   restoreMutedRef.current = state.restoreMuted === true;
-  if (!releaseSoundRef.current) releaseSoundRef.current = new HeatCapacityReleaseSound(engine);
+  reportAudioFailureRef.current = (error) => {
+    if (audioDisabledAfterFailureRef.current) return;
+    audioDisabledAfterFailureRef.current = true;
+    console.warn(
+      '[Heat Capacity audio] Audio was disabled after a playback failure; the experiment remains available.',
+      error,
+    );
+    try {
+      releaseSoundRef.current?.stop(0);
+    } catch {
+      // Audio degradation must never escape into the 3D runtime guard.
+    }
+    try {
+      engine.stopAll(0);
+    } catch {
+      // The failed audio graph is already quarantined for this scene lifetime.
+    }
+  };
+  const guardAudioPromise = useCallback((promise: Promise<unknown>) => {
+    void promise.catch((error: unknown) => reportAudioFailureRef.current(error));
+  }, []);
+  if (!releaseSoundRef.current) {
+    releaseSoundRef.current = new HeatCapacityReleaseSound(
+      engine,
+      (error) => reportAudioFailureRef.current(error),
+    );
+  }
 
   const playPumpBulbStroke = useCallback(() => {
-    if (restoreMutedRef.current) return;
+    if (restoreMutedRef.current || audioDisabledAfterFailureRef.current) return;
     if (!rateLimiterRef.current.accept(
       'heatCapacity.pumpBulb.stroke',
       HEAT_CAPACITY_PUMP_BULB_MIN_INTERVAL_MS,
     )) return;
-    void engine.playOneShot('heatCapacity.pumpBulb.stroke', {
+    guardAudioPromise(engine.playOneShot('heatCapacity.pumpBulb.stroke', {
       ...getHeatCapacityMechanicalVariation(Math.random(), Math.random()),
       replaceGroup: true,
       crossfadeMs: 15,
       maxStartDelayMs: 80,
-    });
-  }, [engine]);
+    }));
+  }, [engine, guardAudioPromise]);
 
   const playPowerTransition = useCallback((
     powerOn: boolean,
     options: { interruptCurrent?: boolean; maxStartDelayMs: number },
   ) => {
-    if (restoreMutedRef.current) return;
-    void engine.playOneShot(HEAT_CAPACITY_POWER_ASSET[powerOn ? 'on' : 'off'], {
+    if (restoreMutedRef.current || audioDisabledAfterFailureRef.current) return;
+    guardAudioPromise(engine.playOneShot(HEAT_CAPACITY_POWER_ASSET[powerOn ? 'on' : 'off'], {
       replaceGroup: options.interruptCurrent,
       crossfadeMs: options.interruptCurrent ? 12 : undefined,
       fadeInMs: options.interruptCurrent ? 4 : undefined,
       maxStartDelayMs: options.maxStartDelayMs,
-    });
-  }, [engine]);
+    }));
+  }, [engine, guardAudioPromise]);
 
   const playStopcockTransition = useCallback((
     open: boolean,
     options: { interruptCurrent?: boolean; maxStartDelayMs: number },
   ) => {
-    if (restoreMutedRef.current) return;
-    void engine.playOneShot(HEAT_CAPACITY_STOPCOCK_ASSET[open ? 'open' : 'close'], {
+    if (restoreMutedRef.current || audioDisabledAfterFailureRef.current) return;
+    guardAudioPromise(engine.playOneShot(HEAT_CAPACITY_STOPCOCK_ASSET[open ? 'open' : 'close'], {
       replaceGroup: options.interruptCurrent,
       crossfadeMs: options.interruptCurrent ? 10 : undefined,
       fadeInMs: options.interruptCurrent ? 3 : undefined,
       maxStartDelayMs: options.maxStartDelayMs,
-    });
-  }, [engine]);
+    }));
+  }, [engine, guardAudioPromise]);
 
   const playPumpValveTransition = useCallback((
     open: boolean,
     options: { fileIndex?: number; shortened?: boolean; maxStartDelayMs: number },
   ) => {
-    if (restoreMutedRef.current) return;
+    if (restoreMutedRef.current || audioDisabledAfterFailureRef.current) return;
     const shortened = options.shortened === true;
-    void engine.playOneShot(HEAT_CAPACITY_PUMP_VALVE_ASSET[open ? 'open' : 'close'], {
+    guardAudioPromise(engine.playOneShot(HEAT_CAPACITY_PUMP_VALVE_ASSET[open ? 'open' : 'close'], {
       ...getHeatCapacityMechanicalVariation(Math.random(), Math.random()),
       fileIndex: options.fileIndex,
       durationMs: shortened ? 150 : undefined,
@@ -139,23 +167,23 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
       crossfadeMs: 24,
       fadeInMs: shortened ? 8 : 12,
       maxStartDelayMs: options.maxStartDelayMs,
-    });
-  }, [engine]);
+    }));
+  }, [engine, guardAudioPromise]);
 
   const playGuideRollbackCue = useCallback((cue: HeatCapacityGuideRollbackCue) => {
-    if (restoreMutedRef.current) return;
+    if (restoreMutedRef.current || audioDisabledAfterFailureRef.current) return;
     if (cue.action === 'pumpBulbStroke') {
       playPumpBulbStroke();
       return;
     }
     if (cue.action === 'knobTick') {
-      void engine.playOneShot('heatCapacity.zeroKnob.tick', {
+      guardAudioPromise(engine.playOneShot('heatCapacity.zeroKnob.tick', {
         playbackRate: cue.phase === 'knobLeftPeak' ? 0.98 : 1.02,
         replaceGroup: true,
         crossfadeMs: 8,
         fadeInMs: 3,
         maxStartDelayMs: 80,
-      });
+      }));
       return;
     }
     if (cue.action === 'powerOn' || cue.action === 'powerOff') {
@@ -188,7 +216,7 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
         maxStartDelayMs: 90,
       });
     }
-  }, [engine, playPowerTransition, playPumpBulbStroke, playPumpValveTransition, playStopcockTransition]);
+  }, [engine, guardAudioPromise, playPowerTransition, playPumpBulbStroke, playPumpValveTransition, playStopcockTransition]);
 
   useEffect(() => {
     const previous = previousRef.current;
@@ -202,8 +230,10 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
       knobSmoothedSpeedRef.current = 0;
       rollbackPumpValveVariantRef.current.clear();
       releaseSoundRef.current?.stop();
+      engine.stopAll(0);
       return;
     }
+    if (audioDisabledAfterFailureRef.current) return;
     if (previous.resetKey !== state.resetKey) {
       rateLimiterRef.current.reset();
       knobAccumulatorRef.current.reset();
@@ -211,6 +241,7 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
       knobSmoothedSpeedRef.current = 0;
       rollbackPumpValveVariantRef.current.clear();
       releaseSoundRef.current?.stop();
+      engine.stopAll(0);
       return;
     }
 
@@ -251,7 +282,7 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
           const itemDurationMs = intervalMs > 0
             ? Math.min(profile.itemDurationMs, Math.max(1, intervalMs * 0.72))
             : profile.itemDurationMs;
-          void engine.playBurst('heatCapacity.zeroKnob.tick', {
+          guardAudioPromise(engine.playBurst('heatCapacity.zeroKnob.tick', {
             count: tickCount,
             intervalMs,
             itemDurationMs,
@@ -259,15 +290,15 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
             itemFadeOutMs: profile.itemFadeOutMs,
             playbackRate: knobDelta > 0 ? 1.02 : 0.98,
             fadeInMs: 4,
-          });
+          }));
         }
       } else if (state.pressureZeroAdjustMode === 'fineWheel') {
         knobAccumulatorRef.current.reset();
         knobLastChangeAtRef.current = null;
         knobSmoothedSpeedRef.current = 0;
-        void engine.playOneShot('heatCapacity.zeroKnob.tick', {
+        guardAudioPromise(engine.playOneShot('heatCapacity.zeroKnob.tick', {
           playbackRate: knobDelta > 0 ? 1.02 : 0.98,
-        });
+        }));
       } else {
         knobAccumulatorRef.current.reset();
         knobLastChangeAtRef.current = null;
@@ -289,18 +320,19 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
         HEAT_CAPACITY_RECORD_WRITING_MIN_INTERVAL_MS,
       )
     ) {
-      void engine.playOneShot('heatCapacity.record.write', {
+      guardAudioPromise(engine.playOneShot('heatCapacity.record.write', {
         playbackRate: 1.1,
         replaceGroup: true,
         crossfadeMs: 30,
         fadeInMs: 30,
         maxStartDelayMs: 100,
-      });
+      }));
     }
 
     if (state.pumpPulseId > previous.pumpPulseId) playPumpBulbStroke();
   }, [
     engine,
+    guardAudioPromise,
     playPowerTransition,
     playPumpBulbStroke,
     playPumpValveTransition,
@@ -320,7 +352,7 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
   useEffect(() => {
     const releaseSound = releaseSoundRef.current;
     if (!releaseSound) return;
-    if (state.restoreMuted) {
+    if (state.restoreMuted || audioDisabledAfterFailureRef.current) {
       releaseSound.stop();
       return;
     }
@@ -349,12 +381,18 @@ export const useHeatCapacityAudioController = (state: HeatCapacityAudioControlle
 
   useEffect(() => () => {
     releaseSoundRef.current?.dispose();
+    engine.stopAll(0);
     rateLimiterRef.current.reset();
     knobAccumulatorRef.current.reset();
     knobLastChangeAtRef.current = null;
     knobSmoothedSpeedRef.current = 0;
     rollbackPumpValveVariantRef.current.clear();
-  }, []);
+  }, [engine]);
 
-  return { playGuideRollbackCue };
+  const stopRuntimeAudio = useCallback(() => {
+    releaseSoundRef.current?.stop();
+    engine.stopAll(0);
+  }, [engine]);
+
+  return { playGuideRollbackCue, stopRuntimeAudio };
 };

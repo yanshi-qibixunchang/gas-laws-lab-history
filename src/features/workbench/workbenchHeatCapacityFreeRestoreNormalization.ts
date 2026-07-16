@@ -34,9 +34,6 @@ import type {
 import type {
   HeatCapacityFreeSensorState,
 } from '../../domain/heatCapacity/heatCapacityFreeSensorModel.ts';
-import {
-  HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
-} from '../../domain/heatCapacity/heatCapacitySensorMapping.ts';
 import type {
   HeatCapacityFreeCalibrationState,
 } from '../../domain/heatCapacity/heatCapacityFreeCalibrationModel.ts';
@@ -73,6 +70,9 @@ import {
   normalizeHeatCapacityFreePhysicsConfig,
   normalizeHeatCapacityFreeSensorConfig,
 } from './workbenchHeatCapacityFreeRuntimeConfig.ts';
+import {
+  createHeatCapacityFreeConfigSnapshotFromRuntimeConfigs,
+} from './workbenchHeatCapacityFreeConfigSnapshot.ts';
 
 export const HEAT_CAPACITY_PROCESS_SCORING_VERSION = 'free-process-score-v3' as const;
 
@@ -403,53 +403,19 @@ const normalizeHeatCapacityFreeRestoreRecord = (
 
 const normalizeHeatCapacityFreeRestoreCorrectedSignals = (
   value: unknown,
-  hasRecordedU0: boolean,
+  u0: HeatCapacityFreeTrial['u0'],
+  u1: HeatCapacityFreeTrial['u1'],
+  u2: HeatCapacityFreeTrial['u2'],
 ): HeatCapacityFreeTrial['correctedSignals'] => {
-  if (!isHeatCapacityRestoreRecord(value)) return null;
-  const U0DisplayMv = heatCapacityRestoreNullableNumber(value.U0DisplayMv);
-  const U1DisplayMv = heatCapacityRestoreNullableNumber(value.U1DisplayMv);
-  const U2DisplayMv = heatCapacityRestoreNullableNumber(value.U2DisplayMv);
-  const U1CorrectedMv = heatCapacityRestoreNullableNumber(value.U1CorrectedMv);
-  const U2CorrectedMv = heatCapacityRestoreNullableNumber(value.U2CorrectedMv);
-  const persistedFormulaGamma = heatCapacityRestoreNullableNumber(value.formulaGamma);
+  if (!isHeatCapacityRestoreRecord(value) || u1 === null || u2 === null) return null;
   const preheatBiasGamma = heatCapacityRestoreNullableNumber(value.preheatBiasGamma);
-  const persistedGamma = heatCapacityRestoreNullableNumber(value.gamma);
-  if (
-    U0DisplayMv === null ||
-    U1DisplayMv === null ||
-    U2DisplayMv === null ||
-    U1CorrectedMv === null ||
-    U2CorrectedMv === null
-  ) {
-    return null;
-  }
   const atmosphericPressureKPa = heatCapacityRestoreNullableNumber(value.atmosphericPressureKPa) ?? 101.3;
   const pressureSensitivityMvPerKPa = heatCapacityRestoreNullableNumber(value.pressureSensitivityMvPerKPa) ?? 20;
-  if (hasRecordedU0) {
-    const normalizedPreheatBiasGamma = preheatBiasGamma ?? 0;
-    const formulaGamma = persistedFormulaGamma
-      ?? (persistedGamma === null ? null : Number((persistedGamma - normalizedPreheatBiasGamma).toFixed(6)));
-    if (formulaGamma === null) return null;
-    return {
-      calculationVersion: HEAT_CAPACITY_FREE_CALCULATION_VERSION,
-      atmosphericPressureKPa,
-      pressureSensitivityMvPerKPa,
-      U0DisplayMv,
-      U1DisplayMv,
-      U2DisplayMv,
-      U1CorrectedMv,
-      U2CorrectedMv,
-      u0Source: 'recorded',
-      formulaGamma,
-      preheatBiasGamma: normalizedPreheatBiasGamma,
-      gamma: persistedGamma ?? Number((formulaGamma + normalizedPreheatBiasGamma).toFixed(6)),
-    };
-  }
-  const effectiveU0DisplayMv = hasRecordedU0 ? U0DisplayMv : 0;
+  const effectiveU0DisplayMv = u0?.displayPressureMv ?? 0;
   const corrected = getFreeCorrectedSignals({
     U0DisplayMv: effectiveU0DisplayMv,
-    U1DisplayMv,
-    U2DisplayMv,
+    U1DisplayMv: u1.displayPressureMv,
+    U2DisplayMv: u2.displayPressureMv,
   }, {
     atmosphericPressureKPa,
     pressureSensitivityMvPerKPa,
@@ -461,11 +427,11 @@ const normalizeHeatCapacityFreeRestoreCorrectedSignals = (
     atmosphericPressureKPa,
     pressureSensitivityMvPerKPa,
     U0DisplayMv: effectiveU0DisplayMv,
-    U1DisplayMv,
-    U2DisplayMv,
+    U1DisplayMv: u1.displayPressureMv,
+    U2DisplayMv: u2.displayPressureMv,
     U1CorrectedMv: Number(corrected.U1CorrectedMv.toFixed(6)),
     U2CorrectedMv: Number(corrected.U2CorrectedMv.toFixed(6)),
-    u0Source: hasRecordedU0 ? 'recorded' : 'assumed-zero',
+    u0Source: u0 === null ? 'assumed-zero' : 'recorded',
     formulaGamma,
     preheatBiasGamma: normalizedPreheatBiasGamma,
     gamma: Number((formulaGamma + normalizedPreheatBiasGamma).toFixed(6)),
@@ -474,11 +440,41 @@ const normalizeHeatCapacityFreeRestoreCorrectedSignals = (
 
 export const normalizeHeatCapacityFreeRestoreTrial = (
   value: unknown,
+  fallbackConfigSnapshot: HeatCapacityFreeConfigSnapshot | null = null,
 ): HeatCapacityFreeTrial | null => {
   if (!isHeatCapacityRestoreRecord(value) || typeof value.id !== 'string') return null;
   const u0 = normalizeHeatCapacityFreeRestoreRecord(value.u0);
-  const standardReferenceSnapshot = normalizeHeatCapacityFreeStandardReferenceSnapshot(
+  const u1 = normalizeHeatCapacityFreeRestoreRecord(value.u1);
+  const u2 = normalizeHeatCapacityFreeRestoreRecord(value.u2);
+  const normalizedStandardReferenceSnapshot = normalizeHeatCapacityFreeStandardReferenceSnapshot(
     value.standardReferenceSnapshot,
+  );
+  const standardReferenceSnapshot = normalizedStandardReferenceSnapshot &&
+    !hasHeatCapacityFreeIdealThermalBoundaryContamination(
+      normalizedStandardReferenceSnapshot.configSnapshot.physics,
+    )
+    ? normalizedStandardReferenceSnapshot
+    : null;
+  const correctedSignals = u1 !== null && u2 !== null
+    ? normalizeHeatCapacityFreeRestoreCorrectedSignals(value.correctedSignals, u0, u1, u2)
+    : null;
+  const restoredConfigSnapshot = normalizeHeatCapacityFreeRestoreConfigSnapshot(value.configSnapshot);
+  const configSnapshot = restoredConfigSnapshot ?? standardReferenceSnapshot?.configSnapshot ?? (
+    correctedSignals !== null &&
+    fallbackConfigSnapshot !== null &&
+    typeof value.traceTrialId === 'string'
+      ? normalizeHeatCapacityFreeRestoreConfigSnapshot({
+          ...fallbackConfigSnapshot,
+          environment: {
+            ...fallbackConfigSnapshot.environment,
+            ambientPressureKPa: correctedSignals.atmosphericPressureKPa,
+          },
+          sensor: {
+            ...fallbackConfigSnapshot.sensor,
+            pressureMvPerKPa: correctedSignals.pressureSensitivityMvPerKPa,
+          },
+        })
+      : null
   );
   return {
     id: value.id,
@@ -493,22 +489,21 @@ export const normalizeHeatCapacityFreeRestoreTrial = (
       ? 'omitted'
       : value.preheatOutcome === 'completed'
         ? 'completed'
-        : null,
+        : correctedSignals === null
+          ? null
+          : 'completed',
     u0,
-    u1: normalizeHeatCapacityFreeRestoreRecord(value.u1),
-    u2: normalizeHeatCapacityFreeRestoreRecord(value.u2),
+    u1,
+    u2,
     blockedReason: typeof value.blockedReason === 'string'
       ? value.blockedReason as HeatCapacityFreeTrial['blockedReason']
       : null,
-    correctedSignals: isHeatCapacityRestoreRecord(value.u1) && isHeatCapacityRestoreRecord(value.u2)
-      ? normalizeHeatCapacityFreeRestoreCorrectedSignals(value.correctedSignals, u0 !== null)
-      : null,
-    configSnapshot: normalizeHeatCapacityFreeRestoreConfigSnapshot(value.configSnapshot),
-    standardReferenceSnapshot: standardReferenceSnapshot &&
-      !hasHeatCapacityFreeIdealThermalBoundaryContamination(standardReferenceSnapshot.configSnapshot.physics)
-      ? standardReferenceSnapshot
-      : null,
-    completedAtMs: heatCapacityRestoreNullableNumber(value.completedAtMs),
+    correctedSignals,
+    configSnapshot,
+    standardReferenceSnapshot,
+    completedAtMs: standardReferenceSnapshot === null
+      ? null
+      : heatCapacityRestoreNullableNumber(value.completedAtMs),
   };
 };
 
@@ -716,9 +711,10 @@ export const normalizeHeatCapacityFreeRestoreSensorState = (
     seed: typeof state.seed === 'string' || typeof state.seed === 'number' ? state.seed : fallback.seed,
     pressureInitialBiasMv: heatCapacityRestoreFiniteOrDefault(state.pressureInitialBiasMv, fallback.pressureInitialBiasMv),
     displayPressureMv: heatCapacityRestoreFiniteOrDefault(state.displayPressureMv, fallback.displayPressureMv),
-    displayTemperatureMv: fallback.displayTemperatureMv +
-      (sensorTemperatureK - (fallback.sensorTemperatureK ?? sensorTemperatureK)) *
-        HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
+    displayTemperatureMv: heatCapacityRestoreFiniteOrDefault(
+      state.displayTemperatureMv,
+      fallback.displayTemperatureMv,
+    ),
     sensorTemperatureK,
     nextSampleAtS: heatCapacityRestoreFiniteOrDefault(state.nextSampleAtS, fallback.nextSampleAtS),
     pressureHistory: normalizeHeatCapacityFreeRestoreDisplaySamples(state.pressureHistory),
@@ -893,13 +889,28 @@ export const normalizeHeatCapacityFreeRestoreExperimentDomain = (
   const sensorConfig = isHeatCapacityRestoreRecord(domain.sensorConfig)
     ? normalizeHeatCapacityFreeSensorConfig(domain.sensorConfig)
     : fallback.sensorConfig;
+  const recordConfig = normalizeHeatCapacityFreeRestoreRecordConfig(
+    domain.recordConfig,
+    fallback.recordConfig,
+  );
+  const pressureWarningMv = heatCapacityRestoreFiniteOrDefault(
+    domain.pressureWarningMv,
+    fallback.pressureWarningMv,
+  );
+  const fallbackConfigSnapshot = createHeatCapacityFreeConfigSnapshotFromRuntimeConfigs({
+    environmentConfig: physicsConfig.environment,
+    physicsConfig,
+    sensorConfig,
+    recordConfig,
+    pressureWarningMv,
+  });
   const physicsState = normalizeHeatCapacityFreeRestorePhysicsState(
     domain.physicsState,
     fallback.physicsState,
   );
   const trials = Array.isArray(domain.trials)
     ? domain.trials
-        .map(normalizeHeatCapacityFreeRestoreTrial)
+        .map((trial) => normalizeHeatCapacityFreeRestoreTrial(trial, fallbackConfigSnapshot))
         .filter((trial): trial is HeatCapacityFreeTrial => trial !== null)
     : fallback.trials;
   return normalizeHeatCapacityFreeExperimentDomainBoundary({
@@ -910,8 +921,8 @@ export const normalizeHeatCapacityFreeRestoreExperimentDomain = (
       domain.experimentGroupStatus,
     ),
     activeRunConfigSnapshot: normalizeHeatCapacityFreeRestoreConfigSnapshot(domain.activeRunConfigSnapshot),
-    recordConfig: normalizeHeatCapacityFreeRestoreRecordConfig(domain.recordConfig, fallback.recordConfig),
-    pressureWarningMv: heatCapacityRestoreFiniteOrDefault(domain.pressureWarningMv, fallback.pressureWarningMv),
+    recordConfig,
+    pressureWarningMv,
     instrumentNoiseEnabled: typeof domain.instrumentNoiseEnabled === 'boolean'
       ? domain.instrumentNoiseEnabled
       : fallback.instrumentNoiseEnabled,

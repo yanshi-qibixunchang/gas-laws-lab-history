@@ -1,5 +1,5 @@
-import React, { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, createPointerEvents, useFrame, useThree, type RootState, type ThreeEvent } from '@react-three/fiber';
+import React, { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { Canvas, createPointerEvents, useThree, type RootState, type ThreeEvent } from '@react-three/fiber';
 import { Edges, Line, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
@@ -55,9 +55,21 @@ import {
   updateHeatCapacitySceneMotionSources,
   type HeatCapacitySceneMotionReason,
 } from './heatCapacitySceneMotionSources.ts';
+import {
+  createHeatCapacitySceneCommandState,
+  reduceHeatCapacitySceneCommand,
+  type HeatCapacitySceneFocusMode,
+} from './heatCapacitySceneCommandReducer.ts';
+import {
+  HeatCapacityRuntimeGuardProvider,
+  useHeatCapacityGuardedFrame,
+  useHeatCapacityRuntimeFailureReporter,
+  useHeatCapacityRuntimeGuard,
+} from './heatCapacityRuntimeGuard.ts';
 
 type HeatCapacityGuideRollbackCueHandler = (cue: HeatCapacityGuideRollbackCue) => void;
 type HeatCapacityProceduralMotionChangeHandler = (motionId: string, active: boolean) => void;
+type HeatCapacityExactRestoreConsumer = 'camera' | 'ultra' | 'hard-sphere';
 
 export type HeatCapacityCameraPose = {
   position: [number, number, number];
@@ -80,27 +92,20 @@ export type HeatCapacityCameraTransitionState = {
   remainingMs: number;
 };
 
-export type HeatCapacitySceneFrameCaptureMetadata = {
+export type HeatCapacitySceneCheckpointMetadata = {
   capturedAtMs: number;
-  mimeType: 'image/png' | 'image/webp' | 'image/jpeg';
-  widthPx: number;
-  heightPx: number;
-  widthCssPx: number;
-  heightCssPx: number;
-  pixelRatio: number;
   cameraTransition: HeatCapacityCameraTransitionState | null;
   ultraVisualState: HeatCapacityUltraVisualState | null;
   hardSphereVisualCheckpoint: HeatCapacityHardSphereVisualCheckpoint | null;
 };
 
-export type HeatCapacitySceneCaptureProvider = (options?: {
-  includeFrame?: boolean;
-}) => HeatCapacityCameraPose | null;
+export type HeatCapacitySceneCheckpointProvider = () => HeatCapacityCameraPose | null;
 
 export type HeatCapacitySceneModeRestoreRequest = {
   requestId: number;
   cameraPose: HeatCapacityCameraPose | null;
   focusMode: HeatCapacityFocusMode;
+  ultraVisualState: HeatCapacityUltraVisualState | null;
   hardSphereVisualCheckpoint: HeatCapacityHardSphereVisualCheckpoint | null;
 };
 
@@ -136,8 +141,10 @@ export const resolveHeatCapacitySceneDiscreteMotionState = ({
 export type HeatCapacitySceneModeTransitionController = {
   prepare: (requestId: number, outgoingSceneFrameDataUrl?: string | null) => void;
   start: (requestId: number) => void;
+  pause: (requestId: number) => void;
   resume: (requestId: number) => void;
   finish: (requestId: number) => void;
+  settleMotions: (requestId: number) => Promise<boolean>;
 };
 
 interface HeatCapacityInstrumentSceneProps {
@@ -230,6 +237,7 @@ interface HeatCapacityInstrumentSceneProps {
   overlayBottomCenter?: React.ReactNode;
   overlayGuideMask?: React.ReactNode;
   onGuideTargetHolesChange?: (holes: HeatCapacityGuideProjectedHoles) => void;
+  guideProjectionEnabled?: boolean;
   initialCameraPose?: HeatCapacityCameraPose | null;
   initialFocusMode?: HeatCapacityFocusMode | null;
   initialCameraTransition?: HeatCapacityCameraTransitionState | null;
@@ -239,15 +247,14 @@ interface HeatCapacityInstrumentSceneProps {
   sceneRestoreAcknowledged?: boolean;
   onCameraPoseChange?: (sceneFileId: string, pose: HeatCapacityCameraPose) => void;
   restoredSceneFrameDataUrl?: string | null;
-  onSceneFrameCapture?: (
+  onSceneCheckpoint?: (
     sceneFileId: string,
-    dataUrl: string | null,
     cameraPose: HeatCapacityCameraPose,
-    metadata: HeatCapacitySceneFrameCaptureMetadata,
+    metadata: HeatCapacitySceneCheckpointMetadata,
   ) => void;
-  onSceneCaptureProviderChange?: (
+  onSceneCheckpointProviderChange?: (
     sceneFileId: string,
-    provider: HeatCapacitySceneCaptureProvider | null,
+    provider: HeatCapacitySceneCheckpointProvider | null,
   ) => void;
   onSceneReady?: () => void;
   onSceneRestoreRevealComplete?: (sceneFileId: string) => void;
@@ -259,9 +266,10 @@ interface HeatCapacityInstrumentSceneProps {
   onModeTransitionControllerChange?: (
     controller: HeatCapacitySceneModeTransitionController | null,
   ) => void;
+  onRuntimeFailure?: (error: unknown) => void;
 }
 
-export type HeatCapacityFocusMode = 'none' | 'instrument' | 'pump' | 'bottle';
+export type HeatCapacityFocusMode = HeatCapacitySceneFocusMode;
 type HeatCapacityHoveredControl = null | 'stopcock' | 'pumpBulb' | 'pumpValve' | 'powerSwitch' | 'pressureZero';
 type HeatCapacitySceneTheme = 'dark' | 'light';
 type HeatCapacityGuideProjectedHole =
@@ -1090,8 +1098,6 @@ const HEAT_CAPACITY_HOVER_TOOLTIP_DELAY_MS = 650;
 const HEAT_CAPACITY_HOVER_TOOLTIP_MOVE_TOLERANCE_PX = 3;
 const HEAT_CAPACITY_CAMERA_CAPTURE_QUERY_PARAM = 'cameraCapture';
 const HEAT_CAPACITY_CAMERA_CAPTURE_STORAGE_KEY = 'hsl_heat_capacity_camera_capture_latest';
-const HEAT_CAPACITY_SCENE_FRAME_CAPTURE_SETTLE_DELAY_MS = 750;
-const HEAT_CAPACITY_SCENE_FRAME_CAPTURE_QUALITY = 0.9;
 type HeatCapacityCameraViewCapturePayload = {
   capturedAt: string;
   performanceMode: HeatCapacityInstrumentSceneProps['performanceMode'];
@@ -1106,10 +1112,7 @@ type HeatCapacityCameraViewCapturePayload = {
   schemeSnippet: string;
 };
 type HeatCapacityCameraCaptureHandler = () => HeatCapacityCameraViewCapturePayload | null;
-type HeatCapacitySceneFrameCaptureHandler = (
-  force?: boolean,
-  includeFrame?: boolean,
-) => HeatCapacityCameraPose | null;
+type HeatCapacitySceneCheckpointHandler = () => HeatCapacityCameraPose | null;
 const roundCameraCaptureNumber = (value: number) => Number(value.toFixed(3));
 const vectorToCameraCaptureTuple = (value: THREE.Vector3): [number, number, number] => [
   roundCameraCaptureNumber(value.x),
@@ -1239,6 +1242,7 @@ const getPumpFrequencyStatusLabel = (status: HeatCapacityInstrumentSceneProps['p
 
 function useGuardedSceneSingleClick() {
   const pendingSingleClickRef = useRef<number | null>(null);
+  const runRuntimeGuarded = useHeatCapacityRuntimeGuard();
   const clear = useCallback(() => {
     if (pendingSingleClickRef.current !== null) {
       window.clearTimeout(pendingSingleClickRef.current);
@@ -1248,14 +1252,14 @@ function useGuardedSceneSingleClick() {
   const schedule = useCallback((run: () => void, guardSingleClick = true) => {
     clear();
     if (!guardSingleClick) {
-      run();
+      runRuntimeGuarded(run);
       return;
     }
     pendingSingleClickRef.current = window.setTimeout(() => {
       pendingSingleClickRef.current = null;
-      run();
+      runRuntimeGuarded(run);
     }, HEAT_CAPACITY_DOUBLE_CLICK_GUARD_MS);
-  }, [clear]);
+  }, [clear, runRuntimeGuarded]);
 
   useEffect(() => clear, [clear]);
 
@@ -1371,6 +1375,7 @@ function PanelText({
   updateIntervalMs?: number;
 }) {
   const invalidate = useThree((state) => state.invalidate);
+  const runRuntimeGuarded = useHeatCapacityRuntimeGuard();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const lastDrawRef = useRef(0);
   const pendingTimerRef = useRef<number | null>(null);
@@ -1392,7 +1397,7 @@ function PanelText({
     latestTextRef.current = children;
     latestStyleRef.current = { color, size };
 
-    const drawTexture = () => {
+    const drawTexture = () => runRuntimeGuarded(() => {
       pendingTimerRef.current = null;
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -1408,7 +1413,7 @@ function PanelText({
       texture.needsUpdate = true;
       lastDrawRef.current = window.performance.now();
       invalidate();
-    };
+    });
 
     const elapsedMs = window.performance.now() - lastDrawRef.current;
     if (elapsedMs >= updateIntervalMs) {
@@ -1423,7 +1428,7 @@ function PanelText({
         pendingTimerRef.current = null;
       }
     };
-  }, [children, color, invalidate, size, texture, updateIntervalMs]);
+  }, [children, color, invalidate, runRuntimeGuarded, size, texture, updateIntervalMs]);
 
   useEffect(() => () => {
     if (pendingTimerRef.current !== null) {
@@ -1493,7 +1498,7 @@ function DemoFocusHalo({
   const meshRef = useRef<THREE.Mesh | null>(null);
   const materialRef = useRef<THREE.MeshBasicMaterial | null>(null);
 
-  useFrame(({ clock }) => {
+  useHeatCapacityGuardedFrame(({ clock }) => {
     if (!meshRef.current || !materialRef.current) return;
     const pulse = suspended ? 0.62 : getHeatCapacityGuideCuePulse(clock.elapsedTime);
     const scale = focusHaloBaseScale + pulse * focusHaloPulseScale;
@@ -1549,6 +1554,7 @@ function InstrumentBox({
   panelTextInteractionReduced,
   sceneCopy,
   scenePalette,
+  gestureScopeKey,
 }: Pick<HeatCapacityInstrumentSceneProps, 'powerOn' | 'pressureZeroKnobAngle' | 'pressureGaugeDisplayValue' | 'gaugePressureMinKPa' | 'gaugePressureMaxKPa' | 'pressureSafetyThresholdKPa' | 'pressureOverLimit' | 'temperatureSignalMv' | 'pressureSignalMv' | 'onPowerToggle' | 'onPressureZeroFineAdjust' | 'onPressureZeroCoarseAdjust' | 'interactionLocked' | 'demoFocusControlId' | 'demoFocusPulseActive' | 'guideRollbackAnimation' | 'guideRollbackKey' | 'onLockedInteraction'> & {
   highClarityMode: boolean;
   qualityProfile: HeatCapacityQualityProfile;
@@ -1563,6 +1569,7 @@ function InstrumentBox({
   scenePalette: HeatCapacityScenePalette;
   onGuideRollbackCue: HeatCapacityGuideRollbackCueHandler;
   onGuideRollbackMotionChange: HeatCapacityProceduralMotionChangeHandler;
+  gestureScopeKey: string;
 }) {
   const temperatureText = powerOn ? formatSignal(temperatureSignalMv) : '';
   const pressureText = powerOn ? formatSignal(pressureSignalMv) : '';
@@ -1583,6 +1590,7 @@ function InstrumentBox({
   );
   const { camera, gl } = useThree();
   const invalidate = useThree((state) => state.invalidate);
+  const runRuntimeGuarded = useHeatCapacityRuntimeGuard();
   const gaugeNeedlePivotRef = useRef<THREE.Group | null>(null);
   const pressureZeroKnobRef = useRef<THREE.Group | null>(null);
   const knobRollbackPlan = useMemo(() => createHeatCapacityKnobRollbackPlan(), []);
@@ -1618,10 +1626,25 @@ function InstrumentBox({
     rejected: false,
     interactionId: null as HeatCapacityControlInteractionId | null,
   });
+  const pressureZeroCoarseAdjustRef = useRef(onPressureZeroCoarseAdjust);
+  const lockedInteractionRef = useRef(onLockedInteraction);
+  const activePressureZeroGestureCleanupRef = useRef<(() => void) | null>(null);
+  pressureZeroCoarseAdjustRef.current = onPressureZeroCoarseAdjust;
+  lockedInteractionRef.current = onLockedInteraction;
   const pressureZeroWheelGestureRef = useRef(new HeatCapacityWheelGestureTracker());
   useEffect(() => {
     if (focusMode !== 'instrument') pressureZeroWheelGestureRef.current.reset();
   }, [focusMode]);
+  useEffect(() => {
+    if (interactionLocked || focusMode !== 'instrument' || !zeroEnabled) {
+      activePressureZeroGestureCleanupRef.current?.();
+    }
+  }, [focusMode, interactionLocked, zeroEnabled]);
+  useEffect(
+    () => () => activePressureZeroGestureCleanupRef.current?.(),
+    [gestureScopeKey],
+  );
+  useEffect(() => () => activePressureZeroGestureCleanupRef.current?.(), []);
   const gaugeNeedleTargetRotation = getPressureGaugeNeedleRotation(
     pressureGaugeDisplayValue,
     gaugePressureMinKPa,
@@ -1639,7 +1662,7 @@ function InstrumentBox({
     invalidate();
   }, [gaugeNeedleTargetRotation, invalidate]);
 
-  useFrame((_, delta) => {
+  useHeatCapacityGuardedFrame((_, delta) => {
     if (interactionQualityReduced) return;
     const targetRotation = gaugeNeedleTargetRotationRef.current;
     const previousRotation = gaugeDisplayedRotationRef.current;
@@ -1696,6 +1719,7 @@ function InstrumentBox({
   };
 
   const startPressureZeroDrag = (event: ThreeEvent<PointerEvent>) => {
+    if (event.button !== 0 || event.isPrimary === false) return;
     event.stopPropagation();
     if (interactionLocked) {
       onLockedInteraction(undefined, 'pressureZero');
@@ -1703,6 +1727,7 @@ function InstrumentBox({
     }
     const pointerAngle = getPressureZeroPointerAngle(event.clientX, event.clientY);
     if (pointerAngle === null) return;
+    activePressureZeroGestureCleanupRef.current?.();
     pressureZeroDragRef.current = {
       startKnobAngle: pressureZeroKnobAngle,
       lastPointerAngle: pointerAngle,
@@ -1712,8 +1737,16 @@ function InstrumentBox({
       interactionId: createHeatCapacityControlInteractionId('pressureZero', 'drag'),
     };
     const pointerId = event.pointerId;
-    gl.domElement.setPointerCapture?.(pointerId);
+    const captureSucceeded = runRuntimeGuarded(() => {
+      gl.domElement.setPointerCapture?.(pointerId);
+      return true;
+    });
+    if (captureSucceeded !== true) {
+      pressureZeroDragRef.current.interactionId = null;
+      return;
+    }
     const handlePointerMove = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
       const nextPointerAngle = getPressureZeroPointerAngle(moveEvent.clientX, moveEvent.clientY);
       if (nextPointerAngle === null) return;
       const dragState = pressureZeroDragRef.current;
@@ -1726,37 +1759,41 @@ function InstrumentBox({
       const incrementalDelta = nextKnobAngle - dragState.lastAppliedKnobAngle;
       if (Math.abs(incrementalDelta) < 0.15) {
         const limitMessage = getPressureZeroLimitMessage(requestedKnobAngle, sceneCopy);
-        if (limitMessage) onLockedInteraction(limitMessage, 'pressureZero');
+        if (limitMessage) lockedInteractionRef.current(limitMessage, 'pressureZero');
         return;
       }
       dragState.lastAppliedKnobAngle = nextKnobAngle;
       if (dragState.interactionId) {
-        dragState.rejected = !onPressureZeroCoarseAdjust(
+        dragState.rejected = !pressureZeroCoarseAdjustRef.current(
           incrementalDelta,
           dragState.interactionId,
         );
       }
     };
     let finished = false;
-    const finishPointerGesture = () => {
+    const finishPointerGesture = (finishEvent?: PointerEvent) => {
+      if (finishEvent && finishEvent.pointerId !== pointerId) return;
       if (finished) return;
       finished = true;
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', finishPointerGesture);
       window.removeEventListener('pointercancel', finishPointerGesture);
       window.removeEventListener('lostpointercapture', finishPointerGesture);
-      try {
+      runRuntimeGuarded(() => {
         if (gl.domElement.hasPointerCapture?.(pointerId)) {
           gl.domElement.releasePointerCapture?.(pointerId);
         }
-      } catch {
-        // Synthetic browser-test events may not own a real pointer capture.
+      });
+      pressureZeroDragRef.current.interactionId = null;
+      if (activePressureZeroGestureCleanupRef.current === finishPointerGesture) {
+        activePressureZeroGestureCleanupRef.current = null;
       }
     };
+    activePressureZeroGestureCleanupRef.current = finishPointerGesture;
     window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', finishPointerGesture, { once: true });
-    window.addEventListener('pointercancel', finishPointerGesture, { once: true });
-    window.addEventListener('lostpointercapture', finishPointerGesture, { once: true });
+    window.addEventListener('pointerup', finishPointerGesture);
+    window.addEventListener('pointercancel', finishPointerGesture);
+    window.addEventListener('lostpointercapture', finishPointerGesture);
   };
 
   const powerSwitchRotation = powerOn ? -0.35 : 0.35;
@@ -2030,6 +2067,7 @@ function GlassStopcock({
   onGuideRollbackCue: HeatCapacityGuideRollbackCueHandler;
   onGuideRollbackMotionChange: HeatCapacityProceduralMotionChangeHandler;
 }) {
+  const runRuntimeGuarded = useHeatCapacityRuntimeGuard();
   const stopcockCoreRef = useRef<THREE.Group | null>(null);
   const [displayAngleDeg, setDisplayAngleDeg] = useState(angleDeg);
   const displayAngleRef = useRef(angleDeg);
@@ -2067,20 +2105,22 @@ function GlassStopcock({
       : HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs;
     let frameId = 0;
     const animate = (timestamp: number) => {
-      const progress = Math.min(1, (timestamp - startTime) / durationMs);
-      const eased = 1 - ((1 - progress) ** 3);
-      const nextAngle = startAngle + (targetAngle - startAngle) * eased;
-      displayAngleRef.current = nextAngle;
-      setDisplayAngleDeg(nextAngle);
-      if (progress < 1) frameId = window.requestAnimationFrame(animate);
-      else onGuideRollbackMotionChange('stopcock-state', false);
+      runRuntimeGuarded(() => {
+        const progress = Math.min(1, (timestamp - startTime) / durationMs);
+        const eased = 1 - ((1 - progress) ** 3);
+        const nextAngle = startAngle + (targetAngle - startAngle) * eased;
+        displayAngleRef.current = nextAngle;
+        setDisplayAngleDeg(nextAngle);
+        if (progress < 1) frameId = window.requestAnimationFrame(animate);
+        else onGuideRollbackMotionChange('stopcock-state', false);
+      });
     };
     frameId = window.requestAnimationFrame(animate);
     return () => {
       window.cancelAnimationFrame(frameId);
       onGuideRollbackMotionChange('stopcock-state', false);
     };
-  }, [angleDeg, onGuideRollbackMotionChange]);
+  }, [angleDeg, onGuideRollbackMotionChange, runRuntimeGuarded]);
 
   const state = getHeatCapacityStopcockState(angleDeg);
   const stopcockHovered = hoveredControl === 'stopcock';
@@ -2421,6 +2461,7 @@ function PumpAssembly({
   onGuideRollbackCue: HeatCapacityGuideRollbackCueHandler;
   onGuideRollbackMotionChange: HeatCapacityProceduralMotionChangeHandler;
 }) {
+  const runRuntimeGuarded = useHeatCapacityRuntimeGuard();
   const bulbHovered = hoveredControl === 'pumpBulb';
   const valveHovered = hoveredControl === 'pumpValve';
   const pumpBulbDemoFocused = demoFocusPulseActive && demoFocusControlId === 'pumpBulb';
@@ -2457,6 +2498,7 @@ function PumpAssembly({
     releaseTimerId: number | null;
     idleTimerId: number | null;
   }>({ releaseTimerId: null, idleTimerId: null });
+  const lastHandledPumpPulseIdRef = useRef(pumpPulseId);
   const [pumpPulseVisualState, setPumpPulseVisualState] = useState<HeatCapacityInstrumentSceneProps['pumpBulbState']>('idle');
   const visualPumpBulbState = pumpPulseVisualState !== 'idle' ? pumpPulseVisualState : pumpBulbState;
   const pumpBulbScale: [number, number, number] = visualPumpBulbState === 'compressing'
@@ -2518,24 +2560,28 @@ function PumpAssembly({
     const duration = PUMP_VALVE_TRANSITION_MS;
     let frameId = 0;
     const animate = (timestamp: number) => {
-      const progress = Math.min(1, (timestamp - startTime) / duration);
-      const eased = 1 - ((1 - progress) ** 3);
-      setValveHandleAngle(startAngle + (targetAngle - startAngle) * eased);
-      if (progress < 1) {
-        frameId = window.requestAnimationFrame(animate);
-      } else {
-        onGuideRollbackMotionChange('pump-valve-state', false);
-      }
+      runRuntimeGuarded(() => {
+        const progress = Math.min(1, (timestamp - startTime) / duration);
+        const eased = 1 - ((1 - progress) ** 3);
+        setValveHandleAngle(startAngle + (targetAngle - startAngle) * eased);
+        if (progress < 1) {
+          frameId = window.requestAnimationFrame(animate);
+        } else {
+          onGuideRollbackMotionChange('pump-valve-state', false);
+        }
+      });
     };
     frameId = window.requestAnimationFrame(animate);
     return () => {
       window.cancelAnimationFrame(frameId);
       onGuideRollbackMotionChange('pump-valve-state', false);
     };
-  }, [onGuideRollbackMotionChange, pumpValveOpen]);
+  }, [onGuideRollbackMotionChange, pumpValveOpen, runRuntimeGuarded]);
 
   useEffect(() => {
-    if (pumpPulseId <= 0) return undefined;
+    const previousPumpPulseId = lastHandledPumpPulseIdRef.current;
+    lastHandledPumpPulseIdRef.current = pumpPulseId;
+    if (pumpPulseId <= previousPumpPulseId) return undefined;
     clearPumpPulseTimers();
     setPumpPulseVisualState('compressing');
     pumpPulseTimersRef.current.releaseTimerId = window.setTimeout(() => {
@@ -2732,6 +2778,9 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
   scenePalette: HeatCapacityScenePalette;
   onGuideRollbackCue: HeatCapacityGuideRollbackCueHandler;
   onGuideRollbackMotionChange: HeatCapacityProceduralMotionChangeHandler;
+  motionSettleRevision: number;
+  runtimeRevision: number;
+  onHardSphereVisualRestoreComplete: (restoreKey: number) => void;
 }) {
   const stopcockState = getHeatCapacityStopcockState(props.stopcockAngleDeg);
   const zeroEnabled = stopcockState === 'open' && (
@@ -2749,6 +2798,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
 
       <group name="HeatCapacityProceduralSkeleton" scale={0.9} position={[0, -0.08, 0]}>
         <PressureBottle
+          key={`pressure-bottle:${props.motionSettleRevision}`}
           highClarityMode={highClarityMode}
           stopcockAngleDeg={props.stopcockAngleDeg}
           onStopcockOpenChange={props.onStopcockOpenChange}
@@ -2766,6 +2816,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           scenePalette={scenePalette}
         />
         <HeatCapacityHardSphereLayer
+          key={`procedural-hard-sphere:${props.runtimeRevision}`}
           enabled={props.hardSphereViewEnabled}
           temperatureMv={props.temperatureSignalMv}
           pressureMv={props.pressureSignalMv}
@@ -2788,10 +2839,12 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           initialVisualCheckpoint={props.initialHardSphereVisualCheckpoint}
           restoreVisualCheckpoint={props.modeRestoreRequest?.hardSphereVisualCheckpoint ?? null}
           restoreVisualCheckpointKey={props.modeRestoreRequest?.requestId ?? null}
+          onVisualRestoreComplete={props.onHardSphereVisualRestoreComplete}
           onCheckpointProviderChange={props.onHardSphereCheckpointProviderChange}
         />
         <InstrumentLeads highClarityMode={highClarityMode} scenePalette={scenePalette} />
         <PumpAssembly
+          key={`pump:${props.motionSettleRevision}`}
           pumpValveOpen={props.pumpValveOpen}
           pumpBulbState={props.pumpBulbState}
           pumpPulseId={props.pumpPulseId}
@@ -2813,6 +2866,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           scenePalette={scenePalette}
         />
         <InstrumentBox
+          key={`instrument:${props.motionSettleRevision}`}
           highClarityMode={highClarityMode}
           qualityProfile={props.qualityProfile}
           powerOn={props.powerOn}
@@ -2844,6 +2898,7 @@ function InstrumentSceneContent(props: HeatCapacityInstrumentSceneProps & {
           panelTextInteractionReduced={props.panelTextInteractionReduced}
           sceneCopy={props.sceneCopy}
           scenePalette={scenePalette}
+          gestureScopeKey={`${props.sceneFileId}:${props.runtimeRevision}:${props.performanceMode}`}
         />
       </group>
     </>
@@ -2979,9 +3034,12 @@ function CameraRig({
   initialCameraPose,
   initialCameraTransition,
   modeRestoreRequest,
+  settleRevision,
+  runtimeRevision,
   sceneReady,
   onTransitionStateChange,
   onTransitionEnd,
+  onModeRestoreComplete,
 }: {
   controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
   focusMode: HeatCapacityFocusMode;
@@ -2991,22 +3049,71 @@ function CameraRig({
   initialCameraPose: HeatCapacityCameraPose | null;
   initialCameraTransition: HeatCapacityCameraTransitionState | null;
   modeRestoreRequest: HeatCapacitySceneModeRestoreRequest | null;
+  settleRevision: number;
+  runtimeRevision: number;
   sceneReady: boolean;
   onTransitionStateChange: (state: HeatCapacityCameraTransitionState | null) => void;
   onTransitionEnd: () => void;
+  onModeRestoreComplete: (requestId: number) => void;
 }) {
   const { camera, invalidate, size } = useThree();
+  const reportRuntimeFailure = useHeatCapacityRuntimeFailureReporter();
   const pendingInitialTransitionRef = useRef(initialCameraTransition);
   const preserveInitialPoseWithoutTransitionRef = useRef(Boolean(initialCameraPose && !initialCameraTransition));
   const preserveRestoredFovRef = useRef(Boolean(initialCameraPose));
   const lastTransitionRequestKeyRef = useRef<string | null>(null);
   const handledModeRestoreRequestIdRef = useRef<number | null>(null);
+  const activeModeRestoreTransitionRequestIdRef = useRef<number | null>(null);
   const transitionRuntimeRef = useRef<{
     state: HeatCapacityCameraTransitionState;
     resumedAtMs: number;
     resumedFromElapsedMs: number;
     requiresSceneReady: boolean;
   } | null>(null);
+  const handledSettleRevisionRef = useRef(settleRevision);
+  const runtimeFailedRef = useRef(false);
+
+  useEffect(() => {
+    runtimeFailedRef.current = false;
+    if (modeRestoreRequest) {
+      handledModeRestoreRequestIdRef.current = null;
+    }
+  }, [modeRestoreRequest, runtimeRevision]);
+
+  useLayoutEffect(() => {
+    if (handledSettleRevisionRef.current === settleRevision) return;
+    handledSettleRevisionRef.current = settleRevision;
+    const runtime = transitionRuntimeRef.current;
+    if (!runtime || !(camera instanceof THREE.PerspectiveCamera)) return;
+    const targetPosition = new THREE.Vector3(...runtime.state.targetPosition);
+    const target = new THREE.Vector3(...runtime.state.target);
+    camera.position.copy(targetPosition);
+    camera.fov = runtime.state.targetFov;
+    camera.updateProjectionMatrix();
+    if (controlsRef.current) {
+      controlsRef.current.target.copy(target);
+      controlsRef.current.update();
+    } else {
+      camera.lookAt(target);
+    }
+    transitionRuntimeRef.current = null;
+    pendingInitialTransitionRef.current = null;
+    preserveRestoredFovRef.current = false;
+    onTransitionStateChange(null);
+    onTransitionEnd();
+    const completedRestoreRequestId = activeModeRestoreTransitionRequestIdRef.current;
+    activeModeRestoreTransitionRequestIdRef.current = null;
+    if (completedRestoreRequestId !== null) onModeRestoreComplete(completedRestoreRequestId);
+    invalidate();
+  }, [
+    camera,
+    controlsRef,
+    invalidate,
+    onModeRestoreComplete,
+    onTransitionEnd,
+    onTransitionStateChange,
+    settleRevision,
+  ]);
 
   useLayoutEffect(() => {
     if (!initialCameraPose || !(camera instanceof THREE.PerspectiveCamera)) return;
@@ -3096,6 +3203,7 @@ function CameraRig({
         }
         onTransitionStateChange(null);
         onTransitionEnd();
+        onModeRestoreComplete(modeRestoreRequest.requestId);
         invalidate();
         return;
       }
@@ -3112,6 +3220,7 @@ function CameraRig({
         elapsedMs: 0,
         remainingMs: durationMs,
       };
+      activeModeRestoreTransitionRequestIdRef.current = modeRestoreRequest.requestId;
       transitionRuntimeRef.current = {
         state: nextTransition,
         resumedAtMs: performance.now(),
@@ -3125,6 +3234,7 @@ function CameraRig({
 
     if (restoredTransition) {
       pendingInitialTransitionRef.current = null;
+      activeModeRestoreTransitionRequestIdRef.current = null;
       transitionRuntimeRef.current = {
         state: restoredTransition,
         resumedAtMs: performance.now(),
@@ -3143,6 +3253,7 @@ function CameraRig({
     }
 
     preserveRestoredFovRef.current = false;
+    activeModeRestoreTransitionRequestIdRef.current = null;
     const startPosition = camera.position.clone();
     const startTarget = controlsRef.current?.target.clone() ?? new THREE.Vector3(0.25, -0.05, 0);
     const startFov = camera.fov;
@@ -3180,55 +3291,69 @@ function CameraRig({
     initialCameraTransition,
     invalidate,
     modeRestoreRequest,
+    onModeRestoreComplete,
     onTransitionStateChange,
     resetKey,
+    runtimeRevision,
     sceneReady,
     size.height,
     size.width,
   ]);
 
-  useFrame(() => {
-    const runtime = transitionRuntimeRef.current;
-    if (!runtime || !(camera instanceof THREE.PerspectiveCamera)) return;
-    if (runtime.requiresSceneReady && !sceneReady) {
-      runtime.resumedAtMs = performance.now();
-      runtime.resumedFromElapsedMs = runtime.state.elapsedMs;
-      return;
+  useHeatCapacityGuardedFrame(() => {
+    if (runtimeFailedRef.current) return;
+    try {
+      const runtime = transitionRuntimeRef.current;
+      if (!runtime || !(camera instanceof THREE.PerspectiveCamera)) return;
+      if (runtime.requiresSceneReady && !sceneReady) {
+        runtime.resumedAtMs = performance.now();
+        runtime.resumedFromElapsedMs = runtime.state.elapsedMs;
+        return;
+      }
+      const elapsedMs = Math.min(
+        runtime.state.durationMs,
+        runtime.resumedFromElapsedMs + Math.max(0, performance.now() - runtime.resumedAtMs),
+      );
+      const progress = elapsedMs / runtime.state.durationMs;
+      const eased = 1 - ((1 - progress) ** 3);
+      const startPosition = new THREE.Vector3(...runtime.state.startPosition);
+      const targetPosition = new THREE.Vector3(...runtime.state.targetPosition);
+      const startTarget = new THREE.Vector3(...runtime.state.startTarget);
+      const target = new THREE.Vector3(...runtime.state.target);
+      camera.position.lerpVectors(startPosition, targetPosition, eased);
+      camera.fov = THREE.MathUtils.lerp(runtime.state.startFov, runtime.state.targetFov, eased);
+      camera.updateProjectionMatrix();
+      if (controlsRef.current) {
+        controlsRef.current.target.lerpVectors(startTarget, target, eased);
+        camera.lookAt(controlsRef.current.target);
+        controlsRef.current.update();
+      } else {
+        camera.lookAt(target);
+      }
+      runtime.state = {
+        ...runtime.state,
+        elapsedMs,
+        remainingMs: Math.max(0, runtime.state.durationMs - elapsedMs),
+      };
+      invalidate();
+      if (elapsedMs < runtime.state.durationMs) {
+        onTransitionStateChange(runtime.state);
+        return;
+      }
+      transitionRuntimeRef.current = null;
+      preserveRestoredFovRef.current = false;
+      onTransitionStateChange(null);
+      onTransitionEnd();
+      const completedRestoreRequestId = activeModeRestoreTransitionRequestIdRef.current;
+      activeModeRestoreTransitionRequestIdRef.current = null;
+      if (completedRestoreRequestId !== null) onModeRestoreComplete(completedRestoreRequestId);
+    } catch (error) {
+      runtimeFailedRef.current = true;
+      transitionRuntimeRef.current = null;
+      activeModeRestoreTransitionRequestIdRef.current = null;
+      onTransitionStateChange(null);
+      reportRuntimeFailure(error);
     }
-    const elapsedMs = Math.min(
-      runtime.state.durationMs,
-      runtime.resumedFromElapsedMs + Math.max(0, performance.now() - runtime.resumedAtMs),
-    );
-    const progress = elapsedMs / runtime.state.durationMs;
-    const eased = 1 - ((1 - progress) ** 3);
-    const startPosition = new THREE.Vector3(...runtime.state.startPosition);
-    const targetPosition = new THREE.Vector3(...runtime.state.targetPosition);
-    const startTarget = new THREE.Vector3(...runtime.state.startTarget);
-    const target = new THREE.Vector3(...runtime.state.target);
-    camera.position.lerpVectors(startPosition, targetPosition, eased);
-    camera.fov = THREE.MathUtils.lerp(runtime.state.startFov, runtime.state.targetFov, eased);
-    camera.updateProjectionMatrix();
-    if (controlsRef.current) {
-      controlsRef.current.target.lerpVectors(startTarget, target, eased);
-      camera.lookAt(controlsRef.current.target);
-      controlsRef.current.update();
-    } else {
-      camera.lookAt(target);
-    }
-    runtime.state = {
-      ...runtime.state,
-      elapsedMs,
-      remainingMs: Math.max(0, runtime.state.durationMs - elapsedMs),
-    };
-    invalidate();
-    if (elapsedMs < runtime.state.durationMs) {
-      onTransitionStateChange(runtime.state);
-      return;
-    }
-    transitionRuntimeRef.current = null;
-    preserveRestoredFovRef.current = false;
-    onTransitionStateChange(null);
-    onTransitionEnd();
   });
 
   return null;
@@ -3263,6 +3388,7 @@ function HeatCapacityGuideTargetProbe({
 }) {
   const { camera, invalidate, scene, size } = useThree();
   const lastSignatureRef = useRef('');
+  const runRuntimeGuarded = useHeatCapacityRuntimeGuard();
 
   const emitProjectedHoles = useCallback(() => {
     if (!enabled || !onGuideTargetHolesChange) return;
@@ -3273,7 +3399,7 @@ function HeatCapacityGuideTargetProbe({
     onGuideTargetHolesChange(holes);
   }, [camera, enabled, onGuideTargetHolesChange, scene, size]);
 
-  useFrame(() => {
+  useHeatCapacityGuardedFrame(() => {
     emitProjectedHoles();
   });
 
@@ -3286,19 +3412,21 @@ function HeatCapacityGuideTargetProbe({
     let frameId = 0;
     let attempt = 0;
     const retryProjection = () => {
-      invalidate();
-      emitProjectedHoles();
-      attempt += 1;
-      if (attempt < 8) {
-        frameId = window.requestAnimationFrame(retryProjection);
-      }
+      runRuntimeGuarded(() => {
+        invalidate();
+        emitProjectedHoles();
+        attempt += 1;
+        if (attempt < 8) {
+          frameId = window.requestAnimationFrame(retryProjection);
+        }
+      });
     };
     frameId = window.requestAnimationFrame(retryProjection);
-    emitProjectedHoles();
+    runRuntimeGuarded(emitProjectedHoles);
     return () => {
       if (frameId) window.cancelAnimationFrame(frameId);
     };
-  }, [emitProjectedHoles, enabled, invalidate, onGuideTargetHolesChange, projectionSyncKey]);
+  }, [emitProjectedHoles, enabled, invalidate, onGuideTargetHolesChange, projectionSyncKey, runRuntimeGuarded]);
 
   return null;
 }
@@ -3309,15 +3437,16 @@ function HeatCapacitySceneInvalidator({
   active: boolean;
 }) {
   const invalidate = useThree((state) => state.invalidate);
+  const runRuntimeGuarded = useHeatCapacityRuntimeGuard();
 
   useEffect(() => {
-    invalidate();
+    runRuntimeGuarded(invalidate);
     if (!active) return undefined;
     const intervalId = window.setInterval(() => {
-      invalidate();
+      runRuntimeGuarded(invalidate);
     }, 33);
     return () => window.clearInterval(intervalId);
-  }, [active, invalidate]);
+  }, [active, invalidate, runRuntimeGuarded]);
 
   return null;
 }
@@ -3331,17 +3460,20 @@ function HeatCapacitySceneReadyBridge({
   const renderedFrameCountRef = useRef(0);
   const readyFrameIdRef = useRef<number | null>(null);
   const didReportReadyRef = useRef(false);
+  const runRuntimeGuarded = useHeatCapacityRuntimeGuard();
 
   useEffect(() => {
-    invalidate();
+    renderedFrameCountRef.current = 0;
+    didReportReadyRef.current = false;
+    runRuntimeGuarded(invalidate);
     return () => {
       if (readyFrameIdRef.current !== null) {
         window.cancelAnimationFrame(readyFrameIdRef.current);
       }
     };
-  }, [invalidate]);
+  }, [invalidate, runRuntimeGuarded]);
 
-  useFrame(() => {
+  useHeatCapacityGuardedFrame(() => {
     if (didReportReadyRef.current) return;
     renderedFrameCountRef.current += 1;
     if (renderedFrameCountRef.current < 2) {
@@ -3351,7 +3483,10 @@ function HeatCapacitySceneReadyBridge({
     didReportReadyRef.current = true;
     readyFrameIdRef.current = window.requestAnimationFrame(() => {
       readyFrameIdRef.current = null;
-      onReady();
+      if (runRuntimeGuarded(onReady) === null) {
+        didReportReadyRef.current = false;
+        renderedFrameCountRef.current = 0;
+      }
     });
   });
 
@@ -3375,7 +3510,7 @@ function HeatCapacitySceneRevealBridge({
     if (requested) invalidate();
   }, [invalidate, requested]);
 
-  useFrame(() => {
+  useHeatCapacityGuardedFrame(() => {
     if (!requested || reportedRef.current) return;
     renderedFrameCountRef.current += 1;
     if (renderedFrameCountRef.current < 2) {
@@ -3389,144 +3524,65 @@ function HeatCapacitySceneRevealBridge({
   return null;
 }
 
-function HeatCapacitySceneFrameCaptureBridge({
-  active,
+function HeatCapacitySceneCheckpointBridge({
   ready,
-  frameCaptureEnabled,
-  captureRevision,
   controlsRef,
   onCameraPoseChange,
-  onSceneFrameCapture,
+  onSceneCheckpoint,
   getCameraTransitionState,
   getUltraVisualState,
   getHardSphereVisualCheckpoint,
-  onCaptureHandlerChange,
+  onCheckpointHandlerChange,
 }: {
-  active: boolean;
   ready: boolean;
-  frameCaptureEnabled: boolean;
-  captureRevision: string;
   controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
   onCameraPoseChange?: (pose: HeatCapacityCameraPose) => void;
-  onSceneFrameCapture?: (
-    dataUrl: string | null,
+  onSceneCheckpoint?: (
     cameraPose: HeatCapacityCameraPose,
-    metadata: HeatCapacitySceneFrameCaptureMetadata,
+    metadata: HeatCapacitySceneCheckpointMetadata,
   ) => void;
   getCameraTransitionState: () => HeatCapacityCameraTransitionState | null;
   getUltraVisualState: () => HeatCapacityUltraVisualState | null;
   getHardSphereVisualCheckpoint: () => HeatCapacityHardSphereVisualCheckpoint | null;
-  onCaptureHandlerChange: (handler: HeatCapacitySceneFrameCaptureHandler | null) => void;
+  onCheckpointHandlerChange: (handler: HeatCapacitySceneCheckpointHandler | null) => void;
 }) {
-  const { camera, gl, invalidate, size } = useThree();
-  const sceneDirtyRef = useRef(true);
-  const captureWarningReportedRef = useRef(false);
+  const { camera } = useThree();
+  const runRuntimeGuarded = useHeatCapacityRuntimeGuard();
 
-  const captureSceneFrame = useCallback<HeatCapacitySceneFrameCaptureHandler>((
-    force = false,
-    includeFrame = true,
-  ) => {
+  const checkpointScene = useCallback<HeatCapacitySceneCheckpointHandler>(() => runRuntimeGuarded(() => {
     if (!ready) return null;
-    if (!force && !sceneDirtyRef.current) return null;
     const cameraPose = readHeatCapacityCameraPose(camera, controlsRef.current);
     if (!cameraPose) return null;
     onCameraPoseChange?.(cameraPose);
-    const metadata: HeatCapacitySceneFrameCaptureMetadata = {
+    const metadata: HeatCapacitySceneCheckpointMetadata = {
       capturedAtMs: Date.now(),
-      mimeType: 'image/webp',
-      widthPx: gl.domElement.width,
-      heightPx: gl.domElement.height,
-      widthCssPx: size.width,
-      heightCssPx: size.height,
-      pixelRatio: gl.getPixelRatio(),
       cameraTransition: getCameraTransitionState(),
       ultraVisualState: getUltraVisualState(),
       hardSphereVisualCheckpoint: getHardSphereVisualCheckpoint(),
     };
-    if (!includeFrame || !frameCaptureEnabled) {
-      onSceneFrameCapture?.(null, cameraPose, metadata);
-      return cameraPose;
-    }
-    if (!onSceneFrameCapture) {
-      sceneDirtyRef.current = false;
-      return cameraPose;
-    }
-    try {
-      const dataUrl = gl.domElement.toDataURL('image/webp', HEAT_CAPACITY_SCENE_FRAME_CAPTURE_QUALITY);
-      const mimeTypeMatch = /^data:(image\/(?:png|webp|jpeg));/.exec(dataUrl);
-      if (mimeTypeMatch) {
-        onSceneFrameCapture(dataUrl, cameraPose, {
-          ...metadata,
-          mimeType: mimeTypeMatch[1] as HeatCapacitySceneFrameCaptureMetadata['mimeType'],
-        });
-        sceneDirtyRef.current = false;
-        return cameraPose;
-      }
-    } catch (error) {
-      if (!captureWarningReportedRef.current) {
-        captureWarningReportedRef.current = true;
-        console.warn('Heat Capacity scene frame capture failed; continuing without a restore frame.', error);
-      }
-    }
-    return null;
-  }, [
+    onSceneCheckpoint?.(cameraPose, metadata);
+    return cameraPose;
+  }), [
     camera,
     controlsRef,
     getCameraTransitionState,
     getHardSphereVisualCheckpoint,
     getUltraVisualState,
-    frameCaptureEnabled,
-    gl,
     onCameraPoseChange,
-    onSceneFrameCapture,
+    onSceneCheckpoint,
     ready,
-    size.height,
-    size.width,
+    runRuntimeGuarded,
   ]);
 
   useEffect(() => {
-    onCaptureHandlerChange(captureSceneFrame);
-    return () => onCaptureHandlerChange(null);
-  }, [captureSceneFrame, onCaptureHandlerChange]);
+    onCheckpointHandlerChange(checkpointScene);
+    return () => onCheckpointHandlerChange(null);
+  }, [checkpointScene, onCheckpointHandlerChange]);
 
   useEffect(() => {
-    if (!ready || !frameCaptureEnabled) return undefined;
-    sceneDirtyRef.current = true;
-    let firstFrameId = 0;
-    let secondFrameId = 0;
-    const settleTimerId = window.setTimeout(() => {
-      invalidate();
-      firstFrameId = window.requestAnimationFrame(() => {
-        invalidate();
-        secondFrameId = window.requestAnimationFrame(() => captureSceneFrame(false));
-      });
-    }, HEAT_CAPACITY_SCENE_FRAME_CAPTURE_SETTLE_DELAY_MS);
-    return () => {
-      window.clearTimeout(settleTimerId);
-      if (firstFrameId) window.cancelAnimationFrame(firstFrameId);
-      if (secondFrameId) window.cancelAnimationFrame(secondFrameId);
-    };
-  }, [captureRevision, captureSceneFrame, frameCaptureEnabled, invalidate, ready, size.height, size.width]);
-
-  useEffect(() => {
-    if (!ready || !frameCaptureEnabled) return undefined;
-    let secondFrameId = 0;
-    invalidate();
-    const firstFrameId = window.requestAnimationFrame(() => {
-      invalidate();
-      secondFrameId = window.requestAnimationFrame(() => {
-        captureSceneFrame(false);
-      });
-    });
-    return () => {
-      window.cancelAnimationFrame(firstFrameId);
-      if (secondFrameId) window.cancelAnimationFrame(secondFrameId);
-    };
-  }, [captureSceneFrame, frameCaptureEnabled, ready]);
-
-  useFrame(() => {
-    if (active) sceneDirtyRef.current = true;
-  });
+    if (!ready) return;
+    checkpointScene();
+  }, [checkpointScene, ready]);
 
   return null;
 }
@@ -3547,6 +3603,7 @@ function HeatCapacityOrbitControls({
   onInteractionEnd: () => void;
 }) {
   const invalidate = useThree((state) => state.invalidate);
+  const runRuntimeGuarded = useHeatCapacityRuntimeGuard();
   const interactionActiveRef = useRef(false);
   const interactionCallbacksRef = useRef({
     start: reportInteractionStart,
@@ -3561,16 +3618,20 @@ function HeatCapacityOrbitControls({
   }, [reportInteractionEnd, reportInteractionStart]);
 
   const onInteractionStart = useCallback(() => {
-    if (interactionActiveRef.current) return;
-    interactionActiveRef.current = true;
-    interactionCallbacksRef.current.start();
-  }, []);
+    runRuntimeGuarded(() => {
+      if (interactionActiveRef.current) return;
+      interactionActiveRef.current = true;
+      interactionCallbacksRef.current.start();
+    });
+  }, [runRuntimeGuarded]);
 
   const onInteractionEnd = useCallback(() => {
-    if (!interactionActiveRef.current) return;
-    interactionActiveRef.current = false;
-    interactionCallbacksRef.current.end();
-  }, []);
+    runRuntimeGuarded(() => {
+      if (!interactionActiveRef.current) return;
+      interactionActiveRef.current = false;
+      interactionCallbacksRef.current.end();
+    });
+  }, [runRuntimeGuarded]);
 
   useEffect(() => {
     if (!enabled) onInteractionEnd();
@@ -3598,13 +3659,13 @@ function HeatCapacityOrbitControls({
       maxPolarAngle={1.42}
       onStart={onInteractionStart}
       onEnd={onInteractionEnd}
-      onChange={() => invalidate()}
+      onChange={() => runRuntimeGuarded(invalidate)}
     />
   );
 }
 
 export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumentSceneProps) {
-  const { playGuideRollbackCue } = useHeatCapacityAudioController({
+  const { playGuideRollbackCue, stopRuntimeAudio } = useHeatCapacityAudioController({
     resetKey: props.hardSphereVisualResetKey,
     powerOn: props.powerOn,
     stopcockAngleDeg: props.stopcockAngleDeg,
@@ -3626,7 +3687,8 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const outgoingSceneFrameHostRef = useRef<HTMLDivElement | null>(null);
   const activeModeTransitionRequestIdRef = useRef<number | null>(null);
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
-  const sceneFrameCaptureHandlerRef = useRef<HeatCapacitySceneFrameCaptureHandler | null>(null);
+  const sceneCheckpointHandlerRef = useRef<HeatCapacitySceneCheckpointHandler | null>(null);
+  const orbitCaptureFrameIdRef = useRef<number | null>(null);
   const hardSphereCheckpointProviderRef = useRef<HeatCapacityHardSphereCheckpointProvider | null>(null);
   const hardSphereVisualCheckpointRef = useRef<HeatCapacityHardSphereVisualCheckpoint | null>(null);
   const hoverClearTimerRef = useRef<number | null>(null);
@@ -3643,7 +3705,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const onFocusModeChangeRef = useRef(props.onFocusModeChange);
   const sceneFileIdRef = useRef(props.sceneFileId);
   const onCameraPoseChangeRef = useRef(props.onCameraPoseChange);
-  const onSceneFrameCaptureRef = useRef(props.onSceneFrameCapture);
+  const onSceneCheckpointRef = useRef(props.onSceneCheckpoint);
   const [restoredInitialCameraPose] = useState(() => normalizeHeatCapacityCameraPose(props.initialCameraPose));
   const [restoredInitialCameraTransition] = useState(() => (
     normalizeHeatCapacityCameraTransitionState(props.initialCameraTransition)
@@ -3654,14 +3716,77 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const [restoredInitialHardSphereVisualCheckpoint] = useState(() => (
     normalizeHeatCapacityHardSphereVisualCheckpoint(props.initialHardSphereVisualCheckpoint)
   ));
+  const runtimeRecoveryCameraPoseRef = useRef<HeatCapacityCameraPose | null>(restoredInitialCameraPose);
   const cameraTransitionStateRef = useRef<HeatCapacityCameraTransitionState | null>(restoredInitialCameraTransition);
   const ultraVisualStateRef = useRef<HeatCapacityUltraVisualState | null>(restoredInitialUltraVisualState);
   if (hardSphereVisualCheckpointRef.current === null && restoredInitialHardSphereVisualCheckpoint) {
     hardSphereVisualCheckpointRef.current = restoredInitialHardSphereVisualCheckpoint;
   }
-  const [focusMode, setFocusMode] = useState<HeatCapacityFocusMode>(() => (
-    props.initialFocusMode ?? props.guideFocusMode ?? props.demoCameraFocusMode ?? 'none'
-  ));
+  const [sceneCommandState, dispatchSceneCommand] = useReducer(
+    reduceHeatCapacitySceneCommand,
+    props.initialFocusMode ?? props.guideFocusMode ?? props.demoCameraFocusMode ?? 'none',
+    createHeatCapacitySceneCommandState,
+  );
+  const focusMode = sceneCommandState.focusMode;
+  const viewResetKey = sceneCommandState.viewRevision;
+  const activeModeRestoreRequest = useMemo<HeatCapacitySceneModeRestoreRequest | null>(() => {
+    const requestId = sceneCommandState.exactRestoreRequestId;
+    const checkpoint = sceneCommandState.exactRestoreCheckpoint;
+    if (requestId === null || !checkpoint) return null;
+    return {
+      requestId,
+      focusMode: sceneCommandState.focusMode,
+      cameraPose: normalizeHeatCapacityCameraPose(checkpoint.cameraPose),
+      ultraVisualState: normalizeHeatCapacityUltraVisualState(checkpoint.ultraVisualState),
+      hardSphereVisualCheckpoint: normalizeHeatCapacityHardSphereVisualCheckpoint(
+        checkpoint.hardSphereVisualCheckpoint,
+      ),
+    };
+  }, [
+    sceneCommandState.exactRestoreCheckpoint,
+    sceneCommandState.exactRestoreRequestId,
+    sceneCommandState.focusMode,
+  ]);
+  const sceneCommandSequenceRef = useRef(0);
+  const exactRestoreActiveRef = useRef(false);
+  const initializedExactRestoreRequestIdRef = useRef<number | null>(null);
+  const exactRestorePendingConsumersRef = useRef<{
+    requestId: number;
+    pending: Set<HeatCapacityExactRestoreConsumer>;
+  } | null>(null);
+  const acknowledgeExactRestoreConsumer = useCallback((
+    requestId: number,
+    consumer: HeatCapacityExactRestoreConsumer,
+  ) => {
+    const completion = exactRestorePendingConsumersRef.current;
+    if (!completion || completion.requestId !== requestId || !completion.pending.delete(consumer)) return;
+    if (completion.pending.size > 0) return;
+    exactRestorePendingConsumersRef.current = null;
+    exactRestoreActiveRef.current = false;
+    dispatchSceneCommand({ type: 'release-exact-restore', requestId });
+  }, []);
+  const acknowledgeCameraExactRestore = useCallback((requestId: number) => {
+    acknowledgeExactRestoreConsumer(requestId, 'camera');
+  }, [acknowledgeExactRestoreConsumer]);
+  const acknowledgeUltraExactRestore = useCallback((requestId: number) => {
+    acknowledgeExactRestoreConsumer(requestId, 'ultra');
+  }, [acknowledgeExactRestoreConsumer]);
+  const acknowledgeHardSphereExactRestore = useCallback((requestId: number) => {
+    acknowledgeExactRestoreConsumer(requestId, 'hard-sphere');
+  }, [acknowledgeExactRestoreConsumer]);
+  const modeTransitionActiveRef = useRef(props.modeTransitionActive === true);
+  modeTransitionActiveRef.current = props.modeTransitionActive === true;
+  const setFocusMode = useCallback((nextFocusMode: HeatCapacityFocusMode) => {
+    sceneCommandSequenceRef.current += 1;
+    dispatchSceneCommand({
+      type: 'submit',
+      command: {
+        kind: 'interaction',
+        commandId: `interaction:${sceneCommandSequenceRef.current}`,
+        focusMode: nextFocusMode,
+      },
+    });
+  }, []);
   const [cameraTransitionActive, setCameraTransitionActive] = useState(Boolean(restoredInitialCameraTransition));
   const [ultraDiscreteMotionActive, setUltraDiscreteMotionActive] = useState(false);
   const [proceduralDiscreteMotionActive, setProceduralDiscreteMotionActive] = useState(false);
@@ -3669,7 +3794,6 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const [hoveredControl, setHoveredControl] = useState<HeatCapacityHoveredControl>(null);
   const [hoverTooltipAnchor, setHoverTooltipAnchor] = useState<{ side: 'left' | 'right'; x: number; y: number } | null>(null);
   const [isOrbitInteracting, setIsOrbitInteracting] = useState(false);
-  const [viewResetKey, setViewResetKey] = useState(0);
   const [cameraCaptureHandler, setCameraCaptureHandler] = useState<HeatCapacityCameraCaptureHandler | null>(null);
   const [cameraCapturePayload, setCameraCapturePayload] = useState<HeatCapacityCameraViewCapturePayload | null>(null);
   const [sceneReady, setSceneReady] = useState(false);
@@ -3678,11 +3802,12 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const [ultraSceneError, setUltraSceneError] = useState<HeatCapacityUltraSceneError | null>(null);
   const [ultraAssetLoadAttempt, setUltraAssetLoadAttempt] = useState(0);
   const [ultraRuntimeRetryAttempt, setUltraRuntimeRetryAttempt] = useState(0);
-  const focusResetEffectMountedRef = useRef(false);
-  const demoCameraFocusEffectMountedRef = useRef(false);
-  const guideCameraFocusEffectMountedRef = useRef(false);
+  const [motionSettleRevision, setMotionSettleRevision] = useState(0);
+  const motionSettleRequestsRef = useRef(new Map<number, {
+    frameIds: number[];
+    resolve: (settled: boolean) => void;
+  }>());
   const sceneReadyReportedRef = useRef(false);
-  const handledModeRestoreFocusRequestIdRef = useRef<number | null>(null);
   const cameraCaptureEnabled = useMemo(() => isHeatCapacityCameraCaptureEnabled(), []);
   const sceneCopy = heatCapacitySceneCopies[props.language] ?? heatCapacitySceneCopies['zh-CN'];
   const sceneTheme: HeatCapacitySceneTheme = props.sceneTheme === 'light' ? 'light' : 'dark';
@@ -3705,7 +3830,10 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     outgoingOverlayHostRef.current?.replaceChildren();
     outgoingSceneFrameHostRef.current?.replaceChildren();
     const root = sceneRootRef.current;
-    if (root) delete root.dataset.heatCapacityModeTransitionPhase;
+    if (root) {
+      delete root.dataset.heatCapacityModeTransitionPhase;
+      delete root.dataset.heatCapacityModeTransitionPaused;
+    }
     activeModeTransitionRequestIdRef.current = null;
   }, []);
   const modeTransitionController = useMemo<HeatCapacitySceneModeTransitionController>(() => ({
@@ -3713,7 +3841,10 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       clearModeTransitionLayers();
       activeModeTransitionRequestIdRef.current = requestId;
       const root = sceneRootRef.current;
-      if (root) root.dataset.heatCapacityModeTransitionPhase = 'prepared';
+      if (root) {
+        root.dataset.heatCapacityModeTransitionPhase = 'prepared';
+        delete root.dataset.heatCapacityModeTransitionPaused;
+      }
       const outgoingOverlay = overlayLayerRef.current?.cloneNode(true);
       if (outgoingOverlay instanceof HTMLElement && outgoingOverlayHostRef.current) {
         outgoingOverlay.removeAttribute('data-preview-overlay-layer');
@@ -3735,24 +3866,69 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     start: (requestId) => {
       if (activeModeTransitionRequestIdRef.current !== requestId) return;
       const root = sceneRootRef.current;
-      if (root) root.dataset.heatCapacityModeTransitionPhase = 'active';
+      if (root) {
+        root.dataset.heatCapacityModeTransitionPhase = 'active';
+        delete root.dataset.heatCapacityModeTransitionPaused;
+      }
+    },
+    pause: (requestId) => {
+      if (activeModeTransitionRequestIdRef.current !== requestId) return;
+      const root = sceneRootRef.current;
+      if (root) root.dataset.heatCapacityModeTransitionPaused = 'true';
     },
     resume: (requestId) => {
+      const root = sceneRootRef.current;
+      if (
+        activeModeTransitionRequestIdRef.current === requestId &&
+        root?.dataset.heatCapacityModeTransitionPaused === 'true'
+      ) {
+        delete root.dataset.heatCapacityModeTransitionPaused;
+        root.dataset.heatCapacityModeTransitionPhase = 'active';
+        return;
+      }
       clearModeTransitionLayers();
       activeModeTransitionRequestIdRef.current = requestId;
-      const root = sceneRootRef.current;
-      if (root) root.dataset.heatCapacityModeTransitionPhase = 'active';
+      const resumedRoot = sceneRootRef.current;
+      if (resumedRoot) resumedRoot.dataset.heatCapacityModeTransitionPhase = 'active';
     },
     finish: (requestId) => {
       if (activeModeTransitionRequestIdRef.current !== requestId) return;
       clearModeTransitionLayers();
     },
+    settleMotions: (requestId) => new Promise<boolean>((resolve) => {
+      const previous = motionSettleRequestsRef.current.get(requestId);
+      previous?.frameIds.forEach((frameId) => window.cancelAnimationFrame(frameId));
+      previous?.resolve(false);
+      setIsOrbitInteracting(false);
+      proceduralMotionSourcesRef.current = new Set();
+      setProceduralDiscreteMotionActive(false);
+      setUltraDiscreteMotionActive(false);
+      setMotionSettleRevision((revision) => revision + 1);
+      const request = { frameIds: [] as number[], resolve };
+      motionSettleRequestsRef.current.set(requestId, request);
+      const firstFrameId = window.requestAnimationFrame(() => {
+        const secondFrameId = window.requestAnimationFrame(() => {
+          if (motionSettleRequestsRef.current.get(requestId) !== request) return;
+          motionSettleRequestsRef.current.delete(requestId);
+          resolve(true);
+        });
+        request.frameIds.push(secondFrameId);
+      });
+      request.frameIds.push(firstFrameId);
+    }),
   }), [clearModeTransitionLayers]);
   useEffect(() => {
     props.onModeTransitionControllerChange?.(modeTransitionController);
     return () => props.onModeTransitionControllerChange?.(null);
   }, [modeTransitionController, props.onModeTransitionControllerChange]);
-  useEffect(() => () => clearModeTransitionLayers(), [clearModeTransitionLayers]);
+  useEffect(() => () => {
+    clearModeTransitionLayers();
+    motionSettleRequestsRef.current.forEach((request) => {
+      request.frameIds.forEach((frameId) => window.cancelAnimationFrame(frameId));
+      request.resolve(false);
+    });
+    motionSettleRequestsRef.current.clear();
+  }, [clearModeTransitionLayers]);
   const handleProceduralMotionChange = useCallback<HeatCapacityProceduralMotionChangeHandler>((motionId, active) => {
     const update = updateHeatCapacitySceneMotionSources(
       proceduralMotionSourcesRef.current,
@@ -3765,13 +3941,49 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   }, []);
   useLayoutEffect(() => {
     const request = props.modeRestoreRequest;
-    if (!request || handledModeRestoreFocusRequestIdRef.current === request.requestId) return;
-    handledModeRestoreFocusRequestIdRef.current = request.requestId;
-    hardSphereVisualCheckpointRef.current = request.hardSphereVisualCheckpoint;
-    setFocusMode(request.focusMode);
+    if (!request) return;
+    if (initializedExactRestoreRequestIdRef.current === request.requestId) return;
+    initializedExactRestoreRequestIdRef.current = request.requestId;
+    const cameraPose = normalizeHeatCapacityCameraPose(request.cameraPose);
+    const ultraVisualState = normalizeHeatCapacityUltraVisualState(request.ultraVisualState);
+    const hardSphereVisualCheckpoint = normalizeHeatCapacityHardSphereVisualCheckpoint(
+      request.hardSphereVisualCheckpoint,
+    );
+    runtimeRecoveryCameraPoseRef.current = cameraPose;
+    ultraVisualStateRef.current = ultraVisualState;
+    hardSphereVisualCheckpointRef.current = hardSphereVisualCheckpoint;
+    const pending = new Set<HeatCapacityExactRestoreConsumer>(['camera']);
+    if (qualityProfile.renderModel === 'ultraGlb' && ultraVisualState) pending.add('ultra');
+    if (props.hardSphereViewEnabled && hardSphereVisualCheckpoint) pending.add('hard-sphere');
+    exactRestorePendingConsumersRef.current = { requestId: request.requestId, pending };
+    exactRestoreActiveRef.current = true;
+    dispatchSceneCommand({
+      type: 'submit',
+      command: {
+        kind: 'exact-mode-restore',
+        commandId: `mode-restore:${request.requestId}`,
+        requestId: request.requestId,
+        focusMode: request.focusMode,
+        checkpoint: {
+          cameraPose,
+          ultraVisualState,
+          hardSphereVisualCheckpoint,
+        },
+      },
+    });
     setHoveredControl(null);
     setHoverTooltipAnchor(null);
-  }, [props.modeRestoreRequest]);
+  }, [props.hardSphereViewEnabled, props.modeRestoreRequest, qualityProfile.renderModel]);
+  useEffect(() => {
+    const completion = exactRestorePendingConsumersRef.current;
+    if (!completion) return;
+    if (qualityProfile.renderModel !== 'ultraGlb') {
+      acknowledgeExactRestoreConsumer(completion.requestId, 'ultra');
+    }
+    if (!props.hardSphereViewEnabled) {
+      acknowledgeExactRestoreConsumer(completion.requestId, 'hard-sphere');
+    }
+  }, [acknowledgeExactRestoreConsumer, props.hardSphereViewEnabled, qualityProfile.renderModel]);
   const discreteMotionState = useMemo<HeatCapacitySceneDiscreteMotionState>(() => (
     resolveHeatCapacitySceneDiscreteMotionState({
       cameraTransitionActive,
@@ -3969,17 +4181,24 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   }, [props.sceneFileId]);
   useEffect(() => {
     onCameraPoseChangeRef.current = props.onCameraPoseChange;
-    onSceneFrameCaptureRef.current = props.onSceneFrameCapture;
-  }, [props.onCameraPoseChange, props.onSceneFrameCapture]);
+    onSceneCheckpointRef.current = props.onSceneCheckpoint;
+  }, [props.onCameraPoseChange, props.onSceneCheckpoint]);
   useEffect(() => {
     onFocusModeChangeRef.current(focusMode);
   }, [focusMode]);
   const triggerSmoothDefaultView = useCallback(() => {
-    setFocusMode('none');
-    setViewResetKey((key) => key + 1);
+    sceneCommandSequenceRef.current += 1;
+    dispatchSceneCommand({
+      type: 'submit',
+      command: {
+        kind: 'user-reset',
+        commandId: `user-reset:${sceneCommandSequenceRef.current}`,
+        focusMode: 'none',
+      },
+    });
   }, []);
-  const setSceneFrameCaptureHandler = useCallback((handler: HeatCapacitySceneFrameCaptureHandler | null) => {
-    sceneFrameCaptureHandlerRef.current = handler;
+  const setSceneCheckpointHandler = useCallback((handler: HeatCapacitySceneCheckpointHandler | null) => {
+    sceneCheckpointHandlerRef.current = handler;
   }, []);
   const setHardSphereCheckpointProvider = useCallback((provider: HeatCapacityHardSphereCheckpointProvider | null) => {
     if (!provider && hardSphereCheckpointProviderRef.current) {
@@ -4006,24 +4225,35 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     if (checkpoint) hardSphereVisualCheckpointRef.current = checkpoint;
     return checkpoint;
   }, []);
-  const captureRestorableSceneFrame = useCallback<HeatCapacitySceneCaptureProvider>((options) => {
-    return sceneFrameCaptureHandlerRef.current?.(true, options?.includeFrame !== false) ?? null;
+  const checkpointRestorableScene = useCallback<HeatCapacitySceneCheckpointProvider>(() => {
+    return sceneCheckpointHandlerRef.current?.() ?? null;
   }, []);
   useEffect(() => {
-    props.onSceneCaptureProviderChange?.(props.sceneFileId, captureRestorableSceneFrame);
-    return () => props.onSceneCaptureProviderChange?.(props.sceneFileId, null);
-  }, [captureRestorableSceneFrame, props.onSceneCaptureProviderChange, props.sceneFileId]);
+    props.onSceneCheckpointProviderChange?.(props.sceneFileId, checkpointRestorableScene);
+    return () => props.onSceneCheckpointProviderChange?.(props.sceneFileId, null);
+  }, [checkpointRestorableScene, props.onSceneCheckpointProviderChange, props.sceneFileId]);
   const emitCameraPoseChange = useCallback((pose: HeatCapacityCameraPose) => {
-    onCameraPoseChangeRef.current?.(sceneFileIdRef.current, pose);
+    const normalized = normalizeHeatCapacityCameraPose(pose);
+    if (!normalized) return;
+    runtimeRecoveryCameraPoseRef.current = normalized;
+    onCameraPoseChangeRef.current?.(sceneFileIdRef.current, normalized);
   }, []);
-  const emitSceneFrameCapture = useCallback((
-    dataUrl: string | null,
+  const emitSceneCheckpoint = useCallback((
     cameraPose: HeatCapacityCameraPose,
-    metadata: HeatCapacitySceneFrameCaptureMetadata,
+    metadata: HeatCapacitySceneCheckpointMetadata,
   ) => {
-    onSceneFrameCaptureRef.current?.(sceneFileIdRef.current, dataUrl, cameraPose, metadata);
+    onSceneCheckpointRef.current?.(sceneFileIdRef.current, cameraPose, metadata);
   }, []);
   const handleUltraSceneError = useCallback((kind: HeatCapacityUltraSceneErrorKind, error: unknown) => {
+    if (orbitCaptureFrameIdRef.current !== null) {
+      window.cancelAnimationFrame(orbitCaptureFrameIdRef.current);
+      orbitCaptureFrameIdRef.current = null;
+    }
+    proceduralMotionSourcesRef.current = new Set();
+    setProceduralDiscreteMotionActive(false);
+    setUltraDiscreteMotionActive(false);
+    setIsOrbitInteracting(false);
+    setCameraTransitionActive(false);
     setUltraSceneError({
       kind,
       message: error instanceof Error && error.message ? error.message : `unknown-ultra-${kind}-error`,
@@ -4031,7 +4261,76 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     setSceneReady(false);
     setSceneRevealReady(false);
     sceneReadyReportedRef.current = false;
+    try {
+      props.onRuntimeFailure?.(error);
+    } catch {
+      // The local error card must remain available even if the parent failure callback rejects the report.
+    }
+    try {
+      stopRuntimeAudio();
+    } catch {
+      // Audio teardown is best-effort and must never mask the original scene failure.
+    }
+  }, [props.onRuntimeFailure, stopRuntimeAudio]);
+  useEffect(() => () => {
+    if (orbitCaptureFrameIdRef.current !== null) {
+      window.cancelAnimationFrame(orbitCaptureFrameIdRef.current);
+      orbitCaptureFrameIdRef.current = null;
+    }
   }, []);
+  const runSceneRuntimeAction = useCallback((run: () => void) => {
+    try {
+      run();
+    } catch (error) {
+      handleUltraSceneError('runtime', error);
+    }
+  }, [handleUltraSceneError]);
+  const guardedOnLockedInteraction = useCallback<HeatCapacityInstrumentSceneProps['onLockedInteraction']>(
+    (message, control) => runSceneRuntimeAction(() => props.onLockedInteraction(message, control)),
+    [props.onLockedInteraction, runSceneRuntimeAction],
+  );
+  const guardedOnPowerToggle = useCallback<HeatCapacityInstrumentSceneProps['onPowerToggle']>(
+    (nextPowerOn) => runSceneRuntimeAction(() => props.onPowerToggle(nextPowerOn)),
+    [props.onPowerToggle, runSceneRuntimeAction],
+  );
+  const guardedOnStopcockOpenChange = useCallback<HeatCapacityInstrumentSceneProps['onStopcockOpenChange']>(
+    (nextOpen) => runSceneRuntimeAction(() => props.onStopcockOpenChange(nextOpen)),
+    [props.onStopcockOpenChange, runSceneRuntimeAction],
+  );
+  const guardedOnPressureZeroFineAdjust = useCallback<HeatCapacityInstrumentSceneProps['onPressureZeroFineAdjust']>(
+    (direction, interactionId) => {
+      try {
+        return props.onPressureZeroFineAdjust(direction, interactionId);
+      } catch (error) {
+        handleUltraSceneError('runtime', error);
+        return false;
+      }
+    },
+    [handleUltraSceneError, props.onPressureZeroFineAdjust],
+  );
+  const guardedOnPressureZeroCoarseAdjust = useCallback<HeatCapacityInstrumentSceneProps['onPressureZeroCoarseAdjust']>(
+    (angleDeltaDeg, interactionId) => {
+      try {
+        return props.onPressureZeroCoarseAdjust(angleDeltaDeg, interactionId);
+      } catch (error) {
+        handleUltraSceneError('runtime', error);
+        return false;
+      }
+    },
+    [handleUltraSceneError, props.onPressureZeroCoarseAdjust],
+  );
+  const guardedOnPumpValveToggle = useCallback(
+    () => runSceneRuntimeAction(props.onPumpValveToggle),
+    [props.onPumpValveToggle, runSceneRuntimeAction],
+  );
+  const guardedOnPumpBulbPress = useCallback(
+    () => runSceneRuntimeAction(props.onPumpBulbPress),
+    [props.onPumpBulbPress, runSceneRuntimeAction],
+  );
+  const guardedGuideRollbackCue = useCallback<HeatCapacityGuideRollbackCueHandler>(
+    (cue) => runSceneRuntimeAction(() => playGuideRollbackCue(cue)),
+    [playGuideRollbackCue, runSceneRuntimeAction],
+  );
   const retryUltraScene = useCallback(() => {
     const errorKind = ultraSceneError?.kind;
     if (!errorKind) return;
@@ -4063,36 +4362,58 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   }, [cameraCaptureHandler]);
   const overlayMotionRef = usePreviewOverlayMotion<HTMLDivElement>({
     disabled: props.modeTransitionActive === true,
+    layoutRevision: [
+      props.modeRestoreRequest?.requestId ?? 0,
+      focusMode,
+      props.focusResetKey,
+      props.demoCameraFocusKey ?? 0,
+      props.guideFocusKey ?? 0,
+      Number(Boolean(props.overlayTopCenter)),
+      Number(Boolean(props.overlayTopRight)),
+      Number(Boolean(props.overlayBottomRight)),
+      Number(Boolean(props.overlayCenter)),
+      Number(Boolean(props.overlayCenterAboveGuideMask)),
+      Number(Boolean(props.overlayBottomCenter)),
+      Number(Boolean(props.overlayGuideMask)),
+    ].join(':'),
   });
   const setOverlayLayerNode = useCallback((node: HTMLDivElement | null) => {
     overlayMotionRef.current = node;
     overlayLayerRef.current = node;
   }, [overlayMotionRef]);
   useEffect(() => {
-    if (!focusResetEffectMountedRef.current) {
-      focusResetEffectMountedRef.current = true;
-    }
     if (restoredInitialCameraPose && !sceneReadyReportedRef.current) return;
+    if (modeTransitionActiveRef.current || exactRestoreActiveRef.current) return;
     triggerSmoothDefaultView();
   }, [props.focusResetKey, restoredInitialCameraPose, triggerSmoothDefaultView]);
   useEffect(() => {
-    if (!demoCameraFocusEffectMountedRef.current) {
-      demoCameraFocusEffectMountedRef.current = true;
-    }
     if (restoredInitialCameraPose && !sceneReadyReportedRef.current) return;
+    if (modeTransitionActiveRef.current || exactRestoreActiveRef.current) return;
     if (props.demoCameraFocusMode !== undefined && props.demoCameraFocusMode !== null) {
-      setFocusMode(props.demoCameraFocusMode);
-      setViewResetKey((key) => key + 1);
+      sceneCommandSequenceRef.current += 1;
+      dispatchSceneCommand({
+        type: 'submit',
+        command: {
+          kind: 'script',
+          commandId: `demo:${props.demoCameraFocusKey ?? 0}:${sceneCommandSequenceRef.current}`,
+          focusMode: props.demoCameraFocusMode,
+        },
+      });
     }
   }, [props.demoCameraFocusMode, props.demoCameraFocusKey, restoredInitialCameraPose]);
   useEffect(() => {
-    if (!guideCameraFocusEffectMountedRef.current) {
-      guideCameraFocusEffectMountedRef.current = true;
-    }
     if (restoredInitialCameraPose && !sceneReadyReportedRef.current) return;
+    if (modeTransitionActiveRef.current || exactRestoreActiveRef.current) return;
     if (props.guideFocusMode !== undefined && props.guideFocusMode !== null) {
-      setFocusMode(props.guideFocusMode);
-      setViewResetKey((key) => key + 1);
+      sceneCommandSequenceRef.current += 1;
+      dispatchSceneCommand({
+        type: 'submit',
+        command: {
+          kind: 'script',
+          commandId: `guide:${props.guideFocusKey ?? 0}:${sceneCommandSequenceRef.current}`,
+          focusMode: props.guideFocusMode,
+        },
+      });
     }
   }, [props.guideFocusMode, props.guideFocusKey, restoredInitialCameraPose]);
   const pumpBulbDisplayLabel = getPumpBulbDisplayLabel(props.pumpBulbState, sceneCopy);
@@ -4107,76 +4428,61 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const hardSphereNoteText = getHardSphereNoteText(props, props.language);
   const hardSphereViewActive = props.hardSphereViewEnabled;
   const hardSphereTooltipId = 'heat-capacity-hard-sphere-tooltip';
-  const sceneShouldAnimate = hardSphereViewActive ||
+  const sceneAnimationClockActive = !props.hardSpherePaused && !restoreAnimationsPaused;
+  const hardSphereAnimationActive = hardSphereViewActive && sceneAnimationClockActive;
+  const sceneShouldAnimate = sceneAnimationClockActive && (
+    hardSphereAnimationActive ||
     props.autoDemoActive ||
     props.pumpBulbState !== 'idle' ||
     props.pressureReleaseBurstActive ||
     props.releaseFlowActive ||
     props.pumpFlowActive ||
     props.demoFocusPulseActive ||
-    discreteMotionState.active;
+    discreteMotionState.active
+  );
   const interactionQualityReduced = isOrbitInteracting || qualityProfile.reduceInteractionQuality;
-  const orbitControlsEnabled = focusMode === 'none' && !(props.cameraInteractionLocked ?? props.interactionLocked);
+  const orbitControlsEnabled = focusMode === 'none' &&
+    sceneCommandState.activeCommand === null &&
+    !cameraTransitionActive &&
+    !(props.cameraInteractionLocked ?? props.interactionLocked);
   const cameraViewScheme = useMemo(() => getCameraViewScheme(qualityProfile), [qualityProfile]);
-  const sceneCaptureRevision = [
-    props.performanceMode,
-    sceneTheme,
-    focusMode,
-    props.powerOn,
-    props.stopcockAngleDeg,
-    props.pressureZeroAdjusted,
-    props.pressureZeroKnobAngle,
-    props.pressureGaugeDisplayValue,
-    props.pressureOverLimit,
-    props.pressureKPa,
-    props.pressureDeltaKPa,
-    props.gasAmountRatio,
-    props.gasTemperatureK,
-    props.ambientTemperatureK,
-    props.pumpValveOpen,
-    props.pumpValveState,
-    props.pumpBulbState,
-    props.pumpPulseId,
-    props.vesselPressureReadoutKPa,
-    props.vesselTemperatureReadoutK,
-    props.phase,
-    props.temperatureSignalMv,
-    props.pressureSignalMv,
-    props.pressureReleaseBurstActive,
-    props.releaseFlowActive,
-    JSON.stringify(props.releaseTimeline),
-    props.pumpFlowActive,
-    props.pumpFlowIntensity,
-    hardSphereViewActive,
-    props.hardSphereVisualResetKey,
-    props.hardSpherePaused,
-    props.demoFocusControlId,
-    props.demoFocusPulseActive,
-    props.guideRollbackAnimation,
-    props.guideRollbackKey,
-  ].join('|');
+  const canvasRecoveryRemount = ultraRuntimeRetryAttempt > 0 || ultraAssetLoadAttempt > 0;
+  const canvasInitialCameraPose = canvasRecoveryRemount
+    ? runtimeRecoveryCameraPoseRef.current ?? restoredInitialCameraPose
+    : restoredInitialCameraPose;
+  const canvasInitialCameraTransition = canvasRecoveryRemount
+    ? normalizeHeatCapacityCameraTransitionState(cameraTransitionStateRef.current)
+    : restoredInitialCameraTransition;
   const applyInitialCameraPose = useCallback((state: RootState) => {
-    if (!restoredInitialCameraPose || !(state.camera instanceof THREE.PerspectiveCamera)) return;
-    state.camera.position.set(...restoredInitialCameraPose.position);
-    state.camera.fov = restoredInitialCameraPose.fov;
-    state.camera.lookAt(new THREE.Vector3(...restoredInitialCameraPose.target));
+    if (!canvasInitialCameraPose || !(state.camera instanceof THREE.PerspectiveCamera)) return;
+    state.camera.position.set(...canvasInitialCameraPose.position);
+    state.camera.fov = canvasInitialCameraPose.fov;
+    state.camera.lookAt(new THREE.Vector3(...canvasInitialCameraPose.target));
     state.camera.updateProjectionMatrix();
-  }, [restoredInitialCameraPose]);
-  const sceneFrameCaptureEnabled = Boolean(props.onSceneFrameCapture);
+  }, [canvasInitialCameraPose]);
   const canvasProps = useMemo(() => ({
     camera: {
-      position: restoredInitialCameraPose?.position ?? cameraViewScheme.defaultView.position,
-      fov: restoredInitialCameraPose?.fov ?? cameraViewScheme.fov,
+      position: canvasInitialCameraPose?.position ?? cameraViewScheme.defaultView.position,
+      fov: canvasInitialCameraPose?.fov ?? cameraViewScheme.fov,
     },
     dpr: qualityProfile.dpr,
     frameloop: qualityProfile.frameLoop,
     shadows: false,
-    gl: { preserveDrawingBuffer: sceneFrameCaptureEnabled },
+    gl: { preserveDrawingBuffer: false },
     onCreated: applyInitialCameraPose,
-  }), [applyInitialCameraPose, cameraViewScheme, qualityProfile, restoredInitialCameraPose, sceneFrameCaptureEnabled]);
+  }), [applyInitialCameraPose, cameraViewScheme, canvasInitialCameraPose, qualityProfile]);
   const proceduralSceneContent = (
     <InstrumentSceneContent
       {...props}
+      onLockedInteraction={guardedOnLockedInteraction}
+      onPowerToggle={guardedOnPowerToggle}
+      onStopcockOpenChange={guardedOnStopcockOpenChange}
+      onPressureZeroFineAdjust={guardedOnPressureZeroFineAdjust}
+      onPressureZeroCoarseAdjust={guardedOnPressureZeroCoarseAdjust}
+      onPumpValveToggle={guardedOnPumpValveToggle}
+      onPumpBulbPress={guardedOnPumpBulbPress}
+      modeRestoreRequest={activeModeRestoreRequest}
+      onRuntimeFailure={(error) => handleUltraSceneError('runtime', error)}
       qualityProfile={qualityProfile}
       hardSphereViewEnabled={hardSphereViewActive}
       onFocus={setFocusMode}
@@ -4187,8 +4493,11 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       panelTextInteractionReduced={isOrbitInteracting}
       sceneCopy={sceneCopy}
       scenePalette={scenePalette}
-      onGuideRollbackCue={playGuideRollbackCue}
+      onGuideRollbackCue={guardedGuideRollbackCue}
       onGuideRollbackMotionChange={handleProceduralMotionChange}
+      motionSettleRevision={motionSettleRevision}
+      runtimeRevision={ultraRuntimeRetryAttempt}
+      onHardSphereVisualRestoreComplete={acknowledgeHardSphereExactRestore}
       initialHardSphereVisualCheckpoint={hardSphereVisualCheckpointRef.current ?? restoredInitialHardSphereVisualCheckpoint}
       onHardSphereCheckpointProviderChange={setHardSphereCheckpointProvider}
       hardSpherePaused={props.hardSpherePaused || restoreAnimationsPaused}
@@ -4215,7 +4524,10 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
               onError={handleUltraSceneError}
             >
               <HeatCapacityUltraInstrumentModel
+                key={`ultra-motion:${motionSettleRevision}`}
                 sourceScene={sourceScene}
+                gestureScopeKey={`${props.sceneFileId}:${ultraRuntimeRetryAttempt}:${props.performanceMode}`}
+                guideProjectionEnabled={Boolean(props.guideProjectionEnabled && props.onGuideTargetHolesChange)}
                 powerOn={props.powerOn}
                 sceneTheme={props.sceneTheme}
                 stopcockAngleDeg={props.stopcockAngleDeg}
@@ -4275,27 +4587,33 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                 }}
                 hoveredControl={hoveredControl}
                 setHoveredControl={setStableHoveredControl}
-                onLockedInteraction={props.onLockedInteraction}
+                onLockedInteraction={guardedOnLockedInteraction}
                 guideProjectionKey={props.focusResetKey}
                 onGuideTargetHolesChange={props.onGuideTargetHolesChange}
-                onPowerToggle={props.onPowerToggle}
-                onStopcockOpenChange={props.onStopcockOpenChange}
-                onPressureZeroFineAdjust={props.onPressureZeroFineAdjust}
-                onPressureZeroCoarseAdjust={props.onPressureZeroCoarseAdjust}
-                onPumpValveToggle={props.onPumpValveToggle}
-                onPumpBulbPress={props.onPumpBulbPress}
+                onPowerToggle={guardedOnPowerToggle}
+                onStopcockOpenChange={guardedOnStopcockOpenChange}
+                onPressureZeroFineAdjust={guardedOnPressureZeroFineAdjust}
+                onPressureZeroCoarseAdjust={guardedOnPressureZeroCoarseAdjust}
+                onPumpValveToggle={guardedOnPumpValveToggle}
+                onPumpBulbPress={guardedOnPumpBulbPress}
                 onFocus={setFocusMode}
-                initialVisualState={ultraVisualStateRef.current ?? restoredInitialUltraVisualState}
+                initialVisualState={motionSettleRevision > 0
+                  ? null
+                  : ultraVisualStateRef.current ?? restoredInitialUltraVisualState}
+                restoreVisualState={activeModeRestoreRequest?.ultraVisualState ?? null}
+                restoreVisualStateKey={activeModeRestoreRequest?.requestId ?? null}
+                onVisualRestoreComplete={acknowledgeUltraExactRestore}
                 onVisualStateChange={updateUltraVisualState}
                 initialHardSphereVisualCheckpoint={hardSphereVisualCheckpointRef.current ?? restoredInitialHardSphereVisualCheckpoint}
-                restoreHardSphereVisualCheckpoint={props.modeRestoreRequest?.hardSphereVisualCheckpoint ?? null}
-                restoreHardSphereVisualCheckpointKey={props.modeRestoreRequest?.requestId ?? null}
+                restoreHardSphereVisualCheckpoint={activeModeRestoreRequest?.hardSphereVisualCheckpoint ?? null}
+                restoreHardSphereVisualCheckpointKey={activeModeRestoreRequest?.requestId ?? null}
+                onHardSphereVisualRestoreComplete={acknowledgeHardSphereExactRestore}
                 onHardSphereCheckpointProviderChange={setHardSphereCheckpointProvider}
                 onDiscreteMotionChange={setUltraDiscreteMotionActive}
                 restorePaused={restoreAnimationsPaused}
                 guideRollbackAnimation={props.guideRollbackAnimation}
                 guideRollbackKey={props.guideRollbackKey}
-                onGuideRollbackCue={playGuideRollbackCue}
+                onGuideRollbackCue={guardedGuideRollbackCue}
               />
               <HeatCapacitySceneReadyBridge onReady={handleSceneReady} />
             </HeatCapacityUltraErrorBoundary>
@@ -4334,23 +4652,30 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       onClickCapture={handleSceneClickCapture}
       onPointerLeave={clearStableHoveredControl}
     >
+      {ultraSceneError === null ? (
+      <HeatCapacityUltraErrorBoundary
+        key={`scene-runtime-${ultraRuntimeRetryAttempt}`}
+        errorKind="runtime"
+        onError={handleUltraSceneError}
+      >
       <Canvas {...canvasProps} events={createHeatCapacityPointerEvents}>
+        <HeatCapacityRuntimeGuardProvider
+          revision={ultraRuntimeRetryAttempt}
+          onError={(error) => handleUltraSceneError('runtime', error)}
+        >
         {/* GLB replacement contract: preserve node names, pivots, and hitbox roles from this procedural skeleton. */}
         <color attach="background" args={[scenePalette.scene.background]} />
         <HeatCapacitySceneLighting qualityProfile={qualityProfile} scenePalette={scenePalette} />
         <HeatCapacitySceneInvalidator active={sceneShouldAnimate} />
-        <HeatCapacitySceneFrameCaptureBridge
-          active={sceneShouldAnimate}
+        <HeatCapacitySceneCheckpointBridge
           ready={sceneReady}
-          frameCaptureEnabled={!props.modeTransitionActive}
-          captureRevision={sceneCaptureRevision}
           controlsRef={controlsRef}
           onCameraPoseChange={emitCameraPoseChange}
-          onSceneFrameCapture={emitSceneFrameCapture}
+          onSceneCheckpoint={emitSceneCheckpoint}
           getCameraTransitionState={getCameraTransitionState}
           getUltraVisualState={getUltraVisualState}
           getHardSphereVisualCheckpoint={getHardSphereVisualCheckpoint}
-          onCaptureHandlerChange={setSceneFrameCaptureHandler}
+          onCheckpointHandlerChange={setSceneCheckpointHandler}
         />
         <HeatCapacityCameraCaptureBridge
           enabled={cameraCaptureEnabled}
@@ -4365,12 +4690,21 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           resetKey={viewResetKey}
           autoDemoActive={props.autoDemoActive}
           cameraViewScheme={cameraViewScheme}
-          initialCameraPose={restoredInitialCameraPose}
-          initialCameraTransition={restoredInitialCameraTransition}
-          modeRestoreRequest={props.modeRestoreRequest ?? null}
+          initialCameraPose={canvasInitialCameraPose}
+          initialCameraTransition={canvasInitialCameraTransition}
+          modeRestoreRequest={activeModeRestoreRequest}
+          settleRevision={motionSettleRevision}
+          runtimeRevision={ultraRuntimeRetryAttempt}
           sceneReady={sceneResumeReady}
           onTransitionStateChange={updateCameraTransitionState}
-          onTransitionEnd={() => captureRestorableSceneFrame({ includeFrame: !props.modeTransitionActive })}
+          onTransitionEnd={() => {
+            const activeCommand = sceneCommandState.activeCommand;
+            if (activeCommand && activeCommand.kind !== 'exact-mode-restore') {
+              dispatchSceneCommand({ type: 'settled', commandId: activeCommand.commandId });
+            }
+            checkpointRestorableScene();
+          }}
+          onModeRestoreComplete={acknowledgeCameraExactRestore}
         />
         {instrumentSceneContent}
         <HeatCapacitySceneRevealBridge
@@ -4379,7 +4713,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
         />
         {qualityProfile.renderModel === 'procedural' ? (
           <HeatCapacityGuideProjectionBridge
-            enabled={Boolean(props.onGuideTargetHolesChange)}
+            enabled={Boolean(props.guideProjectionEnabled && props.onGuideTargetHolesChange)}
             projectionSyncKey={props.focusResetKey}
             onGuideTargetHolesChange={props.onGuideTargetHolesChange}
           />
@@ -4388,17 +4722,26 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           enabled={orbitControlsEnabled}
           controlsRef={controlsRef}
           defaultCameraTarget={cameraViewScheme.defaultView.target}
-          initialCameraTarget={restoredInitialCameraPose?.target}
+          initialCameraTarget={canvasInitialCameraPose?.target}
           onInteractionStart={() => {
             setIsOrbitInteracting(true);
             setStableHoveredControl(null);
           }}
           onInteractionEnd={() => {
             setIsOrbitInteracting(false);
-            window.requestAnimationFrame(() => captureRestorableSceneFrame());
+            if (orbitCaptureFrameIdRef.current !== null) {
+              window.cancelAnimationFrame(orbitCaptureFrameIdRef.current);
+            }
+            orbitCaptureFrameIdRef.current = window.requestAnimationFrame(() => {
+              orbitCaptureFrameIdRef.current = null;
+              runSceneRuntimeAction(() => checkpointRestorableScene());
+            });
           }}
         />
+        </HeatCapacityRuntimeGuardProvider>
       </Canvas>
+      </HeatCapacityUltraErrorBoundary>
+      ) : null}
       <div
         ref={outgoingSceneFrameHostRef}
         className="studio-heat-mode-transition-scene-host"
@@ -4424,19 +4767,23 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           }}
         />
       ) : null}
-      {qualityProfile.renderModel === 'ultraGlb' && ultraSceneError ? (
+      {ultraSceneError ? (
         <div
-          role="alert"
+          role="alertdialog"
+          aria-modal="true"
+          aria-label={ultraSceneErrorCopy.title}
           data-heat-capacity-ultra-error="true"
           data-heat-capacity-ultra-error-kind={ultraSceneError.kind}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
           style={{
             position: 'absolute',
             inset: 0,
-            zIndex: 8,
+            zIndex: 50,
             display: 'grid',
             placeItems: 'center',
             padding: 24,
-            pointerEvents: 'none',
+            pointerEvents: 'auto',
             background: props.restoredSceneFrameDataUrl && !restoredSceneFrameLoadFailed
               ? 'linear-gradient(180deg, rgba(4, 12, 20, 0.08), rgba(4, 12, 20, 0.34))'
               : 'rgba(4, 12, 20, 0.72)',
@@ -4459,6 +4806,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
             <p style={{ margin: '8px 0 14px', color: '#cbd5e1', lineHeight: 1.5 }}>{ultraSceneErrorCopy.body}</p>
             <button
               type="button"
+              autoFocus
               data-heat-capacity-ultra-error-retry="true"
               onClick={retryUltraScene}
               style={{
@@ -4477,7 +4825,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           </section>
         </div>
       ) : null}
-      {hoverTooltip && hoverTooltipAnchor ? (
+      {!ultraSceneError && hoverTooltip && hoverTooltipAnchor ? (
         <div
           className="studio-heat-hover-tooltip"
           data-heat-capacity-hover-tooltip="true"
@@ -4491,16 +4839,20 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           {hoverTooltip}
         </div>
       ) : null}
-      <HeatCapacityCameraCapturePanel
-        enabled={cameraCaptureEnabled}
-        payload={cameraCapturePayload}
-        captureReady={Boolean(cameraCaptureHandler)}
-        onCapture={captureCurrentCameraView}
-      />
+      {!ultraSceneError ? (
+        <HeatCapacityCameraCapturePanel
+          enabled={cameraCaptureEnabled}
+          payload={cameraCapturePayload}
+          captureReady={Boolean(cameraCaptureHandler)}
+          onCapture={captureCurrentCameraView}
+        />
+      ) : null}
       <div
         ref={setOverlayLayerNode}
         className="studio-preview-overlay-layer studio-heat-overlay-layer"
         data-preview-overlay-layer="heat-capacity"
+        aria-hidden={ultraSceneError ? true : undefined}
+        style={ultraSceneError ? { display: 'none' } : undefined}
       >
         <div className="studio-preview-overlay-slot studio-preview-overlay-slot-top-left">
           {props.overlayTopLeft ? (

@@ -30,6 +30,7 @@ const summary = engine.getPressureMeasurementSummary();
 const sourceFile = {
   ...file,
   relation: 'pv' as const,
+  appliedParams: activeParams,
   activeParams,
   visiblePanels: ['preview', 'realtime', 'results'] as WorkbenchPanelKey[],
   runState: 'paused' as const,

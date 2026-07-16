@@ -45,11 +45,14 @@ export interface HeatCapacityModeCameraPoseCheckpoint {
   } | null;
 }
 
+export type HeatCapacityModeFocusMode = 'none' | 'instrument' | 'pump' | 'bottle';
+
 export type HeatCapacityModeDeferredTimer =
   | { state: 'waiting'; remainingMs: number }
   | { state: 'due' };
 
 export interface HeatCapacityModeSceneCheckpoint {
+  focusMode: HeatCapacityModeFocusMode;
   cameraPose: HeatCapacityModeCameraPoseCheckpoint | null;
   cameraTransition: HeatCapacityModeJsonObject | null;
   ultraVisualState: HeatCapacityModeJsonObject | null;
@@ -334,6 +337,8 @@ const normalizeScene = (value: unknown): HeatCapacityModeSceneCheckpoint | null 
   if (!isPlainRecord(value)) return null;
   const cameraPose = normalizeCameraPose(value.cameraPose);
   if (value.cameraPose !== null && cameraPose === null) return null;
+  if (!isOneOf(value.focusMode, ['none', 'instrument', 'pump', 'bottle'] as const)) return null;
+  const focusMode: HeatCapacityModeFocusMode = value.focusMode;
   const visualKeys = [
     'cameraTransition',
     'ultraVisualState',
@@ -346,7 +351,7 @@ const normalizeScene = (value: unknown): HeatCapacityModeSceneCheckpoint | null 
   for (const key of visualKeys) {
     if (value[key] !== null && visuals[key] === null) return null;
   }
-  return { cameraPose, ...visuals };
+  return { focusMode, cameraPose, ...visuals };
 };
 
 const normalizePumpAnimation = (value: unknown): HeatCapacityModePumpAnimationCheckpoint | null => {
@@ -453,7 +458,7 @@ const normalizeDemo = (value: unknown): HeatCapacityModeDemoCheckpoint | null =>
       executedItemKeys: [...timeline.executedItemKeys],
     },
     stepPanel: {
-      mode: stepPanelMode,
+      mode: stepPanelMode === 'exiting' ? 'hidden' : stepPanelMode,
       stepIndex: stepPanel.stepIndex,
       stepCount: stepPanel.stepCount,
       title: stepPanelTitle,

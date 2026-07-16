@@ -4,14 +4,9 @@ import {
   type WorkbenchPanelKey,
 } from './workbenchState.ts';
 import {
-  decodeWorkbenchClosedFilesStorageEnvelope,
-  decodeWorkbenchStorageEnvelope,
-  encodeWorkbenchClosedFilesStorageEnvelope,
-  encodeWorkbenchStorageEnvelope,
-} from './workbenchPersistenceMigration.ts';
-import {
   normalizeHardSphereEngineSnapshot,
 } from './workbenchHardSpherePersistence.ts';
+import { repairMissingHardSphereEngineSnapshot } from './workbenchHardSphereProjection.ts';
 import {
   normalizeHeatCapacitySessionRuntimeState,
 } from './workbenchHeatCapacitySessionRestore.ts';
@@ -30,24 +25,25 @@ export interface WorkbenchSessionState {
   files: WorkbenchFileState[];
   activeFileId: string;
   selectedPanel: WorkbenchPanelKey;
-  heatCapacityGuideSession?: WorkbenchHeatCapacityGuideSessionState;
 }
 
-export interface WorkbenchHeatCapacityGuideSessionState {
-  fileId: string | null;
-  strongReminderActive: boolean;
-  strongReminderControlId: string | null;
-}
+let bootstrappedSession: WorkbenchSessionState | null = null;
+let bootstrappedClosedFiles: WorkbenchFileState[] = [];
+let workbenchBootstrapInstalled = false;
 
-export const getRestorableHeatCapacityGuideSessionFileId = (
+export const installWorkbenchPersistenceBootstrap = (
   session: WorkbenchSessionState,
-): string | null => {
-  const fileId = session.heatCapacityGuideSession?.fileId;
-  if (!fileId) return null;
-  const file = session.files.find((candidate) => candidate.id === fileId);
-  return file?.kind === 'heatCapacity' && file.heatCapacityMode === 'guide'
-    ? file.id
-    : null;
+  closedFiles: WorkbenchFileState[],
+) => {
+  bootstrappedSession = createWorkbenchSessionFromCanonicalFiles(session);
+  bootstrappedClosedFiles = closedFiles.length === 0
+    ? []
+    : createWorkbenchSessionFromCanonicalFiles({
+        files: closedFiles,
+        activeFileId: closedFiles[0]!.id,
+        selectedPanel: 'preview',
+      }).files;
+  workbenchBootstrapInstalled = true;
 };
 
 const normalizeLastOpenedAt = (file: WorkbenchFileState, fallback: number) => (
@@ -63,64 +59,93 @@ const fallbackSession = (): WorkbenchSessionState => {
     files: [],
     activeFileId: '',
     selectedPanel: 'preview',
-    heatCapacityGuideSession: createDefaultHeatCapacityGuideSession(),
   };
-};
-
-const createDefaultHeatCapacityGuideSession = (): WorkbenchHeatCapacityGuideSessionState => ({
-  fileId: null,
-  strongReminderActive: false,
-  strongReminderControlId: null,
-});
-
-const isFreshWorkbenchWindow = () => {
-  if (typeof window === 'undefined') return false;
-
-  try {
-    return new URL(window.location.href).searchParams.get('hslFreshWindow') === '1';
-  } catch {
-    return false;
-  }
-};
-
-const getWorkbenchSessionStorage = () => {
-  if (typeof window === 'undefined') return null;
-  return isFreshWorkbenchWindow() ? window.sessionStorage : window.localStorage;
 };
 
 const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => {
   if (file.kind === 'heatCapacity') {
     return normalizeHeatCapacitySessionRuntimeState(file);
   }
-  return {
+  return repairMissingHardSphereEngineSnapshot({
     ...file,
     runState: file.runState === 'running' ? 'paused' : file.runState,
     lastOpenedAt: normalizeLastOpenedAt(file, file.updatedAt),
     liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
     hardSphereEngineSnapshot: normalizeHardSphereEngineSnapshot(file.hardSphereEngineSnapshot),
+  } as Extract<WorkbenchFileState, { kind: 'standard' | 'ideal' }>);
+};
+
+const createWorkbenchSessionFromValidatedFiles = (
+  files: WorkbenchFileState[],
+  activeFileIdValue: string,
+  selectedPanelValue: WorkbenchPanelKey,
+): WorkbenchSessionState => {
+  if (new Set(files.map((file) => file.id)).size !== files.length) {
+    throw new TypeError('Workbench runtime file identifiers must be unique.');
+  }
+  if (files.length === 0) return fallbackSession();
+  const activeFileId = files.some((file) => file.id === activeFileIdValue)
+    ? activeFileIdValue
+    : files[0]!.id;
+  const restoredSelectedPanel = isWorkbenchPanelKey(selectedPanelValue)
+    ? selectedPanelValue
+    : 'preview';
+  const activeFile = files.find((file) => file.id === activeFileId);
+  const selectedPanel = activeFile?.kind === 'heatCapacity' && !(
+    restoredSelectedPanel === 'preview' ||
+    restoredSelectedPanel === 'realtime' ||
+    restoredSelectedPanel === 'heatCapacityGuide' ||
+    restoredSelectedPanel === 'heatCapacityRecords' ||
+    restoredSelectedPanel === 'heatCapacityReview'
+  )
+    ? 'preview'
+    : restoredSelectedPanel;
+  return {
+    version: WORKBENCH_SESSION_VERSION,
+    files,
+    activeFileId,
+    selectedPanel,
   };
 };
 
-const normalizeHeatCapacityGuideSession = (
-  value: unknown,
-  files: WorkbenchFileState[],
-): WorkbenchHeatCapacityGuideSessionState => {
-  if (!isRecord(value) || typeof value.fileId !== 'string') {
-    return createDefaultHeatCapacityGuideSession();
-  }
-  const guideFile = files.find((file) => (
-    file.id === value.fileId &&
-    file.kind === 'heatCapacity' &&
-    file.heatCapacityMode === 'guide'
-  ));
-  if (!guideFile) return createDefaultHeatCapacityGuideSession();
-  return {
-    fileId: guideFile.id,
-    strongReminderActive: value.strongReminderActive === true,
-    strongReminderControlId: typeof value.strongReminderControlId === 'string'
-      ? value.strongReminderControlId
-      : null,
-  };
+const assertWorkbenchRuntimeFiles = (files: WorkbenchFileState[]) => {
+  if (!Array.isArray(files)) throw new TypeError('Workbench runtime files must be an array.');
+  files.forEach((file) => {
+    if (
+      !isRecord(file) ||
+      typeof file.id !== 'string' ||
+      typeof file.name !== 'string' ||
+      (file.kind !== 'standard' && file.kind !== 'ideal' && file.kind !== 'heatCapacity')
+    ) {
+      throw new TypeError('Workbench runtime file is invalid.');
+    }
+  });
+};
+
+export const createWorkbenchSessionFromCanonicalFiles = (value: {
+  files: WorkbenchFileState[];
+  activeFileId: string;
+  selectedPanel: WorkbenchPanelKey;
+}): WorkbenchSessionState => {
+  assertWorkbenchRuntimeFiles(value.files);
+  return createWorkbenchSessionFromValidatedFiles(
+    value.files,
+    value.activeFileId,
+    value.selectedPanel,
+  );
+};
+
+export const createWorkbenchSessionFromRuntimeFiles = (value: {
+  files: WorkbenchFileState[];
+  activeFileId: string;
+  selectedPanel: WorkbenchPanelKey;
+}): WorkbenchSessionState => {
+  assertWorkbenchRuntimeFiles(value.files);
+  return createWorkbenchSessionFromValidatedFiles(
+    value.files.map(normalizeRuntimeState),
+    value.activeFileId,
+    value.selectedPanel,
+  );
 };
 
 export const decodeWorkbenchSession = (value: unknown): WorkbenchSessionState => {
@@ -135,129 +160,30 @@ export const decodeWorkbenchSession = (value: unknown): WorkbenchSessionState =>
     (file.kind === 'standard' || file.kind === 'ideal' || file.kind === 'heatCapacity')
   )).map(normalizeRuntimeState);
 
-  if (files.length === 0) return fallbackSession();
-
-  const requestedActiveId = typeof value.activeFileId === 'string' ? value.activeFileId : '';
-  const activeFileId = files.some((file) => file.id === requestedActiveId) ? requestedActiveId : files[0].id;
-  const restoredSelectedPanel = isWorkbenchPanelKey(value.selectedPanel)
-    ? value.selectedPanel
-    : 'preview';
-  const activeFile = files.find((file) => file.id === activeFileId);
-  const selectedPanel = activeFile?.kind === 'heatCapacity' && !(
-    restoredSelectedPanel === 'preview' ||
-    restoredSelectedPanel === 'realtime' ||
-    restoredSelectedPanel === 'heatCapacityGuide' ||
-    restoredSelectedPanel === 'heatCapacityRecords' ||
-    restoredSelectedPanel === 'heatCapacityReview'
-  )
-    ? 'preview'
-    : restoredSelectedPanel;
-  const heatCapacityGuideSession = normalizeHeatCapacityGuideSession(value.heatCapacityGuideSession, files);
-
-  return {
-    version: WORKBENCH_SESSION_VERSION,
+  return createWorkbenchSessionFromRuntimeFiles({
     files,
-    activeFileId,
-    selectedPanel,
-    heatCapacityGuideSession,
-  };
+    activeFileId: typeof value.activeFileId === 'string' ? value.activeFileId : '',
+    selectedPanel: isWorkbenchPanelKey(value.selectedPanel) ? value.selectedPanel : 'preview',
+  });
 };
 
 export const encodeWorkbenchSession = (
   files: WorkbenchFileState[],
   activeFileId: string,
   selectedPanel: WorkbenchPanelKey,
-  heatCapacityGuideSession: WorkbenchHeatCapacityGuideSessionState = createDefaultHeatCapacityGuideSession(),
 ): WorkbenchSessionState => decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
   files,
   activeFileId,
   selectedPanel,
-  heatCapacityGuideSession,
 });
 
-const normalizeWorkbenchFileList = (
-  files: WorkbenchFileState[],
-): WorkbenchFileState[] => {
-  if (files.length === 0) return [];
-  return decodeWorkbenchSession({
-    version: WORKBENCH_SESSION_VERSION,
-    files,
-    activeFileId: files[0].id,
-    selectedPanel: 'preview',
-  }).files;
-};
-
 export const loadWorkbenchSession = (): WorkbenchSessionState => {
-  if (typeof window === 'undefined') return fallbackSession();
-  const storage = getWorkbenchSessionStorage();
-  if (!storage) return fallbackSession();
-
-  try {
-    const raw = storage.getItem(WORKBENCH_SESSION_STORAGE_KEY);
-    if (!raw) return fallbackSession();
-    const parsed = JSON.parse(raw);
-    const decodedEnvelope = decodeWorkbenchStorageEnvelope(parsed);
-    return decodedEnvelope.handled
-      ? decodeWorkbenchSession(decodedEnvelope.session)
-      : decodeWorkbenchSession(parsed);
-  } catch {
-    return fallbackSession();
-  }
-};
-
-export const persistWorkbenchSession = (session: WorkbenchSessionState) => {
-  if (typeof window === 'undefined') return;
-  const storage = getWorkbenchSessionStorage();
-  if (!storage) return;
-
-  try {
-    const envelope = encodeWorkbenchStorageEnvelope(
-      session.files,
-      session.activeFileId,
-      session.selectedPanel,
-      Date.now(),
-      session.heatCapacityGuideSession,
-    );
-    storage.setItem(WORKBENCH_SESSION_STORAGE_KEY, JSON.stringify(envelope));
-  } catch {
-    // Storage failures should not block the live workbench.
-  }
+  if (workbenchBootstrapInstalled) return bootstrappedSession ?? fallbackSession();
+  return fallbackSession();
 };
 
 export const loadClosedWorkbenchFiles = (): WorkbenchFileState[] => {
-  if (typeof window === 'undefined') return [];
-
-  try {
-    const raw = window.localStorage.getItem(WORKBENCH_CLOSED_FILES_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    const decodedEnvelope = decodeWorkbenchClosedFilesStorageEnvelope(parsed);
-    if (decodedEnvelope.handled) {
-      return normalizeWorkbenchFileList(decodedEnvelope.files);
-    }
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((file): file is WorkbenchFileState => (
-      isRecord(file) &&
-      typeof file.id === 'string' &&
-      typeof file.name === 'string' &&
-      (file.kind === 'standard' || file.kind === 'ideal' || file.kind === 'heatCapacity')
-    )).map(normalizeRuntimeState);
-  } catch {
-    return [];
-  }
-};
-
-export const persistClosedWorkbenchFiles = (files: WorkbenchFileState[]) => {
-  if (typeof window === 'undefined') return;
-
-  try {
-    const normalizedFiles = files
-      .map(normalizeRuntimeState)
-      .filter((file, index, allFiles) => allFiles.findIndex((candidate) => candidate.id === file.id) === index);
-    const envelope = encodeWorkbenchClosedFilesStorageEnvelope(normalizedFiles);
-    window.localStorage.setItem(WORKBENCH_CLOSED_FILES_STORAGE_KEY, JSON.stringify(envelope));
-  } catch {
-    // Storage failures should not block the live workbench.
-  }
+  if (workbenchBootstrapInstalled) return bootstrappedClosedFiles;
+  return [];
 };

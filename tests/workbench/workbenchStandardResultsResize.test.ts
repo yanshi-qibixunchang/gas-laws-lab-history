@@ -27,8 +27,26 @@ assert.match(
 
 assert.match(
   source,
-  /createEditSnapshot\('resized standard Results window'\)[\s\S]*?pushUndoSnapshot\(snapshot\)/,
+  /createEditSnapshot\('resized standard Results window',\s*'presentation'\)[\s\S]*?pushUndoSnapshot\(snapshot\)/,
   'standard Results resize should enter undo history once with the pre-drag snapshot',
+);
+
+assert.match(
+  source,
+  /interface WorkbenchPresentationEditSnapshot[\s\S]*?presentation:\s*WorkbenchFilePresentationSnapshot/,
+  'Results layout history should use a presentation-only snapshot instead of a full runtime file snapshot',
+);
+
+assert.match(
+  source,
+  /const restorePresentationSnapshot[\s\S]*?\.\.\.structuredClone\(snapshot\.presentation\.state\)[\s\S]*?scheduleWorkspacePersistenceRef\.current\(\)/,
+  'restoring Results layout should patch only presentation state and persist the resulting layout',
+);
+
+assert.doesNotMatch(
+  source.match(/const restorePresentationSnapshot[\s\S]*?\n  };\n\n  const restoreFileSnapshot/)?.[0] ?? '',
+  /reconcileRuntime|suspendActiveHeatCapacityModeForNavigation|cloneWorkbenchFiles/,
+  'restoring Results layout must not replace or rewind simulation runtime state',
 );
 
 assert.match(
@@ -74,5 +92,4 @@ assert.doesNotMatch(
 );
 
 console.log('workbenchStandardResultsResize tests passed');
-
 

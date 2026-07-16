@@ -71,7 +71,7 @@ assert.match(
 );
 assert.match(
   ultraRuntimeModelSource,
-  /cloneModelScene\(props\.sourceScene\)/,
+  /cloneHeatCapacityUltraModelScene\(props\.sourceScene\)/,
   'the Ultra runtime should clone the scene supplied by the asset gate',
 );
 assert.doesNotMatch(
@@ -101,8 +101,8 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /initialCameraPose\?: HeatCapacityCameraPose \| null;[\s\S]*onCameraPoseChange\?: \(sceneFileId: string, pose: HeatCapacityCameraPose\) => void;[\s\S]*restoredSceneFrameDataUrl\?: string \| null;[\s\S]*onSceneFrameCapture\?: \([\s\S]*sceneFileId: string,[\s\S]*dataUrl: string \| null,[\s\S]*cameraPose: HeatCapacityCameraPose,[\s\S]*metadata: HeatCapacitySceneFrameCaptureMetadata,[\s\S]*\) => void;[\s\S]*onSceneReady\?: \(\) => void;/,
-  'Heat Capacity scene should expose camera, last-good-frame, and readiness restore hooks',
+  /initialCameraPose\?: HeatCapacityCameraPose \| null;[\s\S]*onCameraPoseChange\?: \(sceneFileId: string, pose: HeatCapacityCameraPose\) => void;[\s\S]*restoredSceneFrameDataUrl\?: string \| null;[\s\S]*onSceneCheckpoint\?: \([\s\S]*sceneFileId: string,[\s\S]*cameraPose: HeatCapacityCameraPose,[\s\S]*metadata: HeatCapacitySceneCheckpointMetadata,[\s\S]*\) => void;[\s\S]*onSceneReady\?: \(\) => void;/,
+  'Heat Capacity scene should expose semantic camera/checkpoint hooks while retaining legacy-frame restore input',
 );
 assert.match(
   sceneSource,
@@ -111,38 +111,63 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /HEAT_CAPACITY_SCENE_FRAME_CAPTURE_SETTLE_DELAY_MS[\s\S]*function HeatCapacitySceneFrameCaptureBridge[\s\S]*sceneDirtyRef\.current[\s\S]*gl\.domElement\.toDataURL\('image\/webp'/,
-  'Heat Capacity scene should debounce settled last-good-frame captures and track animation dirtiness without periodic encoding',
+  /function HeatCapacitySceneCheckpointBridge[\s\S]*const metadata: HeatCapacitySceneCheckpointMetadata[\s\S]*onSceneCheckpoint\?\.\(cameraPose, metadata\)/,
+  'Heat Capacity scene should persist semantic camera and runtime checkpoints without encoding the WebGL buffer',
 );
 assert.doesNotMatch(
   sceneSource,
-  /useFrame\(\(\) => \{\s*if \(active\) captureSceneFrame/,
-  'active Heat Capacity animation frames must not synchronously encode a restore image on a fixed cadence',
+  /\.toDataURL\(|\.readPixels\(/,
+  'Heat Capacity persistence must not read pixels back from the WebGL canvas',
 );
 assert.match(
   workbenchSource,
-  /const persistLifecycleCheckpoint = \(\) => \{[\s\S]*sceneCaptureRegistration\?\.fileId === activeSceneFile\.id[\s\S]*sceneCaptureCompleted = sceneCaptureProvider\(\) !== null;[\s\S]*persistWorkbenchSession\(encodeWorkbenchSession[\s\S]*heatCapacityRefreshPersistRef\.current\(\);[\s\S]*window\.addEventListener\('pagehide', persistBeforePageHide\)[\s\S]*document\.addEventListener\('visibilitychange', persistWhenHidden\)/,
+  /const captureActiveHeatCapacitySemanticSceneCheckpoint = \(\) => \{[\s\S]*registration\?\.fileId !== activeSceneFile\.id[\s\S]*return registration\.provider\(\) !== null;[\s\S]*HEAT_CAPACITY_SEMANTIC_CHECKPOINT_DEBOUNCE_MS[\s\S]*HEAT_CAPACITY_SEMANTIC_CHECKPOINT_MAX_WAIT_MS/,
+  'ordinary autosaves should refresh the semantic Ultra and hard-sphere checkpoint with debounce and bounded max wait',
+);
+assert.match(
+  workbenchSource,
+  /if \(activePersistenceFile\?\.kind === 'heatCapacity'\) \{\s*scheduleHeatCapacitySemanticSceneCheckpointRef\.current\(\);\s*\}\s*scheduleWorkspacePersistenceRef\.current\(\);/,
+  'a Heat Capacity state update should schedule semantic scene capture before its ordinary persistence debounce',
+);
+assert.match(
+  workbenchSource,
+  /persistWorkspaceLifecycleCheckpointRef\.current = async \(forceFresh = false\) => \{[\s\S]*sceneCheckpointRegistration\?\.fileId === activeSceneFile\.id[\s\S]*sceneCheckpointCompleted = sceneCheckpointProvider\(\) !== null;[\s\S]*heatCapacityRefreshPersistRef\.current\(\);[\s\S]*await flushWorkspacePersistenceRef\.current\(\)[\s\S]*window\.addEventListener\('pagehide', persistBeforePageHide\)[\s\S]*document\.addEventListener\('visibilitychange', persistWhenHidden\)/,
   'Workbench should own the final scene → main-session → refresh-checkpoint lifecycle flush for hidden tabs and page hide',
 );
 assert.match(
   workbenchSource,
-  /const persistLifecycleCheckpointOnce = \(\) => \{[\s\S]*HEAT_CAPACITY_LIFECYCLE_DUPLICATE_FLUSH_WINDOW_MS[\s\S]*if \(persistLifecycleCheckpoint\(\)\)[\s\S]*const persistBeforePageHide = \(\) => persistLifecycleCheckpointOnce\(\);[\s\S]*document\.visibilityState === 'hidden'[\s\S]*persistLifecycleCheckpointOnce\(\);/,
+  /const persistLifecycleCheckpointOnce = async \(\) => \{[\s\S]*HEAT_CAPACITY_LIFECYCLE_DUPLICATE_FLUSH_WINDOW_MS[\s\S]*await persistWorkspaceLifecycleCheckpointRef\.current\(\)[\s\S]*const persistBeforePageHide = \(\) => \{[\s\S]*void persistLifecycleCheckpointOnce\(\);[\s\S]*document\.visibilityState === 'hidden'[\s\S]*void persistLifecycleCheckpointOnce\(\);/,
   'pagehide and visibility-hidden should share an order-independent, short-window lifecycle flush guard',
 );
 assert.match(
   workbenchSource,
-  /const handleHeatCapacitySceneFrameCapture = \([\s\S]*sceneFileId: string,[\s\S]*if \(sceneFileId !== activeFileIdRef\.current\) return;[\s\S]*currentFile\.id !== sceneFileId/,
-  'stale captures from an unmounting Heat Capacity file must never be stored under the newly active file',
+  /if \(forceFresh\) \{[\s\S]*while \(activeFlush\)[\s\S]*await activeFlush[\s\S]*else \{[\s\S]*if \(activeFlush\) return activeFlush;[\s\S]*heatCapacityLifecycleFlushPromiseRef\.current = flushOperation;/,
+  'ordinary lifecycle callers should share one in-flight promise while native exit can wait and force one fresh post-quiescence flush',
 );
 assert.match(
   workbenchSource,
-  /if \(heatCapacitySceneCaptureProviderRef\.current\?\.fileId === sceneFileId\) \{\s*heatCapacitySceneCaptureProviderRef\.current = null;/,
-  'an old keyed scene may clear only its own lifecycle capture provider registration',
+  /onPrepareExit\?\.\(\(request\) => \{[\s\S]*await persistWorkspaceLifecycleCheckpointRef\.current\(true\)[\s\S]*reportPersistenceResult\(\{[\s\S]*requestId: request\.requestId,[\s\S]*saved,/,
+  'desktop close and updater restart should receive a correlated acknowledgement only after the durable flush resolves',
+);
+assert.match(
+  workbenchSource,
+  /const handleHeatCapacitySceneCheckpoint = \([\s\S]*sceneFileId: string,[\s\S]*if \(sceneFileId !== activeFileIdRef\.current\) return;[\s\S]*currentFile\.id !== sceneFileId/,
+  'stale checkpoints from an unmounting Heat Capacity file must never be stored under the newly active file',
+);
+assert.match(
+  workbenchSource,
+  /if \(heatCapacitySceneCheckpointProviderRef\.current\?\.fileId === sceneFileId\) \{\s*heatCapacitySceneCheckpointProviderRef\.current = null;/,
+  'an old keyed scene may clear only its own lifecycle checkpoint provider registration',
 );
 assert.match(
   sceneSource,
-  /gl: \{ preserveDrawingBuffer: sceneFrameCaptureEnabled \}/,
-  'Canvas should preserve its drawing buffer only when refresh-frame capture is connected',
+  /gl: \{ preserveDrawingBuffer: false \}/,
+  'Canvas should never retain its drawing buffer for persistence',
+);
+assert.match(
+  workbenchSource,
+  /Legacy pixel snapshots remain readable for one-time restore[\s\S]*session\.sceneSnapshot = null;/,
+  'canonical refresh saves should never rewrite a legacy pixel snapshot',
 );
 assert.match(
   sceneSource,
@@ -171,7 +196,7 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /pendingInitialTransitionRef[\s\S]*if \(restoredTransition && !sceneReady\) return;[\s\S]*resumedFromElapsedMs: restoredTransition\.elapsedMs[\s\S]*useFrame\(\(\) => \{[\s\S]*remainingMs: Math\.max/,
+  /pendingInitialTransitionRef[\s\S]*if \(restoredTransition && !sceneReady\) return;[\s\S]*resumedFromElapsedMs: restoredTransition\.elapsedMs[\s\S]*useHeatCapacityGuardedFrame\(\(\) => \{[\s\S]*remainingMs: Math\.max/,
   'CameraRig should freeze a restored transition until acknowledgement, then continue its original easing timeline',
 );
 assert.equal(
@@ -638,7 +663,7 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /<UltraNodeHitbox[\s\S]*onWheel=\{handleUltraControlWheel\}/,
+  /<UltraNodeHitbox[\s\S]*onWheel=\{\(control, event\) => runRuntimeGuarded\(\(\) => handleUltraControlWheel\(control, event\)\)\}/,
   'Ultra GLB control hitboxes should route wheel events through the shared pressure-zero fine-adjust handler',
 );
 assert.match(
@@ -668,8 +693,8 @@ assert.match(
 );
 const ultraControlMotionInvalidationStart = ultraModelSource.indexOf('const keepControlMotionRendering = (timestamp: number) => {');
 assert.notEqual(ultraControlMotionInvalidationStart, -1, 'Ultra timed control invalidation loop should exist');
-const ultraControlMotionInvalidationEnd = ultraModelSource.search(/  useFrame\(\(\{ clock \}, delta\) => \{/);
-assert.notEqual(ultraControlMotionInvalidationEnd, -1, 'Ultra timed control invalidation loop should end before the runtime useFrame');
+const ultraControlMotionInvalidationEnd = ultraModelSource.search(/  useHeatCapacityGuardedFrame\(\(\{ clock \}, delta\) => \{/);
+assert.notEqual(ultraControlMotionInvalidationEnd, -1, 'Ultra timed control invalidation loop should end before the guarded runtime frame');
 assert.doesNotMatch(
   ultraModelSource.slice(ultraControlMotionInvalidationStart, ultraControlMotionInvalidationEnd),
   /gaugeNeedleTargetRotation/,
@@ -692,8 +717,13 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /camera: \{[\s\S]*position: restoredInitialCameraPose\?\.position \?\? cameraViewScheme\.defaultView\.position,[\s\S]*fov: restoredInitialCameraPose\?\.fov \?\? cameraViewScheme\.fov/,
-  'Canvas should apply a restored camera pose on its first frame and otherwise use the active scheme defaults',
+  /camera: \{[\s\S]*position: canvasInitialCameraPose\?\.position \?\? cameraViewScheme\.defaultView\.position,[\s\S]*fov: canvasInitialCameraPose\?\.fov \?\? cameraViewScheme\.fov/,
+  'Canvas should apply the selected exact-or-recovery pose for the current mount',
+);
+assert.match(
+  sceneSource,
+  /const canvasRecoveryRemount = ultraRuntimeRetryAttempt > 0 \|\| ultraAssetLoadAttempt > 0;[\s\S]*const canvasInitialCameraPose = canvasRecoveryRemount[\s\S]*runtimeRecoveryCameraPoseRef\.current[\s\S]*const canvasInitialCameraTransition = canvasRecoveryRemount[\s\S]*cameraTransitionStateRef\.current/,
+  'asset and runtime recovery remounts should both resume from the latest captured camera pose and transition',
 );
 assert.match(
   sceneSource,
@@ -847,8 +877,8 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /<HeatCapacityUltraInstrumentModel[\s\S]*interactionLocked=\{props\.interactionLocked\}[\s\S]*onLockedInteraction=\{props\.onLockedInteraction\}[\s\S]*onPowerToggle=\{props\.onPowerToggle\}[\s\S]*onStopcockOpenChange=\{props\.onStopcockOpenChange\}[\s\S]*onPressureZeroFineAdjust=\{props\.onPressureZeroFineAdjust\}[\s\S]*onPressureZeroCoarseAdjust=\{props\.onPressureZeroCoarseAdjust\}[\s\S]*onPumpValveToggle=\{props\.onPumpValveToggle\}[\s\S]*onPumpBulbPress=\{props\.onPumpBulbPress\}/,
-  'Heat Capacity scene should pass the shared procedural control callbacks into the Ultra GLB hitbox layer',
+  /<HeatCapacityUltraInstrumentModel[\s\S]*interactionLocked=\{props\.interactionLocked\}[\s\S]*onLockedInteraction=\{guardedOnLockedInteraction\}[\s\S]*onPowerToggle=\{guardedOnPowerToggle\}[\s\S]*onStopcockOpenChange=\{guardedOnStopcockOpenChange\}[\s\S]*onPressureZeroFineAdjust=\{guardedOnPressureZeroFineAdjust\}[\s\S]*onPressureZeroCoarseAdjust=\{guardedOnPressureZeroCoarseAdjust\}[\s\S]*onPumpValveToggle=\{guardedOnPumpValveToggle\}[\s\S]*onPumpBulbPress=\{guardedOnPumpBulbPress\}/,
+  'Heat Capacity scene should pass guarded shared controls into the Ultra GLB hitbox layer',
 );
 assert.match(
   ultraModelSource,
@@ -872,7 +902,7 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /const sceneShouldAnimate =[\s\S]*props\.demoFocusPulseActive[\s\S]*discreteMotionState\.active/,
+  /const sceneShouldAnimate = sceneAnimationClockActive && \([\s\S]*props\.demoFocusPulseActive[\s\S]*discreteMotionState\.active/,
   'Ultra GLB guide/demo focus halos and live scene motion should keep the demand-rendered canvas invalidating only while they are active',
 );
 assert.doesNotMatch(
@@ -928,8 +958,13 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /function UltraNodeHalo[\s\S]*parentRef[\s\S]*updateMatrixWorld\(true\)[\s\S]*copy\(anchor\.matrixWorld\)[\s\S]*matrixAutoUpdate=\{false\}/,
+  /function UltraNodeHalo[\s\S]*parentRef[\s\S]*anchor\.updateWorldMatrix\(true, false\)[\s\S]*copy\(anchor\.matrixWorld\)[\s\S]*matrixAutoUpdate=\{false\}/,
   'Ultra visual halos should copy live GLB node matrices just like hitboxes so resize, sidebar, camera, and model transforms stay aligned',
+);
+assert.doesNotMatch(
+  ultraModelSource,
+  /parent\.updateMatrixWorld\(true\)/,
+  'per-frame Ultra overlays must not recursively update the complete GLB once per mounted hitbox or halo',
 );
 assert.match(
   ultraModelSource,
@@ -943,8 +978,18 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const initializeUltraFocusShellMeshMorphTargets = \(mesh: THREE\.Mesh\) => \{[\s\S]*mesh\.updateMorphTargets\(\);[\s\S]*onUpdate=\{initializeUltraFocusShellMeshMorphTargets\}[\s\S]*onUpdate=\{initializeUltraFocusShellMeshMorphTargets\}/,
-  'Ultra focus shell meshes should initialize morphTargetInfluences for GLB morph geometries before Three renders them',
+  /type UltraFocusShellMeshEntry[\s\S]*sourceMesh: THREE\.Mesh;[\s\S]*sourceMesh: mesh/,
+  'Ultra focus shell entries should retain the owning GLB mesh for live morph synchronization',
+);
+assert.match(
+  ultraModelSource,
+  /const initializeUltraFocusShellMeshMorphTargets[\s\S]*mesh\.updateMorphTargets\(\);[\s\S]*sourceMesh\.morphTargetInfluences[\s\S]*mesh\.morphTargetInfluences = sourceInfluences[\s\S]*onUpdate=\{\(mesh\) => initializeUltraFocusShellMeshMorphTargets\(mesh, entry\.sourceMesh\)\}[\s\S]*onUpdate=\{\(mesh\) => initializeUltraFocusShellMeshMorphTargets\(mesh, entry\.sourceMesh\)\}/,
+  'Ultra focus shell meshes should share the live source influence array so pump compression and rollback stay aligned',
+);
+assert.match(
+  ultraModelSource,
+  /const focusShellUsesSingleMorphShader = useMemo[\s\S]*target\.id !== 'pumpBulb'[\s\S]*Object\.values\(entry\.geometry\.morphAttributes\)[\s\S]*morphEntries\.every[\s\S]*hasHeatCapacityUltraSingleRelativePositionAndNormalMorph[\s\S]*const shellBreathMaterial[\s\S]*specializeHeatCapacityUltraSingleMorphMaterial\(material\)[\s\S]*const shellPulseMaterial[\s\S]*specializeHeatCapacityUltraSingleMorphMaterial\(material\)/,
+  'both Pump_Bulb focus-shell layers should use the exact loop-free single-morph shader contract',
 );
 assert.match(
   ultraModelSource,
@@ -1069,8 +1114,8 @@ assert.doesNotMatch(
 );
 assert.match(
   sceneSource,
-  /const orbitControlsEnabled = focusMode === 'none' && !\(props\.cameraInteractionLocked \?\? props\.interactionLocked\);/,
-  'Ultra focus mode should keep the same focus lock while allowing completed teaching states to inspect the model camera',
+  /const orbitControlsEnabled = focusMode === 'none' &&[\s\S]*sceneCommandState\.activeCommand === null &&[\s\S]*!cameraTransitionActive &&[\s\S]*!\(props\.cameraInteractionLocked \?\? props\.interactionLocked\);/,
+  'Orbit controls should remain locked during focus, prioritized commands, and camera transitions',
 );
 assert.match(
   sceneSource,
@@ -1114,7 +1159,7 @@ assert.doesNotMatch(
 );
 assert.match(
   ultraModelSource,
-  /const ULTRA_DOUBLE_CLICK_GUARD_MS = 220;[\s\S]*const pendingUltraSingleClickRef = useRef<number \| null>\(null\);[\s\S]*const clearPendingUltraSingleClick = useCallback\(\(\) => \{[\s\S]*window\.clearTimeout\(pendingUltraSingleClickRef\.current\)[\s\S]*const scheduleUltraSingleClick = useCallback\(\(run: \(\) => void\) => \{[\s\S]*window\.setTimeout\(\(\) => \{[\s\S]*run\(\);[\s\S]*ULTRA_DOUBLE_CLICK_GUARD_MS/,
+  /const ULTRA_DOUBLE_CLICK_GUARD_MS = 220;[\s\S]*const pendingUltraSingleClickRef = useRef<number \| null>\(null\);[\s\S]*const clearPendingUltraSingleClick = useCallback\(\(\) => \{[\s\S]*window\.clearTimeout\(pendingUltraSingleClickRef\.current\)[\s\S]*const scheduleUltraSingleClick = useCallback\(\(run: \(\) => void\) => \{[\s\S]*window\.setTimeout\(\(\) => \{[\s\S]*runRuntimeGuarded\(run\);[\s\S]*ULTRA_DOUBLE_CLICK_GUARD_MS/,
   'Ultra GLB non-focused clicks should still defer single-click side effects briefly so a fast second click can become focus instead',
 );
 assert.match(
@@ -1129,7 +1174,7 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const handleUltraInstrumentFocusDoubleClick = useCallback\([\s\S]*props\.onFocus\('instrument'\);[\s\S]*<UltraInstrumentFocusHitbox[\s\S]*onDoubleClick=\{handleUltraInstrumentFocusDoubleClick\}/,
+  /const handleUltraInstrumentFocusDoubleClick = useCallback\([\s\S]*props\.onFocus\('instrument'\);[\s\S]*<UltraInstrumentFocusHitbox[\s\S]*onDoubleClick=\{\(event\) => runRuntimeGuarded\(\(\) => handleUltraInstrumentFocusDoubleClick\(event\)\)\}/,
   'Ultra GLB host body double-clicks should enter instrument focus without requiring the user to hit the small switch or knob',
 );
 assert.match(

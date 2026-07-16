@@ -7,16 +7,25 @@ import type {
   PressureMeasurementSummary,
   PressureWindowPoint,
 } from '../../shared/types.ts';
+import {
+  HARD_SPHERE_MAX_COLLECTED_SAMPLES,
+  HARD_SPHERE_MAX_PRESSURE_HISTORY,
+  HARD_SPHERE_MAX_TEMPERATURE_HISTORY,
+  validateHardSphereSimulationParams,
+} from './hardSphereSimulationValidation.ts';
 
 const PRESSURE_EPSILON = 1e-9;
-export const PHYSICS_ENGINE_SNAPSHOT_VERSION = 1 as const;
+export const HARD_SPHERE_PRESSURE_SAMPLE_WINDOW_S = 0.1;
+export const PHYSICS_ENGINE_SNAPSHOT_VERSION = 2 as const;
+export type HardSphereThermostatTargetMode = 'explicit' | 'canonical-default' | 'legacy-v1';
 
-export interface PhysicsEngineSnapshotV1 {
+export interface PhysicsEngineSnapshotV2 {
   schemaVersion: typeof PHYSICS_ENGINE_SNAPSHOT_VERSION;
   params: SimulationParams;
   particles: Particle[];
   time: number;
   targetTemperature: number;
+  targetMode: HardSphereThermostatTargetMode;
   collectedSpeeds: number[];
   collectedEnergies: number[];
   collectedSampleWindowTotal: number;
@@ -43,13 +52,14 @@ export class PhysicsEngine {
   particles: Particle[] = [];
   time: number = 0;
   targetTemperature: number = 0;
+  targetMode: HardSphereThermostatTargetMode = 'canonical-default';
   
   // Accumulated data for final statistics
   // Optimization: Limit size to prevent memory leaks over long runs
-  private readonly MAX_SAMPLES = 2000; 
-  private readonly MAX_HISTORY = 300; 
-  private readonly MAX_PRESSURE_HISTORY = 800;
-  private readonly PRESSURE_SAMPLE_WINDOW = 0.1;
+  private readonly MAX_SAMPLES = HARD_SPHERE_MAX_COLLECTED_SAMPLES;
+  private readonly MAX_HISTORY = HARD_SPHERE_MAX_TEMPERATURE_HISTORY;
+  private readonly MAX_PRESSURE_HISTORY = HARD_SPHERE_MAX_PRESSURE_HISTORY;
+  private readonly PRESSURE_SAMPLE_WINDOW = HARD_SPHERE_PRESSURE_SAMPLE_WINDOW_S;
 
   collectedSpeeds: number[] = [];
   collectedEnergies: number[] = [];
@@ -66,7 +76,11 @@ export class PhysicsEngine {
   private latestMeasuredPressure: number = 0;
 
   constructor(params: SimulationParams) {
-    this.params = params;
+    const validation = validateHardSphereSimulationParams(params);
+    if (!validation.valid) {
+      throw new RangeError(`Invalid hard-sphere simulation parameters: ${validation.errors.join(' ')}`);
+    }
+    this.params = cloneParams(params);
     this.initSystem();
   }
 
@@ -95,6 +109,11 @@ export class PhysicsEngine {
     // Initialize positions (Grid to avoid overlap, then jitter)
     const perSide = Math.ceil(Math.pow(this.params.N, 1/3));
     const spacing = this.params.L / perSide;
+    const jitterLimit = Math.max(0, Math.min(
+      spacing * 0.2,
+      (spacing - 2 * this.params.r) * 0.49,
+      spacing / 2 - this.params.r,
+    ));
     
     let count = 0;
 
@@ -103,10 +122,9 @@ export class PhysicsEngine {
       for (let j = 0; j < perSide && count < this.params.N; j++) {
         for (let k = 0; k < perSide && count < this.params.N; k++) {
           
-          const jitter = (Math.random() - 0.5) * (spacing * 0.4); // Reduced jitter to 0.4 to stay safe
-          const x = (i * spacing) + spacing/2 + jitter;
-          const y = (j * spacing) + spacing/2 + jitter;
-          const z = (k * spacing) + spacing/2 + jitter;
+          const x = (i * spacing) + spacing/2 + (Math.random() * 2 - 1) * jitterLimit;
+          const y = (j * spacing) + spacing/2 + (Math.random() * 2 - 1) * jitterLimit;
+          const z = (k * spacing) + spacing/2 + (Math.random() * 2 - 1) * jitterLimit;
           
           const vx = this.gaussianRandom();
           const vy = this.gaussianRandom();
@@ -126,20 +144,22 @@ export class PhysicsEngine {
       }
     }
 
-    // Calculate initial Target Temperature
-    const totalEnergy = this.particles.reduce((sum, p) => sum + p.energy, 0);
+    // Keep the thermostat target canonical and reproducible. Deriving it from
+    // a finite random sample made otherwise identical standard files persist
+    // different numerical contracts, and Gaussian tails could leave the
+    // supported snapshot range.
     const explicitTargetTemperature =
       typeof this.params.targetTemperature === 'number' && Number.isFinite(this.params.targetTemperature)
         ? this.params.targetTemperature
         : null;
 
-    // Avoid divide by zero if N=0
     this.targetTemperature =
       explicitTargetTemperature && explicitTargetTemperature > 0
         ? explicitTargetTemperature
-        : this.params.N > 0
-          ? (2 * totalEnergy) / (3 * this.params.N * this.params.k)
-          : 300;
+        : this.params.m / this.params.k;
+    this.targetMode = explicitTargetTemperature && explicitTargetTemperature > 0
+      ? 'explicit'
+      : 'canonical-default';
 
     // Initialize Fixed Bins (Locks the Chart Axes)
     this.initBins();
@@ -331,7 +351,6 @@ export class PhysicsEngine {
     
     // Pre-calculate squares for efficiency
     const minDist = 2 * r;
-    const minDistSq = minDist * minDist;
 
     // 1. Move and Wall Collisions
     for (let i = 0; i < this.particles.length; i++) {
@@ -398,15 +417,33 @@ export class PhysicsEngine {
         const dz = p1.z - p2.z;
         if (dz > minDist || dz < -minDist) continue;
         
-        const distSq = dx*dx + dy*dy + dz*dz;
+        const dist = Math.hypot(dx, dy, dz);
 
-        if (distSq < minDistSq) {
-          const dist = Math.sqrt(distSq);
-          // Normalize normal vector
-          const nx = dx / dist; const ny = dy / dist; const nz = dz / dist;
-          
-          // Relative velocity
-          const dvx = p1.vx - p2.vx; const dvy = p1.vy - p2.vy; const dvz = p1.vz - p2.vz;
+        if (dist < minDist) {
+          const dvx = p1.vx - p2.vx;
+          const dvy = p1.vy - p2.vy;
+          const dvz = p1.vz - p2.vz;
+          let nx: number;
+          let ny: number;
+          let nz: number;
+          if (dist === 0) {
+            const relativeSpeed = Math.hypot(dvx, dvy, dvz);
+            if (relativeSpeed > 0) {
+              nx = -dvx / relativeSpeed;
+              ny = -dvy / relativeSpeed;
+              nz = -dvz / relativeSpeed;
+            } else {
+              const axis = (i + j) % 3;
+              const direction = (i + j) % 2 === 0 ? 1 : -1;
+              nx = axis === 0 ? direction : 0;
+              ny = axis === 1 ? direction : 0;
+              nz = axis === 2 ? direction : 0;
+            }
+          } else {
+            nx = dx / dist;
+            ny = dy / dist;
+            nz = dz / dist;
+          }
           
           // Impact speed
           const velAlongNormal = dvx * nx + dvy * ny + dvz * nz;
@@ -430,6 +467,50 @@ export class PhysicsEngine {
              p1.x += corr*nx; p1.y += corr*ny; p1.z += corr*nz;
              p2.x -= corr*nx; p2.y -= corr*ny; p2.z -= corr*nz;
           }
+        }
+      }
+    }
+
+    // Pair separation can push a near-wall particle outside the box. Re-apply
+    // the wall constraint before snapshots and account for any outward impulse.
+    for (const particle of this.particles) {
+      if (particle.x < r) {
+        particle.x = r;
+        if (particle.vx < 0) {
+          wallMomentumTransfer += 2 * m * Math.abs(particle.vx);
+          particle.vx *= -1;
+        }
+      } else if (particle.x > L - r) {
+        particle.x = L - r;
+        if (particle.vx > 0) {
+          wallMomentumTransfer += 2 * m * Math.abs(particle.vx);
+          particle.vx *= -1;
+        }
+      }
+      if (particle.y < r) {
+        particle.y = r;
+        if (particle.vy < 0) {
+          wallMomentumTransfer += 2 * m * Math.abs(particle.vy);
+          particle.vy *= -1;
+        }
+      } else if (particle.y > L - r) {
+        particle.y = L - r;
+        if (particle.vy > 0) {
+          wallMomentumTransfer += 2 * m * Math.abs(particle.vy);
+          particle.vy *= -1;
+        }
+      }
+      if (particle.z < r) {
+        particle.z = r;
+        if (particle.vz < 0) {
+          wallMomentumTransfer += 2 * m * Math.abs(particle.vz);
+          particle.vz *= -1;
+        }
+      } else if (particle.z > L - r) {
+        particle.z = L - r;
+        if (particle.vz > 0) {
+          wallMomentumTransfer += 2 * m * Math.abs(particle.vz);
+          particle.vz *= -1;
         }
       }
     }
@@ -480,13 +561,14 @@ export class PhysicsEngine {
     return this.collectedSampleWindowTotal;
   }
 
-  public createSnapshot(): PhysicsEngineSnapshotV1 {
+  public createSnapshot(): PhysicsEngineSnapshotV2 {
     return {
       schemaVersion: PHYSICS_ENGINE_SNAPSHOT_VERSION,
       params: cloneParams(this.params),
       particles: cloneParticles(this.particles),
       time: this.time,
       targetTemperature: this.targetTemperature,
+      targetMode: this.targetMode,
       collectedSpeeds: [...this.collectedSpeeds],
       collectedEnergies: [...this.collectedEnergies],
       collectedSampleWindowTotal: this.collectedSampleWindowTotal,
@@ -499,12 +581,31 @@ export class PhysicsEngine {
     };
   }
 
-  public static fromSnapshot(snapshot: PhysicsEngineSnapshotV1): PhysicsEngine {
+  public static fromSnapshot(snapshot: PhysicsEngineSnapshotV2): PhysicsEngine {
+    const validation = validateHardSphereSimulationParams(snapshot.params);
+    if (!validation.valid) {
+      throw new RangeError(`Invalid hard-sphere snapshot parameters: ${validation.errors.join(' ')}`);
+    }
+    if (
+      !Array.isArray(snapshot.particles) ||
+      snapshot.particles.length !== snapshot.params.N ||
+      !Array.isArray(snapshot.collectedSpeeds) ||
+      snapshot.collectedSpeeds.length > HARD_SPHERE_MAX_COLLECTED_SAMPLES ||
+      !Array.isArray(snapshot.collectedEnergies) ||
+      snapshot.collectedEnergies.length > HARD_SPHERE_MAX_COLLECTED_SAMPLES ||
+      !Array.isArray(snapshot.tempHistory) ||
+      snapshot.tempHistory.length > HARD_SPHERE_MAX_TEMPERATURE_HISTORY ||
+      !Array.isArray(snapshot.pressureHistory) ||
+      snapshot.pressureHistory.length > HARD_SPHERE_MAX_PRESSURE_HISTORY
+    ) {
+      throw new RangeError('Hard-sphere snapshot exceeds its runtime resource bounds.');
+    }
     const engine = new PhysicsEngine(cloneParams(snapshot.params));
     engine.params = cloneParams(snapshot.params);
     engine.particles = cloneParticles(snapshot.particles);
     engine.time = snapshot.time;
     engine.targetTemperature = snapshot.targetTemperature;
+    engine.targetMode = snapshot.targetMode;
     engine.collectedSpeeds = [...snapshot.collectedSpeeds];
     engine.collectedEnergies = [...snapshot.collectedEnergies];
     engine.collectedSampleWindowTotal = snapshot.collectedSampleWindowTotal;

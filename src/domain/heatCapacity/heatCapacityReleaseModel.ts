@@ -38,6 +38,7 @@ export interface HeatCapacityReleaseTransition {
 }
 
 const RELEASE_TIME_EPSILON_S = 1e-9;
+const RELEASE_PERSISTENCE_TIME_EPSILON_S = 1e-6;
 
 const finiteNonNegative = (value: number, fallback = 0) => (
   Number.isFinite(value) && value >= 0 ? value : fallback
@@ -197,6 +198,101 @@ export const beginHeatCapacityReleaseClosing = (
   };
 };
 
+const releaseTimesEqual = (left: number, right: number) => (
+  Math.abs(left - right) <= RELEASE_PERSISTENCE_TIME_EPSILON_S
+);
+
+const releaseDurationMatches = (
+  state: HeatCapacityReleaseState,
+) => state.openingCompletedAtS !== null && state.closeCommandAtS !== null &&
+  releaseTimesEqual(
+    state.releaseDurationS,
+    Math.max(0, state.closeCommandAtS - state.openingCompletedAtS),
+  );
+
+export const isHeatCapacityReleaseStateSemanticallyValid = (
+  state: HeatCapacityReleaseState,
+): boolean => {
+  const times = [
+    state.phaseStartedAtS,
+    state.openingStartedAtS,
+    state.openingCompletedAtS,
+    state.closeCommandAtS,
+    state.closingCompletedAtS,
+  ];
+  if (
+    !Number.isInteger(state.attemptId) || state.attemptId < 0 ||
+    !Number.isFinite(state.releaseDurationS) || state.releaseDurationS < 0 ||
+    times.some((value) => value !== null && (!Number.isFinite(value) || value < 0)) ||
+    (state.openingCompletedAtS !== null && (
+      state.openingStartedAtS === null || state.openingCompletedAtS < state.openingStartedAtS
+    )) ||
+    (state.closeCommandAtS !== null && (
+      state.openingStartedAtS === null ||
+      state.closeCommandAtS < (state.openingCompletedAtS ?? state.openingStartedAtS)
+    )) ||
+    (state.closingCompletedAtS !== null && (
+      state.closeCommandAtS === null || state.closingCompletedAtS < state.closeCommandAtS
+    ))
+  ) return false;
+
+  const hasNoOpeningHistory = state.openingStartedAtS === null &&
+    state.openingCompletedAtS === null &&
+    state.closeCommandAtS === null &&
+    state.closingCompletedAtS === null;
+  const hasNoClosingHistory = state.closeCommandAtS === null && state.closingCompletedAtS === null;
+
+  switch (state.phase) {
+    case 'closed':
+      if (
+        state.purpose !== 'none' || state.formedRelease || state.releaseDurationS !== 0 ||
+        (hasNoOpeningHistory && (state.attemptId !== 0 || state.quickToggle))
+      ) return false;
+      if (hasNoOpeningHistory) return true;
+      return state.attemptId > 0 &&
+        state.closeCommandAtS !== null &&
+        state.closingCompletedAtS !== null &&
+        releaseTimesEqual(state.phaseStartedAtS, state.closingCompletedAtS) &&
+        state.quickToggle === (state.openingCompletedAtS === null);
+    case 'opening':
+      return state.purpose !== 'none' && state.attemptId > 0 &&
+        state.openingStartedAtS !== null &&
+        releaseTimesEqual(state.phaseStartedAtS, state.openingStartedAtS) &&
+        state.openingCompletedAtS === null && hasNoClosingHistory &&
+        state.releaseDurationS === 0 && !state.formedRelease && !state.quickToggle;
+    case 'open':
+      return state.purpose === 'zeroing' && state.attemptId > 0 &&
+        state.openingStartedAtS !== null && state.openingCompletedAtS !== null &&
+        releaseTimesEqual(state.phaseStartedAtS, state.openingCompletedAtS) &&
+        hasNoClosingHistory && state.releaseDurationS === 0 &&
+        !state.formedRelease && !state.quickToggle;
+    case 'releasing':
+      return state.purpose === 'release' && state.attemptId > 0 &&
+        state.openingStartedAtS !== null && state.openingCompletedAtS !== null &&
+        releaseTimesEqual(state.phaseStartedAtS, state.openingCompletedAtS) &&
+        hasNoClosingHistory && state.formedRelease && !state.quickToggle;
+    case 'closing': {
+      if (
+        state.purpose === 'none' || state.attemptId <= 0 || state.openingStartedAtS === null ||
+        state.closeCommandAtS === null || state.closingCompletedAtS !== null ||
+        !releaseTimesEqual(state.phaseStartedAtS, state.closeCommandAtS)
+      ) return false;
+      if (state.openingCompletedAtS === null) {
+        return state.quickToggle && !state.formedRelease && state.releaseDurationS === 0;
+      }
+      return !state.quickToggle &&
+        state.formedRelease === (state.purpose === 'release') &&
+        (state.formedRelease ? releaseDurationMatches(state) : state.releaseDurationS === 0);
+    }
+    case 'closedAfterRelease':
+      return state.purpose === 'release' && state.attemptId > 0 &&
+        state.openingStartedAtS !== null && state.openingCompletedAtS !== null &&
+        state.closeCommandAtS !== null && state.closingCompletedAtS !== null &&
+        releaseTimesEqual(state.phaseStartedAtS, state.closingCompletedAtS) &&
+        state.formedRelease && !state.quickToggle && releaseDurationMatches(state);
+  }
+};
+
 export const normalizeHeatCapacityReleaseState = (
   value: unknown,
   fallback = createClosedHeatCapacityReleaseState(),
@@ -214,7 +310,7 @@ export const normalizeHeatCapacityReleaseState = (
   const nullableTime = (entry: unknown) => (
     typeof entry === 'number' && Number.isFinite(entry) && entry >= 0 ? entry : null
   );
-  return {
+  const normalized: HeatCapacityReleaseState = {
     phase,
     purpose,
     attemptId: typeof candidate.attemptId === 'number' && Number.isInteger(candidate.attemptId) && candidate.attemptId >= 0
@@ -233,6 +329,7 @@ export const normalizeHeatCapacityReleaseState = (
     formedRelease: candidate.formedRelease === true,
     quickToggle: candidate.quickToggle === true,
   };
+  return isHeatCapacityReleaseStateSemanticallyValid(normalized) ? normalized : fallback;
 };
 
 export interface HeatCapacityReleaseGasState {

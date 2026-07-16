@@ -3,10 +3,35 @@ import type { AudioBusId, AudioSettings } from './audioTypes.ts';
 
 const BUS_IDS: readonly AudioBusId[] = ['ui', 'experiment', 'ambient'];
 
-const setSmoothGain = (parameter: AudioParam, value: number, context: AudioContext, rampMs: number) => {
+export const setSmoothAudioParam = (
+  parameter: AudioParam,
+  value: number,
+  context: BaseAudioContext,
+  rampMs: number,
+) => {
   const now = context.currentTime;
-  parameter.cancelAndHoldAtTime(now);
-  parameter.linearRampToValueAtTime(value, now + Math.max(0, rampMs) / 1000);
+  const targetAt = now + Math.max(0, rampMs) / 1000;
+  try {
+    parameter.cancelAndHoldAtTime(now);
+    parameter.linearRampToValueAtTime(value, targetAt);
+    return true;
+  } catch {
+    // Older or recovering audio drivers may not support cancelAndHoldAtTime reliably.
+  }
+  try {
+    parameter.cancelScheduledValues(now);
+    parameter.setValueAtTime(parameter.value, now);
+    parameter.linearRampToValueAtTime(value, targetAt);
+    return true;
+  } catch {
+    // Fall through to the immediate AudioParam value setter.
+  }
+  try {
+    parameter.value = value;
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 export class AudioBusGraph {
@@ -45,7 +70,7 @@ export class AudioBusGraph {
   }
 
   applySettings(settings: AudioSettings, rampMs = AUDIO_MASTER_GAIN_RAMP_MS) {
-    setSmoothGain(
+    return setSmoothAudioParam(
       this.masterGain.gain,
       settings.enabled ? settings.volume : 0,
       this.context,
@@ -54,9 +79,23 @@ export class AudioBusGraph {
   }
 
   destroy() {
-    for (const bus of this.buses.values()) bus.disconnect();
+    for (const bus of this.buses.values()) {
+      try {
+        bus.disconnect();
+      } catch {
+        // A browser audio driver may already have detached this node.
+      }
+    }
     this.buses.clear();
-    this.masterGain.disconnect();
-    this.limiter.disconnect();
+    try {
+      this.masterGain.disconnect();
+    } catch {
+      // Teardown must continue to the limiter and AudioContext.
+    }
+    try {
+      this.limiter.disconnect();
+    } catch {
+      // Teardown is best-effort after the graph has been detached from the engine.
+    }
   }
 }

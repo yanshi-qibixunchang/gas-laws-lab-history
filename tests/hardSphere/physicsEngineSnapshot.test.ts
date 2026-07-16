@@ -43,4 +43,46 @@ assert.deepEqual(restored.getStats(), engine.getStats());
 restored.step();
 assert.ok(restored.time > snapshot.time, 'restored engine should continue from the snapshot time');
 
+assert.throws(
+  () => new PhysicsEngine({ ...params, N: 100_000_000 }),
+  /N must be 1000 or less/,
+  'invalid particle counts must fail before the engine allocates particles',
+);
+assert.throws(
+  () => PhysicsEngine.fromSnapshot({
+    ...snapshot,
+    params: { ...snapshot.params, N: 100_000_000 },
+  }),
+  /N must be 1000 or less/,
+  'snapshot parameters must be bounded before restore allocates a replacement engine',
+);
+assert.throws(
+  () => PhysicsEngine.fromSnapshot({
+    ...snapshot,
+    collectedSpeeds: Array.from({ length: 2001 }, () => 0),
+  }),
+  /resource bounds/,
+  'snapshot collections must be bounded before they are cloned into the engine',
+);
+
+const coincidentEngine = new PhysicsEngine({ ...params, nu: 0 });
+coincidentEngine.particles[1] = { ...coincidentEngine.particles[0]! };
+coincidentEngine.step();
+assert.equal(
+  coincidentEngine.particles.every((particle) => (
+    [
+      particle.x,
+      particle.y,
+      particle.z,
+      particle.vx,
+      particle.vy,
+      particle.vz,
+      particle.speed,
+      particle.energy,
+    ].every(Number.isFinite)
+  )),
+  true,
+  'a defensive collision normal must keep coincident runtime particles finite',
+);
+
 console.log('physicsEngineSnapshot tests passed');

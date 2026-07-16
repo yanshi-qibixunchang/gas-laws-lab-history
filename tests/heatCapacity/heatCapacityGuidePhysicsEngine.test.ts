@@ -124,6 +124,21 @@ assert.equal(
 
 const beforeRelease = fastPumping;
 const pressureBeforeRelease = deriveGuidePhysicalState(beforeRelease, config).gasPressureKPa;
+const releaseBoundary = stepGuidePhysicsState(beforeRelease, config, {
+  powerOn: true,
+  pumpValveOpen: false,
+  stopcockOpen: true,
+  stopcockFlowPurpose: 'release',
+  dtS: 0,
+});
+assert.equal(releaseBoundary.simulationTimeS, beforeRelease.simulationTimeS);
+assert.equal(releaseBoundary.lastStopcockOpenedAtS, beforeRelease.simulationTimeS);
+assert.equal(releaseBoundary.releaseStarted, true);
+assert.notEqual(
+  releaseBoundary.releaseReference,
+  null,
+  'a zero-duration opening boundary must materialize the authoritative release reference',
+);
 const afterRelease = stepGuidePhysicsState(beforeRelease, config, {
   powerOn: true,
   pumpValveOpen: false,

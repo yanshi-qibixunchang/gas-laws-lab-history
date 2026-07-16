@@ -1,6 +1,9 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import {
+  useHeatCapacityGuardedFrame,
+  useHeatCapacityRuntimeFailureReporter,
+} from './heatCapacityRuntimeGuard.ts';
 import {
   HEAT_CAPACITY_HARD_SPHERE_IDLE_RELEASE_TIMELINE,
   clampNumber,
@@ -85,6 +88,7 @@ interface HeatCapacityHardSphereLayerProps {
   initialVisualCheckpoint?: HeatCapacityHardSphereVisualCheckpoint | null;
   restoreVisualCheckpoint?: HeatCapacityHardSphereVisualCheckpoint | null;
   restoreVisualCheckpointKey?: number | null;
+  onVisualRestoreComplete?: (restoreKey: number) => void;
   onCheckpointProviderChange?: (provider: HeatCapacityHardSphereCheckpointProvider | null) => void;
 }
 
@@ -398,7 +402,6 @@ const applyVisualMaterial = (
     particleColors.opacityBase,
     particleColors.opacityBase + particleColors.opacityScale,
   );
-  material.needsUpdate = true;
 };
 
 const getParticleColor = (
@@ -563,13 +566,17 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
   initialVisualCheckpoint = null,
   restoreVisualCheckpoint = null,
   restoreVisualCheckpointKey = null,
+  onVisualRestoreComplete,
   onCheckpointProviderChange,
 }) => {
+  const reportRuntimeFailure = useHeatCapacityRuntimeFailureReporter();
   const hardSphereProfile = hardSphereContainerProfiles[containerProfile];
-  const restoredInitialCheckpoint = normalizeHeatCapacityHardSphereVisualCheckpoint(
-    initialVisualCheckpoint,
-    containerProfile,
-  );
+  const [restoredInitialCheckpoint] = useState(() => (
+    normalizeHeatCapacityHardSphereVisualCheckpoint(
+      initialVisualCheckpoint,
+      containerProfile,
+    )
+  ));
   const resetSignature = `${enabled}:${containerProfile}:${particleMultiplier}:${visualResetKey}`;
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const visualStateRef = useRef<HeatCapacityHardSphereVisualState | null>(null);
@@ -588,15 +595,17 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
   const kineticSpeedStateRef = useRef<HeatCapacityHardSphereKineticSpeedState | null>(
     restoredInitialCheckpoint?.kineticSpeedState ? { ...restoredInitialCheckpoint.kineticSpeedState } : null,
   );
-  const simulationRef = useRef<HeatCapacityHardSphereSimulation>(
+  const [initialSimulation] = useState(() => (
     createSimulationFromCheckpoint(
       hardSphereProfile.container,
       hardSphereProfile.particleRadius,
       restoredInitialCheckpoint,
-    ),
-  );
+    )
+  ));
+  const simulationRef = useRef<HeatCapacityHardSphereSimulation>(initialSimulation);
   const lastResetSignatureRef = useRef<string | null>(restoredInitialCheckpoint ? resetSignature : null);
   const lastRestoreVisualCheckpointKeyRef = useRef<number | null>(null);
+  const runtimeFailedRef = useRef(false);
   const particleGeometry = useMemo(() => new THREE.SphereGeometry(1, 16, 16), []);
   const particleColors = useMemo(() => createParticleColors(sceneTheme), [sceneTheme]);
   const particleMaterial = useMemo(() => new THREE.MeshStandardMaterial({
@@ -749,12 +758,14 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
       displayVisualState,
       sceneTheme,
     );
+    onVisualRestoreComplete?.(restoreVisualCheckpointKey);
   }, [
     containerProfile,
     enabled,
     hardSphereProfile,
     particleColors,
     particleMaterial,
+    onVisualRestoreComplete,
     resetSignature,
     restoreVisualCheckpoint,
     restoreVisualCheckpointKey,
@@ -762,9 +773,11 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
     visualState,
   ]);
 
-  useFrame((_, delta) => {
+  useHeatCapacityGuardedFrame((_, delta) => {
     if (!enabled) return;
     if (paused) return;
+    if (runtimeFailedRef.current) return;
+    try {
     const mesh = meshRef.current;
     const currentVisual = visualStateRef.current;
     if (!mesh || !currentVisual) return;
@@ -872,6 +885,10 @@ const HeatCapacityHardSphereLayer: React.FC<HeatCapacityHardSphereLayerProps> = 
       displayVisualState,
       sceneTheme,
     );
+    } catch (error) {
+      runtimeFailedRef.current = true;
+      reportRuntimeFailure(error);
+    }
   });
 
   if (!enabled) return null;

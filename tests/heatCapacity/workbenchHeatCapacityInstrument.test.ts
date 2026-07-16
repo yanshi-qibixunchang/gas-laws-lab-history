@@ -599,6 +599,7 @@ assert.equal(
 const guideModeReset = startHeatCapacityGuideWorkbenchState(defaultFile, 0);
 assert.equal(guideModeReset.heatCapacityGuideTrial?.source, 'guide');
 assert.equal(guideModeReset.heatCapacityGuideWorkflow.step, 'powerRequired');
+assert.equal(guideModeReset.runState, 'idle', 'a fresh Guide session should remain idle until the allowed power-on action');
 const guideModeStep = stepHeatCapacityWorkbenchFile({
   ...guideModeReset,
   powerOn: true,
@@ -650,11 +651,10 @@ assert.equal(
   true,
   'Free power-on should create a hidden trace event',
 );
-const freePumpReady = {
-  ...freePowered,
-  pumpValveOpen: true,
-  pumpValveState: 'open' as const,
-};
+const freePumpReady = setHeatCapacityFreePumpValveOpen(freePowered, true, 1_100);
+assert.equal(freePumpReady.heatCapacityFreePhysicsState.lastPumpValveOpenedAtS, 0.1);
+assert.equal(freePumpReady.heatCapacityFreePhysicsState.lastPumpValveClosedAtS, null);
+assert.equal(freePumpReady.heatCapacityFreePhysicsState.currentPumpValveOpenDurationS, 0);
 const freePumped = registerHeatCapacityPumpStroke(freePumpReady, 1_200);
 assert.equal(
   getFreeTraceEventTypes(freePumped).includes('pump-stroke'),
@@ -663,6 +663,14 @@ assert.equal(
 );
 assert.equal(freePumped.heatCapacityFreePhysicsState.lastPumpStrokeAtS, 0.2);
 assert.equal(freePumped.pumpFrequencyStatus, 'tooSlow');
+assert.equal(freePumped.heatCapacityFreeRollbackSnapshots.beforePump?.powerOn, true);
+assert.equal(freePumped.heatCapacityFreeRollbackSnapshots.beforePump?.pumpValveOpen, true);
+assert.equal(freePumped.heatCapacityFreeRollbackSnapshots.beforePump?.pumpStrokeCount, 0);
+assert.equal(
+  freePumped.heatCapacityFreeRollbackSnapshots.beforePump?.heatCapacityFreePhysicsState.pumpStrokeCount,
+  0,
+  'the first accepted Free pump stroke must capture the actual pre-stroke physical state',
+);
 const migratedFreeSamplingFile = stepHeatCapacityWorkbenchFile({
   ...freePowered,
   heatCapacityFreeSensorConfig: {
@@ -1540,6 +1548,7 @@ assert.equal(isHeatCapacityPressureZeroWithinTolerance([
 
 const poweredBeforePreheat = powerHeatCapacityWorkbenchFile(startHeatCapacityGuideWorkbenchState(defaultFile, 900), true, 1_000);
 assert.equal(poweredBeforePreheat.heatCapacityGuideWorkflow.step, 'preheatRequired');
+assert.equal(poweredBeforePreheat.runState, 'running', 'an allowed Guide power-on action should start the canonical runtime clock');
 const poweredFile = completeHeatCapacityGuidePreheatWorkbenchState(poweredBeforePreheat, 1_001);
 assert.equal(poweredFile.powerOn, true);
 assert.equal(poweredFile.heatCapacityMode, 'guide');
@@ -1547,6 +1556,7 @@ assert.equal(poweredFile.heatCapacityExperimentProfile, null);
 assert.equal(poweredFile.heatCapacityGuideTrial?.source, 'guide');
 assert.deepEqual(poweredFile.heatCapacityFreeTrials, []);
 assert.equal(poweredFile.heatCapacityGuideWorkflow.step, 'openStopcockForZeroRequired');
+assert.equal(poweredFile.runState, 'running', 'Guide runtime should remain running after preheat completes');
 assert.equal(poweredFile.heatCapacityPhase, 'readyToZero');
 assert.equal(
   poweredFile.temperatureSignalMv,
@@ -1560,6 +1570,17 @@ assert.equal(
   truncateHeatCapacitySignalMv(DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient),
 );
 assert.equal(poweredFile.pressureSignalTargetMv, poweredFile.pressureInitialBiasMv);
+const completedGuidePowerOff = powerHeatCapacityWorkbenchFile({
+  ...poweredFile,
+  heatCapacityGuideWorkflow: {
+    ...poweredFile.heatCapacityGuideWorkflow,
+    step: 'closePowerRequired',
+  },
+}, false, 1_002);
+assert.equal(completedGuidePowerOff.heatCapacityGuideWorkflow.step, 'completed');
+assert.equal(completedGuidePowerOff.heatCapacityTeachingStatus, 'completed');
+assert.equal(completedGuidePowerOff.powerOn, false);
+assert.equal(completedGuidePowerOff.runState, 'idle', 'the final allowed Guide power-off action should stop the runtime clock');
 const guideDisplayWithStaleFreeSignals = selectActiveHeatCapacityWorkbenchDisplay({
   ...poweredFile,
   heatCapacityFreeSensorState: {
@@ -2537,6 +2558,8 @@ const restored = decodeWorkbenchSession({
       ...defaultFile.heatCapacityReleaseState,
       phase: 'open',
       purpose: 'zeroing',
+      attemptId: 1,
+      phaseStartedAtS: 0,
       openingStartedAtS: 0,
       openingCompletedAtS: 0,
     },

@@ -160,7 +160,11 @@ export const createHeatCapacityPersistencePayload = (
         pumpValveOpen: fileWithCurrentDomain.pumpValveOpen,
         stopcockOpen: fileWithCurrentDomain.glassPistonState === 'open',
         pumpBulbState: fileWithCurrentDomain.pumpBulbState,
-        releaseState: clonePersistenceValue(fileWithCurrentDomain.heatCapacityReleaseState),
+        releaseState: clonePersistenceValue(
+          file.heatCapacityMode === 'free'
+            ? fileWithCurrentDomain.heatCapacityReleaseState
+            : file.heatCapacityReleaseState,
+        ),
       },
       sensor: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeSensorState),
       calibration: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeCalibrationState),
@@ -247,8 +251,9 @@ const createHeatCapacityPersistenceSourceFile = (
   file: WorkbenchHeatCapacityState,
 ): WorkbenchHeatCapacityState => {
   // Boundary rule: real/ideal domains are the durable stores; top-level fields are
-  // only the active runtime projection. If that projection is visibly polluted by
-  // ideal thermal settings, rebuild it from the active domain before persisting.
+  // only the active runtime projection. Outside Free mode the shared release state
+  // belongs to Guide/Demo, so preserve the Free-owned release state from its domain
+  // while retaining the top-level Free history/config projection.
   const normalizedRealDomain = normalizeHeatCapacityFreeExperimentDomainBoundary(
     file.heatCapacityFreeRealDomain,
     'real',
@@ -265,8 +270,13 @@ const createHeatCapacityPersistenceSourceFile = (
   const activeDomain = file.heatCapacityFreeParameterScheme === 'ideal'
     ? normalizedIdealDomain
     : normalizedRealDomain;
-  const useDomainAsActiveSource =
-    file.heatCapacityFreeParameterScheme === 'real' &&
+  const persistenceProjectionFile = file.heatCapacityMode === 'free'
+    ? fileWithBoundaryDomains
+    : {
+        ...fileWithBoundaryDomains,
+        heatCapacityReleaseState: { ...activeDomain.releaseState },
+      };
+  const useDomainAsActiveSource = file.heatCapacityFreeParameterScheme === 'real' &&
     hasHeatCapacityFreeIdealThermalBoundaryContamination(file.heatCapacityFreePhysicsConfig);
   const synchronizedFile = useDomainAsActiveSource
     ? {
@@ -274,7 +284,7 @@ const createHeatCapacityPersistenceSourceFile = (
         ...createRuntimeFieldsFromRestoredFreeDomain(activeDomain),
       }
     : storeHeatCapacityFreeRuntimeFieldsInDomain(
-        fileWithBoundaryDomains,
+        persistenceProjectionFile,
         file.heatCapacityFreeParameterScheme,
       );
 
@@ -396,7 +406,7 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     : fallback.liveWorkspaceSplitRatio;
   const restoredFreeTrials = Array.isArray(free?.trials)
     ? free!.trials
-        .map(normalizeHeatCapacityFreeRestoreTrial)
+        .map((trial) => normalizeHeatCapacityFreeRestoreTrial(trial))
         .filter((trial): trial is HeatCapacityFreeTrial => trial !== null)
     : fallback.heatCapacityFreeTrials;
   const restoredParameterScheme = normalizeHeatCapacityFreeRestoreParameterScheme(

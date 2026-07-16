@@ -27,6 +27,9 @@ import {
   normalizeHeatCapacityFreeRecordInput,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
+  getFreeCorrectedSignals,
+} from '../../src/domain/heatCapacity/heatCapacityFreeCalibrationModel.ts';
+import {
   createHeatCapacityFreeAttempt,
 } from '../../src/domain/heatCapacity/heatCapacityFreeAttemptModel.ts';
 import {
@@ -394,8 +397,16 @@ assert.equal(
 assert.equal(restoredGuidePersistenceFile.heatCapacityGuideTrial?.id, 'guide-persistence-trial');
 
 const validation = validateHeatCapacityPersistencePayload(payload);
+assert.equal(payload.mode, 'free');
+assert.equal(payload.guided, null, 'a canonical Free payload should not synthesize a duplicate Guide runtime');
 assert.deepEqual(validation.errors, []);
 assert.equal(validation.valid, true);
+assert.equal(
+  validateHeatCapacityPersistencePayload({ ...payload, mode: 'guide' }).errors
+    .includes('guided payload is required for guide mode'),
+  true,
+);
+assert.deepEqual(validateHeatCapacityPersistencePayload(guidePersistencePayload).errors, []);
 assert.deepEqual(
   validateHeatCapacityPersistencePayload(null),
   { valid: false, errors: ['payload must be an object'] },
@@ -535,11 +546,28 @@ const recordedPayloadRestored = restoreHeatCapacityFileFromPersistencePayload({
   layout: {},
   payload: recordedPayload as unknown as Record<string, unknown>,
 }, recordedPayload, 2);
-assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].completedAtMs, 12_345);
+assert.equal(
+  recordedPayloadRestored.heatCapacityFreeTrials[0].completedAtMs,
+  null,
+  'restore must not preserve a finalized timestamp without a matching standard reference snapshot',
+);
 assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].parameterScheme, 'real');
 assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].preheatOutcome, 'completed');
 assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].correctedSignals?.u0Source, 'recorded');
-assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].correctedSignals?.formulaGamma, 1.39);
+const expectedRecordedFormulaGamma = Number(getFreeCorrectedSignals({
+  U0DisplayMv: recordedTrial.u0.displayPressureMv,
+  U1DisplayMv: recordedTrial.u1.displayPressureMv,
+  U2DisplayMv: recordedTrial.u2.displayPressureMv,
+}).gamma.toFixed(6));
+assert.equal(
+  recordedPayloadRestored.heatCapacityFreeTrials[0].correctedSignals?.formulaGamma,
+  expectedRecordedFormulaGamma,
+  'restore must recompute the formula result from the normalized records instead of trusting stale cached inputs',
+);
+assert.equal(
+  recordedPayloadRestored.heatCapacityFreeTrials[0].correctedSignals?.gamma,
+  expectedRecordedFormulaGamma,
+);
 assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].correctedSignals?.preheatBiasGamma, 0);
 
 const assumedZeroPayload = structuredClone(recordedPayload);

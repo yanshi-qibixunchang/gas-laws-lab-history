@@ -9,6 +9,7 @@ import {
   createClosedHeatCapacityReleaseState,
   getHeatCapacityReleaseDurationS,
   getHeatCapacityReleaseNextTransitionAtS,
+  isHeatCapacityReleaseStateSemanticallyValid,
   isHeatCapacityMainReleaseFlowOpen,
   isHeatCapacityReleaseFlowOpen,
 } from '../../src/domain/heatCapacity/heatCapacityReleaseModel.ts';
@@ -26,7 +27,9 @@ assert.deepEqual(HEAT_CAPACITY_RELEASE_TIMING, {
 });
 
 const closed = createClosedHeatCapacityReleaseState(5);
+assert.equal(isHeatCapacityReleaseStateSemanticallyValid(closed), true);
 const opening = beginHeatCapacityReleaseOpening(closed, 'release', 5);
+assert.equal(isHeatCapacityReleaseStateSemanticallyValid(opening), true);
 assert.equal(opening.phase, 'opening');
 assert.equal(isHeatCapacityReleaseFlowOpen(opening), false);
 assert.equal(isHeatCapacityMainReleaseFlowOpen(opening), false);
@@ -41,6 +44,7 @@ assert.equal(almostOpen.state.phase, 'opening');
 assert.deepEqual(almostOpen.transitions, []);
 
 const opened = advanceHeatCapacityReleaseState(opening, 5 + openingDurationS);
+assert.equal(isHeatCapacityReleaseStateSemanticallyValid(opened.state), true);
 assert.equal(opened.state.phase, 'releasing');
 assert.equal(opened.state.openingCompletedAtS, 5 + openingDurationS);
 assert.equal(isHeatCapacityMainReleaseFlowOpen(opened.state), true);
@@ -48,6 +52,7 @@ assert.equal(getHeatCapacityReleaseDurationS(opened.state, 5 + openingDurationS)
 
 const normalCloseAtS = 5 + openingDurationS + HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS;
 const closing = beginHeatCapacityReleaseClosing(opened.state, normalCloseAtS);
+assert.equal(isHeatCapacityReleaseStateSemanticallyValid(closing), true);
 assert.equal(closing.phase, 'closing');
 assert.equal(isHeatCapacityReleaseFlowOpen(closing), false, 'the close command must stop flow immediately');
 assert.equal(closing.formedRelease, true);
@@ -68,6 +73,7 @@ const closedAfterRelease = advanceHeatCapacityReleaseState(
   closing,
   normalCloseAtS + closingDurationS,
 ).state;
+assert.equal(isHeatCapacityReleaseStateSemanticallyValid(closedAfterRelease), true);
 assert.equal(closedAfterRelease.phase, 'closedAfterRelease');
 assert.equal(
   Math.abs(closedAfterRelease.releaseDurationS - HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS) < 1e-9,
@@ -83,6 +89,7 @@ const quickClose = beginHeatCapacityReleaseClosing(
   quickOpening,
   20 + openingDurationS / 2,
 );
+assert.equal(isHeatCapacityReleaseStateSemanticallyValid(quickClose), true);
 assert.equal(quickClose.phase, 'closing');
 assert.equal(quickClose.quickToggle, true);
 assert.equal(quickClose.formedRelease, false);
@@ -94,6 +101,7 @@ const quickClosed = advanceHeatCapacityReleaseState(
   quickClose,
   20 + openingDurationS / 2 + closingDurationS,
 ).state;
+assert.equal(isHeatCapacityReleaseStateSemanticallyValid(quickClosed), true);
 assert.equal(quickClosed.phase, 'closed');
 const retryOpening = beginHeatCapacityReleaseOpening(quickClosed, 'release', 22);
 assert.equal(retryOpening.phase, 'opening');
@@ -119,9 +127,26 @@ const zeroingOpening = beginHeatCapacityReleaseOpening(
   0,
 );
 const zeroingOpen = advanceHeatCapacityReleaseState(zeroingOpening, openingDurationS).state;
+assert.equal(isHeatCapacityReleaseStateSemanticallyValid(zeroingOpen), true);
 assert.equal(zeroingOpen.phase, 'open');
 assert.equal(isHeatCapacityReleaseFlowOpen(zeroingOpen), true);
 assert.equal(isHeatCapacityMainReleaseFlowOpen(zeroingOpen), false);
 assert.equal(zeroingOpen.formedRelease, false);
+
+assert.equal(isHeatCapacityReleaseStateSemanticallyValid({
+  ...opening,
+  purpose: 'none',
+  openingStartedAtS: null,
+}), false, 'an opening state without an active purpose or start time must be rejected');
+assert.equal(isHeatCapacityReleaseStateSemanticallyValid({
+  ...opened.state,
+  purpose: 'zeroing',
+  formedRelease: false,
+  openingCompletedAtS: null,
+}), false, 'a releasing state must carry a completed physical release');
+assert.equal(isHeatCapacityReleaseStateSemanticallyValid({
+  ...closedAfterRelease,
+  formedRelease: false,
+}), false, 'closedAfterRelease must preserve proof that a release formed');
 
 console.log('heatCapacityReleaseModel tests passed');

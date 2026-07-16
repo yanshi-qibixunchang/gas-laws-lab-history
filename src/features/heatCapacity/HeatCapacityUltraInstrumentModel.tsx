@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useThree, type ThreeEvent } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import {
@@ -32,6 +32,16 @@ import {
   createHeatCapacityControlInteractionId,
   type HeatCapacityControlInteractionId,
 } from './heatCapacityControlInteraction.ts';
+import {
+  useHeatCapacityGuardedFrame,
+  useHeatCapacityRuntimeFailureReporter,
+} from './heatCapacityRuntimeGuard.ts';
+import {
+  cloneHeatCapacityUltraModelScene,
+  disposeHeatCapacityUltraOwnedModelResources,
+  hasHeatCapacityUltraSingleRelativePositionAndNormalMorph,
+  specializeHeatCapacityUltraSingleMorphMaterial,
+} from './heatCapacityUltraResourceOwnership.ts';
 
 type UltraPointerControl = 'powerSwitch' | 'pressureZero' | 'stopcock' | 'pumpValve' | 'pumpBulb';
 type UltraHoveredControl = UltraPointerControl | null;
@@ -102,6 +112,8 @@ export type HeatCapacityUltraVisualState = {
 
 type HeatCapacityUltraInstrumentModelProps = {
   sourceScene: THREE.Object3D;
+  gestureScopeKey: string;
+  guideProjectionEnabled: boolean;
   powerOn: boolean;
   sceneTheme: 'dark' | 'light';
   stopcockAngleDeg: number;
@@ -155,10 +167,14 @@ type HeatCapacityUltraInstrumentModelProps = {
   onPumpBulbPress: () => void;
   onFocus: (mode: UltraFocusMode) => void;
   initialVisualState?: HeatCapacityUltraVisualState | null;
+  restoreVisualState?: HeatCapacityUltraVisualState | null;
+  restoreVisualStateKey?: number | null;
+  onVisualRestoreComplete?: (restoreKey: number) => void;
   onVisualStateChange?: (state: HeatCapacityUltraVisualState) => void;
   initialHardSphereVisualCheckpoint?: HeatCapacityHardSphereVisualCheckpoint | null;
   restoreHardSphereVisualCheckpoint?: HeatCapacityHardSphereVisualCheckpoint | null;
   restoreHardSphereVisualCheckpointKey?: number | null;
+  onHardSphereVisualRestoreComplete?: (restoreKey: number) => void;
   onHardSphereCheckpointProviderChange?: (provider: HeatCapacityHardSphereCheckpointProvider | null) => void;
   onDiscreteMotionChange?: (active: boolean) => void;
   restorePaused?: boolean;
@@ -178,6 +194,13 @@ export function HeatCapacityUltraInstrumentAsset(props: {
   children: (sourceScene: THREE.Object3D) => React.ReactNode;
 }) {
   const gltf = useGLTF(ULTRA_GLB_PATH);
+  const missingNodeNames = useMemo(() => {
+    const nodeMap = collectNodes(gltf.scene);
+    return REQUIRED_ULTRA_NODE_NAMES.filter((nodeName) => !nodeMap.has(nodeName));
+  }, [gltf.scene]);
+  if (missingNodeNames.length > 0) {
+    throw new Error(`Ultra GLB is missing required nodes: ${missingNodeNames.join(', ')}`);
+  }
   return <>{props.children(gltf.scene)}</>;
 }
 const REQUIRED_ULTRA_NODE_NAMES = [
@@ -1162,23 +1185,6 @@ export const normalizeHeatCapacityUltraVisualState = (
   };
 };
 
-const cloneModelScene = (sourceScene: THREE.Object3D) => {
-  const clonedScene = sourceScene.clone(true);
-  clonedScene.traverse((object) => {
-    const mesh = object as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    mesh.castShadow = false;
-    mesh.receiveShadow = true;
-    mesh.raycast = () => undefined;
-    if (Array.isArray(mesh.material)) {
-      mesh.material = mesh.material.map((material) => material.clone());
-    } else if (mesh.material) {
-      mesh.material = mesh.material.clone();
-    }
-  });
-  return clonedScene;
-};
-
 const applyUltraMainDisplayLayout = (modelRoot: THREE.Object3D) => {
   const nodeMap = collectNodes(modelRoot);
   const instrumentRoot = nodeMap.get('FD_NCD_C_InstrumentBody');
@@ -1744,6 +1750,7 @@ const applyUltraDisplayTexture = (
       mesh.material = displayMaterial;
     });
   });
+  return displayMaterial;
 };
 
 const absorbUltraPointerEvent = (event: ThreeEvent<PointerEvent | MouseEvent | WheelEvent>) => {
@@ -1915,12 +1922,11 @@ function UltraNodeHitbox({
   const anchorScaleRef = useRef(new THREE.Vector3());
   const anchor = nodeMap.get(definition.anchorNodeName);
 
-  useFrame(() => {
+  useHeatCapacityGuardedFrame(() => {
     const group = groupRef.current;
     const parent = parentRef.current;
     if (!group || !parent || !anchor) return;
-    parent.updateMatrixWorld(true);
-    anchor.updateMatrixWorld(true);
+    anchor.updateWorldMatrix(true, false);
     parentInverseMatrixRef.current.copy(parent.matrixWorld).invert();
     localMatrixRef.current.copy(anchor.matrixWorld);
     localMatrixRef.current.decompose(
@@ -1972,12 +1978,11 @@ function UltraInstrumentFocusHitbox({
   const anchorScaleRef = useRef(new THREE.Vector3());
   const anchor = nodeMap.get(ULTRA_INSTRUMENT_FOCUS_HITBOX.anchorNodeName);
 
-  useFrame(() => {
+  useHeatCapacityGuardedFrame(() => {
     const group = groupRef.current;
     const parent = parentRef.current;
     if (!group || !parent || !anchor) return;
-    parent.updateMatrixWorld(true);
-    anchor.updateMatrixWorld(true);
+    anchor.updateWorldMatrix(true, false);
     parentInverseMatrixRef.current.copy(parent.matrixWorld).invert();
     localMatrixRef.current.copy(anchor.matrixWorld);
     localMatrixRef.current.decompose(
@@ -2029,14 +2034,22 @@ type UltraFocusShellMeshEntry = {
   key: string;
   geometry: THREE.BufferGeometry;
   matrix: THREE.Matrix4;
+  sourceMesh: THREE.Mesh;
 };
 
 const getUltraFocusShellBlending = (effects: UltraVisualEffects) => (
   effects.focusShellBlendMode === 'normal' ? THREE.NormalBlending : THREE.AdditiveBlending
 );
 
-const initializeUltraFocusShellMeshMorphTargets = (mesh: THREE.Mesh) => {
+const initializeUltraFocusShellMeshMorphTargets = (
+  mesh: THREE.Mesh,
+  sourceMesh: THREE.Mesh,
+) => {
   mesh.updateMorphTargets();
+  const sourceInfluences = sourceMesh.morphTargetInfluences;
+  if (sourceInfluences && mesh.morphTargetInfluences?.length === sourceInfluences.length) {
+    mesh.morphTargetInfluences = sourceInfluences;
+  }
 };
 
 const collectUltraFocusShellMeshes = (
@@ -2062,6 +2075,7 @@ const collectUltraFocusShellMeshes = (
         key: `${target.id}-${nodeName}-${entries.length}`,
         geometry: mesh.geometry,
         matrix: new THREE.Matrix4().multiplyMatrices(anchorInverseMatrix, mesh.matrixWorld),
+        sourceMesh: mesh,
       });
     });
   });
@@ -2107,13 +2121,12 @@ function UltraPumpValveEmbeddedSwitch({
   const anchorNodeName = 'HSL_BallValve_Body';
   const anchor = nodeMap.get(anchorNodeName);
 
-  useFrame(() => {
+  useHeatCapacityGuardedFrame(() => {
     const group = groupRef.current;
     const switchGroup = switchGroupRef.current;
     const parent = parentRef.current;
     if (!group || !switchGroup || !parent || !anchor) return;
-    parent.updateMatrixWorld(true);
-    anchor.updateMatrixWorld(true);
+    anchor.updateWorldMatrix(true, false);
     parentInverseMatrixRef.current.copy(parent.matrixWorld).invert();
     localMatrixRef.current.copy(anchor.matrixWorld);
     localMatrixRef.current.decompose(
@@ -2244,41 +2257,65 @@ function UltraNodeHalo({
     () => (anchor ? collectUltraFocusShellMeshes(target, nodeMap, anchor) : []),
     [anchor, nodeMap, target],
   );
-  const shellBreathMaterial = useMemo(() => new THREE.MeshBasicMaterial({
-    color: effects.focusShellColor,
-    transparent: true,
-    opacity: effects.focusShellBreathMinOpacity,
-    depthWrite: false,
-    depthTest: focusShellDepthTest,
-    side: shellSide,
-    blending: getUltraFocusShellBlending(effects),
-    polygonOffset: true,
-    polygonOffsetFactor: -4,
-    polygonOffsetUnits: -4,
-    toneMapped: false,
-  }), [
+  const focusShellUsesSingleMorphShader = useMemo(() => {
+    if (target.id !== 'pumpBulb') return false;
+    const morphEntries = focusShellMeshes.filter((entry) =>
+      Object.values(entry.geometry.morphAttributes).some(
+        (attributes) => (attributes?.length ?? 0) > 0,
+      ),
+    );
+    return morphEntries.length > 0 && morphEntries.every((entry) =>
+      hasHeatCapacityUltraSingleRelativePositionAndNormalMorph(entry.geometry));
+  }, [focusShellMeshes, target.id]);
+  const shellBreathMaterial = useMemo(() => {
+    const material = new THREE.MeshBasicMaterial({
+      color: effects.focusShellColor,
+      transparent: true,
+      opacity: effects.focusShellBreathMinOpacity,
+      depthWrite: false,
+      depthTest: focusShellDepthTest,
+      side: shellSide,
+      blending: getUltraFocusShellBlending(effects),
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4,
+      toneMapped: false,
+    });
+    if (focusShellUsesSingleMorphShader) {
+      specializeHeatCapacityUltraSingleMorphMaterial(material);
+    }
+    return material;
+  }, [
     effects.focusShellBlendMode,
     effects.focusShellBreathMinOpacity,
     effects.focusShellColor,
     focusShellDepthTest,
+    focusShellUsesSingleMorphShader,
     shellSide,
   ]);
-  const shellPulseMaterial = useMemo(() => new THREE.MeshBasicMaterial({
-    color: effects.focusShellRimColor,
-    transparent: true,
-    opacity: 0,
-    depthWrite: false,
-    depthTest: focusShellDepthTest,
-    side: shellSide,
-    blending: getUltraFocusShellBlending(effects),
-    polygonOffset: true,
-    polygonOffsetFactor: -8,
-    polygonOffsetUnits: -8,
-    toneMapped: false,
-  }), [
+  const shellPulseMaterial = useMemo(() => {
+    const material = new THREE.MeshBasicMaterial({
+      color: effects.focusShellRimColor,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      depthTest: focusShellDepthTest,
+      side: shellSide,
+      blending: getUltraFocusShellBlending(effects),
+      polygonOffset: true,
+      polygonOffsetFactor: -8,
+      polygonOffsetUnits: -8,
+      toneMapped: false,
+    });
+    if (focusShellUsesSingleMorphShader) {
+      specializeHeatCapacityUltraSingleMorphMaterial(material);
+    }
+    return material;
+  }, [
     effects.focusShellBlendMode,
     effects.focusShellRimColor,
     focusShellDepthTest,
+    focusShellUsesSingleMorphShader,
     shellSide,
   ]);
 
@@ -2291,12 +2328,11 @@ function UltraNodeHalo({
     focusPulseStartedAtRef.current = null;
   }, [focusMode, target.id]);
 
-  useFrame(({ clock }) => {
+  useHeatCapacityGuardedFrame(({ clock }) => {
     const group = groupRef.current;
     const parent = parentRef.current;
     if (!group || !parent || !anchor) return;
-    parent.updateMatrixWorld(true);
-    anchor.updateMatrixWorld(true);
+    anchor.updateWorldMatrix(true, false);
     parentInverseMatrixRef.current.copy(parent.matrixWorld).invert();
     localMatrixRef.current.copy(anchor.matrixWorld);
     localMatrixRef.current.decompose(
@@ -2379,7 +2415,7 @@ function UltraNodeHalo({
                 material={shellBreathMaterial}
                 renderOrder={24}
                 raycast={DISABLE_ULTRA_RAYCAST}
-                onUpdate={initializeUltraFocusShellMeshMorphTargets}
+                onUpdate={(mesh) => initializeUltraFocusShellMeshMorphTargets(mesh, entry.sourceMesh)}
               />
             ))}
           </group>
@@ -2394,7 +2430,7 @@ function UltraNodeHalo({
                 material={shellPulseMaterial}
                 renderOrder={25}
                 raycast={DISABLE_ULTRA_RAYCAST}
-                onUpdate={initializeUltraFocusShellMeshMorphTargets}
+                onUpdate={(mesh) => initializeUltraFocusShellMeshMorphTargets(mesh, entry.sourceMesh)}
               />
             ))}
           </group>
@@ -2542,12 +2578,11 @@ function UltraPowerSwitchSkirtedRocker({
     }
   }, [focused, focusPulseMaterial]);
 
-  useFrame(({ clock }) => {
+  useHeatCapacityGuardedFrame(({ clock }) => {
     const group = groupRef.current;
     const parent = parentRef.current;
     if (!group || !parent || !anchor) return;
-    parent.updateMatrixWorld(true);
-    anchor.updateMatrixWorld(true);
+    anchor.updateWorldMatrix(true, false);
     parentInverseMatrixRef.current.copy(parent.matrixWorld).invert();
     localMatrixRef.current.multiplyMatrices(parentInverseMatrixRef.current, anchor.matrixWorld);
     group.matrix.copy(localMatrixRef.current);
@@ -2611,6 +2646,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   const initialVisualState = normalizeHeatCapacityUltraVisualState(props.initialVisualState);
   const runtimeRootRef = useRef<THREE.Group | null>(null);
   const displayTextureRef = useRef<THREE.CanvasTexture | null>(null);
+  const displayMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
   const ultraMaterialHighlightSnapshotsRef = useRef(new Map<THREE.Material, UltraMaterialSnapshot>());
   const guideTargetHoleSignatureRef = useRef('');
   const pumpPulseRef = useRef(initialVisualState?.pumpPulseId ?? props.pumpPulseId);
@@ -2619,6 +2655,8 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   const initialPumpPulseRemainingSRef = useRef((initialVisualState?.pumpPulseRemainingMs ?? 0) / 1000);
   const pumpPulseClockInitializedRef = useRef(false);
   const discreteMotionActiveRef = useRef(false);
+  const runtimeFailedRef = useRef(false);
+  const handledVisualRestoreKeyRef = useRef<number | null>(null);
   const pressureZeroDragRef = useRef({
     startKnobAngle: props.pressureZeroKnobAngle,
     lastPointerAngle: 0,
@@ -2627,10 +2665,27 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     rejected: false,
     interactionId: null as HeatCapacityControlInteractionId | null,
   });
+  const latestPropsRef = useRef(props);
+  const activePressureZeroGestureCleanupRef = useRef<(() => void) | null>(null);
+  latestPropsRef.current = props;
   const pressureZeroWheelGestureRef = useRef(new HeatCapacityWheelGestureTracker());
   useEffect(() => {
     if (props.focusMode !== 'instrument') pressureZeroWheelGestureRef.current.reset();
   }, [props.focusMode]);
+  useEffect(() => {
+    if (
+      props.interactionLocked ||
+      props.focusMode !== 'instrument' ||
+      !props.pressureZeroInteractionEnabled
+    ) {
+      activePressureZeroGestureCleanupRef.current?.();
+    }
+  }, [props.focusMode, props.interactionLocked, props.pressureZeroInteractionEnabled]);
+  useEffect(
+    () => () => activePressureZeroGestureCleanupRef.current?.(),
+    [props.gestureScopeKey, props.sourceScene],
+  );
+  useEffect(() => () => activePressureZeroGestureCleanupRef.current?.(), []);
   const pendingUltraSingleClickRef = useRef<number | null>(null);
   const gaugeDisplayedRotationRef = useRef(initialVisualState?.gaugeNeedleRotationRad ?? PRESSURE_GAUGE_MIN_ROTATION);
   const stopcockDisplayedAngleRef = useRef(
@@ -2674,13 +2729,107 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     ),
   }));
 
-  const modelRoot = useMemo(() => {
-    const clonedScene = cloneModelScene(props.sourceScene);
-    applyUltraMainDisplayLayout(clonedScene);
-    return clonedScene;
+  const ownedModel = useMemo(() => {
+    const cloned = cloneHeatCapacityUltraModelScene(props.sourceScene);
+    applyUltraMainDisplayLayout(cloned.root);
+    return cloned;
   }, [props.sourceScene]);
+  const modelRoot = ownedModel.root;
   const nodeMap = useMemo(() => collectNodes(modelRoot), [modelRoot]);
   const baseTransforms = useMemo(() => collectBaseTransforms(nodeMap), [nodeMap]);
+  const reportSharedRuntimeFailure = useHeatCapacityRuntimeFailureReporter();
+  const reportRuntimeError = useCallback((error: unknown) => {
+    if (runtimeFailedRef.current) return;
+    runtimeFailedRef.current = true;
+    props.onDiscreteMotionChange?.(false);
+    reportSharedRuntimeFailure(error);
+  }, [props.onDiscreteMotionChange, reportSharedRuntimeFailure]);
+  const runRuntimeGuarded = useCallback((run: () => void) => {
+    if (runtimeFailedRef.current) return;
+    try {
+      run();
+    } catch (error) {
+      reportRuntimeError(error);
+    }
+  }, [reportRuntimeError]);
+
+  useEffect(() => () => {
+    disposeHeatCapacityUltraOwnedModelResources(ownedModel.ownedMaterials);
+  }, [ownedModel]);
+
+  useLayoutEffect(() => {
+    const restoreKey = props.restoreVisualStateKey;
+    const restored = normalizeHeatCapacityUltraVisualState(props.restoreVisualState);
+    if (restoreKey === null || restoreKey === undefined || !restored ||
+        handledVisualRestoreKeyRef.current === restoreKey) return;
+    handledVisualRestoreKeyRef.current = restoreKey;
+    gaugeDisplayedRotationRef.current = restored.gaugeNeedleRotationRad;
+    stopcockDisplayedAngleRef.current = restored.stopcockRotationRad;
+    pumpValveDisplayedAngleRef.current = restored.pumpValveRotationRad;
+    pressureZeroDisplayedAngleRef.current = restored.pressureZeroRotationRad;
+    powerSwitchDisplayedRotationRef.current = restored.powerSwitchRotationRad;
+    pumpVisualWeightRef.current = restored.pumpVisualWeight;
+    pumpPulseRef.current = restored.pumpPulseId;
+    initialPumpPulseRemainingSRef.current = restored.pumpPulseRemainingMs / 1000;
+    pumpPulseClockInitializedRef.current = false;
+    stopcockRollbackMotionRef.current = new HeatCapacityGuideRollbackMotion();
+    pumpValveRollbackMotionRef.current = new HeatCapacityGuideRollbackMotion();
+    pressureZeroRollbackMotionRef.current = new HeatCapacityGuideRollbackMotion();
+    powerSwitchRollbackMotionRef.current = new HeatCapacityGuideRollbackMotion();
+    pumpBulbRollbackMotionRef.current = new HeatCapacityGuideRollbackMotion();
+    applyLocalAxisRotation(
+      nodeMap,
+      baseTransforms,
+      'HSL_PressureGauge_NeedlePivot',
+      new THREE.Vector3(0, 0, 1),
+      getUltraPressureGaugeNeedleLocalRotation(restored.gaugeNeedleRotationRad),
+    );
+    applyLocalAxisRotation(
+      nodeMap,
+      baseTransforms,
+      'Stopcock_Pivot',
+      new THREE.Vector3(1, 0, 0),
+      restored.stopcockRotationRad,
+    );
+    applyLocalAxisRotation(
+      nodeMap,
+      baseTransforms,
+      'InletValue_Pivot',
+      new THREE.Vector3(0, 1, 0),
+      restored.pumpValveRotationRad,
+    );
+    applyLocalAxisRotation(
+      nodeMap,
+      baseTransforms,
+      'FD_NCD_C_ZeroAdjustKnob',
+      new THREE.Vector3(0, 1, 0),
+      restored.pressureZeroRotationRad,
+    );
+    applyPowerSwitchVisualScale(nodeMap, baseTransforms);
+    applyLocalAxisRotationAroundPivot(
+      nodeMap,
+      baseTransforms,
+      'FD_NCD_C_PowerSwitch_Button',
+      new THREE.Vector3(1, 0, 0),
+      POWER_SWITCH_PIVOT_OFFSET,
+      restored.powerSwitchRotationRad,
+    );
+    const pumpBulb = nodeMap.get('Pump_Bulb') as THREE.Mesh | undefined;
+    if (pumpBulb?.morphTargetInfluences?.length) {
+      pumpBulb.morphTargetInfluences[0] = restored.pumpVisualWeight;
+    }
+    props.onVisualStateChange?.(restored);
+    props.onVisualRestoreComplete?.(restoreKey);
+    invalidate();
+  }, [
+    baseTransforms,
+    invalidate,
+    nodeMap,
+    props.onVisualStateChange,
+    props.onVisualRestoreComplete,
+    props.restoreVisualState,
+    props.restoreVisualStateKey,
+  ]);
 
   const projectUltraNodeAnchor = useCallback((nodeName: string) => {
     const anchor = nodeMap.get(nodeName);
@@ -2714,7 +2863,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   }, [camera, gl, nodeMap]);
 
   const emitUltraGuideTargetHoles = useCallback(() => {
-    if (!props.onGuideTargetHolesChange) return;
+    if (!props.guideProjectionEnabled || !props.onGuideTargetHolesChange) return;
     const root = runtimeRootRef.current;
     if (!root) return;
     const holes = projectUltraGuideTargetsToHoles(root, camera, size);
@@ -2722,14 +2871,12 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     if (signature === guideTargetHoleSignatureRef.current) return;
     guideTargetHoleSignatureRef.current = signature;
     props.onGuideTargetHolesChange(holes);
-  }, [camera, props.onGuideTargetHolesChange, size]);
+  }, [camera, props.guideProjectionEnabled, props.onGuideTargetHolesChange, size]);
 
-  useFrame(() => {
-    emitUltraGuideTargetHoles();
-  });
+  useHeatCapacityGuardedFrame(() => runRuntimeGuarded(emitUltraGuideTargetHoles));
 
   useEffect(() => {
-    if (!props.onGuideTargetHolesChange) {
+    if (!props.guideProjectionEnabled || !props.onGuideTargetHolesChange) {
       guideTargetHoleSignatureRef.current = '';
       return undefined;
     }
@@ -2737,19 +2884,28 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     let frameId = 0;
     let attempt = 0;
     const retryUltraGuideProjection = () => {
-      invalidate();
-      emitUltraGuideTargetHoles();
-      attempt += 1;
-      if (attempt < 10) {
-        frameId = window.requestAnimationFrame(retryUltraGuideProjection);
-      }
+      runRuntimeGuarded(() => {
+        invalidate();
+        emitUltraGuideTargetHoles();
+        attempt += 1;
+        if (attempt < 10) {
+          frameId = window.requestAnimationFrame(retryUltraGuideProjection);
+        }
+      });
     };
     frameId = window.requestAnimationFrame(retryUltraGuideProjection);
-    emitUltraGuideTargetHoles();
+    runRuntimeGuarded(emitUltraGuideTargetHoles);
     return () => {
       if (frameId) window.cancelAnimationFrame(frameId);
     };
-  }, [emitUltraGuideTargetHoles, invalidate, props.guideProjectionKey, props.onGuideTargetHolesChange]);
+  }, [
+    emitUltraGuideTargetHoles,
+    invalidate,
+    props.guideProjectionEnabled,
+    props.guideProjectionKey,
+    props.onGuideTargetHolesChange,
+    runRuntimeGuarded,
+  ]);
 
   const resolveUltraPanelPointerControl = useCallback((
     control: UltraPointerControl,
@@ -2796,9 +2952,9 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     clearPendingUltraSingleClick();
     pendingUltraSingleClickRef.current = window.setTimeout(() => {
       pendingUltraSingleClickRef.current = null;
-      run();
+      runRuntimeGuarded(run);
     }, ULTRA_DOUBLE_CLICK_GUARD_MS);
-  }, [clearPendingUltraSingleClick]);
+  }, [clearPendingUltraSingleClick, runRuntimeGuarded]);
 
   useEffect(() => clearPendingUltraSingleClick, [clearPendingUltraSingleClick]);
 
@@ -2880,6 +3036,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     }
     const pointerAngle = getPressureZeroPointerAngle(event.clientX, event.clientY);
     if (pointerAngle === null) return;
+    activePressureZeroGestureCleanupRef.current?.();
     pressureZeroDragRef.current = {
       startKnobAngle: props.pressureZeroKnobAngle,
       lastPointerAngle: pointerAngle,
@@ -2896,6 +3053,8 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       // Synthetic browser-test events may not have an active pointer capture target.
     }
     const handlePointerMove = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
+      runRuntimeGuarded(() => {
       moveEvent.stopPropagation();
       moveEvent.stopImmediatePropagation?.();
       moveEvent.preventDefault();
@@ -2912,14 +3071,16 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       if (Math.abs(incrementalDelta) < 0.15) return;
       dragState.lastAppliedKnobAngle = nextKnobAngle;
       if (dragState.interactionId) {
-        dragState.rejected = !props.onPressureZeroCoarseAdjust(
+        dragState.rejected = !latestPropsRef.current.onPressureZeroCoarseAdjust(
           incrementalDelta,
           dragState.interactionId,
         );
       }
+      });
     };
     let finished = false;
-    const finishPointerGesture = () => {
+    const finishPointerGesture = (finishEvent?: PointerEvent) => {
+      if (finishEvent && finishEvent.pointerId !== pointerId) return;
       if (finished) return;
       finished = true;
       window.removeEventListener('pointermove', handlePointerMove);
@@ -2933,13 +3094,21 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
       } catch {
         // Matching guard for synthetic pointer events.
       }
-      gl.domElement.style.cursor = props.hoveredControl === 'pressureZero' && props.pressureZeroInteractionEnabled ? 'grab' : '';
+      pressureZeroDragRef.current.interactionId = null;
+      if (activePressureZeroGestureCleanupRef.current === finishPointerGesture) {
+        activePressureZeroGestureCleanupRef.current = null;
+      }
+      const latestProps = latestPropsRef.current;
+      gl.domElement.style.cursor = latestProps.hoveredControl === 'pressureZero' && latestProps.pressureZeroInteractionEnabled
+        ? 'grab'
+        : '';
     };
+    activePressureZeroGestureCleanupRef.current = finishPointerGesture;
     window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', finishPointerGesture, { once: true });
-    window.addEventListener('pointercancel', finishPointerGesture, { once: true });
-    window.addEventListener('lostpointercapture', finishPointerGesture, { once: true });
-  }, [getPressureZeroPointerAngle, gl, props, resolveUltraPanelPointerControl]);
+    window.addEventListener('pointerup', finishPointerGesture);
+    window.addEventListener('pointercancel', finishPointerGesture);
+    window.addEventListener('lostpointercapture', finishPointerGesture);
+  }, [getPressureZeroPointerAngle, gl, props, resolveUltraPanelPointerControl, runRuntimeGuarded]);
 
   const handleUltraControlWheel = useCallback((control: UltraPointerControl, event: ThreeEvent<WheelEvent>) => {
     const resolvedControl = resolveUltraPanelPointerControl(control, event.clientX, event.clientY);
@@ -3032,8 +3201,13 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   useEffect(() => {
     const texture = displayTextureRef.current;
     if (!texture) return;
-    applyUltraDisplayTexture(nodeMap, texture);
+    displayMaterialRef.current?.dispose();
+    displayMaterialRef.current = applyUltraDisplayTexture(nodeMap, texture);
     invalidate();
+    return () => {
+      displayMaterialRef.current?.dispose();
+      displayMaterialRef.current = null;
+    };
   }, [nodeMap, invalidate]);
 
   useEffect(() => {
@@ -3061,14 +3235,6 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
   useEffect(() => {
     invalidate();
   }, [invalidate, props.demoFocusControlId, props.demoFocusPulseActive, props.hoveredControl]);
-
-  useEffect(() => {
-    REQUIRED_ULTRA_NODE_NAMES.forEach((nodeName) => {
-      if (!nodeMap.has(nodeName)) {
-        console.warn(`Ultra GLB is missing required node: ${nodeName}`);
-      }
-    });
-  }, [nodeMap]);
 
   useEffect(() => {
     const powerLed = nodeMap.get('FD_NCD_C_PowerIndicator_LED');
@@ -3162,10 +3328,12 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     const startedAt = window.performance.now();
     let frameId = 0;
     const keepControlMotionRendering = (timestamp: number) => {
-      invalidate();
-      if (timestamp - startedAt < ULTRA_CONTROL_MOTION_INVALIDATION_MS) {
-        frameId = window.requestAnimationFrame(keepControlMotionRendering);
-      }
+      runRuntimeGuarded(() => {
+        invalidate();
+        if (timestamp - startedAt < ULTRA_CONTROL_MOTION_INVALIDATION_MS) {
+          frameId = window.requestAnimationFrame(keepControlMotionRendering);
+        }
+      });
     };
     frameId = window.requestAnimationFrame(keepControlMotionRendering);
     return () => window.cancelAnimationFrame(frameId);
@@ -3176,13 +3344,16 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     props.pumpPulseId,
     props.pumpValveOpen,
     props.stopcockAngleDeg,
+    runRuntimeGuarded,
   ]);
 
   useEffect(() => () => {
     if (discreteMotionActiveRef.current) props.onDiscreteMotionChange?.(false);
   }, [props.onDiscreteMotionChange]);
 
-  useFrame(({ clock }, delta) => {
+  useHeatCapacityGuardedFrame(({ clock }, delta) => {
+    if (runtimeFailedRef.current) return;
+    try {
     const visualDelta = props.restorePaused ? 0 : delta;
     const stopcockRollback = stopcockRollbackMotionRef.current.step(visualDelta);
     const pumpValveRollback = pumpValveRollbackMotionRef.current.step(visualDelta);
@@ -3340,6 +3511,9 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
     )) {
       invalidate();
     }
+    } catch (error) {
+      reportRuntimeError(error);
+    }
   });
 
   return (
@@ -3352,19 +3526,19 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
         definition={definition}
         nodeMap={nodeMap}
         parentRef={runtimeRootRef}
-        onClick={handleUltraControlClick}
-        onDoubleClick={handleUltraControlDoubleClick}
-        onPointerDown={handleUltraControlPointerDown}
-        onWheel={handleUltraControlWheel}
-        onPointerOver={handleUltraControlPointerOver}
-        onPointerMove={handleUltraControlPointerMove}
-        onPointerOut={handleUltraControlPointerOut}
+        onClick={(control, event) => runRuntimeGuarded(() => handleUltraControlClick(control, event))}
+        onDoubleClick={(control, event) => runRuntimeGuarded(() => handleUltraControlDoubleClick(control, event))}
+        onPointerDown={(control, event) => runRuntimeGuarded(() => handleUltraControlPointerDown(control, event))}
+        onWheel={(control, event) => runRuntimeGuarded(() => handleUltraControlWheel(control, event))}
+        onPointerOver={(control, event) => runRuntimeGuarded(() => handleUltraControlPointerOver(control, event))}
+        onPointerMove={(control, event) => runRuntimeGuarded(() => handleUltraControlPointerMove(control, event))}
+        onPointerOut={(control, event) => runRuntimeGuarded(() => handleUltraControlPointerOut(control, event))}
       />
       ))}
       <UltraInstrumentFocusHitbox
         nodeMap={nodeMap}
         parentRef={runtimeRootRef}
-        onDoubleClick={handleUltraInstrumentFocusDoubleClick}
+        onDoubleClick={(event) => runRuntimeGuarded(() => handleUltraInstrumentFocusDoubleClick(event))}
       />
       <UltraPowerSwitchSkirtedRocker
         nodeMap={nodeMap}
@@ -3416,6 +3590,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
         initialVisualCheckpoint={props.initialHardSphereVisualCheckpoint}
         restoreVisualCheckpoint={props.restoreHardSphereVisualCheckpoint}
         restoreVisualCheckpointKey={props.restoreHardSphereVisualCheckpointKey}
+        onVisualRestoreComplete={props.onHardSphereVisualRestoreComplete}
         onCheckpointProviderChange={props.onHardSphereCheckpointProviderChange}
       />
     </group>

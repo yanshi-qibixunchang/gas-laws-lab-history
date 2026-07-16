@@ -54,12 +54,10 @@ assert.match(motionSource, /left:\s*rootRect\.left\s*\+\s*left/, 'motion hook sh
 assert.match(motionSource, /top:\s*rootRect\.top\s*\+\s*top/, 'motion hook should include root movement when panels move the 3D viewport');
 assert.doesNotMatch(motionSource, /nextRects\.set\(key,\s*item\.getBoundingClientRect\(\)\)/, 'motion hook must not store animated visual rects as the next layout baseline');
 assert.match(motionSource, /\.cancel\(\)/, 'motion hook should cancel an old FLIP animation before replacing it');
-assert.match(motionSource, /animation\.finished/, 'motion hook should clean up active animation state after FLIP completes');
-assert.doesNotMatch(
-  motionSource,
-  /\}, \[options\.disabled\]\);/,
-  'overlay layout measurement must not stop after the disabled flag stabilizes; focus and sibling layout commits still need FLIP motion',
-);
+assert.match(motionSource, /animation\.addEventListener\('finish', releaseAnimation/, 'motion hook should clean up active animation state after FLIP completes without an unhandled promise');
+assert.match(motionSource, /layoutRevision\?: string \| number/, 'callers should explicitly identify layout-changing revisions');
+assert.match(motionSource, /new ResizeObserver\(scheduleMeasure\)/, 'real overlay size changes should trigger a coalesced remeasurement');
+assert.match(motionSource, /observer\.disconnect\(\)[\s\S]*cancelAnimationFrame/, 'overlay size observation and pending measurement frames should be cleaned up on unmount');
 
 assert.match(sceneSource, /overlayTopLeft\?:\s*React\.ReactNode/, 'instrument scene should accept top-left overlays from the parent');
 assert.match(sceneSource, /overlayTopRight\?:\s*React\.ReactNode/, 'instrument scene should accept top-right overlays from the parent');
@@ -67,6 +65,11 @@ assert.match(sceneSource, /overlayBottomRight\?:\s*React\.ReactNode/, 'instrumen
 assert.match(sceneSource, /overlayCenter\?:\s*React\.ReactNode/, 'instrument scene should accept center overlays from the parent');
 assert.match(sceneSource, /overlayBottomCenter\?:\s*React\.ReactNode/, 'instrument scene should accept bottom-center overlays from the parent');
 assert.match(sceneSource, /usePreviewOverlayMotion/, 'instrument scene should animate displaced overlay items');
+assert.match(
+  sceneSource,
+  /layoutRevision:\s*\[[\s\S]*props\.modeRestoreRequest\?\.requestId \?\? 0,[\s\S]*focusMode,[\s\S]*props\.focusResetKey/,
+  'entering or leaving a local instrument focus should explicitly trigger overlay FLIP measurement',
+);
 assert.match(sceneSource, /studio-preview-overlay-slot-top-left/, 'instrument scene should render top-left overlay slot');
 assert.match(sceneSource, /data-preview-overlay-item="heat-hard-sphere-toggle"/, 'hard-sphere toggle should be a tracked overlay item');
 assert.match(sceneSource, /data-heat-capacity-hard-sphere-tooltip="true"/, 'hard-sphere explanation should render as a hover or focus tooltip');

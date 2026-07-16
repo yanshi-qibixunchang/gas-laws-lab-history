@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import WorkbenchStudioPrototype from '../features/workbench/WorkbenchStudioPrototype';
 import { loadWorkbenchGeneralSettings } from '../features/workbench/workbenchGeneralSettings.ts';
 import { AudioProvider } from '../audio/react/AudioProvider.tsx';
+import {
+  initializeWorkbenchIndexedDbPersistence,
+  type WorkbenchPersistenceBootstrapResult,
+} from '../features/workbench/workbenchIndexedDbPersistence.ts';
 
 const WORKBENCH_FRAME_WIDTH = 1440;
 const WORKBENCH_FRAME_HEIGHT = 810;
@@ -71,55 +75,44 @@ const WorkbenchAspectFrame = () => {
   const useFixedFrame = !viewport.touchLike &&
     viewport.width >= WORKBENCH_FRAME_MIN_DESKTOP_WIDTH &&
     viewport.height >= WORKBENCH_FRAME_MIN_DESKTOP_HEIGHT;
-
-  if (!useFixedFrame) {
-    return (
-      <div
-        style={{
-          width: '100vw',
-          height: '100vh',
-          overflow: 'hidden',
-          background: '#1a1f25',
-        }}
-      >
-        <WorkbenchStudioPrototype />
-      </div>
-    );
-  }
-
-  const scale = Math.min(
-    viewport.width / WORKBENCH_FRAME_WIDTH,
-    viewport.height / WORKBENCH_FRAME_HEIGHT,
-  );
+  const scale = useFixedFrame
+    ? Math.min(
+        viewport.width / WORKBENCH_FRAME_WIDTH,
+        viewport.height / WORKBENCH_FRAME_HEIGHT,
+      )
+    : 1;
   const scaledFrameWidth = WORKBENCH_FRAME_WIDTH * scale;
   const scaledFrameHeight = WORKBENCH_FRAME_HEIGHT * scale;
 
   return (
     <div
+      data-workbench-aspect-frame={useFixedFrame ? 'fixed' : 'responsive'}
       style={{
         position: 'fixed',
         inset: 0,
         display: 'grid',
         placeItems: 'center',
         overflow: 'hidden',
-        background: '#11161b',
+        background: useFixedFrame ? '#11161b' : '#1a1f25',
       }}
     >
       <div
         style={{
-          width: scaledFrameWidth,
-          height: scaledFrameHeight,
+          width: useFixedFrame ? scaledFrameWidth : '100vw',
+          height: useFixedFrame ? scaledFrameHeight : '100vh',
           overflow: 'hidden',
           background: '#1a1f25',
-          outline: '1px solid rgba(127, 139, 152, 0.38)',
-          boxShadow: '0 0 0 1px rgba(20, 26, 32, 0.95), 0 24px 70px rgba(0, 0, 0, 0.46)',
+          outline: useFixedFrame ? '1px solid rgba(127, 139, 152, 0.38)' : 'none',
+          boxShadow: useFixedFrame
+            ? '0 0 0 1px rgba(20, 26, 32, 0.95), 0 24px 70px rgba(0, 0, 0, 0.46)'
+            : 'none',
         }}
       >
         <div
           style={{
-            width: WORKBENCH_FRAME_WIDTH,
-            height: WORKBENCH_FRAME_HEIGHT,
-            transform: `scale(${scale})`,
+            width: useFixedFrame ? WORKBENCH_FRAME_WIDTH : '100%',
+            height: useFixedFrame ? WORKBENCH_FRAME_HEIGHT : '100%',
+            transform: useFixedFrame ? `scale(${scale})` : 'none',
             transformOrigin: 'top left',
           }}
         >
@@ -131,6 +124,8 @@ const WorkbenchAspectFrame = () => {
 };
 
 function App() {
+  const [persistenceBootstrap, setPersistenceBootstrap] = useState<WorkbenchPersistenceBootstrapResult | null>(null);
+  const [persistenceRetrying, setPersistenceRetrying] = useState(false);
   const initialAudioSettings = useMemo(() => {
     const settings = loadWorkbenchGeneralSettings();
     return {
@@ -138,6 +133,56 @@ function App() {
       volume: settings.audioVolume,
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    void initializeWorkbenchIndexedDbPersistence().then((result) => {
+      if (active) setPersistenceBootstrap(result);
+    });
+    return () => { active = false; };
+  }, []);
+
+  const retryPersistenceInitialization = () => {
+    if (persistenceRetrying) return;
+    setPersistenceRetrying(true);
+    void initializeWorkbenchIndexedDbPersistence().then((result) => {
+      setPersistenceBootstrap(result);
+      setPersistenceRetrying(false);
+    });
+  };
+
+  if (!persistenceBootstrap) {
+    return (
+      <div role="status" aria-live="polite" style={{ padding: 24, color: '#d7e0e8', background: '#11161b' }}>
+        正在恢复工作区…
+      </div>
+    );
+  }
+
+  if (persistenceBootstrap.error) {
+    return (
+      <div
+        role="alert"
+        style={{
+          minHeight: '100vh',
+          boxSizing: 'border-box',
+          padding: 24,
+          color: '#fff4e5',
+          background: '#11161b',
+        }}
+      >
+        <p>工作区持久化初始化失败。为保护最后一次成功保存的数据，工作区已保持只读关闭状态。</p>
+        <p>{persistenceBootstrap.error.message}</p>
+        <button
+          type="button"
+          disabled={persistenceRetrying}
+          onClick={retryPersistenceInitialization}
+        >
+          {persistenceRetrying ? '正在重试…' : '重试保存初始化'}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <AudioProvider initialSettings={initialAudioSettings}>

@@ -14,6 +14,21 @@ export type HeatCapacityModeTransitionPhase =
 
 export type HeatCapacityModeTransitionBlocker = HeatCapacitySceneMotionReason;
 
+export type HeatCapacityModeTransitionReason =
+  | 'mode-control'
+  | 'demo-terminated'
+  | 'guide-exited'
+  | 'teaching-completed'
+  | 'demo-error-fallback';
+
+export type HeatCapacityModeTransitionIntent = {
+  requestId: number;
+  sourceMode: HeatCapacityMode;
+  targetMode: HeatCapacityMode;
+  reason: HeatCapacityModeTransitionReason;
+  discardSource: boolean;
+};
+
 export type HeatCapacityModeTransitionState = {
   schemaVersion: typeof HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION;
   phase: HeatCapacityModeTransitionPhase;
@@ -22,6 +37,9 @@ export type HeatCapacityModeTransitionState = {
   targetMode: HeatCapacityMode | null;
   queuedMode: HeatCapacityMode | null;
   requestId: number;
+  lastIssuedRequestId: number;
+  activeIntent: HeatCapacityModeTransitionIntent | null;
+  queuedIntent: HeatCapacityModeTransitionIntent | null;
   sourceBlockers: HeatCapacityModeTransitionBlocker[];
   visualStartedAtMs: number | null;
   visualDurationMs: number;
@@ -29,15 +47,22 @@ export type HeatCapacityModeTransitionState = {
 
 export type HeatCapacityModeTransitionCheckpoint = Omit<
   HeatCapacityModeTransitionState,
-  'visualStartedAtMs' | 'visualDurationMs'
+  | 'visualStartedAtMs'
+  | 'visualDurationMs'
+  | 'lastIssuedRequestId'
+  | 'activeIntent'
+  | 'queuedIntent'
 > & {
+  lastIssuedRequestId?: number;
+  activeIntent?: HeatCapacityModeTransitionIntent | null;
+  queuedIntent?: HeatCapacityModeTransitionIntent | null;
   visualRemainingMs: number;
 };
 
 export type HeatCapacityModeTransitionEvent =
   | {
       type: 'request';
-      targetMode: HeatCapacityMode;
+      intent: HeatCapacityModeTransitionIntent;
       sceneMotionReasons: readonly HeatCapacityModeTransitionBlocker[];
     }
   | {
@@ -46,7 +71,14 @@ export type HeatCapacityModeTransitionEvent =
     }
   | {
       type: 'target-applied';
+      requestId: number;
       targetMode: HeatCapacityMode;
+      startedAtMs: number;
+      durationMs: number;
+    }
+  | {
+      type: 'animation-clock-rebased';
+      requestId: number;
       startedAtMs: number;
       durationMs: number;
     }
@@ -64,6 +96,13 @@ const PHASES: readonly HeatCapacityModeTransitionPhase[] = [
   'animating',
 ];
 const BLOCKERS: readonly HeatCapacityModeTransitionBlocker[] = HEAT_CAPACITY_SCENE_MOTION_REASONS;
+const REASONS: readonly HeatCapacityModeTransitionReason[] = [
+  'mode-control',
+  'demo-terminated',
+  'guide-exited',
+  'teaching-completed',
+  'demo-error-fallback',
+];
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -76,6 +115,32 @@ const isMode = (value: unknown): value is HeatCapacityMode => (
 const isPhase = (value: unknown): value is HeatCapacityModeTransitionPhase => (
   PHASES.includes(value as HeatCapacityModeTransitionPhase)
 );
+
+const isReason = (value: unknown): value is HeatCapacityModeTransitionReason => (
+  REASONS.includes(value as HeatCapacityModeTransitionReason)
+);
+
+const normalizeRequestId = (value: unknown, fallback = 0) => (
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+    ? value
+    : fallback
+);
+
+const normalizeIntent = (
+  value: unknown,
+  fallback: Omit<HeatCapacityModeTransitionIntent, 'requestId'> & { requestId: number },
+): HeatCapacityModeTransitionIntent => {
+  if (!isRecord(value)) return fallback;
+  const sourceMode = isMode(value.sourceMode) ? value.sourceMode : fallback.sourceMode;
+  const targetMode = isMode(value.targetMode) ? value.targetMode : fallback.targetMode;
+  return {
+    requestId: normalizeRequestId(value.requestId, fallback.requestId),
+    sourceMode,
+    targetMode,
+    reason: isReason(value.reason) ? value.reason : fallback.reason,
+    discardSource: value.discardSource === true,
+  };
+};
 
 const normalizeBlockers = (value: unknown): HeatCapacityModeTransitionBlocker[] => {
   if (!Array.isArray(value)) return [];
@@ -99,6 +164,9 @@ export const createHeatCapacityModeTransitionState = (
   targetMode: null,
   queuedMode: null,
   requestId,
+  lastIssuedRequestId: requestId,
+  activeIntent: null,
+  queuedIntent: null,
   sourceBlockers: [],
   visualStartedAtMs: null,
   visualDurationMs: 0,
@@ -126,6 +194,13 @@ export const createHeatCapacityModeTransitionCheckpoint = (
   targetMode: state.targetMode,
   queuedMode: state.queuedMode,
   requestId: state.requestId,
+  ...(state.phase === 'idle'
+    ? {}
+    : {
+        lastIssuedRequestId: state.lastIssuedRequestId,
+        activeIntent: state.activeIntent,
+        queuedIntent: state.queuedIntent,
+      }),
   sourceBlockers: [...state.sourceBlockers],
   visualRemainingMs: getHeatCapacityModeTransitionVisualRemainingMs(state, now),
 });
@@ -141,9 +216,11 @@ export const normalizeHeatCapacityModeTransitionCheckpoint = (
   if (!isPhase(value.phase) || !isMode(value.visibleMode)) {
     return createHeatCapacityModeTransitionState(fallbackVisibleMode);
   }
-  const requestId = typeof value.requestId === 'number' && Number.isSafeInteger(value.requestId) && value.requestId >= 0
-    ? value.requestId
-    : 0;
+  const requestId = normalizeRequestId(value.requestId);
+  const lastIssuedRequestId = Math.max(
+    requestId,
+    normalizeRequestId(value.lastIssuedRequestId, requestId),
+  );
   if (value.visibleMode !== fallbackVisibleMode) {
     return createHeatCapacityModeTransitionState(fallbackVisibleMode, requestId);
   }
@@ -166,6 +243,39 @@ export const normalizeHeatCapacityModeTransitionCheckpoint = (
   const queuedMode: HeatCapacityMode | null = value.phase === 'animating' && isMode(value.queuedMode)
     ? (value.queuedMode === value.visibleMode ? null : value.queuedMode)
     : null;
+  const activeIntent = normalizeIntent(value.activeIntent, {
+    requestId,
+    sourceMode: value.sourceMode,
+    targetMode: value.targetMode,
+    reason: 'mode-control',
+    discardSource: false,
+  });
+  if (
+    activeIntent.requestId !== requestId ||
+    activeIntent.sourceMode !== value.sourceMode ||
+    activeIntent.targetMode !== value.targetMode
+  ) {
+    return createHeatCapacityModeTransitionState(fallbackVisibleMode, lastIssuedRequestId);
+  }
+  const queuedIntent = queuedMode === null
+    ? null
+    : normalizeIntent(value.queuedIntent, {
+        requestId: lastIssuedRequestId + 1,
+        sourceMode: value.visibleMode,
+        targetMode: queuedMode,
+        reason: 'mode-control',
+        discardSource: false,
+      });
+  if (
+    queuedIntent &&
+    (
+      queuedIntent.requestId <= activeIntent.requestId ||
+      queuedIntent.sourceMode !== value.visibleMode ||
+      queuedIntent.targetMode !== queuedMode
+    )
+  ) {
+    return createHeatCapacityModeTransitionState(fallbackVisibleMode, lastIssuedRequestId);
+  }
   const visualRemainingMs = typeof value.visualRemainingMs === 'number' && Number.isFinite(value.visualRemainingMs)
     ? Math.max(0, value.visualRemainingMs)
     : 0;
@@ -177,6 +287,9 @@ export const normalizeHeatCapacityModeTransitionCheckpoint = (
     targetMode: value.targetMode,
     queuedMode,
     requestId,
+    lastIssuedRequestId: Math.max(lastIssuedRequestId, queuedIntent?.requestId ?? 0),
+    activeIntent,
+    queuedIntent,
     sourceBlockers: value.phase === 'waiting-for-motion'
       ? normalizeBlockers(value.sourceBlockers)
       : [],
@@ -190,21 +303,28 @@ export const reduceHeatCapacityModeTransition = (
   event: HeatCapacityModeTransitionEvent,
 ): HeatCapacityModeTransitionState => {
   if (event.type === 'synchronize') {
-    return createHeatCapacityModeTransitionState(event.visibleMode, state.requestId);
+    return createHeatCapacityModeTransitionState(event.visibleMode, state.lastIssuedRequestId);
   }
 
   if (event.type === 'request') {
+    const { intent } = event;
+    if (
+      intent.sourceMode !== state.visibleMode ||
+      intent.requestId <= state.lastIssuedRequestId
+    ) return state;
     if (state.phase === 'animating') {
       return {
         ...state,
-        queuedMode: event.targetMode === state.visibleMode ? null : event.targetMode,
+        queuedMode: intent.targetMode === state.visibleMode ? null : intent.targetMode,
+        queuedIntent: intent.targetMode === state.visibleMode ? null : intent,
+        lastIssuedRequestId: intent.requestId,
       };
     }
 
-    if (event.targetMode === state.visibleMode) {
+    if (intent.targetMode === state.visibleMode) {
       return state.phase === 'idle'
-        ? state
-        : createHeatCapacityModeTransitionState(state.visibleMode, state.requestId);
+        ? { ...state, lastIssuedRequestId: intent.requestId }
+        : createHeatCapacityModeTransitionState(state.visibleMode, intent.requestId);
     }
 
     const sourceBlockers = normalizeMotionReasons(event.sceneMotionReasons);
@@ -212,9 +332,12 @@ export const reduceHeatCapacityModeTransition = (
       ...state,
       phase: sourceBlockers.length > 0 ? 'waiting-for-motion' : 'preparing-target',
       sourceMode: state.visibleMode,
-      targetMode: event.targetMode,
+      targetMode: intent.targetMode,
       queuedMode: null,
-      requestId: state.requestId + 1,
+      requestId: intent.requestId,
+      lastIssuedRequestId: intent.requestId,
+      activeIntent: intent,
+      queuedIntent: null,
       sourceBlockers,
       visualStartedAtMs: null,
       visualDurationMs: 0,
@@ -222,16 +345,22 @@ export const reduceHeatCapacityModeTransition = (
   }
 
   if (event.type === 'source-motion-changed') {
-    if (state.phase !== 'waiting-for-motion' || !state.targetMode) return state;
-    const activeReasons = new Set(event.sceneMotionReasons);
-    const remainingBlockers = state.sourceBlockers.filter((blocker) => activeReasons.has(blocker));
+    if (
+      (state.phase !== 'waiting-for-motion' && state.phase !== 'preparing-target') ||
+      !state.targetMode
+    ) return state;
+    const remainingBlockers = normalizeMotionReasons(event.sceneMotionReasons);
     return remainingBlockers.length > 0
-      ? { ...state, sourceBlockers: remainingBlockers }
+      ? { ...state, phase: 'waiting-for-motion', sourceBlockers: remainingBlockers }
       : { ...state, phase: 'preparing-target', sourceBlockers: [] };
   }
 
   if (event.type === 'target-applied') {
-    if (state.phase !== 'preparing-target' || state.targetMode !== event.targetMode) return state;
+    if (
+      state.phase !== 'preparing-target' ||
+      state.requestId !== event.requestId ||
+      state.targetMode !== event.targetMode
+    ) return state;
     return {
       ...state,
       phase: 'animating',
@@ -242,11 +371,24 @@ export const reduceHeatCapacityModeTransition = (
     };
   }
 
+  if (event.type === 'animation-clock-rebased') {
+    if (
+      state.phase !== 'animating' ||
+      state.requestId !== event.requestId
+    ) return state;
+    return {
+      ...state,
+      visualStartedAtMs: event.startedAtMs,
+      visualDurationMs: Math.max(0, event.durationMs),
+    };
+  }
+
   if (event.type === 'animation-finished') {
     if (state.phase !== 'animating') return state;
     const nextTargetMode = state.queuedMode;
-    if (!nextTargetMode || nextTargetMode === state.visibleMode) {
-      return createHeatCapacityModeTransitionState(state.visibleMode, state.requestId);
+    const nextIntent = state.queuedIntent;
+    if (!nextTargetMode || !nextIntent || nextTargetMode === state.visibleMode) {
+      return createHeatCapacityModeTransitionState(state.visibleMode, state.lastIssuedRequestId);
     }
     const sourceBlockers = normalizeMotionReasons(event.sceneMotionReasons);
     return {
@@ -255,7 +397,10 @@ export const reduceHeatCapacityModeTransition = (
       sourceMode: state.visibleMode,
       targetMode: nextTargetMode,
       queuedMode: null,
-      requestId: state.requestId + 1,
+      requestId: nextIntent.requestId,
+      lastIssuedRequestId: state.lastIssuedRequestId,
+      activeIntent: nextIntent,
+      queuedIntent: null,
       sourceBlockers,
       visualStartedAtMs: null,
       visualDurationMs: 0,

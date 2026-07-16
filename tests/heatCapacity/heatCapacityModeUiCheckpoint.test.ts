@@ -6,6 +6,7 @@ import {
 } from '../../src/features/heatCapacity/heatCapacityModeUiCheckpoint.ts';
 
 const scene = {
+  focusMode: 'none' as const,
   cameraPose: null,
   cameraTransition: null,
   ultraVisualState: null,
@@ -62,6 +63,20 @@ assert.deepEqual(
   normalizeHeatCapacityModeUiCheckpoint(demoCheckpoint),
   demoCheckpoint,
   'a canonical Demo checkpoint should round-trip without loss',
+);
+
+const demoWithInterruptedStepPanelExit = structuredClone(demoCheckpoint);
+if (demoWithInterruptedStepPanelExit.mode !== 'demo') throw new Error('Expected a Demo checkpoint.');
+demoWithInterruptedStepPanelExit.payload.demo.stepPanel.mode = 'exiting';
+const normalizedInterruptedStepPanelExit = normalizeHeatCapacityModeUiCheckpoint(
+  demoWithInterruptedStepPanelExit,
+);
+assert.equal(
+  normalizedInterruptedStepPanelExit?.payload.kind === 'demo'
+    ? normalizedInterruptedStepPanelExit.payload.demo.stepPanel.mode
+    : null,
+  'hidden',
+  'an interrupted step-panel exit must restore to its deterministic hidden terminal state',
 );
 
 for (const field of ['currentItemIndex', 'currentStepIndex'] as const) {

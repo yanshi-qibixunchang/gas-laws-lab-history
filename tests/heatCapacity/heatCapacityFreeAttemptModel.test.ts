@@ -154,7 +154,21 @@ const u2Recorded = transitionHeatCapacityFreeAttempt(
 assert.equal(u2Recorded.stage, 'u2-recorded');
 assert.equal(u2Recorded.u2RecordedAtS, 621);
 assert.equal(deriveHeatCapacityFreeAttemptWaitTimer(u2Recorded, 700).stage, 'u2-wait');
-assert.deepEqual(normalizeHeatCapacityFreeAttempt(u2Recorded), u2Recorded);
+for (const canonicalAttempt of [
+  u0Attempt,
+  pumped,
+  u1Waiting,
+  u1Recorded,
+  releasing,
+  u2Waiting,
+  u2Recorded,
+]) {
+  assert.deepEqual(
+    normalizeHeatCapacityFreeAttempt(canonicalAttempt),
+    canonicalAttempt,
+    `the ${canonicalAttempt.stage} attempt stage must round-trip through persistence`,
+  );
+}
 assert.equal(
   normalizeHeatCapacityFreeAttempt({ ...u1Waiting, u1WaitStartedAtS: null }),
   null,
@@ -169,6 +183,31 @@ assert.equal(
   normalizeHeatCapacityFreeAttempt({ ...u1Waiting, invalidReason: 'release-before-u1' }),
   null,
   'restore must reject active attempts carrying invalid-only state',
+);
+assert.equal(
+  normalizeHeatCapacityFreeAttempt({ ...u0Attempt, u1WaitStartedAtS: 11 }),
+  null,
+  'restore must reject future-stage timestamps attached to a preparing attempt',
+);
+assert.equal(
+  normalizeHeatCapacityFreeAttempt({ ...u2Waiting, u2WaitStartedAtS: 0 }),
+  null,
+  'restore must reject a forged U2 wait anchor that predates the release close',
+);
+assert.equal(
+  normalizeHeatCapacityFreeAttempt({ ...u2Waiting, u2WaitStartedAtS: 320.4 }),
+  null,
+  'the U2 wait anchor must be the exact release-close transition timestamp',
+);
+assert.equal(
+  normalizeHeatCapacityFreeAttempt({ ...releasing, releaseStartedAtS: 13 }),
+  null,
+  'attempt stage timestamps must remain monotonic',
+);
+assert.equal(
+  normalizeHeatCapacityFreeAttempt({ ...u0Attempt, invalidPromptDismissed: true }),
+  null,
+  'an active attempt must not persist invalid-only prompt state',
 );
 
 const assertInvalid = (
@@ -186,10 +225,24 @@ const assertInvalid = (
   return invalid;
 };
 
-assertInvalid(
+const invalidWaitingU1 = assertInvalid(
   u1Waiting,
   event('pump-valve-opened', 20),
   'reopen-pump-valve-during-u1',
+);
+assert.deepEqual(normalizeHeatCapacityFreeAttempt(invalidWaitingU1), invalidWaitingU1);
+assert.equal(
+  normalizeHeatCapacityFreeAttempt({
+    ...invalidWaitingU1,
+    invalidReason: 'repump-after-u1',
+  }),
+  null,
+  'an invalid reason must be reachable from the stage that was frozen at invalidation',
+);
+assert.equal(
+  normalizeHeatCapacityFreeAttempt({ ...invalidWaitingU1, invalidatedAtS: 13 }),
+  null,
+  'invalidation must not predate the latest attempt-stage transition',
 );
 assertInvalid(
   u1Waiting,
@@ -257,6 +310,12 @@ const timedOut = evaluateHeatCapacityFreeAttemptPowerOffTimeout(poweredOff, {
 });
 assert.equal(timedOut.status, 'invalid');
 assert.equal(timedOut.invalidReason, 'power-off-timeout');
+assert.deepEqual(normalizeHeatCapacityFreeAttempt(timedOut), timedOut);
+assert.equal(
+  normalizeHeatCapacityFreeAttempt({ ...timedOut, invalidatedAtWallClockMs: 70_999 }),
+  null,
+  'a restored power-off timeout must retain the full timeout interval',
+);
 
 const timedOutWhilePoweringBackOn = setHeatCapacityFreeAttemptPower(poweredOff, {
   powerOn: true,

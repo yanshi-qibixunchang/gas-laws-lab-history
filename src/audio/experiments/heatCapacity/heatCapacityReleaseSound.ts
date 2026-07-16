@@ -1,5 +1,6 @@
 import type { AudioEngine } from '../../core/audioEngine.ts';
 import type { ProceduralAudioVoiceHandle } from '../../core/audioTypes.ts';
+import { setSmoothAudioParam } from '../../core/audioBus.ts';
 import {
   getHeatCapacityReleaseLowpassHz,
   getHeatCapacityReleaseSoundIntensity,
@@ -31,6 +32,7 @@ const createReleaseNoiseBuffers = (context: AudioContext) => {
 
 export class HeatCapacityReleaseSound {
   private readonly engine: AudioEngine;
+  private readonly onError: (error: unknown) => void;
   private voice: ProceduralAudioVoiceHandle | null = null;
   private startPromise: Promise<void> | null = null;
   private desiredActive = false;
@@ -39,8 +41,9 @@ export class HeatCapacityReleaseSound {
   private attackEndsAt = 0;
   private lowpass: BiquadFilterNode | null = null;
 
-  constructor(engine: AudioEngine) {
+  constructor(engine: AudioEngine, onError: (error: unknown) => void = () => undefined) {
     this.engine = engine;
+    this.onError = onError;
   }
 
   start(pressureDeltaKPa: number, apertureRatio = 1) {
@@ -52,9 +55,11 @@ export class HeatCapacityReleaseSound {
       return;
     }
     if (this.startPromise) return;
-    this.startPromise = this.startInternal().finally(() => {
-      this.startPromise = null;
-    });
+    this.startPromise = this.startInternal()
+      .catch((error: unknown) => this.onError(error))
+      .finally(() => {
+        this.startPromise = null;
+      });
   }
 
   private async startInternal() {
@@ -71,63 +76,75 @@ export class HeatCapacityReleaseSound {
       return;
     }
 
-    const context = voice.context;
-    const { whiteBuffer, softBuffer } = createReleaseNoiseBuffers(context);
-    const whiteSource = context.createBufferSource();
-    const softSource = context.createBufferSource();
-    const whiteGain = context.createGain();
-    const softGain = context.createGain();
-    const highpass = context.createBiquadFilter();
-    const lowpass = context.createBiquadFilter();
+    try {
+      const context = voice.context;
+      const { whiteBuffer, softBuffer } = createReleaseNoiseBuffers(context);
+      const whiteSource = context.createBufferSource();
+      const softSource = context.createBufferSource();
+      const whiteGain = context.createGain();
+      const softGain = context.createGain();
+      const highpass = context.createBiquadFilter();
+      const lowpass = context.createBiquadFilter();
 
-    whiteSource.buffer = whiteBuffer;
-    softSource.buffer = softBuffer;
-    whiteSource.loop = true;
-    softSource.loop = true;
-    whiteGain.gain.value = HEAT_CAPACITY_RELEASE_AUDIO_WHITE_MIX;
-    softGain.gain.value = 1 - HEAT_CAPACITY_RELEASE_AUDIO_WHITE_MIX;
-    highpass.type = 'highpass';
-    highpass.frequency.value = HEAT_CAPACITY_RELEASE_AUDIO_HIGHPASS_HZ;
-    highpass.Q.value = 0.6;
-    lowpass.type = 'lowpass';
-    lowpass.frequency.value = getHeatCapacityReleaseLowpassHz(this.pressureDeltaKPa);
-    lowpass.Q.value = 0.72;
+      whiteSource.buffer = whiteBuffer;
+      softSource.buffer = softBuffer;
+      whiteSource.loop = true;
+      softSource.loop = true;
+      whiteGain.gain.value = HEAT_CAPACITY_RELEASE_AUDIO_WHITE_MIX;
+      softGain.gain.value = 1 - HEAT_CAPACITY_RELEASE_AUDIO_WHITE_MIX;
+      highpass.type = 'highpass';
+      highpass.frequency.value = HEAT_CAPACITY_RELEASE_AUDIO_HIGHPASS_HZ;
+      highpass.Q.value = 0.6;
+      lowpass.type = 'lowpass';
+      lowpass.frequency.value = getHeatCapacityReleaseLowpassHz(this.pressureDeltaKPa);
+      lowpass.Q.value = 0.72;
 
-    whiteSource.connect(whiteGain);
-    softSource.connect(softGain);
-    whiteGain.connect(highpass);
-    softGain.connect(highpass);
-    highpass.connect(lowpass);
-    lowpass.connect(voice.output);
+      whiteSource.connect(whiteGain);
+      softSource.connect(softGain);
+      whiteGain.connect(highpass);
+      softGain.connect(highpass);
+      highpass.connect(lowpass);
+      lowpass.connect(voice.output);
 
-    for (const node of [whiteGain, softGain, highpass, lowpass]) voice.trackNode(node);
-    voice.trackSource(whiteSource);
-    voice.trackSource(softSource);
-    whiteSource.start();
-    softSource.start();
+      for (const node of [whiteGain, softGain, highpass, lowpass]) voice.trackNode(node);
+      voice.trackSource(whiteSource);
+      voice.trackSource(softSource);
+      whiteSource.start();
+      softSource.start();
 
-    this.voice = voice;
-    this.lowpass = lowpass;
-    const now = context.currentTime;
-    this.attackEndsAt = now + HEAT_CAPACITY_RELEASE_AUDIO_ATTACK_MS / 1000;
-    voice.output.gain.cancelScheduledValues(now);
-    voice.output.gain.setValueAtTime(0, now);
-    voice.output.gain.linearRampToValueAtTime(
-      HEAT_CAPACITY_RELEASE_AUDIO_BASE_GAIN * getHeatCapacityReleaseSoundIntensity(
-        this.pressureDeltaKPa,
-        this.apertureRatio,
-      ),
-      this.attackEndsAt,
-    );
-    this.updateFilter(lowpass, this.pressureDeltaKPa, 0);
+      this.voice = voice;
+      this.lowpass = lowpass;
+      const now = context.currentTime;
+      this.attackEndsAt = now + HEAT_CAPACITY_RELEASE_AUDIO_ATTACK_MS / 1000;
+      voice.output.gain.cancelScheduledValues(now);
+      voice.output.gain.setValueAtTime(0, now);
+      voice.output.gain.linearRampToValueAtTime(
+        HEAT_CAPACITY_RELEASE_AUDIO_BASE_GAIN * getHeatCapacityReleaseSoundIntensity(
+          this.pressureDeltaKPa,
+          this.apertureRatio,
+        ),
+        this.attackEndsAt,
+      );
+      this.updateFilter(lowpass, this.pressureDeltaKPa, 0);
+    } catch (error) {
+      if (this.voice === voice) this.voice = null;
+      this.lowpass = null;
+      this.attackEndsAt = 0;
+      try {
+        voice.stop(0);
+      } catch (stopError) {
+        this.onError(stopError);
+      }
+      throw error;
+    }
   }
 
   private updateFilter(lowpass: BiquadFilterNode, pressureDeltaKPa: number, rampMs: number) {
-    const now = lowpass.context.currentTime;
-    lowpass.frequency.cancelAndHoldAtTime(now);
-    lowpass.frequency.linearRampToValueAtTime(
+    return setSmoothAudioParam(
+      lowpass.frequency,
       getHeatCapacityReleaseLowpassHz(pressureDeltaKPa),
-      now + Math.max(0, rampMs) / 1000,
+      lowpass.context,
+      rampMs,
     );
   }
 
@@ -143,10 +160,25 @@ export class HeatCapacityReleaseSound {
       apertureRatio,
     );
     const targetAt = Math.max(this.attackEndsAt, now + HEAT_CAPACITY_RELEASE_AUDIO_UPDATE_MS / 1000);
-    voice.output.gain.cancelAndHoldAtTime(now);
-    voice.output.gain.linearRampToValueAtTime(targetGain, targetAt);
-    if (this.lowpass) {
-      this.updateFilter(this.lowpass, pressureDeltaKPa, HEAT_CAPACITY_RELEASE_AUDIO_UPDATE_MS);
+    try {
+      const gainUpdated = setSmoothAudioParam(
+        voice.output.gain,
+        targetGain,
+        context,
+        Math.max(0, (targetAt - now) * 1000),
+      );
+      if (!gainUpdated) throw new Error('Heat-capacity release gain automation failed.');
+      if (this.lowpass) {
+        const filterUpdated = this.updateFilter(
+          this.lowpass,
+          pressureDeltaKPa,
+          HEAT_CAPACITY_RELEASE_AUDIO_UPDATE_MS,
+        );
+        if (!filterUpdated) throw new Error('Heat-capacity release filter automation failed.');
+      }
+    } catch (error) {
+      this.stop(0);
+      this.onError(error);
     }
   }
 
@@ -156,7 +188,11 @@ export class HeatCapacityReleaseSound {
     this.voice = null;
     this.lowpass = null;
     this.attackEndsAt = 0;
-    voice?.stop(fadeOutMs);
+    try {
+      voice?.stop(fadeOutMs);
+    } catch (error) {
+      this.onError(error);
+    }
   }
 
   dispose() {

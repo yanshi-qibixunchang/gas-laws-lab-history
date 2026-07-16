@@ -11,6 +11,8 @@ import {
   loadWorkbenchHeatCapacityRefreshSession,
   normalizeWorkbenchHeatCapacityRefreshSession,
   persistWorkbenchHeatCapacityRefreshSession,
+  resolveWorkbenchHeatCapacityPressureAlertRefreshProjection,
+  selectPendingWorkbenchHeatCapacityRefreshSession,
   type WorkbenchHeatCapacityRefreshSessionStorage,
 } from '../../src/features/workbench/workbenchHeatCapacityRefreshSession.ts';
 
@@ -141,6 +143,37 @@ demoSession.sceneSnapshot = {
 const normalizedDemoSession = normalizeWorkbenchHeatCapacityRefreshSession(demoSession);
 assert.deepEqual(normalizedDemoSession, demoSession, 'a legal demo checkpoint should round-trip without loss');
 
+const demoSessionWithDueCompletionToast = structuredClone(demoSession);
+demoSessionWithDueCompletionToast.demo.completionMessage = 'Demo complete';
+demoSessionWithDueCompletionToast.demo.completionMessageRemainingMs = 0;
+assert.equal(
+  normalizeWorkbenchHeatCapacityRefreshSession(demoSessionWithDueCompletionToast)?.demo.completionMessageRemainingMs,
+  0,
+  'a due completion toast must retain its zero-delay terminal callback across restart',
+);
+
+const demoSessionWithInterruptedStepPanelExit = structuredClone(demoSession);
+demoSessionWithInterruptedStepPanelExit.demo.stepPanel.mode = 'exiting';
+assert.equal(
+  normalizeWorkbenchHeatCapacityRefreshSession(demoSessionWithInterruptedStepPanelExit)?.demo.stepPanel.mode,
+  'hidden',
+  'refresh restore must finish an interrupted step-panel exit instead of reviving it without a timer',
+);
+
+const legacyFocusSession = structuredClone(demoSession) as typeof demoSession & { focusMode?: unknown };
+delete legacyFocusSession.focusMode;
+if (legacyFocusSession.cameraPose) legacyFocusSession.cameraPose.cameraMode = 'instrument';
+assert.equal(
+  normalizeWorkbenchHeatCapacityRefreshSession(legacyFocusSession)?.focusMode,
+  'instrument',
+  'a legacy refresh checkpoint with no focusMode field should infer the historical camera focus identity',
+);
+assert.equal(
+  normalizeWorkbenchHeatCapacityRefreshSession({ ...demoSession, focusMode: 'corrupt-focus-mode' }),
+  null,
+  'an explicitly corrupt current focusMode must be rejected instead of treated as a missing legacy field',
+);
+
 const animatingTransitionSession = createWorkbenchHeatCapacityRefreshSession(
   'heat-capacity-transition',
   'guide',
@@ -154,6 +187,21 @@ animatingTransitionSession.modeTransition = {
   targetMode: 'guide',
   queuedMode: 'demo',
   requestId: 9,
+  lastIssuedRequestId: 10,
+  activeIntent: {
+    requestId: 9,
+    sourceMode: 'free',
+    targetMode: 'guide',
+    reason: 'mode-control',
+    discardSource: false,
+  },
+  queuedIntent: {
+    requestId: 10,
+    sourceMode: 'guide',
+    targetMode: 'demo',
+    reason: 'mode-control',
+    discardSource: false,
+  },
   sourceBlockers: [],
   visualRemainingMs: 217,
 };
@@ -265,6 +313,15 @@ waitingDemoTransitionSession.modeTransition = {
   targetMode: 'guide',
   queuedMode: null,
   requestId: 10,
+  lastIssuedRequestId: 10,
+  activeIntent: {
+    requestId: 10,
+    sourceMode: 'demo',
+    targetMode: 'guide',
+    reason: 'mode-control',
+    discardSource: false,
+  },
+  queuedIntent: null,
   sourceBlockers: ['camera', 'instrument'],
   visualRemainingMs: 0,
 };
@@ -288,6 +345,15 @@ incomingDemoTransitionSession.modeTransition = {
   targetMode: 'demo',
   queuedMode: null,
   requestId: 11,
+  lastIssuedRequestId: 11,
+  activeIntent: {
+    requestId: 11,
+    sourceMode: 'free',
+    targetMode: 'demo',
+    reason: 'mode-control',
+    discardSource: false,
+  },
+  queuedIntent: null,
   sourceBlockers: [],
   visualRemainingMs: 190,
 };
@@ -490,6 +556,26 @@ assert.deepEqual(
   'guide reminders, lesson dialog, and toast remaining times should round-trip',
 );
 
+const expiredGuidePulseSession = structuredClone(guideSession);
+expiredGuidePulseSession.guide.normalReminder.remainingMs = 0;
+const normalizedExpiredGuidePulse = normalizeWorkbenchHeatCapacityRefreshSession(expiredGuidePulseSession);
+assert.deepEqual(normalizedExpiredGuidePulse?.guide.normalReminder, {
+  active: false,
+  controlId: null,
+  message: null,
+  remainingMs: null,
+});
+assert.equal(normalizedExpiredGuidePulse?.guide.focusControlId, null);
+assert.equal(normalizedExpiredGuidePulse?.guide.focusPulseActive, false);
+
+const mismatchedGuidePulseSession = structuredClone(guideSession);
+mismatchedGuidePulseSession.guide.focusControlId = 'recordU2';
+const normalizedMismatchedGuidePulse = normalizeWorkbenchHeatCapacityRefreshSession(
+  mismatchedGuidePulseSession,
+);
+assert.equal(normalizedMismatchedGuidePulse?.guide.focusControlId, null);
+assert.equal(normalizedMismatchedGuidePulse?.guide.focusPulseActive, false);
+
 const freeSessionWithPressureToast = createWorkbenchHeatCapacityRefreshSession('heat-capacity-free', 'free', 123);
 freeSessionWithPressureToast.guide.toastQueue.current = {
   id: 'free-pressure-toast',
@@ -505,6 +591,81 @@ freeSessionWithPressureToast.guide.pressureAlarmRemainingMs = 900;
 const normalizedFreeSession = normalizeWorkbenchHeatCapacityRefreshSession(freeSessionWithPressureToast);
 assert.equal(normalizedFreeSession?.guide.toastQueue.current?.id, 'free-pressure-toast');
 assert.equal(normalizedFreeSession?.guide.pressureAlarmRemainingMs, 900);
+
+assert.deepEqual(
+  resolveWorkbenchHeatCapacityPressureAlertRefreshProjection({
+    activeFileId: 'heat-capacity-free',
+    pressureAlarmVisible: true,
+    pressureAlarmRemainingMs: 0,
+    closePumpValveReminderRemainingMs: null,
+    closePumpValveReminderAfterAlarmMs: 220,
+  }),
+  {
+    pressureAlarmVisible: false,
+    pressureAlarmRemainingMs: null,
+    closePumpValveReminderFileId: 'heat-capacity-free',
+    closePumpValveReminderRemainingMs: 220,
+  },
+  'a pagehide snapshot at the alarm deadline must atomically advance into the close-valve reminder stage',
+);
+assert.deepEqual(
+  resolveWorkbenchHeatCapacityPressureAlertRefreshProjection({
+    activeFileId: 'heat-capacity-free',
+    pressureAlarmVisible: false,
+    pressureAlarmRemainingMs: null,
+    closePumpValveReminderRemainingMs: 0,
+    closePumpValveReminderAfterAlarmMs: 220,
+  }),
+  {
+    pressureAlarmVisible: false,
+    pressureAlarmRemainingMs: null,
+    closePumpValveReminderFileId: 'heat-capacity-free',
+    closePumpValveReminderRemainingMs: 0,
+  },
+  'a close-valve reminder whose callback is already due must remain an explicit restorable zero-delay stage',
+);
+
+assert.equal(
+  selectPendingWorkbenchHeatCapacityRefreshSession({
+    restorePending: true,
+    initialRefreshSession: freeSessionWithPressureToast,
+    activeFileId: freeSessionWithPressureToast.activeHeatCapacityFileId,
+    activeMode: freeSessionWithPressureToast.mode,
+  }),
+  freeSessionWithPressureToast,
+  'workspace snapshots created before scene hydration must preserve the original refresh anchor by identity',
+);
+assert.equal(
+  selectPendingWorkbenchHeatCapacityRefreshSession({
+    restorePending: true,
+    initialRefreshSession: freeSessionWithPressureToast,
+    activeFileId: freeSessionWithPressureToast.activeHeatCapacityFileId,
+    activeMode: 'guide',
+  }),
+  null,
+  'a stale pending refresh checkpoint must not attach to a different active mode',
+);
+
+const expiredPressureAlarmWithFollowUp = structuredClone(freeSessionWithPressureToast);
+expiredPressureAlarmWithFollowUp.guide.pressureAlarmRemainingMs = 0;
+expiredPressureAlarmWithFollowUp.ui.layout = {
+  closePumpValveReminderFileId: expiredPressureAlarmWithFollowUp.activeHeatCapacityFileId,
+  closePumpValveReminderRemainingMs: 220,
+};
+const normalizedExpiredPressureAlarmWithFollowUp = normalizeWorkbenchHeatCapacityRefreshSession(
+  expiredPressureAlarmWithFollowUp,
+);
+assert.equal(normalizedExpiredPressureAlarmWithFollowUp?.guide.pressureAlarmVisible, false);
+assert.equal(normalizedExpiredPressureAlarmWithFollowUp?.guide.pressureAlarmRemainingMs, null);
+assert.equal(
+  normalizedExpiredPressureAlarmWithFollowUp?.ui.layout.closePumpValveReminderFileId,
+  expiredPressureAlarmWithFollowUp.activeHeatCapacityFileId,
+);
+assert.equal(
+  normalizedExpiredPressureAlarmWithFollowUp?.ui.layout.closePumpValveReminderRemainingMs,
+  220,
+  'an expired alarm checkpoint should keep its explicitly staged close-valve follow-up delay',
+);
 
 const malformedSession = normalizeWorkbenchHeatCapacityRefreshSession({
   ...demoSession,

@@ -56,6 +56,7 @@ const createModeUiCheckpointFromRefreshFixture = (
     checkpointId: session.checkpointId,
     capturedAtMs: session.capturedAtMs,
     scene: {
+      focusMode: session.focusMode,
       cameraPose: session.cameraPose,
       cameraTransition: null,
       ultraVisualState: null,

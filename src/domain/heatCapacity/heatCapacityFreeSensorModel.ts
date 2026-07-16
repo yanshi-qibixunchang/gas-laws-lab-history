@@ -104,7 +104,7 @@ const approach = (
   return current + (target - current) * (1 - Math.exp(-rate * dtS));
 };
 
-const calculateSlope = (history: HeatCapacityFreeDisplaySample[]) => {
+export const calculateFreeSensorHistorySlope = (history: HeatCapacityFreeDisplaySample[]) => {
   if (history.length < 2) {
     return 0;
   }
@@ -272,8 +272,8 @@ export const stepFreeSensor = (
     nextSampleAtS: atS + getNextSampleIntervalS(state.seed, sampleIndex, config),
     pressureHistory,
     temperatureHistory,
-    pressureSlopeMvPerS: calculateSlope(pressureHistory),
-    temperatureSlopeMvPerS: calculateSlope(temperatureHistory),
+    pressureSlopeMvPerS: calculateFreeSensorHistorySlope(pressureHistory),
+    temperatureSlopeMvPerS: calculateFreeSensorHistorySlope(temperatureHistory),
     pressureReliability: target.pressureReliability,
     pressureNonlinearErrorMv: target.pressureNonlinearErrorMv,
     pressureStochasticErrorMv: target.pressureStochasticErrorMv,

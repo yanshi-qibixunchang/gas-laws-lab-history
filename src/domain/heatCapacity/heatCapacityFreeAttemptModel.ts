@@ -125,6 +125,45 @@ const ATTEMPT_INVALID_REASONS = new Set<HeatCapacityFreeAttemptInvalidReason>([
   'power-off-timeout',
 ]);
 
+const ATTEMPT_TIMELINE_KEYS = [
+  'u1WaitStartedAtS',
+  'u1RecordedAtS',
+  'releaseStartedAtS',
+  'releaseClosedAtS',
+  'u2WaitStartedAtS',
+  'u2RecordedAtS',
+] as const;
+
+const ATTEMPT_STAGE_TIMELINE_LENGTH: Record<HeatCapacityFreeAttemptStage, number> = {
+  preparing: 0,
+  pumping: 0,
+  'waiting-u1': 1,
+  'u1-recorded': 2,
+  releasing: 3,
+  'waiting-u2': 5,
+  'u2-recorded': 6,
+};
+
+const ATTEMPT_INVALID_REASON_STAGES: Record<
+  Exclude<HeatCapacityFreeAttemptInvalidReason, 'power-off-timeout'>,
+  ReadonlySet<HeatCapacityFreeAttemptStage>
+> = {
+  'reopen-pump-valve-during-u1': new Set(['waiting-u1']),
+  'effective-pump-during-u1': new Set(['waiting-u1']),
+  'release-before-u1': new Set(['preparing', 'pumping', 'waiting-u1']),
+  'repump-after-u1': new Set(['u1-recorded', 'releasing']),
+  'zero-after-effective-pump': new Set([
+    'pumping',
+    'waiting-u1',
+    'u1-recorded',
+    'releasing',
+    'waiting-u2',
+    'u2-recorded',
+  ]),
+  'open-stopcock-during-u2': new Set(['waiting-u2', 'u2-recorded']),
+  'pump-during-u2': new Set(['waiting-u2', 'u2-recorded']),
+};
+
 const isAttemptRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null
 );
@@ -156,14 +195,51 @@ export const normalizeHeatCapacityFreeAttempt = (
     : null;
   const startedAtS = nullableFiniteNumber(value.startedAtS);
   const startedAtWallClockMs = nullableFiniteNumber(value.startedAtWallClockMs);
-  if (!status || !startReason || !stage || !preheatOutcome || startedAtS === null || startedAtWallClockMs === null) {
+  const effectivePumpCount = typeof value.effectivePumpCount === 'number' &&
+    Number.isSafeInteger(value.effectivePumpCount)
+    ? value.effectivePumpCount
+    : null;
+  if (
+    !status || !startReason || !stage || !preheatOutcome ||
+    startedAtS === null || startedAtS < 0 ||
+    startedAtWallClockMs === null || startedAtWallClockMs < 0 ||
+    effectivePumpCount === null || effectivePumpCount < 0 ||
+    typeof value.invalidPromptDismissed !== 'boolean' ||
+    !ATTEMPT_TIMELINE_KEYS.every((key) => (
+      value[key] === null || (typeof value[key] === 'number' && Number.isFinite(value[key]) && value[key] >= 0)
+    )) ||
+    (
+      value.powerOffStartedAtWallClockMs !== null &&
+      (
+        typeof value.powerOffStartedAtWallClockMs !== 'number' ||
+        !Number.isFinite(value.powerOffStartedAtWallClockMs) ||
+        value.powerOffStartedAtWallClockMs < 0
+      )
+    ) ||
+    (
+      value.invalidatedAtS !== null &&
+      (
+        typeof value.invalidatedAtS !== 'number' ||
+        !Number.isFinite(value.invalidatedAtS) ||
+        value.invalidatedAtS < 0
+      )
+    ) ||
+    (
+      value.invalidatedAtWallClockMs !== null &&
+      (
+        typeof value.invalidatedAtWallClockMs !== 'number' ||
+        !Number.isFinite(value.invalidatedAtWallClockMs) ||
+        value.invalidatedAtWallClockMs < 0
+      )
+    )
+  ) {
     return null;
   }
   const invalidReason = typeof value.invalidReason === 'string' &&
     ATTEMPT_INVALID_REASONS.has(value.invalidReason as HeatCapacityFreeAttemptInvalidReason)
     ? value.invalidReason as HeatCapacityFreeAttemptInvalidReason
     : null;
-  const effectivePumpCount = Math.max(0, Math.floor(nullableFiniteNumber(value.effectivePumpCount) ?? 0));
+  if (value.invalidReason !== null && invalidReason === null) return null;
   const u1WaitStartedAtS = nullableFiniteNumber(value.u1WaitStartedAtS);
   const u1RecordedAtS = nullableFiniteNumber(value.u1RecordedAtS);
   const releaseStartedAtS = nullableFiniteNumber(value.releaseStartedAtS);
@@ -179,31 +255,58 @@ export const normalizeHeatCapacityFreeAttempt = (
   ) {
     return null;
   }
-  if (stage !== 'preparing' && effectivePumpCount < 1) return null;
   if (
-    (stage === 'waiting-u1' || stage === 'u1-recorded' || stage === 'releasing' || stage === 'waiting-u2' || stage === 'u2-recorded') &&
-    u1WaitStartedAtS === null
+    (stage === 'preparing' && effectivePumpCount !== 0) ||
+    (stage !== 'preparing' && effectivePumpCount < 1) ||
+    (startReason === 'effective-pump' && stage === 'preparing')
   ) return null;
+  const timeline = [
+    u1WaitStartedAtS,
+    u1RecordedAtS,
+    releaseStartedAtS,
+    releaseClosedAtS,
+    u2WaitStartedAtS,
+    u2RecordedAtS,
+  ];
+  const requiredTimelineLength = ATTEMPT_STAGE_TIMELINE_LENGTH[stage];
+  if (timeline.some((timestamp, index) => (
+    index < requiredTimelineLength ? timestamp === null : timestamp !== null
+  ))) return null;
+  const orderedTimeline = [startedAtS, ...timeline.slice(0, requiredTimelineLength)] as number[];
+  if (orderedTimeline.some((timestamp, index) => (
+    index > 0 && timestamp < orderedTimeline[index - 1]!
+  ))) return null;
   if (
-    (stage === 'u1-recorded' || stage === 'releasing' || stage === 'waiting-u2' || stage === 'u2-recorded') &&
-    u1RecordedAtS === null
+    releaseClosedAtS !== null &&
+    u2WaitStartedAtS !== null &&
+    releaseClosedAtS !== u2WaitStartedAtS
   ) return null;
-  if (
-    (stage === 'releasing' || stage === 'waiting-u2' || stage === 'u2-recorded') &&
-    releaseStartedAtS === null
-  ) return null;
-  if (
-    (stage === 'waiting-u2' || stage === 'u2-recorded') &&
-    (releaseClosedAtS === null || u2WaitStartedAtS === null)
-  ) return null;
-  if (stage === 'u2-recorded' && u2RecordedAtS === null) return null;
+  const powerOffStartedAt = powerOffStartedAtWallClockMs;
+  if (powerOffStartedAt !== null && powerOffStartedAt < startedAtWallClockMs) return null;
+  if (status === 'active' && value.invalidPromptDismissed) return null;
+  if (status === 'invalid') {
+    const lastAttemptTimestamp = orderedTimeline.at(-1)!;
+    if (
+      invalidatedAtS! < lastAttemptTimestamp ||
+      invalidatedAtWallClockMs! < startedAtWallClockMs ||
+      (powerOffStartedAt !== null && invalidatedAtWallClockMs! < powerOffStartedAt)
+    ) return null;
+    if (invalidReason === 'power-off-timeout') {
+      if (
+        powerOffStartedAt === null ||
+        invalidatedAtWallClockMs! - powerOffStartedAt < HEAT_CAPACITY_FREE_ATTEMPT_POWER_OFF_TIMEOUT_MS
+      ) return null;
+    } else if (!ATTEMPT_INVALID_REASON_STAGES[invalidReason!].has(stage)) {
+      return null;
+    }
+  }
   return {
     status,
     startReason,
     stage,
     preheatOutcome,
-    startedAtS: Math.max(0, startedAtS),
-    startedAtWallClockMs: Math.max(0, startedAtWallClockMs),
+    startedAtS,
+    startedAtWallClockMs,
     effectivePumpCount,
     u1WaitStartedAtS,
     u1RecordedAtS,
@@ -215,7 +318,7 @@ export const normalizeHeatCapacityFreeAttempt = (
     invalidReason,
     invalidatedAtS,
     invalidatedAtWallClockMs,
-    invalidPromptDismissed: value.invalidPromptDismissed === true,
+    invalidPromptDismissed: value.invalidPromptDismissed,
   };
 };
 

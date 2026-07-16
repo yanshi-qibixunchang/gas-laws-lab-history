@@ -34,8 +34,13 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /captureRegistration\.provider\(\{ includeFrame: false \}\)/,
-  'mode switching should capture exact scene state without synchronously serializing a new canvas bitmap on the UI thread',
+  /checkpointRegistration\.provider\(\)/,
+  'mode switching should checkpoint exact semantic scene state without serializing a canvas bitmap on the UI thread',
+);
+assert.match(
+  workbenchSource,
+  /heatCapacitySceneModeTransitionControllerRef\.current\?\.prepare\(requestId, null\)/,
+  'mode switching should use the live DOM transition instead of a persisted pixel snapshot',
 );
 const modeProjectionStart = workbenchSource.indexOf('const applyHeatCapacityModeUiProjection = (');
 const modeProjectionEnd = workbenchSource.indexOf('const commitHeatCapacityFileProjection = (', modeProjectionStart);
@@ -86,12 +91,12 @@ assert.doesNotMatch(
 );
 assert.match(
   sceneSource,
-  /restoreHardSphereVisualCheckpoint=\{props\.modeRestoreRequest\?\.hardSphereVisualCheckpoint \?\? null\}/,
+  /restoreHardSphereVisualCheckpoint=\{activeModeRestoreRequest\?\.hardSphereVisualCheckpoint \?\? null\}/,
   'particle checkpoints should restore inside the persistent scene instead of remounting it',
 );
 assert.match(
   sceneSource,
-  /modeRestoreRequest=\{props\.modeRestoreRequest \?\? null\}/,
+  /modeRestoreRequest=\{activeModeRestoreRequest\}/,
   'camera checkpoints should restore inside the persistent scene instead of remounting it',
 );
 assert.match(
@@ -121,8 +126,8 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /if \(heatCapacityRefreshRestorePendingRef\.current\) return;\s*if \(heatCapacityModeTransitionStateRef\.current\.phase !== 'idle'\) return;[\s\S]*activateHeatCapacityFileModeSession\(currentFile\.id\)/,
-  'anomalous demo recovery must not interrupt an in-flight mode transition',
+  /if \(heatCapacityRefreshRestorePendingRef\.current\) return;\s*if \(heatCapacityModeTransitionStateRef\.current\.phase !== 'idle'\) return;[\s\S]*switchHeatCapacityMode\('free', 'demo-error-fallback', true\)/,
+  'anomalous demo recovery must route through the same-file coordinator after any in-flight transition settles',
 );
 assert.match(
   workbenchSource,

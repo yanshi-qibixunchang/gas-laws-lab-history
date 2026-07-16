@@ -5,6 +5,7 @@ const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudi
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const sessionSource = readFileSync(new URL('../../src/features/workbench/workbenchSession.ts', import.meta.url), 'utf8');
+const indexedDbPersistenceSource = readFileSync(new URL('../../src/features/workbench/workbenchIndexedDbPersistence.ts', import.meta.url), 'utf8');
 
 const indexOfOrFail = (haystack: string, needle: string, message: string) => {
   const index = haystack.indexOf(needle);
@@ -20,10 +21,11 @@ assert.ok(source.includes('closeExperiment: string;'), 'file menu copy should ex
 assert.ok(source.includes('confirmCloseRunningExperiment: (name: string) => string;'), 'copy should provide a running-close confirmation');
 
 assert.ok(source.includes('const [closedFiles, setClosedFiles] = useState<WorkbenchFileState[]>(() => loadClosedWorkbenchFiles());'), 'workbench should load closed cached experiment files');
-assert.ok(source.includes('persistClosedWorkbenchFiles(closedFiles);'), 'closed cached experiment files should persist separately from open files');
-assert.ok(sessionSource.includes('WORKBENCH_CLOSED_FILES_STORAGE_KEY'), 'session storage should define a separate closed-file cache key');
-assert.ok(sessionSource.includes('loadClosedWorkbenchFiles'), 'session storage should load closed cached files');
-assert.ok(sessionSource.includes('persistClosedWorkbenchFiles'), 'session storage should persist closed cached files');
+assert.match(source, /closedFilesRef\.current = closedFiles;[\s\S]*scheduleWorkspacePersistenceRef\.current\(\);[\s\S]*\}, \[activeFileId, closedFiles, files, selectedPanel\]\);/, 'closed cached experiment changes should schedule the shared IndexedDB workspace commit');
+assert.match(source, /files: filesRef\.current,[\s\S]*closedFiles: closedFilesRef\.current,/, 'workspace persistence snapshots should keep open and closed file collections distinct');
+assert.match(indexedDbPersistenceSource, /openFileIds: snapshot\.files\.map\(\(file\) => file\.id\),[\s\S]*closedFileIds: snapshot\.closedFiles\.map\(\(file\) => file\.id\),/, 'IndexedDB workspace metadata should preserve separate open and closed file ordering');
+assert.ok(sessionSource.includes('loadClosedWorkbenchFiles'), 'session bootstrap should expose closed cached files loaded from IndexedDB');
+assert.doesNotMatch(sessionSource, /persistClosedWorkbenchFiles/, 'the runtime session module should not retain the obsolete separate localStorage writer');
 
 const newMenuSource = topCommandsSource.slice(
   indexOfOrFail(topCommandsSource, "if (openMenu === 'new')", 'experiment files menu should exist'),
@@ -44,10 +46,92 @@ assert.ok(
 
 assert.ok(source.includes('const requestCloseWorkbenchFile = (file: WorkbenchFileState) => {'), 'workbench should expose a close-file request handler');
 assert.ok(source.includes('window.confirm(workbenchCopy.files.confirmCloseRunningExperiment(file.name))'), 'closing a running experiment should ask for confirmation');
-assert.ok(source.includes('setClosedFiles((current) =>'), 'closing should move the experiment into the closed cache');
+assert.ok(source.includes('commitWorkbenchFileCollections'), 'file collection changes should use one synchronous ownership boundary');
 assert.ok(source.includes('openClosedWorkbenchFile'), 'closed cache should be reopenable');
-assert.ok(source.includes('const isClosingActiveFile = fileId === activeFileId;'), 'closing inactive experiments should not reset the active workspace');
+assert.ok(source.includes('const isClosingActiveFile = fileId === activeFileIdRef.current;'), 'closing inactive experiments should use the authoritative active-file ref');
 assert.ok(source.includes('if (isClosingActiveFile) {'), 'active-workspace cleanup should only run when the active experiment is closed');
+
+const collectionCommitSource = source.slice(
+  indexOfOrFail(source, 'const commitWorkbenchFileCollections = (', 'file collection commit boundary should exist'),
+  indexOfOrFail(source, 'const updateFileById = (', 'file update helper should follow the collection commit boundary'),
+);
+assert.match(
+  collectionCommitSource,
+  /filesRef\.current = nextFiles;[\s\S]*closedFilesRef\.current = nextClosedFiles;[\s\S]*activeFileIdRef\.current = nextActiveFileId;[\s\S]*setFiles\(nextFiles\);[\s\S]*setClosedFiles\(nextClosedFiles\);[\s\S]*setActiveFileId\(nextActiveFileId\);/,
+  'open, closed, and active ownership refs must update before their React projections',
+);
+
+const assertCollectionCommitPrecedesFlush = (start: string, end: string, label: string) => {
+  const section = source.slice(
+    indexOfOrFail(source, start, `${label} handler should exist`),
+    indexOfOrFail(source, end, `${label} handler should have a stable end boundary`),
+  );
+  assert.ok(
+    indexOfOrFail(section, 'commitWorkbenchFileCollections(', `${label} should commit collection ownership`) <
+      indexOfOrFail(section, 'flushWorkspacePersistenceRef.current(', `${label} should flush persistence`),
+    `${label} must update open/closed/active refs before an immediate persistence flush`,
+  );
+  assert.match(
+    section,
+    /activeModeCheckpointOverride[\s\S]*activateHeatCapacityFileModeSession\([\s\S]*flushWorkspacePersistenceRef\.current\(activeModeCheckpointOverride\)/,
+    `${label} must carry the restored target mode checkpoint into its immediate persistence flush`,
+  );
+};
+assertCollectionCommitPrecedesFlush(
+  'const createFile = (kind: WorkbenchFileKind) => {',
+  'const openNewWorkbenchWindow = () => {',
+  'create-file',
+);
+assertCollectionCommitPrecedesFlush(
+  'const closeWorkbenchFile = (fileId: string) => {',
+  'const requestCloseWorkbenchFile = (file: WorkbenchFileState) => {',
+  'close-file',
+);
+assertCollectionCommitPrecedesFlush(
+  'const openClosedWorkbenchFile = (fileId: string) => {',
+  'const deleteWorkbenchFile = (fileId: string) => {',
+  'reopen-file',
+);
+assertCollectionCommitPrecedesFlush(
+  'const deleteWorkbenchFile = (fileId: string) => {',
+  'const requestDeleteWorkbenchFile = (file: WorkbenchFileState) => {',
+  'delete-file',
+);
+
+const workspaceSnapshotSource = source.slice(
+  indexOfOrFail(source, 'const createWorkspacePersistenceSnapshot = (', 'workspace snapshot builder should exist'),
+  indexOfOrFail(source, 'const handleHeatCapacityCameraPoseChange = (', 'camera persistence handler should follow the snapshot builder'),
+);
+assert.match(
+  workspaceSnapshotSource,
+  /const snapshotCapturedAtMs = desktopExitQuiescedAtMsRef\.current \?\? Date\.now\(\);[\s\S]*resolveWorkbenchActiveModeCheckpointOverride[\s\S]*const refreshSession =[\s\S]*checkpointOverride\.provided[\s\S]*\? null[\s\S]*: buildCurrentHeatCapacityRefreshSession\(null, snapshotCapturedAtMs\)[\s\S]*checkpointOverride\.provided[\s\S]*\? checkpointOverride\.checkpoint[\s\S]*: buildHeatCapacityModeUiCheckpoint\(activePersistenceFile, snapshotCapturedAtMs\)/,
+  'an immediate file switch must distinguish absent, non-null, and explicit-null target checkpoints without reading the previous render',
+);
+assert.match(
+  workspaceSnapshotSource,
+  /flushWorkspacePersistenceRef\.current = async \(activeModeCheckpointOverride\) => \{\s*const snapshot = createWorkspacePersistenceSnapshot\(activeModeCheckpointOverride\);\s*const scheduler = workspacePersistenceSchedulerRef\.current;\s*if \(!scheduler\) return false;\s*scheduler\.schedule\(\(\) => snapshot\);/,
+  'flush must materialize the target-file snapshot before awaiting any earlier save or React projection commit',
+);
+
+const schedulerLifecycleIndex = indexOfOrFail(
+  source,
+  'workspacePersistenceSchedulerRef.current = scheduler;',
+  'the persistence scheduler must be installed from an effect lifecycle',
+);
+const persistenceSchedulingEffectIndex = indexOfOrFail(
+  source,
+  'closedFilesRef.current = closedFiles;',
+  'the workspace persistence scheduling effect should exist',
+);
+assert.ok(
+  schedulerLifecycleIndex < persistenceSchedulingEffectIndex,
+  'the scheduler lifecycle effect must run before the scheduling effect under React StrictMode',
+);
+assert.match(
+  source.slice(schedulerLifecycleIndex, persistenceSchedulingEffectIndex),
+  /return \(\) => \{[\s\S]*workspacePersistenceSchedulerRef\.current === scheduler[\s\S]*workspacePersistenceSchedulerRef\.current = null;[\s\S]*scheduler\.dispose\(\);/,
+  'StrictMode cleanup must dispose only its own scheduler so the second effect setup can install a fresh instance',
+);
 
 const fileMenuSource = source.slice(
   indexOfOrFail(source, 'className={`studio-tree-row studio-file-row', 'file tree row should exist'),

@@ -133,6 +133,16 @@ assert.match(
   '3D rotate/pan breathing hint should start after 3 seconds of focused inactivity',
 );
 assert.match(
+  source,
+  /isRunning,[\s\S]*?useEffect\(\(\) => \{\s*draw\(\);\s*\}, \[draw, isRunning\]\);/,
+  'standard and ideal particle canvases should redraw once when runtime or view state changes',
+);
+assert.doesNotMatch(
+  source,
+  /requestAnimationFrame\(render\)/,
+  'paused or unchanged standard and ideal canvases must not keep a permanent redraw loop alive',
+);
+assert.match(
   cssSource,
   /@keyframes workbenchToolBreathe/,
   'workbench should define a dedicated rectangular-tool breathing keyframe',

@@ -11,6 +11,8 @@ const workbench = readFileSync(join(root, 'src', 'features', 'workbench', 'Workb
 const settingsWindow = readFileSync(join(root, 'src', 'features', 'workbench', 'WorkbenchGeneralSettingsWindow.tsx'), 'utf8');
 const rollbackMotion = readFileSync(join(root, 'src', 'features', 'heatCapacity', 'heatCapacityGuideRollbackMotion.ts'), 'utf8');
 const ultraModel = readFileSync(join(root, 'src', 'features', 'heatCapacity', 'HeatCapacityUltraInstrumentModel.tsx'), 'utf8');
+const audioEngine = readFileSync(join(root, 'src', 'audio', 'core', 'audioEngine.ts'), 'utf8');
+const audioProvider = readFileSync(join(root, 'src', 'audio', 'react', 'AudioProvider.tsx'), 'utf8');
 
 assert.match(controller, /state\.pumpPulseId > previous\.pumpPulseId/,
   'pump sound should follow every pump animation pulse, including physically ineffective strokes');
@@ -57,6 +59,71 @@ assert.match(releaseSound, /HEAT_CAPACITY_RELEASE_AUDIO_WHITE_MIX = 0\.5/);
 assert.match(releaseSound, /HEAT_CAPACITY_RELEASE_AUDIO_HIGHPASS_HZ = 450/);
 assert.doesNotMatch(releaseSound, /setTimeout\([^)]*(300|400|420)/,
   'release audio must not use a fixed duration timer');
+assert.match(
+  audioEngine,
+  /private readonly groupPlaybackGenerations[\s\S]*beginGroupPlayback[\s\S]*async playOneShot[\s\S]*groupPlaybackGeneration = this\.beginGroupPlayback\(group\)[\s\S]*isPlaybackCurrent[\s\S]*await this\.decodeAudio\(file\)[\s\S]*isPlaybackCurrent/,
+  'one-shot playback should reject globally stale work and out-of-order work from the same voice group',
+);
+assert.match(
+  audioEngine,
+  /async playBurst[\s\S]*groupPlaybackGeneration = this\.beginGroupPlayback\(group\)[\s\S]*await this\.decodeAudio\(file\)[\s\S]*isPlaybackCurrent\(playbackGeneration, group, groupPlaybackGeneration\)/,
+  'burst playback should reject globally stale and same-group stale work after asynchronous decode',
+);
+assert.match(
+  audioEngine,
+  /stopAll\(fadeOutMs = 0\) \{[\s\S]*this\.playbackGeneration \+= 1;[\s\S]*this\.stopVoice/,
+  'stopping runtime audio should invalidate pending playback before stopping registered voices',
+);
+assert.match(
+  audioEngine,
+  /this\.registerVoice\(voice\);[\s\S]*try \{[\s\S]*for \(let index = 0; index < count; index \+= 1\)[\s\S]*catch \(error\) \{[\s\S]*this\.stopVoice\(voice, 0\);[\s\S]*Could not start \$\{assetId\} burst/,
+  'burst voices must be registered before any source starts and synchronously cleaned if scheduling fails partway through',
+);
+assert.match(
+  audioEngine,
+  /throw new Error\(`\[AudioEngine\] Could not decode \$\{assetId\}\.`, \{ cause: error \}\);/,
+  'decode failures should remain explicit engine errors for the controller degradation boundary to classify',
+);
+assert.match(
+  controller,
+  /if \(audioDisabledAfterFailureRef\.current\) return;[\s\S]*audioDisabledAfterFailureRef\.current = true;[\s\S]*console\.warn\([\s\S]*Audio was disabled after a playback failure; the experiment remains available/,
+  'the controller should quarantine audio and emit only one diagnostic without failing the experiment runtime',
+);
+assert.match(
+  controller,
+  /promise\.catch\(\(error: unknown\) => reportAudioFailureRef\.current\(error\)\)/,
+  'asynchronous decode or playback failures should enter the degradable audio boundary',
+);
+assert.doesNotMatch(
+  scene,
+  /audioRuntimeErrorHandlerRef|onRuntimeError:\s*\(error\).*handleUltraSceneError/,
+  'audio failures must not be promoted into the WebGL runtime error card',
+);
+assert.match(
+  releaseSound,
+  /setSmoothAudioParam\(\s*lowpass\.frequency/,
+  'release filter automation should use the compatible AudioParam fallback',
+);
+assert.match(
+  releaseSound,
+  /setSmoothAudioParam\(\s*voice\.output\.gain/,
+  'release gain automation should use the compatible AudioParam fallback',
+);
+assert.match(
+  controller,
+  /if \(state\.restoreMuted\) \{[\s\S]*releaseSoundRef\.current\?\.stop\(\);[\s\S]*engine\.stopAll\(0\);/,
+  'mode restore muting should cancel both active and pending mechanical audio',
+);
+assert.match(
+  audioProvider,
+  /const handlePageHide = \(event: PageTransitionEvent\) => \{[\s\S]*if \(event\.persisted\) \{[\s\S]*engine\.stopAll\(0\);[\s\S]*return;[\s\S]*void engine\.destroy\(\);/,
+  'a BFCache pagehide must stop current voices without permanently destroying the provider engine',
+);
+assert.match(
+  controller,
+  /useEffect\(\(\) => \(\) => \{[\s\S]*releaseSoundRef\.current\?\.dispose\(\);[\s\S]*engine\.stopAll\(0\);[\s\S]*\}, \[engine\]\);/,
+  'unmounting the heat-capacity controller must cancel active and pending mechanical audio',
+);
 
 assert.match(scene, /useHeatCapacityAudioController\(\{/);
 assert.match(scene, /pressureZeroTimelineDriven: props\.pressureZeroTimelineDriven/,

@@ -4616,6 +4616,15 @@
   animation: studioOverlayFadeOut var(--studio-heat-mode-transition-duration, 380ms) cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
+.studio-heat-instrument-scene[data-heat-capacity-mode-transition-paused='true']
+  :is(
+    [data-preview-overlay-layer='heat-capacity'] *,
+    .studio-heat-mode-transition-outgoing-scene,
+    .studio-heat-mode-transition-outgoing-overlay
+  ) {
+  animation-play-state: paused !important;
+}
+
 .studio-preview-overlay-slot {
   position: absolute;
   display: flex;
@@ -11656,5 +11665,34 @@
   .studio-about-cache-row .studio-about-value {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+.studio-exit-persistence-shield {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: rgba(240, 246, 255, 0.94);
+  background: rgba(8, 14, 24, 0.58);
+  backdrop-filter: blur(2px);
+  cursor: wait;
+  pointer-events: all;
+}
+
+.studio-exit-persistence-spinner {
+  inline-size: 16px;
+  block-size: 16px;
+  border: 2px solid rgba(240, 246, 255, 0.32);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: studioExitPersistenceSpin 700ms linear infinite;
+}
+
+@keyframes studioExitPersistenceSpin {
+  to {
+    transform: rotate(360deg);
   }
 }

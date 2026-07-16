@@ -169,7 +169,7 @@ assert.match(
 
 assert.match(
   source,
-  /const closeIdealResultTab = \(tab: WorkbenchIdealResultWindowKey\) =>[\s\S]*?captureUndoSnapshot\(`closed \$\{[\s\S]*? tab`\)[\s\S]*?closeIdealResultsWindow\(\)/,
+  /const closeIdealResultTab = \(tab: WorkbenchIdealResultWindowKey\) =>[\s\S]*?captureUndoSnapshot\(\s*`closed \$\{[\s\S]*? tab`,\s*'presentation',?\s*\)[\s\S]*?closeIdealResultsWindow\(false\)/,
   'closing the last ideal Results child tab should close the whole Results window with undo history',
 );
 

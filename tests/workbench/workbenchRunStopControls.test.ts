@@ -78,8 +78,8 @@ assert.match(
 
 assert.match(
   source,
-  /const switchHeatCapacityMode = \(targetMode: HeatCapacityMode\) => \{[\s\S]*?type: 'request',[\s\S]*?scheduleHeatCapacityModeTargetPreparation/,
-  'mode switching should enter the shared transition coordinator instead of projecting a target synchronously',
+  /const switchHeatCapacityMode = \([\s\S]*targetMode: HeatCapacityMode,[\s\S]*reason: HeatCapacityModeTransitionReason[\s\S]*discardSource = false,[\s\S]*requestHeatCapacityModeTransition\(\{[\s\S]*sourceMode:[\s\S]*targetMode,[\s\S]*reason,[\s\S]*discardSource,[\s\S]*scheduleHeatCapacityModeTargetPreparation\(nextState\.requestId\)/,
+  'mode switching should submit a strongly typed intent to the shared transition coordinator instead of projecting a target synchronously',
 );
 
 assert.match(
@@ -112,13 +112,18 @@ assert.notEqual(selectFileEnd, -1, 'file selection handler should end before ide
 const selectFileBody = source.slice(selectFileStart, selectFileEnd);
 assert.match(
   selectFileBody,
-  /activeFile\.kind === 'heatCapacity'[\s\S]*suspendActiveHeatCapacityModeForNavigation\(\)/,
+  /currentActiveFile\.kind === 'heatCapacity'[\s\S]*suspendActiveHeatCapacityModeForNavigation\(\)/,
   'switching away from a heat-capacity file should capture and suspend its active mode checkpoint',
 );
 assert.match(
   selectFileBody,
-  /if \(switchingFile && file\.kind === 'heatCapacity'\) \{[\s\S]*activateHeatCapacityFileModeSession\(file\.id\)/,
+  /if \(switchingFile && file\.kind === 'heatCapacity'\) \{[\s\S]*activeModeCheckpointOverride = activateHeatCapacityFileModeSession\(file\.id\)/,
   'returning to a heat-capacity file should restore its selected mode session',
+);
+assert.match(
+  selectFileBody,
+  /activeModeCheckpointOverride = activateHeatCapacityFileModeSession\(file\.id\)[\s\S]*flushWorkspacePersistenceRef\.current\(activeModeCheckpointOverride\)/,
+  'returning to a heat-capacity file should atomically flush the restored target checkpoint',
 );
 
 assert.match(

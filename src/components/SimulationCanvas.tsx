@@ -23,6 +23,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
   particles,
   L,
   r,
+  isRunning,
   t,
   isFocused,
   onFocusChange,
@@ -34,7 +35,6 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const workbenchToolsMotionRef = usePreviewOverlayMotion<HTMLDivElement>();
 
   const [rotation, setRotation] = useState({ x: -15, y: 30 });
   const [scale, setScale] = useState(1.0);
@@ -43,6 +43,16 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
   const [isPanMode, setIsPanMode] = useState(false);
   const [showPanHint, setShowPanHint] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const workbenchToolsMotionRef = usePreviewOverlayMotion<HTMLDivElement>({
+    layoutRevision: [
+      variant,
+      Number(isFocused),
+      Number(isPanMode),
+      Number(showPanHint),
+      Number(supportsHover),
+      Number(touchLike),
+    ].join(':'),
+  });
   const hasToggledPan = useRef(false);
 
   const isDragging = useRef(false);
@@ -207,14 +217,8 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
   }, [particles, rotation, scale, pan, L, r]);
 
   useEffect(() => {
-    let animationFrameId: number;
-    const render = () => {
-      draw();
-      animationFrameId = requestAnimationFrame(render);
-    };
-    render();
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [draw]);
+    draw();
+  }, [draw, isRunning]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

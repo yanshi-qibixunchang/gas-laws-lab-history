@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 
 const OVERLAY_MOTION_DURATION_MS = 200;
 const OVERLAY_MOTION_EASING = 'cubic-bezier(0.2, 0, 0, 1)';
@@ -48,13 +48,15 @@ const getOverlayLayoutRect = (item: HTMLElement, root: HTMLElement): OverlayLayo
 };
 
 export const usePreviewOverlayMotion = <ElementType extends HTMLElement>(
-  options: { disabled?: boolean } = {},
+  options: { disabled?: boolean; layoutRevision?: string | number } = {},
 ) => {
   const rootRef = useRef<ElementType | null>(null);
   const previousRectsRef = useRef<Map<string, OverlayLayoutRect>>(new Map());
   const activeAnimationsRef = useRef<Map<string, Animation>>(new Map());
+  const disabledRef = useRef(options.disabled === true);
+  disabledRef.current = options.disabled === true;
 
-  useLayoutEffect(() => {
+  const measureLayout = useCallback(() => {
     const root = rootRef.current;
     if (!root) return;
 
@@ -74,7 +76,7 @@ export const usePreviewOverlayMotion = <ElementType extends HTMLElement>(
       }
     }
 
-    if (options.disabled || prefersReducedMotion()) {
+    if (disabledRef.current || prefersReducedMotion()) {
       activeAnimationsRef.current.forEach((animation) => {
         animation.cancel();
       });
@@ -112,17 +114,47 @@ export const usePreviewOverlayMotion = <ElementType extends HTMLElement>(
       );
 
       activeAnimationsRef.current.set(key, animation);
-      animation.finished
-        .catch(() => undefined)
-        .finally(() => {
-          if (activeAnimationsRef.current.get(key) === animation) {
-            activeAnimationsRef.current.delete(key);
-          }
-        });
+      const releaseAnimation = () => {
+        if (activeAnimationsRef.current.get(key) === animation) {
+          activeAnimationsRef.current.delete(key);
+        }
+      };
+      animation.addEventListener('finish', releaseAnimation, { once: true });
+      animation.addEventListener('cancel', releaseAnimation, { once: true });
     }
 
     previousRectsRef.current = nextRects;
-  });
+  }, []);
+
+  useLayoutEffect(() => {
+    measureLayout();
+  }, [measureLayout, options.disabled, options.layoutRevision]);
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof ResizeObserver === 'undefined') return undefined;
+    let frameId: number | null = null;
+    const scheduleMeasure = () => {
+      if (frameId !== null) return;
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null;
+        measureLayout();
+      });
+    };
+    const observer = new ResizeObserver(scheduleMeasure);
+    observer.observe(root);
+    root.querySelectorAll<HTMLElement>('[data-preview-overlay-item]').forEach((item) => observer.observe(item));
+    return () => {
+      observer.disconnect();
+      if (frameId !== null) window.cancelAnimationFrame(frameId);
+    };
+  }, [measureLayout, options.layoutRevision]);
+
+  useLayoutEffect(() => () => {
+    activeAnimationsRef.current.forEach((animation) => animation.cancel());
+    activeAnimationsRef.current.clear();
+    previousRectsRef.current.clear();
+  }, []);
 
   return rootRef;
 };

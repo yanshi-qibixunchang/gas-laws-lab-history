@@ -28,6 +28,7 @@ type RestoredHeatCapacityGuideFields = Pick<
 
 const GUIDE_WORKFLOW_STEPS = new Set([
   'powerRequired',
+  'preheatRequired',
   'openStopcockForZeroRequired',
   'zeroRequired',
   'recordU0Required',

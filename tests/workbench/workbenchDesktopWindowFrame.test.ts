@@ -98,8 +98,176 @@ assert.match(
 
 assert.match(
   electronTypesSource,
-  /hardSphereLabWindow\?: \{[\s\S]*?minimize: \(\) => Promise<DesktopWindowState>;[\s\S]*?toggleMaximize: \(\) => Promise<DesktopWindowState>;[\s\S]*?close: \(\) => Promise<\{ status: 'closed' \}>;[\s\S]*?getState: \(\) => Promise<DesktopWindowState>;[\s\S]*?onState: \(callback: \(state: DesktopWindowState\) => void\) => \(\) => void;/,
+  /hardSphereLabWindow\?: \{[\s\S]*?minimize: \(\) => Promise<DesktopWindowState>;[\s\S]*?toggleMaximize: \(\) => Promise<DesktopWindowState>;[\s\S]*?close: \(\) => Promise<\{ status: 'closed' \| 'cancelled' \| 'discarded' \| 'error' \}>;[\s\S]*?reportPersistenceResult:[\s\S]*?getState: \(\) => Promise<DesktopWindowState>;[\s\S]*?onState: \(callback: \(state: DesktopWindowState\) => void\) => \(\) => void;[\s\S]*?onPrepareExit:/,
   'renderer typings should cover all custom window controls',
+);
+
+assert.match(
+  electronMainSource,
+  /exitPersistenceCoordinator\.bindWindow\(mainWindow, \{[\s\S]*beforeApprovedClose: namespace === WORKBENCH_MAIN_NAMESPACE[\s\S]*workbenchWindowRegistry\.remove\(namespace\)/,
+  'every desktop window should install the persistence guard, while only an approved secondary close removes its registry record',
+);
+assert.match(
+  electronMainSource,
+  /app\.requestSingleInstanceLock\(\)[\s\S]*app\.on\('second-instance'[\s\S]*existingWindow\.focus\(\)/,
+  'desktop startup should enforce one app instance and focus the existing window on a second launch',
+);
+assert.match(
+  electronPreloadSource,
+  /onPrepareExit:[\s\S]*hsl-lifecycle:prepare-exit[\s\S]*reportPersistenceResult:[\s\S]*hsl-lifecycle:persistence-result|reportPersistenceResult:[\s\S]*hsl-lifecycle:persistence-result[\s\S]*onPrepareExit:[\s\S]*hsl-lifecycle:prepare-exit/,
+  'preload should expose only the correlated exit-persistence request and acknowledgement bridge',
+);
+
+const refreshRestoreStart = workbenchSource.indexOf('const restoreSession = initialHeatCapacityRefreshSession;');
+const persistedTransitionStart = workbenchSource.indexOf("if (!initialHeatCapacityRefreshSession) return undefined;", refreshRestoreStart);
+const lifecyclePersistenceStart = workbenchSource.indexOf('const persistLifecycleCheckpointOnce = async () => {', persistedTransitionStart);
+assert.ok(refreshRestoreStart >= 0 && persistedTransitionStart > refreshRestoreStart && lifecyclePersistenceStart > persistedTransitionStart);
+const refreshRestoreSource = workbenchSource.slice(refreshRestoreStart - 80, persistedTransitionStart);
+const persistedTransitionSource = workbenchSource.slice(persistedTransitionStart - 240, lifecyclePersistenceStart);
+assert.match(
+  refreshRestoreSource,
+  /if \(desktopExitQuiescedRef\.current\) return;[\s\S]*\}, \[activeFileId, desktopExitQuiesced, heatCapacitySceneReadyFileId\]\);/,
+  'scene-ready refresh restoration must defer while desktop exit persistence owns the renderer and retry after cancel-resume',
+);
+assert.match(
+  persistedTransitionSource,
+  /if \(desktopExitQuiescedRef\.current\) return undefined;[\s\S]*if \(heatCapacityRuntimeFailureFileIdRef\.current !== null\) return undefined;[\s\S]*desktopExitQuiescedRef\.current[\s\S]*heatCapacityRuntimeFailureFileIdRef\.current !== null[\s\S]*\}, \[[\s\S]*desktopExitQuiesced,[\s\S]*heatCapacityRefreshRestoring/,
+  'persisted transition restoration must neither start nor advance during desktop exit quiescence or runtime failure',
+);
+assert.match(
+  workbenchSource,
+  /desktopExitQuiesced \|\|[\s\S]*heatCapacityRefreshRestoreAppliedRef\.current[\s\S]*requestAnimationFrame\(\(\) => \{\s*if \(desktopExitQuiescedRef\.current\) return;[\s\S]*setHeatCapacitySceneRestoreAcknowledged\(true\)/,
+  'scene restore acknowledgement must stay pending through prepare-exit and resume after a cancelled close',
+);
+assert.match(
+  workbenchSource,
+  /const applyHeatCapacityModeTransitionEvent =[\s\S]*?requestAnimationFrame\(\(\) => \{[\s\S]*?desktopExitQuiescedRef\.current[\s\S]*?heatCapacityRuntimeFailureFileIdRef\.current !== null[\s\S]*?const switchHeatCapacityMode =[\s\S]*?requestAnimationFrame\(\(\) => \{[\s\S]*?desktopExitQuiescedRef\.current[\s\S]*?heatCapacityRuntimeFailureFileIdRef\.current !== null/,
+  'both mode-transition persistence frames must stay inert while desktop exit or runtime failure owns the scene',
+);
+assert.match(
+  workbenchSource,
+  /const isHeatCapacityGuideReminderClockRunning =[\s\S]*desktopExitQuiescedRef\.current[\s\S]*prepareDesktopExitQuiescenceRef\.current =[\s\S]*pauseGuideHeatCapacityReminderTimers\(activeFile\.id\)[\s\S]*resumeDesktopExitQuiescenceRef\.current/,
+  'desktop exit quiescence should synchronously freeze Guide reminder clocks and let the shared gate resume them after cancellation',
+);
+assert.match(
+  workbenchSource,
+  /const heatCapacityHardSpherePaused = desktopExitQuiesced \|\|[\s\S]*restoreAudioMuted=\{\s*desktopExitQuiesced \|\|/,
+  'desktop exit quiescence should stop particle simulation and mute continuous runtime audio while native close coordination is pending',
+);
+assert.match(
+  workbenchSource,
+  /const pauseHeatCapacityPressureAlertTimers = \(fileId: string\) => \{[\s\S]*desktopExitPausedPressureAlarmRef\.current = \{ fileId, remainingMs \}[\s\S]*desktopExitPausedClosePumpValveReminderRef\.current = \{ fileId, remainingMs \}[\s\S]*prepareDesktopExitQuiescenceRef\.current =[\s\S]*pauseHeatCapacityPressureAlertTimers\(activeFile\.id\)/,
+  'desktop exit preparation should synchronously freeze pressure-alarm and close-valve reminder deadlines',
+);
+assert.match(
+  workbenchSource,
+  /const pauseHeatCapacityTransientUiTimers = \(fileId: string\) => \{[\s\S]*heatCapacityToastPausedRef\.current[\s\S]*heatCapacityRecordSuccessPausedRef\.current[\s\S]*heatCapacityAutoDemoCompleteToastPausedRef\.current[\s\S]*heatCapacityAutoDemoStepPanelPausedRef\.current[\s\S]*heatCapacityGuideLessonClosePausedRef\.current[\s\S]*const resumeHeatCapacityTransientUiTimers = \(fileId: string\) => \{[\s\S]*scheduleHeatCapacityToastAdvance\(pausedToast\.remainingMs\)[\s\S]*scheduleHeatCapacityRecordSuccessToastTimers\([\s\S]*scheduleHeatCapacityAutoDemoCompletionToastExpiry\(pausedCompletionToast\.remainingMs\)[\s\S]*scheduleHeatCapacityAutoDemoStepPanelHide\(pausedStepPanel\.remainingMs\)[\s\S]*scheduleHeatCapacityGuideLessonClose\(/,
+  'ordinary toasts, success sequences, Demo completion, step-panel exit, and lesson close must all freeze and resume from exact remaining time',
+);
+assert.match(
+  workbenchSource,
+  /heatCapacityAutoDemoCompleteToastDeadlineAtMsRef = useRef<number \| null>\(null\);[\s\S]*heatCapacityAutoDemoCompleteToastPausedRef = useRef[\s\S]*initialHeatCapacityRefreshSession\.demo\.completionMessageRemainingMs[\s\S]*heatCapacityToastPausedRef = useRef[\s\S]*initialHeatCapacityRefreshSession\.guide\.toastQueue\.current\.remainingMs[\s\S]*heatCapacityToastDeadlineAtMsRef = useRef<number \| null>\(null\);/,
+  'hydration-owned toast clocks must start as paused plans rather than consuming time before scene readiness',
+);
+assert.match(
+  workbenchSource,
+  /restoreSession\.demo\.completionMessage &&[\s\S]*completionRemainingMs !== null[\s\S]*scheduleHeatCapacityAutoDemoCompletionToastExpiry\(completionRemainingMs\)/,
+  'a completion toast captured exactly at expiry must schedule its zero-delay terminal cleanup after restart',
+);
+assert.match(
+  workbenchSource,
+  /const normalizeHeatCapacityRecordSuccessTimerPlan =[\s\S]*expectedMode !== 'guide'[\s\S]*followUpMessage\.trim\(\)\.length === 0[\s\S]*followUpRemainingMs > releaseRemainingMs[\s\S]*recordSuccessSequence,[\s\S]*const restoredRecordSuccess =[\s\S]*scheduleHeatCapacityRecordSuccessToastTimers\(/,
+  'record-success restart state must be Guide-owned, strictly ordered, persisted, and rescheduled',
+);
+assert.match(
+  workbenchSource,
+  /const normalizeHeatCapacityLessonCloseTimerPlan =[\s\S]*!lessonDialogPresent[\s\S]*value\.shouldResumeAutoDemo && expectedMode !== 'demo'[\s\S]*lessonCloseSequence,[\s\S]*const restoredLessonClose =[\s\S]*scheduleHeatCapacityGuideLessonClose\(/,
+  'lesson-close restart state must retain its owner and deferred Demo resume without creating a ghost dialog',
+);
+assert.match(
+  workbenchSource,
+  /stepPanel: \{\s*mode: autoDemoStepPanelMode === 'exiting' \? 'hidden' : autoDemoStepPanelMode/,
+  'a true restart should canonicalize a partially exited Demo step panel to its hidden terminal state',
+);
+assert.match(
+  workbenchSource,
+  /const clearHeatCapacityGuideLessonRuntimeForFileExit =[\s\S]*clearHeatCapacityGuideLessonTimers\(\);[\s\S]*heatCapacityLessonPausedFileIdRef\.current = null;[\s\S]*setHeatCapacityGuideLessonDialog\(null\);[\s\S]*const releaseHeatCapacityRuntimeForFileExit =[\s\S]*heatCapacityRecordControlsClosingTimerRef\.current[\s\S]*setHeatCapacityRecordControlsClosing\(null\);[\s\S]*heatCapacityResetFeedbackTimerRef\.current[\s\S]*setHeatCapacityResetFeedbackActionId\(null\);[\s\S]*clearHeatCapacityRecordSuccessToastTimers\(\);[\s\S]*clearHeatCapacityToastQueue\(\);[\s\S]*clearHeatCapacityPressureAlertUiState\(\);[\s\S]*clearGuideHeatCapacityStrongReminder\(\);[\s\S]*clearHeatCapacityGuideLessonRuntimeForFileExit\(\);/,
+  'leaving a Heat Capacity file must clear toast, pressure, reminder, and lesson ownership after its checkpoint is captured',
+);
+assert.doesNotMatch(
+  workbenchSource.match(/const clearHeatCapacityGuideLessonRuntimeForFileExit =[\s\S]*?\n  };/)?.[0] ?? '',
+  /resetHeatCapacityLessonResumeClock/,
+  'file-exit lesson cleanup must not mutate the outgoing canonical file after its checkpoint was captured',
+);
+assert.match(
+  workbenchSource,
+  /prepareDesktopExitQuiescenceRef\.current =[\s\S]*pauseHeatCapacityTransientUiTimers\(activeFile\.id\)[\s\S]*resumeDesktopExitQuiescenceRef\.current =[\s\S]*resumeHeatCapacityTransientUiTimers\(activeFile\.id\)/,
+  'desktop cancel-resume must route transient UI timers through the shared frozen-clock coordinator',
+);
+assert.match(
+  workbenchSource,
+  /const handleHeatCapacitySceneRuntimeFailure =[\s\S]*?pauseHeatCapacityPressureAlertTimers\(fileId\)[\s\S]*?const handleHeatCapacitySceneRuntimeRecovered =[\s\S]*?const recoveryIntent[\s\S]*?scheduleHeatCapacityPressureAlarmExpiry\(fileId, pausedPressureAlarm\.remainingMs\)[\s\S]*?scheduleHeatCapacityClosePumpValveReminder\(fileId, pausedClosePumpValveReminder\.remainingMs\)/,
+  'runtime failure must freeze pressure-alert clocks and authoritative scene-ready recovery must resume their exact remainder',
+);
+assert.match(
+  workbenchSource,
+  /heatCapacityRuntimeFailureFileIdRef\.current === fileId[\s\S]*?desktopExitPausedClosePumpValveReminderRef\.current = \{[\s\S]*?heatCapacityRuntimeFailureFileIdRef\.current === fileId[\s\S]*?desktopExitPausedPressureAlarmRef\.current/,
+  'late pressure-alert callbacks must retain a zero remainder instead of advancing while runtime failure owns the scene',
+);
+assert.match(
+  workbenchSource,
+  /pausedPressureAlarm\?\.remainingMs \?\?[\s\S]*pausedClosePumpValveReminder\?\.remainingMs \?\?[\s\S]*resumeDesktopExitQuiescenceRef\.current =[\s\S]*scheduleHeatCapacityPressureAlarmExpiry\([\s\S]*scheduleHeatCapacityClosePumpValveReminder\(/,
+  'immediate persistence and cancel-resume should both use the frozen pressure-alert remaining times',
+);
+assert.match(
+  workbenchSource,
+  /desktopExitPausedPressureAlarmRef = useRef<[\s\S]*initialHeatCapacityPressureAlarmPlan\);[\s\S]*heatCapacityPressureAlarmDeadlineAtMsRef = useRef<number \| null>\(null\);[\s\S]*desktopExitPausedClosePumpValveReminderRef = useRef<[\s\S]*initialHeatCapacityClosePumpValveReminderPlan\);/,
+  'refresh-owned pressure-alert clocks should retain their original checkpoint remainder without ticking during scene hydration',
+);
+assert.match(
+  workbenchSource,
+  /const timerGeneration = \+\+heatCapacityPressureAlarmTimerGenerationRef\.current;[\s\S]*if \(timerGeneration !== heatCapacityPressureAlarmTimerGenerationRef\.current\) return;/,
+  'stale pressure-alarm callbacks should be rejected after a desktop-exit freeze or timer replacement',
+);
+assert.match(
+  workbenchSource,
+  /const timerGeneration = \+\+heatCapacityClosePumpValveReminderTimerGenerationRef\.current;[\s\S]*if \(timerGeneration !== heatCapacityClosePumpValveReminderTimerGenerationRef\.current\) return;/,
+  'stale close-valve reminder callbacks should be rejected after a desktop-exit freeze or timer replacement',
+);
+assert.match(
+  workbenchSource,
+  /if \(remainingMs !== null && remainingMs <= 0\) \{[\s\S]*heatCapacityPressureAlarmVisibleRef\.current = false;[\s\S]*desktopExitPausedPressureAlarmRef\.current = null;[\s\S]*desktopExitPausedClosePumpValveReminderRef\.current = \{[\s\S]*remainingMs: HEAT_CAPACITY_CLOSE_PUMP_VALVE_REMINDER_AFTER_ALARM_MS/,
+  'an alarm that expires exactly during desktop-exit preparation should checkpoint the follow-up close-valve stage instead of a zero-duration visible alarm',
+);
+assert.match(
+  workbenchSource,
+  /const refreshRestoreOwnedFileId = heatCapacityRefreshRestorePendingRef\.current[\s\S]*file\.id !== refreshRestoreOwnedFileId[\s\S]*const refreshRestoreOwnsActiveFile = activeFile\?\.id === refreshRestoreOwnedFileId;[\s\S]*activeFile\?\.kind === 'heatCapacity' && !refreshRestoreOwnsActiveFile[\s\S]*if \(\s*!refreshRestoreOwnsActiveFile &&\s*heatCapacityRuntimeFailureFileIdRef\.current === null\s*\) \{/,
+  'desktop cancel-resume should leave pending-refresh or runtime-failure-owned clocks untouched so each resumes exactly once from its authoritative gate',
+);
+assert.match(
+  workbenchSource,
+  /const createWorkspacePersistenceSnapshot =[\s\S]*snapshotCapturedAtMs = desktopExitQuiescedAtMsRef\.current \?\? Date\.now\(\)[\s\S]*selectPendingWorkbenchHeatCapacityRefreshSession\(\{[\s\S]*restorePending: heatCapacityRefreshRestorePendingRef\.current,[\s\S]*buildCurrentHeatCapacityRefreshSession\(null, snapshotCapturedAtMs\)[\s\S]*buildHeatCapacityModeUiCheckpoint\(activePersistenceFile, snapshotCapturedAtMs\)[\s\S]*preserveActiveHeatCapacityModeSession: pendingRefreshSession !== null/,
+  'scheduled, pagehide, and lifecycle snapshots must retain the original refresh anchor and canonical mode checkpoint until scene hydration applies the restore',
+);
+assert.match(
+  workbenchSource,
+  /let switchingFromPendingHeatCapacityRefresh = false;[\s\S]*switchingFromPendingHeatCapacityRefresh = suspendActiveHeatCapacityModeForNavigation\(\);[\s\S]*if \(!switchingFromPendingHeatCapacityRefresh\) \{[\s\S]*heatCapacityRefreshPersistRef\.current\(\);[\s\S]*flushWorkspacePersistenceRef\.current\(\);[\s\S]*commitWorkbenchFileCollections/,
+  'switching away during scene hydration must preserve the outgoing T0 mode store and skip the pre-switch recapture flush',
+);
+assert.match(
+  workbenchSource,
+  /const suspendActiveHeatCapacityModeForNavigation =[\s\S]*activeFileOwnsPendingHeatCapacityRefresh\(currentFile\)[\s\S]*cancelPendingHeatCapacityRefreshRestore\(\)[\s\S]*releaseHeatCapacityRuntimeForFileExit\(currentFile\.id\)[\s\S]*return true;/,
+  'all navigation owners must share one pending-hydration path that preserves the original canonical mode entry',
+);
+assert.match(
+  workbenchSource,
+  /const createEditSnapshotFiles =[\s\S]*activeFileOwnsPendingHeatCapacityRefresh\(currentFile\)\) return currentFiles;[\s\S]*suspendHeatCapacityModeSession/,
+  'undo snapshots captured during hydration must retain the original T0 mode store',
+);
+assert.match(
+  workbenchSource,
+  /persistWorkspaceLifecycleCheckpointRef\.current = async \(forceFresh = false\)[\s\S]*while \(activeFlush\)[\s\S]*await activeFlush[\s\S]*onPrepareExit[\s\S]*persistWorkspaceLifecycleCheckpointRef\.current\(true\)/,
+  'native prepare-exit must wait for any older lifecycle flush and then force a post-quiescence checkpoint',
 );
 
 assert.match(
