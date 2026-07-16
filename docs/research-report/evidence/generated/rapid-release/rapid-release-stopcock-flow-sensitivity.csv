@@ -1,0 +1,5 @@
+﻿condition_id,condition_label,stopcock_flow_rate,open_duration_s,automatic_aperture_ramp_s,static_partial_aperture_ratio,u1_corrected_mv,u2_corrected_mv,gamma,u1_recordable,u2_recordable,interpretation_boundary
+stopcock-flow-01,等效流通系数 0.2,0.2,0.6,0.1,,121.85,60.94,2.0296,true,true,流通系数敏感性，不等同于可保持的独立静态开度
+stopcock-flow-02,等效流通系数 0.4,0.4,0.6,0.1,,121.85,34.13,1.4004,true,true,流通系数敏感性，不等同于可保持的独立静态开度
+stopcock-flow-03,等效流通系数 0.79,0.79,0.6,0.1,,121.85,33.66,1.3923,true,true,流通系数敏感性，不等同于可保持的独立静态开度
+stopcock-flow-04,等效流通系数 1.2,1.2,0.6,0.1,,121.85,33.69,1.3923,true,true,流通系数敏感性，不等同于可保持的独立静态开度

@@ -1,0 +1,4 @@
+﻿relation,relation_key,points_per_seed,seed_count,aggregate_fitted_slope,aggregate_fitted_intercept,aggregate_r_squared,theoretical_slope,aggregate_slope_relative_error_percent,verdict,seed_r_squared_mean,seed_r_squared_min,seed_slope_error_mean_percent,seed_slope_error_max_percent
+P-T,pt,6,5,0.077431013132,-0.000773267944,0.9996052954,0.074074074074,4.53186773,verified,0.9927190797,0.9883134945,4.39054139,8.39184285
+P-1/V,pv,6,5,84.610542246267,-0.000980257409,0.999106432,76.8,10.16997688,verified,0.9909737101,0.9838251252,10.16997688,15.31258255
+P-N,pn,6,5,0.000349271448,0.001826621606,0.9989437861,0.000347222222,0.59017705,verified,0.9906020436,0.984443633,2.57629237,5.01006985

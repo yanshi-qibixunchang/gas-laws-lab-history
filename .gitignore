@@ -34,6 +34,7 @@ output-*.jpg
 output-*.jpeg
 output-*.webm
 output-*.mp4
+docs/research-report/source-materials/videos/**/*.mp4
 tmp/
 .tmp*/
 install-test/

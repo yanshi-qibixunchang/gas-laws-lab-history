@@ -1,0 +1,9 @@
+﻿condition_id,condition_label,run_count,valid_gamma_count,gamma_mean,gamma_sample_sd,delta_gamma_vs_reference_mean,u1_corrected_mean_mv,u2_corrected_mean_mv,recordable_rate
+reference-reduced-nonideal,基准：关闭泄漏、泵阀交换、环境扰动、噪声与非线性,5,5,1.3923,0,0,121.85,33.66,1
+leakage-only,仅加入泄漏,5,5,1.373,0,-0.0193,118.066,31.47,1
+pump-valve-exchange-only,仅加入泵阀交换,5,5,1.3933,0,0.001,116.43,32.28,1
+environment-disturbance-only,仅加入环境扰动,5,5,1.392,0.000274,-0.0003,121.884,33.646,1
+instrument-noise-nonlinearity-only,仅加入仪器噪声与压强非线性,5,5,1.389,0,-0.0033,121.836,33.474,1
+weaker-gas-wall-transfer,较弱气体—器壁换热（0.04 W/K）,5,5,1.3923,0,0,121.89,33.66,1
+stronger-gas-wall-transfer,较强气体—器壁换热（0.16 W/K）,5,5,1.3811,0,-0.0112,121.84,32.99,1
+all-nonideal-defaults,默认全部非理想因素,5,5,1.3739,0.000911,-0.0184,112.794,30.118,1

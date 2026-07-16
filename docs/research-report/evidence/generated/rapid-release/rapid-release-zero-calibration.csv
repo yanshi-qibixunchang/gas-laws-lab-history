@@ -1,0 +1,16 @@
+﻿seed,seed_index,initial_pressure_bias_mv,requested_residual_after_zero_mv,applied_zero_offset_mv,display_before_zero_mv,display_after_zero_mv,automatic_u0_ready,gamma_after_recorded_u0_subtraction
+zero-calibration-seed-01,1,-0.46,-0.05,0.41,-0.46,-0.05,true,1.37398188
+zero-calibration-seed-01,1,-0.46,0,0.46,-0.46,0,true,1.37398188
+zero-calibration-seed-01,1,-0.46,0.05,0.51,-0.46,0.05,true,1.37398188
+zero-calibration-seed-02,2,1.05,-0.05,-1.1,1.05,-0.05,true,1.37398188
+zero-calibration-seed-02,2,1.05,0,-1.05,1.05,0,true,1.37398188
+zero-calibration-seed-02,2,1.05,0.05,-1,1.05,0.05,true,1.37398188
+zero-calibration-seed-03,3,-0.36,-0.05,0.31,-0.36,-0.05,true,1.37398188
+zero-calibration-seed-03,3,-0.36,0,0.36,-0.36,0,true,1.37398188
+zero-calibration-seed-03,3,-0.36,0.05,0.41,-0.36,0.05,true,1.37398188
+zero-calibration-seed-04,4,-0.25,-0.05,0.2,-0.25,-0.05,true,1.37398188
+zero-calibration-seed-04,4,-0.25,0,0.25,-0.25,0,true,1.37398188
+zero-calibration-seed-04,4,-0.25,0.05,0.3,-0.25,0.05,true,1.37398188
+zero-calibration-seed-05,5,0.25,-0.05,-0.3,0.25,-0.05,true,1.37398188
+zero-calibration-seed-05,5,0.25,0,-0.25,0.25,0,true,1.37398188
+zero-calibration-seed-05,5,0.25,0.05,-0.2,0.25,0.05,true,1.37398188

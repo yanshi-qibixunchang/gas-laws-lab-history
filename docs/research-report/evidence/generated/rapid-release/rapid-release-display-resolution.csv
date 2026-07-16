@@ -1,0 +1,4 @@
+﻿signal,raw_value_mv,sensor_quantization_step_mv,sensor_quantized_value_mv,ui_record_resolution_mv,ui_record_truncated_value_mv
+U0,0.034,0.01,0.03,0.1,0
+U1,112.849,0.01,112.85,0.1,112.8
+U2,30.159,0.01,30.16,0.1,30.1

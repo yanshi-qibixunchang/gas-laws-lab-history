@@ -1,0 +1,605 @@
+﻿channel,condition_id,condition_label,response_parameter,response_parameter_value,time_s,initial_value,target_value,response_value,normalized_response,absolute_error
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0,0,120,0,0,120
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.02,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.04,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.06,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.08,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.1,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.12,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.14,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.16,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.18,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.2,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.22,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.24,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.26,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.28,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.3,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.32,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.34,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.36,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.38,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.4,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.42,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.44,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.46,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.48,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.5,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.52,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.54,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.56,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.58,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.6,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.62,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.64,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.66,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.68,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.7,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.72,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.74,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.76,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.78,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.8,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.82,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.84,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.86,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.88,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.9,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.92,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.94,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.96,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.98,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.02,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.04,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.06,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.08,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.1,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.12,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.14,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.16,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.18,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.2,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.22,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.24,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.26,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.28,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.3,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.32,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.34,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.36,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.38,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.4,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.42,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.44,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.46,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.48,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.5,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.52,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.54,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.56,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.58,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.6,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.62,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.64,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.66,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.68,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.7,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.72,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.74,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.76,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.78,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.8,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.82,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.84,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.86,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.88,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.9,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.92,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.94,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.96,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,1.98,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.02,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.04,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.06,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.08,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.1,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.12,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.14,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.16,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.18,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.2,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.22,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.24,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.26,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.28,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.3,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.32,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.34,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.36,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.38,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.4,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.42,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.44,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.46,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.48,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.5,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.52,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.54,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.56,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.58,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.6,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.62,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.64,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.66,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.68,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.7,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.72,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.74,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.76,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.78,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.8,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.82,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.84,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.86,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.88,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.9,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.92,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.94,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.96,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,2.98,0,120,120,1,0
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,3,0,120,120,1,0
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0,0,120,0,0,120
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.02,0,120,17.74274532,0.14785621,102.25725468
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.04,0,120,32.86211555,0.27385096,87.13788445
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.06,0,120,45.74599298,0.38121661,74.25400702
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.08,0,120,56.72490911,0.47270758,63.27509089
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.1,0,120,66.08052431,0.55067104,53.91947569
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.12,0,120,74.05285368,0.61710711,45.94714632
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.14,0,120,80.84642465,0.67372021,39.15357535
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.16,0,120,86.63552395,0.7219627,33.36447605
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.18,0,120,91.56866896,0.76307224,28.43133104
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.2,0,120,95.77241784,0.79810348,24.22758216
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.22,0,120,99.35461634,0.82795514,20.64538366
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.24,0,120,102.40716454,0.85339304,17.59283546
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.26,0,120,105.00837454,0.87506979,14.99162546
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.28,0,120,107.22497947,0.8935415,12.77502053
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.3,0,120,109.11384561,0.90928205,10.88615439
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.32,0,120,110.72343115,0.92269526,9.27656885
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.34,0,120,112.09502947,0.93412525,7.90497053
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.36,0,120,113.26382846,0.94386524,6.73617154
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.38,0,120,114.25981326,0.95216511,5.74018674
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.4,0,120,115.10853552,0.9592378,4.89146448
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.42,0,120,115.83176893,0.96526474,4.16823107
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.44,0,120,116.44806778,0.97040056,3.55193222
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.46,0,120,116.97324302,0.97477703,3.02675698
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.48,0,120,117.42076784,0.9785064,2.57923216
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.5,0,120,117.80212333,0.98168436,2.19787667
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.52,0,120,118.12709305,0.98439244,1.87290695
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.54,0,120,118.40401397,0.98670012,1.59598603
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.56,0,120,118.63999042,0.98866659,1.36000958
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.58,0,120,118.84107628,0.9903423,1.15892372
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.6,0,120,119.01243035,0.99177025,0.98756965
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.62,0,120,119.15844866,0.99298707,0.84155134
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.64,0,120,119.28287725,0.99402398,0.71712275
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.66,0,120,119.3889083,0.99490757,0.6110917
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.68,0,120,119.47926201,0.99566052,0.52073799
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.7,0,120,119.55625635,0.99630214,0.44374365
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.72,0,120,119.62186661,0.99684889,0.37813339
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.74,0,120,119.67777598,0.9973148,0.32222402
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.76,0,120,119.7254188,0.99771182,0.2745812
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.78,0,120,119.76601734,0.99805014,0.23398266
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.8,0,120,119.80061313,0.99833844,0.19938687
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.82,0,120,119.83009371,0.99858411,0.16990629
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.84,0,120,119.85521541,0.99879346,0.14478459
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.86,0,120,119.87662271,0.99897186,0.12337729
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.88,0,120,119.89486481,0.99912387,0.10513519
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.9,0,120,119.9104097,0.99925341,0.0895903
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.92,0,120,119.92365618,0.9993638,0.07634382
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.94,0,120,119.93494409,0.99945787,0.06505591
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.96,0,120,119.94456301,0.99953803,0.05543699
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.98,0,120,119.95275972,0.99960633,0.04724028
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1,0,120,119.95974448,0.99966454,0.04025552
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.02,0,120,119.96569651,0.99971414,0.03430349
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.04,0,120,119.9707685,0.9997564,0.0292315
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.06,0,120,119.97509056,0.99979242,0.02490944
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.08,0,120,119.97877357,0.99982311,0.02122643
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.1,0,120,119.98191203,0.99984927,0.01808797
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.12,0,120,119.98458645,0.99987155,0.01541355
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.14,0,120,119.98686544,0.99989055,0.01313456
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.16,0,120,119.98880747,0.99990673,0.01119253
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.18,0,120,119.99046235,0.99992052,0.00953765
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.2,0,120,119.99187255,0.99993227,0.00812745
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.22,0,120,119.99307425,0.99994229,0.00692575
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.24,0,120,119.99409826,0.99995082,0.00590174
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.26,0,120,119.99497087,0.99995809,0.00502913
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.28,0,120,119.99571446,0.99996429,0.00428554
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.3,0,120,119.9963481,0.99996957,0.0036519
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.32,0,120,119.99688806,0.99997407,0.00311194
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.34,0,120,119.99734818,0.9999779,0.00265182
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.36,0,120,119.99774027,0.99998117,0.00225973
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.38,0,120,119.99807438,0.99998395,0.00192562
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.4,0,120,119.9983591,0.99998633,0.0016409
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.42,0,120,119.99860171,0.99998835,0.00139829
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.44,0,120,119.99880846,0.99999007,0.00119154
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.46,0,120,119.99898464,0.99999154,0.00101536
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.48,0,120,119.99913476,0.99999279,0.00086524
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.5,0,120,119.99926269,0.99999386,0.00073731
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.52,0,120,119.99937171,0.99999476,0.00062829
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.54,0,120,119.99946461,0.99999554,0.00053539
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.56,0,120,119.99954377,0.9999962,0.00045623
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.58,0,120,119.99961122,0.99999676,0.00038878
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.6,0,120,119.99966871,0.99999724,0.00033129
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.62,0,120,119.99971769,0.99999765,0.00028231
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.64,0,120,119.99975943,0.999998,0.00024057
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.66,0,120,119.999795,0.99999829,0.000205
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.68,0,120,119.99982531,0.99999854,0.00017469
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.7,0,120,119.99985114,0.99999876,0.00014886
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.72,0,120,119.99987315,0.99999894,0.00012685
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.74,0,120,119.99989191,0.9999991,0.00010809
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.76,0,120,119.99990789,0.99999923,0.00009211
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.78,0,120,119.99992151,0.99999935,0.00007849
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.8,0,120,119.99993311,0.99999944,0.00006689
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.82,0,120,119.999943,0.99999953,0.000057
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.84,0,120,119.99995143,0.9999996,0.00004857
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.86,0,120,119.99995861,0.99999966,0.00004139
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.88,0,120,119.99996473,0.99999971,0.00003527
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.9,0,120,119.99996995,0.99999975,0.00003005
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.92,0,120,119.99997439,0.99999979,0.00002561
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.94,0,120,119.99997818,0.99999982,0.00002182
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.96,0,120,119.9999814,0.99999985,0.0000186
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,1.98,0,120,119.99998415,0.99999987,0.00001585
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2,0,120,119.9999865,0.99999989,0.0000135
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.02,0,120,119.99998849,0.9999999,0.00001151
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.04,0,120,119.99999019,0.99999992,0.00000981
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.06,0,120,119.99999164,0.99999993,0.00000836
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.08,0,120,119.99999288,0.99999994,0.00000712
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.1,0,120,119.99999393,0.99999995,0.00000607
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.12,0,120,119.99999483,0.99999996,0.00000517
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.14,0,120,119.99999559,0.99999996,0.00000441
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.16,0,120,119.99999625,0.99999997,0.00000375
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.18,0,120,119.9999968,0.99999997,0.0000032
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.2,0,120,119.99999727,0.99999998,0.00000273
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.22,0,120,119.99999768,0.99999998,0.00000232
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.24,0,120,119.99999802,0.99999998,0.00000198
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.26,0,120,119.99999831,0.99999999,0.00000169
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.28,0,120,119.99999856,0.99999999,0.00000144
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.3,0,120,119.99999877,0.99999999,0.00000123
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.32,0,120,119.99999896,0.99999999,0.00000104
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.34,0,120,119.99999911,0.99999999,8.9e-7
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.36,0,120,119.99999924,0.99999999,7.6e-7
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.38,0,120,119.99999935,0.99999999,6.5e-7
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.4,0,120,119.99999945,1,5.5e-7
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.42,0,120,119.99999953,1,4.7e-7
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.44,0,120,119.9999996,1,4e-7
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.46,0,120,119.99999966,1,3.4e-7
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.48,0,120,119.99999971,1,2.9e-7
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.5,0,120,119.99999975,1,2.5e-7
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.52,0,120,119.99999979,1,2.1e-7
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.54,0,120,119.99999982,1,1.8e-7
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.56,0,120,119.99999985,1,1.5e-7
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.58,0,120,119.99999987,1,1.3e-7
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.6,0,120,119.99999989,1,1.1e-7
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.62,0,120,119.99999991,1,9e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.64,0,120,119.99999992,1,8e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.66,0,120,119.99999993,1,7e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.68,0,120,119.99999994,1,6e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.7,0,120,119.99999995,1,5e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.72,0,120,119.99999996,1,4e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.74,0,120,119.99999996,1,4e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.76,0,120,119.99999997,1,3e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.78,0,120,119.99999997,1,3e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.8,0,120,119.99999998,1,2e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.82,0,120,119.99999998,1,2e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.84,0,120,119.99999998,1,2e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.86,0,120,119.99999999,1,1e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.88,0,120,119.99999999,1,1e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.9,0,120,119.99999999,1,1e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.92,0,120,119.99999999,1,1e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.94,0,120,119.99999999,1,1e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.96,0,120,119.99999999,1,1e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,2.98,0,120,119.99999999,1,1e-8
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,3,0,120,120,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0,298.15,303.15,298.15,0,5
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.02,298.15,303.15,303.14999999,1,1e-8
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.04,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.06,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.08,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.1,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.12,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.14,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.16,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.18,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.2,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.22,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.24,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.26,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.28,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.3,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.32,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.34,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.36,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.38,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.4,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.42,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.44,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.46,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.48,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.5,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.52,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.54,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.56,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.58,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.6,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.62,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.64,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.66,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.68,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.7,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.72,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.74,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.76,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.78,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.8,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.82,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.84,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.86,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.88,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.9,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.92,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.94,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.96,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.98,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.02,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.04,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.06,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.08,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.1,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.12,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.14,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.16,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.18,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.2,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.22,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.24,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.26,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.28,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.3,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.32,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.34,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.36,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.38,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.4,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.42,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.44,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.46,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.48,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.5,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.52,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.54,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.56,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.58,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.6,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.62,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.64,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.66,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.68,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.7,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.72,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.74,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.76,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.78,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.8,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.82,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.84,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.86,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.88,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.9,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.92,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.94,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.96,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,1.98,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.02,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.04,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.06,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.08,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.1,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.12,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.14,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.16,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.18,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.2,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.22,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.24,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.26,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.28,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.3,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.32,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.34,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.36,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.38,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.4,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.42,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.44,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.46,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.48,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.5,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.52,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.54,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.56,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.58,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.6,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.62,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.64,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.66,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.68,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.7,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.72,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.74,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.76,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.78,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.8,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.82,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.84,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.86,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.88,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.9,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.92,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.94,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.96,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,2.98,298.15,303.15,303.15,1,0
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,3,298.15,303.15,303.15,1,0
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0,298.15,303.15,298.15,0,5
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.02,298.15,303.15,298.27345044,0.02469009,4.87654956
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.04,298.15,303.15,298.39385288,0.04877058,4.75614712
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.06,298.15,303.15,298.51128257,0.07225651,4.63871743
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.08,298.15,303.15,298.62581291,0.09516258,4.52418709
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.1,298.15,303.15,298.73751549,0.1175031,4.41248451
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.12,298.15,303.15,298.84646012,0.13929202,4.30353988
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.14,298.15,303.15,298.9527149,0.16054298,4.1972851
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.16,298.15,303.15,299.05634623,0.18126925,4.09365377
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.18,298.15,303.15,299.15741891,0.20148378,3.99258109
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.2,298.15,303.15,299.25599608,0.22119922,3.89400392
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.22,298.15,303.15,299.35213938,0.24042788,3.79786062
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.24,298.15,303.15,299.4459089,0.25918178,3.7040911
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.26,298.15,303.15,299.53736323,0.27747265,3.61263677
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.28,298.15,303.15,299.62655955,0.29531191,3.52344045
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.3,298.15,303.15,299.71355361,0.31271072,3.43644639
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.32,298.15,303.15,299.79839977,0.32967995,3.35160023
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.34,298.15,303.15,299.88115107,0.34623021,3.26884893
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.36,298.15,303.15,299.96185924,0.36237185,3.18814076
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.38,298.15,303.15,300.04057472,0.37811494,3.10942528
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.4,298.15,303.15,300.1173467,0.39346934,3.0326533
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.42,298.15,303.15,300.19222318,0.40844464,2.95777682
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.44,298.15,303.15,300.26525095,0.42305019,2.88474905
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.46,298.15,303.15,300.33647566,0.43729513,2.81352434
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.48,298.15,303.15,300.40594182,0.45118836,2.74405818
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.5,298.15,303.15,300.47369286,0.46473857,2.67630714
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.52,298.15,303.15,300.53977112,0.47795422,2.61022888
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.54,298.15,303.15,300.6042179,0.49084358,2.5457821
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.56,298.15,303.15,300.66707348,0.5034147,2.48292652
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.58,298.15,303.15,300.72837716,0.51567543,2.42162284
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.6,298.15,303.15,300.78816724,0.52763345,2.36183276
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.62,298.15,303.15,300.8464811,0.53929622,2.3035189
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.64,298.15,303.15,300.90335518,0.55067104,2.24664482
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.66,298.15,303.15,300.95882504,0.56176501,2.19117496
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.68,298.15,303.15,301.01292534,0.57258507,2.13707466
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.7,298.15,303.15,301.0656899,0.58313798,2.0843101
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.72,298.15,303.15,301.1171517,0.59343034,2.0328483
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.74,298.15,303.15,301.1673429,0.60346858,1.9826571
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.76,298.15,303.15,301.21629488,0.61325898,1.93370512
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.78,298.15,303.15,301.26403823,0.62280765,1.88596177
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.8,298.15,303.15,301.31060279,0.63212056,1.83939721
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.82,298.15,303.15,301.35601767,0.64120353,1.79398233
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.84,298.15,303.15,301.40031125,0.65006225,1.74968875
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.86,298.15,303.15,301.44351122,0.65870224,1.70648878
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.88,298.15,303.15,301.48564458,0.66712892,1.66435542
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.9,298.15,303.15,301.52673766,0.67534753,1.62326234
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.92,298.15,303.15,301.56681615,0.68336323,1.58318385
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.94,298.15,303.15,301.6059051,0.69118102,1.5440949
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.96,298.15,303.15,301.64402894,0.69880579,1.50597106
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.98,298.15,303.15,301.6812115,0.7062423,1.4687885
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1,298.15,303.15,301.71747602,0.7134952,1.43252398
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.02,298.15,303.15,301.75284516,0.72056903,1.39715484
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.04,298.15,303.15,301.78734103,0.72746821,1.36265897
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.06,298.15,303.15,301.8209852,0.73419704,1.3290148
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.08,298.15,303.15,301.8537987,0.74075974,1.2962013
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.1,298.15,303.15,301.88580202,0.7471604,1.26419798
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.12,298.15,303.15,301.91701518,0.75340304,1.23298482
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.14,298.15,303.15,301.94745768,0.75949154,1.20254232
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.16,298.15,303.15,301.97714856,0.76542971,1.17285144
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.18,298.15,303.15,302.00610636,0.77122127,1.14389364
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.2,298.15,303.15,302.0343492,0.77686984,1.1156508
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.22,298.15,303.15,302.06189472,0.78237894,1.08810528
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.24,298.15,303.15,302.08876013,0.78775203,1.06123987
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.26,298.15,303.15,302.11496224,0.79299245,1.03503776
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.28,298.15,303.15,302.14051741,0.79810348,1.00948259
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.3,298.15,303.15,302.16544162,0.80308832,0.98455838
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.32,298.15,303.15,302.18975046,0.80795009,0.96024954
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.34,298.15,303.15,302.2134591,0.81269182,0.9365409
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.36,298.15,303.15,302.23658238,0.81731648,0.91341762
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.38,298.15,303.15,302.25913474,0.82182695,0.89086526
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.4,298.15,303.15,302.28113028,0.82622606,0.86886972
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.42,298.15,303.15,302.30258275,0.83051655,0.84741725
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.44,298.15,303.15,302.32350556,0.83470111,0.82649444
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.46,298.15,303.15,302.34391178,0.83878236,0.80608822
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.48,298.15,303.15,302.36381417,0.84276283,0.78618583
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.5,298.15,303.15,302.38322517,0.84664503,0.76677483
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.52,298.15,303.15,302.4021569,0.85043138,0.7478431
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.54,298.15,303.15,302.42062122,0.85412424,0.72937878
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.56,298.15,303.15,302.43862964,0.85772593,0.71137036
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.58,298.15,303.15,302.45619344,0.86123869,0.69380656
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.6,298.15,303.15,302.47332358,0.86466472,0.67667642
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.62,298.15,303.15,302.49003078,0.86800616,0.65996922
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.64,298.15,303.15,302.50632548,0.8712651,0.64367452
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.66,298.15,303.15,302.52221786,0.87444357,0.62778214
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.68,298.15,303.15,302.53771786,0.87754357,0.61228214
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.7,298.15,303.15,302.55283516,0.88056703,0.59716484
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.72,298.15,303.15,302.56757921,0.88351584,0.58242079
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.74,298.15,303.15,302.58195923,0.88639185,0.56804077
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.76,298.15,303.15,302.59598421,0.88919684,0.55401579
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.78,298.15,303.15,302.60966291,0.89193258,0.54033709
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.8,298.15,303.15,302.62300388,0.89460078,0.52699612
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.82,298.15,303.15,302.63601546,0.89720309,0.51398454
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.84,298.15,303.15,302.64870578,0.89974116,0.50129422
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.86,298.15,303.15,302.66108278,0.90221656,0.48891722
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.88,298.15,303.15,302.67315419,0.90463084,0.47684581
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.9,298.15,303.15,302.68492755,0.90698551,0.46507245
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.92,298.15,303.15,302.69641023,0.90928205,0.45358977
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.94,298.15,303.15,302.7076094,0.91152188,0.4423906
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.96,298.15,303.15,302.71853207,0.91370641,0.43146793
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,1.98,298.15,303.15,302.72918505,0.91583701,0.42081495
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2,298.15,303.15,302.73957501,0.917915,0.41042499
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.02,298.15,303.15,302.74970844,0.91994169,0.40029156
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.04,298.15,303.15,302.75959167,0.92191833,0.39040833
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.06,298.15,303.15,302.76923089,0.92384618,0.38076911
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.08,298.15,303.15,302.77863211,0.92572642,0.37136789
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.1,298.15,303.15,302.78780121,0.92756024,0.36219879
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.12,298.15,303.15,302.79674393,0.92934879,0.35325607
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.14,298.15,303.15,302.80546586,0.93109317,0.34453414
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.16,298.15,303.15,302.81397244,0.93279449,0.33602756
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.18,298.15,303.15,302.82226899,0.9344538,0.32773101
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.2,298.15,303.15,302.83036069,0.93607214,0.31963931
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.22,298.15,303.15,302.83825262,0.93765052,0.31174738
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.24,298.15,303.15,302.84594969,0.93918994,0.30405031
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.26,298.15,303.15,302.85345672,0.94069134,0.29654328
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.28,298.15,303.15,302.8607784,0.94215568,0.2892216
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.3,298.15,303.15,302.8679193,0.94358386,0.2820807
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.32,298.15,303.15,302.8748839,0.94497678,0.2751161
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.34,298.15,303.15,302.88167654,0.94633531,0.26832346
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.36,298.15,303.15,302.88830147,0.94766029,0.26169853
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.38,298.15,303.15,302.89476283,0.94895257,0.25523717
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.4,298.15,303.15,302.90106466,0.95021293,0.24893534
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.42,298.15,303.15,302.90721089,0.95144218,0.24278911
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.44,298.15,303.15,302.91320538,0.95264108,0.23679462
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.46,298.15,303.15,302.91905186,0.95381037,0.23094814
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.48,298.15,303.15,302.92475399,0.9549508,0.22524601
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.5,298.15,303.15,302.93031533,0.95606307,0.21968467
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.52,298.15,303.15,302.93573937,0.95714787,0.21426063
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.54,298.15,303.15,302.94102948,0.9582059,0.20897052
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.56,298.15,303.15,302.94618898,0.9592378,0.20381102
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.58,298.15,303.15,302.95122109,0.96024422,0.19877891
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.6,298.15,303.15,302.95612896,0.96122579,0.19387104
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.62,298.15,303.15,302.96091565,0.96218313,0.18908435
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.64,298.15,303.15,302.96558416,0.96311683,0.18441584
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.66,298.15,303.15,302.97013741,0.96402748,0.17986259
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.68,298.15,303.15,302.97457823,0.96491565,0.17542177
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.7,298.15,303.15,302.97890941,0.96578188,0.17109059
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.72,298.15,303.15,302.98313365,0.96662673,0.16686635
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.74,298.15,303.15,302.9872536,0.96745072,0.1627464
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.76,298.15,303.15,302.99127182,0.96825436,0.15872818
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.78,298.15,303.15,302.99519083,0.96903817,0.15480917
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.8,298.15,303.15,302.99901308,0.96980262,0.15098692
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.82,298.15,303.15,303.00274096,0.97054819,0.14725904
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.84,298.15,303.15,303.0063768,0.97127536,0.1436232
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.86,298.15,303.15,303.00992287,0.97198457,0.14007713
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.88,298.15,303.15,303.01338139,0.97267628,0.13661861
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.9,298.15,303.15,303.01675451,0.9733509,0.13324549
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.92,298.15,303.15,303.02004436,0.97400887,0.12995564
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.94,298.15,303.15,303.02325297,0.97465059,0.12674703
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.96,298.15,303.15,303.02638237,0.97527647,0.12361763
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,2.98,298.15,303.15,303.0294345,0.9758869,0.1205655
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,3,298.15,303.15,303.03241127,0.97648225,0.11758873

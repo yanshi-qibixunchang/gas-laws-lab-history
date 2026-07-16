@@ -1,0 +1,41 @@
+﻿condition_id,condition_label,run_index,seed,gas_wall_conductance_w_per_k,leakage_enabled,leakage_rate_per_s,pump_valve_exchange_enabled,environment_disturbance_enabled,instrument_noise_nonlinearity_enabled,u1_corrected_mv,u2_corrected_mv,gamma,gamma_absolute_error,u1_recordable,u2_recordable
+reference-reduced-nonideal,基准：关闭泄漏、泵阀交换、环境扰动、噪声与非线性,1,free-acceptance-reference-reduced-nonideal__01,0.08,false,0,false,false,false,121.85,33.66,1.3923,0.0077,true,true
+reference-reduced-nonideal,基准：关闭泄漏、泵阀交换、环境扰动、噪声与非线性,2,free-acceptance-reference-reduced-nonideal__02,0.08,false,0,false,false,false,121.85,33.66,1.3923,0.0077,true,true
+reference-reduced-nonideal,基准：关闭泄漏、泵阀交换、环境扰动、噪声与非线性,3,free-acceptance-reference-reduced-nonideal__03,0.08,false,0,false,false,false,121.85,33.66,1.3923,0.0077,true,true
+reference-reduced-nonideal,基准：关闭泄漏、泵阀交换、环境扰动、噪声与非线性,4,free-acceptance-reference-reduced-nonideal__04,0.08,false,0,false,false,false,121.85,33.66,1.3923,0.0077,true,true
+reference-reduced-nonideal,基准：关闭泄漏、泵阀交换、环境扰动、噪声与非线性,5,free-acceptance-reference-reduced-nonideal__05,0.08,false,0,false,false,false,121.85,33.66,1.3923,0.0077,true,true
+leakage-only,仅加入泄漏,1,free-acceptance-leakage-only__01,0.08,true,0.00005,false,false,false,118.07,31.47,1.373,0.027,true,true
+leakage-only,仅加入泄漏,2,free-acceptance-leakage-only__02,0.08,true,0.00005,false,false,false,118.06,31.47,1.373,0.027,true,true
+leakage-only,仅加入泄漏,3,free-acceptance-leakage-only__03,0.08,true,0.00005,false,false,false,118.07,31.47,1.373,0.027,true,true
+leakage-only,仅加入泄漏,4,free-acceptance-leakage-only__04,0.08,true,0.00005,false,false,false,118.07,31.47,1.373,0.027,true,true
+leakage-only,仅加入泄漏,5,free-acceptance-leakage-only__05,0.08,true,0.00005,false,false,false,118.06,31.47,1.373,0.027,true,true
+pump-valve-exchange-only,仅加入泵阀交换,1,free-acceptance-pump-valve-exchange-only__01,0.08,false,0,true,false,false,116.43,32.28,1.3933,0.0067,true,true
+pump-valve-exchange-only,仅加入泵阀交换,2,free-acceptance-pump-valve-exchange-only__02,0.08,false,0,true,false,false,116.43,32.28,1.3933,0.0067,true,true
+pump-valve-exchange-only,仅加入泵阀交换,3,free-acceptance-pump-valve-exchange-only__03,0.08,false,0,true,false,false,116.43,32.28,1.3933,0.0067,true,true
+pump-valve-exchange-only,仅加入泵阀交换,4,free-acceptance-pump-valve-exchange-only__04,0.08,false,0,true,false,false,116.43,32.28,1.3933,0.0067,true,true
+pump-valve-exchange-only,仅加入泵阀交换,5,free-acceptance-pump-valve-exchange-only__05,0.08,false,0,true,false,false,116.43,32.28,1.3933,0.0067,true,true
+environment-disturbance-only,仅加入环境扰动,1,free-acceptance-environment-disturbance-only__01,0.08,false,0,false,true,false,121.9,33.63,1.3918,0.0082,true,true
+environment-disturbance-only,仅加入环境扰动,2,free-acceptance-environment-disturbance-only__02,0.08,false,0,false,true,false,121.9,33.64,1.3918,0.0082,true,true
+environment-disturbance-only,仅加入环境扰动,3,free-acceptance-environment-disturbance-only__03,0.08,false,0,false,true,false,121.88,33.67,1.3923,0.0077,true,true
+environment-disturbance-only,仅加入环境扰动,4,free-acceptance-environment-disturbance-only__04,0.08,false,0,false,true,false,121.84,33.69,1.3923,0.0077,true,true
+environment-disturbance-only,仅加入环境扰动,5,free-acceptance-environment-disturbance-only__05,0.08,false,0,false,true,false,121.9,33.6,1.3918,0.0082,true,true
+instrument-noise-nonlinearity-only,仅加入仪器噪声与压强非线性,1,free-acceptance-instrument-noise-nonlinearity-only__01,0.08,false,0,false,false,true,121.83,33.47,1.389,0.011,true,true
+instrument-noise-nonlinearity-only,仅加入仪器噪声与压强非线性,2,free-acceptance-instrument-noise-nonlinearity-only__02,0.08,false,0,false,false,true,121.82,33.46,1.389,0.011,true,true
+instrument-noise-nonlinearity-only,仅加入仪器噪声与压强非线性,3,free-acceptance-instrument-noise-nonlinearity-only__03,0.08,false,0,false,false,true,121.84,33.48,1.389,0.011,true,true
+instrument-noise-nonlinearity-only,仅加入仪器噪声与压强非线性,4,free-acceptance-instrument-noise-nonlinearity-only__04,0.08,false,0,false,false,true,121.84,33.47,1.389,0.011,true,true
+instrument-noise-nonlinearity-only,仅加入仪器噪声与压强非线性,5,free-acceptance-instrument-noise-nonlinearity-only__05,0.08,false,0,false,false,true,121.85,33.49,1.389,0.011,true,true
+weaker-gas-wall-transfer,较弱气体—器壁换热（0.04 W/K）,1,free-acceptance-weaker-gas-wall-transfer__01,0.04,false,0,false,false,false,121.89,33.66,1.3923,0.0077,true,true
+weaker-gas-wall-transfer,较弱气体—器壁换热（0.04 W/K）,2,free-acceptance-weaker-gas-wall-transfer__02,0.04,false,0,false,false,false,121.89,33.66,1.3923,0.0077,true,true
+weaker-gas-wall-transfer,较弱气体—器壁换热（0.04 W/K）,3,free-acceptance-weaker-gas-wall-transfer__03,0.04,false,0,false,false,false,121.89,33.66,1.3923,0.0077,true,true
+weaker-gas-wall-transfer,较弱气体—器壁换热（0.04 W/K）,4,free-acceptance-weaker-gas-wall-transfer__04,0.04,false,0,false,false,false,121.89,33.66,1.3923,0.0077,true,true
+weaker-gas-wall-transfer,较弱气体—器壁换热（0.04 W/K）,5,free-acceptance-weaker-gas-wall-transfer__05,0.04,false,0,false,false,false,121.89,33.66,1.3923,0.0077,true,true
+stronger-gas-wall-transfer,较强气体—器壁换热（0.16 W/K）,1,free-acceptance-stronger-gas-wall-transfer__01,0.16,false,0,false,false,false,121.84,32.99,1.3811,0.0189,true,true
+stronger-gas-wall-transfer,较强气体—器壁换热（0.16 W/K）,2,free-acceptance-stronger-gas-wall-transfer__02,0.16,false,0,false,false,false,121.84,32.99,1.3811,0.0189,true,true
+stronger-gas-wall-transfer,较强气体—器壁换热（0.16 W/K）,3,free-acceptance-stronger-gas-wall-transfer__03,0.16,false,0,false,false,false,121.84,32.99,1.3811,0.0189,true,true
+stronger-gas-wall-transfer,较强气体—器壁换热（0.16 W/K）,4,free-acceptance-stronger-gas-wall-transfer__04,0.16,false,0,false,false,false,121.84,32.99,1.3811,0.0189,true,true
+stronger-gas-wall-transfer,较强气体—器壁换热（0.16 W/K）,5,free-acceptance-stronger-gas-wall-transfer__05,0.16,false,0,false,false,false,121.84,32.99,1.3811,0.0189,true,true
+all-nonideal-defaults,默认全部非理想因素,1,free-acceptance-all-nonideal-defaults__01,0.08,true,0.00005,true,true,true,112.77,30.12,1.3744,0.0256,true,true
+all-nonideal-defaults,默认全部非理想因素,2,free-acceptance-all-nonideal-defaults__02,0.08,true,0.00005,true,true,true,112.85,30.19,1.374,0.026,true,true
+all-nonideal-defaults,默认全部非理想因素,3,free-acceptance-all-nonideal-defaults__03,0.08,true,0.00005,true,true,true,112.77,30.11,1.3744,0.0256,true,true
+all-nonideal-defaults,默认全部非理想因素,4,free-acceptance-all-nonideal-defaults__04,0.08,true,0.00005,true,true,true,112.8,30.03,1.3723,0.0277,true,true
+all-nonideal-defaults,默认全部非理想因素,5,free-acceptance-all-nonideal-defaults__05,0.08,true,0.00005,true,true,true,112.78,30.14,1.3744,0.0256,true,true

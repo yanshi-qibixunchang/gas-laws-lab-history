@@ -1,0 +1,5 @@
+﻿channel,condition_id,condition_label,response_parameter,response_parameter_value,time_to_50_percent_s,time_to_90_percent_s,time_to_95_percent_s,response_at_0_10_s,response_at_0_30_s,response_at_1_00_s
+pressure,pressure-idealized-no-lag,压强通道理想无滞后,lag_rate_per_s,1000000,0.02,0.02,0.02,120,120,120
+pressure,pressure-representative-lag,压强通道代表性滞后（lagRate=8 s^-1）,lag_rate_per_s,8,0.1,0.3,0.38,66.08052431,109.11384561,119.95974448
+temperature,temperature-idealized-no-lag,温度通道理想无滞后,tau_sensor_s,0.001,0.02,0.02,0.02,303.15,303.15,303.15
+temperature,temperature-representative-lag,温度通道代表性滞后（tau=0.8 s）,tau_sensor_s,0.8,0.56,1.86,2.4,298.73751549,299.71355361,301.71747602

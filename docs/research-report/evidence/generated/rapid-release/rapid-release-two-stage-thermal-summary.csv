@@ -1,0 +1,4 @@
+﻿condition_id,condition_label,gas_wall_conductance_w_per_k,wall_ambient_conductance_w_per_k,initial_gas_temperature_k,initial_wall_temperature_k,final_gas_temperature_k,final_wall_temperature_k,gas_recovery_fraction_at_300s,cumulative_heat_gas_to_wall_j,cumulative_heat_wall_to_ambient_j
+two-stage-nominal,两级换热均启用,0.08,0.45,288.15,298.15,298.12043168,298.12603089,0.99704317,-16.9378623,-15.85925216
+gas-wall-disabled,关闭气体—器壁换热,0,0.45,288.15,298.15,288.15,298.15,0,0,0
+wall-ambient-disabled,关闭器壁—环境换热,0.08,0,288.15,298.15,297.78621901,297.78622003,0.9636219,-16.3700987,0

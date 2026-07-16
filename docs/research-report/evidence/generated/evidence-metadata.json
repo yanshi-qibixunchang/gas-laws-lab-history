@@ -1,0 +1,705 @@
+{
+  "schemaVersion": 1,
+  "scriptVersion": "research-report-evidence-v2",
+  "randomGenerator": "fnv1a32-mulberry32-v1",
+  "generatedAt": "2026-07-16T19:53:58.020Z",
+  "finishedAt": "2026-07-16T19:54:27.050Z",
+  "command": "node scripts/research-report/generate-evidence.ts",
+  "repository": {
+    "root": "D:\\projects\\hard-sphere-lab-new",
+    "packageName": "hard-sphere-lab",
+    "packageVersion": "5.1.1",
+    "gitCommit": "3a07c133e6015f7390f1a33f2f2810766f2d86e1",
+    "dirtyAtStart": true,
+    "statusAtStart": [
+      "M .gitignore",
+      " M README.md",
+      " M README.zh-CN.md",
+      " M build/afterPack.cjs",
+      " M build/exporterBundlePolicy.cjs",
+      " M build/workbenchBuildPolicy.cjs",
+      " M docs/build-notice-zh-CN.md",
+      " M docs/instrument-modeling/heat-capacity-free-mode-modeling-references-gb.md",
+      " M docs/releases/release-notes.json",
+      " M \"docs/research-report/\\347\\240\\224\\347\\251\\266\\346\\212\\245\\345\\221\\212\\345\\210\\206\\347\\253\\240\\350\\212\\202\\350\\257\\246\\347\\273\\206\\345\\244\\247\\347\\272\\262.md\"",
+      " M \"docs/research-report/\\347\\240\\224\\347\\251\\266\\346\\212\\245\\345\\221\\212\\345\\256\\232\\344\\275\\215\\344\\270\\216\\345\\206\\231\\344\\275\\234\\345\\217\\243\\345\\276\\204\\345\\237\\272\\347\\272\\277.md\"",
+      " M electron.d.ts",
+      " M electron/main.cjs",
+      " M electron/preload.cjs",
+      " M index.html",
+      " M package-lock.json",
+      " M package.json",
+      " M public/legal/audio-materials.html",
+      " M public/legal/exporter-licenses.html",
+      " M public/legal/third-party-dependencies.html",
+      " M public/legal/third-party-license-texts.html",
+      " M public/legal/third-party-summary.json",
+      " D public/mockups/guide-checklist-panel.html",
+      " D public/mockups/guide-timer-badge-options.html",
+      " D public/mockups/guide-timer-badge-single.html",
+      " M resources/exporter/hsl-exporter.manifest.json",
+      " M scripts/bundleExporter.cjs",
+      " M scripts/generateLegalNotices.cjs",
+      " M scripts/runTests.cjs",
+      " M scripts/writeReleaseMetadata.cjs",
+      " M src/app/App.tsx",
+      " M src/audio/core/audioBus.ts",
+      " M src/audio/core/audioEngine.ts",
+      " M src/audio/experiments/heatCapacity/heatCapacityAudioController.ts",
+      " M src/audio/experiments/heatCapacity/heatCapacityReleaseSound.ts",
+      " M src/audio/react/AudioProvider.tsx",
+      " M src/components/SimulationCanvas.tsx",
+      " M src/domain/hardSphere/PhysicsEngine.ts",
+      " M src/domain/heatCapacity/heatCapacityFreeAttemptModel.ts",
+      " M src/domain/heatCapacity/heatCapacityFreeSensorModel.ts",
+      " M src/domain/heatCapacity/heatCapacityFreeTraceModel.ts",
+      " M src/domain/heatCapacity/heatCapacityGuidePhysicsEngine.ts",
+      " M src/domain/heatCapacity/heatCapacityReleaseModel.ts",
+      " M src/features/heatCapacity/HeatCapacityHardSphereLayer.tsx",
+      " M src/features/heatCapacity/HeatCapacityInstrumentScene.tsx",
+      " M src/features/heatCapacity/HeatCapacityUltraInstrumentModel.tsx",
+      " M src/features/heatCapacity/heatCapacityGuideRollbackMotion.ts",
+      " M src/features/heatCapacity/heatCapacityModeTransitionModel.ts",
+      " M src/features/heatCapacity/heatCapacityModeUiCheckpoint.ts",
+      " M src/features/workbench/WorkbenchStudioPrototype.css",
+      " M src/features/workbench/WorkbenchStudioPrototype.tsx",
+      " M src/features/workbench/usePreviewOverlayMotion.ts",
+      " M src/features/workbench/workbenchHardSpherePersistence.ts",
+      " M src/features/workbench/workbenchHeatCapacityFreeConfigSnapshot.ts",
+      " M src/features/workbench/workbenchHeatCapacityFreeRestoreNormalization.ts",
+      " M src/features/workbench/workbenchHeatCapacityGuidePersistence.ts",
+      " M src/features/workbench/workbenchHeatCapacityModeSession.ts",
+      " M src/features/workbench/workbenchHeatCapacityPersistence.ts",
+      " M src/features/workbench/workbenchHeatCapacityPersistenceContract.ts",
+      " M src/features/workbench/workbenchHeatCapacityRefreshSession.ts",
+      " M src/features/workbench/workbenchHeatCapacitySessionRestore.ts",
+      " M src/features/workbench/workbenchIdealGasPersistence.ts",
+      " M src/features/workbench/workbenchPersistenceMigration.ts",
+      " M src/features/workbench/workbenchRuntimePersistence.ts",
+      " M src/features/workbench/workbenchSession.ts",
+      " M src/features/workbench/workbenchStandardPersistence.ts",
+      " M src/features/workbench/workbenchState.ts",
+      " M tests/audio/heatCapacityAudioIntegration.test.ts",
+      " M tests/exporter/workbenchExporterModes.test.ts",
+      " M tests/hardSphere/physicsEngineSnapshot.test.ts",
+      " M tests/heatCapacity/heatCapacityFreeAttemptModel.test.ts",
+      " M tests/heatCapacity/heatCapacityFreePersistence.test.ts",
+      " M tests/heatCapacity/heatCapacityGuidePhysicsEngine.test.ts",
+      " M tests/heatCapacity/heatCapacityModeSessionRouteIntegration.test.ts",
+      " M tests/heatCapacity/heatCapacityModeTransitionModel.test.ts",
+      " M tests/heatCapacity/heatCapacityModeTransitionRuntimeGuards.test.ts",
+      " M tests/heatCapacity/heatCapacityModeTransitionUi.test.ts",
+      " M tests/heatCapacity/heatCapacityModeUiCheckpoint.test.ts",
+      " M tests/heatCapacity/heatCapacityPreheatModeSessionRouteIntegration.test.ts",
+      " M tests/heatCapacity/heatCapacityReleaseModel.test.ts",
+      " M tests/heatCapacity/heatCapacityUltraGlbIntegration.test.ts",
+      " M tests/heatCapacity/workbenchHeatCapacityInstrument.test.ts",
+      " M tests/heatCapacity/workbenchHeatCapacityInstrumentUi.test.ts",
+      " M tests/heatCapacity/workbenchHeatCapacityModeSession.test.ts",
+      " M tests/idealGas/workbenchIdealResultStacking.test.ts",
+      " M tests/workbench/workbenchAspectFrame.test.ts",
+      " M tests/workbench/workbenchAutoUpdater.test.ts",
+      " M tests/workbench/workbenchBuildChunking.test.ts",
+      " M tests/workbench/workbenchChromePolish.test.ts",
+      " M tests/workbench/workbenchDesktopWindowFrame.test.ts",
+      " M tests/workbench/workbenchEmptyFiles.test.ts",
+      " M tests/workbench/workbenchEmptySession.test.ts",
+      " M tests/workbench/workbenchEntryCleanup.test.ts",
+      " M tests/workbench/workbenchExperimentFiles.test.ts",
+      " M tests/workbench/workbenchExporterBundlePolicy.test.ts",
+      " M tests/workbench/workbenchHeatCapacityRefreshSession.test.ts",
+      " M tests/workbench/workbenchIdealGasPersistence.test.ts",
+      " M tests/workbench/workbenchLegalNoticeGeneration.test.ts",
+      " M tests/workbench/workbenchMenuAndCanvasControls.test.ts",
+      " M tests/workbench/workbenchPreviewOverlayLayout.test.ts",
+      " M tests/workbench/workbenchResultsAndWindowSwitch.test.ts",
+      " M tests/workbench/workbenchRunStopControls.test.ts",
+      " M tests/workbench/workbenchSessionPersistence.test.ts",
+      " M tests/workbench/workbenchStandardResultsResize.test.ts",
+      " M tests/workbench/workbenchUpdateReleaseNotes.test.ts",
+      "?? docs/releases/v5.1.1.md",
+      "?? docs/research-report/evidence/",
+      "?? docs/research-report/source-materials/",
+      "?? \"docs/research-report/\\346\\235\\220\\346\\226\\231\\345\\207\\206\\345\\244\\207\\346\\200\\273\\346\\270\\205\\345\\215\\225.md\"",
+      "?? \"docs/research-report/\\347\\240\\224\\347\\251\\266\\346\\212\\245\\345\\221\\212\\346\\255\\243\\346\\226\\207\\342\\200\\224\\345\\217\\202\\350\\200\\203\\346\\226\\207\\347\\214\\256\\345\\257\\271\\345\\272\\224\\345\\205\\263\\347\\263\\273.md\"",
+      "?? \"docs/research-report/\\347\\240\\224\\347\\251\\266\\346\\212\\245\\345\\221\\212\\347\\254\\254\\344\\270\\211\\347\\253\\240\\344\\270\\223\\351\\241\\271\\345\\206\\231\\344\\275\\234\\345\\244\\247\\347\\272\\262.md\"",
+      "?? electron/exitPersistenceCoordinator.cjs",
+      "?? electron/exporterOutputPolicy.cjs",
+      "?? electron/updaterSingleFlight.cjs",
+      "?? electron/updaterStateMachine.cjs",
+      "?? electron/workbenchWindowRegistry.cjs",
+      "?? resources/exporter/hsl-exporter.legal.json",
+      "?? scripts/research-report/",
+      "?? scripts/runElectronBuilder.cjs",
+      "?? scripts/verifyReleaseAssets.cjs",
+      "?? src/domain/hardSphere/hardSphereSimulationValidation.ts",
+      "?? src/features/heatCapacity/heatCapacityGuidePulseClock.ts",
+      "?? src/features/heatCapacity/heatCapacityRuntimeGuard.ts",
+      "?? src/features/heatCapacity/heatCapacitySceneCommandReducer.ts",
+      "?? src/features/heatCapacity/heatCapacityUltraResourceOwnership.ts",
+      "?? src/features/workbench/useHeatCapacityModeSessionCoordinator.ts",
+      "?? src/features/workbench/workbenchHardSphereProjection.ts",
+      "?? src/features/workbench/workbenchHeatCapacityTimeRebase.ts",
+      "?? src/features/workbench/workbenchIndexedDbPersistence.ts",
+      "?? src/features/workbench/workbenchPersistenceScheduler.ts",
+      "?? src/features/workbench/workbenchWorkspaceFileValidation.ts",
+      "?? tests/audio/audioBusFallback.test.ts",
+      "?? tests/audio/audioEngineConcurrency.test.ts",
+      "?? tests/audio/heatCapacityReleaseSound.test.ts",
+      "?? tests/heatCapacity/heatCapacityGuidePulseClock.test.ts",
+      "?? tests/heatCapacity/heatCapacityModeTransitionWatchdog.test.ts",
+      "?? tests/heatCapacity/heatCapacityRuntimeFailureEpoch.test.ts",
+      "?? tests/heatCapacity/heatCapacitySceneCommandReducer.test.ts",
+      "?? tests/heatCapacity/heatCapacityUltraResourceOwnership.test.ts",
+      "?? tests/heatCapacity/workbenchHeatCapacityTimeRebase.test.ts",
+      "?? tests/researchReport/",
+      "?? tests/workbench/desktopExitPersistenceCoordinator.test.ts",
+      "?? tests/workbench/desktopExporterOutputPolicy.test.ts",
+      "?? tests/workbench/desktopWorkbenchWindowRegistry.test.ts",
+      "?? tests/workbench/runTestsSelectorPolicy.test.ts",
+      "?? tests/workbench/workbenchElectronBuilderSpawnSafety.test.ts",
+      "?? tests/workbench/workbenchElectronSecurity.test.ts",
+      "?? tests/workbench/workbenchIndexedDbHeatCapacityClockAnchors.test.ts",
+      "?? tests/workbench/workbenchIndexedDbPersistencePolicy.test.ts",
+      "?? tests/workbench/workbenchPersistenceScheduler.test.ts",
+      "?? tests/workbench/workbenchReleaseAssetVerification.test.ts",
+      "?? tests/workbench/workbenchUpdaterSingleFlight.test.ts",
+      "?? tests/workbench/workbenchWorkspaceFileValidation.test.ts",
+      "?? tools/exporter/inspect_frozen_bundle.py"
+    ]
+  },
+  "runtime": {
+    "node": "v24.12.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "parameters": {
+    "rapidReleaseStandardOperation": {
+      "pumpStrokes": 18,
+      "pumpTotalDurationS": 8,
+      "waitAfterPumpS": 300,
+      "releaseDurationS": 0.6,
+      "waitAfterReleaseS": 300
+    },
+    "rapidReleaseScenarioFamilies": [
+      {
+        "id": "absolute-ideal",
+        "label": "绝对理想过程",
+        "runCount": 1,
+        "overrides": {
+          "pumpMode": "instant-equivalent",
+          "releaseMode": "instant-adiabatic-to-ambient",
+          "pumpTotalDurationS": 0,
+          "leakageEnabled": false,
+          "leakageRatePerS": 0,
+          "pumpValveExchangeEnabled": false,
+          "environmentDisturbanceEnabled": false,
+          "instrumentNoiseEnabled": false
+        }
+      },
+      {
+        "id": "ideal-experiment",
+        "label": "理想实验操作",
+        "runCount": 1,
+        "overrides": {
+          "leakageEnabled": false,
+          "leakageRatePerS": 0,
+          "pumpValveExchangeEnabled": false,
+          "environmentDisturbanceEnabled": false,
+          "instrumentNoiseEnabled": false
+        }
+      },
+      {
+        "id": "standard-realistic",
+        "label": "标准真实化操作",
+        "runCount": 30,
+        "overrides": {}
+      },
+      {
+        "id": "low-pressure-4-strokes",
+        "label": "4 次打气",
+        "runCount": 30,
+        "overrides": {
+          "pumpStrokes": 4
+        }
+      },
+      {
+        "id": "low-pressure-8-strokes",
+        "label": "8 次打气",
+        "runCount": 30,
+        "overrides": {
+          "pumpStrokes": 8
+        }
+      },
+      {
+        "id": "low-pressure-12-strokes",
+        "label": "12 次打气",
+        "runCount": 30,
+        "overrides": {
+          "pumpStrokes": 12
+        }
+      },
+      {
+        "id": "low-pressure-16-strokes",
+        "label": "16 次打气",
+        "runCount": 30,
+        "overrides": {
+          "pumpStrokes": 16
+        }
+      },
+      {
+        "id": "slow-pump-50s",
+        "label": "50 s 缓慢打气",
+        "runCount": 5,
+        "overrides": {
+          "pumpTotalDurationS": 50
+        }
+      },
+      {
+        "id": "slow-pump-120s",
+        "label": "120 s 极慢打气",
+        "runCount": 5,
+        "overrides": {
+          "pumpTotalDurationS": 120
+        }
+      },
+      {
+        "id": "short-open-0.03s",
+        "label": "旋塞开启 0.03 s",
+        "runCount": 1,
+        "overrides": {
+          "openDurationS": 0.03,
+          "leakageEnabled": false,
+          "leakageRatePerS": 0,
+          "pumpValveExchangeEnabled": false,
+          "environmentDisturbanceEnabled": false,
+          "instrumentNoiseEnabled": false
+        }
+      },
+      {
+        "id": "short-open-0.05s",
+        "label": "旋塞开启 0.05 s",
+        "runCount": 1,
+        "overrides": {
+          "openDurationS": 0.05,
+          "leakageEnabled": false,
+          "leakageRatePerS": 0,
+          "pumpValveExchangeEnabled": false,
+          "environmentDisturbanceEnabled": false,
+          "instrumentNoiseEnabled": false
+        }
+      },
+      {
+        "id": "long-open-2.5s",
+        "label": "旋塞开启 2.5 s",
+        "runCount": 1,
+        "overrides": {
+          "openDurationS": 2.5,
+          "instrumentNoiseEnabled": false
+        }
+      },
+      {
+        "id": "long-open-10s",
+        "label": "旋塞开启 10 s",
+        "runCount": 1,
+        "overrides": {
+          "openDurationS": 10,
+          "instrumentNoiseEnabled": false
+        }
+      },
+      {
+        "id": "u1-immediate",
+        "label": "打气后立即记录 U1",
+        "runCount": 1,
+        "overrides": {
+          "waitAfterPumpS": 0,
+          "instrumentNoiseEnabled": false
+        }
+      },
+      {
+        "id": "u2-immediate",
+        "label": "放气后立即记录 U2",
+        "runCount": 1,
+        "overrides": {
+          "waitAfterReleaseS": 0,
+          "instrumentNoiseEnabled": false
+        }
+      },
+      {
+        "id": "u2-late-600s",
+        "label": "放气后 600 s 记录 U2",
+        "runCount": 1,
+        "overrides": {
+          "waitAfterReleaseS": 600,
+          "instrumentNoiseEnabled": false
+        }
+      },
+      {
+        "id": "u2-late-1200s",
+        "label": "放气后 1200 s 记录 U2",
+        "runCount": 1,
+        "overrides": {
+          "waitAfterReleaseS": 1200,
+          "instrumentNoiseEnabled": false
+        }
+      }
+    ],
+    "rapidReleaseAdditionalEvidence": {
+      "pressureLagRatesPerS": [
+        1000000,
+        8
+      ],
+      "temperatureSensorTauS": [
+        0.001,
+        0.8
+      ],
+      "sensorStepResponseDurationS": 3,
+      "twoStageThermalConditions": [
+        "nominal",
+        "gas-wall-conductance-disabled",
+        "wall-ambient-conductance-disabled"
+      ],
+      "stopcockAutomaticApertureRampS": 0.1,
+      "stopcockFlowRates": [
+        0.2,
+        0.4,
+        0.79,
+        1.2
+      ],
+      "internalSensorQuantizationMv": 0.01,
+      "uiRecordResolutionMv": 0.1
+    },
+    "idealGasStable": {
+      "L": 12,
+      "N": 128,
+      "r": 0.16,
+      "m": 1,
+      "k": 1,
+      "dt": 0.01,
+      "nu": 0.8,
+      "targetTemperature": 0.6,
+      "equilibriumTime": 6,
+      "statsDuration": 20
+    },
+    "idealGasPresetSequences": {
+      "pt": [
+        0.6,
+        0.8,
+        1,
+        1.2,
+        1.5,
+        2
+      ],
+      "pv": [
+        12,
+        13.5,
+        15,
+        17,
+        19,
+        21
+      ],
+      "pn": [
+        80,
+        120,
+        160,
+        200,
+        260,
+        320
+      ]
+    },
+    "hardSphereDistribution": {
+      "L": 15,
+      "N": 200,
+      "r": 0.2,
+      "m": 1,
+      "k": 1,
+      "dt": 0.01,
+      "nu": 1,
+      "equilibriumTime": 10,
+      "statsDuration": 60
+    },
+    "hardSphereEnergyConservation": {
+      "L": 15,
+      "N": 200,
+      "r": 0.2,
+      "m": 1,
+      "k": 1,
+      "dt": 0.01,
+      "nu": 0,
+      "equilibriumTime": 0,
+      "statsDuration": 60
+    }
+  },
+  "seeds": {
+    "idealGas": [
+      "ideal-gas-seed-01",
+      "ideal-gas-seed-02",
+      "ideal-gas-seed-03",
+      "ideal-gas-seed-04",
+      "ideal-gas-seed-05"
+    ],
+    "hardSphere": [
+      "hard-sphere-seed-01",
+      "hard-sphere-seed-02",
+      "hard-sphere-seed-03",
+      "hard-sphere-seed-04",
+      "hard-sphere-seed-05"
+    ],
+    "rapidReleaseSeedRule": "free-acceptance-heat-<scenario-id>-<two-digit-run-index>",
+    "representativeTrace": "heat-trace-standard-realistic-01"
+  },
+  "sourceFiles": [
+    {
+      "path": "package.json",
+      "sha256": "9cfc65f02fcf066d6e1071fef65c029d08780db2a1c09bdc50cb4acb4688d951",
+      "bytes": 4339
+    },
+    {
+      "path": "scripts/research-report/generate-evidence.ts",
+      "sha256": "393205e28b506a610147ec5eea7b715a5a8a38e1ec3d755ab9172e16aa2230ab",
+      "bytes": 85610
+    },
+    {
+      "path": "tests/heatCapacity/heatCapacityFreeParameterAcceptance.ts",
+      "sha256": "547d174d341692a8105203ffec40185dc30220db6c0f1cd207000c4415d48cc1",
+      "bytes": 26546
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityDefaultConfig.ts",
+      "sha256": "22052d180f4233fc6672f9cac2b4b1ba2b431282ea2bd010a39f17f045c903f9",
+      "bytes": 6786
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts",
+      "sha256": "186fc648f6acf29d0d9d8872a2ab0de9cd38aca27a079d2a3c233e28455406c8",
+      "bytes": 30788
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityThermodynamicKernel.ts",
+      "sha256": "c53d7a372f0464b462620e99632d9414b3de3b3887ad418ad25b2d1e71cbc3ed",
+      "bytes": 12139
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeThermalModel.ts",
+      "sha256": "24b18b8fa7fdbf3536bcdecac3a2b36772e5becbf11ee2cc1c3bb7fa5c64ed3a",
+      "bytes": 5316
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeLeakageModel.ts",
+      "sha256": "e70797b30d4764b901d9f45573ddef36585aa479eda698f65ed7a3fe396acada",
+      "bytes": 4033
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreePumpValveExchangeModel.ts",
+      "sha256": "d35bac73167868449c47e3dd50baecab9b237467f5cef32386c86020919e78d3",
+      "bytes": 12135
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeEnvironmentDisturbanceModel.ts",
+      "sha256": "9f0ae743708b579373e43fc14cf98c49eb425d6d836c8470d99e41a36fecf383",
+      "bytes": 4856
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeSensorModel.ts",
+      "sha256": "6f57008e9171664afc04b320f1af6417100f8ffa30ce6fa711d7d618c6c0d4f3",
+      "bytes": 8689
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreePressureSensorNonlinearityModel.ts",
+      "sha256": "dfdecf7714dd24443ae21b0ad7166778dd0335d907b6a1e1213b47ec9aa8691d",
+      "bytes": 3740
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeStopcockApertureModel.ts",
+      "sha256": "eab5ab9b3ba3e87db32a94428ffd3515dd3775a91ce027af9c0218654ab95c3e",
+      "bytes": 1304
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacitySignalDisplayModel.ts",
+      "sha256": "46c93853a541031d7568b044d56c77e904286b30e4da31d2afe6b814534b56ed",
+      "bytes": 757
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityTemperatureSensorModel.ts",
+      "sha256": "68dcb932ff353ef80d6e277d93a9dc4aa29e0ec72929ba7ea8646a1c4080d631",
+      "bytes": 1771
+    },
+    {
+      "path": "src/domain/hardSphere/PhysicsEngine.ts",
+      "sha256": "06d8eea1d008b9c8286b0a3ab1c8dd857c83d96be0c20d5250219b7738f36618",
+      "bytes": 26795
+    },
+    {
+      "path": "src/domain/idealGas/idealGasExperiment.ts",
+      "sha256": "7ad11d5beab4004792f3b53f984ffcc7a2b12c0b87c04f3a6de78a24e35378e5",
+      "bytes": 17264
+    },
+    {
+      "path": "src/domain/idealGas/experimentFailureDiagnostics.ts",
+      "sha256": "fd58bedde3d4b20a2148023f5537e95037af049c9468f9e8bd3b82c6e0643166",
+      "bytes": 5167
+    },
+    {
+      "path": "src/features/workbench/workbenchIdealControls.ts",
+      "sha256": "0e0bd3828a795a323b166009e915b2c559e0c8dad867134f26169a6453f3d7a4",
+      "bytes": 2073
+    },
+    {
+      "path": "src/features/workbench/workbenchState.ts",
+      "sha256": "ce7cd13e4a7dcd9fc70fed9518996ec3693ce6b912cd1ef775851f8c3c1725c9",
+      "bytes": 243677
+    }
+  ],
+  "generatedFiles": [
+    {
+      "path": "docs/research-report/evidence/generated/README.md",
+      "bytes": 5602,
+      "sha256": "44bf7de782752bfb1c00fb7efe94e0c03e504b7a6a6ec1afaf8d08ec0d749f60"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/evidence-summary.json",
+      "bytes": 60486,
+      "sha256": "2deb928fd357669fcecd0fd7d1d9f69834750143cd6eaf2d659022086b2b6148"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-runs.csv",
+      "bytes": 42398,
+      "sha256": "67ac693567339ce5cbf17879f102818a56d26aaa0d867ba73a031bf44be6bd39"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-summary.csv",
+      "bytes": 2119,
+      "sha256": "2459e69e753060e52d73d843fa8e40b70794997d96af71cd80b49b4392b843ef"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-representative-trace.csv",
+      "bytes": 99962,
+      "sha256": "d871b64f1febd9fd1c03d2296ba1a5c6519fd29682606af91cf122ce15bf03d5"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-nonideal-runs.csv",
+      "bytes": 7385,
+      "sha256": "529a425ee3c2464fd3d381b7a075b573370e277dcdf5eb9c3afbb43780326f20"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-nonideal-comparison.csv",
+      "bytes": 964,
+      "sha256": "53109ee5ac1e526a3f906d1aef80a3953b52fe3d6b2066b4eb1cb130f09953b1"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-sensor-lag-response.csv",
+      "bytes": 79739,
+      "sha256": "642db0da4865e0db03b02ea73c5fbe54c08e4edbbff1f58e181b9e8daa7eeb2c"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-sensor-lag-summary.csv",
+      "bytes": 755,
+      "sha256": "cb8e4e36cf97ce20dd2a20370ff47d8d9bcf31942225a7f1f19a1ca218434a9d"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-sensor-static-nonlinearity.csv",
+      "bytes": 998,
+      "sha256": "6b0906b4c50533b39ab7b301dda5cd3ac6f1da4f1632f620a2c4e8f1e75e48ba"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-zero-calibration.csv",
+      "bytes": 1232,
+      "sha256": "d2e07cfd7b643cd528c5f65e27d1b708e7d10cfb9b8e490e78710a1dce793c53"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-display-resolution.csv",
+      "bytes": 222,
+      "sha256": "69ee11985181c46cd684de1fa741c8b2fb695e12e3e89870ace9f795bcfb9634"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-display-resolution-gamma.csv",
+      "bytes": 257,
+      "sha256": "f04ff4e0e7cae5cf3b6a68764c5e4d52566a74d41892e65d73dbe438938c9a8a"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-measurement-noise-resolution-runs.csv",
+      "bytes": 6153,
+      "sha256": "68bab2ae07b3360aa7ccf4b2e58c012c640bc9a3d838e2ec9dbadfd3cc81a293"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-measurement-noise-resolution-summary.csv",
+      "bytes": 536,
+      "sha256": "f011116b1b62b506f640ea38e53de8a923ea809952e276f0814b5a6c4bbad15c"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-two-stage-thermal-response.csv",
+      "bytes": 20233,
+      "sha256": "0b88dde59adcaa52bbd9365937a5f7d720c4a90b1f388639049b395debcd50f1"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-two-stage-thermal-summary.csv",
+      "bytes": 628,
+      "sha256": "388d1eda25ee5ce1f7a585d9b15a74853ce9703599c98763a1a67e4796355f21"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-stopcock-aperture-ramp.csv",
+      "bytes": 532,
+      "sha256": "448b3a1cfc56c745d462a7071b7028cb3c654b9e69a9d874c9cacb6866aac14d"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-stopcock-flow-sensitivity.csv",
+      "bytes": 820,
+      "sha256": "9699da44132524da4339141fc01652a3f111609d4a5b1c682e602cd66924fe63"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-evidence-coverage.csv",
+      "bytes": 3134,
+      "sha256": "49c0f9d0f3eafc38565d77b03e052631f9c038a90db599422a5bae8f0a216eef"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/ideal-gas/ideal-gas-runs.csv",
+      "bytes": 16180,
+      "sha256": "6f40b319bc781c5dc6eda226ceb0eeac6244b9db0466338fc0bc304e162e669b"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/ideal-gas/ideal-gas-point-summary.csv",
+      "bytes": 1791,
+      "sha256": "172e6e8e2fc74b0b6d7981042331b2b4e76af0d5867f3b607693265ffa56b78f"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/ideal-gas/ideal-gas-seed-regression.csv",
+      "bytes": 1601,
+      "sha256": "174be8069d17658a230a4344b904e0af3ebed618a0ade90b107b33c71242f1c7"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/ideal-gas/ideal-gas-relation-summary.csv",
+      "bytes": 696,
+      "sha256": "c2bd2ef9fd2969d86c729286b2f483f1b1ebb740a8131aa91e1786f712441917"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/hard-sphere/hard-sphere-run-summary.csv",
+      "bytes": 1791,
+      "sha256": "0201603b0bcdb0094323d7b67ee38268efb57525683b81c271faf658b548eb81"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/hard-sphere/hard-sphere-speed-distribution-30-bin.csv",
+      "bytes": 16056,
+      "sha256": "87802678bbbbbcea68d3c38f09ebe6128082a4672d7894ccacdf04530e88b33d"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/hard-sphere/hard-sphere-energy-distribution-30-bin.csv",
+      "bytes": 15830,
+      "sha256": "4244e2aca097827978bd23ac08df33d06cc9a20290057bb863be1afa27b72fda"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/hard-sphere/hard-sphere-pressure-windows.csv",
+      "bytes": 219471,
+      "sha256": "ed8dfb06c04950691f2d4325e935789075f2432a53598a2503400ac009db2aaa"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/hard-sphere/hard-sphere-energy-conservation-nu0.csv",
+      "bytes": 15461,
+      "sha256": "778c4409dc35a36dd54766fcbc01df65a7629cef70610856cc8559b21da30a79"
+    },
+    {
+      "path": "docs/research-report/evidence/generated/hard-sphere/hard-sphere-energy-conservation-summary-nu0.csv",
+      "bytes": 781,
+      "sha256": "2b6dab3a48063e19067ffee5b4dfff2fd4254704d000774e439f5be3400938ef"
+    }
+  ]
+}

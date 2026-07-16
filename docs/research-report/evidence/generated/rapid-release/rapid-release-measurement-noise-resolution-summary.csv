@@ -1,0 +1,7 @@
+﻿group,sample_count,sensor_display_mean_mv,sensor_display_sample_sd_mv,sensor_display_min_mv,sensor_display_max_mv,distinct_sensor_values,distinct_ui_record_values,ui_record_min_mv,ui_record_max_mv
+seed-01,20,99.9995,0.027429,99.96,100.04,8,2,99.9,100
+seed-02,20,100.0015,0.022308,99.97,100.04,8,2,99.9,100
+seed-03,20,99.997,0.025772,99.96,100.04,9,2,99.9,100
+seed-04,20,100.0065,0.024767,99.96,100.04,9,2,99.9,100
+seed-05,20,100.0005,0.020384,99.97,100.03,7,2,99.9,100
+all-seeds,100,100.001,0.023974,99.96,100.04,9,2,99.9,100
