@@ -3,6 +3,140 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "5.1.1",
+      "date": "2026-07-16",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.1.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.1.1/heat-capacity-lab-setup-5.1.1.exe"
+      },
+      "summary": {
+        "zh-CN": "5.1.1 是面向所有 4.2.x 用户的稳定更新，完善热容比实验的温度与热力学模型、分子和仪器反馈、三模式会话与精确视角恢复，并重建持久化、GLB 运行和桌面更新可靠性。",
+        "zh-TW": "5.1.1 是面向所有 4.2.x 使用者的穩定更新，完善熱容比實驗的溫度與熱力學模型、分子和儀器回饋、三模式工作階段與精確視角還原，並重建持久化、GLB 執行和桌面更新可靠性。",
+        "en": "Version 5.1.1 is a stable update for all 4.2.x users, refining the heat-capacity temperature and thermodynamic model, molecular and instrument feedback, three-mode sessions and exact camera restoration, while rebuilding persistence, GLB runtime, and desktop update reliability."
+      },
+      "sections": [
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "改进",
+            "zh-TW": "改進",
+            "en": "Changed"
+          },
+          "items": [
+            {
+              "scope": "thermodynamic-model",
+              "importance": "high",
+              "title": {
+                "zh-CN": "完善温度响应与热力学物理模型",
+                "zh-TW": "完善溫度響應與熱力學物理模型",
+                "en": "Refined temperature response and thermodynamic physics"
+              },
+              "body": {
+                "zh-CN": "统一真实与理想参数下的温度、压力、放气和回温过程，使 U0、U1、U2、γ、标准参考与过程回顾使用一致的物理口径，并让空气和氦气实验保持可解释的正常结果与错误偏差。",
+                "zh-TW": "統一真實與理想參數下的溫度、壓力、放氣和回溫過程，使 U0、U1、U2、γ、標準參考與過程回顧使用一致的物理口徑，並讓空氣和氦氣實驗保持可解釋的正常結果與錯誤偏差。",
+                "en": "Temperature, pressure, release, and thermal recovery now share one physical interpretation across real and ideal parameters, keeping U0, U1, U2, gamma, standard references, and Process Review consistent for both air and helium experiments."
+              }
+            },
+            {
+              "scope": "molecular-instrument-feedback",
+              "importance": "high",
+              "title": {
+                "zh-CN": "增强分子可视化、声音与仪器反馈",
+                "zh-TW": "增強分子視覺化、聲音與儀器回饋",
+                "en": "Improved molecular, audio, and instrument feedback"
+              },
+              "body": {
+                "zh-CN": "分子运动、旋塞与阀门动效、压力表和数字显示、调零与打气反馈现在与同一实验状态同步；快速操作、全局静音、零音量、模式恢复静音和放气停止均使用统一音频生命周期。",
+                "zh-TW": "分子運動、旋塞與閥門動效、壓力錶和數位顯示、調零與打氣回饋現在與同一實驗狀態同步；快速操作、全域靜音、零音量、模式還原靜音和放氣停止均使用統一音訊生命週期。",
+                "en": "Molecular motion, stopcock and valve animation, gauge and digital displays, zeroing, and pumping feedback now follow the same experiment state, with one audio lifecycle for rapid interaction, global mute, zero volume, silent mode restoration, and immediate release shutdown."
+              }
+            },
+            {
+              "scope": "three-mode-sessions",
+              "importance": "high",
+              "title": {
+                "zh-CN": "统一演示、引导与自由模式会话",
+                "zh-TW": "統一示範、引導與自由模式工作階段",
+                "en": "Unified Demo, Guide, and Free mode sessions"
+              },
+              "body": {
+                "zh-CN": "所有同文件模式变化现在通过同一切换协调器，等待真实仪器或相机运动完成并采用最后一次目标；五分钟等待、首次预热、计时器、实验记录、粒子状态、焦点和精确相机姿态可在切换、刷新及文件往返后恢复。",
+                "zh-TW": "所有同檔案模式變化現在透過同一切換協調器，等待真實儀器或相機運動完成並採用最後一次目標；五分鐘等待、首次預熱、計時器、實驗記錄、粒子狀態、焦點和精確相機姿態可在切換、重新整理及檔案往返後還原。",
+                "en": "Every same-file mode change now uses one coordinator that waits for real instrument or camera motion and honors the latest target. Five-minute waits, first preheat, timers, trials, particles, focus, and exact camera poses survive switching, refresh, and file round trips."
+              }
+            },
+            {
+              "scope": "engineering-experience",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "统一工程界面、字体与演示节奏",
+                "zh-TW": "統一工程介面、字型與示範節奏",
+                "en": "Unified engineering UI, fonts, and demonstration pacing"
+              },
+              "body": {
+                "zh-CN": "工程工作台、实验仪器模型、菜单与结果页的层级和反馈更加一致；离线界面仅使用随应用分发的 Noto Sans SC 与 JetBrains Mono，演示和引导等待过程保持清晰、可恢复且不遮挡关键仪器状态。",
+                "zh-TW": "工程工作臺、實驗儀器模型、選單與結果頁的層級和回饋更加一致；離線介面僅使用隨應用程式分發的 Noto Sans SC 與 JetBrains Mono，示範和引導等待過程保持清晰、可還原且不遮擋關鍵儀器狀態。",
+                "en": "The engineering workbench, instrument model, menus, and result pages now share clearer hierarchy and feedback. Offline UI uses only the bundled Noto Sans SC and JetBrains Mono fonts, while Demo and Guide waits remain visible, resumable, and unobtrusive."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "可靠性修复",
+            "zh-TW": "可靠性修復",
+            "en": "Reliability fixes"
+          },
+          "items": [
+            {
+              "scope": "indexeddb-persistence",
+              "importance": "high",
+              "title": {
+                "zh-CN": "重建异步工作区持久化",
+                "zh-TW": "重建非同步工作區持久化",
+                "en": "Rebuilt asynchronous workspace persistence"
+              },
+              "body": {
+                "zh-CN": "工作区、文件和每个热容模式的规范状态迁移到原生 IndexedDB，采用防抖、最长等待和生命周期即时刷新；4.2.3 本地存档只在完整写入与重建验证后删除，事务或配额失败会保留最后一次成功版本并明确提示。",
+                "zh-TW": "工作區、檔案和每個熱容模式的規範狀態遷移到原生 IndexedDB，採用防抖、最長等待和生命週期即時刷新；4.2.3 本機存檔只在完整寫入與重建驗證後刪除，交易或配額失敗會保留最後一次成功版本並明確提示。",
+                "en": "Workspace metadata, files, and the canonical state for each heat-capacity mode now use native IndexedDB with debouncing, maximum wait, and lifecycle flushes. Version 4.2.3 local saves are removed only after verified write and reconstruction, while transaction or quota failures preserve the last successful version and show a clear error."
+              }
+            },
+            {
+              "scope": "glb-audio-runtime",
+              "importance": "high",
+              "title": {
+                "zh-CN": "修复 GLB、动效、音频与运行时重试边界",
+                "zh-TW": "修復 GLB、動效、音訊與執行階段重試邊界",
+                "en": "Hardened GLB, animation, audio, and runtime retry boundaries"
+              },
+              "body": {
+                "zh-CN": "GLB 克隆只释放自身拥有的材质和运行时资源，不再释放共享缓存；资源重试与运行时重试分离，渲染帧、事件、延迟回调和音频解码异常统一进入可重试错误卡，并停止相关计时与声音。",
+                "zh-TW": "GLB 複本只釋放自身擁有的材質和執行階段資源，不再釋放共用快取；資源重試與執行階段重試分離，算繪影格、事件、延遲回呼和音訊解碼異常統一進入可重試錯誤卡，並停止相關計時與聲音。",
+                "en": "GLB clones now dispose only their owned materials and runtime resources, never shared cache assets. Asset and runtime retries are separate, while frame, event, delayed callback, and audio decode failures enter one retryable error card and stop related timers and sound."
+              }
+            },
+            {
+              "scope": "desktop-updater",
+              "importance": "high",
+              "title": {
+                "zh-CN": "强化桌面更新与下载可靠性",
+                "zh-TW": "強化桌面更新與下載可靠性",
+                "en": "Hardened desktop update and download reliability"
+              },
+              "body": {
+                "zh-CN": "更新下载采用 single-flight，同一更新的重复点击复用一个任务；更新窗口继续提供结构化三语言说明、可验证的手动下载入口和重试路径，并保持安装器、latest.yml 与 blockmap 的完整更新契约。",
+                "zh-TW": "更新下載採用 single-flight，同一更新的重複點擊重用一個工作；更新視窗繼續提供結構化三語言說明、可驗證的手動下載入口和重試路徑，並保持安裝程式、latest.yml 與 blockmap 的完整更新契約。",
+                "en": "Update downloads now use single-flight so repeated clicks reuse one task. The update window retains structured trilingual notes, a validated manual download route, retry handling, and the complete installer, latest.yml, and blockmap update contract."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "4.2.3",
       "date": "2026-07-11",
       "channel": "stable",

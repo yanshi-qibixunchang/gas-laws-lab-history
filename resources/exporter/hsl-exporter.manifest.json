@@ -1,9 +1,19 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "exporterVersion": "0.2.0",
   "sourceFingerprint": "467c8692b2fb8547aff707b74e34ce4152e7b40368c2bb27321b2625079f71d8",
   "sourceFiles": [
     "tools/exporter/hsl_exporter.py",
     "tools/exporter/professional_graph_style.py"
-  ]
+  ],
+  "inventoryPolicyFingerprint": "b389f9200e2adeefd0785fd494794c9eabbebb6f4bbaef4dfd5867594ef696af",
+  "executable": {
+    "fileName": "hsl-exporter.exe",
+    "sizeBytes": 44978272,
+    "sha256": "103e43cb2286325c61c1b58f5607ec8b486ade79c028b744fde0df59d747950a"
+  },
+  "legalInventoryFingerprint": "0fd72e3ac686de538e0de77a16ff4c546811983d3c85eeb7ee3ccd69a9646bf6",
+  "archiveFingerprint": "b6cc2f1a180168600657381f1764747e988b6a6f5f39867215ef6a1606fef827",
+  "frozenDistributionCount": 20,
+  "runtimeLibraryCount": 24
 }

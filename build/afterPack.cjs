@@ -3,12 +3,17 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   assertBundledExporterCurrent,
+  getExporterBundlePathsForDirectory,
 } = require('./exporterBundlePolicy.cjs');
 
 exports.default = async function afterPack(context) {
   if (context.electronPlatformName !== 'win32') return;
 
   assertBundledExporterCurrent(context.packager.projectDir);
+  assertBundledExporterCurrent(
+    context.packager.projectDir,
+    getExporterBundlePathsForDirectory(path.join(context.appOutDir, 'resources', 'exporter')),
+  );
 
   const exePath = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.exe`);
   const rceditTargetPath = path.join(context.appOutDir, 'hsl-rcedit-target.exe');

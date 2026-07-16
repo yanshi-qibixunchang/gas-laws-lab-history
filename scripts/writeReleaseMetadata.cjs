@@ -74,4 +74,12 @@ const main = () => {
   console.log(`Wrote structured release metadata for v${version} to ${latestYmlPath}`);
 };
 
-main();
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  findRelease,
+  getLocalizedText,
+  renderPlainReleaseNotes,
+};

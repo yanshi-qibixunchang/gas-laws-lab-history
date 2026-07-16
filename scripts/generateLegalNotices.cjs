@@ -1,6 +1,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
+const {
+  assertExporterLegalInventory,
+  createExporterSourceDescriptor,
+} = require('../build/exporterBundlePolicy.cjs');
 
 const rootDir = path.resolve(__dirname, '..');
 const outputDir = path.join(rootDir, 'public', 'legal');
@@ -8,9 +12,22 @@ const packageJsonPath = path.join(rootDir, 'package.json');
 const packageLockPath = path.join(rootDir, 'package-lock.json');
 const nodeModulesDir = path.join(rootDir, 'node_modules');
 const audioManifestPath = path.join(rootDir, 'public', 'audio', 'experiments', 'heat-capacity', 'manifest.json');
+const exporterLegalInventoryPath = path.join(
+  rootDir,
+  'resources',
+  'exporter',
+  'hsl-exporter.legal.json',
+);
 const summaryPath = path.join(outputDir, 'third-party-summary.json');
 const checkOnly = process.argv.includes('--check');
 const staleOutputs = [];
+const packageLicenseOverrides = Object.freeze({
+  'webgl-constants@1.1.1': Object.freeze({
+    license: 'MIT',
+    licenseFileName: 'LICENSE',
+    sha256: '0969fa65680b694452c2c65981df14af5c192da24f2b1f87bdd51d8ed24efcfa',
+  }),
+});
 
 let generatedAt = new Date().toISOString();
 let contentFingerprint = '';
@@ -71,6 +88,25 @@ const getTopLevelPackagePath = (name) => `node_modules/${name}`;
 
 const getNpmUrl = (name) => `https://www.npmjs.com/package/${name.replace('/', '%2F')}`;
 
+const resolvePackageLicense = (name, version, lockPath, declaredLicense) => {
+  if (typeof declaredLicense === 'string' && declaredLicense.trim()) return declaredLicense;
+  const override = packageLicenseOverrides[`${name}@${version}`];
+  if (!override) return 'UNKNOWN';
+  const licensePath = path.join(rootDir, lockPath, override.licenseFileName);
+  if (!fs.existsSync(licensePath)) {
+    throw new Error(`License override evidence is missing for ${name}@${version}: ${licensePath}`);
+  }
+  const stat = fs.lstatSync(licensePath);
+  if (!stat.isFile() || stat.isSymbolicLink()) {
+    throw new Error(`License override evidence is not a regular file for ${name}@${version}.`);
+  }
+  const actualSha256 = createHash('sha256').update(fs.readFileSync(licensePath)).digest('hex');
+  if (actualSha256 !== override.sha256) {
+    throw new Error(`License override evidence hash mismatch for ${name}@${version}.`);
+  }
+  return override.license;
+};
+
 const getPackageRecords = () => {
   const packageJson = readJson(packageJsonPath);
   const packageLock = readJson(packageLockPath);
@@ -81,7 +117,7 @@ const getPackageRecords = () => {
   for (const [lockPath, metadata] of Object.entries(packageLock.packages || {})) {
     if (!lockPath.startsWith('node_modules/') || !metadata?.version) continue;
     const name = packageNameFromLockPath(lockPath);
-    const license = metadata.license || 'UNKNOWN';
+    const license = resolvePackageLicense(name, metadata.version, lockPath, metadata.license);
     const key = `${name}@${metadata.version}|${license}`;
     const record = records.get(key) || {
       name,
@@ -110,11 +146,16 @@ const getPackageRecords = () => {
     'Transitive dependency': 2,
   };
 
-  return [...records.values()].sort((left, right) => (
+  const sortedRecords = [...records.values()].sort((left, right) => (
     categoryRank[left.category] - categoryRank[right.category]
     || left.name.localeCompare(right.name)
     || left.version.localeCompare(right.version)
   ));
+  const unknownLicenses = sortedRecords.filter((record) => record.license === 'UNKNOWN');
+  if (unknownLicenses.length > 0) {
+    throw new Error(`Unclassified package licenses: ${unknownLicenses.map((record) => `${record.name}@${record.version}`).join(', ')}`);
+  }
+  return sortedRecords;
 };
 
 const getLicenseFilesForPackagePath = (lockPath) => {
@@ -152,6 +193,7 @@ const getLegalNoticeInputFingerprint = (records) => {
   appendFile(path.join(nodeModulesDir, 'electron', 'dist', 'LICENSE'));
   appendFile(path.join(rootDir, 'public', 'fonts', 'LICENSES.txt'));
   appendFile(audioManifestPath);
+  appendFile(exporterLegalInventoryPath);
 
   for (const record of records) {
     for (const lockPath of record.paths) {
@@ -309,28 +351,86 @@ const writeLicenseTextsHtml = (records) => {
   writeTextFileIfChanged(path.join(outputDir, 'third-party-license-texts.html'), html);
 };
 
-const writeExporterLicensesHtml = () => {
+const writeExporterLicensesHtml = (inventory) => {
+  const componentRows = [
+    {
+      type: 'Frozen runtime',
+      name: inventory.pythonRuntime.name,
+      version: inventory.pythonRuntime.version,
+      license: inventory.pythonRuntime.license,
+      source: inventory.pythonRuntime.source,
+      frozenEntryCount: inventory.runtimeLibraries.length,
+    },
+    ...inventory.frozenDistributions.map((record) => ({
+      type: 'Frozen distribution',
+      ...record,
+    })),
+    ...inventory.buildComponents.map((record) => ({
+      type: 'Bundling component',
+      ...record,
+    })),
+  ].map((record) => `<tr>
+      <td>${escapeHtml(record.type)}</td>
+      <td><code>${escapeHtml(record.name)}</code></td>
+      <td>${escapeHtml(record.version)}</td>
+      <td>${escapeHtml(record.license)}</td>
+      <td>${escapeHtml(record.frozenEntryCount)}</td>
+      <td>${record.source ? renderExternalLink(record.source) : ''}</td>
+    </tr>`).join('\n');
+  const runtimeComponentLabels = {
+    'python-runtime': 'CPython runtime and standard-library extension',
+    'microsoft-runtime': 'Microsoft Distributable Code covered by the CPython Windows license notice',
+    openssl: 'OpenSSL runtime covered by the CPython Windows binary notices',
+    libffi: 'libffi runtime covered by the CPython Windows binary notices',
+  };
+  const runtimeRows = inventory.runtimeLibraries.map((runtimeLibrary) => `<tr>
+      <td><code>${escapeHtml(runtimeLibrary.name)}</code></td>
+      <td>${escapeHtml(runtimeComponentLabels[runtimeLibrary.component] || runtimeLibrary.component)}</td>
+      <td>${escapeHtml(runtimeLibrary.licenseEvidence.owner)} / ${escapeHtml(runtimeLibrary.licenseEvidence.licenseFileName)} / SHA-256 ${escapeHtml(runtimeLibrary.licenseEvidence.sha256)}</td>
+    </tr>`).join('\n');
+  const renderLicenseSections = (record, category) => record.licenseFiles.map((licenseFile) => `
+      <section>
+        <h2>${escapeHtml(record.name)} ${escapeHtml(record.version)} - ${escapeHtml(licenseFile.name)}</h2>
+        <p>${escapeHtml(category)} | ${escapeHtml(record.license)} | SHA-256 ${escapeHtml(licenseFile.sha256)}</p>
+        <pre>${escapeHtml(licenseFile.text)}</pre>
+      </section>
+    `).join('\n');
+  const licenseSections = [
+    `
+      <section>
+        <h2>${escapeHtml(inventory.pythonRuntime.name)} ${escapeHtml(inventory.pythonRuntime.version)} - ${escapeHtml(inventory.pythonRuntime.licenseFile.name)}</h2>
+        <p>Frozen runtime and bundled Windows-library notices | SHA-256 ${escapeHtml(inventory.pythonRuntime.licenseFile.sha256)}</p>
+        <pre>${escapeHtml(inventory.pythonRuntime.licenseFile.text)}</pre>
+      </section>
+    `,
+    ...inventory.frozenDistributions.map((record) => renderLicenseSections(record, 'Frozen distribution')),
+    ...inventory.buildComponents.map((record) => renderLicenseSections(record, 'Bundling component')),
+  ].join('\n');
   const html = createHtmlDocument({
     title: 'Exporter Component Licenses',
     body: `
       <h1>Exporter Component Licenses</h1>
-      <p class="meta">Generated at ${escapeHtml(generatedAt)}.</p>
-      <p>The local report exporter is built from tools/exporter/hsl_exporter.py and may be distributed as resources/exporter/hsl-exporter.exe.</p>
+      <p class="meta">Generated at ${escapeHtml(generatedAt)} from the frozen exporter archive. Archive fingerprint: ${escapeHtml(inventory.archiveFingerprint)}.</p>
+      <p>The inventory lists ${escapeHtml(inventory.frozenDistributions.length)} frozen Python distributions, ${escapeHtml(inventory.buildComponents.length)} bundling components, ${escapeHtml(inventory.runtimeLibraries.length)} runtime libraries, ${escapeHtml(inventory.archiveEntryCount)} top-level archive entries, and ${escapeHtml(inventory.pyzModuleCount)} embedded Python modules. Unknown license ownership fails the exporter bundle gate.</p>
       <table>
         <thead>
           <tr>
+            <th>Type</th>
             <th>Component</th>
-            <th>License family</th>
+            <th>Version</th>
+            <th>License</th>
+            <th>Frozen evidence</th>
             <th>Source</th>
           </tr>
         </thead>
-        <tbody>
-          <tr><td>matplotlib</td><td>Matplotlib license, BSD-style</td><td>${renderExternalLink('https://matplotlib.org/')}</td></tr>
-          <tr><td>reportlab</td><td>BSD-style ReportLab license</td><td>${renderExternalLink('https://www.reportlab.com/dev/docs/')}</td></tr>
-          <tr><td>PyInstaller</td><td>GPL with special exception for packaging applications</td><td>${renderExternalLink('https://pyinstaller.org/')}</td></tr>
-        </tbody>
+        <tbody>${componentRows}</tbody>
       </table>
-      <p>Depending on the local exporter build environment, the bundled exporter may also include runtime packages such as numpy, Pillow, contourpy, cycler, fonttools, kiwisolver, packaging, pyparsing, python-dateutil, and six. Release builds should keep the full license texts and binary-library notices from the actual exporter bundle.</p>
+      <h2>Frozen runtime libraries</h2>
+      <table>
+        <thead><tr><th>Archive entry</th><th>Notice coverage</th><th>Hashed license evidence</th></tr></thead>
+        <tbody>${runtimeRows}</tbody>
+      </table>
+      ${licenseSections}
     `,
   });
   writeTextFileIfChanged(path.join(outputDir, 'exporter-licenses.html'), html);
@@ -450,7 +550,11 @@ if (
 }
 writeDependenciesHtml(records);
 writeLicenseTextsHtml(records);
-writeExporterLicensesHtml();
+const exporterLegalInventory = assertExporterLegalInventory(
+  readJson(exporterLegalInventoryPath),
+  createExporterSourceDescriptor(rootDir),
+);
+writeExporterLicensesHtml(exporterLegalInventory);
 writeAudioMaterialsHtml(readJson(audioManifestPath));
 copyIfExists(path.join(rootDir, 'node_modules', 'electron', 'dist', 'LICENSE'), 'LICENSE.electron.txt');
 copyIfExists(path.join(rootDir, 'public', 'fonts', 'LICENSES.txt'), 'font-licenses.txt');

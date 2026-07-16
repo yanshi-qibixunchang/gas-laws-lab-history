@@ -1,6 +1,11 @@
 {
   "name": "hard-sphere-lab",
-  "version": "4.2.3",
+  "version": "5.1.1",
+  "description": "Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and air heat-capacity-ratio experiments.",
+  "author": {
+    "name": "yanshi-qibixunchang",
+    "url": "https://github.com/yanshi-qibixunchang"
+  },
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -8,11 +13,12 @@
     "dev:temp": "vite --host 127.0.0.1 --port 5184 --strictPort",
     "legal:generate": "node scripts/generateLegalNotices.cjs",
     "legal:check": "node scripts/generateLegalNotices.cjs --check",
+    "release:verify-assets": "node scripts/verifyReleaseAssets.cjs",
     "build": "node scripts/generateLegalNotices.cjs && vite build && node scripts/checkBuildOutput.cjs",
     "desktop:dev": "npm run build && electron .",
     "desktop:build": "npm run build",
-    "desktop:installer": "npm run build && npm run exporter:bundle && npm run exporter:check && set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win nsis --x64 && node scripts/writeReleaseMetadata.cjs",
-    "desktop:portable": "npm run build && npm run exporter:bundle && npm run exporter:check && set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win portable --x64",
+    "desktop:installer": "npm run exporter:bundle && npm run exporter:check && npm run build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& node scripts/runElectronBuilder.cjs nsis && node scripts/writeReleaseMetadata.cjs && npm run release:verify-assets",
+    "desktop:portable": "npm run exporter:bundle && npm run exporter:check && npm run build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& node scripts/runElectronBuilder.cjs portable",
     "exporter:bundle": "node scripts/bundleExporter.cjs",
     "exporter:check": "node scripts/checkBundledExporter.cjs",
     "test": "node scripts/runTests.cjs",
@@ -112,14 +118,14 @@
     "lucide-react": "^0.292.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "three": "^0.184.0",
+    "three": "0.182.0",
     "three-stdlib": "^2.36.1"
   },
   "devDependencies": {
     "@types/node": "^25.0.3",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
-    "@types/three": "^0.184.1",
+    "@types/three": "0.182.0",
     "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.4.18",
     "electron": "^41.5.0",

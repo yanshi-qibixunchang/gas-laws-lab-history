@@ -4,7 +4,9 @@ const path = require('node:path');
 const {
   assertBundledExporterCurrent,
   createExporterBundleManifest,
+  createExporterSourceDescriptor,
   getExporterBundlePaths,
+  inspectExporterLegalInventory,
 } = require('../build/exporterBundlePolicy.cjs');
 
 const rootDir = path.resolve(__dirname, '..');
@@ -28,17 +30,19 @@ const main = () => {
     throw new Error('PyInstaller is required to build the bundled exporter.');
   }
 
-  const manifest = createExporterBundleManifest(rootDir);
+  const sourceDescriptor = createExporterSourceDescriptor(rootDir);
   const runtimeHookPath = path.join(buildDir, 'hsl_exporter_build_info.py');
   fs.writeFileSync(
     runtimeHookPath,
-    `import os\nos.environ["HSL_EXPORTER_SOURCE_FINGERPRINT"] = "${manifest.sourceFingerprint}"\n`,
+    `import os\nos.environ["HSL_EXPORTER_SOURCE_FINGERPRINT"] = "${sourceDescriptor.sourceFingerprint}"\n`,
     'utf8',
   );
 
   const result = spawnSync('python', [
     '-m',
     'PyInstaller',
+    '--log-level',
+    'WARN',
     '--onefile',
     '--clean',
     '--noconfirm',
@@ -59,11 +63,16 @@ const main = () => {
     exporterScript,
   ], {
     cwd: rootDir,
-    stdio: 'inherit',
+    encoding: 'utf8',
+    maxBuffer: 32 * 1024 * 1024,
     windowsHide: true,
   });
   if (result.status !== 0) {
-    throw new Error(`PyInstaller failed with exit code ${result.status || 1}.`);
+    const detail = [result.stdout, result.stderr]
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+    throw new Error(detail || `PyInstaller failed with exit code ${result.status || 1}.`);
   }
 
   const builtExe = path.join(distDir, 'hsl-exporter.exe');
@@ -72,7 +81,10 @@ const main = () => {
   }
 
   const targetPaths = getExporterBundlePaths(rootDir);
+  const legalInventory = inspectExporterLegalInventory(rootDir, builtExe);
+  const manifest = createExporterBundleManifest(rootDir, legalInventory, builtExe);
   fs.copyFileSync(builtExe, targetPaths.executable);
+  fs.writeFileSync(targetPaths.legalInventory, `${JSON.stringify(legalInventory, null, 2)}\n`, 'utf8');
   fs.writeFileSync(targetPaths.manifest, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   const selfCheck = assertBundledExporterCurrent(rootDir);
   console.log(`Bundled exporter ${selfCheck.exporterVersion} written to ${targetPaths.executable}`);

@@ -106,14 +106,32 @@ declare global {
     fullscreen: boolean;
   }
 
+  interface DesktopExitPersistenceRequest {
+    requestId: string;
+    reason: 'custom-close' | 'window-close' | 'update-install';
+  }
+
+  interface DesktopExitPersistenceResult {
+    requestId: string;
+    saved: boolean;
+    message?: string;
+  }
+
+  interface DesktopExitPersistenceResumeRequest {
+    reason: string;
+  }
+
   interface Window {
     hardSphereLabWindow?: {
       newWindow: () => Promise<{ status: 'ok' | 'error'; message?: string }>;
       minimize: () => Promise<DesktopWindowState>;
       toggleMaximize: () => Promise<DesktopWindowState>;
-      close: () => Promise<{ status: 'closed' }>;
+      close: () => Promise<{ status: 'closed' | 'cancelled' | 'discarded' | 'error' }>;
+      reportPersistenceResult: (result: DesktopExitPersistenceResult) => Promise<{ status: 'accepted' | 'ignored' }>;
       getState: () => Promise<DesktopWindowState>;
       onState: (callback: (state: DesktopWindowState) => void) => () => void;
+      onPrepareExit: (callback: (request: DesktopExitPersistenceRequest) => void) => () => void;
+      onResumeAfterExitCancel: (callback: (request: DesktopExitPersistenceResumeRequest) => void) => () => void;
     };
     hardSphereLabExporter?: {
       checkExportEnvironment: () => Promise<DesktopExportEnvironmentResult>;

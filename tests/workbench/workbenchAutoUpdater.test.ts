@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+  description?: string;
+  author?: { name?: string; url?: string };
   build?: {
     publish?: Array<{ provider?: string; owner?: string; repo?: string }>;
     electronUpdaterCompatibility?: string;
@@ -25,6 +27,12 @@ const updaterModule = readFileSync(new URL('../../src/features/workbench/workben
 const updateDialogSource = readFileSync(new URL('../../src/features/workbench/WorkbenchUpdateDialog.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
+assert.match(packageJson.description ?? '', /hard-sphere molecular dynamics/, 'desktop package metadata should describe the product');
+assert.deepEqual(
+  packageJson.author,
+  { name: 'yanshi-qibixunchang', url: 'https://github.com/yanshi-qibixunchang' },
+  'desktop package metadata should identify the repository owner without inventing contact details',
+);
 assert.ok(packageJson.dependencies?.['electron-updater'], 'electron-updater must be installed as an app dependency');
 assert.deepEqual(
   packageJson.build?.publish?.[0],
@@ -84,6 +92,21 @@ assert.ok(electronMain.includes("ipcMain.handle('hsl-updater:download'"), 'deskt
 assert.ok(electronMain.includes("ipcMain.handle('hsl-updater:quit-and-install'"), 'desktop main process should expose a restart-and-install IPC route');
 assert.ok(electronMain.includes("ipcMain.handle('hsl-updater:open-manual-download'"), 'desktop main process should expose a manual download IPC route');
 assert.ok(electronMain.includes('MAX_DOWNLOAD_ATTEMPTS'), 'desktop update downloads should use the shared retry attempt count');
+assert.match(electronMain, /const updaterOperationCoordinator = createUpdaterOperationCoordinator\(\)/, 'all updater stages should share one cross-stage operation coordinator');
+assert.match(electronMain, /const runUpdaterStage = \(stage, taskFactory\) => \{[\s\S]*activeStage !== stage[\s\S]*canStartUpdaterStage\(stage, updateState\)[\s\S]*updaterOperationCoordinator\.run\(stage, taskFactory\)/, 'updater requests should reject cross-stage overlap and illegal state transitions before invoking electron-updater');
+assert.match(electronMain, /return runUpdaterStage\('check', async \(\) => \{[\s\S]*await autoUpdater\.checkForUpdates\(\);/, 'repeated check clicks should await the same in-flight check instead of returning stale state');
+assert.match(electronMain, /return runUpdaterStage\('download', async \(\) => \{/, 'repeated download clicks should route through the shared cross-stage task');
+assert.match(
+  electronMain,
+  /return runUpdaterStage\('install', async \(\) => \{[\s\S]*prepareWindowsForExit[\s\S]*return new Promise\(\(resolve\) => \{[\s\S]*autoUpdater\.quitAndInstall/,
+  'restart clicks should remain single-flight until Electron quits or the install watchdog restores the app',
+);
+assert.match(electronMain, /if \(updaterOperationCoordinator\.activeStage !== 'check'\) return;[\s\S]*if \(updaterOperationCoordinator\.activeStage !== 'download'\) return;/, 'late updater events should be ignored when they do not belong to the active stage');
+assert.match(
+  electronMain,
+  /UPDATE_INSTALL_APPROVAL_TIMEOUT_MS = UPDATE_INSTALL_EXIT_WATCHDOG_MS \+ 2_000/,
+  'global-exit approval must outlive the updater watchdog so registry-preserving close approval cannot expire first',
+);
 assert.ok(electronMain.includes('isTransientUpdateError'), 'desktop update downloads should only retry transient network errors');
 assert.ok(electronMain.includes("status: 'retrying'"), 'desktop update downloads should broadcast retrying status');
 assert.ok(electronMain.includes("webContents.send('hsl-updater:status'"), 'updater events should be forwarded to renderer windows');
@@ -167,5 +190,12 @@ assert.match(
   /writeReleaseMetadata\.cjs/,
   'desktop installer builds should enrich latest.yml with structured release metadata after packaging',
 );
+for (const scriptName of ['desktop:installer', 'desktop:portable']) {
+  assert.match(
+    packageJson.scripts?.[scriptName] ?? '',
+    /node scripts\/runElectronBuilder\.cjs (?:nsis|portable)\b/,
+    `${scriptName} must use the fail-closed local electron-builder entrypoint`,
+  );
+}
 
 console.log('workbenchAutoUpdater tests passed');

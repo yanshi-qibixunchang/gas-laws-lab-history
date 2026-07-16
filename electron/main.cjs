@@ -2,7 +2,7 @@ const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require('electron')
 const { autoUpdater } = require('electron-updater');
 const fsSync = require('node:fs');
 const fs = require('node:fs/promises');
-const os = require('node:os');
+const { randomUUID } = require('node:crypto');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const {
@@ -12,6 +12,17 @@ const {
   isAllowedManualDownloadUrl,
   isTransientUpdateError,
 } = require('./updaterMetadata.cjs');
+const {
+  canStartUpdaterStage,
+  canTransitionUpdaterStatus,
+  createUpdaterOperationCoordinator,
+} = require('./updaterStateMachine.cjs');
+const { createExitPersistenceCoordinator } = require('./exitPersistenceCoordinator.cjs');
+const { validateExporterOutputManifest } = require('./exporterOutputPolicy.cjs');
+const {
+  createPersistentWorkbenchWindowNamespace,
+  createWorkbenchWindowRegistry,
+} = require('./workbenchWindowRegistry.cjs');
 
 const rootDir = path.resolve(__dirname, '..');
 const preloadPath = path.join(__dirname, 'preload.cjs');
@@ -21,6 +32,10 @@ const WORKBENCH_WINDOW_HEIGHT = 810;
 const WORKBENCH_WINDOW_MIN_WIDTH = 1280;
 const WORKBENCH_WINDOW_MIN_HEIGHT = 720;
 const WORKBENCH_WINDOW_ASPECT_RATIO = 16 / 9;
+const WORKBENCH_MAIN_NAMESPACE = 'persistent:main';
+const WORKBENCH_WINDOW_REGISTRY_FILE_NAME = 'workbench-window-registry-v1.json';
+const UPDATE_INSTALL_EXIT_WATCHDOG_MS = 10_000;
+const UPDATE_INSTALL_APPROVAL_TIMEOUT_MS = UPDATE_INSTALL_EXIT_WATCHDOG_MS + 2_000;
 const exportRootFolderName = 'Heat Capacity Ratio Lab Exports';
 const USER_GUIDE_URLS = {
   'zh-CN': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release#readme',
@@ -36,9 +51,10 @@ const LEGAL_FILE_NAMES = {
   audio: 'audio-materials.html',
 };
 let selectedExporterRuntime = null;
-let updateCheckPromise = null;
 let updateDownloadInProgress = false;
 let activeDownloadAttempt = null;
+let workbenchWindowRegistry = null;
+const updaterOperationCoordinator = createUpdaterOperationCoordinator();
 let updateState = {
   status: 'idle',
   currentVersion: app.getVersion(),
@@ -57,9 +73,13 @@ let updateState = {
   percent: null,
   message: '',
 };
+const exitPersistenceCoordinator = createExitPersistenceCoordinator({
+  dialog,
+});
 
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
+autoUpdater.disableWebInstaller = true;
 
 const isDesktopUpdateSupported = () => app.isPackaged && process.platform === 'win32';
 
@@ -136,6 +156,8 @@ const getUpdaterState = (overrides = {}) => ({
 });
 
 const broadcastUpdaterState = (state) => {
+  const nextStatus = state.status ?? updateState.status;
+  if (!canTransitionUpdaterStatus(updateState.status, nextStatus)) return updateState;
   updateState = getUpdaterState(state);
   for (const window of BrowserWindow.getAllWindows()) {
     if (!window.isDestroyed()) {
@@ -143,6 +165,15 @@ const broadcastUpdaterState = (state) => {
     }
   }
   return updateState;
+};
+
+const runUpdaterStage = (stage, taskFactory) => {
+  const activeStage = updaterOperationCoordinator.activeStage;
+  if (activeStage !== null && activeStage !== stage) return Promise.resolve(updateState);
+  if (activeStage === null && !canStartUpdaterStage(stage, updateState)) {
+    return Promise.resolve(updateState);
+  }
+  return updaterOperationCoordinator.run(stage, taskFactory);
 };
 
 const getDesktopWindowState = (window) => ({
@@ -210,6 +241,7 @@ const bindDesktopWindowFrameBehavior = (mainWindow) => {
 };
 
 autoUpdater.on('checking-for-update', () => {
+  if (updaterOperationCoordinator.activeStage !== 'check') return;
   broadcastUpdaterState({
     status: 'checking',
     message: 'Checking for updates.',
@@ -218,6 +250,7 @@ autoUpdater.on('checking-for-update', () => {
 });
 
 autoUpdater.on('update-available', (info) => {
+  if (updaterOperationCoordinator.activeStage !== 'check') return;
   broadcastUpdaterState({
     status: 'available',
     ...normalizeUpdateInfo(info),
@@ -227,6 +260,7 @@ autoUpdater.on('update-available', (info) => {
 });
 
 autoUpdater.on('update-not-available', (info) => {
+  if (updaterOperationCoordinator.activeStage !== 'check') return;
   broadcastUpdaterState({
     status: 'not-available',
     ...normalizeUpdateInfo(info),
@@ -236,6 +270,7 @@ autoUpdater.on('update-not-available', (info) => {
 });
 
 autoUpdater.on('download-progress', (progress) => {
+  if (updaterOperationCoordinator.activeStage !== 'download') return;
   broadcastUpdaterState({
     status: 'downloading',
     ...getKnownUpdateReleaseMetadata(),
@@ -248,6 +283,7 @@ autoUpdater.on('download-progress', (progress) => {
 });
 
 autoUpdater.on('update-downloaded', (info) => {
+  if (updaterOperationCoordinator.activeStage !== 'download') return;
   broadcastUpdaterState({
     status: 'downloaded',
     ...normalizeUpdateInfo(info),
@@ -262,6 +298,7 @@ autoUpdater.on('update-downloaded', (info) => {
 
 autoUpdater.on('error', (error) => {
   if (updateDownloadInProgress) return;
+  if (updaterOperationCoordinator.activeStage !== 'check') return;
   broadcastUpdaterState({
     status: 'error',
     ...getKnownUpdateReleaseMetadata(),
@@ -290,8 +327,12 @@ const getSystemExporterCandidates = () => ([
 ]);
 
 const getBundledExporterCandidates = () => ([
-  path.join(rootDir, 'resources', 'exporter', 'hsl-exporter.exe'),
-  path.join(process.resourcesPath || '', 'exporter', 'hsl-exporter.exe'),
+  ...(app.isPackaged
+    ? [path.join(process.resourcesPath || '', 'exporter', 'hsl-exporter.exe')]
+    : [path.join(rootDir, 'resources', 'exporter', 'hsl-exporter.exe')]),
+  ...(app.isPackaged
+    ? [path.join(rootDir, 'resources', 'exporter', 'hsl-exporter.exe')]
+    : [path.join(process.resourcesPath || '', 'exporter', 'hsl-exporter.exe')]),
 ]);
 
 const getDefaultExportRoot = () => path.join(app.getPath('documents'), exportRootFolderName);
@@ -465,25 +506,20 @@ const ensureDefaultExportRoot = async () => {
   return exportRoot;
 };
 
-const resolveExporterRuntime = async () => {
-  const systemRuntime = await getSystemRuntime();
-  if (systemRuntime) {
-    const systemResult = await runExporter(systemRuntime, ['--self-check']);
-    if (systemResult.code === 0) {
-      const details = parseJson(systemResult.stdout);
-      return {
-        status: 'available-system',
-        runtime: systemRuntime,
-        message: details
-          ? `Python ${details.python}, matplotlib ${details.matplotlib}, reportlab ${details.reportlab}`
-          : 'System Python exporter is available.',
-        stdout: systemResult.stdout,
-        stderr: systemResult.stderr,
-        details,
-      };
-    }
+const replaceFileAtomically = async (source, target) => {
+  const temporaryTarget = path.join(
+    path.dirname(target),
+    `.${path.basename(target)}.${randomUUID()}.tmp`,
+  );
+  try {
+    await fs.copyFile(source, temporaryTarget, fsSync.constants.COPYFILE_EXCL);
+    await fs.rename(temporaryTarget, target);
+  } finally {
+    await fs.rm(temporaryTarget, { force: true });
   }
+};
 
+const resolveBundledExporterRuntime = async () => {
   const bundledRuntime = await getBundledRuntime();
   if (bundledRuntime) {
     const bundledResult = await runExporter(bundledRuntime, ['--self-check']);
@@ -511,6 +547,43 @@ const resolveExporterRuntime = async () => {
     };
   }
 
+  return null;
+};
+
+const resolveExporterRuntime = async () => {
+  if (app.isPackaged) {
+    const packagedBundledResult = await resolveBundledExporterRuntime();
+    return packagedBundledResult ?? {
+      status: 'unavailable',
+      runtime: null,
+      message: 'The packaged exporter is missing from the installed application resources.',
+      stdout: '',
+      stderr: '',
+      details: null,
+    };
+  }
+
+  const systemRuntime = await getSystemRuntime();
+  if (systemRuntime) {
+    const systemResult = await runExporter(systemRuntime, ['--self-check']);
+    if (systemResult.code === 0) {
+      const details = parseJson(systemResult.stdout);
+      return {
+        status: 'available-system',
+        runtime: systemRuntime,
+        message: details
+          ? `Python ${details.python}, matplotlib ${details.matplotlib}, reportlab ${details.reportlab}`
+          : 'System Python exporter is available.',
+        stdout: systemResult.stdout,
+        stderr: systemResult.stderr,
+        details,
+      };
+    }
+  }
+
+  const bundledResult = await resolveBundledExporterRuntime();
+  if (bundledResult) return bundledResult;
+
   return {
     status: 'unavailable',
     runtime: null,
@@ -522,6 +595,7 @@ const resolveExporterRuntime = async () => {
 };
 
 const createMainWindow = async (options = {}) => {
+  const namespace = options.namespace ?? WORKBENCH_MAIN_NAMESPACE;
   const mainWindow = new BrowserWindow({
     title: appTitle,
     width: WORKBENCH_WINDOW_WIDTH,
@@ -534,22 +608,52 @@ const createMainWindow = async (options = {}) => {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
       preload: preloadPath,
       backgroundThrottling: false,
     },
   });
   bindDesktopWindowFrameBehavior(mainWindow);
+  exitPersistenceCoordinator.bindWindow(mainWindow, {
+    beforeApprovedClose: namespace === WORKBENCH_MAIN_NAMESPACE
+      ? undefined
+      : async () => {
+          if (!workbenchWindowRegistry) {
+            throw new Error('Workbench window registry is not ready.');
+          }
+          await workbenchWindowRegistry.remove(namespace);
+        },
+  });
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  mainWindow.webContents.on('will-navigate', (event, targetUrl) => {
+    const currentUrl = mainWindow.webContents.getURL();
+    if (targetUrl !== currentUrl) event.preventDefault();
+  });
 
-  await mainWindow.loadFile(path.join(rootDir, 'dist', 'index.html'), options.fresh ? {
-    query: { hslFreshWindow: '1' },
-  } : undefined);
+  await mainWindow.loadFile(path.join(rootDir, 'dist', 'index.html'), {
+    query: {
+      hslWorkspaceNamespace: namespace,
+      ...(options.fresh ? { hslFreshWindow: '1' } : {}),
+    },
+  });
 
   return mainWindow;
 };
 
 ipcMain.handle('hsl-window:new', async () => {
+  const namespace = createPersistentWorkbenchWindowNamespace(randomUUID);
   try {
-    await createMainWindow({ fresh: true });
+    if (!workbenchWindowRegistry) {
+      throw new Error('Workbench window registry is not ready.');
+    }
+    await workbenchWindowRegistry.add(namespace);
+    try {
+      await createMainWindow({ fresh: true, namespace });
+    } catch (error) {
+      await workbenchWindowRegistry.remove(namespace);
+      throw error;
+    }
     return { status: 'ok' };
   } catch (error) {
     return {
@@ -579,13 +683,15 @@ ipcMain.handle('hsl-window:toggle-maximize', (event) => {
   return getDesktopWindowState(window);
 });
 
-ipcMain.handle('hsl-window:close', (event) => {
+ipcMain.handle('hsl-window:close', async (event) => {
   const window = getDesktopWindowFromEvent(event);
-  if (window && !window.isDestroyed()) {
-    window.close();
-  }
-  return { status: 'closed' };
+  if (!window || window.isDestroyed()) return { status: 'closed' };
+  return exitPersistenceCoordinator.requestWindowClose(window, 'custom-close');
 });
+
+ipcMain.handle('hsl-lifecycle:persistence-result', (event, payload) => (
+  exitPersistenceCoordinator.handleRendererResult(event, payload)
+));
 
 ipcMain.handle('hsl-window:get-state', (event) => (
   getDesktopWindowState(getDesktopWindowFromEvent(event))
@@ -600,12 +706,16 @@ ipcMain.handle('hsl-updater:check', async () => {
     });
   }
 
-  if (updateCheckPromise) {
-    return updateState;
-  }
-
-  updateCheckPromise = autoUpdater.checkForUpdates()
-    .catch((error) => {
+  return runUpdaterStage('check', async () => {
+    broadcastUpdaterState({
+      status: 'checking',
+      message: 'Checking for updates.',
+      percent: null,
+      errorKind: null,
+    });
+    try {
+      await autoUpdater.checkForUpdates();
+    } catch (error) {
       broadcastUpdaterState({
         status: 'error',
         ...getKnownUpdateReleaseMetadata(),
@@ -614,14 +724,9 @@ ipcMain.handle('hsl-updater:check', async () => {
         errorKind: isTransientUpdateError(error) ? 'network' : 'fatal',
         percent: null,
       });
-      return null;
-    })
-    .finally(() => {
-      updateCheckPromise = null;
-    });
-
-  await updateCheckPromise;
-  return updateState;
+    }
+    return updateState;
+  });
 });
 
 ipcMain.handle('hsl-updater:download', async () => {
@@ -633,61 +738,61 @@ ipcMain.handle('hsl-updater:download', async () => {
     });
   }
 
-  updateDownloadInProgress = true;
-  for (let attempt = 1; attempt <= MAX_DOWNLOAD_ATTEMPTS; attempt += 1) {
-    activeDownloadAttempt = attempt;
-    broadcastUpdaterState({
-      status: 'downloading',
-      ...getKnownUpdateReleaseMetadata(),
-      message: 'Downloading update.',
-      percent: 0,
-      downloadAttempt: attempt,
-      maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
-      retrying: false,
-      errorKind: null,
-    });
-
+  return runUpdaterStage('download', async () => {
+    updateDownloadInProgress = true;
     try {
-      await autoUpdater.downloadUpdate();
-      updateDownloadInProgress = false;
-      activeDownloadAttempt = null;
-      return updateState;
-    } catch (error) {
-      const retryable = isTransientUpdateError(error);
-      const message = getErrorMessage(error);
-      if (!retryable || attempt >= MAX_DOWNLOAD_ATTEMPTS) {
-        updateDownloadInProgress = false;
-        activeDownloadAttempt = null;
-        return broadcastUpdaterState({
-          status: 'error',
+      for (let attempt = 1; attempt <= MAX_DOWNLOAD_ATTEMPTS; attempt += 1) {
+        activeDownloadAttempt = attempt;
+        broadcastUpdaterState({
+          status: 'downloading',
           ...getKnownUpdateReleaseMetadata(),
-          message,
-          percent: null,
+          message: 'Downloading update.',
+          percent: 0,
           downloadAttempt: attempt,
           maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
           retrying: false,
-          errorKind: retryable ? 'network' : 'fatal',
+          errorKind: null,
         });
+
+        try {
+          await autoUpdater.downloadUpdate();
+          return updateState;
+        } catch (error) {
+          const retryable = isTransientUpdateError(error);
+          const message = getErrorMessage(error);
+          if (!retryable || attempt >= MAX_DOWNLOAD_ATTEMPTS) {
+            return broadcastUpdaterState({
+              status: 'error',
+              ...getKnownUpdateReleaseMetadata(),
+              message,
+              percent: null,
+              downloadAttempt: attempt,
+              maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
+              retrying: false,
+              errorKind: retryable ? 'network' : 'fatal',
+            });
+          }
+
+          const nextAttempt = attempt + 1;
+          broadcastUpdaterState({
+            status: 'retrying',
+            ...getKnownUpdateReleaseMetadata(),
+            message,
+            percent: null,
+            downloadAttempt: nextAttempt,
+            maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
+            retrying: true,
+            errorKind: 'network',
+          });
+          await waitForUpdateRetry(nextAttempt);
+        }
       }
-
-      const nextAttempt = attempt + 1;
-      broadcastUpdaterState({
-        status: 'retrying',
-        ...getKnownUpdateReleaseMetadata(),
-        message,
-        percent: null,
-        downloadAttempt: nextAttempt,
-        maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
-        retrying: true,
-        errorKind: 'network',
-      });
-      await waitForUpdateRetry(nextAttempt);
+      return updateState;
+    } finally {
+      updateDownloadInProgress = false;
+      activeDownloadAttempt = null;
     }
-  }
-
-  updateDownloadInProgress = false;
-  activeDownloadAttempt = null;
-  return updateState;
+  });
 });
 
 ipcMain.handle('hsl-updater:quit-and-install', async () => {
@@ -699,13 +804,67 @@ ipcMain.handle('hsl-updater:quit-and-install', async () => {
     });
   }
 
-  broadcastUpdaterState({
-    status: 'installing',
-    message: 'Restarting to install update.',
-    percent: 100,
+  return runUpdaterStage('install', async () => {
+    const windows = BrowserWindow.getAllWindows();
+    const persistence = await exitPersistenceCoordinator.prepareWindowsForExit(
+      windows,
+      'update-install',
+    );
+    if (!persistence.proceed) {
+      return broadcastUpdaterState({
+        status: 'downloaded',
+        message: 'Restart cancelled because workspace persistence did not complete.',
+        percent: 100,
+      });
+    }
+
+    broadcastUpdaterState({
+      status: 'installing',
+      message: 'Restarting to install update.',
+      percent: 100,
+    });
+    const revokeExitApproval = exitPersistenceCoordinator.approveWindowsForExit(
+      windows,
+      UPDATE_INSTALL_APPROVAL_TIMEOUT_MS,
+    );
+    return new Promise((resolve) => {
+      const handleWillQuit = () => {
+        clearTimeout(quitAndInstallWatchdogId);
+        resolve(updateState);
+      };
+      const completeWithoutExit = (reason, nextState) => {
+        clearTimeout(quitAndInstallWatchdogId);
+        app.removeListener('will-quit', handleWillQuit);
+        revokeExitApproval(reason);
+        resolve(nextState);
+      };
+      const quitAndInstallWatchdogId = setTimeout(() => {
+        completeWithoutExit(
+          'update-install-did-not-exit',
+          broadcastUpdaterState({
+            status: 'downloaded',
+            message: 'The update is ready, but the app did not restart. Please try again.',
+            percent: 100,
+            errorKind: 'install-restart',
+          }),
+        );
+      }, UPDATE_INSTALL_EXIT_WATCHDOG_MS);
+      app.once('will-quit', handleWillQuit);
+      try {
+        autoUpdater.quitAndInstall(false, true);
+      } catch (error) {
+        completeWithoutExit(
+          'update-install-failed',
+          broadcastUpdaterState({
+            status: 'downloaded',
+            message: `The update is ready, but restart failed: ${getErrorMessage(error)}`,
+            percent: 100,
+            errorKind: 'install-restart',
+          }),
+        );
+      }
+    });
   });
-  autoUpdater.quitAndInstall(false, true);
-  return updateState;
 });
 
 ipcMain.handle('hsl-updater:open-manual-download', async () => {
@@ -838,7 +997,7 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
       }
     }
 
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'heat-capacity-ratio-lab-export-'));
+    const tempDir = await fs.mkdtemp(path.join(app.getPath('temp'), 'heat-capacity-ratio-lab-export-'));
     try {
       const inputPath = path.join(tempDir, `${Date.now()}-${sanitizeName(payload.filename || 'payload.json')}`);
       const outDir = path.join(tempDir, 'out');
@@ -858,14 +1017,24 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
         };
       }
 
-      const reportFile = Array.isArray(parsed.files)
-        ? parsed.files.find((file) => String(file).toLowerCase().endsWith('.pdf'))
-        : null;
-      if (!reportFile) {
+      let outputManifest;
+      try {
+        outputManifest = await validateExporterOutputManifest({ fs, outDir, parsed });
+      } catch (error) {
         return {
           status: 'error',
           outDir: path.dirname(selection.filePath),
-          message: 'Python exporter did not return a report PDF.',
+          message: `Python exporter returned an unsafe output manifest: ${getErrorMessage(error)}`,
+          stdout: result.stdout,
+          stderr: result.stderr,
+        };
+      }
+      const reportFiles = outputManifest.files.filter((file) => file.toLowerCase().endsWith('.pdf'));
+      if (reportFiles.length !== 1 || outputManifest.files.length !== 1 || outputManifest.metadataPath !== null) {
+        return {
+          status: 'error',
+          outDir: path.dirname(selection.filePath),
+          message: 'Python exporter did not return exactly one report PDF.',
           stdout: result.stdout,
           stderr: result.stderr,
         };
@@ -874,7 +1043,7 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
       const target = selection.filePath.toLowerCase().endsWith('.pdf')
         ? selection.filePath
         : `${selection.filePath}.pdf`;
-      await fs.copyFile(reportFile, target);
+      await replaceFileAtomically(reportFiles[0], target);
       return {
         status: 'ok',
         outDir: path.dirname(target),
@@ -899,37 +1068,14 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
     return { status: 'cancelled' };
   }
 
-  const outDir = path.join(selection.filePaths[0], getExperimentFolderName(payload, options));
-  await fs.mkdir(outDir, { recursive: true });
-
-  if (payload.kind === 'csv') {
-    const dataDir = path.join(outDir, 'data');
-    await fs.mkdir(dataDir, { recursive: true });
-    const target = path.join(dataDir, sanitizeName(payload.filename || 'heat-capacity-ratio-lab.csv'));
-    await fs.writeFile(target, payload.content || '', 'utf8');
-    return {
-      status: 'ok',
-      outDir,
-      files: [target],
-      metadataPath: null,
-      stdout: '',
-      stderr: '',
-      runtime: 'desktop-file-writer',
-    };
-  }
-
-  const tempDir = path.join(os.tmpdir(), 'heat-capacity-ratio-lab-export');
-  await fs.mkdir(tempDir, { recursive: true });
-  const inputPath = path.join(tempDir, `${Date.now()}-${sanitizeName(payload.filename || 'payload.json')}`);
-  await fs.writeFile(inputPath, JSON.stringify(payload, null, 2), 'utf8');
-
-  if (!selectedExporterRuntime) {
+  const selectedRoot = await fs.realpath(selection.filePaths[0]);
+  if (payload.kind === 'json' && !selectedExporterRuntime) {
     const runtimeResult = await resolveExporterRuntime();
     selectedExporterRuntime = runtimeResult.runtime;
     if (!selectedExporterRuntime) {
       return {
         status: 'error',
-        outDir,
+        outDir: selectedRoot,
         message: runtimeResult.message,
         stdout: runtimeResult.stdout,
         stderr: runtimeResult.stderr,
@@ -937,36 +1083,131 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
     }
   }
 
-  const result = await runExporter(selectedExporterRuntime, ['--input', inputPath, '--out', outDir, '--formats', getExporterFormatsForMode(options?.mode, payload)]);
-  const parsed = parseJson(result.stdout);
+  const outDir = await fs.mkdtemp(path.join(
+    selectedRoot,
+    `${getExperimentFolderName(payload, options)}_`,
+  ));
+  let retainExportDirectory = false;
+  try {
+    if (payload.kind === 'csv') {
+      const dataDir = path.join(outDir, 'data');
+      await fs.mkdir(dataDir, { recursive: true });
+      const target = path.join(dataDir, sanitizeName(payload.filename || 'heat-capacity-ratio-lab.csv'));
+      await fs.writeFile(target, payload.content || '', 'utf8');
+      retainExportDirectory = true;
+      return {
+        status: 'ok',
+        outDir,
+        files: [target],
+        metadataPath: null,
+        stdout: '',
+        stderr: '',
+        runtime: 'desktop-file-writer',
+      };
+    }
 
-  if (result.code !== 0 || !parsed || parsed.status !== 'ok') {
-    return {
-      status: 'error',
-      outDir,
-      message: result.stderr.trim() || 'Python exporter failed.',
-      stdout: result.stdout,
-      stderr: result.stderr,
-    };
+    const tempDir = await fs.mkdtemp(path.join(app.getPath('temp'), 'heat-capacity-ratio-lab-export-'));
+    try {
+      const inputPath = path.join(tempDir, `${Date.now()}-${sanitizeName(payload.filename || 'payload.json')}`);
+      await fs.writeFile(inputPath, JSON.stringify(payload, null, 2), 'utf8');
+      const result = await runExporter(selectedExporterRuntime, [
+        '--input', inputPath,
+        '--out', outDir,
+        '--formats', getExporterFormatsForMode(options?.mode, payload),
+      ]);
+      const parsed = parseJson(result.stdout);
+
+      if (result.code !== 0 || !parsed || parsed.status !== 'ok') {
+        return {
+          status: 'error',
+          outDir: selectedRoot,
+          message: result.stderr.trim() || 'Python exporter failed.',
+          stdout: result.stdout,
+          stderr: result.stderr,
+        };
+      }
+
+      let outputManifest;
+      try {
+        outputManifest = await validateExporterOutputManifest({ fs, outDir, parsed });
+      } catch (error) {
+        return {
+          status: 'error',
+          outDir: selectedRoot,
+          message: `Python exporter returned an unsafe output manifest: ${getErrorMessage(error)}`,
+          stdout: result.stdout,
+          stderr: result.stderr,
+        };
+      }
+
+      retainExportDirectory = true;
+      return {
+        status: 'ok',
+        outDir: outputManifest.outDir,
+        metadataPath: outputManifest.metadataPath,
+        files: outputManifest.files,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        runtime: selectedExporterRuntime.kind,
+      };
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  } finally {
+    if (!retainExportDirectory) {
+      await fs.rm(outDir, { recursive: true, force: true });
+    }
   }
-
-  return {
-    status: 'ok',
-    outDir,
-    metadataPath: parsed.metadata || null,
-    files: Array.isArray(parsed.files) ? parsed.files : [],
-    stdout: result.stdout,
-    stderr: result.stderr,
-    runtime: selectedExporterRuntime.kind,
-  };
 });
 
-app.whenReady().then(async () => {
-  app.setName(appTitle);
-  Menu.setApplicationMenu(null);
-  await ensureDefaultExportRoot();
-  await createMainWindow();
-});
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+
+const restoreRegisteredWorkbenchWindows = async () => {
+  await createMainWindow({ namespace: WORKBENCH_MAIN_NAMESPACE });
+  if (!workbenchWindowRegistry) return;
+  let registry;
+  try {
+    registry = await workbenchWindowRegistry.read();
+  } catch (error) {
+    console.error('[Workbench windows] Persistent window registry could not be read.', error);
+    return;
+  }
+  for (const namespace of registry.namespaces) {
+    try {
+      await createMainWindow({ fresh: true, namespace });
+    } catch (error) {
+      console.error(`[Workbench windows] Persistent window could not be restored: ${namespace}.`, error);
+    }
+  }
+};
+
+if (!hasSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    const existingWindow = BrowserWindow.getFocusedWindow()
+      ?? BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
+    if (!existingWindow || existingWindow.isDestroyed()) return;
+    if (existingWindow.isMinimized()) existingWindow.restore();
+    existingWindow.show();
+    existingWindow.focus();
+  });
+
+  app.whenReady().then(async () => {
+    app.setName(appTitle);
+    Menu.setApplicationMenu(null);
+    workbenchWindowRegistry = createWorkbenchWindowRegistry({
+      fs,
+      registryPath: path.join(app.getPath('userData'), WORKBENCH_WINDOW_REGISTRY_FILE_NAME),
+    });
+    try {
+      await ensureDefaultExportRoot();
+    } catch (error) {
+      console.warn('[Exporter] Default export directory is unavailable during startup; export commands will retry.', error);
+    }
+    await restoreRegisteredWorkbenchWindows();
+  });
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -976,6 +1217,6 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createMainWindow();
+    void restoreRegisteredWorkbenchWindows();
   }
 });

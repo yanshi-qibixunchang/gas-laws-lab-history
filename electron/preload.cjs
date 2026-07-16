@@ -10,11 +10,22 @@ contextBridge.exposeInMainWorld('hardSphereLabWindow', {
   minimize: () => ipcRenderer.invoke('hsl-window:minimize'),
   toggleMaximize: () => ipcRenderer.invoke('hsl-window:toggle-maximize'),
   close: () => ipcRenderer.invoke('hsl-window:close'),
+  reportPersistenceResult: (result) => ipcRenderer.invoke('hsl-lifecycle:persistence-result', result),
   getState: () => ipcRenderer.invoke('hsl-window:get-state'),
   onState: (callback) => {
     const listener = (_event, payload) => callback(payload);
     ipcRenderer.on('hsl-window:state', listener);
     return () => ipcRenderer.removeListener('hsl-window:state', listener);
+  },
+  onPrepareExit: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('hsl-lifecycle:prepare-exit', listener);
+    return () => ipcRenderer.removeListener('hsl-lifecycle:prepare-exit', listener);
+  },
+  onResumeAfterExitCancel: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('hsl-lifecycle:resume-after-exit-cancel', listener);
+    return () => ipcRenderer.removeListener('hsl-lifecycle:resume-after-exit-cancel', listener);
   },
 });
 
