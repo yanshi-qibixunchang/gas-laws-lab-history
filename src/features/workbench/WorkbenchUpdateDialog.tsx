@@ -2,6 +2,7 @@ import { Download, Loader2, X } from 'lucide-react';
 import {
   formatWorkbenchReleaseDate,
   getWorkbenchLocalizedText,
+  isWorkbenchUpdateCheckFailure,
   type WorkbenchUpdateState,
 } from './workbenchDesktopUpdater.ts';
 import type { WorkbenchLanguagePreference } from './workbenchGeneralSettings.ts';
@@ -9,8 +10,10 @@ import type { WorkbenchLanguagePreference } from './workbenchGeneralSettings.ts'
 export interface WorkbenchUpdateDialogCopy {
   updateReadyTitle: string;
   updateAvailableTitle: string;
+  updateCheckFailedTitle: string;
   updateReadyBody: string;
   updateAvailableBody: string;
+  updateCheckFailedBody: string;
   updateReadyStatus: string;
   retryingUpdateStatus: (attempt: number | null, maxAttempts: number | null) => string;
   updateDownloadFailedStatus: (attempt: number | null, maxAttempts: number | null) => string;
@@ -22,6 +25,7 @@ export interface WorkbenchUpdateDialogCopy {
   releaseDateLabel: string;
   releaseNotesLabel: string;
   restartAndInstall: string;
+  retryCheck: string;
   retryDownload: string;
   manualDownload: string;
   ignoreThisVersion: string;
@@ -58,17 +62,28 @@ export const WorkbenchUpdateDialog = ({
   const downloaded = state.status === 'downloaded';
   const installing = state.status === 'installing';
   const failed = state.status === 'error';
+  const checkFailed = isWorkbenchUpdateCheckFailure(state);
   const releaseNotes = state.releaseNotes?.trim() || copy.noReleaseNotes;
   const releaseSummary = getWorkbenchLocalizedText(state.releaseSummary, language);
   const releaseSections = state.releaseSections ?? [];
   const latestVersion = state.latestVersion || '--';
-  const title = downloaded || installing ? copy.updateReadyTitle : copy.updateAvailableTitle;
-  const body = downloaded || installing ? copy.updateReadyBody : copy.updateAvailableBody;
+  const title = downloaded || installing
+    ? copy.updateReadyTitle
+    : checkFailed
+      ? copy.updateCheckFailedTitle
+      : copy.updateAvailableTitle;
+  const body = downloaded || installing
+    ? copy.updateReadyBody
+    : checkFailed
+      ? copy.updateCheckFailedBody
+      : copy.updateAvailableBody;
   const statusMessage = installing
     ? copy.updateReadyStatus
     : retrying
       ? copy.retryingUpdateStatus(state.downloadAttempt ?? null, state.maxDownloadAttempts ?? null)
-      : failed
+      : checkFailed
+        ? copy.updateCheckFailedBody
+        : failed
         ? copy.updateDownloadFailedStatus(state.downloadAttempt ?? null, state.maxDownloadAttempts ?? null)
         : copy.downloadingUpdateStatus(state.percent ?? null);
   const showStatus = downloading || retrying || installing || failed;
@@ -157,9 +172,9 @@ export const WorkbenchUpdateDialog = ({
               </button>
               <button type="button" className="studio-update-secondary" onClick={onDownload}>
                 <Download size={14} />
-                {copy.retryDownload}
+                {checkFailed ? copy.retryCheck : copy.retryDownload}
               </button>
-              <button type="button" className="studio-update-primary" onClick={onManualDownload} disabled={!state.manualDownloadUrl}>
+              <button type="button" className="studio-update-primary" onClick={onManualDownload}>
                 <Download size={14} />
                 {copy.manualDownload}
               </button>

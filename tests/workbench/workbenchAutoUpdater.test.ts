@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
   description?: string;
@@ -25,7 +28,17 @@ const electronTypes = readFileSync(new URL('../../electron.d.ts', import.meta.ur
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const updaterModule = readFileSync(new URL('../../src/features/workbench/workbenchDesktopUpdater.ts', import.meta.url), 'utf8');
 const updateDialogSource = readFileSync(new URL('../../src/features/workbench/WorkbenchUpdateDialog.tsx', import.meta.url), 'utf8');
+const persistenceFailureRecoverySource = readFileSync(new URL('../../src/app/PersistenceFailureRecovery.tsx', import.meta.url), 'utf8');
+const appSource = readFileSync(new URL('../../src/app/App.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
+const updaterMetadataSource = readFileSync(new URL('../../electron/updaterMetadata.cjs', import.meta.url), 'utf8');
+const installerNsh = readFileSync(new URL('../../build/installer.nsh', import.meta.url), 'utf8');
+const { RUNTIME_RELEASE_CONFIG } = require('../../electron/runtimeReleaseConfig.cjs') as {
+  RUNTIME_RELEASE_CONFIG: {
+    githubPublishTarget: { provider: string; owner: string; repo: string };
+    nsisArtifactName: string;
+  };
+};
 
 assert.match(packageJson.description ?? '', /hard-sphere molecular dynamics/, 'desktop package metadata should describe the product');
 assert.deepEqual(
@@ -38,6 +51,11 @@ assert.deepEqual(
   packageJson.build?.publish?.[0],
   { provider: 'github', owner: 'yanshi-qibixunchang', repo: 'hard-sphere-lab-release' },
   '4.1.6 should embed the new public release repository as the future GitHub update channel',
+);
+assert.deepEqual(
+  RUNTIME_RELEASE_CONFIG.githubPublishTarget,
+  packageJson.build?.publish?.[0],
+  'packaged updater runtime target must exactly match electron-builder publish configuration',
 );
 const migrationRelease = releaseNotes.releases?.find((release) => release.version === '4.1.6');
 assert.equal(
@@ -55,6 +73,16 @@ assert.equal(
   packageJson.build?.nsis?.artifactName,
   'heat-capacity-lab-setup-${version}.${ext}',
   'the local NSIS installer file name should match updater metadata instead of relying on a safe GitHub alias',
+);
+assert.equal(
+  RUNTIME_RELEASE_CONFIG.nsisArtifactName,
+  packageJson.build?.nsis?.artifactName,
+  'packaged updater runtime artifact template must exactly match electron-builder NSIS configuration',
+);
+assert.doesNotMatch(
+  updaterMetadataSource,
+  /require\(['"]\.\.\/package\.json['"]\)/,
+  'packaged updater metadata must not read build fields that electron-builder prunes from app.asar package.json',
 );
 assert.ok(
   packageJson.build?.files?.includes('docs/releases/release-notes.json'),
@@ -91,6 +119,11 @@ assert.ok(electronMain.includes("ipcMain.handle('hsl-updater:check'"), 'desktop 
 assert.ok(electronMain.includes("ipcMain.handle('hsl-updater:download'"), 'desktop main process should expose an update download IPC route');
 assert.ok(electronMain.includes("ipcMain.handle('hsl-updater:quit-and-install'"), 'desktop main process should expose a restart-and-install IPC route');
 assert.ok(electronMain.includes("ipcMain.handle('hsl-updater:open-manual-download'"), 'desktop main process should expose a manual download IPC route');
+assert.match(
+  electronMain,
+  /getManualRecoveryTargetUrl\(updateState\)/,
+  'manual recovery should select its trusted target using the updater error stage',
+);
 assert.ok(electronMain.includes('MAX_DOWNLOAD_ATTEMPTS'), 'desktop update downloads should use the shared retry attempt count');
 assert.match(electronMain, /const updaterOperationCoordinator = createUpdaterOperationCoordinator\(\)/, 'all updater stages should share one cross-stage operation coordinator');
 assert.match(electronMain, /const runUpdaterStage = \(stage, taskFactory\) => \{[\s\S]*activeStage !== stage[\s\S]*canStartUpdaterStage\(stage, updateState\)[\s\S]*updaterOperationCoordinator\.run\(stage, taskFactory\)/, 'updater requests should reject cross-stage overlap and illegal state transitions before invoking electron-updater');
@@ -106,6 +139,15 @@ assert.match(
   electronMain,
   /UPDATE_INSTALL_APPROVAL_TIMEOUT_MS = UPDATE_INSTALL_EXIT_WATCHDOG_MS \+ 2_000/,
   'global-exit approval must outlive the updater watchdog so registry-preserving close approval cannot expire first',
+);
+const installWatchdogMatch = electronMain.match(/UPDATE_INSTALL_EXIT_WATCHDOG_MS = ([\d_]+);/);
+const updaterPollCountMatch = installerNsh.match(/!define HSL_UpdaterShutdownPollCount (\d+)/);
+assert.ok(installWatchdogMatch && updaterPollCountMatch, 'updater exit timing constants should remain explicit and testable');
+const installWatchdogMs = Number(installWatchdogMatch[1]!.replaceAll('_', ''));
+const updaterFallbackBudgetMs = 300 + 1_000 + Number(updaterPollCountMatch[1]) * 500 + 1_000;
+assert.ok(
+  installWatchdogMs >= updaterFallbackBudgetMs + 3_000,
+  'the renderer must stay quiesced until the updater-only NSIS close/kill fallback and process recheck have completed',
 );
 assert.ok(electronMain.includes('isTransientUpdateError'), 'desktop update downloads should only retry transient network errors');
 assert.ok(electronMain.includes("status: 'retrying'"), 'desktop update downloads should broadcast retrying status');
@@ -132,6 +174,21 @@ assert.ok(source.includes('window.hardSphereLabUpdater?.downloadUpdate'), 'updat
 assert.ok(source.includes('window.hardSphereLabUpdater?.quitAndInstall'), 'downloaded updates should offer restart-and-install');
 assert.ok(source.includes('window.hardSphereLabUpdater?.openManualDownload'), 'failed updates should offer the direct manual installer download');
 assert.match(
+  source,
+  /nextState\.status === 'error' && hasDesktopUpdaterBridge\(\)/,
+  'a first update-check failure must still open the recovery dialog because the desktop bridge has a trusted latest-release fallback',
+);
+assert.match(
+  source,
+  /isWorkbenchUpdateCheckFailure\(updateDialogState\)[\s\S]*setUpdateDialogOpen\(false\);[\s\S]*runAboutUpdateCheck\(\);/,
+  'retrying any update-check failure must rerun discovery even when an earlier not-available result left stale metadata',
+);
+assert.match(
+  persistenceFailureRecoverySource,
+  /isWorkbenchUpdateDownloadFailure\(updateState\)/,
+  'the persistence recovery page must only offer download after a confirmed update download failed',
+);
+assert.match(
   updaterModule,
   /const mergeWorkbenchUpdateState = \([\s\S]*latestVersion: nextState\.latestVersion \?\? previousState\.latestVersion[\s\S]*releaseSummary: nextState\.releaseSummary \?\? previousState\.releaseSummary[\s\S]*releaseSections: nextState\.releaseSections \?\? previousState\.releaseSections/,
   'renderer updater state should preserve release identity and structured notes across partial events',
@@ -149,6 +206,45 @@ assert.ok(updateDialogSource.includes('copy.manualDownload'), 'update dialog sho
 assert.ok(updateDialogSource.includes('releaseSections'), 'update dialog should render structured release sections');
 assert.ok(updateDialogSource.includes('copy.ignoreThisVersion'), 'update dialog should offer an ignore-version action');
 assert.ok(updateDialogSource.includes('copy.updateNow'), 'update dialog should offer an immediate update action');
+assert.ok(
+  appSource.includes('<PersistenceFailureRecovery'),
+  'persistence bootstrap failures should mount the dedicated recovery page',
+);
+assert.ok(
+  persistenceFailureRecoverySource.includes('window.hardSphereLabUpdater'),
+  'the persistence recovery page should expose updater actions without mounting the workbench',
+);
+assert.ok(
+  persistenceFailureRecoverySource.includes('updater.openManualDownload()'),
+  'the persistence recovery page should keep a manual latest-release escape hatch',
+);
+assert.match(
+  persistenceFailureRecoverySource,
+  /onPrepareExit[\s\S]*reportPersistenceResult\(\{[\s\S]*saved: true/,
+  'the read-only recovery page should acknowledge updater restart persistence requests',
+);
+assert.match(
+  persistenceFailureRecoverySource,
+  /className="studio-menu"[\s\S]*className="studio-window-controls"/,
+  'the frameless persistence recovery page should retain the desktop title bar and window controls',
+);
+for (const recoveryWindowAction of ['minimize', 'toggleMaximize', 'close']) {
+  assert.match(
+    persistenceFailureRecoverySource,
+    new RegExp(`desktopWindowBridge\\?\\.${recoveryWindowAction}\\?\\.\\(\\)`),
+    `the persistence recovery title bar should call the desktop ${recoveryWindowAction} bridge`,
+  );
+}
+assert.doesNotMatch(
+  persistenceFailureRecoverySource,
+  /localStorage\.(?:clear|removeItem)|indexedDB\.deleteDatabase/,
+  'the persistence recovery page must never clear user data',
+);
+assert.doesNotMatch(
+  persistenceFailureRecoverySource,
+  /\bInter\b/,
+  'the persistence recovery page should inherit the bundled global UI font instead of selecting a system-only font',
+);
 
 assert.match(
   styles,

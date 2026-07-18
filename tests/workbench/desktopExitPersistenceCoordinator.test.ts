@@ -3,7 +3,11 @@ import { EventEmitter } from 'node:events';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createExitPersistenceCoordinator } = require('../../electron/exitPersistenceCoordinator.cjs') as {
+const {
+  DEFAULT_EXIT_PERSISTENCE_TIMEOUT_MS,
+  createExitPersistenceCoordinator,
+} = require('../../electron/exitPersistenceCoordinator.cjs') as {
+  DEFAULT_EXIT_PERSISTENCE_TIMEOUT_MS: number;
   createExitPersistenceCoordinator: (options: {
     dialog: { showMessageBox: () => Promise<{ response: number }> };
     timeoutMs?: number;
@@ -28,6 +32,12 @@ const { createExitPersistenceCoordinator } = require('../../electron/exitPersist
     resumeWindowsAfterExitCancellation: (windows: FakeWindow[], reason?: string) => void;
   };
 };
+
+assert.equal(
+  DEFAULT_EXIT_PERSISTENCE_TIMEOUT_MS,
+  45_000,
+  'the production close gate must allow an in-flight legacy-migration save plus the strict post-quiescence checkpoint',
+);
 
 type ExitRequest = { requestId: string; reason: string };
 type ResumeRequest = { reason: string };

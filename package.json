@@ -1,6 +1,6 @@
 {
   "name": "hard-sphere-lab",
-  "version": "5.1.1",
+  "version": "5.1.2",
   "description": "Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and air heat-capacity-ratio experiments.",
   "author": {
     "name": "yanshi-qibixunchang",
@@ -11,10 +11,12 @@
   "scripts": {
     "dev": "vite",
     "dev:temp": "vite --host 127.0.0.1 --port 5184 --strictPort",
+    "icons:generate": "electron scripts/generateAppIcons.cjs",
+    "icons:check": "node scripts/verifyAppIconResources.cjs",
     "legal:generate": "node scripts/generateLegalNotices.cjs",
     "legal:check": "node scripts/generateLegalNotices.cjs --check",
     "release:verify-assets": "node scripts/verifyReleaseAssets.cjs",
-    "build": "node scripts/generateLegalNotices.cjs && vite build && node scripts/checkBuildOutput.cjs",
+    "build": "node scripts/verifyAppIconResources.cjs && node scripts/generateLegalNotices.cjs && vite build && node scripts/checkBuildOutput.cjs",
     "desktop:dev": "npm run build && electron .",
     "desktop:build": "npm run build",
     "desktop:installer": "npm run exporter:bundle && npm run exporter:check && npm run build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& node scripts/runElectronBuilder.cjs nsis && node scripts/writeReleaseMetadata.cjs && npm run release:verify-assets",
@@ -27,7 +29,7 @@
   },
   "build": {
     "appId": "com.hardspherelab.desktop",
-    "productName": "热容比实验室",
+    "productName": "Gas Laws Lab",
     "electronDist": "node_modules/electron/dist",
     "afterPack": "build/afterPack.cjs",
     "directories": {
@@ -108,7 +110,7 @@
       "uninstallerIcon": "resources/app-icon/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "热容比实验室"
+      "shortcutName": "Gas Laws Lab"
     }
   },
   "dependencies": {

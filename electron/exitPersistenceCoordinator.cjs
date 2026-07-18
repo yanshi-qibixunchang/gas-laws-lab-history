@@ -1,4 +1,6 @@
-const DEFAULT_EXIT_PERSISTENCE_TIMEOUT_MS = 12_000;
+// A first close after legacy migration can legitimately await an in-flight verified write
+// and then run the required post-quiescence verified checkpoint.
+const DEFAULT_EXIT_PERSISTENCE_TIMEOUT_MS = 45_000;
 const DEFAULT_EXIT_APPROVAL_TIMEOUT_MS = 10_000;
 
 const createExitPersistenceCoordinator = ({

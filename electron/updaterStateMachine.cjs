@@ -30,7 +30,10 @@ const canStartUpdaterStage = (stage, state) => {
   }
   if (stage === 'download') {
     return state.status === 'available' || (
-      state.status === 'error' && typeof state.latestVersion === 'string' && state.latestVersion.length > 0
+      state.status === 'error'
+      && state.errorStage === 'download'
+      && typeof state.latestVersion === 'string'
+      && state.latestVersion.length > 0
     );
   }
   if (stage === 'install') return state.status === 'downloaded';

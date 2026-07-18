@@ -2,6 +2,8 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 
 const workbenchSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const appSource = readFileSync(new URL('../../src/app/App.tsx', import.meta.url), 'utf8');
+const brandSource = readFileSync(new URL('../../src/features/workbench/workbenchBrand.ts', import.meta.url), 'utf8');
 const aboutSource = readFileSync(new URL('../../src/features/workbench/WorkbenchAboutWindow.tsx', import.meta.url), 'utf8');
 const buildNoticeSource = readFileSync(new URL('../../src/features/workbench/WorkbenchBuildNoticeWindow.tsx', import.meta.url), 'utf8');
 const buildNoticeContractSource = readFileSync(new URL('../../src/features/workbench/workbenchBuildNoticeContract.ts', import.meta.url), 'utf8');
@@ -12,7 +14,9 @@ const emptyWorkspaceSource = readFileSync(new URL('../../src/features/workbench/
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const rootStyles = readFileSync(new URL('../../index.css', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+  name?: string;
   build?: {
+    appId?: string;
     productName?: string;
     extraResources?: Array<{ from?: string; to?: string }>;
     nsis?: {
@@ -24,6 +28,7 @@ const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import
   };
 };
 const electronMain = readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8');
+const legacyUserDataPathSource = readFileSync(new URL('../../electron/legacyUserDataPath.cjs', import.meta.url), 'utf8');
 const electronPreload = readFileSync(new URL('../../electron/preload.cjs', import.meta.url), 'utf8');
 const electronTypes = readFileSync(new URL('../../electron.d.ts', import.meta.url), 'utf8');
 const indexHtml = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
@@ -87,8 +92,10 @@ assert.doesNotMatch(fontLicenseNotes, /\bInter\b|Playfair Display/, 'source font
 assert.equal(generatedFontLicenseNotes, fontLicenseNotes, 'generated font license notes should stay synchronized with the source notice');
 assert.doesNotMatch(buildNoticeContentSource, /\bInter\b|Playfair Display/, 'localized build notices should not claim superseded font families');
 
-assert.equal(packageJson.build?.productName, '热容比实验室', 'installer product name should use the Chinese app name');
-assert.equal(packageJson.build?.nsis?.shortcutName, '热容比实验室', 'Windows shortcut should use the Chinese app name');
+assert.equal(packageJson.name, 'hard-sphere-lab', 'package identity must preserve the legacy user-data and updater identity');
+assert.equal(packageJson.build?.appId, 'com.hardspherelab.desktop', 'Windows installer identity must remain stable across the brand update');
+assert.equal(packageJson.build?.productName, 'Gas Laws Lab', 'the one-binary Windows shell should use the stable cross-language product name');
+assert.equal(packageJson.build?.nsis?.shortcutName, 'Gas Laws Lab', 'Windows shortcuts should use the stable cross-language shell name');
 assert.equal(packageJson.build?.nsis?.displayLanguageSelector, false, 'NSIS installer should not show a startup language selector');
 assert.equal(packageJson.build?.nsis?.installerLanguages, undefined, 'NSIS installer should not offer a startup language list');
 assert.equal(packageJson.build?.nsis?.language, '2052', 'NSIS installer metadata should default to Simplified Chinese');
@@ -106,7 +113,7 @@ for (const { label, html } of generatedLegalHtmlFiles) {
     assert.match(anchor, /\brel="noopener noreferrer"/, `${label} external links should isolate the opener context`);
   }
 }
-assert.ok(installerNsh.includes('!define HSL_RemoveUserDataPrompt "是否删除热容比实验室的用户数据和缓存？'), 'manual uninstaller prompt should define fixed Simplified Chinese text');
+assert.ok(installerNsh.includes('!define HSL_RemoveUserDataPrompt "是否删除气律实验室的用户数据和缓存？'), 'manual uninstaller prompt should use the new Simplified Chinese app name');
 assert.ok(!installerNsh.includes('LangString HSL_RemoveUserDataPrompt'), 'manual uninstaller prompt should not depend on the NSIS language table');
 assert.ok(installerNsh.includes('!macro customUnInstall'), 'custom uninstall hook should keep the manual data-removal prompt');
 const updateSkipIndex = indexOfOrFail(installerNsh, '${GetOptions} $R0 "--updated" $R1', 'uninstaller should detect update-driven uninstall runs');
@@ -119,7 +126,61 @@ assert.ok(silentSkipIndex < promptIndex, 'silent uninstall should skip before th
 assert.ok(installerNsh.includes('RMDir /r "$APPDATA\\hard-sphere-lab"'), 'manual uninstall can remove workspace files and settings when the user chooses yes');
 assert.ok(installerNsh.includes('RMDir /r "$LOCALAPPDATA\\hard-sphere-lab-updater"'), 'manual uninstall can remove updater cache when the user chooses yes');
 assert.ok(!installerNsh.includes('Remove Hard Sphere Lab user data and cache?'), 'uninstaller prompt should not show the old English app name');
-assert.ok(electronMain.includes("const appTitle = '热容比实验室';"), 'desktop window title should use the current Chinese app name');
+assert.ok(electronMain.includes("const appTitle = 'Gas Laws Lab';"), 'desktop startup and native metadata should use the stable Windows shell name');
+assert.match(
+  legacyUserDataPathSource,
+  /const LEGACY_USER_DATA_DIRECTORY_NAME = 'hard-sphere-lab';[\s\S]*fs\.mkdirSync\(legacyUserDataPath, \{ recursive: true \}\);[\s\S]*electronApp\.setPath\('userData', legacyUserDataPath\);/,
+  'desktop startup must create and retain the legacy hard-sphere-lab user-data directory before opening any workspace records',
+);
+assert.ok(
+  indexOfOrFail(electronMain, 'ensureLegacyUserDataPath(app)', 'desktop startup should explicitly set the legacy user-data path')
+    < indexOfOrFail(electronMain, "require('electron-updater')", 'desktop startup should load electron-updater'),
+  'the legacy user-data path must be fixed before updater or project modules can observe Electron paths',
+);
+assert.match(
+  installerNsh,
+  /!include "getProcessInfo\.nsh"[\s\S]*Var pid[\s\S]*!macro customCheckAppRunning/,
+  'custom NSIS process checks must declare the process-info dependency that electron-builder skips for custom macros',
+);
+assert.match(
+  installerNsh,
+  /!define HSL_LegacyExecutableFilename "热容比实验室\.exe"[\s\S]*!macro customCheckAppRunning[\s\S]*HSL_FindCompatibleAppProcess[\s\S]*HSL_CloseCompatibleAppProcesses[\s\S]*HSL_KillCompatibleAppProcesses/,
+  '5.1.2 coverage installs must detect and close both the legacy Chinese executable and the new stable shell executable',
+);
+const safeWaitIndex = indexOfOrFail(
+  installerNsh,
+  '!define HSL_ManualShutdownPollCount 110',
+  'manual coverage installs should reserve the full persistence shutdown window',
+);
+const safeWaitSleepIndex = installerNsh.indexOf('Sleep 500', safeWaitIndex);
+assert.ok(
+  safeWaitSleepIndex > safeWaitIndex,
+  'the 55-second manual persistence shutdown window should poll at 500 ms intervals',
+);
+assert.match(
+  installerNsh,
+  /\$\{If\} \$\{isUpdated\}[\s\S]*StrCpy \$R2 \$\{HSL_UpdaterShutdownPollCount\}[\s\S]*\$\{Else\}[\s\S]*StrCpy \$R2 \$\{HSL_ManualShutdownPollCount\}[\s\S]*\$\{If\} \$R1 < \$R2/,
+  'automatic update handoff should retain its short post-save wait while manual coverage installs allow the full strict-save grace period',
+);
+const killInvocationIndex = installerNsh.lastIndexOf('!insertmacro HSL_KillCompatibleAppProcesses');
+const updaterOnlyFallbackIndex = installerNsh.lastIndexOf('${If} ${isUpdated}', killInvocationIndex);
+const updaterOnlyFallbackEndIndex = installerNsh.indexOf('${EndIf}', killInvocationIndex);
+assert.ok(
+  updaterOnlyFallbackIndex >= 0 &&
+  updaterOnlyFallbackIndex < killInvocationIndex &&
+  updaterOnlyFallbackEndIndex > killInvocationIndex,
+  'forced process termination must remain inside the updater-only fallback',
+);
+const manualRetryIndex = indexOfOrFail(
+  installerNsh,
+  'hslRetryCompatibleProcesses:',
+  'manual coverage installs should offer a non-destructive retry path',
+);
+assert.ok(
+  installerNsh.indexOf('!insertmacro HSL_CloseCompatibleAppProcesses', manualRetryIndex) > manualRetryIndex &&
+  installerNsh.indexOf('StrCpy $R1 0', manualRetryIndex) > manualRetryIndex,
+  'manual retry must request a graceful close again and restart the complete persistence window',
+);
 assert.ok(electronMain.includes('const getRuntimeWorkingDirectory = () => {'), 'desktop exporter should choose a real working directory');
 assert.ok(electronMain.includes('app.isPackaged && process.resourcesPath'), 'packaged desktop exporter should run from the real resources directory');
 assert.ok(electronMain.includes("rootDir.includes('.asar')"), 'desktop exporter should never use app.asar as a child-process cwd');
@@ -138,8 +199,19 @@ assert.ok(electronPreload.includes("ipcRenderer.invoke('hsl-legal:open-file'"), 
 assert.ok(electronPreload.includes("readLegalFile: (fileId) => ipcRenderer.invoke('hsl-legal:read-file', fileId)"), 'preload legal bridge should expose allowlisted file reads for desktop embedded previews');
 assert.ok(electronTypes.includes('interface DesktopLegalReadResult'), 'desktop types should describe legal file read results');
 assert.ok(electronTypes.includes('readLegalFile: (fileId: DesktopLegalFileId) => Promise<DesktopLegalReadResult>;'), 'desktop legal bridge type should include the readLegalFile API');
-assert.ok(indexHtml.includes('<title>热容比实验室</title>'), 'web document title should use the current Chinese app name');
-assert.ok(webManifest.includes('"name": "热容比实验室"'), 'web manifest should use the current app name');
+assert.ok(indexHtml.includes('<title>气律实验室</title>'), 'web startup title should use the default Simplified Chinese app name');
+assert.ok(webManifest.includes('"name": "Gas Laws Lab"'), 'the installable web shell should use the stable cross-language name');
+assert.match(brandSource, /'zh-CN': '气律实验室'[\s\S]*'zh-TW': '氣律實驗室'[\s\S]*en: 'Gas Laws Lab'/);
+assert.match(
+  workbenchSource,
+  /document\.documentElement\.lang = settingsLanguagePreference;[\s\S]*document\.title = getWorkbenchAppBrandName\(settingsLanguagePreference\)/,
+  'changing the interface language should update both the document language and visible desktop title',
+);
+assert.match(
+  appSource,
+  /document\.documentElement\.lang = initialGeneralSettings\.language;[\s\S]*document\.title = getWorkbenchAppBrandName\(initialGeneralSettings\.language\)/,
+  'restart and persistence-failure startup should restore the title from the persisted language',
+);
 assert.ok(!source.includes('Heat Capacity Ratio Lab with Hard Sphere'), 'workbench copy should not use the old hard-sphere product subtitle');
 assert.ok(!source.includes('开始新的硬球工作台'), 'empty-state copy should not describe the app as a hard-sphere workbench');
 

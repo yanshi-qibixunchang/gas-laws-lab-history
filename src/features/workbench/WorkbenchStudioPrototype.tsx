@@ -79,6 +79,7 @@ import {
   normalizeHeatCapacityFileName,
   captureHeatCapacityWorkbenchSample,
   powerHeatCapacityWorkbenchFile,
+  prepareHeatCapacityAutoDemoReset,
   prepareHeatCapacityAutoDemoStart,
   applyHeatCapacityFreeRecordWorkbenchState,
   refreshHeatCapacityPumpFrequency,
@@ -127,6 +128,7 @@ import {
   assignWorkbenchParameterValue,
   type WorkbenchAdvancedParameterKey,
 } from './workbenchParameterRegistry.ts';
+import { projectWorkbenchRunStateForRuntimeFailure } from './workbenchRuntimePersistence.ts';
 import HeatCapacityInstrumentScene, {
   normalizeHeatCapacityCameraTransitionState,
   type HeatCapacityCameraPose,
@@ -313,6 +315,12 @@ import {
   type WorkbenchPersistenceStatus,
 } from './workbenchPersistenceScheduler.ts';
 import {
+  assertUniqueWorkbenchFileCollections,
+  createUniqueWorkbenchFileId,
+  getNextWorkbenchFileDisplayIndex,
+} from './workbenchFileIdentity.ts';
+import { trimWorkbenchEditHistory } from './workbenchEditHistory.ts';
+import {
   IDEAL_RESULT_MAX_HEIGHT_RATIO,
   IDEAL_RESULT_MIN_HEIGHT_RATIO,
   clampIdealResultHeightRatio,
@@ -357,6 +365,7 @@ import {
   type WorkbenchResolvedTheme,
   type WorkbenchThemePreference,
 } from './workbenchGeneralSettings.ts';
+import { getWorkbenchAppBrandName } from './workbenchBrand.ts';
 import { clampAudioVolume } from '../../audio/core/audioSettings.ts';
 import { useAudioEngine } from '../../audio/react/useAudioEngine.ts';
 import {
@@ -371,6 +380,7 @@ import {
 import {
   WORKBENCH_IGNORED_UPDATE_VERSION_KEY,
   getAboutUpdateStatusLabel,
+  isWorkbenchUpdateCheckFailure,
   mergeWorkbenchUpdateState,
   type WorkbenchUpdateState,
 } from './workbenchDesktopUpdater.ts';
@@ -1221,6 +1231,7 @@ interface WorkbenchWorkspaceEditSnapshot {
   kind: 'workspace';
   label: string;
   files: WorkbenchFileState[];
+  closedFiles: WorkbenchFileState[];
   activeFileId: string;
   selectedPanel: WorkbenchPanelKey;
 }
@@ -1348,7 +1359,9 @@ interface WorkbenchCopy {
     environmentResultError: string;
     updateResultTitle: string;
     updateAvailableTitle: string;
+    updateCheckFailedTitle: string;
     updateAvailableBody: string;
+    updateCheckFailedBody: string;
     updateReadyTitle: string;
     updateReadyBody: string;
     currentVersionLabel: string;
@@ -1359,6 +1372,7 @@ interface WorkbenchCopy {
     ignoreThisVersion: string;
     updateNow: string;
     restartAndInstall: string;
+    retryCheck: string;
     later: string;
     ignoredVersionTitle: string;
     ignoredVersionBody: (version: string) => string;
@@ -1905,7 +1919,6 @@ const LEFT_SIDEBAR_MIN = 220;
 const LEFT_SIDEBAR_MAX = 420;
 const PARAM_SIDEBAR_MIN = 240;
 const PARAM_SIDEBAR_MAX = 420;
-const EDIT_HISTORY_LIMIT = 50;
 const SIMULATION_TICK_INTERVAL_MS = 16;
 const IDEAL_ADVANCED_SCROLL_DURATION_MS = 420;
 const HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO = IDEAL_RESULT_MIN_HEIGHT_RATIO;
@@ -1921,7 +1934,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       standardStudy: '标准模拟研究', idealStudy: '理想气体模拟研究', heatCapacityStudy: '空气比热容比实验', undo: '撤销', redo: '重做', empty: '空',
       clearEditHistory: '清空编辑历史', panelsFor: (name) => name + ' 的面板', resetDefaultLayout: '恢复默认布局', default: '默认',
       saveWorkbenchLayoutDefault: '保存当前窗口布局为默认',
-      userGuide: '用户指南', about: '关于热容比实验室', topCommandsAria: '顶部命令',
+      userGuide: '用户指南', about: '关于气律实验室', topCommandsAria: '顶部命令',
     },
     settings: {
       title: '通用设置', subtitle: '主题、语言、音效、快捷键和布局偏好', closeAria: '关闭通用设置', theme: '主题', themeHint: '使用系统、亮色或暗色模式',
@@ -1938,8 +1951,8 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       audioVolumeAria: '软件音效音量',
     },
     about: {
-      title: '关于热容比实验室',
-      subtitle: '热容比实验室',
+      title: '关于气律实验室',
+      subtitle: '气律实验室',
       closeAria: '关闭关于窗口',
       currentVersion: '当前版本',
       checkUpdates: '检查更新',
@@ -1968,7 +1981,9 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       environmentResultError: '本地数据导出环境检查失败。模拟、实时图表和结果预览仍可使用。',
       updateResultTitle: '更新检查完成',
       updateAvailableTitle: '发现可用更新',
+      updateCheckFailedTitle: '更新检查失败',
       updateAvailableBody: '新版本已发布，可以立即下载并准备安装。',
+      updateCheckFailedBody: '尚未取得最新版本信息。请重新检查，或打开受信任的最新发布页手动安装。',
       updateReadyTitle: '更新已下载',
       updateReadyBody: '重启应用后会安装新版本。',
       currentVersionLabel: '当前版本',
@@ -1979,6 +1994,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       ignoreThisVersion: '忽略此版本',
       updateNow: '立即更新',
       restartAndInstall: '重启并安装',
+      retryCheck: '重新检查',
       later: '稍后',
       ignoredVersionTitle: '已忽略此版本',
       ignoredVersionBody: (version) => '版本 ' + version + ' 不会再主动提醒。',
@@ -2031,7 +2047,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       checking: { label: '正在检查导出环境', detail: '正在检查本机 Python/Matplotlib 和内置导出器是否可用。' },
       'available-system': { label: '系统 Python 导出器可用', detail: '科学报告和图像导出将使用本机 Python/Matplotlib 环境。' },
       'available-bundled': { label: '内置导出器可用', detail: '科学报告和图像导出将使用桌面程序随附的导出器。' },
-      unavailable: { label: '桌面导出桥接不可用', detail: '当前环境不能直接导出 PDF/图像。请在热容比实验室桌面程序中使用本地导出。' },
+      unavailable: { label: '桌面导出桥接不可用', detail: '当前环境不能直接导出 PDF/图像。请在气律实验室桌面程序中使用本地导出。' },
       error: { label: '导出环境异常', detail: '导出器检测失败。模拟、实时图表和结果预览仍可使用。' },
     },
     logs: { initialized: 'Workbench 工作台原型已初始化。', defaultLayout: '默认布局：3D 预览、实时数据 / 图表、当前参数。', standardConnected: '标准模拟运行时、3D 预览和实时图表数据已连接。', exportBridgeRequired: '科学 PDF 导出需要桌面运行时桥接。', autoPausedSingleRuntime: (name) => name + '：由于一次只能运行一个工作台运行时，已自动暂停。', autoPausedCreateFile: (name) => name + '：创建新文件时已自动暂停。', autoPausedSwitchFile: (name) => name + '：切换文件时已自动暂停。', fileCreated: (name) => '已创建工作台文件：' + name, lockedPanel: (title) => title + ' 是默认工作区的一部分，不能隐藏。', layoutReset: (name) => name + '：布局已恢复为 3D 预览 + 实时数据 / 图表', idealResultsOpened: (name, tab) => name + '：已在 ' + tab + ' 打开理想结果窗口。', standardResultsOpened: (name, tab) => name + '：已打开结果窗口并切换到 ' + tab + '。', idealResultsClosed: (name) => name + '：已关闭理想结果窗口。', fileSelected: (name) => '已选择文件标签：' + name, confirmClear: (name, relation) => name + '：点击确认清空以删除全部 ' + relation + ' 点。', clearedRelation: (name, relation) => name + '：已清空 ' + relation + ' 点。', exportLabels: { completeBundle: '总导出', report: '报告 PDF', verificationFigure: '验证图', pointsCsv: '点 CSV', figuresZip: '结果图像' }, exportNotReady: (name) => name + '：结果数据尚未满足导出条件。', exportNeedsTwoPoints: (name) => name + '：拟合报告或验证图至少需要 2 个记录点。', exportPayloadPrepared: (name, label, filename, detail) => name + '：' + label + ' 载荷已准备为 ' + filename + '；' + detail, exportPreparing: (name, label) => name + '：正在准备导出 ' + label + '。', exportCancelled: (name, label) => name + '：已取消导出 ' + label + '。', exportFailed: (name, label, message) => name + '：' + label + ' 导出失败：' + message, exportCsvSaved: (name, target) => name + '：点 CSV 已保存到 ' + target + '。', exportCompleted: (name, label, outDir, fileCount, figureHint) => name + '：' + label + ' 已导出到 ' + outDir + '（' + fileCount + ' 个文件）。' + figureHint, exportFigureHint: '图像文件位于 figures 子文件夹内。', unknownExporterError: '未知导出器错误', selectedLocation: '选定位置', selectedFolder: '选定文件夹', fileNameCannotBeEmpty: '文件名不能为空。', fileNameUnchanged: (name) => name + '：名称未改变。', fileRenamed: (name) => '工作台文件已重命名为 ' + name + '。', fileRemoved: (name) => name + '：已从当前工作台会话移除。', fileClosed: (name) => name + '：已关闭并保留在本地缓存。', fileOpenedFromCache: (name) => '已从本地缓存打开实验：' + name, confirmDeleteFile: (name) => name + '：点击确认删除以从工作台会话移除此打开文件。', layoutAlreadyDefault: (name) => name + '：布局已经使用默认面板。', ...experimentLogCopies['zh-CN'] },
@@ -2042,7 +2058,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       standardStudy: '標準模擬研究', idealStudy: '理想氣體模擬研究', heatCapacityStudy: '空氣比熱容比實驗', undo: '復原', redo: '重做', empty: '空',
       clearEditHistory: '清除編輯記錄', panelsFor: (name) => name + ' 的面板', resetDefaultLayout: '還原預設版面', default: '預設',
       saveWorkbenchLayoutDefault: '將目前視窗版面存為預設',
-      userGuide: '使用指南', about: '關於熱容比實驗室', topCommandsAria: '頂部命令',
+      userGuide: '使用指南', about: '關於氣律實驗室', topCommandsAria: '頂部命令',
     },
     settings: {
       title: '一般設定', subtitle: '主題、語言、音效、快捷鍵與版面偏好', closeAria: '關閉一般設定', theme: '主題', themeHint: '使用系統、亮色或暗色模式',
@@ -2059,8 +2075,8 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       audioVolumeAria: '軟體音效音量',
     },
     about: {
-      title: '關於熱容比實驗室',
-      subtitle: '熱容比實驗室',
+      title: '關於氣律實驗室',
+      subtitle: '氣律實驗室',
       closeAria: '關閉關於視窗',
       currentVersion: '目前版本',
       checkUpdates: '檢查更新',
@@ -2089,7 +2105,9 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       environmentResultError: '本地資料匯出環境檢查失敗。模擬、即時圖表和結果預覽仍可使用。',
       updateResultTitle: '更新檢查完成',
       updateAvailableTitle: '發現可用更新',
+      updateCheckFailedTitle: '更新檢查失敗',
       updateAvailableBody: '新版本已發布，可以立即下載並準備安裝。',
+      updateCheckFailedBody: '尚未取得最新版本資訊。請重新檢查，或開啟受信任的最新發布頁手動安裝。',
       updateReadyTitle: '更新已下載',
       updateReadyBody: '重新啟動應用程式後會安裝新版本。',
       currentVersionLabel: '目前版本',
@@ -2100,6 +2118,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       ignoreThisVersion: '忽略此版本',
       updateNow: '立即更新',
       restartAndInstall: '重新啟動並安裝',
+      retryCheck: '重新檢查',
       later: '稍後',
       ignoredVersionTitle: '已忽略此版本',
       ignoredVersionBody: (version) => '版本 ' + version + ' 不會再主動提醒。',
@@ -2152,7 +2171,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       checking: { label: '正在檢查匯出環境', detail: '正在檢查本機 Python/Matplotlib 和內建匯出器是否可用。' },
       'available-system': { label: '系統 Python 匯出器可用', detail: '科學報告和圖像匯出將使用本機 Python/Matplotlib 環境。' },
       'available-bundled': { label: '內建匯出器可用', detail: '科學報告和圖像匯出將使用桌面程式隨附的匯出器。' },
-      unavailable: { label: '桌面匯出橋接不可用', detail: '目前環境不能直接匯出 PDF/圖像。請在熱容比實驗室桌面程式中使用本地匯出。' },
+      unavailable: { label: '桌面匯出橋接不可用', detail: '目前環境不能直接匯出 PDF/圖像。請在氣律實驗室桌面程式中使用本地匯出。' },
       error: { label: '匯出環境異常', detail: '匯出器偵測失敗。模擬、即時圖表和結果預覽仍可使用。' },
     },
     logs: { initialized: 'Workbench 工作台原型已初始化。', defaultLayout: '預設版面：3D 預覽、即時資料 / 圖表、目前參數。', standardConnected: '標準模擬執行階段、3D 預覽和即時圖表資料已連接。', exportBridgeRequired: '科學 PDF 匯出需要桌面執行階段橋接。', autoPausedSingleRuntime: (name) => name + '：由於一次只能執行一個工作台執行階段，已自動暫停。', autoPausedCreateFile: (name) => name + '：建立新檔案時已自動暫停。', autoPausedSwitchFile: (name) => name + '：切換檔案時已自動暫停。', fileCreated: (name) => '已建立工作台檔案：' + name, lockedPanel: (title) => title + ' 是預設工作區的一部分，不能隱藏。', layoutReset: (name) => name + '：版面已還原為 3D 預覽 + 即時資料 / 圖表', idealResultsOpened: (name, tab) => name + '：已在 ' + tab + ' 開啟理想結果視窗。', standardResultsOpened: (name, tab) => name + '：已開啟結果視窗並切換到 ' + tab + '。', idealResultsClosed: (name) => name + '：已關閉理想結果視窗。', fileSelected: (name) => '已選擇檔案分頁：' + name, confirmClear: (name, relation) => name + '：點擊確認清空以刪除全部 ' + relation + ' 點。', clearedRelation: (name, relation) => name + '：已清空 ' + relation + ' 點。', exportLabels: { completeBundle: '總匯出', report: '報告 PDF', verificationFigure: '驗證圖', pointsCsv: '點 CSV', figuresZip: '結果圖像' }, exportNotReady: (name) => name + '：結果資料尚未滿足匯出條件。', exportNeedsTwoPoints: (name) => name + '：擬合報告或驗證圖至少需要 2 個記錄點。', exportPayloadPrepared: (name, label, filename, detail) => name + '：' + label + ' 載荷已準備為 ' + filename + '；' + detail, exportPreparing: (name, label) => name + '：正在準備匯出 ' + label + '。', exportCancelled: (name, label) => name + '：已取消匯出 ' + label + '。', exportFailed: (name, label, message) => name + '：' + label + ' 匯出失敗：' + message, exportCsvSaved: (name, target) => name + '：點 CSV 已儲存到 ' + target + '。', exportCompleted: (name, label, outDir, fileCount, figureHint) => name + '：' + label + ' 已匯出到 ' + outDir + '（' + fileCount + ' 個檔案）。' + figureHint, exportFigureHint: '圖像檔案位於 figures 子資料夾內。', unknownExporterError: '未知匯出器錯誤', selectedLocation: '選定位置', selectedFolder: '選定資料夾', fileNameCannotBeEmpty: '檔案名稱不能為空。', fileNameUnchanged: (name) => name + '：名稱未改變。', fileRenamed: (name) => '工作台檔案已重新命名為 ' + name + '。', fileRemoved: (name) => name + '：已從目前工作台工作階段移除。', fileClosed: (name) => name + '：已關閉並保留在本機快取。', fileOpenedFromCache: (name) => '已從本機快取開啟實驗：' + name, confirmDeleteFile: (name) => name + '：點擊確認刪除以從工作台工作階段移除此開啟檔案。', layoutAlreadyDefault: (name) => name + '：版面已經使用預設面板。', ...experimentLogCopies['zh-TW'] },
@@ -2163,7 +2182,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       standardStudy: 'Standard Simulation Study', idealStudy: 'Ideal Gas Simulation Study', heatCapacityStudy: 'Heat Capacity Ratio Experiment', undo: 'Undo', redo: 'Redo', empty: 'empty',
       clearEditHistory: 'Clear Edit History', panelsFor: (name) => 'Panels for ' + name, resetDefaultLayout: 'Reset Default Layout', default: 'default',
       saveWorkbenchLayoutDefault: 'Save Current Window Layout as Default',
-      userGuide: 'User Guide', about: 'About Heat Capacity Ratio Lab', topCommandsAria: 'Top commands',
+      userGuide: 'User Guide', about: 'About Gas Laws Lab', topCommandsAria: 'Top commands',
     },
     settings: {
       title: 'General Settings', subtitle: 'Theme, language, sound, shortcuts, and layout preferences', closeAria: 'Close General Settings', theme: 'Theme', themeHint: 'Use system, light, or dark mode',
@@ -2180,8 +2199,8 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       audioVolumeAria: 'In-app sound-effect volume',
     },
     about: {
-      title: 'About Heat Capacity Ratio Lab',
-      subtitle: 'Heat Capacity Ratio Lab',
+      title: 'About Gas Laws Lab',
+      subtitle: 'Gas Laws Lab',
       closeAria: 'Close About window',
       currentVersion: 'Current Version',
       checkUpdates: 'Check for Updates',
@@ -2210,7 +2229,9 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       environmentResultError: 'Local data export environment check failed. Simulation, live charts, and result previews remain available.',
       updateResultTitle: 'Update Check Complete',
       updateAvailableTitle: 'Update Available',
+      updateCheckFailedTitle: 'Update Check Failed',
       updateAvailableBody: 'A newer version is available and can be downloaded now.',
+      updateCheckFailedBody: 'Latest-version information is not available yet. Check again, or open the trusted latest-release page for a manual install.',
       updateReadyTitle: 'Update Downloaded',
       updateReadyBody: 'Restart the app to install the new version.',
       currentVersionLabel: 'Current Version',
@@ -2221,6 +2242,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       ignoreThisVersion: 'Ignore This Version',
       updateNow: 'Update Now',
       restartAndInstall: 'Restart and Install',
+      retryCheck: 'Check Again',
       later: 'Later',
       ignoredVersionTitle: 'Version Ignored',
       ignoredVersionBody: (version) => 'Version ' + version + ' will not prompt again.',
@@ -2239,7 +2261,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
     },
     files: {
       openFiles: 'Open Files', files: 'Files', panels: 'Panels', noOpenFiles: 'No open files', noOpenFileState: 'No experiment file is currently open', noOpenPanelState: 'Available panels appear after an experiment is opened.', emptyHint: 'Create or open an experiment from the main workspace.',
-      noOpenStudy: 'No open study', emptyTitle: 'Start a new Heat Capacity Ratio Lab file', emptyBody: 'Create an ideal gas study, heat capacity ratio experiment, or standard simulation to restore previews, charts, results, and parameter panels.',
+      noOpenStudy: 'No open study', emptyTitle: 'Start a new Gas Laws Lab file', emptyBody: 'Create an ideal gas study, heat capacity ratio experiment, or standard simulation to restore previews, charts, results, and parameter panels.',
       createStandard: 'Create Standard Simulation Study', createIdeal: 'Create Ideal Gas Simulation Study', createHeatCapacity: 'Create Heat Capacity Ratio Experiment', rename: 'Rename', delete: 'Delete', confirmDelete: 'Confirm Delete', closeExperiment: 'Close Experiment', confirmCloseRunningExperiment: (name) => 'The experiment is running. Close ' + name + '?', cancel: 'Cancel',
       locked: 'locked', shown: 'shown', open: 'open', active: 'active', off: 'off', std: 'Standard', ideal: 'Ideal', heat: 'Heat', workspaceAria: 'File workspace', usageHintAria: 'File tree usage hint', clickSelectHint: 'Click to select', doubleClickOpenHint: 'Double-click to open', openActions: (name) => 'Open actions for ' + name,
     },
@@ -2273,7 +2295,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
       checking: { label: 'Checking export environment', detail: 'Desktop runtime is checking local Python/Matplotlib and bundled exporter availability.' },
       'available-system': { label: 'System Python exporter available', detail: 'Scientific report and figure export will use this computer\'s Python/Matplotlib environment.' },
       'available-bundled': { label: 'Bundled exporter available', detail: 'Scientific report and figure export will use the exporter packaged with the desktop app.' },
-      unavailable: { label: 'Desktop export bridge unavailable', detail: 'This environment cannot export PDF or figures directly. Use local export in the Heat Capacity Ratio Lab desktop app.' },
+      unavailable: { label: 'Desktop export bridge unavailable', detail: 'This environment cannot export PDF or figures directly. Use local export in the Gas Laws Lab desktop app.' },
       error: { label: 'Export environment error', detail: 'Exporter detection failed. Simulation, realtime charts, and result previews remain available.' },
     },
     logs: { initialized: 'Workbench studio prototype initialized.', defaultLayout: 'Default layout: 3D Preview, Realtime Data / Charts, Current Parameters.', standardConnected: 'Standard Simulation runtime, 3D preview, and realtime chart data are connected.', exportBridgeRequired: 'Scientific PDF export requires the desktop runtime bridge.', autoPausedSingleRuntime: (name) => name + ': auto-paused because only one workbench runtime can run at a time.', autoPausedCreateFile: (name) => name + ': auto-paused when creating a new file.', autoPausedSwitchFile: (name) => name + ': auto-paused when switching files.', fileCreated: (name) => 'Workbench file created: ' + name, lockedPanel: (title) => title + ' is locked as part of the default workspace and cannot be hidden.', layoutReset: (name) => name + ': layout reset to 3D Preview + Realtime Data / Charts', idealResultsOpened: (name, tab) => name + ': opened ideal Results window on ' + tab + '.', standardResultsOpened: (name, tab) => name + ': opened Results window on ' + tab + '.', idealResultsClosed: (name) => name + ': closed ideal Results window.', fileSelected: (name) => 'File tab selected: ' + name, confirmClear: (name, relation) => name + ': click Confirm Clear to clear all ' + relation + ' points.', clearedRelation: (name, relation) => name + ': cleared ' + relation + ' points.', exportLabels: { completeBundle: 'complete export', report: 'report PDF', verificationFigure: 'verification figure', pointsCsv: 'points CSV', figuresZip: 'result figures' }, exportNotReady: (name) => name + ': result data does not meet export requirements yet.', exportNeedsTwoPoints: (name) => name + ': at least 2 recorded points are required for a fitted report or verification figure.', exportPayloadPrepared: (name, label, filename, detail) => name + ': ' + label + ' payload prepared as ' + filename + '; ' + detail, exportPreparing: (name, label) => name + ': preparing ' + label + ' export.', exportCancelled: (name, label) => name + ': ' + label + ' export cancelled.', exportFailed: (name, label, message) => name + ': ' + label + ' export failed: ' + message, exportCsvSaved: (name, target) => name + ': points CSV saved to ' + target + '.', exportCompleted: (name, label, outDir, fileCount, figureHint) => name + ': ' + label + ' exported to ' + outDir + ' (' + fileCount + ' files).' + figureHint, exportFigureHint: 'Figure files are inside the figures subfolders.', unknownExporterError: 'unknown exporter error', selectedLocation: 'selected location', selectedFolder: 'selected folder', fileNameCannotBeEmpty: 'File name cannot be empty.', fileNameUnchanged: (name) => name + ': name unchanged.', fileRenamed: (name) => 'Workbench file renamed to ' + name + '.', fileRemoved: (name) => name + ': removed from the current workbench session.', fileClosed: (name) => name + ': closed and kept in local cache.', fileOpenedFromCache: (name) => 'Experiment opened from local cache: ' + name, confirmDeleteFile: (name) => name + ': click Confirm Delete to remove this open file from the workbench session.', layoutAlreadyDefault: (name) => name + ': layout is already using the default panels.', ...experimentLogCopies.en },
@@ -3502,6 +3524,8 @@ const getLocalizedWorkbenchEditLabel = (
       'removed ideal experiment point': '移除理想气体实验点',
       'cleared ideal relation points': '清空理想气体关系点',
       'renamed file': '重命名文件',
+      'closed file': '关闭文件',
+      'reopened file': '重新打开文件',
       'deleted file': '删除文件',
       'reset layout': '重置布局',
     },
@@ -3523,6 +3547,8 @@ const getLocalizedWorkbenchEditLabel = (
       'removed ideal experiment point': '移除理想氣體實驗點',
       'cleared ideal relation points': '清空理想氣體關係點',
       'renamed file': '重新命名檔案',
+      'closed file': '關閉檔案',
+      'reopened file': '重新開啟檔案',
       'deleted file': '刪除檔案',
       'reset layout': '重設版面',
     },
@@ -3942,6 +3968,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const windowControlCopy = WORKBENCH_WINDOW_CONTROL_COPY[settingsLanguagePreference];
   const desktopWindowControlsAvailable = hasDesktopWindowControlBridge();
   const heatCapacityQualityProfile = HEAT_CAPACITY_QUALITY_PROFILES[settingsPerformanceMode];
+  useEffect(() => {
+    document.documentElement.lang = settingsLanguagePreference;
+    document.title = getWorkbenchAppBrandName(settingsLanguagePreference);
+  }, [settingsLanguagePreference]);
   const [initialHeatCapacityCameraTransition] = useState<HeatCapacityCameraTransitionState | null>(() => (
     normalizeHeatCapacityCameraTransitionState(initialHeatCapacityRefreshLayout.cameraTransition)
   ));
@@ -3976,6 +4006,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     fileId: string;
     expectedFile: WorkbenchHeatCapacityState | null;
     suspendedAtMs: number;
+    projectedRunState: WorkbenchRunState;
     resumeGuideRunState: boolean;
     pauseDemoOnRecovery: boolean;
   } | null>(null);
@@ -4116,20 +4147,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [scanSliderDragging, setScanSliderDragging] = useState(false);
   const [isCanvasFocused, setIsCanvasFocused] = useState(false);
   const [liveWorkspaceResizing, setLiveWorkspaceResizing] = useState(false);
-  const [undoStack, setUndoStack] = useState<WorkbenchEditSnapshot[]>(() => (
-    Array.isArray(initialHeatCapacityRefreshDrafts.undoStack)
-      ? initialHeatCapacityRefreshDrafts.undoStack as unknown as WorkbenchEditSnapshot[]
-      : []
-  ));
-  const [redoStack, setRedoStack] = useState<WorkbenchEditSnapshot[]>(() => (
-    Array.isArray(initialHeatCapacityRefreshDrafts.redoStack)
-      ? initialHeatCapacityRefreshDrafts.redoStack as unknown as WorkbenchEditSnapshot[]
-      : []
-  ));
+  const [undoStack, setUndoStack] = useState<WorkbenchEditSnapshot[]>([]);
+  const [redoStack, setRedoStack] = useState<WorkbenchEditSnapshot[]>([]);
+  const undoStackRef = useRef<WorkbenchEditSnapshot[]>(undoStack);
+  const redoStackRef = useRef<WorkbenchEditSnapshot[]>(redoStack);
   const standardRuntimeRef = useRef<Record<string, StandardEngineRuntime>>({});
   const idealRuntimeRef = useRef<Record<string, StandardEngineRuntime>>({});
   const filesRef = useRef<WorkbenchFileState[]>(files);
   const closedFilesRef = useRef<WorkbenchFileState[]>(closedFiles);
+  const issuedWorkbenchFileIdsRef = useRef(new Set(
+    [
+      ...files.map((file) => file.id),
+      ...closedFiles.map((file) => file.id),
+    ],
+  ));
   const activeFileIdRef = useRef(initialSession.activeFileId);
   const selectedPanelRef = useRef<WorkbenchPanelKey>(initialSession.selectedPanel);
   const scheduleWorkspacePersistenceRef = useRef<() => void>(() => undefined);
@@ -5074,7 +5105,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       || nextState.status === 'retrying'
       || nextState.status === 'downloaded'
       || nextState.status === 'installing'
-      || (nextState.status === 'error' && Boolean(nextState.latestVersion || nextState.manualDownloadUrl || nextState.releasePageUrl))
+      || (nextState.status === 'error' && hasDesktopUpdaterBridge())
     ) {
       setUpdateDialogOpen(true);
       return;
@@ -5112,6 +5143,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       ...currentState,
       status: 'checking',
       message: '',
+      errorStage: null,
     }));
     void updateCheckRequest
       .then((result) => applyUpdaterState(result, { manual: true }))
@@ -5122,6 +5154,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           status: 'error',
           currentVersion: WORKBENCH_APP_VERSION,
           message: workbenchCopy.about.updateErrorStatus,
+          errorStage: 'check',
         }, { manual: true });
       });
   };
@@ -5137,9 +5170,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const startUpdateDownload = () => {
     if (!updateDialogState) return;
+    if (isWorkbenchUpdateCheckFailure(updateDialogState)) {
+      setUpdateDialogOpen(false);
+      runAboutUpdateCheck();
+      return;
+    }
     const downloadRequest = window.hardSphereLabUpdater?.downloadUpdate?.();
     if (!downloadRequest) return;
-    setUpdaterState((currentState) => ({ ...currentState, status: 'downloading', percent: 0 }));
+    setUpdaterState((currentState) => ({
+      ...currentState,
+      status: 'downloading',
+      percent: 0,
+      errorStage: null,
+    }));
     void downloadRequest
       .then((result) => applyUpdaterState(result))
       .catch((error) => {
@@ -5149,6 +5192,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           status: 'error',
           currentVersion: WORKBENCH_APP_VERSION,
           message: workbenchCopy.about.updateErrorStatus,
+          errorStage: 'download',
         }, { manual: true });
       });
   };
@@ -5645,6 +5689,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
   }, [consoleTab, displayedLogs.length, logs.length]);
 
   useEffect(() => {
+    if (
+      desktopExitQuiesced ||
+      heatCapacityRefreshRestoring ||
+      heatCapacityRefreshRestorePendingRef.current ||
+      heatCapacityRuntimeFailureFileId !== null
+    ) return undefined;
     const intervalId = window.setInterval(() => {
       if (desktopExitQuiescedRef.current) return;
       const now = Date.now();
@@ -5687,7 +5737,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
       });
     }, heatCapacityQualityProfile.tickIntervalMs);
     return () => window.clearInterval(intervalId);
-  }, [heatCapacityQualityProfile.tickIntervalMs]);
+  }, [
+    desktopExitQuiesced,
+    heatCapacityQualityProfile.tickIntervalMs,
+    heatCapacityRefreshRestoring,
+    heatCapacityRuntimeFailureFileId,
+  ]);
 
   const setWorkbenchFiles = (updater: (current: WorkbenchFileState[]) => WorkbenchFileState[]) => {
     if (desktopExitQuiescedRef.current) return;
@@ -5703,6 +5758,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     nextClosedFiles: WorkbenchFileState[],
     nextActiveFileId: string,
   ) => {
+    assertUniqueWorkbenchFileCollections(nextFiles, nextClosedFiles, nextActiveFileId);
+    [...nextFiles, ...nextClosedFiles].forEach((file) => {
+      issuedWorkbenchFileIdsRef.current.add(file.id);
+    });
     filesRef.current = nextFiles;
     closedFilesRef.current = nextClosedFiles;
     activeFileIdRef.current = nextActiveFileId;
@@ -9610,23 +9669,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     updateFileById(fileId, (file) => {
       if (file.kind !== 'heatCapacity') return file;
       const now = Date.now();
-      const targetStopcockAngle = getHeatCapacityStopcockTargetAngle(false);
-      return setHeatCapacityPressureZeroOffset({
-        ...file,
-        powerOn: false,
-        runState: 'running',
-        glassPistonState: getHeatCapacityStopcockState(targetStopcockAngle),
-        stopcockAngleDeg: targetStopcockAngle,
-        pumpValveOpen: false,
-        pumpValveState: 'closed',
-        pumpBulbState: 'idle',
-        pumpStrokeTimestamps: [],
-        pumpFrequency: 0,
-        pumpFrequencyStatus: 'idle',
-        lastPumpTime: null,
+      return {
+        ...prepareHeatCapacityAutoDemoReset(file, now),
         pumpHint: heatCapacityRealtimeCopy.autoDemoPreparingHint,
-        updatedAt: now,
-      }, 0, 'none', 0, now);
+      };
     });
   };
 
@@ -10444,8 +10490,6 @@ const WorkbenchStudioPrototype: React.FC = () => {
         scanInputDraft,
         scanInputError,
         scanInputToast,
-        undoStack,
-        redoStack,
       }),
       layout: asWorkbenchHeatCapacityRefreshJsonObject({
         runState: currentFile.runState,
@@ -10825,11 +10869,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
       };
     }
     if (targetMode === 'demo') {
+      const resetDemo = prepareHeatCapacityAutoDemoReset(suspendedFile, now);
       return {
         file: {
-          ...suspendedFile,
-          heatCapacityMode: 'demo',
-          heatCapacityTeachingStatus: 'running',
+          ...resetDemo,
           runState: 'idle',
           updatedAt: now,
         },
@@ -12222,6 +12265,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         kind: 'workspace',
         label,
         files: cloneWorkbenchFiles(sourceFiles),
+        closedFiles: cloneWorkbenchFiles(closedFilesRef.current),
         activeFileId: activeFileIdRef.current,
         selectedPanel: selectedPanelRef.current,
       };
@@ -12348,8 +12392,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     ));
     const activeExists = restoredFiles.some((file) => file.id === snapshot.activeFileId);
     const nextActiveFileId = activeExists ? snapshot.activeFileId : restoredFiles[0]?.id ?? '';
+    const restoredClosedFiles = cloneWorkbenchFiles(snapshot.closedFiles);
     selectedPanelRef.current = snapshot.selectedPanel;
-    commitWorkbenchFileCollections(restoredFiles, closedFilesRef.current, nextActiveFileId);
+    commitWorkbenchFileCollections(restoredFiles, restoredClosedFiles, nextActiveFileId);
     reconcileRuntimesAfterRestore(restoredFiles);
     const nextActiveFile = restoredFiles.find((file) => file.id === nextActiveFileId);
     let activeModeCheckpointOverride: WorkbenchActiveModeCheckpointOverride | undefined;
@@ -12375,7 +12420,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const pushUndoSnapshot = (snapshot: WorkbenchEditSnapshot) => {
-    setUndoStack((current) => [...current, snapshot].slice(-EDIT_HISTORY_LIMIT));
+    const nextUndoStack = trimWorkbenchEditHistory([...undoStackRef.current, snapshot]);
+    undoStackRef.current = nextUndoStack;
+    redoStackRef.current = [];
+    setUndoStack(nextUndoStack);
     setRedoStack([]);
   };
 
@@ -12388,16 +12436,30 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const undoLastEdit = () => {
-    const snapshot = undoStack[undoStack.length - 1];
+    const snapshot = undoStackRef.current[undoStackRef.current.length - 1];
     if (!snapshot) return;
+    if (
+      snapshot.kind !== 'workspace' &&
+      !filesRef.current.some((file) => file.id === snapshot.fileId)
+    ) {
+      undoStackRef.current = [];
+      redoStackRef.current = [];
+      setUndoStack([]);
+      setRedoStack([]);
+      return;
+    }
 
     const currentSnapshot = createEditSnapshot(
       snapshot.label,
       snapshot.kind,
       snapshot.kind === 'workspace' ? activeFileIdRef.current : snapshot.fileId,
     );
-    setUndoStack((current) => current.slice(0, -1));
-    setRedoStack((current) => [...current, currentSnapshot].slice(-EDIT_HISTORY_LIMIT));
+    const nextUndoStack = undoStackRef.current.slice(0, -1);
+    const nextRedoStack = trimWorkbenchEditHistory([...redoStackRef.current, currentSnapshot]);
+    undoStackRef.current = nextUndoStack;
+    redoStackRef.current = nextRedoStack;
+    setUndoStack(nextUndoStack);
+    setRedoStack(nextRedoStack);
     restoreSnapshot(snapshot);
     pushLog(
       (language) => workbenchCopies[language].logs.undoAction(
@@ -12408,16 +12470,30 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const redoLastEdit = () => {
-    const snapshot = redoStack[redoStack.length - 1];
+    const snapshot = redoStackRef.current[redoStackRef.current.length - 1];
     if (!snapshot) return;
+    if (
+      snapshot.kind !== 'workspace' &&
+      !filesRef.current.some((file) => file.id === snapshot.fileId)
+    ) {
+      undoStackRef.current = [];
+      redoStackRef.current = [];
+      setUndoStack([]);
+      setRedoStack([]);
+      return;
+    }
 
     const currentSnapshot = createEditSnapshot(
       snapshot.label,
       snapshot.kind,
       snapshot.kind === 'workspace' ? activeFileIdRef.current : snapshot.fileId,
     );
-    setRedoStack((current) => current.slice(0, -1));
-    setUndoStack((current) => [...current, currentSnapshot].slice(-EDIT_HISTORY_LIMIT));
+    const nextRedoStack = redoStackRef.current.slice(0, -1);
+    const nextUndoStack = trimWorkbenchEditHistory([...undoStackRef.current, currentSnapshot]);
+    undoStackRef.current = nextUndoStack;
+    redoStackRef.current = nextRedoStack;
+    setUndoStack(nextUndoStack);
+    setRedoStack(nextRedoStack);
     restoreSnapshot(snapshot);
     pushLog(
       (language) => workbenchCopies[language].logs.redoAction(
@@ -12428,6 +12504,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const clearEditHistory = () => {
+    undoStackRef.current = [];
+    redoStackRef.current = [];
     setUndoStack([]);
     setRedoStack([]);
     setOpenTopMenu(null);
@@ -13707,12 +13785,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
       failedFile.heatCapacityMode === 'guide' &&
       failedFile.runState === 'running',
     );
+    const projectedRunState = failedFile?.kind === 'heatCapacity'
+      ? projectWorkbenchRunStateForRuntimeFailure(failedFile.runState)
+      : 'paused';
     let expectedRecoveryFile = failedFile?.kind === 'heatCapacity' ? failedFile : null;
     if (!failureProjectionDeferred) {
       const failedFiles = filesRef.current.map((file) => file.id === fileId && file.kind === 'heatCapacity'
         ? refreshHeatCapacityPumpFrequency({
             ...file,
-            runState: 'paused',
+            runState: projectedRunState,
             pumpBulbState: 'idle',
             updatedAt: failureUpdatedAt,
           }, failureObservedAt)
@@ -13728,6 +13809,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       fileId,
       expectedFile: expectedRecoveryFile,
       suspendedAtMs: failureObservedAt,
+      projectedRunState,
       resumeGuideRunState,
       pauseDemoOnRecovery,
     };
@@ -13783,22 +13865,25 @@ const WorkbenchStudioPrototype: React.FC = () => {
             recoveryRebaseStartMs,
             recoveredAt,
           );
-          const pausedFile = refreshHeatCapacityPumpFrequency({
+          const recoveredRunState = recoveryStateMatches
+            ? recoveryIntent.projectedRunState
+            : projectWorkbenchRunStateForRuntimeFailure(file.runState);
+          const recoveredFile = refreshHeatCapacityPumpFrequency({
             ...rebasedFile,
-            runState: 'paused' as const,
+            runState: recoveredRunState,
             pumpBulbState: 'idle' as const,
             updatedAt: recoveredAt,
           }, recoveredAt);
           return recoveryStateMatches &&
             recoveryIntent.resumeGuideRunState &&
-            pausedFile.heatCapacityMode === 'guide'
+            recoveredFile.heatCapacityMode === 'guide'
             ? {
-                ...pausedFile,
+                ...recoveredFile,
                 runState: 'running' as const,
                 lastUpdateMs: recoveredAt,
                 displayResponseLastUpdateMs: recoveredAt,
               }
-            : pausedFile;
+            : recoveredFile;
         });
         filesRef.current = recoveredFiles;
         setFiles(recoveredFiles);
@@ -14013,13 +14098,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const createFile = (kind: WorkbenchFileKind) => {
     captureUndoSnapshot(`created ${kind} file`, 'workspace');
-    const index = [...filesRef.current, ...closedFilesRef.current]
-      .filter((file) => file.kind === kind).length + 1;
+    const currentFiles = [...filesRef.current, ...closedFilesRef.current];
+    const index = getNextWorkbenchFileDisplayIndex(kind, currentFiles);
+    const fileId = createUniqueWorkbenchFileId(kind, issuedWorkbenchFileIdsRef.current);
+    issuedWorkbenchFileIdsRef.current.add(fileId);
     let file: WorkbenchFileState = kind === 'standard'
       ? createDefaultStandardFile(index, workbenchLayoutDefaults.standard)
       : kind === 'ideal'
         ? createDefaultIdealFile(index, workbenchLayoutDefaults.ideal)
         : createDefaultHeatCapacityFile(index, workbenchLayoutDefaults.heatCapacity);
+    file = {
+      ...file,
+      id: fileId,
+    };
 
     if (file.kind === 'standard' || file.kind === 'ideal') {
       const runtime = file.kind === 'standard' ? createStandardRuntime(file) : createIdealRuntime(file);
@@ -15252,6 +15343,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const index = openFiles.findIndex((file) => file.id === fileId);
     let file = openFiles[index];
     if (!file) return;
+    captureUndoSnapshot('closed file', 'workspace');
 
     const isClosingActiveFile = fileId === activeFileIdRef.current;
     if (isClosingActiveFile && file.kind === 'heatCapacity') {
@@ -15316,6 +15408,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const openClosedWorkbenchFile = (fileId: string) => {
     const file = closedFilesRef.current.find((candidate) => candidate.id === fileId);
     if (!file || filesRef.current.some((candidate) => candidate.id === fileId)) return;
+    captureUndoSnapshot('reopened file', 'workspace');
 
     const currentActiveFile = filesRef.current.find(
       (candidate) => candidate.id === activeFileIdRef.current,

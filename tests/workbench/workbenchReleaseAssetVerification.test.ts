@@ -199,7 +199,7 @@ const appBuilderPath = join(
 );
 const rootDir = mkdtempSync(join(tmpdir(), 'hsl-release-verification-'));
 try {
-  const version = '5.1.1';
+  const version = '5.1.2';
   const productName = 'Heat Capacity Ratio Lab';
   const installerName = `heat-capacity-lab-setup-${version}.exe`;
   const blockmapName = `${installerName}.blockmap`;
@@ -262,8 +262,8 @@ try {
   assert.deepEqual(result.expectedNames, [installerName, blockmapName, 'latest.yml']);
   assert.equal(result.assets.length, 3);
   assert.equal(result.installerMetadata.productName, productName);
-  assert.equal(result.installerMetadata.fileVersion, '5.1.1.0');
-  assert.equal(result.installerMetadata.productVersion, '5.1.1.0');
+  assert.equal(result.installerMetadata.fileVersion, '5.1.2.0');
+  assert.equal(result.installerMetadata.productVersion, '5.1.2.0');
   assert.ok(result.blockmapMetadata.chunkCount > 0 && result.blockmapMetadata.decompressedSize > 0);
   assert.ok(result.assets.every((asset) => asset.size > 0 && asset.sha512.length > 0 && asset.sha512Hex.length === 128));
 

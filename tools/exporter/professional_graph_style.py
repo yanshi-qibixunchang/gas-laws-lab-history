@@ -1,4 +1,4 @@
-"""Professional graph styling helpers for Hard Sphere Lab exports."""
+"""Professional graph styling helpers for Gas Laws Lab exports."""
 
 from __future__ import annotations
 

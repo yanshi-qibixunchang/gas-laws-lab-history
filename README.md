@@ -1,10 +1,10 @@
-# Hard Sphere Lab
+# Gas Laws Lab
 
 [简体中文](./README.zh-CN.md)
 
-Hard Sphere Lab is a Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and the adiabatic-expansion experiment for measuring the heat-capacity ratio of air.
+Gas Laws Lab is a Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and the adiabatic-expansion experiment for measuring the heat-capacity ratio of air.
 
-The latest published desktop release is `v5.1.1`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
+The latest published desktop release is `v5.1.2`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
 
 - Public downloads and update metadata: [hard-sphere-lab-release](https://github.com/yanshi-qibixunchang/hard-sphere-lab-release)
 - Security and disclosure policy: [SECURITY.md](./SECURITY.md)
@@ -22,7 +22,7 @@ The latest published desktop release is `v5.1.1`. The `main` branch may contain 
 
 - The workbench UI is split into focused command, settings, updater, parameter, persistence, and experiment modules.
 - Heat-capacity runtime state is modeled separately from standard and ideal-gas files.
-- `v5.1.1` preserves heat-capacity mode sessions, timelines, pause state, exact camera pose, open windows, guidance/reminder state, and the last rendered 3D frame across reloads, with strict legacy migration and runtime-recovery boundaries.
+- `v5.1.2` strictly restores affected 4.2.3 workspaces, adds update recovery to the read-only persistence failure page, hardens WebGL context-loss recovery, and introduces the localized Gas Laws Lab brand without changing the existing user-data or updater identity.
 - Desktop publishing targets only the public release repository. The source repository is not an update channel.
 
 ## Repository Layout

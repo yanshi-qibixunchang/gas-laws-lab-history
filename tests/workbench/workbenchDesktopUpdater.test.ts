@@ -5,6 +5,8 @@ import {
   formatWorkbenchReleaseDate,
   getAboutUpdateStatusLabel,
   getWorkbenchLocalizedText,
+  isWorkbenchUpdateCheckFailure,
+  isWorkbenchUpdateDownloadFailure,
   mergeWorkbenchUpdateState,
   type WorkbenchUpdateState,
   type WorkbenchUpdateStatusCopy,
@@ -48,6 +50,25 @@ assert.equal(
   previous.latestVersion,
   'partial updater events should preserve the current release identity',
 );
+const failedRecheck = mergeWorkbenchUpdateState({
+  status: 'error',
+  currentVersion: '4.2.3',
+  latestVersion: null,
+  errorStage: 'check',
+}, {
+  ...previous,
+  status: 'not-available',
+  currentVersion: '4.2.3',
+  latestVersion: '4.2.3',
+});
+assert.equal(failedRecheck.latestVersion, '4.2.3');
+assert.equal(isWorkbenchUpdateCheckFailure(failedRecheck), true);
+assert.equal(isWorkbenchUpdateDownloadFailure(failedRecheck), false);
+assert.equal(isWorkbenchUpdateDownloadFailure({
+  ...failedRecheck,
+  latestVersion: '4.2.4',
+  errorStage: 'download',
+}), true);
 
 assert.equal(getWorkbenchLocalizedText(previous.releaseSummary, 'zh-CN'), '更新摘要');
 assert.equal(getWorkbenchLocalizedText({ en: 'Fallback' }, 'zh-TW'), 'Fallback');

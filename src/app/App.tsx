@@ -6,6 +6,8 @@ import {
   initializeWorkbenchIndexedDbPersistence,
   type WorkbenchPersistenceBootstrapResult,
 } from '../features/workbench/workbenchIndexedDbPersistence.ts';
+import { PersistenceFailureRecovery } from './PersistenceFailureRecovery.tsx';
+import { getWorkbenchAppBrandName } from '../features/workbench/workbenchBrand.ts';
 
 const WORKBENCH_FRAME_WIDTH = 1440;
 const WORKBENCH_FRAME_HEIGHT = 810;
@@ -126,13 +128,18 @@ const WorkbenchAspectFrame = () => {
 function App() {
   const [persistenceBootstrap, setPersistenceBootstrap] = useState<WorkbenchPersistenceBootstrapResult | null>(null);
   const [persistenceRetrying, setPersistenceRetrying] = useState(false);
+  const initialGeneralSettings = useMemo(() => loadWorkbenchGeneralSettings(), []);
   const initialAudioSettings = useMemo(() => {
-    const settings = loadWorkbenchGeneralSettings();
     return {
-      enabled: settings.audioEnabled,
-      volume: settings.audioVolume,
+      enabled: initialGeneralSettings.audioEnabled,
+      volume: initialGeneralSettings.audioVolume,
     };
-  }, []);
+  }, [initialGeneralSettings]);
+
+  useEffect(() => {
+    document.documentElement.lang = initialGeneralSettings.language;
+    document.title = getWorkbenchAppBrandName(initialGeneralSettings.language);
+  }, [initialGeneralSettings.language]);
 
   useEffect(() => {
     let active = true;
@@ -161,26 +168,12 @@ function App() {
 
   if (persistenceBootstrap.error) {
     return (
-      <div
-        role="alert"
-        style={{
-          minHeight: '100vh',
-          boxSizing: 'border-box',
-          padding: 24,
-          color: '#fff4e5',
-          background: '#11161b',
-        }}
-      >
-        <p>工作区持久化初始化失败。为保护最后一次成功保存的数据，工作区已保持只读关闭状态。</p>
-        <p>{persistenceBootstrap.error.message}</p>
-        <button
-          type="button"
-          disabled={persistenceRetrying}
-          onClick={retryPersistenceInitialization}
-        >
-          {persistenceRetrying ? '正在重试…' : '重试保存初始化'}
-        </button>
-      </div>
+      <PersistenceFailureRecovery
+        errorMessage={persistenceBootstrap.error.message}
+        language={initialGeneralSettings.language}
+        retrying={persistenceRetrying}
+        onRetry={retryPersistenceInitialization}
+      />
     );
   }
 

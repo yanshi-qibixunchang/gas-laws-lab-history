@@ -1,12 +1,16 @@
 const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require('electron');
+const { ensureLegacyUserDataPath } = require('./legacyUserDataPath.cjs');
+ensureLegacyUserDataPath(app);
+
 const { autoUpdater } = require('electron-updater');
 const fsSync = require('node:fs');
 const fs = require('node:fs/promises');
-const { randomUUID } = require('node:crypto');
 const path = require('node:path');
+const { randomUUID } = require('node:crypto');
 const { spawn } = require('node:child_process');
 const {
   MAX_DOWNLOAD_ATTEMPTS,
+  getManualRecoveryTargetUrl,
   getReleaseMetadataForUpdateInfo,
   getReleaseMetadataForVersion,
   isAllowedManualDownloadUrl,
@@ -26,7 +30,7 @@ const {
 
 const rootDir = path.resolve(__dirname, '..');
 const preloadPath = path.join(__dirname, 'preload.cjs');
-const appTitle = '热容比实验室';
+const appTitle = 'Gas Laws Lab';
 const WORKBENCH_WINDOW_WIDTH = 1440;
 const WORKBENCH_WINDOW_HEIGHT = 810;
 const WORKBENCH_WINDOW_MIN_WIDTH = 1280;
@@ -34,9 +38,11 @@ const WORKBENCH_WINDOW_MIN_HEIGHT = 720;
 const WORKBENCH_WINDOW_ASPECT_RATIO = 16 / 9;
 const WORKBENCH_MAIN_NAMESPACE = 'persistent:main';
 const WORKBENCH_WINDOW_REGISTRY_FILE_NAME = 'workbench-window-registry-v1.json';
-const UPDATE_INSTALL_EXIT_WATCHDOG_MS = 10_000;
+// Keep the renderer quiesced until the updater-only NSIS close/kill fallback has
+// either finished or definitively failed, so no resumed edits can be force-closed.
+const UPDATE_INSTALL_EXIT_WATCHDOG_MS = 20_000;
 const UPDATE_INSTALL_APPROVAL_TIMEOUT_MS = UPDATE_INSTALL_EXIT_WATCHDOG_MS + 2_000;
-const exportRootFolderName = 'Heat Capacity Ratio Lab Exports';
+const exportRootFolderName = 'Gas Laws Lab Exports';
 const USER_GUIDE_URLS = {
   'zh-CN': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release#readme',
   'zh-TW': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.zh-TW.md',
@@ -70,6 +76,7 @@ let updateState = {
   maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
   retrying: false,
   errorKind: null,
+  errorStage: null,
   percent: null,
   message: '',
 };
@@ -246,6 +253,7 @@ autoUpdater.on('checking-for-update', () => {
     status: 'checking',
     message: 'Checking for updates.',
     percent: null,
+    errorStage: null,
   });
 });
 
@@ -256,6 +264,7 @@ autoUpdater.on('update-available', (info) => {
     ...normalizeUpdateInfo(info),
     message: 'Update available.',
     percent: null,
+    errorStage: null,
   });
 });
 
@@ -266,6 +275,7 @@ autoUpdater.on('update-not-available', (info) => {
     ...normalizeUpdateInfo(info),
     message: 'The application is up to date.',
     percent: null,
+    errorStage: null,
   });
 });
 
@@ -278,6 +288,7 @@ autoUpdater.on('download-progress', (progress) => {
     downloadAttempt: activeDownloadAttempt,
     maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
     retrying: false,
+    errorStage: null,
     message: 'Downloading update.',
   });
 });
@@ -292,6 +303,7 @@ autoUpdater.on('update-downloaded', (info) => {
     maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
     retrying: false,
     errorKind: null,
+    errorStage: null,
     message: 'Update downloaded.',
   });
 });
@@ -305,6 +317,7 @@ autoUpdater.on('error', (error) => {
     message: getErrorMessage(error),
     retrying: false,
     errorKind: isTransientUpdateError(error) ? 'network' : 'fatal',
+    errorStage: 'check',
     percent: null,
   });
 });
@@ -430,13 +443,13 @@ const parseJson = (value) => {
 };
 
 const sanitizeName = (value) => (
-  String(value || 'Heat Capacity Ratio Lab Export')
+  String(value || 'Gas Laws Lab Export')
     .trim()
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, '-')
     .replace(/\s+/g, ' ')
     .replace(/-+/g, '-')
     .replace(/^\.+|\.+$/g, '')
-    .slice(0, 96) || 'Heat Capacity Ratio Lab Export'
+    .slice(0, 96) || 'Gas Laws Lab Export'
 );
 
 const formatTimestampForFolder = (date = new Date()) => {
@@ -458,7 +471,7 @@ const getExperimentFolderName = (payload, options) => {
     || options?.fileName
     || payload?.data?.fileName
     || payload?.filename
-    || 'Heat Capacity Ratio Lab Experiment';
+    || 'Gas Laws Lab Experiment';
   return `${sanitizeName(source)}_${formatTimestampForFolder()}`;
 };
 
@@ -712,6 +725,7 @@ ipcMain.handle('hsl-updater:check', async () => {
       message: 'Checking for updates.',
       percent: null,
       errorKind: null,
+      errorStage: null,
     });
     try {
       await autoUpdater.checkForUpdates();
@@ -722,6 +736,7 @@ ipcMain.handle('hsl-updater:check', async () => {
         message: getErrorMessage(error),
         retrying: false,
         errorKind: isTransientUpdateError(error) ? 'network' : 'fatal',
+        errorStage: 'check',
         percent: null,
       });
     }
@@ -752,6 +767,7 @@ ipcMain.handle('hsl-updater:download', async () => {
           maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
           retrying: false,
           errorKind: null,
+          errorStage: null,
         });
 
         try {
@@ -770,6 +786,7 @@ ipcMain.handle('hsl-updater:download', async () => {
               maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
               retrying: false,
               errorKind: retryable ? 'network' : 'fatal',
+              errorStage: 'download',
             });
           }
 
@@ -783,6 +800,7 @@ ipcMain.handle('hsl-updater:download', async () => {
             maxDownloadAttempts: MAX_DOWNLOAD_ATTEMPTS,
             retrying: true,
             errorKind: 'network',
+            errorStage: null,
           });
           await waitForUpdateRetry(nextAttempt);
         }
@@ -822,6 +840,7 @@ ipcMain.handle('hsl-updater:quit-and-install', async () => {
       status: 'installing',
       message: 'Restarting to install update.',
       percent: 100,
+      errorStage: null,
     });
     const revokeExitApproval = exitPersistenceCoordinator.approveWindowsForExit(
       windows,
@@ -868,7 +887,7 @@ ipcMain.handle('hsl-updater:quit-and-install', async () => {
 });
 
 ipcMain.handle('hsl-updater:open-manual-download', async () => {
-  const targetUrl = updateState.manualDownloadUrl || updateState.releasePageUrl;
+  const targetUrl = getManualRecoveryTargetUrl(updateState);
   if (!isAllowedManualDownloadUrl(targetUrl)) {
     return {
       status: 'error',
@@ -1059,7 +1078,7 @@ ipcMain.handle('hsl-exporter:export', async (_event, payload, options = {}) => {
   }
 
   const selection = await dialog.showOpenDialog({
-    title: 'Choose Heat Capacity Ratio Lab Export Root Folder',
+    title: 'Choose Gas Laws Lab Export Root Folder',
     defaultPath,
     properties: ['openDirectory', 'createDirectory'],
   });

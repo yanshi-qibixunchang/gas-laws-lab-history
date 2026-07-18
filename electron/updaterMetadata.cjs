@@ -1,5 +1,5 @@
-const packageJson = require('../package.json');
 const releaseNotesCatalog = require('../docs/releases/release-notes.json');
+const { RUNTIME_RELEASE_CONFIG } = require('./runtimeReleaseConfig.cjs');
 
 const MAX_DOWNLOAD_ATTEMPTS = 3;
 const LEGACY_RELEASE_TARGETS = [
@@ -7,8 +7,8 @@ const LEGACY_RELEASE_TARGETS = [
 ];
 
 const getGithubPublishTarget = () => {
-  const publish = Array.isArray(packageJson.build?.publish) ? packageJson.build.publish : [];
-  return publish.find((target) => target?.provider === 'github') || null;
+  const target = RUNTIME_RELEASE_CONFIG.githubPublishTarget;
+  return target?.provider === 'github' && target.owner && target.repo ? target : null;
 };
 
 const getAllowedGithubReleaseTargets = () => {
@@ -30,7 +30,7 @@ const normalizeVersion = (version) => String(version || '').trim().replace(/^v/i
 const getReleaseTag = (version) => `v${normalizeVersion(version)}`;
 
 const getInstallerAssetName = (version) => {
-  const artifactName = packageJson.build?.nsis?.artifactName || 'heat-capacity-lab-setup-${version}.${ext}';
+  const artifactName = RUNTIME_RELEASE_CONFIG.nsisArtifactName;
   return artifactName
     .replace('${version}', normalizeVersion(version))
     .replace('${ext}', 'exe');
@@ -53,6 +53,18 @@ const getGeneratedReleaseTargets = (version) => {
     manualDownloadUrl: `${base}/download/${tag}/${getInstallerAssetName(normalizedVersion)}`,
   };
 };
+
+const getLatestReleasePageUrl = () => {
+  const publishTarget = getGithubPublishTarget();
+  if (!publishTarget?.owner || !publishTarget?.repo) return null;
+  return `https://github.com/${publishTarget.owner}/${publishTarget.repo}/releases/latest`;
+};
+
+const getManualRecoveryTargetUrl = (state = {}) => (
+  state.errorStage === 'check'
+    ? getLatestReleasePageUrl()
+    : state.manualDownloadUrl || state.releasePageUrl || getLatestReleasePageUrl()
+);
 
 const findReleaseEntry = (version) => {
   const normalizedVersion = normalizeVersion(version);
@@ -163,7 +175,9 @@ const isAllowedManualDownloadUrl = (url) => {
     if (!allowedTargets.some((target) => parsed.pathname.startsWith(`/${target.owner}/${target.repo}/releases/`))) {
       return false;
     }
-    return /\/tag\/v[^/]+$/.test(parsed.pathname) || /\/download\/v[^/]+\/[^/]+\.exe$/i.test(parsed.pathname);
+    return /\/latest$/.test(parsed.pathname)
+      || /\/tag\/v[^/]+$/.test(parsed.pathname)
+      || /\/download\/v[^/]+\/[^/]+\.exe$/i.test(parsed.pathname);
   } catch (_error) {
     return false;
   }
@@ -179,6 +193,8 @@ const isTransientUpdateError = (error) => {
 
 module.exports = {
   MAX_DOWNLOAD_ATTEMPTS,
+  getLatestReleasePageUrl,
+  getManualRecoveryTargetUrl,
   getReleaseMetadataForUpdateInfo,
   getReleaseMetadataForVersion,
   isAllowedManualDownloadUrl,

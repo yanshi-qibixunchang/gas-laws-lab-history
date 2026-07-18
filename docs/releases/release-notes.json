@@ -3,6 +3,146 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "5.1.2",
+      "date": "2026-07-18",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.1.2",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.1.2/heat-capacity-lab-setup-5.1.2.exe"
+      },
+      "summary": {
+        "zh-CN": "5.1.2 是基于 5.1.1 的稳定性更新，重点完善工作区保存与恢复、实验身份、Free／Guide／Demo 三模式状态一致性、运行时恢复、桌面更新自救及三语言气律实验室品牌。",
+        "zh-TW": "5.1.2 是基於 5.1.1 的穩定性更新，重點完善工作區儲存與還原、實驗身分、Free／Guide／Demo 三模式狀態一致性、執行階段還原、桌面更新自救及三語言氣律實驗室品牌。",
+        "en": "Version 5.1.2 is a stability update to 5.1.1, focused on workspace saving and recovery, experiment identity, consistent Free, Guide, and Demo state, runtime recovery, desktop update recovery, and the trilingual Gas Laws Lab brand."
+      },
+      "sections": [
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "工作区保存与恢复",
+            "zh-TW": "工作區儲存與還原",
+            "en": "Workspace saving and recovery"
+          },
+          "items": [
+            {
+              "scope": "legacy-423-migration",
+              "importance": "high",
+              "title": {
+                "zh-CN": "恢复 5.1.1 无法读取的合法旧工作区",
+                "zh-TW": "還原 5.1.1 無法讀取的合法舊工作區",
+                "en": "Restored valid legacy workspaces that 5.1.1 could not read"
+              },
+              "body": {
+                "zh-CN": "补齐 4.2.3 工作区和 5.1.1 空白会话所需的 Free、Guide、Demo 固定参数、传感器、旋塞计时、历史 U1 等待锚点及模式投影迁移。合法旧资料会被精确规范化，真正损坏的当前格式仍保持严格拒绝。",
+                "zh-TW": "補齊 4.2.3 工作區和 5.1.1 空白工作階段所需的 Free、Guide、Demo 固定參數、感測器、旋塞計時、歷史 U1 等待錨點及模式投影遷移。合法舊資料會被精確規範化，真正損壞的目前格式仍保持嚴格拒絕。",
+                "en": "Migration now covers the Free, Guide, and Demo fixed parameters, sensors, stopcock timing, historical U1 wait anchor, and mode projections needed by 4.2.3 workspaces and blank 5.1.1 sessions. Valid legacy data is normalized precisely, while genuinely corrupt current data remains strictly rejected."
+              }
+            },
+            {
+              "scope": "workspace-identity-and-verified-save",
+              "importance": "high",
+              "title": {
+                "zh-CN": "让实验身份和保存结果保持一致",
+                "zh-TW": "讓實驗身分和儲存結果保持一致",
+                "en": "Kept experiment identity and saved results consistent"
+              },
+              "body": {
+                "zh-CN": "用户可见的 001、002 编号与内部持久化 ID 分离；永久删除任意或全部实验后重新新建，会获得全新且不复用的内部 ID，并立即生成 Free、Guide、Demo 三条模式记录。普通保存只有在事务提交后严格回读文件、模式记录和 revision 全部一致时才报告成功，失败会保留既有资料并阻止静默退出。",
+                "zh-TW": "使用者可見的 001、002 編號與內部持久化 ID 分離；永久刪除任意或全部實驗後重新建立，會取得全新且不重複使用的內部 ID，並立即產生 Free、Guide、Demo 三筆模式記錄。一般儲存只有在交易提交後嚴格回讀檔案、模式記錄和 revision 全部一致時才回報成功，失敗會保留既有資料並阻止無提示結束。",
+                "en": "Visible 001 and 002 numbering is separate from persistent identity. Recreating experiments after permanently deleting any or all files produces a fresh, never-reused internal ID and immediately creates Free, Guide, and Demo mode records. A normal save reports success only after strict post-commit reconstruction verifies files, mode records, and revision; failure preserves existing data and prevents silent exit."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "实验运行稳定性",
+            "zh-TW": "實驗執行穩定性",
+            "en": "Experiment runtime stability"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-mode-recovery",
+              "importance": "high",
+              "title": {
+                "zh-CN": "稳定三模式切换与计时恢复",
+                "zh-TW": "穩定三模式切換與計時還原",
+                "en": "Stabilized three-mode switching and timing recovery"
+              },
+              "body": {
+                "zh-CN": "Free、Guide、Demo 切换会在新场景真正就绪后恢复对应运行状态；错误、退出和刷新恢复期间暂停提醒与实时 tick，避免后台计时继续推进。",
+                "zh-TW": "Free、Guide、Demo 切換會在新場景真正就緒後還原對應執行狀態；錯誤、結束和重新整理還原期間暫停提醒與即時 tick，避免背景計時繼續推進。",
+                "en": "Free, Guide, and Demo switching restores the corresponding run state only after the new scene is genuinely ready, while reminders and live ticks pause during failure, exit, and refresh recovery so timing cannot continue in the background."
+              }
+            },
+            {
+              "scope": "webgl-runtime-recovery",
+              "importance": "high",
+              "title": {
+                "zh-CN": "统一 WebGL 与数值边界恢复",
+                "zh-TW": "統一 WebGL 與數值邊界還原",
+                "en": "Unified WebGL and numeric-boundary recovery"
+              },
+              "body": {
+                "zh-CN": "真实 WebGL 上下文丢失进入统一冻结、错误卡和重试路径，场景连续两帧就绪后才恢复运行；运行时间及显示值的边界舍入不再造成正常保存被误判。",
+                "zh-TW": "真實 WebGL 上下文遺失進入統一凍結、錯誤卡和重試路徑，場景連續兩幀就緒後才恢復執行；執行時間及顯示值的邊界捨入不再造成正常儲存被誤判。",
+                "en": "A real WebGL context loss enters the shared freeze, error-card, and retry path, with runtime resuming only after two ready frames; boundary rounding of runtime and displayed values no longer causes valid saves to be rejected."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "桌面更新与恢复",
+            "zh-TW": "桌面更新與還原",
+            "en": "Desktop update and recovery"
+          },
+          "items": [
+            {
+              "scope": "persistence-recovery-update",
+              "importance": "high",
+              "title": {
+                "zh-CN": "让持久化故障页能够安全获取更新",
+                "zh-TW": "讓持久化故障頁能夠安全取得更新",
+                "en": "Made updates available from persistence failures"
+              },
+              "body": {
+                "zh-CN": "只读故障页支持检查、下载、重启安装和打开受信任的最新发布页，保留无边框桌面的窗口控制，并正确响应安装前保存协调；初始化失败前不再运行临时命名空间清理。覆盖安装继续复用原 appId、NSIS 安装身份、更新仓库和用户资料目录。",
+                "zh-TW": "唯讀故障頁支援檢查、下載、重新啟動安裝和開啟受信任的最新發佈頁，保留無邊框桌面的視窗控制，並正確回應安裝前儲存協調；初始化失敗前不再執行暫時命名空間清理。覆蓋安裝繼續重用原 appId、NSIS 安裝身分、更新儲存庫和使用者資料目錄。",
+                "en": "The read-only failure page can check, download, restart-install, or open the trusted latest release, retains frameless desktop window controls, and correctly acknowledges pre-install persistence coordination; temporary-namespace cleanup no longer runs before initialization succeeds. An over-install continues to reuse the existing appId, NSIS identity, update repository, and user-data directory."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "品牌与图标",
+            "zh-TW": "品牌與圖示",
+            "en": "Brand and icon"
+          },
+          "items": [
+            {
+              "scope": "gas-laws-lab-brand",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "启用三语言气律实验室名称与新图标",
+                "zh-TW": "啟用三語言氣律實驗室名稱與新圖示",
+                "en": "Introduced the trilingual Gas Laws Lab name and new icon"
+              },
+              "body": {
+                "zh-CN": "应用内名称随语言显示为“气律实验室”“氣律實驗室”或 “Gas Laws Lab”；Windows 外壳使用稳定的 “Gas Laws Lab”。新图标覆盖 Windows 七档 ICO 和网页 PNG，同时保持原 appId、安装身份、更新仓库与 hard-sphere-lab 用户资料目录。",
+                "zh-TW": "應用程式內名稱隨語言顯示為「气律实验室」「氣律實驗室」或 “Gas Laws Lab”；Windows 外殼使用穩定的 “Gas Laws Lab”。新圖示涵蓋 Windows 七檔 ICO 和網頁 PNG，同時保持原 appId、安裝身分、更新儲存庫與 hard-sphere-lab 使用者資料目錄。",
+                "en": "The in-app name follows the selected locale as 气律实验室, 氣律實驗室, or Gas Laws Lab, while the Windows shell uses stable Gas Laws Lab metadata. The new icon covers seven Windows ICO sizes and web PNGs without changing appId, installer identity, update repository, or the hard-sphere-lab user-data directory."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "5.1.1",
       "date": "2026-07-16",
       "channel": "stable",

@@ -12,6 +12,10 @@ const afterPackSource = readFileSync(join(root, 'build', 'afterPack.cjs'), 'utf8
 const bundleSource = readFileSync(join(root, 'scripts', 'bundleExporter.cjs'), 'utf8');
 const policySource = readFileSync(join(root, 'build', 'exporterBundlePolicy.cjs'), 'utf8');
 const exporterSource = readFileSync(join(root, 'tools', 'exporter', 'hsl_exporter.py'), 'utf8');
+const exporterGraphStyleSource = readFileSync(
+  join(root, 'tools', 'exporter', 'professional_graph_style.py'),
+  'utf8',
+);
 const inspectorSource = readFileSync(join(root, 'tools', 'exporter', 'inspect_frozen_bundle.py'), 'utf8');
 const manifest = JSON.parse(
   readFileSync(join(root, 'resources', 'exporter', 'hsl-exporter.manifest.json'), 'utf8'),
@@ -81,6 +85,10 @@ assert.match(policySource, /fingerprintJson\(storedInventory\) !== fingerprintJs
 assert.match(policySource, /createExporterExecutableDescriptor[\s\S]*sizeBytes: stat\.size[\s\S]*createHash\('sha256'\)/, 'exporter manifests should bind the exact executable size and SHA-256');
 assert.match(policySource, /EXPORTER_INVENTORY_POLICY_FILES/, 'changes to the frozen-archive ownership policy should invalidate the bundle manifest');
 assert.match(exporterSource, /EXPORTER_SOURCE_FINGERPRINT = os\.environ\.get/, 'exporter self-check should report its embedded source fingerprint');
+assert.match(exporterSource, /Gas Laws Lab Export Report/, 'exported reports should use the current English brand');
+assert.match(exporterSource, /Gas Laws Lab local exporter/, 'the exporter command description should use the current English brand');
+assert.doesNotMatch(exporterSource, /Hard Sphere Lab/, 'the exporter should not expose the retired English brand');
+assert.doesNotMatch(exporterGraphStyleSource, /Hard Sphere Lab/, 'exporter helper modules should not expose the retired English brand');
 assert.match(inspectorSource, /CArchiveReader/, 'the legal inventory should be derived from the actual PyInstaller archive');
 assert.match(inspectorSource, /archive\.open_embedded_archive\(pyz_name/, 'the legal inventory should inspect embedded PYZ modules');
 

@@ -17,6 +17,14 @@ export interface WorkbenchUpdateStatusCopy {
 
 export const WORKBENCH_IGNORED_UPDATE_VERSION_KEY = 'hslIgnoredUpdateVersion';
 
+export const isWorkbenchUpdateCheckFailure = (state: WorkbenchUpdateState) => (
+  state.status === 'error' && state.errorStage === 'check'
+);
+
+export const isWorkbenchUpdateDownloadFailure = (state: WorkbenchUpdateState) => (
+  state.status === 'error' && state.errorStage === 'download'
+);
+
 export const mergeWorkbenchUpdateState = (
   nextState: WorkbenchUpdateState,
   previousState: WorkbenchUpdateState | null,

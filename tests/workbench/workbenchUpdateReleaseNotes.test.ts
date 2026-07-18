@@ -37,6 +37,7 @@ const buildNoticeZhCn = readFileSync(new URL('../../docs/build-notice-zh-CN.md',
 const {
   getReleaseMetadataForVersion,
   getReleaseMetadataForUpdateInfo,
+  getLatestReleasePageUrl,
   isAllowedManualDownloadUrl,
   isTransientUpdateError,
   MAX_DOWNLOAD_ATTEMPTS,
@@ -61,6 +62,7 @@ const {
     releaseSections: Array<{ type: string; title: Record<string, string>; items: unknown[] }> | null;
     releaseNotes: string | null;
   };
+  getLatestReleasePageUrl: () => string | null;
   isAllowedManualDownloadUrl: (url: string | null | undefined) => boolean;
   isTransientUpdateError: (error: unknown) => boolean;
   MAX_DOWNLOAD_ATTEMPTS: number;
@@ -72,10 +74,10 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '5.1.1', 'next desktop update release should bump package version to 5.1.1');
-assert.match(readme, /latest published desktop release is `v5\.1\.1`/, 'English README should name the current public release');
-assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v5\.1\.1`/, 'Chinese README should name the current public release');
-assert.match(buildNoticeZhCn, /当前项目版本：5\.1\.1。/, 'the reviewed build notice should name the current project version');
+assert.equal(packageJson.version, '5.1.2', 'next desktop update release should bump package version to 5.1.2');
+assert.match(readme, /latest published desktop release is `v5\.1\.2`/, 'English README should name the current public release');
+assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v5\.1\.2`/, 'Chinese README should name the current public release');
+assert.match(buildNoticeZhCn, /当前项目版本：5\.1\.2。/, 'the reviewed build notice should name the current project version');
 
 const currentRelease = findRelease(packageJson.version ?? '');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
@@ -95,24 +97,20 @@ assert.equal(
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
 assert.ok(
-  currentItems.some((item) => item.scope === 'thermodynamic-model' && item.importance === 'high'),
-  '5.1.1 should include the high-importance thermodynamic model update',
+  currentItems.some((item) => item.scope === 'legacy-423-migration' && item.importance === 'high'),
+  '5.1.2 should include the high-importance real 4.2.3 migration repair',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'three-mode-sessions' && item.importance === 'high'),
-  '5.1.1 should include the high-importance three-mode session update',
+  currentItems.some((item) => item.scope === 'persistence-recovery-update' && item.importance === 'high'),
+  '5.1.2 should include the high-importance persistence recovery updater',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'indexeddb-persistence' && item.importance === 'high'),
-  '5.1.1 should include the high-importance IndexedDB persistence update',
+  currentItems.some((item) => item.scope === 'webgl-runtime-recovery' && item.importance === 'high'),
+  '5.1.2 should include the high-importance WebGL runtime recovery',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'glb-audio-runtime' && item.importance === 'high'),
-  '5.1.1 should include the high-importance GLB and audio runtime reliability update',
-);
-assert.ok(
-  currentItems.some((item) => item.scope === 'desktop-updater' && item.importance === 'high'),
-  '5.1.1 should include the high-importance desktop updater reliability update',
+  currentItems.some((item) => item.scope === 'gas-laws-lab-brand' && item.importance === 'medium'),
+  '5.1.2 should include the localized Gas Laws Lab brand and icon update',
 );
 
 const standardResultsRelease = findRelease('4.1.22');
@@ -303,6 +301,16 @@ assert.match(htmlNotes ?? '', /测试修复后续版本更新说明/, 'array rel
 
 assert.equal(isAllowedManualDownloadUrl(firstRelease.download?.windowsInstaller), true, 'direct installer URL should be allowed');
 assert.equal(isAllowedManualDownloadUrl(firstRelease.download?.releasePage), true, 'release page URL should be allowed');
+assert.equal(
+  getLatestReleasePageUrl(),
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/latest',
+  'persistence recovery should derive a trusted latest-release fallback from the configured publish target',
+);
+assert.equal(
+  isAllowedManualDownloadUrl(getLatestReleasePageUrl()),
+  true,
+  'the configured latest-release fallback should be accepted by the same strict URL allowlist',
+);
 assert.equal(
   isAllowedManualDownloadUrl('https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.8/heat-capacity-lab-setup-4.1.8.exe'),
   true,

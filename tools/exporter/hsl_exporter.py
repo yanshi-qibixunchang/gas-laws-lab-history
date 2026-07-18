@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Hard Sphere Lab local export prototype.
+"""Gas Laws Lab local exporter.
 
 This first-batch exporter reads workbench export payload JSON and writes
 local report, figure, CSV, and metadata files for quality review.
@@ -784,7 +784,7 @@ def build_story(data: dict[str, Any], figure_outputs: list[dict[str, Path]], csv
         leftMargin=18 * mm,
         topMargin=18 * mm,
         bottomMargin=18 * mm,
-        title="Hard Sphere Lab Export Report",
+        title="Gas Laws Lab Export Report",
     )
 
     relation = data.get("relation")
@@ -864,7 +864,7 @@ def build_story(data: dict[str, Any], figure_outputs: list[dict[str, Path]], csv
         return block
 
     story = [
-        Paragraph("Hard Sphere Lab Export Report", title_style),
+        Paragraph("Gas Laws Lab Export Report", title_style),
         Paragraph(f"Dataset: {data.get('fileName', 'Workbench Export')}", body_style),
         Paragraph(f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}", body_style),
         Spacer(1, 7 * mm),
@@ -1062,7 +1062,7 @@ def export_payload(input_path: Path, out_dir: Path, formats: set[str]) -> int:
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Hard Sphere Lab local exporter")
+    parser = argparse.ArgumentParser(description="Gas Laws Lab local exporter")
     parser.add_argument("--self-check", action="store_true", help="Check Python export dependencies")
     parser.add_argument("--input", type=Path, help="Workbench export payload JSON")
     parser.add_argument("--out", type=Path, default=Path("output/export-demo"), help="Output directory")

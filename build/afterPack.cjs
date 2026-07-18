@@ -21,6 +21,8 @@ exports.default = async function afterPack(context) {
   const iconPath = path.join(context.packager.projectDir, 'resources', 'app-icon', 'icon.ico');
   const version = context.packager.appInfo.version;
   const productName = context.packager.appInfo.productName;
+  const companyName = context.packager.appInfo.companyName || productName;
+  const legalCopyright = context.packager.appInfo.copyright;
   const originalFilename = `${context.packager.appInfo.productFilename}.exe`;
 
   const targetPath = exePath === rceditTargetPath ? exePath : rceditTargetPath;
@@ -40,6 +42,12 @@ exports.default = async function afterPack(context) {
       '--set-version-string',
       'ProductName',
       productName,
+      '--set-version-string',
+      'CompanyName',
+      companyName,
+      '--set-version-string',
+      'LegalCopyright',
+      legalCopyright,
       '--set-version-string',
       'InternalName',
       productName,

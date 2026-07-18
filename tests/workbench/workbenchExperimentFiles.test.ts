@@ -47,6 +47,57 @@ assert.ok(
 assert.ok(source.includes('const requestCloseWorkbenchFile = (file: WorkbenchFileState) => {'), 'workbench should expose a close-file request handler');
 assert.ok(source.includes('window.confirm(workbenchCopy.files.confirmCloseRunningExperiment(file.name))'), 'closing a running experiment should ask for confirmation');
 assert.ok(source.includes('commitWorkbenchFileCollections'), 'file collection changes should use one synchronous ownership boundary');
+assert.match(
+  source.slice(
+    indexOfOrFail(source, 'const commitWorkbenchFileCollections = (', 'file collection commit boundary should exist'),
+    indexOfOrFail(source, 'const updateFileById = (', 'file update helper should follow the collection commit boundary'),
+  ),
+  /assertUniqueWorkbenchFileCollections\(nextFiles, nextClosedFiles, nextActiveFileId\);[\s\S]*filesRef\.current = nextFiles;/,
+  'global file identity ownership must be asserted before refs or React state are mutated',
+);
+assert.match(
+  source,
+  /const index = getNextWorkbenchFileDisplayIndex\(kind, currentFiles\);[\s\S]*const fileId = createUniqueWorkbenchFileId\(kind, issuedWorkbenchFileIdsRef\.current\);[\s\S]*id: fileId/,
+  'new experiment display numbering must be separate from its opaque persistent identity',
+);
+assert.match(
+  source,
+  /kind: 'workspace',[\s\S]*files: cloneWorkbenchFiles\(sourceFiles\),[\s\S]*closedFiles: cloneWorkbenchFiles\(closedFilesRef\.current\)/,
+  'workspace undo snapshots must preserve both open and closed ownership collections',
+);
+assert.match(
+  source,
+  /const restoredClosedFiles = cloneWorkbenchFiles\(snapshot\.closedFiles\);[\s\S]*commitWorkbenchFileCollections\(restoredFiles, restoredClosedFiles, nextActiveFileId\)/,
+  'workspace restore must atomically restore open and closed collections without duplicating an identity',
+);
+assert.match(source, /useState<WorkbenchEditSnapshot\[]>\(\[\]\)/);
+assert.doesNotMatch(
+  source.slice(
+    indexOfOrFail(source, 'const buildCurrentHeatCapacityRefreshSession = (', 'refresh capture should exist'),
+    indexOfOrFail(source, 'const persistCurrentHeatCapacityRefreshSession = (', 'refresh persistence should follow capture'),
+  ),
+  /undoStack|redoStack/,
+  'process-local edit history must not restore unvalidated legacy snapshots after restart',
+);
+assert.match(
+  source,
+  /const pushUndoSnapshot[\s\S]*undoStackRef\.current = nextUndoStack;[\s\S]*redoStackRef\.current = \[\];[\s\S]*setUndoStack/,
+  'history refs must update synchronously before an immediate collection persistence flush',
+);
+assert.match(source, /'closed file': '关闭文件'/);
+assert.match(source, /'reopened file': '重新打开文件'/);
+assert.match(source, /'closed file': '關閉檔案'/);
+assert.match(source, /'reopened file': '重新開啟檔案'/);
+assert.match(
+  source,
+  /const closeWorkbenchFile[\s\S]*captureUndoSnapshot\('closed file', 'workspace'\)[\s\S]*commitWorkbenchFileCollections/,
+  'closing a file must participate in ordered workspace ownership history',
+);
+assert.match(
+  source,
+  /const openClosedWorkbenchFile[\s\S]*captureUndoSnapshot\('reopened file', 'workspace'\)[\s\S]*commitWorkbenchFileCollections/,
+  'reopening a cached file must participate in ordered workspace ownership history',
+);
 assert.ok(source.includes('openClosedWorkbenchFile'), 'closed cache should be reopenable');
 assert.ok(source.includes('const isClosingActiveFile = fileId === activeFileIdRef.current;'), 'closing inactive experiments should use the authoritative active-file ref');
 assert.ok(source.includes('if (isClosingActiveFile) {'), 'active-workspace cleanup should only run when the active experiment is closed');

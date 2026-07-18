@@ -68,6 +68,7 @@ declare global {
     maxDownloadAttempts?: number | null;
     retrying?: boolean;
     errorKind?: string | null;
+    errorStage?: 'check' | 'download' | null;
     percent?: number | null;
     message?: string;
   }

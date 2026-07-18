@@ -15,7 +15,10 @@ const {
   canTransitionUpdaterStatus,
   createUpdaterOperationCoordinator,
 } = require('../../electron/updaterStateMachine.cjs') as {
-  canStartUpdaterStage: (stage: string, state: { status: string; latestVersion?: string | null }) => boolean;
+  canStartUpdaterStage: (
+    stage: string,
+    state: { status: string; latestVersion?: string | null; errorStage?: string | null },
+  ) => boolean;
   canTransitionUpdaterStatus: (currentStatus: string, nextStatus: string) => boolean;
   createUpdaterOperationCoordinator: () => {
     run: <T>(stage: string, taskFactory: () => Promise<T> | T) => Promise<T>;
@@ -89,8 +92,26 @@ await Promise.resolve();
 assert.equal(updaterCoordinator.activeStage, null);
 
 assert.equal(canStartUpdaterStage('check', { status: 'idle' }), true);
-assert.equal(canStartUpdaterStage('download', { status: 'available', latestVersion: '5.1.1' }), true);
+assert.equal(canStartUpdaterStage('download', { status: 'available', latestVersion: '5.1.2' }), true);
 assert.equal(canStartUpdaterStage('download', { status: 'error', latestVersion: null }), false);
+assert.equal(
+  canStartUpdaterStage('download', {
+    status: 'error',
+    latestVersion: '5.1.2',
+    errorStage: 'check',
+  }),
+  false,
+  'stale metadata from a failed recheck must not authorize downloading the current version',
+);
+assert.equal(
+  canStartUpdaterStage('download', {
+    status: 'error',
+    latestVersion: '5.1.3',
+    errorStage: 'download',
+  }),
+  true,
+  'a confirmed update whose download failed may be retried',
+);
 assert.equal(canStartUpdaterStage('install', { status: 'downloaded' }), true);
 assert.equal(canStartUpdaterStage('install', { status: 'downloading' }), false);
 assert.equal(canTransitionUpdaterStatus('checking', 'available'), true);
