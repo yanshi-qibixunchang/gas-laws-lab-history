@@ -1,0 +1,22 @@
+{
+  "asset": "EX5531_TD8572A_ratio_specific_heats_final.glb",
+  "purpose": "Air heat-capacity-ratio experiment apparatus for the piston-oscillation method",
+  "sourceRepository": "https://github.com/zyl57863-cmd/ex5531-ratio-specific-heats-blender-model",
+  "sourceTag": "v1.2.1",
+  "sourceCommit": "79a26a2a7b13e082ac32507d02df20cbb2bd02e3",
+  "sourcePath": "deliverables_ex5531_final/EX5531_TD8572A_ratio_specific_heats_final.glb",
+  "sha256": "BE1681B872ED89196107856E1D37C6F57AF2D812272F34A41036F5F594C947C1",
+  "bytes": 7231720,
+  "format": "glTF 2.0 binary",
+  "generator": "Khronos glTF Blender I/O v5.2.39",
+  "extensionsUsed": [
+    "KHR_materials_transmission",
+    "KHR_materials_ior"
+  ],
+  "runtimeNotes": {
+    "externalUris": false,
+    "animationCount": 1,
+    "animationPlaybackEnabledInApp": false,
+    "pistonInteractionEnabledInApp": false
+  }
+}

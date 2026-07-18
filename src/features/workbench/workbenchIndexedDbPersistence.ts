@@ -61,6 +61,7 @@ import type {
 import {
   createDefaultHeatCapacityFile,
   mergeHeatCapacityGuideRuntimeState,
+  normalizeHeatCapacityFileName,
 } from './workbenchState.ts';
 import { assertUniqueWorkbenchFileCollections } from './workbenchFileIdentity.ts';
 import { isWorkbenchPanelKey } from './workbenchPanelRegistry.ts';
@@ -235,6 +236,17 @@ export class WorkbenchPersistenceConflictError extends Error {
     this.name = 'WorkbenchPersistenceConflictError';
   }
 }
+
+export class WorkbenchRefreshMetadataAnchorMismatchError extends Error {
+  constructor() {
+    super('IndexedDB refresh metadata and current mode session have mismatched capture anchors.');
+    this.name = 'WorkbenchRefreshMetadataAnchorMismatchError';
+  }
+}
+
+export const isWorkbenchRefreshMetadataAnchorRecoverySourceVersion = (
+  appVersion: string,
+) => appVersion === '5.1.2';
 
 export const isWorkbenchWorkspaceRevisionCurrent = (
   expectedRevision: number | null,
@@ -1209,6 +1221,28 @@ export const normalizeWorkbenchWorkspaceFileRecord = (
 ): WorkspaceFileRecord | null => {
   if (isCurrentWorkspaceFileRecord(value, namespace, fileId)) return value;
   if (
+    hasWorkspaceFileRecordIdentity(value, namespace, fileId) &&
+    isPersistenceRecord(value.state) &&
+    value.state.id === fileId &&
+    value.state.kind === 'heatCapacity' &&
+    typeof value.state.name === 'string'
+  ) {
+    const normalizedName = normalizeHeatCapacityFileName(value.state.name);
+    if (normalizedName !== value.state.name) {
+      const normalized = {
+        schemaFamily: FILE_RECORD_SCHEMA_FAMILY,
+        key: fileRecordKey(namespace, fileId),
+        namespace,
+        fileId,
+        state: {
+          ...value.state,
+          name: normalizedName,
+        },
+      };
+      if (isCurrentWorkspaceFileRecord(normalized, namespace, fileId)) return normalized;
+    }
+  }
+  if (
     !hasWorkspaceFileRecordIdentity(value, namespace, fileId) ||
     Object.prototype.hasOwnProperty.call(value, 'state') ||
     !Object.prototype.hasOwnProperty.call(value, 'envelope')
@@ -1434,7 +1468,7 @@ export const resolveWorkbenchHeatCapacityModeRestoreAtMs = ({
     workspaceActiveFileId === fileId;
   if (!refreshOwnsMode || !refreshTarget) return nowMs;
   if (modeSessionCapturedAtMs !== refreshTarget.capturedAtMs) {
-    throw new Error('IndexedDB refresh metadata and current mode session have mismatched capture anchors.');
+    throw new WorkbenchRefreshMetadataAnchorMismatchError();
   }
   return refreshTarget.capturedAtMs;
 };
@@ -1565,7 +1599,10 @@ const restoreRefreshSessionFromMetadata = (
 const loadWorkspaceFromIndexedDb = async (
   database: IDBDatabase,
   namespace: string,
-  options: { allowPendingMigration?: boolean } = {},
+  options: {
+    allowPendingMigration?: boolean;
+    ignoreRefreshMetadata?: boolean;
+  } = {},
 ): Promise<{
   session: WorkbenchSessionState;
   closedFiles: WorkbenchFileState[];
@@ -1589,6 +1626,9 @@ const loadWorkspaceFromIndexedDb = async (
   if (meta.migrationState !== 'ready' && !options.allowPendingMigration) {
     throw new Error(`IndexedDB workspace migration is still pending verification: ${namespace}.`);
   }
+  const effectiveRefreshMetadata = options.ignoreRefreshMetadata
+    ? null
+    : meta.refreshMetadata;
   const orderedIds = [...meta.openFileIds, ...meta.closedFileIds]
     .filter((fileId, index, ids): fileId is string => (
       typeof fileId === 'string' && ids.indexOf(fileId) === index
@@ -1640,7 +1680,7 @@ const loadWorkspaceFromIndexedDb = async (
       throw new Error(`IndexedDB current heat-capacity mode has no canonical runtime: ${file.id}/${file.heatCapacityMode}.`);
     }
     const restoredAtMs = resolveWorkbenchHeatCapacityModeRestoreAtMs({
-      refreshTarget: meta.refreshMetadata,
+      refreshTarget: effectiveRefreshMetadata,
       workspaceActiveFileId: meta.activeFileId,
       fileId: file.id,
       fileMode: file.heatCapacityMode,
@@ -1678,7 +1718,11 @@ const loadWorkspaceFromIndexedDb = async (
       selectedPanel: meta.selectedPanel,
     }),
     closedFiles,
-    refreshSession: restoreRefreshSessionFromMetadata(meta.refreshMetadata, openFiles, meta.activeFileId),
+    refreshSession: restoreRefreshSessionFromMetadata(
+      effectiveRefreshMetadata,
+      openFiles,
+      meta.activeFileId,
+    ),
     revision: meta.lastSuccessfulSaveAtMs,
   };
 };
@@ -2369,6 +2413,34 @@ const readWorkspaceMetaRecord = async (
   return meta;
 };
 
+const loadReadyWorkspaceWithRefreshMetadataRecovery = async (
+  database: IDBDatabase,
+  namespace: string,
+) => {
+  try {
+    return await loadWorkspaceFromIndexedDb(database, namespace);
+  } catch (cause) {
+    if (!(cause instanceof WorkbenchRefreshMetadataAnchorMismatchError)) throw cause;
+    const currentMeta = await readWorkspaceMetaRecord(database, namespace);
+    if (
+      currentMeta?.migrationState !== 'ready' ||
+      !isWorkbenchRefreshMetadataAnchorRecoverySourceVersion(currentMeta.appVersion)
+    ) {
+      throw cause;
+    }
+    const restored = await loadWorkspaceFromIndexedDb(database, namespace, {
+      ignoreRefreshMetadata: true,
+    });
+    if (!restored) {
+      throw new Error('IndexedDB workspace metadata disappeared during refresh metadata recovery.');
+    }
+    console.warn(
+      '[Workbench persistence] Ignored mismatched 5.1.2 refresh metadata while preserving canonical workspace records.',
+    );
+    return restored;
+  }
+};
+
 const waitForReadyWorkspaceAfterMigrationConflict = async (
   database: IDBDatabase,
   namespace: string,
@@ -2380,7 +2452,7 @@ const waitForReadyWorkspaceAfterMigrationConflict = async (
       currentMeta?.migrationState ?? null,
     );
     if (recoveryAction === 'restore-ready') {
-      return loadWorkspaceFromIndexedDb(database, namespace);
+      return loadReadyWorkspaceWithRefreshMetadataRecovery(database, namespace);
     }
     if (recoveryAction === 'fail') return null;
     const remainingMs = deadlineMs - Date.now();
@@ -2404,7 +2476,7 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
     database = await openWorkbenchDatabase();
     const existingMeta = await readWorkspaceMetaRecord(database, activeNamespace);
     if (existingMeta?.migrationState === 'ready') {
-      const restored = await loadWorkspaceFromIndexedDb(database, activeNamespace);
+      const restored = await loadReadyWorkspaceWithRefreshMetadataRecovery(database, activeNamespace);
       if (!restored) throw new Error('IndexedDB workspace metadata disappeared during initialization.');
       installBootstrap(restored.session, restored.closedFiles, restored.refreshSession);
       expectedWorkspaceRevisionByNamespace.set(

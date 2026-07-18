@@ -11,6 +11,11 @@ export interface PistonOscillationShellCopy {
     eyebrow: string;
     title: string;
     body: string;
+    loadingTitle: string;
+    loadingBody: string;
+    loadErrorTitle: string;
+    loadErrorBody: string;
+    restoreDefaultView: string;
   };
   realtime: {
     ariaLabel: string;
@@ -30,10 +35,15 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
     methodName: '活塞振动法',
     developmentBadge: '开发中',
     preview: {
-      ariaLabel: '活塞振动法仪器模型预览占位区域',
+      ariaLabel: '活塞振动法仪器模型 3D 预览',
       eyebrow: '实时预览',
       title: '仪器模型待接入',
       body: '已为活塞振动法预留独立的模型展示区域。',
+      loadingTitle: '正在加载仪器模型',
+      loadingBody: '正在从本地实验资源中载入活塞振动装置。',
+      loadErrorTitle: '3D 模型加载失败',
+      loadErrorBody: '当前实验仍可安全关闭；请检查本地模型文件后重新打开。',
+      restoreDefaultView: '默认视角',
     },
     realtime: {
       ariaLabel: '活塞振动法实时数据暂不可用',
@@ -51,10 +61,15 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
     methodName: '活塞振動法',
     developmentBadge: '開發中',
     preview: {
-      ariaLabel: '活塞振動法儀器模型預覽預留區域',
+      ariaLabel: '活塞振動法儀器模型 3D 預覽',
       eyebrow: '即時預覽',
       title: '儀器模型待接入',
       body: '已為活塞振動法預留獨立的模型展示區域。',
+      loadingTitle: '正在載入儀器模型',
+      loadingBody: '正在從本機實驗資源中載入活塞振動裝置。',
+      loadErrorTitle: '3D 模型載入失敗',
+      loadErrorBody: '目前實驗仍可安全關閉；請檢查本機模型檔案後重新開啟。',
+      restoreDefaultView: '預設視角',
     },
     realtime: {
       ariaLabel: '活塞振動法即時資料暫不可用',
@@ -72,10 +87,15 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
     methodName: 'Piston Oscillation',
     developmentBadge: 'In development',
     preview: {
-      ariaLabel: 'Piston-oscillation instrument model preview placeholder',
+      ariaLabel: 'Piston-oscillation instrument 3D preview',
       eyebrow: 'Live Preview',
       title: 'Instrument model pending integration',
       body: 'A dedicated model viewport is reserved for the piston-oscillation method.',
+      loadingTitle: 'Loading instrument model',
+      loadingBody: 'Loading the piston-oscillation apparatus from local experiment resources.',
+      loadErrorTitle: '3D model failed to load',
+      loadErrorBody: 'The experiment can be closed safely. Check the local model file, then reopen it.',
+      restoreDefaultView: 'Default view',
     },
     realtime: {
       ariaLabel: 'Piston-oscillation live data is unavailable',

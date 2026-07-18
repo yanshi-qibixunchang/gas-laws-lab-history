@@ -121,3 +121,19 @@ current desktop packaging configuration.
 
 Do not add reference-only folders to `public`, `dist`, `resources`, or Electron
 `extraResources` unless their rights are separately cleared for distribution.
+
+## Project-Provided Piston-Oscillation Model
+
+The application includes
+`public/models/piston-oscillation/EX5531_TD8572A_ratio_specific_heats_final.glb`,
+provided through the project team's public model repository at tag `v1.2.1`
+(commit `79a26a2a7b13e082ac32507d02df20cbb2bd02e3`). Its source repository records
+Blender and Blender's bundled Python as generation tools and three.js as a
+dependency of the source repository's standalone preview page. Those tools and
+that preview page are not copied into this application. The application renders
+the GLB through its existing local `three`, `@react-three/fiber`, and
+`@react-three/drei` dependencies, so the model integration adds no new runtime
+package or CDN dependency.
+
+The asset's exact source path, digest, format, and runtime-use decisions are
+recorded in `public/models/piston-oscillation/model-provenance.json`.

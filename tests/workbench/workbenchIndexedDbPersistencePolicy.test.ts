@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   createDefaultHeatCapacityFile,
+  createDefaultHeatCapacityPistonOscillationFile,
   createDefaultIdealFile,
   createDefaultStandardFile,
   type WorkbenchFileState,
@@ -20,6 +21,7 @@ import {
   createWorkbenchActiveModeCheckpointOverride,
   getWorkbenchMigrationConflictRecoveryAction,
   isWorkbenchMigrationStateTransitionCurrent,
+  isWorkbenchRefreshMetadataAnchorRecoverySourceVersion,
   isWorkbenchRefreshMetadataTargetActive,
   isWorkbenchWorkspaceRevisionCurrent,
   normalizeWorkbenchWorkspaceMetaRecord,
@@ -174,6 +176,100 @@ assert.equal(
   ),
   null,
   'a legacy envelope whose file identity does not match the outer record must remain rejected',
+);
+
+const indexedDbV2HeatCapacityFile = createWorkbenchSessionFromRuntimeFiles({
+  files: [{
+    ...createDefaultHeatCapacityFile(1),
+    id: 'heatCapacity-001',
+  }],
+  activeFileId: 'heatCapacity-001',
+  selectedPanel: 'preview',
+}).files[0]!;
+assert.equal(indexedDbV2HeatCapacityFile.kind, 'heatCapacity');
+for (const legacyName of [
+  'Heat Capacity Ratio - 001',
+  'Hard-Sphere Heat Capacity Ratio - 001',
+]) {
+  const legacyState = {
+    ...indexedDbV2HeatCapacityFile,
+    name: legacyName,
+  };
+  const legacyStateRecord = {
+    schemaFamily: 'hard-sphere-lab/workspace-file-v2',
+    key: 'persistent:main|heatCapacity-001',
+    namespace: 'persistent:main',
+    fileId: 'heatCapacity-001',
+    state: legacyState,
+  };
+  const normalized = normalizeWorkbenchWorkspaceFileRecord(
+    legacyStateRecord,
+    'persistent:main',
+    'heatCapacity-001',
+  );
+  assert.deepEqual(
+    normalized,
+    {
+      ...legacyStateRecord,
+      state: {
+        ...legacyState,
+        name: 'Adiabatic Expansion - 001',
+      },
+    },
+    `IndexedDB v2 heat-capacity state named "${legacyName}" must migrate only its historical display name`,
+  );
+}
+
+const pistonOscillationState = createWorkbenchSessionFromRuntimeFiles({
+  files: [{
+    ...createDefaultHeatCapacityPistonOscillationFile(1),
+    id: 'heatCapacityPistonOscillation-001',
+  }],
+  activeFileId: 'heatCapacityPistonOscillation-001',
+  selectedPanel: 'preview',
+}).files[0]!;
+const pistonOscillationStateRecord = {
+  schemaFamily: 'hard-sphere-lab/workspace-file-v2',
+  key: 'persistent:main|heatCapacityPistonOscillation-001',
+  namespace: 'persistent:main',
+  fileId: 'heatCapacityPistonOscillation-001',
+  state: pistonOscillationState,
+};
+assert.equal(
+  normalizeWorkbenchWorkspaceFileRecord(
+    pistonOscillationStateRecord,
+    'persistent:main',
+    'heatCapacityPistonOscillation-001',
+  ),
+  pistonOscillationStateRecord,
+  'a fresh canonical piston-oscillation state record must load without a compatibility rewrite',
+);
+
+const malformedLegacyStateRecord = {
+  schemaFamily: 'hard-sphere-lab/workspace-file-v2',
+  key: 'persistent:main|heatCapacity-001',
+  namespace: 'persistent:main',
+  fileId: 'heatCapacity-001',
+  state: {
+    ...indexedDbV2HeatCapacityFile,
+    id: 'heatCapacity-wrong-identity',
+    name: 'Heat Capacity Ratio - 001',
+  },
+};
+const malformedLegacyStateRecordBeforeNormalization = structuredClone(malformedLegacyStateRecord);
+assert.equal(
+  normalizeWorkbenchWorkspaceFileRecord(
+    malformedLegacyStateRecord,
+    'persistent:main',
+    'heatCapacity-001',
+  ),
+  null,
+  'the narrow historical-name migration must not coerce a record whose inner file identity is corrupt',
+);
+assert.deepEqual(
+  malformedLegacyStateRecord,
+  malformedLegacyStateRecordBeforeNormalization,
+  'rejecting a malformed IndexedDB record must not mutate or discard the original record value',
 );
 
 const currentGuideFile = {
@@ -386,6 +482,24 @@ const source = readFileSync(join(
   'workbench',
   'workbenchIndexedDbPersistence.ts',
 ), 'utf8');
+const failedInitializationBranch = source.match(
+  /const performWorkbenchIndexedDbInitialization = async[\s\S]*?\} catch \(cause\) \{([\s\S]*?)\n  \}\n\};/,
+)?.[1] ?? '';
+assert.ok(
+  failedInitializationBranch.length > 0,
+  'the IndexedDB initialization failure branch must remain visible to the data-retention regression test',
+);
+assert.doesNotMatch(
+  failedInitializationBranch,
+  /objectStore\([^)]*\)\.(?:clear|delete)\(|indexedDB\.deleteDatabase\(/,
+  'initialization failure must surface read-only recovery without deleting malformed or missing workspace records',
+);
+assert.equal(isWorkbenchRefreshMetadataAnchorRecoverySourceVersion('5.1.2'), true);
+assert.equal(
+  isWorkbenchRefreshMetadataAnchorRecoverySourceVersion('5.1.3'),
+  false,
+  'the compatibility recovery must not silently accept a new-format writer producing the same mismatch',
+);
 assert.doesNotMatch(
   source.match(/export const createPersistenceRecords =[\s\S]*?const deleteStaleNamespaceRecords/)?.[0] ?? '',
   /encodeWorkbenchStorageEnvelope|createHeatCapacityPersistencePayload/,
@@ -425,8 +539,26 @@ assert.match(
 );
 assert.match(
   normalV2LoadSource,
-  /resolveWorkbenchHeatCapacityModeRestoreAtMs\(\{[\s\S]*refreshTarget: meta\.refreshMetadata,[\s\S]*modeSessionCapturedAtMs: currentEntry\.capturedAtMs/,
+  /resolveWorkbenchHeatCapacityModeRestoreAtMs\(\{[\s\S]*refreshTarget: effectiveRefreshMetadata,[\s\S]*modeSessionCapturedAtMs: currentEntry\.capturedAtMs/,
   'normal v2 loads must defer the active refresh target to its original mode-session anchor',
+);
+const refreshAnchorRecoverySource = source.match(
+  /const loadReadyWorkspaceWithRefreshMetadataRecovery = async[\s\S]*?\n\};/,
+)?.[0] ?? '';
+assert.match(
+  refreshAnchorRecoverySource,
+  /WorkbenchRefreshMetadataAnchorMismatchError[\s\S]*migrationState !== 'ready'[\s\S]*isWorkbenchRefreshMetadataAnchorRecoverySourceVersion[\s\S]*ignoreRefreshMetadata: true/,
+  'only a ready 5.1.2 workspace whose strict load reports the typed anchor mismatch may ignore refresh metadata',
+);
+assert.doesNotMatch(
+  refreshAnchorRecoverySource,
+  /objectStore\([^)]*\)\.(?:clear|delete)\(|indexedDB\.deleteDatabase\(|\.put\(/,
+  'refresh metadata recovery must remain a read-only initialization path',
+);
+assert.match(
+  normalV2LoadSource,
+  /const effectiveRefreshMetadata = options\.ignoreRefreshMetadata[\s\S]*refreshTarget: effectiveRefreshMetadata[\s\S]*restoreRefreshSessionFromMetadata\([\s\S]*effectiveRefreshMetadata/,
+  'recovery must isolate the same refresh metadata from both mode rebase and transient UI reconstruction',
 );
 assert.equal(isWorkbenchRefreshMetadataTargetActive('heat-1', 'heat-1', ['heat-1']), true);
 assert.equal(

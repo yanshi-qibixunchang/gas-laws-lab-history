@@ -93,7 +93,13 @@ assert.match(
 
 assert.match(
   workbenchSource,
-  /<PistonOscillationPreviewPlaceholder language=\{settingsLanguagePreference\} \/>/,
+  /<PistonOscillationInstrumentScene[\s\S]*?key=\{activeFile\.id\}[\s\S]*?language=\{settingsLanguagePreference\}[\s\S]*?sceneTheme=\{resolvedWorkbenchTheme\}[\s\S]*?cameraPreset=\{activeFile\.previewCameraPreset\}[\s\S]*?\/>/,
+  'the piston preview must mount its local instrument scene with file identity, language, theme, and persisted camera preset',
+);
+assert.doesNotMatch(
+  workbenchSource,
+  /PistonOscillationPreviewPlaceholder/,
+  'the integrated piston model must replace the preview placeholder',
 );
 assert.match(
   workbenchSource,

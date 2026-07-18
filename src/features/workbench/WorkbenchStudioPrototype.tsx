@@ -391,7 +391,7 @@ import { WorkbenchEmptyWorkspace } from './WorkbenchEmptyWorkspace.tsx';
 import { WorkbenchGeneralSettingsWindow } from './WorkbenchGeneralSettingsWindow.tsx';
 import { WorkbenchAboutWindow } from './WorkbenchAboutWindow.tsx';
 import {
-  PistonOscillationPreviewPlaceholder,
+  PistonOscillationInstrumentScene,
   PistonOscillationRealtimeUnavailable,
   getPistonOscillationShellCopy,
 } from '../pistonOscillation/index.ts';
@@ -17691,7 +17691,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
             })()}
           </div>
         ) : activeFile.kind === 'heatCapacityPistonOscillation' ? (
-          <PistonOscillationPreviewPlaceholder language={settingsLanguagePreference} />
+          <PistonOscillationInstrumentScene
+            key={activeFile.id}
+            language={settingsLanguagePreference}
+            sceneTheme={resolvedWorkbenchTheme}
+            cameraPreset={activeFile.previewCameraPreset}
+          />
         ) : (
         <div className="studio-canvas-host">
           <SimulationCanvas
