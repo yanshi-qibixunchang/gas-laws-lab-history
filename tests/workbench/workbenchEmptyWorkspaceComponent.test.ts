@@ -12,8 +12,10 @@ const workbenchSource = readFileSync(
 
 assert.match(componentSource, /export const WorkbenchEmptyWorkspace = \(/);
 assert.ok(componentSource.indexOf("onCreateFile('ideal')") < componentSource.indexOf("onCreateFile('heatCapacity')"));
-assert.ok(componentSource.indexOf("onCreateFile('heatCapacity')") < componentSource.indexOf("onCreateFile('standard')"));
+assert.ok(componentSource.indexOf("onCreateFile('heatCapacity')") < componentSource.indexOf("onCreateFile('heatCapacityPistonOscillation')"));
+assert.ok(componentSource.indexOf("onCreateFile('heatCapacityPistonOscillation')") < componentSource.indexOf("onCreateFile('standard')"));
 assert.match(componentSource, /data-workbench-create-experiment="heatCapacity"/);
+assert.match(componentSource, /data-workbench-create-experiment="heatCapacityPistonOscillation"/);
 assert.match(componentSource, /openableClosedFiles\.slice\(0, 5\)\.map/);
 assert.match(componentSource, /onClick=\{\(\) => onOpenFile\(file\.id\)\}/);
 assert.match(componentSource, /formatWorkbenchLastOpenedAt\(file\.lastOpenedAt, language\)/);

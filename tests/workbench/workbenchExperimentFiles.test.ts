@@ -40,8 +40,9 @@ assert.ok(newMenuSource.includes('copy.menus.noCachedExperiments'), 'Open Experi
 
 assert.ok(
   newMenuSource.indexOf("onCreateFile('ideal')") < newMenuSource.indexOf("onCreateFile('heatCapacity')")
-    && newMenuSource.indexOf("onCreateFile('heatCapacity')") < newMenuSource.indexOf("onCreateFile('standard')"),
-  'New Experiment submenu should order entries as ideal / heat capacity / standard',
+    && newMenuSource.indexOf("onCreateFile('heatCapacity')") < newMenuSource.indexOf("onCreateFile('heatCapacityPistonOscillation')")
+    && newMenuSource.indexOf("onCreateFile('heatCapacityPistonOscillation')") < newMenuSource.indexOf("onCreateFile('standard')"),
+  'New Experiment submenu should order entries as ideal / adiabatic / piston oscillation / standard',
 );
 
 assert.ok(source.includes('const requestCloseWorkbenchFile = (file: WorkbenchFileState) => {'), 'workbench should expose a close-file request handler');

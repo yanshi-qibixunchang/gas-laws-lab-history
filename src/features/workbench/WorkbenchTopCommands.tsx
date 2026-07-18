@@ -41,6 +41,7 @@ interface WorkbenchTopCommandsCopy {
     newExperiment: string;
     idealStudy: string;
     heatCapacityStudy: string;
+    heatCapacityPistonOscillationStudy: string;
     standardStudy: string;
     openExperiment: string;
     noCachedExperiments: string;
@@ -229,6 +230,10 @@ export const WorkbenchTopCommands = ({
               <button type="button" onClick={() => onCreateFile('heatCapacity')}>
                 <Gauge size={14} />
                 <span>{copy.menus.heatCapacityStudy}</span>
+              </button>
+              <button type="button" onClick={() => onCreateFile('heatCapacityPistonOscillation')}>
+                <Gauge size={14} />
+                <span>{copy.menus.heatCapacityPistonOscillationStudy}</span>
               </button>
               <button type="button" onClick={() => onCreateFile('standard')}>
                 <Activity size={14} />

@@ -168,8 +168,10 @@ const workbenchSource = readFileSync(
   'utf8',
 );
 
-assert.match(workbenchSource, /heatCapacityStudy:\s*'空气比热容比实验'/);
-assert.match(workbenchSource, /heatCapacityStudy:\s*'Heat Capacity Ratio Experiment'/);
+assert.match(workbenchSource, /heatCapacityStudy:\s*'空气热容比（绝热膨胀法）'/);
+assert.match(workbenchSource, /heatCapacityPistonOscillationStudy:\s*'空气热容比（活塞振动法）'/);
+assert.match(workbenchSource, /heatCapacityStudy:\s*'Heat Capacity Ratio \(Adiabatic\)'/);
+assert.match(workbenchSource, /heatCapacityPistonOscillationStudy:\s*'Heat Capacity Ratio \(Piston\)'/);
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-air-result/, 'this batch must not render a formal heat capacity result panel');
 assert.match(workbenchSource, /createHeatCapacityPanels/);
 assert.match(workbenchSource, /setParametersCollapsed\(shouldCollapseWorkbenchParameterSidebar\(file\)\)/);

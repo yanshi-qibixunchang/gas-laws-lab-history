@@ -224,14 +224,16 @@ const newMenuSource = topCommandsSource.slice(
 );
 assert.ok(
   newMenuSource.indexOf("onCreateFile('ideal')") < newMenuSource.indexOf("onCreateFile('heatCapacity')")
-    && newMenuSource.indexOf("onCreateFile('heatCapacity')") < newMenuSource.indexOf("onCreateFile('standard')"),
-  'New Study menu should order entries as ideal / heat capacity / standard',
+    && newMenuSource.indexOf("onCreateFile('heatCapacity')") < newMenuSource.indexOf("onCreateFile('heatCapacityPistonOscillation')")
+    && newMenuSource.indexOf("onCreateFile('heatCapacityPistonOscillation')") < newMenuSource.indexOf("onCreateFile('standard')"),
+  'New Study menu should order entries as ideal / adiabatic / piston oscillation / standard',
 );
 
 assert.ok(
   emptyWorkspaceSource.indexOf("onCreateFile('ideal')") < emptyWorkspaceSource.indexOf("onCreateFile('heatCapacity')")
-    && emptyWorkspaceSource.indexOf("onCreateFile('heatCapacity')") < emptyWorkspaceSource.indexOf("onCreateFile('standard')"),
-  'empty-state create actions should order entries as ideal / heat capacity / standard',
+    && emptyWorkspaceSource.indexOf("onCreateFile('heatCapacity')") < emptyWorkspaceSource.indexOf("onCreateFile('heatCapacityPistonOscillation')")
+    && emptyWorkspaceSource.indexOf("onCreateFile('heatCapacityPistonOscillation')") < emptyWorkspaceSource.indexOf("onCreateFile('standard')"),
+  'empty-state create actions should order entries as ideal / adiabatic / piston oscillation / standard',
 );
 
 const settingsMenuSource = topCommandsSource.slice(

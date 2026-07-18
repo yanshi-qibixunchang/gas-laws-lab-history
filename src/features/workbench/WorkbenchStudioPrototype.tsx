@@ -391,6 +391,11 @@ import { WorkbenchEmptyWorkspace } from './WorkbenchEmptyWorkspace.tsx';
 import { WorkbenchGeneralSettingsWindow } from './WorkbenchGeneralSettingsWindow.tsx';
 import { WorkbenchAboutWindow } from './WorkbenchAboutWindow.tsx';
 import {
+  PistonOscillationPreviewPlaceholder,
+  PistonOscillationRealtimeUnavailable,
+  getPistonOscillationShellCopy,
+} from '../pistonOscillation/index.ts';
+import {
   WorkbenchTopCommands,
   type WorkbenchTopMenuId,
   type WorkbenchTopMenuResultChild,
@@ -1304,6 +1309,7 @@ interface WorkbenchCopy {
     standardStudy: string;
     idealStudy: string;
     heatCapacityStudy: string;
+    heatCapacityPistonOscillationStudy: string;
     undo: string;
     redo: string;
     empty: string;
@@ -1410,6 +1416,7 @@ interface WorkbenchCopy {
     createStandard: string;
     createIdeal: string;
     createHeatCapacity: string;
+    createHeatCapacityPistonOscillation: string;
     rename: string;
     delete: string;
     confirmDelete: string;
@@ -1922,6 +1929,13 @@ const experimentLogCopies = {
 } satisfies Record<WorkbenchLanguagePreference, WorkbenchExperimentLogCopy>;
 
 const LOCKED_PANEL_KEYS: WorkbenchPanelKey[] = ['preview', 'realtime'];
+const isPistonOscillationDevelopmentPanelKey = (
+  file: WorkbenchFileState,
+  panel: WorkbenchPanelKey,
+) => (
+  file.kind === 'heatCapacityPistonOscillation' &&
+  isHeatCapacityPanelKey(panel)
+);
 const shouldCollapseWorkbenchParameterSidebar = (
   file: WorkbenchFileState | undefined,
 ) => (
@@ -1944,7 +1958,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
   'zh-CN': {
     menus: {
       experimentFiles: '实验文件', newWindow: '新窗口', newExperiment: '新建实验', openExperiment: '打开实验', noCachedExperiments: '没有可打开的缓存实验', edit: '编辑', window: '窗口', settings: '设置', help: '帮助', general: '通用',
-      standardStudy: '标准模拟研究', idealStudy: '理想气体模拟研究', heatCapacityStudy: '空气比热容比实验', undo: '撤销', redo: '重做', empty: '空',
+      standardStudy: '标准模拟研究', idealStudy: '理想气体模拟研究', heatCapacityStudy: '空气热容比（绝热膨胀法）', heatCapacityPistonOscillationStudy: '空气热容比（活塞振动法）', undo: '撤销', redo: '重做', empty: '空',
       clearEditHistory: '清空编辑历史', panelsFor: (name) => name + ' 的面板', resetDefaultLayout: '恢复默认布局', default: '默认',
       saveWorkbenchLayoutDefault: '保存当前窗口布局为默认',
       userGuide: '用户指南', about: '关于气律实验室', topCommandsAria: '顶部命令',
@@ -2027,7 +2041,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
     files: {
       openFiles: '打开文件', files: '文件', panels: '面板', noOpenFiles: '没有打开的文件', noOpenFileState: '当前没有打开的实验文件', noOpenPanelState: '打开实验后显示可用面板。', emptyHint: '在主工作区新建或打开实验。',
       noOpenStudy: '没有打开的研究', emptyTitle: '开始新的实验工作区', emptyBody: '创建标准模拟、理想气体关系研究或空气比热容比实验，以恢复预览、图表、结果和参数面板。',
-      createStandard: '创建标准模拟研究', createIdeal: '创建理想气体模拟研究', createHeatCapacity: '创建空气比热容比实验', rename: '重命名', delete: '删除', confirmDelete: '确认删除', closeExperiment: '关闭实验', confirmCloseRunningExperiment: (name) => '实验正在运行。确认关闭 ' + name + ' 吗？', cancel: '取消',
+      createStandard: '创建标准模拟研究', createIdeal: '创建理想气体模拟研究', createHeatCapacity: '创建空气热容比（绝热膨胀法）', createHeatCapacityPistonOscillation: '创建空气热容比（活塞振动法）', rename: '重命名', delete: '删除', confirmDelete: '确认删除', closeExperiment: '关闭实验', confirmCloseRunningExperiment: (name) => '实验正在运行。确认关闭 ' + name + ' 吗？', cancel: '取消',
       locked: '锁定', shown: '显示', open: '打开', active: '活动', off: '关闭', std: '标准', ideal: '理想', heat: '热容', workspaceAria: '文件工作区', usageHintAria: '文件树操作提示', clickSelectHint: '单击选中', doubleClickOpenHint: '双击打开', openActions: (name) => '打开 ' + name + ' 的操作菜单',
     },
     panels: {
@@ -2068,7 +2082,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
   'zh-TW': {
     menus: {
       experimentFiles: '實驗檔案', newWindow: '新視窗', newExperiment: '新增實驗', openExperiment: '開啟實驗', noCachedExperiments: '沒有可開啟的快取實驗', edit: '編輯', window: '視窗', settings: '設定', help: '說明', general: '一般',
-      standardStudy: '標準模擬研究', idealStudy: '理想氣體模擬研究', heatCapacityStudy: '空氣比熱容比實驗', undo: '復原', redo: '重做', empty: '空',
+      standardStudy: '標準模擬研究', idealStudy: '理想氣體模擬研究', heatCapacityStudy: '空氣熱容比（絕熱膨脹法）', heatCapacityPistonOscillationStudy: '空氣熱容比（活塞振動法）', undo: '復原', redo: '重做', empty: '空',
       clearEditHistory: '清除編輯記錄', panelsFor: (name) => name + ' 的面板', resetDefaultLayout: '還原預設版面', default: '預設',
       saveWorkbenchLayoutDefault: '將目前視窗版面存為預設',
       userGuide: '使用指南', about: '關於氣律實驗室', topCommandsAria: '頂部命令',
@@ -2151,7 +2165,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
     files: {
       openFiles: '開啟檔案', files: '檔案', panels: '面板', noOpenFiles: '沒有開啟的檔案', noOpenFileState: '目前沒有開啟的實驗檔案', noOpenPanelState: '開啟實驗後顯示可用面板。', emptyHint: '在主工作區建立或開啟實驗。',
       noOpenStudy: '沒有開啟的研究', emptyTitle: '開始新的實驗工作區', emptyBody: '建立標準模擬、理想氣體關係研究或空氣比熱容比實驗，以恢復預覽、圖表、結果和參數面板。',
-      createStandard: '建立標準模擬研究', createIdeal: '建立理想氣體模擬研究', createHeatCapacity: '建立空氣比熱容比實驗', rename: '重新命名', delete: '刪除', confirmDelete: '確認刪除', closeExperiment: '關閉實驗', confirmCloseRunningExperiment: (name) => '實驗正在執行。確認關閉 ' + name + ' 嗎？', cancel: '取消',
+      createStandard: '建立標準模擬研究', createIdeal: '建立理想氣體模擬研究', createHeatCapacity: '建立空氣熱容比（絕熱膨脹法）', createHeatCapacityPistonOscillation: '建立空氣熱容比（活塞振動法）', rename: '重新命名', delete: '刪除', confirmDelete: '確認刪除', closeExperiment: '關閉實驗', confirmCloseRunningExperiment: (name) => '實驗正在執行。確認關閉 ' + name + ' 嗎？', cancel: '取消',
       locked: '鎖定', shown: '顯示', open: '開啟', active: '作用中', off: '關閉', std: '標準', ideal: '理想', heat: '熱容', workspaceAria: '檔案工作區', usageHintAria: '檔案樹操作提示', clickSelectHint: '單擊選取', doubleClickOpenHint: '雙擊開啟', openActions: (name) => '開啟 ' + name + ' 的操作選單',
     },
     panels: {
@@ -2192,7 +2206,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
   en: {
     menus: {
       experimentFiles: 'Experiment Files', newWindow: 'New Window', newExperiment: 'New Experiment', openExperiment: 'Open Experiment', noCachedExperiments: 'No cached experiments to open', edit: 'Edit', window: 'Window', settings: 'Settings', help: 'Help', general: 'General',
-      standardStudy: 'Standard Simulation Study', idealStudy: 'Ideal Gas Simulation Study', heatCapacityStudy: 'Heat Capacity Ratio Experiment', undo: 'Undo', redo: 'Redo', empty: 'empty',
+      standardStudy: 'Standard Simulation Study', idealStudy: 'Ideal Gas Simulation Study', heatCapacityStudy: 'Heat Capacity Ratio (Adiabatic)', heatCapacityPistonOscillationStudy: 'Heat Capacity Ratio (Piston)', undo: 'Undo', redo: 'Redo', empty: 'empty',
       clearEditHistory: 'Clear Edit History', panelsFor: (name) => 'Panels for ' + name, resetDefaultLayout: 'Reset Default Layout', default: 'default',
       saveWorkbenchLayoutDefault: 'Save Current Window Layout as Default',
       userGuide: 'User Guide', about: 'About Gas Laws Lab', topCommandsAria: 'Top commands',
@@ -2275,7 +2289,7 @@ const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = {
     files: {
       openFiles: 'Open Files', files: 'Files', panels: 'Panels', noOpenFiles: 'No open files', noOpenFileState: 'No experiment file is currently open', noOpenPanelState: 'Available panels appear after an experiment is opened.', emptyHint: 'Create or open an experiment from the main workspace.',
       noOpenStudy: 'No open study', emptyTitle: 'Start a new Gas Laws Lab file', emptyBody: 'Create an ideal gas study, heat capacity ratio experiment, or standard simulation to restore previews, charts, results, and parameter panels.',
-      createStandard: 'Create Standard Simulation Study', createIdeal: 'Create Ideal Gas Simulation Study', createHeatCapacity: 'Create Heat Capacity Ratio Experiment', rename: 'Rename', delete: 'Delete', confirmDelete: 'Confirm Delete', closeExperiment: 'Close Experiment', confirmCloseRunningExperiment: (name) => 'The experiment is running. Close ' + name + '?', cancel: 'Cancel',
+      createStandard: 'Create Standard Simulation Study', createIdeal: 'Create Ideal Gas Simulation Study', createHeatCapacity: 'Create Heat Capacity Ratio (Adiabatic)', createHeatCapacityPistonOscillation: 'Create Heat Capacity Ratio (Piston)', rename: 'Rename', delete: 'Delete', confirmDelete: 'Confirm Delete', closeExperiment: 'Close Experiment', confirmCloseRunningExperiment: (name) => 'The experiment is running. Close ' + name + '?', cancel: 'Cancel',
       locked: 'locked', shown: 'shown', open: 'open', active: 'active', off: 'off', std: 'Standard', ideal: 'Ideal', heat: 'Heat', workspaceAria: 'File workspace', usageHintAria: 'File tree usage hint', clickSelectHint: 'Click to select', doubleClickOpenHint: 'Double-click to open', openActions: (name) => 'Open actions for ' + name,
     },
     panels: {
@@ -3570,7 +3584,7 @@ const getLocalizedWorkbenchEditLabel = (
   const exactCopy = exactCopies[language][label];
   if (exactCopy) return exactCopy;
 
-  const createdFileMatch = /^created (standard|ideal|heatCapacity) file$/.exec(label);
+  const createdFileMatch = /^created (standard|ideal|heatCapacity|heatCapacityPistonOscillation) file$/.exec(label);
   if (createdFileMatch) {
     const kind = createdFileMatch[1] as WorkbenchFileKind;
     if (language === 'zh-CN') {
@@ -4771,6 +4785,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const emptyWorkbenchFile = useMemo(() => createDefaultStandardFile(0), []);
   const isWorkbenchEmpty = files.length === 0;
   const activeFile = files.find((file) => file.id === activeFileId) ?? emptyWorkbenchFile;
+  const effectiveParametersCollapsed = (
+    parametersCollapsed ||
+    activeFile.kind === 'heatCapacityPistonOscillation'
+  );
   const activeHeatCapacityPressureAlarmVisible = heatCapacityPressureAlarmVisible &&
     activeFile.kind === 'heatCapacity' &&
     heatCapacityPressureAlarmFileIdRef.current === activeFile.id;
@@ -4799,13 +4817,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
     () => getHeatCapacityRealtimeCopy(settingsLanguagePreference),
     [settingsLanguagePreference],
   );
+  const pistonOscillationCopy = getPistonOscillationShellCopy(settingsLanguagePreference);
   const heatCapacityPanels = useMemo(
     () => createHeatCapacityPanels(workbenchCopy, heatCapacityRealtimeCopy),
     [heatCapacityRealtimeCopy, workbenchCopy],
   );
   const pistonOscillationPanels = useMemo(
-    () => createHeatCapacityPanels(workbenchCopy, heatCapacityRealtimeCopy)
-      .filter((panel) => panel.key === 'preview' || panel.key === 'realtime'),
+    () => createHeatCapacityPanels(workbenchCopy, heatCapacityRealtimeCopy),
     [heatCapacityRealtimeCopy, workbenchCopy],
   );
   const resultsSections = useMemo(() => createResultsSections(workbenchCopy), [workbenchCopy]);
@@ -4837,6 +4855,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       panel.key !== 'realtime' &&
       !(activeFile.kind === 'ideal' && isIdealResultWindowKey(panel.key)) &&
       !(activeFile.kind === 'heatCapacity' && isHeatCapacityPanelKey(panel.key)) &&
+      !(activeFile.kind === 'heatCapacityPistonOscillation' && isHeatCapacityPanelKey(panel.key)) &&
       activeFile.visiblePanels.includes(panel.key)
     ),
   );
@@ -5845,7 +5864,24 @@ const WorkbenchStudioPrototype: React.FC = () => {
     pushLog((language) => `${activeFile.name}: ${getMessage(language) ?? message}`, 'warning');
   };
 
+  const showPistonOscillationDevelopmentNotice = (
+    target: keyof typeof pistonOscillationCopy.unavailable,
+  ) => {
+    const message = pistonOscillationCopy.unavailable[target];
+    setScanInputToast(message);
+    pushLog(
+      (language) => (
+        `${activeFile.name}: ${getPistonOscillationShellCopy(language).unavailable[target]}`
+      ),
+      'warning',
+    );
+  };
+
   const openParameterSidebarFromRail = () => {
+    if (activeFile.kind === 'heatCapacityPistonOscillation') {
+      showPistonOscillationDevelopmentNotice('rightSidebar');
+      return;
+    }
     if (shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(activeFile)) {
       showParameterSidebarBlockReason(
         (language) => getHeatCapacityRealtimeCopy(language).freePowerOffBeforeNextGroup,
@@ -14685,6 +14721,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const openPanel = (panel: WorkbenchPanelKey) => {
+    if (isPistonOscillationDevelopmentPanelKey(activeFile, panel)) {
+      showPistonOscillationDevelopmentNotice('navigationItem');
+      return;
+    }
     setSelectedPanel(panel);
     if (LOCKED_PANEL_KEYS.includes(panel)) {
       handleLockedPanel(availablePanels.find((item) => item.key === panel)?.title ?? panel);
@@ -14738,6 +14778,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const closePanel = (panel: WorkbenchPanelKey, recordUndo = true) => {
+    if (isPistonOscillationDevelopmentPanelKey(activeFile, panel)) {
+      showPistonOscillationDevelopmentNotice('navigationItem');
+      return;
+    }
     if (LOCKED_PANEL_KEYS.includes(panel)) {
       handleLockedPanel(availablePanels.find((item) => item.key === panel)?.title ?? panel);
       return;
@@ -14782,6 +14826,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const togglePanel = (panel: WorkbenchPanelKey) => {
+    if (isPistonOscillationDevelopmentPanelKey(activeFile, panel)) {
+      showPistonOscillationDevelopmentNotice('navigationItem');
+      return;
+    }
     if (LOCKED_PANEL_KEYS.includes(panel)) {
       setSelectedPanel(panel);
       handleLockedPanel(availablePanels.find((item) => item.key === panel)?.title ?? panel);
@@ -14800,6 +14848,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   );
 
   const toggleWindowPanel = (panel: WorkbenchPanelKey) => {
+    if (isPistonOscillationDevelopmentPanelKey(activeFile, panel)) {
+      showPistonOscillationDevelopmentNotice('navigationItem');
+      return;
+    }
     if (LOCKED_PANEL_KEYS.includes(panel)) {
       setSelectedPanel(panel);
       handleLockedPanel(availablePanels.find((item) => item.key === panel)?.title ?? panel);
@@ -16759,8 +16811,24 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const renderPreviewPanel = () => (
-    <div className={`studio-preview ${activeFile.kind === 'heatCapacity' ? 'studio-preview-heat-capacity' : ''}`}>
-      <div className={`studio-preview-stage ${activeFile.kind === 'heatCapacity' ? 'studio-heat-preview-stage' : ''}`}>
+    <div
+      className={`studio-preview ${
+        activeFile.kind === 'heatCapacity'
+          ? 'studio-preview-heat-capacity'
+          : activeFile.kind === 'heatCapacityPistonOscillation'
+            ? 'studio-preview-piston-oscillation'
+            : ''
+      }`}
+    >
+      <div
+        className={`studio-preview-stage ${
+          activeFile.kind === 'heatCapacity'
+            ? 'studio-heat-preview-stage'
+            : activeFile.kind === 'heatCapacityPistonOscillation'
+              ? 'studio-piston-oscillation-preview-stage'
+              : ''
+        }`}
+      >
         {activeFile.kind === 'heatCapacity' ? (
           <div
             className="studio-heat-preview-mount"
@@ -17623,17 +17691,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             })()}
           </div>
         ) : activeFile.kind === 'heatCapacityPistonOscillation' ? (
-          <div
-            className="studio-canvas-host studio-piston-oscillation-placeholder"
-            data-piston-oscillation-preview="placeholder"
-          >
-            <div className="studio-empty">
-              <div>
-                <strong>Piston Oscillation</strong>
-                <p>3D model preview is being prepared.</p>
-              </div>
-            </div>
-          </div>
+          <PistonOscillationPreviewPlaceholder language={settingsLanguagePreference} />
         ) : (
         <div className="studio-canvas-host">
           <SimulationCanvas
@@ -17931,15 +17989,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const renderRealtimePanel = () => (
     activeFile.kind === 'heatCapacityPistonOscillation' ? (
       <div
-        className="studio-realtime-panel studio-piston-oscillation-placeholder"
+        className="studio-realtime-panel studio-realtime-panel-piston-oscillation"
         data-piston-oscillation-realtime="placeholder"
       >
-        <div className="studio-empty">
-          <div>
-            <strong>In development</strong>
-            <p>Realtime data is temporarily unavailable.</p>
-          </div>
-        </div>
+        <PistonOscillationRealtimeUnavailable language={settingsLanguagePreference} />
       </div>
     ) : activeFile.kind === 'heatCapacity' ? renderHeatCapacityRealtimePanel() : (
     <div className={`studio-realtime-panel ${activeFile.kind === 'ideal' ? 'studio-realtime-panel-ideal' : 'studio-realtime-panel-standard'}`}>
@@ -19689,7 +19742,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
         })
       : [];
   const topMenuWindowPanels = availablePanels
-    .filter((panel) => !(activeFile.kind === 'ideal' && isIdealResultWindowKey(panel.key)))
+    .filter((panel) => (
+      !(activeFile.kind === 'ideal' && isIdealResultWindowKey(panel.key)) &&
+      !isPistonOscillationDevelopmentPanelKey(activeFile, panel.key)
+    ))
     .map((panel) => {
       const locked = LOCKED_PANEL_KEYS.includes(panel.key);
       const visible = isWindowPanelVisible(panel.key);
@@ -20113,20 +20169,27 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 ) : availablePanels.filter((panel) => !(activeFile.kind === 'ideal' && isIdealResultWindowKey(panel.key))).map((panel) => {
                   const visible = activeFile.visiblePanels.includes(panel.key);
                   const locked = LOCKED_PANEL_KEYS.includes(panel.key);
+                  const developmentUnavailable = isPistonOscillationDevelopmentPanelKey(activeFile, panel.key);
                   return (
                     <React.Fragment key={panel.key}>
                       <div
                         role="button"
                         tabIndex={panelsSectionCollapsed ? -1 : 0}
-                        className={`studio-tree-row studio-tree-row-child ${selectedPanel === panel.key ? 'studio-panel-row-active' : ''}`}
+                        data-development-unavailable={developmentUnavailable || undefined}
+                        className={`studio-tree-row studio-tree-row-child ${
+                          developmentUnavailable ? 'studio-panel-row-development' : ''
+                        } ${selectedPanel === panel.key ? 'studio-panel-row-active' : ''}`}
                         onClick={() => {
                           if (panelsSectionCollapsed) return;
+                          if (developmentUnavailable) return;
                           setSelectedPanel(panel.key);
                           if (locked) handleLockedPanel(panel.title);
                         }}
                         onDoubleClick={() => {
                           if (panelsSectionCollapsed) return;
-                          if (locked) {
+                          if (developmentUnavailable) {
+                            showPistonOscillationDevelopmentNotice('navigationItem');
+                          } else if (locked) {
                             handleLockedPanel(panel.title);
                           } else if (panel.key === 'results' && activeFile.kind === 'ideal') {
                             openIdealResultsWindow('experimentPoints', true);
@@ -20135,7 +20198,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
                           }
                         }}
                         onKeyDown={(event) => handleSectionKeyDown(event, () => {
-                          if (locked) {
+                          if (developmentUnavailable) {
+                            showPistonOscillationDevelopmentNotice('navigationItem');
+                          } else if (locked) {
                             setSelectedPanel(panel.key);
                             handleLockedPanel(panel.title);
                           } else if (panel.key === 'results') {
@@ -20148,7 +20213,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
                             openPanel(panel.key);
                           }
                         })}
-                        title={locked ? panel.hint : panel.key === 'results' ? `${panel.hint}. ${workbenchCopy.results.resultsOpenHint}` : `${panel.hint}. ${workbenchCopy.results.resultsJumpHint}`}
+                        title={
+                          developmentUnavailable
+                            ? pistonOscillationCopy.unavailable.navigationItem
+                            : locked
+                              ? panel.hint
+                              : panel.key === 'results'
+                                ? `${panel.hint}. ${workbenchCopy.results.resultsOpenHint}`
+                                : `${panel.hint}. ${workbenchCopy.results.resultsJumpHint}`
+                        }
                       >
                         {panel.key === 'results' ? (
                           <button
@@ -20181,7 +20254,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
                             <span>{panel.title}</span>
                           </>
                         )}
-                        {locked ? (
+                        {developmentUnavailable ? (
+                          <span className="studio-tree-meta">{pistonOscillationCopy.developmentBadge}</span>
+                        ) : locked ? (
                           <button
                             type="button"
                             className="studio-panel-lock-button"
@@ -20310,7 +20385,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               ))}
             </div>
 
-            <div className={`studio-workspace-shell ${isWorkbenchEmpty ? 'studio-workspace-shell-empty' : 'studio-workspace-shell-active'} ${!isWorkbenchEmpty && parametersCollapsed ? 'studio-params-collapsed' : ''}`} ref={workspaceShellRef}>
+            <div className={`studio-workspace-shell ${isWorkbenchEmpty ? 'studio-workspace-shell-empty' : 'studio-workspace-shell-active'} ${!isWorkbenchEmpty && effectiveParametersCollapsed ? 'studio-params-collapsed' : ''}`} ref={workspaceShellRef}>
               <div
                 ref={parameterSidebarResizeGhostRef}
                 className="studio-resize-ghost-divider studio-params-sidebar-resize-ghost"
@@ -20374,7 +20449,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 )}
               </div>
 
-              {!isWorkbenchEmpty ? (
+              {!isWorkbenchEmpty && activeFile.kind !== 'heatCapacityPistonOscillation' ? (
               <aside
                 className={`studio-current-params ${currentParameterControlsLocked ? 'studio-current-params-locked' : ''}`}
                 aria-label={workbenchCopy.parameters.title}
@@ -20466,7 +20541,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               </aside>
               ) : null}
 
-              {!isWorkbenchEmpty && parametersCollapsed ? (
+              {!isWorkbenchEmpty && effectiveParametersCollapsed ? (
                 <button type="button" className="studio-rail-button studio-right-rail" onClick={openParameterSidebarFromRail}>
                   {workbenchCopy.parameters.title}
                 </button>
