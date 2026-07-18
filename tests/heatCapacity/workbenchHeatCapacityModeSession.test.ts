@@ -24,6 +24,7 @@ import {
   freezeHeatCapacityFreeParametersForCurrentGroup,
   getHeatCapacityPressureZeroKnobAngleForOffset,
   powerHeatCapacityWorkbenchFile,
+  prepareHeatCapacityAutoDemoReset,
   prepareHeatCapacityAutoDemoStart,
   registerHeatCapacityPumpStroke,
   setHeatCapacityFreeEquilibriumSpeedMultiplier,
@@ -33,6 +34,7 @@ import {
   setHeatCapacityGuidePumpValveOpen,
   setHeatCapacityGuideStopcockOpen,
   setHeatCapacityPressureZeroOffset,
+  setHeatCapacityScriptedStopcockOpen,
   startHeatCapacityGuideWorkbenchState,
   stepHeatCapacityWorkbenchFile,
   type WorkbenchHeatCapacityState,
@@ -96,6 +98,15 @@ const createGuideUiCheckpoint = (
 });
 
 const cloneUnknown = <Value>(value: Value): Value => structuredClone(value);
+
+const FREE_COMMON_PRESSURE_PROJECTION_KEYS = [
+  'pressureInitialBiasMv',
+  'pressureSignalMvRaw',
+  'pressureSignalMvDisplayed',
+  'pressureSignalTargetMv',
+  'pressureSignalRawReadoutMv',
+  'pressureSignalReadoutMv',
+] as const;
 
 const getEntryRecord = (
   store: unknown,
@@ -433,6 +444,48 @@ const freeFixtureClock: GuideFixtureClock = { nowMs: 100 };
 const freeSource = createFreePumpingFixture(createDefaultHeatCapacityFile(1), freeFixtureClock);
 const freeCapturedAtMs = advanceGuideFixtureClock(freeFixtureClock, 10);
 
+for (const index of [1, 2, 3, 20]) {
+  const pristineFreeFile = createDefaultHeatCapacityFile(index);
+  const pristineFreeStore = suspendHeatCapacityModeSession(
+    pristineFreeFile,
+    null,
+    1_000 + index,
+  ).heatCapacityModeSessions;
+  const normalizedPristineFree = normalizeHeatCapacityModeSessionStore(
+    cloneUnknown(pristineFreeStore),
+    pristineFreeFile.id,
+  );
+  assert.equal(
+    normalizedPristineFree.free.status,
+    'suspended',
+    'an untouched power-off Free instrument must remain canonical while its teaching projection stays zero',
+  );
+  assert.deepEqual(
+    normalizedPristineFree.free,
+    pristineFreeStore.free,
+    'the pristine Free exception must preserve the original current-v2 record without rewriting user data',
+  );
+}
+
+const partiallyChangedPristineFreeFile = createDefaultHeatCapacityFile(21);
+const partiallyChangedPristineFreeStore = cloneUnknown(
+  suspendHeatCapacityModeSession(partiallyChangedPristineFreeFile, null, 1_021)
+    .heatCapacityModeSessions,
+);
+const partiallyChangedPristineFreeSnapshot = getEntryRecord(
+  partiallyChangedPristineFreeStore,
+  'free',
+).snapshot as Record<string, unknown>;
+(partiallyChangedPristineFreeSnapshot.common as Record<string, unknown>).pressureSignalMvRaw = 0.01;
+assert.equal(
+  normalizeHeatCapacityModeSessionStore(
+    partiallyChangedPristineFreeStore,
+    partiallyChangedPristineFreeFile.id,
+  ).free.status,
+  'empty',
+  'the pristine Free exception must require all six historical teaching pressure projections to remain exactly zero',
+);
+
 const prePowerZeroSource = adjustHeatCapacityPressureZeroFine(
   createDefaultHeatCapacityFile(92),
   1,
@@ -638,6 +691,24 @@ assert.equal(
     .free.status,
   'suspended',
   'a fully linked Free trial, trace, and standard reference must survive the mode-session boundary',
+);
+
+const progressedFreeWithZeroedCommonProjection = cloneUnknown(semanticFreeStore);
+const progressedFreeSnapshot = getEntryRecord(
+  progressedFreeWithZeroedCommonProjection,
+  'free',
+).snapshot as Record<string, unknown>;
+const progressedFreeCommon = progressedFreeSnapshot.common as Record<string, unknown>;
+for (const key of FREE_COMMON_PRESSURE_PROJECTION_KEYS) {
+  progressedFreeCommon[key] = 0;
+}
+assert.equal(
+  normalizeHeatCapacityModeSessionStore(
+    progressedFreeWithZeroedCommonProjection,
+    semanticFreeSource.id,
+  ).free.status,
+  'empty',
+  'zero pressure projections must never bypass strict validation after Free runtime progress exists',
 );
 
 const incompleteFreeRecordTraceStore = cloneUnknown(semanticFreeStore);
@@ -991,6 +1062,25 @@ const mutatePersistedFreeTraceBranches = (
     mutate(branch);
   });
 };
+
+const currentMarkerShortU1WaitStore = cloneUnknown(semanticFreeStore);
+const currentMarkerU1AtS = completeFreeTrial.u1?.atS;
+assert.equal(typeof currentMarkerU1AtS, 'number');
+mutatePersistedFreeTraceBranches(currentMarkerShortU1WaitStore, (branch) => {
+  const closeEvents = (branch.events as Record<string, unknown>[]).filter((event) => (
+    event.type === 'pump-valve-close'
+    && typeof event.atS === 'number'
+    && event.atS <= (currentMarkerU1AtS as number)
+  ));
+  const lastCloseEvent = closeEvents.at(-1);
+  assert.ok(lastCloseEvent, 'completed current Free trace should include a pump-valve-close anchor');
+  lastCloseEvent.atS = (currentMarkerU1AtS as number) - 299.999;
+});
+assert.equal(
+  normalizeHeatCapacityModeSessionStore(currentMarkerShortU1WaitStore, semanticFreeSource.id).free.status,
+  'empty',
+  'a current config marker must measure the strict U1 wait from pump-valve-close, not the earlier pump stroke',
+);
 
 for (const corruption of [
   {
@@ -1754,11 +1844,179 @@ assert.equal(
   'the five-minute wait must resume from its exact elapsed simulation time',
 );
 
+const demoResetAtMs = restoredGuideAtMs + 500;
+const demoResetSource = {
+  ...createDefaultHeatCapacityFile(1),
+  heatCapacityMode: 'free' as const,
+  heatCapacityPhase: 'readyToPump' as const,
+  powerOn: false,
+  simulationTimeS: 8_863.59,
+  heatCapacityGuideTrial: createHeatCapacityGuideTrial('stale-demo-trial'),
+};
+const demoReset = prepareHeatCapacityAutoDemoReset(demoResetSource, demoResetAtMs, () => 0.75);
+assert.equal(demoReset.heatCapacityMode, 'demo');
+assert.equal(demoReset.heatCapacityPhase, 'powerOff');
+assert.equal(demoReset.powerOn, false);
+assert.equal(demoReset.runState, 'running');
+assert.equal(demoReset.simulationTimeS, 0);
+assert.equal(demoReset.heatCapacityGuideTrial, null);
+const suspendedDemoReset = suspendHeatCapacityModeSession(
+  demoReset,
+  null,
+  demoResetAtMs + 1,
+);
+assert.equal(
+  normalizeHeatCapacityModeSessionStore(
+    cloneUnknown(suspendedDemoReset.heatCapacityModeSessions),
+    demoReset.id,
+  ).demo.status,
+  'suspended',
+  'entering Demo from an operated powered-off Free state must be canonical before the first scripted action',
+);
+
 const demoStartedAtMs = restoredGuideAtMs + 1_000;
 const demoSource = prepareHeatCapacityAutoDemoStart({
   ...createDefaultHeatCapacityFile(1),
   heatCapacityModeSessions: withSuspendedFree.heatCapacityModeSessions,
 }, demoStartedAtMs);
+const firstTickDemo = stepHeatCapacityWorkbenchFile(demoSource, demoStartedAtMs + 16);
+assert.equal(firstTickDemo.simulationTimeS, 0.016);
+assert.equal(
+  firstTickDemo.heatCapacityGuidePhysicsState.simulationTimeS,
+  0,
+  'Demo and Guide use separate runtime engines, so the dormant Guide clock must not be treated as Demo state',
+);
+const firstTickDemoCapturedAtMs = demoStartedAtMs + 20;
+const firstTickDemoSuspended = suspendHeatCapacityModeSession(
+  firstTickDemo,
+  null,
+  firstTickDemoCapturedAtMs,
+);
+const normalizedFirstTickDemoStore = normalizeHeatCapacityModeSessionStore(
+  cloneUnknown(firstTickDemoSuspended.heatCapacityModeSessions),
+  firstTickDemo.id,
+);
+assert.equal(
+  normalizedFirstTickDemoStore.demo.status,
+  'suspended',
+  'a normal Demo runtime tick must remain persistable when its independent Guide engine is dormant',
+);
+const demoTemperatureRoundingBoundary = {
+  ...firstTickDemo,
+  gasTemperatureK: 300.5995,
+  vesselTemperatureReadoutK: 300.6,
+};
+const suspendedDemoTemperatureRoundingBoundary = suspendHeatCapacityModeSession(
+  demoTemperatureRoundingBoundary,
+  null,
+  firstTickDemoCapturedAtMs + 1,
+);
+assert.equal(
+  normalizeHeatCapacityModeSessionStore(
+    cloneUnknown(suspendedDemoTemperatureRoundingBoundary.heatCapacityModeSessions),
+    firstTickDemo.id,
+  ).demo.status,
+  'suspended',
+  'Demo persistence validation must use the same decimal rounding algorithm as the runtime producer',
+);
+const firstTickDemoCommonCorruptions: readonly {
+  label: string;
+  mutate: (common: Record<string, unknown>) => void;
+}[] = [
+  {
+    label: 'absolute pressure',
+    mutate: (common) => {
+      common.gasPressureKPaAbs = (common.gasPressureKPaAbs as number) + 1;
+    },
+  },
+  {
+    label: 'pressure delta',
+    mutate: (common) => {
+      common.pressureDeltaKPa = (common.pressureDeltaKPa as number) + 1;
+    },
+  },
+  {
+    label: 'pressure readout',
+    mutate: (common) => {
+      common.vesselPressureReadoutKPa = (common.vesselPressureReadoutKPa as number) + 1;
+    },
+  },
+  {
+    label: 'temperature projection',
+    mutate: (common) => {
+      common.gasTemperatureK = (common.gasTemperatureK as number) + 1;
+    },
+  },
+  {
+    label: 'powered-off phase',
+    mutate: (common) => {
+      common.heatCapacityPhase = 'powerOff';
+    },
+  },
+  {
+    label: 'power state',
+    mutate: (common) => {
+      common.powerOn = false;
+    },
+  },
+  {
+    label: 'powered pressure display',
+    mutate: (common) => {
+      common.pressureKPa = (common.pressureKPa as number) + 1;
+    },
+  },
+];
+for (const corruption of firstTickDemoCommonCorruptions) {
+  const corruptedStore = cloneUnknown(firstTickDemoSuspended.heatCapacityModeSessions);
+  const corruptedSnapshot = getEntryRecord(corruptedStore, 'demo').snapshot as Record<string, unknown>;
+  corruption.mutate(corruptedSnapshot.common as Record<string, unknown>);
+  assert.equal(
+    normalizeHeatCapacityModeSessionStore(corruptedStore, firstTickDemo.id).demo.status,
+    'empty',
+    `a current Demo ${corruption.label} mismatch must remain rejected`,
+  );
+}
+const restoredFirstTickDemo = restoreHeatCapacityModeSession(
+  firstTickDemoSuspended,
+  'demo',
+  firstTickDemoCapturedAtMs + 1_000,
+);
+assert.equal(
+  restoredFirstTickDemo?.simulationTimeS,
+  firstTickDemo.simulationTimeS,
+  'a saved Demo tick must restore the authoritative Demo simulation clock',
+);
+const reSuspendedFirstTickDemo = suspendHeatCapacityModeSession(
+  restoredFirstTickDemo!,
+  null,
+  firstTickDemoCapturedAtMs + 1_001,
+);
+assert.equal(
+  normalizeHeatCapacityModeSessionStore(
+    cloneUnknown(reSuspendedFirstTickDemo.heatCapacityModeSessions),
+    firstTickDemo.id,
+  ).demo.status,
+  'suspended',
+  'a restored Demo tick must remain canonical when it is saved again',
+);
+const openingDemo = setHeatCapacityScriptedStopcockOpen(
+  firstTickDemo,
+  true,
+  demoStartedAtMs + 20,
+);
+const openingDemoSuspended = suspendHeatCapacityModeSession(
+  openingDemo,
+  null,
+  demoStartedAtMs + 24,
+);
+assert.equal(
+  normalizeHeatCapacityModeSessionStore(
+    cloneUnknown(openingDemoSuspended.heatCapacityModeSessions),
+    openingDemo.id,
+  ).demo.status,
+  'suspended',
+  'a Demo opening release must use the Demo clock instead of the dormant Guide clock',
+);
 const demoCapturedAtMs = demoStartedAtMs + 100;
 const withSuspendedDemo = suspendHeatCapacityModeSession(demoSource, null, demoCapturedAtMs);
 const normalizedDemoStore = normalizeHeatCapacityModeSessionStore(

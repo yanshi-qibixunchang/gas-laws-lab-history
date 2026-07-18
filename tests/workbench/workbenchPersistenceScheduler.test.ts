@@ -55,11 +55,13 @@ const createDeferred = (): Deferred => {
 const firstSave = createDeferred();
 const secondSave = createDeferred();
 const drainCalls: number[] = [];
+const drainStatuses: string[] = [];
 const drainingScheduler = createWorkbenchPersistenceScheduler<number>({
   save: async (value) => {
     drainCalls.push(value);
     await (value === 1 ? firstSave.promise : secondSave.promise);
   },
+  onStatus: (status) => drainStatuses.push(status.state),
   debounceMs: 60_000,
   maxWaitMs: 60_000,
 });
@@ -75,6 +77,11 @@ void secondFlush.then(() => { secondFlushResolved = true; });
 firstSave.resolve();
 await new Promise<void>((resolve) => setImmediate(resolve));
 assert.deepEqual(drainCalls, [1, 2], 'the shared drain should start the newest pending save after the active save');
+assert.deepEqual(
+  drainStatuses,
+  ['pending', 'saving', 'pending', 'pending', 'saving'],
+  'an older verified save must keep the newer requested snapshot pending instead of publishing idle',
+);
 assert.equal(firstFlushResolved, false, 'the first flush must wait for the second save');
 assert.equal(secondFlushResolved, false, 'a concurrent close flush must share the complete drain');
 assert.equal(drainingScheduler.getStatus().state, 'saving');

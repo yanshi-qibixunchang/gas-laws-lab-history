@@ -602,7 +602,10 @@ const areRuntimeNumbersClose = (left: unknown, right: number, tolerance = 0.0000
   typeof left === 'number' && Number.isFinite(left) && Math.abs(left - right) <= tolerance
 );
 
-const roundRuntimeNumber = (value: number, digits: number) => Number(value.toFixed(digits));
+const roundRuntimeNumber = (value: number, digits: number) => {
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+};
 
 const INVALID_RUNTIME_VALUE = Symbol('invalid-heat-capacity-mode-runtime-value');
 type RuntimeValueDecoder = (value: unknown) => unknown | typeof INVALID_RUNTIME_VALUE;
@@ -2044,28 +2047,56 @@ const getFreeTraceBranchSamples = (branch: Record<string, unknown>) => (
   Array.isArray(branch.samples) ? branch.samples.filter(isPlainRecord) : []
 );
 
+export const HEAT_CAPACITY_LEGACY_423_U1_ANCHOR_PROVENANCE =
+  'legacy-4.2.3/u1-pump-stroke-anchor';
+const LEGACY_423_FREE_STOPCOCK_FLOW_RATE = 5.25;
+
+const hasLegacy423U1WaitAnchorProvenance = (
+  traceTrial: Record<string, unknown>,
+  u1RecordEvent: Record<string, unknown> | undefined,
+) => (
+  isPlainRecord(traceTrial.configSnapshot) &&
+  traceTrial.configSnapshot.version === 9 &&
+  isPlainRecord(traceTrial.configSnapshot.physics) &&
+  traceTrial.configSnapshot.physics.stopcockFlowRate === LEGACY_423_FREE_STOPCOCK_FLOW_RATE &&
+  isPlainRecord(u1RecordEvent?.payload) &&
+  u1RecordEvent.payload.hslMigrationProvenance ===
+    HEAT_CAPACITY_LEGACY_423_U1_ANCHOR_PROVENANCE
+);
+
 const isFreeReleaseTraceTimelineValid = (
   trial: Record<string, unknown>,
   traceTrial: Record<string, unknown>,
 ) => {
   if (!isPlainRecord(trial.u1) || !isPlainRecord(trial.u2)) return false;
-  const u1AtS = trial.u1.atS;
-  const u2AtS = trial.u2.atS;
+  const u1 = trial.u1;
+  const u2 = trial.u2;
+  const u1AtS = u1.atS;
+  const u2AtS = u2.atS;
   if (typeof u1AtS !== 'number' || typeof u2AtS !== 'number') return false;
-  const u1Branch = findFreeTraceBranch(traceTrial, trial.u1.traceBranchId);
-  const u2Branch = findFreeTraceBranch(traceTrial, trial.u2.traceBranchId);
+  const u1Branch = findFreeTraceBranch(traceTrial, u1.traceBranchId);
+  const u2Branch = findFreeTraceBranch(traceTrial, u2.traceBranchId);
   if (!u1Branch || !u2Branch) return false;
+  const u1Events = getFreeTraceBranchEvents(u1Branch);
+  const u1RecordEvent = u1Events.find((event) => (
+    event.id === u1.eventId &&
+    event.type === 'record-u1' &&
+    event.traceSampleId === u1.traceSampleId
+  ));
+  const u1WaitAnchorEventType = hasLegacy423U1WaitAnchorProvenance(traceTrial, u1RecordEvent)
+    ? 'pump-stroke'
+    : 'pump-valve-close';
 
-  const pumpCloseEvents = getFreeTraceBranchEvents(u1Branch).filter((event) => (
-    event.type === 'pump-valve-close' &&
+  const u1WaitAnchorEvents = u1Events.filter((event) => (
+    event.type === u1WaitAnchorEventType &&
     typeof event.atS === 'number' &&
     event.atS <= u1AtS + 0.000001
   ));
-  const pumpCloseEvent = pumpCloseEvents[pumpCloseEvents.length - 1];
+  const u1WaitAnchorEvent = u1WaitAnchorEvents[u1WaitAnchorEvents.length - 1];
   if (
-    !pumpCloseEvent ||
-    typeof pumpCloseEvent.atS !== 'number' ||
-    u1AtS - pumpCloseEvent.atS + 0.000001 < HEAT_CAPACITY_FREE_ATTEMPT_TARGET_WAIT_S
+    !u1WaitAnchorEvent ||
+    typeof u1WaitAnchorEvent.atS !== 'number' ||
+    u1AtS - u1WaitAnchorEvent.atS + 0.000001 < HEAT_CAPACITY_FREE_ATTEMPT_TARGET_WAIT_S
   ) return false;
 
   const u2Events = getFreeTraceBranchEvents(u2Branch);
@@ -2961,6 +2992,172 @@ const FREE_RUNTIME_DOMAIN_FIELD_PAIRS = [
   ['heatCapacityFreeActiveAttempt', 'activeAttempt'],
 ] as const;
 
+const isPristineHeatCapacityReleaseState = (
+  releaseState: HeatCapacityReleaseState,
+) => (
+  releaseState.phase === 'closed' &&
+  releaseState.purpose === 'none' &&
+  releaseState.attemptId === 0 &&
+  releaseState.phaseStartedAtS === 0 &&
+  releaseState.openingStartedAtS === null &&
+  releaseState.openingCompletedAtS === null &&
+  releaseState.closeCommandAtS === null &&
+  releaseState.closingCompletedAtS === null &&
+  releaseState.releaseDurationS === 0 &&
+  releaseState.formedRelease === false &&
+  releaseState.quickToggle === false
+);
+
+const isPristineUninitializedFreeDomain = (
+  domain: HeatCapacityFreeExperimentDomainState,
+) => {
+  const physicsState = domain.physicsState;
+  const sensorState = domain.sensorState;
+  const calibrationState = domain.calibrationState;
+  const pressureSample = sensorState.pressureHistory[0];
+  const temperatureSample = sensorState.temperatureHistory[0];
+  return (
+    domain.experimentGroupStatus === 'draft' &&
+    domain.activeRunConfigSnapshot === null &&
+    domain.activeAttempt === null &&
+    domain.trials.length === 0 &&
+    domain.traceStore.activeTraceTrialId === null &&
+    domain.traceStore.nextTraceTrialIndex === 1 &&
+    domain.traceStore.traceTrials.length === 0 &&
+    physicsState.simulationTimeS === 0 &&
+    physicsState.gasAmountRatio === 1 &&
+    physicsState.gasTemperatureK === domain.environmentConfig.ambientTemperatureK &&
+    physicsState.wallTemperatureK === domain.environmentConfig.ambientTemperatureK &&
+    physicsState.pumpProcesses.length === 0 &&
+    physicsState.pumpStrokeCount === 0 &&
+    physicsState.lastPumpStrokeAtS === null &&
+    physicsState.lastPumpValveOpenedAtS === null &&
+    physicsState.lastPumpValveClosedAtS === null &&
+    physicsState.currentPumpValveOpenDurationS === 0 &&
+    physicsState.ambientPressureOffsetKPa === 0 &&
+    physicsState.ambientTemperatureOffsetK === 0 &&
+    physicsState.effectiveAmbientPressureKPa === domain.environmentConfig.ambientPressureKPa &&
+    physicsState.effectiveAmbientTemperatureK === domain.environmentConfig.ambientTemperatureK &&
+    physicsState.maxPressureKPa === domain.environmentConfig.ambientPressureKPa &&
+    physicsState.releaseStarted === false &&
+    physicsState.lastStopcockOpenedAtS === null &&
+    physicsState.lastStopcockClosedAtS === null &&
+    physicsState.currentStopcockOpenDurationS === 0 &&
+    physicsState.releaseReference === null &&
+    sensorState.nextSampleAtS === 0 &&
+    sensorState.pressureHistory.length === 1 &&
+    pressureSample?.atS === 0 &&
+    pressureSample.valueMv === sensorState.displayPressureMv &&
+    sensorState.temperatureHistory.length === 1 &&
+    temperatureSample?.atS === 0 &&
+    temperatureSample.valueMv === sensorState.displayTemperatureMv &&
+    sensorState.pressureSlopeMvPerS === 0 &&
+    sensorState.temperatureSlopeMvPerS === 0 &&
+    sensorState.pressureReliability === 1 &&
+    sensorState.pressureNonlinearErrorMv === 0 &&
+    sensorState.pressureStochasticErrorMv === 0 &&
+    calibrationState.calibrationVersion === 0 &&
+    calibrationState.zeroOffsetMv === 0 &&
+    calibrationState.zeroEvents.length === 0 &&
+    calibrationState.automaticU0 === null &&
+    isPristineHeatCapacityReleaseState(domain.releaseState) &&
+    domain.rollbackSnapshots.afterPowerOn === null &&
+    domain.rollbackSnapshots.beforePump === null &&
+    domain.rollbackSnapshots.beforeRelease === null
+  );
+};
+
+const hasPristineUninitializedFreeCommonSensorProjection = ({
+  runtime,
+  common,
+  activeDomain,
+  sensorDisplayPressureMv,
+}: {
+  runtime: Record<string, unknown>;
+  common: Record<string, unknown>;
+  activeDomain: HeatCapacityFreeExperimentDomainState;
+  sensorDisplayPressureMv: number;
+}) => {
+  const realDomain = runtime.heatCapacityFreeRealDomain as HeatCapacityFreeExperimentDomainState;
+  const idealDomain = runtime.heatCapacityFreeIdealDomain as HeatCapacityFreeExperimentDomainState;
+  const releaseState = common.heatCapacityReleaseState as HeatCapacityReleaseState;
+  const sensorState = activeDomain.sensorState;
+  const processSamples = common.heatCapacityProcessSamples;
+  const recordedPressures = common.recordedPressures;
+  const acknowledgements = runtime.heatCapacityFreeFileAcknowledgements;
+  return (
+    runtime.heatCapacityFreePreheatCompleted === false &&
+    runtime.heatCapacityFreeExperimentGroupStatus === 'draft' &&
+    runtime.heatCapacityFreeActiveRunConfigSnapshot === null &&
+    runtime.heatCapacityFreeParameterScheme === 'real' &&
+    runtime.heatCapacityFreeDisplayScheme === 'real' &&
+    runtime.heatCapacityFreeActiveAttempt === null &&
+    Array.isArray(runtime.heatCapacityFreeTrials) &&
+    runtime.heatCapacityFreeTrials.length === 0 &&
+    isPlainRecord(runtime.heatCapacityFreeTraceStore) &&
+    runtime.heatCapacityFreeTraceStore.activeTraceTrialId === null &&
+    runtime.heatCapacityFreeTraceStore.nextTraceTrialIndex === 1 &&
+    Array.isArray(runtime.heatCapacityFreeTraceStore.traceTrials) &&
+    runtime.heatCapacityFreeTraceStore.traceTrials.length === 0 &&
+    isPlainRecord(acknowledgements) &&
+    acknowledgements.advancedParametersRisk === false &&
+    acknowledgements.idealParameterProfileIntro === false &&
+    isPristineUninitializedFreeDomain(realDomain) &&
+    isPristineUninitializedFreeDomain(idealDomain) &&
+    sensorState.pressureInitialBiasMv !== 0 &&
+    sensorState.displayPressureMv === sensorState.pressureInitialBiasMv &&
+    sensorDisplayPressureMv === sensorState.pressureInitialBiasMv &&
+    common.runState === 'idle' &&
+    common.heatCapacityTeachingStatus === 'idle' &&
+    common.heatCapacityExperimentSeed === null &&
+    common.heatCapacityExperimentProfile === null &&
+    common.powerOn === false &&
+    common.heatCapacityPhase === 'powerOff' &&
+    common.simulationTimeS === 0 &&
+    common.lastUpdateMs === null &&
+    common.displayResponseLastUpdateMs === null &&
+    common.pressureSignalMv === null &&
+    common.temperatureSignalMv === null &&
+    common.pressureKPa === null &&
+    common.pumpValveOpen === false &&
+    common.pumpValveState === 'closed' &&
+    common.pumpBulbState === 'idle' &&
+    common.pumpStrokeCount === 0 &&
+    Array.isArray(common.pumpStrokeTimestamps) &&
+    common.pumpStrokeTimestamps.length === 0 &&
+    common.lastPumpTime === null &&
+    common.pumpFrequency === 0 &&
+    common.pumpFrequencyStatus === 'idle' &&
+    common.stopcockAngleDeg === 0 &&
+    common.glassPistonState === 'closed' &&
+    isPristineHeatCapacityReleaseState(releaseState) &&
+    common.releaseRecoveryTargetDeltaKPa === null &&
+    common.pressureZeroed === false &&
+    common.pressureZeroAdjusted === false &&
+    common.pressureZeroKnobAngle === 0 &&
+    common.pressureZeroOffset === 0 &&
+    common.pressureZeroAdjustMode === 'none' &&
+    Array.isArray(common.pressureZeroDisplayedSamples) &&
+    common.pressureZeroDisplayedSamples.length === 0 &&
+    common.pressureDisplayJitterOffset === 0 &&
+    common.pressureDisplayNextJitterAtMs === 0 &&
+    common.temperatureDisplayJitterOffset === 0 &&
+    common.temperatureDisplayNextJitterAtMs === 0 &&
+    common.pressureInitialBiasMv === 0 &&
+    common.pressureSignalMvRaw === 0 &&
+    common.pressureSignalMvDisplayed === 0 &&
+    common.pressureSignalTargetMv === 0 &&
+    common.pressureSignalRawReadoutMv === 0 &&
+    common.pressureSignalReadoutMv === 0 &&
+    isPlainRecord(processSamples) &&
+    Object.keys(processSamples).length === 0 &&
+    isPlainRecord(recordedPressures) &&
+    recordedPressures.p0 === common.ambientPressureKPa &&
+    recordedPressures.p1 === null &&
+    recordedPressures.p2 === null
+  );
+};
+
 const isFreeRuntimeProjectionConsistent = (
   runtime: Record<string, unknown>,
   common?: Record<string, unknown>,
@@ -3023,6 +3220,19 @@ const isFreeRuntimeProjectionConsistent = (
       ? activeAttempt.powerOffStartedAtWallClockMs === null
       : activeAttempt.powerOffStartedAtWallClockMs !== null
   );
+  const sensorProjectionValid = (
+    areRuntimeNumbersClose(common.pressureInitialBiasMv, roundRuntimeNumber(sensorState.pressureInitialBiasMv, 3)) &&
+    areRuntimeNumbersClose(common.pressureSignalMvRaw, roundRuntimeNumber(sensorState.displayPressureMv, 4)) &&
+    areRuntimeNumbersClose(common.pressureSignalMvDisplayed, roundRuntimeNumber(sensorDisplay.displayPressureMv, 4)) &&
+    areRuntimeNumbersClose(common.pressureSignalTargetMv, roundRuntimeNumber(sensorDisplay.displayPressureMv, 4)) &&
+    areRuntimeNumbersClose(common.pressureSignalRawReadoutMv, roundRuntimeNumber(sensorState.displayPressureMv, 2)) &&
+    areRuntimeNumbersClose(common.pressureSignalReadoutMv, roundRuntimeNumber(sensorDisplay.displayPressureMv, 2))
+  ) || hasPristineUninitializedFreeCommonSensorProjection({
+    runtime,
+    common,
+    activeDomain: typedDomain,
+    sensorDisplayPressureMv: sensorDisplay.displayPressureMv,
+  });
   const commonPhaseValid = common.powerOn === true
     ? common.heatCapacityPhase === expectedPhysicalPhase
     : common.heatCapacityPhase === 'powerOff' || common.heatCapacityPhase === expectedPhysicalPhase;
@@ -3046,14 +3256,9 @@ const isFreeRuntimeProjectionConsistent = (
     common.ambientTemperatureK === activeDomain.environmentConfig.ambientTemperatureK &&
     common.theoreticalGamma === activeDomain.physicsConfig.gamma &&
     common.pressureSensitivityMvPerKPa === activeDomain.sensorConfig.pressureMvPerKPa &&
-    areRuntimeNumbersClose(common.pressureInitialBiasMv, roundRuntimeNumber(sensorState.pressureInitialBiasMv, 3)) &&
+    sensorProjectionValid &&
     areRuntimeNumbersClose(common.pressureZeroOffset, roundRuntimeNumber(calibrationState.zeroOffsetMv, 3)) &&
-    areRuntimeNumbersClose(common.pressureSignalMvRaw, roundRuntimeNumber(sensorState.displayPressureMv, 4)) &&
-    areRuntimeNumbersClose(common.pressureSignalMvDisplayed, roundRuntimeNumber(sensorDisplay.displayPressureMv, 4)) &&
-    areRuntimeNumbersClose(common.pressureSignalTargetMv, roundRuntimeNumber(sensorDisplay.displayPressureMv, 4)) &&
     areRuntimeNumbersClose(common.temperatureSignalTargetMv, roundRuntimeNumber(sensorDisplay.displayTemperatureMv, 4)) &&
-    areRuntimeNumbersClose(common.pressureSignalRawReadoutMv, roundRuntimeNumber(sensorState.displayPressureMv, 2)) &&
-    areRuntimeNumbersClose(common.pressureSignalReadoutMv, roundRuntimeNumber(sensorDisplay.displayPressureMv, 2)) &&
     areRuntimeNumbersClose(common.gasPressureKPaAbs, roundRuntimeNumber(derived.gasPressureKPa, 4)) &&
     areRuntimeNumbersClose(common.gasTemperatureK, roundRuntimeNumber(physicsState.gasTemperatureK, 4)) &&
     areRuntimeNumbersClose(common.sensorTemperatureK, roundRuntimeNumber(sensorTemperatureK, 4)) &&
@@ -3555,6 +3760,7 @@ const isGuideRuntimeProjectionConsistent = (
   runtime: Record<string, unknown>,
   common: Record<string, unknown>,
   expectedMode: Exclude<HeatCapacityMode, 'free'> | null = null,
+  allowLegacyDemoProjection = false,
 ) => {
   const physicsConfig = runtime.heatCapacityGuidePhysicsConfig;
   const physicsState = runtime.heatCapacityGuidePhysicsState;
@@ -3574,6 +3780,36 @@ const isGuideRuntimeProjectionConsistent = (
   const typedReleaseState = releaseState as unknown as HeatCapacityReleaseState;
   const synchronizedPhysicsState = migrateGuidePhysicsState(typedPhysicsState, typedPhysicsConfig);
   const derived = deriveGuidePhysicalState(synchronizedPhysicsState, typedPhysicsConfig);
+  const demoCommonProjectionValid = expectedMode !== 'demo' ||
+    allowLegacyDemoProjection || (
+    typeof common.ambientPressureKPa === 'number' &&
+    typeof common.gasPressureKPaAbs === 'number' &&
+    typeof common.gasTemperatureK === 'number' &&
+    (
+      common.powerOn === true
+        ? common.heatCapacityPhase !== 'powerOff' &&
+          areRuntimeNumbersClose(
+            common.pressureKPa,
+            roundRuntimeNumber(common.gasPressureKPaAbs, 2),
+          )
+        : common.heatCapacityPhase === 'powerOff' && common.pressureKPa === null
+    ) &&
+    areRuntimeNumbersClose(
+      common.pressureDeltaKPa,
+      roundRuntimeNumber(Math.max(
+        0,
+        common.gasPressureKPaAbs - common.ambientPressureKPa,
+      ), 4),
+    ) &&
+    areRuntimeNumbersClose(
+      common.vesselPressureReadoutKPa,
+      roundRuntimeNumber(common.gasPressureKPaAbs, 2),
+    ) &&
+    areRuntimeNumbersClose(
+      common.vesselTemperatureReadoutK,
+      roundRuntimeNumber(common.gasTemperatureK, 3),
+    )
+  );
   const guideProjectionValid = expectedMode !== 'demo' &&
     common.powerOn === (typedWorkflow.step !== 'powerRequired' && typedWorkflow.step !== 'completed') &&
     isGuideWorkflowTrialSemanticsValid(
@@ -3611,25 +3847,37 @@ const isGuideRuntimeProjectionConsistent = (
     )) &&
     common.pumpValveState === (common.pumpValveOpen === true ? 'open' : 'closed') &&
     isGuideWorkflowStateSemanticallyValid(typedWorkflow);
-  const checks = {
+  const modeOwnChecks = {
     modeProjection: expectedMode === 'demo' ? demoProjectionValid : guideProjectionValid,
+    demoCommonProjection: demoCommonProjectionValid,
     trialSource: typedTrial === null || expectedMode === null || typedTrial.source === expectedMode,
     thermodynamicProjection: isGuideThermodynamicProjectionConsistent(typedPhysicsState, typedPhysicsConfig),
     physicsTimeline: isPhysicsTimelineWithinSimulationTime(typedPhysicsState),
     releaseTimeline: isReleaseTimelineWithinSimulationTime(
       typedReleaseState,
-      typedPhysicsState.simulationTimeS,
-    ),
-    releasePhysicsProjection: isReleasePhysicsProjectionConsistent(typedPhysicsState, typedReleaseState),
-    physicsControlTiming: isPhysicsControlTimingProjectionConsistent(
-      typedPhysicsState,
-      common.pumpValveOpen as boolean,
-      isHeatCapacityReleaseFlowOpen(typedReleaseState),
+      expectedMode === 'demo'
+        ? common.simulationTimeS as number
+        : typedPhysicsState.simulationTimeS,
     ),
     stopcockProjection: isGuideStopcockProjectionConsistent(
       typedReleaseState,
       common.glassPistonState,
       common.stopcockAngleDeg,
+    ),
+  };
+  if (expectedMode === 'demo') {
+    // Demo is driven by the teaching runtime stored in `common`; the Guide
+    // physics engine remains dormant and intentionally keeps its own clock.
+    // Validate each engine and Demo's own release projection, but never require
+    // the two independent engines to share thermodynamic or timing projections.
+    return Object.values(modeOwnChecks).every(Boolean);
+  }
+  const guideCrossProjectionChecks = {
+    releasePhysicsProjection: isReleasePhysicsProjectionConsistent(typedPhysicsState, typedReleaseState),
+    physicsControlTiming: isPhysicsControlTimingProjectionConsistent(
+      typedPhysicsState,
+      common.pumpValveOpen as boolean,
+      isHeatCapacityReleaseFlowOpen(typedReleaseState),
     ),
     ambientPressure: common.ambientPressureKPa === physicsConfig.environment.ambientPressureKPa,
     ambientTemperature: common.ambientTemperatureK === physicsConfig.environment.ambientTemperatureK,
@@ -3651,7 +3899,8 @@ const isGuideRuntimeProjectionConsistent = (
       roundRuntimeNumber(synchronizedPhysicsState.gasTemperatureK, 3),
     ),
   };
-  return Object.values(checks).every(Boolean);
+  return Object.values(modeOwnChecks).every(Boolean) &&
+    Object.values(guideCrossProjectionChecks).every(Boolean);
 };
 
 type HeatCapacityGuideActivePersistenceProjection = {
@@ -3659,6 +3908,8 @@ type HeatCapacityGuideActivePersistenceProjection = {
   teachingStatus: unknown;
   controls: unknown;
   uiReplay: unknown;
+  modeSessions: unknown;
+  allowLegacyDemoProjection?: unknown;
   updatedAtMs: unknown;
 };
 
@@ -3683,6 +3934,87 @@ const isGuideActivePersistenceProjectionConsistent = (
     heatCapacityGuideWorkflow: workflow,
     heatCapacityGuideTrial: value.trial,
   };
+  if (
+    projection.mode === 'demo' &&
+    projection.allowLegacyDemoProjection !== true
+  ) {
+    const modeSessions = isPlainRecord(projection.modeSessions)
+      ? projection.modeSessions
+      : null;
+    const demoEntry = modeSessions && isPlainRecord(modeSessions.demo)
+      ? modeSessions.demo
+      : null;
+    const demoSnapshot = demoEntry && isPlainRecord(demoEntry.snapshot)
+      ? demoEntry.snapshot
+      : null;
+    const demoCommon = demoSnapshot && isPlainRecord(demoSnapshot.common)
+      ? demoSnapshot.common
+      : null;
+    const demoRuntime = demoSnapshot && isPlainRecord(demoSnapshot.demo)
+      ? demoSnapshot.demo
+      : null;
+    const hasCanonicalDemoSnapshot = (
+      !demoEntry ||
+      (demoEntry.status !== 'suspended' && demoEntry.status !== 'completed') ||
+      demoSnapshot?.mode !== 'demo' ||
+      !demoCommon ||
+      !demoRuntime
+    ) === false;
+    if (!hasCanonicalDemoSnapshot) {
+      return false;
+    } else if (
+      !areRuntimeValuesStructurallyEqual(
+        demoRuntime!.heatCapacityGuidePhysicsConfig,
+        value.physicsConfig,
+      ) ||
+      !areRuntimeValuesStructurallyEqual(
+        demoRuntime!.heatCapacityGuidePhysicsState,
+        value.physicsState,
+      ) ||
+      !areRuntimeValuesStructurallyEqual(
+        demoRuntime!.heatCapacityGuideTemperatureSensorState,
+        value.temperatureSensorState,
+      ) ||
+      !areRuntimeValuesStructurallyEqual(
+        demoRuntime!.heatCapacityGuideWorkflow,
+        value.workflow,
+      ) ||
+      !areRuntimeValuesStructurallyEqual(
+        demoRuntime!.heatCapacityGuideTrial,
+        value.trial,
+      ) ||
+      !areRuntimeValuesStructurallyEqual(
+        demoCommon!.heatCapacityReleaseState,
+        releaseState,
+      ) ||
+      demoCommon!.heatCapacityTeachingStatus !== projection.teachingStatus ||
+      demoCommon!.powerOn !== projection.controls.powerOn ||
+      demoCommon!.pumpValveOpen !== projection.controls.pumpValveOpen ||
+      (demoCommon!.glassPistonState === 'open') !== projection.controls.stopcockOpen ||
+      demoCommon!.heatCapacityPhase !== projection.uiReplay.heatCapacityPhase ||
+      !areRuntimeValuesStructurallyEqual(
+        demoCommon!.pressureKPa,
+        projection.uiReplay.pressureKPa,
+      ) ||
+      typeof projection.uiReplay.vesselPressureReadoutKPa !== 'number' ||
+      !areRuntimeNumbersClose(
+        demoCommon!.vesselPressureReadoutKPa,
+        projection.uiReplay.vesselPressureReadoutKPa,
+      ) ||
+      typeof projection.uiReplay.vesselTemperatureReadoutK !== 'number' ||
+      !areRuntimeNumbersClose(
+        demoCommon!.vesselTemperatureReadoutK,
+        projection.uiReplay.vesselTemperatureReadoutK,
+      )
+    ) {
+      return false;
+    }
+    const stopcockShouldBeOpen = releaseState.phase === 'opening' ||
+      releaseState.phase === 'open' ||
+      releaseState.phase === 'releasing';
+    return projection.controls.stopcockOpen === stopcockShouldBeOpen &&
+      isGuideRuntimeProjectionConsistent(runtime, demoCommon!, 'demo');
+  }
   const common = {
     powerOn: projection.controls.powerOn,
     pumpValveOpen: projection.controls.pumpValveOpen,
@@ -3703,6 +4035,7 @@ const isGuideActivePersistenceProjectionConsistent = (
     sensorTemperatureK: temperatureSensorState.temperatureK,
     pressureDeltaKPa: derived.pressureDeltaKPa,
     simulationTimeS: physicsState.simulationTimeS,
+    pressureKPa: projection.uiReplay.pressureKPa,
     vesselPressureReadoutKPa: projection.uiReplay.vesselPressureReadoutKPa,
     vesselTemperatureReadoutK: projection.uiReplay.vesselTemperatureReadoutK,
   };
@@ -3712,7 +4045,12 @@ const isGuideActivePersistenceProjectionConsistent = (
   return projection.controls.stopcockOpen === stopcockShouldBeOpen &&
     (projection.mode !== 'guide' ||
       isGuideReleaseCloseResumeProjectionConsistent(workflow, releaseState, projection.updatedAtMs)) &&
-    isGuideRuntimeProjectionConsistent(runtime, common, projection.mode);
+    isGuideRuntimeProjectionConsistent(
+      runtime,
+      common,
+      projection.mode,
+      projection.allowLegacyDemoProjection === true,
+    );
 };
 
 export const isCanonicalHeatCapacityGuidePersistenceRuntime = (
@@ -3844,7 +4182,9 @@ const normalizeRuntimeSnapshot = (
   }
   const modeKey = expectedMode;
   const storedModeRuntime = value[modeKey];
-  if (!isPlainRecord(storedModeRuntime)) return null;
+  if (!isPlainRecord(storedModeRuntime)) {
+    return null;
+  }
   const modeRuntime = expectedMode === 'free' && options.repairLegacyFreeTiming
     ? repairLegacyFreeRuntimeTiming(storedModeRuntime) ?? storedModeRuntime
     : storedModeRuntime;
@@ -3860,7 +4200,9 @@ const normalizeRuntimeSnapshot = (
     if (!isFreeRuntimeProjectionConsistent(
       canonicalModeRuntime,
       common as unknown as Record<string, unknown>,
-    )) return null;
+    )) {
+      return null;
+    }
     return {
       schemaVersion: HEAT_CAPACITY_MODE_RUNTIME_SNAPSHOT_SCHEMA_VERSION,
       fileId: expectedFileId,
@@ -3876,7 +4218,9 @@ const normalizeRuntimeSnapshot = (
   );
   if (
     guideSignalContext === null
-  ) return null;
+  ) {
+    return null;
+  }
   if (!isGuideTrialSignalSemanticsValid(guideRuntime.heatCapacityGuideTrial, guideSignalContext)) {
     return null;
   }
@@ -3884,7 +4228,9 @@ const normalizeRuntimeSnapshot = (
       canonicalModeRuntime,
       common as unknown as Record<string, unknown>,
       expectedMode,
-    )) return null;
+    )) {
+    return null;
+  }
   return expectedMode === 'guide'
     ? {
         schemaVersion: HEAT_CAPACITY_MODE_RUNTIME_SNAPSHOT_SCHEMA_VERSION,

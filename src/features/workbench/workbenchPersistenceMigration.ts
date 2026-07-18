@@ -16,6 +16,9 @@ import {
   validateHeatCapacityPersistencePayload,
 } from './workbenchHeatCapacityPersistence.ts';
 import {
+  HEAT_CAPACITY_FREE_UI_REPLAY_KEYS,
+} from './workbenchHeatCapacityPersistenceContract.ts';
+import {
   LEGACY_STANDARD_SIMULATION_SCHEMA_VERSION,
   createStandardPersistencePayload,
   restoreStandardFileFromPersistencePayload,
@@ -56,10 +59,12 @@ import {
 import {
   createDefaultHeatCapacityModeSessionStore,
   createHeatCapacityCommonRuntimeShell,
+  HEAT_CAPACITY_LEGACY_423_U1_ANCHOR_PROVENANCE,
   isCanonicalHeatCapacityFreePersistenceRuntime,
   isCanonicalHeatCapacityGuidePersistenceRuntime,
   isHeatCapacityFreeRollbackSnapshotSemanticallyValid,
   normalizeHeatCapacityModeSessionStore,
+  restoreHeatCapacityModeSession,
   suspendHeatCapacityModeSession,
 } from './workbenchHeatCapacityModeSession.ts';
 import type {
@@ -75,6 +80,9 @@ import {
   normalizeHeatCapacityFreeRestoreTraceStore,
   normalizeHeatCapacityFreeRestoreTrial,
 } from './workbenchHeatCapacityFreeRestoreNormalization.ts';
+import {
+  createHeatCapacityFreeConfigSnapshotFromRuntimeConfigs,
+} from './workbenchHeatCapacityFreeConfigSnapshot.ts';
 import {
   createDefaultHeatCapacityGuidePhysicsConfig,
 } from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
@@ -102,12 +110,21 @@ export interface DecodeWorkbenchStorageResult {
   session: WorkbenchSessionState;
   diagnostics: WorkbenchPersistenceDiagnostic[];
   handled: boolean;
+  migrationModeCaptureOverrides: WorkbenchMigrationModeCaptureOverride[];
+}
+
+export interface WorkbenchMigrationModeCaptureOverride {
+  source: 'legacy-4.2.3' | 'public-5.1.1-blank-demo';
+  fileId: string;
+  mode: WorkbenchHeatCapacityState['heatCapacityMode'];
+  capturedAtMs: number;
 }
 
 export interface DecodeWorkbenchClosedFilesStorageResult {
   files: WorkbenchFileState[];
   diagnostics: WorkbenchPersistenceDiagnostic[];
   handled: boolean;
+  migrationModeCaptureOverrides: WorkbenchMigrationModeCaptureOverride[];
 }
 
 const fallbackSession = (): WorkbenchSessionState => ({
@@ -173,11 +190,26 @@ export const encodeWorkbenchStorageEnvelope = (
 ): WorkbenchSessionEnvelopeV2 => ({
   schemaFamily: WORKBENCH_SESSION_SCHEMA_FAMILY,
   schemaVersion: WORKBENCH_SESSION_SCHEMA_VERSION,
-  appVersion: 'development',
+  appVersion: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'development',
   savedAt,
   activeFileId: activeFileId || null,
   selectedPanel,
-  files: files.map((file) => encodeFileEnvelope(file, savedAt)),
+  files: files.map((file) => encodeFileEnvelope(
+    file.kind === 'heatCapacity' &&
+      file.id === activeFileId &&
+      file.heatCapacityMode === 'demo' &&
+      (
+        file.runState === 'running' ||
+        file.heatCapacityModeSessions.demo.status === 'empty'
+      )
+      ? suspendHeatCapacityModeSession(
+          file,
+          file.heatCapacityModeSessions[file.heatCapacityMode].uiCheckpoint,
+          Math.max(savedAt, file.updatedAt),
+        )
+      : file,
+    savedAt,
+  )),
 });
 
 export const encodeWorkbenchClosedFilesStorageEnvelope = (
@@ -186,7 +218,7 @@ export const encodeWorkbenchClosedFilesStorageEnvelope = (
 ): WorkbenchClosedFilesEnvelopeV1 => ({
   schemaFamily: WORKBENCH_CLOSED_FILES_SCHEMA_FAMILY,
   schemaVersion: WORKBENCH_CLOSED_FILES_SCHEMA_VERSION,
-  appVersion: 'development',
+  appVersion: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'development',
   savedAt,
   files: files.map((file) => encodeFileEnvelope(file, savedAt)),
 });
@@ -304,6 +336,41 @@ const hasFiniteFields = (
   fields: readonly string[],
 ) => fields.every((field) => isPersistenceFiniteNumber(value[field]));
 
+const LEGACY_423_FIXED_VESSEL_VOLUME_L = 2;
+const LEGACY_423_FIXED_PUMP_AMOUNT_GAIN_RATIO = 0.00345;
+const LEGACY_423_FIXED_STOPCOCK_FLOW_RATE = 5.25;
+const LEGACY_423_FIXED_PUMP_PRESSURE_LIMIT_KPA = 109;
+const LEGACY_423_FIXED_GAMMA = 1.4;
+const LEGACY_423_FIXED_THERMAL_CONFIG = {
+  gasWallConductanceWPerK: 0.14,
+  wallAmbientConductanceWPerK: 0.45,
+  wallHeatCapacityJPerK: 45,
+  minimumGasHeatCapacityJPerK: 0.1,
+} as const;
+const LEGACY_423_FIXED_PUMP_STROKE_DURATION_S = 0.08;
+const LEGACY_423_FIXED_RECOMMENDED_PUMP_INTERVAL_S = 0.1;
+const LEGACY_423_FIXED_RELEASE_VISUAL_RESPONSE_DELAY_S = 0.02;
+const LEGACY_423_FIXED_RELEASE_VISUAL_MAIN_DURATION_S = 0.18;
+const LEGACY_423_FIXED_PUMP_SENSOR_LAG_RATE = 36;
+const LEGACY_423_FIXED_FAST_PROCESS_SAMPLE_STEP_S = 0.04;
+
+const isLegacy423FixedFreePhysicsConfig = (value: Record<string, unknown>) => (
+  value.vesselVolumeL === LEGACY_423_FIXED_VESSEL_VOLUME_L &&
+  value.pumpAmountGainRatio === LEGACY_423_FIXED_PUMP_AMOUNT_GAIN_RATIO &&
+  value.stopcockFlowRate === LEGACY_423_FIXED_STOPCOCK_FLOW_RATE &&
+  !hasOwn(value, 'pumpWorkRetention')
+);
+
+const isLegacy423FixedGuidePhysicsConfig = (value: Record<string, unknown>) => (
+  isLegacy423FixedFreePhysicsConfig(value) &&
+  value.gamma === LEGACY_423_FIXED_GAMMA &&
+  value.pumpPressureLimitKPa === LEGACY_423_FIXED_PUMP_PRESSURE_LIMIT_KPA &&
+  isRecord(value.thermal) &&
+  Object.entries(LEGACY_423_FIXED_THERMAL_CONFIG).every(([key, expected]) => (
+    value.thermal?.[key] === expected
+  ))
+);
+
 const isLegacy423EnvironmentConfig = (value: unknown) => (
   isRecord(value) &&
   hasFiniteFields(value, ['ambientPressureKPa', 'ambientTemperatureK']) &&
@@ -333,6 +400,7 @@ const isLegacy423PhysicsConfig = (value: unknown) => (
   ]) &&
   (value.vesselVolumeL as number) > 0 &&
   (value.gamma as number) > 1 &&
+  isLegacy423FixedFreePhysicsConfig(value) &&
   isLegacy423ThermalConfig(value.thermal) &&
   isRecord(value.leakage) &&
   typeof value.leakage.enabled === 'boolean' &&
@@ -440,7 +508,8 @@ const isLegacy423GuidePhysicsConfig = (value: unknown) => (
   ]) &&
   (value.vesselVolumeL as number) > 0 &&
   (value.gamma as number) > 1 &&
-  isLegacy423ThermalConfig(value.thermal)
+  isLegacy423ThermalConfig(value.thermal) &&
+  isLegacy423FixedGuidePhysicsConfig(value)
 );
 
 const LEGACY_423_GUIDE_WORKFLOW_STEPS = new Set([
@@ -779,11 +848,24 @@ const isLegacy423ConfigSnapshot = (value: unknown) => {
     ]) &&
     (physics.gamma as number) > 1 &&
     (physics.vesselVolumeL as number) > 0 &&
+    isLegacy423FixedFreePhysicsConfig(physics) &&
+    physics.pumpStrokeDurationS === LEGACY_423_FIXED_PUMP_STROKE_DURATION_S &&
+    physics.recommendedPumpIntervalS === LEGACY_423_FIXED_RECOMMENDED_PUMP_INTERVAL_S &&
+    physics.releaseVisualResponseDelayS === LEGACY_423_FIXED_RELEASE_VISUAL_RESPONSE_DELAY_S &&
+    physics.releaseVisualMainDurationS === LEGACY_423_FIXED_RELEASE_VISUAL_MAIN_DURATION_S &&
+    !hasOwn(physics, 'openingAnimationDurationMs') &&
+    !hasOwn(physics, 'closingAnimationDurationMs') &&
+    !hasOwn(physics, 'releaseApertureRampS') &&
+    !hasOwn(physics, 'releaseOptimalMinS') &&
+    !hasOwn(physics, 'releaseOptimalMaxS') &&
+    !hasOwn(physics, 'autoDemoReleaseDurationS') &&
     isLegacy423ThermalConfig(thermal) &&
     leakage &&
     typeof leakage.enabled === 'boolean' &&
     isPersistenceFiniteNumber(leakage.ratePerS) &&
     isLegacy423SensorConfig(sensor) &&
+    sensor.pumpLagRate === LEGACY_423_FIXED_PUMP_SENSOR_LAG_RATE &&
+    sensor.fastProcessSampleStepS === LEGACY_423_FIXED_FAST_PROCESS_SAMPLE_STEP_S &&
     record &&
     hasFiniteFields(record, [
       'u0ZeroToleranceMv',
@@ -813,7 +895,31 @@ const upgradeLegacy423ConfigSnapshot = (value: unknown) => {
     record: upgradeLegacy423TemperatureRecordConfig(value.record, mapping),
   });
   if (!upgraded) throw new Error('v4.2.3 heat-capacity config snapshot could not be upgraded.');
-  return upgraded;
+  return createHeatCapacityFreeConfigSnapshotFromRuntimeConfigs({
+    environmentConfig: upgraded.environment,
+    physicsConfig: {
+      ...upgraded.physics,
+      environment: upgraded.environment,
+    },
+    sensorConfig: upgraded.sensor,
+    recordConfig: upgraded.record,
+    pressureWarningMv: upgraded.record.pressureWarningMv,
+  });
+};
+
+const alignLegacy423ActiveConfigSnapshot = (
+  value: unknown,
+  physicsConfig: Record<string, unknown>,
+) => {
+  const upgraded = upgradeLegacy423ConfigSnapshot(value);
+  if (upgraded === null) return null;
+  return {
+    ...upgraded,
+    physics: {
+      ...upgraded.physics,
+      stopcockFlowRate: physicsConfig.stopcockFlowRate,
+    },
+  };
 };
 
 const upgradeLegacy423TemperatureRecord = (
@@ -933,7 +1039,15 @@ const upgradeLegacy423TraceBranch = (
   ));
   const existingEvents = branch.events.map((event) => {
     if (!isRecord(event)) throw new Error('v4.2.3 heat-capacity trace event is invalid.');
-    return event;
+    return event.type === 'record-u1'
+      ? {
+          ...event,
+          payload: {
+            ...(isRecord(event.payload) ? event.payload : {}),
+            hslMigrationProvenance: HEAT_CAPACITY_LEGACY_423_U1_ANCHOR_PROVENANCE,
+          },
+        }
+      : event;
   });
   const hasReleaseStart = existingEvents.some((event) => event.type === 'release-start');
   let candidateEvents = existingEvents;
@@ -1356,9 +1470,13 @@ const upgradeLegacy423PhysicsConfig = (value: unknown) => {
   if (!isLegacy423PhysicsConfig(value) || !isRecord(value)) {
     throw new Error('v4.2.3 heat-capacity physics config is invalid.');
   }
+  const current = createDefaultHeatCapacityFile(1).heatCapacityFreePhysicsConfig;
   return {
     ...value,
-    pumpWorkRetention: createDefaultHeatCapacityGuidePhysicsConfig().pumpWorkRetention,
+    vesselVolumeL: current.vesselVolumeL,
+    pumpAmountGainRatio: current.pumpAmountGainRatio,
+    pumpWorkRetention: current.pumpWorkRetention,
+    stopcockFlowRate: current.stopcockFlowRate,
   };
 };
 
@@ -1366,9 +1484,10 @@ const upgradeLegacy423GuidePhysicsConfig = (value: unknown) => {
   if (!isLegacy423GuidePhysicsConfig(value) || !isRecord(value)) {
     throw new Error('v4.2.3 Guide physics config is invalid.');
   }
+  const current = createDefaultHeatCapacityGuidePhysicsConfig();
   return {
-    ...value,
-    pumpWorkRetention: createDefaultHeatCapacityGuidePhysicsConfig().pumpWorkRetention,
+    ...current,
+    environment: value.environment,
   };
 };
 
@@ -1429,6 +1548,23 @@ const upgradeLegacy423ThermodynamicPhysicsState = (
     internalEnergyJ: thermodynamic.internalEnergyJ,
     referenceAmountMol,
     releaseReference,
+  };
+};
+
+const alignLegacy423StopcockTiming = (
+  value: Record<string, unknown>,
+  stopcockFlowOpen: boolean,
+) => {
+  const simulationTimeS = value.simulationTimeS;
+  const lastStopcockOpenedAtS = value.lastStopcockOpenedAtS;
+  if (!isPersistenceFiniteNumber(simulationTimeS)) return value;
+  return {
+    ...value,
+    lastStopcockClosedAtS: stopcockFlowOpen ? null : value.lastStopcockClosedAtS,
+    currentStopcockOpenDurationS: stopcockFlowOpen &&
+      isPersistenceFiniteNumber(lastStopcockOpenedAtS)
+      ? Math.max(0, simulationTimeS - lastStopcockOpenedAtS)
+      : 0,
   };
 };
 
@@ -1810,6 +1946,7 @@ const upgradeLegacy423Domain = (value: unknown) => {
   const physicsConfig = upgradeLegacy423PhysicsConfig(value.physicsConfig) as Record<string, unknown>;
   const sensorMapping = readLegacy423TemperatureSignalMapping(value.sensorConfig);
   const sensorConfig = upgradeLegacy423SensorConfig(value.sensorConfig);
+  const recordConfig = upgradeLegacy423TemperatureRecordConfig(value.recordConfig, sensorMapping);
   const ambientTemperatureK = (physicsConfig.environment as Record<string, unknown>)
     .ambientTemperatureK as number;
   const traceStore = normalizeUpgradedLegacy423TraceStore(
@@ -1821,6 +1958,10 @@ const upgradeLegacy423Domain = (value: unknown) => {
     stopcockFlowOpen,
     stopcockFlowPurpose,
   };
+  const physicsState = alignLegacy423StopcockTiming(
+    upgradeLegacy423ThermodynamicPhysicsState(value.physicsState, physicsConfig, true),
+    stopcockFlowOpen === true,
+  );
   const traceStoreWithCompletion = synchronizeUpgradedLegacy423TraceCompletion(
     traceStore,
     value.trials,
@@ -1837,10 +1978,13 @@ const upgradeLegacy423Domain = (value: unknown) => {
   );
   return {
     ...retained,
-    activeRunConfigSnapshot: upgradeLegacy423ConfigSnapshot(value.activeRunConfigSnapshot),
-    recordConfig: upgradeLegacy423TemperatureRecordConfig(value.recordConfig, sensorMapping),
+    activeRunConfigSnapshot: alignLegacy423ActiveConfigSnapshot(
+      value.activeRunConfigSnapshot,
+      physicsConfig,
+    ),
+    recordConfig,
     physicsConfig,
-    physicsState: upgradeLegacy423ThermodynamicPhysicsState(value.physicsState, physicsConfig, true),
+    physicsState,
     sensorConfig,
     sensorState: upgradeLegacy423SensorState(
       value.sensorState,
@@ -1874,6 +2018,9 @@ const upgradeLegacy423HeatCapacityPayload = (
     ...legacyConfigPhysics,
     environment: legacyConfigEnvironment,
   };
+  const upgradedTopPhysicsConfig = upgradeLegacy423PhysicsConfig(
+    topPhysicsConfig,
+  ) as Record<string, unknown>;
   const topSensorMapping = getLegacy423ConfigTemperatureSignalMapping(legacyConfig);
   if (!topSensorMapping) throw new Error('v4.2.3 top-level sensor mapping is invalid.');
   const uiReplaySensorMapping = payload.mode === 'free'
@@ -1902,11 +2049,23 @@ const upgradeLegacy423HeatCapacityPayload = (
     topSensorMapping,
     legacyConfigEnvironment.ambientTemperatureK as number,
   );
+  const topRecordConfig = upgradeLegacy423TemperatureRecordConfig(
+    free.recordConfig,
+    topSensorMapping,
+  );
   const {
     stopcockFlowOpen,
     stopcockFlowPurpose,
     ...retainedControls
   } = controls;
+  const topRuntime = alignLegacy423StopcockTiming(
+    upgradeLegacy423ThermodynamicPhysicsState(
+      free.runtime,
+      upgradedTopPhysicsConfig,
+      true,
+    ),
+    stopcockFlowOpen === true,
+  );
   const upgradedGuide = guided
     ? (() => {
         const guidePhysicsConfig = upgradeLegacy423GuidePhysicsConfig(guided.physicsConfig);
@@ -1928,7 +2087,10 @@ const upgradeLegacy423HeatCapacityPayload = (
         };
       })()
     : null;
-  const useGuidedReleaseState = payload.mode === 'guide' && guided !== null;
+  const useGuidedReleaseState = (
+    payload.mode === 'guide' ||
+    payload.mode === 'demo'
+  ) && guided !== null;
   const guideWorkflowStep = guided && isRecord(guided.workflow) && typeof guided.workflow.step === 'string'
     ? guided.workflow.step
     : null;
@@ -1967,7 +2129,10 @@ const upgradeLegacy423HeatCapacityPayload = (
           : stopcockFlowPurpose,
       };
   const upgradedReleaseState = createLegacy423ReleaseState(releaseRuntimeSource, releaseControls);
-  const activeGuideProjection = payload.mode === 'guide' && upgradedGuide
+  const activeGuidedProjection = (
+    payload.mode === 'guide' ||
+    payload.mode === 'demo'
+  ) && upgradedGuide
     ? (() => {
         const guidePhysicsConfig = upgradedGuide.physicsConfig as WorkbenchHeatCapacityState[
           'heatCapacityGuidePhysicsConfig'
@@ -1984,7 +2149,7 @@ const upgradeLegacy423HeatCapacityPayload = (
         const powerOn = guideWorkflow.step !== 'powerRequired' && guideWorkflow.step !== 'completed';
         const projectionBase: WorkbenchHeatCapacityState = {
           ...createDefaultHeatCapacityFile(1),
-          heatCapacityMode: 'guide',
+          heatCapacityMode: payload.mode,
           heatCapacityTeachingStatus: guideWorkflow.step === 'completed' ? 'completed' : 'running',
           powerOn,
           heatCapacityReleaseState: upgradedReleaseState,
@@ -2024,8 +2189,8 @@ const upgradeLegacy423HeatCapacityPayload = (
     ...payload,
     common: {
       ...common,
-      ...(activeGuideProjection
-        ? { teachingStatus: activeGuideProjection.heatCapacityTeachingStatus }
+      ...(activeGuidedProjection
+        ? { teachingStatus: activeGuidedProjection.heatCapacityTeachingStatus }
         : payload.mode === 'free'
           ? { teachingStatus: 'idle' as const }
           : {}),
@@ -2039,10 +2204,13 @@ const upgradeLegacy423HeatCapacityPayload = (
       real: upgradeLegacy423Domain(free.real),
       ideal: upgradeLegacy423Domain(free.ideal),
       config: upgradedConfig,
-      activeRunConfigSnapshot: upgradeLegacy423ConfigSnapshot(free.activeRunConfigSnapshot),
+      activeRunConfigSnapshot: alignLegacy423ActiveConfigSnapshot(
+        free.activeRunConfigSnapshot,
+        upgradedTopPhysicsConfig,
+      ),
       parameterDraft: upgradeLegacy423ParameterDraft(free.parameterDraft, topSensorMapping),
-      recordConfig: upgradeLegacy423TemperatureRecordConfig(free.recordConfig, topSensorMapping),
-      runtime: upgradeLegacy423ThermodynamicPhysicsState(free.runtime, topPhysicsConfig, true),
+      recordConfig: topRecordConfig,
+      runtime: topRuntime,
       sensor: topSensorState,
       calibration: upgradeLegacy423CalibrationState(free.calibration, topSensorMapping),
       rollbackSnapshots: upgradeLegacy423RollbackSnapshots(
@@ -2052,12 +2220,12 @@ const upgradeLegacy423HeatCapacityPayload = (
       ),
       traceStore: synchronizedTopTraceStore,
       trials: topTrials,
-      uiReplay: activeGuideProjection
+      uiReplay: activeGuidedProjection
         ? {
             ...upgradedUiReplay,
-            heatCapacityPhase: activeGuideProjection.heatCapacityPhase,
-            vesselPressureReadoutKPa: activeGuideProjection.vesselPressureReadoutKPa,
-            vesselTemperatureReadoutK: activeGuideProjection.vesselTemperatureReadoutK,
+            heatCapacityPhase: activeGuidedProjection.heatCapacityPhase,
+            vesselPressureReadoutKPa: activeGuidedProjection.vesselPressureReadoutKPa,
+            vesselTemperatureReadoutK: activeGuidedProjection.vesselTemperatureReadoutK,
           }
         : {
             ...upgradedUiReplay,
@@ -2065,10 +2233,10 @@ const upgradeLegacy423HeatCapacityPayload = (
           },
       controls: {
         ...retainedControls,
-        ...(activeGuideProjection
+        ...(activeGuidedProjection
           ? {
-              powerOn: activeGuideProjection.powerOn,
-              stopcockOpen: activeGuideProjection.glassPistonState === 'open',
+              powerOn: activeGuidedProjection.powerOn,
+              stopcockOpen: activeGuidedProjection.glassPistonState === 'open',
             }
           : {}),
         releaseState: upgradedReleaseState,
@@ -2120,6 +2288,7 @@ const hasHeatCapacityCollectionParity = (
 const hasCanonicalHeatCapacityRuntimeShape = (
   payload: unknown,
   fileUpdatedAtMs: unknown = null,
+  allowLegacyDemoProjection = false,
 ) => {
   if (!isRecord(payload) || !isRecord(payload.free)) return false;
   const config = isRecord(payload.free.config) ? payload.free.config : null;
@@ -2141,6 +2310,8 @@ const hasCanonicalHeatCapacityRuntimeShape = (
           teachingStatus: common?.teachingStatus,
           controls: payload.free.controls,
           uiReplay: payload.free.uiReplay,
+          modeSessions: common?.modeSessions,
+          allowLegacyDemoProjection,
           updatedAtMs: fileUpdatedAtMs,
         },
       )
@@ -2173,6 +2344,105 @@ const GUIDE_STEPS_AFTER_ZERO = new Set([
   'closePowerRequired',
   'completed',
 ]);
+
+const createPublicBlankDemoUiProjection = (
+  persistedPayload: Record<string, unknown>,
+) => {
+  const free = isRecord(persistedPayload.free) ? persistedPayload.free : null;
+  const uiReplay = free && isRecord(free.uiReplay) ? free.uiReplay : null;
+  if (!uiReplay) return {};
+  const projection = Object.fromEntries(
+    HEAT_CAPACITY_FREE_UI_REPLAY_KEYS
+      .filter((key) => Object.prototype.hasOwnProperty.call(uiReplay, key))
+      .map((key) => [key, uiReplay[key]]),
+  );
+  const rawPressureMv = uiReplay.pressureSignalMvRaw;
+  const targetPressureMv = uiReplay.pressureSignalTargetMv;
+  const zeroOffsetMv = uiReplay.pressureZeroOffset;
+  return {
+    ...projection,
+    ...(
+      isPersistenceFiniteNumber(rawPressureMv) &&
+      isPersistenceFiniteNumber(targetPressureMv) &&
+      isPersistenceFiniteNumber(zeroOffsetMv)
+        ? {
+            pressureInitialBiasMv:
+              targetPressureMv - rawPressureMv - zeroOffsetMv,
+          }
+        : {}
+    ),
+  };
+};
+
+const seedPublicBlankDemoModeSession = (
+  restored: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
+  persistedPayload: Record<string, unknown>,
+  capturedAtMs: number,
+) => {
+  if (
+    restored.heatCapacityMode !== 'demo' ||
+    persistedPayload.guided !== null ||
+    restored.heatCapacityModeSessions.demo.status !== 'empty'
+  ) {
+    return restored;
+  }
+  const commonDefaults = createDefaultHeatCapacityFile(1);
+  const persistedFree = isRecord(persistedPayload.free) ? persistedPayload.free : null;
+  const persistedControls = persistedFree && isRecord(persistedFree.controls)
+    ? persistedFree.controls
+    : null;
+  const persistedReleaseState = persistedControls &&
+    isRecord(persistedControls.releaseState)
+    ? persistedControls.releaseState as unknown as HeatCapacityReleaseState
+    : commonDefaults.heatCapacityReleaseState;
+  const persistedPowerOn = persistedControls?.powerOn === true;
+  const persistedPumpValveOpen = persistedControls?.pumpValveOpen === true;
+  const persistedStopcockOpen = persistedControls?.stopcockOpen === true;
+  const workflow = restored.heatCapacityGuideWorkflow;
+  const physicsState = restored.heatCapacityGuidePhysicsState;
+  const projection = {
+    ...mergeHeatCapacityGuideRuntimeState(
+      {
+        ...restored,
+        heatCapacityMode: 'demo',
+        heatCapacityTeachingStatus: 'running',
+        runState: 'paused',
+        powerOn: persistedPowerOn,
+        glassPistonState: persistedStopcockOpen ? 'open' : 'closed',
+        stopcockAngleDeg: persistedStopcockOpen ? 90 : 0,
+        pumpValveOpen: persistedPumpValveOpen,
+        pumpValveState: persistedPumpValveOpen ? 'open' : 'closed',
+        pumpBulbState: 'idle',
+        heatCapacityReleaseState: persistedReleaseState,
+        pressureZeroed: false,
+        pressureZeroAdjusted: false,
+        displayResponseLastUpdateMs: null,
+      },
+      physicsState,
+      workflow,
+      capturedAtMs,
+    ),
+    ...createPublicBlankDemoUiProjection(persistedPayload),
+    heatCapacityExperimentSeed: restored.heatCapacityExperimentSeed,
+    heatCapacityExperimentProfile: restored.heatCapacityExperimentProfile,
+  };
+  const modeSessions = suspendHeatCapacityModeSession(
+    projection,
+    null,
+    capturedAtMs,
+  ).heatCapacityModeSessions;
+  const normalizedModeSessions = normalizeHeatCapacityModeSessionStore(
+    modeSessions,
+    restored.id,
+  );
+  if (!areCanonicalPersistenceValuesEqual(modeSessions, normalizedModeSessions)) {
+    throw new Error('Public blank Demo state could not be seeded as a canonical mode session.');
+  }
+  return {
+    ...restored,
+    heatCapacityModeSessions: modeSessions,
+  };
+};
 
 const seedLegacy423ModeSessions = (
   restored: Extract<WorkbenchFileState, { kind: 'heatCapacity' }>,
@@ -2229,7 +2499,14 @@ const seedLegacy423ModeSessions = (
 
   const legacyGuided = isRecord(legacyPayload.guided) ? legacyPayload.guided : null;
   if (legacyGuided) {
-    const workflow = restored.heatCapacityGuideWorkflow;
+      const guidedMode = restored.heatCapacityMode === 'demo'
+        ? 'demo' as const
+        : restored.heatCapacityMode === 'guide'
+          ? 'guide' as const
+          : restored.heatCapacityGuideTrial?.source === 'demo'
+            ? 'demo' as const
+            : 'guide' as const;
+      const workflow = restored.heatCapacityGuideWorkflow;
       const physicsState = restored.heatCapacityGuidePhysicsState;
       const lastOpenedAtS = physicsState.lastStopcockOpenedAtS;
       const lastClosedAtS = physicsState.lastStopcockClosedAtS;
@@ -2254,15 +2531,18 @@ const seedLegacy423ModeSessions = (
       });
       const powerOn = workflow.step !== 'powerRequired' && workflow.step !== 'completed';
       const pressureZeroed = GUIDE_STEPS_AFTER_ZERO.has(workflow.step);
-      const guideProjectionBase = restored.heatCapacityMode === 'guide'
+      const guideProjectionBase = restored.heatCapacityMode === guidedMode
         ? {
             ...restored,
             runState: workflow.step === 'completed' ? 'idle' as const : restored.runState,
+            heatCapacityTeachingStatus: workflow.step === 'completed'
+              ? 'completed' as const
+              : 'running' as const,
             heatCapacityReleaseState: releaseState,
           }
         : {
             ...createHeatCapacityCommonRuntimeShell(restored, commonDefaults),
-            heatCapacityMode: 'guide' as const,
+            heatCapacityMode: guidedMode,
             heatCapacityTeachingStatus: workflow.step === 'completed'
               ? 'completed' as const
               : 'running' as const,
@@ -2277,21 +2557,45 @@ const seedLegacy423ModeSessions = (
             pressureZeroAdjusted: pressureZeroed,
             displayResponseLastUpdateMs: null,
           };
-      const guideProjection = mergeHeatCapacityGuideRuntimeState(
+      const mergedGuideProjection = mergeHeatCapacityGuideRuntimeState(
         guideProjectionBase,
         physicsState,
         workflow,
         modeSessionCapturedAtMs,
       );
+      const guideProjection = guidedMode === 'demo'
+        ? {
+            ...mergedGuideProjection,
+            pressureDeltaKPa: Number(Math.max(
+              0,
+              mergedGuideProjection.gasPressureKPaAbs -
+                mergedGuideProjection.ambientPressureKPa,
+            ).toFixed(4)),
+            pressureKPa: mergedGuideProjection.powerOn
+              ? Number(mergedGuideProjection.gasPressureKPaAbs.toFixed(2))
+              : null,
+          }
+        : mergedGuideProjection;
     capture(guideProjection);
   }
 
   return { ...restored, heatCapacityModeSessions: modeSessions };
 };
 
+const isPublic511BlankDemoOmission = (
+  payload: Record<string, unknown>,
+  sourceAppVersion: string,
+) => (
+  sourceAppVersion === 'development' &&
+  !isLegacy423HeatCapacityPayload(payload) &&
+  payload.mode === 'demo' &&
+  payload.guided === null
+);
+
 const restoreHeatCapacityRuntimeFile = (
   fileEnvelope: WorkbenchExperimentFileEnvelopeV1,
   index: number,
+  sourceAppVersion: string,
 ): WorkbenchFileState[] => {
   if (fileEnvelope.kind !== 'heatCapacity') return [];
   const legacy423 = isLegacy423HeatCapacityPayload(fileEnvelope.payload);
@@ -2300,7 +2604,12 @@ const restoreHeatCapacityRuntimeFile = (
     ? upgradeLegacy423HeatCapacityPayload(fileEnvelope.payload)
     : fileEnvelope.payload;
   if (!validateHeatCapacityPersistencePayload(upgradedPayload).valid) return [];
-  if (!hasCanonicalHeatCapacityRuntimeShape(upgradedPayload, fileEnvelope.updatedAt)) return [];
+  const canonicalRuntimeShapeValid = hasCanonicalHeatCapacityRuntimeShape(
+    upgradedPayload,
+    fileEnvelope.updatedAt,
+    legacy423,
+  );
+  if (!canonicalRuntimeShapeValid) return [];
   const payload = migrateLegacyHeatCapacityFocusIdentity(upgradedPayload);
   const common = isRecord(payload.common) ? payload.common : null;
   if (!common || !isRecord(common.modeSessions)) return [];
@@ -2309,37 +2618,77 @@ const restoreHeatCapacityRuntimeFile = (
     fileEnvelope.id,
   );
   if (!areCanonicalPersistenceValuesEqual(common.modeSessions, normalizedModeSessions)) return [];
+  const publicBlankDemoOmission = isPublic511BlankDemoOmission(
+    payload,
+    sourceAppVersion,
+  );
   const canonicalInput = {
     ...payload,
     common: { ...common, modeSessions: normalizedModeSessions },
   };
   const decodedRestored = restoreHeatCapacityFileFromPersistencePayload(fileEnvelope, canonicalInput, index);
-  const restored = legacy423
+  const restoredWithLegacySessions = legacy423
     ? seedLegacy423ModeSessions(decodedRestored, fileEnvelope.payload, fileEnvelope.updatedAt)
     : decodedRestored;
+  const restoredWithSeededSessions = seedPublicBlankDemoModeSession(
+    restoredWithLegacySessions,
+    payload,
+    fileEnvelope.updatedAt,
+  );
+  const activeEntry = restoredWithSeededSessions
+    .heatCapacityModeSessions[restoredWithSeededSessions.heatCapacityMode];
+  const restored = !legacy423 &&
+    restoredWithSeededSessions.heatCapacityMode === 'demo' &&
+    activeEntry.status !== 'empty' &&
+    activeEntry.capturedAtMs !== null
+      ? restoreHeatCapacityModeSession(
+          restoredWithSeededSessions,
+          restoredWithSeededSessions.heatCapacityMode,
+          Math.max(activeEntry.capturedAtMs, fileEnvelope.updatedAt),
+      )
+    : restoredWithSeededSessions;
+  if (!restored) return [];
   if (!hasHeatCapacityCollectionParity(canonicalInput, restored)) return [];
   const canonicalPayload = createHeatCapacityPersistencePayload(restored, fileEnvelope.updatedAt);
   if (!validateHeatCapacityPersistencePayload(canonicalPayload).valid) return [];
-  if (!hasCanonicalHeatCapacityRuntimeShape(canonicalPayload, fileEnvelope.updatedAt)) return [];
+  if (!hasCanonicalHeatCapacityRuntimeShape(
+    canonicalPayload,
+    fileEnvelope.updatedAt,
+    legacy423,
+  )) return [];
   if (!hasHeatCapacityUiReplayParity(canonicalInput, canonicalPayload)) return [];
-  if (!legacy423 && !areCanonicalPersistenceValuesEqual(canonicalInput, canonicalPayload)) return [];
+  if (!legacy423) {
+    const expectedCurrentPayload = publicBlankDemoOmission
+      ? {
+          ...canonicalInput,
+          common: {
+            ...common,
+            modeSessions: canonicalPayload.common.modeSessions,
+          },
+          guided: canonicalPayload.guided,
+        }
+      : canonicalInput;
+    if (!areCanonicalPersistenceValuesEqual(expectedCurrentPayload, canonicalPayload)) return [];
+  }
   return [restored];
 };
 
 interface DecodedWorkbenchFiles {
   files: WorkbenchFileState[];
   diagnostics: WorkbenchPersistenceDiagnostic[];
+  migrationModeCaptureOverrides: WorkbenchMigrationModeCaptureOverride[];
 }
 
 const decodeFilesFromEnvelopes = (
   files: WorkbenchExperimentFileEnvelopeV1[],
+  sourceAppVersion: string,
 ): DecodedWorkbenchFiles => files.reduce<DecodedWorkbenchFiles>((decoded, fileEnvelope, index) => {
   try {
     const restoredFiles = fileEnvelope.kind === 'standard'
       ? restoreStandardFile(fileEnvelope, index + 1)
       : fileEnvelope.kind === 'ideal'
         ? restoreIdealGasFile(fileEnvelope, index + 1)
-        : restoreHeatCapacityRuntimeFile(fileEnvelope, index + 1);
+        : restoreHeatCapacityRuntimeFile(fileEnvelope, index + 1, sourceAppVersion);
     if (restoredFiles.length === 0) {
       decoded.diagnostics.push({
         level: 'error',
@@ -2350,6 +2699,33 @@ const decodeFilesFromEnvelopes = (
       return decoded;
     }
     decoded.files.push(...restoredFiles);
+    if (
+      fileEnvelope.kind === 'heatCapacity' &&
+      (
+        isLegacy423HeatCapacityPayload(fileEnvelope.payload) ||
+        isPublic511BlankDemoOmission(fileEnvelope.payload, sourceAppVersion)
+      )
+    ) {
+      const restoredHeatCapacityFile = restoredFiles.find(
+        (file): file is WorkbenchHeatCapacityState => file.kind === 'heatCapacity',
+      );
+      const activeEntry = restoredHeatCapacityFile
+        ?.heatCapacityModeSessions[restoredHeatCapacityFile.heatCapacityMode];
+      if (
+        restoredHeatCapacityFile &&
+        activeEntry?.status !== 'empty' &&
+        activeEntry.capturedAtMs !== null
+      ) {
+        decoded.migrationModeCaptureOverrides.push({
+          source: isLegacy423HeatCapacityPayload(fileEnvelope.payload)
+            ? 'legacy-4.2.3'
+            : 'public-5.1.1-blank-demo',
+          fileId: restoredHeatCapacityFile.id,
+          mode: restoredHeatCapacityFile.heatCapacityMode,
+          capturedAtMs: activeEntry.capturedAtMs,
+        });
+      }
+    }
   } catch (error) {
     console.error(`[Workbench] Failed to restore experiment file ${fileEnvelope.id}:`, error);
     decoded.diagnostics.push({
@@ -2360,11 +2736,11 @@ const decodeFilesFromEnvelopes = (
     });
   }
   return decoded;
-}, { files: [], diagnostics: [] });
+}, { files: [], diagnostics: [], migrationModeCaptureOverrides: [] });
 
 const decodeEnvelopeAsRuntimeSession = (
   envelope: WorkbenchSessionEnvelopeV2,
-  runtimeFiles = decodeFilesFromEnvelopes(envelope.files).files,
+  runtimeFiles = decodeFilesFromEnvelopes(envelope.files, envelope.appVersion).files,
 ): WorkbenchSessionState => {
   return {
     version: 1,
@@ -2386,14 +2762,16 @@ export const decodeWorkbenchStorageEnvelope = (
         session: fallbackSession(),
         diagnostics: [createUnsupportedFutureDiagnostic(version)],
         handled: true,
+        migrationModeCaptureOverrides: [],
       };
     }
     if (isWorkbenchSessionEnvelope(value)) {
-      const decodedFiles = decodeFilesFromEnvelopes(value.files);
+      const decodedFiles = decodeFilesFromEnvelopes(value.files, value.appVersion);
       return {
         session: decodeEnvelopeAsRuntimeSession(value, decodedFiles.files),
         diagnostics: decodedFiles.diagnostics,
         handled: true,
+        migrationModeCaptureOverrides: decodedFiles.migrationModeCaptureOverrides,
       };
     }
     return {
@@ -2404,12 +2782,14 @@ export const decodeWorkbenchStorageEnvelope = (
         message: 'Workbench session envelope is invalid.',
       }],
       handled: true,
+      migrationModeCaptureOverrides: [],
     };
   }
   return {
     session: fallbackSession(),
     diagnostics: [],
     handled: false,
+    migrationModeCaptureOverrides: [],
   };
 };
 
@@ -2423,14 +2803,16 @@ export const decodeWorkbenchClosedFilesStorageEnvelope = (
         files: [],
         diagnostics: [createUnsupportedFutureDiagnostic(version)],
         handled: true,
+        migrationModeCaptureOverrides: [],
       };
     }
     if (isWorkbenchClosedFilesEnvelope(value)) {
-      const decodedFiles = decodeFilesFromEnvelopes(value.files);
+      const decodedFiles = decodeFilesFromEnvelopes(value.files, value.appVersion);
       return {
         files: decodedFiles.files,
         diagnostics: decodedFiles.diagnostics,
         handled: true,
+        migrationModeCaptureOverrides: decodedFiles.migrationModeCaptureOverrides,
       };
     }
     return {
@@ -2441,11 +2823,13 @@ export const decodeWorkbenchClosedFilesStorageEnvelope = (
         message: 'Workbench closed-files envelope is invalid.',
       }],
       handled: true,
+      migrationModeCaptureOverrides: [],
     };
   }
   return {
     files: [],
     diagnostics: [],
     handled: false,
+    migrationModeCaptureOverrides: [],
   };
 };

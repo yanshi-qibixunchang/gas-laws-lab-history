@@ -61,7 +61,10 @@ export const createWorkbenchPersistenceScheduler = <Snapshot>({
       try {
         await save(producer());
         retryCount = 0;
-        publish({ state: 'idle', savedAtMs: Date.now() });
+        const savedAtMs = Date.now();
+        publish(pendingProducer
+          ? { state: 'pending', savedAtMs }
+          : { state: 'idle', savedAtMs });
         return true;
       } catch (cause) {
         const error = cause instanceof Error ? cause : new Error(String(cause));

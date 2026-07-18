@@ -17,10 +17,12 @@ import { createHeatCapacityModeUiCheckpoint } from '../../src/features/heatCapac
 import {
   adjustHeatCapacityPressureZeroFine,
   createDefaultHeatCapacityFile,
+  powerHeatCapacityWorkbenchFile,
+  stepHeatCapacityWorkbenchFile,
   type WorkbenchHeatCapacityState,
 } from '../../src/features/workbench/workbenchState.ts';
 
-(globalThis as typeof globalThis & { __APP_VERSION__: string }).__APP_VERSION__ = '5.1.1';
+(globalThis as typeof globalThis & { __APP_VERSION__: string }).__APP_VERSION__ = '5.1.2';
 
 const CAPTURED_AT_MS = 10_000;
 const LOADED_AT_MS = 40_000;
@@ -48,27 +50,14 @@ const createFreeUiCheckpoint = (
 });
 
 const createClockBearingFreeFile = (): WorkbenchHeatCapacityState => {
-  const base = createDefaultHeatCapacityFile(1);
-  const activeAttempt = createHeatCapacityFreeAttempt({
-    startReason: 'u0-recorded',
-    preheatOutcome: 'completed',
-    atS: 5,
-    wallClockMs: 1_000,
-    powerOn: false,
-  });
-  return {
-    ...base,
+  const base = {
+    ...createDefaultHeatCapacityFile(1),
     id: 'heat-anchor',
+  };
+  const powered = powerHeatCapacityWorkbenchFile(base, true, 1_000);
+  return {
+    ...stepHeatCapacityWorkbenchFile(powered, 9_000),
     runState: 'running',
-    lastUpdateMs: 9_000,
-    displayResponseLastUpdateMs: 9_100,
-    pressureDisplayNextJitterAtMs: 9_950,
-    temperatureDisplayNextJitterAtMs: 9_960,
-    heatCapacityFreeRealDomain: {
-      ...base.heatCapacityFreeRealDomain,
-      activeAttempt,
-    },
-    heatCapacityFreeActiveAttempt: activeAttempt,
   };
 };
 
@@ -332,11 +321,25 @@ const restoredAtOriginalAnchor = restoreHeatCapacityModeSession(
   deferredRestoreAtMs,
 );
 assert.ok(restoredAtOriginalAnchor);
-assert.equal(restoredAtOriginalAnchor.heatCapacityFreeActiveAttempt?.startedAtWallClockMs, 1_000);
 assert.equal(restoredAtOriginalAnchor.lastUpdateMs, CAPTURED_AT_MS);
 
+const rebaseAttempt = createHeatCapacityFreeAttempt({
+  startReason: 'u0-recorded',
+  preheatOutcome: 'completed',
+  atS: restoredAtOriginalAnchor.heatCapacityFreePhysicsState.simulationTimeS,
+  wallClockMs: 1_000,
+  powerOn: false,
+});
+const restoredWithAttempt = {
+  ...restoredAtOriginalAnchor,
+  heatCapacityFreeRealDomain: {
+    ...restoredAtOriginalAnchor.heatCapacityFreeRealDomain,
+    activeAttempt: rebaseAttempt,
+  },
+  heatCapacityFreeActiveAttempt: rebaseAttempt,
+};
 const readyFile = rebaseHeatCapacityFileAfterSuspendedWallClock(
-  restoredAtOriginalAnchor,
+  restoredWithAttempt,
   CAPTURED_AT_MS,
   SCENE_READY_AT_MS,
 );

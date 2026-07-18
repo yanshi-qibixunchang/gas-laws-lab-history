@@ -15,6 +15,7 @@ import {
   encodeWorkbenchClosedFilesStorageEnvelope,
   decodeWorkbenchClosedFilesStorageEnvelope,
   decodeWorkbenchStorageEnvelope,
+  type WorkbenchMigrationModeCaptureOverride,
 } from './workbenchPersistenceMigration.ts';
 import {
   WORKBENCH_CLOSED_FILES_SCHEMA_FAMILY,
@@ -61,6 +62,7 @@ import {
   createDefaultHeatCapacityFile,
   mergeHeatCapacityGuideRuntimeState,
 } from './workbenchState.ts';
+import { assertUniqueWorkbenchFileCollections } from './workbenchFileIdentity.ts';
 import { isWorkbenchPanelKey } from './workbenchPanelRegistry.ts';
 import { isPersistenceRecord } from './workbenchPersistenceValue.ts';
 import {
@@ -162,6 +164,7 @@ export type WorkbenchWorkspacePersistenceSnapshot = {
   refreshSession: WorkbenchHeatCapacityRefreshSession | null;
   activeModeCheckpoint: HeatCapacityModeUiCheckpoint | null;
   preserveActiveHeatCapacityModeSession: boolean;
+  migrationModeCaptureOverrides?: readonly WorkbenchMigrationModeCaptureOverride[];
 };
 
 export type WorkbenchActiveModeCheckpointOverride = {
@@ -273,6 +276,7 @@ const committedWorkspaceSources = new Map<string, CommittedWorkspaceSourceCache>
 
 const markPersistenceReady = () => {
   persistenceReady = true;
+  scheduleTemporaryNamespaceCleanup();
 };
 
 const requestResult = <Value>(request: IDBRequest<Value>): Promise<Value> => new Promise((resolve, reject) => {
@@ -338,7 +342,7 @@ const openWorkbenchDatabase = (): Promise<IDBDatabase> => {
         settled = true;
         blockedTimeoutId = null;
         reject(new Error(
-          'IndexedDB upgrade is blocked by another app window. Close other Heat Capacity Ratio Lab windows, then retry initialization.',
+          'IndexedDB upgrade is blocked by another app window. Close other Gas Laws Lab windows, then retry initialization.',
         ));
       }, WORKBENCH_INDEXED_DB_BLOCKED_TIMEOUT_MS);
     }, { once: true });
@@ -398,6 +402,20 @@ const modeRecordKey = (namespace: string, fileId: string, mode: HeatCapacityMode
   `${namespace}|${fileId}|${mode}`
 );
 
+const getHeatCapacityPersistenceShellSeed = (fileId: string): number => {
+  const legacyMatch = /^heatCapacity-(\d+)$/.exec(fileId);
+  if (legacyMatch) {
+    const legacyIndex = Number(legacyMatch[1]);
+    if (Number.isSafeInteger(legacyIndex) && legacyIndex > 0) return legacyIndex;
+  }
+  let hash = 2_166_136_261;
+  for (let index = 0; index < fileId.length; index += 1) {
+    hash ^= fileId.charCodeAt(index);
+    hash = Math.imul(hash, 16_777_619);
+  }
+  return (hash >>> 0) + 1;
+};
+
 const isUniqueStringArray = (value: unknown): value is string[] => (
   Array.isArray(value) &&
   value.every((item) => typeof item === 'string') &&
@@ -419,15 +437,13 @@ const areWorkspaceFileIdentitiesValid = (
 const assertDistinctWorkspaceFileCollections = (
   openFiles: WorkbenchFileState[],
   closedFiles: WorkbenchFileState[],
+  activeFileId?: string,
 ) => {
-  const openIds = openFiles.map((file) => file.id);
-  const closedIds = closedFiles.map((file) => file.id);
-  if (new Set(openIds).size !== openIds.length || new Set(closedIds).size !== closedIds.length) {
-    throw new Error('Workspace persistence cannot save duplicate file identities.');
-  }
-  const openIdSet = new Set(openIds);
-  if (closedIds.some((fileId) => openIdSet.has(fileId))) {
-    throw new Error('Workspace persistence cannot save the same file as both open and closed.');
+  try {
+    assertUniqueWorkbenchFileCollections(openFiles, closedFiles, activeFileId);
+  } catch (cause) {
+    const detail = cause instanceof Error ? ` ${cause.message}` : '';
+    throw new Error(`Workspace persistence cannot save invalid file ownership.${detail}`);
   }
 };
 
@@ -538,6 +554,66 @@ export const materializeWorkbenchHeatCapacityModeSessionsForPersistence = ({
   ? suspendHeatCapacityModeSession(file, uiCheckpoint, capturedAtMs).heatCapacityModeSessions
   : file.heatCapacityModeSessions;
 
+const assertCanonicalHeatCapacityModeSessions = (
+  modeSessions: WorkbenchHeatCapacityState['heatCapacityModeSessions'],
+  fileId: string,
+) => {
+  const normalized = normalizeHeatCapacityModeSessionStore(modeSessions, fileId);
+  if (!areCanonicalPersistenceValuesEqual(normalized, modeSessions)) {
+    throw new Error(`Workspace persistence produced a non-canonical heat-capacity mode session: ${fileId}.`);
+  }
+};
+
+const materializeMigrationActiveModeSessionForPersistence = ({
+  file,
+  override,
+  uiCheckpoint,
+  capturedAtMs,
+}: {
+  file: WorkbenchHeatCapacityState;
+  override: WorkbenchMigrationModeCaptureOverride;
+  uiCheckpoint: HeatCapacityModeUiCheckpoint | null;
+  capturedAtMs: number;
+}) => {
+  if (
+    (
+      override.source !== 'legacy-4.2.3' &&
+      override.source !== 'public-5.1.1-blank-demo'
+    ) ||
+    (
+      override.source === 'public-5.1.1-blank-demo' &&
+      override.mode !== 'demo'
+    ) ||
+    override.fileId !== file.id ||
+    override.mode !== file.heatCapacityMode
+  ) {
+    throw new Error('Migration mode-capture override does not match its active heat-capacity file.');
+  }
+  assertCanonicalHeatCapacityModeSessions(file.heatCapacityModeSessions, file.id);
+  const sourceEntry = file.heatCapacityModeSessions[override.mode];
+  if (
+    sourceEntry.status === 'empty' ||
+    sourceEntry.snapshot === null ||
+    sourceEntry.capturedAtMs !== override.capturedAtMs
+  ) {
+    throw new Error('Migration mode-capture override has no matching canonical source entry.');
+  }
+  if (capturedAtMs < override.capturedAtMs) {
+    throw new Error('Migration mode-capture override cannot move its wall clock backwards.');
+  }
+  const restored = restoreHeatCapacityModeSession(file, override.mode, capturedAtMs);
+  if (!restored) {
+    throw new Error('Migration mode-capture override could not restore its canonical source entry.');
+  }
+  const modeSessions = suspendHeatCapacityModeSession(
+    restored,
+    uiCheckpoint,
+    capturedAtMs,
+  ).heatCapacityModeSessions;
+  assertCanonicalHeatCapacityModeSessions(modeSessions, file.id);
+  return modeSessions;
+};
+
 const createCanonicalModeRecords = (
   namespace: string,
   file: WorkbenchHeatCapacityState,
@@ -545,18 +621,27 @@ const createCanonicalModeRecords = (
   options: {
     captureCurrentMode: boolean;
     capturedAtMs?: number;
+    migrationModeCaptureOverride?: WorkbenchMigrationModeCaptureOverride;
   },
 ): HeatCapacityModeSessionRecord[] => {
   const checkpoint = activeModeCheckpoint?.fileId === file.id &&
     activeModeCheckpoint.mode === file.heatCapacityMode
     ? activeModeCheckpoint
     : file.heatCapacityModeSessions[file.heatCapacityMode].uiCheckpoint;
-  const modeSessions = materializeWorkbenchHeatCapacityModeSessionsForPersistence({
-    file,
-    captureCurrentMode: options.captureCurrentMode,
-    uiCheckpoint: checkpoint,
-    capturedAtMs: options.capturedAtMs,
-  });
+  const modeSessions = options.captureCurrentMode && options.migrationModeCaptureOverride
+    ? materializeMigrationActiveModeSessionForPersistence({
+        file,
+        override: options.migrationModeCaptureOverride,
+        uiCheckpoint: checkpoint,
+        capturedAtMs: options.capturedAtMs ?? Date.now(),
+      })
+    : materializeWorkbenchHeatCapacityModeSessionsForPersistence({
+        file,
+        captureCurrentMode: options.captureCurrentMode,
+        uiCheckpoint: checkpoint,
+        capturedAtMs: options.capturedAtMs,
+      });
+  assertCanonicalHeatCapacityModeSessions(modeSessions, file.id);
   return (['demo', 'guide', 'free'] as const).map((mode) => ({
     schemaFamily: MODE_RECORD_SCHEMA_FAMILY,
     key: modeRecordKey(namespace, file.id, mode),
@@ -573,7 +658,7 @@ export const createPersistenceRecords = (
   migrationState: WorkspaceMetaRecord['migrationState'] = 'ready',
 ) => {
   const savedAtMs = Date.now();
-  assertDistinctWorkspaceFileCollections(snapshot.files, snapshot.closedFiles);
+  assertDistinctWorkspaceFileCollections(snapshot.files, snapshot.closedFiles, snapshot.activeFileId);
   if (!isWorkbenchPanelKey(snapshot.selectedPanel)) {
     throw new Error('Workspace persistence cannot save an invalid selected panel.');
   }
@@ -620,15 +705,66 @@ export const createPersistenceRecords = (
       throw new Error('Workspace persistence cannot preserve mismatched refresh and mode-session anchors.');
     }
   }
+  if (refreshMetadata) {
+    const refreshSourceCheckpoint = snapshot.activeModeCheckpoint ??
+      activeHeatCapacityFile?.heatCapacityModeSessions[
+        activeHeatCapacityFile.heatCapacityMode
+      ].uiCheckpoint ??
+      null;
+    assertWorkbenchHeatCapacityRefreshCheckpointMatchesMetadata(
+      refreshSourceCheckpoint,
+      refreshMetadata,
+    );
+  }
   const allFiles = [...snapshot.files, ...snapshot.closedFiles];
-  const fileRecords: WorkspaceFileRecord[] = allFiles.map((file, index) => ({
+  const migrationModeCaptureOverrides = snapshot.migrationModeCaptureOverrides ?? [];
+  if (
+    migrationModeCaptureOverrides.length > 0 &&
+    migrationState !== 'pending-verification'
+  ) {
+    throw new Error('Migration mode capture is only valid during pending migration verification.');
+  }
+  if (snapshot.preserveActiveHeatCapacityModeSession && migrationModeCaptureOverrides.length > 0) {
+    throw new Error('Workspace persistence cannot combine refresh preservation with migration mode capture.');
+  }
+  const migrationModeCaptureOverrideByFileId = new Map<
+    string,
+    WorkbenchMigrationModeCaptureOverride
+  >();
+  for (const override of migrationModeCaptureOverrides) {
+    if (migrationModeCaptureOverrideByFileId.has(override.fileId)) {
+      throw new Error(`Workspace persistence received duplicate migration mode capture: ${override.fileId}.`);
+    }
+    const file = allFiles.find((candidate) => candidate.id === override.fileId);
+    if (
+      (
+        override.source !== 'legacy-4.2.3' &&
+        override.source !== 'public-5.1.1-blank-demo'
+      ) ||
+      (
+        override.source === 'public-5.1.1-blank-demo' &&
+        override.mode !== 'demo'
+      ) ||
+      !file ||
+      file.kind !== 'heatCapacity' ||
+      file.heatCapacityMode !== override.mode ||
+      file.heatCapacityModeSessions[override.mode].capturedAtMs !== override.capturedAtMs
+    ) {
+      throw new Error(`Workspace persistence received an invalid migration mode capture: ${override.fileId}.`);
+    }
+    migrationModeCaptureOverrideByFileId.set(override.fileId, override);
+  }
+  const fileRecords: WorkspaceFileRecord[] = allFiles.map((file) => ({
     schemaFamily: FILE_RECORD_SCHEMA_FAMILY,
     key: fileRecordKey(namespace, file.id),
     namespace,
     fileId: file.id,
     state: createWorkbenchSessionFromRuntimeFiles({
       files: [file.kind === 'heatCapacity'
-      ? createHeatCapacityModeRuntimeShell(file, createDefaultHeatCapacityFile(index + 1))
+        ? createHeatCapacityModeRuntimeShell(
+            file,
+            createDefaultHeatCapacityFile(getHeatCapacityPersistenceShellSeed(file.id)),
+          )
         : file],
       activeFileId: file.id,
       selectedPanel: 'preview',
@@ -641,6 +777,9 @@ export const createPersistenceRecords = (
       captureCurrentMode: activeModeFile && !snapshot.preserveActiveHeatCapacityModeSession,
       capturedAtMs: activeModeFile
         ? refreshMetadata?.capturedAtMs ?? savedAtMs
+        : undefined,
+      migrationModeCaptureOverride: activeModeFile
+        ? migrationModeCaptureOverrideByFileId.get(file.id)
         : undefined,
     });
   });
@@ -704,8 +843,10 @@ const writeWorkbenchWorkspaceToIndexedDb = async (
   const modeKeys = new Set(records.modeRecords.map((record) => record.key));
   const fileRecordsToWrite = records.fileRecords.filter((record) => {
     const source = sourceFileById.get(record.fileId)!;
+    const newFileIdentity = !previousSources?.fileKeys.has(record.key);
     return (
       !previousSources ||
+      newFileIdentity ||
       record.fileId === snapshot.activeFileId ||
       previousSources.fileSources.get(record.key)?.deref() !== source ||
       previousSources.fileTokens.get(record.key) !== getWorkspaceFileSourceToken(source)
@@ -714,6 +855,8 @@ const writeWorkbenchWorkspaceToIndexedDb = async (
   const modeRecordsToWrite = records.modeRecords.filter((record) => {
     const sourceFile = sourceFileById.get(record.fileId);
     if (!sourceFile || sourceFile.kind !== 'heatCapacity') return true;
+    const sourceFileKey = fileRecordKey(namespace, sourceFile.id);
+    const newFileIdentity = !previousSources?.fileKeys.has(sourceFileKey);
     const sourceEntry = sourceFile.heatCapacityModeSessions[record.mode];
     const activeModeRecord = sourceFile.id === snapshot.activeFileId &&
       sourceFile.heatCapacityMode === record.mode;
@@ -725,6 +868,7 @@ const writeWorkbenchWorkspaceToIndexedDb = async (
     );
     return (
       !previousSources ||
+      newFileIdentity ||
       activeModeRecord ||
       currentModeSourceChanged ||
       previousSources.modeSources.get(record.key)?.deref() !== sourceEntry ||
@@ -820,6 +964,14 @@ export const saveWorkbenchWorkspaceToIndexedDb = async (
     activeNamespace,
     writtenRecords.meta.lastSuccessfulSaveAtMs,
   );
+  try {
+    if (!await verifyWrittenWorkspace(database, writtenRecords)) {
+      throw new Error('IndexedDB strict post-commit readback verification failed.');
+    }
+  } catch (cause) {
+    committedWorkspaceSources.delete(activeNamespace);
+    throw cause;
+  }
 };
 
 const normalizeWorkspaceRefreshMetadata = (
@@ -1542,19 +1694,47 @@ const verifyWrittenWorkspace = async (
     ],
     'readonly',
   );
+  const completed = transactionComplete(transaction);
   const metaRequest = requestResult(
     transaction.objectStore(WORKBENCH_WORKSPACE_META_STORE).get(expected.meta.namespace),
   );
   const fileStore = transaction.objectStore(WORKBENCH_FILES_STORE);
   const modeStore = transaction.objectStore(WORKBENCH_HEAT_CAPACITY_MODE_SESSIONS_STORE);
+  const namespaceKeyRange = IDBKeyRange.bound(
+    `${expected.meta.namespace}|`,
+    `${expected.meta.namespace}|\uffff`,
+  );
+  const fileKeysRequest = requestResult(fileStore.getAllKeys(namespaceKeyRange));
+  const modeKeysRequest = requestResult(modeStore.getAllKeys(namespaceKeyRange));
   const fileRequests = expected.fileRecords.map((record) => requestResult(fileStore.get(record.key)));
   const modeRequests = expected.modeRecords.map((record) => requestResult(modeStore.get(record.key)));
-  const [actualMeta, actualFileRecords, actualModeRecords] = await Promise.all([
+  const verificationResults = await Promise.all([
     metaRequest,
+    fileKeysRequest,
+    modeKeysRequest,
     Promise.all(fileRequests),
     Promise.all(modeRequests),
-  ]);
+    completed,
+  ] as const);
+  const [
+    actualMeta,
+    actualFileKeys,
+    actualModeKeys,
+    actualFileRecords,
+    actualModeRecords,
+  ] = verificationResults;
+  const namespacePrefix = `${expected.meta.namespace}|`;
+  const actualNamespaceFileKeys = actualFileKeys
+    .filter((key): key is string => typeof key === 'string' && key.startsWith(namespacePrefix))
+    .sort();
+  const actualNamespaceModeKeys = actualModeKeys
+    .filter((key): key is string => typeof key === 'string' && key.startsWith(namespacePrefix))
+    .sort();
+  const expectedFileKeys = expected.fileRecords.map((record) => record.key).sort();
+  const expectedModeKeys = expected.modeRecords.map((record) => record.key).sort();
   if (!arePersistenceRecordsEquivalent(actualMeta, expected.meta)) return false;
+  if (!arePersistenceRecordsEquivalent(actualNamespaceFileKeys, expectedFileKeys)) return false;
+  if (!arePersistenceRecordsEquivalent(actualNamespaceModeKeys, expectedModeKeys)) return false;
   if (actualFileRecords.some((record, index) => (
     !arePersistenceRecordsEquivalent(record, expected.fileRecords[index])
   ))) return false;
@@ -1569,6 +1749,7 @@ const verifyWrittenWorkspace = async (
   const restoredOpenIds = restored.session.files.map((file) => file.id);
   const restoredClosedIds = restored.closedFiles.map((file) => file.id);
   return (
+    restored.revision === expected.meta.lastSuccessfulSaveAtMs &&
     arePersistenceRecordsEquivalent(restoredOpenIds, expected.meta.openFileIds) &&
     arePersistenceRecordsEquivalent(restoredClosedIds, expected.meta.closedFileIds) &&
     restored.session.activeFileId === (expected.meta.activeFileId ?? '') &&
@@ -1682,12 +1863,17 @@ const cleanupExpiredTemporaryNamespaces = async (
 
 const scheduleTemporaryNamespaceCleanup = () => {
   if (temporaryNamespaceCleanupTimerId !== null) return;
-  temporaryNamespaceCleanupTimerId = window.setInterval(() => {
+  const runCleanup = () => {
+    if (!persistenceReady) return;
     void openWorkbenchDatabase()
       .then((database) => cleanupExpiredTemporaryNamespaces(database, new Set([activeNamespace])))
       .catch((error) => {
         console.error('[Workbench persistence] Temporary namespace cleanup failed.', error);
       });
+  };
+  runCleanup();
+  temporaryNamespaceCleanupTimerId = window.setInterval(() => {
+    runCleanup();
   }, WORKBENCH_TEMP_NAMESPACE_CLEANUP_INTERVAL_MS);
 };
 
@@ -2040,6 +2226,7 @@ const readLegacyWorkspaceForMigration = () => {
     selectedPanel: 'preview',
   });
   let closedFiles: WorkbenchFileState[] = [];
+  let migrationModeCaptureOverrides: WorkbenchMigrationModeCaptureOverride[] = [];
   let parsedSession: unknown = null;
   if (rawSession) {
     parsedSession = JSON.parse(rawSession) as unknown;
@@ -2053,6 +2240,7 @@ const readLegacyWorkspaceForMigration = () => {
       }
       requireLegacyDecodedFileParity(parsedSession.files, decoded.session.files, 'workspace');
       session = decoded.session;
+      migrationModeCaptureOverrides = decoded.migrationModeCaptureOverrides;
     } else {
       if (
         !isPersistenceRecord(parsedSession) ||
@@ -2077,6 +2265,10 @@ const readLegacyWorkspaceForMigration = () => {
       }
       requireLegacyDecodedFileParity(parsed.files, decoded.files, 'closed-files');
       closedFiles = decoded.files;
+      migrationModeCaptureOverrides = [
+        ...migrationModeCaptureOverrides,
+        ...decoded.migrationModeCaptureOverrides,
+      ];
     } else if (Array.isArray(parsed)) {
       const decodedLegacyClosed = decodeWorkbenchSession({
         version: 1,
@@ -2092,7 +2284,7 @@ const readLegacyWorkspaceForMigration = () => {
       throw new Error('Legacy closed-files payload is invalid or unsupported.');
     }
   }
-  assertDistinctWorkspaceFileCollections(session.files, closedFiles);
+  assertDistinctWorkspaceFileCollections(session.files, closedFiles, session.activeFileId);
   let refreshSession = rawRefresh
     ? normalizeWorkbenchHeatCapacityRefreshSession(JSON.parse(rawRefresh) as unknown)
     : null;
@@ -2139,6 +2331,7 @@ const readLegacyWorkspaceForMigration = () => {
     closedFiles,
     refreshSession,
     activeModeCheckpoint,
+    migrationModeCaptureOverrides,
     hasLegacyData: Boolean(rawSession || rawClosed || rawRefresh),
     removeAfterVerifiedWrite: removeLegacyStorageKeys,
   };
@@ -2202,8 +2395,6 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
     activeNamespace = resolveWorkbenchNamespace();
     if (!window.indexedDB) throw new Error('IndexedDB is unavailable in this runtime.');
     database = await openWorkbenchDatabase();
-    await cleanupExpiredTemporaryNamespaces(database, new Set([activeNamespace]));
-    scheduleTemporaryNamespaceCleanup();
     const existingMeta = await readWorkspaceMetaRecord(database, activeNamespace);
     if (existingMeta?.migrationState === 'ready') {
       const restored = await loadWorkspaceFromIndexedDb(database, activeNamespace);
@@ -2253,8 +2444,10 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
         refreshSession: legacyFallback.refreshSession,
         activeModeCheckpoint: legacyFallback.activeModeCheckpoint,
         preserveActiveHeatCapacityModeSession: false,
+        migrationModeCaptureOverrides: legacyFallback.migrationModeCaptureOverrides,
       }, 'pending-verification', null, existingMeta?.lastSuccessfulSaveAtMs ?? null);
       if (!await verifyWrittenWorkspace(database, writtenRecords)) {
+        committedWorkspaceSources.delete(activeNamespace);
         throw new Error('IndexedDB migration verification failed.');
       }
       const cleanupPendingMeta = await updateMigrationState(

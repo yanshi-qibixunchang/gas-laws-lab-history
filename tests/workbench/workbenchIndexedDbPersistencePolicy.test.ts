@@ -16,6 +16,7 @@ import {
 import {
   advanceWorkbenchWorkspaceMetaRevision,
   attachLegacySceneSnapshotToRefreshBootstrap,
+  createPersistenceRecords,
   createWorkbenchActiveModeCheckpointOverride,
   getWorkbenchMigrationConflictRecoveryAction,
   isWorkbenchMigrationStateTransitionCurrent,
@@ -43,6 +44,8 @@ import {
   encodeWorkbenchClosedFilesStorageEnvelope,
 } from '../../src/features/workbench/workbenchPersistenceMigration.ts';
 import * as indexedDbPersistenceModule from '../../src/features/workbench/workbenchIndexedDbPersistence.ts';
+
+(globalThis as typeof globalThis & { __APP_VERSION__: string }).__APP_VERSION__ = '5.1.2';
 
 type NormalizedWorkspaceFileRecord = {
   schemaFamily: string;
@@ -217,6 +220,85 @@ assert.notEqual(shell.heatCapacityFreeTraceStore, active.heatCapacityFreeTraceSt
 assert.equal(shell.heatCapacityModeSessions.free.status, 'empty');
 assert.notEqual(shell.heatCapacityModeSessions, active.heatCapacityModeSessions);
 
+const pristineFreeRecords = createPersistenceRecords('pristine-free-writer-gate', {
+  files: [active],
+  closedFiles: [],
+  activeFileId: active.id,
+  selectedPanel: 'preview',
+  refreshSession: null,
+  activeModeCheckpoint: null,
+  preserveActiveHeatCapacityModeSession: false,
+});
+const pristineFreeRecord = pristineFreeRecords.modeRecords.find((record) => (
+  record.fileId === active.id && record.mode === 'free'
+));
+assert.equal(
+  pristineFreeRecord?.entry.status,
+  'suspended',
+  'normal persistence must capture an untouched Free instrument without producing a self-rejected record',
+);
+assert.equal(
+  normalizeHeatCapacityModeSessionStore({
+    schemaVersion: 2,
+    free: pristineFreeRecord?.entry,
+  }, active.id).free.status,
+  'suspended',
+  'the writer gate must emit a strictly reloadable pristine Free record',
+);
+
+const malformedInactiveModeFile = structuredClone(active);
+malformedInactiveModeFile.heatCapacityModeSessions.demo = {
+  status: 'suspended',
+  resumeRunState: 'idle',
+  capturedAtMs: 1_000,
+  snapshot: null,
+  uiCheckpoint: null,
+};
+assert.throws(
+  () => createPersistenceRecords('noncanonical-mode-writer-gate', {
+    files: [malformedInactiveModeFile],
+    closedFiles: [],
+    activeFileId: malformedInactiveModeFile.id,
+    selectedPanel: 'preview',
+    refreshSession: null,
+    activeModeCheckpoint: null,
+    preserveActiveHeatCapacityModeSession: false,
+  }),
+  /non-canonical heat-capacity mode session/,
+  'the normal writer must reject a malformed inactive mode instead of committing a self-poisoned workspace',
+);
+
+const stableShellHeatFile = {
+  ...createDefaultHeatCapacityFile(7),
+  id: 'heatCapacity-00000000-0000-4000-8000-000000000007',
+};
+const stableShellStandardFile = createDefaultStandardFile(8);
+const createStableShellRecords = (files: WorkbenchFileState[]) => createPersistenceRecords(
+  'stable-heat-shell-order',
+  {
+    files,
+    closedFiles: [],
+    activeFileId: stableShellStandardFile.id,
+    selectedPanel: 'preview',
+    refreshSession: null,
+    activeModeCheckpoint: null,
+    preserveActiveHeatCapacityModeSession: false,
+  },
+);
+const heatFirstRecord = createStableShellRecords([
+  stableShellHeatFile,
+  stableShellStandardFile,
+]).fileRecords.find((record) => record.fileId === stableShellHeatFile.id);
+const heatLastRecord = createStableShellRecords([
+  stableShellStandardFile,
+  stableShellHeatFile,
+]).fileRecords.find((record) => record.fileId === stableShellHeatFile.id);
+assert.equal(
+  areCanonicalPersistenceValuesEqual(heatFirstRecord, heatLastRecord),
+  true,
+  'an unchanged heat-capacity file record must not depend on its open/closed collection order',
+);
+
 const adjustedButNotZeroed = {
   ...createDefaultHeatCapacityFile(3),
   pressureZeroAdjusted: true,
@@ -327,7 +409,11 @@ assert.match(
   /createWorkbenchSessionFromCanonicalFiles/,
   'normal v2 reads should use the lossless canonical runtime file constructor',
 );
-assert.match(source, /assertDistinctWorkspaceFileCollections[\s\S]*same file as both open and closed/);
+assert.match(
+  source,
+  /assertDistinctWorkspaceFileCollections[\s\S]*assertUniqueWorkbenchFileCollections\(openFiles, closedFiles, activeFileId\)/,
+  'the IndexedDB writer must enforce the same global ownership invariant as the UI commit boundary',
+);
 assert.match(source, /areWorkspaceFileIdentitiesValid[\s\S]*openFileIds\.includes\(activeFileId\)/);
 assert.match(source, /Workspace persistence cannot save an orphaned active mode checkpoint/);
 assert.match(source, /Workspace persistence cannot save refresh metadata for a different active mode/);
@@ -356,10 +442,35 @@ assert.equal(
 assert.match(source, /IndexedDB refresh metadata does not target the active open file/);
 assert.match(source, /restoreDeferredGuideUi[\s\S]*checkpoint\.payload\.guide/);
 assert.match(source, /committedWorkspaceSources[\s\S]*fileRecordsToWrite[\s\S]*modeRecordsToWrite/);
+assert.match(
+  source,
+  /const newFileIdentity = !previousSources\?\.fileKeys\.has\(sourceFileKey\);[\s\S]*!previousSources \|\|[\s\S]*newFileIdentity \|\|[\s\S]*activeModeRecord/,
+  'a new heat-capacity identity must force all Free, Guide, and Demo records through the incremental writer',
+);
 assert.match(source, /fileRecordsToWrite\.forEach\(\(record\) => fileStore\.put\(record\)\)/);
 assert.match(source, /modeRecordsToWrite\.forEach\(\(record\) => modeStore\.put\(record\)\)/);
 assert.match(source, /if \(!persistenceReady\)[\s\S]*last successful workspace remains unchanged/);
 assert.match(source, /verifyWrittenWorkspace[\s\S]*actualFileRecords[\s\S]*actualModeRecords/);
+assert.match(
+  source,
+  /saveWorkbenchWorkspaceToIndexedDb[\s\S]*expectedWorkspaceRevisionByNamespace\.set\([\s\S]*await verifyWrittenWorkspace\(database, writtenRecords\)[\s\S]*committedWorkspaceSources\.delete\(activeNamespace\)/,
+  'normal saves must stay pending until strict post-commit readback succeeds and must invalidate caches on failure',
+);
+assert.match(
+  source,
+  /actualNamespaceFileKeys[\s\S]*expectedFileKeys[\s\S]*actualNamespaceModeKeys[\s\S]*expectedModeKeys/,
+  'post-commit verification must reject missing or unexpected namespace records',
+);
+assert.match(
+  source,
+  /IDBKeyRange\.bound\([\s\S]*expected\.meta\.namespace[\s\S]*getAllKeys\(namespaceKeyRange\)/,
+  'post-commit key verification must stay bounded to the active namespace',
+);
+assert.match(
+  source,
+  /restored\.revision === expected\.meta\.lastSuccessfulSaveAtMs/,
+  'strict reconstruction must be bound to the exact committed revision',
+);
 assert.match(source, /restoredOpenIds[\s\S]*expected\.meta\.openFileIds[\s\S]*restoredClosedIds[\s\S]*expected\.meta\.closedFileIds/);
 assert.match(source, /const rawClosed = freshWindow[\s\S]*\? null[\s\S]*WORKBENCH_CLOSED_FILES_STORAGE_KEY/);
 assert.match(source, /if \(!freshWindow\) window\.localStorage\.removeItem\(WORKBENCH_CLOSED_FILES_STORAGE_KEY\)/);
@@ -419,6 +530,21 @@ assert.equal(
   'a stale legacy scene snapshot must not cross a checkpoint boundary',
 );
 assert.match(source, /persistenceReady = false;[\s\S]*catch \(cause\)/);
+assert.match(
+  source,
+  /const markPersistenceReady = \(\) => \{[\s\S]*persistenceReady = true;[\s\S]*scheduleTemporaryNamespaceCleanup\(\)/,
+  'temporary namespace cleanup should start only after persistence initialization succeeds',
+);
+assert.match(
+  source,
+  /const runCleanup = \(\) => \{[\s\S]*if \(!persistenceReady\) return;/,
+  'a cleanup timer retained across a failed retry must not touch IndexedDB while persistence is unavailable',
+);
+assert.doesNotMatch(
+  source,
+  /database = await openWorkbenchDatabase\(\);\s*await cleanupExpiredTemporaryNamespaces/,
+  'fatal persistence initialization must not delete temporary namespaces before the workspace becomes ready',
+);
 assert.equal(isWorkbenchWorkspaceRevisionCurrent(null, null), true);
 assert.equal(isWorkbenchWorkspaceRevisionCurrent(42, 42), true);
 assert.equal(isWorkbenchWorkspaceRevisionCurrent(null, 42), false);

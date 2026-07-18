@@ -10,6 +10,8 @@ import {
   createDefaultStandardFile,
   getHeatCapacityGaugePressureState,
   powerHeatCapacityWorkbenchFile,
+  prepareHeatCapacityAutoDemoStart,
+  setHeatCapacityScriptedStopcockOpen,
   stepHeatCapacityWorkbenchFile,
   startHeatCapacityGuideWorkbenchState,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
@@ -79,10 +81,23 @@ import {
 } from '../../src/domain/heatCapacity/heatCapacityTeachingProfile.ts';
 import {
   normalizeHeatCapacityModeSessionStore,
+  restoreHeatCapacityModeSession,
+  suspendHeatCapacityModeSession,
 } from '../../src/features/workbench/workbenchHeatCapacityModeSession.ts';
+import {
+  createPersistenceRecords,
+} from '../../src/features/workbench/workbenchIndexedDbPersistence.ts';
+import {
+  createWorkbenchHeatCapacityRefreshSession,
+} from '../../src/features/workbench/workbenchHeatCapacityRefreshSession.ts';
+import {
+  createHeatCapacityModeUiCheckpoint,
+} from '../../src/features/heatCapacity/heatCapacityModeUiCheckpoint.ts';
 import {
   createSampleInputForProcessReviewTest,
 } from '../heatCapacity/helpers/heatCapacityProcessReviewTestFactory.ts';
+
+(globalThis as typeof globalThis & { __APP_VERSION__: string }).__APP_VERSION__ = '5.1.2';
 
 const standard = createDefaultStandardFile(1);
 const ideal = createDefaultIdealFile(1);
@@ -453,6 +468,8 @@ const convertHeatEnvelopeToLegacy423 = <T extends ReturnType<typeof encodeWorkbe
   const legacyFreeTemperatureSensitivityMvPerK = 2;
   const legacyGuideTemperatureBaseMv = 1499.05;
   const legacyGuideTemperatureSensitivityMvPerK = 4;
+  const legacyPumpAmountGainRatio = 0.00345;
+  const legacyStopcockFlowRate = 5.25;
   const downgradeTemperatureSignal = (
     value: unknown,
     legacyBaseMv = legacyFreeTemperatureBaseMv,
@@ -485,6 +502,8 @@ const convertHeatEnvelopeToLegacy423 = <T extends ReturnType<typeof encodeWorkbe
   const downgradeConfigSnapshot = (snapshot: any) => {
     if (!snapshot) return snapshot;
     snapshot.version = 7;
+    snapshot.physics.pumpAmountGainRatio = legacyPumpAmountGainRatio;
+    snapshot.physics.stopcockFlowRate = legacyStopcockFlowRate;
     delete snapshot.physics.pumpWorkRetention;
     delete snapshot.physics.openingAnimationDurationMs;
     delete snapshot.physics.closingAnimationDurationMs;
@@ -492,18 +511,22 @@ const convertHeatEnvelopeToLegacy423 = <T extends ReturnType<typeof encodeWorkbe
     delete snapshot.physics.releaseOptimalMinS;
     delete snapshot.physics.releaseOptimalMaxS;
     delete snapshot.physics.autoDemoReleaseDurationS;
+    snapshot.physics.pumpStrokeDurationS = 0.08;
+    snapshot.physics.recommendedPumpIntervalS = 0.1;
     snapshot.physics.releaseVisualResponseDelayS = 0.02;
     snapshot.physics.releaseVisualMainDurationS = 0.18;
     snapshot.sensor.temperatureMvAtAmbient = legacyFreeTemperatureBaseMv;
     snapshot.sensor.temperatureMvPerK = legacyFreeTemperatureSensitivityMvPerK;
     snapshot.sensor.pumpLagRate = 36;
-    delete snapshot.sensor.fastProcessSampleStepS;
+    snapshot.sensor.fastProcessSampleStepS = 0.04;
     downgradeTemperatureRecordConfig(snapshot.record);
     snapshot.scoring.processScoringVersion = 'free-process-score-v1';
     return snapshot;
   };
   const downgradePhysicsConfig = (config: any) => {
     if (!config) return config;
+    config.pumpAmountGainRatio = legacyPumpAmountGainRatio;
+    config.stopcockFlowRate = legacyStopcockFlowRate;
     delete config.pumpWorkRetention;
     return config;
   };
@@ -702,6 +725,12 @@ const convertHeatEnvelopeToLegacy423 = <T extends ReturnType<typeof encodeWorkbe
   delete payload.free.controls.releaseState;
   if (payload.guided) {
     downgradePhysicsConfig(payload.guided.physicsConfig);
+    payload.guided.physicsConfig.thermal = {
+      gasWallConductanceWPerK: 0.14,
+      wallAmbientConductanceWPerK: 0.45,
+      wallHeatCapacityJPerK: 45,
+      minimumGasHeatCapacityJPerK: 0.1,
+    };
     downgradePhysicsState(payload.guided.physicsState);
     if (payload.guided.workflow.step === 'preheatRequired') {
       payload.guided.workflow.step = 'powerRequired';
@@ -1161,6 +1190,26 @@ const prepareLegacy423MigrationFixture = (legacyEnvelope: ReturnType<typeof conv
   const payload = legacyEnvelope.files[0].payload as any;
   payload.free.uiReplay.pressureSignalRawReadoutMv = 37.125;
   payload.free.uiReplay.pressureSignalReadoutMv = 36.875;
+  payload.free.experimentGroupStatus = 'running';
+  payload.free.real.experimentGroupStatus = 'running';
+  payload.free.activeRunConfigSnapshot = structuredClone(payload.free.config);
+  payload.free.real.activeRunConfigSnapshot = structuredClone(payload.free.config);
+  const alignLegacyOpenStopcockFixture = (
+    state: any,
+    stopcockFlowOpen: unknown,
+  ) => {
+    if (!state || stopcockFlowOpen !== true) return;
+    state.lastStopcockClosedAtS = state.lastStopcockOpenedAtS - 0.3;
+    state.currentStopcockOpenDurationS += 0.028;
+  };
+  alignLegacyOpenStopcockFixture(
+    payload.free.runtime,
+    payload.free.controls.stopcockFlowOpen,
+  );
+  alignLegacyOpenStopcockFixture(
+    payload.free.real.physicsState,
+    payload.free.real.stopcockFlowOpen,
+  );
   const mutateLegacyDomain = (domain: any) => {
     domain.trials[1].blockedReason = 'missing-u0';
     const branch = domain.traceStore.traceTrials[0].branches[0];
@@ -1216,11 +1265,43 @@ assert.equal(legacy423FreeFile.heatCapacityReleaseState.phase, 'releasing');
 assert.equal(legacy423FreeFile.heatCapacityReleaseState.purpose, 'release');
 assert.equal(legacy423FreeFile.heatCapacityFreeRealDomain.releaseState.phase, 'releasing');
 assert.equal(legacy423FreeFile.heatCapacityFreeRealDomain.releaseState.purpose, 'release');
+const currentFreePhysicsConfig = createDefaultHeatCapacityFreePhysicsConfig();
+assert.equal(
+  legacy423FreeFile.heatCapacityFreePhysicsConfig.pumpAmountGainRatio,
+  currentFreePhysicsConfig.pumpAmountGainRatio,
+  'the v4.2.3 fixed pump gain must migrate to the current runtime constant',
+);
+assert.equal(
+  legacy423FreeFile.heatCapacityFreePhysicsConfig.stopcockFlowRate,
+  currentFreePhysicsConfig.stopcockFlowRate,
+  'the v4.2.3 fixed stopcock flow rate must migrate to the current runtime constant',
+);
+assert.equal(
+  legacy423FreeFile.heatCapacityFreeActiveRunConfigSnapshot?.physics.stopcockFlowRate,
+  currentFreePhysicsConfig.stopcockFlowRate,
+  'the active config snapshot must stay aligned with the migrated live physics config',
+);
+assert.equal(legacy423FreeFile.heatCapacityFreePhysicsState.lastStopcockClosedAtS, null);
+assertClose(
+  legacy423FreeFile.heatCapacityFreePhysicsState.currentStopcockOpenDurationS,
+  legacy423FreeFile.heatCapacityFreePhysicsState.simulationTimeS -
+    (legacy423FreeFile.heatCapacityFreePhysicsState.lastStopcockOpenedAtS ?? 0),
+  'an open v4.2.3 stopcock must receive a canonical timing projection',
+);
+assert.equal(
+  legacy423FreeFile.heatCapacityFreeRealDomain.physicsState.lastStopcockClosedAtS,
+  null,
+);
 assert.equal(legacy423FreeFile.heatCapacityFreeTraceVersion, HEAT_CAPACITY_FREE_TRACE_VERSION);
 assert.equal(legacy423FreeFile.heatCapacityFreeTraceStore.traceTrials.length, 1);
 assert.equal(
   legacy423FreeFile.heatCapacityFreeTraceStore.traceTrials[0]?.configSnapshot.version,
   HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
+);
+assert.equal(
+  legacy423FreeFile.heatCapacityFreeTraceStore.traceTrials[0]?.configSnapshot.physics.stopcockFlowRate,
+  5.25,
+  'completed v4.2.3 trace snapshots must retain their historical flow-rate identity',
 );
 assert.equal(
   legacy423FreeFile.heatCapacityFreeSensorConfig.temperatureMvAtAmbient,
@@ -1282,6 +1363,90 @@ assert.deepEqual(
     .sort((left, right) => left - right),
   'synthesizing release-start must preserve chronological event order',
 );
+
+const applyLegacy423PumpStrokeAnchor = (domain: any) => {
+  const traceTrial = domain.traceStore.traceTrials[0];
+  const branch = traceTrial.branches[0];
+  const trial = domain.trials[0];
+  const shiftRecord = (
+    eventType: 'record-u1' | 'record-u2',
+    recordKey: 'u1' | 'u2',
+    atS: number,
+  ) => {
+    const event = branch.events.find((entry: any) => entry.type === eventType);
+    const sample = branch.samples.find((entry: any) => entry.id === event.traceSampleId);
+    event.atS = atS;
+    sample.atS = atS;
+    trial[recordKey].atS = atS;
+  };
+  shiftRecord('record-u1', 'u1', 319);
+};
+
+const legacy423PumpStrokeAnchorEnvelope = structuredClone(legacy423FreeEnvelope);
+const legacy423PumpStrokeAnchorPayload = legacy423PumpStrokeAnchorEnvelope.files[0].payload as any;
+applyLegacy423PumpStrokeAnchor(legacy423PumpStrokeAnchorPayload.free);
+applyLegacy423PumpStrokeAnchor(legacy423PumpStrokeAnchorPayload.free.real);
+const legacy423PumpStrokeAnchorDecoded = decodeWorkbenchStorageEnvelope(legacy423PumpStrokeAnchorEnvelope);
+assert.deepEqual(
+  legacy423PumpStrokeAnchorDecoded.diagnostics,
+  [],
+  'a v4.2.3 U1 record timed from the last pump stroke must preserve the historical experiment',
+);
+assert.equal(legacy423PumpStrokeAnchorDecoded.session.files.length, 1);
+const legacy423PumpStrokeAnchorFile = legacy423PumpStrokeAnchorDecoded.session.files[0];
+const legacy423PumpStrokeAnchorRoundTrip = encodeWorkbenchStorageEnvelope(
+  [legacy423PumpStrokeAnchorFile],
+  legacy423PumpStrokeAnchorFile.id,
+  'preview',
+  Date.now(),
+);
+const legacy423PumpStrokeAnchorRoundTripPayload =
+  legacy423PumpStrokeAnchorRoundTrip.files[0].payload as any;
+for (const domain of [
+  legacy423PumpStrokeAnchorRoundTripPayload.free,
+  legacy423PumpStrokeAnchorRoundTripPayload.free.real,
+]) {
+  const recordU1Events = domain.traceStore.traceTrials.flatMap((traceTrial: any) => (
+    traceTrial.branches.flatMap((branch: any) => (
+      branch.events.filter((event: any) => event.type === 'record-u1')
+    ))
+  ));
+  assert.ok(recordU1Events.length > 0);
+  assert.equal(
+    recordU1Events.every((event: any) => (
+      event.payload?.hslMigrationProvenance ===
+        'legacy-4.2.3/u1-pump-stroke-anchor'
+    )),
+    true,
+    'the explicit migration provenance must survive the first canonical current-format write',
+  );
+}
+const unmarkedLegacy423PumpStrokeAnchorRoundTrip =
+  structuredClone(legacy423PumpStrokeAnchorRoundTrip);
+const unmarkedLegacy423PumpStrokeAnchorPayload =
+  unmarkedLegacy423PumpStrokeAnchorRoundTrip.files[0].payload as any;
+for (const domain of [
+  unmarkedLegacy423PumpStrokeAnchorPayload.free,
+  unmarkedLegacy423PumpStrokeAnchorPayload.free.real,
+]) {
+  for (const traceTrial of domain.traceStore.traceTrials) {
+    for (const branch of traceTrial.branches) {
+      for (const event of branch.events) {
+        if (event.type === 'record-u1' && event.payload) {
+          delete event.payload.hslMigrationProvenance;
+        }
+      }
+    }
+  }
+}
+assert.deepEqual(
+  decodeWorkbenchStorageEnvelope(
+    unmarkedLegacy423PumpStrokeAnchorRoundTrip,
+  ).diagnostics.map((diagnostic) => diagnostic.code),
+  ['invalid-file'],
+  'a current-format trace must not inherit the v4.2.3 pump-stroke wait rule from a configurable flow rate alone',
+);
+
 assert.equal(legacy423FreeFile.heatCapacityFreeTrials[1]?.blockedReason, 'invalid-sequence');
 assert.equal(
   legacy423FreeFile.heatCapacityFreeTrials[0]?.standardReferenceSnapshot?.generatorVersion,
@@ -1385,6 +1550,114 @@ assert.equal(
   null,
   'a migrated v4.2.3 mode-session store must already be canonical before its first IndexedDB save',
 );
+const legacy423ActiveFreeCapturedAtMs =
+  legacy423FreeFile.heatCapacityModeSessions.free.capturedAtMs;
+assert.notEqual(legacy423ActiveFreeCapturedAtMs, null);
+const legacy423FreeIndexedDbRecords = createPersistenceRecords(
+  'legacy-423-active-free',
+  {
+    files: [legacy423FreeFile],
+    closedFiles: [],
+    activeFileId: legacy423FreeFile.id,
+    selectedPanel: 'preview',
+    refreshSession: null,
+    activeModeCheckpoint: null,
+    preserveActiveHeatCapacityModeSession: false,
+    migrationModeCaptureOverrides: legacy423FreeDecoded.migrationModeCaptureOverrides,
+  },
+  'pending-verification',
+);
+const legacy423FreeIndexedDbModeStore = {
+  schemaVersion: 2 as const,
+  demo: legacy423FreeIndexedDbRecords.modeRecords.find((record) => record.mode === 'demo')!.entry,
+  guide: legacy423FreeIndexedDbRecords.modeRecords.find((record) => record.mode === 'guide')!.entry,
+  free: legacy423FreeIndexedDbRecords.modeRecords.find((record) => record.mode === 'free')!.entry,
+};
+assert.deepEqual(
+  normalizeHeatCapacityModeSessionStore(
+    structuredClone(legacy423FreeIndexedDbModeStore),
+    legacy423FreeFile.id,
+  ),
+  legacy423FreeIndexedDbModeStore,
+  'recapturing the active migrated v4.2.3 Free file for IndexedDB must not overwrite its canonical mode session with stale top-level common runtime fields',
+);
+assert.equal(
+  legacy423FreeIndexedDbModeStore.free.snapshot?.common.simulationTimeS,
+  legacy423FreeFile.heatCapacityFreePhysicsState.simulationTimeS,
+  'the active migrated v4.2.3 Free projection must carry the domain simulation clock before IndexedDB capture',
+);
+assert.deepEqual(legacy423FreeIndexedDbRecords.meta.openFileIds, [legacy423FreeFile.id]);
+assert.deepEqual(legacy423FreeIndexedDbRecords.meta.closedFileIds, []);
+assert.throws(
+  () => createPersistenceRecords(
+    'legacy-423-active-free-ready',
+    {
+      files: [legacy423FreeFile],
+      closedFiles: [],
+      activeFileId: legacy423FreeFile.id,
+      selectedPanel: 'preview',
+      refreshSession: null,
+      activeModeCheckpoint: null,
+      preserveActiveHeatCapacityModeSession: false,
+      migrationModeCaptureOverrides: legacy423FreeDecoded.migrationModeCaptureOverrides,
+    },
+    'ready',
+  ),
+  /only valid during pending migration verification/,
+  'a current ready write must not be able to opt into the v4.2.3 migration-only capture override',
+);
+
+const legacy423FreeRefreshCapturedAtMs = legacy423ActiveFreeCapturedAtMs! + 500;
+const legacy423FreeRefreshSession = createWorkbenchHeatCapacityRefreshSession(
+  legacy423FreeFile.id,
+  'free',
+  legacy423FreeRefreshCapturedAtMs,
+);
+const legacy423FreeRefreshCheckpoint = createHeatCapacityModeUiCheckpoint({
+  fileId: legacy423FreeFile.id,
+  checkpointId: legacy423FreeRefreshSession.checkpointId,
+  capturedAtMs: legacy423FreeRefreshCapturedAtMs,
+  mode: 'free',
+  scene: {
+    focusMode: 'none',
+    cameraPose: null,
+    cameraTransition: null,
+    ultraVisualState: null,
+    hardSphereVisualCheckpoint: null,
+    focusSession: null,
+  },
+  pumpAnimation: null,
+  payload: { kind: 'free' },
+});
+const legacy423FreeRefreshIndexedDbRecords = createPersistenceRecords(
+  'legacy-423-active-free-refresh',
+  {
+    files: [legacy423FreeFile],
+    closedFiles: [],
+    activeFileId: legacy423FreeFile.id,
+    selectedPanel: 'preview',
+    refreshSession: legacy423FreeRefreshSession,
+    activeModeCheckpoint: legacy423FreeRefreshCheckpoint,
+    preserveActiveHeatCapacityModeSession: false,
+    migrationModeCaptureOverrides: legacy423FreeDecoded.migrationModeCaptureOverrides,
+  },
+  'pending-verification',
+);
+const legacy423FreeRefreshModeRecord = legacy423FreeRefreshIndexedDbRecords.modeRecords.find(
+  (record) => record.mode === 'free',
+);
+assert.equal(
+  legacy423FreeRefreshModeRecord?.entry.capturedAtMs,
+  legacy423FreeRefreshCapturedAtMs,
+);
+assert.deepEqual(
+  legacy423FreeRefreshModeRecord?.entry.uiCheckpoint,
+  legacy423FreeRefreshCheckpoint,
+);
+assert.equal(
+  legacy423FreeRefreshIndexedDbRecords.meta.refreshMetadata?.capturedAtMs,
+  legacy423FreeRefreshCapturedAtMs,
+);
 const legacy423FreeRoundTrip = encodeWorkbenchStorageEnvelope(
   [legacy423FreeFile],
   legacy423FreeFile.id,
@@ -1450,6 +1723,98 @@ assert.equal(
     : null,
   'legacy-guide-trial',
   'an active Guide migration must retain its canonical Guide history',
+);
+const legacy423GuideIndexedDbRecords = createPersistenceRecords(
+  'legacy-423-active-guide',
+  {
+    files: [legacy423GuideFile],
+    closedFiles: [],
+    activeFileId: legacy423GuideFile.id,
+    selectedPanel: 'preview',
+    refreshSession: null,
+    activeModeCheckpoint: null,
+    preserveActiveHeatCapacityModeSession: false,
+    migrationModeCaptureOverrides: legacy423GuideDecoded.migrationModeCaptureOverrides,
+  },
+  'pending-verification',
+);
+const legacy423GuideIndexedDbModeStore = {
+  schemaVersion: 2 as const,
+  demo: legacy423GuideIndexedDbRecords.modeRecords.find((record) => record.mode === 'demo')!.entry,
+  guide: legacy423GuideIndexedDbRecords.modeRecords.find((record) => record.mode === 'guide')!.entry,
+  free: legacy423GuideIndexedDbRecords.modeRecords.find((record) => record.mode === 'free')!.entry,
+};
+assert.deepEqual(
+  normalizeHeatCapacityModeSessionStore(
+    structuredClone(legacy423GuideIndexedDbModeStore),
+    legacy423GuideFile.id,
+  ),
+  legacy423GuideIndexedDbModeStore,
+  'the active v4.2.3 Guide capture override must produce three canonical split mode records',
+);
+assert.notEqual(legacy423GuideIndexedDbModeStore.guide.status, 'empty');
+
+const legacy423GuideSourceCapturedAtMs =
+  legacy423GuideFile.heatCapacityModeSessions.guide.capturedAtMs!;
+const legacy423GuideCapturedAtMs = legacy423GuideSourceCapturedAtMs + 500;
+const legacy423GuideRefreshSession = createWorkbenchHeatCapacityRefreshSession(
+  legacy423GuideFile.id,
+  'guide',
+  legacy423GuideCapturedAtMs,
+);
+const legacy423GuideRefreshCheckpoint = createHeatCapacityModeUiCheckpoint({
+  fileId: legacy423GuideFile.id,
+  checkpointId: legacy423GuideRefreshSession.checkpointId,
+  capturedAtMs: legacy423GuideCapturedAtMs,
+  mode: 'guide',
+  scene: {
+    focusMode: 'none',
+    cameraPose: null,
+    cameraTransition: null,
+    ultraVisualState: null,
+    hardSphereVisualCheckpoint: null,
+    focusSession: null,
+  },
+  pumpAnimation: null,
+  payload: {
+    kind: 'guide',
+    guide: {
+      missCount: 0,
+      normalReminder: null,
+      strongReminder: { active: false, controlId: null },
+      lessonDialog: null,
+      shownLessonIds: [],
+      checklistViewedIndex: 0,
+      pendingStrongReminder: null,
+      baseStrongReminder: null,
+    },
+  },
+});
+const legacy423GuideRefreshIndexedDbRecords = createPersistenceRecords(
+  'legacy-423-active-guide-refresh',
+  {
+    files: [legacy423GuideFile],
+    closedFiles: [],
+    activeFileId: legacy423GuideFile.id,
+    selectedPanel: 'preview',
+    refreshSession: legacy423GuideRefreshSession,
+    activeModeCheckpoint: legacy423GuideRefreshCheckpoint,
+    preserveActiveHeatCapacityModeSession: false,
+    migrationModeCaptureOverrides: legacy423GuideDecoded.migrationModeCaptureOverrides,
+  },
+  'pending-verification',
+);
+const legacy423GuideRefreshModeRecord = legacy423GuideRefreshIndexedDbRecords.modeRecords.find(
+  (record) => record.mode === 'guide',
+);
+assert.equal(legacy423GuideRefreshModeRecord?.entry.capturedAtMs, legacy423GuideCapturedAtMs);
+assert.deepEqual(
+  legacy423GuideRefreshModeRecord?.entry.uiCheckpoint,
+  legacy423GuideRefreshCheckpoint,
+);
+assert.equal(
+  legacy423GuideRefreshIndexedDbRecords.meta.refreshMetadata?.capturedAtMs,
+  legacy423GuideCapturedAtMs,
 );
 
 const currentGuideEnvelope = encodeWorkbenchStorageEnvelope(
@@ -1552,6 +1917,38 @@ const assertCurrentFileRejected = (
   );
 };
 
+const corruptedLegacyFixedFreeConfigEnvelope = structuredClone(legacy423FreeEnvelope);
+const corruptedLegacyFixedFreeConfigPayload =
+  corruptedLegacyFixedFreeConfigEnvelope.files[0].payload as any;
+corruptedLegacyFixedFreeConfigPayload.free.real.physicsConfig.pumpAmountGainRatio = 0.004;
+assertLegacy423FileRejected(
+  corruptedLegacyFixedFreeConfigEnvelope,
+  'a forged v4.2.3 fixed Free physics constant must not be replaced with a current default',
+);
+
+const corruptedLegacyFixedSnapshotEnvelope = structuredClone(legacy423FreeEnvelope);
+const corruptedLegacyFixedSnapshotPayload =
+  corruptedLegacyFixedSnapshotEnvelope.files[0].payload as any;
+for (const domain of [
+  corruptedLegacyFixedSnapshotPayload.free,
+  corruptedLegacyFixedSnapshotPayload.free.real,
+]) {
+  domain.traceStore.traceTrials[0].configSnapshot.physics.recommendedPumpIntervalS = 0.2;
+}
+assertLegacy423FileRejected(
+  corruptedLegacyFixedSnapshotEnvelope,
+  'a forged v4.2.3 fixed trace-snapshot constant must not be silently canonicalized',
+);
+
+const corruptedLegacyFixedGuideConfigEnvelope = structuredClone(legacy423GuideEnvelope);
+const corruptedLegacyFixedGuideConfigPayload =
+  corruptedLegacyFixedGuideConfigEnvelope.files[0].payload as any;
+corruptedLegacyFixedGuideConfigPayload.guided.physicsConfig.gamma = 1.67;
+assertLegacy423FileRejected(
+  corruptedLegacyFixedGuideConfigEnvelope,
+  'a forged v4.2.3 fixed Guide physics constant must not be replaced with current defaults',
+);
+
 const createFocusModeCompatibilityEnvelope = () => {
   const candidate = structuredClone(legacy423FreeRoundTrip);
   const entry = (candidate.files[0].payload as any).common.modeSessions.free;
@@ -1646,18 +2043,582 @@ assertCurrentFileRejected(
   'an active Guide payload must not restore a Demo-owned trial',
 );
 
-const currentDemoEnvelope = structuredClone(currentGuideEnvelope);
-const currentDemoPayload = currentDemoEnvelope.files[0].payload as any;
-currentDemoPayload.mode = 'demo';
-currentDemoPayload.guided.trial.source = 'demo';
+const currentDemoStartedAtMs = 1712000000000;
+const currentDemoFirstTick = stepHeatCapacityWorkbenchFile(
+  prepareHeatCapacityAutoDemoStart(
+    createDefaultHeatCapacityFile(400),
+    currentDemoStartedAtMs,
+  ),
+  currentDemoStartedAtMs + 16,
+);
+const currentDemoOpening = setHeatCapacityScriptedStopcockOpen(
+  currentDemoFirstTick,
+  true,
+  currentDemoStartedAtMs + 20,
+);
+const currentDemoEnvelope = encodeWorkbenchStorageEnvelope(
+  [currentDemoOpening],
+  currentDemoOpening.id,
+  'preview',
+  currentDemoStartedAtMs + 24,
+);
+const currentDemoDecoded = decodeWorkbenchStorageEnvelope(currentDemoEnvelope);
 assert.equal(
-  decodeWorkbenchStorageEnvelope(currentDemoEnvelope).session.files.length,
+  currentDemoDecoded.session.files.length,
   1,
   'Demo persistence must validate its own timeline without inheriting Guide step controls',
 );
-const mismatchedCurrentDemoTrialSourceEnvelope = structuredClone(currentDemoEnvelope);
+assert.deepEqual(currentDemoDecoded.diagnostics, []);
+const currentDemoRestored = currentDemoDecoded.session.files[0];
+assert.equal(currentDemoRestored.kind, 'heatCapacity');
+if (currentDemoRestored.kind !== 'heatCapacity') {
+  throw new Error('expected a restored current Demo file');
+}
+assert.equal(currentDemoRestored.heatCapacityMode, 'demo');
+assert.equal(currentDemoRestored.runState, 'paused');
+assert.equal(currentDemoRestored.simulationTimeS, currentDemoOpening.simulationTimeS);
+assert.equal(currentDemoRestored.heatCapacityGuidePhysicsState.simulationTimeS, 0);
+assert.equal(currentDemoRestored.heatCapacityReleaseState.phase, 'opening');
+const currentDemoResuspended = suspendHeatCapacityModeSession(
+  currentDemoRestored,
+  null,
+  currentDemoStartedAtMs + 1_024,
+);
+const currentDemoSecondEnvelope = encodeWorkbenchStorageEnvelope(
+  [currentDemoResuspended],
+  currentDemoResuspended.id,
+  'preview',
+  currentDemoStartedAtMs + 1_025,
+);
+assert.deepEqual(
+  decodeWorkbenchStorageEnvelope(currentDemoSecondEnvelope).diagnostics,
+  [],
+  'a restored Demo opening state must remain canonical after a second save',
+);
+
+const liveDemoSaveStartedAtMs = Date.now() - 1_000;
+const liveDemoFirstTick = stepHeatCapacityWorkbenchFile(
+  prepareHeatCapacityAutoDemoStart(
+    createDefaultHeatCapacityFile(401),
+    liveDemoSaveStartedAtMs,
+  ),
+  liveDemoSaveStartedAtMs + 16,
+);
+const liveDemoSaveFile = setHeatCapacityScriptedStopcockOpen(
+  liveDemoFirstTick,
+  true,
+  liveDemoSaveStartedAtMs + 20,
+);
+const liveGuideSaveFile = suspendHeatCapacityModeSession(
+  startHeatCapacityGuideWorkbenchState(
+    createDefaultHeatCapacityFile(402),
+    liveDemoSaveStartedAtMs + 20,
+  ),
+  null,
+  liveDemoSaveStartedAtMs + 30,
+);
+const liveFreeSaveFile = suspendHeatCapacityModeSession(
+  createDefaultHeatCapacityFile(403),
+  null,
+  liveDemoSaveStartedAtMs + 40,
+);
+const liveThreeModeRecords = createPersistenceRecords('live-three-mode-save', {
+  files: [liveDemoSaveFile, liveGuideSaveFile, liveFreeSaveFile],
+  closedFiles: [],
+  activeFileId: liveDemoSaveFile.id,
+  selectedPanel: 'preview',
+  refreshSession: null,
+  activeModeCheckpoint: null,
+  preserveActiveHeatCapacityModeSession: false,
+});
+assert.equal(liveThreeModeRecords.modeRecords.length, 9);
+for (const [file, mode] of [
+  [liveDemoSaveFile, 'demo'],
+  [liveGuideSaveFile, 'guide'],
+  [liveFreeSaveFile, 'free'],
+] as const) {
+  assert.equal(
+    liveThreeModeRecords.modeRecords.find((record) => (
+      record.fileId === file.id && record.mode === mode
+    ))?.entry.status,
+    'suspended',
+    `a normal ${mode} record must not block the workspace-wide save`,
+  );
+}
+const liveDemoModeRecord = liveThreeModeRecords.modeRecords.find((record) => (
+  record.fileId === liveDemoSaveFile.id && record.mode === 'demo'
+));
+assert.equal(liveDemoModeRecord?.entry.snapshot?.common.simulationTimeS, 0.02);
+assert.equal(
+  liveDemoModeRecord?.entry.snapshot?.mode === 'demo'
+    ? liveDemoModeRecord.entry.snapshot.demo.heatCapacityGuidePhysicsState.simulationTimeS
+    : null,
+  0,
+  'the writer must retain the dormant Guide clock without confusing it with the authoritative Demo clock',
+);
+for (const corruptedDemoFile of [
+  {
+    ...liveDemoFirstTick,
+    heatCapacityPhase: 'powerOff' as const,
+  },
+  {
+    ...liveDemoFirstTick,
+    powerOn: false,
+  },
+]) {
+  assert.throws(
+    () => createPersistenceRecords('corrupted-demo-common-projection', {
+      files: [corruptedDemoFile],
+      closedFiles: [],
+      activeFileId: corruptedDemoFile.id,
+      selectedPanel: 'preview',
+      refreshSession: null,
+      activeModeCheckpoint: null,
+      preserveActiveHeatCapacityModeSession: false,
+    }),
+    /non-canonical heat-capacity mode session/,
+    'the writer must reject an internally contradictory Demo power/phase projection',
+  );
+}
+
+const publicDemoTeachingProfile = createHeatCapacityAutoDemoProfile(() => 0.0278);
+const publicBlankDemoSource = {
+  ...prepareHeatCapacityAutoDemoStart(
+    createDefaultHeatCapacityFile(12),
+    1712000000000,
+    () => 0.7,
+  ),
+  id: 'heat-capacity-public-blank-demo',
+  heatCapacityExperimentSeed: publicDemoTeachingProfile.seed,
+  heatCapacityExperimentProfile: publicDemoTeachingProfile,
+};
+const publicBlankDemoEnvelope = encodeWorkbenchStorageEnvelope(
+  [publicBlankDemoSource],
+  publicBlankDemoSource.id,
+  'preview',
+  Date.now(),
+);
+assert.equal(publicBlankDemoEnvelope.appVersion, '5.1.2');
+assert.deepEqual(
+  decodeWorkbenchStorageEnvelope(publicBlankDemoEnvelope).diagnostics,
+  [],
+  'a current blank Demo with a formerly drifting displayed profile must round-trip exactly',
+);
+assert.notEqual(
+  (publicBlankDemoEnvelope.files[0].payload as any).guided,
+  null,
+  'the current encoder must retain a blank active Demo runtime before it has produced a trial',
+);
+const completedDemoSource = completeHeatCapacityTeachingModeWorkbenchState(
+  publicBlankDemoSource,
+  1712000005000,
+);
+const completedDemoEnvelope = encodeWorkbenchStorageEnvelope(
+  [completedDemoSource],
+  completedDemoSource.id,
+  'preview',
+  1712000006000,
+);
+assert.deepEqual(
+  decodeWorkbenchStorageEnvelope(completedDemoEnvelope).diagnostics,
+  [],
+  'a current completed Demo with a formerly drifting displayed profile must round-trip exactly',
+);
+const public511CompletedDemoEnvelope = structuredClone(completedDemoEnvelope);
+public511CompletedDemoEnvelope.appVersion = 'development';
+const public511CompletedDemoDecoded =
+  decodeWorkbenchStorageEnvelope(public511CompletedDemoEnvelope);
+assert.deepEqual(
+  public511CompletedDemoDecoded.diagnostics,
+  [],
+  'a public v5.1.1 completed Demo with a displayed teaching profile must remain recoverable',
+);
+const public511CompletedDemoFile = public511CompletedDemoDecoded.session.files[0];
+assert.equal(public511CompletedDemoFile.kind, 'heatCapacity');
+if (public511CompletedDemoFile.kind !== 'heatCapacity') {
+  throw new Error('expected recovered public v5.1.1 completed Demo file');
+}
+assert.deepEqual(
+  public511CompletedDemoFile.heatCapacityExperimentProfile,
+  publicDemoTeachingProfile,
+  'the public v5.1.1 completed Demo recovery must preserve its displayed result triplet',
+);
+const corruptedCurrentBlankDemoEnvelope = structuredClone(publicBlankDemoEnvelope);
+(corruptedCurrentBlankDemoEnvelope.files[0].payload as any).guided = null;
+assert.deepEqual(
+  decodeWorkbenchStorageEnvelope(
+    corruptedCurrentBlankDemoEnvelope,
+  ).diagnostics.map((diagnostic) => diagnostic.code),
+  ['invalid-file'],
+  'a 5.1.2 current-format blank Demo must not silently repair a missing guided payload',
+);
+const public511BlankDemoEnvelope = structuredClone(corruptedCurrentBlankDemoEnvelope);
+public511BlankDemoEnvelope.appVersion = 'development';
+const public511BlankDemoDecoded = decodeWorkbenchStorageEnvelope(public511BlankDemoEnvelope);
+assert.deepEqual(
+  public511BlankDemoDecoded.diagnostics,
+  [],
+  'the exact public v5.1.1 blank Demo omission must remain recoverable',
+);
+const public511BlankDemoFile = public511BlankDemoDecoded.session.files[0];
+assert.equal(public511BlankDemoFile.kind, 'heatCapacity');
+if (public511BlankDemoFile.kind !== 'heatCapacity') {
+  throw new Error('expected recovered public v5.1.1 blank Demo file');
+}
+assert.equal(public511BlankDemoFile.heatCapacityMode, 'demo');
+assert.notEqual(public511BlankDemoFile.heatCapacityModeSessions.demo.status, 'empty');
+assert.equal(
+  public511BlankDemoFile.heatCapacityModeSessions.demo.snapshot?.common.pressureInitialBiasMv,
+  0.7,
+  'the public v5.1.1 active blank Demo recovery must retain observable non-default common state',
+);
+assert.equal(
+  public511BlankDemoDecoded.migrationModeCaptureOverrides.some((override) => (
+    override.source === 'public-5.1.1-blank-demo' &&
+    override.fileId === public511BlankDemoFile.id &&
+    override.mode === 'demo' &&
+    override.capturedAtMs === public511BlankDemoFile.heatCapacityModeSessions.demo.capturedAtMs
+  )),
+  true,
+  'the public v5.1.1 omission must carry provenance into its active split-record capture',
+);
+
+const publicBlankDemoCapturedAtMs = Date.now() - 500;
+const publicBlankDemoSuspended = suspendHeatCapacityModeSession(
+  publicBlankDemoSource,
+  null,
+  publicBlankDemoCapturedAtMs,
+);
+const publicBlankDemoRestored = restoreHeatCapacityModeSession(
+  publicBlankDemoSuspended,
+  'demo',
+  publicBlankDemoCapturedAtMs + 100,
+);
+assert.ok(publicBlankDemoRestored);
+assert.equal(publicBlankDemoRestored.heatCapacityGuideTrial, null);
+assert.equal(publicBlankDemoRestored.heatCapacityModeSessions.demo.status, 'suspended');
+const publicBlankDemoSuspendedEnvelope = encodeWorkbenchStorageEnvelope(
+  [publicBlankDemoRestored],
+  publicBlankDemoRestored.id,
+  'preview',
+  Date.now(),
+);
+const corruptedCurrentSuspendedDemoEnvelope =
+  structuredClone(publicBlankDemoSuspendedEnvelope);
+(corruptedCurrentSuspendedDemoEnvelope.files[0].payload as any).guided = null;
+assert.deepEqual(
+  decodeWorkbenchStorageEnvelope(
+    corruptedCurrentSuspendedDemoEnvelope,
+  ).diagnostics.map((diagnostic) => diagnostic.code),
+  ['invalid-file'],
+  'a 5.1.2 current-format suspended Demo must not silently repair a missing guided payload',
+);
+const public511SuspendedDemoEnvelope =
+  structuredClone(corruptedCurrentSuspendedDemoEnvelope);
+public511SuspendedDemoEnvelope.appVersion = 'development';
+const public511SuspendedDemoDecoded =
+  decodeWorkbenchStorageEnvelope(public511SuspendedDemoEnvelope);
+assert.deepEqual(public511SuspendedDemoDecoded.diagnostics, []);
+const public511SuspendedDemoFile = public511SuspendedDemoDecoded.session.files[0];
+assert.equal(public511SuspendedDemoFile.kind, 'heatCapacity');
+if (public511SuspendedDemoFile.kind !== 'heatCapacity') {
+  throw new Error('expected recovered public v5.1.1 suspended blank Demo file');
+}
+assert.equal(public511SuspendedDemoFile.heatCapacityModeSessions.demo.status, 'suspended');
+assert.equal(
+  public511SuspendedDemoFile.heatCapacityModeSessions.demo.capturedAtMs,
+  publicBlankDemoCapturedAtMs,
+  'the known public omission must retain its existing canonical Demo capture',
+);
+assert.equal(
+  public511SuspendedDemoFile.heatCapacityModeSessions.demo.snapshot?.common.pressureInitialBiasMv,
+  0.7,
+  'the known public omission must retain the captured Demo common state',
+);
+assert.equal(
+  public511SuspendedDemoDecoded.migrationModeCaptureOverrides.some((override) => (
+    override.source === 'public-5.1.1-blank-demo' &&
+    override.fileId === public511SuspendedDemoFile.id &&
+    override.capturedAtMs === publicBlankDemoCapturedAtMs
+  )),
+  true,
+);
+for (const scenario of [
+  {
+    name: 'active',
+    files: [public511SuspendedDemoFile],
+    closedFiles: [],
+    activeFileId: public511SuspendedDemoFile.id,
+  },
+  {
+    name: 'inactive-open',
+    files: [standard, public511SuspendedDemoFile],
+    closedFiles: [],
+    activeFileId: standard.id,
+  },
+  {
+    name: 'closed',
+    files: [standard],
+    closedFiles: [public511SuspendedDemoFile],
+    activeFileId: standard.id,
+  },
+]) {
+  const records = createPersistenceRecords(
+    `public-511-suspended-blank-demo-${scenario.name}`,
+    {
+      files: scenario.files,
+      closedFiles: scenario.closedFiles,
+      activeFileId: scenario.activeFileId,
+      selectedPanel: 'preview',
+      refreshSession: null,
+      activeModeCheckpoint: null,
+      preserveActiveHeatCapacityModeSession: false,
+      migrationModeCaptureOverrides:
+        public511SuspendedDemoDecoded.migrationModeCaptureOverrides,
+    },
+    'pending-verification',
+  );
+  const demoRecord = records.modeRecords.find((record) => (
+    record.fileId === public511SuspendedDemoFile.id && record.mode === 'demo'
+  ));
+  assert.ok(demoRecord);
+  assert.equal(demoRecord.entry.status, 'suspended');
+  assert.equal(
+    demoRecord.entry.snapshot?.mode === 'demo'
+      ? demoRecord.entry.snapshot.demo.heatCapacityGuideTrial
+      : undefined,
+    null,
+  );
+  assert.equal(
+    demoRecord.entry.snapshot?.common.pressureInitialBiasMv,
+    0.7,
+    `the ${scenario.name} public v5.1.1 Demo split record must retain non-default common state`,
+  );
+  assert.deepEqual(
+    normalizeHeatCapacityModeSessionStore({
+      schemaVersion: 2,
+      demo: demoRecord.entry,
+      guide: records.modeRecords.find((record) => (
+        record.fileId === public511SuspendedDemoFile.id && record.mode === 'guide'
+      ))!.entry,
+      free: records.modeRecords.find((record) => (
+        record.fileId === public511SuspendedDemoFile.id && record.mode === 'free'
+      ))!.entry,
+    }, public511SuspendedDemoFile.id).demo,
+    demoRecord.entry,
+    `the ${scenario.name} public v5.1.1 Demo capture must remain canonical`,
+  );
+}
+
+const publicBlankDemoClosedEnvelope = encodeWorkbenchClosedFilesStorageEnvelope(
+  [publicBlankDemoRestored],
+  Date.now(),
+);
+const corruptedCurrentClosedDemoEnvelope = structuredClone(publicBlankDemoClosedEnvelope);
+(corruptedCurrentClosedDemoEnvelope.files[0].payload as any).guided = null;
+assert.deepEqual(
+  decodeWorkbenchClosedFilesStorageEnvelope(
+    corruptedCurrentClosedDemoEnvelope,
+  ).diagnostics.map((diagnostic) => diagnostic.code),
+  ['invalid-file'],
+  'a 5.1.2 current-format closed blank Demo must not silently repair a missing guided payload',
+);
+const public511ClosedDemoEnvelope = structuredClone(corruptedCurrentClosedDemoEnvelope);
+public511ClosedDemoEnvelope.appVersion = 'development';
+const public511ClosedDemoDecoded =
+  decodeWorkbenchClosedFilesStorageEnvelope(public511ClosedDemoEnvelope);
+assert.deepEqual(
+  public511ClosedDemoDecoded.diagnostics,
+  [],
+  'the exact public v5.1.1 blank Demo omission must remain recoverable for closed files',
+);
+assert.equal(public511ClosedDemoDecoded.files.length, 1);
+assert.equal(
+  public511ClosedDemoDecoded.migrationModeCaptureOverrides.some((override) => (
+    override.source === 'public-5.1.1-blank-demo' &&
+    override.fileId === publicBlankDemoRestored.id &&
+    override.mode === 'demo' &&
+    override.capturedAtMs === publicBlankDemoCapturedAtMs
+  )),
+  true,
+  'closed-file migrations must propagate their provenance-bound split-record override',
+);
+
+const legacy423BlankDemoEnvelope = convertHeatEnvelopeToLegacy423(
+  structuredClone(publicBlankDemoEnvelope),
+);
+(legacy423BlankDemoEnvelope.files[0].payload as any).guided = null;
+const legacy423BlankDemoDecoded = decodeWorkbenchStorageEnvelope(legacy423BlankDemoEnvelope);
+assert.deepEqual(
+  legacy423BlankDemoDecoded.diagnostics,
+  [],
+  'an exact public v4.2.3 blank Demo omission must remain recoverable',
+);
+const legacy423BlankDemoFile = legacy423BlankDemoDecoded.session.files[0];
+assert.equal(legacy423BlankDemoFile.kind, 'heatCapacity');
+if (legacy423BlankDemoFile.kind !== 'heatCapacity') {
+  throw new Error('expected migrated public v4.2.3 blank Demo file');
+}
+assert.equal(legacy423BlankDemoFile.heatCapacityMode, 'demo');
+assert.notEqual(legacy423BlankDemoFile.heatCapacityModeSessions.demo.status, 'empty');
+assert.equal(
+  legacy423BlankDemoDecoded.migrationModeCaptureOverrides.some((override) => (
+    override.fileId === legacy423BlankDemoFile.id &&
+    override.mode === 'demo' &&
+    override.capturedAtMs === legacy423BlankDemoFile.heatCapacityModeSessions.demo.capturedAtMs
+  )),
+  true,
+);
+
+for (const scenario of [
+  {
+    name: 'active',
+    files: [legacy423BlankDemoFile],
+    closedFiles: [],
+    activeFileId: legacy423BlankDemoFile.id,
+  },
+  {
+    name: 'inactive-open',
+    files: [standard, legacy423BlankDemoFile],
+    closedFiles: [],
+    activeFileId: standard.id,
+  },
+  {
+    name: 'closed',
+    files: [standard],
+    closedFiles: [legacy423BlankDemoFile],
+    activeFileId: standard.id,
+  },
+]) {
+  const records = createPersistenceRecords(
+    `legacy-423-blank-demo-${scenario.name}`,
+    {
+      files: scenario.files,
+      closedFiles: scenario.closedFiles,
+      activeFileId: scenario.activeFileId,
+      selectedPanel: 'preview',
+      refreshSession: null,
+      activeModeCheckpoint: null,
+      preserveActiveHeatCapacityModeSession: false,
+      migrationModeCaptureOverrides:
+        legacy423BlankDemoDecoded.migrationModeCaptureOverrides,
+    },
+    'pending-verification',
+  );
+  const modeStore = {
+    schemaVersion: 2 as const,
+    demo: records.modeRecords.find((record) => (
+      record.fileId === legacy423BlankDemoFile.id && record.mode === 'demo'
+    ))!.entry,
+    guide: records.modeRecords.find((record) => (
+      record.fileId === legacy423BlankDemoFile.id && record.mode === 'guide'
+    ))!.entry,
+    free: records.modeRecords.find((record) => (
+      record.fileId === legacy423BlankDemoFile.id && record.mode === 'free'
+    ))!.entry,
+  };
+  assert.deepEqual(
+    normalizeHeatCapacityModeSessionStore(
+      structuredClone(modeStore),
+      legacy423BlankDemoFile.id,
+    ),
+    modeStore,
+    `the ${scenario.name} v4.2.3 blank Demo split records must remain canonical`,
+  );
+  assert.notEqual(modeStore.demo.status, 'empty');
+}
+
+const legacy423DemoSource = {
+  ...legacy423GuideSource,
+  heatCapacityMode: 'demo' as const,
+  heatCapacityGuideTrial: legacy423GuideSource.heatCapacityGuideTrial
+    ? { ...legacy423GuideSource.heatCapacityGuideTrial, source: 'demo' as const }
+    : null,
+};
+const legacy423DemoEnvelope = prepareLegacy423MigrationFixture(convertHeatEnvelopeToLegacy423(
+  encodeWorkbenchStorageEnvelope(
+    [legacy423DemoSource],
+    legacy423DemoSource.id,
+    'preview',
+    1007,
+  ),
+));
+const legacy423DemoDecoded = decodeWorkbenchStorageEnvelope(legacy423DemoEnvelope);
+assert.deepEqual(
+  legacy423DemoDecoded.diagnostics,
+  [],
+  'a public v4.2.3 Demo file must migrate instead of producing an empty current-mode session',
+);
+const legacy423DemoFile = legacy423DemoDecoded.session.files[0];
+assert.equal(legacy423DemoFile.kind, 'heatCapacity');
+if (legacy423DemoFile.kind !== 'heatCapacity') {
+  throw new Error('expected migrated v4.2.3 Demo file');
+}
+assert.equal(legacy423DemoFile.heatCapacityMode, 'demo');
+assert.notEqual(legacy423DemoFile.heatCapacityModeSessions.demo.status, 'empty');
+assert.equal(
+  legacy423DemoDecoded.migrationModeCaptureOverrides.some((override) => (
+    override.fileId === legacy423DemoFile.id &&
+    override.mode === 'demo' &&
+    override.capturedAtMs === legacy423DemoFile.heatCapacityModeSessions.demo.capturedAtMs
+  )),
+  true,
+  'the v4.2.3 decoder must preserve exact provenance for an active Demo capture',
+);
+const legacy423DemoIndexedDbRecords = createPersistenceRecords(
+  'legacy-423-active-demo',
+  {
+    files: [legacy423DemoFile],
+    closedFiles: [],
+    activeFileId: legacy423DemoFile.id,
+    selectedPanel: 'preview',
+    refreshSession: null,
+    activeModeCheckpoint: null,
+    preserveActiveHeatCapacityModeSession: false,
+    migrationModeCaptureOverrides: legacy423DemoDecoded.migrationModeCaptureOverrides,
+  },
+  'pending-verification',
+);
+const legacy423DemoIndexedDbModeStore = {
+  schemaVersion: 2 as const,
+  demo: legacy423DemoIndexedDbRecords.modeRecords.find((record) => record.mode === 'demo')!.entry,
+  guide: legacy423DemoIndexedDbRecords.modeRecords.find((record) => record.mode === 'guide')!.entry,
+  free: legacy423DemoIndexedDbRecords.modeRecords.find((record) => record.mode === 'free')!.entry,
+};
+assert.deepEqual(
+  normalizeHeatCapacityModeSessionStore(
+    structuredClone(legacy423DemoIndexedDbModeStore),
+    legacy423DemoFile.id,
+  ),
+  legacy423DemoIndexedDbModeStore,
+  'the active v4.2.3 Demo override must produce canonical split mode records',
+);
+assert.notEqual(legacy423DemoIndexedDbModeStore.demo.status, 'empty');
+const currentDemoWithTrialFile = restoreHeatCapacityModeSession(
+  {
+    ...legacy423DemoFile,
+    heatCapacityModeSessions: legacy423DemoIndexedDbModeStore,
+  },
+  'demo',
+  legacy423DemoIndexedDbModeStore.demo.capturedAtMs!,
+);
+assert.ok(currentDemoWithTrialFile);
+const currentDemoWithTrialEnvelope = encodeWorkbenchStorageEnvelope(
+  [currentDemoWithTrialFile!],
+  currentDemoWithTrialFile!.id,
+  'preview',
+  Date.now(),
+);
+assert.deepEqual(
+  decodeWorkbenchStorageEnvelope(currentDemoWithTrialEnvelope).diagnostics,
+  [],
+  'a migrated Demo trial must form a valid current-schema baseline',
+);
+const mismatchedCurrentDemoTrialSourceEnvelope =
+  structuredClone(currentDemoWithTrialEnvelope);
 const mismatchedCurrentDemoTrialSourcePayload =
   mismatchedCurrentDemoTrialSourceEnvelope.files[0].payload as any;
+assert.notEqual(mismatchedCurrentDemoTrialSourcePayload.guided.trial, null);
 mismatchedCurrentDemoTrialSourcePayload.guided.trial.source = 'guide';
 assertCurrentFileRejected(
   mismatchedCurrentDemoTrialSourceEnvelope,
