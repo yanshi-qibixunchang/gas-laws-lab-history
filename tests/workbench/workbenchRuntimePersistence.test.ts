@@ -5,10 +5,18 @@ import {
   normalizePersistedParticles,
   normalizePersistedSimulationStats,
   normalizePersistedVisiblePanels,
+  projectWorkbenchRunStateForRuntimeFailure,
 } from '../../src/features/workbench/workbenchRuntimePersistence.ts';
 
 assert.equal(isPersistedWorkbenchRunState('paused'), true);
 assert.equal(isPersistedWorkbenchRunState('unknown'), false);
+assert.deepEqual(
+  ['idle', 'running', 'paused', 'finished', 'needs-reset'].map((runState) => (
+    projectWorkbenchRunStateForRuntimeFailure(runState as 'idle' | 'running' | 'paused' | 'finished' | 'needs-reset')
+  )),
+  ['idle', 'paused', 'paused', 'finished', 'needs-reset'],
+  'runtime failure should pause only active work and preserve already-stable canonical run states',
+);
 assert.equal(normalizePersistedSimulationStats(null).phase, 'idle');
 assert.equal(normalizePersistedSimulationStats({ temperature: 1.25 }).temperature, 1.25);
 assert.deepEqual(normalizePersistedChartData(null), { speed: [], energy: [], energyLog: [], tempHistory: [] });

@@ -69,6 +69,10 @@ export const isPersistedWorkbenchRunState = (value: unknown): value is Workbench
   workbenchRunStates.includes(value as WorkbenchRunState)
 );
 
+export const projectWorkbenchRunStateForRuntimeFailure = (
+  runState: WorkbenchRunState,
+): WorkbenchRunState => runState === 'running' ? 'paused' : runState;
+
 export const normalizePersistedVisiblePanels = (
   value: unknown,
   fallback: WorkbenchPanelKey[],

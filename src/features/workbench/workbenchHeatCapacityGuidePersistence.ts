@@ -57,7 +57,9 @@ export const normalizeHeatCapacityPersistenceEquilibriumSpeed = (
 export const createHeatCapacityGuidePersistenceData = (
   file: WorkbenchHeatCapacityState,
 ): HeatCapacityGuidePersistenceDataV1 | null => (
-  file.heatCapacityMode === 'guide' || file.heatCapacityGuideTrial !== null
+  file.heatCapacityMode === 'guide' ||
+  file.heatCapacityMode === 'demo' ||
+  file.heatCapacityGuideTrial !== null
     ? {
         physicsConfig: clonePersistenceValue(file.heatCapacityGuidePhysicsConfig),
         physicsState: clonePersistenceValue(file.heatCapacityGuidePhysicsState),

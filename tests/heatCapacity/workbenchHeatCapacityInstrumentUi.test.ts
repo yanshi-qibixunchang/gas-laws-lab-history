@@ -1767,6 +1767,8 @@ assert.match(workbenchSource, /setHeatCapacityStopcockOpenByFileId\(fileId, fals
 assert.doesNotMatch(workbenchSource, /animateHeatCapacityStopcockAngle/, 'auto demo should not write continuous stopcock angles that fight the scene-level smooth two-state animation');
 assert.match(workbenchSource, /commitHeatCapacityAutoDemoPressureZero/, 'auto demo should commit pressure-zero logical state once instead of writing Workbench state through RAF');
 assert.match(workbenchSource, /commitHeatCapacityAutoDemoDefaultReset/, 'auto demo default reset should commit the target logical state once while the scene owns local motion');
+assert.match(workbenchSource, /commitHeatCapacityAutoDemoDefaultReset[\s\S]{0,500}prepareHeatCapacityAutoDemoReset/, 'auto demo reset should replace source-mode runtime with a canonical powered-off Demo state');
+assert.match(workbenchSource, /targetMode === 'demo'[\s\S]{0,500}prepareHeatCapacityAutoDemoReset/, 'fresh Demo mode preparation should be canonical before its first scripted action');
 assert.doesNotMatch(workbenchSource, /animateHeatCapacityPressureZero|animateHeatCapacityDefaultReset/, 'auto demo should not keep the old Workbench-owned reset or pressure-zero animation functions');
 assert.match(workbenchSource, /data-heat-capacity-mode="demo"/, 'preview header should expose heat-capacity demo mode through the unified mode bar');
 assert.match(workbenchSource, /stepHeatCapacityWorkbenchFile/, 'workbench should step the heat capacity process model from the shared file state');

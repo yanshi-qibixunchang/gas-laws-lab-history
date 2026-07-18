@@ -3493,6 +3493,41 @@ function HeatCapacitySceneReadyBridge({
   return null;
 }
 
+function HeatCapacityWebGLContextLossGuard({
+  onContextLost,
+  onContextRestored,
+}: {
+  onContextLost: () => void;
+  onContextRestored: () => void;
+}) {
+  const gl = useThree((state) => state.gl);
+  const reportRuntimeFailure = useHeatCapacityRuntimeFailureReporter();
+  const onContextLostRef = useRef(onContextLost);
+  const onContextRestoredRef = useRef(onContextRestored);
+  onContextLostRef.current = onContextLost;
+  onContextRestoredRef.current = onContextRestored;
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      onContextLostRef.current();
+      reportRuntimeFailure(new Error('The WebGL rendering context was lost.'));
+    };
+    const handleContextRestored = () => {
+      onContextRestoredRef.current();
+    };
+    canvas.addEventListener('webglcontextlost', handleContextLost);
+    canvas.addEventListener('webglcontextrestored', handleContextRestored);
+    return () => {
+      canvas.removeEventListener('webglcontextlost', handleContextLost);
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+    };
+  }, [gl, reportRuntimeFailure]);
+
+  return null;
+}
+
 function HeatCapacitySceneRevealBridge({
   requested,
   onRevealReady,
@@ -3800,8 +3835,11 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const [sceneRevealReady, setSceneRevealReady] = useState(false);
   const [restoredSceneFrameLoadFailed, setRestoredSceneFrameLoadFailed] = useState(false);
   const [ultraSceneError, setUltraSceneError] = useState<HeatCapacityUltraSceneError | null>(null);
+  const [retainLostContextCanvas, setRetainLostContextCanvas] = useState(false);
+  const [lostContextRestored, setLostContextRestored] = useState(true);
   const [ultraAssetLoadAttempt, setUltraAssetLoadAttempt] = useState(0);
   const [ultraRuntimeRetryAttempt, setUltraRuntimeRetryAttempt] = useState(0);
+  const [ultraRuntimeGuardRevision, setUltraRuntimeGuardRevision] = useState(0);
   const [motionSettleRevision, setMotionSettleRevision] = useState(0);
   const motionSettleRequestsRef = useRef(new Map<number, {
     frameIds: number[];
@@ -4334,17 +4372,23 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const retryUltraScene = useCallback(() => {
     const errorKind = ultraSceneError?.kind;
     if (!errorKind) return;
+    if (retainLostContextCanvas && !lostContextRestored) return;
     if (errorKind === 'asset') {
       clearHeatCapacityUltraInstrumentModelCache();
       setUltraAssetLoadAttempt((attempt) => attempt + 1);
     } else {
-      setUltraRuntimeRetryAttempt((attempt) => attempt + 1);
+      setUltraRuntimeGuardRevision((revision) => revision + 1);
+      if (!retainLostContextCanvas) {
+        setUltraRuntimeRetryAttempt((attempt) => attempt + 1);
+      }
     }
+    setRetainLostContextCanvas(false);
+    setLostContextRestored(true);
     setUltraSceneError(null);
     setSceneReady(false);
     setSceneRevealReady(false);
     sceneReadyReportedRef.current = false;
-  }, [ultraSceneError]);
+  }, [lostContextRestored, retainLostContextCanvas, ultraSceneError]);
   const handleSceneReady = useCallback(() => {
     if (sceneReadyReportedRef.current) return;
     sceneReadyReportedRef.current = true;
@@ -4355,6 +4399,13 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
     setSceneRevealReady(true);
     props.onSceneRestoreRevealComplete?.(props.sceneFileId);
   }, [props.onSceneRestoreRevealComplete, props.sceneFileId]);
+  const handleWebGLContextLost = useCallback(() => {
+    setRetainLostContextCanvas(true);
+    setLostContextRestored(false);
+  }, []);
+  const handleWebGLContextRestored = useCallback(() => {
+    setLostContextRestored(true);
+  }, []);
   const captureCurrentCameraView = useCallback(() => {
     const payload = cameraCaptureHandler?.() ?? null;
     if (payload) setCameraCapturePayload(payload);
@@ -4652,7 +4703,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       onClickCapture={handleSceneClickCapture}
       onPointerLeave={clearStableHoveredControl}
     >
-      {ultraSceneError === null ? (
+      {ultraSceneError === null || retainLostContextCanvas ? (
       <HeatCapacityUltraErrorBoundary
         key={`scene-runtime-${ultraRuntimeRetryAttempt}`}
         errorKind="runtime"
@@ -4660,9 +4711,13 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       >
       <Canvas {...canvasProps} events={createHeatCapacityPointerEvents}>
         <HeatCapacityRuntimeGuardProvider
-          revision={ultraRuntimeRetryAttempt}
+          revision={ultraRuntimeGuardRevision}
           onError={(error) => handleUltraSceneError('runtime', error)}
         >
+        <HeatCapacityWebGLContextLossGuard
+          onContextLost={handleWebGLContextLost}
+          onContextRestored={handleWebGLContextRestored}
+        />
         {/* GLB replacement contract: preserve node names, pivots, and hitbox roles from this procedural skeleton. */}
         <color attach="background" args={[scenePalette.scene.background]} />
         <HeatCapacitySceneLighting qualityProfile={qualityProfile} scenePalette={scenePalette} />
@@ -4808,6 +4863,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
               type="button"
               autoFocus
               data-heat-capacity-ultra-error-retry="true"
+              disabled={retainLostContextCanvas && !lostContextRestored}
               onClick={retryUltraScene}
               style={{
                 minHeight: 34,
@@ -4816,8 +4872,9 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                 borderRadius: 8,
                 background: '#0c4a6e',
                 color: '#f0f9ff',
-                cursor: 'pointer',
+                cursor: retainLostContextCanvas && !lostContextRestored ? 'wait' : 'pointer',
                 fontWeight: 650,
+                opacity: retainLostContextCanvas && !lostContextRestored ? 0.72 : 1,
               }}
             >
               {ultraSceneErrorCopy.retry}

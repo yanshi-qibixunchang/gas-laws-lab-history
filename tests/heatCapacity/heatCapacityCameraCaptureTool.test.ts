@@ -14,13 +14,27 @@ assert.equal(existsSync(agentsPath), true, 'AGENTS.md should exist');
 
 const sceneSource = readFileSync(scenePath, 'utf8');
 const styleSource = readFileSync(stylePath, 'utf8');
-const packageJson = JSON.parse(readFileSync(packagePath, 'utf8')) as { scripts?: Record<string, string> };
+const packageJson = JSON.parse(readFileSync(packagePath, 'utf8')) as {
+  scripts?: Record<string, string>;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+};
 const agentsSource = readFileSync(agentsPath, 'utf8');
 
 assert.equal(
   packageJson.scripts?.['dev:temp'],
   'vite --host 127.0.0.1 --port 5184 --strictPort',
   'project should expose a strict temporary-output dev server that does not occupy the fixed 5174 preview port',
+);
+assert.equal(
+  packageJson.dependencies?.three,
+  '0.182.0',
+  'Three must stay exactly pinned to the Clock-compatible runtime used by React Three Fiber 8',
+);
+assert.equal(
+  packageJson.devDependencies?.['@types/three'],
+  '0.182.0',
+  'Three runtime and declaration versions must stay aligned',
 );
 assert.match(
   agentsSource,
@@ -56,6 +70,16 @@ assert.match(
   sceneSource,
   /const cameraCaptureEnabled = useMemo\(\(\) => isHeatCapacityCameraCaptureEnabled\(\), \[\]\);[\s\S]*<HeatCapacityCameraCaptureBridge[\s\S]*enabled=\{cameraCaptureEnabled\}[\s\S]*baseFov=\{cameraViewScheme\.fov\}[\s\S]*<HeatCapacityCameraCapturePanel[\s\S]*enabled=\{cameraCaptureEnabled\}/,
   'heat-capacity scene should mount the capture bridge and panel only through the dev query switch',
+);
+assert.match(
+  sceneSource,
+  /gl:\s*\{\s*preserveDrawingBuffer:\s*false\s*\}/,
+  'the live WebGL renderer must not retain every frame solely for capture tooling',
+);
+assert.doesNotMatch(
+  sceneSource,
+  /\.toDataURL\(/,
+  'camera-view capture should record semantic camera data without synchronously reading back the WebGL canvas',
 );
 assert.match(
   styleSource,

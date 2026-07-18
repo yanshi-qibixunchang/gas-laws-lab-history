@@ -3851,7 +3851,7 @@ export const powerHeatCapacityWorkbenchFile = (
   return storeActiveHeatCapacityFreeDomainRuntimeFields(nextFile, scheme);
 };
 
-export const prepareHeatCapacityAutoDemoStart = (
+export const prepareHeatCapacityAutoDemoReset = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
   createInitialBiasMv = () => HEAT_CAPACITY_AUTO_DEMO_INITIAL_PRESSURE_BIAS_MV,
@@ -3936,6 +3936,15 @@ export const prepareHeatCapacityAutoDemoStart = (
     updatedAt: now,
   };
 
+  return resetFile;
+};
+
+export const prepareHeatCapacityAutoDemoStart = (
+  file: WorkbenchHeatCapacityState,
+  now = Date.now(),
+  createInitialBiasMv = () => HEAT_CAPACITY_AUTO_DEMO_INITIAL_PRESSURE_BIAS_MV,
+): WorkbenchHeatCapacityState => {
+  const resetFile = prepareHeatCapacityAutoDemoReset(file, now, createInitialBiasMv);
   const poweredFile = powerHeatCapacityWorkbenchFile(resetFile, true, now);
   return {
     ...poweredFile,

@@ -48,6 +48,27 @@ assert.deepEqual(
   profile,
   'a current profile must remain stable when normalized again',
 );
+const generatedSeeds = new Set<number | string>();
+for (let index = 0; index < 1200; index += 1) {
+  const generatedProfile = createHeatCapacityAutoDemoProfile(() => index / 1200);
+  generatedSeeds.add(generatedProfile.seed);
+  assert.deepEqual(
+    normalizeHeatCapacityTeachingProfile(generatedProfile),
+    generatedProfile,
+    `generated teaching profile ${String(generatedProfile.seed)} must normalize idempotently`,
+  );
+}
+assert.equal(
+  generatedSeeds.size > 1,
+  true,
+  'the idempotence sweep must cover more than one generated teaching profile',
+);
+const formerlyDriftingProfile = createHeatCapacityAutoDemoProfile(() => 0.0278);
+assert.deepEqual(
+  normalizeHeatCapacityTeachingProfile(formerlyDriftingProfile),
+  formerlyDriftingProfile,
+  'a displayed U2 triplet must not drift by another 0.1 mV during repeated normalization',
+);
 assert.equal(normalizeHeatCapacityTeachingProfile({ u1MeasuredMv: 120 }), null);
 
 const clamped = clampHeatCapacityTeachingProfile({

@@ -121,9 +121,22 @@ export const clampHeatCapacityTeachingProfile = (
   const requestedGamma = clampNumber(profile.gammaTarget, AUTO_DEMO_GAMMA_MIN, AUTO_DEMO_GAMMA_MAX);
   const u0MeasuredMv = truncateHeatCapacitySignalMv(clampNumber(profile.u0MeasuredMv, -0.03, 0.03));
   const u1MeasuredMv = truncateHeatCapacitySignalMv(clampNumber(profile.u1MeasuredMv, 105, 130));
-  const u2MeasuredMv = truncateHeatCapacitySignalMv(
-    roundNumber(calculateHeatCapacityU2ForGamma(u0MeasuredMv, u1MeasuredMv, requestedGamma), 6),
+  const providedU2MeasuredMv = truncateHeatCapacitySignalMv(profile.u2MeasuredMv);
+  const providedDisplayedGamma = roundNumber(calculateHeatCapacityGammaFromDisplayedSignals(
+    u0MeasuredMv,
+    u1MeasuredMv,
+    providedU2MeasuredMv,
+  ), 6);
+  const providedSignalsAreCanonical = (
+    providedDisplayedGamma >= AUTO_DEMO_GAMMA_MIN &&
+    providedDisplayedGamma <= AUTO_DEMO_GAMMA_MAX &&
+    roundNumber(profile.gammaTarget, 6) === providedDisplayedGamma
   );
+  const u2MeasuredMv = providedSignalsAreCanonical
+    ? providedU2MeasuredMv
+    : truncateHeatCapacitySignalMv(
+      roundNumber(calculateHeatCapacityU2ForGamma(u0MeasuredMv, u1MeasuredMv, requestedGamma), 6),
+    );
   const gammaTarget = roundNumber(calculateHeatCapacityGammaFromDisplayedSignals(
     u0MeasuredMv,
     u1MeasuredMv,

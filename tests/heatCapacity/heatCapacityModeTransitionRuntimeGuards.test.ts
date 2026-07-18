@@ -357,8 +357,43 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /<HeatCapacityRuntimeGuardProvider[\s\S]*revision=\{ultraRuntimeRetryAttempt\}[\s\S]*onError=\{\(error\) => handleUltraSceneError\('runtime', error\)\}/,
+  /<HeatCapacityRuntimeGuardProvider[\s\S]*revision=\{ultraRuntimeGuardRevision\}[\s\S]*onError=\{\(error\) => handleUltraSceneError\('runtime', error\)\}/,
   'all scene callbacks and frames should share a retryable runtime error boundary',
+);
+assert.match(
+  sceneSource,
+  /function HeatCapacityWebGLContextLossGuard[\s\S]*addEventListener\('webglcontextlost', handleContextLost\)[\s\S]*addEventListener\('webglcontextrestored', handleContextRestored\)[\s\S]*removeEventListener\('webglcontextlost', handleContextLost\)[\s\S]*removeEventListener\('webglcontextrestored', handleContextRestored\)/,
+  'the scene should subscribe to and clean up the browser WebGL context-loss and restoration signals',
+);
+assert.match(
+  sceneSource,
+  /event\.preventDefault\(\);[\s\S]*onContextLostRef\.current\(\);[\s\S]*reportRuntimeFailure\(new Error\('The WebGL rendering context was lost\.'\)\);[\s\S]*<HeatCapacityWebGLContextLossGuard[\s\S]*onContextLost=\{handleWebGLContextLost\}/,
+  'a real WebGL context loss should enter the same retryable runtime failure path',
+);
+assert.doesNotMatch(
+  sceneSource,
+  /forceContextRestore|extensions\.has\('WEBGL_lose_context'\)/,
+  'production recovery must wait for the browser context-restored event instead of issuing an extension-only synthetic restore',
+);
+assert.match(
+  sceneSource,
+  /const onContextLostRef = useRef\(onContextLost\);[\s\S]*const onContextRestoredRef = useRef\(onContextRestored\);[\s\S]*onContextLostRef\.current = onContextLost;[\s\S]*onContextRestoredRef\.current = onContextRestored;[\s\S]*\}, \[gl, reportRuntimeFailure\]\);/,
+  'the native context lifecycle listeners should remain stable across realtime parent renders while using the latest callbacks',
+);
+assert.match(
+  sceneSource,
+  /const handleWebGLContextLost = useCallback\(\(\) => \{\s*setRetainLostContextCanvas\(true\);\s*setLostContextRestored\(false\);/,
+  'all real context losses should retain the old Canvas until the browser reports restoration',
+);
+assert.match(
+  sceneSource,
+  /const retryUltraScene = useCallback\(\(\) => \{[\s\S]*if \(retainLostContextCanvas && !lostContextRestored\) return;[\s\S]*setUltraRuntimeGuardRevision\(\(revision\) => revision \+ 1\);[\s\S]*if \(!retainLostContextCanvas\) \{\s*setUltraRuntimeRetryAttempt[\s\S]*ultraSceneError === null \|\| retainLostContextCanvas[\s\S]*disabled=\{retainLostContextCanvas && !lostContextRestored\}/,
+  'a restored lost Canvas should reset only the guard epoch in place, while other runtime failures retain the full remount path',
+);
+assert.match(
+  workbenchSource,
+  /useEffect\(\(\) => \{\s*if \(\s*desktopExitQuiesced \|\|[\s\S]*heatCapacityRefreshRestoring \|\|[\s\S]*heatCapacityRuntimeFailureFileId !== null[\s\S]*window\.setInterval\(\(\) => \{/,
+  'the real-time heat-capacity tick must not keep a background interval during exit, restore, or runtime failure',
 );
 assert.match(
   sceneSource,
@@ -446,7 +481,7 @@ assert.doesNotMatch(
 );
 assert.match(
   workbenchSource,
-  /expectedRecoveryFile = failedFile\?\.kind === 'heatCapacity'[\s\S]*projectedFailureFile[\s\S]*expectedFile: expectedRecoveryFile[\s\S]*hasSameHeatCapacityRuntimeRecoveryState\(currentFile, recoveryIntent\.expectedFile\)/,
+  /const projectedRunState = failedFile\?\.kind === 'heatCapacity'[\s\S]*projectWorkbenchRunStateForRuntimeFailure\(failedFile\.runState\)[\s\S]*projectedFailureFile[\s\S]*expectedFile: expectedRecoveryFile,[\s\S]*projectedRunState,[\s\S]*hasSameHeatCapacityRuntimeRecoveryState\(currentFile, recoveryIntent\.expectedFile\)/,
   'runtime recovery must carry a collision-safe state token through the failure projection and true-ready callback',
 );
 assert.match(
@@ -456,13 +491,13 @@ assert.match(
 );
 assert.match(
   workbenchRuntimeRecoverySection,
-  /const recoveryStateMatches =[\s\S]*const recoveryRebaseStartMs = recoveryStateMatches[\s\S]*Math\.min\(recoveredAt, currentFile\.updatedAt\)[\s\S]*rebaseHeatCapacityFileAfterSuspendedWallClock\([\s\S]*recoveryRebaseStartMs,[\s\S]*return recoveryStateMatches &&[\s\S]*recoveryIntent\.resumeGuideRunState[\s\S]*runState: 'running'(?: as const)?/,
+  /const recoveryStateMatches =[\s\S]*const recoveryRebaseStartMs = recoveryStateMatches[\s\S]*Math\.min\(recoveredAt, currentFile\.updatedAt\)[\s\S]*rebaseHeatCapacityFileAfterSuspendedWallClock\([\s\S]*recoveryRebaseStartMs,[\s\S]*const recoveredRunState = recoveryStateMatches[\s\S]*recoveryIntent\.projectedRunState[\s\S]*projectWorkbenchRunStateForRuntimeFailure\(file\.runState\)[\s\S]*return recoveryStateMatches &&[\s\S]*recoveryIntent\.resumeGuideRunState[\s\S]*runState: 'running'(?: as const)?/,
   'runtime recovery must fully rebase a matching token and conservatively pause a changed runtime state',
 );
 assert.match(
   workbenchRuntimeRecoverySection,
-  /const pausedFile = refreshHeatCapacityPumpFrequency\(\{[\s\S]*runState: 'paused'(?: as const)?,[\s\S]*pumpBulbState: 'idle'(?: as const)?[\s\S]*recoveryApplied = true[\s\S]*recoveryIntent\?\.pauseDemoOnRecovery[\s\S]*autoDemoPhaseRef\.current = 'paused';[\s\S]*setAutoDemoPhase\('paused'\)/,
-  'deferred Free and Demo failures must receive one paused projection after the owning gate releases',
+  /const recoveredFile = refreshHeatCapacityPumpFrequency\(\{[\s\S]*runState: recoveredRunState,[\s\S]*pumpBulbState: 'idle'(?: as const)?[\s\S]*recoveryApplied = true[\s\S]*recoveryIntent\?\.pauseDemoOnRecovery[\s\S]*autoDemoPhaseRef\.current = 'paused';[\s\S]*setAutoDemoPhase\('paused'\)/,
+  'deferred failures must pause active work while preserving already-stable canonical run states after the owning gate releases',
 );
 assert.match(
   workbenchSource,
@@ -476,8 +511,8 @@ assert.match(
 );
 assert.match(
   workbenchRuntimeRecoverySection,
-  /const failureProjectionDeferred = desktopExitQuiescedRef\.current \|\|[\s\S]*heatCapacityRefreshRestorePendingRef\.current;[\s\S]*failureProjectionDeferred[\s\S]*failedFile\.updatedAt[\s\S]*if \(!failureProjectionDeferred\) \{[\s\S]*runState: 'paused',[\s\S]*updatedAt: failureUpdatedAt/,
-  'a post-anchor runtime failure must preserve desktop or hydration canonical state while an unowned failure projects an exact paused revision',
+  /const failureProjectionDeferred = desktopExitQuiescedRef\.current \|\|[\s\S]*heatCapacityRefreshRestorePendingRef\.current;[\s\S]*failureProjectionDeferred[\s\S]*failedFile\.updatedAt[\s\S]*const projectedRunState[\s\S]*if \(!failureProjectionDeferred\) \{[\s\S]*runState: projectedRunState,[\s\S]*updatedAt: failureUpdatedAt/,
+  'a post-anchor runtime failure must preserve desktop or hydration canonical state while an unowned failure pauses only active work',
 );
 assert.match(
   workbenchRuntimeRecoverySection,
