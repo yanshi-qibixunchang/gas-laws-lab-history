@@ -2,11 +2,15 @@ import type {
   WorkbenchFileKind,
   WorkbenchFileState,
 } from './workbenchState.ts';
+import { WORKBENCH_FILE_NAME_PREFIX_BY_KIND } from './workbenchFileKind.ts';
 
-const DISPLAY_NAME_PREFIX_BY_KIND: Record<WorkbenchFileKind, string> = {
-  standard: 'Standard Simulation',
-  ideal: 'Ideal Gas Simulation',
-  heatCapacity: 'Heat Capacity Ratio',
+const LEGACY_DISPLAY_NAME_PREFIXES_BY_KIND: Partial<
+  Record<WorkbenchFileKind, readonly string[]>
+> = {
+  heatCapacity: [
+    'Hard-Sphere Heat Capacity Ratio',
+    'Heat Capacity Ratio',
+  ],
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -38,12 +42,19 @@ export const getNextWorkbenchFileDisplayIndex = (
   kind: WorkbenchFileKind,
   files: readonly WorkbenchFileState[],
 ): number => {
-  const prefix = DISPLAY_NAME_PREFIX_BY_KIND[kind];
-  const pattern = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} - (\\d+)$`);
+  const prefixes = [
+    WORKBENCH_FILE_NAME_PREFIX_BY_KIND[kind],
+    ...(LEGACY_DISPLAY_NAME_PREFIXES_BY_KIND[kind] ?? []),
+  ];
+  const patterns = prefixes.map(
+    (prefix) => new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} - (\\d+)$`),
+  );
   let largestIndex = 0;
   for (const file of files) {
     if (file.kind !== kind) continue;
-    const match = pattern.exec(file.name);
+    const match = patterns
+      .map((pattern) => pattern.exec(file.name))
+      .find((candidate) => candidate !== null);
     if (!match) continue;
     const index = Number(match[1]);
     if (Number.isSafeInteger(index) && index > largestIndex) {

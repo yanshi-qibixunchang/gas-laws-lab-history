@@ -52,6 +52,20 @@ assert.equal(isWorkbenchSessionEnvelope({
 assert.equal(isWorkbenchExperimentFileEnvelope(baseFileEnvelope), true);
 assert.equal(isWorkbenchExperimentFileEnvelope({
   ...baseFileEnvelope,
+  id: 'heatCapacityPistonOscillation-001',
+  kind: 'heatCapacityPistonOscillation',
+  name: 'Piston Oscillation - 001',
+}), true);
+assert.equal(isWorkbenchExperimentFileEnvelope({
+  ...baseFileEnvelope,
+  kind: 'heatCapacityPiston',
+}), false);
+assert.equal(isWorkbenchExperimentFileEnvelope({
+  ...baseFileEnvelope,
+  lastOpenedAt: 'yesterday',
+}), false);
+assert.equal(isWorkbenchExperimentFileEnvelope({
+  ...baseFileEnvelope,
   fileSchemaVersion: 999,
 }), false);
 

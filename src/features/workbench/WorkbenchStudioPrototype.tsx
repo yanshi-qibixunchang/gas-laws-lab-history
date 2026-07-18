@@ -39,6 +39,7 @@ import {
   canZeroHeatCapacityPressure,
   cloneParams,
   createDefaultHeatCapacityFile,
+  createDefaultHeatCapacityPistonOscillationFile,
   createDefaultIdealFile,
   createDefaultIdealWindowLayout,
   createDefaultStandardFile,
@@ -319,6 +320,7 @@ import {
   createUniqueWorkbenchFileId,
   getNextWorkbenchFileDisplayIndex,
 } from './workbenchFileIdentity.ts';
+import { assertNeverWorkbenchFileKind } from './workbenchFileKind.ts';
 import { trimWorkbenchEditHistory } from './workbenchEditHistory.ts';
 import {
   IDEAL_RESULT_MAX_HEIGHT_RATIO,
@@ -1225,6 +1227,11 @@ type WorkbenchFilePresentationSnapshot =
         | 'activeHeatCapacityTabId'
         | 'heatCapacityTabContainerHeight'
         | 'heatCapacityMaterialsExpanded'>;
+    }
+  | {
+      kind: 'heatCapacityPistonOscillation';
+      state: Pick<Extract<WorkbenchFileState, { kind: 'heatCapacityPistonOscillation' }>,
+        'visiblePanels' | 'liveWorkspaceSplitRatio' | 'previewCameraPreset'>;
     };
 
 interface WorkbenchWorkspaceEditSnapshot {
@@ -1915,6 +1922,12 @@ const experimentLogCopies = {
 } satisfies Record<WorkbenchLanguagePreference, WorkbenchExperimentLogCopy>;
 
 const LOCKED_PANEL_KEYS: WorkbenchPanelKey[] = ['preview', 'realtime'];
+const shouldCollapseWorkbenchParameterSidebar = (
+  file: WorkbenchFileState | undefined,
+) => (
+  file?.kind === 'heatCapacity' ||
+  file?.kind === 'heatCapacityPistonOscillation'
+);
 const LEFT_SIDEBAR_MIN = 220;
 const LEFT_SIDEBAR_MAX = 420;
 const PARAM_SIDEBAR_MIN = 240;
@@ -3825,6 +3838,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
           runState: restoredRunState,
         };
       }
+      if (file.kind === 'heatCapacityPistonOscillation') {
+        return {
+          ...file,
+          runState: 'idle' as const,
+          liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(
+            file.liveWorkspaceSplitRatio ??
+              defaults.heatCapacityPistonOscillation.liveWorkspaceSplitRatio,
+          ),
+        };
+      }
       return {
         ...file,
         liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
@@ -4068,7 +4091,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const [parametersCollapsed, setParametersCollapsed] = useState(() => (
     typeof initialHeatCapacityRefreshLayout.parametersCollapsed === 'boolean'
       ? initialHeatCapacityRefreshLayout.parametersCollapsed
-      : initialSession.files.find((file) => file.id === initialSession.activeFileId)?.kind === 'heatCapacity'
+      : shouldCollapseWorkbenchParameterSidebar(
+          initialSession.files.find((file) => file.id === initialSession.activeFileId),
+        )
   ));
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(() => clamp(
     getHeatCapacityRefreshNumber(initialHeatCapacityRefreshLayout, 'leftSidebarWidth', 286),
@@ -4778,6 +4803,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
     () => createHeatCapacityPanels(workbenchCopy, heatCapacityRealtimeCopy),
     [heatCapacityRealtimeCopy, workbenchCopy],
   );
+  const pistonOscillationPanels = useMemo(
+    () => createHeatCapacityPanels(workbenchCopy, heatCapacityRealtimeCopy)
+      .filter((panel) => panel.key === 'preview' || panel.key === 'realtime'),
+    [heatCapacityRealtimeCopy, workbenchCopy],
+  );
   const resultsSections = useMemo(() => createResultsSections(workbenchCopy), [workbenchCopy]);
   const idealResultWindowPanels = useMemo(
     () => idealPanels.filter(
@@ -4794,7 +4824,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     ? standardPanels
     : activeFile.kind === 'ideal'
       ? idealPanels
-      : heatCapacityPanels;
+      : activeFile.kind === 'heatCapacity'
+        ? heatCapacityPanels
+        : pistonOscillationPanels;
   const activePanelTitle = activeFile.kind === 'heatCapacity' && selectedPanel === 'results'
     ? heatCapacityRealtimeCopy.materialsTitle
     : availablePanels.find((panel) => panel.key === selectedPanel)?.title ?? '3D Preview';
@@ -4831,9 +4863,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
   );
   const parametersDirty = !areWorkbenchParamsEqual(activeFile.params, activeFile.appliedParams);
   const parameterControlsLocked = activeFile.runState === 'running' || activeFile.runState === 'paused';
-  const currentParameterControlsLocked = activeFile.kind === 'heatCapacity' && activeFile.heatCapacityMode === 'free'
-    ? false
-    : parameterControlsLocked;
+  const currentParameterControlsLocked = activeFile.kind === 'heatCapacityPistonOscillation'
+    ? true
+    : activeFile.kind === 'heatCapacity' && activeFile.heatCapacityMode === 'free'
+      ? false
+      : parameterControlsLocked;
   const controlledVariableLockHint = workbenchCopy.parameters.controlledLockHint;
   const currentIdealRelationHasPoints = activeFile.kind === 'ideal' && activeFile.pointsByRelation[activeFile.relation].length > 0;
   const isIdealControlledVariableLocked = (
@@ -5462,6 +5496,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
   }, [activeFile.id]);
 
   useEffect(() => {
+    if (activeFile.kind === 'heatCapacityPistonOscillation') {
+      setParametersCollapsed(true);
+      setIdealAdvancedSettingsOpen(false);
+      setIdealAdvancedSettingsBodyVisible(false);
+      return;
+    }
     if (!canOpenHeatCapacityParameterSidebar(activeFile)) {
       setParametersCollapsed(true);
       setHeatCapacityAdvancedOpen(false);
@@ -12228,15 +12268,25 @@ const WorkbenchStudioPrototype: React.FC = () => {
         }),
       };
     }
+    if (file.kind === 'heatCapacity') {
+      return {
+        kind: 'heatCapacity',
+        state: structuredClone({
+          visiblePanels: file.visiblePanels,
+          liveWorkspaceSplitRatio: file.liveWorkspaceSplitRatio,
+          openHeatCapacityTabs: file.openHeatCapacityTabs,
+          activeHeatCapacityTabId: file.activeHeatCapacityTabId,
+          heatCapacityTabContainerHeight: file.heatCapacityTabContainerHeight,
+          heatCapacityMaterialsExpanded: file.heatCapacityMaterialsExpanded,
+        }),
+      };
+    }
     return {
-      kind: 'heatCapacity',
+      kind: 'heatCapacityPistonOscillation',
       state: structuredClone({
         visiblePanels: file.visiblePanels,
         liveWorkspaceSplitRatio: file.liveWorkspaceSplitRatio,
-        openHeatCapacityTabs: file.openHeatCapacityTabs,
-        activeHeatCapacityTabId: file.activeHeatCapacityTabId,
-        heatCapacityTabContainerHeight: file.heatCapacityTabContainerHeight,
-        heatCapacityMaterialsExpanded: file.heatCapacityMaterialsExpanded,
+        previewCameraPreset: file.previewCameraPreset,
       }),
     };
   };
@@ -12300,12 +12350,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
         return;
       }
 
-      if (file.kind === 'heatCapacity') return;
-
+      if (file.kind !== 'ideal') return;
       const runtime = createIdealRuntime(file);
-      if (runtime) {
-        idealRuntimeRef.current[file.id] = runtime;
-      }
+      if (runtime) idealRuntimeRef.current[file.id] = runtime;
     });
   };
 
@@ -12313,7 +12360,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     cancelRuntimeFrame(file.id);
     delete standardRuntimeRef.current[file.id];
     delete idealRuntimeRef.current[file.id];
-    if (file.kind === 'heatCapacity') return;
+    if (file.kind !== 'standard' && file.kind !== 'ideal') return;
     const runtime = file.kind === 'standard' ? createStandardRuntime(file) : createIdealRuntime(file);
     if (!runtime) return;
     if (file.kind === 'standard') {
@@ -12374,7 +12421,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (restoringActiveFile) {
       selectedPanelRef.current = snapshot.selectedPanel;
       setSelectedPanel(snapshot.selectedPanel);
-      setParametersCollapsed(restoredFile.kind === 'heatCapacity');
+      setParametersCollapsed(shouldCollapseWorkbenchParameterSidebar(restoredFile));
     }
     clearEditRestoreTransientUi();
     void flushWorkspacePersistenceRef.current(activeModeCheckpointOverride);
@@ -12402,7 +12449,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       activeModeCheckpointOverride = activateHeatCapacityFileModeSession(nextActiveFile.id);
     }
     setSelectedPanel(snapshot.selectedPanel);
-    setParametersCollapsed(nextActiveFile?.kind === 'heatCapacity');
+    setParametersCollapsed(shouldCollapseWorkbenchParameterSidebar(nextActiveFile));
     clearEditRestoreTransientUi();
     void flushWorkspacePersistenceRef.current(activeModeCheckpointOverride);
   };
@@ -12928,7 +12975,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
         ? normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, workbenchLayoutDefaults.ideal).heightRatio
         : activeFile.kind === 'standard'
           ? normalizeStandardResultsLayout(activeFile.standardResultsLayout, workbenchLayoutDefaults.standard).heightRatio
-          : workbenchLayoutDefaults.heatCapacity.resultsHeightRatio,
+          : activeFile.kind === 'heatCapacity'
+            ? workbenchLayoutDefaults.heatCapacity.resultsHeightRatio
+            : workbenchLayoutDefaults.heatCapacityPistonOscillation.resultsHeightRatio,
       liveWorkspaceSplitRatio: activeFile.liveWorkspaceSplitRatio,
     });
     const nextDefaults = sanitizeWorkbenchLayoutDefaults({
@@ -13433,6 +13482,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     paramsOverride?: SimulationParams,
     options: ApplyActiveFileParamsOptions = {},
   ): StandardEngineRuntime | null => {
+    if (activeFile.kind === 'heatCapacityPistonOscillation') {
+      setParameterErrors([]);
+      return null;
+    }
     if (activeFile.runState === 'running') {
       if (!options.silent) pushLog(
         (language) => workbenchCopies[language].logs.pauseBeforeApplyingParameters(activeFile.name),
@@ -13627,6 +13680,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const runActiveFile = () => {
+    if (activeFile.kind === 'heatCapacityPistonOscillation') {
+      setParameterErrors([]);
+      setSamplingPresetMenuOpen(false);
+      return;
+    }
     if (activeFile.kind === 'heatCapacity') {
       if (parametersDirty) {
         applyActiveFileParams(undefined, { silent: true });
@@ -13966,6 +14024,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const pauseActiveFile = () => {
+    if (activeFile.kind === 'heatCapacityPistonOscillation') return;
     if (activeFile.kind === 'heatCapacity') {
       pauseHeatCapacityAutoDemo();
       return;
@@ -13999,6 +14058,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const stopActiveFile = () => {
     cancelRuntimeFrame(activeFile.id);
+
+    if (activeFile.kind === 'heatCapacityPistonOscillation') return;
 
     if (activeFile.kind === 'heatCapacity') {
       terminateHeatCapacityAutoDemo();
@@ -14061,7 +14122,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   useEffect(() => {
     filesRef.current
       .forEach((file) => {
-        if (file.kind === 'heatCapacity') return;
+        if (file.kind !== 'standard' && file.kind !== 'ideal') return;
         const runtimeExists = file.kind === 'standard'
           ? Boolean(standardRuntimeRef.current[file.id])
           : Boolean(idealRuntimeRef.current[file.id]);
@@ -14102,11 +14163,26 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const index = getNextWorkbenchFileDisplayIndex(kind, currentFiles);
     const fileId = createUniqueWorkbenchFileId(kind, issuedWorkbenchFileIdsRef.current);
     issuedWorkbenchFileIdsRef.current.add(fileId);
-    let file: WorkbenchFileState = kind === 'standard'
-      ? createDefaultStandardFile(index, workbenchLayoutDefaults.standard)
-      : kind === 'ideal'
-        ? createDefaultIdealFile(index, workbenchLayoutDefaults.ideal)
-        : createDefaultHeatCapacityFile(index, workbenchLayoutDefaults.heatCapacity);
+    let file: WorkbenchFileState;
+    switch (kind) {
+      case 'standard':
+        file = createDefaultStandardFile(index, workbenchLayoutDefaults.standard);
+        break;
+      case 'ideal':
+        file = createDefaultIdealFile(index, workbenchLayoutDefaults.ideal);
+        break;
+      case 'heatCapacity':
+        file = createDefaultHeatCapacityFile(index, workbenchLayoutDefaults.heatCapacity);
+        break;
+      case 'heatCapacityPistonOscillation':
+        file = createDefaultHeatCapacityPistonOscillationFile(
+          index,
+          workbenchLayoutDefaults.heatCapacityPistonOscillation,
+        );
+        break;
+      default:
+        file = assertNeverWorkbenchFileKind(kind);
+    }
     file = {
       ...file,
       id: fileId,
@@ -14163,7 +14239,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     heatCapacityRefreshPersistRef.current();
     void flushWorkspacePersistenceRef.current(activeModeCheckpointOverride);
     setSelectedPanel('preview');
-    setParametersCollapsed(file.kind === 'heatCapacity');
+    setParametersCollapsed(shouldCollapseWorkbenchParameterSidebar(file));
     setParameterErrors([]);
     setIdealAdvancedSettingsOpen(false);
     setIdealAdvancedSettingsBodyVisible(false);
@@ -15385,7 +15461,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setPendingDeleteFileId(null);
     if (isClosingActiveFile) {
       setSelectedPanel('preview');
-      setParametersCollapsed(nextActiveFile?.kind === 'heatCapacity');
+      setParametersCollapsed(shouldCollapseWorkbenchParameterSidebar(nextActiveFile));
       setPendingRemovePointId(null);
       setPendingClearRelationKey(null);
       renamingFileIdRef.current = null;
@@ -15446,7 +15522,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     heatCapacityRefreshPersistRef.current();
     void flushWorkspacePersistenceRef.current(activeModeCheckpointOverride);
     setSelectedPanel('preview');
-    setParametersCollapsed(reopenedFile.kind === 'heatCapacity');
+    setParametersCollapsed(shouldCollapseWorkbenchParameterSidebar(reopenedFile));
     setParameterErrors([]);
     setIdealAdvancedSettingsOpen(false);
     setIdealAdvancedSettingsBodyVisible(false);
@@ -15490,7 +15566,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     heatCapacityRefreshPersistRef.current();
     void flushWorkspacePersistenceRef.current(activeModeCheckpointOverride);
     setSelectedPanel('preview');
-    setParametersCollapsed(nextActiveFile?.kind === 'heatCapacity');
+    setParametersCollapsed(shouldCollapseWorkbenchParameterSidebar(nextActiveFile));
     setOpenFileMenuId(null);
     setPendingDeleteFileId(null);
     setPendingRemovePointId(null);
@@ -15544,6 +15620,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 ? {
                     idealWindowLayout: createDefaultIdealWindowLayout({ heightRatio: workbenchLayoutDefaults.ideal.resultsHeightRatio }),
                     liveWorkspaceSplitRatio: workbenchLayoutDefaults.ideal.liveWorkspaceSplitRatio,
+                  }
+                : file.kind === 'heatCapacityPistonOscillation'
+                ? {
+                    liveWorkspaceSplitRatio:
+                      workbenchLayoutDefaults.heatCapacityPistonOscillation.liveWorkspaceSplitRatio,
                   }
                 : {
                     standardResultsLayout: createDefaultStandardResultsLayout({ heightRatio: workbenchLayoutDefaults.standard.resultsHeightRatio }),
@@ -15605,7 +15686,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       void flushWorkspacePersistenceRef.current(activeModeCheckpointOverride);
     }
     setSelectedPanel('preview');
-    setParametersCollapsed(file.kind === 'heatCapacity');
+    setParametersCollapsed(shouldCollapseWorkbenchParameterSidebar(file));
     setParameterErrors([]);
     setIdealAdvancedSettingsOpen(false);
     setIdealAdvancedSettingsBodyVisible(false);
@@ -17541,6 +17622,18 @@ const WorkbenchStudioPrototype: React.FC = () => {
               );
             })()}
           </div>
+        ) : activeFile.kind === 'heatCapacityPistonOscillation' ? (
+          <div
+            className="studio-canvas-host studio-piston-oscillation-placeholder"
+            data-piston-oscillation-preview="placeholder"
+          >
+            <div className="studio-empty">
+              <div>
+                <strong>Piston Oscillation</strong>
+                <p>3D model preview is being prepared.</p>
+              </div>
+            </div>
+          </div>
         ) : (
         <div className="studio-canvas-host">
           <SimulationCanvas
@@ -17567,7 +17660,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         </div>
         )}
       </div>
-      {activeFile.kind === 'heatCapacity' ? null : (
+      {activeFile.kind === 'heatCapacity' || activeFile.kind === 'heatCapacityPistonOscillation' ? null : (
       <div className="studio-preview-metrics">
         <div className="studio-metric"><span>{workbenchCopy.results.temperature}</span><strong>{activeFile.stats.temperature.toFixed(3)}</strong></div>
         <div className="studio-metric"><span>{workbenchCopy.results.pressure}</span><strong>{activeFile.stats.pressure.toFixed(4)}</strong></div>
@@ -17836,7 +17929,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const renderRealtimePanel = () => (
-    activeFile.kind === 'heatCapacity' ? renderHeatCapacityRealtimePanel() : (
+    activeFile.kind === 'heatCapacityPistonOscillation' ? (
+      <div
+        className="studio-realtime-panel studio-piston-oscillation-placeholder"
+        data-piston-oscillation-realtime="placeholder"
+      >
+        <div className="studio-empty">
+          <div>
+            <strong>In development</strong>
+            <p>Realtime data is temporarily unavailable.</p>
+          </div>
+        </div>
+      </div>
+    ) : activeFile.kind === 'heatCapacity' ? renderHeatCapacityRealtimePanel() : (
     <div className={`studio-realtime-panel ${activeFile.kind === 'ideal' ? 'studio-realtime-panel-ideal' : 'studio-realtime-panel-standard'}`}>
       <div className={`studio-realtime-summary ${activeFile.kind === 'ideal' ? 'studio-realtime-summary-ideal' : 'studio-realtime-summary-standard'}`}>
         {activeFile.kind === 'ideal' ? (
@@ -19144,7 +19249,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
       </div>
       {panel.key === 'preview' ? (
         <div className="studio-panel-actions">
-          {activeFile.kind === 'heatCapacity' ? renderHeatCapacityModeControl() : (
+          {activeFile.kind === 'heatCapacity'
+            ? renderHeatCapacityModeControl()
+            : activeFile.kind === 'heatCapacityPistonOscillation'
+              ? null
+              : (
             <button
               type="button"
               className={`studio-run-control studio-run-control-${activeFile.runState === 'running' ? 'pause' : 'start'}`}
@@ -19159,7 +19268,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
               )}
             </button>
           )}
-          {activeFile.kind !== 'heatCapacity' && (activeFile.runState === 'running' || activeFile.runState === 'paused') ? (
+          {(activeFile.kind === 'standard' || activeFile.kind === 'ideal') &&
+          (activeFile.runState === 'running' || activeFile.runState === 'paused') ? (
             <button
               type="button"
               className="studio-run-control studio-run-control-stop"
@@ -19597,7 +19707,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     ? workbenchLayoutDefaults.ideal
     : activeFile.kind === 'standard'
       ? workbenchLayoutDefaults.standard
-      : workbenchLayoutDefaults.heatCapacity;
+      : activeFile.kind === 'heatCapacity'
+        ? workbenchLayoutDefaults.heatCapacity
+        : workbenchLayoutDefaults.heatCapacityPistonOscillation;
   const topMenuLayoutSummary = `${Math.round(activeLayoutDefaults.resultsHeightRatio * 100)}% / ${Math.round(activeLayoutDefaults.liveWorkspaceSplitRatio * 100)}%`;
   const resolvedWorkbenchTheme = settingsThemePreference === 'system' ? systemWorkbenchTheme : settingsThemePreference;
 

@@ -20,6 +20,7 @@ export interface WorkbenchLayoutDefaults {
   standard: WorkbenchLayoutDefaultState;
   ideal: WorkbenchLayoutDefaultState;
   heatCapacity: WorkbenchLayoutDefaultState;
+  heatCapacityPistonOscillation: WorkbenchLayoutDefaultState;
 }
 
 type StoredIdealResultWindowDefaults = Partial<Pick<WorkbenchIdealWindowLayout, 'heightRatio'>> & {
@@ -127,6 +128,10 @@ export const createDefaultWorkbenchLayoutDefaults = (): WorkbenchLayoutDefaults 
     resultsHeightRatio: IDEAL_RESULT_HEIGHT_RATIO,
     liveWorkspaceSplitRatio: WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
   },
+  heatCapacityPistonOscillation: {
+    resultsHeightRatio: IDEAL_RESULT_HEIGHT_RATIO,
+    liveWorkspaceSplitRatio: WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
+  },
 });
 
 const areLayoutTabsEqual = <T extends string>(current: readonly T[], expected: readonly T[]) => (
@@ -166,10 +171,14 @@ export const isWorkbenchFileLayoutDefault = (
       && file.idealWindowLayout.hasCustomHeight === expected.hasCustomHeight;
   }
 
-  return file.openHeatCapacityTabs.length === 0
-    && file.activeHeatCapacityTabId === null
-    && file.heatCapacityMaterialsExpanded
-    && file.heatCapacityTabContainerHeight === IDEAL_RESULT_HEIGHT_RATIO;
+  if (file.kind === 'heatCapacity') {
+    return file.openHeatCapacityTabs.length === 0
+      && file.activeHeatCapacityTabId === null
+      && file.heatCapacityMaterialsExpanded
+      && file.heatCapacityTabContainerHeight === IDEAL_RESULT_HEIGHT_RATIO;
+  }
+
+  return true;
 };
 
 export const sanitizeWorkbenchLayoutDefaultState = (
@@ -208,6 +217,9 @@ export const sanitizeWorkbenchLayoutDefaults = (
     standard: sanitizeWorkbenchLayoutDefaultState(storedDefaults?.standard ?? fallback.standard),
     ideal: sanitizeWorkbenchLayoutDefaultState(storedDefaults?.ideal ?? fallback.ideal),
     heatCapacity: sanitizeWorkbenchLayoutDefaultState(storedDefaults?.heatCapacity ?? fallback.heatCapacity),
+    heatCapacityPistonOscillation: sanitizeWorkbenchLayoutDefaultState(
+      storedDefaults?.heatCapacityPistonOscillation ?? fallback.heatCapacityPistonOscillation,
+    ),
   };
 };
 

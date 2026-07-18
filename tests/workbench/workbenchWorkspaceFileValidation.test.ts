@@ -3,6 +3,7 @@ import { PhysicsEngine } from '../../src/domain/hardSphere/PhysicsEngine.ts';
 import { sanitizeHardSphereSimulationParams } from '../../src/domain/hardSphere/hardSphereSimulationValidation.ts';
 import {
   createDefaultIdealFile,
+  createDefaultHeatCapacityPistonOscillationFile,
   createDefaultStandardFile,
   validateWorkbenchParams,
 } from '../../src/features/workbench/workbenchState.ts';
@@ -12,7 +13,10 @@ import {
   normalizeSimulationParamsSnapshot,
   upgradeLegacyHardSphereEngineSnapshotV1,
 } from '../../src/features/workbench/workbenchHardSpherePersistence.ts';
-import { isCanonicalStandardOrIdealWorkspaceFile } from '../../src/features/workbench/workbenchWorkspaceFileValidation.ts';
+import {
+  isCanonicalPistonOscillationWorkspaceFile,
+  isCanonicalStandardOrIdealWorkspaceFile,
+} from '../../src/features/workbench/workbenchWorkspaceFileValidation.ts';
 
 const clone = <Value>(value: Value): Value => structuredClone(value);
 
@@ -20,6 +24,18 @@ const standard = createDefaultStandardFile(1);
 const ideal = createDefaultIdealFile(1);
 assert.equal(isCanonicalStandardOrIdealWorkspaceFile(standard), true);
 assert.equal(isCanonicalStandardOrIdealWorkspaceFile(ideal), true);
+const pistonOscillation = createDefaultHeatCapacityPistonOscillationFile(1);
+assert.equal(isCanonicalPistonOscillationWorkspaceFile(pistonOscillation), true);
+assert.equal(isCanonicalStandardOrIdealWorkspaceFile(pistonOscillation), false);
+[
+  { ...pistonOscillation, pistonOscillationSchemaVersion: 2 },
+  { ...pistonOscillation, previewCameraPreset: 'rear' },
+  { ...pistonOscillation, runState: 'running' },
+  { ...pistonOscillation, visiblePanels: ['preview', 'heatCapacityGuide'] },
+  { ...pistonOscillation, unexpected: true },
+].forEach((candidate) => {
+  assert.equal(isCanonicalPistonOscillationWorkspaceFile(candidate), false);
+});
 
 const invalidParamCandidates = [
   { ...standard.params, N: 1.5 },

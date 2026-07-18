@@ -21,6 +21,9 @@ import {
 } from './workbenchLayoutCompatibility.ts';
 import {
   clampWorkbenchLiveSplitRatio,
+  createDefaultHeatCapacityPistonOscillationFile,
+  WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS,
+  WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
   type WorkbenchFileState,
   type WorkbenchIdealResultWindowKey,
   type WorkbenchStandardResultsTab,
@@ -62,6 +65,12 @@ const IDEAL_FILE_KEYS = [
   'verificationState',
   'historyUnlocked',
   'idealWindowLayout',
+] as const;
+
+const PISTON_OSCILLATION_FILE_KEYS = [
+  ...BASE_FILE_KEYS,
+  'pistonOscillationSchemaVersion',
+  'previewCameraPreset',
 ] as const;
 
 const isFiniteNumber = (value: unknown): value is number => (
@@ -378,4 +387,30 @@ export const isCanonicalStandardOrIdealWorkspaceFile = (
       isIdealLayout(value.idealWindowLayout);
   }
   return false;
+};
+
+export const isCanonicalPistonOscillationWorkspaceFile = (
+  value: unknown,
+): value is Extract<WorkbenchFileState, { kind: 'heatCapacityPistonOscillation' }> => {
+  if (
+    !isPersistenceRecord(value) ||
+    !isBaseFileState(value) ||
+    value.kind !== 'heatCapacityPistonOscillation' ||
+    !hasExactKeys(value, PISTON_OSCILLATION_FILE_KEYS) ||
+    value.pistonOscillationSchemaVersion !== WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION ||
+    !WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS.includes(
+      value.previewCameraPreset as Extract<
+        WorkbenchFileState,
+        { kind: 'heatCapacityPistonOscillation' }
+      >['previewCameraPreset'],
+    )
+  ) return false;
+  const fallback = createDefaultHeatCapacityPistonOscillationFile(1);
+  return value.runState === 'idle' &&
+    areCanonicalPersistenceValuesEqual(value.visiblePanels, ['preview', 'realtime']) &&
+    areCanonicalPersistenceValuesEqual(value.params, fallback.params) &&
+    areCanonicalPersistenceValuesEqual(value.appliedParams, fallback.appliedParams) &&
+    areCanonicalPersistenceValuesEqual(value.stats, fallback.stats) &&
+    areCanonicalPersistenceValuesEqual(value.chartData, fallback.chartData) &&
+    value.finalChartData === null;
 };

@@ -237,9 +237,22 @@ import {
   deriveHeatCapacityGuideExperimentTimer,
   normalizeHeatCapacityGuideSpeedMultiplier,
 } from '../../domain/heatCapacity/heatCapacityGuideExperimentTimerModel.ts';
+import {
+  WORKBENCH_FILE_NAME_PREFIX_BY_KIND,
+  type WorkbenchFileKind,
+} from './workbenchFileKind.ts';
 
-export type WorkbenchFileKind = 'standard' | 'ideal' | 'heatCapacity';
+export type { WorkbenchFileKind } from './workbenchFileKind.ts';
 export type WorkbenchRunState = 'idle' | 'running' | 'paused' | 'finished' | 'needs-reset';
+export const WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION = 1 as const;
+export const WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS = [
+  'overview',
+  'front',
+  'side',
+  'top',
+] as const;
+export type WorkbenchPistonOscillationCameraPreset =
+  (typeof WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS)[number];
 export type WorkbenchExportEnvironmentStatus =
   | 'checking'
   | 'available-system'
@@ -1105,7 +1118,19 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   theoreticalGamma: number;
 }
 
-export type WorkbenchFileState = WorkbenchStandardState | WorkbenchIdealState | WorkbenchHeatCapacityState;
+export type WorkbenchHeatCapacityAdiabaticExpansionState = WorkbenchHeatCapacityState;
+
+export interface WorkbenchHeatCapacityPistonOscillationState extends WorkbenchFileBase {
+  kind: 'heatCapacityPistonOscillation';
+  pistonOscillationSchemaVersion: typeof WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION;
+  previewCameraPreset: WorkbenchPistonOscillationCameraPreset;
+}
+
+export type WorkbenchFileState =
+  | WorkbenchStandardState
+  | WorkbenchIdealState
+  | WorkbenchHeatCapacityState
+  | WorkbenchHeatCapacityPistonOscillationState;
 
 const HEAT_CAPACITY_FREE_DEFAULT_HARD_SPHERE_VIEW_ENABLED = false;
 
@@ -4965,11 +4990,7 @@ const createBaseFile = (
 ): Omit<WorkbenchFileBase, 'kind'> => {
   const paddedIndex = String(index).padStart(3, '0');
   const now = Date.now();
-  const namePrefix = kind === 'standard'
-    ? 'Standard Simulation'
-    : kind === 'ideal'
-      ? 'Ideal Gas Simulation'
-      : 'Heat Capacity Ratio';
+  const namePrefix = WORKBENCH_FILE_NAME_PREFIX_BY_KIND[kind];
 
   return {
     id: `${kind}-${paddedIndex}`,
@@ -4989,8 +5010,8 @@ const createBaseFile = (
 };
 
 export const normalizeHeatCapacityFileName = (name: string) => {
-  const match = /^Hard-Sphere Heat Capacity Ratio - (\d{3})$/.exec(name);
-  return match ? `Heat Capacity Ratio - ${match[1]}` : name;
+  const match = /^(?:Hard-Sphere Heat Capacity Ratio|Heat Capacity Ratio) - (\d{3})$/.exec(name);
+  return match ? `Adiabatic Expansion - ${match[1]}` : name;
 };
 
 export interface WorkbenchFileLayoutDefaults {
@@ -5553,6 +5574,25 @@ export const createDefaultHeatCapacityFile = (
     theoreticalGamma: getHeatCapacityFreeGasTypeGamma(freeRuntimeFields.heatCapacityFreeGasType),
   };
 };
+
+export const createDefaultHeatCapacityPistonOscillationFile = (
+  index = 1,
+  defaults?: WorkbenchFileLayoutDefaults,
+): WorkbenchHeatCapacityPistonOscillationState => ({
+  ...createBaseFile(
+    'heatCapacityPistonOscillation',
+    index,
+    DEFAULT_HEAT_CAPACITY_PARAMS,
+    {
+      ...defaults,
+      liveWorkspaceSplitRatio:
+        defaults?.liveWorkspaceSplitRatio ?? WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
+    },
+  ),
+  kind: 'heatCapacityPistonOscillation',
+  pistonOscillationSchemaVersion: WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
+  previewCameraPreset: 'overview',
+});
 
 export const isHeatCapacityFreePreheatRequired = (
   file: Pick<
@@ -6237,7 +6277,12 @@ export const areWorkbenchParamsEqual = (a: SimulationParams, b: SimulationParams
 );
 
 export const getWorkbenchParameterRows = (file: WorkbenchFileState): WorkbenchParameterRow[] => {
-  if (file.kind === 'heatCapacity') return [];
+  if (
+    file.kind === 'heatCapacity' ||
+    file.kind === 'heatCapacityPistonOscillation'
+  ) {
+    return [];
+  }
   return getWorkbenchAdvancedParameterDefinitions(file.kind).map((definition) => ({
     key: definition.key,
     label: definition.label,

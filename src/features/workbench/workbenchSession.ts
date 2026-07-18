@@ -15,6 +15,10 @@ import {
   isPersistenceRecord as isRecord,
   normalizePersistenceNullableNumber as normalizeNullableNumber,
 } from './workbenchPersistenceValue.ts';
+import { isWorkbenchFileKind } from './workbenchFileKind.ts';
+import {
+  normalizePistonOscillationRuntimeState,
+} from './workbenchPistonOscillationPersistence.ts';
 
 export const WORKBENCH_SESSION_VERSION = 1;
 export const WORKBENCH_SESSION_STORAGE_KEY = 'hsl_workbench_session_v1';
@@ -66,6 +70,9 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
   if (file.kind === 'heatCapacity') {
     return normalizeHeatCapacitySessionRuntimeState(file);
   }
+  if (file.kind === 'heatCapacityPistonOscillation') {
+    return normalizePistonOscillationRuntimeState(file) ?? file;
+  }
   return repairMissingHardSphereEngineSnapshot({
     ...file,
     runState: file.runState === 'running' ? 'paused' : file.runState,
@@ -91,12 +98,18 @@ const createWorkbenchSessionFromValidatedFiles = (
     ? selectedPanelValue
     : 'preview';
   const activeFile = files.find((file) => file.id === activeFileId);
-  const selectedPanel = activeFile?.kind === 'heatCapacity' && !(
-    restoredSelectedPanel === 'preview' ||
-    restoredSelectedPanel === 'realtime' ||
-    restoredSelectedPanel === 'heatCapacityGuide' ||
-    restoredSelectedPanel === 'heatCapacityRecords' ||
-    restoredSelectedPanel === 'heatCapacityReview'
+  const selectedPanel = (
+    activeFile?.kind === 'heatCapacity' && !(
+      restoredSelectedPanel === 'preview' ||
+      restoredSelectedPanel === 'realtime' ||
+      restoredSelectedPanel === 'heatCapacityGuide' ||
+      restoredSelectedPanel === 'heatCapacityRecords' ||
+      restoredSelectedPanel === 'heatCapacityReview'
+    )
+  ) || (
+    activeFile?.kind === 'heatCapacityPistonOscillation' &&
+    restoredSelectedPanel !== 'preview' &&
+    restoredSelectedPanel !== 'realtime'
   )
     ? 'preview'
     : restoredSelectedPanel;
@@ -115,7 +128,7 @@ const assertWorkbenchRuntimeFiles = (files: WorkbenchFileState[]) => {
       !isRecord(file) ||
       typeof file.id !== 'string' ||
       typeof file.name !== 'string' ||
-      (file.kind !== 'standard' && file.kind !== 'ideal' && file.kind !== 'heatCapacity')
+      !isWorkbenchFileKind(file.kind)
     ) {
       throw new TypeError('Workbench runtime file is invalid.');
     }
@@ -157,7 +170,7 @@ export const decodeWorkbenchSession = (value: unknown): WorkbenchSessionState =>
     isRecord(file) &&
     typeof file.id === 'string' &&
     typeof file.name === 'string' &&
-    (file.kind === 'standard' || file.kind === 'ideal' || file.kind === 'heatCapacity')
+    isWorkbenchFileKind(file.kind)
   )).map(normalizeRuntimeState);
 
   return createWorkbenchSessionFromRuntimeFiles({

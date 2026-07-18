@@ -7,6 +7,7 @@ import {
   type WorkbenchHeatCapacityState,
   type WorkbenchPanelKey,
 } from './workbenchState.ts';
+import { assertNeverWorkbenchFileKind } from './workbenchFileKind.ts';
 import type {
   WorkbenchSessionState,
 } from './workbenchSession.ts';
@@ -54,8 +55,14 @@ import {
 } from './workbenchPersistenceValue.ts';
 import {
   areCanonicalPersistenceValuesEqual,
+  isCanonicalPistonOscillationWorkspaceFile,
   isCanonicalStandardOrIdealWorkspaceFile,
 } from './workbenchWorkspaceFileValidation.ts';
+import {
+  createPistonOscillationPersistencePayload,
+  restorePistonOscillationFileFromPersistencePayload,
+  validatePistonOscillationPersistencePayload,
+} from './workbenchPistonOscillationPersistence.ts';
 import {
   createDefaultHeatCapacityModeSessionStore,
   createHeatCapacityCommonRuntimeShell,
@@ -149,6 +156,24 @@ const createUnsupportedFutureDiagnostic = (
   message: `Unsupported future workbench schema version: ${schemaVersion}.`,
 });
 
+const createFilePersistencePayload = (
+  file: WorkbenchFileState,
+  savedAt: number,
+): Record<string, unknown> => {
+  switch (file.kind) {
+    case 'standard':
+      return createStandardPersistencePayload(file, savedAt) as unknown as Record<string, unknown>;
+    case 'ideal':
+      return createIdealGasPersistencePayload(file, savedAt) as unknown as Record<string, unknown>;
+    case 'heatCapacity':
+      return createHeatCapacityPersistencePayload(file, savedAt) as unknown as Record<string, unknown>;
+    case 'heatCapacityPistonOscillation':
+      return createPistonOscillationPersistencePayload(file, savedAt) as unknown as Record<string, unknown>;
+    default:
+      return assertNeverWorkbenchFileKind(file);
+  }
+};
+
 const encodeFileEnvelope = (
   file: WorkbenchFileState,
   savedAt: number,
@@ -173,13 +198,7 @@ const encodeFileEnvelope = (
         }
       : {}),
   },
-  payload: (
-    file.kind === 'heatCapacity'
-      ? createHeatCapacityPersistencePayload(file, savedAt)
-      : file.kind === 'standard'
-        ? createStandardPersistencePayload(file, savedAt)
-        : createIdealGasPersistencePayload(file, savedAt)
-  ) as unknown as Record<string, unknown>,
+  payload: createFilePersistencePayload(file, savedAt),
 });
 
 export const encodeWorkbenchStorageEnvelope = (
@@ -289,6 +308,27 @@ const restoreIdealGasFile = (
       : [];
   }
   return restoreStandardOrIdealRuntimeFile(fileEnvelope);
+};
+
+const restorePistonOscillationFile = (
+  fileEnvelope: WorkbenchExperimentFileEnvelopeV1,
+  index: number,
+): WorkbenchFileState[] => {
+  if (fileEnvelope.kind !== 'heatCapacityPistonOscillation') return [];
+  if (!validatePistonOscillationPersistencePayload(fileEnvelope.payload).valid) return [];
+  const restored = restorePistonOscillationFileFromPersistencePayload(
+    fileEnvelope,
+    fileEnvelope.payload,
+    index,
+  );
+  const canonicalPayload = createPistonOscillationPersistencePayload(
+    restored,
+    fileEnvelope.updatedAt,
+  );
+  return areCanonicalPersistenceValuesEqual(fileEnvelope.payload, canonicalPayload) &&
+    isCanonicalPistonOscillationWorkspaceFile(restored)
+    ? [restored]
+    : [];
 };
 
 const migrateLegacyHeatCapacityFocusIdentity = (payload: Record<string, unknown>) => {
@@ -2684,11 +2724,23 @@ const decodeFilesFromEnvelopes = (
   sourceAppVersion: string,
 ): DecodedWorkbenchFiles => files.reduce<DecodedWorkbenchFiles>((decoded, fileEnvelope, index) => {
   try {
-    const restoredFiles = fileEnvelope.kind === 'standard'
-      ? restoreStandardFile(fileEnvelope, index + 1)
-      : fileEnvelope.kind === 'ideal'
-        ? restoreIdealGasFile(fileEnvelope, index + 1)
-        : restoreHeatCapacityRuntimeFile(fileEnvelope, index + 1, sourceAppVersion);
+    let restoredFiles: WorkbenchFileState[];
+    switch (fileEnvelope.kind) {
+      case 'standard':
+        restoredFiles = restoreStandardFile(fileEnvelope, index + 1);
+        break;
+      case 'ideal':
+        restoredFiles = restoreIdealGasFile(fileEnvelope, index + 1);
+        break;
+      case 'heatCapacity':
+        restoredFiles = restoreHeatCapacityRuntimeFile(fileEnvelope, index + 1, sourceAppVersion);
+        break;
+      case 'heatCapacityPistonOscillation':
+        restoredFiles = restorePistonOscillationFile(fileEnvelope, index + 1);
+        break;
+      default:
+        restoredFiles = assertNeverWorkbenchFileKind(fileEnvelope.kind);
+    }
     if (restoredFiles.length === 0) {
       decoded.diagnostics.push({
         level: 'error',
@@ -2742,13 +2794,20 @@ const decodeEnvelopeAsRuntimeSession = (
   envelope: WorkbenchSessionEnvelopeV2,
   runtimeFiles = decodeFilesFromEnvelopes(envelope.files, envelope.appVersion).files,
 ): WorkbenchSessionState => {
+  const activeFileId = runtimeFiles.some((file) => file.id === envelope.activeFileId)
+    ? envelope.activeFileId ?? ''
+    : runtimeFiles[0]?.id ?? '';
+  const activeFile = runtimeFiles.find((file) => file.id === activeFileId);
+  const selectedPanel = activeFile?.kind === 'heatCapacityPistonOscillation' &&
+    envelope.selectedPanel !== 'preview' &&
+    envelope.selectedPanel !== 'realtime'
+    ? 'preview'
+    : envelope.selectedPanel;
   return {
     version: 1,
     files: runtimeFiles,
-    activeFileId: runtimeFiles.some((file) => file.id === envelope.activeFileId)
-      ? envelope.activeFileId ?? ''
-      : runtimeFiles[0]?.id ?? '',
-    selectedPanel: envelope.selectedPanel,
+    activeFileId,
+    selectedPanel,
   };
 };
 

@@ -67,6 +67,7 @@ import { isWorkbenchPanelKey } from './workbenchPanelRegistry.ts';
 import { isPersistenceRecord } from './workbenchPersistenceValue.ts';
 import {
   areCanonicalPersistenceValuesEqual,
+  isCanonicalPistonOscillationWorkspaceFile,
   isCanonicalStandardOrIdealWorkspaceFile,
 } from './workbenchWorkspaceFileValidation.ts';
 
@@ -1090,10 +1091,16 @@ const isCurrentWorkspaceFileRecord = (
   hasWorkspaceFileRecordIdentity(value, namespace, fileId) &&
   isPersistenceRecord(value.state) &&
   value.state.id === fileId &&
-  (value.state.kind === 'standard' || value.state.kind === 'ideal' || value.state.kind === 'heatCapacity') &&
+  (
+    value.state.kind === 'standard' ||
+    value.state.kind === 'ideal' ||
+    value.state.kind === 'heatCapacity' ||
+    value.state.kind === 'heatCapacityPistonOscillation'
+  ) &&
   (
     value.state.kind === 'heatCapacity' ||
-    isCanonicalStandardOrIdealWorkspaceFile(value.state)
+    isCanonicalStandardOrIdealWorkspaceFile(value.state) ||
+    isCanonicalPistonOscillationWorkspaceFile(value.state)
   ) &&
   (() => {
     try {

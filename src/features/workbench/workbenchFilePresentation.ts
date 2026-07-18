@@ -17,7 +17,12 @@ export interface WorkbenchSessionCacheCopy {
 export const getWorkbenchFileKindLabel = (
   kind: WorkbenchFileKind,
   copy: WorkbenchFileKindCopy,
-) => kind === 'standard' ? copy.std : kind === 'ideal' ? copy.ideal : copy.heat;
+) => (({
+  standard: copy.std,
+  ideal: copy.ideal,
+  heatCapacity: copy.heat,
+  heatCapacityPistonOscillation: copy.heat,
+}) satisfies Record<WorkbenchFileKind, string>)[kind];
 
 export const formatWorkbenchLastOpenedAt = (
   timestamp: number,
@@ -50,7 +55,12 @@ export const getWorkbenchSessionCacheSummary = (
   const counts = files.reduce(
     (nextCounts, file) => ({
       ideal: nextCounts.ideal + (file.kind === 'ideal' ? 1 : 0),
-      heat: nextCounts.heat + (file.kind === 'heatCapacity' ? 1 : 0),
+      heat: nextCounts.heat + (
+        file.kind === 'heatCapacity' ||
+        file.kind === 'heatCapacityPistonOscillation'
+          ? 1
+          : 0
+      ),
       standard: nextCounts.standard + (file.kind === 'standard' ? 1 : 0),
     }),
     { ideal: 0, heat: 0, standard: 0 },

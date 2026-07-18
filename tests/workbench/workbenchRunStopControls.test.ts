@@ -66,8 +66,8 @@ assert.match(
 
 assert.match(
   source,
-  /activeFile\.kind === 'heatCapacity' \? renderHeatCapacityModeControl\(\) : \([\s\S]*className=\{`studio-run-control studio-run-control-\$\{activeFile\.runState === 'running' \? 'pause' : 'start'\}`\}/,
-  'heat capacity should use the unified mode bar while standard previews keep the compact run/pause button',
+  /activeFile\.kind === 'heatCapacity'[\s\S]*?\? renderHeatCapacityModeControl\(\)[\s\S]*?activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*?\? null[\s\S]*?: \([\s\S]*className=\{`studio-run-control studio-run-control-\$\{activeFile\.runState === 'running' \? 'pause' : 'start'\}`\}/,
+  'heat capacity should use the unified mode bar, piston preview should expose no runtime controls, and standard or ideal previews should keep the compact run/pause button',
 );
 
 assert.match(
@@ -194,8 +194,8 @@ assert.doesNotMatch(
 
 assert.match(
   source,
-  /activeFile\.kind !== 'heatCapacity' && \(activeFile\.runState === 'running' \|\| activeFile\.runState === 'paused'\) \? \([\s\S]*?className="studio-run-control studio-run-control-stop"/,
-  'the header stop button should remain for standard previews and heat capacity should stop through its mode bar',
+  /\(activeFile\.kind === 'standard' \|\| activeFile\.kind === 'ideal'\) &&[\s\S]*?\(activeFile\.runState === 'running' \|\| activeFile\.runState === 'paused'\) \? \([\s\S]*?className="studio-run-control studio-run-control-stop"/,
+  'the header stop button should remain only for standard and ideal previews',
 );
 
 assert.doesNotMatch(
