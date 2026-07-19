@@ -278,9 +278,10 @@ export const PistonOscillationInstrumentScene = ({
           />
           <Suspense fallback={null}>
             <PistonOscillationInstrumentAsset>
-              {(sourceScene) => (
+              {(sourceScene, unifiedLightLabBenchSourceScene) => (
                 <PistonOscillationInstrumentModel
                   sourceScene={sourceScene}
+                  unifiedLightLabBenchSourceScene={unifiedLightLabBenchSourceScene}
                   onBoundsReady={handleBoundsReady}
                 />
               )}

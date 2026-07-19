@@ -31,6 +31,7 @@ export interface HeatCapacityFreeNumberParameterDefinition {
   effect: Record<HeatCapacityParameterLanguage, string>;
   precision: number;
   min: number;
+  max?: number;
   toInputValue?: (draftValue: number) => number;
   fromInputValue?: (inputValue: number) => number;
 }
@@ -60,6 +61,7 @@ export type HeatCapacityFreeParameterLockReasonId =
   | 'freeModeOnly'
   | 'runningOrPaused'
   | 'powerOffBeforeNextGroup'
+  | 'batchStarted'
   | 'groupStarted';
 
 export const heatCapacityFreeParameterLockText: Record<
@@ -80,6 +82,11 @@ export const heatCapacityFreeParameterLockText: Record<
     'zh-CN': '请先关闭电源，完成本组实验后再调整参数。',
     'zh-TW': '請先關閉電源，完成本組實驗後再調整參數。',
     en: 'Turn off power first, then adjust parameters after this group is complete.',
+  },
+  batchStarted: {
+    'zh-CN': '本轮实验已开始，所有实验组共用同一组参数；重新开始本轮后才能调整。',
+    'zh-TW': '本輪實驗已開始，所有實驗組共用同一組參數；重新開始本輪後才能調整。',
+    en: 'This batch has started. All groups share one parameter set; restart the batch to edit it.',
   },
   groupStarted: {
     'zh-CN': '当前实验组已开始，参数已锁定。',
@@ -318,6 +325,7 @@ export const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberPar
     },
     precision: 3,
     min: 0,
+    max: 5,
   },
   {
     id: 'wallAmbientConductanceWPerK',
@@ -332,6 +340,7 @@ export const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberPar
     },
     precision: 3,
     min: 0,
+    max: 5,
   },
   {
     id: 'wallHeatCapacityJPerK',
@@ -346,6 +355,7 @@ export const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberPar
     },
     precision: 2,
     min: 1,
+    max: 5000,
   },
   {
     id: 'leakageRatePerS',
@@ -360,6 +370,7 @@ export const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberPar
     },
     precision: 5,
     min: 0,
+    max: 0.02,
   },
   {
     id: 'noiseMv',
@@ -387,7 +398,8 @@ export const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberPar
       en: 'Controls how slowly the pressure reading follows true pressure. The temperature channel uses its independent shared sensor model.',
     },
     precision: 3,
-    min: 0.001,
+    min: 1 / 60,
+    max: 100,
   },
   {
     id: 'u0ZeroToleranceMv',

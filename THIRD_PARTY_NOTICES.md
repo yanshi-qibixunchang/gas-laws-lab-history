@@ -137,3 +137,10 @@ package or CDN dependency.
 
 The asset's exact source path, digest, format, and runtime-use decisions are
 recorded in `public/models/piston-oscillation/model-provenance.json`.
+
+The piston-oscillation scene hides the source model's white `Tabletop` node and
+uses `public/models/shared/unified-light-lab-bench.glb` for its visible bench.
+That compact bench asset is derived from the project-provided
+`public/models/heat-capacity/fd-ncd-c-ultra.glb` nodes `clean_lab_bench` and
+`HSL_LabBench_Backstop_LowLip`; its exact digest and extraction record are in
+`public/models/shared/unified-light-lab-bench.provenance.json`.

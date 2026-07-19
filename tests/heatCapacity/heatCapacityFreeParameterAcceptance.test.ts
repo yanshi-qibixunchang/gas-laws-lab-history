@@ -703,8 +703,8 @@ assert.equal(configuredTraceTrial!.configSnapshot.physics.thermal.wallAmbientCon
 assert.equal(configuredTraceTrial!.configSnapshot.sensor.pressureMvPerKPa, 21.5);
 assert.equal(
   configuredTraceTrial!.configSnapshot.sensor.temperatureMvAtAmbient,
-  DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG.temperatureBaseMv,
-  'new Free trace snapshots should replace stale mode-specific temperature baselines',
+  1501.2,
+  'Free trace snapshots should preserve an existing ambient baseline for legacy-file compatibility',
 );
 assert.equal(
   configuredTraceTrial!.configSnapshot.sensor.temperatureMvPerK,

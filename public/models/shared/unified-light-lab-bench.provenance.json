@@ -1,0 +1,23 @@
+{
+  "asset": "unified-light-lab-bench.glb",
+  "purpose": "Shared light-theme laboratory bench for instrument presentation scenes",
+  "derivedFrom": {
+    "asset": "models/heat-capacity/fd-ncd-c-ultra.glb",
+    "sha256": "D594BC0E57798AD305BAC5B282A4EA88F0B2763E427EFA0F170B95964E78D664",
+    "nodes": [
+      "clean_lab_bench",
+      "HSL_LabBench_Backstop_LowLip"
+    ]
+  },
+  "sha256": "B958ACB495AF791A25E6EAC9922551DF6718C53C60096249B3A221FB0B680505",
+  "bytes": 61620,
+  "format": "glTF 2.0 binary",
+  "generator": "Gas Laws Lab unified light lab bench extractor v1",
+  "visualProfile": "light",
+  "runtimeNotes": {
+    "externalUris": false,
+    "animationCount": 0,
+    "darkThemeAdaptation": false,
+    "pistonOscillationSourceTabletopVisible": false
+  }
+}

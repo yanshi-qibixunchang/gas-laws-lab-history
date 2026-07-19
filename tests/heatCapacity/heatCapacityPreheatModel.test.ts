@@ -9,6 +9,7 @@ import {
 import {
   completeHeatCapacityFreePreheatWorkbenchState,
   completeHeatCapacityGuidePreheatWorkbenchState,
+  configureHeatCapacityFreeBatchWorkbenchState,
   createDefaultHeatCapacityFile,
   isHeatCapacityFreePreheatRequired,
   powerHeatCapacityWorkbenchFile,
@@ -34,7 +35,11 @@ assert.equal(
 const newFile = createDefaultHeatCapacityFile(1);
 assert.equal(newFile.heatCapacityFreePreheatCompleted, false);
 assert.equal(isHeatCapacityFreePreheatRequired(newFile), false, 'preheat starts only after power-on');
-const poweredFreeFile = powerHeatCapacityWorkbenchFile(newFile, true, 10);
+const poweredFreeFile = powerHeatCapacityWorkbenchFile(
+  configureHeatCapacityFreeBatchWorkbenchState(newFile, 3, 9),
+  true,
+  10,
+);
 assert.equal(isHeatCapacityFreePreheatRequired(poweredFreeFile), true);
 const preheatedFreeFile = completeHeatCapacityFreePreheatWorkbenchState(poweredFreeFile, 20);
 assert.equal(preheatedFreeFile.heatCapacityFreePreheatCompleted, true);

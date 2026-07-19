@@ -53,6 +53,7 @@ import {
   resolveHeatCapacityFreeGasTypeFromGamma,
   type HeatCapacityFreeGasType,
 } from './heatCapacityGasTheory.ts';
+import { mapTemperatureKToSignalMv } from './heatCapacitySensorMapping.ts';
 
 export type HeatCapacityFreeExperimentGroupStatus = 'draft' | 'running' | 'completed';
 
@@ -219,7 +220,10 @@ const normalizeHeatCapacityFreeSensorConfig = (
   value: Partial<HeatCapacityFreeSensorConfig> | null | undefined,
 ): HeatCapacityFreeSensorConfig => ({
   pressureMvPerKPa: HEAT_CAPACITY_FREE_FIXED_PRESSURE_MV_PER_KPA,
-  temperatureMvAtAmbient: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient,
+  temperatureMvAtAmbient: finiteNumberOr(
+    value?.temperatureMvAtAmbient,
+    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient,
+  ),
   temperatureMvPerK: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvPerK,
   lagRate: finiteAtLeastOr(
     value?.lagRate,
@@ -465,6 +469,7 @@ export const applyHeatCapacityFreeParameterDraftToConfigs = (
   });
   const sensorConfig = normalizeHeatCapacityFreeSensorConfig({
     ...DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
+    temperatureMvAtAmbient: mapTemperatureKToSignalMv(normalizedDraft.ambientTemperatureK),
     lagRate: convertSensorLagTimeSToLagRate(normalizedDraft.sensorLagTimeS),
     noiseMv: normalizedDraft.noiseMv,
   });

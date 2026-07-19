@@ -585,8 +585,13 @@ assert.match(source, /if \(!persistenceReady\)[\s\S]*last successful workspace r
 assert.match(source, /verifyWrittenWorkspace[\s\S]*actualFileRecords[\s\S]*actualModeRecords/);
 assert.match(
   source,
-  /saveWorkbenchWorkspaceToIndexedDb[\s\S]*expectedWorkspaceRevisionByNamespace\.set\([\s\S]*await verifyWrittenWorkspace\(database, writtenRecords\)[\s\S]*committedWorkspaceSources\.delete\(activeNamespace\)/,
-  'normal saves must stay pending until strict post-commit readback succeeds and must invalidate caches on failure',
+  /saveWorkbenchWorkspaceV2ToIndexedDb[\s\S]*expectedWorkspaceRevisionByNamespace\.set\([\s\S]*await verifyWrittenWorkspace\(database, writtenRecords\)[\s\S]*committedWorkspaceSources\.delete\(activeNamespace\)/,
+  'V2 shadow saves must stay pending until strict post-commit readback succeeds and must invalidate caches on failure',
+);
+assert.match(
+  source,
+  /saveWorkbenchWorkspaceToIndexedDb[\s\S]*commitWorkbenchPersistenceV3ProductionSnapshot[\s\S]*retainedPersistenceV3StateByNamespace\.set[\s\S]*if \(!legacyV2WritesEnabled\) return/,
+  'production saves must commit and retain V3 before attempting the optional V2 shadow writer',
 );
 assert.match(
   source,
@@ -664,7 +669,7 @@ assert.equal(
 assert.match(source, /persistenceReady = false;[\s\S]*catch \(cause\)/);
 assert.match(
   source,
-  /const markPersistenceReady = \(\) => \{[\s\S]*persistenceReady = true;[\s\S]*scheduleTemporaryNamespaceCleanup\(\)/,
+  /const markPersistenceReady = \([\s\S]*?\) => \{[\s\S]*persistenceReady = true;[\s\S]*scheduleTemporaryNamespaceCleanup\(\)/,
   'temporary namespace cleanup should start only after persistence initialization succeeds',
 );
 assert.match(

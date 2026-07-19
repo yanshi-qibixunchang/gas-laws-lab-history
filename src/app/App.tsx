@@ -6,7 +6,6 @@ import {
   initializeWorkbenchIndexedDbPersistence,
   type WorkbenchPersistenceBootstrapResult,
 } from '../features/workbench/workbenchIndexedDbPersistence.ts';
-import { PersistenceFailureRecovery } from './PersistenceFailureRecovery.tsx';
 import { getWorkbenchAppBrandName } from '../features/workbench/workbenchBrand.ts';
 
 const WORKBENCH_FRAME_WIDTH = 1440;
@@ -166,20 +165,67 @@ function App() {
     );
   }
 
-  if (persistenceBootstrap.error) {
-    return (
-      <PersistenceFailureRecovery
-        errorMessage={persistenceBootstrap.error.message}
-        language={initialGeneralSettings.language}
-        retrying={persistenceRetrying}
-        onRetry={retryPersistenceInitialization}
-      />
-    );
-  }
+  const persistenceWarning = initialGeneralSettings.language === 'en'
+    ? 'The workspace opened in safe mode. Original local records were preserved; storage recovery can be retried without clearing data.'
+    : initialGeneralSettings.language === 'zh-TW'
+      ? '工作區已以安全模式開啟。原始本機記錄已保留，可在不清除資料的情況下重試儲存恢復。'
+      : '工作区已以安全模式打开。原始本地记录已保留，可在不清空数据的情况下重试存储恢复。';
+  const retryLabel = persistenceRetrying
+    ? initialGeneralSettings.language === 'en'
+      ? 'Retrying…'
+      : '正在重试…'
+    : initialGeneralSettings.language === 'en'
+      ? 'Retry storage'
+      : initialGeneralSettings.language === 'zh-TW'
+        ? '重試儲存'
+        : '重试存储';
 
   return (
     <AudioProvider initialSettings={initialAudioSettings}>
       <WorkbenchAspectFrame />
+      {persistenceBootstrap.error ? (
+        <div
+          role="status"
+          data-workbench-persistence-safe-mode="true"
+          title={persistenceBootstrap.error.message}
+          style={{
+            position: 'fixed',
+            zIndex: 10000,
+            left: '50%',
+            bottom: 12,
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            maxWidth: 'min(920px, calc(100vw - 24px))',
+            padding: '9px 12px',
+            color: '#f2f6fa',
+            background: 'rgba(48, 55, 62, 0.96)',
+            border: '1px solid rgba(196, 207, 218, 0.45)',
+            borderRadius: 8,
+            boxShadow: '0 8px 26px rgba(0, 0, 0, 0.35)',
+            fontSize: 13,
+          }}
+        >
+          <span>{persistenceWarning}</span>
+          <button
+            type="button"
+            disabled={persistenceRetrying}
+            onClick={retryPersistenceInitialization}
+            style={{
+              flex: '0 0 auto',
+              padding: '5px 9px',
+              color: '#f7fafc',
+              background: '#245d86',
+              border: '1px solid #5795bf',
+              borderRadius: 5,
+              cursor: persistenceRetrying ? 'wait' : 'pointer',
+            }}
+          >
+            {retryLabel}
+          </button>
+        </div>
+      ) : null}
     </AudioProvider>
   );
 }

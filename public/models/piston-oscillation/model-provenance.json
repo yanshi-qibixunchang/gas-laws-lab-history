@@ -17,6 +17,10 @@
     "externalUris": false,
     "animationCount": 1,
     "animationPlaybackEnabledInApp": false,
-    "pistonInteractionEnabledInApp": false
+    "pistonInteractionEnabledInApp": false,
+    "sourceTabletopVisibleInApp": false,
+    "visibleTabletopAsset": "../shared/unified-light-lab-bench.glb",
+    "visibleTabletopProfile": "light",
+    "darkTabletopAdaptationEnabled": false
   }
 }

@@ -26,9 +26,7 @@ import {
   createDefaultHeatCapacityFile,
   createDefaultHeatCapacityFreeExperimentDomainState,
   getHeatCapacityStopcockTargetAngle,
-  hasHeatCapacityFreeIdealThermalBoundaryContamination,
   normalizeHeatCapacityFreeFileAcknowledgements,
-  normalizeHeatCapacityFreeExperimentDomainBoundary,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
   type HeatCapacityFreeExperimentDomainState,
   type WorkbenchHeatCapacityState,
@@ -97,6 +95,9 @@ import {
 import {
   normalizeHeatCapacityModeSessionStore,
 } from './workbenchHeatCapacityModeSession.ts';
+import {
+  prepareHeatCapacityFreeCapture,
+} from './workbenchHeatCapacityFreeCapture.ts';
 
 export {
   HEAT_CAPACITY_PROCESS_SCORING_VERSION,
@@ -222,6 +223,7 @@ const createRuntimeFieldsFromRestoredFreeDomain = (
   );
   const gasTypeGamma = getHeatCapacityFreeGasTypeGamma(domain.gasType);
   return {
+    heatCapacityFreeBatch: domain.batch,
     heatCapacityFreeGasType: domain.gasType,
     heatCapacityFreeExperimentGroupStatus: domain.experimentGroupStatus,
     heatCapacityFreeParameterDraft: { ...parameterDraft, gasType: domain.gasType },
@@ -250,55 +252,11 @@ const createRuntimeFieldsFromRestoredFreeDomain = (
 const createHeatCapacityPersistenceSourceFile = (
   file: WorkbenchHeatCapacityState,
 ): WorkbenchHeatCapacityState => {
-  // Boundary rule: real/ideal domains are the durable stores; top-level fields are
-  // only the active runtime projection. Outside Free mode the shared release state
-  // belongs to Guide/Demo, so preserve the Free-owned release state from its domain
-  // while retaining the top-level Free history/config projection.
-  const normalizedRealDomain = normalizeHeatCapacityFreeExperimentDomainBoundary(
-    file.heatCapacityFreeRealDomain,
-    'real',
-  );
-  const normalizedIdealDomain = normalizeHeatCapacityFreeExperimentDomainBoundary(
-    file.heatCapacityFreeIdealDomain,
-    'ideal',
-  );
-  const fileWithBoundaryDomains: WorkbenchHeatCapacityState = {
-    ...file,
-    heatCapacityFreeRealDomain: normalizedRealDomain,
-    heatCapacityFreeIdealDomain: normalizedIdealDomain,
-  };
-  const activeDomain = file.heatCapacityFreeParameterScheme === 'ideal'
-    ? normalizedIdealDomain
-    : normalizedRealDomain;
-  const persistenceProjectionFile = file.heatCapacityMode === 'free'
-    ? fileWithBoundaryDomains
-    : {
-        ...fileWithBoundaryDomains,
-        heatCapacityReleaseState: { ...activeDomain.releaseState },
-      };
-  const useDomainAsActiveSource = file.heatCapacityFreeParameterScheme === 'real' &&
-    hasHeatCapacityFreeIdealThermalBoundaryContamination(file.heatCapacityFreePhysicsConfig);
-  const synchronizedFile = useDomainAsActiveSource
-    ? {
-        ...fileWithBoundaryDomains,
-        ...createRuntimeFieldsFromRestoredFreeDomain(activeDomain),
-      }
-    : storeHeatCapacityFreeRuntimeFieldsInDomain(
-        persistenceProjectionFile,
-        file.heatCapacityFreeParameterScheme,
-      );
-
-  return {
-    ...synchronizedFile,
-    heatCapacityFreeRealDomain: normalizeHeatCapacityFreeExperimentDomainBoundary(
-      synchronizedFile.heatCapacityFreeRealDomain,
-      'real',
-    ),
-    heatCapacityFreeIdealDomain: normalizeHeatCapacityFreeExperimentDomainBoundary(
-      synchronizedFile.heatCapacityFreeIdealDomain,
-      'ideal',
-    ),
-  };
+  const captured = prepareHeatCapacityFreeCapture(file, true);
+  if (captured.ok === false) {
+    throw new Error(`${captured.fieldPath}: ${captured.reason}`);
+  }
+  return captured.file;
 };
 
 const normalizePayloadMode = (
@@ -549,5 +507,13 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityReleaseState: restoredReleaseState,
     ...restoredGuideFields,
   };
-  return normalizeHeatCapacitySessionRuntimeState(restoredFile);
+  const restoredFileWithLegacyActiveDomain = activeDomainPersisted
+    ? restoredFile
+    : storeHeatCapacityFreeRuntimeFieldsInDomain(
+        restoredFile,
+        restoredParameterScheme,
+      );
+  return normalizeHeatCapacitySessionRuntimeState(
+    restoredFileWithLegacyActiveDomain,
+  );
 };

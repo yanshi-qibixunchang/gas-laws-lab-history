@@ -16,6 +16,10 @@ import {
 import {
   migrateGuidePhysicsState,
 } from '../../domain/heatCapacity/heatCapacityGuidePhysicsEngine.ts';
+import {
+  calculateHeatCapacityGuideCalculationReference,
+  normalizeHeatCapacityCalculationWorkflowSessionForTrials,
+} from './workbenchHeatCapacityModeSession.ts';
 
 type RestoredHeatCapacityGuideFields = Pick<
   WorkbenchHeatCapacityState,
@@ -24,6 +28,7 @@ type RestoredHeatCapacityGuideFields = Pick<
   | 'heatCapacityGuideTemperatureSensorState'
   | 'heatCapacityGuideWorkflow'
   | 'heatCapacityGuideTrial'
+  | 'heatCapacityGuideCalculationSession'
 >;
 
 const GUIDE_WORKFLOW_STEPS = new Set([
@@ -66,6 +71,7 @@ export const createHeatCapacityGuidePersistenceData = (
         temperatureSensorState: clonePersistenceValue(file.heatCapacityGuideTemperatureSensorState),
         workflow: clonePersistenceValue(file.heatCapacityGuideWorkflow),
         trial: clonePersistenceValue(file.heatCapacityGuideTrial),
+        calculationSession: clonePersistenceValue(file.heatCapacityGuideCalculationSession),
       }
     : null
 );
@@ -163,6 +169,7 @@ export const restoreHeatCapacityGuidePersistenceFields = (
       heatCapacityGuideTemperatureSensorState: fallback.heatCapacityGuideTemperatureSensorState,
       heatCapacityGuideWorkflow: fallback.heatCapacityGuideWorkflow,
       heatCapacityGuideTrial: fallback.heatCapacityGuideTrial,
+      heatCapacityGuideCalculationSession: fallback.heatCapacityGuideCalculationSession,
     };
   }
   const heatCapacityGuidePhysicsConfig = normalizeGuidePhysicsConfig(
@@ -174,6 +181,14 @@ export const restoreHeatCapacityGuidePersistenceFields = (
     fallback.heatCapacityGuidePhysicsState,
     heatCapacityGuidePhysicsConfig,
   );
+  const heatCapacityGuideTrial = normalizeGuideTrial(value.trial);
+  const guideCalculationReference = heatCapacityGuideTrial === null
+    ? null
+    : calculateHeatCapacityGuideCalculationReference(
+        heatCapacityGuideTrial,
+        heatCapacityGuidePhysicsConfig.environment.ambientPressureKPa,
+        fallback.pressureSensitivityMvPerKPa,
+      );
   return {
     heatCapacityGuidePhysicsConfig,
     heatCapacityGuidePhysicsState,
@@ -187,6 +202,23 @@ export const restoreHeatCapacityGuidePersistenceFields = (
       value.workflow,
       fallback.heatCapacityGuideWorkflow,
     ),
-    heatCapacityGuideTrial: normalizeGuideTrial(value.trial),
+    heatCapacityGuideTrial,
+    heatCapacityGuideCalculationSession:
+      heatCapacityGuideTrial === null || guideCalculationReference === null
+        ? null
+        : normalizeHeatCapacityCalculationWorkflowSessionForTrials(
+            value.calculationSession,
+            {
+              mode: heatCapacityGuideTrial.source,
+              groups: [{
+                trialId: heatCapacityGuideTrial.id,
+                reference: guideCalculationReference,
+              }],
+              theoreticalGamma: heatCapacityGuidePhysicsConfig.gamma,
+              presentation: heatCapacityGuideTrial.source === 'demo'
+                ? 'system-readonly'
+                : 'interactive',
+            },
+          ),
   };
 };

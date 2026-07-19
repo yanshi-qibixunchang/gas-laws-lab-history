@@ -26,6 +26,7 @@ import {
   type WorkbenchHeatCapacityRefreshSession,
 } from '../../src/features/workbench/workbenchHeatCapacityRefreshSession.ts';
 import {
+  configureHeatCapacityFreeBatchWorkbenchState,
   createDefaultHeatCapacityFile,
   enterHeatCapacityFreeModeWorkbenchState,
   isHeatCapacityFreePreheatRequired,
@@ -130,11 +131,18 @@ const activateFreshPreheat = (
   mode: HeatCapacityMode,
   clock: TestClock,
 ) => {
-  const activated = mode === 'demo'
+  const activatedBase = mode === 'demo'
     ? prepareHeatCapacityAutoDemoStart(source, advanceClock(clock, 100))
     : mode === 'guide'
       ? startHeatCapacityGuideWorkbenchState(source, advanceClock(clock, 100))
       : enterHeatCapacityFreeModeWorkbenchState(source, advanceClock(clock, 100));
+  const activated = mode === 'free'
+    ? configureHeatCapacityFreeBatchWorkbenchState(
+        activatedBase,
+        3,
+        advanceClock(clock, 1),
+      )
+    : activatedBase;
   return powerHeatCapacityWorkbenchFile(activated, true, advanceClock(clock, 100));
 };
 

@@ -9,9 +9,7 @@ import {
   normalizeHeatCapacityFreeParameterDraft,
   resolveHeatCapacityFreeGasTypeFromGamma,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
-import type { HeatCapacityFreeTrial } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
-  createDefaultFreeTraceStore,
   HEAT_CAPACITY_FREE_TRACE_VERSION,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
@@ -20,13 +18,13 @@ import {
   createDefaultHeatCapacityFile,
   createDefaultHeatCapacityFreeExperimentDomainState,
   createDefaultHeatCapacityFreeRuntimeFields,
+  applyHeatCapacityFreeDomainToRuntimeFields,
   getHeatCapacityGaugePressureState,
   getHeatCapacityStopcockTargetAngle,
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   normalizeHeatCapacityFileName,
   normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
   normalizeHeatCapacityFreeFileAcknowledgements,
-  storeHeatCapacityFreeRuntimeFieldsInDomain,
   WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
   type WorkbenchHeatCapacityState,
 } from './workbenchState.ts';
@@ -35,15 +33,13 @@ import {
   normalizeHeatCapacityFreeRestoreConfigSnapshot,
   normalizeHeatCapacityFreeRestoreDisplayScheme,
   normalizeHeatCapacityFreeRestoreCalibrationState,
-  normalizeHeatCapacityFreeRestoreExperimentDomain,
+  normalizeHeatCapacityFreeRestoreExperimentDomainResult,
   normalizeHeatCapacityFreeRestoreExperimentGroupStatus,
   normalizeHeatCapacityFreeRestoreParameterScheme,
   normalizeHeatCapacityFreeRestorePhysicsState,
   normalizeHeatCapacityFreeRestoreRecordConfig,
-  normalizeHeatCapacityFreeRestoreRollbackSnapshots,
   normalizeHeatCapacityFreeRestoreSensorState,
-  normalizeHeatCapacityFreeRestoreTraceStore,
-  normalizeHeatCapacityFreeRestoreTrial,
+  type HeatCapacityFreeRestoreAggregateResult,
 } from './workbenchHeatCapacityFreeRestoreNormalization.ts';
 import {
   createClosedHeatCapacityReleaseState,
@@ -63,11 +59,11 @@ import {
   normalizeHeatCapacityFreeSensorConfig,
 } from './workbenchHeatCapacityFreeRuntimeConfig.ts';
 import {
+  calculateHeatCapacityFreeCalculationReference,
+  calculateHeatCapacityGuideCalculationReference,
+  normalizeHeatCapacityCalculationWorkflowSessionForTrials,
   normalizeHeatCapacityModeSessionStore,
 } from './workbenchHeatCapacityModeSession.ts';
-import {
-  createHeatCapacityFreeConfigSnapshotFromRuntimeConfigs,
-} from './workbenchHeatCapacityFreeConfigSnapshot.ts';
 
 const normalizeLastOpenedAt = (file: WorkbenchHeatCapacityState, fallback: number) => (
   normalizeNullableNumber(file.lastOpenedAt) ??
@@ -151,9 +147,41 @@ const normalizeHeatCapacityProcessSamples = (value: unknown) => {
   }, {});
 };
 
-export const normalizeHeatCapacitySessionRuntimeState = (
+export interface HeatCapacityFreeDomainRecoveryDiagnostic {
+  fileId: string;
+  domain: 'real' | 'ideal';
+  status: 'unsupported-future' | 'quarantined';
+  sourceVersion: unknown;
+  reason: string;
+  fieldPath?: string;
+  recovery: 'use-safe-default-domain';
+  raw: unknown;
+}
+
+export interface HeatCapacitySessionRuntimeRestoreResult {
+  value: WorkbenchHeatCapacityState;
+  diagnostics: HeatCapacityFreeDomainRecoveryDiagnostic[];
+}
+
+const createHeatCapacityFreeDomainRecoveryDiagnostic = (
+  fileId: string,
+  domain: 'real' | 'ideal',
+  result: Extract<HeatCapacityFreeRestoreAggregateResult, { ok: false }>,
+): HeatCapacityFreeDomainRecoveryDiagnostic => ({
+  fileId,
+  domain,
+  status: result.status,
+  sourceVersion: result.sourceVersion,
+  reason: result.reason,
+  ...(result.fieldPath === undefined ? {} : { fieldPath: result.fieldPath }),
+  recovery: 'use-safe-default-domain',
+  raw: result.raw,
+});
+
+export const normalizeHeatCapacitySessionRuntimeStateResult = (
   file: WorkbenchHeatCapacityState,
-): WorkbenchHeatCapacityState => {
+): HeatCapacitySessionRuntimeRestoreResult => {
+  const recoveryDiagnostics: HeatCapacityFreeDomainRecoveryDiagnostic[] = [];
   const {
     selectedHeatCapacityPanel: discardedLegacySelectedPanel,
     heatCapacityFreeStopcockFlowOpen: discardedLegacyFlowOpen,
@@ -249,21 +277,6 @@ export const normalizeHeatCapacitySessionRuntimeState = (
     ...savedFreePhysicsConfigRaw,
     gamma: getHeatCapacityFreeGasTypeGamma(savedFreeParameterDraft.gasType),
   };
-  const freeTrialFallbackConfigSnapshot = createHeatCapacityFreeConfigSnapshotFromRuntimeConfigs({
-    environmentConfig: savedFreePhysicsConfig.environment,
-    physicsConfig: savedFreePhysicsConfig,
-    sensorConfig: savedFreeSensorConfig,
-    recordConfig: savedFreeRecordConfig,
-    pressureWarningMv: savedFreePressureWarningMv,
-  });
-  const heatCapacityFreeTrials = Array.isArray(file.heatCapacityFreeTrials)
-    ? file.heatCapacityFreeTrials
-        .map((trial) => normalizeHeatCapacityFreeRestoreTrial(
-          trial,
-          freeTrialFallbackConfigSnapshot,
-        ))
-        .filter((trial): trial is HeatCapacityFreeTrial => trial !== null)
-    : [];
   const savedFreePhysicsState = normalizeHeatCapacityFreeRestorePhysicsState(
     savedFreeRuntimeCompatible ? file.heatCapacityFreePhysicsState : null,
     {
@@ -317,31 +330,103 @@ export const normalizeHeatCapacitySessionRuntimeState = (
           : fallbackFreeRuntimeFields.heatCapacityFreeRollbackSnapshots,
       }
     : fallbackFreeRuntimeFields;
-  const heatCapacityFreeTraceStore = file.heatCapacityFreeTraceVersion === HEAT_CAPACITY_FREE_TRACE_VERSION
-    ? normalizeHeatCapacityFreeRestoreTraceStore(file.heatCapacityFreeTraceStore)
-    : createDefaultFreeTraceStore();
-  const heatCapacityFreeRealDomain = normalizeHeatCapacityFreeRestoreExperimentDomain(
+  const fallbackRealDomain = createDefaultHeatCapacityFreeExperimentDomainState(
+    'real',
+    `session-${file.id}:real`,
+  );
+  const realDomainResult = normalizeHeatCapacityFreeRestoreExperimentDomainResult(
     file.heatCapacityFreeRealDomain,
     'real',
     savedFreeParameterDraft.gasType,
-    createDefaultHeatCapacityFreeExperimentDomainState('real', `session-${file.id}:real`),
+    fallbackRealDomain,
   );
-  const heatCapacityFreeIdealDomain = normalizeHeatCapacityFreeRestoreExperimentDomain(
+  let heatCapacityFreeRealDomain = fallbackRealDomain;
+  if (realDomainResult.ok === false) {
+    recoveryDiagnostics.push(
+      createHeatCapacityFreeDomainRecoveryDiagnostic(
+        file.id,
+        'real',
+        realDomainResult,
+      ),
+    );
+  } else {
+    heatCapacityFreeRealDomain = realDomainResult.value;
+  }
+  const fallbackIdealDomain = createDefaultHeatCapacityFreeExperimentDomainState(
+    'ideal',
+    `session-${file.id}:ideal`,
+  );
+  const idealDomainResult = normalizeHeatCapacityFreeRestoreExperimentDomainResult(
     file.heatCapacityFreeIdealDomain,
     'ideal',
     'air',
-    createDefaultHeatCapacityFreeExperimentDomainState('ideal', `session-${file.id}:ideal`),
+    fallbackIdealDomain,
   );
-  const activeFreeDomain = savedFreeParameterScheme === 'ideal'
+  let heatCapacityFreeIdealDomain = fallbackIdealDomain;
+  if (idealDomainResult.ok === false) {
+    recoveryDiagnostics.push(
+      createHeatCapacityFreeDomainRecoveryDiagnostic(
+        file.id,
+        'ideal',
+        idealDomainResult,
+      ),
+    );
+  } else {
+    heatCapacityFreeIdealDomain = idealDomainResult.value;
+  }
+  const activeFreeDomainBase = savedFreeParameterScheme === 'ideal'
     ? heatCapacityFreeIdealDomain
     : heatCapacityFreeRealDomain;
-  const heatCapacityFreeRollbackSnapshots = normalizeHeatCapacityFreeRestoreRollbackSnapshots(
-    file.heatCapacityFreeRollbackSnapshots,
-    activeFreeDomain,
-  );
+  const completedFreeTrials = activeFreeDomainBase.trials
+    .filter((trial) => (
+      trial.completedAtMs !== null &&
+      trial.u1 !== null &&
+      trial.u2 !== null &&
+      trial.correctedSignals !== null
+    ));
+  const freeCalculationGroups = activeFreeDomainBase.batch.frozenConfigSnapshot === null
+    ? []
+    : completedFreeTrials.flatMap((trial) => {
+        const reference = calculateHeatCapacityFreeCalculationReference(
+          trial,
+          activeFreeDomainBase.batch.frozenConfigSnapshot!,
+        );
+        return reference === null ? [] : [{ trialId: trial.id, reference }];
+      });
+  const activeFreeDomain = {
+    ...activeFreeDomainBase,
+    batch: {
+      ...activeFreeDomainBase.batch,
+      calculationSession: (
+        activeFreeDomainBase.batch.experimentCompletedAtMs !== null &&
+        activeFreeDomainBase.batch.targetGroupCount === completedFreeTrials.length &&
+        freeCalculationGroups.length === completedFreeTrials.length &&
+        activeFreeDomainBase.batch.frozenConfigSnapshot !== null
+      )
+        ? normalizeHeatCapacityCalculationWorkflowSessionForTrials(
+            activeFreeDomainBase.batch.calculationSession,
+            {
+              mode: 'free',
+              groups: freeCalculationGroups,
+              theoreticalGamma:
+                activeFreeDomainBase.batch.frozenConfigSnapshot.physics.gamma,
+              presentation: 'interactive',
+            },
+          )
+        : null,
+    },
+  };
+  const heatCapacityFreeRollbackSnapshots = activeFreeDomain.rollbackSnapshots;
   const normalizedHeatCapacityMode = file.heatCapacityMode === 'demo' || file.heatCapacityMode === 'guide' || file.heatCapacityMode === 'free'
     ? file.heatCapacityMode
     : fallback.heatCapacityMode;
+  const guideCalculationReference = file.heatCapacityGuideTrial === null
+    ? null
+    : calculateHeatCapacityGuideCalculationReference(
+        file.heatCapacityGuideTrial,
+        file.heatCapacityGuidePhysicsConfig.environment.ambientPressureKPa,
+        file.pressureSensitivityMvPerKPa,
+      );
   const normalizedPowerOn = file.powerOn === true;
   const normalizedReleaseState = normalizeHeatCapacityReleaseState(
     file.heatCapacityReleaseState ?? activeFreeDomain.releaseState,
@@ -376,6 +461,7 @@ export const normalizeHeatCapacitySessionRuntimeState = (
     heatCapacityFreeDisplayScheme: savedFreeDisplayScheme,
     heatCapacityFreeRealDomain,
     heatCapacityFreeIdealDomain,
+    heatCapacityFreeBatch: activeFreeDomain.batch,
     heatCapacityFreeActiveAttempt: activeFreeDomain.activeAttempt,
     heatCapacityFreeRollbackSnapshots,
     name: normalizeHeatCapacityFileName(file.name),
@@ -401,14 +487,31 @@ export const normalizeHeatCapacitySessionRuntimeState = (
     heatCapacityTeachingStatus: file.heatCapacityTeachingStatus === 'running' || file.heatCapacityTeachingStatus === 'completed'
       ? file.heatCapacityTeachingStatus
       : fallback.heatCapacityTeachingStatus,
+    heatCapacityGuideCalculationSession:
+      file.heatCapacityGuideTrial === null || guideCalculationReference === null
+        ? null
+        : normalizeHeatCapacityCalculationWorkflowSessionForTrials(
+            file.heatCapacityGuideCalculationSession,
+            {
+              mode: file.heatCapacityGuideTrial.source,
+              groups: [{
+                trialId: file.heatCapacityGuideTrial.id,
+                reference: guideCalculationReference,
+              }],
+              theoreticalGamma: file.heatCapacityGuidePhysicsConfig.gamma,
+              presentation: file.heatCapacityGuideTrial.source === 'demo'
+                ? 'system-readonly'
+                : 'interactive',
+            },
+          ),
     heatCapacityFreePreheatCompleted: Object.prototype.hasOwnProperty.call(file, 'heatCapacityFreePreheatCompleted')
       ? file.heatCapacityFreePreheatCompleted === true
       : true,
     heatCapacityPhase: normalizeHeatCapacityRuntimePhase(file.heatCapacityPhase, fallback.heatCapacityPhase),
     powerOn: normalizedPowerOn,
-    heatCapacityFreeTrials,
+    heatCapacityFreeTrials: activeFreeDomain.trials,
     heatCapacityFreeTraceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
-    heatCapacityFreeTraceStore,
+    heatCapacityFreeTraceStore: activeFreeDomain.traceStore,
     heatCapacityReleaseState: normalizedReleaseState,
     stopcockAngleDeg: getHeatCapacityStopcockTargetAngle(normalizedStopcockOpen),
     glassPistonState: normalizedStopcockOpen ? 'open' : 'closed',
@@ -498,10 +601,21 @@ export const normalizeHeatCapacitySessionRuntimeState = (
       ...normalizeHeatCapacityProcessSamples(file.heatCapacityProcessSamples),
     },
   };
-  return normalizedHeatCapacityMode === 'free'
-    ? storeHeatCapacityFreeRuntimeFieldsInDomain(
-        normalizedHeatCapacityFile,
-        savedFreeParameterScheme,
-      )
-    : normalizedHeatCapacityFile;
+  const fileWithMigratedActiveProjection = applyHeatCapacityFreeDomainToRuntimeFields(
+    normalizedHeatCapacityFile,
+    activeFreeDomain,
+  );
+  const value = normalizedHeatCapacityMode === 'free'
+    ? fileWithMigratedActiveProjection
+    : {
+        ...fileWithMigratedActiveProjection,
+        heatCapacityReleaseState: normalizedHeatCapacityFile.heatCapacityReleaseState,
+      };
+  return { value, diagnostics: recoveryDiagnostics };
 };
+
+export const normalizeHeatCapacitySessionRuntimeState = (
+  file: WorkbenchHeatCapacityState,
+): WorkbenchHeatCapacityState => (
+  normalizeHeatCapacitySessionRuntimeStateResult(file).value
+);

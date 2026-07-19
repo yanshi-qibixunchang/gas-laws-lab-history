@@ -2327,6 +2327,17 @@ assert.match(workbenchSource, /studio-heat-advanced-groups[\s\S]*heatCapacityFre
 assert.doesNotMatch(freeParameterPanelModelSource, /A类|B类|C类|D类|A 類|B 類|C 類|D 類|Class A|Class B|Class C|Class D/, 'advanced parameter group titles should not expose letter-class wording');
 assert.doesNotMatch(`${workbenchSource}\n${freeParameterPanelModelSource}`, /advancedSubtitle|这些参数只影响之后开始的新实验组|這些參數只影響之後開始的新實驗組|These values affect only future experiment groups/, 'advanced parameter main window should not keep the redundant future-groups subtitle');
 assert.match(workbenchSource, /heatCapacityFreeSharedText\.valueTooLarge/, 'Free Mode parameter validation should have a localized over-limit message');
+assert.match(freeAdvancedNumberParametersSection, /id:\s*'gasWallConductanceWPerK'[\s\S]*?max:\s*5/, 'gas-wall conductance should expose the model upper limit in the UI');
+assert.match(freeAdvancedNumberParametersSection, /id:\s*'wallAmbientConductanceWPerK'[\s\S]*?max:\s*5/, 'wall-ambient conductance should expose the model upper limit in the UI');
+assert.match(freeAdvancedNumberParametersSection, /id:\s*'wallHeatCapacityJPerK'[\s\S]*?max:\s*5000/, 'wall heat capacity should expose the model upper limit in the UI');
+assert.match(freeAdvancedNumberParametersSection, /id:\s*'leakageRatePerS'[\s\S]*?max:\s*0\.02/, 'leakage rate should expose the model upper limit in the UI');
+assert.match(freeAdvancedNumberParametersSection, /id:\s*'sensorLagTimeS'[\s\S]*?min:\s*1\s*\/\s*60[\s\S]*?max:\s*100/, 'pressure-channel lag time should expose both effective runtime bounds');
+assert.match(workbenchSource, /definition\.max \?\? null/, 'Free Mode validation should consume parameter-model upper bounds');
+assert.match(workbenchSource, /aria-invalid=\{error \? true : undefined\}/, 'invalid Free Mode parameter inputs should expose their error state');
+assert.match(styleSource, /\.studio-heat-free-param-row-error \.studio-heat-free-input-cell input\s*\{[\s\S]*?border-color:/, 'invalid Free Mode parameter inputs should render a red error border');
+assert.match(styleSource, /\.studio-heat-advanced-grid \.studio-heat-free-input-cell\s*\{[\s\S]*?position:\s*relative;/, 'advanced parameter input cells should anchor their validation message without changing row alignment');
+assert.match(styleSource, /\.studio-heat-advanced-grid \.studio-heat-free-inline-error\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?inline-size:\s*max-content;[\s\S]*?white-space:\s*nowrap;/, 'advanced parameter validation should stay on one floating line instead of expanding and clipping its row');
+assert.match(styleSource, /\.studio-heat-advanced-grid-item:nth-child\(3n\) \.studio-heat-free-inline-error\s*\{[\s\S]*?inset-inline-end:\s*0;/, 'rightmost advanced parameter validation should stay inside the dialog edge');
 assert.match(workbenchSource, /HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA/, 'Free Mode parameter UI should share the 300 kPa absolute pressure ceiling');
 assert.match(workbenchSource, /setScanInputToast\(message\)/, 'Free Mode parameter over-limit validation should surface a visible toast-style message');
 assert.match(workbenchSource, /setHeatCapacityFreeGasType[\s\S]*isHeatCapacityFreeGasTypeEditingAvailable/, 'gas type should be locked separately after a file has started a recorded experiment');

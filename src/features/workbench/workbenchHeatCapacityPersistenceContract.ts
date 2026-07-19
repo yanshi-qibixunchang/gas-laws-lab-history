@@ -115,6 +115,7 @@ export interface HeatCapacityGuidePersistenceDataV1 {
   temperatureSensorState: WorkbenchHeatCapacityState['heatCapacityGuideTemperatureSensorState'];
   workflow: WorkbenchHeatCapacityState['heatCapacityGuideWorkflow'];
   trial: WorkbenchHeatCapacityState['heatCapacityGuideTrial'];
+  calculationSession: WorkbenchHeatCapacityState['heatCapacityGuideCalculationSession'];
 }
 
 export interface HeatCapacityPersistencePayloadV1 {

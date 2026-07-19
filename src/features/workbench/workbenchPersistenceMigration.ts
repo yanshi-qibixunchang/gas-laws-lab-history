@@ -83,6 +83,9 @@ import {
   type HeatCapacityFreeTraceStore,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
+  HEAT_CAPACITY_LEGACY_423_DISPLAY_EVENT_SAMPLE_RELATION_PROVENANCE,
+} from '../../domain/heatCapacity/heatCapacityLegacyTraceCompatibility.ts';
+import {
   normalizeHeatCapacityFreeRestoreConfigSnapshot,
   normalizeHeatCapacityFreeRestoreTraceStore,
   normalizeHeatCapacityFreeRestoreTrial,
@@ -754,6 +757,7 @@ const validateLegacy423HeatCapacityPayload = (payload: Record<string, unknown>) 
 
 const LEGACY_423_HEAT_CAPACITY_TRACE_VERSION = 4;
 const LEGACY_423_HEAT_CAPACITY_CONFIG_VERSION = 7;
+const LEGACY_423_TRACE_TIME_TOLERANCE_S = 0.000001;
 
 interface TemperatureSignalMapping {
   baseMv: number;
@@ -932,6 +936,13 @@ const upgradeLegacy423ConfigSnapshot = (value: unknown) => {
   const upgraded = normalizeHeatCapacityFreeRestoreConfigSnapshot({
     ...value,
     version: HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
+    sensor: isRecord(value.sensor)
+      ? {
+          ...value.sensor,
+          temperatureMvAtAmbient: CURRENT_TEMPERATURE_SIGNAL_MAPPING.baseMv,
+          temperatureMvPerK: CURRENT_TEMPERATURE_SIGNAL_MAPPING.sensitivityMvPerK,
+        }
+      : value.sensor,
     record: upgradeLegacy423TemperatureRecordConfig(value.record, mapping),
   });
   if (!upgraded) throw new Error('v4.2.3 heat-capacity config snapshot could not be upgraded.');
@@ -961,6 +972,20 @@ const alignLegacy423ActiveConfigSnapshot = (
     },
   };
 };
+
+const alignLegacy423BatchFrozenConfigSnapshot = (
+  value: unknown,
+  activeRunConfigSnapshot: unknown,
+) => (
+  isRecord(value) &&
+  value.startedAtMs !== null &&
+  isRecord(activeRunConfigSnapshot)
+    ? {
+        ...value,
+        frozenConfigSnapshot: activeRunConfigSnapshot,
+      }
+    : value
+);
 
 const upgradeLegacy423TemperatureRecord = (
   value: unknown,
@@ -1071,10 +1096,10 @@ const upgradeLegacy423TraceBranch = (
   if (!Array.isArray(branch.samples) || !Array.isArray(branch.events)) {
     throw new Error('v4.2.3 heat-capacity trace branch is invalid.');
   }
-  const samples: Record<string, unknown>[] = branch.samples.map((sample) => (
+  const sourceSamples: Record<string, unknown>[] = branch.samples.map((sample) => (
     upgradeLegacy423TraceSample(sample, mapping)
   ));
-  const releaseSample = samples.find((sample) => (
+  const releaseSample = sourceSamples.find((sample) => (
     isRecord(sample.physical) && sample.physical.releaseStarted === true
   ));
   const existingEvents = branch.events.map((event) => {
@@ -1151,12 +1176,90 @@ const upgradeLegacy423TraceBranch = (
     });
   }
 
-  const orderedEvents = candidateEvents
-    .map((event, ordinal) => ({ event, ordinal }))
+  const sourceSampleById = new Map<string, Record<string, unknown>>();
+  for (const sample of sourceSamples) {
+    if (
+      typeof sample.id !== 'string' ||
+      !isPersistenceFiniteNumber(sample.atS) ||
+      sourceSampleById.has(sample.id)
+    ) {
+      throw new Error('v4.2.3 heat-capacity trace sample identity is invalid.');
+    }
+    sourceSampleById.set(sample.id, sample);
+  }
+
+  interface Legacy423SampleCandidate {
+    sample: Record<string, unknown>;
+    referenceKey: string;
+    ordinal: number;
+  }
+  const sampleCandidates: Legacy423SampleCandidate[] = sourceSamples.map((sample, ordinal) => ({
+    sample,
+    referenceKey: `source:${sample.id as string}`,
+    ordinal,
+  }));
+  const eventsWithSampleReferences = candidateEvents.map((event, ordinal) => {
+    if (
+      typeof event.traceSampleId !== 'string' ||
+      !isPersistenceFiniteNumber(event.atS)
+    ) {
+      throw new Error('v4.2.3 heat-capacity trace event reference is invalid.');
+    }
+    const referencedSample = sourceSampleById.get(event.traceSampleId);
+    if (!referencedSample || !isPersistenceFiniteNumber(referencedSample.atS)) {
+      throw new Error('v4.2.3 heat-capacity trace event references a missing sample.');
+    }
+    if (
+      Math.abs(event.atS - referencedSample.atS) <=
+        LEGACY_423_TRACE_TIME_TOLERANCE_S
+    ) {
+      return {
+        event,
+        ordinal,
+        sampleReferenceKey: `source:${event.traceSampleId}`,
+      };
+    }
+
+    return {
+      event: {
+        ...event,
+        payload: {
+          ...(isRecord(event.payload) ? event.payload : {}),
+          hslLegacyDisplayRelationProvenance:
+            HEAT_CAPACITY_LEGACY_423_DISPLAY_EVENT_SAMPLE_RELATION_PROVENANCE,
+          hslLegacyRelationUsage: 'display-only',
+          hslLegacySourceEventAtS: event.atS,
+          hslLegacySourceTraceSampleId: event.traceSampleId,
+          hslLegacySourceTraceSampleAtS: referencedSample.atS,
+        },
+      },
+      ordinal,
+      sampleReferenceKey: `source:${event.traceSampleId}`,
+    };
+  });
+
+  const sampleIdByReferenceKey = new Map<string, string>();
+  const samples = sampleCandidates
+    .sort((left, right) => {
+      const timeDifference = (left.sample.atS as number) - (right.sample.atS as number);
+      return Math.abs(timeDifference) > LEGACY_423_TRACE_TIME_TOLERANCE_S
+        ? timeDifference
+        : left.ordinal - right.ordinal;
+    })
+    .map(({ sample, referenceKey }, index) => {
+      const nextIndex = index + 1;
+      const nextId = `sample-${nextIndex}`;
+      sampleIdByReferenceKey.set(referenceKey, nextId);
+      return { ...sample, id: nextId, index: nextIndex };
+    });
+
+  const orderedEvents = eventsWithSampleReferences
     .sort((left, right) => {
       const timeDifference = readLegacy423TraceEventTime(left.event) -
         readLegacy423TraceEventTime(right.event);
-      if (Math.abs(timeDifference) > 0.000001) return timeDifference;
+      if (Math.abs(timeDifference) > LEGACY_423_TRACE_TIME_TOLERANCE_S) {
+        return timeDifference;
+      }
       const leftSynthesized = left.event.id === 'event-migrated-release-start';
       const rightSynthesized = right.event.id === 'event-migrated-release-start';
       if (leftSynthesized !== rightSynthesized) {
@@ -1171,18 +1274,38 @@ const upgradeLegacy423TraceBranch = (
       return left.ordinal - right.ordinal;
     });
   const eventIdMap = new Map<string, string>();
-  const events = orderedEvents.map(({ event }, index) => {
+  const events = orderedEvents.map(({ event, sampleReferenceKey }, index) => {
     const nextIndex = index + 1;
     const nextId = `event-${nextIndex}`;
+    const traceSampleId = sampleIdByReferenceKey.get(sampleReferenceKey);
+    if (!traceSampleId) {
+      throw new Error('v4.2.3 heat-capacity trace sample anchor is invalid.');
+    }
     if (typeof event.id === 'string' && event.id !== 'event-migrated-release-start') {
       eventIdMap.set(event.id, nextId);
     }
-    return { ...event, id: nextId, index: nextIndex };
+    const payload = isRecord(event.payload) &&
+      event.payload.hslLegacyDisplayRelationProvenance ===
+        HEAT_CAPACITY_LEGACY_423_DISPLAY_EVENT_SAMPLE_RELATION_PROVENANCE
+      ? {
+          ...event.payload,
+          hslLegacyLinkedTraceSampleId: traceSampleId,
+        }
+      : event.payload;
+    return {
+      ...event,
+      id: nextId,
+      index: nextIndex,
+      traceSampleId,
+      ...(payload === undefined ? {} : { payload }),
+    };
   });
   return {
     branch: {
       ...branch,
+      nextSampleIndex: samples.length + 1,
       nextEventIndex: events.length + 1,
+      lastKeptSampleId: samples[samples.length - 1]?.id ?? null,
       samples,
       events,
     },
@@ -1422,13 +1545,16 @@ const alignLegacy423TrialRecordsWithTrace = (
   const alignRecord = (recordValue: unknown, expectedEventType: string) => {
     if (!isRecord(recordValue)) return recordValue;
     const branch = traceTrial.branches.find((candidate) => candidate.id === recordValue.traceBranchId);
-    const sample = branch?.samples.find((candidate) => candidate.id === recordValue.traceSampleId);
     const eventById = branch?.events.find((candidate) => candidate.id === recordValue.eventId);
-    const event = eventById?.type === expectedEventType && eventById.traceSampleId === sample?.id
+    const event = eventById?.type === expectedEventType
       ? eventById
       : branch?.events.find((candidate) => (
-        candidate.type === expectedEventType && candidate.traceSampleId === sample?.id
+        candidate.type === expectedEventType &&
+        isPersistenceFiniteNumber(recordValue.atS) &&
+        Math.abs(candidate.atS - recordValue.atS) <=
+          LEGACY_423_TRACE_TIME_TOLERANCE_S
       ));
+    const sample = branch?.samples.find((candidate) => candidate.id === event?.traceSampleId);
     if (
       !branch || !sample || !event ||
       event.type !== expectedEventType ||
@@ -1989,6 +2115,10 @@ const upgradeLegacy423Domain = (value: unknown) => {
   const recordConfig = upgradeLegacy423TemperatureRecordConfig(value.recordConfig, sensorMapping);
   const ambientTemperatureK = (physicsConfig.environment as Record<string, unknown>)
     .ambientTemperatureK as number;
+  const activeRunConfigSnapshot = alignLegacy423ActiveConfigSnapshot(
+    value.activeRunConfigSnapshot,
+    physicsConfig,
+  );
   const traceStore = normalizeUpgradedLegacy423TraceStore(
     upgradeLegacy423TraceStore(value.traceStore),
   );
@@ -2018,10 +2148,11 @@ const upgradeLegacy423Domain = (value: unknown) => {
   );
   return {
     ...retained,
-    activeRunConfigSnapshot: alignLegacy423ActiveConfigSnapshot(
-      value.activeRunConfigSnapshot,
-      physicsConfig,
+    batch: alignLegacy423BatchFrozenConfigSnapshot(
+      value.batch,
+      activeRunConfigSnapshot,
     ),
+    activeRunConfigSnapshot,
     recordConfig,
     physicsConfig,
     physicsState,
@@ -2067,6 +2198,10 @@ const upgradeLegacy423HeatCapacityPayload = (
     ? topSensorMapping
     : LEGACY_423_GUIDE_TEMPERATURE_SIGNAL_MAPPING;
   const upgradedConfig = upgradeLegacy423ConfigSnapshot(legacyConfig);
+  const topActiveRunConfigSnapshot = alignLegacy423ActiveConfigSnapshot(
+    free.activeRunConfigSnapshot,
+    upgradedTopPhysicsConfig,
+  );
   const topTraceStore = normalizeUpgradedLegacy423TraceStore(
     upgradeLegacy423TraceStore(free.traceStore),
   );
@@ -2241,13 +2376,14 @@ const upgradeLegacy423HeatCapacityPayload = (
       ...free,
       traceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
       preheatCompleted: true,
+      batch: alignLegacy423BatchFrozenConfigSnapshot(
+        free.batch,
+        topActiveRunConfigSnapshot,
+      ),
       real: upgradeLegacy423Domain(free.real),
       ideal: upgradeLegacy423Domain(free.ideal),
       config: upgradedConfig,
-      activeRunConfigSnapshot: alignLegacy423ActiveConfigSnapshot(
-        free.activeRunConfigSnapshot,
-        upgradedTopPhysicsConfig,
-      ),
+      activeRunConfigSnapshot: topActiveRunConfigSnapshot,
       parameterDraft: upgradeLegacy423ParameterDraft(free.parameterDraft, topSensorMapping),
       recordConfig: topRecordConfig,
       runtime: topRuntime,
@@ -2644,11 +2780,12 @@ const restoreHeatCapacityRuntimeFile = (
     ? upgradeLegacy423HeatCapacityPayload(fileEnvelope.payload)
     : fileEnvelope.payload;
   if (!validateHeatCapacityPersistencePayload(upgradedPayload).valid) return [];
-  const canonicalRuntimeShapeValid = hasCanonicalHeatCapacityRuntimeShape(
-    upgradedPayload,
-    fileEnvelope.updatedAt,
-    legacy423,
-  );
+  const canonicalRuntimeShapeValid = legacy423 ||
+    hasCanonicalHeatCapacityRuntimeShape(
+      upgradedPayload,
+      fileEnvelope.updatedAt,
+      false,
+    );
   if (!canonicalRuntimeShapeValid) return [];
   const payload = migrateLegacyHeatCapacityFocusIdentity(upgradedPayload);
   const common = isRecord(payload.common) ? payload.common : null;

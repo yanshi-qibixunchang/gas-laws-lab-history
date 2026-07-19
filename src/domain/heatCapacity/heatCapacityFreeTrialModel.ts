@@ -77,10 +77,28 @@ export interface HeatCapacityFreeCorrectedSignals {
 
 export type HeatCapacityFreeTrialParameterScheme = 'real' | 'ideal';
 
+export const HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION = 1 as const;
+
+export interface HeatCapacityFreeTrialBatchMembership {
+  version: typeof HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION;
+  batchId: string;
+  sequence: number;
+}
+
+export interface HeatCapacityFreeBatchTrialIdentity {
+  id: string;
+  batchMembership: HeatCapacityFreeTrialBatchMembership;
+}
+
 export interface HeatCapacityFreeTrial {
   id: string;
   source: 'free';
   parameterScheme: HeatCapacityFreeTrialParameterScheme;
+  /**
+   * Legacy and isolated domain fixtures may omit this field. A canonical v2
+   * batch trial must always carry a non-null membership.
+   */
+  batchMembership?: HeatCapacityFreeTrialBatchMembership | null;
   traceTrialId: string | null;
   branchCount: number;
   automaticU0: HeatCapacityFreeCalibrationState['automaticU0'];
@@ -154,10 +172,12 @@ export const createHeatCapacityFreeTrial = (
   id: string,
   automaticU0: HeatCapacityFreeCalibrationState['automaticU0'] = null,
   parameterScheme: HeatCapacityFreeTrialParameterScheme = 'real',
+  batchMembership: HeatCapacityFreeTrialBatchMembership | null = null,
 ): HeatCapacityFreeTrial => ({
   id,
   source: 'free',
   parameterScheme,
+  batchMembership: batchMembership === null ? null : { ...batchMembership },
   traceTrialId: null,
   branchCount: 0,
   automaticU0,
@@ -171,6 +191,17 @@ export const createHeatCapacityFreeTrial = (
   standardReferenceSnapshot: null,
   completedAtMs: null,
 });
+
+export const createHeatCapacityFreeBatchTrial = (
+  identity: HeatCapacityFreeBatchTrialIdentity,
+  automaticU0: HeatCapacityFreeCalibrationState['automaticU0'] = null,
+  parameterScheme: HeatCapacityFreeTrialParameterScheme = 'real',
+): HeatCapacityFreeTrial => createHeatCapacityFreeTrial(
+  identity.id,
+  automaticU0,
+  parameterScheme,
+  identity.batchMembership,
+);
 
 export const normalizeHeatCapacityFreeRecordInput = (
   input: HeatCapacityFreeRecordInput,

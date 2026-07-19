@@ -17,6 +17,7 @@ import type {
 import type {
   HeatCapacityFreeSensorConfig,
 } from '../../src/domain/heatCapacity/heatCapacityFreeSensorModel.ts';
+import { mapTemperatureKToSignalMv } from '../../src/domain/heatCapacity/heatCapacitySensorMapping.ts';
 
 const physicsConfig: HeatCapacityFreePhysicsConfig = {
   environment: {
@@ -191,6 +192,11 @@ assert.equal(applied.physicsConfig.leakage.enabled, true);
 assert.equal(applied.physicsConfig.leakage.ratePerS, 0.0025);
 assert.equal(applied.physicsConfig.gamma, 5 / 3);
 assert.equal(applied.sensorConfig.noiseMv, 0.055);
+assert.equal(
+  applied.sensorConfig.temperatureMvAtAmbient,
+  mapTemperatureKToSignalMv(applied.physicsConfig.environment.ambientTemperatureK),
+  'applying ambient temperature should install the matching fixed-reference equilibrium voltage',
+);
 assert.equal(
   applied.sensorConfig.pressureMvPerKPa,
   20,

@@ -605,6 +605,25 @@ assert.equal(
   'Free Mode U0 should not require a zero-calibration event when strict readiness is disabled',
 );
 assert.equal(unzeroedU0Attempt.file.heatCapacityFreeTrials[0].u0?.zeroEventId, 'free-unzeroed-0');
+const unzeroedU0Record = unzeroedU0Attempt.file.heatCapacityFreeTrials[0].u0;
+const unzeroedTraceTrial = unzeroedU0Attempt.file.heatCapacityFreeTraceStore.traceTrials.find(
+  (trial) => trial.id === unzeroedU0Record?.traceTrialId,
+);
+const unzeroedTraceBranch = unzeroedTraceTrial?.branches.find(
+  (branch) => branch.id === unzeroedU0Record?.traceBranchId,
+);
+const unzeroedTraceSample = unzeroedTraceBranch?.samples.find(
+  (sample) => sample.id === unzeroedU0Record?.traceSampleId,
+);
+assert.equal(
+  unzeroedTraceSample?.calibration.zeroEventId,
+  unzeroedU0Record?.zeroEventId,
+  'an accepted record and its trace sample must share one calibration reference',
+);
+assert.equal(
+  unzeroedTraceSample?.calibration.calibrationVersion,
+  unzeroedU0Record?.calibrationVersion,
+);
 
 const powerOffU0Attempt = applyHeatCapacityFreeRecordWorkbenchState(
   createPowerOffFreeU0File(),
@@ -760,8 +779,22 @@ assert.equal(
   'runtime trials should be stamped with the active ideal domain when stored',
 );
 
-const idealTrialA = createHeatCapacityFreeTrial('ideal-delete-a', null, 'ideal');
-const idealTrialB = createHeatCapacityFreeTrial('ideal-delete-b', null, 'ideal');
+const completedTrialTemplate = completedWithRollbackSnapshots.heatCapacityFreeTrials[0];
+assert.notEqual(completedTrialTemplate, undefined);
+const idealTrialA = {
+  ...completedTrialTemplate!,
+  id: 'ideal-delete-a',
+  parameterScheme: 'ideal' as const,
+  traceTrialId: null,
+  completedAtMs: 31_900,
+};
+const idealTrialB = {
+  ...completedTrialTemplate!,
+  id: 'ideal-delete-b',
+  parameterScheme: 'ideal' as const,
+  traceTrialId: null,
+  completedAtMs: 31_950,
+};
 const idealFileWithTwoTrials: WorkbenchHeatCapacityState = {
   ...idealSelectedFile,
   heatCapacityFreeTrials: [idealTrialA, idealTrialB],

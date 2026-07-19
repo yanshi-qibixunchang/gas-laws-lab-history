@@ -23,6 +23,7 @@ export interface HeatCapacityMappedSignals {
 export const HEAT_CAPACITY_PRESSURE_SENSITIVITY_MV_PER_KPA = 20;
 export const HEAT_CAPACITY_TEMPERATURE_BASELINE_MV = 1498.7;
 export const HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K = 5;
+export const HEAT_CAPACITY_TEMPERATURE_REFERENCE_K = 298.15;
 
 export const DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG: HeatCapacitySensorMappingConfig = {
   pressureSensitivityMvPerKPa: HEAT_CAPACITY_PRESSURE_SENSITIVITY_MV_PER_KPA,
@@ -65,9 +66,20 @@ export const mapGasTemperatureToSignalMv = (
   const mergedConfig = mergeConfig(config);
   return roundSignal(
     mergedConfig.temperatureBaseMv +
+      mergedConfig.temperatureSensitivityMvPerK *
+        (ambientTemperatureK - HEAT_CAPACITY_TEMPERATURE_REFERENCE_K) +
       mergedConfig.temperatureSensitivityMvPerK * (gasTemperatureK - ambientTemperatureK),
   );
 };
+
+export const mapTemperatureKToSignalMv = (
+  temperatureK: number,
+  config?: Partial<HeatCapacitySensorMappingConfig>,
+) => mapGasTemperatureToSignalMv(
+  temperatureK,
+  temperatureK,
+  config,
+);
 
 export const mapHeatCapacitySignals = ({
   ambientTemperatureK,

@@ -231,6 +231,7 @@ interface HeatCapacityInstrumentSceneProps {
   overlayTopLeft?: React.ReactNode;
   overlayTopCenter?: React.ReactNode;
   overlayTopRight?: React.ReactNode;
+  overlayBelowDefaultView?: React.ReactNode;
   overlayBottomRight?: React.ReactNode;
   overlayCenter?: React.ReactNode;
   overlayCenterAboveGuideMask?: boolean;
@@ -4421,6 +4422,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       props.guideFocusKey ?? 0,
       Number(Boolean(props.overlayTopCenter)),
       Number(Boolean(props.overlayTopRight)),
+      Number(Boolean(props.overlayBelowDefaultView)),
       Number(Boolean(props.overlayBottomRight)),
       Number(Boolean(props.overlayCenter)),
       Number(Boolean(props.overlayCenterAboveGuideMask)),
@@ -4972,6 +4974,11 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           >
             {sceneCopy.defaultView}
           </button>
+          {props.overlayBelowDefaultView ? (
+            <div data-preview-overlay-item="heat-below-default-view">
+              {props.overlayBelowDefaultView}
+            </div>
+          ) : null}
         </div>
         <div className="studio-preview-overlay-slot studio-preview-overlay-slot-bottom-left">
           <div

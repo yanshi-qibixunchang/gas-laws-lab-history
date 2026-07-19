@@ -49,15 +49,21 @@ import {
   applyHeatCapacityGuideRecordWorkbenchState,
   canOpenHeatCapacityParameterSidebar,
   completeHeatCapacityFreePreheatWorkbenchState,
+  completeHeatCapacityCalculationWorkflowWorkbenchState,
   completeHeatCapacityGuidePreheatWorkbenchState,
   completeHeatCapacityTeachingModeWorkbenchState,
   deriveHeatCapacityFreeWorkbenchAttemptWaitTimer,
   dismissHeatCapacityFreeInvalidAttemptPromptWorkbenchState,
+  configureHeatCapacityFreeBatchWorkbenchState,
+  continueHeatCapacityCalculationAnswerWorkbenchState,
   enterHeatCapacityFreeModeWorkbenchState,
+  ensureHeatCapacityCalculationSessionWorkbenchState,
   evaluateHeatCapacityFreeAttemptTimeoutWorkbenchState,
   freezeHeatCapacityFreeParametersForCurrentGroup,
   getActiveHeatCapacityFreeTrialIndex,
   getHeatCapacityFreeDisplayPhase,
+  getHeatCapacityCalculationSession,
+  getHeatCapacityFreeBatchProgress,
   getHeatCapacityFreeParameterLockReason,
   getHeatCapacityFreeRecordButtonState,
   getHeatCapacityGuideRecordButtonState,
@@ -86,9 +92,12 @@ import {
   refreshHeatCapacityPumpFrequency,
   registerHeatCapacityPumpStroke,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
+  restartHeatCapacityFreeBatchWorkbenchState,
   resetHeatCapacityFreeParametersToDefaultWorkbenchState,
   resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState,
   selectActiveHeatCapacityWorkbenchDisplay,
+  selectHeatCapacityCalculationAggregateWorkbenchState,
+  selectHeatCapacityCalculationGroupWorkbenchState,
   selectDisplayedHeatCapacityFreeDomain,
   setHeatCapacityFreeDisplaySchemeWorkbenchState,
   setHeatCapacityFreeEquilibriumSpeedMultiplier,
@@ -105,7 +114,10 @@ import {
   shouldCommitHeatCapacityRealtimeTick,
   startHeatCapacityGuideWorkbenchState,
   startNextHeatCapacityFreeExperimentGroupWorkbenchState,
+  submitHeatCapacityCalculationStepWorkbenchState,
   stepHeatCapacityWorkbenchFile,
+  updateHeatCapacityCalculationDraftWorkbenchState,
+  revealHeatCapacityCalculationAnswerWorkbenchState,
   WORKBENCH_LIVE_SPLIT_MIN_RATIO,
   WORKBENCH_LIVE_SPLIT_MAX_RATIO,
   clampWorkbenchLiveSplitRatio,
@@ -149,6 +161,11 @@ import {
   type HeatCapacityUltraVisualState,
 } from '../heatCapacity/HeatCapacityUltraInstrumentModel.tsx';
 import { HeatCapacityLeftPanel } from '../heatCapacity/HeatCapacityLeftPanel.tsx';
+import HeatCapacityBatchSetupDialog, {
+  type HeatCapacityBatchGroupCount,
+} from '../heatCapacity/HeatCapacityBatchSetupDialog.tsx';
+import { HeatCapacityBatchProgress } from '../heatCapacity/HeatCapacityBatchProgress.tsx';
+import HeatCapacityCalculationWindow from '../heatCapacity/HeatCapacityCalculationWindow.tsx';
 import { HeatCapacityFreeDisplaySchemeMenu } from '../heatCapacity/HeatCapacityFreeDisplaySchemeMenu.tsx';
 import HeatCapacityPreheatOverlay from '../heatCapacity/HeatCapacityPreheatOverlay.tsx';
 import HeatCapacityInvalidAttemptDialog from '../heatCapacity/HeatCapacityInvalidAttemptDialog.tsx';
@@ -3822,7 +3839,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
       }
       if (file.kind === 'heatCapacity') {
         const heatCapacityTabOrder = getHeatCapacityMaterialsTabOrder(file);
-        const openHeatCapacityTabs = file.openHeatCapacityTabs.filter((tab) => heatCapacityTabOrder.includes(tab));
+        const openHeatCapacityTabs = file.openHeatCapacityTabs.filter((tab) => (
+          tab !== 'records' && heatCapacityTabOrder.includes(tab)
+        ));
         const activeHeatCapacityTabId = file.activeHeatCapacityTabId && openHeatCapacityTabs.includes(file.activeHeatCapacityTabId)
           ? file.activeHeatCapacityTabId
           : openHeatCapacityTabs[0] ?? null;
@@ -4171,6 +4190,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   ));
   const [heatCapacityRestoreDefaultConfirmOpen, setHeatCapacityRestoreDefaultConfirmOpen] = useState(false);
   const [heatCapacityIdealIntroOpen, setHeatCapacityIdealIntroOpen] = useState(false);
+  const [heatCapacityBatchSetupSelection, setHeatCapacityBatchSetupSelection] =
+    useState<HeatCapacityBatchGroupCount | null>(null);
+  const [heatCapacityCalculationReviewOpen, setHeatCapacityCalculationReviewOpen] =
+    useState(false);
   const [hoveredHeatCapacityParamHelpId, setHoveredHeatCapacityParamHelpId] = useState<string | null>(null);
   const [pinnedHeatCapacityParamHelpId, setPinnedHeatCapacityParamHelpId] = useState<string | null>(() => (
     getHeatCapacityRefreshString(initialHeatCapacityRefreshWindows, 'pinnedHeatCapacityParamHelpId')
@@ -4785,6 +4808,43 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const emptyWorkbenchFile = useMemo(() => createDefaultStandardFile(0), []);
   const isWorkbenchEmpty = files.length === 0;
   const activeFile = files.find((file) => file.id === activeFileId) ?? emptyWorkbenchFile;
+  const activeHeatCapacityFreeBatchProgress = activeFile.kind === 'heatCapacity' &&
+    activeFile.heatCapacityMode === 'free'
+    ? getHeatCapacityFreeBatchProgress(activeFile)
+    : null;
+  const activeHeatCapacityCalculationSession = activeFile.kind === 'heatCapacity'
+    ? getHeatCapacityCalculationSession(activeFile)
+    : null;
+  const heatCapacityBatchSetupOpen = activeFile.kind === 'heatCapacity' &&
+    activeFile.heatCapacityMode === 'free' &&
+    activeHeatCapacityFreeBatchProgress?.configured === false &&
+    activeFile.heatCapacityFreeTrials.length === 0 &&
+    heatCapacityModeTransitionState.phase === 'idle';
+  const heatCapacityCalculationAutoOpen =
+    activeHeatCapacityCalculationSession?.presentation === 'interactive' &&
+    (
+      activeHeatCapacityCalculationSession.status === 'in-progress' ||
+      activeHeatCapacityCalculationSession.status === 'ready-to-exit'
+    );
+  const heatCapacityCalculationWindowOpen =
+    heatCapacityCalculationAutoOpen || heatCapacityCalculationReviewOpen;
+  useEffect(() => {
+    setHeatCapacityBatchSetupSelection(
+      activeHeatCapacityFreeBatchProgress?.targetGroupCount ?? null,
+    );
+  }, [
+    activeFile.id,
+    activeFile.kind === 'heatCapacity'
+      ? activeFile.heatCapacityFreeParameterScheme
+      : null,
+    activeHeatCapacityFreeBatchProgress?.targetGroupCount,
+  ]);
+  useEffect(() => {
+    setHeatCapacityCalculationReviewOpen(false);
+  }, [
+    activeFile.id,
+    activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null,
+  ]);
   const effectiveParametersCollapsed = (
     parametersCollapsed ||
     activeFile.kind === 'heatCapacityPistonOscillation'
@@ -6006,8 +6066,21 @@ const WorkbenchStudioPrototype: React.FC = () => {
   ) => (
     definition.id === 'pressureDangerMv'
       ? getHeatCapacityFreePressureDangerUpperLimitMv(draft)
-      : null
+      : definition.max ?? null
   );
+
+  const getHeatCapacityFreeValueTooSmallMessage = (
+    definition: HeatCapacityFreeNumberParameterDefinition,
+    language: WorkbenchLanguagePreference = settingsLanguagePreference,
+  ) => {
+    const label = definition.label[language];
+    const formattedMin = formatHeatCapacityFreeParameterValue(
+      definition.min,
+      definition.precision,
+    );
+    const limitText = `${formattedMin} ${definition.unit}`.trim();
+    return `${label}${heatCapacityFreeSharedText.valueTooSmall[language]} ${limitText}`;
+  };
 
   const getHeatCapacityFreeValueTooLargeMessage = (
     definition: HeatCapacityFreeNumberParameterDefinition,
@@ -6052,7 +6125,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       return invalid((language) => heatCapacityFreeSharedText.invalidNumber[language]);
     }
     if (parsedValue < definition.min) {
-      return invalid((language) => heatCapacityFreeSharedText.valueTooSmall[language]);
+      return invalid((language) => getHeatCapacityFreeValueTooSmallMessage(definition, language));
     }
     const draftValue = getHeatCapacityFreeParameterDraftValue(definition, parsedValue);
     if (options.checkMax !== false) {
@@ -6092,7 +6165,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
         ...current,
         [parameterId]: validation.message,
       }));
-      if (validation.message.includes(heatCapacityFreeSharedText.valueTooLarge[settingsLanguagePreference])) {
+      if (
+        validation.message.includes(heatCapacityFreeSharedText.valueTooLarge[settingsLanguagePreference]) ||
+        validation.message.includes(heatCapacityFreeSharedText.valueTooSmall[settingsLanguagePreference])
+      ) {
         showHeatCapacityFreeParameterInputError(validation.message, validation.getMessage);
       }
       return;
@@ -6306,7 +6382,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
       setHeatCapacityAdvancedInputErrors(nextErrors);
       const firstErrorId = Object.keys(nextErrors)[0];
       const firstError = nextErrors[firstErrorId];
-      if (firstError.includes(heatCapacityFreeSharedText.valueTooLarge[settingsLanguagePreference])) {
+      if (
+        firstError.includes(heatCapacityFreeSharedText.valueTooLarge[settingsLanguagePreference]) ||
+        firstError.includes(heatCapacityFreeSharedText.valueTooSmall[settingsLanguagePreference])
+      ) {
         showHeatCapacityFreeParameterInputError(firstError, nextErrorMessages[firstErrorId]);
       }
       return;
@@ -7901,7 +7980,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     activeFile.heatCapacityFreeActiveAttempt?.status === 'invalid' &&
     !activeFile.heatCapacityFreeActiveAttempt.invalidPromptDismissed;
   const activeHeatCapacityModalLocked = activeHeatCapacityPreheatLocked ||
-    activeHeatCapacityInvalidAttemptPrompt;
+    activeHeatCapacityInvalidAttemptPrompt ||
+    heatCapacityBatchSetupOpen ||
+    heatCapacityCalculationWindowOpen;
 
   const completeActiveHeatCapacityPreheat = () => {
     if (activeFile.kind !== 'heatCapacity' || activeHeatCapacityPreheatMode === 'demo') return;
@@ -9046,6 +9127,143 @@ const WorkbenchStudioPrototype: React.FC = () => {
       (language) => getHeatCapacityRealtimeCopy(language).freeRunResetLog(activeFile.name),
       'warning',
     );
+  };
+
+  const confirmHeatCapacityFreeBatchSetup = () => {
+    if (
+      heatCapacityBatchSetupSelection === null ||
+      activeFile.kind !== 'heatCapacity' ||
+      activeFile.heatCapacityMode !== 'free'
+    ) {
+      return;
+    }
+    const now = Date.now();
+    captureUndoSnapshot('configure heat-capacity free batch');
+    updateActiveFile((file) => (
+      file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+        ? configureHeatCapacityFreeBatchWorkbenchState(
+            file,
+            heatCapacityBatchSetupSelection,
+            now,
+          )
+        : file
+    ));
+  };
+
+  const restartHeatCapacityFreeBatch = () => {
+    if (
+      activeFile.kind !== 'heatCapacity' ||
+      activeFile.heatCapacityMode !== 'free' ||
+      heatCapacityCalculationWindowOpen
+    ) {
+      return;
+    }
+    const now = Date.now();
+    resetHeatCapacityGroupUiRuntime();
+    if (selectedPanel === 'heatCapacityReview') {
+      const nextOpenTab = activeFile.openHeatCapacityTabs.find((tabId) => tabId !== 'review');
+      setSelectedPanel(nextOpenTab ? heatCapacityTabIdToPanelKey(nextOpenTab) : 'preview');
+    }
+    captureUndoSnapshot('restart heat-capacity free batch');
+    updateActiveFile((file) => (
+      file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+        ? restartHeatCapacityFreeBatchWorkbenchState(file, now)
+        : file
+    ));
+    setHeatCapacityBatchSetupSelection(null);
+  };
+
+  const updateHeatCapacityCalculationDraft = (
+    fieldId: string,
+    draftRaw: string,
+  ) => {
+    updateActiveFile((file) => (
+      file.kind === 'heatCapacity'
+        ? updateHeatCapacityCalculationDraftWorkbenchState(
+            file,
+            fieldId,
+            draftRaw,
+            Date.now(),
+          )
+        : file
+    ));
+  };
+
+  const submitHeatCapacityCalculationStep = (stepId: string) => {
+    updateActiveFile((file) => (
+      file.kind === 'heatCapacity'
+        ? submitHeatCapacityCalculationStepWorkbenchState(file, stepId, Date.now())
+        : file
+    ));
+  };
+
+  const continueHeatCapacityCalculationAnswer = (fieldId: string) => {
+    updateActiveFile((file) => (
+      file.kind === 'heatCapacity'
+        ? continueHeatCapacityCalculationAnswerWorkbenchState(
+            file,
+            fieldId,
+            Date.now(),
+          )
+        : file
+    ));
+  };
+
+  const revealHeatCapacityCalculationAnswer = (fieldId: string) => {
+    updateActiveFile((file) => (
+      file.kind === 'heatCapacity'
+        ? revealHeatCapacityCalculationAnswerWorkbenchState(
+            file,
+            fieldId,
+            Date.now(),
+          )
+        : file
+    ));
+  };
+
+  const selectHeatCapacityCalculationGroup = (groupIndex: number) => {
+    updateActiveFile((file) => (
+      file.kind === 'heatCapacity'
+        ? selectHeatCapacityCalculationGroupWorkbenchState(
+            file,
+            groupIndex,
+            Date.now(),
+          )
+        : file
+    ));
+  };
+
+  const selectHeatCapacityCalculationAggregate = () => {
+    updateActiveFile((file) => (
+      file.kind === 'heatCapacity'
+        ? selectHeatCapacityCalculationAggregateWorkbenchState(file, Date.now())
+        : file
+    ));
+  };
+
+  const completeAndExitHeatCapacityCalculation = () => {
+    updateActiveFile((file) => (
+      file.kind === 'heatCapacity'
+        ? completeHeatCapacityCalculationWorkflowWorkbenchState(file, Date.now())
+        : file
+    ));
+    setHeatCapacityCalculationReviewOpen(false);
+    window.setTimeout(() => {
+      void flushWorkspacePersistenceRef.current();
+    }, 0);
+  };
+
+  const closeHeatCapacityCalculationReview = () => {
+    const session = activeFile.kind === 'heatCapacity'
+      ? getHeatCapacityCalculationSession(activeFile)
+      : null;
+    if (
+      session?.status === 'in-progress' &&
+      session.presentation === 'interactive'
+    ) {
+      return;
+    }
+    setHeatCapacityCalculationReviewOpen(false);
   };
 
   const startNextHeatCapacityFreeExperimentGroup = () => {
@@ -12597,6 +12815,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (activeHeatCapacityModalLocked) return;
       if (!(event.ctrlKey || event.metaKey) || event.altKey || isEditableElement(event.target) || isEditableElement(document.activeElement)) {
         return;
       }
@@ -12618,7 +12837,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [undoStack, redoStack, selectedPanel]);
+  }, [undoStack, redoStack, selectedPanel, activeHeatCapacityModalLocked]);
 
   const startSidebarResize = (side: 'left' | 'params', event: React.MouseEvent) => {
     if (openTopMenu) return;
@@ -14610,6 +14829,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const getHeatCapacityTabState = (tabId: WorkbenchHeatCapacityTabId) => {
     if (activeFile.kind !== 'heatCapacity') return 'off';
+    if (tabId === 'records') {
+      return heatCapacityCalculationWindowOpen ? 'active' : 'off';
+    }
     if (activeFile.activeHeatCapacityTabId === tabId && activeFile.openHeatCapacityTabs.includes(tabId)) return 'active';
     return activeFile.openHeatCapacityTabs.includes(tabId) ? 'open' : 'off';
   };
@@ -14631,6 +14853,28 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (activeFile.kind !== 'heatCapacity') return;
     const allowedTabs = getHeatCapacityMaterialsTabOrder(activeFile);
     if (!allowedTabs.includes(tabId)) return;
+    if (tabId === 'records') {
+      const ensuredFile = ensureHeatCapacityCalculationSessionWorkbenchState(
+        activeFile,
+        Date.now(),
+      );
+      if (!getHeatCapacityCalculationSession(ensuredFile)) return;
+      updateActiveFile((file) => (
+        file.kind === 'heatCapacity' && file.id === ensuredFile.id
+          ? ensureHeatCapacityCalculationSessionWorkbenchState(file, Date.now())
+          : file
+      ));
+      setSelectedPanel('heatCapacityRecords');
+      setHeatCapacityCalculationReviewOpen(true);
+      return;
+    }
+    if (
+      tabId === 'review' &&
+      activeFile.heatCapacityMode === 'free' &&
+      activeHeatCapacityCalculationSession?.status !== 'completed'
+    ) {
+      return;
+    }
     const panelKey = heatCapacityTabIdToPanelKey(tabId);
     const alreadyOpen = activeFile.openHeatCapacityTabs.includes(tabId);
     setSelectedPanel(panelKey);
@@ -14661,14 +14905,27 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const openAllHeatCapacityMaterialsTabs = () => {
     if (activeFile.kind !== 'heatCapacity') return;
-    const heatCapacityTabOrder = getHeatCapacityMaterialsTabOrder(activeFile);
+    const heatCapacityTabOrder = getHeatCapacityMaterialsTabOrder(activeFile)
+      .filter((tabId) => tabId !== 'records')
+      .filter((tabId) => (
+        tabId !== 'review' ||
+        activeFile.heatCapacityMode !== 'free' ||
+        activeHeatCapacityCalculationSession?.status === 'completed'
+      ));
     const firstTabId = heatCapacityTabOrder[0] ?? 'guide';
     const firstPanelKey = heatCapacityTabIdToPanelKey(firstTabId);
     captureUndoSnapshot('opened heat-capacity materials tabs', 'presentation');
     setSelectedPanel(firstPanelKey);
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
-      const materialTabOrder = getHeatCapacityMaterialsTabOrder(file);
+      const calculationSession = getHeatCapacityCalculationSession(file);
+      const materialTabOrder = getHeatCapacityMaterialsTabOrder(file)
+        .filter((tabId) => tabId !== 'records')
+        .filter((tabId) => (
+          tabId !== 'review' ||
+          file.heatCapacityMode !== 'free' ||
+          calculationSession?.status === 'completed'
+        ));
       const panelKeys = materialTabOrder.map(heatCapacityTabIdToPanelKey);
       const activeTabId = materialTabOrder[0] ?? 'guide';
       return {
@@ -15961,6 +16218,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
               inputMode="decimal"
               disabled={disabled}
               aria-label={`${label} ${definition.unit}`.trim()}
+              aria-invalid={error ? true : undefined}
               value={value}
               onChange={(event) => {
                 const nextValue = event.target.value;
@@ -16699,6 +16957,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
         );
       }
       if (action.id === 'next-free-group') {
+        if (
+          activeHeatCapacityFreeBatchProgress?.targetGroupCount !== null &&
+          activeHeatCapacityFreeBatchProgress?.completedGroupCount >=
+            activeHeatCapacityFreeBatchProgress.targetGroupCount
+        ) {
+          return null;
+        }
         return (
           <button
             key={action.id}
@@ -17599,6 +17864,21 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   focusResetKey={heatCapacityFocusResetKey}
                   overlayTopCenter={heatCapacityTopCenterOverlay}
                   overlayTopRight={heatCapacityTopRightOverlay}
+                  overlayBelowDefaultView={
+                    activeFile.heatCapacityMode === 'free' &&
+                    activeHeatCapacityFreeBatchProgress?.targetGroupCount !== null &&
+                    activeHeatCapacityFreeBatchProgress?.currentGroupNumber !== null
+                      ? (
+                          <HeatCapacityBatchProgress
+                            currentGroup={activeHeatCapacityFreeBatchProgress.currentGroupNumber}
+                            targetGroupCount={activeHeatCapacityFreeBatchProgress.targetGroupCount}
+                            language={settingsLanguagePreference}
+                            restartDisabled={heatCapacityCalculationWindowOpen}
+                            onRestartBatch={restartHeatCapacityFreeBatch}
+                          />
+                        )
+                      : null
+                  }
                   overlayBottomRight={heatCapacityBottomRightOverlay}
                   overlayCenter={heatCapacityCenterOverlay}
                   overlayCenterAboveGuideMask={
@@ -19445,7 +19725,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (activeFile.kind !== 'heatCapacity' || activeFile.openHeatCapacityTabs.length === 0) return null;
     const materialTabOrder = getHeatCapacityMaterialsTabOrder(activeFile);
     const openTabs = activeFile.openHeatCapacityTabs
-      .filter((tabId) => materialTabOrder.includes(tabId))
+      .filter((tabId) => tabId !== 'records' && materialTabOrder.includes(tabId))
       .map((tabId) => {
         const panel = getHeatCapacityTabDefinition(tabId);
         return panel ? { tabId, panel } : null;
@@ -19840,6 +20120,26 @@ const WorkbenchStudioPrototype: React.FC = () => {
         }}
         onCancel={cancelHeatCapacityIdealProfileIntro}
         onConfirm={confirmHeatCapacityIdealProfileIntro}
+      />
+      <HeatCapacityBatchSetupDialog
+        open={heatCapacityBatchSetupOpen}
+        language={settingsLanguagePreference}
+        selectedCount={heatCapacityBatchSetupSelection}
+        onSelectedCountChange={setHeatCapacityBatchSetupSelection}
+        onConfirm={confirmHeatCapacityFreeBatchSetup}
+      />
+      <HeatCapacityCalculationWindow
+        open={heatCapacityCalculationWindowOpen}
+        language={settingsLanguagePreference}
+        session={activeHeatCapacityCalculationSession}
+        onDraftChange={updateHeatCapacityCalculationDraft}
+        onSubmitStep={submitHeatCapacityCalculationStep}
+        onContinueAnswer={continueHeatCapacityCalculationAnswer}
+        onRevealAnswer={revealHeatCapacityCalculationAnswer}
+        onSelectGroup={selectHeatCapacityCalculationGroup}
+        onSelectAggregate={selectHeatCapacityCalculationAggregate}
+        onCompleteAndExit={completeAndExitHeatCapacityCalculation}
+        onClose={closeHeatCapacityCalculationReview}
       />
       {renderHeatCapacityAdvancedParameterDialog()}
       <div
