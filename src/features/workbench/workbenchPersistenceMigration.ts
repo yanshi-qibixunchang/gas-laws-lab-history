@@ -87,6 +87,7 @@ import {
 } from '../../domain/heatCapacity/heatCapacityLegacyTraceCompatibility.ts';
 import {
   normalizeHeatCapacityFreeRestoreConfigSnapshot,
+  normalizeHeatCapacityFreeRestoreExperimentDomainResult,
   normalizeHeatCapacityFreeRestoreTraceStore,
   normalizeHeatCapacityFreeRestoreTrial,
 } from './workbenchHeatCapacityFreeRestoreNormalization.ts';
@@ -109,6 +110,15 @@ import {
 import {
   getHeatCapacityFreeGasTypeGamma,
 } from '../../domain/heatCapacity/heatCapacityGasTheory.ts';
+import {
+  HEAT_CAPACITY_FREE_BATCH_MAX_GROUPS,
+  HEAT_CAPACITY_FREE_BATCH_MIN_GROUPS,
+  HEAT_CAPACITY_FREE_BATCH_VERSION,
+} from '../../domain/heatCapacity/heatCapacityFreeBatchModel.ts';
+import {
+  HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
+  type HeatCapacityFreeTrial,
+} from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import type {
   HeatCapacityReleaseState,
 } from '../../domain/heatCapacity/heatCapacityReleaseModel.ts';
@@ -986,6 +996,87 @@ const alignLegacy423BatchFrozenConfigSnapshot = (
       }
     : value
 );
+
+const upgradeHistoricalUnbatchedTrialAggregate = ({
+  batch,
+  activeRunConfigSnapshot,
+  trials,
+  scheme,
+  sourceVersion,
+}: {
+  batch: unknown;
+  activeRunConfigSnapshot: unknown;
+  trials: HeatCapacityFreeTrial[];
+  scheme: 'real' | 'ideal';
+  sourceVersion: '4.2.3' | '5.1.1' | '5.1.2';
+}) => {
+  const alignedBatch = alignLegacy423BatchFrozenConfigSnapshot(
+    batch,
+    activeRunConfigSnapshot,
+  );
+  if (alignedBatch !== undefined && alignedBatch !== null) {
+    return { batch: alignedBatch, trials };
+  }
+  if (trials.length === 0) {
+    return { batch: alignedBatch, trials };
+  }
+  if (trials.length > HEAT_CAPACITY_FREE_BATCH_MAX_GROUPS) {
+    throw new Error(
+      `${sourceVersion} unbatched trials exceed the supported seven-group migration boundary.`,
+    );
+  }
+  const frozenConfigSnapshot =
+    normalizeHeatCapacityFreeRestoreConfigSnapshot(activeRunConfigSnapshot) ??
+    trials.find((trial) => trial.configSnapshot !== null)?.configSnapshot;
+  if (frozenConfigSnapshot === null || frozenConfigSnapshot === undefined) {
+    throw new Error(
+      `${sourceVersion} unbatched trials have no recoverable configuration snapshot.`,
+    );
+  }
+  const batchId =
+    `legacy-${sourceVersion}:${scheme}:${trials[0]!.id}:batch`;
+  const completedAtValues = trials.flatMap((trial) => (
+    trial.completedAtMs === null ? [] : [trial.completedAtMs]
+  ));
+  const startedAtMs = completedAtValues.length === 0
+    ? 0
+    : Math.max(0, Math.min(...completedAtValues) - 1);
+  const targetGroupCount = Math.max(
+    HEAT_CAPACITY_FREE_BATCH_MIN_GROUPS,
+    trials.length,
+  );
+  const allTargetGroupsCompleted =
+    trials.length === targetGroupCount &&
+    trials.every((trial) => (
+      trial.completedAtMs !== null &&
+      trial.u1 !== null &&
+      trial.u2 !== null &&
+      trial.correctedSignals !== null
+    ));
+  return {
+    batch: {
+      version: HEAT_CAPACITY_FREE_BATCH_VERSION,
+      nextTrialSequence: trials.length + 1,
+      id: batchId,
+      targetGroupCount,
+      frozenConfigSnapshot,
+      configuredAtMs: startedAtMs,
+      startedAtMs,
+      experimentCompletedAtMs: allTargetGroupsCompleted
+        ? Math.max(...completedAtValues)
+        : null,
+      calculationSession: null,
+    },
+    trials: trials.map((trial, index) => ({
+      ...trial,
+      batchMembership: {
+        version: HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
+        batchId,
+        sequence: index + 1,
+      },
+    })),
+  };
+};
 
 const upgradeLegacy423TemperatureRecord = (
   value: unknown,
@@ -2146,12 +2237,16 @@ const upgradeLegacy423Domain = (value: unknown) => {
     traceStoreWithCompletion,
     trials,
   );
+  const aggregate = upgradeHistoricalUnbatchedTrialAggregate({
+    batch: value.batch,
+    activeRunConfigSnapshot,
+    trials,
+    scheme: value.scheme === 'ideal' ? 'ideal' : 'real',
+    sourceVersion: '4.2.3',
+  });
   return {
     ...retained,
-    batch: alignLegacy423BatchFrozenConfigSnapshot(
-      value.batch,
-      activeRunConfigSnapshot,
-    ),
+    batch: aggregate.batch,
     activeRunConfigSnapshot,
     recordConfig,
     physicsConfig,
@@ -2169,7 +2264,7 @@ const upgradeLegacy423Domain = (value: unknown) => {
       sensorMapping,
     ),
     traceStore: synchronizedTraceStore,
-    trials,
+    trials: aggregate.trials,
     activeAttempt: null,
     releaseState: createLegacy423ReleaseState(value, controls),
   };
@@ -2219,6 +2314,13 @@ const upgradeLegacy423HeatCapacityPayload = (
     topTraceStoreWithCompletion,
     topTrials,
   );
+  const topAggregate = upgradeHistoricalUnbatchedTrialAggregate({
+    batch: free.batch,
+    activeRunConfigSnapshot: topActiveRunConfigSnapshot,
+    trials: topTrials,
+    scheme: free.parameterScheme === 'ideal' ? 'ideal' : 'real',
+    sourceVersion: '4.2.3',
+  });
   const topSensorState = upgradeLegacy423SensorState(
     free.sensor,
     topSensorMapping,
@@ -2376,10 +2478,7 @@ const upgradeLegacy423HeatCapacityPayload = (
       ...free,
       traceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
       preheatCompleted: true,
-      batch: alignLegacy423BatchFrozenConfigSnapshot(
-        free.batch,
-        topActiveRunConfigSnapshot,
-      ),
+      batch: topAggregate.batch,
       real: upgradeLegacy423Domain(free.real),
       ideal: upgradeLegacy423Domain(free.ideal),
       config: upgradedConfig,
@@ -2395,7 +2494,7 @@ const upgradeLegacy423HeatCapacityPayload = (
         topSensorMapping,
       ),
       traceStore: synchronizedTopTraceStore,
-      trials: topTrials,
+      trials: topAggregate.trials,
       uiReplay: activeGuidedProjection
         ? {
             ...upgradedUiReplay,
@@ -2768,6 +2867,129 @@ const isPublic511BlankDemoOmission = (
   payload.guided === null
 );
 
+const normalizePublicV5ModeSessions = (
+  value: Record<string, unknown>,
+  fileId: string,
+) => {
+  const candidate = structuredClone(value);
+  const demoEntry = isRecord(candidate.demo) ? candidate.demo : null;
+  const demoSnapshot = demoEntry && isRecord(demoEntry.snapshot)
+    ? demoEntry.snapshot
+    : null;
+  const demoCommon = demoSnapshot && isRecord(demoSnapshot.common)
+    ? demoSnapshot.common
+    : null;
+  if (
+    (demoEntry?.status === 'suspended' || demoEntry?.status === 'completed') &&
+    demoCommon?.heatCapacityTeachingStatus === 'idle'
+  ) {
+    demoSnapshot!.common = {
+      ...demoCommon,
+      heatCapacityTeachingStatus:
+        demoEntry.status === 'completed' ? 'completed' : 'running',
+    };
+  }
+  const normalized = normalizeHeatCapacityModeSessionStore(candidate, fileId);
+  for (const mode of ['demo', 'guide', 'free'] as const) {
+    const sourceEntry = isRecord(candidate[mode]) ? candidate[mode] : null;
+    if (
+      sourceEntry?.status !== undefined &&
+      sourceEntry.status !== 'empty' &&
+      normalized[mode].status === 'empty'
+    ) {
+      return null;
+    }
+  }
+  return normalized;
+};
+
+const upgradePublicV5HeatCapacityTracePayload = (
+  payload: Record<string, unknown>,
+  sourceAppVersion: string,
+  index: number,
+  fileId: string,
+): Record<string, unknown> | null => {
+  if (
+    (sourceAppVersion !== '5.1.1' && sourceAppVersion !== '5.1.2') ||
+    isLegacy423HeatCapacityPayload(payload)
+  ) {
+    return payload;
+  }
+  const sourceFree = isRecord(payload.free) ? payload.free : null;
+  if (sourceFree?.traceVersion !== 5) return payload;
+  const fallback = createDefaultHeatCapacityFile(index);
+  const nextPayload = structuredClone(payload);
+  const nextCommon = isRecord(nextPayload.common)
+    ? nextPayload.common as Record<string, unknown>
+    : null;
+  if (nextCommon === null || !isRecord(nextCommon.modeSessions)) {
+    return null;
+  }
+  const normalizedModeSessions = normalizePublicV5ModeSessions(
+    nextCommon.modeSessions,
+    fileId,
+  );
+  if (normalizedModeSessions === null) return null;
+  nextPayload.common = {
+    ...nextCommon,
+    modeSessions: normalizedModeSessions,
+  };
+  const nextFree = nextPayload.free as Record<string, unknown>;
+  const gasType = nextFree.gasType === 'helium' ? 'helium' : 'air';
+  for (const scheme of ['real', 'ideal'] as const) {
+    const sourceDomain = isRecord(nextFree[scheme])
+      ? nextFree[scheme] as Record<string, unknown>
+      : null;
+    if (sourceDomain === null) {
+      return null;
+    }
+    const sourceTrials = Array.isArray(sourceDomain.trials)
+      ? sourceDomain.trials.map((trial) => (
+          normalizeHeatCapacityFreeRestoreTrial(trial)
+        ))
+      : null;
+    if (
+      sourceTrials === null ||
+      sourceTrials.some((trial) => trial === null)
+    ) {
+      return null;
+    }
+    const aggregate = upgradeHistoricalUnbatchedTrialAggregate({
+      batch: sourceDomain.batch,
+      activeRunConfigSnapshot: sourceDomain.activeRunConfigSnapshot,
+      trials: sourceTrials as HeatCapacityFreeTrial[],
+      scheme,
+      sourceVersion: sourceAppVersion as '5.1.1' | '5.1.2',
+    });
+    nextFree[scheme] = {
+      ...sourceDomain,
+      batch: aggregate.batch,
+      trials: aggregate.trials,
+    };
+    const domain = normalizeHeatCapacityFreeRestoreExperimentDomainResult(
+      nextFree[scheme],
+      scheme,
+      gasType,
+      scheme === 'real'
+        ? fallback.heatCapacityFreeRealDomain
+        : fallback.heatCapacityFreeIdealDomain,
+    );
+    if (!domain.ok) {
+      return null;
+    }
+    nextFree[scheme] = domain.value;
+  }
+  const activeScheme = nextFree.parameterScheme === 'ideal'
+    ? 'ideal'
+    : 'real';
+  const activeDomain = nextFree[activeScheme] as
+    WorkbenchHeatCapacityState['heatCapacityFreeRealDomain'];
+  nextFree.traceVersion = HEAT_CAPACITY_FREE_TRACE_VERSION;
+  nextFree.traceStore = structuredClone(activeDomain.traceStore);
+  nextFree.trials = structuredClone(activeDomain.trials);
+  return nextPayload;
+};
+
 const restoreHeatCapacityRuntimeFile = (
   fileEnvelope: WorkbenchExperimentFileEnvelopeV1,
   index: number,
@@ -2778,7 +3000,13 @@ const restoreHeatCapacityRuntimeFile = (
   if (legacy423 && !validateLegacy423HeatCapacityPayload(fileEnvelope.payload)) return [];
   const upgradedPayload = legacy423
     ? upgradeLegacy423HeatCapacityPayload(fileEnvelope.payload)
-    : fileEnvelope.payload;
+    : upgradePublicV5HeatCapacityTracePayload(
+        fileEnvelope.payload,
+        sourceAppVersion,
+        index,
+        fileEnvelope.id,
+      );
+  if (upgradedPayload === null) return [];
   if (!validateHeatCapacityPersistencePayload(upgradedPayload).valid) return [];
   const canonicalRuntimeShapeValid = legacy423 ||
     hasCanonicalHeatCapacityRuntimeShape(

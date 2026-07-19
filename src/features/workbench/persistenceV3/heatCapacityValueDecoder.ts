@@ -298,7 +298,8 @@ export const decodeHeatCapacityV3AuthorityValues = (
   }
   if (
     activeRuntime.heatCapacityFreeTraceVersion !==
-      HEAT_CAPACITY_FREE_TRACE_VERSION
+      HEAT_CAPACITY_FREE_TRACE_VERSION &&
+    activeRuntime.heatCapacityFreeTraceVersion !== 5
   ) {
     return fail(
       'fields.authoritative.activeRuntime.heatCapacityFreeTraceVersion',
@@ -365,7 +366,7 @@ export const decodeHeatCapacityV3AuthorityValues = (
         heatCapacityFreeRuntimeVersion:
           activeRuntime.heatCapacityFreeRuntimeVersion,
         heatCapacityFreeTraceVersion:
-          activeRuntime.heatCapacityFreeTraceVersion,
+          HEAT_CAPACITY_FREE_TRACE_VERSION,
       },
       guide: decodedGuide.value,
     },

@@ -74,10 +74,10 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '5.1.2', 'next desktop update release should bump package version to 5.1.2');
-assert.match(readme, /latest published desktop release is `v5\.1\.2`/, 'English README should name the current public release');
-assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v5\.1\.2`/, 'Chinese README should name the current public release');
-assert.match(buildNoticeZhCn, /当前项目版本：5\.1\.2。/, 'the reviewed build notice should name the current project version');
+assert.equal(packageJson.version, '5.2.0', 'next desktop update release should bump package version to 5.2.0');
+assert.match(readme, /latest published desktop release is `v5\.2\.0`/, 'English README should name the current public release');
+assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v5\.2\.0`/, 'Chinese README should name the current public release');
+assert.match(buildNoticeZhCn, /当前项目版本：5\.2\.0。/, 'the reviewed build notice should name the current project version');
 
 const currentRelease = findRelease(packageJson.version ?? '');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
@@ -97,20 +97,20 @@ assert.equal(
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
 assert.ok(
-  currentItems.some((item) => item.scope === 'legacy-423-migration' && item.importance === 'high'),
-  '5.1.2 should include the high-importance real 4.2.3 migration repair',
+  currentItems.some((item) => item.scope === 'persistence-worker-scheduler' && item.importance === 'high'),
+  '5.2.0 should include the high-importance background persistence scheduler',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'persistence-recovery-update' && item.importance === 'high'),
-  '5.1.2 should include the high-importance persistence recovery updater',
+  currentItems.some((item) => item.scope === 'save-failure-recovery' && item.importance === 'high'),
+  '5.2.0 should include the high-importance save failure recovery',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'webgl-runtime-recovery' && item.importance === 'high'),
-  '5.1.2 should include the high-importance WebGL runtime recovery',
+  currentItems.some((item) => item.scope === 'legacy-workspace-compatibility' && item.importance === 'high'),
+  '5.2.0 should include the high-importance 4.2.3/5.1.1/5.1.2 compatibility boundary',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'gas-laws-lab-brand' && item.importance === 'medium'),
-  '5.1.2 should include the localized Gas Laws Lab brand and icon update',
+  currentItems.some((item) => item.scope === 'free-trace-v6-bounds' && item.importance === 'high'),
+  '5.2.0 should include the high-importance Free trace V6 bounds',
 );
 
 const standardResultsRelease = findRelease('4.1.22');

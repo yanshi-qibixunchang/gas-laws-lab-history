@@ -11,13 +11,18 @@ import {
   HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
 } from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
 import {
+  compactFreeTraceStore,
   createDefaultFreeConfigSnapshot,
   createDefaultFreeTraceStore,
+  HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
   HEAT_CAPACITY_FREE_CALCULATION_VERSION,
   HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
   type HeatCapacityFreeConfigSnapshot,
   type HeatCapacityFreeTraceBranch,
+  type HeatCapacityFreeTraceBranchCompaction,
+  type HeatCapacityFreeTraceStoreCompaction,
   type HeatCapacityFreeTraceStore,
+  type HeatCapacityFreeTraceTrialCompaction,
   type HeatCapacityFreeTraceTrial,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
@@ -661,6 +666,38 @@ export const normalizeHeatCapacityFreeRestoreTraceBranch = (
   value: unknown,
 ): HeatCapacityFreeTraceBranch | null => {
   if (!isHeatCapacityRestoreRecord(value) || typeof value.id !== 'string') return null;
+  const compactionValue = isHeatCapacityRestoreRecord(value.compaction)
+    ? value.compaction
+    : {};
+  const droppedEventCounts = isHeatCapacityRestoreRecord(
+    compactionValue.droppedEventCounts,
+  )
+    ? Object.fromEntries(Object.entries(
+        compactionValue.droppedEventCounts,
+      ).flatMap(([key, count]) => (
+        typeof count === 'number' &&
+        Number.isSafeInteger(count) &&
+        count >= 0
+          ? [[key, count]]
+          : []
+      )))
+    : {};
+  const compaction: HeatCapacityFreeTraceBranchCompaction = {
+    version: HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
+    droppedSampleCount:
+      readHeatCapacityTraceNonNegativeInteger(
+        compactionValue.droppedSampleCount,
+      ) ?? 0,
+    droppedEventCount:
+      readHeatCapacityTraceNonNegativeInteger(
+        compactionValue.droppedEventCount,
+      ) ?? 0,
+    droppedEventCounts,
+    firstDroppedAtS:
+      heatCapacityRestoreNullableNumber(compactionValue.firstDroppedAtS),
+    lastDroppedAtS:
+      heatCapacityRestoreNullableNumber(compactionValue.lastDroppedAtS),
+  };
   return {
     id: value.id,
     parentBranchId: typeof value.parentBranchId === 'string' ? value.parentBranchId : null,
@@ -688,6 +725,65 @@ export const normalizeHeatCapacityFreeRestoreTraceBranch = (
     events: Array.isArray(value.events)
       ? value.events.filter(isHeatCapacityRestoreRecord) as unknown as HeatCapacityFreeTraceBranch['events']
       : [],
+    compaction,
+  };
+};
+
+const readHeatCapacityTraceNonNegativeInteger = (
+  value: unknown,
+) => (
+  typeof value === 'number' &&
+  Number.isSafeInteger(value) &&
+  value >= 0
+    ? value
+    : null
+);
+
+const normalizeHeatCapacityFreeTraceTrialCompaction = (
+  value: unknown,
+): HeatCapacityFreeTraceTrialCompaction => {
+  const record = isHeatCapacityRestoreRecord(value) ? value : {};
+  return {
+    version: HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
+    droppedBranchCount:
+      readHeatCapacityTraceNonNegativeInteger(record.droppedBranchCount) ?? 0,
+    droppedSampleCount:
+      readHeatCapacityTraceNonNegativeInteger(record.droppedSampleCount) ?? 0,
+    droppedEventCount:
+      readHeatCapacityTraceNonNegativeInteger(record.droppedEventCount) ?? 0,
+    firstDroppedBranchId:
+      typeof record.firstDroppedBranchId === 'string'
+        ? record.firstDroppedBranchId
+        : null,
+    lastDroppedBranchId:
+      typeof record.lastDroppedBranchId === 'string'
+        ? record.lastDroppedBranchId
+        : null,
+  };
+};
+
+const normalizeHeatCapacityFreeTraceStoreCompaction = (
+  value: unknown,
+): HeatCapacityFreeTraceStoreCompaction => {
+  const record = isHeatCapacityRestoreRecord(value) ? value : {};
+  return {
+    version: HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
+    droppedTrialCount:
+      readHeatCapacityTraceNonNegativeInteger(record.droppedTrialCount) ?? 0,
+    droppedBranchCount:
+      readHeatCapacityTraceNonNegativeInteger(record.droppedBranchCount) ?? 0,
+    droppedSampleCount:
+      readHeatCapacityTraceNonNegativeInteger(record.droppedSampleCount) ?? 0,
+    droppedEventCount:
+      readHeatCapacityTraceNonNegativeInteger(record.droppedEventCount) ?? 0,
+    firstDroppedTrialId:
+      typeof record.firstDroppedTrialId === 'string'
+        ? record.firstDroppedTrialId
+        : null,
+    lastDroppedTrialId:
+      typeof record.lastDroppedTrialId === 'string'
+        ? record.lastDroppedTrialId
+        : null,
   };
 };
 
@@ -718,6 +814,9 @@ export const normalizeHeatCapacityFreeRestoreTraceTrial = (
     branches,
     configSnapshot: normalizeHeatCapacityFreeRestoreConfigSnapshot(value.configSnapshot) ??
       createDefaultFreeConfigSnapshot(),
+    branchCompaction: normalizeHeatCapacityFreeTraceTrialCompaction(
+      value.branchCompaction,
+    ),
   };
 };
 
@@ -888,14 +987,23 @@ export const normalizeHeatCapacityFreeRestoreTraceStoreResult = (
         maximumTraceTrialIndex + 1,
         restoredNextTraceTrialIndex ?? 1,
       );
+  const normalizedStore = compactFreeTraceStore({
+    activeTraceTrialId,
+    nextTraceTrialIndex,
+    traceTrials,
+    compaction: normalizeHeatCapacityFreeTraceStoreCompaction(
+      value.compaction,
+    ),
+  });
+  const traceMigrated = !areHeatCapacityPersistenceValuesEqual(
+    value,
+    normalizedStore as unknown as Record<string, unknown>,
+  );
   return {
     ok: true,
-    status: hasExactTraceHighWater ? 'exact' : 'migrated',
-    value: {
-      activeTraceTrialId,
-      nextTraceTrialIndex,
-      traceTrials,
-    },
+    status:
+      hasExactTraceHighWater && !traceMigrated ? 'exact' : 'migrated',
+    value: normalizedStore,
   };
 };
 
@@ -1390,11 +1498,19 @@ export const isAllowedHeatCapacityFreeDomainAggregateMigration = (
         cloneHeatCapacityPersistenceValue(normalizedTraceStore);
     } else {
       if (!isHeatCapacityRestoreRecord(sourceTraceStore)) return false;
-      candidate.traceStore = {
-        ...sourceTraceStore,
-        nextTraceTrialIndex:
-          normalizedTraceStore.nextTraceTrialIndex,
-      };
+      const normalizedSourceTrace =
+        normalizeHeatCapacityFreeRestoreTraceStoreResult(sourceTraceStore);
+      if (
+        normalizedSourceTrace.ok === false ||
+        !areHeatCapacityPersistenceValuesEqual(
+          normalizedSourceTrace.value,
+          normalizedTraceStore,
+        )
+      ) {
+        return false;
+      }
+      candidate.traceStore =
+        cloneHeatCapacityPersistenceValue(normalizedTraceStore);
     }
 
     return areHeatCapacityPersistenceValuesEqual(

@@ -82,6 +82,10 @@ import {
   WORKBENCH_PERSISTENCE_V3_GENERATION_HEAD_STORE,
   WORKBENCH_PERSISTENCE_V3_GENERATION_STORE,
 } from './workbenchPersistenceV3IndexedDbGenerationStore.ts';
+import {
+  WorkbenchPersistenceWorkerClient,
+  WorkbenchPersistenceWorkerTransportError,
+} from './workbenchPersistenceWorkerClient.ts';
 
 export const WORKBENCH_INDEXED_DB_NAME = 'hard-sphere-lab-workbench';
 export const WORKBENCH_INDEXED_DB_VERSION = 3;
@@ -237,9 +241,9 @@ export type WorkbenchPersistenceBootstrapResult = {
 let databasePromise: Promise<IDBDatabase> | null = null;
 let activeNamespace = WORKBENCH_PERSISTENT_NAMESPACE;
 let persistenceReady = false;
-let legacyV2WritesEnabled = false;
 let temporaryNamespaceCleanupTimerId: number | null = null;
 let initializationPromise: Promise<WorkbenchPersistenceBootstrapResult> | null = null;
+const persistenceWorkerClient = new WorkbenchPersistenceWorkerClient();
 const expectedWorkspaceRevisionByNamespace = new Map<string, number | null>();
 const retainedPersistenceV3StateByNamespace = new Map<
   string,
@@ -303,13 +307,8 @@ type CommittedWorkspaceSourceCache = {
 
 const committedWorkspaceSources = new Map<string, CommittedWorkspaceSourceCache>();
 
-const markPersistenceReady = ({
-  enableLegacyV2Writes = true,
-}: {
-  enableLegacyV2Writes?: boolean;
-} = {}) => {
+const markPersistenceReady = () => {
   persistenceReady = true;
-  legacyV2WritesEnabled = enableLegacyV2Writes;
   scheduleTemporaryNamespaceCleanup();
 };
 
@@ -988,33 +987,6 @@ const writeWorkbenchWorkspaceToIndexedDb = async (
   return records;
 };
 
-const saveWorkbenchWorkspaceV2ToIndexedDb = async (
-  snapshot: WorkbenchWorkspacePersistenceSnapshot,
-): Promise<void> => {
-  const preparedRecords = structuredClone(createPersistenceRecords(activeNamespace, snapshot));
-  const database = await openWorkbenchDatabase();
-  const writtenRecords = await writeWorkbenchWorkspaceToIndexedDb(
-    database,
-    activeNamespace,
-    snapshot,
-    'ready',
-    preparedRecords,
-    expectedWorkspaceRevisionByNamespace.get(activeNamespace) ?? null,
-  );
-  expectedWorkspaceRevisionByNamespace.set(
-    activeNamespace,
-    writtenRecords.meta.lastSuccessfulSaveAtMs,
-  );
-  try {
-    if (!await verifyWrittenWorkspace(database, writtenRecords)) {
-      throw new Error('IndexedDB strict post-commit readback verification failed.');
-    }
-  } catch (cause) {
-    committedWorkspaceSources.delete(activeNamespace);
-    throw cause;
-  }
-};
-
 const createPersistenceV3GenerationId = (capturedAtMs: number) => {
   const suffix = typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
@@ -1053,6 +1025,67 @@ const materializePersistenceV3Snapshot = (
   selectedPanel: snapshot.selectedPanel,
 });
 
+const isWorkbenchPersistenceQuotaExceededError = (
+  cause: unknown,
+) => (
+  typeof cause === 'object' &&
+  cause !== null &&
+  'name' in cause &&
+  cause.name === 'QuotaExceededError'
+);
+
+const commitWorkbenchPersistenceV3WithQuotaRecovery = async ({
+  store,
+  namespace,
+  generationId,
+  capturedAtMs,
+  snapshot,
+  retained,
+}: {
+  store: IndexedDbWorkbenchPersistenceV3GenerationStore;
+  namespace: string;
+  generationId: string;
+  capturedAtMs: number;
+  snapshot: ReturnType<typeof materializePersistenceV3Snapshot>;
+  retained: WorkbenchPersistenceV3RetainedState;
+}) => {
+  try {
+    return await commitWorkbenchPersistenceV3ProductionSnapshot({
+      store,
+      namespace,
+      generationId,
+      capturedAtMs,
+      snapshot,
+      retained,
+    });
+  } catch (cause) {
+    if (!isWorkbenchPersistenceQuotaExceededError(cause)) throw cause;
+    const head = await store.readHead(namespace);
+    await store.pruneGenerations(namespace, {
+      retainGenerationIds: [
+        head.currentGenerationId,
+        head.previousGenerationId,
+      ].filter((value): value is string => value !== null),
+    });
+    return commitWorkbenchPersistenceV3ProductionSnapshot({
+      store,
+      namespace,
+      generationId,
+      capturedAtMs,
+      snapshot,
+      retained,
+    });
+  }
+};
+
+const waitForWorkbenchPersistenceIdle = () => new Promise<void>((resolve) => {
+  if (typeof globalThis.requestIdleCallback === 'function') {
+    globalThis.requestIdleCallback(() => resolve(), { timeout: 2_000 });
+    return;
+  }
+  globalThis.setTimeout(resolve, 0);
+});
+
 export const saveWorkbenchWorkspaceToIndexedDb = async (
   snapshot: WorkbenchWorkspacePersistenceSnapshot,
 ): Promise<void> => {
@@ -1061,33 +1094,60 @@ export const saveWorkbenchWorkspaceToIndexedDb = async (
       'IndexedDB persistence is not ready; the last successful workspace remains unchanged.',
     );
   }
-  const database = await openWorkbenchDatabase();
-  const store = new IndexedDbWorkbenchPersistenceV3GenerationStore(database);
   const capturedAtMs = Date.now();
-  const committed = await commitWorkbenchPersistenceV3ProductionSnapshot({
-    store,
-    namespace: activeNamespace,
-    generationId: createPersistenceV3GenerationId(capturedAtMs),
+  const namespace = activeNamespace;
+  const generationId = createPersistenceV3GenerationId(capturedAtMs);
+  const productionSnapshot = materializePersistenceV3Snapshot(
+    snapshot,
     capturedAtMs,
-    snapshot: materializePersistenceV3Snapshot(snapshot, capturedAtMs),
-    retained: retainedPersistenceV3StateByNamespace.get(activeNamespace) ??
-      createEmptyWorkbenchPersistenceV3RetainedState(),
-  });
-  retainedPersistenceV3StateByNamespace.set(
-    activeNamespace,
-    committed.retained,
   );
-
-  if (!legacyV2WritesEnabled) return;
-  try {
-    await saveWorkbenchWorkspaceV2ToIndexedDb(snapshot);
-  } catch (cause) {
-    legacyV2WritesEnabled = false;
-    console.warn(
-      '[Workbench persistence] V3 commit succeeded; disabled failing V2 shadow write.',
-      cause,
-    );
+  const retained = retainedPersistenceV3StateByNamespace.get(namespace) ??
+    createEmptyWorkbenchPersistenceV3RetainedState();
+  let committedRetained: WorkbenchPersistenceV3RetainedState | null = null;
+  if (persistenceWorkerClient.isSupported()) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        committedRetained = await persistenceWorkerClient.save({
+          type: 'save',
+          requestId: generationId,
+          namespace,
+          generationId,
+          capturedAtMs,
+          snapshot: productionSnapshot,
+          retained,
+        });
+        break;
+      } catch (cause) {
+        if (!(cause instanceof WorkbenchPersistenceWorkerTransportError)) {
+          throw cause;
+        }
+        persistenceWorkerClient.restart();
+        if (attempt === 0) continue;
+        console.warn(
+          '[Workbench persistence] Worker transport failed twice; using the bounded main-thread fallback.',
+          cause,
+        );
+      }
+    }
   }
+  if (committedRetained === null) {
+    await waitForWorkbenchPersistenceIdle();
+    const database = await openWorkbenchDatabase();
+    const store = new IndexedDbWorkbenchPersistenceV3GenerationStore(database);
+    const committed = await commitWorkbenchPersistenceV3WithQuotaRecovery({
+      store,
+      namespace,
+      generationId,
+      capturedAtMs,
+      snapshot: productionSnapshot,
+      retained,
+    });
+    committedRetained = committed.retained;
+  }
+  retainedPersistenceV3StateByNamespace.set(
+    namespace,
+    committedRetained,
+  );
 };
 
 const normalizeWorkspaceRefreshMetadata = (
@@ -1231,6 +1291,21 @@ const isCurrentWorkspaceFileRecord = (
   })()
 );
 
+const isCompatibleLegacyHeatCapacityWorkspaceStateRecord = (
+  value: unknown,
+  namespace: string,
+  fileId: string,
+) => (
+  hasWorkspaceFileRecordIdentity(value, namespace, fileId) &&
+  isPersistenceRecord(value.state) &&
+  value.state.id === fileId &&
+  value.state.kind === 'heatCapacity' &&
+  (
+    value.state.heatCapacityFreeTraceVersion === 4 ||
+    value.state.heatCapacityFreeTraceVersion === 5
+  )
+);
+
 const hasExactPersistenceKeys = (
   value: Record<string, unknown>,
   expectedKeys: readonly string[],
@@ -1323,6 +1398,36 @@ export const normalizeWorkbenchWorkspaceFileRecord = (
   fileId: string,
 ): WorkspaceFileRecord | null => {
   if (isCurrentWorkspaceFileRecord(value, namespace, fileId)) return value;
+  if (isCompatibleLegacyHeatCapacityWorkspaceStateRecord(
+    value,
+    namespace,
+    fileId,
+  )) {
+    try {
+      const legacyRecord = value as Record<string, unknown> & {
+        state: WorkbenchHeatCapacityState;
+      };
+      const state = createWorkbenchSessionFromRuntimeFiles({
+        files: [legacyRecord.state],
+        activeFileId: fileId,
+        selectedPanel: 'preview',
+      }).files[0];
+      if (state?.kind === 'heatCapacity' && state.id === fileId) {
+        const normalized: WorkspaceFileRecord = {
+          schemaFamily: FILE_RECORD_SCHEMA_FAMILY,
+          key: fileRecordKey(namespace, fileId),
+          namespace,
+          fileId,
+          state,
+        };
+        if (isCurrentWorkspaceFileRecord(normalized, namespace, fileId)) {
+          return normalized;
+        }
+      }
+    } catch {
+      // Preserve and quarantine legacy state that cannot be migrated safely.
+    }
+  }
   if (
     hasWorkspaceFileRecordIdentity(value, namespace, fileId) &&
     isPersistenceRecord(value.state) &&
@@ -1759,11 +1864,18 @@ const loadWorkspaceFromIndexedDb = async (
     ) &&
       !Object.prototype.hasOwnProperty.call(storedFileRecord, 'state') &&
       Object.prototype.hasOwnProperty.call(storedFileRecord, 'envelope');
+    const allowCompatibleLegacyModeRecords =
+      allowLegacySplitModeRecords ||
+      isCompatibleLegacyHeatCapacityWorkspaceStateRecord(
+        storedFileRecord,
+        namespace,
+        file.id,
+      );
     const entries = await Promise.all((['demo', 'guide', 'free'] as const).map(async (mode) => {
       const record = await requestResult(modeStore.get(modeRecordKey(namespace, file.id, mode)));
       const normalizedRecord = isHeatCapacityModeSessionRecord(record, namespace, file.id, mode)
         ? record
-        : allowLegacySplitModeRecords
+        : allowCompatibleLegacyModeRecords
           ? normalizeLegacySplitHeatCapacityModeRecord(record, namespace, file, mode)
           : null;
       if (!normalizedRecord) {
@@ -2622,6 +2734,13 @@ const salvageLegacyV2WorkspaceIntoV3 = async (
         ) &&
         !Object.prototype.hasOwnProperty.call(fileValue, 'state') &&
         Object.prototype.hasOwnProperty.call(fileValue, 'envelope');
+      const allowCompatibleLegacyModeRecords =
+        allowLegacySplitModeRecords ||
+        isCompatibleLegacyHeatCapacityWorkspaceStateRecord(
+          fileValue,
+          namespace,
+          heatState.id,
+        );
       const entries = (['demo', 'guide', 'free'] as const).map((mode) => {
         const modeValue = raw.modeValues.find((candidate) => (
           isPersistenceRecord(candidate) &&
@@ -2634,7 +2753,7 @@ const salvageLegacyV2WorkspaceIntoV3 = async (
           mode,
         )
           ? modeValue
-          : allowLegacySplitModeRecords
+          : allowCompatibleLegacyModeRecords
             ? normalizeLegacySplitHeatCapacityModeRecord(
                 modeValue,
                 namespace,
@@ -2795,9 +2914,57 @@ const waitForReadyWorkspaceAfterMigrationConflict = async (
   }
 };
 
+const commitRestoredV2WorkspaceIntoV3 = async (
+  database: IDBDatabase,
+  namespace: string,
+  session: WorkbenchSessionState,
+  closedFiles: WorkbenchFileState[],
+) => {
+  const capturedAtMs = Date.now();
+  const generationId = createPersistenceV3GenerationId(capturedAtMs);
+  const snapshot = {
+    files: session.files,
+    closedFiles,
+    activeFileId: session.activeFileId,
+    selectedPanel: session.selectedPanel,
+  };
+  const retained = createEmptyWorkbenchPersistenceV3RetainedState();
+  if (persistenceWorkerClient.isSupported()) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        return {
+          retained: await persistenceWorkerClient.save({
+            type: 'save',
+            requestId: generationId,
+            namespace,
+            generationId,
+            capturedAtMs,
+            snapshot,
+            retained,
+          }),
+        };
+      } catch (cause) {
+        if (!(cause instanceof WorkbenchPersistenceWorkerTransportError)) {
+          throw cause;
+        }
+        persistenceWorkerClient.restart();
+        if (attempt === 0) continue;
+      }
+    }
+  }
+  await waitForWorkbenchPersistenceIdle();
+  return commitWorkbenchPersistenceV3WithQuotaRecovery({
+    store: new IndexedDbWorkbenchPersistenceV3GenerationStore(database),
+    namespace,
+    generationId,
+    capturedAtMs,
+    snapshot,
+    retained,
+  });
+};
+
 const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersistenceBootstrapResult> => {
   persistenceReady = false;
-  legacyV2WritesEnabled = false;
   let legacyFallback: ReturnType<typeof readLegacyWorkspaceForMigration> | null = null;
   let database: IDBDatabase | null = null;
   try {
@@ -2834,7 +3001,6 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
         activeNamespace,
         restoredV3.retained,
       );
-      let enableLegacyV2Writes = false;
       try {
         const existingV2Meta = await readWorkspaceMetaRecord(
           database,
@@ -2845,7 +3011,6 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
             activeNamespace,
             existingV2Meta.lastSuccessfulSaveAtMs,
           );
-          enableLegacyV2Writes = true;
         } else {
           expectedWorkspaceRevisionByNamespace.set(activeNamespace, null);
         }
@@ -2856,7 +3021,7 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
           cause,
         );
       }
-      markPersistenceReady({ enableLegacyV2Writes });
+      markPersistenceReady();
       if (restoredV3.usedPreviousGeneration) {
         console.warn(
           '[Workbench persistence] Restored the previous verified V3 generation.',
@@ -2872,7 +3037,17 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
     if (existingMeta?.migrationState === 'ready') {
       const restored = await loadReadyWorkspaceWithRefreshMetadataRecovery(database, activeNamespace);
       if (!restored) throw new Error('IndexedDB workspace metadata disappeared during initialization.');
+      const committed = await commitRestoredV2WorkspaceIntoV3(
+        database,
+        activeNamespace,
+        restored.session,
+        restored.closedFiles,
+      );
       installBootstrap(restored.session, restored.closedFiles, restored.refreshSession);
+      retainedPersistenceV3StateByNamespace.set(
+        activeNamespace,
+        committed.retained,
+      );
       expectedWorkspaceRevisionByNamespace.set(
         activeNamespace,
         restored.revision,
@@ -2892,7 +3067,17 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
       );
       const removedLegacyStorage = removeLegacyStorageKeys();
       const readyMeta = await updateMigrationState(database, existingMeta, 'ready');
+      const committed = await commitRestoredV2WorkspaceIntoV3(
+        database,
+        activeNamespace,
+        restored.session,
+        restored.closedFiles,
+      );
       installBootstrap(restored.session, restored.closedFiles, refreshBootstrap);
+      retainedPersistenceV3StateByNamespace.set(
+        activeNamespace,
+        committed.retained,
+      );
       expectedWorkspaceRevisionByNamespace.set(
         activeNamespace,
         readyMeta.lastSuccessfulSaveAtMs,
@@ -2943,7 +3128,17 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
       );
       legacyFallback.removeAfterVerifiedWrite();
       const readyMeta = await updateMigrationState(database, cleanupPendingMeta, 'ready');
+      const committed = await commitRestoredV2WorkspaceIntoV3(
+        database,
+        activeNamespace,
+        verified.session,
+        verified.closedFiles,
+      );
       installBootstrap(verified.session, verified.closedFiles, refreshBootstrap);
+      retainedPersistenceV3StateByNamespace.set(
+        activeNamespace,
+        committed.retained,
+      );
       expectedWorkspaceRevisionByNamespace.set(
         activeNamespace,
         readyMeta.lastSuccessfulSaveAtMs,
@@ -2962,11 +3157,21 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
       try {
         const restored = await waitForReadyWorkspaceAfterMigrationConflict(database, activeNamespace);
         if (restored) {
+          const committed = await commitRestoredV2WorkspaceIntoV3(
+            database,
+            activeNamespace,
+            restored.session,
+            restored.closedFiles,
+          );
           const refreshBootstrap = attachLegacySceneSnapshotToRefreshBootstrap(
             restored.refreshSession,
             legacyFallback?.refreshSession ?? readLegacyRefreshSessionForBootstrap(),
           );
           installBootstrap(restored.session, restored.closedFiles, refreshBootstrap);
+          retainedPersistenceV3StateByNamespace.set(
+            activeNamespace,
+            committed.retained,
+          );
           expectedWorkspaceRevisionByNamespace.set(activeNamespace, restored.revision);
           markPersistenceReady();
           return { namespace: activeNamespace, migratedLegacyStorage: false, error: null };
@@ -3051,7 +3256,7 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
           activeNamespace,
           recovered.retained,
         );
-        markPersistenceReady({ enableLegacyV2Writes: false });
+        markPersistenceReady();
         console.warn(
           '[Workbench persistence] Opened a writable V3 safe workspace while preserving unreadable source records.',
         );

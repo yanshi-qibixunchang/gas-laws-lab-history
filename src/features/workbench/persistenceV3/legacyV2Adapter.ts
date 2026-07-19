@@ -41,6 +41,7 @@ import {
 import {
   HEAT_CAPACITY_FREE_CALCULATION_VERSION,
   HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
+  HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
   HEAT_CAPACITY_FREE_TRACE_VERSION,
 } from '../../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
@@ -328,7 +329,14 @@ export const decodeLegacyWorkbenchWorkspaceSource = (
   );
 };
 
-const LEGACY_HEAT_CAPACITY_FREE_TRACE_VERSION = 4 as const;
+const LEGACY_HEAT_CAPACITY_FREE_TRACE_VERSIONS =
+  [4, 5] as const;
+
+const isLegacyHeatCapacityFreeTraceVersion = (
+  value: unknown,
+) => LEGACY_HEAT_CAPACITY_FREE_TRACE_VERSIONS.includes(
+  value as (typeof LEGACY_HEAT_CAPACITY_FREE_TRACE_VERSIONS)[number],
+);
 
 const hasExactOwnKeys = (
   value: Record<string, unknown>,
@@ -343,6 +351,19 @@ const EMPTY_TRACE_STORE_KEYS = [
   'activeTraceTrialId',
   'nextTraceTrialIndex',
   'traceTrials',
+] as const;
+const EMPTY_TRACE_STORE_KEYS_WITH_COMPACTION = [
+  ...EMPTY_TRACE_STORE_KEYS,
+  'compaction',
+] as const;
+const EMPTY_TRACE_STORE_COMPACTION_KEYS = [
+  'version',
+  'droppedTrialCount',
+  'droppedBranchCount',
+  'droppedSampleCount',
+  'droppedEventCount',
+  'firstDroppedTrialId',
+  'lastDroppedTrialId',
 ] as const;
 
 const KNOWN_FREE_PERSISTENCE_KEYS = new Set([
@@ -2062,16 +2083,38 @@ const hasValidFreeConfigSnapshotShape = (
   return true;
 };
 
-const hasCanonicalEmptyTraceStore = (value: unknown) => (
-  isPlainPersistenceRecord(value) &&
-  hasExactOwnKeys(value, EMPTY_TRACE_STORE_KEYS) &&
-  value.activeTraceTrialId === null &&
-  Array.isArray(value.traceTrials) &&
-  value.traceTrials.length === 0 &&
-  typeof value.nextTraceTrialIndex === 'number' &&
-  Number.isSafeInteger(value.nextTraceTrialIndex) &&
-  value.nextTraceTrialIndex >= 1
-);
+const hasCanonicalEmptyTraceStore = (value: unknown) => {
+  if (!isPlainPersistenceRecord(value)) return false;
+  const hasLegacyShape = hasExactOwnKeys(value, EMPTY_TRACE_STORE_KEYS);
+  const hasCompactedShape = hasExactOwnKeys(
+    value,
+    EMPTY_TRACE_STORE_KEYS_WITH_COMPACTION,
+  );
+  if (!hasLegacyShape && !hasCompactedShape) return false;
+  if (
+    value.activeTraceTrialId !== null ||
+    !Array.isArray(value.traceTrials) ||
+    value.traceTrials.length > 0 ||
+    typeof value.nextTraceTrialIndex !== 'number' ||
+    !Number.isSafeInteger(value.nextTraceTrialIndex) ||
+    value.nextTraceTrialIndex < 1
+  ) {
+    return false;
+  }
+  if (hasLegacyShape) return true;
+  const compaction = value.compaction;
+  return (
+    isPlainPersistenceRecord(compaction) &&
+    hasExactOwnKeys(compaction, EMPTY_TRACE_STORE_COMPACTION_KEYS) &&
+    compaction.version === HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION &&
+    compaction.droppedTrialCount === 0 &&
+    compaction.droppedBranchCount === 0 &&
+    compaction.droppedSampleCount === 0 &&
+    compaction.droppedEventCount === 0 &&
+    compaction.firstDroppedTrialId === null &&
+    compaction.lastDroppedTrialId === null
+  );
+};
 
 const EMPTY_MODE_SESSION_ENTRY_KEYS = [
   'status',
@@ -3145,7 +3188,7 @@ const prepareLegacyHeatCapacityEnvelope = (
   }
   if (
     traceVersion !== HEAT_CAPACITY_FREE_TRACE_VERSION &&
-    traceVersion !== LEGACY_HEAT_CAPACITY_FREE_TRACE_VERSION
+    !isLegacyHeatCapacityFreeTraceVersion(traceVersion)
   ) {
     return {
       ok: false,
@@ -3226,7 +3269,7 @@ const prepareLegacyHeatCapacityEnvelope = (
         fieldPath: 'payload.free',
       };
     }
-    if (traceVersion === LEGACY_HEAT_CAPACITY_FREE_TRACE_VERSION) {
+    if (isLegacyHeatCapacityFreeTraceVersion(traceVersion)) {
       free.traceVersion = HEAT_CAPACITY_FREE_TRACE_VERSION;
     }
     return {
@@ -3280,7 +3323,7 @@ const prepareLegacyHeatCapacityEnvelope = (
       fieldPath: 'payload.free',
     };
   }
-  if (traceVersion === LEGACY_HEAT_CAPACITY_FREE_TRACE_VERSION) {
+  if (isLegacyHeatCapacityFreeTraceVersion(traceVersion)) {
     free.traceVersion = HEAT_CAPACITY_FREE_TRACE_VERSION;
   }
   for (const domain of missingBatchDomains) {

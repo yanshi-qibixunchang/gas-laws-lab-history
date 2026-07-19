@@ -50,9 +50,15 @@ import {
   createHeatCapacityFreeStandardReference,
 } from '../../domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
 import { truncateHeatCapacitySignalMv } from '../../domain/heatCapacity/heatCapacitySignalDisplayModel.ts';
-import type {
-  HeatCapacityFreeConfigSnapshot,
-  HeatCapacityFreeTraceTrial,
+import {
+  FREE_TRACE_MAX_BRANCHES_PER_TRIAL,
+  FREE_TRACE_MAX_COMPLETED_TRIALS_PER_DOMAIN,
+  FREE_TRACE_MAX_EVENTS_PER_BRANCH,
+  FREE_TRACE_MAX_SAMPLES_PER_TRIAL,
+  HEAT_CAPACITY_FREE_TRACE_VERSION,
+  getFreeTraceTrialBranchCount,
+  type HeatCapacityFreeConfigSnapshot,
+  type HeatCapacityFreeTraceTrial,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
   isHeatCapacityLegacy423DisplayEventSampleRelation,
@@ -2198,6 +2204,45 @@ const decodeFreeTraceEvent = decodeRecord({
   payload: decodeOptional(decodeOpaqueRecord),
 });
 
+const decodeTraceCompactionCountMap: RuntimeValueDecoder = (value) => {
+  if (!isPlainRecord(value)) return INVALID_RUNTIME_VALUE;
+  return Object.values(value).every((count) => (
+    typeof count === 'number' &&
+    Number.isSafeInteger(count) &&
+    count >= 0
+  ))
+    ? { ...value }
+    : INVALID_RUNTIME_VALUE;
+};
+
+const decodeTraceBranchCompaction = decodeRecord({
+  version: decodeLiteral([1]),
+  droppedSampleCount: decodeNonNegativeInteger,
+  droppedEventCount: decodeNonNegativeInteger,
+  droppedEventCounts: decodeTraceCompactionCountMap,
+  firstDroppedAtS: decodeNullableFiniteNumber,
+  lastDroppedAtS: decodeNullableFiniteNumber,
+});
+
+const decodeTraceTrialCompaction = decodeRecord({
+  version: decodeLiteral([1]),
+  droppedBranchCount: decodeNonNegativeInteger,
+  droppedSampleCount: decodeNonNegativeInteger,
+  droppedEventCount: decodeNonNegativeInteger,
+  firstDroppedBranchId: decodeNullableString,
+  lastDroppedBranchId: decodeNullableString,
+});
+
+const decodeTraceStoreCompaction = decodeRecord({
+  version: decodeLiteral([1]),
+  droppedTrialCount: decodeNonNegativeInteger,
+  droppedBranchCount: decodeNonNegativeInteger,
+  droppedSampleCount: decodeNonNegativeInteger,
+  droppedEventCount: decodeNonNegativeInteger,
+  firstDroppedTrialId: decodeNullableString,
+  lastDroppedTrialId: decodeNullableString,
+});
+
 const decodeFreeTraceBranch = decodeRecord({
   id: decodeString,
   parentBranchId: decodeNullableString,
@@ -2211,6 +2256,7 @@ const decodeFreeTraceBranch = decodeRecord({
   idleState: decodeTraceIdleState,
   samples: decodeArray(decodeFreeTraceSample),
   events: decodeArray(decodeFreeTraceEvent),
+  compaction: decodeOptional(decodeTraceBranchCompaction),
 });
 
 const decodeFreeTraceTrialShape = decodeRecord({
@@ -2221,6 +2267,7 @@ const decodeFreeTraceTrialShape = decodeRecord({
   nextBranchIndex: decodeNonNegativeInteger,
   branches: decodeNonEmptyArray(decodeFreeTraceBranch),
   configSnapshot: decodeFreeConfigSnapshot,
+  branchCompaction: decodeOptional(decodeTraceTrialCompaction),
 });
 
 const readIndexedId = (value: unknown, prefix: string) => {
@@ -2265,6 +2312,8 @@ const isFreeTraceBranchIntegrityValid = (
     !hasUniqueValues(sampleIndexes) ||
     !hasUniqueValues(branchEventIds) ||
     !hasUniqueValues(eventIndexes) ||
+    samples.length > FREE_TRACE_MAX_SAMPLES_PER_TRIAL ||
+    events.length > FREE_TRACE_MAX_EVENTS_PER_BRANCH ||
     !hasStrictlyIncreasingNumbers(sampleIndexes) ||
     !hasStrictlyIncreasingNumbers(eventIndexes) ||
     !hasNonDecreasingNumbers(sampleTimes) ||
@@ -2334,6 +2383,9 @@ const decodeFreeTraceTrial: RuntimeValueDecoder = (value) => {
   }
   const branches = decoded.branches.filter(isPlainRecord);
   if (branches.length !== decoded.branches.length) return INVALID_RUNTIME_VALUE;
+  if (branches.length > FREE_TRACE_MAX_BRANCHES_PER_TRIAL) {
+    return INVALID_RUNTIME_VALUE;
+  }
   const branchIdValues = branches.map((branch) => branch.id);
   if (!hasUniqueValues(branchIdValues)) return INVALID_RUNTIME_VALUE;
   const branchIds = new Set(branchIdValues.filter((id): id is string => typeof id === 'string'));
@@ -2368,6 +2420,7 @@ const decodeFreeTraceStoreShape = decodeRecord({
   activeTraceTrialId: decodeNullableString,
   nextTraceTrialIndex: decodeNonNegativeInteger,
   traceTrials: decodeArray(decodeFreeTraceTrial),
+  compaction: decodeOptional(decodeTraceStoreCompaction),
 });
 
 const decodeFreeTraceStore: RuntimeValueDecoder = (value) => {
@@ -2385,11 +2438,17 @@ const decodeFreeTraceStore: RuntimeValueDecoder = (value) => {
   );
   const activeTraceTrial = trials.find((trial) => trial.id === decoded.activeTraceTrialId);
   const activeTraceTrials = trials.filter((trial) => trial.status === 'active');
+  const completedTraceTrials = trials.filter((trial) => (
+    trial.status === 'completed'
+  ));
   return (
     decoded.activeTraceTrialId === null
       ? activeTraceTrials.length === 0
       : activeTraceTrials.length === 1 && activeTraceTrial?.status === 'active'
-  ) && typeof decoded.nextTraceTrialIndex === 'number' &&
+  ) &&
+    completedTraceTrials.length <=
+      FREE_TRACE_MAX_COMPLETED_TRIALS_PER_DOMAIN &&
+    typeof decoded.nextTraceTrialIndex === 'number' &&
     decoded.nextTraceTrialIndex > maximumTrialIndex
     ? decoded
     : INVALID_RUNTIME_VALUE;
@@ -2624,7 +2683,9 @@ const isFreeTrialCollectionIntegrityValid = (
       (traceTrialId !== null && traceTrial === null) ||
       (traceTrial !== null && (
         !Array.isArray(traceTrial.branches) ||
-        trial.branchCount !== traceTrial.branches.length ||
+        trial.branchCount !== getFreeTraceTrialBranchCount(
+          traceTrial as unknown as HeatCapacityFreeTraceTrial,
+        ) ||
         (traceTrial.linkedTrialId !== null && traceTrial.linkedTrialId !== trial.id)
       ))
     ) return false;
@@ -3411,7 +3472,7 @@ const isFreeExperimentDomainSemanticallyValid = (
         effectiveSensorConfig,
       )
     ));
-  const checks = {
+  return Object.values({
     environmentValid,
     gasValid,
     thermodynamicValid,
@@ -3425,8 +3486,7 @@ const isFreeExperimentDomainSemanticallyValid = (
     activeAttemptValid,
     batchValid,
     rollbacksValid,
-  };
-  return Object.values(checks).every(Boolean);
+  }).every(Boolean);
 };
 
 const decodeFreeExperimentDomainShape = decodeRecord({
@@ -3920,7 +3980,9 @@ const HEAT_CAPACITY_FREE_RUNTIME_DECODERS = {
   heatCapacityFreeCalibrationState: decodeFreeCalibrationState,
   heatCapacityFreeEquilibriumSpeedMultiplier: decodeLiteral([2, 4, 8, 16]),
   heatCapacityFreeRollbackSnapshots: decodeFreeRollbackSnapshots,
-  heatCapacityFreeTraceVersion: decodeLiteral([5]),
+  heatCapacityFreeTraceVersion: decodeLiteral([
+    HEAT_CAPACITY_FREE_TRACE_VERSION,
+  ]),
   heatCapacityFreeTraceStore: decodeFreeTraceStore,
   heatCapacityFreeTrials: decodeArray(decodeFreeTrial),
   heatCapacityFreeActiveAttempt: decodeNullableFreeAttempt,
@@ -4141,9 +4203,9 @@ export const isCanonicalHeatCapacityFreePersistenceRuntime = (
     isAcceptedRuntimeValue(decodeRecordConfig(value.recordConfig)) &&
     isAcceptedRuntimeValue(decodeFreePhysicsState(value.runtime)) &&
     controls !== null &&
-    typeof controls.powerOn === 'boolean' &&
-    typeof controls.pumpValveOpen === 'boolean' &&
-    typeof controls.stopcockOpen === 'boolean' &&
+      typeof controls.powerOn === 'boolean' &&
+      typeof controls.pumpValveOpen === 'boolean' &&
+      typeof controls.stopcockOpen === 'boolean' &&
     isAcceptedRuntimeValue(decodeLiteral(['idle', 'compressing', 'releasing'])(controls.pumpBulbState)) &&
     isAcceptedRuntimeValue(decodeReleaseState(controls.releaseState)) &&
     isAcceptedRuntimeValue(decodeFreeSensorState(value.sensor)) &&
@@ -5019,9 +5081,20 @@ const normalizeRuntimeSnapshot = (
   if (!isPlainRecord(storedModeRuntime)) {
     return null;
   }
-  const modeRuntimeBase = expectedMode === 'free' && options.repairLegacyFreeTiming
-    ? repairLegacyFreeRuntimeTiming(storedModeRuntime) ?? storedModeRuntime
-    : storedModeRuntime;
+  const traceVersionMigratedModeRuntime =
+    expectedMode === 'free' &&
+    storedModeRuntime.heatCapacityFreeTraceVersion === 5
+      ? {
+          ...storedModeRuntime,
+          heatCapacityFreeTraceVersion:
+            HEAT_CAPACITY_FREE_TRACE_VERSION,
+        }
+      : storedModeRuntime;
+  const modeRuntimeBase =
+    expectedMode === 'free' && options.repairLegacyFreeTiming
+      ? repairLegacyFreeRuntimeTiming(traceVersionMigratedModeRuntime) ??
+        traceVersionMigratedModeRuntime
+      : traceVersionMigratedModeRuntime;
   const common = decodedCommonRuntime as HeatCapacityModeCommonRuntimeSnapshot;
   const modeRuntime = expectedMode === 'free'
     ? canonicalizeFreeRuntimeCalculationCaches(modeRuntimeBase)

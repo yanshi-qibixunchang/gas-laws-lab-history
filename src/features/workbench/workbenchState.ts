@@ -179,8 +179,10 @@ import {
   appendFreeTraceEvent,
   appendFreeTraceSample,
   compactFreeTraceBranch,
+  compactFreeTraceStore,
   createDefaultFreeTraceStore,
   createFreeTraceTrial,
+  getFreeTraceTrialBranchCount,
   HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S,
   HEAT_CAPACITY_FREE_TRACE_VERSION,
   type HeatCapacityFreeEventType,
@@ -2465,14 +2467,14 @@ const markHeatCapacityFreeTraceTrialCompleted = (
   linkedTrialId: string,
 ): HeatCapacityFreeTraceStore => {
   if (!traceTrialId) return store;
-  return {
+  return compactFreeTraceStore({
     ...store,
     traceTrials: store.traceTrials.map((traceTrial) => (
       traceTrial.id === traceTrialId
         ? { ...traceTrial, linkedTrialId, status: 'completed' }
         : traceTrial
     )),
-  };
+  });
 };
 
 const finalizeCompletedHeatCapacityFreeExperimentGroupWorkbenchState = (
@@ -6686,7 +6688,9 @@ const applyHeatCapacityFreeRecordWorkbenchStateCore = (
       ? acceptedSourceFile.heatCapacityFreeActiveRunConfigSnapshot
       : recordResult.trial.configSnapshot,
     traceTrialId: recordTrace.reference.traceTrialId,
-    branchCount: traceTrial?.branches.length ?? recordResult.trial.branchCount,
+    branchCount: traceTrial
+      ? getFreeTraceTrialBranchCount(traceTrial)
+      : recordResult.trial.branchCount,
     u0: kind === 'u0' && recordResult.trial.u0
       ? { ...recordResult.trial.u0, ...recordTrace.reference }
       : recordResult.trial.u0,

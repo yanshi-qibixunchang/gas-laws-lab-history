@@ -599,9 +599,8 @@ assert.deepEqual(
     traceTrials: [],
   }),
   {
-    activeTraceTrialId: null,
+    ...createDefaultFreeTraceStore(),
     nextTraceTrialIndex: 7,
-    traceTrials: [],
   },
   'an empty trace collection must retain its monotonic high-water',
 );

@@ -35,6 +35,8 @@ import {
   createDefaultFreeConfigSnapshot,
   createDefaultFreeTraceStore,
   createFreeTraceTrial,
+  HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
+  HEAT_CAPACITY_FREE_TRACE_VERSION,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
   HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION,
@@ -1222,6 +1224,52 @@ assert.equal(
   'legacy dispatch must not mutate the caller-owned raw envelope',
 );
 
+const syntheticTopLevelOnlyTraceV5 = structuredClone(
+  syntheticTopLevelOnlyHeatEnvelope,
+);
+const syntheticTopLevelOnlyTraceV5Free =
+  syntheticTopLevelOnlyTraceV5.payload.free as Record<string, unknown>;
+syntheticTopLevelOnlyTraceV5Free.traceVersion = 5;
+const syntheticTopLevelOnlyTraceV5Store =
+  syntheticTopLevelOnlyTraceV5Free.traceStore as Record<string, unknown>;
+syntheticTopLevelOnlyTraceV5Store.nextTraceTrialIndex = 13;
+delete syntheticTopLevelOnlyTraceV5Store.compaction;
+const syntheticTopLevelOnlyTraceV5Projection = requireLegacyMigration(
+  syntheticTopLevelOnlyTraceV5,
+  'synthetic empty top-level-only trace V5 Heat envelope',
+);
+const syntheticTopLevelOnlyTraceV5Authority =
+  syntheticTopLevelOnlyTraceV5Projection.fields.authoritative as {
+    freeDomains: {
+      real: {
+        traceStore: {
+          nextTraceTrialIndex: number;
+          compaction?: { version: number };
+        };
+      };
+    };
+  };
+assert.equal(
+  syntheticTopLevelOnlyTraceV5Authority.freeDomains.real.traceStore
+    .nextTraceTrialIndex,
+  13,
+  'trace V5 migration must preserve its monotonic high-water',
+);
+assert.equal(
+  syntheticTopLevelOnlyTraceV5Authority.freeDomains.real.traceStore
+    .compaction?.version,
+  HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
+  'trace V5 migration should initialize the versioned V6 compaction summary',
+);
+assert.equal(
+  Object.prototype.hasOwnProperty.call(
+    syntheticTopLevelOnlyTraceV5Store,
+    'compaction',
+  ),
+  false,
+  'trace V5 migration must not mutate the caller-owned raw envelope',
+);
+
 /*
  * The Free field set below is derived from the writers at tags v4.1.6 and
  * v4.1.12. It is not a captured byte fixture. Both writers emitted trace V4,
@@ -1358,7 +1406,7 @@ for (const {
     mutate: (freeEnvelope: WorkbenchExperimentFileEnvelopeV1) => {
       (
         freeEnvelope.payload.free as Record<string, unknown>
-      ).traceVersion = 6;
+      ).traceVersion = HEAT_CAPACITY_FREE_TRACE_VERSION + 1;
     },
     code: 'legacy-heat-capacity-trace-version-future',
   },

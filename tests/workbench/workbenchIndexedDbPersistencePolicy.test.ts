@@ -220,6 +220,49 @@ for (const legacyName of [
   );
 }
 
+const legacyTraceV5State = structuredClone(indexedDbV2HeatCapacityFile);
+assert.equal(legacyTraceV5State.kind, 'heatCapacity');
+legacyTraceV5State.name = 'Heat Capacity Ratio - 001';
+(
+  legacyTraceV5State as unknown as {
+    heatCapacityFreeTraceVersion: number;
+  }
+).heatCapacityFreeTraceVersion = 5;
+const legacyTraceV5StateRecord = {
+  schemaFamily: 'hard-sphere-lab/workspace-file-v2',
+  key: 'persistent:main|heatCapacity-001',
+  namespace: 'persistent:main',
+  fileId: 'heatCapacity-001',
+  state: legacyTraceV5State,
+};
+const normalizedLegacyTraceV5StateRecord =
+  normalizeWorkbenchWorkspaceFileRecord(
+    legacyTraceV5StateRecord,
+    'persistent:main',
+    'heatCapacity-001',
+  );
+assert.equal(
+  normalizedLegacyTraceV5StateRecord?.state.kind,
+  'heatCapacity',
+  'a structurally valid V2 heat-capacity state with trace V5 must migrate',
+);
+assert.equal(
+  normalizedLegacyTraceV5StateRecord?.state.name,
+  'Adiabatic Expansion - 001',
+);
+assert.equal(
+  normalizedLegacyTraceV5StateRecord?.state.kind === 'heatCapacity'
+    ? normalizedLegacyTraceV5StateRecord.state.heatCapacityFreeTraceVersion
+    : null,
+  6,
+  'the V2 compatibility boundary must upgrade trace V5 to V6',
+);
+assert.equal(
+  legacyTraceV5State.heatCapacityFreeTraceVersion,
+  5,
+  'V2 heat-capacity migration must not mutate the preserved source record',
+);
+
 const pistonOscillationState = createWorkbenchSessionFromRuntimeFiles({
   files: [{
     ...createDefaultHeatCapacityPistonOscillationFile(1),
@@ -583,15 +626,25 @@ assert.match(source, /fileRecordsToWrite\.forEach\(\(record\) => fileStore\.put\
 assert.match(source, /modeRecordsToWrite\.forEach\(\(record\) => modeStore\.put\(record\)\)/);
 assert.match(source, /if \(!persistenceReady\)[\s\S]*last successful workspace remains unchanged/);
 assert.match(source, /verifyWrittenWorkspace[\s\S]*actualFileRecords[\s\S]*actualModeRecords/);
-assert.match(
+assert.doesNotMatch(
   source,
-  /saveWorkbenchWorkspaceV2ToIndexedDb[\s\S]*expectedWorkspaceRevisionByNamespace\.set\([\s\S]*await verifyWrittenWorkspace\(database, writtenRecords\)[\s\S]*committedWorkspaceSources\.delete\(activeNamespace\)/,
-  'V2 shadow saves must stay pending until strict post-commit readback succeeds and must invalidate caches on failure',
+  /saveWorkbenchWorkspaceV2ToIndexedDb|legacyV2WritesEnabled/,
+  '5.2 production autosaves must not rewrite the legacy V2 workspace shadow',
 );
 assert.match(
   source,
-  /saveWorkbenchWorkspaceToIndexedDb[\s\S]*commitWorkbenchPersistenceV3ProductionSnapshot[\s\S]*retainedPersistenceV3StateByNamespace\.set[\s\S]*if \(!legacyV2WritesEnabled\) return/,
-  'production saves must commit and retain V3 before attempting the optional V2 shadow writer',
+  /commitRestoredV2WorkspaceIntoV3[\s\S]*persistenceWorkerClient\.save\([\s\S]*commitWorkbenchPersistenceV3WithQuotaRecovery/,
+  'a verified V2 restore must migrate once through the worker or the bounded read-back verified V3 fallback',
+);
+assert.match(
+  source,
+  /saveWorkbenchWorkspaceToIndexedDb[\s\S]*persistenceWorkerClient\.save[\s\S]*WorkbenchPersistenceWorkerTransportError[\s\S]*waitForWorkbenchPersistenceIdle\(\)[\s\S]*commitWorkbenchPersistenceV3WithQuotaRecovery[\s\S]*retainedPersistenceV3StateByNamespace\.set/,
+  'production saves must prefer the V3 worker, retry transport once, then use an idle-only bounded fallback',
+);
+assert.match(
+  source,
+  /const waitForWorkbenchPersistenceIdle =[\s\S]*requestIdleCallback[\s\S]*timeout: 2_000[\s\S]*setTimeout\(resolve, 0\)/,
+  'the no-worker fallback must yield to an idle period instead of restoring a high-frequency main-thread write path',
 );
 assert.match(
   source,
@@ -932,8 +985,8 @@ assert.match(
 );
 assert.match(
   source,
-  /structuredClone\(createPersistenceRecords\(activeNamespace, snapshot\)\)[\s\S]*await openWorkbenchDatabase/,
-  'normal writes should materialize an immutable persistence record set before their first asynchronous wait',
+  /const productionSnapshot = materializePersistenceV3Snapshot\([\s\S]*persistenceWorkerClient\.save\(\{[\s\S]*snapshot: productionSnapshot/,
+  'normal writes should materialize one immutable V3 snapshot before their first worker wait',
 );
 assert.equal(
   areCanonicalPersistenceValuesEqual({ alpha: 1, beta: 2 }, { beta: 2, alpha: 1 }),

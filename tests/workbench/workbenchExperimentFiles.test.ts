@@ -21,7 +21,31 @@ assert.ok(source.includes('closeExperiment: string;'), 'file menu copy should ex
 assert.ok(source.includes('confirmCloseRunningExperiment: (name: string) => string;'), 'copy should provide a running-close confirmation');
 
 assert.ok(source.includes('const [closedFiles, setClosedFiles] = useState<WorkbenchFileState[]>(() => loadClosedWorkbenchFiles());'), 'workbench should load closed cached experiment files');
-assert.match(source, /closedFilesRef\.current = closedFiles;[\s\S]*scheduleWorkspacePersistenceRef\.current\(\);[\s\S]*\}, \[activeFileId, closedFiles, files, selectedPanel\]\);/, 'closed cached experiment changes should schedule the shared IndexedDB workspace commit');
+assert.match(
+  source,
+  /closedFilesRef\.current = closedFiles;[\s\S]*scheduleWorkspacePersistenceRef\.current\('semantic'\);[\s\S]*\}, \[activeFileId, closedFiles, selectedPanel\]\);/,
+  'closed cached experiment changes should schedule the semantic IndexedDB workspace commit',
+);
+assert.match(
+  source,
+  /scheduleWorkspacePersistenceRef\.current\('runtime-checkpoint'\)[\s\S]*\}, \[activeFileId, files\]\);/,
+  'high-frequency file ticks should use the throttled runtime-checkpoint lane',
+);
+assert.match(
+  source,
+  /const updateRuntimeFileById = \([\s\S]*setFiles\(\(current\) => \{[\s\S]*filesRef\.current = next;[\s\S]*return next;/,
+  'simulation-frame updates should bypass the semantic operation wrapper and feed only the runtime checkpoint effect',
+);
+assert.match(
+  source,
+  /const updateStandardFrameFile = finished[\s\S]*\? updateFileById[\s\S]*: updateRuntimeFileById;[\s\S]*updateStandardFrameFile\(file\.id/,
+  'standard simulation frames should stay runtime-only until the finished result receives a semantic save',
+);
+assert.match(
+  source,
+  /if \(!finished\) \{[\s\S]*updateRuntimeFileById\(file\.id,[\s\S]*scheduleIdealFrame\(file\.id\)/,
+  'ideal-gas collection frames should stay runtime-only while the final recorded point remains semantic',
+);
 assert.match(source, /files: filesRef\.current,[\s\S]*closedFiles: closedFilesRef\.current,/, 'workspace persistence snapshots should keep open and closed file collections distinct');
 assert.match(indexedDbPersistenceSource, /openFileIds: snapshot\.files\.map\(\(file\) => file\.id\),[\s\S]*closedFileIds: snapshot\.closedFiles\.map\(\(file\) => file\.id\),/, 'IndexedDB workspace metadata should preserve separate open and closed file ordering');
 assert.ok(sessionSource.includes('loadClosedWorkbenchFiles'), 'session bootstrap should expose closed cached files loaded from IndexedDB');
@@ -161,8 +185,23 @@ assert.match(
 );
 assert.match(
   workspaceSnapshotSource,
-  /flushWorkspacePersistenceRef\.current = async \(activeModeCheckpointOverride\) => \{\s*const snapshot = createWorkspacePersistenceSnapshot\(activeModeCheckpointOverride\);\s*const scheduler = workspacePersistenceSchedulerRef\.current;\s*if \(!scheduler\) return false;\s*scheduler\.schedule\(\(\) => snapshot\);/,
+  /flushWorkspacePersistenceRef\.current = async \(activeModeCheckpointOverride\) => \{\s*const snapshot = createWorkspacePersistenceSnapshot\(activeModeCheckpointOverride\);\s*const scheduler = workspacePersistenceSchedulerRef\.current;\s*if \(!scheduler\) return false;\s*scheduler\.schedule\(\(\) => snapshot, 'lifecycle'\);/,
   'flush must materialize the target-file snapshot before awaiting any earlier save or React projection commit',
+);
+assert.match(
+  source,
+  /const flushWorkspaceAfterRunStateCommit = \(\) => \{[\s\S]*setTimeout\(\(\) => \{[\s\S]*persistWorkspaceLifecycleCheckpointRef\.current\(\)/,
+  'pause and stop transitions should request an immediate lifecycle flush after React commits their run-state change',
+);
+assert.match(
+  source,
+  /const pauseActiveFile = \(\) => \{[\s\S]*updateActiveFile\([\s\S]*flushWorkspaceAfterRunStateCommit\(\)/,
+  'pausing a standard or ideal experiment must not wait for the ordinary semantic debounce',
+);
+assert.match(
+  source,
+  /const stopActiveFile = \(\) => \{[\s\S]*terminateHeatCapacityAutoDemo\(\);[\s\S]*flushWorkspaceAfterRunStateCommit\(\);[\s\S]*runState: 'idle'[\s\S]*flushWorkspaceAfterRunStateCommit\(\)/,
+  'stopping heat-capacity, standard, and ideal experiments should enter the immediate lifecycle persistence lane',
 );
 
 const schedulerLifecycleIndex = indexOfOrFail(

@@ -126,8 +126,13 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /if \(activePersistenceFile\?\.kind === 'heatCapacity'\) \{\s*scheduleHeatCapacitySemanticSceneCheckpointRef\.current\(\);\s*\}\s*scheduleWorkspacePersistenceRef\.current\(\);/,
-  'a Heat Capacity state update should schedule semantic scene capture before its ordinary persistence debounce',
+  /const setWorkbenchFiles = [\s\S]*scheduleHeatCapacitySemanticSceneCheckpointRef\.current\(\);\s*scheduleWorkspacePersistenceRef\.current\('semantic'\);\s*setFiles/,
+  'a semantic Heat Capacity state update should schedule scene capture before its bounded persistence debounce',
+);
+assert.match(
+  workbenchSource,
+  /const runtimeCheckpointAccepted =\s*scheduleWorkspacePersistenceRef\.current\('runtime-checkpoint'\);[\s\S]*runtimeCheckpointAccepted &&[\s\S]*activePersistenceFile\?\.kind === 'heatCapacity'[\s\S]*scheduleHeatCapacitySemanticSceneCheckpointRef\.current\(\);/,
+  'continuous experiment refreshes should only schedule scene capture when the 15-second runtime checkpoint is accepted',
 );
 assert.match(
   workbenchSource,

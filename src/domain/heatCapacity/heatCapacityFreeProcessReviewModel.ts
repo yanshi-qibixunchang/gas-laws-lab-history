@@ -5,13 +5,14 @@ import type {
 import {
   isHeatCapacityFreeTrialComplete,
 } from './heatCapacityFreeTrialModel.ts';
-import type {
-  HeatCapacityFreeEvent,
-  HeatCapacityFreeEventType,
-  HeatCapacityFreeTraceBranch,
-  HeatCapacityFreeTraceSample,
-  HeatCapacityFreeTraceStore,
-  HeatCapacityFreeTraceTrial,
+import {
+  getFreeTraceTrialBranchCount,
+  type HeatCapacityFreeEvent,
+  type HeatCapacityFreeEventType,
+  type HeatCapacityFreeTraceBranch,
+  type HeatCapacityFreeTraceSample,
+  type HeatCapacityFreeTraceStore,
+  type HeatCapacityFreeTraceTrial,
 } from './heatCapacityFreeTraceModel.ts';
 import type {
   HeatCapacityOperationUpperBound,
@@ -204,7 +205,9 @@ const createTrialOptions = (
   traceStore: HeatCapacityFreeTraceStore,
 ): HeatCapacityProcessReviewTrialOption[] => trials.map((trial, index) => {
   const traceTrial = findTraceTrial(traceStore, trial);
-  const branchCount = traceTrial?.branches.length ?? trial.branchCount;
+  const branchCount = traceTrial
+    ? getFreeTraceTrialBranchCount(traceTrial)
+    : trial.branchCount;
   return {
     trialId: trial.id,
     traceTrialId: traceTrial?.id ?? trial.traceTrialId,
@@ -597,7 +600,7 @@ const createSummary = (
   const gamma = trial.correctedSignals?.gamma ?? null;
   const branchCount = Math.max(
     trial.branchCount,
-    traceTrial.branches.length,
+    getFreeTraceTrialBranchCount(traceTrial),
   );
   return {
     trialIndex: trialIndex + 1,

@@ -329,6 +329,7 @@ import {
 } from './workbenchIndexedDbPersistence.ts';
 import {
   createWorkbenchPersistenceScheduler,
+  type WorkbenchPersistenceReason,
   type WorkbenchPersistenceScheduler,
   type WorkbenchPersistenceStatus,
 } from './workbenchPersistenceScheduler.ts';
@@ -4225,7 +4226,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
   ));
   const activeFileIdRef = useRef(initialSession.activeFileId);
   const selectedPanelRef = useRef<WorkbenchPanelKey>(initialSession.selectedPanel);
-  const scheduleWorkspacePersistenceRef = useRef<() => void>(() => undefined);
+  const scheduleWorkspacePersistenceRef = useRef<(
+    reason?: WorkbenchPersistenceReason,
+  ) => boolean>(() => false);
   const flushWorkspacePersistenceRef = useRef<(
     activeModeCheckpointOverride?: WorkbenchActiveModeCheckpointOverride,
   ) => Promise<boolean>>(async () => false);
@@ -5458,11 +5461,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
   useEffect(() => {
     closedFilesRef.current = closedFiles;
     selectedPanelRef.current = selectedPanel;
+    scheduleWorkspacePersistenceRef.current('semantic');
+  }, [activeFileId, closedFiles, selectedPanel]);
+
+  useEffect(() => {
     const activePersistenceFile = files.find((file) => file.id === activeFileId);
-    if (activePersistenceFile?.kind === 'heatCapacity') {
+    const runtimeCheckpointAccepted =
+      scheduleWorkspacePersistenceRef.current('runtime-checkpoint');
+    if (
+      runtimeCheckpointAccepted &&
+      activePersistenceFile?.kind === 'heatCapacity'
+    ) {
       scheduleHeatCapacitySemanticSceneCheckpointRef.current();
     }
-    scheduleWorkspacePersistenceRef.current();
     const nextLocation = {
       fileId: activeFileId,
       mode: activePersistenceFile?.kind === 'heatCapacity'
@@ -5477,7 +5488,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     ) {
       flushWorkspacePersistenceRef.current();
     }
-  }, [activeFileId, closedFiles, files, selectedPanel]);
+  }, [activeFileId, files]);
 
   useEffect(() => {
     renamingFileIdRef.current = renamingFileId;
@@ -5865,6 +5876,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const setWorkbenchFiles = (updater: (current: WorkbenchFileState[]) => WorkbenchFileState[]) => {
     if (desktopExitQuiescedRef.current) return;
+    scheduleHeatCapacitySemanticSceneCheckpointRef.current();
+    scheduleWorkspacePersistenceRef.current('semantic');
     setFiles((current) => {
       const next = updater(current);
       filesRef.current = next;
@@ -5887,10 +5900,26 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setFiles(nextFiles);
     setClosedFiles(nextClosedFiles);
     setActiveFileId(nextActiveFileId);
+    scheduleHeatCapacitySemanticSceneCheckpointRef.current();
+    scheduleWorkspacePersistenceRef.current('semantic');
   };
 
   const updateFileById = (fileId: string, updater: (file: WorkbenchFileState) => WorkbenchFileState) => {
     setWorkbenchFiles((current) => current.map((file) => (file.id === fileId ? updater(file) : file)));
+  };
+
+  const updateRuntimeFileById = (
+    fileId: string,
+    updater: (file: WorkbenchFileState) => WorkbenchFileState,
+  ) => {
+    if (desktopExitQuiescedRef.current) return;
+    setFiles((current) => {
+      const next = current.map((file) => (
+        file.id === fileId ? updater(file) : file
+      ));
+      filesRef.current = next;
+      return next;
+    });
   };
 
   const updateActiveFile = (updater: (file: WorkbenchFileState) => WorkbenchFileState) => {
@@ -11854,14 +11883,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
       preserveActiveHeatCapacityModeSession: pendingRefreshSession !== null,
     };
   };
-  scheduleWorkspacePersistenceRef.current = () => {
-    workspacePersistenceSchedulerRef.current?.schedule(createWorkspacePersistenceSnapshot);
+  scheduleWorkspacePersistenceRef.current = (reason = 'semantic') => {
+    return workspacePersistenceSchedulerRef.current?.schedule(
+      createWorkspacePersistenceSnapshot,
+      reason,
+    ) ?? false;
   };
   flushWorkspacePersistenceRef.current = async (activeModeCheckpointOverride) => {
     const snapshot = createWorkspacePersistenceSnapshot(activeModeCheckpointOverride);
     const scheduler = workspacePersistenceSchedulerRef.current;
     if (!scheduler) return false;
-    scheduler.schedule(() => snapshot);
+    scheduler.schedule(() => snapshot, 'lifecycle');
     return scheduler.flush();
   };
   const clearHeatCapacitySemanticCheckpointTimers = () => {
@@ -13406,7 +13438,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const finished = stats.phase === 'finished';
     const finalChartData = finished ? runtime.engine.getHistogramData(true) : file.finalChartData;
 
-    updateFileById(file.id, (currentFile) => {
+    const updateStandardFrameFile = finished
+      ? updateFileById
+      : updateRuntimeFileById;
+    updateStandardFrameFile(file.id, (currentFile) => {
       if (currentFile.kind !== 'standard') return currentFile;
       return {
         ...currentFile,
@@ -13472,7 +13507,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     if (!finished) {
       const latestPressureSummary = runtime.engine.getPressureMeasurementSummary();
-      updateFileById(file.id, (currentFile) => {
+      updateRuntimeFileById(file.id, (currentFile) => {
         if (currentFile.kind !== 'ideal') return currentFile;
         return {
           ...currentFile,
@@ -14004,6 +14039,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
     }
   };
 
+  const flushWorkspaceAfterRunStateCommit = () => {
+    window.setTimeout(() => {
+      void persistWorkspaceLifecycleCheckpointRef.current();
+    }, 0);
+  };
+
   const pauseHeatCapacityAutoDemo = () => {
     if (!autoDemoRunning) return;
     heatCapacityModeTransitionDemoClockRef.current = null;
@@ -14020,6 +14061,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     updateActiveFile((file) => file.kind === 'heatCapacity'
       ? { ...file, runState: 'paused', updatedAt: Date.now() }
       : file);
+    flushWorkspaceAfterRunStateCommit();
     pushLog(
       (language) => getHeatCapacityRealtimeCopy(language).autoDemoPausedLog(activeFile.name),
       'warning',
@@ -14291,6 +14333,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       runState: file.runState === 'running' ? 'paused' : file.runState,
       updatedAt: Date.now(),
     }));
+    flushWorkspaceAfterRunStateCommit();
     pushLog(
       (language) => workbenchCopies[language].logs.simulationPaused(
         activeFile.name,
@@ -14318,6 +14361,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
     if (activeFile.kind === 'heatCapacity') {
       terminateHeatCapacityAutoDemo();
+      flushWorkspaceAfterRunStateCommit();
       return;
     }
 
@@ -14339,6 +14383,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           updatedAt: Date.now(),
         };
       });
+      flushWorkspaceAfterRunStateCommit();
       pushLog(
         (language) => workbenchCopies[language].logs.standardTerminated(activeFile.name),
         'warning',
@@ -14368,6 +14413,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         updatedAt: Date.now(),
       };
     });
+    flushWorkspaceAfterRunStateCommit();
     pushLog(
       (language) => workbenchCopies[language].logs.idealTerminated(activeFile.name),
       'warning',

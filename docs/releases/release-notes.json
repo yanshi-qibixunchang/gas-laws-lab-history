@@ -3,6 +3,98 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "5.2.0",
+      "date": "2026-07-20",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.2.0",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.2.0/heat-capacity-lab-setup-5.2.0.exe"
+      },
+      "summary": {
+        "zh-CN": "5.2.0 是稳定性与兼容性更新：长时间实验不再因高频整量保存逐渐卡顿，并可无损迁移 4.2.3 和 5.1.1 的有效工作区；已撤回的 5.1.2 废版数据不在兼容承诺内。",
+        "zh-TW": "5.2.0 是穩定性與相容性更新：長時間實驗不再因高頻整量儲存逐漸卡頓，並可無損遷移 4.2.3 和 5.1.1 的有效工作區；已撤回的 5.1.2 廢版資料不在相容承諾內。",
+        "en": "Version 5.2.0 is a stability and compatibility update that removes high-frequency whole-workspace saves from long experiments and preserves valid 4.2.3 and 5.1.1 workspaces. Data written by the withdrawn 5.1.2 build is outside the compatibility guarantee."
+      },
+      "sections": [
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "保存与运行稳定性",
+            "zh-TW": "儲存與執行穩定性",
+            "en": "Save and runtime stability"
+          },
+          "items": [
+            {
+              "scope": "persistence-worker-scheduler",
+              "importance": "high",
+              "title": {
+                "zh-CN": "后台提交最新的工作区检查点",
+                "zh-TW": "背景提交最新的工作區檢查點",
+                "en": "Committed the latest workspace checkpoint in the background"
+              },
+              "body": {
+                "zh-CN": "语义操作使用 750 毫秒防抖和 2 秒最长等待，连续运行每 15 秒最多保存一次；V3 投影、指纹、候选代写入与回读校验移入 Worker，暂停、停止、隐藏和退出立即刷新。",
+                "zh-TW": "語義操作使用 750 毫秒防抖和 2 秒最長等待，連續執行每 15 秒最多儲存一次；V3 投影、指紋、候選代寫入與回讀校驗移入 Worker，暫停、停止、隱藏和結束立即刷新。",
+                "en": "Semantic operations use a 750 ms debounce and 2-second maximum wait, continuous running checkpoints at most every 15 seconds, and V3 projection, fingerprinting, candidate writes, and read-back verification run in a Worker. Pause, stop, hide, and exit flush immediately."
+              }
+            },
+            {
+              "scope": "save-failure-recovery",
+              "importance": "high",
+              "title": {
+                "zh-CN": "保存失败不再中断完整实验流程",
+                "zh-TW": "儲存失敗不再中斷完整實驗流程",
+                "en": "Kept save failures from interrupting complete experiment flows"
+              },
+              "body": {
+                "zh-CN": "临时事务错误按 250 毫秒、1 秒、3 秒重试；空间不足时清理无效候选代后重试。失败始终保留最后成功代，并以非阻断状态提示代替致命窗口。",
+                "zh-TW": "暫時交易錯誤按 250 毫秒、1 秒、3 秒重試；空間不足時清理無效候選代後重試。失敗始終保留最後成功代，並以非阻斷狀態提示取代致命視窗。",
+                "en": "Temporary transaction failures retry after 250 ms, 1 second, and 3 seconds, while quota failures prune invalid candidates before retrying. Failures retain the last verified generation and use non-blocking status instead of a fatal dialog."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "兼容与耐久",
+            "zh-TW": "相容與耐久",
+            "en": "Compatibility and endurance"
+          },
+          "items": [
+            {
+              "scope": "legacy-workspace-compatibility",
+              "importance": "high",
+              "title": {
+                "zh-CN": "固定支持两个历史版本的实验工作区",
+                "zh-TW": "固定支援兩個歷史版本的實驗工作區",
+                "en": "Added fixed compatibility for two historical workspace versions"
+              },
+              "body": {
+                "zh-CN": "由 Git 标签生成的 4.2.3 和 5.1.1 固定夹具验证标准模拟、理想气体和热容比文件的名称、类型、开闭状态、参数、测量、结果和模式在 V2 到 V3 迁移后保持一致；原 V2 数据保留不动。已撤回的 5.1.2 废版实验数据不在兼容承诺内。",
+                "zh-TW": "由 Git 標籤產生的 4.2.3 和 5.1.1 固定夾具驗證標準模擬、理想氣體和熱容比檔案的名稱、類型、開閉狀態、參數、測量、結果和模式在 V2 到 V3 遷移後保持一致；原 V2 資料保留不動。已撤回的 5.1.2 廢版實驗資料不在相容承諾內。",
+                "en": "Fixed fixtures generated from the 4.2.3 and 5.1.1 Git tags verify that standard, ideal-gas, and heat-capacity names, types, open/closed state, parameters, measurements, results, and modes survive V2-to-V3 migration while original V2 data remains unchanged. Experimental data written by the withdrawn 5.1.2 build is outside the compatibility guarantee."
+              }
+            },
+            {
+              "scope": "free-trace-v6-bounds",
+              "importance": "high",
+              "title": {
+                "zh-CN": "为 Free 轨迹建立版本 6 硬上限",
+                "zh-TW": "為 Free 軌跡建立版本 6 硬上限",
+                "en": "Introduced hard bounds for Free trace version 6"
+              },
+              "body": {
+                "zh-CN": "每分支最多 800 个采样和 320 个详细事件，每试验最多 4 个详细分支，每参数域最多 7 个已完成试验加 1 个当前试验。压缩摘要保留 U0/U1/U2、计算、评分、阶段和安全关系，并迁移 v4、v5 轨迹。",
+                "zh-TW": "每分支最多 800 個採樣和 320 個詳細事件，每試驗最多 4 個詳細分支，每參數域最多 7 個已完成試驗加 1 個目前試驗。壓縮摘要保留 U0/U1/U2、計算、評分、階段和安全關係，並遷移 v4、v5 軌跡。",
+                "en": "Each branch is limited to 800 samples and 320 detailed events, each trial to 4 detailed branches, and each parameter domain to 7 completed trials plus the active trial. Versioned summaries retain authoritative U0/U1/U2, calculation, scoring, phase, and safety relationships while migrating v4 and v5 traces."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "5.1.2",
       "date": "2026-07-18",
       "channel": "stable",

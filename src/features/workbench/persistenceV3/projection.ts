@@ -271,6 +271,36 @@ export const isWorkbenchPersistenceV3AuthoritativeMigrationAllowed = (
     const candidateAuthority = canonicalClone(sourceAuthority);
     const candidateDomains = candidateAuthority.freeDomains;
     if (!isPlainRecord(candidateDomains)) return false;
+    if (
+      !areCanonicalValuesEqual(
+        sourceAuthority.activeRuntime,
+        canonicalAuthority.activeRuntime,
+      )
+    ) {
+      if (
+        !isPlainRecord(sourceAuthority.activeRuntime) ||
+        !isPlainRecord(canonicalAuthority.activeRuntime) ||
+        sourceAuthority.activeRuntime.heatCapacityFreeTraceVersion !== 5 ||
+        canonicalAuthority.activeRuntime.heatCapacityFreeTraceVersion !==
+          HEAT_CAPACITY_FREE_TRACE_VERSION
+      ) {
+        return false;
+      }
+      const migratedActiveRuntime = canonicalClone(
+        sourceAuthority.activeRuntime,
+      );
+      migratedActiveRuntime.heatCapacityFreeTraceVersion =
+        HEAT_CAPACITY_FREE_TRACE_VERSION;
+      if (
+        !areCanonicalValuesEqual(
+          migratedActiveRuntime,
+          canonicalAuthority.activeRuntime,
+        )
+      ) {
+        return false;
+      }
+      candidateAuthority.activeRuntime = migratedActiveRuntime;
+    }
     for (const scheme of ['real', 'ideal'] as const) {
       const sourceDomain = sourceDomains[scheme];
       const canonicalDomain = canonicalDomains[scheme];
@@ -686,6 +716,11 @@ const repairHeatCapacityModeSessionCaches = (
     const fallback = createDefaultHeatCapacityFile(1);
     let repaired = false;
     let migrated = false;
+    if (free.heatCapacityFreeTraceVersion === 5) {
+      free.heatCapacityFreeTraceVersion =
+        HEAT_CAPACITY_FREE_TRACE_VERSION;
+      migrated = true;
+    }
     for (const [key, scheme, fallbackDomain] of [
       [
         'heatCapacityFreeRealDomain',
@@ -2320,7 +2355,11 @@ const reprojectHeatCapacityFile = (
     const [version, supportedVersion, fieldPath, code]
     of runtimeVersionCandidates
   ) {
-    if (version !== supportedVersion) {
+    const isLegacyTraceVersion =
+      fieldPath ===
+        'fields.authoritative.activeRuntime.heatCapacityFreeTraceVersion' &&
+      version === 5;
+    if (version !== supportedVersion && !isLegacyTraceVersion) {
       return projectionFailure('quarantined', projection, {
         fileId: projection.fileId,
         fileKind: 'heatCapacity',
@@ -2561,7 +2600,8 @@ const reprojectHeatCapacityFile = (
         theoreticalGamma: activeTheoreticalGamma,
       };
   return createWorkbenchPersistenceV3Success(
-    real.status === 'migrated' ||
+    authority.activeRuntime.heatCapacityFreeTraceVersion === 5 ||
+      real.status === 'migrated' ||
       ideal.status === 'migrated' ||
       modeSessionCacheRepair.migrated
       ? 'migrated'
