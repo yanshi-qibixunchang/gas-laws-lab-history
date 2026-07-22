@@ -23,7 +23,7 @@ assert.ok(promptCopySource.includes('closeRunningExperiment: (fileName: string) 
 
 assert.match(
   source,
-  /const \[closedFiles, setClosedFiles\] = useState<WorkbenchFileState\[]>\(\(\) => \{[\s\S]*loadClosedWorkbenchFiles\(\)\.map[\s\S]*prepareHeatCapacityFileForExploreOnOpen/,
+  /const \[initialOrdinaryClosedFiles\] = useState\(\(\) => \{[\s\S]*loadClosedWorkbenchFiles\(\)\.map[\s\S]*prepareHeatCapacityFileForExploreOnOpen[\s\S]*const \[closedFiles, setClosedFiles\] = useState<WorkbenchFileState\[]>/,
   'workbench should load closed cached experiment files and normalize heat-capacity files to Explore',
 );
 assert.match(

@@ -41,8 +41,12 @@ assert.match(noticeSource, /initialFocusRef=\{actionButtonRef\}/, 'notice focus 
 
 for (const token of [
   '--prompt-overlay',
-  '--prompt-window-shadow',
-  '--prompt-radius-window',
+  '--prompt-dialog-window-shadow',
+  '--prompt-dialog-radius-window',
+  '--prompt-dialog-window-padding',
+  '--prompt-dialog-header-height',
+  '--prompt-dialog-icon-size',
+  '--prompt-dialog-status-rule-width',
   '--prompt-motion-normal',
   '--prompt-focus',
 ]) {
@@ -52,7 +56,15 @@ assert.match(shellStyles, /\.studio-workbench\.studio-theme-light/, 'the shell s
 assert.match(shellStyles, /@media \(max-width: 520px\)/, 'the shell should stay usable in a small window');
 assert.match(shellStyles, /@media \(prefers-reduced-motion: reduce\)/, 'the shell should respect reduced motion');
 assert.match(noticeStyles, /overflow-wrap: anywhere/, 'long localized notice copy should wrap instead of clipping');
-assert.doesNotMatch(`${shellStyles}\n${noticeStyles}`, /backdrop-filter|linear-gradient|radial-gradient/, 'the B shell should stay restrained and avoid glass or gradient treatments');
+assert.match(shellStyles, /--prompt-dialog-radius-control: 3px/);
+assert.match(shellStyles, /--prompt-dialog-radius-window: 4px/);
+assert.match(shellStyles, /--prompt-dialog-window-padding: 12px/);
+assert.match(shellStyles, /--prompt-dialog-header-height: 42px/);
+assert.match(shellStyles, /--prompt-dialog-icon-size: 22px/);
+assert.match(shellStyles, /--prompt-dialog-status-rule-width: 0px/);
+assert.match(shellStyles, /--prompt-dialog-window-shadow: 0 8px 18px rgba\(0, 0, 0, 0\.18\)/);
+assert.match(noticeStyles, /padding: var\(--prompt-dialog-window-padding\)/, 'A notices should use compact window padding');
+assert.doesNotMatch(`${shellStyles}\n${noticeStyles}`, /backdrop-filter|linear-gradient|radial-gradient/, 'the A shell should stay traditional and avoid glass or gradient treatments');
 
 const migratedTaskWindows = [
   '../../src/features/workbench/WorkbenchGeneralSettingsWindow.tsx',

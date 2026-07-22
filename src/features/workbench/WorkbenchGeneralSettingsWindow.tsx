@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, RotateCcw } from 'lucide-react';
 import type { CSSProperties, RefObject } from 'react';
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import { HEAT_CAPACITY_QUALITY_MODE_ORDER } from '../heatCapacity/heatCapacityQualityProfiles.ts';
@@ -51,6 +51,14 @@ interface WorkbenchGeneralSettingsWindowProps {
   audioVolume: number;
   languageMenuOpen: boolean;
   languageTriggerRef: RefObject<HTMLButtonElement | null>;
+  learningCopy: {
+    title: string;
+    hint: string;
+    resetLabel: string;
+    resetHint: string;
+    resetDisabledHint: string;
+  };
+  heatCapacityTutorialActive: boolean;
   onClose: () => void;
   onThemeChange: (theme: WorkbenchThemePreference) => void;
   onLanguageChange: (language: WorkbenchLanguagePreference) => void;
@@ -58,6 +66,7 @@ interface WorkbenchGeneralSettingsWindowProps {
   onAudioEnabledChange: (enabled: boolean) => void;
   onAudioVolumeChange: (volume: number) => void;
   onLanguageMenuOpenChange: (open: boolean) => void;
+  onResetHeatCapacityLearning: () => void;
 }
 
 const WorkbenchAudioVolumeIcon = ({ level }: { level: WorkbenchAudioVolumeIconLevel }) => (
@@ -88,6 +97,8 @@ export const WorkbenchGeneralSettingsWindow = ({
   audioVolume,
   languageMenuOpen,
   languageTriggerRef,
+  learningCopy,
+  heatCapacityTutorialActive,
   onClose,
   onThemeChange,
   onLanguageChange,
@@ -95,6 +106,7 @@ export const WorkbenchGeneralSettingsWindow = ({
   onAudioEnabledChange,
   onAudioVolumeChange,
   onLanguageMenuOpenChange,
+  onResetHeatCapacityLearning,
 }: WorkbenchGeneralSettingsWindowProps) => {
   if (!open) return null;
 
@@ -258,6 +270,27 @@ export const WorkbenchGeneralSettingsWindow = ({
                 />
                 <output aria-live="polite">{Math.round(audioVolume * 100)}%</output>
               </div>
+            </div>
+          </section>
+
+          <section className="studio-settings-section studio-settings-control-row studio-settings-learning-row">
+            <div className="studio-settings-section-title">
+              <strong>{learningCopy.title}</strong>
+              <span>{learningCopy.hint}</span>
+            </div>
+            <div className="studio-settings-control-surface">
+              <button
+                type="button"
+                className="studio-settings-learning-action"
+                disabled={heatCapacityTutorialActive}
+                onClick={onResetHeatCapacityLearning}
+              >
+                <RotateCcw size={15} />
+                <span>
+                  <strong>{learningCopy.resetLabel}</strong>
+                  <small>{heatCapacityTutorialActive ? learningCopy.resetDisabledHint : learningCopy.resetHint}</small>
+                </span>
+              </button>
             </div>
           </section>
 

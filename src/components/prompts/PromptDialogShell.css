@@ -11,6 +11,13 @@
   --prompt-space-4: 14px;
   --prompt-radius-control: 4px;
   --prompt-radius-window: 5px;
+  --prompt-dialog-radius-control: 3px;
+  --prompt-dialog-radius-window: 4px;
+  --prompt-dialog-window-padding: 12px;
+  --prompt-dialog-header-height: 42px;
+  --prompt-dialog-icon-size: 22px;
+  --prompt-dialog-status-rule-width: 0px;
+  --prompt-dialog-window-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
   --prompt-motion-fast: 120ms;
   --prompt-motion-normal: 170ms;
   --prompt-motion-ease: cubic-bezier(0.2, 0, 0, 1);
@@ -110,9 +117,9 @@
   max-height: calc(100vh - 48px);
   overflow: hidden;
   border: 1px solid var(--prompt-border);
-  border-radius: var(--prompt-radius-window);
+  border-radius: var(--prompt-dialog-radius-window);
   background: var(--prompt-surface-raised);
-  box-shadow: var(--prompt-window-shadow);
+  box-shadow: var(--prompt-dialog-window-shadow);
   color: var(--prompt-text);
   font-family: var(--prompt-font-ui);
   padding: 0;
@@ -139,34 +146,34 @@
 .prompt-dialog-header.prompt-dialog-header[data-prompt-shell-header='true'] {
   position: relative;
   display: grid;
-  min-height: 48px;
+  min-height: var(--prompt-dialog-header-height);
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--prompt-space-2);
   border-bottom: 1px solid var(--prompt-border-soft);
   background: var(--prompt-surface-muted);
-  padding: 7px var(--prompt-space-4);
+  padding: 6px var(--prompt-dialog-window-padding);
 }
 
 .prompt-dialog-header.prompt-dialog-header[data-prompt-header-icon='true'] {
-  grid-template-columns: 30px minmax(0, 1fr) auto;
+  grid-template-columns: var(--prompt-dialog-icon-size) minmax(0, 1fr) auto;
 }
 
 .prompt-dialog-header.prompt-dialog-header[data-prompt-shell-header='true']::before {
   position: absolute;
   inset: 0 auto 0 0;
-  width: 3px;
+  width: var(--prompt-dialog-status-rule-width);
   background: var(--prompt-tone);
   content: '';
 }
 
 .prompt-dialog-icon {
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: var(--prompt-dialog-icon-size);
+  height: var(--prompt-dialog-icon-size);
   place-items: center;
   border: 1px solid var(--prompt-tone-border);
-  border-radius: var(--prompt-radius-control);
+  border-radius: var(--prompt-dialog-radius-control);
   background: var(--prompt-tone-soft);
   color: var(--prompt-tone);
 }
@@ -208,7 +215,7 @@
   flex: 0 0 auto;
   place-items: center;
   border: 1px solid var(--prompt-border-soft);
-  border-radius: var(--prompt-radius-control);
+  border-radius: var(--prompt-dialog-radius-control);
   background: var(--prompt-surface-raised);
   color: var(--prompt-muted);
   padding: 0;

@@ -8,7 +8,7 @@
   align-content: start;
   gap: var(--prompt-space-3);
   overflow: auto;
-  padding: var(--prompt-space-4);
+  padding: var(--prompt-dialog-window-padding);
 }
 
 .prompt-notice-body p {
@@ -29,7 +29,7 @@
   justify-content: flex-end;
   border-top: 1px solid var(--prompt-border-soft);
   background: var(--prompt-surface-muted);
-  padding: 9px var(--prompt-space-4);
+  padding: 8px var(--prompt-dialog-window-padding);
 }
 
 .prompt-notice-action {
@@ -38,7 +38,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid var(--prompt-tone-border);
-  border-radius: var(--prompt-radius-control);
+  border-radius: var(--prompt-dialog-radius-control);
   background: var(--prompt-primary-bg);
   color: var(--prompt-primary-text);
   padding: 0 12px;

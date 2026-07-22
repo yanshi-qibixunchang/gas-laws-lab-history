@@ -65,7 +65,7 @@ import {
 } from './workbenchState.ts';
 import { assertUniqueWorkbenchFileCollections } from './workbenchFileIdentity.ts';
 import { isWorkbenchPanelKey } from './workbenchPanelRegistry.ts';
-import { isPersistenceRecord } from './workbenchPersistenceValue.ts';
+import { clonePersistenceValue, isPersistenceRecord } from './workbenchPersistenceValue.ts';
 import {
   areCanonicalPersistenceValuesEqual,
   isCanonicalPistonOscillationWorkspaceFile,
@@ -183,6 +183,12 @@ export type WorkbenchWorkspacePersistenceSnapshot = {
   preserveActiveHeatCapacityModeSession: boolean;
   migrationModeCaptureOverrides?: readonly WorkbenchMigrationModeCaptureOverride[];
 };
+
+export interface WorkbenchArchivedNamespaceSnapshot {
+  namespace: string;
+  files: WorkbenchFileState[];
+  closedFiles: WorkbenchFileState[];
+}
 
 export type WorkbenchActiveModeCheckpointOverride = {
   provided: true;
@@ -2913,6 +2919,40 @@ const waitForReadyWorkspaceAfterMigrationConflict = async (
       );
     });
   }
+};
+
+export const loadWorkbenchArchivedNamespaceSnapshot = async (
+  namespace: string,
+): Promise<WorkbenchArchivedNamespaceSnapshot | null> => {
+  if (!isExplicitWorkbenchNamespace(namespace)) {
+    throw new Error('The archived workbench namespace is invalid.');
+  }
+  if (!window.indexedDB) {
+    throw new Error('IndexedDB is unavailable in this runtime.');
+  }
+
+  const database = await openWorkbenchDatabase();
+  const restoredV3 = await restoreWorkbenchPersistenceV3ProductionWorkspace(
+    new IndexedDbWorkbenchPersistenceV3GenerationStore(database),
+    namespace,
+  );
+  if (restoredV3) {
+    return {
+      namespace,
+      files: clonePersistenceValue(restoredV3.files),
+      closedFiles: clonePersistenceValue(restoredV3.closedFiles),
+    };
+  }
+
+  const currentMeta = await readWorkspaceMetaRecord(database, namespace);
+  if (currentMeta?.migrationState !== 'ready') return null;
+  const restoredV2 = await loadReadyWorkspaceWithRefreshMetadataRecovery(database, namespace);
+  if (!restoredV2) return null;
+  return {
+    namespace,
+    files: clonePersistenceValue(restoredV2.session.files),
+    closedFiles: clonePersistenceValue(restoredV2.closedFiles),
+  };
 };
 
 const commitRestoredV2WorkspaceIntoV3 = async (

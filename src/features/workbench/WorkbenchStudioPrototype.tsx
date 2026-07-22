@@ -34,9 +34,16 @@ import { translations } from '../../i18n/translations';
 import SimulationCanvas from '../../components/SimulationCanvas';
 import {
   PromptConfirmDialog,
+  type PromptConfirmationRequest,
   usePromptConfirmation,
 } from '../../components/prompts/PromptConfirmDialog.tsx';
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
+import {
+  PromptForcedNoticeDialog,
+  PromptNoticeDialog,
+  type PromptForcedNoticeRequest,
+  type PromptNoticeRequest,
+} from '../../components/prompts/PromptNoticeDialog.tsx';
 import {
   PromptToastRegion,
   type PromptToastMessage,
@@ -136,6 +143,7 @@ import {
   clampWorkbenchLiveSplitRatio,
   validateWorkbenchParams,
   type WorkbenchExportEnvironmentStatus,
+  type WorkbenchFileLayoutDefaults,
   type WorkbenchFileKind,
   type WorkbenchFileState,
   type HeatCapacityMode,
@@ -335,6 +343,7 @@ import {
 } from './workbenchSession.ts';
 import {
   createWorkbenchActiveModeCheckpointOverride,
+  loadWorkbenchArchivedNamespaceSnapshot,
   resolveWorkbenchActiveModeCheckpointOverride,
   saveWorkbenchWorkspaceToIndexedDb,
   type WorkbenchActiveModeCheckpointOverride,
@@ -351,6 +360,7 @@ import {
   createUniqueWorkbenchFileId,
   getNextWorkbenchFileDisplayIndex,
 } from './workbenchFileIdentity.ts';
+import { areCanonicalPersistenceValuesEqual } from './workbenchWorkspaceFileValidation.ts';
 import { assertNeverWorkbenchFileKind } from './workbenchFileKind.ts';
 import { trimWorkbenchEditHistory } from './workbenchEditHistory.ts';
 import {
@@ -489,6 +499,38 @@ import {
   suspendHeatCapacityModeSession,
 } from './workbenchHeatCapacityModeSession.ts';
 import {
+  completeHeatCapacityTutorialProfile,
+  isHeatCapacityTutorialActive,
+  startHeatCapacityTutorialProfile,
+  unlockHeatCapacityGuideProfile,
+  type AppExperienceProfile,
+  type ExperimentLearningMilestone,
+} from '../learning/experimentLearningModel.ts';
+import {
+  loadAppExperienceProfile,
+  persistAppExperienceProfile,
+} from '../learning/experimentLearningStore.ts';
+import {
+  claimHeatCapacityTutorialOwnership,
+  createExperimentLearningChannel,
+  releaseHeatCapacityTutorialOwnership,
+} from '../learning/experimentLearningChannel.ts';
+import {
+  evaluateWorkbenchTutorialAccess,
+  isHeatCapacityTutorialModeUnlocked,
+  type WorkbenchTutorialAccessAction,
+} from '../learning/workbenchTutorialAccessPolicy.ts';
+import {
+  HEAT_CAPACITY_TUTORIAL_FILE_ID,
+  clearHeatCapacityTutorialHandoff,
+  getHeatCapacityTutorialFileName,
+  getHeatCapacityTutorialMilestoneLogs,
+  isHeatCapacityTutorialFileId,
+  loadHeatCapacityTutorialHandoff,
+  persistHeatCapacityTutorialHandoff,
+  shouldReconstructHeatCapacityTutorial,
+} from '../learning/workbenchTutorialCoordinator.ts';
+import {
   hasSameHeatCapacityRuntimeRecoveryState,
   rebaseHeatCapacityFileAfterSuspendedWallClock,
 } from './workbenchHeatCapacityTimeRebase.ts';
@@ -517,6 +559,153 @@ const HEAT_CAPACITY_REFRESH_SCENE_REVISION = 'heat-capacity-instrument-scene-v1'
 const HEAT_CAPACITY_LIFECYCLE_DUPLICATE_FLUSH_WINDOW_MS = 250;
 const HEAT_CAPACITY_SEMANTIC_CHECKPOINT_DEBOUNCE_MS = 120;
 const HEAT_CAPACITY_SEMANTIC_CHECKPOINT_MAX_WAIT_MS = 600;
+const HEAT_CAPACITY_TUTORIAL_INSTANCE_ID = typeof globalThis.crypto?.randomUUID === 'function'
+  ? globalThis.crypto.randomUUID()
+  : `tutorial-window-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+type HeatCapacityTutorialNoticeKind =
+  | 'start-demo'
+  | 'resume-demo'
+  | 'guide-unlocked'
+  | 'resume-guide'
+  | 'all-unlocked';
+
+interface TutorialOrdinaryWorkspace {
+  files: WorkbenchFileState[];
+  closedFiles: WorkbenchFileState[];
+  activeFileId: string;
+  selectedPanel: WorkbenchPanelKey;
+}
+
+const HEAT_CAPACITY_TUTORIAL_COPY: Record<WorkbenchLanguagePreference, {
+  settingsTitle: string;
+  settingsHint: string;
+  resetLabel: string;
+  resetHint: string;
+  resetDisabledHint: string;
+  resetEyebrow: string;
+  resetTitle: string;
+  resetBody: string;
+  resetConsequence: string;
+  cancel: string;
+  confirmReset: string;
+  blockedEyebrow: string;
+  blockedTitle: string;
+  blockedBody: string;
+  acknowledge: string;
+  startDemoTitle: string;
+  startDemoBody: string;
+  resumeDemoTitle: string;
+  resumeDemoBody: string;
+  guideUnlockedTitle: string;
+  guideUnlockedBody: string;
+  resumeGuideTitle: string;
+  resumeGuideBody: string;
+  allUnlockedTitle: string;
+  allUnlockedBody: string;
+  operationFailedTitle: string;
+  retry: string;
+  remoteTitle: string;
+  remoteBody: string;
+  recheck: string;
+}> = {
+  'zh-CN': {
+    settingsTitle: '学习与引导',
+    settingsHint: '管理实验学习进度；现有实验数据不会被删除。',
+    resetLabel: '重置绝热膨胀学习进度',
+    resetHint: '重新体验演示、引导与全部模式解锁流程',
+    resetDisabledHint: '当前正在进行绝热膨胀学习流程',
+    resetEyebrow: '学习进度',
+    resetTitle: '重新开始绝热膨胀学习流程？',
+    resetBody: '开始后，现有实验文件会暂时无法打开，直到完成当前学习流程。',
+    resetConsequence: '现有文件不会被删除、清理或丢失；完成学习后可重新打开。',
+    cancel: '取消',
+    confirmReset: '开始学习流程',
+    blockedEyebrow: '学习流程进行中',
+    blockedTitle: '该操作暂时不可用',
+    blockedBody: '完成当前学习流程后即可使用其他实验文件',
+    acknowledge: '我知道了',
+    startDemoTitle: '您当前只可以使用演示模式',
+    startDemoBody: '先观看一次完整演示；演示结束后将自动解锁引导模式。',
+    resumeDemoTitle: '继续完成演示模式',
+    resumeDemoBody: '上次已进入演示学习阶段，本次将从演示模式第一步重新开始。',
+    guideUnlockedTitle: '您已经解锁了引导模式',
+    guideUnlockedBody: '接下来请按引导完成实验操作和数据处理。',
+    resumeGuideTitle: '继续完成引导模式',
+    resumeGuideBody: '上次已解锁引导模式，本次将从引导模式第一步重新开始。',
+    allUnlockedTitle: '您已经解锁自由模式和全部模式',
+    allUnlockedBody: '现在可以打开旧有文件、新建其他实验文件，也可以在当前新文件中自由选择实验模式。',
+    operationFailedTitle: '学习流程未能安全更新',
+    retry: '重试',
+    remoteTitle: '学习流程已在另一个窗口中打开',
+    remoteBody: '当前窗口已暂停实验文件操作。请在正在进行学习流程的窗口中完成教程。',
+    recheck: '重新检查',
+  },
+  'zh-TW': {
+    settingsTitle: '學習與引導',
+    settingsHint: '管理實驗學習進度；現有實驗資料不會被刪除。',
+    resetLabel: '重設絕熱膨脹學習進度',
+    resetHint: '重新體驗演示、引導與全部模式解鎖流程',
+    resetDisabledHint: '目前正在進行絕熱膨脹學習流程',
+    resetEyebrow: '學習進度',
+    resetTitle: '重新開始絕熱膨脹學習流程？',
+    resetBody: '開始後，現有實驗檔案會暫時無法開啟，直到完成目前學習流程。',
+    resetConsequence: '現有檔案不會被刪除、清理或遺失；完成學習後可重新開啟。',
+    cancel: '取消',
+    confirmReset: '開始學習流程',
+    blockedEyebrow: '學習流程進行中',
+    blockedTitle: '此操作暫時無法使用',
+    blockedBody: '完成目前學習流程後即可使用其他實驗檔案',
+    acknowledge: '我知道了',
+    startDemoTitle: '您目前只可以使用演示模式',
+    startDemoBody: '先觀看一次完整演示；演示結束後將自動解鎖引導模式。',
+    resumeDemoTitle: '繼續完成演示模式',
+    resumeDemoBody: '上次已進入演示學習階段，本次將從演示模式第一步重新開始。',
+    guideUnlockedTitle: '您已經解鎖了引導模式',
+    guideUnlockedBody: '接下來請依引導完成實驗操作與資料處理。',
+    resumeGuideTitle: '繼續完成引導模式',
+    resumeGuideBody: '上次已解鎖引導模式，本次將從引導模式第一步重新開始。',
+    allUnlockedTitle: '您已經解鎖自由模式與全部模式',
+    allUnlockedBody: '現在可以開啟舊有檔案、建立其他實驗檔案，也可以在目前新檔案中自由選擇實驗模式。',
+    operationFailedTitle: '學習流程未能安全更新',
+    retry: '重試',
+    remoteTitle: '學習流程已在另一個視窗中開啟',
+    remoteBody: '目前視窗已暫停實驗檔案操作。請在正在進行學習流程的視窗中完成教學。',
+    recheck: '重新檢查',
+  },
+  en: {
+    settingsTitle: 'Learning & Guidance',
+    settingsHint: 'Manage experiment learning progress without deleting existing data.',
+    resetLabel: 'Reset adiabatic-expansion learning progress',
+    resetHint: 'Replay the Demo, Guide, and full-mode unlock sequence',
+    resetDisabledHint: 'The adiabatic-expansion learning flow is currently active',
+    resetEyebrow: 'Learning progress',
+    resetTitle: 'Restart the adiabatic-expansion learning flow?',
+    resetBody: 'Existing experiment files will be temporarily unavailable until this learning flow is complete.',
+    resetConsequence: 'Existing files will not be deleted, cleared, or lost; they can be opened again afterward.',
+    cancel: 'Cancel',
+    confirmReset: 'Start learning flow',
+    blockedEyebrow: 'Learning flow active',
+    blockedTitle: 'This action is temporarily unavailable',
+    blockedBody: 'Complete the current learning flow to use other experiment files.',
+    acknowledge: 'OK',
+    startDemoTitle: 'Only Demo mode is currently available',
+    startDemoBody: 'Watch one complete demonstration. Guide mode will unlock automatically afterward.',
+    resumeDemoTitle: 'Continue Demo mode',
+    resumeDemoBody: 'The Demo stage was previously started and will restart from its first step.',
+    guideUnlockedTitle: 'Guide mode is now unlocked',
+    guideUnlockedBody: 'Next, follow the guidance to complete the experiment and data processing.',
+    resumeGuideTitle: 'Continue Guide mode',
+    resumeGuideBody: 'Guide mode was previously unlocked and will restart from its first step.',
+    allUnlockedTitle: 'Free mode and all modes are now unlocked',
+    allUnlockedBody: 'You can now open older files, create experiments, and choose any mode in the new current file.',
+    operationFailedTitle: 'The learning flow could not be updated safely',
+    retry: 'Retry',
+    remoteTitle: 'The learning flow is open in another window',
+    remoteBody: 'Experiment-file actions are paused here. Complete the tutorial in the window that owns it.',
+    recheck: 'Check again',
+  },
+};
 
 const isHeatCapacityRefreshRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -3692,6 +3881,94 @@ const createInitialLogs = (language: WorkbenchLanguagePreference): ConsoleLog[] 
   createConsoleLog(4, 'warning', (nextLanguage) => workbenchCopies[nextLanguage].logs.exportBridgeRequired, language),
 ];
 
+const getHeatCapacityTutorialLogMessage = (
+  id: ReturnType<typeof getHeatCapacityTutorialMilestoneLogs>[number]['id'],
+  language: WorkbenchLanguagePreference,
+) => {
+  if (language === 'en') {
+    if (id === 'demo-started') return 'Demonstration tutorial started.';
+    if (id === 'guide-unlocked') return 'Guide mode unlocked.';
+    return 'Free mode and all experiment modes unlocked.';
+  }
+  if (language === 'zh-TW') {
+    if (id === 'demo-started') return '演示教學開始';
+    if (id === 'guide-unlocked') return '引導模式已解鎖';
+    return '自由模式與全部模式已解鎖';
+  }
+  if (id === 'demo-started') return '演示教程开始';
+  if (id === 'guide-unlocked') return '引导模式解锁';
+  return '自由模式和全部模式解锁';
+};
+
+const createHeatCapacityTutorialLogs = (
+  milestone: ExperimentLearningMilestone,
+  language: WorkbenchLanguagePreference,
+): ConsoleLog[] => getHeatCapacityTutorialMilestoneLogs(milestone).map((entry, index) => (
+  createConsoleLog(
+    index + 1,
+    entry.kind,
+    (nextLanguage) => getHeatCapacityTutorialLogMessage(entry.id, nextLanguage),
+    language,
+  )
+));
+
+const createHeatCapacityTutorialRuntimeFile = (
+  defaults?: WorkbenchFileLayoutDefaults,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  const defaultFile = createDefaultHeatCapacityFile(1, defaults);
+  return enterHeatCapacityExploreModeWorkbenchState({
+    ...defaultFile,
+    id: HEAT_CAPACITY_TUTORIAL_FILE_ID,
+    name: getHeatCapacityTutorialFileName(),
+    updatedAt: now,
+  }, defaultFile, now);
+};
+
+const mergeArchivedNamespacesIntoTutorialWorkspace = async (
+  workspace: TutorialOrdinaryWorkspace,
+  namespaces: readonly string[],
+): Promise<TutorialOrdinaryWorkspace> => {
+  if (namespaces.length === 0) return workspace;
+  const archivedSnapshots = await Promise.all(
+    namespaces.map(async (namespace) => {
+      const snapshot = await loadWorkbenchArchivedNamespaceSnapshot(namespace);
+      if (!snapshot) {
+        throw new Error(`Saved workbench data could not be restored for ${namespace}.`);
+      }
+      return snapshot;
+    }),
+  );
+  const archivedFiles = archivedSnapshots.flatMap((snapshot) => [
+    ...snapshot.files,
+    ...snapshot.closedFiles,
+  ]);
+  const existingFilesById = new Map(
+    [...workspace.files, ...workspace.closedFiles].map((file) => [file.id, file]),
+  );
+  const filesToArchive = archivedFiles.filter((file) => {
+    const existing = existingFilesById.get(file.id);
+    if (!existing) {
+      existingFilesById.set(file.id, file);
+      return true;
+    }
+    if (!areCanonicalPersistenceValuesEqual(existing, file)) {
+      throw new Error(`Two saved experiment files share the same identity: ${file.id}.`);
+    }
+    return false;
+  });
+  const merged = {
+    ...workspace,
+    files: cloneWorkbenchFiles(workspace.files),
+    closedFiles: cloneWorkbenchFiles([
+      ...workspace.closedFiles,
+      ...filesToArchive,
+    ]),
+  };
+  assertUniqueWorkbenchFileCollections(merged.files, merged.closedFiles, merged.activeFileId);
+  return merged;
+};
+
 const getWorkbenchParameterDisplayLabel = (
   param: WorkbenchParameterRow,
   copy: WorkbenchCopy,
@@ -3730,7 +4007,20 @@ const isEditableElement = (element: EventTarget | Element | null) => {
 
 const WorkbenchStudioPrototype: React.FC = () => {
   const { settings: audioSettings, updateSettings: updateAudioSettings } = useAudioEngine();
-  const [initialSession] = useState(() => {
+  const [initialExperienceProfileLoad] = useState(() => loadAppExperienceProfile());
+  const [experienceProfile, setExperienceProfile] = useState<AppExperienceProfile>(
+    initialExperienceProfileLoad.profile,
+  );
+  const [initialTutorialHandoff] = useState(() => loadHeatCapacityTutorialHandoff());
+  const initialTutorialReconstruction = shouldReconstructHeatCapacityTutorial(
+    initialExperienceProfileLoad.profile,
+  );
+  const initialTutorialHandoffRecovery = (
+    initialTutorialHandoff.status === 'loaded' &&
+    initialExperienceProfileLoad.profile.learning.heatCapacity === 'unlocked' &&
+    initialExperienceProfileLoad.profile.activeTutorialExperiment === null
+  );
+  const [initialOrdinarySession] = useState(() => {
     const session = loadWorkbenchSession();
     const now = Date.now();
     return {
@@ -3746,7 +4036,62 @@ const WorkbenchStudioPrototype: React.FC = () => {
       )),
     };
   });
-  const [loadedHeatCapacityRefreshSession] = useState(() => loadWorkbenchHeatCapacityRefreshSession());
+  const [initialOrdinaryClosedFiles] = useState(() => {
+    const now = Date.now();
+    return loadClosedWorkbenchFiles().map((file, index) => (
+      file.kind === 'heatCapacity'
+        ? prepareHeatCapacityFileForExploreOnOpen(
+            file,
+            createDefaultHeatCapacityFile(index + 1),
+            now,
+          )
+        : file
+    ));
+  });
+  const [initialSession] = useState(() => {
+    if (initialTutorialReconstruction) {
+      const tutorialFile = createHeatCapacityTutorialRuntimeFile(
+        loadWorkbenchLayoutDefaults().heatCapacity,
+      );
+      return {
+        files: [tutorialFile],
+        activeFileId: tutorialFile.id,
+        selectedPanel: 'preview' as const,
+      };
+    }
+    if (initialTutorialHandoffRecovery) {
+      const ordinaryFiles = [...initialOrdinarySession.files, ...initialOrdinaryClosedFiles];
+      const targetFileId = initialTutorialHandoff.status === 'loaded'
+        ? initialTutorialHandoff.marker.targetFileId
+        : '';
+      const existingTargetFile = ordinaryFiles.find((file) => file.id === targetFileId);
+      if (existingTargetFile) {
+        return {
+          files: [existingTargetFile],
+          activeFileId: existingTargetFile.id,
+          selectedPanel: 'preview' as const,
+        };
+      }
+      const index = getNextWorkbenchFileDisplayIndex('heatCapacity', ordinaryFiles);
+      const defaultFile = createDefaultHeatCapacityFile(
+        index,
+        loadWorkbenchLayoutDefaults().heatCapacity,
+      );
+      const freshFile = enterHeatCapacityExploreModeWorkbenchState({
+        ...defaultFile,
+        id: targetFileId,
+      }, defaultFile);
+      return {
+        files: [freshFile],
+        activeFileId: freshFile.id,
+        selectedPanel: 'preview' as const,
+      };
+    }
+    return initialOrdinarySession;
+  });
+  const [loadedHeatCapacityRefreshSession] = useState(() => (
+    initialTutorialReconstruction ? null : loadWorkbenchHeatCapacityRefreshSession()
+  ));
   const initialHeatCapacityRefreshSession = useMemo(() => {
     if (!loadedHeatCapacityRefreshSession) return null;
     if (initialSession.activeFileId !== loadedHeatCapacityRefreshSession.activeHeatCapacityFileId) return null;
@@ -3916,18 +4261,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
       };
     });
   });
-  const [closedFiles, setClosedFiles] = useState<WorkbenchFileState[]>(() => {
-    const now = Date.now();
-    return loadClosedWorkbenchFiles().map((file, index) => (
-      file.kind === 'heatCapacity'
-        ? prepareHeatCapacityFileForExploreOnOpen(
-            file,
-            createDefaultHeatCapacityFile(index + 1),
-            now,
-          )
-        : file
-    ));
-  });
+  const [closedFiles, setClosedFiles] = useState<WorkbenchFileState[]>(() => (
+    initialTutorialReconstruction
+      ? []
+      : initialTutorialHandoffRecovery
+        ? [...initialOrdinarySession.files, ...initialOrdinaryClosedFiles].filter((file) => (
+            initialTutorialHandoff.status !== 'loaded' ||
+            file.id !== initialTutorialHandoff.marker.targetFileId
+          ))
+        : initialOrdinaryClosedFiles
+  ));
   const initialGeneralSettings = useMemo(() => loadWorkbenchGeneralSettings(), []);
   const [activeFileId, setActiveFileId] = useState(initialSession.activeFileId);
   const [selectedFileId, setSelectedFileId] = useState(() => {
@@ -3978,6 +4321,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
         ...(messages ? { messages } : {}),
       }];
     });
+    if (initialTutorialReconstruction || initialTutorialHandoffRecovery) {
+      return createHeatCapacityTutorialLogs(
+        initialTutorialHandoffRecovery
+          ? 'unlocked'
+          : initialExperienceProfileLoad.profile.learning.heatCapacity,
+        initialGeneralSettings.language,
+      );
+    }
     return normalizedLogs.length > 0 ? normalizedLogs : createInitialLogs(initialGeneralSettings.language);
   });
   const [exportEnvironmentStatus, setExportEnvironmentStatus] = useState<WorkbenchExportEnvironmentStatus>(() => (
@@ -4076,6 +4427,26 @@ const WorkbenchStudioPrototype: React.FC = () => {
     cancelConfirmation: cancelPromptConfirmation,
     confirmConfirmation: confirmPromptConfirmation,
   } = usePromptConfirmation();
+  const [tutorialNoticeKind, setTutorialNoticeKind] = useState<HeatCapacityTutorialNoticeKind | null>(() => {
+    if (initialTutorialHandoffRecovery) return null;
+    if (!initialTutorialReconstruction) return null;
+    if (window.hardSphereLabTutorial) return null;
+    return initialExperienceProfileLoad.profile.learning.heatCapacity === 'guide'
+      ? 'resume-guide'
+      : 'resume-demo';
+  });
+  const tutorialNoticeKindRef = useRef<HeatCapacityTutorialNoticeKind | null>(tutorialNoticeKind);
+  const [tutorialBlockedNoticeOpen, setTutorialBlockedNoticeOpen] = useState(false);
+  const [remoteTutorialOwnerActive, setRemoteTutorialOwnerActive] = useState(false);
+  const [tutorialOperationError, setTutorialOperationError] = useState<{
+    message: string;
+    retry: (() => void) | null;
+  } | null>(null);
+  const tutorialGuideUnlockPendingRef = useRef(false);
+  const experienceProfileRef = useRef(experienceProfile);
+  const experienceProfilePersistedRef = useRef(initialExperienceProfileLoad.persisted);
+  const tutorialActive = isHeatCapacityTutorialActive(experienceProfile);
+  const tutorialActiveRef = useRef(tutorialActive);
   const settingsLanguageTriggerRef = useRef<HTMLButtonElement | null>(null);
   const workbenchCopy = workbenchCopies[settingsLanguagePreference];
   const workbenchPromptCopy = workbenchPromptCopies[settingsLanguagePreference];
@@ -4277,6 +4648,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const idealRuntimeRef = useRef<Record<string, StandardEngineRuntime>>({});
   const filesRef = useRef<WorkbenchFileState[]>(files);
   const closedFilesRef = useRef<WorkbenchFileState[]>(closedFiles);
+  const tutorialOrdinaryWorkspaceRef = useRef<TutorialOrdinaryWorkspace | null>(
+    initialTutorialReconstruction
+      ? {
+          files: initialOrdinarySession.files,
+          closedFiles: initialOrdinaryClosedFiles,
+          activeFileId: initialOrdinarySession.activeFileId,
+          selectedPanel: initialOrdinarySession.selectedPanel,
+        }
+      : null,
+  );
+  const experimentLearningChannelRef = useRef<ReturnType<typeof createExperimentLearningChannel> | null>(null);
   const issuedWorkbenchFileIdsRef = useRef(new Set(
     [
       ...files.map((file) => file.id),
@@ -5518,6 +5900,178 @@ const WorkbenchStudioPrototype: React.FC = () => {
   }, [files]);
 
   useEffect(() => {
+    experienceProfileRef.current = experienceProfile;
+    tutorialActiveRef.current = isHeatCapacityTutorialActive(experienceProfile);
+  }, [experienceProfile]);
+
+  useEffect(() => {
+    tutorialNoticeKindRef.current = tutorialNoticeKind;
+  }, [tutorialNoticeKind]);
+
+  useEffect(() => {
+    if (!tutorialActive || window.hardSphereLabWindow) return undefined;
+    const confirmBrowserExit = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', confirmBrowserExit);
+    return () => window.removeEventListener('beforeunload', confirmBrowserExit);
+  }, [tutorialActive]);
+
+  useEffect(() => {
+    const channel = createExperimentLearningChannel(
+      HEAT_CAPACITY_TUTORIAL_INSTANCE_ID,
+      ({ profile }) => {
+        const externalTutorialActive = isHeatCapacityTutorialActive(profile);
+        const ownsVisibleTutorial = filesRef.current.some((file) => (
+          isHeatCapacityTutorialFileId(file.id)
+        ));
+        setExperienceProfile(profile);
+        if (externalTutorialActive && !ownsVisibleTutorial) {
+          setRemoteTutorialOwnerActive(true);
+        } else if (!externalTutorialActive) {
+          setRemoteTutorialOwnerActive(false);
+        }
+      },
+    );
+    experimentLearningChannelRef.current = channel;
+
+    const claimCurrentTutorial = () => {
+      if (!tutorialActiveRef.current) return;
+      if (!filesRef.current.some((file) => isHeatCapacityTutorialFileId(file.id))) return;
+      try {
+        const claimed = claimHeatCapacityTutorialOwnership(
+          HEAT_CAPACITY_TUTORIAL_INSTANCE_ID,
+          window.localStorage,
+        );
+        setRemoteTutorialOwnerActive(!claimed);
+      } catch (cause) {
+        setTutorialOperationError({
+          message: cause instanceof Error ? cause.message : String(cause),
+          retry: claimCurrentTutorial,
+        });
+      }
+    };
+    claimCurrentTutorial();
+    if (
+      tutorialActiveRef.current &&
+      filesRef.current.some((file) => isHeatCapacityTutorialFileId(file.id))
+    ) {
+      void window.hardSphereLabTutorial?.activate?.()
+        .then(async (result) => {
+          if (result.status === 'ok') {
+            const archivedNamespaces = result.archivedNamespaces ?? [];
+            try {
+              const ordinaryWorkspace = tutorialOrdinaryWorkspaceRef.current;
+              if (!ordinaryWorkspace) {
+                throw new Error('The tutorial-safe workspace cache is unavailable.');
+              }
+              tutorialOrdinaryWorkspaceRef.current =
+                await mergeArchivedNamespacesIntoTutorialWorkspace(
+                  ordinaryWorkspace,
+                  archivedNamespaces,
+                );
+              const saved = await flushWorkspacePersistenceRef.current();
+              if (!saved) {
+                throw new Error('The saved experiment files could not be moved into the tutorial-safe cache.');
+              }
+              const finalized = await window.hardSphereLabTutorial?.finalizeActivation?.(
+                archivedNamespaces,
+              );
+              if (finalized && finalized.status !== 'ok') {
+                throw new Error(finalized.message ?? 'Desktop tutorial archive could not be finalized.');
+              }
+              setTutorialNoticeKind(
+                experienceProfileRef.current.learning.heatCapacity === 'guide'
+                  ? 'resume-guide'
+                  : 'resume-demo',
+              );
+            } catch (cause) {
+              setTutorialOperationError({
+                message: cause instanceof Error ? cause.message : String(cause),
+                retry: () => window.location.reload(),
+              });
+            }
+            return;
+          }
+          if (result.status === 'blocked') {
+            setRemoteTutorialOwnerActive(true);
+            return;
+          }
+          setTutorialOperationError({
+            message: result.message ?? 'Desktop tutorial lock could not be restored.',
+            retry: () => window.location.reload(),
+          });
+        })
+        .catch((cause) => {
+          setTutorialOperationError({
+            message: cause instanceof Error ? cause.message : String(cause),
+            retry: () => window.location.reload(),
+          });
+        });
+    }
+    const heartbeatId = window.setInterval(claimCurrentTutorial, 5_000);
+    const releaseOwnership = () => {
+      try {
+        releaseHeatCapacityTutorialOwnership(
+          HEAT_CAPACITY_TUTORIAL_INSTANCE_ID,
+          window.localStorage,
+        );
+      } catch {
+        // Ownership expires automatically if the page terminates abruptly.
+      }
+    };
+    window.addEventListener('pagehide', releaseOwnership);
+    return () => {
+      window.clearInterval(heartbeatId);
+      window.removeEventListener('pagehide', releaseOwnership);
+      releaseOwnership();
+      channel.close();
+      if (experimentLearningChannelRef.current === channel) {
+        experimentLearningChannelRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!initialTutorialHandoffRecovery) return undefined;
+    let cancelled = false;
+    const finalizeRecoveredHandoff = async () => {
+      const saved = await flushWorkspacePersistenceRef.current();
+      if (cancelled) return;
+      if (!saved) {
+        setTutorialOperationError({
+          message: settingsLanguagePreference === 'en'
+            ? 'The unlocked experiment file could not be saved yet.'
+            : settingsLanguagePreference === 'zh-TW'
+              ? '解鎖後的新實驗檔案尚未能安全儲存。'
+              : '解锁后的新实验文件尚未能安全保存。',
+          retry: () => { void finalizeRecoveredHandoff(); },
+        });
+        return;
+      }
+      const cleared = clearHeatCapacityTutorialHandoff();
+      if (!cleared.ok) {
+        setTutorialOperationError({
+          message: cleared.error.message,
+          retry: () => { void finalizeRecoveredHandoff(); },
+        });
+        return;
+      }
+      setTutorialOperationError(null);
+      void window.hardSphereLabTutorial?.deactivate?.();
+      setTutorialNoticeKind('all-unlocked');
+    };
+    const timerId = window.setTimeout(() => {
+      void finalizeRecoveredHandoff();
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timerId);
+    };
+  }, [initialTutorialHandoffRecovery]);
+
+  useEffect(() => {
     activeFileIdRef.current = activeFileId;
     if (
       initialHeatCapacityRefreshSession &&
@@ -5772,10 +6326,19 @@ const WorkbenchStudioPrototype: React.FC = () => {
   }, []);
 
   const pushLog = (message: WorkbenchConsoleMessageInput, kind: LogKind = 'info') => {
+    if (tutorialActiveRef.current) return;
     setLogs((current) => [
       ...current,
       createConsoleLog(current.length + 1, kind, message, settingsLanguagePreference),
     ]);
+  };
+
+  const guardWorkbenchTutorialAction = (action: WorkbenchTutorialAccessAction) => {
+    const decision = evaluateWorkbenchTutorialAccess(experienceProfileRef.current, action);
+    if (decision.allowed) return true;
+    setOpenTopMenu(null);
+    setTutorialBlockedNoticeOpen(true);
+    return false;
   };
 
   const showWorkbenchValidationErrors = (validation: { errors: string[] }) => {
@@ -5802,6 +6365,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
         if (cancelled) return;
         const nextStatus = result.status === 'available-bundled' ? 'available-bundled' : result.status;
         setExportEnvironmentStatus(nextStatus);
+        if (tutorialActiveRef.current) return;
         setLogs((current) => [
           ...current,
           createConsoleLog(
@@ -5815,6 +6379,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
       .catch(() => {
         if (cancelled) return;
         setExportEnvironmentStatus('error');
+        if (tutorialActiveRef.current) return;
         setLogs((current) => [
           ...current,
           createConsoleLog(
@@ -6429,6 +6994,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   );
 
   const openHeatCapacityAdvancedSettings = () => {
+    if (!guardWorkbenchTutorialAction('open-parameter-window')) return;
     if (activeHeatCapacityFreeParameterLocked) {
       showHeatCapacityFreeParameterLockHint();
       return;
@@ -7510,6 +8076,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   const isHeatCapacityGuideReminderClockRunning = (fileId = activeFileIdRef.current) => {
     if (desktopExitQuiescedRef.current) return false;
+    if (tutorialNoticeKindRef.current !== null) return false;
     if (heatCapacityRuntimeFailureFileIdRef.current !== null) return false;
     if (heatCapacityModeTransitionStateRef.current.phase !== 'idle') return false;
     if (heatCapacityRefreshRestorePendingRef.current) return false;
@@ -9429,6 +9996,17 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const completeAndExitHeatCapacityCalculation = () => {
+    const activeCalculationSession = activeFile.kind === 'heatCapacity'
+      ? getHeatCapacityCalculationSession(activeFile)
+      : null;
+    const completesTutorialGuide = Boolean(
+      tutorialActiveRef.current &&
+      isHeatCapacityTutorialFileId(activeFile.id) &&
+      activeFile.kind === 'heatCapacity' &&
+      activeFile.heatCapacityMode === 'guide' &&
+      activeCalculationSession?.mode === 'guide' &&
+      activeCalculationSession.status === 'ready-to-exit',
+    );
     updateActiveFile((file) => (
       file.kind === 'heatCapacity'
         ? completeHeatCapacityCalculationWorkflowWorkbenchState(file, Date.now())
@@ -9436,7 +10014,11 @@ const WorkbenchStudioPrototype: React.FC = () => {
     ));
     setHeatCapacityCalculationReviewOpen(false);
     window.setTimeout(() => {
-      void flushWorkspacePersistenceRef.current();
+      if (completesTutorialGuide) {
+        completeHeatCapacityLearningTutorial();
+      } else {
+        void flushWorkspacePersistenceRef.current();
+      }
     }, 0);
   };
 
@@ -12105,6 +12687,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const createWorkspacePersistenceSnapshot = (
     activeModeCheckpointOverride?: WorkbenchActiveModeCheckpointOverride,
   ): WorkbenchWorkspacePersistenceSnapshot => {
+    const tutorialOrdinaryWorkspace = tutorialActiveRef.current
+      ? tutorialOrdinaryWorkspaceRef.current
+      : null;
+    if (tutorialOrdinaryWorkspace) {
+      return {
+        files: tutorialOrdinaryWorkspace.files,
+        closedFiles: tutorialOrdinaryWorkspace.closedFiles,
+        activeFileId: tutorialOrdinaryWorkspace.activeFileId,
+        selectedPanel: tutorialOrdinaryWorkspace.selectedPanel,
+        refreshSession: null,
+        activeModeCheckpoint: null,
+        preserveActiveHeatCapacityModeSession: false,
+      };
+    }
     const snapshotCapturedAtMs = desktopExitQuiescedAtMsRef.current ?? Date.now();
     const activePersistenceFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
     const pendingRefreshSession = selectPendingWorkbenchHeatCapacityRefreshSession({
@@ -13029,10 +13625,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
     scope: WorkbenchEditScope = 'file',
     fileId = activeFileIdRef.current,
   ) => {
+    if (tutorialActiveRef.current) return;
     pushUndoSnapshot(createEditSnapshot(label, scope, fileId));
   };
 
   const undoLastEdit = () => {
+    if (!guardWorkbenchTutorialAction('undo')) return;
     const snapshot = undoStackRef.current[undoStackRef.current.length - 1];
     if (!snapshot) return;
     if (
@@ -13067,6 +13665,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const redoLastEdit = () => {
+    if (!guardWorkbenchTutorialAction('redo')) return;
     const snapshot = redoStackRef.current[redoStackRef.current.length - 1];
     if (!snapshot) return;
     if (
@@ -13101,6 +13700,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const clearEditHistory = () => {
+    if (!guardWorkbenchTutorialAction('undo')) return;
     undoStackRef.current = [];
     redoStackRef.current = [];
     setUndoStack([]);
@@ -13112,6 +13712,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (activeHeatCapacityModalLocked) return;
+      if (tutorialActiveRef.current) return;
       if (!(event.ctrlKey || event.metaKey) || event.altKey || isEditableElement(event.target) || isEditableElement(document.activeElement)) {
         return;
       }
@@ -14722,7 +15323,379 @@ const WorkbenchStudioPrototype: React.FC = () => {
       });
   }, []);
 
+  const commitExperienceProfile = (nextProfile: AppExperienceProfile) => {
+    const result = persistAppExperienceProfile(nextProfile);
+    if (result.ok === false) {
+      setTutorialOperationError({
+        message: result.error.message,
+        retry: null,
+      });
+      return false;
+    }
+    experienceProfilePersistedRef.current = true;
+    experienceProfileRef.current = result.profile;
+    tutorialActiveRef.current = isHeatCapacityTutorialActive(result.profile);
+    setExperienceProfile(result.profile);
+    experimentLearningChannelRef.current?.publish(result.profile);
+    return true;
+  };
+
+  const replaceVisibleWorkspaceWithHeatCapacityTutorial = (
+    milestone: ExperimentLearningMilestone,
+  ) => {
+    const tutorialFile = createHeatCapacityTutorialRuntimeFile(
+      workbenchLayoutDefaults.heatCapacity,
+    );
+    [...filesRef.current].forEach((file) => {
+      cancelRuntimeFrame(file.id);
+      delete standardRuntimeRef.current[file.id];
+      delete idealRuntimeRef.current[file.id];
+    });
+    resetHeatCapacitySceneUiState();
+    selectedPanelRef.current = 'preview';
+    commitWorkbenchFileCollections([tutorialFile], [], tutorialFile.id);
+    applyHeatCapacityModeTransitionEvent({ type: 'synchronize', visibleMode: null });
+    setSelectedPanel('preview');
+    setSelectedFileId(tutorialFile.id);
+    setParametersCollapsed(false);
+    setUndoStack([]);
+    setRedoStack([]);
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    setOpenFileMenuId(null);
+    setPendingDeleteFileId(null);
+    setHeatCapacityCalculationReviewOpen(false);
+    setHeatCapacityBatchSetupRequestedFileId(null);
+    setLogs(createHeatCapacityTutorialLogs(milestone, settingsLanguagePreference));
+  };
+
+  const finalizeHeatCapacityTutorialActivation = async (
+    archivedNamespaces: string[],
+  ) => {
+    const saved = await flushWorkspacePersistenceRef.current();
+    if (!saved) {
+      setTutorialOperationError({
+        message: settingsLanguagePreference === 'en'
+          ? 'The saved experiment files could not be moved into the tutorial-safe cache yet.'
+          : settingsLanguagePreference === 'zh-TW'
+            ? '已儲存的實驗檔案尚未能移入教學安全快取。'
+            : '已保存的实验文件尚未能移入教程安全缓存。',
+        retry: () => { void finalizeHeatCapacityTutorialActivation(archivedNamespaces); },
+      });
+      return false;
+    }
+    const finalizeActivation = window.hardSphereLabTutorial?.finalizeActivation;
+    if (finalizeActivation) {
+      const result = await finalizeActivation(archivedNamespaces).catch((cause) => ({
+        status: 'error' as const,
+        message: cause instanceof Error ? cause.message : String(cause),
+      }));
+      if (result.status !== 'ok') {
+        setTutorialOperationError({
+          message: result.message ?? 'Desktop tutorial archive could not be finalized.',
+          retry: () => { void finalizeHeatCapacityTutorialActivation(archivedNamespaces); },
+        });
+        return false;
+      }
+    }
+    setTutorialOperationError(null);
+    setTutorialNoticeKind('start-demo');
+    return true;
+  };
+
+  const startHeatCapacityLearningTutorial = async () => {
+    if (tutorialActiveRef.current) return;
+    const saved = await flushWorkspacePersistenceRef.current();
+    if (!saved) {
+      setTutorialOperationError({
+        message: settingsLanguagePreference === 'en'
+          ? 'The current workspace could not be saved. No learning progress was changed.'
+          : settingsLanguagePreference === 'zh-TW'
+            ? '目前工作區無法安全儲存，學習進度尚未變更。'
+            : '当前工作区无法安全保存，学习进度尚未变更。',
+        retry: () => { void startHeatCapacityLearningTutorial(); },
+      });
+      return;
+    }
+
+    try {
+      const claimed = claimHeatCapacityTutorialOwnership(
+        HEAT_CAPACITY_TUTORIAL_INSTANCE_ID,
+        window.localStorage,
+      );
+      if (!claimed) {
+        setRemoteTutorialOwnerActive(true);
+        return;
+      }
+    } catch (cause) {
+      setTutorialOperationError({
+        message: cause instanceof Error ? cause.message : String(cause),
+        retry: () => { void startHeatCapacityLearningTutorial(); },
+      });
+      return;
+    }
+
+    let archivedNamespaces: string[] = [];
+    const desktopTutorialActivation = window.hardSphereLabTutorial?.activate?.();
+    if (desktopTutorialActivation) {
+      const activationResult = await desktopTutorialActivation.catch((cause) => ({
+        status: 'error' as const,
+        message: cause instanceof Error ? cause.message : String(cause),
+      }));
+      if (activationResult.status !== 'ok') {
+        releaseHeatCapacityTutorialOwnership(HEAT_CAPACITY_TUTORIAL_INSTANCE_ID, window.localStorage);
+        setTutorialOperationError({
+          message: activationResult.message ?? 'Desktop tutorial lock could not be acquired.',
+          retry: () => { void startHeatCapacityLearningTutorial(); },
+        });
+        return;
+      }
+      archivedNamespaces = activationResult.archivedNamespaces ?? [];
+    }
+
+    const currentOrdinaryFile = filesRef.current.find((file) => (
+      file.id === activeFileIdRef.current
+    ));
+    if (currentOrdinaryFile?.kind === 'heatCapacity') {
+      suspendActiveHeatCapacityModeForNavigation();
+    }
+    const ordinaryWorkspace: TutorialOrdinaryWorkspace = {
+      files: cloneWorkbenchFiles(filesRef.current),
+      closedFiles: cloneWorkbenchFiles(closedFilesRef.current),
+      activeFileId: activeFileIdRef.current,
+      selectedPanel: selectedPanelRef.current,
+    };
+    let mergedOrdinaryWorkspace: TutorialOrdinaryWorkspace;
+    try {
+      mergedOrdinaryWorkspace = await mergeArchivedNamespacesIntoTutorialWorkspace(
+        ordinaryWorkspace,
+        archivedNamespaces,
+      );
+    } catch (cause) {
+      void window.hardSphereLabTutorial?.deactivate?.();
+      releaseHeatCapacityTutorialOwnership(HEAT_CAPACITY_TUTORIAL_INSTANCE_ID, window.localStorage);
+      setTutorialOperationError({
+        message: cause instanceof Error ? cause.message : String(cause),
+        retry: () => { void startHeatCapacityLearningTutorial(); },
+      });
+      return;
+    }
+
+    const nextProfile = startHeatCapacityTutorialProfile(experienceProfileRef.current);
+    if (!commitExperienceProfile(nextProfile)) {
+      setTutorialOperationError((current) => current
+        ? { ...current, retry: () => { void startHeatCapacityLearningTutorial(); } }
+        : current);
+      void window.hardSphereLabTutorial?.deactivate?.();
+      releaseHeatCapacityTutorialOwnership(HEAT_CAPACITY_TUTORIAL_INSTANCE_ID, window.localStorage);
+      return;
+    }
+
+    tutorialOrdinaryWorkspaceRef.current = mergedOrdinaryWorkspace;
+    setTutorialOperationError(null);
+    setRemoteTutorialOwnerActive(false);
+    setSettingsGeneralOpen(false);
+    replaceVisibleWorkspaceWithHeatCapacityTutorial('demo');
+    await finalizeHeatCapacityTutorialActivation(archivedNamespaces);
+  };
+
+  const requestResetHeatCapacityLearning = () => {
+    if (!guardWorkbenchTutorialAction('reset-learning')) return;
+    const copy = HEAT_CAPACITY_TUTORIAL_COPY[settingsLanguagePreference];
+    requestPromptConfirmation({
+      id: 'reset-heat-capacity-learning-progress',
+      tone: 'warning',
+      eyebrow: copy.resetEyebrow,
+      title: copy.resetTitle,
+      body: copy.resetBody,
+      consequence: copy.resetConsequence,
+      cancelLabel: copy.cancel,
+      confirmLabel: copy.confirmReset,
+      closeLabel: copy.cancel,
+      onConfirm: () => { void startHeatCapacityLearningTutorial(); },
+    });
+  };
+
+  const handleHeatCapacityTutorialNoticeAction = () => {
+    const noticeKind = tutorialNoticeKindRef.current;
+    if (!noticeKind) return;
+    tutorialNoticeKindRef.current = null;
+    setTutorialNoticeKind(null);
+    if (noticeKind === 'start-demo' || noticeKind === 'resume-demo') {
+      window.requestAnimationFrame(() => {
+        activateHeatCapacityModeFromExplore('demo');
+      });
+      return;
+    }
+    if (noticeKind === 'resume-guide') {
+      window.requestAnimationFrame(() => {
+        activateHeatCapacityModeFromExplore('guide');
+      });
+    }
+  };
+
+  const advanceHeatCapacityTutorialToGuide = () => {
+    const currentProfile = experienceProfileRef.current;
+    const guideProfile = unlockHeatCapacityGuideProfile(currentProfile);
+    if (!guideProfile) return;
+    if (!commitExperienceProfile(guideProfile)) {
+      setTutorialOperationError((current) => current
+        ? { ...current, retry: advanceHeatCapacityTutorialToGuide }
+        : current);
+      return;
+    }
+    setLogs(createHeatCapacityTutorialLogs('guide', settingsLanguagePreference));
+    tutorialGuideUnlockPendingRef.current = true;
+    switchHeatCapacityMode('guide', 'mode-control', true, true);
+  };
+
+  useEffect(() => {
+    if (!tutorialActive) return;
+    if (experienceProfile.learning.heatCapacity !== 'demo') return;
+    if (!isHeatCapacityTutorialFileId(activeFile.id)) return;
+    if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'demo') return;
+    if (activeFile.heatCapacityTeachingStatus !== 'completed') return;
+    advanceHeatCapacityTutorialToGuide();
+  }, [
+    activeFile.id,
+    activeFile.kind,
+    activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null,
+    activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityTeachingStatus : null,
+    experienceProfile.learning.heatCapacity,
+    tutorialActive,
+  ]);
+
+  useEffect(() => {
+    if (!tutorialGuideUnlockPendingRef.current) return;
+    if (!tutorialActive || experienceProfile.learning.heatCapacity !== 'guide') return;
+    if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'guide') return;
+    if (heatCapacityModeTransitionState.phase !== 'idle') return;
+    tutorialGuideUnlockPendingRef.current = false;
+    tutorialNoticeKindRef.current = 'guide-unlocked';
+    setTutorialNoticeKind('guide-unlocked');
+  }, [
+    activeFile.id,
+    activeFile.kind,
+    activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null,
+    experienceProfile.learning.heatCapacity,
+    heatCapacityModeTransitionState.phase,
+    tutorialActive,
+  ]);
+
+  const finalizeCompletedHeatCapacityTutorialHandoff = async () => {
+    const saved = await flushWorkspacePersistenceRef.current();
+    if (!saved) {
+      setTutorialOperationError({
+        message: settingsLanguagePreference === 'en'
+          ? 'The unlocked experiment file could not be saved yet.'
+          : settingsLanguagePreference === 'zh-TW'
+            ? '解鎖後的新實驗檔案尚未能安全儲存。'
+            : '解锁后的新实验文件尚未能安全保存。',
+        retry: () => { void finalizeCompletedHeatCapacityTutorialHandoff(); },
+      });
+      return false;
+    }
+    const cleared = clearHeatCapacityTutorialHandoff();
+    if (cleared.ok === false) {
+      setTutorialOperationError({
+        message: cleared.error.message,
+        retry: () => { void finalizeCompletedHeatCapacityTutorialHandoff(); },
+      });
+      return false;
+    }
+    try {
+      releaseHeatCapacityTutorialOwnership(
+        HEAT_CAPACITY_TUTORIAL_INSTANCE_ID,
+        window.localStorage,
+      );
+    } catch {
+      // The persistent milestone and ordinary file are already safe.
+    }
+    void window.hardSphereLabTutorial?.deactivate?.();
+    setTutorialOperationError(null);
+    setTutorialNoticeKind('all-unlocked');
+    return true;
+  };
+
+  const completeHeatCapacityLearningTutorial = async () => {
+    const currentProfile = experienceProfileRef.current;
+    const completedProfile = completeHeatCapacityTutorialProfile(currentProfile);
+    if (!completedProfile) return false;
+    const ordinaryWorkspace = tutorialOrdinaryWorkspaceRef.current ?? {
+      files: [] as WorkbenchFileState[],
+      closedFiles: [] as WorkbenchFileState[],
+      activeFileId: '',
+      selectedPanel: 'preview' as WorkbenchPanelKey,
+    };
+    const ordinaryFiles = cloneWorkbenchFiles([
+      ...ordinaryWorkspace.files,
+      ...ordinaryWorkspace.closedFiles,
+    ]).map((file) => (
+      file.kind === 'heatCapacity'
+        ? prepareHeatCapacityFileForExploreOnOpen(
+            file,
+            createDefaultHeatCapacityFile(1),
+            Date.now(),
+          )
+        : file.runState === 'running'
+          ? { ...file, runState: 'paused' as const, updatedAt: Date.now() }
+          : file
+    ));
+    const uniqueOrdinaryFiles = ordinaryFiles.filter((file, index, collection) => (
+      collection.findIndex((candidate) => candidate.id === file.id) === index &&
+      !isHeatCapacityTutorialFileId(file.id)
+    ));
+    const index = getNextWorkbenchFileDisplayIndex('heatCapacity', uniqueOrdinaryFiles);
+    const freshFileId = createUniqueWorkbenchFileId(
+      'heatCapacity',
+      issuedWorkbenchFileIdsRef.current,
+    );
+    issuedWorkbenchFileIdsRef.current.add(freshFileId);
+    const freshFile = enterHeatCapacityExploreModeWorkbenchState({
+      ...createDefaultHeatCapacityFile(index, workbenchLayoutDefaults.heatCapacity),
+      id: freshFileId,
+    }, createDefaultHeatCapacityFile(index, workbenchLayoutDefaults.heatCapacity));
+
+    const handoffResult = persistHeatCapacityTutorialHandoff(freshFileId);
+    if (handoffResult.ok === false) {
+      setTutorialOperationError({
+        message: handoffResult.error.message,
+        retry: () => { void completeHeatCapacityLearningTutorial(); },
+      });
+      return false;
+    }
+    const persistResult = persistAppExperienceProfile(completedProfile);
+    if (persistResult.ok === false) {
+      clearHeatCapacityTutorialHandoff();
+      setTutorialOperationError({
+        message: persistResult.error.message,
+        retry: () => { void completeHeatCapacityLearningTutorial(); },
+      });
+      return false;
+    }
+
+    suspendActiveHeatCapacityModeForNavigation();
+    resetHeatCapacitySceneUiState();
+    selectedPanelRef.current = 'preview';
+    commitWorkbenchFileCollections([freshFile], uniqueOrdinaryFiles, freshFile.id);
+    applyHeatCapacityModeTransitionEvent({ type: 'synchronize', visibleMode: null });
+    setSelectedPanel('preview');
+    setSelectedFileId(freshFile.id);
+    setParametersCollapsed(false);
+    setLogs(createHeatCapacityTutorialLogs('unlocked', settingsLanguagePreference));
+
+    tutorialOrdinaryWorkspaceRef.current = null;
+    experienceProfilePersistedRef.current = true;
+    experienceProfileRef.current = persistResult.profile;
+    tutorialActiveRef.current = false;
+    setExperienceProfile(persistResult.profile);
+    experimentLearningChannelRef.current?.publish(persistResult.profile);
+    await finalizeCompletedHeatCapacityTutorialHandoff();
+    return true;
+  };
+
   const createFile = (kind: WorkbenchFileKind) => {
+    if (!guardWorkbenchTutorialAction('create-file')) return;
     captureUndoSnapshot(`created ${kind} file`, 'workspace');
     const currentFiles = [...filesRef.current, ...closedFilesRef.current];
     const index = getNextWorkbenchFileDisplayIndex(kind, currentFiles);
@@ -14823,6 +15796,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const openNewWorkbenchWindow = () => {
+    if (!guardWorkbenchTutorialAction('new-window')) return;
     setOpenTopMenu(null);
     const desktopNewWindowRequest = window.hardSphereLabWindow?.newWindow?.();
 
@@ -14857,7 +15831,36 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const closeDesktopWindow = () => {
-    void window.hardSphereLabWindow?.close?.();
+    const performClose = () => {
+      const desktopClose = window.hardSphereLabWindow?.close?.();
+      if (!desktopClose) window.close();
+    };
+    if (!tutorialActiveRef.current) {
+      performClose();
+      return;
+    }
+    const isEnglish = settingsLanguagePreference === 'en';
+    const isTraditional = settingsLanguagePreference === 'zh-TW';
+    requestPromptConfirmation({
+      id: 'exit-unfinished-heat-capacity-tutorial',
+      tone: 'warning',
+      eyebrow: isEnglish ? 'Learning flow active' : isTraditional ? '學習流程進行中' : '学习流程进行中',
+      title: isEnglish ? 'Exit the app before finishing this mode?' : isTraditional ? '要在本模式完成前退出軟體嗎？' : '要在本模式完成前退出软件吗？',
+      body: isEnglish
+        ? 'This mode is not complete. The next launch will restart it from the first step.'
+        : isTraditional
+          ? '本模式尚未完成，下次進入將從本模式第一步重新開始。'
+          : '本模式尚未完成，下次进入将从本模式第一步重新开始。',
+      consequence: isEnglish
+        ? 'Completed unlock milestones are retained.'
+        : isTraditional
+          ? '已完成的解鎖節點會保留。'
+          : '已完成的解锁节点会保留。',
+      cancelLabel: isEnglish ? 'Continue tutorial' : isTraditional ? '繼續教程' : '继续教程',
+      confirmLabel: isEnglish ? 'Exit app' : isTraditional ? '退出軟體' : '退出软件',
+      closeLabel: isEnglish ? 'Continue tutorial' : isTraditional ? '繼續教程' : '继续教程',
+      onConfirm: performClose,
+    });
   };
 
   const openUserGuide = () => {
@@ -15422,6 +16425,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   );
 
   const toggleWindowPanel = (panel: WorkbenchPanelKey) => {
+    if (!guardWorkbenchTutorialAction('open-results-window')) return;
     if (isPistonOscillationDevelopmentPanelKey(activeFile, panel)) {
       showPistonOscillationDevelopmentNotice('navigationItem');
       return;
@@ -15864,6 +16868,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const beginRenameFile = (file: WorkbenchFileState) => {
+    if (!guardWorkbenchTutorialAction('rename-file')) return;
     setOpenFileMenuId(null);
     setPendingDeleteFileId(null);
     renamingFileIdRef.current = file.id;
@@ -16100,6 +17105,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const requestCloseWorkbenchFile = (file: WorkbenchFileState) => {
+    if (!guardWorkbenchTutorialAction('close-file')) return;
     if (file.runState === 'running') {
       requestPromptConfirmation({
         id: `close-running-workbench-file:${file.id}`,
@@ -16115,6 +17121,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const openClosedWorkbenchFile = (fileId: string) => {
+    if (!guardWorkbenchTutorialAction('open-file')) return;
     const file = closedFilesRef.current.find((candidate) => candidate.id === fileId);
     if (!file || filesRef.current.some((candidate) => candidate.id === fileId)) return;
     captureUndoSnapshot('reopened file', 'workspace');
@@ -16213,6 +17220,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const requestDeleteWorkbenchFile = (file: WorkbenchFileState) => {
+    if (!guardWorkbenchTutorialAction('delete-file')) return;
     if (pendingDeleteFileId === file.id) {
       deleteWorkbenchFile(file.id);
       return;
@@ -17139,6 +18147,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const renderHeatCapacityModeControl = () => {
     if (activeFile.kind !== 'heatCapacity') return null;
     const heatCapacityActiveMode: HeatCapacityMode | null = activeFile.heatCapacityMode;
+    const tutorialMilestone = experienceProfile.learning.heatCapacity;
     const heatCapacityTeachingCompleted = activeFile.heatCapacityTeachingStatus === 'completed';
     const heatCapacityModeControlState = selectHeatCapacityModeControlState({
       activeMode: heatCapacityActiveMode,
@@ -17151,6 +18160,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const heatCapacityFreeActionsVisible = heatCapacityModeControlState.free.actionsVisible;
     const heatCapacityModeSegmentClassName = (mode: HeatCapacityMode) => `studio-heat-mode-segment studio-heat-mode-segment-${mode} ${heatCapacityActiveMode === mode ? 'studio-heat-mode-segment-active' : ''}`;
     const handleHeatCapacityModeSegmentClick = (mode: HeatCapacityMode) => {
+      if (
+        tutorialActive &&
+        !isHeatCapacityTutorialModeUnlocked(tutorialMilestone, mode)
+      ) {
+        setTutorialBlockedNoticeOpen(true);
+        return;
+      }
       if (heatCapacityModeTransitionStateRef.current.phase !== 'idle') {
         switchHeatCapacityMode(mode);
         return;
@@ -17336,8 +18352,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return (
       <div className="studio-heat-mode-control-row">
         <div
-           className={`studio-heat-mode-control studio-heat-mode-control-${heatCapacityActiveMode ?? 'explore'} ${heatCapacityModeControlState.expanded ? 'studio-heat-mode-control-expanded' : ''}`}
+           className={`studio-heat-mode-control studio-heat-mode-control-${heatCapacityActiveMode ?? 'explore'} ${heatCapacityModeControlState.expanded ? 'studio-heat-mode-control-expanded' : ''} ${tutorialActive ? `studio-heat-mode-control-tutorial-${tutorialMilestone}` : ''}`}
            data-heat-capacity-mode-control="true"
+           data-heat-capacity-tutorial-milestone={tutorialActive ? tutorialMilestone : undefined}
            data-heat-capacity-mode-transition-phase={heatCapacityModeTransitionState.phase}
            data-heat-capacity-visible-mode={heatCapacityModeTransitionState.visibleMode ?? ''}
            data-heat-capacity-source-mode={heatCapacityModeTransitionState.sourceMode ?? ''}
@@ -17364,7 +18381,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             {heatCapacityModeControlState.demo.actions.map(renderHeatCapacityModeAction)}
           </div>
         </div>
-        <div
+        {(!tutorialActive || isHeatCapacityTutorialModeUnlocked(tutorialMilestone, 'guide')) ? <div
           className={heatCapacityModeSegmentClassName('guide')}
           data-heat-capacity-mode-segment="guide"
         >
@@ -17380,8 +18397,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div className="studio-heat-mode-actions studio-heat-mode-actions-guide" aria-hidden={!heatCapacityGuideActionsVisible}>
             {heatCapacityModeControlState.guide.actions.map(renderHeatCapacityModeAction)}
           </div>
-        </div>
-        <div
+        </div> : null}
+        {(!tutorialActive || isHeatCapacityTutorialModeUnlocked(tutorialMilestone, 'free')) ? <div
           className={heatCapacityModeSegmentClassName('free')}
           data-heat-capacity-mode-segment="free"
         >
@@ -17397,7 +18414,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           <div className="studio-heat-mode-actions studio-heat-mode-actions-free" aria-hidden={!heatCapacityFreeActionsVisible}>
             {heatCapacityModeControlState.free.actions.map(renderHeatCapacityModeAction)}
           </div>
-        </div>
+        </div> : null}
         </div>
         <button
           type="button"
@@ -18906,6 +19923,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
   );
 
   const handleExportAction = async (mode: WorkbenchExportMode) => {
+    if (!guardWorkbenchTutorialAction('export-file')) return;
     if (!isExportModeDataReady(mode)) {
       pushLog(
         (language) => activeFile.kind === 'ideal' && mode !== 'pointsCsv' && idealPointCount > 0
@@ -20463,11 +21481,82 @@ const WorkbenchStudioPrototype: React.FC = () => {
       },
     });
   }
+  const heatCapacityTutorialCopy = HEAT_CAPACITY_TUTORIAL_COPY[settingsLanguagePreference];
+  const tutorialMilestoneNoticeRequest: PromptNoticeRequest | null = tutorialNoticeKind
+    ? {
+        id: `heat-capacity-tutorial:${tutorialNoticeKind}`,
+        tone: 'standard',
+        eyebrow: heatCapacityTutorialCopy.resetEyebrow,
+        title: tutorialNoticeKind === 'start-demo'
+          ? heatCapacityTutorialCopy.startDemoTitle
+          : tutorialNoticeKind === 'resume-demo'
+            ? heatCapacityTutorialCopy.resumeDemoTitle
+            : tutorialNoticeKind === 'guide-unlocked'
+              ? heatCapacityTutorialCopy.guideUnlockedTitle
+              : tutorialNoticeKind === 'resume-guide'
+                ? heatCapacityTutorialCopy.resumeGuideTitle
+                : heatCapacityTutorialCopy.allUnlockedTitle,
+        body: tutorialNoticeKind === 'start-demo'
+          ? heatCapacityTutorialCopy.startDemoBody
+          : tutorialNoticeKind === 'resume-demo'
+            ? heatCapacityTutorialCopy.resumeDemoBody
+            : tutorialNoticeKind === 'guide-unlocked'
+              ? heatCapacityTutorialCopy.guideUnlockedBody
+              : tutorialNoticeKind === 'resume-guide'
+                ? heatCapacityTutorialCopy.resumeGuideBody
+                : heatCapacityTutorialCopy.allUnlockedBody,
+        actionLabel: heatCapacityTutorialCopy.acknowledge,
+        closeLabel: heatCapacityTutorialCopy.acknowledge,
+        dismiss: { closeButton: false, escape: false, backdrop: true },
+      }
+    : null;
+  const tutorialBlockedNoticeRequest: PromptNoticeRequest | null = tutorialBlockedNoticeOpen
+    ? {
+        id: 'heat-capacity-tutorial:blocked-action',
+        tone: 'warning',
+        eyebrow: heatCapacityTutorialCopy.blockedEyebrow,
+        title: heatCapacityTutorialCopy.blockedTitle,
+        body: heatCapacityTutorialCopy.blockedBody,
+        actionLabel: heatCapacityTutorialCopy.acknowledge,
+        closeLabel: heatCapacityTutorialCopy.acknowledge,
+        dismiss: { closeButton: true, escape: true, backdrop: true },
+      }
+    : null;
+  const remoteTutorialNoticeRequest: PromptForcedNoticeRequest | null = remoteTutorialOwnerActive
+    ? {
+        id: 'heat-capacity-tutorial:remote-owner',
+        tone: 'warning',
+        eyebrow: heatCapacityTutorialCopy.blockedEyebrow,
+        title: heatCapacityTutorialCopy.remoteTitle,
+        body: heatCapacityTutorialCopy.remoteBody,
+        actionLabel: heatCapacityTutorialCopy.recheck,
+      }
+    : null;
+  const tutorialFailureConfirmation: PromptConfirmationRequest | null = tutorialOperationError
+    ? {
+        id: 'heat-capacity-tutorial:operation-failed',
+        tone: 'warning',
+        eyebrow: heatCapacityTutorialCopy.blockedEyebrow,
+        title: heatCapacityTutorialCopy.operationFailedTitle,
+        body: tutorialOperationError.message,
+        consequence: settingsLanguagePreference === 'en'
+          ? 'The app has not skipped or unlocked any unfinished learning milestone.'
+          : settingsLanguagePreference === 'zh-TW'
+            ? '軟體沒有跳過或解鎖任何尚未完成的學習節點。'
+            : '软件没有跳过或解锁任何尚未完成的学习节点。',
+        cancelLabel: settingsLanguagePreference === 'en' ? 'Exit app' : settingsLanguagePreference === 'zh-TW' ? '退出軟體' : '退出软件',
+        confirmLabel: heatCapacityTutorialCopy.retry,
+        closeLabel: settingsLanguagePreference === 'en' ? 'Exit app' : settingsLanguagePreference === 'zh-TW' ? '退出軟體' : '退出软件',
+        onConfirm: tutorialOperationError.retry ?? (() => window.location.reload()),
+      }
+    : null;
 
   return (
     <div
       className={`studio-workbench studio-theme-${resolvedWorkbenchTheme}`}
       data-workbench-language={settingsLanguagePreference}
+      data-heat-capacity-tutorial-active={tutorialActive ? 'true' : 'false'}
+      data-heat-capacity-tutorial-milestone={tutorialActive ? experienceProfile.learning.heatCapacity : undefined}
       data-desktop-exit-quiesced={desktopExitQuiesced ? 'true' : 'false'}
       aria-busy={desktopExitQuiesced}
     >
@@ -20491,6 +21580,35 @@ const WorkbenchStudioPrototype: React.FC = () => {
         request={activePromptConfirmation}
         onCancel={cancelPromptConfirmation}
         onConfirm={confirmPromptConfirmation}
+      />
+      <PromptConfirmDialog
+        request={tutorialFailureConfirmation}
+        onCancel={() => {
+          const tutorialExit = window.hardSphereLabTutorial?.exitApplication?.();
+          if (tutorialExit) return;
+          const desktopClose = window.hardSphereLabWindow?.close?.();
+          if (!desktopClose) window.close();
+        }}
+        onConfirm={() => {
+          const retry = tutorialOperationError?.retry;
+          setTutorialOperationError(null);
+          if (retry) retry();
+          else window.location.reload();
+        }}
+      />
+      <PromptNoticeDialog
+        request={tutorialMilestoneNoticeRequest}
+        onDismiss={handleHeatCapacityTutorialNoticeAction}
+        onAction={handleHeatCapacityTutorialNoticeAction}
+      />
+      <PromptNoticeDialog
+        request={tutorialBlockedNoticeRequest}
+        onDismiss={() => setTutorialBlockedNoticeOpen(false)}
+        onAction={() => setTutorialBlockedNoticeOpen(false)}
+      />
+      <PromptForcedNoticeDialog
+        request={remoteTutorialNoticeRequest}
+        onAction={() => window.location.reload()}
       />
       <WorkbenchHeatCapacityRestoreDefaultDialog
         open={
@@ -20575,8 +21693,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
             }))}
             undoLabel={undoStack[undoStack.length - 1]?.label ?? null}
             redoLabel={redoStack[redoStack.length - 1]?.label ?? null}
-            undoCount={undoStack.length}
-            redoCount={redoStack.length}
+            undoCount={tutorialActive ? 0 : undoStack.length}
+            redoCount={tutorialActive ? 0 : redoStack.length}
             activeFileName={activeFile.name}
             windowPanels={topMenuWindowPanels}
             settingsSummary={`${workbenchCopy.settings.themeOptions[settingsThemePreference].label} / ${workbenchCopy.settings.languageOptions[settingsLanguagePreference].label} / ${workbenchCopy.settings.performanceModeSummary[settingsPerformanceMode]}`}
@@ -20590,6 +21708,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
             onClearHistory={clearEditHistory}
             onToggleWindowPanel={(panelKey) => runWindowMenuSwitch(() => toggleWindowPanel(panelKey))}
             onToggleWindowResultChild={(child) => runWindowMenuSwitch(() => {
+              if (!guardWorkbenchTutorialAction('open-results-window')) return;
               if (child.kind === 'ideal') {
                 toggleWindowIdealResultTab(child.key);
               } else {
@@ -20692,6 +21811,14 @@ const WorkbenchStudioPrototype: React.FC = () => {
           audioVolume={audioSettings.volume}
           languageMenuOpen={settingsLanguageMenuOpen}
           languageTriggerRef={settingsLanguageTriggerRef}
+          learningCopy={{
+            title: heatCapacityTutorialCopy.settingsTitle,
+            hint: heatCapacityTutorialCopy.settingsHint,
+            resetLabel: heatCapacityTutorialCopy.resetLabel,
+            resetHint: heatCapacityTutorialCopy.resetHint,
+            resetDisabledHint: heatCapacityTutorialCopy.resetDisabledHint,
+          }}
+          heatCapacityTutorialActive={tutorialActive}
           onClose={closeGeneralSettings}
           onThemeChange={updateSettingsThemePreference}
           onLanguageChange={updateSettingsLanguagePreference}
@@ -20699,6 +21826,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
           onAudioEnabledChange={updateSettingsAudioEnabled}
           onAudioVolumeChange={updateSettingsAudioVolume}
           onLanguageMenuOpenChange={setSettingsLanguageMenuOpen}
+          onResetHeatCapacityLearning={requestResetHeatCapacityLearning}
         />
 
         <main
@@ -20734,6 +21862,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     </div>
                   ) : files.map((file) => {
                     const isRenaming = renamingFileId === file.id;
+                    const tutorialFile = isHeatCapacityTutorialFileId(file.id);
                     const menuOpen = openFileMenuId === file.id;
                     const pendingDelete = pendingDeleteFileId === file.id;
                     const fileKindLabel = getWorkbenchFileKindLabel(file.kind, workbenchCopy.files);
@@ -20752,6 +21881,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
                         }}
                         onContextMenu={(event) => {
                           event.preventDefault();
+                          if (tutorialFile) {
+                            setTutorialBlockedNoticeOpen(true);
+                            return;
+                          }
                           if (isRenaming || filesSectionCollapsed) return;
                           setOpenFileMenuId(file.id);
                           setPendingDeleteFileId(null);
@@ -20806,8 +21939,15 @@ const WorkbenchStudioPrototype: React.FC = () => {
                         ) : (
                           <span>{file.name}</span>
                         )}
+                        {tutorialFile ? (
+                          <LockKeyhole
+                            size={12}
+                            className="studio-tutorial-file-lock"
+                            aria-label={workbenchCopy.files.locked}
+                          />
+                        ) : null}
                         <span className="studio-tree-meta">{fileKindLabel}</span>
-                        <button
+                        {!tutorialFile ? <button
                           type="button"
                           className="studio-file-menu-button"
                           aria-label={workbenchCopy.files.openActions(file.name)}
@@ -20820,7 +21960,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
                           }}
                         >
                           <MoreHorizontal size={14} />
-                        </button>
+                        </button> : null}
                         {menuOpen ? (
                           <div
                             className={pendingDelete ? 'studio-file-menu studio-file-menu-pending' : 'studio-file-menu'}
@@ -21060,7 +22200,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
             <div className="studio-file-tabs" ref={fileTabsRef}>
               {isWorkbenchEmpty ? (
                 <div className="studio-file-tabs-empty">{workbenchCopy.files.noOpenFiles}</div>
-              ) : files.map((file) => (
+              ) : files.map((file) => {
+                const tutorialFile = isHeatCapacityTutorialFileId(file.id);
+                return (
                 <div
                   key={file.id}
                   className={`studio-file-tab ${file.id === selectedFileId ? 'studio-file-tab-selected' : ''} ${file.id === activeFile.id ? 'studio-file-tab-active' : ''}`}
@@ -21074,9 +22216,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
                   >
                     {file.kind === 'standard' ? <Activity size={13} /> : file.kind === 'ideal' ? <FlaskConical size={13} /> : <Gauge size={13} />}
                     <span className="studio-file-tab-name">{file.name}</span>
+                    {tutorialFile ? <LockKeyhole size={11} className="studio-tutorial-file-lock" aria-hidden="true" /> : null}
                     <span className="studio-file-kind">{getWorkbenchFileKindLabel(file.kind, workbenchCopy.files)}</span>
                   </button>
-                  <button
+                  {!tutorialFile ? <button
                     type="button"
                     className="studio-file-tab-close"
                     aria-label={`${workbenchCopy.files.closeExperiment} ${file.name}`}
@@ -21086,9 +22229,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
                     }}
                   >
                     <X size={12} />
-                  </button>
+                  </button> : null}
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className={`studio-workspace-shell ${isWorkbenchEmpty ? 'studio-workspace-shell-empty' : 'studio-workspace-shell-active'} ${!isWorkbenchEmpty && effectiveParametersCollapsed ? 'studio-params-collapsed' : ''}`} ref={workspaceShellRef}>

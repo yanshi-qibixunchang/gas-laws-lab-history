@@ -60,6 +60,9 @@ let selectedExporterRuntime = null;
 let updateDownloadInProgress = false;
 let activeDownloadAttempt = null;
 let workbenchWindowRegistry = null;
+let activeTutorialWindowId = null;
+let pendingTutorialArchivedNamespaces = [];
+let pendingTutorialArchivedWindowIds = [];
 const updaterOperationCoordinator = createUpdaterOperationCoordinator();
 let updateState = {
   status: 'idle',
@@ -655,6 +658,12 @@ const createMainWindow = async (options = {}) => {
 };
 
 ipcMain.handle('hsl-window:new', async () => {
+  if (activeTutorialWindowId !== null) {
+    return {
+      status: 'error',
+      message: 'Complete the current learning flow before opening another workbench window.',
+    };
+  }
   const namespace = createPersistentWorkbenchWindowNamespace(randomUUID);
   try {
     if (!workbenchWindowRegistry) {
@@ -700,6 +709,126 @@ ipcMain.handle('hsl-window:close', async (event) => {
   const window = getDesktopWindowFromEvent(event);
   if (!window || window.isDestroyed()) return { status: 'closed' };
   return exitPersistenceCoordinator.requestWindowClose(window, 'custom-close');
+});
+
+const getWorkbenchWindowNamespace = (window) => {
+  try {
+    return new URL(window.webContents.getURL()).searchParams.get('hslWorkspaceNamespace');
+  } catch {
+    return null;
+  }
+};
+
+const getPendingTutorialArchivedWindows = () => (
+  pendingTutorialArchivedWindowIds.flatMap((windowId) => {
+    const window = BrowserWindow.fromId(windowId);
+    return window && !window.isDestroyed() ? [window] : [];
+  })
+);
+
+const clearPendingTutorialArchive = (resumeReason = null) => {
+  if (resumeReason) {
+    exitPersistenceCoordinator.resumeWindowsAfterExitCancellation(
+      getPendingTutorialArchivedWindows(),
+      resumeReason,
+    );
+  }
+  pendingTutorialArchivedNamespaces = [];
+  pendingTutorialArchivedWindowIds = [];
+};
+
+ipcMain.handle('hsl-tutorial:activate', async (event) => {
+  const ownerWindow = getDesktopWindowFromEvent(event);
+  if (!ownerWindow || ownerWindow.isDestroyed()) {
+    return { status: 'error', message: 'Tutorial owner window is unavailable.' };
+  }
+  if (activeTutorialWindowId !== null && activeTutorialWindowId !== ownerWindow.id) {
+    return { status: 'blocked', message: 'The learning flow is already active in another window.' };
+  }
+  if (activeTutorialWindowId === ownerWindow.id) {
+    return { status: 'ok', archivedNamespaces: [...pendingTutorialArchivedNamespaces] };
+  }
+  const otherWindows = BrowserWindow.getAllWindows().filter((window) => (
+    !window.isDestroyed() && window.id !== ownerWindow.id
+  ));
+  const persistence = await exitPersistenceCoordinator.prepareWindowsForExit(
+    otherWindows,
+    'tutorial-lock',
+  );
+  if (!persistence.proceed) {
+    return { status: 'error', message: 'Another workbench window could not be saved safely.' };
+  }
+  pendingTutorialArchivedNamespaces = otherWindows
+    .map(getWorkbenchWindowNamespace)
+    .filter((namespace) => typeof namespace === 'string');
+  pendingTutorialArchivedWindowIds = otherWindows.map((window) => window.id);
+  activeTutorialWindowId = ownerWindow.id;
+  ownerWindow.once('closed', () => {
+    if (activeTutorialWindowId !== ownerWindow.id) return;
+    clearPendingTutorialArchive('tutorial-owner-closed-before-activation');
+    activeTutorialWindowId = null;
+  });
+  return { status: 'ok', archivedNamespaces: [...pendingTutorialArchivedNamespaces] };
+});
+
+ipcMain.handle('hsl-tutorial:finalize-activation', async (event, namespaces) => {
+  const ownerWindow = getDesktopWindowFromEvent(event);
+  if (!ownerWindow || activeTutorialWindowId !== ownerWindow.id) {
+    return { status: 'error', message: 'Tutorial owner window is unavailable.' };
+  }
+  const requestedNamespaces = Array.isArray(namespaces)
+    ? namespaces.filter((namespace) => typeof namespace === 'string')
+    : [];
+  if (
+    requestedNamespaces.length !== pendingTutorialArchivedNamespaces.length ||
+    requestedNamespaces.some((namespace) => !pendingTutorialArchivedNamespaces.includes(namespace))
+  ) {
+    return { status: 'error', message: 'Tutorial archive namespace set does not match.' };
+  }
+  try {
+    if (workbenchWindowRegistry) {
+      for (const namespace of requestedNamespaces) {
+        if (namespace !== WORKBENCH_MAIN_NAMESPACE) {
+          await workbenchWindowRegistry.remove(namespace);
+        }
+      }
+    }
+    const archivedWindows = getPendingTutorialArchivedWindows();
+    exitPersistenceCoordinator.approveWindowsForExit(archivedWindows);
+    archivedWindows.forEach((window) => {
+      if (!window.isDestroyed()) window.close();
+    });
+    clearPendingTutorialArchive();
+    return { status: 'ok' };
+  } catch (error) {
+    return { status: 'error', message: getErrorMessage(error) };
+  }
+});
+
+ipcMain.handle('hsl-tutorial:deactivate', (event) => {
+  const ownerWindow = getDesktopWindowFromEvent(event);
+  if (ownerWindow && activeTutorialWindowId === ownerWindow.id) {
+    clearPendingTutorialArchive('tutorial-activation-cancelled');
+    activeTutorialWindowId = null;
+  }
+  return { status: 'ok' };
+});
+
+ipcMain.handle('hsl-tutorial:get-state', (event) => {
+  const ownerWindow = getDesktopWindowFromEvent(event);
+  return {
+    active: activeTutorialWindowId !== null,
+    owner: Boolean(ownerWindow && ownerWindow.id === activeTutorialWindowId),
+  };
+});
+
+ipcMain.handle('hsl-tutorial:exit-application', () => {
+  const windows = BrowserWindow.getAllWindows().filter((window) => !window.isDestroyed());
+  exitPersistenceCoordinator.approveWindowsForExit(windows);
+  windows.forEach((window) => {
+    if (!window.isDestroyed()) window.close();
+  });
+  return { status: 'ok' };
 });
 
 ipcMain.handle('hsl-lifecycle:persistence-result', (event, payload) => (

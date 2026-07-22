@@ -52,6 +52,19 @@ assert.match(styleSource, /\.prompt-confirm-dialog\[data-prompt-tone='danger'\]/
 assert.match(shellStyleSource, /\.studio-workbench\.studio-theme-light/);
 assert.match(styleSource, /\.prompt-confirm-button:focus-visible/);
 assert.match(styleSource, /@media \(prefers-reduced-motion: reduce\)/);
+for (const token of [
+  '--prompt-dialog-radius-control: 3px',
+  '--prompt-dialog-radius-window: 4px',
+  '--prompt-dialog-window-padding: 12px',
+  '--prompt-dialog-header-height: 42px',
+  '--prompt-dialog-icon-size: 22px',
+  '--prompt-dialog-status-rule-width: 0px',
+  '--prompt-dialog-window-shadow: 0 8px 18px rgba(0, 0, 0, 0.18)',
+]) {
+  assert.ok(shellStyleSource.includes(token), `the A confirmation shell should expose ${token}`);
+}
+assert.match(styleSource, /padding: var\(--prompt-dialog-window-padding\)/, 'A confirmation content should use compact window padding');
+assert.match(styleSource, /border-radius: var\(--prompt-dialog-radius-control\)/, 'A confirmation controls should use compact radii');
 assert.doesNotMatch(`${shellStyleSource}\n${styleSource}`, /backdrop-filter|linear-gradient|radial-gradient/);
 
 for (const language of ["'zh-CN'", "'zh-TW'", 'en']) {

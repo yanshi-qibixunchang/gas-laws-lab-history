@@ -20,9 +20,9 @@
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
   border: 1px solid var(--prompt-border);
-  border-radius: var(--prompt-radius-window);
+  border-radius: var(--prompt-dialog-radius-window);
   background: var(--prompt-surface-raised);
-  box-shadow: var(--prompt-window-shadow);
+  box-shadow: var(--prompt-dialog-window-shadow);
   color: var(--prompt-text);
   font-family: var(--prompt-font-ui);
   animation: promptConfirmDialogIn var(--prompt-motion-normal) var(--prompt-motion-ease) both;
@@ -43,30 +43,30 @@
 .prompt-confirm-header {
   position: relative;
   display: grid;
-  min-height: 48px;
-  grid-template-columns: 30px minmax(0, 1fr) auto;
+  min-height: var(--prompt-dialog-header-height);
+  grid-template-columns: var(--prompt-dialog-icon-size) minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--prompt-space-2);
   border-bottom: 1px solid var(--prompt-border-soft);
   background: var(--prompt-surface-muted);
-  padding: 7px var(--prompt-space-4);
+  padding: 6px var(--prompt-dialog-window-padding);
 }
 
 .prompt-confirm-header::before {
   position: absolute;
   inset: 0 auto 0 0;
-  width: 3px;
+  width: var(--prompt-dialog-status-rule-width);
   background: var(--prompt-tone);
   content: '';
 }
 
 .prompt-confirm-icon {
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: var(--prompt-dialog-icon-size);
+  height: var(--prompt-dialog-icon-size);
   place-items: center;
   border: 1px solid var(--prompt-tone-border);
-  border-radius: var(--prompt-radius-control);
+  border-radius: var(--prompt-dialog-radius-control);
   background: var(--prompt-tone-soft);
   color: var(--prompt-tone);
 }
@@ -99,7 +99,7 @@
   height: 27px;
   place-items: center;
   border: 1px solid var(--prompt-border-soft);
-  border-radius: var(--prompt-radius-control);
+  border-radius: var(--prompt-dialog-radius-control);
   background: var(--prompt-surface-raised);
   color: var(--prompt-muted);
   padding: 0;
@@ -121,7 +121,7 @@
   align-content: start;
   gap: var(--prompt-space-3);
   overflow: auto;
-  padding: var(--prompt-space-4);
+  padding: var(--prompt-dialog-window-padding);
 }
 
 .prompt-confirm-body > p,
@@ -158,7 +158,7 @@
   gap: var(--prompt-space-2);
   border-top: 1px solid var(--prompt-border-soft);
   background: var(--prompt-surface-muted);
-  padding: 9px var(--prompt-space-4);
+  padding: 8px var(--prompt-dialog-window-padding);
 }
 
 .prompt-confirm-button {
@@ -167,7 +167,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid transparent;
-  border-radius: var(--prompt-radius-control);
+  border-radius: var(--prompt-dialog-radius-control);
   padding: 0 12px;
   font: inherit;
   font-size: var(--prompt-type-button);
