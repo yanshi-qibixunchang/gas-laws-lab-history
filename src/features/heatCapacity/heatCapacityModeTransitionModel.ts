@@ -23,7 +23,7 @@ export type HeatCapacityModeTransitionReason =
 
 export type HeatCapacityModeTransitionIntent = {
   requestId: number;
-  sourceMode: HeatCapacityMode;
+  sourceMode: HeatCapacityMode | null;
   targetMode: HeatCapacityMode;
   reason: HeatCapacityModeTransitionReason;
   discardSource: boolean;
@@ -32,7 +32,7 @@ export type HeatCapacityModeTransitionIntent = {
 export type HeatCapacityModeTransitionState = {
   schemaVersion: typeof HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION;
   phase: HeatCapacityModeTransitionPhase;
-  visibleMode: HeatCapacityMode;
+  visibleMode: HeatCapacityMode | null;
   sourceMode: HeatCapacityMode | null;
   targetMode: HeatCapacityMode | null;
   queuedMode: HeatCapacityMode | null;
@@ -86,7 +86,7 @@ export type HeatCapacityModeTransitionEvent =
       type: 'animation-finished';
       sceneMotionReasons: readonly HeatCapacityModeTransitionBlocker[];
     }
-  | { type: 'synchronize'; visibleMode: HeatCapacityMode };
+  | { type: 'synchronize'; visibleMode: HeatCapacityMode | null };
 
 const MODES: readonly HeatCapacityMode[] = ['demo', 'guide', 'free'];
 const PHASES: readonly HeatCapacityModeTransitionPhase[] = [
@@ -154,7 +154,7 @@ const normalizeMotionReasons = (
 ) => Array.from(new Set(reasons));
 
 export const createHeatCapacityModeTransitionState = (
-  visibleMode: HeatCapacityMode,
+  visibleMode: HeatCapacityMode | null,
   requestId = 0,
 ): HeatCapacityModeTransitionState => ({
   schemaVersion: HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION,
@@ -207,27 +207,31 @@ export const createHeatCapacityModeTransitionCheckpoint = (
 
 export const normalizeHeatCapacityModeTransitionCheckpoint = (
   value: unknown,
-  fallbackVisibleMode: HeatCapacityMode,
+  fallbackVisibleMode: HeatCapacityMode | null,
   now = Date.now(),
 ): HeatCapacityModeTransitionState => {
   if (!isRecord(value) || value.schemaVersion !== HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION) {
     return createHeatCapacityModeTransitionState(fallbackVisibleMode);
   }
-  if (!isPhase(value.phase) || !isMode(value.visibleMode)) {
+  if (!isPhase(value.phase) || (value.visibleMode !== null && !isMode(value.visibleMode))) {
     return createHeatCapacityModeTransitionState(fallbackVisibleMode);
   }
+  const visibleMode: HeatCapacityMode | null = value.visibleMode === null
+    ? null
+    : value.visibleMode as HeatCapacityMode;
   const requestId = normalizeRequestId(value.requestId);
   const lastIssuedRequestId = Math.max(
     requestId,
     normalizeRequestId(value.lastIssuedRequestId, requestId),
   );
-  if (value.visibleMode !== fallbackVisibleMode) {
+  if (visibleMode !== fallbackVisibleMode) {
     return createHeatCapacityModeTransitionState(fallbackVisibleMode, requestId);
   }
   if (value.phase === 'idle') {
-    return createHeatCapacityModeTransitionState(value.visibleMode, requestId);
+    return createHeatCapacityModeTransitionState(visibleMode, requestId);
   }
   if (
+    visibleMode === null ||
     !isMode(value.sourceMode) ||
     !isMode(value.targetMode) ||
     value.sourceMode === value.targetMode
@@ -235,13 +239,13 @@ export const normalizeHeatCapacityModeTransitionCheckpoint = (
     return createHeatCapacityModeTransitionState(fallbackVisibleMode, requestId);
   }
   const visibleModeMatchesTransaction = value.phase === 'animating'
-    ? value.visibleMode === value.targetMode
-    : value.visibleMode === value.sourceMode;
+    ? visibleMode === value.targetMode
+    : visibleMode === value.sourceMode;
   if (!visibleModeMatchesTransaction) {
     return createHeatCapacityModeTransitionState(fallbackVisibleMode, requestId);
   }
   const queuedMode: HeatCapacityMode | null = value.phase === 'animating' && isMode(value.queuedMode)
-    ? (value.queuedMode === value.visibleMode ? null : value.queuedMode)
+    ? (value.queuedMode === visibleMode ? null : value.queuedMode)
     : null;
   const activeIntent = normalizeIntent(value.activeIntent, {
     requestId,
@@ -261,7 +265,7 @@ export const normalizeHeatCapacityModeTransitionCheckpoint = (
     ? null
     : normalizeIntent(value.queuedIntent, {
         requestId: lastIssuedRequestId + 1,
-        sourceMode: value.visibleMode,
+        sourceMode: visibleMode,
         targetMode: queuedMode,
         reason: 'mode-control',
         discardSource: false,
@@ -270,7 +274,7 @@ export const normalizeHeatCapacityModeTransitionCheckpoint = (
     queuedIntent &&
     (
       queuedIntent.requestId <= activeIntent.requestId ||
-      queuedIntent.sourceMode !== value.visibleMode ||
+      queuedIntent.sourceMode !== visibleMode ||
       queuedIntent.targetMode !== queuedMode
     )
   ) {
@@ -282,7 +286,7 @@ export const normalizeHeatCapacityModeTransitionCheckpoint = (
   return {
     schemaVersion: HEAT_CAPACITY_MODE_TRANSITION_SCHEMA_VERSION,
     phase: value.phase,
-    visibleMode: value.visibleMode,
+    visibleMode,
     sourceMode: value.sourceMode,
     targetMode: value.targetMode,
     queuedMode,

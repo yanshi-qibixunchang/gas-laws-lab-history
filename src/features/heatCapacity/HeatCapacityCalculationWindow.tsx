@@ -1,12 +1,8 @@
-import { X } from 'lucide-react';
 import {
-  useEffect,
   useId,
-  useRef,
   type CSSProperties,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type MouseEvent as ReactMouseEvent,
 } from 'react';
+import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import {
   getHeatCapacityCalculationWorkflowField,
   getHeatCapacityCalculationWorkflowVisibleSteps,
@@ -578,39 +574,6 @@ export const HeatCapacityCalculationWindow = ({
   onClose,
 }: HeatCapacityCalculationWindowProps) => {
   const generatedId = useId();
-  const dialogRef = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    if (!open || session === null) return undefined;
-    const focusFirstControl = () => {
-      const dialog = dialogRef.current;
-      if (!dialog) return;
-      const preferred = dialog.querySelector<HTMLElement>(
-        '.studio-heat-calculation-step-active input:not(:disabled), ' +
-        '.studio-heat-calculation-step-active button:not(:disabled), ' +
-        '.studio-heat-calculation-exit, .studio-settings-close',
-      );
-      preferred?.focus();
-    };
-    const frame = window.requestAnimationFrame(focusFirstControl);
-    const keepFocusInside = (event: FocusEvent) => {
-      if (
-        event.target instanceof Node &&
-        !dialogRef.current?.contains(event.target)
-      ) {
-        focusFirstControl();
-      }
-    };
-    document.addEventListener('focusin', keepFocusInside);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      document.removeEventListener('focusin', keepFocusInside);
-    };
-  }, [
-    open,
-    session?.activeStepId,
-    session?.status,
-    session?.presentation,
-  ]);
   if (!open || session === null) return null;
 
   const copy = COPY[language] ?? COPY['zh-CN'];
@@ -628,40 +591,6 @@ export const HeatCapacityCalculationWindow = ({
     if (!canDismiss) return;
     if (isReadyForCompletion) onCompleteAndExit();
     else onClose();
-  };
-  const handleOverlayMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
-    if (event.target === event.currentTarget) handleDismiss();
-  };
-  const handleDialogKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      handleDismiss();
-      return;
-    }
-    if (event.key !== 'Tab') return;
-    const focusable = Array.from(
-      event.currentTarget.querySelectorAll<HTMLElement>(
-        'button:not(:disabled):not([tabindex="-1"]), input:not(:disabled), ' +
-        '[href], [tabindex]:not([tabindex="-1"])',
-      ),
-    ).filter((element) => (
-      element.getClientRects().length > 0 &&
-      element.getAttribute('aria-hidden') !== 'true'
-    ));
-    if (focusable.length === 0) {
-      event.preventDefault();
-      return;
-    }
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
   };
 
   const selectedGroupIndex = session.selectedGroupIndex ?? session.activeGroupIndex;
@@ -684,40 +613,31 @@ export const HeatCapacityCalculationWindow = ({
   const visibleSteps = getHeatCapacityCalculationWorkflowVisibleSteps(session);
 
   return (
-    <div
-      className="studio-settings-overlay studio-heat-calculation-overlay"
-      data-heat-capacity-calculation-window="true"
-      data-calculation-status={session.status}
-      role="presentation"
-      onMouseDown={handleOverlayMouseDown}
+    <PromptDialogShell
+      title={copy.title}
+      titleId={titleId}
+      subtitle={copy.subtitle[session.mode]}
+      variant="task"
+      role="dialog"
+      ariaDescribedBy={noteId}
+      closeLabel={copy.close}
+      dismiss={{ closeButton: canDismiss, escape: canDismiss, backdrop: canDismiss }}
+      onRequestClose={handleDismiss}
+      initialFocusSelector={
+        '.studio-heat-calculation-step-active input:not(:disabled), ' +
+        '.studio-heat-calculation-step-active button:not(:disabled), ' +
+        '.studio-heat-calculation-exit, .studio-settings-close'
+      }
+      focusKey={`${session.activeStepId}:${session.status}:${session.presentation}`}
+      overlayClassName="studio-settings-overlay studio-heat-calculation-overlay"
+      dialogClassName="studio-settings-window studio-heat-calculation-window"
+      headerClassName="studio-settings-header studio-heat-calculation-header"
+      closeButtonClassName="studio-settings-close"
+      overlayData={{
+        'data-heat-capacity-calculation-window': 'true',
+        'data-calculation-status': session.status,
+      }}
     >
-      <section
-        ref={dialogRef}
-        className="studio-settings-window studio-heat-calculation-window"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={noteId}
-        onKeyDown={handleDialogKeyDown}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <header className="studio-settings-header studio-heat-calculation-header">
-          <div>
-            <strong id={titleId}>{copy.title}</strong>
-            <span>{copy.subtitle[session.mode]}</span>
-          </div>
-          {canDismiss ? (
-            <button
-              type="button"
-              className="studio-settings-close"
-              aria-label={copy.close}
-              onClick={handleDismiss}
-            >
-              <X size={15} />
-            </button>
-          ) : null}
-        </header>
-
         <div
           id={noteId}
           className="studio-heat-calculation-tolerance-note"
@@ -741,7 +661,7 @@ export const HeatCapacityCalculationWindow = ({
                   className={selected ? 'studio-heat-calculation-tab-active' : ''}
                   aria-current={selected ? 'page' : undefined}
                   disabled={disabled}
-                  title={disabled ? copy.futureGroup : undefined}
+                  data-prompt-tooltip={disabled ? copy.futureGroup : undefined}
                   onClick={() => onSelectGroup(index)}
                 >
                   {copy.groupTab(index)}
@@ -753,7 +673,7 @@ export const HeatCapacityCalculationWindow = ({
               className={session.aggregateSelected ? 'studio-heat-calculation-tab-active' : ''}
               aria-current={session.aggregateSelected ? 'page' : undefined}
               disabled={session.status === 'in-progress' && !session.aggregateSelected}
-              title={
+              data-prompt-tooltip={
                 session.status === 'in-progress' && !session.aggregateSelected
                   ? copy.futureAggregate
                   : undefined
@@ -835,8 +755,7 @@ export const HeatCapacityCalculationWindow = ({
             </button>
           </footer>
         ) : null}
-      </section>
-    </div>
+    </PromptDialogShell>
   );
 };
 

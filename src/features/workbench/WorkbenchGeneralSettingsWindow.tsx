@@ -1,5 +1,6 @@
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import type { CSSProperties, RefObject } from 'react';
+import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import { HEAT_CAPACITY_QUALITY_MODE_ORDER } from '../heatCapacity/heatCapacityQualityProfiles.ts';
 import {
   WORKBENCH_LANGUAGE_PREFERENCE_ORDER,
@@ -106,24 +107,20 @@ export const WorkbenchGeneralSettingsWindow = ({
   } as CSSProperties;
 
   return (
-    <div className="studio-settings-overlay" role="presentation" onMouseDown={onClose}>
-      <section
-        className="studio-settings-window"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="studio-settings-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="studio-settings-header">
-          <div>
-            <strong id="studio-settings-title">{copy.settings.title}</strong>
-            <span>{copy.settings.subtitle}</span>
-          </div>
-          <button type="button" className="studio-settings-close" aria-label={copy.settings.closeAria} onClick={onClose}>
-            <X size={15} />
-          </button>
-        </div>
-
+    <PromptDialogShell
+      title={copy.settings.title}
+      titleId="studio-settings-title"
+      subtitle={copy.settings.subtitle}
+      variant="task"
+      closeLabel={copy.settings.closeAria}
+      dismiss={{ closeButton: true, escape: true, backdrop: true }}
+      onRequestClose={onClose}
+      returnFocusSelector="[data-workbench-top-command='settings']"
+      overlayClassName="studio-settings-overlay"
+      dialogClassName="studio-settings-window"
+      headerClassName="studio-settings-header"
+      closeButtonClassName="studio-settings-close"
+    >
         <div className="studio-settings-body">
           <section className="studio-settings-section">
             <div className="studio-settings-section-title">
@@ -280,7 +277,6 @@ export const WorkbenchGeneralSettingsWindow = ({
             </div>
           </section>
         </div>
-      </section>
-    </div>
+    </PromptDialogShell>
   );
 };

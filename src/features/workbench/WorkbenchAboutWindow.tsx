@@ -1,4 +1,5 @@
-import { ChevronRight, Loader2, X } from 'lucide-react';
+import { ChevronRight, Loader2 } from 'lucide-react';
+import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 
 interface WorkbenchAboutWindowCopy {
   title: string;
@@ -23,7 +24,6 @@ interface WorkbenchAboutWindowProps {
   environmentAvailable: boolean;
   environmentStatusLabel: string;
   sessionCacheSummary: { summary: string; breakdown: string };
-  resultNotice: { title: string; body: string } | null;
   onClose: () => void;
   onCheckUpdates: () => void;
   onCheckEnvironment: () => void;
@@ -40,7 +40,6 @@ export const WorkbenchAboutWindow = ({
   environmentAvailable,
   environmentStatusLabel,
   sessionCacheSummary,
-  resultNotice,
   onClose,
   onCheckUpdates,
   onCheckEnvironment,
@@ -49,24 +48,20 @@ export const WorkbenchAboutWindow = ({
   if (!open) return null;
 
   return (
-    <div className="studio-settings-overlay studio-about-overlay" role="presentation" onMouseDown={onClose}>
-      <section
-        className="studio-settings-window studio-about-window"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="studio-about-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="studio-settings-header studio-about-header">
-          <div>
-            <strong id="studio-about-title">{copy.title}</strong>
-            <span>{copy.subtitle}</span>
-          </div>
-          <button type="button" className="studio-settings-close" aria-label={copy.closeAria} onClick={onClose}>
-            <X size={15} />
-          </button>
-        </div>
-
+    <PromptDialogShell
+      title={copy.title}
+      titleId="studio-about-title"
+      subtitle={copy.subtitle}
+      variant="task"
+      closeLabel={copy.closeAria}
+      dismiss={{ closeButton: true, escape: true, backdrop: true }}
+      onRequestClose={onClose}
+      returnFocusSelector="[data-workbench-top-command='help']"
+      overlayClassName="studio-settings-overlay studio-about-overlay"
+      dialogClassName="studio-settings-window studio-about-window"
+      headerClassName="studio-settings-header studio-about-header"
+      closeButtonClassName="studio-settings-close"
+    >
         <div className="studio-about-body">
           <section className="studio-about-card">
             <div className="studio-about-row">
@@ -112,13 +107,6 @@ export const WorkbenchAboutWindow = ({
           </section>
         </div>
 
-        {resultNotice ? (
-          <div className="studio-about-result-toast" role="status" aria-live="polite">
-            <strong>{resultNotice.title}</strong>
-            <span>{resultNotice.body}</span>
-          </div>
-        ) : null}
-      </section>
-    </div>
+    </PromptDialogShell>
   );
 };

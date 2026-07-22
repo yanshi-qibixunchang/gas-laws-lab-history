@@ -6,6 +6,7 @@ const topCommandsSource = readFileSync(new URL('../../src/features/workbench/Wor
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const sessionSource = readFileSync(new URL('../../src/features/workbench/workbenchSession.ts', import.meta.url), 'utf8');
 const indexedDbPersistenceSource = readFileSync(new URL('../../src/features/workbench/workbenchIndexedDbPersistence.ts', import.meta.url), 'utf8');
+const promptCopySource = readFileSync(new URL('../../src/features/workbench/workbenchPromptCopies.ts', import.meta.url), 'utf8');
 
 const indexOfOrFail = (haystack: string, needle: string, message: string) => {
   const index = haystack.indexOf(needle);
@@ -18,9 +19,13 @@ assert.ok(source.includes('newExperiment: string;'), 'menu copy should expose a 
 assert.ok(source.includes('openExperiment: string;'), 'menu copy should expose an Open Experiment submenu label');
 assert.ok(source.includes('noCachedExperiments: string;'), 'menu copy should expose an empty cached-experiment state');
 assert.ok(source.includes('closeExperiment: string;'), 'file menu copy should expose Close Experiment');
-assert.ok(source.includes('confirmCloseRunningExperiment: (name: string) => string;'), 'copy should provide a running-close confirmation');
+assert.ok(promptCopySource.includes('closeRunningExperiment: (fileName: string) => WorkbenchConfirmationCopy;'), 'prompt copy should provide a running-close confirmation');
 
-assert.ok(source.includes('const [closedFiles, setClosedFiles] = useState<WorkbenchFileState[]>(() => loadClosedWorkbenchFiles());'), 'workbench should load closed cached experiment files');
+assert.match(
+  source,
+  /const \[closedFiles, setClosedFiles\] = useState<WorkbenchFileState\[]>\(\(\) => \{[\s\S]*loadClosedWorkbenchFiles\(\)\.map[\s\S]*prepareHeatCapacityFileForExploreOnOpen/,
+  'workbench should load closed cached experiment files and normalize heat-capacity files to Explore',
+);
 assert.match(
   source,
   /closedFilesRef\.current = closedFiles;[\s\S]*scheduleWorkspacePersistenceRef\.current\('semantic'\);[\s\S]*\}, \[activeFileId, closedFiles, selectedPanel\]\);/,
@@ -70,7 +75,11 @@ assert.ok(
 );
 
 assert.ok(source.includes('const requestCloseWorkbenchFile = (file: WorkbenchFileState) => {'), 'workbench should expose a close-file request handler');
-assert.ok(source.includes('window.confirm(workbenchCopy.files.confirmCloseRunningExperiment(file.name))'), 'closing a running experiment should ask for confirmation');
+assert.match(
+  source,
+  /const requestCloseWorkbenchFile = \(file: WorkbenchFileState\) => \{[\s\S]*requestPromptConfirmation\(\{[\s\S]*id: `close-running-workbench-file:\$\{file\.id\}`[\s\S]*onConfirm: \(\) => closeWorkbenchFile\(file\.id\)/,
+  'closing a running experiment should use the internal confirmation and close only after confirmation',
+);
 assert.ok(source.includes('commitWorkbenchFileCollections'), 'file collection changes should use one synchronous ownership boundary');
 assert.match(
   source.slice(

@@ -337,6 +337,22 @@ export const createHeatCapacityCommonRuntimeShell = (
   heatCapacityModeSessions: file.heatCapacityModeSessions,
 });
 
+/**
+ * Projects a heat-capacity file into the non-recording Explore base state.
+ * Formal-mode data stays in the three mode sessions while the visible
+ * instrument receives a clean common runtime.
+ */
+export const enterHeatCapacityExploreModeWorkbenchState = (
+  file: WorkbenchHeatCapacityState,
+  defaults: WorkbenchHeatCapacityState,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => ({
+  ...createHeatCapacityCommonRuntimeShell(file, defaults),
+  heatCapacityMode: null,
+  updatedAt: now,
+  lastOpenedAt: now,
+});
+
 const pickHeatCapacitySessionFields = <
   Keys extends readonly (keyof WorkbenchHeatCapacityState)[],
 >(
@@ -440,6 +456,7 @@ export const suspendHeatCapacityModeSession = (
   capturedAtMs = Date.now(),
 ): WorkbenchHeatCapacityState => {
   const mode = file.heatCapacityMode;
+  if (mode === null) return file;
   if (
     uiCheckpoint !== null &&
     (uiCheckpoint.fileId !== file.id || uiCheckpoint.mode !== mode)
@@ -621,6 +638,23 @@ export const clearHeatCapacityModeSession = (
     [mode]: createEmptyHeatCapacityModeSessionEntry(),
   },
 });
+
+/**
+ * Normalizes a file opened from disk or revisited in the workbench to Explore.
+ * Free mode is resumable; Demo and Guide are intentionally discarded.
+ */
+export const prepareHeatCapacityFileForExploreOnOpen = (
+  file: WorkbenchHeatCapacityState,
+  defaults: WorkbenchHeatCapacityState,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  const prepared = file.heatCapacityMode === 'free'
+    ? suspendHeatCapacityModeSession(file, null, now)
+    : file.heatCapacityMode === 'demo' || file.heatCapacityMode === 'guide'
+      ? clearHeatCapacityModeSession(file, file.heatCapacityMode)
+      : file;
+  return enterHeatCapacityExploreModeWorkbenchState(prepared, defaults, now);
+};
 
 const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;

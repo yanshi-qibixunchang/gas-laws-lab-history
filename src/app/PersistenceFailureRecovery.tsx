@@ -299,7 +299,7 @@ export const PersistenceFailureRecovery = ({
               type="button"
               className="studio-window-control-button"
               aria-label={windowControlCopy.minimize}
-              title={windowControlCopy.minimize}
+              data-prompt-tooltip={windowControlCopy.minimize}
               onClick={minimizeDesktopWindow}
             >
               <span className="studio-window-control-glyph studio-window-control-glyph-minimize" aria-hidden="true" />
@@ -308,7 +308,7 @@ export const PersistenceFailureRecovery = ({
               type="button"
               className="studio-window-control-button"
               aria-label={desktopWindowMaximized ? windowControlCopy.restore : windowControlCopy.maximize}
-              title={desktopWindowMaximized ? windowControlCopy.restore : windowControlCopy.maximize}
+              data-prompt-tooltip={desktopWindowMaximized ? windowControlCopy.restore : windowControlCopy.maximize}
               onClick={toggleDesktopWindowMaximize}
             >
               <span
@@ -322,7 +322,7 @@ export const PersistenceFailureRecovery = ({
               type="button"
               className="studio-window-control-button studio-window-control-close"
               aria-label={windowControlCopy.close}
-              title={windowControlCopy.close}
+              data-prompt-tooltip={windowControlCopy.close}
               onClick={closeDesktopWindow}
             >
               <X size={15} strokeWidth={2.2} />

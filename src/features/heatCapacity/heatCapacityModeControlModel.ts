@@ -8,7 +8,7 @@ export type HeatCapacityModeControlActionId =
   | 'exit-guide'
   | 'exit-teaching'
   | 'reset-free'
-  | 'next-free-group';
+  | 'exit-free';
 
 export type HeatCapacityAutoDemoPhase = 'idle' | 'running' | 'paused';
 
@@ -25,7 +25,7 @@ export interface HeatCapacityModeControlSegment {
 }
 
 export interface HeatCapacityModeControlState {
-  activeMode: HeatCapacityMode;
+  activeMode: HeatCapacityMode | null;
   expanded: boolean;
   demo: HeatCapacityModeControlSegment;
   guide: HeatCapacityModeControlSegment;
@@ -33,17 +33,17 @@ export interface HeatCapacityModeControlState {
 }
 
 export interface HeatCapacityModeControlInput {
-  activeMode: HeatCapacityMode;
+  activeMode: HeatCapacityMode | null;
   autoDemoPhase: HeatCapacityAutoDemoPhase;
   teachingCompleted: boolean;
-  canAdvanceFreeGroup: boolean;
+  freeBatchCompleted: boolean;
 }
 
 export const selectHeatCapacityModeControlState = ({
   activeMode,
   autoDemoPhase,
   teachingCompleted,
-  canAdvanceFreeGroup,
+  freeBatchCompleted,
 }: HeatCapacityModeControlInput): HeatCapacityModeControlState => {
   const autoDemoActive = autoDemoPhase !== 'idle';
   const demoActionsVisible = activeMode === 'demo' && (autoDemoActive || teachingCompleted);
@@ -65,8 +65,10 @@ export const selectHeatCapacityModeControlState = ({
     : [];
   const freeActions: HeatCapacityModeControlAction[] = freeActionsVisible
     ? [
-        { id: 'reset-free', tone: 'danger' },
-        { id: 'next-free-group', tone: 'default', disabled: !canAdvanceFreeGroup },
+        ...(!freeBatchCompleted
+          ? [{ id: 'reset-free', tone: 'danger' } as const]
+          : []),
+        { id: 'exit-free', tone: 'danger' },
       ]
     : [];
 

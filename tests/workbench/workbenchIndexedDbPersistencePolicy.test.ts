@@ -24,6 +24,7 @@ import {
   isWorkbenchRefreshMetadataAnchorRecoverySourceVersion,
   isWorkbenchRefreshMetadataTargetActive,
   isWorkbenchWorkspaceRevisionCurrent,
+  materializePersistenceV3Snapshot,
   normalizeWorkbenchWorkspaceMetaRecord,
   resolveWorkbenchActiveModeCheckpointOverride,
 } from '../../src/features/workbench/workbenchIndexedDbPersistence.ts';
@@ -987,6 +988,24 @@ assert.match(
   source,
   /const productionSnapshot = materializePersistenceV3Snapshot\([\s\S]*persistenceWorkerClient\.save\(\{[\s\S]*snapshot: productionSnapshot/,
   'normal writes should materialize one immutable V3 snapshot before their first worker wait',
+);
+const exploreModeFile = {
+  ...createDefaultHeatCapacityFile(9),
+  heatCapacityMode: null,
+};
+const exploreModeSnapshot = materializePersistenceV3Snapshot({
+  files: [exploreModeFile],
+  closedFiles: [],
+  activeFileId: exploreModeFile.id,
+  selectedPanel: 'preview',
+  refreshSession: null,
+  activeModeCheckpoint: null,
+  preserveActiveHeatCapacityModeSession: false,
+}, 9_000);
+assert.equal(
+  exploreModeSnapshot.files[0],
+  exploreModeFile,
+  'saving the mode-selection space must not read a nonexistent active mode checkpoint',
 );
 assert.equal(
   areCanonicalPersistenceValuesEqual({ alpha: 1, beta: 2 }, { beta: 2, alpha: 1 }),

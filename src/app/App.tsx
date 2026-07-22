@@ -7,6 +7,8 @@ import {
   type WorkbenchPersistenceBootstrapResult,
 } from '../features/workbench/workbenchIndexedDbPersistence.ts';
 import { getWorkbenchAppBrandName } from '../features/workbench/workbenchBrand.ts';
+import { PromptPersistentBanner } from '../components/prompts/PromptFeedback.tsx';
+import { PromptTooltipProvider } from '../components/prompts/PromptTooltipProvider.tsx';
 
 const WORKBENCH_FRAME_WIDTH = 1440;
 const WORKBENCH_FRAME_HEIGHT = 810;
@@ -181,52 +183,23 @@ function App() {
         : '重试存储';
 
   return (
-    <AudioProvider initialSettings={initialAudioSettings}>
-      <WorkbenchAspectFrame />
-      {persistenceBootstrap.error ? (
-        <div
-          role="status"
-          data-workbench-persistence-safe-mode="true"
-          title={persistenceBootstrap.error.message}
-          style={{
-            position: 'fixed',
-            zIndex: 10000,
-            left: '50%',
-            bottom: 12,
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            maxWidth: 'min(920px, calc(100vw - 24px))',
-            padding: '9px 12px',
-            color: '#f2f6fa',
-            background: 'rgba(48, 55, 62, 0.96)',
-            border: '1px solid rgba(196, 207, 218, 0.45)',
-            borderRadius: 8,
-            boxShadow: '0 8px 26px rgba(0, 0, 0, 0.35)',
-            fontSize: 13,
-          }}
-        >
-          <span>{persistenceWarning}</span>
-          <button
-            type="button"
-            disabled={persistenceRetrying}
-            onClick={retryPersistenceInitialization}
-            style={{
-              flex: '0 0 auto',
-              padding: '5px 9px',
-              color: '#f7fafc',
-              background: '#245d86',
-              border: '1px solid #5795bf',
-              borderRadius: 5,
-              cursor: persistenceRetrying ? 'wait' : 'pointer',
-            }}
-          >
-            {retryLabel}
-          </button>
-        </div>
-      ) : null}
-    </AudioProvider>
+    <PromptTooltipProvider>
+      <AudioProvider initialSettings={initialAudioSettings}>
+        <WorkbenchAspectFrame />
+        {persistenceBootstrap.error ? (
+          <PromptPersistentBanner
+            kind="warning"
+            message={persistenceWarning}
+            actionLabel={retryLabel}
+            actionDisabled={persistenceRetrying}
+            onAction={retryPersistenceInitialization}
+            tooltip={persistenceBootstrap.error.message}
+            theme={initialGeneralSettings.theme}
+            dataAttributes={{ 'data-workbench-persistence-safe-mode': 'true' }}
+          />
+        ) : null}
+      </AudioProvider>
+    </PromptTooltipProvider>
   );
 }
 

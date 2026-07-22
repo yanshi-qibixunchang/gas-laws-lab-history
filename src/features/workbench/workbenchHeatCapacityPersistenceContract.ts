@@ -173,7 +173,12 @@ export const validateHeatCapacityPersistencePayload = (
   if (payload.heatCapacitySchemaVersion !== HEAT_CAPACITY_SCHEMA_VERSION) {
     errors.push('heatCapacitySchemaVersion is unsupported');
   }
-  if (payload.mode !== 'demo' && payload.mode !== 'guide' && payload.mode !== 'free') {
+  if (
+    payload.mode !== null &&
+    payload.mode !== 'demo' &&
+    payload.mode !== 'guide' &&
+    payload.mode !== 'free'
+  ) {
     errors.push('mode is invalid');
   }
   const common = isPersistenceRecord(payload.common) ? payload.common : null;

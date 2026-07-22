@@ -529,7 +529,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
                     }
                     ${showPanHint ? 'animate-breathe-attention ring-2 ring-amber-300/45' : ''}
                   `}
-                title={isPanMode ? t.tooltips.rotateMode : t.tooltips.panMode}
+                data-prompt-tooltip={isPanMode ? t.tooltips.rotateMode : t.tooltips.panMode}
               >
                 {isPanMode ? <Hand size={isWorkbench ? 16 : 22} strokeWidth={2.5} /> : <Rotate3d size={isWorkbench ? 16 : 22} strokeWidth={2} />}
                 {!isWorkbench && showPanHint && (
@@ -550,7 +550,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
               className={isWorkbench
                 ? 'simulation-canvas-workbench-reset'
                 : `bg-sciblue-600 text-white text-xs px-3 py-1.5 rounded-full shadow-lg border border-sciblue-400/50 backdrop-blur-sm transition-transform active:scale-95 flex items-center gap-1 ${resetButtonHoverClass}`}
-              title={t.tooltips.resetCamera}
+              data-prompt-tooltip={t.tooltips.resetCamera}
             >
               {isWorkbench ? t.canvas.workbenchDefaultView : (
                 <>

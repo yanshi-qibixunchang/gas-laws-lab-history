@@ -75,6 +75,36 @@ assert.equal(
   'a future file must remain opaque across later healthy saves',
 );
 
+const malformedStore = new InMemoryWorkbenchPersistenceV3GenerationStore();
+const malformed = createDefaultStandardFile(3);
+malformed.name = '';
+const malformedCommit = await commitWorkbenchPersistenceV3ProductionSnapshot({
+  store: malformedStore,
+  namespace: 'production-facade-malformed-diagnostic-test',
+  generationId: 'generation-malformed',
+  capturedAtMs: 300,
+  snapshot: {
+    files: [healthy],
+    closedFiles: [malformed],
+    activeFileId: healthy.id,
+    selectedPanel: 'preview',
+  },
+});
+const malformedDiagnostic = malformedCommit.retained.opaqueFiles[0]?.diagnostics[0];
+assert.ok(malformedDiagnostic);
+const malformedDiagnosticRecord = malformedDiagnostic as Record<string, unknown>;
+assert.equal(malformedDiagnosticRecord.code, 'persistence-v3-runtime-file-header-invalid');
+assert.equal(Object.hasOwn(malformedDiagnosticRecord, 'sourceVersion'), false);
+assert.equal(Object.hasOwn(malformedDiagnosticRecord, 'supportedVersion'), false);
+assert.equal(
+  await malformedStore.readGeneration(
+    'production-facade-malformed-diagnostic-test',
+    'generation-malformed',
+  ) !== null,
+  true,
+  'a quarantined file diagnostic with absent optional fields must still commit canonically',
+);
+
 const corruptCurrentStore: WorkbenchPersistenceV3GenerationStore = {
   readHead: (targetNamespace) => store.readHead(targetNamespace),
   stageCandidate: (candidate) => store.stageCandidate(candidate),

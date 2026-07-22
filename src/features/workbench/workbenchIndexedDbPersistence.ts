@@ -994,7 +994,7 @@ const createPersistenceV3GenerationId = (capturedAtMs: number) => {
   return `${capturedAtMs}-${suffix}`;
 };
 
-const materializePersistenceV3Snapshot = (
+export const materializePersistenceV3Snapshot = (
   snapshot: WorkbenchWorkspacePersistenceSnapshot,
   capturedAtMs: number,
 ) => ({
@@ -1002,6 +1002,7 @@ const materializePersistenceV3Snapshot = (
     if (
       file.kind !== 'heatCapacity' ||
       file.id !== snapshot.activeFileId ||
+      file.heatCapacityMode === null ||
       snapshot.preserveActiveHeatCapacityModeSession
     ) {
       return file;

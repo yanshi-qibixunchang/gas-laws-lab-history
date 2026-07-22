@@ -252,7 +252,7 @@ const createRuntimeFieldsFromRestoredFreeDomain = (
 const createHeatCapacityPersistenceSourceFile = (
   file: WorkbenchHeatCapacityState,
 ): WorkbenchHeatCapacityState => {
-  const captured = prepareHeatCapacityFreeCapture(file, true);
+  const captured = prepareHeatCapacityFreeCapture(file, file.heatCapacityMode === 'free');
   if (captured.ok === false) {
     throw new Error(`${captured.fieldPath}: ${captured.reason}`);
   }
@@ -261,9 +261,10 @@ const createHeatCapacityPersistenceSourceFile = (
 
 const normalizePayloadMode = (
   value: unknown,
-): WorkbenchHeatCapacityState['heatCapacityMode'] => (
-  value === 'demo' || value === 'guide' || value === 'free' ? value : 'free'
-);
+): WorkbenchHeatCapacityState['heatCapacityMode'] => {
+  if (value === null) return null;
+  return value === 'demo' || value === 'guide' || value === 'free' ? value : 'free';
+};
 
 const normalizePumpBulbState = (
   value: unknown,

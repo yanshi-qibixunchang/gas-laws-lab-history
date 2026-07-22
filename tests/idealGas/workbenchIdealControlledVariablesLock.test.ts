@@ -59,8 +59,8 @@ assert.match(
 
 assert.match(
   source,
-  /<div[\s\S]*?title=\{paramLockHint\}[\s\S]*?aria-disabled=\{isParamLocked\}[\s\S]*?<input[\s\S]*?disabled=\{isParamLocked \|\| !param\.editable\}/,
-  'locked parameter rows should carry hover text and an accessible disabled state',
+  /<div[\s\S]*?data-prompt-tooltip=\{paramLockHint\}[\s\S]*?aria-disabled=\{isParamLocked\}[\s\S]*?<input[\s\S]*?disabled=\{isParamLocked \|\| !param\.editable\}/,
+  'locked parameter rows should carry internal tooltip text and an accessible disabled state',
 );
 
 assert.match(

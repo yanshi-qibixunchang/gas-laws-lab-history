@@ -392,6 +392,7 @@ export const WorkbenchTopCommands = ({
           <button
             type="button"
             key={command.id}
+            data-workbench-top-command={command.id}
             className={`studio-command-button ${openMenu === command.id ? 'studio-command-button-active' : ''}`}
             onClick={(event) => onToggleMenu(command.id, event.currentTarget.offsetLeft)}
           >

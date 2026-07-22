@@ -16,6 +16,13 @@ const styleSource = readFileSync(join(
   'heatCapacity',
   'HeatCapacityCalculationWindow.css',
 ), 'utf8');
+const shellSource = readFileSync(join(
+  process.cwd(),
+  'src',
+  'components',
+  'prompts',
+  'PromptDialogShell.tsx',
+), 'utf8');
 
 assert.match(
   componentSource,
@@ -35,7 +42,8 @@ for (const callback of [
   assert.match(componentSource, new RegExp(`${callback}:`), `${callback} should be exposed as a prop`);
 }
 
-assert.match(componentSource, /role="dialog"[\s\S]*aria-modal="true"/, 'the window should be modal');
+assert.match(componentSource, /<PromptDialogShell[\s\S]*role="dialog"/, 'the window should use the shared task-dialog shell');
+assert.match(shellSource, /aria-modal="true"/, 'the shared shell should provide modal semantics');
 assert.match(
   componentSource,
   /const canDismiss = \([\s\S]*session\.status !== 'in-progress'[\s\S]*session\.presentation !== 'interactive'/,
@@ -43,13 +51,13 @@ assert.match(
 );
 assert.match(
   componentSource,
-  /\{canDismiss \? \([\s\S]*className="studio-settings-close"/,
-  'the close icon should only render after dismissal is unlocked',
+  /dismiss=\{\{ closeButton: canDismiss, escape: canDismiss, backdrop: canDismiss \}\}/,
+  'all ambient close channels should only unlock when the workflow can be dismissed',
 );
 assert.match(
   componentSource,
-  /event\.target === event\.currentTarget\) handleDismiss\(\)/,
-  'the backdrop should only route through the guarded dismiss behavior',
+  /onRequestClose=\{handleDismiss\}/,
+  'the shared shell should route close requests through the guarded dismiss behavior',
 );
 assert.match(componentSource, /判定说明：答案同时检查数值与规定精度/, 'the tolerance note should be shown at the top');
 

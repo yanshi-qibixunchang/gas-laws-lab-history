@@ -16,6 +16,7 @@ import {
   WORKBENCH_PERSISTENCE_V3_AGGREGATE_KINDS,
   WORKBENCH_PERSISTENCE_V3_SCHEMA_FAMILY,
   WORKBENCH_PERSISTENCE_V3_SCHEMA_VERSION,
+  createWorkbenchPersistenceV3Diagnostic,
 } from '../../src/features/workbench/persistenceV3/contract.ts';
 import {
   createDefaultHeatCapacityFile,
@@ -48,6 +49,30 @@ assert.deepEqual(
   [...WORKBENCH_REGISTERED_PERSISTENCE_V3_FILE_KINDS].sort(),
   [...WORKBENCH_FILE_KINDS].sort(),
 );
+
+const canonicalDiagnostic = createWorkbenchPersistenceV3Diagnostic({
+  severity: 'error',
+  phase: 'capture',
+  category: 'schema-shape',
+  code: 'test-undefined-optionals',
+  message: 'Optional diagnostic fields must be omitted when absent.',
+  aggregate: {
+    kind: 'file-header',
+    id: 'file-1',
+    fileId: undefined,
+    revision: undefined,
+  },
+  retry: 'after-state-change',
+  recovery: 'quarantine-file',
+  fieldPath: undefined,
+  sourceVersion: undefined,
+  supportedVersion: undefined,
+});
+assert.equal(Object.hasOwn(canonicalDiagnostic, 'fieldPath'), false);
+assert.equal(Object.hasOwn(canonicalDiagnostic, 'sourceVersion'), false);
+assert.equal(Object.hasOwn(canonicalDiagnostic, 'supportedVersion'), false);
+assert.equal(Object.hasOwn(canonicalDiagnostic.aggregate, 'fileId'), false);
+assert.equal(Object.hasOwn(canonicalDiagnostic.aggregate, 'revision'), false);
 
 const files: WorkbenchFileState[] = [
   createDefaultStandardFile(1),

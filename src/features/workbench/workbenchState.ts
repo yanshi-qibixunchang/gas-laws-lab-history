@@ -1035,7 +1035,8 @@ export interface HeatCapacityFreeExperimentDomainState {
 export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   kind: 'heatCapacity';
   particles: Particle[];
-  heatCapacityMode: HeatCapacityMode;
+  /** `null` is the non-recording Explore base state. */
+  heatCapacityMode: HeatCapacityMode | null;
   heatCapacityModeSessions: HeatCapacityModeSessionStore;
   heatCapacityTeachingStatus: HeatCapacityTeachingStatus;
   heatCapacityLessonIntroAutoShown: boolean;
@@ -4966,7 +4967,7 @@ export const setHeatCapacityScriptedStopcockOpen = (
   nextOpen: boolean,
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
-  if (file.heatCapacityMode !== 'demo') return file;
+  if (file.heatCapacityMode !== 'demo' && file.heatCapacityMode !== null) return file;
   const currentFile = stepHeatCapacityWorkbenchFile(file, now);
   const atS = currentFile.simulationTimeS;
   const purpose: Exclude<HeatCapacityReleasePurpose, 'none'> =
@@ -5704,7 +5705,9 @@ export const getHeatCapacityCalculationSession = (
 ): HeatCapacityCalculationWorkflowSession | null => (
   file.heatCapacityMode === 'free'
     ? selectActiveHeatCapacityFreeDomain(file).batch.calculationSession
-    : file.heatCapacityGuideCalculationSession
+    : file.heatCapacityMode === 'demo' || file.heatCapacityMode === 'guide'
+      ? file.heatCapacityGuideCalculationSession
+      : null
 );
 
 const updateHeatCapacityCalculationSessionWorkbenchState = (

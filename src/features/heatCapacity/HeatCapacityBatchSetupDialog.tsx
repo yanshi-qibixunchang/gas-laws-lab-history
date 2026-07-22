@@ -8,6 +8,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
+import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import './HeatCapacityBatchSetupDialog.css';
 
 export const HEAT_CAPACITY_BATCH_GROUP_COUNT_OPTIONS = [3, 4, 5, 6, 7] as const;
@@ -19,6 +20,7 @@ export interface HeatCapacityBatchSetupDialogProps {
   language: WorkbenchLanguagePreference;
   selectedCount: HeatCapacityBatchGroupCount | null;
   onSelectedCountChange: (count: HeatCapacityBatchGroupCount) => void;
+  onCancel: () => void;
   onConfirm: () => void;
 }
 
@@ -78,6 +80,7 @@ export const HeatCapacityBatchSetupDialog = ({
   language,
   selectedCount,
   onSelectedCountChange,
+  onCancel,
   onConfirm,
 }: HeatCapacityBatchSetupDialogProps) => {
   const copy = COPY[language] ?? COPY['zh-CN'];
@@ -87,6 +90,7 @@ export const HeatCapacityBatchSetupDialog = ({
   const listboxId = `${generatedId}-listbox`;
   const selectRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(() => getOptionIndex(selectedCount));
@@ -98,8 +102,6 @@ export const HeatCapacityBatchSetupDialog = ({
     }
 
     setHighlightedIndex(getOptionIndex(selectedCount));
-    const frame = window.requestAnimationFrame(() => triggerRef.current?.focus());
-    return () => window.cancelAnimationFrame(frame);
   }, [open]);
 
   useEffect(() => {
@@ -194,7 +196,11 @@ export const HeatCapacityBatchSetupDialog = ({
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
-      if (menuOpen) closeMenu(true);
+      if (menuOpen) {
+        closeMenu(true);
+      } else {
+        onCancel();
+      }
       return;
     }
 
@@ -202,8 +208,8 @@ export const HeatCapacityBatchSetupDialog = ({
     if (menuOpen) setMenuOpen(false);
 
     const focusableElements = selectedCount === null
-      ? [triggerRef.current]
-      : [triggerRef.current, confirmRef.current];
+      ? [triggerRef.current, cancelRef.current]
+      : [triggerRef.current, cancelRef.current, confirmRef.current];
     const availableElements = focusableElements.filter(
       (element): element is HTMLButtonElement => element !== null && !element.disabled,
     );
@@ -236,29 +242,23 @@ export const HeatCapacityBatchSetupDialog = ({
   const highlightedCount = HEAT_CAPACITY_BATCH_GROUP_COUNT_OPTIONS[highlightedIndex];
 
   return (
-    <div
-      className="studio-settings-overlay studio-heat-batch-setup-overlay"
-      data-heat-capacity-batch-setup="true"
-      role="presentation"
-      onMouseDown={handleOverlayMouseDown}
+    <PromptDialogShell
+      title={copy.title}
+      titleId={titleId}
+      subtitle={copy.subtitle}
+      variant="task"
+      role="dialog"
+      ariaDescribedBy={descriptionId}
+      dismiss={{ closeButton: false, escape: false, backdrop: false }}
+      onRequestClose={onCancel}
+      onBackdropMouseDown={handleOverlayMouseDown}
+      onDialogKeyDown={handleDialogKeyDown}
+      initialFocusRef={triggerRef}
+      overlayClassName="studio-settings-overlay studio-heat-batch-setup-overlay"
+      dialogClassName="studio-settings-window studio-heat-batch-setup-window"
+      headerClassName="studio-settings-header studio-heat-batch-setup-header"
+      overlayData={{ 'data-heat-capacity-batch-setup': 'true' }}
     >
-      <section
-        className="studio-settings-window studio-heat-batch-setup-window"
-        role="dialog"
-        aria-modal="true"
-        aria-label={copy.dialogAria}
-        aria-labelledby={titleId}
-        aria-describedby={descriptionId}
-        onKeyDown={handleDialogKeyDown}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <header className="studio-settings-header studio-heat-batch-setup-header">
-          <div>
-            <strong id={titleId}>{copy.title}</strong>
-            <span>{copy.subtitle}</span>
-          </div>
-        </header>
-
         <div className="studio-settings-body studio-heat-batch-setup-body">
           <section className="studio-settings-section studio-settings-control-row studio-heat-batch-setup-section">
             <div className="studio-settings-section-title">
@@ -339,6 +339,15 @@ export const HeatCapacityBatchSetupDialog = ({
 
         <footer className="studio-heat-batch-setup-actions">
           <button
+            ref={cancelRef}
+            type="button"
+            className="studio-heat-batch-setup-cancel"
+            data-heat-capacity-batch-setup-cancel="true"
+            onClick={onCancel}
+          >
+            {language === 'en' ? 'Cancel' : language === 'zh-TW' ? '取消' : '取消'}
+          </button>
+          <button
             ref={confirmRef}
             type="button"
             className="studio-heat-batch-setup-confirm"
@@ -351,8 +360,7 @@ export const HeatCapacityBatchSetupDialog = ({
             {copy.confirm}
           </button>
         </footer>
-      </section>
-    </div>
+    </PromptDialogShell>
   );
 };
 

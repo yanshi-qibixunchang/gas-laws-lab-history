@@ -72,8 +72,8 @@ assert.match(
 
 assert.match(
   source,
-  /const heatCapacityActiveMode: HeatCapacityMode = activeFile\.heatCapacityMode;/,
-  'heat capacity mode bar should use the active file mode directly because every quality tier supports Demo and Guide',
+  /const heatCapacityActiveMode: HeatCapacityMode \| null = activeFile\.heatCapacityMode;/,
+  'the heat-capacity mode bar should use the nullable active mode directly so Explore leaves all three formal segments inactive',
 );
 
 assert.match(
@@ -134,8 +134,8 @@ assert.match(
 
 assert.match(
   source,
-  /const handleHeatCapacityModeSegmentClick[\s\S]*mode === 'free'[\s\S]*autoDemoInteractionLocked[\s\S]*switchHeatCapacityMode\('free'\)[\s\S]*data-heat-capacity-mode="free"[\s\S]*handleHeatCapacityModeSegmentClick\('free'\)/,
-  'Free mode button should restore its independent Free session through the shared switcher',
+  /const handleHeatCapacityModeSegmentClick[\s\S]*mode === 'free'[\s\S]*setHeatCapacityBatchSetupRequestedFileId[\s\S]*activateHeatCapacityModeFromExplore\('free'\)[\s\S]*data-heat-capacity-mode="free"[\s\S]*handleHeatCapacityModeSegmentClick\('free'\)/,
+  'the Free mode button should request group setup when needed or restore its independent session from Explore',
 );
 
 const terminateAutoDemoStart = source.indexOf('const terminateHeatCapacityAutoDemo = () => {');
@@ -145,8 +145,8 @@ assert.notEqual(terminateAutoDemoEnd, -1, 'heat capacity auto-demo termination h
 const terminateAutoDemoBody = source.slice(terminateAutoDemoStart, terminateAutoDemoEnd);
 assert.match(
   terminateAutoDemoBody,
-  /stopHeatCapacityTeachingModeToFree\('demo'\)/,
-  'terminating auto demo should clear the Demo session and restore the suspended Free session',
+  /exitHeatCapacityTeachingModeToExplore\('demo'\)/,
+  'terminating auto demo should clear the Demo session and return to a clean Explore base',
 );
 assert.doesNotMatch(
   terminateAutoDemoBody,

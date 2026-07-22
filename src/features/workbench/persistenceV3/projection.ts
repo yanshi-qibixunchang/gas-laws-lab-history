@@ -2233,7 +2233,8 @@ const reprojectHeatCapacityFile = (
     !(
       relation.heatCapacityMode === 'demo' ||
       relation.heatCapacityMode === 'guide' ||
-      relation.heatCapacityMode === 'free'
+      relation.heatCapacityMode === 'free' ||
+      relation.heatCapacityMode === null
     ) ||
     !(
       relation.heatCapacityFreeParameterScheme === 'real' ||
@@ -2390,7 +2391,7 @@ const reprojectHeatCapacityFile = (
   const decodedAuthorityValues = decodeHeatCapacityV3AuthorityValues(
     authority.activeRuntime,
     authority.guide,
-    relation.heatCapacityMode,
+    relation.heatCapacityMode as WorkbenchHeatCapacityState['heatCapacityMode'],
   );
   if (decodedAuthorityValues.ok === false) {
     return projectionFailure('quarantined', projection, {

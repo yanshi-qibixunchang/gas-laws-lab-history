@@ -1,3 +1,5 @@
+import { PROMPT_TOAST_DURATION_MS } from '../../components/prompts/promptFeedbackPolicy.ts';
+
 export type HeatCapacityToastLevel = 'info' | 'success' | 'warning' | 'danger';
 
 export type HeatCapacityToastSource =
@@ -45,7 +47,7 @@ export interface HeatCapacityToastCreateOptions {
   source?: HeatCapacityToastSource;
 }
 
-export const HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS = 2000;
+export const HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS: number = PROMPT_TOAST_DURATION_MS.short;
 
 export const HEAT_CAPACITY_TOAST_PRIORITY: Record<HeatCapacityToastLevel, number> = {
   info: 0,

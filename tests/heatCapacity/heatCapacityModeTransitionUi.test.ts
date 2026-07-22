@@ -24,8 +24,8 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /interactionLocked=\{autoDemoInteractionLocked \|\| activeHeatCapacityModalLocked \|\| heatCapacityTeachingCompleted \|\| heatCapacityModeTransitionLocked\}/,
-  'the mode coordinator must lock new scene interactions as soon as a switch request is accepted',
+  /interactionLocked=\{[\s\S]*?autoDemoInteractionLocked[\s\S]*?activeHeatCapacityModalLocked[\s\S]*?heatCapacityTeachingCompleted[\s\S]*?heatCapacityModeTransitionLocked[\s\S]*?activeHeatCapacityFreeBatchProgress\?\.allGroupsRecorded === true[\s\S]*?\}\s*cameraInteractionLocked=/,
+  'the mode coordinator must lock new scene interactions during switching and after a Free batch is complete',
 );
 assert.match(
   workbenchSource,
@@ -126,8 +126,8 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /if \(heatCapacityRefreshRestorePendingRef\.current\) return;\s*if \(heatCapacityModeTransitionStateRef\.current\.phase !== 'idle'\) return;[\s\S]*switchHeatCapacityMode\('free', 'demo-error-fallback', true\)/,
-  'anomalous demo recovery must route through the same-file coordinator after any in-flight transition settles',
+  /if \(heatCapacityRefreshRestorePendingRef\.current\) return;\s*if \(heatCapacityModeTransitionStateRef\.current\.phase !== 'idle'\) return;[\s\S]*exitHeatCapacityFormalModeToExplore\('demo'\)/,
+  'anomalous demo recovery must return to the clean Explore base after any in-flight transition settles',
 );
 assert.match(
   workbenchSource,

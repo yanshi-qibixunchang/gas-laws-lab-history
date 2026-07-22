@@ -13,7 +13,7 @@ import {
 export const HEAT_CAPACITY_MODE_TRANSITION_WATCHDOG_MS = 2_000;
 
 export type HeatCapacityModeTransitionRequest = {
-  sourceMode: HeatCapacityMode;
+  sourceMode: HeatCapacityMode | null;
   targetMode: HeatCapacityMode;
   reason: HeatCapacityModeTransitionReason;
   discardSource: boolean;

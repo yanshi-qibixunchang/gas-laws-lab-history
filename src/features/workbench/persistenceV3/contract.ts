@@ -130,9 +130,22 @@ export type WorkbenchPersistenceV3DecodeResult<T> =
   | WorkbenchPersistenceV3Success<T>
   | WorkbenchPersistenceV3Failure;
 
+const omitUndefinedOwnProperties = <Value extends object>(
+  value: Value,
+): Value => {
+  const result: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (entry !== undefined) result[key] = entry;
+  }
+  return result as Value;
+};
+
 export const createWorkbenchPersistenceV3Diagnostic = (
   diagnostic: WorkbenchPersistenceV3Diagnostic,
-): WorkbenchPersistenceV3Diagnostic => ({ ...diagnostic });
+): WorkbenchPersistenceV3Diagnostic => ({
+  ...omitUndefinedOwnProperties(diagnostic),
+  aggregate: omitUndefinedOwnProperties(diagnostic.aggregate),
+});
 
 export const createWorkbenchPersistenceV3Success = <T>(
   status: WorkbenchPersistenceV3Success<T>['status'],

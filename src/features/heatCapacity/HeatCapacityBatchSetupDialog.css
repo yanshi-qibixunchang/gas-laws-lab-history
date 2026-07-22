@@ -62,12 +62,36 @@
 
 .studio-heat-batch-setup-actions {
   display: flex;
+  gap: 8px;
   min-height: 54px;
   align-items: center;
   justify-content: flex-end;
   border-top: 1px solid var(--studio-border);
   background: var(--studio-surface-2);
   padding: 11px 16px;
+}
+
+.studio-heat-batch-setup-cancel {
+  display: inline-flex;
+  min-width: 88px;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--studio-border-strong);
+  border-radius: 5px;
+  background: var(--studio-surface-1);
+  color: var(--studio-text);
+  padding: 0 14px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.studio-heat-batch-setup-cancel:hover,
+.studio-heat-batch-setup-cancel:focus-visible {
+  border-color: var(--studio-accent-strong);
+  outline: none;
 }
 
 .studio-heat-batch-setup-confirm {
@@ -131,8 +155,9 @@
     padding-left: 12px;
   }
 
+  .studio-heat-batch-setup-cancel,
   .studio-heat-batch-setup-confirm {
-    width: 100%;
+    flex: 1;
   }
 }
 

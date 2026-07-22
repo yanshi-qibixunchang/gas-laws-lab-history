@@ -1,4 +1,5 @@
-import { ArrowLeft, ChevronRight, ExternalLink, ListTree, X } from 'lucide-react';
+import { ArrowLeft, ChevronRight, ExternalLink, ListTree } from 'lucide-react';
+import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import type {
   WorkbenchBuildNoticeFilePreview,
   WorkbenchBuildNoticeLegalFile,
@@ -69,24 +70,19 @@ export const WorkbenchBuildNoticeWindow = ({
     : copy.buildNoticeOpenLocalFile;
 
   return (
-    <div className="studio-build-notice-overlay" role="presentation" onMouseDown={onClose}>
-      <section
-        className={`studio-build-notice-window ${navOpen ? 'studio-build-notice-nav-open' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="studio-build-notice-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="studio-build-notice-header">
-          <div>
-            <strong id="studio-build-notice-title">{copy.buildNoticeTitle}</strong>
-            <span>{copy.buildNoticeSubtitle}</span>
-          </div>
-          <button type="button" className="studio-build-notice-close" aria-label={copy.closeBuildNotice} onClick={onClose}>
-            <X size={15} />
-          </button>
-        </div>
-
+    <PromptDialogShell
+      title={copy.buildNoticeTitle}
+      titleId="studio-build-notice-title"
+      subtitle={copy.buildNoticeSubtitle}
+      variant="notice"
+      closeLabel={copy.closeBuildNotice}
+      dismiss={{ closeButton: true, escape: true, backdrop: true }}
+      onRequestClose={onClose}
+      overlayClassName="studio-build-notice-overlay"
+      dialogClassName={`studio-build-notice-window ${navOpen ? 'studio-build-notice-nav-open' : ''}`}
+      headerClassName="studio-build-notice-header"
+      closeButtonClassName="studio-build-notice-close"
+    >
         <div className="studio-build-notice-shell">
           <aside className="studio-build-notice-rail" aria-label={copy.buildNoticeNavTitle}>
             <button
@@ -204,7 +200,6 @@ export const WorkbenchBuildNoticeWindow = ({
             )}
           </div>
         </div>
-      </section>
-    </div>
+    </PromptDialogShell>
   );
 };

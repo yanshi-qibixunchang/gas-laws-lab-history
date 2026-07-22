@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
+const promptFeedbackSource = readFileSync(new URL('../../src/components/prompts/PromptFeedback.tsx', import.meta.url), 'utf8');
+const promptFeedbackStyles = readFileSync(new URL('../../src/components/prompts/PromptFeedback.css', import.meta.url), 'utf8');
 const idealControlsSource = readFileSync(new URL('../../src/features/workbench/workbenchIdealControls.ts', import.meta.url), 'utf8');
 const commitWorkbenchParameterInputBody = source.slice(
   source.indexOf('  const commitWorkbenchParameterInput = ('),
@@ -199,10 +201,35 @@ assert.match(
   'scan input should have a visible error state',
 );
 
-assert.match(
+assert.doesNotMatch(
   cssSource,
-  /\.studio-scan-input-toast[\s\S]*?position:\s*fixed[\s\S]*?background:\s*#35191d/,
-  'invalid scan input should have an in-app transient popup style',
+  /\.studio-scan-input-toast/,
+  'scan errors and persistence status should not keep the old overlapping one-off toast surface',
+);
+assert.match(
+  source,
+  /id:\s*'scan-input-error'[\s\S]*?kind:\s*'danger'[\s\S]*?onDismiss:/,
+  'invalid scan input should enter the shared toast region as a dismissible danger message',
+);
+assert.match(
+  source,
+  /<PromptToastRegion[\s\S]*?messages=\{promptToastMessages\}/,
+  'workbench feedback should render through the shared toast region',
+);
+assert.match(
+  promptFeedbackStyles,
+  /\.prompt-toast-region\s*\{[\s\S]*?position:\s*fixed[\s\S]*?pointer-events:\s*none/,
+  'the shared toast region should remain fixed and let unused space pass pointer input through',
+);
+assert.match(
+  source,
+  /id:\s*'workspace-persistence'[\s\S]*?persistent:\s*true[\s\S]*?data-workbench-persistence-status/,
+  'workspace persistence feedback should use one stable persistent message in the shared stack',
+);
+assert.match(
+  promptFeedbackSource,
+  /data-prompt-feedback-persistent=\{message\.persistent \? 'true' : 'false'\}/,
+  'the shared toast should expose persistent-message semantics for styling and verification',
 );
 
 console.log('workbenchStartAutoApplyScanControls tests passed');
