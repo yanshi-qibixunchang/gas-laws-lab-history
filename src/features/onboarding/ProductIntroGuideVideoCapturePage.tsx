@@ -66,6 +66,17 @@ export const ProductIntroGuideVideoCapturePage = () => {
             mode="guide"
             onComplete={() => undefined}
           />
+          <ProductIntroModesDemo
+            active
+            paused={false}
+            reducedMotion={false}
+            language="zh-CN"
+            theme="light"
+            controlledElapsedMs={elapsedMs}
+            surfaceOnly
+            mode="free"
+            onComplete={() => undefined}
+          />
         </div>
       </main>
     </AudioProvider>
