@@ -197,6 +197,16 @@ export const completeHeatCapacityTutorialProfile = (
     current.activeTutorialExperiment !== 'heatCapacity' ||
     current.learning.heatCapacity !== 'guide'
   ) return null;
+  return skipHeatCapacityTutorialProfile(current);
+};
+
+export const skipHeatCapacityTutorialProfile = (
+  current: AppExperienceProfile,
+): AppExperienceProfile | null => {
+  if (
+    current.activeTutorialExperiment !== 'heatCapacity' ||
+    current.learning.heatCapacity === 'unlocked'
+  ) return null;
   return {
     ...current,
     needs: {

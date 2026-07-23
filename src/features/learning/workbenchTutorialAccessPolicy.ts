@@ -20,6 +20,7 @@ export type WorkbenchTutorialAccessAction =
   | 'open-data-window'
   | 'open-calculation-window'
   | 'reset-learning'
+  | 'exit-tutorial'
   | 'replay-product-intro'
   | 'reselect-learning-needs'
   | 'general-settings'
@@ -52,6 +53,7 @@ const ALLOWED_DURING_TUTORIAL = new Set<WorkbenchTutorialAccessAction>([
   'minimize-window',
   'maximize-window',
   'exit-application',
+  'exit-tutorial',
   'tutorial-mode',
 ]);
 

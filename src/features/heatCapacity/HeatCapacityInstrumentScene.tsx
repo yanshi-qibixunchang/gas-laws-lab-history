@@ -205,6 +205,7 @@ interface HeatCapacityInstrumentSceneProps {
   cameraInteractionLocked?: boolean;
   demoFocusControlId: string | null;
   demoFocusPulseActive: boolean;
+  demoFocusPulseTimeSeconds?: number;
   demoCameraFocusMode?: HeatCapacityFocusMode | null;
   demoCameraFocusKey?: number;
   guideFocusMode?: HeatCapacityFocusMode | null;
@@ -4613,6 +4614,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                 pumpBulbInteractionEnabled={focusMode === 'pump'}
                 demoFocusControlId={props.demoFocusControlId}
                 demoFocusPulseActive={props.demoFocusPulseActive}
+                demoFocusPulseTimeSeconds={props.demoFocusPulseTimeSeconds}
                 interactionQualityReduced={interactionQualityReduced}
                 visualEffects={{
                   hoverHaloColor: scenePalette.instrument.hoverHalo,

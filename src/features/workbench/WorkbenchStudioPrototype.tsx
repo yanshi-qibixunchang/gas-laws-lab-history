@@ -343,6 +343,7 @@ import {
 } from './workbenchSession.ts';
 import {
   createWorkbenchActiveModeCheckpointOverride,
+  initializeWorkbenchIndexedDbPersistence,
   loadWorkbenchArchivedNamespaceSnapshot,
   resolveWorkbenchActiveModeCheckpointOverride,
   saveWorkbenchWorkspaceToIndexedDb,
@@ -403,6 +404,7 @@ import {
   getSystemWorkbenchTheme,
   loadWorkbenchGeneralSettings,
   persistWorkbenchGeneralSettings,
+  type WorkbenchGeneralSettings,
   type WorkbenchLanguagePreference,
   type WorkbenchPerformanceMode,
   type WorkbenchResolvedTheme,
@@ -501,19 +503,23 @@ import {
 import {
   completeHeatCapacityTutorialProfile,
   isHeatCapacityTutorialActive,
+  skipHeatCapacityTutorialProfile,
   startHeatCapacityTutorialProfile,
   unlockHeatCapacityGuideProfile,
   type AppExperienceProfile,
   type ExperimentLearningMilestone,
 } from '../learning/experimentLearningModel.ts';
 import {
+  APP_EXPERIENCE_PROFILE_STORAGE_KEY,
   loadAppExperienceProfile,
   persistAppExperienceProfile,
 } from '../learning/experimentLearningStore.ts';
 import {
   claimHeatCapacityTutorialOwnership,
   createExperimentLearningChannel,
+  EXPERIMENT_TUTORIAL_OWNER_STORAGE_KEY,
   releaseHeatCapacityTutorialOwnership,
+  takeOverHeatCapacityTutorialOwnership,
 } from '../learning/experimentLearningChannel.ts';
 import {
   evaluateWorkbenchTutorialAccess,
@@ -534,6 +540,11 @@ import {
   hasSameHeatCapacityRuntimeRecoveryState,
   rebaseHeatCapacityFileAfterSuspendedWallClock,
 } from './workbenchHeatCapacityTimeRebase.ts';
+import { WelcomeProductIntroFlow } from '../onboarding/WelcomeProductIntroFlow.tsx';
+import { LearningNeedsPage } from '../onboarding/LearningNeedsPage.tsx';
+import { firstRunCopies } from '../onboarding/firstRunCopy.ts';
+import { useReducedMotionPreference } from '../onboarding/useReducedMotionPreference.ts';
+import type { HeatCapacityFamiliarityAnswer } from '../onboarding/firstRunExperienceModel.ts';
 import {
   createHeatCapacityModeDeferredTimer,
   createHeatCapacityModeUiCheckpoint,
@@ -580,9 +591,24 @@ interface TutorialOrdinaryWorkspace {
 const HEAT_CAPACITY_TUTORIAL_COPY: Record<WorkbenchLanguagePreference, {
   settingsTitle: string;
   settingsHint: string;
+  replayIntroLabel: string;
+  replayIntroHint: string;
+  reselectNeedsLabel: string;
+  reselectNeedsHint: string;
+  simulateFirstRunLabel: string;
+  simulateFirstRunHint: string;
+  simulateFirstRunTitle: string;
+  simulateFirstRunBody: string;
+  confirmSimulateFirstRun: string;
   resetLabel: string;
   resetHint: string;
   resetDisabledHint: string;
+  exitTutorialLabel: string;
+  exitTutorialHint: string;
+  exitTutorialTitle: string;
+  exitTutorialBody: string;
+  exitTutorialConsequence: string;
+  confirmExitTutorial: string;
   resetEyebrow: string;
   resetTitle: string;
   resetBody: string;
@@ -608,13 +634,30 @@ const HEAT_CAPACITY_TUTORIAL_COPY: Record<WorkbenchLanguagePreference, {
   remoteTitle: string;
   remoteBody: string;
   recheck: string;
+  browserRemoteBody: string;
+  continueHere: string;
 }> = {
   'zh-CN': {
     settingsTitle: '学习与引导',
     settingsHint: '管理实验学习进度；现有实验数据不会被删除。',
+    replayIntroLabel: '重新观看产品介绍',
+    replayIntroHint: '只播放欢迎动画和产品卡片，不改变许可与学习进度',
+    reselectNeedsLabel: '重新选择学习需求',
+    reselectNeedsHint: '重新确认是否需要绝热膨胀法实验引导',
+    simulateFirstRunLabel: '模拟首次启动',
+    simulateFirstRunHint: '仅开发预览可见；保留实验文件并在刷新后重走首次流程',
+    simulateFirstRunTitle: '模拟一次全新的首次启动？',
+    simulateFirstRunBody: '当前实验文件会先安全保存；首次流程、许可确认和学习状态将被清除。',
+    confirmSimulateFirstRun: '保存并重新启动',
     resetLabel: '重置绝热膨胀学习进度',
     resetHint: '重新体验演示、引导与全部模式解锁流程',
     resetDisabledHint: '当前正在进行绝热膨胀学习流程',
+    exitTutorialLabel: '退出新手教程',
+    exitTutorialHint: '停止逐步解锁，并立即开放本实验的全部模式',
+    exitTutorialTitle: '退出绝热膨胀学习流程？',
+    exitTutorialBody: '当前教程将结束，演示、引导和自由模式会全部解锁。',
+    exitTutorialConsequence: '临时教程文件会被移除；现有实验文件不会丢失，并会恢复为可打开状态。',
+    confirmExitTutorial: '退出并解锁全部模式',
     resetEyebrow: '学习进度',
     resetTitle: '重新开始绝热膨胀学习流程？',
     resetBody: '开始后，现有实验文件会暂时无法打开，直到完成当前学习流程。',
@@ -640,13 +683,30 @@ const HEAT_CAPACITY_TUTORIAL_COPY: Record<WorkbenchLanguagePreference, {
     remoteTitle: '学习流程已在另一个窗口中打开',
     remoteBody: '当前窗口已暂停实验文件操作。请在正在进行学习流程的窗口中完成教程。',
     recheck: '重新检查',
+    browserRemoteBody: '如果原窗口仍可使用，请在原窗口继续；如果已经关闭，可在当前窗口接管并从当前解锁阶段重新开始。',
+    continueHere: '在当前窗口继续',
   },
   'zh-TW': {
     settingsTitle: '學習與引導',
     settingsHint: '管理實驗學習進度；現有實驗資料不會被刪除。',
+    replayIntroLabel: '重新觀看產品介紹',
+    replayIntroHint: '只播放歡迎動畫與產品卡片，不變更授權與學習進度',
+    reselectNeedsLabel: '重新選擇學習需求',
+    reselectNeedsHint: '重新確認是否需要絕熱膨脹法實驗引導',
+    simulateFirstRunLabel: '模擬首次啟動',
+    simulateFirstRunHint: '僅開發預覽可見；保留實驗檔案並於重新整理後重走首次流程',
+    simulateFirstRunTitle: '模擬一次全新的首次啟動？',
+    simulateFirstRunBody: '目前實驗檔案會先安全儲存；首次流程、授權確認與學習狀態將被清除。',
+    confirmSimulateFirstRun: '儲存並重新啟動',
     resetLabel: '重設絕熱膨脹學習進度',
     resetHint: '重新體驗演示、引導與全部模式解鎖流程',
     resetDisabledHint: '目前正在進行絕熱膨脹學習流程',
+    exitTutorialLabel: '退出新手教學',
+    exitTutorialHint: '停止逐步解鎖，並立即開放本實驗的全部模式',
+    exitTutorialTitle: '退出絕熱膨脹學習流程？',
+    exitTutorialBody: '目前教學將結束，演示、引導與自由模式會全部解鎖。',
+    exitTutorialConsequence: '臨時教學檔案會被移除；現有實驗檔案不會遺失，並會恢復為可開啟狀態。',
+    confirmExitTutorial: '退出並解鎖全部模式',
     resetEyebrow: '學習進度',
     resetTitle: '重新開始絕熱膨脹學習流程？',
     resetBody: '開始後，現有實驗檔案會暫時無法開啟，直到完成目前學習流程。',
@@ -672,13 +732,30 @@ const HEAT_CAPACITY_TUTORIAL_COPY: Record<WorkbenchLanguagePreference, {
     remoteTitle: '學習流程已在另一個視窗中開啟',
     remoteBody: '目前視窗已暫停實驗檔案操作。請在正在進行學習流程的視窗中完成教學。',
     recheck: '重新檢查',
+    browserRemoteBody: '如果原視窗仍可使用，請在原視窗繼續；如果已經關閉，可在目前視窗接管並從目前解鎖階段重新開始。',
+    continueHere: '在目前視窗繼續',
   },
   en: {
     settingsTitle: 'Learning & Guidance',
     settingsHint: 'Manage experiment learning progress without deleting existing data.',
+    replayIntroLabel: 'Replay product introduction',
+    replayIntroHint: 'Play only the welcome and product cards without changing consent or progress',
+    reselectNeedsLabel: 'Reselect learning needs',
+    reselectNeedsHint: 'Confirm again whether adiabatic-expansion guidance is needed',
+    simulateFirstRunLabel: 'Simulate first launch',
+    simulateFirstRunHint: 'Development preview only; keep experiment files and replay first setup after reload',
+    simulateFirstRunTitle: 'Simulate a completely new first launch?',
+    simulateFirstRunBody: 'Experiment files will be saved first. First-run, consent, and learning state will then be cleared.',
+    confirmSimulateFirstRun: 'Save and restart',
     resetLabel: 'Reset adiabatic-expansion learning progress',
     resetHint: 'Replay the Demo, Guide, and full-mode unlock sequence',
     resetDisabledHint: 'The adiabatic-expansion learning flow is currently active',
+    exitTutorialLabel: 'Exit beginner tutorial',
+    exitTutorialHint: 'Stop progressive unlocking and make every mode available now',
+    exitTutorialTitle: 'Exit the adiabatic-expansion learning flow?',
+    exitTutorialBody: 'The current tutorial will end and Demo, Guide, and Free modes will all be unlocked.',
+    exitTutorialConsequence: 'The temporary tutorial file will be removed. Existing experiment files will remain safe and become available again.',
+    confirmExitTutorial: 'Exit and unlock all modes',
     resetEyebrow: 'Learning progress',
     resetTitle: 'Restart the adiabatic-expansion learning flow?',
     resetBody: 'Existing experiment files will be temporarily unavailable until this learning flow is complete.',
@@ -704,6 +781,8 @@ const HEAT_CAPACITY_TUTORIAL_COPY: Record<WorkbenchLanguagePreference, {
     remoteTitle: 'The learning flow is open in another window',
     remoteBody: 'Experiment-file actions are paused here. Complete the tutorial in the window that owns it.',
     recheck: 'Check again',
+    browserRemoteBody: 'Continue in the original window if it is still available. If it was closed, take over here and restart the current unlocked stage.',
+    continueHere: 'Continue in this window',
   },
 };
 
@@ -4005,7 +4084,15 @@ const isEditableElement = (element: EventTarget | Element | null) => {
   );
 };
 
-const WorkbenchStudioPrototype: React.FC = () => {
+interface WorkbenchStudioPrototypeProps {
+  initialGeneralSettings?: WorkbenchGeneralSettings;
+  initialTutorialEntryKind?: 'start' | 'resume';
+}
+
+const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
+  initialGeneralSettings: initialGeneralSettingsOverride,
+  initialTutorialEntryKind = 'resume',
+}) => {
   const { settings: audioSettings, updateSettings: updateAudioSettings } = useAudioEngine();
   const [initialExperienceProfileLoad] = useState(() => loadAppExperienceProfile());
   const [experienceProfile, setExperienceProfile] = useState<AppExperienceProfile>(
@@ -4271,7 +4358,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
           ))
         : initialOrdinaryClosedFiles
   ));
-  const initialGeneralSettings = useMemo(() => loadWorkbenchGeneralSettings(), []);
+  const initialGeneralSettings = useMemo(
+    () => initialGeneralSettingsOverride ?? loadWorkbenchGeneralSettings(),
+    [initialGeneralSettingsOverride],
+  );
   const [activeFileId, setActiveFileId] = useState(initialSession.activeFileId);
   const [selectedFileId, setSelectedFileId] = useState(() => {
     const restoredSelectedFileId = getHeatCapacityRefreshString(initialHeatCapacityRefreshLayout, 'selectedFileId');
@@ -4431,6 +4521,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (initialTutorialHandoffRecovery) return null;
     if (!initialTutorialReconstruction) return null;
     if (window.hardSphereLabTutorial) return null;
+    if (
+      initialTutorialEntryKind === 'start' &&
+      initialExperienceProfileLoad.profile.learning.heatCapacity === 'demo'
+    ) return 'start-demo';
     return initialExperienceProfileLoad.profile.learning.heatCapacity === 'guide'
       ? 'resume-guide'
       : 'resume-demo';
@@ -4438,6 +4532,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
   const tutorialNoticeKindRef = useRef<HeatCapacityTutorialNoticeKind | null>(tutorialNoticeKind);
   const [tutorialBlockedNoticeOpen, setTutorialBlockedNoticeOpen] = useState(false);
   const [remoteTutorialOwnerActive, setRemoteTutorialOwnerActive] = useState(false);
+  const [productIntroReplayPhase, setProductIntroReplayPhase] = useState<'welcome' | 'product' | null>(null);
+  const [learningNeedsReselectOpen, setLearningNeedsReselectOpen] = useState(false);
+  const [learningNeedsDraft, setLearningNeedsDraft] = useState<HeatCapacityFamiliarityAnswer | null>(null);
+  const onboardingReducedMotion = useReducedMotionPreference();
   const [tutorialOperationError, setTutorialOperationError] = useState<{
     message: string;
     retry: (() => void) | null;
@@ -4485,6 +4583,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
     initialHeatCapacityRefreshSession !== null,
   );
   const [desktopExitQuiesced, setDesktopExitQuiesced] = useState(false);
+  const [desktopExitInputBlocked, setDesktopExitInputBlocked] = useState(false);
   const heatCapacityRuntimeFailureFileIdRef = useRef<string | null>(null);
   const [heatCapacityRuntimeFailureFileId, setHeatCapacityRuntimeFailureFileId] = useState<string | null>(null);
   const heatCapacityRuntimeRecoveryIntentRef = useRef<{
@@ -4659,6 +4758,44 @@ const WorkbenchStudioPrototype: React.FC = () => {
       : null,
   );
   const experimentLearningChannelRef = useRef<ReturnType<typeof createExperimentLearningChannel> | null>(null);
+  const tutorialOwnershipAdoptionPendingRef = useRef(false);
+  const tutorialOwnershipAdoptionRef = useRef<() => Promise<void>>(async () => undefined);
+  const tutorialOwnershipClaimRef = useRef<(force?: boolean) => void>(() => undefined);
+  const tutorialOrdinaryWorkspaceRefreshRef = useRef<Promise<TutorialOrdinaryWorkspace> | null>(null);
+  const refreshTutorialOrdinaryWorkspaceFromPersistence = () => {
+    if (tutorialOrdinaryWorkspaceRefreshRef.current) {
+      return tutorialOrdinaryWorkspaceRefreshRef.current;
+    }
+    const refresh = initializeWorkbenchIndexedDbPersistence()
+      .then(() => {
+        const session = loadWorkbenchSession();
+        const now = Date.now();
+        const normalizeFile = (file: WorkbenchFileState, index: number) => (
+          file.kind === 'heatCapacity'
+            ? prepareHeatCapacityFileForExploreOnOpen(
+                file,
+                createDefaultHeatCapacityFile(index + 1),
+                now,
+              )
+            : file
+        );
+        const workspace: TutorialOrdinaryWorkspace = {
+          files: cloneWorkbenchFiles(session.files).map(normalizeFile),
+          closedFiles: cloneWorkbenchFiles(loadClosedWorkbenchFiles()).map(normalizeFile),
+          activeFileId: session.activeFileId,
+          selectedPanel: session.selectedPanel,
+        };
+        tutorialOrdinaryWorkspaceRef.current = workspace;
+        return workspace;
+      })
+      .finally(() => {
+        if (tutorialOrdinaryWorkspaceRefreshRef.current === refresh) {
+          tutorialOrdinaryWorkspaceRefreshRef.current = null;
+        }
+      });
+    tutorialOrdinaryWorkspaceRefreshRef.current = refresh;
+    return refresh;
+  };
   const issuedWorkbenchFileIdsRef = useRef(new Set(
     [
       ...files.map((file) => file.id),
@@ -4675,7 +4812,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
   ) => Promise<boolean>>(async () => false);
   const persistWorkspaceLifecycleCheckpointRef = useRef<(forceFresh?: boolean) => Promise<boolean>>(async () => false);
   const desktopExitQuiescedRef = useRef(false);
-  const prepareDesktopExitQuiescenceRef = useRef<() => void>(() => undefined);
+  const desktopExitInputBlockedRef = useRef(false);
+  const prepareDesktopExitQuiescenceRef = useRef<(blockInput?: boolean) => void>(() => undefined);
   const resumeDesktopExitQuiescenceRef = useRef<() => void>(() => undefined);
   const desktopExitAutoDemoClockRef = useRef<
     WorkbenchHeatCapacityRefreshSession['modeTransitionDemoClock']
@@ -5800,6 +5938,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
   };
 
   const updateSettingsLanguagePreference = (language: WorkbenchLanguagePreference) => {
+    const currentProfile = experienceProfileRef.current;
+    if (
+      currentProfile.firstRunCompleted &&
+      currentProfile.committedLanguage !== language &&
+      !commitExperienceProfile({ ...currentProfile, committedLanguage: language })
+    ) return;
     setSettingsLanguagePreference(language);
     setSettingsLanguageMenuOpen(false);
     persistWorkbenchGeneralSettings({
@@ -5919,6 +6063,54 @@ const WorkbenchStudioPrototype: React.FC = () => {
   }, [tutorialActive]);
 
   useEffect(() => {
+    const browserOwnership = !window.hardSphereLabWindow;
+    const releaseOwnership = () => {
+      try {
+        releaseHeatCapacityTutorialOwnership(
+          HEAT_CAPACITY_TUTORIAL_INSTANCE_ID,
+          window.localStorage,
+        );
+      } catch {
+        // Ownership expires automatically if the page terminates abruptly.
+      }
+    };
+    const claimCurrentTutorial = (force = false) => {
+      if (!tutorialActiveRef.current) {
+        setRemoteTutorialOwnerActive(false);
+        return;
+      }
+      const ownsVisibleTutorial = filesRef.current.some((file) => (
+        isHeatCapacityTutorialFileId(file.id)
+      ));
+      if (!browserOwnership && !ownsVisibleTutorial) return;
+      try {
+        const claimed = force
+          ? takeOverHeatCapacityTutorialOwnership(
+              HEAT_CAPACITY_TUTORIAL_INSTANCE_ID,
+              window.localStorage,
+            )
+          : claimHeatCapacityTutorialOwnership(
+              HEAT_CAPACITY_TUTORIAL_INSTANCE_ID,
+              window.localStorage,
+            );
+        if (!claimed) {
+          setRemoteTutorialOwnerActive(true);
+          return;
+        }
+        if (browserOwnership) {
+          void tutorialOwnershipAdoptionRef.current();
+        } else {
+          setRemoteTutorialOwnerActive(false);
+        }
+      } catch (cause) {
+        setTutorialOperationError({
+          message: cause instanceof Error ? cause.message : String(cause),
+          retry: () => claimCurrentTutorial(force),
+        });
+      }
+    };
+    tutorialOwnershipClaimRef.current = claimCurrentTutorial;
+
     const channel = createExperimentLearningChannel(
       HEAT_CAPACITY_TUTORIAL_INSTANCE_ID,
       ({ profile }) => {
@@ -5926,32 +6118,34 @@ const WorkbenchStudioPrototype: React.FC = () => {
         const ownsVisibleTutorial = filesRef.current.some((file) => (
           isHeatCapacityTutorialFileId(file.id)
         ));
+        experienceProfileRef.current = profile;
+        tutorialActiveRef.current = externalTutorialActive;
+        if (
+          browserOwnership &&
+          externalTutorialActive &&
+          !ownsVisibleTutorial &&
+          !tutorialOrdinaryWorkspaceRef.current
+        ) {
+          tutorialOrdinaryWorkspaceRef.current = {
+            files: cloneWorkbenchFiles(filesRef.current),
+            closedFiles: cloneWorkbenchFiles(closedFilesRef.current),
+            activeFileId: activeFileIdRef.current,
+            selectedPanel: selectedPanelRef.current,
+          };
+          void refreshTutorialOrdinaryWorkspaceFromPersistence().catch(() => {
+            // A takeover retries this authoritative read and reports any failure then.
+          });
+        }
         setExperienceProfile(profile);
         if (externalTutorialActive && !ownsVisibleTutorial) {
           setRemoteTutorialOwnerActive(true);
+          claimCurrentTutorial();
         } else if (!externalTutorialActive) {
           setRemoteTutorialOwnerActive(false);
         }
       },
     );
     experimentLearningChannelRef.current = channel;
-
-    const claimCurrentTutorial = () => {
-      if (!tutorialActiveRef.current) return;
-      if (!filesRef.current.some((file) => isHeatCapacityTutorialFileId(file.id))) return;
-      try {
-        const claimed = claimHeatCapacityTutorialOwnership(
-          HEAT_CAPACITY_TUTORIAL_INSTANCE_ID,
-          window.localStorage,
-        );
-        setRemoteTutorialOwnerActive(!claimed);
-      } catch (cause) {
-        setTutorialOperationError({
-          message: cause instanceof Error ? cause.message : String(cause),
-          retry: claimCurrentTutorial,
-        });
-      }
-    };
     claimCurrentTutorial();
     if (
       tutorialActiveRef.current &&
@@ -5982,9 +6176,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
                 throw new Error(finalized.message ?? 'Desktop tutorial archive could not be finalized.');
               }
               setTutorialNoticeKind(
-                experienceProfileRef.current.learning.heatCapacity === 'guide'
-                  ? 'resume-guide'
-                  : 'resume-demo',
+                initialTutorialEntryKind === 'start' &&
+                experienceProfileRef.current.learning.heatCapacity === 'demo'
+                  ? 'start-demo'
+                  : experienceProfileRef.current.learning.heatCapacity === 'guide'
+                    ? 'resume-guide'
+                    : 'resume-demo',
               );
             } catch (cause) {
               setTutorialOperationError({
@@ -6011,27 +6208,38 @@ const WorkbenchStudioPrototype: React.FC = () => {
         });
     }
     const heartbeatId = window.setInterval(claimCurrentTutorial, 5_000);
-    const releaseOwnership = () => {
-      try {
-        releaseHeatCapacityTutorialOwnership(
-          HEAT_CAPACITY_TUTORIAL_INSTANCE_ID,
-          window.localStorage,
-        );
-      } catch {
-        // Ownership expires automatically if the page terminates abruptly.
-      }
+    const handleOwnerStorage = (event: StorageEvent) => {
+      if (event.key !== EXPERIMENT_TUTORIAL_OWNER_STORAGE_KEY) return;
+      claimCurrentTutorial();
     };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') claimCurrentTutorial();
+    };
+    const handlePageShow = () => claimCurrentTutorial();
+    if (browserOwnership) {
+      window.addEventListener('storage', handleOwnerStorage);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      window.addEventListener('pageshow', handlePageShow);
+    }
     window.addEventListener('pagehide', releaseOwnership);
     return () => {
       window.clearInterval(heartbeatId);
+      if (browserOwnership) {
+        window.removeEventListener('storage', handleOwnerStorage);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('pageshow', handlePageShow);
+      }
       window.removeEventListener('pagehide', releaseOwnership);
       releaseOwnership();
       channel.close();
+      if (tutorialOwnershipClaimRef.current === claimCurrentTutorial) {
+        tutorialOwnershipClaimRef.current = () => undefined;
+      }
       if (experimentLearningChannelRef.current === channel) {
         experimentLearningChannelRef.current = null;
       }
     };
-  }, []);
+  }, [initialTutorialEntryKind]);
 
   useEffect(() => {
     if (!initialTutorialHandoffRecovery) return undefined;
@@ -13350,7 +13558,7 @@ const WorkbenchStudioPrototype: React.FC = () => {
 
   useEffect(() => {
     const blockInputWhileExitIsPrepared = (event: Event) => {
-      if (!desktopExitQuiescedRef.current) return;
+      if (!desktopExitInputBlockedRef.current) return;
       if (event.cancelable) event.preventDefault();
       event.stopImmediatePropagation();
     };
@@ -14430,8 +14638,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
     );
   };
 
-  prepareDesktopExitQuiescenceRef.current = () => {
-    if (desktopExitQuiescedRef.current) return;
+  prepareDesktopExitQuiescenceRef.current = (blockInput = true) => {
+    if (desktopExitQuiescedRef.current) {
+      if (blockInput && !desktopExitInputBlockedRef.current) {
+        desktopExitInputBlockedRef.current = true;
+        setDesktopExitInputBlocked(true);
+      }
+      return;
+    }
+    desktopExitInputBlockedRef.current = blockInput;
+    setDesktopExitInputBlocked(blockInput);
     const activeFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
     if (activeFile?.kind === 'heatCapacity') {
       const existingDemoClock = heatCapacityModeTransitionDemoClockRef.current?.fileId === activeFile.id
@@ -14477,6 +14693,8 @@ const WorkbenchStudioPrototype: React.FC = () => {
     const quiescedAtMs = desktopExitQuiescedAtMsRef.current ?? resumedAtMs;
     desktopExitQuiescedAtMsRef.current = null;
     desktopExitQuiescedRef.current = false;
+    desktopExitInputBlockedRef.current = false;
+    setDesktopExitInputBlocked(false);
     setDesktopExitQuiesced(false);
 
     const rebasedFiles = filesRef.current.map((file) => (
@@ -15369,6 +15587,69 @@ const WorkbenchStudioPrototype: React.FC = () => {
     setLogs(createHeatCapacityTutorialLogs(milestone, settingsLanguagePreference));
   };
 
+  tutorialOwnershipAdoptionRef.current = async () => {
+    if (window.hardSphereLabWindow || tutorialOwnershipAdoptionPendingRef.current) return;
+    if (!tutorialActiveRef.current) {
+      setRemoteTutorialOwnerActive(false);
+      return;
+    }
+    if (filesRef.current.some((file) => isHeatCapacityTutorialFileId(file.id))) {
+      setRemoteTutorialOwnerActive(false);
+      return;
+    }
+
+    tutorialOwnershipAdoptionPendingRef.current = true;
+    try {
+      const ordinaryWorkspace = await refreshTutorialOrdinaryWorkspaceFromPersistence();
+      if (document.visibilityState === 'hidden') return;
+      if (!tutorialActiveRef.current) {
+        setRemoteTutorialOwnerActive(false);
+        return;
+      }
+      const stillOwnsTutorial = claimHeatCapacityTutorialOwnership(
+        HEAT_CAPACITY_TUTORIAL_INSTANCE_ID,
+        window.localStorage,
+      );
+      if (!stillOwnsTutorial) {
+        setRemoteTutorialOwnerActive(true);
+        return;
+      }
+
+      const currentOrdinaryFile = filesRef.current.find((file) => (
+        file.id === activeFileIdRef.current
+      ));
+      if (currentOrdinaryFile?.kind === 'heatCapacity') {
+        suspendActiveHeatCapacityModeForNavigation();
+      }
+      tutorialOrdinaryWorkspaceRef.current = ordinaryWorkspace;
+      const milestone = experienceProfileRef.current.learning.heatCapacity;
+      replaceVisibleWorkspaceWithHeatCapacityTutorial(milestone);
+      const nextNoticeKind: HeatCapacityTutorialNoticeKind = milestone === 'guide'
+        ? 'resume-guide'
+        : 'resume-demo';
+      tutorialNoticeKindRef.current = nextNoticeKind;
+      setTutorialNoticeKind(nextNoticeKind);
+      setTutorialOperationError(null);
+      setRemoteTutorialOwnerActive(false);
+    } catch (cause) {
+      try {
+        releaseHeatCapacityTutorialOwnership(
+          HEAT_CAPACITY_TUTORIAL_INSTANCE_ID,
+          window.localStorage,
+        );
+      } catch {
+        // The lease still expires automatically if browser storage is unavailable.
+      }
+      setRemoteTutorialOwnerActive(false);
+      setTutorialOperationError({
+        message: cause instanceof Error ? cause.message : String(cause),
+        retry: () => tutorialOwnershipClaimRef.current(true),
+      });
+    } finally {
+      tutorialOwnershipAdoptionPendingRef.current = false;
+    }
+  };
+
   const finalizeHeatCapacityTutorialActivation = async (
     archivedNamespaces: string[],
   ) => {
@@ -15516,6 +15797,115 @@ const WorkbenchStudioPrototype: React.FC = () => {
     });
   };
 
+  const closeLearningExperienceOverlay = () => {
+    setProductIntroReplayPhase(null);
+    setLearningNeedsReselectOpen(false);
+    setLearningNeedsDraft(null);
+    resumeDesktopExitQuiescenceRef.current();
+  };
+
+  const openProductIntroReplay = () => {
+    if (!guardWorkbenchTutorialAction('replay-product-intro')) return;
+    prepareDesktopExitQuiescenceRef.current(false);
+    setSettingsGeneralOpen(false);
+    setLearningNeedsReselectOpen(false);
+    setProductIntroReplayPhase('welcome');
+  };
+
+  const openLearningNeedsReselect = () => {
+    if (!guardWorkbenchTutorialAction('reselect-learning-needs')) return;
+    prepareDesktopExitQuiescenceRef.current(false);
+    setSettingsGeneralOpen(false);
+    setProductIntroReplayPhase(null);
+    setLearningNeedsDraft(
+      experienceProfileRef.current.needs.heatCapacity ??
+      (experienceProfileRef.current.learning.heatCapacity === 'unlocked' ? 'known' : 'needs-guidance'),
+    );
+    setLearningNeedsReselectOpen(true);
+  };
+
+  const submitLearningNeedsReselect = () => {
+    if (learningNeedsDraft === null) return;
+    if (learningNeedsDraft === 'known') {
+      const current = experienceProfileRef.current;
+      const nextProfile: AppExperienceProfile = {
+        ...current,
+        needs: { ...current.needs, heatCapacity: 'known' },
+        learning: { ...current.learning, heatCapacity: 'unlocked' },
+        activeTutorialExperiment: current.activeTutorialExperiment === 'heatCapacity'
+          ? null
+          : current.activeTutorialExperiment,
+      };
+      if (commitExperienceProfile(nextProfile)) closeLearningExperienceOverlay();
+      return;
+    }
+
+    const copy = HEAT_CAPACITY_TUTORIAL_COPY[settingsLanguagePreference];
+    requestPromptConfirmation({
+      id: 'reselect-heat-capacity-learning-needs',
+      tone: 'warning',
+      eyebrow: copy.resetEyebrow,
+      title: copy.resetTitle,
+      body: copy.resetBody,
+      consequence: copy.resetConsequence,
+      cancelLabel: copy.cancel,
+      confirmLabel: copy.confirmReset,
+      closeLabel: copy.cancel,
+      onConfirm: () => {
+        closeLearningExperienceOverlay();
+        void startHeatCapacityLearningTutorial();
+      },
+    });
+  };
+
+  const requestSimulateFirstRun = () => {
+    if (!import.meta.env.DEV || !guardWorkbenchTutorialAction('reset-learning')) return;
+    const copy = HEAT_CAPACITY_TUTORIAL_COPY[settingsLanguagePreference];
+    requestPromptConfirmation({
+      id: 'simulate-first-run-experience',
+      tone: 'warning',
+      eyebrow: copy.resetEyebrow,
+      title: copy.simulateFirstRunTitle,
+      body: copy.simulateFirstRunBody,
+      consequence: copy.resetConsequence,
+      cancelLabel: copy.cancel,
+      confirmLabel: copy.confirmSimulateFirstRun,
+      closeLabel: copy.cancel,
+      onConfirm: () => {
+        const simulate = async () => {
+          setSettingsGeneralOpen(false);
+          prepareDesktopExitQuiescenceRef.current();
+          const saved = await flushWorkspacePersistenceRef.current();
+          if (!saved) {
+            resumeDesktopExitQuiescenceRef.current();
+            setTutorialOperationError({
+              message: settingsLanguagePreference === 'en'
+                ? 'The current workspace could not be saved. First-run state was not changed.'
+                : settingsLanguagePreference === 'zh-TW'
+                  ? '目前工作區無法安全儲存，首次啟動狀態尚未變更。'
+                  : '当前工作区无法安全保存，首次启动状态尚未变更。',
+              retry: () => { void simulate(); },
+            });
+            return;
+          }
+          try {
+            window.localStorage.removeItem(APP_EXPERIENCE_PROFILE_STORAGE_KEY);
+            const handoffClear = clearHeatCapacityTutorialHandoff(window.localStorage);
+            if (handoffClear.ok === false) throw handoffClear.error;
+            window.location.reload();
+          } catch (cause) {
+            resumeDesktopExitQuiescenceRef.current();
+            setTutorialOperationError({
+              message: cause instanceof Error ? cause.message : String(cause),
+              retry: () => { void simulate(); },
+            });
+          }
+        };
+        void simulate();
+      },
+    });
+  };
+
   const handleHeatCapacityTutorialNoticeAction = () => {
     const noticeKind = tutorialNoticeKindRef.current;
     if (!noticeKind) return;
@@ -15617,10 +16007,10 @@ const WorkbenchStudioPrototype: React.FC = () => {
     return true;
   };
 
-  const completeHeatCapacityLearningTutorial = async () => {
-    const currentProfile = experienceProfileRef.current;
-    const completedProfile = completeHeatCapacityTutorialProfile(currentProfile);
-    if (!completedProfile) return false;
+  const handoffUnlockedHeatCapacityTutorial = async (
+    unlockedProfile: AppExperienceProfile,
+    retry: () => void,
+  ) => {
     const ordinaryWorkspace = tutorialOrdinaryWorkspaceRef.current ?? {
       files: [] as WorkbenchFileState[],
       closedFiles: [] as WorkbenchFileState[],
@@ -15660,16 +16050,16 @@ const WorkbenchStudioPrototype: React.FC = () => {
     if (handoffResult.ok === false) {
       setTutorialOperationError({
         message: handoffResult.error.message,
-        retry: () => { void completeHeatCapacityLearningTutorial(); },
+        retry,
       });
       return false;
     }
-    const persistResult = persistAppExperienceProfile(completedProfile);
+    const persistResult = persistAppExperienceProfile(unlockedProfile);
     if (persistResult.ok === false) {
       clearHeatCapacityTutorialHandoff();
       setTutorialOperationError({
         message: persistResult.error.message,
-        retry: () => { void completeHeatCapacityLearningTutorial(); },
+        retry,
       });
       return false;
     }
@@ -15692,6 +16082,42 @@ const WorkbenchStudioPrototype: React.FC = () => {
     experimentLearningChannelRef.current?.publish(persistResult.profile);
     await finalizeCompletedHeatCapacityTutorialHandoff();
     return true;
+  };
+
+  const completeHeatCapacityLearningTutorial = async () => {
+    const completedProfile = completeHeatCapacityTutorialProfile(experienceProfileRef.current);
+    if (!completedProfile) return false;
+    return handoffUnlockedHeatCapacityTutorial(
+      completedProfile,
+      () => { void completeHeatCapacityLearningTutorial(); },
+    );
+  };
+
+  const exitHeatCapacityLearningTutorial = async () => {
+    const skippedProfile = skipHeatCapacityTutorialProfile(experienceProfileRef.current);
+    if (!skippedProfile) return false;
+    setSettingsGeneralOpen(false);
+    return handoffUnlockedHeatCapacityTutorial(
+      skippedProfile,
+      () => { void exitHeatCapacityLearningTutorial(); },
+    );
+  };
+
+  const requestExitHeatCapacityLearningTutorial = () => {
+    if (!guardWorkbenchTutorialAction('exit-tutorial')) return;
+    const copy = HEAT_CAPACITY_TUTORIAL_COPY[settingsLanguagePreference];
+    requestPromptConfirmation({
+      id: 'exit-heat-capacity-learning-tutorial',
+      tone: 'warning',
+      eyebrow: copy.resetEyebrow,
+      title: copy.exitTutorialTitle,
+      body: copy.exitTutorialBody,
+      consequence: copy.exitTutorialConsequence,
+      cancelLabel: copy.cancel,
+      confirmLabel: copy.confirmExitTutorial,
+      closeLabel: copy.cancel,
+      onConfirm: () => { void exitHeatCapacityLearningTutorial(); },
+    });
   };
 
   const createFile = (kind: WorkbenchFileKind) => {
@@ -21528,8 +21954,12 @@ const WorkbenchStudioPrototype: React.FC = () => {
         tone: 'warning',
         eyebrow: heatCapacityTutorialCopy.blockedEyebrow,
         title: heatCapacityTutorialCopy.remoteTitle,
-        body: heatCapacityTutorialCopy.remoteBody,
-        actionLabel: heatCapacityTutorialCopy.recheck,
+        body: window.hardSphereLabWindow
+          ? heatCapacityTutorialCopy.remoteBody
+          : heatCapacityTutorialCopy.browserRemoteBody,
+        actionLabel: window.hardSphereLabWindow
+          ? heatCapacityTutorialCopy.recheck
+          : heatCapacityTutorialCopy.continueHere,
       }
     : null;
   const tutorialFailureConfirmation: PromptConfirmationRequest | null = tutorialOperationError
@@ -21558,9 +21988,9 @@ const WorkbenchStudioPrototype: React.FC = () => {
       data-heat-capacity-tutorial-active={tutorialActive ? 'true' : 'false'}
       data-heat-capacity-tutorial-milestone={tutorialActive ? experienceProfile.learning.heatCapacity : undefined}
       data-desktop-exit-quiesced={desktopExitQuiesced ? 'true' : 'false'}
-      aria-busy={desktopExitQuiesced}
+      aria-busy={desktopExitInputBlocked}
     >
-      {desktopExitQuiesced ? (
+      {desktopExitInputBlocked ? (
         <div className="studio-exit-persistence-shield" role="status" aria-live="polite">
           <span className="studio-exit-persistence-spinner" aria-hidden="true" />
           <span>
@@ -21608,7 +22038,13 @@ const WorkbenchStudioPrototype: React.FC = () => {
       />
       <PromptForcedNoticeDialog
         request={remoteTutorialNoticeRequest}
-        onAction={() => window.location.reload()}
+        onAction={() => {
+          if (window.hardSphereLabWindow) {
+            window.location.reload();
+            return;
+          }
+          tutorialOwnershipClaimRef.current(true);
+        }}
       />
       <WorkbenchHeatCapacityRestoreDefaultDialog
         open={
@@ -21814,11 +22250,20 @@ const WorkbenchStudioPrototype: React.FC = () => {
           learningCopy={{
             title: heatCapacityTutorialCopy.settingsTitle,
             hint: heatCapacityTutorialCopy.settingsHint,
+            replayIntroLabel: heatCapacityTutorialCopy.replayIntroLabel,
+            replayIntroHint: heatCapacityTutorialCopy.replayIntroHint,
+            reselectNeedsLabel: heatCapacityTutorialCopy.reselectNeedsLabel,
+            reselectNeedsHint: heatCapacityTutorialCopy.reselectNeedsHint,
+            simulateFirstRunLabel: heatCapacityTutorialCopy.simulateFirstRunLabel,
+            simulateFirstRunHint: heatCapacityTutorialCopy.simulateFirstRunHint,
             resetLabel: heatCapacityTutorialCopy.resetLabel,
             resetHint: heatCapacityTutorialCopy.resetHint,
             resetDisabledHint: heatCapacityTutorialCopy.resetDisabledHint,
+            exitTutorialLabel: heatCapacityTutorialCopy.exitTutorialLabel,
+            exitTutorialHint: heatCapacityTutorialCopy.exitTutorialHint,
           }}
           heatCapacityTutorialActive={tutorialActive}
+          showSimulateFirstRun={import.meta.env.DEV}
           onClose={closeGeneralSettings}
           onThemeChange={updateSettingsThemePreference}
           onLanguageChange={updateSettingsLanguagePreference}
@@ -21826,8 +22271,41 @@ const WorkbenchStudioPrototype: React.FC = () => {
           onAudioEnabledChange={updateSettingsAudioEnabled}
           onAudioVolumeChange={updateSettingsAudioVolume}
           onLanguageMenuOpenChange={setSettingsLanguageMenuOpen}
+          onReplayProductIntro={openProductIntroReplay}
+          onReselectLearningNeeds={openLearningNeedsReselect}
           onResetHeatCapacityLearning={requestResetHeatCapacityLearning}
+          onExitHeatCapacityTutorial={requestExitHeatCapacityLearningTutorial}
+          onSimulateFirstRun={requestSimulateFirstRun}
         />
+
+        {productIntroReplayPhase ? (
+          <div className="first-run-experience first-run-replay-overlay" data-learning-overlay="product-intro">
+            <WelcomeProductIntroFlow
+              phase={productIntroReplayPhase}
+              language={settingsLanguagePreference}
+              copy={firstRunCopies[settingsLanguagePreference]}
+              theme={resolvedWorkbenchTheme}
+              reducedMotion={onboardingReducedMotion}
+              showPrevious={false}
+              nextLabel={firstRunCopies[settingsLanguagePreference].common.finish}
+              onPhaseChange={setProductIntroReplayPhase}
+              onPrevious={closeLearningExperienceOverlay}
+              onNext={closeLearningExperienceOverlay}
+            />
+          </div>
+        ) : null}
+
+        {learningNeedsReselectOpen ? (
+          <div className="first-run-experience first-run-replay-overlay" data-learning-overlay="reselect-needs">
+            <LearningNeedsPage
+              copy={firstRunCopies[settingsLanguagePreference]}
+              answer={learningNeedsDraft}
+              onAnswerChange={setLearningNeedsDraft}
+              onPrevious={closeLearningExperienceOverlay}
+              onNext={submitLearningNeedsReselect}
+            />
+          </div>
+        ) : null}
 
         <main
           className={`studio-body ${leftCollapsed ? 'studio-left-collapsed' : ''}`}

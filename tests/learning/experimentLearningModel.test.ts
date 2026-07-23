@@ -4,6 +4,7 @@ import {
   createDefaultAppExperienceProfile,
   createLegacyUnlockedExperienceProfile,
   parseAppExperienceProfile,
+  skipHeatCapacityTutorialProfile,
   startHeatCapacityTutorialProfile,
   unlockHeatCapacityGuideProfile,
 } from '../../src/features/learning/experimentLearningModel.ts';
@@ -89,6 +90,7 @@ const allowedActions: WorkbenchTutorialAccessAction[] = [
   'minimize-window',
   'maximize-window',
   'exit-application',
+  'exit-tutorial',
   'tutorial-mode',
 ];
 allowedActions.forEach((action) => {
@@ -117,6 +119,13 @@ assert.equal(completedProfile.learning.heatCapacity, 'unlocked');
 assert.equal(completedProfile.needs.heatCapacity, 'known');
 assert.equal(completedProfile.activeTutorialExperiment, null);
 assert.equal(getHeatCapacityTutorialResumeMode('unlocked'), null);
+
+const skippedDemoProfile = skipHeatCapacityTutorialProfile(resetProfile);
+assert.ok(skippedDemoProfile);
+assert.equal(skippedDemoProfile.learning.heatCapacity, 'unlocked');
+assert.equal(skippedDemoProfile.needs.heatCapacity, 'known');
+assert.equal(skippedDemoProfile.activeTutorialExperiment, null);
+assert.equal(skipHeatCapacityTutorialProfile(completedProfile), null);
 
 const extraField = { ...createDefaultAppExperienceProfile(), unexpected: true };
 assert.equal(parseAppExperienceProfile(extraField).ok, false);

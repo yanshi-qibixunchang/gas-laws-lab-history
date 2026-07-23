@@ -50,7 +50,7 @@ assert.doesNotMatch(feedbackStyles, /(?:linear|radial)-gradient|backdrop-filter/
 
 assert.match(feedbackCopySource, /'zh-CN':[\s\S]*'zh-TW':[\s\S]*en:/, 'feedback labels should cover Simplified Chinese, Traditional Chinese, and English');
 assert.match(appSource, /<PromptTooltipProvider>[\s\S]*<PromptPersistentBanner[\s\S]*<\/PromptTooltipProvider>/, 'the app should mount one global tooltip provider around persistent feedback and the workbench frame');
-assert.match(appSource, /<WorkbenchAspectFrame \/>/, 'the global provider should retain the existing workbench frame');
+assert.match(appSource, /<WorkbenchAspectFrame>/, 'the global provider should retain the existing workbench frame around gated startup content');
 assert.match(appSource, /dataAttributes=\{\{ 'data-workbench-persistence-safe-mode': 'true' \}\}/, 'safe-mode persistence recovery should use the shared persistent banner without changing its state contract');
 
 assert.match(tooltipSource, /const tooltipSelector = '\[data-prompt-tooltip\]'/, 'internal tooltips should use one delegated target contract');

@@ -9,8 +9,17 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
+const productIntroGuideCaptureEnabled = import.meta.env.DEV &&
+  new URLSearchParams(window.location.search).get('productIntroCapture') === 'guide';
+
+if (productIntroGuideCaptureEnabled) {
+  void import('../features/onboarding/ProductIntroGuideVideoCapturePage.tsx').then((module) => {
+    root.render(<module.ProductIntroGuideVideoCapturePage />);
+  });
+} else {
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  );
+}

@@ -212,8 +212,8 @@ assert.match(
 );
 assert.match(
   appSource,
-  /document\.documentElement\.lang = initialGeneralSettings\.language;[\s\S]*document\.title = getWorkbenchAppBrandName\(initialGeneralSettings\.language\)/,
-  'restart and persistence-failure startup should restore the title from the persisted language',
+  /document\.documentElement\.lang = generalSettings\.language;[\s\S]*document\.title = getWorkbenchAppBrandName\(generalSettings\.language\)/,
+  'restart and persistence-failure startup should restore the title from the authoritative committed language',
 );
 assert.ok(!source.includes('Heat Capacity Ratio Lab with Hard Sphere'), 'workbench copy should not use the old hard-sphere product subtitle');
 assert.ok(!source.includes('开始新的硬球工作台'), 'empty-state copy should not describe the app as a hard-sphere workbench');

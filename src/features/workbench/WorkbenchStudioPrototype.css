@@ -617,6 +617,11 @@
   cursor: pointer;
 }
 
+.studio-settings-learning-actions {
+  display: grid;
+  gap: 7px;
+}
+
 .studio-settings-learning-action > span {
   display: grid;
   min-width: 0;
@@ -645,6 +650,22 @@
   color: var(--studio-muted);
   cursor: not-allowed;
   opacity: 0.72;
+}
+
+.studio-settings-learning-action-exit {
+  border-color: color-mix(in srgb, var(--studio-warning) 42%, var(--studio-border-soft));
+  background: color-mix(in srgb, var(--studio-warning-soft) 72%, var(--studio-surface-2));
+}
+
+.studio-settings-learning-action-exit > svg,
+.studio-settings-learning-action-exit strong {
+  color: var(--studio-warning);
+}
+
+.studio-settings-learning-action-exit:hover,
+.studio-settings-learning-action-exit:focus-visible {
+  border-color: color-mix(in srgb, var(--studio-warning) 62%, var(--studio-border-soft));
+  background: var(--studio-warning-soft);
 }
 
 .studio-heat-mode-control-tutorial-guide [data-heat-capacity-mode-segment="guide"] {

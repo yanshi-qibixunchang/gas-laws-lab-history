@@ -21,6 +21,7 @@ const [
 
 assert.match(settingsSource, /learningCopy\.title/);
 assert.match(settingsSource, /onResetHeatCapacityLearning/);
+assert.match(settingsSource, /onExitHeatCapacityTutorial/);
 assert.match(settingsSource, /disabled=\{heatCapacityTutorialActive\}/);
 assert.match(workbenchSource, /重置绝热膨胀学习进度/);
 assert.match(workbenchSource, /绝热膨胀学习实验（临时）|getHeatCapacityTutorialFileName/);
@@ -28,6 +29,12 @@ assert.match(workbenchSource, /isHeatCapacityTutorialModeUnlocked\(tutorialMiles
 assert.match(workbenchSource, /isHeatCapacityTutorialModeUnlocked\(tutorialMilestone, 'free'\)/);
 assert.match(workbenchSource, /PromptNoticeDialog/);
 assert.match(workbenchSource, /PromptForcedNoticeDialog/);
+assert.match(workbenchSource, /takeOverHeatCapacityTutorialOwnership/);
+assert.match(workbenchSource, /EXPERIMENT_TUTORIAL_OWNER_STORAGE_KEY/);
+assert.match(workbenchSource, /visibilitychange/);
+assert.match(workbenchSource, /tutorialOwnershipAdoptionRef/);
+assert.match(workbenchSource, /skipHeatCapacityTutorialProfile/);
+assert.match(workbenchSource, /exit-heat-capacity-learning-tutorial/);
 assert.match(workbenchSource, /PromptConfirmDialog/);
 assert.doesNotMatch(workbenchSource, /window\.(?:confirm|alert|prompt)\(/);
 assert.match(workbenchSource, /guardWorkbenchTutorialAction\('create-file'\)/);

@@ -1,4 +1,5 @@
 import { ArrowLeft, ChevronRight, ExternalLink, ListTree } from 'lucide-react';
+import type { ReactNode, Ref, UIEventHandler } from 'react';
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import type {
   WorkbenchBuildNoticeFilePreview,
@@ -7,7 +8,7 @@ import type {
   WorkbenchLegalMaterialId,
 } from './workbenchBuildNoticeContract.ts';
 
-interface WorkbenchBuildNoticeCopy {
+export interface WorkbenchBuildNoticeCopy {
   closeBuildNotice: string;
   buildNoticeTitle: string;
   buildNoticeSubtitle: string;
@@ -31,6 +32,15 @@ interface WorkbenchBuildNoticeWindowProps {
   openError: string | null;
   desktopLegalBridgeAvailable: boolean;
   desktopLegalReadAvailable: boolean;
+  dismiss?: {
+    closeButton: boolean;
+    escape: boolean;
+    backdrop: boolean;
+  };
+  bodyRef?: Ref<HTMLDivElement>;
+  onBodyScroll?: UIEventHandler<HTMLDivElement>;
+  footer?: ReactNode;
+  extraDialogClassName?: string;
   onClose: () => void;
   onNavOpenChange: (open: boolean) => void;
   onJumpToSection: (sectionId: string) => void;
@@ -50,6 +60,11 @@ export const WorkbenchBuildNoticeWindow = ({
   openError,
   desktopLegalBridgeAvailable,
   desktopLegalReadAvailable,
+  dismiss,
+  bodyRef,
+  onBodyScroll,
+  footer,
+  extraDialogClassName,
   onClose,
   onNavOpenChange,
   onJumpToSection,
@@ -75,11 +90,11 @@ export const WorkbenchBuildNoticeWindow = ({
       titleId="studio-build-notice-title"
       subtitle={copy.buildNoticeSubtitle}
       variant="notice"
-      closeLabel={copy.closeBuildNotice}
-      dismiss={{ closeButton: true, escape: true, backdrop: true }}
+      closeLabel={dismiss?.closeButton === false ? undefined : copy.closeBuildNotice}
+      dismiss={dismiss ?? { closeButton: true, escape: true, backdrop: true }}
       onRequestClose={onClose}
       overlayClassName="studio-build-notice-overlay"
-      dialogClassName={`studio-build-notice-window ${navOpen ? 'studio-build-notice-nav-open' : ''}`}
+      dialogClassName={`studio-build-notice-window ${navOpen ? 'studio-build-notice-nav-open' : ''} ${extraDialogClassName ?? ''}`}
       headerClassName="studio-build-notice-header"
       closeButtonClassName="studio-build-notice-close"
     >
@@ -113,7 +128,10 @@ export const WorkbenchBuildNoticeWindow = ({
               ))}
             </div>
           </nav>
-          <div className={`studio-build-notice-body ${navOpen ? 'studio-build-notice-body-dimmed' : ''}`}>
+          <div className={`studio-build-notice-body ${navOpen ? 'studio-build-notice-body-dimmed' : ''}`}
+            ref={bodyRef}
+            onScroll={onBodyScroll}
+          >
             {activeMaterial && activeMaterialFile ? (
               <article className="studio-build-notice-document studio-build-notice-detail-document">
                 <button type="button" className="studio-build-notice-back" onClick={onCloseMaterial}>
@@ -200,6 +218,7 @@ export const WorkbenchBuildNoticeWindow = ({
             )}
           </div>
         </div>
+        {footer}
     </PromptDialogShell>
   );
 };

@@ -207,9 +207,9 @@ assert.ok(updateDialogSource.includes('releaseSections'), 'update dialog should 
 assert.ok(updateDialogSource.includes('copy.ignoreThisVersion'), 'update dialog should offer an ignore-version action');
 assert.ok(updateDialogSource.includes('copy.updateNow'), 'update dialog should offer an immediate update action');
 assert.ok(
-  appSource.includes('<PromptPersistentBanner') &&
+    appSource.includes('<PromptPersistentBanner') &&
     appSource.includes("dataAttributes={{ 'data-workbench-persistence-safe-mode': 'true' }}") &&
-    appSource.includes('<WorkbenchAspectFrame />'),
+    appSource.includes('<WorkbenchAspectFrame>'),
   'persistence bootstrap failures should keep the workbench usable and expose a non-blocking safe-mode notice',
 );
 assert.ok(

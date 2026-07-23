@@ -4,6 +4,7 @@ import {
   EXPERIMENT_TUTORIAL_OWNER_STORAGE_KEY,
   parseExperimentLearningChannelMessage,
   releaseHeatCapacityTutorialOwnership,
+  takeOverHeatCapacityTutorialOwnership,
 } from '../../src/features/learning/experimentLearningChannel.ts';
 import { createLegacyUnlockedExperienceProfile } from '../../src/features/learning/experimentLearningModel.ts';
 
@@ -25,6 +26,9 @@ assert.equal(parseExperimentLearningChannelMessage({ type: 'profile-updated' }),
 const storage = new MemoryStorage();
 assert.equal(claimHeatCapacityTutorialOwnership('window-a', storage, 1_000), true);
 assert.equal(claimHeatCapacityTutorialOwnership('window-b', storage, 2_000), false);
+assert.equal(takeOverHeatCapacityTutorialOwnership('window-b', storage, 2_500), true);
+assert.equal(claimHeatCapacityTutorialOwnership('window-a', storage, 3_000), false, 'the previous window yields after an explicit takeover');
+assert.equal(claimHeatCapacityTutorialOwnership('window-b', storage, 3_500), true);
 assert.equal(claimHeatCapacityTutorialOwnership('window-b', storage, 20_000), true, 'expired ownership may be reclaimed');
 assert.equal(releaseHeatCapacityTutorialOwnership('window-a', storage), false);
 assert.equal(releaseHeatCapacityTutorialOwnership('window-b', storage), true);

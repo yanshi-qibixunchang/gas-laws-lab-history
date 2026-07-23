@@ -1,0 +1,24 @@
+.product-intro-guide-video-capture-page {
+  width: 525px;
+  height: 375px;
+  overflow: hidden;
+}
+
+.product-intro-guide-video-capture-scale {
+  width: 525px;
+  height: 375px;
+}
+
+.product-intro-guide-video-capture-scale .first-run-guide-native-demo {
+  display: block;
+  width: 525px;
+  height: 375px;
+}
+
+.product-intro-guide-video-capture-scale .first-run-guide-native-panel.studio-dock-panel {
+  width: 525px;
+  height: 375px;
+  aspect-ratio: auto;
+  border-radius: 0;
+  box-shadow: none;
+}

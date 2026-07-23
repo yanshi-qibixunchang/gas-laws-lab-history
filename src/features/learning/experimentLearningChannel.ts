@@ -120,6 +120,14 @@ export const claimHeatCapacityTutorialOwnership = (
     current.instanceId !== instanceId &&
     nowMs - current.updatedAtMs < EXPERIMENT_TUTORIAL_OWNER_TTL_MS
   ) return false;
+  return takeOverHeatCapacityTutorialOwnership(instanceId, storage, nowMs);
+};
+
+export const takeOverHeatCapacityTutorialOwnership = (
+  instanceId: string,
+  storage: Pick<TutorialOwnerStorage, 'getItem' | 'setItem'>,
+  nowMs = Date.now(),
+) => {
   const next: ExperimentTutorialOwnerRecord = {
     instanceId,
     experiment: 'heatCapacity',
