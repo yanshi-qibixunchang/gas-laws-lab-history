@@ -1,11 +1,14 @@
 .product-intro-guide-video-capture-page {
-  width: 525px;
+  width: 1062px;
   height: 375px;
   overflow: hidden;
 }
 
 .product-intro-guide-video-capture-scale {
-  width: 525px;
+  display: grid;
+  grid-template-columns: repeat(2, 525px);
+  gap: 12px;
+  width: 1062px;
   height: 375px;
 }
 

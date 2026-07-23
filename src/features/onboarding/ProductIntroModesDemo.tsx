@@ -1,4 +1,4 @@
-import { MousePointer2, RotateCcw, Square, Wrench } from 'lucide-react';
+import { MousePointer2, Pause, RotateCcw, Square, Wrench } from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -27,6 +27,7 @@ interface ProductIntroModesDemoProps {
   onComplete: () => void;
   controlledElapsedMs?: number;
   surfaceOnly?: boolean;
+  mode?: 'demo' | 'guide';
 }
 
 type GuideStepCopy = {
@@ -44,7 +45,20 @@ type GuideDemoCopy = {
   checklist: string;
   stepLabel: string;
   modePurpose: string;
+  demoPurpose: string;
+  demoRunning: string;
+  demoTargetLabel: string;
+  demoProgressLabel: string;
+  demoObservationLabel: string;
   steps: GuideStepCopy[];
+  demoSteps: Array<{
+    id: string;
+    title: string;
+    detail: string;
+    target: string;
+    progress: string;
+    observation: string;
+  }>;
 };
 
 export const productIntroGuideDemoCopies: Record<WorkbenchLanguagePreference, GuideDemoCopy> = {
@@ -57,10 +71,41 @@ export const productIntroGuideDemoCopies: Record<WorkbenchLanguagePreference, Gu
     checklist: '引导清单',
     stepLabel: '步骤',
     modePurpose: '按原生清单完成实际操作，每完成一步立即勾选。',
+    demoPurpose: '系统自动执行实验步骤，集中观察仪器响应与数据变化。',
+    demoRunning: '自动演示',
+    demoTargetLabel: '目标控件',
+    demoProgressLabel: '推进标准',
+    demoObservationLabel: '观察要点',
     steps: [
       { id: 'power-on', title: '打开电源', detail: '请先打开电源。' },
       { id: 'open-stopcock', title: '打开玻璃旋塞', detail: '打开玻璃旋塞，再进行压强差调零。' },
       { id: 'zero-pressure', title: '调整压力调零', detail: '转动压力调零旋钮，使压力显示回到零点。' },
+    ],
+    demoSteps: [
+      {
+        id: 'power-on',
+        title: '开启电源',
+        detail: '打开电源，使温度与压强测量系统开始工作。',
+        target: '电源开关',
+        progress: '仪表亮起并显示读数。',
+        observation: '观察仪表屏幕与电源状态。',
+      },
+      {
+        id: 'open-stopcock',
+        title: '打开玻璃旋塞',
+        detail: '使气瓶与外界连通，准备进行压强差调零。',
+        target: '玻璃旋塞',
+        progress: '旋塞完全打开。',
+        observation: '观察旋塞转动与气路状态。',
+      },
+      {
+        id: 'zero-pressure',
+        title: '压强差调零',
+        detail: '自动旋转压力调零旋钮，使压强差回到零点。',
+        target: '压力调零旋钮',
+        progress: '压强差接近 0 mV。',
+        observation: '观察旋钮、仪表示数同步变化。',
+      },
     ],
   },
   'zh-TW': {
@@ -72,10 +117,41 @@ export const productIntroGuideDemoCopies: Record<WorkbenchLanguagePreference, Gu
     checklist: '引導清單',
     stepLabel: '步驟',
     modePurpose: '依照原生清單完成實際操作，每完成一步立即勾選。',
+    demoPurpose: '系統自動執行實驗步驟，集中觀察儀器回應與資料變化。',
+    demoRunning: '自動演示',
+    demoTargetLabel: '目標控制項',
+    demoProgressLabel: '推進標準',
+    demoObservationLabel: '觀察要點',
     steps: [
       { id: 'power-on', title: '打開電源', detail: '請先打開電源。' },
       { id: 'open-stopcock', title: '打開玻璃旋塞', detail: '打開玻璃旋塞，再進行壓強差調零。' },
       { id: 'zero-pressure', title: '調整壓力調零', detail: '轉動壓力調零旋鈕，使壓力顯示回到零點。' },
+    ],
+    demoSteps: [
+      {
+        id: 'power-on',
+        title: '開啟電源',
+        detail: '打開電源，使溫度與壓強測量系統開始工作。',
+        target: '電源開關',
+        progress: '儀表亮起並顯示讀數。',
+        observation: '觀察儀表螢幕與電源狀態。',
+      },
+      {
+        id: 'open-stopcock',
+        title: '打開玻璃旋塞',
+        detail: '使氣瓶與外界連通，準備進行壓強差調零。',
+        target: '玻璃旋塞',
+        progress: '旋塞完全打開。',
+        observation: '觀察旋塞轉動與氣路狀態。',
+      },
+      {
+        id: 'zero-pressure',
+        title: '壓強差調零',
+        detail: '自動旋轉壓力調零旋鈕，使壓強差回到零點。',
+        target: '壓力調零旋鈕',
+        progress: '壓強差接近 0 mV。',
+        observation: '觀察旋鈕、儀表示數同步變化。',
+      },
     ],
   },
   en: {
@@ -87,10 +163,41 @@ export const productIntroGuideDemoCopies: Record<WorkbenchLanguagePreference, Gu
     checklist: 'Guide checklist',
     stepLabel: 'Step',
     modePurpose: 'Follow the native checklist and mark each hands-on step complete.',
+    demoPurpose: 'Watch the system run the experiment while instrument responses and data change.',
+    demoRunning: 'Auto demo',
+    demoTargetLabel: 'Target',
+    demoProgressLabel: 'Progress',
+    demoObservationLabel: 'Observe',
     steps: [
       { id: 'power-on', title: 'Turn on power', detail: 'Turn on the instrument power first.' },
       { id: 'open-stopcock', title: 'Open stopcock', detail: 'Open the glass stopcock before pressure zeroing.' },
       { id: 'zero-pressure', title: 'Zero pressure', detail: 'Turn the zero knob until the pressure display returns to zero.' },
+    ],
+    demoSteps: [
+      {
+        id: 'power-on',
+        title: 'Turn on power',
+        detail: 'Power the temperature and pressure measurement system.',
+        target: 'Power switch',
+        progress: 'The instrument display turns on.',
+        observation: 'Watch the display and power state.',
+      },
+      {
+        id: 'open-stopcock',
+        title: 'Open stopcock',
+        detail: 'Connect the vessel to ambient pressure before zeroing.',
+        target: 'Glass stopcock',
+        progress: 'The stopcock reaches its open position.',
+        observation: 'Watch the stopcock and gas path.',
+      },
+      {
+        id: 'zero-pressure',
+        title: 'Zero pressure',
+        detail: 'Automatically turn the zero knob until the pressure difference returns to zero.',
+        target: 'Pressure-zero knob',
+        progress: 'Pressure difference approaches 0 mV.',
+        observation: 'Watch the knob and readout change together.',
+      },
     ],
   },
 };
@@ -115,9 +222,22 @@ const cursorKeyframes: CursorKeyframe[] = [
 ];
 
 const clickTimesMs = [410, 1_210, 2_160, 3_280];
+const demoCursorKeyframes: CursorKeyframe[] = [
+  { atMs: 0, x: 58, y: 52 },
+  { atMs: 260, x: 61.5, y: 5.1 },
+  { atMs: 540, x: 61.5, y: 5.1 },
+];
+const demoClickTimesMs = [410];
 const modeActivatedAtMs = 500;
 const stepCompletedAtMs = [1_360, 2_320, 3_460];
 const cursorHiddenAtMs = 4_050;
+const demoCursorHiddenAtMs = 650;
+const demoStepStartTimesMs = [560, 1_700, 3_100];
+const demoPowerOnAtMs = 1_300;
+const demoStopcockMotionStartMs = 2_150;
+const demoStopcockMotionEndMs = 2_800;
+const demoPressureZeroMotionStartMs = 3_550;
+const demoPressureZeroMotionEndMs = 4_550;
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 const ease = (value: number) => {
@@ -125,25 +245,32 @@ const ease = (value: number) => {
   return progress * progress * (3 - 2 * progress);
 };
 
-const getCursorState = (elapsedMs: number) => {
-  if (elapsedMs >= cursorHiddenAtMs) {
-    const finalPoint = cursorKeyframes[cursorKeyframes.length - 1];
+const getCursorState = (elapsedMs: number, mode: 'demo' | 'guide') => {
+  const keyframes = mode === 'demo' ? demoCursorKeyframes : cursorKeyframes;
+  const hiddenAtMs = mode === 'demo' ? demoCursorHiddenAtMs : cursorHiddenAtMs;
+  const clickTimes = mode === 'demo' ? demoClickTimesMs : clickTimesMs;
+  if (elapsedMs >= hiddenAtMs) {
+    const finalPoint = keyframes[keyframes.length - 1];
     return { ...finalPoint, visible: false, clicking: false };
   }
-  const nextIndex = cursorKeyframes.findIndex((frame) => frame.atMs >= elapsedMs);
+  const nextIndex = keyframes.findIndex((frame) => frame.atMs >= elapsedMs);
   if (nextIndex <= 0) {
-    const firstPoint = cursorKeyframes[0];
+    if (nextIndex === -1) {
+      const finalPoint = keyframes[keyframes.length - 1];
+      return { ...finalPoint, visible: true, clicking: false };
+    }
+    const firstPoint = keyframes[0];
     return { ...firstPoint, visible: true, clicking: false };
   }
-  const next = cursorKeyframes[nextIndex];
-  const previous = cursorKeyframes[nextIndex - 1];
+  const next = keyframes[nextIndex];
+  const previous = keyframes[nextIndex - 1];
   const duration = Math.max(1, next.atMs - previous.atMs);
   const progress = ease((elapsedMs - previous.atMs) / duration);
   return {
     x: previous.x + (next.x - previous.x) * progress,
     y: previous.y + (next.y - previous.y) * progress,
     visible: true,
-    clicking: clickTimesMs.some((time) => Math.abs(elapsedMs - time) <= 95),
+    clicking: clickTimes.some((time) => Math.abs(elapsedMs - time) <= 95),
   };
 };
 
@@ -164,6 +291,40 @@ const getFocusedControlCueElapsedMs = (elapsedMs: number) => {
   if (elapsedMs >= 2_780 && elapsedMs < 3_560) return elapsedMs - 2_780;
   return 0;
 };
+
+const getDemoStepIndex = (elapsedMs: number) => {
+  if (elapsedMs < demoStepStartTimesMs[1]) return 0;
+  if (elapsedMs < demoStepStartTimesMs[2]) return 1;
+  return 2;
+};
+
+const getDemoFocusedControl = (elapsedMs: number) => {
+  if (elapsedMs >= 650 && elapsedMs < 1_650) return 'powerSwitch';
+  if (elapsedMs >= 1_750 && elapsedMs < 3_050) return 'stopcock';
+  if (elapsedMs >= 3_150 && elapsedMs < 5_000) return 'pressureZero';
+  return null;
+};
+
+const getDemoFocusedControlCueElapsedMs = (elapsedMs: number) => {
+  if (elapsedMs >= 650 && elapsedMs < 1_650) return elapsedMs - 650;
+  if (elapsedMs >= 1_750 && elapsedMs < 3_050) return elapsedMs - 1_750;
+  if (elapsedMs >= 3_150 && elapsedMs < 5_000) return elapsedMs - 3_150;
+  return 0;
+};
+
+const getDemoCameraFocusState = (elapsedMs: number): {
+  mode: 'instrument' | 'bottle' | null;
+  key: number;
+} => {
+  if (elapsedMs < demoStepStartTimesMs[0]) return { mode: null, key: 0 };
+  if (elapsedMs < demoStepStartTimesMs[1]) return { mode: 'instrument', key: 1 };
+  if (elapsedMs < demoStepStartTimesMs[2]) return { mode: 'bottle', key: 2 };
+  return { mode: 'instrument', key: 3 };
+};
+
+const getMotionProgress = (elapsedMs: number, startMs: number, endMs: number) => (
+  ease((elapsedMs - startMs) / Math.max(1, endMs - startMs))
+);
 
 const guideBaseFile = createDefaultHeatCapacityFile(901);
 const guideQualityProfile = HEAT_CAPACITY_QUALITY_PROFILES.highPerformance;
@@ -223,18 +384,53 @@ const GuideChecklist = ({ copy, completedCount }: { copy: GuideDemoCopy; complet
   );
 };
 
-const GuideModeControl = ({ copy, activated }: { copy: GuideDemoCopy; activated: boolean }) => (
+const DemoStepPanel = ({ copy, stepIndex }: { copy: GuideDemoCopy; stepIndex: number }) => {
+  const step = copy.demoSteps[Math.min(copy.demoSteps.length - 1, Math.max(0, stepIndex))];
+  return (
+    <div
+      className="studio-heat-demo-step-panel studio-heat-demo-step-panel-visible first-run-demo-native-step-panel"
+      data-heat-capacity-demo-step-panel="true"
+    >
+      <div className="studio-heat-demo-step-kicker">
+        <span>Step {stepIndex + 1} / {copy.demoSteps.length}</span>
+        <i>{copy.demoRunning}</i>
+      </div>
+      <strong>{step.title}</strong>
+      <p>{step.detail}</p>
+      <div><span>{copy.demoTargetLabel}</span><em>{step.target}</em></div>
+      <div><span>{copy.demoProgressLabel}</span><em>{step.progress}</em></div>
+      <div><span>{copy.demoObservationLabel}</span><em>{step.observation}</em></div>
+    </div>
+  );
+};
+
+const ModeControl = ({
+  copy,
+  activated,
+  mode,
+}: {
+  copy: GuideDemoCopy;
+  activated: boolean;
+  mode: 'demo' | 'guide';
+}) => (
   <div className="studio-panel-actions" aria-hidden="true">
     <div className="studio-heat-mode-control-row">
-      <div className={`studio-heat-mode-control studio-heat-mode-control-${activated ? 'guide' : 'explore'} ${activated ? 'studio-heat-mode-control-expanded' : ''}`}>
-        <div className="studio-heat-mode-segment studio-heat-mode-segment-demo">
-          <button type="button" className="studio-heat-mode-button" tabIndex={-1}>{copy.modeDemo}</button>
-          <div className="studio-heat-mode-actions" />
+      <div className={`studio-heat-mode-control studio-heat-mode-control-${activated ? mode : 'explore'} ${activated ? 'studio-heat-mode-control-expanded' : ''}`}>
+        <div className={`studio-heat-mode-segment studio-heat-mode-segment-demo ${activated && mode === 'demo' ? 'studio-heat-mode-segment-active' : ''}`}>
+          <button type="button" className={`studio-heat-mode-button ${activated && mode === 'demo' ? 'studio-heat-mode-button-active' : ''}`} tabIndex={-1}>{copy.modeDemo}</button>
+          <div className="studio-heat-mode-actions studio-heat-mode-actions-demo">
+            {activated && mode === 'demo' ? (
+              <>
+                <button type="button" className="studio-heat-mode-action studio-heat-mode-action-icon" tabIndex={-1}><Pause size={12} strokeWidth={2.8} /></button>
+                <button type="button" className="studio-heat-mode-action studio-heat-mode-action-icon" tabIndex={-1}><Square size={12} strokeWidth={2.8} /></button>
+              </>
+            ) : null}
+          </div>
         </div>
-        <div className={`studio-heat-mode-segment studio-heat-mode-segment-guide ${activated ? 'studio-heat-mode-segment-active' : ''}`}>
-          <button type="button" className={`studio-heat-mode-button ${activated ? 'studio-heat-mode-button-active' : ''}`} tabIndex={-1}>{copy.modeGuide}</button>
+        <div className={`studio-heat-mode-segment studio-heat-mode-segment-guide ${activated && mode === 'guide' ? 'studio-heat-mode-segment-active' : ''}`}>
+          <button type="button" className={`studio-heat-mode-button ${activated && mode === 'guide' ? 'studio-heat-mode-button-active' : ''}`} tabIndex={-1}>{copy.modeGuide}</button>
           <div className="studio-heat-mode-actions studio-heat-mode-actions-guide">
-            {activated ? (
+            {activated && mode === 'guide' ? (
               <>
                 <button type="button" className="studio-heat-mode-action studio-heat-mode-action-icon" tabIndex={-1}><Square size={12} strokeWidth={2.8} /></button>
                 <button type="button" className="studio-heat-mode-action studio-heat-mode-action-icon" tabIndex={-1}><RotateCcw size={13} strokeWidth={2.7} /></button>
@@ -261,6 +457,7 @@ export const ProductIntroModesDemo = ({
   onComplete,
   controlledElapsedMs,
   surfaceOnly = false,
+  mode = 'guide',
 }: ProductIntroModesDemoProps) => {
   const copy = productIntroGuideDemoCopies[language];
   const controlled = controlledElapsedMs !== undefined;
@@ -317,24 +514,51 @@ export const ProductIntroModesDemo = ({
       : elapsedMs;
   const activated = displayElapsedMs >= modeActivatedAtMs;
   const completedCount = getCompletedStepCount(displayElapsedMs);
-  const cursor = getCursorState(displayElapsedMs);
-  const focusedControlId = getFocusedControl(displayElapsedMs);
+  const demoStepIndex = getDemoStepIndex(displayElapsedMs);
+  const demoCameraFocusState = getDemoCameraFocusState(displayElapsedMs);
+  const cursor = getCursorState(displayElapsedMs, mode);
+  const focusedControlId = mode === 'demo'
+    ? getDemoFocusedControl(displayElapsedMs)
+    : getFocusedControl(displayElapsedMs);
+  const focusCueElapsedMs = mode === 'demo'
+    ? getDemoFocusedControlCueElapsedMs(displayElapsedMs)
+    : getFocusedControlCueElapsedMs(displayElapsedMs);
   const controlledFocusPulseTimeSeconds = controlled
-    ? (getFocusedControlCueElapsedMs(displayElapsedMs) / 1_000) * 0.62
+    ? (focusCueElapsedMs / 1_000) * 0.62
     : undefined;
-  const powerOn = completedCount >= 1;
-  const stopcockOpen = completedCount >= 2;
-  const pressureZeroAdjusted = completedCount >= 3;
-  const pressureReadoutMv = pressureZeroAdjusted ? 0 : 6.4;
+  const demoStopcockProgress = getMotionProgress(
+    displayElapsedMs,
+    demoStopcockMotionStartMs,
+    demoStopcockMotionEndMs,
+  );
+  const demoPressureZeroProgress = getMotionProgress(
+    displayElapsedMs,
+    demoPressureZeroMotionStartMs,
+    demoPressureZeroMotionEndMs,
+  );
+  const powerOn = mode === 'demo' ? displayElapsedMs >= demoPowerOnAtMs : completedCount >= 1;
+  const stopcockProgress = mode === 'demo' ? demoStopcockProgress : completedCount >= 2 ? 1 : 0;
+  const pressureZeroProgress = mode === 'demo' ? demoPressureZeroProgress : completedCount >= 3 ? 1 : 0;
+  const pressureZeroAdjusted = pressureZeroProgress >= 0.999;
+  const pressureReadoutMv = 6.4 * (1 - pressureZeroProgress);
   const checklist = useMemo(
-    () => activated ? <GuideChecklist copy={copy} completedCount={completedCount} /> : null,
-    [activated, completedCount, copy],
+    () => activated && mode === 'guide'
+      ? <GuideChecklist copy={copy} completedCount={completedCount} />
+      : null,
+    [activated, completedCount, copy, mode],
+  );
+  const demoPanel = useMemo(
+    () => activated && mode === 'demo'
+      ? <DemoStepPanel copy={copy} stepIndex={demoStepIndex} />
+      : null,
+    [activated, copy, demoStepIndex, mode],
   );
 
   return (
     <div
       className="first-run-guide-native-demo"
       data-product-intro-modes-demo="true"
+      data-product-intro-mode={mode}
       data-product-intro-guide-native-preview="true"
       data-product-intro-modes-demo-paused={paused ? 'true' : 'false'}
       data-product-intro-modes-demo-models-ready={sceneReady ? 'true' : 'false'}
@@ -343,36 +567,38 @@ export const ProductIntroModesDemo = ({
     >
       <section
         className="studio-dock-panel studio-fixed-panel first-run-guide-native-panel"
-        aria-label={`${copy.modeGuide} · ${copy.previewTitle}`}
+        aria-label={`${mode === 'demo' ? copy.modeDemo : copy.modeGuide} · ${copy.previewTitle}`}
       >
         <div className="studio-dock-header">
           <div>
             <span>{copy.previewTitle}</span>
             <small>{copy.previewSubtitle}</small>
           </div>
-          <GuideModeControl copy={copy} activated={activated} />
+          <ModeControl copy={copy} activated={activated} mode={mode} />
         </div>
         <div className="studio-preview studio-preview-heat-capacity">
           <div className="studio-preview-stage studio-heat-preview-stage">
             <div className="studio-heat-preview-mount" data-heat-capacity-preview-mount="true">
               <HeatCapacityInstrumentScene
-                sceneFileId="product-intro-guide-native-preview"
-                experimentMode="guide"
+                sceneFileId={`product-intro-${mode}-native-preview`}
+                experimentMode={mode}
                 performanceMode="highPerformance"
                 sceneTheme={theme}
                 language={language}
-                autoDemoActive={false}
+                autoDemoActive={mode === 'demo' && activated}
                 powerOn={powerOn}
-                stopcockAngleDeg={stopcockOpen ? HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG : HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG}
+                stopcockAngleDeg={HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG + (
+                  HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG - HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG
+                ) * stopcockProgress}
                 pressureZeroAdjusted={pressureZeroAdjusted}
-                pressureZeroKnobAngle={pressureZeroAdjusted ? 90 : 0}
-                pressureZeroTimelineDriven={false}
-                pressureZeroTimelineMotionActive={false}
-                pressureZeroOffset={pressureZeroAdjusted ? -6.4 : 0}
-                pressureZeroDisplayText={pressureZeroAdjusted ? '0.000 mV' : '6.400 mV'}
+                pressureZeroKnobAngle={90 * pressureZeroProgress}
+                pressureZeroTimelineDriven={mode === 'demo' && pressureZeroProgress > 0}
+                pressureZeroTimelineMotionActive={mode === 'demo' && pressureZeroProgress > 0 && pressureZeroProgress < 1}
+                pressureZeroOffset={-6.4 * pressureZeroProgress}
+                pressureZeroDisplayText={`${pressureReadoutMv.toFixed(3)} mV`}
                 pressureSignalRawReadoutMv={6.4}
                 pressureSignalReadoutMv={pressureReadoutMv}
-                pressureGaugeDisplayValue={pressureZeroAdjusted ? 0 : guideBaseFile.pressureGaugeDisplayValue}
+                pressureGaugeDisplayValue={guideBaseFile.pressureGaugeDisplayValue * (1 - pressureZeroProgress)}
                 gaugePressureMinKPa={guideBaseFile.gaugePressureMinKPa}
                 gaugePressureMaxKPa={guideBaseFile.gaugePressureMaxKPa}
                 pressureSafetyThresholdKPa={guideBaseFile.pressureSafetyThresholdKPa}
@@ -414,10 +640,12 @@ export const ProductIntroModesDemo = ({
                 demoFocusControlId={focusedControlId}
                 demoFocusPulseActive={focusedControlId !== null}
                 demoFocusPulseTimeSeconds={controlledFocusPulseTimeSeconds}
+                demoCameraFocusMode={mode === 'demo' ? demoCameraFocusState.mode : null}
+                demoCameraFocusKey={mode === 'demo' ? demoCameraFocusState.key : 0}
                 guideRollbackAnimation={null}
                 guideRollbackKey={0}
                 focusResetKey={0}
-                overlayTopRight={checklist}
+                overlayTopRight={mode === 'demo' ? demoPanel : checklist}
                 onFocusModeChange={() => undefined}
                 onLockedInteraction={() => undefined}
                 onPowerToggle={() => undefined}
@@ -445,8 +673,8 @@ export const ProductIntroModesDemo = ({
       </section>
       {!surfaceOnly ? (
         <div className="first-run-guide-native-caption">
-          <strong>{copy.modeGuide}</strong>
-          <span>{copy.modePurpose}</span>
+          <strong>{mode === 'demo' ? copy.modeDemo : copy.modeGuide}</strong>
+          <span>{mode === 'demo' ? copy.demoPurpose : copy.modePurpose}</span>
         </div>
       ) : null}
     </div>

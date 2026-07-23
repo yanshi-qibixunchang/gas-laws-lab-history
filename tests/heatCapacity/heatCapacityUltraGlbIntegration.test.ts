@@ -1003,8 +1003,8 @@ assert.match(
 );
 assert.match(
   ultraModelSource,
-  /const focusPulseStartedAtRef = useRef<number \| null>\(null\);[\s\S]*if \(focusPulseStartedAtRef\.current === null\) focusPulseStartedAtRef\.current = clock\.elapsedTime;[\s\S]*const focusPulseElapsed = Math\.max\(0, clock\.elapsedTime - focusPulseStartedAtRef\.current\);[\s\S]*const wavePulse = getUltraGuideCuePulse\(focusPulseElapsed, effects\.focusShellPulseRate\);/,
-  'Ultra focus shell pulse should start its pop phase when the guide/demo focus appears instead of using a random global clock phase',
+  /const focusPulseStartedAtRef = useRef<number \| null>\(null\);[\s\S]*if \(focusPulseStartedAtRef\.current === null\) focusPulseStartedAtRef\.current = clock\.elapsedTime;[\s\S]*const focusPulseElapsed = pulseTimeSeconds === undefined[\s\S]*Math\.max\(0, clock\.elapsedTime - focusPulseStartedAtRef\.current\)[\s\S]*Math\.max\(0, pulseTimeSeconds\);[\s\S]*const wavePulse = getUltraGuideCuePulse\(focusPulseElapsed, effects\.focusShellPulseRate\);/,
+  'Ultra focus shell pulse should start with a local runtime phase while allowing deterministic capture timing',
 );
 assert.match(
   ultraModelSource,

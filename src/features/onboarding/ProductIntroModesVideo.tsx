@@ -10,8 +10,8 @@ interface ProductIntroModesVideoProps {
   onComplete: () => void;
 }
 
-const PRODUCT_INTRO_GUIDE_PILOT_VIDEO_URL = new URL(
-  '../../assets/onboarding/product-intro-guide-pilot.zh-CN.mp4',
+const PRODUCT_INTRO_DEMO_GUIDE_VIDEO_URL = new URL(
+  '../../assets/onboarding/product-intro-demo-guide.zh-CN.mp4',
   import.meta.url,
 ).href;
 
@@ -62,19 +62,20 @@ export const ProductIntroModesVideo = ({
 
   return (
     <div
-      className="first-run-guide-native-demo first-run-guide-video-demo"
+      className="first-run-modes-video-demo"
       data-product-intro-modes-video="true"
+      data-product-intro-modes-video-layout="demo-guide"
       data-product-intro-modes-video-ready={ready ? 'true' : 'false'}
       data-product-intro-modes-video-paused={paused ? 'true' : 'false'}
     >
       <video
         ref={videoRef}
         className="first-run-guide-video-surface"
-        aria-label={`${copy.modeGuide} · ${copy.previewTitle}`}
+        aria-label={`${copy.modeDemo}、${copy.modeGuide} · ${copy.previewTitle}`}
         muted
         playsInline
         preload="auto"
-        src={PRODUCT_INTRO_GUIDE_PILOT_VIDEO_URL}
+        src={PRODUCT_INTRO_DEMO_GUIDE_VIDEO_URL}
         onLoadedData={() => setReady(true)}
         onLoadedMetadata={(event) => {
           if (reducedMotion) {
@@ -87,9 +88,15 @@ export const ProductIntroModesVideo = ({
           onComplete();
         }}
       />
-      <div className="first-run-guide-native-caption">
-        <strong>{copy.modeGuide}</strong>
-        <span>{copy.modePurpose}</span>
+      <div className="first-run-modes-video-captions">
+        <div className="first-run-guide-native-caption">
+          <strong>{copy.modeDemo}</strong>
+          <span>{copy.demoPurpose}</span>
+        </div>
+        <div className="first-run-guide-native-caption">
+          <strong>{copy.modeGuide}</strong>
+          <span>{copy.modePurpose}</span>
+        </div>
       </div>
     </div>
   );

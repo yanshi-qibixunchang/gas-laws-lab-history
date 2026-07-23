@@ -898,6 +898,71 @@
   font-size: 8px;
 }
 
+.first-run-guide-native-panel .first-run-demo-native-step-panel {
+  width: 220px;
+  gap: 4px;
+  padding: 7px 8px;
+  border-radius: 4px;
+  font-size: 8px;
+  line-height: 1.28;
+}
+
+.first-run-guide-native-panel .first-run-demo-native-step-panel .studio-heat-demo-step-kicker {
+  font-size: 8px;
+}
+
+.first-run-guide-native-panel .first-run-demo-native-step-panel > strong {
+  font-size: 11px;
+}
+
+.first-run-guide-native-panel .first-run-demo-native-step-panel > p {
+  font-size: 8px;
+}
+
+.first-run-guide-native-panel .first-run-demo-native-step-panel > div:not(.studio-heat-demo-step-kicker) {
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 5px;
+}
+
+.first-run-guide-native-panel .studio-heat-focus-panel-instrument {
+  width: 226px;
+  padding: 6px 7px;
+  font-size: 8px;
+}
+
+.first-run-guide-native-panel .studio-heat-focus-title {
+  margin-bottom: 4px;
+  padding-bottom: 3px;
+  font-size: 8px;
+}
+
+.first-run-guide-native-panel .studio-heat-focus-instrument-columns {
+  gap: 3px 8px;
+}
+
+.first-run-guide-native-panel .studio-heat-focus-column {
+  gap: 1px;
+}
+
+.first-run-guide-native-panel .studio-heat-focus-panel-instrument .studio-heat-focus-panel-row {
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 4px;
+  min-height: 14px;
+}
+
+.first-run-guide-native-panel .studio-heat-focus-panel-row strong {
+  font-size: 8px;
+}
+
+.first-run-guide-native-panel .studio-heat-focus-panel-actions {
+  margin-top: 4px;
+}
+
+.first-run-guide-native-panel .studio-heat-focus-panel-actions button {
+  height: 18px;
+  font-size: 8px;
+}
+
 .first-run-guide-native-cursor {
   position: absolute;
   z-index: 80;
@@ -950,6 +1015,30 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.first-run-modes-video-demo {
+  position: relative;
+  display: grid;
+  width: min(1050px, calc(100% - 8px));
+  min-width: 0;
+  align-self: center;
+  justify-self: center;
+  gap: 9px;
+}
+
+.first-run-modes-video-demo .first-run-guide-video-surface {
+  aspect-ratio: 1062 / 375;
+}
+
+.first-run-modes-video-captions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.first-run-modes-video-captions .first-run-guide-native-caption {
+  padding-inline: 8px;
 }
 
 .first-run-workbench-demo-playing {

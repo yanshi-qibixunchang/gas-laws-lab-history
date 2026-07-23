@@ -52,6 +52,18 @@ export const ProductIntroGuideVideoCapturePage = () => {
             theme="light"
             controlledElapsedMs={elapsedMs}
             surfaceOnly
+            mode="demo"
+            onComplete={() => undefined}
+          />
+          <ProductIntroModesDemo
+            active
+            paused={false}
+            reducedMotion={false}
+            language="zh-CN"
+            theme="light"
+            controlledElapsedMs={elapsedMs}
+            surfaceOnly
+            mode="guide"
             onComplete={() => undefined}
           />
         </div>
