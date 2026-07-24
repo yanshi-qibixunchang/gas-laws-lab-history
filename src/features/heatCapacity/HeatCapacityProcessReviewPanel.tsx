@@ -223,7 +223,7 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     currentReview: '当前回顾',
     trialPrefix: '第 ',
     trialSuffix: ' 组实验',
-    freeModeLabel: 'Free Mode',
+    freeModeLabel: '自由模式',
     mainBranchLabel: '主线',
     relativeError: '相对误差',
     upperBoundGamma: '操作上限 γ',
@@ -310,7 +310,7 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     currentReview: '目前回顧',
     trialPrefix: '第 ',
     trialSuffix: ' 組實驗',
-    freeModeLabel: 'Free Mode',
+    freeModeLabel: '自由模式',
     mainBranchLabel: '主線',
     relativeError: '相對誤差',
     upperBoundGamma: '操作上限 γ',
@@ -1362,7 +1362,11 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
         <div className="hpr-summary-title">
           <span>{copy.currentReview}</span>
           <strong>{formatTrialLabel(copy, summary.trialIndex)}</strong>
-          <small>{copy.freeModeLabel} · {copy.mainBranchLabel} {summary.branchId ?? '--'}</small>
+          <small>
+            {copy.freeModeLabel} · {summary.branchId === 'main'
+              ? copy.mainBranchLabel
+              : `${copy.mainBranchLabel} ${summary.branchId ?? '--'}`}
+          </small>
         </div>
         <div className="hpr-summary-grid">
           <div>

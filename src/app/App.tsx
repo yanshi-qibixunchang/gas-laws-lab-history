@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import WorkbenchStudioPrototype from '../features/workbench/WorkbenchStudioPrototype';
 import {
   loadWorkbenchGeneralSettingsWithStatus,
@@ -8,6 +8,8 @@ import {
 import { AudioProvider } from '../audio/react/AudioProvider.tsx';
 import {
   initializeWorkbenchIndexedDbPersistence,
+  subscribeWorkbenchPersistenceInitialization,
+  type WorkbenchPersistenceInitializationStage,
   type WorkbenchPersistenceBootstrapResult,
 } from '../features/workbench/workbenchIndexedDbPersistence.ts';
 import { getWorkbenchAppBrandName } from '../features/workbench/workbenchBrand.ts';
@@ -29,6 +31,8 @@ import {
   loadAppExperienceProfile,
   type ExperienceProfileLoadResult,
 } from '../features/learning/experimentLearningStore.ts';
+import { AppStartupExperience } from './AppStartupExperience.tsx';
+import { resolveAppStartupPreviewScenario } from './appStartupModel.ts';
 
 const WORKBENCH_FRAME_WIDTH = 1440;
 const WORKBENCH_FRAME_HEIGHT = 810;
@@ -148,7 +152,11 @@ const WorkbenchAspectFrame = ({ children }: { children: ReactNode }) => {
 
 function App() {
   const [persistenceBootstrap, setPersistenceBootstrap] = useState<WorkbenchPersistenceBootstrapResult | null>(null);
+  const [persistenceInitializationStage, setPersistenceInitializationStage] =
+    useState<WorkbenchPersistenceInitializationStage>('starting');
   const [persistenceRetrying, setPersistenceRetrying] = useState(false);
+  const [startupDismissed, setStartupDismissed] = useState(false);
+  const [startupAttempt, setStartupAttempt] = useState(0);
   const [initialExperienceProfileLoad] = useState<ExperienceProfileLoadResult>(() => loadAppExperienceProfile());
   const [experienceProfileLoad, setExperienceProfileLoad] = useState(initialExperienceProfileLoad);
   const [initialGeneralSettingsLoad] = useState(() => loadWorkbenchGeneralSettingsWithStatus());
@@ -185,6 +193,10 @@ function App() {
       volume: generalSettings.audioVolume,
     };
   }, [generalSettings.audioEnabled, generalSettings.audioVolume]);
+  const startupPreviewScenario = useMemo(() => resolveAppStartupPreviewScenario(
+    typeof window === 'undefined' ? '' : window.location.search,
+    import.meta.env.DEV,
+  ), []);
 
   useEffect(() => {
     document.documentElement.lang = generalSettings.language;
@@ -215,6 +227,10 @@ function App() {
   }, [entryMode]);
 
   useEffect(() => {
+    return subscribeWorkbenchPersistenceInitialization(setPersistenceInitializationStage);
+  }, []);
+
+  useEffect(() => {
     let active = true;
     void initializeWorkbenchIndexedDbPersistence().then((result) => {
       if (active) setPersistenceBootstrap(result);
@@ -222,14 +238,31 @@ function App() {
     return () => { active = false; };
   }, []);
 
-  const retryPersistenceInitialization = () => {
+  const retryPersistenceInitialization = (showStartup = false) => {
     if (persistenceRetrying) return;
+    if (showStartup) {
+      setPersistenceBootstrap(null);
+      setStartupDismissed(false);
+      setStartupAttempt((current) => current + 1);
+    }
     setPersistenceRetrying(true);
     void initializeWorkbenchIndexedDbPersistence().then((result) => {
       setPersistenceBootstrap(result);
       setPersistenceRetrying(false);
     });
   };
+
+  const completeStartup = useCallback(() => setStartupDismissed(true), []);
+  const retryStartup = useCallback(() => {
+    if (startupPreviewScenario === 'error' && !persistenceBootstrap?.error) {
+      setStartupAttempt((current) => current + 1);
+      return;
+    }
+    retryPersistenceInitialization(true);
+  }, [persistenceBootstrap?.error, persistenceRetrying, startupPreviewScenario]);
+  const continueStartupSafely = useCallback(() => {
+    if (persistenceBootstrap) setStartupDismissed(true);
+  }, [persistenceBootstrap]);
 
   const acceptFirstRunExperience = async (draft: FirstRunDraft | null) => {
     try {
@@ -279,14 +312,6 @@ function App() {
     window.close();
   };
 
-  if (!persistenceBootstrap) {
-    return (
-      <div role="status" aria-live="polite" style={{ padding: 24, color: '#d7e0e8', background: '#11161b' }}>
-        正在恢复工作区…
-      </div>
-    );
-  }
-
   const persistenceWarning = generalSettings.language === 'en'
     ? 'The workspace opened in safe mode. Original local records were preserved; storage recovery can be retried without clearing data.'
     : generalSettings.language === 'zh-TW'
@@ -306,31 +331,49 @@ function App() {
     <PromptTooltipProvider>
       <AudioProvider initialSettings={initialAudioSettings}>
         <WorkbenchAspectFrame>
-          {entryMode === 'workbench' ? (
-            <WorkbenchStudioPrototype
-              initialGeneralSettings={generalSettings}
-              initialTutorialEntryKind={tutorialEntryKind}
-            />
-          ) : (
-            <FirstRunExperience
-              key={entryMode}
-              mode={entryMode}
-              initialLanguage={entryMode === 'legal-only'
-                ? generalSettings.language
-                : initialFirstRunLanguage}
-              themePreference={generalSettings.theme}
-              onAccept={acceptFirstRunExperience}
-              onExit={exitBeforeConsent}
-            />
-          )}
+          <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+            {persistenceBootstrap ? (
+              entryMode === 'workbench' ? (
+                <WorkbenchStudioPrototype
+                  initialGeneralSettings={generalSettings}
+                  initialTutorialEntryKind={tutorialEntryKind}
+                />
+              ) : (
+                <FirstRunExperience
+                  key={entryMode}
+                  mode={entryMode}
+                  initialLanguage={entryMode === 'legal-only'
+                    ? generalSettings.language
+                    : initialFirstRunLanguage}
+                  themePreference={generalSettings.theme}
+                  onAccept={acceptFirstRunExperience}
+                  onExit={exitBeforeConsent}
+                />
+              )
+            ) : null}
+            {!startupDismissed ? (
+              <AppStartupExperience
+                language={entryMode === 'full' ? initialFirstRunLanguage : generalSettings.language}
+                themePreference={generalSettings.theme}
+                stage={persistenceInitializationStage}
+                bootstrapReady={persistenceBootstrap !== null}
+                bootstrapError={persistenceBootstrap?.error ?? null}
+                previewScenario={startupPreviewScenario}
+                attempt={startupAttempt}
+                onRetry={retryStartup}
+                onContinueSafely={continueStartupSafely}
+                onComplete={completeStartup}
+              />
+            ) : null}
+          </div>
         </WorkbenchAspectFrame>
-        {persistenceBootstrap.error ? (
+        {startupDismissed && persistenceBootstrap?.error ? (
           <PromptPersistentBanner
             kind="warning"
             message={persistenceWarning}
             actionLabel={retryLabel}
             actionDisabled={persistenceRetrying}
-            onAction={retryPersistenceInitialization}
+            onAction={() => retryPersistenceInitialization(false)}
             tooltip={persistenceBootstrap.error.message}
             theme={generalSettings.theme}
             dataAttributes={{ 'data-workbench-persistence-safe-mode': 'true' }}

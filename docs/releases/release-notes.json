@@ -3,6 +3,164 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "5.2.1",
+      "date": "2026-07-25",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.2.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.2.1/heat-capacity-lab-setup-5.2.1.exe"
+      },
+      "summary": {
+        "zh-CN": "5.2.1 完成首次使用与启动体验升级：新增三语言产品介绍和学习选择，统一工程软件提示体系，并以可感知进度的欢迎动画恢复工作区。",
+        "zh-TW": "5.2.1 完成首次使用與啟動體驗升級：新增三語言產品介紹和學習選擇，統一工程軟體提示體系，並以可感知進度的歡迎動畫還原工作區。",
+        "en": "Version 5.2.1 completes the first-run and startup experience with trilingual product guidance, learning preferences, a unified engineering prompt system, and a welcome animation driven by visible workspace restoration progress."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "首次使用与产品介绍",
+            "zh-TW": "首次使用與產品介紹",
+            "en": "First-run experience and product introduction"
+          },
+          "items": [
+            {
+              "scope": "first-run-onboarding",
+              "importance": "high",
+              "title": {
+                "zh-CN": "建立完整的三语言首次使用流程",
+                "zh-TW": "建立完整的三語言首次使用流程",
+                "en": "Introduced a complete trilingual first-run flow"
+              },
+              "body": {
+                "zh-CN": "首次启动依次完成软件语言选择、欢迎、产品介绍、实验熟悉度选择和许可确认。许可版本更新时只重新确认许可，不重复产品介绍；不同意会安全退出且不保存本轮选择。",
+                "zh-TW": "首次啟動依序完成軟體語言選擇、歡迎、產品介紹、實驗熟悉度選擇和授權確認。授權版本更新時只重新確認授權，不重複產品介紹；不同意會安全結束且不儲存本輪選擇。",
+                "en": "The first launch now covers app-language selection, welcome, product introduction, experiment familiarity, and legal consent in order. A changed legal version repeats only consent, while declining exits safely without retaining the current choices."
+              }
+            },
+            {
+              "scope": "product-introduction",
+              "importance": "high",
+              "title": {
+                "zh-CN": "加入可重录的三页动态产品介绍",
+                "zh-TW": "加入可重錄的三頁動態產品介紹",
+                "en": "Added a re-recordable three-page animated introduction"
+              },
+              "body": {
+                "zh-CN": "三页内容分别展示实验工作区的建立、演示／引导／自由三种学习方式，以及计算核验和过程回顾。介绍支持自动轮播、连续翻页、暂停、三语言与减少动态效果，并保留独立录制结构以便界面更新后重新生成素材。",
+                "zh-TW": "三頁內容分別展示實驗工作區的建立、演示／引導／自由三種學習方式，以及計算核驗和過程回顧。介紹支援自動輪播、連續翻頁、暫停、三語言與減少動態效果，並保留獨立錄製結構以便介面更新後重新產生素材。",
+                "en": "Three pages demonstrate workspace creation, Demo, Guide, and Free learning modes, plus calculation verification and Process Review. The introduction supports autoplay, queued navigation, pause, three languages, reduced motion, and a dedicated capture structure for regenerating media after UI changes."
+              }
+            },
+            {
+              "scope": "startup-experience",
+              "importance": "high",
+              "title": {
+                "zh-CN": "用欢迎动画呈现真实工作区恢复进度",
+                "zh-TW": "以歡迎動畫呈現真實工作區還原進度",
+                "en": "Connected the welcome animation to real workspace restoration"
+              },
+              "body": {
+                "zh-CN": "桌面启动不再显示黑色文字占位页，而是按存储准备、读取、迁移、恢复和工作台就绪阶段平滑显示 0–100% 进度。恢复较慢时在 99% 显示等待动画；失败时提供重试与安全进入，并且只有工作台真正绘制后才完成开屏。",
+                "zh-TW": "桌面啟動不再顯示黑色文字佔位頁，而是依儲存準備、讀取、遷移、還原和工作台就緒階段平滑顯示 0–100% 進度。還原較慢時在 99% 顯示等待動畫；失敗時提供重試與安全進入，且只有工作台真正繪製後才完成開屏。",
+                "en": "Desktop startup replaces the black text placeholder with smooth 0–100% progress across storage preparation, reading, migration, restoration, and workbench readiness. A spinner appears when restoration waits at 99%, failures offer retry and safe entry, and completion occurs only after the workbench is actually painted."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "教学与提示交互",
+            "zh-TW": "教學與提示互動",
+            "en": "Tutorial and prompt interactions"
+          },
+          "items": [
+            {
+              "scope": "tutorial-learning-flow",
+              "importance": "high",
+              "title": {
+                "zh-CN": "按熟悉度逐步开放实验模式",
+                "zh-TW": "依熟悉度逐步開放實驗模式",
+                "en": "Unlocked experiment modes progressively from familiarity choices"
+              },
+              "body": {
+                "zh-CN": "不了解本软件绝热膨胀法实验操作逻辑的用户会进入专用教程文件，依次完成演示和引导后解锁全部模式；教程期间旧文件保持安全、实验相关的新建和打开操作受控，并可从设置退出或重新进入学习流程。",
+                "zh-TW": "不瞭解本軟體絕熱膨脹法實驗操作邏輯的使用者會進入專用教學檔案，依序完成演示和引導後解鎖全部模式；教學期間舊檔案保持安全、實驗相關的新建和開啟操作受控，並可從設定結束或重新進入學習流程。",
+                "en": "Users unfamiliar with the app's adiabatic-expansion workflow enter a dedicated tutorial file and unlock all modes after Demo and Guide. Existing files remain safe, experiment-related open and create actions are controlled during learning, and Settings can exit or restart the learning flow."
+              }
+            },
+            {
+              "scope": "prompt-system",
+              "importance": "high",
+              "title": {
+                "zh-CN": "统一工程软件提示体系",
+                "zh-TW": "統一工程軟體提示體系",
+                "en": "Unified the engineering prompt system"
+              },
+              "body": {
+                "zh-CN": "确认、普通告知、强制告知、短时反馈、持续警报和控件说明共用一致的窗口结构、状态语义与键盘规则，替换运行路径中的浏览器原生确认和零散提示样式。",
+                "zh-TW": "確認、一般告知、強制告知、短時回饋、持續警報和控制項說明共用一致的視窗結構、狀態語意與鍵盤規則，取代執行路徑中的瀏覽器原生確認和零散提示樣式。",
+                "en": "Confirmations, notices, forced notices, transient feedback, persistent alerts, and control help now share one window structure, state language, and keyboard policy, replacing native browser confirmations and fragmented prompt styling in active flows."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "恢复与可靠性修复",
+            "zh-TW": "還原與可靠性修復",
+            "en": "Recovery and reliability fixes"
+          },
+          "items": [
+            {
+              "scope": "tutorial-session-recovery",
+              "importance": "high",
+              "title": {
+                "zh-CN": "避免浏览器教程窗口关闭后被锁定",
+                "zh-TW": "避免瀏覽器教學視窗關閉後被鎖定",
+                "en": "Prevented tutorial lockout after closing a browser window"
+              },
+              "body": {
+                "zh-CN": "当原教程窗口已经关闭或失效时，新窗口可以安全接管学习会话，不再反复提示必须返回不存在的窗口；误选教程的用户也可以通过设置明确退出。",
+                "zh-TW": "當原教學視窗已關閉或失效時，新視窗可以安全接管學習工作階段，不再反覆提示必須返回不存在的視窗；誤選教學的使用者也可以透過設定明確結束。",
+                "en": "A new browser window can safely reclaim the learning session when the original tutorial window is closed or stale, avoiding a loop that points to a missing window. Users who entered learning by mistake can also exit explicitly from Settings."
+              }
+            },
+            {
+              "scope": "workspace-normalization",
+              "importance": "high",
+              "title": {
+                "zh-CN": "修复工作区规范化保存失败的根因",
+                "zh-TW": "修正工作區規範化儲存失敗的根因",
+                "en": "Fixed the root cause of normalized workspace save failures"
+              },
+              "body": {
+                "zh-CN": "持久化投影会在写入前正确处理未定义字段，避免有效工作区因规范化失败而无法保存；桌面正式构建与浏览器预览共用同一生产路径。",
+                "zh-TW": "持久化投影會在寫入前正確處理未定義欄位，避免有效工作區因規範化失敗而無法儲存；桌面正式建置與瀏覽器預覽共用同一生產路徑。",
+                "en": "Persistence projection now handles undefined fields before writing so valid workspaces cannot fail normalization. Desktop production builds and browser previews share the same production path."
+              }
+            },
+            {
+              "scope": "microscopic-visualization",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "恢复探索状态的显微可视化开关",
+                "zh-TW": "還原探索狀態的顯微可視化開關",
+                "en": "Restored the microscopic visualization switch in Explore state"
+              },
+              "body": {
+                "zh-CN": "探索状态重新允许切换显微可视化，且不会误启动正式实验的数据记录和报告流程。",
+                "zh-TW": "探索狀態重新允許切換顯微可視化，且不會誤啟動正式實驗的資料記錄和報告流程。",
+                "en": "Explore state once again allows microscopic visualization without inadvertently starting formal experiment recording or report generation."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "5.2.0",
       "date": "2026-07-20",
       "channel": "stable",

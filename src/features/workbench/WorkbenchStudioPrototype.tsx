@@ -22279,7 +22279,11 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         />
 
         {productIntroReplayPhase ? (
-          <div className="first-run-experience first-run-replay-overlay" data-learning-overlay="product-intro">
+          <div
+            className="first-run-experience first-run-replay-overlay"
+            data-first-run-language={settingsLanguagePreference}
+            data-learning-overlay="product-intro"
+          >
             <WelcomeProductIntroFlow
               phase={productIntroReplayPhase}
               language={settingsLanguagePreference}

@@ -5,18 +5,24 @@
 }
 
 .first-run-shell {
-  display: grid;
+  position: relative;
   height: 100%;
-  grid-template-rows: 36px minmax(0, 1fr);
   background: var(--studio-bg);
 }
 
-.first-run-titlebar {
+.studio-workbench.first-run-experience .first-run-titlebar {
+  position: absolute;
+  inset: 0 0 auto;
   z-index: 20;
+  height: 36px;
+  border-bottom: 0;
+  background: var(--studio-bg);
+  padding-left: 0;
 }
 
 .first-run-content {
   position: relative;
+  height: 100%;
   min-height: 0;
   overflow: hidden;
   background: var(--studio-bg);
@@ -24,10 +30,9 @@
 
 .first-run-replay-overlay {
   position: fixed;
-  inset: 36px 0 0;
+  inset: 0;
   z-index: 100050;
   overflow: hidden;
-  border-top: 1px solid var(--studio-border);
   background: var(--studio-bg);
 }
 
@@ -252,8 +257,7 @@
   z-index: 2;
   display: grid;
   place-items: center;
-  padding: 32px;
-  text-align: center;
+  padding: 40px 72px;
   cursor: default;
   transition:
     opacity 420ms cubic-bezier(0.4, 0, 1, 1),
@@ -262,8 +266,10 @@
 
 .first-run-welcome-content {
   display: grid;
-  width: min(580px, 100%);
-  justify-items: center;
+  width: min(860px, 100%);
+  grid-template-columns: 168px 1px minmax(0, 1fr);
+  align-items: center;
+  gap: 72px;
   animation: firstRunWelcomeReveal 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -275,11 +281,10 @@
 
 .first-run-welcome-mark {
   display: grid;
-  width: 46px;
-  height: 46px;
+  width: 168px;
+  height: 168px;
   place-items: center;
-  margin-bottom: 22px;
-  border-radius: 7px;
+  border-radius: 27px;
   overflow: hidden;
 }
 
@@ -289,34 +294,68 @@
   object-fit: cover;
 }
 
-.first-run-welcome-content > span:not(.first-run-welcome-mark) {
+.first-run-welcome-divider {
+  width: 1px;
+  height: 230px;
+  background: var(--studio-accent-border);
+}
+
+.first-run-welcome-copy {
+  display: grid;
+  min-width: 0;
+  justify-items: start;
+  text-align: left;
+}
+
+.first-run-welcome-copy > span {
   color: var(--studio-accent-strong);
-  font-family: var(--app-font-data);
-  font-size: 12px;
+  font-family: var(--app-font-product-title);
+  font-size: 20px;
   font-weight: 500;
-  line-height: 18px;
+  letter-spacing: 0.04em;
+  line-height: 28px;
 }
 
 .first-run-welcome h1 {
-  margin: 9px 0 0;
+  margin: 20px 0 0;
   color: var(--studio-text);
-  font-size: 30px;
-  font-weight: 500;
-  line-height: 42px;
+  font-size: 52px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.first-run-welcome-copy hr {
+  width: 52px;
+  height: 1px;
+  margin: 22px 0 0;
+  border: 0;
+  background: var(--studio-accent-strong);
 }
 
 .first-run-welcome p {
-  max-width: 520px;
-  margin: 8px 0 0;
+  max-width: 680px;
+  margin: 20px 0 0;
   color: var(--studio-muted);
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 400;
-  line-height: 24px;
+  line-height: 28px;
+}
+
+[data-first-run-language='en'] .first-run-welcome h1 {
+  font-size: 44px;
+  letter-spacing: -0.025em;
+}
+
+[data-first-run-language='en'] .first-run-welcome p {
+  font-size: 16px;
+  letter-spacing: -0.01em;
 }
 
 .first-run-product-page {
   grid-template-rows: minmax(0, 1fr) auto;
-  padding: 14px 48px 20px;
+  padding: 34px 48px 20px;
 }
 
 .first-run-carousel-region {
@@ -469,15 +508,15 @@
   min-width: 0;
   min-height: 0;
   place-items: center;
-  padding: 16px 0 10px;
+  padding: 24px 0 4px;
 }
 
 .first-run-product-card-body-modes {
-  padding-block: 12px 8px;
+  padding-block: 24px 4px;
 }
 
 .first-run-product-card-body-outcome {
-  padding-block: 12px 8px;
+  padding-block: 24px 4px;
 }
 
 .first-run-product-card-body-text {
@@ -1118,6 +1157,37 @@
   gap: 11px;
 }
 
+.first-run-modes-live-demo {
+  position: relative;
+  display: grid;
+  width: min(1320px, calc(100% - 8px));
+  min-width: 0;
+  align-self: center;
+  justify-self: center;
+  gap: 11px;
+}
+
+.first-run-modes-live-surfaces {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
+  gap: 11px;
+  transform: translateY(-10px);
+}
+
+.first-run-modes-live-surfaces .first-run-guide-native-demo {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  gap: 0;
+}
+
+.first-run-modes-live-surfaces .first-run-guide-native-panel.studio-dock-panel {
+  width: 100%;
+  aspect-ratio: 6 / 5;
+  box-shadow: 0 4px 12px rgba(15, 42, 61, 0.09);
+}
+
 .first-run-modes-video-demo .first-run-guide-video-surface {
   aspect-ratio: 1464 / 400;
   transform: translateY(-10px);
@@ -1214,6 +1284,19 @@
 
 .first-run-modes-learning-path-badge span {
   display: block;
+}
+
+[data-first-run-language='en'] .first-run-modes-learning-path-badge,
+.first-run-modes-learning-path[data-product-intro-language='en'] .first-run-modes-learning-path-badge {
+  width: 84px;
+  height: 56px;
+  padding-inline: 8px;
+  letter-spacing: 0.04em;
+}
+
+[data-first-run-language='en'] .first-run-modes-learning-path-content,
+.first-run-modes-learning-path[data-product-intro-language='en'] .first-run-modes-learning-path-content {
+  max-width: calc(100% - 216px);
 }
 
 .first-run-modes-learning-path-content {
@@ -2252,9 +2335,9 @@
   line-height: 1.7;
 }
 
-.mandatory-consent-window {
+.first-run-experience .prompt-dialog-window.prompt-dialog-window.mandatory-consent-window {
   width: min(980px, calc(100vw - 48px));
-  max-height: min(742px, calc(100vh - 48px));
+  max-height: min(742px, calc(100% - 48px));
   grid-template-rows: auto minmax(0, 1fr) auto;
   border: 1px solid var(--prompt-border);
   border-radius: var(--prompt-dialog-radius-window);
@@ -2458,6 +2541,53 @@
 }
 
 @media (max-width: 860px), (max-height: 620px) {
+  .first-run-welcome {
+    padding: 32px 40px;
+  }
+
+  .first-run-welcome-content {
+    width: min(720px, 100%);
+    grid-template-columns: 108px 1px minmax(0, 1fr);
+    gap: 32px;
+  }
+
+  .first-run-welcome-mark {
+    width: 108px;
+    height: 108px;
+    border-radius: 18px;
+  }
+
+  .first-run-welcome-divider {
+    height: 164px;
+  }
+
+  .first-run-welcome-copy > span {
+    font-size: 15px;
+    line-height: 22px;
+  }
+
+  .first-run-welcome h1,
+  [data-first-run-language='en'] .first-run-welcome h1 {
+    margin-top: 13px;
+    font-size: 34px;
+  }
+
+  .first-run-welcome-copy hr {
+    width: 42px;
+    margin-top: 15px;
+  }
+
+  .first-run-welcome p {
+    margin-top: 14px;
+    font-size: 14px;
+    line-height: 23px;
+  }
+
+  [data-first-run-language='en'] .first-run-welcome p {
+    font-size: 14px;
+    letter-spacing: 0;
+  }
+
   .first-run-page {
     padding: 24px 28px 18px;
   }
@@ -2539,7 +2669,8 @@
     width: min(720px, calc(100% - 8px));
   }
 
-  .first-run-modes-video-demo {
+  .first-run-modes-video-demo,
+  .first-run-modes-live-demo {
     width: min(720px, calc(100% - 8px));
     gap: 6px;
   }
@@ -2553,6 +2684,7 @@
   }
 
   .first-run-modes-video-demo .first-run-guide-video-surface,
+  .first-run-modes-live-surfaces,
   .first-run-modes-video-captions {
     transform: translateY(-6px);
   }
@@ -2587,6 +2719,19 @@
     font-size: 8px;
     line-height: 11px;
     transform: translateY(-50%);
+  }
+
+  [data-first-run-language='en'] .first-run-modes-learning-path-badge,
+  .first-run-modes-learning-path[data-product-intro-language='en'] .first-run-modes-learning-path-badge {
+    width: 64px;
+    height: 42px;
+    padding-inline: 6px;
+    letter-spacing: 0.035em;
+  }
+
+  [data-first-run-language='en'] .first-run-modes-learning-path-content,
+  .first-run-modes-learning-path[data-product-intro-language='en'] .first-run-modes-learning-path-content {
+    max-width: calc(100% - 144px);
   }
 
   .first-run-modes-learning-path-content {
@@ -2710,6 +2855,42 @@
 }
 
 @media (max-width: 640px) {
+  .first-run-welcome {
+    padding: 28px 20px;
+  }
+
+  .first-run-welcome-content {
+    width: min(520px, 100%);
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 20px;
+  }
+
+  .first-run-welcome-mark {
+    width: 92px;
+    height: 92px;
+    border-radius: 15px;
+  }
+
+  .first-run-welcome-divider {
+    width: min(240px, 72vw);
+    height: 1px;
+  }
+
+  .first-run-welcome-copy {
+    justify-items: center;
+    text-align: center;
+  }
+
+  .first-run-welcome h1,
+  [data-first-run-language='en'] .first-run-welcome h1 {
+    font-size: 31px;
+  }
+
+  .first-run-welcome p {
+    max-width: 460px;
+  }
+
   .first-run-page {
     padding-inline: 18px;
   }

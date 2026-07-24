@@ -113,9 +113,13 @@ export const WelcomeProductIntroFlow = ({
         >
           <div className="first-run-welcome-content">
             <span className="first-run-welcome-mark"><img src="favicon.png" alt="" /></span>
-            <span>{copy.welcome.eyebrow}</span>
-            <h1>{copy.welcome.title}</h1>
-            <p>{copy.welcome.body}</p>
+            <span className="first-run-welcome-divider" aria-hidden="true" />
+            <div className="first-run-welcome-copy">
+              <span>{copy.welcome.eyebrow}</span>
+              <h1>{copy.welcome.title}</h1>
+              <hr aria-hidden="true" />
+              <p>{copy.welcome.body}</p>
+            </div>
           </div>
         </section>
       ) : null}

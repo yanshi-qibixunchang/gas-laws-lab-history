@@ -1,6 +1,6 @@
 {
   "name": "hard-sphere-lab",
-  "version": "5.2.0",
+  "version": "5.2.1",
   "description": "Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and air heat-capacity-ratio experiments.",
   "author": {
     "name": "yanshi-qibixunchang",
@@ -116,7 +116,7 @@
   "dependencies": {
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.17.10",
-    "electron-updater": "^6.8.3",
+    "electron-updater": "^6.8.9",
     "lucide-react": "^0.292.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -133,7 +133,7 @@
     "electron": "^41.5.0",
     "electron-builder": "^26.8.1",
     "electron-winstaller": "^5.4.0",
-    "js-yaml": "^4.2.0",
+    "js-yaml": "^4.3.0",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.2.2",

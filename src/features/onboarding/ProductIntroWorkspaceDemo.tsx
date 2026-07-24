@@ -80,6 +80,7 @@ interface ProductIntroWorkspaceDemoCopy {
   panelTreeTitle: string;
   preview: string;
   realtime: string;
+  heatCapacityExperiment: string;
   materials: string;
   guide: string;
   results: string;
@@ -96,6 +97,7 @@ interface ProductIntroWorkspaceDemoCopy {
   sensorSignal: string;
   phase: string;
   notPowered: string;
+  safe: string;
   currentPrompt: string;
   powerPrompt: string;
   consoleOutput: string;
@@ -114,6 +116,8 @@ interface ProductIntroWorkspaceDemoCopy {
   none: string;
   disconnected: string;
   loadingModel: string;
+  listSeparator: string;
+  labelSeparator: string;
 }
 
 const productIntroWorkspaceDemoCopies: Record<WorkbenchLanguagePreference, ProductIntroWorkspaceDemoCopy> = {
@@ -128,15 +132,15 @@ const productIntroWorkspaceDemoCopies: Record<WorkbenchLanguagePreference, Produ
     createPiston: '创建空气热容比（活塞振动法）', createStandard: '创建标准模拟研究',
     openExperiment: '打开实验', noCachedExperiments: '没有可打开的缓存实验',
     fileName: 'Adiabatic Expansion - 001', fileKind: '热容', panelTreeTitle: 'ADIABATIC EXPANSION - 001 / PANELS',
-    preview: '3D 预览', realtime: '实时数据', materials: '实验资料与结果', guide: '实验指引',
+    preview: '3D 预览', realtime: '实时数据', heatCapacityExperiment: '空气比热容比实验', materials: '实验资料与结果', guide: '实验指引',
     results: '数据与结果', review: '过程回顾', locked: '锁定', closed: '关闭',
     previewSubtitle: '实时分子视口', demoMode: '演示模式', guidedMode: '引导模式', freeMode: '自由模式',
     parameters: '当前参数', pressure: '压力', temperature: '温度', sensorSignal: '传感器信号',
-    phase: '阶段', notPowered: '未开机', currentPrompt: '当前提示', powerPrompt: '请先打开电源。',
+    phase: '阶段', notPowered: '未开机', safe: '安全', currentPrompt: '当前提示', powerPrompt: '请先打开电源。',
     consoleOutput: '控制台 / 输出', logs: '日志', warnings: '警告', summary: '摘要', info: '信息', success: '成功',
     warning: '警告', initialized: 'Workbench 工作台原型已初始化。', layoutReady: '默认布局：3D 预览、实时数据 / 图表、当前参数。',
     runtimeReady: '标准模拟运行时、3D 预览和实时图表数据已连接。', exportWarning: '科学 PDF 导出需要桌面运行时桥接。',
-    currentFile: '当前文件', selectedPanel: '选中板块', none: '无', disconnected: '未连接运行时', loadingModel: '正在载入三维装置',
+    currentFile: '当前文件', selectedPanel: '选中板块', none: '无', disconnected: '未连接运行时', loadingModel: '正在载入三维装置', listSeparator: '、', labelSeparator: '：',
   },
   'zh-TW': {
     experimentFiles: '實驗檔案', edit: '編輯', window: '視窗', settings: '設定', help: '說明',
@@ -149,15 +153,15 @@ const productIntroWorkspaceDemoCopies: Record<WorkbenchLanguagePreference, Produ
     createPiston: '建立空氣熱容比（活塞振動法）', createStandard: '建立標準模擬研究',
     openExperiment: '開啟實驗', noCachedExperiments: '沒有可開啟的快取實驗',
     fileName: 'Adiabatic Expansion - 001', fileKind: '熱容', panelTreeTitle: 'ADIABATIC EXPANSION - 001 / PANELS',
-    preview: '3D 預覽', realtime: '即時資料', materials: '實驗資料與結果', guide: '實驗指引',
+    preview: '3D 預覽', realtime: '即時資料', heatCapacityExperiment: '空氣比熱容比實驗', materials: '實驗資料與結果', guide: '實驗指引',
     results: '資料與結果', review: '過程回顧', locked: '鎖定', closed: '關閉',
     previewSubtitle: '即時分子視口', demoMode: '示範模式', guidedMode: '引導模式', freeMode: '自由模式',
     parameters: '目前參數', pressure: '壓力', temperature: '溫度', sensorSignal: '感測器訊號',
-    phase: '階段', notPowered: '未開機', currentPrompt: '目前提示', powerPrompt: '請先開啟電源。',
+    phase: '階段', notPowered: '未開機', safe: '安全', currentPrompt: '目前提示', powerPrompt: '請先開啟電源。',
     consoleOutput: '主控台 / 輸出', logs: '日誌', warnings: '警告', summary: '摘要', info: '資訊', success: '成功',
     warning: '警告', initialized: 'Workbench 工作台原型已初始化。', layoutReady: '預設配置：3D 預覽、即時資料 / 圖表、目前參數。',
     runtimeReady: '標準模擬執行階段、3D 預覽和即時圖表資料已連線。', exportWarning: '科學 PDF 匯出需要桌面執行階段橋接。',
-    currentFile: '目前檔案', selectedPanel: '選取面板', none: '無', disconnected: '未連線執行階段', loadingModel: '正在載入三維裝置',
+    currentFile: '目前檔案', selectedPanel: '選取面板', none: '無', disconnected: '未連線執行階段', loadingModel: '正在載入三維裝置', listSeparator: '、', labelSeparator: '：',
   },
   en: {
     experimentFiles: 'Experiment Files', edit: 'Edit', window: 'Window', settings: 'Settings', help: 'Help',
@@ -170,15 +174,15 @@ const productIntroWorkspaceDemoCopies: Record<WorkbenchLanguagePreference, Produ
     createPiston: 'Create heat-capacity ratio (piston)', createStandard: 'Create standard simulation study',
     openExperiment: 'Open experiment', noCachedExperiments: 'No cached experiments available',
     fileName: 'Adiabatic Expansion - 001', fileKind: 'Heat', panelTreeTitle: 'ADIABATIC EXPANSION - 001 / PANELS',
-    preview: '3D Preview', realtime: 'Realtime Data', materials: 'Experiment Materials & Results', guide: 'Experiment Guide',
+    preview: '3D Preview', realtime: 'Realtime Data', heatCapacityExperiment: 'Air heat-capacity ratio experiment', materials: 'Experiment Materials & Results', guide: 'Experiment Guide',
     results: 'Data & Results', review: 'Process Review', locked: 'Locked', closed: 'Closed',
     previewSubtitle: 'Live molecular viewport', demoMode: 'Demo', guidedMode: 'Guided', freeMode: 'Free',
     parameters: 'Current Parameters', pressure: 'Pressure', temperature: 'Temperature', sensorSignal: 'Sensor signal',
-    phase: 'Phase', notPowered: 'Power off', currentPrompt: 'Current prompt', powerPrompt: 'Turn on the power first.',
+    phase: 'Phase', notPowered: 'Power off', safe: 'Safe', currentPrompt: 'Current prompt', powerPrompt: 'Turn on the power first.',
     consoleOutput: 'Console / Output', logs: 'Logs', warnings: 'Warnings', summary: 'Summary', info: 'Info', success: 'Success',
     warning: 'Warning', initialized: 'Workbench prototype initialized.', layoutReady: 'Default layout: 3D Preview, Realtime Data / Charts, Current Parameters.',
     runtimeReady: 'Simulation runtime, 3D Preview, and realtime chart data connected.', exportWarning: 'Scientific PDF export requires the desktop runtime bridge.',
-    currentFile: 'Current file', selectedPanel: 'Selected panel', none: 'None', disconnected: 'Runtime disconnected', loadingModel: 'Loading 3D instrument',
+    currentFile: 'Current file', selectedPanel: 'Selected panel', none: 'None', disconnected: 'Runtime disconnected', loadingModel: 'Loading 3D instrument', listSeparator: ' · ', labelSeparator: ': ',
   },
 };
 
@@ -523,16 +527,16 @@ export const ProductIntroWorkspaceDemo = ({
               </article>
               <i className="first-run-workbench-demo-divider" />
               <article className="first-run-workbench-demo-panel first-run-workbench-demo-data-panel">
-                <header><span><strong>{copy.realtime}</strong><small>U<sub>T</sub> / U<sub>P</sub>、{copy.pressure}</small></span></header>
+                <header><span><strong>{copy.realtime}</strong><small>U<sub>T</sub> / U<sub>P</sub>{copy.listSeparator}{copy.pressure}</small></span></header>
                 <div className="first-run-workbench-demo-data-summary">
-                  <span>{copy.realtime}</span><strong>空气比热容比实验</strong><small>U<sub>T</sub> / U<sub>P</sub>、{copy.pressure}</small>
-                  <div><b>{copy.phase}：{copy.notPowered}</b><b>{copy.fileKind}</b></div>
+                  <span>{copy.realtime}</span><strong>{copy.heatCapacityExperiment}</strong><small>U<sub>T</sub> / U<sub>P</sub> · {copy.pressure}</small>
+                  <div><b>{copy.phase}{copy.labelSeparator}{copy.notPowered}</b><b>{copy.fileKind}</b></div>
                 </div>
                 <div className="first-run-workbench-demo-reading-grid">
                   <div><span>U<sub>T</sub> / mV</span><strong>-- . -</strong><small>{copy.temperature}</small></div>
                   <div><span>U<sub>P</sub> / mV</span><strong>-- . -</strong><small>{copy.sensorSignal}</small></div>
                   <div><span>ΔP / kPa</span><strong>--</strong><small>{copy.pressure}</small></div>
-                  <div><span>{copy.pressure}</span><strong className="first-run-workbench-demo-safe">安全</strong><small>{copy.notPowered}</small></div>
+                  <div><span>{copy.pressure}</span><strong className="first-run-workbench-demo-safe">{copy.safe}</strong><small>{copy.notPowered}</small></div>
                 </div>
                 <div className="first-run-workbench-demo-current-prompt"><span>{copy.currentPrompt}</span>{copy.powerPrompt}</div>
               </article>
@@ -553,10 +557,10 @@ export const ProductIntroWorkspaceDemo = ({
 
         <footer className="first-run-workbench-demo-status">
           <div>
-            <span className="first-run-workbench-demo-status-empty">{copy.currentFile}：{copy.none}</span>
-            <span className="first-run-workbench-demo-status-loaded">{copy.currentFile}：{copy.fileName}</span>
-            <span className="first-run-workbench-demo-status-empty">{copy.selectedPanel}：{copy.none}</span>
-            <span className="first-run-workbench-demo-status-loaded">{copy.selectedPanel}：{copy.preview}</span>
+            <span className="first-run-workbench-demo-status-empty">{copy.currentFile}{copy.labelSeparator}{copy.none}</span>
+            <span className="first-run-workbench-demo-status-loaded">{copy.currentFile}{copy.labelSeparator}{copy.fileName}</span>
+            <span className="first-run-workbench-demo-status-empty">{copy.selectedPanel}{copy.labelSeparator}{copy.none}</span>
+            <span className="first-run-workbench-demo-status-loaded">{copy.selectedPanel}{copy.labelSeparator}{copy.preview}</span>
           </div>
           <span>{copy.disconnected}</span>
         </footer>

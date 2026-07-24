@@ -6,9 +6,12 @@ import {
 } from './productIntroCarouselModel.ts';
 import type { FirstRunCopy, FirstRunProductCardCopy } from './firstRunCopy.ts';
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
-import { ProductIntroModesDemo } from './ProductIntroModesDemo.tsx';
-import { ProductIntroModesVideo } from './ProductIntroModesVideo.tsx';
+import {
+  ProductIntroModesLiveDemo,
+  ProductIntroModesVideo,
+} from './ProductIntroModesVideo.tsx';
 import { ProductIntroOutcomeVideo } from './ProductIntroOutcomeVideo.tsx';
+import { ProductIntroOutcomeDemo } from './ProductIntroOutcomeDemo.tsx';
 import { ProductIntroWorkspaceDemo } from './ProductIntroWorkspaceDemo.tsx';
 
 interface ProductIntroCarouselProps {
@@ -140,7 +143,7 @@ export const ProductIntroCarousel = ({
     move(1, false);
   }, [activeIndex, move, reducedMotion, scriptedCardPaused]);
 
-  const outcomeVideoPilotActive = activeIndex === 2 && language === 'zh-CN' && theme === 'light';
+  const outcomeShowcasePlaybackActive = activeIndex === 2;
 
   useEffect(() => {
     if (
@@ -149,12 +152,12 @@ export const ProductIntroCarousel = ({
       userPaused ||
       !documentVisible ||
       activeIndex <= 1 ||
-      outcomeVideoPilotActive ||
+      outcomeShowcasePlaybackActive ||
       cards.length <= 1
     ) return undefined;
     const timeoutId = window.setTimeout(() => move(1, false), PRODUCT_INTRO_AUTOPLAY_MS);
     return () => window.clearTimeout(timeoutId);
-  }, [active, activeIndex, cards.length, documentVisible, move, outcomeVideoPilotActive, reducedMotion, userPaused]);
+  }, [active, activeIndex, cards.length, documentVisible, move, outcomeShowcasePlaybackActive, reducedMotion, userPaused]);
 
   const handleCarouselKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!active || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
@@ -220,7 +223,7 @@ export const ProductIntroCarousel = ({
               onComplete={completeModesDemo}
             />
           ) : (
-            <ProductIntroModesDemo
+            <ProductIntroModesLiveDemo
               active={cardPlaybackActive}
               paused={scriptedCardPaused}
               reducedMotion={reducedMotion}
@@ -240,10 +243,13 @@ export const ProductIntroCarousel = ({
               onComplete={completeOutcomeDemo}
             />
           ) : (
-            <div className="first-run-product-card-details">
-              <p>{card.body}</p>
-              <small>{card.meta}</small>
-            </div>
+            <ProductIntroOutcomeDemo
+              active={cardPlaybackActive}
+              paused={scriptedCardPaused}
+              reducedMotion={reducedMotion}
+              language={language}
+              onComplete={completeOutcomeDemo}
+            />
           )
         ) : null}
         {textShowcase ? (

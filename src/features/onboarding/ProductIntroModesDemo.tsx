@@ -30,6 +30,7 @@ interface ProductIntroModesDemoProps {
   language: WorkbenchLanguagePreference;
   theme: 'dark' | 'light';
   onComplete: () => void;
+  onReady?: () => void;
   controlledElapsedMs?: number;
   surfaceOnly?: boolean;
   mode?: ProductIntroMode;
@@ -61,6 +62,10 @@ type GuideDemoCopy = {
   demoTargetLabel: string;
   demoProgressLabel: string;
   demoObservationLabel: string;
+  pumpValveClosed: string;
+  pumpValveOpen: string;
+  pumpFrequencySuitable: string;
+  pumpFrequencySlow: string;
   steps: GuideStepCopy[];
   demoSteps: Array<{
     id: string;
@@ -93,6 +98,10 @@ export const productIntroGuideDemoCopies: Record<WorkbenchLanguagePreference, Gu
     demoTargetLabel: '目标控件',
     demoProgressLabel: '推进标准',
     demoObservationLabel: '观察要点',
+    pumpValveClosed: '打气阀门已关闭',
+    pumpValveOpen: '打气阀门已打开',
+    pumpFrequencySuitable: '打气频率合适，可以继续观察压强变化',
+    pumpFrequencySlow: '打气速率偏低，实验效果可能不明显',
     steps: [
       { id: 'power-on', title: '打开电源', detail: '请先打开电源。' },
       { id: 'open-stopcock', title: '打开玻璃旋塞', detail: '打开玻璃旋塞，再进行压强差调零。' },
@@ -128,7 +137,7 @@ export const productIntroGuideDemoCopies: Record<WorkbenchLanguagePreference, Gu
   'zh-TW': {
     previewTitle: '3D 預覽',
     previewSubtitle: '即時分子視口',
-    modeDemo: '演示模式',
+    modeDemo: '示範模式',
     modeGuide: '引導模式',
     modeFree: '自由模式',
     checklist: '引導清單',
@@ -141,10 +150,14 @@ export const productIntroGuideDemoCopies: Record<WorkbenchLanguagePreference, Gu
     learningIndependent: '獨立完成',
     learningPathLabel: '學習路徑',
     learningPathSummary: '先理解標準實驗流程，再完成關鍵操作，最後進入自由實驗。',
-    demoRunning: '自動演示',
+    demoRunning: '自動示範',
     demoTargetLabel: '目標控制項',
     demoProgressLabel: '推進標準',
     demoObservationLabel: '觀察要點',
+    pumpValveClosed: '打氣閥門已關閉',
+    pumpValveOpen: '打氣閥門已開啟',
+    pumpFrequencySuitable: '打氣頻率合適，可以繼續觀察壓強變化',
+    pumpFrequencySlow: '打氣速率偏低，實驗效果可能不明顯',
     steps: [
       { id: 'power-on', title: '打開電源', detail: '請先打開電源。' },
       { id: 'open-stopcock', title: '打開玻璃旋塞', detail: '打開玻璃旋塞，再進行壓強差調零。' },
@@ -197,6 +210,10 @@ export const productIntroGuideDemoCopies: Record<WorkbenchLanguagePreference, Gu
     demoTargetLabel: 'Target',
     demoProgressLabel: 'Progress',
     demoObservationLabel: 'Observe',
+    pumpValveClosed: 'Pump valve closed',
+    pumpValveOpen: 'Pump valve open',
+    pumpFrequencySuitable: 'Pumping rate is suitable; continue observing the pressure change',
+    pumpFrequencySlow: 'Pumping is too slow for a clear experimental response',
     steps: [
       { id: 'power-on', title: 'Turn on power', detail: 'Turn on the instrument power first.' },
       { id: 'open-stopcock', title: 'Open stopcock', detail: 'Open the glass stopcock before pressure zeroing.' },
@@ -584,6 +601,7 @@ export const ProductIntroModesDemo = ({
   language,
   theme,
   onComplete,
+  onReady,
   controlledElapsedMs,
   surfaceOnly = false,
   mode = 'guide',
@@ -680,12 +698,12 @@ export const ProductIntroModesDemo = ({
       ? 'tooSlow'
       : 'idle';
   const freePumpHint = !freePumpValveOpen
-    ? '打气阀门已关闭'
+    ? copy.pumpValveClosed
     : freePumpStrokeCount === 0
-      ? '打气阀门已打开'
+      ? copy.pumpValveOpen
       : freePumpFrequencyStatus === 'suitable'
-        ? '打气频率合适，可以继续观察压强变化'
-        : '打气速率偏低，实验效果可能不明显';
+        ? copy.pumpFrequencySuitable
+        : copy.pumpFrequencySlow;
   const powerOn = mode === 'demo'
     ? displayElapsedMs >= demoPowerOnAtMs
     : mode === 'guide'
@@ -832,7 +850,10 @@ export const ProductIntroModesDemo = ({
                 onPumpValveToggle={() => undefined}
                 onPumpBulbPress={() => undefined}
                 onHardSphereViewToggle={() => undefined}
-                onSceneReady={() => setSceneReady(true)}
+                onSceneReady={() => {
+                  setSceneReady(true);
+                  onReady?.();
+                }}
               />
             </div>
           </div>

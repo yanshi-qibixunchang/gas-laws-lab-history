@@ -1,7 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
-import { productIntroGuideDemoCopies } from './ProductIntroModesDemo.tsx';
-import { PRODUCT_INTRO_CONTENT_PLAYBACK_RATE } from './productIntroCarouselModel.ts';
+import {
+  ProductIntroModesDemo,
+  productIntroGuideDemoCopies,
+} from './ProductIntroModesDemo.tsx';
+import {
+  PRODUCT_INTRO_CONTENT_PLAYBACK_RATE,
+  PRODUCT_INTRO_MODES_DEMO_MS,
+} from './productIntroCarouselModel.ts';
 
 interface ProductIntroModesVideoProps {
   active: boolean;
@@ -11,10 +17,155 @@ interface ProductIntroModesVideoProps {
   onComplete: () => void;
 }
 
+interface ProductIntroModesSummaryProps {
+  language: WorkbenchLanguagePreference;
+}
+
+interface ProductIntroModesLiveDemoProps extends ProductIntroModesVideoProps {
+  theme: 'dark' | 'light';
+}
+
 const PRODUCT_INTRO_MODES_VIDEO_URL = new URL(
   '../../assets/onboarding/product-intro-demo-guide.zh-CN.mp4',
   import.meta.url,
 ).href;
+
+const ProductIntroModesSummary = ({ language }: ProductIntroModesSummaryProps) => {
+  const copy = productIntroGuideDemoCopies[language];
+  const learningPathLabelLines = language === 'en'
+    ? ['Learning', 'path']
+    : [copy.learningPathLabel.slice(0, 2), copy.learningPathLabel.slice(2)];
+  const ariaLabel = language === 'en'
+    ? `${copy.learningPathLabel}: ${copy.learningObserve}, ${copy.learningFollow}, ${copy.learningIndependent}`
+    : `${copy.learningPathLabel}：${copy.learningObserve}，${copy.learningFollow}，${copy.learningIndependent}`;
+
+  return (
+    <>
+      <div className="first-run-modes-video-captions">
+        <div className="first-run-guide-native-caption">
+          <strong>{copy.modeDemo}</strong>
+          <span>{copy.demoPurpose}</span>
+        </div>
+        <div className="first-run-guide-native-caption">
+          <strong>{copy.modeGuide}</strong>
+          <span>{copy.modePurpose}</span>
+        </div>
+        <div className="first-run-guide-native-caption">
+          <strong>{copy.modeFree}</strong>
+          <span>{copy.freePurpose}</span>
+        </div>
+      </div>
+      <div
+        className="first-run-modes-learning-path"
+        data-product-intro-language={language}
+        aria-label={ariaLabel}
+      >
+        <div className="first-run-modes-learning-path-content">
+          <strong className="first-run-modes-learning-path-badge" aria-hidden="true">
+            <span>{learningPathLabelLines[0]}</span>
+            <span>{learningPathLabelLines[1]}</span>
+          </strong>
+          <div className="first-run-modes-learning-path-sequence">
+            <span>{copy.learningObserve}</span>
+            <i aria-hidden="true">→</i>
+            <span>{copy.learningFollow}</span>
+            <i aria-hidden="true">→</i>
+            <span>{copy.learningIndependent}</span>
+          </div>
+          <p>{copy.learningPathSummary}</p>
+        </div>
+      </div>
+    </>
+  );
+};
+
+export const ProductIntroModesLiveDemo = ({
+  active,
+  paused,
+  reducedMotion,
+  language,
+  theme,
+  onComplete,
+}: ProductIntroModesLiveDemoProps) => {
+  const initialElapsedMs = reducedMotion ? PRODUCT_INTRO_MODES_DEMO_MS : 0;
+  const [elapsedMs, setElapsedMs] = useState(initialElapsedMs);
+  const [readyModes, setReadyModes] = useState<Set<string>>(() => new Set());
+  const elapsedRef = useRef(initialElapsedMs);
+  const activeRef = useRef(false);
+  const completionNotifiedRef = useRef(false);
+  const allModesReady = readyModes.size === 3;
+
+  const markModeReady = useCallback((mode: string) => {
+    setReadyModes((current) => {
+      if (current.has(mode)) return current;
+      const next = new Set(current);
+      next.add(mode);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const entering = active && !activeRef.current;
+    activeRef.current = active;
+    if (!entering) return;
+    const nextElapsedMs = reducedMotion ? PRODUCT_INTRO_MODES_DEMO_MS : 0;
+    elapsedRef.current = nextElapsedMs;
+    completionNotifiedRef.current = false;
+    setElapsedMs(nextElapsedMs);
+  }, [active, reducedMotion]);
+
+  useEffect(() => {
+    if (!active || paused || reducedMotion) return undefined;
+    const startedAt = performance.now();
+    const startingElapsedMs = elapsedRef.current;
+    const advance = () => {
+      const nextElapsedMs = Math.min(
+        PRODUCT_INTRO_MODES_DEMO_MS,
+        startingElapsedMs + (performance.now() - startedAt) * PRODUCT_INTRO_CONTENT_PLAYBACK_RATE,
+      );
+      elapsedRef.current = nextElapsedMs;
+      setElapsedMs(nextElapsedMs);
+      if (
+        nextElapsedMs >= PRODUCT_INTRO_MODES_DEMO_MS &&
+        !completionNotifiedRef.current
+      ) {
+        completionNotifiedRef.current = true;
+        onComplete();
+      }
+    };
+    advance();
+    const intervalId = window.setInterval(advance, 32);
+    return () => window.clearInterval(intervalId);
+  }, [active, onComplete, paused, reducedMotion]);
+
+  return (
+    <div
+      className="first-run-modes-live-demo"
+      data-product-intro-modes-live="true"
+      data-product-intro-modes-live-ready={allModesReady ? 'true' : 'false'}
+      data-product-intro-modes-live-paused={paused ? 'true' : 'false'}
+    >
+      <div className="first-run-modes-live-surfaces">
+        {(['demo', 'guide', 'free'] as const).map((mode) => (
+          <ProductIntroModesDemo
+            key={mode}
+            active={active}
+            paused={paused}
+            reducedMotion={reducedMotion}
+            language={language}
+            theme={theme}
+            controlledElapsedMs={elapsedMs}
+            surfaceOnly
+            mode={mode}
+            onReady={() => markModeReady(mode)}
+            onComplete={() => undefined}
+          />
+        ))}
+      </div>
+      <ProductIntroModesSummary language={language} />
+    </div>
+  );
+};
 
 export const ProductIntroModesVideo = ({
   active,
@@ -24,9 +175,6 @@ export const ProductIntroModesVideo = ({
   onComplete,
 }: ProductIntroModesVideoProps) => {
   const copy = productIntroGuideDemoCopies[language];
-  const learningPathLabelLines = language === 'en'
-    ? ['Learning', 'path']
-    : [copy.learningPathLabel.slice(0, 2), copy.learningPathLabel.slice(2)];
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const activeRef = useRef(false);
   const completionNotifiedRef = useRef(false);
@@ -97,39 +245,7 @@ export const ProductIntroModesVideo = ({
           onComplete();
         }}
       />
-      <div className="first-run-modes-video-captions">
-        <div className="first-run-guide-native-caption">
-          <strong>{copy.modeDemo}</strong>
-          <span>{copy.demoPurpose}</span>
-        </div>
-        <div className="first-run-guide-native-caption">
-          <strong>{copy.modeGuide}</strong>
-          <span>{copy.modePurpose}</span>
-        </div>
-        <div className="first-run-guide-native-caption">
-          <strong>{copy.modeFree}</strong>
-          <span>{copy.freePurpose}</span>
-        </div>
-      </div>
-      <div
-        className="first-run-modes-learning-path"
-        aria-label={`${copy.learningPathLabel}：${copy.learningObserve}，${copy.learningFollow}，${copy.learningIndependent}`}
-      >
-        <div className="first-run-modes-learning-path-content">
-          <strong className="first-run-modes-learning-path-badge" aria-hidden="true">
-            <span>{learningPathLabelLines[0]}</span>
-            <span>{learningPathLabelLines[1]}</span>
-          </strong>
-          <div className="first-run-modes-learning-path-sequence">
-            <span>{copy.learningObserve}</span>
-            <i aria-hidden="true">→</i>
-            <span>{copy.learningFollow}</span>
-            <i aria-hidden="true">→</i>
-            <span>{copy.learningIndependent}</span>
-          </div>
-          <p>{copy.learningPathSummary}</p>
-        </div>
-      </div>
+      <ProductIntroModesSummary language={language} />
     </div>
   );
 };

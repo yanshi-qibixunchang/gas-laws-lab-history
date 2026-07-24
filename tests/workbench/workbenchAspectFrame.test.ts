@@ -42,7 +42,7 @@ assert.match(
 
 assert.match(
   appSource,
-  /background:\s*'#11161b'/,
+  /background:\s*useFixedFrame \? '#11161b' : '#1a1f25'/,
   'Workbench desktop frame should use a darker matte backdrop outside the 16:9 stage',
 );
 

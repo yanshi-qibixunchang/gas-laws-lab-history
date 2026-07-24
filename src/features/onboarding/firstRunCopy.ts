@@ -204,7 +204,7 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
       cardStatus: (current, total) => `第 ${current} 張，共 ${total} 張`,
       cards: [
         { eyebrow: '工作空間', title: '一個工作台，貫穿實驗始終', body: '實驗檔案、儀器視圖、過程資料與結果視窗保持在同一套介面中，操作過程連續而清晰。', meta: '實驗檔案 · 儀器視圖 · 資料視窗 · 結果' },
-        { eyebrow: '學習方式', title: '先看懂，再跟做，最後獨立完成', body: '先透過演示理解流程，再在引導中完成關鍵步驟；熟悉後即可進入自由實驗。', meta: '演示 · 引導 · 自由實驗' },
+        { eyebrow: '學習方式', title: '先看懂，再跟做，最後獨立完成', body: '先透過示範理解流程，再在引導中完成關鍵步驟；熟悉後即可進入自由實驗。', meta: '示範 · 引導 · 自由實驗' },
         { eyebrow: '實驗閉環', title: '每一次操作，都能回到資料與結果', body: '儀器操作、感測器讀數、資料記錄、計算處理與結果複核在同一實驗檔案中自然銜接。', meta: '操作 · 記錄 · 計算 · 複核' },
       ],
     },
@@ -213,9 +213,9 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
       title: '您是否了解本軟體絕熱膨脹法實驗的操作邏輯？',
       body: '請根據您是否能夠使用本軟體完成模式選擇、儀器操作、資料記錄與結果處理進行選擇。',
       known: '是，我已了解',
-      knownHint: '進入軟體後直接開放演示、引導與自由實驗。',
+      knownHint: '進入軟體後直接開放示範、引導與自由實驗。',
       guidance: '否，我需要引導',
-      guidanceHint: '同意授權後立即進入演示與引導逐步解鎖流程。',
+      guidanceHint: '同意授權後立即進入示範與引導逐步解鎖流程。',
       required: '請選擇一項後繼續。',
     },
     consent: {

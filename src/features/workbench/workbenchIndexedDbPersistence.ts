@@ -244,17 +244,52 @@ export type WorkbenchPersistenceBootstrapResult = {
   error: Error | null;
 };
 
+export type WorkbenchPersistenceInitializationStage =
+  | 'starting'
+  | 'preparing-storage'
+  | 'opening-storage'
+  | 'reading-workspace'
+  | 'restoring-workspace'
+  | 'migrating-workspace'
+  | 'recovering-workspace'
+  | 'preparing-workbench'
+  | 'complete'
+  | 'failed';
+
+type WorkbenchPersistenceInitializationListener = (
+  stage: WorkbenchPersistenceInitializationStage,
+) => void;
+
 let databasePromise: Promise<IDBDatabase> | null = null;
 let activeNamespace = WORKBENCH_PERSISTENT_NAMESPACE;
 let persistenceReady = false;
 let temporaryNamespaceCleanupTimerId: number | null = null;
 let initializationPromise: Promise<WorkbenchPersistenceBootstrapResult> | null = null;
+let currentInitializationStage: WorkbenchPersistenceInitializationStage = 'starting';
+const persistenceInitializationListeners = new Set<WorkbenchPersistenceInitializationListener>();
 const persistenceWorkerClient = new WorkbenchPersistenceWorkerClient();
 const expectedWorkspaceRevisionByNamespace = new Map<string, number | null>();
 const retainedPersistenceV3StateByNamespace = new Map<
   string,
   WorkbenchPersistenceV3RetainedState
 >();
+
+const publishPersistenceInitializationStage = (
+  stage: WorkbenchPersistenceInitializationStage,
+) => {
+  currentInitializationStage = stage;
+  persistenceInitializationListeners.forEach((listener) => listener(stage));
+};
+
+export const subscribeWorkbenchPersistenceInitialization = (
+  listener: WorkbenchPersistenceInitializationListener,
+) => {
+  persistenceInitializationListeners.add(listener);
+  listener(currentInitializationStage);
+  return () => {
+    persistenceInitializationListeners.delete(listener);
+  };
+};
 
 export class WorkbenchPersistenceConflictError extends Error {
   constructor(namespace: string) {
@@ -3009,10 +3044,13 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
   let legacyFallback: ReturnType<typeof readLegacyWorkspaceForMigration> | null = null;
   let database: IDBDatabase | null = null;
   try {
+    publishPersistenceInitializationStage('preparing-storage');
     activeNamespace = resolveWorkbenchNamespace();
     retainedPersistenceV3StateByNamespace.delete(activeNamespace);
     if (!window.indexedDB) throw new Error('IndexedDB is unavailable in this runtime.');
+    publishPersistenceInitializationStage('opening-storage');
     database = await openWorkbenchDatabase();
+    publishPersistenceInitializationStage('reading-workspace');
     const persistenceV3Store =
       new IndexedDbWorkbenchPersistenceV3GenerationStore(database);
     let restoredV3:
@@ -3020,6 +3058,7 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
         typeof restoreWorkbenchPersistenceV3ProductionWorkspace
       >> = null;
     try {
+      publishPersistenceInitializationStage('restoring-workspace');
       restoredV3 =
         await restoreWorkbenchPersistenceV3ProductionWorkspace(
           persistenceV3Store,
@@ -3032,6 +3071,7 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
       );
     }
     if (restoredV3) {
+      publishPersistenceInitializationStage('preparing-workbench');
       const session = createWorkbenchSessionFromRuntimeFiles({
         files: restoredV3.files,
         activeFileId: restoredV3.activeFileId,
@@ -3076,6 +3116,7 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
     }
     const existingMeta = await readWorkspaceMetaRecord(database, activeNamespace);
     if (existingMeta?.migrationState === 'ready') {
+      publishPersistenceInitializationStage('migrating-workspace');
       const restored = await loadReadyWorkspaceWithRefreshMetadataRecovery(database, activeNamespace);
       if (!restored) throw new Error('IndexedDB workspace metadata disappeared during initialization.');
       const committed = await commitRestoredV2WorkspaceIntoV3(
@@ -3084,6 +3125,7 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
         restored.session,
         restored.closedFiles,
       );
+      publishPersistenceInitializationStage('preparing-workbench');
       installBootstrap(restored.session, restored.closedFiles, restored.refreshSession);
       retainedPersistenceV3StateByNamespace.set(
         activeNamespace,
@@ -3098,6 +3140,7 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
     }
 
     if (existingMeta?.migrationState === 'cleanup-pending') {
+      publishPersistenceInitializationStage('migrating-workspace');
       const restored = await loadWorkspaceFromIndexedDb(database, activeNamespace, {
         allowPendingMigration: true,
       });
@@ -3114,6 +3157,7 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
         restored.session,
         restored.closedFiles,
       );
+      publishPersistenceInitializationStage('preparing-workbench');
       installBootstrap(restored.session, restored.closedFiles, refreshBootstrap);
       retainedPersistenceV3StateByNamespace.set(
         activeNamespace,
@@ -3140,6 +3184,7 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
       throw new Error('An interrupted workspace migration cannot be verified because its legacy source is missing.');
     }
     if (legacyFallback.hasLegacyData) {
+      publishPersistenceInitializationStage('migrating-workspace');
       const writtenRecords = await writeWorkbenchWorkspaceToIndexedDb(database, activeNamespace, {
         files: legacyFallback.session.files,
         closedFiles: legacyFallback.closedFiles,
@@ -3175,6 +3220,7 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
         verified.session,
         verified.closedFiles,
       );
+      publishPersistenceInitializationStage('preparing-workbench');
       installBootstrap(verified.session, verified.closedFiles, refreshBootstrap);
       retainedPersistenceV3StateByNamespace.set(
         activeNamespace,
@@ -3187,11 +3233,13 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
       markPersistenceReady();
       return { namespace: activeNamespace, migratedLegacyStorage: true, error: null };
     }
+    publishPersistenceInitializationStage('preparing-workbench');
     installBootstrap(legacyFallback.session, [], null);
     expectedWorkspaceRevisionByNamespace.set(activeNamespace, null);
     markPersistenceReady();
     return { namespace: activeNamespace, migratedLegacyStorage: false, error: null };
   } catch (cause) {
+    publishPersistenceInitializationStage('recovering-workspace');
     expectedWorkspaceRevisionByNamespace.delete(activeNamespace);
     let error = cause instanceof Error ? cause : new Error(String(cause));
     if (error instanceof WorkbenchPersistenceConflictError && database) {
@@ -3332,9 +3380,15 @@ const performWorkbenchIndexedDbInitialization = async (): Promise<WorkbenchPersi
 
 export const initializeWorkbenchIndexedDbPersistence = (): Promise<WorkbenchPersistenceBootstrapResult> => {
   if (initializationPromise) return initializationPromise;
-  const sharedInitialization = performWorkbenchIndexedDbInitialization().finally(() => {
-    if (initializationPromise === sharedInitialization) initializationPromise = null;
-  });
+  publishPersistenceInitializationStage('starting');
+  const sharedInitialization = performWorkbenchIndexedDbInitialization()
+    .then((result) => {
+      publishPersistenceInitializationStage(result.error ? 'failed' : 'complete');
+      return result;
+    })
+    .finally(() => {
+      if (initializationPromise === sharedInitialization) initializationPromise = null;
+    });
   initializationPromise = sharedInitialization;
   return sharedInitialization;
 };

@@ -145,13 +145,13 @@ export const FirstRunExperience = ({
   );
 
   return (
-    <div className={shellClassName} data-first-run-mode={mode}>
+    <div
+      className={shellClassName}
+      data-first-run-mode={mode}
+      data-first-run-language={language}
+    >
       <div className="first-run-shell">
         <header className="studio-menu first-run-titlebar">
-          <div className="studio-titlebar-brand" aria-label={getWorkbenchAppBrandName(language)}>
-            <span className="studio-brand-mark" aria-hidden="true"><img src="favicon.png" alt="" /></span>
-            <span>{getWorkbenchAppBrandName(language)}</span>
-          </div>
           <div className="studio-titlebar-drag-fill" aria-hidden="true" />
           {desktopWindowBridge ? (
             <div className="studio-window-controls" aria-label={copy.windowControls.controls}>
