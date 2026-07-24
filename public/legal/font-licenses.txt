@@ -9,6 +9,11 @@ Included font families:
   License: SIL Open Font License 1.1
   Upstream project: https://fonts.google.com/noto/specimen/Noto+Sans+SC
 
+- Gas Laws Lab Serif (product-introduction subset derived from Noto Serif SC)
+  License: SIL Open Font License 1.1
+  Upstream project: https://fonts.google.com/noto/specimen/Noto+Serif+SC
+  Local notice: GasLawsLabSerif/NOTICE.txt
+
 - JetBrains Mono
   License: SIL Open Font License 1.1
   Upstream project: https://www.jetbrains.com/lp/mono/

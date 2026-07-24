@@ -1,26 +1,26 @@
 .product-intro-guide-video-capture-page {
-  width: 1599px;
-  height: 375px;
+  width: 1464px;
+  height: 400px;
   overflow: hidden;
 }
 
 .product-intro-guide-video-capture-scale {
   display: grid;
-  grid-template-columns: repeat(3, 525px);
+  grid-template-columns: repeat(3, 480px);
   gap: 12px;
-  width: 1599px;
-  height: 375px;
+  width: 1464px;
+  height: 400px;
 }
 
 .product-intro-guide-video-capture-scale .first-run-guide-native-demo {
   display: block;
-  width: 525px;
-  height: 375px;
+  width: 480px;
+  height: 400px;
 }
 
 .product-intro-guide-video-capture-scale .first-run-guide-native-panel.studio-dock-panel {
-  width: 525px;
-  height: 375px;
+  width: 480px;
+  height: 400px;
   aspect-ratio: auto;
   border-radius: 0;
   box-shadow: none;

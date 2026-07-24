@@ -102,6 +102,20 @@ export const ProductIntroModesVideo = ({
           <span>{copy.freePurpose}</span>
         </div>
       </div>
+      <div
+        className="first-run-modes-learning-path"
+        aria-label={`${copy.learningPathLabel}：${copy.learningObserve}，${copy.learningFollow}，${copy.learningIndependent}`}
+      >
+        <div className="first-run-modes-learning-path-sequence">
+          <strong>{copy.learningPathLabel}</strong>
+          <span>{copy.learningObserve}</span>
+          <i aria-hidden="true">→</i>
+          <span>{copy.learningFollow}</span>
+          <i aria-hidden="true">→</i>
+          <span>{copy.learningIndependent}</span>
+        </div>
+        <p>{copy.learningPathSummary}</p>
+      </div>
     </div>
   );
 };

@@ -30,6 +30,14 @@
   src: url("/fonts/JetBrainsMono-700.woff2") format("woff2");
 }
 
+@font-face {
+  font-family: "Gas Laws Lab Serif";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/GasLawsLabSerif/GasLawsLabSerif-Semibold.ttf") format("truetype");
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -40,6 +48,7 @@
   --app-font-ui-zh-tw: var(--app-font-ui);
   --app-font-ui-en: var(--app-font-ui);
   --app-font-display: var(--app-font-ui);
+  --app-font-product-title: "Gas Laws Lab Serif", "Noto Serif SC", "Songti SC", serif;
   --app-font-data: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 

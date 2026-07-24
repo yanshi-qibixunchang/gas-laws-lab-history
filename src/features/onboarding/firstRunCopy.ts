@@ -116,19 +116,19 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
       cards: [
         {
           eyebrow: '工作空间',
-          title: '一个工作台，贯穿完整实验',
+          title: '一个工作台，贯穿实验始终',
           body: '实验文件、仪器视图、过程数据与结果窗口保持在同一套界面中，操作过程连续而清晰。',
           meta: '实验文件 · 仪器视图 · 数据窗口 · 结果',
         },
         {
           eyebrow: '学习方式',
-          title: '从观看演示到独立操作',
+          title: '先看懂，再跟做，最后独立完成',
           body: '先通过演示理解流程，再在引导中完成关键步骤；熟悉后即可进入自由实验。',
           meta: '演示 · 引导 · 自由实验',
         },
         {
           eyebrow: '实验闭环',
-          title: '让每一步都回到数据与结果',
+          title: '每一次操作，都能回到数据与结果',
           body: '仪器操作、传感器读数、数据记录、计算处理和结果复核在同一实验文件中自然衔接。',
           meta: '操作 · 记录 · 计算 · 复核',
         },
@@ -203,9 +203,9 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
       resumeAutoplay: '繼續自動播放',
       cardStatus: (current, total) => `第 ${current} 張，共 ${total} 張`,
       cards: [
-        { eyebrow: '工作空間', title: '一個工作台，貫穿完整實驗', body: '實驗檔案、儀器視圖、過程資料與結果視窗保持在同一套介面中，操作過程連續而清晰。', meta: '實驗檔案 · 儀器視圖 · 資料視窗 · 結果' },
-        { eyebrow: '學習方式', title: '從觀看演示到獨立操作', body: '先透過演示理解流程，再在引導中完成關鍵步驟；熟悉後即可進入自由實驗。', meta: '演示 · 引導 · 自由實驗' },
-        { eyebrow: '實驗閉環', title: '讓每一步都回到資料與結果', body: '儀器操作、感測器讀數、資料記錄、計算處理與結果複核在同一實驗檔案中自然銜接。', meta: '操作 · 記錄 · 計算 · 複核' },
+        { eyebrow: '工作空間', title: '一個工作台，貫穿實驗始終', body: '實驗檔案、儀器視圖、過程資料與結果視窗保持在同一套介面中，操作過程連續而清晰。', meta: '實驗檔案 · 儀器視圖 · 資料視窗 · 結果' },
+        { eyebrow: '學習方式', title: '先看懂，再跟做，最後獨立完成', body: '先透過演示理解流程，再在引導中完成關鍵步驟；熟悉後即可進入自由實驗。', meta: '演示 · 引導 · 自由實驗' },
+        { eyebrow: '實驗閉環', title: '每一次操作，都能回到資料與結果', body: '儀器操作、感測器讀數、資料記錄、計算處理與結果複核在同一實驗檔案中自然銜接。', meta: '操作 · 記錄 · 計算 · 複核' },
       ],
     },
     needs: {
@@ -277,8 +277,8 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
       resumeAutoplay: 'Resume automatic playback',
       cardStatus: (current, total) => `Card ${current} of ${total}`,
       cards: [
-        { eyebrow: 'Workspace', title: 'One workbench for the complete experiment', body: 'Experiment files, instrument views, process data, and results stay together in one clear, continuous interface.', meta: 'Files · instruments · data · results' },
-        { eyebrow: 'Learning path', title: 'From watching a demo to working independently', body: 'Understand the flow through Demo, complete the key steps in Guide, then move into the Free experiment.', meta: 'Demo · Guide · Free experiment' },
+        { eyebrow: 'Workspace', title: 'One workbench from start to finish', body: 'Experiment files, instrument views, process data, and results stay together in one clear, continuous interface.', meta: 'Files · instruments · data · results' },
+        { eyebrow: 'Learning path', title: 'Observe, follow, then work independently', body: 'Understand the flow through Demo, complete the key steps in Guide, then move into the Free experiment.', meta: 'Demo · Guide · Free experiment' },
         { eyebrow: 'Experiment loop', title: 'Connect every action back to data and results', body: 'Instrument actions, sensor readings, records, calculations, and result review stay connected inside one experiment file.', meta: 'Operate · record · calculate · review' },
       ],
     },

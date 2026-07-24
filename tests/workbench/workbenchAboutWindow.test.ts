@@ -72,6 +72,8 @@ const indexOfOrFail = (haystack: string, needle: string, message: string) => {
 
 assert.ok(existsSync(new URL('../../public/fonts/NotoSansSC/NotoSansSC-Variable.ttf', import.meta.url)), 'bundled Noto Sans SC variable font should exist');
 assert.ok(existsSync(new URL('../../public/fonts/NotoSansSC/OFL.txt', import.meta.url)), 'bundled Noto Sans SC OFL text should exist');
+assert.ok(existsSync(new URL('../../public/fonts/GasLawsLabSerif/GasLawsLabSerif-Semibold.ttf', import.meta.url)), 'bundled product-title serif subset should exist');
+assert.ok(existsSync(new URL('../../public/fonts/GasLawsLabSerif/NOTICE.txt', import.meta.url)), 'bundled product-title serif subset notice should exist');
 for (const legacyFontPath of [
   '../../public/fonts/Inter-300.woff2',
   '../../public/fonts/Inter-400.woff2',
@@ -89,8 +91,10 @@ for (const legacyFontPath of [
 }
 assert.match(rootStyles, /font-family:\s*"Noto Sans SC"[\s\S]*font-weight:\s*100 900/, 'global styles should register the shared Noto Sans SC variable font');
 assert.match(rootStyles, /--app-font-ui:\s*"Noto Sans SC"/, 'global UI typography should use Noto Sans SC');
+assert.match(rootStyles, /font-family:\s*"Gas Laws Lab Serif"[\s\S]*font-weight:\s*600/, 'global styles should register the licensed product-title serif subset');
+assert.match(rootStyles, /--app-font-product-title:\s*"Gas Laws Lab Serif"/, 'product introduction titles should use the bundled serif subset');
 assert.doesNotMatch(rootStyles, /font-family:\s*"(?:Inter|Playfair Display)"/, 'global styles should not register the superseded Inter or Playfair Display schemes');
-assert.match(fontLicenseNotes, /Noto Sans SC[\s\S]*JetBrains Mono/, 'source font notices should list the two retained font families');
+assert.match(fontLicenseNotes, /Noto Sans SC[\s\S]*Gas Laws Lab Serif[\s\S]*JetBrains Mono/, 'source font notices should list the retained UI fonts and the product-title subset');
 assert.doesNotMatch(fontLicenseNotes, /\bInter\b|Playfair Display/, 'source font notices should not retain superseded families');
 assert.equal(generatedFontLicenseNotes, fontLicenseNotes, 'generated font license notes should stay synchronized with the source notice');
 assert.doesNotMatch(buildNoticeContentSource, /\bInter\b|Playfair Display/, 'localized build notices should not claim superseded font families');

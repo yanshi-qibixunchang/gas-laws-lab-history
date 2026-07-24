@@ -49,6 +49,11 @@ type GuideDemoCopy = {
   modePurpose: string;
   demoPurpose: string;
   freePurpose: string;
+  learningObserve: string;
+  learningFollow: string;
+  learningIndependent: string;
+  learningPathLabel: string;
+  learningPathSummary: string;
   demoRunning: string;
   demoTargetLabel: string;
   demoProgressLabel: string;
@@ -76,6 +81,11 @@ export const productIntroGuideDemoCopies: Record<WorkbenchLanguagePreference, Gu
     modePurpose: '按原生清单完成实际操作，每完成一步立即勾选。',
     demoPurpose: '系统自动执行实验步骤，集中观察仪器响应与数据变化。',
     freePurpose: '不限制操作顺序，可直接操控仪器并观察实时响应。',
+    learningObserve: '观察流程',
+    learningFollow: '跟随操作',
+    learningIndependent: '独立完成',
+    learningPathLabel: '学习路径',
+    learningPathSummary: '先理解标准实验流程，再完成关键操作，最后进入自由实验。',
     demoRunning: '自动演示',
     demoTargetLabel: '目标控件',
     demoProgressLabel: '推进标准',
@@ -123,6 +133,11 @@ export const productIntroGuideDemoCopies: Record<WorkbenchLanguagePreference, Gu
     modePurpose: '依照原生清單完成實際操作，每完成一步立即勾選。',
     demoPurpose: '系統自動執行實驗步驟，集中觀察儀器回應與資料變化。',
     freePurpose: '不限制操作順序，可直接操控儀器並觀察即時回應。',
+    learningObserve: '觀察流程',
+    learningFollow: '跟隨操作',
+    learningIndependent: '獨立完成',
+    learningPathLabel: '學習路徑',
+    learningPathSummary: '先理解標準實驗流程，再完成關鍵操作，最後進入自由實驗。',
     demoRunning: '自動演示',
     demoTargetLabel: '目標控制項',
     demoProgressLabel: '推進標準',
@@ -170,6 +185,11 @@ export const productIntroGuideDemoCopies: Record<WorkbenchLanguagePreference, Gu
     modePurpose: 'Follow the native checklist and mark each hands-on step complete.',
     demoPurpose: 'Watch the system run the experiment while instrument responses and data change.',
     freePurpose: 'Operate the instrument in any order and observe its realtime response.',
+    learningObserve: 'Observe the flow',
+    learningFollow: 'Follow the steps',
+    learningIndependent: 'Work independently',
+    learningPathLabel: 'Learning path',
+    learningPathSummary: 'Understand the standard flow, complete the key actions, then move into the Free experiment.',
     demoRunning: 'Auto demo',
     demoTargetLabel: 'Target',
     demoProgressLabel: 'Progress',

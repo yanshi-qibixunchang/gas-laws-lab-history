@@ -108,6 +108,7 @@ The application ships local web font files under `public/fonts`.
 | Font family | License |
 | --- | --- |
 | Noto Sans SC | SIL Open Font License 1.1 |
+| Gas Laws Lab Serif (subset derived from Noto Serif SC) | SIL Open Font License 1.1 |
 | JetBrains Mono | SIL Open Font License 1.1 |
 
 Font-specific license notes are also provided in `public/fonts/LICENSES.txt`.

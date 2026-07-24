@@ -119,67 +119,66 @@ export const ProductIntroCarousel = ({
   ) => {
     const workspaceShowcase = cardIndex === 0;
     const modesShowcase = cardIndex === 1;
+    const textShowcase = !workspaceShowcase && !modesShowcase;
     const modesVideoPilot = modesShowcase && language === 'zh-CN' && theme === 'light';
-    const visualShowcase = workspaceShowcase || modesShowcase;
+    const bodyKind = workspaceShowcase ? 'workspace' : modesShowcase ? 'modes' : 'text';
     const cardPlaybackActive = active && (
       phase === 'outgoing' || (phase === 'incoming' && outgoingIndex === null)
     );
     return (
     <div
       key={`product-card-${cardIndex}`}
-      className={`first-run-product-card-content first-run-product-card-content-${phase} first-run-product-card-content-${direction === 1 ? 'next' : 'previous'} ${visualShowcase ? 'first-run-product-card-content-showcase' : ''}`}
+      className={`first-run-product-card-content first-run-product-card-content-${phase} first-run-product-card-content-${direction === 1 ? 'next' : 'previous'}`}
+      data-product-intro-card-kind={bodyKind}
       aria-hidden={phase !== 'incoming'}
     >
-      <div
-        className={visualShowcase
-          ? 'first-run-product-card-showcase-heading'
-          : 'first-run-product-card-text-layout'}
-      >
-        <div className="first-run-product-card-labels">
-          <span className="first-run-product-card-index" aria-hidden="true">
-            {String(cardIndex + 1).padStart(2, '0')} / {String(cards.length).padStart(2, '0')}
-          </span>
+      <header className="first-run-product-card-header">
+        <div className="first-run-product-card-heading-copy">
           <span className="first-run-product-card-eyebrow">{card.eyebrow}</span>
-        </div>
-        <div className="first-run-product-card-copy">
           <h2>{card.title}</h2>
-          {!visualShowcase ? (
-            <div className="first-run-product-card-details">
-              <p>{card.body}</p>
-              <small>{card.meta}</small>
-            </div>
-          ) : null}
         </div>
+        <div className="first-run-product-card-index" aria-hidden="true">
+          <strong>{String(cardIndex + 1).padStart(2, '0')}</strong>
+          <span>/ {String(cards.length).padStart(2, '0')}</span>
+        </div>
+      </header>
+      <div className={`first-run-product-card-body first-run-product-card-body-${bodyKind}`}>
+        {workspaceShowcase ? (
+          <ProductIntroWorkspaceDemo
+            active={cardPlaybackActive}
+            paused={scriptedCardPaused}
+            reducedMotion={reducedMotion}
+            language={language}
+            onComplete={completeWorkspaceDemo}
+          />
+        ) : null}
+        {modesShowcase ? (
+          modesVideoPilot ? (
+            <ProductIntroModesVideo
+              active={cardPlaybackActive}
+              paused={scriptedCardPaused}
+              reducedMotion={reducedMotion}
+              language={language}
+              onComplete={completeModesDemo}
+            />
+          ) : (
+            <ProductIntroModesDemo
+              active={cardPlaybackActive}
+              paused={scriptedCardPaused}
+              reducedMotion={reducedMotion}
+              language={language}
+              theme={theme}
+              onComplete={completeModesDemo}
+            />
+          )
+        ) : null}
+        {textShowcase ? (
+          <div className="first-run-product-card-details">
+            <p>{card.body}</p>
+            <small>{card.meta}</small>
+          </div>
+        ) : null}
       </div>
-      {workspaceShowcase ? (
-        <ProductIntroWorkspaceDemo
-          active={cardPlaybackActive}
-          paused={scriptedCardPaused}
-          reducedMotion={reducedMotion}
-          language={language}
-          onComplete={completeWorkspaceDemo}
-        />
-      ) : null}
-      {modesShowcase ? (
-        modesVideoPilot ? (
-          <ProductIntroModesVideo
-            active={cardPlaybackActive}
-            paused={scriptedCardPaused}
-            reducedMotion={reducedMotion}
-            language={language}
-            onComplete={completeModesDemo}
-          />
-        ) : (
-          <ProductIntroModesDemo
-            active={cardPlaybackActive}
-            paused={scriptedCardPaused}
-            reducedMotion={reducedMotion}
-            language={language}
-            theme={theme}
-            onComplete={completeModesDemo}
-          />
-        )
-      ) : null}
     </div>
     );
   };
@@ -194,6 +193,7 @@ export const ProductIntroCarousel = ({
     <section
       className="first-run-page first-run-product-page"
       data-first-run-page="product"
+      data-product-intro-active-card={activeIndex}
       data-product-intro-transitioning={outgoingIndex !== null ? 'true' : 'false'}
       data-product-intro-transition-progress={outgoingIndex !== null ? '0.000' : '1.000'}
       aria-label={copy.product.title}
