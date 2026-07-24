@@ -16,7 +16,10 @@ import {
   HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
 } from '../workbench/workbenchState.ts';
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
-import { PRODUCT_INTRO_MODES_DEMO_MS } from './productIntroCarouselModel.ts';
+import {
+  PRODUCT_INTRO_CONTENT_PLAYBACK_RATE,
+  PRODUCT_INTRO_MODES_DEMO_MS,
+} from './productIntroCarouselModel.ts';
 
 type ProductIntroMode = 'demo' | 'guide' | 'free';
 
@@ -301,6 +304,10 @@ const ease = (value: number) => {
   const progress = clamp01(value);
   return progress * progress * (3 - 2 * progress);
 };
+const easeCursorMotion = (value: number) => {
+  const progress = clamp01(value);
+  return progress * progress * progress * (progress * (progress * 6 - 15) + 10);
+};
 
 const getCursorState = (elapsedMs: number, mode: ProductIntroMode) => {
   const keyframes = mode === 'demo'
@@ -334,7 +341,7 @@ const getCursorState = (elapsedMs: number, mode: ProductIntroMode) => {
   const next = keyframes[nextIndex];
   const previous = keyframes[nextIndex - 1];
   const duration = Math.max(1, next.atMs - previous.atMs);
-  const progress = ease((elapsedMs - previous.atMs) / duration);
+  const progress = easeCursorMotion((elapsedMs - previous.atMs) / duration);
   return {
     x: previous.x + (next.x - previous.x) * progress,
     y: previous.y + (next.y - previous.y) * progress,
@@ -613,7 +620,7 @@ export const ProductIntroModesDemo = ({
     const update = () => {
       elapsedRef.current = Math.min(
         PRODUCT_INTRO_MODES_DEMO_MS,
-        startingElapsed + performance.now() - startedAt,
+        startingElapsed + (performance.now() - startedAt) * PRODUCT_INTRO_CONTENT_PLAYBACK_RATE,
       );
       setElapsedMs(elapsedRef.current);
       if (elapsedRef.current >= PRODUCT_INTRO_MODES_DEMO_MS) notifyComplete();
@@ -624,7 +631,7 @@ export const ProductIntroModesDemo = ({
       window.clearInterval(intervalId);
       elapsedRef.current = Math.min(
         PRODUCT_INTRO_MODES_DEMO_MS,
-        startingElapsed + performance.now() - startedAt,
+        startingElapsed + (performance.now() - startedAt) * PRODUCT_INTRO_CONTENT_PLAYBACK_RATE,
       );
     };
   }, [active, controlled, notifyComplete, paused, reducedMotion, sceneReady]);

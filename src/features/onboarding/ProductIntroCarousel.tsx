@@ -8,6 +8,7 @@ import type { FirstRunCopy, FirstRunProductCardCopy } from './firstRunCopy.ts';
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
 import { ProductIntroModesDemo } from './ProductIntroModesDemo.tsx';
 import { ProductIntroModesVideo } from './ProductIntroModesVideo.tsx';
+import { ProductIntroOutcomeVideo } from './ProductIntroOutcomeVideo.tsx';
 import { ProductIntroWorkspaceDemo } from './ProductIntroWorkspaceDemo.tsx';
 
 interface ProductIntroCarouselProps {
@@ -23,6 +24,11 @@ interface ProductIntroCarouselProps {
 }
 
 const PRODUCT_INTRO_CONTENT_TRANSITION_MS = 450;
+
+interface QueuedCarouselMove {
+  direction: -1 | 1;
+  announce: boolean;
+}
 
 export const ProductIntroCarousel = ({
   language,
@@ -40,8 +46,13 @@ export const ProductIntroCarousel = ({
   const [direction, setDirection] = useState<-1 | 1>(1);
   const [userPaused, setUserPaused] = useState(false);
   const [announceChanges, setAnnounceChanges] = useState(false);
+  const [pendingMoveCount, setPendingMoveCount] = useState(0);
   const [documentVisible, setDocumentVisible] = useState(() => document.visibilityState === 'visible');
   const transitionTimerRef = useRef<number | null>(null);
+  const activeIndexRef = useRef(0);
+  const transitionInProgressRef = useRef(false);
+  const queuedMovesRef = useRef<QueuedCarouselMove[]>([]);
+  const moveRef = useRef<(nextDirection: -1 | 1, announce?: boolean) => void>(() => undefined);
   const cards = copy.product.cards;
 
   useEffect(() => {
@@ -52,34 +63,65 @@ export const ProductIntroCarousel = ({
 
   useEffect(() => () => {
     if (transitionTimerRef.current !== null) window.clearTimeout(transitionTimerRef.current);
+    transitionInProgressRef.current = false;
+    queuedMovesRef.current = [];
   }, []);
 
-  const transitionTo = useCallback((nextIndex: number, nextDirection: -1 | 1, announce: boolean) => {
-    if (nextIndex === activeIndex || cards.length <= 1 || outgoingIndex !== null) return;
-    if (transitionTimerRef.current !== null) window.clearTimeout(transitionTimerRef.current);
+  const move = useCallback((nextDirection: -1 | 1, announce = true) => {
+    if (cards.length <= 1) return;
+
+    if (transitionInProgressRef.current) {
+      if (announce) {
+        queuedMovesRef.current.push({ direction: nextDirection, announce });
+        setPendingMoveCount(queuedMovesRef.current.length);
+      }
+      return;
+    }
+
+    const currentIndex = activeIndexRef.current;
+    const nextIndex = moveProductIntroCard(currentIndex, nextDirection, cards.length);
+    if (nextIndex === currentIndex) return;
+
     if (reducedMotion) {
       setDirection(nextDirection);
+      activeIndexRef.current = nextIndex;
       setActiveIndex(nextIndex);
       setAnnounceChanges(announce);
       return;
     }
-    setOutgoingIndex(activeIndex);
+
+    transitionInProgressRef.current = true;
+    setOutgoingIndex(currentIndex);
     setDirection(nextDirection);
+    activeIndexRef.current = nextIndex;
     setActiveIndex(nextIndex);
     setAnnounceChanges(announce);
     transitionTimerRef.current = window.setTimeout(() => {
       setOutgoingIndex(null);
       transitionTimerRef.current = null;
-    }, PRODUCT_INTRO_CONTENT_TRANSITION_MS);
-  }, [activeIndex, cards.length, outgoingIndex, reducedMotion]);
+      transitionInProgressRef.current = false;
 
-  const move = useCallback((nextDirection: -1 | 1, announce = true) => {
-    transitionTo(
-      moveProductIntroCard(activeIndex, nextDirection, cards.length),
-      nextDirection,
-      announce,
-    );
-  }, [activeIndex, cards.length, transitionTo]);
+      const queuedMove = queuedMovesRef.current.shift();
+      setPendingMoveCount(queuedMovesRef.current.length);
+      if (queuedMove) {
+        moveRef.current(queuedMove.direction, queuedMove.announce);
+      }
+    }, PRODUCT_INTRO_CONTENT_TRANSITION_MS);
+  }, [cards.length, reducedMotion]);
+
+  moveRef.current = move;
+
+  useEffect(() => {
+    if (active) return;
+    if (transitionTimerRef.current !== null) {
+      window.clearTimeout(transitionTimerRef.current);
+      transitionTimerRef.current = null;
+    }
+    transitionInProgressRef.current = false;
+    queuedMovesRef.current = [];
+    setPendingMoveCount(0);
+    setOutgoingIndex(null);
+  }, [active]);
 
   const scriptedCardPaused = !active || userPaused || !documentVisible;
 
@@ -93,6 +135,13 @@ export const ProductIntroCarousel = ({
     move(1, false);
   }, [activeIndex, move, reducedMotion, scriptedCardPaused]);
 
+  const completeOutcomeDemo = useCallback(() => {
+    if (activeIndex !== 2 || scriptedCardPaused || reducedMotion) return;
+    move(1, false);
+  }, [activeIndex, move, reducedMotion, scriptedCardPaused]);
+
+  const outcomeVideoPilotActive = activeIndex === 2 && language === 'zh-CN' && theme === 'light';
+
   useEffect(() => {
     if (
       !active ||
@@ -100,11 +149,12 @@ export const ProductIntroCarousel = ({
       userPaused ||
       !documentVisible ||
       activeIndex <= 1 ||
+      outcomeVideoPilotActive ||
       cards.length <= 1
     ) return undefined;
     const timeoutId = window.setTimeout(() => move(1, false), PRODUCT_INTRO_AUTOPLAY_MS);
     return () => window.clearTimeout(timeoutId);
-  }, [active, activeIndex, cards.length, documentVisible, move, reducedMotion, userPaused]);
+  }, [active, activeIndex, cards.length, documentVisible, move, outcomeVideoPilotActive, reducedMotion, userPaused]);
 
   const handleCarouselKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!active || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
@@ -119,9 +169,17 @@ export const ProductIntroCarousel = ({
   ) => {
     const workspaceShowcase = cardIndex === 0;
     const modesShowcase = cardIndex === 1;
-    const textShowcase = !workspaceShowcase && !modesShowcase;
+    const outcomeShowcase = cardIndex === 2;
+    const textShowcase = !workspaceShowcase && !modesShowcase && !outcomeShowcase;
     const modesVideoPilot = modesShowcase && language === 'zh-CN' && theme === 'light';
-    const bodyKind = workspaceShowcase ? 'workspace' : modesShowcase ? 'modes' : 'text';
+    const outcomeVideoPilot = outcomeShowcase && language === 'zh-CN' && theme === 'light';
+    const bodyKind = workspaceShowcase
+      ? 'workspace'
+      : modesShowcase
+        ? 'modes'
+        : outcomeShowcase
+          ? 'outcome'
+          : 'text';
     const cardPlaybackActive = active && (
       phase === 'outgoing' || (phase === 'incoming' && outgoingIndex === null)
     );
@@ -172,6 +230,22 @@ export const ProductIntroCarousel = ({
             />
           )
         ) : null}
+        {outcomeShowcase ? (
+          outcomeVideoPilot ? (
+            <ProductIntroOutcomeVideo
+              active={cardPlaybackActive}
+              paused={scriptedCardPaused}
+              reducedMotion={reducedMotion}
+              language={language}
+              onComplete={completeOutcomeDemo}
+            />
+          ) : (
+            <div className="first-run-product-card-details">
+              <p>{card.body}</p>
+              <small>{card.meta}</small>
+            </div>
+          )
+        ) : null}
         {textShowcase ? (
           <div className="first-run-product-card-details">
             <p>{card.body}</p>
@@ -187,6 +261,8 @@ export const ProductIntroCarousel = ({
   const outgoingCard = outgoingIndex === null ? null : cards[outgoingIndex];
   const keepModesVideoWarm = language === 'zh-CN' && theme === 'light';
   const showWarmModesVideo = keepModesVideoWarm && activeIndex !== 1 && outgoingIndex !== 1;
+  const keepOutcomeVideoWarm = language === 'zh-CN' && theme === 'light';
+  const showWarmOutcomeVideo = keepOutcomeVideoWarm && activeIndex !== 2 && outgoingIndex !== 2;
   const userPauseLabel = userPaused ? copy.product.resumeAutoplay : copy.product.pauseAutoplay;
 
   return (
@@ -196,6 +272,7 @@ export const ProductIntroCarousel = ({
       data-product-intro-active-card={activeIndex}
       data-product-intro-transitioning={outgoingIndex !== null ? 'true' : 'false'}
       data-product-intro-transition-progress={outgoingIndex !== null ? '0.000' : '1.000'}
+      data-product-intro-pending-move-count={pendingMoveCount}
       aria-label={copy.product.title}
       aria-hidden={!active}
     >
@@ -211,12 +288,13 @@ export const ProductIntroCarousel = ({
             tabIndex={active ? 0 : -1}
             onClick={() => move(-1)}
           >
-            <ChevronLeft size={18} strokeWidth={1.8} />
+            <ChevronLeft size={22} strokeWidth={1.8} />
           </button>
           <article className="first-run-product-card" aria-live={announceChanges ? 'polite' : 'off'}>
             {outgoingCard ? renderCardContent(outgoingCard, outgoingIndex!, 'outgoing') : null}
             {renderCardContent(activeCard, activeIndex, 'incoming')}
             {showWarmModesVideo ? renderCardContent(cards[1], 1, 'inactive') : null}
+            {showWarmOutcomeVideo ? renderCardContent(cards[2], 2, 'inactive') : null}
           </article>
           <button
             type="button"
@@ -225,7 +303,7 @@ export const ProductIntroCarousel = ({
             tabIndex={active ? 0 : -1}
             onClick={() => move(1)}
           >
-            <ChevronRight size={18} strokeWidth={1.8} />
+            <ChevronRight size={22} strokeWidth={1.8} />
           </button>
         </div>
         <div className="first-run-carousel-status" aria-label={copy.product.cardStatus(activeIndex + 1, cards.length)}>

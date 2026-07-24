@@ -693,6 +693,10 @@ assert.doesNotMatch(processReviewPanelSource, /expanded \? '▾' : '▸'/, 'diag
 assert.doesNotMatch(processReviewStyleSource, /\.hpr-diagnosis-expand\s*\{[^}]*border:\s*1px/, 'diagnosis expand control should not be framed as a rounded rectangle button');
 assert.doesNotMatch(processReviewStyleSource, /\.hpr-diagnosis-expand\s*\{[^}]*border-radius:/, 'diagnosis expand control should not use rounded rectangle styling');
 assert.match(processReviewStyleSource, /\.hpr-diagnosis-expand svg\s*\{[\s\S]*transition:\s*transform/, 'diagnosis expand chevron should rotate smoothly');
+assert.match(processReviewPanelSource, /hpr-diagnosis-details-shell-open/, 'diagnosis details should keep a dedicated animated expansion shell');
+assert.match(processReviewPanelSource, /aria-hidden=\{!expanded\}/, 'collapsed diagnosis details should be hidden from assistive technology');
+assert.match(processReviewStyleSource, /\.hpr-diagnosis-details-shell\s*\{[\s\S]*grid-template-rows:\s*0fr[\s\S]*460ms/, 'diagnosis details should expand from a collapsed grid row with a visible transition');
+assert.match(processReviewStyleSource, /\.hpr-diagnosis-details-shell-open\s*\{[\s\S]*grid-template-rows:\s*1fr/, 'expanded diagnosis details should animate to their full row height');
 assert.match(processReviewPanelSource, /className="hpr-diagnosis-summary-cell"/, 'diagnosis overview cells should be classed for fading when details are expanded');
 assert.match(processReviewStyleSource, /\.hpr-diagnosis-summary-cell\s*\{[\s\S]*transition:/, 'diagnosis overview cells should fade smoothly');
 assert.match(processReviewStyleSource, /\.hpr-diagnosis-row-expanded \.hpr-diagnosis-summary-cell\s*\{[\s\S]*opacity:\s*0/, 'expanded diagnosis rows should fade out overview cells to avoid duplicated information');

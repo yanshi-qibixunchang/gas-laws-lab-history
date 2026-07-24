@@ -26,6 +26,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -34,7 +35,12 @@ import type * as THREE from 'three';
 import { HeatCapacityUltraInstrumentAsset } from '../heatCapacity/HeatCapacityUltraInstrumentModel.tsx';
 import { getWorkbenchAppBrandName } from '../workbench/workbenchBrand.ts';
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
-import { PRODUCT_INTRO_WORKSPACE_DEMO_MS } from './productIntroCarouselModel.ts';
+import {
+  PRODUCT_INTRO_WORKSPACE_BASE_DEMO_MS,
+  PRODUCT_INTRO_WORKSPACE_DEMO_MS,
+  PRODUCT_INTRO_WORKSPACE_POINTER_TIMELINE_MS,
+  PRODUCT_INTRO_WORKSPACE_POST_CLICK_DELAY_MS,
+} from './productIntroCarouselModel.ts';
 
 interface ProductIntroWorkspaceDemoProps {
   active: boolean;
@@ -176,7 +182,8 @@ const productIntroWorkspaceDemoCopies: Record<WorkbenchLanguagePreference, Produ
   },
 };
 
-const PRODUCT_INTRO_MODEL_ROTATION_START_MS = 1_650;
+const PRODUCT_INTRO_MODEL_ROTATION_START_MS = 1_650
+  + PRODUCT_INTRO_WORKSPACE_POST_CLICK_DELAY_MS;
 const PRODUCT_INTRO_MODEL_ROTATION_DURATION_MS = 3_600;
 const PRODUCT_INTRO_MODEL_ROTATION_START_RAD = -0.38;
 const PRODUCT_INTRO_MODEL_ROTATION_ARC_RAD = (60 * Math.PI) / 180;
@@ -264,7 +271,8 @@ export const ProductIntroWorkspaceDemo = ({
   onComplete,
 }: ProductIntroWorkspaceDemoProps) => {
   const copy = productIntroWorkspaceDemoCopies[language];
-  const showFinalState = reducedMotion || !active;
+  const showFinalState = reducedMotion;
+  const timelinePaused = paused || !active;
   const demoRef = useRef<HTMLDivElement | null>(null);
   const completionNotifiedRef = useRef(false);
   const timelineRemainingRef = useRef(PRODUCT_INTRO_WORKSPACE_DEMO_MS);
@@ -282,6 +290,19 @@ export const ProductIntroWorkspaceDemo = ({
     onComplete();
   }, [onComplete]);
   const handleModelReady = useCallback(() => setModelReady(true), []);
+
+  useLayoutEffect(() => {
+    const demo = demoRef.current;
+    if (!demo) return undefined;
+    const updateCursorTravel = () => {
+      demo.style.setProperty('--first-run-workbench-cursor-travel-x', `${demo.clientWidth * -0.12}px`);
+      demo.style.setProperty('--first-run-workbench-cursor-travel-y', `${demo.clientHeight * -0.36}px`);
+    };
+    updateCursorTravel();
+    const observer = new ResizeObserver(updateCursorTravel);
+    observer.observe(demo);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (
@@ -389,7 +410,7 @@ export const ProductIntroWorkspaceDemo = ({
       ref={demoRef}
       className={`first-run-workbench-demo ${showFinalState ? 'first-run-workbench-demo-final' : 'first-run-workbench-demo-playing'}`}
       data-product-intro-workspace-demo="true"
-      data-product-intro-demo-paused={paused ? 'true' : 'false'}
+      data-product-intro-demo-paused={timelinePaused ? 'true' : 'false'}
       data-product-intro-model-ready={modelReady ? 'true' : 'false'}
       data-product-intro-model-showcase-started={modelShowcaseAllowed ? 'true' : 'false'}
       data-product-intro-model-showcase-complete={modelShowcaseComplete ? 'true' : 'false'}
@@ -398,7 +419,10 @@ export const ProductIntroWorkspaceDemo = ({
       aria-hidden="true"
       style={{
         '--first-run-workbench-demo-duration': `${PRODUCT_INTRO_WORKSPACE_DEMO_MS}ms`,
-        '--first-run-workbench-demo-play-state': paused ? 'paused' : 'running',
+        '--first-run-workbench-pointer-duration': `${PRODUCT_INTRO_WORKSPACE_POINTER_TIMELINE_MS}ms`,
+        '--first-run-workbench-content-duration': `${PRODUCT_INTRO_WORKSPACE_BASE_DEMO_MS}ms`,
+        '--first-run-workbench-content-delay': `${PRODUCT_INTRO_WORKSPACE_POST_CLICK_DELAY_MS}ms`,
+        '--first-run-workbench-demo-play-state': timelinePaused ? 'paused' : 'running',
       } as React.CSSProperties}
     >
       <div className="first-run-workbench-demo-shell">

@@ -1,0 +1,12 @@
+.product-intro-outcome-video-capture-page {
+  width: 1320px;
+  height: 540px;
+  min-width: 1320px;
+  min-height: 540px;
+  overflow: hidden;
+}
+
+.product-intro-outcome-video-capture-page .product-intro-outcome-demo {
+  width: 1320px;
+  height: 540px;
+}

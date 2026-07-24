@@ -1521,6 +1521,7 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
                     <button
                       type="button"
                       className={`hpr-diagnosis-expand ${expanded ? 'hpr-diagnosis-expand-open' : ''}`}
+                      data-hpr-diagnosis-expand={row.id}
                       aria-label={`${expanded ? copy.collapse : copy.expand}${localizedRow.title}${copy.scoreDetailSuffix}`}
                       aria-expanded={expanded}
                       disabled={details.length === 0}
@@ -1541,19 +1542,25 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
                       : copy.diagnosisStatusLabels[localizedRow.status]}
                   </em>
                 </div>
-                {expanded && details.length > 0 ? (
-                  <div className="hpr-diagnosis-details" data-hpr-diagnosis-details={row.id}>
-                    {details.map((detail) => (
-                      <div className="hpr-diagnosis-detail-row" key={detail.id}>
-                        <strong>{detail.localizedLabel}</strong>
-                        <span>{normalizeDiagnosisText(detail.localizedEvidence, copy.noIssue)}</span>
-                        <span>{normalizeDiagnosisText(detail.localizedReason, copy.noIssue)}</span>
-                        <span>{normalizeDiagnosisText(detail.localizedRecommendation, copy.noIssue)}</span>
-                        <em className={`hpr-diagnosis-status hpr-diagnosis-status-${detail.status}`}>
-                          {isIdealExperimentReview ? '--' : formatScore(detail.score, detail.maxScore)}
-                        </em>
-                      </div>
-                    ))}
+                {details.length > 0 ? (
+                  <div
+                    className={`hpr-diagnosis-details-shell ${expanded ? 'hpr-diagnosis-details-shell-open' : ''}`}
+                    data-hpr-diagnosis-details-shell={row.id}
+                    aria-hidden={!expanded}
+                  >
+                    <div className="hpr-diagnosis-details" data-hpr-diagnosis-details={row.id}>
+                      {details.map((detail) => (
+                        <div className="hpr-diagnosis-detail-row" key={detail.id}>
+                          <strong>{detail.localizedLabel}</strong>
+                          <span>{normalizeDiagnosisText(detail.localizedEvidence, copy.noIssue)}</span>
+                          <span>{normalizeDiagnosisText(detail.localizedReason, copy.noIssue)}</span>
+                          <span>{normalizeDiagnosisText(detail.localizedRecommendation, copy.noIssue)}</span>
+                          <em className={`hpr-diagnosis-status hpr-diagnosis-status-${detail.status}`}>
+                            {isIdealExperimentReview ? '--' : formatScore(detail.score, detail.maxScore)}
+                          </em>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ) : null}
               </React.Fragment>
