@@ -41,6 +41,16 @@ assert.match(appSource, /subscribeWorkbenchPersistenceInitialization/);
 assert.doesNotMatch(appSource, /正在恢复工作区…/);
 assert.match(startupSource, /role="progressbar"/);
 assert.match(startupSource, /displayedProgress < 99\.75/);
+assert.match(
+  startupSource,
+  /if \(visualState !== 'ready'\) return undefined;[\s\S]*setVisualState\('leaving'\)/,
+  'the ready hold should transition to leaving in its own effect',
+);
+assert.match(
+  startupSource,
+  /if \(visualState !== 'leaving'\) return undefined;[\s\S]*window\.setTimeout\([\s\S]*onComplete/,
+  'startup completion should run from the leaving state instead of a timer cleaned up by the ready transition',
+);
 assert.match(startupSource, /disabled=\{!bootstrapReady\}/);
 assert.match(startupSource, /className="app-startup-stalled-indicator"/);
 assert.match(startupCssSource, /\.app-startup-content[\s\S]*grid-template-columns: 168px 1px minmax\(0, 1fr\)/);

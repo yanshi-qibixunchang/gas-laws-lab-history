@@ -3,6 +3,46 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "5.2.2",
+      "date": "2026-07-25",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.2.2",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.2.2/heat-capacity-lab-setup-5.2.2.exe"
+      },
+      "summary": {
+        "zh-CN": "5.2.2 是开屏流程热修复：工作区恢复达到 100% 后会正常完成淡出并进入软件，不再停留在加载界面。",
+        "zh-TW": "5.2.2 是開屏流程熱修復：工作區還原達到 100% 後會正常完成淡出並進入軟體，不再停留在載入介面。",
+        "en": "Version 5.2.2 is a startup-flow hotfix: after workspace restoration reaches 100%, the splash now fades out and enters the app instead of remaining on the loading screen."
+      },
+      "sections": [
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "开屏与工作区恢复",
+            "zh-TW": "開屏與工作區還原",
+            "en": "Startup and workspace restoration"
+          },
+          "items": [
+            {
+              "scope": "startup-completion",
+              "importance": "high",
+              "title": {
+                "zh-CN": "修复开屏停留在 100%",
+                "zh-TW": "修正開屏停留在 100%",
+                "en": "Fixed the startup screen remaining at 100%"
+              },
+              "body": {
+                "zh-CN": "将“工作区已就绪”“开屏淡出”和“进入工作台”拆分为连续且互不取消的三个阶段，避免 React 状态切换提前清除退出计时器。正常动画与系统减少动态效果两条路径均会在工作台完成绘制后可靠关闭开屏。",
+                "zh-TW": "將「工作區已就緒」「開屏淡出」和「進入工作台」拆分為連續且互不取消的三個階段，避免 React 狀態切換提前清除結束計時器。正常動畫與系統減少動態效果兩條路徑均會在工作台完成繪製後可靠關閉開屏。",
+                "en": "Workspace ready, splash fade-out, and workbench entry now run as three consecutive stages that cannot cancel one another, preventing React state cleanup from clearing the exit timer. Both normal and reduced-motion paths reliably dismiss the splash after the workbench is painted."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "5.2.1",
       "date": "2026-07-25",
       "channel": "stable",

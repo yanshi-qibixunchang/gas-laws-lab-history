@@ -164,18 +164,6 @@ export const AppStartupExperience = ({
     completionStartedRef.current = true;
     setDisplayedProgress(100);
     setVisualState('ready');
-    const leaveTimerId = window.setTimeout(
-      () => setVisualState('leaving'),
-      reducedMotion ? 1 : APP_STARTUP_READY_HOLD_MS,
-    );
-    const completeTimerId = window.setTimeout(
-      onComplete,
-      reducedMotion ? 2 : APP_STARTUP_READY_HOLD_MS + APP_STARTUP_EXIT_MS,
-    );
-    return () => {
-      window.clearTimeout(leaveTimerId);
-      window.clearTimeout(completeTimerId);
-    };
   }, [
     bootstrapReady,
     displayedProgress,
@@ -186,6 +174,24 @@ export const AppStartupExperience = ({
     visualState,
     workbenchPaintReady,
   ]);
+
+  useEffect(() => {
+    if (visualState !== 'ready') return undefined;
+    const leaveTimerId = window.setTimeout(
+      () => setVisualState('leaving'),
+      reducedMotion ? 1 : APP_STARTUP_READY_HOLD_MS,
+    );
+    return () => window.clearTimeout(leaveTimerId);
+  }, [reducedMotion, visualState]);
+
+  useEffect(() => {
+    if (visualState !== 'leaving') return undefined;
+    const completeTimerId = window.setTimeout(
+      onComplete,
+      reducedMotion ? 1 : APP_STARTUP_EXIT_MS,
+    );
+    return () => window.clearTimeout(completeTimerId);
+  }, [onComplete, reducedMotion, visualState]);
 
   const roundedProgress = Math.min(100, Math.round(displayedProgress));
   const showStalledIndicator = visualState === 'loading' &&

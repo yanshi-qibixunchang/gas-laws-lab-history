@@ -2,23 +2,20 @@
   "schemaVersion": 1,
   "scriptVersion": "research-report-evidence-v2",
   "randomGenerator": "fnv1a32-mulberry32-v1",
-  "generatedAt": "2026-07-24T19:48:27.413Z",
-  "finishedAt": "2026-07-24T19:48:55.086Z",
+  "generatedAt": "2026-07-24T20:57:22.182Z",
+  "finishedAt": "2026-07-24T20:57:49.215Z",
   "command": "node scripts/research-report/generate-evidence.ts",
   "repository": {
     "root": "D:\\projects\\hard-sphere-lab-new",
     "packageName": "hard-sphere-lab",
-    "packageVersion": "5.2.1",
-    "gitCommit": "fec1ab9c88044e3c75db9355a2c442cf53271b06",
+    "packageVersion": "5.2.2",
+    "gitCommit": "50e6702221bd99cc7aed518324eb59f236352791",
     "dirtyAtStart": true,
     "statusAtStart": [
       "M README.md",
       " M README.zh-CN.md",
-      " M design-qa.md",
       " M docs/build-notice-zh-CN.md",
       " M docs/releases/release-notes.json",
-      " M docs/research-report/evidence/generated/evidence-metadata.json",
-      " M docs/research-report/evidence/generated/evidence-summary.json",
       " M package-lock.json",
       " M package.json",
       " M public/legal/audio-materials.html",
@@ -26,27 +23,10 @@
       " M public/legal/third-party-dependencies.html",
       " M public/legal/third-party-license-texts.html",
       " M public/legal/third-party-summary.json",
-      " M src/app/App.tsx",
-      " M src/features/heatCapacity/HeatCapacityProcessReviewPanel.tsx",
-      " M src/features/onboarding/FirstRunExperience.css",
-      " M src/features/onboarding/FirstRunExperience.tsx",
-      " M src/features/onboarding/ProductIntroCarousel.tsx",
-      " M src/features/onboarding/ProductIntroModesDemo.tsx",
-      " M src/features/onboarding/ProductIntroModesVideo.tsx",
-      " M src/features/onboarding/ProductIntroOutcomeDemo.tsx",
-      " M src/features/onboarding/ProductIntroWorkspaceDemo.tsx",
-      " M src/features/onboarding/WelcomeProductIntroFlow.tsx",
-      " M src/features/onboarding/firstRunCopy.ts",
-      " M src/features/workbench/WorkbenchStudioPrototype.tsx",
-      " M src/features/workbench/workbenchIndexedDbPersistence.ts",
-      " M tests/onboarding/firstRunExperienceUi.test.ts",
-      " M tests/workbench/workbenchAspectFrame.test.ts",
+      " M src/app/AppStartupExperience.tsx",
+      " M tests/onboarding/appStartupExperience.test.ts",
       " M tests/workbench/workbenchUpdateReleaseNotes.test.ts",
-      "?? docs/releases/v5.2.1.md",
-      "?? src/app/AppStartupExperience.css",
-      "?? src/app/AppStartupExperience.tsx",
-      "?? src/app/appStartupModel.ts",
-      "?? tests/onboarding/appStartupExperience.test.ts"
+      "?? docs/releases/v5.2.2.md"
     ]
   },
   "runtime": {
@@ -332,7 +312,7 @@
   "sourceFiles": [
     {
       "path": "package.json",
-      "sha256": "aae7896c68486aa0245693f0462ab72ac9c6c033eb44545bec36dcc92b5ac078",
+      "sha256": "7f29b51937b3a1df4a29a4e3544d7a75b20cc3bdfe6c53b2ffd2dc2562b989d1",
       "bytes": 4495
     },
     {
@@ -440,7 +420,7 @@
     {
       "path": "docs/research-report/evidence/generated/evidence-summary.json",
       "bytes": 60486,
-      "sha256": "7baf19de0e03d9590652067714a878a04015c62c1f6afdf1f5cad64d26f5bcc3"
+      "sha256": "1efc4a13c0f583164a81dc33eac0f4630d3f84d18052f08696da613e8ef87497"
     },
     {
       "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-runs.csv",
