@@ -19,18 +19,18 @@ const styleSource = readFileSync(join(
 
 assert.match(
   componentSource,
-  /currentGroup:\s*number;[\s\S]*targetGroupCount:\s*number \| null;[\s\S]*onRestartBatch:\s*\(\) => void;[\s\S]*language:\s*WorkbenchLanguagePreference;/,
+  /currentExperiment:\s*number;[\s\S]*targetExperimentCount:\s*number \| null;[\s\S]*groupStatus:[\s\S]*onRestartGroup:\s*\(\) => void;[\s\S]*onAbandonDraft:\s*\(\) => void;[\s\S]*onStartNextGroup:\s*\(\) => void;/,
   'batch progress should expose the approved props-driven API',
 );
 assert.match(
   componentSource,
-  /if \(!isConfiguredTarget\(targetGroupCount\)\) return null;/,
-  'an unconfigured batch should not render a progress control',
+  /if \(!isConfiguredTarget\(targetExperimentCount\)\) return null;/,
+  'an unconfigured experiment group should not render a progress control',
 );
 assert.match(
   componentSource,
-  /'zh-CN':[\s\S]*第 \$\{current\} \/ \$\{target\} 组[\s\S]*'zh-TW':[\s\S]*en:/,
-  'the current/target group label should be localized in all workbench languages',
+  /'zh-CN':[\s\S]*第 \$\{current\} \/ \$\{target\} 次实验[\s\S]*'zh-TW':[\s\S]*en:/,
+  'the current/target experiment label should be localized in all workbench languages',
 );
 assert.match(
   componentSource,
@@ -39,13 +39,13 @@ assert.match(
 );
 assert.match(
   componentSource,
-  /if \(!restartPending\)[\s\S]*setRestartPending\(true\)[\s\S]*onRestartBatch\(\)/,
-  'restarting a batch should require an inline second confirmation',
+  /groupStatus === 'completed'[\s\S]*data-heat-capacity-next-experiment-group="true"[\s\S]*onClick=\{onStartNextGroup\}/,
+  'a completed group should replace the ellipsis action with the next-group button',
 );
 assert.match(
   componentSource,
-  /data-heat-capacity-batch-restart=\{restartPending \? 'confirm' : 'request'\}/,
-  'the restart action should expose its confirmation phase for integration tests',
+  /const menuAction = groupStatus === 'draft' \? 'abandon' : 'restart';[\s\S]*onAbandonDraft\(\)[\s\S]*onRestartGroup\(\)/,
+  'draft groups should be abandonable while started groups expose restart through the shared confirmation flow',
 );
 assert.match(
   componentSource,
@@ -64,8 +64,8 @@ assert.match(
 );
 assert.match(
   componentSource,
-  /const closeMenu =[\s\S]*setMenuOpen\(false\);[\s\S]*setRestartPending\(false\);/,
-  'every close path should also clear the temporary restart confirmation',
+  /const closeMenu =[\s\S]*setMenuOpen\(false\);/,
+  'every close path should clear the temporary menu state',
 );
 
 assert.match(

@@ -2,6 +2,7 @@ import {
   WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS,
   WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields,
   applyHeatCapacityFreeDomainToRuntimeFields,
   areWorkbenchParamsEqual,
   clampWorkbenchLiveSplitRatio,
@@ -21,8 +22,13 @@ import {
 import {
   HEAT_CAPACITY_MODE_RUNTIME_SNAPSHOT_SCHEMA_VERSION,
   HEAT_CAPACITY_MODE_SESSION_SCHEMA_VERSION,
+  normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence,
+  normalizeHeatCapacityModeSessionStore,
   suspendHeatCapacityModeSession,
 } from '../workbenchHeatCapacityModeSession.ts';
+import {
+  migrateLegacyHeatCapacityFreeExperimentGroups,
+} from '../workbenchHeatCapacityExperimentGroupMigration.ts';
 import {
   HARD_SPHERE_MAX_COLLECTED_SAMPLES,
   HARD_SPHERE_MAX_PARTICLE_COUNT,
@@ -55,7 +61,6 @@ import {
   type WorkbenchPersistenceV3DecodeResult,
 } from './contract.ts';
 import {
-  WORKBENCH_FILE_KINDS,
   assertNeverWorkbenchFileKind,
   isWorkbenchFileKind,
   type WorkbenchFileKind,
@@ -79,7 +84,8 @@ const LEGACY_STANDARD_SIMULATION_SCHEMA_VERSION = 1 as const;
 const STANDARD_SIMULATION_SCHEMA_VERSION = 2 as const;
 const LEGACY_IDEAL_GAS_SCHEMA_VERSION = 1 as const;
 const IDEAL_GAS_SCHEMA_VERSION = 2 as const;
-const HEAT_CAPACITY_SCHEMA_VERSION = 1 as const;
+const LEGACY_HEAT_CAPACITY_SCHEMA_VERSION = 1 as const;
+const HEAT_CAPACITY_SCHEMA_VERSION = 2 as const;
 const IDEAL_RESULT_MIN_HEIGHT_RATIO = 0.25;
 const IDEAL_RESULT_MAX_HEIGHT_RATIO = 1;
 const LEGACY_HARD_SPHERE_MAX_INGESTED_PARTICLES = 10_000;
@@ -376,6 +382,7 @@ const KNOWN_FREE_PERSISTENCE_KEYS = new Set([
   'gasType',
   'real',
   'ideal',
+  'experimentGroups',
   'config',
   'parameterDraft',
   'experimentGroupStatus',
@@ -930,7 +937,10 @@ const LEGACY_PAYLOAD_VERSION_BY_KIND = {
   heatCapacity: {
     key: 'heatCapacitySchemaVersion',
     current: HEAT_CAPACITY_SCHEMA_VERSION,
-    supported: new Set<number>([HEAT_CAPACITY_SCHEMA_VERSION]),
+    supported: new Set<number>([
+      LEGACY_HEAT_CAPACITY_SCHEMA_VERSION,
+      HEAT_CAPACITY_SCHEMA_VERSION,
+    ]),
   },
   heatCapacityPistonOscillation: {
     key: 'pistonOscillationSchemaVersion',
@@ -2150,7 +2160,10 @@ const hasNoPersistedFreeModeSessionAuthority = (
   ) {
     return false;
   }
-  if (modeSessions.schemaVersion !== 2) return false;
+  if (
+    modeSessions.schemaVersion !== 2 &&
+    modeSessions.schemaVersion !== HEAT_CAPACITY_MODE_SESSION_SCHEMA_VERSION
+  ) return false;
   return ['demo', 'guide', 'free'].every((mode) => {
     const entry = isPlainPersistenceRecord(modeSessions[mode])
       ? modeSessions[mode]
@@ -3115,7 +3128,10 @@ const prepareLegacyHeatCapacityEnvelope = (
       supportedVersion: HEAT_CAPACITY_SCHEMA_VERSION,
     };
   }
-  if (heatCapacitySchemaVersion !== HEAT_CAPACITY_SCHEMA_VERSION) {
+  if (
+    heatCapacitySchemaVersion !== LEGACY_HEAT_CAPACITY_SCHEMA_VERSION &&
+    heatCapacitySchemaVersion !== HEAT_CAPACITY_SCHEMA_VERSION
+  ) {
     return {
       ok: false,
       status: 'quarantined',
@@ -3142,6 +3158,10 @@ const prepareLegacyHeatCapacityEnvelope = (
   );
   if (futureFailure !== null) return futureFailure;
   const runtimeVersion = free.runtimeVersion;
+  const expectedRuntimeVersion =
+    heatCapacitySchemaVersion === LEGACY_HEAT_CAPACITY_SCHEMA_VERSION
+      ? 5
+      : HEAT_CAPACITY_FREE_RUNTIME_VERSION;
   if (
     typeof runtimeVersion === 'number' &&
     Number.isInteger(runtimeVersion) &&
@@ -3158,7 +3178,7 @@ const prepareLegacyHeatCapacityEnvelope = (
       supportedVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
     };
   }
-  if (runtimeVersion !== HEAT_CAPACITY_FREE_RUNTIME_VERSION) {
+  if (runtimeVersion !== expectedRuntimeVersion) {
     return {
       ok: false,
       status: 'quarantined',
@@ -3728,6 +3748,31 @@ const restoreLegacyHeatCapacityEnvelope = (
   const activeDomain = parameterScheme === 'ideal'
     ? idealDomain
     : realDomain;
+  const persistedExperimentGroups =
+    normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence(
+      free?.experimentGroups,
+    );
+  if (
+    payload.heatCapacitySchemaVersion === HEAT_CAPACITY_SCHEMA_VERSION &&
+    free !== null &&
+    persistedExperimentGroups === null
+  ) {
+    return fail(
+      'quarantined',
+      'relationship',
+      'legacy-heat-capacity-experiment-groups-invalid',
+      'The heat-capacity experiment-group collection is invalid.',
+      'payload.free.experimentGroups',
+    );
+  }
+  const experimentGroups = persistedExperimentGroups ??
+    migrateLegacyHeatCapacityFreeExperimentGroups({
+      fileId: prepared.envelope.id,
+      selectedScheme: parameterScheme,
+      real: realDomain,
+      ideal: idealDomain,
+      fallbackCreatedAtMs: prepared.envelope.createdAt,
+    });
   const withActiveDomain = applyHeatCapacityFreeDomainToRuntimeFields(
     {
       ...fallback,
@@ -3735,6 +3780,7 @@ const restoreLegacyHeatCapacityEnvelope = (
       heatCapacityFreeDisplayScheme: displayScheme,
       heatCapacityFreeRealDomain: realDomain,
       heatCapacityFreeIdealDomain: idealDomain,
+      heatCapacityFreeExperimentGroups: experimentGroups,
     },
     activeDomain,
   );
@@ -3744,9 +3790,14 @@ const restoreLegacyHeatCapacityEnvelope = (
   const controls = isPlainPersistenceRecord(free?.controls)
     ? free.controls
     : {};
-  const modeSessions = isPlainPersistenceRecord(common.modeSessions)
-    ? cloneLegacyPersistenceValue(common.modeSessions)
-    : fallback.heatCapacityModeSessions;
+  const normalizedModeSessions = normalizeHeatCapacityModeSessionStore(
+    common.modeSessions,
+    prepared.envelope.id,
+  );
+  const modeSessions = isPlainPersistenceRecord(common.modeSessions) &&
+    common.modeSessions.schemaVersion === HEAT_CAPACITY_MODE_SESSION_SCHEMA_VERSION
+      ? cloneLegacyPersistenceValue(common.modeSessions) as unknown as typeof normalizedModeSessions
+      : normalizedModeSessions;
   const guideFields = guided === null
     ? {}
     : {
@@ -3797,8 +3848,7 @@ const restoreLegacyHeatCapacityEnvelope = (
       common.openHeatCapacityTabs,
     ),
     activeHeatCapacityTabId: common.activeHeatCapacityTabId,
-    heatCapacityFreeRuntimeVersion:
-      free?.runtimeVersion ?? HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+    heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
     heatCapacityFreeTraceVersion:
       free?.traceVersion ?? HEAT_CAPACITY_FREE_TRACE_VERSION,
     heatCapacityFreePreheatCompleted:
@@ -3811,6 +3861,7 @@ const restoreLegacyHeatCapacityEnvelope = (
     heatCapacityFreeGasType: restoredGasType,
     heatCapacityFreeRealDomain: realDomain,
     heatCapacityFreeIdealDomain: idealDomain,
+    heatCapacityFreeExperimentGroups: experimentGroups,
     ...(free !== null &&
         Object.prototype.hasOwnProperty.call(free, 'parameterDraft')
       ? {
@@ -3932,10 +3983,10 @@ const restoreLegacyHeatCapacityEnvelope = (
     'migrated',
     publicBlankDemoOmission
       ? seedPublicBlankDemoModeSession(
-          restored,
+          applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields(restored),
           prepared.envelope.updatedAt,
         )
-      : restored,
+      : applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields(restored),
   );
 };
 

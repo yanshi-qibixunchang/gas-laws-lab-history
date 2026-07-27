@@ -14,12 +14,17 @@ import {
 
 export const HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION = 1 as const;
 export const HEAT_CAPACITY_FREE_BATCH_VERSION = 2 as const;
+export const HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION = 1 as const;
+export const HEAT_CAPACITY_FREE_SCORING_VERSION = 2 as const;
 export const HEAT_CAPACITY_FREE_BATCH_MIN_GROUPS = 3 as const;
 export const HEAT_CAPACITY_FREE_BATCH_MAX_GROUPS = 7 as const;
 export const HEAT_CAPACITY_FREE_BATCH_GROUP_OPTIONS = [3, 4, 5, 6, 7] as const;
 
 export type HeatCapacityFreeBatchGroupCount =
   (typeof HEAT_CAPACITY_FREE_BATCH_GROUP_OPTIONS)[number];
+export type HeatCapacityFreeScoringVersion =
+  | typeof HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION
+  | typeof HEAT_CAPACITY_FREE_SCORING_VERSION;
 
 interface HeatCapacityFreeBatchStateFields {
   id: string | null;
@@ -38,6 +43,7 @@ export interface HeatCapacityFreeBatchStateV1 extends HeatCapacityFreeBatchState
 export interface HeatCapacityFreeBatchState extends HeatCapacityFreeBatchStateFields {
   version: typeof HEAT_CAPACITY_FREE_BATCH_VERSION;
   nextTrialSequence: number;
+  scoringVersion: HeatCapacityFreeScoringVersion;
 }
 
 export interface HeatCapacityFreeBatchProgress {
@@ -59,6 +65,7 @@ export const isHeatCapacityFreeBatchGroupCount = (
 export const createEmptyHeatCapacityFreeBatchState = (): HeatCapacityFreeBatchState => ({
   version: HEAT_CAPACITY_FREE_BATCH_VERSION,
   nextTrialSequence: 1,
+  scoringVersion: HEAT_CAPACITY_FREE_SCORING_VERSION,
   id: null,
   targetGroupCount: null,
   frozenConfigSnapshot: null,
@@ -94,9 +101,14 @@ const HEAT_CAPACITY_FREE_BATCH_V1_KEYS = [
   'calculationSession',
 ] as const;
 
-const HEAT_CAPACITY_FREE_BATCH_V2_KEYS = [
+const HEAT_CAPACITY_FREE_BATCH_V2_LEGACY_KEYS = [
   ...HEAT_CAPACITY_FREE_BATCH_V1_KEYS,
   'nextTrialSequence',
+] as const;
+
+const HEAT_CAPACITY_FREE_BATCH_V2_KEYS = [
+  ...HEAT_CAPACITY_FREE_BATCH_V2_LEGACY_KEYS,
+  'scoringVersion',
 ] as const;
 
 const HEAT_CAPACITY_FREE_BATCH_MEMBERSHIP_KEYS = [
@@ -228,14 +240,11 @@ export const dispatchHeatCapacityFreeBatchVersion = (
   ) {
     return { kind: 'invalid', version };
   }
-  if (
-    !hasExactOwnKeys(
-      value,
-      version === HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION
-        ? HEAT_CAPACITY_FREE_BATCH_V1_KEYS
-        : HEAT_CAPACITY_FREE_BATCH_V2_KEYS,
-    )
-  ) {
+  const hasExpectedKeys = version === HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION
+    ? hasExactOwnKeys(value, HEAT_CAPACITY_FREE_BATCH_V1_KEYS)
+    : hasExactOwnKeys(value, HEAT_CAPACITY_FREE_BATCH_V2_KEYS) ||
+      hasExactOwnKeys(value, HEAT_CAPACITY_FREE_BATCH_V2_LEGACY_KEYS);
+  if (!hasExpectedKeys) {
     return { kind: 'invalid', version };
   }
   const fields = decodeHeatCapacityFreeBatchFields(value);
@@ -252,7 +261,12 @@ export const dispatchHeatCapacityFreeBatchVersion = (
   if (
     typeof value.nextTrialSequence !== 'number' ||
     !Number.isSafeInteger(value.nextTrialSequence) ||
-    value.nextTrialSequence < 1
+    value.nextTrialSequence < 1 ||
+    (
+      value.scoringVersion !== undefined &&
+      value.scoringVersion !== HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION &&
+      value.scoringVersion !== HEAT_CAPACITY_FREE_SCORING_VERSION
+    )
   ) {
     return { kind: 'invalid', version };
   }
@@ -261,6 +275,9 @@ export const dispatchHeatCapacityFreeBatchVersion = (
     value: {
       version: HEAT_CAPACITY_FREE_BATCH_VERSION,
       nextTrialSequence: value.nextTrialSequence,
+      scoringVersion: value.scoringVersion === HEAT_CAPACITY_FREE_SCORING_VERSION
+        ? HEAT_CAPACITY_FREE_SCORING_VERSION
+        : HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION,
       ...fields,
     },
   };
@@ -280,6 +297,7 @@ export const migrateHeatCapacityFreeBatchStateV1ToV2 = (
     ...state,
     version: HEAT_CAPACITY_FREE_BATCH_VERSION,
     nextTrialSequence,
+    scoringVersion: HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION,
   };
 };
 
@@ -323,6 +341,7 @@ export const configureHeatCapacityFreeBatch = (
   return {
     ...state,
     nextTrialSequence: 1,
+    scoringVersion: HEAT_CAPACITY_FREE_SCORING_VERSION,
     id: batchId,
     targetGroupCount,
     frozenConfigSnapshot: null,

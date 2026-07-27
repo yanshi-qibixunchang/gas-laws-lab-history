@@ -1,6 +1,7 @@
 import {
   applyHeatCapacityFreeDomainToRuntimeFields,
   createDefaultHeatCapacityFile,
+  HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   mergeHeatCapacityFreeRuntimeState,
   mergeHeatCapacityGuideRuntimeState,
   type WorkbenchFileState,
@@ -18,6 +19,8 @@ import {
 } from './workbenchHeatCapacityPersistence.ts';
 import {
   HEAT_CAPACITY_FREE_UI_REPLAY_KEYS,
+  HEAT_CAPACITY_SCHEMA_VERSION,
+  LEGACY_HEAT_CAPACITY_SCHEMA_VERSION,
 } from './workbenchHeatCapacityPersistenceContract.ts';
 import {
   LEGACY_STANDARD_SIMULATION_SCHEMA_VERSION,
@@ -74,6 +77,9 @@ import {
   restoreHeatCapacityModeSession,
   suspendHeatCapacityModeSession,
 } from './workbenchHeatCapacityModeSession.ts';
+import {
+  migrateLegacyHeatCapacityFreeExperimentGroups,
+} from './workbenchHeatCapacityExperimentGroupMigration.ts';
 import type {
   HeatCapacityFreePhysicsConfig,
 } from '../../domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
@@ -114,6 +120,7 @@ import {
   HEAT_CAPACITY_FREE_BATCH_MAX_GROUPS,
   HEAT_CAPACITY_FREE_BATCH_MIN_GROUPS,
   HEAT_CAPACITY_FREE_BATCH_VERSION,
+  HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION,
 } from '../../domain/heatCapacity/heatCapacityFreeBatchModel.ts';
 import {
   HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
@@ -1057,6 +1064,7 @@ const upgradeHistoricalUnbatchedTrialAggregate = ({
     batch: {
       version: HEAT_CAPACITY_FREE_BATCH_VERSION,
       nextTrialSequence: trials.length + 1,
+      scoringVersion: HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION,
       id: batchId,
       targetGroupCount,
       frozenConfigSnapshot,
@@ -2604,6 +2612,32 @@ const hasHeatCapacityUiReplayParity = (
     areCanonicalPersistenceValuesEqual(inputFree.uiReplay, canonicalFree.uiReplay);
 };
 
+const alignHeatCapacityCapacityEstimateForCanonicalComparison = (
+  input: Record<string, unknown>,
+  canonical: unknown,
+): Record<string, unknown> => {
+  if (!isRecord(canonical)) return input;
+  const inputFree = isRecord(input.free) ? input.free : null;
+  const canonicalFree = isRecord(canonical.free) ? canonical.free : null;
+  const inputGroups = inputFree && isRecord(inputFree.experimentGroups)
+    ? inputFree.experimentGroups
+    : null;
+  const canonicalGroups = canonicalFree && isRecord(canonicalFree.experimentGroups)
+    ? canonicalFree.experimentGroups
+    : null;
+  if (!inputFree || !inputGroups || !canonicalGroups) return input;
+  return {
+    ...input,
+    free: {
+      ...inputFree,
+      experimentGroups: {
+        ...inputGroups,
+        capacityEstimate: canonicalGroups.capacityEstimate,
+      },
+    },
+  };
+};
+
 const GUIDE_STEPS_AFTER_ZERO = new Set([
   'recordU0Required',
   'closeStopcockBeforePumpRequired',
@@ -2908,6 +2942,7 @@ const upgradePublicV5HeatCapacityTracePayload = (
   sourceAppVersion: string,
   index: number,
   fileId: string,
+  fileCreatedAtMs: number,
 ): Record<string, unknown> | null => {
   if (
     (sourceAppVersion !== '5.1.1' && sourceAppVersion !== '5.1.2') ||
@@ -2919,6 +2954,7 @@ const upgradePublicV5HeatCapacityTracePayload = (
   if (sourceFree?.traceVersion !== 5) return payload;
   const fallback = createDefaultHeatCapacityFile(index);
   const nextPayload = structuredClone(payload);
+  nextPayload.heatCapacitySchemaVersion = HEAT_CAPACITY_SCHEMA_VERSION;
   const nextCommon = isRecord(nextPayload.common)
     ? nextPayload.common as Record<string, unknown>
     : null;
@@ -2982,9 +3018,19 @@ const upgradePublicV5HeatCapacityTracePayload = (
   const activeScheme = nextFree.parameterScheme === 'ideal'
     ? 'ideal'
     : 'real';
+  if (!isRecord(nextFree.experimentGroups)) {
+    nextFree.experimentGroups = migrateLegacyHeatCapacityFreeExperimentGroups({
+      fileId,
+      selectedScheme: activeScheme,
+      real: nextFree.real as WorkbenchHeatCapacityState['heatCapacityFreeRealDomain'],
+      ideal: nextFree.ideal as WorkbenchHeatCapacityState['heatCapacityFreeIdealDomain'],
+      fallbackCreatedAtMs: fileCreatedAtMs,
+    });
+  }
   const activeDomain = nextFree[activeScheme] as
     WorkbenchHeatCapacityState['heatCapacityFreeRealDomain'];
   nextFree.traceVersion = HEAT_CAPACITY_FREE_TRACE_VERSION;
+  nextFree.runtimeVersion = HEAT_CAPACITY_FREE_RUNTIME_VERSION;
   nextFree.traceStore = structuredClone(activeDomain.traceStore);
   nextFree.trials = structuredClone(activeDomain.trials);
   return nextPayload;
@@ -3005,6 +3051,7 @@ const restoreHeatCapacityRuntimeFile = (
         sourceAppVersion,
         index,
         fileEnvelope.id,
+        fileEnvelope.createdAt,
       );
   if (upgradedPayload === null) return [];
   if (!validateHeatCapacityPersistencePayload(upgradedPayload).valid) return [];
@@ -3022,7 +3069,10 @@ const restoreHeatCapacityRuntimeFile = (
     common.modeSessions,
     fileEnvelope.id,
   );
-  if (!areCanonicalPersistenceValuesEqual(common.modeSessions, normalizedModeSessions)) return [];
+  if (
+    payload.heatCapacitySchemaVersion !== LEGACY_HEAT_CAPACITY_SCHEMA_VERSION &&
+    !areCanonicalPersistenceValuesEqual(common.modeSessions, normalizedModeSessions)
+  ) return [];
   const publicBlankDemoOmission = isPublic511BlankDemoOmission(
     payload,
     sourceAppVersion,
@@ -3073,7 +3123,13 @@ const restoreHeatCapacityRuntimeFile = (
           guided: canonicalPayload.guided,
         }
       : canonicalInput;
-    if (!areCanonicalPersistenceValuesEqual(expectedCurrentPayload, canonicalPayload)) return [];
+    if (!areCanonicalPersistenceValuesEqual(
+      alignHeatCapacityCapacityEstimateForCanonicalComparison(
+        expectedCurrentPayload,
+        canonicalPayload,
+      ),
+      canonicalPayload,
+    )) return [];
   }
   return [restored];
 };

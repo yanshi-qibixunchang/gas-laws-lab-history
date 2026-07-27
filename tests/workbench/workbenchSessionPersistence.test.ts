@@ -192,9 +192,11 @@ const legacyBatchSeed = storeHeatCapacityFreeRuntimeFieldsInDomain(
 );
 const {
   nextTrialSequence: discardedLegacyBatchSequence,
+  scoringVersion: discardedLegacyBatchScoringVersion,
   ...legacyBatchFields
 } = legacyBatchSeed.heatCapacityFreeBatch;
 void discardedLegacyBatchSequence;
+void discardedLegacyBatchScoringVersion;
 const savedLegacyFreeDomain = {
   ...legacyBatchSeed.heatCapacityFreeRealDomain,
   batch: {
@@ -508,6 +510,7 @@ const convertHeatEnvelopeToLegacy423 = <T extends ReturnType<typeof encodeWorkbe
 ) => {
   const legacyEnvelope = JSON.parse(JSON.stringify(currentEnvelope)) as T;
   const payload = legacyEnvelope.files[0].payload as any;
+  payload.heatCapacitySchemaVersion = 1;
   const currentTemperatureBaseMv = 1498.7;
   const currentTemperatureSensitivityMvPerK = 5;
   const legacyFreeTemperatureBaseMv = 1499.05;
@@ -734,6 +737,8 @@ const convertHeatEnvelopeToLegacy423 = <T extends ReturnType<typeof encodeWorkbe
     return profile;
   };
   delete payload.common.modeSessions;
+  payload.free.runtimeVersion = 5;
+  delete payload.free.experimentGroups;
   downgradeTeachingProfile(payload.common.experimentProfile);
   delete payload.free.preheatCompleted;
   payload.free.traceVersion = 4;
@@ -1331,7 +1336,7 @@ const legacy423FreeFile = legacy423FreeDecoded.session.files[0];
 assert.equal(legacy423FreeFile.kind, 'heatCapacity');
 if (legacy423FreeFile.kind !== 'heatCapacity') throw new Error('expected migrated v4.2.3 Free file');
 assert.equal(legacy423FreeFile.heatCapacityFreePreheatCompleted, true);
-assert.equal(legacy423FreeFile.heatCapacityModeSessions.schemaVersion, 2);
+assert.equal(legacy423FreeFile.heatCapacityModeSessions.schemaVersion, 3);
 assertClose(
   legacy423FreeFile.heatCapacityExperimentProfile?.stableTemperatureMv ?? NaN,
   HEAT_CAPACITY_TEMPERATURE_BASELINE_MV + 0.15,
@@ -1572,6 +1577,9 @@ const unmarkedLegacy423PumpStrokeAnchorPayload =
 for (const domain of [
   unmarkedLegacy423PumpStrokeAnchorPayload.free,
   unmarkedLegacy423PumpStrokeAnchorPayload.free.real,
+  ...unmarkedLegacy423PumpStrokeAnchorPayload.free.experimentGroups.groups.map(
+    (group: any) => group.runSeries,
+  ),
 ]) {
   for (const traceTrial of domain.traceStore.traceTrials) {
     for (const branch of traceTrial.branches) {
@@ -1712,7 +1720,7 @@ const legacy423FreeIndexedDbRecords = createPersistenceRecords(
   'pending-verification',
 );
 const legacy423FreeIndexedDbModeStore = {
-  schemaVersion: 2 as const,
+  schemaVersion: 3 as const,
   demo: legacy423FreeIndexedDbRecords.modeRecords.find((record) => record.mode === 'demo')!.entry,
   guide: legacy423FreeIndexedDbRecords.modeRecords.find((record) => record.mode === 'guide')!.entry,
   free: legacy423FreeIndexedDbRecords.modeRecords.find((record) => record.mode === 'free')!.entry,
@@ -1883,7 +1891,7 @@ const legacy423GuideIndexedDbRecords = createPersistenceRecords(
   'pending-verification',
 );
 const legacy423GuideIndexedDbModeStore = {
-  schemaVersion: 2 as const,
+  schemaVersion: 3 as const,
   demo: legacy423GuideIndexedDbRecords.modeRecords.find((record) => record.mode === 'demo')!.entry,
   guide: legacy423GuideIndexedDbRecords.modeRecords.find((record) => record.mode === 'guide')!.entry,
   free: legacy423GuideIndexedDbRecords.modeRecords.find((record) => record.mode === 'free')!.entry,
@@ -2540,7 +2548,7 @@ for (const scenario of [
   );
   assert.deepEqual(
     normalizeHeatCapacityModeSessionStore({
-      schemaVersion: 2,
+      schemaVersion: 3,
       demo: demoRecord.entry,
       guide: records.modeRecords.find((record) => (
         record.fileId === public511SuspendedDemoFile.id && record.mode === 'guide'
@@ -2650,7 +2658,7 @@ for (const scenario of [
     'pending-verification',
   );
   const modeStore = {
-    schemaVersion: 2 as const,
+    schemaVersion: 3 as const,
     demo: records.modeRecords.find((record) => (
       record.fileId === legacy423BlankDemoFile.id && record.mode === 'demo'
     ))!.entry,
@@ -2724,7 +2732,7 @@ const legacy423DemoIndexedDbRecords = createPersistenceRecords(
   'pending-verification',
 );
 const legacy423DemoIndexedDbModeStore = {
-  schemaVersion: 2 as const,
+  schemaVersion: 3 as const,
   demo: legacy423DemoIndexedDbRecords.modeRecords.find((record) => record.mode === 'demo')!.entry,
   guide: legacy423DemoIndexedDbRecords.modeRecords.find((record) => record.mode === 'guide')!.entry,
   free: legacy423DemoIndexedDbRecords.modeRecords.find((record) => record.mode === 'free')!.entry,

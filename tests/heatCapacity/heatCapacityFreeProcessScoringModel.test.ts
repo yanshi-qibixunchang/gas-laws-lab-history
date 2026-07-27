@@ -18,6 +18,9 @@ import {
 import {
   HEAT_CAPACITY_RELEASE_TIMING,
 } from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import {
+  HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION,
+} from '../../src/domain/heatCapacity/heatCapacityFreeBatchModel.ts';
 
 const scoringModelSource = readFileSync(
   join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityFreeProcessScoringModel.ts'),
@@ -41,10 +44,10 @@ const complete = createCompleteProcessScoringInputFixture();
 const completeScore = scoreHeatCapacityFreeProcess(complete);
 const recordChainItem = completeScore.items.find((item) => item.id === 'recordChain');
 
-assert.equal(completeScore.maxScore, 100);
+assert.equal(completeScore.maxScore, 75);
 assert.deepEqual(completeScore.items.map((item) => item.id), ['pumping', 'release', 'recordChain', 'retake']);
-assert.deepEqual(completeScore.items.map((item) => item.maxScore), [20, 30, 40, 10]);
-assert.equal(completeScore.total !== null && completeScore.total >= 70, true);
+assert.deepEqual(completeScore.items.map((item) => item.maxScore), [15, 25, 30, 5]);
+assert.equal(completeScore.total !== null && completeScore.total >= 52.5, true);
 assert.equal(
   completeScore.total !== null && Number.isInteger(completeScore.total * 2),
   true,
@@ -52,7 +55,7 @@ assert.equal(
 );
 assert.equal(recordChainItem?.status, 'reasonable');
 assert.equal(recordChainItem?.score, recordChainItem?.maxScore);
-assert.deepEqual(recordChainItem?.details.map((detail) => detail.maxScore), [5, 12, 10, 10, 3]);
+assert.deepEqual(recordChainItem?.details.map((detail) => detail.maxScore), [4, 8, 8, 7, 3]);
 assert.deepEqual(recordChainItem?.details.map((detail) => detail.id), [
   'record-chain-completeness',
   'record-chain-result',
@@ -89,7 +92,7 @@ for (const item of completeScore.items) {
 
 const overVented = scoreHeatCapacityFreeProcess(createOverVentedProcessScoringInputFixture());
 assert.equal(overVented.items.find((item) => item.id === 'release')?.status, 'needs-improvement');
-assert.equal((overVented.items.find((item) => item.id === 'release')?.score ?? 30) <= 6, true);
+assert.equal((overVented.items.find((item) => item.id === 'release')?.score ?? 25) <= 5, true);
 
 const longReleaseFixture = createCompleteProcessScoringInputFixture();
 const releaseOpenEvent = longReleaseFixture.branch.events.find((event) => (
@@ -109,7 +112,7 @@ const longRelease = scoreHeatCapacityFreeProcess({
   branch: longReleaseBranch,
 });
 assert.equal(
-  (longRelease.items.find((item) => item.id === 'release')?.score ?? 30) <= 6,
+  (longRelease.items.find((item) => item.id === 'release')?.score ?? 25) <= 5,
   true,
   'a 12 s release should be treated as a severe operation error',
 );
@@ -147,7 +150,7 @@ assert.equal(releaseAt020.score < releaseAt030.score, true);
 assert.equal(releaseAt010.score < releaseAt020.score, true);
 assert.equal(releaseAt060.score < releaseAt050.score, true);
 assert.equal(releaseAt080.score < releaseAt060.score, true);
-assert.equal(releaseAt060.score, 22.5);
+assert.equal(releaseAt060.score, 18.5);
 for (const release of [releaseAt030, releaseAt0375, releaseAt050, releaseAt020, releaseAt010, releaseAt060, releaseAt080]) {
   assert.equal(Number.isInteger(release.score * 2), true, 'release item scores should use half-point increments');
   assert.equal(
@@ -162,9 +165,9 @@ for (const release of [releaseAt030, releaseAt0375, releaseAt050, releaseAt020, 
   );
 }
 assert.equal(releaseAt0375.status, 'reasonable');
-assert.equal(scoreHeatCapacityReleaseDuration(HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMinS).valveScore, 14);
-assert.equal(scoreHeatCapacityReleaseDuration(HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS).valveScore, 14);
-assert.equal(scoreHeatCapacityReleaseDuration(HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS).valveScore, 14);
+assert.equal(scoreHeatCapacityReleaseDuration(HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMinS).valveScore, 12);
+assert.equal(scoreHeatCapacityReleaseDuration(HEAT_CAPACITY_RELEASE_TIMING.autoDemoReleaseDurationS).valveScore, 12);
+assert.equal(scoreHeatCapacityReleaseDuration(HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS).valveScore, 12);
 
 const largeResultDeviation = scoreHeatCapacityFreeProcess({
   ...complete,
@@ -201,17 +204,17 @@ const missingU0RecordChain = missingU0Score.items.find((item) => item.id === 're
 assert.notEqual(missingU0Score.total, null, 'missing U0 should not suppress the final score');
 assert.equal(
   missingU0RecordChain?.details.find((detail) => detail.id === 'record-chain-completeness')?.score,
-  5,
+  4,
   'missing U0 must not be deducted again as incomplete data',
 );
 assert.equal(
   missingU0RecordChain?.details.find((detail) => detail.id === 'record-chain-zeroing')?.score,
   0,
-  'missing U0 should deduct the dedicated 10-point zeroing item',
+  'missing U0 should deduct the dedicated 8-point zeroing item',
 );
 assert.equal(
   missingU0RecordChain?.details.find((detail) => detail.id === 'record-chain-timing')?.score,
-  10,
+  7,
   'missing U0 must not be deducted again from record timing',
 );
 
@@ -249,12 +252,19 @@ const warningScore = scoreHeatCapacityFreeProcess({
 const warningPumpingItem = warningScore.items.find((item) => item.id === 'pumping');
 assert.equal(
   warningPumpingItem?.details.find((detail) => detail.id === 'pumping-safety')?.score,
-  4,
+  3.5,
   'pressure warning should be a small teaching deduction, while danger/alarm remains a hard deduction',
 );
 
 const incomplete = scoreHeatCapacityFreeProcess(createIncompleteProcessScoringInputFixture());
 assert.equal(incomplete.total, null);
 assert.equal(incomplete.items.find((item) => item.id === 'recordChain')?.status, 'insufficient-data');
+
+const legacyScore = scoreHeatCapacityFreeProcess(
+  complete,
+  HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION,
+);
+assert.equal(legacyScore.maxScore, 100);
+assert.deepEqual(legacyScore.items.map((item) => item.maxScore), [20, 30, 40, 10]);
 
 console.log('heatCapacityFreeProcessScoringModel tests passed');

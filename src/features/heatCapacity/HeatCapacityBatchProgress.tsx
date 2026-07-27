@@ -1,4 +1,4 @@
-import { MoreHorizontal, RotateCcw } from 'lucide-react';
+import { MoreHorizontal, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import {
   useEffect,
   useId,
@@ -9,58 +9,65 @@ import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralS
 import './HeatCapacityBatchProgress.css';
 
 export interface HeatCapacityBatchProgressProps {
-  currentGroup: number;
-  targetGroupCount: number | null;
-  onRestartBatch: () => void;
+  currentExperiment: number;
+  targetExperimentCount: number | null;
+  groupStatus: 'draft' | 'collecting' | 'awaiting-calculation' | 'completed';
+  onRestartGroup: () => void;
+  onAbandonDraft: () => void;
+  onStartNextGroup: () => void;
   language: WorkbenchLanguagePreference;
-  restartDisabled?: boolean;
+  actionsDisabled?: boolean;
 }
 
 const COPY = {
   'zh-CN': {
-    progress: (current: number, target: number) => `第 ${current} / ${target} 组`,
-    menuAria: '本轮实验操作',
-    restart: '重新开始本轮',
-    confirmRestart: '确认重新开始',
+    progress: (current: number, target: number) => `第 ${current} / ${target} 次实验`,
+    menuAria: '本组实验操作',
+    restart: '重新开始本组',
+    abandon: '放弃本组草稿',
+    next: '开始下一组实验',
   },
   'zh-TW': {
-    progress: (current: number, target: number) => `第 ${current} / ${target} 組`,
-    menuAria: '本輪實驗操作',
-    restart: '重新開始本輪',
-    confirmRestart: '確認重新開始',
+    progress: (current: number, target: number) => `第 ${current} / ${target} 次實驗`,
+    menuAria: '本組實驗操作',
+    restart: '重新開始本組',
+    abandon: '放棄本組草稿',
+    next: '開始下一組實驗',
   },
   en: {
-    progress: (current: number, target: number) => `Group ${current} / ${target}`,
-    menuAria: 'Experiment batch actions',
-    restart: 'Restart batch',
-    confirmRestart: 'Confirm restart',
+    progress: (current: number, target: number) => `Experiment ${current} / ${target}`,
+    menuAria: 'Experiment group actions',
+    restart: 'Restart group',
+    abandon: 'Abandon group draft',
+    next: 'Start next group',
   },
 } as const;
 
-const isConfiguredTarget = (targetGroupCount: number | null): targetGroupCount is number => (
-  targetGroupCount !== null
-  && Number.isInteger(targetGroupCount)
-  && targetGroupCount >= 3
-  && targetGroupCount <= 7
+const isConfiguredTarget = (targetExperimentCount: number | null): targetExperimentCount is number => (
+  targetExperimentCount !== null
+  && Number.isInteger(targetExperimentCount)
+  && targetExperimentCount >= 3
+  && targetExperimentCount <= 7
 );
 
 export const HeatCapacityBatchProgress = ({
-  currentGroup,
-  targetGroupCount,
-  onRestartBatch,
+  currentExperiment,
+  targetExperimentCount,
+  groupStatus,
+  onRestartGroup,
+  onAbandonDraft,
+  onStartNextGroup,
   language,
-  restartDisabled = false,
+  actionsDisabled = false,
 }: HeatCapacityBatchProgressProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [restartPending, setRestartPending] = useState(false);
   const menuId = `${useId()}-menu`;
   const copy = COPY[language] ?? COPY['zh-CN'];
 
   const closeMenu = (restoreFocus = false) => {
     setMenuOpen(false);
-    setRestartPending(false);
     if (restoreFocus) window.requestAnimationFrame(() => triggerRef.current?.focus());
   };
 
@@ -88,26 +95,17 @@ export const HeatCapacityBatchProgress = ({
   }, [menuOpen]);
 
   useEffect(() => {
-    if (!restartDisabled) return;
+    if (!actionsDisabled) return;
     closeMenu();
-  }, [restartDisabled]);
+  }, [actionsDisabled]);
 
-  if (!isConfiguredTarget(targetGroupCount)) return null;
+  if (!isConfiguredTarget(targetExperimentCount)) return null;
 
-  const safeCurrentGroup = Math.min(
-    targetGroupCount,
-    Math.max(1, Number.isFinite(currentGroup) ? Math.floor(currentGroup) : 1),
+  const safeCurrentExperiment = Math.min(
+    targetExperimentCount,
+    Math.max(1, Number.isFinite(currentExperiment) ? Math.floor(currentExperiment) : 1),
   );
-
-  const handleRestart = () => {
-    if (!restartPending) {
-      setRestartPending(true);
-      return;
-    }
-
-    closeMenu();
-    onRestartBatch();
-  };
+  const menuAction = groupStatus === 'draft' ? 'abandon' : 'restart';
 
   return (
     <div
@@ -116,8 +114,20 @@ export const HeatCapacityBatchProgress = ({
       ref={rootRef}
     >
       <span className="studio-heat-batch-progress-label">
-        {copy.progress(safeCurrentGroup, targetGroupCount)}
+        {copy.progress(safeCurrentExperiment, targetExperimentCount)}
       </span>
+      {groupStatus === 'completed' ? (
+        <button
+          type="button"
+          className="studio-heat-batch-progress-next"
+          data-heat-capacity-next-experiment-group="true"
+          disabled={actionsDisabled}
+          onClick={onStartNextGroup}
+        >
+          <Plus size={13} strokeWidth={2.4} aria-hidden="true" />
+          <span>{copy.next}</span>
+        </button>
+      ) : (
       <button
         type="button"
         className="studio-heat-batch-progress-trigger"
@@ -125,20 +135,20 @@ export const HeatCapacityBatchProgress = ({
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         aria-controls={menuOpen ? menuId : undefined}
-        disabled={restartDisabled}
+        disabled={actionsDisabled || groupStatus === 'awaiting-calculation'}
         ref={triggerRef}
         onClick={() => {
           if (menuOpen) {
             closeMenu();
           } else {
-            setRestartPending(false);
             setMenuOpen(true);
           }
         }}
       >
         <MoreHorizontal size={14} strokeWidth={2.4} aria-hidden="true" />
       </button>
-      {menuOpen ? (
+      )}
+      {menuOpen && groupStatus !== 'completed' ? (
         <div
           id={menuId}
           className="studio-heat-batch-progress-menu"
@@ -148,12 +158,17 @@ export const HeatCapacityBatchProgress = ({
           <button
             type="button"
             role="menuitem"
-            className={restartPending ? 'studio-heat-batch-progress-restart-pending' : undefined}
-            data-heat-capacity-batch-restart={restartPending ? 'confirm' : 'request'}
-            onClick={handleRestart}
+            data-heat-capacity-group-action={menuAction}
+            onClick={() => {
+              closeMenu();
+              if (menuAction === 'abandon') onAbandonDraft();
+              else onRestartGroup();
+            }}
           >
-            <RotateCcw size={13} strokeWidth={2.4} aria-hidden="true" />
-            <span>{restartPending ? copy.confirmRestart : copy.restart}</span>
+            {menuAction === 'abandon'
+              ? <Trash2 size={13} strokeWidth={2.4} aria-hidden="true" />
+              : <RotateCcw size={13} strokeWidth={2.4} aria-hidden="true" />}
+            <span>{menuAction === 'abandon' ? copy.abandon : copy.restart}</span>
           </button>
         </div>
       ) : null}

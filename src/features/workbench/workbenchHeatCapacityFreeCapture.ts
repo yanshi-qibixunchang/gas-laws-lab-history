@@ -6,6 +6,7 @@ import {
 } from './workbenchHeatCapacityFreeAggregateCodec.ts';
 import {
   applyHeatCapacityFreeDomainToRuntimeFields,
+  applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields,
   createDefaultHeatCapacityFile,
   createHeatCapacityFreeExperimentDomainStateFromFile,
   hasHeatCapacityFreeIdealThermalBoundaryContamination,
@@ -14,9 +15,18 @@ import {
   type WorkbenchHeatCapacityState,
 } from './workbenchState.ts';
 import {
+  migrateLegacyHeatCapacityFreeExperimentGroups,
+} from './workbenchHeatCapacityExperimentGroupMigration.ts';
+import {
   HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
   isHeatCapacityFreeTrialComplete,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import {
+  isHeatCapacityFreeExperimentGroupExecutableUnfinished,
+  selectCurrentHeatCapacityFreeExperimentGroup,
+  updateCurrentHeatCapacityFreeExperimentGroupRunSeries,
+  updateCurrentHeatCapacityFreeRealCalculationSession,
+} from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
 
 export interface HeatCapacityFreeCaptureFailure {
   ok: false;
@@ -219,6 +229,28 @@ const reconcileActiveDomain = (
       )
     )
   ) {
+    const authorityDifferences = [
+      !preservesSameIdAuthority(runtime.value.trials, stored.value.trials)
+        ? `trials ${runtime.value.trials.length}/${stored.value.trials.length}`
+        : null,
+      !preservesSameIdAuthority(
+        runtime.value.traceStore.traceTrials,
+        stored.value.traceStore.traceTrials,
+      )
+        ? `traces ${runtime.value.traceStore.traceTrials.length}/${stored.value.traceStore.traceTrials.length}`
+        : null,
+      stored.value.traceStore.activeTraceTrialId !== null &&
+      runtime.value.traceStore.activeTraceTrialId !== stored.value.traceStore.activeTraceTrialId
+        ? 'active trace'
+        : null,
+      stored.value.activeAttempt !== null &&
+      !areHeatCapacityPersistenceValuesEqual(
+        runtime.value.activeAttempt,
+        stored.value.activeAttempt,
+      )
+        ? 'active attempt'
+        : null,
+    ].filter((difference): difference is string => difference !== null);
     return {
       ok: false,
       status: 'quarantined',
@@ -226,7 +258,7 @@ const reconcileActiveDomain = (
       sourceVersion: runtime.value.batch.version,
       raw: runtime.value,
       reason:
-        'The active Free runtime would rewrite or remove durable trial, trace, or attempt authority.',
+        `The active Free runtime would rewrite or remove durable trial, trace, or attempt authority (${authorityDifferences.join(', ')}).`,
     };
   }
 
@@ -382,17 +414,56 @@ export const prepareHeatCapacityFreeCapture = (
       );
   }
 
+  let experimentGroups = file.heatCapacityFreeExperimentGroups.groups.length === 0
+    ? migrateLegacyHeatCapacityFreeExperimentGroups({
+        fileId: file.id,
+        selectedScheme: file.heatCapacityFreeParameterScheme,
+        real: capturedReal.value,
+        ideal: capturedIdeal.value,
+        fallbackCreatedAtMs: file.createdAt,
+      })
+    : file.heatCapacityFreeExperimentGroups;
+  const capturedActiveDomain = file.heatCapacityFreeParameterScheme === 'ideal'
+    ? capturedIdeal.value
+    : capturedReal.value;
+  const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
+    experimentGroups,
+  );
+  if (
+    captureActiveRuntime &&
+    currentGroup?.scheme === file.heatCapacityFreeParameterScheme &&
+    isHeatCapacityFreeExperimentGroupExecutableUnfinished(currentGroup)
+  ) {
+    experimentGroups = updateCurrentHeatCapacityFreeExperimentGroupRunSeries(
+      experimentGroups,
+      {
+        batch: capturedActiveDomain.batch,
+        trials: capturedActiveDomain.trials,
+        traceStore: capturedActiveDomain.traceStore,
+      },
+    );
+    if (
+      currentGroup.status === 'awaiting-real-calculation' &&
+      capturedActiveDomain.batch.calculationSession !== null
+    ) {
+      experimentGroups = updateCurrentHeatCapacityFreeRealCalculationSession(
+        experimentGroups,
+        capturedActiveDomain.batch.calculationSession,
+      );
+    }
+  }
   const fileWithDomains: WorkbenchHeatCapacityState = {
     ...file,
     heatCapacityFreeRealDomain: capturedReal.value,
     heatCapacityFreeIdealDomain: capturedIdeal.value,
+    heatCapacityFreeExperimentGroups: experimentGroups,
   };
   const capturedFile = captureActiveRuntime
-    ? applyHeatCapacityFreeDomainToRuntimeFields(
-        fileWithDomains,
-        file.heatCapacityFreeParameterScheme === 'ideal'
-          ? capturedIdeal.value
-          : capturedReal.value,
+    ? applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields(
+        applyHeatCapacityFreeDomainToRuntimeFields(
+          fileWithDomains,
+          capturedActiveDomain,
+        ),
       )
     : fileWithDomains;
   return {

@@ -11,7 +11,11 @@ import {
 
 const standard = createStandardOperationReviewFixture();
 assert.equal(standard.status, 'ready');
-assert.equal(standard.score.total !== null && standard.score.total >= 80, true);
+assert.equal(
+  standard.score.total !== null &&
+    standard.score.total / standard.score.maxScore >= 0.8,
+  true,
+);
 assert.equal(standard.summary?.upperBoundGamma !== null, true);
 assert.notEqual(standard.chart.standardReference, null);
 assert.equal((standard.chart.standardReference?.trace.length ?? 0) > 0, true);

@@ -52,9 +52,11 @@ assert.notEqual(startedFile.heatCapacityFreeBatch.frozenConfigSnapshot, null);
 
 const {
   nextTrialSequence: discardedSequence,
+  scoringVersion: discardedScoringVersion,
   ...startedLegacyBatchFields
 } = startedFile.heatCapacityFreeBatch;
 void discardedSequence;
+void discardedScoringVersion;
 const startedLegacyBatch = {
   ...startedLegacyBatchFields,
   version: HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION,
@@ -63,9 +65,11 @@ const startedLegacyBatch = {
 const emptyV2Batch = createEmptyHeatCapacityFreeBatchState();
 const {
   nextTrialSequence: discardedEmptySequence,
+  scoringVersion: discardedEmptyScoringVersion,
   ...emptyLegacyBatchFields
 } = emptyV2Batch;
 void discardedEmptySequence;
+void discardedEmptyScoringVersion;
 const emptyLegacyBatch = {
   ...emptyLegacyBatchFields,
   version: HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION,

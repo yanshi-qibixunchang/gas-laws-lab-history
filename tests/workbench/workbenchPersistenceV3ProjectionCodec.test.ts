@@ -1337,6 +1337,7 @@ const legacyBatchAuthority = heatLegacyBatchRecord.projection.fields
 legacyBatchAuthority.freeDomains.real.batch.version =
   HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION;
 delete legacyBatchAuthority.freeDomains.real.batch.nextTrialSequence;
+delete legacyBatchAuthority.freeDomains.real.batch.scoringVersion;
 legacyBatchAuthority.freeDomains.real.traceStore.nextTraceTrialIndex = 7;
 const migratedHeatBatch = decodeWorkbenchPersistenceV3FileRecord(
   heatLegacyBatchRecord,
@@ -1668,8 +1669,8 @@ assert.equal(
 );
 assert.deepEqual(
   Object.keys(heatAuthority.freeDomains).sort(),
-  ['ideal', 'real'],
-  'real and ideal domains are the only durable Free authorities',
+  ['experimentGroups', 'ideal', 'real'],
+  'real, ideal, and the multi-group collection are the durable Free authorities',
 );
 
 const editedFreeFile = applyHeatCapacityFreeParameterDraftWorkbenchState(
@@ -2040,11 +2041,13 @@ const downgradeSuspendedFreeBatches = (
   );
   topBatch.version = HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION;
   delete topBatch.nextTrialSequence;
+  delete topBatch.scoringVersion;
   const domainBatch = structuredClone(
     freeEntry.snapshot.free.heatCapacityFreeRealDomain.batch,
   );
   domainBatch.version = HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION;
   delete domainBatch.nextTrialSequence;
+  delete domainBatch.scoringVersion;
   freeEntry.snapshot.free.heatCapacityFreeBatch = topBatch;
   freeEntry.snapshot.free.heatCapacityFreeRealDomain.batch = domainBatch;
 };

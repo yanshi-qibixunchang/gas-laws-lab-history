@@ -9,7 +9,6 @@ import {
   createDefaultFreeTraceStore,
   createFreeTraceTrial,
   FREE_TRACE_MAX_BRANCHES_PER_TRIAL,
-  FREE_TRACE_MAX_COMPLETED_TRIALS_PER_DOMAIN,
   FREE_TRACE_MAX_EVENTS_PER_BRANCH,
   HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
   HEAT_CAPACITY_FREE_TRACE_VERSION,
@@ -374,9 +373,9 @@ for (let index = 0; index < 10; index += 1) {
 completedStore = compactFreeTraceStore(completedStore);
 assert.equal(
   completedStore.traceTrials.length,
-  FREE_TRACE_MAX_COMPLETED_TRIALS_PER_DOMAIN,
+  10,
 );
-assert.equal(completedStore.compaction?.droppedTrialCount, 3);
+assert.equal(completedStore.compaction?.droppedTrialCount ?? 0, 0);
 
 const multipleActiveStore = compactFreeTraceStore({
   ...createDefaultFreeTraceStore(),

@@ -23,6 +23,11 @@ import {
   applyHeatCapacityFreePreheatBias,
   type HeatCapacityFreePreheatOutcome,
 } from './heatCapacityFreeResultBiasModel.ts';
+import {
+  calculateHeatCapacityBatchStatistics,
+  calculateHeatCapacityMean,
+  calculateHeatCapacityRelativeErrorPercent,
+} from './heatCapacityCalculationModel.ts';
 
 export type HeatCapacityFreeRecordRejectReason =
   | 'zero-not-ready'
@@ -138,6 +143,8 @@ export interface HeatCapacityFreeProcessingResult {
   validTrialCount: number;
   trialResults: HeatCapacityFreeProcessingTrialResult[];
   meanGamma: number | null;
+  sampleStandardDeviation: number | null;
+  typeAStandardUncertainty: number | null;
   theoreticalGamma: number;
   relativeErrorPercent: number | null;
   message: string;
@@ -351,23 +358,57 @@ export const calculateFreeHeatCapacityMeanResult = (
       validTrialCount: 0,
       trialResults,
       meanGamma: null,
+      sampleStandardDeviation: null,
+      typeAStandardUncertainty: null,
       theoreticalGamma,
       relativeErrorPercent: null,
       message: 'No complete valid Free Mode trials.',
     };
   }
 
-  const meanGamma = roundNumber(
-    validResults.reduce((sum, trial) => sum + (trial.gamma ?? 0), 0) / validResults.length,
+  const statistics = calculateHeatCapacityBatchStatistics(
+    validResults.map((trial) => trial.gamma as number),
+    theoreticalGamma,
   );
+  if (statistics === null) {
+    const meanGamma = calculateHeatCapacityMean(
+      validResults.map((trial) => trial.gamma as number),
+    );
+    return {
+      calculated: true,
+      status: meanGamma === null ? 'invalid-data' : 'ready',
+      validTrialCount: validResults.length,
+      trialResults,
+      meanGamma,
+      sampleStandardDeviation: null,
+      typeAStandardUncertainty: null,
+      theoreticalGamma,
+      relativeErrorPercent: meanGamma === null
+        ? null
+        : (() => {
+            const relativeErrorPercent = calculateHeatCapacityRelativeErrorPercent(
+              meanGamma,
+              theoreticalGamma,
+            );
+            return relativeErrorPercent === null
+              ? null
+              : roundNumber(relativeErrorPercent, 4);
+          })(),
+      message: meanGamma === null
+        ? 'Free Mode statistics are invalid.'
+        : 'Free Mode data processing complete; dispersion requires at least two valid trials.',
+    };
+  }
   return {
     calculated: true,
     status: 'ready',
     validTrialCount: validResults.length,
     trialResults,
-    meanGamma,
+    meanGamma: roundNumber(statistics.meanGamma),
+    sampleStandardDeviation: roundNumber(statistics.sampleStandardDeviation),
+    typeAStandardUncertainty: roundNumber(statistics.typeAStandardUncertainty),
     theoreticalGamma,
-    relativeErrorPercent: roundNumber(Math.abs(meanGamma - theoreticalGamma) / theoreticalGamma * 100, 4),
+    relativeErrorPercent: roundNumber(statistics.relativeErrorPercent, 4),
     message: 'Free Mode data processing complete.',
   };
 };

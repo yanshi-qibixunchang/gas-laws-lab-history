@@ -3,6 +3,8 @@ import {
   HEAT_CAPACITY_FREE_BATCH_GROUP_OPTIONS,
   HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION,
   HEAT_CAPACITY_FREE_BATCH_VERSION,
+  HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION,
+  HEAT_CAPACITY_FREE_SCORING_VERSION,
   allocateHeatCapacityFreeTrialIdentity,
   completeHeatCapacityFreeBatchExperiment,
   configureHeatCapacityFreeBatch,
@@ -93,6 +95,7 @@ assert.equal(isHeatCapacityFreeBatchGroupCount('3'), false);
 const empty = createEmptyHeatCapacityFreeBatchState();
 assert.equal(empty.version, 2);
 assert.equal(empty.nextTrialSequence, 1);
+assert.equal(empty.scoringVersion, HEAT_CAPACITY_FREE_SCORING_VERSION);
 assert.deepEqual(deriveHeatCapacityFreeBatchProgress(empty, []), {
   configured: false,
   locked: false,
@@ -108,6 +111,7 @@ assert.equal(configured.id, 'batch-1');
 assert.equal(configured.configuredAtMs, 100);
 assert.equal(configured.startedAtMs, null);
 assert.equal(configured.nextTrialSequence, 1);
+assert.equal(configured.scoringVersion, HEAT_CAPACITY_FREE_SCORING_VERSION);
 
 const frozenFile = freezeHeatCapacityFreeParametersForCurrentGroup(
   configureHeatCapacityFreeBatchWorkbenchState(
@@ -194,6 +198,15 @@ const legacyBatch: HeatCapacityFreeBatchStateV1 = {
 };
 assert.equal(dispatchHeatCapacityFreeBatchVersion(legacyBatch).kind, 'v1');
 assert.equal(dispatchHeatCapacityFreeBatchVersion(started).kind, 'v2');
+const { scoringVersion: _currentScoringVersion, ...legacyV2Batch } = started;
+assert.equal(_currentScoringVersion, HEAT_CAPACITY_FREE_SCORING_VERSION);
+const dispatchedLegacyV2 = dispatchHeatCapacityFreeBatchVersion(legacyV2Batch);
+assert.equal(dispatchedLegacyV2.kind, 'v2');
+assert.equal(
+  dispatchedLegacyV2.kind === 'v2' ? dispatchedLegacyV2.value.scoringVersion : null,
+  HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION,
+  'v2 records saved before calculation scoring should retain the original 100-point operation score',
+);
 assert.deepEqual(dispatchHeatCapacityFreeBatchVersion(null), { kind: 'missing' });
 assert.equal(
   dispatchHeatCapacityFreeBatchVersion({

@@ -10,6 +10,11 @@ import {
   createWorkbenchFigureSpecs,
   formatWorkbenchExportFilename,
 } from '../../src/features/workbench/workbenchResults.ts';
+import type { HeatCapacityFreeExperimentGroupRecord } from '../../src/domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
+import {
+  isHeatCapacityExportModeReady,
+  isHeatCapacityGroupReportable,
+} from '../../src/features/workbench/workbenchHeatCapacityExport.ts';
 
 const timestamp = 1710000000000;
 const ideal = {
@@ -93,11 +98,82 @@ assert.equal(heatCapacityWithTrace.heatCapacityFreeTraceStore.traceTrials.length
 const heatCapacityReport = createWorkbenchExportPayload(heatCapacityWithTrace, 'report');
 assert.equal(heatCapacityReport.kind, 'json');
 assert.equal(heatCapacityReport.mode, 'report');
+assert.equal(heatCapacityReport.data.exportKind, 'heat-capacity-adiabatic-expansion');
+assert.deepEqual(heatCapacityReport.data.groups, [], 'reports should default to completed experiment groups only');
 const heatCapacityReportText = JSON.stringify(heatCapacityReport.data);
 assert.equal(heatCapacityReportText.includes('heatCapacityFreeTraceStore'), false);
 assert.equal(heatCapacityReportText.includes('gasAmountRatio'), false);
 assert.equal(heatCapacityReportText.includes('gasTemperatureK'), false);
 assert.equal(heatCapacityReportText.includes('"physical"'), false);
 
-console.log('workbenchExportPayloads tests passed');
+const heatCapacityPackage = createWorkbenchExportPayload(heatCapacityWithTrace, 'completeBundle');
+assert.equal(heatCapacityPackage.kind, 'json');
+assert.equal(heatCapacityPackage.mode, 'completeBundle');
+assert.ok(heatCapacityPackage.data.packageData, 'the experiment package should include restorable file-level state');
+assert.ok(
+  heatCapacityPackage.data.packageData.experimentGroupCollection,
+  'the experiment package should preserve the complete experiment-group collection even before the first group is configured',
+);
+const heatCapacityPackageText = JSON.stringify(heatCapacityPackage.data);
+assert.equal(heatCapacityPackageText.includes('traceTrials'), true);
+assert.equal(heatCapacityPackageText.includes('"physical"'), true, 'raw trace samples belong in the experiment package only');
 
+const chineseNamedHeatCapacityPayload = createWorkbenchExportPayload({
+  ...createDefaultHeatCapacityFile(2),
+  name: '绝热 膨胀 01',
+  updatedAt: timestamp,
+}, 'completeBundle');
+assert.match(
+  chineseNamedHeatCapacityPayload.filename,
+  /GasLawsLab_绝热-膨胀-01_adiabatic-experiment-package_/,
+  'Chinese experiment-file names should remain recognizable in exported filenames',
+);
+
+const blankDraftGroup = {
+  id: 'blank-draft',
+  status: 'draft',
+  runSeries: {
+    trials: [],
+    traceStore: { traceTrials: [] },
+  },
+} as unknown as HeatCapacityFreeExperimentGroupRecord;
+const traceOnlyIncompleteGroup = {
+  ...blankDraftGroup,
+  id: 'trace-only-incomplete',
+  status: 'collecting',
+  runSeries: {
+    trials: [],
+    traceStore: {
+      traceTrials: [{ branches: [{ samples: [{}] }] }],
+    },
+  },
+} as unknown as HeatCapacityFreeExperimentGroupRecord;
+assert.equal(isHeatCapacityGroupReportable(blankDraftGroup), false, 'blank drafts must not create empty report chapters');
+assert.equal(isHeatCapacityGroupReportable(traceOnlyIncompleteGroup), true, 'an incomplete group with process data should be reportable');
+
+const blankDraftFile = {
+  ...createDefaultHeatCapacityFile(1),
+  heatCapacityFreeExperimentGroups: {
+    ...createDefaultHeatCapacityFile(1).heatCapacityFreeExperimentGroups,
+    groups: [blankDraftGroup],
+  },
+};
+assert.equal(isHeatCapacityExportModeReady(blankDraftFile, 'report'), false);
+assert.equal(isHeatCapacityExportModeReady({
+  ...blankDraftFile,
+  heatCapacityFreeExperimentGroups: {
+    ...blankDraftFile.heatCapacityFreeExperimentGroups,
+    groups: [traceOnlyIncompleteGroup],
+  },
+}, 'report'), true);
+const blankDraftReport = createWorkbenchExportPayload(
+  blankDraftFile,
+  'report',
+  'zh-CN',
+  { includedGroupIds: [blankDraftGroup.id] },
+);
+assert.equal(blankDraftReport.kind, 'json');
+if (blankDraftReport.kind !== 'json') throw new Error('heat-capacity reports must use JSON payloads');
+assert.deepEqual(blankDraftReport.data.groups, [], 'explicit report selections must still exclude blank drafts');
+
+console.log('workbenchExportPayloads tests passed');

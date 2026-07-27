@@ -39,7 +39,7 @@ const REPORT_SCROLL_END_MS = 6_500;
 const REPORT_EXPAND_MS = 7_150;
 const REPORT_EXPAND_END_MS = 7_950;
 const CALCULATION_SUBMIT_MS = 1_950;
-const REPORT_DETAILS_EXPANDED_HEIGHT_PX = 190;
+const REPORT_DETAILS_EXPANDED_HEIGHT_PX = 270;
 
 interface Point {
   x: number;
@@ -66,21 +66,21 @@ interface ProductIntroOutcomeDemoCopy {
 const productIntroOutcomeDemoCopies: Record<WorkbenchLanguagePreference, ProductIntroOutcomeDemoCopy> = {
   'zh-CN': {
     resultsTitle: '实验资料与结果',
-    resultsSubtitle: '完整过程、计算结果与操作评分',
+    resultsSubtitle: '完整过程、计算结果与本组总分',
     closeResults: '关闭实验资料与结果',
     resultsTabs: '实验资料与结果标签页',
     processReview: '过程回顾',
   },
   'zh-TW': {
     resultsTitle: '實驗資料與結果',
-    resultsSubtitle: '完整過程、計算結果與操作評分',
+    resultsSubtitle: '完整過程、計算結果與本組總分',
     closeResults: '關閉實驗資料與結果',
     resultsTabs: '實驗資料與結果分頁',
     processReview: '過程回顧',
   },
   en: {
     resultsTitle: 'Experiment Materials & Results',
-    resultsSubtitle: 'Complete process, calculations, and operation score',
+    resultsSubtitle: 'Complete process, calculations, and group score',
     closeResults: 'Close Experiment Materials & Results',
     resultsTabs: 'Experiment Materials & Results tabs',
     processReview: 'Process Review',
@@ -310,7 +310,7 @@ export const ProductIntroOutcomeDemo = ({
     const first = getCenter(`[data-heat-capacity-calculation-field="${correctFieldId}"] input`);
     const second = getCenter(`[data-heat-capacity-calculation-field="${incorrectFieldId}"] input`);
     const confirm = getCenter('.studio-heat-calculation-step-active .studio-heat-calculation-step-confirm');
-    const reportExpand = getCenter('[data-hpr-diagnosis-expand="recording"]');
+    const reportExpand = getCenter('[data-hpr-diagnosis-expand="calculation"]');
     if (first) nextPoints.first = first;
     if (second) nextPoints.second = second;
     if (confirm) nextPoints.confirm = confirm;
@@ -352,7 +352,7 @@ export const ProductIntroOutcomeDemo = ({
         return;
       }
       const expandButton = scrollNode.querySelector<HTMLElement>(
-        '[data-hpr-diagnosis-expand="recording"]',
+        '[data-hpr-diagnosis-expand="calculation"]',
       );
       if (!expandButton) {
         scrollNode.scrollTop = maximum;
@@ -370,7 +370,7 @@ export const ProductIntroOutcomeDemo = ({
   useLayoutEffect(() => {
     if (!reportActive) return;
     const button = reportScrollRef.current?.querySelector<HTMLButtonElement>(
-      '[data-hpr-diagnosis-expand="recording"]',
+      '[data-hpr-diagnosis-expand="calculation"]',
     );
     if (!button) return;
     const expanded = button.getAttribute('aria-expanded') === 'true';

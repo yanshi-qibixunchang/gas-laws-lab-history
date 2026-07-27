@@ -289,7 +289,8 @@ export const decodeHeatCapacityV3AuthorityValues = (
   }
   if (
     activeRuntime.heatCapacityFreeRuntimeVersion !==
-      HEAT_CAPACITY_FREE_RUNTIME_VERSION
+      HEAT_CAPACITY_FREE_RUNTIME_VERSION &&
+    activeRuntime.heatCapacityFreeRuntimeVersion !== 5
   ) {
     return fail(
       'fields.authoritative.activeRuntime.heatCapacityFreeRuntimeVersion',
@@ -364,7 +365,7 @@ export const decodeHeatCapacityV3AuthorityValues = (
         appliedParams: activeRuntime.appliedParams,
         finalChartData: activeRuntime.finalChartData,
         heatCapacityFreeRuntimeVersion:
-          activeRuntime.heatCapacityFreeRuntimeVersion,
+          HEAT_CAPACITY_FREE_RUNTIME_VERSION,
         heatCapacityFreeTraceVersion:
           HEAT_CAPACITY_FREE_TRACE_VERSION,
       },

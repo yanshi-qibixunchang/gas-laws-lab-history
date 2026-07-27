@@ -6,10 +6,14 @@ import {
 
 export interface HeatCapacityCalculationScoringConfig {
   baseCreditRatio: number;
+  precisionCorrectionCreditRatio?: number;
+  revealAfterAttemptCreditRatio?: number;
 }
 
 export const DEFAULT_HEAT_CAPACITY_CALCULATION_SCORING_CONFIG = {
-  baseCreditRatio: 0.3,
+  baseCreditRatio: 0.6,
+  precisionCorrectionCreditRatio: 0.8,
+  revealAfterAttemptCreditRatio: 0.2,
 } as const satisfies HeatCapacityCalculationScoringConfig;
 
 export type HeatCapacityCalculationAnswerStatus =
@@ -51,16 +55,21 @@ export interface HeatCapacityCalculationSubmissionResult {
 const normalizeScoringConfig = (
   config: HeatCapacityCalculationScoringConfig,
 ): HeatCapacityCalculationScoringConfig => {
-  if (
-    !Number.isFinite(config.baseCreditRatio) ||
-    config.baseCreditRatio < 0 ||
-    config.baseCreditRatio > 1
-  ) {
-    throw new RangeError('baseCreditRatio must be between 0 and 1.');
-  }
-  return {
+  const normalized = {
     baseCreditRatio: config.baseCreditRatio,
+    precisionCorrectionCreditRatio:
+      config.precisionCorrectionCreditRatio ??
+      DEFAULT_HEAT_CAPACITY_CALCULATION_SCORING_CONFIG.precisionCorrectionCreditRatio,
+    revealAfterAttemptCreditRatio:
+      config.revealAfterAttemptCreditRatio ??
+      DEFAULT_HEAT_CAPACITY_CALCULATION_SCORING_CONFIG.revealAfterAttemptCreditRatio,
   };
+  for (const [key, value] of Object.entries(normalized)) {
+    if (!Number.isFinite(value) || value < 0 || value > 1) {
+      throw new RangeError(`${key} must be between 0 and 1.`);
+    }
+  }
+  return normalized;
 };
 
 const assertUnresolved = (state: HeatCapacityCalculationAnswerState) => {
@@ -120,6 +129,9 @@ export const submitHeatCapacityCalculationAnswer = (
     parsedValue,
   };
   const resolved = outcome === 'correct';
+  const hasNumericError = state.attempts.some((previousAttempt) => (
+    previousAttempt.outcome === 'incorrect' && !previousAttempt.numericCorrect
+  )) || (isIncorrectValidAttempt && !validation.numericCorrect);
 
   return {
     validation,
@@ -133,7 +145,10 @@ export const submitHeatCapacityCalculationAnswer = (
       referenceTone: resolved ? 'success' : null,
       awardedRatio: resolved
         ? hasIncorrectValidAttempt
-          ? state.scoringConfig.baseCreditRatio
+          ? hasNumericError
+            ? state.scoringConfig.baseCreditRatio
+            : state.scoringConfig.precisionCorrectionCreditRatio ??
+              DEFAULT_HEAT_CAPACITY_CALCULATION_SCORING_CONFIG.precisionCorrectionCreditRatio
           : 1
         : null,
     },
@@ -149,7 +164,8 @@ export const revealHeatCapacityCalculationAnswer = (
     status: 'revealed',
     referenceTone: 'danger',
     awardedRatio: state.hasIncorrectValidAttempt
-      ? state.scoringConfig.baseCreditRatio
+      ? state.scoringConfig.revealAfterAttemptCreditRatio ??
+        DEFAULT_HEAT_CAPACITY_CALCULATION_SCORING_CONFIG.revealAfterAttemptCreditRatio
       : 0,
   };
 };

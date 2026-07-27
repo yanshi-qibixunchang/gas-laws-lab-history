@@ -59,7 +59,11 @@ const restartedFile = restartHeatCapacityFreeBatchWorkbenchState(
 assert.deepEqual(restartedFile.openHeatCapacityTabs, ['guide']);
 assert.equal(restartedFile.activeHeatCapacityTabId, 'guide');
 assert.equal(restartedFile.visiblePanels.includes('heatCapacityReview'), false);
-assert.equal(restartedFile.heatCapacityFreeBatch.targetGroupCount, null);
+assert.equal(
+  restartedFile.heatCapacityFreeBatch.targetGroupCount,
+  3,
+  'restarting the current experiment group should preserve its configured experiment count',
+);
 
 const workbenchSource = readFileSync(
   join(

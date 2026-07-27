@@ -130,9 +130,8 @@ assert.match(
 
 assert.match(
   studioSource,
-  /createWorkbenchExportPayload\(activeFile, mode, settingsLanguagePreference\)/,
+  /createWorkbenchExportPayload\(\s*activeFile,\s*mode,\s*settingsLanguagePreference,/,
   'export payload should follow current Workbench language',
 );
 
 console.log('workbenchLayoutExport tests passed');
-

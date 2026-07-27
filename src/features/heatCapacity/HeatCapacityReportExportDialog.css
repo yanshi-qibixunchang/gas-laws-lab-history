@@ -1,0 +1,113 @@
+.studio-settings-window.studio-heat-report-export-window {
+  width: min(620px, calc(100vw - 40px));
+  max-height: min(760px, calc(100vh - 40px));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.studio-heat-report-export-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 18px;
+}
+
+.studio-heat-report-export-body > p {
+  margin: 0 0 14px;
+  color: var(--studio-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.studio-heat-report-export-list {
+  display: grid;
+  gap: 8px;
+}
+
+.studio-heat-report-export-list label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 54px;
+  border: 1px solid var(--studio-border-soft);
+  border-radius: 8px;
+  background: var(--studio-surface-1);
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.studio-heat-report-export-list label:hover {
+  border-color: var(--studio-accent-strong);
+}
+
+.studio-heat-report-export-list label > span {
+  display: grid;
+  gap: 3px;
+}
+
+.studio-heat-report-export-list strong {
+  color: var(--studio-text);
+  font-size: 12px;
+}
+
+.studio-heat-report-export-list small {
+  color: var(--studio-text-muted);
+  font-size: 10.5px;
+}
+
+.studio-heat-report-export-list em {
+  border-radius: 999px;
+  padding: 4px 7px;
+  font-size: 10px;
+  font-style: normal;
+}
+
+.studio-heat-report-export-list em.is-complete {
+  background: rgba(34, 197, 94, 0.13);
+  color: #4ade80;
+}
+
+.studio-heat-report-export-list em.is-incomplete {
+  background: rgba(245, 158, 11, 0.13);
+  color: #fbbf24;
+}
+
+.studio-heat-report-export-empty {
+  border: 1px dashed var(--studio-border-soft);
+  border-radius: 8px;
+  color: var(--studio-text-muted);
+  padding: 24px;
+  text-align: center;
+}
+
+.studio-heat-report-export-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid var(--studio-border-soft);
+  background: var(--studio-surface-2);
+  padding: 11px 16px;
+}
+
+.studio-heat-report-export-actions button {
+  min-height: 32px;
+  border: 1px solid var(--studio-border-strong);
+  border-radius: 5px;
+  background: var(--studio-surface-1);
+  color: var(--studio-text);
+  padding: 0 14px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.studio-heat-report-export-actions .studio-heat-report-export-confirm {
+  border-color: transparent;
+  background: var(--studio-action-primary-bg);
+  color: var(--studio-action-primary-text);
+}
+
+.studio-heat-report-export-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}

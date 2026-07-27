@@ -70,7 +70,7 @@ guideProgress = updateHeatCapacityCalculationDraft(
 );
 guideProgress = submitHeatCapacityCalculationStep(guideProgress, correctedStep.id, 120);
 assert.equal(getHeatCapacityCalculationWorkflowField(guideProgress, u2FieldId)?.answer.status, 'correct');
-assert.equal(getHeatCapacityCalculationWorkflowField(guideProgress, u2FieldId)?.answer.awardedRatio, 0.3);
+assert.equal(getHeatCapacityCalculationWorkflowField(guideProgress, u2FieldId)?.answer.awardedRatio, 0.6);
 assert.equal(guideProgress.activeStepId, guide.groups[0].steps[1].id);
 assert.equal(getHeatCapacityCalculationWorkflowVisibleSteps(guideProgress).length, 2);
 

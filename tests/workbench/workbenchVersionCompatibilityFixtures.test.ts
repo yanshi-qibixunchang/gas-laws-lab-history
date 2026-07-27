@@ -131,6 +131,18 @@ const assertFixtureFiles = (
     [fixture.expectations.heatCapacity.trialId],
     'the active Free domain must preserve its experiment group authority',
   );
+  if (fixture.sourceTag === 'v5.1.1') {
+    const migratedExperimentGroup = heatCapacity.heatCapacityFreeExperimentGroups.groups.find((group) => (
+      group.runSeries.trials.some((candidate) => (
+        candidate.id === fixture.expectations.heatCapacity.trialId
+      ))
+    ));
+    assert.equal(migratedExperimentGroup?.scheme, 'real');
+    assert.ok(
+      migratedExperimentGroup,
+      'v5.1.1 Free trials must be reachable through the experiment-group collection',
+    );
+  }
   const demoSession = heatCapacity.heatCapacityModeSessions.demo;
   if (fixture.expectations.heatCapacity.suspendedDemoSession) {
     assert.equal(

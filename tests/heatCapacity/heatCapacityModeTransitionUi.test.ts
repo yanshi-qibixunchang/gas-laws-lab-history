@@ -24,8 +24,8 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /interactionLocked=\{[\s\S]*?autoDemoInteractionLocked[\s\S]*?activeHeatCapacityModalLocked[\s\S]*?heatCapacityTeachingCompleted[\s\S]*?heatCapacityModeTransitionLocked[\s\S]*?activeHeatCapacityFreeBatchProgress\?\.allGroupsRecorded === true[\s\S]*?\}\s*cameraInteractionLocked=/,
-  'the mode coordinator must lock new scene interactions during switching and after a Free batch is complete',
+  /interactionLocked=\{[\s\S]*?autoDemoInteractionLocked[\s\S]*?activeHeatCapacityModalLocked[\s\S]*?heatCapacityTeachingCompleted[\s\S]*?heatCapacityModeTransitionLocked[\s\S]*?activeHeatCapacityCurrentGroup\.status !== 'draft'[\s\S]*?activeHeatCapacityCurrentGroup\.status !== 'collecting'[\s\S]*?\}\s*cameraInteractionLocked=/,
+  'the mode coordinator must lock scene interactions during switching and while the current Free experiment group is terminal',
 );
 assert.match(
   workbenchSource,

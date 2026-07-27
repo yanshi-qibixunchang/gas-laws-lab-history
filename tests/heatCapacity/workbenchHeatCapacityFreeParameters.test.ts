@@ -346,11 +346,14 @@ const resetGasTypeEdit = applyHeatCapacityFreeParameterDraftWorkbenchState(reset
   gasType: 'air',
 });
 assert.equal(resetGasTypeEdit.heatCapacityFreeTrials.length, 0);
-assert.equal(resetGasTypeEdit.heatCapacityFreeGasType, 'air');
-assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.gasType, 'air');
-assert.equal(resetGasTypeEdit.theoreticalGamma, 1.4);
-assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.gasWallConductanceWPerK, 0.08);
-assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.leakageRatePerS, 0.00005);
+assert.equal(resetGasTypeEdit.heatCapacityFreeGasType, 'helium');
+assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.gasType, 'helium');
+assert.equal(resetGasTypeEdit.theoreticalGamma, 5 / 3);
+assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.gasWallConductanceWPerK, 0.03);
+assert.equal(
+  resetGasTypeEdit.heatCapacityFreeParameterDraft.leakageRatePerS,
+  HEAT_CAPACITY_FREE_GAS_TYPE_MODEL_DEFAULTS.helium.leakageRatePerS,
+);
 
 const allEditableParametersChanged = applyHeatCapacityFreeParameterDraftWorkbenchState(defaultFile, {
   ...defaultFile.heatCapacityFreeParameterDraft,

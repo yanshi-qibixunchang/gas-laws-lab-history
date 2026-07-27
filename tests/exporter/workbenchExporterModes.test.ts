@@ -67,7 +67,7 @@ assert.match(
 
 assert.match(
   workbenchSource,
-  /defaultDirName: `\$\{activeFile\.name\} \$\{mode === 'completeBundle' \? workbenchCopy\.results\.exportAll : mode === 'figuresZip' \|\| mode === 'verificationFigure' \? workbenchCopy\.results\.exportFigures : 'Export'\}`/,
+  /const getExportFolderLabel = \(mode: WorkbenchExportMode\) => \{[\s\S]*activeFile\.kind === 'heatCapacity'[\s\S]*'Experiment Package'[\s\S]*'Figures'[\s\S]*'Report'[\s\S]*defaultDirName: `\$\{activeFile\.name\} \$\{getExportFolderLabel\(mode\)\}`/,
   'renderer should give folder exports mode-specific default folder names',
 );
 

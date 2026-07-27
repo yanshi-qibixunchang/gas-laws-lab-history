@@ -7,11 +7,16 @@ import {
   HEAT_CAPACITY_FREE_BATCH_VERSION,
 } from '../../../domain/heatCapacity/heatCapacityFreeBatchModel.ts';
 import {
+  getHeatCapacityFreeExperimentGroupInvariantErrors,
+} from '../../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
+import {
   HEAT_CAPACITY_FREE_TRACE_VERSION,
 } from '../../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
   HEAT_CAPACITY_MODE_RUNTIME_SNAPSHOT_SCHEMA_VERSION,
   HEAT_CAPACITY_MODE_SESSION_SCHEMA_VERSION,
+  diagnoseHeatCapacityFreeExperimentGroupCollectionForPersistence,
+  normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence,
   normalizeHeatCapacityModeSessionStore,
 } from '../workbenchHeatCapacityModeSession.ts';
 import {
@@ -30,6 +35,7 @@ import {
 } from '../workbenchHeatCapacityFreeCapture.ts';
 import {
   applyHeatCapacityFreeDomainToRuntimeFields,
+  applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields,
   areWorkbenchParamsEqual,
   clampWorkbenchLiveSplitRatio,
   createDefaultHeatCapacityFile,
@@ -49,6 +55,9 @@ import {
   type WorkbenchIdealState,
   type WorkbenchStandardState,
 } from '../workbenchState.ts';
+import {
+  migrateLegacyHeatCapacityFreeExperimentGroups,
+} from '../workbenchHeatCapacityExperimentGroupMigration.ts';
 import {
   assertNeverWorkbenchFileKind,
   isWorkbenchFileKind,
@@ -279,18 +288,21 @@ export const isWorkbenchPersistenceV3AuthoritativeMigrationAllowed = (
     ) {
       if (
         !isPlainRecord(sourceAuthority.activeRuntime) ||
-        !isPlainRecord(canonicalAuthority.activeRuntime) ||
-        sourceAuthority.activeRuntime.heatCapacityFreeTraceVersion !== 5 ||
-        canonicalAuthority.activeRuntime.heatCapacityFreeTraceVersion !==
-          HEAT_CAPACITY_FREE_TRACE_VERSION
+        !isPlainRecord(canonicalAuthority.activeRuntime)
       ) {
         return false;
       }
       const migratedActiveRuntime = canonicalClone(
         sourceAuthority.activeRuntime,
       );
-      migratedActiveRuntime.heatCapacityFreeTraceVersion =
-        HEAT_CAPACITY_FREE_TRACE_VERSION;
+      if (migratedActiveRuntime.heatCapacityFreeRuntimeVersion === 5) {
+        migratedActiveRuntime.heatCapacityFreeRuntimeVersion =
+          HEAT_CAPACITY_FREE_RUNTIME_VERSION;
+      }
+      if (migratedActiveRuntime.heatCapacityFreeTraceVersion === 5) {
+        migratedActiveRuntime.heatCapacityFreeTraceVersion =
+          HEAT_CAPACITY_FREE_TRACE_VERSION;
+      }
       if (
         !areCanonicalValuesEqual(
           migratedActiveRuntime,
@@ -318,6 +330,33 @@ export const isWorkbenchPersistenceV3AuthoritativeMigrationAllowed = (
         return false;
       }
       candidateDomains[scheme] = canonicalClone(canonicalDomain);
+    }
+    const domainAuthorityChanged = (['real', 'ideal'] as const).some((scheme) => (
+      !areCanonicalValuesEqual(sourceDomains[scheme], canonicalDomains[scheme])
+    ));
+    if (
+      sourceDomains.experimentGroups === undefined &&
+      canonicalDomains.experimentGroups !== undefined
+    ) {
+      candidateDomains.experimentGroups = canonicalClone(
+        canonicalDomains.experimentGroups,
+      );
+    } else if (!areCanonicalValuesEqual(
+      sourceDomains.experimentGroups,
+      canonicalDomains.experimentGroups,
+    )) {
+      if (
+        !domainAuthorityChanged ||
+        normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence(
+          sourceDomains.experimentGroups,
+        ) === null ||
+        normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence(
+          canonicalDomains.experimentGroups,
+        ) === null
+      ) return false;
+      candidateDomains.experimentGroups = canonicalClone(
+        canonicalDomains.experimentGroups,
+      );
     }
     if (
       !areCanonicalValuesEqual(
@@ -846,9 +885,103 @@ const repairHeatCapacityModeSessionCaches = (
         repaired = true;
       }
     }
+    const experimentGroups = free.heatCapacityFreeExperimentGroups;
+    if (
+      isPlainRecord(experimentGroups) &&
+      Array.isArray(experimentGroups.groups) &&
+      typeof experimentGroups.currentGroupId === 'string' &&
+      isPlainRecord(selectedDomain) &&
+      Array.isArray(selectedDomain.trials)
+    ) {
+      const currentGroup = experimentGroups.groups.find((group) => (
+        isPlainRecord(group) && group.id === experimentGroups.currentGroupId
+      ));
+      const runSeries = isPlainRecord(currentGroup) && isPlainRecord(currentGroup.runSeries)
+        ? currentGroup.runSeries
+        : null;
+      if (
+        runSeries !== null &&
+        Array.isArray(runSeries.trials) &&
+        runSeries.trials.length === selectedDomain.trials.length &&
+        runSeries.trials.every(isPlainRecord) &&
+        selectedDomain.trials.every(isPlainRecord)
+      ) {
+        const repairedGroupTrials = runSeries.trials.map((trial, index) => {
+          const canonicalTrial = selectedDomain.trials[index]!;
+          if (trial.id !== canonicalTrial.id) return null;
+          return {
+            ...trial,
+            correctedSignals: canonicalClone(canonicalTrial.correctedSignals),
+          };
+        });
+        if (
+          !repairedGroupTrials.some((trial) => trial === null) &&
+          areCanonicalValuesEqual(repairedGroupTrials, selectedDomain.trials) &&
+          !areCanonicalValuesEqual(runSeries.trials, selectedDomain.trials)
+        ) {
+          runSeries.trials = canonicalClone(selectedDomain.trials);
+          repaired = true;
+        }
+      }
+    }
     return { value: cloned, repaired, migrated };
   } catch {
     return { value, repaired: false, migrated: false };
+  }
+};
+
+interface HeatCapacityExperimentGroupCacheRepair {
+  value: unknown;
+  repaired: boolean;
+}
+
+const repairHeatCapacityExperimentGroupCaches = (
+  value: unknown,
+  realDomain: unknown,
+  idealDomain: unknown,
+): HeatCapacityExperimentGroupCacheRepair => {
+  if (!isPlainRecord(value)) return { value, repaired: false };
+  try {
+    const cloned = canonicalClone(value);
+    if (
+      !isPlainRecord(cloned) ||
+      !Array.isArray(cloned.groups) ||
+      typeof cloned.currentGroupId !== 'string'
+    ) return { value: cloned, repaired: false };
+    const currentGroup = cloned.groups.find((group) => (
+      isPlainRecord(group) && group.id === cloned.currentGroupId
+    ));
+    if (!isPlainRecord(currentGroup) || !isPlainRecord(currentGroup.runSeries)) {
+      return { value: cloned, repaired: false };
+    }
+    const domain = currentGroup.scheme === 'ideal' ? idealDomain : realDomain;
+    if (!isPlainRecord(domain) || !Array.isArray(domain.trials)) {
+      return { value: cloned, repaired: false };
+    }
+    const runSeries = currentGroup.runSeries;
+    if (
+      !Array.isArray(runSeries.trials) ||
+      runSeries.trials.length !== domain.trials.length ||
+      !runSeries.trials.every(isPlainRecord) ||
+      !domain.trials.every(isPlainRecord)
+    ) return { value: cloned, repaired: false };
+    const repairedTrials = runSeries.trials.map((trial, index) => {
+      const canonicalTrial = domain.trials[index]!;
+      if (trial.id !== canonicalTrial.id) return null;
+      return {
+        ...trial,
+        correctedSignals: canonicalClone(canonicalTrial.correctedSignals),
+      };
+    });
+    if (
+      repairedTrials.some((trial) => trial === null) ||
+      !areCanonicalValuesEqual(repairedTrials, domain.trials) ||
+      areCanonicalValuesEqual(runSeries.trials, domain.trials)
+    ) return { value: cloned, repaired: false };
+    runSeries.trials = canonicalClone(domain.trials);
+    return { value: cloned, repaired: true };
+  } catch {
+    return { value, repaired: false };
   }
 };
 
@@ -1230,6 +1363,7 @@ const HEAT_CAPACITY_HEADER_AND_DOMAIN_KEYS = new Set([
   'lastOpenedAt',
   'heatCapacityFreeRealDomain',
   'heatCapacityFreeIdealDomain',
+  'heatCapacityFreeExperimentGroups',
 ]);
 
 const isHeatCapacityActiveRuntimeKey = (
@@ -1740,6 +1874,40 @@ const projectHeatCapacityFile = (
       fieldPath: 'heatCapacityFreeIdealDomain',
     });
   }
+  const experimentGroupCacheRepair = repairHeatCapacityExperimentGroupCaches(
+    captureSource.heatCapacityFreeExperimentGroups,
+    real.value,
+    ideal.value,
+  );
+  const experimentGroups =
+    normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence(
+      experimentGroupCacheRepair.value,
+    );
+  if (
+    experimentGroups === null ||
+    !areCanonicalValuesEqual(
+      experimentGroupCacheRepair.value,
+      experimentGroups,
+    )
+  ) {
+    const invariantDetails = getHeatCapacityFreeExperimentGroupInvariantErrors(
+      captureSource.heatCapacityFreeExperimentGroups,
+    );
+    const nestedDetails = diagnoseHeatCapacityFreeExperimentGroupCollectionForPersistence(
+      captureSource.heatCapacityFreeExperimentGroups,
+    );
+    return projectionFailure('quarantined', file, {
+      fileId: file.id,
+      fileKind: file.kind,
+      phase: 'capture',
+      category: 'relationship',
+      code: 'persistence-v3-heat-experiment-groups-invalid',
+      message: invariantDetails.length === 0
+        ? `The heat-capacity experiment-group collection has invalid nested data: ${nestedDetails.join(', ')}.`
+        : `The heat-capacity experiment-group collection is invalid: ${invariantDetails.join(' ')}`,
+      fieldPath: 'heatCapacityFreeExperimentGroups',
+    });
+  }
 
   const activeRuntime: Record<string, unknown> = {};
   const guide: Record<string, unknown> = {};
@@ -1789,6 +1957,7 @@ const projectHeatCapacityFile = (
     modeSessionCacheRepair.repaired ||
     real.status === 'repaired-cache' ||
     ideal.status === 'repaired-cache' ||
+    experimentGroupCacheRepair.repaired ||
     !areCanonicalValuesEqual(
       {
         stats: captureSource.stats,
@@ -1815,6 +1984,7 @@ const projectHeatCapacityFile = (
         freeDomains: {
           real: real.value,
           ideal: ideal.value,
+          experimentGroups,
         },
         guide,
         modeSessions: normalizedModeSessions,
@@ -1853,6 +2023,8 @@ const projectHeatCapacityFile = (
               : real.status === 'repaired-cache' ||
                   ideal.status === 'repaired-cache'
                 ? 'Heat-capacity corrected-signal cache was rebuilt from recorded voltages.'
+                : experimentGroupCacheRepair.repaired
+                  ? 'Heat-capacity experiment-group corrected-signal cache was rebuilt from recorded voltages.'
                 : 'Heat-capacity derived domain cache was reprojected.',
             fieldPath: captureRepaired
               ? 'activeRuntime'
@@ -1861,6 +2033,8 @@ const projectHeatCapacityFile = (
               : real.status === 'repaired-cache' ||
                   ideal.status === 'repaired-cache'
                 ? 'heatCapacityFreeDomains.trials.correctedSignals'
+                : experimentGroupCacheRepair.repaired
+                  ? 'heatCapacityFreeExperimentGroups.groups.runSeries.trials.correctedSignals'
                 : 'heatCapacityFreeRealDomain.batch.calculationSession',
          })]
       : [],
@@ -2360,7 +2534,15 @@ const reprojectHeatCapacityFile = (
       fieldPath ===
         'fields.authoritative.activeRuntime.heatCapacityFreeTraceVersion' &&
       version === 5;
-    if (version !== supportedVersion && !isLegacyTraceVersion) {
+    const isLegacyRuntimeVersion =
+      fieldPath ===
+        'fields.authoritative.activeRuntime.heatCapacityFreeRuntimeVersion' &&
+      version === 5;
+    if (
+      version !== supportedVersion &&
+      !isLegacyTraceVersion &&
+      !isLegacyRuntimeVersion
+    ) {
       return projectionFailure('quarantined', projection, {
         fileId: projection.fileId,
         fileKind: 'heatCapacity',
@@ -2544,6 +2726,29 @@ const reprojectHeatCapacityFile = (
       fieldPath: 'fields.authoritative.freeDomains.ideal',
     });
   }
+  const sourceExperimentGroups = authority.freeDomains.experimentGroups;
+  const experimentGroups = sourceExperimentGroups === undefined
+    ? migrateLegacyHeatCapacityFreeExperimentGroups({
+        fileId: projection.fileId,
+        selectedScheme: relation.heatCapacityFreeParameterScheme,
+        real: real.value,
+        ideal: ideal.value,
+        fallbackCreatedAtMs: metadata.createdAt,
+      })
+    : normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence(
+        sourceExperimentGroups,
+      );
+  if (experimentGroups === null) {
+    return projectionFailure('quarantined', projection, {
+      fileId: projection.fileId,
+      fileKind: 'heatCapacity',
+      phase: 'restore',
+      category: 'relationship',
+      code: 'persistence-v3-heat-experiment-groups-restore-invalid',
+      message: 'The heat-capacity experiment-group collection is invalid.',
+      fieldPath: 'fields.authoritative.freeDomains.experimentGroups',
+    });
+  }
   const allowedActiveRuntimeKeys = new Set(
     Object.keys(fallback).filter((key) => (
       isHeatCapacityActiveRuntimeKey(
@@ -2583,15 +2788,18 @@ const reprojectHeatCapacityFile = (
       normalizedQuality.heatCapacityFreePreheatCompleted,
     heatCapacityFreeRealDomain: real.value,
     heatCapacityFreeIdealDomain: ideal.value,
+    heatCapacityFreeExperimentGroups: experimentGroups,
   } as unknown as WorkbenchHeatCapacityState;
   const activeDomain = relation.heatCapacityFreeParameterScheme === 'ideal'
     ? ideal.value
     : real.value;
   const activeReleaseState = base.heatCapacityReleaseState;
   const activeTheoreticalGamma = base.theoreticalGamma;
-  const reprojected = applyHeatCapacityFreeDomainToRuntimeFields(
-    base,
-    activeDomain,
+  const reprojected = applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields(
+    applyHeatCapacityFreeDomainToRuntimeFields(
+      base,
+      activeDomain,
+    ),
   );
   const value = relation.heatCapacityMode === 'free'
     ? reprojected
@@ -2601,7 +2809,9 @@ const reprojectHeatCapacityFile = (
         theoreticalGamma: activeTheoreticalGamma,
       };
   return createWorkbenchPersistenceV3Success(
-    authority.activeRuntime.heatCapacityFreeTraceVersion === 5 ||
+    sourceExperimentGroups === undefined ||
+      authority.activeRuntime.heatCapacityFreeRuntimeVersion === 5 ||
+      authority.activeRuntime.heatCapacityFreeTraceVersion === 5 ||
       real.status === 'migrated' ||
       ideal.status === 'migrated' ||
       modeSessionCacheRepair.migrated

@@ -78,7 +78,6 @@ import {
   configureHeatCapacityFreeBatchWorkbenchState,
   continueHeatCapacityCalculationAnswerWorkbenchState,
   enterHeatCapacityFreeModeWorkbenchState,
-  ensureHeatCapacityCalculationSessionWorkbenchState,
   evaluateHeatCapacityFreeAttemptTimeoutWorkbenchState,
   freezeHeatCapacityFreeParametersForCurrentGroup,
   getActiveHeatCapacityFreeTrialIndex,
@@ -109,6 +108,7 @@ import {
   prepareHeatCapacityAutoDemoReset,
   prepareHeatCapacityAutoDemoStart,
   applyHeatCapacityFreeRecordWorkbenchState,
+  abandonHeatCapacityFreeExperimentGroupDraftWorkbenchState,
   refreshHeatCapacityPumpFrequency,
   registerHeatCapacityPumpStroke,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
@@ -118,8 +118,8 @@ import {
   selectActiveHeatCapacityWorkbenchDisplay,
   selectHeatCapacityCalculationAggregateWorkbenchState,
   selectHeatCapacityCalculationGroupWorkbenchState,
-  selectDisplayedHeatCapacityFreeDomain,
-  setHeatCapacityFreeDisplaySchemeWorkbenchState,
+  selectHeatCapacityFreeViewedExperimentGroupWorkbenchState,
+  selectHeatCapacityFreeViewedTrialWorkbenchState,
   setHeatCapacityFreeEquilibriumSpeedMultiplier,
   setHeatCapacityFreeParameterSchemeWorkbenchState,
   setHeatCapacityGuideEquilibriumSpeedMultiplier,
@@ -187,7 +187,9 @@ import HeatCapacityBatchSetupDialog, {
 } from '../heatCapacity/HeatCapacityBatchSetupDialog.tsx';
 import { HeatCapacityBatchProgress } from '../heatCapacity/HeatCapacityBatchProgress.tsx';
 import HeatCapacityCalculationWindow from '../heatCapacity/HeatCapacityCalculationWindow.tsx';
-import { HeatCapacityFreeDisplaySchemeMenu } from '../heatCapacity/HeatCapacityFreeDisplaySchemeMenu.tsx';
+import HeatCapacityExperimentGroupContextBar from '../heatCapacity/HeatCapacityExperimentGroupContextBar.tsx';
+import HeatCapacityGroupResultsPanel from '../heatCapacity/HeatCapacityGroupResultsPanel.tsx';
+import HeatCapacityReportExportDialog from '../heatCapacity/HeatCapacityReportExportDialog.tsx';
 import HeatCapacityPreheatOverlay from '../heatCapacity/HeatCapacityPreheatOverlay.tsx';
 import HeatCapacityInvalidAttemptDialog from '../heatCapacity/HeatCapacityInvalidAttemptDialog.tsx';
 import { HeatCapacityWaitController } from '../heatCapacity/HeatCapacityWaitController.tsx';
@@ -329,6 +331,10 @@ import {
   selectHeatCapacityFreeProcessReview,
 } from '../../domain/heatCapacity/heatCapacityFreeProcessReviewModel.ts';
 import {
+  selectCurrentHeatCapacityFreeExperimentGroup,
+  selectViewedHeatCapacityFreeExperimentGroup,
+} from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
+import {
   createHeatCapacityAutoDemoProfile,
 } from '../../domain/heatCapacity/heatCapacityTeachingProfile.ts';
 import {
@@ -337,6 +343,10 @@ import {
   createWorkbenchResultSummary,
   type WorkbenchExportMode,
 } from './workbenchResults';
+import {
+  getDefaultHeatCapacityReportGroupIds,
+  isHeatCapacityExportModeReady,
+} from './workbenchHeatCapacityExport.ts';
 import {
   loadClosedWorkbenchFiles,
   loadWorkbenchSession,
@@ -2718,7 +2728,7 @@ const heatCapacityRealtimeCopies = {
     exitGuideMode: '退出引导',
     exitTeachingMode: '退出教学模式',
     singleTrialBadge: '本次实验',
-    trialBadge: (trialIndex: number) => `第 ${trialIndex} 组实验`,
+    trialBadge: (trialIndex: number) => `第 ${trialIndex} 次实验`,
     autoDemoFinishedLabel: '演示完成',
     demoPausedLabel: '已暂停',
     demoDoneLabel: '已完成',
@@ -2776,8 +2786,8 @@ const heatCapacityRealtimeCopies = {
     recordU1SuccessToast: 'U₁ 和 Uₜ 记录成功。',
     recordU2SuccessToast: 'U₂ 和 Uₜ 记录成功。',
     finalTrialCompleteToast: '本次实验已完成。',
-    freeGroupCompleteToast: '本组实验完成。',
-    freePowerOffBeforeNextGroup: '请先关闭电源，完成本组实验后再调整参数。',
+    freeGroupCompleteToast: '本次实验完成。',
+    freePowerOffBeforeNextGroup: '请先关闭电源，完成本次实验后再调整参数。',
     freeRecordSuccessLog: {
       u0: '自由模式已记录 U₀ 显示值。',
       u1: '自由模式已记录 U₁ 显示值。',
@@ -2792,7 +2802,7 @@ const heatCapacityRealtimeCopies = {
       'unstable-temperature': '温度读数仍在变化，请等待回到稳定环境值后再记录。',
       'insufficient-u1': 'U₁ 压强差不足，请关闭旋塞并继续打气到有效范围。',
       'release-not-started': '请先完成快速放气并关闭旋塞，再记录 U₂。',
-      'over-vented': '放气过度，U₂ 已低于有效范围；请重新开始本组 Free trial。',
+      'over-vented': '放气过度，U₂ 已低于有效范围；请重新开始本次实验。',
       'pressure-danger': '压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。',
       'invalid-sequence': '当前操作顺序不能记录该数据点，请按 U₀、U₁、U₂ 的顺序进行。',
     } satisfies Record<HeatCapacityFreeRecordRejectReason, string>,
@@ -2989,7 +2999,7 @@ const heatCapacityRealtimeCopies = {
     exitGuideMode: '退出引導',
     exitTeachingMode: '退出教學模式',
     singleTrialBadge: '本次實驗',
-    trialBadge: (trialIndex: number) => `第 ${trialIndex} 組實驗`,
+    trialBadge: (trialIndex: number) => `第 ${trialIndex} 次實驗`,
     autoDemoFinishedLabel: '演示完成',
     demoPausedLabel: '已暫停',
     demoDoneLabel: '已完成',
@@ -3047,8 +3057,8 @@ const heatCapacityRealtimeCopies = {
     recordU1SuccessToast: 'U₁ 和 Uₜ 記錄成功。',
     recordU2SuccessToast: 'U₂ 和 Uₜ 記錄成功。',
     finalTrialCompleteToast: '本次實驗已完成。',
-    freeGroupCompleteToast: '本組實驗完成。',
-    freePowerOffBeforeNextGroup: '請先關閉電源，完成本組實驗後再調整參數。',
+    freeGroupCompleteToast: '本次實驗完成。',
+    freePowerOffBeforeNextGroup: '請先關閉電源，完成本次實驗後再調整參數。',
     freeRecordSuccessLog: {
       u0: '自由模式已記錄 U₀ 顯示值。',
       u1: '自由模式已記錄 U₁ 顯示值。',
@@ -3063,7 +3073,7 @@ const heatCapacityRealtimeCopies = {
       'unstable-temperature': '溫度讀數仍在變化，請等待回到穩定環境值後再記錄。',
       'insufficient-u1': 'U₁ 壓強差不足，請關閉旋塞並繼續打氣到有效範圍。',
       'release-not-started': '請先完成快速放氣並關閉旋塞，再記錄 U₂。',
-      'over-vented': '放氣過度，U₂ 已低於有效範圍；請重新開始本組 Free trial。',
+      'over-vented': '放氣過度，U₂ 已低於有效範圍；請重新開始本次實驗。',
       'pressure-danger': '壓強已超過安全閾值，瓶塞可能被頂開，請立即停止打氣。',
       'invalid-sequence': '目前操作順序不能記錄該資料點，請按 U₀、U₁、U₂ 的順序進行。',
     } satisfies Record<HeatCapacityFreeRecordRejectReason, string>,
@@ -3318,7 +3328,7 @@ const heatCapacityRealtimeCopies = {
     recordU1SuccessToast: 'U₁ and Uₜ recorded successfully.',
     recordU2SuccessToast: 'U₂ and Uₜ recorded successfully.',
     finalTrialCompleteToast: 'The experiment is complete.',
-    freeGroupCompleteToast: 'This free-mode group is complete.',
+    freeGroupCompleteToast: 'This experiment is complete.',
     freePowerOffBeforeNextGroup: 'Turn off the power to complete this trial before adjusting parameters.',
     freeRecordSuccessLog: {
       u0: 'Free Mode recorded the U₀ display value.',
@@ -3334,7 +3344,7 @@ const heatCapacityRealtimeCopies = {
       'unstable-temperature': 'The temperature reading is still changing. Wait until it returns to a stable ambient value.',
       'insufficient-u1': 'U₁ pressure difference is too small. Close the stopcock and keep pumping into the effective range.',
       'release-not-started': 'Complete the quick release and close the stopcock before recording U₂.',
-      'over-vented': 'The release was excessive and U₂ is below the effective range. Restart this Free trial.',
+      'over-vented': 'The release was excessive and U₂ is below the effective range. Restart this experiment.',
       'pressure-danger': 'Pressure exceeds the safety threshold. The stopper may be forced open. Stop pumping immediately.',
       'invalid-sequence': 'This point cannot be recorded in the current sequence. Record in U₀, U₁, U₂ order.',
     } satisfies Record<HeatCapacityFreeRecordRejectReason, string>,
@@ -4724,6 +4734,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     useState<string | null>(null);
   const [heatCapacityCalculationReviewOpen, setHeatCapacityCalculationReviewOpen] =
     useState(false);
+  const [heatCapacityReportExportOpen, setHeatCapacityReportExportOpen] = useState(false);
+  const [heatCapacityReportSelectedGroupIds, setHeatCapacityReportSelectedGroupIds] = useState<string[]>([]);
   const [hoveredHeatCapacityParamHelpId, setHoveredHeatCapacityParamHelpId] = useState<string | null>(null);
   const [pinnedHeatCapacityParamHelpId, setPinnedHeatCapacityParamHelpId] = useState<string | null>(() => (
     getHeatCapacityRefreshString(initialHeatCapacityRefreshWindows, 'pinnedHeatCapacityParamHelpId')
@@ -5194,7 +5206,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const [heatCapacityResetFeedbackActionId, setHeatCapacityResetFeedbackActionId] = useState<
     'reset-guide' | 'reset-free' | null
   >(null);
-  const [heatCapacityReviewSelectionByFileId, setHeatCapacityReviewSelectionByFileId] = useState<Record<string, {
+  const [heatCapacityReviewSelectionByFileId] = useState<Record<string, {
     selectedTrialId: string | null;
     userSelected: boolean;
   }>>(() => {
@@ -5393,13 +5405,51 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const activeHeatCapacityFreeBatchProgress = activeFile.kind === 'heatCapacity'
     ? getHeatCapacityFreeBatchProgress(activeFile)
     : null;
+  const activeHeatCapacityFreeGroupCollection = activeFile.kind === 'heatCapacity'
+    ? activeFile.heatCapacityFreeExperimentGroups
+    : null;
+  const activeHeatCapacityCurrentGroup = activeHeatCapacityFreeGroupCollection
+    ? selectCurrentHeatCapacityFreeExperimentGroup(activeHeatCapacityFreeGroupCollection)
+    : null;
+  const activeHeatCapacityCurrentGroupTerminal =
+    activeHeatCapacityCurrentGroup?.status === 'completed' ||
+    activeHeatCapacityCurrentGroup?.status === 'legacy-incomplete-readonly';
+  const activeHeatCapacityRuntimeScheme = activeFile.kind === 'heatCapacity'
+    ? activeFile.heatCapacityFreeParameterScheme
+    : 'real';
+  const activeHeatCapacityNextScheme = activeHeatCapacityCurrentGroup?.status === 'completed' ||
+    activeHeatCapacityCurrentGroup?.status === 'legacy-incomplete-readonly'
+    ? activeHeatCapacityFreeGroupCollection?.pendingNextScheme ?? activeHeatCapacityRuntimeScheme
+    : activeHeatCapacityRuntimeScheme;
+  const activeHeatCapacityGroupProgressStatus = activeHeatCapacityCurrentGroup?.status === 'draft'
+    ? 'draft' as const
+    : activeHeatCapacityCurrentGroup?.status === 'collecting'
+      ? 'collecting' as const
+      : activeHeatCapacityCurrentGroup?.status === 'completed' ||
+          activeHeatCapacityCurrentGroup?.status === 'legacy-incomplete-readonly'
+        ? 'completed' as const
+        : 'awaiting-calculation' as const;
+  const heatCapacityBatchSetupPurpose = activeHeatCapacityCurrentGroup?.status === 'completed' ||
+    activeHeatCapacityCurrentGroup?.status === 'legacy-incomplete-readonly'
+    ? 'next' as const
+    : 'first' as const;
   const activeHeatCapacityCalculationSession = activeFile.kind === 'heatCapacity'
     ? getHeatCapacityCalculationSession(activeFile)
     : null;
   const heatCapacityBatchSetupOpen = activeFile.kind === 'heatCapacity' &&
     heatCapacityBatchSetupRequestedFileId === activeFile.id &&
-    activeHeatCapacityFreeBatchProgress?.configured === false &&
-    activeFile.heatCapacityFreeTrials.length === 0 &&
+    (
+      activeFile.heatCapacityMode === null ||
+      (
+        activeFile.heatCapacityMode === 'free' &&
+        (
+          activeHeatCapacityCurrentGroup === null ||
+          activeHeatCapacityCurrentGroup.status === 'draft' ||
+          activeHeatCapacityCurrentGroup.status === 'completed' ||
+          activeHeatCapacityCurrentGroup.status === 'legacy-incomplete-readonly'
+        )
+      )
+    ) &&
     heatCapacityModeTransitionState.phase === 'idle';
   const heatCapacityCalculationAutoOpen =
     activeHeatCapacityCalculationSession?.presentation === 'interactive' &&
@@ -5416,10 +5466,22 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     setHeatCapacityBatchSetupRequestedFileId(null);
   }, [
     activeFile.id,
-    activeFile.kind === 'heatCapacity'
-      ? activeFile.heatCapacityFreeParameterScheme
-      : null,
-    activeHeatCapacityFreeBatchProgress?.targetGroupCount,
+    activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null,
+  ]);
+  const heatCapacityFreeSidebarContextRef = useRef<string | null>(null);
+  useEffect(() => {
+    const nextContext = activeFile.kind === 'heatCapacity' && activeFile.heatCapacityMode === 'free'
+      ? activeFile.id
+      : null;
+    const enteredFreeMode = nextContext !== null && heatCapacityFreeSidebarContextRef.current !== nextContext;
+    const groupCompleted = activeHeatCapacityCurrentGroup?.status === 'completed' ||
+      activeHeatCapacityCurrentGroup?.status === 'legacy-incomplete-readonly';
+    heatCapacityFreeSidebarContextRef.current = nextContext;
+    if (enteredFreeMode || groupCompleted) setParametersCollapsed(false);
+  }, [
+    activeFile.id,
+    activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null,
+    activeHeatCapacityCurrentGroup?.status,
   ]);
   useEffect(() => {
     setHeatCapacityCalculationReviewOpen(false);
@@ -5444,9 +5506,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     activeHeatCapacityFreeParameterLockReason !== null;
   const activeHeatCapacityFreeIdealReadonly = activeFile.kind === 'heatCapacity' &&
     activeFile.heatCapacityMode === 'free' &&
-    activeFile.heatCapacityFreeParameterScheme === 'ideal';
+    activeHeatCapacityNextScheme === 'ideal';
   const activeHeatCapacityFreeSchemeLocked = activeFile.kind === 'heatCapacity' &&
     activeFile.heatCapacityMode === 'free' &&
+    !activeHeatCapacityCurrentGroupTerminal &&
     isHeatCapacityFreeExperimentStarted(activeFile);
   const activeHeatCapacityFreeParameterInputDisabled =
     activeHeatCapacityFreeParameterLocked || activeHeatCapacityFreeIdealReadonly;
@@ -6888,11 +6951,20 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const requestToggleHeatCapacityFreeParameterScheme = () => {
     const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
     if (!currentFile || currentFile.kind !== 'heatCapacity' || currentFile.heatCapacityMode !== 'free') return;
-    if (isHeatCapacityFreeExperimentStarted(currentFile)) {
+    const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
+      currentFile.heatCapacityFreeExperimentGroups,
+    );
+    const currentGroupTerminal = currentGroup?.status === 'completed' ||
+      currentGroup?.status === 'legacy-incomplete-readonly';
+    if (!currentGroupTerminal && isHeatCapacityFreeExperimentStarted(currentFile)) {
       showHeatCapacityFreeSchemeLockHint();
       return;
     }
-    if (currentFile.heatCapacityFreeParameterScheme === 'ideal') {
+    const selectedScheme = currentGroup?.status === 'completed' ||
+      currentGroup?.status === 'legacy-incomplete-readonly'
+      ? currentFile.heatCapacityFreeExperimentGroups.pendingNextScheme
+      : currentFile.heatCapacityFreeParameterScheme;
+    if (selectedScheme === 'ideal') {
       updateActiveFile((file) => (
         file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
           ? setHeatCapacityFreeParameterSchemeWorkbenchState(file, 'real', Date.now())
@@ -6925,7 +6997,17 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
   const confirmHeatCapacityIdealProfileIntro = () => {
     const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
-    if (currentFile?.kind === 'heatCapacity' && currentFile.heatCapacityMode === 'free' && isHeatCapacityFreeExperimentStarted(currentFile)) {
+    const currentGroup = currentFile?.kind === 'heatCapacity'
+      ? selectCurrentHeatCapacityFreeExperimentGroup(currentFile.heatCapacityFreeExperimentGroups)
+      : null;
+    const currentGroupTerminal = currentGroup?.status === 'completed' ||
+      currentGroup?.status === 'legacy-incomplete-readonly';
+    if (
+      currentFile?.kind === 'heatCapacity' &&
+      currentFile.heatCapacityMode === 'free' &&
+      !currentGroupTerminal &&
+      isHeatCapacityFreeExperimentStarted(currentFile)
+    ) {
       setHeatCapacityIdealIntroOpen(false);
       showHeatCapacityFreeSchemeLockHint();
       return;
@@ -8872,6 +8954,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const activeHeatCapacityModalLocked = activeHeatCapacityPreheatLocked ||
     activeHeatCapacityInvalidAttemptPrompt ||
     heatCapacityBatchSetupOpen ||
+    heatCapacityReportExportOpen ||
     heatCapacityCalculationWindowOpen;
 
   const completeActiveHeatCapacityPreheat = () => {
@@ -9862,6 +9945,14 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     scheme: HeatCapacityFreeDisplayScheme,
   ) => {
     if (!activeFile || activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return;
+    const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
+      activeFile.heatCapacityFreeExperimentGroups,
+    );
+    if (
+      currentGroup?.status !== 'collecting' ||
+      currentGroup.scheme !== scheme ||
+      activeFile.heatCapacityFreeExperimentGroups.viewedGroupId !== currentGroup.id
+    ) return;
     const pendingMatches = pendingRemoveHeatCapacityTrialRecord?.trialIndex === trialIndex &&
       pendingRemoveHeatCapacityTrialRecord.kind === kind &&
       pendingRemoveHeatCapacityTrialRecord.scheme === scheme;
@@ -9872,10 +9963,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       pushLog((language) => {
         const recordSuffix = kind === 'trial' ? '' : ` ${recordLabel}`;
         if (language === 'zh-CN') {
-          return `${activeFile.name}: 再次点击确认删除第 ${displayTrialIndex} 组${recordSuffix}记录。`;
+          return `${activeFile.name}: 再次点击确认删除第 ${displayTrialIndex} 次实验的${recordSuffix}记录。`;
         }
         if (language === 'zh-TW') {
-          return `${activeFile.name}: 再次點擊確認刪除第 ${displayTrialIndex} 組${recordSuffix}記錄。`;
+          return `${activeFile.name}: 再次點擊確認刪除第 ${displayTrialIndex} 次實驗的${recordSuffix}記錄。`;
         }
         return `${activeFile.name}: Click Confirm Delete again to delete the${recordSuffix} record from trial ${displayTrialIndex}.`;
       }, 'warning');
@@ -9893,8 +9984,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     setPendingRemoveHeatCapacityTrialRecord(null);
     pushLog((language) => {
       const recordSuffix = kind === 'trial' ? '' : ` ${recordLabel}`;
-      if (language === 'zh-CN') return `${activeFile.name}: 已删除第 ${displayTrialIndex} 组${recordSuffix}记录。`;
-      if (language === 'zh-TW') return `${activeFile.name}: 已刪除第 ${displayTrialIndex} 組${recordSuffix}記錄。`;
+      if (language === 'zh-CN') return `${activeFile.name}: 已删除第 ${displayTrialIndex} 次实验的${recordSuffix}记录。`;
+      if (language === 'zh-TW') return `${activeFile.name}: 已刪除第 ${displayTrialIndex} 次實驗的${recordSuffix}記錄。`;
       return `${activeFile.name}: Deleted the${recordSuffix} record from trial ${displayTrialIndex}.`;
     });
   };
@@ -9971,15 +10062,15 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     if (shouldShowFreePowerOffCompletionToast) {
       const completionMessage = advancedFreeGroup
         ? settingsLanguagePreference === 'en'
-          ? `Group ${advancedFreeGroup.completed} complete. Group ${advancedFreeGroup.next} is ready.`
+          ? `Experiment ${advancedFreeGroup.completed} complete. Experiment ${advancedFreeGroup.next} is ready.`
           : settingsLanguagePreference === 'zh-TW'
-            ? `第 ${advancedFreeGroup.completed} 組已完成，已進入第 ${advancedFreeGroup.next} 組。`
-            : `第 ${advancedFreeGroup.completed} 组已完成，已进入第 ${advancedFreeGroup.next} 组。`
+            ? `第 ${advancedFreeGroup.completed} 次實驗已完成，已進入第 ${advancedFreeGroup.next} 次實驗。`
+            : `第 ${advancedFreeGroup.completed} 次实验已完成，已进入第 ${advancedFreeGroup.next} 次实验。`
         : settingsLanguagePreference === 'en'
-          ? 'All groups are complete. Opening data processing.'
+          ? 'All experiments in this group are complete. Opening data processing.'
           : settingsLanguagePreference === 'zh-TW'
-            ? '全部組別已完成，正在進入資料處理。'
-            : '全部组别已完成，正在进入数据处理。';
+            ? '本組全部實驗已完成，正在進入資料處理。'
+            : '本组全部实验已完成，正在进入数据处理。';
       showHeatCapacityFreeGroupCompletionToast(completionMessage);
       pushLog(
         (language) => getHeatCapacityRealtimeCopy(language).freeGroupCompleteToast,
@@ -10106,6 +10197,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const cancelHeatCapacityFreeBatchSetup = () => {
     setHeatCapacityBatchSetupRequestedFileId(null);
     setHeatCapacityBatchSetupSelection(null);
+    if (heatCapacityBatchSetupPurpose === 'next') return;
     if (activeFile.kind === 'heatCapacity' && activeFile.heatCapacityMode === 'free') {
       exitHeatCapacityFormalModeToExplore('free');
     }
@@ -10133,6 +10225,139 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         : file
     ));
     setHeatCapacityBatchSetupSelection(null);
+  };
+
+  const requestRestartHeatCapacityFreeGroup = () => {
+    if (
+      activeFile.kind !== 'heatCapacity' ||
+      activeFile.heatCapacityMode !== 'free' ||
+      activeHeatCapacityCurrentGroup?.status !== 'collecting'
+    ) return;
+    const copy = settingsLanguagePreference === 'en'
+      ? {
+          eyebrow: 'Free mode',
+          title: 'Restart this experiment group?',
+          body: 'All recorded experiments and traces in the current group will be cleared.',
+          consequence: 'Completed historical groups are preserved. This action can be undone from the Edit menu.',
+          cancel: 'Cancel',
+          confirm: 'Restart group',
+          close: 'Close',
+        }
+      : settingsLanguagePreference === 'zh-TW'
+        ? {
+            eyebrow: '自由模式',
+            title: '重新開始本組實驗？',
+            body: '目前組內已記錄的全部實驗與曲線都會清空。',
+            consequence: '已完成的歷史實驗組不受影響；可透過「編輯」選單撤銷。',
+            cancel: '取消',
+            confirm: '重新開始本組',
+            close: '關閉',
+          }
+        : {
+            eyebrow: '自由模式',
+            title: '重新开始本组实验？',
+            body: '当前组内已记录的全部实验与曲线都会被清空。',
+            consequence: '已经完成的历史实验组不受影响；可通过“编辑”菜单撤销。',
+            cancel: '取消',
+            confirm: '重新开始本组',
+            close: '关闭',
+          };
+    requestPromptConfirmation({
+      id: 'restart-heat-capacity-experiment-group',
+      tone: 'warning',
+      eyebrow: copy.eyebrow,
+      title: copy.title,
+      body: copy.body,
+      consequence: copy.consequence,
+      cancelLabel: copy.cancel,
+      confirmLabel: copy.confirm,
+      closeLabel: copy.close,
+      onConfirm: restartHeatCapacityFreeBatch,
+    });
+  };
+
+  const requestAbandonHeatCapacityFreeGroupDraft = () => {
+    if (
+      activeFile.kind !== 'heatCapacity' ||
+      activeFile.heatCapacityMode !== 'free' ||
+      activeHeatCapacityCurrentGroup?.status !== 'draft'
+    ) return;
+    const copy = settingsLanguagePreference === 'en'
+      ? {
+          eyebrow: 'Free mode',
+          title: 'Abandon this group draft?',
+          body: 'The unstarted group draft will be removed.',
+          consequence: 'No completed historical group or experiment data will be deleted.',
+          cancel: 'Cancel',
+          confirm: 'Abandon draft',
+          close: 'Close',
+        }
+      : settingsLanguagePreference === 'zh-TW'
+        ? {
+            eyebrow: '自由模式',
+            title: '放棄本組草稿？',
+            body: '這個尚未開始的實驗組草稿將被移除。',
+            consequence: '已完成的歷史實驗組與實驗資料都不會被刪除。',
+            cancel: '取消',
+            confirm: '放棄草稿',
+            close: '關閉',
+          }
+        : {
+            eyebrow: '自由模式',
+            title: '放弃本组草稿？',
+            body: '这个尚未开始的实验组草稿将被移除。',
+            consequence: '已完成的历史实验组和实验数据都不会被删除。',
+            cancel: '取消',
+            confirm: '放弃草稿',
+            close: '关闭',
+          };
+    requestPromptConfirmation({
+      id: 'abandon-heat-capacity-experiment-group-draft',
+      tone: 'warning',
+      eyebrow: copy.eyebrow,
+      title: copy.title,
+      body: copy.body,
+      consequence: copy.consequence,
+      cancelLabel: copy.cancel,
+      confirmLabel: copy.confirm,
+      closeLabel: copy.close,
+      onConfirm: () => {
+        const now = Date.now();
+        resetHeatCapacityGroupUiRuntime();
+        captureUndoSnapshot('abandon heat-capacity experiment group draft');
+        updateActiveFile((file) => (
+          file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+            ? abandonHeatCapacityFreeExperimentGroupDraftWorkbenchState(file, now)
+            : file
+        ));
+        setHeatCapacityBatchSetupSelection(null);
+      },
+    });
+  };
+
+  const openNextHeatCapacityFreeExperimentGroupSetup = () => {
+    if (
+      activeFile.kind !== 'heatCapacity' ||
+      activeFile.heatCapacityMode !== 'free' ||
+      heatCapacityCalculationWindowOpen ||
+      (
+        activeHeatCapacityCurrentGroup?.status !== 'completed' &&
+        activeHeatCapacityCurrentGroup?.status !== 'legacy-incomplete-readonly'
+      )
+    ) return;
+    setHeatCapacityBatchSetupSelection(activeHeatCapacityCurrentGroup.targetExperimentCount);
+    setHeatCapacityBatchSetupRequestedFileId(activeFile.id);
+  };
+
+  const openFirstHeatCapacityFreeExperimentGroupSetup = () => {
+    if (
+      activeFile.kind !== 'heatCapacity' ||
+      activeFile.heatCapacityMode !== 'free' ||
+      activeHeatCapacityCurrentGroup !== null ||
+      heatCapacityCalculationWindowOpen
+    ) return;
+    setHeatCapacityBatchSetupSelection(null);
+    setHeatCapacityBatchSetupRequestedFileId(activeFile.id);
   };
 
   const updateHeatCapacityCalculationDraft = (
@@ -16575,9 +16800,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
   const getHeatCapacityTabState = (tabId: WorkbenchHeatCapacityTabId) => {
     if (activeFile.kind !== 'heatCapacity') return 'off';
-    if (tabId === 'records') {
-      return heatCapacityCalculationWindowOpen ? 'active' : 'off';
-    }
     if (activeFile.activeHeatCapacityTabId === tabId && activeFile.openHeatCapacityTabs.includes(tabId)) return 'active';
     return activeFile.openHeatCapacityTabs.includes(tabId) ? 'open' : 'off';
   };
@@ -16599,28 +16821,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     if (activeFile.kind !== 'heatCapacity') return;
     const allowedTabs = getHeatCapacityMaterialsTabOrder(activeFile);
     if (!allowedTabs.includes(tabId)) return;
-    if (tabId === 'records') {
-      const ensuredFile = ensureHeatCapacityCalculationSessionWorkbenchState(
-        activeFile,
-        Date.now(),
-      );
-      if (!getHeatCapacityCalculationSession(ensuredFile)) return;
-      updateActiveFile((file) => (
-        file.kind === 'heatCapacity' && file.id === ensuredFile.id
-          ? ensureHeatCapacityCalculationSessionWorkbenchState(file, Date.now())
-          : file
-      ));
-      setSelectedPanel('heatCapacityRecords');
-      setHeatCapacityCalculationReviewOpen(true);
-      return;
-    }
-    if (
-      tabId === 'review' &&
-      activeFile.heatCapacityMode === 'free' &&
-      activeHeatCapacityCalculationSession?.status !== 'completed'
-    ) {
-      return;
-    }
     const panelKey = heatCapacityTabIdToPanelKey(tabId);
     const alreadyOpen = activeFile.openHeatCapacityTabs.includes(tabId);
     setSelectedPanel(panelKey);
@@ -16651,27 +16851,14 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
   const openAllHeatCapacityMaterialsTabs = () => {
     if (activeFile.kind !== 'heatCapacity') return;
-    const heatCapacityTabOrder = getHeatCapacityMaterialsTabOrder(activeFile)
-      .filter((tabId) => tabId !== 'records')
-      .filter((tabId) => (
-        tabId !== 'review' ||
-        activeFile.heatCapacityMode !== 'free' ||
-        activeHeatCapacityCalculationSession?.status === 'completed'
-      ));
+    const heatCapacityTabOrder = getHeatCapacityMaterialsTabOrder(activeFile);
     const firstTabId = heatCapacityTabOrder[0] ?? 'guide';
     const firstPanelKey = heatCapacityTabIdToPanelKey(firstTabId);
     captureUndoSnapshot('opened heat-capacity materials tabs', 'presentation');
     setSelectedPanel(firstPanelKey);
     updateActiveFile((file) => {
       if (file.kind !== 'heatCapacity') return file;
-      const calculationSession = getHeatCapacityCalculationSession(file);
-      const materialTabOrder = getHeatCapacityMaterialsTabOrder(file)
-        .filter((tabId) => tabId !== 'records')
-        .filter((tabId) => (
-          tabId !== 'review' ||
-          file.heatCapacityMode !== 'free' ||
-          calculationSession?.status === 'completed'
-        ));
+      const materialTabOrder = getHeatCapacityMaterialsTabOrder(file);
       const panelKeys = materialTabOrder.map(heatCapacityTabIdToPanelKey);
       const activeTabId = materialTabOrder[0] ?? 'guide';
       return {
@@ -18128,7 +18315,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         ? activeFile.hardSphereViewEnabled
         : Boolean(draft[id])
     );
-    const schemeIsIdeal = activeFile.heatCapacityFreeParameterScheme === 'ideal';
+    const schemeIsIdeal = activeHeatCapacityNextScheme === 'ideal';
     const schemeButtonText = schemeIsIdeal
       ? heatCapacityFreeSharedText.idealProfile[settingsLanguagePreference]
       : heatCapacityFreeSharedText.realSimulation[settingsLanguagePreference];
@@ -19661,7 +19848,13 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                     heatCapacityModeTransitionLocked ||
                     (
                       activeFile.heatCapacityMode === 'free' &&
-                      activeHeatCapacityFreeBatchProgress?.allGroupsRecorded === true
+                      (
+                        activeHeatCapacityCurrentGroup === null ||
+                        (
+                          activeHeatCapacityCurrentGroup.status !== 'draft' &&
+                          activeHeatCapacityCurrentGroup.status !== 'collecting'
+                        )
+                      )
                     )
                   }
                   cameraInteractionLocked={autoDemoInteractionLocked || heatCapacityModeTransitionLocked}
@@ -19676,21 +19869,37 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                   overlayTopRight={heatCapacityTopRightOverlay}
                   overlayBelowDefaultView={
                     activeFile.heatCapacityMode === 'free' &&
-                    activeHeatCapacityFreeBatchProgress?.targetGroupCount !== null &&
+                    activeHeatCapacityCurrentGroup !== null &&
                     activeHeatCapacityFreeBatchProgress?.currentGroupNumber !== null
                       ? (
                           <HeatCapacityBatchProgress
-                            currentGroup={activeHeatCapacityFreeBatchProgress.currentGroupNumber}
-                            targetGroupCount={activeHeatCapacityFreeBatchProgress.targetGroupCount}
+                            currentExperiment={activeHeatCapacityFreeBatchProgress.currentGroupNumber}
+                            targetExperimentCount={activeHeatCapacityCurrentGroup.targetExperimentCount}
+                            groupStatus={activeHeatCapacityGroupProgressStatus}
                             language={settingsLanguagePreference}
-                            restartDisabled={
-                              heatCapacityCalculationWindowOpen ||
-                              activeHeatCapacityFreeBatchProgress.allGroupsRecorded
-                            }
-                            onRestartBatch={restartHeatCapacityFreeBatch}
+                            actionsDisabled={heatCapacityCalculationWindowOpen}
+                            onRestartGroup={requestRestartHeatCapacityFreeGroup}
+                            onAbandonDraft={requestAbandonHeatCapacityFreeGroupDraft}
+                            onStartNextGroup={openNextHeatCapacityFreeExperimentGroupSetup}
                           />
                         )
-                      : null
+                      : activeFile.heatCapacityMode === 'free' && activeHeatCapacityCurrentGroup === null
+                        ? (
+                            <div className="studio-heat-batch-progress" data-heat-capacity-empty-group-start="true">
+                              <button
+                                type="button"
+                                className="studio-heat-batch-progress-next"
+                                onClick={openFirstHeatCapacityFreeExperimentGroupSetup}
+                              >
+                                {settingsLanguagePreference === 'en'
+                                  ? 'Start first group'
+                                  : settingsLanguagePreference === 'zh-TW'
+                                    ? '開始第一組實驗'
+                                    : '开始第一组实验'}
+                              </button>
+                            </div>
+                          )
+                        : null
                   }
                   overlayBottomRight={heatCapacityBottomRightOverlay}
                   overlayCenter={heatCapacityCenterOverlay}
@@ -19951,7 +20160,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     const stopcockState = getHeatCapacityStopcockState(activeFile.stopcockAngleDeg);
     const stopcockStateLabel = stopcockState === 'open' ? heatCapacityRealtimeCopy.stopcock.open : heatCapacityRealtimeCopy.stopcock.closed;
     const heatCapacityRunBadge = activeFile.heatCapacityMode === 'free'
-      ? heatCapacityRealtimeCopy.trialBadge(getActiveHeatCapacityFreeTrialIndex(activeFile) + 1)
+      ? heatCapacityRealtimeCopy.trialBadge(
+          activeHeatCapacityFreeBatchProgress?.currentGroupNumber ??
+          Math.max(1, getActiveHeatCapacityFreeTrialIndex(activeFile) + 1),
+        )
       : heatCapacityRealtimeCopy.singleTrialBadge;
     const heatCapacityHeaderBadges = [
       {
@@ -20341,14 +20553,55 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const exportCopy = workbenchCopy.exportEnvironment[exportEnvironmentStatus];
   const idealPointCount = idealAnalysis?.sortedPoints.length ?? 0;
   const isExportModeDataReady = (mode: WorkbenchExportMode) => (
-    activeFile.kind === 'ideal'
+    activeFile.kind === 'heatCapacity'
+      ? isHeatCapacityExportModeReady(activeFile, mode)
+      : activeFile.kind === 'ideal'
       ? mode === 'pointsCsv' || mode === 'completeBundle'
         ? idealPointCount > 0
         : idealPointCount >= 2
       : resultSummary.ready
   );
+  const getExportActionLabel = (
+    language: WorkbenchLanguagePreference,
+    mode: WorkbenchExportMode,
+  ) => {
+    if (activeFile.kind !== 'heatCapacity') {
+      return workbenchCopies[language].logs.exportLabels[mode];
+    }
+    const labels = language === 'en'
+      ? { completeBundle: 'Export Experiment Package', report: 'Export Report', figuresZip: 'Export Figures' }
+      : language === 'zh-TW'
+        ? { completeBundle: '匯出實驗包', report: '匯出報告', figuresZip: '匯出圖表' }
+        : { completeBundle: '导出实验包', report: '导出报告', figuresZip: '导出图表' };
+    return mode in labels
+      ? labels[mode as keyof typeof labels]
+      : workbenchCopies[language].logs.exportLabels[mode];
+  };
+  const getExportFolderLabel = (mode: WorkbenchExportMode) => {
+    if (activeFile.kind === 'heatCapacity') {
+      if (mode === 'completeBundle') {
+        return settingsLanguagePreference === 'en'
+          ? 'Experiment Package'
+          : settingsLanguagePreference === 'zh-TW' ? '實驗包' : '实验包';
+      }
+      if (mode === 'figuresZip' || mode === 'verificationFigure') {
+        return settingsLanguagePreference === 'en'
+          ? 'Figures'
+          : settingsLanguagePreference === 'zh-TW' ? '圖表' : '图表';
+      }
+      return settingsLanguagePreference === 'en'
+        ? 'Report'
+        : settingsLanguagePreference === 'zh-TW' ? '報告' : '报告';
+    }
+    if (mode === 'completeBundle') return workbenchCopy.results.exportAll;
+    if (mode === 'figuresZip' || mode === 'verificationFigure') return workbenchCopy.results.exportFigures;
+    return 'Export';
+  };
 
-  const handleExportAction = async (mode: WorkbenchExportMode) => {
+  const handleExportAction = async (
+    mode: WorkbenchExportMode,
+    heatCapacityGroupIds?: readonly string[],
+  ) => {
     if (!guardWorkbenchTutorialAction('export-file')) return;
     if (!isExportModeDataReady(mode)) {
       pushLog(
@@ -20360,14 +20613,19 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       return;
     }
 
-    const payload = createWorkbenchExportPayload(activeFile, mode, settingsLanguagePreference);
+    const payload = createWorkbenchExportPayload(
+      activeFile,
+      mode,
+      settingsLanguagePreference,
+      { includedGroupIds: heatCapacityGroupIds },
+    );
     const bridge = window.hardSphereLabExporter;
 
     if (!exportAvailable) {
       pushLog(
         (language) => workbenchCopies[language].logs.exportPayloadPrepared(
           activeFile.name,
-          workbenchCopies[language].logs.exportLabels[mode],
+          getExportActionLabel(language, mode),
           payload.filename,
           workbenchCopies[language].exportEnvironment[exportEnvironmentStatus].detail,
         ),
@@ -20380,7 +20638,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       pushLog(
         (language) => workbenchCopies[language].logs.exportPayloadPrepared(
           activeFile.name,
-          workbenchCopies[language].logs.exportLabels[mode],
+          getExportActionLabel(language, mode),
           payload.filename,
           workbenchCopies[language].exportEnvironment.unavailable.detail,
         ),
@@ -20393,7 +20651,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     pushLog(
       (language) => workbenchCopies[language].logs.exportPreparing(
         activeFile.name,
-        workbenchCopies[language].logs.exportLabels[mode],
+        getExportActionLabel(language, mode),
       ),
       'info',
     );
@@ -20402,14 +20660,14 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       const result = await bridge.exportWorkbenchPayload(payload, {
         mode,
         fileName: activeFile.name,
-        defaultDirName: `${activeFile.name} ${mode === 'completeBundle' ? workbenchCopy.results.exportAll : mode === 'figuresZip' || mode === 'verificationFigure' ? workbenchCopy.results.exportFigures : 'Export'}`,
+        defaultDirName: `${activeFile.name} ${getExportFolderLabel(mode)}`,
       });
 
       if (result.status === 'cancelled') {
         pushLog(
           (language) => workbenchCopies[language].logs.exportCancelled(
             activeFile.name,
-            workbenchCopies[language].logs.exportLabels[mode],
+            getExportActionLabel(language, mode),
           ),
           'warning',
         );
@@ -20420,7 +20678,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         pushLog(
           (language) => workbenchCopies[language].logs.exportFailed(
             activeFile.name,
-            workbenchCopies[language].logs.exportLabels[mode],
+            getExportActionLabel(language, mode),
             result.message ?? workbenchCopies[language].logs.unknownExporterError,
           ),
           'error',
@@ -20443,7 +20701,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       pushLog(
         (language) => workbenchCopies[language].logs.exportCompleted(
           activeFile.name,
-          workbenchCopies[language].logs.exportLabels[mode],
+          getExportActionLabel(language, mode),
           result.outDir ?? workbenchCopies[language].logs.selectedFolder,
           fileCount,
           mode === 'verificationFigure' || mode === 'figuresZip'
@@ -20457,7 +20715,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       pushLog(
         (language) => workbenchCopies[language].logs.exportFailed(
           activeFile.name,
-          workbenchCopies[language].logs.exportLabels[mode],
+          getExportActionLabel(language, mode),
           message ?? workbenchCopies[language].logs.unknownExporterError,
         ),
         'error',
@@ -20465,6 +20723,18 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     } finally {
       setExportInProgress(false);
     }
+  };
+
+  const openHeatCapacityReportExport = () => {
+    if (activeFile.kind !== 'heatCapacity') return;
+    setHeatCapacityReportSelectedGroupIds(getDefaultHeatCapacityReportGroupIds(activeFile));
+    setHeatCapacityReportExportOpen(true);
+  };
+
+  const confirmHeatCapacityReportExport = () => {
+    const selectedIds = [...heatCapacityReportSelectedGroupIds];
+    setHeatCapacityReportExportOpen(false);
+    void handleExportAction('report', selectedIds);
   };
 
   const renderResultsSummary = () => {
@@ -21315,49 +21585,74 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     if (panel.key === 'results') return renderResultsPanel();
     if (panel.key === 'experimentPoints') return renderIdealPointsWindow();
     if (activeFile.kind === 'heatCapacity' && panel.key === 'heatCapacityReview') {
-      const displayedDomain = selectDisplayedHeatCapacityFreeDomain(activeFile);
-      const reviewSelectionKey = `${activeFile.id}:${activeFile.heatCapacityFreeDisplayScheme}`;
-      const reviewSelection = heatCapacityReviewSelectionByFileId[reviewSelectionKey] ?? null;
-      const reviewOptionIds = new Set(displayedDomain.trials.map((trial) => trial.id));
-      const requestedReviewTrialId =
-        reviewSelection?.userSelected && reviewSelection.selectedTrialId && reviewOptionIds.has(reviewSelection.selectedTrialId)
-          ? reviewSelection.selectedTrialId
-          : null;
+      const groupCollection = activeFile.heatCapacityFreeExperimentGroups;
+      const viewedGroup = selectViewedHeatCapacityFreeExperimentGroup(groupCollection) ??
+        selectCurrentHeatCapacityFreeExperimentGroup(groupCollection);
+      if (!viewedGroup) {
+        return (
+          <div className="studio-empty">
+            <div>
+              <strong>{settingsLanguagePreference === 'en' ? 'No experiment group yet' : settingsLanguagePreference === 'zh-TW' ? '尚無實驗組' : '尚无实验组'}</strong>
+              <p>{settingsLanguagePreference === 'en' ? 'Create an experiment group to review its process and results.' : settingsLanguagePreference === 'zh-TW' ? '建立實驗組後，可在此查看過程與結果。' : '创建实验组后，可在这里查看过程与结果。'}</p>
+            </div>
+          </div>
+        );
+      }
+      const storedTrialId = groupCollection.lastViewedTrialIdByGroupId[viewedGroup.id] ?? null;
+      const requestedReviewTrialId = viewedGroup.runSeries.trials.some((trial) => trial.id === storedTrialId)
+        ? storedTrialId
+        : viewedGroup.runSeries.trials[0]?.id ?? null;
+      const theoreticalGamma = viewedGroup.parameterSnapshot?.physics.gamma ?? activeFile.theoreticalGamma;
+      const calculationSession = viewedGroup.calculation?.kind === 'real-interactive'
+        ? viewedGroup.calculation.session
+        : null;
       const review = selectHeatCapacityFreeProcessReview({
-        trials: displayedDomain.trials,
-        traceStore: displayedDomain.traceStore,
-        theoreticalGamma: activeFile.theoreticalGamma,
+        trials: viewedGroup.runSeries.trials,
+        traceStore: viewedGroup.runSeries.traceStore,
+        theoreticalGamma,
         selectedTrialId: requestedReviewTrialId,
+        calculationSession,
+        scoringVersion: viewedGroup.scoringVersion,
       });
       return (
         <div className="studio-heat-review-with-scheme">
-          <div className="studio-heat-review-scheme-row">
-            <HeatCapacityFreeDisplaySchemeMenu
-              value={activeFile.heatCapacityFreeDisplayScheme}
-              label={`${heatCapacityFreeSharedText.realSimulation[settingsLanguagePreference]} / ${heatCapacityFreeSharedText.idealProfile[settingsLanguagePreference]}`}
-              realLabel={heatCapacityFreeSharedText.realSimulation[settingsLanguagePreference]}
-              idealLabel={heatCapacityFreeSharedText.idealProfile[settingsLanguagePreference]}
-              onChange={(scheme) => {
-                updateActiveFile((file) => (
-                  file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
-                    ? setHeatCapacityFreeDisplaySchemeWorkbenchState(file, scheme, Date.now())
-                    : file
-                ));
-              }}
-            />
-          </div>
+          <HeatCapacityExperimentGroupContextBar
+            collection={groupCollection}
+            language={settingsLanguagePreference}
+            onViewedGroupChange={(groupId) => {
+              setPendingRemoveHeatCapacityTrialRecord(null);
+              updateActiveFile((file) => (
+                file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+                  ? selectHeatCapacityFreeViewedExperimentGroupWorkbenchState(file, groupId, Date.now())
+                  : file
+              ));
+            }}
+            onViewedTrialChange={(groupId, trialId) => {
+              updateActiveFile((file) => (
+                file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+                  ? selectHeatCapacityFreeViewedTrialWorkbenchState(file, groupId, trialId, Date.now())
+                  : file
+              ));
+            }}
+          />
           <HeatCapacityProcessReviewPanel
             mode={activeFile.heatCapacityMode}
             review={review}
             selectedTrialId={review.selectedTrialId}
             language={settingsLanguagePreference}
-            isIdealExperimentReview={activeFile.heatCapacityFreeDisplayScheme === 'ideal'}
+            isIdealExperimentReview={viewedGroup.scheme === 'ideal'}
             onSelectedTrialChange={(trialId) => {
-              setHeatCapacityReviewSelectionByFileId((previous) => ({
-                ...previous,
-                [reviewSelectionKey]: { selectedTrialId: trialId, userSelected: true },
-              }));
+              updateActiveFile((file) => (
+                file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+                  ? selectHeatCapacityFreeViewedTrialWorkbenchState(file, viewedGroup.id, trialId, Date.now())
+                  : file
+              ));
             }}
+          />
+          <HeatCapacityGroupResultsPanel
+            group={viewedGroup}
+            collection={groupCollection}
+            language={settingsLanguagePreference}
           />
         </div>
       );
@@ -21371,14 +21666,28 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           pendingRemoveTrialRecord={pendingRemoveHeatCapacityTrialRecord}
           onRemoveTrialRecord={requestRemoveHeatCapacityTrialRecord}
           onCancelRemoveTrialRecord={() => setPendingRemoveHeatCapacityTrialRecord(null)}
-          heatCapacityFreeDisplayScheme={activeFile.heatCapacityFreeDisplayScheme}
-          onHeatCapacityFreeDisplaySchemeChange={(scheme) => {
+          groupCollection={activeFile.heatCapacityFreeExperimentGroups}
+          onViewedGroupChange={(groupId) => {
+            setPendingRemoveHeatCapacityTrialRecord(null);
             updateActiveFile((file) => (
               file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
-                ? setHeatCapacityFreeDisplaySchemeWorkbenchState(file, scheme, Date.now())
+                ? selectHeatCapacityFreeViewedExperimentGroupWorkbenchState(file, groupId, Date.now())
                 : file
             ));
           }}
+          onViewedTrialChange={(groupId, trialId) => {
+            updateActiveFile((file) => (
+              file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+                ? selectHeatCapacityFreeViewedTrialWorkbenchState(file, groupId, trialId, Date.now())
+                : file
+            ));
+          }}
+          exportInProgress={exportInProgress}
+          canExportReport={isExportModeDataReady('report')}
+          canExportFigures={isExportModeDataReady('figuresZip')}
+          onExportExperimentPackage={() => { void handleExportAction('completeBundle'); }}
+          onExportReport={openHeatCapacityReportExport}
+          onExportFigures={() => { void handleExportAction('figuresZip'); }}
         />
       );
     }
@@ -21539,7 +21848,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     if (activeFile.kind !== 'heatCapacity' || activeFile.openHeatCapacityTabs.length === 0) return null;
     const materialTabOrder = getHeatCapacityMaterialsTabOrder(activeFile);
     const openTabs = activeFile.openHeatCapacityTabs
-      .filter((tabId) => tabId !== 'records' && materialTabOrder.includes(tabId))
+      .filter((tabId) => materialTabOrder.includes(tabId))
       .map((tabId) => {
         const panel = getHeatCapacityTabDefinition(tabId);
         return panel ? { tabId, panel } : null;
@@ -22079,10 +22388,23 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       <HeatCapacityBatchSetupDialog
         open={heatCapacityBatchSetupOpen}
         language={settingsLanguagePreference}
+        purpose={heatCapacityBatchSetupPurpose}
+        scheme={activeHeatCapacityNextScheme}
         selectedCount={heatCapacityBatchSetupSelection}
         onSelectedCountChange={setHeatCapacityBatchSetupSelection}
         onCancel={cancelHeatCapacityFreeBatchSetup}
         onConfirm={confirmHeatCapacityFreeBatchSetup}
+      />
+      <HeatCapacityReportExportDialog
+        open={heatCapacityReportExportOpen && activeFile.kind === 'heatCapacity'}
+        groups={activeFile.kind === 'heatCapacity'
+          ? activeFile.heatCapacityFreeExperimentGroups.groups
+          : []}
+        selectedGroupIds={heatCapacityReportSelectedGroupIds}
+        language={settingsLanguagePreference}
+        onSelectionChange={setHeatCapacityReportSelectedGroupIds}
+        onCancel={() => setHeatCapacityReportExportOpen(false)}
+        onConfirm={confirmHeatCapacityReportExport}
       />
       <HeatCapacityCalculationWindow
         open={heatCapacityCalculationWindowOpen}

@@ -710,6 +710,16 @@ const getFreeCollectionCopies = (store: unknown) => {
   const freeSnapshot = getEntryRecord(store, 'free').snapshot as Record<string, unknown>;
   const runtime = freeSnapshot.free as Record<string, unknown>;
   const domain = runtime.heatCapacityFreeRealDomain as Record<string, unknown>;
+  const experimentGroups = runtime.heatCapacityFreeExperimentGroups as Record<string, unknown>;
+  const groupCopies = (experimentGroups.groups as Record<string, unknown>[] ?? []).map(
+    (group) => {
+      const runSeries = group.runSeries as Record<string, unknown>;
+      return {
+        traceStore: runSeries.traceStore as Record<string, unknown>,
+        trials: runSeries.trials as Record<string, unknown>[],
+      };
+    },
+  );
   return [
     {
       traceStore: runtime.heatCapacityFreeTraceStore as Record<string, unknown>,
@@ -719,6 +729,7 @@ const getFreeCollectionCopies = (store: unknown) => {
       traceStore: domain.traceStore as Record<string, unknown>,
       trials: domain.trials as Record<string, unknown>[],
     },
+    ...groupCopies,
   ];
 };
 
@@ -767,6 +778,16 @@ for (const collection of getFreeCollectionCopies(
   const correctedSignals = collection.trials[0]
     .correctedSignals as Record<string, unknown>;
   correctedSignals.calculationVersion = 'log-pressure-v99';
+}
+for (const trials of [
+  staleSuspendedSignalCache.heatCapacityFreeTrials,
+  staleSuspendedSignalCache.heatCapacityFreeRealDomain.trials,
+  ...staleSuspendedSignalCache.heatCapacityFreeExperimentGroups.groups.map(
+    (group) => group.runSeries.trials,
+  ),
+]) {
+  const correctedSignals = trials[0]?.correctedSignals as unknown as Record<string, unknown> | null;
+  if (correctedSignals) correctedSignals.calculationVersion = 'log-pressure-v99';
 }
 const repairedSuspendedSignalCache =
   projectWorkbenchPersistenceV3File(

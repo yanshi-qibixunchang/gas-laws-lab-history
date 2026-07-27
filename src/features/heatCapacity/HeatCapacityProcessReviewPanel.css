@@ -815,6 +815,16 @@
   display: grid;
 }
 
+.hpr-scoring-rule-note {
+  border-bottom: 1px solid var(--hpr-border-soft);
+  background: var(--hpr-process-note-bg);
+  color: var(--hpr-muted);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
 .hpr-diagnosis-row {
   display: grid;
   grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 72px;

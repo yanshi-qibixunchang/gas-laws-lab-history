@@ -125,8 +125,8 @@ guideFile = submitHeatCapacityCalculationStepWorkbenchState(
 guideSession = getHeatCapacityCalculationSession(guideFile);
 assert.equal(
   guideSession!.groups[0].fields.find((field) => field.id === firstField.id)!.answer.awardedRatio,
-  0.3,
-  'a valid wrong confirmation keeps only the base score after a later correct answer',
+  0.6,
+  'a numeric correction earns 60% after a later correct answer',
 );
 
 while (getHeatCapacityCalculationSession(guideFile)?.status === 'in-progress') {

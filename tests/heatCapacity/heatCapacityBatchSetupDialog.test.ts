@@ -27,12 +27,22 @@ const shellSource = readFileSync(join(
 assert.match(
   componentSource,
   /HEAT_CAPACITY_BATCH_GROUP_COUNT_OPTIONS\s*=\s*\[3,\s*4,\s*5,\s*6,\s*7\]\s*as const/,
-  'batch setup should expose exactly the approved 3-to-7 group options',
+  'group setup should expose exactly the approved 3-to-7 experiment-count options',
 );
 assert.match(
   componentSource,
-  /placeholder:\s*'请选择实验组数'/,
-  'Simplified Chinese should default to the approved group-count placeholder',
+  /placeholder:\s*'请选择实验次数'/,
+  'Simplified Chinese should use the approved experiment-count terminology',
+);
+assert.match(
+  componentSource,
+  /schemeTitle:[\s\S]*下一组方案[\s\S]*data-heat-capacity-batch-setup-scheme="true"[\s\S]*scheme === 'ideal'/,
+  'the confirmation dialog should identify the selected scheme for the next group',
+);
+assert.match(
+  componentSource,
+  /当前实验组将保留为只读记录[\s\S]*数据、计算、过程回顾和图像将切换到暂无数据的新组/,
+  'the next-group confirmation should explain the exact history and result-context transition',
 );
 assert.match(componentSource, /'zh-CN':[\s\S]*'zh-TW':[\s\S]*en:/, 'all three workbench languages should be provided');
 assert.match(componentSource, /<PromptDialogShell[\s\S]*role="dialog"/, 'setup should use the shared task-dialog shell');

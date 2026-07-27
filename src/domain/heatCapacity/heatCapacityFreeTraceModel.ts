@@ -25,7 +25,8 @@ export const HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S = 0.04;
 export const FREE_TRACE_MAX_SAMPLES_PER_TRIAL = 800;
 export const FREE_TRACE_MAX_EVENTS_PER_BRANCH = 320;
 export const FREE_TRACE_MAX_BRANCHES_PER_TRIAL = 4;
-export const FREE_TRACE_MAX_COMPLETED_TRIALS_PER_DOMAIN = 7;
+/** @deprecated 历史实验不再设置跨实验组的 trace 数量上限。 */
+export const FREE_TRACE_MAX_COMPLETED_TRIALS_PER_DOMAIN = Number.POSITIVE_INFINITY;
 export const HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION = 1 as const;
 
 export const FREE_TRACE_SIMILAR_PRESSURE_DELTA_MV = 0.2;
@@ -848,72 +849,16 @@ export const compactFreeTraceStore = (
   ))
     ? store.activeTraceTrialId
     : fallbackActiveTrialId;
-  const completedTrials = compactedTrials.filter((trial) => (
-    trial.status === 'completed'
+  const normalizedTrials = compactedTrials.map((trial) => (
+    trial.status === 'active' && trial.id !== activeTrialId
+      ? { ...trial, status: 'discarded' as const }
+      : trial
   ));
-  const retainedCompletedIds = new Set(
-    completedTrials.slice(
-      -FREE_TRACE_MAX_COMPLETED_TRIALS_PER_DOMAIN,
-    ).map((trial) => trial.id),
-  );
-  const retainedTrials = compactedTrials.filter((trial) => (
-    trial.id === activeTrialId ||
-    (
-      trial.status === 'completed' &&
-      retainedCompletedIds.has(trial.id)
-    )
-  ));
-  const retainedIds = new Set(retainedTrials.map((trial) => trial.id));
-  const droppedTrials = compactedTrials.filter((trial) => (
-    !retainedIds.has(trial.id)
-  ));
-  if (droppedTrials.length === 0) {
-    return {
-      ...store,
-      activeTraceTrialId: activeTrialId,
-      traceTrials: retainedTrials,
-      compaction: store.compaction ?? createDefaultStoreCompaction(),
-    };
-  }
-  const current = store.compaction ?? createDefaultStoreCompaction();
   return {
     ...store,
     activeTraceTrialId: activeTrialId,
-    traceTrials: retainedTrials,
-    compaction: {
-      version: HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
-      droppedTrialCount: current.droppedTrialCount + droppedTrials.length,
-      droppedBranchCount: current.droppedBranchCount +
-        droppedTrials.reduce(
-          (total, trial) => total + getFreeTraceTrialBranchCount(trial),
-          0,
-        ),
-      droppedSampleCount: current.droppedSampleCount +
-        droppedTrials.reduce(
-          (total, trial) => total + trial.branches.reduce(
-            (branchTotal, branch) => (
-              branchTotal + getTraceBranchTotalSampleCount(branch)
-            ),
-            trial.branchCompaction?.droppedSampleCount ?? 0,
-          ),
-          0,
-        ),
-      droppedEventCount: current.droppedEventCount +
-        droppedTrials.reduce(
-          (total, trial) => total + trial.branches.reduce(
-            (branchTotal, branch) => (
-              branchTotal + getTraceBranchTotalEventCount(branch)
-            ),
-            trial.branchCompaction?.droppedEventCount ?? 0,
-          ),
-          0,
-        ),
-      firstDroppedTrialId:
-        current.firstDroppedTrialId ?? droppedTrials[0]?.id ?? null,
-      lastDroppedTrialId:
-        droppedTrials[droppedTrials.length - 1]?.id ??
-        current.lastDroppedTrialId,
-    },
+    traceTrials: normalizedTrials,
+    compaction: store.compaction ?? createDefaultStoreCompaction(),
   };
 };
 

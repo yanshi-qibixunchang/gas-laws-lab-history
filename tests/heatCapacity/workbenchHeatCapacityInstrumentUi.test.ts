@@ -292,6 +292,16 @@ assert.match(
 );
 assert.match(
   workbenchSource,
+  /calculationSession,\s*scoringVersion:\s*viewedGroup\.scoringVersion/,
+  'process review should receive the viewed experiment group calculation session and scoring version',
+);
+assert.match(
+  processReviewPanelSource,
+  /本组总分 = 各次实验操作分的平均值（75 分）\+ 本组计算（25 分）[\s\S]*首次正确 100%[\s\S]*仅修正有效数字 80%[\s\S]*数值纠错 60%[\s\S]*查看答案 20%/,
+  'the visible scoring details should explain the 75/25 split and calculation answer credit',
+);
+assert.match(
+  workbenchSource,
   /demoProgressLabel:\s*'推进标准'/,
   'auto demo step panel should label the real-world progress criterion separately from the target control',
 );
@@ -763,18 +773,23 @@ assert.match(workbenchSource, /data-heat-capacity-free-record-controls="true"/, 
 assert.match(workbenchSource, /data-heat-capacity-mode-action="reset-free"/, 'Free Mode should expose an icon-only reset action in the mode control');
 assert.match(workbenchSource, /data-heat-capacity-mode-action="reset-guide"/, 'Guide Mode should expose its own reset action in the mode control');
 assert.match(workbenchSource, /data-heat-capacity-mode-action="exit-free"[\s\S]*exitHeatCapacityFormalModeToExplore\('free'\)/, 'Free Mode should expose an explicit exit action that returns to Explore');
-assert.doesNotMatch(workbenchSource, /data-heat-capacity-mode-action="next-free-group"/, 'Free Mode should no longer expose a manual Next Group action');
+assert.match(workbenchSource, /<HeatCapacityBatchProgress[\s\S]*onStartNextGroup=\{openNextHeatCapacityFreeExperimentGroupSetup\}/, 'a completed Free Mode group should wire the approved next-group action below the view control');
+assert.match(
+  workbenchSource,
+  /heatCapacityRealtimeCopy\.trialBadge\([\s\S]*activeHeatCapacityFreeBatchProgress\?\.currentGroupNumber[\s\S]*Math\.max\(1, getActiveHeatCapacityFreeTrialIndex\(activeFile\) \+ 1\)/,
+  'the live-data badge should show experiment 1 while the current group is still a draft instead of experiment 0',
+);
 assert.match(
   workbenchSource,
   /const updateHeatCapacityPower[\s\S]*startNextHeatCapacityFreeExperimentGroupWorkbenchState\(nextFile, now\)/,
-  'powering off a completed non-final group should initialize the next group automatically',
+  'powering off a completed non-final experiment should initialize the next experiment in the current group automatically',
 );
 assert.match(workbenchSource, /resetHeatCapacityFreeRun/, 'Free Mode reset action should use an explicit handler instead of piggybacking on mode entry');
 assert.match(workbenchSource, /resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState\(file, now\)/, 'Free Mode reset should reset only the current group and preserve completed results');
 assert.match(
   workbenchSource,
-  /interactionLocked=\{[\s\S]*activeHeatCapacityFreeBatchProgress\?\.allGroupsRecorded === true/,
-  'a completed Free batch should leave the experiment file read-only',
+  /interactionLocked=\{[\s\S]*activeHeatCapacityCurrentGroup === null[\s\S]*activeHeatCapacityCurrentGroup\.status !== 'draft'[\s\S]*activeHeatCapacityCurrentGroup\.status !== 'collecting'/,
+  'the instrument should become read-only while a group awaits processing or after that group is completed',
 );
 assert.match(workbenchSource, /resetHeatCapacityFreeRun[\s\S]*setHeatCapacityFocusResetKey\(\(key\) => key \+ 1\)/, 'Free Mode reset should return the 3D preview camera to its default view');
 assert.match(stateSource, /resetHeatCapacityFreeRunWorkbenchStateCore[\s\S]*resolveHeatCapacityFreeResetStructure\(file\)[\s\S]*powerOn:\s*false[\s\S]*stopcockAngleDeg:\s*HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG[\s\S]*pumpValveOpen:\s*false[\s\S]*heatCapacityFreeTrials:\s*resetStructure\.heatCapacityFreeTrials/, 'Free Mode reset should clear the current run and return apparatus controls to their initial state without deleting completed Free groups');
@@ -804,12 +819,12 @@ assert.match(leftPanelSource, /freeRecording:\s*\{/, 'Free record table copy sho
 assert.match(leftPanelSource, /dataAndResultsTitle:\s*'数据与结果'/, 'Free merged data panel should expose a localized Data & Results title');
 assert.match(leftPanelSource, /renderFreeDataAndResultsTab = \(\s*file:[\s\S]*copy: LocalizedText/, 'Free data/result page should receive localized copy instead of hard-coded English');
 assert.match(leftPanelSource, /copy\.freeRecording\.(title|source|automaticCandidate|emptyRecords|trial)/, 'Free record table should render localized Free recording labels');
-assert.match(leftPanelSource, /summaryLine:\s*\(\s*theoreticalGamma:\s*string,\s*trialCount:\s*number,\s*meanGamma:\s*string,\s*relativeError:\s*string\s*\) => `理论 γ = \$\{theoreticalGamma\}　实验组数 = \$\{trialCount\}　平均 γ = \$\{meanGamma\}　相对误差 = \$\{relativeError\}`/, 'Free result summary should use the approved one-line Simplified Chinese wording');
+assert.match(leftPanelSource, /summaryLine:\s*\(\s*theoreticalGamma:\s*string,\s*trialCount:\s*number,\s*meanGamma:\s*string,\s*relativeError:\s*string\s*\) => `理论 γ = \$\{theoreticalGamma\}　有效实验次数 = \$\{trialCount\}　平均 γ = \$\{meanGamma\}　相对误差 = \$\{relativeError\}`/, 'Free result summary should use experiment-count terminology in the approved one-line Simplified Chinese wording');
 assert.match(leftPanelSource, /renderFreeDataAndResultsTab = \(\s*file:[\s\S]*pendingRemoveTrialRecord:[\s\S]*onRemoveTrialRecord:[\s\S]*onCancelRemoveTrialRecord:/, 'Free data/result page should receive deletion confirmation callbacks');
 assert.match(leftPanelSource, /selectDisplayedHeatCapacityFreeDomain\(file\)[\s\S]*calculateFreeHeatCapacityMeanResult\(displayedTrials/, 'Free data/result page should calculate γ and mean automatically from the selected display domain');
 assert.match(leftPanelSource, /data-heat-capacity-free-result-summary="true"/, 'Free data/result page should include the derived result summary in the merged panel');
-assert.match(leftPanelSource, /copy\.freeRecording\.summaryLine\([\s\S]*displayedTheoreticalGamma[\s\S]*result\.validTrialCount[\s\S]*result\.meanGamma[\s\S]*result\.relativeErrorPercent/, 'Free result summary should render one localized summary line with theory, group count, mean gamma, and relative error');
-assert.match(leftPanelSource, /getHeatCapacityFreeDisplayTheoreticalGamma/, 'Free data/result page should resolve theoretical gamma from the displayed domain instead of the file top-level value');
+assert.match(leftPanelSource, /copy\.freeRecording\.summaryLine\([\s\S]*displayedTheoreticalGamma[\s\S]*result\.validTrialCount[\s\S]*result\.meanGamma[\s\S]*result\.relativeErrorPercent/, 'Free result summary should render one localized summary line with theory, experiment count, mean gamma, and relative error');
+assert.match(leftPanelSource, /viewedGroup\?\.parameterSnapshot\?\.physics\.gamma \?\? file\.theoreticalGamma/, 'Free data/result page should use the viewed experiment group parameter snapshot for theoretical gamma');
 assert.doesNotMatch(freeResultSummarySection, /file\.theoreticalGamma/, 'Free data/result summary should not use the file top-level gamma when the displayed domain is ideal');
 assert.match(leftPanelSource, /formatPercent\(result\.relativeErrorPercent\)/, 'Free result summary should format relative error through the shared percent formatter');
 assert.doesNotMatch(freeResultSummarySection, /<span>\{copy\.freeRecording\.resultSummaryTitle\}<\/span>|<span>\{result\.message\}<\/span>|γair =|γmean =/, 'Free result summary should not split into multiple table-like cells or show internal English result messages');
@@ -1858,6 +1873,9 @@ assert.doesNotMatch(workbenchSource, /bezierCurveTo|quadraticCurveTo|studio-heat
 assert.equal(existsSync(join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityTraceChart.tsx')), false, 'this stable-version optimization should not add the later standalone trace chart component');
 assert.match(workbenchSource, /renderHeatCapacityMaterialsWindow/, 'Heat Capacity should have a browser-style materials/results window');
 assert.match(workbenchSource, /openAllHeatCapacityMaterialsTabs/, 'double-clicking the Heat Capacity materials group should open all child tabs');
+assert.match(workbenchSource, /const heatCapacityTabOrder = getHeatCapacityMaterialsTabOrder\(activeFile\);/, 'opening the Heat Capacity materials group should include guide, data/results, and process review even before the current group has data');
+assert.doesNotMatch(workbenchSource, /filter\(\(tabId\) => tabId !== 'records'/, 'the data/results tab should stay reachable independently from the mandatory calculation window');
+assert.doesNotMatch(workbenchSource, /tabId === 'review'[\s\S]{0,180}activeHeatCapacityCalculationSession\?\.status !== 'completed'/, 'process review should open for a new group and render its empty current-group state');
 assert.doesNotMatch(workbenchSource, /recordHeatCapacityU1|recordHeatCapacityU2|calculateHeatCapacityMeanResult|createHeatCapacityTrialFromAutoDemoSamples/, 'Heat Capacity should not keep the legacy multi-trial processing helpers');
 assert.doesNotMatch(workbenchSource, /heatCapacityExpectedTrialCount|heatCapacityExpectedTrialCountMode|heatCapacityTrials|heatCapacityActiveTrialIndex/, 'Heat Capacity files should not carry legacy expected-trial table state');
 assert.doesNotMatch(stateSource, /createHeatCapacityDemoTrialFromPreset/, 'Workbench teaching completion should not reintroduce the old retained Demo result helper');
@@ -1865,8 +1883,8 @@ assert.doesNotMatch(stateSource, /const demoTrial = createHeatCapacityDemoTrialF
 assert.match(stateSource, /createHeatCapacityAutoDemoResultTrial/, 'auto demo completion should build a clean single-trial result from the fixed teaching profile');
 assert.match(workbenchSource, /if \(action === 'completeTeachingMode'\)[\s\S]*completeHeatCapacityTeachingModeWorkbenchState\(file, now\)[\s\S]*heatCapacityMaterialsExpanded:\s*true/, 'auto demo completion should leave the completed teaching result visible until the user explicitly exits');
 assert.match(workbenchSource, /data-heat-capacity-mode-action="exit-teaching"/, 'completed Demo and Guide modes should replace stop controls with one explicit exit action');
-assert.match(leftPanelSource, /formalExperimentMultiTrialNotice:\s*'正式实验需要进行多次测量，并对各组 γᵢ 取平均值。'/, 'demo Data & Results page should teach that formal experiments require multiple averaged trials');
-assert.match(leftPanelSource, /thinkingMeanTitle:\s*'为什么多组实验应先分别计算 γᵢ，再对结果取平均？'/, 'demo Data & Results page should keep the multi-trial averaging thinking prompt as teaching content');
+assert.match(leftPanelSource, /formalExperimentMultiTrialNotice:\s*'正式实验需要进行多次测量，并对各次实验的 γᵢ 取平均值。'/, 'demo Data & Results page should teach that formal experiments require multiple averaged trials');
+assert.match(leftPanelSource, /thinkingMeanTitle:\s*'为什么多次实验应先分别计算 γᵢ，再对结果取平均？'/, 'demo Data & Results page should keep the multi-trial averaging thinking prompt as teaching content');
 assert.match(workbenchSource, /startGuideExperiment:\s*'引导模式'/, 'auto-demo completion should expose a Simplified Chinese guide-mode action');
 assert.match(workbenchSource, /startGuideExperiment:\s*'引導模式'/, 'auto-demo completion should expose a Traditional Chinese guide-mode action');
 assert.match(workbenchSource, /startGuideExperiment:\s*'Guide mode'/, 'auto-demo completion should expose an English guide-mode action');
@@ -2160,7 +2178,7 @@ assert.doesNotMatch(leftPanelSource, /renderRecordingTab[\s\S]*heatCapacityTrial
 assert.match(leftPanelSource, /onRemoveTrialRecord/, 'Free Mode data/result UI should expose a callback for removing current records and whole free-trial values');
 assert.match(leftPanelSource, /pendingRemoveTrialRecord/, 'Heat Capacity recording table should receive the pending removal confirmation state');
 assert.match(leftPanelSource, /studio-table-action-row[\s\S]*studio-table-action-confirm[\s\S]*studio-table-action-cancel/, 'Heat Capacity recording table should reuse the existing two-step table deletion styles');
-assert.match(leftPanelSource, /deleteTrial:\s*'删除本组'/, 'whole-group deletion should use the confirmed Simplified Chinese copy');
+assert.match(leftPanelSource, /deleteTrial:\s*'删除本次实验'/, 'whole-experiment deletion should use the confirmed Simplified Chinese copy');
 assert.doesNotMatch(leftPanelSource, /renderProcessSampleStatus = \([\s\S]*renderRemoveRecordButton|calculateHeatCapacityTrialResult\(trial/, 'legacy teaching record table should not remain after rebuilding mode-specific data pages');
 assert.match(stateSource, /const currentFile = stepHeatCapacityGuideWorkbenchFile\(file,\s*now\);[\s\S]*const context = getHeatCapacityGuideActionContext\(currentFile,\s*action\);[\s\S]*const guard = getHeatCapacityGuideActionGuard\(currentFile\.heatCapacityGuideWorkflow,\s*context\);[\s\S]*if \(!guard\.allowed\)/, 'record U0/U1/U2 actions should obey the latest guide-step validation and block stale visible buttons');
 assert.doesNotMatch(workbenchSource, /latestStep !== requiredStep && stepAtClick !== requiredStep/, 'stale record-ready state must not allow recording after the ideal-range guard has moved back to a waiting step');
@@ -2327,8 +2345,8 @@ assert.match(workbenchSource, /requestToggleHeatCapacityFreeParameterScheme[\s\S
 assert.match(workbenchSource, /confirmHeatCapacityIdealProfileIntro[\s\S]*isHeatCapacityFreeExperimentStarted/, 'ideal profile confirmation should re-check the latest file lock before switching schemes');
 assert.match(styleSource, /\.studio-heat-free-scheme-button-active[\s\S]*box-shadow:/, 'ideal scheme toggle should have a visible selected glow');
 assert.match(styleSource, /\.studio-heat-free-params\.is-ideal-readonly[\s\S]*opacity:/, 'ideal scheme should visibly grey out editable parameters');
-assert.match(leftPanelSource, /heatCapacityFreeDisplayScheme/, 'Heat Capacity left panel should receive the shared real-or-ideal display scheme');
-assert.match(`${leftPanelSource}\n${workbenchSource}`, /HeatCapacityFreeDisplaySchemeMenu/, 'data/results and process review panels should render the shared custom scheme menu');
+assert.match(leftPanelSource, /groupCollection:[\s\S]*selectViewedHeatCapacityFreeExperimentGroup\(groupCollection\)/, 'Heat Capacity left panel should derive the viewed real-or-ideal scheme from the selected experiment group');
+assert.match(leftPanelSource, /<HeatCapacityExperimentGroupContextBar/, 'data/results should render the shared experiment-group and experiment selector');
 assert.doesNotMatch(`${leftPanelSource}\n${workbenchSource}`, /studio-heat-free-display-scheme-select/, 'real/ideal display switching should not use the browser-native select menu');
 assert.match(styleSource, /\.studio-heat-free-display-scheme-trigger[\s\S]*\.studio-heat-free-display-scheme-menu[\s\S]*\.studio-heat-free-display-scheme-active/, 'real/ideal display menus should share the custom language-menu visual pattern');
 assert.match(`${leftPanelSource}\n${processReviewPanelSource}`, /理想实验条件不参与评分。/, 'ideal process review should explain why scoring is omitted');

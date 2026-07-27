@@ -23,6 +23,10 @@ const shellSource = readFileSync(join(
   'prompts',
   'PromptDialogShell.tsx',
 ), 'utf8');
+const guideKnownDataSource = componentSource.slice(
+  componentSource.indexOf('const buildGuideKnownData ='),
+  componentSource.indexOf('const buildGroupKnownData ='),
+);
 
 assert.match(
   componentSource,
@@ -77,9 +81,9 @@ assert.match(
   'a short known-value row should be padded on the left and therefore right-aligned',
 );
 assert.match(
-  componentSource,
-  /buildGuideKnownData[\s\S]*key: 'p0'[\s\S]*key: 's'/,
-  'guide mode should expose only P0 and S in the rightmost two strips',
+  guideKnownDataSource,
+  /buildGuideKnownData[\s\S]*key: 'u0'[\s\S]*key: 'u1'[\s\S]*key: 'u2'[\s\S]*key: 'p0'[\s\S]*key: 's'/,
+  'guide mode should expose the recorded U0, U1, and U2 values together with P0 and S',
 );
 assert.match(
   styleSource,

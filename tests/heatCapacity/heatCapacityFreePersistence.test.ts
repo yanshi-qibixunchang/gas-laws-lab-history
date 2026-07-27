@@ -231,12 +231,21 @@ const file = createDefaultHeatCapacityFile(1);
 const payload = createHeatCapacityPersistencePayload(file, 12345);
 
 assert.equal(payload.experimentKind, 'heatCapacity');
-assert.equal(payload.heatCapacitySchemaVersion, 1);
+assert.equal(payload.heatCapacitySchemaVersion, 2);
 assert.equal(payload.mode, 'free');
 assert.equal(payload.common.teachingStatus, 'idle');
 assert.equal(file.heatCapacityLessonIntroAutoShown, false);
 assert.equal(payload.common.lessonIntroAutoShown, false);
 assert.equal(payload.free?.runtimeVersion, file.heatCapacityFreeRuntimeVersion);
+assert.deepEqual(
+  payload.free?.experimentGroups.groups,
+  file.heatCapacityFreeExperimentGroups.groups,
+);
+assert.ok((payload.free?.experimentGroups.capacityEstimate.bytes ?? 0) > 0);
+assert.equal(
+  payload.free?.experimentGroups.capacityEstimate.measuredAtMs,
+  file.updatedAt,
+);
 assert.equal(payload.free?.preheatCompleted, false);
 assert.equal(payload.free?.traceVersion, file.heatCapacityFreeTraceVersion);
 assert.equal(payload.free?.parameterScheme, 'real');
@@ -498,9 +507,11 @@ assert.throws(
 
 const {
   nextTrialSequence: discardedLegacyWriterSequence,
+  scoringVersion: discardedLegacyWriterScoringVersion,
   ...legacyWriterBatchFields
 } = durableHighWaterStarted.heatCapacityFreeBatch;
 void discardedLegacyWriterSequence;
+void discardedLegacyWriterScoringVersion;
 const legacyWriterBatch = {
   ...legacyWriterBatchFields,
   version: HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION,

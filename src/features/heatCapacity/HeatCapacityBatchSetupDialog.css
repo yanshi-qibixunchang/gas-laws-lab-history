@@ -20,6 +20,28 @@
   overflow: visible;
 }
 
+.studio-heat-batch-setup-summary {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--studio-border);
+  border-radius: 5px;
+  background: var(--studio-surface-2);
+  padding: 9px 12px;
+}
+
+.studio-heat-batch-setup-summary span {
+  color: var(--studio-text-muted);
+  font-size: 12px;
+}
+
+.studio-heat-batch-setup-summary strong {
+  color: var(--studio-text);
+  font-size: 13px;
+}
+
 .studio-settings-section.studio-heat-batch-setup-section {
   position: relative;
   z-index: 1;

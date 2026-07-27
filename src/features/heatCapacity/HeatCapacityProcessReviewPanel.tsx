@@ -84,6 +84,12 @@ interface HeatCapacityProcessReviewCopy {
   upperBoundHelp: string;
   operationScore: string;
   scoreDerived: string;
+  batchScore: string;
+  batchScorePending: string;
+  legacyScoreNotice: string;
+  batchComposition: (operationScore: string, calculationScore: string) => string;
+  scoringScope: (groupLabel: string) => string;
+  scoringRule: string;
   idealScoreNotice?: string;
   retakeTitle: string;
   timeUnit: string;
@@ -212,26 +218,32 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     pressureYLabel: 'ΔP (kPa)',
     temperatureYLabel: 'ΔT (K)',
     xAxisLabel: '过程时间 (s，等待压缩)',
-    standardReferenceAssumptions: '同一参数和干扰条件下生成；标准操作窗口用于估计本组可达到的操作上限。',
+    standardReferenceAssumptions: '同一参数和干扰条件下生成；标准操作窗口用于估计本次实验可达到的操作上限。',
     standardReferenceUnavailable: '当前参数下未生成可用标准过程。',
     notFreeTitle: '过程回顾仅用于自由模式',
     notFreeBody: '演示模式和引导模式保持教学预设行为，不读取自由模式真实 trace。',
-    missingTraceTitle: '本组缺少过程 trace',
-    emptyTitle: '暂无可回顾的自由模式实验组',
+    missingTraceTitle: '本次实验缺少过程 trace',
+    emptyTitle: '本组暂无可回顾的实验',
     emptyBody: '完成 U0、U1、U2 记录后，这里会显示过程曲线、结果摘要和操作诊断。',
     summaryAria: '过程回顾摘要',
     currentReview: '当前回顾',
     trialPrefix: '第 ',
-    trialSuffix: ' 组实验',
+    trialSuffix: ' 次实验',
     freeModeLabel: '自由模式',
     mainBranchLabel: '主线',
     relativeError: '相对误差',
     upperBoundGamma: '操作上限 γ',
     upperBoundTheoryError: '上限对理论误差',
     upperBoundGap: '与上限差距',
-    upperBoundHelp: '操作上限表示同一参数和干扰条件下，标准操作可达到的参考结果，用于判断本组误差中有多少来自操作时机。若实际结果高于标准操作参考，则以实际结果作为本组操作上限。',
-    operationScore: '操作评分',
+    upperBoundHelp: '操作上限表示同一参数和干扰条件下，标准操作可达到的参考结果，用于判断本次实验误差中有多少来自操作时机。若实际结果高于标准操作参考，则以实际结果作为本次实验操作上限。',
+    operationScore: '本次实验操作分',
     scoreDerived: '基于本次 trace 派生',
+    batchScore: '本组总分',
+    batchScorePending: '完成本组计算后生成',
+    legacyScoreNotice: '旧记录沿用原操作评分',
+    batchComposition: (operationScore, calculationScore) => `操作均分 ${operationScore} · 计算 ${calculationScore}`,
+    scoringScope: (groupLabel) => `${groupLabel}操作 · 本组计算`,
+    scoringRule: '本组总分 = 各次实验操作分的平均值（75 分）+ 本组计算（25 分）。计算作答：首次正确 100%，仅修正有效数字 80%，数值纠错 60%，有效尝试后查看答案 20%，空白或无效后查看答案 0%。',
     retakeTitle: '退回 / 重录',
     timeUnit: '次',
     hiddenBranchPrefix: '隐藏分支 ',
@@ -240,10 +252,10 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     processTitle: '过程诊断图',
     incomplete: '未完成',
     retakeShort: '重录',
-    diagnosisAria: '实验诊断',
-    diagnosisTitle: '实验诊断',
+    diagnosisAria: '评分细则',
+    diagnosisTitle: '评分细则',
     groupPrefix: '第 ',
-    groupSuffix: ' 组',
+    groupSuffix: ' 次实验',
     collapse: '收起',
     expand: '展开',
     scoreDetailSuffix: '评分明细',
@@ -299,26 +311,32 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     pressureYLabel: 'ΔP (kPa)',
     temperatureYLabel: 'ΔT (K)',
     xAxisLabel: '過程時間 (s，等待壓縮)',
-    standardReferenceAssumptions: '同一參數和干擾條件下生成；標準操作窗口用於估計本組可達到的操作上限。',
+    standardReferenceAssumptions: '同一參數和干擾條件下生成；標準操作窗口用於估計本次實驗可達到的操作上限。',
     standardReferenceUnavailable: '目前參數下未生成可用標準過程。',
     notFreeTitle: '過程回顧僅用於自由模式',
     notFreeBody: '演示模式和引導模式保持教學預設行為，不讀取自由模式真實 trace。',
-    missingTraceTitle: '本組缺少過程 trace',
-    emptyTitle: '暫無可回顧的自由模式實驗組',
+    missingTraceTitle: '本次實驗缺少過程 trace',
+    emptyTitle: '本組暫無可回顧的實驗',
     emptyBody: '完成 U0、U1、U2 記錄後，這裡會顯示過程曲線、結果摘要和操作診斷。',
     summaryAria: '過程回顧摘要',
     currentReview: '目前回顧',
     trialPrefix: '第 ',
-    trialSuffix: ' 組實驗',
+    trialSuffix: ' 次實驗',
     freeModeLabel: '自由模式',
     mainBranchLabel: '主線',
     relativeError: '相對誤差',
     upperBoundGamma: '操作上限 γ',
     upperBoundTheoryError: '上限對理論誤差',
     upperBoundGap: '與上限差距',
-    upperBoundHelp: '操作上限表示同一參數和干擾條件下，標準操作可達到的參考結果，用於判斷本組誤差中有多少來自操作時機。若實際結果高於標準操作參考，則以實際結果作為本組操作上限。',
-    operationScore: '操作評分',
+    upperBoundHelp: '操作上限表示同一參數和干擾條件下，標準操作可達到的參考結果，用於判斷本次實驗誤差中有多少來自操作時機。若實際結果高於標準操作參考，則以實際結果作為本次實驗操作上限。',
+    operationScore: '本次實驗操作分',
     scoreDerived: '基於本次 trace 派生',
+    batchScore: '本組總分',
+    batchScorePending: '完成本組計算後生成',
+    legacyScoreNotice: '舊記錄沿用原操作評分',
+    batchComposition: (operationScore, calculationScore) => `操作均分 ${operationScore} · 計算 ${calculationScore}`,
+    scoringScope: (groupLabel) => `${groupLabel}操作 · 本組計算`,
+    scoringRule: '本組總分 = 各次實驗操作分的平均值（75 分）+ 本組計算（25 分）。計算作答：首次正確 100%，僅修正有效數字 80%，數值糾錯 60%，有效嘗試後查看答案 20%，空白或無效後查看答案 0%。',
     retakeTitle: '退回 / 重錄',
     timeUnit: '次',
     hiddenBranchPrefix: '隱藏分支 ',
@@ -327,10 +345,10 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     processTitle: '過程診斷圖',
     incomplete: '未完成',
     retakeShort: '重錄',
-    diagnosisAria: '實驗診斷',
-    diagnosisTitle: '實驗診斷',
+    diagnosisAria: '評分細則',
+    diagnosisTitle: '評分細則',
     groupPrefix: '第 ',
-    groupSuffix: ' 組',
+    groupSuffix: ' 次實驗',
     collapse: '收起',
     expand: '展開',
     scoreDetailSuffix: '評分明細',
@@ -404,8 +422,14 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     upperBoundTheoryError: 'Limit error vs theory',
     upperBoundGap: 'Gap to limit',
     upperBoundHelp: 'The operation limit is the reference result that standard operation can reach under the same parameters and disturbances. It shows how much of this trial error comes from operation timing. If the actual result is higher than the standard reference, the actual result becomes this trial operation limit.',
-    operationScore: 'Operation score',
+    operationScore: 'Trial operation score',
     scoreDerived: 'Derived from this trace',
+    batchScore: 'Group score',
+    batchScorePending: 'Available after this group calculation is complete',
+    legacyScoreNotice: 'Legacy records keep the original operation score',
+    batchComposition: (operationScore, calculationScore) => `Operation avg ${operationScore} · Group calculation ${calculationScore}`,
+    scoringScope: (groupLabel) => `${groupLabel} operation · group calculation`,
+    scoringRule: 'Group total = average experiment operation score (75) + group calculation (25). Calculation credit: first correct 100%, precision-only correction 80%, numeric correction 60%, reveal after a valid attempt 20%, reveal after blank or invalid input 0%.',
     retakeTitle: 'Backtrack / retake',
     timeUnit: 'times',
     hiddenBranchPrefix: 'Hidden branches ',
@@ -414,8 +438,8 @@ const heatCapacityProcessReviewCopy: Record<HeatCapacityProcessReviewLanguage, H
     processTitle: 'Process diagnostics',
     incomplete: 'Incomplete',
     retakeShort: 'retakes',
-    diagnosisAria: 'Experiment diagnostics',
-    diagnosisTitle: 'Experiment diagnostics',
+    diagnosisAria: 'Scoring details',
+    diagnosisTitle: 'Scoring details',
     groupPrefix: 'Trial ',
     groupSuffix: '',
     collapse: 'Collapse ',
@@ -460,16 +484,6 @@ const formatGroupLabel = (
   copy: HeatCapacityProcessReviewCopy,
   trialIndex: number,
 ) => `${copy.groupPrefix}${trialIndex}${copy.groupSuffix}`;
-
-const formatRetakeCount = (
-  copy: HeatCapacityProcessReviewCopy,
-  count: number,
-) => `${count} ${copy.timeUnit}`;
-
-const formatHiddenBranchCount = (
-  copy: HeatCapacityProcessReviewCopy,
-  count: number,
-) => `${copy.hiddenBranchPrefix}${count}${copy.hiddenBranchSuffix}`;
 
 const formatMetric = (
   value: number | null | undefined,
@@ -525,12 +539,14 @@ const diagnosisItemLabelsByLanguage: Record<
     release: '放氣操作',
     recording: '記錄鏈路',
     retake: '重錄情況',
+    calculation: '計算部分',
   },
   en: {
     pumping: 'Pumping process',
     release: 'Release operation',
     recording: 'Record chain',
     retake: 'Retake status',
+    calculation: 'Calculation',
   },
 };
 
@@ -551,6 +567,13 @@ const diagnosisDetailLabelsByLanguage: Record<HeatCapacityProcessReviewLanguage,
     'record-chain-timing': '記錄時機',
     'record-chain-preheat': '感測器預熱',
     'retake-count': '重錄情況',
+    'calculation-corrected-voltages': '各次實驗修正電壓',
+    'calculation-absolute-pressures': '各次實驗絕對壓強',
+    'calculation-group-gamma': '各次實驗比熱容比',
+    'calculation-mean-gamma': '平均比熱容比',
+    'calculation-sample-standard-deviation': '樣本標準偏差',
+    'calculation-type-a-uncertainty': 'A 類標準不確定度',
+    'calculation-relative-error': '相對誤差',
   },
   en: {
     'pumping-pressure-target': 'Target pressure',
@@ -567,6 +590,13 @@ const diagnosisDetailLabelsByLanguage: Record<HeatCapacityProcessReviewLanguage,
     'record-chain-timing': 'Record timing',
     'record-chain-preheat': 'Sensor preheat',
     'retake-count': 'Retake status',
+    'calculation-corrected-voltages': 'Corrected voltages by trial',
+    'calculation-absolute-pressures': 'Absolute pressures by trial',
+    'calculation-group-gamma': 'Heat-capacity ratio by trial',
+    'calculation-mean-gamma': 'Mean heat-capacity ratio',
+    'calculation-sample-standard-deviation': 'Sample standard deviation',
+    'calculation-type-a-uncertainty': 'Type A standard uncertainty',
+    'calculation-relative-error': 'Relative error',
   },
 };
 
@@ -1354,7 +1384,15 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
   }
 
   const { summary } = review;
-  const retakeText = formatRetakeCount(copy, summary.retakeCount);
+  const batchScore = review.batchScore;
+  const batchScoreDetail = batchScore !== null && batchScore.total !== null
+    ? copy.batchComposition(
+        formatScore(batchScore.operationAverage, batchScore.operationMaxScore),
+        formatScore(batchScore.calculation.total, batchScore.calculation.maxScore),
+      )
+    : batchScore !== null
+      ? copy.batchScorePending
+      : copy.legacyScoreNotice;
 
   return (
     <div className="hpr-panel">
@@ -1395,9 +1433,9 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
             <small>{isIdealExperimentReview ? idealScoreNotice : `${copy.upperBoundGap} ${formatMetric(summary.upperBoundGapPercent, 2, '%')}`}</small>
           </div>
           <div>
-            <span>{copy.retakeTitle}</span>
-            <strong>{retakeText}</strong>
-            <small>{formatHiddenBranchCount(copy, summary.retakeCount)}</small>
+            <span>{copy.batchScore}</span>
+            <strong>{isIdealExperimentReview ? '--' : formatScore(batchScore?.total, 100)}</strong>
+            <small>{isIdealExperimentReview ? idealScoreNotice : batchScoreDetail}</small>
           </div>
         </div>
       </section>
@@ -1511,8 +1549,13 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
           <div>
             <strong>{copy.diagnosisTitle}</strong>
           </div>
-          <span>{formatGroupLabel(copy, summary.trialIndex)}</span>
+          <span>{batchScore
+            ? copy.scoringScope(formatGroupLabel(copy, summary.trialIndex))
+            : formatGroupLabel(copy, summary.trialIndex)}</span>
         </div>
+        {batchScore && !isIdealExperimentReview ? (
+          <div className="hpr-scoring-rule-note">{copy.scoringRule}</div>
+        ) : null}
         <div className="hpr-diagnosis-list">
           {review.diagnostics.map((row) => {
             const localizedRow = localizeProcessDiagnosisRow(row, language, copy);

@@ -58,10 +58,10 @@ const wrongThenCorrect = submitHeatCapacityCalculationAnswer(
 );
 assert.equal(wrongThenCorrect.state.status, 'correct');
 assert.equal(wrongThenCorrect.state.referenceTone, 'success');
-assert.equal(wrongThenCorrect.state.awardedRatio, 0.3);
+assert.equal(wrongThenCorrect.state.awardedRatio, 0.6);
 assert.equal(
   calculateHeatCapacityCalculationAnswerScore(wrongThenCorrect.state, 5),
-  1.5,
+  3,
 );
 assert.equal(wrongThenCorrect.state.attempts.length, 2);
 
@@ -84,7 +84,7 @@ const precisionCorrected = submitHeatCapacityCalculationAnswer(
     rawInput: '1.400',
   },
 );
-assert.equal(precisionCorrected.state.awardedRatio, 0.3);
+assert.equal(precisionCorrected.state.awardedRatio, 0.8);
 
 const blankAttempt = submitHeatCapacityCalculationAnswer(
   createHeatCapacityCalculationAnswerState(),
@@ -115,7 +115,7 @@ const wrongRevealed = revealHeatCapacityCalculationAnswer(firstWrong.state);
 assert.equal(wrongRevealed.status, 'revealed');
 assert.equal(wrongRevealed.lastSubmittedRaw, '1.200');
 assert.equal(wrongRevealed.referenceTone, 'danger');
-assert.equal(wrongRevealed.awardedRatio, 0.3);
+assert.equal(wrongRevealed.awardedRatio, 0.2);
 
 const invalidAttempt = submitHeatCapacityCalculationAnswer(
   createHeatCapacityCalculationAnswerState(),
@@ -168,6 +168,13 @@ assert.throws(
 );
 assert.throws(
   () => createHeatCapacityCalculationAnswerState({ baseCreditRatio: 1.1 }),
+  /between 0 and 1/,
+);
+assert.throws(
+  () => createHeatCapacityCalculationAnswerState({
+    baseCreditRatio: 0.6,
+    precisionCorrectionCreditRatio: -0.1,
+  }),
   /between 0 and 1/,
 );
 

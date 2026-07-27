@@ -18,6 +18,8 @@ export type HeatCapacityBatchGroupCount = (typeof HEAT_CAPACITY_BATCH_GROUP_COUN
 export interface HeatCapacityBatchSetupDialogProps {
   open: boolean;
   language: WorkbenchLanguagePreference;
+  purpose?: 'first' | 'next';
+  scheme: 'real' | 'ideal';
   selectedCount: HeatCapacityBatchGroupCount | null;
   onSelectedCountChange: (count: HeatCapacityBatchGroupCount) => void;
   onCancel: () => void;
@@ -26,46 +28,61 @@ export interface HeatCapacityBatchSetupDialogProps {
 
 const COPY = {
   'zh-CN': {
-    title: '设置实验组数',
-    subtitle: '自由模式批次',
-    sectionTitle: '计划测量组数',
-    description: '请选择本轮计划完成的有效数据组数。全部组次完成后，将统一进入计算流程。',
-    placeholder: '请选择实验组数',
-    placeholderHint: '可选择 3 至 7 组',
-    optionLabel: (count: HeatCapacityBatchGroupCount) => `${count}组`,
-    optionHint: (count: HeatCapacityBatchGroupCount) => `完成 ${count} 组有效实验`,
-    selectedHint: (count: HeatCapacityBatchGroupCount) => `本轮需完成 ${count} 组有效实验`,
-    confirm: '开始本轮实验',
-    dialogAria: '设置自由模式实验组数',
-    selectAria: '选择本轮实验组数',
+    title: (purpose: 'first' | 'next') => purpose === 'next' ? '开始下一组实验' : '开始第一组实验',
+    subtitle: '自由模式',
+    schemeTitle: (purpose: 'first' | 'next') => purpose === 'next' ? '下一组方案' : '本组方案',
+    real: '真实模拟',
+    ideal: '理想参数',
+    sectionTitle: '本组实验次数',
+    description: (purpose: 'first' | 'next') => purpose === 'next'
+      ? '当前实验组将保留为只读记录。确认后会创建新的实验组，数据、计算、过程回顾和图像将切换到暂无数据的新组。'
+      : '请选择本组计划完成的实验次数。真实实验组在全部实验完成后进入计算，理想实验组会自动给出结果。',
+    placeholder: '请选择实验次数',
+    placeholderHint: '可选择 3 至 7 次',
+    optionLabel: (count: HeatCapacityBatchGroupCount) => `${count} 次`,
+    optionHint: (count: HeatCapacityBatchGroupCount) => `本组完成 ${count} 次实验`,
+    selectedHint: (count: HeatCapacityBatchGroupCount) => `本组需完成 ${count} 次实验`,
+    confirm: (purpose: 'first' | 'next') => purpose === 'next' ? '创建下一组' : '创建第一组',
+    dialogAria: '设置自由模式实验次数',
+    selectAria: '选择本组实验次数',
   },
   'zh-TW': {
-    title: '設定實驗組數',
-    subtitle: '自由模式批次',
-    sectionTitle: '計劃量測組數',
-    description: '請選擇本輪計劃完成的有效資料組數。全部組次完成後，將統一進入計算流程。',
-    placeholder: '請選擇實驗組數',
-    placeholderHint: '可選擇 3 至 7 組',
-    optionLabel: (count: HeatCapacityBatchGroupCount) => `${count}組`,
-    optionHint: (count: HeatCapacityBatchGroupCount) => `完成 ${count} 組有效實驗`,
-    selectedHint: (count: HeatCapacityBatchGroupCount) => `本輪需完成 ${count} 組有效實驗`,
-    confirm: '開始本輪實驗',
-    dialogAria: '設定自由模式實驗組數',
-    selectAria: '選擇本輪實驗組數',
+    title: (purpose: 'first' | 'next') => purpose === 'next' ? '開始下一組實驗' : '開始第一組實驗',
+    subtitle: '自由模式',
+    schemeTitle: (purpose: 'first' | 'next') => purpose === 'next' ? '下一組方案' : '本組方案',
+    real: '真實模擬',
+    ideal: '理想參數',
+    sectionTitle: '本組實驗次數',
+    description: (purpose: 'first' | 'next') => purpose === 'next'
+      ? '目前實驗組將保留為唯讀記錄。確認後會建立新的實驗組，資料、計算、過程回顧和圖像將切換到暫無資料的新組。'
+      : '請選擇本組計劃完成的實驗次數。真實實驗組完成後進入計算，理想實驗組會自動給出結果。',
+    placeholder: '請選擇實驗次數',
+    placeholderHint: '可選擇 3 至 7 次',
+    optionLabel: (count: HeatCapacityBatchGroupCount) => `${count} 次`,
+    optionHint: (count: HeatCapacityBatchGroupCount) => `本組完成 ${count} 次實驗`,
+    selectedHint: (count: HeatCapacityBatchGroupCount) => `本組需完成 ${count} 次實驗`,
+    confirm: (purpose: 'first' | 'next') => purpose === 'next' ? '建立下一組' : '建立第一組',
+    dialogAria: '設定自由模式實驗次數',
+    selectAria: '選擇本組實驗次數',
   },
   en: {
-    title: 'Set experiment groups',
-    subtitle: 'Free-mode batch',
-    sectionTitle: 'Planned measurement groups',
-    description: 'Choose how many valid data groups to complete in this batch. Calculation begins after all groups are finished.',
-    placeholder: 'Select experiment groups',
-    placeholderHint: 'Choose from 3 to 7 groups',
-    optionLabel: (count: HeatCapacityBatchGroupCount) => `${count} groups`,
-    optionHint: (count: HeatCapacityBatchGroupCount) => `Complete ${count} valid experiment groups`,
-    selectedHint: (count: HeatCapacityBatchGroupCount) => `${count} valid groups required for this batch`,
-    confirm: 'Start experiment batch',
-    dialogAria: 'Set the number of free-mode experiment groups',
-    selectAria: 'Select the number of experiment groups',
+    title: (purpose: 'first' | 'next') => purpose === 'next' ? 'Start next experiment group' : 'Start first experiment group',
+    subtitle: 'Free mode',
+    schemeTitle: (purpose: 'first' | 'next') => purpose === 'next' ? 'Next group scheme' : 'Group scheme',
+    real: 'Real simulation',
+    ideal: 'Ideal parameters',
+    sectionTitle: 'Experiments in this group',
+    description: (purpose: 'first' | 'next') => purpose === 'next'
+      ? 'The completed group remains read-only. Confirming creates a new group and switches data, calculations, process review, and figures to its empty state.'
+      : 'Choose how many experiments to complete in this group. Real groups continue to calculation; ideal groups produce results automatically.',
+    placeholder: 'Select experiment count',
+    placeholderHint: 'Choose from 3 to 7 experiments',
+    optionLabel: (count: HeatCapacityBatchGroupCount) => `${count} experiments`,
+    optionHint: (count: HeatCapacityBatchGroupCount) => `Complete ${count} experiments in this group`,
+    selectedHint: (count: HeatCapacityBatchGroupCount) => `${count} experiments required in this group`,
+    confirm: (purpose: 'first' | 'next') => purpose === 'next' ? 'Create next group' : 'Create first group',
+    dialogAria: 'Set the free-mode experiment count',
+    selectAria: 'Select the number of experiments in this group',
   },
 } as const;
 
@@ -78,6 +95,8 @@ const getOptionIndex = (count: HeatCapacityBatchGroupCount | null) => (
 export const HeatCapacityBatchSetupDialog = ({
   open,
   language,
+  purpose = 'first',
+  scheme,
   selectedCount,
   onSelectedCountChange,
   onCancel,
@@ -243,7 +262,7 @@ export const HeatCapacityBatchSetupDialog = ({
 
   return (
     <PromptDialogShell
-      title={copy.title}
+      title={copy.title(purpose)}
       titleId={titleId}
       subtitle={copy.subtitle}
       variant="task"
@@ -260,10 +279,14 @@ export const HeatCapacityBatchSetupDialog = ({
       overlayData={{ 'data-heat-capacity-batch-setup': 'true' }}
     >
         <div className="studio-settings-body studio-heat-batch-setup-body">
+          <div className="studio-heat-batch-setup-summary" data-heat-capacity-batch-setup-scheme="true">
+            <span>{copy.schemeTitle(purpose)}</span>
+            <strong>{scheme === 'ideal' ? copy.ideal : copy.real}</strong>
+          </div>
           <section className="studio-settings-section studio-settings-control-row studio-heat-batch-setup-section">
             <div className="studio-settings-section-title">
               <strong>{copy.sectionTitle}</strong>
-              <span id={descriptionId}>{copy.description}</span>
+              <span id={descriptionId}>{copy.description(purpose)}</span>
             </div>
             <div className="studio-settings-control-surface">
               <div
@@ -357,7 +380,7 @@ export const HeatCapacityBatchSetupDialog = ({
               if (selectedCount !== null) onConfirm();
             }}
           >
-            {copy.confirm}
+            {copy.confirm(purpose)}
           </button>
         </footer>
     </PromptDialogShell>

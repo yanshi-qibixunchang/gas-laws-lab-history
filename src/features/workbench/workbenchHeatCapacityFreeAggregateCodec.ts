@@ -910,7 +910,7 @@ export const normalizeHeatCapacityFreeRestoreTraceStoreResult = (
           isHeatCapacityRestoreRecord(branch) ? branch.id : null
         )),
       ) ||
-      normalized.branches.some((branch, branchIndex) => {
+      normalized.branches.some((_branch, branchIndex) => {
         const sourceBranch = traceTrial.branches[branchIndex];
         return !isHeatCapacityRestoreRecord(sourceBranch) ||
           !hasUniqueNonEmptyRestoreIds(
@@ -1481,6 +1481,7 @@ export const isAllowedHeatCapacityFreeDomainAggregateMigration = (
         ...sourceBatch,
         version: normalizedBatch.version,
         nextTrialSequence: normalizedBatch.nextTrialSequence,
+        scoringVersion: normalizedBatch.scoringVersion,
       };
     }
 

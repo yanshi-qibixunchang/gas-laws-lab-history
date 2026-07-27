@@ -5,6 +5,7 @@ import {
   createDefaultHeatCapacityPistonOscillationFile,
   createDefaultIdealFile,
   createDefaultStandardFile,
+  HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   type WorkbenchFileState,
 } from '../../src/features/workbench/workbenchState.ts';
 import type {
@@ -1016,6 +1017,7 @@ const downgradeLegacyModeSessionBatches = (
   ]) {
     batch.version = HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION;
     delete batch.nextTrialSequence;
+    delete batch.scoringVersion;
   }
 };
 const suspendedLegacyModeSessionV1 = structuredClone(
@@ -1397,7 +1399,7 @@ for (const {
     mutate: (freeEnvelope: WorkbenchExperimentFileEnvelopeV1) => {
       (
         freeEnvelope.payload.free as Record<string, unknown>
-      ).runtimeVersion = 6;
+      ).runtimeVersion = HEAT_CAPACITY_FREE_RUNTIME_VERSION + 1;
     },
     code: 'legacy-heat-capacity-runtime-version-future',
   },

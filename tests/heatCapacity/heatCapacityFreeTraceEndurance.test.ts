@@ -7,7 +7,6 @@ import {
   createDefaultFreeConfigSnapshot,
   createDefaultFreeTraceStore,
   createFreeTraceTrial,
-  FREE_TRACE_MAX_COMPLETED_TRIALS_PER_DOMAIN,
   FREE_TRACE_MAX_EVENTS_PER_BRANCH,
   FREE_TRACE_MAX_SAMPLES_PER_TRIAL,
   type HeatCapacityFreeEventType,
@@ -222,7 +221,7 @@ for (const pass of passes) {
   );
   assert.equal(
     pass.store.traceTrials.length,
-    FREE_TRACE_MAX_COMPLETED_TRIALS_PER_DOMAIN,
+    LOGICAL_GROUP_COUNT,
     'the seven-group recording flow should retain all seven bounded completed trials',
   );
 }

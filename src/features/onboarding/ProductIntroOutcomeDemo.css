@@ -75,9 +75,9 @@
   display: none;
 }
 
-.product-intro-outcome-review-window .hpr-diagnosis-details-shell-open[data-hpr-diagnosis-details-shell='recording'] {
+.product-intro-outcome-review-window .hpr-diagnosis-details-shell-open[data-hpr-diagnosis-details-shell='calculation'] {
   display: block;
-  max-height: var(--product-intro-outcome-recording-expand-height, 190px);
+  max-height: var(--product-intro-outcome-recording-expand-height, 270px);
   overflow: hidden;
   opacity: var(--product-intro-outcome-recording-expand-opacity, 1);
   transition: none;

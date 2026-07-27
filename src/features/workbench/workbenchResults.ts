@@ -2,6 +2,10 @@ import type { HistogramBin } from '../../shared/types';
 import type { IdealGasExperimentPoint } from '../../shared/types';
 import type { WorkbenchFileState, WorkbenchRunState } from './workbenchState.ts';
 import { getIdealGasAnalysis, getRelationXValue } from '../../domain/idealGas/idealGasExperiment.ts';
+import {
+  createHeatCapacityExportPayload,
+  type HeatCapacityExportSelection,
+} from './workbenchHeatCapacityExport.ts';
 
 export type WorkbenchExportLanguage = 'zh-CN' | 'zh-TW' | 'en';
 
@@ -406,7 +410,11 @@ export const createWorkbenchExportPayload = (
   file: WorkbenchFileState,
   mode: WorkbenchExportMode,
   language: WorkbenchExportLanguage = 'en',
+  heatCapacitySelection: HeatCapacityExportSelection = {},
 ): WorkbenchExportPayload => {
+  if (file.kind === 'heatCapacity') {
+    return createHeatCapacityExportPayload(file, mode, language, heatCapacitySelection);
+  }
   if (mode === 'pointsCsv') {
     return {
       kind: 'csv',

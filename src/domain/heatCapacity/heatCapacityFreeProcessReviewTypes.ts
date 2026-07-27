@@ -1,6 +1,11 @@
 export type HeatCapacityProcessStageId = 'zero' | 'fill' | 'pump' | 'stabilize' | 'release' | 'recover';
 export type HeatCapacityProcessRecordId = 'u0' | 'u1' | 'u2';
-export type HeatCapacityProcessDiagnosisId = 'pumping' | 'release' | 'recording' | 'retake';
+export type HeatCapacityProcessDiagnosisId =
+  | 'pumping'
+  | 'release'
+  | 'recording'
+  | 'retake'
+  | 'calculation';
 export type HeatCapacityProcessDiagnosisStatus =
   | 'reasonable'
   | 'review'
@@ -87,6 +92,21 @@ export interface HeatCapacityProcessScoreItem {
 
 export interface HeatCapacityProcessScore {
   total: number | null;
-  maxScore: 100;
+  maxScore: number;
   items: HeatCapacityProcessScoreItem[];
+}
+
+export interface HeatCapacityCalculationScore {
+  total: number | null;
+  maxScore: 25;
+  status: HeatCapacityProcessDiagnosisStatus;
+  details: HeatCapacityProcessScoreSubItem[];
+}
+
+export interface HeatCapacityFreeBatchScore {
+  total: number | null;
+  maxScore: 100;
+  operationAverage: number | null;
+  operationMaxScore: 75;
+  calculation: HeatCapacityCalculationScore;
 }
