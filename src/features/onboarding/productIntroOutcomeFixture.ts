@@ -1,6 +1,26 @@
 import {
   createDefaultFreeConfigSnapshot,
+  createDefaultFreeTraceStore,
+  HEAT_CAPACITY_FREE_CALCULATION_VERSION,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
+import {
+  calculateHeatCapacityGroupReference,
+} from '../../domain/heatCapacity/heatCapacityCalculationModel.ts';
+import {
+  createHeatCapacityCalculationWorkflowSession,
+} from '../../domain/heatCapacity/heatCapacityCalculationWorkflowModel.ts';
+import {
+  createEmptyHeatCapacityFreeBatchState,
+  HEAT_CAPACITY_FREE_SCORING_VERSION,
+} from '../../domain/heatCapacity/heatCapacityFreeBatchModel.ts';
+import type {
+  HeatCapacityFreeExperimentGroupCollection,
+  HeatCapacityFreeExperimentGroupRecord,
+} from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
+import type {
+  HeatCapacityFreeRecord,
+  HeatCapacityFreeTrial,
+} from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
   HEAT_CAPACITY_STANDARD_OPERATION,
 } from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
@@ -16,6 +36,7 @@ import type {
 } from '../../domain/heatCapacity/heatCapacityFreeProcessReviewModel.ts';
 import type {
   HeatCapacityBestRecordWindow,
+  HeatCapacityFreeBatchScore,
   HeatCapacityProcessReferencePoint,
   HeatCapacityProcessStageSegment,
 } from '../../domain/heatCapacity/heatCapacityFreeProcessReviewTypes.ts';
@@ -221,6 +242,174 @@ const DIAGNOSTICS: HeatCapacityProcessDiagnosisRow[] = [
   },
 ];
 
+const OUTCOME_GROUP_ID = 'product-intro-real-group-1';
+const OUTCOME_GROUP_CONFIG = createDefaultFreeConfigSnapshot();
+const OUTCOME_GROUP_GAMMAS = [1.393, 1.398, 1.403] as const;
+
+const OUTCOME_BATCH_SCORE: HeatCapacityFreeBatchScore = {
+  total: 100,
+  maxScore: 100,
+  operationAverage: 75,
+  operationMaxScore: 75,
+  calculation: {
+    total: 25,
+    maxScore: 25,
+    status: 'reasonable',
+    details: DIAGNOSTICS.find((row) => row.id === 'calculation')?.details ?? [],
+  },
+};
+
+const createOutcomeRecord = (
+  trialIndex: number,
+  recordId: 'u0' | 'u1' | 'u2',
+  atS: number,
+  displayPressureMv: number,
+): HeatCapacityFreeRecord => ({
+  atS,
+  displayPressureMv,
+  displayTemperatureMv: 1_499 - trialIndex * 0.03,
+  calibrationVersion: 1,
+  zeroEventId: `product-intro-zero-${trialIndex}`,
+  source: 'user',
+  phaseAtRecord: null,
+  traceTrialId: `product-intro-trace-${trialIndex}`,
+  traceBranchId: 'main',
+  traceSampleId: null,
+  eventId: `product-intro-${recordId}-${trialIndex}`,
+});
+
+const createOutcomeGroupTrial = (
+  trialIndex: number,
+  gamma: number,
+): HeatCapacityFreeTrial => {
+  const u0 = 0.1;
+  const u1 = 120.1 + (trialIndex - 2) * 0.8;
+  const u2 = 40.1 + (trialIndex - 2) * 0.3;
+  return {
+    id: `product-intro-trial-${trialIndex}`,
+    source: 'free',
+    parameterScheme: 'real',
+    batchMembership: {
+      version: 1,
+      batchId: OUTCOME_GROUP_ID,
+      sequence: trialIndex,
+    },
+    traceTrialId: `product-intro-trace-${trialIndex}`,
+    branchCount: 1,
+    automaticU0: null,
+    preheatOutcome: null,
+    u0: createOutcomeRecord(trialIndex, 'u0', 0, u0),
+    u1: createOutcomeRecord(trialIndex, 'u1', 30, u1),
+    u2: createOutcomeRecord(trialIndex, 'u2', 60, u2),
+    blockedReason: null,
+    correctedSignals: {
+      calculationVersion: HEAT_CAPACITY_FREE_CALCULATION_VERSION,
+      atmosphericPressureKPa: 101.3,
+      pressureSensitivityMvPerKPa: 20,
+      U0DisplayMv: u0,
+      U1DisplayMv: u1,
+      U2DisplayMv: u2,
+      U1CorrectedMv: u1 - u0,
+      U2CorrectedMv: u2 - u0,
+      u0Source: 'recorded',
+      formulaGamma: gamma,
+      preheatBiasGamma: 0,
+      gamma,
+    },
+    configSnapshot: OUTCOME_GROUP_CONFIG,
+    standardReferenceSnapshot: STANDARD_REFERENCE,
+    completedAtMs: 1_000 + trialIndex * 100,
+  };
+};
+
+const OUTCOME_GROUP_TRIALS = OUTCOME_GROUP_GAMMAS.map((gamma, index) => (
+  createOutcomeGroupTrial(index + 1, gamma)
+));
+
+const OUTCOME_GROUP_CALCULATION_SESSION = createHeatCapacityCalculationWorkflowSession({
+  mode: 'free',
+  presentation: 'system-readonly',
+  groups: OUTCOME_GROUP_TRIALS.map((trial) => {
+    const reference = calculateHeatCapacityGroupReference({
+      u0Mv: trial.u0?.displayPressureMv ?? 0,
+      u1Mv: trial.u1?.displayPressureMv ?? 0,
+      u2Mv: trial.u2?.displayPressureMv ?? 0,
+      atmosphericPressureKPa: OUTCOME_GROUP_CONFIG.environment.ambientPressureKPa,
+      pressureSensitivityMvPerKPa: OUTCOME_GROUP_CONFIG.sensor.pressureMvPerKPa,
+    });
+    if (reference === null) {
+      throw new Error('Product introduction group calculation reference is invalid.');
+    }
+    return { trialId: trial.id, reference };
+  }),
+  theoreticalGamma: OUTCOME_GROUP_CONFIG.physics.gamma,
+  now: 1_400,
+});
+
+const OUTCOME_GROUP: HeatCapacityFreeExperimentGroupRecord = {
+  version: 1,
+  id: OUTCOME_GROUP_ID,
+  scheme: 'real',
+  schemeGroupNumber: 1,
+  globalOrder: 1,
+  status: 'completed',
+  targetExperimentCount: 3,
+  gasType: 'air',
+  parameterSnapshot: OUTCOME_GROUP_CONFIG,
+  runSeries: {
+    batch: {
+      ...createEmptyHeatCapacityFreeBatchState(),
+      id: OUTCOME_GROUP_ID,
+      targetGroupCount: 3,
+      frozenConfigSnapshot: OUTCOME_GROUP_CONFIG,
+      configuredAtMs: 100,
+      startedAtMs: 200,
+      experimentCompletedAtMs: 1_400,
+      nextTrialSequence: 4,
+      scoringVersion: HEAT_CAPACITY_FREE_SCORING_VERSION,
+      calculationSession: OUTCOME_GROUP_CALCULATION_SESSION,
+    },
+    trials: OUTCOME_GROUP_TRIALS,
+    traceStore: createDefaultFreeTraceStore(),
+  },
+  calculation: {
+    kind: 'real-interactive',
+    session: OUTCOME_GROUP_CALCULATION_SESSION,
+  },
+  finalScore: OUTCOME_BATCH_SCORE,
+  scoringVersion: HEAT_CAPACITY_FREE_SCORING_VERSION,
+  createdAtMs: 100,
+  startedAtMs: 200,
+  acquisitionCompletedAtMs: 1_400,
+  completedAtMs: 1_500,
+  legacyCompatibility: null,
+};
+
+const OUTCOME_GROUP_COLLECTION: HeatCapacityFreeExperimentGroupCollection = {
+  version: 1,
+  groups: [OUTCOME_GROUP],
+  currentGroupId: OUTCOME_GROUP_ID,
+  viewedGroupId: OUTCOME_GROUP_ID,
+  pendingNextScheme: 'real',
+  lastViewedTrialIdByGroupId: {
+    [OUTCOME_GROUP_ID]: OUTCOME_GROUP_TRIALS[0].id,
+  },
+  nextSchemeGroupNumber: {
+    real: 2,
+    ideal: 1,
+  },
+  nextGlobalOrder: 2,
+  capacityEstimate: {
+    bytes: 0,
+    measuredAtMs: null,
+  },
+};
+
+export const createProductIntroOutcomeGroupFixture = () => ({
+  group: OUTCOME_GROUP,
+  collection: OUTCOME_GROUP_COLLECTION,
+});
+
 export const createProductIntroOutcomeReview = (): HeatCapacityFreeProcessReview => ({
   status: 'ready',
   selectedTrialId: 'product-intro-trial-1',
@@ -230,7 +419,23 @@ export const createProductIntroOutcomeReview = (): HeatCapacityFreeProcessReview
       traceTrialId: 'product-intro-trace-1',
       trialIndex: 1,
       status: 'complete',
-      gamma: 1.4,
+      gamma: OUTCOME_GROUP_GAMMAS[0],
+      retakeCount: 0,
+    },
+    {
+      trialId: 'product-intro-trial-2',
+      traceTrialId: 'product-intro-trace-2',
+      trialIndex: 2,
+      status: 'complete',
+      gamma: OUTCOME_GROUP_GAMMAS[1],
+      retakeCount: 0,
+    },
+    {
+      trialId: 'product-intro-trial-3',
+      traceTrialId: 'product-intro-trace-3',
+      trialIndex: 3,
+      status: 'complete',
+      gamma: OUTCOME_GROUP_GAMMAS[2],
       retakeCount: 0,
     },
   ],
@@ -286,16 +491,5 @@ export const createProductIntroOutcomeReview = (): HeatCapacityFreeProcessReview
     maxScore: 75,
     items: [],
   },
-  batchScore: {
-    total: 100,
-    maxScore: 100,
-    operationAverage: 75,
-    operationMaxScore: 75,
-    calculation: {
-      total: 25,
-      maxScore: 25,
-      status: 'reasonable',
-      details: DIAGNOSTICS.find((row) => row.id === 'calculation')?.details ?? [],
-    },
-  },
+  batchScore: OUTCOME_BATCH_SCORE,
 });

@@ -22,13 +22,20 @@ import {
   HEAT_CAPACITY_CALCULATION_ANSWER_SPECS,
 } from '../../domain/heatCapacity/heatCapacityCalculationValidation.ts';
 import HeatCapacityCalculationWindow from '../heatCapacity/HeatCapacityCalculationWindow.tsx';
+import HeatCapacityExperimentGroupContextBar from '../heatCapacity/HeatCapacityExperimentGroupContextBar.tsx';
+import HeatCapacityGroupResultsPanel from '../heatCapacity/HeatCapacityGroupResultsPanel.tsx';
 import HeatCapacityProcessReviewPanel from '../heatCapacity/HeatCapacityProcessReviewPanel.tsx';
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
-import { createProductIntroOutcomeReview } from './productIntroOutcomeFixture.ts';
+import {
+  createProductIntroOutcomeGroupFixture,
+  createProductIntroOutcomeReview,
+} from './productIntroOutcomeFixture.ts';
 import {
   PRODUCT_INTRO_OUTCOME_DURATION_MS,
   PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_END_MS,
   PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_START_MS,
+  PRODUCT_INTRO_OUTCOME_REPORT_RETURN_END_MS,
+  PRODUCT_INTRO_OUTCOME_REPORT_RETURN_START_MS,
   PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_END_MS,
   PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_START_MS,
   PRODUCT_INTRO_OUTCOME_TRANSITION_END_MS,
@@ -129,6 +136,7 @@ const CORRECT_VALUE = formatHeatCapacityCalculationReference(
 );
 const INCORRECT_VALUE = '92.0';
 const OUTCOME_REVIEW = createProductIntroOutcomeReview();
+const OUTCOME_GROUP_FIXTURE = createProductIntroOutcomeGroupFixture();
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 const easeInOut = (value: number) => {
@@ -215,13 +223,13 @@ const getCursorPoint = (
   }
   if (elapsedMs < PRODUCT_INTRO_OUTCOME_TRANSITION_END_MS) return confirm;
   if (elapsedMs < PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_START_MS) return reportScroll;
-  if (elapsedMs < PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_END_MS) return reportScroll;
+  if (elapsedMs < PRODUCT_INTRO_OUTCOME_REPORT_RETURN_END_MS) return reportScroll;
   if (elapsedMs < PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_START_MS) {
     return mixPoint(
       reportScroll,
       reportExpand,
-      (elapsedMs - PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_END_MS) /
-        (PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_START_MS - PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_END_MS),
+      (elapsedMs - PRODUCT_INTRO_OUTCOME_REPORT_RETURN_END_MS) /
+        (PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_START_MS - PRODUCT_INTRO_OUTCOME_REPORT_RETURN_END_MS),
     );
   }
   return reportExpand;
@@ -305,6 +313,10 @@ export const ProductIntroOutcomeDemo = ({
     (elapsedMs - PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_START_MS) /
     (PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_END_MS - PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_START_MS),
   );
+  const reportReturnProgress = easeInOut(
+    (elapsedMs - PRODUCT_INTRO_OUTCOME_REPORT_RETURN_START_MS) /
+    (PRODUCT_INTRO_OUTCOME_REPORT_RETURN_END_MS - PRODUCT_INTRO_OUTCOME_REPORT_RETURN_START_MS),
+  );
   const reportExpandProgress = easeInOut(
     (elapsedMs - PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_START_MS) /
     (PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_END_MS - PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_START_MS),
@@ -349,7 +361,13 @@ export const ProductIntroOutcomeDemo = ({
       ));
       return unchanged ? current : nextPoints;
     });
-  }, [calculationSession, reportActive, reportExpanded, reportScrollProgress]);
+  }, [
+    calculationSession,
+    reportActive,
+    reportExpanded,
+    reportReturnProgress,
+    reportScrollProgress,
+  ]);
 
   useLayoutEffect(() => {
     if (reportActive) return;
@@ -371,25 +389,37 @@ export const ProductIntroOutcomeDemo = ({
     if (!scrollNode) return;
     const updateScroll = () => {
       const maximum = Math.max(0, scrollNode.scrollHeight - scrollNode.clientHeight);
-      if (!reportExpanded) {
-        scrollNode.scrollTop = maximum * reportScrollProgress;
-        return;
-      }
       const expandButton = scrollNode.querySelector<HTMLElement>(
         '[data-hpr-diagnosis-expand="calculation"]',
       );
       if (!expandButton) {
-        scrollNode.scrollTop = maximum;
+        scrollNode.scrollTop = maximum * reportScrollProgress;
         return;
       }
       const scrollRect = scrollNode.getBoundingClientRect();
       const buttonRect = expandButton.getBoundingClientRect();
       const buttonContentTop = scrollNode.scrollTop + buttonRect.top - scrollRect.top;
-      scrollNode.scrollTop = Math.max(0, Math.min(maximum, buttonContentTop - 92));
+      const calculationTarget = Math.max(0, Math.min(maximum, buttonContentTop - 92));
+      if (reportExpanded || elapsedMs >= PRODUCT_INTRO_OUTCOME_REPORT_RETURN_END_MS) {
+        scrollNode.scrollTop = calculationTarget;
+        return;
+      }
+      if (elapsedMs < PRODUCT_INTRO_OUTCOME_REPORT_RETURN_START_MS) {
+        scrollNode.scrollTop = maximum * reportScrollProgress;
+        return;
+      }
+      scrollNode.scrollTop = maximum + (calculationTarget - maximum) * reportReturnProgress;
     };
     const frameId = window.requestAnimationFrame(updateScroll);
     return () => window.cancelAnimationFrame(frameId);
-  }, [reportActive, reportExpandProgress, reportExpanded, reportScrollProgress]);
+  }, [
+    elapsedMs,
+    reportActive,
+    reportExpandProgress,
+    reportExpanded,
+    reportReturnProgress,
+    reportScrollProgress,
+  ]);
 
   useLayoutEffect(() => {
     if (!reportActive) return;
@@ -424,8 +454,13 @@ export const ProductIntroOutcomeDemo = ({
     '--product-intro-outcome-recording-expand-opacity': reportExpandProgress.toFixed(3),
   } as CSSProperties;
   const cursorScrolling = reportActive && (
-    elapsedMs >= PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_START_MS &&
-    elapsedMs <= PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_END_MS
+    (
+      elapsedMs >= PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_START_MS &&
+      elapsedMs <= PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_END_MS
+    ) || (
+      elapsedMs >= PRODUCT_INTRO_OUTCOME_REPORT_RETURN_START_MS &&
+      elapsedMs <= PRODUCT_INTRO_OUTCOME_REPORT_RETURN_END_MS
+    )
   );
 
   return (
@@ -493,13 +528,26 @@ export const ProductIntroOutcomeDemo = ({
             ref={reportScrollRef}
             className="studio-results-body studio-heat-materials-body product-intro-outcome-review-scroll"
           >
-            <HeatCapacityProcessReviewPanel
-              mode="free"
-              review={OUTCOME_REVIEW}
-              selectedTrialId={OUTCOME_REVIEW.selectedTrialId}
-              language={language}
-              onSelectedTrialChange={() => undefined}
-            />
+            <div className="studio-heat-review-with-scheme">
+              <HeatCapacityExperimentGroupContextBar
+                collection={OUTCOME_GROUP_FIXTURE.collection}
+                language={language}
+                onViewedGroupChange={() => undefined}
+                onViewedTrialChange={() => undefined}
+              />
+              <HeatCapacityProcessReviewPanel
+                mode="free"
+                review={OUTCOME_REVIEW}
+                selectedTrialId={OUTCOME_REVIEW.selectedTrialId}
+                language={language}
+                onSelectedTrialChange={() => undefined}
+              />
+              <HeatCapacityGroupResultsPanel
+                group={OUTCOME_GROUP_FIXTURE.group}
+                collection={OUTCOME_GROUP_FIXTURE.collection}
+                language={language}
+              />
+            </div>
           </div>
         </section>
       ) : null}

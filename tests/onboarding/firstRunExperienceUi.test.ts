@@ -181,6 +181,8 @@ assert.match(outcomeVideoSource, /data-product-intro-review-playback-rate/);
 assert.match(outcomeVideoSource, /onTimeUpdate/);
 assert.match(outcomeVideoSource, /onEnded/);
 assert.match(outcomeDemoSource, /HeatCapacityCalculationWindow/);
+assert.match(outcomeDemoSource, /HeatCapacityExperimentGroupContextBar/);
+assert.match(outcomeDemoSource, /HeatCapacityGroupResultsPanel/);
 assert.match(outcomeDemoSource, /HeatCapacityProcessReviewPanel/);
 assert.match(outcomeDemoSource, /data-hpr-diagnosis-expand="calculation"/);
 assert.match(outcomeDemoSource, /data-product-intro-outcome-transition-progress/);
@@ -203,6 +205,8 @@ assert.doesNotMatch(outcomeFixtureSource, /3\/3 组|各组|整批/);
 assert.match(outcomeTimelineSource, /PRODUCT_INTRO_OUTCOME_REVIEW_PLAYBACK_MULTIPLIER = 1\.3/);
 assert.match(outcomeTimelineSource, /PRODUCT_INTRO_OUTCOME_REVIEW_PLAYBACK_RATE/);
 assert.match(outcomeTimelineSource, /PRODUCT_INTRO_OUTCOME_TRANSITION_DURATION_MS = 300/);
+assert.match(outcomeTimelineSource, /PRODUCT_INTRO_OUTCOME_REPORT_RETURN_START_MS = 8_000/);
+assert.match(outcomeTimelineSource, /PRODUCT_INTRO_OUTCOME_REPORT_RETURN_END_MS = 9_200/);
 assert.match(outcomeTimelineSource, /PRODUCT_INTRO_OUTCOME_FINAL_HOLD_MS = 1_550/);
 assert.match(
   outcomeTimelineSource,

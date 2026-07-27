@@ -7,6 +7,8 @@ const workbench = read('src/features/workbench/WorkbenchStudioPrototype.tsx');
 const leftPanel = read('src/features/heatCapacity/HeatCapacityLeftPanel.tsx');
 const contextBar = read('src/features/heatCapacity/HeatCapacityExperimentGroupContextBar.tsx');
 const resultsPanel = read('src/features/heatCapacity/HeatCapacityGroupResultsPanel.tsx');
+const groupChart = read('src/features/heatCapacity/HeatCapacityGroupLollipopChart.tsx');
+const groupResultsCss = read('src/features/heatCapacity/HeatCapacityGroupResultsPanel.css');
 const reportDialog = read('src/features/heatCapacity/HeatCapacityReportExportDialog.tsx');
 const parameterPanelModel = read('src/features/heatCapacity/heatCapacityFreeParameterPanelModel.ts');
 
@@ -49,6 +51,21 @@ assert.match(
   resultsPanel,
   /完成第 3 次实验后显示棒棒糖图[\s\S]*全部实验组结果概览[\s\S]*操作平均分[\s\S]*计算分[\s\S]*本组总分[\s\S]*overview\.points\.length >= 2/,
   'group results should show the approved lollipop threshold, overview, and 75+25 score summary',
+);
+assert.match(
+  groupChart,
+  /studio-heat-group-chart-legend-theory[\s\S]*model\.theoreticalGamma\.toFixed\(4\)[\s\S]*studio-heat-group-chart-legend-mean[\s\S]*mean\.toFixed\(4\)[\s\S]*studio-heat-group-chart-legend-uncertainty[\s\S]*uncertainty\.toFixed\(4\)/,
+  'the group chart legend should pair each visual encoding with its exact value',
+);
+assert.match(
+  groupChart,
+  /studio-heat-chart-plot-frame[\s\S]*PLOT_BOTTOM - MAJOR_TICK_LENGTH[\s\S]*PLOT_TOP \+ MAJOR_TICK_LENGTH[\s\S]*studio-heat-chart-axis-title/,
+  'the group chart should use a full plot frame, inward ticks, and explicit axis titles',
+);
+assert.match(
+  groupResultsCss,
+  /\.studio-heat-chart-axis-tick text \{[\s\S]*font-family: var\(--app-font-data\);[\s\S]*font-size: 13px;[\s\S]*\.studio-heat-chart-axis-title \{[\s\S]*font-family: var\(--app-font-ui-zh-cn\);[\s\S]*font-size: 13px;/,
+  'the group chart should reuse the process charts numeric and Chinese font system',
 );
 assert.match(
   leftPanel,
