@@ -26,7 +26,7 @@ assert.equal(PRODUCT_INTRO_WORKSPACE_DEMO_MS, 5_078);
 assert.equal(PRODUCT_INTRO_OUTCOME_CALCULATION_PLAYBACK_RATE, 0.7);
 assert.equal(PRODUCT_INTRO_OUTCOME_REVIEW_PLAYBACK_RATE, 0.91);
 assert.equal(PRODUCT_INTRO_OUTCOME_TRANSITION_END_MS, 3_900);
-assert.equal(PRODUCT_INTRO_OUTCOME_DURATION_MS, 8_700);
+assert.equal(PRODUCT_INTRO_OUTCOME_DURATION_MS, 9_500);
 assert.equal(getProductIntroOutcomePlaybackRate(3.899), 0.7);
 assert.equal(getProductIntroOutcomePlaybackRate(3.9), 0.91);
 assert.equal(PRODUCT_INTRO_CARD_COUNT, 3);

@@ -27,6 +27,10 @@ import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralS
 import { createProductIntroOutcomeReview } from './productIntroOutcomeFixture.ts';
 import {
   PRODUCT_INTRO_OUTCOME_DURATION_MS,
+  PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_END_MS,
+  PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_START_MS,
+  PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_END_MS,
+  PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_START_MS,
   PRODUCT_INTRO_OUTCOME_TRANSITION_END_MS,
   PRODUCT_INTRO_OUTCOME_TRANSITION_START_MS,
 } from './productIntroOutcomeTimeline.ts';
@@ -34,11 +38,13 @@ import './ProductIntroOutcomeDemo.css';
 
 export { PRODUCT_INTRO_OUTCOME_DURATION_MS } from './productIntroOutcomeTimeline.ts';
 
-const REPORT_SCROLL_START_MS = 4_300;
-const REPORT_SCROLL_END_MS = 6_500;
-const REPORT_EXPAND_MS = 7_150;
-const REPORT_EXPAND_END_MS = 7_950;
-const CALCULATION_SUBMIT_MS = 1_950;
+const FIRST_INPUT_START_MS = 430;
+const FIRST_INPUT_SETTLE_END_MS = 1_050;
+const SECOND_INPUT_CURSOR_ARRIVAL_MS = 1_250;
+const SECOND_INPUT_START_MS = 1_280;
+const SECOND_INPUT_SETTLE_END_MS = 1_750;
+const CONFIRM_CURSOR_ARRIVAL_MS = 2_050;
+const CALCULATION_SUBMIT_MS = 2_100;
 const REPORT_DETAILS_EXPANDED_HEIGHT_PX = 270;
 
 interface Point {
@@ -160,10 +166,10 @@ const createCalculationSessionAt = (
 ): HeatCapacityCalculationWorkflowSession => {
   const firstDraft = elapsedMs >= CALCULATION_SUBMIT_MS
     ? CORRECT_VALUE
-    : typedValueAt(CORRECT_VALUE, elapsedMs, 430, 105);
+    : typedValueAt(CORRECT_VALUE, elapsedMs, FIRST_INPUT_START_MS, 105);
   const secondDraft = elapsedMs >= CALCULATION_SUBMIT_MS
     ? INCORRECT_VALUE
-    : typedValueAt(INCORRECT_VALUE, elapsedMs, 1_140, 105);
+    : typedValueAt(INCORRECT_VALUE, elapsedMs, SECOND_INPUT_START_MS, 105);
   let session = baseCalculationSession;
   if (firstDraft) {
     session = updateHeatCapacityCalculationDraft(session, correctFieldId, firstDraft);
@@ -189,18 +195,33 @@ const getCursorPoint = (
   const start = { x: first.x + 150, y: first.y - 105 };
 
   if (elapsedMs < 350) return mixPoint(start, first, elapsedMs / 350);
-  if (elapsedMs < 880) return first;
-  if (elapsedMs < 1_100) return mixPoint(first, second, (elapsedMs - 880) / 220);
-  if (elapsedMs < 1_650) return second;
-  if (elapsedMs < 1_900) return mixPoint(second, confirm, (elapsedMs - 1_650) / 250);
+  if (elapsedMs < FIRST_INPUT_SETTLE_END_MS) return first;
+  if (elapsedMs < SECOND_INPUT_CURSOR_ARRIVAL_MS) {
+    return mixPoint(
+      first,
+      second,
+      (elapsedMs - FIRST_INPUT_SETTLE_END_MS) /
+        (SECOND_INPUT_CURSOR_ARRIVAL_MS - FIRST_INPUT_SETTLE_END_MS),
+    );
+  }
+  if (elapsedMs < SECOND_INPUT_SETTLE_END_MS) return second;
+  if (elapsedMs < CONFIRM_CURSOR_ARRIVAL_MS) {
+    return mixPoint(
+      second,
+      confirm,
+      (elapsedMs - SECOND_INPUT_SETTLE_END_MS) /
+        (CONFIRM_CURSOR_ARRIVAL_MS - SECOND_INPUT_SETTLE_END_MS),
+    );
+  }
   if (elapsedMs < PRODUCT_INTRO_OUTCOME_TRANSITION_END_MS) return confirm;
-  if (elapsedMs < REPORT_SCROLL_START_MS) return reportScroll;
-  if (elapsedMs < REPORT_SCROLL_END_MS) return reportScroll;
-  if (elapsedMs < REPORT_EXPAND_MS) {
+  if (elapsedMs < PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_START_MS) return reportScroll;
+  if (elapsedMs < PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_END_MS) return reportScroll;
+  if (elapsedMs < PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_START_MS) {
     return mixPoint(
       reportScroll,
       reportExpand,
-      (elapsedMs - REPORT_SCROLL_END_MS) / (REPORT_EXPAND_MS - REPORT_SCROLL_END_MS),
+      (elapsedMs - PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_END_MS) /
+        (PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_START_MS - PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_END_MS),
     );
   }
   return reportExpand;
@@ -208,9 +229,12 @@ const getCursorPoint = (
 
 const isCursorClicking = (elapsedMs: number) => (
   (elapsedMs >= 330 && elapsedMs <= 520) ||
-  (elapsedMs >= 1_080 && elapsedMs <= 1_260) ||
-  (elapsedMs >= 1_900 && elapsedMs <= 2_100) ||
-  (elapsedMs >= REPORT_EXPAND_MS && elapsedMs <= REPORT_EXPAND_MS + 210)
+  (elapsedMs >= 1_230 && elapsedMs <= 1_420) ||
+  (elapsedMs >= 2_030 && elapsedMs <= 2_250) ||
+  (
+    elapsedMs >= PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_START_MS &&
+    elapsedMs <= PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_START_MS + 210
+  )
 );
 
 export const ProductIntroOutcomeDemo = ({
@@ -232,7 +256,7 @@ export const ProductIntroOutcomeDemo = ({
     : Math.max(0, controlled ? controlledElapsedMs : playbackElapsedMs);
   const reportActive = elapsedMs >= PRODUCT_INTRO_OUTCOME_TRANSITION_START_MS;
   const calculationActive = elapsedMs < PRODUCT_INTRO_OUTCOME_TRANSITION_END_MS;
-  const reportExpanded = elapsedMs >= REPORT_EXPAND_MS;
+  const reportExpanded = elapsedMs >= PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_START_MS;
   const calculationSession = useMemo(
     () => createCalculationSessionAt(elapsedMs),
     [elapsedMs],
@@ -278,12 +302,12 @@ export const ProductIntroOutcomeDemo = ({
   }, [active, controlled, onComplete, paused, reducedMotion]);
 
   const reportScrollProgress = easeInOut(
-    (elapsedMs - REPORT_SCROLL_START_MS) /
-    (REPORT_SCROLL_END_MS - REPORT_SCROLL_START_MS),
+    (elapsedMs - PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_START_MS) /
+    (PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_END_MS - PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_START_MS),
   );
   const reportExpandProgress = easeInOut(
-    (elapsedMs - REPORT_EXPAND_MS) /
-    (REPORT_EXPAND_END_MS - REPORT_EXPAND_MS),
+    (elapsedMs - PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_START_MS) /
+    (PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_END_MS - PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_START_MS),
   );
   const sceneTransitionProgress = easeInOut(
     (elapsedMs - PRODUCT_INTRO_OUTCOME_TRANSITION_START_MS) /
@@ -329,9 +353,9 @@ export const ProductIntroOutcomeDemo = ({
 
   useLayoutEffect(() => {
     if (reportActive) return;
-    const focusSelector = elapsedMs < 880
+    const focusSelector = elapsedMs < FIRST_INPUT_SETTLE_END_MS
       ? `[data-heat-capacity-calculation-field="${correctFieldId}"] input`
-      : elapsedMs < 1_650
+      : elapsedMs < SECOND_INPUT_SETTLE_END_MS
         ? `[data-heat-capacity-calculation-field="${incorrectFieldId}"] input`
         : null;
     if (focusSelector) {
@@ -400,7 +424,8 @@ export const ProductIntroOutcomeDemo = ({
     '--product-intro-outcome-recording-expand-opacity': reportExpandProgress.toFixed(3),
   } as CSSProperties;
   const cursorScrolling = reportActive && (
-    elapsedMs >= REPORT_SCROLL_START_MS && elapsedMs <= REPORT_SCROLL_END_MS
+    elapsedMs >= PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_START_MS &&
+    elapsedMs <= PRODUCT_INTRO_OUTCOME_REPORT_SCROLL_END_MS
   );
 
   return (

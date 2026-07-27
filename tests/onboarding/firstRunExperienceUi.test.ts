@@ -187,6 +187,9 @@ assert.match(outcomeDemoSource, /data-product-intro-outcome-transition-progress/
 assert.match(outcomeDemoSource, /product-intro-outcome-calculation-layer/);
 assert.match(outcomeDemoSource, /product-intro-outcome-review-layer/);
 assert.match(outcomeDemoSource, /const easeCursorMotion/);
+assert.match(outcomeDemoSource, /FIRST_INPUT_SETTLE_END_MS = 1_050/);
+assert.match(outcomeDemoSource, /SECOND_INPUT_START_MS = 1_280/);
+assert.match(outcomeDemoSource, /CALCULATION_SUBMIT_MS = 2_100/);
 assert.match(outcomeDemoSource, /productIntroOutcomeDemoCopies/);
 assert.match(outcomeDemoSource, /完整过程、计算结果与本组总分/);
 assert.doesNotMatch(outcomeDemoSource, /批次总分/);
@@ -200,6 +203,11 @@ assert.doesNotMatch(outcomeFixtureSource, /3\/3 组|各组|整批/);
 assert.match(outcomeTimelineSource, /PRODUCT_INTRO_OUTCOME_REVIEW_PLAYBACK_MULTIPLIER = 1\.3/);
 assert.match(outcomeTimelineSource, /PRODUCT_INTRO_OUTCOME_REVIEW_PLAYBACK_RATE/);
 assert.match(outcomeTimelineSource, /PRODUCT_INTRO_OUTCOME_TRANSITION_DURATION_MS = 300/);
+assert.match(outcomeTimelineSource, /PRODUCT_INTRO_OUTCOME_FINAL_HOLD_MS = 1_550/);
+assert.match(
+  outcomeTimelineSource,
+  /PRODUCT_INTRO_OUTCOME_DURATION_MS = PRODUCT_INTRO_OUTCOME_REPORT_EXPAND_END_MS\s*\+ PRODUCT_INTRO_OUTCOME_FINAL_HOLD_MS/,
+);
 assert.match(outcomeCaptureSource, /controlledElapsedMs=\{elapsedMs\}/);
 assert.match(appEntrySource, /import\.meta\.env\.DEV/);
 assert.match(appEntrySource, /productIntroCapture/);
