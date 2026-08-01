@@ -1,12 +1,14 @@
 import {
   applyHeatCapacityFreeDomainToRuntimeFields,
   createDefaultHeatCapacityFile,
+  HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   mergeHeatCapacityFreeRuntimeState,
   mergeHeatCapacityGuideRuntimeState,
   type WorkbenchFileState,
   type WorkbenchHeatCapacityState,
   type WorkbenchPanelKey,
 } from './workbenchState.ts';
+import { assertNeverWorkbenchFileKind } from './workbenchFileKind.ts';
 import type {
   WorkbenchSessionState,
 } from './workbenchSession.ts';
@@ -17,6 +19,8 @@ import {
 } from './workbenchHeatCapacityPersistence.ts';
 import {
   HEAT_CAPACITY_FREE_UI_REPLAY_KEYS,
+  HEAT_CAPACITY_SCHEMA_VERSION,
+  LEGACY_HEAT_CAPACITY_SCHEMA_VERSION,
 } from './workbenchHeatCapacityPersistenceContract.ts';
 import {
   LEGACY_STANDARD_SIMULATION_SCHEMA_VERSION,
@@ -54,8 +58,14 @@ import {
 } from './workbenchPersistenceValue.ts';
 import {
   areCanonicalPersistenceValuesEqual,
+  isCanonicalPistonOscillationWorkspaceFile,
   isCanonicalStandardOrIdealWorkspaceFile,
 } from './workbenchWorkspaceFileValidation.ts';
+import {
+  createPistonOscillationPersistencePayload,
+  restorePistonOscillationFileFromPersistencePayload,
+  validatePistonOscillationPersistencePayload,
+} from './workbenchPistonOscillationPersistence.ts';
 import {
   createDefaultHeatCapacityModeSessionStore,
   createHeatCapacityCommonRuntimeShell,
@@ -67,6 +77,9 @@ import {
   restoreHeatCapacityModeSession,
   suspendHeatCapacityModeSession,
 } from './workbenchHeatCapacityModeSession.ts';
+import {
+  migrateLegacyHeatCapacityFreeExperimentGroups,
+} from './workbenchHeatCapacityExperimentGroupMigration.ts';
 import type {
   HeatCapacityFreePhysicsConfig,
 } from '../../domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
@@ -76,7 +89,11 @@ import {
   type HeatCapacityFreeTraceStore,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
+  HEAT_CAPACITY_LEGACY_423_DISPLAY_EVENT_SAMPLE_RELATION_PROVENANCE,
+} from '../../domain/heatCapacity/heatCapacityLegacyTraceCompatibility.ts';
+import {
   normalizeHeatCapacityFreeRestoreConfigSnapshot,
+  normalizeHeatCapacityFreeRestoreExperimentDomainResult,
   normalizeHeatCapacityFreeRestoreTraceStore,
   normalizeHeatCapacityFreeRestoreTrial,
 } from './workbenchHeatCapacityFreeRestoreNormalization.ts';
@@ -99,6 +116,16 @@ import {
 import {
   getHeatCapacityFreeGasTypeGamma,
 } from '../../domain/heatCapacity/heatCapacityGasTheory.ts';
+import {
+  HEAT_CAPACITY_FREE_BATCH_MAX_GROUPS,
+  HEAT_CAPACITY_FREE_BATCH_MIN_GROUPS,
+  HEAT_CAPACITY_FREE_BATCH_VERSION,
+  HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION,
+} from '../../domain/heatCapacity/heatCapacityFreeBatchModel.ts';
+import {
+  HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
+  type HeatCapacityFreeTrial,
+} from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import type {
   HeatCapacityReleaseState,
 } from '../../domain/heatCapacity/heatCapacityReleaseModel.ts';
@@ -149,6 +176,24 @@ const createUnsupportedFutureDiagnostic = (
   message: `Unsupported future workbench schema version: ${schemaVersion}.`,
 });
 
+const createFilePersistencePayload = (
+  file: WorkbenchFileState,
+  savedAt: number,
+): Record<string, unknown> => {
+  switch (file.kind) {
+    case 'standard':
+      return createStandardPersistencePayload(file, savedAt) as unknown as Record<string, unknown>;
+    case 'ideal':
+      return createIdealGasPersistencePayload(file, savedAt) as unknown as Record<string, unknown>;
+    case 'heatCapacity':
+      return createHeatCapacityPersistencePayload(file, savedAt) as unknown as Record<string, unknown>;
+    case 'heatCapacityPistonOscillation':
+      return createPistonOscillationPersistencePayload(file, savedAt) as unknown as Record<string, unknown>;
+    default:
+      return assertNeverWorkbenchFileKind(file);
+  }
+};
+
 const encodeFileEnvelope = (
   file: WorkbenchFileState,
   savedAt: number,
@@ -173,13 +218,7 @@ const encodeFileEnvelope = (
         }
       : {}),
   },
-  payload: (
-    file.kind === 'heatCapacity'
-      ? createHeatCapacityPersistencePayload(file, savedAt)
-      : file.kind === 'standard'
-        ? createStandardPersistencePayload(file, savedAt)
-        : createIdealGasPersistencePayload(file, savedAt)
-  ) as unknown as Record<string, unknown>,
+  payload: createFilePersistencePayload(file, savedAt),
 });
 
 export const encodeWorkbenchStorageEnvelope = (
@@ -289,6 +328,27 @@ const restoreIdealGasFile = (
       : [];
   }
   return restoreStandardOrIdealRuntimeFile(fileEnvelope);
+};
+
+const restorePistonOscillationFile = (
+  fileEnvelope: WorkbenchExperimentFileEnvelopeV1,
+  index: number,
+): WorkbenchFileState[] => {
+  if (fileEnvelope.kind !== 'heatCapacityPistonOscillation') return [];
+  if (!validatePistonOscillationPersistencePayload(fileEnvelope.payload).valid) return [];
+  const restored = restorePistonOscillationFileFromPersistencePayload(
+    fileEnvelope,
+    fileEnvelope.payload,
+    index,
+  );
+  const canonicalPayload = createPistonOscillationPersistencePayload(
+    restored,
+    fileEnvelope.updatedAt,
+  );
+  return areCanonicalPersistenceValuesEqual(fileEnvelope.payload, canonicalPayload) &&
+    isCanonicalPistonOscillationWorkspaceFile(restored)
+    ? [restored]
+    : [];
 };
 
 const migrateLegacyHeatCapacityFocusIdentity = (payload: Record<string, unknown>) => {
@@ -714,6 +774,7 @@ const validateLegacy423HeatCapacityPayload = (payload: Record<string, unknown>) 
 
 const LEGACY_423_HEAT_CAPACITY_TRACE_VERSION = 4;
 const LEGACY_423_HEAT_CAPACITY_CONFIG_VERSION = 7;
+const LEGACY_423_TRACE_TIME_TOLERANCE_S = 0.000001;
 
 interface TemperatureSignalMapping {
   baseMv: number;
@@ -892,6 +953,13 @@ const upgradeLegacy423ConfigSnapshot = (value: unknown) => {
   const upgraded = normalizeHeatCapacityFreeRestoreConfigSnapshot({
     ...value,
     version: HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
+    sensor: isRecord(value.sensor)
+      ? {
+          ...value.sensor,
+          temperatureMvAtAmbient: CURRENT_TEMPERATURE_SIGNAL_MAPPING.baseMv,
+          temperatureMvPerK: CURRENT_TEMPERATURE_SIGNAL_MAPPING.sensitivityMvPerK,
+        }
+      : value.sensor,
     record: upgradeLegacy423TemperatureRecordConfig(value.record, mapping),
   });
   if (!upgraded) throw new Error('v4.2.3 heat-capacity config snapshot could not be upgraded.');
@@ -919,6 +987,102 @@ const alignLegacy423ActiveConfigSnapshot = (
       ...upgraded.physics,
       stopcockFlowRate: physicsConfig.stopcockFlowRate,
     },
+  };
+};
+
+const alignLegacy423BatchFrozenConfigSnapshot = (
+  value: unknown,
+  activeRunConfigSnapshot: unknown,
+) => (
+  isRecord(value) &&
+  value.startedAtMs !== null &&
+  isRecord(activeRunConfigSnapshot)
+    ? {
+        ...value,
+        frozenConfigSnapshot: activeRunConfigSnapshot,
+      }
+    : value
+);
+
+const upgradeHistoricalUnbatchedTrialAggregate = ({
+  batch,
+  activeRunConfigSnapshot,
+  trials,
+  scheme,
+  sourceVersion,
+}: {
+  batch: unknown;
+  activeRunConfigSnapshot: unknown;
+  trials: HeatCapacityFreeTrial[];
+  scheme: 'real' | 'ideal';
+  sourceVersion: '4.2.3' | '5.1.1' | '5.1.2';
+}) => {
+  const alignedBatch = alignLegacy423BatchFrozenConfigSnapshot(
+    batch,
+    activeRunConfigSnapshot,
+  );
+  if (alignedBatch !== undefined && alignedBatch !== null) {
+    return { batch: alignedBatch, trials };
+  }
+  if (trials.length === 0) {
+    return { batch: alignedBatch, trials };
+  }
+  if (trials.length > HEAT_CAPACITY_FREE_BATCH_MAX_GROUPS) {
+    throw new Error(
+      `${sourceVersion} unbatched trials exceed the supported seven-group migration boundary.`,
+    );
+  }
+  const frozenConfigSnapshot =
+    normalizeHeatCapacityFreeRestoreConfigSnapshot(activeRunConfigSnapshot) ??
+    trials.find((trial) => trial.configSnapshot !== null)?.configSnapshot;
+  if (frozenConfigSnapshot === null || frozenConfigSnapshot === undefined) {
+    throw new Error(
+      `${sourceVersion} unbatched trials have no recoverable configuration snapshot.`,
+    );
+  }
+  const batchId =
+    `legacy-${sourceVersion}:${scheme}:${trials[0]!.id}:batch`;
+  const completedAtValues = trials.flatMap((trial) => (
+    trial.completedAtMs === null ? [] : [trial.completedAtMs]
+  ));
+  const startedAtMs = completedAtValues.length === 0
+    ? 0
+    : Math.max(0, Math.min(...completedAtValues) - 1);
+  const targetGroupCount = Math.max(
+    HEAT_CAPACITY_FREE_BATCH_MIN_GROUPS,
+    trials.length,
+  );
+  const allTargetGroupsCompleted =
+    trials.length === targetGroupCount &&
+    trials.every((trial) => (
+      trial.completedAtMs !== null &&
+      trial.u1 !== null &&
+      trial.u2 !== null &&
+      trial.correctedSignals !== null
+    ));
+  return {
+    batch: {
+      version: HEAT_CAPACITY_FREE_BATCH_VERSION,
+      nextTrialSequence: trials.length + 1,
+      scoringVersion: HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION,
+      id: batchId,
+      targetGroupCount,
+      frozenConfigSnapshot,
+      configuredAtMs: startedAtMs,
+      startedAtMs,
+      experimentCompletedAtMs: allTargetGroupsCompleted
+        ? Math.max(...completedAtValues)
+        : null,
+      calculationSession: null,
+    },
+    trials: trials.map((trial, index) => ({
+      ...trial,
+      batchMembership: {
+        version: HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
+        batchId,
+        sequence: index + 1,
+      },
+    })),
   };
 };
 
@@ -1031,10 +1195,10 @@ const upgradeLegacy423TraceBranch = (
   if (!Array.isArray(branch.samples) || !Array.isArray(branch.events)) {
     throw new Error('v4.2.3 heat-capacity trace branch is invalid.');
   }
-  const samples: Record<string, unknown>[] = branch.samples.map((sample) => (
+  const sourceSamples: Record<string, unknown>[] = branch.samples.map((sample) => (
     upgradeLegacy423TraceSample(sample, mapping)
   ));
-  const releaseSample = samples.find((sample) => (
+  const releaseSample = sourceSamples.find((sample) => (
     isRecord(sample.physical) && sample.physical.releaseStarted === true
   ));
   const existingEvents = branch.events.map((event) => {
@@ -1111,12 +1275,90 @@ const upgradeLegacy423TraceBranch = (
     });
   }
 
-  const orderedEvents = candidateEvents
-    .map((event, ordinal) => ({ event, ordinal }))
+  const sourceSampleById = new Map<string, Record<string, unknown>>();
+  for (const sample of sourceSamples) {
+    if (
+      typeof sample.id !== 'string' ||
+      !isPersistenceFiniteNumber(sample.atS) ||
+      sourceSampleById.has(sample.id)
+    ) {
+      throw new Error('v4.2.3 heat-capacity trace sample identity is invalid.');
+    }
+    sourceSampleById.set(sample.id, sample);
+  }
+
+  interface Legacy423SampleCandidate {
+    sample: Record<string, unknown>;
+    referenceKey: string;
+    ordinal: number;
+  }
+  const sampleCandidates: Legacy423SampleCandidate[] = sourceSamples.map((sample, ordinal) => ({
+    sample,
+    referenceKey: `source:${sample.id as string}`,
+    ordinal,
+  }));
+  const eventsWithSampleReferences = candidateEvents.map((event, ordinal) => {
+    if (
+      typeof event.traceSampleId !== 'string' ||
+      !isPersistenceFiniteNumber(event.atS)
+    ) {
+      throw new Error('v4.2.3 heat-capacity trace event reference is invalid.');
+    }
+    const referencedSample = sourceSampleById.get(event.traceSampleId);
+    if (!referencedSample || !isPersistenceFiniteNumber(referencedSample.atS)) {
+      throw new Error('v4.2.3 heat-capacity trace event references a missing sample.');
+    }
+    if (
+      Math.abs(event.atS - referencedSample.atS) <=
+        LEGACY_423_TRACE_TIME_TOLERANCE_S
+    ) {
+      return {
+        event,
+        ordinal,
+        sampleReferenceKey: `source:${event.traceSampleId}`,
+      };
+    }
+
+    return {
+      event: {
+        ...event,
+        payload: {
+          ...(isRecord(event.payload) ? event.payload : {}),
+          hslLegacyDisplayRelationProvenance:
+            HEAT_CAPACITY_LEGACY_423_DISPLAY_EVENT_SAMPLE_RELATION_PROVENANCE,
+          hslLegacyRelationUsage: 'display-only',
+          hslLegacySourceEventAtS: event.atS,
+          hslLegacySourceTraceSampleId: event.traceSampleId,
+          hslLegacySourceTraceSampleAtS: referencedSample.atS,
+        },
+      },
+      ordinal,
+      sampleReferenceKey: `source:${event.traceSampleId}`,
+    };
+  });
+
+  const sampleIdByReferenceKey = new Map<string, string>();
+  const samples = sampleCandidates
+    .sort((left, right) => {
+      const timeDifference = (left.sample.atS as number) - (right.sample.atS as number);
+      return Math.abs(timeDifference) > LEGACY_423_TRACE_TIME_TOLERANCE_S
+        ? timeDifference
+        : left.ordinal - right.ordinal;
+    })
+    .map(({ sample, referenceKey }, index) => {
+      const nextIndex = index + 1;
+      const nextId = `sample-${nextIndex}`;
+      sampleIdByReferenceKey.set(referenceKey, nextId);
+      return { ...sample, id: nextId, index: nextIndex };
+    });
+
+  const orderedEvents = eventsWithSampleReferences
     .sort((left, right) => {
       const timeDifference = readLegacy423TraceEventTime(left.event) -
         readLegacy423TraceEventTime(right.event);
-      if (Math.abs(timeDifference) > 0.000001) return timeDifference;
+      if (Math.abs(timeDifference) > LEGACY_423_TRACE_TIME_TOLERANCE_S) {
+        return timeDifference;
+      }
       const leftSynthesized = left.event.id === 'event-migrated-release-start';
       const rightSynthesized = right.event.id === 'event-migrated-release-start';
       if (leftSynthesized !== rightSynthesized) {
@@ -1131,18 +1373,38 @@ const upgradeLegacy423TraceBranch = (
       return left.ordinal - right.ordinal;
     });
   const eventIdMap = new Map<string, string>();
-  const events = orderedEvents.map(({ event }, index) => {
+  const events = orderedEvents.map(({ event, sampleReferenceKey }, index) => {
     const nextIndex = index + 1;
     const nextId = `event-${nextIndex}`;
+    const traceSampleId = sampleIdByReferenceKey.get(sampleReferenceKey);
+    if (!traceSampleId) {
+      throw new Error('v4.2.3 heat-capacity trace sample anchor is invalid.');
+    }
     if (typeof event.id === 'string' && event.id !== 'event-migrated-release-start') {
       eventIdMap.set(event.id, nextId);
     }
-    return { ...event, id: nextId, index: nextIndex };
+    const payload = isRecord(event.payload) &&
+      event.payload.hslLegacyDisplayRelationProvenance ===
+        HEAT_CAPACITY_LEGACY_423_DISPLAY_EVENT_SAMPLE_RELATION_PROVENANCE
+      ? {
+          ...event.payload,
+          hslLegacyLinkedTraceSampleId: traceSampleId,
+        }
+      : event.payload;
+    return {
+      ...event,
+      id: nextId,
+      index: nextIndex,
+      traceSampleId,
+      ...(payload === undefined ? {} : { payload }),
+    };
   });
   return {
     branch: {
       ...branch,
+      nextSampleIndex: samples.length + 1,
       nextEventIndex: events.length + 1,
+      lastKeptSampleId: samples[samples.length - 1]?.id ?? null,
       samples,
       events,
     },
@@ -1382,13 +1644,16 @@ const alignLegacy423TrialRecordsWithTrace = (
   const alignRecord = (recordValue: unknown, expectedEventType: string) => {
     if (!isRecord(recordValue)) return recordValue;
     const branch = traceTrial.branches.find((candidate) => candidate.id === recordValue.traceBranchId);
-    const sample = branch?.samples.find((candidate) => candidate.id === recordValue.traceSampleId);
     const eventById = branch?.events.find((candidate) => candidate.id === recordValue.eventId);
-    const event = eventById?.type === expectedEventType && eventById.traceSampleId === sample?.id
+    const event = eventById?.type === expectedEventType
       ? eventById
       : branch?.events.find((candidate) => (
-        candidate.type === expectedEventType && candidate.traceSampleId === sample?.id
+        candidate.type === expectedEventType &&
+        isPersistenceFiniteNumber(recordValue.atS) &&
+        Math.abs(candidate.atS - recordValue.atS) <=
+          LEGACY_423_TRACE_TIME_TOLERANCE_S
       ));
+    const sample = branch?.samples.find((candidate) => candidate.id === event?.traceSampleId);
     if (
       !branch || !sample || !event ||
       event.type !== expectedEventType ||
@@ -1949,6 +2214,10 @@ const upgradeLegacy423Domain = (value: unknown) => {
   const recordConfig = upgradeLegacy423TemperatureRecordConfig(value.recordConfig, sensorMapping);
   const ambientTemperatureK = (physicsConfig.environment as Record<string, unknown>)
     .ambientTemperatureK as number;
+  const activeRunConfigSnapshot = alignLegacy423ActiveConfigSnapshot(
+    value.activeRunConfigSnapshot,
+    physicsConfig,
+  );
   const traceStore = normalizeUpgradedLegacy423TraceStore(
     upgradeLegacy423TraceStore(value.traceStore),
   );
@@ -1976,12 +2245,17 @@ const upgradeLegacy423Domain = (value: unknown) => {
     traceStoreWithCompletion,
     trials,
   );
+  const aggregate = upgradeHistoricalUnbatchedTrialAggregate({
+    batch: value.batch,
+    activeRunConfigSnapshot,
+    trials,
+    scheme: value.scheme === 'ideal' ? 'ideal' : 'real',
+    sourceVersion: '4.2.3',
+  });
   return {
     ...retained,
-    activeRunConfigSnapshot: alignLegacy423ActiveConfigSnapshot(
-      value.activeRunConfigSnapshot,
-      physicsConfig,
-    ),
+    batch: aggregate.batch,
+    activeRunConfigSnapshot,
     recordConfig,
     physicsConfig,
     physicsState,
@@ -1998,7 +2272,7 @@ const upgradeLegacy423Domain = (value: unknown) => {
       sensorMapping,
     ),
     traceStore: synchronizedTraceStore,
-    trials,
+    trials: aggregate.trials,
     activeAttempt: null,
     releaseState: createLegacy423ReleaseState(value, controls),
   };
@@ -2027,6 +2301,10 @@ const upgradeLegacy423HeatCapacityPayload = (
     ? topSensorMapping
     : LEGACY_423_GUIDE_TEMPERATURE_SIGNAL_MAPPING;
   const upgradedConfig = upgradeLegacy423ConfigSnapshot(legacyConfig);
+  const topActiveRunConfigSnapshot = alignLegacy423ActiveConfigSnapshot(
+    free.activeRunConfigSnapshot,
+    upgradedTopPhysicsConfig,
+  );
   const topTraceStore = normalizeUpgradedLegacy423TraceStore(
     upgradeLegacy423TraceStore(free.traceStore),
   );
@@ -2044,6 +2322,13 @@ const upgradeLegacy423HeatCapacityPayload = (
     topTraceStoreWithCompletion,
     topTrials,
   );
+  const topAggregate = upgradeHistoricalUnbatchedTrialAggregate({
+    batch: free.batch,
+    activeRunConfigSnapshot: topActiveRunConfigSnapshot,
+    trials: topTrials,
+    scheme: free.parameterScheme === 'ideal' ? 'ideal' : 'real',
+    sourceVersion: '4.2.3',
+  });
   const topSensorState = upgradeLegacy423SensorState(
     free.sensor,
     topSensorMapping,
@@ -2201,13 +2486,11 @@ const upgradeLegacy423HeatCapacityPayload = (
       ...free,
       traceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
       preheatCompleted: true,
+      batch: topAggregate.batch,
       real: upgradeLegacy423Domain(free.real),
       ideal: upgradeLegacy423Domain(free.ideal),
       config: upgradedConfig,
-      activeRunConfigSnapshot: alignLegacy423ActiveConfigSnapshot(
-        free.activeRunConfigSnapshot,
-        upgradedTopPhysicsConfig,
-      ),
+      activeRunConfigSnapshot: topActiveRunConfigSnapshot,
       parameterDraft: upgradeLegacy423ParameterDraft(free.parameterDraft, topSensorMapping),
       recordConfig: topRecordConfig,
       runtime: topRuntime,
@@ -2219,7 +2502,7 @@ const upgradeLegacy423HeatCapacityPayload = (
         topSensorMapping,
       ),
       traceStore: synchronizedTopTraceStore,
-      trials: topTrials,
+      trials: topAggregate.trials,
       uiReplay: activeGuidedProjection
         ? {
             ...upgradedUiReplay,
@@ -2327,6 +2610,32 @@ const hasHeatCapacityUiReplayParity = (
   const canonicalFree = isRecord(canonical.free) ? canonical.free : null;
   return inputFree !== null && canonicalFree !== null &&
     areCanonicalPersistenceValuesEqual(inputFree.uiReplay, canonicalFree.uiReplay);
+};
+
+const alignHeatCapacityCapacityEstimateForCanonicalComparison = (
+  input: Record<string, unknown>,
+  canonical: unknown,
+): Record<string, unknown> => {
+  if (!isRecord(canonical)) return input;
+  const inputFree = isRecord(input.free) ? input.free : null;
+  const canonicalFree = isRecord(canonical.free) ? canonical.free : null;
+  const inputGroups = inputFree && isRecord(inputFree.experimentGroups)
+    ? inputFree.experimentGroups
+    : null;
+  const canonicalGroups = canonicalFree && isRecord(canonicalFree.experimentGroups)
+    ? canonicalFree.experimentGroups
+    : null;
+  if (!inputFree || !inputGroups || !canonicalGroups) return input;
+  return {
+    ...input,
+    free: {
+      ...inputFree,
+      experimentGroups: {
+        ...inputGroups,
+        capacityEstimate: canonicalGroups.capacityEstimate,
+      },
+    },
+  };
 };
 
 const GUIDE_STEPS_AFTER_ZERO = new Set([
@@ -2592,6 +2901,141 @@ const isPublic511BlankDemoOmission = (
   payload.guided === null
 );
 
+const normalizePublicV5ModeSessions = (
+  value: Record<string, unknown>,
+  fileId: string,
+) => {
+  const candidate = structuredClone(value);
+  const demoEntry = isRecord(candidate.demo) ? candidate.demo : null;
+  const demoSnapshot = demoEntry && isRecord(demoEntry.snapshot)
+    ? demoEntry.snapshot
+    : null;
+  const demoCommon = demoSnapshot && isRecord(demoSnapshot.common)
+    ? demoSnapshot.common
+    : null;
+  if (
+    (demoEntry?.status === 'suspended' || demoEntry?.status === 'completed') &&
+    demoCommon?.heatCapacityTeachingStatus === 'idle'
+  ) {
+    demoSnapshot!.common = {
+      ...demoCommon,
+      heatCapacityTeachingStatus:
+        demoEntry.status === 'completed' ? 'completed' : 'running',
+    };
+  }
+  const normalized = normalizeHeatCapacityModeSessionStore(candidate, fileId);
+  for (const mode of ['demo', 'guide', 'free'] as const) {
+    const sourceEntry = isRecord(candidate[mode]) ? candidate[mode] : null;
+    if (
+      sourceEntry?.status !== undefined &&
+      sourceEntry.status !== 'empty' &&
+      normalized[mode].status === 'empty'
+    ) {
+      return null;
+    }
+  }
+  return normalized;
+};
+
+const upgradePublicV5HeatCapacityTracePayload = (
+  payload: Record<string, unknown>,
+  sourceAppVersion: string,
+  index: number,
+  fileId: string,
+  fileCreatedAtMs: number,
+): Record<string, unknown> | null => {
+  if (
+    (sourceAppVersion !== '5.1.1' && sourceAppVersion !== '5.1.2') ||
+    isLegacy423HeatCapacityPayload(payload)
+  ) {
+    return payload;
+  }
+  const sourceFree = isRecord(payload.free) ? payload.free : null;
+  if (sourceFree?.traceVersion !== 5) return payload;
+  const fallback = createDefaultHeatCapacityFile(index);
+  const nextPayload = structuredClone(payload);
+  nextPayload.heatCapacitySchemaVersion = HEAT_CAPACITY_SCHEMA_VERSION;
+  const nextCommon = isRecord(nextPayload.common)
+    ? nextPayload.common as Record<string, unknown>
+    : null;
+  if (nextCommon === null || !isRecord(nextCommon.modeSessions)) {
+    return null;
+  }
+  const normalizedModeSessions = normalizePublicV5ModeSessions(
+    nextCommon.modeSessions,
+    fileId,
+  );
+  if (normalizedModeSessions === null) return null;
+  nextPayload.common = {
+    ...nextCommon,
+    modeSessions: normalizedModeSessions,
+  };
+  const nextFree = nextPayload.free as Record<string, unknown>;
+  const gasType = nextFree.gasType === 'helium' ? 'helium' : 'air';
+  for (const scheme of ['real', 'ideal'] as const) {
+    const sourceDomain = isRecord(nextFree[scheme])
+      ? nextFree[scheme] as Record<string, unknown>
+      : null;
+    if (sourceDomain === null) {
+      return null;
+    }
+    const sourceTrials = Array.isArray(sourceDomain.trials)
+      ? sourceDomain.trials.map((trial) => (
+          normalizeHeatCapacityFreeRestoreTrial(trial)
+        ))
+      : null;
+    if (
+      sourceTrials === null ||
+      sourceTrials.some((trial) => trial === null)
+    ) {
+      return null;
+    }
+    const aggregate = upgradeHistoricalUnbatchedTrialAggregate({
+      batch: sourceDomain.batch,
+      activeRunConfigSnapshot: sourceDomain.activeRunConfigSnapshot,
+      trials: sourceTrials as HeatCapacityFreeTrial[],
+      scheme,
+      sourceVersion: sourceAppVersion as '5.1.1' | '5.1.2',
+    });
+    nextFree[scheme] = {
+      ...sourceDomain,
+      batch: aggregate.batch,
+      trials: aggregate.trials,
+    };
+    const domain = normalizeHeatCapacityFreeRestoreExperimentDomainResult(
+      nextFree[scheme],
+      scheme,
+      gasType,
+      scheme === 'real'
+        ? fallback.heatCapacityFreeRealDomain
+        : fallback.heatCapacityFreeIdealDomain,
+    );
+    if (!domain.ok) {
+      return null;
+    }
+    nextFree[scheme] = domain.value;
+  }
+  const activeScheme = nextFree.parameterScheme === 'ideal'
+    ? 'ideal'
+    : 'real';
+  if (!isRecord(nextFree.experimentGroups)) {
+    nextFree.experimentGroups = migrateLegacyHeatCapacityFreeExperimentGroups({
+      fileId,
+      selectedScheme: activeScheme,
+      real: nextFree.real as WorkbenchHeatCapacityState['heatCapacityFreeRealDomain'],
+      ideal: nextFree.ideal as WorkbenchHeatCapacityState['heatCapacityFreeIdealDomain'],
+      fallbackCreatedAtMs: fileCreatedAtMs,
+    });
+  }
+  const activeDomain = nextFree[activeScheme] as
+    WorkbenchHeatCapacityState['heatCapacityFreeRealDomain'];
+  nextFree.traceVersion = HEAT_CAPACITY_FREE_TRACE_VERSION;
+  nextFree.runtimeVersion = HEAT_CAPACITY_FREE_RUNTIME_VERSION;
+  nextFree.traceStore = structuredClone(activeDomain.traceStore);
+  nextFree.trials = structuredClone(activeDomain.trials);
+  return nextPayload;
+};
+
 const restoreHeatCapacityRuntimeFile = (
   fileEnvelope: WorkbenchExperimentFileEnvelopeV1,
   index: number,
@@ -2602,13 +3046,21 @@ const restoreHeatCapacityRuntimeFile = (
   if (legacy423 && !validateLegacy423HeatCapacityPayload(fileEnvelope.payload)) return [];
   const upgradedPayload = legacy423
     ? upgradeLegacy423HeatCapacityPayload(fileEnvelope.payload)
-    : fileEnvelope.payload;
+    : upgradePublicV5HeatCapacityTracePayload(
+        fileEnvelope.payload,
+        sourceAppVersion,
+        index,
+        fileEnvelope.id,
+        fileEnvelope.createdAt,
+      );
+  if (upgradedPayload === null) return [];
   if (!validateHeatCapacityPersistencePayload(upgradedPayload).valid) return [];
-  const canonicalRuntimeShapeValid = hasCanonicalHeatCapacityRuntimeShape(
-    upgradedPayload,
-    fileEnvelope.updatedAt,
-    legacy423,
-  );
+  const canonicalRuntimeShapeValid = legacy423 ||
+    hasCanonicalHeatCapacityRuntimeShape(
+      upgradedPayload,
+      fileEnvelope.updatedAt,
+      false,
+    );
   if (!canonicalRuntimeShapeValid) return [];
   const payload = migrateLegacyHeatCapacityFocusIdentity(upgradedPayload);
   const common = isRecord(payload.common) ? payload.common : null;
@@ -2617,7 +3069,10 @@ const restoreHeatCapacityRuntimeFile = (
     common.modeSessions,
     fileEnvelope.id,
   );
-  if (!areCanonicalPersistenceValuesEqual(common.modeSessions, normalizedModeSessions)) return [];
+  if (
+    payload.heatCapacitySchemaVersion !== LEGACY_HEAT_CAPACITY_SCHEMA_VERSION &&
+    !areCanonicalPersistenceValuesEqual(common.modeSessions, normalizedModeSessions)
+  ) return [];
   const publicBlankDemoOmission = isPublic511BlankDemoOmission(
     payload,
     sourceAppVersion,
@@ -2668,7 +3123,13 @@ const restoreHeatCapacityRuntimeFile = (
           guided: canonicalPayload.guided,
         }
       : canonicalInput;
-    if (!areCanonicalPersistenceValuesEqual(expectedCurrentPayload, canonicalPayload)) return [];
+    if (!areCanonicalPersistenceValuesEqual(
+      alignHeatCapacityCapacityEstimateForCanonicalComparison(
+        expectedCurrentPayload,
+        canonicalPayload,
+      ),
+      canonicalPayload,
+    )) return [];
   }
   return [restored];
 };
@@ -2684,11 +3145,23 @@ const decodeFilesFromEnvelopes = (
   sourceAppVersion: string,
 ): DecodedWorkbenchFiles => files.reduce<DecodedWorkbenchFiles>((decoded, fileEnvelope, index) => {
   try {
-    const restoredFiles = fileEnvelope.kind === 'standard'
-      ? restoreStandardFile(fileEnvelope, index + 1)
-      : fileEnvelope.kind === 'ideal'
-        ? restoreIdealGasFile(fileEnvelope, index + 1)
-        : restoreHeatCapacityRuntimeFile(fileEnvelope, index + 1, sourceAppVersion);
+    let restoredFiles: WorkbenchFileState[];
+    switch (fileEnvelope.kind) {
+      case 'standard':
+        restoredFiles = restoreStandardFile(fileEnvelope, index + 1);
+        break;
+      case 'ideal':
+        restoredFiles = restoreIdealGasFile(fileEnvelope, index + 1);
+        break;
+      case 'heatCapacity':
+        restoredFiles = restoreHeatCapacityRuntimeFile(fileEnvelope, index + 1, sourceAppVersion);
+        break;
+      case 'heatCapacityPistonOscillation':
+        restoredFiles = restorePistonOscillationFile(fileEnvelope, index + 1);
+        break;
+      default:
+        restoredFiles = assertNeverWorkbenchFileKind(fileEnvelope.kind);
+    }
     if (restoredFiles.length === 0) {
       decoded.diagnostics.push({
         level: 'error',
@@ -2742,13 +3215,20 @@ const decodeEnvelopeAsRuntimeSession = (
   envelope: WorkbenchSessionEnvelopeV2,
   runtimeFiles = decodeFilesFromEnvelopes(envelope.files, envelope.appVersion).files,
 ): WorkbenchSessionState => {
+  const activeFileId = runtimeFiles.some((file) => file.id === envelope.activeFileId)
+    ? envelope.activeFileId ?? ''
+    : runtimeFiles[0]?.id ?? '';
+  const activeFile = runtimeFiles.find((file) => file.id === activeFileId);
+  const selectedPanel = activeFile?.kind === 'heatCapacityPistonOscillation' &&
+    envelope.selectedPanel !== 'preview' &&
+    envelope.selectedPanel !== 'realtime'
+    ? 'preview'
+    : envelope.selectedPanel;
   return {
     version: 1,
     files: runtimeFiles,
-    activeFileId: runtimeFiles.some((file) => file.id === envelope.activeFileId)
-      ? envelope.activeFileId ?? ''
-      : runtimeFiles[0]?.id ?? '',
-    selectedPanel: envelope.selectedPanel,
+    activeFileId,
+    selectedPanel,
   };
 };
 

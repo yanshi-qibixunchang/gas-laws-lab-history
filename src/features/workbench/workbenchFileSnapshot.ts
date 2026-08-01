@@ -25,8 +25,11 @@ export const cloneWorkbenchFiles = (
       idealWindowLayout: normalizeIdealWindowLayoutState(clonedFile.idealWindowLayout),
     };
   }
-  return {
-    ...clonedFile,
-    name: normalizeHeatCapacityFileName(clonedFile.name),
-  };
+  if (clonedFile.kind === 'heatCapacity') {
+    return {
+      ...clonedFile,
+      name: normalizeHeatCapacityFileName(clonedFile.name),
+    };
+  }
+  return clonedFile;
 });

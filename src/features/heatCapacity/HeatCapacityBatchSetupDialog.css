@@ -1,0 +1,199 @@
+.studio-heat-batch-setup-overlay {
+  cursor: default;
+}
+
+.studio-settings-window.studio-heat-batch-setup-window {
+  width: min(580px, calc(100vw - 48px));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  font-family: var(--app-font-ui);
+  animation: studioOverlayFadeIn var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) both;
+}
+
+.studio-settings-header.studio-heat-batch-setup-header {
+  padding-right: 18px;
+  padding-left: 18px;
+}
+
+.studio-settings-body.studio-heat-batch-setup-body {
+  min-height: 320px;
+  align-content: start;
+  overflow: visible;
+}
+
+.studio-heat-batch-setup-summary {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--studio-border);
+  border-radius: 5px;
+  background: var(--studio-surface-2);
+  padding: 9px 12px;
+}
+
+.studio-heat-batch-setup-summary span {
+  color: var(--studio-text-muted);
+  font-size: 12px;
+}
+
+.studio-heat-batch-setup-summary strong {
+  color: var(--studio-text);
+  font-size: 13px;
+}
+
+.studio-settings-section.studio-heat-batch-setup-section {
+  position: relative;
+  z-index: 1;
+}
+
+.studio-heat-batch-setup-section .studio-settings-section-title span {
+  max-width: 29rem;
+  line-height: 1.55;
+}
+
+.studio-settings-language-select.studio-heat-batch-setup-select {
+  z-index: 5;
+}
+
+.studio-settings-language-trigger.studio-heat-batch-setup-trigger > span {
+  display: grid;
+  align-items: initial;
+  gap: 3px;
+}
+
+.studio-settings-language-trigger.studio-heat-batch-setup-trigger strong,
+.studio-settings-language-trigger.studio-heat-batch-setup-trigger small {
+  display: block;
+}
+
+.studio-settings-language-menu.studio-heat-batch-setup-menu {
+  top: calc(100% + 6px);
+  bottom: auto;
+  transform-origin: top center;
+}
+
+.studio-heat-batch-setup-menu button {
+  min-height: 42px;
+}
+
+.studio-heat-batch-setup-option-highlighted {
+  background: var(--studio-accent-softer) !important;
+  color: var(--studio-text) !important;
+}
+
+.studio-heat-batch-setup-actions {
+  display: flex;
+  gap: 8px;
+  min-height: 54px;
+  align-items: center;
+  justify-content: flex-end;
+  border-top: 1px solid var(--studio-border);
+  background: var(--studio-surface-2);
+  padding: 11px 16px;
+}
+
+.studio-heat-batch-setup-cancel {
+  display: inline-flex;
+  min-width: 88px;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--studio-border-strong);
+  border-radius: 5px;
+  background: var(--studio-surface-1);
+  color: var(--studio-text);
+  padding: 0 14px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.studio-heat-batch-setup-cancel:hover,
+.studio-heat-batch-setup-cancel:focus-visible {
+  border-color: var(--studio-accent-strong);
+  outline: none;
+}
+
+.studio-heat-batch-setup-confirm {
+  display: inline-flex;
+  min-width: 112px;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: var(--studio-action-primary-bg);
+  color: var(--studio-action-primary-text);
+  padding: 0 14px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    opacity 150ms ease;
+}
+
+.studio-heat-batch-setup-confirm:hover,
+.studio-heat-batch-setup-confirm:focus-visible {
+  background: var(--studio-action-primary-bg-hover);
+  outline: none;
+}
+
+.studio-heat-batch-setup-confirm:focus-visible {
+  box-shadow: 0 0 0 2px var(--studio-surface-2), 0 0 0 4px var(--studio-accent-strong);
+}
+
+.studio-heat-batch-setup-confirm:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (max-width: 720px) {
+  .studio-settings-body.studio-heat-batch-setup-body {
+    min-height: 364px;
+  }
+}
+
+@media (max-width: 560px) {
+  .studio-settings-window.studio-heat-batch-setup-window {
+    width: min(520px, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+  }
+
+  .studio-heat-batch-setup-overlay {
+    padding: 12px;
+  }
+
+  .studio-settings-body.studio-heat-batch-setup-body {
+    min-height: 376px;
+    padding: 12px;
+  }
+
+  .studio-heat-batch-setup-actions {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .studio-heat-batch-setup-cancel,
+  .studio-heat-batch-setup-confirm {
+    flex: 1;
+  }
+}
+
+@media (max-height: 520px) {
+  .studio-settings-body.studio-heat-batch-setup-body {
+    min-height: 300px;
+    overflow: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-settings-window.studio-heat-batch-setup-window,
+  .studio-heat-batch-setup-confirm {
+    animation: none;
+    transition: none;
+  }
+}

@@ -9,8 +9,22 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+const productIntroCapture = import.meta.env.DEV
+  ? new URLSearchParams(window.location.search).get('productIntroCapture')
+  : null;
+
+if (productIntroCapture === 'guide') {
+  void import('../features/onboarding/ProductIntroGuideVideoCapturePage.tsx').then((module) => {
+    root.render(<module.ProductIntroGuideVideoCapturePage />);
+  });
+} else if (productIntroCapture === 'outcome') {
+  void import('../features/onboarding/ProductIntroOutcomeVideoCapturePage.tsx').then((module) => {
+    root.render(<module.ProductIntroOutcomeVideoCapturePage />);
+  });
+} else {
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  );
+}

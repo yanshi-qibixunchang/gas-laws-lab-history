@@ -1,0 +1,221 @@
+.studio-heat-batch-progress {
+  position: relative;
+  display: inline-flex;
+  width: max-content;
+  min-width: 116px;
+  height: 28px;
+  align-items: stretch;
+  border: 0.5px solid rgba(148, 163, 184, 0.44);
+  border-radius: var(--studio-preview-corner-button-radius, 4px);
+  background: rgba(15, 23, 42, 0.78);
+  box-shadow: var(--studio-preview-corner-button-shadow, 0 10px 24px rgba(2, 6, 23, 0.22));
+  color: #dbeafe;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  backdrop-filter: blur(9px);
+}
+
+.studio-heat-batch-progress-label {
+  display: inline-flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 0 9px 0 10px;
+  white-space: nowrap;
+}
+
+.studio-heat-batch-progress-trigger {
+  display: inline-flex;
+  width: 27px;
+  min-width: 27px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-left: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 0 calc(var(--studio-preview-corner-button-radius, 4px) - 1px)
+    calc(var(--studio-preview-corner-button-radius, 4px) - 1px) 0;
+  background: transparent;
+  color: rgba(219, 234, 254, 0.82);
+  padding: 0;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.studio-heat-batch-progress-next {
+  display: inline-flex;
+  min-width: 112px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-left: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 0 calc(var(--studio-preview-corner-button-radius, 4px) - 1px)
+    calc(var(--studio-preview-corner-button-radius, 4px) - 1px) 0;
+  background: rgba(14, 116, 144, 0.72);
+  color: #ecfeff;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.studio-heat-batch-progress-next:hover:not(:disabled),
+.studio-heat-batch-progress-next:focus-visible {
+  background: rgba(8, 145, 178, 0.86);
+  outline: none;
+}
+
+.studio-heat-batch-progress-next:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.studio-heat-batch-progress[data-heat-capacity-empty-group-start='true'] {
+  min-width: 0;
+  border: 0;
+}
+
+.studio-heat-batch-progress[data-heat-capacity-empty-group-start='true']
+  .studio-heat-batch-progress-next {
+  height: 28px;
+  border-left: 0;
+  border-radius: var(--studio-preview-corner-button-radius, 4px);
+}
+
+.studio-heat-batch-progress-trigger:hover:not(:disabled),
+.studio-heat-batch-progress-trigger:focus-visible {
+  background: rgba(51, 65, 85, 0.7);
+  color: #eff6ff;
+}
+
+.studio-heat-batch-progress-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.studio-heat-batch-progress-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 48;
+  width: max-content;
+  min-width: 150px;
+  border: 1px solid rgba(100, 116, 139, 0.58);
+  border-radius: 5px;
+  background: rgba(12, 18, 28, 0.94);
+  box-shadow: 0 14px 30px rgba(2, 8, 23, 0.34), inset 0 1px 0 rgba(148, 163, 184, 0.1);
+  padding: 4px;
+  backdrop-filter: blur(10px);
+}
+
+.studio-heat-batch-progress-menu button {
+  display: flex;
+  width: 100%;
+  min-height: 28px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.9);
+  padding: 0 9px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.studio-heat-batch-progress-menu button:hover,
+.studio-heat-batch-progress-menu button:focus-visible {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(51, 65, 85, 0.62);
+  color: #f8fafc;
+}
+
+.studio-heat-batch-progress-menu-separator {
+  height: 1px;
+  margin: 4px 5px;
+  background: rgba(148, 163, 184, 0.22);
+}
+
+.studio-heat-batch-progress-menu .studio-heat-batch-progress-danger {
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(127, 29, 29, 0.46);
+  color: #fee2e2;
+}
+
+.studio-heat-batch-progress-menu .studio-heat-batch-progress-danger:hover,
+.studio-heat-batch-progress-menu .studio-heat-batch-progress-danger:focus-visible {
+  border-color: rgba(252, 165, 165, 0.62);
+  background: rgba(153, 27, 27, 0.58);
+  color: #fff1f2;
+}
+
+.studio-theme-light .studio-heat-batch-progress {
+  border-color: rgba(100, 116, 139, 0.34);
+  background: rgba(248, 250, 252, 0.84);
+  box-shadow: 0 10px 24px rgba(71, 85, 105, 0.14);
+  color: #1e293b;
+}
+
+.studio-theme-light .studio-heat-batch-progress-trigger {
+  border-left-color: rgba(100, 116, 139, 0.24);
+  color: rgba(30, 41, 59, 0.72);
+}
+
+.studio-theme-light .studio-heat-batch-progress-next {
+  border-left-color: rgba(14, 116, 144, 0.26);
+  background: rgba(8, 145, 178, 0.88);
+  color: #f0fdfa;
+}
+
+.studio-theme-light .studio-heat-batch-progress-next:hover:not(:disabled),
+.studio-theme-light .studio-heat-batch-progress-next:focus-visible {
+  background: #0e7490;
+}
+
+.studio-theme-light .studio-heat-batch-progress-trigger:hover:not(:disabled),
+.studio-theme-light .studio-heat-batch-progress-trigger:focus-visible {
+  background: rgba(226, 232, 240, 0.72);
+  color: #0f172a;
+}
+
+.studio-theme-light .studio-heat-batch-progress-menu {
+  border-color: rgba(100, 116, 139, 0.34);
+  background: rgba(248, 250, 252, 0.96);
+  box-shadow: 0 12px 26px rgba(71, 85, 105, 0.18);
+}
+
+.studio-theme-light .studio-heat-batch-progress-menu button {
+  color: #334155;
+}
+
+.studio-theme-light .studio-heat-batch-progress-menu button:hover,
+.studio-theme-light .studio-heat-batch-progress-menu button:focus-visible {
+  border-color: rgba(14, 116, 144, 0.24);
+  background: rgba(226, 232, 240, 0.68);
+  color: #0f172a;
+}
+
+.studio-theme-light .studio-heat-batch-progress-menu-separator {
+  background: rgba(100, 116, 139, 0.22);
+}
+
+.studio-theme-light .studio-heat-batch-progress-menu .studio-heat-batch-progress-danger {
+  border-color: rgba(220, 38, 38, 0.28);
+  background: rgba(254, 226, 226, 0.88);
+  color: #991b1b;
+}
+
+.studio-theme-light .studio-heat-batch-progress-menu .studio-heat-batch-progress-danger:hover,
+.studio-theme-light .studio-heat-batch-progress-menu .studio-heat-batch-progress-danger:focus-visible {
+  border-color: rgba(220, 38, 38, 0.4);
+  background: rgba(254, 202, 202, 0.9);
+  color: #7f1d1d;
+}

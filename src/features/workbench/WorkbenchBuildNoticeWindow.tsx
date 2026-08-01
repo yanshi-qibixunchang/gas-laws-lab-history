@@ -1,4 +1,6 @@
-import { ArrowLeft, ChevronRight, ExternalLink, ListTree, X } from 'lucide-react';
+import { ArrowLeft, ChevronRight, ExternalLink, ListTree } from 'lucide-react';
+import type { ReactNode, Ref, UIEventHandler } from 'react';
+import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import type {
   WorkbenchBuildNoticeFilePreview,
   WorkbenchBuildNoticeLegalFile,
@@ -6,7 +8,7 @@ import type {
   WorkbenchLegalMaterialId,
 } from './workbenchBuildNoticeContract.ts';
 
-interface WorkbenchBuildNoticeCopy {
+export interface WorkbenchBuildNoticeCopy {
   closeBuildNotice: string;
   buildNoticeTitle: string;
   buildNoticeSubtitle: string;
@@ -30,6 +32,15 @@ interface WorkbenchBuildNoticeWindowProps {
   openError: string | null;
   desktopLegalBridgeAvailable: boolean;
   desktopLegalReadAvailable: boolean;
+  dismiss?: {
+    closeButton: boolean;
+    escape: boolean;
+    backdrop: boolean;
+  };
+  bodyRef?: Ref<HTMLDivElement>;
+  onBodyScroll?: UIEventHandler<HTMLDivElement>;
+  footer?: ReactNode;
+  extraDialogClassName?: string;
   onClose: () => void;
   onNavOpenChange: (open: boolean) => void;
   onJumpToSection: (sectionId: string) => void;
@@ -49,6 +60,11 @@ export const WorkbenchBuildNoticeWindow = ({
   openError,
   desktopLegalBridgeAvailable,
   desktopLegalReadAvailable,
+  dismiss,
+  bodyRef,
+  onBodyScroll,
+  footer,
+  extraDialogClassName,
   onClose,
   onNavOpenChange,
   onJumpToSection,
@@ -69,24 +85,19 @@ export const WorkbenchBuildNoticeWindow = ({
     : copy.buildNoticeOpenLocalFile;
 
   return (
-    <div className="studio-build-notice-overlay" role="presentation" onMouseDown={onClose}>
-      <section
-        className={`studio-build-notice-window ${navOpen ? 'studio-build-notice-nav-open' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="studio-build-notice-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="studio-build-notice-header">
-          <div>
-            <strong id="studio-build-notice-title">{copy.buildNoticeTitle}</strong>
-            <span>{copy.buildNoticeSubtitle}</span>
-          </div>
-          <button type="button" className="studio-build-notice-close" aria-label={copy.closeBuildNotice} onClick={onClose}>
-            <X size={15} />
-          </button>
-        </div>
-
+    <PromptDialogShell
+      title={copy.buildNoticeTitle}
+      titleId="studio-build-notice-title"
+      subtitle={copy.buildNoticeSubtitle}
+      variant="notice"
+      closeLabel={dismiss?.closeButton === false ? undefined : copy.closeBuildNotice}
+      dismiss={dismiss ?? { closeButton: true, escape: true, backdrop: true }}
+      onRequestClose={onClose}
+      overlayClassName="studio-build-notice-overlay"
+      dialogClassName={`studio-build-notice-window ${navOpen ? 'studio-build-notice-nav-open' : ''} ${extraDialogClassName ?? ''}`}
+      headerClassName="studio-build-notice-header"
+      closeButtonClassName="studio-build-notice-close"
+    >
         <div className="studio-build-notice-shell">
           <aside className="studio-build-notice-rail" aria-label={copy.buildNoticeNavTitle}>
             <button
@@ -117,7 +128,10 @@ export const WorkbenchBuildNoticeWindow = ({
               ))}
             </div>
           </nav>
-          <div className={`studio-build-notice-body ${navOpen ? 'studio-build-notice-body-dimmed' : ''}`}>
+          <div className={`studio-build-notice-body ${navOpen ? 'studio-build-notice-body-dimmed' : ''}`}
+            ref={bodyRef}
+            onScroll={onBodyScroll}
+          >
             {activeMaterial && activeMaterialFile ? (
               <article className="studio-build-notice-document studio-build-notice-detail-document">
                 <button type="button" className="studio-build-notice-back" onClick={onCloseMaterial}>
@@ -204,7 +218,7 @@ export const WorkbenchBuildNoticeWindow = ({
             )}
           </div>
         </div>
-      </section>
-    </div>
+        {footer}
+    </PromptDialogShell>
   );
 };

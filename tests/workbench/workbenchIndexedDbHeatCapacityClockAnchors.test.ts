@@ -3,6 +3,7 @@ import { createHeatCapacityFreeAttempt } from '../../src/domain/heatCapacity/hea
 import {
   assertWorkbenchHeatCapacityRefreshCheckpointMatchesMetadata,
   createPersistenceRecords,
+  WorkbenchRefreshMetadataAnchorMismatchError,
   materializeWorkbenchHeatCapacityModeSessionsForPersistence,
   resolveWorkbenchHeatCapacityModeRestoreAtMs,
 } from '../../src/features/workbench/workbenchIndexedDbPersistence.ts';
@@ -311,7 +312,10 @@ assert.throws(
     modeSessionCapturedAtMs: CAPTURED_AT_MS + 1,
     nowMs: LOADED_AT_MS,
   }),
-  /mismatched capture anchors/,
+  (error) => (
+    error instanceof WorkbenchRefreshMetadataAnchorMismatchError &&
+    /mismatched capture anchors/.test(error.message)
+  ),
   'IndexedDB load must reject current refresh metadata that disagrees with the current mode record',
 );
 

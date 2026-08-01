@@ -10,6 +10,9 @@ import type {
   HeatCapacityFreeParameterDraft,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 import type { HeatCapacityFreeRecordConfig } from '../../domain/heatCapacity/heatCapacityFreeRecordModel.ts';
+import type {
+  HeatCapacityFreeExperimentGroupCollection,
+} from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
 import {
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   type HeatCapacityFreeDisplayScheme,
@@ -27,7 +30,8 @@ import {
   isPersistenceRecord,
 } from './workbenchPersistenceValue.ts';
 
-export const HEAT_CAPACITY_SCHEMA_VERSION = 1 as const;
+export const LEGACY_HEAT_CAPACITY_SCHEMA_VERSION = 1 as const;
+export const HEAT_CAPACITY_SCHEMA_VERSION = 2 as const;
 
 export const HEAT_CAPACITY_FREE_UI_REPLAY_KEYS = [
   'heatCapacityTabContainerHeight',
@@ -76,7 +80,7 @@ export type HeatCapacityFreeUiReplayV1 = Pick<
 >;
 
 export interface HeatCapacityFreePersistenceDataV1 {
-  runtimeVersion: typeof HEAT_CAPACITY_FREE_RUNTIME_VERSION;
+  runtimeVersion: number;
   traceVersion: typeof HEAT_CAPACITY_FREE_TRACE_VERSION;
   calculationVersion: typeof HEAT_CAPACITY_FREE_CALCULATION_VERSION;
   preheatCompleted: boolean;
@@ -109,17 +113,23 @@ export interface HeatCapacityFreePersistenceDataV1 {
   uiReplay: HeatCapacityFreeUiReplayV1;
 }
 
+export interface HeatCapacityFreePersistenceDataV2 extends HeatCapacityFreePersistenceDataV1 {
+  runtimeVersion: typeof HEAT_CAPACITY_FREE_RUNTIME_VERSION;
+  experimentGroups: HeatCapacityFreeExperimentGroupCollection;
+}
+
 export interface HeatCapacityGuidePersistenceDataV1 {
   physicsConfig: WorkbenchHeatCapacityState['heatCapacityGuidePhysicsConfig'];
   physicsState: WorkbenchHeatCapacityState['heatCapacityGuidePhysicsState'];
   temperatureSensorState: WorkbenchHeatCapacityState['heatCapacityGuideTemperatureSensorState'];
   workflow: WorkbenchHeatCapacityState['heatCapacityGuideWorkflow'];
   trial: WorkbenchHeatCapacityState['heatCapacityGuideTrial'];
+  calculationSession: WorkbenchHeatCapacityState['heatCapacityGuideCalculationSession'];
 }
 
 export interface HeatCapacityPersistencePayloadV1 {
   experimentKind: 'heatCapacity';
-  heatCapacitySchemaVersion: typeof HEAT_CAPACITY_SCHEMA_VERSION;
+  heatCapacitySchemaVersion: typeof LEGACY_HEAT_CAPACITY_SCHEMA_VERSION;
   mode: WorkbenchHeatCapacityState['heatCapacityMode'];
   common: {
     materialsExpanded: boolean;
@@ -135,6 +145,16 @@ export interface HeatCapacityPersistencePayloadV1 {
   guided: HeatCapacityGuidePersistenceDataV1 | null;
   demo: null;
 }
+
+export interface HeatCapacityPersistencePayloadV2
+  extends Omit<HeatCapacityPersistencePayloadV1, 'heatCapacitySchemaVersion' | 'free'> {
+  heatCapacitySchemaVersion: typeof HEAT_CAPACITY_SCHEMA_VERSION;
+  free: HeatCapacityFreePersistenceDataV2 | null;
+}
+
+export type HeatCapacityPersistencePayload =
+  | HeatCapacityPersistencePayloadV1
+  | HeatCapacityPersistencePayloadV2;
 
 export interface HeatCapacityPayloadValidationResult {
   valid: boolean;
@@ -169,10 +189,19 @@ export const validateHeatCapacityPersistencePayload = (
   if (payload.experimentKind !== 'heatCapacity') {
     errors.push('experimentKind must be heatCapacity');
   }
-  if (payload.heatCapacitySchemaVersion !== HEAT_CAPACITY_SCHEMA_VERSION) {
+  const isLegacyPayload = payload.heatCapacitySchemaVersion === LEGACY_HEAT_CAPACITY_SCHEMA_VERSION;
+  if (
+    !isLegacyPayload &&
+    payload.heatCapacitySchemaVersion !== HEAT_CAPACITY_SCHEMA_VERSION
+  ) {
     errors.push('heatCapacitySchemaVersion is unsupported');
   }
-  if (payload.mode !== 'demo' && payload.mode !== 'guide' && payload.mode !== 'free') {
+  if (
+    payload.mode !== null &&
+    payload.mode !== 'demo' &&
+    payload.mode !== 'guide' &&
+    payload.mode !== 'free'
+  ) {
     errors.push('mode is invalid');
   }
   const common = isPersistenceRecord(payload.common) ? payload.common : null;
@@ -186,7 +215,15 @@ export const validateHeatCapacityPersistencePayload = (
       common.teachingStatus !== 'completed'
     ) errors.push('common.teachingStatus is invalid');
     if (!Array.isArray(common.openHeatCapacityTabs)) errors.push('common.openHeatCapacityTabs must be an array');
-    if (!isPersistenceRecord(common.modeSessions) || common.modeSessions.schemaVersion !== 2) {
+    if (
+      !isPersistenceRecord(common.modeSessions) ||
+      (
+        isLegacyPayload
+          ? common.modeSessions.schemaVersion !== 2 &&
+            common.modeSessions.schemaVersion !== 3
+          : common.modeSessions.schemaVersion !== 3
+      )
+    ) {
       errors.push('common.modeSessions is invalid');
     } else {
       (['demo', 'guide', 'free'] as const).forEach((mode) => {
@@ -208,7 +245,7 @@ export const validateHeatCapacityPersistencePayload = (
     errors.push('free payload is required');
     return { valid: false, errors };
   }
-  if (free.runtimeVersion !== HEAT_CAPACITY_FREE_RUNTIME_VERSION) {
+  if (free.runtimeVersion !== (isLegacyPayload ? 5 : HEAT_CAPACITY_FREE_RUNTIME_VERSION)) {
     errors.push('free.runtimeVersion is unsupported');
   }
   if (free.traceVersion !== HEAT_CAPACITY_FREE_TRACE_VERSION) {
@@ -226,6 +263,9 @@ export const validateHeatCapacityPersistencePayload = (
   }
   if (!isPersistenceRecord(free.real) || !isPersistenceRecord(free.ideal)) {
     errors.push('free real and ideal domains are required');
+  }
+  if (!isLegacyPayload && !isPersistenceRecord(free.experimentGroups)) {
+    errors.push('free.experimentGroups is required');
   }
   const runtime = isPersistenceRecord(free.runtime) ? free.runtime : null;
   if (!runtime || !isPersistenceFiniteNumber(runtime.gasAmountRatio) || runtime.gasAmountRatio <= 0) {

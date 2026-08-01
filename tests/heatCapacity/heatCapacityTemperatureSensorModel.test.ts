@@ -3,9 +3,11 @@ import {
   DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG,
   HEAT_CAPACITY_PRESSURE_SENSITIVITY_MV_PER_KPA,
   HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
+  HEAT_CAPACITY_TEMPERATURE_REFERENCE_K,
   HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
   mapGasTemperatureToSignalMv,
   mapPressureDeltaToSignalMv,
+  mapTemperatureKToSignalMv,
 } from '../../src/domain/heatCapacity/heatCapacitySensorMapping.ts';
 import {
   DEFAULT_HEAT_CAPACITY_TEMPERATURE_SENSOR_CONFIG,
@@ -29,6 +31,7 @@ assert.equal(DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG.temperatureBaseMv, 1498.7);
 assert.equal(DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG.temperatureSensitivityMvPerK, 5);
 assert.equal(HEAT_CAPACITY_TEMPERATURE_BASELINE_MV, 1498.7);
 assert.equal(HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K, 5);
+assert.equal(HEAT_CAPACITY_TEMPERATURE_REFERENCE_K, AMBIENT_TEMPERATURE_K);
 assert.equal(
   mapGasTemperatureToSignalMv(AMBIENT_TEMPERATURE_K, AMBIENT_TEMPERATURE_K),
   1498.7,
@@ -38,6 +41,12 @@ assert.equal(
   1503.7,
   'a 1 K sensor-temperature rise should produce a 5 mV signal rise',
 );
+assert.equal(
+  mapGasTemperatureToSignalMv(AMBIENT_TEMPERATURE_K + 5, AMBIENT_TEMPERATURE_K + 5),
+  1523.7,
+  'raising the ambient temperature by 5 K should raise the equilibrium signal by 25 mV',
+);
+assert.equal(mapTemperatureKToSignalMv(AMBIENT_TEMPERATURE_K - 5), 1473.7);
 assert.equal(HEAT_CAPACITY_PRESSURE_SENSITIVITY_MV_PER_KPA, 20);
 assert.equal(mapPressureDeltaToSignalMv(1), 20, 'pressure mapping should remain 20 mV/kPa');
 

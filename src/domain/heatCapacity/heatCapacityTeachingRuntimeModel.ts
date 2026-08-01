@@ -1,6 +1,7 @@
 import {
   DEFAULT_HEAT_CAPACITY_SENSOR_CONFIG,
   HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
+  HEAT_CAPACITY_TEMPERATURE_REFERENCE_K,
   HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
   mapHeatCapacitySignals,
   type HeatCapacitySensorMappingConfig,
@@ -145,7 +146,7 @@ const mapPressureMvToDeltaKPa = (
 const mapTemperatureMvToGasK = (
   temperatureMv: number,
   config: HeatCapacityModelConfig,
-) => config.ambientTemperatureK + (
+) => HEAT_CAPACITY_TEMPERATURE_REFERENCE_K + (
   (temperatureMv - config.sensor.temperatureBaseMv) / config.sensor.temperatureSensitivityMvPerK
 );
 

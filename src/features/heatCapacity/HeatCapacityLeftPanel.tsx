@@ -1,5 +1,5 @@
 ﻿import React, { useMemo, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { BarChart3, ChevronDown, Download, FileArchive } from 'lucide-react';
 import type {
   HeatCapacityFreeDisplayScheme,
   WorkbenchHeatCapacityPanelKey,
@@ -7,7 +7,6 @@ import type {
 } from '../workbench/workbenchState.ts';
 import {
   getActiveHeatCapacityFreeTrialIndex,
-  getHeatCapacityFreeDisplayTheoreticalGamma,
   getHeatCapacityFreeRecordDisplayTrialIndex,
   selectDisplayedHeatCapacityFreeDomain,
 } from '../workbench/workbenchState.ts';
@@ -17,7 +16,13 @@ import {
   type HeatCapacityFreeProcessingTrialResult,
   type HeatCapacityFreeTrialRecordRemovalKind,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
-import { HeatCapacityFreeDisplaySchemeMenu } from './HeatCapacityFreeDisplaySchemeMenu.tsx';
+import {
+  selectCurrentHeatCapacityFreeExperimentGroup,
+  selectViewedHeatCapacityFreeExperimentGroup,
+  type HeatCapacityFreeExperimentGroupCollection,
+} from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
+import HeatCapacityExperimentGroupContextBar from './HeatCapacityExperimentGroupContextBar.tsx';
+import HeatCapacityGroupResultsPanel from './HeatCapacityGroupResultsPanel.tsx';
 
 type WorkbenchLanguagePreference = 'zh-CN' | 'zh-TW' | 'en';
 
@@ -36,8 +41,15 @@ interface HeatCapacityLeftPanelProps {
     scheme: HeatCapacityFreeDisplayScheme,
   ) => void;
   onCancelRemoveTrialRecord: () => void;
-  heatCapacityFreeDisplayScheme: HeatCapacityFreeDisplayScheme;
-  onHeatCapacityFreeDisplaySchemeChange: (scheme: HeatCapacityFreeDisplayScheme) => void;
+  groupCollection: HeatCapacityFreeExperimentGroupCollection;
+  onViewedGroupChange: (groupId: string) => void;
+  onViewedTrialChange: (groupId: string, trialId: string | null) => void;
+  exportInProgress: boolean;
+  canExportReport: boolean;
+  canExportFigures: boolean;
+  onExportExperimentPackage: () => void;
+  onExportReport: () => void;
+  onExportFigures: () => void;
 }
 
 interface DocumentDisclosureProps {
@@ -146,18 +158,18 @@ const copyByLanguage = {
       ],
     },
     table: {
-      trial: '组次',
+      trial: '实验次序',
       status: '状态',
       action: '操作',
       deleteU0: '删除 U₀',
       deleteU1: '删除 U₁',
       deleteU2: '删除 U₂',
-      deleteTrial: '删除本组',
+      deleteTrial: '删除本次实验',
       confirmDelete: '确认删除',
       cancel: '取消',
     },
-    thinkingMeanTitle: '为什么多组实验应先分别计算 γᵢ，再对结果取平均？',
-    thinkingMeanBody: '多组实验中，每组 U₁ᵢ 和 U₂ᵢ 是一对对应数据，应保持配对关系。本实验主公式是非线性公式，因此不应先平均多组 U₁ 和 U₂ 后只计算一次 γ。更合理的流程是每组先分别计算 γᵢ，再对所有有效 γᵢ 求平均。这样既保留每组实验内部数据的对应关系，也能让结果表显示每组实验的离散程度。',
+    thinkingMeanTitle: '为什么多次实验应先分别计算 γᵢ，再对结果取平均？',
+    thinkingMeanBody: '同一实验组内，每次实验的 U₁ᵢ 和 U₂ᵢ 是一对对应数据，应保持配对关系。本实验主公式是非线性公式，因此不应先平均各次 U₁ 和 U₂ 后只计算一次 γ。更合理的流程是每次先分别计算 γᵢ，再对所有有效 γᵢ 求平均。这样既保留每次实验内部数据的对应关系，也能显示组内结果的离散程度。',
   },
   'zh-TW': {
     guide: '實驗指引',
@@ -205,18 +217,18 @@ const copyByLanguage = {
       ],
     },
     table: {
-      trial: '組次',
+      trial: '實驗次序',
       status: '狀態',
       action: '操作',
       deleteU0: '刪除 U₀',
       deleteU1: '刪除 U₁',
       deleteU2: '刪除 U₂',
-      deleteTrial: '刪除本組',
+      deleteTrial: '刪除本次實驗',
       confirmDelete: '確認刪除',
       cancel: '取消',
     },
-    thinkingMeanTitle: '為什麼多組實驗應先分別計算 γᵢ，再對結果取平均？',
-    thinkingMeanBody: '多組實驗中，每組 U₁ᵢ 和 U₂ᵢ 是一對對應資料，應保持配對關係。本實驗主公式是非線性公式，因此不應先平均多組 U₁ 和 U₂ 後只計算一次 γ。更合理的流程是每組先分別計算 γᵢ，再對所有有效 γᵢ 求平均。',
+    thinkingMeanTitle: '為什麼多次實驗應先分別計算 γᵢ，再對結果取平均？',
+    thinkingMeanBody: '同一實驗組內，每次實驗的 U₁ᵢ 和 U₂ᵢ 是一對對應資料，應保持配對關係。本實驗主公式是非線性公式，因此不應先平均各次 U₁ 和 U₂ 後只計算一次 γ。更合理的流程是每次先分別計算 γᵢ，再對所有有效 γᵢ 求平均。',
   },
   en: {
     guide: 'Experiment Guide',
@@ -287,25 +299,25 @@ const freeCopyByLanguage = {
       source: '数据来源',
       displayScheme: '实验类型',
       realSimulation: '真实模拟',
-      idealProfile: '理想状态',
+      idealProfile: '理想参数',
       realSimulationHint: '参与评分与平均值',
       idealProfileHint: '单独编号，不参与评分',
       idealScoreNotice: '理想实验条件不参与评分。',
       automaticCandidate: '自动 U₀ 候选',
       automaticWaiting: '等待稳定的调零开旋塞状态',
       automaticSource: '传感器候选值',
-      currentTrialTitle: '当前实验组记录',
-      currentTrialBadge: (trialIndex: number) => `第 ${trialIndex} 组`,
+      currentTrialTitle: '当前一次实验记录',
+      currentTrialBadge: (trialIndex: number) => `第 ${trialIndex} 次实验`,
       officialU0: 'U₀ 正式记录',
       officialU1: 'U₁ 正式记录',
       officialU2: 'U₂ 正式记录',
       record: '记录',
       pressure: '压强 / mV',
       temperature: '温度 / mV',
-      freeTrialSource: '实验组概况',
-      completeTrials: (count: number) => `${count} 组完整实验`,
-      totalRows: (count: number) => `共 ${count} 组记录`,
-      trial: '组次',
+      freeTrialSource: '本组实验概况',
+      completeTrials: (count: number) => `${count} 次完整实验`,
+      totalRows: (count: number) => `共 ${count} 次记录`,
+      trial: '实验次序',
       completedAt: '完成时间',
       u0Display: 'U₀ 记录值 / mV',
       u1Display: 'U₁ 记录值 / mV',
@@ -319,10 +331,10 @@ const freeCopyByLanguage = {
       preheatBiasGamma: '未预热系统偏差',
       finalGamma: '最终报告 γ',
       status: '状态',
-      emptyRecords: '暂无实验组记录。',
+      emptyRecords: '本组暂无实验记录。',
       statusComplete: '完成',
       statusPending: '待记录',
-      summaryLine: (theoreticalGamma: string, trialCount: number, meanGamma: string, relativeError: string) => `理论 γ = ${theoreticalGamma}　实验组数 = ${trialCount}　平均 γ = ${meanGamma}　相对误差 = ${relativeError}`,
+      summaryLine: (theoreticalGamma: string, trialCount: number, meanGamma: string, relativeError: string) => `理论 γ = ${theoreticalGamma}　有效实验次数 = ${trialCount}　平均 γ = ${meanGamma}　相对误差 = ${relativeError}`,
       calculationDetails: '计算详情',
       includedInMean: '是否参与当前平均',
       included: '参与',
@@ -354,8 +366,8 @@ const freeCopyByLanguage = {
       knownParameters: '已知参数',
       formulaPath: '计算路径',
       formalExperimentTitle: '正式实验提示',
-      formalExperimentMultiTrialNotice: '正式实验需要进行多次测量，并对各组 γᵢ 取平均值。',
-      resultSummary: (theoreticalGamma: string, gamma: string, relativeError: string) => `理论 γ = ${theoreticalGamma}　单组 γ = ${gamma}　相对误差 = ${relativeError}`,
+      formalExperimentMultiTrialNotice: '正式实验需要进行多次测量，并对各次实验的 γᵢ 取平均值。',
+      resultSummary: (theoreticalGamma: string, gamma: string, relativeError: string) => `理论 γ = ${theoreticalGamma}　单次 γ = ${gamma}　相对误差 = ${relativeError}`,
     },
   },
   'zh-TW': {
@@ -365,25 +377,25 @@ const freeCopyByLanguage = {
       source: '資料來源',
       displayScheme: '實驗類型',
       realSimulation: '真實模擬',
-      idealProfile: '理想狀態',
+      idealProfile: '理想參數',
       realSimulationHint: '參與評分與平均值',
       idealProfileHint: '單獨編號，不參與評分',
       idealScoreNotice: '理想實驗條件不參與評分。',
       automaticCandidate: '自動 U₀ 候選',
       automaticWaiting: '等待穩定的調零開旋塞狀態',
       automaticSource: '感測器候選值',
-      currentTrialTitle: '目前實驗組記錄',
-      currentTrialBadge: (trialIndex: number) => `第 ${trialIndex} 組`,
+      currentTrialTitle: '目前一次實驗記錄',
+      currentTrialBadge: (trialIndex: number) => `第 ${trialIndex} 次實驗`,
       officialU0: 'U₀ 正式記錄',
       officialU1: 'U₁ 正式記錄',
       officialU2: 'U₂ 正式記錄',
       record: '記錄',
       pressure: '壓強 / mV',
       temperature: '溫度 / mV',
-      freeTrialSource: '實驗組概況',
-      completeTrials: (count: number) => `${count} 組完整實驗`,
-      totalRows: (count: number) => `共 ${count} 組記錄`,
-      trial: '組次',
+      freeTrialSource: '本組實驗概況',
+      completeTrials: (count: number) => `${count} 次完整實驗`,
+      totalRows: (count: number) => `共 ${count} 次記錄`,
+      trial: '實驗次序',
       completedAt: '完成時間',
       u0Display: 'U₀ 記錄值 / mV',
       u1Display: 'U₁ 記錄值 / mV',
@@ -397,10 +409,10 @@ const freeCopyByLanguage = {
       preheatBiasGamma: '未預熱系統偏差',
       finalGamma: '最終報告 γ',
       status: '狀態',
-      emptyRecords: '暫無實驗組記錄。',
+      emptyRecords: '本組暫無實驗記錄。',
       statusComplete: '完成',
       statusPending: '待記錄',
-      summaryLine: (theoreticalGamma: string, trialCount: number, meanGamma: string, relativeError: string) => `理論 γ = ${theoreticalGamma}　實驗組數 = ${trialCount}　平均 γ = ${meanGamma}　相對誤差 = ${relativeError}`,
+      summaryLine: (theoreticalGamma: string, trialCount: number, meanGamma: string, relativeError: string) => `理論 γ = ${theoreticalGamma}　有效實驗次數 = ${trialCount}　平均 γ = ${meanGamma}　相對誤差 = ${relativeError}`,
       calculationDetails: '計算詳情',
       includedInMean: '是否參與目前平均',
       included: '參與',
@@ -432,8 +444,8 @@ const freeCopyByLanguage = {
       knownParameters: '已知參數',
       formulaPath: '計算路徑',
       formalExperimentTitle: '正式實驗提示',
-      formalExperimentMultiTrialNotice: '正式實驗需要進行多次測量，並對各組 γᵢ 取平均值。',
-      resultSummary: (theoreticalGamma: string, gamma: string, relativeError: string) => `理論 γ = ${theoreticalGamma}　單組 γ = ${gamma}　相對誤差 = ${relativeError}`,
+      formalExperimentMultiTrialNotice: '正式實驗需要進行多次測量，並對各次實驗的 γᵢ 取平均值。',
+      resultSummary: (theoreticalGamma: string, gamma: string, relativeError: string) => `理論 γ = ${theoreticalGamma}　單次 γ = ${gamma}　相對誤差 = ${relativeError}`,
     },
   },
   en: {
@@ -443,7 +455,7 @@ const freeCopyByLanguage = {
       source: 'Source: Free physical / sensor / calibration / record layers',
       displayScheme: 'Experiment type',
       realSimulation: 'Real Simulation',
-      idealProfile: 'Ideal State',
+      idealProfile: 'Ideal Parameters',
       realSimulationHint: 'Scored and averaged',
       idealProfileHint: 'Separate index, not scored',
       idealScoreNotice: 'Ideal experiment conditions are not scored.',
@@ -478,7 +490,7 @@ const freeCopyByLanguage = {
       emptyRecords: 'No Free Mode records yet.',
       statusComplete: 'complete',
       statusPending: 'pending',
-      summaryLine: (theoreticalGamma: string, trialCount: number, meanGamma: string, relativeError: string) => `theoretical γ = ${theoreticalGamma}  experiment groups = ${trialCount}  mean γ = ${meanGamma}  relative error = ${relativeError}`,
+      summaryLine: (theoreticalGamma: string, trialCount: number, meanGamma: string, relativeError: string) => `theoretical γ = ${theoreticalGamma}  valid experiments = ${trialCount}  mean γ = ${meanGamma}  relative error = ${relativeError}`,
       calculationDetails: 'Calculation details',
       includedInMean: 'Included in current mean',
       included: 'included',
@@ -510,7 +522,7 @@ const freeCopyByLanguage = {
       knownParameters: 'Known parameters',
       formulaPath: 'Formula path',
       formalExperimentTitle: 'Formal experiment note',
-      formalExperimentMultiTrialNotice: 'A formal experiment should repeat the measurement and average the γᵢ values from valid groups.',
+      formalExperimentMultiTrialNotice: 'A formal experiment group should repeat the measurement and average the γᵢ values from valid experiments.',
       resultSummary: (theoreticalGamma: string, gamma: string, relativeError: string) => `theoretical γ = ${theoreticalGamma}  single-trial γ = ${gamma}  relative error = ${relativeError}`,
     },
   },
@@ -584,18 +596,32 @@ const renderGuideTab = (language: WorkbenchLanguagePreference) => {
 const renderFreeDataAndResultsTab = (
   file: WorkbenchHeatCapacityState,
   copy: LocalizedText,
+  language: WorkbenchLanguagePreference,
   pendingRemoveTrialRecord: HeatCapacityLeftPanelProps['pendingRemoveTrialRecord'],
   onRemoveTrialRecord: HeatCapacityLeftPanelProps['onRemoveTrialRecord'],
   onCancelRemoveTrialRecord: HeatCapacityLeftPanelProps['onCancelRemoveTrialRecord'],
-  heatCapacityFreeDisplayScheme: HeatCapacityFreeDisplayScheme,
-  onHeatCapacityFreeDisplaySchemeChange: (scheme: HeatCapacityFreeDisplayScheme) => void,
+  groupCollection: HeatCapacityFreeExperimentGroupCollection,
+  onViewedGroupChange: (groupId: string) => void,
+  onViewedTrialChange: (groupId: string, trialId: string | null) => void,
+  exportInProgress: boolean,
+  canExportReport: boolean,
+  canExportFigures: boolean,
+  onExportExperimentPackage: () => void,
+  onExportReport: () => void,
+  onExportFigures: () => void,
 ) => {
   const displayedDomain = selectDisplayedHeatCapacityFreeDomain(file);
-  const displayedTrials = displayedDomain.trials;
-  const displayMatchesActiveDomain = heatCapacityFreeDisplayScheme === file.heatCapacityFreeParameterScheme;
-  const automaticU0 = displayedDomain.calibrationState.automaticU0;
+  const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(groupCollection);
+  const viewedGroup = selectViewedHeatCapacityFreeExperimentGroup(groupCollection) ?? currentGroup;
+  const displayedTrials = viewedGroup?.runSeries.trials ?? displayedDomain.trials;
+  const displayedScheme = viewedGroup?.scheme ?? displayedDomain.scheme;
+  const displayMatchesActiveDomain = viewedGroup?.id === currentGroup?.id &&
+    displayedScheme === file.heatCapacityFreeParameterScheme;
+  const automaticU0 = displayMatchesActiveDomain
+    ? displayedDomain.calibrationState.automaticU0
+    : null;
   const completed = displayedTrials.filter(isHeatCapacityFreeTrialComplete).length;
-  const displayedTheoreticalGamma = getHeatCapacityFreeDisplayTheoreticalGamma(file, displayedDomain.scheme);
+  const displayedTheoreticalGamma = viewedGroup?.parameterSnapshot?.physics.gamma ?? file.theoreticalGamma;
   const result = calculateFreeHeatCapacityMeanResult(displayedTrials, {
     theoreticalGamma: displayedTheoreticalGamma,
   });
@@ -605,7 +631,11 @@ const renderFreeDataAndResultsTab = (
   const displayTrialSource = {
     heatCapacityFreeTrials: displayedTrials,
     powerOn: displayMatchesActiveDomain ? file.powerOn : false,
-    heatCapacityFreeExperimentGroupStatus: displayedDomain.experimentGroupStatus,
+    heatCapacityFreeExperimentGroupStatus: viewedGroup?.status === 'draft'
+      ? 'draft' as const
+      : viewedGroup?.status === 'collecting'
+        ? 'running' as const
+        : 'completed' as const,
   };
   const activeFreeTrialIndex = displayMatchesActiveDomain
     ? getActiveHeatCapacityFreeTrialIndex(displayTrialSource)
@@ -616,6 +646,8 @@ const renderFreeDataAndResultsTab = (
   const currentFreeTrialEditable = displayMatchesActiveDomain &&
     displayFreeTrialIndex === activeFreeTrialIndex &&
     activeFreeTrialIndex >= 0;
+  const displayedTrialsEditable = displayMatchesActiveDomain &&
+    viewedGroup?.status === 'collecting';
   const summaryLine = copy.freeRecording.summaryLine(
     displayedTheoreticalGamma.toFixed(2),
     result.validTrialCount,
@@ -630,7 +662,7 @@ const renderFreeDataAndResultsTab = (
     if (!visible) return null;
     const pending = pendingRemoveTrialRecord?.trialIndex === trialIndex &&
       pendingRemoveTrialRecord.kind === kind &&
-      pendingRemoveTrialRecord.scheme === heatCapacityFreeDisplayScheme;
+      pendingRemoveTrialRecord.scheme === displayedScheme;
     const label = kind === 'u0'
       ? copy.table.deleteU0
       : kind === 'u1'
@@ -643,7 +675,7 @@ const renderFreeDataAndResultsTab = (
         <button
           type="button"
           className={`studio-table-action ${pending ? 'studio-table-action-confirm' : ''}`}
-          onClick={() => onRemoveTrialRecord(trialIndex, kind, heatCapacityFreeDisplayScheme)}
+          onClick={() => onRemoveTrialRecord(trialIndex, kind, displayedScheme)}
         >
           {pending ? copy.table.confirmDelete : label}
         </button>
@@ -663,17 +695,6 @@ const renderFreeDataAndResultsTab = (
   const canRemoveCurrentFreeU1 = currentFreeTrialEditable && (currentFreeTrial?.u1 ?? null) !== null;
   const canRemoveCurrentFreeU2 = currentFreeTrialEditable && (currentFreeTrial?.u2 ?? null) !== null;
   const currentFreeTrialActionsVisible = canRemoveCurrentFreeU0 || canRemoveCurrentFreeU1 || canRemoveCurrentFreeU2;
-  const renderDisplaySchemeSelect = () => (
-    <HeatCapacityFreeDisplaySchemeMenu
-      value={heatCapacityFreeDisplayScheme}
-      label={copy.freeRecording.displayScheme}
-      realLabel={copy.freeRecording.realSimulation}
-      idealLabel={copy.freeRecording.idealProfile}
-      realHint={copy.freeRecording.realSimulationHint}
-      idealHint={copy.freeRecording.idealProfileHint}
-      onChange={onHeatCapacityFreeDisplaySchemeChange}
-    />
-  );
   const renderCurrentFreeRecordRow = (
     key: string,
     label: string,
@@ -696,6 +717,32 @@ const renderFreeDataAndResultsTab = (
       data-heat-capacity-recording-tab="true"
       data-heat-capacity-record-source={file.heatCapacityMode}
     >
+      <HeatCapacityExperimentGroupContextBar
+        collection={groupCollection}
+        language={language}
+        onViewedGroupChange={onViewedGroupChange}
+        onViewedTrialChange={onViewedTrialChange}
+      />
+      <section className="studio-heat-export-card" data-heat-capacity-export-actions="true">
+        <div>
+          <strong>{language === 'en' ? 'Export' : language === 'zh-TW' ? '匯出' : '导出'}</strong>
+          <span>{language === 'en' ? 'Exports cover the whole Free Mode experiment file.' : language === 'zh-TW' ? '匯出範圍涵蓋整個自由模式實驗檔案。' : '导出范围涵盖整个自由模式实验文件。'}</span>
+        </div>
+        <div className="studio-heat-export-buttons">
+          <button type="button" disabled={exportInProgress} onClick={onExportExperimentPackage}>
+            <FileArchive size={13} />
+            {language === 'en' ? 'Export experiment package' : language === 'zh-TW' ? '匯出實驗包' : '导出实验包'}
+          </button>
+          <button type="button" disabled={!canExportReport || exportInProgress} onClick={onExportReport}>
+            <Download size={13} />
+            {language === 'en' ? 'Export report' : language === 'zh-TW' ? '匯出報告' : '导出报告'}
+          </button>
+          <button type="button" disabled={!canExportFigures || exportInProgress} onClick={onExportFigures}>
+            <BarChart3 size={13} />
+            {language === 'en' ? 'Export figures' : language === 'zh-TW' ? '匯出圖表' : '导出图表'}
+          </button>
+        </div>
+      </section>
       <div className="studio-result-status studio-result-status-ready">
         <strong>{copy.freeRecording.dataAndResultsTitle}</strong>
         <span>{copy.freeRecording.source}</span>
@@ -763,9 +810,8 @@ const renderFreeDataAndResultsTab = (
           <strong>{copy.freeRecording.completeTrials(completed)}</strong>
           <span>{copy.freeRecording.totalRows(displayedTrials.length)}</span>
         </div>
-        {renderDisplaySchemeSelect()}
       </div>
-      {heatCapacityFreeDisplayScheme === 'ideal' ? (
+      {displayedScheme === 'ideal' ? (
         <div className="studio-result-status studio-result-status-waiting" data-heat-capacity-ideal-score-notice="true">
           <span>{copy.freeRecording.idealScoreNotice}</span>
         </div>
@@ -820,7 +866,9 @@ const renderFreeDataAndResultsTab = (
                         {renderRemoveRecordButton(
                           index,
                           'trial',
-                          trial.u0 !== null || trial.u1 !== null || trial.u2 !== null,
+                          displayedTrialsEditable && (
+                            trial.u0 !== null || trial.u1 !== null || trial.u2 !== null
+                          ),
                         )}
                       </div>
                     </td>
@@ -875,6 +923,13 @@ const renderFreeDataAndResultsTab = (
           </tbody>
         </table>
       </div>
+      {viewedGroup ? (
+        <HeatCapacityGroupResultsPanel
+          group={viewedGroup}
+          collection={groupCollection}
+          language={language}
+        />
+      ) : null}
     </div>
   );
 };
@@ -1006,8 +1061,15 @@ export const HeatCapacityLeftPanel = ({
   pendingRemoveTrialRecord,
   onRemoveTrialRecord,
   onCancelRemoveTrialRecord,
-  heatCapacityFreeDisplayScheme,
-  onHeatCapacityFreeDisplaySchemeChange,
+  groupCollection,
+  onViewedGroupChange,
+  onViewedTrialChange,
+  exportInProgress,
+  canExportReport,
+  canExportFigures,
+  onExportExperimentPackage,
+  onExportReport,
+  onExportFigures,
 }: HeatCapacityLeftPanelProps) => {
   const copy = text(language);
   const contentTitle = useMemo(() => {
@@ -1031,11 +1093,19 @@ export const HeatCapacityLeftPanel = ({
             ? renderFreeDataAndResultsTab(
                 file,
                 copy,
+                language,
                 pendingRemoveTrialRecord,
                 onRemoveTrialRecord,
                 onCancelRemoveTrialRecord,
-                heatCapacityFreeDisplayScheme,
-                onHeatCapacityFreeDisplaySchemeChange,
+                groupCollection,
+                onViewedGroupChange,
+                onViewedTrialChange,
+                exportInProgress,
+                canExportReport,
+                canExportFigures,
+                onExportExperimentPackage,
+                onExportReport,
+                onExportFigures,
               )
             : renderSingleTrialDataAndResultsTab(file, copy)}
       </div>

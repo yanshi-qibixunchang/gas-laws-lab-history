@@ -3,6 +3,7 @@ import {
   acknowledgeHeatCapacityFreeFileNoticeWorkbenchState,
   applyHeatCapacityFreeParameterDraftWorkbenchState,
   canOpenHeatCapacityParameterSidebar,
+  configureHeatCapacityFreeBatchWorkbenchState,
   createDefaultHeatCapacityFile,
   freezeHeatCapacityFreeParametersForCurrentGroup,
   getHeatCapacityFreeParameterLockReason,
@@ -12,9 +13,10 @@ import {
   isHeatCapacityFreeParameterEditingAvailable,
   powerHeatCapacityWorkbenchFile,
   resetHeatCapacityFreeParametersToDefaultWorkbenchState,
-  resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState,
+  restartCurrentHeatCapacityFreeExperimentWorkbenchState,
   resetHeatCapacityFreeRunWorkbenchState,
-  startNextHeatCapacityFreeExperimentGroupWorkbenchState,
+  restartHeatCapacityFreeBatchWorkbenchState,
+  prepareNextHeatCapacityFreeExperimentWorkbenchState,
   shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
   stepHeatCapacityWorkbenchFile,
 } from '../../src/features/workbench/workbenchState.ts';
@@ -27,6 +29,12 @@ import {
 import {
   HEAT_CAPACITY_FREE_GAS_TYPE_MODEL_DEFAULTS,
 } from '../../src/domain/heatCapacity/heatCapacityGasTheory.ts';
+import {
+  mapTemperatureKToSignalMv,
+} from '../../src/domain/heatCapacity/heatCapacitySensorMapping.ts';
+import {
+  HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
+} from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 
 const defaultFile = createDefaultHeatCapacityFile(1);
 
@@ -107,8 +115,53 @@ assert.equal(
   99.8,
   'draft application should keep the current file config aligned before freezing',
 );
+assert.equal(
+  editedFile.heatCapacityFreePhysicsState.gasTemperatureK,
+  editedDraft.ambientTemperatureK,
+  'editing an unstarted file should rebuild the gas at the selected ambient temperature',
+);
+assert.equal(
+  editedFile.heatCapacityFreePhysicsState.wallTemperatureK,
+  editedDraft.ambientTemperatureK,
+  'editing an unstarted file should rebuild the wall at the selected ambient temperature',
+);
+assert.equal(
+  editedFile.heatCapacityFreeSensorState.sensorTemperatureK,
+  editedDraft.ambientTemperatureK,
+  'editing an unstarted file should rebuild the temperature sensor at ambient',
+);
+assert.equal(
+  editedFile.heatCapacityFreeSensorState.displayTemperatureMv,
+  mapTemperatureKToSignalMv(editedDraft.ambientTemperatureK),
+  'editing an unstarted file should immediately expose the selected equilibrium voltage',
+);
 
-const frozenFile = freezeHeatCapacityFreeParametersForCurrentGroup(editedFile);
+const configuredUnstartedBatch = configureHeatCapacityFreeBatchWorkbenchState(
+  defaultFile,
+  3,
+  900,
+);
+const warmConfiguredBatch = applyHeatCapacityFreeParameterDraftWorkbenchState(
+  configuredUnstartedBatch,
+  {
+    ...configuredUnstartedBatch.heatCapacityFreeParameterDraft,
+    ambientTemperatureK: 303.15,
+  },
+  901,
+);
+assert.equal(warmConfiguredBatch.heatCapacityFreeBatch.targetGroupCount, 3);
+assert.equal(warmConfiguredBatch.heatCapacityFreeBatch.startedAtMs, null);
+assert.equal(warmConfiguredBatch.heatCapacityFreePhysicsState.gasTemperatureK, 303.15);
+assert.equal(warmConfiguredBatch.heatCapacityFreeSensorState.sensorTemperatureK, 303.15);
+assert.equal(
+  warmConfiguredBatch.heatCapacityFreeSensorState.displayTemperatureMv,
+  1523.7,
+  'the real setup-batch -> edit-temperature path should not retain the old 25 degree runtime',
+);
+
+const frozenFile = freezeHeatCapacityFreeParametersForCurrentGroup(
+  configureHeatCapacityFreeBatchWorkbenchState(editedFile, 3, 1000),
+);
 assert.equal(frozenFile.heatCapacityFreeExperimentGroupStatus, 'running');
 assert.equal(isHeatCapacityFreeParameterEditingAvailable(frozenFile), false);
 assert.equal(getHeatCapacityFreeParameterLockReason(frozenFile), 'groupStarted');
@@ -127,7 +180,7 @@ assert.equal(frozenFile.heatCapacityFreeInstrumentNoiseEnabled, false);
 assert.equal(frozenFile.heatCapacityFreePressureWarningMv, 122);
 assert.equal(frozenFile.heatCapacityFreeRecordConfig.pressureDangerMv, 150);
 
-const blockedNextGroupFile = startNextHeatCapacityFreeExperimentGroupWorkbenchState(frozenFile);
+const blockedNextGroupFile = prepareNextHeatCapacityFreeExperimentWorkbenchState(frozenFile);
 assert.equal(blockedNextGroupFile, frozenFile, 'Next Group must stay disabled until a valid group is complete and powered off');
 
 const completedFreeTrial = {
@@ -143,6 +196,67 @@ const completedFreeTrial = {
   correctedSignals: { gamma: 1.4 },
   configSnapshot: frozenFile.heatCapacityFreeActiveRunConfigSnapshot,
 } as any;
+const activeBatchId = frozenFile.heatCapacityFreeBatch.id;
+assert.notEqual(activeBatchId, null);
+const completedExperimentBeforeRestart = {
+  ...completedFreeTrial,
+  id: `${activeBatchId}:trial:1`,
+  completedAtMs: 1_500,
+  batchMembership: {
+    version: HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
+    batchId: activeBatchId,
+    sequence: 1,
+  },
+};
+const partialCurrentExperiment = {
+  ...completedFreeTrial,
+  id: `${activeBatchId}:trial:2`,
+  u1: null,
+  u2: null,
+  correctedSignals: null,
+  completedAtMs: null,
+  batchMembership: {
+    version: HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
+    batchId: activeBatchId,
+    sequence: 2,
+  },
+};
+const currentGroupIdBeforeExperimentRestart = frozenFile.heatCapacityFreeExperimentGroups.currentGroupId;
+const restartedCurrentExperiment = restartCurrentHeatCapacityFreeExperimentWorkbenchState({
+  ...frozenFile,
+  powerOn: true,
+  heatCapacityFreeBatch: {
+    ...frozenFile.heatCapacityFreeBatch,
+    nextTrialSequence: 3,
+  },
+  heatCapacityFreeExperimentGroupStatus: 'running',
+  heatCapacityFreeTrials: [completedExperimentBeforeRestart, partialCurrentExperiment],
+}, 1_600);
+assert.equal(restartedCurrentExperiment.powerOn, false);
+assert.equal(restartedCurrentExperiment.heatCapacityFreeExperimentGroupStatus, 'draft');
+assert.equal(
+  restartedCurrentExperiment.heatCapacityFreeExperimentGroups.currentGroupId,
+  currentGroupIdBeforeExperimentRestart,
+  'current-experiment restart must not detach the active experiment group',
+);
+assert.deepEqual(
+  restartedCurrentExperiment.heatCapacityFreeTrials.map((trial) => trial.id),
+  [completedExperimentBeforeRestart.id],
+  'current-experiment restart must remove only the unfinished experiment',
+);
+assert.equal(
+  restartedCurrentExperiment.heatCapacityFreeBatch.nextTrialSequence,
+  3,
+  'current-experiment restart must retain the monotonic trial identity sequence',
+);
+const currentGroupAfterExperimentRestart = restartedCurrentExperiment.heatCapacityFreeExperimentGroups.groups.find(
+  (group) => group.id === currentGroupIdBeforeExperimentRestart,
+);
+assert.deepEqual(
+  currentGroupAfterExperimentRestart?.runSeries.trials.map((trial) => trial.id),
+  [completedExperimentBeforeRestart.id],
+  'the current experiment group aggregate must stay synchronized after an experiment restart',
+);
 const completedGroupPowerOnFile = {
   ...frozenFile,
   powerOn: true,
@@ -177,7 +291,8 @@ assert.equal(shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(completedGroupP
 const preparedAfterPowerOff = powerHeatCapacityWorkbenchFile(completedGroupPowerOnFile, false, 2000);
 assert.equal(preparedAfterPowerOff.heatCapacityFreeExperimentGroupStatus, 'completed');
 assert.notEqual(preparedAfterPowerOff.heatCapacityFreeActiveRunConfigSnapshot, null);
-assert.equal(isHeatCapacityFreeParameterEditingAvailable(preparedAfterPowerOff), true);
+assert.equal(isHeatCapacityFreeParameterEditingAvailable(preparedAfterPowerOff), false);
+assert.equal(getHeatCapacityFreeParameterLockReason(preparedAfterPowerOff), 'batchStarted');
 
 const snapshotParts = createCompleteProcessReviewFixtureParts();
 const completedFileForStandardReferenceSnapshot = {
@@ -212,16 +327,38 @@ assert.equal(
 );
 assert.equal(persistedStandardReferenceSnapshot?.operationPreset.pumpStrokes, 18);
 assert.equal((persistedStandardReferenceSnapshot?.trace.length ?? 0) > 0, true);
-const resetCompletedGroup = resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState(preparedAfterPowerOff, 2050);
-assert.equal(resetCompletedGroup.heatCapacityFreeExperimentGroupStatus, 'completed');
-assert.notEqual(resetCompletedGroup.heatCapacityFreeActiveRunConfigSnapshot, null);
-const preparedForNextGroup = startNextHeatCapacityFreeExperimentGroupWorkbenchState(preparedAfterPowerOff, 2100);
+const restartedBlankNextExperiment = restartCurrentHeatCapacityFreeExperimentWorkbenchState(
+  preparedAfterPowerOff,
+  2050,
+);
+assert.equal(restartedBlankNextExperiment.heatCapacityFreeExperimentGroupStatus, 'draft');
+assert.equal(
+  restartedBlankNextExperiment.heatCapacityFreeExperimentGroups.currentGroupId,
+  preparedAfterPowerOff.heatCapacityFreeExperimentGroups.currentGroupId,
+  'restarting the current experiment must preserve the owning experiment group',
+);
+assert.equal(
+  restartedBlankNextExperiment.heatCapacityFreeTrials.length,
+  preparedAfterPowerOff.heatCapacityFreeTrials.length,
+  'restarting a blank next experiment must preserve already completed experiments',
+);
+assert.notEqual(restartedBlankNextExperiment.heatCapacityFreeActiveRunConfigSnapshot, null);
+const preparedForNextGroup = prepareNextHeatCapacityFreeExperimentWorkbenchState(preparedAfterPowerOff, 2100);
 assert.equal(preparedForNextGroup.heatCapacityFreeExperimentGroupStatus, 'draft');
-assert.equal(preparedForNextGroup.heatCapacityFreeActiveRunConfigSnapshot, null);
+assert.equal(
+  preparedForNextGroup.heatCapacityFreeExperimentGroups.currentGroupId,
+  preparedAfterPowerOff.heatCapacityFreeExperimentGroups.currentGroupId,
+  'automatic experiment advance must preserve the current experiment group',
+);
+assert.deepEqual(
+  preparedForNextGroup.heatCapacityFreeActiveRunConfigSnapshot,
+  preparedAfterPowerOff.heatCapacityFreeActiveRunConfigSnapshot,
+);
 assert.equal(preparedForNextGroup.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.8);
 assert.equal(preparedForNextGroup.heatCapacityFreeParameterDraft.leakageRatePerS, 0.0018);
 assert.equal(preparedForNextGroup.heatCapacityFreeParameterDraft.instrumentNoiseEnabled, false);
-assert.equal(isHeatCapacityFreeParameterEditingAvailable(preparedForNextGroup), true);
+assert.equal(isHeatCapacityFreeParameterEditingAvailable(preparedForNextGroup), false);
+assert.equal(getHeatCapacityFreeParameterLockReason(preparedForNextGroup), 'batchStarted');
 
 const heliumGasFile = applyHeatCapacityFreeParameterDraftWorkbenchState(defaultFile, {
   ...defaultFile.heatCapacityFreeParameterDraft,
@@ -252,8 +389,10 @@ assert.equal(
   'helium physics config should use the tuned monatomic leakage rate',
 );
 
-const gasTypeFrozenFile = freezeHeatCapacityFreeParametersForCurrentGroup(heliumGasFile);
-const gasTypeNextGroupFile = startNextHeatCapacityFreeExperimentGroupWorkbenchState({
+const gasTypeFrozenFile = freezeHeatCapacityFreeParametersForCurrentGroup(
+  configureHeatCapacityFreeBatchWorkbenchState(heliumGasFile, 3, 3000),
+);
+const gasTypeNextGroupFile = prepareNextHeatCapacityFreeExperimentWorkbenchState({
   ...gasTypeFrozenFile,
   powerOn: false,
   heatCapacityFreeExperimentGroupStatus: 'completed',
@@ -271,24 +410,32 @@ const gasTypeLockedEdit = applyHeatCapacityFreeParameterDraftWorkbenchState(gasT
   ambientPressureKPa: 100.1,
   gasType: 'air',
 });
-assert.equal(gasTypeLockedEdit.heatCapacityFreeParameterDraft.ambientPressureKPa, 100.1);
+assert.equal(
+  gasTypeLockedEdit.heatCapacityFreeParameterDraft.ambientPressureKPa,
+  gasTypeNextGroupFile.heatCapacityFreeParameterDraft.ambientPressureKPa,
+);
 assert.equal(gasTypeLockedEdit.heatCapacityFreeGasType, 'helium');
 assert.equal(gasTypeLockedEdit.heatCapacityFreeParameterDraft.gasType, 'helium');
 assert.equal(gasTypeLockedEdit.heatCapacityFreePhysicsConfig.gamma, 5 / 3);
 assert.equal(gasTypeLockedEdit.theoreticalGamma, 5 / 3);
 
-const incompleteGasTypeRun = freezeHeatCapacityFreeParametersForCurrentGroup(heliumGasFile);
-const resetGasTypeFile = resetHeatCapacityFreeRunWorkbenchState(incompleteGasTypeRun, 1234);
+const incompleteGasTypeRun = freezeHeatCapacityFreeParametersForCurrentGroup(
+  configureHeatCapacityFreeBatchWorkbenchState(heliumGasFile, 3, 1233),
+);
+const resetGasTypeFile = restartHeatCapacityFreeBatchWorkbenchState(incompleteGasTypeRun, 1234);
 const resetGasTypeEdit = applyHeatCapacityFreeParameterDraftWorkbenchState(resetGasTypeFile, {
   ...resetGasTypeFile.heatCapacityFreeParameterDraft,
   gasType: 'air',
 });
 assert.equal(resetGasTypeEdit.heatCapacityFreeTrials.length, 0);
-assert.equal(resetGasTypeEdit.heatCapacityFreeGasType, 'air');
-assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.gasType, 'air');
-assert.equal(resetGasTypeEdit.theoreticalGamma, 1.4);
-assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.gasWallConductanceWPerK, 0.08);
-assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.leakageRatePerS, 0.00005);
+assert.equal(resetGasTypeEdit.heatCapacityFreeGasType, 'helium');
+assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.gasType, 'helium');
+assert.equal(resetGasTypeEdit.theoreticalGamma, 5 / 3);
+assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.gasWallConductanceWPerK, 0.03);
+assert.equal(
+  resetGasTypeEdit.heatCapacityFreeParameterDraft.leakageRatePerS,
+  HEAT_CAPACITY_FREE_GAS_TYPE_MODEL_DEFAULTS.helium.leakageRatePerS,
+);
 
 const allEditableParametersChanged = applyHeatCapacityFreeParameterDraftWorkbenchState(defaultFile, {
   ...defaultFile.heatCapacityFreeParameterDraft,
@@ -330,7 +477,9 @@ assert.equal(restoredDefaultParameters.heatCapacityFreePressureWarningMv, defaul
 assert.equal(restoredDefaultParameters.hardSphereViewEnabled, defaultFile.hardSphereViewEnabled);
 
 const lockedDefaultResetAttempt = resetHeatCapacityFreeParametersToDefaultWorkbenchState(
-  freezeHeatCapacityFreeParametersForCurrentGroup(allEditableParametersChanged),
+  freezeHeatCapacityFreeParametersForCurrentGroup(
+    configureHeatCapacityFreeBatchWorkbenchState(allEditableParametersChanged, 3, 4000),
+  ),
 );
 assert.equal(
   lockedDefaultResetAttempt.heatCapacityFreeParameterDraft.ambientPressureKPa,

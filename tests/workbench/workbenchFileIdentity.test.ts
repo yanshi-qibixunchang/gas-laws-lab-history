@@ -6,6 +6,7 @@ import {
 } from '../../src/features/workbench/workbenchFileIdentity.ts';
 import {
   createDefaultHeatCapacityFile,
+  createDefaultHeatCapacityPistonOscillationFile,
   createDefaultIdealFile,
   createDefaultStandardFile,
   type WorkbenchFileKind,
@@ -22,11 +23,13 @@ const UUID_C = '00000000-0000-4000-8000-000000000003';
 const legacyHeat = createDefaultHeatCapacityFile(1);
 const legacyIdeal = createDefaultIdealFile(1);
 const legacyStandard = createDefaultStandardFile(1);
+const pistonOscillation = createDefaultHeatCapacityPistonOscillationFile(1);
 assert.deepEqual(
   [legacyHeat.id, legacyIdeal.id, legacyStandard.id],
   ['heatCapacity-001', 'ideal-001', 'standard-001'],
   'legacy sequential identities must remain readable and must not be rewritten',
 );
+assert.equal(pistonOscillation.id, 'heatCapacityPistonOscillation-001');
 
 const collisionValues = [UUID_A, UUID_B];
 const collisionId = createUniqueWorkbenchFileId(
@@ -69,6 +72,23 @@ assert.equal(
   getNextWorkbenchFileDisplayIndex('heatCapacity', []),
   1,
   'an empty experiment collection should restart only the user-visible numbering',
+);
+assert.equal(
+  getNextWorkbenchFileDisplayIndex('heatCapacityPistonOscillation', [
+    createDefaultHeatCapacityFile(8),
+    createDefaultHeatCapacityPistonOscillationFile(1),
+    createDefaultHeatCapacityPistonOscillationFile(2),
+  ]),
+  3,
+  'the two heat-capacity methods must keep independent visible numbering',
+);
+assert.equal(
+  getNextWorkbenchFileDisplayIndex('heatCapacity', [{
+    ...createDefaultHeatCapacityFile(7),
+    name: 'Heat Capacity Ratio - 007',
+  }]),
+  8,
+  'legacy adiabatic-expansion names must still reserve their visible number',
 );
 assert.equal(
   getNextWorkbenchFileDisplayIndex('heatCapacity', [{
@@ -150,6 +170,23 @@ assert.equal(
   firstRecords.modeRecords.some((record) => secondRecords.modeRecords.some((other) => other.fileId === record.fileId)),
   false,
   'delete then create must never share mode-record ownership',
+);
+
+const pistonRecords = createPersistenceRecords('identity-piston-oscillation', {
+  files: [pistonOscillation],
+  closedFiles: [],
+  activeFileId: pistonOscillation.id,
+  selectedPanel: 'preview',
+  refreshSession: null,
+  activeModeCheckpoint: null,
+  preserveActiveHeatCapacityModeSession: false,
+});
+assert.equal(pistonRecords.fileRecords.length, 1);
+assert.equal(pistonRecords.fileRecords[0]?.state.kind, 'heatCapacityPistonOscillation');
+assert.equal(
+  pistonRecords.modeRecords.length,
+  0,
+  'piston-oscillation files must never create adiabatic-expansion mode-session records',
 );
 
 const rapidIssued = new Set<string>();

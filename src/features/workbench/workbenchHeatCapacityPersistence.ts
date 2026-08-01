@@ -23,12 +23,11 @@ import {
 import {
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
+  applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields,
   createDefaultHeatCapacityFile,
   createDefaultHeatCapacityFreeExperimentDomainState,
   getHeatCapacityStopcockTargetAngle,
-  hasHeatCapacityFreeIdealThermalBoundaryContamination,
   normalizeHeatCapacityFreeFileAcknowledgements,
-  normalizeHeatCapacityFreeExperimentDomainBoundary,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
   type HeatCapacityFreeExperimentDomainState,
   type WorkbenchHeatCapacityState,
@@ -71,7 +70,8 @@ import {
   createHeatCapacityFreeUiReplay,
   normalizeHeatCapacityFreeUiReplay,
   type HeatCapacityFreePersistenceDataV1,
-  type HeatCapacityPersistencePayloadV1,
+  type HeatCapacityFreePersistenceDataV2,
+  type HeatCapacityPersistencePayloadV2,
 } from './workbenchHeatCapacityPersistenceContract.ts';
 import {
   createHeatCapacityGuidePersistenceData,
@@ -96,7 +96,20 @@ import {
 } from '../../domain/heatCapacity/heatCapacityTeachingProfile.ts';
 import {
   normalizeHeatCapacityModeSessionStore,
+  normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence,
 } from './workbenchHeatCapacityModeSession.ts';
+import {
+  migrateLegacyHeatCapacityFreeExperimentGroups,
+} from './workbenchHeatCapacityExperimentGroupMigration.ts';
+import {
+  estimateHeatCapacityFreeExperimentGroupCollectionBytes,
+} from '../../domain/heatCapacity/heatCapacityFreeCapacityPolicy.ts';
+import {
+  updateHeatCapacityFreeExperimentGroupCapacityEstimate,
+} from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
+import {
+  prepareHeatCapacityFreeCapture,
+} from './workbenchHeatCapacityFreeCapture.ts';
 
 export {
   HEAT_CAPACITY_PROCESS_SCORING_VERSION,
@@ -107,10 +120,12 @@ export {
 } from './workbenchHeatCapacityPersistenceContract.ts';
 export type {
   HeatCapacityFreePersistenceDataV1,
+  HeatCapacityFreePersistenceDataV2,
   HeatCapacityFreeUiReplayV1,
   HeatCapacityGuidePersistenceDataV1,
   HeatCapacityPayloadValidationResult,
   HeatCapacityPersistencePayloadV1,
+  HeatCapacityPersistencePayloadV2,
 } from './workbenchHeatCapacityPersistenceContract.ts';
 export {
   createHeatCapacityFreeConfigSnapshotFromFile,
@@ -119,9 +134,16 @@ export {
 export const createHeatCapacityPersistencePayload = (
   file: WorkbenchHeatCapacityState,
   savedAt: number,
-): HeatCapacityPersistencePayloadV1 => {
+): HeatCapacityPersistencePayloadV2 => {
   void savedAt;
   const fileWithCurrentDomain = createHeatCapacityPersistenceSourceFile(file);
+  const experimentGroups = updateHeatCapacityFreeExperimentGroupCapacityEstimate(
+    fileWithCurrentDomain.heatCapacityFreeExperimentGroups,
+    estimateHeatCapacityFreeExperimentGroupCollectionBytes(
+      fileWithCurrentDomain.heatCapacityFreeExperimentGroups,
+    ),
+    fileWithCurrentDomain.updatedAt,
+  );
   return {
     experimentKind: 'heatCapacity',
     heatCapacitySchemaVersion: HEAT_CAPACITY_SCHEMA_VERSION,
@@ -146,6 +168,9 @@ export const createHeatCapacityPersistencePayload = (
       gasType: fileWithCurrentDomain.heatCapacityFreeGasType,
       real: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeRealDomain),
       ideal: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeIdealDomain),
+      experimentGroups: clonePersistenceValue(
+        experimentGroups,
+      ),
       config: createHeatCapacityFreeConfigSnapshotFromFile(fileWithCurrentDomain),
       parameterDraft: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeParameterDraft),
       experimentGroupStatus: fileWithCurrentDomain.heatCapacityFreeExperimentGroupStatus,
@@ -222,6 +247,7 @@ const createRuntimeFieldsFromRestoredFreeDomain = (
   );
   const gasTypeGamma = getHeatCapacityFreeGasTypeGamma(domain.gasType);
   return {
+    heatCapacityFreeBatch: domain.batch,
     heatCapacityFreeGasType: domain.gasType,
     heatCapacityFreeExperimentGroupStatus: domain.experimentGroupStatus,
     heatCapacityFreeParameterDraft: { ...parameterDraft, gasType: domain.gasType },
@@ -250,62 +276,19 @@ const createRuntimeFieldsFromRestoredFreeDomain = (
 const createHeatCapacityPersistenceSourceFile = (
   file: WorkbenchHeatCapacityState,
 ): WorkbenchHeatCapacityState => {
-  // Boundary rule: real/ideal domains are the durable stores; top-level fields are
-  // only the active runtime projection. Outside Free mode the shared release state
-  // belongs to Guide/Demo, so preserve the Free-owned release state from its domain
-  // while retaining the top-level Free history/config projection.
-  const normalizedRealDomain = normalizeHeatCapacityFreeExperimentDomainBoundary(
-    file.heatCapacityFreeRealDomain,
-    'real',
-  );
-  const normalizedIdealDomain = normalizeHeatCapacityFreeExperimentDomainBoundary(
-    file.heatCapacityFreeIdealDomain,
-    'ideal',
-  );
-  const fileWithBoundaryDomains: WorkbenchHeatCapacityState = {
-    ...file,
-    heatCapacityFreeRealDomain: normalizedRealDomain,
-    heatCapacityFreeIdealDomain: normalizedIdealDomain,
-  };
-  const activeDomain = file.heatCapacityFreeParameterScheme === 'ideal'
-    ? normalizedIdealDomain
-    : normalizedRealDomain;
-  const persistenceProjectionFile = file.heatCapacityMode === 'free'
-    ? fileWithBoundaryDomains
-    : {
-        ...fileWithBoundaryDomains,
-        heatCapacityReleaseState: { ...activeDomain.releaseState },
-      };
-  const useDomainAsActiveSource = file.heatCapacityFreeParameterScheme === 'real' &&
-    hasHeatCapacityFreeIdealThermalBoundaryContamination(file.heatCapacityFreePhysicsConfig);
-  const synchronizedFile = useDomainAsActiveSource
-    ? {
-        ...fileWithBoundaryDomains,
-        ...createRuntimeFieldsFromRestoredFreeDomain(activeDomain),
-      }
-    : storeHeatCapacityFreeRuntimeFieldsInDomain(
-        persistenceProjectionFile,
-        file.heatCapacityFreeParameterScheme,
-      );
-
-  return {
-    ...synchronizedFile,
-    heatCapacityFreeRealDomain: normalizeHeatCapacityFreeExperimentDomainBoundary(
-      synchronizedFile.heatCapacityFreeRealDomain,
-      'real',
-    ),
-    heatCapacityFreeIdealDomain: normalizeHeatCapacityFreeExperimentDomainBoundary(
-      synchronizedFile.heatCapacityFreeIdealDomain,
-      'ideal',
-    ),
-  };
+  const captured = prepareHeatCapacityFreeCapture(file, file.heatCapacityMode === 'free');
+  if (captured.ok === false) {
+    throw new Error(`${captured.fieldPath}: ${captured.reason}`);
+  }
+  return captured.file;
 };
 
 const normalizePayloadMode = (
   value: unknown,
-): WorkbenchHeatCapacityState['heatCapacityMode'] => (
-  value === 'demo' || value === 'guide' || value === 'free' ? value : 'free'
-);
+): WorkbenchHeatCapacityState['heatCapacityMode'] => {
+  if (value === null) return null;
+  return value === 'demo' || value === 'guide' || value === 'free' ? value : 'free';
+};
 
 const normalizePumpBulbState = (
   value: unknown,
@@ -328,9 +311,9 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
   index = 1,
 ): WorkbenchHeatCapacityState => {
   const fallback = createDefaultHeatCapacityFile(index);
-  const heatPayload = isRecord(payload) ? payload as Partial<HeatCapacityPersistencePayloadV1> : {};
-  const free = isRecord(heatPayload.free) ? heatPayload.free as Partial<HeatCapacityFreePersistenceDataV1> : null;
-  const common = isRecord(heatPayload.common) ? heatPayload.common as Partial<HeatCapacityPersistencePayloadV1['common']> : {};
+  const heatPayload = isRecord(payload) ? payload as Partial<HeatCapacityPersistencePayloadV2> : {};
+  const free = isRecord(heatPayload.free) ? heatPayload.free as Partial<HeatCapacityFreePersistenceDataV2> : null;
+  const common = isRecord(heatPayload.common) ? heatPayload.common as Partial<HeatCapacityPersistencePayloadV2['common']> : {};
   const restoredMode = normalizePayloadMode(heatPayload.mode);
   const freeHasCurrentParameterPayload = hasCurrentFreeParameterPayload(free);
   const snapshot = freeHasCurrentParameterPayload
@@ -441,6 +424,24 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
   );
   const restoredRealDomainWithGasType = restoredRealDomain;
   const restoredIdealDomainWithGasType = restoredIdealDomain;
+  const persistedExperimentGroups = normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence(
+    free?.experimentGroups,
+  );
+  if (
+    heatPayload.heatCapacitySchemaVersion === HEAT_CAPACITY_SCHEMA_VERSION &&
+    free !== null &&
+    persistedExperimentGroups === null
+  ) {
+    throw new Error('The heat-capacity experiment-group collection is invalid.');
+  }
+  const restoredExperimentGroups = persistedExperimentGroups ??
+    migrateLegacyHeatCapacityFreeExperimentGroups({
+      fileId: fileEnvelope.id,
+      selectedScheme: restoredParameterScheme,
+      real: restoredRealDomainWithGasType,
+      ideal: restoredIdealDomainWithGasType,
+      fallbackCreatedAtMs: fileEnvelope.createdAt,
+    });
   const restoredActiveDomain = restoredParameterScheme === 'ideal'
     ? restoredIdealDomainWithGasType
     : restoredRealDomainWithGasType;
@@ -507,6 +508,7 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityFreeGasType: parameterDraft.gasType,
     heatCapacityFreeRealDomain: restoredRealDomainWithGasType,
     heatCapacityFreeIdealDomain: restoredIdealDomainWithGasType,
+    heatCapacityFreeExperimentGroups: restoredExperimentGroups,
     heatCapacityFreeEnvironmentConfig: { ...snapshot.environment },
     heatCapacityFreeExperimentGroupStatus: normalizeHeatCapacityFreeRestoreExperimentGroupStatus(
       free?.experimentGroupStatus,
@@ -549,5 +551,15 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityReleaseState: restoredReleaseState,
     ...restoredGuideFields,
   };
-  return normalizeHeatCapacitySessionRuntimeState(restoredFile);
+  const restoredFileWithLegacyActiveDomain = activeDomainPersisted
+    ? restoredFile
+    : storeHeatCapacityFreeRuntimeFieldsInDomain(
+        restoredFile,
+        restoredParameterScheme,
+      );
+  return normalizeHeatCapacitySessionRuntimeState(
+    applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields(
+      restoredFileWithLegacyActiveDomain,
+    ),
+  );
 };

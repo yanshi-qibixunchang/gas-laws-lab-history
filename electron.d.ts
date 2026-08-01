@@ -123,6 +123,20 @@ declare global {
   }
 
   interface Window {
+    hardSphereLabTutorial?: {
+      activate: () => Promise<{
+        status: 'ok' | 'blocked' | 'error';
+        message?: string;
+        archivedNamespaces?: string[];
+      }>;
+      finalizeActivation: (namespaces: string[]) => Promise<{
+        status: 'ok' | 'error';
+        message?: string;
+      }>;
+      deactivate: () => Promise<{ status: 'ok' }>;
+      getState: () => Promise<{ active: boolean; owner: boolean }>;
+      exitApplication: () => Promise<{ status: 'ok' }>;
+    };
     hardSphereLabWindow?: {
       newWindow: () => Promise<{ status: 'ok' | 'error'; message?: string }>;
       minimize: () => Promise<DesktopWindowState>;

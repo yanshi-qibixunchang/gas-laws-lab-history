@@ -153,11 +153,12 @@ assert.equal(lowNonlinear.pressureReliability < highNonlinear.pressureReliabilit
 assert.equal(lowNonlinear.pressureReliability < 0.85, true);
 assert.notEqual(lowNonlinear.pressureStochasticErrorMv, 0);
 
+const warmRoomTemperatureMvAtAmbient = 1499 + (303.15 - 298.15) * quietConfig.temperatureMvPerK;
 const warmRoom = stepFreeSensor(
   createDefaultFreeSensorState('ambient-303', {
     pressureMv: 0,
     pressureInitialBiasMv: 0,
-    temperatureMv: 1499,
+    temperatureMv: warmRoomTemperatureMvAtAmbient,
     sensorTemperatureK: 303.15,
   }),
   {
@@ -167,10 +168,14 @@ const warmRoom = stepFreeSensor(
     ambientTemperatureK: 303.15,
   },
   { ...calibration, zeroOffsetMv: 0 },
-  { ...quietConfig, lagRate: 1000 },
+  {
+    ...quietConfig,
+    temperatureMvAtAmbient: warmRoomTemperatureMvAtAmbient,
+    lagRate: 1000,
+  },
   0.1,
 );
-assert.equal(warmRoom.displayTemperatureMv, 1499);
+assert.equal(warmRoom.displayTemperatureMv, warmRoomTemperatureMvAtAmbient);
 
 const biasedStart = createDefaultFreeSensorState('biased-zero', {
   pressureMv: 0.73,

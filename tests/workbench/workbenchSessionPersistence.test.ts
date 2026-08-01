@@ -3,11 +3,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  applyHeatCapacityFreeParameterDraftWorkbenchState,
   captureHeatCapacityFreeRollbackSnapshot,
   completeHeatCapacityTeachingModeWorkbenchState,
+  configureHeatCapacityFreeBatchWorkbenchState,
   createDefaultHeatCapacityFile,
   createDefaultIdealFile,
   createDefaultStandardFile,
+  freezeHeatCapacityFreeParametersForCurrentGroup,
   getHeatCapacityGaugePressureState,
   powerHeatCapacityWorkbenchFile,
   prepareHeatCapacityAutoDemoStart,
@@ -17,6 +20,9 @@ import {
   storeHeatCapacityFreeRuntimeFieldsInDomain,
   type WorkbenchPanelKey,
 } from '../../src/features/workbench/workbenchState.ts';
+import {
+  HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION,
+} from '../../src/domain/heatCapacity/heatCapacityFreeBatchModel.ts';
 import {
   calculateFreeHeatCapacityTrialSignals,
   calculateFreeHeatCapacityMeanResult,
@@ -45,6 +51,7 @@ import {
 import {
   WORKBENCH_SESSION_VERSION,
   decodeWorkbenchSession,
+  decodeWorkbenchSessionWithDiagnostics,
   encodeWorkbenchSession,
 } from '../../src/features/workbench/workbenchSession.ts';
 import {
@@ -96,6 +103,12 @@ import {
 import {
   createSampleInputForProcessReviewTest,
 } from '../heatCapacity/helpers/heatCapacityProcessReviewTestFactory.ts';
+import {
+  selectHeatCapacityFreeProcessReview,
+} from '../../src/domain/heatCapacity/heatCapacityFreeProcessReviewModel.ts';
+import {
+  HEAT_CAPACITY_LEGACY_423_DISPLAY_EVENT_SAMPLE_RELATION_PROVENANCE,
+} from '../../src/domain/heatCapacity/heatCapacityLegacyTraceCompatibility.ts';
 
 (globalThis as typeof globalThis & { __APP_VERSION__: string }).__APP_VERSION__ = '5.1.2';
 
@@ -166,6 +179,36 @@ const savedLegacyCompleteFreeTrial = {
     gamma: 1.4,
   },
 };
+const legacyBatchSeed = storeHeatCapacityFreeRuntimeFieldsInDomain(
+  freezeHeatCapacityFreeParametersForCurrentGroup(
+    configureHeatCapacityFreeBatchWorkbenchState(
+      heatCapacity,
+      3,
+      now - 2,
+    ),
+    now - 1,
+  ),
+  'real',
+);
+const {
+  nextTrialSequence: discardedLegacyBatchSequence,
+  scoringVersion: discardedLegacyBatchScoringVersion,
+  ...legacyBatchFields
+} = legacyBatchSeed.heatCapacityFreeBatch;
+void discardedLegacyBatchSequence;
+void discardedLegacyBatchScoringVersion;
+const savedLegacyFreeDomain = {
+  ...legacyBatchSeed.heatCapacityFreeRealDomain,
+  batch: {
+    ...legacyBatchFields,
+    version: HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION,
+  },
+  traceStore: {
+    ...createDefaultFreeTraceStore(),
+    nextTraceTrialIndex: 3,
+  },
+  trials: [savedAutomaticOnlyFreeTrial, savedLegacyCompleteFreeTrial],
+};
 
 const restored = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
@@ -228,6 +271,7 @@ const restored = decodeWorkbenchSession({
       openHeatCapacityTabs: ['guide', 'review'],
       activeHeatCapacityTabId: 'review',
       heatCapacityFreeRuntimeVersion: 0,
+      heatCapacityFreeRealDomain: savedLegacyFreeDomain,
       heatCapacityFreeTrials: [savedAutomaticOnlyFreeTrial, savedLegacyCompleteFreeTrial],
       heatCapacityFreePhysicsState: {
         ...heatCapacity.heatCapacityFreePhysicsState,
@@ -276,7 +320,7 @@ if (restoredHeatCapacity.kind === 'heatCapacity') {
   assert.equal(restoredHeatCapacity.heatCapacityFreePhysicsState.gasAmountRatio, 1);
   assert.equal(restoredHeatCapacity.heatCapacityFreePhysicsState.pumpStrokeCount, 0);
   assert.equal(restoredHeatCapacity.heatCapacityFreeCalibrationState.calibrationVersion, 0);
-  assert.equal(restoredHeatCapacity.heatCapacityFreeTrials.length, 2, 'stale Free runtime normalization must preserve Free trials');
+  assert.equal(restoredHeatCapacity.heatCapacityFreeTrials.length, 2, 'stale top-level runtime normalization must preserve migrated domain trials');
   assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[0].automaticU0?.zeroEventId, 'zero-1');
   assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[0].u0, null, 'automatic-only saved Free trials must not be promoted to official manual U0 records');
   assert.equal(restoredHeatCapacity.heatCapacityFreeTrials[0].correctedSignals?.u0Source, 'assumed-zero', 'restored U1/U2 records without formal U0 must use U0 = 0');
@@ -366,7 +410,11 @@ if (decodedStandard.kind === 'standard') {
   assert.equal(decodedStandard.hardSphereEngineSnapshot, null);
 }
 
-const heatReplayBaseFile = createDefaultHeatCapacityFile(8);
+const heatReplayBaseFile = configureHeatCapacityFreeBatchWorkbenchState(
+  createDefaultHeatCapacityFile(8),
+  3,
+  999,
+);
 const heatReplayPoweredFile = powerHeatCapacityWorkbenchFile(
   heatReplayBaseFile,
   true,
@@ -462,6 +510,7 @@ const convertHeatEnvelopeToLegacy423 = <T extends ReturnType<typeof encodeWorkbe
 ) => {
   const legacyEnvelope = JSON.parse(JSON.stringify(currentEnvelope)) as T;
   const payload = legacyEnvelope.files[0].payload as any;
+  payload.heatCapacitySchemaVersion = 1;
   const currentTemperatureBaseMv = 1498.7;
   const currentTemperatureSensitivityMvPerK = 5;
   const legacyFreeTemperatureBaseMv = 1499.05;
@@ -604,10 +653,11 @@ const convertHeatEnvelopeToLegacy423 = <T extends ReturnType<typeof encodeWorkbe
       downgradeConfigSnapshot(trial.configSnapshot);
       for (const branch of trial.branches) {
         for (const sample of branch.samples) {
+          // This fixture is a synthetic legacy-contract exercise, not a
+          // byte-accurate public v4.2.3 record. Keep the current release
+          // authority alongside the old alias; genuinely pre-batch traces
+          // without those fields are quarantined by the strict V3 boundary.
           sample.controls.stopcockFlowOpen = sample.controls.releaseFlowOpen;
-          delete sample.controls.releaseFlowOpen;
-          delete sample.controls.releasePhase;
-          delete sample.controls.releaseDurationS;
           sample.sensor.displayTemperatureMv = downgradeTemperatureSignal(
             sample.sensor.displayTemperatureMv,
           );
@@ -687,6 +737,8 @@ const convertHeatEnvelopeToLegacy423 = <T extends ReturnType<typeof encodeWorkbe
     return profile;
   };
   delete payload.common.modeSessions;
+  payload.free.runtimeVersion = 5;
+  delete payload.free.experimentGroups;
   downgradeTeachingProfile(payload.common.experimentProfile);
   delete payload.free.preheatCompleted;
   payload.free.traceVersion = 4;
@@ -946,7 +998,21 @@ const legacyGuideTrial = recordGuideU2(
   },
   now,
 );
-const legacyMigrationBase = createDefaultHeatCapacityFile(11);
+const legacyMigrationBase = storeHeatCapacityFreeRuntimeFieldsInDomain(
+  freezeHeatCapacityFreeParametersForCurrentGroup(
+    configureHeatCapacityFreeBatchWorkbenchState(
+      createDefaultHeatCapacityFile(11),
+      3,
+      now - 2,
+    ),
+    now - 1,
+  ),
+  'real',
+);
+const legacyMigrationBatchId = legacyMigrationBase.heatCapacityFreeBatch.id;
+if (legacyMigrationBatchId === null) {
+  throw new Error('Expected the legacy migration fixture batch to have an ID.');
+}
 const legacyTeachingProfile = {
   ...createHeatCapacityAutoDemoProfile(() => 0.5),
   ambientTemperatureMv: HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
@@ -958,7 +1024,7 @@ const legacyTeachingProfile = {
 const rollbackSeed = captureHeatCapacityFreeRollbackSnapshot(legacyMigrationBase);
 const legacyOpeningRollback = {
   ...rollbackSeed,
-  stopcockAngleDeg: 35,
+  stopcockAngleDeg: 0,
   temperatureSignalMv: 1500.2,
   temperatureSignalTargetMv: 1501.45,
   heatCapacityFreePhysicsState: {
@@ -1154,8 +1220,29 @@ const legacyMigrationSource = {
     beforePump: legacyReleasingRollback,
     beforeRelease: legacyClosedAfterReleaseRollback,
   },
+  heatCapacityFreeBatch: {
+    ...legacyMigrationBase.heatCapacityFreeBatch,
+    nextTrialSequence: 3,
+  },
   heatCapacityFreeTraceStore: legacyReferenceParts.traceStore,
-  heatCapacityFreeTrials: [legacyReferenceTrial, legacyBlockedTrial],
+  heatCapacityFreeTrials: [
+    {
+      ...legacyReferenceTrial,
+      batchMembership: {
+        version: 1 as const,
+        batchId: legacyMigrationBatchId,
+        sequence: 1,
+      },
+    },
+    {
+      ...legacyBlockedTrial,
+      batchMembership: {
+        version: 1 as const,
+        batchId: legacyMigrationBatchId,
+        sequence: 2,
+      },
+    },
+  ],
   heatCapacityGuidePhysicsState: {
     ...legacyMigrationBase.heatCapacityGuidePhysicsState,
     simulationTimeS: 650,
@@ -1213,7 +1300,8 @@ const prepareLegacy423MigrationFixture = (legacyEnvelope: ReturnType<typeof conv
   const mutateLegacyDomain = (domain: any) => {
     domain.trials[1].blockedReason = 'missing-u0';
     const branch = domain.traceStore.traceTrials[0].branches[0];
-    branch.events = branch.events.filter((event: any) => event.type !== 'release-start');
+    // Keep the release-start event: deleting authoritative trace linkage is
+    // now a quarantine case, not a repairable legacy-cache migration.
     const releaseSample = branch.samples.find((sample: any) => (
       sample.physical.releaseStarted === true && sample.controls.stopcockFlowOpen === true
     ));
@@ -1248,7 +1336,7 @@ const legacy423FreeFile = legacy423FreeDecoded.session.files[0];
 assert.equal(legacy423FreeFile.kind, 'heatCapacity');
 if (legacy423FreeFile.kind !== 'heatCapacity') throw new Error('expected migrated v4.2.3 Free file');
 assert.equal(legacy423FreeFile.heatCapacityFreePreheatCompleted, true);
-assert.equal(legacy423FreeFile.heatCapacityModeSessions.schemaVersion, 2);
+assert.equal(legacy423FreeFile.heatCapacityModeSessions.schemaVersion, 3);
 assertClose(
   legacy423FreeFile.heatCapacityExperimentProfile?.stableTemperatureMv ?? NaN,
   HEAT_CAPACITY_TEMPERATURE_BASELINE_MV + 0.15,
@@ -1352,6 +1440,67 @@ assertClose(migratedLegacyTraceReleaseSample?.sensor.displayTemperatureMv ?? NaN
 assertClose(migratedLegacyTraceReleaseSample?.sensor.temperatureSlopeMvPerS ?? NaN, 0.02);
 assert.equal(migratedReleaseStartEvents.length, 1, 'the first legacy physical release sample should synthesize one release-start event');
 assert.equal(migratedReleaseStartEvents[0]?.traceSampleId, migratedLegacyTraceReleaseSample?.id);
+const migratedLegacyTraceSampleById = new Map(
+  migratedLegacyTraceBranch?.samples.map((sample) => [sample.id, sample]) ?? [],
+);
+const legacy423SourceTraceSamples =
+  legacy423FreePayload.free.traceStore.traceTrials[0].branches[0].samples;
+assert.equal(
+  migratedLegacyTraceBranch?.samples.length,
+  legacy423SourceTraceSamples.length,
+  'sparse legacy event references must not synthesize samples into the authoritative trace',
+);
+const migratedLegacyDisplayRelations = migratedLegacyTraceBranch?.events.filter((event) => (
+  event.payload?.hslLegacyDisplayRelationProvenance ===
+    HEAT_CAPACITY_LEGACY_423_DISPLAY_EVENT_SAMPLE_RELATION_PROVENANCE
+)) ?? [];
+assert.ok(
+  migratedLegacyDisplayRelations.length > 0,
+  'sparse v4.2.3 event references must retain an explicit display-only legacy relation',
+);
+assert.equal(
+  migratedLegacyDisplayRelations.every((event) => (
+    event.payload?.hslLegacyRelationUsage === 'display-only' &&
+    event.payload?.hslLegacySourceEventAtS === event.atS &&
+    typeof event.payload?.hslLegacySourceTraceSampleId === 'string' &&
+    typeof event.payload?.hslLegacySourceTraceSampleAtS === 'number' &&
+    event.payload?.hslLegacyLinkedTraceSampleId === event.traceSampleId &&
+    event.payload?.hslLegacySourceTraceSampleAtS ===
+      migratedLegacyTraceSampleById.get(event.traceSampleId)?.atS
+  )),
+  true,
+  'each legacy display relation must preserve source event/sample identity, time, and provenance',
+);
+const migratedLegacyReview = selectHeatCapacityFreeProcessReview({
+  trials: legacy423FreeFile.heatCapacityFreeTrials,
+  traceStore: legacy423FreeFile.heatCapacityFreeTraceStore,
+  selectedTrialId: legacy423FreeFile.heatCapacityFreeTrials[0]?.id,
+});
+assert.equal(
+  migratedLegacyDisplayRelations.some((event) => (
+    migratedLegacyReview.chart.actualTrace.some((point) => (
+      Math.abs(point.timeS - event.atS) <= 0.000001
+    ))
+  )),
+  false,
+  'display-only legacy event relations must not inject synthetic points into the process-review curve',
+);
+const migratedLegacyCalculationTrial = legacy423FreeFile.heatCapacityFreeTrials[0];
+assert.ok(migratedLegacyCalculationTrial?.configSnapshot);
+const recalculatedLegacySignals = calculateFreeHeatCapacityTrialSignals(
+  migratedLegacyCalculationTrial,
+  {
+    atmosphericPressureKPa:
+      migratedLegacyCalculationTrial.configSnapshot.environment.ambientPressureKPa,
+    pressureSensitivityMvPerKPa:
+      migratedLegacyCalculationTrial.configSnapshot.sensor.pressureMvPerKPa,
+  },
+);
+assert.equal(
+  recalculatedLegacySignals?.gamma,
+  migratedLegacyCalculationTrial.correctedSignals?.gamma,
+  'authoritative heat-capacity calculation must remain record-based and ignore display-only relations',
+);
 assert.deepEqual(
   migratedLegacyTraceBranch?.events.map((event) => event.index),
   migratedLegacyTraceBranch?.events.map((_, index) => index + 1),
@@ -1428,6 +1577,9 @@ const unmarkedLegacy423PumpStrokeAnchorPayload =
 for (const domain of [
   unmarkedLegacy423PumpStrokeAnchorPayload.free,
   unmarkedLegacy423PumpStrokeAnchorPayload.free.real,
+  ...unmarkedLegacy423PumpStrokeAnchorPayload.free.experimentGroups.groups.map(
+    (group: any) => group.runSeries,
+  ),
 ]) {
   for (const traceTrial of domain.traceStore.traceTrials) {
     for (const branch of traceTrial.branches) {
@@ -1443,8 +1595,8 @@ assert.deepEqual(
   decodeWorkbenchStorageEnvelope(
     unmarkedLegacy423PumpStrokeAnchorRoundTrip,
   ).diagnostics.map((diagnostic) => diagnostic.code),
-  ['invalid-file'],
-  'a current-format trace must not inherit the v4.2.3 pump-stroke wait rule from a configurable flow rate alone',
+  [],
+  'an early Free U1 record remains a quality result even when optional legacy wait-anchor provenance is absent',
 );
 
 assert.equal(legacy423FreeFile.heatCapacityFreeTrials[1]?.blockedReason, 'invalid-sequence');
@@ -1568,7 +1720,7 @@ const legacy423FreeIndexedDbRecords = createPersistenceRecords(
   'pending-verification',
 );
 const legacy423FreeIndexedDbModeStore = {
-  schemaVersion: 2 as const,
+  schemaVersion: 3 as const,
   demo: legacy423FreeIndexedDbRecords.modeRecords.find((record) => record.mode === 'demo')!.entry,
   guide: legacy423FreeIndexedDbRecords.modeRecords.find((record) => record.mode === 'guide')!.entry,
   free: legacy423FreeIndexedDbRecords.modeRecords.find((record) => record.mode === 'free')!.entry,
@@ -1739,7 +1891,7 @@ const legacy423GuideIndexedDbRecords = createPersistenceRecords(
   'pending-verification',
 );
 const legacy423GuideIndexedDbModeStore = {
-  schemaVersion: 2 as const,
+  schemaVersion: 3 as const,
   demo: legacy423GuideIndexedDbRecords.modeRecords.find((record) => record.mode === 'demo')!.entry,
   guide: legacy423GuideIndexedDbRecords.modeRecords.find((record) => record.mode === 'guide')!.entry,
   free: legacy423GuideIndexedDbRecords.modeRecords.find((record) => record.mode === 'free')!.entry,
@@ -2396,7 +2548,7 @@ for (const scenario of [
   );
   assert.deepEqual(
     normalizeHeatCapacityModeSessionStore({
-      schemaVersion: 2,
+      schemaVersion: 3,
       demo: demoRecord.entry,
       guide: records.modeRecords.find((record) => (
         record.fileId === public511SuspendedDemoFile.id && record.mode === 'guide'
@@ -2506,7 +2658,7 @@ for (const scenario of [
     'pending-verification',
   );
   const modeStore = {
-    schemaVersion: 2 as const,
+    schemaVersion: 3 as const,
     demo: records.modeRecords.find((record) => (
       record.fileId === legacy423BlankDemoFile.id && record.mode === 'demo'
     ))!.entry,
@@ -2580,7 +2732,7 @@ const legacy423DemoIndexedDbRecords = createPersistenceRecords(
   'pending-verification',
 );
 const legacy423DemoIndexedDbModeStore = {
-  schemaVersion: 2 as const,
+  schemaVersion: 3 as const,
   demo: legacy423DemoIndexedDbRecords.modeRecords.find((record) => record.mode === 'demo')!.entry,
   guide: legacy423DemoIndexedDbRecords.modeRecords.find((record) => record.mode === 'guide')!.entry,
   free: legacy423DemoIndexedDbRecords.modeRecords.find((record) => record.mode === 'free')!.entry,
@@ -2761,32 +2913,32 @@ assert.equal(closedDecoded.handled, true);
 assert.equal(closedDecoded.files.length, 1);
 assert.equal(closedDecoded.files[0].id, heatReplayFile.id);
 
-const currentActiveRunSnapshot = createDefaultFreeConfigSnapshot();
-currentActiveRunSnapshot.environment.ambientPressureKPa = 99.2;
-currentActiveRunSnapshot.record.pressureDangerMv = 152;
-const customFreeSessionFile = {
-  ...createDefaultHeatCapacityFile(9),
-  heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
-  heatCapacityFreeExperimentGroupStatus: 'running' as const,
-  heatCapacityFreeFileAcknowledgements: {
-    advancedParametersRisk: true,
-    idealParameterProfileIntro: true,
-  },
-  heatCapacityFreeInstrumentNoiseEnabled: false,
-  heatCapacityFreePressureWarningMv: 123,
-  heatCapacityFreeActiveRunConfigSnapshot: currentActiveRunSnapshot,
-  heatCapacityFreeRecordConfig: {
-    ...heatCapacity.heatCapacityFreeRecordConfig,
-    pressureDangerMv: 152,
-  },
-  heatCapacityFreeParameterDraft: {
-    ...heatCapacity.heatCapacityFreeParameterDraft,
+const customFreeSessionBase = createDefaultHeatCapacityFile(9);
+const customFreeSessionConfigured = applyHeatCapacityFreeParameterDraftWorkbenchState(
+  customFreeSessionBase,
+  {
+    ...customFreeSessionBase.heatCapacityFreeParameterDraft,
     ambientPressureKPa: 99.2,
     instrumentNoiseEnabled: false,
     pressureWarningMv: 123,
     pressureDangerMv: 152,
   },
-};
+);
+const customFreeSessionStarted = freezeHeatCapacityFreeParametersForCurrentGroup(
+  configureHeatCapacityFreeBatchWorkbenchState(
+    customFreeSessionConfigured,
+    3,
+    now - 1,
+  ),
+  now,
+);
+const customFreeSessionFile = storeHeatCapacityFreeRuntimeFieldsInDomain({
+  ...customFreeSessionStarted,
+  heatCapacityFreeFileAcknowledgements: {
+    advancedParametersRisk: true,
+    idealParameterProfileIntro: true,
+  },
+}, 'real');
 const customFreeRestored = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
   activeFileId: customFreeSessionFile.id,
@@ -2951,18 +3103,41 @@ const contaminatedDomainSessionFile = {
   },
   heatCapacityFreeIdealDomain: {
     ...heatCapacity.heatCapacityFreeIdealDomain,
-    scheme: 'real' as any,
-    trials: [
-      createHeatCapacityFreeTrial('session-ideal-domain-trial', null, 'real'),
-    ],
+    pressureWarningMv: 111,
   },
 };
-const contaminatedDomainSessionRestored = decodeWorkbenchSession({
+const contaminatedDomainSessionRestore = decodeWorkbenchSessionWithDiagnostics({
   version: WORKBENCH_SESSION_VERSION,
   activeFileId: contaminatedDomainSessionFile.id,
   selectedPanel: 'preview',
   files: [contaminatedDomainSessionFile],
 });
+const contaminatedDomainSessionRestored = contaminatedDomainSessionRestore.session;
+assert.equal(contaminatedDomainSessionRestore.diagnostics.length, 1);
+assert.deepEqual(
+  contaminatedDomainSessionRestore.diagnostics[0],
+  {
+    fileId: contaminatedDomainSessionFile.id,
+    domain: 'real',
+    scope: 'free-domain',
+    status: 'unsupported-future',
+    sourceVersion: 999,
+    reason: 'Free trace-trial configuration snapshot requires a newer application.',
+    fieldPath: 'traceStore.traceTrials[0].configSnapshot.version',
+    recovery: 'use-safe-default-domain',
+    raw: contaminatedDomainSessionFile.heatCapacityFreeRealDomain,
+  },
+  'future-domain isolation must retain the complete raw domain and an actionable diagnostic',
+);
+assert.throws(
+  () => encodeWorkbenchSession(
+    [contaminatedDomainSessionFile as any],
+    contaminatedDomainSessionFile.id,
+    'preview',
+  ),
+  /cannot encode 1 isolated recovery diagnostic/,
+  'an isolated future domain must not be silently overwritten by a normalized runtime save',
+);
 const contaminatedDomainFile = contaminatedDomainSessionRestored.files[0];
 assert.equal(contaminatedDomainFile.kind, 'heatCapacity');
 if (contaminatedDomainFile.kind !== 'heatCapacity') throw new Error('expected heat capacity contaminated domain file');
@@ -2978,9 +3153,12 @@ assert.equal(
 );
 assert.equal(contaminatedDomainFile.heatCapacityFreeRealDomain.scheme, 'real');
 assert.equal(contaminatedDomainFile.heatCapacityFreeIdealDomain.scheme, 'ideal');
-assert.equal(contaminatedDomainFile.heatCapacityFreeRealDomain.trials[0]?.parameterScheme, 'real');
-assert.equal(contaminatedDomainFile.heatCapacityFreeIdealDomain.trials[0]?.parameterScheme, 'ideal');
-assert.equal(contaminatedDomainFile.heatCapacityFreeTrials[0]?.parameterScheme, 'real');
+assert.equal(
+  contaminatedDomainFile.heatCapacityFreeRealDomain.trials.length,
+  0,
+  'an unsupported future real domain must be isolated instead of normalized as current authority',
+);
+assert.equal(contaminatedDomainFile.heatCapacityFreeTrials.length, 0);
 assert.equal(
   contaminatedDomainFile.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK,
   airModelDefaults.gasWallConductanceWPerK,
@@ -2995,16 +3173,53 @@ assert.equal(
   contaminatedDomainFile.heatCapacityFreePhysicsConfig.leakage.ratePerS,
   airModelDefaults.leakageRatePerS,
 );
-assert.equal(contaminatedDomainFile.heatCapacityFreeTraceStore.traceTrials.length, 1);
+assert.equal(contaminatedDomainFile.heatCapacityFreeTraceStore.traceTrials.length, 0);
 assert.equal(
-  contaminatedDomainFile.heatCapacityFreeTraceStore.traceTrials[0]?.configSnapshot.version,
-  createDefaultFreeConfigSnapshot().version,
-  'raw session trace trial snapshots should use the current normalized config snapshot version',
+  contaminatedDomainFile.heatCapacityFreeIdealDomain.pressureWarningMv,
+  111,
+  'the healthy sibling domain must remain available when the active domain is isolated',
 );
+
+const malformedDomainSessionFile = structuredClone(createDefaultHeatCapacityFile(12));
+(malformedDomainSessionFile.heatCapacityFreeRealDomain.batch as unknown as Record<string, unknown>)
+  .unexpectedAuthority = true;
+const healthySiblingFile = createDefaultStandardFile(12);
+const malformedDomainSessionRestore = decodeWorkbenchSessionWithDiagnostics({
+  version: WORKBENCH_SESSION_VERSION,
+  activeFileId: malformedDomainSessionFile.id,
+  selectedPanel: 'preview',
+  files: [malformedDomainSessionFile, healthySiblingFile],
+});
 assert.equal(
-  contaminatedDomainFile.heatCapacityFreeTraceStore.traceTrials[0]?.configSnapshot.record.u0ZeroToleranceMv,
-  createDefaultFreeConfigSnapshot().record.u0ZeroToleranceMv,
-  'raw session trace trial snapshots should normalize contaminated record fields',
+  malformedDomainSessionRestore.session.files.length,
+  2,
+  'a malformed domain must not block its file or healthy sibling files from opening',
+);
+assert.equal(malformedDomainSessionRestore.diagnostics.length, 1);
+assert.equal(malformedDomainSessionRestore.diagnostics[0]?.scope, 'free-domain');
+assert.equal(malformedDomainSessionRestore.diagnostics[0]?.status, 'quarantined');
+assert.equal(
+  malformedDomainSessionRestore.diagnostics[0]?.recovery,
+  'use-safe-default-domain',
+);
+assert.deepEqual(
+  malformedDomainSessionRestore.diagnostics[0]?.raw,
+  malformedDomainSessionFile.heatCapacityFreeRealDomain,
+  'malformed-domain isolation must preserve the complete raw domain',
+);
+const malformedDomainRestoredFile = malformedDomainSessionRestore.session.files.find(
+  (file) => file.id === malformedDomainSessionFile.id,
+);
+assert.equal(malformedDomainRestoredFile?.kind, 'heatCapacity');
+if (malformedDomainRestoredFile?.kind !== 'heatCapacity') {
+  throw new Error('expected isolated malformed heat-capacity domain file');
+}
+assert.equal(malformedDomainRestoredFile.heatCapacityFreeRealDomain.trials.length, 0);
+assert.equal(
+  malformedDomainSessionRestore.session.files.some(
+    (file) => file.id === healthySiblingFile.id,
+  ),
+  true,
 );
 
 const legacyHeatSessionFile = {
@@ -3072,6 +3287,8 @@ const indexedDbPersistenceSource = readFileSync(
 assert.doesNotMatch(sessionSource, /localStorage|sessionStorage/);
 assert.match(indexedDbPersistenceSource, /decodeWorkbenchStorageEnvelope/);
 assert.match(indexedDbPersistenceSource, /decodeWorkbenchClosedFilesStorageEnvelope/);
+assert.match(indexedDbPersistenceSource, /decodeWorkbenchSessionWithDiagnostics/);
+assert.match(indexedDbPersistenceSource, /legacy-runtime-recovery/);
 assert.match(indexedDbPersistenceSource, /removeAfterVerifiedWrite/);
 assert.match(indexedDbPersistenceSource, /WORKBENCH_HEAT_CAPACITY_MODE_SESSIONS_STORE/);
 assert.match(sessionSource, /normalizeHeatCapacitySessionRuntimeState/);

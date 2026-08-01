@@ -205,6 +205,7 @@ interface HeatCapacityInstrumentSceneProps {
   cameraInteractionLocked?: boolean;
   demoFocusControlId: string | null;
   demoFocusPulseActive: boolean;
+  demoFocusPulseTimeSeconds?: number;
   demoCameraFocusMode?: HeatCapacityFocusMode | null;
   demoCameraFocusKey?: number;
   guideFocusMode?: HeatCapacityFocusMode | null;
@@ -231,6 +232,7 @@ interface HeatCapacityInstrumentSceneProps {
   overlayTopLeft?: React.ReactNode;
   overlayTopCenter?: React.ReactNode;
   overlayTopRight?: React.ReactNode;
+  overlayBelowDefaultView?: React.ReactNode;
   overlayBottomRight?: React.ReactNode;
   overlayCenter?: React.ReactNode;
   overlayCenterAboveGuideMask?: boolean;
@@ -4421,6 +4423,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
       props.guideFocusKey ?? 0,
       Number(Boolean(props.overlayTopCenter)),
       Number(Boolean(props.overlayTopRight)),
+      Number(Boolean(props.overlayBelowDefaultView)),
       Number(Boolean(props.overlayBottomRight)),
       Number(Boolean(props.overlayCenter)),
       Number(Boolean(props.overlayCenterAboveGuideMask)),
@@ -4611,6 +4614,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                 pumpBulbInteractionEnabled={focusMode === 'pump'}
                 demoFocusControlId={props.demoFocusControlId}
                 demoFocusPulseActive={props.demoFocusPulseActive}
+                demoFocusPulseTimeSeconds={props.demoFocusPulseTimeSeconds}
                 interactionQualityReduced={interactionQualityReduced}
                 visualEffects={{
                   hoverHaloColor: scenePalette.instrument.hoverHalo,
@@ -4972,6 +4976,11 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
           >
             {sceneCopy.defaultView}
           </button>
+          {props.overlayBelowDefaultView ? (
+            <div data-preview-overlay-item="heat-below-default-view">
+              {props.overlayBelowDefaultView}
+            </div>
+          ) : null}
         </div>
         <div className="studio-preview-overlay-slot studio-preview-overlay-slot-bottom-left">
           <div

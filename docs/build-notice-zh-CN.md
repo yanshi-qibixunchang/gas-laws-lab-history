@@ -2,7 +2,7 @@
 
 - 文档状态：正文审核稿，暂未接入软件界面。
 - 适用位置：帮助 > 关于气律实验室 > 构建说明。
-- 当前项目版本：5.1.2。
+- 当前项目版本：5.3.1。
 - 草稿日期：2026 年 7 月 6 日。
 
 # 权限说明与第三方开源许可
@@ -71,7 +71,7 @@ PDF 报告导出过程中，软件可能在系统临时目录中写入中间 JSO
 | 许可证全文 | MIT、ISC、Apache-2.0、BSD、MPL-2.0、OFL、CC-BY-4.0、0BSD、Unlicense、BlueOak、Python-2.0、WTFPL 及相关双许可证文本 |
 | Electron 许可证 | Electron 运行时许可证文本 |
 | Chromium 第三方许可证 | Chromium 及其第三方组件许可证集合 |
-| 字体许可证 | Noto Sans SC、JetBrains Mono 字体许可说明 |
+| 字体许可证 | Noto Sans SC、Noto Serif SC 标题子集、JetBrains Mono 字体许可说明 |
 | 导出组件许可证 | 报告导出组件及其 Python 依赖许可说明 |
 
 ## 直接使用的运行时组件
@@ -108,6 +108,7 @@ Windows 桌面版使用 Electron 构建。Electron 本身基于 Chromium，并�
 | 字体 | 许可证 |
 | --- | --- |
 | Noto Sans SC | SIL Open Font License 1.1 |
+| Gas Laws Lab Serif（由 Noto Serif SC 生成的标题子集） | SIL Open Font License 1.1 |
 | JetBrains Mono | SIL Open Font License 1.1 |
 
 界面图标主要来自 Lucide React，许可证为 ISC。

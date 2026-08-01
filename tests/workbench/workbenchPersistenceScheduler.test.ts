@@ -26,11 +26,16 @@ const retryStatuses: string[] = [];
 const retryingScheduler = createWorkbenchPersistenceScheduler<number>({
   save: async () => {
     attempts += 1;
-    if (attempts === 1) throw new Error('quota');
+    if (attempts === 1) {
+      const error = new Error('quota');
+      error.name = 'QuotaExceededError';
+      throw error;
+    }
   },
   onStatus: (status) => retryStatuses.push(status.state),
   debounceMs: 10,
   maxWaitMs: 30,
+  retryDelaysMs: [10, 20, 30],
 });
 retryingScheduler.schedule(() => 3);
 await delay(35);
@@ -90,5 +95,89 @@ assert.equal(await firstFlush, true);
 assert.equal(await secondFlush, true);
 assert.equal(drainingScheduler.getStatus().state, 'idle');
 drainingScheduler.dispose();
+
+let nowMs = 1_000;
+const checkpointSaves: number[] = [];
+const checkpointScheduler = createWorkbenchPersistenceScheduler<number>({
+  save: async (value) => { checkpointSaves.push(value); },
+  debounceMs: 60_000,
+  maxWaitMs: 60_000,
+  runtimeCheckpointIntervalMs: 15_000,
+  now: () => nowMs,
+});
+assert.equal(
+  checkpointScheduler.schedule(() => 1, 'runtime-checkpoint'),
+  true,
+);
+nowMs += 100;
+assert.equal(
+  checkpointScheduler.schedule(() => 2, 'runtime-checkpoint'),
+  false,
+  '100 ms realtime ticks must not continuously replace the accepted checkpoint',
+);
+checkpointScheduler.schedule(() => 3, 'semantic');
+assert.equal(await checkpointScheduler.flush(), true);
+assert.deepEqual(
+  checkpointSaves,
+  [3],
+  'a semantic action should supersede a pending runtime checkpoint',
+);
+nowMs += 15_000;
+assert.equal(
+  checkpointScheduler.schedule(() => 4, 'runtime-checkpoint'),
+  true,
+);
+checkpointScheduler.schedule(() => 5, 'lifecycle');
+await new Promise<void>((resolve) => setImmediate(resolve));
+assert.deepEqual(
+  checkpointSaves,
+  [3, 5],
+  'a lifecycle request should flush the latest snapshot immediately',
+);
+checkpointScheduler.dispose();
+
+let exhaustedAttempts = 0;
+const exhaustedScheduler = createWorkbenchPersistenceScheduler<number>({
+  save: async () => {
+    exhaustedAttempts += 1;
+    const error = new Error('temporary transaction conflict');
+    error.name = 'AbortError';
+    throw error;
+  },
+  debounceMs: 0,
+  maxWaitMs: 0,
+  retryDelaysMs: [5, 5, 5],
+});
+exhaustedScheduler.schedule(() => 6);
+for (let poll = 0; poll < 50 && exhaustedAttempts < 4; poll += 1) {
+  await delay(10);
+}
+assert.equal(
+  exhaustedAttempts,
+  4,
+  'a temporary transaction error should receive the initial attempt plus all three bounded retries',
+);
+assert.equal(exhaustedScheduler.getStatus().state, 'failed');
+exhaustedScheduler.dispose();
+
+let structuralAttempts = 0;
+const structuralScheduler = createWorkbenchPersistenceScheduler<number>({
+  save: async () => {
+    structuralAttempts += 1;
+    throw new Error('workspace file schema is invalid');
+  },
+  debounceMs: 0,
+  maxWaitMs: 0,
+  retryDelaysMs: [0, 0, 0],
+});
+structuralScheduler.schedule(() => 7);
+await delay(10);
+assert.equal(
+  structuralAttempts,
+  1,
+  'a structural file error must fail once without a transaction retry loop',
+);
+assert.equal(structuralScheduler.getStatus().state, 'failed');
+structuralScheduler.dispose();
 
 console.log('workbenchPersistenceScheduler tests passed');

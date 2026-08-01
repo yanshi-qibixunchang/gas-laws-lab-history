@@ -9,12 +9,18 @@ import {
 import { repairMissingHardSphereEngineSnapshot } from './workbenchHardSphereProjection.ts';
 import {
   normalizeHeatCapacitySessionRuntimeState,
+  normalizeHeatCapacitySessionRuntimeStateResult,
+  type HeatCapacityFreeDomainRecoveryDiagnostic,
 } from './workbenchHeatCapacitySessionRestore.ts';
 import { isWorkbenchPanelKey } from './workbenchPanelRegistry.ts';
 import {
   isPersistenceRecord as isRecord,
   normalizePersistenceNullableNumber as normalizeNullableNumber,
 } from './workbenchPersistenceValue.ts';
+import { isWorkbenchFileKind } from './workbenchFileKind.ts';
+import {
+  normalizePistonOscillationRuntimeState,
+} from './workbenchPistonOscillationPersistence.ts';
 
 export const WORKBENCH_SESSION_VERSION = 1;
 export const WORKBENCH_SESSION_STORAGE_KEY = 'hsl_workbench_session_v1';
@@ -25,6 +31,24 @@ export interface WorkbenchSessionState {
   files: WorkbenchFileState[];
   activeFileId: string;
   selectedPanel: WorkbenchPanelKey;
+}
+
+export interface WorkbenchRuntimeFileRecoveryDiagnostic {
+  fileId: string | null;
+  scope: 'file';
+  status: 'quarantined';
+  reason: string;
+  recovery: 'skip-file';
+  raw: unknown;
+}
+
+export type WorkbenchSessionRecoveryDiagnostic =
+  | (HeatCapacityFreeDomainRecoveryDiagnostic & { scope: 'free-domain' })
+  | WorkbenchRuntimeFileRecoveryDiagnostic;
+
+export interface WorkbenchSessionDecodeResult {
+  session: WorkbenchSessionState;
+  diagnostics: WorkbenchSessionRecoveryDiagnostic[];
 }
 
 let bootstrappedSession: WorkbenchSessionState | null = null;
@@ -66,6 +90,9 @@ const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => 
   if (file.kind === 'heatCapacity') {
     return normalizeHeatCapacitySessionRuntimeState(file);
   }
+  if (file.kind === 'heatCapacityPistonOscillation') {
+    return normalizePistonOscillationRuntimeState(file) ?? file;
+  }
   return repairMissingHardSphereEngineSnapshot({
     ...file,
     runState: file.runState === 'running' ? 'paused' : file.runState,
@@ -91,12 +118,18 @@ const createWorkbenchSessionFromValidatedFiles = (
     ? selectedPanelValue
     : 'preview';
   const activeFile = files.find((file) => file.id === activeFileId);
-  const selectedPanel = activeFile?.kind === 'heatCapacity' && !(
-    restoredSelectedPanel === 'preview' ||
-    restoredSelectedPanel === 'realtime' ||
-    restoredSelectedPanel === 'heatCapacityGuide' ||
-    restoredSelectedPanel === 'heatCapacityRecords' ||
-    restoredSelectedPanel === 'heatCapacityReview'
+  const selectedPanel = (
+    activeFile?.kind === 'heatCapacity' && !(
+      restoredSelectedPanel === 'preview' ||
+      restoredSelectedPanel === 'realtime' ||
+      restoredSelectedPanel === 'heatCapacityGuide' ||
+      restoredSelectedPanel === 'heatCapacityRecords' ||
+      restoredSelectedPanel === 'heatCapacityReview'
+    )
+  ) || (
+    activeFile?.kind === 'heatCapacityPistonOscillation' &&
+    restoredSelectedPanel !== 'preview' &&
+    restoredSelectedPanel !== 'realtime'
   )
     ? 'preview'
     : restoredSelectedPanel;
@@ -115,7 +148,7 @@ const assertWorkbenchRuntimeFiles = (files: WorkbenchFileState[]) => {
       !isRecord(file) ||
       typeof file.id !== 'string' ||
       typeof file.name !== 'string' ||
-      (file.kind !== 'standard' && file.kind !== 'ideal' && file.kind !== 'heatCapacity')
+      !isWorkbenchFileKind(file.kind)
     ) {
       throw new TypeError('Workbench runtime file is invalid.');
     }
@@ -149,34 +182,88 @@ export const createWorkbenchSessionFromRuntimeFiles = (value: {
 };
 
 export const decodeWorkbenchSession = (value: unknown): WorkbenchSessionState => {
+  return decodeWorkbenchSessionWithDiagnostics(value).session;
+};
+
+export const decodeWorkbenchSessionWithDiagnostics = (
+  value: unknown,
+): WorkbenchSessionDecodeResult => {
   if (!isRecord(value) || value.version !== WORKBENCH_SESSION_VERSION || !Array.isArray(value.files)) {
-    return fallbackSession();
+    return { session: fallbackSession(), diagnostics: [] };
   }
 
-  const files = value.files.filter((file): file is WorkbenchFileState => (
-    isRecord(file) &&
-    typeof file.id === 'string' &&
-    typeof file.name === 'string' &&
-    (file.kind === 'standard' || file.kind === 'ideal' || file.kind === 'heatCapacity')
-  )).map(normalizeRuntimeState);
+  const diagnostics: WorkbenchSessionRecoveryDiagnostic[] = [];
+  const files = value.files.flatMap<WorkbenchFileState>((file) => {
+    if (
+      !isRecord(file) ||
+      typeof file.id !== 'string' ||
+      typeof file.name !== 'string' ||
+      !isWorkbenchFileKind(file.kind)
+    ) {
+      diagnostics.push({
+        fileId: isRecord(file) && typeof file.id === 'string' ? file.id : null,
+        scope: 'file',
+        status: 'quarantined',
+        reason: 'Workbench runtime file is invalid.',
+        recovery: 'skip-file',
+        raw: file,
+      });
+      return [];
+    }
+    const runtimeFile = file as unknown as WorkbenchFileState;
+    try {
+      if (runtimeFile.kind === 'heatCapacity') {
+        const restored = normalizeHeatCapacitySessionRuntimeStateResult(
+          runtimeFile,
+        );
+        diagnostics.push(
+          ...restored.diagnostics.map((diagnostic) => ({
+            ...diagnostic,
+            scope: 'free-domain' as const,
+          })),
+        );
+        return [restored.value];
+      }
+      return [normalizeRuntimeState(runtimeFile)];
+    } catch (cause) {
+      diagnostics.push({
+        fileId: runtimeFile.id,
+        scope: 'file',
+        status: 'quarantined',
+        reason: cause instanceof Error ? cause.message : String(cause),
+        recovery: 'skip-file',
+        raw: runtimeFile,
+      });
+      return [];
+    }
+  });
 
-  return createWorkbenchSessionFromRuntimeFiles({
+  const session = createWorkbenchSessionFromRuntimeFiles({
     files,
     activeFileId: typeof value.activeFileId === 'string' ? value.activeFileId : '',
     selectedPanel: isWorkbenchPanelKey(value.selectedPanel) ? value.selectedPanel : 'preview',
   });
+  return { session, diagnostics };
 };
 
 export const encodeWorkbenchSession = (
   files: WorkbenchFileState[],
   activeFileId: string,
   selectedPanel: WorkbenchPanelKey,
-): WorkbenchSessionState => decodeWorkbenchSession({
-  version: WORKBENCH_SESSION_VERSION,
-  files,
-  activeFileId,
-  selectedPanel,
-});
+): WorkbenchSessionState => {
+  const decoded = decodeWorkbenchSessionWithDiagnostics({
+    version: WORKBENCH_SESSION_VERSION,
+    files,
+    activeFileId,
+    selectedPanel,
+  });
+  if (decoded.diagnostics.length > 0) {
+    throw new Error(
+      `Workbench session cannot encode ${decoded.diagnostics.length} isolated recovery diagnostic(s).`,
+    );
+  }
+  return decoded.session;
+};
 
 export const loadWorkbenchSession = (): WorkbenchSessionState => {
   if (workbenchBootstrapInstalled) return bootstrappedSession ?? fallbackSession();

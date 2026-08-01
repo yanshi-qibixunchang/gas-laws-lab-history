@@ -1,14 +1,19 @@
 import assert from 'node:assert/strict';
 import {
+  archiveCurrentFreeTraceBranchForRecordInvalidation,
   appendFreeTraceEvent,
   appendFreeTraceSample,
   compactFreeTraceBranch,
+  compactFreeTraceStore,
   createDefaultFreeConfigSnapshot,
   createDefaultFreeTraceStore,
   createFreeTraceTrial,
+  FREE_TRACE_MAX_BRANCHES_PER_TRIAL,
+  FREE_TRACE_MAX_EVENTS_PER_BRANCH,
   HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
   HEAT_CAPACITY_FREE_TRACE_VERSION,
   FREE_TRACE_MAX_SAMPLES_PER_TRIAL,
+  getFreeTraceTrialBranchCount,
   type HeatCapacityFreeTraceSampleInput,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
@@ -17,7 +22,7 @@ import {
 
 const configSnapshot = createDefaultFreeConfigSnapshot();
 
-assert.equal(HEAT_CAPACITY_FREE_TRACE_VERSION, 5);
+assert.equal(HEAT_CAPACITY_FREE_TRACE_VERSION, 6);
 assert.equal(HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION, 9);
 assert.equal(configSnapshot.version, 9);
 assert.equal(configSnapshot.physics.vesselVolumeL, 2);
@@ -275,6 +280,125 @@ assert.equal(
 assert.deepEqual(
   compactedDisplayNoiseBranch.samples.map((sample) => sample.id),
   [displayNoiseSamples[0], displayNoiseSamples[2]],
+);
+
+let eventBoundedBranch = first.traceTrial.branches[0];
+for (let index = 0; index < 1_000; index += 1) {
+  const sampleResult = appendFreeTraceSample(
+    eventBoundedBranch,
+    createSampleInput(index, { reason: 'event' }),
+  );
+  eventBoundedBranch = appendFreeTraceEvent(sampleResult.branch, {
+    atS: sampleResult.sample.atS,
+    type: index % 7 === 0 ? 'pressure-warning' : 'pump-stroke',
+    traceSampleId: sampleResult.sample.id,
+  }).branch;
+}
+eventBoundedBranch = compactFreeTraceBranch(eventBoundedBranch);
+assert.ok(
+  eventBoundedBranch.samples.length <= FREE_TRACE_MAX_SAMPLES_PER_TRIAL,
+);
+assert.ok(
+  eventBoundedBranch.events.length <= FREE_TRACE_MAX_EVENTS_PER_BRANCH,
+);
+assert.equal(
+  eventBoundedBranch.compaction?.droppedEventCount,
+  1_000 - eventBoundedBranch.events.length,
+);
+assert.ok(eventBoundedBranch.events.every((event) => (
+  eventBoundedBranch.samples.some((sample) => (
+    sample.id === event.traceSampleId
+  ))
+)));
+
+let authoritativeEventBranch = first.traceTrial.branches[0];
+for (let index = 0; index < 1_000; index += 1) {
+  const sampleResult = appendFreeTraceSample(
+    authoritativeEventBranch,
+    createSampleInput(index, { reason: 'record' }),
+  );
+  authoritativeEventBranch = appendFreeTraceEvent(sampleResult.branch, {
+    atS: sampleResult.sample.atS,
+    type: 'pressure-warning',
+    traceSampleId: sampleResult.sample.id,
+  }).branch;
+}
+authoritativeEventBranch = compactFreeTraceBranch(authoritativeEventBranch);
+assert.equal(
+  authoritativeEventBranch.events.length,
+  FREE_TRACE_MAX_EVENTS_PER_BRANCH,
+  'authoritative safety events must not be displaced by other protected samples',
+);
+assert.ok(authoritativeEventBranch.events.every((event) => (
+  authoritativeEventBranch.samples.some((sample) => (
+    sample.id === event.traceSampleId
+  ))
+)));
+
+let branchedStore = createFreeTraceTrial(
+  createDefaultFreeTraceStore(),
+  createDefaultFreeConfigSnapshot(),
+).store;
+const branchedTrialId = branchedStore.activeTraceTrialId!;
+for (let index = 0; index < 6; index += 1) {
+  branchedStore = archiveCurrentFreeTraceBranchForRecordInvalidation(
+    branchedStore,
+    branchedTrialId,
+  ).store;
+}
+const boundedTrial = branchedStore.traceTrials[0];
+assert.equal(
+  boundedTrial.branches.length,
+  FREE_TRACE_MAX_BRANCHES_PER_TRIAL,
+);
+assert.equal(getFreeTraceTrialBranchCount(boundedTrial), 7);
+assert.equal(boundedTrial.branchCompaction?.droppedBranchCount, 3);
+
+let completedStore = createDefaultFreeTraceStore();
+for (let index = 0; index < 10; index += 1) {
+  const created = createFreeTraceTrial(
+    completedStore,
+    createDefaultFreeConfigSnapshot(),
+  );
+  completedStore = {
+    ...created.store,
+    activeTraceTrialId: null,
+    traceTrials: created.store.traceTrials.map((trial) => (
+      trial.id === created.traceTrial.id
+        ? { ...trial, status: 'completed' as const }
+        : trial
+    )),
+  };
+}
+completedStore = compactFreeTraceStore(completedStore);
+assert.equal(
+  completedStore.traceTrials.length,
+  10,
+);
+assert.equal(completedStore.compaction?.droppedTrialCount ?? 0, 0);
+
+const multipleActiveStore = compactFreeTraceStore({
+  ...createDefaultFreeTraceStore(),
+  nextTraceTrialIndex: 4,
+  traceTrials: [
+    first.traceTrial,
+    second.traceTrial,
+    {
+      ...second.traceTrial,
+      id: 'free-trace-trial-3',
+    },
+  ],
+});
+assert.equal(
+  multipleActiveStore.traceTrials.filter((trial) => (
+    trial.status === 'active'
+  )).length,
+  1,
+  'legacy or malformed stores must be normalized to one current trial',
+);
+assert.equal(
+  multipleActiveStore.activeTraceTrialId,
+  'free-trace-trial-3',
 );
 
 console.log('heatCapacityFreeTraceModel tests passed');

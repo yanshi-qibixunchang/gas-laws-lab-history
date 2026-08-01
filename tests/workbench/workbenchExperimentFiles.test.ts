@@ -6,6 +6,7 @@ const topCommandsSource = readFileSync(new URL('../../src/features/workbench/Wor
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const sessionSource = readFileSync(new URL('../../src/features/workbench/workbenchSession.ts', import.meta.url), 'utf8');
 const indexedDbPersistenceSource = readFileSync(new URL('../../src/features/workbench/workbenchIndexedDbPersistence.ts', import.meta.url), 'utf8');
+const promptCopySource = readFileSync(new URL('../../src/features/workbench/workbenchPromptCopies.ts', import.meta.url), 'utf8');
 
 const indexOfOrFail = (haystack: string, needle: string, message: string) => {
   const index = haystack.indexOf(needle);
@@ -18,10 +19,38 @@ assert.ok(source.includes('newExperiment: string;'), 'menu copy should expose a 
 assert.ok(source.includes('openExperiment: string;'), 'menu copy should expose an Open Experiment submenu label');
 assert.ok(source.includes('noCachedExperiments: string;'), 'menu copy should expose an empty cached-experiment state');
 assert.ok(source.includes('closeExperiment: string;'), 'file menu copy should expose Close Experiment');
-assert.ok(source.includes('confirmCloseRunningExperiment: (name: string) => string;'), 'copy should provide a running-close confirmation');
+assert.ok(promptCopySource.includes('closeRunningExperiment: (fileName: string) => WorkbenchConfirmationCopy;'), 'prompt copy should provide a running-close confirmation');
 
-assert.ok(source.includes('const [closedFiles, setClosedFiles] = useState<WorkbenchFileState[]>(() => loadClosedWorkbenchFiles());'), 'workbench should load closed cached experiment files');
-assert.match(source, /closedFilesRef\.current = closedFiles;[\s\S]*scheduleWorkspacePersistenceRef\.current\(\);[\s\S]*\}, \[activeFileId, closedFiles, files, selectedPanel\]\);/, 'closed cached experiment changes should schedule the shared IndexedDB workspace commit');
+assert.match(
+  source,
+  /const \[initialOrdinaryClosedFiles\] = useState\(\(\) => \{[\s\S]*loadClosedWorkbenchFiles\(\)\.map[\s\S]*prepareHeatCapacityFileForExploreOnOpen[\s\S]*const \[closedFiles, setClosedFiles\] = useState<WorkbenchFileState\[]>/,
+  'workbench should load closed cached experiment files and normalize heat-capacity files to Explore',
+);
+assert.match(
+  source,
+  /closedFilesRef\.current = closedFiles;[\s\S]*scheduleWorkspacePersistenceRef\.current\('semantic'\);[\s\S]*\}, \[activeFileId, closedFiles, selectedPanel\]\);/,
+  'closed cached experiment changes should schedule the semantic IndexedDB workspace commit',
+);
+assert.match(
+  source,
+  /scheduleWorkspacePersistenceRef\.current\('runtime-checkpoint'\)[\s\S]*\}, \[activeFileId, files\]\);/,
+  'high-frequency file ticks should use the throttled runtime-checkpoint lane',
+);
+assert.match(
+  source,
+  /const updateRuntimeFileById = \([\s\S]*setFiles\(\(current\) => \{[\s\S]*filesRef\.current = next;[\s\S]*return next;/,
+  'simulation-frame updates should bypass the semantic operation wrapper and feed only the runtime checkpoint effect',
+);
+assert.match(
+  source,
+  /const updateStandardFrameFile = finished[\s\S]*\? updateFileById[\s\S]*: updateRuntimeFileById;[\s\S]*updateStandardFrameFile\(file\.id/,
+  'standard simulation frames should stay runtime-only until the finished result receives a semantic save',
+);
+assert.match(
+  source,
+  /if \(!finished\) \{[\s\S]*updateRuntimeFileById\(file\.id,[\s\S]*scheduleIdealFrame\(file\.id\)/,
+  'ideal-gas collection frames should stay runtime-only while the final recorded point remains semantic',
+);
 assert.match(source, /files: filesRef\.current,[\s\S]*closedFiles: closedFilesRef\.current,/, 'workspace persistence snapshots should keep open and closed file collections distinct');
 assert.match(indexedDbPersistenceSource, /openFileIds: snapshot\.files\.map\(\(file\) => file\.id\),[\s\S]*closedFileIds: snapshot\.closedFiles\.map\(\(file\) => file\.id\),/, 'IndexedDB workspace metadata should preserve separate open and closed file ordering');
 assert.ok(sessionSource.includes('loadClosedWorkbenchFiles'), 'session bootstrap should expose closed cached files loaded from IndexedDB');
@@ -40,12 +69,17 @@ assert.ok(newMenuSource.includes('copy.menus.noCachedExperiments'), 'Open Experi
 
 assert.ok(
   newMenuSource.indexOf("onCreateFile('ideal')") < newMenuSource.indexOf("onCreateFile('heatCapacity')")
-    && newMenuSource.indexOf("onCreateFile('heatCapacity')") < newMenuSource.indexOf("onCreateFile('standard')"),
-  'New Experiment submenu should order entries as ideal / heat capacity / standard',
+    && newMenuSource.indexOf("onCreateFile('heatCapacity')") < newMenuSource.indexOf("onCreateFile('heatCapacityPistonOscillation')")
+    && newMenuSource.indexOf("onCreateFile('heatCapacityPistonOscillation')") < newMenuSource.indexOf("onCreateFile('standard')"),
+  'New Experiment submenu should order entries as ideal / adiabatic / piston oscillation / standard',
 );
 
 assert.ok(source.includes('const requestCloseWorkbenchFile = (file: WorkbenchFileState) => {'), 'workbench should expose a close-file request handler');
-assert.ok(source.includes('window.confirm(workbenchCopy.files.confirmCloseRunningExperiment(file.name))'), 'closing a running experiment should ask for confirmation');
+assert.match(
+  source,
+  /const requestCloseWorkbenchFile = \(file: WorkbenchFileState\) => \{[\s\S]*requestPromptConfirmation\(\{[\s\S]*id: `close-running-workbench-file:\$\{file\.id\}`[\s\S]*onConfirm: \(\) => closeWorkbenchFile\(file\.id\)/,
+  'closing a running experiment should use the internal confirmation and close only after confirmation',
+);
 assert.ok(source.includes('commitWorkbenchFileCollections'), 'file collection changes should use one synchronous ownership boundary');
 assert.match(
   source.slice(
@@ -160,8 +194,23 @@ assert.match(
 );
 assert.match(
   workspaceSnapshotSource,
-  /flushWorkspacePersistenceRef\.current = async \(activeModeCheckpointOverride\) => \{\s*const snapshot = createWorkspacePersistenceSnapshot\(activeModeCheckpointOverride\);\s*const scheduler = workspacePersistenceSchedulerRef\.current;\s*if \(!scheduler\) return false;\s*scheduler\.schedule\(\(\) => snapshot\);/,
+  /flushWorkspacePersistenceRef\.current = async \(activeModeCheckpointOverride\) => \{\s*const snapshot = createWorkspacePersistenceSnapshot\(activeModeCheckpointOverride\);\s*const scheduler = workspacePersistenceSchedulerRef\.current;\s*if \(!scheduler\) return false;\s*scheduler\.schedule\(\(\) => snapshot, 'lifecycle'\);/,
   'flush must materialize the target-file snapshot before awaiting any earlier save or React projection commit',
+);
+assert.match(
+  source,
+  /const flushWorkspaceAfterRunStateCommit = \(\) => \{[\s\S]*setTimeout\(\(\) => \{[\s\S]*persistWorkspaceLifecycleCheckpointRef\.current\(\)/,
+  'pause and stop transitions should request an immediate lifecycle flush after React commits their run-state change',
+);
+assert.match(
+  source,
+  /const pauseActiveFile = \(\) => \{[\s\S]*updateActiveFile\([\s\S]*flushWorkspaceAfterRunStateCommit\(\)/,
+  'pausing a standard or ideal experiment must not wait for the ordinary semantic debounce',
+);
+assert.match(
+  source,
+  /const stopActiveFile = \(\) => \{[\s\S]*terminateHeatCapacityAutoDemo\(\);[\s\S]*flushWorkspaceAfterRunStateCommit\(\);[\s\S]*runState: 'idle'[\s\S]*flushWorkspaceAfterRunStateCommit\(\)/,
+  'stopping heat-capacity, standard, and ideal experiments should enter the immediate lifecycle persistence lane',
 );
 
 const schedulerLifecycleIndex = indexOfOrFail(

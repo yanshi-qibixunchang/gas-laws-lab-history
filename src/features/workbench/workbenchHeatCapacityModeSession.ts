@@ -30,13 +30,52 @@ import type {
   HeatCapacityFreeTrial,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
+  getHeatCapacityFreeExperimentGroupInvariantErrors,
+  HEAT_CAPACITY_FREE_EXPERIMENT_GROUP_COLLECTION_VERSION,
+  HEAT_CAPACITY_FREE_EXPERIMENT_GROUP_RECORD_VERSION,
+  type HeatCapacityFreeExperimentGroupCollection,
+} from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
+import {
+  createEmptyHeatCapacityFreeBatchState,
+  HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION,
+  HEAT_CAPACITY_FREE_BATCH_VERSION,
+  HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION,
+  HEAT_CAPACITY_FREE_SCORING_VERSION,
+  planHeatCapacityFreeBatchAggregateMigration,
+  type HeatCapacityFreeBatchState,
+} from '../../domain/heatCapacity/heatCapacityFreeBatchModel.ts';
+import {
+  calculateHeatCapacityGroupReference,
+  type HeatCapacityCalculationGroupReference,
+} from '../../domain/heatCapacity/heatCapacityCalculationModel.ts';
+import {
+  createHeatCapacityCalculationWorkflowSession,
+  rehydrateHeatCapacityCalculationWorkflowSession,
+  type CreateHeatCapacityCalculationWorkflowSessionOptions,
+  type HeatCapacityCalculationWorkflowSession,
+} from '../../domain/heatCapacity/heatCapacityCalculationWorkflowModel.ts';
+import {
+  DEFAULT_HEAT_CAPACITY_CALCULATION_SCORING_CONFIG,
+} from '../../domain/heatCapacity/heatCapacityCalculationScoringModel.ts';
+import {
   createHeatCapacityFreeStandardReference,
 } from '../../domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
 import { truncateHeatCapacitySignalMv } from '../../domain/heatCapacity/heatCapacitySignalDisplayModel.ts';
-import type {
-  HeatCapacityFreeConfigSnapshot,
-  HeatCapacityFreeTraceTrial,
+import {
+  FREE_TRACE_MAX_BRANCHES_PER_TRIAL,
+  FREE_TRACE_MAX_EVENTS_PER_BRANCH,
+  FREE_TRACE_MAX_SAMPLES_PER_TRIAL,
+  HEAT_CAPACITY_FREE_TRACE_VERSION,
+  getFreeTraceTrialBranchCount,
+  type HeatCapacityFreeConfigSnapshot,
+  type HeatCapacityFreeTraceTrial,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
+import {
+  isHeatCapacityLegacy423DisplayEventSampleRelation,
+} from '../../domain/heatCapacity/heatCapacityLegacyTraceCompatibility.ts';
+import {
+  HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
+} from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
   calculateGuideHeatCapacityTrialSignals,
   type HeatCapacityGuideTrial,
@@ -83,9 +122,12 @@ import type {
   WorkbenchHeatCapacityState,
   WorkbenchRunState,
 } from './workbenchState.ts';
+import {
+  migrateLegacyHeatCapacityFreeExperimentGroups,
+} from './workbenchHeatCapacityExperimentGroupMigration.ts';
 
-export const HEAT_CAPACITY_MODE_SESSION_SCHEMA_VERSION = 2 as const;
-export const HEAT_CAPACITY_MODE_RUNTIME_SNAPSHOT_SCHEMA_VERSION = 1 as const;
+export const HEAT_CAPACITY_MODE_SESSION_SCHEMA_VERSION = 3 as const;
+export const HEAT_CAPACITY_MODE_RUNTIME_SNAPSHOT_SCHEMA_VERSION = 2 as const;
 
 const MAX_RUNTIME_JSON_KEY_LENGTH = 512;
 const MAX_RUNTIME_JSON_TEXT_LENGTH = 1_000_000;
@@ -95,7 +137,7 @@ const UNSAFE_RUNTIME_JSON_KEYS = new Set(['__proto__', 'constructor', 'prototype
 
 export type HeatCapacityModeSessionStatus = 'empty' | 'suspended' | 'completed';
 
-const HEAT_CAPACITY_MODE_COMMON_RUNTIME_KEYS = [
+export const HEAT_CAPACITY_MODE_COMMON_RUNTIME_KEYS = [
   'runState',
   'heatCapacityTeachingStatus',
   'heatCapacityExperimentSeed',
@@ -173,6 +215,8 @@ const HEAT_CAPACITY_MODE_COMMON_RUNTIME_KEYS = [
 const HEAT_CAPACITY_FREE_SESSION_KEYS = [
   'heatCapacityFreePreheatCompleted',
   'heatCapacityFreeRuntimeVersion',
+  'heatCapacityFreeBatch',
+  'heatCapacityFreeExperimentGroups',
   'heatCapacityFreeExperimentGroupStatus',
   'heatCapacityFreeGasType',
   'heatCapacityFreeParameterDraft',
@@ -199,12 +243,13 @@ const HEAT_CAPACITY_FREE_SESSION_KEYS = [
   'heatCapacityFreeActiveAttempt',
 ] as const satisfies readonly (keyof WorkbenchHeatCapacityState)[];
 
-const HEAT_CAPACITY_GUIDE_SESSION_KEYS = [
+export const HEAT_CAPACITY_GUIDE_SESSION_KEYS = [
   'heatCapacityGuidePhysicsConfig',
   'heatCapacityGuidePhysicsState',
   'heatCapacityGuideTemperatureSensorState',
   'heatCapacityGuideWorkflow',
   'heatCapacityGuideTrial',
+  'heatCapacityGuideCalculationSession',
 ] as const satisfies readonly (keyof WorkbenchHeatCapacityState)[];
 
 const HEAT_CAPACITY_MODE_OWNED_RUNTIME_KEYS = [
@@ -260,7 +305,7 @@ export interface HeatCapacityModeSessionEntry {
 }
 
 export interface HeatCapacityModeSessionStore {
-  schemaVersion: typeof HEAT_CAPACITY_MODE_SESSION_SCHEMA_VERSION;
+  schemaVersion: typeof HEAT_CAPACITY_MODE_SESSION_SCHEMA_VERSION | 2;
   demo: HeatCapacityModeSessionEntry;
   guide: HeatCapacityModeSessionEntry;
   free: HeatCapacityModeSessionEntry;
@@ -306,6 +351,22 @@ export const createHeatCapacityCommonRuntimeShell = (
   heatCapacityModeSessions: file.heatCapacityModeSessions,
 });
 
+/**
+ * Projects a heat-capacity file into the non-recording Explore base state.
+ * Formal-mode data stays in the three mode sessions while the visible
+ * instrument receives a clean common runtime.
+ */
+export const enterHeatCapacityExploreModeWorkbenchState = (
+  file: WorkbenchHeatCapacityState,
+  defaults: WorkbenchHeatCapacityState,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => ({
+  ...createHeatCapacityCommonRuntimeShell(file, defaults),
+  heatCapacityMode: null,
+  updatedAt: now,
+  lastOpenedAt: now,
+});
+
 const pickHeatCapacitySessionFields = <
   Keys extends readonly (keyof WorkbenchHeatCapacityState)[],
 >(
@@ -323,6 +384,7 @@ const createFreeModeSessionDomainFromProjection = (
   return {
     scheme,
     gasType: scheme === 'ideal' ? 'air' : file.heatCapacityFreeGasType,
+    batch: file.heatCapacityFreeBatch,
     experimentGroupStatus: file.heatCapacityFreeExperimentGroupStatus,
     activeRunConfigSnapshot: file.heatCapacityFreeActiveRunConfigSnapshot,
     recordConfig: file.heatCapacityFreeRecordConfig,
@@ -358,6 +420,7 @@ export const captureHeatCapacityModeRuntimeSnapshot = (
       common,
       free: {
         ...free,
+        heatCapacityFreeBatch: activeDomain.batch,
         heatCapacityFreeGasType: activeDomain.gasType,
         heatCapacityFreeExperimentGroupStatus: activeDomain.experimentGroupStatus,
         heatCapacityFreeActiveRunConfigSnapshot: activeDomain.activeRunConfigSnapshot,
@@ -407,6 +470,7 @@ export const suspendHeatCapacityModeSession = (
   capturedAtMs = Date.now(),
 ): WorkbenchHeatCapacityState => {
   const mode = file.heatCapacityMode;
+  if (mode === null) return file;
   if (
     uiCheckpoint !== null &&
     (uiCheckpoint.fileId !== file.id || uiCheckpoint.mode !== mode)
@@ -517,7 +581,12 @@ export const restoreHeatCapacityModeSession = (
     ? entry.status === 'completed' ? 'idle' : 'paused'
     : entry.resumeRunState;
   const resumesPhysicalClock = mode !== 'demo';
-  const offsetMs = entry.capturedAtMs === null ? 0 : Math.max(0, now - entry.capturedAtMs);
+  const hasPhysicalClockAnchor = snapshot.common.lastUpdateMs !== null ||
+    snapshot.common.displayResponseLastUpdateMs !== null;
+  const offsetMs = entry.capturedAtMs === null ||
+    (resumesPhysicalClock && !hasPhysicalClockAnchor)
+    ? 0
+    : Math.max(0, now - entry.capturedAtMs);
   const rebasedCommon = rebaseModeSessionCommonWallClock(snapshot.common, offsetMs);
   const rebasedModeRuntime = snapshot.mode === 'free'
     ? (() => {
@@ -536,6 +605,7 @@ export const restoreHeatCapacityModeSession = (
           ...snapshot.free,
           heatCapacityFreeRealDomain: realDomain,
           heatCapacityFreeIdealDomain: idealDomain,
+          heatCapacityFreeBatch: activeDomain.batch,
           heatCapacityFreeRollbackSnapshots: activeDomain.rollbackSnapshots,
           heatCapacityFreeActiveAttempt: activeDomain.activeAttempt,
         };
@@ -560,8 +630,13 @@ export const restoreHeatCapacityModeSession = (
     ...rebasedModeRuntime,
     heatCapacityMode: mode,
     runState: restoredRunState,
-    lastUpdateMs: resumesPhysicalClock ? now : rebasedCommon.lastUpdateMs,
-    displayResponseLastUpdateMs: resumesPhysicalClock ? now : rebasedCommon.displayResponseLastUpdateMs,
+    lastUpdateMs: resumesPhysicalClock && rebasedCommon.lastUpdateMs !== null
+      ? now
+      : rebasedCommon.lastUpdateMs,
+    displayResponseLastUpdateMs:
+      resumesPhysicalClock && rebasedCommon.displayResponseLastUpdateMs !== null
+        ? now
+        : rebasedCommon.displayResponseLastUpdateMs,
     heatCapacityModeSessions: file.heatCapacityModeSessions,
     updatedAt: now,
   };
@@ -577,6 +652,23 @@ export const clearHeatCapacityModeSession = (
     [mode]: createEmptyHeatCapacityModeSessionEntry(),
   },
 });
+
+/**
+ * Normalizes a file opened from disk or revisited in the workbench to Explore.
+ * Free mode is resumable; Demo and Guide are intentionally discarded.
+ */
+export const prepareHeatCapacityFileForExploreOnOpen = (
+  file: WorkbenchHeatCapacityState,
+  defaults: WorkbenchHeatCapacityState,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  const prepared = file.heatCapacityMode === 'free'
+    ? suspendHeatCapacityModeSession(file, null, now)
+    : file.heatCapacityMode === 'demo' || file.heatCapacityMode === 'guide'
+      ? clearHeatCapacityModeSession(file, file.heatCapacityMode)
+      : file;
+  return enterHeatCapacityExploreModeWorkbenchState(prepared, defaults, now);
+};
 
 const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
@@ -727,6 +819,289 @@ const decodeRecord = (
     if (fieldValue !== undefined) decoded[key] = fieldValue;
   }
   return decoded;
+};
+
+const decodePositiveInteger: RuntimeValueDecoder = (value) => (
+  typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+    ? value
+    : INVALID_RUNTIME_VALUE
+);
+
+const decodeCalculationScoringRatioWithDefault = (
+  fallback: number,
+): RuntimeValueDecoder => (value) => (
+  value === undefined ? fallback : decodeUnitInterval(value)
+);
+
+const decodeCalculationScoringConfig = decodeRecord({
+  baseCreditRatio: decodeUnitInterval,
+  precisionCorrectionCreditRatio: decodeCalculationScoringRatioWithDefault(
+    DEFAULT_HEAT_CAPACITY_CALCULATION_SCORING_CONFIG.precisionCorrectionCreditRatio,
+  ),
+  revealAfterAttemptCreditRatio: decodeCalculationScoringRatioWithDefault(
+    DEFAULT_HEAT_CAPACITY_CALCULATION_SCORING_CONFIG.revealAfterAttemptCreditRatio,
+  ),
+});
+
+const decodeCalculationAnswerAttempt = decodeRecord({
+  sequence: decodePositiveInteger,
+  rawInput: decodeString,
+  outcome: decodeLiteral(['empty', 'invalid', 'incorrect', 'correct']),
+  numericCorrect: decodeBoolean,
+  precisionCorrect: decodeBoolean,
+  parsedValue: decodeNullableFiniteNumber,
+});
+
+const decodeCalculationAnswerState = decodeRecord({
+  status: decodeLiteral(['unresolved', 'correct', 'revealed']),
+  lastSubmittedRaw: decodeString,
+  attempts: decodeArray(decodeCalculationAnswerAttempt),
+  hasIncorrectValidAttempt: decodeBoolean,
+  referenceTone: decodeNullable(decodeLiteral(['success', 'danger'])),
+  awardedRatio: decodeNullable(decodeUnitInterval),
+  scoringConfig: decodeCalculationScoringConfig,
+});
+
+const decodeCalculationFieldFeedback = decodeNullable(decodeRecord({
+  outcome: decodeLiteral(['empty', 'invalid', 'incorrect']),
+  numericCorrect: decodeBoolean,
+  precisionCorrect: decodeBoolean,
+}));
+
+const decodeCalculationWorkflowField = decodeRecord({
+  id: decodeString,
+  symbol: decodeString,
+  answerKind: decodeLiteral([
+    'correctedVoltage',
+    'absolutePressure',
+    'gamma',
+    'meanGamma',
+    'sampleStandardDeviation',
+    'typeAStandardUncertainty',
+    'relativeErrorPercent',
+  ]),
+  expectedValue: decodeFiniteNumber,
+  draftRaw: decodeString,
+  answer: decodeCalculationAnswerState,
+  feedback: decodeCalculationFieldFeedback,
+});
+
+const decodeCalculationWorkflowStep = decodeRecord({
+  id: decodeString,
+  kind: decodeLiteral([
+    'correctedVoltages',
+    'absolutePressures',
+    'groupGamma',
+    'guideRelativeError',
+    'meanGamma',
+    'sampleStandardDeviation',
+    'typeAStandardUncertainty',
+    'batchRelativeError',
+  ]),
+  fieldIds: decodeNonEmptyArray(decodeString),
+});
+
+const decodeCalculationGroupReference = decodeRecord({
+  u0Mv: decodeFiniteNumber,
+  u1Mv: decodeFiniteNumber,
+  u2Mv: decodeFiniteNumber,
+  u1PrimeMv: decodeFiniteNumber,
+  u2PrimeMv: decodeFiniteNumber,
+  p0KPa: decodePositiveFiniteNumber,
+  p1KPa: decodePositiveFiniteNumber,
+  p2KPa: decodePositiveFiniteNumber,
+  formulaGamma: decodePositiveFiniteNumber,
+});
+
+const decodeCalculationWorkflowGroup = decodeRecord({
+  trialId: decodeString,
+  reference: decodeCalculationGroupReference,
+  relativeErrorPercent: decodeNonNegativeFiniteNumber,
+  fields: decodeNonEmptyArray(decodeCalculationWorkflowField),
+  steps: decodeNonEmptyArray(decodeCalculationWorkflowStep),
+});
+
+const decodeCalculationBatchStatistics = decodeRecord({
+  count: decodePositiveInteger,
+  meanGamma: decodePositiveFiniteNumber,
+  sampleStandardDeviation: decodeNonNegativeFiniteNumber,
+  typeAStandardUncertainty: decodeNonNegativeFiniteNumber,
+  relativeErrorPercent: decodeNonNegativeFiniteNumber,
+});
+
+const decodeCalculationWorkflowAggregate = decodeRecord({
+  reference: decodeCalculationBatchStatistics,
+  fields: decodeNonEmptyArray(decodeCalculationWorkflowField),
+  steps: decodeNonEmptyArray(decodeCalculationWorkflowStep),
+});
+
+const decodeCalculationWorkflowSessionShape = decodeRecord({
+  version: decodeLiteral([1]),
+  mode: decodeLiteral(['guide', 'free', 'demo']),
+  presentation: decodeLiteral(['interactive', 'system-readonly', 'legacy-readonly']),
+  status: decodeLiteral(['in-progress', 'ready-to-exit', 'completed']),
+  theoreticalGamma: decodePositiveFiniteNumber,
+  groups: decodeNonEmptyArray(decodeCalculationWorkflowGroup),
+  aggregate: decodeNullable(decodeCalculationWorkflowAggregate),
+  activeGroupIndex: decodeNonNegativeInteger,
+  selectedGroupIndex: decodeNullable(decodeNonNegativeInteger),
+  aggregateSelected: decodeBoolean,
+  activeStepId: decodeNullableString,
+  scoringConfig: decodeCalculationScoringConfig,
+  startedAtMs: decodeNonNegativeFiniteNumber,
+  readyToExitAtMs: decodeNullableNonNegativeFiniteNumber,
+  completedAtMs: decodeNullableNonNegativeFiniteNumber,
+});
+
+const isCalculationWorkflowSessionSemanticallyValid = (
+  value: Record<string, unknown>,
+) => {
+  const session = value as unknown as HeatCapacityCalculationWorkflowSession;
+  if (
+    session.groups.length === 0 ||
+    session.activeGroupIndex >= session.groups.length ||
+    (
+      session.selectedGroupIndex !== null &&
+      session.selectedGroupIndex >= session.groups.length
+    ) ||
+    (session.mode === 'guide' && session.groups.length !== 1) ||
+    (session.mode === 'free' && session.aggregate === null) ||
+    (session.mode !== 'free' && session.aggregate !== null) ||
+    (
+      session.presentation !== 'interactive' &&
+      session.status !== 'completed'
+    ) ||
+    (
+      session.status === 'in-progress' &&
+      (session.activeStepId === null || session.readyToExitAtMs !== null)
+    ) ||
+    (
+      session.status === 'ready-to-exit' &&
+      (session.activeStepId !== null || session.readyToExitAtMs === null)
+    ) ||
+    (
+      session.status === 'completed' &&
+      (session.readyToExitAtMs === null || session.completedAtMs === null)
+    ) ||
+    (
+      session.readyToExitAtMs !== null &&
+      session.readyToExitAtMs < session.startedAtMs
+    ) ||
+    (
+      session.completedAtMs !== null &&
+      (
+        session.readyToExitAtMs === null ||
+        session.completedAtMs < session.readyToExitAtMs
+      )
+    )
+  ) {
+    return false;
+  }
+  const fieldIds = new Set<string>();
+  const stepIds = new Set<string>();
+  for (const group of session.groups) {
+    if (!group.trialId.trim()) return false;
+    for (const field of group.fields) {
+      if (!field.id.trim() || fieldIds.has(field.id)) return false;
+      fieldIds.add(field.id);
+    }
+    for (const step of group.steps) {
+      if (
+        !step.id.trim() ||
+        stepIds.has(step.id) ||
+        step.fieldIds.some((fieldId) => !fieldIds.has(fieldId))
+      ) return false;
+      stepIds.add(step.id);
+    }
+  }
+  if (session.aggregate) {
+    if (session.aggregate.reference.count !== session.groups.length) return false;
+    for (const field of session.aggregate.fields) {
+      if (!field.id.trim() || fieldIds.has(field.id)) return false;
+      fieldIds.add(field.id);
+    }
+    for (const step of session.aggregate.steps) {
+      if (
+        !step.id.trim() ||
+        stepIds.has(step.id) ||
+        step.fieldIds.some((fieldId) => !fieldIds.has(fieldId))
+      ) return false;
+      stepIds.add(step.id);
+    }
+  }
+  return session.activeStepId === null || stepIds.has(session.activeStepId);
+};
+
+const decodeCalculationWorkflowSession: RuntimeValueDecoder = (value) => {
+  const decoded = decodeCalculationWorkflowSessionShape(value);
+  return decoded !== INVALID_RUNTIME_VALUE &&
+    isPlainRecord(decoded) &&
+    isCalculationWorkflowSessionSemanticallyValid(decoded)
+    ? decoded
+    : INVALID_RUNTIME_VALUE;
+};
+
+const decodeNullableCalculationWorkflowSession =
+  decodeNullable(decodeCalculationWorkflowSession);
+
+export const normalizeHeatCapacityCalculationWorkflowSessionForPersistence = (
+  value: unknown,
+): HeatCapacityCalculationWorkflowSession | null => {
+  if (value === null || value === undefined) return null;
+  const decoded = decodeCalculationWorkflowSession(value);
+  return decoded === INVALID_RUNTIME_VALUE
+    ? null
+    : decoded as HeatCapacityCalculationWorkflowSession;
+};
+
+export const normalizeHeatCapacityCalculationWorkflowSessionForTrials = (
+  value: unknown,
+  authority: CreateHeatCapacityCalculationWorkflowSessionOptions,
+): HeatCapacityCalculationWorkflowSession | null => {
+  if (value === null || value === undefined) return null;
+  const canonical = createHeatCapacityCalculationWorkflowSession(authority);
+  const decoded = decodeCalculationWorkflowSessionShape(value);
+  if (decoded === INVALID_RUNTIME_VALUE || !isPlainRecord(decoded)) {
+    return canonical;
+  }
+  return rehydrateHeatCapacityCalculationWorkflowSession(
+    decoded as unknown as HeatCapacityCalculationWorkflowSession,
+    authority,
+  );
+};
+
+export const calculateHeatCapacityGuideCalculationReference = (
+  trial: HeatCapacityGuideTrial,
+  atmosphericPressureKPa: number,
+  pressureSensitivityMvPerKPa: number,
+): HeatCapacityCalculationGroupReference | null => {
+  if (!trial.u0 || !trial.u1 || !trial.u2) return null;
+  return calculateHeatCapacityGroupReference({
+    u0Mv: trial.u0.displayPressureMv,
+    u1Mv: trial.u1.displayPressureMv,
+    u2Mv: trial.u2.displayPressureMv,
+    atmosphericPressureKPa,
+    pressureSensitivityMvPerKPa,
+  });
+};
+
+export const calculateHeatCapacityFreeCalculationReference = (
+  trial: HeatCapacityFreeTrial,
+  snapshot: HeatCapacityFreeConfigSnapshot,
+): HeatCapacityCalculationGroupReference | null => {
+  const u0 = trial.u0 ?? trial.automaticU0;
+  if (
+    !trial.u1 ||
+    !trial.u2 ||
+    (!u0 && trial.correctedSignals?.u0Source !== 'assumed-zero')
+  ) return null;
+  return calculateHeatCapacityGroupReference({
+    u0Mv: u0?.displayPressureMv ?? 0,
+    u1Mv: trial.u1.displayPressureMv,
+    u2Mv: trial.u2.displayPressureMv,
+    atmosphericPressureKPa: snapshot.environment.ambientPressureKPa,
+    pressureSensitivityMvPerKPa: snapshot.sensor.pressureMvPerKPa,
+  });
 };
 
 const decodeEnvironmentConfig = decodeRecord({
@@ -1207,6 +1582,98 @@ const decodeFreeConfigSnapshot: RuntimeValueDecoder = (value) => {
 
 const decodeNullableFreeConfigSnapshot = decodeNullable(decodeFreeConfigSnapshot);
 
+const HEAT_CAPACITY_FREE_BATCH_FIELD_DECODERS = {
+  id: decodeNullableString,
+  targetGroupCount: decodeNullable(decodeLiteral([3, 4, 5, 6, 7])),
+  frozenConfigSnapshot: decodeNullableFreeConfigSnapshot,
+  configuredAtMs: decodeNullableNonNegativeFiniteNumber,
+  startedAtMs: decodeNullableNonNegativeFiniteNumber,
+  experimentCompletedAtMs: decodeNullableNonNegativeFiniteNumber,
+  calculationSession: decodeNullableCalculationWorkflowSession,
+} as const;
+
+const decodeHeatCapacityFreeBatchV1Shape = decodeRecord({
+  version: decodeLiteral([HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION]),
+  ...HEAT_CAPACITY_FREE_BATCH_FIELD_DECODERS,
+});
+
+const decodeHeatCapacityFreeBatchV2Shape = decodeRecord({
+  version: decodeLiteral([HEAT_CAPACITY_FREE_BATCH_VERSION]),
+  nextTrialSequence: decodePositiveInteger,
+  scoringVersion: (value) => value === undefined
+    ? HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION
+    : decodeLiteral([
+        HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION,
+        HEAT_CAPACITY_FREE_SCORING_VERSION,
+      ])(value),
+  ...HEAT_CAPACITY_FREE_BATCH_FIELD_DECODERS,
+});
+
+const decodeHeatCapacityFreeBatch: RuntimeValueDecoder = (value) => {
+  if (value === undefined) return createEmptyHeatCapacityFreeBatchState();
+  if (!isPlainRecord(value)) return INVALID_RUNTIME_VALUE;
+  const decoded = value.version === HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION
+    ? decodeHeatCapacityFreeBatchV1Shape(value)
+    : value.version === HEAT_CAPACITY_FREE_BATCH_VERSION
+      ? decodeHeatCapacityFreeBatchV2Shape(value)
+      : INVALID_RUNTIME_VALUE;
+  if (decoded === INVALID_RUNTIME_VALUE || !isPlainRecord(decoded)) {
+    return INVALID_RUNTIME_VALUE;
+  }
+  const batch = decoded as unknown as Omit<
+    HeatCapacityFreeBatchState,
+    'version' | 'nextTrialSequence' | 'scoringVersion'
+  > & {
+    version: 1 | 2;
+    nextTrialSequence?: number;
+    scoringVersion?: 1 | 2;
+  };
+  if (batch.targetGroupCount === null) {
+    return (
+      batch.id === null &&
+      batch.frozenConfigSnapshot === null &&
+      batch.configuredAtMs === null &&
+      batch.startedAtMs === null &&
+      batch.experimentCompletedAtMs === null &&
+      batch.calculationSession === null &&
+      (
+        batch.version === HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION ||
+        batch.nextTrialSequence === 1
+      )
+    )
+      ? batch
+      : INVALID_RUNTIME_VALUE;
+  }
+  if (
+    batch.id === null ||
+    batch.configuredAtMs === null ||
+    (
+      batch.startedAtMs !== null &&
+      (
+        batch.frozenConfigSnapshot === null ||
+        batch.startedAtMs < batch.configuredAtMs
+      )
+    ) ||
+    (
+      batch.experimentCompletedAtMs !== null &&
+      (
+        batch.startedAtMs === null ||
+        batch.experimentCompletedAtMs < batch.startedAtMs
+      )
+    ) ||
+    (
+      batch.calculationSession !== null &&
+      (
+        batch.experimentCompletedAtMs === null ||
+        batch.calculationSession.mode !== 'free'
+      )
+    )
+  ) {
+    return INVALID_RUNTIME_VALUE;
+  }
+  return batch;
+};
+
 const decodeStandardReferenceAssumptions = decodeRecord({
   operationMode: decodeLiteral(['standard-operation']),
   disturbancesPreserved: decodeTrue,
@@ -1558,10 +2025,17 @@ const decodeFreeCorrectedSignals: RuntimeValueDecoder = (value) => {
     : INVALID_RUNTIME_VALUE;
 };
 
+const decodeFreeTrialBatchMembership = decodeRecord({
+  version: decodeLiteral([HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION]),
+  batchId: decodeString,
+  sequence: decodePositiveInteger,
+});
+
 const decodeFreeTrialShape = decodeRecord({
   id: decodeString,
   source: decodeLiteral(['free']),
   parameterScheme: decodeLiteral(['real', 'ideal']),
+  batchMembership: decodeOptional(decodeNullable(decodeFreeTrialBatchMembership)),
   traceTrialId: decodeNullableString,
   branchCount: decodeNonNegativeInteger,
   automaticU0: decodeAutomaticU0,
@@ -1674,7 +2148,10 @@ const isFreeTrialSignalSemanticsValid = (trial: HeatCapacityFreeTrial) => {
 const decodeFreeTrial: RuntimeValueDecoder = (value) => {
   const decoded = decodeFreeTrialShape(value);
   if (decoded === INVALID_RUNTIME_VALUE || !isPlainRecord(decoded)) return INVALID_RUNTIME_VALUE;
-  const trial = decoded as unknown as HeatCapacityFreeTrial;
+  const trial = {
+    ...decoded,
+    batchMembership: decoded.batchMembership ?? null,
+  } as unknown as HeatCapacityFreeTrial;
   if (trial.u2 !== null && trial.u1 === null) return INVALID_RUNTIME_VALUE;
   const records = [trial.u0, trial.u1, trial.u2].filter((record) => record !== null);
   const firstRecord = records[0];
@@ -1686,7 +2163,7 @@ const decodeFreeTrial: RuntimeValueDecoder = (value) => {
       (index > 0 && record.atS < records[index - 1]!.atS)
     ))
   )) return INVALID_RUNTIME_VALUE;
-  return isFreeTrialSignalSemanticsValid(trial) ? decoded : INVALID_RUNTIME_VALUE;
+  return isFreeTrialSignalSemanticsValid(trial) ? trial : INVALID_RUNTIME_VALUE;
 };
 
 const decodeTraceIdleState = decodeRecord({
@@ -1794,6 +2271,45 @@ const decodeFreeTraceEvent = decodeRecord({
   payload: decodeOptional(decodeOpaqueRecord),
 });
 
+const decodeTraceCompactionCountMap: RuntimeValueDecoder = (value) => {
+  if (!isPlainRecord(value)) return INVALID_RUNTIME_VALUE;
+  return Object.values(value).every((count) => (
+    typeof count === 'number' &&
+    Number.isSafeInteger(count) &&
+    count >= 0
+  ))
+    ? { ...value }
+    : INVALID_RUNTIME_VALUE;
+};
+
+const decodeTraceBranchCompaction = decodeRecord({
+  version: decodeLiteral([1]),
+  droppedSampleCount: decodeNonNegativeInteger,
+  droppedEventCount: decodeNonNegativeInteger,
+  droppedEventCounts: decodeTraceCompactionCountMap,
+  firstDroppedAtS: decodeNullableFiniteNumber,
+  lastDroppedAtS: decodeNullableFiniteNumber,
+});
+
+const decodeTraceTrialCompaction = decodeRecord({
+  version: decodeLiteral([1]),
+  droppedBranchCount: decodeNonNegativeInteger,
+  droppedSampleCount: decodeNonNegativeInteger,
+  droppedEventCount: decodeNonNegativeInteger,
+  firstDroppedBranchId: decodeNullableString,
+  lastDroppedBranchId: decodeNullableString,
+});
+
+const decodeTraceStoreCompaction = decodeRecord({
+  version: decodeLiteral([1]),
+  droppedTrialCount: decodeNonNegativeInteger,
+  droppedBranchCount: decodeNonNegativeInteger,
+  droppedSampleCount: decodeNonNegativeInteger,
+  droppedEventCount: decodeNonNegativeInteger,
+  firstDroppedTrialId: decodeNullableString,
+  lastDroppedTrialId: decodeNullableString,
+});
+
 const decodeFreeTraceBranch = decodeRecord({
   id: decodeString,
   parentBranchId: decodeNullableString,
@@ -1807,6 +2323,7 @@ const decodeFreeTraceBranch = decodeRecord({
   idleState: decodeTraceIdleState,
   samples: decodeArray(decodeFreeTraceSample),
   events: decodeArray(decodeFreeTraceEvent),
+  compaction: decodeOptional(decodeTraceBranchCompaction),
 });
 
 const decodeFreeTraceTrialShape = decodeRecord({
@@ -1817,6 +2334,7 @@ const decodeFreeTraceTrialShape = decodeRecord({
   nextBranchIndex: decodeNonNegativeInteger,
   branches: decodeNonEmptyArray(decodeFreeTraceBranch),
   configSnapshot: decodeFreeConfigSnapshot,
+  branchCompaction: decodeOptional(decodeTraceTrialCompaction),
 });
 
 const readIndexedId = (value: unknown, prefix: string) => {
@@ -1861,6 +2379,8 @@ const isFreeTraceBranchIntegrityValid = (
     !hasUniqueValues(sampleIndexes) ||
     !hasUniqueValues(branchEventIds) ||
     !hasUniqueValues(eventIndexes) ||
+    samples.length > FREE_TRACE_MAX_SAMPLES_PER_TRIAL ||
+    events.length > FREE_TRACE_MAX_EVENTS_PER_BRANCH ||
     !hasStrictlyIncreasingNumbers(sampleIndexes) ||
     !hasStrictlyIncreasingNumbers(eventIndexes) ||
     !hasNonDecreasingNumbers(sampleTimes) ||
@@ -1869,6 +2389,9 @@ const isFreeTraceBranchIntegrityValid = (
     events.some((event) => event.id !== `event-${event.index}`)
   ) return false;
   const sampleIdSet = new Set(sampleIds.filter((id): id is string => typeof id === 'string'));
+  const sampleById = new Map(
+    samples.map((sample) => [sample.id as string, sample]),
+  );
   const maxSampleIndex = sampleIndexes.reduce<number>((maximum, index) => (
     typeof index === 'number' ? Math.max(maximum, index) : maximum
   ), 0);
@@ -1886,7 +2409,21 @@ const isFreeTraceBranchIntegrityValid = (
     branch.parentBranchId === branch.id ||
     (branch.parentBranchId !== null && !branchIds.has(branch.parentBranchId as string)) ||
     (branch.createdByEventId !== null && !eventIds.has(branch.createdByEventId as string)) ||
-    events.some((event) => !sampleIdSet.has(event.traceSampleId as string))
+    events.some((event) => {
+      const traceSampleId = event.traceSampleId as string;
+      const referencedSample = sampleById.get(traceSampleId);
+      return !sampleIdSet.has(traceSampleId) ||
+        referencedSample === undefined ||
+        typeof event.atS !== 'number' ||
+        typeof referencedSample.atS !== 'number' ||
+        (
+          !areRuntimeNumbersClose(event.atS, referencedSample.atS) &&
+          !isHeatCapacityLegacy423DisplayEventSampleRelation(
+            event,
+            referencedSample,
+          )
+        );
+    })
   ) return false;
   return true;
 };
@@ -1913,6 +2450,9 @@ const decodeFreeTraceTrial: RuntimeValueDecoder = (value) => {
   }
   const branches = decoded.branches.filter(isPlainRecord);
   if (branches.length !== decoded.branches.length) return INVALID_RUNTIME_VALUE;
+  if (branches.length > FREE_TRACE_MAX_BRANCHES_PER_TRIAL) {
+    return INVALID_RUNTIME_VALUE;
+  }
   const branchIdValues = branches.map((branch) => branch.id);
   if (!hasUniqueValues(branchIdValues)) return INVALID_RUNTIME_VALUE;
   const branchIds = new Set(branchIdValues.filter((id): id is string => typeof id === 'string'));
@@ -1947,6 +2487,7 @@ const decodeFreeTraceStoreShape = decodeRecord({
   activeTraceTrialId: decodeNullableString,
   nextTraceTrialIndex: decodeNonNegativeInteger,
   traceTrials: decodeArray(decodeFreeTraceTrial),
+  compaction: decodeOptional(decodeTraceStoreCompaction),
 });
 
 const decodeFreeTraceStore: RuntimeValueDecoder = (value) => {
@@ -1968,7 +2509,8 @@ const decodeFreeTraceStore: RuntimeValueDecoder = (value) => {
     decoded.activeTraceTrialId === null
       ? activeTraceTrials.length === 0
       : activeTraceTrials.length === 1 && activeTraceTrial?.status === 'active'
-  ) && typeof decoded.nextTraceTrialIndex === 'number' &&
+  ) &&
+    typeof decoded.nextTraceTrialIndex === 'number' &&
     decoded.nextTraceTrialIndex > maximumTrialIndex
     ? decoded
     : INVALID_RUNTIME_VALUE;
@@ -2095,8 +2637,7 @@ const isFreeReleaseTraceTimelineValid = (
   const u1WaitAnchorEvent = u1WaitAnchorEvents[u1WaitAnchorEvents.length - 1];
   if (
     !u1WaitAnchorEvent ||
-    typeof u1WaitAnchorEvent.atS !== 'number' ||
-    u1AtS - u1WaitAnchorEvent.atS + 0.000001 < HEAT_CAPACITY_FREE_ATTEMPT_TARGET_WAIT_S
+    typeof u1WaitAnchorEvent.atS !== 'number'
   ) return false;
 
   const u2Events = getFreeTraceBranchEvents(u2Branch);
@@ -2157,14 +2698,14 @@ const isFreeReleaseTraceTimelineValid = (
   const releaseClosedSample = getFreeTraceBranchSamples(u2Branch).find((sample) => (
     typeof sample.atS === 'number' &&
     sample.atS >= releaseCloseAtS - 0.000001 &&
+    sample.atS <= u2AtS + 0.000001 &&
     isPlainRecord(sample.controls) &&
     sample.controls.releasePhase === 'closedAfterRelease' &&
     isPlainRecord(sample.physical) &&
     sample.physical.releaseStarted === true
   ));
   return isPlainRecord(releaseClosedSample) &&
-    typeof releaseClosedSample.atS === 'number' &&
-    u2AtS - releaseClosedSample.atS + 0.000001 >= HEAT_CAPACITY_FREE_ATTEMPT_TARGET_WAIT_S;
+    typeof releaseClosedSample.atS === 'number';
 };
 
 const isFreeTrialCollectionIntegrityValid = (
@@ -2204,7 +2745,9 @@ const isFreeTrialCollectionIntegrityValid = (
       (traceTrialId !== null && traceTrial === null) ||
       (traceTrial !== null && (
         !Array.isArray(traceTrial.branches) ||
-        trial.branchCount !== traceTrial.branches.length ||
+        trial.branchCount !== getFreeTraceTrialBranchCount(
+          traceTrial as unknown as HeatCapacityFreeTraceTrial,
+        ) ||
         (traceTrial.linkedTrialId !== null && traceTrial.linkedTrialId !== trial.id)
       ))
     ) return false;
@@ -2683,17 +3226,30 @@ const isFreeDomainTimelineWithinSimulationTime = (
     const linkedTrial = traceTrial.status === 'completed'
       ? domain.trials.find((trial) => trial.id === traceTrial.linkedTrialId) ?? null
       : null;
-    const traceSimulationTimeS = Math.max(
-      simulationTimeS,
-      linkedTrial?.u2?.atS ?? simulationTimeS,
-    );
-    return traceTrial.branches.flatMap((branch) => [
+    const timelineValues = traceTrial.branches.flatMap((branch) => [
       ...branch.samples.map((sample) => sample.atS),
       ...branch.events.map((event) => event.atS),
       branch.idleState.lastUserActionAtS,
       branch.idleState.dormantSinceS,
       branch.idleState.lastHeartbeatAtS,
-    ]).every((value) => isSimulationTimelineTimestamp(value, traceSimulationTimeS));
+    ]);
+    if (traceTrial.status === 'active') {
+      return timelineValues.every((value) => (
+        isSimulationTimelineTimestamp(value, simulationTimeS)
+      ));
+    }
+    // Every Free group owns a local simulation clock. Once a trace is
+    // completed, starting the next group resets the active domain clock, so a
+    // historical trace must be bounded by its own terminal timeline rather
+    // than by the new group's clock or by U2 alone (power-off is recorded
+    // after U2).
+    const localTerminalAtS = Math.max(
+      linkedTrial?.u2?.atS ?? 0,
+      ...timelineValues.filter((value): value is number => value !== null),
+    );
+    return timelineValues.every((value) => (
+      isSimulationTimelineTimestamp(value, localTerminalAtS)
+    ));
   });
   const attempt = domain.activeAttempt;
   const attemptTimestamps = attempt === null
@@ -2722,7 +3278,12 @@ const isFreeActiveRunConfigSnapshotConsistent = (
   domain: HeatCapacityFreeExperimentDomainState,
 ) => {
   if (domain.experimentGroupStatus === 'draft') {
-    return domain.activeRunConfigSnapshot === null;
+    return domain.batch.startedAtMs === null
+      ? domain.activeRunConfigSnapshot === null
+      : areRuntimeValuesStructurallyEqual(
+          domain.activeRunConfigSnapshot,
+          domain.batch.frozenConfigSnapshot,
+        );
   }
   if (domain.activeRunConfigSnapshot === null) return false;
   const expectedSnapshot = createHeatCapacityFreeConfigSnapshotFromRuntimeConfigs({
@@ -2736,6 +3297,66 @@ const isFreeActiveRunConfigSnapshotConsistent = (
     pressureWarningMv: domain.pressureWarningMv,
   });
   return areRuntimeValuesStructurallyEqual(domain.activeRunConfigSnapshot, expectedSnapshot);
+};
+
+const isFreeBatchProjectionConsistent = (
+  domain: HeatCapacityFreeExperimentDomainState,
+) => {
+  const batch = domain.batch;
+  const identityPlan = planHeatCapacityFreeBatchAggregateMigration({
+    batch,
+    trials: domain.trials,
+    traceNextTrialIndex: domain.traceStore.nextTraceTrialIndex,
+  });
+  if (!identityPlan.ok || identityPlan.status !== 'exact') return false;
+  if (batch.targetGroupCount === null) {
+    return batch.id === null &&
+      batch.nextTrialSequence === 1 &&
+      batch.frozenConfigSnapshot === null &&
+      batch.startedAtMs === null &&
+      batch.experimentCompletedAtMs === null &&
+      batch.calculationSession === null;
+  }
+  if (batch.id === null || batch.configuredAtMs === null) return false;
+  const completedTrials = domain.trials.filter((trial) => (
+    trial.completedAtMs !== null &&
+    trial.u1 !== null &&
+    trial.u2 !== null &&
+    trial.correctedSignals !== null
+  ));
+  if (completedTrials.length > batch.targetGroupCount) return false;
+  if (batch.startedAtMs === null) {
+    return batch.frozenConfigSnapshot === null &&
+      batch.experimentCompletedAtMs === null &&
+      batch.calculationSession === null &&
+      completedTrials.length === 0;
+  }
+  const expectedSnapshot = createHeatCapacityFreeConfigSnapshotFromRuntimeConfigs({
+    environmentConfig: domain.environmentConfig,
+    physicsConfig: domain.physicsConfig,
+    sensorConfig: getEffectiveHeatCapacityFreeSensorConfig(
+      domain.sensorConfig,
+      domain.instrumentNoiseEnabled,
+    ),
+    recordConfig: domain.recordConfig,
+    pressureWarningMv: domain.pressureWarningMv,
+  });
+  if (!areRuntimeValuesStructurallyEqual(batch.frozenConfigSnapshot, expectedSnapshot)) {
+    return false;
+  }
+  if (batch.experimentCompletedAtMs === null) {
+    return batch.calculationSession === null;
+  }
+  if (
+    completedTrials.length !== batch.targetGroupCount ||
+    batch.calculationSession === null
+  ) {
+    return false;
+  }
+  return batch.calculationSession.groups.length === batch.targetGroupCount &&
+    batch.calculationSession.groups.every((group, index) => (
+      group.trialId === completedTrials[index]?.id
+    ));
 };
 
 const FREE_ATTEMPT_STAGES_WITH_U1_RECORD = new Set([
@@ -2806,8 +3427,7 @@ const isFreeActiveAttemptProjectionConsistent = (
     !areRuntimeNumbersClose(latestTrial.u1.atS, attempt.u1RecordedAtS) ||
     latestTrial.preheatOutcome !== attempt.preheatOutcome ||
     attempt.u1WaitStartedAtS === null ||
-    attempt.u1RecordedAtS - attempt.u1WaitStartedAtS + 0.000001 <
-      HEAT_CAPACITY_FREE_ATTEMPT_TARGET_WAIT_S
+    attempt.u1RecordedAtS + 0.000001 < attempt.u1WaitStartedAtS
   )) return false;
 
   if (attempt.status === 'active' && hasReleaseStart && (
@@ -2838,8 +3458,7 @@ const isFreeActiveAttemptProjectionConsistent = (
     attempt.u2RecordedAtS !== null &&
     attempt.u2WaitStartedAtS !== null &&
     areRuntimeNumbersClose(latestTrial.u2.atS, attempt.u2RecordedAtS) &&
-    attempt.u2RecordedAtS - attempt.u2WaitStartedAtS + 0.000001 >=
-      HEAT_CAPACITY_FREE_ATTEMPT_TARGET_WAIT_S
+    attempt.u2RecordedAtS + 0.000001 >= attempt.u2WaitStartedAtS
   );
 };
 
@@ -2903,6 +3522,7 @@ const isFreeExperimentDomainSemanticallyValid = (
     domain.instrumentNoiseEnabled === expectedParameterState.instrumentNoiseEnabled &&
     domain.gasType === expectedParameterState.gasType;
   const activeAttemptValid = isFreeActiveAttemptProjectionConsistent(domain);
+  const batchValid = isFreeBatchProjectionConsistent(domain);
   const effectiveSensorConfig = getEffectiveHeatCapacityFreeSensorConfig(
     domain.sensorConfig,
     domain.instrumentNoiseEnabled,
@@ -2914,7 +3534,7 @@ const isFreeExperimentDomainSemanticallyValid = (
         effectiveSensorConfig,
       )
     ));
-  const checks = {
+  return Object.values({
     environmentValid,
     gasValid,
     thermodynamicValid,
@@ -2926,14 +3546,15 @@ const isFreeExperimentDomainSemanticallyValid = (
     configSnapshotValid,
     parameterConfigValid,
     activeAttemptValid,
+    batchValid,
     rollbacksValid,
-  };
-  return Object.values(checks).every(Boolean);
+  }).every(Boolean);
 };
 
 const decodeFreeExperimentDomainShape = decodeRecord({
   scheme: decodeLiteral(['real', 'ideal']),
   gasType: decodeLiteral(['air', 'helium']),
+  batch: decodeHeatCapacityFreeBatch,
   experimentGroupStatus: decodeLiteral(['draft', 'running', 'completed']),
   activeRunConfigSnapshot: decodeNullableFreeConfigSnapshot,
   recordConfig: decodeRecordConfig,
@@ -2952,6 +3573,34 @@ const decodeFreeExperimentDomainShape = decodeRecord({
   activeAttempt: decodeNullableFreeAttempt,
 });
 
+const migrateDecodedFreeBatchAggregate = (
+  batch: unknown,
+  trials: unknown[],
+  traceStore: Record<string, unknown>,
+) => {
+  const typedTrials = trials.filter(isPlainRecord) as unknown as HeatCapacityFreeTrial[];
+  if (typedTrials.length !== trials.length) return null;
+  const plan = planHeatCapacityFreeBatchAggregateMigration({
+    batch,
+    trials: typedTrials,
+    traceNextTrialIndex: traceStore.nextTraceTrialIndex as number,
+  });
+  if (!plan.ok || plan.status === 'relationship-repair-required') return null;
+  return {
+    batch: plan.batch,
+    trials: typedTrials.map((trial, trialIndex) => {
+      const assignment = plan.assignments[trialIndex];
+      return assignment
+        ? {
+            ...trial,
+            id: assignment.id,
+            batchMembership: { ...assignment.batchMembership },
+          }
+        : trial;
+    }),
+  };
+};
+
 const createFreeExperimentDomainDecoder = (
   expectedScheme: 'real' | 'ideal',
 ): RuntimeValueDecoder => (value) => {
@@ -2964,16 +3613,303 @@ const createFreeExperimentDomainDecoder = (
     decoded.scheme !== expectedScheme ||
     decoded.trials.some((trial) => !isPlainRecord(trial) || trial.parameterScheme !== expectedScheme)
   ) return INVALID_RUNTIME_VALUE;
-  return isFreeTrialCollectionIntegrityValid(decoded.traceStore, decoded.trials) &&
-    isFreeExperimentDomainSemanticallyValid(decoded)
-    ? decoded
+  const migratedAggregate = migrateDecodedFreeBatchAggregate(
+    decoded.batch,
+    decoded.trials,
+    decoded.traceStore,
+  );
+  if (migratedAggregate === null) return INVALID_RUNTIME_VALUE;
+  const canonical = {
+    ...decoded,
+    batch: migratedAggregate.batch,
+    trials: migratedAggregate.trials,
+  };
+  return isFreeTrialCollectionIntegrityValid(decoded.traceStore, canonical.trials) &&
+    isFreeExperimentDomainSemanticallyValid(canonical)
+    ? canonical
     : INVALID_RUNTIME_VALUE;
 };
 
 const decodeRealFreeExperimentDomain = createFreeExperimentDomainDecoder('real');
 const decodeIdealFreeExperimentDomain = createFreeExperimentDomainDecoder('ideal');
 
+const decodeFreeProcessingTrialResult = decodeRecord({
+  trialIndex: decodePositiveInteger,
+  trialId: decodeString,
+  completedAtMs: decodeNullableNonNegativeFiniteNumber,
+  U0DisplayMv: decodeNullableFiniteNumber,
+  atmosphericPressureKPa: decodeNullableFiniteNumber,
+  pressureSensitivityMvPerKPa: decodeNullableFiniteNumber,
+  U1DisplayMv: decodeNullableFiniteNumber,
+  U2DisplayMv: decodeNullableFiniteNumber,
+  U1CorrectedMv: decodeNullableFiniteNumber,
+  U2CorrectedMv: decodeNullableFiniteNumber,
+  u0Source: decodeNullable(decodeLiteral(['recorded', 'assumed-zero'])),
+  formulaGamma: decodeNullableFiniteNumber,
+  preheatBiasGamma: decodeNullableFiniteNumber,
+  gamma: decodeNullableFiniteNumber,
+  status: decodeLiteral(['valid', 'invalid']),
+  message: decodeString,
+});
+
+const decodeFreeProcessingResult = decodeRecord({
+  calculated: decodeBoolean,
+  status: decodeLiteral(['not-calculated', 'no-valid-trials', 'ready', 'invalid-data']),
+  validTrialCount: decodeNonNegativeInteger,
+  trialResults: decodeArray(decodeFreeProcessingTrialResult),
+  meanGamma: decodeNullableFiniteNumber,
+  sampleStandardDeviation: decodeNullableNonNegativeFiniteNumber,
+  typeAStandardUncertainty: decodeNullableNonNegativeFiniteNumber,
+  theoreticalGamma: decodeGamma,
+  relativeErrorPercent: decodeNullableNonNegativeFiniteNumber,
+  message: decodeString,
+});
+
+const decodeProcessScoreSubItem = decodeRecord({
+  id: decodeString,
+  label: decodeString,
+  score: decodeNonNegativeFiniteNumber,
+  maxScore: decodeNonNegativeFiniteNumber,
+  evidence: decodeString,
+  reason: decodeString,
+  recommendation: decodeString,
+  status: decodeLiteral([
+    'reasonable',
+    'review',
+    'needs-improvement',
+    'retaken',
+    'insufficient-data',
+  ]),
+});
+
+const decodeFreeCalculationScore = decodeRecord({
+  total: decodeNullableNonNegativeFiniteNumber,
+  maxScore: decodeLiteral([25]),
+  status: decodeLiteral([
+    'reasonable',
+    'review',
+    'needs-improvement',
+    'retaken',
+    'insufficient-data',
+  ]),
+  details: decodeArray(decodeProcessScoreSubItem),
+});
+
+const decodeFreeBatchScore = decodeRecord({
+  total: decodeNullableNonNegativeFiniteNumber,
+  maxScore: decodeLiteral([100]),
+  operationAverage: decodeNullableNonNegativeFiniteNumber,
+  operationMaxScore: decodeLiteral([75]),
+  calculation: decodeFreeCalculationScore,
+});
+
+const decodeFreeExperimentGroupRunSeries = decodeRecord({
+  batch: decodeHeatCapacityFreeBatch,
+  trials: decodeArray(decodeFreeTrial),
+  traceStore: decodeFreeTraceStore,
+});
+
+const decodeFreeExperimentGroupCalculation: RuntimeValueDecoder = (value) => {
+  if (!isPlainRecord(value)) return INVALID_RUNTIME_VALUE;
+  return value.kind === 'real-interactive'
+    ? decodeRecord({
+        kind: decodeLiteral(['real-interactive']),
+        session: decodeCalculationWorkflowSession,
+      })(value)
+    : value.kind === 'ideal-automatic'
+      ? decodeRecord({
+          kind: decodeLiteral(['ideal-automatic']),
+          result: decodeFreeProcessingResult,
+        })(value)
+      : INVALID_RUNTIME_VALUE;
+};
+
+const decodeFreeLegacyCompatibility = decodeRecord({
+  source: decodeLiteral(['legacy-free-domain']),
+  sourceScheme: decodeLiteral(['real', 'ideal']),
+  orderUnknown: decodeBoolean,
+  note: decodeNullableString,
+  archivedCalculationSession: decodeNullableCalculationWorkflowSession,
+});
+
+const decodeFreeExperimentGroup = decodeRecord({
+  version: decodeLiteral([HEAT_CAPACITY_FREE_EXPERIMENT_GROUP_RECORD_VERSION]),
+  id: decodeString,
+  scheme: decodeLiteral(['real', 'ideal']),
+  schemeGroupNumber: decodeNullable(decodePositiveInteger),
+  globalOrder: decodeNullable(decodePositiveInteger),
+  status: decodeLiteral([
+    'draft',
+    'collecting',
+    'awaiting-real-calculation',
+    'awaiting-ideal-processing',
+    'completed',
+    'legacy-incomplete-readonly',
+  ]),
+  targetExperimentCount: decodeLiteral([3, 4, 5, 6, 7]),
+  gasType: decodeLiteral(['air', 'helium']),
+  parameterSnapshot: decodeNullableFreeConfigSnapshot,
+  runSeries: decodeFreeExperimentGroupRunSeries,
+  calculation: decodeNullable(decodeFreeExperimentGroupCalculation),
+  finalScore: decodeNullable(decodeFreeBatchScore),
+  scoringVersion: decodeLiteral([
+    HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION,
+    HEAT_CAPACITY_FREE_SCORING_VERSION,
+  ]),
+  createdAtMs: decodeNonNegativeFiniteNumber,
+  startedAtMs: decodeNullableNonNegativeFiniteNumber,
+  acquisitionCompletedAtMs: decodeNullableNonNegativeFiniteNumber,
+  completedAtMs: decodeNullableNonNegativeFiniteNumber,
+  legacyCompatibility: decodeNullable(decodeFreeLegacyCompatibility),
+});
+
+const decodeLastViewedTrialIds: RuntimeValueDecoder = (value) => {
+  if (!isPlainRecord(value)) return INVALID_RUNTIME_VALUE;
+  const decoded: Record<string, string | null> = {};
+  for (const [groupId, trialId] of Object.entries(value)) {
+    if (
+      groupId.trim() === '' ||
+      UNSAFE_RUNTIME_JSON_KEYS.has(groupId) ||
+      (trialId !== null && typeof trialId !== 'string')
+    ) return INVALID_RUNTIME_VALUE;
+    decoded[groupId] = trialId as string | null;
+  }
+  return decoded;
+};
+
+const decodeFreeExperimentGroupCollectionShape = decodeRecord({
+  version: decodeLiteral([HEAT_CAPACITY_FREE_EXPERIMENT_GROUP_COLLECTION_VERSION]),
+  groups: decodeArray(decodeFreeExperimentGroup),
+  currentGroupId: decodeNullableString,
+  viewedGroupId: decodeNullableString,
+  pendingNextScheme: decodeLiteral(['real', 'ideal']),
+  lastViewedTrialIdByGroupId: decodeLastViewedTrialIds,
+  nextSchemeGroupNumber: decodeRecord({
+    real: decodePositiveInteger,
+    ideal: decodePositiveInteger,
+  }),
+  nextGlobalOrder: decodePositiveInteger,
+  capacityEstimate: decodeRecord({
+    bytes: decodeNonNegativeInteger,
+    measuredAtMs: decodeNullableNonNegativeFiniteNumber,
+  }),
+});
+
+const isFreeExperimentGroupTrialCollectionPersistable = (
+  group: HeatCapacityFreeExperimentGroupCollection['groups'][number],
+) => isFreeTrialCollectionIntegrityValid(
+  group.runSeries.traceStore as unknown as Record<string, unknown>,
+  group.runSeries.trials as unknown as unknown[],
+) || (
+  group.runSeries.traceStore.activeTraceTrialId === null &&
+  group.runSeries.traceStore.traceTrials.length === 0 &&
+  group.runSeries.trials.every((trial) => (
+    trial.traceTrialId === null && trial.branchCount === 0
+  ))
+);
+
+const decodeFreeExperimentGroupCollection: RuntimeValueDecoder = (value) => {
+  const decoded = decodeFreeExperimentGroupCollectionShape(value);
+  if (decoded === INVALID_RUNTIME_VALUE || !isPlainRecord(decoded)) {
+    return INVALID_RUNTIME_VALUE;
+  }
+  const collection = decoded as unknown as HeatCapacityFreeExperimentGroupCollection;
+  if (
+    getHeatCapacityFreeExperimentGroupInvariantErrors(collection).length > 0 ||
+    collection.groups.some((group) => (
+      group.runSeries.batch.targetGroupCount !== group.targetExperimentCount ||
+      group.runSeries.trials.some((trial) => trial.parameterScheme !== group.scheme) ||
+      !isFreeExperimentGroupTrialCollectionPersistable(group) ||
+      (
+        group.parameterSnapshot !== null &&
+        group.runSeries.batch.frozenConfigSnapshot !== null &&
+        !areRuntimeValuesStructurallyEqual(
+          group.parameterSnapshot,
+          group.runSeries.batch.frozenConfigSnapshot,
+        )
+      )
+    ))
+  ) return INVALID_RUNTIME_VALUE;
+  return collection;
+};
+
+export const normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence = (
+  value: unknown,
+): HeatCapacityFreeExperimentGroupCollection | null => {
+  const decoded = decodeFreeExperimentGroupCollection(value);
+  return decoded === INVALID_RUNTIME_VALUE
+    ? null
+    : decoded as HeatCapacityFreeExperimentGroupCollection;
+};
+
+export const diagnoseHeatCapacityFreeExperimentGroupCollectionForPersistence = (
+  value: unknown,
+): string[] => {
+  if (!isPlainRecord(value)) return ['collection'];
+  if (decodeFreeExperimentGroupCollection(value) !== INVALID_RUNTIME_VALUE) {
+    return [];
+  }
+  const errors: string[] = [];
+  if (!Array.isArray(value.groups)) return ['groups'];
+  value.groups.forEach((group, index) => {
+    if (!isPlainRecord(group)) {
+      errors.push(`groups[${index}]`);
+      return;
+    }
+    const decodedGroup = decodeFreeExperimentGroup(group);
+    if (decodedGroup !== INVALID_RUNTIME_VALUE) {
+      const canonicalGroup = decodedGroup as unknown as HeatCapacityFreeExperimentGroupCollection['groups'][number];
+      if (canonicalGroup.runSeries.batch.targetGroupCount !== canonicalGroup.targetExperimentCount) {
+        errors.push(`groups[${index}].targetExperimentCount`);
+      }
+      if (canonicalGroup.runSeries.trials.some((trial) => trial.parameterScheme !== canonicalGroup.scheme)) {
+        errors.push(`groups[${index}].runSeries.trials.parameterScheme`);
+      }
+      if (!isFreeExperimentGroupTrialCollectionPersistable(canonicalGroup)) {
+        errors.push(`groups[${index}].runSeries.relationships`);
+      }
+      if (
+        canonicalGroup.parameterSnapshot !== null &&
+        canonicalGroup.runSeries.batch.frozenConfigSnapshot !== null &&
+        !areRuntimeValuesStructurallyEqual(
+          canonicalGroup.parameterSnapshot,
+          canonicalGroup.runSeries.batch.frozenConfigSnapshot,
+        )
+      ) {
+        errors.push(`groups[${index}].parameterSnapshot`);
+      }
+      return;
+    }
+    if (decodeHeatCapacityFreeBatch((group.runSeries as Record<string, unknown> | undefined)?.batch) === INVALID_RUNTIME_VALUE) {
+      errors.push(`groups[${index}].runSeries.batch`);
+    }
+    const runSeries = isPlainRecord(group.runSeries) ? group.runSeries : null;
+    if (runSeries === null) {
+      errors.push(`groups[${index}].runSeries`);
+      return;
+    }
+    if (decodeArray(decodeFreeTrial)(runSeries.trials) === INVALID_RUNTIME_VALUE) {
+      errors.push(`groups[${index}].runSeries.trials`);
+    }
+    if (decodeFreeTraceStore(runSeries.traceStore) === INVALID_RUNTIME_VALUE) {
+      errors.push(`groups[${index}].runSeries.traceStore`);
+    }
+    if (decodeNullableFreeConfigSnapshot(group.parameterSnapshot) === INVALID_RUNTIME_VALUE) {
+      errors.push(`groups[${index}].parameterSnapshot`);
+    }
+    if (group.calculation !== null && decodeFreeExperimentGroupCalculation(group.calculation) === INVALID_RUNTIME_VALUE) {
+      errors.push(`groups[${index}].calculation`);
+    }
+    if (group.finalScore !== null && decodeFreeBatchScore(group.finalScore) === INVALID_RUNTIME_VALUE) {
+      errors.push(`groups[${index}].finalScore`);
+    }
+    if (errors.length === 0) errors.push(`groups[${index}].metadata`);
+  });
+  return errors.length === 0 ? ['collection metadata or relationships'] : errors;
+};
+
 const FREE_RUNTIME_DOMAIN_FIELD_PAIRS = [
+  ['heatCapacityFreeBatch', 'batch'],
   ['heatCapacityFreeGasType', 'gasType'],
   ['heatCapacityFreeExperimentGroupStatus', 'experimentGroupStatus'],
   ['heatCapacityFreeActiveRunConfigSnapshot', 'activeRunConfigSnapshot'],
@@ -3359,7 +4295,9 @@ const decodeCommonRuntime = decodeRecord(HEAT_CAPACITY_MODE_COMMON_RUNTIME_DECOD
 
 const HEAT_CAPACITY_FREE_RUNTIME_DECODERS = {
   heatCapacityFreePreheatCompleted: decodeBoolean,
-  heatCapacityFreeRuntimeVersion: decodeLiteral([5]),
+  heatCapacityFreeRuntimeVersion: decodeLiteral([6]),
+  heatCapacityFreeBatch: decodeHeatCapacityFreeBatch,
+  heatCapacityFreeExperimentGroups: decodeFreeExperimentGroupCollection,
   heatCapacityFreeExperimentGroupStatus: decodeLiteral(['draft', 'running', 'completed']),
   heatCapacityFreeGasType: decodeLiteral(['air', 'helium']),
   heatCapacityFreeParameterDraft: decodeFreeParameterDraft,
@@ -3380,7 +4318,9 @@ const HEAT_CAPACITY_FREE_RUNTIME_DECODERS = {
   heatCapacityFreeCalibrationState: decodeFreeCalibrationState,
   heatCapacityFreeEquilibriumSpeedMultiplier: decodeLiteral([2, 4, 8, 16]),
   heatCapacityFreeRollbackSnapshots: decodeFreeRollbackSnapshots,
-  heatCapacityFreeTraceVersion: decodeLiteral([5]),
+  heatCapacityFreeTraceVersion: decodeLiteral([
+    HEAT_CAPACITY_FREE_TRACE_VERSION,
+  ]),
   heatCapacityFreeTraceStore: decodeFreeTraceStore,
   heatCapacityFreeTrials: decodeArray(decodeFreeTrial),
   heatCapacityFreeActiveAttempt: decodeNullableFreeAttempt,
@@ -3389,20 +4329,172 @@ const HEAT_CAPACITY_FREE_RUNTIME_DECODERS = {
   RuntimeValueDecoder
 >;
 
+const HEAT_CAPACITY_FREE_LEGACY_RUNTIME_DECODERS: Readonly<
+  Record<string, RuntimeValueDecoder>
+> = {
+  ...Object.fromEntries(Object.entries(HEAT_CAPACITY_FREE_RUNTIME_DECODERS).filter(
+    ([key]) => key !== 'heatCapacityFreeExperimentGroups',
+  )),
+  heatCapacityFreeRuntimeVersion: decodeLiteral([5]),
+};
+
 const HEAT_CAPACITY_GUIDE_RUNTIME_DECODERS = {
   heatCapacityGuidePhysicsConfig: decodeGuidePhysicsConfig,
   heatCapacityGuidePhysicsState: decodeGuidePhysicsState,
   heatCapacityGuideTemperatureSensorState: decodeGuideTemperatureSensorState,
   heatCapacityGuideWorkflow: decodeGuideWorkflow,
   heatCapacityGuideTrial: decodeNullableGuideTrial,
+  heatCapacityGuideCalculationSession: (value) => (
+    value === undefined
+      ? null
+      : decodeNullableCalculationWorkflowSession(value)
+  ),
 } satisfies Record<
   typeof HEAT_CAPACITY_GUIDE_SESSION_KEYS[number],
   RuntimeValueDecoder
 >;
 
+export type HeatCapacityExactRuntimeFieldsDecodeResult =
+  | {
+      ok: true;
+      value: Record<string, unknown>;
+    }
+  | {
+      ok: false;
+      fieldPath?: string;
+      reason: string;
+    };
+
+const decodeExactRuntimeFields = (
+  value: unknown,
+  expectedKeys: readonly string[],
+  decoders: Readonly<Record<string, RuntimeValueDecoder>>,
+): HeatCapacityExactRuntimeFieldsDecodeResult => {
+  if (!isPlainRecord(value)) {
+    return {
+      ok: false,
+      reason: 'Runtime authority must be a plain record.',
+    };
+  }
+  const expectedKeySet = new Set(expectedKeys);
+  const actualKeys = Object.keys(value);
+  const unknownKey = actualKeys.find((key) => !expectedKeySet.has(key));
+  if (unknownKey !== undefined) {
+    return {
+      ok: false,
+      fieldPath: unknownKey,
+      reason: 'Runtime authority contains an unknown field.',
+    };
+  }
+  const missingKey = expectedKeys.find((key) => (
+    !Object.prototype.hasOwnProperty.call(value, key)
+  ));
+  if (missingKey !== undefined || actualKeys.length !== expectedKeys.length) {
+    return {
+      ok: false,
+      fieldPath: missingKey,
+      reason: 'Runtime authority is missing a required field.',
+    };
+  }
+
+  const decoded: Record<string, unknown> = {};
+  for (const key of expectedKeys) {
+    const decoder = decoders[key];
+    if (decoder === undefined) {
+      return {
+        ok: false,
+        fieldPath: key,
+        reason: 'Runtime authority has no registered value decoder.',
+      };
+    }
+    const decodedValue = decoder(value[key]);
+    if (
+      decodedValue === INVALID_RUNTIME_VALUE ||
+      !areRuntimeValuesStructurallyEqual(decodedValue, value[key])
+    ) {
+      return {
+        ok: false,
+        fieldPath: key,
+        reason:
+          'Runtime authority contains an invalid or non-canonical value.',
+      };
+    }
+    decoded[key] = decodedValue;
+  }
+  return { ok: true, value: decoded };
+};
+
+export const decodeExactHeatCapacityCommonRuntimeFields = (
+  value: unknown,
+  expectedKeys: readonly string[],
+) => decodeExactRuntimeFields(
+  value,
+  expectedKeys,
+  HEAT_CAPACITY_MODE_COMMON_RUNTIME_DECODERS,
+);
+
+export const decodeExactHeatCapacityGuideRuntimeFields = (
+  value: unknown,
+) => decodeExactRuntimeFields(
+  value,
+  HEAT_CAPACITY_GUIDE_SESSION_KEYS,
+  HEAT_CAPACITY_GUIDE_RUNTIME_DECODERS,
+);
+
 const decodeFreeRuntimeShape = decodeRecord(HEAT_CAPACITY_FREE_RUNTIME_DECODERS);
+const decodeLegacyFreeRuntimeShape = decodeRecord(
+  HEAT_CAPACITY_FREE_LEGACY_RUNTIME_DECODERS,
+);
+
+const canonicalizeFreeRuntimeBatchIdentities = (
+  value: unknown,
+): unknown => {
+  if (!isPlainRecord(value)) return value;
+  const realDomain = decodeRealFreeExperimentDomain(
+    value.heatCapacityFreeRealDomain,
+  );
+  const idealDomain = decodeIdealFreeExperimentDomain(
+    value.heatCapacityFreeIdealDomain,
+  );
+  if (
+    realDomain === INVALID_RUNTIME_VALUE ||
+    idealDomain === INVALID_RUNTIME_VALUE ||
+    !isPlainRecord(realDomain) ||
+    !isPlainRecord(idealDomain)
+  ) {
+    return value;
+  }
+  const topLevelBatch = decodeHeatCapacityFreeBatch(value.heatCapacityFreeBatch);
+  const topLevelTrials = decodeArray(decodeFreeTrial)(value.heatCapacityFreeTrials);
+  const topLevelTraceStore = decodeFreeTraceStore(value.heatCapacityFreeTraceStore);
+  if (
+    topLevelBatch === INVALID_RUNTIME_VALUE ||
+    topLevelTrials === INVALID_RUNTIME_VALUE ||
+    topLevelTraceStore === INVALID_RUNTIME_VALUE ||
+    !Array.isArray(topLevelTrials) ||
+    !isPlainRecord(topLevelTraceStore)
+  ) {
+    return value;
+  }
+  const migratedTopLevel = migrateDecodedFreeBatchAggregate(
+    topLevelBatch,
+    topLevelTrials,
+    topLevelTraceStore,
+  );
+  if (migratedTopLevel === null) return value;
+  return {
+    ...value,
+    heatCapacityFreeRealDomain: realDomain,
+    heatCapacityFreeIdealDomain: idealDomain,
+    heatCapacityFreeBatch: migratedTopLevel.batch,
+    heatCapacityFreeTrials: migratedTopLevel.trials,
+  };
+};
+
 const decodeFreeRuntime: RuntimeValueDecoder = (value) => {
-  const decoded = decodeFreeRuntimeShape(value);
+  const decoded = decodeFreeRuntimeShape(
+    canonicalizeFreeRuntimeBatchIdentities(value),
+  );
   if (
     decoded === INVALID_RUNTIME_VALUE ||
     !isPlainRecord(decoded) ||
@@ -3420,6 +4512,24 @@ const decodeFreeRuntime: RuntimeValueDecoder = (value) => {
     return INVALID_RUNTIME_VALUE;
   }
   return decoded;
+};
+
+const decodeLegacyFreeRuntime: RuntimeValueDecoder = (value) => {
+  const canonicalized = canonicalizeFreeRuntimeBatchIdentities(value);
+  const decoded = decodeLegacyFreeRuntimeShape(canonicalized);
+  if (
+    decoded === INVALID_RUNTIME_VALUE ||
+    !isPlainRecord(decoded) ||
+    !isPlainRecord(decoded.heatCapacityFreeTraceStore) ||
+    !Array.isArray(decoded.heatCapacityFreeTrials) ||
+    !areRuntimeValuesStructurallyEqual(decoded, canonicalized)
+  ) return INVALID_RUNTIME_VALUE;
+  return isFreeTrialCollectionIntegrityValid(
+    decoded.heatCapacityFreeTraceStore,
+    decoded.heatCapacityFreeTrials,
+  ) && isFreeRuntimeProjectionConsistent(decoded)
+    ? decoded
+    : INVALID_RUNTIME_VALUE;
 };
 const decodeGuideRuntime = decodeRecord(HEAT_CAPACITY_GUIDE_RUNTIME_DECODERS);
 
@@ -3461,9 +4571,9 @@ export const isCanonicalHeatCapacityFreePersistenceRuntime = (
     isAcceptedRuntimeValue(decodeRecordConfig(value.recordConfig)) &&
     isAcceptedRuntimeValue(decodeFreePhysicsState(value.runtime)) &&
     controls !== null &&
-    typeof controls.powerOn === 'boolean' &&
-    typeof controls.pumpValveOpen === 'boolean' &&
-    typeof controls.stopcockOpen === 'boolean' &&
+      typeof controls.powerOn === 'boolean' &&
+      typeof controls.pumpValveOpen === 'boolean' &&
+      typeof controls.stopcockOpen === 'boolean' &&
     isAcceptedRuntimeValue(decodeLiteral(['idle', 'compressing', 'releasing'])(controls.pumpBulbState)) &&
     isAcceptedRuntimeValue(decodeReleaseState(controls.releaseState)) &&
     isAcceptedRuntimeValue(decodeFreeSensorState(value.sensor)) &&
@@ -4163,15 +5273,176 @@ type RuntimeSnapshotNormalizationOptions = {
   repairLegacyFreeTiming?: boolean;
 };
 
+type CanonicalFreeCalculationCache = {
+  domain: Record<string, unknown>;
+  authority: CreateHeatCapacityCalculationWorkflowSessionOptions | null;
+};
+
+const canonicalizeFreeDomainCalculationCache = (
+  value: unknown,
+): CanonicalFreeCalculationCache | null => {
+  if (!isPlainRecord(value) || !isPlainRecord(value.batch)) return null;
+  const decodedTrials = decodeArray(decodeFreeTrial)(value.trials);
+  if (decodedTrials === INVALID_RUNTIME_VALUE || !Array.isArray(decodedTrials)) {
+    return null;
+  }
+  if (value.batch.frozenConfigSnapshot === null) {
+    return { domain: value, authority: null };
+  }
+  const decodedSnapshot = decodeFreeConfigSnapshot(value.batch.frozenConfigSnapshot);
+  if (
+    decodedSnapshot === INVALID_RUNTIME_VALUE ||
+    !isPlainRecord(decodedSnapshot)
+  ) {
+    return null;
+  }
+  const trials = decodedTrials as HeatCapacityFreeTrial[];
+  const completedTrials = trials.filter((trial) => (
+    trial.completedAtMs !== null &&
+    trial.u1 !== null &&
+    trial.u2 !== null &&
+    trial.correctedSignals !== null
+  ));
+  const targetGroupCount = value.batch.targetGroupCount;
+  const authority = (
+    value.batch.experimentCompletedAtMs !== null &&
+    typeof targetGroupCount === 'number' &&
+    completedTrials.length === targetGroupCount
+  )
+    ? (() => {
+        const snapshot = decodedSnapshot as unknown as HeatCapacityFreeConfigSnapshot;
+        const groups = completedTrials.flatMap((trial) => {
+          const reference = calculateHeatCapacityFreeCalculationReference(
+            trial,
+            snapshot,
+          );
+          return reference === null ? [] : [{ trialId: trial.id, reference }];
+        });
+        return groups.length === completedTrials.length
+          ? {
+              mode: 'free' as const,
+              groups,
+              theoreticalGamma: snapshot.physics.gamma,
+              presentation: 'interactive' as const,
+            }
+          : null;
+      })()
+    : null;
+  if (authority === null || value.batch.calculationSession === null) {
+    return { domain: value, authority };
+  }
+  return {
+    domain: {
+      ...value,
+      batch: {
+        ...value.batch,
+        calculationSession:
+          normalizeHeatCapacityCalculationWorkflowSessionForTrials(
+            value.batch.calculationSession,
+            authority,
+          ),
+      },
+    },
+    authority,
+  };
+};
+
+const canonicalizeFreeRuntimeCalculationCaches = (
+  value: Record<string, unknown>,
+) => {
+  const real = canonicalizeFreeDomainCalculationCache(
+    value.heatCapacityFreeRealDomain,
+  );
+  const ideal = canonicalizeFreeDomainCalculationCache(
+    value.heatCapacityFreeIdealDomain,
+  );
+  if (real === null || ideal === null) return value;
+  const scheme = value.heatCapacityFreeParameterScheme;
+  const active = scheme === 'real' ? real : scheme === 'ideal' ? ideal : null;
+  if (active === null) return value;
+  const topLevelBatch = value.heatCapacityFreeBatch;
+  const normalizedTopLevelBatch = (
+    isPlainRecord(topLevelBatch) &&
+    topLevelBatch.calculationSession !== null &&
+    active.authority !== null
+  )
+    ? {
+        ...topLevelBatch,
+        calculationSession:
+          normalizeHeatCapacityCalculationWorkflowSessionForTrials(
+            topLevelBatch.calculationSession,
+            active.authority,
+          ),
+      }
+    : topLevelBatch;
+  return {
+    ...value,
+    heatCapacityFreeRealDomain: real.domain,
+    heatCapacityFreeIdealDomain: ideal.domain,
+    heatCapacityFreeBatch: normalizedTopLevelBatch,
+  };
+};
+
+const canonicalizeGuideRuntimeCalculationCache = (
+  value: Record<string, unknown>,
+  common: HeatCapacityModeCommonRuntimeSnapshot,
+  expectedMode: Exclude<HeatCapacityMode, 'free'>,
+) => {
+  if (value.heatCapacityGuideCalculationSession === null) return value;
+  const decodedTrial = decodeGuideTrial(value.heatCapacityGuideTrial);
+  const decodedPhysicsConfig = decodeGuidePhysicsConfig(
+    value.heatCapacityGuidePhysicsConfig,
+  );
+  if (
+    decodedTrial === INVALID_RUNTIME_VALUE ||
+    decodedPhysicsConfig === INVALID_RUNTIME_VALUE ||
+    !isPlainRecord(decodedTrial) ||
+    !isPlainRecord(decodedPhysicsConfig) ||
+    !isPlainRecord(decodedPhysicsConfig.environment)
+  ) {
+    return value;
+  }
+  const trial = decodedTrial as unknown as HeatCapacityGuideTrial;
+  const physicsConfig = decodedPhysicsConfig as unknown as HeatCapacityGuidePhysicsConfig;
+  const reference = calculateHeatCapacityGuideCalculationReference(
+    trial,
+    physicsConfig.environment.ambientPressureKPa,
+    common.pressureSensitivityMvPerKPa,
+  );
+  if (reference === null) return value;
+  return {
+    ...value,
+    heatCapacityGuideCalculationSession:
+      normalizeHeatCapacityCalculationWorkflowSessionForTrials(
+        value.heatCapacityGuideCalculationSession,
+        {
+          mode: expectedMode,
+          groups: [{ trialId: trial.id, reference }],
+          theoreticalGamma: physicsConfig.gamma,
+          presentation: expectedMode === 'demo'
+            ? 'system-readonly'
+            : 'interactive',
+        },
+      ),
+  };
+};
+
 const normalizeRuntimeSnapshot = (
   value: unknown,
   expectedMode: HeatCapacityMode,
   expectedFileId: string,
   options: RuntimeSnapshotNormalizationOptions = {},
 ): HeatCapacityModeRuntimeSnapshot | null => {
+  const sourceSnapshotVersion = isPlainRecord(value)
+    ? value.schemaVersion
+    : null;
+  const legacySnapshot = sourceSnapshotVersion === 1;
   if (
     !isPlainRecord(value) ||
-    value.schemaVersion !== HEAT_CAPACITY_MODE_RUNTIME_SNAPSHOT_SCHEMA_VERSION ||
+    (
+      sourceSnapshotVersion !== 1 &&
+      sourceSnapshotVersion !== HEAT_CAPACITY_MODE_RUNTIME_SNAPSHOT_SCHEMA_VERSION
+    ) ||
     value.fileId !== expectedFileId ||
     value.mode !== expectedMode ||
     !isPlainRecord(value.common)
@@ -4185,16 +5456,59 @@ const normalizeRuntimeSnapshot = (
   if (!isPlainRecord(storedModeRuntime)) {
     return null;
   }
-  const modeRuntime = expectedMode === 'free' && options.repairLegacyFreeTiming
-    ? repairLegacyFreeRuntimeTiming(storedModeRuntime) ?? storedModeRuntime
-    : storedModeRuntime;
-  const decodedModeRuntime = expectedMode === 'free'
-    ? decodeFreeRuntime(modeRuntime)
-    : decodeGuideRuntime(modeRuntime);
+  const traceVersionMigratedModeRuntime =
+    expectedMode === 'free' &&
+    storedModeRuntime.heatCapacityFreeTraceVersion === 5
+      ? {
+          ...storedModeRuntime,
+          heatCapacityFreeTraceVersion:
+            HEAT_CAPACITY_FREE_TRACE_VERSION,
+        }
+      : storedModeRuntime;
+  const modeRuntimeBase =
+    expectedMode === 'free' && options.repairLegacyFreeTiming
+      ? repairLegacyFreeRuntimeTiming(traceVersionMigratedModeRuntime) ??
+        traceVersionMigratedModeRuntime
+      : traceVersionMigratedModeRuntime;
+  const common = decodedCommonRuntime as HeatCapacityModeCommonRuntimeSnapshot;
+  const modeRuntime = expectedMode === 'free'
+    ? canonicalizeFreeRuntimeCalculationCaches(modeRuntimeBase)
+    : canonicalizeGuideRuntimeCalculationCache(
+        modeRuntimeBase,
+        common,
+        expectedMode,
+      );
+  let decodedModeRuntime: unknown | typeof INVALID_RUNTIME_VALUE;
+  if (expectedMode === 'free' && legacySnapshot) {
+    const decodedLegacyRuntime = decodeLegacyFreeRuntime(modeRuntime);
+    if (
+      decodedLegacyRuntime === INVALID_RUNTIME_VALUE ||
+      !isPlainRecord(decodedLegacyRuntime)
+    ) return null;
+    const real = decodedLegacyRuntime.heatCapacityFreeRealDomain;
+    const ideal = decodedLegacyRuntime.heatCapacityFreeIdealDomain;
+    if (!isPlainRecord(real) || !isPlainRecord(ideal)) return null;
+    const experimentGroups = migrateLegacyHeatCapacityFreeExperimentGroups({
+      fileId: expectedFileId,
+      selectedScheme: decodedLegacyRuntime.heatCapacityFreeParameterScheme === 'ideal'
+        ? 'ideal'
+        : 'real',
+      real: real as unknown as HeatCapacityFreeExperimentDomainState,
+      ideal: ideal as unknown as HeatCapacityFreeExperimentDomainState,
+    });
+    decodedModeRuntime = decodeFreeRuntime({
+      ...decodedLegacyRuntime,
+      heatCapacityFreeRuntimeVersion: 6,
+      heatCapacityFreeExperimentGroups: experimentGroups,
+    });
+  } else {
+    decodedModeRuntime = expectedMode === 'free'
+      ? decodeFreeRuntime(modeRuntime)
+      : decodeGuideRuntime(modeRuntime);
+  }
   if (decodedModeRuntime === INVALID_RUNTIME_VALUE) {
     return null;
   }
-  const common = decodedCommonRuntime as HeatCapacityModeCommonRuntimeSnapshot;
   const canonicalModeRuntime = decodedModeRuntime as Record<string, unknown>;
   if (expectedMode === 'free') {
     if (!isFreeRuntimeProjectionConsistent(
@@ -4382,7 +5696,10 @@ export const normalizeHeatCapacityModeSessionStore = (
   try {
     if (
       !isPlainRecord(value) ||
-      value.schemaVersion !== HEAT_CAPACITY_MODE_SESSION_SCHEMA_VERSION ||
+      (
+        value.schemaVersion !== 2 &&
+        value.schemaVersion !== HEAT_CAPACITY_MODE_SESSION_SCHEMA_VERSION
+      ) ||
       typeof expectedFileId !== 'string' ||
       expectedFileId.trim().length === 0
     ) {

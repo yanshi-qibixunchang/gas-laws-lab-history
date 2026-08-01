@@ -108,6 +108,7 @@ The application ships local web font files under `public/fonts`.
 | Font family | License |
 | --- | --- |
 | Noto Sans SC | SIL Open Font License 1.1 |
+| Gas Laws Lab Serif (subset derived from Noto Serif SC) | SIL Open Font License 1.1 |
 | JetBrains Mono | SIL Open Font License 1.1 |
 
 Font-specific license notes are also provided in `public/fonts/LICENSES.txt`.
@@ -121,3 +122,26 @@ current desktop packaging configuration.
 
 Do not add reference-only folders to `public`, `dist`, `resources`, or Electron
 `extraResources` unless their rights are separately cleared for distribution.
+
+## Project-Provided Piston-Oscillation Model
+
+The application includes
+`public/models/piston-oscillation/EX5531_TD8572A_ratio_specific_heats_final.glb`,
+provided through the project team's public model repository at tag `v1.2.1`
+(commit `79a26a2a7b13e082ac32507d02df20cbb2bd02e3`). Its source repository records
+Blender and Blender's bundled Python as generation tools and three.js as a
+dependency of the source repository's standalone preview page. Those tools and
+that preview page are not copied into this application. The application renders
+the GLB through its existing local `three`, `@react-three/fiber`, and
+`@react-three/drei` dependencies, so the model integration adds no new runtime
+package or CDN dependency.
+
+The asset's exact source path, digest, format, and runtime-use decisions are
+recorded in `public/models/piston-oscillation/model-provenance.json`.
+
+The piston-oscillation scene hides the source model's white `Tabletop` node and
+uses `public/models/shared/unified-light-lab-bench.glb` for its visible bench.
+That compact bench asset is derived from the project-provided
+`public/models/heat-capacity/fd-ncd-c-ultra.glb` nodes `clean_lab_bench` and
+`HSL_LabBench_Backstop_LowLip`; its exact digest and extraction record are in
+`public/models/shared/unified-light-lab-bench.provenance.json`.

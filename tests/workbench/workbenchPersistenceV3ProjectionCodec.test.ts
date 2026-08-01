@@ -1,0 +1,2446 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import {
+  applyHeatCapacityFreeParameterDraftWorkbenchState,
+  configureHeatCapacityFreeBatchWorkbenchState,
+  createDefaultHeatCapacityFile,
+  createDefaultHeatCapacityPistonOscillationFile,
+  createDefaultIdealFile,
+  createDefaultStandardFile,
+  freezeHeatCapacityFreeParametersForCurrentGroup,
+  HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  storeHeatCapacityFreeRuntimeFieldsInDomain,
+  type WorkbenchFileState,
+} from '../../src/features/workbench/workbenchState.ts';
+import {
+  createWorkbenchPersistenceV3SemanticProjection,
+  projectWorkbenchPersistenceV3File,
+  reprojectWorkbenchPersistenceV3File,
+} from '../../src/features/workbench/persistenceV3/projection.ts';
+import {
+  decodeWorkbenchPersistenceV3FileRecord,
+  encodeWorkbenchPersistenceV3FileProjection,
+} from '../../src/features/workbench/persistenceV3/codecRegistry.ts';
+import {
+  WORKBENCH_PERSISTENCE_V3_FINGERPRINT_PROVIDER,
+} from '../../src/features/workbench/persistenceV3/fingerprint.ts';
+import {
+  HEAT_CAPACITY_MODE_RUNTIME_SNAPSHOT_SCHEMA_VERSION,
+  suspendHeatCapacityModeSession,
+} from '../../src/features/workbench/workbenchHeatCapacityModeSession.ts';
+import {
+  HEAT_CAPACITY_CALCULATION_WORKFLOW_VERSION,
+} from '../../src/domain/heatCapacity/heatCapacityCalculationWorkflowModel.ts';
+import {
+  HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
+  HEAT_CAPACITY_FREE_TRACE_VERSION,
+} from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
+import {
+  HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION,
+  HEAT_CAPACITY_FREE_BATCH_VERSION,
+} from '../../src/domain/heatCapacity/heatCapacityFreeBatchModel.ts';
+import {
+  calculateFreeHeatCapacityTrialSignals,
+  HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
+  createHeatCapacityFreeTrial,
+  normalizeHeatCapacityFreeRecordInput,
+} from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import {
+  createCompleteProcessReviewFixtureParts,
+} from '../heatCapacity/helpers/heatCapacityProcessReviewTestFactory.ts';
+import {
+  createHeatCapacityFreeStandardReference,
+} from '../../src/domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
+import {
+  createHeatCapacityAutoDemoProfile,
+} from '../../src/domain/heatCapacity/heatCapacityTeachingProfile.ts';
+
+const files: WorkbenchFileState[] = [
+  createDefaultStandardFile(1),
+  createDefaultIdealFile(2),
+  createDefaultHeatCapacityFile(3),
+  createDefaultHeatCapacityPistonOscillationFile(4),
+];
+
+for (const [index, file] of files.entries()) {
+  const projected = projectWorkbenchPersistenceV3File(file, index + 1);
+  if (!projected.ok) throw new Error(projected.diagnostics[0].message);
+  const encoded = encodeWorkbenchPersistenceV3FileProjection(
+    projected.value,
+    index + 1,
+  );
+  if (!encoded.ok) throw new Error(encoded.diagnostics[0].message);
+  const decoded = decodeWorkbenchPersistenceV3FileRecord(
+    structuredClone(encoded.value),
+    index + 1,
+  );
+  if (!decoded.ok) throw new Error(decoded.diagnostics[0].message);
+  assert.equal(decoded.status, 'exact');
+
+  const reprojected = reprojectWorkbenchPersistenceV3File(
+    decoded.value,
+    index + 1,
+  );
+  if (!reprojected.ok) throw new Error(reprojected.diagnostics[0].message);
+  const projectedAgain = projectWorkbenchPersistenceV3File(
+    reprojected.value,
+    index + 1,
+  );
+  if (!projectedAgain.ok) throw new Error(projectedAgain.diagnostics[0].message);
+
+  const firstSemantic = createWorkbenchPersistenceV3SemanticProjection(
+    projected.value,
+  );
+  const secondSemantic = createWorkbenchPersistenceV3SemanticProjection(
+    projectedAgain.value,
+  );
+  assert.deepEqual(secondSemantic, firstSemantic);
+  assert.equal(
+    await WORKBENCH_PERSISTENCE_V3_FINGERPRINT_PROVIDER.fingerprint(firstSemantic),
+    await WORKBENCH_PERSISTENCE_V3_FINGERPRINT_PROVIDER.fingerprint(secondSemantic),
+    `${file.kind} semantic fingerprint must survive encode/decode/reproject`,
+  );
+}
+
+const heatProjectionResult = projectWorkbenchPersistenceV3File(
+  createDefaultHeatCapacityFile(7),
+  7,
+);
+if (!heatProjectionResult.ok) {
+  throw new Error(heatProjectionResult.diagnostics[0].message);
+}
+const futureActiveHeatFile = createDefaultHeatCapacityFile(6);
+futureActiveHeatFile.heatCapacityFreeRealDomain.batch = {
+  ...futureActiveHeatFile.heatCapacityFreeRealDomain.batch,
+  version: HEAT_CAPACITY_FREE_BATCH_VERSION + 1,
+} as never;
+const futureActiveHeatProjection =
+  projectWorkbenchPersistenceV3File(futureActiveHeatFile, 6);
+assert.equal(futureActiveHeatProjection.ok, false);
+if (futureActiveHeatProjection.ok) {
+  throw new Error('Expected an active future Free batch to be preserved.');
+}
+assert.equal(futureActiveHeatProjection.status, 'unsupported-future');
+assert.deepEqual(futureActiveHeatProjection.raw, futureActiveHeatFile);
+assert.equal(
+  futureActiveHeatProjection.diagnostics[0].sourceVersion,
+  HEAT_CAPACITY_FREE_BATCH_VERSION + 1,
+);
+const futureDormantHeatFile = createDefaultHeatCapacityFile(9);
+futureDormantHeatFile.heatCapacityMode = 'guide';
+futureDormantHeatFile.heatCapacityFreeBatch = {
+  ...futureDormantHeatFile.heatCapacityFreeBatch,
+  version: HEAT_CAPACITY_FREE_BATCH_VERSION + 1,
+} as never;
+const futureDormantHeatProjection =
+  projectWorkbenchPersistenceV3File(futureDormantHeatFile, 9);
+assert.equal(futureDormantHeatProjection.ok, false);
+if (futureDormantHeatProjection.ok) {
+  throw new Error('Expected a dormant future Free batch to be preserved.');
+}
+assert.equal(futureDormantHeatProjection.status, 'unsupported-future');
+assert.deepEqual(futureDormantHeatProjection.raw, futureDormantHeatFile);
+assert.equal(
+  futureDormantHeatProjection.diagnostics[0].fieldPath,
+  'heatCapacityFreeBatch',
+);
+const futureFreeRuntimeFile = createDefaultHeatCapacityFile(10);
+futureFreeRuntimeFile.heatCapacityFreeRuntimeVersion =
+  (HEAT_CAPACITY_FREE_RUNTIME_VERSION + 1) as never;
+const futureFreeRuntimeProjection =
+  projectWorkbenchPersistenceV3File(futureFreeRuntimeFile, 10);
+assert.equal(futureFreeRuntimeProjection.ok, false);
+if (futureFreeRuntimeProjection.ok) {
+  throw new Error('Expected a future Free runtime projection to be preserved.');
+}
+assert.equal(futureFreeRuntimeProjection.status, 'unsupported-future');
+assert.deepEqual(futureFreeRuntimeProjection.raw, futureFreeRuntimeFile);
+const futureGuideTraceFile = createDefaultHeatCapacityFile(11);
+futureGuideTraceFile.heatCapacityMode = 'guide';
+futureGuideTraceFile.heatCapacityFreeTraceVersion =
+  (HEAT_CAPACITY_FREE_TRACE_VERSION + 1) as never;
+const futureGuideTraceProjection =
+  projectWorkbenchPersistenceV3File(futureGuideTraceFile, 11);
+assert.equal(futureGuideTraceProjection.ok, false);
+if (futureGuideTraceProjection.ok) {
+  throw new Error('Expected a future dormant Free trace to be preserved.');
+}
+assert.equal(futureGuideTraceProjection.status, 'unsupported-future');
+assert.deepEqual(futureGuideTraceProjection.raw, futureGuideTraceFile);
+const futureTraceAfterInvalidRuntimeFile = createDefaultHeatCapacityFile(11);
+futureTraceAfterInvalidRuntimeFile.heatCapacityFreeRuntimeVersion = 0 as never;
+futureTraceAfterInvalidRuntimeFile.heatCapacityFreeTraceVersion =
+  (HEAT_CAPACITY_FREE_TRACE_VERSION + 1) as never;
+const futureTraceAfterInvalidRuntimeProjection =
+  projectWorkbenchPersistenceV3File(
+    futureTraceAfterInvalidRuntimeFile,
+    11,
+  );
+assert.equal(futureTraceAfterInvalidRuntimeProjection.ok, false);
+if (futureTraceAfterInvalidRuntimeProjection.ok) {
+  throw new Error(
+    'Expected a future trace to precede an invalid current runtime version.',
+  );
+}
+assert.equal(
+  futureTraceAfterInvalidRuntimeProjection.status,
+  'unsupported-future',
+);
+assert.deepEqual(
+  futureTraceAfterInvalidRuntimeProjection.raw,
+  futureTraceAfterInvalidRuntimeFile,
+);
+assert.equal(
+  futureTraceAfterInvalidRuntimeProjection.diagnostics[0].fieldPath,
+  'heatCapacityFreeTraceVersion',
+);
+const futureIdealAfterMalformedRealFile = createDefaultHeatCapacityFile(11);
+futureIdealAfterMalformedRealFile.heatCapacityFreeRealDomain
+  .activeRunConfigSnapshot = { malformed: true } as never;
+futureIdealAfterMalformedRealFile.heatCapacityFreeIdealDomain.batch = {
+  ...futureIdealAfterMalformedRealFile.heatCapacityFreeIdealDomain.batch,
+  version: HEAT_CAPACITY_FREE_BATCH_VERSION + 1,
+} as never;
+const futureIdealAfterMalformedRealProjection =
+  projectWorkbenchPersistenceV3File(
+    futureIdealAfterMalformedRealFile,
+    11,
+  );
+assert.equal(futureIdealAfterMalformedRealProjection.ok, false);
+if (futureIdealAfterMalformedRealProjection.ok) {
+  throw new Error(
+    'Expected an ideal-domain future to precede malformed real authority.',
+  );
+}
+assert.equal(
+  futureIdealAfterMalformedRealProjection.status,
+  'unsupported-future',
+);
+assert.deepEqual(
+  futureIdealAfterMalformedRealProjection.raw,
+  futureIdealAfterMalformedRealFile,
+);
+const futureIdealAfterNonRecordRealFile = createDefaultHeatCapacityFile(11);
+(
+  futureIdealAfterNonRecordRealFile as unknown as {
+    heatCapacityFreeRealDomain: unknown;
+  }
+).heatCapacityFreeRealDomain = null;
+futureIdealAfterNonRecordRealFile.heatCapacityFreeIdealDomain.batch = {
+  ...futureIdealAfterNonRecordRealFile.heatCapacityFreeIdealDomain.batch,
+  version: HEAT_CAPACITY_FREE_BATCH_VERSION + 1,
+} as never;
+const futureIdealAfterNonRecordRealProjection =
+  projectWorkbenchPersistenceV3File(
+    futureIdealAfterNonRecordRealFile,
+    11,
+  );
+assert.equal(futureIdealAfterNonRecordRealProjection.ok, false);
+if (futureIdealAfterNonRecordRealProjection.ok) {
+  throw new Error(
+    'Expected an ideal-domain future to precede a non-record real domain.',
+  );
+}
+assert.equal(
+  futureIdealAfterNonRecordRealProjection.status,
+  'unsupported-future',
+);
+assert.deepEqual(
+  futureIdealAfterNonRecordRealProjection.raw,
+  futureIdealAfterNonRecordRealFile,
+);
+const futureFrozenSnapshotFile = structuredClone(
+  storeHeatCapacityFreeRuntimeFieldsInDomain(
+    freezeHeatCapacityFreeParametersForCurrentGroup(
+      configureHeatCapacityFreeBatchWorkbenchState(
+        createDefaultHeatCapacityFile(12),
+        3,
+        100,
+      ),
+      101,
+    ),
+    'real',
+  ),
+);
+if (
+  futureFrozenSnapshotFile.heatCapacityFreeRealDomain.batch
+    .frozenConfigSnapshot === null
+) {
+  throw new Error('Expected a frozen configuration snapshot fixture.');
+}
+  futureFrozenSnapshotFile.heatCapacityFreeRealDomain.batch
+    .frozenConfigSnapshot.version =
+    (HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION + 90) as never;
+const futureFrozenSnapshotProjection =
+  projectWorkbenchPersistenceV3File(futureFrozenSnapshotFile, 12);
+assert.equal(futureFrozenSnapshotProjection.ok, false);
+if (futureFrozenSnapshotProjection.ok) {
+  throw new Error('Expected a future frozen configuration snapshot to survive.');
+}
+assert.equal(
+  futureFrozenSnapshotProjection.status,
+  'unsupported-future',
+);
+assert.deepEqual(
+  futureFrozenSnapshotProjection.raw,
+  futureFrozenSnapshotFile,
+);
+assert.equal(
+  futureFrozenSnapshotProjection.diagnostics[0].sourceVersion,
+  HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION + 90,
+);
+assert.equal(
+  futureFrozenSnapshotProjection.diagnostics[0].fieldPath,
+  'heatCapacityFreeRealDomain.batch.frozenConfigSnapshot.version',
+);
+const futureCalculationSessionFile = structuredClone(
+  storeHeatCapacityFreeRuntimeFieldsInDomain(
+    freezeHeatCapacityFreeParametersForCurrentGroup(
+      configureHeatCapacityFreeBatchWorkbenchState(
+        createDefaultHeatCapacityFile(12),
+        3,
+        100,
+      ),
+      101,
+    ),
+    'real',
+  ),
+);
+const futureCalculationSessionAuthority = {
+  version: HEAT_CAPACITY_CALCULATION_WORKFLOW_VERSION + 1,
+  futureOnly: true,
+};
+futureCalculationSessionFile.heatCapacityFreeBatch.calculationSession =
+  futureCalculationSessionAuthority as never;
+futureCalculationSessionFile.heatCapacityFreeRealDomain.batch
+  .calculationSession = structuredClone(
+    futureCalculationSessionAuthority,
+  ) as never;
+const futureCalculationSessionProjection =
+  projectWorkbenchPersistenceV3File(futureCalculationSessionFile, 12);
+assert.equal(futureCalculationSessionProjection.ok, false);
+if (futureCalculationSessionProjection.ok) {
+  throw new Error('Expected a future calculation session to remain raw.');
+}
+assert.equal(
+  futureCalculationSessionProjection.status,
+  'unsupported-future',
+);
+assert.deepEqual(
+  futureCalculationSessionProjection.raw,
+  futureCalculationSessionFile,
+);
+assert.equal(
+  futureCalculationSessionProjection.diagnostics[0].fieldPath,
+  'heatCapacityFreeRealDomain.batch.calculationSession.version',
+);
+const heatAuthority = heatProjectionResult.value.fields.authoritative as {
+  activeRuntime: Record<string, unknown>;
+  freeDomains: Record<string, unknown>;
+};
+for (const [key, supportedVersion] of [
+  [
+    'heatCapacityFreeRuntimeVersion',
+    HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  ],
+  [
+    'heatCapacityFreeTraceVersion',
+    HEAT_CAPACITY_FREE_TRACE_VERSION,
+  ],
+] as const) {
+  const futureRuntimeProjection = structuredClone(
+    heatProjectionResult.value,
+  );
+  (
+    futureRuntimeProjection.fields.authoritative.activeRuntime as
+      Record<string, unknown>
+  )[key] = supportedVersion + 1;
+  const futureRuntimeReprojection = reprojectWorkbenchPersistenceV3File(
+    futureRuntimeProjection,
+    7,
+  );
+  assert.equal(futureRuntimeReprojection.ok, false);
+  if (futureRuntimeReprojection.ok) {
+    throw new Error(`Expected future ${key} reprojection failure.`);
+  }
+  assert.equal(
+    futureRuntimeReprojection.status,
+    'unsupported-future',
+  );
+  assert.deepEqual(
+    futureRuntimeReprojection.raw,
+    futureRuntimeProjection,
+  );
+}
+assert.equal(
+  Object.prototype.hasOwnProperty.call(
+    heatAuthority.activeRuntime,
+    'heatCapacityFreeBatch',
+  ),
+  false,
+  'the rebuildable active Free batch projection must not be encoded twice',
+);
+
+const heatStartedForMigration =
+  freezeHeatCapacityFreeParametersForCurrentGroup(
+    configureHeatCapacityFreeBatchWorkbenchState(
+      createDefaultHeatCapacityFile(8),
+      3,
+      100,
+    ),
+  );
+const heatStartedProjection = projectWorkbenchPersistenceV3File(
+  heatStartedForMigration,
+  8,
+);
+if (!heatStartedProjection.ok) {
+  throw new Error(heatStartedProjection.diagnostics[0].message);
+}
+for (const [label, mutate] of [
+  [
+    'projection',
+    (projection: Record<string, unknown>) => {
+      projection.opaqueAuthority = { retain: true };
+    },
+  ],
+  [
+    'field classes',
+    (projection: Record<string, unknown>) => {
+      (
+        projection.fields as Record<string, unknown>
+      ).opaqueAuthority = { retain: true };
+    },
+  ],
+] as const) {
+  const opaqueProjection = structuredClone(
+    heatStartedProjection.value,
+  ) as unknown as Record<string, unknown>;
+  mutate(opaqueProjection);
+  const opaqueEncode = encodeWorkbenchPersistenceV3FileProjection(
+    opaqueProjection as unknown as typeof heatStartedProjection.value,
+    8,
+  );
+  assert.equal(opaqueEncode.ok, false);
+  if (opaqueEncode.ok) {
+    throw new Error(`Expected unknown ${label} encode quarantine.`);
+  }
+  assert.equal(opaqueEncode.status, 'quarantined');
+  assert.deepEqual(opaqueEncode.raw, opaqueProjection);
+}
+const durableHighWaterStarted = storeHeatCapacityFreeRuntimeFieldsInDomain(
+  heatStartedForMigration,
+  'real',
+);
+const durableHighWaterFile = {
+  ...durableHighWaterStarted,
+  heatCapacityFreeBatch: {
+    ...durableHighWaterStarted.heatCapacityFreeBatch,
+    nextTrialSequence: 1,
+  },
+  heatCapacityFreeTraceStore: {
+    ...durableHighWaterStarted.heatCapacityFreeTraceStore,
+    nextTraceTrialIndex: 1,
+  },
+  heatCapacityFreeRealDomain: {
+    ...durableHighWaterStarted.heatCapacityFreeRealDomain,
+    batch: {
+      ...durableHighWaterStarted.heatCapacityFreeRealDomain.batch,
+      nextTrialSequence: 7,
+    },
+    traceStore: {
+      ...durableHighWaterStarted.heatCapacityFreeRealDomain.traceStore,
+      nextTraceTrialIndex: 7,
+    },
+  },
+};
+const durableHighWaterProjection = projectWorkbenchPersistenceV3File(
+  durableHighWaterFile,
+  8,
+);
+if (!durableHighWaterProjection.ok) {
+  throw new Error(durableHighWaterProjection.diagnostics[0].message);
+}
+assert.equal(durableHighWaterProjection.status, 'repaired-cache');
+assert.equal(
+  durableHighWaterProjection.diagnostics.some((diagnostic) => (
+    diagnostic.code === 'persistence-v3-heat-domain-cache-reprojected' &&
+    diagnostic.fieldPath === 'activeRuntime'
+  )),
+  true,
+  'a stale top-level projection must be reported as cache repair, not domain migration',
+);
+const durableHighWaterAuthority =
+  durableHighWaterProjection.value.fields.authoritative as {
+    freeDomains: {
+      real: {
+        batch: { nextTrialSequence: number };
+        traceStore: { nextTraceTrialIndex: number };
+      };
+    };
+  };
+assert.equal(
+  durableHighWaterAuthority.freeDomains.real.batch.nextTrialSequence,
+  7,
+  'V3 capture must not roll back the durable batch high-water',
+);
+assert.equal(
+  durableHighWaterAuthority.freeDomains.real.traceStore.nextTraceTrialIndex,
+  7,
+  'V3 capture must not roll back the durable trace high-water',
+);
+const dormantHighWaterProjection = projectWorkbenchPersistenceV3File({
+  ...durableHighWaterFile,
+  heatCapacityMode: 'guide',
+}, 8);
+if (!dormantHighWaterProjection.ok) {
+  throw new Error(dormantHighWaterProjection.diagnostics[0].message);
+}
+assert.equal(
+  dormantHighWaterProjection.status,
+  'repaired-cache',
+  'a dormant stale Free projection must be reported as cache repair',
+);
+assert.equal(
+  dormantHighWaterProjection.diagnostics.some((diagnostic) => (
+    diagnostic.code === 'persistence-v3-heat-domain-cache-reprojected' &&
+    diagnostic.fieldPath === 'activeRuntime'
+  )),
+  true,
+);
+
+const invalidCompletionStartedAt =
+  durableHighWaterStarted.heatCapacityFreeBatch.startedAtMs;
+if (invalidCompletionStartedAt === null) {
+  throw new Error('Expected the batch-completion fixture to be started.');
+}
+const invalidBatchCompletionFile = {
+  ...durableHighWaterStarted,
+  heatCapacityFreeBatch: {
+    ...durableHighWaterStarted.heatCapacityFreeBatch,
+    experimentCompletedAtMs: invalidCompletionStartedAt + 1,
+  },
+};
+const invalidBatchCompletion = projectWorkbenchPersistenceV3File(
+  invalidBatchCompletionFile,
+  8,
+);
+assert.equal(invalidBatchCompletion.ok, false);
+if (invalidBatchCompletion.ok) {
+  throw new Error('Expected zero-of-three batch completion quarantine.');
+}
+assert.equal(invalidBatchCompletion.status, 'quarantined');
+assert.deepEqual(invalidBatchCompletion.raw, invalidBatchCompletionFile);
+
+const durableTrialBatchId = durableHighWaterStarted.heatCapacityFreeBatch.id;
+if (durableTrialBatchId === null) {
+  throw new Error('Expected the durable trial-authority fixture to have a batch id.');
+}
+const durableTrialAuthority = {
+  ...createHeatCapacityFreeTrial(
+    'trial-authority-1',
+    null,
+    'real',
+    {
+      version: HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
+      batchId: durableTrialBatchId,
+      sequence: 1,
+    },
+  ),
+  preheatOutcome: 'completed' as const,
+};
+const futureCorrectedSignalTrial = structuredClone(durableTrialAuthority);
+futureCorrectedSignalTrial.u1 = normalizeHeatCapacityFreeRecordInput({
+  atS: 4,
+  displayPressureMv: 100,
+  displayTemperatureMv: 0,
+  calibrationVersion: 1,
+  zeroEventId: 'zero-v3-cache-test',
+  phaseAtRecord: 'sealedStabilizing',
+});
+futureCorrectedSignalTrial.u2 = normalizeHeatCapacityFreeRecordInput({
+  atS: 5,
+  displayPressureMv: 30,
+  displayTemperatureMv: 0,
+  calibrationVersion: 1,
+  zeroEventId: 'zero-v3-cache-test',
+  phaseAtRecord: 'recovering',
+});
+futureCorrectedSignalTrial.correctedSignals =
+  calculateFreeHeatCapacityTrialSignals(futureCorrectedSignalTrial);
+if (futureCorrectedSignalTrial.correctedSignals === null) {
+  throw new Error('Expected a V3 corrected-signal cache fixture.');
+}
+futureCorrectedSignalTrial.correctedSignals.calculationVersion =
+  'log-pressure-v99' as never;
+const futureCorrectedSignalBatch = {
+  ...durableHighWaterStarted.heatCapacityFreeBatch,
+  nextTrialSequence: 2,
+};
+const futureCorrectedSignalFile = {
+  ...durableHighWaterStarted,
+  heatCapacityFreeBatch: futureCorrectedSignalBatch,
+  heatCapacityFreeTrials: [futureCorrectedSignalTrial],
+  heatCapacityFreeRealDomain: {
+    ...durableHighWaterStarted.heatCapacityFreeRealDomain,
+    batch: futureCorrectedSignalBatch,
+    trials: [structuredClone(futureCorrectedSignalTrial)],
+  },
+};
+const futureCorrectedSignalProjection =
+  projectWorkbenchPersistenceV3File(futureCorrectedSignalFile, 8);
+if (!futureCorrectedSignalProjection.ok) {
+  throw new Error(futureCorrectedSignalProjection.diagnostics[0].message);
+}
+assert.equal(
+  futureCorrectedSignalProjection.status,
+  'repaired-cache',
+);
+const repairedCorrectedSignalAuthority =
+  futureCorrectedSignalProjection.value.fields.authoritative as {
+    freeDomains: {
+      real: {
+        trials: Array<{
+          correctedSignals: {
+            calculationVersion: string;
+          } | null;
+        }>;
+      };
+    };
+  };
+assert.equal(
+  repairedCorrectedSignalAuthority.freeDomains.real.trials[0]
+    .correctedSignals?.calculationVersion,
+  'log-pressure-v1',
+);
+const canonicalCorrectedSignalRecord =
+  encodeWorkbenchPersistenceV3FileProjection(
+    futureCorrectedSignalProjection.value,
+    8,
+  );
+if (!canonicalCorrectedSignalRecord.ok) {
+  throw new Error(canonicalCorrectedSignalRecord.diagnostics[0].message);
+}
+const damagedCorrectedSignalRecord = structuredClone(
+  canonicalCorrectedSignalRecord.value,
+);
+const damagedCorrectedSignalAuthority =
+  damagedCorrectedSignalRecord.projection.fields.authoritative as {
+    freeDomains: {
+      real: {
+        trials: Array<{
+          correctedSignals: {
+            calculationVersion: string;
+          } | null;
+        }>;
+      };
+    };
+  };
+if (
+  damagedCorrectedSignalAuthority.freeDomains.real.trials[0]
+    .correctedSignals === null
+) {
+  throw new Error('Expected an encoded corrected-signal cache fixture.');
+}
+damagedCorrectedSignalAuthority.freeDomains.real.trials[0]
+  .correctedSignals.calculationVersion = 'log-pressure-v99';
+const decodedCorrectedSignalRepair =
+  decodeWorkbenchPersistenceV3FileRecord(
+    damagedCorrectedSignalRecord,
+    8,
+  );
+if (!decodedCorrectedSignalRepair.ok) {
+  throw new Error(decodedCorrectedSignalRepair.diagnostics[0].message);
+}
+assert.equal(decodedCorrectedSignalRepair.status, 'repaired-cache');
+const decodedCorrectedSignalAuthority =
+  decodedCorrectedSignalRepair.value.fields.authoritative as {
+    freeDomains: {
+      real: {
+        trials: Array<{
+          correctedSignals: {
+            calculationVersion: string;
+          } | null;
+        }>;
+      };
+    };
+  };
+assert.equal(
+  decodedCorrectedSignalAuthority.freeDomains.real.trials[0]
+    .correctedSignals?.calculationVersion,
+  'log-pressure-v1',
+);
+const opaqueSiblingCorrectedSignalRecord = structuredClone(
+  damagedCorrectedSignalRecord,
+);
+(
+  (
+    opaqueSiblingCorrectedSignalRecord.projection.fields.authoritative as {
+      freeDomains: {
+        real: Record<string, unknown>;
+      };
+    }
+  ).freeDomains.real
+).opaqueAuthority = 'must-not-be-hidden-by-cache-repair';
+const opaqueSiblingCorrectedSignalDecode =
+  decodeWorkbenchPersistenceV3FileRecord(
+    opaqueSiblingCorrectedSignalRecord,
+    8,
+  );
+assert.equal(opaqueSiblingCorrectedSignalDecode.ok, false);
+if (opaqueSiblingCorrectedSignalDecode.ok) {
+  throw new Error(
+    'Expected cache repair with an opaque authoritative sibling to quarantine.',
+  );
+}
+assert.equal(
+  opaqueSiblingCorrectedSignalDecode.status,
+  'quarantined',
+);
+assert.deepEqual(
+  opaqueSiblingCorrectedSignalDecode.raw,
+  opaqueSiblingCorrectedSignalRecord,
+);
+const opaqueCorrectedSignalFile = structuredClone(
+  futureCorrectedSignalFile,
+);
+for (const trial of [
+  opaqueCorrectedSignalFile.heatCapacityFreeTrials[0],
+  opaqueCorrectedSignalFile.heatCapacityFreeRealDomain.trials[0],
+]) {
+  (
+    trial.correctedSignals as unknown as Record<string, unknown>
+  ).futureAuthority = true;
+}
+const opaqueCorrectedSignalProjection =
+  projectWorkbenchPersistenceV3File(opaqueCorrectedSignalFile, 8);
+assert.equal(opaqueCorrectedSignalProjection.ok, false);
+if (opaqueCorrectedSignalProjection.ok) {
+  throw new Error('Expected opaque corrected-signal authority quarantine.');
+}
+assert.equal(opaqueCorrectedSignalProjection.status, 'quarantined');
+assert.deepEqual(
+  opaqueCorrectedSignalProjection.raw,
+  opaqueCorrectedSignalFile,
+);
+const trialAuthorityBatch = {
+  ...durableHighWaterStarted.heatCapacityFreeBatch,
+  nextTrialSequence: 2,
+};
+const regressingTrialAuthorityFile = {
+  ...durableHighWaterStarted,
+  heatCapacityFreeBatch: trialAuthorityBatch,
+  heatCapacityFreeTrials: [{
+    ...durableTrialAuthority,
+    preheatOutcome: 'omitted' as const,
+  }],
+  heatCapacityFreeRealDomain: {
+    ...durableHighWaterStarted.heatCapacityFreeRealDomain,
+    batch: trialAuthorityBatch,
+    trials: [durableTrialAuthority],
+  },
+};
+const regressingTrialAuthority = projectWorkbenchPersistenceV3File(
+  regressingTrialAuthorityFile,
+  8,
+);
+assert.equal(regressingTrialAuthority.ok, false);
+if (regressingTrialAuthority.ok) {
+  throw new Error('Expected same-id durable trial authority quarantine.');
+}
+assert.equal(regressingTrialAuthority.status, 'quarantined');
+assert.deepEqual(
+  regressingTrialAuthority.raw,
+  regressingTrialAuthorityFile,
+);
+
+const secondDurableTrialAuthority = {
+  ...createHeatCapacityFreeTrial(
+    'trial-authority-2',
+    null,
+    'real',
+    {
+      version: HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
+      batchId: durableTrialBatchId,
+      sequence: 2,
+    },
+  ),
+  preheatOutcome: 'completed' as const,
+};
+const orderedTrialBatch = {
+  ...trialAuthorityBatch,
+  nextTrialSequence: 3,
+};
+const reorderedTrialAuthorityFile = {
+  ...durableHighWaterStarted,
+  heatCapacityFreeBatch: orderedTrialBatch,
+  heatCapacityFreeTrials: [
+    secondDurableTrialAuthority,
+    durableTrialAuthority,
+  ],
+  heatCapacityFreeRealDomain: {
+    ...durableHighWaterStarted.heatCapacityFreeRealDomain,
+    batch: orderedTrialBatch,
+    trials: [
+      durableTrialAuthority,
+      secondDurableTrialAuthority,
+    ],
+  },
+};
+const reorderedTrialAuthority = projectWorkbenchPersistenceV3File(
+  reorderedTrialAuthorityFile,
+  8,
+);
+assert.equal(reorderedTrialAuthority.ok, false);
+if (reorderedTrialAuthority.ok) {
+  throw new Error('Expected durable trial order quarantine.');
+}
+assert.equal(reorderedTrialAuthority.status, 'quarantined');
+assert.deepEqual(
+  reorderedTrialAuthority.raw,
+  reorderedTrialAuthorityFile,
+);
+
+const completeTrialParts = createCompleteProcessReviewFixtureParts();
+const completeTrialStandardReference =
+  createHeatCapacityFreeStandardReference({
+    traceTrial: completeTrialParts.traceTrial,
+    trial: completeTrialParts.trial,
+    theoreticalGamma: 1.4,
+  });
+const removeTraceAuthority = <
+  RecordValue extends {
+    traceTrialId: string | null;
+    traceBranchId: string | null;
+    traceSampleId: string | null;
+    eventId: string | null;
+  },
+>(record: RecordValue | null) => record === null
+  ? null
+  : {
+      ...record,
+      traceTrialId: null,
+      traceBranchId: null,
+      traceSampleId: null,
+      eventId: null,
+    };
+const completeBatchTrials = [1, 3, 4].map((sequence) => ({
+  ...structuredClone(completeTrialParts.trial),
+  id: `completed-trial-${sequence}`,
+  batchMembership: {
+    version: HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
+    batchId: durableTrialBatchId,
+    sequence,
+  },
+  traceTrialId: null,
+  branchCount: 0,
+  u0: removeTraceAuthority(completeTrialParts.trial.u0),
+  u1: removeTraceAuthority(completeTrialParts.trial.u1),
+  u2: removeTraceAuthority(completeTrialParts.trial.u2),
+  standardReferenceSnapshot: completeTrialStandardReference,
+  completedAtMs: invalidCompletionStartedAt + sequence,
+}));
+const completeBatchBeforeCompletion = {
+  ...durableHighWaterStarted.heatCapacityFreeBatch,
+  nextTrialSequence: 5,
+};
+const completeBatchAfterCompletion = {
+  ...completeBatchBeforeCompletion,
+  experimentCompletedAtMs: invalidCompletionStartedAt + 5,
+};
+const nullTimestampCompletionFile = {
+  ...durableHighWaterStarted,
+  heatCapacityFreeBatch: completeBatchAfterCompletion,
+  heatCapacityFreeExperimentGroupStatus: 'completed' as const,
+  heatCapacityFreeTrials: completeBatchTrials.map((trial) => ({
+    ...trial,
+    completedAtMs: null,
+  })),
+  heatCapacityFreeRealDomain: {
+    ...durableHighWaterStarted.heatCapacityFreeRealDomain,
+    batch: completeBatchBeforeCompletion,
+    experimentGroupStatus: 'completed' as const,
+    trials: completeBatchTrials.map((trial) => ({
+      ...trial,
+      completedAtMs: null,
+    })),
+  },
+};
+const nullTimestampCompletion = projectWorkbenchPersistenceV3File(
+  nullTimestampCompletionFile,
+  8,
+);
+assert.equal(nullTimestampCompletion.ok, false);
+if (nullTimestampCompletion.ok) {
+  throw new Error('Expected incomplete trial timestamp quarantine.');
+}
+assert.equal(nullTimestampCompletion.status, 'quarantined');
+assert.deepEqual(
+  nullTimestampCompletion.raw,
+  nullTimestampCompletionFile,
+);
+const legalBatchCompletionFile = {
+  ...durableHighWaterStarted,
+  heatCapacityFreeBatch: completeBatchAfterCompletion,
+  heatCapacityFreeExperimentGroupStatus: 'completed' as const,
+  heatCapacityFreeTrials: completeBatchTrials,
+  heatCapacityFreeRealDomain: {
+    ...durableHighWaterStarted.heatCapacityFreeRealDomain,
+    batch: completeBatchBeforeCompletion,
+    experimentGroupStatus: 'completed' as const,
+    trials: completeBatchTrials,
+  },
+};
+const legalBatchCompletion = projectWorkbenchPersistenceV3File(
+  legalBatchCompletionFile,
+  8,
+);
+if (!legalBatchCompletion.ok) {
+  throw new Error(legalBatchCompletion.diagnostics[0].message);
+}
+assert.equal(
+  (
+    legalBatchCompletion.value.fields.authoritative as {
+      freeDomains: {
+        real: {
+          batch: { experimentCompletedAtMs: number | null };
+        };
+      };
+    }
+  ).freeDomains.real.batch.experimentCompletedAtMs,
+  invalidCompletionStartedAt + 5,
+  'a completed target-sized batch with monotonic identity gaps may advance its completion timestamp',
+);
+
+const opaqueBatchCaptureFile = structuredClone(durableHighWaterStarted);
+(
+  opaqueBatchCaptureFile.heatCapacityFreeRealDomain.batch as unknown as
+    Record<string, unknown>
+).opaqueAuthority = 'must-not-drop';
+const opaqueBatchCapture = projectWorkbenchPersistenceV3File(
+  opaqueBatchCaptureFile,
+  8,
+);
+assert.equal(opaqueBatchCapture.ok, false);
+if (opaqueBatchCapture.ok) {
+  throw new Error('Expected same-version batch authority quarantine.');
+}
+assert.equal(opaqueBatchCapture.status, 'quarantined');
+assert.deepEqual(opaqueBatchCapture.raw, opaqueBatchCaptureFile);
+
+const heatCurrentRecord = encodeWorkbenchPersistenceV3FileProjection(
+  heatStartedProjection.value,
+  8,
+);
+if (!heatCurrentRecord.ok) {
+  throw new Error(heatCurrentRecord.diagnostics[0].message);
+}
+for (const [label, section, key, value] of [
+  [
+    'Guide trial',
+    'guide',
+    'heatCapacityGuideTrial',
+    { arbitrary: true },
+  ],
+  [
+    'Guide workflow',
+    'guide',
+    'heatCapacityGuideWorkflow',
+    { arbitrary: true },
+  ],
+  [
+    'experiment profile',
+    'activeRuntime',
+    'heatCapacityExperimentProfile',
+    { arbitrary: true },
+  ],
+  [
+    'pressure limit',
+    'activeRuntime',
+    'pressureLimitKPa',
+    'bad',
+  ],
+  [
+    'run state',
+    'activeRuntime',
+    'runState',
+    'future-state',
+  ],
+  [
+    'process samples',
+    'activeRuntime',
+    'heatCapacityProcessSamples',
+    { arbitrary: true },
+  ],
+  [
+    'simulation params',
+    'activeRuntime',
+    'params',
+    { arbitrary: true },
+  ],
+] as const) {
+  const arbitraryKnownAuthorityRecord = structuredClone(
+    heatCurrentRecord.value,
+  );
+  const arbitraryKnownAuthority =
+    arbitraryKnownAuthorityRecord.projection.fields.authoritative as {
+      activeRuntime: Record<string, unknown>;
+      guide: Record<string, unknown>;
+    };
+  arbitraryKnownAuthority[section][key] = value;
+  const arbitraryKnownAuthorityDecode =
+    decodeWorkbenchPersistenceV3FileRecord(
+      arbitraryKnownAuthorityRecord,
+      8,
+    );
+  assert.equal(
+    arbitraryKnownAuthorityDecode.ok,
+    false,
+    `${label} arbitrary payload must not decode`,
+  );
+  if (arbitraryKnownAuthorityDecode.ok) {
+    throw new Error(`Expected ${label} arbitrary payload quarantine.`);
+  }
+  assert.equal(arbitraryKnownAuthorityDecode.status, 'quarantined');
+  assert.deepEqual(
+    arbitraryKnownAuthorityDecode.raw,
+    arbitraryKnownAuthorityRecord,
+  );
+}
+for (const [label, mutate] of [
+  [
+    'nested simulation params sibling',
+    (authority: {
+      activeRuntime: Record<string, unknown>;
+      guide: Record<string, unknown>;
+    }) => {
+      (
+        authority.activeRuntime.params as Record<string, unknown>
+      ).opaqueAuthority = true;
+    },
+  ],
+  [
+    'invalid applied particle count',
+    (authority: {
+      activeRuntime: Record<string, unknown>;
+      guide: Record<string, unknown>;
+    }) => {
+      (
+        authority.activeRuntime.appliedParams as Record<string, unknown>
+      ).N = 1.5;
+    },
+  ],
+  [
+    'invalid final chart',
+    (authority: {
+      activeRuntime: Record<string, unknown>;
+      guide: Record<string, unknown>;
+    }) => {
+      authority.activeRuntime.finalChartData = { arbitrary: true };
+    },
+  ],
+  [
+    'nested process sample sibling',
+    (authority: {
+      activeRuntime: Record<string, unknown>;
+      guide: Record<string, unknown>;
+    }) => {
+      authority.activeRuntime.heatCapacityProcessSamples = {
+        startSample: {
+          timeS: 0,
+          phase: 'powerOff',
+          temperatureSignalMv: 0,
+          pressureSignalMv: 0,
+          gasTemperatureK: 298.15,
+          gasPressureKPaAbs: 101.3,
+          pressureDeltaKPa: 0,
+          pumpFrequency: 0,
+          pumpValveOpen: false,
+          stopcockOpen: false,
+          opaqueAuthority: true,
+        },
+      };
+    },
+  ],
+  [
+    'invalid Guide config',
+    (authority: {
+      activeRuntime: Record<string, unknown>;
+      guide: Record<string, unknown>;
+    }) => {
+      (
+        authority.guide.heatCapacityGuidePhysicsConfig as
+          Record<string, unknown>
+      ).gamma = 'bad';
+    },
+  ],
+  [
+    'invalid Guide state',
+    (authority: {
+      activeRuntime: Record<string, unknown>;
+      guide: Record<string, unknown>;
+    }) => {
+      (
+        authority.guide.heatCapacityGuidePhysicsState as
+          Record<string, unknown>
+      ).simulationTimeS = -1;
+    },
+  ],
+  [
+    'non-canonical teaching profile',
+    (authority: {
+      activeRuntime: Record<string, unknown>;
+      guide: Record<string, unknown>;
+    }) => {
+      authority.activeRuntime.heatCapacityExperimentProfile = {
+        ...createHeatCapacityAutoDemoProfile(() => 0.5),
+        theoreticalGamma: 9,
+      };
+    },
+  ],
+  [
+    'pump-valve relationship',
+    (authority: {
+      activeRuntime: Record<string, unknown>;
+      guide: Record<string, unknown>;
+    }) => {
+      authority.activeRuntime.pumpValveOpen = true;
+      authority.activeRuntime.pumpValveState = 'closed';
+    },
+  ],
+] as const) {
+  const attackedKnownAuthorityRecord = structuredClone(
+    heatCurrentRecord.value,
+  );
+  const attackedKnownAuthority =
+    attackedKnownAuthorityRecord.projection.fields.authoritative as {
+      activeRuntime: Record<string, unknown>;
+      guide: Record<string, unknown>;
+    };
+  mutate(attackedKnownAuthority);
+  const attackedKnownAuthorityDecode =
+    decodeWorkbenchPersistenceV3FileRecord(
+      attackedKnownAuthorityRecord,
+      8,
+    );
+  assert.equal(
+    attackedKnownAuthorityDecode.ok,
+    false,
+    `${label} must not decode`,
+  );
+  if (attackedKnownAuthorityDecode.ok) {
+    throw new Error(`Expected ${label} quarantine.`);
+  }
+  assert.equal(attackedKnownAuthorityDecode.status, 'quarantined');
+  assert.deepEqual(
+    attackedKnownAuthorityDecode.raw,
+    attackedKnownAuthorityRecord,
+  );
+}
+for (const [label, mutate] of [
+  [
+    'record',
+    (record: Record<string, unknown>) => {
+      record.opaqueAuthority = { retain: true };
+    },
+  ],
+  [
+    'projection',
+    (record: Record<string, unknown>) => {
+      (
+        record.projection as Record<string, unknown>
+      ).opaqueAuthority = { retain: true };
+    },
+  ],
+  [
+    'field classes',
+    (record: Record<string, unknown>) => {
+      const projection = record.projection as Record<string, unknown>;
+      (
+        projection.fields as Record<string, unknown>
+      ).opaqueAuthority = { retain: true };
+    },
+  ],
+] as const) {
+  const opaqueV3Record = structuredClone(
+    heatCurrentRecord.value,
+  ) as unknown as Record<string, unknown>;
+  mutate(opaqueV3Record);
+  const opaqueV3Decode = decodeWorkbenchPersistenceV3FileRecord(
+    opaqueV3Record,
+    8,
+  );
+  assert.equal(opaqueV3Decode.ok, false);
+  if (opaqueV3Decode.ok) {
+    throw new Error(`Expected unknown V3 ${label} field quarantine.`);
+  }
+  assert.equal(opaqueV3Decode.status, 'quarantined');
+  assert.deepEqual(opaqueV3Decode.raw, opaqueV3Record);
+}
+const futureBatchWithDamagedTraceRecord = structuredClone(
+  heatCurrentRecord.value,
+);
+const futureBatchWithDamagedTraceAuthority =
+  futureBatchWithDamagedTraceRecord.projection.fields
+    .authoritative as {
+      freeDomains: {
+        real: {
+          batch: Record<string, unknown>;
+          traceStore: unknown;
+        };
+      };
+    };
+futureBatchWithDamagedTraceAuthority.freeDomains.real.batch.version =
+  HEAT_CAPACITY_FREE_BATCH_VERSION + 1;
+futureBatchWithDamagedTraceAuthority.freeDomains.real.batch
+  .frozenConfigSnapshot = { futureOnly: true };
+futureBatchWithDamagedTraceAuthority.freeDomains.real.batch
+  .calculationSession = { futureOnly: true };
+futureBatchWithDamagedTraceAuthority.freeDomains.real.traceStore = {
+  corrupt: true,
+};
+const futureBatchWithDamagedTrace =
+  decodeWorkbenchPersistenceV3FileRecord(
+    futureBatchWithDamagedTraceRecord,
+    8,
+  );
+assert.equal(futureBatchWithDamagedTrace.ok, false);
+if (futureBatchWithDamagedTrace.ok) {
+  throw new Error(
+    'Expected future batch dispatch before current trace parsing.',
+  );
+}
+assert.equal(
+  futureBatchWithDamagedTrace.status,
+  'unsupported-future',
+);
+assert.deepEqual(
+  futureBatchWithDamagedTrace.raw,
+  futureBatchWithDamagedTraceRecord,
+);
+assert.equal(
+  futureBatchWithDamagedTrace.diagnostics[0].sourceVersion,
+  HEAT_CAPACITY_FREE_BATCH_VERSION + 1,
+);
+const futureTraceAfterInvalidRuntimeRecord = structuredClone(
+  heatCurrentRecord.value,
+);
+const futureTraceAfterInvalidRuntimeAuthority =
+  futureTraceAfterInvalidRuntimeRecord.projection.fields
+    .authoritative.activeRuntime as Record<string, unknown>;
+futureTraceAfterInvalidRuntimeAuthority.heatCapacityFreeRuntimeVersion = 0;
+futureTraceAfterInvalidRuntimeAuthority.heatCapacityFreeTraceVersion =
+  HEAT_CAPACITY_FREE_TRACE_VERSION + 1;
+const futureTraceAfterInvalidRuntimeDecode =
+  decodeWorkbenchPersistenceV3FileRecord(
+    futureTraceAfterInvalidRuntimeRecord,
+    8,
+  );
+assert.equal(futureTraceAfterInvalidRuntimeDecode.ok, false);
+if (futureTraceAfterInvalidRuntimeDecode.ok) {
+  throw new Error(
+    'Expected a projected future trace to precede an invalid runtime version.',
+  );
+}
+assert.equal(
+  futureTraceAfterInvalidRuntimeDecode.status,
+  'unsupported-future',
+);
+assert.deepEqual(
+  futureTraceAfterInvalidRuntimeDecode.raw,
+  futureTraceAfterInvalidRuntimeRecord,
+);
+assert.equal(
+  futureTraceAfterInvalidRuntimeDecode.diagnostics[0].fieldPath,
+  'fields.authoritative.activeRuntime.heatCapacityFreeTraceVersion',
+);
+const futureIdealAfterMalformedRealRecord = structuredClone(
+  heatCurrentRecord.value,
+);
+const futureIdealAfterMalformedRealAuthority =
+  futureIdealAfterMalformedRealRecord.projection.fields.authoritative as {
+    freeDomains: {
+      real: {
+        activeRunConfigSnapshot: unknown;
+      };
+      ideal: {
+        batch: Record<string, unknown>;
+      };
+    };
+  };
+futureIdealAfterMalformedRealAuthority.freeDomains.real
+  .activeRunConfigSnapshot = { malformed: true };
+futureIdealAfterMalformedRealAuthority.freeDomains.ideal.batch.version =
+  HEAT_CAPACITY_FREE_BATCH_VERSION + 1;
+const futureIdealAfterMalformedRealDecode =
+  decodeWorkbenchPersistenceV3FileRecord(
+    futureIdealAfterMalformedRealRecord,
+    8,
+  );
+assert.equal(futureIdealAfterMalformedRealDecode.ok, false);
+if (futureIdealAfterMalformedRealDecode.ok) {
+  throw new Error(
+    'Expected a projected ideal future to precede malformed real authority.',
+  );
+}
+assert.equal(
+  futureIdealAfterMalformedRealDecode.status,
+  'unsupported-future',
+);
+assert.deepEqual(
+  futureIdealAfterMalformedRealDecode.raw,
+  futureIdealAfterMalformedRealRecord,
+);
+const futureIdealAfterNonRecordRealRecord = structuredClone(
+  heatCurrentRecord.value,
+);
+const futureIdealAfterNonRecordRealAuthority =
+  futureIdealAfterNonRecordRealRecord.projection.fields.authoritative as {
+    freeDomains: {
+      real: unknown;
+      ideal: {
+        batch: Record<string, unknown>;
+      };
+    };
+  };
+futureIdealAfterNonRecordRealAuthority.freeDomains.real = null;
+futureIdealAfterNonRecordRealAuthority.freeDomains.ideal.batch.version =
+  HEAT_CAPACITY_FREE_BATCH_VERSION + 1;
+const futureIdealAfterNonRecordRealDecode =
+  decodeWorkbenchPersistenceV3FileRecord(
+    futureIdealAfterNonRecordRealRecord,
+    8,
+  );
+assert.equal(futureIdealAfterNonRecordRealDecode.ok, false);
+if (futureIdealAfterNonRecordRealDecode.ok) {
+  throw new Error(
+    'Expected a projected ideal future to precede a non-record real domain.',
+  );
+}
+assert.equal(
+  futureIdealAfterNonRecordRealDecode.status,
+  'unsupported-future',
+);
+assert.deepEqual(
+  futureIdealAfterNonRecordRealDecode.raw,
+  futureIdealAfterNonRecordRealRecord,
+);
+const heatLegacyBatchRecord = structuredClone(heatCurrentRecord.value);
+const legacyBatchAuthority = heatLegacyBatchRecord.projection.fields
+  .authoritative as {
+    freeDomains: {
+      real: {
+        batch: Record<string, unknown>;
+        traceStore: Record<string, unknown>;
+      };
+    };
+  };
+legacyBatchAuthority.freeDomains.real.batch.version =
+  HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION;
+delete legacyBatchAuthority.freeDomains.real.batch.nextTrialSequence;
+delete legacyBatchAuthority.freeDomains.real.batch.scoringVersion;
+legacyBatchAuthority.freeDomains.real.traceStore.nextTraceTrialIndex = 7;
+const migratedHeatBatch = decodeWorkbenchPersistenceV3FileRecord(
+  heatLegacyBatchRecord,
+  8,
+);
+assert.equal(migratedHeatBatch.ok, true);
+if (!migratedHeatBatch.ok) {
+  throw new Error(migratedHeatBatch.diagnostics[0].message);
+}
+assert.equal(migratedHeatBatch.status, 'migrated');
+const migratedHeatAuthority = migratedHeatBatch.value.fields
+  .authoritative as {
+    freeDomains: {
+      real: {
+        batch: {
+          version: number;
+          nextTrialSequence: number;
+        };
+      };
+    };
+  };
+assert.equal(
+  migratedHeatAuthority.freeDomains.real.batch.version,
+  HEAT_CAPACITY_FREE_BATCH_VERSION,
+);
+assert.equal(
+  migratedHeatAuthority.freeDomains.real.batch.nextTrialSequence,
+  7,
+  'V3 migration must retain the trace identity high-water',
+);
+const migratedHeatEncoded = encodeWorkbenchPersistenceV3FileProjection(
+  migratedHeatBatch.value,
+  8,
+);
+if (!migratedHeatEncoded.ok) {
+  throw new Error(migratedHeatEncoded.diagnostics[0].message);
+}
+assert.equal(migratedHeatEncoded.status, 'exact');
+const migratedHeatDecodedAgain = decodeWorkbenchPersistenceV3FileRecord(
+  migratedHeatEncoded.value,
+  8,
+);
+if (!migratedHeatDecodedAgain.ok) {
+  throw new Error(migratedHeatDecodedAgain.diagnostics[0].message);
+}
+assert.equal(
+  migratedHeatDecodedAgain.status,
+  'exact',
+  'migrated V3 Free aggregates must become exact after canonical encode',
+);
+
+const membershipBatchId =
+  heatStartedForMigration.heatCapacityFreeBatch.id;
+if (membershipBatchId === null) {
+  throw new Error('Expected the V3 membership fixture batch to have an ID.');
+}
+const membershipTrial = createHeatCapacityFreeTrial(
+  'free-trial-1',
+  null,
+  'real',
+  {
+    version: HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
+    batchId: membershipBatchId,
+    sequence: 1,
+  },
+);
+const membershipBatch = {
+  ...heatStartedForMigration.heatCapacityFreeBatch,
+  nextTrialSequence: 2,
+};
+const membershipFile = {
+  ...heatStartedForMigration,
+  heatCapacityFreeBatch: membershipBatch,
+  heatCapacityFreeTrials: [membershipTrial],
+  heatCapacityFreeRealDomain: {
+    ...heatStartedForMigration.heatCapacityFreeRealDomain,
+    batch: membershipBatch,
+    trials: [membershipTrial],
+  },
+};
+const membershipProjection = projectWorkbenchPersistenceV3File(
+  membershipFile,
+  9,
+);
+if (!membershipProjection.ok) {
+  throw new Error(membershipProjection.diagnostics[0].message);
+}
+const extraCurrentMembershipCaptureFile = structuredClone(membershipFile);
+for (const trial of [
+  extraCurrentMembershipCaptureFile.heatCapacityFreeTrials[0],
+  extraCurrentMembershipCaptureFile.heatCapacityFreeRealDomain.trials[0],
+]) {
+  (
+    trial.batchMembership as unknown as Record<string, unknown>
+  ).opaqueAuthority = 'must-not-drop';
+}
+const extraCurrentMembershipCapture =
+  projectWorkbenchPersistenceV3File(
+    extraCurrentMembershipCaptureFile,
+    9,
+  );
+assert.equal(extraCurrentMembershipCapture.ok, false);
+if (extraCurrentMembershipCapture.ok) {
+  throw new Error('Expected current membership authority quarantine.');
+}
+assert.equal(extraCurrentMembershipCapture.status, 'quarantined');
+assert.deepEqual(
+  extraCurrentMembershipCapture.raw,
+  extraCurrentMembershipCaptureFile,
+);
+const membershipRecord = encodeWorkbenchPersistenceV3FileProjection(
+  membershipProjection.value,
+  9,
+);
+if (!membershipRecord.ok) {
+  throw new Error(membershipRecord.diagnostics[0].message);
+}
+const futureMembershipRecord = structuredClone(
+  membershipRecord.value,
+);
+const futureMembershipAuthority =
+  futureMembershipRecord.projection.fields.authoritative as {
+    freeDomains: {
+      real: {
+        trials: Array<{
+          batchMembership: Record<string, unknown>;
+        }>;
+      };
+    };
+  };
+futureMembershipAuthority.freeDomains.real.trials[0]
+  .batchMembership.version =
+    HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION + 1;
+const futureMembershipDecoded =
+  decodeWorkbenchPersistenceV3FileRecord(
+    futureMembershipRecord,
+    9,
+  );
+assert.equal(futureMembershipDecoded.ok, false);
+if (futureMembershipDecoded.ok) {
+  throw new Error('Expected future V3 trial membership preservation.');
+}
+assert.equal(futureMembershipDecoded.status, 'unsupported-future');
+assert.deepEqual(
+  futureMembershipDecoded.raw,
+  futureMembershipRecord,
+);
+assert.equal(
+  futureMembershipDecoded.diagnostics[0].sourceVersion,
+  HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION + 1,
+);
+
+const conflictingLegacyMembershipRecord = structuredClone(
+  membershipRecord.value,
+);
+const conflictingMembershipAuthority =
+  conflictingLegacyMembershipRecord.projection.fields
+    .authoritative as {
+      freeDomains: {
+        real: {
+          batch: Record<string, unknown>;
+          trials: Array<{
+            batchMembership: Record<string, unknown>;
+          }>;
+        };
+      };
+    };
+conflictingMembershipAuthority.freeDomains.real.batch.version =
+  HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION;
+delete conflictingMembershipAuthority.freeDomains.real.batch
+  .nextTrialSequence;
+conflictingMembershipAuthority.freeDomains.real.trials[0]
+  .batchMembership = {
+    version: HEAT_CAPACITY_FREE_TRIAL_BATCH_MEMBERSHIP_VERSION,
+    batchId: 'foreign-batch',
+    sequence: 777,
+  };
+const conflictingLegacyMembershipDecoded =
+  decodeWorkbenchPersistenceV3FileRecord(
+    conflictingLegacyMembershipRecord,
+    9,
+  );
+assert.equal(conflictingLegacyMembershipDecoded.ok, false);
+if (conflictingLegacyMembershipDecoded.ok) {
+  throw new Error('Expected conflicting legacy membership quarantine.');
+}
+assert.equal(
+  conflictingLegacyMembershipDecoded.status,
+  'quarantined',
+);
+assert.deepEqual(
+  conflictingLegacyMembershipDecoded.raw,
+  conflictingLegacyMembershipRecord,
+);
+
+const extraAuthorityLegacyMembershipRecord = structuredClone(
+  membershipRecord.value,
+);
+const extraAuthorityMembershipAuthority =
+  extraAuthorityLegacyMembershipRecord.projection.fields
+    .authoritative as {
+      freeDomains: {
+        real: {
+          batch: Record<string, unknown>;
+          trials: Array<{
+            batchMembership: Record<string, unknown>;
+          }>;
+        };
+      };
+    };
+extraAuthorityMembershipAuthority.freeDomains.real.batch.version =
+  HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION;
+delete extraAuthorityMembershipAuthority.freeDomains.real.batch
+  .nextTrialSequence;
+extraAuthorityMembershipAuthority.freeDomains.real.trials[0]
+  .batchMembership.unexpectedAuthority = 'must-not-drop';
+const extraAuthorityLegacyMembershipDecoded =
+  decodeWorkbenchPersistenceV3FileRecord(
+    extraAuthorityLegacyMembershipRecord,
+    9,
+  );
+assert.equal(extraAuthorityLegacyMembershipDecoded.ok, false);
+if (extraAuthorityLegacyMembershipDecoded.ok) {
+  throw new Error('Expected extra legacy membership authority quarantine.');
+}
+assert.equal(
+  extraAuthorityLegacyMembershipDecoded.status,
+  'quarantined',
+);
+assert.deepEqual(
+  extraAuthorityLegacyMembershipDecoded.raw,
+  extraAuthorityLegacyMembershipRecord,
+);
+
+const missingHeatAuthorityRecord = structuredClone(
+  heatCurrentRecord.value,
+);
+const missingHeatAuthority = missingHeatAuthorityRecord.projection.fields
+  .authoritative as {
+    freeDomains: {
+      real: Record<string, unknown>;
+    };
+  };
+delete missingHeatAuthority.freeDomains.real.trials;
+const missingHeatAuthorityResult =
+  decodeWorkbenchPersistenceV3FileRecord(
+    missingHeatAuthorityRecord,
+    8,
+  );
+assert.equal(missingHeatAuthorityResult.ok, false);
+if (missingHeatAuthorityResult.ok) {
+  throw new Error('Expected missing Free authority to quarantine.');
+}
+assert.equal(missingHeatAuthorityResult.status, 'quarantined');
+assert.deepEqual(
+  missingHeatAuthorityResult.raw,
+  missingHeatAuthorityRecord,
+);
+
+const mixedMigrationAndDamageRecord = structuredClone(
+  heatLegacyBatchRecord,
+);
+const damagedMigratingAuthority = mixedMigrationAndDamageRecord.projection
+  .fields.authoritative as {
+    freeDomains: {
+      real: {
+        activeAttempt: unknown;
+      };
+    };
+  };
+damagedMigratingAuthority.freeDomains.real.activeAttempt = {
+  invalid: 'must-not-default-to-null-during-migration',
+};
+const mixedMigrationAndDamage =
+  decodeWorkbenchPersistenceV3FileRecord(
+    mixedMigrationAndDamageRecord,
+    8,
+  );
+assert.equal(mixedMigrationAndDamage.ok, false);
+if (mixedMigrationAndDamage.ok) {
+  throw new Error(
+    'Expected unrelated authority damage during batch migration to quarantine.',
+  );
+}
+assert.equal(mixedMigrationAndDamage.status, 'quarantined');
+assert.deepEqual(
+  mixedMigrationAndDamage.raw,
+  mixedMigrationAndDamageRecord,
+);
+
+const migrationWithUnknownAuthorityRecord = structuredClone(
+  heatLegacyBatchRecord,
+);
+(
+  migrationWithUnknownAuthorityRecord.projection.fields.authoritative
+    .activeRuntime as Record<string, unknown>
+).unrecognizedAuthority = {
+  mustNotBeDropped: true,
+};
+const migrationWithUnknownAuthority =
+  decodeWorkbenchPersistenceV3FileRecord(
+    migrationWithUnknownAuthorityRecord,
+    8,
+  );
+assert.equal(migrationWithUnknownAuthority.ok, false);
+if (migrationWithUnknownAuthority.ok) {
+  throw new Error(
+    'Expected unrelated authority beside a supported batch migration to quarantine.',
+  );
+}
+assert.equal(migrationWithUnknownAuthority.status, 'quarantined');
+assert.deepEqual(
+  migrationWithUnknownAuthority.raw,
+  migrationWithUnknownAuthorityRecord,
+);
+assert.equal(
+  Object.prototype.hasOwnProperty.call(
+    heatAuthority.activeRuntime,
+    'heatCapacityFreeTrials',
+  ),
+  false,
+);
+assert.equal(
+  Object.prototype.hasOwnProperty.call(
+    heatAuthority.activeRuntime,
+    'heatCapacityFreeTraceStore',
+  ),
+  false,
+);
+assert.deepEqual(
+  Object.keys(heatAuthority.freeDomains).sort(),
+  ['experimentGroups', 'ideal', 'real'],
+  'real, ideal, and the multi-group collection are the durable Free authorities',
+);
+
+const editedFreeFile = applyHeatCapacityFreeParameterDraftWorkbenchState(
+  createDefaultHeatCapacityFile(8),
+  {
+    ...createDefaultHeatCapacityFile(8).heatCapacityFreeParameterDraft,
+    gasType: 'helium',
+    ambientTemperatureK: 303.15,
+  },
+);
+const editedFreeProjection = projectWorkbenchPersistenceV3File(
+  editedFreeFile,
+  8,
+);
+if (!editedFreeProjection.ok) {
+  throw new Error(editedFreeProjection.diagnostics[0].message);
+}
+const editedFreeReprojected = reprojectWorkbenchPersistenceV3File(
+  editedFreeProjection.value,
+  8,
+);
+if (!editedFreeReprojected.ok) {
+  throw new Error(editedFreeReprojected.diagnostics[0].message);
+}
+assert.equal(editedFreeReprojected.value.kind, 'heatCapacity');
+if (editedFreeReprojected.value.kind !== 'heatCapacity') {
+  throw new Error('Expected a heat-capacity file.');
+}
+assert.equal(editedFreeReprojected.value.heatCapacityFreeGasType, 'helium');
+assert.equal(
+  editedFreeReprojected.value.heatCapacityFreePhysicsConfig.environment
+    .ambientTemperatureK,
+  303.15,
+  'active Free parameter edits must be captured into the selected domain',
+);
+
+const guideWithHeliumFreeDomain = {
+  ...createDefaultHeatCapacityFile(9),
+  heatCapacityMode: 'guide' as const,
+  heatCapacityFreeGasType: 'helium' as const,
+  theoreticalGamma: 1.4,
+};
+const guideProjection = projectWorkbenchPersistenceV3File(
+  guideWithHeliumFreeDomain,
+  9,
+);
+if (!guideProjection.ok) {
+  throw new Error(guideProjection.diagnostics[0].message);
+}
+const guideReprojected = reprojectWorkbenchPersistenceV3File(
+  guideProjection.value,
+  9,
+);
+if (!guideReprojected.ok) {
+  throw new Error(guideReprojected.diagnostics[0].message);
+}
+assert.equal(guideReprojected.value.kind, 'heatCapacity');
+if (guideReprojected.value.kind !== 'heatCapacity') {
+  throw new Error('Expected a heat-capacity file.');
+}
+assert.equal(
+  guideReprojected.value.theoreticalGamma,
+  1.4,
+  'an inactive helium Free domain must not overwrite the active Guide gamma',
+);
+
+for (const draftFile of [
+  {
+    ...createDefaultStandardFile(9),
+    params: {
+      ...createDefaultStandardFile(9).params,
+      L: -1,
+    },
+    runState: 'needs-reset' as const,
+  },
+  {
+    ...createDefaultIdealFile(10),
+    params: {
+      ...createDefaultIdealFile(10).params,
+      L: -1,
+    },
+    runState: 'needs-reset' as const,
+    needsReset: true,
+  },
+]) {
+  const draftProjection = projectWorkbenchPersistenceV3File(draftFile);
+  assert.equal(
+    draftProjection.ok,
+    true,
+    'an invalid editable draft must not quarantine valid applied authority',
+  );
+  if (!draftProjection.ok) continue;
+  const draftRuntime = reprojectWorkbenchPersistenceV3File(
+    draftProjection.value,
+  );
+  if (!draftRuntime.ok) throw new Error(draftRuntime.diagnostics[0].message);
+  assert.equal(draftRuntime.value.params.L, -1);
+  assert.equal(draftRuntime.value.runState, 'needs-reset');
+}
+
+const invalidIdleStandard = {
+  ...createDefaultStandardFile(40),
+  params: {
+    ...createDefaultStandardFile(40).params,
+    N: 1_001,
+  },
+  runState: 'idle' as const,
+};
+const invalidIdleStandardProjection =
+  projectWorkbenchPersistenceV3File(invalidIdleStandard, 40);
+assert.equal(invalidIdleStandardProjection.ok, false);
+if (invalidIdleStandardProjection.ok) {
+  throw new Error('Expected invalid idle Standard parameters to quarantine.');
+}
+assert.equal(invalidIdleStandardProjection.status, 'quarantined');
+assert.deepEqual(invalidIdleStandardProjection.raw, invalidIdleStandard);
+
+const invalidIdealDraftWithoutReset = {
+  ...createDefaultIdealFile(41),
+  params: {
+    ...createDefaultIdealFile(41).params,
+    L: -1,
+  },
+  runState: 'needs-reset' as const,
+  needsReset: false,
+};
+const invalidIdealDraftWithoutResetProjection =
+  projectWorkbenchPersistenceV3File(invalidIdealDraftWithoutReset, 41);
+assert.equal(invalidIdealDraftWithoutResetProjection.ok, false);
+if (invalidIdealDraftWithoutResetProjection.ok) {
+  throw new Error(
+    'Expected an invalid Ideal draft without needsReset to quarantine.',
+  );
+}
+assert.equal(invalidIdealDraftWithoutResetProjection.status, 'quarantined');
+
+const mismatchedIdealAuthorityBase = createDefaultIdealFile(42);
+const mismatchedIdealAuthority = {
+  ...mismatchedIdealAuthorityBase,
+  activeParams: {
+    ...mismatchedIdealAuthorityBase.activeParams,
+    N: mismatchedIdealAuthorityBase.activeParams.N + 1,
+  },
+};
+const mismatchedIdealAuthorityProjection =
+  projectWorkbenchPersistenceV3File(mismatchedIdealAuthority, 42);
+assert.equal(mismatchedIdealAuthorityProjection.ok, false);
+if (mismatchedIdealAuthorityProjection.ok) {
+  throw new Error('Expected mismatched Ideal applied/active authority to quarantine.');
+}
+assert.equal(mismatchedIdealAuthorityProjection.status, 'quarantined');
+
+const runningStandardProjection = projectWorkbenchPersistenceV3File(
+  {
+    ...createDefaultStandardFile(43),
+    runState: 'running',
+  },
+  43,
+);
+assert.equal(runningStandardProjection.ok, true);
+if (!runningStandardProjection.ok) {
+  throw new Error(runningStandardProjection.diagnostics[0].message);
+}
+assert.equal(
+  (
+    runningStandardProjection.value.fields.authoritative.runtimeCheckpoint as
+      Record<string, unknown>
+  ).runState,
+  'paused',
+);
+assert.equal(
+  runningStandardProjection.status,
+  'exact',
+  'normalizing a running checkpoint to paused must not be reported as cache repair',
+);
+assert.equal(
+  runningStandardProjection.diagnostics.some(
+    (diagnostic) => diagnostic.category === 'derived-cache',
+  ),
+  false,
+);
+
+const standardProjection = projectWorkbenchPersistenceV3File(
+  createDefaultStandardFile(11),
+  11,
+);
+if (!standardProjection.ok) {
+  throw new Error(standardProjection.diagnostics[0].message);
+}
+const standardEncoded = encodeWorkbenchPersistenceV3FileProjection(
+  standardProjection.value,
+  11,
+);
+if (!standardEncoded.ok) {
+  throw new Error(standardEncoded.diagnostics[0].message);
+}
+const damagedCacheRecord = structuredClone(standardEncoded.value);
+damagedCacheRecord.projection.fields.derived = {
+  stats: {
+    phase: 'corrupted-cache',
+  },
+  chartData: 'not-a-chart',
+  particles: 'not-particles',
+};
+const repairedCache = decodeWorkbenchPersistenceV3FileRecord(
+  damagedCacheRecord,
+  11,
+);
+assert.equal(repairedCache.ok, true);
+if (!repairedCache.ok) throw new Error(repairedCache.diagnostics[0].message);
+assert.equal(repairedCache.status, 'repaired-cache');
+assert.deepEqual(
+  repairedCache.value.fields.authoritative,
+  standardProjection.value.fields.authoritative,
+  'cache repair must not alter authoritative data',
+);
+
+const brokenRelationshipRecord = structuredClone(standardEncoded.value);
+brokenRelationshipRecord.projection.fields.relation.fileId =
+  'different-authoritative-id';
+const quarantined = decodeWorkbenchPersistenceV3FileRecord(
+  brokenRelationshipRecord,
+  11,
+);
+assert.equal(quarantined.ok, false);
+if (quarantined.ok) throw new Error('Expected a quarantined relationship.');
+assert.equal(quarantined.status, 'quarantined');
+assert.equal(quarantined.diagnostics[0].category, 'relationship');
+assert.deepEqual(quarantined.raw, brokenRelationshipRecord);
+
+const damagedStandardAuthorityRecord = structuredClone(standardEncoded.value);
+damagedStandardAuthorityRecord.projection.fields.authoritative.finalChartData = {
+  not: 'chart-data',
+};
+const damagedStandardAuthority = decodeWorkbenchPersistenceV3FileRecord(
+  damagedStandardAuthorityRecord,
+  11,
+);
+assert.equal(damagedStandardAuthority.ok, false);
+if (damagedStandardAuthority.ok) {
+  throw new Error('Expected damaged Standard finalChartData to quarantine.');
+}
+assert.equal(damagedStandardAuthority.status, 'quarantined');
+assert.deepEqual(damagedStandardAuthority.raw, damagedStandardAuthorityRecord);
+
+const idealProjection = projectWorkbenchPersistenceV3File(
+  createDefaultIdealFile(44),
+  44,
+);
+if (!idealProjection.ok) {
+  throw new Error(idealProjection.diagnostics[0].message);
+}
+const idealEncoded = encodeWorkbenchPersistenceV3FileProjection(
+  idealProjection.value,
+  44,
+);
+if (!idealEncoded.ok) {
+  throw new Error(idealEncoded.diagnostics[0].message);
+}
+const damagedIdealPointsRecord = structuredClone(idealEncoded.value);
+damagedIdealPointsRecord.projection.fields.authoritative.pointsByRelation = {
+  pt: 'not-points',
+};
+const damagedIdealPoints = decodeWorkbenchPersistenceV3FileRecord(
+  damagedIdealPointsRecord,
+  44,
+);
+assert.equal(damagedIdealPoints.ok, false);
+if (damagedIdealPoints.ok) {
+  throw new Error('Expected damaged Ideal pointsByRelation to quarantine.');
+}
+assert.equal(damagedIdealPoints.status, 'quarantined');
+assert.deepEqual(damagedIdealPoints.raw, damagedIdealPointsRecord);
+
+const pistonProjection = projectWorkbenchPersistenceV3File(
+  createDefaultHeatCapacityPistonOscillationFile(45),
+  45,
+);
+if (!pistonProjection.ok) {
+  throw new Error(pistonProjection.diagnostics[0].message);
+}
+const pistonEncoded = encodeWorkbenchPersistenceV3FileProjection(
+  pistonProjection.value,
+  45,
+);
+if (!pistonEncoded.ok) {
+  throw new Error(pistonEncoded.diagnostics[0].message);
+}
+const futurePistonAuthorityRecord = structuredClone(pistonEncoded.value);
+futurePistonAuthorityRecord.projection.fields.authoritative
+  .pistonOscillationSchemaVersion = 999;
+const futurePistonAuthority = decodeWorkbenchPersistenceV3FileRecord(
+  futurePistonAuthorityRecord,
+  45,
+);
+assert.equal(futurePistonAuthority.ok, false);
+if (futurePistonAuthority.ok) {
+  throw new Error('Expected future Piston authority to be preserved.');
+}
+assert.equal(futurePistonAuthority.status, 'unsupported-future');
+assert.deepEqual(futurePistonAuthority.raw, futurePistonAuthorityRecord);
+
+const heatModeProjection = projectWorkbenchPersistenceV3File(
+  createDefaultHeatCapacityFile(46),
+  46,
+);
+if (!heatModeProjection.ok) {
+  throw new Error(heatModeProjection.diagnostics[0].message);
+}
+const heatModeEncoded = encodeWorkbenchPersistenceV3FileProjection(
+  heatModeProjection.value,
+  46,
+);
+if (!heatModeEncoded.ok) {
+  throw new Error(heatModeEncoded.diagnostics[0].message);
+}
+const invalidModeSessionSlotRecord = structuredClone(heatModeEncoded.value);
+const invalidModeSessionSlots = invalidModeSessionSlotRecord.projection.fields
+  .authoritative.modeSessions as Record<string, unknown>;
+invalidModeSessionSlots.guide = {
+  status: 'suspended',
+  resumeRunState: 'idle',
+  capturedAtMs: null,
+  snapshot: null,
+  uiCheckpoint: null,
+};
+const invalidModeSessionSlot = decodeWorkbenchPersistenceV3FileRecord(
+  invalidModeSessionSlotRecord,
+  46,
+);
+assert.equal(invalidModeSessionSlot.ok, false);
+if (invalidModeSessionSlot.ok) {
+  throw new Error('Expected an invalid Heat mode-session slot to quarantine.');
+}
+assert.equal(invalidModeSessionSlot.status, 'quarantined');
+assert.deepEqual(invalidModeSessionSlot.raw, invalidModeSessionSlotRecord);
+
+const suspendedHeatFile = suspendHeatCapacityModeSession(
+  createDefaultHeatCapacityFile(47),
+  null,
+  Date.now(),
+);
+const suspendedHeatProjection = projectWorkbenchPersistenceV3File(
+  suspendedHeatFile,
+  47,
+);
+if (!suspendedHeatProjection.ok) {
+  throw new Error(suspendedHeatProjection.diagnostics[0].message);
+}
+const downgradeSuspendedFreeBatches = (
+  modeSessions: Record<string, unknown>,
+) => {
+  const freeEntry = modeSessions.free as {
+    snapshot: {
+      free: {
+        heatCapacityFreeBatch: Record<string, unknown>;
+        heatCapacityFreeRealDomain: {
+          batch: Record<string, unknown>;
+        };
+      };
+    } | null;
+  };
+  if (freeEntry.snapshot === null) {
+    throw new Error('Expected a suspended Free snapshot for v1 migration.');
+  }
+  const topBatch = structuredClone(
+    freeEntry.snapshot.free.heatCapacityFreeBatch,
+  );
+  topBatch.version = HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION;
+  delete topBatch.nextTrialSequence;
+  delete topBatch.scoringVersion;
+  const domainBatch = structuredClone(
+    freeEntry.snapshot.free.heatCapacityFreeRealDomain.batch,
+  );
+  domainBatch.version = HEAT_CAPACITY_FREE_BATCH_LEGACY_VERSION;
+  delete domainBatch.nextTrialSequence;
+  delete domainBatch.scoringVersion;
+  freeEntry.snapshot.free.heatCapacityFreeBatch = topBatch;
+  freeEntry.snapshot.free.heatCapacityFreeRealDomain.batch = domainBatch;
+};
+const suspendedLegacyBatchFile = structuredClone(suspendedHeatFile);
+downgradeSuspendedFreeBatches(
+  suspendedLegacyBatchFile.heatCapacityModeSessions as unknown as
+    Record<string, unknown>,
+);
+const migratedSuspendedLegacyBatch =
+  projectWorkbenchPersistenceV3File(
+    suspendedLegacyBatchFile,
+    47,
+  );
+if (!migratedSuspendedLegacyBatch.ok) {
+  throw new Error(migratedSuspendedLegacyBatch.diagnostics[0].message);
+}
+assert.equal(migratedSuspendedLegacyBatch.status, 'migrated');
+const migratedSuspendedSessions =
+  migratedSuspendedLegacyBatch.value.fields.authoritative
+    .modeSessions as {
+      free: {
+        snapshot: {
+          free: {
+            heatCapacityFreeBatch: {
+              version: number;
+              nextTrialSequence: number;
+            };
+          };
+        } | null;
+      };
+    };
+assert.equal(
+  migratedSuspendedSessions.free.snapshot?.free
+    .heatCapacityFreeBatch.version,
+  HEAT_CAPACITY_FREE_BATCH_VERSION,
+);
+assert.equal(
+  migratedSuspendedSessions.free.snapshot?.free
+    .heatCapacityFreeBatch.nextTrialSequence,
+  1,
+);
+const opaqueSuspendedLegacyBatchFile = structuredClone(
+  suspendedLegacyBatchFile,
+);
+const opaqueSuspendedSessions =
+  opaqueSuspendedLegacyBatchFile.heatCapacityModeSessions as unknown as {
+    free: {
+      snapshot: {
+        free: {
+          heatCapacityFreeBatch: Record<string, unknown>;
+        };
+      } | null;
+    };
+  };
+if (opaqueSuspendedSessions.free.snapshot === null) {
+  throw new Error('Expected an opaque suspended v1 batch fixture.');
+}
+opaqueSuspendedSessions.free.snapshot.free.heatCapacityFreeBatch
+  .opaqueAuthority = true;
+const opaqueSuspendedLegacyBatch =
+  projectWorkbenchPersistenceV3File(
+    opaqueSuspendedLegacyBatchFile,
+    47,
+  );
+assert.equal(opaqueSuspendedLegacyBatch.ok, false);
+if (opaqueSuspendedLegacyBatch.ok) {
+  throw new Error('Expected opaque suspended v1 batch quarantine.');
+}
+assert.equal(opaqueSuspendedLegacyBatch.status, 'quarantined');
+
+const suspendedLegacyBatchRecord =
+  encodeWorkbenchPersistenceV3FileProjection(
+    suspendedHeatProjection.value,
+    47,
+  );
+if (!suspendedLegacyBatchRecord.ok) {
+  throw new Error(suspendedLegacyBatchRecord.diagnostics[0].message);
+}
+const rawSuspendedLegacyBatchRecord = structuredClone(
+  suspendedLegacyBatchRecord.value,
+);
+downgradeSuspendedFreeBatches(
+  rawSuspendedLegacyBatchRecord.projection.fields.authoritative
+    .modeSessions as Record<string, unknown>,
+);
+const decodedSuspendedLegacyBatch =
+  decodeWorkbenchPersistenceV3FileRecord(
+    rawSuspendedLegacyBatchRecord,
+    47,
+  );
+if (!decodedSuspendedLegacyBatch.ok) {
+  throw new Error(decodedSuspendedLegacyBatch.diagnostics[0].message);
+}
+assert.equal(decodedSuspendedLegacyBatch.status, 'migrated');
+const futureSuspendedSnapshotFile = structuredClone(suspendedHeatFile);
+const futureSuspendedSnapshot = futureSuspendedSnapshotFile
+  .heatCapacityModeSessions.free.snapshot as unknown as Record<string, unknown>;
+futureSuspendedSnapshot.schemaVersion =
+  HEAT_CAPACITY_MODE_RUNTIME_SNAPSHOT_SCHEMA_VERSION + 1;
+const futureSuspendedSnapshotProjection =
+  projectWorkbenchPersistenceV3File(futureSuspendedSnapshotFile, 47);
+assert.equal(futureSuspendedSnapshotProjection.ok, false);
+if (futureSuspendedSnapshotProjection.ok) {
+  throw new Error('Expected a future suspended snapshot to remain raw.');
+}
+assert.equal(
+  futureSuspendedSnapshotProjection.status,
+  'unsupported-future',
+);
+assert.deepEqual(
+  futureSuspendedSnapshotProjection.raw,
+  futureSuspendedSnapshotFile,
+);
+assert.equal(
+  futureSuspendedSnapshotProjection.diagnostics[0].fieldPath,
+  'heatCapacityModeSessions.free.snapshot.schemaVersion',
+);
+
+const futureSuspendedRuntimeFile = structuredClone(suspendedHeatFile);
+const futureSuspendedRuntimeSnapshot = futureSuspendedRuntimeFile
+  .heatCapacityModeSessions.free.snapshot as unknown as {
+    free: Record<string, unknown>;
+  };
+futureSuspendedRuntimeSnapshot.free.heatCapacityFreeRuntimeVersion =
+  HEAT_CAPACITY_FREE_RUNTIME_VERSION + 1;
+const futureSuspendedRuntimeProjection =
+  projectWorkbenchPersistenceV3File(futureSuspendedRuntimeFile, 47);
+assert.equal(futureSuspendedRuntimeProjection.ok, false);
+if (futureSuspendedRuntimeProjection.ok) {
+  throw new Error('Expected a future suspended Free runtime to remain raw.');
+}
+assert.equal(
+  futureSuspendedRuntimeProjection.status,
+  'unsupported-future',
+);
+assert.deepEqual(
+  futureSuspendedRuntimeProjection.raw,
+  futureSuspendedRuntimeFile,
+);
+assert.equal(
+  futureSuspendedRuntimeProjection.diagnostics[0].fieldPath,
+  'heatCapacityModeSessions.free.snapshot.free.heatCapacityFreeRuntimeVersion',
+);
+const futureSuspendedRuntimeWithMalformedDomain = structuredClone(
+  futureSuspendedRuntimeFile,
+);
+futureSuspendedRuntimeWithMalformedDomain.heatCapacityFreeRealDomain
+  .activeRunConfigSnapshot = { malformed: true } as never;
+const futureSuspendedRuntimeBeforeMalformedDomain =
+  projectWorkbenchPersistenceV3File(
+    futureSuspendedRuntimeWithMalformedDomain,
+    47,
+  );
+assert.equal(
+  futureSuspendedRuntimeBeforeMalformedDomain.ok,
+  false,
+);
+if (futureSuspendedRuntimeBeforeMalformedDomain.ok) {
+  throw new Error(
+    'Expected a suspended future runtime to precede malformed domains.',
+  );
+}
+assert.equal(
+  futureSuspendedRuntimeBeforeMalformedDomain.status,
+  'unsupported-future',
+);
+assert.deepEqual(
+  futureSuspendedRuntimeBeforeMalformedDomain.raw,
+  futureSuspendedRuntimeWithMalformedDomain,
+);
+
+const futureSuspendedCalculationFile = structuredClone(suspendedHeatFile);
+const futureSuspendedCalculationSnapshot = futureSuspendedCalculationFile
+  .heatCapacityModeSessions.free.snapshot as unknown as {
+    free: {
+      heatCapacityFreeBatch: Record<string, unknown>;
+    };
+  };
+futureSuspendedCalculationSnapshot.free.heatCapacityFreeBatch =
+  structuredClone(
+    futureSuspendedCalculationSnapshot.free.heatCapacityFreeBatch,
+  );
+futureSuspendedCalculationSnapshot.free.heatCapacityFreeBatch
+  .calculationSession = {
+    version: HEAT_CAPACITY_CALCULATION_WORKFLOW_VERSION + 1,
+    futureOnly: true,
+  };
+const futureSuspendedCalculationProjection =
+  projectWorkbenchPersistenceV3File(futureSuspendedCalculationFile, 47);
+assert.equal(futureSuspendedCalculationProjection.ok, false);
+if (futureSuspendedCalculationProjection.ok) {
+  throw new Error(
+    'Expected a future suspended calculation session to remain raw.',
+  );
+}
+assert.equal(
+  futureSuspendedCalculationProjection.status,
+  'unsupported-future',
+);
+assert.deepEqual(
+  futureSuspendedCalculationProjection.raw,
+  futureSuspendedCalculationFile,
+);
+assert.equal(
+  futureSuspendedCalculationProjection.diagnostics[0].fieldPath,
+  'heatCapacityModeSessions.free.snapshot.free.heatCapacityFreeBatch.calculationSession.version',
+);
+
+const futureSuspendedReprojection = structuredClone(
+  suspendedHeatProjection.value,
+);
+const futureSuspendedReprojectionSessions = futureSuspendedReprojection.fields
+  .authoritative.modeSessions as {
+    free: {
+      snapshot: {
+        free: Record<string, unknown>;
+      } | null;
+    };
+  };
+if (futureSuspendedReprojectionSessions.free.snapshot === null) {
+  throw new Error('Expected a suspended Free snapshot projection.');
+}
+futureSuspendedReprojectionSessions.free.snapshot.free
+  .heatCapacityFreeTraceVersion = HEAT_CAPACITY_FREE_TRACE_VERSION + 1;
+const futureSuspendedReprojected = reprojectWorkbenchPersistenceV3File(
+  futureSuspendedReprojection,
+  47,
+);
+assert.equal(futureSuspendedReprojected.ok, false);
+if (futureSuspendedReprojected.ok) {
+  throw new Error('Expected future suspended reprojection preservation.');
+}
+assert.equal(futureSuspendedReprojected.status, 'unsupported-future');
+assert.deepEqual(
+  futureSuspendedReprojected.raw,
+  futureSuspendedReprojection,
+);
+const suspendedHeatEncoded = encodeWorkbenchPersistenceV3FileProjection(
+  suspendedHeatProjection.value,
+  47,
+);
+if (!suspendedHeatEncoded.ok) {
+  throw new Error(suspendedHeatEncoded.diagnostics[0].message);
+}
+const crossFileModeSessionRecord = structuredClone(suspendedHeatEncoded.value);
+const crossFileModeSessions = crossFileModeSessionRecord.projection.fields
+  .authoritative.modeSessions as {
+    free: {
+      snapshot: {
+        fileId: string;
+      } | null;
+    };
+  };
+if (crossFileModeSessions.free.snapshot === null) {
+  throw new Error('Expected a suspended Free mode-session snapshot.');
+}
+crossFileModeSessions.free.snapshot.fileId = 'different-heat-capacity-file';
+const crossFileModeSession = decodeWorkbenchPersistenceV3FileRecord(
+  crossFileModeSessionRecord,
+  47,
+);
+assert.equal(crossFileModeSession.ok, false);
+if (crossFileModeSession.ok) {
+  throw new Error('Expected a cross-file Heat mode-session to quarantine.');
+}
+assert.equal(crossFileModeSession.status, 'quarantined');
+assert.deepEqual(crossFileModeSession.raw, crossFileModeSessionRecord);
+
+for (const [index, source] of [
+  createDefaultIdealFile(48),
+  createDefaultHeatCapacityFile(49),
+].entries()) {
+  const projected = projectWorkbenchPersistenceV3File(source, index + 48);
+  if (!projected.ok) throw new Error(projected.diagnostics[0].message);
+  const encoded = encodeWorkbenchPersistenceV3FileProjection(
+    projected.value,
+    index + 48,
+  );
+  if (!encoded.ok) throw new Error(encoded.diagnostics[0].message);
+  const damagedQualityRecord = structuredClone(encoded.value);
+  damagedQualityRecord.projection.fields.quality = {
+    invalid: 'rebuildable-quality',
+  };
+  const repairedQuality = decodeWorkbenchPersistenceV3FileRecord(
+    damagedQualityRecord,
+    index + 48,
+  );
+  assert.equal(repairedQuality.ok, true);
+  if (!repairedQuality.ok) {
+    throw new Error(repairedQuality.diagnostics[0].message);
+  }
+  assert.equal(
+    repairedQuality.status,
+    'repaired-cache',
+    `${source.kind} rebuildable quality damage must be repaired locally`,
+  );
+  assert.deepEqual(
+    repairedQuality.value.fields.authoritative,
+    projected.value.fields.authoritative,
+    'quality repair must not alter authoritative data',
+  );
+}
+
+const unknownKindProjection = structuredClone(standardProjection.value) as
+  unknown as Parameters<typeof reprojectWorkbenchPersistenceV3File>[0];
+(unknownKindProjection as unknown as Record<string, unknown>).fileKind =
+  'future-file-kind';
+let unknownKindResult:
+  | ReturnType<typeof reprojectWorkbenchPersistenceV3File>
+  | undefined;
+assert.doesNotThrow(() => {
+  unknownKindResult = reprojectWorkbenchPersistenceV3File(
+    unknownKindProjection,
+    50,
+  );
+});
+assert.ok(unknownKindResult);
+assert.equal(unknownKindResult.ok, false);
+if (unknownKindResult.ok) {
+  throw new Error('Expected unknown fileKind reprojection to fail.');
+}
+assert.equal(unknownKindResult.status, 'quarantined');
+
+for (const [index, source] of files.entries()) {
+  const projected = projectWorkbenchPersistenceV3File(source, index + 20);
+  if (!projected.ok) throw new Error(projected.diagnostics[0].message);
+  const encoded = encodeWorkbenchPersistenceV3FileProjection(
+    projected.value,
+    index + 20,
+  );
+  if (!encoded.ok) throw new Error(encoded.diagnostics[0].message);
+  const damagedUiRecord = structuredClone(encoded.value);
+  damagedUiRecord.projection.fields.uiCheckpoint.visiblePanels = [
+    'not-a-panel',
+  ];
+  damagedUiRecord.projection.fields.uiCheckpoint.liveWorkspaceSplitRatio =
+    999;
+  if (source.kind === 'standard') {
+    damagedUiRecord.projection.fields.uiCheckpoint.standardResultsLayout = {
+      bogus: true,
+    };
+  } else if (source.kind === 'ideal') {
+    damagedUiRecord.projection.fields.uiCheckpoint.idealWindowLayout = {};
+  } else if (source.kind === 'heatCapacity') {
+    damagedUiRecord.projection.fields.uiCheckpoint.openHeatCapacityTabs =
+      'bad-tabs';
+  } else {
+    damagedUiRecord.projection.fields.uiCheckpoint.previewCameraPreset =
+      'rear';
+  }
+  const repairedUi = decodeWorkbenchPersistenceV3FileRecord(
+    damagedUiRecord,
+    index + 20,
+  );
+  assert.equal(repairedUi.ok, true);
+  if (!repairedUi.ok) throw new Error(repairedUi.diagnostics[0].message);
+  assert.equal(
+    repairedUi.status,
+    'repaired-cache',
+    `${source.kind} UI damage must be locally repairable`,
+  );
+  assert.deepEqual(
+    repairedUi.value.fields.authoritative,
+    projected.value.fields.authoritative,
+  );
+}
+
+for (const relativePath of [
+  'src/features/workbench/persistenceV3/projection.ts',
+  'src/features/workbench/persistenceV3/codecRegistry.ts',
+  'src/features/workbench/persistenceV3/workspaceCodec.ts',
+]) {
+  const source = await readFile(relativePath, 'utf8');
+  for (const forbiddenImport of [
+    'createStandardPersistencePayload',
+    'validateStandardPersistencePayload',
+    'restoreStandardFileFromPersistencePayload',
+    'createIdealGasPersistencePayload',
+    'validateIdealGasPersistencePayload',
+    'restoreIdealGasFileFromPersistencePayload',
+    'createHeatCapacityPersistencePayload',
+    'validateHeatCapacityPersistencePayload',
+    'restoreHeatCapacityFileFromPersistencePayload',
+    'createPistonOscillationPersistencePayload',
+    'validatePistonOscillationPersistencePayload',
+    'restorePistonOscillationFileFromPersistencePayload',
+  ]) {
+    assert.equal(
+      source.includes(forbiddenImport),
+      false,
+      `${relativePath} must be independent of legacy ${forbiddenImport}`,
+    );
+  }
+}
+
+console.log('workbenchPersistenceV3ProjectionCodec tests passed');

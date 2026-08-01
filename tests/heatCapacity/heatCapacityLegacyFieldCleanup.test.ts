@@ -59,11 +59,21 @@ const forbiddenHardCodedTheoryDefaults = [
     pattern: /theoreticalGamma\s*=\s*options\.theoreticalGamma\s*\?\?\s*1\.4/,
   },
 ] as const;
+const exactLegacySchemaBoundary = path.join(
+  srcDir,
+  'features',
+  'workbench',
+  'persistenceV3',
+  'legacyV2Adapter.ts',
+);
 
 for (const filePath of sourceFiles(srcDir)) {
   const source = readFileSync(filePath, 'utf8');
   for (const field of forbiddenFields) {
-    if (source.includes(field)) {
+    if (
+      filePath !== exactLegacySchemaBoundary &&
+      source.includes(field)
+    ) {
       matches.push(`${path.relative(rootDir, filePath)}: ${field}`);
     }
   }

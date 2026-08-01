@@ -10,6 +10,7 @@ import {
 } from '../../src/features/workbench/workbenchLayoutCompatibility.ts';
 import {
   createDefaultHeatCapacityFile,
+  createDefaultHeatCapacityPistonOscillationFile,
   createDefaultIdealFile,
   createDefaultStandardFile,
 } from '../../src/features/workbench/workbenchState.ts';
@@ -18,6 +19,8 @@ const defaults = createDefaultWorkbenchLayoutDefaults();
 assert.equal(defaults.standard.liveWorkspaceSplitRatio > 0, true);
 assert.equal(defaults.ideal.resultsHeightRatio > 0, true);
 assert.equal(defaults.heatCapacity.liveWorkspaceSplitRatio > defaults.ideal.liveWorkspaceSplitRatio, true);
+assert.deepEqual(defaults.heatCapacityPistonOscillation, defaults.heatCapacity);
+assert.notEqual(defaults.heatCapacityPistonOscillation, defaults.heatCapacity);
 
 const normalizedLegacyLayout = normalizeIdealWindowLayoutState({
   openPanels: ['verification'],
@@ -47,10 +50,25 @@ const normalizedDefaults = sanitizeWorkbenchLayoutDefaults({
 
 assert.equal(normalizedDefaults.ideal.resultsHeightRatio, 0.41);
 assert.equal(normalizedDefaults.standard.resultsHeightRatio, defaults.standard.resultsHeightRatio);
+assert.deepEqual(
+  normalizedDefaults.heatCapacityPistonOscillation,
+  defaults.heatCapacityPistonOscillation,
+);
 
 assert.equal(isWorkbenchFileLayoutDefault(createDefaultStandardFile(1), defaults), true);
 assert.equal(isWorkbenchFileLayoutDefault(createDefaultIdealFile(1), defaults), true);
 assert.equal(isWorkbenchFileLayoutDefault(createDefaultHeatCapacityFile(1), defaults), true);
+assert.equal(
+  isWorkbenchFileLayoutDefault(createDefaultHeatCapacityPistonOscillationFile(1), defaults),
+  true,
+);
+assert.equal(
+  isWorkbenchFileLayoutDefault({
+    ...createDefaultHeatCapacityPistonOscillationFile(2),
+    liveWorkspaceSplitRatio: 0.5,
+  }, defaults),
+  false,
+);
 assert.equal(
   isWorkbenchFileLayoutDefault({
     ...createDefaultStandardFile(2),

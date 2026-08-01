@@ -11,8 +11,8 @@ assert.match(
 );
 assert.match(
   source,
-  /const currentParameterControlsLocked = activeFile\.kind === 'heatCapacity' && activeFile\.heatCapacityMode === 'free'[\s\S]*\? false[\s\S]*: parameterControlsLocked;/,
-  'Heat Capacity Free Mode should not gray-lock the whole parameter sidebar because view remains editable during a run',
+  /const currentParameterControlsLocked = activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*\? true[\s\S]*: activeFile\.kind === 'heatCapacity' && activeFile\.heatCapacityMode === 'free'[\s\S]*\? false[\s\S]*: parameterControlsLocked;/,
+  'Piston Oscillation should stay locked while Heat Capacity Free Mode remains editable during a run',
 );
 assert.match(
   source,

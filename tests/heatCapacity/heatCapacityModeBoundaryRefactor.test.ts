@@ -6,6 +6,7 @@ import {
   applyHeatCapacityGuideRecordWorkbenchState,
   completeHeatCapacityTeachingModeWorkbenchState,
   completeHeatCapacityGuidePreheatWorkbenchState,
+  configureHeatCapacityFreeBatchWorkbenchState,
   createDefaultHeatCapacityFile,
   enterHeatCapacityFreeModeWorkbenchState,
   exitHeatCapacityTeachingModeWorkbenchState,
@@ -355,7 +356,11 @@ const stabilizeGuidePressureZero = (
   assert.equal(exitedGuide.heatCapacityGuideTrial, null);
   assert.equal(exitedGuide.heatCapacityGuideWorkflow.step, 'powerRequired');
 
-  const poweredFree = powerHeatCapacityWorkbenchFile(exitedGuide, true, now += 100);
+  const poweredFree = powerHeatCapacityWorkbenchFile(
+    configureHeatCapacityFreeBatchWorkbenchState(exitedGuide, 3, now += 50),
+    true,
+    now += 100,
+  );
   assert.equal(poweredFree.heatCapacityMode, 'free');
   assert.equal(poweredFree.powerOn, true);
   assert.notEqual(poweredFree.heatCapacityMode, 'guide');

@@ -3,6 +3,412 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "5.3.1",
+      "date": "2026-08-01",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.3.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.3.1/heat-capacity-lab-setup-5.3.1.exe"
+      },
+      "summary": {
+        "zh-CN": "5.3.1 完成绝热膨胀法多组实验、整组计算与评分、过程回顾，以及报告、图表和实验包导出的完整闭环。",
+        "zh-TW": "5.3.1 完成絕熱膨脹法多組實驗、整組計算與評分、過程回顧，以及報告、圖表和實驗包匯出的完整閉環。",
+        "en": "Version 5.3.1 completes the adiabatic-expansion workflow with multi-group experiments, group calculations and scoring, process review, and report, figure, and experiment-package exports."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "多组实验与过程回顾",
+            "zh-TW": "多組實驗與過程回顧",
+            "en": "Multi-group experiments and process review"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-free-groups",
+              "importance": "high",
+              "title": {
+                "zh-CN": "建立完整的多组自由实验流程",
+                "zh-TW": "建立完整的多組自由實驗流程",
+                "en": "Completed the multi-group Free Mode workflow"
+              },
+              "body": {
+                "zh-CN": "自由模式统一使用“第几组、第几次实验”的层级。完成一次实验后自动推进到下一次；当前组及其必要计算完成后，才允许创建新组并重新选择真实或理想参数类型。真实组独立保存参数、结果和评分，理想组自动计算且不参与评分。",
+                "zh-TW": "自由模式統一使用「第幾組、第幾次實驗」的層級。完成一次實驗後自動推進到下一次；目前組及其必要計算完成後，才允許建立新組並重新選擇真實或理想參數類型。真實組獨立儲存參數、結果和評分，理想組自動計算且不參與評分。",
+                "en": "Free Mode now uses an experiment-group and experiment-number hierarchy. Each completed experiment advances automatically, while a new real or ideal group can be created only after the current group and required calculations are complete. Real groups retain independent results and scores; ideal groups calculate automatically without scoring."
+              }
+            },
+            {
+              "scope": "heat-capacity-process-review",
+              "importance": "high",
+              "title": {
+                "zh-CN": "新增整组评分与棒棒糖图",
+                "zh-TW": "新增整組評分與棒棒糖圖",
+                "en": "Added group scoring and lollipop review charts"
+              },
+              "body": {
+                "zh-CN": "真实参数实验按整组汇总操作、记录和计算表现。完成三次实验后显示理论参考、本组平均值和 A 类不确定度棒棒糖图，并支持按组、按次查看过程结果。",
+                "zh-TW": "真實參數實驗按整組彙總操作、記錄和計算表現。完成三次實驗後顯示理論參考、本組平均值和 A 類不確定度棒棒糖圖，並支援按組、按次查看過程結果。",
+                "en": "Real-parameter experiments aggregate operation, recording, and calculation performance at group level. Groups with at least three experiments show a lollipop chart for the theoretical reference, group mean, and Type A uncertainty, with group and experiment navigation."
+              }
+            },
+            {
+              "scope": "heat-capacity-calculation-and-scoring",
+              "importance": "high",
+              "title": {
+                "zh-CN": "完善计算已知条件与评分权重",
+                "zh-TW": "完善計算已知條件與評分權重",
+                "en": "Completed calculation inputs and score weighting"
+              },
+              "body": {
+                "zh-CN": "每次实验计算表完整显示已记录的 U₀、U₁、U₂，并将新增计算环节纳入真实组评分。评分按整组平衡汇总，不因实验次数增加而简单叠加扣分。",
+                "zh-TW": "每次實驗計算表完整顯示已記錄的 U₀、U₁、U₂，並將新增計算環節納入真實組評分。評分按整組平衡彙總，不因實驗次數增加而簡單疊加扣分。",
+                "en": "Each experiment calculation displays its recorded U₀, U₁, and U₂ values, and the calculation stage contributes to real-group scoring. Scores are balanced across the group instead of accumulating penalties simply because more experiments were selected."
+              }
+            }
+          ]
+        },
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "科学报告与图表导出",
+            "zh-TW": "科學報告與圖表匯出",
+            "en": "Scientific report and figure export"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-report-export",
+              "importance": "high",
+              "title": {
+                "zh-CN": "完成绝热膨胀法导出功能",
+                "zh-TW": "完成絕熱膨脹法匯出功能",
+                "en": "Completed adiabatic-expansion exports"
+              },
+              "body": {
+                "zh-CN": "实验文件可分别导出报告、图表或完整实验包，覆盖全部真实组与理想组。报告按实验文件信息、记录结果、计算结果和评价组织，采用编号层级、三线表、统一科学图形以及宋体和 Times New Roman 字体规范。",
+                "zh-TW": "實驗檔案可分別匯出報告、圖表或完整實驗包，涵蓋全部真實組與理想組。報告按實驗檔案資訊、記錄結果、計算結果和評價組織，採用編號層級、三線表、統一科學圖形以及宋體和 Times New Roman 字型規範。",
+                "en": "Experiment files can export a report, figures, or a complete experiment package covering every real and ideal group. Reports organize file information, recorded results, calculations, and evaluation with numbered hierarchy, three-line tables, consistent scientific figures, and unified Chinese and Latin fonts."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "实验推进与重新开始操作",
+            "zh-TW": "實驗推進與重新開始操作",
+            "en": "Experiment progression and restart controls"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-reset-flow",
+              "importance": "high",
+              "title": {
+                "zh-CN": "修复自动换次和重置边界",
+                "zh-TW": "修正自動換次和重設邊界",
+                "en": "Fixed automatic progression and restart boundaries"
+              },
+              "body": {
+                "zh-CN": "移除会重新创建实验组或误入演示限制的错误重置入口。进度省略号现在分别提供“重新开始第 X 次实验”和“重新开始本组实验”，两者使用统一确认窗口，并严格保留不在当前操作范围内的已完成实验和实验组。",
+                "zh-TW": "移除會重新建立實驗組或誤入演示限制的錯誤重設入口。進度省略號現在分別提供「重新開始第 X 次實驗」和「重新開始本組實驗」，兩者使用統一確認視窗，並嚴格保留不在目前操作範圍內的已完成實驗和實驗組。",
+                "en": "Removed ambiguous reset actions that could recreate a group or enter demo-only restrictions. The progress overflow menu now separates restarting the current experiment from restarting the current group, uses consistent confirmations, and preserves completed work outside the selected scope."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.2.2",
+      "date": "2026-07-25",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.2.2",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.2.2/heat-capacity-lab-setup-5.2.2.exe"
+      },
+      "summary": {
+        "zh-CN": "5.2.2 是开屏流程热修复：工作区恢复达到 100% 后会正常完成淡出并进入软件，不再停留在加载界面。",
+        "zh-TW": "5.2.2 是開屏流程熱修復：工作區還原達到 100% 後會正常完成淡出並進入軟體，不再停留在載入介面。",
+        "en": "Version 5.2.2 is a startup-flow hotfix: after workspace restoration reaches 100%, the splash now fades out and enters the app instead of remaining on the loading screen."
+      },
+      "sections": [
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "开屏与工作区恢复",
+            "zh-TW": "開屏與工作區還原",
+            "en": "Startup and workspace restoration"
+          },
+          "items": [
+            {
+              "scope": "startup-completion",
+              "importance": "high",
+              "title": {
+                "zh-CN": "修复开屏停留在 100%",
+                "zh-TW": "修正開屏停留在 100%",
+                "en": "Fixed the startup screen remaining at 100%"
+              },
+              "body": {
+                "zh-CN": "将“工作区已就绪”“开屏淡出”和“进入工作台”拆分为连续且互不取消的三个阶段，避免 React 状态切换提前清除退出计时器。正常动画与系统减少动态效果两条路径均会在工作台完成绘制后可靠关闭开屏。",
+                "zh-TW": "將「工作區已就緒」「開屏淡出」和「進入工作台」拆分為連續且互不取消的三個階段，避免 React 狀態切換提前清除結束計時器。正常動畫與系統減少動態效果兩條路徑均會在工作台完成繪製後可靠關閉開屏。",
+                "en": "Workspace ready, splash fade-out, and workbench entry now run as three consecutive stages that cannot cancel one another, preventing React state cleanup from clearing the exit timer. Both normal and reduced-motion paths reliably dismiss the splash after the workbench is painted."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.2.1",
+      "date": "2026-07-25",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.2.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.2.1/heat-capacity-lab-setup-5.2.1.exe"
+      },
+      "summary": {
+        "zh-CN": "5.2.1 完成首次使用与启动体验升级：新增三语言产品介绍和学习选择，统一工程软件提示体系，并以可感知进度的欢迎动画恢复工作区。",
+        "zh-TW": "5.2.1 完成首次使用與啟動體驗升級：新增三語言產品介紹和學習選擇，統一工程軟體提示體系，並以可感知進度的歡迎動畫還原工作區。",
+        "en": "Version 5.2.1 completes the first-run and startup experience with trilingual product guidance, learning preferences, a unified engineering prompt system, and a welcome animation driven by visible workspace restoration progress."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "首次使用与产品介绍",
+            "zh-TW": "首次使用與產品介紹",
+            "en": "First-run experience and product introduction"
+          },
+          "items": [
+            {
+              "scope": "first-run-onboarding",
+              "importance": "high",
+              "title": {
+                "zh-CN": "建立完整的三语言首次使用流程",
+                "zh-TW": "建立完整的三語言首次使用流程",
+                "en": "Introduced a complete trilingual first-run flow"
+              },
+              "body": {
+                "zh-CN": "首次启动依次完成软件语言选择、欢迎、产品介绍、实验熟悉度选择和许可确认。许可版本更新时只重新确认许可，不重复产品介绍；不同意会安全退出且不保存本轮选择。",
+                "zh-TW": "首次啟動依序完成軟體語言選擇、歡迎、產品介紹、實驗熟悉度選擇和授權確認。授權版本更新時只重新確認授權，不重複產品介紹；不同意會安全結束且不儲存本輪選擇。",
+                "en": "The first launch now covers app-language selection, welcome, product introduction, experiment familiarity, and legal consent in order. A changed legal version repeats only consent, while declining exits safely without retaining the current choices."
+              }
+            },
+            {
+              "scope": "product-introduction",
+              "importance": "high",
+              "title": {
+                "zh-CN": "加入可重录的三页动态产品介绍",
+                "zh-TW": "加入可重錄的三頁動態產品介紹",
+                "en": "Added a re-recordable three-page animated introduction"
+              },
+              "body": {
+                "zh-CN": "三页内容分别展示实验工作区的建立、演示／引导／自由三种学习方式，以及计算核验和过程回顾。介绍支持自动轮播、连续翻页、暂停、三语言与减少动态效果，并保留独立录制结构以便界面更新后重新生成素材。",
+                "zh-TW": "三頁內容分別展示實驗工作區的建立、演示／引導／自由三種學習方式，以及計算核驗和過程回顧。介紹支援自動輪播、連續翻頁、暫停、三語言與減少動態效果，並保留獨立錄製結構以便介面更新後重新產生素材。",
+                "en": "Three pages demonstrate workspace creation, Demo, Guide, and Free learning modes, plus calculation verification and Process Review. The introduction supports autoplay, queued navigation, pause, three languages, reduced motion, and a dedicated capture structure for regenerating media after UI changes."
+              }
+            },
+            {
+              "scope": "startup-experience",
+              "importance": "high",
+              "title": {
+                "zh-CN": "用欢迎动画呈现真实工作区恢复进度",
+                "zh-TW": "以歡迎動畫呈現真實工作區還原進度",
+                "en": "Connected the welcome animation to real workspace restoration"
+              },
+              "body": {
+                "zh-CN": "桌面启动不再显示黑色文字占位页，而是按存储准备、读取、迁移、恢复和工作台就绪阶段平滑显示 0–100% 进度。恢复较慢时在 99% 显示等待动画；失败时提供重试与安全进入，并且只有工作台真正绘制后才完成开屏。",
+                "zh-TW": "桌面啟動不再顯示黑色文字佔位頁，而是依儲存準備、讀取、遷移、還原和工作台就緒階段平滑顯示 0–100% 進度。還原較慢時在 99% 顯示等待動畫；失敗時提供重試與安全進入，且只有工作台真正繪製後才完成開屏。",
+                "en": "Desktop startup replaces the black text placeholder with smooth 0–100% progress across storage preparation, reading, migration, restoration, and workbench readiness. A spinner appears when restoration waits at 99%, failures offer retry and safe entry, and completion occurs only after the workbench is actually painted."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "教学与提示交互",
+            "zh-TW": "教學與提示互動",
+            "en": "Tutorial and prompt interactions"
+          },
+          "items": [
+            {
+              "scope": "tutorial-learning-flow",
+              "importance": "high",
+              "title": {
+                "zh-CN": "按熟悉度逐步开放实验模式",
+                "zh-TW": "依熟悉度逐步開放實驗模式",
+                "en": "Unlocked experiment modes progressively from familiarity choices"
+              },
+              "body": {
+                "zh-CN": "不了解本软件绝热膨胀法实验操作逻辑的用户会进入专用教程文件，依次完成演示和引导后解锁全部模式；教程期间旧文件保持安全、实验相关的新建和打开操作受控，并可从设置退出或重新进入学习流程。",
+                "zh-TW": "不瞭解本軟體絕熱膨脹法實驗操作邏輯的使用者會進入專用教學檔案，依序完成演示和引導後解鎖全部模式；教學期間舊檔案保持安全、實驗相關的新建和開啟操作受控，並可從設定結束或重新進入學習流程。",
+                "en": "Users unfamiliar with the app's adiabatic-expansion workflow enter a dedicated tutorial file and unlock all modes after Demo and Guide. Existing files remain safe, experiment-related open and create actions are controlled during learning, and Settings can exit or restart the learning flow."
+              }
+            },
+            {
+              "scope": "prompt-system",
+              "importance": "high",
+              "title": {
+                "zh-CN": "统一工程软件提示体系",
+                "zh-TW": "統一工程軟體提示體系",
+                "en": "Unified the engineering prompt system"
+              },
+              "body": {
+                "zh-CN": "确认、普通告知、强制告知、短时反馈、持续警报和控件说明共用一致的窗口结构、状态语义与键盘规则，替换运行路径中的浏览器原生确认和零散提示样式。",
+                "zh-TW": "確認、一般告知、強制告知、短時回饋、持續警報和控制項說明共用一致的視窗結構、狀態語意與鍵盤規則，取代執行路徑中的瀏覽器原生確認和零散提示樣式。",
+                "en": "Confirmations, notices, forced notices, transient feedback, persistent alerts, and control help now share one window structure, state language, and keyboard policy, replacing native browser confirmations and fragmented prompt styling in active flows."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "恢复与可靠性修复",
+            "zh-TW": "還原與可靠性修復",
+            "en": "Recovery and reliability fixes"
+          },
+          "items": [
+            {
+              "scope": "tutorial-session-recovery",
+              "importance": "high",
+              "title": {
+                "zh-CN": "避免浏览器教程窗口关闭后被锁定",
+                "zh-TW": "避免瀏覽器教學視窗關閉後被鎖定",
+                "en": "Prevented tutorial lockout after closing a browser window"
+              },
+              "body": {
+                "zh-CN": "当原教程窗口已经关闭或失效时，新窗口可以安全接管学习会话，不再反复提示必须返回不存在的窗口；误选教程的用户也可以通过设置明确退出。",
+                "zh-TW": "當原教學視窗已關閉或失效時，新視窗可以安全接管學習工作階段，不再反覆提示必須返回不存在的視窗；誤選教學的使用者也可以透過設定明確結束。",
+                "en": "A new browser window can safely reclaim the learning session when the original tutorial window is closed or stale, avoiding a loop that points to a missing window. Users who entered learning by mistake can also exit explicitly from Settings."
+              }
+            },
+            {
+              "scope": "workspace-normalization",
+              "importance": "high",
+              "title": {
+                "zh-CN": "修复工作区规范化保存失败的根因",
+                "zh-TW": "修正工作區規範化儲存失敗的根因",
+                "en": "Fixed the root cause of normalized workspace save failures"
+              },
+              "body": {
+                "zh-CN": "持久化投影会在写入前正确处理未定义字段，避免有效工作区因规范化失败而无法保存；桌面正式构建与浏览器预览共用同一生产路径。",
+                "zh-TW": "持久化投影會在寫入前正確處理未定義欄位，避免有效工作區因規範化失敗而無法儲存；桌面正式建置與瀏覽器預覽共用同一生產路徑。",
+                "en": "Persistence projection now handles undefined fields before writing so valid workspaces cannot fail normalization. Desktop production builds and browser previews share the same production path."
+              }
+            },
+            {
+              "scope": "microscopic-visualization",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "恢复探索状态的显微可视化开关",
+                "zh-TW": "還原探索狀態的顯微可視化開關",
+                "en": "Restored the microscopic visualization switch in Explore state"
+              },
+              "body": {
+                "zh-CN": "探索状态重新允许切换显微可视化，且不会误启动正式实验的数据记录和报告流程。",
+                "zh-TW": "探索狀態重新允許切換顯微可視化，且不會誤啟動正式實驗的資料記錄和報告流程。",
+                "en": "Explore state once again allows microscopic visualization without inadvertently starting formal experiment recording or report generation."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.2.0",
+      "date": "2026-07-20",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.2.0",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.2.0/heat-capacity-lab-setup-5.2.0.exe"
+      },
+      "summary": {
+        "zh-CN": "5.2.0 是稳定性与兼容性更新：长时间实验不再因高频整量保存逐渐卡顿，并可无损迁移 4.2.3 和 5.1.1 的有效工作区；已撤回的 5.1.2 废版数据不在兼容承诺内。",
+        "zh-TW": "5.2.0 是穩定性與相容性更新：長時間實驗不再因高頻整量儲存逐漸卡頓，並可無損遷移 4.2.3 和 5.1.1 的有效工作區；已撤回的 5.1.2 廢版資料不在相容承諾內。",
+        "en": "Version 5.2.0 is a stability and compatibility update that removes high-frequency whole-workspace saves from long experiments and preserves valid 4.2.3 and 5.1.1 workspaces. Data written by the withdrawn 5.1.2 build is outside the compatibility guarantee."
+      },
+      "sections": [
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "保存与运行稳定性",
+            "zh-TW": "儲存與執行穩定性",
+            "en": "Save and runtime stability"
+          },
+          "items": [
+            {
+              "scope": "persistence-worker-scheduler",
+              "importance": "high",
+              "title": {
+                "zh-CN": "后台提交最新的工作区检查点",
+                "zh-TW": "背景提交最新的工作區檢查點",
+                "en": "Committed the latest workspace checkpoint in the background"
+              },
+              "body": {
+                "zh-CN": "语义操作使用 750 毫秒防抖和 2 秒最长等待，连续运行每 15 秒最多保存一次；V3 投影、指纹、候选代写入与回读校验移入 Worker，暂停、停止、隐藏和退出立即刷新。",
+                "zh-TW": "語義操作使用 750 毫秒防抖和 2 秒最長等待，連續執行每 15 秒最多儲存一次；V3 投影、指紋、候選代寫入與回讀校驗移入 Worker，暫停、停止、隱藏和結束立即刷新。",
+                "en": "Semantic operations use a 750 ms debounce and 2-second maximum wait, continuous running checkpoints at most every 15 seconds, and V3 projection, fingerprinting, candidate writes, and read-back verification run in a Worker. Pause, stop, hide, and exit flush immediately."
+              }
+            },
+            {
+              "scope": "save-failure-recovery",
+              "importance": "high",
+              "title": {
+                "zh-CN": "保存失败不再中断完整实验流程",
+                "zh-TW": "儲存失敗不再中斷完整實驗流程",
+                "en": "Kept save failures from interrupting complete experiment flows"
+              },
+              "body": {
+                "zh-CN": "临时事务错误按 250 毫秒、1 秒、3 秒重试；空间不足时清理无效候选代后重试。失败始终保留最后成功代，并以非阻断状态提示代替致命窗口。",
+                "zh-TW": "暫時交易錯誤按 250 毫秒、1 秒、3 秒重試；空間不足時清理無效候選代後重試。失敗始終保留最後成功代，並以非阻斷狀態提示取代致命視窗。",
+                "en": "Temporary transaction failures retry after 250 ms, 1 second, and 3 seconds, while quota failures prune invalid candidates before retrying. Failures retain the last verified generation and use non-blocking status instead of a fatal dialog."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "兼容与耐久",
+            "zh-TW": "相容與耐久",
+            "en": "Compatibility and endurance"
+          },
+          "items": [
+            {
+              "scope": "legacy-workspace-compatibility",
+              "importance": "high",
+              "title": {
+                "zh-CN": "固定支持两个历史版本的实验工作区",
+                "zh-TW": "固定支援兩個歷史版本的實驗工作區",
+                "en": "Added fixed compatibility for two historical workspace versions"
+              },
+              "body": {
+                "zh-CN": "由 Git 标签生成的 4.2.3 和 5.1.1 固定夹具验证标准模拟、理想气体和热容比文件的名称、类型、开闭状态、参数、测量、结果和模式在 V2 到 V3 迁移后保持一致；原 V2 数据保留不动。已撤回的 5.1.2 废版实验数据不在兼容承诺内。",
+                "zh-TW": "由 Git 標籤產生的 4.2.3 和 5.1.1 固定夾具驗證標準模擬、理想氣體和熱容比檔案的名稱、類型、開閉狀態、參數、測量、結果和模式在 V2 到 V3 遷移後保持一致；原 V2 資料保留不動。已撤回的 5.1.2 廢版實驗資料不在相容承諾內。",
+                "en": "Fixed fixtures generated from the 4.2.3 and 5.1.1 Git tags verify that standard, ideal-gas, and heat-capacity names, types, open/closed state, parameters, measurements, results, and modes survive V2-to-V3 migration while original V2 data remains unchanged. Experimental data written by the withdrawn 5.1.2 build is outside the compatibility guarantee."
+              }
+            },
+            {
+              "scope": "free-trace-v6-bounds",
+              "importance": "high",
+              "title": {
+                "zh-CN": "为 Free 轨迹建立版本 6 硬上限",
+                "zh-TW": "為 Free 軌跡建立版本 6 硬上限",
+                "en": "Introduced hard bounds for Free trace version 6"
+              },
+              "body": {
+                "zh-CN": "每分支最多 800 个采样和 320 个详细事件，每试验最多 4 个详细分支，每参数域最多 7 个已完成试验加 1 个当前试验。压缩摘要保留 U0/U1/U2、计算、评分、阶段和安全关系，并迁移 v4、v5 轨迹。",
+                "zh-TW": "每分支最多 800 個採樣和 320 個詳細事件，每試驗最多 4 個詳細分支，每參數域最多 7 個已完成試驗加 1 個目前試驗。壓縮摘要保留 U0/U1/U2、計算、評分、階段和安全關係，並遷移 v4、v5 軌跡。",
+                "en": "Each branch is limited to 800 samples and 320 detailed events, each trial to 4 detailed branches, and each parameter domain to 7 completed trials plus the active trial. Versioned summaries retain authoritative U0/U1/U2, calculation, scoring, phase, and safety relationships while migrating v4 and v5 traces."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "5.1.2",
       "date": "2026-07-18",
       "channel": "stable",

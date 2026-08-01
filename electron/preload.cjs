@@ -29,6 +29,17 @@ contextBridge.exposeInMainWorld('hardSphereLabWindow', {
   },
 });
 
+contextBridge.exposeInMainWorld('hardSphereLabTutorial', {
+  activate: () => ipcRenderer.invoke('hsl-tutorial:activate'),
+  finalizeActivation: (namespaces) => ipcRenderer.invoke(
+    'hsl-tutorial:finalize-activation',
+    namespaces,
+  ),
+  deactivate: () => ipcRenderer.invoke('hsl-tutorial:deactivate'),
+  getState: () => ipcRenderer.invoke('hsl-tutorial:get-state'),
+  exitApplication: () => ipcRenderer.invoke('hsl-tutorial:exit-application'),
+});
+
 contextBridge.exposeInMainWorld('hardSphereLabUserGuide', {
   openUserGuide: (language) => ipcRenderer.invoke('hsl-user-guide:open', language),
 });

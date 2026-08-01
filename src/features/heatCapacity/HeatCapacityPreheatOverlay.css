@@ -1,25 +1,23 @@
 .studio-heat-preheat {
   --studio-heat-preheat-progress: 0%;
-  --studio-heat-preheat-progress-color: rgb(14, 165, 233);
+  --studio-heat-preheat-progress-color: var(--prompt-accent, rgb(14, 165, 233));
   display: grid;
   width: min(320px, calc(100vw - 36px));
   aspect-ratio: 1 / 1;
   grid-template-rows: auto minmax(0, 1fr) auto;
   place-items: center;
   gap: 10px;
-  border: 1px solid color-mix(in srgb, var(--studio-heat-preheat-progress-color) 58%, rgba(148, 163, 184, 0.42));
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--studio-surface) 92%, transparent);
-  box-shadow:
-    0 18px 40px rgba(7, 12, 18, 0.34),
-    0 0 28px color-mix(in srgb, var(--studio-heat-preheat-progress-color) 12%, transparent);
-  color: var(--studio-text);
+  border: 1px solid var(--prompt-accent-border, rgba(79, 127, 184, 0.5));
+  border-radius: var(--prompt-radius-window, 5px);
+  background: var(--prompt-teaching-surface, var(--studio-surface));
+  box-shadow: var(--prompt-feedback-shadow, 0 18px 40px rgba(7, 12, 18, 0.34));
+  color: var(--prompt-text, var(--studio-text));
   padding: 24px 26px;
   text-align: center;
   pointer-events: auto;
-  backdrop-filter: blur(10px);
-  animation: studioOverlayFadeIn var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) both;
-  transition: border-color 180ms ease, box-shadow 180ms ease;
+  backdrop-filter: none;
+  animation: studioOverlayFadeIn var(--prompt-motion-normal, var(--studio-overlay-enter-duration)) var(--prompt-motion-ease, var(--studio-overlay-motion-ease)) both;
+  transition: border-color var(--prompt-motion-normal, 170ms) var(--prompt-motion-ease, ease-out);
 }
 
 .studio-heat-preheat-lock-layer {
@@ -100,11 +98,9 @@
 }
 
 .studio-theme-light .studio-heat-preheat {
-  background: color-mix(in srgb, var(--studio-surface) 94%, transparent);
-  box-shadow:
-    0 18px 38px rgba(32, 40, 48, 0.16),
-    0 0 26px color-mix(in srgb, var(--studio-heat-preheat-progress-color) 10%, transparent);
-  color: var(--studio-text);
+  background: var(--prompt-teaching-surface, var(--studio-surface));
+  box-shadow: var(--prompt-feedback-shadow, 0 18px 38px rgba(32, 40, 48, 0.16));
+  color: var(--prompt-text, var(--studio-text));
 }
 
 .studio-theme-light .studio-heat-preheat-kicker {

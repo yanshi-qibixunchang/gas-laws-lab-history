@@ -1,0 +1,89 @@
+.prompt-notice-dialog {
+  width: min(460px, calc(100vw - 48px));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.prompt-notice-body {
+  display: grid;
+  align-content: start;
+  gap: var(--prompt-space-3);
+  overflow: auto;
+  padding: var(--prompt-dialog-window-padding);
+}
+
+.prompt-notice-body p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--prompt-type-body);
+  line-height: 1.55;
+}
+
+.prompt-notice-details {
+  border-left: 3px solid var(--prompt-tone);
+  color: var(--prompt-muted);
+  padding-left: var(--prompt-space-2);
+}
+
+.prompt-notice-actions {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--prompt-border-soft);
+  background: var(--prompt-surface-muted);
+  padding: 8px var(--prompt-dialog-window-padding);
+}
+
+.prompt-notice-action {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--prompt-tone-border);
+  border-radius: var(--prompt-dialog-radius-control);
+  background: var(--prompt-primary-bg);
+  color: var(--prompt-primary-text);
+  padding: 0 12px;
+  font: inherit;
+  font-size: var(--prompt-type-button);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color var(--prompt-motion-fast) var(--prompt-motion-ease);
+}
+
+.prompt-notice-dialog[data-prompt-tone='warning'] .prompt-notice-action {
+  background: var(--prompt-warning-bg);
+  color: var(--prompt-warning-text);
+}
+
+.prompt-notice-dialog[data-prompt-tone='danger'] .prompt-notice-action {
+  background: var(--prompt-danger-bg);
+  color: var(--prompt-danger-text);
+}
+
+.prompt-notice-action:hover {
+  background: var(--prompt-primary-hover);
+}
+
+.prompt-notice-dialog[data-prompt-tone='warning'] .prompt-notice-action:hover {
+  background: var(--prompt-warning-hover);
+}
+
+.prompt-notice-dialog[data-prompt-tone='danger'] .prompt-notice-action:hover {
+  background: var(--prompt-danger-hover);
+}
+
+.prompt-notice-action:focus-visible {
+  outline: 2px solid var(--prompt-focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 520px) {
+  .prompt-notice-dialog {
+    width: calc(100vw - 24px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prompt-notice-action {
+    transition-duration: 1ms !important;
+  }
+}

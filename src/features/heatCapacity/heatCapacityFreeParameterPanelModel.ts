@@ -31,6 +31,7 @@ export interface HeatCapacityFreeNumberParameterDefinition {
   effect: Record<HeatCapacityParameterLanguage, string>;
   precision: number;
   min: number;
+  max?: number;
   toInputValue?: (draftValue: number) => number;
   fromInputValue?: (inputValue: number) => number;
 }
@@ -60,6 +61,7 @@ export type HeatCapacityFreeParameterLockReasonId =
   | 'freeModeOnly'
   | 'runningOrPaused'
   | 'powerOffBeforeNextGroup'
+  | 'batchStarted'
   | 'groupStarted';
 
 export const heatCapacityFreeParameterLockText: Record<
@@ -80,6 +82,11 @@ export const heatCapacityFreeParameterLockText: Record<
     'zh-CN': '请先关闭电源，完成本组实验后再调整参数。',
     'zh-TW': '請先關閉電源，完成本組實驗後再調整參數。',
     en: 'Turn off power first, then adjust parameters after this group is complete.',
+  },
+  batchStarted: {
+    'zh-CN': '当前实验组的参数已锁定。实验进行中可重新开始本组；本组完成后请先创建下一组，再调整新组参数。',
+    'zh-TW': '目前實驗組的參數已鎖定。實驗進行中可重新開始本組；本組完成後請先建立下一組，再調整新組參數。',
+    en: 'The current group parameters are locked. Restart this group while it is in progress, or create the next group before editing its parameters.',
   },
   groupStarted: {
     'zh-CN': '当前实验组已开始，参数已锁定。',
@@ -120,34 +127,34 @@ export const heatCapacityFreeSharedText = {
     en: 'Real Simulation',
   },
   idealProfile: {
-    'zh-CN': '理想状态',
-    'zh-TW': '理想狀態',
-    en: 'Ideal State',
+    'zh-CN': '理想参数',
+    'zh-TW': '理想參數',
+    en: 'Ideal Parameters',
   },
   idealProfileLockedHint: {
-    'zh-CN': '该实验文件已经有进程或实验组，真实模拟 / 理想状态只能在新建的自由实验文件中切换。',
-    'zh-TW': '此實驗檔案已經有進程或實驗組，真實模擬 / 理想狀態只能在新建的自由實驗檔案中切換。',
-    en: 'This experiment file already has progress or experiment groups. Real Simulation / Ideal State can only be changed in a newly created Free Mode file.',
+    'zh-CN': '当前实验组已开始，参数方案已锁定；完成本组后可为下一组切换真实模拟或理想参数。',
+    'zh-TW': '目前實驗組已開始，參數方案已鎖定；完成本組後可為下一組切換真實模擬或理想參數。',
+    en: 'The current group has started, so its scheme is locked. After completing it, choose Real Simulation or Ideal Parameters for the next group.',
   },
   idealProfileReadonlyNote: {
-    'zh-CN': '理想状态下，普通参数和高级参数由系统按理想过程自动设定，暂不可编辑。',
-    'zh-TW': '理想狀態下，普通參數和進階參數由系統按理想過程自動設定，暫不可編輯。',
-    en: 'In Ideal State, basic and advanced parameters are set automatically by the ideal process and cannot be edited.',
+    'zh-CN': '理想参数方案下，普通参数和高级参数由系统按理想过程自动设定，暂不可编辑。',
+    'zh-TW': '理想參數方案下，普通參數和進階參數由系統按理想過程自動設定，暫不可編輯。',
+    en: 'With Ideal Parameters, basic and advanced parameters are set automatically and cannot be edited.',
   },
   idealProfileReadonlyToast: {
-    'zh-CN': '理想状态下参数由系统自动设定。',
-    'zh-TW': '理想狀態下參數由系統自動設定。',
-    en: 'Parameters are automatically set in Ideal State.',
+    'zh-CN': '理想参数方案由系统自动设定。',
+    'zh-TW': '理想參數方案由系統自動設定。',
+    en: 'The Ideal Parameters scheme is configured automatically.',
   },
   idealProfileIntroTitle: {
-    'zh-CN': '确认开启理想状态',
-    'zh-TW': '確認開啟理想狀態',
-    en: 'Enable Ideal State',
+    'zh-CN': '确认启用理想参数',
+    'zh-TW': '確認啟用理想參數',
+    en: 'Enable Ideal Parameters',
   },
   idealProfileIntroBody: {
-    'zh-CN': '理想状态用于体验完全理想条件下的空气比热容比实验流程。开启后，普通参数和高级参数由系统按理想过程自动设定，暂不可编辑。如需回到真实模拟，再次点击此按钮即可。',
-    'zh-TW': '理想狀態用於體驗完全理想條件下的空氣比熱容比實驗流程。開啟後，普通參數和進階參數由系統按理想過程自動設定，暫不可編輯。如需回到真實模擬，再次點擊此按鈕即可。',
-    en: 'Ideal State lets you experience the heat-capacity ratio experiment under fully idealized conditions. Basic and advanced parameters are set automatically by the ideal process and cannot be edited. Click this button again to return to Real Simulation.',
+    'zh-CN': '理想参数用于体验完全理想条件下的空气比热容比实验。启用后，普通参数和高级参数由系统自动设定，不需要用户计算，也不参与评分。在实验组开始前可再次切回真实模拟。',
+    'zh-TW': '理想參數用於體驗完全理想條件下的空氣比熱容比實驗。啟用後，普通參數和進階參數由系統自動設定，不需要使用者計算，也不參與評分。在實驗組開始前可再次切回真實模擬。',
+    en: 'Ideal Parameters provide a fully idealized heat-capacity-ratio experiment. The system configures the parameters, calculates results automatically, and does not score the group. You can switch back to Real Simulation before the group starts.',
   },
   confirmEnableIdealProfile: {
     'zh-CN': '确认开启',
@@ -318,6 +325,7 @@ export const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberPar
     },
     precision: 3,
     min: 0,
+    max: 5,
   },
   {
     id: 'wallAmbientConductanceWPerK',
@@ -332,6 +340,7 @@ export const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberPar
     },
     precision: 3,
     min: 0,
+    max: 5,
   },
   {
     id: 'wallHeatCapacityJPerK',
@@ -346,6 +355,7 @@ export const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberPar
     },
     precision: 2,
     min: 1,
+    max: 5000,
   },
   {
     id: 'leakageRatePerS',
@@ -360,6 +370,7 @@ export const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberPar
     },
     precision: 5,
     min: 0,
+    max: 0.02,
   },
   {
     id: 'noiseMv',
@@ -387,7 +398,8 @@ export const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberPar
       en: 'Controls how slowly the pressure reading follows true pressure. The temperature channel uses its independent shared sensor model.',
     },
     precision: 3,
-    min: 0.001,
+    min: 1 / 60,
+    max: 100,
   },
   {
     id: 'u0ZeroToleranceMv',

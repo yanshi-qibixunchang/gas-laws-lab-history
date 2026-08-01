@@ -41,6 +41,7 @@ interface WorkbenchTopCommandsCopy {
     newExperiment: string;
     idealStudy: string;
     heatCapacityStudy: string;
+    heatCapacityPistonOscillationStudy: string;
     standardStudy: string;
     openExperiment: string;
     noCachedExperiments: string;
@@ -230,6 +231,10 @@ export const WorkbenchTopCommands = ({
                 <Gauge size={14} />
                 <span>{copy.menus.heatCapacityStudy}</span>
               </button>
+              <button type="button" onClick={() => onCreateFile('heatCapacityPistonOscillation')}>
+                <Gauge size={14} />
+                <span>{copy.menus.heatCapacityPistonOscillationStudy}</span>
+              </button>
               <button type="button" onClick={() => onCreateFile('standard')}>
                 <Activity size={14} />
                 <span>{copy.menus.standardStudy}</span>
@@ -387,6 +392,7 @@ export const WorkbenchTopCommands = ({
           <button
             type="button"
             key={command.id}
+            data-workbench-top-command={command.id}
             className={`studio-command-button ${openMenu === command.id ? 'studio-command-button-active' : ''}`}
             onClick={(event) => onToggleMenu(command.id, event.currentTarget.offsetLeft)}
           >

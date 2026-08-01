@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   applyHeatCapacityFreeRecordWorkbenchState,
   completeHeatCapacityFreePreheatWorkbenchState,
+  configureHeatCapacityFreeBatchWorkbenchState,
   createDefaultHeatCapacityFile,
   deriveHeatCapacityFreeWorkbenchAttemptWaitTimer,
   evaluateHeatCapacityFreeAttemptTimeoutWorkbenchState,
@@ -18,8 +19,16 @@ import {
 } from '../../src/features/workbench/workbenchState.ts';
 
 // Physical state and calibration exist independently of observation power.
-const fresh = createDefaultHeatCapacityFile(41);
-let harmlessPrePowerOperation = createDefaultHeatCapacityFile(42);
+const fresh = configureHeatCapacityFreeBatchWorkbenchState(
+  createDefaultHeatCapacityFile(41),
+  3,
+  1,
+);
+let harmlessPrePowerOperation = configureHeatCapacityFreeBatchWorkbenchState(
+  createDefaultHeatCapacityFile(42),
+  3,
+  1,
+);
 harmlessPrePowerOperation = setHeatCapacityFreeStopcockOpen(harmlessPrePowerOperation, true, 100);
 harmlessPrePowerOperation = stepHeatCapacityWorkbenchFile(harmlessPrePowerOperation, 600);
 harmlessPrePowerOperation = powerHeatCapacityWorkbenchFile(harmlessPrePowerOperation, true, 700);

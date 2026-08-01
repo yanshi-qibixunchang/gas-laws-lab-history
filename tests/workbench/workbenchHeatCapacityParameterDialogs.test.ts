@@ -9,23 +9,28 @@ const workbenchSource = readFileSync(
   new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url),
   'utf8',
 );
+const shellSource = readFileSync(
+  new URL('../../src/components/prompts/PromptDialogShell.tsx', import.meta.url),
+  'utf8',
+);
 
 assert.match(componentSource, /interface WorkbenchHeatCapacityDialogCopy/, 'parameter dialogs should share a typed localized copy contract');
 assert.match(componentSource, /const WorkbenchHeatCapacityModalDialog/, 'restore and ideal confirmations should share one modal shell');
 assert.match(componentSource, /export const WorkbenchHeatCapacityRestoreDefaultDialog/, 'restore-default confirmation should have a named component');
 assert.match(componentSource, /export const WorkbenchHeatCapacityIdealProfileIntroDialog/, 'ideal-profile confirmation should have a named component');
 assert.match(componentSource, /export const WorkbenchHeatCapacityAdvancedRiskDialog/, 'advanced-risk confirmation should have a named component');
-assert.match(componentSource, /role="alertdialog"[\s\S]*aria-modal="true"/, 'confirmation dialogs should preserve modal alert semantics');
-assert.match(componentSource, /onMouseDown=\{onCancel\}[\s\S]*event\.stopPropagation\(\)/, 'shared modal confirmations should close outside while preserving inside interaction');
+assert.match(componentSource, /<PromptDialogShell[\s\S]*role="alertdialog"/, 'confirmation dialogs should use the shared alert-dialog shell');
+assert.match(shellSource, /aria-modal="true"/, 'the shared shell should preserve modal semantics');
+assert.match(componentSource, /dismiss=\{\{ closeButton: false, escape: true, backdrop: true \}\}/, 'parameter confirmations should keep cancel-by-Escape and cancel-by-mask without adding a title-bar close button');
 assert.match(
   workbenchSource,
-  /className="studio-heat-advanced-overlay"[\s\S]*onMouseDown=\{cancelHeatCapacityAdvancedParameterDraft\}/,
-  'the advanced-risk confirmation should close from its surrounding overlay',
+  /onRequestClose=\{cancelHeatCapacityAdvancedParameterDraft\}[\s\S]*overlayClassName="studio-heat-advanced-overlay"/,
+  'the advanced parameter task window should route its mask through the shared close contract',
 );
 assert.match(
   componentSource,
-  /className="studio-heat-advanced-risk-window"[\s\S]*onMouseDown=\{\(event\) => event\.stopPropagation\(\)\}/,
-  'the advanced-risk confirmation should preserve clicks inside the dialog',
+  /overlayClassName="studio-heat-advanced-risk-overlay"[\s\S]*dialogClassName="studio-heat-advanced-risk-window"/,
+  'the advanced-risk confirmation should have its own top-layer shared shell',
 );
 assert.doesNotMatch(workbenchSource, /const renderHeatCapacityRestoreDefaultDialog|const renderHeatCapacityIdealProfileIntroDialog|const renderHeatCapacityAdvancedRiskDialog/, 'workbench should not retain legacy parameter-confirmation render helpers');
 

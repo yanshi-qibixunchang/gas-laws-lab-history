@@ -147,6 +147,7 @@ type HeatCapacityUltraInstrumentModelProps = {
   pumpBulbInteractionEnabled: boolean;
   demoFocusControlId: string | null;
   demoFocusPulseActive: boolean;
+  demoFocusPulseTimeSeconds?: number;
   interactionQualityReduced: boolean;
   visualEffects: UltraVisualEffects;
   hoveredControl: UltraHoveredControl;
@@ -2227,6 +2228,7 @@ function UltraNodeHalo({
   parentRef,
   effects,
   suspended,
+  pulseTimeSeconds,
 }: {
   target: UltraControlVisualTarget;
   mode: 'hover' | 'focus';
@@ -2234,6 +2236,7 @@ function UltraNodeHalo({
   parentRef: React.RefObject<THREE.Group | null>;
   effects: UltraVisualEffects;
   suspended: boolean;
+  pulseTimeSeconds?: number;
 }) {
   const groupRef = useRef<THREE.Group | null>(null);
   const hoverMeshRef = useRef<THREE.Mesh | null>(null);
@@ -2365,9 +2368,12 @@ function UltraNodeHalo({
         return;
       }
 
-      const breath = getUltraGuideCuePulse(clock.elapsedTime, 0.46);
+      const pulseTime = pulseTimeSeconds ?? clock.elapsedTime;
+      const breath = getUltraGuideCuePulse(pulseTime, 0.46);
       if (focusPulseStartedAtRef.current === null) focusPulseStartedAtRef.current = clock.elapsedTime;
-      const focusPulseElapsed = Math.max(0, clock.elapsedTime - focusPulseStartedAtRef.current);
+      const focusPulseElapsed = pulseTimeSeconds === undefined
+        ? Math.max(0, clock.elapsedTime - focusPulseStartedAtRef.current)
+        : Math.max(0, pulseTimeSeconds);
       const wavePulse = getUltraGuideCuePulse(focusPulseElapsed, effects.focusShellPulseRate);
       const pulsePeakScale = target.focusShellPulsePopScale ?? effects.focusShellPulseStartScale;
       breathGroup.scale.setScalar(effects.focusShellBaseScale + breath * effects.focusShellBreathScale);
@@ -2393,7 +2399,7 @@ function UltraNodeHalo({
       return;
     }
 
-    const pulse = getUltraGuideCuePulse(clock.elapsedTime);
+    const pulse = getUltraGuideCuePulse(pulseTimeSeconds ?? clock.elapsedTime);
     hoverMesh.scale.setScalar(effects.demoHaloBaseScale + pulse * effects.demoHaloPulseScale);
     hoverMaterial.opacity = effects.demoHaloMinOpacity + pulse * (effects.demoHaloMaxOpacity - effects.demoHaloMinOpacity);
   });
@@ -2527,6 +2533,7 @@ function UltraPowerSwitchSkirtedRocker({
   sceneTheme,
   hovered,
   focused,
+  pulseTimeSeconds,
 }: {
   nodeMap: Map<string, THREE.Object3D>;
   parentRef: React.RefObject<THREE.Group | null>;
@@ -2534,6 +2541,7 @@ function UltraPowerSwitchSkirtedRocker({
   sceneTheme: HeatCapacityUltraInstrumentModelProps['sceneTheme'];
   hovered: boolean;
   focused: boolean;
+  pulseTimeSeconds?: number;
 }) {
   const groupRef = useRef<THREE.Group | null>(null);
   const focusPulseRef = useRef<THREE.Mesh | null>(null);
@@ -2597,7 +2605,9 @@ function UltraPowerSwitchSkirtedRocker({
     }
 
     if (focusPulseStartedAtRef.current === null) focusPulseStartedAtRef.current = clock.elapsedTime;
-    const focusPulseElapsed = Math.max(0, clock.elapsedTime - focusPulseStartedAtRef.current);
+    const focusPulseElapsed = pulseTimeSeconds === undefined
+      ? Math.max(0, clock.elapsedTime - focusPulseStartedAtRef.current)
+      : Math.max(0, pulseTimeSeconds);
     const wavePulse = getUltraGuideCuePulse(focusPulseElapsed);
     const pulseScale = THREE.MathUtils.lerp(1.04, 1.42, wavePulse);
     const pulseDepthScale = THREE.MathUtils.lerp(1.02, 1.18, wavePulse);
@@ -3547,6 +3557,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
         sceneTheme={props.sceneTheme}
         hovered={props.hoveredControl === 'powerSwitch'}
         focused={props.demoFocusPulseActive && props.demoFocusControlId === 'powerSwitch'}
+        pulseTimeSeconds={props.demoFocusPulseTimeSeconds}
       />
       <UltraPumpValveEmbeddedSwitch
         nodeMap={nodeMap}
@@ -3563,6 +3574,7 @@ function HeatCapacityUltraInstrumentModel(props: HeatCapacityUltraInstrumentMode
             parentRef={runtimeRootRef}
             effects={props.visualEffects}
             suspended={props.interactionQualityReduced}
+            pulseTimeSeconds={props.demoFocusPulseTimeSeconds}
           />
         ) : null
       ))}

@@ -32,6 +32,7 @@ import {
   HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS,
   completeHeatCapacityTeachingModeWorkbenchState,
   completeHeatCapacityGuidePreheatWorkbenchState,
+  configureHeatCapacityFreeBatchWorkbenchState,
   enterHeatCapacityFreeModeWorkbenchState,
   exitHeatCapacityTeachingModeWorkbenchState,
   getHeatCapacityFreeEquilibriumSpeedMultiplier,
@@ -44,7 +45,7 @@ import {
   recordHeatCapacityFreeTraceEventWithReference,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
   resetHeatCapacityFreeRunWorkbenchState,
-  resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState,
+  restartCurrentHeatCapacityFreeExperimentWorkbenchState,
   normalizeHeatCapacityStopcockAngle,
   powerHeatCapacityWorkbenchFile,
   prepareHeatCapacityAutoDemoStart,
@@ -58,7 +59,7 @@ import {
   setHeatCapacityFreeEquilibriumSpeedMultiplier,
   setHeatCapacityPressureZeroOffset,
   startHeatCapacityGuideWorkbenchState,
-  startNextHeatCapacityFreeExperimentGroupWorkbenchState,
+  prepareNextHeatCapacityFreeExperimentWorkbenchState,
   stepHeatCapacityWorkbenchFile,
   type WorkbenchHeatCapacityState,
 } from '../../src/features/workbench/workbenchState.ts';
@@ -98,6 +99,7 @@ import {
 import {
   truncateHeatCapacitySignalMv,
 } from '../../src/domain/heatCapacity/heatCapacitySignalDisplayModel.ts';
+import { mapTemperatureKToSignalMv } from '../../src/domain/heatCapacity/heatCapacitySensorMapping.ts';
 import type {
   HeatCapacityFreeEventType,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
@@ -186,7 +188,11 @@ assert.equal(realSelectedAgain.heatCapacityFreeParameterScheme, 'real');
 assert.equal(realSelectedAgain.heatCapacityFreeDisplayScheme, 'real');
 assert.equal(selectActiveHeatCapacityFreeDomain(realSelectedAgain).scheme, 'real');
 assert.equal(realSelectedAgain.heatCapacityFreeIdealDomain.trials.length, 0);
-const poweredIdeal = powerHeatCapacityWorkbenchFile(idealSelected, true, 1_200);
+const poweredIdeal = powerHeatCapacityWorkbenchFile(
+  configureHeatCapacityFreeBatchWorkbenchState(idealSelected, 3, 1_190),
+  true,
+  1_200,
+);
 assert.equal(poweredIdeal.heatCapacityFreeParameterScheme, 'ideal');
 assert.equal(poweredIdeal.heatCapacityFreeRealDomain.physicsState.simulationTimeS, 0);
 assert.equal(poweredIdeal.heatCapacityFreeRealDomain.traceStore.traceTrials.length, 0);
@@ -548,6 +554,11 @@ assert.equal(
   customAmbientTemperatureK,
   'the public parameter path should install the custom ambient temperature before reset',
 );
+assert.equal(
+  configuredCustomAmbientFile.heatCapacityFreeSensorConfig.temperatureMvAtAmbient,
+  mapTemperatureKToSignalMv(customAmbientTemperatureK),
+  'the public parameter path should raise the equilibrium voltage with ambient temperature',
+);
 const resetCustomAmbientFreeRun = resetHeatCapacityFreeRunWorkbenchState(
   configuredCustomAmbientFile,
   3_100,
@@ -566,6 +577,11 @@ assert.equal(
   resetCustomAmbientFreeRun.heatCapacityFreeSensorState.sensorTemperatureK,
   customAmbientTemperatureK,
   'Free reset should explicitly initialize the independent temperature sensor at ambient',
+);
+assert.equal(
+  resetCustomAmbientFreeRun.heatCapacityFreeSensorState.displayTemperatureMv,
+  mapTemperatureKToSignalMv(customAmbientTemperatureK),
+  'Free reset should expose the higher ambient temperature as a higher equilibrium voltage',
 );
 const demoModeStep = stepHeatCapacityWorkbenchFile({
   ...defaultFile,
@@ -620,7 +636,11 @@ assert.equal(
   null,
   'guide mode should not create Free trace artifacts while stepping Guide runtime',
 );
-const freePowered = powerHeatCapacityWorkbenchFile(defaultFile, true, 1_000);
+const freePowered = powerHeatCapacityWorkbenchFile(
+  configureHeatCapacityFreeBatchWorkbenchState(defaultFile, 3, 990),
+  true,
+  1_000,
+);
 const getFreeTraceEventTypes = (
   file: WorkbenchHeatCapacityState,
 ): HeatCapacityFreeEventType[] => {
@@ -869,21 +889,21 @@ const switchSchemeAfterCompletedHistory = setHeatCapacityFreeParameterSchemeWork
 );
 assert.equal(
   switchSchemeAfterCompletedHistory.heatCapacityFreeParameterScheme,
-  'ideal',
-  'Completed Free history should not lock the real/ideal parameter scheme; only a current active run should lock it',
+  'real',
+  'A started batch must keep one parameter scheme across all retained groups',
 );
 assert.equal(
   switchSchemeAfterCompletedHistory.heatCapacityFreeRealDomain.trials.length,
   1,
-  'Switching to ideal after completed real history should preserve the real-domain completed group',
+  'The retained real-domain group must remain in the active locked batch',
 );
 assert.equal(
   switchSchemeAfterCompletedHistory.heatCapacityFreeIdealDomain.trials.length,
   0,
-  'Switching to ideal after completed real history should enter a blank ideal-domain run',
+  'A locked batch must not silently switch into the ideal-domain run',
 );
 const completedPowerOnNextSeed = powerHeatCapacityWorkbenchFile(
-  startNextHeatCapacityFreeExperimentGroupWorkbenchState(completedPowerOffPrepared, 1_690),
+  prepareNextHeatCapacityFreeExperimentWorkbenchState(completedPowerOffPrepared, 1_690),
   true,
   1_690,
 );
@@ -897,8 +917,8 @@ assert.equal(completedPowerOnNextSeed.heatCapacityFreePhysicsState.pumpStrokeCou
 assert.equal(completedPowerOnNextSeed.heatCapacityFreePhysicsState.releaseStarted, false);
 assert.equal(completedPowerOnNextSeed.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG);
 assert.equal(completedPowerOnNextSeed.pumpValveOpen, false);
-const completedResetOnce = resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState(completedPowerOffPrepared, 1_700);
-const completedResetTwice = resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState(completedResetOnce, 1_700);
+const completedResetOnce = restartCurrentHeatCapacityFreeExperimentWorkbenchState(completedPowerOffPrepared, 1_700);
+const completedResetTwice = restartCurrentHeatCapacityFreeExperimentWorkbenchState(completedResetOnce, 1_700);
 assert.equal(completedResetTwice.heatCapacityFreeTrials.length, 1);
 assert.equal(
   completedResetTwice.heatCapacityFreeTraceStore.traceTrials.length,
@@ -1928,7 +1948,11 @@ assert.equal(exitedAfterTeachingCompletion.heatCapacityTeachingStatus, 'idle');
 assert.equal(exitedAfterTeachingCompletion.heatCapacityGuideTrial, null);
 assert.deepEqual(exitedAfterTeachingCompletion.heatCapacityProcessSamples, {});
 
-const poweredAfterTeachingCompletion = powerHeatCapacityWorkbenchFile(exitedAfterTeachingCompletion, true, 31_100);
+const poweredAfterTeachingCompletion = powerHeatCapacityWorkbenchFile(
+  configureHeatCapacityFreeBatchWorkbenchState(exitedAfterTeachingCompletion, 3, 31_050),
+  true,
+  31_100,
+);
 assert.equal(poweredAfterTeachingCompletion.heatCapacityMode, 'free');
 assert.equal(poweredAfterTeachingCompletion.powerOn, true);
 assert.equal(poweredAfterTeachingCompletion.pressureDeltaKPa, 0);
@@ -2545,7 +2569,33 @@ assert.equal(
   'Free Mode should enter zeroed state when near-zero samples belong to an explicit user zero event',
 );
 
-const restored = decodeWorkbenchSession({
+const restoredDomainOpen = decodeWorkbenchSession({
+  version: WORKBENCH_SESSION_VERSION,
+  activeFileId: freeZeroingOpen.id,
+  selectedPanel: 'preview',
+  files: [{
+    ...freeZeroingOpen,
+    stopcockAngleDeg: 359,
+    glassPistonState: 'open',
+    pressureSignalMv: 0,
+  }],
+});
+
+const restoredDomainOpenFile = restoredDomainOpen.files[0];
+assert.equal(restoredDomainOpenFile.kind, 'heatCapacity');
+assert.equal(
+  restoredDomainOpenFile.stopcockAngleDeg,
+  HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG,
+);
+assert.equal(restoredDomainOpenFile.glassPistonState, 'open');
+assert.equal(restoredDomainOpenFile.heatCapacityReleaseState.purpose, 'zeroing');
+assert.equal(
+  selectActiveHeatCapacityFreeDomain(restoredDomainOpenFile).releaseState.phase,
+  'open',
+  'a valid domain-open fixture must restore the top-level instrument as open',
+);
+
+const restoredStaleTopLevel = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,
   activeFileId: defaultFile.id,
   selectedPanel: 'preview',
@@ -2563,18 +2613,21 @@ const restored = decodeWorkbenchSession({
       openingStartedAtS: 0,
       openingCompletedAtS: 0,
     },
-    pressureZeroed: true,
-    pressureSignalMv: 0,
   }],
 });
-
-const restoredHeatFile = restored.files[0];
-assert.equal(restoredHeatFile.kind, 'heatCapacity');
-assert.equal(restoredHeatFile.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG);
-assert.equal(restoredHeatFile.glassPistonState, 'open');
-assert.equal(restoredHeatFile.pressureZeroed, true);
-assert.equal(restoredHeatFile.pressureSignalMv, 0);
-assert.equal(restoredHeatFile.heatCapacityReleaseState.purpose, 'zeroing');
+const restoredStaleTopLevelFile = restoredStaleTopLevel.files[0];
+assert.equal(restoredStaleTopLevelFile.kind, 'heatCapacity');
+assert.equal(
+  restoredStaleTopLevelFile.stopcockAngleDeg,
+  HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
+);
+assert.equal(restoredStaleTopLevelFile.glassPistonState, 'closed');
+assert.equal(restoredStaleTopLevelFile.heatCapacityReleaseState.phase, 'closed');
+assert.equal(
+  selectActiveHeatCapacityFreeDomain(restoredStaleTopLevelFile).releaseState.phase,
+  'closed',
+  'the active domain must repair a stale top-level open projection',
+);
 
 const storedFileMissingInstrumentFields = { ...defaultFile } as Record<string, unknown>;
 delete storedFileMissingInstrumentFields.stopcockAngleDeg;

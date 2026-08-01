@@ -5,16 +5,18 @@ import type {
 import {
   isHeatCapacityFreeTrialComplete,
 } from './heatCapacityFreeTrialModel.ts';
-import type {
-  HeatCapacityFreeEvent,
-  HeatCapacityFreeEventType,
-  HeatCapacityFreeTraceBranch,
-  HeatCapacityFreeTraceSample,
-  HeatCapacityFreeTraceStore,
-  HeatCapacityFreeTraceTrial,
+import {
+  getFreeTraceTrialBranchCount,
+  type HeatCapacityFreeEvent,
+  type HeatCapacityFreeEventType,
+  type HeatCapacityFreeTraceBranch,
+  type HeatCapacityFreeTraceSample,
+  type HeatCapacityFreeTraceStore,
+  type HeatCapacityFreeTraceTrial,
 } from './heatCapacityFreeTraceModel.ts';
 import type {
   HeatCapacityOperationUpperBound,
+  HeatCapacityFreeBatchScore,
   HeatCapacityProcessDiagnosisId,
   HeatCapacityProcessDiagnosisStatus,
   HeatCapacityProcessRecordId,
@@ -24,6 +26,13 @@ import type {
   HeatCapacityProcessScoreSubItem,
   HeatCapacityProcessStageSegment,
 } from './heatCapacityFreeProcessReviewTypes.ts';
+import type {
+  HeatCapacityCalculationWorkflowSession,
+} from './heatCapacityCalculationWorkflowModel.ts';
+import {
+  HEAT_CAPACITY_FREE_SCORING_VERSION,
+  type HeatCapacityFreeScoringVersion,
+} from './heatCapacityFreeBatchModel.ts';
 import {
   createHeatCapacityFreeStandardReference,
   type HeatCapacityFreeStandardReferenceSnapshot,
@@ -31,6 +40,9 @@ import {
 import {
   scoreHeatCapacityFreeProcess,
 } from './heatCapacityFreeProcessScoringModel.ts';
+import {
+  calculateHeatCapacityFreeBatchScore,
+} from './heatCapacityFreeBatchScoringModel.ts';
 import {
   getHeatCapacityFreeGasTypeGamma,
 } from './heatCapacityGasTheory.ts';
@@ -44,6 +56,7 @@ export type {
   HeatCapacityProcessRecordId,
   HeatCapacityProcessReferencePoint,
   HeatCapacityOperationUpperBound,
+  HeatCapacityFreeBatchScore,
   HeatCapacityProcessReviewTrialOption,
   HeatCapacityProcessScore,
   HeatCapacityProcessScoreItem,
@@ -143,6 +156,7 @@ export interface HeatCapacityFreeProcessReview {
   chart: HeatCapacityProcessChartData;
   diagnostics: HeatCapacityProcessDiagnosisRow[];
   score: HeatCapacityProcessScore;
+  batchScore: HeatCapacityFreeBatchScore | null;
 }
 
 export interface SelectHeatCapacityFreeProcessReviewOptions {
@@ -151,6 +165,8 @@ export interface SelectHeatCapacityFreeProcessReviewOptions {
   theoreticalGamma?: number;
   trialIndex?: number;
   selectedTrialId?: string | null;
+  calculationSession?: HeatCapacityCalculationWorkflowSession | null;
+  scoringVersion?: HeatCapacityFreeScoringVersion;
 }
 
 const emptyChart = (): HeatCapacityProcessChartData => ({
@@ -162,9 +178,9 @@ const emptyChart = (): HeatCapacityProcessChartData => ({
   standardReference: null,
 });
 
-const emptyScore = (): HeatCapacityProcessScore => ({
+const emptyScore = (maxScore = 75): HeatCapacityProcessScore => ({
   total: null,
-  maxScore: 100,
+  maxScore,
   items: [],
 });
 
@@ -204,7 +220,9 @@ const createTrialOptions = (
   traceStore: HeatCapacityFreeTraceStore,
 ): HeatCapacityProcessReviewTrialOption[] => trials.map((trial, index) => {
   const traceTrial = findTraceTrial(traceStore, trial);
-  const branchCount = traceTrial?.branches.length ?? trial.branchCount;
+  const branchCount = traceTrial
+    ? getFreeTraceTrialBranchCount(traceTrial)
+    : trial.branchCount;
   return {
     trialId: trial.id,
     traceTrialId: traceTrial?.id ?? trial.traceTrialId,
@@ -597,7 +615,7 @@ const createSummary = (
   const gamma = trial.correctedSignals?.gamma ?? null;
   const branchCount = Math.max(
     trial.branchCount,
-    traceTrial.branches.length,
+    getFreeTraceTrialBranchCount(traceTrial),
   );
   return {
     trialIndex: trialIndex + 1,
@@ -651,9 +669,10 @@ const scoreItemToDiagnosisRow = (
 
 const createDiagnostics = (
   score: HeatCapacityProcessScore,
+  batchScore: HeatCapacityFreeBatchScore | null,
 ): HeatCapacityProcessDiagnosisRow[] => {
   const itemById = new Map(score.items.map((item) => [item.id, item]));
-  return [
+  const operationRows = [
     itemById.get('pumping'),
     itemById.get('release'),
     itemById.get('recordChain'),
@@ -661,6 +680,28 @@ const createDiagnostics = (
   ]
     .filter((item): item is HeatCapacityProcessScoreItem => item !== undefined)
     .map((item) => scoreItemToDiagnosisRow(item));
+  if (batchScore === null) return operationRows;
+  const calculation = batchScore.calculation;
+  return [
+    ...operationRows,
+    {
+      id: 'calculation',
+      title: '计算部分',
+      status: calculation.status,
+      evidence: calculation.total === null
+        ? '本组计算尚未完成。'
+        : '本组计算已完成。',
+      relation: '各次实验计算按平均权重计入，本组统计量按固定分值计入。',
+      recommendation: calculation.total === null
+        ? '完成本组所有实验次数与本组统计量的计算。'
+        : calculation.total === calculation.maxScore
+          ? '保持当前计算过程。'
+          : '展开明细，复核被扣分的数值与有效数字。',
+      score: calculation.total,
+      maxScore: calculation.maxScore,
+      details: calculation.details,
+    },
+  ];
 };
 
 export const selectHeatCapacityFreeProcessReview = ({
@@ -669,8 +710,13 @@ export const selectHeatCapacityFreeProcessReview = ({
   theoreticalGamma = DEFAULT_PROCESS_REVIEW_THEORETICAL_GAMMA,
   trialIndex,
   selectedTrialId,
+  calculationSession = null,
+  scoringVersion = HEAT_CAPACITY_FREE_SCORING_VERSION,
 }: SelectHeatCapacityFreeProcessReviewOptions): HeatCapacityFreeProcessReview => {
   const trialOptions = createTrialOptions(trials, traceStore);
+  const processScoreMaximum = scoringVersion === HEAT_CAPACITY_FREE_SCORING_VERSION
+    ? 75
+    : 100;
   const selected = selectTrial(trials, selectedTrialId, trialIndex);
   if (!selected) {
     return {
@@ -680,7 +726,8 @@ export const selectHeatCapacityFreeProcessReview = ({
       summary: null,
       chart: emptyChart(),
       diagnostics: createEmptyDiagnosis(),
-      score: emptyScore(),
+      score: emptyScore(processScoreMaximum),
+      batchScore: null,
     };
   }
 
@@ -693,7 +740,8 @@ export const selectHeatCapacityFreeProcessReview = ({
       summary: null,
       chart: emptyChart(),
       diagnostics: createEmptyDiagnosis(),
-      score: emptyScore(),
+      score: emptyScore(processScoreMaximum),
+      batchScore: null,
     };
   }
   const branch = selectMainBranch(traceTrial);
@@ -705,7 +753,8 @@ export const selectHeatCapacityFreeProcessReview = ({
       summary: null,
       chart: emptyChart(),
       diagnostics: createEmptyDiagnosis(),
-      score: emptyScore(),
+      score: emptyScore(processScoreMaximum),
+      batchScore: null,
     };
   }
 
@@ -731,14 +780,61 @@ export const selectHeatCapacityFreeProcessReview = ({
     branch,
     trial: selected.trial,
     summary,
-  });
+  }, scoringVersion);
+  const operationScoresByTrialId = new Map<string, HeatCapacityProcessScore>([
+    [selected.trial.id, score],
+  ]);
+  for (let index = 0; index < trials.length; index += 1) {
+    const trial = trials[index]!;
+    if (trial.id === selected.trial.id) continue;
+    const candidateTraceTrial = findTraceTrial(traceStore, trial);
+    const candidateBranch = candidateTraceTrial
+      ? selectMainBranch(candidateTraceTrial)
+      : null;
+    if (!candidateTraceTrial || !candidateBranch) continue;
+    const candidateTheoreticalGamma = trial.parameterScheme === 'ideal'
+      ? IDEAL_REVIEW_THEORETICAL_GAMMA
+      : theoreticalGamma;
+    const candidateReference = trial.standardReferenceSnapshot ??
+      createHeatCapacityFreeStandardReference({
+        traceTrial: candidateTraceTrial,
+        trial,
+        theoreticalGamma: candidateTheoreticalGamma,
+      });
+    const candidateUpperBound = createReviewUpperBound(
+      trial,
+      candidateReference,
+      candidateTheoreticalGamma,
+    );
+    const candidateSummary = createSummary(
+      trial,
+      index,
+      candidateTraceTrial,
+      candidateBranch,
+      candidateTheoreticalGamma,
+      candidateUpperBound,
+    );
+    operationScoresByTrialId.set(trial.id, scoreHeatCapacityFreeProcess({
+      traceTrial: candidateTraceTrial,
+      branch: candidateBranch,
+      trial,
+      summary: candidateSummary,
+    }, scoringVersion));
+  }
+  const batchScore = scoringVersion === HEAT_CAPACITY_FREE_SCORING_VERSION
+    ? calculateHeatCapacityFreeBatchScore({
+        session: calculationSession,
+        operationScoresByTrialId,
+      })
+    : null;
   return {
     status: isHeatCapacityFreeTrialComplete(selected.trial) ? 'ready' : 'incomplete',
     selectedTrialId: selected.trial.id,
     trialOptions,
     summary,
     chart: createChartData(traceTrial, branch, selected.trial, standardReference),
-    diagnostics: createDiagnostics(score),
+    diagnostics: createDiagnostics(score, batchScore),
     score,
+    batchScore,
   };
 };

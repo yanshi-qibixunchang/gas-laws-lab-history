@@ -22,6 +22,11 @@ export interface WorkbenchGeneralSettings {
   audioVolume: number;
 }
 
+export interface WorkbenchGeneralSettingsLoadResult {
+  settings: WorkbenchGeneralSettings;
+  persisted: boolean;
+}
+
 export const WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY = 'hsl_workbench_general_settings_v2';
 
 export const defaultWorkbenchGeneralSettings: WorkbenchGeneralSettings = {
@@ -79,6 +84,22 @@ export const normalizeWorkbenchGeneralSettings = (
 export const getSystemWorkbenchTheme = (): WorkbenchResolvedTheme => {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'light';
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+};
+
+export const loadWorkbenchGeneralSettingsWithStatus = (): WorkbenchGeneralSettingsLoadResult => {
+  if (typeof window === 'undefined') {
+    return { settings: defaultWorkbenchGeneralSettings, persisted: false };
+  }
+  try {
+    const raw = window.localStorage.getItem(WORKBENCH_GENERAL_SETTINGS_STORAGE_KEY);
+    if (!raw) return { settings: defaultWorkbenchGeneralSettings, persisted: false };
+    return {
+      settings: normalizeWorkbenchGeneralSettings(JSON.parse(raw)),
+      persisted: true,
+    };
+  } catch {
+    return { settings: defaultWorkbenchGeneralSettings, persisted: false };
+  }
 };
 
 export const loadWorkbenchGeneralSettings = (): WorkbenchGeneralSettings => {

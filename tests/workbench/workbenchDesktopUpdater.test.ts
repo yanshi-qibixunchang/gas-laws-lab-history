@@ -106,8 +106,8 @@ assert.doesNotMatch(
 );
 assert.match(
   workbenchSource,
-  /showAboutResultNotice\(workbenchCopy\.about\.updateResultTitle, workbenchCopy\.about\.updateErrorStatus\)/,
-  'manual updater failures should use the active localized error copy',
+  /showAboutResultNotice\(\s*workbenchCopy\.about\.updateResultTitle,\s*workbenchCopy\.about\.updateErrorStatus,\s*'danger',?\s*\)/,
+  'manual updater failures should use the active localized error copy and danger feedback level',
 );
 
 console.log('workbenchDesktopUpdater tests passed');

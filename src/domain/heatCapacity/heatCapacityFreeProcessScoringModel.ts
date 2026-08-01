@@ -22,6 +22,11 @@ import {
   calculateHeatCapacityGammaAbsoluteError,
   classifyHeatCapacityGammaAbsoluteError,
 } from './heatCapacityGasTheory.ts';
+import {
+  HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION,
+  HEAT_CAPACITY_FREE_SCORING_VERSION,
+  type HeatCapacityFreeScoringVersion,
+} from './heatCapacityFreeBatchModel.ts';
 
 export interface HeatCapacityProcessScoringInput {
   traceTrial: HeatCapacityFreeTraceTrial;
@@ -31,11 +36,120 @@ export interface HeatCapacityProcessScoringInput {
 }
 
 export const SCORE_MAX = {
+  pumping: 15,
+  release: 25,
+  recordChain: 30,
+  retake: 5,
+} as const;
+
+export const LEGACY_SCORE_MAX = {
   pumping: 20,
   release: 30,
   recordChain: 40,
   retake: 10,
 } as const;
+
+interface HeatCapacityProcessScoringProfile {
+  max: typeof SCORE_MAX | typeof LEGACY_SCORE_MAX;
+  pumping: {
+    pressure: number;
+    pressureLow: number;
+    safety: number;
+    safetyWarning: number;
+    rhythm: number;
+    stability: number;
+  };
+  release: {
+    valve: number;
+    response: number;
+    severeResponse: number;
+    recovery: number;
+    severeRecovery: number;
+    retention: number;
+    severeRetention: number;
+  };
+  record: {
+    completeness: number;
+    result: number;
+    zeroing: number;
+    zeroingReview: number;
+    timing: number;
+    blockedPenalty: number;
+    blockedPenaltyMax: number;
+    preheat: number;
+  };
+  retake: readonly [number, number, number, number];
+}
+
+const CURRENT_SCORING_PROFILE: HeatCapacityProcessScoringProfile = {
+  max: SCORE_MAX,
+  pumping: {
+    pressure: 6,
+    pressureLow: 1.5,
+    safety: 5,
+    safetyWarning: 3.5,
+    rhythm: 3,
+    stability: 1,
+  },
+  release: {
+    valve: 12,
+    response: 7,
+    severeResponse: 2,
+    recovery: 3,
+    severeRecovery: 1.5,
+    retention: 3,
+    severeRetention: 1.5,
+  },
+  record: {
+    completeness: 4,
+    result: 8,
+    zeroing: 8,
+    zeroingReview: 5,
+    timing: 7,
+    blockedPenalty: 1.5,
+    blockedPenaltyMax: 2,
+    preheat: 3,
+  },
+  retake: [5, 4, 3, 2],
+};
+
+const LEGACY_SCORING_PROFILE: HeatCapacityProcessScoringProfile = {
+  max: LEGACY_SCORE_MAX,
+  pumping: {
+    pressure: 8,
+    pressureLow: 2,
+    safety: 6,
+    safetyWarning: 4,
+    rhythm: 4,
+    stability: 2,
+  },
+  release: {
+    valve: 14,
+    response: 8,
+    severeResponse: 2,
+    recovery: 4,
+    severeRecovery: 2,
+    retention: 4,
+    severeRetention: 2,
+  },
+  record: {
+    completeness: 5,
+    result: 12,
+    zeroing: 10,
+    zeroingReview: 6,
+    timing: 10,
+    blockedPenalty: 2,
+    blockedPenaltyMax: 3,
+    preheat: 3,
+  },
+  retake: [10, 8, 6, 4],
+};
+
+const getScoringProfile = (
+  version: HeatCapacityFreeScoringVersion,
+) => version === HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION
+  ? LEGACY_SCORING_PROFILE
+  : CURRENT_SCORING_PROFILE;
 
 const RELEASE_DURATION_EPSILON_S = 0.000001;
 const SCORE_QUANTUM = 0.5;
@@ -141,13 +255,13 @@ const createPumpingDetails = (input: {
   safetyRecommendation: string;
   rhythmRecommendation: string;
   stableRecommendation: string;
-}): HeatCapacityProcessScoreSubItem[] => ([
+}, profile: HeatCapacityProcessScoringProfile): HeatCapacityProcessScoreSubItem[] => ([
   createSubItem({
     id: 'pumping-pressure-target',
     label: '目标压强',
     score: input.pressureScore,
-    maxScore: 8,
-    status: statusFromScore(input.pressureScore, 8),
+    maxScore: profile.pumping.pressure,
+    status: statusFromScore(input.pressureScore, profile.pumping.pressure),
     evidence: input.pressureEvidence,
     reason: input.pressureReason,
     recommendation: input.pressureRecommendation,
@@ -156,8 +270,8 @@ const createPumpingDetails = (input: {
     id: 'pumping-safety',
     label: '安全提示',
     score: input.safetyScore,
-    maxScore: 6,
-    status: statusFromScore(input.safetyScore, 6),
+    maxScore: profile.pumping.safety,
+    status: statusFromScore(input.safetyScore, profile.pumping.safety),
     evidence: input.safetyEvidence,
     reason: input.safetyReason,
     recommendation: input.safetyRecommendation,
@@ -166,8 +280,8 @@ const createPumpingDetails = (input: {
     id: 'pumping-rhythm',
     label: '打气节奏',
     score: input.rhythmScore,
-    maxScore: 4,
-    status: statusFromScore(input.rhythmScore, 4),
+    maxScore: profile.pumping.rhythm,
+    status: statusFromScore(input.rhythmScore, profile.pumping.rhythm),
     evidence: input.rhythmEvidence,
     reason: input.rhythmReason,
     recommendation: input.rhythmRecommendation,
@@ -176,8 +290,8 @@ const createPumpingDetails = (input: {
     id: 'pumping-stability',
     label: '稳定等待',
     score: input.stableScore,
-    maxScore: 2,
-    status: statusFromScore(input.stableScore, 2),
+    maxScore: profile.pumping.stability,
+    status: statusFromScore(input.stableScore, profile.pumping.stability),
     evidence: input.stableEvidence,
     reason: input.stableReason,
     recommendation: input.stableRecommendation,
@@ -186,6 +300,7 @@ const createPumpingDetails = (input: {
 
 const scorePumping = (
   input: HeatCapacityProcessScoringInput,
+  profile: HeatCapacityProcessScoringProfile,
 ): HeatCapacityProcessScoreItem => {
   const pumpEvents = input.branch.events.filter((event) => event.type === 'pump-stroke');
   const warningCount = input.branch.events.filter((event) => event.type === 'pressure-warning').length;
@@ -211,11 +326,11 @@ const scorePumping = (
       safetyRecommendation: '确认压力处于安全提示范围内。',
       rhythmRecommendation: '按稳定节奏打气。',
       stableRecommendation: '关阀后等待稳定再记录。',
-    });
+    }, profile);
     return createItem({
       id: 'pumping',
       label: '打气过程',
-      maxScore: SCORE_MAX.pumping,
+      maxScore: profile.max.pumping,
       score: 0,
       status: 'insufficient-data',
       evidence: '缺少 U1 记录。',
@@ -227,19 +342,27 @@ const scorePumping = (
 
   const correctedU1Mv = u1.pressureDeltaKPa * input.traceTrial.configSnapshot.sensor.pressureMvPerKPa;
   const minimum = input.traceTrial.configSnapshot.record.minimumUsefulU1CorrectedMv;
-  const pressureScore = correctedU1Mv >= minimum ? 8 : 2;
-  const safetyScore = dangerCount > 0 ? 0 : warningCount > 0 ? 4 : 6;
-  const rhythmScore = pumpEvents.length > 0 ? 4 : 0;
-  const stableScore = sampleIsStableForRecording(u1Sample, input.traceTrial) ? 2 : 0;
+  const pressureScore = correctedU1Mv >= minimum
+    ? profile.pumping.pressure
+    : profile.pumping.pressureLow;
+  const safetyScore = dangerCount > 0
+    ? 0
+    : warningCount > 0
+      ? profile.pumping.safetyWarning
+      : profile.pumping.safety;
+  const rhythmScore = pumpEvents.length > 0 ? profile.pumping.rhythm : 0;
+  const stableScore = sampleIsStableForRecording(u1Sample, input.traceTrial)
+    ? profile.pumping.stability
+    : 0;
   const score = pressureScore + safetyScore + rhythmScore + stableScore;
   const status = correctedU1Mv < minimum || dangerCount > 0
     ? 'needs-improvement'
-    : statusFromScore(score, SCORE_MAX.pumping);
+    : statusFromScore(score, profile.max.pumping);
 
   return createItem({
     id: 'pumping',
     label: '打气过程',
-    maxScore: SCORE_MAX.pumping,
+    maxScore: profile.max.pumping,
     score,
     status,
     evidence: `打气 ${pumpEvents.length} 次，U1 压强差 ${formatNumber(u1.pressureDeltaKPa)} kPa。`,
@@ -265,16 +388,16 @@ const scorePumping = (
           ? `出现 ${warningCount} 次预警。`
           : '未触发压力预警或报警。',
       rhythmEvidence: `打气 ${pumpEvents.length} 次。`,
-      stableEvidence: stableScore === 2 ? 'U1 记录点稳定。' : 'U1 记录点未能确认稳定。',
+      stableEvidence: stableScore === profile.pumping.stability ? 'U1 记录点稳定。' : 'U1 记录点未能确认稳定。',
       pressureReason: correctedU1Mv >= minimum ? '目标压强可用于计算。' : '目标压强不足会放大后续误差。',
-      safetyReason: safetyScore === 6 ? '压力提示没有异常。' : '压力提示用于提醒末段加压边界。',
-      rhythmReason: rhythmScore === 4 ? '打气事件可复盘。' : '缺少打气事件。',
-      stableReason: stableScore === 2 ? '记录时读数已稳定。' : '记录时机偏离稳定要求。',
+      safetyReason: safetyScore === profile.pumping.safety ? '压力提示没有异常。' : '压力提示用于提醒末段加压边界。',
+      rhythmReason: rhythmScore === profile.pumping.rhythm ? '打气事件可复盘。' : '缺少打气事件。',
+      stableReason: stableScore === profile.pumping.stability ? '记录时读数已稳定。' : '记录时机偏离稳定要求。',
       pressureRecommendation: correctedU1Mv >= minimum ? '保持当前目标压强范围。' : '继续打气到有效区间。',
-      safetyRecommendation: safetyScore === 6 ? '继续避开预警和报警区。' : '接近预警时减小单次加压。',
-      rhythmRecommendation: rhythmScore === 4 ? '保持当前节奏。' : '保留可复盘的打气动作。',
-      stableRecommendation: stableScore === 2 ? '保持关阀后的稳定等待。' : '等待压力和温度斜率稳定后记录。',
-    }),
+      safetyRecommendation: safetyScore === profile.pumping.safety ? '继续避开预警和报警区。' : '接近预警时减小单次加压。',
+      rhythmRecommendation: rhythmScore === profile.pumping.rhythm ? '保持当前节奏。' : '保留可复盘的打气动作。',
+      stableRecommendation: stableScore === profile.pumping.stability ? '保持关阀后的稳定等待。' : '等待压力和温度斜率稳定后记录。',
+    }, profile),
   });
 };
 
@@ -293,13 +416,13 @@ const createReleaseDetails = (input: {
   responseRecommendation: string;
   recoverRecommendation: string;
   retentionRecommendation: string;
-}): HeatCapacityProcessScoreSubItem[] => ([
+}, profile: HeatCapacityProcessScoringProfile): HeatCapacityProcessScoreSubItem[] => ([
   createSubItem({
     id: 'release-valve',
     label: '开阀放气',
     score: input.valveScore,
-    maxScore: 14,
-    status: statusFromScore(input.valveScore, 14),
+    maxScore: profile.release.valve,
+    status: statusFromScore(input.valveScore, profile.release.valve),
     evidence: `放气 ${input.durationText}。`,
     reason: input.valveReason,
     recommendation: input.valveRecommendation,
@@ -308,8 +431,8 @@ const createReleaseDetails = (input: {
     id: 'release-response',
     label: '泄放响应',
     score: input.responseScore,
-    maxScore: 8,
-    status: statusFromScore(input.responseScore, 8),
+    maxScore: profile.release.response,
+    status: statusFromScore(input.responseScore, profile.release.response),
     evidence: `U2/U1 = ${input.ratioText}。`,
     reason: input.responseReason,
     recommendation: input.responseRecommendation,
@@ -318,8 +441,8 @@ const createReleaseDetails = (input: {
     id: 'release-recover',
     label: '关阀回温',
     score: input.recoverScore,
-    maxScore: 4,
-    status: statusFromScore(input.recoverScore, 4),
+    maxScore: profile.release.recovery,
+    status: statusFromScore(input.recoverScore, profile.release.recovery),
     evidence: '关阀后进入恢复记录段。',
     reason: input.recoverReason,
     recommendation: input.recoverRecommendation,
@@ -328,8 +451,8 @@ const createReleaseDetails = (input: {
     id: 'release-retention',
     label: 'U2 保留量',
     score: input.retentionScore,
-    maxScore: 4,
-    status: statusFromScore(input.retentionScore, 4),
+    maxScore: profile.release.retention,
+    status: statusFromScore(input.retentionScore, profile.release.retention),
     evidence: `U2/U1 = ${input.ratioText}。`,
     reason: input.retentionReason,
     recommendation: input.retentionRecommendation,
@@ -340,7 +463,9 @@ export const scoreHeatCapacityReleaseDuration = (
   durationS: number | null,
   optimalMinS: number = HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMinS,
   optimalMaxS: number = HEAT_CAPACITY_RELEASE_TIMING.releaseOptimalMaxS,
+  scoringVersion: HeatCapacityFreeScoringVersion = HEAT_CAPACITY_FREE_SCORING_VERSION,
 ) => {
+  const profile = getScoringProfile(scoringVersion);
   const durationMissing = durationS === null;
   if (durationMissing || durationS === null || !Number.isFinite(durationS)) {
     return {
@@ -348,7 +473,7 @@ export const scoreHeatCapacityReleaseDuration = (
       durationReview: true,
       durationSevere: true,
       valveScore: 0,
-      responseScore: 2,
+      responseScore: profile.release.severeResponse,
     };
   }
 
@@ -358,8 +483,8 @@ export const scoreHeatCapacityReleaseDuration = (
       ? durationS - optimalMaxS
       : 0;
   const closeness = Math.exp(-4 * distanceS);
-  const rawValveScore = 14 * closeness;
-  const rawResponseScore = 8 * closeness;
+  const rawValveScore = profile.release.valve * closeness;
+  const rawResponseScore = profile.release.response * closeness;
   const quantizedDurationScore = quantizeHeatCapacityScore(rawValveScore + rawResponseScore);
   const valveScore = quantizeHeatCapacityScore(rawValveScore);
   const responseScore = quantizedDurationScore - valveScore;
@@ -375,6 +500,8 @@ export const scoreHeatCapacityReleaseDuration = (
 
 const scoreRelease = (
   input: HeatCapacityProcessScoringInput,
+  profile: HeatCapacityProcessScoringProfile,
+  scoringVersion: HeatCapacityFreeScoringVersion,
 ): HeatCapacityProcessScoreItem => {
   if (!input.summary.u1 || !input.summary.u2) {
     const details = createReleaseDetails({
@@ -392,11 +519,11 @@ const scoreRelease = (
       responseRecommendation: '保留快速泄放过程数据。',
       recoverRecommendation: '关阀后等待回温再记录 U2。',
       retentionRecommendation: '完成 U1 和 U2 记录。',
-    });
+    }, profile);
     return createItem({
       id: 'release',
       label: '放气操作',
-      maxScore: SCORE_MAX.release,
+      maxScore: profile.max.release,
       score: 0,
       status: 'insufficient-data',
       evidence: '缺少 U1 或 U2。',
@@ -434,19 +561,26 @@ const scoreRelease = (
     durationS,
     input.traceTrial.configSnapshot.physics.releaseOptimalMinS,
     input.traceTrial.configSnapshot.physics.releaseOptimalMaxS,
+    scoringVersion,
   );
   const { durationReview, durationSevere } = durationScore;
   const severeRelease = overVented || durationSevere;
   const valveScore = severeRelease ? 0 : durationScore.valveScore;
-  const responseScore = severeRelease ? 2 : durationScore.responseScore;
-  const recoverScore = severeRelease ? 2 : 4;
-  const retentionScore = severeRelease ? 2 : 4;
+  const responseScore = severeRelease
+    ? profile.release.severeResponse
+    : durationScore.responseScore;
+  const recoverScore = severeRelease
+    ? profile.release.severeRecovery
+    : profile.release.recovery;
+  const retentionScore = severeRelease
+    ? profile.release.severeRetention
+    : profile.release.retention;
   const score = valveScore + responseScore + recoverScore + retentionScore;
 
   return createItem({
     id: 'release',
     label: '放气操作',
-    maxScore: SCORE_MAX.release,
+    maxScore: profile.max.release,
     score,
     status: severeRelease ? 'needs-improvement' : durationReview ? 'review' : 'reasonable',
     evidence: `U2/U1 = ${ratioText}，放气 ${durationText}。`,
@@ -493,7 +627,7 @@ const scoreRelease = (
         : durationSevere
           ? '先缩短放气时间，再观察 U2 保留量。'
           : '保持当前 U2 保留范围。',
-    }),
+    }, profile),
   });
 };
 
@@ -501,50 +635,63 @@ const scoreResultDeviation = (
   gamma: number | null,
   theoreticalGamma: number,
   hasSignals: boolean,
+  maximumScore: number,
 ) => {
   if (!hasSignals) return 0;
   const level = classifyHeatCapacityGammaAbsoluteError(
     calculateHeatCapacityGammaAbsoluteError(gamma, theoreticalGamma),
   );
-  if (level === 'absoluteIdeal') return 12;
-  if (level === 'idealExperiment') return 11;
-  if (level === 'bestRealistic') return 10;
-  if (level === 'suitable') return 7;
-  if (level === 'severe') return 3;
+  if (level === 'absoluteIdeal') return maximumScore;
+  if (level === 'idealExperiment') return quantizeHeatCapacityScore(maximumScore * 11 / 12);
+  if (level === 'bestRealistic') return quantizeHeatCapacityScore(maximumScore * 10 / 12);
+  if (level === 'suitable') return quantizeHeatCapacityScore(maximumScore * 7 / 12);
+  if (level === 'severe') return quantizeHeatCapacityScore(maximumScore * 3 / 12);
   return 0;
 };
 
 const scoreRecordChain = (
   input: HeatCapacityProcessScoringInput,
+  profile: HeatCapacityProcessScoringProfile,
 ): HeatCapacityProcessScoreItem => {
   const complete = Boolean(input.trial.u1 && input.trial.u2 && input.trial.correctedSignals);
   const u0Score = input.trial.u0 && Math.abs(input.trial.u0.displayPressureMv) <= input.traceTrial.configSnapshot.record.u0ZeroToleranceMv
-    ? 10
+    ? profile.record.zeroing
     : input.trial.u0
-      ? 6
+      ? profile.record.zeroingReview
       : 0;
   const u1Stable = sampleIsStableForRecording(findRecordTraceSample(input.branch, input.trial.u1), input.traceTrial);
   const u2Stable = sampleIsStableForRecording(findRecordTraceSample(input.branch, input.trial.u2), input.traceTrial);
   const blockedCount = input.branch.events.filter((event) => event.type === 'record-blocked').length;
-  const timingScore = (u1Stable ? 5 : 0) + (u2Stable ? 5 : 0) -
-    Math.min(3, blockedCount * 2);
-  const completenessScore = complete ? 5 : 0;
+  const timingScore = (u1Stable ? profile.record.timing / 2 : 0) +
+    (u2Stable ? profile.record.timing / 2 : 0) -
+    Math.min(
+      profile.record.blockedPenaltyMax,
+      blockedCount * profile.record.blockedPenalty,
+    );
+  const completenessScore = complete ? profile.record.completeness : 0;
   const gamma = input.trial.correctedSignals?.gamma ?? null;
   const theoreticalGamma = input.traceTrial.configSnapshot.physics.gamma;
   const gammaAbsoluteError = calculateHeatCapacityGammaAbsoluteError(gamma, theoreticalGamma);
-  const resultScore = scoreResultDeviation(gamma, theoreticalGamma, Boolean(input.trial.correctedSignals));
-  const recordTimingScore = clampScore(timingScore, 10);
+  const resultScore = scoreResultDeviation(
+    gamma,
+    theoreticalGamma,
+    Boolean(input.trial.correctedSignals),
+    profile.record.result,
+  );
+  const recordTimingScore = quantizeHeatCapacityScore(
+    clampScore(timingScore, profile.record.timing),
+  );
   const preheatCompleted = input.trial.preheatOutcome !== 'omitted';
-  const preheatScore = preheatCompleted ? 3 : 0;
+  const preheatScore = preheatCompleted ? profile.record.preheat : 0;
   const score = completenessScore + resultScore + u0Score + recordTimingScore + preheatScore;
-  const status = statusFromScore(score, SCORE_MAX.recordChain, !complete);
+  const status = statusFromScore(score, profile.max.recordChain, !complete);
   const details = [
     createSubItem({
       id: 'record-chain-completeness',
       label: '数据完整性',
       score: completenessScore,
-      maxScore: 5,
-      status: statusFromScore(completenessScore, 5, !complete),
+      maxScore: profile.record.completeness,
+      status: statusFromScore(completenessScore, profile.record.completeness, !complete),
       evidence: complete ? 'U1 / U2 与计算结果完整。' : '缺少完整 U1 / U2 或计算结果。',
       reason: complete ? '数据链路完整。' : '数据链路不完整。',
       recommendation: complete ? '保持完整记录链路。' : '完成 U1、U2 记录后再查看评分。',
@@ -553,17 +700,17 @@ const scoreRecordChain = (
       id: 'record-chain-result',
       label: '结果合理性',
       score: resultScore,
-      maxScore: 12,
-      status: statusFromScore(resultScore, 12, !input.trial.correctedSignals),
+      maxScore: profile.record.result,
+      status: statusFromScore(resultScore, profile.record.result, !input.trial.correctedSignals),
       evidence: input.trial.correctedSignals
         ? `γ = ${formatNumber(input.trial.correctedSignals.gamma, 3)}，绝对误差 ${formatNumber(gammaAbsoluteError, 3)}。`
         : '当前无有效 γ。',
-      reason: resultScore === 12
+      reason: resultScore === profile.record.result
         ? '实验结果接近理论参考。'
         : input.trial.correctedSignals
           ? '实验结果偏离理论参考，说明过程误差已经影响最终结果。'
           : '当前记录无法计算有效 γ。',
-      recommendation: resultScore === 12
+      recommendation: resultScore === profile.record.result
         ? '保持当前计算链路。'
         : input.trial.correctedSignals
           ? '复核放气时长、U1/U2 记录窗口和调零状态。'
@@ -573,32 +720,32 @@ const scoreRecordChain = (
       id: 'record-chain-zeroing',
       label: '调零与 U0',
       score: u0Score,
-      maxScore: 10,
-      status: statusFromScore(u0Score, 10, !input.trial.u0),
+      maxScore: profile.record.zeroing,
+      status: statusFromScore(u0Score, profile.record.zeroing, !input.trial.u0),
       evidence: input.trial.u0 ? `U0 = ${formatNumber(input.trial.u0.displayPressureMv, 2)} mV。` : 'U0 未记录，按 0 mV 计算。',
-      reason: u0Score === 10
+      reason: u0Score === profile.record.zeroing
         ? 'U0 零点接近 0。'
         : input.trial.u0
           ? 'U0 零点偏离当前容差。'
           : '未记录 U0，本组计算明确按 U0 = 0 mV 处理。',
-      recommendation: u0Score === 10 ? '保持调零后记录。' : '调零稳定后再记录 U0。',
+      recommendation: u0Score === profile.record.zeroing ? '保持调零后记录。' : '调零稳定后再记录 U0。',
     }),
     createSubItem({
       id: 'record-chain-timing',
       label: '记录时机',
       score: recordTimingScore,
-      maxScore: 10,
-      status: statusFromScore(recordTimingScore, 10),
+      maxScore: profile.record.timing,
+      status: statusFromScore(recordTimingScore, profile.record.timing),
       evidence: `U1 ${u1Stable ? '稳定' : '未确认稳定'}，U2 ${u2Stable ? '稳定' : '未确认稳定'}。`,
-      reason: recordTimingScore === 10 ? '记录点均处于稳定窗口。' : '至少一个记录点偏离稳定窗口。',
-      recommendation: recordTimingScore === 10 ? '保持当前记录时机。' : '等待压力和温度斜率稳定后再记录。',
+      reason: recordTimingScore === profile.record.timing ? '记录点均处于稳定窗口。' : '至少一个记录点偏离稳定窗口。',
+      recommendation: recordTimingScore === profile.record.timing ? '保持当前记录时机。' : '等待压力和温度斜率稳定后再记录。',
     }),
     createSubItem({
       id: 'record-chain-preheat',
       label: '传感器预热',
       score: preheatScore,
-      maxScore: 3,
-      status: statusFromScore(preheatScore, 3),
+      maxScore: profile.record.preheat,
+      status: statusFromScore(preheatScore, profile.record.preheat),
       evidence: preheatCompleted ? '本组已完成等效 20 min 传感器预热。' : '本组未完成传感器预热。',
       reason: preheatCompleted
         ? '传感器在记录前已完成预热。'
@@ -610,7 +757,7 @@ const scoreRecordChain = (
   return createItem({
     id: 'recordChain',
     label: '记录链路',
-    maxScore: SCORE_MAX.recordChain,
+    maxScore: profile.max.recordChain,
     score,
     status,
     evidence: complete
@@ -618,7 +765,10 @@ const scoreRecordChain = (
         ? 'U0 / U1 / U2 与计算结果完整。'
         : 'U1 / U2 完整；U0 未记录并按 0 mV 计算。'
       : '记录链路不完整。',
-    relation: recordTimingScore === 10 && u0Score === 10 && resultScore === 12 && preheatScore === 3
+    relation: recordTimingScore === profile.record.timing &&
+      u0Score === profile.record.zeroing &&
+      resultScore === profile.record.result &&
+      preheatScore === profile.record.preheat
       ? '记录窗口稳定，结果偏差可接受。'
       : '结果偏差、记录窗口、零点或预热状态仍需复核。',
     recommendation: status === 'reasonable' ? '保持当前记录链路。' : '下一组减少无效记录并等待稳定后记录。',
@@ -628,19 +778,20 @@ const scoreRecordChain = (
 
 const scoreRetake = (
   input: HeatCapacityProcessScoringInput,
+  profile: HeatCapacityProcessScoringProfile,
 ): HeatCapacityProcessScoreItem => {
   const retakeCount = input.summary.retakeCount;
   const score = retakeCount === 0
-    ? 10
+    ? profile.retake[0]
     : retakeCount === 1
-      ? 8
+      ? profile.retake[1]
       : retakeCount === 2
-        ? 6
-        : 4;
+        ? profile.retake[2]
+        : profile.retake[3];
   return createItem({
     id: 'retake',
     label: '重录情况',
-    maxScore: SCORE_MAX.retake,
+    maxScore: profile.max.retake,
     score,
     status: retakeCount > 0 ? 'retaken' : 'reasonable',
     evidence: retakeCount > 0 ? `本组存在 ${retakeCount} 条隐藏分支。` : '本组没有重录分支。',
@@ -651,7 +802,7 @@ const scoreRetake = (
         id: 'retake-count',
         label: '重录情况',
         score,
-        maxScore: SCORE_MAX.retake,
+        maxScore: profile.max.retake,
         status: retakeCount > 0 ? 'retaken' : 'reasonable',
         evidence: retakeCount > 0 ? `隐藏分支 ${retakeCount} 条。` : '无隐藏分支。',
         reason: retakeCount > 0 ? '存在退回或重录分支。' : '无误。',
@@ -663,17 +814,19 @@ const scoreRetake = (
 
 export const scoreHeatCapacityFreeProcess = (
   input: HeatCapacityProcessScoringInput,
+  scoringVersion: HeatCapacityFreeScoringVersion = HEAT_CAPACITY_FREE_SCORING_VERSION,
 ): HeatCapacityProcessScore => {
+  const profile = getScoringProfile(scoringVersion);
   const items = [
-    scorePumping(input),
-    scoreRelease(input),
-    scoreRecordChain(input),
-    scoreRetake(input),
+    scorePumping(input, profile),
+    scoreRelease(input, profile, scoringVersion),
+    scoreRecordChain(input, profile),
+    scoreRetake(input, profile),
   ];
   const complete = Boolean(input.trial.u1 && input.trial.u2 && input.trial.correctedSignals);
   return {
     total: complete ? items.reduce((sum, item) => sum + item.score, 0) : null,
-    maxScore: 100,
+    maxScore: items.reduce((sum, item) => sum + item.maxScore, 0),
     items,
   };
 };

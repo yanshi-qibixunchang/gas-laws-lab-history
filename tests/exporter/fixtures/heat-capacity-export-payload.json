@@ -1,0 +1,266 @@
+{
+  "kind": "json",
+  "mode": "completeBundle",
+  "filename": "GasLawsLab_heat-capacity-sample.bundle.json",
+  "data": {
+    "exportKind": "heat-capacity-adiabatic-expansion",
+    "schemaVersion": 1,
+    "language": "zh-CN",
+    "fileId": "heat-capacity-sample",
+    "fileName": "绝热膨胀法示例实验",
+    "experimentName": "绝热膨胀法测空气比热容比",
+    "exportedAtMs": 1785081600000,
+    "sourceCreatedAtMs": 1785078000000,
+    "sourceUpdatedAtMs": 1785081300000,
+    "groupSummary": {
+      "total": 2,
+      "included": 2,
+      "completed": 1,
+      "incomplete": 1,
+      "real": 1,
+      "ideal": 1
+    },
+    "allGroupsOverview": {
+      "theoreticalGamma": 1.4,
+      "points": [
+        {
+          "groupId": "real-1",
+          "scheme": "real",
+          "schemeGroupNumber": 1,
+          "globalOrder": 1,
+          "meanGamma": 1.3887517299451917,
+          "typeAStandardUncertainty": 0.004912234725863815,
+          "completedExperimentCount": 3,
+          "targetExperimentCount": 3,
+          "completed": true,
+          "legacyIncomplete": false
+        },
+        {
+          "groupId": "ideal-1",
+          "scheme": "ideal",
+          "schemeGroupNumber": 1,
+          "globalOrder": 2,
+          "meanGamma": 1.3998036286311284,
+          "typeAStandardUncertainty": 0.0006033775859605585,
+          "completedExperimentCount": 3,
+          "targetExperimentCount": 4,
+          "completed": false,
+          "legacyIncomplete": false
+        }
+      ]
+    },
+    "groups": [
+      {
+        "id": "real-1",
+        "scheme": "real",
+        "schemeGroupNumber": 1,
+        "globalOrder": 1,
+        "status": "completed",
+        "completed": true,
+        "legacyIncomplete": false,
+        "targetExperimentCount": 3,
+        "completedExperimentCount": 3,
+        "gasType": "air",
+        "parameterSnapshot": {
+          "environment": { "ambientPressureKPa": 101.3, "ambientTemperatureK": 298.15 },
+          "physics": { "gamma": 1.4, "vesselVolumeL": 12 },
+          "sensor": { "pressureMvPerKPa": 20, "temperatureMvPerK": 10 }
+        },
+        "createdAtMs": 1785078000000,
+        "startedAtMs": 1785078300000,
+        "acquisitionCompletedAtMs": 1785079200000,
+        "completedAtMs": 1785079800000,
+        "result": {
+          "status": "ready",
+          "validTrialCount": 3,
+          "meanGamma": 1.3887517299451917,
+          "sampleStandardDeviation": 0.008508240123900303,
+          "typeAStandardUncertainty": 0.004912234725863815,
+          "theoreticalGamma": 1.4,
+          "relativeErrorPercent": 0.80344786105773
+        },
+        "lollipopChart": {
+          "status": "completed",
+          "theoreticalGamma": 1.4,
+          "meanGamma": 1.3887517299451917,
+          "sampleStandardDeviation": 0.008508240123900303,
+          "typeAStandardUncertainty": 0.004912234725863815,
+          "relativeErrorPercent": 0.80344786105773,
+          "points": [
+            { "trialId": "real-1-trial-1", "experimentNumber": 1, "gamma": 1.3791517039540764 },
+            { "trialId": "real-1-trial-2", "experimentNumber": 2, "gamma": 1.3953599950618263 },
+            { "trialId": "real-1-trial-3", "experimentNumber": 3, "gamma": 1.3917434908196726 }
+          ]
+        },
+        "calculation": { "kind": "real-interactive" },
+        "calculationAudit": [
+          { "scope": "experiment", "experimentNumber": 1, "symbol": "U1'", "answerKind": "correctedVoltage", "expectedValue": 82.3, "finalAnswer": "82.30", "status": "correct", "attempts": 1, "hasIncorrectValidAttempt": false, "awardedRatio": 1 },
+          { "scope": "experiment", "experimentNumber": 1, "symbol": "U2'", "answerKind": "correctedVoltage", "expectedValue": 22.3, "finalAnswer": "22.30", "status": "correct", "attempts": 1, "hasIncorrectValidAttempt": false, "awardedRatio": 1 },
+          { "scope": "experiment", "experimentNumber": 1, "symbol": "P1", "answerKind": "absolutePressure", "expectedValue": 105.415, "finalAnswer": "105.415", "status": "correct", "attempts": 1, "hasIncorrectValidAttempt": false, "awardedRatio": 1 },
+          { "scope": "experiment", "experimentNumber": 1, "symbol": "P2", "answerKind": "absolutePressure", "expectedValue": 102.415, "finalAnswer": "102.415", "status": "correct", "attempts": 1, "hasIncorrectValidAttempt": false, "awardedRatio": 1 },
+          { "scope": "experiment", "experimentNumber": 1, "symbol": "γ", "answerKind": "gamma", "expectedValue": 1.3791517039540764, "finalAnswer": "1.3792", "status": "correct", "attempts": 1, "hasIncorrectValidAttempt": false, "awardedRatio": 1 },
+          { "scope": "experiment", "experimentNumber": 2, "symbol": "U1'", "answerKind": "correctedVoltage", "expectedValue": 83.8, "finalAnswer": "83.80", "status": "correct", "attempts": 1, "hasIncorrectValidAttempt": false, "awardedRatio": 1 },
+          { "scope": "experiment", "experimentNumber": 2, "symbol": "U2'", "answerKind": "correctedVoltage", "expectedValue": 23.4, "finalAnswer": "23.40", "status": "correct", "attempts": 1, "hasIncorrectValidAttempt": false, "awardedRatio": 1 },
+          { "scope": "experiment", "experimentNumber": 2, "symbol": "P1", "answerKind": "absolutePressure", "expectedValue": 105.49, "finalAnswer": "105.490", "status": "correct", "attempts": 2, "hasIncorrectValidAttempt": true, "awardedRatio": 0.6 },
+          { "scope": "experiment", "experimentNumber": 2, "symbol": "P2", "answerKind": "absolutePressure", "expectedValue": 102.47, "finalAnswer": "102.470", "status": "correct", "attempts": 1, "hasIncorrectValidAttempt": false, "awardedRatio": 1 },
+          { "scope": "experiment", "experimentNumber": 2, "symbol": "γ", "answerKind": "gamma", "expectedValue": 1.3953599950618263, "finalAnswer": "1.3954", "status": "correct", "attempts": 2, "hasIncorrectValidAttempt": true, "awardedRatio": 0.8 },
+          { "scope": "experiment", "experimentNumber": 3, "symbol": "U1'", "answerKind": "correctedVoltage", "expectedValue": 84, "finalAnswer": "84.00", "status": "correct", "attempts": 1, "hasIncorrectValidAttempt": false, "awardedRatio": 1 },
+          { "scope": "experiment", "experimentNumber": 3, "symbol": "U2'", "answerKind": "correctedVoltage", "expectedValue": 23.3, "finalAnswer": "23.30", "status": "correct", "attempts": 1, "hasIncorrectValidAttempt": false, "awardedRatio": 1 },
+          { "scope": "experiment", "experimentNumber": 3, "symbol": "P1", "answerKind": "absolutePressure", "expectedValue": 105.5, "finalAnswer": "105.500", "status": "correct", "attempts": 2, "hasIncorrectValidAttempt": true, "awardedRatio": 0.6 },
+          { "scope": "experiment", "experimentNumber": 3, "symbol": "P2", "answerKind": "absolutePressure", "expectedValue": 102.465, "finalAnswer": "102.400", "status": "revealed", "attempts": 2, "hasIncorrectValidAttempt": true, "awardedRatio": 0.2 },
+          { "scope": "experiment", "experimentNumber": 3, "symbol": "γ", "answerKind": "gamma", "expectedValue": 1.3917434908196726, "finalAnswer": "1.3917", "status": "correct", "attempts": 2, "hasIncorrectValidAttempt": true, "awardedRatio": 0.8 },
+          { "scope": "aggregate", "experimentNumber": null, "symbol": "平均 γ", "answerKind": "meanGamma", "expectedValue": 1.3887517299451917, "finalAnswer": "1.3888", "status": "correct", "attempts": 1, "hasIncorrectValidAttempt": false, "awardedRatio": 1 },
+          { "scope": "aggregate", "experimentNumber": null, "symbol": "s", "answerKind": "sampleStandardDeviation", "expectedValue": 0.008508240123900303, "finalAnswer": "0.0085", "status": "correct", "attempts": 2, "hasIncorrectValidAttempt": true, "awardedRatio": 0.6 },
+          { "scope": "aggregate", "experimentNumber": null, "symbol": "uA", "answerKind": "typeAStandardUncertainty", "expectedValue": 0.004912234725863815, "finalAnswer": "0.0049", "status": "correct", "attempts": 1, "hasIncorrectValidAttempt": false, "awardedRatio": 1 },
+          { "scope": "aggregate", "experimentNumber": null, "symbol": "Er", "answerKind": "relativeErrorPercent", "expectedValue": 0.80344786105773, "finalAnswer": "0.80", "status": "correct", "attempts": 1, "hasIncorrectValidAttempt": false, "awardedRatio": 1 }
+        ],
+        "score": {
+          "total": 91.5,
+          "maxScore": 100,
+          "operationAverage": 69.5,
+          "operationMaxScore": 75,
+          "calculation": {
+            "total": 22,
+            "maxScore": 25,
+            "details": [
+              { "label": "各次实验修正电压", "score": 4, "maxScore": 4, "evidence": "3/3 次实验已完成。" },
+              { "label": "各次实验绝对压强", "score": 3, "maxScore": 4, "evidence": "3/3 次实验已完成。" },
+              { "label": "各次实验比热容比", "score": 6, "maxScore": 7, "evidence": "3/3 次实验已完成。" },
+              { "label": "平均比热容比", "score": 3, "maxScore": 3, "evidence": "本组统计量已完成。" },
+              { "label": "样本标准偏差", "score": 2, "maxScore": 3, "evidence": "本组统计量已完成。" },
+              { "label": "A 类标准不确定度", "score": 2, "maxScore": 2, "evidence": "本组统计量已完成。" },
+              { "label": "相对误差", "score": 2, "maxScore": 2, "evidence": "本组统计量已完成。" }
+            ]
+          }
+        },
+        "experiments": [
+          {
+            "id": "real-1-trial-1",
+            "experimentNumber": 1,
+            "completed": true,
+            "records": {
+              "u0": { "displayPressureMv": 0.2 },
+              "u1": { "displayPressureMv": 82.5 },
+              "u2": { "displayPressureMv": 22.5 }
+            },
+            "derivedResult": { "U1CorrectedMv": 82.3, "U2CorrectedMv": 22.3, "gamma": 1.3791517039540764, "atmosphericPressureKPa": 101.3, "pressureSensitivityMvPerKPa": 20 },
+            "process": {
+              "status": "ready",
+              "operationScore": { "total": 69, "maxScore": 75 },
+              "chart": {
+                "actualTrace": [
+                  { "timeS": 0, "pressureDeltaKPa": 0, "temperatureDeltaK": 0 },
+                  { "timeS": 5, "pressureDeltaKPa": 2.1, "temperatureDeltaK": 0.4 },
+                  { "timeS": 12, "pressureDeltaKPa": 4.1, "temperatureDeltaK": 0.8 },
+                  { "timeS": 20, "pressureDeltaKPa": 1.2, "temperatureDeltaK": -0.5 },
+                  { "timeS": 35, "pressureDeltaKPa": 1.115, "temperatureDeltaK": 0 }
+                ],
+                "records": [
+                  { "id": "u0", "timeS": 0 },
+                  { "id": "u1", "timeS": 12 },
+                  { "id": "u2", "timeS": 35 }
+                ]
+              }
+            }
+          },
+          {
+            "id": "real-1-trial-2",
+            "experimentNumber": 2,
+            "completed": true,
+            "records": {
+              "u0": { "displayPressureMv": -0.1 },
+              "u1": { "displayPressureMv": 83.7 },
+              "u2": { "displayPressureMv": 23.3 }
+            },
+            "derivedResult": { "U1CorrectedMv": 83.8, "U2CorrectedMv": 23.4, "gamma": 1.3953599950618263, "atmosphericPressureKPa": 101.3, "pressureSensitivityMvPerKPa": 20 },
+            "process": { "status": "ready", "operationScore": { "total": 70.5, "maxScore": 75 }, "chart": { "actualTrace": [], "records": [] } }
+          },
+          {
+            "id": "real-1-trial-3",
+            "experimentNumber": 3,
+            "completed": true,
+            "records": {
+              "u0": { "displayPressureMv": 0.1 },
+              "u1": { "displayPressureMv": 84.1 },
+              "u2": { "displayPressureMv": 23.4 }
+            },
+            "derivedResult": { "U1CorrectedMv": 84, "U2CorrectedMv": 23.3, "gamma": 1.3917434908196726, "atmosphericPressureKPa": 101.3, "pressureSensitivityMvPerKPa": 20 },
+            "process": { "status": "ready", "operationScore": { "total": 69, "maxScore": 75 }, "chart": { "actualTrace": [], "records": [] } }
+          }
+        ]
+      },
+      {
+        "id": "ideal-1",
+        "scheme": "ideal",
+        "schemeGroupNumber": 1,
+        "globalOrder": 2,
+        "status": "collecting",
+        "completed": false,
+        "legacyIncomplete": false,
+        "targetExperimentCount": 4,
+        "completedExperimentCount": 3,
+        "gasType": "air",
+        "parameterSnapshot": {
+          "environment": { "ambientPressureKPa": 101.3, "ambientTemperatureK": 298.15 },
+          "physics": { "gamma": 1.4, "vesselVolumeL": 12 },
+          "sensor": { "pressureMvPerKPa": 20, "temperatureMvPerK": 10 }
+        },
+        "result": {
+          "status": "ready",
+          "validTrialCount": 3,
+          "meanGamma": 1.3998036286311284,
+          "sampleStandardDeviation": 0.0010450806350319449,
+          "typeAStandardUncertainty": 0.0006033775859605585,
+          "theoreticalGamma": 1.4,
+          "relativeErrorPercent": 0.014026526347965529
+        },
+        "lollipopChart": {
+          "status": "in-progress",
+          "theoreticalGamma": 1.4,
+          "meanGamma": 1.3998036286311284,
+          "sampleStandardDeviation": 0.0010450806350319449,
+          "typeAStandardUncertainty": 0.0006033775859605585,
+          "relativeErrorPercent": 0.014026526347965529,
+          "points": [
+            { "trialId": "ideal-1-trial-1", "experimentNumber": 1, "gamma": 1.3987579991592276 },
+            { "trialId": "ideal-1-trial-2", "experimentNumber": 2, "gamma": 1.3998047271709162 },
+            { "trialId": "ideal-1-trial-3", "experimentNumber": 3, "gamma": 1.4008481595632412 }
+          ]
+        },
+        "calculation": { "kind": "ideal-automatic" },
+        "calculationAudit": [],
+        "score": null,
+        "experiments": [
+          {
+            "id": "ideal-1-trial-1",
+            "experimentNumber": 1,
+            "completed": true,
+            "records": { "u0": { "displayPressureMv": 0 }, "u1": { "displayPressureMv": 84 }, "u2": { "displayPressureMv": 23.6 } },
+            "derivedResult": { "U1CorrectedMv": 84, "U2CorrectedMv": 23.6, "gamma": 1.3987579991592276 },
+            "process": { "status": "ready", "operationScore": null, "chart": { "actualTrace": [], "records": [] } }
+          },
+          {
+            "id": "ideal-1-trial-2",
+            "experimentNumber": 2,
+            "completed": true,
+            "records": { "u0": { "displayPressureMv": 0 }, "u1": { "displayPressureMv": 84.2 }, "u2": { "displayPressureMv": 23.7 } },
+            "derivedResult": { "U1CorrectedMv": 84.2, "U2CorrectedMv": 23.7, "gamma": 1.3998047271709162 },
+            "process": { "status": "ready", "operationScore": null, "chart": { "actualTrace": [], "records": [] } }
+          },
+          {
+            "id": "ideal-1-trial-3",
+            "experimentNumber": 3,
+            "completed": true,
+            "records": { "u0": { "displayPressureMv": 0 }, "u1": { "displayPressureMv": 84.4 }, "u2": { "displayPressureMv": 23.8 } },
+            "derivedResult": { "U1CorrectedMv": 84.4, "U2CorrectedMv": 23.8, "gamma": 1.4008481595632412 },
+            "process": { "status": "ready", "operationScore": null, "chart": { "actualTrace": [], "records": [] } }
+          }
+        ]
+      }
+    ],
+    "packageData": {
+      "rawTraceMarker": "PACKAGE_ONLY_RAW_TRACE",
+      "experimentGroupCollection": { "groups": ["real-1", "ideal-1"] }
+    }
+  }
+}

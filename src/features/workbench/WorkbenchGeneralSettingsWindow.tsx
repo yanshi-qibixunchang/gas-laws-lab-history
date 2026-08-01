@@ -1,5 +1,6 @@
-import { ChevronDown, X } from 'lucide-react';
+import { BookOpen, ChevronDown, ListChecks, LogOut, RotateCcw, TestTube2 } from 'lucide-react';
 import type { CSSProperties, RefObject } from 'react';
+import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import { HEAT_CAPACITY_QUALITY_MODE_ORDER } from '../heatCapacity/heatCapacityQualityProfiles.ts';
 import {
   WORKBENCH_LANGUAGE_PREFERENCE_ORDER,
@@ -50,6 +51,23 @@ interface WorkbenchGeneralSettingsWindowProps {
   audioVolume: number;
   languageMenuOpen: boolean;
   languageTriggerRef: RefObject<HTMLButtonElement | null>;
+  learningCopy: {
+    title: string;
+    hint: string;
+    replayIntroLabel: string;
+    replayIntroHint: string;
+    reselectNeedsLabel: string;
+    reselectNeedsHint: string;
+    simulateFirstRunLabel: string;
+    simulateFirstRunHint: string;
+    resetLabel: string;
+    resetHint: string;
+    resetDisabledHint: string;
+    exitTutorialLabel: string;
+    exitTutorialHint: string;
+  };
+  heatCapacityTutorialActive: boolean;
+  showSimulateFirstRun: boolean;
   onClose: () => void;
   onThemeChange: (theme: WorkbenchThemePreference) => void;
   onLanguageChange: (language: WorkbenchLanguagePreference) => void;
@@ -57,6 +75,11 @@ interface WorkbenchGeneralSettingsWindowProps {
   onAudioEnabledChange: (enabled: boolean) => void;
   onAudioVolumeChange: (volume: number) => void;
   onLanguageMenuOpenChange: (open: boolean) => void;
+  onReplayProductIntro: () => void;
+  onReselectLearningNeeds: () => void;
+  onResetHeatCapacityLearning: () => void;
+  onExitHeatCapacityTutorial: () => void;
+  onSimulateFirstRun: () => void;
 }
 
 const WorkbenchAudioVolumeIcon = ({ level }: { level: WorkbenchAudioVolumeIconLevel }) => (
@@ -87,6 +110,9 @@ export const WorkbenchGeneralSettingsWindow = ({
   audioVolume,
   languageMenuOpen,
   languageTriggerRef,
+  learningCopy,
+  heatCapacityTutorialActive,
+  showSimulateFirstRun,
   onClose,
   onThemeChange,
   onLanguageChange,
@@ -94,6 +120,11 @@ export const WorkbenchGeneralSettingsWindow = ({
   onAudioEnabledChange,
   onAudioVolumeChange,
   onLanguageMenuOpenChange,
+  onReplayProductIntro,
+  onReselectLearningNeeds,
+  onResetHeatCapacityLearning,
+  onExitHeatCapacityTutorial,
+  onSimulateFirstRun,
 }: WorkbenchGeneralSettingsWindowProps) => {
   if (!open) return null;
 
@@ -106,24 +137,20 @@ export const WorkbenchGeneralSettingsWindow = ({
   } as CSSProperties;
 
   return (
-    <div className="studio-settings-overlay" role="presentation" onMouseDown={onClose}>
-      <section
-        className="studio-settings-window"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="studio-settings-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="studio-settings-header">
-          <div>
-            <strong id="studio-settings-title">{copy.settings.title}</strong>
-            <span>{copy.settings.subtitle}</span>
-          </div>
-          <button type="button" className="studio-settings-close" aria-label={copy.settings.closeAria} onClick={onClose}>
-            <X size={15} />
-          </button>
-        </div>
-
+    <PromptDialogShell
+      title={copy.settings.title}
+      titleId="studio-settings-title"
+      subtitle={copy.settings.subtitle}
+      variant="task"
+      closeLabel={copy.settings.closeAria}
+      dismiss={{ closeButton: true, escape: true, backdrop: true }}
+      onRequestClose={onClose}
+      returnFocusSelector="[data-workbench-top-command='settings']"
+      overlayClassName="studio-settings-overlay"
+      dialogClassName="studio-settings-window"
+      headerClassName="studio-settings-header"
+      closeButtonClassName="studio-settings-close"
+    >
         <div className="studio-settings-body">
           <section className="studio-settings-section">
             <div className="studio-settings-section-title">
@@ -264,6 +291,78 @@ export const WorkbenchGeneralSettingsWindow = ({
             </div>
           </section>
 
+          <section className="studio-settings-section studio-settings-control-row studio-settings-learning-row">
+            <div className="studio-settings-section-title">
+              <strong>{learningCopy.title}</strong>
+              <span>{learningCopy.hint}</span>
+            </div>
+            <div className="studio-settings-control-surface studio-settings-learning-actions">
+              {heatCapacityTutorialActive ? (
+                <button
+                  type="button"
+                  className="studio-settings-learning-action studio-settings-learning-action-exit"
+                  onClick={onExitHeatCapacityTutorial}
+                >
+                  <LogOut size={15} />
+                  <span>
+                    <strong>{learningCopy.exitTutorialLabel}</strong>
+                    <small>{learningCopy.exitTutorialHint}</small>
+                  </span>
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="studio-settings-learning-action"
+                disabled={heatCapacityTutorialActive}
+                onClick={onReplayProductIntro}
+              >
+                <BookOpen size={15} />
+                <span>
+                  <strong>{learningCopy.replayIntroLabel}</strong>
+                  <small>{heatCapacityTutorialActive ? learningCopy.resetDisabledHint : learningCopy.replayIntroHint}</small>
+                </span>
+              </button>
+              <button
+                type="button"
+                className="studio-settings-learning-action"
+                disabled={heatCapacityTutorialActive}
+                onClick={onReselectLearningNeeds}
+              >
+                <ListChecks size={15} />
+                <span>
+                  <strong>{learningCopy.reselectNeedsLabel}</strong>
+                  <small>{heatCapacityTutorialActive ? learningCopy.resetDisabledHint : learningCopy.reselectNeedsHint}</small>
+                </span>
+              </button>
+              <button
+                type="button"
+                className="studio-settings-learning-action"
+                disabled={heatCapacityTutorialActive}
+                onClick={onResetHeatCapacityLearning}
+              >
+                <RotateCcw size={15} />
+                <span>
+                  <strong>{learningCopy.resetLabel}</strong>
+                  <small>{heatCapacityTutorialActive ? learningCopy.resetDisabledHint : learningCopy.resetHint}</small>
+                </span>
+              </button>
+              {showSimulateFirstRun ? (
+                <button
+                  type="button"
+                  className="studio-settings-learning-action"
+                  disabled={heatCapacityTutorialActive}
+                  onClick={onSimulateFirstRun}
+                >
+                  <TestTube2 size={15} />
+                  <span>
+                    <strong>{learningCopy.simulateFirstRunLabel}</strong>
+                    <small>{heatCapacityTutorialActive ? learningCopy.resetDisabledHint : learningCopy.simulateFirstRunHint}</small>
+                  </span>
+                </button>
+              ) : null}
+            </div>
+          </section>
+
           <section className="studio-settings-section studio-settings-shortcuts-section">
             <div className="studio-settings-section-title">
               <strong>{copy.shortcuts.title}</strong>
@@ -280,7 +379,6 @@ export const WorkbenchGeneralSettingsWindow = ({
             </div>
           </section>
         </div>
-      </section>
-    </div>
+    </PromptDialogShell>
   );
 };

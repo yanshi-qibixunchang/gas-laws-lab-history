@@ -1,0 +1,295 @@
+.studio-heat-group-results {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.studio-heat-export-card {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  border: 1px solid var(--studio-border-soft);
+  border-radius: 10px;
+  background: var(--studio-surface-2);
+  padding: 11px 12px;
+}
+
+.studio-heat-export-card > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.studio-heat-export-card > div:first-child strong {
+  color: var(--studio-text);
+  font-size: 12px;
+}
+
+.studio-heat-export-card > div:first-child span {
+  color: var(--studio-text-muted);
+  font-size: 10.5px;
+}
+
+.studio-heat-export-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.studio-heat-export-buttons button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--studio-border-strong);
+  border-radius: 5px;
+  background: var(--studio-surface-1);
+  color: var(--studio-text);
+  padding: 0 10px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.studio-heat-export-buttons button:hover:not(:disabled),
+.studio-heat-export-buttons button:focus-visible {
+  border-color: var(--studio-accent-strong);
+  outline: none;
+}
+
+.studio-heat-export-buttons button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.studio-heat-group-result-card {
+  overflow: hidden;
+  padding: 12px;
+  border: 1px solid var(--studio-border-soft);
+  border-radius: 10px;
+  background: var(--studio-surface-2);
+}
+
+.studio-heat-group-result-heading {
+  margin-bottom: 10px;
+  color: var(--studio-text);
+  font-size: 12px;
+}
+
+.studio-heat-group-stat-grid,
+.studio-heat-group-score-card {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.studio-heat-group-stat-grid > span,
+.studio-heat-group-score-card > span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 7px;
+  background: var(--studio-surface-1);
+}
+
+.studio-heat-group-stat-grid small,
+.studio-heat-group-score-card small {
+  color: var(--studio-text-muted);
+  font-size: 10px;
+}
+
+.studio-heat-group-stat-grid strong,
+.studio-heat-group-score-card strong {
+  color: var(--studio-text);
+  font-size: 13px;
+}
+
+.studio-heat-group-score-card {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.studio-heat-group-chart-placeholder {
+  margin: 12px 0 2px;
+  color: var(--studio-text-muted);
+  font-size: 11px;
+}
+
+.studio-heat-group-chart-svg {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin-top: 8px;
+}
+
+.studio-heat-group-lollipop {
+  --studio-heat-chart-theory: #b77b18;
+  --studio-heat-chart-mean: #238b57;
+  --studio-heat-chart-point: var(--hpr-pressure-line, #226399);
+  --studio-heat-chart-plot-bg: color-mix(in srgb, var(--studio-bg) 72%, transparent);
+  --studio-heat-chart-plot-border: color-mix(in srgb, var(--studio-accent) 52%, var(--studio-border));
+  --studio-heat-chart-tick: color-mix(in srgb, var(--studio-muted) 72%, var(--studio-border));
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.studio-theme-light .studio-heat-group-lollipop {
+  --studio-heat-chart-plot-border: color-mix(in srgb, var(--studio-accent) 42%, var(--studio-border));
+  --studio-heat-chart-tick: color-mix(in srgb, var(--studio-muted) 64%, var(--studio-border));
+}
+
+.studio-heat-group-chart-legend {
+  display: flex;
+  min-height: 22px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 7px 24px;
+  color: var(--hpr-muted, var(--studio-muted));
+  font-family: var(--app-font-ui-zh-cn);
+  font-size: 11px;
+  font-weight: 660;
+}
+
+.studio-heat-group-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.studio-heat-group-chart-legend-item i {
+  display: inline-block;
+  width: 19px;
+  height: 0;
+  border-top: 2px solid currentColor;
+}
+
+.studio-heat-group-chart-legend-item b {
+  color: var(--hpr-text, var(--studio-text));
+  font-family: var(--app-font-data);
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.studio-heat-group-chart-legend-theory {
+  color: var(--studio-heat-chart-theory);
+}
+
+.studio-heat-group-chart-legend-theory i {
+  border-top-style: dashed;
+}
+
+.studio-heat-group-chart-legend-mean {
+  color: var(--studio-heat-chart-mean);
+}
+
+.studio-heat-group-chart-legend-uncertainty i {
+  height: 8px;
+  border: 1px solid color-mix(in srgb, var(--studio-heat-chart-mean) 62%, transparent);
+  background: color-mix(in srgb, var(--studio-heat-chart-mean) 13%, transparent);
+}
+
+.studio-heat-group-lollipop-svg {
+  margin-top: 0;
+}
+
+.studio-heat-chart-plot-background {
+  fill: var(--studio-heat-chart-plot-bg);
+}
+
+.studio-heat-chart-plot-frame {
+  fill: none;
+  stroke: var(--studio-heat-chart-plot-border);
+  stroke-width: 1.15;
+}
+
+.studio-heat-chart-grid {
+  stroke: color-mix(in srgb, var(--studio-heat-chart-tick) 30%, transparent);
+  stroke-width: 0.8;
+}
+
+.studio-heat-chart-axis-tick line {
+  stroke: var(--studio-heat-chart-tick);
+  stroke-width: 1.05;
+}
+
+.studio-heat-chart-axis-tick text {
+  fill: var(--hpr-subtle, var(--studio-subtle));
+  font-family: var(--app-font-data);
+  font-size: 13px;
+}
+
+.studio-heat-chart-axis-title {
+  fill: var(--hpr-text-strong, var(--studio-text));
+  font-family: var(--app-font-ui-zh-cn);
+  font-size: 13px;
+  font-weight: 780;
+}
+
+.studio-heat-chart-axis-title-x {
+  fill: var(--hpr-muted, var(--studio-muted));
+}
+
+.studio-heat-chart-theory {
+  stroke: var(--studio-heat-chart-theory);
+  stroke-width: 1.7;
+  stroke-dasharray: 8 5;
+  stroke-linecap: round;
+}
+
+.studio-heat-chart-mean {
+  stroke: var(--studio-heat-chart-mean);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.studio-heat-chart-uncertainty {
+  fill: color-mix(in srgb, var(--studio-heat-chart-mean) 11%, transparent);
+}
+
+.studio-heat-chart-uncertainty-range line {
+  stroke: color-mix(in srgb, var(--studio-heat-chart-mean) 58%, transparent);
+  stroke-width: 0.9;
+  stroke-dasharray: 3 4;
+}
+
+.studio-heat-chart-stem,
+.studio-heat-chart-error {
+  stroke-width: 1.4;
+}
+
+.studio-heat-chart-stem-real,
+.studio-heat-chart-error {
+  stroke: var(--studio-heat-chart-point);
+}
+
+.studio-heat-chart-stem-ideal {
+  stroke: #a78bfa;
+}
+
+.studio-heat-chart-dot {
+  stroke: var(--studio-surface-2);
+  stroke-width: 2;
+}
+
+.studio-heat-chart-dot-real {
+  fill: var(--studio-heat-chart-point);
+}
+
+.studio-heat-chart-dot-ideal {
+  fill: #a78bfa;
+}
+
+.studio-heat-chart-dot-in-progress {
+  fill-opacity: 0.2;
+  stroke-width: 2.5;
+}
+
+@media (max-width: 720px) {
+  .studio-heat-group-stat-grid,
+  .studio-heat-group-score-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

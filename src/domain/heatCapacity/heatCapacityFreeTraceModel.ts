@@ -17,12 +17,17 @@ import {
   createDefaultHeatCapacityFreeSensorConfig,
 } from './heatCapacityDefaultConfig.ts';
 
-export const HEAT_CAPACITY_FREE_TRACE_VERSION = 5;
+export const HEAT_CAPACITY_FREE_TRACE_VERSION = 6;
 export const HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION = 9;
 export const HEAT_CAPACITY_FREE_CALCULATION_VERSION = 'log-pressure-v1' as const;
 export const HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S = 0.04;
 
 export const FREE_TRACE_MAX_SAMPLES_PER_TRIAL = 800;
+export const FREE_TRACE_MAX_EVENTS_PER_BRANCH = 320;
+export const FREE_TRACE_MAX_BRANCHES_PER_TRIAL = 4;
+/** @deprecated 历史实验不再设置跨实验组的 trace 数量上限。 */
+export const FREE_TRACE_MAX_COMPLETED_TRIALS_PER_DOMAIN = Number.POSITIVE_INFINITY;
+export const HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION = 1 as const;
 
 export const FREE_TRACE_SIMILAR_PRESSURE_DELTA_MV = 0.2;
 export const FREE_TRACE_SIMILAR_TEMPERATURE_DELTA_MV = 0.1;
@@ -65,6 +70,7 @@ export interface HeatCapacityFreeTraceStore {
   activeTraceTrialId: string | null;
   nextTraceTrialIndex: number;
   traceTrials: HeatCapacityFreeTraceTrial[];
+  compaction?: HeatCapacityFreeTraceStoreCompaction;
 }
 
 export interface HeatCapacityFreeTraceTrial {
@@ -75,6 +81,7 @@ export interface HeatCapacityFreeTraceTrial {
   nextBranchIndex: number;
   branches: HeatCapacityFreeTraceBranch[];
   configSnapshot: HeatCapacityFreeConfigSnapshot;
+  branchCompaction?: HeatCapacityFreeTraceTrialCompaction;
 }
 
 export interface HeatCapacityFreeTraceBranch {
@@ -90,6 +97,35 @@ export interface HeatCapacityFreeTraceBranch {
   idleState: HeatCapacityFreeTraceIdleState;
   samples: HeatCapacityFreeTraceSample[];
   events: HeatCapacityFreeEvent[];
+  compaction?: HeatCapacityFreeTraceBranchCompaction;
+}
+
+export interface HeatCapacityFreeTraceBranchCompaction {
+  version: typeof HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION;
+  droppedSampleCount: number;
+  droppedEventCount: number;
+  droppedEventCounts: Partial<Record<HeatCapacityFreeEventType, number>>;
+  firstDroppedAtS: number | null;
+  lastDroppedAtS: number | null;
+}
+
+export interface HeatCapacityFreeTraceTrialCompaction {
+  version: typeof HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION;
+  droppedBranchCount: number;
+  droppedSampleCount: number;
+  droppedEventCount: number;
+  firstDroppedBranchId: string | null;
+  lastDroppedBranchId: string | null;
+}
+
+export interface HeatCapacityFreeTraceStoreCompaction {
+  version: typeof HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION;
+  droppedTrialCount: number;
+  droppedBranchCount: number;
+  droppedSampleCount: number;
+  droppedEventCount: number;
+  firstDroppedTrialId: string | null;
+  lastDroppedTrialId: string | null;
 }
 
 export interface HeatCapacityFreeTraceIdleState {
@@ -244,6 +280,15 @@ export const createDefaultFreeTraceStore = (): HeatCapacityFreeTraceStore => ({
   activeTraceTrialId: null,
   nextTraceTrialIndex: 1,
   traceTrials: [],
+  compaction: {
+    version: HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
+    droppedTrialCount: 0,
+    droppedBranchCount: 0,
+    droppedSampleCount: 0,
+    droppedEventCount: 0,
+    firstDroppedTrialId: null,
+    lastDroppedTrialId: null,
+  },
 });
 
 export const createDefaultFreeConfigSnapshot = (): HeatCapacityFreeConfigSnapshot => {
@@ -319,6 +364,14 @@ const createEmptyFreeTraceBranch = (
   },
   samples: [],
   events: [],
+  compaction: {
+    version: HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
+    droppedSampleCount: 0,
+    droppedEventCount: 0,
+    droppedEventCounts: {},
+    firstDroppedAtS: null,
+    lastDroppedAtS: null,
+  },
 });
 
 const copyConfigSnapshot = (
@@ -358,14 +411,23 @@ export const createFreeTraceTrial = (
     nextBranchIndex: 2,
     branches: [branch],
     configSnapshot: copyConfigSnapshot(configSnapshot),
-  };
-  return {
-    store: {
-      ...store,
-      activeTraceTrialId: traceTrialId,
-      nextTraceTrialIndex: traceTrialIndex + 1,
-      traceTrials: [...store.traceTrials, traceTrial],
+    branchCompaction: {
+      version: HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
+      droppedBranchCount: 0,
+      droppedSampleCount: 0,
+      droppedEventCount: 0,
+      firstDroppedBranchId: null,
+      lastDroppedBranchId: null,
     },
+  };
+  const nextStore = compactFreeTraceStore({
+    ...store,
+    activeTraceTrialId: traceTrialId,
+    nextTraceTrialIndex: traceTrialIndex + 1,
+    traceTrials: [...store.traceTrials, traceTrial],
+  });
+  return {
+    store: nextStore,
     traceTrial,
   };
 };
@@ -424,7 +486,6 @@ const createProtectedSampleIds = (
   if (lastSample) protectedIds.add(lastSample.id);
   for (const sample of samples) {
     if (
-      sample.reason === 'event' ||
       sample.reason === 'record' ||
       sample.reason === 'record-blocked' ||
       sample.reason === 'phase-change' ||
@@ -434,6 +495,134 @@ const createProtectedSampleIds = (
     }
   }
   return protectedIds;
+};
+
+const AUTHORITATIVE_FREE_TRACE_EVENT_TYPES =
+  new Set<HeatCapacityFreeEventType>([
+    'zero-calibration',
+    'release-start',
+    'stopcock-close',
+    'record-u0',
+    'record-u1',
+    'record-u2',
+    'record-invalidated',
+    'branch-created',
+    'pressure-warning',
+    'pressure-danger',
+    'pressure-danger-cleared',
+  ]);
+
+const createDefaultBranchCompaction =
+  (): HeatCapacityFreeTraceBranchCompaction => ({
+    version: HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
+    droppedSampleCount: 0,
+    droppedEventCount: 0,
+    droppedEventCounts: {},
+    firstDroppedAtS: null,
+    lastDroppedAtS: null,
+  });
+
+const createDefaultTrialCompaction =
+  (): HeatCapacityFreeTraceTrialCompaction => ({
+    version: HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
+    droppedBranchCount: 0,
+    droppedSampleCount: 0,
+    droppedEventCount: 0,
+    firstDroppedBranchId: null,
+    lastDroppedBranchId: null,
+  });
+
+const createDefaultStoreCompaction =
+  (): HeatCapacityFreeTraceStoreCompaction => ({
+    version: HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
+    droppedTrialCount: 0,
+    droppedBranchCount: 0,
+    droppedSampleCount: 0,
+    droppedEventCount: 0,
+    firstDroppedTrialId: null,
+    lastDroppedTrialId: null,
+  });
+
+const selectEvenlySpacedIndexes = (
+  indexes: readonly number[],
+  count: number,
+) => {
+  if (count <= 0 || indexes.length === 0) return [] as number[];
+  if (indexes.length <= count) return [...indexes];
+  if (count === 1) return [indexes[indexes.length - 1]];
+  const selected = new Set<number>();
+  for (let slot = 0; slot < count; slot += 1) {
+    selected.add(indexes[Math.round(
+      slot * (indexes.length - 1) / (count - 1),
+    )]);
+  }
+  if (selected.size < count) {
+    for (let index = indexes.length - 1; index >= 0; index -= 1) {
+      selected.add(indexes[index]);
+      if (selected.size >= count) break;
+    }
+  }
+  return [...selected].sort((left, right) => left - right);
+};
+
+const selectBoundedTraceEvents = (
+  events: readonly HeatCapacityFreeEvent[],
+  maxEvents: number,
+) => {
+  if (events.length <= maxEvents) return [...events];
+  const authoritativeIndexes = events.flatMap((event, index) => (
+    AUTHORITATIVE_FREE_TRACE_EVENT_TYPES.has(event.type) ? [index] : []
+  ));
+  const selectedIndexes = new Set(
+    authoritativeIndexes.length <= maxEvents
+      ? authoritativeIndexes
+      : selectEvenlySpacedIndexes(authoritativeIndexes, maxEvents),
+  );
+  const remainingSlots = Math.max(0, maxEvents - selectedIndexes.size);
+  const otherIndexes = events.flatMap((_, index) => (
+    selectedIndexes.has(index) ? [] : [index]
+  ));
+  for (const index of selectEvenlySpacedIndexes(otherIndexes, remainingSlots)) {
+    selectedIndexes.add(index);
+  }
+  return [...selectedIndexes]
+    .sort((left, right) => left - right)
+    .map((index) => events[index]);
+};
+
+const mergeBranchCompaction = (
+  current: HeatCapacityFreeTraceBranchCompaction | undefined,
+  droppedSamples: readonly HeatCapacityFreeTraceSample[],
+  droppedEvents: readonly HeatCapacityFreeEvent[],
+): HeatCapacityFreeTraceBranchCompaction => {
+  const base = current ?? createDefaultBranchCompaction();
+  const droppedTimes = [
+    ...droppedSamples.map((sample) => sample.atS),
+    ...droppedEvents.map((event) => event.atS),
+  ];
+  const firstDroppedAtS = droppedTimes.length === 0
+    ? base.firstDroppedAtS
+    : base.firstDroppedAtS === null
+      ? Math.min(...droppedTimes)
+      : Math.min(base.firstDroppedAtS, ...droppedTimes);
+  const lastDroppedAtS = droppedTimes.length === 0
+    ? base.lastDroppedAtS
+    : base.lastDroppedAtS === null
+      ? Math.max(...droppedTimes)
+      : Math.max(base.lastDroppedAtS, ...droppedTimes);
+  const droppedEventCounts = { ...base.droppedEventCounts };
+  for (const event of droppedEvents) {
+    droppedEventCounts[event.type] =
+      (droppedEventCounts[event.type] ?? 0) + 1;
+  }
+  return {
+    version: HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
+    droppedSampleCount: base.droppedSampleCount + droppedSamples.length,
+    droppedEventCount: base.droppedEventCount + droppedEvents.length,
+    droppedEventCounts,
+    firstDroppedAtS,
+    lastDroppedAtS,
+  };
 };
 
 const haveSameTraceContext = (
@@ -463,35 +652,213 @@ export const compactFreeTraceBranch = (
   branch: HeatCapacityFreeTraceBranch,
   maxSamples = FREE_TRACE_MAX_SAMPLES_PER_TRIAL,
 ): HeatCapacityFreeTraceBranch => {
-  if (branch.samples.length <= maxSamples) {
+  const boundedMaxSamples = Math.max(1, Math.floor(maxSamples));
+  const retainedEvents = selectBoundedTraceEvents(
+    branch.events,
+    Math.min(FREE_TRACE_MAX_EVENTS_PER_BRANCH, boundedMaxSamples),
+  );
+  const retainedEventIds = new Set(retainedEvents.map((event) => event.id));
+  const droppedEvents = branch.events.filter((event) => (
+    !retainedEventIds.has(event.id)
+  ));
+  if (
+    branch.samples.length <= boundedMaxSamples &&
+    droppedEvents.length === 0 &&
+    branch.compaction !== undefined
+  ) {
     return branch;
   }
-
-  const protectedIds = createProtectedSampleIds(branch.samples, branch.events);
-  const compacted: HeatCapacityFreeTraceSample[] = [];
-  let remainingDrops = branch.samples.length - maxSamples;
-  for (let index = 0; index < branch.samples.length; index += 1) {
-    const sample = branch.samples[index];
-    const previousKept = compacted[compacted.length - 1];
-    const nextSample = branch.samples[index + 1];
-    const canDrop = remainingDrops > 0 &&
-      sample.reason === 'periodic' &&
-      !protectedIds.has(sample.id) &&
-      (
-        isValueSimilarToNeighbor(sample, previousKept) ||
-        isValueSimilarToNeighbor(sample, nextSample)
-      );
-    if (canDrop) {
-      remainingDrops -= 1;
-    } else {
-      compacted.push(sample);
-    }
+  const protectedIds = createProtectedSampleIds(
+    branch.samples,
+    retainedEvents,
+  );
+  const eventReferencedSampleIds = new Set(
+    retainedEvents.map((event) => event.traceSampleId),
+  );
+  const eventReferencedIndexes = branch.samples.flatMap((sample, index) => (
+    eventReferencedSampleIds.has(sample.id) ? [index] : []
+  ));
+  const selectedIndexes = new Set(eventReferencedIndexes);
+  const otherProtectedIndexes = branch.samples.flatMap((sample, index) => (
+    !selectedIndexes.has(index) && protectedIds.has(sample.id) ? [index] : []
+  ));
+  for (
+    const index of selectEvenlySpacedIndexes(
+      otherProtectedIndexes,
+      Math.max(0, boundedMaxSamples - selectedIndexes.size),
+    )
+  ) {
+    selectedIndexes.add(index);
   }
-
+  let remainingSlots = Math.max(
+    0,
+    boundedMaxSamples - selectedIndexes.size,
+  );
+  const featureIndexes = branch.samples.flatMap((sample, index) => (
+    selectedIndexes.has(index) ||
+    (
+      isValueSimilarToNeighbor(sample, branch.samples[index - 1]) ||
+      isValueSimilarToNeighbor(sample, branch.samples[index + 1])
+    )
+      ? []
+      : [index]
+  ));
+  for (
+    const index of selectEvenlySpacedIndexes(
+      featureIndexes,
+      remainingSlots,
+    )
+  ) {
+    selectedIndexes.add(index);
+  }
+  remainingSlots = Math.max(
+    0,
+    boundedMaxSamples - selectedIndexes.size,
+  );
+  const unprotectedIndexes = branch.samples.flatMap((_, index) => (
+    selectedIndexes.has(index) ? [] : [index]
+  ));
+  for (
+    const index of selectEvenlySpacedIndexes(
+      unprotectedIndexes,
+      remainingSlots,
+    )
+  ) {
+    selectedIndexes.add(index);
+  }
+  const compacted = [...selectedIndexes]
+    .sort((left, right) => left - right)
+    .map((index) => branch.samples[index]);
+  const retainedSampleIds = new Set(compacted.map((sample) => sample.id));
+  const referentialEvents = retainedEvents.filter((event) => (
+    retainedSampleIds.has(event.traceSampleId)
+  ));
+  const referentialEventIds = new Set(
+    referentialEvents.map((event) => event.id),
+  );
+  const additionallyDroppedEvents = retainedEvents.filter((event) => (
+    !referentialEventIds.has(event.id)
+  ));
+  const allDroppedEvents = [...droppedEvents, ...additionallyDroppedEvents];
+  const droppedSamples = branch.samples.filter((sample) => (
+    !retainedSampleIds.has(sample.id)
+  ));
   return {
     ...branch,
     samples: compacted,
+    events: referentialEvents,
     lastKeptSampleId: compacted[compacted.length - 1]?.id ?? null,
+    compaction: mergeBranchCompaction(
+      branch.compaction,
+      droppedSamples,
+      allDroppedEvents,
+    ),
+  };
+};
+
+const getTraceBranchTotalSampleCount = (
+  branch: HeatCapacityFreeTraceBranch,
+) => branch.samples.length + (branch.compaction?.droppedSampleCount ?? 0);
+
+const getTraceBranchTotalEventCount = (
+  branch: HeatCapacityFreeTraceBranch,
+) => branch.events.length + (branch.compaction?.droppedEventCount ?? 0);
+
+export const getFreeTraceTrialBranchCount = (
+  traceTrial: HeatCapacityFreeTraceTrial,
+) => traceTrial.branches.length +
+  (traceTrial.branchCompaction?.droppedBranchCount ?? 0);
+
+export const compactFreeTraceTrial = (
+  traceTrial: HeatCapacityFreeTraceTrial,
+): HeatCapacityFreeTraceTrial => {
+  const compactedBranches = traceTrial.branches.map((branch) => (
+    compactFreeTraceBranch(branch)
+  ));
+  if (compactedBranches.length <= FREE_TRACE_MAX_BRANCHES_PER_TRIAL) {
+    return {
+      ...traceTrial,
+      branches: compactedBranches,
+      branchCompaction:
+        traceTrial.branchCompaction ?? createDefaultTrialCompaction(),
+    };
+  }
+  const activeIndex = compactedBranches.findIndex((branch) => (
+    branch.id === traceTrial.activeBranchId
+  ));
+  const retainedIndexes = new Set<number>(
+    activeIndex >= 0 ? [activeIndex] : [],
+  );
+  for (
+    let index = compactedBranches.length - 1;
+    index >= 0 &&
+      retainedIndexes.size < FREE_TRACE_MAX_BRANCHES_PER_TRIAL;
+    index -= 1
+  ) {
+    retainedIndexes.add(index);
+  }
+  const retainedBranches = compactedBranches.filter((_, index) => (
+    retainedIndexes.has(index)
+  ));
+  const droppedBranches = compactedBranches.filter((_, index) => (
+    !retainedIndexes.has(index)
+  ));
+  const droppedIds = new Set(droppedBranches.map((branch) => branch.id));
+  const normalizedRetainedBranches = retainedBranches.map((branch) => (
+    branch.parentBranchId !== null && droppedIds.has(branch.parentBranchId)
+      ? { ...branch, parentBranchId: null }
+      : branch
+  ));
+  const current = traceTrial.branchCompaction ??
+    createDefaultTrialCompaction();
+  return {
+    ...traceTrial,
+    branches: normalizedRetainedBranches,
+    branchCompaction: {
+      version: HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
+      droppedBranchCount:
+        current.droppedBranchCount + droppedBranches.length,
+      droppedSampleCount: current.droppedSampleCount +
+        droppedBranches.reduce(
+          (total, branch) => total + getTraceBranchTotalSampleCount(branch),
+          0,
+        ),
+      droppedEventCount: current.droppedEventCount +
+        droppedBranches.reduce(
+          (total, branch) => total + getTraceBranchTotalEventCount(branch),
+          0,
+        ),
+      firstDroppedBranchId: current.firstDroppedBranchId ??
+        droppedBranches[0]?.id ?? null,
+      lastDroppedBranchId:
+        droppedBranches[droppedBranches.length - 1]?.id ??
+        current.lastDroppedBranchId,
+    },
+  };
+};
+
+export const compactFreeTraceStore = (
+  store: HeatCapacityFreeTraceStore,
+): HeatCapacityFreeTraceStore => {
+  const compactedTrials = store.traceTrials.map(compactFreeTraceTrial);
+  const fallbackActiveTrialId = [...compactedTrials]
+    .reverse()
+    .find((trial) => trial.status === 'active')?.id ?? null;
+  const activeTrialId = compactedTrials.some((trial) => (
+    trial.id === store.activeTraceTrialId && trial.status === 'active'
+  ))
+    ? store.activeTraceTrialId
+    : fallbackActiveTrialId;
+  const normalizedTrials = compactedTrials.map((trial) => (
+    trial.status === 'active' && trial.id !== activeTrialId
+      ? { ...trial, status: 'discarded' as const }
+      : trial
+  ));
+  return {
+    ...store,
+    activeTraceTrialId: activeTrialId,
+    traceTrials: normalizedTrials,
+    compaction: store.compaction ?? createDefaultStoreCompaction(),
   };
 };
 
@@ -511,7 +878,7 @@ export const archiveCurrentFreeTraceBranchForRecordInvalidation = (
   const archivedBranch = traceTrial.branches[branchIndex];
   const newBranchId = `branch-${traceTrial.nextBranchIndex}`;
   const newBranch = createEmptyFreeTraceBranch(newBranchId, archivedBranch.id);
-  const nextTraceTrial: HeatCapacityFreeTraceTrial = {
+  const nextTraceTrial = compactFreeTraceTrial({
     ...traceTrial,
     activeBranchId: newBranchId,
     nextBranchIndex: traceTrial.nextBranchIndex + 1,
@@ -525,7 +892,7 @@ export const archiveCurrentFreeTraceBranchForRecordInvalidation = (
       ...traceTrial.branches.slice(branchIndex + 1),
       newBranch,
     ],
-  };
+  });
   const nextStore = {
     ...store,
     activeTraceTrialId: traceTrialId,
@@ -537,6 +904,6 @@ export const archiveCurrentFreeTraceBranchForRecordInvalidation = (
     store: nextStore,
     archivedBranchId: archivedBranch.id,
     newBranchId,
-    branchCount: nextTraceTrial.branches.length,
+    branchCount: getFreeTraceTrialBranchCount(nextTraceTrial),
   };
 };

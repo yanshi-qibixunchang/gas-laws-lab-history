@@ -1,4 +1,5 @@
-import { Download, Loader2, X } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
+import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import {
   formatWorkbenchReleaseDate,
   getWorkbenchLocalizedText,
@@ -89,23 +90,20 @@ export const WorkbenchUpdateDialog = ({
   const showStatus = downloading || retrying || installing || failed;
 
   return (
-    <div className="studio-settings-overlay studio-update-overlay" role="presentation" onMouseDown={onClose}>
-      <section
-        className="studio-settings-window studio-update-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="studio-update-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="studio-settings-header studio-update-header">
-          <div>
-            <strong id="studio-update-title">{title}</strong>
-            <span>{body}</span>
-          </div>
-          <button type="button" className="studio-settings-close" aria-label={copy.later} onClick={onClose}>
-            <X size={15} />
-          </button>
-        </div>
+    <PromptDialogShell
+      title={title}
+      titleId="studio-update-title"
+      subtitle={body}
+      variant="task"
+      tone={failed ? 'warning' : 'standard'}
+      closeLabel={copy.later}
+      dismiss={{ closeButton: true, escape: true, backdrop: true }}
+      onRequestClose={onClose}
+      overlayClassName="studio-settings-overlay studio-update-overlay"
+      dialogClassName="studio-settings-window studio-update-dialog"
+      headerClassName="studio-settings-header studio-update-header"
+      closeButtonClassName="studio-settings-close"
+    >
         <div className="studio-update-body">
           <div className="studio-update-version-grid">
             <span>{copy.currentVersionLabel}</span>
@@ -191,7 +189,6 @@ export const WorkbenchUpdateDialog = ({
             </>
           )}
         </footer>
-      </section>
-    </div>
+    </PromptDialogShell>
   );
 };

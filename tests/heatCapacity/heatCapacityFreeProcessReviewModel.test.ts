@@ -34,6 +34,8 @@ assert.doesNotMatch(
   /const sampleIsStableForRecord|const createPumpingDiagnosis|const createReleaseDiagnosis|const createRecordingDiagnosis|const createRetakeDiagnosis/,
   'process review should not keep the old parallel diagnosis row builder after score-item diagnostics become the source of truth',
 );
+assert.match(processReviewModelSource, /本组计算尚未完成/);
+assert.doesNotMatch(processReviewModelSource, /整批计算|本轮计算/);
 
 const parts = createCompleteProcessReviewFixtureParts();
 const review = selectHeatCapacityFreeProcessReview({
@@ -249,10 +251,12 @@ assert.equal(
   'process review should keep standard summary under chart.standardReference.summary',
 );
 
-assert.equal(review.score.maxScore, 100);
+assert.equal(review.score.maxScore, 75);
 assert.equal(review.score.total !== null, true);
 assert.deepEqual(review.score.items.map((item) => item.id), ['pumping', 'release', 'recordChain', 'retake']);
-assert.deepEqual(review.diagnostics.map((row) => row.id), ['pumping', 'release', 'recording', 'retake']);
+assert.deepEqual(review.diagnostics.map((row) => row.id), ['pumping', 'release', 'recording', 'retake', 'calculation']);
+assert.equal(review.batchScore?.calculation.maxScore, 25);
+assert.equal(review.batchScore?.total, null);
 
 const selectReviewWithSnapshot = (
   id: string,

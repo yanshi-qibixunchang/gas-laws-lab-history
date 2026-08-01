@@ -12,6 +12,9 @@ const topCommandsSource = readFileSync(new URL('../../src/features/workbench/Wor
 const source = `${workbenchSource}\n${aboutSource}\n${buildNoticeSource}\n${buildNoticeContractSource}\n${buildNoticeContentSource}\n${topCommandsSource}`;
 const emptyWorkspaceSource = readFileSync(new URL('../../src/features/workbench/WorkbenchEmptyWorkspace.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
+const promptShellStyles = readFileSync(new URL('../../src/components/prompts/PromptDialogShell.css', import.meta.url), 'utf8');
+const promptFeedbackSource = readFileSync(new URL('../../src/components/prompts/PromptFeedback.tsx', import.meta.url), 'utf8');
+const promptFeedbackStyles = readFileSync(new URL('../../src/components/prompts/PromptFeedback.css', import.meta.url), 'utf8');
 const rootStyles = readFileSync(new URL('../../index.css', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
   name?: string;
@@ -69,6 +72,8 @@ const indexOfOrFail = (haystack: string, needle: string, message: string) => {
 
 assert.ok(existsSync(new URL('../../public/fonts/NotoSansSC/NotoSansSC-Variable.ttf', import.meta.url)), 'bundled Noto Sans SC variable font should exist');
 assert.ok(existsSync(new URL('../../public/fonts/NotoSansSC/OFL.txt', import.meta.url)), 'bundled Noto Sans SC OFL text should exist');
+assert.ok(existsSync(new URL('../../public/fonts/GasLawsLabSerif/GasLawsLabSerif-Semibold.ttf', import.meta.url)), 'bundled product-title serif subset should exist');
+assert.ok(existsSync(new URL('../../public/fonts/GasLawsLabSerif/NOTICE.txt', import.meta.url)), 'bundled product-title serif subset notice should exist');
 for (const legacyFontPath of [
   '../../public/fonts/Inter-300.woff2',
   '../../public/fonts/Inter-400.woff2',
@@ -86,8 +91,10 @@ for (const legacyFontPath of [
 }
 assert.match(rootStyles, /font-family:\s*"Noto Sans SC"[\s\S]*font-weight:\s*100 900/, 'global styles should register the shared Noto Sans SC variable font');
 assert.match(rootStyles, /--app-font-ui:\s*"Noto Sans SC"/, 'global UI typography should use Noto Sans SC');
+assert.match(rootStyles, /font-family:\s*"Gas Laws Lab Serif"[\s\S]*font-weight:\s*600/, 'global styles should register the licensed product-title serif subset');
+assert.match(rootStyles, /--app-font-product-title:\s*"Gas Laws Lab Serif"/, 'product introduction titles should use the bundled serif subset');
 assert.doesNotMatch(rootStyles, /font-family:\s*"(?:Inter|Playfair Display)"/, 'global styles should not register the superseded Inter or Playfair Display schemes');
-assert.match(fontLicenseNotes, /Noto Sans SC[\s\S]*JetBrains Mono/, 'source font notices should list the two retained font families');
+assert.match(fontLicenseNotes, /Noto Sans SC[\s\S]*Gas Laws Lab Serif[\s\S]*JetBrains Mono/, 'source font notices should list the retained UI fonts and the product-title subset');
 assert.doesNotMatch(fontLicenseNotes, /\bInter\b|Playfair Display/, 'source font notices should not retain superseded families');
 assert.equal(generatedFontLicenseNotes, fontLicenseNotes, 'generated font license notes should stay synchronized with the source notice');
 assert.doesNotMatch(buildNoticeContentSource, /\bInter\b|Playfair Display/, 'localized build notices should not claim superseded font families');
@@ -209,8 +216,8 @@ assert.match(
 );
 assert.match(
   appSource,
-  /document\.documentElement\.lang = initialGeneralSettings\.language;[\s\S]*document\.title = getWorkbenchAppBrandName\(initialGeneralSettings\.language\)/,
-  'restart and persistence-failure startup should restore the title from the persisted language',
+  /document\.documentElement\.lang = generalSettings\.language;[\s\S]*document\.title = getWorkbenchAppBrandName\(generalSettings\.language\)/,
+  'restart and persistence-failure startup should restore the title from the authoritative committed language',
 );
 assert.ok(!source.includes('Heat Capacity Ratio Lab with Hard Sphere'), 'workbench copy should not use the old hard-sphere product subtitle');
 assert.ok(!source.includes('开始新的硬球工作台'), 'empty-state copy should not describe the app as a hard-sphere workbench');
@@ -224,14 +231,16 @@ const newMenuSource = topCommandsSource.slice(
 );
 assert.ok(
   newMenuSource.indexOf("onCreateFile('ideal')") < newMenuSource.indexOf("onCreateFile('heatCapacity')")
-    && newMenuSource.indexOf("onCreateFile('heatCapacity')") < newMenuSource.indexOf("onCreateFile('standard')"),
-  'New Study menu should order entries as ideal / heat capacity / standard',
+    && newMenuSource.indexOf("onCreateFile('heatCapacity')") < newMenuSource.indexOf("onCreateFile('heatCapacityPistonOscillation')")
+    && newMenuSource.indexOf("onCreateFile('heatCapacityPistonOscillation')") < newMenuSource.indexOf("onCreateFile('standard')"),
+  'New Study menu should order entries as ideal / adiabatic / piston oscillation / standard',
 );
 
 assert.ok(
   emptyWorkspaceSource.indexOf("onCreateFile('ideal')") < emptyWorkspaceSource.indexOf("onCreateFile('heatCapacity')")
-    && emptyWorkspaceSource.indexOf("onCreateFile('heatCapacity')") < emptyWorkspaceSource.indexOf("onCreateFile('standard')"),
-  'empty-state create actions should order entries as ideal / heat capacity / standard',
+    && emptyWorkspaceSource.indexOf("onCreateFile('heatCapacity')") < emptyWorkspaceSource.indexOf("onCreateFile('heatCapacityPistonOscillation')")
+    && emptyWorkspaceSource.indexOf("onCreateFile('heatCapacityPistonOscillation')") < emptyWorkspaceSource.indexOf("onCreateFile('standard')"),
+  'empty-state create actions should order entries as ideal / adiabatic / piston oscillation / standard',
 );
 
 const settingsMenuSource = topCommandsSource.slice(
@@ -276,7 +285,9 @@ assert.match(workbenchSource, /appVersion=\{WORKBENCH_APP_VERSION\}/, 'about win
 assert.ok(source.includes('getWorkbenchSessionCacheSummary(files, workbenchCopy)'), 'about window should summarize current workspace session files');
 assert.ok(aboutSource.includes('<ChevronRight size={17} />'), 'check rows should use a right-arrow icon when idle');
 assert.ok(aboutSource.includes('<Loader2 size={15} />'), 'check rows should use a spinner icon while checking');
-assert.ok(aboutSource.includes('studio-about-result-toast'), 'about window should show centered check-result feedback');
+assert.doesNotMatch(aboutSource, /studio-about-result-toast/, 'about results should no longer use a private centered toast');
+assert.match(workbenchSource, /<PromptToastRegion[\s\S]*messages=\{promptToastMessages\}/, 'about results should join the shared global toast region');
+assert.match(promptFeedbackSource, /export const PromptToastRegion/, 'about results should reuse the formal prompt toast component');
 assert.doesNotMatch(source, /buildPlaceholder/, 'about copy should remove the old build-placeholder field entirely');
 assert.doesNotMatch(styles, /studio-about-build-note/, 'about CSS should remove the old build-placeholder note class');
 assert.doesNotMatch(aboutSource, /copy\.buildPlaceholder/, 'about build notes should no longer show the placeholder release text');
@@ -353,6 +364,7 @@ assert.match(buildNoticeNavSource, /className="studio-build-notice-nav-item"/, '
 assert.doesNotMatch(buildNoticeNavSource, /section\.eyebrow/, 'build notice navigation entries should not repeat eyebrow labels');
 assert.doesNotMatch(buildNoticeNavSource, /<strong>\{section\.title\}<\/strong>/, 'build notice navigation entries should not render a two-line card title');
 assert.doesNotMatch(buildNoticeSource, /studio-settings-/, 'build notice secondary window should use standalone classes instead of patching settings-window classes');
+assert.match(buildNoticeSource, /<PromptDialogShell/, 'build notice should reuse the shared notice/task shell');
 
 for (const expression of [
   'about: {',
@@ -372,9 +384,9 @@ for (const expression of [
 }
 
 assert.match(
-  styles,
-  /\.studio-about-window[\s\S]*\.studio-about-card[\s\S]*\.studio-about-row[\s\S]*\.studio-about-action-row[\s\S]*\.studio-about-result-toast/,
-  'about window CSS should define the engineering list layout and centered result toast',
+  `${styles}\n${promptFeedbackStyles}`,
+  /\.studio-about-window[\s\S]*\.studio-about-card[\s\S]*\.studio-about-row[\s\S]*\.studio-about-action-row[\s\S]*\.prompt-toast-region/,
+  'about window should keep its engineering list layout while result feedback uses the shared toast region',
 );
 assert.match(
   styles,
@@ -387,19 +399,19 @@ assert.match(
   'build notice CSS should define the secondary window, overlay navigation drawer, and dimmed body state',
 );
 assert.match(
-  styles,
-  /\.studio-build-notice-overlay\s*\{[\s\S]*position: fixed;[\s\S]*display: grid;[\s\S]*place-items: center;/,
-  'build notice overlay should be a standalone modal overlay',
+  promptShellStyles,
+  /\.prompt-dialog-overlay\.prompt-dialog-overlay\[data-prompt-shell-overlay='true'\][\s\S]*position: fixed;[\s\S]*display: grid;[\s\S]*place-items: center;/,
+  'build notice should inherit the common centered modal mask',
 );
 assert.match(
   styles,
-  /\.studio-build-notice-window\s*\{[\s\S]*display: grid;[\s\S]*grid-template-rows: auto minmax\(0, 1fr\);[\s\S]*overflow: hidden;/,
-  'build notice window should carry its own modal-window structure',
+  /\.studio-build-notice-window\s*\{[\s\S]*grid-template-rows: auto minmax\(0, 1fr\);/,
+  'build notice should retain only its document-specific row layout',
 );
 assert.match(
-  styles,
-  /\.studio-build-notice-close\s*\{[\s\S]*width: 30px;[\s\S]*height: 30px;/,
-  'build notice close button should use its own close-button class',
+  promptShellStyles,
+  /\.prompt-dialog-close\.prompt-dialog-close\s*\{[\s\S]*width: 27px;[\s\S]*height: 27px;/,
+  'build notice close button should inherit the shared compact title-bar control',
 );
 assert.match(styles, /\.studio-build-notice-body-dimmed/, 'build notice CSS should define a dimmed body state');
 assert.match(styles, /\.studio-build-notice-rail \{[\s\S]*background:/, 'build notice fixed rail should be visually separated by a color block');

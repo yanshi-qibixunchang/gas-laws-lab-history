@@ -66,14 +66,14 @@ assert.match(
 
 assert.match(
   source,
-  /activeFile\.kind === 'heatCapacity' \? renderHeatCapacityModeControl\(\) : \([\s\S]*className=\{`studio-run-control studio-run-control-\$\{activeFile\.runState === 'running' \? 'pause' : 'start'\}`\}/,
-  'heat capacity should use the unified mode bar while standard previews keep the compact run/pause button',
+  /activeFile\.kind === 'heatCapacity'[\s\S]*?\? renderHeatCapacityModeControl\(\)[\s\S]*?activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*?\? null[\s\S]*?: \([\s\S]*className=\{`studio-run-control studio-run-control-\$\{activeFile\.runState === 'running' \? 'pause' : 'start'\}`\}/,
+  'heat capacity should use the unified mode bar, piston preview should expose no runtime controls, and standard or ideal previews should keep the compact run/pause button',
 );
 
 assert.match(
   source,
-  /const heatCapacityActiveMode: HeatCapacityMode = activeFile\.heatCapacityMode;/,
-  'heat capacity mode bar should use the active file mode directly because every quality tier supports Demo and Guide',
+  /const heatCapacityActiveMode: HeatCapacityMode \| null = activeFile\.heatCapacityMode;/,
+  'the heat-capacity mode bar should use the nullable active mode directly so Explore leaves all three formal segments inactive',
 );
 
 assert.match(
@@ -134,8 +134,8 @@ assert.match(
 
 assert.match(
   source,
-  /const handleHeatCapacityModeSegmentClick[\s\S]*mode === 'free'[\s\S]*autoDemoInteractionLocked[\s\S]*switchHeatCapacityMode\('free'\)[\s\S]*data-heat-capacity-mode="free"[\s\S]*handleHeatCapacityModeSegmentClick\('free'\)/,
-  'Free mode button should restore its independent Free session through the shared switcher',
+  /const handleHeatCapacityModeSegmentClick[\s\S]*mode === 'free'[\s\S]*setHeatCapacityBatchSetupRequestedFileId[\s\S]*activateHeatCapacityModeFromExplore\('free'\)[\s\S]*data-heat-capacity-mode="free"[\s\S]*handleHeatCapacityModeSegmentClick\('free'\)/,
+  'the Free mode button should request group setup when needed or restore its independent session from Explore',
 );
 
 const terminateAutoDemoStart = source.indexOf('const terminateHeatCapacityAutoDemo = () => {');
@@ -145,8 +145,8 @@ assert.notEqual(terminateAutoDemoEnd, -1, 'heat capacity auto-demo termination h
 const terminateAutoDemoBody = source.slice(terminateAutoDemoStart, terminateAutoDemoEnd);
 assert.match(
   terminateAutoDemoBody,
-  /stopHeatCapacityTeachingModeToFree\('demo'\)/,
-  'terminating auto demo should clear the Demo session and restore the suspended Free session',
+  /exitHeatCapacityTeachingModeToExplore\('demo'\)/,
+  'terminating auto demo should clear the Demo session and return to a clean Explore base',
 );
 assert.doesNotMatch(
   terminateAutoDemoBody,
@@ -194,8 +194,8 @@ assert.doesNotMatch(
 
 assert.match(
   source,
-  /activeFile\.kind !== 'heatCapacity' && \(activeFile\.runState === 'running' \|\| activeFile\.runState === 'paused'\) \? \([\s\S]*?className="studio-run-control studio-run-control-stop"/,
-  'the header stop button should remain for standard previews and heat capacity should stop through its mode bar',
+  /\(activeFile\.kind === 'standard' \|\| activeFile\.kind === 'ideal'\) &&[\s\S]*?\(activeFile\.runState === 'running' \|\| activeFile\.runState === 'paused'\) \? \([\s\S]*?className="studio-run-control studio-run-control-stop"/,
+  'the header stop button should remain only for standard and ideal previews',
 );
 
 assert.doesNotMatch(

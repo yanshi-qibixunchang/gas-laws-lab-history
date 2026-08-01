@@ -49,13 +49,13 @@ assert.doesNotMatch(
 
 assert.match(
   source,
-  /!isWorkbenchEmpty \? \([\s\S]*?<aside[\s\S]*?className=\{`studio-current-params/,
+  /!isWorkbenchEmpty && activeFile\.kind !== 'heatCapacityPistonOscillation' \? \([\s\S]*?<aside[\s\S]*?className=\{`studio-current-params/,
   'Current Parameters panel should only render after a study file exists',
 );
 
 assert.match(
   source,
-  /!isWorkbenchEmpty && parametersCollapsed \? \([\s\S]*?studio-right-rail[\s\S]*?\) : null/,
+  /!isWorkbenchEmpty && effectiveParametersCollapsed \? \([\s\S]*?studio-right-rail[\s\S]*?\) : null/,
   'Current Parameters rail should only render after a study file exists',
 );
 
@@ -73,8 +73,8 @@ assert.match(
 
 assert.match(
   emptyWorkspaceSource,
-  /copy\.files\.createIdeal[\s\S]*?copy\.files\.createHeatCapacity[\s\S]*?copy\.files\.createStandard/,
-  'empty workbench should offer direct new-study actions in ideal / heat / standard order',
+  /copy\.files\.createIdeal[\s\S]*?copy\.files\.createHeatCapacity[\s\S]*?copy\.files\.createHeatCapacityPistonOscillation[\s\S]*?copy\.files\.createStandard/,
+  'empty workbench should offer direct new-study actions in ideal / adiabatic / piston oscillation / standard order',
 );
 
 assert.match(

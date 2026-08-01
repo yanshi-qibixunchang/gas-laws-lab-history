@@ -21,9 +21,9 @@ const heatTwo = createDefaultHeatCapacityFile(2);
 
 assert.equal(heatOne.kind, 'heatCapacity');
 assert.equal(heatOne.id, 'heatCapacity-001');
-assert.equal(heatOne.name, 'Heat Capacity Ratio - 001');
+assert.equal(heatOne.name, 'Adiabatic Expansion - 001');
 assert.equal(heatTwo.id, 'heatCapacity-002');
-assert.equal(heatTwo.name, 'Heat Capacity Ratio - 002');
+assert.equal(heatTwo.name, 'Adiabatic Expansion - 002');
 assert.deepEqual(heatOne.visiblePanels, ['preview', 'realtime']);
 assert.equal('selectedHeatCapacityPanel' in heatOne, false, 'Heat Capacity should not keep the removed duplicate selected-panel state');
 assert.ok(
@@ -72,7 +72,7 @@ const migrated = decodeWorkbenchSession({
 
 assert.equal(migrated.files.length, 1);
 assert.equal(migrated.files[0].kind, 'heatCapacity');
-assert.equal(migrated.files[0].name, 'Heat Capacity Ratio - 007');
+assert.equal(migrated.files[0].name, 'Adiabatic Expansion - 007');
 assert.equal(migrated.files[0].liveWorkspaceSplitRatio, 0.62);
 assert.equal('selectedHeatCapacityPanel' in migrated.files[0], false, 'legacy selected-panel state should be discarded');
 assert.equal(migrated.selectedPanel, 'realtime');
@@ -168,12 +168,17 @@ const workbenchSource = readFileSync(
   'utf8',
 );
 
-assert.match(workbenchSource, /heatCapacityStudy:\s*'空气比热容比实验'/);
-assert.match(workbenchSource, /heatCapacityStudy:\s*'Heat Capacity Ratio Experiment'/);
+assert.match(workbenchSource, /heatCapacityStudy:\s*'空气热容比（绝热膨胀法）'/);
+assert.match(workbenchSource, /heatCapacityPistonOscillationStudy:\s*'空气热容比（活塞振动法）'/);
+assert.match(workbenchSource, /heatCapacityStudy:\s*'Heat Capacity Ratio \(Adiabatic\)'/);
+assert.match(workbenchSource, /heatCapacityPistonOscillationStudy:\s*'Heat Capacity Ratio \(Piston\)'/);
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-air-result/, 'this batch must not render a formal heat capacity result panel');
 assert.match(workbenchSource, /createHeatCapacityPanels/);
-assert.match(workbenchSource, /setParametersCollapsed\(file\.kind === 'heatCapacity'\)/);
+assert.match(workbenchSource, /setParametersCollapsed\(shouldCollapseWorkbenchParameterSidebar\(file\)\)/);
+assert.match(
+  workbenchSource,
+  /file\?\.kind === 'heatCapacity'[\s\S]*file\?\.kind === 'heatCapacityPistonOscillation'/,
+);
 assert.match(workbenchSource, /workbenchLayoutDefaults\.heatCapacity\.liveWorkspaceSplitRatio/);
-assert.doesNotMatch(workbenchSource, /heatCapacity[\s\S]{0,120}standardResultsLayout/);
 
 console.log('workbenchHeatCapacityFile tests passed');

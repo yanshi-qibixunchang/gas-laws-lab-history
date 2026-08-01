@@ -3,19 +3,27 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   createDefaultHeatCapacityFile,
+  createDefaultHeatCapacityPistonOscillationFile,
   createDefaultIdealFile,
   createDefaultStandardFile,
+  type WorkbenchHeatCapacityPistonOscillationState,
 } from '../../src/features/workbench/workbenchState.ts';
 import { cloneWorkbenchFiles } from '../../src/features/workbench/workbenchFileSnapshot.ts';
 
 const heatCapacity = createDefaultHeatCapacityFile(1);
 const ideal = createDefaultIdealFile(1);
 const standard = createDefaultStandardFile(1);
-const cloned = cloneWorkbenchFiles([heatCapacity, ideal, standard]);
+const pistonOscillation: WorkbenchHeatCapacityPistonOscillationState = {
+  ...createDefaultHeatCapacityPistonOscillationFile(1),
+  name: 'Heat Capacity Ratio - 009',
+  previewCameraPreset: 'side',
+};
+const cloned = cloneWorkbenchFiles([heatCapacity, ideal, standard, pistonOscillation]);
 
 assert.notEqual(cloned[0], heatCapacity);
 assert.notEqual(cloned[1], ideal);
 assert.notEqual(cloned[2], standard);
+assert.notEqual(cloned[3], pistonOscillation);
 
 if (cloned[0].kind !== 'heatCapacity') throw new Error('expected cloned Heat Capacity file');
 heatCapacity.heatCapacityFreeParameterDraft.ambientPressureKPa = 88;
@@ -40,6 +48,17 @@ ideal.pointsByRelation.pt.push({
   inverseVolume: 1,
 });
 assert.equal(cloned[1].pointsByRelation.pt.length, 0);
+
+if (cloned[3].kind !== 'heatCapacityPistonOscillation') {
+  throw new Error('expected cloned piston-oscillation file');
+}
+pistonOscillation.previewCameraPreset = 'top';
+assert.equal(cloned[3].previewCameraPreset, 'side');
+assert.equal(
+  cloned[3].name,
+  'Heat Capacity Ratio - 009',
+  'piston-oscillation custom names must not be migrated as old adiabatic-expansion names',
+);
 
 const workbenchSource = readFileSync(
   join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx'),

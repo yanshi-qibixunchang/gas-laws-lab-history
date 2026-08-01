@@ -34,6 +34,7 @@ import {
   completeHeatCapacityFreePreheatWorkbenchState,
   completeHeatCapacityGuidePreheatWorkbenchState,
   completeHeatCapacityTeachingModeWorkbenchState,
+  configureHeatCapacityFreeBatchWorkbenchState,
   createDefaultHeatCapacityFile,
   deriveHeatCapacityFreeWorkbenchAttemptWaitTimer,
   enterHeatCapacityFreeModeWorkbenchState,
@@ -138,7 +139,11 @@ const activateFreshMode = (
   const now = nextTime(clock, 100);
   if (mode === 'demo') return prepareHeatCapacityAutoDemoStart(file, now);
   if (mode === 'guide') return startHeatCapacityGuideWorkbenchState(file, now);
-  return enterHeatCapacityFreeModeWorkbenchState(file, now);
+  return configureHeatCapacityFreeBatchWorkbenchState(
+    enterHeatCapacityFreeModeWorkbenchState(file, now),
+    3,
+    nextTime(clock, 1),
+  );
 };
 
 const stabilizePressureZero = (

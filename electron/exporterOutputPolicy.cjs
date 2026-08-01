@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
-const MAX_EXPORTER_OUTPUT_FILES = 512;
+const MAX_EXPORTER_OUTPUT_FILES = 4096;
 const MAX_EXPORTER_PATH_CHARACTERS = 32_768;
 
 const isPathInside = (rootPath, candidatePath) => {

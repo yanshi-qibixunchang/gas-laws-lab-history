@@ -815,6 +815,16 @@
   display: grid;
 }
 
+.hpr-scoring-rule-note {
+  border-bottom: 1px solid var(--hpr-border-soft);
+  background: var(--hpr-process-note-bg);
+  color: var(--hpr-muted);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
 .hpr-diagnosis-row {
   display: grid;
   grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 72px;
@@ -926,8 +936,30 @@
   color: var(--hpr-status-insufficient-data);
 }
 
-.hpr-diagnosis-details {
+.hpr-diagnosis-details-shell {
   display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 240ms cubic-bezier(0.2, 0.74, 0.24, 1),
+    visibility 0s linear 460ms;
+}
+
+.hpr-diagnosis-details-shell-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    grid-template-rows 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 240ms cubic-bezier(0.2, 0.74, 0.24, 1),
+    visibility 0s linear 0s;
+}
+
+.hpr-diagnosis-details {
+  min-height: 0;
+  overflow: hidden;
   border-top: 1px solid var(--hpr-border-soft);
   margin-left: 26px;
   background: color-mix(in srgb, var(--hpr-panel-bg-muted) 54%, transparent);

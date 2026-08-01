@@ -18,6 +18,7 @@ import {
   completeHeatCapacityFreePreheatWorkbenchState,
   completeHeatCapacityGuidePreheatWorkbenchState,
   completeHeatCapacityTeachingModeWorkbenchState,
+  configureHeatCapacityFreeBatchWorkbenchState,
   createDefaultHeatCapacityFile,
   deriveHeatCapacityFreeWorkbenchAttemptWaitTimer,
   enterHeatCapacityFreeModeWorkbenchState,
@@ -49,6 +50,9 @@ import {
   calculateFreeHeatCapacityTrialSignals,
   createHeatCapacityFreeTrial,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import {
+  projectWorkbenchPersistenceV3File,
+} from '../../src/features/workbench/persistenceV3/projection.ts';
 import {
   createHeatCapacityGuideTrial,
 } from '../../src/domain/heatCapacity/heatCapacityGuideTrialModel.ts';
@@ -308,10 +312,21 @@ const advanceFreeFixtureWait = (
 const createCompletedFreeFixture = (
   source: WorkbenchHeatCapacityState,
   clock: GuideFixtureClock,
+  waitForRecommendedDuration = true,
+  onRecordCheckpoint?: (
+    stage: 'u1-recorded' | 'u2-recorded',
+    file: WorkbenchHeatCapacityState,
+    clock: GuideFixtureClock,
+  ) => void,
 ) => {
   let file = enterHeatCapacityFreeModeWorkbenchState(
     source,
     advanceGuideFixtureClock(clock, 100),
+  );
+  file = configureHeatCapacityFreeBatchWorkbenchState(
+    file,
+    3,
+    advanceGuideFixtureClock(clock, 10),
   );
   file = powerHeatCapacityWorkbenchFile(file, true, advanceGuideFixtureClock(clock, 100));
   file = completeHeatCapacityFreePreheatWorkbenchState(
@@ -354,13 +369,16 @@ const createCompletedFreeFixture = (
     16,
     advanceGuideFixtureClock(clock, 100),
   );
-  file = advanceFreeFixtureWait(file, clock);
+  if (waitForRecommendedDuration) {
+    file = advanceFreeFixtureWait(file, clock);
+  }
   const u1Attempt = applyHeatCapacityFreeRecordWorkbenchState(
     file,
     'u1',
     advanceGuideFixtureClock(clock, 10),
   );
   assert.equal(u1Attempt.accepted, true);
+  onRecordCheckpoint?.('u1-recorded', u1Attempt.file, clock);
   file = setHeatCapacityFreeStopcockOpen(
     u1Attempt.file,
     true,
@@ -379,13 +397,16 @@ const createCompletedFreeFixture = (
     file,
     advanceGuideFixtureClock(clock, HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs),
   );
-  file = advanceFreeFixtureWait(file, clock);
+  if (waitForRecommendedDuration) {
+    file = advanceFreeFixtureWait(file, clock);
+  }
   const u2Attempt = applyHeatCapacityFreeRecordWorkbenchState(
     file,
     'u2',
     advanceGuideFixtureClock(clock, 10),
   );
   assert.equal(u2Attempt.accepted, true);
+  onRecordCheckpoint?.('u2-recorded', u2Attempt.file, clock);
   file = powerHeatCapacityWorkbenchFile(u2Attempt.file, false, advanceGuideFixtureClock(clock, 100));
   assert.equal(file.heatCapacityFreeActiveAttempt, null);
   assert.notEqual(file.heatCapacityFreeTrials.at(-1)?.standardReferenceSnapshot, null);
@@ -399,6 +420,11 @@ const createFreePumpingFixture = (
   let file = enterHeatCapacityFreeModeWorkbenchState(
     source,
     advanceGuideFixtureClock(clock, 100),
+  );
+  file = configureHeatCapacityFreeBatchWorkbenchState(
+    file,
+    3,
+    advanceGuideFixtureClock(clock, 10),
   );
   file = powerHeatCapacityWorkbenchFile(file, true, advanceGuideFixtureClock(clock, 100));
   file = completeHeatCapacityFreePreheatWorkbenchState(
@@ -446,11 +472,12 @@ const freeCapturedAtMs = advanceGuideFixtureClock(freeFixtureClock, 10);
 
 for (const index of [1, 2, 3, 20]) {
   const pristineFreeFile = createDefaultHeatCapacityFile(index);
-  const pristineFreeStore = suspendHeatCapacityModeSession(
+  const pristineFreeSuspendedFile = suspendHeatCapacityModeSession(
     pristineFreeFile,
     null,
     1_000 + index,
-  ).heatCapacityModeSessions;
+  );
+  const pristineFreeStore = pristineFreeSuspendedFile.heatCapacityModeSessions;
   const normalizedPristineFree = normalizeHeatCapacityModeSessionStore(
     cloneUnknown(pristineFreeStore),
     pristineFreeFile.id,
@@ -465,6 +492,27 @@ for (const index of [1, 2, 3, 20]) {
     pristineFreeStore.free,
     'the pristine Free exception must preserve the original current-v2 record without rewriting user data',
   );
+  const pristineFreeRestored = restoreHeatCapacityModeSession(
+    pristineFreeSuspendedFile,
+    'free',
+    2_000 + index,
+  );
+  assert.notEqual(pristineFreeRestored, null);
+  if (pristineFreeRestored) {
+    const pristineFreeResuspended = suspendHeatCapacityModeSession(
+      pristineFreeRestored,
+      null,
+      3_000 + index,
+    );
+    assert.equal(
+      normalizeHeatCapacityModeSessionStore(
+        cloneUnknown(pristineFreeResuspended.heatCapacityModeSessions),
+        pristineFreeFile.id,
+      ).free.status,
+      'suspended',
+      'restoring and re-suspending a pristine Free mode must remain in the persistable-state closure',
+    );
+  }
 }
 
 const partiallyChangedPristineFreeFile = createDefaultHeatCapacityFile(21);
@@ -662,6 +710,16 @@ const getFreeCollectionCopies = (store: unknown) => {
   const freeSnapshot = getEntryRecord(store, 'free').snapshot as Record<string, unknown>;
   const runtime = freeSnapshot.free as Record<string, unknown>;
   const domain = runtime.heatCapacityFreeRealDomain as Record<string, unknown>;
+  const experimentGroups = runtime.heatCapacityFreeExperimentGroups as Record<string, unknown>;
+  const groupCopies = (experimentGroups.groups as Record<string, unknown>[] ?? []).map(
+    (group) => {
+      const runSeries = group.runSeries as Record<string, unknown>;
+      return {
+        traceStore: runSeries.traceStore as Record<string, unknown>,
+        trials: runSeries.trials as Record<string, unknown>[],
+      };
+    },
+  );
   return [
     {
       traceStore: runtime.heatCapacityFreeTraceStore as Record<string, unknown>,
@@ -671,6 +729,7 @@ const getFreeCollectionCopies = (store: unknown) => {
       traceStore: domain.traceStore as Record<string, unknown>,
       trials: domain.trials as Record<string, unknown>[],
     },
+    ...groupCopies,
   ];
 };
 
@@ -681,16 +740,121 @@ const semanticFreeSource = createCompletedFreeFixture(
 );
 const completeFreeTrial = semanticFreeSource.heatCapacityFreeTrials.at(-1)!;
 const semanticFreeCapturedAtMs = advanceGuideFixtureClock(semanticFreeFixtureClock, 10);
-const semanticFreeStore = suspendHeatCapacityModeSession(
+const semanticFreeSuspendedFile = suspendHeatCapacityModeSession(
   semanticFreeSource,
   null,
   semanticFreeCapturedAtMs,
-).heatCapacityModeSessions;
+);
+const semanticFreeStore = semanticFreeSuspendedFile.heatCapacityModeSessions;
 assert.equal(
   normalizeHeatCapacityModeSessionStore(cloneUnknown(semanticFreeStore), semanticFreeSource.id)
     .free.status,
   'suspended',
   'a fully linked Free trial, trace, and standard reference must survive the mode-session boundary',
+);
+const semanticFreeV3Projection = projectWorkbenchPersistenceV3File(
+  semanticFreeSource,
+  93,
+);
+if (!semanticFreeV3Projection.ok) {
+  throw new Error(semanticFreeV3Projection.diagnostics[0].message);
+}
+const semanticFreeSuspendedV3Projection =
+  projectWorkbenchPersistenceV3File(
+    semanticFreeSuspendedFile,
+    93,
+  );
+if (!semanticFreeSuspendedV3Projection.ok) {
+  throw new Error(
+    semanticFreeSuspendedV3Projection.diagnostics[0].message,
+  );
+}
+const staleSuspendedSignalCache = cloneUnknown(
+  semanticFreeSuspendedFile,
+);
+for (const collection of getFreeCollectionCopies(
+  staleSuspendedSignalCache.heatCapacityModeSessions,
+)) {
+  const correctedSignals = collection.trials[0]
+    .correctedSignals as Record<string, unknown>;
+  correctedSignals.calculationVersion = 'log-pressure-v99';
+}
+for (const trials of [
+  staleSuspendedSignalCache.heatCapacityFreeTrials,
+  staleSuspendedSignalCache.heatCapacityFreeRealDomain.trials,
+  ...staleSuspendedSignalCache.heatCapacityFreeExperimentGroups.groups.map(
+    (group) => group.runSeries.trials,
+  ),
+]) {
+  const correctedSignals = trials[0]?.correctedSignals as unknown as Record<string, unknown> | null;
+  if (correctedSignals) correctedSignals.calculationVersion = 'log-pressure-v99';
+}
+const repairedSuspendedSignalCache =
+  projectWorkbenchPersistenceV3File(
+    staleSuspendedSignalCache,
+    93,
+  );
+if (!repairedSuspendedSignalCache.ok) {
+  throw new Error(
+    repairedSuspendedSignalCache.diagnostics[0].message,
+  );
+}
+assert.equal(
+  repairedSuspendedSignalCache.status,
+  'repaired-cache',
+  'suspended Free corrected-signal caches must be rebuilt from recorded voltages',
+);
+
+const earlyFreeFixtureClock: GuideFixtureClock = { nowMs: 300_000 };
+const earlyFreeSource = createCompletedFreeFixture(
+  createDefaultHeatCapacityFile(94),
+  earlyFreeFixtureClock,
+  false,
+  (stage, file, clock) => {
+    const capturedAtMs = clock.nowMs + 1;
+    const suspended = suspendHeatCapacityModeSession(file, null, capturedAtMs);
+    const normalized = normalizeHeatCapacityModeSessionStore(
+      cloneUnknown(suspended.heatCapacityModeSessions),
+      file.id,
+    );
+    assert.equal(
+      normalized.free.status,
+      'suspended',
+      `an early ${stage} active attempt must remain persistable`,
+    );
+    const restored = restoreHeatCapacityModeSession(
+      suspended,
+      'free',
+      capturedAtMs + 1,
+    );
+    assert.notEqual(restored, null);
+    if (restored) {
+      const reSuspended = suspendHeatCapacityModeSession(
+        restored,
+        null,
+        capturedAtMs + 2,
+      );
+      assert.equal(
+        normalizeHeatCapacityModeSessionStore(
+          cloneUnknown(reSuspended.heatCapacityModeSessions),
+          file.id,
+        ).free.status,
+        'suspended',
+        `an early ${stage} checkpoint must remain canonical after restore`,
+      );
+    }
+  },
+);
+const earlyFreeStore = suspendHeatCapacityModeSession(
+  earlyFreeSource,
+  null,
+  advanceGuideFixtureClock(earlyFreeFixtureClock, 10),
+).heatCapacityModeSessions;
+assert.equal(
+  normalizeHeatCapacityModeSessionStore(cloneUnknown(earlyFreeStore), earlyFreeSource.id)
+    .free.status,
+  'suspended',
+  'Free records accepted before the recommended wait duration are lower-quality data, not malformed persistence',
 );
 
 const progressedFreeWithZeroedCommonProjection = cloneUnknown(semanticFreeStore);
@@ -1074,12 +1238,32 @@ mutatePersistedFreeTraceBranches(currentMarkerShortU1WaitStore, (branch) => {
   ));
   const lastCloseEvent = closeEvents.at(-1);
   assert.ok(lastCloseEvent, 'completed current Free trace should include a pump-valve-close anchor');
-  lastCloseEvent.atS = (currentMarkerU1AtS as number) - 299.999;
+  const adjustedAtS = (currentMarkerU1AtS as number) - 299.999;
+  lastCloseEvent.atS = adjustedAtS;
+  const referencedSample = (branch.samples as Record<string, unknown>[]).find(
+    (sample) => sample.id === lastCloseEvent.traceSampleId,
+  );
+  assert.ok(referencedSample, 'the adjusted event must retain its referenced trace sample');
+  referencedSample.atS = adjustedAtS;
 });
 assert.equal(
   normalizeHeatCapacityModeSessionStore(currentMarkerShortU1WaitStore, semanticFreeSource.id).free.status,
+  'suspended',
+  'a short Free U1 wait is a quality outcome and must not make an otherwise linked trace unsavable',
+);
+
+const reversedU1AnchorStore = cloneUnknown(semanticFreeStore);
+mutatePersistedFreeTraceBranches(reversedU1AnchorStore, (branch) => {
+  for (const event of branch.events as Record<string, unknown>[]) {
+    if (event.type === 'pump-valve-close') {
+      event.atS = (currentMarkerU1AtS as number) + 0.001;
+    }
+  }
+});
+assert.equal(
+  normalizeHeatCapacityModeSessionStore(reversedU1AnchorStore, semanticFreeSource.id).free.status,
   'empty',
-  'a current config marker must measure the strict U1 wait from pump-valve-close, not the earlier pump stroke',
+  'a Free U1 record must still retain a pump-valve-close anchor at or before the record',
 );
 
 for (const corruption of [
@@ -1174,7 +1358,11 @@ for (const historyCorruption of [
 }
 
 const poweredRollbackSource = powerHeatCapacityWorkbenchFile(
-  createDefaultHeatCapacityFile(91),
+  configureHeatCapacityFreeBatchWorkbenchState(
+    createDefaultHeatCapacityFile(91),
+    3,
+    999,
+  ),
   true,
   1_000,
 );

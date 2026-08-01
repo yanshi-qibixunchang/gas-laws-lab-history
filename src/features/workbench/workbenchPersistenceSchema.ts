@@ -6,6 +6,7 @@ import {
   isPersistenceFiniteNumber as isFiniteNumber,
   isPersistenceRecord as isRecord,
 } from './workbenchPersistenceValue.ts';
+import { isWorkbenchFileKind } from './workbenchFileKind.ts';
 
 export const WORKBENCH_SESSION_SCHEMA_FAMILY = 'hard-sphere-lab.workbench-session' as const;
 export const WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY = 'hard-sphere-lab.experiment-file' as const;
@@ -61,10 +62,6 @@ export interface WorkbenchClosedFilesEnvelopeV1 {
   files: WorkbenchExperimentFileEnvelopeV1[];
 }
 
-const isWorkbenchFileKind = (value: unknown): value is WorkbenchFileKind => (
-  value === 'standard' || value === 'ideal' || value === 'heatCapacity'
-);
-
 export const isWorkbenchExperimentFileEnvelope = (
   value: unknown,
 ): value is WorkbenchExperimentFileEnvelopeV1 => (
@@ -76,6 +73,7 @@ export const isWorkbenchExperimentFileEnvelope = (
   isWorkbenchFileKind(value.kind) &&
   isFiniteNumber(value.createdAt) &&
   isFiniteNumber(value.updatedAt) &&
+  (value.lastOpenedAt === undefined || isFiniteNumber(value.lastOpenedAt)) &&
   isRecord(value.layout) &&
   isRecord(value.payload)
 );

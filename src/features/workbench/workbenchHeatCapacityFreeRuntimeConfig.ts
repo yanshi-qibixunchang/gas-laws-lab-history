@@ -40,8 +40,12 @@ export const normalizeHeatCapacityFreeSensorConfig = (
     config?.pressureMvPerKPa,
     DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.pressureMvPerKPa,
   )),
-  // One virtual instrument has one temperature calibration, shared by every mode.
-  temperatureMvAtAmbient: HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
+  // Preserve the per-environment ambient voltage while keeping one shared
+  // 25 C reference calibration across every mode.
+  temperatureMvAtAmbient: finiteNumberOr(
+    config?.temperatureMvAtAmbient,
+    HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
+  ),
   temperatureMvPerK: HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
   lagRate: clampNumber(
     finiteNumberOr(config?.lagRate, DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.lagRate),

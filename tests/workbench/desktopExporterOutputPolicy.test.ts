@@ -13,6 +13,13 @@ const { validateExporterOutputManifest } = require('../../electron/exporterOutpu
   }) => Promise<{ files: string[]; metadataPath: string | null; outDir: string }>;
 };
 const mainSource = readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8');
+const outputPolicySource = readFileSync(new URL('../../electron/exporterOutputPolicy.cjs', import.meta.url), 'utf8');
+
+assert.match(
+  outputPolicySource,
+  /const MAX_EXPORTER_OUTPUT_FILES = 4096;/,
+  'multi-group experiment packages should allow the bounded figure count produced by many retained groups',
+);
 
 assert.doesNotMatch(
   mainSource,

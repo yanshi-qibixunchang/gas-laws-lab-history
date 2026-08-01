@@ -7,7 +7,7 @@ const appSource = readFileSync(join(root, 'src', 'app', 'App.tsx'), 'utf8');
 const indexHtml = readFileSync(join(root, 'index.html'), 'utf8');
 const globalStyles = readFileSync(join(root, 'index.css'), 'utf8');
 
-assert.match(appSource, /<WorkbenchStudioPrototype \/>/, 'App entry should render the Workbench product');
+assert.match(appSource, /<WorkbenchStudioPrototype\b/, 'App entry should render the Workbench product after startup gating');
 assert.doesNotMatch(appSource, /SHOW_WORKBENCH_PROTOTYPE/, 'App entry should not keep the old constant-gated legacy branch');
 assert.doesNotMatch(appSource, /HeatCapacityProcessReviewDemo/, 'Standalone heat-capacity demo route should be removed from the app entry');
 assert.doesNotMatch(appSource, /IdealGasExperimentMode/, 'Standalone ideal-gas mode should not be imported by the app entry');

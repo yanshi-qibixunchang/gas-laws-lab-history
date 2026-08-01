@@ -19,6 +19,7 @@ export interface WorkbenchEmptyWorkspaceCopy {
     createStandard: string;
     createIdeal: string;
     createHeatCapacity: string;
+    createHeatCapacityPistonOscillation: string;
   };
 }
 
@@ -68,6 +69,15 @@ export const WorkbenchEmptyWorkspace = ({
         >
           <Gauge size={14} />
           {copy.files.createHeatCapacity}
+        </button>
+        <button
+          type="button"
+          className="studio-empty-command-row"
+          data-workbench-create-experiment="heatCapacityPistonOscillation"
+          onClick={() => onCreateFile('heatCapacityPistonOscillation')}
+        >
+          <Gauge size={14} />
+          {copy.files.createHeatCapacityPistonOscillation}
         </button>
         <button
           type="button"

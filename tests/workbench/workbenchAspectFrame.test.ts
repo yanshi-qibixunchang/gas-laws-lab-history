@@ -42,7 +42,7 @@ assert.match(
 
 assert.match(
   appSource,
-  /background:\s*'#11161b'/,
+  /background:\s*useFixedFrame \? '#11161b' : '#1a1f25'/,
   'Workbench desktop frame should use a darker matte backdrop outside the 16:9 stage',
 );
 
@@ -71,9 +71,9 @@ assert.match(
 );
 
 assert.equal(
-  (appSource.match(/<WorkbenchStudioPrototype \/>/g) ?? []).length,
+  (appSource.match(/<WorkbenchStudioPrototype\b/g) ?? []).length,
   1,
-  'fixed and responsive layouts must share one Workbench component identity',
+  'fixed and responsive layouts must share one Workbench component identity even when startup props are supplied',
 );
 
 assert.doesNotMatch(

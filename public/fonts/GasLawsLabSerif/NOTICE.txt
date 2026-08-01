@@ -1,0 +1,16 @@
+Gas Laws Lab Serif — product-introduction subset
+================================================
+
+This static 600-weight subset is derived from Noto Serif SC.
+
+Copyright 2017-2023 Adobe (http://www.adobe.com/), with Reserved Font Name
+'Source'.
+
+License: SIL Open Font License 1.1.
+Upstream: https://fonts.google.com/noto/specimen/Noto+Serif+SC
+
+The application-facing family name "Gas Laws Lab Serif" is used for this
+modified subset so it does not use the reserved "Source" name. The complete
+SIL Open Font License 1.1 text is distributed with the application at
+public/fonts/NotoSansSC/OFL.txt and is also included in the generated license
+materials.
